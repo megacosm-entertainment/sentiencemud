@@ -724,7 +724,7 @@ struct olc_point_area_data {
 #define LEVEL_NEWBIE		10
 #define MAX_TREASURES           1
 #define MAX_IMMORTAL_GROUPS     6
-#define MAX_ALIAS	        80 
+#define MAX_ALIAS	        80
 #define MAX_BUILDER_IDLE_MINUTES 30
 #define MAX_CHAT_ROOMS		100
 #define MAX_CHURCH_TREASURE     100
@@ -758,7 +758,7 @@ struct olc_point_area_data {
 #define MINS_PER_DEATH		8
 #define PORT_NORMAL	        9000
 #define PORT_TEST		9999
-#define PORT_RAE	        7777	
+#define PORT_RAE	        7777
 #define PORT_ALPHA		7680
 #define PULSE_AREA		(60 * PULSE_PER_SECOND)
 #define PULSE_AUCTION           (20 * PULSE_PER_SECOND)
@@ -5125,6 +5125,8 @@ enum trigger_index_enum {
 	TRIG_STRIPAFFECT,
 	TRIG_TAKEOFF,
 	TRIG_THROW,
+	TRIG_TOKEN_GIVEN,
+	TRIG_TOKEN_REMOVED,
 	TRIG_TOUCH,
 	TRIG_TURN,
 	TRIG_TURN_ON,		/* NIB : 20070121 */
@@ -6662,6 +6664,7 @@ void player_kill( CHAR_DATA *ch, CHAR_DATA *victim );
 int damage_to_corpse(int dam_type);
 OBJ_DATA *raw_kill( CHAR_DATA *victim, bool has_head, bool messages, int corpse_type);
 void resurrect_end( CHAR_DATA *ch );
+void enter_combat(CHAR_DATA *ch, CHAR_DATA *victim, bool silent);
 bool set_fighting( CHAR_DATA *ch, CHAR_DATA *victim);
 void stop_fighting( CHAR_DATA *ch, bool fBoth);
 void stop_holdup( CHAR_DATA *ch);
@@ -7669,6 +7672,7 @@ bool persist_load(void);
 LLIST *list_create(bool purge);
 LLIST *list_createx(bool purge, LISTCOPY_FUNC copier, LISTDESTROY_FUNC deleter);
 LLIST *list_copy(LLIST *src);
+void list_clear(LLIST *lp);
 void list_purge(LLIST *lp);
 void list_destroy(LLIST *lp);
 void list_cull(LLIST *lp);
@@ -7678,6 +7682,7 @@ bool list_addlink(LLIST *lp, void *data);
 bool list_appendlink(LLIST *lp, void *data);
 void list_remlink(LLIST *lp, void *data);
 void *list_nthdata(LLIST *lp, int nth);
+void list_remnthlink(LLIST *lp, register int nth);
 bool list_hasdata(LLIST *lp, register void *ptr);
 int list_size(LLIST *lp);
 void iterator_start(ITERATOR *it, LLIST *lp);
@@ -7715,6 +7720,8 @@ TOKEN_DATA *create_token(TOKEN_INDEX_DATA *token_index);
 
 BOOLEXP *new_boolexp();
 void free_boolexp(BOOLEXP *boolexp);
+
+int do_flee_full(CHAR_DATA *ch, char *argument, bool conceal, bool pursue);
 
 
 #endif /* !def __MERC_H__ */

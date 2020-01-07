@@ -2056,7 +2056,7 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
         }
     }
 
-    if (ch->quest != NULL) 
+    if (ch->quest != NULL)
 	check_quest_travel_room(ch, pRoomIndex);
 
     return;
@@ -4350,16 +4350,17 @@ int parse_direction(char *arg)
      */
     // Nib - changed it to reassigning the char* since all printf's are inefficient really...
     //		especially if this is used alot.
-    if (!str_cmp(arg, "n")) arg = "north";
-    else if (!str_cmp(arg, "e")) arg = "east";
-    else if (!str_cmp(arg, "s")) arg = "south";
-    else if (!str_cmp(arg, "w")) arg = "west";
-    else if (!str_cmp(arg, "u")) arg = "up";
-    else if (!str_cmp(arg, "d")) arg = "down";
-    else if (!str_cmp(arg, "nw")) arg = "northwest";
-    else if (!str_cmp(arg, "ne")) arg = "northeast";
-    else if (!str_cmp(arg, "sw")) arg = "southwest";
-    else if (!str_cmp(arg, "se")) arg = "southeast";
+    // Nib - changed this to return explicitly, no point in SEARCHING
+    if (!str_cmp(arg, "n")) return DIR_NORTH;
+    else if (!str_cmp(arg, "e")) return DIR_EAST;
+    else if (!str_cmp(arg, "s")) return DIR_SOUTH;
+    else if (!str_cmp(arg, "w")) return DIR_WEST;
+    else if (!str_cmp(arg, "u")) return DIR_UP;
+    else if (!str_cmp(arg, "d")) return DIR_DOWN;
+    else if (!str_cmp(arg, "nw")) return DIR_NORTHWEST;
+    else if (!str_cmp(arg, "ne")) return DIR_NORTHEAST;
+    else if (!str_cmp(arg, "sw")) return DIR_SOUTHWEST;
+    else if (!str_cmp(arg, "se")) return DIR_SOUTHEAST;
 
 /* Vizz - hmm - doesn't the use of str_prefix() here mean that if
  *        the argument string is, for example, "northeast" you'll flee north?!
@@ -7844,6 +7845,17 @@ void list_remref(LLIST *lp)
 	}
 }
 
+void list_remdata(LLIST *lp, LLIST_LINK *link)
+{
+	if( link ) {
+		if( lp->deleter )
+			(*lp->deleter)(link->data);
+
+		link->data = NULL;
+		lp->size--;
+	}
+}
+
 bool list_addlink(LLIST *lp, void *data)
 {
 	LLIST_LINK *link;
@@ -7890,12 +7902,19 @@ void list_remlink(LLIST *lp, void *data)
 	if(lp && data) {
 		for(link = lp->head; link; link = link->next)
 			if(link->data == data) {
-				if( lp->deleter )
-					(*lp->deleter)(data);
-
-				link->data = NULL;
-				lp->size--;
+				list_remdata(lp, link);
 			}
+	}
+}
+
+// Clears out the entire list
+void list_clear(LLIST *lp)
+{
+	LLIST_LINK *link;
+	if(lp && data) {
+		for(link = lp->head; link; link = link->next) {
+			list_remdata(lp, link);
+		}
 	}
 }
 
@@ -7911,6 +7930,22 @@ void *list_nthdata(LLIST *lp, register int nth)
 	}
 
 	return (link && !nth) ? link->data : NULL;
+}
+
+void list_remnthlink(LLIST *lp, register int nth)
+{
+	register LLIST_LINK *link = NULL;
+
+	if(lp && lp->valid) {
+		if( nth < 0 ) nth = lp->size + nth;
+		for(link = lp->head; link && nth > 0; link = link->next)
+			if(link->data)
+				--nth;
+	}
+
+	if( link && !nth ) {
+		list_remdata(lp, link);
+	}
 }
 
 bool list_hasdata(LLIST *lp, register void *ptr)

@@ -613,9 +613,15 @@ DECL_IFC_FUN(ifc_hastarget)
 
 DECL_IFC_FUN(ifc_hastoken)
 {
-	if(ISARG_MOB(0)) *ret = TRUE && get_token_char(ARG_MOB(0), ARG_NUM(1), (ISARG_NUM(2) ? ARG_NUM(2) : 1));
-	else if(ISARG_OBJ(0)) *ret = TRUE && get_token_obj(ARG_OBJ(0), ARG_NUM(1), (ISARG_NUM(2) ? ARG_NUM(2) : 1));
-	else if(ISARG_ROOM(0)) *ret = TRUE && get_token_room(ARG_ROOM(0), ARG_NUM(1), (ISARG_NUM(2) ? ARG_NUM(2) : 1));
+	long vnum = 0;
+	if(ISARG_NUM(1))
+		vnum = ARG_NUM(1);
+	else if(ISARG_TOK(1))
+		vnum = ARG_TOK(1)->pIndexData->vnum;
+
+	if(ISARG_MOB(0)) *ret = TRUE && get_token_char(ARG_MOB(0), vnum, (ISARG_NUM(2) ? ARG_NUM(2) : 1));
+	else if(ISARG_OBJ(0)) *ret = TRUE && get_token_obj(ARG_OBJ(0), vnum, (ISARG_NUM(2) ? ARG_NUM(2) : 1));
+	else if(ISARG_ROOM(0)) *ret = TRUE && get_token_room(ARG_ROOM(0), vnum, (ISARG_NUM(2) ? ARG_NUM(2) : 1));
 	else return FALSE;
 
 	return TRUE;
@@ -2175,6 +2181,30 @@ DECL_IFC_FUN(ifc_varnumber)
 
 		if(var && var->type == VAR_INTEGER) {
 			*ret = var->_.i;
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
+DECL_IFC_FUN(ifc_varbool)
+{
+	PROG_DATA * progs = NULL;
+	pVARIABLE var;
+	if(ISARG_MOB(0)) { progs  = ARG_MOB(0)->progs; ++argv; }
+	else if(ISARG_OBJ(0)) { progs  = ARG_OBJ(0)->progs; ++argv; }
+	else if(ISARG_ROOM(0)) { progs  = ARG_ROOM(0)->progs; ++argv; }
+	else if(ISARG_TOK(0)) { progs  = ARG_TOK(0)->progs; ++argv; }
+	else if(mob) progs  = mob->progs;
+	else if(obj) progs  = obj->progs;
+	else if(room) progs  = room->progs;
+	else if(token) progs  = token->progs;
+
+	if(progs && progs->vars && ISARG_STR(0)) {
+		var = variable_get(progs->vars,ARG_STR(0));
+
+		if(var && var->type == VAR_BOOLEAN) {
+			*ret = var->_.i == TRUE;
 			return TRUE;
 		}
 	}

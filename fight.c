@@ -2764,7 +2764,7 @@ bool can_start_combat(CHAR_DATA *ch)
 	return TRUE;
 }
 
-void enter_combat(CHAR_DATA *ch, CHAR_DATA *victim)
+void enter_combat(CHAR_DATA *ch, CHAR_DATA *victim, bool silent)
 {
 	if (IS_AFFECTED(ch, AFF_SLEEP))
 	{
@@ -2786,8 +2786,11 @@ void enter_combat(CHAR_DATA *ch, CHAR_DATA *victim)
 	{
 		ch->fade = 0;
 		ch->fade_dir = -1;	//@@@NIB : 20071020
-		act("$n fades back into this dimension.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-		act("You fade back into this dimension.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+
+		if(!silent) {
+			act("$n fades back into this dimension.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			act("You fade back into this dimension.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		}
 	}
 
 	/*
@@ -2799,7 +2802,8 @@ void enter_combat(CHAR_DATA *ch, CHAR_DATA *victim)
 	hunt_char(ch, victim);
 	*/
 
-	act("$N begins attacking $n!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
+	if(!silent)
+		act("$N begins attacking $n!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
 }
 
 // Start a fight.
@@ -2814,7 +2818,7 @@ bool set_fighting(CHAR_DATA *ch, CHAR_DATA *victim)
 	{
 		if( victim->fighting == NULL ) {
 //			send_to_char("Resuming combat...\n\r", victim);
-			enter_combat(victim, ch);
+			enter_combat(victim, ch, FALSE);
 		}
 		return TRUE;
 	}
@@ -2853,7 +2857,7 @@ bool set_fighting(CHAR_DATA *ch, CHAR_DATA *victim)
 	/* AO 092516 Make sure to initiate combat on a successful defense. Hackish but oh well. */
 	//damage_new(ch,victim,NULL,0,0,0,FALSE);	// MK couldn't you just... set the victim's fighting if it's null?
 	if( victim->fighting == NULL )
-		enter_combat(victim, ch);
+		enter_combat(victim, ch, FALSE);
 
 	p_percent_trigger(victim, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_START_COMBAT, NULL);
 	p_percent_trigger(ch, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_START_COMBAT, NULL);
@@ -3584,7 +3588,7 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
 		recall = victim->recall;
 		location_clear(&victim->recall);
 	}
-	
+
 	// Just in case...
 	if (!(recall_room = location_to_room(&recall)))
 	{
@@ -5919,15 +5923,19 @@ void do_blackjack(CHAR_DATA *ch, char *argument)
 		WAIT_STATE(ch, skill_table[gsn_blackjack].beats);
 }
 
-
 void do_flee(CHAR_DATA *ch, char *argument)
+{
+	do_flee_full(ch, argument, FALSE, TRUE);
+}
+
+int do_flee_full(CHAR_DATA *ch, char *argument, bool conceal, bool pursue)
 {
 	ROOM_INDEX_DATA *was_in;
 	ROOM_INDEX_DATA *now_in;
 	CHAR_DATA *fleeing_from;
 	char buf[MSL];
 	int attempt;
-	bool flee_lag = FALSE;
+	bool flee_lag = FALSE, flying;
 	int door = -1;
 
 //    argument = one_argument(argument, arg);
@@ -5938,12 +5946,12 @@ void do_flee(CHAR_DATA *ch, char *argument)
 			ch->position = POS_STANDING;
 
 		send_to_char("You aren't fighting anyone.\n\r", ch);
-		return;
+		return -1;
 	}
 
 	if (ch->bashed > 0) {
 		send_to_char("You must stand up first.\n\r", ch);
-		return;
+		return -1;
 	}
 
 	if (ch->fighting != NULL && !IS_NPC(ch->fighting))
@@ -5951,14 +5959,14 @@ void do_flee(CHAR_DATA *ch, char *argument)
 
 	if (p_percent_trigger(ch,NULL,NULL,NULL,ch,ch->fighting,NULL, NULL, NULL,argument?TRIG_PREFLEE:TRIG_PREWIMPY,argument) ||
 		p_percent_trigger(ch->fighting,NULL,NULL,NULL,ch,NULL,NULL, NULL, NULL,argument?TRIG_PREFLEE:TRIG_PREWIMPY,argument))
-		return;
+		return MAX_DIR;
 
 	if (IS_AFFECTED(ch,AFF_BLIND))
 	{
 		act("{R$n stumbles around blindly!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 		act("{RYou stumble around blindly!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		if (number_percent() < 70)
-			return;
+			return -1;
 	}
 	else
 	{
@@ -5968,7 +5976,7 @@ void do_flee(CHAR_DATA *ch, char *argument)
 		if (number_percent() < 10)
 		{
 			send_to_char("{RPANIC! You couldn't escape!{x\n\r", ch);
-			return;
+			return -1;
 		}
 	}
 
@@ -5976,13 +5984,15 @@ void do_flee(CHAR_DATA *ch, char *argument)
 	if ((was_in = ch->in_room) == NULL && ch->in_wilds == NULL)
 	{
 		plogf("fight.c, do_flee(): was_in == NULL (tried to flee from nowhere)");
-		return;
+		return -1;
 	}
 
 	// parse_direction() handles direction argument strings, returns a door number,
 	// or -1 if the direction string is not a valid direction.
 	if (IS_NULLSTR(argument))
 	{
+		flying = mobile_is_flying(ch);
+
 		// ok, so let's try to find a valid direction to flee to...
 		for (attempt = 0; attempt < MAX_FLEE_ATTEMPTS; attempt++)
 		{
@@ -5998,6 +6008,7 @@ void do_flee(CHAR_DATA *ch, char *argument)
 				if (!(pexit = was_in->exit[door])
 					|| (!pexit->u1.to_room && pexit->wilds.wilds_uid == 0)
 					|| (IS_SET(pexit->exit_info, EX_CLOSED) && !IS_AFFECTED(ch, AFF_PASS_DOOR))
+					|| (IS_SET(pexit->exit_info, EX_AERIAL) && !flying)
 					|| (IS_NPC(ch) && (IS_SET(pexit->exit_info, EX_VLINK)))
 					|| number_range(0,ch->daze) != 0
 					|| (IS_NPC(ch) && (IS_SET(pexit->u1.to_room->room_flags, ROOM_NO_MOB) || IS_SET(pexit->u1.to_room->room_flags, ROOM_SAFE))))
@@ -6008,31 +6019,51 @@ void do_flee(CHAR_DATA *ch, char *argument)
 				plogf("fight.c, do_flee(): char is fleeing from a wilds vroom.");
 			}
 
-			move_char(ch, door, FALSE);
 			break;
 		}
 
 		if( attempt >= 10 )
 			door = -1;
 	}
-	else if( (door = parse_direction(argument)) >= 0 )
-		move_char(ch, door, FALSE);
+	else if( (door = parse_direction(argument)) >= 0 ) {
+		if (was_in->wilds == NULL)
+		{
+			plogf("fight.c, do_flee(): char is fleeing from a static room.");
+			// Check if door is a valid exit for this char
+			if (!(pexit = was_in->exit[door])
+				|| (!pexit->u1.to_room && pexit->wilds.wilds_uid == 0)
+				|| (IS_SET(pexit->exit_info, EX_CLOSED) && !IS_AFFECTED(ch, AFF_PASS_DOOR))
+				|| (IS_SET(pexit->exit_info, EX_AERIAL) && !flying)
+				|| (IS_NPC(ch) && (IS_SET(pexit->exit_info, EX_VLINK)))
+				|| number_range(0,ch->daze) != 0
+				|| (IS_NPC(ch) && (IS_SET(pexit->u1.to_room->room_flags, ROOM_NO_MOB) || IS_SET(pexit->u1.to_room->room_flags, ROOM_SAFE)))) {
+				door = -1;
+			}
+		}
+		else
+		{
+			plogf("fight.c, do_flee(): char is fleeing from a wilds vroom.");
+		}
+
+		if( door >= 0 )
+			move_char(ch, door, FALSE);
+	}
 
 	// Check if char was actually able to move
 	if (door < 0 || (now_in = ch->in_room) == was_in)
 	{
 		send_to_char("{RPANIC! You couldn't escape!{x\n\r", ch);
-		return;
+		return -1;
 	}
 
 	/* if an NPC and was killed in the move_char procedure, e.g. by room flames,
 	   the char data will have been freed and the in_room will be null, so bail out here. */
 	if (IS_NPC(ch) && !ch->in_room)
-		return;
+		return door;
 
 	char_from_room(ch);
 	char_to_room(ch, was_in);
-	act("{R$n has fled!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	if (!conceal) act("{R$n has fled!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 	char_from_room(ch);
 	char_to_room(ch, now_in);
 
@@ -6053,10 +6084,11 @@ void do_flee(CHAR_DATA *ch, char *argument)
 
    -- NIB - This might've been Nopraptor giving a misspelled direction, which caused the code to pick a random direction.
 		  - Also, this needs to check whether the exit in the starting room existed in the first place.
+   -- NIB again - the segfault was likely due to the fact sprintf requires a buffer in the first argument......
 
 	if (was_in->exit[door]->u1.to_room != now_in)
 	{
-	sprintf("do_flee: big mistake! %s tried to flee %s but it sent him somewhere else",
+	sprintf(buf, "do_flee: big mistake! %s tried to flee %s but it sent him somewhere else",
 		HANDLE(ch), dir_name[door]);
 	bug(buf, 0);
 	}
@@ -6064,47 +6096,51 @@ void do_flee(CHAR_DATA *ch, char *argument)
 
 	NO_RECALL_STATE(ch, 50 + number_range(1,10));
 
-	if (ch->fighting != NULL && get_skill(ch->fighting, gsn_pursuit) > 0)
-		ch->pursuit_by = ch->fighting;
-
-	// Stop "flee-killing".
-	if (ch->fighting != NULL && IS_NPC(ch->fighting) && !IS_IMMORTAL(ch) &&
-		(ch->tot_level > 50 || IS_REMORT(ch)) && ch->fighting->level > ch->tot_level - 5 &&
-			number_percent() > 33 && can_see(ch->fighting, ch))
-	{
-		act("You sense something approaching from the $t.", ch, NULL, NULL, NULL, NULL, dir_name[rev_dir[door]], NULL, TO_CHAR);
-		hunt_char(ch->fighting, ch);
-	}
-
 	if (flee_lag)
 		WAIT_STATE(ch, PULSE_VIOLENCE/5);
 
-	// Pursuit skill
-	if (ch->pursuit_by != NULL
-	&&  IS_SET(ch->pursuit_by->act, PLR_PURSUIT)
-	&&  get_curr_stat(ch, STAT_DEX) > 16)
-	{
-	if (number_percent() < get_skill(ch->pursuit_by, gsn_pursuit) - 5)
-	{
-		act("You pursue $N!", ch->pursuit_by, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		act("$N follows you as you flee!", ch, ch->pursuit_by, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		if (ch->pursuit_by->cast > 0)
-		stop_casting(ch->pursuit_by, TRUE);
-		if (ch->pursuit_by->script_wait)
-		script_end_failure(ch->pursuit_by, TRUE);
-	interrupt_script(ch->pursuit_by, FALSE);
-		move_char(ch->pursuit_by, door, FALSE);
-		one_hit(ch->pursuit_by, ch, TYPE_HIT, FALSE);
-		check_improve(ch, gsn_pursuit, TRUE, 1);
-	}
-	else
-	{
-		act("$N foils your pursuit!", ch->pursuit_by, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		check_improve(ch->pursuit_by, gsn_pursuit, FALSE, 1);
-	}
+	if (pursue) {
+		if (ch->fighting != NULL && get_skill(ch->fighting, gsn_pursuit) > 0)
+			ch->pursuit_by = ch->fighting;
+
+		// Stop "flee-killing".
+		if (ch->fighting != NULL && IS_NPC(ch->fighting) && !IS_IMMORTAL(ch) &&
+			(ch->tot_level > 50 || IS_REMORT(ch)) && ch->fighting->level > ch->tot_level - 5 &&
+				number_percent() > 33 && can_see(ch->fighting, ch))
+		{
+			act("You sense something approaching from the $t.", ch, NULL, NULL, NULL, NULL, dir_name[rev_dir[door]], NULL, TO_CHAR);
+			hunt_char(ch->fighting, ch);
+		}
+
+		// Pursuit skill
+		if (ch->pursuit_by != NULL
+		&&  IS_SET(ch->pursuit_by->act, PLR_PURSUIT)
+		&&  get_curr_stat(ch, STAT_DEX) > 16)
+		{
+		if (number_percent() < get_skill(ch->pursuit_by, gsn_pursuit) - 5)
+		{
+			act("You pursue $N!", ch->pursuit_by, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("$N follows you as you flee!", ch, ch->pursuit_by, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			if (ch->pursuit_by->cast > 0)
+			stop_casting(ch->pursuit_by, TRUE);
+			if (ch->pursuit_by->script_wait)
+			script_end_failure(ch->pursuit_by, TRUE);
+		interrupt_script(ch->pursuit_by, FALSE);
+			move_char(ch->pursuit_by, door, FALSE);
+			one_hit(ch->pursuit_by, ch, TYPE_HIT, FALSE);
+			check_improve(ch, gsn_pursuit, TRUE, 1);
+		}
+		else
+		{
+			act("$N foils your pursuit!", ch->pursuit_by, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			check_improve(ch->pursuit_by, gsn_pursuit, FALSE, 1);
+		}
+		}
+
+		ch->pursuit_by = NULL;
 	}
 
-	ch->pursuit_by = NULL;
+	return door;
 }
 
 

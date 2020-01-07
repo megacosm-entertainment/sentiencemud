@@ -17,6 +17,416 @@
 //////////////////////////////////////
 // A
 
+// ADDAFFECT mobile|object apply-type(string) affect-group(string) skill(string) level(number) location(string) modifier(number) duration(number) bitvector(string) bitvector2(string)[ wear-location(object)]
+SCRIPT_CMD(scriptcmd_addaffect)
+{
+	char *rest;
+	int where, group, skill, level, loc, mod, hours;
+	long bv, bv2;
+	CHAR_DATA *mob = NULL;
+	OBJ_DATA *obj = NULL;
+	int wear_loc = WEAR_NONE;
+	SCRIPT_PARAM arg;
+	AFFECT_DATA af;
+
+	info->progs->lastreturn = 0;
+
+
+	//
+	// Get mobile or object TARGET
+	if(!(rest = expand_argument(info,argument,&arg))) {
+		bug("AddAffect - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_STRING:
+		if (!(mob = script_get_char_room(info, arg.d.str, FALSE)))
+			obj = script_get_obj_here(info, arg.d.str);
+		break;
+	case ENT_MOBILE: mob = arg.d.mob; break;
+	case ENT_OBJECT: obj = arg.d.obj; break;
+	default: break;
+	}
+
+	if(!mob && !obj) {
+		bug("Addaffect - NULL target.", 0);
+		return;
+	}
+
+
+	//
+	// Get APPLY TYPE
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("Addaffect - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_STRING: where = flag_lookup(arg.d.str,apply_types); break;
+	default: return;
+	}
+
+	if(where == NO_FLAG) return;
+
+
+	//
+	// Get AFFECT GROUP
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("Addaffect - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_STRING:
+		if(where == TO_OBJECT || where == TO_WEAPON)
+			group = flag_lookup(arg.d.str,affgroup_object_flags);
+		else
+			group = flag_lookup(arg.d.str,affgroup_mobile_flags);
+		break;
+	default: return;
+	}
+
+	if(group == NO_FLAG) return;
+
+
+	//
+	// Get SKILL number (built-in skill)
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("Addaffect - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_STRING: skill = skill_lookup(arg.d.str); break;
+	default: return;
+	}
+
+
+	//
+	// Get LEVEL
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("Addaffect - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_NUMBER: level = arg.d.num; break;
+	case ENT_STRING: level = atoi(arg.d.str); break;
+	case ENT_MOBILE: level = arg.d.mob->tot_level; break;
+	case ENT_OBJECT: level = arg.d.obj->level; break;
+	default: return;
+	}
+
+
+	//
+	// Get LOCATION
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("Addaffect - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_STRING: loc = flag_lookup(arg.d.str,apply_flags_full); break;
+	default: return;
+	}
+
+	if(loc == NO_FLAG) return;
+
+
+	//
+	// Get MODIFIER
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("Addaffect - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_NUMBER: mod = arg.d.num; break;
+	default: return;
+	}
+
+
+	//
+	// Get DURATION
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("Addaffect - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_NUMBER: hours = arg.d.num; break;
+	default: return;
+	}
+
+
+	//
+	// Get BITVECTOR
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("Addaffect - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_STRING: bv = flag_value(affect_flags,arg.d.str); break;
+	default: return;
+	}
+
+	if(bv == NO_FLAG) bv = 0;
+
+
+	//
+	// Get BITVECTOR2
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("Addaffect - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_STRING: bv2 = flag_value(affect2_flags,arg.d.str); break;
+	default: return;
+	}
+
+	if(bv2 == NO_FLAG) bv2 = 0;
+
+
+	//
+	// Get WEAR-LOCATION of object
+	if(rest && *rest) {
+		if(!(rest = expand_argument(info,rest,&arg))) {
+			bug("Addaffect - Error in parsing.",0);
+			return;
+		}
+
+		switch(arg.type) {
+		case ENT_OBJECT: wear_loc = arg.d.obj ? arg.d.obj->wear_loc : WEAR_NONE; break;
+		default: return;
+		}
+	}
+
+	af.group	= group;
+	af.where     = where;
+	af.type      = skill;
+	af.location  = loc;
+	af.modifier  = mod;
+	af.level     = level;
+	af.duration  = (hours < 0) ? -1 : hours;
+	af.bitvector = bv;
+	af.bitvector2 = bv2;
+	af.custom_name = NULL;
+	af.slot = wear_loc;
+	if(mob) affect_join_full(mob, &af);
+	else affect_join_full_obj(obj,&af);
+}
+
+// ADDAFFECTNAME mobile|object apply-type(string) affect-group(string) name(string) level(number) location(string) modifier(number) duration(number) bitvector(string) bitvector2(string)[ wear-location(object)]
+SCRIPT_CMD(scriptcmd_addaffectname)
+{
+	char *rest, *name = NULL;
+	int where, group, level, loc, mod, hours;
+	long bv, bv2;
+	CHAR_DATA *mob = NULL;
+	OBJ_DATA *obj = NULL;
+	int wear_loc = WEAR_NONE;
+	SCRIPT_PARAM arg;
+	AFFECT_DATA af;
+
+	info->progs->lastreturn = 0;
+
+
+	//
+	// Get mobile or object TARGET
+	if(!(rest = expand_argument(info,argument,&arg))) {
+		bug("AddAffectName - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_STRING:
+		if (!(mob = script_get_char_room(info, arg.d.str, FALSE)))
+			obj = script_get_obj_here(info, arg.d.str);
+		break;
+	case ENT_MOBILE: mob = arg.d.mob; break;
+	case ENT_OBJECT: obj = arg.d.obj; break;
+	default: break;
+	}
+
+	if(!mob && !obj) {
+		bug("AddAffectName - NULL target.", 0);
+		return;
+	}
+
+
+	//
+	// Get APPLY TYPE
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("AddAffectName - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_STRING: where = flag_lookup(arg.d.str,apply_types); break;
+	default: return;
+	}
+
+	if(where == NO_FLAG) return;
+
+
+	//
+	// Get AFFECT GROUP
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("AddAffectName - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_STRING:
+		if(where == TO_OBJECT || where == TO_WEAPON)
+			group = flag_lookup(arg.d.str,affgroup_object_flags);
+		else
+			group = flag_lookup(arg.d.str,affgroup_mobile_flags);
+		break;
+	default: return;
+	}
+
+	if(group == NO_FLAG) return;
+
+
+	//
+	// Get NAME
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("AddAffectName - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_STRING: name = create_affect_cname(arg.d.str); break;
+	default: return;
+	}
+
+	if(!name) {
+		bug("AddAffectName - Error allocating affect name.",0);
+		return;
+	}
+
+
+	//
+	// Get LEVEL
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("AddAffectName - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_NUMBER: level = arg.d.num; break;
+	case ENT_STRING: level = atoi(arg.d.str); break;
+	case ENT_MOBILE: level = arg.d.mob->tot_level; break;
+	case ENT_OBJECT: level = arg.d.obj->level; break;
+	default: return;
+	}
+
+
+	//
+	// Get LOCATION
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("AddAffectName - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_STRING: loc = flag_lookup(arg.d.str,apply_flags_full); break;
+	default: return;
+	}
+
+	if(loc == NO_FLAG) return;
+
+
+	//
+	// Get MODIFIER
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("AddAffectName - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_NUMBER: mod = arg.d.num; break;
+	default: return;
+	}
+
+
+	//
+	// Get DURATION
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("AddAffectName - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_NUMBER: hours = arg.d.num; break;
+	default: return;
+	}
+
+
+	//
+	// Get BITVECTOR
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("AddAffectName - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_STRING: bv = flag_value(affect_flags,arg.d.str); break;
+	default: return;
+	}
+
+	if(bv == NO_FLAG) bv = 0;
+
+
+	//
+	// Get BITVECTOR2
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("AddAffectName - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_STRING: bv2 = flag_value(affect2_flags,arg.d.str); break;
+	default: return;
+	}
+
+	if(bv2 == NO_FLAG) bv2 = 0;
+
+
+	//
+	// Get WEAR-LOCATION of object
+	if(rest && *rest) {
+		if(!(rest = expand_argument(info,rest,&arg))) {
+			bug("AddAffectName - Error in parsing.",0);
+			return;
+		}
+
+		switch(arg.type) {
+		case ENT_OBJECT: wear_loc = arg.d.obj ? arg.d.obj->wear_loc : WEAR_NONE; break;
+		default: return;
+		}
+	}
+
+	af.group	= group;
+	af.where     = where;
+	af.type      = -1;
+	af.location  = loc;
+	af.modifier  = mod;
+	af.level     = level;
+	af.duration  = (hours < 0) ? -1 : hours;
+	af.bitvector = bv;
+	af.bitvector2 = bv2;
+	af.custom_name = name;
+	af.slot = wear_loc;
+	if(mob) affect_join_full(mob, &af);
+	else affect_join_full_obj(obj,&af);
+}
+
+
 // APPLYTOXIN mobile string(toxin) int(level) int(duration)
 SCRIPT_CMD(scriptcmd_applytoxin)
 {
@@ -78,6 +488,7 @@ SCRIPT_CMD(scriptcmd_applytoxin)
 	info->progs->lastreturn = 1;
 }
 
+
 // AWARD mobile string(type) number(amount)
 // Types: silver, gold, pneuma, deity/dp, practice, train, quest/qp, experience/xp
 //
@@ -93,7 +504,6 @@ SCRIPT_CMD(scriptcmd_award)
 	CHURCH_DATA *church = NULL;
 	int amount = 0;
 	SCRIPT_PARAM arg;
-
 
 	if (!(rest = expand_argument(info,argument,&arg)))
 		return;
@@ -451,8 +861,187 @@ SCRIPT_CMD(scriptcmd_deduct)
 //////////////////////////////////////
 // E
 
+// ENTERCOMBAT[ $ATTACKER] $VICTIM[ $SILENT]
+// Switches target explicitly without triggering any standard combat scripts
+//  - used for scripts in combat to change targets
+SCRIPT_CMD(scriptcmd_entercombat)
+{
+	char *rest;
+	CHAR_DATA *attacker = NULL;
+	CHAR_DATA *victim = NULL;
+	SCRIPT_PARAM arg;
+	bool fSilent = FALSE;
+
+
+	info->progs->lastreturn = 0;
+
+	if(!(rest = expand_argument(info,argument,&arg))) {
+		bug("MpStartCombat - Error in parsing from vnum %ld.", VNUM(info->mob));
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_STRING: victim = script_get_char_room(info, arg.d.str, FALSE); break;
+	case ENT_MOBILE: victim = arg.d.mob; break;
+	default: victim = NULL; break;
+	}
+
+	if (!victim)
+		return;
+
+	if(*rest) {
+		if(!(rest = expand_argument(info,rest,&arg)))
+			return;
+
+		attacker = victim;
+		if( arg.type == ENT_BOOLEAN ) {
+			// VICTIM SILENT syntax
+			fSilent = arg.d.boolean == TRUE;
+		} else {
+			switch(arg.type) {
+			case ENT_STRING: victim = script_get_char_room(info, arg.d.str, FALSE); break;
+			case ENT_MOBILE: victim = arg.d.mob; break;
+			default: victim = NULL; break;
+			}
+
+			if (!victim)
+				return;
+
+			if(*rest ) {
+				if(!expand_argument(info,rest,&arg))
+					return;
+
+				// ATTACKER VICTIM SILENT syntax
+				if( arg.type == ENT_BOOLEAN )
+					fSilent = arg.d.boolean == TRUE;
+			}
+		}
+	} else if(!info->mob)
+		return;
+	else
+		attacker = info->mob;
+
+	enter_combat(attacker, victim, fSilent);
+
+	if( attacker->fighting == victim )
+		info->progs->lastreturn = 1;
+}
+
+
 //////////////////////////////////////
 // F
+
+// FLEE mobile[ direction[ conceal[ pursue]]]
+// mobile - target of action
+// direction - direction of flee
+//				"none" = random direction (same as doing "flee")
+//				"anyway" = random direction (same as used in places like intimidate)
+//				"wimpy" = random direction (same as automatic wimpy fleeing)
+// conceal - conceal whether the flee is kept hidden from the opponent
+// pursue - allows pursuit (only if the flee is successful)
+//
+//
+// Assigns LASTRETURN with direction of flee
+//	if < 0, the flee action FAILED
+SCRIPT_CMD(scriptcmd_flee)
+{
+	char *rest;
+	SCRIPT_PARAM arg;
+	CHAR_DATA *target;
+	ROOM_INDEX_DATA *was_in, *room;
+	EXIT_DATA *pexit;
+	int door = -1, attempt;
+	bool conceal = FALSE, pursue = TRUE;
+	char fleedata[MIL];
+	char *fleearg = str_empty;
+
+	info->progs->lastreturn = -1;
+	if(!info) return;
+
+	if(!(rest = expand_argument(info,argument,&arg)))
+		return;
+
+	switch(arg.type) {
+	case ENT_STRING: target = script_get_char_room(info, arg.d.str, TRUE); break;
+	case ENT_MOBILE: target = arg.d.mob; break;
+	default: target = NULL; break;
+	}
+
+	if (!target) return;
+
+	if (!target->fighting || !(was_in = target->in_room))
+		return;
+
+	if(*rest) {
+		if(!(rest = expand_argument(info,rest,&arg)))
+				return;
+
+		if(arg.type == ENT_STRING) {
+			if (!str_cmp(arg.d.str, "none")) {
+				fleearg = str_empty;
+			} else if (!str_cmp(arg.d.str, "anyway")) {
+				strcpy(fleedata,"anyway");
+				fleearg = fleedata;
+			} else if (!str_cmp(arg.d.str, "wimpy"))
+				fleearg = NULL;
+			else {
+				strncpy(fleedata,arg.d.str,MSL-1);
+				fleearg = fleedata;
+			}
+
+			if(*rest) {
+				if(!(rest = expand_argument(info,rest,&arg)))
+					return;
+
+				if( arg.type == ENT_NUMBER )
+					conceal = (arg.d.num != 0);
+				else if( arg.type == ENT_STRING )
+					conceal = !str_cmp(arg.d.str, "yes") || !str_cmp(arg.d.str, "true") || !str_cmp(arg.d.str, "all");
+				else
+					return;
+			}
+
+			if(*rest) {
+				if(!(rest = expand_argument(info,rest,&arg)))
+					return;
+
+				if( arg.type == ENT_NUMBER )
+					pursue = (arg.d.num != 0);
+				else if( arg.type == ENT_STRING )
+					pursue = !str_cmp(arg.d.str, "yes") || !str_cmp(arg.d.str, "true") || !str_cmp(arg.d.str, "all");
+				else
+					return;
+			}
+
+		}
+	}
+
+	door = do_flee_full(target, fleearg, conceal, pursue);
+	info->progs->lastreturn = door;
+
+	/*
+		// Moved to general flee system
+		flying = mobile_is_flying(target);
+		for (attempt = 0; attempt < 6; attempt++) {
+			door = number_door();
+	        	if (!(pexit = was_in->exit[door])
+	        		|| !(room = exit_destination(pexit))
+	        		|| IS_SET(pexit->exit_info, EX_CLOSED)
+	        		|| (IS_SET(pexit->exit_info, EX_AERIAL) && !flying)
+	        		|| (IS_NPC(info->mob) && IS_SET(room->room_flags, ROOM_NO_MOB)))
+	        			continue;
+
+			move_char(info->mob, door, FALSE);
+			if(!info->mob) break;	// Verify the mob isn't killed!
+			if (info->mob->in_room != was_in) {
+				info->mob->progs->lastreturn = door;
+				return;
+			}
+		}
+
+	*/
+}
+
 
 //////////////////////////////////////
 // G
@@ -669,6 +1258,7 @@ SCRIPT_CMD(scriptcmd_setsubclass)
 {
 }
 
+
 // STARTCOMBAT[ $ATTACKER] $VICTIM
 SCRIPT_CMD(scriptcmd_startcombat)
 {
@@ -677,14 +1267,13 @@ SCRIPT_CMD(scriptcmd_startcombat)
 	CHAR_DATA *victim = NULL;
 	SCRIPT_PARAM arg;
 
+
 	info->progs->lastreturn = 0;
 
 	if(!(rest = expand_argument(info,argument,&arg))) {
 		bug("MpStartCombat - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
-
-
 
 	switch(arg.type) {
 	case ENT_STRING: victim = script_get_char_room(info, arg.d.str, FALSE); break;
@@ -772,7 +1361,6 @@ SCRIPT_CMD(scriptcmd_stopcombat)
 	if( mob->fighting == NULL )
 		info->progs->lastreturn = 1;
 }
-
 
 //////////////////////////////////////
 // T

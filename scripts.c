@@ -5466,6 +5466,82 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 		if( area )
 			variables_set_area(vars,name,area);
 
+	// MOBLIST add <mobile>
+	// MOBLIST remove <index>
+	// MOBLIST clear
+	} else if(!str_cmp(buf,"moblist")) {
+		if( arg.type != ENT_STRING )
+			return;
+
+
+		// MOBLIST add <mobile>
+		if( !str_cmp(arg.d.str, "add") ) {
+			if(!(rest = expand_argument(info,rest,&arg)))
+				return;
+
+			if( arg.type == ENT_MOBILE && IS_VALID(arg.d.mob) )
+				variables_set_list_mob(vars,name,arg.d.mob,TRISTATE);
+
+		// MOBLIST remove <index>
+		} else if( !str_cmp(arg.d.str, "remove") ) {
+			if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_NUMBER)
+				return;
+
+			pVARIABLE var = variable_get(vars, name);
+
+			if( !var || var != VAR_BLLIST_MOB || !IS_VALID(var->_.list) )
+				return;
+
+			list_remnthlink(var->_.list, arg.d.num);
+
+		// MOBLIST clear
+		} else if( !str_cmp(arg.d.str, "clear") ) {
+			pVARIABLE var = variable_get(vars, name);
+
+			if( !var || var != VAR_BLLIST_MOB || !IS_VALID(var->_.list) )
+				return;
+
+			list_clear(var->_.list);
+		}
+
+	// OBJLIST add <object>
+	// OBJLIST remove <index>
+	// OBJLIST clear
+	} else if(!str_cmp(buf,"objlist")) {
+		if( arg.type != ENT_STRING )
+			return;
+
+
+		// OBJLIST add <object>
+		if( !str_cmp(arg.d.str, "add") ) {
+			if(!(rest = expand_argument(info,rest,&arg)))
+				return;
+
+			if( arg.type == ENT_OBJECT && IS_VALID(arg.d.obj) )
+				variables_set_list_obj(vars,name,arg.d.obj,TRISTATE);
+
+		// OBJLIST remove <index>
+		} else if( !str_cmp(arg.d.str, "remove") ) {
+			if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_NUMBER)
+				return;
+
+			pVARIABLE var = variable_get(vars, name);
+
+			if( !var || var != VAR_BLLIST_OBJ || !IS_VALID(var->_.list) )
+				return;
+
+			list_remnthlink(var->_.list, arg.d.num);
+
+		// OBJLIST clear
+		} else if( !str_cmp(arg.d.str, "clear") ) {
+			pVARIABLE var = variable_get(vars, name);
+
+			if( !var || var != VAR_BLLIST_OBJ || !IS_VALID(var->_.list) )
+				return;
+
+			list_clear(var->_.list);
+		}
+
 	} else
 		return;
 }
@@ -5710,6 +5786,19 @@ CHAR_DATA *script_get_char_room(SCRIPT_VARINFO *info, char *name, bool see_all)
 	if( info->obj ) return get_char_room(NULL, obj_room(info->obj), name);
 	if( info->room ) return get_char_room(NULL, info->room, name);
 	if( info->token ) return get_char_room(NULL, token_room(info->token), name);
+
+	return NULL;
+}
+
+OBJ_DATA *script_get_obj_here(SCRIPT_VARINFO *info, char *name)
+{
+
+	if( !info ) return NULL;
+
+	if( info->mob ) return get_obj_here(info->mob, NULL, name);
+	if( info->obj ) return get_obj_here(NULL, obj_room(info->obj), name);
+	if( info->room ) return get_obj_here(NULL, info->room, name);
+	if( info->token ) return get_obj_here(NULL, token_room(info->token), name);
 
 	return NULL;
 }

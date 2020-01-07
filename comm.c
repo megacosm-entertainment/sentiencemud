@@ -1503,7 +1503,7 @@ bool process_output(DESCRIPTOR_DATA *d, bool fPrompt)
 		    sprintf(wound, "is barely clinging to life.");
 	    else
 		    sprintf(wound, "is on the verge of death.");
-      /* 
+      /*
             if (percent >= 100)
                 sprintf(wound,"is in excellent condition.");
             else if (percent >= 90)

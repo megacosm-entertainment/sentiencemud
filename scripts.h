@@ -247,7 +247,7 @@ enum ifcheck_enum {
 
 	/* V */
 	CHK_VALUE_AC,CHK_VALUE_ACSTR,CHK_VALUE_DAMAGE,CHK_VALUE_POSITION,CHK_VALUE_RANGED,CHK_VALUE_RELIC,CHK_VALUE_SECTOR,
-	CHK_VALUE_SIZE,CHK_VALUE_TOXIN,CHK_VALUE_TYPE,CHK_VALUE_WEAPON,CHK_VALUE_WEAR,CHK_VARDEFINED,
+	CHK_VALUE_SIZE,CHK_VALUE_TOXIN,CHK_VALUE_TYPE,CHK_VALUE_WEAPON,CHK_VALUE_WEAR,CHK_VARBOOL,CHK_VARDEFINED,
 	CHK_VAREXIT,CHK_VARNUMBER,CHK_VARSTRING,CHK_VNUM,CHK_VULN,
 
 
@@ -1771,6 +1771,8 @@ DECL_IFC_FUN(ifc_hitdicetype);
 DECL_IFC_FUN(ifc_strprefix);
 DECL_IFC_FUN(ifc_roll);
 
+DECL_IFC_FUN(ifc_varbool);
+
 /* Opcode functions */
 DECL_OPC_FUN(opc_end);
 DECL_OPC_FUN(opc_if);
@@ -1883,6 +1885,16 @@ bool variable_fread_wilds_list(ppVARIABLE vars, char *name, FILE *fp);
 bool variable_remove(ppVARIABLE list,char *name);
 bool variable_setsave(pVARIABLE vars,char *name,bool state);
 bool variable_validname(char *str);
+
+bool variables_set_list_area (ppVARIABLE list, char *name, AREA_DATA *area, bool save);
+bool variables_set_list_connection (ppVARIABLE list, char *name, DESCRIPTOR_DATA *conn, bool save);
+bool variables_set_list_mob (ppVARIABLE list, char *name, CHAR_DATA *mob, bool save);
+bool variables_set_list_obj (ppVARIABLE list, char *name, OBJ_DATA *obj, bool save);
+bool variables_set_list_room (ppVARIABLE list, char *name, ROOM_INDEX_DATA *room, bool save);
+bool variables_set_list_str (ppVARIABLE list, char *name, char *str, bool save);
+bool variables_set_list_token (ppVARIABLE list, char *name, TOKEN_DATA *token, bool save);
+bool variables_set_list_wilds (ppVARIABLE list, char *name, WILDS_DATA *wilds, bool save);
+
 bool variables_append_list_area (ppVARIABLE list, char *name, AREA_DATA *area);
 bool variables_append_list_connection (ppVARIABLE list, char *name, DESCRIPTOR_DATA *conn);
 bool variables_append_list_door (ppVARIABLE list, char *name, ROOM_INDEX_DATA *room, int door);
@@ -1968,6 +1980,8 @@ void script_end_success(CHAR_DATA *ch);
 void script_end_failure(CHAR_DATA *ch, bool messages);
 void script_end_pulse(CHAR_DATA *ch);
 CHAR_DATA *script_get_char_room(SCRIPT_VARINFO *info, char *name, bool see_all);
+OBJ_DATA *script_get_obj_here(SCRIPT_VARINFO *info, char *name);
+
 
 /* Commands */
 int mpcmd_lookup(char *command);
@@ -2380,10 +2394,13 @@ SCRIPT_CMD(do_rpsetrecall);
 
 
 
+SCRIPT_CMD(scriptcmd_addaffect);
+SCRIPT_CMD(scriptcmd_addaffectname);
 SCRIPT_CMD(scriptcmd_applytoxin);
 SCRIPT_CMD(scriptcmd_award);
 SCRIPT_CMD(scriptcmd_damage);
 SCRIPT_CMD(scriptcmd_deduct);
+SCRIPT_CMD(scriptcmd_flee);
 SCRIPT_CMD(scriptcmd_grantskill);
 SCRIPT_CMD(scriptcmd_revokeskill);
 SCRIPT_CMD(scriptcmd_startcombat);
