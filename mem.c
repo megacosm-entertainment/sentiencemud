@@ -790,6 +790,7 @@ void free_pcdata(PC_DATA *pcdata)
 
     free_string(pcdata->email);
     free_string(pcdata->pwd);
+
     free_string(pcdata->afk_message);
     //free_string(pcdata->imm_title);
     //free_string(pcdata->bamfin);

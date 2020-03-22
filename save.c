@@ -561,6 +561,7 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
     else
     {
 	fprintf(fp, "Pass %s~\n",	ch->pcdata->pwd		);
+	fprintf(fp, "PassVers %d\n", ch->pcdata->pwd_vers);
 	/*if (ch->pcdata->immortal->bamfin[0] != '\0')
 	    fprintf(fp, "Bin  %s~\n",	ch->pcdata->immortal->bamfin);
 	if (ch->pcdata->immortal->bamfout[0] != '\0')
@@ -684,6 +685,7 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
     ch->prompt 				= str_dup("{B<{x%h{Bhp {x%m{Bm {x%v{Bmv>{x ");
     ch->pcdata->confirm_delete		= FALSE;
     ch->pcdata->pwd			= str_dup("");
+	ch->pcdata->pwd_vers	= 0;
     //ch->pcdata->bamfin			= str_dup("");
     //ch->pcdata->bamfout			= str_dup("");
     ch->pcdata->title			= str_dup("");
@@ -1580,6 +1582,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 	case 'P':
 	    KEY("Password",	ch->pcdata->pwd,	fread_string(fp));
 	    KEY("Pass",	ch->pcdata->pwd,	fread_string(fp));
+		KEY("PassVers", ch->pcdata->pwd_vers,	fread_number(fp))
 	    KEY("Played",	ch->played,		fread_number(fp));
 	    KEY("Plyd",	ch->played,		fread_number(fp));
 	    KEY("Position",	ch->position,		fread_number(fp));

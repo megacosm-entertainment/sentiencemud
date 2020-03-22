@@ -3965,6 +3965,9 @@ struct	pc_data
     LOCATION		recall;
     PROJECT_INQUIRY_DATA *inquiry_subject; /* Prompts for subject upon addition to a project inquiry */
     STRING_VECTOR	*script_prompts;
+
+    int         pwd_vers; /* Password version, added for sha256 */
+
     #ifdef IMC
         IMC_CHARDATA *imcchardata;
     #endif
