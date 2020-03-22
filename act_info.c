@@ -4528,7 +4528,7 @@ void do_password(CHAR_DATA *ch, char *argument)
 
     free_string(ch->pcdata->pwd);
     ch->pcdata->pwd = str_dup(pwdnew);
-	if (ch->pcdata->pwd < 1) {
+	if (ch->pcdata->pwd_vers < 1) {
 		ch->pcdata->pwd_vers = 1;
 	}
     save_char_obj(ch);
