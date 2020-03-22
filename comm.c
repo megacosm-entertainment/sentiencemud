@@ -69,6 +69,7 @@
 #include "scripts.h"
 #include "tables.h"
 #include "wilds.h"
+#include "sha256.h"
 
 /*
  * Malloc debugging stuff.
@@ -2258,7 +2259,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 #if defined(unix)
 		write_to_buffer(d, "\n\r", 2);
 #endif
-
+		if (ch->pcdata->pwd_vers < 1) {
 		if (strcmp(crypt(argument, ch->pcdata->pwd), ch->pcdata->pwd))
 		{
 			if (strcmp(argument, ch->pcdata->pwd))
@@ -2273,6 +2274,22 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 				return;
 			}
 		}
+		}
+		else
+		{
+			if (strcmp(sha256_crypt(argument), ch->pcdata->pwd))
+			{
+				/* Log bad password attempts */
+				sprintf(log_buf, "Denying access to %s@%s (bad password).",
+				ch->name, d->host);
+				log_string(log_buf);
+				wiznet(log_buf,NULL,NULL,WIZ_LOGINS,0,get_trust(ch));
+				write_to_buffer(d, "Wrong password.\n\r", 0);
+				close_socket(d);
+				return;
+			}
+		}
+		
 
 		//	write_to_buffer(d, echo_on_str, 0);
 		ProtocolNoEcho(d,false);
@@ -2296,7 +2313,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 			d->connected = CON_GET_EMAIL;
 			return;
 		}
-        if (ch->pcdata->need_change_pw == TRUE) {
+        if (ch->pcdata->need_change_pw == TRUE || ch->pcdata->pwd_vers < 1) {
 	        send_to_char("\n\rYou are required to set a new password. Please do so now.\n\rPassword: ",ch);
 	        d->connected = CON_CHANGE_PASSWORD;
 	        return;
@@ -2327,17 +2344,27 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 
 		if (argument[0] == '\0')
 			return;
-
+		if (ch->pcdata->pwd_vers < 1) {
 		if (!strcmp(crypt(argument, ch->pcdata->old_pwd), ch->pcdata->old_pwd))
 		{
 			send_to_char("Password must be DIFFERENT from your current password!\n\rPassword: ", ch);
 			return;
 		}
+		}
+		else
+		{
+			if (!strcmp(sha256_crypt(argument), ch->pcdata->old_pwd))
+		{
+			send_to_char("Password must be DIFFERENT from your current password!\n\rPassword: ", ch);
+			return;
+		}
+		}
+		
 
 		if (!acceptablePassword(d, argument))
 			return;
 
-		pwdnew = crypt(argument, ch->name);
+		pwdnew = sha256_crypt(argument);
 
 		free_string(ch->pcdata->pwd);
 		ch->pcdata->pwd	= str_dup(pwdnew);
@@ -2348,7 +2375,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		break;
 
 	case CON_CHANGE_PASSWORD_CONFIRM:
-		if (strcmp(crypt(argument, ch->pcdata->pwd), ch->pcdata->pwd))
+		if (strcmp(sha256_crypt(argument), ch->pcdata->pwd))
 		{
 			write_to_buffer(d, "Passwords don't match.\n\rPassword: ", 0);
 			d->connected = CON_CHANGE_PASSWORD;
@@ -2356,6 +2383,9 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		}
 
 		send_to_char("\n\r\n\r{Y***{x {RThank you. Please remember to never give your password to anybody.{Y *** {x\n\r\n\r", ch);
+		if (ch->pcdata->pwd_vers < 1){
+			ch->pcdata->pwd_vers = 1;
+		}
 		save_char_obj(d->character);
 //		write_to_buffer(d, echo_on_str, 0);
 		ProtocolNoEcho(d,false);
@@ -2447,10 +2477,11 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		if (!acceptablePassword(d, argument))
 			return;
 
-		pwdnew = crypt(argument, ch->name);
+		pwdnew = sha256_crypt(argument);
 
 		free_string(ch->pcdata->pwd);
 		ch->pcdata->pwd	= str_dup(pwdnew);
+		ch->pcdata->pwd_vers = 1;
 		write_to_buffer(d, "Please retype password: ", 0);
 		d->connected = CON_CONFIRM_NEW_PASSWORD;
 
@@ -2462,7 +2493,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		write_to_buffer(d, "\n\r", 2);
 #endif
 
-		if (strcmp(crypt(argument, ch->pcdata->pwd), ch->pcdata->pwd))
+		if (strcmp(sha256_crypt(argument), ch->pcdata->pwd))
 		{
 			write_to_buffer(d, "Passwords don't match.\n\r\n\rRetype password: ", 0);
 			d->connected = CON_GET_NEW_PASSWORD;

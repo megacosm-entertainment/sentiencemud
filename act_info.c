@@ -49,6 +49,7 @@
 /* VIZZWILDS - Include wilds.h header */
 #include "wilds.h"
 #include "scripts.h"
+#include "sha256.h"
 
 bool can_see_imm(CHAR_DATA *ch, CHAR_DATA *victim);
 
@@ -4487,7 +4488,8 @@ void do_password(CHAR_DATA *ch, char *argument)
 	send_to_char("Syntax: password <old> <new>.\n\r", ch);
 	return;
     }
-
+	
+	if (ch->pcdata->pwd_vers < 1) {
     if (strcmp(crypt(arg1, ch->pcdata->pwd), ch->pcdata->pwd)) {
 	if (strcmp(arg1, ch->pcdata->pwd)){
 	WAIT_STATE(ch, 40);
@@ -4495,6 +4497,15 @@ void do_password(CHAR_DATA *ch, char *argument)
 	return;
 	}
     }
+	} else
+	{
+		if (strcmp(sha256_crypt(arg1), ch->pcdata->pwd)) {
+			WAIT_STATE(ch, 40);
+			send_to_char("Wrong password. Wait 10 seconds.\n\r", ch);
+			return;
+		}
+	}
+	
 
     if (strlen(arg2) < 5) {
 	send_to_char
@@ -4506,7 +4517,7 @@ void do_password(CHAR_DATA *ch, char *argument)
     /*
      * No tilde allowed because of player file format.
      */
-    pwdnew = crypt(arg2, ch->name);
+    pwdnew = sha256_crypt(arg2);
     for (p = pwdnew; *p != '\0'; p++) {
 	if (*p == '~') {
 	    send_to_char("New password not acceptable, try again.\n\r",
@@ -4517,6 +4528,9 @@ void do_password(CHAR_DATA *ch, char *argument)
 
     free_string(ch->pcdata->pwd);
     ch->pcdata->pwd = str_dup(pwdnew);
+	if (ch->pcdata->pwd < 1) {
+		ch->pcdata->pwd_vers = 1;
+	}
     save_char_obj(ch);
     send_to_char("Password changed.\n\r", ch);
 }
