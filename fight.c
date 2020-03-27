@@ -1218,6 +1218,11 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, int
 	bool kill_in_room = FALSE;
 	long vid[2], cid[2];
 
+	/* 03272020 - RH - Quick and dirty fix to bail from this function if mob has begun dying and is no longer in any room */
+	if (victim->in_room == NULL){
+		return FALSE;
+	}
+
 	if (victim->in_damage_function) {
 		victim->set_death_type = DEATHTYPE_ALIVE;
 		return FALSE;
