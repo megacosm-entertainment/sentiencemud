@@ -665,7 +665,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
 	else
 	{
 	    sprintf(buf, "I'm sorry, %s, but I don't have any quests for you to do. Try again later.", ch->name);
-	    ch->nextquest = 3;
+	    ch->nextquest = 0;
 	    do_say(mob, buf);
 	    free_quest(ch->quest);
 	    ch->quest = NULL;
@@ -857,7 +857,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
   award_ship_quest_points(ch->in_room->area->place_flags, ch, 1);
 */
 
-    ch->nextquest = 10;
+    ch->nextquest = 0;
 
     ch->countdown = 0;	// @@@NIB Not doing this was causing nextquest to come up
     			//	10 minutes if nextquest had expired
@@ -1004,7 +1004,7 @@ bool generate_quest_part(CHAR_DATA *ch, CHAR_DATA *questman, QUEST_PART_DATA *pa
 	return FALSE;
     }
     
-    switch (number_range(1, 4))
+    switch (number_range(1, 1))
     { /* AO 010417 In R&D :)
 	case 0:
 
@@ -1034,7 +1034,7 @@ bool generate_quest_part(CHAR_DATA *ch, CHAR_DATA *questman, QUEST_PART_DATA *pa
 	    rand = number_range(0,5);
 
 	    item = create_object(get_obj_index(quest_item_token_table[rand]), 0, FALSE);
-	    item->owner = ch->name;
+	    item->owner = str_dup(ch->name);
 	    part->pObj = item;
 
 	    rand_room = NULL;
@@ -1145,7 +1145,7 @@ void quest_update(void)
 	    {
 		if (--ch->countdown <= 0)
 		{
-		    ch->nextquest = 10;
+		    ch->nextquest = 0;
 		    sprintf(buf,
 			"{RYou have run out of time for your quest!\n\r"
 			"You may quest again in %d minutes.{x\n\r",ch->nextquest);
