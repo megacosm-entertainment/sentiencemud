@@ -3551,6 +3551,14 @@ void fix_character(CHAR_DATA *ch)
 
 	// TODO: Readd checks for dealing with racial affects, affects2, imm, res and vuln
 
+	/* 20203003 - Tieryo - Fix missing racial perm affects */
+
+	if (ch->affected_by_perm != race_table[ch->race].aff || ch->affected_by2_perm != race_table[ch->race].aff2)
+	{
+	ch->affected_by_perm = race_table[ch->race].aff;
+	ch->affected_by2_perm = race_table[ch->race].aff2;
+	resetaffects = TRUE;
+	}	
 	if( resetaffects )
 	{
 		// Reset flags
@@ -3638,6 +3646,7 @@ void fix_character(CHAR_DATA *ch)
 
     ch->form = race_table[ch->race].form;
     ch->parts = race_table[ch->race].parts & ~ch->lostparts;
+	ch->lostparts = 0;
 
     if (ch->version < 2)
     {

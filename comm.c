@@ -2672,6 +2672,9 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		ch->imm_flags_perm = race_table[race].imm;
 		ch->res_flags_perm = race_table[race].res;
 		ch->vuln_flags_perm = race_table[race].vuln;
+		/* 20203003 - Tieryo - Fixing racial affects */
+		ch->affected_by_perm = race_table[race].aff;
+		ch->affected_by2_perm = race_table[race].aff2;
 
 		ch->imm_flags	= ch->imm_flags|race_table[race].imm;
 		ch->res_flags	= ch->res_flags|race_table[race].res;
