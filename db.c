@@ -1652,7 +1652,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
                 limit = pReset->arg2;
 
             if (pRoom->area->nplayer > 0
-            || (LastObj = get_obj_type(pObjToIndex)) == NULL
+            || (LastObj = get_obj_type(pObjToIndex, pRoom)) == NULL
             || (LastObj->in_room == NULL && !last)
             || (pObjIndex->count >= limit)
             || (count = count_obj_list(pObjIndex, LastObj->contains))
