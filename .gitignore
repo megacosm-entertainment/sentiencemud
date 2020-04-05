@@ -41,3 +41,7 @@ test
 zzz/
 build.txt
 *.orig
+.devcontainer/devcontainer.json
+.vscode/c_cpp_properties.json
+.devcontainer/
+.vscode/
