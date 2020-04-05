@@ -7468,7 +7468,8 @@ void do_rack(CHAR_DATA *ch, char *argument)
 	send_to_char("They aren't here.\n\r", ch);
 	return;
 	}
-
+	if (!is_safe(ch,victim,TRUE))
+	{
 	WAIT_STATE(ch, skill_table[gsn_spirit_rack].beats);
 
 	if (number_percent() < get_skill(ch, gsn_spirit_rack))
@@ -7491,7 +7492,7 @@ void do_rack(CHAR_DATA *ch, char *argument)
 
 	check_improve(ch, gsn_spirit_rack, FALSE, 1);
 	}
-
+	}
 	return;
 }
 
