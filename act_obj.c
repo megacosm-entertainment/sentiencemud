@@ -584,16 +584,20 @@ void do_get(CHAR_DATA *ch, char *argument)
 						act(buf, ch, NULL, NULL, match_obj, NULL, NULL, NULL, TO_CHAR);
 
 						p_percent_trigger(NULL, match_obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_GET, NULL);
-					}
-
-					give_money(ch, NULL, new_gold, new_silver, TRUE);
+						
+								
 				} else if (!any) {
 					if (arg1[3] == '\0')
 						act("There is nothing here you can take.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 					else
 						act("There is no $T here you can take.", ch, NULL, NULL, NULL, NULL, NULL, &arg1[4], TO_CHAR);
 				}
+						
 			}
+			}
+					if ((new_gold > 0 || new_silver > 0) && obj_next == NULL){
+						give_money(ch, NULL, new_gold, new_silver, TRUE);
+					}
 		}
 
 		return;
@@ -711,7 +715,7 @@ void do_get(CHAR_DATA *ch, char *argument)
 					act(buf, ch, NULL, NULL, match_obj, container, NULL, NULL, TO_CHAR);
 				}
 
-				give_money(ch, container, new_gold, new_silver, TRUE);
+				
 			} else if (!any) {
 				if (arg1[3] == '\0')
 					act("There is nothing in $P.", ch, NULL, NULL, NULL, container, NULL, NULL, TO_CHAR);
@@ -719,6 +723,9 @@ void do_get(CHAR_DATA *ch, char *argument)
 					act("There is no $T in $p.", ch, NULL, NULL, container, NULL, NULL, &arg1[4], TO_CHAR);
 			}
 		}
+			if ((new_gold > 0 || new_silver > 0) && obj_next == NULL){
+						give_money(ch, NULL, new_gold, new_silver, TRUE);
+					}
 	}
 }
 
@@ -1626,9 +1633,9 @@ void do_give(CHAR_DATA *ch, char *argument)
 		    obj_to_char(obj, victim);
 		    i++;
 
-			p_give_trigger(NULL, obj, NULL, ch, obj, TRIG_GIVE);
-			p_give_trigger(NULL, NULL, ch->in_room, ch, obj, TRIG_GIVE);
-			p_give_trigger(victim, NULL, NULL, ch, obj, TRIG_GIVE);
+			//p_give_trigger(NULL, obj, NULL, ch, obj, TRIG_GIVE);
+			//p_give_trigger(NULL, NULL, ch->in_room, ch, obj, TRIG_GIVE);
+			//p_give_trigger(victim, NULL, NULL, ch, obj, TRIG_GIVE);
 
 	            if (!found)
 			return;
