@@ -48,6 +48,7 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include "protocol.h"
+#include "sha256.h"
 
 #define args( list )			list
 #define DECLARE_DO_FUN( fun )		DO_FUN    fun
