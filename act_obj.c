@@ -1633,9 +1633,9 @@ void do_give(CHAR_DATA *ch, char *argument)
 		    obj_to_char(obj, victim);
 		    i++;
 
-			//p_give_trigger(NULL, obj, NULL, ch, obj, TRIG_GIVE);
-			//p_give_trigger(NULL, NULL, ch->in_room, ch, obj, TRIG_GIVE);
-			//p_give_trigger(victim, NULL, NULL, ch, obj, TRIG_GIVE);
+			p_give_trigger(NULL, obj, NULL, ch, obj, TRIG_GIVE);
+			p_give_trigger(NULL, NULL, ch->in_room, ch, obj, TRIG_GIVE);
+			p_give_trigger(victim, NULL, NULL, ch, obj, TRIG_GIVE);
 
 	            if (!found)
 			return;
@@ -1652,9 +1652,9 @@ void do_give(CHAR_DATA *ch, char *argument)
 		    sprintf(buf, "{Y({G%2d{Y) {xYou give $p to $N.", i);
 		    act(buf, ch, victim, NULL, match_obj, NULL, NULL, NULL, TO_CHAR);
 
-			p_give_trigger(NULL, match_obj, NULL, ch, match_obj, TRIG_GIVE);
-			p_give_trigger(NULL, NULL, ch->in_room, ch, match_obj, TRIG_GIVE);
-			p_give_trigger(victim, NULL, NULL, ch, match_obj, TRIG_GIVE);
+			//p_give_trigger(NULL, match_obj, NULL, ch, match_obj, TRIG_GIVE);
+			//p_give_trigger(NULL, NULL, ch->in_room, ch, match_obj, TRIG_GIVE);
+			//p_give_trigger(victim, NULL, NULL, ch, match_obj, TRIG_GIVE);
 		}
 	    }
 	    else if (!any)
