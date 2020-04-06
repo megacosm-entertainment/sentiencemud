@@ -1419,8 +1419,10 @@ void interpret( CHAR_DATA *ch, char *argument )
     	if (check_verbs(ch,command,argument))
 		return;
 
-	if (!IS_NPC(ch) && imc_command_hook(ch, command, argument))
+	#if 0
+		if (!IS_NPC(ch) && imc_command_hook(ch, command, argument))
 		return;
+	#endif 0
 
 	if (check_social(ch, command, argument))
 		return;

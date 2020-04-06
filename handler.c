@@ -3291,7 +3291,7 @@ CHAR_DATA *get_char_world_index(CHAR_DATA *ch, MOB_INDEX_DATA *pMobIndex)
  * Find some object with a given index data.
  * Used by area-reset 'P' command.
  */
-OBJ_DATA *get_obj_type(OBJ_INDEX_DATA *pObjIndex)
+OBJ_DATA *get_obj_type(OBJ_INDEX_DATA *pObjIndex, ROOM_INDEX_DATA *pRoom)
 {
     register OBJ_DATA *obj;
     ITERATOR it;
@@ -3299,7 +3299,7 @@ OBJ_DATA *get_obj_type(OBJ_INDEX_DATA *pObjIndex)
 	iterator_start(&it, loaded_objects);
 	while(( obj = (OBJ_DATA *)iterator_nextdata(&it)))
     {
-		if (obj->pIndexData == pObjIndex)
+		if (obj->pIndexData == pObjIndex && obj->in_room == pRoom)
 		    break;
     }
     iterator_stop(&it);

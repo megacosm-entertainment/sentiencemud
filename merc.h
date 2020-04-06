@@ -48,6 +48,7 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include "protocol.h"
+#include "sha256.h"
 
 #define args( list )			list
 #define DECLARE_DO_FUN( fun )		DO_FUN    fun
@@ -6943,7 +6944,7 @@ void	extract_char	args( ( CHAR_DATA *ch, bool fPull ) );
 CD *	get_char_room		args( ( CHAR_DATA *ch, ROOM_INDEX_DATA *room, char *argument ) );
 CD *	get_char_world	args( ( CHAR_DATA *ch, char *argument ) );
 CD *    find_char_world args( ( CHAR_DATA *ch, char *argument ) );
-OD *	get_obj_type	args( ( OBJ_INDEX_DATA *pObjIndexData ) );
+OD *	get_obj_type	args( ( OBJ_INDEX_DATA *pObjIndexData, ROOM_INDEX_DATA *pRoom ) );
 OD *	get_obj_list	args( ( CHAR_DATA *ch, char *argument, OBJ_DATA *list ) );
 OD *	get_obj_list_number	args( ( CHAR_DATA *ch, char *argument, int *number, OBJ_DATA *list ) );
 OD *	get_obj_carry	args( ( CHAR_DATA *ch, char *argument, CHAR_DATA *viewer ) );
