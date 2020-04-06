@@ -121,7 +121,6 @@ C_FILES = \
 	weather.c \
 	wilds.c \
 
-IMC = 0
 O_FILES = \
 	$(OBJDIR)/act_comm.o \
 	$(OBJDIR)/act_enter.o \
@@ -211,6 +210,7 @@ O_FILES = \
 	$(OBJDIR)/script_tpcmds.o \
 	$(OBJDIR)/script_vars.o \
 	$(OBJDIR)/scripts.o \
+	$(OBJDIR)/sha256.o \
 	$(OBJDIR)/shoot.o \
 	$(OBJDIR)/skills.o \
 	$(OBJDIR)/social.o \
