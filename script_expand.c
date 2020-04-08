@@ -135,7 +135,7 @@ static bool process_expession_stack(STACK *stk_op,STACK *stk_opr,int op)
 // $<speed<oretype>>
 //
 // If 'oretype' is 'iron'... it will translate into... speediron
-char *expand_variable_recursive(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,char **store)
+char *expand_variable_recursive(SCRIPT_VARINFO *info, char *str,char **store)
 {
 //	char esc[MSL];
 //	char msg[MSL*2];
@@ -152,7 +152,7 @@ char *expand_variable_recursive(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,c
 
 	while(*str && *str != ESCAPE_END) {
 		if(*str == ESCAPE_VARIABLE) {
-			str = expand_variable_recursive(info,infovar,str+1,&p);
+			str = expand_variable_recursive(info,str+1,&p);
 			if(!str) return NULL;
 		} else if(*str == ESCAPE_EXPRESSION) {
 			str = expand_string_expression(info,str+1,&p);
@@ -170,7 +170,7 @@ char *expand_variable_recursive(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,c
 	}
 */
 
-	var = variable_get(vars,buf);
+	var = variable_get(infovar,buf);
 	if(var) {
 		if((var->type == VAR_STRING || var->type == VAR_STRING_S) && var->_.s && *var->_.s) {
 			strcpy(*store,var->_.s);
@@ -214,7 +214,7 @@ char *expand_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,pVARIABLE *
 
 	while(*str && *str != ESCAPE_END) {
 		if(*str == ESCAPE_VARIABLE) {
-			str = expand_variable_recursive(info,vars,str+1,&p);
+			str = expand_variable_recursive(info,str+1,&p);
 			if(!str) {
 				if(wiznet_variables) {
 					char msg[MSL];
@@ -265,7 +265,7 @@ char *expand_name(SCRIPT_VARINFO *info,pVARIABLE vars,char *str,char *store)
 
 	while(*str && *str != ESCAPE_END) {
 		if(*str == ESCAPE_VARIABLE) {
-			str = expand_variable_recursive(info,vars,str+1,&p);
+			str = expand_variable_recursive(info,str+1,&p);
 			if(!str) return NULL;
 		} else if(*str == ESCAPE_EXPRESSION) {
 			str = expand_string_expression(info,str+1,&p);
