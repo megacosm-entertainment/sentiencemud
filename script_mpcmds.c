@@ -4317,6 +4317,7 @@ SCRIPT_CMD(do_mpaltermob)
 	else if(!str_cmp(field,"scribe"))	ptr = (int*)&mob->scribe;
 	else if(!str_cmp(field,"sex"))		{ ptr = (int*)&mob->sex; min = 0; max = 2; flags = sex_flags; }
 	else if(!str_cmp(field,"silver"))	ptr = (int*)&mob->silver;
+	else if(!str_cmp(field,"size"))		{ ptr = (int*)&mob->size; min = SIZE_TINY; max = SIZE_GIANT; flags = size_flags; }
 	else if(!str_cmp(field,"skillchance"))	ptr = (int*)&mob->skill_chance;
 	else if(!str_cmp(field,"sublevel"))	ptr = (int*)&mob->level;
 	else if(!str_cmp(field,"tempstore1"))	ptr = (int*)&mob->tempstore[0];
