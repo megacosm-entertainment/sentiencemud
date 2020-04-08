@@ -50,6 +50,7 @@ const struct script_cmd_type obj_cmd_table[] = {
 	{ "echonotvict",		do_opechonotvict,		FALSE,	TRUE	},
 	{ "echoroom",			do_opechoroom,			FALSE,	TRUE	},
 	{ "fixaffects",			do_opfixaffects,		FALSE,	TRUE	},
+	{ "flee",				scriptcmd_flee,			FALSE,	TRUE	},
 	{ "force",				do_opforce,				FALSE,	TRUE	},
 	{ "forget",				do_opforget,			FALSE,	FALSE	},
 	{ "gdamage",			do_opgdamage,			FALSE,	TRUE	},

@@ -49,6 +49,7 @@ const struct script_cmd_type token_cmd_table[] = {
 	{ "echonotvict",		do_tpechonotvict,		FALSE,	TRUE	},
 	{ "echoroom",			do_tpechoroom,			FALSE,	TRUE	},
 	{ "fixaffects",			do_tpfixaffects,		FALSE,	TRUE	},
+	{ "flee",				scriptcmd_flee,			FALSE,	TRUE	},
 	{ "force",				do_tpforce,				FALSE,	TRUE	},
 	{ "forget",				do_tpforget,			FALSE,	FALSE	},
 	{ "gdamage",			do_tpgdamage,			FALSE,	TRUE	},
