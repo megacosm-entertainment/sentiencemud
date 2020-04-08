@@ -725,7 +725,7 @@ struct olc_point_area_data {
 #define LEVEL_NEWBIE		10
 #define MAX_TREASURES           1
 #define MAX_IMMORTAL_GROUPS     6
-#define MAX_ALIAS	        80 
+#define MAX_ALIAS	        80
 #define MAX_BUILDER_IDLE_MINUTES 30
 #define MAX_CHAT_ROOMS		100
 #define MAX_CHURCH_TREASURE     100
@@ -759,7 +759,7 @@ struct olc_point_area_data {
 #define MINS_PER_DEATH		8
 #define PORT_NORMAL	        9000
 #define PORT_TEST		9999
-#define PORT_RAE	        7777	
+#define PORT_RAE	        7777
 #define PORT_ALPHA		7680
 #define PULSE_AREA		(60 * PULSE_PER_SECOND)
 #define PULSE_AUCTION           (20 * PULSE_PER_SECOND)
@@ -6666,6 +6666,7 @@ void player_kill( CHAR_DATA *ch, CHAR_DATA *victim );
 int damage_to_corpse(int dam_type);
 OBJ_DATA *raw_kill( CHAR_DATA *victim, bool has_head, bool messages, int corpse_type);
 void resurrect_end( CHAR_DATA *ch );
+void enter_combat(CHAR_DATA *ch, CHAR_DATA *victim, bool silent);
 bool set_fighting( CHAR_DATA *ch, CHAR_DATA *victim);
 void stop_fighting( CHAR_DATA *ch, bool fBoth);
 void stop_holdup( CHAR_DATA *ch);
