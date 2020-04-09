@@ -635,7 +635,7 @@ bool check_verbs(CHAR_DATA *ch, char *command, char *argument)
 						return ret;
 					}
 
-				
+
 			}
 			iterator_stop(&pit);
 
@@ -792,6 +792,8 @@ void interpret( CHAR_DATA *ch, char *argument )
 
 	// Deal with scripted input
 	if(ch->desc && ch->desc->input && ch->desc->input_script > 0) {
+		if(ch->desc->inputString != NULL) return;	// If we are in the string editor, return from here.
+
 		int ret;
 		SCRIPT_DATA *script = NULL;
 		VARIABLE **var = NULL;
@@ -1222,7 +1224,7 @@ void interpret( CHAR_DATA *ch, char *argument )
 			!str_prefix( command, cmd_table[cmd].name ) &&
 			(!forced_command || (cmd_table[cmd].level < LEVEL_IMMORTAL)) &&  // 20070511NIB - used to prevent script forces from doing imm commands
 			(cmd_table[cmd].level <= trust || is_granted_command(ch, cmd_table[cmd].name)
-			 || (port == PORT_RAE && (!str_cmp(ch->name,"Rae") || !str_cmp(ch->name, "Arlox"))))) /* AO 010417 For easy debugging on my port; dont judge me, im lazy :P */ 
+			 || (port == PORT_RAE && (!str_cmp(ch->name,"Rae") || !str_cmp(ch->name, "Arlox"))))) /* AO 010417 For easy debugging on my port; dont judge me, im lazy :P */
 		{
 			selected_command = &cmd_table[cmd];
 			found = TRUE;

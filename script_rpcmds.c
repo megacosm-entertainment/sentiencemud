@@ -59,6 +59,7 @@ const struct script_cmd_type room_cmd_table[] = {
 	{ "group",				do_rpgroup,				FALSE,	TRUE	},
 	{ "gtransfer",			do_rpgtransfer,			FALSE,	TRUE	},
 	{ "input",				do_rpinput,				FALSE,	TRUE	},
+	{ "inputstring",		scriptcmd_inputstring,	FALSE,	TRUE	},
 	{ "interrupt",			do_rpinterrupt,			FALSE,	TRUE	},
 	{ "link",				do_rplink,				FALSE,	TRUE	},
 	{ "mload",				do_rpmload,				FALSE,	TRUE	},
@@ -3918,7 +3919,7 @@ SCRIPT_CMD(do_rpinput)
 		return;
 	}
 
-	if(IS_NPC(mob) || !mob->desc || mob->desc->input) return;
+	if(IS_NPC(mob) || !mob->desc || is_char_busy(mob) || mob->desc->pString != NULL || mob->desc->input) return;
 
 	if(!(rest = expand_argument(info,rest,&arg))) {
 		bug("RpRawkill - Error in parsing.",0);

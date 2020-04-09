@@ -577,6 +577,88 @@ SCRIPT_CMD(scriptcmd_grantskill)
 //////////////////////////////////////
 // I
 
+// INPUTSTRING $PLAYER script-vnum variable
+//  Invokes the interal string editor, for use in getting multiline strings from players.
+//
+//  $PLAYER - player entity to get string from
+//  script-vnum - script to call after the editor is closed
+//  variable - name of variable to use to store the string (as well as supply the initial string)
+
+SCRIPT_CMD(scriptcmd_inputstring)
+{
+	char buf[MSL];
+	char *rest, *p;
+	int vnum;
+	CHAR_DATA *mob = NULL;
+	SCRIPT_PARAM arg;
+	int type;
+
+	info->progs->lastreturn = 0;
+
+	if(info->mob) type = PRG_MPROG;
+	else if(info->obj) type = PRG_OPROG;
+	else if(info->room) type = PRG_RPROG;
+	else if(info->token) type = PRG_TPROG;
+	else
+		return;
+
+
+	if(!(rest = expand_argument(info,argument,&arg)))
+		return;
+
+	if(arg.type != ENT_MOBILE || !arg.d.mob) return;
+
+	mob = arg.d.mob;
+	if(IS_NPC(mob) || !mob->desc || is_char_busy(mob) || mob->desc->pString != NULL || mob->desc->input) return;
+
+	// Are they already being prompted
+	if(mob->pk_question ||
+		mob->remove_question ||
+		mob->personal_pk_question ||
+		mob->cross_zone_question ||
+		mob->pcdata->convert_church != -1 ||
+		mob->challenged ||
+		mob->remort_question)
+		return;
+
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("MpInput - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_NUMBER: vnum = arg.d.num; break;
+	default: return;
+	}
+
+	if(vnum < 1 || !get_script_index(vnum, type)) return;
+
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("InputString - Error in parsing.",0);
+		return;
+	}
+
+	expand_string(info,rest,buf);
+	pVARIABLE var = variable_get(*(info->var),buf);
+
+	mob->desc->input = TRUE;
+	if( var && (var->type == VAR_STRING || var->type == VAR_STRING_S) && IS_NULLSTR(var->_.s) )
+		mob->desc->inputString = str_dup(var->_.s);
+	else
+		mob->desc->inputString = &str_empty[0];
+	mob->desc->input_var = str_dup(buf);
+	mob->desc->input_prompt = NULL;
+	mob->desc->input_script = vnum;
+	mob->desc->input_mob = info->mob;
+	mob->desc->input_obj = info->obj;
+	mob->desc->input_room = info->room;
+	mob->desc->input_tok = info->token;
+
+	string_append(mob, &mob->desc->inputString);
+
+	info->progs->lastreturn = 1;
+}
+
 //////////////////////////////////////
 // J
 
