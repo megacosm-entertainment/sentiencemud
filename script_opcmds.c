@@ -265,48 +265,63 @@ void do_opstat(CHAR_DATA *ch, char *argument)
 				sprintf(arg, "Name [%-20s] Type[TOKEN ] Save[%c] Value[???] ID[%08X:%08X]\n\r", var->name,var->save?'Y':'N',(int)var->_.tid.a,(int)var->_.tid.b);
 				break;
 			case VAR_BLLIST_MOB: {
-				sprintf(arg, "Name [%-20s] Type[MOBLST] Save[%c]\n\r", var->name,var->save?'Y':'N');
 				LLIST *mob_list = var->_.list;
-				LLIST_UID_DATA *data;
-				ITERATOR it;
+				int sz = list_size(mob_list);
 
-				iterator_start(&it, mob_list);
-				while(( data = (LLIST_UID_DATA *)iterator_nextdata(&it)))
+				if( sz > 0 )
 				{
-					send_to_char(arg, ch);
+					sprintf(arg, "Name [%-20s] Type[MOBLST] Save[%c]\n\r", var->name,var->save?'Y':'N');
 
-					CHAR_DATA *m = (CHAR_DATA *)data->ptr;
-					if(IS_VALID(m))
+					LLIST_UID_DATA *data;
+					ITERATOR it;
+					iterator_start(&it, mob_list);
+					while(( data = (LLIST_UID_DATA *)iterator_nextdata(&it)))
 					{
-						if( IS_NPC(m) )
-							sprintf(arg,"      - MOBILE[%s (%d)] ID[%08X:%08X]\n\r", m->short_descr, (int)m->pIndexData->vnum, (int)m->id[0],(int)m->id[1]);
+						send_to_char(arg, ch);
+
+						CHAR_DATA *m = (CHAR_DATA *)data->ptr;
+						if(IS_VALID(m))
+						{
+							if( IS_NPC(m) )
+								sprintf(arg,"      - MOBILE[%s (%d)] ID[%08X:%08X]\n\r", m->short_descr, (int)m->pIndexData->vnum, (int)m->id[0],(int)m->id[1]);
+							else
+								sprintf(arg,"      - PLAYER[%s] ID[%08X:%08X]\n\r", m->name, (int)m->id[0], (int)m->id[1]);
+						}
 						else
-							sprintf(arg,"      - PLAYER[%s] ID[%08X:%08X]\n\r", m->name, (int)m->id[0], (int)m->id[1]);
+							sprintf(arg,"      - MOBILE[???] ID[%08X:%08X]\n\r", (int)data->id[0],(int)data->id[1]);
 					}
-					else
-						sprintf(arg,"      - MOBILE[???] ID[%08X:%08X]\n\r", (int)data->id[0],(int)data->id[1]);
+					iterator_stop(&it);
 				}
-				iterator_stop(&it);
+				else
+					sprintf(arg, "Name [%-20s] Type[MOBLST] Save[%c] -empty-\n\r", var->name,var->save?'Y':'N');
 				break;
 			}
 			case VAR_BLLIST_OBJ: {
-				sprintf(arg, "Name [%-20s] Type[OBJLST] Save[%c]\n\r", var->name,var->save?'Y':'N');
+
 				LLIST *obj_list = var->_.list;
-				LLIST_UID_DATA *data;
-				ITERATOR it;
+				int sz = list_size(obj_list);
 
-				iterator_start(&it, obj_list);
-				while(( data = (LLIST_UID_DATA *)iterator_nextdata(&it)))
+				if( sz > 0 )
 				{
-					send_to_char(arg, ch);
+					sprintf(arg, "Name [%-20s] Type[OBJLST] Save[%c]\n\r", var->name,var->save?'Y':'N');
+					LLIST_UID_DATA *data;
+					ITERATOR it;
 
-					OBJ_DATA *o = (OBJ_DATA *)data->ptr;
-					if(IS_VALID(o))
-						sprintf(arg,"      - OBJECT[%s (%d)] ID[%08X:%08X]\n\r", o->short_descr, (int)o->pIndexData->vnum, (int)o->id[0], (int)o->id[1]);
-					else
-						sprintf(arg,"      - OBJECT[???] ID[%08X:%08X]\n\r", (int)data->id[0], (int)data->id[1]);
+					iterator_start(&it, obj_list);
+					while(( data = (LLIST_UID_DATA *)iterator_nextdata(&it)))
+					{
+						send_to_char(arg, ch);
+
+						OBJ_DATA *o = (OBJ_DATA *)data->ptr;
+						if(IS_VALID(o))
+							sprintf(arg,"      - OBJECT[%s (%d)] ID[%08X:%08X]\n\r", o->short_descr, (int)o->pIndexData->vnum, (int)o->id[0], (int)o->id[1]);
+						else
+							sprintf(arg,"      - OBJECT[???] ID[%08X:%08X] -empty-\n\r", (int)data->id[0], (int)data->id[1]);
+					}
+					iterator_stop(&it);
 				}
-				iterator_stop(&it);
+				else
+					sprintf(arg, "Name [%-20s] Type[OBJLST] Save[%c]\n\r", var->name,var->save?'Y':'N');
 				break;
 			}
 			default:
