@@ -725,7 +725,7 @@ struct olc_point_area_data {
 #define LEVEL_NEWBIE		10
 #define MAX_TREASURES           1
 #define MAX_IMMORTAL_GROUPS     6
-#define MAX_ALIAS	        80 
+#define MAX_ALIAS	        80
 #define MAX_BUILDER_IDLE_MINUTES 30
 #define MAX_CHAT_ROOMS		100
 #define MAX_CHURCH_TREASURE     100
@@ -759,7 +759,7 @@ struct olc_point_area_data {
 #define MINS_PER_DEATH		8
 #define PORT_NORMAL	        9000
 #define PORT_TEST		9999
-#define PORT_RAE	        7777	
+#define PORT_RAE	        7777
 #define PORT_ALPHA		7680
 #define PULSE_AREA		(60 * PULSE_PER_SECOND)
 #define PULSE_AUCTION           (20 * PULSE_PER_SECOND)
@@ -5129,6 +5129,8 @@ enum trigger_index_enum {
 	TRIG_STRIPAFFECT,
 	TRIG_TAKEOFF,
 	TRIG_THROW,
+	TRIG_TOKEN_GIVEN,
+	TRIG_TOKEN_REMOVED,
 	TRIG_TOUCH,
 	TRIG_TURN,
 	TRIG_TURN_ON,		/* NIB : 20070121 */

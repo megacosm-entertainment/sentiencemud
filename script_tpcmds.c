@@ -1402,7 +1402,11 @@ SCRIPT_CMD(do_tpgive)
 
 	token = give_token(token_index, victim, object, room);
 
-	if(token && rest && *rest) variables_set_token(info->var,rest,token);
+	if( token ) {
+		if( rest && *rest ) variables_set_token(info->var,rest,token);
+
+		p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_GIVEN, NULL);
+	}
 }
 
 // token junk <token reference>[ <exit code>]
@@ -1487,7 +1491,7 @@ SCRIPT_CMD(do_tpjunk)
 		return;
 	}
 
-	p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_EXPIRE, NULL);
+	p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_REMOVED, NULL);
 
 	if(info->token && token == info->token) {
 		arg.type = ENT_NONE;
