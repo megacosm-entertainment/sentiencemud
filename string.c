@@ -142,7 +142,7 @@ void string_postprocess(CHAR_DATA *ch, bool execute)
 		ch->desc->inputString = NULL;
 
 		if(script && execute) {
-			if(v) {
+			if(!IS_NULLSTR(v) && !IS_NULLSTR(s)) {
 				variables_set_string(var,v,s,FALSE);
 			}
 

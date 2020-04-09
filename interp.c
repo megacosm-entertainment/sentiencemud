@@ -791,8 +791,7 @@ void interpret( CHAR_DATA *ch, char *argument )
     }
 
 	// Deal with scripted input
-	if(ch->desc && ch->desc->input && ch->desc->input_script > 0) {
-		if(ch->desc->inputString != NULL) return;	// If we are in the string editor, return from here.
+	if(ch->desc && ch->desc->input && ch->desc->input_script > 0 && ch->desc->inputString == NULL) {
 
 		int ret;
 		SCRIPT_DATA *script = NULL;

@@ -587,7 +587,7 @@ SCRIPT_CMD(scriptcmd_grantskill)
 SCRIPT_CMD(scriptcmd_inputstring)
 {
 	char buf[MSL];
-	char *rest, *p;
+	char *rest;
 	int vnum;
 	CHAR_DATA *mob = NULL;
 	SCRIPT_PARAM arg;
@@ -637,7 +637,7 @@ SCRIPT_CMD(scriptcmd_inputstring)
 	pVARIABLE var = variable_get(*(info->var),buf);
 
 	mob->desc->input = TRUE;
-	if( var && (var->type == VAR_STRING || var->type == VAR_STRING_S) && IS_NULLSTR(var->_.s) )
+	if( var && var->type == VAR_STRING && !IS_NULLSTR(var->_.s) )
 		mob->desc->inputString = str_dup(var->_.s);
 	else
 		mob->desc->inputString = &str_empty[0];

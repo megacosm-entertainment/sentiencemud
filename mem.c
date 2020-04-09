@@ -241,6 +241,7 @@ void free_descriptor(DESCRIPTOR_DATA *d)
     free_mem( d->outbuf, d->outsize );
     if(d->input_var) free_string(d->input_var);
     if(d->input_prompt) free_string(d->input_prompt);
+    if(d->inputString) free_string(d->inputString);
     INVALIDATE(d);
     d->next = descriptor_free;
     descriptor_free = d;
