@@ -27,7 +27,7 @@
 #include "merc.h"
 #include "tables.h"
 #include "olc.h"
-#include "script.h"
+#include "scripts.h"
 #include "interp.h"
 
 char *string_linedel(char *, int);
