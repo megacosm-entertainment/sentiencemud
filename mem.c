@@ -592,6 +592,7 @@ CHAR_DATA *new_char( void )
     ch->in_damage_function = FALSE;
 
     ch->checkpoint = NULL;
+    ch->tempstring = NULL;
 
     return ch;
 }
@@ -672,6 +673,8 @@ void free_char( CHAR_DATA *ch )
     free_string(ch->cast_target_name);
     free_string(ch->casting_failure_message);
     free_string(ch->projectile_victim);
+    free_string(ch->tempstring);
+
 
     list_destroy(ch->llocker);
     list_destroy(ch->lcarrying);
@@ -1947,6 +1950,7 @@ QUEST_PART_DATA *new_quest_part( void )
     pPart->obj_sac = -1;
     pPart->mob_rescue = -1;
     pPart->room = -1;
+    pPart->custom_task = NULL;
     pPart->complete = FALSE;
 
     top_quest_part++;
@@ -1961,6 +1965,8 @@ void free_quest_part( QUEST_PART_DATA *pPart )
 
     pPart->next         =   quest_part_free;
     quest_part_free     =   pPart;
+
+    if(pPart->custom_task) free_string(pPart->custom_task);
     return;
 }
 

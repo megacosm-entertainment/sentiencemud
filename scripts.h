@@ -234,7 +234,7 @@ enum ifcheck_enum {
 
 
 	/* T */
-	CHK_TEMPSTORE1,CHK_TEMPSTORE2,CHK_TEMPSTORE3,CHK_TEMPSTORE4,
+	CHK_TEMPSTORE1,CHK_TEMPSTORE2,CHK_TEMPSTORE3,CHK_TEMPSTORE4,CHK_TEMPSTRING,
 	CHK_TESTHARDMAGIC,CHK_TESTSKILL,CHK_TESTSLOWMAGIC,CHK_TESTTOKENSPELL,
 	CHK_THIRST,CHK_TIMEOFDAY,CHK_TIMER,CHK_TOKENCOUNT,CHK_TOKENEXISTS,CHK_TOKENTIMER,
 	CHK_TOKENTYPE,CHK_TOKENVALUE,CHK_TOTALFIGHTS,CHK_TOTALLOSS,CHK_TOTALPKFIGHTS,
@@ -685,6 +685,7 @@ enum entity_mobile_enum {
 	ENTITY_MOB_IMMUNE,
 	ENTITY_MOB_RESIST,
 	ENTITY_MOB_VULN,
+	ENTITY_MOB_TEMPSTRING,
 };
 
 enum entity_object_enum {
@@ -1658,6 +1659,7 @@ DECL_IFC_FUN(ifc_tempstore1);
 DECL_IFC_FUN(ifc_tempstore2);
 DECL_IFC_FUN(ifc_tempstore3);
 DECL_IFC_FUN(ifc_tempstore4);
+DECL_IFC_FUN(ifc_tempstring);
 DECL_IFC_FUN(ifc_testhardmagic);
 DECL_IFC_FUN(ifc_testskill);
 DECL_IFC_FUN(ifc_testslowmagic);
@@ -2385,6 +2387,7 @@ SCRIPT_CMD(scriptcmd_award);
 SCRIPT_CMD(scriptcmd_damage);
 SCRIPT_CMD(scriptcmd_deduct);
 SCRIPT_CMD(scriptcmd_grantskill);
+SCRIPT_CMD(scriptcmd_questcomplete);
 SCRIPT_CMD(scriptcmd_revokeskill);
 SCRIPT_CMD(scriptcmd_startcombat);
 SCRIPT_CMD(scriptcmd_stopcombat);

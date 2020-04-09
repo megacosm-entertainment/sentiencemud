@@ -1798,6 +1798,11 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->d.bv.table = arg->d.mob ? vuln_flags : NULL;
 		break;
 
+	case ENTITY_MOB_TEMPSTRING:
+		arg->type = ENT_STRING;
+		arg->d.str = arg->d.mob && arg->d.mob->tempstring ? arg->d.mob->tempstring : &str_empty[0];
+		break;
+
 	default: return NULL;
 	}
 
@@ -2053,6 +2058,11 @@ char *expand_entity_mobile_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_BITVECTOR;
 		arg->d.bv.value = 0;
 		arg->d.bv.table = NULL;
+		break;
+
+	case ENTITY_MOB_TEMPSTRING:
+		arg->type = ENT_STRING;
+		arg->d.str = (char*)&str_empty[0];
 		break;
 
 	default: return NULL;

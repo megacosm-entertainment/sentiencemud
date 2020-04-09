@@ -601,6 +601,31 @@ SCRIPT_CMD(scriptcmd_grantskill)
 //////////////////////////////////////
 // Q
 
+// QUESTCOMPLETE $player $partno
+SCRIPT_CMD(scriptcmd_questcomplete)
+{
+	char *rest;
+	SCRIPT_PARAM arg;
+	CHAR_DATA *mob;
+
+	info->progs->lastreturn = 0;
+
+	if(!(rest = expand_argument(info,argument,&arg)))
+		return;
+
+	if(arg.type != ENT_MOBILE || !arg.d.mob || IS_NPC(arg.d.mob) || !IS_QUESTING(arg.d.mob)) return;
+
+	mob = arg.d.mob;
+
+	if(!(rest = expand_argument(info,rest,&arg)))
+		return;
+
+	if( arg.type != ENT_NUMBER ) return;
+
+	if(check_quest_custom_task(mob, arg.d.num))
+		info->progs->lastreturn = 1;
+}
+
 //////////////////////////////////////
 // R
 

@@ -274,6 +274,8 @@ ENT_FIELD entity_mobile[] = {
 	{"resist",			ENTITY_MOB_RESIST,			ENT_BITVECTOR },
 	{"vuln",			ENTITY_MOB_VULN,			ENT_BITVECTOR },
 
+	{"tempstring",		ENTITY_MOB_TEMPSTRING,		ENT_STRING },
+
 	{NULL,				0,							ENT_UNKNOWN	}
 };
 
@@ -671,6 +673,7 @@ struct trigger_type trigger_table	[] = {
 {	"mount",				NULL,		TRIG_MOUNT,				TRIGSLOT_GENERAL,	TRUE,	FALSE,	FALSE,	TRUE	},
 {	"multiclass",			NULL,		TRIG_MULTICLASS,		TRIGSLOT_GENERAL,	TRUE,	FALSE,	FALSE,	TRUE	},
 {	"open",					NULL,		TRIG_OPEN,				TRIGSLOT_GENERAL,	FALSE,  TRUE,   TRUE,	TRUE	},
+{	"postquest",			NULL,		TRIG_POSTQUEST,			TRIGSLOT_GENERAL,	TRUE,	FALSE,	FALSE,	TRUE	},
 {	"practice",				NULL,		TRIG_PRACTICE,			TRIGSLOT_GENERAL,	TRUE,	FALSE,	FALSE,	TRUE	},
 {	"practicetoken",		NULL,		TRIG_PRACTICETOKEN,		TRIGSLOT_GENERAL,	FALSE,	FALSE,	FALSE,	TRUE	},
 {	"preanimate",			NULL,		TRIG_PREANIMATE,		TRIGSLOT_REPOP,		TRUE,	TRUE,	TRUE,	TRUE	},
@@ -695,6 +698,7 @@ struct trigger_type trigger_table	[] = {
 {	"prepracticethat",		NULL,		TRIG_PREPRACTICETHAT,	TRIGSLOT_GENERAL,	TRUE,	FALSE,	FALSE,	TRUE	},
 {	"prepracticetoken",		NULL,		TRIG_PREPRACTICETOKEN,	TRIGSLOT_GENERAL,	FALSE,	FALSE,	FALSE,	TRUE	},
 {	"preput",				NULL,		TRIG_PREPUT,			TRIGSLOT_GENERAL,	FALSE,	TRUE,	FALSE,	TRUE	},
+{	"prequest",				NULL,		TRIG_PREQUEST,			TRIGSLOT_GENERAL,	TRUE,	FALSE,	FALSE,	TRUE	},
 {	"prerecall",			NULL,		TRIG_PRERECALL,			TRIGSLOT_GENERAL,	FALSE,	FALSE,	TRUE,	TRUE	},
 {	"prereckoning",			NULL,		TRIG_PRERECKONING,		TRIGSLOT_RANDOM,	TRUE,	TRUE,	TRUE,	TRUE	},
 {	"prerehearse",			NULL,		TRIG_PREREHEARSE,		TRIGSLOT_GENERAL,	TRUE,	FALSE,	FALSE,	TRUE	},
@@ -717,6 +721,9 @@ struct trigger_type trigger_table	[] = {
 {	"push",					NULL,		TRIG_PUSH,				TRIGSLOT_GENERAL,	FALSE,	TRUE,	FALSE,	TRUE	},
 {	"pushon",				NULL,		TRIG_PUSH_ON,			TRIGSLOT_GENERAL,	FALSE,	TRUE,	FALSE,	TRUE	},
 {	"put",					NULL,		TRIG_PUT,				TRIGSLOT_GENERAL,	FALSE,	TRUE,	FALSE,	TRUE	},
+{	"quest_complete",		NULL,		TRIG_QUEST_COMPLETE,	TRIGSLOT_GENERAL,	TRUE,	FALSE,	FALSE,	TRUE	},
+{	"quest_incomplete",		NULL,		TRIG_QUEST_INCOMPLETE,	TRIGSLOT_GENERAL,	TRUE,	FALSE,	FALSE,	TRUE	},
+{	"quest_part",			NULL,		TRIG_QUEST_PART,		TRIGSLOT_GENERAL,	TRUE,	FALSE,	FALSE,	TRUE	},
 {	"quit",					NULL,		TRIG_QUIT,				TRIGSLOT_GENERAL,	FALSE,	FALSE,	FALSE,	TRUE	},
 {	"random",				NULL,		TRIG_RANDOM,			TRIGSLOT_RANDOM,	TRUE,	TRUE,	TRUE,	TRUE	},
 {	"recall",				NULL,		TRIG_RECALL,			TRIGSLOT_GENERAL,	FALSE,	FALSE,	TRUE,	TRUE	},
@@ -1119,6 +1126,7 @@ IFCHECK_DATA ifcheck_table[] = {
 	{ "tempstore2",			IFC_ANY,	"E",	TRUE,	ifc_tempstore2,			"ifcheck tempstore2" },
 	{ "tempstore3",			IFC_ANY,	"E",	TRUE,	ifc_tempstore3,			"ifcheck tempstore3" },
 	{ "tempstore4",			IFC_ANY,	"E",	TRUE,	ifc_tempstore4,			"ifcheck tempstore4" },
+	{ "tempstring",			IFC_ANY,	"ES",	FALSE,	ifc_tempstring,			"ifcheck tempstring" },
 	{ "testhardmagic",		IFC_ANY,	"ES",	FALSE,	ifc_testhardmagic,		"ifcheck testhardmagic" },
 	{ "testskill",			IFC_ANY,	"ES",	FALSE,	ifc_testskill,			"ifcheck testskill" },
 	{ "testslowmagic",		IFC_ANY,	"ES",	FALSE,	ifc_testslowmagic,		"ifcheck testslowmagic" },

@@ -3574,11 +3574,12 @@ SCRIPT_CMD(do_opstringmob)
 	}
 
 
-	if(!str_cmp(field,"name"))		str = (char**)&mob->name;
-	else if(!str_cmp(field,"owner"))	{ str = (char**)&mob->owner; min_sec = 5; }
-	else if(!str_cmp(field,"short"))	str = (char**)&mob->short_descr;
-	else if(!str_cmp(field,"long"))		{ str = (char**)&mob->long_descr; strcat(buf,"\n\r"); newlines = TRUE; }
-	else if(!str_cmp(field,"full"))		{ str = (char**)&mob->description; newlines = TRUE; }
+	if(!str_cmp(field,"name"))				str = (char**)&mob->name;
+	else if(!str_cmp(field,"owner"))		{ str = (char**)&mob->owner; min_sec = 5; }
+	else if(!str_cmp(field,"short"))		str = (char**)&mob->short_descr;
+	else if(!str_cmp(field,"long"))			{ str = (char**)&mob->long_descr; strcat(buf,"\n\r"); newlines = TRUE; }
+	else if(!str_cmp(field,"full"))			{ str = (char**)&mob->description; newlines = TRUE; }
+	else if(!str_cmp(field,"tempstring"))	str = (char**)&mob->tempstring;
 	else return;
 
 	if(script_security < min_sec) {
