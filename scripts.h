@@ -1914,7 +1914,7 @@ bool variables_set_connection(ppVARIABLE list,char *name, DESCRIPTOR_DATA *conn)
 bool variables_set_door (ppVARIABLE list,char *name, ROOM_INDEX_DATA *room, int door, bool save);
 bool variables_set_exit(ppVARIABLE list,char *name,EXIT_DATA *e);
 bool variables_set_integer(ppVARIABLE list,char *name,int num);
-bool variables_set_list (ppVARIABLE list, char *name, int type, bool save);
+pVARIABLE variables_set_list (ppVARIABLE list, char *name, int type, bool save);
 bool variables_set_mobile(ppVARIABLE list,char *name,CHAR_DATA *m);
 bool variables_set_object(ppVARIABLE list,char *name,OBJ_DATA *o);
 bool variables_set_room(ppVARIABLE list,char *name,ROOM_INDEX_DATA *r);
