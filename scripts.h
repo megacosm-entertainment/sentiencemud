@@ -1968,6 +1968,7 @@ void script_end_success(CHAR_DATA *ch);
 void script_end_failure(CHAR_DATA *ch, bool messages);
 void script_end_pulse(CHAR_DATA *ch);
 CHAR_DATA *script_get_char_room(SCRIPT_VARINFO *info, char *name, bool see_all);
+OBJ_DATA *script_get_obj_here(SCRIPT_VARINFO *info, char *name);
 
 /* Commands */
 int mpcmd_lookup(char *command);
