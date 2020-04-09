@@ -27,6 +27,8 @@
 #include "merc.h"
 #include "tables.h"
 #include "olc.h"
+#include "script.h"
+#include "interp.h"
 
 char *string_linedel(char *, int);
 char *string_lineadd(char *, char *, int);
@@ -141,7 +143,7 @@ void string_postprocess(CHAR_DATA *ch, bool execute)
 
 		if(script && execute) {
 			if(v) {
-				variables_set_string(var,v,argument,FALSE);
+				variables_set_string(var,v,s,FALSE);
 			}
 
 			ret = execute_script(script->vnum, script, mob, obj, room, tok, ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL,NULL,0,0,0,0,0);
