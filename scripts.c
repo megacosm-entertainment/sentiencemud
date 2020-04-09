@@ -5489,7 +5489,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 
 			pVARIABLE var = variable_get(vars, name);
 
-			if( !var || var != VAR_BLLIST_MOB || !IS_VALID(var->_.list) )
+			if( !var || var->type != VAR_BLLIST_MOB || !IS_VALID(var->_.list) )
 				return;
 
 			list_remnthlink(var->_.list, arg.d.num);
@@ -5498,7 +5498,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 		} else if( !str_cmp(arg.d.str, "clear") ) {
 			pVARIABLE var = variable_get(vars, name);
 
-			if( !var || var != VAR_BLLIST_MOB || !IS_VALID(var->_.list) )
+			if( !var || var->type != VAR_BLLIST_MOB || !IS_VALID(var->_.list) )
 				return;
 
 			list_clear(var->_.list);
@@ -5527,7 +5527,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 
 			pVARIABLE var = variable_get(vars, name);
 
-			if( !var || var != VAR_BLLIST_OBJ || !IS_VALID(var->_.list) )
+			if( !var || var->type != VAR_BLLIST_OBJ || !IS_VALID(var->_.list) )
 				return;
 
 			list_remnthlink(var->_.list, arg.d.num);
@@ -5536,7 +5536,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 		} else if( !str_cmp(arg.d.str, "clear") ) {
 			pVARIABLE var = variable_get(vars, name);
 
-			if( !var || var != VAR_BLLIST_OBJ || !IS_VALID(var->_.list) )
+			if( !var || var->type != VAR_BLLIST_OBJ || !IS_VALID(var->_.list) )
 				return;
 
 			list_clear(var->_.list);
