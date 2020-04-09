@@ -326,12 +326,12 @@ void do_mpstat(CHAR_DATA *ch, char *argument)
 					if(IS_VALID(m))
 					{
 						if( IS_NPC(m) )
-							sprintf(arg,"MOBILE[%s (%s)] ID[%08X:%08X]\n\r", m->short_descr, (int)m->pIndexData->vnum, (int)m->id[0],(int)m->id[1]);
+							sprintf(arg,"      - MOBILE[%s (%s)] ID[%08X:%08X]\n\r", m->short_descr, (int)m->pIndexData->vnum, (int)m->id[0],(int)m->id[1]);
 						else
-							sprintf(arg,"PLAYER[%s] ID[%08X:%08X]\n\r", m->name, (int)m->pIndexData->vnum, (int)m->id[0], (int)m->id[1]);
+							sprintf(arg,"      - PLAYER[%s] ID[%08X:%08X]\n\r", m->name, (int)m->pIndexData->vnum, (int)m->id[0], (int)m->id[1]);
 					}
 					else
-						sprintf(arg,"MOBILE[???] ID[%08X:%08X]\n\r", (int)data->id[0],(int)data->id[1]);
+						sprintf(arg,"      - MOBILE[???] ID[%08X:%08X]\n\r", (int)data->id[0],(int)data->id[1]);
 				}
 				iterator_stop(&it);
 				break;
@@ -349,9 +349,9 @@ void do_mpstat(CHAR_DATA *ch, char *argument)
 
 					OBJ_DATA *o = (OBJ_DATA *)data->ptr;
 					if(IS_VALID(o))
-						sprintf(arg,"OBJECT[%s (%s)] ID[%08X:%08X]\n\r", o->short_descr, (int)o->pIndexData->vnum, (int)o->id[0], (int)o->id[1]);
+						sprintf(arg,"      - OBJECT[%s (%s)] ID[%08X:%08X]\n\r", o->short_descr, (int)o->pIndexData->vnum, (int)o->id[0], (int)o->id[1]);
 					else
-						sprintf(arg,"OBJECT[???] ID[%08X:%08X]\n\r", (int)data->id[0], (int)data->id[1]);
+						sprintf(arg,"      - OBJECT[???] ID[%08X:%08X]\n\r", (int)data->id[0], (int)data->id[1]);
 				}
 				iterator_stop(&it);
 				break;
