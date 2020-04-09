@@ -71,6 +71,7 @@ const struct script_cmd_type token_cmd_table[] = {
 	{ "persist",			do_tppersist,			FALSE,	TRUE	},
 	{ "prompt",				do_tpprompt,			FALSE,	TRUE	},
 	{ "purge",				do_tppurge,				FALSE,	FALSE	},
+	{ "questcomplete",		scriptcmd_questcomplete,FALSE,	TRUE	},
 	{ "queue",				do_tpqueue,				FALSE,	TRUE	},
 	{ "raisedead",			do_tpraisedead,			TRUE,	TRUE	},
 	{ "rawkill",			do_tprawkill,			FALSE,	TRUE	},
@@ -3763,11 +3764,12 @@ SCRIPT_CMD(do_tpstringmob)
 	}
 
 
-	if(!str_cmp(field,"name"))		str = (char**)&mob->name;
-	else if(!str_cmp(field,"owner"))	{ str = (char**)&mob->owner; min_sec = 5; }
-	else if(!str_cmp(field,"short"))	str = (char**)&mob->short_descr;
-	else if(!str_cmp(field,"long"))		{ str = (char**)&mob->long_descr; strcat(buf,"\n\r"); newlines = TRUE; }
-	else if(!str_cmp(field,"full"))		{ str = (char**)&mob->description; newlines = TRUE; }
+	if(!str_cmp(field,"name"))				str = (char**)&mob->name;
+	else if(!str_cmp(field,"owner"))		{ str = (char**)&mob->owner; min_sec = 5; }
+	else if(!str_cmp(field,"short"))		str = (char**)&mob->short_descr;
+	else if(!str_cmp(field,"long"))			{ str = (char**)&mob->long_descr; strcat(buf,"\n\r"); newlines = TRUE; }
+	else if(!str_cmp(field,"full"))			{ str = (char**)&mob->description; newlines = TRUE; }
+	else if(!str_cmp(field,"tempstring"))	str = (char**)&mob->tempstring;
 	else return;
 
 	if(script_security < min_sec) {

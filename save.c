@@ -478,7 +478,7 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
     else if (ch->countdown != 0)
         fprintf(fp, "QuestNext %d\n",  10             );
 
-    if (IS_QUESTING(ch)) { 
+    if (IS_QUESTING(ch)) {
 	fprintf(fp, "QuestGiver %ld\n", ch->quest->questgiver);
 
 	fwrite_quest_part(fp, ch->quest->parts);
@@ -907,13 +907,13 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 		    fread_to_eol(fp);
 		    break;
 		}
-		
+
 		part = fread_quest_part(fp);
 
 		part->next = ch->quest->parts;
 		ch->quest->parts = part;
 		break;
-	    }	
+	    }
 
 	case 'A':
 	    KEY("Act",		ch->act,		fread_flag(fp));
@@ -1685,7 +1685,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 		fMatch = TRUE;
 		break;
 	    }
-	    
+
 	    if (!str_cmp(word, "QRoom"))
 	    {
 	 	QUEST_PART_DATA *part;
@@ -3558,7 +3558,7 @@ void fix_character(CHAR_DATA *ch)
 	ch->affected_by_perm = race_table[ch->race].aff;
 	ch->affected_by2_perm = race_table[ch->race].aff2;
 	resetaffects = TRUE;
-	}	
+	}
 	if( resetaffects )
 	{
 		// Reset flags
@@ -4245,7 +4245,7 @@ void fread_skill(FILE *fp, CHAR_DATA *ch)
 }
 
 /* write a quest to disk */
-void fwrite_quest_part(FILE *fp, QUEST_PART_DATA *part) 
+void fwrite_quest_part(FILE *fp, QUEST_PART_DATA *part)
 {
     /* Recursion to make sure we don't have list flipping */
     if (part->next != NULL)
@@ -4254,7 +4254,7 @@ void fwrite_quest_part(FILE *fp, QUEST_PART_DATA *part)
     fprintf(fp, "#QUESTPART\n");
 
     if (part->pObj != NULL && !part->complete) { // Special case. Objects will be extracted on quit, re-loaded on login.
-	if (part->pObj->in_room == NULL) 
+	if (part->pObj->in_room == NULL)
 	    bug("fwrite_quest_part: trying to save a quest pickup obj with null in_room", 0);
 	else
 	    fprintf(fp, "OPart %ld %ld\n", part->pObj->pIndexData->vnum, part->pObj->in_room->vnum);
@@ -4267,6 +4267,8 @@ void fwrite_quest_part(FILE *fp, QUEST_PART_DATA *part)
 	fprintf(fp, "MRPart %ld\n", part->mob_rescue);
     else if (part->room != -1)
 	fprintf(fp, "QRoom %ld\n", part->room);
+    else if (!IS_NULLSTR(part->custom_task))
+		fprintf(fp, "QCustom %s~\n", part->custom_task);
 
     if (part->complete)
 	fprintf(fp, "QComplete\n");
@@ -4283,7 +4285,7 @@ QUEST_PART_DATA *fread_quest_part(FILE *fp)
     int i;
 
     part = new_quest_part();
-    
+
     for (; ;)
     {
 		word   = feof(fp) ? "End" : fread_word(fp);
@@ -4303,15 +4305,15 @@ QUEST_PART_DATA *fread_quest_part(FILE *fp)
 			    fMatch = TRUE;
 			    break;
 			}
-			
+
 			if (!str_cmp(word, "MRPart")) {
 			    i = fread_number(fp);
 			    part->mob_rescue = i;
 			    fMatch = TRUE;
 			    break;
 			}
+			break;
 
-			
 		    case 'O':
 			/* Special Case - Make an Obj */
 			if (!str_cmp(word, "OPart")) {
@@ -4343,8 +4345,14 @@ QUEST_PART_DATA *fread_quest_part(FILE *fp)
 			    fMatch = TRUE;
 			    break;
 			}
+			break;
 
 		    case 'Q':
+			if (!str_cmp(word, "QCustom")) {
+				part->custom_task = fread_string(fp);
+				fMatch = TRUE;
+				break;
+			}
 			if (!str_cmp(word, "QRoom")) {
 			    i = fread_number(fp);
 			    part->room = i;

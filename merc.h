@@ -3194,6 +3194,7 @@ struct quest_part_data
     long		room;
     long		obj_sac;
     long		mob_rescue;
+    char *		custom_task;
     bool		complete;
 };
 
@@ -3789,6 +3790,7 @@ struct	char_data
     int			hit_class;		/* Class of damage given */
     int			skill_chance;		/* Current chance used in a given action */
     int			tempstore[4];		/* Temporary storage values for script processing */
+    char *		tempstring;
     int			manastore;		/* A storage for "mana" other than the character's mana */
 
 	MOB_SKILL_DATA *mob_skills;
@@ -5048,6 +5050,7 @@ enum trigger_index_enum {
 	TRIG_MOUNT,
 	TRIG_MULTICLASS,	// Called when a player multiclasses
 	TRIG_OPEN,
+	TRIG_POSTQUEST,			// Called after all quest rewards and messages are given
 	TRIG_PRACTICE,
 	TRIG_PRACTICETOKEN,
 	TRIG_PREANIMATE,
@@ -5072,6 +5075,7 @@ enum trigger_index_enum {
 	TRIG_PREPRACTICETHAT,
 	TRIG_PREPRACTICETOKEN,
 	TRIG_PREPUT,
+	TRIG_PREQUEST,			// Allows custom checking for questing, also allows setting the number of quest parts.
 	TRIG_PRERECALL,
 	TRIG_PRERECKONING,
 	TRIG_PREREHEARSE,
@@ -5094,6 +5098,9 @@ enum trigger_index_enum {
 	TRIG_PUSH,
 	TRIG_PUSH_ON,		/* NIB : 20070121 */
 	TRIG_PUT,
+	TRIG_QUEST_COMPLETE,	// Prior to awards being given, called when the quest turned in complete, allowing editing of the awards
+	TRIG_QUEST_INCOMPLETE,	// Prior to awards being given, called when the quest turned in incomplete , allowing editing of the awards
+	TRIG_QUEST_PART,		// Used to generate a custom quest part when selected.
 	TRIG_QUIT,
 	TRIG_RANDOM,
 	TRIG_RECALL,
@@ -6825,7 +6832,7 @@ char *get_affect_cname(char *name);
 /* quest.c */
 bool generate_quest( CHAR_DATA *ch, CHAR_DATA *questman );
 void quest_update(void);
-bool generate_quest_part( CHAR_DATA *ch, CHAR_DATA *questman, QUEST_PART_DATA *part );
+bool generate_quest_part( CHAR_DATA *ch, CHAR_DATA *questman, QUEST_PART_DATA *part, int partno, int extra_tasks );
 bool is_quest_item( OBJ_DATA *obj );
 bool is_quest_token( OBJ_DATA *obj );
 int count_quest_parts( CHAR_DATA *ch );
@@ -6835,6 +6842,7 @@ void check_quest_retrieve_obj( CHAR_DATA *ch, OBJ_DATA *obj );
 void check_quest_slay_mob( CHAR_DATA *ch, CHAR_DATA *mob );
 void check_quest_totally_complete( CHAR_DATA *ch );
 void check_quest_travel_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room);
+bool check_quest_custom_task(CHAR_DATA *ch, int task);
 
 /* handler.c */
 int get_coord_distance( int x1, int y1, int x2, int y2 );

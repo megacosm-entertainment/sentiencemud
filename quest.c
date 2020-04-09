@@ -27,7 +27,7 @@
 
 /***************************************************************************
 *  Automated Quest code written by Vassago of MOONGATE, moongate.ams.com   *
-*  4000. Copyright (c) 1996 Ryan Addams, All Rights Reserved. Use of this  * 
+*  4000. Copyright (c) 1996 Ryan Addams, All Rights Reserved. Use of this  *
 *  code is allowed provided you add a credit line to the effect of:        *
 *  "Quest Code (c) 1996 Ryan Addams" to your logon screen with the rest    *
 *  of the standard diku/rom credits. If you use this or a modified version *
@@ -52,6 +52,13 @@
 #include "merc.h"
 #include "magic.h"
 #include "tables.h"
+
+#define QUESTPART_GETITEM	1
+#define QUESTPART_RESCUE	2
+#define QUESTPART_SLAY		3
+#define QUESTPART_GOTO		4
+#define QUESTPART_SCRIPT	5
+#define QUESTPARTS_BUILTIN	4
 
 /* Roscharch's items */
 const long quest_item_table[] =
@@ -123,62 +130,57 @@ void do_quest(CHAR_DATA *ch, char *argument)
     */
     if (!str_cmp(arg1, "info"))
     {
-	QUEST_PART_DATA *part;
-        int i;
-        int total_parts;
-        bool totally_complete = FALSE;
-	bool found = FALSE;
+		QUEST_PART_DATA *part;
+		int i;
+		int total_parts;
+		bool totally_complete = FALSE;
+		bool found = FALSE;
 
-        total_parts = 0;
+		total_parts = 0;
 
-        if (ch->quest == NULL)
-	{
-	    send_to_char("You are not on a quest.\n\r", ch);
-	    return;
+		if (ch->quest == NULL)
+		{
+			send_to_char("You are not on a quest.\n\r", ch);
+			return;
+		}
+
+		part = ch->quest->parts;
+		while(part != NULL)
+		{
+			if (!part->complete)
+				found = TRUE;
+			total_parts++;
+			part = part->next;
+		}
+
+		if (!found)
+			totally_complete = TRUE;
+
+		i = 1;
+		for (part = ch->quest->parts; part != NULL; part = part->next, i++)
+		{
+			if (part->complete)
+			{
+				sprintf(buf, "You have completed task {Y%d{x of your quest!\n\r", i);
+				send_to_char(buf, ch);
+	    	}
+	    	else
+	    	{
+				sprintf(buf, "Task {Y%d{x of your quest is not complete.\n\r", i);
+				totally_complete = FALSE;
+				send_to_char(buf, ch);
+	    	}
+		}
+
+		if (totally_complete)
+		{
+			sprintf(buf, "{YYour quest is complete!{x\n\r
+				" "Get back to %s before your time runs out!\n\r",
+				get_mob_index(ch->quest->questgiver)->short_descr);
+			send_to_char(buf, ch);
+		}
+		return;
 	}
-
-	part = ch->quest->parts;
-	while(part != NULL)
-	{
-	    if (!part->complete)
-		    found = TRUE;
-	    total_parts++;
-	    part = part->next;
-	}
-
-	if (!found)
-	totally_complete = TRUE;
-
-	i = 1;
-	for (part = ch->quest->parts; part != NULL; part = part->next, i++)
-	{
-	    if (part->complete)
-	    {
-	    	sprintf(buf,
-	    	"You have completed task {Y%d{x of your quest!\n\r",
-	    	i);
-		send_to_char(buf, ch);
-	    }
-	    else
-	    {
-	        sprintf(buf,
-	        "Task {Y%d{x of your quest is not complete.\n\r",
-	        i);
-		totally_complete = FALSE;
-		send_to_char(buf, ch);
-	    }
-	}
-
-	if (totally_complete)
-	{
-            sprintf(buf,
-	    "{YYour quest is complete!{x\n\r"
-	    "Get back to %s before your time runs out!\n\r",
-	    get_mob_index(ch->quest->questgiver)->short_descr);
-            send_to_char(buf, ch);
-        }
-	return;
-    }
 
 
    /*
@@ -243,63 +245,57 @@ void do_quest(CHAR_DATA *ch, char *argument)
     */
     if (!str_cmp(arg1, "list"))
     {
-	int i = 0;
-	OBJ_INDEX_DATA *pItem;
+		int i = 0;
+		OBJ_INDEX_DATA *pItem;
 
-	if (!IS_AWAKE(ch))
-	{
-	    send_to_char("In your dreams, or what?\n\r", ch);
-	    return;
-	}
+		if (!IS_AWAKE(ch))
+		{
+			send_to_char("In your dreams, or what?\n\r", ch);
+			return;
+		}
 
         act("$n asks $N for a list of quest items.",  ch, mob, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
         act ("You ask $N for a list of quest items.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
-	sprintf(buf, "{YNum Cost   Name{x\n\r");
-	send_to_char(buf, ch);
-	sprintf(buf, "{Y---------------------------------------------\n\r");
-	send_to_char(buf, ch);
-
-	if (mob->pIndexData->vnum == VNUM_QUESTOR_1)
-	{
-	    for (i = 0; quest_item_table[i] != 0; i++)
-	    {
-		pItem = get_obj_index(quest_item_table[i]);
-
-		sprintf(buf, "{M%2d) {x%-6ld %-30s\n\r",
-		    i + 1,
-		    pItem->cost,
-		    pItem->short_descr);
-
+		sprintf(buf, "{YNum Cost   Name{x\n\r");
 		send_to_char(buf, ch);
-	    }
-
-	    sprintf(buf, "{M%2d) {x%-6d %-30s\n\r",
-		    ++i, 300, "15 practices");
-	    send_to_char(buf, ch);
-	}
-
-	if (mob->pIndexData->vnum == VNUM_QUESTOR_2)
-	{
-	    for (i = 0; quest2_item_table[i] != 0; i++)
-	    {
-		pItem = get_obj_index(quest2_item_table[i]);
-
-		sprintf(buf, "{M%2d) {x%-6ld %-30s\n\r",
-		    i + 1,
-		    pItem->cost,
-		    pItem->short_descr);
-
+		sprintf(buf, "{Y---------------------------------------------\n\r");
 		send_to_char(buf, ch);
-	    }
 
-	    sprintf(buf, "{M%2d) {x%-6d %-30s\n\r",
-		    ++i, 300, "15 practices");
-	    send_to_char(buf, ch);
+		if (mob->pIndexData->vnum == VNUM_QUESTOR_1)
+		{
+			for (i = 0; quest_item_table[i] != 0; i++)
+			{
+				pItem = get_obj_index(quest_item_table[i]);
+
+				sprintf(buf, "{M%2d) {x%-6ld %-30s\n\r", i + 1,
+					pItem->cost, pItem->short_descr);
+
+				send_to_char(buf, ch);
+			}
+
+			sprintf(buf, "{M%2d) {x%-6d %-30s\n\r", ++i, 300, "15 practices");
+			send_to_char(buf, ch);
+		}
+
+		if (mob->pIndexData->vnum == VNUM_QUESTOR_2)
+		{
+			for (i = 0; quest2_item_table[i] != 0; i++)
+			{
+				pItem = get_obj_index(quest2_item_table[i]);
+
+				sprintf(buf, "{M%2d) {x%-6ld %-30s\n\r", i + 1,
+					pItem->cost, pItem->short_descr);
+
+				send_to_char(buf, ch);
+			}
+
+			sprintf(buf, "{M%2d) {x%-6d %-30s\n\r", ++i, 300, "15 practices");
+			send_to_char(buf, ch);
+		}
+
+		return;
 	}
-
-	return;
-    }
 
    /*
     * Quest buy
@@ -614,80 +610,78 @@ void do_quest(CHAR_DATA *ch, char *argument)
     */
     else if (!str_cmp(arg1, "request"))
     {
-	if (!IS_AWAKE(ch))
-	{
-	    send_to_char("In your dreams, or what?\n\r", ch);
-	    return;
+		if (!IS_AWAKE(ch))
+		{
+			send_to_char("In your dreams, or what?\n\r", ch);
+			return;
+		}
+
+		act("$n asks $N for a quest.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act ("You ask $N for a quest.",ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+
+		if (IS_QUESTING(ch))
+		{
+			sprintf(buf, "But you're already on a quest!");
+			do_say(mob, buf);
+			return;
+		}
+
+		if (IS_DEAD(ch))
+		{
+			sprintf(buf, "You must come back to the world of the living first, %s.", HANDLE(ch));
+			do_say(mob, buf);
+			return;
+		}
+
+		if (ch->nextquest > 0 && !IS_IMMORTAL(ch) && port != PORT_RAE)
+		{
+			sprintf(buf, "You're very brave, %s, but let someone else have a chance.", ch->name);
+			if (mob == NULL)
+			{
+				sprintf(buf, "do_quest(), quest request: MOB Was null, %s.\n\r", ch->name);
+				bug (buf, 0);
+				return;
+			}
+
+			do_say(mob, buf);
+			sprintf(buf, "Come back later.");
+			do_say(mob, buf);
+			return;
+		}
+
+		ch->quest = new_quest();
+		ch->quest->questgiver = mob->pIndexData->vnum;
+		if (generate_quest(ch, mob))
+		{
+			sprintf(buf, "Thank you, brave %s!", HANDLE(ch));
+			do_say(mob, buf);
+		}
+		else
+		{
+			sprintf(buf, "I'm sorry, %s, but I don't have any quests for you to do. Try again later.", ch->name);
+			ch->nextquest = 3;
+			do_say(mob, buf);
+			free_quest(ch->quest);
+			ch->quest = NULL;
+			return;
+		}
+
+		if (IS_QUESTING(ch))
+		{
+			QUEST_PART_DATA *qp;
+			int i = 0;
+
+			for (qp = ch->quest->parts; qp != NULL; qp = qp->next)
+				i++;
+
+			ch->countdown = i * number_range(10,20);
+
+			sprintf(buf, "You have %d minutes to complete this quest.", ch->countdown);
+			do_say(mob, buf);
+		}
+
+		return;
 	}
-
-        act("$n asks $N for a quest.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-        act ("You ask $N for a quest.",ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-
-	if (IS_QUESTING(ch))
-        {
-            sprintf(buf, "But you're already on a quest!");
-            do_say(mob, buf);
-            return;
-        }
-
-	if (IS_DEAD(ch))
-	{
-	    sprintf(buf, "You must come back to the world of the living first, %s.", HANDLE(ch));
-	    do_say(mob, buf);
-	    return;
-	}
-
-	if (ch->nextquest > 0 && !IS_IMMORTAL(ch) && port != PORT_RAE)
-        {
-            sprintf(buf,
-	    "You're very brave, %s, but let someone else have a chance.",
-	    ch->name);
-	    if (mob == NULL)
-	    {
-	        sprintf(buf, "do_quest(), quest request: MOB Was null, %s.\n\r",
-		ch->name);
-	        bug (buf, 0);
-	        return;
-	    }
-            do_say(mob, buf);
-            sprintf(buf, "Come back later.");
-            do_say(mob, buf);
-            return;
-        }
-
-	ch->quest = new_quest();
-	ch->quest->questgiver = mob->pIndexData->vnum;
-        if (generate_quest(ch, mob))
-	{
-	    sprintf(buf, "Thank you, brave %s!", HANDLE(ch));
-	    do_say(mob, buf);
-	}
-	else
-	{
-	    sprintf(buf, "I'm sorry, %s, but I don't have any quests for you to do. Try again later.", ch->name);
-	    ch->nextquest = 3;
-	    do_say(mob, buf);
-	    free_quest(ch->quest);
-	    ch->quest = NULL;
-	    return;
-	}
-
-        if (IS_QUESTING(ch))
-        {
-	    QUEST_PART_DATA *qp;
-	    int i = 0;
-
-            for (qp = ch->quest->parts; qp != NULL; qp = qp->next)
-		i++;
-
-	    ch->countdown = i * number_range(10,20);
-
-            sprintf(buf, "You have %d minutes to complete this quest.",
-			    ch->countdown);
-            do_say(mob, buf);
-        }
-        return;
-    }
 
    /*
     * Quest complete
@@ -813,8 +807,25 @@ void do_quest(CHAR_DATA *ch, char *argument)
 	    pointreward = UMAX(pointreward, 0);
 	}
 
+	questman->tempstore[0] = pointreward;		// QP
+	questman->tempstore[1] = pracreward;		// Practices
+	questman->tempstore[2] = reward;			// Silver
+	if(incomplete)
+		p_percent_trigger( questman, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_INCOMPLETE, NULL);
+	else
+		p_percent_trigger( questman, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_COMPLETE, NULL);
+	pointreward = questman->tempstore[0];
+	pracreward = questman->tempstore[1];
+	reward = questman->tempstore[2];
+
+	// Clamp to zero
+	reward = UMAX(reward,0);
+	pracreward = UMAX(pracreward,0);
+	pointreward = UMAX(pointreward, 0);
+
 	if (boost_table[BOOST_QP].boost != 100)
 	    pointreward = (pointreward * boost_table[BOOST_QP].boost)/100;
+
 
         sprintf(buf,
 	"As a reward, I am giving you %d quest points and %d silver.",
@@ -826,7 +837,6 @@ void do_quest(CHAR_DATA *ch, char *argument)
 	send_to_char("{WQUEST POINTS boost!{x\n\r", ch);
 
         ch->silver += reward;
-
         ch->questpoints += pointreward;
 
         if (number_percent() < 90 && pracreward > 0)
@@ -838,7 +848,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
 		pracreward /= number_range(1,4);
 
 		pracreward = UMAX(1,pracreward);
-	    
+
 		sprintf(buf, "You gain %d practices!\n\r", pracreward);
 		send_to_char(buf, ch);
 		ch->practice += pracreward;
@@ -863,6 +873,8 @@ void do_quest(CHAR_DATA *ch, char *argument)
     			//	10 minutes if nextquest had expired
     free_quest(ch->quest);
     ch->quest = NULL;
+
+		p_percent_trigger( questman, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_POSTQUEST, NULL);
     }
     else
     {
@@ -878,101 +890,117 @@ void do_quest(CHAR_DATA *ch, char *argument)
  */
 bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 {
-    char buf[MAX_STRING_LENGTH];
-    char buf2[MAX_STRING_LENGTH*8];
-    MOB_INDEX_DATA *mob;
-    CHAR_DATA *victim;
-    QUEST_PART_DATA *part;
-    OBJ_DATA *scroll;
-    int parts;
-    int i;
+	char buf[MAX_STRING_LENGTH];
+	char buf2[MAX_STRING_LENGTH*8];
+	MOB_INDEX_DATA *mob;
+	CHAR_DATA *victim;
+	QUEST_PART_DATA *part;
+	OBJ_DATA *scroll;
+	int parts;
+	int i;
 
-    if (ch->tot_level <= 30)
-        parts = number_range(1, 3);
-    else if (ch->tot_level <= 60)
-        parts = number_range(3, 6);
-    else if (ch->tot_level <= 90)
-        parts = number_range(7, 9);
-    else
-        parts = number_range(8, 15);
+	if (ch->tot_level <= 30)
+		parts = number_range(1, 3);
+	else if (ch->tot_level <= 60)
+		parts = number_range(3, 6);
+	else if (ch->tot_level <= 90)
+		parts = number_range(7, 9);
+	else
+		parts = number_range(8, 15);
 
-    /* fun */
-    if (number_percent() < 5)
-	    parts = parts * 2;
+	/* fun */
+	bool bFun = number_percent() < 5;
+	if (bFun)
+		parts = parts * 2;
 
-    // create the scroll
-    scroll = create_object(get_obj_index(OBJ_VNUM_QUEST_SCROLL), 0, TRUE);
-    free_string(scroll->full_description);
+	// MORE FUN
+	questman->tempstore[0] = parts;				// Number of parts to do (In-Out)
+	questman->tempstore[1] = bFun ? 1 : 0;		// Whether this was a F.U.N. quest (In)
+												// Scripted tasks (Out)
+	if(p_percent_trigger( questman, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_PREQUEST, NULL))
+		return FALSE;
+	parts = questman->tempstore[0];				// Updated number of parts to do
+												// Whether this was a F.U.N. quest (skipped)
+	int script_tasks = questman->tempstore[2];	// Number of scripted tasks available
 
-    sprintf(buf2, 
-	    "{W  .-.--------------------------------------------------------------------------------------.-.\n\r"
-	    "((o))                                                                                         )\n\r"
-	    "{W \\U/_________________________________________________________________________________________/\n\r"
-	    "{W  |\n\r"
-	    "{W  |  {xNoble %s,\n\r{x  |\n\r"
-	    "{W  |  {xThis is an official quest scroll given to you by %s.\n\r"
-	    "{W  |  {xUpon this scroll is my seal, and my approval to go to any\n\r"
-	    "{W  |  {xmeasures in order to complete the set of tasks I have listed.\n\r"
-	    "{W  |  {xReturn to me once you have completed these tasks, and you\n\r"
-	    "{W  |  {xshall be justly rewarded.\n\r  |  \n\r",
-	    ch->name, questman->short_descr);
 
-    for (i = 0; i < parts; i++)
-    {
-	part = new_quest_part();
-	part->next = ch->quest->parts;
-	ch->quest->parts = part;
+	// create the scroll
+	scroll = create_object(get_obj_index(OBJ_VNUM_QUEST_SCROLL), 0, TRUE);
+	free_string(scroll->full_description);
 
-        if (generate_quest_part(ch, questman, part))
-	    continue;
-	else 
+	sprintf(buf2,
+		"{W  .-.--------------------------------------------------------------------------------------.-.\n\r"
+		"((o))                                                                                         )\n\r"
+		"{W \\U/_________________________________________________________________________________________/\n\r"
+		"{W  |\n\r"
+		"{W  |  {xNoble %s,\n\r{x  |\n\r"
+		"{W  |  {xThis is an official quest scroll given to you by %s.\n\r"
+		"{W  |  {xUpon this scroll is my seal, and my approval to go to any\n\r"
+		"{W  |  {xmeasures in order to complete the set of tasks I have listed.\n\r"
+		"{W  |  {xReturn to me once you have completed these tasks, and you\n\r"
+		"{W  |  {xshall be justly rewarded.\n\r  |  \n\r",
+		ch->name, questman->short_descr);
+
+	for (i = 0; i < parts; i++)
 	{
-	    free_obj(scroll); // no memory leak now
-	    return FALSE;
-	}
-    }
+		part = new_quest_part();
+		part->next = ch->quest->parts;
+		ch->quest->parts = part;
 
-    /* Moving all quest-scroll generation shit into here. AO 010517  */
-    for (i = 1, part = ch->quest->parts; part != NULL; part = part->next, i++) 
-    {
-	sprintf(buf, "{W  |  {xTask {Y%d{x: ", i);
-	strcat(buf2, buf);
-
-	if (part->pObj != NULL)
-	    sprintf(buf, "Retrieve {Y%s{x from {Y%s{x in {Y%s{x.\n\r",
-		    part->pObj->short_descr, part->pObj->in_room->name, part->pObj->in_room->area->name);
-
-	if (part->mob_rescue != -1) {
-	    mob = get_mob_index(part->mob_rescue);
-
-	    victim = get_char_world_index(NULL, mob);
-
-	    sprintf(buf, "Rescue {Y%s{x from {Y%s{x in {Y%s{x.\n\r",
-		    victim->short_descr,
-		    victim->in_room->name,
-		    victim->in_room->area->name);
+		if (generate_quest_part(ch, questman, part, i+1, script_tasks))
+			continue;
+		else
+		{
+			free_obj(scroll); // no memory leak now
+			return FALSE;
+		}
 	}
 
-	if (part->mob != -1) {
-	    mob = get_mob_index(part->mob);
+	/* Moving all quest-scroll generation shit into here. AO 010517  */
+	for (i = 1, part = ch->quest->parts; part != NULL; part = part->next, i++)
+	{
+		sprintf(buf, "{W  |  {xTask {Y%d{x: ", i);
+		strcat(buf2, buf);
 
-	    victim = get_char_world_index(NULL, mob); 
+		if (part->pObj != NULL)
+		{
+			sprintf(buf, "Retrieve {Y%s{x from {Y%s{x in {Y%s{x.\n\r",
+				part->pObj->short_descr, part->pObj->in_room->name, part->pObj->in_room->area->name);
+		}
+		else if (part->mob_rescue != -1)
+		{
+			mob = get_mob_index(part->mob_rescue);
 
-	    sprintf(buf, "Slay {Y%s{x.  %s was last seen in {Y%s{x.\n\r",
-		    victim->short_descr,
-		    victim->sex == SEX_MALE ? "He" :
-		    victim->sex == SEX_FEMALE ? "She" : "It",
-		    victim->in_room->area->name);
+			victim = get_char_world_index(NULL, mob);
+
+			sprintf(buf, "Rescue {Y%s{x from {Y%s{x in {Y%s{x.\n\r",
+				victim->short_descr,
+				victim->in_room->name,
+				victim->in_room->area->name);
+		}
+		else if (part->mob != -1)
+		{
+			mob = get_mob_index(part->mob);
+
+			victim = get_char_world_index(NULL, mob);
+
+			sprintf(buf, "Slay {Y%s{x.  %s was last seen in {Y%s{x.\n\r",
+				victim->short_descr,
+				victim->sex == SEX_MALE ? "He" :
+				victim->sex == SEX_FEMALE ? "She" : "It",
+				victim->in_room->area->name);
+		}
+		else if (part->room != -1)
+		{
+			ROOM_INDEX_DATA *room = get_room_index(part->room);
+
+			sprintf(buf, "Travel to {Y%s{x in {Y%s{x.\n\r", room->name, room->area->name);
+		}
+		else if ( !IS_NULLSTR(part->custom_task) )
+			sprintf(buf, "%s{x\n\r", part->custom_task);
+
+		strcat(buf2, buf);
 	}
-
-	if (part->room != -1) {
-	    ROOM_INDEX_DATA *room = get_room_index(part->room);
-
-	    sprintf(buf, "Travel to {Y%s{x in {Y%s{x.\n\r", room->name, room->area->name);
-	}
-
-	    strcat(buf2, buf);
-    }
 
     sprintf(buf, "{W  |__________________________________________________________________________________________\n\r"
 	    "{W /A\\                                                                                         \\\n\r"
@@ -991,7 +1019,7 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 
 
 /* Set up a quest part. */
-bool generate_quest_part(CHAR_DATA *ch, CHAR_DATA *questman, QUEST_PART_DATA *part)
+bool generate_quest_part(CHAR_DATA *ch, CHAR_DATA *questman, QUEST_PART_DATA *part, int partno, int extra_tasks)
 {
     OBJ_DATA *item;
     CHAR_DATA *victim;
@@ -1000,37 +1028,14 @@ bool generate_quest_part(CHAR_DATA *ch, CHAR_DATA *questman, QUEST_PART_DATA *pa
 
     if (ch == NULL)
     {
-	bug("generate_quest_part: ch NULL", 0);
-	return FALSE;
-    }
-    
-    switch (number_range(1, 4))
-    { /* AO 010417 In R&D :)
-	case 0:
-
-	    if (questman->pIndexData->vnum == VNUM_QUESTOR_1)
-	    {
-		item = get_random_obj(ch, FIRST_CONTINENT);
-	    }
-	    else
-	    {
-		item = get_random_obj(ch, SECOND_CONTINENT);
-	    }
-
-	    if (item == NULL)
+		bug("generate_quest_part: ch NULL", 0);
 		return FALSE;
+    }
 
-	    part->mob = -1;
-	    part->mob_rescue = -1;
-	    part->obj = item->pIndexData->vnum;
-	    part->obj_sac = -1;
-
-	    sprintf(buf, "{YTask %d:{x Retrieve {C%s{x from {C%s{x in {R%s{x.\n\r", partnum+1,
-		    item->short_descr, item->in_room->name, item->in_room->area->name);
-	    strcat(buf2, buf);
-	    break;
-*/
-	case 1:
+	int task_type = number_range(1, QUESTPARTS_BUILTIN + extra_tasks);
+    switch (task_type)
+    {
+	case QUESTPART_GETITEM:
 	    rand = number_range(0,5);
 
 	    item = create_object(get_obj_index(quest_item_token_table[rand]), 0, FALSE);
@@ -1039,10 +1044,10 @@ bool generate_quest_part(CHAR_DATA *ch, CHAR_DATA *questman, QUEST_PART_DATA *pa
 
 	    rand_room = NULL;
 	    while (rand_room == NULL) {
-		if (questman->pIndexData->vnum == VNUM_QUESTOR_1)
-		    rand_room = get_random_room(ch, FIRST_CONTINENT);
-		else
-		    rand_room = get_random_room(ch, SECOND_CONTINENT);
+			if (questman->pIndexData->vnum == VNUM_QUESTOR_1)
+				rand_room = get_random_room(ch, FIRST_CONTINENT);
+			else
+				rand_room = get_random_room(ch, SECOND_CONTINENT);
 	    }
 
 	    obj_to_room(item, rand_room);
@@ -1050,47 +1055,19 @@ bool generate_quest_part(CHAR_DATA *ch, CHAR_DATA *questman, QUEST_PART_DATA *pa
 	    part->obj = item->pIndexData->vnum;
 	    break;
 
-	case 2:
-	    if (questman->pIndexData->vnum == VNUM_QUESTOR_1)
-		victim = get_random_mob(ch, FIRST_CONTINENT);
-	    else
-		victim = get_random_mob(ch, SECOND_CONTINENT);
+	case QUESTPART_RESCUE:
+		if (questman->pIndexData->vnum == VNUM_QUESTOR_1)
+			victim = get_random_mob(ch, FIRST_CONTINENT);
+		else
+			victim = get_random_mob(ch, SECOND_CONTINENT);
 
-	    if (victim == NULL)
-		return FALSE;
+		if (victim == NULL)
+			return FALSE;
 
-	    part->mob_rescue = victim->pIndexData->vnum;
-	    break;
-/* AO 010417 WHY is this here twice?
-	case 2:
-	    if (questman->pIndexData->vnum == VNUM_QUESTOR_1)
-	    {
-		victim = get_random_mob(ch, FIRST_CONTINENT);
-	    }
-	    else
-	    {
-		victim = get_random_mob(ch, SECOND_CONTINENT);
-	    }
+		part->mob_rescue = victim->pIndexData->vnum;
+		break;
 
-	    if (victim == NULL)
-	    {
-		return FALSE;
-	    }
-
-	    part->obj = -1;
-	    part->obj_sac = -1;
-	    part->mob = -1;
-	    part->mob_rescue = victim->pIndexData->vnum;
-
-	    sprintf(buf, "{YTask %d:{x Rescue %s from %s in {R%s{x.\n\r",
-		    partnum+1,
-		    victim->short_descr,
-		    victim->in_room->name,
-		    victim->in_room->area->name);
-	    strcat(buf2, buf);
-	    break;
-*/
-	case 3:
+	case QUESTPART_SLAY:
 		if (questman->pIndexData->vnum == VNUM_QUESTOR_1)
 		    victim = get_random_mob(ch, FIRST_CONTINENT);
 		else
@@ -1102,15 +1079,32 @@ bool generate_quest_part(CHAR_DATA *ch, CHAR_DATA *questman, QUEST_PART_DATA *pa
 		part->mob = victim->pIndexData->vnum;
 		break;
 
-	case 4:
-	    if (questman->pIndexData->vnum == VNUM_QUESTOR_1)
-		rand_room = get_random_room(ch, FIRST_CONTINENT);
-	    else
-		rand_room = get_random_room(ch, SECOND_CONTINENT);
+	case QUESTPART_GOTO:
+		if (questman->pIndexData->vnum == VNUM_QUESTOR_1)
+			rand_room = get_random_room(ch, FIRST_CONTINENT);
+		else
+			rand_room = get_random_room(ch, SECOND_CONTINENT);
 
-	    part->room = rand_room->vnum;
-	    /* AO 010417 Will implement a "Travel to <place> and do <shit>, but this is a start */
-	    break;
+		part->room = rand_room->vnum;
+		/* AO 010417 Will implement a "Travel to <place> and do <shit>, but this is a start */
+		break;
+
+	// SCRIPTED TASKS
+	default:
+
+		questman->tempstore[0] = partno;							// Which quest part *IS* this?  Needed for the "questcomplete" command
+		questman->tempstore[1] = task_type - QUESTPARTS_BUILTIN;	// If extra_tasks is 5, I want 5-9 to become 1-5 in the script
+		if(p_percent_trigger( questman, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_PART, NULL))
+			return FALSE;
+
+		// Did not get a quest part
+		if(IS_NULLSTR(questman->tempstring))
+			return FALSE;
+
+		part->custom_task = questman->tempstring;
+		questman->tempstring = NULL;
+
+		break;
     }
 
     return TRUE;
@@ -1275,11 +1269,11 @@ void check_quest_retrieve_obj(CHAR_DATA *ch, OBJ_DATA *obj)
 	for (part = ch->quest->parts; part != NULL; part = part->next)
 	{
   	    i++;
-	    
+
 	    // already did it
 	    if (part->complete == TRUE)
 		continue;
-	    
+
 	    if (part->pObj == obj)
 	    {
 	        char buf[MAX_STRING_LENGTH];
@@ -1365,7 +1359,7 @@ void check_quest_travel_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room)
     for (part = ch->quest->parts; part != NULL; part = part->next)
     {
         i++;
-	
+
 	// already did it
 	if (part->complete == TRUE)
 	    continue;
@@ -1374,7 +1368,7 @@ void check_quest_travel_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room)
 
 	/* Not going by room vnum to prevent multiple rooms with the same name */
 	if (target_room != NULL
-	&& !str_cmp(target_room->name, room->name)) 
+	&& !str_cmp(target_room->name, room->name))
 	{
 	    char buf[MAX_STRING_LENGTH];
 
@@ -1386,6 +1380,48 @@ void check_quest_travel_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room)
 	    part->complete = TRUE;
 	}
     }
+}
+
+bool check_quest_custom_task(CHAR_DATA *ch, int task)
+{
+	QUEST_PART_DATA *part;
+	int i;
+	int total_parts;
+
+	if (ch->quest == NULL)
+		return FALSE;
+
+    if (IS_NPC(ch))
+    {
+		bug("check_quest_custom_task: NPC", 0);
+		return FALSE;
+    }
+
+	total_parts = count_quest_parts(ch);
+
+    i = 0;
+    for (part = ch->quest->parts; part != NULL; part = part->next)
+    {
+        i++;
+
+		// Not the current task nor is a custom task
+        if( task != i || IS_NULLSTR(part->custom_task) )
+			continue;
+
+		// already did it
+		if (part->complete == TRUE)
+	    	continue;
+
+	    char buf[MAX_STRING_LENGTH];
+
+	    sprintf(buf, "{YYou have completed task %d of your quest!{x\n\r", i);
+	    send_to_char(buf, ch);
+	    part->complete = TRUE;
+
+	    return TRUE;
+    }
+
+    return FALSE;
 }
 
 int count_quest_parts(CHAR_DATA *ch)

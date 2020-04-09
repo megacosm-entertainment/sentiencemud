@@ -69,6 +69,7 @@ const struct script_cmd_type room_cmd_table[] = {
 	{ "persist",			do_rppersist,			FALSE,	TRUE	},
 	{ "prompt",				do_rpprompt,			FALSE,	TRUE	},
 	{ "purge",				do_rppurge,				FALSE,	FALSE	},
+	{ "questcomplete",		scriptcmd_questcomplete,FALSE,	TRUE	},
 	{ "queue",				do_rpqueue,				FALSE,	TRUE	},
 	{ "rawkill",			do_rprawkill,			FALSE,	TRUE	},
 	{ "remember",			do_rpremember,			FALSE,	TRUE	},
@@ -3300,11 +3301,12 @@ SCRIPT_CMD(do_rpstringmob)
 	}
 
 
-	if(!str_cmp(field,"name"))		str = (char**)&mob->name;
-	else if(!str_cmp(field,"owner"))	{ str = (char**)&mob->owner; min_sec = 5; }
-	else if(!str_cmp(field,"short"))	str = (char**)&mob->short_descr;
-	else if(!str_cmp(field,"long"))		{ str = (char**)&mob->long_descr; strcat(buf,"\n\r"); newlines = TRUE; }
-	else if(!str_cmp(field,"full"))		{ str = (char**)&mob->description; newlines = TRUE; }
+	if(!str_cmp(field,"name"))				str = (char**)&mob->name;
+	else if(!str_cmp(field,"owner"))		{ str = (char**)&mob->owner; min_sec = 5; }
+	else if(!str_cmp(field,"short"))		str = (char**)&mob->short_descr;
+	else if(!str_cmp(field,"long"))			{ str = (char**)&mob->long_descr; strcat(buf,"\n\r"); newlines = TRUE; }
+	else if(!str_cmp(field,"full"))			{ str = (char**)&mob->description; newlines = TRUE; }
+	else if(!str_cmp(field,"tempstring"))	str = (char**)&mob->tempstring;
 	else return;
 
 	if(script_security < min_sec) {

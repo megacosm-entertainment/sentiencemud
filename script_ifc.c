@@ -3173,6 +3173,21 @@ DECL_IFC_FUN(ifc_tempstore4)
 	return TRUE;
 }
 
+DECL_IFC_FUN(ifc_tempstring)
+{
+	if(ISARG_MOB(0))
+	{
+		char *str = ARG_MOB(0)->tempstring;
+
+		if(IS_NULLSTR(str) || !ISARG_STR(1)) return FALSE;
+
+		*ret = !str_cmp(str, ARG_STR(1)) ? TRUE : FALSE;
+		return TRUE;
+	}
+	return FALSE;
+}
+
+
 DECL_IFC_FUN(ifc_strlen)
 {
 	*ret = ISARG_STR(0) ? strlen(ARG_STR(0)) : 0;
