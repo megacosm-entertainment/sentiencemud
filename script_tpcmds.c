@@ -70,6 +70,7 @@ const struct script_cmd_type token_cmd_table[] = {
 	{ "persist",			do_tppersist,			FALSE,	TRUE	},
 	{ "prompt",				do_tpprompt,			FALSE,	TRUE	},
 	{ "purge",				do_tppurge,				FALSE,	FALSE	},
+	{ "questcomplete",		scriptcmd_questcomplete,FALSE,	TRUE	},
 	{ "queue",				do_tpqueue,				FALSE,	TRUE	},
 	{ "raisedead",			do_tpraisedead,			TRUE,	TRUE	},
 	{ "rawkill",			do_tprawkill,			FALSE,	TRUE	},

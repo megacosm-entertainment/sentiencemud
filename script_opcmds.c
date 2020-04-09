@@ -70,6 +70,7 @@ const struct script_cmd_type obj_cmd_table[] = {
 	{ "persist",			do_oppersist,			FALSE,	TRUE	},
 	{ "prompt",				do_opprompt,			FALSE,	TRUE	},
 	{ "purge",				do_oppurge,				FALSE,	FALSE	},
+	{ "questcomplete",		scriptcmd_questcomplete,FALSE,	TRUE	},
 	{ "queue",				do_opqueue,				FALSE,	TRUE	},
 	{ "rawkill",			do_oprawkill,			FALSE,	TRUE	},
 	{ "remember",			do_opremember,			FALSE,	TRUE	},

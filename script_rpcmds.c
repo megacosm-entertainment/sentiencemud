@@ -68,6 +68,7 @@ const struct script_cmd_type room_cmd_table[] = {
 	{ "persist",			do_rppersist,			FALSE,	TRUE	},
 	{ "prompt",				do_rpprompt,			FALSE,	TRUE	},
 	{ "purge",				do_rppurge,				FALSE,	FALSE	},
+	{ "questcomplete",		scriptcmd_questcomplete,FALSE,	TRUE	},
 	{ "queue",				do_rpqueue,				FALSE,	TRUE	},
 	{ "rawkill",			do_rprawkill,			FALSE,	TRUE	},
 	{ "remember",			do_rpremember,			FALSE,	TRUE	},
