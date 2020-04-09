@@ -4193,6 +4193,8 @@ SCRIPT_CMD(do_mpaltermob)
 	int *ptr = NULL;
 	bool allowpc = FALSE;
 	bool allowarith = TRUE;
+	bool allowbitwise = TRUE;
+	bool lookuprace = FALSE;
 	const struct flag_type *flags = NULL;
 	int dirty_stat = -1;
 
@@ -4308,7 +4310,7 @@ SCRIPT_CMD(do_mpaltermob)
 	else if(!str_cmp(field,"pktimer"))	ptr = (int*)&mob->pk_timer;
 	else if(!str_cmp(field,"pneuma"))	ptr = (int*)&mob->pneuma;
 	else if(!str_cmp(field,"practice"))	ptr = (int*)&mob->practice;
-	else if(!str_cmp(field,"race"))		{ ptr = (int*)&mob->race; min_sec = 7; }
+	else if(!str_cmp(field,"race"))		{ ptr = (int*)&mob->race; min_sec = 7; allowarith = FALSE; lookuprace = TRUE; }
 	else if(!str_cmp(field,"ranged"))	ptr = (int*)&mob->ranged;
 	else if(!str_cmp(field,"recite"))	ptr = (int*)&mob->recite;
 	else if(!str_cmp(field,"res"))		{ ptr = (int*)&mob->res_flags;  allowarith = FALSE; flags = imm_flags; }
@@ -4353,6 +4355,13 @@ SCRIPT_CMD(do_mpaltermob)
 	case ENT_STRING:
 		if( is_number(arg.d.str) )
 			value = atoi(arg.d.str);
+		else if( lookuprace )
+		{
+			// This is a race, can only be assigned
+			allowarith = FALSE;
+			allowbitwise = FALSE;
+			value = race_lookup(arg.d.str);
+		}
 		else
 		{
 			allowarith = FALSE;	// This is a bit vector, no arithmetic operators.
@@ -4362,35 +4371,39 @@ SCRIPT_CMD(do_mpaltermob)
 		}
 
 		break;
-	case ENT_NUMBER: value = arg.d.num; break;
+	case ENT_NUMBER:
+		if( lookuprace ) return;
+
+		value = arg.d.num;
+		break;
 	default: return;
 	}
 
 	switch (buf[0]) {
 	case '+':
 		if( !allowarith ) {
-			bug("MpAlterMob - altermob called with arithmetic operator on a bitonly field.", 0);
+			bug("MpAlterMob - altermob called with arithmetic operator on a non-arithmetic field.", 0);
 			return;
 		}
 
 		*ptr += value; break;
 	case '-':
 		if( !allowarith ) {
-			bug("MpAlterMob - altermob called with arithmetic operator on a bitonly field.", 0);
+			bug("MpAlterMob - altermob called with arithmetic operator on a non-arithmetic field.", 0);
 			return;
 		}
 
 		*ptr -= value; break;
 	case '*':
 		if( !allowarith ) {
-			bug("MpAlterMob - altermob called with arithmetic operator on a bitonly field.", 0);
+			bug("MpAlterMob - altermob called with arithmetic operator on a non-arithmetic field.", 0);
 			return;
 		}
 
 		*ptr *= value; break;
 	case '/':
 		if( !allowarith ) {
-			bug("MpAlterMob - altermob called with arithmetic operator on a bitonly field.", 0);
+			bug("MpAlterMob - altermob called with arithmetic operator on a non-arithmetic field.", 0);
 			return;
 		}
 
@@ -4402,7 +4415,7 @@ SCRIPT_CMD(do_mpaltermob)
 		break;
 	case '%':
 		if( !allowarith ) {
-			bug("MpAlterMob - altermob called with arithmetic operator on a bitonly field.", 0);
+			bug("MpAlterMob - altermob called with arithmetic operator on a non-arithmetic field.", 0);
 			return;
 		}
 
@@ -4416,10 +4429,39 @@ SCRIPT_CMD(do_mpaltermob)
 	case '=':
 		*ptr = value;
 		break;
-	case '&': *ptr &= value; break;
-	case '|': *ptr |= value; break;
-	case '!': *ptr &= ~value; break;
-	case '^': *ptr ^= value; break;
+
+	case '&':
+		if( !allowbitwise ) {
+			bug("MpAlterMob - altermob called with bitwise operator on a non-bitvector field.", 0);
+			return;
+		}
+
+		*ptr &= value;
+		break;
+	case '|':
+		if( !allowbitwise ) {
+			bug("MpAlterMob - altermob called with bitwise operator on a non-bitvector field.", 0);
+			return;
+		}
+
+		*ptr |= value;
+		break;
+	case '!':
+		if( !allowbitwise ) {
+			bug("MpAlterMob - altermob called with bitwise operator on a non-bitvector field.", 0);
+			return;
+		}
+
+		*ptr &= ~value;
+		break;
+	case '^':
+		if( !allowbitwise ) {
+			bug("MpAlterMob - altermob called with bitwise operator on a non-bitvector field.", 0);
+			return;
+		}
+
+		*ptr ^= value;
+		break;
 	default:
 		return;
 	}
