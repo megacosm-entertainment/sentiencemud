@@ -725,7 +725,7 @@ struct olc_point_area_data {
 #define LEVEL_NEWBIE		10
 #define MAX_TREASURES           1
 #define MAX_IMMORTAL_GROUPS     6
-#define MAX_ALIAS	        80 
+#define MAX_ALIAS	        80
 #define MAX_BUILDER_IDLE_MINUTES 30
 #define MAX_CHAT_ROOMS		100
 #define MAX_CHURCH_TREASURE     100
@@ -759,7 +759,7 @@ struct olc_point_area_data {
 #define MINS_PER_DEATH		8
 #define PORT_NORMAL	        9000
 #define PORT_TEST		9999
-#define PORT_RAE	        7777	
+#define PORT_RAE	        7777
 #define PORT_ALPHA		7680
 #define PULSE_AREA		(60 * PULSE_PER_SECOND)
 #define PULSE_AUCTION           (20 * PULSE_PER_SECOND)
@@ -7673,6 +7673,7 @@ bool persist_load(void);
 LLIST *list_create(bool purge);
 LLIST *list_createx(bool purge, LISTCOPY_FUNC copier, LISTDESTROY_FUNC deleter);
 LLIST *list_copy(LLIST *src);
+void list_clear(LLIST *lp);
 void list_purge(LLIST *lp);
 void list_destroy(LLIST *lp);
 void list_cull(LLIST *lp);
@@ -7682,6 +7683,7 @@ bool list_addlink(LLIST *lp, void *data);
 bool list_appendlink(LLIST *lp, void *data);
 void list_remlink(LLIST *lp, void *data);
 void *list_nthdata(LLIST *lp, int nth);
+void list_remnthlink(LLIST *lp, register int nth);
 bool list_hasdata(LLIST *lp, register void *ptr);
 int list_size(LLIST *lp);
 void iterator_start(ITERATOR *it, LLIST *lp);
