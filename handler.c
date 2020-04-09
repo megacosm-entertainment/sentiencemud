@@ -7912,7 +7912,7 @@ void list_remlink(LLIST *lp, void *data)
 void list_clear(LLIST *lp)
 {
 	LLIST_LINK *link;
-	if(lp && data) {
+	if(lp) {
 		for(link = lp->head; link; link = link->next) {
 			list_remdata(lp, link);
 		}

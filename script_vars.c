@@ -727,7 +727,7 @@ bool variables_set_list_str (ppVARIABLE list, char *name, char *str, bool save)
 	if( !var ) {
 		if ( !variables_set_list(list,name,VAR_PLLIST_STR,save) )
 			return FALSE;
-	} else if( var>type != VAR_PLLIST_STR )
+	} else if( var->type != VAR_PLLIST_STR )
 		return FALSE;
 
 	cpy = str_dup(str);
@@ -782,7 +782,7 @@ bool variables_set_list_mob (ppVARIABLE list, char *name, CHAR_DATA *mob, bool s
 	if( !var ) {
 		if ( !variables_set_list(list,name,VAR_BLLIST_MOB,save) )
 			return FALSE;
-	} else if( var>type != VAR_BLLIST_MOB )
+	} else if( var->type != VAR_BLLIST_MOB )
 		return FALSE;
 
 	if( !(data = alloc_mem(sizeof(LLIST_UID_DATA))) ) return FALSE;
@@ -826,7 +826,7 @@ bool variables_set_list_obj (ppVARIABLE list, char *name, OBJ_DATA *obj, bool sa
 	if( !var ) {
 		if ( !variables_set_list(list,name,VAR_BLLIST_OBJ,save) )
 			return FALSE;
-	} else if( var>type != VAR_BLLIST_OBJ )
+	} else if( var->type != VAR_BLLIST_OBJ )
 		return FALSE;
 
 	if( !(data = alloc_mem(sizeof(LLIST_UID_DATA))) ) return FALSE;
@@ -870,7 +870,7 @@ bool variables_set_list_token (ppVARIABLE list, char *name, TOKEN_DATA *token, b
 	if( !var ) {
 		if ( !variables_set_list(list,name,VAR_BLLIST_TOK,save) )
 			return FALSE;
-	} else if( var>type != VAR_BLLIST_TOK )
+	} else if( var->type != VAR_BLLIST_TOK )
 		return FALSE;
 
 	if( !(data = alloc_mem(sizeof(LLIST_UID_DATA))) ) return FALSE;
@@ -914,7 +914,7 @@ bool variables_set_list_area (ppVARIABLE list, char *name, AREA_DATA *area, bool
 	if( !var ) {
 		if ( !variables_set_list(list,name,VAR_BLLIST_AREA,save) )
 			return FALSE;
-	} else if( var>type != VAR_BLLIST_AREA )
+	} else if( var->type != VAR_BLLIST_AREA )
 		return FALSE;
 
 	if( !(data = alloc_mem(sizeof(LLIST_AREA_DATA))) ) return FALSE;
@@ -956,7 +956,7 @@ bool variables_set_list_wilds (ppVARIABLE list, char *name, WILDS_DATA *wilds, b
 	if( !var ) {
 		if ( !variables_set_list(list,name,VAR_BLLIST_WILDS,save) )
 			return FALSE;
-	} else if( var>type != VAR_BLLIST_WILDS )
+	} else if( var->type != VAR_BLLIST_WILDS )
 		return FALSE;
 
 	if( !(data = alloc_mem(sizeof(LLIST_WILDS_DATA))) ) return FALSE;
@@ -998,7 +998,7 @@ bool variables_set_list_room (ppVARIABLE list, char *name, ROOM_INDEX_DATA *room
 	if( !var ) {
 		if ( !variables_set_list(list,name,VAR_BLLIST_ROOM,save) )
 			return FALSE;
-	} else if( var>type != VAR_BLLIST_ROOM )
+	} else if( var->type != VAR_BLLIST_ROOM )
 		return FALSE;
 
 	if( !(data = alloc_mem(sizeof(LLIST_ROOM_DATA))) ) return FALSE;
@@ -1069,7 +1069,7 @@ bool variables_set_list_connection (ppVARIABLE list, char *name, DESCRIPTOR_DATA
 	if( !var ) {
 		if ( !variables_set_list(list,name,VAR_PLLIST_CONN,save) )
 			return FALSE;
-	} else if( var>type != VAR_PLLIST_CONN )
+	} else if( var->type != VAR_PLLIST_CONN )
 		return FALSE;
 
 	return list_appendlink(var->_.list, conn);
