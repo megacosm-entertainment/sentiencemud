@@ -97,6 +97,63 @@ char *string_replace(char * orig, char * old, char * new)
     return str_dup(xbuf);
 }
 
+void string_postprocess(CHAR_DATA *ch, bool execute)
+{
+	ch->desc->pString = NULL;
+
+	if( ch->desc->input && ch->desc->inputString != NULL)
+	{
+		int ret;
+		SCRIPT_DATA *script = NULL;
+		VARIABLE **var = NULL;
+		CHAR_DATA *mob = ch->desc->input_mob;
+		OBJ_DATA *obj = ch->desc->input_obj;
+		ROOM_INDEX_DATA *room = ch->desc->input_room;
+		TOKEN_DATA *tok = ch->desc->input_tok;
+		char *v = ch->desc->input_var;
+		char *s = ch->desc->inputString;
+
+		if(ch->desc->input_mob) {
+			script = get_script_index(ch->desc->input_script,PRG_MPROG);
+			var = &ch->desc->input_mob->progs->vars;
+		} else if(ch->desc->input_obj) {
+			script = get_script_index(ch->desc->input_script,PRG_OPROG);
+			var = &ch->desc->input_obj->progs->vars;
+		} else if(ch->desc->input_room) {
+			script = get_script_index(ch->desc->input_script,PRG_RPROG);
+			var = &ch->desc->input_room->progs->vars;
+		} else if(ch->desc->input_tok) {
+			script = get_script_index(ch->desc->input_script,PRG_TPROG);
+			var = &ch->desc->input_tok->progs->vars;
+		}
+
+		// Clear this incase other scripts chain together
+		ch->desc->input = FALSE;
+		ch->desc->input_var = NULL;
+		ch->desc->input_script = 0;
+		ch->desc->input_mob = NULL;
+		ch->desc->input_obj = NULL;
+		ch->desc->input_room = NULL;
+		ch->desc->input_tok = NULL;
+		if(ch->desc->input_prompt) free_string(ch->desc->input_prompt);
+		ch->desc->input_prompt = NULL;
+		ch->desc->inputString = NULL;
+
+		if(script && execute) {
+			if(v) {
+				variables_set_string(var,v,argument,FALSE);
+			}
+
+			ret = execute_script(script->vnum, script, mob, obj, room, tok, ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL,NULL,0,0,0,0,0);
+			if(ret > 0 && !IS_NPC(ch) && ch->pcdata->quit_on_input)
+				do_function(ch, &do_quit, NULL);
+		}
+
+		if(v) free_string(v);
+		if(s) free_string(s);
+	}
+
+}
 
 void string_add(CHAR_DATA *ch, char *argument)
 {
@@ -213,104 +270,7 @@ void string_add(CHAR_DATA *ch, char *argument)
 
     if (*argument == '~' || *argument == '@')
     {
-#ifdef ___NO_COMPILE_IN_EDITOR___
-	if (ch->desc->editor == ED_MPCODE)
-	{
-	    //MOB_INDEX_DATA *mob; // @@@NIB : 20070123 : not needed
-	    int hash;
-	    PROG_LIST *mpl;
-	    SCRIPT_DATA *mpc;
-
-	    EDIT_MPCODE(ch, mpc);
-
-	    if(compile_script(ch,mpc,mpc->edit_src,IFC_M))
-		send_to_char("Script saved...\n\r", ch);
-
-#if 0
-		// Commented out since they all point to the container pointer
-		//	not the actual script code
-	    if (mpc != NULL)
-		for (hash = 0; hash < MAX_KEY_HASH; hash++)
-		    for (mob = mob_index_hash[hash]; mob; mob = mob->next)
-			for (mpl = mob->progs; mpl; mpl = mpl->next)
-			    if (mpl->vnum == mpc->vnum)
-			    {
-				sprintf(buf, "Fixing mob %ld.\n\r", mob->vnum);
-				send_to_char(buf, ch);
-				mpl->code = mpc->code;
-			    }
-#endif
-	}
-
-	if (ch->desc->editor == ED_OPCODE) /* for the objprogs */
-	{
-	    //OBJ_INDEX_DATA *obj; // @@@NIB : 20070123 : not needed
-	    int hash;
-	    PROG_LIST *opl;
-	    SCRIPT_DATA *opc;
-
-	    EDIT_OPCODE(ch, opc);
-
-	    if(compile_script(ch,opc,opc->edit_src,IFC_O))
-		send_to_char("Script saved...\n\r", ch);
-
-#if 0
-	    if (opc != NULL)
-		for (hash = 0; hash < MAX_KEY_HASH; hash++)
-		    for (obj = obj_index_hash[hash]; obj; obj = obj->next)
-			for (opl = obj->progs; opl; opl = opl->next)
-			    if (opl->vnum == opc->vnum)
-			    {
-				sprintf(buf, "Fixing object %ld.\n\r", obj->vnum);
-				send_to_char(buf, ch);
-				opl->code = opc->code;
-			    }
-#endif
-	}
-
-	if (ch->desc->editor == ED_RPCODE) /* for the roomprogs */
-	{
-	    //ROOM_INDEX_DATA *room; // @@@NIB : 20070123 : not needed
-	    int hash;
-	    PROG_LIST *rpl;
-	    SCRIPT_DATA *rpc;
-
-	    EDIT_RPCODE(ch, rpc);
-
-	    if(compile_script(ch,rpc,rpc->edit_src,IFC_R))
-		send_to_char("Script saved...\n\r", ch);
-
-#if 0
-	    if (rpc != NULL)
-		for (hash = 0; hash < MAX_KEY_HASH; hash++)
-		    for (room = room_index_hash[hash]; room; room = room->next)
-			for (rpl = room->progs->progs; rpl; rpl = rpl->next)
-			    if (rpl->vnum == rpc->vnum)
-			    {
-				sprintf(buf, "Fixing room %ld.\n\r", room->vnum);
-				send_to_char(buf, ch);
-				rpl->code = rpc->code;
-			    }
-#endif
-	}
-
-#ifdef ___TOKEN_SCRIPTS_YAY___
-	if (ch->desc->editor == ED_TPCODE) /* for the tokenprogs */
-	{
-	    int hash;
-	    PROG_LIST *rpl;
-	    SCRIPT_DATA *tpc;
-
-	    EDIT_RPCODE(ch, tpc);
-
-	    if(compile_script(ch,tpc,tpc->edit_src,IFC_T))
-		send_to_char("Script saved...\n\r", ch);
-
-	}
-#endif
-#endif
-
-        ch->desc->pString = NULL;
+		string_postprocess(ch, TRUE);
         return;
     }
 
@@ -325,7 +285,7 @@ void string_add(CHAR_DATA *ch, char *argument)
         send_to_char("String too long, last line skipped.\n\r", ch);
 
 	/* Force character out of editing mode. */
-        ch->desc->pString = NULL;
+		string_postprocess(ch, FALSE);
         return;
     }
 

@@ -1504,7 +1504,7 @@ bool process_output(DESCRIPTOR_DATA *d, bool fPrompt)
 		    sprintf(wound, "is barely clinging to life.");
 	    else
 		    sprintf(wound, "is on the verge of death.");
-      /* 
+      /*
             if (percent >= 100)
                 sprintf(wound,"is in excellent condition.");
             else if (percent >= 90)
@@ -1602,7 +1602,7 @@ void bust_a_prompt(CHAR_DATA *ch)
     const char *dir_name[] = {"N","E","S","W","U","D","NE","NW","SE","SW"};
     int door;
 
-	if(ch->desc && ch->desc->input) {
+	if(ch->desc && ch->desc->input && !ch->desc->inputString) {
 		send_to_char(ch->desc->input_prompt ? ch->desc->input_prompt : " >", ch);
 		send_to_char("{x \n\r", ch);
 		return;
@@ -2289,7 +2289,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 				return;
 			}
 		}
-		
+
 
 		//	write_to_buffer(d, echo_on_str, 0);
 		ProtocolNoEcho(d,false);
@@ -2359,7 +2359,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 			return;
 		}
 		}
-		
+
 
 		if (!acceptablePassword(d, argument))
 			return;

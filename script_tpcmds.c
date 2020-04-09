@@ -60,6 +60,7 @@ const struct script_cmd_type token_cmd_table[] = {
 	{ "group",				do_tpgroup,				FALSE,	TRUE	},
 	{ "gtransfer",			do_tpgtransfer,			FALSE,	TRUE	},
 	{ "input",				do_tpinput,				FALSE,	TRUE	},
+	{ "inputstring",		scriptcmd_inputstring,	FALSE,	TRUE	},
 	{ "interrupt",			do_tpinterrupt,			FALSE,	TRUE	},
 	{ "junk",				do_tpjunk,				FALSE,	TRUE	},
 	{ "link",				do_tplink,				FALSE,	TRUE	},
@@ -4398,7 +4399,7 @@ SCRIPT_CMD(do_tpinput)
 		return;
 	}
 
-	if(IS_NPC(mob) || !mob->desc || mob->desc->input) return;
+	if(IS_NPC(mob) || !mob->desc || is_char_busy(mob) || mob->desc->pString != NULL || mob->desc->input) return;
 
 	if(!(rest = expand_argument(info,rest,&arg))) {
 		bug("TpInput - Error in parsing.",0);

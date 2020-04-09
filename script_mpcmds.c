@@ -71,6 +71,7 @@ const struct script_cmd_type mob_cmd_table[] = {
 	{ "gtransfer",			do_mpgtransfer,			FALSE,	TRUE	},
 	{ "hunt",				do_mphunt,				FALSE,	TRUE	},
 	{ "input",				do_mpinput,				FALSE,	TRUE	},
+	{ "inputstring",		scriptcmd_inputstring,	FALSE,	TRUE	},
 	{ "interrupt",			do_mpinterrupt,			FALSE,	TRUE	},
 	{ "junk",				do_mpjunk,				FALSE,	TRUE	},
 	{ "kill",				do_mpkill,				FALSE,	TRUE	},
@@ -4649,7 +4650,7 @@ SCRIPT_CMD(do_mpinput)
 		return;
 	}
 
-	if(IS_NPC(mob) || !mob->desc || mob->desc->input) return;
+	if(IS_NPC(mob) || !mob->desc || is_char_busy(mob) || mob->desc->pString != NULL || mob->desc->input) return;
 
 	if(!(rest = expand_argument(info,rest,&arg))) {
 		bug("MpInput - Error in parsing.",0);

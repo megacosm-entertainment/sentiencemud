@@ -60,6 +60,7 @@ const struct script_cmd_type obj_cmd_table[] = {
 	{ "group",				do_opgroup,				FALSE,	TRUE	},
 	{ "gtransfer",			do_opgtransfer,			FALSE,	TRUE	},
 	{ "input",				do_opinput,				FALSE,	TRUE	},
+	{ "inputstring",		scriptcmd_inputstring,	FALSE,	TRUE	},
 	{ "interrupt",			do_opinterrupt,			FALSE,	TRUE	},
 	{ "junk",				do_opjunk,				FALSE,	TRUE	},
 	{ "link",				do_oplink,				FALSE,	TRUE	},
@@ -4264,7 +4265,7 @@ SCRIPT_CMD(do_opinput)
 		return;
 	}
 
-	if(IS_NPC(mob) || !mob->desc || mob->desc->input) return;
+	if(IS_NPC(mob) || !mob->desc || is_char_busy(mob) || mob->desc->pString != NULL || mob->desc->input) return;
 
 	if(!(rest = expand_argument(info,rest,&arg))) {
 		bug("OpInput - Error in parsing.",0);
