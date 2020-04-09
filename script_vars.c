@@ -677,30 +677,32 @@ static bool variables_set_skillinfo_id (ppVARIABLE list,char *name, unsigned lon
 	return TRUE;
 }
 
-bool variables_set_list (ppVARIABLE list, char *name, int type, bool save)
+pVARIABLE variables_set_list (ppVARIABLE list, char *name, int type, bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 
-	if(!var) return FALSE;
+	if(var)
+	{
 
-	var->type = type;
-	var->save = save;
+		var->type = type;
+		var->save = save;
 
-	if( type > VAR_BLLIST_FIRST && type < VAR_BLLIST_LAST )
-		var->_.list = list_createx(FALSE, __var_blist_copier[type - VAR_BLLIST_FIRST], __var_blist_deleter[type - VAR_BLLIST_FIRST]);
+		if( type > VAR_BLLIST_FIRST && type < VAR_BLLIST_LAST )
+			var->_.list = list_createx(FALSE, __var_blist_copier[type - VAR_BLLIST_FIRST], __var_blist_deleter[type - VAR_BLLIST_FIRST]);
 
-	else if( type == VAR_PLLIST_STR )
-		var->_.list = list_createx(FALSE, deepcopy_string, deleter_string);
+		else if( type == VAR_PLLIST_STR )
+			var->_.list = list_createx(FALSE, deepcopy_string, deleter_string);
 
-	else
-		var->_.list = list_create(FALSE);
+		else
+			var->_.list = list_create(FALSE);
 
 
-	// 20140511 NIB - the use of the purge flag here would not allow for list culling
-	//if(var->_.list)
-	//	list_addref(var->_.list);
+		// 20140511 NIB - the use of the purge flag here would not allow for list culling
+		//if(var->_.list)
+		//	list_addref(var->_.list);
+	}
 
-	return TRUE;
+	return var;
 }
 
 
@@ -725,7 +727,7 @@ bool variables_set_list_str (ppVARIABLE list, char *name, char *str, bool save)
 	if( !str ) return FALSE;
 
 	if( !var ) {
-		if ( !variables_set_list(list,name,VAR_PLLIST_STR,save) )
+		if ( !(var = variables_set_list(list,name,VAR_PLLIST_STR,save)) )
 			return FALSE;
 	} else if( var->type != VAR_PLLIST_STR )
 		return FALSE;
@@ -780,7 +782,7 @@ bool variables_set_list_mob (ppVARIABLE list, char *name, CHAR_DATA *mob, bool s
 	if( !IS_VALID(mob) ) return FALSE;
 
 	if( !var ) {
-		if ( !variables_set_list(list,name,VAR_BLLIST_MOB,save) )
+		if ( !(var = variables_set_list(list,name,VAR_BLLIST_MOB,save)) )
 			return FALSE;
 	} else if( var->type != VAR_BLLIST_MOB )
 		return FALSE;
@@ -824,7 +826,7 @@ bool variables_set_list_obj (ppVARIABLE list, char *name, OBJ_DATA *obj, bool sa
 	if( !IS_VALID(obj) ) return FALSE;
 
 	if( !var ) {
-		if ( !variables_set_list(list,name,VAR_BLLIST_OBJ,save) )
+		if ( !(var = variables_set_list(list,name,VAR_BLLIST_OBJ,save)) )
 			return FALSE;
 	} else if( var->type != VAR_BLLIST_OBJ )
 		return FALSE;
@@ -868,7 +870,7 @@ bool variables_set_list_token (ppVARIABLE list, char *name, TOKEN_DATA *token, b
 	if( !IS_VALID(token) ) return FALSE;
 
 	if( !var ) {
-		if ( !variables_set_list(list,name,VAR_BLLIST_TOK,save) )
+		if ( !(var = variables_set_list(list,name,VAR_BLLIST_TOK,save)) )
 			return FALSE;
 	} else if( var->type != VAR_BLLIST_TOK )
 		return FALSE;
@@ -912,7 +914,7 @@ bool variables_set_list_area (ppVARIABLE list, char *name, AREA_DATA *area, bool
 	if( !area ) return FALSE;
 
 	if( !var ) {
-		if ( !variables_set_list(list,name,VAR_BLLIST_AREA,save) )
+		if ( !(var = variables_set_list(list,name,VAR_BLLIST_AREA,save)) )
 			return FALSE;
 	} else if( var->type != VAR_BLLIST_AREA )
 		return FALSE;
@@ -954,7 +956,7 @@ bool variables_set_list_wilds (ppVARIABLE list, char *name, WILDS_DATA *wilds, b
 	if( !wilds ) return FALSE;
 
 	if( !var ) {
-		if ( !variables_set_list(list,name,VAR_BLLIST_WILDS,save) )
+		if ( !(var = variables_set_list(list,name,VAR_BLLIST_WILDS,save)) )
 			return FALSE;
 	} else if( var->type != VAR_BLLIST_WILDS )
 		return FALSE;
@@ -996,7 +998,7 @@ bool variables_set_list_room (ppVARIABLE list, char *name, ROOM_INDEX_DATA *room
 	if( !room ) return FALSE;
 
 	if( !var ) {
-		if ( !variables_set_list(list,name,VAR_BLLIST_ROOM,save) )
+		if ( !(var = variables_set_list(list,name,VAR_BLLIST_ROOM,save)) )
 			return FALSE;
 	} else if( var->type != VAR_BLLIST_ROOM )
 		return FALSE;
@@ -1067,7 +1069,7 @@ bool variables_set_list_connection (ppVARIABLE list, char *name, DESCRIPTOR_DATA
 	if( !conn ) return FALSE;
 
 	if( !var ) {
-		if ( !variables_set_list(list,name,VAR_PLLIST_CONN,save) )
+		if ( !(var = variables_set_list(list,name,VAR_PLLIST_CONN,save)) )
 			return FALSE;
 	} else if( var->type != VAR_PLLIST_CONN )
 		return FALSE;
