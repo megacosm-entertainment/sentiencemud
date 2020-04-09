@@ -344,7 +344,7 @@ void do_tpstat(CHAR_DATA *ch, char *argument)
 					if(IS_VALID(m))
 					{
 						if( IS_NPC(m) )
-							sprintf(arg,"      - MOBILE[%s (%s)] ID[%08X:%08X]\n\r", m->short_descr, (int)m->pIndexData->vnum, (int)m->id[0],(int)m->id[1]);
+							sprintf(arg,"      - MOBILE[%s (%d)] ID[%08X:%08X]\n\r", m->short_descr, (int)m->pIndexData->vnum, (int)m->id[0],(int)m->id[1]);
 						else
 							sprintf(arg,"      - PLAYER[%s] ID[%08X:%08X]\n\r", m->name, (int)m->id[0], (int)m->id[1]);
 					}
