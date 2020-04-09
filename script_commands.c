@@ -633,11 +633,6 @@ SCRIPT_CMD(scriptcmd_inputstring)
 
 	if(vnum < 1 || !get_script_index(vnum, type)) return;
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
-		bug("InputString - Error in parsing.",0);
-		return;
-	}
-
 	expand_string(info,rest,buf);
 	pVARIABLE var = variable_get(*(info->var),buf);
 
