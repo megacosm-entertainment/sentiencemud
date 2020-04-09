@@ -174,8 +174,8 @@ void do_quest(CHAR_DATA *ch, char *argument)
 
 		if (totally_complete)
 		{
-			sprintf(buf, "{YYour quest is complete!{x\n\r
-				" "Get back to %s before your time runs out!\n\r",
+			sprintf(buf, "{YYour quest is complete!{x\n\r"
+				"Get back to %s before your time runs out!\n\r",
 				get_mob_index(ch->quest->questgiver)->short_descr);
 			send_to_char(buf, ch);
 		}
@@ -807,16 +807,16 @@ void do_quest(CHAR_DATA *ch, char *argument)
 	    pointreward = UMAX(pointreward, 0);
 	}
 
-	questman->tempstore[0] = pointreward;		// QP
-	questman->tempstore[1] = pracreward;		// Practices
-	questman->tempstore[2] = reward;			// Silver
+	mob->tempstore[0] = pointreward;		// QP
+	mob->tempstore[1] = pracreward;			// Practices
+	mob->tempstore[2] = reward;				// Silver
 	if(incomplete)
-		p_percent_trigger( questman, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_INCOMPLETE, NULL);
+		p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_INCOMPLETE, NULL);
 	else
-		p_percent_trigger( questman, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_COMPLETE, NULL);
-	pointreward = questman->tempstore[0];
-	pracreward = questman->tempstore[1];
-	reward = questman->tempstore[2];
+		p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_COMPLETE, NULL);
+	pointreward = mob->tempstore[0];
+	pracreward = mob->tempstore[1];
+	reward = mob->tempstore[2];
 
 	// Clamp to zero
 	reward = UMAX(reward,0);
@@ -874,7 +874,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
     free_quest(ch->quest);
     ch->quest = NULL;
 
-		p_percent_trigger( questman, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_POSTQUEST, NULL);
+		p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_POSTQUEST, NULL);
     }
     else
     {

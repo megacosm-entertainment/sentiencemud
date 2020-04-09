@@ -6527,7 +6527,7 @@ TOKEN_DATA *get_token_list(LLIST *tokens, long vnum, int count)
 
 	iterator_start(&it, tokens);
 	while( (token = (TOKEN_DATA*)iterator_nextdata(&it)) ) {
-		if( token->pIndexData->vnum == vnum && !--count )
+		if( IS_VALID(token) && token->pIndexData && token->pIndexData->vnum == vnum && !--count )
 			break;
 	}
 	iterator_stop(&it);
