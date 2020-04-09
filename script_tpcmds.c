@@ -13,8 +13,8 @@
 
 // Commands used by token scripts
 const struct script_cmd_type token_cmd_table[] = {
-	{ "addaffect",			do_tpaddaffect,			TRUE,	TRUE	},
-	{ "addaffectname",		do_tpaddaffectname,		TRUE,	TRUE	},
+	{ "addaffect",			scriptcmd_addaffect,	TRUE,	TRUE	},
+	{ "addaffectname",		scriptcmd_addaffectname,TRUE,	TRUE	},
 	{ "addspell",			do_tpaddspell,			TRUE,	TRUE	},
 	{ "adjust",				do_tpadjust,			FALSE,	TRUE	},
 	{ "alteraffect",		do_tpalteraffect,		TRUE,	TRUE	},

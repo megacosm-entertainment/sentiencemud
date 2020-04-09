@@ -15,8 +15,8 @@
 
 
 const struct script_cmd_type room_cmd_table[] = {
-	{ "addaffect",			do_rpaddaffect,			TRUE,	TRUE	},
-	{ "addaffectname",		do_rpaddaffectname,		TRUE,	TRUE	},
+	{ "addaffect",			scriptcmd_addaffect,	TRUE,	TRUE	},
+	{ "addaffectname",		scriptcmd_addaffectname,TRUE,	TRUE	},
 	{ "addspell",			do_rpaddspell,			TRUE,	TRUE	},
 	{ "alteraffect",		do_rpalteraffect,		TRUE,	TRUE	},
 	{ "alterexit",			do_rpalterexit,			FALSE,	TRUE	},

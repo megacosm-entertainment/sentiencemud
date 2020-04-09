@@ -17,6 +17,415 @@
 //////////////////////////////////////
 // A
 
+// ADDAFFECT mobile|object apply-type(string) affect-group(string) skill(string) level(number) location(string) modifier(number) duration(number) bitvector(string) bitvector2(string)[ wear-location(object)]
+SCRIPT_CMD(scriptcmd_addaffect)
+{
+	char *rest;
+	int where, group, skill, level, loc, mod, hours;
+	long bv, bv2;
+	CHAR_DATA *mob = NULL;
+	OBJ_DATA *obj = NULL;
+	int wear_loc = WEAR_NONE;
+	SCRIPT_PARAM arg;
+	AFFECT_DATA af;
+
+	info->progs->lastreturn = 0;
+
+
+	//
+	// Get mobile or object TARGET
+	if(!(rest = expand_argument(info,argument,&arg))) {
+		bug("AddAffect - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_STRING:
+		if (!(mob = script_get_char_room(info, arg.d.str, FALSE)))
+			obj = script_get_obj_here(info, arg.d.str);
+		break;
+	case ENT_MOBILE: mob = arg.d.mob; break;
+	case ENT_OBJECT: obj = arg.d.obj; break;
+	default: break;
+	}
+
+	if(!mob && !obj) {
+		bug("Addaffect - NULL target.", 0);
+		return;
+	}
+
+
+	//
+	// Get APPLY TYPE
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("Addaffect - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_STRING: where = flag_lookup(arg.d.str,apply_types); break;
+	default: return;
+	}
+
+	if(where == NO_FLAG) return;
+
+
+	//
+	// Get AFFECT GROUP
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("Addaffect - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_STRING:
+		if(where == TO_OBJECT || where == TO_WEAPON)
+			group = flag_lookup(arg.d.str,affgroup_object_flags);
+		else
+			group = flag_lookup(arg.d.str,affgroup_mobile_flags);
+		break;
+	default: return;
+	}
+
+	if(group == NO_FLAG) return;
+
+
+	//
+	// Get SKILL number (built-in skill)
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("Addaffect - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_STRING: skill = skill_lookup(arg.d.str); break;
+	default: return;
+	}
+
+
+	//
+	// Get LEVEL
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("Addaffect - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_NUMBER: level = arg.d.num; break;
+	case ENT_STRING: level = atoi(arg.d.str); break;
+	case ENT_MOBILE: level = arg.d.mob->tot_level; break;
+	case ENT_OBJECT: level = arg.d.obj->level; break;
+	default: return;
+	}
+
+
+	//
+	// Get LOCATION
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("Addaffect - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_STRING: loc = flag_lookup(arg.d.str,apply_flags_full); break;
+	default: return;
+	}
+
+	if(loc == NO_FLAG) return;
+
+
+	//
+	// Get MODIFIER
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("Addaffect - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_NUMBER: mod = arg.d.num; break;
+	default: return;
+	}
+
+
+	//
+	// Get DURATION
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("Addaffect - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_NUMBER: hours = arg.d.num; break;
+	default: return;
+	}
+
+
+	//
+	// Get BITVECTOR
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("Addaffect - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_STRING: bv = flag_value(affect_flags,arg.d.str); break;
+	default: return;
+	}
+
+	if(bv == NO_FLAG) bv = 0;
+
+
+	//
+	// Get BITVECTOR2
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("Addaffect - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_STRING: bv2 = flag_value(affect2_flags,arg.d.str); break;
+	default: return;
+	}
+
+	if(bv2 == NO_FLAG) bv2 = 0;
+
+
+	//
+	// Get WEAR-LOCATION of object
+	if(rest && *rest) {
+		if(!(rest = expand_argument(info,rest,&arg))) {
+			bug("Addaffect - Error in parsing.",0);
+			return;
+		}
+
+		switch(arg.type) {
+		case ENT_OBJECT: wear_loc = arg.d.obj ? arg.d.obj->wear_loc : WEAR_NONE; break;
+		default: return;
+		}
+	}
+
+	af.group	= group;
+	af.where     = where;
+	af.type      = skill;
+	af.location  = loc;
+	af.modifier  = mod;
+	af.level     = level;
+	af.duration  = (hours < 0) ? -1 : hours;
+	af.bitvector = bv;
+	af.bitvector2 = bv2;
+	af.custom_name = NULL;
+	af.slot = wear_loc;
+	if(mob) affect_join_full(mob, &af);
+	else affect_join_full_obj(obj,&af);
+}
+
+// ADDAFFECTNAME mobile|object apply-type(string) affect-group(string) name(string) level(number) location(string) modifier(number) duration(number) bitvector(string) bitvector2(string)[ wear-location(object)]
+SCRIPT_CMD(scriptcmd_addaffectname)
+{
+	char *rest, *name = NULL;
+	int where, group, level, loc, mod, hours;
+	long bv, bv2;
+	CHAR_DATA *mob = NULL;
+	OBJ_DATA *obj = NULL;
+	int wear_loc = WEAR_NONE;
+	SCRIPT_PARAM arg;
+	AFFECT_DATA af;
+
+	info->progs->lastreturn = 0;
+
+
+	//
+	// Get mobile or object TARGET
+	if(!(rest = expand_argument(info,argument,&arg))) {
+		bug("AddAffectName - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_STRING:
+		if (!(mob = script_get_char_room(info, arg.d.str, FALSE)))
+			obj = script_get_obj_here(info, arg.d.str);
+		break;
+	case ENT_MOBILE: mob = arg.d.mob; break;
+	case ENT_OBJECT: obj = arg.d.obj; break;
+	default: break;
+	}
+
+	if(!mob && !obj) {
+		bug("AddAffectName - NULL target.", 0);
+		return;
+	}
+
+
+	//
+	// Get APPLY TYPE
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("AddAffectName - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_STRING: where = flag_lookup(arg.d.str,apply_types); break;
+	default: return;
+	}
+
+	if(where == NO_FLAG) return;
+
+
+	//
+	// Get AFFECT GROUP
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("AddAffectName - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_STRING:
+		if(where == TO_OBJECT || where == TO_WEAPON)
+			group = flag_lookup(arg.d.str,affgroup_object_flags);
+		else
+			group = flag_lookup(arg.d.str,affgroup_mobile_flags);
+		break;
+	default: return;
+	}
+
+	if(group == NO_FLAG) return;
+
+
+	//
+	// Get NAME
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("AddAffectName - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_STRING: name = create_affect_cname(arg.d.str); break;
+	default: return;
+	}
+
+	if(!name) {
+		bug("AddAffectName - Error allocating affect name.",0);
+		return;
+	}
+
+
+	//
+	// Get LEVEL
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("AddAffectName - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_NUMBER: level = arg.d.num; break;
+	case ENT_STRING: level = atoi(arg.d.str); break;
+	case ENT_MOBILE: level = arg.d.mob->tot_level; break;
+	case ENT_OBJECT: level = arg.d.obj->level; break;
+	default: return;
+	}
+
+
+	//
+	// Get LOCATION
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("AddAffectName - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_STRING: loc = flag_lookup(arg.d.str,apply_flags_full); break;
+	default: return;
+	}
+
+	if(loc == NO_FLAG) return;
+
+
+	//
+	// Get MODIFIER
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("AddAffectName - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_NUMBER: mod = arg.d.num; break;
+	default: return;
+	}
+
+
+	//
+	// Get DURATION
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("AddAffectName - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_NUMBER: hours = arg.d.num; break;
+	default: return;
+	}
+
+
+	//
+	// Get BITVECTOR
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("AddAffectName - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_STRING: bv = flag_value(affect_flags,arg.d.str); break;
+	default: return;
+	}
+
+	if(bv == NO_FLAG) bv = 0;
+
+
+	//
+	// Get BITVECTOR2
+	if(!(rest = expand_argument(info,rest,&arg))) {
+		bug("AddAffectName - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_STRING: bv2 = flag_value(affect2_flags,arg.d.str); break;
+	default: return;
+	}
+
+	if(bv2 == NO_FLAG) bv2 = 0;
+
+
+	//
+	// Get WEAR-LOCATION of object
+	if(rest && *rest) {
+		if(!(rest = expand_argument(info,rest,&arg))) {
+			bug("AddAffectName - Error in parsing.",0);
+			return;
+		}
+
+		switch(arg.type) {
+		case ENT_OBJECT: wear_loc = arg.d.obj ? arg.d.obj->wear_loc : WEAR_NONE; break;
+		default: return;
+		}
+	}
+
+	af.group	= group;
+	af.where     = where;
+	af.type      = -1;
+	af.location  = loc;
+	af.modifier  = mod;
+	af.level     = level;
+	af.duration  = (hours < 0) ? -1 : hours;
+	af.bitvector = bv;
+	af.bitvector2 = bv2;
+	af.custom_name = name;
+	af.slot = wear_loc;
+	if(mob) affect_join_full(mob, &af);
+	else affect_join_full_obj(obj,&af);
+}
+
 // APPLYTOXIN mobile string(toxin) int(level) int(duration)
 SCRIPT_CMD(scriptcmd_applytoxin)
 {

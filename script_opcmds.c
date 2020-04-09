@@ -13,8 +13,8 @@
 extern bool wiznet_script;
 
 const struct script_cmd_type obj_cmd_table[] = {
-	{ "addaffect",			do_opaddaffect,			TRUE,	TRUE	},
-	{ "addaffectname",		do_opaddaffectname,		TRUE,	TRUE	},
+	{ "addaffect",			scriptcmd_addaffect,	TRUE,	TRUE	},
+	{ "addaffectname",		scriptcmd_addaffectname,TRUE,	TRUE	},
 	{ "addspell",			do_opaddspell,			TRUE,	TRUE	},
 	{ "alteraffect",		do_opalteraffect,		TRUE,	TRUE	},
 	{ "alterexit",			do_opalterexit,			FALSE,	TRUE	},
