@@ -717,6 +717,27 @@ bool variables_set_connection (ppVARIABLE list, char *name, DESCRIPTOR_DATA *con
 	return TRUE;
 }
 
+bool variables_set_list_str (ppVARIABLE list, char *name, char *str, bool save)
+{
+	char *cpy;
+	pVARIABLE var = variable_get(*list, name);
+
+	if( !str ) return FALSE;
+
+	if( !var ) {
+		if ( !variables_set_list(list,name,VAR_PLLIST_STR,save) )
+			return FALSE;
+	} else if( var>type != VAR_PLLIST_STR )
+		return FALSE;
+
+	cpy = str_dup(str);
+	if( !list_appendlink(var->_.list, cpy) )
+		free_string(cpy);
+
+	return TRUE;
+}
+
+
 bool variables_append_list_str (ppVARIABLE list, char *name, char *str)
 {
 	char *cpy;
@@ -751,12 +772,18 @@ static bool variables_append_list_uid (ppVARIABLE list, char *name, int type, un
 	return TRUE;
 }
 
-bool variables_append_list_mob (ppVARIABLE list, char *name, CHAR_DATA *mob)
+bool variables_set_list_mob (ppVARIABLE list, char *name, CHAR_DATA *mob, bool save)
 {
 	LLIST_UID_DATA *data;
 	pVARIABLE var = variable_get(*list, name);
 
-	if( !mob || !var || var->type != VAR_BLLIST_MOB) return FALSE;
+	if( !IS_VALID(mob) ) return FALSE;
+
+	if( !var ) {
+		if ( !variables_set_list(list,name,VAR_BLLIST_MOB,save) )
+			return FALSE;
+	} else if( var>type != VAR_BLLIST_MOB )
+		return FALSE;
 
 	if( !(data = alloc_mem(sizeof(LLIST_UID_DATA))) ) return FALSE;
 
@@ -770,12 +797,37 @@ bool variables_append_list_mob (ppVARIABLE list, char *name, CHAR_DATA *mob)
 	return TRUE;
 }
 
-bool variables_append_list_obj (ppVARIABLE list, char *name, OBJ_DATA *obj)
+bool variables_append_list_mob (ppVARIABLE list, char *name, CHAR_DATA *mob)
 {
 	LLIST_UID_DATA *data;
 	pVARIABLE var = variable_get(*list, name);
 
-	if( !obj || !var || var->type != VAR_BLLIST_OBJ) return FALSE;
+	if( !IS_VALID(mob) || !var || var->type != VAR_BLLIST_MOB) return FALSE;
+
+	if( !(data = alloc_mem(sizeof(LLIST_UID_DATA))) ) return FALSE;
+
+	data->ptr = mob;
+	data->id[0] = mob->id[0];
+	data->id[1] = mob->id[1];
+
+	if( !list_appendlink(var->_.list, data) )
+		free_mem(data,sizeof(LLIST_UID_DATA));
+
+	return TRUE;
+}
+
+bool variables_set_list_obj (ppVARIABLE list, char *name, OBJ_DATA *obj, bool save)
+{
+	LLIST_UID_DATA *data;
+	pVARIABLE var = variable_get(*list, name);
+
+	if( !IS_VALID(obj) ) return FALSE;
+
+	if( !var ) {
+		if ( !variables_set_list(list,name,VAR_BLLIST_OBJ,save) )
+			return FALSE;
+	} else if( var>type != VAR_BLLIST_OBJ )
+		return FALSE;
 
 	if( !(data = alloc_mem(sizeof(LLIST_UID_DATA))) ) return FALSE;
 
@@ -789,12 +841,37 @@ bool variables_append_list_obj (ppVARIABLE list, char *name, OBJ_DATA *obj)
 	return TRUE;
 }
 
-bool variables_append_list_token (ppVARIABLE list, char *name, TOKEN_DATA *token)
+bool variables_append_list_obj (ppVARIABLE list, char *name, OBJ_DATA *obj)
 {
 	LLIST_UID_DATA *data;
 	pVARIABLE var = variable_get(*list, name);
 
-	if( !token || !var || var->type != VAR_BLLIST_TOK) return FALSE;
+	if( !IS_VALID(obj) || !var || var->type != VAR_BLLIST_OBJ) return FALSE;
+
+	if( !(data = alloc_mem(sizeof(LLIST_UID_DATA))) ) return FALSE;
+
+	data->ptr = obj;
+	data->id[0] = obj->id[0];
+	data->id[1] = obj->id[1];
+
+	if( !list_appendlink(var->_.list, data) )
+		free_mem(data,sizeof(LLIST_UID_DATA));
+
+	return TRUE;
+}
+
+bool variables_set_list_token (ppVARIABLE list, char *name, TOKEN_DATA *token, bool save)
+{
+	LLIST_UID_DATA *data;
+	pVARIABLE var = variable_get(*list, name);
+
+	if( !IS_VALID(token) ) return FALSE;
+
+	if( !var ) {
+		if ( !variables_set_list(list,name,VAR_BLLIST_TOK,save) )
+			return FALSE;
+	} else if( var>type != VAR_BLLIST_TOK )
+		return FALSE;
 
 	if( !(data = alloc_mem(sizeof(LLIST_UID_DATA))) ) return FALSE;
 
@@ -804,6 +881,49 @@ bool variables_append_list_token (ppVARIABLE list, char *name, TOKEN_DATA *token
 
 	if( !list_appendlink(var->_.list, data) )
 		free_mem(data,sizeof(LLIST_UID_DATA));
+
+	return TRUE;
+}
+
+bool variables_append_list_token (ppVARIABLE list, char *name, TOKEN_DATA *token)
+{
+	LLIST_UID_DATA *data;
+	pVARIABLE var = variable_get(*list, name);
+
+	if( !IS_VALID(token) || !var || var->type != VAR_BLLIST_TOK) return FALSE;
+
+	if( !(data = alloc_mem(sizeof(LLIST_UID_DATA))) ) return FALSE;
+
+	data->ptr = token;
+	data->id[0] = token->id[0];
+	data->id[1] = token->id[1];
+
+	if( !list_appendlink(var->_.list, data) )
+		free_mem(data,sizeof(LLIST_UID_DATA));
+
+	return TRUE;
+}
+
+bool variables_set_list_area (ppVARIABLE list, char *name, AREA_DATA *area, bool save)
+{
+	LLIST_AREA_DATA *data;
+	pVARIABLE var = variable_get(*list, name);
+
+	if( !area ) return FALSE;
+
+	if( !var ) {
+		if ( !variables_set_list(list,name,VAR_BLLIST_AREA,save) )
+			return FALSE;
+	} else if( var>type != VAR_BLLIST_AREA )
+		return FALSE;
+
+	if( !(data = alloc_mem(sizeof(LLIST_AREA_DATA))) ) return FALSE;
+
+	data->area = area;
+	data->uid = area->uid;
+
+	if( !list_appendlink(var->_.list, data) )
+		free_mem(data,sizeof(LLIST_AREA_DATA));
 
 	return TRUE;
 }
@@ -826,6 +946,30 @@ bool variables_append_list_area (ppVARIABLE list, char *name, AREA_DATA *area)
 	return TRUE;
 }
 
+bool variables_set_list_wilds (ppVARIABLE list, char *name, WILDS_DATA *wilds, bool save)
+{
+	LLIST_WILDS_DATA *data;
+	pVARIABLE var = variable_get(*list, name);
+
+	if( !wilds ) return FALSE;
+
+	if( !var ) {
+		if ( !variables_set_list(list,name,VAR_BLLIST_WILDS,save) )
+			return FALSE;
+	} else if( var>type != VAR_BLLIST_WILDS )
+		return FALSE;
+
+	if( !(data = alloc_mem(sizeof(LLIST_WILDS_DATA))) ) return FALSE;
+
+	data->wilds = wilds;
+	data->uid = wilds->uid;
+
+	if( !list_appendlink(var->_.list, data) )
+		free_mem(data,sizeof(LLIST_WILDS_DATA));
+
+	return TRUE;
+}
+
 bool variables_append_list_wilds (ppVARIABLE list, char *name, WILDS_DATA *wilds)
 {
 	LLIST_WILDS_DATA *data;
@@ -840,6 +984,45 @@ bool variables_append_list_wilds (ppVARIABLE list, char *name, WILDS_DATA *wilds
 
 	if( !list_appendlink(var->_.list, data) )
 		free_mem(data,sizeof(LLIST_WILDS_DATA));
+
+	return TRUE;
+}
+
+bool variables_set_list_room (ppVARIABLE list, char *name, ROOM_INDEX_DATA *room, bool save)
+{
+	LLIST_ROOM_DATA *data;
+	pVARIABLE var = variable_get(*list, name);
+
+	if( !room ) return FALSE;
+
+	if( !var ) {
+		if ( !variables_set_list(list,name,VAR_BLLIST_ROOM,save) )
+			return FALSE;
+	} else if( var>type != VAR_BLLIST_ROOM )
+		return FALSE;
+
+	if( !(data = alloc_mem(sizeof(LLIST_ROOM_DATA))) ) return FALSE;
+
+	data->room = room;
+	if( room->source ) {
+		data->id[0] = 0;
+		data->id[1] = room->source->vnum;
+		data->id[2] = room->id[0];
+		data->id[3] = room->id[1];
+	} else if( room->wilds ) {
+		data->id[0] = room->wilds->uid;
+		data->id[1] = room->x;
+		data->id[2] = room->y;
+		data->id[3] = room->z;
+	} else {
+		data->id[0] = 0;
+		data->id[1] = room->source->vnum;
+		data->id[2] = 0;
+		data->id[3] = 0;
+	}
+
+	if( !list_appendlink(var->_.list, data) )
+		free_mem(data,sizeof(LLIST_ROOM_DATA));
 
 	return TRUE;
 }
@@ -877,11 +1060,26 @@ bool variables_append_list_room (ppVARIABLE list, char *name, ROOM_INDEX_DATA *r
 	return TRUE;
 }
 
+bool variables_set_list_connection (ppVARIABLE list, char *name, DESCRIPTOR_DATA *conn, bool save)
+{
+	pVARIABLE var = variable_get(*list, name);
+
+	if( !conn ) return FALSE;
+
+	if( !var ) {
+		if ( !variables_set_list(list,name,VAR_PLLIST_CONN,save) )
+			return FALSE;
+	} else if( var>type != VAR_PLLIST_CONN )
+		return FALSE;
+
+	return list_appendlink(var->_.list, conn);
+}
+
 bool variables_append_list_connection (ppVARIABLE list, char *name, DESCRIPTOR_DATA *conn)
 {
 	pVARIABLE var = variable_get(*list, name);
 
-	if( !var || var->type != VAR_PLLIST_CONN) return FALSE;
+	if( !conn || !var || var->type != VAR_PLLIST_CONN) return FALSE;
 
 	return list_appendlink(var->_.list, conn);
 }
