@@ -506,48 +506,52 @@ bool can_choose_subclass(CHAR_DATA *ch, int subclass)
 	switch (sub_class_table[subclass].class)
 	{
 	    case CLASS_MAGE:
-	        if (get_profession(ch, SECOND_SUBCLASS_MAGE) != -1)
-		    	return FALSE;
+			if (get_profession(ch, SECOND_SUBCLASS_MAGE) != -1)
+				return FALSE;
 
 			prof = get_profession(ch, SUBCLASS_MAGE);
 
 			if (prof == sub_class_table[subclass].prereq[0] ||
 				prof == sub_class_table[subclass].prereq[1])
-			    return TRUE;
-		    break;
+
+			return TRUE;
+			break;
 
 	    case CLASS_CLERIC:
-	        if (get_profession(ch, SECOND_SUBCLASS_CLERIC) != -1)
-			    return FALSE;
+			if (get_profession(ch, SECOND_SUBCLASS_CLERIC) != -1)
+				return FALSE;
 
 			prof = get_profession(ch, SUBCLASS_CLERIC);
 
 			if (prof == sub_class_table[subclass].prereq[0] ||
 				prof == sub_class_table[subclass].prereq[1])
-		    	return TRUE;
-		    break;
+
+			return TRUE;
+			break;
 
 	    case CLASS_THIEF:
-	        if (get_profession(ch, SECOND_SUBCLASS_THIEF) != -1)
-		    	return FALSE;
+			if (get_profession(ch, SECOND_SUBCLASS_THIEF) != -1)
+				return FALSE;
 
 			prof = get_profession(ch, SUBCLASS_THIEF);
 
 			if (prof == sub_class_table[subclass].prereq[0] ||
 				prof == sub_class_table[subclass].prereq[1])
-		    	return TRUE;
-		    break;
+
+			return TRUE;
+			break;
 
 	    case CLASS_WARRIOR:
-	        if (get_profession(ch, SECOND_SUBCLASS_WARRIOR) != -1)
-		    	return FALSE;
+			if (get_profession(ch, SECOND_SUBCLASS_WARRIOR) != -1)
+				return FALSE;
 
 			prof = get_profession(ch, SUBCLASS_WARRIOR);
 
 			if (prof == sub_class_table[subclass].prereq[0] ||
 				prof == sub_class_table[subclass].prereq[1])
-		    	return TRUE;
-		    break;
+
+			return TRUE;
+			break;
 
 	    default:
 		    return FALSE;

@@ -514,7 +514,7 @@ void load_wilds( FILE *fp, AREA_DATA *pArea )
 		else
                 if ( !str_cmp( word, "#-VMAP" ) )
                 {
-                    fMatch = TRUE;
+					;
                 }
 		else
                 if ( !str_cmp( word, "#-WILDS" ) )
