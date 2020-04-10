@@ -6357,7 +6357,6 @@ void do_brew(CHAR_DATA *ch, char *argument)
     }
 
     sn = find_spell(ch, arg);
-    this_class = get_this_class(ch, sn);
 
     if ((sn) < 1
     || skill_table[sn].spell_fun == spell_null
