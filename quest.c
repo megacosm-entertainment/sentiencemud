@@ -807,18 +807,21 @@ void do_quest(CHAR_DATA *ch, char *argument)
 	    pointreward = UMAX(pointreward, 0);
 	}
 
-	mob->tempstore[0] = pointreward;		// QP
-	mob->tempstore[1] = pracreward;			// Practices
-	mob->tempstore[2] = reward;				// Silver
+	mob->tempstore[0] = expreward;			// Experience
+	mob->tempstore[1] = pointreward;		// QP
+	mob->tempstore[2] = pracreward;			// Practices
+	mob->tempstore[3] = reward;				// Silver
 	if(incomplete)
 		p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_INCOMPLETE, NULL);
 	else
 		p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_COMPLETE, NULL);
-	pointreward = mob->tempstore[0];
-	pracreward = mob->tempstore[1];
-	reward = mob->tempstore[2];
+	expreward = mob->tempstore[0];
+	pointreward = mob->tempstore[1];
+	pracreward = mob->tempstore[2];
+	reward = mob->tempstore[3];
 
 	// Clamp to zero
+	expreward = UMAX(expreward,0);
 	reward = UMAX(reward,0);
 	pracreward = UMAX(pracreward,0);
 	pointreward = UMAX(pointreward, 0);
