@@ -1180,7 +1180,6 @@ void check_quest_rescue_mob(CHAR_DATA *ch)
     QUEST_PART_DATA *part;
     CHAR_DATA *mob;
     char buf[MAX_STRING_LENGTH];
-    int total_parts;
     int i;
     bool found = TRUE;
 
@@ -1189,56 +1188,51 @@ void check_quest_rescue_mob(CHAR_DATA *ch)
 
     if (IS_NPC(ch))
     {
-        bug("check_quest_rescue_mob: NPC", 0);
-	return;
+		bug("check_quest_rescue_mob: NPC", 0);
+		return;
     }
-
-    total_parts = count_quest_parts(ch);
 
     i = 0;
     for (part = ch->quest->parts; part != NULL; part = part->next)
     {
         i++;
 
-	// already did it
-	if (part->complete == TRUE)
-	    continue;
+		// already did it
+		if (part->complete == TRUE)
+			continue;
 
-	found = FALSE;
-	mob = ch->in_room->people;
-	while (mob != NULL)
-	{
-	    if (IS_NPC(mob)
-	    && mob->pIndexData->vnum == part->mob_rescue
-	    && !part->complete)
-	    {
-	        sprintf(buf, "Thank you for rescuing me, %s!", ch->name);
-                do_say(mob, buf);
+		found = FALSE;
+		mob = ch->in_room->people;
+		while (mob != NULL)
+		{
+			if (IS_NPC(mob) && mob->pIndexData->vnum == part->mob_rescue && !part->complete)
+		    {
+		        sprintf(buf, "Thank you for rescuing me, %s!", ch->name);
+		        do_say(mob, buf);
 
-		if (mob->master != NULL)
-                    stop_follower(mob,TRUE);
+				if (mob->master != NULL)
+					stop_follower(mob,TRUE);
 
-		add_follower(mob, ch, TRUE);
+				add_follower(mob, ch, TRUE);
 
-		if (IS_NPC(mob)
-		&& IS_SET(mob->act, ACT_AGGRESSIVE))
-		    REMOVE_BIT(mob->act, ACT_AGGRESSIVE);
+				if (IS_NPC(mob) && IS_SET(mob->act, ACT_AGGRESSIVE))
+				    REMOVE_BIT(mob->act, ACT_AGGRESSIVE);
 
-		found = TRUE;
-		break;
-	    }
+				found = TRUE;
+				break;
+		    }
 
-	    mob = mob->next_in_room;
-	}
+		    mob = mob->next_in_room;
+		}
 
-        if (found && !part->complete)
-	{
-	    sprintf(buf, "{YYou have completed task %d of your quest!{x\n\r", i);
-	    send_to_char(buf, ch);
+		if (found && !part->complete)
+		{
+			sprintf(buf, "{YYou have completed task %d of your quest!{x\n\r", i);
+			send_to_char(buf, ch);
 
-	    part->complete = TRUE;
-	    break;
-	}
+			part->complete = TRUE;
+			break;
+		}
     }
 }
 
@@ -1246,46 +1240,42 @@ void check_quest_rescue_mob(CHAR_DATA *ch)
 void check_quest_retrieve_obj(CHAR_DATA *ch, OBJ_DATA *obj)
 {
     QUEST_PART_DATA *part;
-    int total_parts;
     int i;
 
     if (obj == NULL || obj->item_type == ITEM_MONEY)
     {
-        bug("check_quest_retrieve_obj: bad obj!", 0);
-	return;
+		bug("check_quest_retrieve_obj: bad obj!", 0);
+		return;
     }
 
     if (IS_NPC(ch))
     {
-        bug("check_quest_retrieve_obj: NPC", 0);
-	return;
+		bug("check_quest_retrieve_obj: NPC", 0);
+		return;
     }
 
     if (ch->quest != NULL)
     {
-        total_parts = count_quest_parts(ch);
 
-	i = 0;
-	for (part = ch->quest->parts; part != NULL; part = part->next)
-	{
-  	    i++;
+		i = 0;
+		for (part = ch->quest->parts; part != NULL; part = part->next)
+		{
+			i++;
 
-	    // already did it
-	    if (part->complete == TRUE)
-		continue;
+			// already did it
+			if (part->complete == TRUE)
+				continue;
 
-	    if (part->pObj == obj)
-	    {
-	        char buf[MAX_STRING_LENGTH];
+			if (part->pObj == obj)
+			{
+				char buf[MAX_STRING_LENGTH];
 
-		part->complete = TRUE;
-		part->pObj = obj;
+				part->complete = TRUE;
 
-		sprintf(buf,
-		"{YYou have completed task %d of your quest!{x\n\r", i);
-		send_to_char(buf, ch);
-	    }
-	}
+				sprintf(buf, "{YYou have completed task %d of your quest!{x\n\r", i);
+				send_to_char(buf, ch);
+			}
+		}
     }
 }
 
@@ -1294,40 +1284,34 @@ void check_quest_slay_mob(CHAR_DATA *ch, CHAR_DATA *mob)
 {
     QUEST_PART_DATA *part;
     int i;
-    int total_parts;
 
     if (ch->quest == NULL || !IS_NPC(mob))
         return;
 
     if (IS_NPC(ch))
     {
-         bug("check_quest_slay_mob: NPC", 0);
-	 return;
+		bug("check_quest_slay_mob: NPC", 0);
+		return;
     }
-
-    total_parts = count_quest_parts(ch);
 
     i = 0;
     for (part = ch->quest->parts; part != NULL; part = part->next)
     {
         i++;
 
-	// already did it
-	if (part->complete == TRUE)
-	    continue;
+		// already did it
+		if (part->complete == TRUE)
+			continue;
 
-        if (part->mob == mob->pIndexData->vnum
-        && !part->complete)
-	{
-	    char buf[MAX_STRING_LENGTH];
+        if (part->mob == mob->pIndexData->vnum && !part->complete)
+		{
+			char buf[MAX_STRING_LENGTH];
 
-	    sprintf(buf,
-	        "{YYou have completed task %d of your quest!{x\n\r", i);
+			sprintf(buf, "{YYou have completed task %d of your quest!{x\n\r", i);
+			send_to_char(buf, ch);
 
-	    send_to_char(buf, ch);
-
-	    part->complete = TRUE;
-	}
+			part->complete = TRUE;
+		}
     }
 }
 
@@ -1336,49 +1320,43 @@ void check_quest_travel_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room)
     QUEST_PART_DATA *part;
     ROOM_INDEX_DATA *target_room;
     int i;
-    int total_parts;
 
     if (ch->quest == NULL)
         return;
 
     if (IS_NPC(ch))
     {
-         bug("check_quest_travel_room: NPC", 0);
-	 return;
+		bug("check_quest_travel_room: NPC", 0);
+		return;
     }
 
     if (room == NULL)
     {
-	bug("check_quest_travel_room: checking a null room",0);
-	return;
+		bug("check_quest_travel_room: checking a null room",0);
+		return;
     }
-
-    total_parts = count_quest_parts(ch);
 
     i = 0;
     for (part = ch->quest->parts; part != NULL; part = part->next)
     {
         i++;
 
-	// already did it
-	if (part->complete == TRUE)
-	    continue;
+		// already did it
+		if (part->complete == TRUE)
+			continue;
 
-	target_room = get_room_index(part->room);
+		target_room = get_room_index(part->room);
 
-	/* Not going by room vnum to prevent multiple rooms with the same name */
-	if (target_room != NULL
-	&& !str_cmp(target_room->name, room->name))
-	{
-	    char buf[MAX_STRING_LENGTH];
+		/* Not going by room vnum to prevent multiple rooms with the same name */
+		if (target_room != NULL && !str_cmp(target_room->name, room->name))
+		{
+			char buf[MAX_STRING_LENGTH];
 
-	    sprintf(buf,
-	        "{YYou have completed task %d of your quest!{x\n\r", i);
+			sprintf(buf, "{YYou have completed task %d of your quest!{x\n\r", i);
+			send_to_char(buf, ch);
 
-	    send_to_char(buf, ch);
-
-	    part->complete = TRUE;
-	}
+			part->complete = TRUE;
+		}
     }
 }
 
@@ -1386,7 +1364,6 @@ bool check_quest_custom_task(CHAR_DATA *ch, int task)
 {
 	QUEST_PART_DATA *part;
 	int i;
-	int total_parts;
 
 	if (ch->quest == NULL)
 		return FALSE;
@@ -1396,8 +1373,6 @@ bool check_quest_custom_task(CHAR_DATA *ch, int task)
 		bug("check_quest_custom_task: NPC", 0);
 		return FALSE;
     }
-
-	total_parts = count_quest_parts(ch);
 
     i = 0;
     for (part = ch->quest->parts; part != NULL; part = part->next)

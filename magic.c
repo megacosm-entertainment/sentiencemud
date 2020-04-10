@@ -124,7 +124,7 @@ int find_spell(CHAR_DATA *ch, const char *name)
 void say_spell(CHAR_DATA *ch, int sn)
 {
     char buf  [MAX_STRING_LENGTH];
-    char buf2 [MAX_STRING_LENGTH];
+    char buf2 [2*MAX_STRING_LENGTH];
     CHAR_DATA *rch;
     char *pName;
     int iSyl;
@@ -524,7 +524,7 @@ void do_cast(CHAR_DATA *ch, char *argument)
 	int mana;
 	int target;
 	int i;
-	char buf[MSL];
+	char buf[2*MSL];
 	char temp[MSL];
 	int chance;
 	SKILL_ENTRY *spell;

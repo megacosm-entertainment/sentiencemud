@@ -19,13 +19,11 @@ void do_locker(CHAR_DATA *ch, char* argument)
 	char buf[MSL];
 	OBJ_DATA *obj;
 	bool item = FALSE;
-	struct tm *now_time;
 	struct tm *rent_time;
 
 	argument = one_argument(argument, arg1);
 	argument = one_argument(argument, arg2);
 
-	now_time = (struct tm *)localtime(&current_time);
 	rent_time = (struct tm *)localtime(&ch->locker_rent);
 
 	// locker forgive <player>

@@ -532,7 +532,7 @@ bool check_verbs(CHAR_DATA *ch, char *command, char *argument)
 	CHAR_DATA *mob;
 	PROG_LIST *prg;
 //	SCRIPT_DATA *script;
-	unsigned long uid[2];
+//	unsigned long uid[2];
 	int slot;
 	int ret_val = PRET_NOSCRIPT, ret; // @@@NIB Default for a trigger loop is NO SCRIPT
 
@@ -541,9 +541,9 @@ bool check_verbs(CHAR_DATA *ch, char *command, char *argument)
 
 	slot = TRIGSLOT_VERB;
 
-	// Save the UID
-	uid[0] = ch->id[0];
-	uid[1] = ch->id[1];
+	// Save the UID - TODO: this looks incomplete
+//	uid[0] = ch->id[0];
+//	uid[1] = ch->id[1];
 
 	// Check for tokens FIRST
 	iterator_start(&tit, ch->ltokens);
@@ -578,16 +578,16 @@ bool check_verbs(CHAR_DATA *ch, char *command, char *argument)
 //	if(!str_cmp(buf,"here")) {
 		ROOM_INDEX_DATA *room = ch->in_room;
 		ROOM_INDEX_DATA *source;
-		bool isclone;
+		//bool isclone;
 
 		if(room->source) {
 			source = room->source;
-			isclone = TRUE;
-			uid[0] = room->id[0];
-			uid[1] = room->id[1];
+			//isclone = TRUE;
+			//uid[0] = room->id[0];
+			//uid[1] = room->id[1];
 		} else {
 			source = room;
-			isclone = FALSE;
+			//isclone = FALSE;
 		}
 
 		script_room_addref(room);
@@ -1088,133 +1088,134 @@ void interpret( CHAR_DATA *ch, char *argument )
     // Convert church to a different alignment?
     if (!IS_NPC(ch) && ch->pcdata->convert_church != -1)
     {
-	char buf[MAX_STRING_LENGTH];
+		char buf[MAX_STRING_LENGTH];
 
-	if (!str_prefix(command, "yes"))
-	{
-	    long pneuma_cost;
-	    long dp_cost;
+		if (!str_prefix(command, "yes"))
+		{
+			long pneuma_cost;
+			long dp_cost;
 
-	    pneuma_cost = 10000;
-	    dp_cost = 2500000;
+			pneuma_cost = 10000;
+			dp_cost = 2500000;
 
-	    if ( ch->church == NULL )
-		return;
+			if ( ch->church == NULL )
+			return;
 
-	    ch->church->pneuma -= pneuma_cost;
-	    ch->church->dp -= dp_cost;
-	    ch->church->alignment = ch->pcdata->convert_church;
+			ch->church->pneuma -= pneuma_cost;
+			ch->church->dp -= dp_cost;
+			ch->church->alignment = ch->pcdata->convert_church;
 
-	    sprintf( buf, "{Y[%s has converted to the faith of %s!]{x\n\r",
-	        ch->church->name,
-		ch->church->alignment == CHURCH_GOOD ? "the Pious" :
-  		  ch->church->alignment == CHURCH_NEUTRAL ? "Neutrality" :
-		  "Malice" );
-	    gecho( buf );
-	    ch->pcdata->convert_church = -1;
-	    return;
-	}
-	else
-        if (!str_prefix(command, "no"))
+			sprintf( buf, "{Y[%s has converted to the faith of %s!]{x\n\r",
+				ch->church->name,
+				ch->church->alignment == CHURCH_GOOD ? "the Pious" :
+				ch->church->alignment == CHURCH_NEUTRAL ? "Neutrality" : "Malice" );
+			gecho( buf );
+			ch->pcdata->convert_church = -1;
+			return;
+		}
+		else if (!str_prefix(command, "no"))
         {
-	    send_to_char("Church faith conversion cancelled.\n\r", ch );
-	    ch->pcdata->convert_church = -1;
-	    return;
-	}
-	else
-	{
-	    sprintf( buf, "Are you SURE you want to convert to the faith of %s? (y/n)\n\r"
-                  "{R***WARNING***:{x all members who cannot follow that faith will be removed on their next login!!!\n\r",
-	       ch->pcdata->convert_church == CHURCH_GOOD ? "the Pious" :
-	          ch->pcdata->convert_church == CHURCH_NEUTRAL ? "Neutrality" :
-		  "Malice" );
-	    send_to_char( buf, ch );
-	    return;
-	}
+		    send_to_char("Church faith conversion cancelled.\n\r", ch );
+		    ch->pcdata->convert_church = -1;
+		    return;
+		}
+		else
+		{
+		    sprintf( buf, "Are you SURE you want to convert to the faith of %s? (y/n)\n\r"
+					"{R***WARNING***:{x all members who cannot follow that faith will be removed on their next login!!!\n\r",
+					ch->pcdata->convert_church == CHURCH_GOOD ? "the Pious" :
+					ch->pcdata->convert_church == CHURCH_NEUTRAL ? "Neutrality" : "Malice" );
+		    send_to_char( buf, ch );
+		    return;
+		}
     }
 
     // Answer a challenge?
     // Display character names, no more "a Slayer/a Werewolf" displayed to everyone -- Areo
     if (ch->challenged != NULL)
     {
-	CHAR_DATA *victim = ch->challenged;
-	char buf[MAX_STRING_LENGTH];
+		CHAR_DATA *victim = ch->challenged;
+		char buf[MAX_STRING_LENGTH];
 
-	if (!str_prefix(command, "yes"))
-	{
-	    sprintf(buf, "%s has accepted %s's challenge! May the battle begin!",
-	        ch->name, victim->name);
-	    crier_announce( buf );
+		if (!str_prefix(command, "yes"))
+		{
+			sprintf(buf, "%s has accepted %s's challenge! May the battle begin!",
+				ch->name, victim->name);
+			crier_announce( buf );
 
-	    sprintf(buf, "{M%s has accepted your challenge!{x\n\r{RYou are transported to the arena!\n\r{x", pers( ch, victim ) );
+			sprintf(buf, "{M%s has accepted your challenge!{x\n\r{RYou are transported to the arena!\n\r{x", pers( ch, victim ) );
 
-	    send_to_char(buf, victim);
+			send_to_char(buf, victim);
 
-	    sprintf(buf, "{MYou have accepted %s's challenge!{x\n\r{RYou are transported to the arena!\n\r{x", pers( victim, ch ) );
+			sprintf(buf, "{MYou have accepted %s's challenge!{x\n\r{RYou are transported to the arena!\n\r{x", pers( victim, ch ) );
 
-	    send_to_char(buf, ch);
+			send_to_char(buf, ch);
 
-            if (ch->fighting != NULL)
-		stop_fighting(ch, TRUE);
+			if (ch->fighting != NULL)
+				stop_fighting(ch, TRUE);
 
-	    if (ch->cast > 0)
-		stop_casting(ch, TRUE);
+			if (ch->cast > 0)
+				stop_casting(ch, TRUE);
 
-		if (ch->script_wait > 0)
-		script_end_failure(ch, TRUE);
+			if (ch->script_wait > 0)
+				script_end_failure(ch, TRUE);
 
-		interrupt_script(ch,FALSE);
+			interrupt_script(ch,FALSE);
 
 
-	    if (victim->fighting != NULL)
-		stop_fighting(victim, TRUE);
+			if (victim->fighting != NULL)
+				stop_fighting(victim, TRUE);
 
-	    if (victim->cast > 0)
-		stop_casting(victim, TRUE);
+			if (victim->cast > 0)
+				stop_casting(victim, TRUE);
 
-		if(victim->script_wait > 0)
-		script_end_failure(victim, TRUE);
+			if(victim->script_wait > 0)
+				script_end_failure(victim, TRUE);
 
-		interrupt_script(victim,FALSE);
+			interrupt_script(victim,FALSE);
 
-		location_from_room(&ch->pcdata->room_before_arena,ch->in_room);
-		location_from_room(&victim->pcdata->room_before_arena,victim->in_room);
+			location_from_room(&ch->pcdata->room_before_arena,ch->in_room);
+			location_from_room(&victim->pcdata->room_before_arena,victim->in_room);
 
-	    char_from_room(ch);
-	    char_from_room(victim);
-	    char_to_room(ch, get_room_index(ROOM_VNUM_ARENA));
-	    char_to_room(victim, get_room_index(ROOM_VNUM_ARENA));
+			char_from_room(ch);
+			char_from_room(victim);
+			char_to_room(ch, get_room_index(ROOM_VNUM_ARENA));
+			char_to_room(victim, get_room_index(ROOM_VNUM_ARENA));
 
-	    ch->challenged = NULL;
-	    return;
-	}
+			ch->challenged = NULL;
+			return;
+		}
 
-	if (!str_prefix(command, "no"))
-	{
-	    sprintf( buf, "%s has declined %s's challenge!",
-		    ch->name, victim->name);
-	    crier_announce( buf );
+		if (!str_prefix(command, "no"))
+		{
+			sprintf( buf, "%s has declined %s's challenge!",
+				ch->name, victim->name);
+			crier_announce( buf );
 
-	    sprintf(buf, "{M%s has declined your challenge!{x\n\r", ch->name);
-	    send_to_char(buf, victim);
+			sprintf(buf, "{M%s has declined your challenge!{x\n\r", ch->name);
+			send_to_char(buf, victim);
 
-	    sprintf(buf, "{MYou have declined %s's challenge!{x\n\r", victim->name);
-	    send_to_char(buf, ch);
-	    ch->challenged = NULL;
-	    return;
-	}
+			sprintf(buf, "{MYou have declined %s's challenge!{x\n\r", victim->name);
+			send_to_char(buf, ch);
+			ch->challenged = NULL;
+			return;
+		}
 
-	sprintf(buf, "{M%s has challenged you to a fight to the death in the arena!\n\rDo you accept? (Yes/No)\n\r{x", victim->name);
-	send_to_char(buf, ch);
-	return;
+		sprintf(buf, "{M%s has challenged you to a fight to the death in the arena!\n\rDo you accept? (Yes/No)\n\r{x", victim->name);
+		send_to_char(buf, ch);
+		return;
     }
 
     // Find command in table.
     found = FALSE;
-    if (!IS_SWITCHED(ch))
-        trust = get_trust( ch );
-    else
-        trust = get_trust( ch->desc->original );
+	if (!IS_SWITCHED(ch))
+	{
+		trust = get_trust( ch );
+	}
+	else
+	{
+		trust = get_trust( ch->desc->original );
+	}
 
 	selected_command = NULL;
     for ( cmd = 0; cmd_table[cmd].name[0] != '\0'; cmd++ )
@@ -1223,7 +1224,7 @@ void interpret( CHAR_DATA *ch, char *argument )
 			!str_prefix( command, cmd_table[cmd].name ) &&
 			(!forced_command || (cmd_table[cmd].level < LEVEL_IMMORTAL)) &&  // 20070511NIB - used to prevent script forces from doing imm commands
 			(cmd_table[cmd].level <= trust || is_granted_command(ch, cmd_table[cmd].name)
-			 || (port == PORT_RAE && (!str_cmp(ch->name,"Rae") || !str_cmp(ch->name, "Arlox"))))) /* AO 010417 For easy debugging on my port; dont judge me, im lazy :P */
+			|| (port == PORT_RAE && (!str_cmp(ch->name,"Rae") || !str_cmp(ch->name, "Arlox"))))) /* AO 010417 For easy debugging on my port; dont judge me, im lazy :P */
 		{
 			selected_command = &cmd_table[cmd];
 			found = TRUE;
@@ -1242,51 +1243,50 @@ void interpret( CHAR_DATA *ch, char *argument )
 		act("$n steps out of the shadows.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
     }
 
-    if (is_affected(ch, skill_lookup("paralysis"))
-    &&  !allowed)
+    if (is_affected(ch, skill_lookup("paralysis")) && !allowed)
     {
         send_to_char("You can't move a muscle!\n\r", ch );
         return;
     }
 
-    if (ch->paroxysm > 0 && !allowed)
-    {
-	if (number_percent() < 20)
+	if (ch->paroxysm > 0 && !allowed)
 	{
-	    send_to_char("{YYou flail your arms about wildly.{x\n\r", ch);
-	    act("$n flails $s arms about wildly, unable to control $mself.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	}
-	else if (number_percent() < 20)
-	{
-	    send_to_char("{YYou cartwheel across the floor.{x\n\r", ch);
-	    act("{Y$n cartwheels across the floor.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	}
-	else if (number_percent() < 20)
-	{
-	    send_to_char("{YYou babble nonsensically and foam at the mouth.{x\n\r", ch );
-  	    act("{Y$n babbles nonsensically and foams at the mouth.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	}
-	else if (number_percent() < 20)
-	{
-	    send_to_char("{YYour fall to the floor and begin to convulse.{x\n\r", ch );
- 	    act("{Y$n collapses to the floor and begins to have seizures.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
-	}
-	else if (number_percent() < 20)
-	{
-	    send_to_char("{YYou begin to spin around in circles.{x\n\r", ch);
- 	    act("$n spins around dizzifyingly.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	}
-	else
-	{
-	    send_to_char("{YYou stare blankly at your feet.{x\n\r", ch);
-    	    act("$n stares blankly, unable to do anything.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	}
+		if (number_percent() < 20)
+		{
+			send_to_char("{YYou flail your arms about wildly.{x\n\r", ch);
+			act("$n flails $s arms about wildly, unable to control $mself.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		}
+		else if (number_percent() < 20)
+		{
+			send_to_char("{YYou cartwheel across the floor.{x\n\r", ch);
+			act("{Y$n cartwheels across the floor.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		}
+		else if (number_percent() < 20)
+		{
+			send_to_char("{YYou babble nonsensically and foam at the mouth.{x\n\r", ch );
+			act("{Y$n babbles nonsensically and foams at the mouth.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		}
+		else if (number_percent() < 20)
+		{
+			send_to_char("{YYour fall to the floor and begin to convulse.{x\n\r", ch );
+			act("{Y$n collapses to the floor and begins to have seizures.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
+		}
+		else if (number_percent() < 20)
+		{
+			send_to_char("{YYou begin to spin around in circles.{x\n\r", ch);
+			act("$n spins around dizzifyingly.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		}
+		else
+		{
+			send_to_char("{YYou stare blankly at your feet.{x\n\r", ch);
+			act("$n stares blankly, unable to do anything.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		}
 
-	return;
-    }
+		return;
+	}
 
     if (ch->cast > 0 && !allowed)
-	stop_casting(ch, TRUE);
+		stop_casting(ch, TRUE);
 
 	if (ch->script_wait > 0 && !allowed)
 		script_end_failure(ch, TRUE);
@@ -1423,7 +1423,7 @@ void interpret( CHAR_DATA *ch, char *argument )
 	#if 0
 		if (!IS_NPC(ch) && imc_command_hook(ch, command, argument))
 		return;
-	#endif 0
+	#endif
 
 	if (check_social(ch, command, argument))
 		return;

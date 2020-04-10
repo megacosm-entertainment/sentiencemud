@@ -75,7 +75,7 @@ void do_project(CHAR_DATA *ch, char *argument)
 /* Shows a character a list of all projects he/she has access to. */
 void do_plist(CHAR_DATA *ch, char *argument)
 {
-    char buf[MSL];
+    char buf[2*MSL];
     char status[MSL];
     int i;
     BUFFER *buffer;
@@ -761,7 +761,7 @@ PEDIT(pedit_show)
     PROJECT_DATA *project;
     PROJECT_BUILDER_DATA *pb;
     STRING_DATA *string;
-    char buf[MSL], areas[MSL], buf2[MSL], completed[MSL], time[MSL];
+    char buf[2*MSL], areas[MSL], buf2[MSL], completed[MSL], time[MSL];
     int i;
     long total_time;
 
@@ -773,11 +773,11 @@ PEDIT(pedit_show)
     sprintf(areas, "No areas");
     for (i = 0, string = project->areas; string != NULL; string = string->next, i++) {
         if (i == 0)
-	    sprintf(areas, "%s", string->string);
-	else {
-	    sprintf(buf2, ", %s", string->string);
-	    strcat(areas, buf2);
-	}
+		    sprintf(areas, "%s", string->string);
+		else {
+		    sprintf(buf2, ", %s", string->string);
+		    strcat(areas, buf2);
+		}
     }
 
     sprintf(buf, "Area(s):             {g[{x%-30.30s{g]{x\n\r", areas);
@@ -879,16 +879,16 @@ PROJECT_INQUIRY_DATA *get_last_post(PROJECT_INQUIRY_DATA *pinq)
 
     reply_latest = NULL;
     for (latest_time = pinq->date, reply = pinq->replies; reply != NULL; reply = reply->next) {
-	if (reply->date > (long) time) {
-	    latest_time = reply->date;
-	    reply_latest = reply;
-	}
+		if (reply->date > latest_time) {
+		    latest_time = reply->date;
+		    reply_latest = reply;
+		}
     }
 
     if (reply_latest == NULL)
-	return pinq; // IE the original post itself
+		return pinq; // IE the original post itself
     else
-	return reply_latest; // The latest reply to the original post
+		return reply_latest; // The latest reply to the original post
 }
 
 

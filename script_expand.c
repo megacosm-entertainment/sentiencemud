@@ -349,7 +349,6 @@ char *expand_argument_expression(SCRIPT_VARINFO *info, char *str,int *num)
 	STACK optr,opnd;
 	pVARIABLE var;
 	int value,op;
-	bool first = TRUE;
 	bool expect = FALSE;	// FALSE = number/open, TRUE = operator/close
 	char *p = str;
 	pVARIABLE vars = info ? *(info->var) : NULL;
@@ -447,7 +446,6 @@ char *expand_argument_expression(SCRIPT_VARINFO *info, char *str,int *num)
 
 			++str;
 		}
-		first = FALSE;
 	}
 
 	for(op = 0; op < opnd.t; op++) {
@@ -4948,7 +4946,9 @@ char *expand_string_variable(SCRIPT_VARINFO *info,char *str,char **store)
 			*store += sprintf(*store,"%d",var->_.i); break;
 		case VAR_STRING:
 		case VAR_STRING_S:
-			if(var->_.s && *var->_.s) *store += sprintf(*store,"%s",var->_.s); break;
+			if(var->_.s && *var->_.s)
+				*store += sprintf(*store,"%s",var->_.s);
+			break;
 		case VAR_ROOM:
 			*store += sprintf(*store,"%d",var->_.r ? (int)var->_.r->vnum : 0); break;
 		case VAR_EXIT:

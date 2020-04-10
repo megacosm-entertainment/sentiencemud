@@ -637,16 +637,16 @@ char *olc_getline(char *str, char *buf)
 char *numlineas(char *string)
 {
     int cnt = 1;
-    static char buf[MAX_STRING_LENGTH*2];
-    char buf2[MAX_STRING_LENGTH], tmpb[MAX_STRING_LENGTH];
+    static char buf[MAX_STRING_LENGTH*3];
+    char buf2[MAX_STRING_LENGTH*2], tmpb[MAX_STRING_LENGTH];
 
     buf[0] = '\0';
 
     while (*string)
     {
-	string = olc_getline(string, tmpb);
-	sprintf(buf2, "%2d. %s\n\r", cnt++, tmpb);
-	strcat(buf, buf2);
+		string = olc_getline(string, tmpb);
+		sprintf(buf2, "%2d. %s\n\r", cnt++, tmpb);
+		strcat(buf, buf2);
     }
 
     return buf;

@@ -703,7 +703,6 @@ AEDIT( aedit_add_trade )
     char arg4[MAX_STRING_LENGTH];
     char arg5[MAX_STRING_LENGTH];
     char arg6[MAX_STRING_LENGTH];
-    char arg7[MAX_STRING_LENGTH];
 
     long replenish_time;
     long replenish_amount;
@@ -714,33 +713,22 @@ AEDIT( aedit_add_trade )
 
     EDIT_AREA(ch, pArea);
 
-    //argument = one_argument( argument, arg1);
-    argument = one_argument( argument, arg7);
+    argument = one_argument( argument, arg1);
     argument = one_argument( argument, arg2);
     argument = one_argument( argument, arg3);
     argument = one_argument( argument, arg4);
     argument = one_argument( argument, arg5);
     argument = one_argument( argument, arg6);
-    //sprintf(buf, "%s %s %s %s\n\r", arg1, arg2, arg3, arg4);
-    //send_to_char(buf, ch);
+
     if ( arg1[0] == '\0' || arg2[0] == '\0' || arg3[0] == '\0' || arg4[0] == '\0' ||
-			arg5[0] == '\0' || arg6[0] == '\0' || arg7[0] == '\0' )
+			arg5[0] == '\0' || arg6[0] == '\0' )
     {
 	send_to_char("addtrade obj_vnum replenish_time replenish_amount max_qty min_price max_price\n\r", ch);
 	return FALSE;
     }
 
-    /*
-    type = get_trade_item(arg1);
-    if (type == -1)
-    {
-	send_to_char("That is not a valid trade item.\n\r", ch);
-	return FALSE;
-    }
-    */
-
+	obj_vnum = atoi( arg1 );
 	replenish_time = atoi( arg2 );
-	obj_vnum = atoi( arg7 );
 	replenish_amount = atoi( arg3 );
 	max_qty = atoi( arg4 );
 	min_price = atoi( arg5 );
@@ -1205,67 +1193,68 @@ AEDIT(aedit_security)
 
 AEDIT(aedit_builder)
 {
-    AREA_DATA *pArea;
-    char name[MAX_STRING_LENGTH];
-    char buf[MAX_STRING_LENGTH];
+	AREA_DATA *pArea;
+	char name[MAX_STRING_LENGTH];
+	char buf[MAX_STRING_LENGTH];
 
-    EDIT_AREA(ch, pArea);
+	EDIT_AREA(ch, pArea);
 
-    one_argument(argument, name);
+	one_argument(argument, name);
 
-    if (name[0] == '\0')
-    {
-	send_to_char("Syntax:  builder [$name]  -toggles builder\n\r", ch);
-	send_to_char("Syntax:  builder All      -allows everyone\n\r", ch);
+	if (name[0] == '\0')
+	{
+		send_to_char("Syntax:  builder [$name]  -toggles builder\n\r", ch);
+		send_to_char("Syntax:  builder All      -allows everyone\n\r", ch);
+		return FALSE;
+	}
+
+	name[0] = UPPER(name[0]);
+
+	if (strstr(pArea->builders, name) != NULL)
+	{
+		pArea->builders = string_replace(pArea->builders, name, "\0");
+		pArea->builders = string_unpad(pArea->builders);
+
+		if (pArea->builders[0] == '\0')
+		{
+			free_string(pArea->builders);
+			pArea->builders = str_dup("None");
+		}
+		send_to_char("Builder removed.\n\r", ch);
+		return TRUE;
+	}
+	else
+	{
+		buf[0] = '\0';
+
+		if (!player_exists(name) && str_cmp(name, "All"))
+		{
+			act("There is no character by the name of $t.", ch, NULL, NULL, NULL, NULL, name, NULL, TO_CHAR);
+			return FALSE;
+		}
+
+		if (strstr(pArea->builders, "None") != NULL)
+		{
+			pArea->builders = string_replace(pArea->builders, "None", "\0");
+			pArea->builders = string_unpad(pArea->builders);
+		}
+
+		if (pArea->builders[0] != '\0')
+		{
+			strcat(buf, pArea->builders);
+			strcat(buf, " ");
+		}
+
+		strcat(buf, name);
+		free_string(pArea->builders);
+		pArea->builders = string_proper(str_dup(buf));
+
+		send_to_char("Builder added.\n\r", ch);
+		send_to_char(pArea->builders,ch);
+		return TRUE;
+	}
+
 	return FALSE;
-    }
-
-    name[0] = UPPER(name[0]);
-
-    if (strstr(pArea->builders, name) != '\0')
-    {
-	pArea->builders = string_replace(pArea->builders, name, "\0");
-	pArea->builders = string_unpad(pArea->builders);
-
-	if (pArea->builders[0] == '\0')
-	{
-	    free_string(pArea->builders);
-	    pArea->builders = str_dup("None");
-	}
-	send_to_char("Builder removed.\n\r", ch);
-	return TRUE;
-    }
-    else
-    {
-	buf[0] = '\0';
-
-	if (!player_exists(name) && str_cmp(name, "All"))
-	{
-	    act("There is no character by the name of $t.", ch, NULL, NULL, NULL, NULL, name, NULL, TO_CHAR);
-	    return FALSE;
-	}
-
-	if (strstr(pArea->builders, "None") != '\0')
-	{
-	    pArea->builders = string_replace(pArea->builders, "None", "\0");
-	    pArea->builders = string_unpad(pArea->builders);
-	}
-
-	if (pArea->builders[0] != '\0')
-	{
-	    strcat(buf, pArea->builders);
-	    strcat(buf, " ");
-	}
-	strcat(buf, name);
-	free_string(pArea->builders);
-	pArea->builders = string_proper(str_dup(buf));
-
-	send_to_char("Builder added.\n\r", ch);
-	send_to_char(pArea->builders,ch);
-	return TRUE;
-    }
-
-    return FALSE;
 }
 
 
@@ -5715,195 +5704,192 @@ OEDIT(oedit_create)
 
 OEDIT(oedit_ed)
 {
-    OBJ_INDEX_DATA *pObj;
-    EXTRA_DESCR_DATA *ed;
-    char command[MAX_INPUT_LENGTH];
-    char keyword[MAX_INPUT_LENGTH];
-    char copy_item[MAX_INPUT_LENGTH];
-    EDIT_OBJ(ch, pObj);
+	OBJ_INDEX_DATA *pObj;
+	EXTRA_DESCR_DATA *ed;
+	char command[MAX_INPUT_LENGTH];
+	char keyword[MAX_INPUT_LENGTH];
+	char copy_item[MAX_INPUT_LENGTH];
+	EDIT_OBJ(ch, pObj);
 
-    argument = one_argument(argument, command);
-    argument = one_argument(argument, keyword);
-    argument = one_argument(argument, copy_item);
+	argument = one_argument(argument, command);
+	argument = one_argument(argument, keyword);
+	argument = one_argument(argument, copy_item);
 
-    if (command[0] == '\0')
-    {
-	send_to_char("Syntax:  ed add [keyword]\n\r", ch);
-	send_to_char("         ed delete [keyword]\n\r", ch);
-	send_to_char("         ed edit [keyword]\n\r", ch);
-	send_to_char("         ed format [keyword]\n\r", ch);
- 	send_to_char("         ed copy old_keyword new_keyword\n\r", ch);
+	if (command[0] == '\0')
+	{
+		send_to_char("Syntax:  ed add [keyword]\n\r", ch);
+		send_to_char("         ed delete [keyword]\n\r", ch);
+		send_to_char("         ed edit [keyword]\n\r", ch);
+		send_to_char("         ed format [keyword]\n\r", ch);
+		send_to_char("         ed copy old_keyword new_keyword\n\r", ch);
 
+		return FALSE;
+	}
+
+	if (!str_cmp(command, "copy"))
+	{
+		EXTRA_DESCR_DATA *ed2;
+
+		if (keyword[0] == '\0' || copy_item[0] == '\0')
+		{
+			send_to_char("Syntax:  ed copy existing_keyword new_keyword\n\r", ch);
+			return FALSE;
+		}
+
+		for (ed = pObj->extra_descr; ed; ed = ed->next)
+		{
+			if (is_name(keyword, ed->keyword))
+			break;
+		}
+
+		if (!ed)
+		{
+			send_to_char("REdit:  Extra description keyword not found.\n\r", ch);
+			return FALSE;
+		}
+
+		ed2					= new_extra_descr();
+		ed2->keyword		= str_dup(copy_item);
+		ed2->next			= pObj->extra_descr;
+		pObj->extra_descr	= ed2;
+		ed2->description	= str_dup(ed->description);
+
+		send_to_char("Done.\n\r", ch);
+
+		return TRUE;
+	}
+
+	if (!str_cmp(command, "add"))
+	{
+		if (keyword[0] == '\0')
+		{
+			send_to_char("Syntax:  ed add [keyword]\n\r", ch);
+			return FALSE;
+		}
+
+		ed					= new_extra_descr();
+		ed->keyword			= str_dup(keyword);
+		ed->next			= pObj->extra_descr;
+		pObj->extra_descr	= ed;
+
+		string_append(ch, &ed->description);
+
+		return TRUE;
+	}
+
+	if (!str_cmp(command, "edit"))
+	{
+		if (keyword[0] == '\0')
+		{
+			send_to_char("Syntax:  ed edit [keyword]\n\r", ch);
+			return FALSE;
+		}
+
+		for (ed = pObj->extra_descr; ed; ed = ed->next)
+		{
+			if (is_name(keyword, ed->keyword))
+			break;
+		}
+
+		if (!ed)
+		{
+			send_to_char("OEdit:  Extra description keyword not found.\n\r", ch);
+			return FALSE;
+		}
+
+		string_append(ch, &ed->description);
+
+		return TRUE;
+	}
+
+	if (!str_cmp(command, "delete"))
+	{
+		EXTRA_DESCR_DATA *ped = NULL;
+
+		if (keyword[0] == '\0')
+		{
+			send_to_char("Syntax:  ed delete [keyword]\n\r", ch);
+			return FALSE;
+		}
+
+		for (ed = pObj->extra_descr; ed; ed = ed->next)
+		{
+			if (is_name(keyword, ed->keyword))
+				break;
+			ped = ed;
+		}
+
+		if (!ed)
+		{
+			send_to_char("OEdit:  Extra description keyword not found.\n\r", ch);
+			return FALSE;
+		}
+
+		if (!ped)
+			pObj->extra_descr = ed->next;
+		else
+			ped->next = ed->next;
+
+		free_extra_descr(ed);
+
+		send_to_char("Extra description deleted.\n\r", ch);
+		return TRUE;
+	}
+
+
+	if (!str_cmp(command, "format"))
+	{
+		if (keyword[0] == '\0')
+		{
+			send_to_char("Syntax:  ed format [keyword]\n\r", ch);
+			return FALSE;
+		}
+
+		for (ed = pObj->extra_descr; ed; ed = ed->next)
+		{
+			if (is_name(keyword, ed->keyword))
+				break;
+		}
+
+		if (!ed)
+		{
+			send_to_char("OEdit:  Extra description keyword not found.\n\r", ch);
+			return FALSE;
+		}
+
+		ed->description = format_string(ed->description);
+
+		send_to_char("Extra description formatted.\n\r", ch);
+		return TRUE;
+	}
+
+	if (!str_cmp(command, "show"))
+	{
+		if (keyword[0] == '\0')
+		{
+			send_to_char("Syntax:  ed show [keyword]\n\r", ch);
+			return FALSE;
+		}
+
+		for (ed = pObj->extra_descr; ed; ed = ed->next)
+		{
+			if (is_name(keyword, ed->keyword))
+				break;
+		}
+
+		if (!ed)
+		{
+			send_to_char("OEdit:  Extra description keyword not found.\n\r", ch);
+			return FALSE;
+		}
+
+		page_to_char(ed->description, ch);
+
+		return TRUE;
+	}
+
+	oedit_ed(ch, "");
 	return FALSE;
-    }
-
-    if (!str_cmp(command, "copy"))
-    {
-	EXTRA_DESCR_DATA *ed2;
-
-    	if (keyword[0] == '\0' || copy_item[0] == '\0')
-	{
-	   send_to_char("Syntax:  ed copy existing_keyword new_keyword\n\r", ch);
-	   return FALSE;
-        }
-
-	for (ed = pObj->extra_descr; ed; ed = ed->next)
-	{
-	    if (is_name(keyword, ed->keyword))
-		break;
-	}
-
-	if (!ed)
-	{
-	    send_to_char("REdit:  Extra description keyword not found.\n\r", ch);
-	    return FALSE;
-	}
-
-	ed2                  =   new_extra_descr();
-	ed2->keyword         =   str_dup(copy_item);
-	ed2->next            =   pObj->extra_descr;
-	pObj->extra_descr   =   ed2;
-	ed2->description = str_dup(ed->description);
-
-	send_to_char("Done.\n\r", ch);
-
-	return TRUE;
-    }
-
-    if (!str_cmp(command, "add"))
-    {
-	if (keyword[0] == '\0')
-	{
-	    send_to_char("Syntax:  ed add [keyword]\n\r", ch);
-	    return FALSE;
-	}
-
-	ed                  =   new_extra_descr();
-	ed->keyword         =   str_dup(keyword);
-	ed->next            =   pObj->extra_descr;
-	pObj->extra_descr   =   ed;
-
-	string_append(ch, &ed->description);
-
-	return TRUE;
-    }
-
-    if (!str_cmp(command, "edit"))
-    {
-	if (keyword[0] == '\0')
-	{
-	    send_to_char("Syntax:  ed edit [keyword]\n\r", ch);
-	    return FALSE;
-	}
-
-	for (ed = pObj->extra_descr; ed; ed = ed->next)
-	{
-	    if (is_name(keyword, ed->keyword))
-		break;
-	}
-
-	if (!ed)
-	{
-	    send_to_char("OEdit:  Extra description keyword not found.\n\r", ch);
-	    return FALSE;
-	}
-
-	string_append(ch, &ed->description);
-
-	return TRUE;
-    }
-
-    if (!str_cmp(command, "delete"))
-    {
-	EXTRA_DESCR_DATA *ped = NULL;
-
-	if (keyword[0] == '\0')
-	{
-	    send_to_char("Syntax:  ed delete [keyword]\n\r", ch);
-	    return FALSE;
-	}
-
-	for (ed = pObj->extra_descr; ed; ed = ed->next)
-	{
-	    if (is_name(keyword, ed->keyword))
-		break;
-	    ped = ed;
-	}
-
-	if (!ed)
-	{
-	    send_to_char("OEdit:  Extra description keyword not found.\n\r", ch);
-	    return FALSE;
-	}
-
-	if (!ped)
-	    pObj->extra_descr = ed->next;
-	else
-	    ped->next = ed->next;
-
-	free_extra_descr(ed);
-
-	send_to_char("Extra description deleted.\n\r", ch);
-	return TRUE;
-    }
-
-
-    if (!str_cmp(command, "format"))
-    {
-	EXTRA_DESCR_DATA *ped = NULL;
-
-	if (keyword[0] == '\0')
-	{
-	    send_to_char("Syntax:  ed format [keyword]\n\r", ch);
-	    return FALSE;
-	}
-
-	for (ed = pObj->extra_descr; ed; ed = ed->next)
-	{
-	    if (is_name(keyword, ed->keyword))
-		break;
-	    ped = ed;
-	}
-
-	if (!ed)
-	{
-                send_to_char("OEdit:  Extra description keyword not found.\n\r", ch);
-                return FALSE;
-	}
-
-	ed->description = format_string(ed->description);
-
-	send_to_char("Extra description formatted.\n\r", ch);
-	return TRUE;
-    }
-
-    if (!str_cmp(command, "show"))
-    {
-	if (keyword[0] == '\0')
-	{
-	    send_to_char("Syntax:  ed show [keyword]\n\r", ch);
-	    return FALSE;
-	}
-
-	for (ed = pObj->extra_descr; ed; ed = ed->next)
-	{
-	    if (is_name(keyword, ed->keyword))
-		break;
-	}
-
-	if (!ed)
-	{
-	    send_to_char("OEdit:  Extra description keyword not found.\n\r", ch);
-	    return FALSE;
-	}
-
-	page_to_char(ed->description, ch);
-
-	return TRUE;
-    }
-
-    oedit_ed(ch, "");
-    return FALSE;
 }
 
 

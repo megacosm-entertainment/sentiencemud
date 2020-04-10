@@ -387,7 +387,7 @@ HEDIT (hedit_show)
     HELP_CATEGORY *hcat;
     HELP_DATA *help;
     STRING_DATA *topic;
-    char buf[MSL], buf2[MSL];
+    char buf[2*MSL], buf2[MSL];
     BUFFER *buffer;
     int i;
 

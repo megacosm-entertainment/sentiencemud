@@ -359,7 +359,7 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 	(long int)ch->pcdata->last_news,(long int)ch->pcdata->last_changes	);
     fprintf(fp, "Scro %d\n", 	ch->lines		);
     if (IS_IMMORTAL(ch))
-	fprintf(fp, "LastInquiryRead %ld\n", (long int)ch->pcdata->last_project_inquiry);
+		fprintf(fp, "LastInquiryRead %ld\n", (long int)ch->pcdata->last_project_inquiry);
 
 	if( ch->checkpoint ) {
 		if( ch->checkpoint->wilds )
@@ -657,7 +657,7 @@ extern pVARIABLE variable_tail;
 bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 {
     char strsave[MAX_INPUT_LENGTH];
-    char buf[100];
+    char buf[MSL];
     CHAR_DATA *ch;
     OBJ_DATA *obj;
     OBJ_DATA *objNestList[MAX_NEST];
@@ -717,9 +717,9 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
     sprintf(strsave, "%s%c/%s%s", PLAYER_DIR, tolower(name[0]), capitalize(name),".gz");
     if ((fp = fopen(strsave, "r")) != NULL)
     {
-	fclose(fp);
-	sprintf(buf,"gzip -dfq %s",strsave);
-	system(buf);
+		fclose(fp);
+		sprintf(buf,"gzip -dfq %s",strsave);
+		system(buf);
     }
     #endif
 
@@ -2318,18 +2318,20 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
     }
 
     if(obj->progs && obj->progs->vars) {
-	pVARIABLE var;
+		pVARIABLE var;
 
-	for(var = obj->progs->vars; var; var = var->next)
-		if(var->save)
-			variable_fwrite(var, fp);
+		for(var = obj->progs->vars; var; var = var->next)
+			if(var->save)
+				variable_fwrite(var, fp);
     }
 
-    if( !IS_NULLSTR(obj->owner_name) )
+    if( !IS_NULLSTR(obj->owner_name) ) {
     	fprintf(fp, "OwnerName %s~\n", obj->owner_name);
+	}
 
-    if( !IS_NULLSTR(obj->owner_short) )
+    if( !IS_NULLSTR(obj->owner_short) ) {
     	fprintf(fp, "OwnerShort %s~\n", obj->owner_short);
+	}
 
 	if(obj->tokens != NULL) {
 		TOKEN_DATA *token;
@@ -2352,7 +2354,6 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 	char *word;
 	int iNest, vtype;
 	bool fMatch;
-	bool fNest;
 	bool fVnum;
 	bool first;
 	bool make_new;
@@ -2388,7 +2389,6 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 	obj->version	= VERSION_OBJECT_000;
 	obj->id[0] = obj->id[1] = 0;
 
-	fNest		= FALSE;
 	fVnum		= TRUE;
 	iNest		= 0;
 
@@ -2776,7 +2776,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 
 			if (!str_cmp(word, "End"))
 			{
-				if (/*!fNest ||*/ (fVnum && obj->pIndexData == NULL))
+				if ((fVnum && obj->pIndexData == NULL))
 				{
 					bug("Fread_obj: incomplete object.", 0);
 					free_obj(obj);

@@ -151,7 +151,7 @@ SPELL_FUNC(spell_identify)
 {
 	OBJ_DATA *obj = (OBJ_DATA *) vo;
 	BUFFER *buffer;
-	char buf[MAX_STRING_LENGTH];
+	char buf[2*MAX_STRING_LENGTH];
 	char buf2[MAX_STRING_LENGTH];
 	char extra_flags[MSL];
 	AFFECT_DATA *af;

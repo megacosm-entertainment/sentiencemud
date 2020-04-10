@@ -115,7 +115,6 @@ void do_house(CHAR_DATA *ch, char *argument)
     }
     else if (!str_cmp(arg, "feature"))
     {
-        bool c = FALSE;
 
 	argument = one_argument( argument, arg2 );
 
@@ -136,40 +135,36 @@ void do_house(CHAR_DATA *ch, char *argument)
 	    send_to_char("This room is now CPK!\n\r", ch);
 	    SET_BIT(ch->in_room->room_flags, ROOM_CPK);
 	    ch->gold -= 5000;
-	    c = TRUE;
 	}
 	else if (!str_cmp(arg2, "pk"))
 	{
 	    send_to_char("This room is now PK!\n\r", ch);
 	    SET_BIT(ch->in_room->room_flags, ROOM_PK);
 	    ch->gold -= 5000;
-	    c = TRUE;
 	}
 	else if (!str_cmp(arg2, "private"))
 	{
 	    send_to_char("This room is now PRIVATE!\n\r", ch);
 	    SET_BIT(ch->in_room->room_flags, ROOM_PRIVATE);
 	    ch->gold -= 5000;
-	    c = TRUE;
 	}
 	else if (!str_cmp(arg2, "underwater"))
 	{
 	    send_to_char("This room is now filled with water!\n\r", ch);
 	    SET_BIT(ch->in_room->room_flags, ROOM_UNDERWATER);
 	    ch->gold -= 5000;
-	    c = TRUE;
 	}
 	else if (!str_cmp(arg2, "safe"))
 	{
 	    send_to_char("This room is now a SAFE ROOM!\n\r", ch);
 	    SET_BIT(ch->in_room->room_flags, ROOM_SAFE);
 	    ch->gold -= 5000;
-	    c = TRUE;
 	}
 	else
 	{
   	    send_to_char("That isn't a valid room feature.\n\r", ch);
 	    send_to_char("Valid features are: cpk pk private underwater safe.\n\r", ch);
+	    return;
 	}
 
 	SET_BIT(ch->in_room->area->area_flags, AREA_CHANGED);

@@ -27,7 +27,7 @@ void do_help(CHAR_DATA *ch, char *argument)
 	HELP_DATA *help;
 	HELP_CATEGORY *hcat, *hcatnest;
 	BUFFER *buffer;
-	char buf[MSL], buf2[MSL];
+	char buf[2*MSL], buf2[MSL];
 	char *p;
 	int index;
 	int i;
@@ -313,22 +313,21 @@ HELP_DATA *lookup_help_index(unsigned int index, int viewer_level, HELP_CATEGORY
 void lookup_category_multiple(char *keyword, int viewer_level, HELP_CATEGORY *hcat, BUFFER *buffer)
 {
     HELP_CATEGORY *hcatnest;
-    char buf[MSL], buf2[MSL];
+    char buf[2*MSL], buf2[MSL];
     char *p;
 
-    if (!str_infix(keyword, hcat->name)
-    &&  viewer_level >= hcat->min_level) {
-	sprintf(buf2, hcat->name);
+    if (!str_infix(keyword, hcat->name) && viewer_level >= hcat->min_level) {
+		sprintf(buf2, hcat->name);
 
-	for (p = buf2; *p != '\0'; p++)
-	    *p = UPPER(*p);
+		for (p = buf2; *p != '\0'; p++)
+		    *p = UPPER(*p);
 
-	sprintf(buf, "{b[{BC  {b] {W%s{x\n\r", buf2);
-	add_buf(buffer, buf);
+		sprintf(buf, "{b[{BC  {b] {W%s{x\n\r", buf2);
+		add_buf(buffer, buf);
     }
 
     for (hcatnest = hcat->inside_cats; hcatnest != NULL; hcatnest = hcatnest->next)
-	lookup_category_multiple(keyword, viewer_level, hcatnest, buffer);
+		lookup_category_multiple(keyword, viewer_level, hcatnest, buffer);
 }
 
 

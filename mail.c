@@ -880,7 +880,7 @@ void do_mailinfo(CHAR_DATA *ch, char *argument)
 {
     MAIL_DATA *mail;
     BUFFER *buffer;
-    char buf[MSL];
+    char buf[2*MSL];
     int count = 0;
     char status[MSL];
 

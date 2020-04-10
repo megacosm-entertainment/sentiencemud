@@ -30,7 +30,6 @@ void do_play(CHAR_DATA *ch, char *argument)
     char arg[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
     char buf[MAX_INPUT_LENGTH];
-    int this_class = 0;
     int chance = 0;
     int level;
     int target;
@@ -41,8 +40,6 @@ void do_play(CHAR_DATA *ch, char *argument)
 
     argument = one_argument(argument,arg);
     argument = one_argument(argument,arg2);
-
-    this_class = get_this_class(ch, gsn_music);
 
     if ((chance = get_skill(ch,gsn_music)) == 0)
     {
@@ -305,7 +302,6 @@ void music_end( CHAR_DATA *ch )
 	int type;
 	int song_num;
 	int sn;
-	int target;
 	const struct music_type* pSong = NULL;
 	bool offensive = FALSE;
 	bool wasdead;
@@ -326,7 +322,6 @@ void music_end( CHAR_DATA *ch )
 	}
 
 	mana = ch->song_mana;
-	target	= TARGET_NONE;
 	deduct_mana(ch, mana);
 
     // We are casting it on just one person only

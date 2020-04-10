@@ -2230,7 +2230,7 @@ void variable_dynamic_fix_clone_room (ROOM_INDEX_DATA *clone)
 
 				while( (lroom = (LLIST_ROOM_DATA *)iterator_nextdata(&it)) ) {
 					if( !lroom->room ) {
-						if( !lroom->id[0] > 0 &&
+						if( lroom->id[0] > 0 &&
 							lroom->id[1] == clone->source->vnum &&
 							clone->id[0] == lroom->id[2] &&
 							clone->id[1] == lroom->id[3])
@@ -2250,7 +2250,7 @@ void variable_dynamic_fix_clone_room (ROOM_INDEX_DATA *clone)
 
 				while( (lexit = (LLIST_EXIT_DATA *)iterator_nextdata(&it)) ) {
 					if( !lexit->room ) {
-						if( !lexit->id[0] > 0 &&
+						if( lexit->id[0] > 0 &&
 							lexit->id[1] == clone->source->vnum &&
 							clone->id[0] == lexit->id[2] &&
 							clone->id[1] == lexit->id[3])
@@ -2723,11 +2723,9 @@ void variable_fwrite(pVARIABLE var, FILE *fp)
 bool variable_fread_str_list(ppVARIABLE vars, char *name, FILE *fp)
 {
 	char *word;
-	bool fMatch;
 
 	for(; ;) {
 		word   = feof(fp) ? "End" : fread_word(fp);
-		fMatch = FALSE;
 
 		if (!str_cmp(word, "End"))
 			return TRUE;
@@ -2739,19 +2737,15 @@ bool variable_fread_str_list(ppVARIABLE vars, char *name, FILE *fp)
 
 		} else
 			fread_to_eol(fp);
-
 	}
-
 }
 
 bool variable_fread_uid_list(ppVARIABLE vars, char *name, int type, FILE *fp)
 {
 	char *word;
-	bool fMatch;
 
 	for(; ;) {
 		word   = feof(fp) ? "End" : fread_word(fp);
-		fMatch = FALSE;
 
 		if (!str_cmp(word, "End"))
 			return TRUE;
@@ -2765,17 +2759,14 @@ bool variable_fread_uid_list(ppVARIABLE vars, char *name, int type, FILE *fp)
 			fread_to_eol(fp);
 
 	}
-
 }
 
 bool variable_fread_room_list(ppVARIABLE vars, char *name, FILE *fp)
 {
 	char *word;
-	bool fMatch;
 
 	for(; ;) {
 		word   = feof(fp) ? "End" : fread_word(fp);
-		fMatch = FALSE;
 
 		if (!str_cmp(word, "End"))
 			return TRUE;
@@ -2805,11 +2796,9 @@ bool variable_fread_room_list(ppVARIABLE vars, char *name, FILE *fp)
 bool variable_fread_exit_list(ppVARIABLE vars, char *name, FILE *fp)
 {
 	char *word;
-	bool fMatch;
 
 	for(; ;) {
 		word   = feof(fp) ? "End" : fread_word(fp);
-		fMatch = FALSE;
 
 		if (!str_cmp(word, "End"))
 			return TRUE;
@@ -2839,11 +2828,9 @@ bool variable_fread_exit_list(ppVARIABLE vars, char *name, FILE *fp)
 bool variable_fread_area_list(ppVARIABLE vars, char *name, FILE *fp)
 {
 	char *word;
-	bool fMatch;
 
 	for(; ;) {
 		word   = feof(fp) ? "End" : fread_word(fp);
-		fMatch = FALSE;
 
 		if (!str_cmp(word, "End"))
 			return TRUE;
@@ -2863,11 +2850,9 @@ bool variable_fread_area_list(ppVARIABLE vars, char *name, FILE *fp)
 bool variable_fread_wilds_list(ppVARIABLE vars, char *name, FILE *fp)
 {
 	char *word;
-	bool fMatch;
 
 	for(; ;) {
 		word   = feof(fp) ? "End" : fread_word(fp);
-		fMatch = FALSE;
 
 		if (!str_cmp(word, "End"))
 			return TRUE;
@@ -2887,11 +2872,9 @@ bool variable_fread_wilds_list(ppVARIABLE vars, char *name, FILE *fp)
 bool variable_fread_skill_list(ppVARIABLE vars, char *name, FILE *fp)
 {
 	char *word;
-	bool fMatch;
 
 	for(; ;) {
 		word   = feof(fp) ? "End" : fread_word(fp);
-		fMatch = FALSE;
 
 		if (!str_cmp(word, "End"))
 			return TRUE;

@@ -533,9 +533,8 @@ int mana_gain(CHAR_DATA *ch)
 	gain /= 2;
 
     // Druids get 33% more in nature
-    if (get_profession(ch, SUBCLASS_CLERIC) == CLASS_CLERIC_DRUID
-    &&   is_in_nature(ch))
-	gain += gain/3;
+    if (get_profession(ch, SUBCLASS_CLERIC) == CLASS_CLERIC_DRUID && is_in_nature(ch))
+		gain += gain/3;
 
 	if (ch->church && vnum_in_treasure_room(ch->church, OBJ_VNUM_RELIC_MANA_REGEN))
 		gain += gain / 4;
@@ -694,15 +693,15 @@ void gain_condition(CHAR_DATA *ch, int iCond, int value)
     && is_sustained(ch))
     {
         ch->pcdata->condition[iCond] = 48;
-	return;
+		return;
     }
 
     if (value == 0 || IS_NPC(ch) || ch->level >= LEVEL_IMMORTAL)
-	return;
+		return;
 
     condition = ch->pcdata->condition[iCond];
     if (condition == -1)
-	return;
+		return;
 
 	// When draining hunger/thirst, they have a CON% chance of not losing it.
 	if( (value < 0) && (iCond == COND_HUNGER || iCond == COND_THIRST) &&
@@ -1364,7 +1363,6 @@ void update_area_trade( void )
 		{
 		    /* Otherwise we are a cosumer */
 		    TRADE_ITEM *pTempTrade = NULL;
-		    TRADE_ITEM *pMaxSupplier = NULL;
 		    long max_qty = 0;
 		    AREA_DATA *pTempArea = NULL;
 
@@ -1383,7 +1381,6 @@ void update_area_trade( void )
 				if ( pTempTrade->qty > max_qty )
 				{
 				    max_qty = pTempTrade->qty;
-				    pMaxSupplier = pTempTrade;
 				}
 			    }
 			}
@@ -1413,7 +1410,6 @@ void char_update(void)
     ITERATOR it, tit;
     char buf[MSL];
     CHAR_DATA *ch;
-    CHAR_DATA *ch_next;
     CHAR_DATA *ch_quit;
     AFFECT_DATA *paf;
     AFFECT_DATA *paf_next;
@@ -1422,87 +1418,86 @@ void char_update(void)
     ch_quit	= NULL;
 
     // Update save counter
-    save_number++;
-    if (save_number > 29)
+	save_number++;
+	if (save_number > 29)
 		save_number = 0;
 
 	iterator_start(&it, loaded_chars);
 	while(( ch = (CHAR_DATA *)iterator_nextdata(&it)))
-    {
-        if (!IS_VALID(ch))
-        	continue;
+	{
+		if (!IS_VALID(ch))
+			continue;
 
 		/* check if in_room is null for logging purposes */
 		if (ch->in_room == NULL && IS_NPC(ch))
 			sprintf(buf, "char_update: null in_room on ch %s (%ld)", ch->short_descr, ch->pIndexData->vnum);
 
 
-        // Characters in social aren't updated
+		// Characters in social aren't updated
 		if (IS_SOCIAL(ch))
-		    continue;
+			continue;
 
-	// Update tokens on a character. Remove the one for which the timer has run out.
+		// Update tokens on a character. Remove the one for which the timer has run out.
 		iterator_start(&tit, ch->ltokens);
 		while(( token = (TOKEN_DATA *)iterator_nextdata(&tit)))
 		{
 
-	    	if (IS_SET(token->flags, TOKEN_REVERSETIMER)) {
+			if (IS_SET(token->flags, TOKEN_REVERSETIMER)) {
 				++token->timer;
-		    } else if (token->timer > 0) {
+			} else if (token->timer > 0) {
 				--token->timer;
 				if (token->timer <= 0) {
-				    sprintf(buf, "char update: token %s(%ld) char %s(%ld) was extracted because of timer",
-					    token->name, token->pIndexData->vnum, HANDLE(ch), IS_NPC(ch) ? ch->pIndexData->vnum : 0);
-				    log_string(buf);
-				    p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_EXPIRE, NULL);
-				    token_from_char(token);
-				    free_token(token);
+					sprintf(buf, "char update: token %s(%ld) char %s(%ld) was extracted because of timer",
+						token->name, token->pIndexData->vnum, HANDLE(ch), IS_NPC(ch) ? ch->pIndexData->vnum : 0);
+					log_string(buf);
+					p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_EXPIRE, NULL);
+					token_from_char(token);
+					free_token(token);
 				}
-		    }
+			}
 		}
 
 
-        // Kick out people after they idle long enough
+		// Kick out people after they idle long enough
 		if (ch->timer > 30)
-            ch_quit = ch;
+			ch_quit = ch;
 
 		if (ch->position >= POS_STUNNED) {
-            // Stranded mobs are extracted after a while
-            if (0 && IS_NPC(ch) && ch->desc == NULL &&
-            	ch->fighting == NULL && !IS_AFFECTED(ch,AFF_CHARM) &&
-            	ch->leader == NULL &&  ch->master == NULL &&
-            	ch->in_room != ch->home_room && !IS_SET(ch->act,ACT_SENTINEL) &&
-            	number_percent() < 1) {
+			// Stranded mobs are extracted after a while
+			if (0 && IS_NPC(ch) && ch->desc == NULL &&
+				ch->fighting == NULL && !IS_AFFECTED(ch,AFF_CHARM) &&
+				ch->leader == NULL &&  ch->master == NULL &&
+				ch->in_room != ch->home_room && !IS_SET(ch->act,ACT_SENTINEL) &&
+				number_percent() < 1) {
 				act("$n wanders on home.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 				if(ch->home_room == NULL) {
-				    extract_char(ch, TRUE);
-				    continue;
+					extract_char(ch, TRUE);
+					continue;
 				} else {
-				    char_from_room(ch);
-				    char_to_room(ch, ch->home_room);
+					char_from_room(ch);
+					char_to_room(ch, ch->home_room);
 				}
-            }
+			}
 
-		    // Regen hit, mana and move.
-		    if (ch->hit < ch->max_hit)
+			// Regen hit, mana and move.
+			if (ch->hit < ch->max_hit)
 				ch->hit += hit_gain(ch);
-		    else
+			else
 				ch->hit = ch->max_hit;
 
-		    if (ch->mana < ch->max_mana)
+			if (ch->mana < ch->max_mana)
 				ch->mana += mana_gain(ch);
-		    else
+			else
 				ch->mana = ch->max_mana;
 
-		    if (ch->move < ch->max_move)
+			if (ch->move < ch->max_move)
 				ch->move += move_gain(ch);
-		    else
+			else
 				ch->move = ch->max_move;
 		}
 
-
 		if (ch->position == POS_STUNNED)
-		    update_pos(ch);
+			update_pos(ch);
 
         // PCs drown in the water
 		if (!IS_NPC(ch) && !IS_AFFECTED(ch, AFF_SWIM) &&
@@ -2193,7 +2188,6 @@ void char_update(void)
 	iterator_start(&it, loaded_chars);
 	while(( ch = (CHAR_DATA *)iterator_nextdata(&it)))
     {
-        ch_next = ch->next;
 
 	if (ch->desc != NULL && ch->desc->descriptor % 15 == save_number)
 	    save_char_obj(ch);

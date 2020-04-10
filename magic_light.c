@@ -157,9 +157,6 @@ SPELL_FUNC(spell_starflare)
 	CHAR_DATA *victim;
 	CHAR_DATA *vnext;
 	int dam;
-	int chance;
-
-	chance = get_skill(ch, sn);
 
 	act("{YYou raise your hand and summon solar energy!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 	act("{Y$n raises $s hand and summons solar energy!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);

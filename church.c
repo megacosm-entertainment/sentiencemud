@@ -2343,7 +2343,7 @@ void do_chwithdraw(CHAR_DATA *ch, char *argument)
     char arg[MAX_STRING_LENGTH];
     char arg2[MAX_STRING_LENGTH];
     char arg3[MSL];
-    char buf[MAX_STRING_LENGTH];
+    char buf[2*MAX_STRING_LENGTH];
     CHAR_DATA *victim;
     CHAR_DATA *mob;
     CHURCH_PLAYER_DATA *member;

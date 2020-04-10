@@ -403,7 +403,6 @@ int get_storm_for_room(ROOM_INDEX_DATA *pRoom)
     AREA_DATA *pArea;
     AREA_DATA *pWilderness;
     STORM_DATA *storm = NULL;
-    char buf[MAX_STRING_LENGTH];
     int lx, ly;
     int storm_type = WEATHER_NONE;
 		bool found_rain_storm = FALSE;
@@ -415,8 +414,6 @@ int get_storm_for_room(ROOM_INDEX_DATA *pRoom)
     // Get area
     pArea = pRoom->area;
     pWilderness = find_area("Wilderness");
-
-    buf[0] = '\0';
 
     lx = pRoom->x;
     ly = pRoom->y;
@@ -941,8 +938,6 @@ void storm_affect_char args((CHAR_DATA *ch, int storm_type)) {
 
 // Affect chars who see storm in background.
 void storm_affect_char_background args((CHAR_DATA *ch, int storm_type)) {
-  int sector_type = 0;
-  sector_type = ch->in_room->sector_type;
 
   switch(storm_type) {
 
