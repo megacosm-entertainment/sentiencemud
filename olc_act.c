@@ -762,14 +762,11 @@ AEDIT( aedit_set_trade)
 AEDIT( aedit_view_trade )
 {
 	char buf[MAX_STRING_LENGTH];
-    AREA_DATA *pArea;
     AREA_DATA *pTArea;
     TRADE_ITEM *pItem;
 	int i = 0;
 
     char arg[MAX_STRING_LENGTH];
-
-    EDIT_AREA(ch, pArea);
 
     argument = one_argument( argument, arg );
 

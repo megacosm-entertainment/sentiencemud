@@ -3319,7 +3319,7 @@ SCRIPT_CMD(do_opstringobj)
 		int mat = material_lookup(buf);
 
 		if(mat < 0) {
-			char buf2[sizeof(buf)+50]
+			char buf2[sizeof(buf)+50];
 			sprintf(buf2,"OpStringObj - Invalid material '%s'.\n\r", buf);
 			bug(buf2, 0);
 			return;

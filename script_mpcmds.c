@@ -1077,7 +1077,7 @@ SCRIPT_CMD(do_mpat)
 	if(info->mob) {
 		char_from_room(info->mob);
 		char_to_room(info->mob, orig);
-		on = info->mob->on;
+		info->mob->on = on;
 		info->mob->pulled_cart = pulled;
 		return;
 	}
@@ -2170,8 +2170,7 @@ SCRIPT_CMD(do_mpflee)
 	char *rest;
 	SCRIPT_PARAM arg;
 	CHAR_DATA *target;
-	EXIT_DATA *pexit;
-	int door = MAX_DIR, attempt;
+	int door = MAX_DIR;
 	bool conceal = FALSE, pursue = TRUE;
 	char fleedata[MIL];
 	char *fleearg = str_empty;
