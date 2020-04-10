@@ -837,7 +837,6 @@ void chat_rem_op(CHAR_DATA *ch, char *arg)
 void do_chat_kick(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *victim;
-    ROOM_INDEX_DATA *room;
     ROOM_INDEX_DATA *to_room;
     char arg[MAX_STRING_LENGTH];
     char buf[MAX_STRING_LENGTH];
@@ -846,36 +845,35 @@ void do_chat_kick(CHAR_DATA *ch, char *argument)
 
     if (!IS_SOCIAL(ch))
     {
-	send_to_char("You aren't even in chat.\n\r", ch);
-	return;
+		send_to_char("You aren't even in chat.\n\r", ch);
+		return;
     }
 
     if (ch->in_room->chat_room == NULL)
     {
-	send_to_char("You aren't in a chat room.\n\r", ch);
-	return;
+		send_to_char("You aren't in a chat room.\n\r", ch);
+		return;
     }
 
     if (!is_op(ch->in_room->chat_room, ch->name))
     {
-	send_to_char("Only ops may kick people out.\n\r", ch);
-	return;
+		send_to_char("Only ops may kick people out.\n\r", ch);
+		return;
     }
 
     if (arg[0] == '\0')
     {
-	send_to_char("Kick whom?\n\r" , ch);
-	return;
+		send_to_char("Kick whom?\n\r" , ch);
+		return;
     }
 
     victim = get_char_room(ch, NULL, arg);
     if (victim == NULL)
     {
-	send_to_char ("They aren't here.\n\r", ch);
-	return;
+		send_to_char ("They aren't here.\n\r", ch);
+		return;
     }
 
-    room = ch->in_room;
     to_room = get_room_index(ROOM_VNUM_CHAT);
     sprintf(buf, "{YYou kick %s out of #%s.{x",
 	    ch == victim ? "yourself" : "$N",
@@ -884,9 +882,9 @@ void do_chat_kick(CHAR_DATA *ch, char *argument)
 
     if (ch != victim)
     {
-	sprintf(buf, "{Y%s kicks you out of #%s.{x",
-		ch->name, ch->in_room->chat_room->name);
-	act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+		sprintf(buf, "{Y%s kicks you out of #%s.{x",
+			ch->name, ch->in_room->chat_room->name);
+		act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
     }
 
     sprintf(buf, "{Y%s kicks %s out of #%s.{x",
@@ -905,7 +903,7 @@ void do_chat_ban(CHAR_DATA *ch, char *argument)
     CHAT_BAN_DATA *ban;
     CHAT_ROOM_DATA *chat;
     char arg[MAX_STRING_LENGTH];
-    char buf[MAX_STRING_LENGTH];
+    char buf[2*MAX_STRING_LENGTH];
     bool add = TRUE;
     int n = 0;
 
@@ -1040,7 +1038,7 @@ void chat_remove_ban(CHAT_ROOM_DATA *chat, CHAT_BAN_DATA *ban)
 void do_chat_password(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL];
-    char buf[MSL];
+    char buf[2*MSL];
 
     if (!IS_SOCIAL(ch))
     {
@@ -1090,7 +1088,7 @@ void do_chat_setfounder(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL];
     char arg2[MSL];
-    char buf[MSL];
+    char buf[2*MSL];
     CHAT_ROOM_DATA *chat_room = NULL;
 
     argument = one_argument(argument, arg);

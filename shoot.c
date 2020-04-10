@@ -965,7 +965,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
 	    obj_from_char( obj );
 	    obj_to_room( obj, target_room );
 	    if ( victim->fighting == ch )
-		stop_fighting( victim, FALSE );
+			stop_fighting( victim, FALSE );
 
 		p_give_trigger( NULL, obj, NULL, ch, obj, TRIG_THROW );
 		p_give_trigger( NULL, NULL, in_room, ch, obj, TRIG_THROW );

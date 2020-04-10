@@ -24,7 +24,6 @@ SPELL_FUNC(spell_deathbarbs)
 	CHAR_DATA *temp_char, *next;
 	int dam;
 	int roll;
-	int people;
 
 	act("{YYou shoot a swarm of razor sharp barbs toward $N!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 	act("{Y$n shoots a swarm of razor sharp barbs toward you!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
@@ -36,7 +35,6 @@ SPELL_FUNC(spell_deathbarbs)
 	roll = UMAX((level*2-15),5) * (get_skill(ch, sn)/100);
 	roll = UMAX(roll, 5);
 
-	people = 1;
 	while (roll > 0) {
 		dam = dice(roll, 3);
 		damage(ch, victim, dam, sn, DAM_PIERCE, TRUE);

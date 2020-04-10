@@ -387,7 +387,7 @@ HEDIT (hedit_show)
     HELP_CATEGORY *hcat;
     HELP_DATA *help;
     STRING_DATA *topic;
-    char buf[MSL], buf2[MSL];
+    char buf[2*MSL], buf2[MSL];
     BUFFER *buffer;
     int i;
 
@@ -1187,15 +1187,15 @@ HEDIT(hedit_builder)
 	    return FALSE;
 	}
 
-	if (strstr(hcat->builders, name) != '\0')
+	if (strstr(hcat->builders, name) != NULL)
 	{
 	    hcat->builders = string_replace(hcat->builders, name, "\0");
 	    hcat->builders = string_unpad(hcat->builders);
 
 	    if (hcat->builders[0] == '\0')
 	    {
-		free_string(hcat->builders);
-		hcat->builders = str_dup("None");
+			free_string(hcat->builders);
+			hcat->builders = str_dup("None");
 	    }
 	    send_to_char("Builder removed.\n\r", ch);
 	    return TRUE;
@@ -1212,20 +1212,20 @@ HEDIT(hedit_builder)
 
 	    if (!player_exists(name) && str_cmp(name, "All"))
 	    {
-		act("There is no character by the name of $t.", ch, NULL, NULL, NULL, NULL, name, NULL, TO_CHAR);
-		return FALSE;
+			act("There is no character by the name of $t.", ch, NULL, NULL, NULL, NULL, name, NULL, TO_CHAR);
+			return FALSE;
 	    }
 
-	    if (strstr(hcat->builders, "None") != '\0')
+	    if (strstr(hcat->builders, "None") != NULL)
 	    {
-		hcat->builders = string_replace(hcat->builders, "None", "\0");
-		hcat->builders = string_unpad(hcat->builders);
+			hcat->builders = string_replace(hcat->builders, "None", "\0");
+			hcat->builders = string_unpad(hcat->builders);
 	    }
 
 	    if (hcat->builders[0] != '\0')
 	    {
-		strcat(buf, hcat->builders);
-		strcat(buf, " ");
+			strcat(buf, hcat->builders);
+			strcat(buf, " ");
 	    }
 	    strcat(buf, name);
 	    free_string(hcat->builders);
@@ -1245,7 +1245,7 @@ HEDIT(hedit_builder)
 		return FALSE;
 	    }
 
-	if (strstr(help->builders, name) != '\0')
+	if (strstr(help->builders, name) != NULL)
 	{
 	    help->builders = string_replace(help->builders, name, "\0");
 	    help->builders = string_unpad(help->builders);
@@ -1268,7 +1268,7 @@ HEDIT(hedit_builder)
 		return FALSE;
 	    }
 
-	    if (strstr(help->builders, "None") != '\0')
+	    if (strstr(help->builders, "None") != NULL)
 	    {
 		help->builders = string_replace(help->builders, "None", "\0");
 		help->builders = string_unpad(help->builders);

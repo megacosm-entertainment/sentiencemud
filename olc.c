@@ -454,7 +454,7 @@ char *olc_ed_vnum(CHAR_DATA *ch)
     TOKEN_INDEX_DATA *pTokenIndex;
     WILDS_DATA *pWilds;
     WILDS_VLINK *pVLink;
-    static char buf[10];
+    static char buf[20];
     char buf2[MSL];
 
     buf[0] = '\0';
@@ -909,12 +909,10 @@ void medit(CHAR_DATA *ch, char *argument)
 
 void shedit(CHAR_DATA *ch, char *argument)
 {
-    AREA_DATA *pArea;
     char command[MAX_INPUT_LENGTH];
     char arg[MAX_INPUT_LENGTH];
     int  cmd;
 
-    EDIT_AREA(ch, pArea);
     smash_tilde(argument);
     strcpy(arg, argument);
     argument = one_argument(argument, command);
@@ -1012,12 +1010,10 @@ void tedit(CHAR_DATA *ch, char *argument)
 
 void pedit(CHAR_DATA *ch, char *argument)
 {
-    PROJECT_DATA *project;
     char command[MAX_INPUT_LENGTH];
     char arg[MAX_INPUT_LENGTH];
     int  cmd;
 
-    EDIT_PROJECT(ch, project);
     smash_tilde(argument);
     strcpy(arg, argument);
     argument = one_argument(argument, command);
@@ -1097,15 +1093,12 @@ void do_olc(CHAR_DATA *ch, char *argument)
 
 void do_shedit(CHAR_DATA *ch, char *argument)
 {
-    NPC_SHIP_DATA *npc_ship = NULL;
     NPC_SHIP_INDEX_DATA *npc_ship_index = NULL;
     int value;
     char arg[MAX_STRING_LENGTH];
 
     if (IS_NPC(ch))
     	return;
-
-    npc_ship = npc_ship_list;
 
     argument	= one_argument(argument,arg);
 
@@ -3070,7 +3063,6 @@ void do_rlist(CHAR_DATA *ch, char *argument)
     char buf[MAX_STRING_LENGTH];
     char arg[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
-    bool found;
     bool range = FALSE;
     long vnum;
     long vnum_min;
@@ -3116,7 +3108,6 @@ void do_rlist(CHAR_DATA *ch, char *argument)
     }
 
     buf1  = new_buf();
-    found = FALSE;
 
     for (vnum = pArea->min_vnum; vnum <= pArea->max_vnum; vnum++)
     {
@@ -3125,7 +3116,6 @@ void do_rlist(CHAR_DATA *ch, char *argument)
 	&& vnum <= vnum_max)
 	{
 	    char *noc;
-	    found = TRUE;
 	    noc = nocolour(pRoomIndex->name);
 	    sprintf(buf, "[%5ld] %-17.16s", vnum, noc);
 	    free_string(noc);

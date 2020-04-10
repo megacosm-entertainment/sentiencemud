@@ -128,7 +128,6 @@ char *compile_expression(char *str,int type, char **store)
 	char buf[MSL];
 	STACK optr;
 	int op,opnds=0;
-	bool first = TRUE;
 	bool expect = FALSE;	// FALSE = number/open, TRUE = operator/close
 	char *p = *store, *rest;
 
@@ -198,7 +197,6 @@ char *compile_expression(char *str,int type, char **store)
 			*p++ = ESCAPE_END;
 			++opnds;
 			expect = TRUE;
-			first = FALSE;
 		} else if(*str != ']') {
 // -expression
 //
@@ -246,7 +244,6 @@ char *compile_expression(char *str,int type, char **store)
 			}
 			*p++ = *str++;
 		}
-		first = FALSE;
 	}
 
 	str = skip_whitespace(str);
@@ -505,7 +502,7 @@ char *compile_substring(char *str, int type, char **store, bool ifc, bool doquot
 {
 	char buf[MSL];
 	char buf2[MSL];
-	char *p, *s, *start, ch;
+	char *p, *s, ch;
 	bool startword = TRUE, inquote = FALSE;
 
 	DBG2ENTRY4(PTR,str,NUM,type,PTR,store,FLG,ifc);
@@ -514,7 +511,6 @@ char *compile_substring(char *str, int type, char **store, bool ifc, bool doquot
 	while(*str) {
 		// Escape code
 		if(*str == '$') {
-			start = str;
 			if(str[1] == '[')
 				str = compile_expression(str+2,type,&p);
 			else if(str[1] == '(')

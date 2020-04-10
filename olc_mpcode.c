@@ -1096,7 +1096,7 @@ SCRIPTEDIT(scriptedit_security)
 
 void show_script_list(CHAR_DATA *ch, char *argument,int type)
 {
-    int count = 1, maxcount, len;
+    int count = 1, len;
     SCRIPT_DATA *prg;
     char buf[MSL], *noc;
     BUFFER *buffer;
@@ -1126,9 +1126,7 @@ void show_script_list(CHAR_DATA *ch, char *argument,int type)
     }
 
     if(!ch->lines)
-	send_to_char("{RWARNING:{W Having scrolling off limits how many scripts you can see.{x\n\r", ch);
-
-    maxcount = ch->lines * 2;
+		send_to_char("{RWARNING:{W Having scrolling off limits how many scripts you can see.{x\n\r", ch);
 
     buffer = new_buf();
 

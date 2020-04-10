@@ -122,188 +122,178 @@ void save_ship(FILE *fp, NPC_SHIP_INDEX_DATA *pShipIndex)
 
 void do_asave_new(CHAR_DATA *ch, char *argument)
 {
-    char arg1[MAX_INPUT_LENGTH];
-    AREA_DATA *pArea;
-    FILE *fp;
-    long sec;
-    char log_buf[MAX_STRING_LENGTH];
+	char arg1[MAX_INPUT_LENGTH];
+	AREA_DATA *pArea;
+	char log_buf[MAX_STRING_LENGTH];
 
-    fp = NULL;
+	smash_tilde(argument);
+	strcpy(arg1, argument);
 
-    sec = ch->pcdata->security;
-
-    smash_tilde(argument);
-    strcpy(arg1, argument);
-
-    if (arg1[0] == '\0')
-    {
-	send_to_char("Syntax:\n\r", ch);
-	send_to_char("  asave area     - saves the area you are in\n\r",	ch);
-	send_to_char("  asave changed  - saves all changed areas\n\r",	ch);
-	send_to_char("  asave world    - saves the world (imps only)\n\r",	ch);
-	send_to_char("  asave churches - saves the churches\n\r", ch);
-	send_to_char("  asave help     - saves the help files\n\r", ch);
-	send_to_char("  asave mail     - saves the mail\n\r", ch);
-	send_to_char("  asave projects - saves the project database\n\r", ch);
-	send_to_char("  asave persist  - saves all persistant entities\n\r", ch);
-
-	if (ch->tot_level == MAX_LEVEL)
-	    send_to_char("  asave staff    - saves the immortal staff information\n\r", ch);
-
-	//send_to_char("  asave wilds    - saves wilderness templates (imps only)\n\r", ch);
-	return;
-    }
-
-  save_npc_ships();
-
-
-    // Save all areas
-    if (!str_cmp("world", arg1))
-    {
-	/* Only for imps since it causes mucho lag */
-	if (ch->tot_level < MAX_LEVEL)
+	if (arg1[0] == '\0')
 	{
-	    send_to_char("Insufficient security to save world - action logged.\n\r", ch);
-	    return;
+		send_to_char("Syntax:\n\r", ch);
+		send_to_char("  asave area     - saves the area you are in\n\r",	ch);
+		send_to_char("  asave changed  - saves all changed areas\n\r",	ch);
+		send_to_char("  asave world    - saves the world (imps only)\n\r",	ch);
+		send_to_char("  asave churches - saves the churches\n\r", ch);
+		send_to_char("  asave help     - saves the help files\n\r", ch);
+		send_to_char("  asave mail     - saves the mail\n\r", ch);
+		send_to_char("  asave projects - saves the project database\n\r", ch);
+		send_to_char("  asave persist  - saves all persistant entities\n\r", ch);
+
+		if (ch->tot_level == MAX_LEVEL)
+			send_to_char("  asave staff    - saves the immortal staff information\n\r", ch);
+
+		//send_to_char("  asave wilds    - saves wilderness templates (imps only)\n\r", ch);
+		return;
 	}
 
-	save_area_list();
+	save_npc_ships();
 
-	for (pArea = area_first; pArea; pArea = pArea->next)
+
+	// Save all areas
+	if (!str_cmp("world", arg1))
 	{
-	    {
-	        sprintf(log_buf,"olc_save.c, do_asave: saving %s", pArea->name);
-	        log_string(log_buf);
-	        sprintf(log_buf, "Saving %s...\n\r", pArea->name);
-	        send_to_char(log_buf, ch);
-	        save_area_new(pArea);
-	    }
+		/* Only for imps since it causes mucho lag */
+		if (ch->tot_level < MAX_LEVEL)
+		{
+			send_to_char("Insufficient security to save world - action logged.\n\r", ch);
+			return;
+		}
 
-	    REMOVE_BIT(pArea->area_flags, AREA_CHANGED);
+		save_area_list();
+
+		for (pArea = area_first; pArea; pArea = pArea->next)
+		{
+			sprintf(log_buf,"olc_save.c, do_asave: saving %s", pArea->name);
+			log_string(log_buf);
+			sprintf(log_buf, "Saving %s...\n\r", pArea->name);
+			send_to_char(log_buf, ch);
+			save_area_new(pArea);
+
+			REMOVE_BIT(pArea->area_flags, AREA_CHANGED);
+		}
+
+		send_to_char("You saved the world.\n\r", ch);
+		return;
 	}
-
-	send_to_char("You saved the world.\n\r", ch);
-	return;
-    }
 
     // Save only changed areas
     if (!str_cmp("changed", arg1))
     {
-	char buf[MAX_INPUT_LENGTH];
+		char buf[MAX_INPUT_LENGTH];
 
-	if (projects_changed)
-	{
-	    save_projects();
-	    projects_changed = FALSE;
-	    send_to_char("Project list saved.\n\r", ch);
-	}
-
-	log_string("olc_save.c, do_asave: changed, saving area list");
-	save_area_list();
-
-	send_to_char("Saved zones:\n\r", ch);
-
-	sprintf(buf, "None.\n\r");
-
-	for (pArea = area_first; pArea; pArea = pArea->next)
-	{
-	    /* Builder must be assigned this area. */
-	    if (!IS_BUILDER(ch, pArea))
-		continue;
-
-	    /* Save changed areas. */
-	    if (IS_SET(pArea->area_flags, AREA_CHANGED))
-	    {
-	        if ((!str_cmp(pArea->name, "Eden")
-		|| !str_cmp(pArea->name, "Netherworld"))
-		|| pArea == (AREA_DATA *)-1 /*get_sailing_boat_area()*/)
-                    continue;
-                else
-		if (IS_SET(pArea->area_flags, AREA_TESTPORT))
+		if (projects_changed)
 		{
-		    if (!is_test_port)
-		    {
-			if (ch->tot_level < MAX_LEVEL)
-			{
-			    sprintf(buf, "%24s - '%s' NOT SAVED (testport area)\n\r",
-				pArea->name, pArea->file_name);
-			    send_to_char(buf, ch);
-			    REMOVE_BIT(pArea->area_flags, AREA_CHANGED);
-			    continue;
-			}
-			else
-			{
-			    sprintf(buf, "%24s - '%s' saved (warning - this is a testport area)\n\r",
-			        pArea->name, pArea->file_name);
-			    send_to_char(buf, ch);
-			    REMOVE_BIT(pArea->area_flags, AREA_CHANGED);
-			    save_area_new(pArea);
-			    continue;
-			}
-		    }
-		    else
-		    {
-			sprintf(buf, "%24s - '%s' saved and backed up from testport dir.\n\r",
-			    pArea->name, pArea->file_name);
-			send_to_char(buf, ch);
-			REMOVE_BIT(pArea->area_flags, AREA_CHANGED);
-			save_area_new(pArea);
+			save_projects();
+			projects_changed = FALSE;
+			send_to_char("Project list saved.\n\r", ch);
+		}
+
+		log_string("olc_save.c, do_asave: changed, saving area list");
+		save_area_list();
+
+		send_to_char("Saved zones:\n\r", ch);
+
+		sprintf(buf, "None.\n\r");
+
+		for (pArea = area_first; pArea; pArea = pArea->next)
+		{
+			/* Builder must be assigned this area. */
+			if (!IS_BUILDER(ch, pArea))
 			continue;
-		    }
+
+			/* Save changed areas. */
+			if (IS_SET(pArea->area_flags, AREA_CHANGED))
+			{
+				if ((!str_cmp(pArea->name, "Eden") || !str_cmp(pArea->name, "Netherworld")) ||
+					pArea == (AREA_DATA *)-1 /*get_sailing_boat_area()*/)
+						continue;
+				else if (IS_SET(pArea->area_flags, AREA_TESTPORT))
+				{
+					if (!is_test_port)
+					{
+						if (ch->tot_level < MAX_LEVEL)
+						{
+							sprintf(buf, "%24s - '%s' NOT SAVED (testport area)\n\r",
+							pArea->name, pArea->file_name);
+							send_to_char(buf, ch);
+							REMOVE_BIT(pArea->area_flags, AREA_CHANGED);
+							continue;
+						}
+						else
+						{
+							sprintf(buf, "%24s - '%s' saved (warning - this is a testport area)\n\r",
+								pArea->name, pArea->file_name);
+							send_to_char(buf, ch);
+							REMOVE_BIT(pArea->area_flags, AREA_CHANGED);
+							save_area_new(pArea);
+							continue;
+						}
+					}
+					else
+					{
+						sprintf(buf, "%24s - '%s' saved and backed up from testport dir.\n\r",
+							pArea->name, pArea->file_name);
+						send_to_char(buf, ch);
+						REMOVE_BIT(pArea->area_flags, AREA_CHANGED);
+						save_area_new(pArea);
+						continue;
+					}
+				}
+				else
+				{
+					sprintf(log_buf,"olc_save.c, do_asave: changed, saving %s", pArea->name);
+						log_string(log_buf);
+					save_area_new(pArea);
+				}
+
+				sprintf(buf, "%24s - '%s'\n\r", pArea->name, pArea->file_name);
+				send_to_char(buf, ch);
+				REMOVE_BIT(pArea->area_flags, AREA_CHANGED);
+			}
 		}
-		else
-                {
-                    sprintf(log_buf,"olc_save.c, do_asave: changed, saving %s", pArea->name);
-                    log_string(log_buf);
-		    save_area_new(pArea);
-		}
 
-		sprintf(buf, "%24s - '%s'\n\r", pArea->name, pArea->file_name);
-		send_to_char(buf, ch);
-		REMOVE_BIT(pArea->area_flags, AREA_CHANGED);
-	    }
-	}
+		if (!str_cmp(buf, "None.\n\r"))
+			send_to_char(buf, ch);
 
-	if (!str_cmp(buf, "None.\n\r"))
-	    send_to_char(buf, ch);
-
-	return;
+		return;
     }
 
     // Save current area
     if (!str_cmp(arg1, "area"))
     {
-	if (!IS_BUILDER(ch, ch->in_room->area)) {
-	    send_to_char("Sorry, you're not a builder in this area, so you can't save it.\n\r", ch);
-	    return;
-	}
+		if (!IS_BUILDER(ch, ch->in_room->area)) {
+		    send_to_char("Sorry, you're not a builder in this area, so you can't save it.\n\r", ch);
+		    return;
+		}
 
-	save_area_list();
-	save_area_new(ch->in_room->area);
-	act("Saved $t.", ch, NULL, NULL, NULL, NULL, ch->in_room->area->name, NULL, TO_CHAR);
-	return;
+		save_area_list();
+		save_area_new(ch->in_room->area);
+		act("Saved $t.", ch, NULL, NULL, NULL, NULL, ch->in_room->area->name, NULL, TO_CHAR);
+		return;
     }
 
     // Save churches
     if (!str_cmp(arg1, "churches"))
     {
-	write_churches_new();
-	send_to_char("Churches saved.\n\r", ch);
-	return;
+		write_churches_new();
+		send_to_char("Churches saved.\n\r", ch);
+		return;
     }
 
     if (!str_cmp(arg1, "projects"))
     {
-	save_projects();
-	projects_changed = FALSE;
-	send_to_char("Projects saved.\n\r", ch);
-	return;
+		save_projects();
+		projects_changed = FALSE;
+		send_to_char("Projects saved.\n\r", ch);
+		return;
     }
 
     // Save helpfiles
     if (!str_cmp(arg1, "help"))
     {
-	save_helpfiles_new();
+		save_helpfiles_new();
         send_to_char("Help files saved.\n\r", ch);
         return;
     }
@@ -311,9 +301,9 @@ void do_asave_new(CHAR_DATA *ch, char *argument)
     // Save mail
     if (!str_cmp(arg1, "mail"))
     {
-	write_mail();
-	send_to_char("Mail saved.\n\r", ch);
-	return;
+		write_mail();
+		send_to_char("Mail saved.\n\r", ch);
+		return;
     }
 
     if (!str_cmp(arg1, "persist"))
@@ -362,7 +352,7 @@ void save_area_list()
 /* save an area to <area>.are */
 void save_area_new(AREA_DATA *area)
 {
-    char buf[MAX_STRING_LENGTH];
+    char buf[2*MAX_STRING_LENGTH];
     FILE *fp;
     char filename[MSL];
     OLC_POINT_BOOST *boost;
@@ -400,9 +390,9 @@ void save_area_new(AREA_DATA *area)
 	sprintf(filename, "%s", area->file_name);
 
     if ((fp = fopen(filename, "w")) == NULL) {
-	sprintf(buf, "save_area_new: couldn't open file %s", filename);
-	bug(buf, 0);
-	return;
+		sprintf(buf, "save_area_new: couldn't open file %s", filename);
+		bug(buf, 0);
+		return;
     }
 
     sprintf(buf, "save_area_new: saving area %s to file %s", area->name, area->file_name);
@@ -663,7 +653,7 @@ void save_room_new(FILE *fp, ROOM_INDEX_DATA *room, int recordtype)
     	fprintf(fp, "Persist\n");
 
     if (room->home_owner != NULL)
-	fprintf(fp, "Home_owner %s~\n", room->home_owner);
+		fprintf(fp, "Home_owner %s~\n", room->home_owner);
 
 	if(room->viewwilds) {
 		fprintf(fp,"Wilds %1u %1u %1u %1u\n", (unsigned)room->viewwilds->uid, (unsigned)room->x, (unsigned)room->y, (unsigned)room->z);
@@ -1369,6 +1359,7 @@ AREA_DATA *read_area_new(FILE *fp)
 		gconfig_write();
     }
 
+	(void)dummy;	// Attempt to keep it from triggering -Wunused-but-set-variable
 
     return area;
 }

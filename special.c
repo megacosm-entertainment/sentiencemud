@@ -592,7 +592,7 @@ bool spec_cast_mage( CHAR_DATA *ch )
     }
 
     if ( ( sn = skill_lookup( spell ) ) < 0 )
-	return FALSE;
+		return FALSE;
 
 	sprintf( buf, "'%s' %s", spell, victim->name );
 	do_function( ch, &do_cast, buf );
@@ -606,12 +606,12 @@ bool spec_cast_undead( CHAR_DATA *ch )
 {
     CHAR_DATA *victim;
     CHAR_DATA *v_next;
-   char buf[MAX_STRING_LENGTH];
+	char buf[MAX_STRING_LENGTH];
     char *spell;
     int sn;
 
     if ( ch->position != POS_FIGHTING )
-	return FALSE;
+		return FALSE;
 
     for ( victim = ch->in_room->people; victim != NULL; victim = v_next )
     {
@@ -646,7 +646,7 @@ bool spec_cast_undead( CHAR_DATA *ch )
     }
 
     if ( ( sn = skill_lookup( spell ) ) < 0 )
-	return FALSE;
+		return FALSE;
 
 	sprintf( buf, "'%s' %s", spell, victim->name );
 	do_function( ch, &do_cast, buf );
@@ -1132,12 +1132,12 @@ bool spec_magic_master( CHAR_DATA *ch )
         break;
    }
 
-   if ( victim == NULL )
-    return FALSE;
+	if ( victim == NULL )
+	    return FALSE;
     switch ( number_bits( 4 ) )
     {
 
-   case 0:
+	case 0:
     if (IS_AFFECTED(ch, AFF_BLIND))
     {
 		sprintf( buf, "'cure blindness' me" );

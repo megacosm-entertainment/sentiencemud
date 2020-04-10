@@ -2304,7 +2304,7 @@ int execute_script(long pvnum, SCRIPT_DATA *script, CHAR_DATA *mob, OBJ_DATA *ob
 	int saved_call_depth;	// Call depth copied
 	int saved_security;	// Security copied
 	bool saved_wiznet;
-	long vnum = 0, level, i;
+	long level, i;
 
 	DBG2ENTRY7(NUM,pvnum,PTR,script,PTR,mob,PTR,obj,PTR,room,PTR,token,PTR,ch);
 
@@ -2348,7 +2348,6 @@ int execute_script(long pvnum, SCRIPT_DATA *script, CHAR_DATA *mob, OBJ_DATA *ob
 
 	if (mob) {
 		mob->progs->lastreturn = PRET_EXECUTED;
-		vnum = mob->pIndexData->vnum;
 		block.type = IFC_M;
 		block.info.progs = mob->progs;
 		block.info.location = mob->in_room;
@@ -2357,7 +2356,6 @@ int execute_script(long pvnum, SCRIPT_DATA *script, CHAR_DATA *mob, OBJ_DATA *ob
 
 	} else if (obj) {
 		obj->progs->lastreturn = PRET_EXECUTED;
-		vnum = obj->pIndexData->vnum;
 		block.type = IFC_O;
 		block.info.progs = obj->progs;
 		block.info.location = obj_room(obj);
@@ -2365,7 +2363,6 @@ int execute_script(long pvnum, SCRIPT_DATA *script, CHAR_DATA *mob, OBJ_DATA *ob
 		block.info.targ = &obj->progs->target;
 	} else if (room) {
 		room->progs->lastreturn = PRET_EXECUTED;
-		vnum = room->vnum;
 		block.type = IFC_R;
 		block.info.progs = room->progs;
 		block.info.location = room;
@@ -2373,7 +2370,6 @@ int execute_script(long pvnum, SCRIPT_DATA *script, CHAR_DATA *mob, OBJ_DATA *ob
 		block.info.targ = &room->progs->target;
 	} else if (token) {
 		token->progs->lastreturn = PRET_EXECUTED;
-		vnum = token->pIndexData->vnum;
 		block.type = IFC_T;
 		block.info.progs = token->progs;
 		block.info.location = token_room(token);
@@ -3142,9 +3138,9 @@ char *trigger_phrase_olcshow(int type, char *phrase, bool is_rprog, bool is_tpro
 // Common entry point for all the queued commands!
 void script_interpret(SCRIPT_VARINFO *info, char *command)
 {
-	char *start, buf[MSL];
+	char buf[MSL];
 
-	start = one_argument(command,buf);
+	one_argument(command,buf);
 
 	if(info->mob) {
 		if(!str_cmp(buf,"mob")) mob_interpret(info,command);
@@ -3405,16 +3401,13 @@ int test_string_trigger(char *string, MATCH_STRING match, int type,
 
 	} else if (room) {
 		ROOM_INDEX_DATA *source;
-		bool isclone;
 
 		if(room->source) {
 			source = room->source;
-			isclone = TRUE;
 			uid[0] = room->id[0];
 			uid[1] = room->id[1];
 		} else {
 			source = room;
-			isclone = FALSE;
 		}
 
 		script_room_addref(room);
@@ -3628,16 +3621,13 @@ int test_number_trigger(int number, MATCH_NUMBER match, int type,
 
 	} else if (room) {
 		ROOM_INDEX_DATA *source;
-		bool isclone;
 
 		if(room->source) {
 			source = room->source;
-			isclone = TRUE;
 			uid[0] = room->id[0];
 			uid[1] = room->id[1];
 		} else {
 			source = room;
-			isclone = FALSE;
 		}
 
 		script_room_addref(room);
@@ -3897,16 +3887,13 @@ int test_number_sight_trigger(int number, MATCH_NUMBER match, int type, int type
 
 	} else if (room) {
 		ROOM_INDEX_DATA *source;
-		bool isclone;
 
 		if(room->source) {
 			source = room->source;
-			isclone = TRUE;
 			uid[0] = room->id[0];
 			uid[1] = room->id[1];
 		} else {
 			source = room;
-			isclone = FALSE;
 		}
 
 		script_room_addref(room);
@@ -4210,16 +4197,13 @@ int test_vnumname_trigger(char *name, int vnum, int type,
 
 	} else if (room) {
 		ROOM_INDEX_DATA *source;
-		bool isclone;
 
 		if(room->source) {
 			source = room->source;
-			isclone = TRUE;
 			uid[0] = room->id[0];
 			uid[1] = room->id[1];
 		} else {
 			source = room;
-			isclone = FALSE;
 		}
 
 		script_room_addref(room);
@@ -4770,7 +4754,8 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 		case ENT_NUMBER: variables_set_integer(vars,name,arg.d.num); break;
 		case ENT_STRING:
 			if(is_number(arg.d.str))
-				variables_set_integer(vars,name,atoi(arg.d.str)); break;
+				variables_set_integer(vars,name,atoi(arg.d.str));
+			break;
 		}
 
 	// Decrements the variable, if it's a NUMBER by the specified decrement
@@ -5487,7 +5472,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 			if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_NUMBER)
 				return;
 
-			pVARIABLE var = variable_get(vars, name);
+			pVARIABLE var = variable_get(*vars, name);
 
 			if( !var || var->type != VAR_BLLIST_MOB || !IS_VALID(var->_.list) )
 				return;
@@ -5496,7 +5481,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 
 		// MOBLIST clear
 		} else if( !str_cmp(arg.d.str, "clear") ) {
-			pVARIABLE var = variable_get(vars, name);
+			pVARIABLE var = variable_get(*vars, name);
 
 			if( !var || var->type != VAR_BLLIST_MOB || !IS_VALID(var->_.list) )
 				return;
@@ -5525,7 +5510,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 			if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_NUMBER)
 				return;
 
-			pVARIABLE var = variable_get(vars, name);
+			pVARIABLE var = variable_get(*vars, name);
 
 			if( !var || var->type != VAR_BLLIST_OBJ || !IS_VALID(var->_.list) )
 				return;
@@ -5534,7 +5519,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 
 		// OBJLIST clear
 		} else if( !str_cmp(arg.d.str, "clear") ) {
-			pVARIABLE var = variable_get(vars, name);
+			pVARIABLE var = variable_get(*vars, name);
 
 			if( !var || var->type != VAR_BLLIST_OBJ || !IS_VALID(var->_.list) )
 				return;

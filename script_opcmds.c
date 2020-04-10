@@ -618,7 +618,7 @@ char *op_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 
 void obj_interpret(SCRIPT_VARINFO *info, char *argument)
 {
-	char command[MSL], buf[MSL];
+	char command[MSL], buf[2*MSL];
 	int cmd;
 
 	if(!info->obj) return;
@@ -2973,13 +2973,12 @@ SCRIPT_CMD(do_opinterrupt)
 
 SCRIPT_CMD(do_opalterobj)
 {
-	char buf[MIL],field[MIL],*rest;
+	char buf[2*MIL],field[MIL],*rest;
 	int value, num, min_sec = MIN_SCRIPT_SECURITY;
 	OBJ_DATA *obj = NULL;
 	SCRIPT_PARAM arg;
 	bool allowarith = TRUE;
 	const struct flag_type *flags = NULL;
-
 	if(!info || !info->obj) return;
 
 	if(!(rest = expand_argument(info,argument,&arg))) {
@@ -3320,8 +3319,9 @@ SCRIPT_CMD(do_opstringobj)
 		int mat = material_lookup(buf);
 
 		if(mat < 0) {
-			sprintf(buf,"OpStringObj - Invalid material '%s'.\n\r", buf);
-			bug(buf, 0);
+			char buf2[sizeof(buf)+50];
+			sprintf(buf2,"OpStringObj - Invalid material '%s'.\n\r", buf);
+			bug(buf2, 0);
 			return;
 		}
 
@@ -3346,7 +3346,7 @@ SCRIPT_CMD(do_opstringobj)
 SCRIPT_CMD(do_opaltermob)
 {
 	char buf[MSL],field[MIL],*rest;
-	int value, min_sec = MIN_SCRIPT_SECURITY, min, max;
+	int value, min_sec = MIN_SCRIPT_SECURITY, min = 0, max = 0;
 	CHAR_DATA *mob = NULL;
 	SCRIPT_PARAM arg;
 	int *ptr = NULL;
@@ -3354,6 +3354,8 @@ SCRIPT_CMD(do_opaltermob)
 	bool allowarith = TRUE;
 	bool allowbitwise = TRUE;
 	bool lookuprace = FALSE;
+	bool hasmin = FALSE;
+	bool hasmax = FALSE;
 	const struct flag_type *flags = NULL;
 	int dirty_stat = -1;
 
@@ -3476,9 +3478,9 @@ SCRIPT_CMD(do_opaltermob)
 	else if(!str_cmp(field,"resurrect"))	ptr = (int*)&mob->resurrect;
 	else if(!str_cmp(field,"reverie"))	ptr = (int*)&mob->reverie;
 	else if(!str_cmp(field,"scribe"))	ptr = (int*)&mob->scribe;
-	else if(!str_cmp(field,"sex"))		{ ptr = (int*)&mob->sex; min = 0; max = 2; flags = sex_flags; }
+	else if(!str_cmp(field,"sex"))		{ ptr = (int*)&mob->sex; min = 0; max = 2; hasmin = hasmax = TRUE; flags = sex_flags; }
 	else if(!str_cmp(field,"silver"))	ptr = (int*)&mob->silver;
-	else if(!str_cmp(field,"size"))		{ ptr = (int*)&mob->size; min = SIZE_TINY; max = SIZE_GIANT; flags = size_flags; }
+	else if(!str_cmp(field,"size"))		{ ptr = (int*)&mob->size; min = SIZE_TINY; max = SIZE_GIANT; hasmin = hasmax = TRUE; flags = size_flags; }
 	else if(!str_cmp(field,"skillchance"))	ptr = (int*)&mob->skill_chance;
 	else if(!str_cmp(field,"sublevel"))	ptr = (int*)&mob->level;
 	else if(!str_cmp(field,"tempstore1"))	ptr = (int*)&mob->tempstore[0];
@@ -3624,6 +3626,12 @@ SCRIPT_CMD(do_opaltermob)
 	default:
 		return;
 	}
+
+	if(hasmin && *ptr < min)
+		*ptr = min;
+
+	if(hasmax && *ptr > max)
+		*ptr = max;
 
 	if(dirty_stat >= 0 && dirty_stat < MAX_STATS)
 		mob->dirty_stat[dirty_stat] = TRUE;
@@ -5282,8 +5290,7 @@ SCRIPT_CMD(do_opshowroom)
 	WILDS_DATA *wilds = NULL;
 	SCRIPT_PARAM arg;
 	long mapid;
-	long x,y,z;
-	long scale;
+	long x,y;
 	long width, height;
 	bool force;
 
@@ -5327,12 +5334,12 @@ SCRIPT_CMD(do_opshowroom)
 		if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
 			return;
 
-		z = arg.d.num;
+		//z = arg.d.num;
 
 		if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
 			return;
 
-		scale = arg.d.num;
+		//scale = arg.d.num;
 
 		if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
 			return;
@@ -6837,7 +6844,6 @@ SCRIPT_CMD(do_oprestore)
 {
 	char *rest;
 	SCRIPT_PARAM arg;
-	CHAR_DATA *mob;
 	int amount = 100;
 
 	if(!info || !info->obj || IS_NULLSTR(argument)) return;
@@ -6846,8 +6852,6 @@ SCRIPT_CMD(do_oprestore)
 		return;
 
 	if(arg.type != ENT_MOBILE || !arg.d.mob) return;
-
-	mob = arg.d.mob;
 
 	if(*rest) {
 		if(!(rest = expand_argument(info,rest,&arg)))
@@ -6917,7 +6921,6 @@ SCRIPT_CMD(do_opungroup)
 {
 	char *rest;
 	SCRIPT_PARAM arg;
-	CHAR_DATA *mob;
 	bool fAll = FALSE;
 
 	if(!info || !info->obj || IS_NULLSTR(argument)) return;
@@ -6926,8 +6929,6 @@ SCRIPT_CMD(do_opungroup)
 		return;
 
 	if(arg.type != ENT_MOBILE || !arg.d.mob) return;
-
-	mob = arg.d.mob;
 
 	if( *rest ) {
 		if( arg.type == ENT_NUMBER )

@@ -450,7 +450,6 @@ void load_wilds( FILE *fp, AREA_DATA *pArea )
     WILDS_TERRAIN *pTerrain;
     long arraysize = 0;
     char      *word;
-    bool      fMatch;
     int       y,j;
 
     pWilds = new_wilds();
@@ -459,7 +458,6 @@ void load_wilds( FILE *fp, AREA_DATA *pArea )
     for ( ; ; )
     {
         word   = feof( fp ) ? "End" : fread_word( fp );
-        fMatch = FALSE;
 
         switch ( UPPER(word[0]) )
         {
@@ -516,7 +514,7 @@ void load_wilds( FILE *fp, AREA_DATA *pArea )
 		else
                 if ( !str_cmp( word, "#-VMAP" ) )
                 {
-                    fMatch = TRUE;
+					;
                 }
 		else
                 if ( !str_cmp( word, "#-WILDS" ) )
@@ -757,7 +755,6 @@ WILDS_VLINK *fread_vlink(FILE *fp)
 {
     WILDS_VLINK *pVLink;
     char      *word;
-    bool      fMatch;
 
     if (!fp)
     {
@@ -770,7 +767,6 @@ WILDS_VLINK *fread_vlink(FILE *fp)
     for ( ; ; )
     {
         word   = feof( fp ) ? "End" : fread_word( fp );
-        fMatch = FALSE;
 
         switch ( UPPER(word[0]) )
         {
@@ -906,7 +902,6 @@ WILDS_TERRAIN *fread_terrain (FILE *fp, WILDS_DATA *pWilds)
 {
     WILDS_TERRAIN *pTerrain;
     char      *word;
-    bool      fMatch;
 
 /*
  * Check pointers are valid.
@@ -928,7 +923,6 @@ WILDS_TERRAIN *fread_terrain (FILE *fp, WILDS_DATA *pWilds)
     for ( ; ; )
     {
         word   = feof( fp ) ? "End" : fread_word( fp );
-        fMatch = FALSE;
 
         switch ( UPPER(word[0]) )
         {
@@ -1404,16 +1398,16 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
     DESCRIPTOR_DATA * d;
     bool found = FALSE;
     bool foundterrain = FALSE;
-    char j[5];
-    char last_terrain[5];
-    char temp[5];
+    char j[6];
+    char last_terrain[6];
+    char temp[6];
     int squares_to_show_x;
     int squares_to_show_y;
     bool last_char_same;
     char last_char;
     char last_colour_char;
     char edit_mapstring[80];
-    char buf[MIL];
+    char buf[MSL];
     char padding1[MIL];
     char padding2[MIL];
     char tlcoor[MIL];
@@ -1608,7 +1602,7 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
             else
             {
                 /* If we're displaying outside the map bounds, fill in with starfield */
-                if (!olc)
+                if (!olc) {
                     if (x % 5 + y % 6 == 0 && x % 2 + y % 3 == 0)
                     {
                         last_char = '.'; last_colour_char = 'x';
@@ -1616,17 +1610,16 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
                     }
                     else
                         send_to_char(" ", to);
-                else
+                } else {
                     send_to_char(" ", to);
-                    edit_mapstring[cString] = ' ';
-                    cString++;
+				}
+				edit_mapstring[cString] = ' ';
+				cString++;
             }
         }
 
         if (olc)
         {
-            char buf[81];
-
             edit_mapstring[cString] = '\0';
             sprintf(buf, "       {x%s{%c", edit_mapstring, last_colour_char);
             send_to_char(buf, to);
@@ -1668,10 +1661,11 @@ void show_map_to_char(CHAR_DATA * ch, CHAR_DATA * to, int bonus_view_x, int bonu
 {
     WILDS_DATA *pWilds;
 
-    if (olc)
+    if (olc) {
         pWilds = ch->desc->pEdit;
-    else
+    } else {
         pWilds = ch->in_wilds;
+	}
 
 	show_map_to_char_wyx(pWilds, ch->in_room->x, ch->in_room->y, to, ch->in_room->x, ch->in_room->y, bonus_view_x, bonus_view_y, olc);
 }
@@ -2468,20 +2462,20 @@ void link_vlinks (WILDS_DATA *pWilds)
                 && pVLink->wildsorigin_x < pWilds->map_size_x
                 && pVLink->wildsorigin_y < pWilds->map_size_y)
             {
-                if (link_vlink(pVLink))
-                    plogf("link_vlinks(): VLink %s from (%d, %d) to %ld Linked Successfully.",
-                          dir_name[pVLink->door],
-                          pVLink->wildsorigin_x,
-			  pVLink->wildsorigin_y,
-			  pVLink->destvnum);
-                else
-                    plogf("wilds.c, link_vlinks(): VLink failed.");
-                    continue;
+				if (link_vlink(pVLink))
+					plogf("link_vlinks(): VLink %s from (%d, %d) to %ld Linked Successfully.",
+						dir_name[pVLink->door],
+						pVLink->wildsorigin_x,
+						pVLink->wildsorigin_y,
+						pVLink->destvnum);
+				else
+					plogf("wilds.c, link_vlinks(): VLink failed.");
+				continue;
             }
             else
                 plogf("wilds.c, link_vlinks(): VLink failed - coordinates are invalid.");
-                continue;
 
+			continue;
         }
     } /* end for */
 

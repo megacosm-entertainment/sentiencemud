@@ -5411,7 +5411,7 @@ void do_sockets( CHAR_DATA *ch, char *argument )
     int             count;
     char *          st;
     char            s[100];
-    char            idle[10];
+    char            idle[20];
 
 
     count       = 0;
@@ -7188,74 +7188,74 @@ void do_remcommand(CHAR_DATA *ch, char *argument)
 /* Adjusted boost to allow for up to 7 days (10080 minutes) - Tieryo */
 void do_boost(CHAR_DATA *ch, char *argument)
 {
-    char buf[MSL];
-    char arg[MSL];
-    char arg2[MSL];
-    char arg3[MSL];
-    int type;
-    int mins;
-    int percent;
-    struct tm *timer;
+	char buf[MSL];
+	char arg[MSL];
+	char arg2[MSL];
+	char arg3[MSL];
+	int type;
+	int mins;
+	int percent;
+	struct tm *timer;
 
-    argument = one_argument(argument, arg);
-    argument = one_argument(argument, arg2);
-    argument = one_argument(argument, arg3);
+	argument = one_argument(argument, arg);
+	argument = one_argument(argument, arg2);
+	argument = one_argument(argument, arg3);
 
-    if (arg[0] == '\0' || arg2[0] == '\0') {
-	send_to_char("Syntax:  boost <field> <#mins (1-10080 or off)> [percent]\n\rFields: experience damage qp pneuma\n\r", ch);
-	return;
-    }
+	if (arg[0] == '\0' || arg2[0] == '\0') {
+		send_to_char("Syntax:  boost <field> <#mins (1-10080 or off)> [percent]\n\rFields: experience damage qp pneuma\n\r", ch);
+		return;
+	}
 
-    for (type = 0; boost_table[type].name != NULL; type++) {
-	if (!str_prefix(arg, boost_table[type].name))
-	    break;
-    }
+	for (type = 0; boost_table[type].name != NULL; type++) {
+		if (!str_prefix(arg, boost_table[type].name))
+			break;
+	}
 	/* Don't allow imms to set reckoning boost, this is to be done by the game's internal systems only -- Areo*/
-    if (boost_table[type].name == NULL || strcmp(boost_table[type].name,  "reckoning") == 0) {
-	send_to_char("Invalid boost field.\n\rFields: experience damage qp pneuma\n\r", ch);
-	return;
-    }
-
-    if ((mins = atoi(arg2)) < 1 || mins > 10080) {
-	if (!str_cmp(arg2, "off"))
-	    mins = 0;
-	else {
-	    send_to_char("Invalid #mins.\n\rMust be 1-10080 minutes, or off.\n\r", ch);
-	    return;
-	}
-    }
-
-    if (arg3[0] == '\0')
-	percent = 150;
-    else
-	if ((percent = atoi(arg3)) < 1 || percent > 200) {
-	    send_to_char("Invalid boost percent.\n\rPercent must be 1-200%.\n\r", ch);
-	    return;
+	if (boost_table[type].name == NULL || strcmp(boost_table[type].name,  "reckoning") == 0) {
+		send_to_char("Invalid boost field.\n\rFields: experience damage qp pneuma\n\r", ch);
+		return;
 	}
 
-    if (mins == 0)
-	sprintf(buf, "Turned off %s boost.\n\r", boost_table[type].name);
-    else
-	sprintf(buf, "Boosted %s to %+d%% for %d minutes.\n\r", boost_table[type].name, percent-100, mins);
+	if ((mins = atoi(arg2)) < 1 || mins > 10080) {
+		if (!str_cmp(arg2, "off"))
+			mins = 0;
+		else {
+			send_to_char("Invalid #mins.\n\rMust be 1-10080 minutes, or off.\n\r", ch);
+			return;
+		}
+	}
 
-    send_to_char(buf, ch);
+	if (arg3[0] == '\0')
+		percent = 150;
+	else if ((percent = atoi(arg3)) < 1 || percent > 200) {
+		send_to_char("Invalid boost percent.\n\rPercent must be 1-200%.\n\r", ch);
+		return;
+	}
 
-    if (boost_table[type].timer == 0 || mins == 0)
-	timer = localtime(&current_time);
-    else
-	timer = localtime(&boost_table[type].timer);
+	if (mins == 0)
+		sprintf(buf, "Turned off %s boost.\n\r", boost_table[type].name);
+	else
+		sprintf(buf, "Boosted %s to %+d%% for %d minutes.\n\r", boost_table[type].name, percent-100, mins);
 
-    if (mins >= 1) {
-	timer->tm_min += mins;
-	boost_table[type].timer = mktime(timer);
-	boost_table[type].boost = percent;
-	sprintf(buf, "{B({WBOOST{B)--> {W%d {Dminutes of %s {Dboost ({W%+d%%{D)!!!{x\n\r",
+	send_to_char(buf, ch);
+
+	if (boost_table[type].timer == 0 || mins == 0)
+		timer = localtime(&current_time);
+	else
+		timer = localtime(&boost_table[type].timer);
+
+	if (mins >= 1) {
+		timer->tm_min += mins;
+		boost_table[type].timer = mktime(timer);
+		boost_table[type].boost = percent;
+		sprintf(buf, "{B({WBOOST{B)--> {W%d {Dminutes of %s {Dboost ({W%+d%%{D)!!!{x\n\r",
 		mins, boost_table[type].colour_name, (percent - 100));
-	gecho(buf);
-	return;
+		gecho(buf);
+		return;
 	}
-    else
-	timer->tm_min = 0;
+	else
+		timer->tm_min = 0;
+
 	boost_table[type].timer = mktime(timer);
 }
 

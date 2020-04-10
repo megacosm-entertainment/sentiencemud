@@ -690,7 +690,7 @@ void do_behead(CHAR_DATA *ch, char *argument)
 	act("{RWith a mighty $t, $n brings $s weight upon $N...{x", ch, victim, NULL, NULL, NULL, attack_table[wield->value[3]].noun, NULL, TO_NOTVICT);
 	act("{RWith a mighty $t, you bring your weight upon $N...{x", ch, victim, NULL, NULL, NULL, attack_table[wield->value[3]].noun, NULL, TO_CHAR);
 	act("{RWith a mighty $t, $n brings $s weight upon you...{x", ch, victim, NULL, NULL, NULL, attack_table[wield->value[3]].noun, NULL, TO_VICT);
-	if(number_percent() < skill) {
+	if(number_percent() < chance) {
 		if(!check_acro(ch, victim, wield) &&
 			!check_catch(ch, victim, wield) &&
 			!check_spear_block(ch,victim, wield) &&

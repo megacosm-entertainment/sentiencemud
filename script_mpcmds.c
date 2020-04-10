@@ -1077,7 +1077,7 @@ SCRIPT_CMD(do_mpat)
 	if(info->mob) {
 		char_from_room(info->mob);
 		char_to_room(info->mob, orig);
-		on = info->mob->on;
+		info->mob->on = on;
 		info->mob->pulled_cart = pulled;
 		return;
 	}
@@ -2170,9 +2170,7 @@ SCRIPT_CMD(do_mpflee)
 	char *rest;
 	SCRIPT_PARAM arg;
 	CHAR_DATA *target;
-	ROOM_INDEX_DATA *was_in, *room;
-	EXIT_DATA *pexit;
-	int door = MAX_DIR, attempt;
+	int door = MAX_DIR;
 	bool conceal = FALSE, pursue = TRUE;
 	char fleedata[MIL];
 	char *fleearg = str_empty;
@@ -2192,7 +2190,7 @@ SCRIPT_CMD(do_mpflee)
 
 	if (!target) return;
 
-	if (!target->fighting || !(was_in = target->in_room))
+	if (!target->fighting || !target->in_room)
 		return;
 
 	if(*rest) {
@@ -2208,7 +2206,7 @@ SCRIPT_CMD(do_mpflee)
 			} else if (!str_cmp(arg.d.str, "wimpy"))
 				fleearg = NULL;
 			else {
-				strncpy(fleedata,arg.d.str,MSL-1);
+				strncpy(fleedata,arg.d.str,sizeof(fleedata)-1);
 				fleearg = fleedata;
 			}
 
@@ -2244,27 +2242,6 @@ SCRIPT_CMD(do_mpflee)
 		info->mob->progs->lastreturn = door;
 	}
 
-/*
-	// Moved to general flee system
-	flying = mobile_is_flying(target);
-	for (attempt = 0; attempt < 6; attempt++) {
-		door = number_door();
-        	if (!(pexit = was_in->exit[door])
-        		|| !(room = exit_destination(pexit))
-        		|| IS_SET(pexit->exit_info, EX_CLOSED)
-        		|| (IS_SET(pexit->exit_info, EX_AERIAL) && !flying)
-        		|| (IS_NPC(info->mob) && IS_SET(room->room_flags, ROOM_NO_MOB)))
-        			continue;
-
-		move_char(info->mob, door, FALSE);
-		if(!info->mob) break;	// Verify the mob isn't killed!
-		if (info->mob->in_room != was_in) {
-			info->mob->progs->lastreturn = door;
-			return;
-		}
-	}
-
-*/
 }
 
 // do_mpforce
@@ -3964,7 +3941,7 @@ SCRIPT_CMD(do_mpinterrupt)
 
 SCRIPT_CMD(do_mpalterobj)
 {
-	char buf[MIL],field[MIL],*rest;
+	char buf[2*MIL],field[MIL],*rest;
 	int value, num, min_sec = MIN_SCRIPT_SECURITY;
 	OBJ_DATA *obj = NULL;
 	SCRIPT_PARAM arg;
@@ -4224,7 +4201,7 @@ SCRIPT_CMD(do_mpresetdice)
 
 SCRIPT_CMD(do_mpstringobj)
 {
-	char buf[MSL],field[MIL],*rest, **str;
+	char buf[2*MSL],field[MIL],*rest, **str;
 	int min_sec = MIN_SCRIPT_SECURITY;
 	OBJ_DATA *obj = NULL;
 	SCRIPT_PARAM arg;
@@ -4300,8 +4277,9 @@ SCRIPT_CMD(do_mpstringobj)
 		int mat = material_lookup(buf);
 
 		if(mat < 0) {
-			sprintf(buf,"MpStringObj - Invalid material '%s'.\n\r", buf);
-			bug(buf, 0);
+			char buf2[sizeof(buf) + 50];
+			sprintf(buf2,"MpStringObj - Invalid material '%s'.\n\r", buf);
+			bug(buf2, 0);
 			return;
 		}
 
@@ -4326,7 +4304,7 @@ SCRIPT_CMD(do_mpstringobj)
 SCRIPT_CMD(do_mpaltermob)
 {
 	char buf[MSL],field[MIL],*rest;
-	int value, min_sec = MIN_SCRIPT_SECURITY, min, max;
+	int value, min_sec = MIN_SCRIPT_SECURITY, min = 0, max = 0;
 	CHAR_DATA *mob = NULL;
 	SCRIPT_PARAM arg;
 	int *ptr = NULL;
@@ -4334,6 +4312,8 @@ SCRIPT_CMD(do_mpaltermob)
 	bool allowarith = TRUE;
 	bool allowbitwise = TRUE;
 	bool lookuprace = FALSE;
+	bool hasmin = FALSE;
+	bool hasmax = FALSE;
 	const struct flag_type *flags = NULL;
 	int dirty_stat = -1;
 
@@ -4456,9 +4436,9 @@ SCRIPT_CMD(do_mpaltermob)
 	else if(!str_cmp(field,"resurrect"))	ptr = (int*)&mob->resurrect;
 	else if(!str_cmp(field,"reverie"))	ptr = (int*)&mob->reverie;
 	else if(!str_cmp(field,"scribe"))	ptr = (int*)&mob->scribe;
-	else if(!str_cmp(field,"sex"))		{ ptr = (int*)&mob->sex; min = 0; max = 2; flags = sex_flags; }
+	else if(!str_cmp(field,"sex"))		{ ptr = (int*)&mob->sex; min = 0; max = 2; hasmin = hasmax = TRUE; flags = sex_flags; }
 	else if(!str_cmp(field,"silver"))	ptr = (int*)&mob->silver;
-	else if(!str_cmp(field,"size"))		{ ptr = (int*)&mob->size; min = SIZE_TINY; max = SIZE_GIANT; flags = size_flags; }
+	else if(!str_cmp(field,"size"))		{ ptr = (int*)&mob->size; min = SIZE_TINY; max = SIZE_GIANT; hasmin = hasmax = TRUE; flags = size_flags; }
 	else if(!str_cmp(field,"skillchance"))	ptr = (int*)&mob->skill_chance;
 	else if(!str_cmp(field,"sublevel"))	ptr = (int*)&mob->level;
 	else if(!str_cmp(field,"tempstore1"))	ptr = (int*)&mob->tempstore[0];
@@ -4604,6 +4584,12 @@ SCRIPT_CMD(do_mpaltermob)
 	default:
 		return;
 	}
+
+	if(hasmin && *ptr < min)
+		*ptr = min;
+
+	if(hasmax && *ptr > max)
+		*ptr = max;
 
 	if(dirty_stat >= 0 && dirty_stat < MAX_STATS)
 		mob->dirty_stat[dirty_stat] = TRUE;
@@ -6285,8 +6271,7 @@ SCRIPT_CMD(do_mpshowroom)
 	WILDS_DATA *wilds = NULL;
 	SCRIPT_PARAM arg;
 	long mapid;
-	long x,y,z;
-	long scale;
+	long x,y;
 	long width, height;
 	bool force;
 
@@ -6330,12 +6315,12 @@ SCRIPT_CMD(do_mpshowroom)
 		if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
 			return;
 
-		z = arg.d.num;
+		//z = arg.d.num; TODO: fixme?
 
 		if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
 			return;
 
-		scale = arg.d.num;
+		//scale = arg.d.num; TODO: fixme?
 
 		if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
 			return;
@@ -7861,7 +7846,6 @@ SCRIPT_CMD(do_mprestore)
 {
 	char *rest;
 	SCRIPT_PARAM arg;
-	CHAR_DATA *mob;
 	int amount = 100;
 
 	if(!info || !info->mob || IS_NULLSTR(argument)) return;
@@ -7870,8 +7854,6 @@ SCRIPT_CMD(do_mprestore)
 		return;
 
 	if(arg.type != ENT_MOBILE || !arg.d.mob) return;
-
-	mob = arg.d.mob;
 
 	if(*rest) {
 		if(!(rest = expand_argument(info,rest,&arg)))
@@ -7954,7 +7936,6 @@ SCRIPT_CMD(do_mpungroup)
 {
 	char *rest;
 	SCRIPT_PARAM arg;
-	CHAR_DATA *mob;
 	bool fAll = FALSE;
 
 	if(!info || !info->mob || IS_NULLSTR(argument)) return;
@@ -7963,8 +7944,6 @@ SCRIPT_CMD(do_mpungroup)
 		return;
 
 	if(arg.type != ENT_MOBILE || !arg.d.mob) return;
-
-	mob = arg.d.mob;
 
 	if( *rest ) {
 		if( arg.type == ENT_NUMBER )

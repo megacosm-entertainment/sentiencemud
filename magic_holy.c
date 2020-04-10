@@ -296,7 +296,7 @@ SPELL_FUNC(spell_holy_shield)
 		af.group = AFFGROUP_ENCHANT;
 		af.type	= sn;
 		af.level = level;
-		af.duration = 6 + level;
+		af.duration = perm ? -1 : (6 + level);
 		af.location = APPLY_AC;
 		af.modifier = -(level/8);
 		af.bitvector = ITEM_HOLY;
@@ -345,7 +345,7 @@ SPELL_FUNC(spell_holy_sword)
 		af.group = AFFGROUP_ENCHANT;
 		af.type	= sn;
 		af.level = level;
-		af.duration = 6 + level;
+		af.duration = perm ? -1 : (6 + level);
 		af.location = 0;
 		af.modifier = 0;
 		af.bitvector = ITEM_HOLY;

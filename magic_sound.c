@@ -101,7 +101,6 @@ SPELL_FUNC(spell_vocalize)
 	char buf[MAX_STRING_LENGTH];
 	char speaker[MAX_INPUT_LENGTH];
 	char dir[MAX_INPUT_LENGTH];
-	ROOM_INDEX_DATA *pRoom;
 	int direction;
 
 	if ((direction = parse_direction(dir)) == -1) {
@@ -113,8 +112,6 @@ SPELL_FUNC(spell_vocalize)
 		send_to_char("Nothing happens.", ch);
 		return FALSE;
 	}
-
-	pRoom = ch->in_room->exit[ direction ]->u1.to_room;
 
 	sprintf(buf, "%s says '%s'.\n\r", ch->name, speaker);
 	buf[0] = UPPER(buf[0]);

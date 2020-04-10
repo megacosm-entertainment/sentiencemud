@@ -70,11 +70,11 @@ BUFFER *get_churches_html()
     // Table
     add_buf( output, "<table width=\"100%\" border=\"0\" style=\"padding: 15px; padding-top: 10px;\"> <tr> <td class=\"title\">Church Name&nbsp;</td> <td class=\"title\">Church Type&nbsp;</td> <td class=\"title\">Alignment&nbsp;</td> <td class=\"title\">Player Killer?&nbsp;</td> </tr>" );
 
-    for (chr = church_list; chr != NULL; chr = chr->next) 
+    for (chr = church_list; chr != NULL; chr = chr->next)
     {
 	char tempbuf[25];
 
-	switch (chr->size) 
+	switch (chr->size)
 	{
 	    case CHURCH_SIZE_BAND:
 		sprintf(tempbuf, "Band");
@@ -97,7 +97,7 @@ BUFFER *get_churches_html()
 	    sprintf( temp, "<td>No&nbsp;</td></tr>");
 	}
 	else
-	{	
+	{
 	    sprintf( temp, "<td>{RYes{x ({W%ld{x wins : {Y%ld{x losses)&nbsp;</td></tr>",
 		    chr->pk_wins, chr->pk_losses );
 	}
@@ -196,12 +196,12 @@ char *format_and_colour_html( char *buf )
 	    }
 	    enc = FALSE;
 	}
-	else	
-	    if ( *a == '{' ) 
+	else
+	    if ( *a == '{' )
 	    {
 		enc = TRUE;
 	    }
-	    else 
+	    else
 	    {
 		*b = *a;
 		b++;
@@ -235,20 +235,15 @@ int copy_in_colour_code( char *new, char *colour )
 
 BUFFER *get_players_html()
 {
-    char buf[MAX_STRING_LENGTH];
+    char buf[2*MAX_STRING_LENGTH];
     char buf2[MAX_STRING_LENGTH];
     char *text;
     BUFFER *output;
     DESCRIPTOR_DATA *d;
-    int iClass;
-    int iRace;
     int iLevelLower;
     int iLevelUpper;
-    int nNumber;
     int nMatch;
     int nMatch2;
-    bool rgfClass[MAX_CLASS];
-    bool rgfRace[MAX_PC_RACE];
     bool fImmortalOnly = FALSE;
     bool fChurchOnly = FALSE;
     int line_counter = 0;
@@ -261,15 +256,6 @@ BUFFER *get_players_html()
      */
     iLevelLower = 0;
     iLevelUpper = MAX_LEVEL;
-    for (iClass = 0; iClass < MAX_CLASS; iClass++)
-	rgfClass[iClass] = FALSE;
-    for (iRace = 0; iRace < MAX_PC_RACE; iRace++)
-	rgfRace[iRace] = FALSE;
-
-    /*
-     * Parse arguments.
-     */
-    nNumber = 0;
 
     /*
      * Now show matching chars.
@@ -280,12 +266,12 @@ BUFFER *get_players_html()
     {
 	CHAR_DATA *wch;
 
-	if (d->connected != CON_PLAYING ) 
+	if (d->connected != CON_PLAYING )
 	    continue;
 
 	wch = (d->original != NULL) ? d->original : d->character;
 
-	if ( wch )	
+	if ( wch )
 	{
 	    nMatch2++;
 	}
@@ -307,7 +293,7 @@ BUFFER *get_players_html()
 
     add_buf( output, "<table width=\"100%\" border=\"0\" style=\"padding: 15px; padding-top: 10px;\"> <tr> <td class=\"title\">&nbsp;</td> <td class=\"title\">&nbsp;</td> <td class=\"title\">&nbsp;</td> <td class=\"title\">&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>" );
 
-    for (d = descriptor_list; d != NULL; d = d->next) 
+    for (d = descriptor_list; d != NULL; d = d->next)
     {
 	CHAR_DATA *wch;
 	char const *class;
@@ -326,7 +312,7 @@ BUFFER *get_players_html()
 
 	class = sub_class_table[wch->pcdata->sub_class_current].who_name[wch->sex];
 
-	switch (wch->level) 
+	switch (wch->level)
 	{
 	    default:
 		break;
@@ -346,12 +332,12 @@ BUFFER *get_players_html()
 		    case MAX_LEVEL - 4:
 			if ( wch->sex == SEX_FEMALE )
 			    class = "  {wGo{Wdde{wss   ";
-			else    
+			else
 			    class = "    {wG{Wo{wd     ";
 			break;
 		    case MAX_LEVEL - 5:
 			class = "  {BM{Ci{MN{Di{YG{Go{Wd   ";
-			break; 
+			break;
 		    case MAX_LEVEL - 6:
 			class = "  {x-{m=G{xIM{mP={x-  ";
 			break;
@@ -378,13 +364,13 @@ BUFFER *get_players_html()
 		"<td>{C%-6s{x</td> "
 		"<td>%s%s%s%s{G%-12s{x</td>"
 		"</tr>",
-		wch->level, 
+		wch->level,
 		wch->tot_level,
 		wch->sex == 0 ? "N" : (wch->sex == 1 ? "M" : "F"),
-		wch->race < MAX_PC_RACE ? racestr : "      ", 
+		wch->race < MAX_PC_RACE ? racestr : "      ",
 		class,
 		area_type,
-		(IS_DEAD(wch) /*&& !IS_DEMON(wch) && !IS_ANGEL(wch)*/) ? 
+		(IS_DEAD(wch) /*&& !IS_DEMON(wch) && !IS_ANGEL(wch)*/) ?
 		"{D(Dead) {x" : "",
 		wch->incog_level >= LEVEL_HERO ? "{D(Incog) {x" : "",
 		wch->invis_level >= LEVEL_HERO ? "{W(Wizi) {x" : "",
@@ -396,19 +382,19 @@ BUFFER *get_players_html()
 		free_string(area_type);
 		add_buf(output, buf);
 
-		if (wch->church != NULL) 
+		if (wch->church != NULL)
 		{
 		    buf_size = 50 - fstr_len(&buf[0]);
 
-		    for (line_counter = 0; line_counter < buf_size; line_counter++) 
+		    for (line_counter = 0; line_counter < buf_size; line_counter++)
 		    {
 			add_buf(output, " ");
 		    }
 		    add_buf(output, "{Y[{x");
 		    add_buf(output, wch->church->flag);
 		    add_buf(output, "{Y]{x");
-		} 
-		else 
+		}
+		else
 		{
 		    add_buf(output, "");
 		}
@@ -416,7 +402,7 @@ BUFFER *get_players_html()
 		if (IS_SET(wch->act,PLR_HELPER))
 		{
 		    add_buf(output, " {W[H]{X");
-		} 
+		}
 
 		if (IS_SET(wch->comm, COMM_AFK))
 		{

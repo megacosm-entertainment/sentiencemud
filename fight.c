@@ -1390,11 +1390,17 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, int
 			switch(vObj->fragility) {
 			case OBJ_FRAGILE_SOLID:  break;
 			case OBJ_FRAGILE_STRONG:
-				if (number_range(0,9999) <= 2) vObj->condition--; break;
+				if (number_range(0,9999) <= 2)
+					vObj->condition--;
+				break;
 			case OBJ_FRAGILE_NORMAL:
-				if (number_range(0,9999) <= 5) vObj->condition--; break;
+				if (number_range(0,9999) <= 5)
+					vObj->condition--;
+				break;
 			case OBJ_FRAGILE_WEAK:
-				if (number_range(0,9999) <= 20) vObj->condition--; break;
+				if (number_range(0,9999) <= 20)
+					vObj->condition--;
+				break;
 			default: break;
 			}
 
@@ -3317,7 +3323,7 @@ void death_cry( CHAR_DATA *ch, bool has_head, bool messages )
 	// Make body parts
 	if (vnum) {
 		char buf[MAX_STRING_LENGTH];
-		char buf2[MAX_STRING_LENGTH];
+		char buf2[2*MAX_STRING_LENGTH];
 		OBJ_DATA *obj;
 		char *name;
 
@@ -3862,14 +3868,13 @@ void group_gain(CHAR_DATA *ch, CHAR_DATA *victim)
 {
 	char buf[MAX_STRING_LENGTH];
 	CHAR_DATA *gch;
-	CHAR_DATA *lch;
 	int xp;
 	int members;
 	int group_levels;
 
 	/* Don't give experience to NPCs. */
 	if (IS_NPC(ch))
-	return;
+		return;
 
 	// No experience on npc victims if disabled.
 	if( IS_NPC(victim) && IS_SET(victim->act2, ACT2_NO_XP))
@@ -3877,33 +3882,31 @@ void group_gain(CHAR_DATA *ch, CHAR_DATA *victim)
 
 	// Check here just to make sure
 	if (ch->in_room == NULL) {
-	bug("group_gain: ch with null in_room", 0);
-	return;
+		bug("group_gain: ch with null in_room", 0);
+		return;
 	}
 
 	members = 0;
 	group_levels = 0;
 	for (gch = ch->in_room->people; gch != NULL; gch = gch->next_in_room)
 	{
-	/* If this char is in the same form */
-	if (is_same_group(gch, ch))
-	{
-		members++;
-		if (IS_NPC(gch) && IS_SET(gch->act, ACT_MOUNT))
-		continue;
-		else
-		group_levels += gch->tot_level;
-	}
+		/* If this char is in the same form */
+		if (is_same_group(gch, ch))
+		{
+			members++;
+			if (IS_NPC(gch) && IS_SET(gch->act, ACT_MOUNT))
+				continue;
+			else
+				group_levels += gch->tot_level;
+		}
 	}
 
 	if (members == 0)
 	{
-	bug("Group_gain: 0 members.", members);
-	members = 1;
-	group_levels = ch->tot_level ;
+		bug("Group_gain: 0 members.", members);
+		members = 1;
+		group_levels = ch->tot_level ;
 	}
-
-	lch = (ch->leader != NULL) ? ch->leader : ch;
 
 	for (gch = ch->in_room->people; gch != NULL; gch = gch->next_in_room)
 	{
@@ -3996,28 +3999,27 @@ int xp_compute(CHAR_DATA *gch, CHAR_DATA *victim, int total_levels)
 
 	xp = base_exp * multiplier;
 
-   xp = (int) ((float) xp * (float) ((float) gch_tot_level / (float) total_levels));
+	xp = (int) ((float) xp * (float) ((float) gch_tot_level / (float) total_levels));
 
-   // HACK! stop people from leveling in plith.
-   if (diff_level > 25 && !str_cmp(gch->in_room->area->name, "Plith"))
-	   xp = (int) xp / diff_level;
+	// HACK! stop people from leveling in plith.
+	if (diff_level > 25 && !str_cmp(gch->in_room->area->name, "Plith"))
+		xp = (int) xp / diff_level;
 
-   // Nothing for killing pets
-   if (IS_SET(victim->act,ACT_PET))
-   {
-		sprintf(buf, "xp_compute: ch %s, victim %s with ACT_PET",
-			gch->name,
+	// Nothing for killing pets
+	if (IS_SET(victim->act,ACT_PET))
+	{
+		sprintf(buf, "xp_compute: ch %s, victim %s with ACT_PET", gch->name,
 			IS_NPC(victim) ? victim->short_descr : victim->name);
-	log_string(buf);
-	xp = 0;
-   }
+		log_string(buf);
+		xp = 0;
+	}
 
-   if (IS_SET(victim->act, ACT_ANIMATED))
-	xp = 0;
+	if (IS_SET(victim->act, ACT_ANIMATED))
+		xp = 0;
 
 
 	bonus_xp = 0;
-   // Extra xp relic
+	// Extra xp relic
 	if (gch->church != NULL && vnum_in_treasure_room(gch->church, OBJ_VNUM_RELIC_EXTRA_XP))
 		bonus_xp += 10;
 
@@ -4454,15 +4456,14 @@ void do_charge(CHAR_DATA *ch, char *argument)
 
 	one_argument(argument,arg);
 
-	if (!IS_NPC(ch)
-	&&  get_skill(ch,gsn_charge) == 0)
+	if (!IS_NPC(ch) && get_skill(ch,gsn_charge) == 0)
 	{
-	send_to_char("You can't charge anything but drinks to your bar tab.\n\r",ch);
-	return;
+		send_to_char("You can't charge anything but drinks to your bar tab.\n\r",ch);
+		return;
 	}
 
 	if (is_dead(ch))
-	return;
+		return;
 
 	send_to_char("{YYou charge into the fray!{x\n\r", ch);
 	act("{Y$n charges into the fray!{x\n\r", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
@@ -4473,33 +4474,32 @@ void do_charge(CHAR_DATA *ch, char *argument)
 	{
 		rch_next = rch->next_in_room;
 
-	if (rch != ch
-	&&   !is_safe(ch, rch, FALSE)
-	&&   !is_same_group(ch, rch)
-	&&   can_see(ch, rch))
-	{
-		int count = 1;
-		char name[80];
-		char name_cnt[80];
-		CHAR_DATA *rch_dup;
-
-		// Necesarry for more than one NPC of a certain vnum in room.
-		for (rch_dup = ch->in_room->people; rch_dup != NULL;
-			  rch_dup = rch_dup->next_in_room)
+		if (rch != ch &&
+			!is_safe(ch, rch, FALSE) &&
+			!is_same_group(ch, rch) &&
+			can_see(ch, rch))
 		{
-		if (rch_dup == rch)
-			break;
+			int count = 1;
+			char name[80];
+			char name_cnt[100];
+			CHAR_DATA *rch_dup;
 
-		if (!str_cmp(rch_dup->name, rch->name))
-			count++;
+			// Necesarry for more than one NPC of a certain vnum in room.
+			for (rch_dup = ch->in_room->people; rch_dup != NULL; rch_dup = rch_dup->next_in_room)
+			{
+				if (rch_dup == rch)
+					break;
+
+				if (!str_cmp(rch_dup->name, rch->name))
+					count++;
+			}
+
+			one_argument(rch->name, name);
+
+			sprintf(name_cnt, "%d.%s", count, name);
+
+			do_bash(ch, name_cnt);
 		}
-
-		one_argument(rch->name, name);
-
-		sprintf(name_cnt, "%d.%s", count, name);
-
-		do_bash(ch, name_cnt);
-	}
 	}
 
 	check_improve(ch,gsn_charge,TRUE,1);
@@ -5992,11 +5992,12 @@ int do_flee_full(CHAR_DATA *ch, char *argument, bool conceal, bool pursue)
 		return -1;
 	}
 
+	flying = mobile_is_flying(ch);
+
 	// parse_direction() handles direction argument strings, returns a door number,
 	// or -1 if the direction string is not a valid direction.
 	if (IS_NULLSTR(argument))
 	{
-		flying = mobile_is_flying(ch);
 
 		// ok, so let's try to find a valid direction to flee to...
 		for (attempt = 0; attempt < MAX_FLEE_ATTEMPTS; attempt++)
@@ -6236,7 +6237,7 @@ void do_rescue(CHAR_DATA *ch, char *argument)
 void do_tail_kick(CHAR_DATA *ch, char *argument)
 {
 	CHAR_DATA *victim;
-	int this_class, chance, dam;
+	int chance, dam;
 	char arg[MAX_INPUT_LENGTH];
 	long cid[2], vid[2];
 
@@ -6244,8 +6245,6 @@ void do_tail_kick(CHAR_DATA *ch, char *argument)
 
 	if (is_dead(ch))
 		return;
-
-	this_class = get_this_class(ch, gsn_tail_kick);
 
 	if (!(chance = get_skill(ch, gsn_tail_kick))) {
 		send_to_char("You better leave tail kicking to the Sith.\n\r", ch);
@@ -6746,11 +6745,9 @@ void do_feign(CHAR_DATA *ch, char *argument)
 void do_resurrect(CHAR_DATA *ch, char *argument)
 {
 	CHAR_DATA *victim;
-//    char buf[MAX_STRING_LENGTH];
 	char arg[MAX_INPUT_LENGTH];
 	OBJ_DATA *obj;
-	int sn;
-	int chance, corpse;
+	int chance;
 
 	argument = one_argument(argument, arg);
 
@@ -6761,9 +6758,7 @@ void do_resurrect(CHAR_DATA *ch, char *argument)
 	}
 
 	if (is_dead(ch))
-	return;
-
-	sn = gsn_resurrect;
+		return;
 
 	if (get_skill(ch, gsn_resurrect) == 0)
 	{
@@ -6809,8 +6804,6 @@ void do_resurrect(CHAR_DATA *ch, char *argument)
 		send_to_char("Doing that would create a paradox even I can't comprehend.\n\r", ch);
 		return;
 	}
-
-	corpse = CORPSE_TYPE(obj);
 
 	// 20070520 : NIB : Added use of corpse animation percent
 	chance = obj->condition * CORPSE_RESURRECT(obj);
@@ -7161,14 +7154,11 @@ void do_judge(CHAR_DATA *ch, char *argument)
 	char buf[MAX_INPUT_LENGTH];
 	CHAR_DATA *victim;
 	int chance;
-	int this_class;
 
 	one_argument(argument,arg);
 
 	if (is_dead(ch))
-	return;
-
-	this_class = get_this_class(ch, gsn_judge);
+		return;
 
 	if ((chance = get_skill(ch,gsn_judge)) == 0)
 	{

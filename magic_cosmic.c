@@ -150,7 +150,7 @@ SPELL_FUNC(spell_enchant_armour)
 SPELL_FUNC(spell_enchant_object)
 {
 	OBJ_DATA *obj;
-	int result, fail;
+	int fail;
 
 	obj = (OBJ_DATA *) vo;
 
@@ -177,11 +177,7 @@ SPELL_FUNC(spell_enchant_object)
 
 	fail = URANGE(5,fail,85);
 
-	result = number_percent();
-
 	obj->num_enchanted += 1;
-	SET_BIT(obj->extra2_flags, ITEM_ENCHANTED);
-
 	SET_BIT(obj->extra2_flags, ITEM_ENCHANTED);
 	return TRUE;
 }

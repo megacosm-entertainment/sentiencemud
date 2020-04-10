@@ -51,7 +51,7 @@ void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool sh
 
 void do_multi(CHAR_DATA *ch, char *argument)
 {
-    char buf[MAX_STRING_LENGTH];
+    char buf[2*MAX_STRING_LENGTH];
     char buf2[MSL];
     CHAR_DATA *mob;
     int pneuma_cost;
@@ -463,37 +463,37 @@ bool can_choose_subclass(CHAR_DATA *ch, int subclass)
 	{
 	    case CLASS_MAGE:
 	        if (get_profession(ch, CLASS_MAGE) != -1)
-		    return FALSE;
+			    return FALSE;
 		    break;
 
 	    case CLASS_CLERIC:
 	        if (get_profession(ch, CLASS_CLERIC) != -1)
-		    return FALSE;
+			    return FALSE;
 		    break;
 
 	    case CLASS_THIEF:
 	        if (get_profession(ch, CLASS_THIEF) != -1)
-		    return FALSE;
+			    return FALSE;
 		    break;
 
 	    case CLASS_WARRIOR:
 	        if (get_profession(ch, CLASS_WARRIOR) != -1)
-		    return FALSE;
+			    return FALSE;
 		    break;
 	}
 
 	// Check if they fit align
 	switch (sub_class_table[subclass].alignment)
 	{
-	    case ALIGN_EVIL:
-	        if (IS_GOOD(ch))
-		    return FALSE;
-		break;
+		case ALIGN_EVIL:
+			if (IS_GOOD(ch))
+				return FALSE;
+			break;
 
-            case ALIGN_GOOD:
-		if (IS_EVIL(ch))
-		    return FALSE;
-		break;
+		case ALIGN_GOOD:
+			if (IS_EVIL(ch))
+				return FALSE;
+			break;
 	}
 
 	return TRUE;
@@ -506,48 +506,52 @@ bool can_choose_subclass(CHAR_DATA *ch, int subclass)
 	switch (sub_class_table[subclass].class)
 	{
 	    case CLASS_MAGE:
-	        if (get_profession(ch, SECOND_SUBCLASS_MAGE) != -1)
-		    return FALSE;
+			if (get_profession(ch, SECOND_SUBCLASS_MAGE) != -1)
+				return FALSE;
 
-                prof = get_profession(ch, SUBCLASS_MAGE);
+			prof = get_profession(ch, SUBCLASS_MAGE);
 
-		if (prof == sub_class_table[subclass].prereq[0]
-		||  prof == sub_class_table[subclass].prereq[1])
-		    return TRUE;
-		    break;
+			if (prof == sub_class_table[subclass].prereq[0] ||
+				prof == sub_class_table[subclass].prereq[1])
+
+			return TRUE;
+			break;
 
 	    case CLASS_CLERIC:
-	        if (get_profession(ch, SECOND_SUBCLASS_CLERIC) != -1)
-		    return FALSE;
+			if (get_profession(ch, SECOND_SUBCLASS_CLERIC) != -1)
+				return FALSE;
 
-		prof = get_profession(ch, SUBCLASS_CLERIC);
+			prof = get_profession(ch, SUBCLASS_CLERIC);
 
-		if (prof == sub_class_table[subclass].prereq[0]
-		||  prof == sub_class_table[subclass].prereq[1])
-		    return TRUE;
-		    break;
+			if (prof == sub_class_table[subclass].prereq[0] ||
+				prof == sub_class_table[subclass].prereq[1])
+
+			return TRUE;
+			break;
 
 	    case CLASS_THIEF:
-	        if (get_profession(ch, SECOND_SUBCLASS_THIEF) != -1)
-		    return FALSE;
+			if (get_profession(ch, SECOND_SUBCLASS_THIEF) != -1)
+				return FALSE;
 
-		prof = get_profession(ch, SUBCLASS_THIEF);
+			prof = get_profession(ch, SUBCLASS_THIEF);
 
-		if (prof == sub_class_table[subclass].prereq[0]
-		||  prof == sub_class_table[subclass].prereq[1])
-		    return TRUE;
-		    break;
+			if (prof == sub_class_table[subclass].prereq[0] ||
+				prof == sub_class_table[subclass].prereq[1])
+
+			return TRUE;
+			break;
 
 	    case CLASS_WARRIOR:
-	        if (get_profession(ch, SECOND_SUBCLASS_WARRIOR) != -1)
-		    return FALSE;
+			if (get_profession(ch, SECOND_SUBCLASS_WARRIOR) != -1)
+				return FALSE;
 
-		prof = get_profession(ch, SUBCLASS_WARRIOR);
+			prof = get_profession(ch, SUBCLASS_WARRIOR);
 
-		if (prof == sub_class_table[subclass].prereq[0]
-		||  prof == sub_class_table[subclass].prereq[1])
-		    return TRUE;
-		    break;
+			if (prof == sub_class_table[subclass].prereq[0] ||
+				prof == sub_class_table[subclass].prereq[1])
+
+			return TRUE;
+			break;
 
 	    default:
 		    return FALSE;
@@ -1929,45 +1933,41 @@ bool has_class_skill( int class, int sn )
 // Used for old players having skills they shouldn't.
 bool should_have_skill( CHAR_DATA *ch, int sn )
 {
-    char buf[MSL];
-
-    buf[0] = '\0';
-
     if (ch == NULL)
     {
     	bug("should_have_skill: null ch", 0 );
-	return FALSE;
+		return FALSE;
     }
 
     if (sn < 0 || sn > MAX_SKILL)
     {
     	bug("should_have_skill: bad sn", 0 );
-	return FALSE;
+		return FALSE;
     }
 
     if (is_racial_skill(ch->race, sn))
     	return TRUE;
 
     if (is_global_skill(sn))
-	return TRUE;
+		return TRUE;
 
     if (has_class_skill( get_profession(ch, CLASS_MAGE), sn )
     ||  has_class_skill( get_profession(ch, CLASS_CLERIC), sn )
     ||  has_class_skill( get_profession(ch, CLASS_THIEF), sn )
     ||  has_class_skill( get_profession(ch, CLASS_WARRIOR), sn ))
-	return TRUE;
+		return TRUE;
 
     if (has_subclass_skill( ch->pcdata->sub_class_mage, sn )
     ||  has_subclass_skill( ch->pcdata->sub_class_cleric, sn )
     ||  has_subclass_skill( ch->pcdata->sub_class_thief, sn )
     ||  has_subclass_skill( ch->pcdata->sub_class_warrior, sn ))
-	return TRUE;
+		return TRUE;
 
     if (has_subclass_skill( ch->pcdata->second_sub_class_mage, sn )
     ||  has_subclass_skill( ch->pcdata->second_sub_class_cleric, sn )
     ||  has_subclass_skill( ch->pcdata->second_sub_class_thief, sn )
     ||  has_subclass_skill( ch->pcdata->second_sub_class_warrior, sn ))
-	return TRUE;
+		return TRUE;
 
     return FALSE;
 }
@@ -2341,7 +2341,7 @@ void remort_player(CHAR_DATA *ch, int remort_class)
 {
 	const struct sub_class_type *class_info;
 	OBJ_DATA *obj;
-    char buf[MAX_STRING_LENGTH];
+    char buf[2*MAX_STRING_LENGTH];
     char buf2[MSL];
 	int i;
 

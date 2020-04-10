@@ -1191,74 +1191,75 @@ void affect_check(CHAR_DATA *ch, int where, long vector, long vector2)
 	return;
 
     for (paf = ch->affected; paf != NULL; paf = paf->next)
-	if (paf->where == where && paf->bitvector == vector)
-	{
-	    switch (where)
-	    {
-	        case TO_AFFECTS:
-		    SET_BIT(ch->affected_by,vector);
-		    break;
-	        case TO_IMMUNE:
-		    SET_BIT(ch->imm_flags,vector);
-		    break;
-	        case TO_RESIST:
-		    SET_BIT(ch->res_flags,vector);
-		    break;
-	        case TO_VULN:
-		    SET_BIT(ch->vuln_flags,vector);
-		    break;
-	    }
-	    return;
-	}
-        else
-	if (paf->where == where && paf->bitvector2 == vector2)
-	{
-	    switch (where)
-	    {
-		case TO_AFFECTS:
-		    SET_BIT(ch->affected_by2,vector2);
-		    break;
-	    }
-	    return;
-	}
-
-    for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
     {
-	if (obj->wear_loc == -1)
-	    continue;
+		if (paf->where == where && paf->bitvector == vector)
+		{
+			switch (where)
+			{
+				case TO_AFFECTS:
+				SET_BIT(ch->affected_by,vector);
+				break;
+				case TO_IMMUNE:
+				SET_BIT(ch->imm_flags,vector);
+				break;
+				case TO_RESIST:
+				SET_BIT(ch->res_flags,vector);
+				break;
+				case TO_VULN:
+				SET_BIT(ch->vuln_flags,vector);
+				break;
+			}
+			return;
+		}
+        else if (paf->where == where && paf->bitvector2 == vector2)
+		{
+			switch (where)
+			{
+			case TO_AFFECTS:
+				SET_BIT(ch->affected_by2,vector2);
+				break;
+			}
+			return;
+		}
+	}
 
-            for (paf = obj->affected; paf != NULL; paf = paf->next)
-            if (paf->where == where && paf->bitvector == vector)
-            {
-                switch (where)
-                {
-                    case TO_AFFECTS:
-                        SET_BIT(ch->affected_by,vector);
-                        break;
-                    case TO_IMMUNE:
-                        SET_BIT(ch->imm_flags,vector);
-                        break;
-                    case TO_RESIST:
-                        SET_BIT(ch->res_flags,vector);
-                        break;
-                    case TO_VULN:
-                        SET_BIT(ch->vuln_flags,vector);
+	for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
+	{
+		if (obj->wear_loc == -1)
+			continue;
 
-                }
-                return;
-            }
-	    else
-            if (paf->where == where && paf->bitvector2 == vector2)
-            {
-                switch (where)
-                {
-                    case TO_AFFECTS:
-                        SET_BIT(ch->affected_by2,vector2);
-                        break;
-                }
-                return;
-            }
-    }
+		for (paf = obj->affected; paf != NULL; paf = paf->next)
+		{
+			if (paf->where == where && paf->bitvector == vector)
+			{
+				switch (where)
+				{
+				case TO_AFFECTS:
+					SET_BIT(ch->affected_by,vector);
+					break;
+				case TO_IMMUNE:
+					SET_BIT(ch->imm_flags,vector);
+					break;
+				case TO_RESIST:
+					SET_BIT(ch->res_flags,vector);
+					break;
+				case TO_VULN:
+					SET_BIT(ch->vuln_flags,vector);
+				}
+				return;
+			}
+			else if (paf->where == where && paf->bitvector2 == vector2)
+			{
+				switch (where)
+				{
+				case TO_AFFECTS:
+					SET_BIT(ch->affected_by2,vector2);
+					break;
+				}
+				return;
+			}
+		}
+	}
 }
 
 
@@ -1354,52 +1355,39 @@ void catalyst_to_obj(OBJ_DATA *obj, AFFECT_DATA *paf)
  */
 void affect_remove(CHAR_DATA *ch, AFFECT_DATA *paf)
 {
-    int where;
-    long vector;
-    long vector2;
+	if (ch->affected == NULL)
+	{
+		bug("Affect_remove: no affect.", 0);
+		return;
+	}
 
-    if (ch->affected == NULL)
-    {
-	bug("Affect_remove: no affect.", 0);
+	affect_modify(ch, paf, FALSE);
+
+	if (paf == ch->affected)
+		ch->affected = paf->next;
+	else
+	{
+		AFFECT_DATA *prev;
+
+		for (prev = ch->affected; prev != NULL; prev = prev->next)
+		{
+			if (prev->next == paf)
+			{
+				prev->next = paf->next;
+				break;
+			}
+		}
+
+		if (prev == NULL)
+		{
+			bug("Affect_remove: cannot find paf.", 0);
+			return;
+		}
+	}
+
+	free_affect(paf);
+	affect_fix_char(ch);
 	return;
-    }
-
-    affect_modify(ch, paf, FALSE);
-    where = paf->where;
-    vector = paf->bitvector;
-    vector2 = paf->bitvector2;
-
-    /*
-    REMOVE_BIT(ch->affected_by, vector);
-    REMOVE_BIT(ch->affected_by2, vector2);
-    */
-
-    if (paf == ch->affected)
-	ch->affected = paf->next;
-    else
-    {
-	AFFECT_DATA *prev;
-
-	for (prev = ch->affected; prev != NULL; prev = prev->next)
-	{
-	    if (prev->next == paf)
-	    {
-		prev->next = paf->next;
-		break;
-	    }
-	}
-
-	if (prev == NULL)
-	{
-	    bug("Affect_remove: cannot find paf.", 0);
-	    return;
-	}
-    }
-
-    free_affect(paf);
-    affect_fix_char(ch);
-    //affect_check(ch,where,vector,vector2);
-    return;
 }
 
 bool affect_removeall_obj(OBJ_DATA *obj)
@@ -1446,76 +1434,70 @@ bool affect_removeall_obj(OBJ_DATA *obj)
 
 bool affect_remove_obj(OBJ_DATA *obj, AFFECT_DATA *paf)
 {
-    int where;
-    int vector;
-    int vector2;
-    bool reset_ch = FALSE;
+	bool reset_ch = FALSE;
 
-    if (obj->affected == NULL)
-    {
-        bug("Affect_remove_object: no affects on object.", 0);
-        return FALSE;
-    }
+	if (obj->affected == NULL)
+	{
+		bug("Affect_remove_object: no affects on object.", 0);
+		return FALSE;
+	}
 
-    if (obj->carried_by != NULL && obj->wear_loc != -1)
-    {
+	if (obj->carried_by != NULL && obj->wear_loc != -1)
+	{
 		affect_modify(obj->carried_by, paf, FALSE);
 		reset_ch = TRUE;
 	}
 
-    where = paf->where;
-    vector = paf->bitvector;
-    vector2 = paf->bitvector2;
+	/* remove flags from the object if needed */
+	if (paf->bitvector)
+	{
+		switch(paf->where)
+		{
+		case TO_OBJECT:
+			MERGE_BIT(obj->extra_flags,obj->extra_flags_perm,paf->bitvector);
+			break;
+		case TO_OBJECT2:
+			MERGE_BIT(obj->extra2_flags,obj->extra2_flags_perm,paf->bitvector);
+			break;
+		case TO_OBJECT3:
+			MERGE_BIT(obj->extra3_flags,obj->extra3_flags_perm,paf->bitvector);
+			break;
+		case TO_OBJECT4:
+			MERGE_BIT(obj->extra4_flags,obj->extra4_flags_perm,paf->bitvector);
+			break;
+		case TO_WEAPON:
+			if (obj->item_type == ITEM_WEAPON)
+				MERGE_BIT(obj->value[4],obj->weapon_flags_perm,paf->bitvector);
+			break;
+		}
+	}
 
-    /* remove flags from the object if needed */
-    if (paf->bitvector)
-    switch(paf->where)
-    {
-	case TO_OBJECT:
-	    MERGE_BIT(obj->extra_flags,obj->extra_flags_perm,paf->bitvector);
-	    break;
-	case TO_OBJECT2:
-	    MERGE_BIT(obj->extra2_flags,obj->extra2_flags_perm,paf->bitvector);
-	    break;
-	case TO_OBJECT3:
-	    MERGE_BIT(obj->extra3_flags,obj->extra3_flags_perm,paf->bitvector);
-	    break;
-	case TO_OBJECT4:
-	    MERGE_BIT(obj->extra4_flags,obj->extra4_flags_perm,paf->bitvector);
-	    break;
-	case TO_WEAPON:
-	    if (obj->item_type == ITEM_WEAPON)
-			MERGE_BIT(obj->value[4],obj->weapon_flags_perm,paf->bitvector);
-	    break;
-    }
+	if (paf == obj->affected)
+		obj->affected = paf->next;
+	else
+	{
+		AFFECT_DATA *prev;
 
-    if (paf == obj->affected)
-        obj->affected    = paf->next;
-    else
-    {
-        AFFECT_DATA *prev;
+		for (prev = obj->affected; prev != NULL; prev = prev->next)
+		{
+			if (prev->next == paf)
+			{
+				prev->next = paf->next;
+				break;
+			}
+		}
 
-        for (prev = obj->affected; prev != NULL; prev = prev->next)
-        {
-            if (prev->next == paf)
-            {
-                prev->next = paf->next;
-                break;
-            }
-        }
+		if (prev == NULL)
+		{
+			bug("Affect_remove_object: cannot find paf.", 0);
+			return reset_ch;
+		}
+	}
 
-        if (prev == NULL)
-        {
-            bug("Affect_remove_object: cannot find paf.", 0);
-            return reset_ch;
-        }
-    }
+	free_affect(paf);
 
-    free_affect(paf);
-
-    if (obj->carried_by != NULL && obj->wear_loc != -1)
-    {
-		//affect_check(obj->carried_by,where,vector,vector2);
+	if (obj->carried_by != NULL && obj->wear_loc != -1)
+	{
 		affect_fix_char(obj->carried_by);
 	}
 
@@ -2550,57 +2532,57 @@ int count_obj_list(OBJ_INDEX_DATA *pObjIndex, OBJ_DATA *list)
  */
 void obj_from_room(OBJ_DATA *obj)
 {
-    ROOM_INDEX_DATA *in_room;
-    CHAR_DATA *ch;
-    char buf[MAX_STRING_LENGTH];
+	ROOM_INDEX_DATA *in_room;
+	CHAR_DATA *ch;
+	char buf[MAX_STRING_LENGTH];
 
-    if ((in_room = obj->in_room) == NULL)
-    {
-	bug("obj_from_room: NULL.", 0);
-	return;
-    }
+	if ((in_room = obj->in_room) == NULL)
+	{
+		bug("obj_from_room: NULL.", 0);
+		return;
+	}
 
-    for (ch = in_room->people; ch != NULL; ch = ch->next_in_room)
-	if (ch->on == obj)
-	    ch->on = NULL;
+	for (ch = in_room->people; ch != NULL; ch = ch->next_in_room)
+		if (ch->on == obj)
+			ch->on = NULL;
 
 	list_remlink(in_room->lcontents, obj);
 	list_remlink(in_room->lentity, obj);
 
-    if (obj == in_room->contents)
-	in_room->contents = obj->next_content;
-    else
-    {
-	OBJ_DATA *prev;
-
-	for (prev = in_room->contents; prev; prev = prev->next_content)
+	if (obj == in_room->contents)
+		in_room->contents = obj->next_content;
+	else
 	{
-	    if (prev->next_content == obj)
-	    {
-		prev->next_content = obj->next_content;
-		break;
-	    }
+		OBJ_DATA *prev;
+
+		for (prev = in_room->contents; prev; prev = prev->next_content)
+		{
+			if (prev->next_content == obj)
+			{
+				prev->next_content = obj->next_content;
+				break;
+			}
+		}
+
+		if (prev == NULL)
+		{
+			sprintf(buf, "Obj_from_room: obj not found.");
+			bug(buf, 0);
+			return;
+		}
 	}
 
-	if (prev == NULL)
+	if (obj->in_wilds)
 	{
-	    sprintf(buf, "Obj_from_room: obj not found.");
-	    bug(buf, 0);
-	    return;
+		if (!obj->in_room->people && !obj->in_room->contents)
+			destroy_wilds_vroom(obj->in_room);
 	}
-    }
 
-    if (obj->in_wilds)
-    {
-        if (!obj->in_room->people && !obj->in_room->contents)
-            destroy_wilds_vroom(obj->in_room);
-    }
+	--obj->pIndexData->inrooms;
 
-    --obj->pIndexData->inrooms;
-
-    obj->in_wilds     = NULL;
-    obj->in_room      = NULL;
-    obj->next_content = NULL;
+	obj->in_wilds     = NULL;
+	obj->in_room      = NULL;
+	obj->next_content = NULL;
 }
 
 
@@ -2627,8 +2609,8 @@ void obj_to_room(OBJ_DATA *obj, ROOM_INDEX_DATA *pRoomIndex)
 
     if (objRepop == TRUE)
     {
-	p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
-	objRepop = FALSE;
+		p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+		objRepop = FALSE;
     }
 }
 
@@ -2690,7 +2672,7 @@ void obj_to_vroom(OBJ_DATA *obj, WILDS_DATA *pWilds, int x, int y)
 void obj_to_obj(OBJ_DATA *obj, OBJ_DATA *obj_to)
 {
     if (obj_to->carried_by != NULL)
-	obj_to->carried_by->carry_weight -= get_obj_weight(obj_to);
+		obj_to->carried_by->carry_weight -= get_obj_weight(obj_to);
 
     obj->next_content		= obj_to->contains;
     obj_to->contains		= obj;
@@ -2699,7 +2681,7 @@ void obj_to_obj(OBJ_DATA *obj, OBJ_DATA *obj_to)
     obj->carried_by		= NULL;
 
     if (obj_to->carried_by != NULL)
-	obj_to->carried_by->carry_weight += get_obj_weight(obj_to);
+		obj_to->carried_by->carry_weight += get_obj_weight(obj_to);
 
 	if(obj->clone_rooms || obj->nest_clones > 0)
 		obj_set_nest_clones(obj_to,true);
@@ -2718,33 +2700,33 @@ void obj_from_obj(OBJ_DATA *obj)
 
     if ((obj_from = obj->in_obj) == NULL)
     {
-	bug("Obj_from_obj: null obj_from.", 0);
-	return;
+		bug("Obj_from_obj: null obj_from.", 0);
+		return;
     }
 
     if (obj_from->carried_by != NULL)
-	obj_from->carried_by->carry_weight -= get_obj_weight(obj_from);
+		obj_from->carried_by->carry_weight -= get_obj_weight(obj_from);
 
     if (obj == obj_from->contains)
-	obj_from->contains = obj->next_content;
+		obj_from->contains = obj->next_content;
     else
     {
-	OBJ_DATA *prev;
+		OBJ_DATA *prev;
 
-	for (prev = obj_from->contains; prev; prev = prev->next_content)
-	{
-	    if (prev->next_content == obj)
-	    {
-		prev->next_content = obj->next_content;
-		break;
-	    }
-	}
+		for (prev = obj_from->contains; prev; prev = prev->next_content)
+		{
+		    if (prev->next_content == obj)
+		    {
+				prev->next_content = obj->next_content;
+				break;
+		    }
+		}
 
-	if (prev == NULL)
-	{
-	    bug("Obj_from_obj: obj not found.", 0);
-	    return;
-	}
+		if (prev == NULL)
+		{
+		    bug("Obj_from_obj: obj not found.", 0);
+		    return;
+		}
     }
 
     --obj->pIndexData->incontainer;
@@ -2754,7 +2736,7 @@ void obj_from_obj(OBJ_DATA *obj)
     obj->in_obj       = NULL;
 
     if (obj_from->carried_by != NULL)
-	obj_from->carried_by->carry_weight += get_obj_weight(obj_from);
+		obj_from->carried_by->carry_weight += get_obj_weight(obj_from);
 
 	if(obj->clone_rooms || obj->nest_clones > 0)
 		obj_set_nest_clones(obj_from,false);
@@ -3134,11 +3116,17 @@ void extract_token(TOKEN_DATA *token)
     }
 
     if(token->player)
+    {
     	token_from_char(token);
+    }
     else if (token->object)
+    {
     	token_from_obj(token);
-    else if (token->room)
+	}
+	else if (token->room)
+	{
     	token_from_room(token);
+	}
 
 	free_token(token);
 	return;
@@ -3606,7 +3594,6 @@ OBJ_DATA *get_obj_inv(CHAR_DATA *ch, char *argument, bool worn)
     OBJ_DATA *obj;
     char arg[MAX_INPUT_LENGTH];
     int number;
-    int count;
 
     if (!ch)
     {
@@ -3615,7 +3602,6 @@ OBJ_DATA *get_obj_inv(CHAR_DATA *ch, char *argument, bool worn)
 	}
 
     number = number_argument(argument, arg);
-    count = 0;
 
 	if (worn)
 	{
@@ -3643,7 +3629,6 @@ OBJ_DATA *get_obj_inv_only(CHAR_DATA *ch, char *argument, bool worn)
     OBJ_DATA *obj;
     char arg[MAX_INPUT_LENGTH];
     int number;
-    int count;
 
     if (!ch)
     {
@@ -3652,7 +3637,6 @@ OBJ_DATA *get_obj_inv_only(CHAR_DATA *ch, char *argument, bool worn)
 	}
 
     number = number_argument(argument, arg);
-    count = 0;
 
 	if (worn)
 	{
@@ -5343,16 +5327,12 @@ OBJ_DATA *get_skull(CHAR_DATA *ch, char *owner)
 int count_exits(ROOM_INDEX_DATA *room)
 {
     int exits = 0;
-    int n = 0;
-    EXIT_DATA *exit;
 
-    for (exit = room->exit[n]; n < MAX_DIR; exit = room->exit[n])
+    for (int n = 0; n < MAX_DIR; n++)
     {
-	if (exit != NULL
-	&&   exit->u1.to_room != NULL)
-	    exits++;
-
-	n++;
+    	EXIT_DATA *exit = room->exit[n];
+		if (exit != NULL && exit->u1.to_room != NULL)
+	    	exits++;
     }
 
     return exits;

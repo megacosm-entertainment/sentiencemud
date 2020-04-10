@@ -417,7 +417,6 @@ void do_chmotd(CHAR_DATA * ch, char *argument)
 void do_chrem(CHAR_DATA *ch, char *argument)
 {
     CHURCH_PLAYER_DATA *member;
-    CHURCH_PLAYER_DATA *prev_member;
     char arg[MAX_STRING_LENGTH];
     char buf[MAX_STRING_LENGTH];
     bool found;
@@ -431,133 +430,118 @@ void do_chrem(CHAR_DATA *ch, char *argument)
     }
 
     member = NULL;
-    prev_member = NULL;
 
-    if (IS_IMMORTAL(ch))
-    {
-	CHURCH_DATA *church;
-	found = FALSE;
-	for (church = church_list; church != NULL; church = church->next)
+	if (IS_IMMORTAL(ch))
 	{
-	    prev_member = NULL;
-	    for (member = church->people; member != NULL;
-		 prev_member = member, member = member->next)
-	    {
-		if (!str_prefix(member->name, arg))
+		CHURCH_DATA *church;
+		found = FALSE;
+		for (church = church_list; church != NULL; church = church->next)
 		{
-		    found = TRUE;
-		    break;
+		    for (member = church->people; member != NULL; member = member->next)
+		    {
+				if (!str_prefix(member->name, arg))
+				{
+				    found = TRUE;
+				    break;
+				}
+		    }
+
+		    if (found)
+				break;
 		}
-	    }
 
-	    if (found)
-		break;
-	}
+		if (!found)
+		{
+		    send_to_char("Member not found.\n\r", ch);
+		    return;
+		}
 
-	if (!found)
-	{
-	    send_to_char("Member not found.\n\r", ch);
-	    return;
-	}
+		if (!str_cmp(ch->name, member->name))
+		{
+		    act("{Y[You have removed yourself.]{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		}
+		else
+		{
+		    sprintf(buf, "{Y[You removed %s from %s]{x", member->name, church->name);
+	    	act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
-	if (!str_cmp(ch->name, member->name))
-	{
-	    act("{Y[You have removed yourself.]{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	}
-	else
-	{
-	    sprintf(buf, "{Y[You removed %s from %s]{x", member->name,
-	        church->name);
-	    act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		    if (member->ch != NULL)
+		        act("{YYou have been removed by $N.{x", member->ch, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		}
 
-	    if (member->ch != NULL)
-	        act("{YYou have been removed by $N.{x", member->ch, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	}
-
-	remove_member(member);
+		remove_member(member);
     }
     else
     {
-	if (ch->church == NULL)
-	{
-	    send_to_char("You aren't in a registered group.\n\r", ch);
-	    return;
-	}
+		if (ch->church == NULL)
+		{
+		    send_to_char("You aren't in a registered group.\n\r", ch);
+		    return;
+		}
 
-	found = FALSE;
-	prev_member = NULL;
-	for (member = ch->church->people; member != NULL;
-	     prev_member = member, member = member->next)
-	{
-	    if (!str_prefix(member->name, arg)
-		|| (!str_cmp(member->name, ch->name)
-		    && (!str_cmp(arg, "self") || !str_cmp(arg, "me"))))
-	    {
-		found = TRUE;
-		break;
-	    }
-	}
+		found = FALSE;
+		for (member = ch->church->people; member != NULL; member = member->next)
+		{
+		    if (!str_prefix(member->name, arg) ||
+		    	(!str_cmp(member->name, ch->name) &&
+			    	(!str_cmp(arg, "self") || !str_cmp(arg, "me"))))
+	    	{
+				found = TRUE;
+				break;
+	    	}
+		}
 
-	if (!found)
-	{
-	    send_to_char("Member not found.\n\r", ch);
-	    return;
-	}
+		if (!found)
+		{
+			send_to_char("Member not found.\n\r", ch);
+			return;
+		}
 
-	if (!IS_IMMORTAL(ch)
-	&& find_char_position_in_church(ch) != CHURCH_RANK_D
-	&& !is_trusted(ch->church_member, "remove")
-	&& str_cmp(arg, ch->name) && str_cmp(arg, "self")
-	&& str_cmp(arg, "me"))
-	{
-	    act("Only a leader may remove members.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	    return;
-	}
+		if (!IS_IMMORTAL(ch) &&
+			find_char_position_in_church(ch) != CHURCH_RANK_D &&
+			!is_trusted(ch->church_member, "remove") &&
+			str_cmp(arg, ch->name) && str_cmp(arg, "self") &&
+			str_cmp(arg, "me"))
+		{
+			act("Only a leader may remove members.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			return;
+		}
 
-	if (!str_cmp(member->church->founder, arg)
-        && str_cmp(member->church->founder, ch->name))
-	{
-	    send_to_char("You can't remove the founder of the church.\n\r", ch);
-	    return;
-	}
+		if (!str_cmp(member->church->founder, arg) &&
+			str_cmp(member->church->founder, ch->name))
+		{
+			send_to_char("You can't remove the founder of the church.\n\r", ch);
+			return;
+		}
 
-	if ((!str_cmp(ch->name, arg) || !str_cmp(arg, "self")
-	     || !str_cmp(arg, "me"))
-	    && !str_cmp(member->church->founder, ch->name))
-	{
-	    send_to_char
-		("{RWarning: {xIf you leave your church it will be disbanded.\n\r",
-		 ch);
-	    send_to_char("{YAre you sure you want to do this?{x\n\r", ch);
-	    ch->remove_question = member;
-	}
-	else if (!str_cmp(ch->name, arg)
-	|| !str_cmp(arg, "self")
-	|| !str_cmp(arg, "me"))
-	{
-	    send_to_char(
-	    "{RWarning: {xIf you leave this church you will be shunned by the gods.\n\r",
-		 ch);
-	    send_to_char(
-	    "You will NOT lose all deity points and ALL pneuma.\n\r", ch);
-	    send_to_char("{YAre you sure you want to do this?{x\n\r", ch);
-	    ch->remove_question = member;
-	}
-	else
-	{
-	    sprintf(buf, "{YYou have removed %s.{x", member->name);
-	    act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	    sprintf(buf, "{Y[%s has been removed from %s]{x\n\r", member->name,
-		    ch->church->name);
-	    gecho(buf);
+		if ((!str_cmp(ch->name, arg) || !str_cmp(arg, "self") || !str_cmp(arg, "me")) &&
+			!str_cmp(member->church->founder, ch->name))
+		{
+			send_to_char("{RWarning: {xIf you leave your church it will be disbanded.\n\r", ch);
+			send_to_char("{YAre you sure you want to do this?{x\n\r", ch);
+			ch->remove_question = member;
+		}
+		else if (!str_cmp(ch->name, arg) || !str_cmp(arg, "self") || !str_cmp(arg, "me"))
+		{
+			send_to_char("{RWarning: {xIf you leave this church you will be shunned by the gods.\n\r", ch);
+			send_to_char("You will NOT lose all deity points and ALL pneuma.\n\r", ch);
+			send_to_char("{YAre you sure you want to do this?{x\n\r", ch);
+			ch->remove_question = member;
+		}
+		else
+		{
+			sprintf(buf, "{YYou have removed %s.{x", member->name);
+			act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			sprintf(buf, "{Y[%s has been removed from %s]{x\n\r", member->name, ch->church->name);
+			gecho(buf);
 
-	    sprintf(buf, "%s removes %s.", ch->name, member->name);
-	    append_church_log(ch->church, buf);
+			sprintf(buf, "%s removes %s.", ch->name, member->name);
+			append_church_log(ch->church, buf);
 
-	    if (member->ch != NULL)
-		act("{YYou have been removed by $N.{x", member->ch, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	    remove_member(member);
-	}
+		    if (member->ch != NULL)
+				act("{YYou have been removed by $N.{x", member->ch, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		    remove_member(member);
+		}
     }
 
     write_churches_new();
@@ -1854,7 +1838,7 @@ void do_chdeduct(CHAR_DATA *ch, char *argument)
     char arg[MAX_STRING_LENGTH];
     char arg2[MAX_STRING_LENGTH];
     char arg3[MAX_STRING_LENGTH];
-    char buf[MAX_STRING_LENGTH];
+    char buf[2*MAX_STRING_LENGTH];
     int amt;
     int i;
     CHURCH_DATA *church;
@@ -2359,7 +2343,7 @@ void do_chwithdraw(CHAR_DATA *ch, char *argument)
     char arg[MAX_STRING_LENGTH];
     char arg2[MAX_STRING_LENGTH];
     char arg3[MSL];
-    char buf[MAX_STRING_LENGTH];
+    char buf[2*MAX_STRING_LENGTH];
     CHAR_DATA *victim;
     CHAR_DATA *mob;
     CHURCH_PLAYER_DATA *member;
@@ -3136,26 +3120,24 @@ bool is_trusted(CHURCH_PLAYER_DATA *member, char *command)
 /* add something to the church's log */
 void append_church_log(CHURCH_DATA *church, char *string)
 {
-    char *log;
     char buf[MSL];
     char buf2[MSL];
     char *time;
 
     if (church == NULL)
     {
-	bug("append_church_log: null church.", 1);
-	return;
+		bug("append_church_log: null church.", 1);
+		return;
     }
 
-    log = church->log;
     sprintf(buf, "append_church_log: appended %s to log of %s",
         string, church->name);
     log_string(buf);
 
     if (church->log != NULL)
-	sprintf(buf, "%s", church->log);
+		sprintf(buf, "%s", church->log);
     else
-	sprintf(buf, "{x");
+		sprintf(buf, "{x");
 
     time = time_for_log();
 
@@ -3199,7 +3181,7 @@ void show_church_info(CHURCH_DATA *church, CHAR_DATA *ch)
 {
     BUFFER *buffer;
     CHURCH_PLAYER_DATA *member;
-    char buf[MSL];
+    char buf[2*MSL];
     char buf2[MSL];
     int i;
 
@@ -3232,19 +3214,19 @@ void show_church_info(CHURCH_DATA *church, CHAR_DATA *ch)
     switch(church->size)
     {
 	case CHURCH_SIZE_BAND:
-	    sprintf(buf2, "Band");
+	    strcpy(buf2, "Band");
 	    break;
 	case CHURCH_SIZE_CULT:
-	    sprintf(buf2, "Cult");
+	    strcpy(buf2, "Cult");
 	    break;
 	case CHURCH_SIZE_ORDER:
-	    sprintf(buf2, "Order");
+	    strcpy(buf2, "Order");
 	    break;
 	case CHURCH_SIZE_CHURCH:
-	    sprintf(buf2, "Church");
+	    strcpy(buf2, "Church");
 	    break;
 	default:
-	    sprintf(buf2, "Unknown");
+	    strcpy(buf2, "Unknown");
 	    break;
     }
 
@@ -3559,7 +3541,7 @@ void write_church(CHURCH_DATA *church, FILE *fp)
     fprintf(fp, "Motd %s~\n", fix_string(church->motd));
     fprintf(fp, "Rules %s~\n", fix_string(church->rules));
     if (church->info != NULL)
-	fprintf(fp, "Info %s~\n", fix_string(church->info));
+		fprintf(fp, "Info %s~\n", fix_string(church->info));
 
 	iterator_start(&it, church->treasure_rooms);
 	while(( room = (ROOM_INDEX_DATA *)iterator_nextdata(&it))) {
@@ -3763,12 +3745,12 @@ CHURCH_DATA *read_church(FILE *fp)
 				ROOM_INDEX_DATA *room;
 				int x;
 				int y;
-				int z;
+				//int z;
 
 				wilds = get_wilds_from_uid(NULL,fread_number(fp));
 				x = fread_number(fp);
 				y = fread_number(fp);
-				z = fread_number(fp);
+				/*z = */(void)fread_number(fp);	// z isn't being used, but exists in the file?
 				room = get_wilds_vroom(wilds, x, y);
 				if(!room)
 					room = create_wilds_vroom(wilds,x, y);
@@ -3799,7 +3781,7 @@ CHURCH_DATA *read_church(FILE *fp)
     }
 
     if (church->info == NULL)
-	church->info = str_dup("No info set.");
+		church->info = str_dup("No info set.");
 
 	get_church_id(church);
 
