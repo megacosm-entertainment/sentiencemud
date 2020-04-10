@@ -2247,7 +2247,6 @@ void do_unrestring(CHAR_DATA *ch, char *argument)
     act("$N tinkers with $p.", ch, mob, NULL, obj, NULL, NULL, NULL, TO_CHAR);
     act("$N tinkers with $p.", ch, mob, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 
-    cost = 500;
     if( obj->old_name )
     {
 	    free_string(obj->name);
@@ -3563,11 +3562,9 @@ void sacrifice_obj(CHAR_DATA *ch, OBJ_DATA *obj, char *name)
 void do_sacrifice(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
-    char buf[2*MAX_STRING_LENGTH];
     char short_descr[MSL];
     OBJ_DATA *obj;
     OBJ_DATA *obj_next;
-//    long deitypoints;
 
     one_argument(argument, arg);
 
@@ -3587,111 +3584,108 @@ void do_sacrifice(CHAR_DATA *ch, char *argument)
     }
     else
     {
-	/* 'sac all' or 'sac all.obj' */
-        int i = 0;
-        char buf[MAX_STRING_LENGTH];
-	bool found = TRUE;
-	bool any = FALSE;
-//	long vnum = 0;
-	long total = 0;
+		/* 'sac all' or 'sac all.obj' */
+		int i = 0;
+		char buf[2*MAX_STRING_LENGTH];
+		bool found = TRUE;
+		bool any = FALSE;
+		long total = 0;
 
-	if (ch->in_room->vnum == ROOM_VNUM_DONATION)
-	{
-	    send_to_char("Where are your manners!?\n\r", ch);
-	    send_to_char("{Y***{R****** {WZOT {R******{Y***{x\n\r\n\r", ch);
-
-	    send_to_char("{YYou are struck by a bolt of lightning!\n\r{x", ch);
-
-	    act("{Y$n is struck by a bolt of lightning!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	    send_to_char("{ROUCH! That really did hurt!{x\n\r", ch);
-
-	    ch->hit = 1;
-	    ch->mana = 1;
-	    ch->move = 1;
-	    return;
-	}
-
-	while (found)
-  	{
-   	    found = FALSE;
-	    i = 0;
-	    deitypoints = 0;
-
-	    /* Is there an object that matches name */
-	    for (obj = ch->in_room->contents; obj != NULL; obj = obj_next)
-	    {
-	        obj_next = obj->next_content;
-
-                if ((arg[3] == '\0' || is_name(&arg[4], obj->name))
-		&&   can_sacrifice_obj(ch, obj, TRUE))
-	        {
-	            vnum = obj->pIndexData->vnum;
-		    sprintf(short_descr, "%s", obj->short_descr);
-		    found = TRUE;
-		    any = TRUE;
-		    break;
-		}
-	    }
-
-	    /* Found one, extract all of that type */
-	    if (found)
-	    {
-		for (obj = ch->in_room->contents; obj != NULL; obj = obj_next)
-	        {
-	            obj_next = obj->next_content;
-
-                    if (str_cmp(obj->short_descr, short_descr)
-		    || !can_sacrifice_obj(ch, obj, TRUE))
-			continue;
-
-		    total += get_dp_value(obj);
-		    extract_obj(obj);
-		    i++;
-		}
-
-	        if (i > 0)
+		if (ch->in_room->vnum == ROOM_VNUM_DONATION)
 		{
-		    sprintf(buf, "{Y({G%2d{Y) {x$n sacrifices %s.", i, short_descr);
-		    act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			send_to_char("Where are your manners!?\n\r", ch);
+			send_to_char("{Y***{R****** {WZOT {R******{Y***{x\n\r\n\r", ch);
+
+			send_to_char("{YYou are struck by a bolt of lightning!\n\r{x", ch);
+
+			act("{Y$n is struck by a bolt of lightning!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			send_to_char("{ROUCH! That really did hurt!{x\n\r", ch);
+
+			ch->hit = 1;
+			ch->mana = 1;
+			ch->move = 1;
+			return;
 		}
-	    }
-	    else
-	    {
-		if (!any)
+
+		while (found)
 		{
-		    if (arg[3] == '\0')
-		    {
-			act("There is nothing here you can sacrifice.", ch, NULL, NULL, NULL, NULL, NULL , NULL, TO_CHAR);
-		    }
-		    else
-		    {
-			act("There's no $T here.", ch, NULL, NULL, NULL, NULL, NULL, &arg[4], TO_CHAR);
-		    }
+			found = FALSE;
+			i = 0;
+
+			/* Is there an object that matches name */
+			for (obj = ch->in_room->contents; obj != NULL; obj = obj_next)
+			{
+				obj_next = obj->next_content;
+
+				if ((arg[3] == '\0' || is_name(&arg[4], obj->name)) &&
+						can_sacrifice_obj(ch, obj, TRUE))
+				{
+					strncpy(short_descr, obj->short_descr, sizeof(short_desc)-1);
+					found = TRUE;
+					any = TRUE;
+					break;
+				}
+			}
+
+			/* Found one, extract all of that type */
+			if (found)
+			{
+				for (obj = ch->in_room->contents; obj != NULL; obj = obj_next)
+				{
+					obj_next = obj->next_content;
+
+					if (str_cmp(obj->short_descr, short_descr) ||
+						!can_sacrifice_obj(ch, obj, TRUE))
+						continue;
+
+					total += get_dp_value(obj);
+					extract_obj(obj);
+					i++;
+				}
+
+				if (i > 0)
+				{
+					sprintf(buf, "{Y({G%2d{Y) {x$n sacrifices %s.", i, short_descr);
+					act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+				}
+			}
+			else
+			{
+				if (!any)
+				{
+					if (arg[3] == '\0')
+					{
+						act("There is nothing here you can sacrifice.", ch, NULL, NULL, NULL, NULL, NULL , NULL, TO_CHAR);
+					}
+					else
+					{
+						act("There's no $T here.", ch, NULL, NULL, NULL, NULL, NULL, &arg[4], TO_CHAR);
+					}
+				}
+			}
 		}
-	    }
-	}
 
-	if (any)
-	{
-	    if (total == 0)
-	    {
-		sprintf(buf, "The gods accept your sacrifice, but give you nothing.");
-		act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	    }
-	    else if (total == 1)
-	    {
-		sprintf(buf, "Pleased with your sacrifice, the gods reward you with a deity point.");
-		act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	    }
-	    else
-	    {
-		sprintf(buf, "Pleased with your sacrifice, the gods reward you with {Y%ld{x deity points.", total);
-		act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	    }
+		if (any)
+		{
+			if (total == 0)
+			{
+				sprintf(buf, "The gods accept your sacrifice, but give you nothing.");
+				act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			}
+			else if (total == 1)
+			{
+				sprintf(buf, "Pleased with your sacrifice, the gods reward you with a deity point.");
+				act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			}
+			else
+			{
+				sprintf(buf, "Pleased with your sacrifice, the gods reward you with {Y%ld{x deity points.", total);
+				act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			}
 
-	    ch->deitypoints += total;
+			ch->deitypoints += total;
+		}
 	}
-    }
 }
 
 /* MOVED: object/actions.c */
@@ -5245,16 +5239,8 @@ void do_list(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
     CHAR_DATA *salesman;
-//    CHAR_DATA *crew_seller;
-//    CHAR_DATA *plane_tunneler;
-//    CHAR_DATA *airship_seller;
-//    CHAR_DATA *trader;
 
-    crew_seller = NULL;
-    plane_tunneler = NULL;
-    airship_seller = NULL;
-    trader = NULL;
-
+/* Keeping in case they get fixed
     for (salesman = ch->in_room->people; salesman != NULL; salesman = salesman->next_in_room)
     {
 	if (IS_NPC(salesman) && IS_SET(salesman->act, ACT_CREW_SELLER))
@@ -5290,7 +5276,7 @@ void do_list(CHAR_DATA *ch, char *argument)
 	    break;
 	}
     }
-
+*/
     if (IS_SET(ch->in_room->room_flags, ROOM_SHIP_SHOP))
     {
 	/*sprintf(buf, "{G%s has the following vessels for sale:{x\n\r", crew_seller->short_descr);*/
@@ -6339,8 +6325,6 @@ void do_brew(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    this_class = get_this_class(ch, gsn_brew);
-
     if ((chance = get_skill(ch,gsn_brew)) == 0
     /*||  ch->level < skill_table[gsn_brew].skill_level[this_class]
 
@@ -6636,8 +6620,6 @@ void do_scribe(CHAR_DATA *ch, char *argument)
 	send_to_char("You can't do that. You are dead.\n\r", ch);
 	return;
     }
-
-    this_class = get_this_class(ch, gsn_scribe);
 
     if ((chance = get_skill(ch,gsn_scribe)) == 0)
     {
