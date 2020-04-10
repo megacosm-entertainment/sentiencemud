@@ -293,7 +293,7 @@ bool can_speak_channels(CHAR_DATA *ch)
 /* MOVED: channels.c */
 void do_ooc(CHAR_DATA *ch, char *argument)
 {
-	char buf[MAX_STRING_LENGTH], msg[MSL];
+	char buf[MAX_STRING_LENGTH], msg[2*MSL];
 	DESCRIPTOR_DATA *d;
 
 	if (!argument[0]) {
@@ -370,7 +370,7 @@ void gecho(char *message)
 /* MOVED: channels.c */
 void do_gossip(CHAR_DATA *ch, char *argument)
 {
-	char buf[MAX_STRING_LENGTH], msg[MSL];
+	char buf[MAX_STRING_LENGTH], msg[2*MSL];
 	DESCRIPTOR_DATA *d;
 
 	if (!argument[0]) {
@@ -384,7 +384,7 @@ void do_gossip(CHAR_DATA *ch, char *argument)
 	        /* prevent 1-letter string editor commands with no argument */
 		if (strlen(argument) == 1 &&
 		       (argument[0] == 'h' ||
-			argument[0] == 's' || 
+			argument[0] == 's' ||
 			argument[0] == 'f' ||
 			argument[0] == 'c'))// ||
 		       // argument[0] == '/'))
@@ -402,7 +402,7 @@ void do_gossip(CHAR_DATA *ch, char *argument)
 		    send_to_char("You're not in the string editor.\n\r", ch);
 		    return;
 		}
-		
+
 
 		REMOVE_BIT(ch->comm,COMM_NOGOSSIP);
 
@@ -445,7 +445,7 @@ void do_gossip(CHAR_DATA *ch, char *argument)
 /* MOVED: channels.c */
 void do_flame(CHAR_DATA *ch, char *argument)
 {
-	char buf[MAX_STRING_LENGTH], msg[MSL];
+	char buf[MAX_STRING_LENGTH], msg[2*MSL];
 	DESCRIPTOR_DATA *d;
 
 	if (!argument[0]) {
@@ -494,7 +494,7 @@ void do_flame(CHAR_DATA *ch, char *argument)
 /* MOVED: channels.c */
 void do_helper(CHAR_DATA *ch, char *argument)
 {
-	char buf[MAX_STRING_LENGTH], msg[MSL];
+	char buf[MAX_STRING_LENGTH], msg[2*MSL];
 	DESCRIPTOR_DATA *d;
 
 	if (!argument[0]) {
@@ -564,7 +564,7 @@ void do_hints(CHAR_DATA *ch, char *argument)
 /* MOVED: channels.c */
 void do_music(CHAR_DATA *ch, char *argument)
 {
-	char buf[MAX_STRING_LENGTH], msg[MSL];
+	char buf[MAX_STRING_LENGTH], msg[2*MSL];
 	DESCRIPTOR_DATA *d;
 
 	if (!argument[0]) {
@@ -839,7 +839,7 @@ void do_tell(CHAR_DATA *ch, char *argument)
 {
 	char arg[MAX_INPUT_LENGTH];
 	char buf[MAX_STRING_LENGTH];
-	char msg[MSL];
+	char msg[2*MSL];
 	CHAR_DATA *victim;
 
 	if (IS_SET(ch->comm, COMM_NOTELL))
@@ -1017,7 +1017,7 @@ void do_reply(CHAR_DATA *ch, char *argument)
 /* MOVED: channels.c */
 void do_yell(CHAR_DATA *ch, char *argument)
 {
-	char buf[MSL], msg[MSL];
+	char buf[MSL], msg[2*MSL];
 	DESCRIPTOR_DATA *d;
 
 	if (IS_SET(ch->comm, COMM_NOCHANNELS))
@@ -1301,13 +1301,13 @@ void do_quit(CHAR_DATA *ch, char *argument)
 	extract_char(mount, TRUE);
 	}
 	}
-	
-	/* kill quest obj's linked to char, to be restored upon boot-up */ 
+
+	/* kill quest obj's linked to char, to be restored upon boot-up */
 	if (ch->quest != NULL) {
 	    QUEST_PART_DATA *part;
 
 	    for (part = ch->quest->parts; part != NULL; part = part->next) {
-		if (part->pObj != NULL) 
+		if (part->pObj != NULL)
 		    extract_obj(part->pObj);
 	    }
 	}
@@ -2502,7 +2502,7 @@ void do_danger(CHAR_DATA *ch, char *argument)
 void do_toggle(CHAR_DATA *ch, char *argument)
 {
 	char arg[MSL];
-	char buf[MSL];
+	char buf[2*MSL];
 	char status[MSL];
 	bool found;
 	int i;
@@ -2639,7 +2639,7 @@ void do_toggle(CHAR_DATA *ch, char *argument)
 /* MOVED: channels.c */
 void do_quote(CHAR_DATA *ch, char *argument)
 {
-	char buf[MAX_STRING_LENGTH], msg[MSL];
+	char buf[MAX_STRING_LENGTH], msg[2*MSL];
 	DESCRIPTOR_DATA *d;
 
 	if (argument[0] == '\0')
@@ -2756,7 +2756,7 @@ void do_email(CHAR_DATA *ch, char *argument)
 void do_flag(CHAR_DATA *ch, char *argument)
 {
 	char arg[MSL];
-	char buf[MSL];
+	char buf[2*MSL];
 	int value;
 	/*char *c;
 	 int colours; */

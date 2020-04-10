@@ -1162,7 +1162,7 @@ void do_ink(CHAR_DATA *ch, char *argument)
 
 void ink_end( CHAR_DATA *ch, CHAR_DATA *victim, sh_int loc, sh_int sn, sh_int sn2, sh_int sn3 )
 {
-    char buf[MAX_STRING_LENGTH];
+    char buf[2*MAX_STRING_LENGTH];
     OBJ_DATA *tattoo;
     int chance,n,level;
     char tattoo_name[MAX_STRING_LENGTH];

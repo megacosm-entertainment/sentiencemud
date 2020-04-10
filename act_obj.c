@@ -344,7 +344,7 @@ void do_get(CHAR_DATA *ch, char *argument)
 	char arg3[MAX_INPUT_LENGTH];
 	char buf[MAX_STRING_LENGTH];
 	//char short_descr[MSL];
-	OBJ_DATA *obj, *obj_next;
+	OBJ_DATA *obj, *obj_next = NULL;
 	OBJ_DATA *container;
 	OBJ_DATA *match_obj;
 	int i = 0, amount;
@@ -584,20 +584,22 @@ void do_get(CHAR_DATA *ch, char *argument)
 						act(buf, ch, NULL, NULL, match_obj, NULL, NULL, NULL, TO_CHAR);
 
 						p_percent_trigger(NULL, match_obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_GET, NULL);
-						
-								
-				} else if (!any) {
-					if (arg1[3] == '\0')
-						act("There is nothing here you can take.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-					else
-						act("There is no $T here you can take.", ch, NULL, NULL, NULL, NULL, NULL, &arg1[4], TO_CHAR);
-				}
-						
-			}
-			}
-					if ((new_gold > 0 || new_silver > 0) && obj_next == NULL){
-						give_money(ch, NULL, new_gold, new_silver, TRUE);
+
+
+					} else if (!any) {
+						if (arg1[3] == '\0')
+							act("There is nothing here you can take.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+						else
+							act("There is no $T here you can take.", ch, NULL, NULL, NULL, NULL, NULL, &arg1[4], TO_CHAR);
 					}
+
+				}
+			}
+
+			// Is obj_next==NULL necessary?
+			if ((new_gold > 0 || new_silver > 0) && !obj_next){
+				give_money(ch, NULL, new_gold, new_silver, TRUE);
+			}
 		}
 
 		return;
@@ -715,7 +717,7 @@ void do_get(CHAR_DATA *ch, char *argument)
 					act(buf, ch, NULL, NULL, match_obj, container, NULL, NULL, TO_CHAR);
 				}
 
-				
+
 			} else if (!any) {
 				if (arg1[3] == '\0')
 					act("There is nothing in $P.", ch, NULL, NULL, NULL, container, NULL, NULL, TO_CHAR);
@@ -1099,7 +1101,7 @@ void do_drop(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
     char arg2[MSL];
-    char buf[MAX_STRING_LENGTH];
+    char buf[2*MAX_STRING_LENGTH];
     char short_descr[MSL];
     OBJ_DATA *obj, *obj_next;
     OBJ_DATA *match_obj;
@@ -2200,7 +2202,7 @@ void do_unrestring(CHAR_DATA *ch, char *argument)
     OBJ_DATA *obj;
     CHAR_DATA *mob;
     char arg[MAX_STRING_LENGTH];
-    long cost;
+//    long cost;
 
     argument = one_argument(argument, arg);
 
@@ -2722,8 +2724,9 @@ memset(&af,0,sizeof(af));
 	affect_join(ch, &af);
     }
 
-    if (obj->value[0] > 0)
+    if (obj->value[0] > 0) {
         obj->value[1] -= amount;
+	}
 
 	p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_DRINK, NULL);
 
@@ -2828,11 +2831,13 @@ bool remove_obj(CHAR_DATA *ch, int iWear, bool fReplace)
 {
     OBJ_DATA *obj;
 
-    if ((obj = get_eq_char(ch, iWear)) == NULL)
-	return TRUE;
+    if ((obj = get_eq_char(ch, iWear)) == NULL) {
+		return TRUE;
+	}
 
-    if (!fReplace)
-	return FALSE;
+    if (!fReplace) {
+		return FALSE;
+	}
 
 	if( !WEAR_ALWAYSREMOVE(iWear) ) {
 		if (IS_SET(obj->extra_flags, ITEM_NOREMOVE) || !WEAR_REMOVEEQ(iWear)) {
@@ -3381,7 +3386,7 @@ void do_wear(CHAR_DATA *ch, char *argument)
     if (!str_cmp(arg, "all"))
     {
 		OBJ_DATA *obj_next = NULL;
-		bool found = FALSE;
+//		bool found = FALSE;
 
 		send_to_char("You throw on your equipment.\n\r", ch);
 		act("$n throws on $s equipment.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
@@ -3405,7 +3410,7 @@ void do_wear(CHAR_DATA *ch, char *argument)
 				continue;
 
 			equip_char(ch, obj, obj->last_wear_loc);
-			found = TRUE;
+//			found = TRUE;
 			}
 		}
 
@@ -3421,7 +3426,7 @@ void do_wear(CHAR_DATA *ch, char *argument)
 				continue;
 
 			wear_obj(ch, obj, FALSE);
-			found = TRUE;
+//			found = TRUE;
 			}
 		}
 		return;
@@ -3483,7 +3488,7 @@ void do_remove(CHAR_DATA *ch, char *argument)
 
     if (!str_cmp(arg, "all"))
     {
-	bool found = FALSE;
+//	bool found = FALSE;
 	save_last_wear(ch);
 
 	send_to_char("You remove your equipment.\n\r", ch);
@@ -3502,7 +3507,7 @@ void do_remove(CHAR_DATA *ch, char *argument)
 			continue;
 
 		unequip_char(ch, obj, FALSE);
-		found = TRUE;
+//		found = TRUE;
 	    }
 	}
     }
@@ -3558,11 +3563,11 @@ void sacrifice_obj(CHAR_DATA *ch, OBJ_DATA *obj, char *name)
 void do_sacrifice(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
-    //char buf[MAX_STRING_LENGTH];
+    char buf[2*MAX_STRING_LENGTH];
     char short_descr[MSL];
     OBJ_DATA *obj;
     OBJ_DATA *obj_next;
-    long deitypoints;
+//    long deitypoints;
 
     one_argument(argument, arg);
 
@@ -3587,7 +3592,7 @@ void do_sacrifice(CHAR_DATA *ch, char *argument)
         char buf[MAX_STRING_LENGTH];
 	bool found = TRUE;
 	bool any = FALSE;
-	long vnum = 0;
+//	long vnum = 0;
 	long total = 0;
 
 	if (ch->in_room->vnum == ROOM_VNUM_DONATION)
@@ -4480,9 +4485,9 @@ void do_buy(CHAR_DATA *ch, char *argument)
     long cost;
     int roll;
     CHAR_DATA *mob;
-    CHAR_DATA *crew_seller;
+//    CHAR_DATA *crew_seller;
     CHAR_DATA *plane_tunneler;
-    CHAR_DATA *airship_seller;
+//    CHAR_DATA *airship_seller;
     CHAR_DATA *trader;
     char arg[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
@@ -5110,7 +5115,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 	    ch->reply = keeper;
 	    return;
 	}
-/* AO - this is stupid. Buy whatever you want :P 
+/* AO - this is stupid. Buy whatever you want :P
 	if (obj->level > ch->tot_level
 	&&  !(IS_REMORT(ch) && IS_SET(obj->extra2_flags, ITEM_ALL_REMORT)))
 	{
@@ -5240,10 +5245,10 @@ void do_list(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
     CHAR_DATA *salesman;
-    CHAR_DATA *crew_seller;
-    CHAR_DATA *plane_tunneler;
-    CHAR_DATA *airship_seller;
-    CHAR_DATA *trader;
+//    CHAR_DATA *crew_seller;
+//    CHAR_DATA *plane_tunneler;
+//    CHAR_DATA *airship_seller;
+//    CHAR_DATA *trader;
 
     crew_seller = NULL;
     plane_tunneler = NULL;
@@ -5471,10 +5476,12 @@ void do_list(CHAR_DATA *ch, char *argument)
 	}
 	if (!found)
 	{
-            if (IS_SET(ch->in_room->room_flags, ROOM_PET_SHOP))
+            if (IS_SET(ch->in_room->room_flags, ROOM_PET_SHOP)) {
                 send_to_char("Sorry, we're out of pets right now.\n\r", ch);
-            else
-                send_to_char("Sorry, we're out of mounts right now.\n\r", ch);        return;
+            } else {
+                send_to_char("Sorry, we're out of mounts right now.\n\r", ch);
+			}
+			return;
 	}
 
 	return;
@@ -6318,7 +6325,7 @@ void do_brew(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj;
     int sn;
-    int this_class;
+//    int this_class;
     int spell;
     int chance;
     int mana;
@@ -6421,7 +6428,7 @@ void do_brew(CHAR_DATA *ch, char *argument)
 
 void brew_end(CHAR_DATA *ch, sh_int sn)
 {
-    char buf[MAX_STRING_LENGTH];
+    char buf[2*MAX_STRING_LENGTH];
     OBJ_DATA *potion;
     int chance;
     char potion_name[MAX_STRING_LENGTH];
@@ -6612,7 +6619,7 @@ void do_scribe(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj;
     int sn1, sn2, sn3;/*, sn4;*/
-    int this_class;
+//    int this_class;
     int mana;
     int chance;
     int kill;
@@ -6771,7 +6778,7 @@ void do_scribe(CHAR_DATA *ch, char *argument)
 
 void scribe_end(CHAR_DATA *ch, sh_int sn, sh_int sn2, sh_int sn3)
 {
-    char buf[MAX_STRING_LENGTH];
+    char buf[2*MAX_STRING_LENGTH];
     OBJ_DATA *scroll;
     int chance;
     char scroll_name[MAX_STRING_LENGTH];

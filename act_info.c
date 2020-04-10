@@ -961,11 +961,11 @@ void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
 /* MOVED: senses/vision.c */
 void show_char_to_char_1(CHAR_DATA * victim, CHAR_DATA * ch)
 {
-    char buf[MAX_STRING_LENGTH];
+    char buf[2*MAX_STRING_LENGTH];
     char buf2[MSL];
     char name[MSL];
     int percent;
-    bool found;
+
 
     if (can_see(victim, ch) && ch->invis_level < 150)
     {
@@ -2609,7 +2609,7 @@ void do_worth(CHAR_DATA * ch, char *argument)
 /* MOVED: player/info.c */
 void do_score(CHAR_DATA * ch, char *argument)
 {
-    char buf[MAX_STRING_LENGTH], buf2[MSL];
+    char buf[2*MAX_STRING_LENGTH], buf2[MSL];
     char subclass[MSL];
     int i;
     char tbuf[MAX_STRING_LENGTH];
@@ -3822,7 +3822,7 @@ void do_weather(CHAR_DATA *ch, char *argument)
    Inclusive who-command */
 void do_who_new(CHAR_DATA * ch, char *argument)
 {
-    char buf[MAX_STRING_LENGTH];
+    char buf[2*MAX_STRING_LENGTH];
     char buf2[MAX_STRING_LENGTH];
     char arg[MAX_STRING_LENGTH];
     char arg2[MAX_STRING_LENGTH];
@@ -3831,7 +3831,7 @@ void do_who_new(CHAR_DATA * ch, char *argument)
     DESCRIPTOR_DATA *d;
     int iLevelLower;
     int iLevelUpper;
-    int nNumber;
+
     int nMatch;
     int nMatch2;
     int line_counter = 0;
@@ -4005,7 +4005,7 @@ void do_whois(CHAR_DATA * ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
     BUFFER *output;
-    char buf[MAX_STRING_LENGTH];
+    char buf[3*MAX_STRING_LENGTH];
     DESCRIPTOR_DATA *d;
     bool found = FALSE;
     int i;
@@ -4488,7 +4488,7 @@ void do_password(CHAR_DATA *ch, char *argument)
 	send_to_char("Syntax: password <old> <new>.\n\r", ch);
 	return;
     }
-	
+
 	if (ch->pcdata->pwd_vers < 1) {
     if (strcmp(crypt(arg1, ch->pcdata->pwd), ch->pcdata->pwd)) {
 	if (strcmp(arg1, ch->pcdata->pwd)){
@@ -4505,7 +4505,7 @@ void do_password(CHAR_DATA *ch, char *argument)
 			return;
 		}
 	}
-	
+
 
     if (strlen(arg2) < 5) {
 	send_to_char
@@ -4967,8 +4967,8 @@ char* get_wilderness_map(AREA_DATA *pArea, int lx, int ly, int bonus_view_x, int
 {
     int x, y;
     long index;
-    char j[5];
-    char temp[5];
+    char j[6];
+    char temp[6];
     int squares_to_show_x;
     int squares_to_show_y;
     bool last_char_same;
@@ -4977,7 +4977,7 @@ char* get_wilderness_map(AREA_DATA *pArea, int lx, int ly, int bonus_view_x, int
     char last_colour_char;
     BUFFER *output;
     char *output_string;
-    ROOM_INDEX_DATA *pRoom;
+
 
     /*
      * Alloc space for output lines.
@@ -5981,7 +5981,7 @@ void show_map_and_description(CHAR_DATA *ch, ROOM_INDEX_DATA *room)
     char map[MAX_STRING_LENGTH];
     int counter;
     int linelength;
-    int indent;
+
     int line;
 
     counter = 0;
@@ -6496,7 +6496,7 @@ void convert_map_char(char *buf, char ch)
 /* MOVED: body/sith.c */
 void do_toxins(CHAR_DATA *ch, char *argument)
 {
-    char buf[MAX_STRING_LENGTH];
+    char buf[2*MAX_STRING_LENGTH];
     char buf2[MAX_STRING_LENGTH];
     int i, n;
 

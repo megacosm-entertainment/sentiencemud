@@ -315,7 +315,7 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 	CHAR_DATA *fch_next;
 	ROOM_INDEX_DATA *in_room;
 	ROOM_INDEX_DATA *to_room;
-	WILDS_DATA *in_wilds = NULL;
+//	WILDS_DATA *in_wilds = NULL;
 /*	WILDS_DATA *to_wilds = NULL;
 	WILDS_TERRAIN *pTerrain; */
 	EXIT_DATA *pexit;
@@ -1002,7 +1002,7 @@ void drunk_walk(CHAR_DATA *ch, int door)
 /* MOVED: senses/vision.c */
 void do_search(CHAR_DATA *ch, char *argument)
 {
-    char buf[MAX_STRING_LENGTH];
+    char buf[2*MAX_STRING_LENGTH];
     char exit[MSL];
     EXIT_DATA *pexit;
     EXIT_DATA *pexit_rev;
