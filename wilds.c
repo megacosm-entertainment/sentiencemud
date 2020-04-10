@@ -1407,7 +1407,7 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
     char last_char;
     char last_colour_char;
     char edit_mapstring[80];
-    char buf[2*MIL];
+    char buf[MSL];
     char padding1[MIL];
     char padding2[MIL];
     char tlcoor[MIL];
