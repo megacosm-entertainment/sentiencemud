@@ -351,7 +351,6 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 
 	/* Ok, take a copy of the char's location pointers */
 	in_room = ch->in_room;
-	in_wilds = ch->in_wilds;
 
 	if (!(pexit = in_room->exit[door])) {
 		send_to_char("Alas, you cannot move that way.\n\r", ch);
