@@ -3620,7 +3620,7 @@ void do_sacrifice(CHAR_DATA *ch, char *argument)
 				if ((arg[3] == '\0' || is_name(&arg[4], obj->name)) &&
 						can_sacrifice_obj(ch, obj, TRUE))
 				{
-					strncpy(short_descr, obj->short_descr, sizeof(short_desc)-1);
+					strncpy(short_descr, obj->short_descr, sizeof(short_descr)-1);
 					found = TRUE;
 					any = TRUE;
 					break;
@@ -4487,9 +4487,9 @@ void do_buy(CHAR_DATA *ch, char *argument)
     char arg2[MAX_INPUT_LENGTH];
     bool haggled = FALSE;
 
-    crew_seller = NULL;
+//    crew_seller = NULL;
     plane_tunneler = NULL;
-    airship_seller = NULL;
+//    airship_seller = NULL;
     trader = NULL;
 
     if (argument[0] == '\0')
@@ -5238,9 +5238,10 @@ void do_blow( CHAR_DATA *ch, char *argument )
 void do_list(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
-    CHAR_DATA *salesman;
 
 /* Keeping in case they get fixed
+    CHAR_DATA *salesman;
+
     for (salesman = ch->in_room->people; salesman != NULL; salesman = salesman->next_in_room)
     {
 	if (IS_NPC(salesman) && IS_SET(salesman->act, ACT_CREW_SELLER))
@@ -6603,7 +6604,6 @@ void do_scribe(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj;
     int sn1, sn2, sn3;/*, sn4;*/
-//    int this_class;
     int mana;
     int chance;
     int kill;
@@ -6617,26 +6617,26 @@ void do_scribe(CHAR_DATA *ch, char *argument)
 
     if (IS_DEAD(ch))
     {
-	send_to_char("You can't do that. You are dead.\n\r", ch);
-	return;
+		send_to_char("You can't do that. You are dead.\n\r", ch);
+		return;
     }
 
     if ((chance = get_skill(ch,gsn_scribe)) == 0)
     {
-	send_to_char("Scribe? What's that?\n\r",ch);
-	return;
+		send_to_char("Scribe? What's that?\n\r",ch);
+		return;
     }
 
     obj = NULL;
     for (obj = ch->carrying; obj != NULL; obj = obj->next_content) {
-	if (obj->item_type == ITEM_BLANK_SCROLL || obj->pIndexData->vnum == OBJ_VNUM_BLANK_SCROLL)
-	    break;
+		if (obj->item_type == ITEM_BLANK_SCROLL || obj->pIndexData->vnum == OBJ_VNUM_BLANK_SCROLL)
+		    break;
     }
 
     if (obj == NULL)
     {
-	send_to_char("You do not have a blank scroll.\n\r", ch);
-	return;
+		send_to_char("You do not have a blank scroll.\n\r", ch);
+		return;
     }
 
     sn1 = 0;
@@ -6645,68 +6645,59 @@ void do_scribe(CHAR_DATA *ch, char *argument)
 
     if (arg1[0] == '\0')
     {
-	send_to_char("What do you wish to scribe?\n\r", ch);
-	return;
+		send_to_char("What do you wish to scribe?\n\r", ch);
+		return;
     }
 
     sn1 = find_spell(ch, arg1);
-    this_class = get_this_class(ch, sn1);
 
-    if ((sn1) < 1
-    ||  skill_table[sn1].spell_fun == spell_null
-    ||  get_skill(ch, sn1) == 0)
+    if ((sn1) < 1 || skill_table[sn1].spell_fun == spell_null ||
+    	get_skill(ch, sn1) == 0)
     {
-	send_to_char("You don't know any spells of that name.\n\r", ch);
-	return;
+		send_to_char("You don't know any spells of that name.\n\r", ch);
+		return;
     }
 
     if (arg2[0] != '\0')
     {
-	sn2 = find_spell(ch, arg2);
-	this_class = get_this_class(ch, sn2);
+		sn2 = find_spell(ch, arg2);
 
-	if ((sn2) < 1
-	||  skill_table[sn2].spell_fun == spell_null
-	||  get_skill(ch, sn2) == 0)
-	{
-	    send_to_char("You don't know any spells of that name.\n\r", ch);
-	    return;
-	}
+		if ((sn2) < 1 || skill_table[sn2].spell_fun == spell_null ||
+			get_skill(ch, sn2) == 0)
+		{
+			send_to_char("You don't know any spells of that name.\n\r", ch);
+			return;
+		}
     }
 
     if (arg3[0] != '\0')
     {
-	sn3 = find_spell(ch, arg3);
-	this_class = get_this_class(ch, sn3);
+		sn3 = find_spell(ch, arg3);
 
-	if ((sn3) < 1
-	||  skill_table[sn3].spell_fun == spell_null
-	||  get_skill(ch, sn3) == 0)
-	{
-	    send_to_char("You don't know any spells of that name.\n\r", ch);
-	    return;
-	}
+		if ((sn3) < 1 || skill_table[sn3].spell_fun == spell_null ||
+			get_skill(ch, sn3) == 0)
+		{
+			send_to_char("You don't know any spells of that name.\n\r", ch);
+			return;
+		}
     }
 
     mana = 0;
-    if (sn1 > 0)
-	mana += skill_table[sn1].min_mana;
-    if (sn2 > 0)
-	mana += skill_table[sn2].min_mana;
-    if (sn3 > 0)
-	mana += skill_table[sn3].min_mana;
+    if (sn1 > 0) mana += skill_table[sn1].min_mana;
+    if (sn2 > 0) mana += skill_table[sn2].min_mana;
+    if (sn3 > 0) mana += skill_table[sn3].min_mana;
 
     if (mana > 200)
     {
-	send_to_char("The scroll can't hold that much magic.\n\r", ch);
-	return;
+		send_to_char("The scroll can't hold that much magic.\n\r", ch);
+		return;
     }
 
-    mana = mana * 2/3;
+    mana = 2 * mana / 3;
     if (ch->mana < mana)
     {
-	send_to_char("You don't have enough mana to scribe that scroll.\n\r", ch);
-	return;
+		send_to_char("You don't have enough mana to scribe that scroll.\n\r", ch);
+		return;
     }
 
     ch->mana -= mana;
@@ -6724,36 +6715,36 @@ void do_scribe(CHAR_DATA *ch, char *argument)
     kill = find_spell(ch, "kill");
     if (kill == sn1 || kill == sn2 || kill == sn3)
     {
-	send_to_char("The scroll explodes into dust!\n\r", ch);
-	act("$n's blank scroll explodes into dust!\n\r", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	return;
+		send_to_char("The scroll explodes into dust!\n\r", ch);
+		act("$n's blank scroll explodes into dust!\n\r", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		return;
     }
 
     /* Mass healing must not be one of the spells*/
     kill = find_spell(ch, "mass healing");
     if (kill == sn1 || kill == sn2 || kill == sn3)
     {
-	send_to_char("The scroll explodes into dust!\n\r", ch);
-	act("$n's blank scroll explodes into dust!\n\r", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	return;
+		send_to_char("The scroll explodes into dust!\n\r", ch);
+		act("$n's blank scroll explodes into dust!\n\r", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		return;
     }
 
     kill = find_spell(ch, "spell trap");
     if (kill == sn1 || kill == sn2 || kill == sn3)
     {
-	send_to_char("The scroll explodes into dust!\n\r", ch);
-	act("$n's blank scroll explodes into dust!\n\r", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	return;
+		send_to_char("The scroll explodes into dust!\n\r", ch);
+		act("$n's blank scroll explodes into dust!\n\r", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		return;
     }
 
     if (sn2 == 0)
-	SCRIBE_STATE(ch, 12);
+		SCRIBE_STATE(ch, 12);
     else
     {
-	if (sn3 == 0)
-	    SCRIBE_STATE(ch, 24);
-	else
-	    SCRIBE_STATE(ch, 36);
+		if (sn3 == 0)
+			SCRIBE_STATE(ch, 24);
+		else
+			SCRIBE_STATE(ch, 36);
     }
 }
 
