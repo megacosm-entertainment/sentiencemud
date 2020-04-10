@@ -6033,6 +6033,8 @@ int do_flee_full(CHAR_DATA *ch, char *argument, bool conceal, bool pursue)
 	else if( (door = parse_direction(argument)) >= 0 ) {
 		if (was_in->wilds == NULL)
 		{
+			EXIT_DATA *pexit;
+
 			plogf("fight.c, do_flee(): char is fleeing from a static room.");
 			// Check if door is a valid exit for this char
 			if (!(pexit = was_in->exit[door])
