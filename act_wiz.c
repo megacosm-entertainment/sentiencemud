@@ -7326,7 +7326,7 @@ void do_token(CHAR_DATA *ch, char *argument)
 				}
 			}
 
-			give_token(token_index, victim, NULL, NULL);
+			TOKEN_DATA *token = give_token(token_index, victim, NULL, NULL);
 			sprintf(buf, "Gave token %s(%ld) to character %s\n\r",
 				token_index->name, token_index->vnum, HANDLE(victim));
 			send_to_char(buf, ch);
@@ -7334,6 +7334,8 @@ void do_token(CHAR_DATA *ch, char *argument)
 			{
 				send_to_char("{YWARNING:{R Token is {WPERMANENT{R.  It may only be removed by a system script or pfile editting.{x\n\r", ch);
 			}
+
+			p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_GIVEN, NULL);
 
 		} else if (!str_cmp(arg, "junk")) {
 			if(ch->tot_level < (MAX_LEVEL - 1) && ch != victim && !IS_NPC(victim)) {
@@ -7356,6 +7358,8 @@ void do_token(CHAR_DATA *ch, char *argument)
 						send_to_char("{WWARNING: Removing a permanent token.  This is only allowed while in Test Port Mode.{x\n\r", ch);
 				}
 			}
+
+			p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_REMOVED, NULL);
 
 			sprintf(buf, "Removed token %s(%ld.%ld) from character %s\n\r",
 				token->name, count, token->pIndexData->vnum, HANDLE(victim));
@@ -7390,15 +7394,19 @@ void do_token(CHAR_DATA *ch, char *argument)
 				}
 			}
 
-			give_token(token_index, NULL, obj, NULL);
+			TOKEN_DATA *token = give_token(token_index, NULL, obj, NULL);
 			sprintf(buf, "Gave token %s(%ld) to object %s\n\r", token_index->name, token_index->vnum, obj->short_descr);
 			send_to_char(buf, ch);
+
+			p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_GIVEN, NULL);
 
 		} else if (!str_cmp(arg, "junk")) {
 			if ((token = get_token_obj(obj, vnum, count)) == NULL) {
 				send_to_char("Token not found on object.\n\r", ch);
 				return;
 			}
+
+			p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_REMOVED, NULL);
 
 			sprintf(buf, "Removed token %s(%ld.%ld) from object %s\n\r",
 				token->name, count, token->pIndexData->vnum, obj->short_descr);
@@ -7425,7 +7433,7 @@ void do_token(CHAR_DATA *ch, char *argument)
 				}
 			}
 
-			give_token(token_index, NULL, NULL, ch->in_room);
+			TOKEN_DATA *token = give_token(token_index, NULL, NULL, ch->in_room);
 			if( ch->in_room->wilds && IS_SET(ch->in_room->room2_flags, ROOM_VIRTUAL_ROOM))
 				sprintf(buf, "Gave token %s(%ld) to wilds room %ld @ (%ld, %ld)\n\r", token_index->name, token_index->vnum, ch->in_room->wilds->uid, ch->in_room->x, ch->in_room->y);
 			else if( ch->in_room->source )
@@ -7434,11 +7442,15 @@ void do_token(CHAR_DATA *ch, char *argument)
 				sprintf(buf, "Gave token %s(%ld) to room %ld\n\r", token_index->name, token_index->vnum, ch->in_room->vnum);
 			send_to_char(buf, ch);
 
+			p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_GIVEN, NULL);
+
 		} else if (!str_cmp(arg, "junk")) {
 			if ((token = get_token_room(ch->in_room, vnum, count)) == NULL) {
 				send_to_char("Token not found on object.\n\r", ch);
 				return;
 			}
+
+			p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_REMOVED, NULL);
 
 			if( ch->in_room->wilds && IS_SET(ch->in_room->room2_flags, ROOM_VIRTUAL_ROOM))
 				sprintf(buf, "Removed token %s(%ld.%ld) from wilds room %ld @ (%ld, %ld)\n\r", token->name, count, token->pIndexData->vnum, ch->in_room->wilds->uid, ch->in_room->x, ch->in_room->y);
