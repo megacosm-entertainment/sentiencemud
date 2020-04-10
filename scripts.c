@@ -5789,3 +5789,16 @@ CHAR_DATA *script_get_char_room(SCRIPT_VARINFO *info, char *name, bool see_all)
 
 	return NULL;
 }
+
+OBJ_DATA *script_get_obj_here(SCRIPT_VARINFO *info, char *name)
+{
+
+	if( !info ) return NULL;
+
+	if( info->mob ) return get_obj_here(info->mob, NULL, name);
+	if( info->obj ) return get_obj_here(NULL, obj_room(info->obj), name);
+	if( info->room ) return get_obj_here(NULL, info->room, name);
+	if( info->token ) return get_obj_here(NULL, token_room(info->token), name);
+
+	return NULL;
+}

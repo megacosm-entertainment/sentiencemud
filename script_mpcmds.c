@@ -18,8 +18,8 @@
  * Command table.
  */
 const struct script_cmd_type mob_cmd_table[] = {
-	{ "addaffect",			do_mpaddaffect,			TRUE,	TRUE	},
-	{ "addaffectname",		do_mpaddaffectname,		TRUE,	TRUE	},
+	{ "addaffect",			scriptcmd_addaffect,	TRUE,	TRUE	},
+	{ "addaffectname",		scriptcmd_addaffectname,TRUE,	TRUE	},
 	{ "addspell",			do_mpaddspell,			TRUE,	TRUE	},
 	{ "alteraffect",		do_mpalteraffect,		TRUE,	TRUE	},
 	{ "alterexit",			do_mpalterexit,			FALSE,	TRUE	},
