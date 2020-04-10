@@ -1620,8 +1620,6 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 
         if (olc)
         {
-            char buf[81];
-
             edit_mapstring[cString] = '\0';
             sprintf(buf, "       {x%s{%c", edit_mapstring, last_colour_char);
             send_to_char(buf, to);
