@@ -3322,8 +3322,8 @@ void death_cry( CHAR_DATA *ch, bool has_head, bool messages )
 
 	// Make body parts
 	if (vnum) {
-		char buf[2*MAX_STRING_LENGTH];
-		char buf2[MAX_STRING_LENGTH];
+		char buf[MAX_STRING_LENGTH];
+		char buf2[2*MAX_STRING_LENGTH];
 		OBJ_DATA *obj;
 		char *name;
 
