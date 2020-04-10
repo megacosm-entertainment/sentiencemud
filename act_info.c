@@ -1048,7 +1048,6 @@ void show_char_to_char_1(CHAR_DATA * victim, CHAR_DATA * ch)
     buf[0] = UPPER(buf[0]);
     send_to_char(buf, ch);
 
-    found = FALSE;
     send_to_char("\n\r", ch);
     show_equipment(ch, victim);
 
@@ -3846,7 +3845,6 @@ void do_who_new(CHAR_DATA * ch, char *argument)
     iLevelLower = 0;
     iLevelUpper = MAX_LEVEL;
 
-    nNumber = 0;
 
     argument = one_argument(argument, arg);
     argument = one_argument(argument, arg2);
@@ -4985,7 +4983,6 @@ char* get_wilderness_map(AREA_DATA *pArea, int lx, int ly, int bonus_view_x, int
     output = new_buf();
 
     index = (long)((long)ly * pArea->map_size_x + (long)lx + pArea->min_vnum + WILDERNESS_VNUM_OFFSET);
-    pRoom = get_room_index(index);
 
     squares_to_show_x = get_squares_to_show_x(bonus_view_x);
     squares_to_show_y = get_squares_to_show_y(bonus_view_y);
@@ -5986,7 +5983,6 @@ void show_map_and_description(CHAR_DATA *ch, ROOM_INDEX_DATA *room)
 
     counter = 0;
     linelength = 0;
-    indent = 10;
     line = 1;
 
     buf[0] = '\0';
