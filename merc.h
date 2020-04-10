@@ -7732,5 +7732,6 @@ TOKEN_DATA *create_token(TOKEN_INDEX_DATA *token_index);
 BOOLEXP *new_boolexp();
 void free_boolexp(BOOLEXP *boolexp);
 
+int do_flee_full(CHAR_DATA *ch, char *argument, bool conceal, bool pursue);
 
 #endif /* !def __MERC_H__ */

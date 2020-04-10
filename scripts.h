@@ -2395,6 +2395,7 @@ SCRIPT_CMD(scriptcmd_award);
 SCRIPT_CMD(scriptcmd_damage);
 SCRIPT_CMD(scriptcmd_deduct);
 SCRIPT_CMD(scriptcmd_entercombat);
+SCRIPT_CMD(scriptcmd_flee);
 SCRIPT_CMD(scriptcmd_inputstring);
 SCRIPT_CMD(scriptcmd_grantskill);
 SCRIPT_CMD(scriptcmd_questcomplete);

@@ -60,7 +60,7 @@ const struct script_cmd_type mob_cmd_table[] = {
 	{ "echoroom",			do_mpechoroom,			FALSE,	TRUE	},
 	{ "entercombat",		scriptcmd_entercombat,	FALSE,	TRUE	},
 	{ "fixaffects",			do_mpfixaffects,		FALSE,	TRUE	},
-	{ "flee",				do_mpflee,				FALSE,	FALSE	},
+	{ "flee",				scriptcmd_flee,			FALSE,	FALSE	},
 	{ "force",				do_mpforce,				FALSE,	TRUE	},
 	{ "forget",				do_mpforget,			FALSE,	TRUE	},
 	{ "gdamage",			do_mpgdamage,			FALSE,	TRUE	},
@@ -2160,19 +2160,93 @@ SCRIPT_CMD(do_mpecholeadat)
 
 }
 
-// do_mpflee
+// do_mpflee[ <target>[ <direction>[ <conceal> <pursue>]]]
+// <direction> can be a direction (north, south, etc),
+//				'none' (for random)
+//				'anyway' (for random)
+//				or 'wimpy' (cause wimpy flee mode)
 SCRIPT_CMD(do_mpflee)
 {
+	char *rest;
+	SCRIPT_PARAM arg;
+	CHAR_DATA *target;
 	ROOM_INDEX_DATA *was_in, *room;
 	EXIT_DATA *pexit;
-	int door, attempt;
-	bool flying;
+	int door = MAX_DIR, attempt;
+	bool conceal = FALSE, pursue = TRUE;
+	char fleedata[MIL];
+	char *fleearg = str_empty;
 
 	info->mob->progs->lastreturn = MAX_DIR;
-	if (info->mob->fighting || !(was_in = info->mob->in_room))
+	if(!info || !info->mob) return;
+
+	if(!(rest = expand_argument(info,argument,&arg)))
 		return;
 
-	flying = mobile_is_flying(info->mob);
+	target = info->mob;
+	switch(arg.type) {
+	case ENT_STRING: target = get_char_room(info->mob, NULL, arg.d.str); break;
+	case ENT_MOBILE: target = arg.d.mob; break;
+	default: target = NULL; break;
+	}
+
+	if (!target) return;
+
+	if (!target->fighting || !(was_in = target->in_room))
+		return;
+
+	if(*rest) {
+		if(!(rest = expand_argument(info,rest,&arg)))
+				return;
+
+		if(arg.type == ENT_STRING) {
+			if (!str_cmp(arg.d.str, "none")) {
+				fleearg = str_empty;
+			} else if (!str_cmp(arg.d.str, "anyway")) {
+				strcpy(fleedata,"anyway");
+				fleearg = fleedata;
+			} else if (!str_cmp(arg.d.str, "wimpy"))
+				fleearg = NULL;
+			else {
+				strncpy(fleedata,arg.d.str,MSL-1);
+				fleearg = fleedata;
+			}
+
+			if(*rest) {
+				if(!(rest = expand_argument(info,rest,&arg)))
+					return;
+
+				if( arg.type == ENT_NUMBER )
+					conceal = (arg.d.num != 0);
+				else if( arg.type == ENT_STRING )
+					conceal = !str_cmp(arg.d.str, "yes") || !str_cmp(arg.d.str, "true") || !str_cmp(arg.d.str, "all");
+				else
+					return;
+			}
+
+			if(*rest) {
+				if(!(rest = expand_argument(info,rest,&arg)))
+					return;
+
+				if( arg.type == ENT_NUMBER )
+					pursue = (arg.d.num != 0);
+				else if( arg.type == ENT_STRING )
+					pursue = !str_cmp(arg.d.str, "yes") || !str_cmp(arg.d.str, "true") || !str_cmp(arg.d.str, "all");
+				else
+					return;
+			}
+
+		}
+	}
+
+	door = do_flee_full(target, fleearg, conceal, pursue);
+	if (IS_VALID(info->mob)) {
+		info->mob->progs->lastreturn = door;
+	}
+
+/*
+	// Moved to general flee system
+	flying = mobile_is_flying(target);
 	for (attempt = 0; attempt < 6; attempt++) {
 		door = number_door();
         	if (!(pexit = was_in->exit[door])
@@ -2189,6 +2263,8 @@ SCRIPT_CMD(do_mpflee)
 			return;
 		}
 	}
+
+*/
 }
 
 // do_mpforce
