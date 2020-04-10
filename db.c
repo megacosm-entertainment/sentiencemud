@@ -1789,496 +1789,495 @@ void chance_create_mob(ROOM_INDEX_DATA *pRoom, MOB_INDEX_DATA *pMobIndex, int ch
 /* Create a mobile from a mob index template.*/
 CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 {
-    CHAR_DATA *mob;
-    AFFECT_DATA af;
-    GQ_MOB_DATA *gq_mob;
-    const struct race_type *race;
-    int i;
+	CHAR_DATA *mob;
+	AFFECT_DATA af;
+	GQ_MOB_DATA *gq_mob;
+	const struct race_type *race;
+	int i;
 
-    mobile_count++;
+	mobile_count++;
 
-    if (pMobIndex == NULL)
-    {
-	bug("Create_mobile: NULL pMobIndex.", 0);
-	exit(1);
-    }
+	if (pMobIndex == NULL)
+	{
+		bug("Create_mobile: NULL pMobIndex.", 0);
+		exit(1);
+	}
 
-    mob = new_char();
+	mob = new_char();
 
-    mob->pIndexData	= pMobIndex;
+	mob->pIndexData	= pMobIndex;
 
-    mob->name		= str_dup(pMobIndex->player_name);
-    mob->short_descr	= str_dup(pMobIndex->short_descr);
-    mob->long_descr	= str_dup(pMobIndex->long_descr);
-    mob->description	= str_dup(pMobIndex->description);
+	mob->name			= str_dup(pMobIndex->player_name);
+	mob->short_descr	= str_dup(pMobIndex->short_descr);
+	mob->long_descr		= str_dup(pMobIndex->long_descr);
+	mob->description	= str_dup(pMobIndex->description);
 
-    if (pMobIndex->owner != NULL)
-	mob->owner	= str_dup(pMobIndex->owner);
-    else
-	mob->owner	= str_dup("(no owner)");
+	if (pMobIndex->owner != NULL)
+		mob->owner	= str_dup(pMobIndex->owner);
+	else
+		mob->owner	= str_dup("(no owner)");
 
 	get_mob_id(mob);
-    mob->spec_fun	= pMobIndex->spec_fun;
-    mob->prompt		= NULL;
+	mob->spec_fun		= pMobIndex->spec_fun;
+	mob->prompt			= NULL;
 
-    mob->progs		= new_prog_data();
-    mob->progs->progs	= pMobIndex->progs;
-    variable_copylist(&pMobIndex->index_vars,&mob->progs->vars,FALSE);
+	mob->progs			= new_prog_data();
+	mob->progs->progs	= pMobIndex->progs;
+	variable_copylist(&pMobIndex->index_vars,&mob->progs->vars,FALSE);
 
-    mob->deitypoints    = 0;
-    mob->questpoints    = 0;
-    mob->pneuma         = 0;
+	mob->deitypoints    = 0;
+	mob->questpoints    = 0;
+	mob->pneuma         = 0;
 
-    /* give them some cash money */
-    if (pMobIndex->wealth == 0)
-    {
-	mob->silver = 0;
-	mob->gold   = 0;
-    }
-    else
-    {
-	long wealth;
-
-	/* make sure bankers always have change money */
-	if (IS_SET(pMobIndex->act, ACT_IS_BANKER))
+	/* give them some cash money */
+	if (pMobIndex->wealth == 0)
 	{
-	    wealth = 1000000;
-	    SET_BIT(mob->act, ACT_PROTECTED);
+		mob->silver = 0;
+		mob->gold   = 0;
 	}
 	else
-	    wealth = number_range(pMobIndex->wealth/2, 3 * pMobIndex->wealth/2);
-
-	/* make it easier on n00bs */
-/*	if (pMobIndex->area == find_area("Plith")
-	||   pMobIndex->area == find_area("Realm of Alendith"))
-	    wealth *= 2;*/
-
-	mob->gold = number_range(wealth/200,wealth/100);
-	mob->silver = wealth - (mob->gold * 100);
-    }
-
-    mob->act 		= pMobIndex->act;
-    mob->act2		= pMobIndex->act2;
-    mob->comm		= COMM_NOCHANNELS|COMM_NOTELL;
-    mob->affected_by	= pMobIndex->affected_by;
-    mob->affected_by2	= pMobIndex->affected_by2;
-    mob->alignment		= pMobIndex->alignment;
-    mob->level		= pMobIndex->level;
-    mob->tot_level		= pMobIndex->level;
-    mob->hitroll		= pMobIndex->hitroll;
-    mob->damroll		= pMobIndex->damage.bonus;
-    mob->max_hit		= dice_roll(&pMobIndex->hit);
-    mob->hit		= mob->max_hit;
-    mob->max_mana		= dice_roll(&pMobIndex->mana);
-    mob->mana		= mob->max_mana;
-    mob->move		= pMobIndex->move;
-    mob->damage.number  = pMobIndex->damage.number;
-    mob->damage.size	= pMobIndex->damage.size;
-    mob->damage.bonus   = 0;
-    mob->damage.last_roll = -1;
-    mob->dam_type		= pMobIndex->dam_type;
-    if (mob->dam_type == 0)
-    {
-	switch(number_range(1,3))
 	{
-	    case (1): mob->dam_type = 3;        break;  /* slash */
-	    case (2): mob->dam_type = 7;        break;  /* pound */
-	    case (3): mob->dam_type = 11;       break;  /* pierce */
+		long wealth;
+
+		/* make sure bankers always have change money */
+		if (IS_SET(pMobIndex->act, ACT_IS_BANKER))
+		{
+			wealth = 1000000;
+			SET_BIT(mob->act, ACT_PROTECTED);
+		}
+		else
+			wealth = number_range(pMobIndex->wealth/2, 3 * pMobIndex->wealth/2);
+
+		/* make it easier on n00bs */
+		/*	if (pMobIndex->area == find_area("Plith")
+		||   pMobIndex->area == find_area("Realm of Alendith"))
+		wealth *= 2;*/
+
+		mob->gold = number_range(wealth/200,wealth/100);
+		mob->silver = wealth - (mob->gold * 100);
 	}
-    }
-    for (i = 0; i < 4; i++)
-	mob->armour[i]	= pMobIndex->ac[i];
 
-    mob->off_flags	= pMobIndex->off_flags;
-    mob->imm_flags	= pMobIndex->imm_flags;
-    mob->res_flags	= pMobIndex->res_flags;
-    mob->vuln_flags	= pMobIndex->vuln_flags;
-    mob->start_pos	= pMobIndex->start_pos;
-    mob->default_pos	= pMobIndex->default_pos;
-    mob->sex		= pMobIndex->sex;
+	mob->act 				= pMobIndex->act;
+	mob->act2				= pMobIndex->act2;
+	mob->comm				= COMM_NOCHANNELS|COMM_NOTELL;
+	mob->affected_by		= pMobIndex->affected_by;
+	mob->affected_by2		= pMobIndex->affected_by2;
+	mob->alignment			= pMobIndex->alignment;
+	mob->level				= pMobIndex->level;
+	mob->tot_level			= pMobIndex->level;
+	mob->hitroll			= pMobIndex->hitroll;
+	mob->damroll			= pMobIndex->damage.bonus;
+	mob->max_hit			= dice_roll(&pMobIndex->hit);
+	mob->hit				= mob->max_hit;
+	mob->max_mana			= dice_roll(&pMobIndex->mana);
+	mob->mana				= mob->max_mana;
+	mob->move				= pMobIndex->move;
+	mob->damage.number		= pMobIndex->damage.number;
+	mob->damage.size		= pMobIndex->damage.size;
+	mob->damage.bonus		= 0;
+	mob->damage.last_roll	= -1;
+	mob->dam_type			= pMobIndex->dam_type;
+	if (mob->dam_type == 0)
+	{
+		switch(number_range(1,3))
+		{
+			case (1): mob->dam_type = attack_lookup("slash");	break;	// NIBS: Used to be constants, but I made them lookups
+			case (2): mob->dam_type = attack_lookup("pound");	break;
+			case (3): mob->dam_type = attack_lookup("pierce");	break;
+		}
+	}
+	for (i = 0; i < 4; i++)
+		mob->armour[i]	= pMobIndex->ac[i];
 
-    if (mob->sex == 3) /* random sex */
-	mob->sex = number_range(1,2);
+	mob->off_flags		= pMobIndex->off_flags;
+	mob->imm_flags		= pMobIndex->imm_flags;
+	mob->res_flags		= pMobIndex->res_flags;
+	mob->vuln_flags		= pMobIndex->vuln_flags;
+	mob->start_pos		= pMobIndex->start_pos;
+	mob->default_pos	= pMobIndex->default_pos;
+	mob->sex			= pMobIndex->sex;
 
-    mob->race		= pMobIndex->race;
-    race = &race_table[mob->race];
-    mob->form		= pMobIndex->form;
-    mob->parts		= pMobIndex->parts;
-    mob->size		= pMobIndex->size;
-    mob->material		= str_dup(pMobIndex->material);
-    mob->corpse_type	= pMobIndex->corpse_type;
-    mob->corpse_vnum	= pMobIndex->corpse;
+	if (mob->sex == 3) /* random sex */
+		mob->sex = number_range(1,2);
 
-    mob->affected_by_perm	= race->aff;
-    mob->affected_by2_perm	= race->aff2;
-    mob->imm_flags_perm		= pMobIndex->imm_flags;
-    mob->res_flags_perm		= pMobIndex->res_flags;
-    mob->vuln_flags_perm	= pMobIndex->vuln_flags;
+	mob->race				= pMobIndex->race;
+	race = &race_table[mob->race];
+	mob->form				= pMobIndex->form;
+	mob->parts				= pMobIndex->parts;
+	mob->size				= pMobIndex->size;
+	mob->material			= str_dup(pMobIndex->material);
+	mob->corpse_type		= pMobIndex->corpse_type;
+	mob->corpse_vnum		= pMobIndex->corpse;
+
+	mob->affected_by_perm	= race->aff;
+	mob->affected_by2_perm	= race->aff2;
+	mob->imm_flags_perm		= pMobIndex->imm_flags;
+	mob->res_flags_perm		= pMobIndex->res_flags;
+	mob->vuln_flags_perm	= pMobIndex->vuln_flags;
 
 
-    for (i = 0; i < MAX_STATS; i ++)
+	for (i = 0; i < MAX_STATS; i ++)
 		set_perm_stat_range(mob, i, 11 + mob->level/4, 0, 25);
 
-    if (IS_SET(mob->act,ACT_WARRIOR))
-    {
-	mob->perm_stat[STAT_STR] += 3;
-	mob->perm_stat[STAT_INT] -= 1;
-	mob->perm_stat[STAT_CON] += 2;
-    }
-
-    if (IS_SET(mob->act,ACT_THIEF))
-    {
-	mob->perm_stat[STAT_DEX] += 3;
-	mob->perm_stat[STAT_INT] += 1;
-	mob->perm_stat[STAT_WIS] -= 1;
-    }
-
-    if (IS_SET(mob->act,ACT_CLERIC))
-    {
-	mob->perm_stat[STAT_WIS] += 3;
-	mob->perm_stat[STAT_DEX] -= 1;
-	mob->perm_stat[STAT_STR] += 1;
-    }
-
-    if (IS_SET(mob->act,ACT_MAGE))
-    {
-	mob->perm_stat[STAT_INT] += 3;
-	mob->perm_stat[STAT_STR] -= 1;
-	mob->perm_stat[STAT_DEX] += 1;
-    }
-
-    mob->perm_stat[STAT_STR] += mob->size - SIZE_MEDIUM;
-    mob->perm_stat[STAT_CON] += (mob->size - SIZE_MEDIUM) / 2;
-
-	if (!persistLoad){
-
-    memset(&af,0,sizeof(af));
-	af.slot	= WEAR_NONE;	// None of the subsequent affects are from worn objects
-
-    /* Put spells on here*/
-    if (IS_AFFECTED(mob,AFF_INVISIBLE))
-    {
-	af.group	= IS_SET(race->aff,AFF_INVISIBLE)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
-	af.where	 = TO_AFFECTS;
-	af.type      = gsn_invis;
-	af.level     = mob->level;
-	af.duration  = -1;
-	af.location  = 0;
-	af.modifier  = 1 + (mob->level >= 18) + (mob->level >= 25) +
-	    (mob->level >= 32);
-	af.bitvector = AFF_INVISIBLE;
-	af.bitvector2 = 0;
-	affect_to_char(mob, &af);
-    }
-
-    if (IS_AFFECTED(mob,AFF_DETECT_INVIS))
-    {
-	af.group	= IS_SET(race->aff,AFF_DETECT_INVIS)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
-	af.where	 = TO_AFFECTS;
-	af.type      = gsn_detect_invis;
-	af.level     = mob->level;
-	af.duration  = -1;
-	af.location  = 0;
-	af.modifier  = 0;
-	af.bitvector = AFF_DETECT_INVIS;
-	af.bitvector2 = 0;
-	affect_to_char(mob, &af);
-    }
-
-    if (IS_AFFECTED(mob,AFF_DETECT_HIDDEN))
-    {
-	af.group	= IS_SET(race->aff,AFF_DETECT_HIDDEN)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
-	af.where	 = TO_AFFECTS;
-	af.type      = gsn_detect_hidden;
-	af.level     = mob->level;
-	af.duration  = -1;
-	af.location  = 0;
-	af.modifier  = 0;
-	af.bitvector = AFF_DETECT_HIDDEN;
-	af.bitvector2 = 0;
-	affect_to_char(mob, &af);
-
-    }
-
-    if (IS_AFFECTED(mob,AFF_SANCTUARY))
-    {
-	af.group	= IS_SET(race->aff,AFF_SANCTUARY)?AFFGROUP_RACIAL:AFFGROUP_DIVINE;
-	af.where	 = TO_AFFECTS;
-	af.type      = gsn_sanctuary;
-	af.level     = mob->level;
-	af.duration  = -1;
-	af.location  = APPLY_NONE;
-	af.modifier  = 0;
-	af.bitvector = AFF_SANCTUARY;
-	af.bitvector2 = 0;
-	affect_to_char(mob, &af);
-    }
-
-    if (IS_AFFECTED(mob,AFF_INFRARED))
-    {
-	af.group	= IS_SET(race->aff,AFF_INFRARED)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
-	af.where	 = TO_AFFECTS;
-	af.type      = gsn_infravision;
-	af.level     = mob->level;
-	af.duration  = -1;
-	af.location  = APPLY_NONE;
-	af.modifier  = 0;
-	af.bitvector = AFF_INFRARED;
-	af.bitvector2 = 0;
-	affect_to_char(mob, &af);
-    }
-
-    if (IS_AFFECTED(mob,AFF_DEATH_GRIP))
-    {
-	af.group	= IS_SET(race->aff,AFF_DEATH_GRIP)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
-	af.where	 = TO_AFFECTS;
-	af.type      = gsn_death_grip;
-	af.level     = mob->level;
-	af.duration  = -1;
-	af.location  = APPLY_NONE;
-	af.modifier  = 0;
-	af.bitvector = AFF_DEATH_GRIP;
-	af.bitvector2 = 0;
-	affect_to_char(mob, &af);
-    }
-
-    if (IS_AFFECTED(mob,AFF_FLYING))
-    {
-	af.group	= IS_SET(race->aff,AFF_FLYING)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
-	af.where	 = TO_AFFECTS;
-	af.type      = gsn_fly;
-	af.level     = mob->level;
-	af.duration  = -1;
-	af.location  = APPLY_NONE;
-	af.modifier  = 0;
-	af.bitvector = AFF_FLYING;
-	af.bitvector2 = 0;
-	affect_to_char(mob, &af);
-    }
-
-    if (IS_AFFECTED(mob,AFF_PASS_DOOR))
-    {
-	af.group	= IS_SET(race->aff,AFF_PASS_DOOR)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
-	af.where	 = TO_AFFECTS;
-	af.type      = gsn_pass_door;
-	af.level     = mob->level;
-	af.duration  = -1;
-	af.location  = APPLY_NONE;
-	af.modifier  = 0;
-	af.bitvector = AFF_PASS_DOOR;
-	af.bitvector2 = 0;
-	affect_to_char(mob, &af);
-    }
-
-    if (IS_AFFECTED(mob,AFF_HASTE))
-    {
-	af.group	= IS_SET(race->aff,AFF_HASTE)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
-	af.where	 = TO_AFFECTS;
-	af.type      = gsn_haste;
-	af.level     = mob->level;
-	af.duration  = -1;
-	af.location  = APPLY_DEX;
-	af.modifier  = 1 + (mob->level >= 18) + (mob->level >= 25) +
-	    (mob->level >= 32);
-	af.bitvector = AFF_HASTE;
-	af.bitvector2 = 0;
-	affect_to_char(mob, &af);
-    }
-
-    if (IS_AFFECTED2(mob, AFF2_WARCRY))
-    {
-	af.group	= AFFGROUP_PHYSICAL;
-	af.where	 = TO_AFFECTS;
-	af.type      = gsn_warcry;
-	af.level     = mob->level;
-	af.duration  = -1;
-	af.location  = 0;
-	af.modifier  = 0;
-	af.bitvector = 0;
-	af.bitvector2 = AFF2_WARCRY;
-	affect_to_char(mob,&af);
-    }
-
-    if (IS_AFFECTED2(mob, AFF2_LIGHT_SHROUD))
-    {
-	af.group	= IS_SET(race->aff2,AFF2_LIGHT_SHROUD)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
-	af.where	 = TO_AFFECTS;
-	af.type      = gsn_light_shroud;
-	af.level     = mob->level;
-	af.duration  = -1;
-	af.location  = 0;
-	af.modifier  = 0;
-	af.bitvector = 0;
-	af.bitvector2 = AFF2_LIGHT_SHROUD;
-	affect_to_char(mob,&af);
-    }
-
-    if (IS_AFFECTED2(mob, AFF2_HEALING_AURA))
-    {
-	af.group	= IS_SET(race->aff2,AFF2_HEALING_AURA)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
-	af.where	 = TO_AFFECTS;
-	af.type      = gsn_healing_aura;
-	af.level     = mob->level;
-	af.duration  = -1;
-	af.location  = 0;
-	af.modifier  = 0;
-	af.bitvector = 0;
-	af.bitvector2 = AFF2_HEALING_AURA;
-	affect_to_char(mob,&af);
-    }
-
-    if (IS_AFFECTED2(mob, AFF2_ENERGY_FIELD))
-    {
-	af.group	= IS_SET(race->aff2,AFF2_ENERGY_FIELD)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
-	af.where	 = TO_AFFECTS;
-	af.type      = gsn_energy_field;
-	af.level     = mob->level;
-	af.duration  = -1;
-	af.location  = 0;
-	af.modifier  = 0;
-	af.bitvector = 0;
-	af.bitvector2 = AFF2_ENERGY_FIELD;
-	affect_to_char(mob,&af);
-    }
-
-    if (IS_AFFECTED2(mob, AFF2_SPELL_SHIELD))
-    {
-	af.group	= IS_SET(race->aff2,AFF2_SPELL_SHIELD)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
-	af.where	 = TO_AFFECTS;
-	af.type      = gsn_spell_shield;
-	af.level     = mob->level;
-	af.duration  = -1;
-	af.location  = 0;
-	af.modifier  = 0;
-	af.bitvector = 0;
-	af.bitvector2 = AFF2_SPELL_SHIELD;
-	affect_to_char(mob,&af);
-    }
-
-    if (IS_AFFECTED2(mob, AFF2_SPELL_DEFLECTION))
-    {
-	af.group	= IS_SET(race->aff2,AFF2_SPELL_DEFLECTION)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
-	af.where	 = TO_AFFECTS;
-	af.type      = gsn_spell_deflection;
-	af.level     = mob->level;
-	af.duration  = -1;
-	af.location  = 0;
-	af.modifier  = 0;
-	af.bitvector = 0;
-	af.bitvector2 = AFF2_SPELL_DEFLECTION;
-	affect_to_char(mob,&af);
-    }
-
-    if (IS_AFFECTED2(mob, AFF2_AVATAR_SHIELD))
-    {
-	af.group	= IS_SET(race->aff2,AFF2_AVATAR_SHIELD)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
-	af.where	 = TO_AFFECTS;
-	af.type      = gsn_avatar_shield;
-	af.level     = mob->level;
-	af.duration  = -1;
-	af.location  = 0;
-	af.modifier  = 0;
-	af.bitvector = 0;
-	af.bitvector2 = AFF2_AVATAR_SHIELD;
-	affect_to_char(mob,&af);
-    }
-
-    if (IS_AFFECTED2(mob, AFF2_ELECTRICAL_BARRIER))
-    {
-	af.group	= IS_SET(race->aff2,AFF2_ELECTRICAL_BARRIER)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
-	af.where	 = TO_AFFECTS;
-	af.type      = gsn_electrical_barrier;
-	af.level     = mob->level;
-	af.duration  = -1;
-	af.location  = 0;
-	af.modifier  = 0;
-	af.bitvector = 0;
-	af.bitvector2 = AFF2_ELECTRICAL_BARRIER;
-	affect_to_char(mob,&af);
-	REMOVE_BIT(mob->affected_by2_perm, af.bitvector2);
-    }
-
-    if (IS_AFFECTED2(mob, AFF2_FIRE_BARRIER))
-    {
-	af.group	= IS_SET(race->aff2,AFF2_FIRE_BARRIER)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
-	af.where	 = TO_AFFECTS;
-	af.type      = gsn_fire_barrier;
-	af.level     = mob->level;
-	af.duration  = -1;
-	af.location  = 0;
-	af.modifier  = 0;
-	af.bitvector = 0;
-	af.bitvector2 = AFF2_FIRE_BARRIER;
-	affect_to_char(mob,&af);
-    }
-
-    if (IS_AFFECTED2(mob, AFF2_FROST_BARRIER))
-    {
-	af.group	= IS_SET(race->aff2,AFF2_FROST_BARRIER)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
-	af.where	 = TO_AFFECTS;
-	af.type      = gsn_frost_barrier;
-	af.level     = mob->level;
-	af.duration  = -1;
-	af.location  = 0;
-	af.modifier  = 0;
-	af.bitvector = 0;
-	af.bitvector2 = AFF2_FROST_BARRIER;
-	affect_to_char(mob,&af);
-    }
-
-    if (IS_AFFECTED2(mob, AFF2_IMPROVED_INVIS))
-    {
-	af.group	= IS_SET(race->aff2,AFF2_IMPROVED_INVIS)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
-	af.where	 = TO_AFFECTS;
-	af.type      = gsn_improved_invisibility;
-	af.level     = mob->level;
-	af.duration  = -1;
-	af.location  = 0;
-	af.modifier  = 0;
-	af.bitvector = 0;
-	af.bitvector2 = AFF2_IMPROVED_INVIS;
-	affect_to_char(mob,&af);
-    }
-
-    if (IS_AFFECTED2(mob, AFF2_STONE_SKIN))
-    {
-	af.group	= IS_SET(race->aff2,AFF2_STONE_SKIN)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
-	af.where     = TO_AFFECTS;
-	af.type      = gsn_stone_skin;
-	af.level     = mob->level;
-	af.duration  = -1;
-	af.location  = 0;
-	af.modifier  = 0;
-	af.bitvector = 0;
-	af.bitvector2 = AFF2_STONE_SKIN;
-	affect_to_char(mob,&af);
-    }
+	if (IS_SET(mob->act,ACT_WARRIOR))
+	{
+		mob->perm_stat[STAT_STR] += 3;
+		mob->perm_stat[STAT_INT] -= 1;
+		mob->perm_stat[STAT_CON] += 2;
 	}
-    mob->position = mob->start_pos;
 
-    mob->max_move = pMobIndex->move;
-    mob->move = pMobIndex->move;
+	if (IS_SET(mob->act,ACT_THIEF))
+	{
+		mob->perm_stat[STAT_DEX] += 3;
+		mob->perm_stat[STAT_INT] += 1;
+		mob->perm_stat[STAT_WIS] -= 1;
+	}
 
-    /* link the mob to the world list */
-    list_appendlink(loaded_chars, mob);
+	if (IS_SET(mob->act,ACT_CLERIC))
+	{
+		mob->perm_stat[STAT_WIS] += 3;
+		mob->perm_stat[STAT_DEX] -= 1;
+		mob->perm_stat[STAT_STR] += 1;
+	}
 
-    /* Animate dead mobs don't add to the list.*/
-    pMobIndex->count++;
+	if (IS_SET(mob->act,ACT_MAGE))
+	{
+		mob->perm_stat[STAT_INT] += 3;
+		mob->perm_stat[STAT_STR] -= 1;
+		mob->perm_stat[STAT_DEX] += 1;
+	}
 
-    /* Keep GQ count*/
-    for (gq_mob = global_quest.mobs; gq_mob != NULL; gq_mob = gq_mob->next)
+	mob->perm_stat[STAT_STR] += mob->size - SIZE_MEDIUM;
+	mob->perm_stat[STAT_CON] += (mob->size - SIZE_MEDIUM) / 2;
+
+	if (!persistLoad)
+	{
+		memset(&af,0,sizeof(af));
+		af.slot	= WEAR_NONE;	// None of the subsequent affects are from worn objects
+
+		/* Put spells on here*/
+		if (IS_AFFECTED(mob,AFF_INVISIBLE))
+		{
+			af.group		= IS_SET(race->aff,AFF_INVISIBLE)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.where		= TO_AFFECTS;
+			af.type			= gsn_invis;
+			af.level		= mob->level;
+			af.duration		= -1;
+			af.location		= 0;
+			af.modifier		= (mob->level - 4) / 7;
+			if( af.modifier < 1 ) af.modifier = 1;
+			af.bitvector	= AFF_INVISIBLE;
+			af.bitvector2	= 0;
+			affect_to_char(mob, &af);
+		}
+
+		if (IS_AFFECTED(mob,AFF_DETECT_INVIS))
+		{
+			af.group		= IS_SET(race->aff,AFF_DETECT_INVIS)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.where		= TO_AFFECTS;
+			af.type 		= gsn_detect_invis;
+			af.level		= mob->level;
+			af.duration		= -1;
+			af.location		= 0;
+			af.modifier		= 0;
+			af.bitvector	= AFF_DETECT_INVIS;
+			af.bitvector2	= 0;
+			affect_to_char(mob, &af);
+		}
+
+		if (IS_AFFECTED(mob,AFF_DETECT_HIDDEN))
+		{
+			af.group		= IS_SET(race->aff,AFF_DETECT_HIDDEN)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.where		= TO_AFFECTS;
+			af.type			= gsn_detect_hidden;
+			af.level		= mob->level;
+			af.duration		= -1;
+			af.location		= 0;
+			af.modifier		= 0;
+			af.bitvector	= AFF_DETECT_HIDDEN;
+			af.bitvector2	= 0;
+			affect_to_char(mob, &af);
+		}
+
+		if (IS_AFFECTED(mob,AFF_SANCTUARY))
+		{
+			af.group		= IS_SET(race->aff,AFF_SANCTUARY)?AFFGROUP_RACIAL:AFFGROUP_DIVINE;
+			af.where		= TO_AFFECTS;
+			af.type			= gsn_sanctuary;
+			af.level		= mob->level;
+			af.duration		= -1;
+			af.location		= APPLY_NONE;
+			af.modifier		= 0;
+			af.bitvector	= AFF_SANCTUARY;
+			af.bitvector2	= 0;
+			affect_to_char(mob, &af);
+		}
+
+		if (IS_AFFECTED(mob,AFF_INFRARED))
+		{
+			af.group		= IS_SET(race->aff,AFF_INFRARED)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.where		= TO_AFFECTS;
+			af.type			= gsn_infravision;
+			af.level		= mob->level;
+			af.duration		= -1;
+			af.location		= APPLY_NONE;
+			af.modifier		= 0;
+			af.bitvector	= AFF_INFRARED;
+			af.bitvector2	= 0;
+			affect_to_char(mob, &af);
+		}
+
+		if (IS_AFFECTED(mob,AFF_DEATH_GRIP))
+		{
+			af.group		= IS_SET(race->aff,AFF_DEATH_GRIP)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.where		= TO_AFFECTS;
+			af.type			= gsn_death_grip;
+			af.level		= mob->level;
+			af.duration		= -1;
+			af.location		= APPLY_NONE;
+			af.modifier		= 0;
+			af.bitvector	= AFF_DEATH_GRIP;
+			af.bitvector2	= 0;
+			affect_to_char(mob, &af);
+		}
+
+		if (IS_AFFECTED(mob,AFF_FLYING))
+		{
+			af.group		= IS_SET(race->aff,AFF_FLYING)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.where		= TO_AFFECTS;
+			af.type			= gsn_fly;
+			af.level		= mob->level;
+			af.duration		= -1;
+			af.location		= APPLY_NONE;
+			af.modifier		= 0;
+			af.bitvector	= AFF_FLYING;
+			af.bitvector2	= 0;
+			affect_to_char(mob, &af);
+		}
+
+		if (IS_AFFECTED(mob,AFF_PASS_DOOR))
+		{
+			af.group		= IS_SET(race->aff,AFF_PASS_DOOR)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.where		= TO_AFFECTS;
+			af.type			= gsn_pass_door;
+			af.level		= mob->level;
+			af.duration		= -1;
+			af.location		= APPLY_NONE;
+			af.modifier		= 0;
+			af.bitvector	= AFF_PASS_DOOR;
+			af.bitvector2	= 0;
+			affect_to_char(mob, &af);
+		}
+
+		if (IS_AFFECTED(mob,AFF_HASTE))
+		{
+			af.group		= IS_SET(race->aff,AFF_HASTE)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.where		= TO_AFFECTS;
+			af.type			= gsn_haste;
+			af.level		= mob->level;
+			af.duration		= -1;
+			af.location		= APPLY_DEX;
+			af.modifier		= (mob->level - 4) / 7;
+			if( af.modifier < 1 ) af.modifier = 1;
+			af.bitvector	= AFF_HASTE;
+			af.bitvector2	= 0;
+			affect_to_char(mob, &af);
+		}
+
+		if (IS_AFFECTED2(mob, AFF2_WARCRY))
+		{
+			af.group		= AFFGROUP_PHYSICAL;
+			af.where		= TO_AFFECTS;
+			af.type			= gsn_warcry;
+			af.level		= mob->level;
+			af.duration		= -1;
+			af.location		= 0;
+			af.modifier		= 0;
+			af.bitvector	= 0;
+			af.bitvector2	= AFF2_WARCRY;
+			affect_to_char(mob,&af);
+		}
+
+		if (IS_AFFECTED2(mob, AFF2_LIGHT_SHROUD))
+		{
+			af.group		= IS_SET(race->aff2,AFF2_LIGHT_SHROUD)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.where		= TO_AFFECTS;
+			af.type			= gsn_light_shroud;
+			af.level		= mob->level;
+			af.duration		= -1;
+			af.location		= 0;
+			af.modifier		= 0;
+			af.bitvector	= 0;
+			af.bitvector2	= AFF2_LIGHT_SHROUD;
+			affect_to_char(mob,&af);
+		}
+
+		if (IS_AFFECTED2(mob, AFF2_HEALING_AURA))
+		{
+			af.group		= IS_SET(race->aff2,AFF2_HEALING_AURA)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.where		= TO_AFFECTS;
+			af.type			= gsn_healing_aura;
+			af.level		= mob->level;
+			af.duration		= -1;
+			af.location		= 0;
+			af.modifier		= 0;
+			af.bitvector	= 0;
+			af.bitvector2	= AFF2_HEALING_AURA;
+			affect_to_char(mob,&af);
+		}
+
+		if (IS_AFFECTED2(mob, AFF2_ENERGY_FIELD))
+		{
+			af.group		= IS_SET(race->aff2,AFF2_ENERGY_FIELD)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.where		= TO_AFFECTS;
+			af.type			= gsn_energy_field;
+			af.level		= mob->level;
+			af.duration		= -1;
+			af.location		= 0;
+			af.modifier		= 0;
+			af.bitvector	= 0;
+			af.bitvector2	= AFF2_ENERGY_FIELD;
+			affect_to_char(mob,&af);
+		}
+
+		if (IS_AFFECTED2(mob, AFF2_SPELL_SHIELD))
+		{
+			af.group		= IS_SET(race->aff2,AFF2_SPELL_SHIELD)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.where		= TO_AFFECTS;
+			af.type			= gsn_spell_shield;
+			af.level		= mob->level;
+			af.duration		= -1;
+			af.location		= 0;
+			af.modifier		= 0;
+			af.bitvector	= 0;
+			af.bitvector2	= AFF2_SPELL_SHIELD;
+			affect_to_char(mob,&af);
+		}
+
+		if (IS_AFFECTED2(mob, AFF2_SPELL_DEFLECTION))
+		{
+			af.group		= IS_SET(race->aff2,AFF2_SPELL_DEFLECTION)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.where		= TO_AFFECTS;
+			af.type			= gsn_spell_deflection;
+			af.level		= mob->level;
+			af.duration		= -1;
+			af.location		= 0;
+			af.modifier		= 0;
+			af.bitvector	= 0;
+			af.bitvector2	= AFF2_SPELL_DEFLECTION;
+			affect_to_char(mob,&af);
+		}
+
+		if (IS_AFFECTED2(mob, AFF2_AVATAR_SHIELD))
+		{
+			af.group		= IS_SET(race->aff2,AFF2_AVATAR_SHIELD)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.where		= TO_AFFECTS;
+			af.type			= gsn_avatar_shield;
+			af.level		= mob->level;
+			af.duration		= -1;
+			af.location		= 0;
+			af.modifier		= 0;
+			af.bitvector	= 0;
+			af.bitvector2	= AFF2_AVATAR_SHIELD;
+			affect_to_char(mob,&af);
+		}
+
+		if (IS_AFFECTED2(mob, AFF2_ELECTRICAL_BARRIER))
+		{
+			af.group		= IS_SET(race->aff2,AFF2_ELECTRICAL_BARRIER)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.where		= TO_AFFECTS;
+			af.type			= gsn_electrical_barrier;
+			af.level		= mob->level;
+			af.duration		= -1;
+			af.location		= 0;
+			af.modifier		= 0;
+			af.bitvector	= 0;
+			af.bitvector2	= AFF2_ELECTRICAL_BARRIER;
+			affect_to_char(mob,&af);
+			REMOVE_BIT(mob->affected_by2_perm, af.bitvector2);	// NIBS - why only this one?
+		}
+
+		if (IS_AFFECTED2(mob, AFF2_FIRE_BARRIER))
+		{
+			af.group		= IS_SET(race->aff2,AFF2_FIRE_BARRIER)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.where		= TO_AFFECTS;
+			af.type			= gsn_fire_barrier;
+			af.level		= mob->level;
+			af.duration		= -1;
+			af.location		= 0;
+			af.modifier		= 0;
+			af.bitvector	= 0;
+			af.bitvector2	= AFF2_FIRE_BARRIER;
+			affect_to_char(mob,&af);
+		}
+
+		if (IS_AFFECTED2(mob, AFF2_FROST_BARRIER))
+		{
+			af.group		= IS_SET(race->aff2,AFF2_FROST_BARRIER)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.where		= TO_AFFECTS;
+			af.type			= gsn_frost_barrier;
+			af.level		= mob->level;
+			af.duration		= -1;
+			af.location		= 0;
+			af.modifier		= 0;
+			af.bitvector	= 0;
+			af.bitvector2	= AFF2_FROST_BARRIER;
+			affect_to_char(mob,&af);
+		}
+
+		if (IS_AFFECTED2(mob, AFF2_IMPROVED_INVIS))
+		{
+			af.group		= IS_SET(race->aff2,AFF2_IMPROVED_INVIS)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.where		= TO_AFFECTS;
+			af.type			= gsn_improved_invisibility;
+			af.level		= mob->level;
+			af.duration		= -1;
+			af.location		= 0;
+			af.modifier		= 0;
+			af.bitvector	= 0;
+			af.bitvector2	= AFF2_IMPROVED_INVIS;
+			affect_to_char(mob,&af);
+		}
+
+		if (IS_AFFECTED2(mob, AFF2_STONE_SKIN))
+		{
+			af.group		= IS_SET(race->aff2,AFF2_STONE_SKIN)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
+			af.where		= TO_AFFECTS;
+			af.type			= gsn_stone_skin;
+			af.level		= mob->level;
+			af.duration		= -1;
+			af.location		= 0;
+			af.modifier		= 0;
+			af.bitvector	= 0;
+			af.bitvector2	= AFF2_STONE_SKIN;
+			affect_to_char(mob,&af);
+		}
+	}
+	mob->position = mob->start_pos;
+
+	mob->max_move = pMobIndex->move;
+	mob->move = pMobIndex->move;
+
+	/* link the mob to the world list */
+	list_appendlink(loaded_chars, mob);
+
+	/* Animate dead mobs don't add to the list.*/
+	pMobIndex->count++;
+
+	/* Keep GQ count*/
+	for (gq_mob = global_quest.mobs; gq_mob != NULL; gq_mob = gq_mob->next)
     {
-	if (pMobIndex->vnum == gq_mob->vnum)
-	    gq_mob->count++;
+		if (pMobIndex->vnum == gq_mob->vnum)
+			gq_mob->count++;
     }
 
-    if(pMobIndex->persist)
-    	persist_addmobile(mob);
+	if(pMobIndex->persist)
+		persist_addmobile(mob);
 
-    // make sure nothing has 0 hp
-    mob->max_hit = UMAX(1, mob->max_hit);
+	// make sure nothing has 0 hp
+	mob->max_hit = UMAX(1, mob->max_hit);
 
-    return mob;
+	return mob;
 }
 
 
@@ -4648,7 +4647,7 @@ bool extract_clone_room(ROOM_INDEX_DATA *room, unsigned long id1, unsigned long 
 	ROOM_INDEX_DATA *dest, *environ;
 	CHAR_DATA *ch, *ch_next;
 	OBJ_DATA *obj, *obj_next;
-	int door, rev_door, pass;
+	int door, rev_door;
 	char buf[MSL];
 
 	if(!room) return false;
@@ -4744,7 +4743,6 @@ bool extract_clone_room(ROOM_INDEX_DATA *room, unsigned long id1, unsigned long 
 		// Dump all corpses or takable items to a special place
 		environ = get_room_index(8);		// FIXME: change this to a define
 
-		pass = 0;
 		while(clone->contents) {
 			for(obj = clone->contents; obj; obj = obj_next) {
 				obj_next = obj->next_content;

@@ -1452,134 +1452,133 @@ bool process_output(DESCRIPTOR_DATA *d, bool fPrompt)
     /*
      * Bust a prompt.
      */
-    if(d->pProtocol->WriteOOB)
-	;
+	if(d->pProtocol->WriteOOB)
+		;
     else if (!merc_down)
     {
-	if (d->showstr_point)
-	    write_to_buffer(d, "[Hit Return to continue]\n\r", 0);
-	else if (fPrompt && d->pString && d->connected == CON_PLAYING)
-	    write_to_buffer(d, "> ", 2);
-	else if (fPrompt && d->connected == CON_PLAYING)
-	{
-	    CHAR_DATA *ch;
-	CHAR_DATA *victim;
+		if (d->showstr_point)
+			write_to_buffer(d, "[Hit Return to continue]\n\r", 0);
+		else if (fPrompt && d->pString && d->connected == CON_PLAYING)
+			write_to_buffer(d, "> ", 2);
+		else if (fPrompt && d->connected == CON_PLAYING)
+		{
+			CHAR_DATA *ch;
+			CHAR_DATA *victim;
 
-	ch = d->character;
+			ch = d->character;
 
-        /* battle prompt */
-        if ((victim = ch->fighting) != NULL && can_see(ch,victim) && ch->in_room == victim->in_room)
-        {
-            int percent;
-            char wound[100];
-	    char *pbuff;
-	    char buf[MAX_STRING_LENGTH];
-	    char buf2[MSL];
-	    char buffer[MAX_STRING_LENGTH*2];
+			/* battle prompt */
+			if ((victim = ch->fighting) != NULL && can_see(ch,victim) && ch->in_room == victim->in_room)
+			{
+				int percent;
+				char wound[100];
+				char *pbuff;
+				char buf[2*MAX_STRING_LENGTH];
+				char buf2[MSL];
+				char buffer[MAX_STRING_LENGTH*2];
 
-            if (victim->max_hit > 0)
-                percent = victim->hit * 100 / victim->max_hit;
-            else
-                percent = -1;
+				if (victim->max_hit > 0)
+					percent = victim->hit * 100 / victim->max_hit;
+				else
+					percent = -1;
 
-	    if (percent >= 100)
-		    sprintf(wound, "is in excellent condition.");
-	    else if (percent >= 90)
-		    sprintf(wound, "has a few scratches.");
-	    else if (percent >= 80)
-		    sprintf(wound, "has a few scratches and bruises.");
-	    else if (percent >= 70)
-		    sprintf(wound, "has some small wounds.");
-	    else if (percent >= 60)
-		    sprintf(wound, "has some small wounds and bruises.");
-	    else if (percent >= 50)
-		    sprintf(wound, "has some nasty wounds and scratches.");
-	    else if (percent >= 40)
-		    sprintf(wound, "looks pretty hurt.");
-	    else if (percent >= 30)
-		    sprintf(wound, "looks very hurt.");
-	    else if (percent >= 20)
-		    sprintf(wound, "is in awful condition.");
-	    else if (percent >= 10)
-		    sprintf(wound, "is barely clinging to life.");
-	    else
-		    sprintf(wound, "is on the verge of death.");
-      /*
-            if (percent >= 100)
-                sprintf(wound,"is in excellent condition.");
-            else if (percent >= 90)
-                sprintf(wound,"has a few scratches.");
-            else if (percent >= 75)
-                sprintf(wound,"has some small wounds and bruises.");
-            else if (percent >= 50)
-                sprintf(wound,"has quite a few wounds.");
-            else if (percent >= 30)
-                sprintf(wound,"has some big nasty wounds and scratches.");
-            else if (percent >= 15)
-                sprintf(wound,"looks pretty hurt.");
-            else if (percent >= 0)
-                sprintf(wound,"is in awful condition.");
-            else
-                sprintf(wound,"is bleeding to death.");
-*/
- 	    if (IS_SET(ch->comm, COMM_SHOW_FORM_STATE))
-		show_form_state(ch);
+				if (percent >= 100)
+					strcpy(wound, "is in excellent condition.");
+				else if (percent >= 90)
+					strcpy(wound, "has a few scratches.");
+				else if (percent >= 80)
+					strcpy(wound, "has a few scratches and bruises.");
+				else if (percent >= 70)
+					strcpy(wound, "has some small wounds.");
+				else if (percent >= 60)
+					strcpy(wound, "has some small wounds and bruises.");
+				else if (percent >= 50)
+					strcpy(wound, "has some nasty wounds and scratches.");
+				else if (percent >= 40)
+					strcpy(wound, "looks pretty hurt.");
+				else if (percent >= 30)
+					strcpy(wound, "looks very hurt.");
+				else if (percent >= 20)
+					strcpy(wound, "is in awful condition.");
+				else if (percent >= 10)
+					strcpy(wound, "is barely clinging to life.");
+				else
+					strcpy(wound, "is on the verge of death.");
+				/*
+				if (percent >= 100)
+					sprintf(wound,"is in excellent condition.");
+				else if (percent >= 90)
+					sprintf(wound,"has a few scratches.");
+				else if (percent >= 75)
+					sprintf(wound,"has some small wounds and bruises.");
+				else if (percent >= 50)
+					sprintf(wound,"has quite a few wounds.");
+				else if (percent >= 30)
+					sprintf(wound,"has some big nasty wounds and scratches.");
+				else if (percent >= 15)
+					sprintf(wound,"looks pretty hurt.");
+				else if (percent >= 0)
+					sprintf(wound,"is in awful condition.");
+				else
+					sprintf(wound,"is bleeding to death.");
+				*/
+				if (IS_SET(ch->comm, COMM_SHOW_FORM_STATE))
+					show_form_state(ch);
 
-            sprintf(buf2, "%s", pers(victim, ch));
-	    buf2[0] = UPPER(buf2[0]);
+				sprintf(buf2, "%s", pers(victim, ch));
+				buf2[0] = UPPER(buf2[0]);
 
-            sprintf(buf,"{M%s %s \n\r{x",
-	            buf2, wound);
-	    buf[0]	= UPPER(buf[0]);
-	    pbuff	= buffer;
-	    colourconv(pbuff, buf, d->character);
-            write_to_buffer(d, buffer, 0);
-        }
-
-
-	ch = d->original ? d->original : d->character;
-	if (!IS_SET(ch->comm, COMM_COMPACT))
-	    write_to_buffer(d, "\n\r", 2);
+				sprintf(buf,"{M%s %s \n\r{x", buf2, wound);
+				buf[0]	= UPPER(buf[0]);
+				pbuff	= buffer;
+				colourconv(pbuff, buf, d->character);
+				write_to_buffer(d, buffer, 0);
+			}
 
 
-        if (IS_SET(ch->comm, COMM_PROMPT))
-            bust_a_prompt(d->character);
+			ch = d->original ? d->original : d->character;
+			if (!IS_SET(ch->comm, COMM_COMPACT))
+				write_to_buffer(d, "\n\r", 2);
 
-	if (IS_SET(ch->comm,COMM_TELNET_GA))
-	    write_to_buffer(d,go_ahead_str,0);
-    }
-    }
+
+			if (IS_SET(ch->comm, COMM_PROMPT))
+				bust_a_prompt(d->character);
+
+			if (IS_SET(ch->comm,COMM_TELNET_GA))
+				write_to_buffer(d,go_ahead_str,0);
+		}
+	}
 
     /*
      * Short-circuit if nothing to write.
      */
-    if (d->outtop == 0)
-	return TRUE;
+	if (d->outtop == 0)
+		return TRUE;
 
     /*
      * Snoop-o-rama.
      */
-    if (d->snoop_by != NULL)
-    {
-	if (d->character != NULL)
-	    write_to_buffer(d->snoop_by, d->character->name,0);
-	write_to_buffer(d->snoop_by, "> ", 2);
-	write_to_buffer(d->snoop_by, d->outbuf, d->outtop);
-    }
+	if (d->snoop_by != NULL)
+	{
+		if (d->character != NULL)
+			write_to_buffer(d->snoop_by, d->character->name,0);
+		write_to_buffer(d->snoop_by, "> ", 2);
+		write_to_buffer(d->snoop_by, d->outbuf, d->outtop);
+	}
 
     /*
      * OS-dependent output.
      */
-    if (!write_to_descriptor(d, d->outbuf, d->outtop))
-    {
-	d->outtop = 0;
-	return FALSE;
-    }
-    else
-    {
-	d->outtop = 0;
-	return TRUE;
-    }
+	if (!write_to_descriptor(d, d->outbuf, d->outtop))
+	{
+		d->outtop = 0;
+		return FALSE;
+	}
+	else
+	{
+		d->outtop = 0;
+		return TRUE;
+	}
 }
 
 
@@ -3388,12 +3387,12 @@ bool check_playing(DESCRIPTOR_DATA *d, char *name)
 
 void stop_idling(CHAR_DATA *ch)
 {
-    if (ch == NULL
-    ||   ch->desc == NULL
-    ||   ch->desc->connected != CON_PLAYING
-    ||   ch->was_in_room == NULL
-    ||   ch->in_room != get_room_index(ROOM_VNUM_LIMBO))
-	return;
+	if (ch == NULL ||
+		ch->desc == NULL ||
+		ch->desc->connected != CON_PLAYING ||
+		ch->was_in_room == NULL ||
+		ch->in_room != get_room_index(ROOM_VNUM_LIMBO))
+		return;
 
 	if( ch->was_in_room_id[0] || ch->was_in_room_id[1] )
 	{
@@ -3720,18 +3719,17 @@ void show_string(struct descriptor_data *d, char *input)
 	{
 	    *scan = '\0';
 	    write_to_buffer(d,buffer,strlen(buffer));
-	    for (chk = d->showstr_point; isspace(*chk); chk++);
-	    {
+	    for (chk = d->showstr_point; *chk && isspace(*chk); chk++);
+
 		if (!*chk)
 		{
-		    if (d->showstr_head)
-        	    {
-            		free(d->showstr_head);
-            		d->showstr_head = 0;
-        	    }
-        	    d->showstr_point  = 0;
-    		}
-	    }
+			if (d->showstr_head)
+			{
+				free(d->showstr_head);
+				d->showstr_head = NULL;
+			}
+			d->showstr_point  = NULL;
+		}
 	    return;
 	}
     }
@@ -3761,8 +3759,6 @@ void act_new(char *format, CHAR_DATA *ch,
     char 		buffer[ MAX_STRING_LENGTH*2 ];
     char 		buf[ MAX_STRING_LENGTH   ];
     char 		fname[ MAX_INPUT_LENGTH  ];
-    bool		fColour = FALSE;
-    bool		to_upper = FALSE;
     bool		see_all;
 
 
@@ -3790,9 +3786,6 @@ void act_new(char *format, CHAR_DATA *ch,
 
         to = vch->in_room->people;
     }
-
-    if (format[0] == '{' && format[2] == '$')
-	to_upper = TRUE;
 
     for (; to ; to = to->next_in_room)
     {
@@ -3828,7 +3821,6 @@ void act_new(char *format, CHAR_DATA *ch,
                 *point++ = *str++;
                 continue;
             }
-	    fColour = TRUE;
 	    see_all = FALSE;
             ++str;
 

@@ -1854,7 +1854,7 @@ void do_chdeduct(CHAR_DATA *ch, char *argument)
     char arg[MAX_STRING_LENGTH];
     char arg2[MAX_STRING_LENGTH];
     char arg3[MAX_STRING_LENGTH];
-    char buf[MAX_STRING_LENGTH];
+    char buf[2*MAX_STRING_LENGTH];
     int amt;
     int i;
     CHURCH_DATA *church;
@@ -3136,26 +3136,24 @@ bool is_trusted(CHURCH_PLAYER_DATA *member, char *command)
 /* add something to the church's log */
 void append_church_log(CHURCH_DATA *church, char *string)
 {
-    char *log;
     char buf[MSL];
     char buf2[MSL];
     char *time;
 
     if (church == NULL)
     {
-	bug("append_church_log: null church.", 1);
-	return;
+		bug("append_church_log: null church.", 1);
+		return;
     }
 
-    log = church->log;
     sprintf(buf, "append_church_log: appended %s to log of %s",
         string, church->name);
     log_string(buf);
 
     if (church->log != NULL)
-	sprintf(buf, "%s", church->log);
+		sprintf(buf, "%s", church->log);
     else
-	sprintf(buf, "{x");
+		sprintf(buf, "{x");
 
     time = time_for_log();
 
@@ -3199,7 +3197,7 @@ void show_church_info(CHURCH_DATA *church, CHAR_DATA *ch)
 {
     BUFFER *buffer;
     CHURCH_PLAYER_DATA *member;
-    char buf[MSL];
+    char buf[2*MSL];
     char buf2[MSL];
     int i;
 
@@ -3232,19 +3230,19 @@ void show_church_info(CHURCH_DATA *church, CHAR_DATA *ch)
     switch(church->size)
     {
 	case CHURCH_SIZE_BAND:
-	    sprintf(buf2, "Band");
+	    strcpy(buf2, "Band");
 	    break;
 	case CHURCH_SIZE_CULT:
-	    sprintf(buf2, "Cult");
+	    strcpy(buf2, "Cult");
 	    break;
 	case CHURCH_SIZE_ORDER:
-	    sprintf(buf2, "Order");
+	    strcpy(buf2, "Order");
 	    break;
 	case CHURCH_SIZE_CHURCH:
-	    sprintf(buf2, "Church");
+	    strcpy(buf2, "Church");
 	    break;
 	default:
-	    sprintf(buf2, "Unknown");
+	    strcpy(buf2, "Unknown");
 	    break;
     }
 
@@ -3559,7 +3557,7 @@ void write_church(CHURCH_DATA *church, FILE *fp)
     fprintf(fp, "Motd %s~\n", fix_string(church->motd));
     fprintf(fp, "Rules %s~\n", fix_string(church->rules));
     if (church->info != NULL)
-	fprintf(fp, "Info %s~\n", fix_string(church->info));
+		fprintf(fp, "Info %s~\n", fix_string(church->info));
 
 	iterator_start(&it, church->treasure_rooms);
 	while(( room = (ROOM_INDEX_DATA *)iterator_nextdata(&it))) {
@@ -3763,12 +3761,12 @@ CHURCH_DATA *read_church(FILE *fp)
 				ROOM_INDEX_DATA *room;
 				int x;
 				int y;
-				int z;
+				//int z;
 
 				wilds = get_wilds_from_uid(NULL,fread_number(fp));
 				x = fread_number(fp);
 				y = fread_number(fp);
-				z = fread_number(fp);
+				/*z = */(void)fread_number(fp);	// z isn't being used, but exists in the file?
 				room = get_wilds_vroom(wilds, x, y);
 				if(!room)
 					room = create_wilds_vroom(wilds,x, y);
@@ -3799,7 +3797,7 @@ CHURCH_DATA *read_church(FILE *fp)
     }
 
     if (church->info == NULL)
-	church->info = str_dup("No info set.");
+		church->info = str_dup("No info set.");
 
 	get_church_id(church);
 
