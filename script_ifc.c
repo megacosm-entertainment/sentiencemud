@@ -4488,4 +4488,39 @@ DECL_IFC_FUN(ifc_roll)
 	return TRUE;
 }
 
+// boost TYPE == NUMBER
+DECL_IFC_FUN(ifc_boost)
+{
+	if(!ISARG_STR(0)) return FALSE;
 
+	if(!str_cmp(ARG_STR(0),"xp")) *ret = boost_table[BOOST_EXPERIENCE].boost;
+	else if(!str_cmp(ARG_STR(0),"damage")) *ret = boost_table[BOOST_DAMAGE].boost;
+	else if(!str_cmp(ARG_STR(0),"qp")) *ret = boost_table[BOOST_QP].boost;
+	else if(!str_cmp(ARG_STR(0),"pneuma")) *ret = boost_table[BOOST_PNEUMA].boost;
+	else if(!str_cmp(ARG_STR(0),"reckoning")) *ret = boost_table[BOOST_RECKONING].boost;
+	else
+		return FALSE;
+
+	return TRUE;
+}
+
+// boosttimer TYPE == NUMBER
+DECL_IFC_FUN(ifc_boosttimer)
+{
+	if(!ISARG_STR(0)) return FALSE;
+
+	time_t timer;
+
+	if(!str_cmp(ARG_STR(0),"xp")) timer = boost_table[BOOST_EXPERIENCE].boost;
+	else if(!str_cmp(ARG_STR(0),"damage")) timer = boost_table[BOOST_DAMAGE].boost;
+	else if(!str_cmp(ARG_STR(0),"qp")) timer = boost_table[BOOST_QP].boost;
+	else if(!str_cmp(ARG_STR(0),"pneuma")) timer = boost_table[BOOST_PNEUMA].boost;
+	else if(!str_cmp(ARG_STR(0),"reckoning")) timer = boost_table[BOOST_RECKONING].boost;
+	else
+		return FALSE;
+
+	*ret = (timer - current_time) / 60;
+	if( *ret < 0 ) *ret = 0;
+
+	return TRUE;
+}
