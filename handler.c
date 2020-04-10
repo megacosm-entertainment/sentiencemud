@@ -1191,35 +1191,36 @@ void affect_check(CHAR_DATA *ch, int where, long vector, long vector2)
 	return;
 
     for (paf = ch->affected; paf != NULL; paf = paf->next)
-	if (paf->where == where && paf->bitvector == vector)
-	{
-	    switch (where)
-	    {
-	        case TO_AFFECTS:
-		    SET_BIT(ch->affected_by,vector);
-		    break;
-	        case TO_IMMUNE:
-		    SET_BIT(ch->imm_flags,vector);
-		    break;
-	        case TO_RESIST:
-		    SET_BIT(ch->res_flags,vector);
-		    break;
-	        case TO_VULN:
-		    SET_BIT(ch->vuln_flags,vector);
-		    break;
-	    }
-	    return;
-	}
-        else
-	if (paf->where == where && paf->bitvector2 == vector2)
-	{
-	    switch (where)
-	    {
-		case TO_AFFECTS:
-		    SET_BIT(ch->affected_by2,vector2);
-		    break;
-	    }
-	    return;
+    {
+		if (paf->where == where && paf->bitvector == vector)
+		{
+			switch (where)
+			{
+				case TO_AFFECTS:
+				SET_BIT(ch->affected_by,vector);
+				break;
+				case TO_IMMUNE:
+				SET_BIT(ch->imm_flags,vector);
+				break;
+				case TO_RESIST:
+				SET_BIT(ch->res_flags,vector);
+				break;
+				case TO_VULN:
+				SET_BIT(ch->vuln_flags,vector);
+				break;
+			}
+			return;
+		}
+        else if (paf->where == where && paf->bitvector2 == vector2)
+		{
+			switch (where)
+			{
+			case TO_AFFECTS:
+				SET_BIT(ch->affected_by2,vector2);
+				break;
+			}
+			return;
+		}
 	}
 
 	for (obj = ch->carrying; obj != NULL; obj = obj->next_content)

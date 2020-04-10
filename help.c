@@ -79,13 +79,15 @@ void do_help(CHAR_DATA *ch, char *argument)
 			if (get_trust(ch) >= hcatnest->min_level) {
 				sprintf(buf, "%s", hcatnest->name);
 
-				p = buf;
+				char buf3[MSL];
+
+				p = buf3;
 				while (*p != '\0') {
 					*p = UPPER(*p);
 					p++;
 				}
 
-				sprintf(buf2, "{b[{BC{b]{W   %s{B", buf);
+				sprintf(buf2, "{b[{BC{b]{W   %s{B", buf3);
 				sprintf(buf, "%-36s %s", buf2, i % 3 == 0 ? "\n\r" : "");
 				add_buf(buffer, buf);
 				i++;

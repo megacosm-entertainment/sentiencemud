@@ -3116,7 +3116,6 @@ void do_rlist(CHAR_DATA *ch, char *argument)
 	&& vnum <= vnum_max)
 	{
 	    char *noc;
-	    found = TRUE;
 	    noc = nocolour(pRoomIndex->name);
 	    sprintf(buf, "[%5ld] %-17.16s", vnum, noc);
 	    free_string(noc);

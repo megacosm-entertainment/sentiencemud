@@ -240,8 +240,6 @@ BUFFER *get_players_html()
     char *text;
     BUFFER *output;
     DESCRIPTOR_DATA *d;
-    int iClass;
-    int iRace;
     int iLevelLower;
     int iLevelUpper;
     int nMatch;
