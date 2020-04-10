@@ -2769,7 +2769,7 @@ bool can_start_combat(CHAR_DATA *ch)
 	return TRUE;
 }
 
-void enter_combat(CHAR_DATA *ch, CHAR_DATA *victim)
+void enter_combat(CHAR_DATA *ch, CHAR_DATA *victim, bool silent)
 {
 	if (IS_AFFECTED(ch, AFF_SLEEP))
 	{
@@ -2791,8 +2791,10 @@ void enter_combat(CHAR_DATA *ch, CHAR_DATA *victim)
 	{
 		ch->fade = 0;
 		ch->fade_dir = -1;	//@@@NIB : 20071020
-		act("$n fades back into this dimension.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-		act("You fade back into this dimension.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		if(!silent) {
+			act("$n fades back into this dimension.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			act("You fade back into this dimension.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		}
 	}
 
 	/*
@@ -2804,7 +2806,8 @@ void enter_combat(CHAR_DATA *ch, CHAR_DATA *victim)
 	hunt_char(ch, victim);
 	*/
 
-	act("$N begins attacking $n!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
+	if(!silent)
+		act("$N begins attacking $n!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
 }
 
 // Start a fight.
@@ -2819,7 +2822,7 @@ bool set_fighting(CHAR_DATA *ch, CHAR_DATA *victim)
 	{
 		if( victim->fighting == NULL ) {
 //			send_to_char("Resuming combat...\n\r", victim);
-			enter_combat(victim, ch);
+			enter_combat(victim, ch, FALSE);
 		}
 		return TRUE;
 	}
@@ -2828,7 +2831,7 @@ bool set_fighting(CHAR_DATA *ch, CHAR_DATA *victim)
 
 	if( !can_start_combat(victim) ) return FALSE;
 
-	enter_combat(ch, victim);
+	enter_combat(ch, victim, FALSE);
 
 	// Wilderness spear style kicks in here too
 	// MK 100316 - Changed so that the victim must be standing to do this defense.
@@ -2858,7 +2861,7 @@ bool set_fighting(CHAR_DATA *ch, CHAR_DATA *victim)
 	/* AO 092516 Make sure to initiate combat on a successful defense. Hackish but oh well. */
 	//damage_new(ch,victim,NULL,0,0,0,FALSE);	// MK couldn't you just... set the victim's fighting if it's null?
 	if( victim->fighting == NULL )
-		enter_combat(victim, ch);
+		enter_combat(victim, ch, FALSE);
 
 	p_percent_trigger(victim, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_START_COMBAT, NULL);
 	p_percent_trigger(ch, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_START_COMBAT, NULL);
@@ -3589,7 +3592,7 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
 		recall = victim->recall;
 		location_clear(&victim->recall);
 	}
-	
+
 	// Just in case...
 	if (!(recall_room = location_to_room(&recall)))
 	{

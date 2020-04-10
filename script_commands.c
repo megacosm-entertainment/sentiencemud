@@ -451,6 +451,73 @@ SCRIPT_CMD(scriptcmd_deduct)
 //////////////////////////////////////
 // E
 
+// ENTERCOMBAT[ $ATTACKER] $VICTIM[ $SILENT]
+// Switches target explicitly without triggering any standard combat scripts
+//  - used for scripts in combat to change targets
+SCRIPT_CMD(scriptcmd_entercombat)
+{
+	char *rest;
+	CHAR_DATA *attacker = NULL;
+	CHAR_DATA *victim = NULL;
+	SCRIPT_PARAM arg;
+	bool fSilent = FALSE;
+
+
+	info->progs->lastreturn = 0;
+
+	if(!(rest = expand_argument(info,argument,&arg))) {
+		bug("MpStartCombat - Error in parsing from vnum %ld.", VNUM(info->mob));
+		return;
+	}
+
+	switch(arg.type) {
+	case ENT_STRING: victim = script_get_char_room(info, arg.d.str, FALSE); break;
+	case ENT_MOBILE: victim = arg.d.mob; break;
+	default: victim = NULL; break;
+	}
+
+	if (!victim)
+		return;
+
+	if(*rest) {
+		if(!(rest = expand_argument(info,rest,&arg)))
+			return;
+
+		attacker = victim;
+		if( arg.type == ENT_BOOLEAN ) {
+			// VICTIM SILENT syntax
+			fSilent = arg.d.boolean == TRUE;
+		} else {
+			switch(arg.type) {
+			case ENT_STRING: victim = script_get_char_room(info, arg.d.str, FALSE); break;
+			case ENT_MOBILE: victim = arg.d.mob; break;
+			default: victim = NULL; break;
+			}
+
+			if (!victim)
+				return;
+
+			if(*rest ) {
+				if(!expand_argument(info,rest,&arg))
+					return;
+
+				// ATTACKER VICTIM SILENT syntax
+				if( arg.type == ENT_BOOLEAN )
+					fSilent = arg.d.boolean == TRUE;
+			}
+		}
+	} else if(!info->mob)
+		return;
+	else
+		attacker = info->mob;
+
+	enter_combat(attacker, victim, fSilent);
+
+	if( attacker->fighting == victim )
+		info->progs->lastreturn = 1;
+}
+
+
 //////////////////////////////////////
 // F
 
