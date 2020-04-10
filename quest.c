@@ -867,14 +867,17 @@ void do_quest(CHAR_DATA *ch, char *argument)
   award_ship_quest_points(ch->in_room->area->place_flags, ch, 1);
 */
 
-    ch->nextquest = 10;
+	mob->tempstore[0] = 10;
+	p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_POSTQUEST, NULL);
+
+    ch->nextquest = mob->tempstore[0];
+    if(ch->nextquest < 1) ch->nextquest = 1;
 
     ch->countdown = 0;	// @@@NIB Not doing this was causing nextquest to come up
     			//	10 minutes if nextquest had expired
     free_quest(ch->quest);
     ch->quest = NULL;
 
-		p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_POSTQUEST, NULL);
     }
     else
     {
@@ -920,8 +923,12 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 	if(p_percent_trigger( questman, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_PREQUEST, NULL))
 		return FALSE;
 	parts = questman->tempstore[0];				// Updated number of parts to do
+	if( parts < 1 ) parts = 1;					//    Require at least one part.
+
 												// Whether this was a F.U.N. quest (skipped)
 	int script_tasks = questman->tempstore[2];	// Number of scripted tasks available
+
+
 
 
 	// create the scroll
