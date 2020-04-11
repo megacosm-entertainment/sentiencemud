@@ -2949,6 +2949,7 @@ void set_corpse_data(OBJ_DATA *corpse, int corpse_type)
 	if(min < 0) min *= -corpse->level;
 	if(max < 0) max *= -corpse->level;
 	corpse->timer = number_range(min, max);
+	corpse->timer = UMAX(corpse->timer, 1);	// Must have some decay time on it.
 	CORPSE_RESURRECT(corpse) = corpse_info_table[corpse_type].resurrect_chance;
 	CORPSE_ANIMATE(corpse) = corpse_info_table[corpse_type].animation_chance;
 
