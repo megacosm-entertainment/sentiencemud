@@ -1381,43 +1381,45 @@ void do_close(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if ((door = find_door(ch, arg, TRUE)) >= 0)
-    {
-	/* 'close door' */
-	ROOM_INDEX_DATA *to_room;
-	EXIT_DATA *pexit;
-	EXIT_DATA *pexit_rev;
-
-        exit_name(ch->in_room, door, exit);
-
-	pexit	= ch->in_room->exit[door];
-	if (IS_SET(pexit->exit_info, EX_CLOSED))
+	if ((door = find_door(ch, arg, TRUE)) >= 0)
 	{
-	    send_to_char("It's already closed.\n\r", ch);
-	    return;
-	}
+		/* 'close door' */
+		ROOM_INDEX_DATA *to_room;
+		EXIT_DATA *pexit;
+		EXIT_DATA *pexit_rev;
 
-	if (IS_SET(pexit->exit_info, EX_BROKEN)) {
-	    send_to_char("That door has been destroyed. It cannot be closed.\n\r", ch);
-	    return;
-	}
+		exit_name(ch->in_room, door, exit);
 
-	SET_BIT(pexit->exit_info, EX_CLOSED);
-	act("$n closes $T.", ch, NULL, NULL, NULL, NULL, NULL, exit, TO_ROOM);
-	act("You close $T.", ch, NULL, NULL, NULL, NULL, NULL, exit, TO_CHAR);
-        p_direction_trigger(ch, ch->in_room, door, PRG_RPROG, TRIG_CLOSE);
+		pexit	= ch->in_room->exit[door];
+		if (IS_SET(pexit->exit_info, EX_CLOSED))
+		{
+			send_to_char("It's already closed.\n\r", ch);
+			return;
+		}
 
-	/* close the other side */
-	if ((to_room   = pexit->u1.to_room           ) != NULL
-	&&   (pexit_rev = to_room->exit[rev_dir[door]]) != 0
-	&&   pexit_rev->u1.to_room == ch->in_room)
-	{
-	    CHAR_DATA *rch;
+		if (IS_SET(pexit->exit_info, EX_BROKEN)) {
+			send_to_char("That door has been destroyed. It cannot be closed.\n\r", ch);
+			return;
+		}
 
-	    SET_BIT(pexit_rev->exit_info, EX_CLOSED);
-	    for (rch = to_room->people; rch != NULL; rch = rch->next_in_room)
-		act("The $T closes.", rch, NULL, NULL, NULL, NULL, NULL, exit, TO_CHAR);
-	}
+		SET_BIT(pexit->exit_info, EX_CLOSED);
+		act("$n closes $T.", ch, NULL, NULL, NULL, NULL, NULL, exit, TO_ROOM);
+		act("You close $T.", ch, NULL, NULL, NULL, NULL, NULL, exit, TO_CHAR);
+		p_direction_trigger(ch, ch->in_room, door, PRG_RPROG, TRIG_CLOSE);
+
+		/* close the other side */
+		if ((to_room   = pexit->u1.to_room           ) != NULL &&
+			(pexit_rev = to_room->exit[rev_dir[door]]) != 0 &&
+			pexit_rev->u1.to_room == ch->in_room)
+		{
+			CHAR_DATA *rch;
+
+			exit_name(to_room, rev_dir[door], exit);
+
+			SET_BIT(pexit_rev->exit_info, EX_CLOSED);
+			for (rch = to_room->people; rch != NULL; rch = rch->next_in_room)
+				act("The $T closes.", rch, NULL, NULL, NULL, NULL, NULL, exit, TO_CHAR);
+		}
     }
 
     return;
