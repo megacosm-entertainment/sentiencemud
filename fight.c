@@ -4661,7 +4661,7 @@ void do_bash(CHAR_DATA *ch, char *argument)
 
 			chance = chance / 5;	// Only 1/5 the original chance to break off any bars on the door
 
-			if (IS_SET(IS_SET(pexit->exit_info, EX_BARRED) && number_percent() < chance)
+			if (IS_SET(pexit->exit_info, EX_BARRED) && number_percent() < chance)
 			{
 				REMOVE_BIT(pexit->exit_info , EX_BARRED);
 				act("You rebound off the the $p, managing to break off the bars holding the $p closed, before flying backwards!", ch, NULL, NULL, NULL, NULL, NULL, pexit->keyword, TO_CHAR);
