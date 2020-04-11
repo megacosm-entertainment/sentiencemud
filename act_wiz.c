@@ -4607,8 +4607,6 @@ void do_chset(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			list_remlink(church->treasure_rooms, room);
-
 			send_to_char("Treasure room added.\n\r", ch);
 			return;
 		}
@@ -4641,6 +4639,8 @@ void do_chset(CHAR_DATA *ch, char *argument)
 				send_to_char("That room is not a treasure room in the church.\n\r", ch);
 				return;
 			}
+
+			list_remlink(church->treasure_rooms, room);
 
 			send_to_char("Treasure room removed.\n\r", ch);
 			return;
