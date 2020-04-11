@@ -3462,9 +3462,17 @@ void do_chdonate(CHAR_DATA *ch, char *argument)
 		return;
     }
 
-    if (!list_size(ch->church->treasure_rooms))
+    if(is_excommunicated(ch))
     {
-    	send_to_char("Your church doesn't have a treasure room.\n\r", ch);
+        send_to_char("You have been excommunicated.\n\r", ch);
+		return;
+	}
+
+	int avail = church_available_treasure_rooms(ch);
+
+    if (avail < 1)
+    {
+    	send_to_char("You do not have access to a treasure room.\n\r", ch);
 		return;
     }
 
@@ -3487,7 +3495,7 @@ void do_chdonate(CHAR_DATA *ch, char *argument)
 
 		roomno = atoi(argument);
 
-		if( roomno < 1 || roomno > list_size(ch->church->treasure_rooms))
+		if( roomno < 1 || roomno > avail)
 		{
 			send_to_char("That is not a valid room number.\n\rPlease review the list in {WCHURCH TREASURE LIST{x.\n\r", ch);
 			return;
@@ -3495,7 +3503,7 @@ void do_chdonate(CHAR_DATA *ch, char *argument)
 	}
 
 
-    CHURCH_TREASURE_ROOM *treasure = get_church_treasure_room(ch->church, roomno);
+    CHURCH_TREASURE_ROOM *treasure = get_church_treasure_room(ch, ch->church, roomno);
     if( !treasure || !treasure->room )
     {
 		send_to_char("Something went wrong.  Could not find the treasure room.\n\r", ch);
@@ -4102,8 +4110,19 @@ void church_remove_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room)
 	}
 }
 
-CHURCH_TREASURE_ROOM *get_church_treasure_room(CHURCH_DATA *church, int nth)
+CHURCH_TREASURE_ROOM *get_church_treasure_room(CHAR_DATA *ch, CHURCH_DATA *church, int nth)
 {
+	int min_rank = CHURCH_RANK_A;
+
+	if( ch != NULL )
+	{
+		if( IS_NPC(ch) ) return NULL;
+		if( ch->church != church ) return NULL;
+		if( is_excommunicated(ch) ) return NULL;	// Excommunicated members cannot access treasure rooms
+
+		min_rank = ch->church_member->rank;
+	}
+
 	if( nth < 1 ) return NULL;
 
 	CHURCH_TREASURE_ROOM *treasure = NULL;
@@ -4111,7 +4130,7 @@ CHURCH_TREASURE_ROOM *get_church_treasure_room(CHURCH_DATA *church, int nth)
 
 	iterator_start(&it, church->treasure_rooms);
 	while( (treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it))) {
-		if( !--nth)
+		if( min_rank >= treasure->min_rank && !--nth)
 		{
 			break;
 		}
@@ -4121,6 +4140,7 @@ CHURCH_TREASURE_ROOM *get_church_treasure_room(CHURCH_DATA *church, int nth)
 	return treasure;
 
 }
+
 
 bool church_set_treasure_room_rank(CHURCH_DATA *church, int nth, int min_rank)
 {
@@ -4140,6 +4160,30 @@ bool church_set_treasure_room_rank(CHURCH_DATA *church, int nth, int min_rank)
 	iterator_stop(&it);
 
 	return FALSE;
+}
+
+int church_available_treasure_rooms(CHAR_DATA *ch)
+{
+	if( ch == NULL ) return 0;
+	if( IS_NPC(ch) ) return 0;
+	if( ch->church == NULL ) return 0;
+	if( is_excommunicated(ch) ) return 0;	// Excommunicated members cannot access treasure rooms
+
+	CHURCH_TREASURE_ROOM *treasure = NULL;
+	ITERATOR it;
+
+	int count = 0;
+
+	iterator_start(&it, church->treasure_rooms);
+	while( (treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it))) {
+		if( min_rank >= treasure->min_rank)
+		{
+			count++;
+		}
+	}
+	iterator_stop(&it);
+
+	return count;
 }
 
 void do_chtreasure(CHAR_DATA *ch, char *argument)
@@ -4166,6 +4210,12 @@ void do_chtreasure(CHAR_DATA *ch, char *argument)
 		return;
     }
 
+    if (is_excommunicated(ch))
+    {
+		send_to_char("You have been excommunicated.  That information is forbidden.\n\r", ch);
+		return;
+	}
+
     if (arg[0] == '\0')
     {
 		send_to_char("CHURCH TREASURE LIST\n\r", ch);
@@ -4179,10 +4229,18 @@ void do_chtreasure(CHAR_DATA *ch, char *argument)
 		CHURCH_TREASURE_ROOM *treasure;
 		ITERATOR it;
 
+		bool skipped = FALSE;
+
 		int i = 0;
 		iterator_start(&it, ch->church->treasure_rooms);
 		while( (treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it)) )
 		{
+			if( ch->church_member->rank < treasure->min_rank )
+			{
+				skipped = TRUE;
+				continue;
+			}
+
 			if( i == 0 ) {
 				sprintf(buf, "{YTreasure rooms for {W%s{Y:\n\r", ch->church->name);
 				send_to_char(buf, ch);
@@ -4198,8 +4256,12 @@ void do_chtreasure(CHAR_DATA *ch, char *argument)
 		}
 		iterator_stop(&it);
 
-		if( i == 0 )
-			send_to_char("Your church has no treasure rooms yet.\n\r", ch);
+		if( i == 0 ) {
+			if( skipped )
+				send_to_char("There are no treasure rooms available to you.\n\r", ch);	// Should NEVER happen, but no telling in the future.
+			else
+				send_to_char("Your church has no treasure rooms yet.\n\r", ch);
+		}
 
 		return;
 	}
@@ -4209,8 +4271,6 @@ void do_chtreasure(CHAR_DATA *ch, char *argument)
 		if( ch->church_member->rank < CHURCH_RANK_D )
 		{
 			send_to_char("CHURCH TREASURE LIST\n\r", ch);
-			if( ch->church_member->rank >= CHURCH_RANK_D )
-				send_to_char("                RANK <room#> <rank>\n\r", ch);
 			return;
 		}
 
@@ -4256,7 +4316,7 @@ void do_chtreasure(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		CHURCH_TREASURE_ROOM *treasure = get_church_treasure_room(ch->church, roomno);
+		CHURCH_TREASURE_ROOM *treasure = get_church_treasure_room(NULL, ch->church, roomno);
 
 		if(!treasure)
 		{
