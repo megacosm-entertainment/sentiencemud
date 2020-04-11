@@ -3110,7 +3110,7 @@ void check_relic_vanish(OBJ_DATA *relic)
 	ITERATOR cit, rit, oit;
     ROOM_INDEX_DATA *to_room;
     CHURCH_DATA *church;
-    ROOM_INDEX_DATA *treasure_room;
+    CHURCH_TREASURE_ROOM *treasure;
     OBJ_DATA *obj;
     char buf[MSL];
     int chance1 = 5;
@@ -3127,8 +3127,8 @@ void check_relic_vanish(OBJ_DATA *relic)
 		iterator_start(&cit, list_churches);
 		while((church = (CHURCH_DATA *)iterator_nextdata(&cit))) {
 			iterator_start(&rit, church->treasure_rooms);
-			while(( treasure_room = (ROOM_INDEX_DATA *)iterator_nextdata(&rit))) {
-				iterator_start(&oit, treasure_room->lcontents);
+			while(( treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&rit))) {
+				iterator_start(&oit, treasure->room->lcontents);
 				while(( obj = (OBJ_DATA *)iterator_nextdata(&oit))) {
 					if (obj == relic) {
 						sprintf(buf,

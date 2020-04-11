@@ -3068,99 +3068,99 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 // Write the permanent objects - the ones which save over reboots, etc.
 void write_permanent_objs()
 {
-#if 0
-//    FILE *fp;
-//    CHURCH_DATA *church;
-//    ROOM_INDEX_DATA *room;
-//    OBJ_DATA *obj;
-//
-//    if ((fp = fopen(PERM_OBJS_FILE, "w")) == NULL)
-//	bug("perm_objs_new.dat: Couldn't open file.",0);
-//	else
-//    {
-//    	wiznet("writing permanent objects...", NULL, NULL, WIZ_TESTING, 0, 0);
-//
-//	// save relics
-//	if (pneuma_relic != NULL && !is_in_treasure_room(pneuma_relic))
-//	    fwrite_obj_new(NULL, pneuma_relic, fp, 0);
-//
-//	if (damage_relic != NULL && !is_in_treasure_room(damage_relic))
-//	    fwrite_obj_new(NULL, damage_relic, fp, 0);
-//
-//	if (xp_relic != NULL && !is_in_treasure_room(xp_relic))
-//	    fwrite_obj_new(NULL, xp_relic, fp, 0);
-//
-//	if (mana_regen_relic != NULL && !is_in_treasure_room(mana_regen_relic))
-//	    fwrite_obj_new(NULL, mana_regen_relic, fp, 0);
-//
-//	if (hp_regen_relic != NULL && !is_in_treasure_room(hp_regen_relic))
-//	    fwrite_obj_new(NULL, hp_regen_relic, fp, 0);
-//
-//	// save church treasure rooms
-//	for (church = church_list; church != NULL; church = church->next)
-//	{
-//	    if ((room = get_room_index(church->treasure_room)) != NULL)
-//	    {
-//		if (room->contents != NULL)
-//		    fwrite_obj_new(NULL, room->contents, fp, 0);
-//	    }
-//	}
-//
-//	fprintf(fp, "#END\n");
-//
-//	fclose(fp);
-//	}
-#endif
+    FILE *fp;
+    CHURCH_DATA *church;
+    ROOM_INDEX_DATA *room;
+    OBJ_DATA *obj;
+
+    if ((fp = fopen(PERM_OBJS_FILE, "w")) == NULL)
+	bug("perm_objs_new.dat: Couldn't open file.",0);
+	else
+    {
+    	wiznet("writing permanent objects...", NULL, NULL, WIZ_TESTING, 0, 0);
+
+	// save relics
+	if (pneuma_relic != NULL && !is_in_treasure_room(pneuma_relic))
+	    fwrite_obj_new(NULL, pneuma_relic, fp, 0);
+
+	if (damage_relic != NULL && !is_in_treasure_room(damage_relic))
+	    fwrite_obj_new(NULL, damage_relic, fp, 0);
+
+	if (xp_relic != NULL && !is_in_treasure_room(xp_relic))
+	    fwrite_obj_new(NULL, xp_relic, fp, 0);
+
+	if (mana_regen_relic != NULL && !is_in_treasure_room(mana_regen_relic))
+	    fwrite_obj_new(NULL, mana_regen_relic, fp, 0);
+
+	if (hp_regen_relic != NULL && !is_in_treasure_room(hp_regen_relic))
+	    fwrite_obj_new(NULL, hp_regen_relic, fp, 0);
+
+	// save church treasure rooms
+	for (church = church_list; church != NULL; church = church->next)
+	{
+		CHURCH_TREASURE_ROOM *treasure;
+		ITERATOR it;
+
+		iterator_start(&it, church->treasure_rooms);
+		while( (treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it))) {
+			if( treasure->room->contents != NULL )
+				fwrite_obj_new(NULL, treasure->room->contents, fp, 0);
+		}
+		iterator_stop(&it);
+	}
+
+	fprintf(fp, "#END\n");
+
+	fclose(fp);
+	}
 }
 
 
 void read_permanent_objs()
 {
-#if 0
-//    FILE *fp;
-//    OBJ_DATA *obj;
-//    OBJ_DATA *objNestList[MAX_NEST];
-//    char *word;
-//
-//    log_string("Loading permanent objs");
-//    if ((fp = fopen(PERM_OBJS_FILE, "r")) == NULL)
-//	bug("perm_objs_new.dat: Couldn't open file.",0);
-//    else
-//    {
-//    	for (;;)
-//	{
-//	    word = fread_word(fp);
-//	    if (!str_cmp(word, "#O"))
-//	    {
-//	    	obj = fread_obj_new(fp);
-//		objNestList[obj->nest] = obj;
-//
-//		if (obj->in_room != NULL)
-//		{
-//		    if (obj->nest > 0)
-//		    {
-//			obj->in_room = NULL;
-//			obj_to_obj(obj, objNestList[obj->nest - 1]);
-//		    }
-//		    else
-//		    {
-//			ROOM_INDEX_DATA *to_room = get_room_index(obj->in_room->vnum);
-//			obj->in_room = NULL;
-//			obj_to_room(obj, to_room == NULL ? get_room_index(1) : to_room);
-//		    }
-//		}
-//	    }
-//	    else if (!str_cmp(word, "#END"))
-//	        break;
-//	    else {
-//		bug("perm_objs_new.dat: bad format", 0);
-//		break;
-//	    }
-//	}
-//
-//	fclose(fp);
-//	}
-#endif
+    FILE *fp;
+    OBJ_DATA *obj;
+    OBJ_DATA *objNestList[MAX_NEST];
+    char *word;
+
+    log_string("Loading permanent objs");
+    if ((fp = fopen(PERM_OBJS_FILE, "r")) == NULL)
+	bug("perm_objs_new.dat: Couldn't open file.",0);
+    else
+    {
+    	for (;;)
+		{
+			word = fread_word(fp);
+			if (!str_cmp(word, "#O"))
+			{
+				obj = fread_obj_new(fp);
+			objNestList[obj->nest] = obj;
+
+			if (obj->in_room != NULL)
+			{
+				if (obj->nest > 0)
+				{
+				obj->in_room = NULL;
+				obj_to_obj(obj, objNestList[obj->nest - 1]);
+				}
+				else
+				{
+				ROOM_INDEX_DATA *to_room = get_room_index(obj->in_room->vnum);
+				obj->in_room = NULL;
+				obj_to_room(obj, to_room == NULL ? get_room_index(1) : to_room);
+				}
+			}
+			}
+			else if (!str_cmp(word, "#END"))
+				break;
+			else {
+			bug("perm_objs_new.dat: bad format", 0);
+			break;
+			}
+		}
+
+		fclose(fp);
+	}
 }
 
 
