@@ -455,7 +455,7 @@ void do_get(CHAR_DATA *ch, char *argument)
 				}
 			}
 
-			church_announce_theft(ch);
+			church_announce_theft(ch, NULL);
 
 		} else {
 			send_to_char("That isn't money.\n\r", ch);
@@ -494,7 +494,7 @@ void do_get(CHAR_DATA *ch, char *argument)
 
 			p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_GET, NULL);
 
-			church_announce_theft(ch);
+			church_announce_theft(ch, NULL);
 
 			return;
 		} else {
@@ -613,7 +613,7 @@ void do_get(CHAR_DATA *ch, char *argument)
 			}
 
 			if( gotten )
-				church_announce_theft(ch);
+				church_announce_theft(ch, NULL);
 		}
 
 		return;
@@ -653,7 +653,7 @@ void do_get(CHAR_DATA *ch, char *argument)
 			//  - static mob corpses can exist, but they won't have a timer on them
 			if( container->item_type == ITEM_CORPSE_NPC && container->timer > 0 ) return;
 
-			church_announce_theft(ch);
+			church_announce_theft(ch, NULL);
 		}
 	} else {
 		int new_gold = 0;
@@ -769,7 +769,7 @@ void do_get(CHAR_DATA *ch, char *argument)
 				//  - static mob corpses can exist, but they won't have a timer on them
 				if( container->item_type == ITEM_CORPSE_NPC && container->timer > 0 ) return;
 
-				church_announce_theft(ch);
+				church_announce_theft(ch, NULL);
 			}
 	}
 }
@@ -5983,7 +5983,6 @@ void do_push(CHAR_DATA *ch, char *argument)
 void do_pull(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_STRING_LENGTH];
-    char buf[MAX_STRING_LENGTH];
     CHAR_DATA *mob = NULL;
     OBJ_DATA *obj = NULL;
 
@@ -6100,7 +6099,7 @@ void do_pull(CHAR_DATA *ch, char *argument)
 		return;
 	    }
 	    else
-			church_announce_theft(ch);
+			church_announce_theft(ch, obj);
 	}
 
 	ch->pulled_cart = obj;

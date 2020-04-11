@@ -7751,6 +7751,6 @@ void church_remove_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room);
 bool church_set_treasure_room_rank(CHURCH_DATA *church, int nth, int min_rank);
 int church_get_min_positions(int size);
 int church_available_treasure_rooms(CHAR_DATA *ch);
-void church_announce_theft(CHAR_DATA *ch);
+void church_announce_theft(CHAR_DATA *ch, OBJ_DATA *obj);
 
 #endif /* !def __MERC_H__ */
