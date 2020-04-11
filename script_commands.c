@@ -1267,6 +1267,183 @@ SCRIPT_CMD(scriptcmd_questcomplete)
 		info->progs->lastreturn = 1;
 }
 
+// QUESTPARTCUSTOM $PLAYER $STRING[ $MINUTES]
+SCRIPT_CMD(scriptcmd_questpartcustom)
+{
+	char *rest;
+	SCRIPT_PARAM arg;
+	CHAR_DATA *questman;
+	CHAR_DATA *ch;
+	char desc[MSL];
+	int minutes;
+
+	info->progs->lastreturn = 0;
+
+	questman = NULL;
+	if(info->mob) questman = info->mob;
+	else if(info->token && info->token->player) questman = info->token->player;
+
+	// Only allow mprogs or tprogs where the ultimate mob calling them is a questor mob
+	if(!IS_VALID(questman) || !IS_NPC(questman) || !IS_SET(questman->act, ACT_QUESTOR))
+		return;
+
+	if(!(rest = expand_argument(info,argument,&arg)))
+		return;
+
+	if(arg.type != ENT_MOBILE || !arg.d.mob || IS_NPC(arg.d.mob)) return;
+
+	ch = arg.d.mob;
+
+	// Must be in the generation phase
+	if( ch->quest == NULL || !ch->quest->generating ) return;
+
+	if(!(rest = expand_argument(info,argument,&arg)))
+		return;
+
+	if(!IS_NULLSTR(arg.d.str))
+		return;
+
+	strcpy(desc, arg.d.str);
+
+	minutes = number_range(10,20);
+	if(*rest)
+	{
+		if(!(rest = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+			return;
+
+		minutes = UMAX(arg.d.num,1);
+	}
+
+	QUEST_PART_DATA *part = ch->quest->parts;
+
+	part->custom_task = str_dup(desc);
+	part->minutes = minutes;
+
+	info->progs->lastreturn = 1;
+}
+
+
+// QUESTPARTGETITEM $PLAYER $OBJECT[ $MINUTES]
+SCRIPT_CMD(scriptcmd_questpartgetitem)
+{
+	char *rest;
+	SCRIPT_PARAM arg;
+	CHAR_DATA *questman;
+	CHAR_DATA *ch;
+	OBJ_DATA *obj;
+	int minutes;
+
+	info->progs->lastreturn = 0;
+
+	questman = NULL;
+	if(info->mob) questman = info->mob;
+	else if(info->token && info->token->player) questman = info->token->player;
+
+	// Only allow mprogs or tprogs where the ultimate mob calling them is a questor mob
+	if(!IS_VALID(questman) || !IS_NPC(questman) || !IS_SET(questman->act, ACT_QUESTOR))
+		return;
+
+	if(!(rest = expand_argument(info,argument,&arg)))
+		return;
+
+	if(arg.type != ENT_MOBILE || !arg.d.mob || IS_NPC(arg.d.mob)) return;
+
+	ch = arg.d.mob;
+
+	// Must be in the generation phase
+	if( ch->quest == NULL || !ch->quest->generating ) return;
+
+	if(!(rest = expand_argument(info,argument,&arg)))
+		return;
+
+	if(arg.type != ENT_OBJECT || !IS_VALID(arg.d.obj)) return;
+	obj = arg.d.obj;
+
+	minutes = number_range(10,20);
+	if(*rest)
+	{
+		if(!(rest = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+			return;
+
+		minutes = UMAX(arg.d.num,1);
+	}
+
+	QUEST_PART_DATA *part = ch->quest->parts;
+
+	free_string(obj->owner);
+	obj->owner = str_dup(ch->name);
+	part->obj = obj;
+	part->minutes = minutes;
+
+	info->progs->lastreturn = 1;
+}
+
+// QUESTPARTGOTO $PLAYER first|second|both|$ROOM[ $MINUTES]
+SCRIPT_CMD(scriptcmd_questpartgoto)
+{
+	char *rest;
+	SCRIPT_PARAM arg;
+	CHAR_DATA *questman;
+	CHAR_DATA *ch;
+	ROOM_INDEX_DATA *destination;
+	int minutes;
+
+	info->progs->lastreturn = 0;
+
+	questman = NULL;
+	if(info->mob) questman = info->mob;
+	else if(info->token && info->token->player) questman = info->token->player;
+
+	// Only allow mprogs or tprogs where the ultimate mob calling them is a questor mob
+	if(!IS_VALID(questman) || !IS_NPC(questman) || !IS_SET(questman->act, ACT_QUESTOR))
+		return;
+
+	if(!(rest = expand_argument(info,argument,&arg)))
+		return;
+
+	if(arg.type != ENT_MOBILE || !arg.d.mob || IS_NPC(arg.d.mob)) return;
+
+	ch = arg.d.mob;
+
+	// Must be in the generation phase
+	if( ch->quest == NULL || !ch->quest->generating ) return;
+
+	if(!(rest = expand_argument(info,argument,&arg)))
+		return;
+
+	destination = NULL;
+	switch(arg.type) {
+	case ENT_STRING:
+		if(!str_cmp(arg.d.str,"first")) destination = get_random_room(ch, FIRST_CONTINENT);
+		else if(!str_cmp(arg.d.str,"second")) destination = get_random_room(ch, SECOND_CONTINENT);
+		else if(!str_cmp(arg.d.str,"both")) destination = get_random_room(ch, BOTH_CONTINENTS);
+		break;
+	case ENT_ROOM:
+		destination = arg.d.room;
+		break;
+	default: return;
+	}
+
+	if(!destination)
+		return;
+
+	minutes = number_range(10,20);
+	if(*rest)
+	{
+		if(!(rest = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+			return;
+
+		minutes = UMAX(arg.d.num,1);
+	}
+
+	QUEST_PART_DATA *part = ch->quest->parts;
+
+	part->room = destination->vnum;
+	part->minutes = minutes;
+
+	info->progs->lastreturn = 1;
+}
+
 // QUESTPARTRESCUE $PLAYER $TARGET[ $MINUTES]
 SCRIPT_CMD(scriptcmd_questpartrescue)
 {

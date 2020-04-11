@@ -6847,7 +6847,7 @@ char *get_affect_cname(char *name);
 /* quest.c */
 bool generate_quest( CHAR_DATA *ch, CHAR_DATA *questman );
 void quest_update(void);
-bool generate_quest_part( CHAR_DATA *ch, CHAR_DATA *questman, QUEST_PART_DATA *part, int partno, int extra_tasks );
+bool generate_quest_part( CHAR_DATA *ch, CHAR_DATA *questman, QUEST_PART_DATA *part, int partno );
 bool is_quest_item( OBJ_DATA *obj );
 bool is_quest_token( OBJ_DATA *obj );
 int count_quest_parts( CHAR_DATA *ch );

@@ -933,14 +933,10 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 	// MORE FUN
 	questman->tempstore[0] = parts;				// Number of parts to do (In-Out)
 	questman->tempstore[1] = bFun ? 1 : 0;		// Whether this was a F.U.N. quest (In)
-												// Scripted tasks (Out)
 	if(p_percent_trigger( questman, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_PREQUEST, NULL))
 		return FALSE;
 	parts = questman->tempstore[0];				// Updated number of parts to do
 	if( parts < 1 ) parts = 1;					//    Require at least one part.
-
-												// Whether this was a F.U.N. quest (skipped)
-	int script_tasks = questman->tempstore[2];	// Number of scripted tasks available
 
 
 
@@ -1039,8 +1035,14 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 }
 
 /* Set up a quest part. */
-bool generate_quest_part(CHAR_DATA *ch, CHAR_DATA *questman, QUEST_PART_DATA *part, int partno, int extra_tasks)
+bool generate_quest_part(CHAR_DATA *ch, CHAR_DATA *questman, QUEST_PART_DATA *part, int partno)
 {
+	questman->tempstore[0] = partno;							// Which quest part *IS* this?  Needed for the "questcomplete" command
+	if(p_percent_trigger( questman, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_PART, NULL))
+		return FALSE;
+
+
+#if 0
     OBJ_DATA *item;
     CHAR_DATA *victim;
     ROOM_INDEX_DATA *rand_room;
@@ -1126,6 +1128,7 @@ bool generate_quest_part(CHAR_DATA *ch, CHAR_DATA *questman, QUEST_PART_DATA *pa
 
 		break;
     }
+#endif
 
     return TRUE;
 }
