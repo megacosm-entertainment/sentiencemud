@@ -4658,8 +4658,21 @@ void do_bash(CHAR_DATA *ch, char *argument)
 
 		if (IS_SET(pexit->exit_info, EX_NOBASH) || (IS_SET(pexit->exit_info, EX_PICKPROOF) &&
 			IS_SET(pexit->exit_info, EX_NOPASS))) {
-			act("You rebound off the $d and fly backwards!", ch, NULL, NULL, NULL, NULL, NULL, pexit->keyword, TO_CHAR);
-			act("$n rebounds off the $d and flies backwards!", ch, NULL, NULL, NULL, NULL, NULL, pexit->keyword, TO_ROOM);
+
+			chance = chance / 5;	// Only 1/5 the original chance to break off any bars on the door
+
+			if (IS_SET(IS_SET(pexit->exit_info, EX_BARRED) && number_percent() < chance)
+			{
+				REMOVE_BIT(pexit->exit_info , EX_BARRED);
+				act("You rebound off the the $p, managing to break off the bars holding the $p closed, before flying backwards!", ch, NULL, NULL, NULL, NULL, NULL, pexit->keyword, TO_CHAR);
+				act("$n rebounds off the $d and flies backwards, breaking the bars on the $p in the process!", ch, NULL, NULL, NULL, NULL, NULL, pexit->keyword, TO_ROOM);
+			}
+			else
+			{
+				act("You rebound off the $d and fly backwards!", ch, NULL, NULL, NULL, NULL, NULL, pexit->keyword, TO_CHAR);
+				act("$n rebounds off the $d and flies backwards!", ch, NULL, NULL, NULL, NULL, NULL, pexit->keyword, TO_ROOM);
+			}
+
 
 			ch->position = POS_RESTING;
 			ch->bashed = number_range(2, 4);
@@ -4669,6 +4682,7 @@ void do_bash(CHAR_DATA *ch, char *argument)
 		if (number_percent() < chance) {
 			if (IS_SET(pexit->exit_info , EX_LOCKED)) REMOVE_BIT(pexit->exit_info , EX_LOCKED);
 			if (IS_SET(pexit->exit_info, EX_CLOSED)) REMOVE_BIT(pexit->exit_info , EX_CLOSED);
+			if (IS_SET(pexit->exit_info, EX_BARRED)) REMOVE_BIT(pexit->exit_info , EX_BARRED);
 
 			SET_BIT(pexit->exit_info, EX_BROKEN);
 
@@ -4677,6 +4691,7 @@ void do_bash(CHAR_DATA *ch, char *argument)
 
 				if (IS_SET(pexit_rev->exit_info , EX_LOCKED)) REMOVE_BIT(pexit->exit_info , EX_LOCKED);
 				if (IS_SET(pexit_rev->exit_info , EX_CLOSED)) REMOVE_BIT(pexit_rev->exit_info, EX_CLOSED);
+				if (IS_SET(pexit_rev->exit_info , EX_BARRED)) REMOVE_BIT(pexit_rev->exit_info, EX_BARRED);
 
 				SET_BIT(pexit_rev->exit_info, EX_BROKEN);
 
