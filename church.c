@@ -4339,3 +4339,16 @@ void do_chtreasure(CHAR_DATA *ch, char *argument)
 		send_to_char("                RANK <room#> <rank>\n\r", ch);
 	return;
 }
+
+
+void church_announce_theft(CHAR_DATA *ch)
+{
+	CHURCH_DATA *church;
+
+	for (church = church_list; church != NULL; church = church->next) {
+		if ((ch->church != church || is_excommunicated(ch)) && is_treasure_room(church, ch->in_room)) {
+			sprintf(buf, "{Y%s has stolen %s from a %s treasure room!{x\n\r", ch->name, obj->short_descr, church->name);
+			gecho(buf);
+		}
+	}
+}

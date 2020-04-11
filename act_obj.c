@@ -336,6 +336,8 @@ void loot_corpse(CHAR_DATA *ch, OBJ_DATA *corpse)
 }
 
 
+
+
 /* MOVED: object/object.c */
 void do_get(CHAR_DATA *ch, char *argument)
 {
@@ -452,6 +454,9 @@ void do_get(CHAR_DATA *ch, char *argument)
 					do_function(ch, &do_split, buffer);
 				}
 			}
+
+			church_announce_theft(ch);
+
 		} else {
 			send_to_char("That isn't money.\n\r", ch);
 		}
@@ -489,10 +494,14 @@ void do_get(CHAR_DATA *ch, char *argument)
 
 			p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_GET, NULL);
 
+			church_announce_theft(ch);
+
 			return;
 		} else {
 			int new_silver = 0;
 			int new_gold = 0;
+
+			bool gotten = FALSE;
 
 			/* Get all/all.<obj> */
 			while (found) {
@@ -567,6 +576,8 @@ void do_get(CHAR_DATA *ch, char *argument)
 								i++;
 
 							}
+
+							gotten = TRUE;
 						}
 
 						if (!found && match_obj != NULL) {
@@ -600,6 +611,9 @@ void do_get(CHAR_DATA *ch, char *argument)
 			if ((new_gold > 0 || new_silver > 0) && !obj_next){
 				give_money(ch, NULL, new_gold, new_silver, TRUE);
 			}
+
+			if( gotten )
+				church_announce_theft(ch);
 		}
 
 		return;
@@ -628,9 +642,24 @@ void do_get(CHAR_DATA *ch, char *argument)
 		act("$n gets $p from $P.", ch, NULL, NULL, obj, container, NULL, NULL, TO_ROOM);
 		obj_from_obj(obj);
 		obj_to_char(obj, ch);
+
+		// If the container is in the current room
+		if( container->in_room != NULL )
+		{
+			// Ignore player corpses
+			if( container->item_type == ITEM_CORPSE_PC ) return;
+
+			// Ignore mob corpses that have a timer
+			//  - static mob corpses can exist, but they won't have a timer on them
+			if( container->item_type == ITEM_CORPSE_NPC && container->timer > 0 ) return;
+
+			church_announce_theft(ch);
+		}
 	} else {
 		int new_gold = 0;
 		int new_silver = 0;
+
+		bool gotten = FALSE;
 		/* Get all/all.<obj> <container> */
 		while (found) {
 			found = FALSE;
@@ -706,6 +735,8 @@ void do_get(CHAR_DATA *ch, char *argument)
 							if (container->item_type == ITEM_CORPSE_PC || container->item_type == ITEM_CORPSE_NPC)
 								reset_obj(obj);
 						}
+
+						gotten = TRUE;
 					}
 				}
 
@@ -728,6 +759,18 @@ void do_get(CHAR_DATA *ch, char *argument)
 			if ((new_gold > 0 || new_silver > 0) && obj_next == NULL){
 						give_money(ch, NULL, new_gold, new_silver, TRUE);
 					}
+
+			// If the container is in the current room and something was taken
+			if( gotten && container->in_room != NULL ) {
+				// Ignore player corpses
+				if( container->item_type == ITEM_CORPSE_PC ) return;
+
+				// Ignore mob corpses that have a timer
+				//  - static mob corpses can exist, but they won't have a timer on them
+				if( container->item_type == ITEM_CORPSE_NPC && container->timer > 0 ) return;
+
+				church_announce_theft(ch);
+			}
 	}
 }
 
@@ -6057,16 +6100,7 @@ void do_pull(CHAR_DATA *ch, char *argument)
 		return;
 	    }
 	    else
-	    {
-			CHURCH_DATA *church;
-
-			for (church = church_list; church != NULL; church = church->next) {
-				if (ch->church != church && is_treasure_room(church, ch->in_room)) {
-					sprintf(buf, "{Y%s has stolen %s from the %s treasure room!{x\n\r", ch->name, obj->short_descr, church->name);
-					gecho(buf);
-				}
-			}
-		}
+			church_announce_theft(ch);
 	}
 
 	ch->pulled_cart = obj;
