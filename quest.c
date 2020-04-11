@@ -733,11 +733,18 @@ void do_quest(CHAR_DATA *ch, char *argument)
 		    ch->name);
 
 	    do_say(mob, buf);
+
+		p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_INCOMPLETE, NULL);
+
 	    free_quest(ch->quest);
 	    ch->quest = NULL;
 	    ch->countdown = 0;
 
-	    ch->nextquest = 10;
+		mob->tempstore[0] = 10;
+		p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_POSTQUEST, NULL);
+
+		ch->nextquest = mob->tempstore[0];
+		if(ch->nextquest < 1) ch->nextquest = 1;
 
 	    return;
 	}
