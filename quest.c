@@ -653,6 +653,8 @@ void do_quest(CHAR_DATA *ch, char *argument)
 		ch->quest->questgiver = mob->pIndexData->vnum;
 		if (generate_quest(ch, mob))
 		{
+			ch->quest->generating = FALSE;
+
 			sprintf(buf, "Thank you, brave %s!", HANDLE(ch));
 			do_say(mob, buf);
 		}
@@ -912,6 +914,8 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 	int parts;
 	int i;
 
+	ch->quest->generating = TRUE;
+
 	if (ch->tot_level <= 30)
 		parts = number_range(1, 3);
 	else if (ch->tot_level <= 60)
@@ -1033,7 +1037,6 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
     obj_to_char(scroll, ch);
     return TRUE;
 }
-
 
 /* Set up a quest part. */
 bool generate_quest_part(CHAR_DATA *ch, CHAR_DATA *questman, QUEST_PART_DATA *part, int partno, int extra_tasks)

@@ -1267,6 +1267,114 @@ SCRIPT_CMD(scriptcmd_questcomplete)
 		info->progs->lastreturn = 1;
 }
 
+// QUESTPARTRESCUE $PLAYER $TARGET[ $MINUTES]
+SCRIPT_CMD(scriptcmd_questpartrescue)
+{
+	char *rest;
+	SCRIPT_PARAM arg;
+	CHAR_DATA *questman;
+	CHAR_DATA *ch;
+	CHAR_DATA *target;
+	int minutes;
+
+	info->progs->lastreturn = 0;
+
+	questman = NULL;
+	if(info->mob) questman = info->mob;
+	else if(info->token && info->token->player) questman = info->token->player;
+
+	// Only allow mprogs or tprogs where the ultimate mob calling them is a questor mob
+	if(!IS_VALID(questman) || !IS_NPC(questman) || !IS_SET(questman->act, ACT_QUESTOR))
+		return;
+
+	if(!(rest = expand_argument(info,argument,&arg)))
+		return;
+
+	if(arg.type != ENT_MOBILE || !arg.d.mob || IS_NPC(arg.d.mob)) return;
+
+	ch = arg.d.mob;
+
+	// Must be in the generation phase
+	if( ch->quest == NULL || !ch->quest->generating ) return;
+
+	if(!(rest = expand_argument(info,argument,&arg)))
+		return;
+
+	if(arg.type != ENT_MOBILE || !IS_VALID(arg.d.mob) || !IS_NPC(arg.d.mob)) return;
+	target = arg.d.mob;
+
+	minutes = number_range(10,20);
+	if(*rest)
+	{
+		if(!(rest = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+			return;
+
+		minutes = UMAX(arg.d.num,1);
+	}
+
+	QUEST_PART_DATA *part = ch->quest->parts;
+
+	part->mob_rescue = target->pIndexData->vnum;
+	part->minutes = minutes;
+
+	info->progs->lastreturn = 1;
+}
+
+
+// QUESTPARTSLAY $PLAYER $TARGET[ $MINUTES]
+SCRIPT_CMD(scriptcmd_questpartslay)
+{
+	char *rest;
+	SCRIPT_PARAM arg;
+	CHAR_DATA *questman;
+	CHAR_DATA *ch;
+	CHAR_DATA *target;
+	int minutes;
+
+	info->progs->lastreturn = 0;
+
+	questman = NULL;
+	if(info->mob) questman = info->mob;
+	else if(info->token && info->token->player) questman = info->token->player;
+
+	// Only allow mprogs or tprogs where the ultimate mob calling them is a questor mob
+	if(!IS_VALID(questman) || !IS_NPC(questman) || !IS_SET(questman->act, ACT_QUESTOR))
+		return;
+
+	if(!(rest = expand_argument(info,argument,&arg)))
+		return;
+
+	if(arg.type != ENT_MOBILE || !arg.d.mob || IS_NPC(arg.d.mob)) return;
+
+	ch = arg.d.mob;
+
+	// Must be in the generation phase
+	if( ch->quest == NULL || !ch->quest->generating ) return;
+
+	if(!(rest = expand_argument(info,argument,&arg)))
+		return;
+
+	if(arg.type != ENT_MOBILE || !IS_VALID(arg.d.mob) || !IS_NPC(arg.d.mob)) return;
+	target = arg.d.mob;
+
+	minutes = number_range(10,20);
+	if(*rest)
+	{
+		if(!(rest = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+			return;
+
+		minutes = UMAX(arg.d.num,1);
+	}
+
+	QUEST_PART_DATA *part = ch->quest->parts;
+
+	part->mob = target->pIndexData->vnum;
+	part->minutes = minutes;
+
+	info->progs->lastreturn = 1;
+}
+
+
 //////////////////////////////////////
 // R
 

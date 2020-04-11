@@ -3189,6 +3189,7 @@ struct quest_data
     QUEST_PART_DATA *   parts;
     long                questgiver;
     bool		msg_complete;
+    bool		generating;
 };
 
 
@@ -3197,6 +3198,8 @@ struct quest_part_data
     QUEST_PART_DATA *   next;
 
     OBJ_DATA 		*pObj;
+
+    long		minutes;	// How many minutes is expected to complete this task?
 
     long 		obj;
     long		mob;
