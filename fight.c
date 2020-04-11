@@ -3569,6 +3569,8 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
 		token_next = token->next;
 
 		if (IS_SET(token->flags, TOKEN_PURGE_DEATH)) {
+			p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_REMOVED, NULL);
+
 			sprintf(buf, "char update: token %s(%ld) char %s(%ld) was purged on death",
 				token->name, token->pIndexData->vnum, HANDLE(victim), IS_NPC(victim) ? victim->pIndexData->vnum :
 				0);

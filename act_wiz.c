@@ -2675,6 +2675,8 @@ void do_shutdown(CHAR_DATA *ch, char *argument)
 		while(( token = (TOKEN_DATA *)iterator_nextdata(&tit)))
 		{
 			if (IS_SET(token->flags, TOKEN_PURGE_REBOOT)) {
+				p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_REMOVED, NULL);
+
 				sprintf(buf, "char update: token %s(%ld) char %s(%ld) was purged because of reboot",
 					token->name, token->pIndexData->vnum, HANDLE(tch), IS_NPC(tch) ? tch->pIndexData->vnum : 0);
 				log_string(buf);
