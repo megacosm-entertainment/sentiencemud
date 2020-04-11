@@ -1372,7 +1372,8 @@ SCRIPT_CMD(scriptcmd_questpartgetitem)
 
 	free_string(obj->owner);
 	obj->owner = str_dup(ch->name);
-	part->obj = obj;
+	part->pObj = obj;
+	part->obj = obj->pIndexData->vnum;
 	part->minutes = minutes;
 
 	info->progs->lastreturn = 1;
