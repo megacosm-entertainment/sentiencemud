@@ -264,6 +264,7 @@ typedef struct  chat_ban_data		CHAT_BAN_DATA;
 typedef struct  chat_op_data		CHAT_OP_DATA;
 typedef struct  church_data             CHURCH_DATA;
 typedef struct  church_player_data      CHURCH_PLAYER_DATA;
+typedef struct	church_treasure_room_data	CHURCH_TREASURE_ROOM;
 typedef struct  conditional_descr_data  CONDITIONAL_DESCR_DATA;
 typedef struct  gq_data			GQ_DATA;
 typedef struct  gq_mob_data		GQ_MOB_DATA;
@@ -986,10 +987,12 @@ struct church_player_data
 #define CHURCH_SIZE_CHURCH  	4
 
 #define MAX_CHURCH_RANK		4
+#define CHURCH_RANK_NONE	-1
 #define CHURCH_RANK_A   	0
 #define CHURCH_RANK_B   	1
 #define CHURCH_RANK_C   	2
 #define CHURCH_RANK_D   	3
+#define CHURCH_RANK_IMM		4
 
 #define CHURCH_GOOD     	1
 #define CHURCH_EVIL     	2
@@ -1047,6 +1050,12 @@ struct church_data
 
     LLIST *online_players;
     LLIST *roster;
+};
+
+struct church_treasure_room_data
+{
+	ROOM_INDEX_DATA *room;
+	int min_rank;				// Which ranks can use it
 };
 
 
@@ -7735,5 +7744,9 @@ BOOLEXP *new_boolexp();
 void free_boolexp(BOOLEXP *boolexp);
 
 int do_flee_full(CHAR_DATA *ch, char *argument, bool conceal, bool pursue);
+
+bool church_add_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room, int min_rank);
+void church_remove_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room);
+bool church_set_treasure_room_rank(CHURCH_DATA *church, int nth, int min_rank);
 
 #endif /* !def __MERC_H__ */

@@ -1197,6 +1197,7 @@ void free_reset_data( RESET_DATA *pReset )
     return;
 }
 
+static void delete_church_treasure_room(void *data) { free_mem(data, sizeof(CHURCH_TREASURE_ROOM)); }
 
 CHURCH_DATA *new_church( void )
 {
@@ -1230,7 +1231,7 @@ CHURCH_DATA *new_church( void )
     pChurch->founder_last_login = 0;
     pChurch->pk = 0;
     pChurch->settings = 0;
-    pChurch->treasure_rooms = list_create(FALSE);
+    pChurch->treasure_rooms = list_createx(FALSE, NULL, delete_church_treasure_room);
     pChurch->key = 0;
 
     pChurch->pk_wins = 0;

@@ -38,6 +38,7 @@ void do_choverthrow(CHAR_DATA *ch, char *argument);
 void do_chrules(CHAR_DATA * ch, char *argument);
 void do_chtoggle(CHAR_DATA * ch, char *argument);
 void do_chtransfer(CHAR_DATA *ch, char *argument);
+void do_chtreasure(CHAR_DATA *ch, char *argument);
 void do_chtrust(CHAR_DATA *ch, char *argument);
 void do_churchset(CHAR_DATA *ch, char *argument);
 void do_chwhere(CHAR_DATA * ch, char *argument);
@@ -57,42 +58,43 @@ void variable_dynamic_fix_church(CHURCH_DATA *church);
 /* Church commands */
 const struct church_command_type church_command_table[] =
 {
-    { "create",        -1,	do_chcreate 		},
-    { "info", 	       -1,	do_chinfo		},
-    { "list", 	       -1, 	do_chlist		},
+	{ "create",			CHURCH_RANK_NONE,	do_chcreate			},
+	{ "info",			CHURCH_RANK_NONE,	do_chinfo			},
+	{ "list",			CHURCH_RANK_NONE,	do_chlist			},
 
-    { "deposit", 	0,	do_chdeposit		},
-    { "donate",		0, 	do_chdonate		},
-    { "gohall", 	0,	do_chgohall		},
-    { "motd", 		0,	do_chmotd	 	},
-    { "quit", 		0,	do_chrem		},
-    { "rules", 		0,	do_chrules 		},
-    { "talk", 		0, 	do_chtalk		},
-    { "where", 		0,	do_chwhere 		},
+	{ "deposit",		CHURCH_RANK_A,		do_chdeposit		},
+	{ "donate",			CHURCH_RANK_A, 		do_chdonate			},
+	{ "gohall",			CHURCH_RANK_A,		do_chgohall			},
+	{ "motd",			CHURCH_RANK_A,		do_chmotd		 	},
+	{ "quit",			CHURCH_RANK_A,		do_chrem			},
+	{ "rules",			CHURCH_RANK_A,		do_chrules 			},
+	{ "talk",			CHURCH_RANK_A, 		do_chtalk			},
+	{ "treasure",		CHURCH_RANK_A,		do_chtreasure		},
+	{ "where",			CHURCH_RANK_A,		do_chwhere 			},
 
-    { "balance", 	1,	do_chbalance 		},
-    { "withdraw", 	1,	do_chwithdraw 		},
+	{ "balance",		CHURCH_RANK_B,		do_chbalance 		},
+	{ "withdraw",		CHURCH_RANK_B,		do_chwithdraw 		},
 
-    { "add", 		3, 	do_chadd		},
-    { "colour", 		3, 	do_chcolour		},
-    { "convert",	3,	do_chconvert 		},
-    { "delmember", 	3,	do_chrem		},
-    { "demote", 	3,	do_chdem		},
-    { "excommunicate", 	3,	do_chexcommunicate 	},
-    { "overthrow", 	3, 	do_choverthrow		},
-    { "promote", 	3, 	do_chprom		},
-    { "set",		3, 	do_churchset		},
-    { "setflag", 	3, 	do_chflag		},
-    { "toggle", 	3, 	do_chtoggle		},
-    { "transfer", 	3, 	do_chtransfer		},
-    { "trust", 		3,  	do_chtrust		},
+	{ "add",			CHURCH_RANK_D, 		do_chadd			},
+	{ "colour",			CHURCH_RANK_D, 		do_chcolour			},
+	{ "convert",		CHURCH_RANK_D,		do_chconvert 		},
+	{ "delmember",		CHURCH_RANK_D,		do_chrem			},
+	{ "demote",			CHURCH_RANK_D,		do_chdem			},
+	{ "excommunicate",	CHURCH_RANK_D,		do_chexcommunicate 	},
+	{ "overthrow",		CHURCH_RANK_D, 		do_choverthrow		},
+	{ "promote",		CHURCH_RANK_D, 		do_chprom			},
+	{ "set",			CHURCH_RANK_D, 		do_churchset		},
+	{ "setflag",		CHURCH_RANK_D, 		do_chflag			},
+	{ "toggle",			CHURCH_RANK_D, 		do_chtoggle			},
+	{ "transfer",		CHURCH_RANK_D, 		do_chtransfer		},
+	{ "trust",			CHURCH_RANK_D, 		do_chtrust			},
 
-    /* Immortal commands*/
-    { "delete", 	4,	do_chdelete 		},
-    { "advance", 	4, 	do_chadvance		},
-    { "deduct", 	4,	do_chdeduct 		},
+	/* Immortal commands*/
+	{ "delete",			CHURCH_RANK_IMM,	do_chdelete 		},
+	{ "advance",		CHURCH_RANK_IMM, 	do_chadvance		},
+	{ "deduct",			CHURCH_RANK_IMM,	do_chdeduct 		},
 
-    { NULL, 		-1,	NULL	 		}
+    { NULL,				-1,					NULL				}
 };
 
 char *lookup_church_command (char *string)
@@ -2190,20 +2192,24 @@ void do_chinfo(CHAR_DATA *ch, char *argument)
 	line(ch, 55);
     }
 
-/*
-    room = get_room_index(church->treasure_room);
-    if (room != NULL)
-    {
-	for (obj = room->contents; obj != NULL; obj = obj->next_content)
-	{
-	    if (is_relic(obj->pIndexData))
-	    {
-		sprintf(buf, "{M*{x Your church is currently in the possession of %s.\n\r", obj->short_descr);
-		send_to_char(buf, ch);
-	    }
+    CHURCH_TREASURE_ROOM *treasure;
+    ITERATOR it;
+	iterator_start(&it, church->treasure_rooms);
+	while( (treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it)) ) {
+		if( treasure->room != NULL )
+		{
+			room = treasure->room;
+			for (obj = room->contents; obj != NULL; obj = obj->next_content)
+			{
+				if (is_relic(obj->pIndexData))
+				{
+					sprintf(buf, "{M*{x Your church is currently in the possession of %s.\n\r", obj->short_descr);
+					send_to_char(buf, ch);
+				}
+			}
+		}
 	}
-    }
-*/
+	iterator_stop(&it);
 }
 
 
@@ -2870,7 +2876,7 @@ CHURCH_DATA *find_church_name(char *name)
 /* is room players treasure church ? */
 bool is_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room)
 {
-    ROOM_INDEX_DATA *treasure_room;
+    CHURCH_TREASURE_ROOM *treasure;
     ITERATOR it;
 
 
@@ -2887,13 +2893,13 @@ bool is_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room)
 	}
 
 	iterator_start(&it, church->treasure_rooms);
-	while( (treasure_room = (ROOM_INDEX_DATA *)iterator_nextdata(&it)) ) {
-		if( treasure_room == room )
+	while( (treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it)) ) {
+		if( treasure->room == room )
 			break;
 	}
 	iterator_stop(&it);
 
-    return treasure_room && TRUE;
+    return treasure && TRUE;
 }
 
 
@@ -3249,13 +3255,6 @@ void show_church_info(CHURCH_DATA *church, CHAR_DATA *ch)
 	    "none" : get_room_index(church->recall_point.id[0])->name);
     add_buf(buffer, buf);
 
-/*
-    sprintf(buf, "{YTreasure Room:{x %ld - %s\n\r",
-        church->treasure_room,
-	get_room_index(church->treasure_room) == NULL ?
-	    "none" : get_room_index(church->treasure_room)->name);
-    add_buf(buffer, buf);*/
-
     sprintf(buf, "{YKey:{x %ld - %s\n\r",
         church->key,
 	get_obj_index(church->key) == NULL ?
@@ -3437,7 +3436,91 @@ void do_chconvert(CHAR_DATA *ch, char *argument)
 
 void do_chdonate(CHAR_DATA *ch, char *argument)
 {
+	// church donate <obj>[ <room no>]
+    OBJ_DATA *obj;
+    ROOM_INDEX_DATA *room;
+    char arg[MIL];
+
+    if (ch->church == NULL)
+    {
+        send_to_char("You aren't in a church!\n\r", ch);
+		return;
+    }
+
+    if (!list_size(ch->church->treasure_rooms))
+    {
+    	send_to_char("Your church doesn't have a treasure room.\n\r", ch);
+		return;
+    }
+
+	argument = one_argument(argument, arg);
+
+    if ((obj = get_obj_carry(ch, arg, ch)) == NULL)
+    {
+		send_to_char("You don't have that object.\n\r", ch);
+		return;
+    }
+
+    int roomno = 1;
+    if( !IS_NULLSTR(argument) )
+    {
+		if(!is_number(argument))
+		{
+			send_to_char("That is not a number.\n\r", ch);
+			return;
+		}
+
+		roomno = atoi(argument);
+
+		if( roomno < 1 || roomno > list_size(ch->church->treasure_rooms))
+		{
+			send_to_char("That is not a valid room number.\n\rPlease review the list in {WCHURCH TREASURE LIST{x.\n\r", ch);
+			return;
+		}
+	}
+
+
+    CHURCH_TREASURE_ROOM *treasure = get_church_treasure_room(ch->church, roomno);
+    if( !treasure )
+    {
+		send_to_char("Something went wrong.  Could not find the treasure room.\n\r", ch);
+		return;
+	}
+
+	// Only check rooms after the default room
+	if( roomno > 1 && ch->church_member->rank < treasure->min_rank )
+	{
+		send_to_char("You do not have permission to use that room.\n\r", ch);
+		return;
+	}
+
+    if (count_items_list_nest(room->contents) > MAX_CHURCH_TREASURE)
+    {
+    	send_to_char("That church temple treasure room is quite full already.\n\rPlease try another room.\n\r", ch);
+		return;
+    }
+
+    if (obj->timer > 0 || IS_SET(obj->extra2_flags, ITEM_NO_DONATE))
+    {
+		act("You cannot donate $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		return;
+    }
+
+    if (!can_drop_obj(ch, obj, TRUE) || IS_SET(obj->extra2_flags, ITEM_KEPT))
+    {
+		send_to_char("It's stuck to you.\n\r", ch);
+		return;
+    }
+
+    act("You toss $p into the air and it disappears into a swirling vortex.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+    act("$n tosses $p into the air and it disappears into a swirling vortex.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+    obj_from_char(obj);
+    obj_to_room(obj, treasure->room);
+
+/*
 #if 1
+
+
     send_to_char("Donation is disabled for the time being.\n\r", ch);
 #else
     OBJ_DATA *obj;
@@ -3452,7 +3535,7 @@ void do_chdonate(CHAR_DATA *ch, char *argument)
     if (!list_size(ch->church->treasure_rooms))
     {
     	send_to_char("Your church doesn't have a treasure room.\n\r", ch);
-	return;
+		return;
     }
 
     if ((obj = get_obj_carry(ch, argument, ch)) == NULL)
@@ -3484,6 +3567,7 @@ void do_chdonate(CHAR_DATA *ch, char *argument)
     obj_from_char(obj);
     obj_to_room(obj, room);
 #endif
+*/
 }
 
 
@@ -3544,16 +3628,18 @@ void write_church(CHURCH_DATA *church, FILE *fp)
 		fprintf(fp, "Info %s~\n", fix_string(church->info));
 
 	iterator_start(&it, church->treasure_rooms);
-	while(( room = (ROOM_INDEX_DATA *)iterator_nextdata(&it))) {
+	CHURCH_TREASURE_ROOM *treasure;
+	while(( treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it))) {
+		room = treasure->room;
 		if(room->wilds)
-			fprintf(fp, "TreasureVRoom %ld %ld %ld %ld\n", room->wilds->uid, room->x, room->y, room->z);
+			fprintf(fp, "TreasureVRoomMR %ld %ld %ld %ld %d\n", room->wilds->uid, room->x, room->y, room->z, treasure->min_rank);
 		else
-			fprintf(fp, "TreasureRoom %ld\n", room->vnum);
+			fprintf(fp, "TreasureRoomMR %ld %d\n", room->vnum, treasure->min_rank);
 	}
 	iterator_stop(&it);
 
     if (church->people != NULL)
-	write_church_member(church->people, fp);
+		write_church_member(church->people, fp);
 
     fprintf(fp, "#-CHURCH\n");
 }
@@ -3732,13 +3818,30 @@ CHURCH_DATA *read_church(FILE *fp)
 				ROOM_INDEX_DATA *room = get_room_index(fread_number(fp));
 
 				if( room ) {
-					if( !list_appendlink(church->treasure_rooms, room) ) {
+					if( !church_add_treasure_room(church->treasure_rooms, room, CHURCH_RANK_A) ) {
 						bug("Failed to add church treasure room due to memory issues with 'list_appendlink'.", 0);
 						abort();
 					}
 				}
 
 				fMatch = TRUE;
+				break;
+			}
+			if( !str_cmp(word, "TreasureRoomMR") ) {
+				ROOM_INDEX_DATA *room = get_room_index(fread_number(fp));
+				int min_rank = fread_number(fp);
+				if( min_rank < CHURCH_RANK_A ) min_rank = CHURCH_RANK_A;
+				if( min_rank > CHURCH_RANK_D ) min_rank = CHURCH_RANK_D;
+
+				if( room ) {
+					if( !church_add_treasure_room(church->treasure_rooms, room, min_rank) ) {
+						bug("Failed to add church treasure room due to memory issues with 'list_appendlink'.", 0);
+						abort();
+					}
+				}
+
+				fMatch = TRUE;
+				break;
 			}
 			if( !str_cmp(word, "TreasureVRoom") ) {
 				WILDS_DATA *wilds;
@@ -3756,13 +3859,43 @@ CHURCH_DATA *read_church(FILE *fp)
 					room = create_wilds_vroom(wilds,x, y);
 
 				if( room ) {
-					if( !list_appendlink(church->treasure_rooms, room) ) {
+					if( !church_add_treasure_room(church->treasure_rooms, room, CHURCH_RANK_A) ) {
 						bug("Failed to add church treasure room due to memory issues with 'list_appendlink'.", 0);
 						abort();
 					}
 				}
 
 				fMatch = TRUE;
+				break;
+			}
+			if( !str_cmp(word, "TreasureVRoomMR") ) {
+				WILDS_DATA *wilds;
+				ROOM_INDEX_DATA *room;
+				int x;
+				int y;
+				//int z;
+
+				wilds = get_wilds_from_uid(NULL,fread_number(fp));
+				x = fread_number(fp);
+				y = fread_number(fp);
+				/*z = */(void)fread_number(fp);	// z isn't being used, but exists in the file?
+				int min_rank = fread_number(fp);
+				if( min_rank < CHURCH_RANK_A ) min_rank = CHURCH_RANK_A;
+				if( min_rank > CHURCH_RANK_D ) min_rank = CHURCH_RANK_D;
+
+				room = get_wilds_vroom(wilds, x, y);
+				if(!room)
+					room = create_wilds_vroom(wilds,x, y);
+
+				if( room ) {
+					if( !church_add_treasure_room(church->treasure_rooms, room, min_rank) ) {
+						bug("Failed to add church treasure room due to memory issues with 'list_appendlink'.", 0);
+						abort();
+					}
+				}
+
+				fMatch = TRUE;
+				break;
 			}
 		break;
 
@@ -3868,13 +4001,14 @@ bool is_in_treasure_room(OBJ_DATA *obj)
 
 bool vnum_in_treasure_room(CHURCH_DATA *church, long vnum)
 {
+	CHURCH_TREASURE_ROOM *treasure;
     ROOM_INDEX_DATA *treasure_room = NULL;
 	OBJ_DATA *obj = NULL;
 	ITERATOR rit, oit;
 
 	iterator_start(&rit, church->treasure_rooms);
-	while( (treasure_room = (ROOM_INDEX_DATA *)iterator_nextdata(&rit)) && !obj) {
-		iterator_start(&oit, treasure_room->lcontents);
+	while( (treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&rit)) && !obj) {
+		iterator_start(&oit, treasure->room->lcontents);
 		while( (obj = (OBJ_DATA *)iterator_nextdata(&oit))) {
 			if( obj->pIndexData->vnum == vnum )
 				break;
@@ -3909,7 +4043,221 @@ void update_church_pks(void)
 bool is_excommunicated(CHAR_DATA *ch)
 {
     if (ch->church == NULL || ch->church_member == NULL)
-	return FALSE;
+		return FALSE;
 
     return IS_SET(ch->church_member->flags, CHURCH_PLAYER_EXCOMMUNICATED);
+}
+
+bool church_add_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room, int min_rank)
+{
+	CHURCH_TREASURE_ROOM *treasure = alloc_mem(sizeof(CHURCH_TREASURE_ROOM));
+
+	if( !treasure ) return FALSE;
+
+	treasure->room = room;
+	treasure->min_rank = min_rank;
+
+	if(!list_appendlink(church->treasure_rooms, treasure))
+	{
+		free_mem(treasure, sizeof(CHURCH_TREASURE_ROOM));
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+void church_remove_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room)
+{
+	CHURCH_TREASURE_ROOM *treasure;
+	ITERATOR it;
+
+	iterator_start(&it, church->treasure_rooms);
+	while( (treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it))) {
+		if( treasure->room == room)
+			break;
+	}
+	iterator_stop(&it);
+
+	if(treasure != NULL) {
+		list_remlink(church->treasure_rooms, treasure);
+		free_mem(treasure, sizeof(CHURCH_TREASURE_ROOM));
+	}
+}
+
+CHURCH_TREASURE_ROOM *get_church_treasure_room(CHURCH_DATA *church, int nth)
+{
+	if( nth < 1 ) return NULL;
+
+	CHURCH_TREASURE_ROOM *treasure = NULL;
+	ITERATOR it;
+
+	iterator_start(&it, church->treasure_rooms);
+	while( (treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it))) {
+		if( !--nth)
+		{
+			break;
+		}
+	}
+	iterator_stop(&it);
+
+	return treasure;
+
+}
+
+bool church_set_treasure_room_rank(CHURCH_DATA *church, int nth, int min_rank)
+{
+	if( nth < 1 ) return FALSE;
+
+	CHURCH_TREASURE_ROOM *treasure;
+	ITERATOR it;
+
+	iterator_start(&it, church->treasure_rooms);
+	while( (treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it))) {
+		if( !--nth)
+		{
+			treasure->min_rank = min_rank;
+			return TRUE;
+		}
+	}
+	iterator_stop(&it);
+
+	return FALSE;
+}
+
+void do_chtreasure(CHAR_DATA *ch, char *argument)
+{
+	static char *rank_names[MAX_CHURCH_RANK] = {
+		"Rank 1",
+		"Rank 2",
+		"Rank 3",
+		"Rank 4"
+	};
+
+	CHAR_DATA *temp_char;
+    char buf[MAX_STRING_LENGTH];
+    char arg[MIL];
+    char arg2[MIL];
+    bool found = FALSE;
+    int i;
+
+    argument = one_argument(argument, arg);
+    argument = one_argument(argument, arg2);
+
+    if (ch->church == NULL)
+    {
+		send_to_char("You aren't in a registered group.\n\r", ch);
+		return;
+    }
+
+    if (arg[0] == '\0')
+    {
+		send_to_char("CHURCH TREASURE LIST\n\r", ch);
+		if( ch->church_member->rank >= CHURCH_RANK_D )
+			send_to_char("                RANK <room#> <rank>\n\r", ch);
+		return;
+    }
+
+    if(!str_cmp(arg, "list"))
+    {
+		CHURCH_TREASURE_ROOM *treasure;
+		ITERATOR it;
+
+		int i = 0;
+		iterator_start(&it, ch->church->treasure_rooms);
+		while( (treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it)) )
+		{
+			if( i == 0 ) {
+				sprintf(buf, "{YTreasure rooms for {W%s{Y:\n\r", ch->church->name);
+				send_to_char(buf, ch);
+				send_to_char("{Y========================================================{x\n\r", ch);
+			}
+
+			i++;
+			if( i == 1 )
+				sprintf(buf, "%2d [{WDEFAULT{x] {Y%s{x\n\r", i, treasure->room->name);
+			else
+				sprintf(buf, "%2d [{W%-7s{x] {Y%s{x\n\r", i, rank_names[treasure->min_rank], treasure->room->name);
+			send_to_char(buf, ch);
+		}
+		iterator_stop(&it);
+
+		if( i == 0 )
+			send_to_char("Your church has no treasure rooms yet.\n\r", ch);
+
+		return;
+	}
+
+	if(!str_cmp(arg, "rank"))
+	{
+		if( ch->church_member->rank < CHURCH_RANK_D )
+		{
+			send_to_char("CHURCH TREASURE LIST\n\r", ch);
+			if( ch->church_member->rank >= CHURCH_RANK_D )
+				send_to_char("                RANK <room#> <rank>\n\r", ch);
+			return;
+		}
+
+		found = FALSE;
+		for (temp_char = ch->in_room->people; temp_char != NULL; temp_char = temp_char->next_in_room)
+		{
+			if (IS_NPC(temp_char) && IS_SET(temp_char->act2, ACT2_CHURCHMASTER))
+				found = TRUE;
+		}
+
+		if (!found)
+		{
+			send_to_char("You must be at an administration office.\n\r", ch);
+			return;
+		}
+
+
+		if(!is_number(arg2) || !is_number(argument))
+		{
+			send_to_char("That is not a number.\n\r", ch);
+			return;
+		}
+
+		int roomno = atoi(arg2);
+
+		if( roomno < 0 || roomno > list_size(ch->church->treasure_rooms))
+		{
+			send_to_char("Room number is out of range.\n\r", ch);
+			return;
+		}
+
+		if( roomno == 1 )
+		{
+			send_to_char("The first treasure room cannot be restricted.\n\r", ch);
+			return;
+		}
+
+		int rank = atoi(argument);
+
+		if( rank < CHURCH_RANK_A || rank > CHURCH_RANK_D )
+		{
+			send_to_char("That is not a church rank.  Please specify a rank from 1 to 4.\n\r", ch);
+			return;
+		}
+
+		CHURCH_TREASURE_ROOM *treasure = get_church_treasure_room(ch->church, roomno);
+
+		if(!treasure)
+		{
+			send_to_char("Could not find the specified treasure room.\n\r", ch);
+			return;
+		}
+
+		treasure->min_rank = rank;
+		send_to_char("Rank changed.\n\r");
+
+		sprintf(buf, "%s changes minimum rank for treasure room %s to %s.", ch->name, treasure->room->name, rank_names[treasure->min_rank]);
+		append_church_log(ch->church, buf);
+
+		write_churches_new();
+	}
+
+	send_to_char("CHURCH TREASURE LIST\n\r", ch);
+	if( ch->church_member->rank >= CHURCH_RANK_D )
+		send_to_char("                RANK <room#> <rank>\n\r", ch);
+	return;
 }

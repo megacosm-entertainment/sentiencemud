@@ -4546,12 +4546,12 @@ void do_chset(CHAR_DATA *ch, char *argument)
 	{
 		if(!str_cmp(arg3, "list"))
 		{
-			ROOM_INDEX_DATA *treasure_room;
+			CHURCH_TREASURE_ROOM *treasure;
 			ITERATOR it;
 
 			int i = 0;
 			iterator_start(&it, church->treasure_rooms);
-			while( (treasure_room = (ROOM_INDEX_DATA *)iterator_nextdata(&it)) )
+			while( (treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it)) )
 			{
 				if( i == 0 ) {
 					sprintf(buf, "{YTreasure rooms for {W%s{Y:\n\r", church->name);
@@ -4560,8 +4560,7 @@ void do_chset(CHAR_DATA *ch, char *argument)
 				}
 
 				i++;
-
-				sprintf(buf, "%2d) %s (%ld)\n\r", i, treasure_room->name, treasure_room->vnum);
+				sprintf(buf, "%2d [%-8ld] %s\n\r", i, treasure->room->vnum, treasure->room->name);
 				send_to_char(buf, ch);
 			}
 			iterator_stop(&it);
@@ -4601,7 +4600,7 @@ void do_chset(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			if( !list_appendlink(church->treasure_rooms, room) )
+			if( !church_add_treasure_room(church->treasure_rooms, room, CHURCH_RANK_A) )
 			{
 				send_to_char("ERROR: could not add room to treasure rooms list.\n\r", ch);
 				return;
@@ -4640,7 +4639,7 @@ void do_chset(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			list_remlink(church->treasure_rooms, room);
+			church_remove_treasure_room(church->treasure_rooms, room);
 
 			send_to_char("Treasure room removed.\n\r", ch);
 			return;
