@@ -5527,6 +5527,27 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 			list_clear(var->_.list);
 		}
 
+	// QUESTMOB <player> <continent>
+	} else if(!str_cmp(buf,"questmob")) {
+		if( arg.type != ENT_MOBILE || !IS_VALID(arg.d.mob) || IS_NPC(arg.d.mob) )
+			return;
+
+		vch = arg.d.mob;
+
+		if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_NUMBER)
+			return;
+
+		int continent;
+		if( !str_cmp(arg.d.str, "first") )			continent = FIRST_CONTINENT;
+		else if( !str_cmp(arg.d.str, "second") )	continent = SECOND_CONTINENT;
+		else if( !str_cmp(arg.d.str, "both") )		continent = BOTH_CONTINENTS;
+		else
+			return;
+
+		vch = get_random_mob(vch, continent);
+		if( vch != NULL )
+			variables_set_mobile(vars,name,vch);
+
 	} else
 		return;
 }
