@@ -174,6 +174,7 @@ SHOP_DATA *		shop_last;
 TIME_INFO_DATA		time_info;
 TRADE_ITEM *	        trade_produce_list;
 WEATHER_DATA 		weather_info;
+BLUEPRINT		*blueprints;
 bool			global;
 char			bug_buf[2*MAX_INPUT_LENGTH];
 char *			help_greeting;

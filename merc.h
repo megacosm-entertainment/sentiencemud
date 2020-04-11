@@ -4792,12 +4792,15 @@ typedef struct blueprint_data BLUEPRINT;
 
 struct blueprint_data {
 	BLUEPRINT *next;
+	bool valid;
+
 	long vnum;
 	char *name;
-	char *description;	/* A description of what the blueprint is for */
+	char *description;
 
-	LLIST *rooms;		/* List of rooms */
-	LLIST *exits;		/* List of strings */
+	long recall;		// The recall of the blueprint, must be within range
+	long lower_vnum;
+	long upper_vnum;
 };
 
 /* conditions for conditional descs */
@@ -6334,6 +6337,9 @@ char *	crypt		args( ( const char *key, const char *salt ) );
 #define SKILLS_DB_FILE	DUMP_DIR "skills_db.txt"
 #define HELP_DB_FILE	DUMP_DIR "help_db.txt"
 
+#define BLUEPRINTS_FILE		WORLD_DIR "blueprints.dat"
+
+
 /* POST msg queue */
 #define MSGQUEUE	1111
 
@@ -7590,6 +7596,9 @@ extern LLIST *conn_immortals;
 extern LLIST *conn_online;
 extern LLIST *loaded_areas;		// LLIST_AREA_DATA format
 extern LLIST *loaded_wilds;
+
+extern BLUEPRINT *blueprints;
+
 
 void connection_add(DESCRIPTOR_DATA *d);
 void connection_remove(DESCRIPTOR_DATA *d);
