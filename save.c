@@ -3070,8 +3070,6 @@ void write_permanent_objs()
 {
     FILE *fp;
     CHURCH_DATA *church;
-    ROOM_INDEX_DATA *room;
-    OBJ_DATA *obj;
 
     if ((fp = fopen(PERM_OBJS_FILE, "w")) == NULL)
 	bug("perm_objs_new.dat: Couldn't open file.",0);
