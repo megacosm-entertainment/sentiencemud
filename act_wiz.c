@@ -4541,6 +4541,114 @@ void do_chset(CHAR_DATA *ch, char *argument)
 	church->key = atol(arg3);
 	return;
     }
+
+	if(!str_cmp(arg2, "treasure"))
+	{
+		if(!str_cmp(arg3, "list"))
+		{
+			int i = 0;
+			iterator_start(&it, church->treasure_rooms);
+			while( (treasure_room = (ROOM_INDEX_DATA *)iterator_nextdata(&it)) )
+			{
+				if( i == 0 ) {
+					sprintf(buf, "{YTreasure rooms for {W%s{Y:\n\r", church->name);
+					send_to_char(buf, ch);
+					send_to_char("{Y========================================================{x\n\r", ch);
+				}
+
+				i++;
+
+				sprintf(buf, "%2d) %s (%ld)\n\r", i, treasure_room->name, treasure_room->vnum);
+				send_to_char(buf, ch);
+			}
+			iterator_stop(&it);
+
+			if( i == 0 )
+				send_to_char("There are no treasure rooms assigned.\n\r", ch);
+
+			return;
+		}
+
+		if(!str_cmp(arg3, "add"))
+		{
+			if( argument[0] == '\0' )
+			{
+				send_to_char("set church <no> treasure add <vnum>\n\r", ch);
+				return;
+			}
+
+			if(!is_number(argument))
+			{
+				send_to_char("That's not even a number.\n\r", ch);
+				return;
+			}
+
+			long vnum = atol(argument);
+			ROOM_INDEX_DATA *room = get_room_index(vnum);
+
+			if(!room)
+			{
+				send_to_char("That's room does not exist.\n\r", ch);
+				return;
+			}
+
+			if(is_treasure_room(NULL, room))
+			{
+				send_to_char("That room is already a treasure room.\n\r", ch);
+				return;
+			}
+
+			if( !list_appendlink(church->treasure_rooms, room) )
+			{
+				send_to_char("ERROR: could not add room to treasure rooms list.\n\r", ch);
+				return;
+			}
+
+			list_remlink(church->treasure_rooms, room);
+
+			send_to_char("Treasure room added.\n\r", ch);
+			return;
+		}
+
+		if(!str_cmp(arg3, "remove"))
+		{
+			if( argument[0] == '\0' )
+			{
+				send_to_char("set church <no> treasure remove <vnum>\n\r", ch);
+				return;
+			}
+
+			if(!is_number(argument))
+			{
+				send_to_char("That's not even a number.\n\r", ch);
+				return;
+			}
+
+			long vnum = atol(argument);
+			ROOM_INDEX_DATA *room = get_room_index(vnum);
+
+			if(!room)
+			{
+				send_to_char("That's room does not exist.\n\r", ch);
+				return;
+			}
+
+			if(!is_treasure_room(church, room))
+			{
+				send_to_char("That room is not a treasure room in the church.\n\r", ch);
+				return;
+			}
+
+			send_to_char("Treasure room removed.\n\r", ch);
+			return;
+		}
+
+		send_to_char("set church <no> treasure list\n\r", ch);
+		send_to_char("                         add <vnum>\n\r", ch);
+		send_to_char("                         remove <vnum>\n\r", ch);
+		return;
+	}
+
 /*
     if (!str_cmp(arg2, "treasure"))
     {
