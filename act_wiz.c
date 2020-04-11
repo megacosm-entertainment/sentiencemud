@@ -4546,6 +4546,9 @@ void do_chset(CHAR_DATA *ch, char *argument)
 	{
 		if(!str_cmp(arg3, "list"))
 		{
+			ROOM_INDEX_DATA *treasure_room;
+			ITERATOR it;
+
 			int i = 0;
 			iterator_start(&it, church->treasure_rooms);
 			while( (treasure_room = (ROOM_INDEX_DATA *)iterator_nextdata(&it)) )
