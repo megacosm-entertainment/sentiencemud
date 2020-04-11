@@ -1320,6 +1320,9 @@ void do_open(CHAR_DATA *ch, char *argument)
 	{
 	    CHAR_DATA *rch;
 
+	    exit_name(to_room, rev_dir[door], exit);
+
+
 	    REMOVE_BIT(pexit_rev->exit_info, EX_CLOSED);
 	    for (rch = to_room->people; rch != NULL; rch = rch->next_in_room)
 		act("$T opens.", rch, NULL, NULL, NULL, NULL, NULL, exit, TO_CHAR);
