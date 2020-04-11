@@ -4228,7 +4228,7 @@ void do_chtreasure(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		int rank = atoi(argument);
+		int rank = atoi(argument) - 1;
 
 		if( rank < CHURCH_RANK_A || rank > CHURCH_RANK_D )
 		{
