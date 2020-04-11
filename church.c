@@ -2199,7 +2199,7 @@ void do_chinfo(CHAR_DATA *ch, char *argument)
 		if( treasure->room != NULL )
 		{
 			ROOM_INDEX_DATA *room = treasure->room;
-			for (obj = room->contents; obj != NULL; obj = obj->next_content)
+			for (OBJ_DATA *obj = room->contents; obj != NULL; obj = obj->next_content)
 			{
 				if (is_relic(obj->pIndexData))
 				{
