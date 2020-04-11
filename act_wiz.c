@@ -4447,18 +4447,27 @@ void do_chset(CHAR_DATA *ch, char *argument)
 
     if (!str_cmp(arg2, "max"))
     {
-	if (!is_number(arg3))
-	{
-	    send_to_char("Invalid argument.\n\r", ch);
-	    return;
-	}
+		if (!is_number(arg3))
+		{
+			send_to_char("Invalid argument.\n\r", ch);
+			return;
+		}
 
-	sprintf(buf, "Set max positions in %s to %d.\n\r",
-		church->name, atoi(arg3));
-	send_to_char(buf, ch);
+		int max_pos = atoi(arg3);
+		int min_pos = church_get_min_positions(church->size);
 
-	church->max_positions = atoi(arg3);
-	return;
+		if( max_pos < min_pos )
+		{
+			sprintf(buf, "Minimum number of max positions allowed for a church of that size is %d.\n\r", min_pos);
+			send_to_char(buf, ch);
+			return;
+		}
+
+		sprintf(buf, "Set max positions in %s to %d.\n\r", church->name, max_pos);
+		send_to_char(buf, ch);
+
+		church->max_positions = max_pos;
+		return;
     }
 
     if (!str_cmp(arg2, "size"))

@@ -113,6 +113,18 @@ char *lookup_church_command (char *string)
     return NULL;
 }
 
+int church_get_min_positions(int size)
+{
+	// (SIZE-1)*(21-10)/(4-1) = (POSITIONS - 10)
+	// POSITIONS = (11 * SIZE + 19) / 3
+
+	// BAND(1) = 10
+	// CULT(2) = 13
+	// ORDER(3) = 17
+	// CHURCH(4) = 21
+
+	return (11 * size + 19) / 3;
+}
 
 void show_church_commands(CHAR_DATA *ch)
 {
@@ -1806,8 +1818,8 @@ void do_chadvance(CHAR_DATA *ch, char* argument)
     if (!is_number(arg))
     {
         send_to_char("That's not even a number!\n\r", ch);
-	show_chlist_to_char(ch);
-	return;
+		show_chlist_to_char(ch);
+		return;
     }
 
     if ((church = find_church(atoi (arg))) == NULL)
@@ -1818,11 +1830,15 @@ void do_chadvance(CHAR_DATA *ch, char* argument)
 
     if (church->size == CHURCH_SIZE_CHURCH)
     {
-	send_to_char("They're already at the maximum level.\n\r", ch);
-	return;
+		send_to_char("They're already at the maximum level.\n\r", ch);
+		return;
     }
 
     church->size += 1;
+
+	// Update their max roster size if necessary
+    int max_pos = church_get_max_positions(church->size);
+    church->max_positions = UMAX(church->max_positions, max_pos);
 
     sprintf(buf, "{Y[%s is now %s %s!]{x\n\r",
         church->name,
@@ -3911,6 +3927,10 @@ CHURCH_DATA *read_church(FILE *fp)
 	    }
 	}
     }
+
+	// Force their max positions to meet the minimum requirements, if lower
+    int max_pos = church_get_max_positions(church->size);
+    church->max_positions = UMAX(church->max_positions, max_pos);
 
     if (church->info == NULL)
 		church->info = str_dup("No info set.");
