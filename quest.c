@@ -964,7 +964,7 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 		part->next = ch->quest->parts;
 		ch->quest->parts = part;
 
-		if (generate_quest_part(ch, questman, part, i+1, script_tasks))
+		if (generate_quest_part(ch, questman, part, i+1))
 			continue;
 		else
 		{
