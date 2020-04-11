@@ -3481,7 +3481,7 @@ void do_chdonate(CHAR_DATA *ch, char *argument)
 
 
     CHURCH_TREASURE_ROOM *treasure = get_church_treasure_room(ch->church, roomno);
-    if( !treasure )
+    if( !treasure || !treasure->room )
     {
 		send_to_char("Something went wrong.  Could not find the treasure room.\n\r", ch);
 		return;
@@ -3494,7 +3494,7 @@ void do_chdonate(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-    if (count_items_list_nest(room->contents) > MAX_CHURCH_TREASURE)
+    if (count_items_list_nest(treasure->room->contents) > MAX_CHURCH_TREASURE)
     {
     	send_to_char("That church temple treasure room is quite full already.\n\rPlease try another room.\n\r", ch);
 		return;
