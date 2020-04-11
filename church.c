@@ -3438,7 +3438,6 @@ void do_chdonate(CHAR_DATA *ch, char *argument)
 {
 	// church donate <obj>[ <room no>]
     OBJ_DATA *obj;
-    ROOM_INDEX_DATA *room;
     char arg[MIL];
 
     if (ch->church == NULL)
