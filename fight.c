@@ -4727,7 +4727,8 @@ void do_bash(CHAR_DATA *ch, char *argument)
 		}
 	}
 
-	if (is_safe(ch, victim, TRUE)) return;
+	if (is_safe(ch, victim, TRUE))
+		return;
 
 	if(p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BASH, "pretest") ||
 		p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BASH, "pretest"))
@@ -4796,7 +4797,7 @@ void do_bash(CHAR_DATA *ch, char *argument)
 
 			ret = p_percent_trigger(mount,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BASH, "message_pass_mount");
 			if(ret < 0) ret = 0;
-			if(ret & 2) {
+			if(!(ret & 2)) {
 				victim->position = POS_RESTING;
 				victim->bashed   = 10 * (30 - get_curr_stat(victim, STAT_DEX))/10 + number_range(1, 5);
 			}
@@ -4805,11 +4806,11 @@ void do_bash(CHAR_DATA *ch, char *argument)
 		} else {
 			ret = p_percent_trigger(mount,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BASH, "message_fail_mount");
 			if(ret < 0) ret = 0;
-			if(ret & 1) {
+			if(!(ret & 1)) {
 				act("$N falls flat on $S face!", ch, mount, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 				act("$N falls flat on $S face!", ch, mount, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 			}
-			if(ret & 2) {
+			if(!(ret & 2)) {
 				mount->position = POS_RESTING;
 				mount->bashed   = (int) 10 * (30 - get_curr_stat(mount, STAT_DEX)) / 10 + number_range(1, 5);
 			}
@@ -4873,12 +4874,12 @@ void do_bash(CHAR_DATA *ch, char *argument)
 
 		ret = p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ATTACK_BASH, "message_pass");
 		if (ret < 0) ret = 0;
-		if (ret & 1) {
+		if (!(ret & 1)) {
 			act("You send $N sprawling!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			act("$n sends you sprawling!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 			act("$n sends $M sprawling!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
 		}
-		if (ret & 2) {
+		if (!(ret & 2)) {
 			victim->position = POS_RESTING;
 			victim->bashed = 10 * (30 - get_curr_stat(victim, STAT_DEX))/10 + number_range(1, 5);
 		}
@@ -4886,12 +4887,12 @@ void do_bash(CHAR_DATA *ch, char *argument)
 	} else { // Failed
 		ret = p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ATTACK_BASH, "message_fail");
 		if (ret < 0) ret = 0;
-		if (ret & 1) {
+		if (!(ret & 1)) {
 			act("You fall flat on your face!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			act("$n falls flat on $s face.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
 			act("You evade $n's bash, causing $m to fall flat on $s face.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 		}
-		if (ret & 2) {
+		if (!(ret & 2)) {
 			ch->position = POS_RESTING;
 			ch->bashed = (int) 10 * (30 - get_curr_stat(ch, STAT_DEX)) / 10 + number_range(1, 5);
 		}
