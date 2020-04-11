@@ -3937,7 +3937,7 @@ CHURCH_DATA *read_church(FILE *fp)
     }
 
 	// Force their max positions to meet the minimum requirements, if lower
-    int max_pos = church_get_max_positions(church->size);
+    int max_pos = church_get_min_positions(church->size);
     church->max_positions = UMAX(church->max_positions, max_pos);
 
     if (church->info == NULL)
