@@ -25,6 +25,7 @@ const struct script_cmd_type obj_cmd_table[] = {
 	{ "asound",				do_opasound,			FALSE,	TRUE	},
 	{ "at",					do_opat,				FALSE,	TRUE	},
 	{ "award",				scriptcmd_award,		TRUE,	TRUE	},
+	{ "breathe",			scriptcmd_breathe,		FALSE,	TRUE	},
 	{ "call",				do_opcall,				FALSE,	TRUE	},
 	{ "cancel",				do_opcancel,			FALSE,	FALSE	},
 	{ "cast",       		do_opcast,				FALSE,	TRUE	},

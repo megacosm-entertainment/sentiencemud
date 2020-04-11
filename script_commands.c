@@ -601,6 +601,61 @@ SCRIPT_CMD(scriptcmd_award)
 //////////////////////////////////////
 // B
 
+// BREATHE $VICTIM $TYPE[ $ATTACKER]
+// Does the dragon breath of the given type: acid, fire, frost, gas, lightning
+SCRIPT_CMD(scriptcmd_breathe)
+{
+	static char *breath_names[] = { "acid", "fire", "frost", "gas", "lightning", NULL };
+	static sh_int *breath_gsn[] = { &gsn_acid_breath, &gsn_fire_breath, &gsn_frost_breath, &gsn_gas_breath, &gsn_lightning_breath };
+	static SPELL_FUN *breath_fun[] = { spell_acid_breath, spell_fire_breath, spell_frost_breath, spell_gas_breath, spell_lightning_breath };
+	char *rest;
+	CHAR_DATA *attacker = NULL;
+	CHAR_DATA *victim = NULL;
+	SCRIPT_PARAM arg;
+	int i;
+
+	info->progs->lastreturn = 0;
+
+	if(!(rest = expand_argument(info,argument,&arg)))
+		return;
+
+	switch(arg.type) {
+	case ENT_STRING: victim = script_get_char_room(info, arg.d.str, FALSE); break;
+	case ENT_MOBILE: victim = arg.d.mob; break;
+	default: victim = NULL; break;
+	}
+
+	if (!victim)
+		return;
+
+	if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_STRING)
+		return;
+
+	for(i=0;breath_names[i] && str_prefix(arg.d.str,breath_names[i]);i++);
+
+	if(!breath_names[i])
+		return;
+
+	attacker = info->mob;
+	if(*rest) {
+		if(!(rest = expand_argument(info,argument,&arg)))
+			return;
+
+		switch(arg.type) {
+		case ENT_STRING: attacker = script_get_char_room(info, arg.d.str, FALSE); break;
+		case ENT_MOBILE: attacker = arg.d.mob; break;
+		default: attacker = NULL; break;
+		}
+	}
+
+	if(!attacker)
+		return;
+
+	(*breath_fun[i]) (*breath_gsn[i] , attacker->tot_level, attacker, victim, TARGET_CHAR, WEAR_NONE);
+
+	info->progs->lastreturn = 1;
+}
+
 //////////////////////////////////////
 // C
 
@@ -874,10 +929,8 @@ SCRIPT_CMD(scriptcmd_entercombat)
 
 	info->progs->lastreturn = 0;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
-		bug("MpStartCombat - Error in parsing from vnum %ld.", VNUM(info->mob));
+	if(!(rest = expand_argument(info,argument,&arg)))
 		return;
-	}
 
 	switch(arg.type) {
 	case ENT_STRING: victim = script_get_char_room(info, arg.d.str, FALSE); break;

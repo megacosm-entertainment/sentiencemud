@@ -2399,6 +2399,7 @@ SCRIPT_CMD(scriptcmd_addaffect);
 SCRIPT_CMD(scriptcmd_addaffectname);
 SCRIPT_CMD(scriptcmd_applytoxin);
 SCRIPT_CMD(scriptcmd_award);
+SCRIPT_CMD(scriptcmd_breathe);
 SCRIPT_CMD(scriptcmd_damage);
 SCRIPT_CMD(scriptcmd_deduct);
 SCRIPT_CMD(scriptcmd_entercombat);
