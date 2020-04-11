@@ -4251,6 +4251,7 @@ void do_chtreasure(CHAR_DATA *ch, char *argument)
 		append_church_log(ch->church, buf);
 
 		write_churches_new();
+		return;
 	}
 
 	send_to_char("CHURCH TREASURE LIST\n\r", ch);
