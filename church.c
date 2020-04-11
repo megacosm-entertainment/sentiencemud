@@ -1837,7 +1837,7 @@ void do_chadvance(CHAR_DATA *ch, char* argument)
     church->size += 1;
 
 	// Update their max roster size if necessary
-    int max_pos = church_get_max_positions(church->size);
+    int max_pos = church_get_min_positions(church->size);
     church->max_positions = UMAX(church->max_positions, max_pos);
 
     sprintf(buf, "{Y[%s is now %s %s!]{x\n\r",
@@ -4174,9 +4174,9 @@ int church_available_treasure_rooms(CHAR_DATA *ch)
 
 	int count = 0;
 
-	iterator_start(&it, church->treasure_rooms);
+	iterator_start(&it, ch->church->treasure_rooms);
 	while( (treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it))) {
-		if( min_rank >= treasure->min_rank)
+		if( ch->church_member->rank >= treasure->min_rank)
 		{
 			count++;
 		}
