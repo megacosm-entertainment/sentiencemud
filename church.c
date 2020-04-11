@@ -2198,7 +2198,7 @@ void do_chinfo(CHAR_DATA *ch, char *argument)
 	while( (treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it)) ) {
 		if( treasure->room != NULL )
 		{
-			room = treasure->room;
+			ROOM_INDEX_DATA *room = treasure->room;
 			for (obj = room->contents; obj != NULL; obj = obj->next_content)
 			{
 				if (is_relic(obj->pIndexData))
@@ -3818,7 +3818,7 @@ CHURCH_DATA *read_church(FILE *fp)
 				ROOM_INDEX_DATA *room = get_room_index(fread_number(fp));
 
 				if( room ) {
-					if( !church_add_treasure_room(church->treasure_rooms, room, CHURCH_RANK_A) ) {
+					if( !church_add_treasure_room(church, room, CHURCH_RANK_A) ) {
 						bug("Failed to add church treasure room due to memory issues with 'list_appendlink'.", 0);
 						abort();
 					}
@@ -3834,7 +3834,7 @@ CHURCH_DATA *read_church(FILE *fp)
 				if( min_rank > CHURCH_RANK_D ) min_rank = CHURCH_RANK_D;
 
 				if( room ) {
-					if( !church_add_treasure_room(church->treasure_rooms, room, min_rank) ) {
+					if( !church_add_treasure_room(church, room, min_rank) ) {
 						bug("Failed to add church treasure room due to memory issues with 'list_appendlink'.", 0);
 						abort();
 					}
@@ -3859,7 +3859,7 @@ CHURCH_DATA *read_church(FILE *fp)
 					room = create_wilds_vroom(wilds,x, y);
 
 				if( room ) {
-					if( !church_add_treasure_room(church->treasure_rooms, room, CHURCH_RANK_A) ) {
+					if( !church_add_treasure_room(church, room, CHURCH_RANK_A) ) {
 						bug("Failed to add church treasure room due to memory issues with 'list_appendlink'.", 0);
 						abort();
 					}
@@ -3888,7 +3888,7 @@ CHURCH_DATA *read_church(FILE *fp)
 					room = create_wilds_vroom(wilds,x, y);
 
 				if( room ) {
-					if( !church_add_treasure_room(church->treasure_rooms, room, min_rank) ) {
+					if( !church_add_treasure_room(church, room, min_rank) ) {
 						bug("Failed to add church treasure room due to memory issues with 'list_appendlink'.", 0);
 						abort();
 					}
@@ -4002,7 +4002,6 @@ bool is_in_treasure_room(OBJ_DATA *obj)
 bool vnum_in_treasure_room(CHURCH_DATA *church, long vnum)
 {
 	CHURCH_TREASURE_ROOM *treasure;
-    ROOM_INDEX_DATA *treasure_room = NULL;
 	OBJ_DATA *obj = NULL;
 	ITERATOR rit, oit;
 
@@ -4138,7 +4137,6 @@ void do_chtreasure(CHAR_DATA *ch, char *argument)
     char arg[MIL];
     char arg2[MIL];
     bool found = FALSE;
-    int i;
 
     argument = one_argument(argument, arg);
     argument = one_argument(argument, arg2);
@@ -4248,7 +4246,7 @@ void do_chtreasure(CHAR_DATA *ch, char *argument)
 		}
 
 		treasure->min_rank = rank;
-		send_to_char("Rank changed.\n\r");
+		send_to_char("Rank changed.\n\r", ch);
 
 		sprintf(buf, "%s changes minimum rank for treasure room %s to %s.", ch->name, treasure->room->name, rank_names[treasure->min_rank]);
 		append_church_log(ch->church, buf);

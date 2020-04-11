@@ -4600,7 +4600,7 @@ void do_chset(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			if( !church_add_treasure_room(church->treasure_rooms, room, CHURCH_RANK_A) )
+			if( !church_add_treasure_room(church, room, CHURCH_RANK_A) )
 			{
 				send_to_char("ERROR: could not add room to treasure rooms list.\n\r", ch);
 				return;
@@ -4639,7 +4639,7 @@ void do_chset(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			church_remove_treasure_room(church->treasure_rooms, room);
+			church_remove_treasure_room(church, room);
 
 			send_to_char("Treasure room removed.\n\r", ch);
 			return;

@@ -7745,6 +7745,7 @@ void free_boolexp(BOOLEXP *boolexp);
 
 int do_flee_full(CHAR_DATA *ch, char *argument, bool conceal, bool pursue);
 
+CHURCH_TREASURE_ROOM *get_church_treasure_room(CHURCH_DATA *church, int nth);
 bool church_add_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room, int min_rank);
 void church_remove_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room);
 bool church_set_treasure_room_rank(CHURCH_DATA *church, int nth, int min_rank);
