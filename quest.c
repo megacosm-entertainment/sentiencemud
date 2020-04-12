@@ -229,7 +229,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
     /* For the following functions, a QM must be present. */
     for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
     {
-        if (IS_NPC(mob) && mob->pQuestor != NULL)
+        if (IS_NPC(mob) && mob->pIndexData->pQuestor != NULL)
 	    break;
 
 
@@ -909,8 +909,6 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 {
 	char buf[MAX_STRING_LENGTH];
 	char buf2[MAX_STRING_LENGTH*8];
-	MOB_INDEX_DATA *mob;
-	CHAR_DATA *victim;
 	QUEST_PART_DATA *part;
 	OBJ_DATA *scroll;
 	int parts;
@@ -947,7 +945,7 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 	scroll = create_object(get_obj_index(OBJ_VNUM_QUEST_SCROLL), 0, TRUE);
 	free_string(scroll->full_description);
 
-	QUESTOR_DATA *qd = questman->pQuestor;
+	QUESTOR_DATA *qd = questman->pIndexData->pQuestor;
 
 	char *replace1 = string_replace_static(qd->header, "$PLAYER$", ch->name);
 	char *replace2 = string_replace_static(replace1, "$QUESTOR$", questman->short_descr);
@@ -995,7 +993,7 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 
 		int width = part->line_width + len - plen;
 
-		sprintf(buf, "%s%-*.*s%s\n\r", part->prefix, width, width, part->part->description, part->suffix);
+		sprintf(buf, "%s%-*.*s%s\n\r", qd->prefix, width, width, part->part->description, qd->suffix);
 		strcat(buf2, buf);
 
 #if 0

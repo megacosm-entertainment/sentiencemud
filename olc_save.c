@@ -794,16 +794,16 @@ void save_mobile_new(FILE *fp, MOB_INDEX_DATA *mob)
     if (mob->corpse_type)
 	fprintf(fp, "CorpseType %ld\n", (long int)mob->corpse_type);
     if (mob->corpse)
-	fprintf(fp, "CorpseVnum %ld\n", mob->corpse);
+		fprintf(fp, "CorpseVnum %ld\n", mob->corpse);
     if (mob->zombie)
-	fprintf(fp, "CorpseZombie %ld\n", mob->zombie);
+		fprintf(fp, "CorpseZombie %ld\n", mob->zombie);
 
 	if (mob->pQuestor != NULL)
 		save_questor_new(fp, mob->pQuestor);
 
     /* save the shop */
     if (mob->pShop != NULL)
-	save_shop_new(fp, mob->pShop);
+		save_shop_new(fp, mob->pShop);
 
     if(mob->progs) {
 		for(i = 0; i < TRIGSLOT_MAX; i++) if(list_size(mob->progs[i]) > 0) {
@@ -2992,7 +2992,7 @@ QUESTOR_DATA *read_questor_new(FILE *fp)
     QUESTOR_DATA *questor;
     char *word;
 
-    questor = new_questor();
+    questor = new_questor_data();
 
     while (str_cmp((word = fread_word(fp)), "#-QUESTOR"))
     {
