@@ -4894,9 +4894,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 		rep = string_replace(var->_.s, o, n);
 		if( !IS_NULLSTR(rep) ) return;
 
-		variables_set_string(vars,name,rep);
-
-
+		variables_set_string(vars,name,rep,FALSE);
 
 	// Copies an extra description
 	// Format: ED <OBJECT or ROOM> <keyword>
