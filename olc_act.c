@@ -9618,11 +9618,11 @@ MEDIT(medit_questor)
 		return TRUE;
 
 	} else if (!str_cmp(arg,"header")) {
-		string_append(&pMob->pQuestor->header);
+		string_append(ch, &pMob->pQuestor->header);
 		return TRUE;
 
 	} else if (!str_cmp(arg,"footer")) {
-		string_append(&pMob->pQuestor->footer);
+		string_append(ch, &pMob->pQuestor->footer);
 		return TRUE;
 
 	} else if (!str_cmp(arg,"prefix")) {
