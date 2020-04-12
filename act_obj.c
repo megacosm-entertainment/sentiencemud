@@ -5125,7 +5125,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 
 			if( IS_NULLSTR(stock->custom_pricing) )
 			{
-				int chance = get_skill_ch, gsn_haggle);
+				int chance = get_skill(ch, gsn_haggle);
 
 				long silver = adjust_keeper_price(keeper, number * stock->silver, TRUE);
 
