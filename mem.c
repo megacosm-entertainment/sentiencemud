@@ -3192,9 +3192,9 @@ QUESTOR_DATA *questor_free = NULL;
 
 QUESTOR_DATA *new_questor_data()
 {
-	QUESTER_DATA *q;
+	QUESTOR_DATA *q;
 	if(!questor_free)
-		q = alloc_perm(sizeof(QUESTER_DATA));
+		q = alloc_perm(sizeof(QUESTOR_DATA));
 	else
 	{
 		q = questor_free;
