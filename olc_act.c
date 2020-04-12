@@ -6588,18 +6588,29 @@ MEDIT(medit_show)
 		{
 			SHOP_STOCK_DATA *pStock;
 			int iStock;
+			char lvl[MIL];
 			char qty[MIL];
 			char pricing[MIL];
 			char item[MIL];
-			int qwidth, pwidth;
+			int lwidth, qwidth, pwidth;
 
 			for(iStock = 1, pStock = pShop->stock;pStock;pStock = pStock->next, iStock++)
 			{
 				if(iStock == 1)
 				{
-					add_buf(buffer, "{G  Stock# Quantity    Price(s)                 Item{x\n\r");
-					add_buf(buffer, "{G  ------ -------- -------------- ------------------------------{x\n\r");
+					add_buf(buffer, "{G  Stock# Level Quantity    Price(s)                 Item{x\n\r");
+					add_buf(buffer, "{G  ------ ----- -------- -------------- ------------------------------{x\n\r");
 				}
+
+				if( pStock->level > 0 )
+				{
+					sprintf(lvl, "{Y%d{x", pStock->level);
+				}
+				else
+				{
+					strcpy(lvl, "{GAuto{x";
+				}
+				lwidth = get_colour_width(lvl) + 5;
 
 				if( pStock->quantity > 0 )
 				{
@@ -6710,12 +6721,12 @@ MEDIT(medit_show)
 					}
 				}
 
-				sprintf(buf, "  {G[{x%4d{G]{x %-*s %-*s %s\n\r", iStock, qwidth, qty, pwidth, pricing, item);
+				sprintf(buf, "  {G[{x%4d{G]{x %-*s %-*s %-*s %s\n\r", iStock, lwidth, lvl, qwidth, qty, pwidth, pricing, item);
 				add_buf(buffer,buf);
 
 				if( !IS_NULLSTR(pStock->custom_descr) )
 				{
-					sprintf(buf, "                                 - %s\n\r", pStock->custom_descr);
+					sprintf(buf, "                                       - %s\n\r", pStock->custom_descr);
 					add_buf(buffer, buf);
 				}
 			}
@@ -7717,6 +7728,7 @@ MEDIT(medit_shop)
 		{
 			send_to_char("Syntax:  shop stock add [object vnum]\n\r", ch);
 			send_to_char("         shop stock add [keyword]\n\r", ch);
+			send_to_char("         shop stock level {#] [level]\n\r", ch);
 			send_to_char("         shop stock price [#] [silver|qp|dp|pneuma|custom] [value]\n\r", ch);
 			send_to_char("         shop stock quantity [#] unlimited\n\r", ch);
 			send_to_char("         shop stock quantity [#] [total] [reset rate]\n\r", ch);
@@ -7868,6 +7880,37 @@ MEDIT(medit_shop)
 			return FALSE;
 		}
 
+		if(!str_prefix(arg1, "level"))
+		{
+			stock = get_shop_stock_bypos(pMob->pShop, atoi(arg2));
+
+			if(!stock)
+			{
+				send_to_char("Invalid stock number.\n\r", ch);
+				return FALSE;
+			}
+
+			if(!is_number(argument))
+			{
+				send_to_char("Syntax:  shop stock level [#] [level]\n\r", ch);
+				return FALSE;
+			}
+
+			int lvl = atoi(arg3);
+
+			if(lvl < 1)
+			{
+				stock->level = 0;
+				send_to_char("Stock level set to automatic.\n\r", ch);
+				return TRUE;
+			}
+
+			stock->level = lvl;
+			send_to_char("Stock level changed.\n\r", ch);
+			return TRUE;
+		}
+
+
 		if(!str_prefix(arg1, "quantity"))
 		{
 			stock = get_shop_stock_bypos(pMob->pShop, atoi(arg2));
@@ -7970,6 +8013,7 @@ MEDIT(medit_shop)
 
 		send_to_char("Syntax:  shop stock add [object vnum]\n\r", ch);
 		send_to_char("         shop stock add [keyword]\n\r", ch);
+		send_to_char("         shop stock level {#] [level]\n\r", ch);
 		send_to_char("         shop stock price [#] [silver|qp|dp|pneuma|custom] [value]\n\r", ch);
 		send_to_char("         shop stock quantity [#] unlimited\n\r", ch);
 		send_to_char("         shop stock quantity [#] [total] [reset rate]\n\r", ch);

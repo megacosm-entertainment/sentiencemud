@@ -1139,6 +1139,8 @@ void save_shop_stock_new(FILE *fp, SHOP_STOCK_DATA *stock)
 
 	fprintf(fp, "#STOCK\n");
 
+	fprintf(fp, "Level %d\n", stock->level);
+
 	// Pricing
 	fprintf(fp, "Silver %ld\n", stock->silver);
 	fprintf(fp, "QuestPnts %ld\n", stock->qp);
@@ -3106,6 +3108,9 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)
 			break;
 		case 'K':
 			KEYS("Keyword", stock->custom_keyword, fread_string(fp));
+			break;
+		case 'L':
+			KEY("Level", stock->level, fread_number(fp));
 			break;
 		case 'O':
 			KEY("Object", stock->vnum, fread_number(fp));

@@ -1291,6 +1291,11 @@ struct shop_stock_data
 {
 	SHOP_STOCK_DATA *next;
 
+	int level;					// Minimum level required to buy it
+								// If level is less than 1..
+								//   - if vnum > 0 => object level
+								//   - else => clamped 1
+
 	long silver;
 	long qp;
 	long dp;

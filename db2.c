@@ -411,11 +411,8 @@ CHAR_DATA *get_random_mob( CHAR_DATA *ch, int continent )
 		continue;
 
    	    mob = get_char_world_index( ch, mIndex );
-  	    if ( mob == NULL )
+  	    if ( mob == NULL || mob->shop != NULL)
                 continue;
-
-		if( mob->shop != NULL )
-			continue;
 	}
 
         if ( can_see_room(ch,mob->in_room)
