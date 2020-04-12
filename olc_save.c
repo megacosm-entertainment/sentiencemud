@@ -1146,6 +1146,10 @@ void save_shop_stock_new(FILE *fp, SHOP_STOCK_DATA *stock)
 	fprintf(fp, "Pneuma %ld\n", stock->pneuma);
 	fprintf(fp, "Pricing %s~\n", fix_string(stock->custom_price));
 
+	// Quantity
+	fprintf(fp, "MaxQuantity %d\n", stock->max_quantity);
+	fprintf(fp, "RestockRate %d\n", stock->restock_rate);
+
 	// Product
 	fprintf(fp, "Object %ld\n", stock->vnum);
 	fprintf(fp, "Keyword %s~\n", fix_string(stock->custom_keyword));
@@ -3103,6 +3107,9 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)
 		case 'K':
 			KEYS("Keyword", stock->custom_keyword, fread_string(fp));
 			break;
+		case 'M'
+			KEY("MaxQuantity", stock->max_quantity, fread_number(fp));
+			break;
 		case 'O':
 			KEY("Object", stock->vnum, fread_number(fp));
 			break;
@@ -3112,6 +3119,9 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)
 			break;
 		case 'Q':
 			KEY("QuestPnts", stock->qp, fread_number(fp));
+			break;
+		case 'R'
+			KEY("RestockRate", stock->restock_rate, fread_number(fp));
 			break;
 		case 'S':
 			KEY("Silver", stock->silver, fread_number(fp));
@@ -3133,6 +3143,8 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)
 			bug(buf, 0);
 		}
 	}
+
+	stock->quantity = stock->max_quantity;
 
 	return stock;
 }
