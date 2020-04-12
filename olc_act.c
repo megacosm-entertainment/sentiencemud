@@ -7725,7 +7725,7 @@ MEDIT(medit_shop)
 					return FALSE;
 				}
 
-				stock = new_shop_stock_data();
+				stock = new_shop_stock();
 
 				if(!stock)
 				{
@@ -7744,7 +7744,7 @@ MEDIT(medit_shop)
 			}
 			else if(!IS_NULLSTR(arg2))
 			{
-				stock = new_shop_stock_data();
+				stock = new_shop_stock();
 
 				if(!stock)
 				{
@@ -7952,7 +7952,7 @@ MEDIT(medit_shop)
 				pMob->pShop->stock = stock->next;
 			}
 
-			free_shop_stock_data(stock);
+			free_shop_stock(stock);
 			send_to_char("Stock item removed.\n\r", ch);
 			return TRUE;
 		}
