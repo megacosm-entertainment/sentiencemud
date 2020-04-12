@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "merc.h"
+#include "recycle.h"
 #include "tables.h"
 #include "olc.h"
 #include "olc_save.h"
@@ -1134,7 +1135,7 @@ void save_questor_new(FILE *fp, QUESTOR_DATA *questor)
 void save_shop_stock_new(FILE *fp, SHOP_STOCK_DATA *stock)
 {
 	if(stock->next)
-		save_shop_stock_new(stock->next);
+		save_shop_stock_new(fp, stock->next);
 
 	fprintf(fp, "#STOCK\n");
 
@@ -1172,7 +1173,7 @@ void save_shop_new(FILE *fp, SHOP_DATA *shop)
 		    fprintf(fp, "Trade %d\n", shop->buy_type[i]);
     }
 
-	save_shop_stock_new(shop->stock);
+	save_shop_stock_new(fp, shop->stock);
 
 
     fprintf(fp, "#-SHOP\n");
