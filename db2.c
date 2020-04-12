@@ -347,7 +347,7 @@ OBJ_DATA *get_random_obj( CHAR_DATA *ch, int continent )
     if (room != NULL) {
 	obj = create_object(oIndex, oIndex->level, TRUE);
 	obj_to_room(obj, room);
-    } else 
+    } else
 	obj = NULL;
 
     return obj;
@@ -592,7 +592,7 @@ char *short_to_name( const char *short_desc )
 
     name[0] = '\0';
 
-    /* remove colours, special characters etc 
+    /* remove colours, special characters etc
     n = 0;
     for ( i = 0; short_desc[i] != '\0'; i++ )
     {
@@ -601,7 +601,7 @@ char *short_to_name( const char *short_desc )
 	    i += 2;
 	}
 
-	
+
 	if ( short_desc[i] == '!'
 	||   short_desc[i] == '@'
 	||   short_desc[i] == '#'
@@ -622,7 +622,7 @@ char *short_to_name( const char *short_desc )
 	{
 	    i += 2;
 	}
-	
+
 
 	temp_desc[n] = short_desc[i];
 
@@ -636,45 +636,47 @@ char *short_to_name( const char *short_desc )
     i = 0;
     while( temp_desc[i] != '\0' )
     {
-	temp_desc[i] = LOWER(temp_desc[i]);
-	i++;
+		temp_desc[i] = LOWER(temp_desc[i]);
+		i++;
     }
 
     i = 0;
     do
     {
-	n = 0;
-	while ( isspace( temp_desc[i]))
-	{
-	    i++;
-	}
+		n = 0;
+		while ( isspace( temp_desc[i]))
+		{
+		    i++;
+		}
 
-	while ( temp_desc[i] != ' ' && temp_desc[i] != '\0')
-	{
-	    arg[n] = temp_desc[i++];
-	    n++;
-	}
+		while ( temp_desc[i] != ' ' && temp_desc[i] != '\0')
+		{
+		    arg[n] = temp_desc[i++];
+		    n++;
+		}
 
-	arg[n] = '\0';
+		arg[n] = '\0';
 
-	if (strlen(arg) > 2
-	&& str_cmp(arg, "the")
-	&& str_cmp(arg, "and")
-	&& str_cmp(arg, "some")
-	&& str_cmp(arg, "with"))
-	{
-	    if ( name[0] == '\0' )
-	    {
-	        strcat( name, arg );
-	    }
-	    else
-	    {
-		strcat( name, " " );
-		strcat( name, arg );
-	    }
-	}
+		if (strlen(arg) > 2 &&
+			str_cmp(arg, "the") &&
+			str_cmp(arg, "and") &&
+			str_cmp(arg, "some") &&
+			str_cmp(arg, "with"))
+		{
+		    if ( name[0] == '\0' )
+		    {
+		        strcat( name, arg );
+		    }
+		    else
+		    {
+				strcat( name, " " );
+				strcat( name, arg );
+		    }
+		}
     }
     while ( temp_desc[i] != '\0' );
+
+    free_string(temp_desc);	// temp_desc wasn't being free'd... oops
 
     return str_dup(name);
 }
