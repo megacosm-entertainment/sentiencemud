@@ -4872,6 +4872,32 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 	} else if(!str_cmp(buf,"strformat")) {
 		variables_format_string(vars,name);
 
+	// Format: STRREPLACE <OLD> <NEW>
+	} else if(!str_cmp(buf,"strreplace")) {
+		pVARIABLE var = variable_get(*vars, name);
+		if(!var) return;
+
+		if(var->type != VAR_STRING && var->type != VAR_STRING_S) return;
+
+		char o[MSL];
+		char n[MSL];
+		char *rep;
+
+		if( arg.type != ENT_STRING ) return;
+		strcpy(o, arg.d.str);
+
+		if(!(rest = expand_argument(info,rest,&arg))) return;
+
+		if( arg.type != ENT_STRING ) return;
+		strcpy(n, arg.d.str);
+
+		rep = string_replace(var->_.s, o, n);
+		if( !IS_NULLSTR(rep) ) return;
+
+		variables_set_string(vars,name,rep);
+
+
+
 	// Copies an extra description
 	// Format: ED <OBJECT or ROOM> <keyword>
 	} else if(!str_cmp(buf,"ed")) {
