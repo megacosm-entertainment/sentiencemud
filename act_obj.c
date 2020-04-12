@@ -5123,7 +5123,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			if( IS_NULLSTR(stock->custom_pricing) )
+			if( IS_NULLSTR(stock->custom_price) )
 			{
 				int chance = get_skill(ch, gsn_haggle);
 
