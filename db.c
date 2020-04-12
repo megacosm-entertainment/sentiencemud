@@ -1797,6 +1797,7 @@ void copy_shop_stock(SHOP_DATA *to_shop, SHOP_STOCK_DATA *from_stock)
 	to_stock->dp = from_stock->dp;
 	to_stock->pneuma = from_stock->pneuma;
 	to_stock->quantity = from_stock->quantity;
+	to_stock->max_quantity = from_stock->quantity;
 	to_stock->restock_rate = from_stock->restock_rate;
 	to_stock->vnum = from_stock->vnum;
 

@@ -1303,6 +1303,7 @@ struct shop_stock_data
 	char *custom_price;			// Custom pricing (supercedes other pricing values)
 
 	int quantity;				// Number of units available
+	int max_quantity;			// Total number of units available
 	int restock_rate;			// How manu units will get restocked per reset cycle (<1 == never)
 
 	long vnum;					// Standard object
