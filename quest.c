@@ -986,14 +986,23 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 	/* Moving all quest-scroll generation shit into here. AO 010517  */
 	for (i = 1, part = ch->quest->parts; part != NULL; part = part->next, i++)
 	{
-		char *plaintext = nocolour(part->description);
-		int plen = strlen(plaintext);
-		free_string(plaintext);
-		int len = strlen(part->description);
+		if( qd->line_width > 0 && strlen(qd->suffix) > 0 )
+		{
+			char *plaintext = nocolour(part->description);
+			int plen = strlen(plaintext);
+			free_string(plaintext);
+			int len = strlen(part->description);
 
-		int width = qd->line_width + len - plen;
+			int width = qd->line_width + len - plen;
 
-		sprintf(buf, "%s%-*.*s%s\n\r", qd->prefix, width, width, part->description, qd->suffix);
+
+
+			sprintf(buf, "%s%-*.*s%s\n\r", qd->prefix, width, width, part->description, qd->suffix);
+		}
+		else
+		{
+			sprintf(buf, "%s%s\n\r", qd->prefix, part->description);
+		}
 		strcat(buf2, buf);
 
 #if 0

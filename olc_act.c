@@ -9647,13 +9647,21 @@ MEDIT(medit_questor)
 		}
 
 		int width = atoi(argument);
-		if( width < 1 || width > 80)
+		if( width <= 0 )
 		{
-			send_to_char("Width is out of range.  Please specify a number from 1 to 80.\n\r", ch);
+			pMob->pQuestor->line_width = 0;
+			send_to_char("Line width disabled.\n\r", ch);
+			return TRUE;
+
+		}
+		else if(width > 160)
+		{
+			send_to_char("Width is out of range.  Please specify a number from 1 to 160, or 0 to disable width.\n\r", ch);
 			return FALSE;
 		}
 
 		pMob->pQuestor->line_width = width;
+		send_to_char("Line width set.\n\r", ch);
 		return TRUE;
 
 	} else {
