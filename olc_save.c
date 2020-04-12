@@ -1133,6 +1133,9 @@ void save_questor_new(FILE *fp, QUESTOR_DATA *questor)
 
 void save_shop_stock_new(FILE *fp, SHOP_STOCK_DATA *stock)
 {
+	if(stock->next)
+		save_shop_stock_new(stock->next);
+
 	fprintf(fp, "#STOCK\n");
 
 	// Pricing
@@ -1140,10 +1143,14 @@ void save_shop_stock_new(FILE *fp, SHOP_STOCK_DATA *stock)
 	fprintf(fp, "QuestPnts %ld\n", stock->qp);
 	fprintf(fp, "DeityPnts %ld\n", stock->dp);
 	fprintf(fp, "Pneuma %ld\n", stock->pneuma);
-	fprintf(fp, "Pricing %s\n", stock->pricing);	// EOL string
+	fprintf(fp, "Pricing %s\n", stock->custom_price);	// EOL string
 
 	// Product
 	fprintf(fp, "Object %ld\n", stock->vnum);
+	fprintf(fp, "Keyword %s\n", stock->custom_keyword);	// EOL string
+
+	fprintf(fp, "Description %s\n", stock->custom_descr);	// EOL string
+
 	fprintf(fp, "#-STOCK\n");
 }
 
@@ -1157,12 +1164,15 @@ void save_shop_new(FILE *fp, SHOP_DATA *shop)
     fprintf(fp, "ProfitSell %d\n", shop->profit_sell);
     fprintf(fp, "HourOpen %d\n", shop->open_hour);
     fprintf(fp, "HourClose %d\n", shop->close_hour);
+    if(shop->flags != 0)
+	    fprintf(fp, "Flags %ld\n", shop->flags);
 
     for (i = 0; i < MAX_TRADE; i++) {
-	if (shop->buy_type[i] != 0)
-	    fprintf(fp, "Trade %d\n", shop->buy_type[i]);
+		if (shop->buy_type[i] != 0)
+		    fprintf(fp, "Trade %d\n", shop->buy_type[i]);
     }
 
+	save_shop_stock_new(shop->stock);
 
 
     fprintf(fp, "#-SHOP\n");
@@ -3073,6 +3083,57 @@ QUESTOR_DATA *read_questor_new(FILE *fp)
     return questor;
 }
 
+SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)
+{
+	SHOP_STOCK_DATA *stock;
+	char *word;
+
+	stock = new_shop_stock();
+
+    while (str_cmp((word = fread_word(fp)), "#-STOCK"))
+    {
+		fMatch = FALSE;
+		switch (word[0]) {
+		case 'D':
+			KEY("DeityPnts", stock->dp, fread_number(fp));
+			KEYS("Description", stock->custom_descr, fread_string_eol(fp));
+			break;
+		case 'K':
+			KEYS("Keyword", stock->custom_keyword, fread_string_eol(fp));
+			break;
+		case 'O':
+			KEY("Object", stock->vnum, fread_number(fp));
+			break;
+		case 'P':
+			KEY("Pneuma", stock->pneuma, fread_number(fp));
+			break;
+		case 'Q':
+			KEY("QuestPnts", stock->qp, fread_number(fp));
+			break;
+		case 'S':
+			KEY("Silver", stock->silver, fread_number(fp));
+			break;
+
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "read_shop_stock_new: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	if(stock->vnum > 0)
+	{
+		if(!get_obj_index(stock->vnum))
+		{
+			sprintf(buf, "read_shop_stock_new: unknown object index %ld", stock->vnum);
+			bug(buf, 0);
+		}
+	}
+
+	return stock;
+}
+
 SHOP_DATA *read_shop_new(FILE *fp)
 {
     SHOP_DATA *shop;
@@ -3084,6 +3145,17 @@ SHOP_DATA *read_shop_new(FILE *fp)
     {
 	fMatch = FALSE;
 	switch (word[0]) {
+		case '#':
+			if(!str_cmp(word, "#STOCK")) {
+				SHOP_STOCK_DATA *stock = read_shop_stock_new(fp);
+
+				if(stock) {
+					stock->next = shop->stock;
+					shop->stock = stock;
+				}
+				fMatch = TRUE;
+			}
+			break;
 	    case 'H':
 	        KEY("HourOpen",	shop->open_hour,	fread_number(fp));
 	        KEY("HourClose",	shop->close_hour,	fread_number(fp));
@@ -3116,7 +3188,7 @@ SHOP_DATA *read_shop_new(FILE *fp)
 	}
 
 	if (!fMatch) {
-	    sprintf(buf, "read_reset_new: no match for word %s", word);
+	    sprintf(buf, "read_shop_new: no match for word %s", word);
 	    bug(buf, 0);
 	}
     }

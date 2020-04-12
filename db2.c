@@ -555,6 +555,17 @@ int strlen_no_colours( const char *str )
 }
 
 
+int get_colour_width(char *text)
+{
+	char *plaintext = nocolour(text);
+	int plen = strlen(plaintext);
+	free_string(plaintext);
+	int len = strlen(text);
+
+	return len - plen;
+}
+
+
 /* return a string without colour codes- {x {Y etc. */
 char *nocolour( const char *string )
 {

@@ -6583,6 +6583,144 @@ MEDIT(medit_show)
 				add_buf(buffer, buf);
 			}
 		}
+
+		if(pShop->stock != NULL)
+		{
+			SHOP_STOCK_DATA *pStock;
+			int iStock;
+			char qty[MIL];
+			char pricing[MIL];
+			char item[MIL];
+			int qwidth, pwidth;
+
+			for(iStock = 1, pStock = pShop->stock;pStock;pStock = pStock->next)
+			{
+				if(iStock == 1)
+				{
+					add_buf(buffer, "{G  Stock# Quantity    Price(s)                 Item{x\n\r");
+					add_buf(buffer, "{G  ------ -------- -------------- ------------------------------{x\n\r");
+				}
+
+				if( pStock->max_quantity > 0 )
+				{
+					if( pStock->restock_rate > 0 )
+					{
+						sprintf(qty, "{W%d{x / {W%d{x", pStock->max_quantity, pStock->restock_rate);
+					}
+					else
+					{
+						sprintf(qty, "{W%d{x / {D--{x", pStock->max_quantity);
+					}
+				}
+				else
+				{
+					strcpy(qty, "   {Woo{x");
+				}
+
+				qwidth = get_colour_width(qty) + 8;
+
+				if( !IS_NULLSTR(stock->custom_price) )
+				{
+					strncpy(pricing, stock->custom_price, sizeof(pricing)-3);
+					strcat(pricing, "{x");
+				}
+				else
+				{
+					pricing[0] = '\0';
+					int pj = 0;
+
+					if( stock->silver > 0)
+					{
+						long silver = stock->silver % 100;
+						long gold = stock->silver / 100;
+
+						if( gold > 0 )
+						{
+							if( silver > 0 )
+							{
+								pj = sprintf(pricing, "{x%ld{Yg{x%ld{Ws{x", gold, silver);
+							}
+							else
+							{
+								pj = sprintf(pricing, "{x%ld{Yg{x", gold);
+							}
+						}
+						else
+						{
+							pj = sprintf(pricing, "{x%ld{Ws{x", silver);
+						}
+					}
+
+					if( stock->qp > 0 )
+					{
+						if( pj > 0 )
+						{
+							pricing[pj++] = ',';
+							pricing[pj++] = ' ';
+						}
+
+						pj = sprintf(pricing+pj, "{x%ld{Gqp{x", stock->qp);
+					}
+
+					if( stock->dp > 0 )
+					{
+						if( pj > 0 )
+						{
+							pricing[pj++] = ',';
+							pricing[pj++] = ' ';
+						}
+
+						pj = sprintf(pricing+pj, "{x%ld{Mdp{x", stock->dp);
+					}
+
+					if( stock->pneuma > 0 )
+					{
+						if( pj > 0 )
+						{
+							pricing[pj++] = ',';
+							pricing[pj++] = ' ';
+						}
+
+						pj = sprintf(pricing+pj, "{x%ld{Cpn{x", stock->pneuma);
+					}
+					pricing[pj] = '\0';
+				}
+				pwidth = get_colour_width(pricing) + 14;
+
+				if( stock->vnum > 0 ) {
+					OBJ_INDEX_DATA *obj = get_obj_index(stock->vnum);
+
+					if( !obj ) {
+						strcpy(item, "-invalid stock item-");
+					}
+					else
+					{
+						sprintf(item, "%s (%ld)", obj->short_descr, stock->vnum);
+					}
+				}
+				else
+				{
+					if(IS_NULLSTR(stock->custom_keyword))
+					{
+						strcpy(item, "-invalid stock item-");
+					}
+					else
+					{
+						strcpy(item, stock->custom_keyword);
+					}
+				}
+
+				sprintf(buf, "  {G[{x%4d{G]{x %-*s %-*s %s\n\r", iStock, qwidth, qty, pwidth, pricing, item);
+				add_buf(buffer,buf);
+
+				if( !IS_NULLSTR(stock->custom_descr) )
+				{
+					sprintf(buf, "                                 - %s\n\r", stock->custom_descr);
+					add_buf(buffer, buf);
+				}
+			}
+		}
+
 	}
 
 	if (pMob->pQuestor)

@@ -1270,6 +1270,7 @@ struct	help_data
 #define MAX_TRADE	 5
 
 #define SHOPFLAG_STOCK_ONLY		(A)		// Only allow buyback of listed stock
+#define SHOPFLAG_HIDE_SHOP		(B)		// Hides shop from the minimap
 
 struct	shop_data
 {
@@ -1304,7 +1305,7 @@ struct shop_stock_data
 
 	char *custom_keyword;		// Concept / Special object
 	char *custom_descr;
-}
+};
 
 
 
@@ -7811,5 +7812,7 @@ bool church_set_treasure_room_rank(CHURCH_DATA *church, int nth, int min_rank);
 int church_get_min_positions(int size);
 int church_available_treasure_rooms(CHAR_DATA *ch);
 void church_announce_theft(CHAR_DATA *ch, OBJ_DATA *obj);
+
+int get_colour_width(char *text);
 
 #endif /* !def __MERC_H__ */

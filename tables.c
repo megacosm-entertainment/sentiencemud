@@ -2719,6 +2719,7 @@ const struct flag_type skill_flags[] = {
 const struct flag_type shop_flags[] =
 {
 	{ "stock_only",		SHOPFLAG_STOCK_ONLY,	TRUE	},
+	{ "hide_shop",		SHOPFLAG_HIDE_SHOP,		TRUE	},
 	{ NULL,				0,						FALSE }
 };
 
