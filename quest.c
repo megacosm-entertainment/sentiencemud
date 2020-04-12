@@ -993,7 +993,7 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 
 		int width = qd->line_width + len - plen;
 
-		sprintf(buf, "%s%-*.*s%s\n\r", qd->prefix, width, width, part->part->description, qd->suffix);
+		sprintf(buf, "%s%-*.*s%s\n\r", qd->prefix, width, width, part->description, qd->suffix);
 		strcat(buf2, buf);
 
 #if 0
@@ -1034,8 +1034,6 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 		else if ( !IS_NULLSTR(part->custom_task) )
 			sprintf(buf, "%s{x\n\r", part->custom_task);
 #endif
-
-		strcat(buf2, part->description);
 	}
 
 	/*
@@ -1043,7 +1041,7 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 	    "{W /A\\                                                                                         \\\n\r"
 	    "((o))                                                                                         )\n\r"
 	    "{W  '-'----------------------------------------------------------------------------------------'\n\r");*/
-    strcat(buf2, part->footer);
+    strcat(buf2, qd->footer);
 
 
     scroll->full_description = str_dup(buf2);
