@@ -7856,7 +7856,7 @@ MEDIT(medit_shop)
 
 				if(!str_prefix(arg3, "custom"))
 				{
-					free_string(argument);
+					free_string(stock->custom_price);
 					stock->custom_price = str_dup(argument);
 					send_to_char("Stock custom price changed.\n\r", ch);
 					return TRUE;
