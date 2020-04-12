@@ -588,16 +588,16 @@ void save_token(FILE *fp, TOKEN_INDEX_DATA *token)
     fprintf(fp, "Timer %d\n", token->timer);
 
     for (ed = token->ed; ed != NULL; ed = ed->next) {
-	fprintf(fp, "#EXTRA_DESCR %s~\n", ed->keyword);
-	fprintf(fp, "Description %s~\n", fix_string(ed->description));
-	fprintf(fp, "#-EXTRA_DESCR\n");
+		fprintf(fp, "#EXTRA_DESCR %s~\n", ed->keyword);
+		fprintf(fp, "Description %s~\n", fix_string(ed->description));
+		fprintf(fp, "#-EXTRA_DESCR\n");
     }
 
     for (i = 0; i < MAX_TOKEN_VALUES; i++)
-	fprintf(fp, "Value %d %ld\n", i, token->value[i]);
+		fprintf(fp, "Value %d %ld\n", i, token->value[i]);
 
     for (i = 0; i < MAX_TOKEN_VALUES; i++)
-	fprintf(fp, "ValueName %d %s~\n", i, token->value_name[i]);
+		fprintf(fp, "ValueName %d %s~\n", i, token->value_name[i]);
 
 	if(token->comments)
 		fprintf(fp, "Comments %s~\n", fix_string(token->comments));

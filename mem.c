@@ -3087,7 +3087,7 @@ void free_script(SCRIPT_DATA *s)
 	if(s->src != s->edit_src) free_string(s->edit_src);
 	free_string(s->src);
 	free_string(s->name);
-    free_string(s->code);
+    free_string(s->comments);
 
 	s->next = script_freechain;
 	script_freechain = s;
