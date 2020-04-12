@@ -1297,7 +1297,7 @@ SCRIPT_CMD(scriptcmd_questpartcustom)
 	// Must be in the generation phase
 	if( ch->quest == NULL || !ch->quest->generating ) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,rest,&arg)))
 		return;
 
 	if(!IS_NULLSTR(arg.d.str))
@@ -1308,7 +1308,7 @@ SCRIPT_CMD(scriptcmd_questpartcustom)
 	minutes = number_range(10,20);
 	if(*rest)
 	{
-		if(!(rest = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+		if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_NUMBER)
 			return;
 
 		minutes = UMAX(arg.d.num,1);
@@ -1353,7 +1353,7 @@ SCRIPT_CMD(scriptcmd_questpartgetitem)
 	// Must be in the generation phase
 	if( ch->quest == NULL || !ch->quest->generating ) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,rest,&arg)))
 		return;
 
 	if(arg.type != ENT_OBJECT || !IS_VALID(arg.d.obj)) return;
@@ -1362,7 +1362,7 @@ SCRIPT_CMD(scriptcmd_questpartgetitem)
 	minutes = number_range(10,20);
 	if(*rest)
 	{
-		if(!(rest = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+		if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_NUMBER)
 			return;
 
 		minutes = UMAX(arg.d.num,1);
@@ -1409,7 +1409,7 @@ SCRIPT_CMD(scriptcmd_questpartgoto)
 	// Must be in the generation phase
 	if( ch->quest == NULL || !ch->quest->generating ) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,rest,&arg)))
 		return;
 
 	destination = NULL;
@@ -1431,7 +1431,7 @@ SCRIPT_CMD(scriptcmd_questpartgoto)
 	minutes = number_range(10,20);
 	if(*rest)
 	{
-		if(!(rest = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+		if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_NUMBER)
 			return;
 
 		minutes = UMAX(arg.d.num,1);
@@ -1475,7 +1475,7 @@ SCRIPT_CMD(scriptcmd_questpartrescue)
 	// Must be in the generation phase
 	if( ch->quest == NULL || !ch->quest->generating ) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,rest,&arg)))
 		return;
 
 	if(arg.type != ENT_MOBILE || !IS_VALID(arg.d.mob) || !IS_NPC(arg.d.mob)) return;
@@ -1484,7 +1484,7 @@ SCRIPT_CMD(scriptcmd_questpartrescue)
 	minutes = number_range(10,20);
 	if(*rest)
 	{
-		if(!(rest = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+		if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_NUMBER)
 			return;
 
 		minutes = UMAX(arg.d.num,1);
@@ -1519,7 +1519,7 @@ SCRIPT_CMD(scriptcmd_questpartslay)
 	if(!IS_VALID(questman) || !IS_NPC(questman) || !IS_SET(questman->act, ACT_QUESTOR))
 		return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,rest,&arg)))
 		return;
 
 	if(arg.type != ENT_MOBILE || !arg.d.mob || IS_NPC(arg.d.mob)) return;
@@ -1538,7 +1538,7 @@ SCRIPT_CMD(scriptcmd_questpartslay)
 	minutes = number_range(10,20);
 	if(*rest)
 	{
-		if(!(rest = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+		if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_NUMBER)
 			return;
 
 		minutes = UMAX(arg.d.num,1);
