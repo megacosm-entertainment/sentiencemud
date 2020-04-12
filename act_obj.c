@@ -5111,6 +5111,13 @@ void do_buy(CHAR_DATA *ch, char *argument)
 		{
 			SHOP_STOCK_DATA *stock = request.stock;
 
+			sprintf(buf, "STOCK: %ld / %s\n\rQuantity: %d / %d\n\rPRICE: %ld, %ld, %ld, %ld, '%s'\n\rNUMBER: %d\n\r",
+				stock->vnum, fix_string(stock->custom_keyword),
+				stock->quantity, stock->max_quantity,
+				stock->silver, stock->qp, stock->dp, stock->pneuma, fix_string(stock->custom_price),
+				number);
+			send_to_char(buf, ch);
+
 			// Attempting to buy from stock
 			keeper->tempstore[0] = number;
 			keeper->tempstore[1] = stock->vnum;
@@ -5129,6 +5136,8 @@ void do_buy(CHAR_DATA *ch, char *argument)
 				int chance = get_skill(ch, gsn_haggle);
 
 				long silver = adjust_keeper_price(keeper, number * stock->silver, TRUE);
+				sprintf(buf, "SILVER: %ld => %ld\n\r", number * stock->silver, silver);
+				send_to_char(buf, ch);
 
 				if( silver > 0 ) {
 					roll = number_percent();
@@ -5150,6 +5159,9 @@ void do_buy(CHAR_DATA *ch, char *argument)
 				}
 
 				long qp = adjust_keeper_price(keeper, number * stock->qp, TRUE);
+				sprintf(buf, "QUESTPOINTS: %ld => %ld\n\r", number * stock->qp, qp);
+				send_to_char(buf, ch);
+
 				if( qp > 0 ) {
 					roll = number_percent();
 					if (roll < chance)
@@ -5158,7 +5170,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 						haggled = TRUE;
 					}
 
-					if( qp < ch->questpoints )
+					if( ch->questpoints < qp )
 					{
 						if (number > 1)
 							act("{R$n tells you 'You can't afford to buy that many.'{x", keeper,ch, NULL, NULL, NULL, NULL, NULL,TO_VICT);
@@ -5170,6 +5182,9 @@ void do_buy(CHAR_DATA *ch, char *argument)
 				}
 
 				long dp = adjust_keeper_price(keeper, number * stock->dp, TRUE);
+				sprintf(buf, "DEITYPOINTS: %ld => %ld\n\r", number * stock->dp, dp);
+				send_to_char(buf, ch);
+
 				if( dp > 0 ) {
 					roll = number_percent();
 					if (roll < chance)
@@ -5178,7 +5193,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 						haggled = TRUE;
 					}
 
-					if( dp < ch->deitypoints )
+					if( ch->deitypoints < dp )
 					{
 						if (number > 1)
 							act("{R$n tells you 'You can't afford to buy that many.'{x", keeper,ch, NULL, NULL, NULL, NULL, NULL,TO_VICT);
@@ -5190,6 +5205,9 @@ void do_buy(CHAR_DATA *ch, char *argument)
 				}
 
 				long pneuma = adjust_keeper_price(keeper, number * stock->pneuma, TRUE);
+				sprintf(buf, "PNEUMA: %ld => %ld\n\r", number * stock->pneuma, pneuma);
+				send_to_char(buf, ch);
+
 				if( pneuma > 0 ) {
 					roll = number_percent();
 					if (roll < chance)
@@ -5198,7 +5216,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 						haggled = TRUE;
 					}
 
-					if( pneuma < ch->pneuma )
+					if( ch->pneuma < pneuma )
 					{
 						if (number > 1)
 							act("{R$n tells you 'You can't afford to buy that many.'{x", keeper,ch, NULL, NULL, NULL, NULL, NULL,TO_VICT);
