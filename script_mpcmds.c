@@ -228,8 +228,13 @@ void do_mpstat(CHAR_DATA *ch, char *argument)
 	}
 
 	sprintf(arg, "Mobile #%-6ld [%s] ID [%8X:%8X]\n\r", victim->pIndexData->vnum, victim->short_descr, (int)victim->id[0], (int)victim->id[1]);
-
 	send_to_char(arg, ch);
+
+	if( !IS_NULLSTR(victim->pIndexData->comments) )
+	{
+		sprintf(arg, "Comments:\n\r%s\n\r", victim->pIndexData->comments);
+		send_to_char(arg, ch);
+	}
 
 	sprintf(arg, "Delay   %-6d [%s]\n\r",
 	victim->progs->delay,

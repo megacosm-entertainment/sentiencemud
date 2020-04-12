@@ -247,8 +247,13 @@ void do_tpstat(CHAR_DATA *ch, char *argument)
 		return;
 	}
 	sprintf(arg, "Token #%-6ld [%s] ID [%08X:%08X]\n\r", token->pIndexData->vnum, token->pIndexData->name, (int)token->id[0], (int)token->id[1]);
-
 	send_to_char(arg, ch);
+
+	if( !IS_NULLSTR(token->pIndexData->comments) )
+	{
+		sprintf(arg, "Comments:\n\r%s\n\r", token->pIndexData->comments);
+		send_to_char(arg, ch);
+	}
 
 	sprintf(arg, "Delay   %-6d [%s]\n\r",
 		token->progs->delay,

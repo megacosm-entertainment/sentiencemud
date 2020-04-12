@@ -171,8 +171,13 @@ void do_rpstat(CHAR_DATA *ch, char *argument)
 	}
 
 	sprintf(arg, "Room #%-6ld [%s]\n\r", room->vnum, room->name);
-
 	send_to_char(arg, ch);
+
+	if( !IS_NULLSTR(room->comments) )
+	{
+		sprintf(arg, "Comments:\n\r%s\n\r", room->comments);
+		send_to_char(arg, ch);
+	}
 
 	sprintf(arg, "Delay   %-6d [%s]\n\r",
 		room->progs->delay,
