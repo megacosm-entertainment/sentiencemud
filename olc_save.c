@@ -1173,7 +1173,8 @@ void save_shop_new(FILE *fp, SHOP_DATA *shop)
 		    fprintf(fp, "Trade %d\n", shop->buy_type[i]);
     }
 
-	save_shop_stock_new(fp, shop->stock);
+	if( shop->stock )
+		save_shop_stock_new(fp, shop->stock);
 
 
     fprintf(fp, "#-SHOP\n");
