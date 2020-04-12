@@ -1519,7 +1519,7 @@ SCRIPT_CMD(scriptcmd_questpartslay)
 	if(!IS_VALID(questman) || !IS_NPC(questman) || !IS_SET(questman->act, ACT_QUESTOR))
 		return;
 
-	if(!(rest = expand_argument(info,rest,&arg)))
+	if(!(rest = expand_argument(info,argument,&arg)))
 		return;
 
 	if(arg.type != ENT_MOBILE || !arg.d.mob || IS_NPC(arg.d.mob)) return;
@@ -1529,7 +1529,7 @@ SCRIPT_CMD(scriptcmd_questpartslay)
 	// Must be in the generation phase
 	if( ch->quest == NULL || !ch->quest->generating ) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,rest,&arg)))
 		return;
 
 	if(arg.type != ENT_MOBILE || !IS_VALID(arg.d.mob) || !IS_NPC(arg.d.mob)) return;
