@@ -960,7 +960,7 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 		"((o))                                                                                         )\n\r"
 		"{W \\U/_________________________________________________________________________________________/\n\r"
 		"{W  |\n\r"
-		"{W  |  {xNoble %s,\n\r{x  |\n\r"
+		"{W  |  {xNoble %s{x,\n\r{W  |\n\r"
 		"{W  |  {xThis is an official quest scroll given to you by %s.\n\r"
 		"{W  |  {xUpon this scroll is my seal, and my approval to go to any\n\r"
 		"{W  |  {xmeasures in order to complete the set of tasks I have listed.\n\r"

@@ -3195,7 +3195,7 @@ struct questor_data
 	char *footer;
 
 	int line_width;
-}
+};
 
 /* For randomly generated quests */
 struct quest_data
