@@ -1166,7 +1166,7 @@ void save_shop_new(FILE *fp, SHOP_DATA *shop)
     fprintf(fp, "HourOpen %d\n", shop->open_hour);
     fprintf(fp, "HourClose %d\n", shop->close_hour);
     if(shop->flags != 0)
-	    fprintf(fp, "Flags %ld\n", shop->flags);
+	    fprintf(fp, "Flags %d\n", shop->flags);
 
     for (i = 0; i < MAX_TRADE; i++) {
 		if (shop->buy_type[i] != 0)
