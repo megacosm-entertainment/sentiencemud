@@ -7770,6 +7770,7 @@ MEDIT(medit_shop)
 				pMob->pShop->stock = stock;
 
 				send_to_char("Stock item added.\n\r", ch);
+				return TRUE;
 			}
 
 
