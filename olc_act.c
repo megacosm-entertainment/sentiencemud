@@ -6619,9 +6619,9 @@ MEDIT(medit_show)
 
 				qwidth = get_colour_width(qty) + 8;
 
-				if( !IS_NULLSTR(stock->custom_price) )
+				if( !IS_NULLSTR(pStock->custom_price) )
 				{
-					strncpy(pricing, stock->custom_price, sizeof(pricing)-3);
+					strncpy(pricing, pStock->custom_price, sizeof(pricing)-3);
 					strcat(pricing, "{x");
 				}
 				else
@@ -6629,10 +6629,10 @@ MEDIT(medit_show)
 					pricing[0] = '\0';
 					int pj = 0;
 
-					if( stock->silver > 0)
+					if( pStock->silver > 0)
 					{
-						long silver = stock->silver % 100;
-						long gold = stock->silver / 100;
+						long silver = pStock->silver % 100;
+						long gold = pStock->silver / 100;
 
 						if( gold > 0 )
 						{
@@ -6651,7 +6651,7 @@ MEDIT(medit_show)
 						}
 					}
 
-					if( stock->qp > 0 )
+					if( pStock->qp > 0 )
 					{
 						if( pj > 0 )
 						{
@@ -6659,10 +6659,10 @@ MEDIT(medit_show)
 							pricing[pj++] = ' ';
 						}
 
-						pj = sprintf(pricing+pj, "{x%ld{Gqp{x", stock->qp);
+						pj = sprintf(pricing+pj, "{x%ld{Gqp{x", pStock->qp);
 					}
 
-					if( stock->dp > 0 )
+					if( pStock->dp > 0 )
 					{
 						if( pj > 0 )
 						{
@@ -6670,10 +6670,10 @@ MEDIT(medit_show)
 							pricing[pj++] = ' ';
 						}
 
-						pj = sprintf(pricing+pj, "{x%ld{Mdp{x", stock->dp);
+						pj = sprintf(pricing+pj, "{x%ld{Mdp{x", pStock->dp);
 					}
 
-					if( stock->pneuma > 0 )
+					if( pStock->pneuma > 0 )
 					{
 						if( pj > 0 )
 						{
@@ -6681,41 +6681,41 @@ MEDIT(medit_show)
 							pricing[pj++] = ' ';
 						}
 
-						pj = sprintf(pricing+pj, "{x%ld{Cpn{x", stock->pneuma);
+						pj = sprintf(pricing+pj, "{x%ld{Cpn{x", pStock->pneuma);
 					}
 					pricing[pj] = '\0';
 				}
 				pwidth = get_colour_width(pricing) + 14;
 
-				if( stock->vnum > 0 ) {
-					OBJ_INDEX_DATA *obj = get_obj_index(stock->vnum);
+				if( pStock->vnum > 0 ) {
+					OBJ_INDEX_DATA *obj = get_obj_index(pStock->vnum);
 
 					if( !obj ) {
 						strcpy(item, "-invalid stock item-");
 					}
 					else
 					{
-						sprintf(item, "%s (%ld)", obj->short_descr, stock->vnum);
+						sprintf(item, "%s (%ld)", obj->short_descr, pStock->vnum);
 					}
 				}
 				else
 				{
-					if(IS_NULLSTR(stock->custom_keyword))
+					if(IS_NULLSTR(pStock->custom_keyword))
 					{
 						strcpy(item, "-invalid stock item-");
 					}
 					else
 					{
-						strcpy(item, stock->custom_keyword);
+						strcpy(item, pStock->custom_keyword);
 					}
 				}
 
 				sprintf(buf, "  {G[{x%4d{G]{x %-*s %-*s %s\n\r", iStock, qwidth, qty, pwidth, pricing, item);
 				add_buf(buffer,buf);
 
-				if( !IS_NULLSTR(stock->custom_descr) )
+				if( !IS_NULLSTR(pStock->custom_descr) )
 				{
-					sprintf(buf, "                                 - %s\n\r", stock->custom_descr);
+					sprintf(buf, "                                 - %s\n\r", pStock->custom_descr);
 					add_buf(buffer, buf);
 				}
 			}
@@ -7688,7 +7688,7 @@ MEDIT(medit_shop)
 		if (arg1[0] != '\0')
 		{
 
-			if ((value = flag_value(shop, arg1)) != NO_FLAG)
+			if ((value = flag_value(shop_flags, arg1)) != NO_FLAG)
 			{
 				pMob->pShop->flags ^= value;
 
@@ -7725,7 +7725,7 @@ MEDIT(medit_shop)
 					return FALSE;
 				}
 
-				stock = new_shop_stock();
+				stock = new_shop_stock_data();
 
 				if(!stock)
 				{
@@ -7744,7 +7744,7 @@ MEDIT(medit_shop)
 			}
 			else if(!IS_NULLSTR(arg2))
 			{
-				stock = new_shop_stock();
+				stock = new_shop_stock_data();
 
 				if(!stock)
 				{
@@ -7952,7 +7952,7 @@ MEDIT(medit_shop)
 				pMob->pShop->stock = stock->next;
 			}
 
-			free_shop_stock(stock);
+			free_shop_stock_data(stock);
 			send_to_char("Stock item removed.\n\r", ch);
 			return TRUE;
 		}
