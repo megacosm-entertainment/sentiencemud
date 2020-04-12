@@ -7749,6 +7749,12 @@ MEDIT(medit_shop)
 					return FALSE;
 				}
 
+				if(item->type == ITEM_MONEY)
+				{
+					send_to_char("You cannot sell money.\n\r", ch);
+					return FALSE;
+				}
+
 				stock = new_shop_stock();
 
 				if(!stock)

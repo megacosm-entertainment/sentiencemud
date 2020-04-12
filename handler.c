@@ -8583,3 +8583,4 @@ char *get_shop_stock_price(SHOP_STOCK_DATA *stock)
 
 	return pricing;
 }
+

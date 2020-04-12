@@ -254,6 +254,7 @@ typedef struct	ship_crew_data		SHIP_CREW_DATA;
 typedef struct	ship_data		SHIP_DATA;
 typedef struct	shop_stock_data	SHOP_STOCK_DATA;
 typedef struct	shop_data		SHOP_DATA;
+typedef struct	shop_request_data	SHOP_REQUEST_DATA;
 typedef struct	time_info_data		TIME_INFO_DATA;
 typedef struct	trade_area_data		TRADE_AREA_DATA;
 typedef struct	storm_data		STORM_DATA;
@@ -1306,13 +1307,18 @@ struct shop_stock_data
 	int max_quantity;			// Total number of units available
 	int restock_rate;			// How manu units will get restocked per reset cycle (<1 == never)
 
-	long vnum;					// Standard object
+	OBJ_INDEX_DATA *obj;
+	long vnum;
 
 	char *custom_keyword;		// Concept / Special object
 	char *custom_descr;
 };
 
-
+struct shop_request_data
+{
+	SHOP_STOCK_DATA *stock;
+	OBJ_DATA *obj;
+};
 
 /*
  * Per-class stuff.
@@ -5070,11 +5076,14 @@ enum trigger_index_enum {
 	TRIG_BRANDISH,
 	TRIG_BRIBE,
 	TRIG_BURY,
+	TRIG_BUY,
 	TRIG_CANINTERRUPT,
 	TRIG_CATALYST,
 	TRIG_CATALYST_FULL,
 	TRIG_CATALYST_SOURCE,
+	TRIG_CHECK_BUYER,		// Called when a stock item is not an object, used to check whether the buyer can GET the item
 	TRIG_CHECK_DAMAGE,
+	TRIG_CHECK_PRICE,		// Called when a stock item has custom pricing
 	TRIG_CLONE_EXTRACT,
 	TRIG_CLOSE,
 	TRIG_COMBAT_STYLE,
@@ -5082,6 +5091,7 @@ enum trigger_index_enum {
 	TRIG_DEATH,
 	TRIG_DEATH_PROTECTION,
 	TRIG_DEATH_TIMER,
+	TRIG_DEDUCT_PRICE,		// Called when a stock item has custom pricing
 	TRIG_DEFENSE,
 	TRIG_DELAY,
 	TRIG_DRINK,
@@ -5130,6 +5140,7 @@ enum trigger_index_enum {
 	TRIG_PREASSIST,
 	TRIG_PREBITE,
 	TRIG_PREBUY,
+	TRIG_PREBUY_OBJ,
 	TRIG_PRECAST,
 	TRIG_PREDEATH,
 	TRIG_PREDISMOUNT,
@@ -6548,6 +6559,8 @@ bool is_mana_regen_relic_in_room args( (ROOM_INDEX_DATA *room) );
 bool remove_obj( CHAR_DATA *ch, int iWear, bool fReplace );
 CHAR_DATA *find_keeper( CHAR_DATA *ch );
 int get_cost( CHAR_DATA *keeper, OBJ_DATA *obj, bool fBuy );
+long adjust_keeper_price(CHAR_DATA *keeper, long price, bool fBuy);
+bool get_stock_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, SHOP_REQUEST_DATA *request, char *argument);
 OBJ_DATA *get_obj_keeper( CHAR_DATA *ch, CHAR_DATA *keeper, char *argument );
 void bomb_end( CHAR_DATA *ch);
 void brew_end( CHAR_DATA *ch, sh_int sn );

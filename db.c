@@ -1800,6 +1800,8 @@ void copy_shop_stock(SHOP_DATA *to_shop, SHOP_STOCK_DATA *from_stock)
 	to_stock->max_quantity = from_stock->quantity;
 	to_stock->restock_rate = from_stock->restock_rate;
 	to_stock->vnum = from_stock->vnum;
+	if(to_stock->vnum > 0)
+		to_stock->obj = get_obj_index(to_stock->vnum);
 
 	free_string(to_stock->custom_price);
 	to_stock->custom_price = str_dup(from_stock->custom_price);

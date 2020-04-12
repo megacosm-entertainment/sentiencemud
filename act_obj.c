@@ -4428,6 +4428,88 @@ void obj_to_keeper(OBJ_DATA *obj, CHAR_DATA *ch)
     ch->carry_weight    += get_obj_weight(obj);
 }
 
+long adjust_keeper_price(CHAR_DATA *keeper, long price, bool fBuy)
+{
+    if (keeper->shop == NULL)
+		return 0;
+
+	if (fBuy)
+	{
+		return price * keeper->shop->profit_buy / 100;
+    }
+    else
+    {
+		return price * keeper->shop->profit_sell / 100;
+	}
+}
+
+bool get_stock_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, SHOP_REQUEST_DATA *request, char *argument)
+{
+    char arg[MAX_INPUT_LENGTH];
+	SHOP_STOCK_DATA *stock;
+    OBJ_DATA *obj;
+    int number;
+    int count;
+
+    count  = 0;
+    if( keeper->shop != NULL) {
+		// Check stock items first
+		for(stock = keeper->shop->stock; stock; stock = stock->next)
+		{
+			if( stock->vnum > 0 )
+			{
+				if( stock->obj == NULL ) continue;		// This is some kind of issue
+				if( is_name(arg, stock->obj->name) )
+				{
+					if( ++count == number )
+					{
+						request->stock = stock;
+						request->obj = NULL;
+						return TRUE;
+					}
+				}
+			}
+			else if(!IS_NULLSTR(stock->custom_keyword))
+			{
+				if( is_name(arg, stock->custom_keyword) )
+				{
+					if( ++count == number )
+					{
+						request->stock = stock;
+						request->obj = NULL;
+						return TRUE;
+					}
+				}
+			}
+		}
+	}
+
+	for (obj = keeper->carrying; obj != NULL; obj = obj->next_content)
+	{
+		if (obj->wear_loc == WEAR_NONE &&
+        	can_see_obj(keeper, obj) &&
+        	can_see_obj(ch,obj) &&
+        	is_name(arg, obj->name))
+        {
+			if (++count == number)
+			{
+				request->stock = NULL;
+				request->obj = obj;
+				return TRUE;
+			}
+
+			/* skip other objects of the same name */
+			while (obj->next_content != NULL &&
+				obj->pIndexData == obj->next_content->pIndexData &&
+				!str_cmp(obj->short_descr,obj->next_content->short_descr))
+				obj = obj->next_content;
+		}
+	}
+
+
+	return FALSE;
+}
+
 
 /* MOVED: object/shop.c*/
 /* get an object from a shopkeeper's list */
@@ -4440,23 +4522,28 @@ OBJ_DATA *get_obj_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, char *argument)
 
     number = number_argument(argument, arg);
     count  = 0;
-    for (obj = keeper->carrying; obj != NULL; obj = obj->next_content)
-    {
-        if (obj->wear_loc == WEAR_NONE
-        &&  can_see_obj(keeper, obj)
-	&&  can_see_obj(ch,obj)
-        &&  is_name(arg, obj->name))
-        {
-            if (++count == number)
-                return obj;
 
-	    /* skip other objects of the same name */
-	    while (obj->next_content != NULL
-	    && obj->pIndexData == obj->next_content->pIndexData
-	    && !str_cmp(obj->short_descr,obj->next_content->short_descr))
-		obj = obj->next_content;
-        }
-    }
+
+	for (obj = keeper->carrying; obj != NULL; obj = obj->next_content)
+	{
+		if (obj->wear_loc == WEAR_NONE &&
+        	can_see_obj(keeper, obj) &&
+        	can_see_obj(ch,obj) &&
+        	is_name(arg, obj->name))
+        {
+			if (++count == number)
+			{
+				return obj;
+			}
+
+			/* skip other objects of the same name */
+			while (obj->next_content != NULL &&
+				obj->pIndexData == obj->next_content->pIndexData &&
+				!str_cmp(obj->short_descr,obj->next_content->short_descr))
+				obj = obj->next_content;
+		}
+	}
+
 
     return NULL;
 }
@@ -4469,46 +4556,46 @@ int get_cost(CHAR_DATA *keeper, OBJ_DATA *obj, bool fBuy)
     int cost;
 
     if (obj == NULL || (pShop = keeper->shop) == NULL)
-	return 0;
+		return 0;
 
     if (fBuy)
     {
-	cost = obj->cost * pShop->profit_buy  / 100;
+		cost = obj->cost * pShop->profit_buy  / 100;
     }
     else
     {
-	OBJ_DATA *obj2;
-	int itype;
+		OBJ_DATA *obj2;
+		int itype;
 
-	cost = 0;
-	for (itype = 0; itype < MAX_TRADE; itype++)
-	{
-	    if (obj->item_type == pShop->buy_type[itype])
-	    {
-		cost = obj->cost * pShop->profit_sell / 100;
-		break;
-	    }
-	}
+		cost = 0;
+		for (itype = 0; itype < MAX_TRADE; itype++)
+		{
+		    if (obj->item_type == pShop->buy_type[itype])
+		    {
+				cost = obj->cost * pShop->profit_sell / 100;
+				break;
+		    }
+		}
 
-	for (obj2 = keeper->carrying; obj2; obj2 = obj2->next_content)
-	{
-	    if (obj->pIndexData == obj2->pIndexData
-		    &&   !str_cmp(obj->short_descr,obj2->short_descr))
-	    {
-		if (IS_OBJ_STAT(obj2,ITEM_INVENTORY))
-		    cost /= 2;
-		else
-		    cost = cost * 3 / 4;
-	    }
-	}
+		for (obj2 = keeper->carrying; obj2; obj2 = obj2->next_content)
+		{
+		    if (obj->pIndexData == obj2->pIndexData &&
+		    	!str_cmp(obj->short_descr,obj2->short_descr))
+			{
+				if (IS_OBJ_STAT(obj2,ITEM_INVENTORY))
+					cost /= 2;
+				else
+					cost = cost * 3 / 4;
+			}
+		}
     }
 
     if (obj->item_type == ITEM_STAFF || obj->item_type == ITEM_WAND)
     {
-	if (obj->value[1] == 0)
-	    cost /= 4;
-	else
-	    cost = cost * obj->value[2] / obj->value[1];
+		if (obj->value[1] == 0)
+		    cost /= 4;
+		else
+		    cost = cost * obj->value[2] / obj->value[1];
     }
 
     return cost;
@@ -4518,186 +4605,123 @@ int get_cost(CHAR_DATA *keeper, OBJ_DATA *obj, bool fBuy)
 /* MOVED: object/shop.c*/
 void do_buy(CHAR_DATA *ch, char *argument)
 {
-    char buf[MAX_STRING_LENGTH];
-    long cost;
-    int roll;
-    CHAR_DATA *mob;
-//    CHAR_DATA *crew_seller;
+	char buf[MAX_STRING_LENGTH];
+	long cost;
+	int roll;
+	CHAR_DATA *mob;
     CHAR_DATA *plane_tunneler;
-//    CHAR_DATA *airship_seller;
     CHAR_DATA *trader;
     char arg[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
     bool haggled = FALSE;
 
-//    crew_seller = NULL;
     plane_tunneler = NULL;
-//    airship_seller = NULL;
     trader = NULL;
 
     if (argument[0] == '\0')
     {
-	send_to_char("Buy what?\n\r", ch);
-	return;
-    }
-
-#if 0
-    /* What kind of shop are we? */
-    for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
-    {
-	if (IS_SET(mob->act, ACT_CREW_SELLER) && IS_NPC(mob))
-	{
-	    crew_seller = mob;
-	    break;
-	}
-    }
-#endif
-
-    for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
-    {
-	if (IS_SET(mob->act2, ACT2_PLANE_TUNNELER) && IS_NPC(mob))
-	{
-	    plane_tunneler = mob;
-	    break;
-	}
+		send_to_char("Buy what?\n\r", ch);
+		return;
     }
 
     for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
     {
-	if (IS_SET(mob->act2, ACT2_TRADER) && IS_NPC(mob))
-	{
-	    trader = mob;
-	    break;
-	}
+		if (IS_SET(mob->act2, ACT2_PLANE_TUNNELER) && IS_NPC(mob))
+		{
+			plane_tunneler = mob;
+			break;
+		}
     }
 
-#if 0
     for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
     {
-	if (IS_SET(mob->act2, ACT2_AIRSHIP_SELLER) && IS_NPC(mob))
-	{
-	    airship_seller = mob;
-	    break;
-	}
+		if (IS_SET(mob->act2, ACT2_TRADER) && IS_NPC(mob))
+		{
+			trader = mob;
+			break;
+		}
     }
-#endif
 
+	//////////////////////////////////////////
+	//
+	// COMMODOTIES TRADER - TODO: REWORK
+	//
+	//////////////////////////////////////////
     if ( trader != NULL )
     {
-        TRADE_ITEM *temp = NULL;
-	OBJ_INDEX_DATA *obj_index = NULL;
-	OBJ_DATA *pObj = NULL;
-	OBJ_DATA *cart = NULL;
-	int counter = -1;
-	char *trade_item;
-	/*int counter;*/
+		TRADE_ITEM *temp = NULL;
+		OBJ_INDEX_DATA *obj_index = NULL;
+		OBJ_DATA *pObj = NULL;
+		OBJ_DATA *cart = NULL;
+		int counter = -1;
+		char *trade_item;
+		/*int counter;*/
 
-        argument = one_argument( argument, arg );
-        argument = one_argument( argument, arg2 );
+		argument = one_argument( argument, arg );
+		argument = one_argument( argument, arg2 );
 
-	if(p_percent_trigger(trader, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREBUY, NULL))
-		return;
+//		TODO: TRIG_PREBUY_TRADER
+//		if(p_percent_trigger(trader, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREBUY, NULL))
+//			return;
 
-	if ( (cart = ch->pulled_cart) == NULL )
-	{
-	    sprintf( buf, "%s, you must have a cart to put purchased trade goods!", pers( ch, trader ) );
-	    do_say( trader, buf );
-	    return;
-	}
+		if ( (cart = ch->pulled_cart) == NULL )
+		{
+			sprintf( buf, "%s, you must have a cart to put purchased trade goods!", pers( ch, trader ) );
+			do_say( trader, buf );
+			return;
+		}
 
-	if ( is_number(arg) )
-	{
-		trade_item = arg2;
-		counter = atoi(arg);
-	}
-	else
-	{
-		trade_item = arg;
-	}
+		if ( is_number(arg) )
+		{
+			trade_item = arg2;
+			counter = atoi(arg);
+		}
+		else
+		{
+			trade_item = arg;
+		}
 
-        temp = ch->in_room->area->trade_list;
-        while( temp != NULL)
-	{
-	    obj_index = get_obj_index( temp->obj_vnum );
-	    if ( is_name( trade_item, trade_table[temp->trade_type].name ) ||
-		    is_name( trade_item, obj_index->name ) )
-	    {
-		break;
-	    }
-	    temp = temp->next;
-	}
+		temp = ch->in_room->area->trade_list;
+		while( temp != NULL)
+		{
+			obj_index = get_obj_index( temp->obj_vnum );
+			if ( is_name( trade_item, trade_table[temp->trade_type].name ) ||
+				is_name( trade_item, obj_index->name ) )
+			{
+				break;
+			}
+			temp = temp->next;
+		}
 
-	if ( temp == NULL )
-	{
-	    sprintf( buf, "Sorry %s, you can't buy that here.", pers( ch, trader ) );
+		if ( temp == NULL )
+		{
+		    sprintf( buf, "Sorry %s, you can't buy that here.", pers( ch, trader ) );
        	    do_say( trader, buf );
-	    return;
-	}
-
-	if ( counter == -1 )
-	{
-		/* Check if unit will fit in cart */
-		if ( obj_index->weight + get_obj_weight_container( cart )
-				> (cart->value[0])
-		||  (get_obj_number_container(cart) >= cart->value[3]))
-		{
-			sprintf( buf, "Your cart is fully laden %s, there is no place to put it.", pers( ch, trader ) );
-			do_say( trader, buf );
 			return;
 		}
 
-		cost = temp->buy_price;
-		if ( cost > ch->silver + (100*ch->gold))
+		if ( counter == -1 )
 		{
-			sprintf( buf, "You don't have enough money, %s. The price is %ld silver coins.",
-				pers( ch, trader ), temp->buy_price );
-			do_say( trader, buf );
-			return;
-		}
+			/* Check if unit will fit in cart */
+			if ( obj_index->weight + get_obj_weight_container( cart ) > (cart->value[0]) ||
+				(get_obj_number_container(cart) >= cart->value[3]))
+			{
+				sprintf( buf, "Your cart is fully laden %s, there is no place to put it.", pers( ch, trader ) );
+				do_say( trader, buf );
+				return;
+			}
 
-		deduct_cost( ch, cost );
+			cost = temp->buy_price;
+			if ( cost > (ch->silver + (100*ch->gold)))
+			{
+				sprintf( buf, "You don't have enough money, %s. The price is %ld silver coins.",
+					pers( ch, trader ), temp->buy_price );
+				do_say( trader, buf );
+				return;
+			}
 
-		/* Create object and stick it in the cart */
-		pObj = create_object( get_obj_index( temp->obj_vnum ), 1, TRUE );
-		if ( pObj == NULL )
-		{
-			bug( "ERROR: A commodity object did not exist, vnum was:", temp->obj_vnum );
-			return;
-		}
+			deduct_cost( ch, cost );
 
-		sprintf( buf, "$N places $p in your cart and takes {Y%ld{x silver coins.", temp->buy_price );
-		act( buf, ch, trader, NULL, pObj, NULL, NULL, NULL, TO_CHAR );
-
-		obj_to_obj( pObj, cart );
-
-		temp->qty--;
-	}
-	else
-	{
-		int count = 0;
-
-		/* Check if unit will fit in cart */
-		if ( counter*(obj_index->weight + get_obj_weight_container( cart ))
-				> (cart->value[0])
-		||  (get_obj_number_container(cart) + counter >= cart->value[3]))
-		{
-			sprintf( buf, "Your cart can't hold that much, there is no place to put it." );
-			do_say( trader, buf );
-			return;
-		}
-
-		cost = temp->buy_price * counter;
-		if ( cost > ch->silver + (100*ch->gold))
-		{
-			sprintf( buf, "You don't have enough money, %s. The price is %ld silver coins.",
-				pers( ch, trader ), cost );
-			do_say( trader, buf );
-			return;
-		}
-
-		deduct_cost( ch, cost );
-		for (count = 0; count < counter; count++)
-		{
 			/* Create object and stick it in the cart */
 			pObj = create_object( get_obj_index( temp->obj_vnum ), 1, TRUE );
 			if ( pObj == NULL )
@@ -4705,515 +4729,649 @@ void do_buy(CHAR_DATA *ch, char *argument)
 				bug( "ERROR: A commodity object did not exist, vnum was:", temp->obj_vnum );
 				return;
 			}
+
+			sprintf( buf, "$N places $p in your cart and takes {Y%ld{x silver coins.", temp->buy_price );
+			act( buf, ch, trader, NULL, pObj, NULL, NULL, NULL, TO_CHAR );
+
 			obj_to_obj( pObj, cart );
+
 			temp->qty--;
 		}
+		else
+		{
+			int count = 0;
 
-		sprintf( buf, "$N places %d units of $p in your cart and takes {Y%ld{x silver coins.", counter, cost );
-		act( buf, ch, trader, NULL, pObj, NULL, NULL, NULL, TO_CHAR );
+			/* Check if unit will fit in cart */
+			if ( counter*(obj_index->weight + get_obj_weight_container( cart )) > (cart->value[0]) ||
+				(get_obj_number_container(cart) + counter >= cart->value[3]))
+			{
+				sprintf( buf, "Your cart can't hold that much, there is no place to put it." );
+				do_say( trader, buf );
+				return;
+			}
+
+			cost = temp->buy_price * counter;
+			if ( cost > ch->silver + (100*ch->gold))
+			{
+				sprintf( buf, "You don't have enough money, %s. The price is %ld silver coins.",
+					pers( ch, trader ), cost );
+				do_say( trader, buf );
+				return;
+			}
+
+			deduct_cost( ch, cost );
+			for (count = 0; count < counter; count++)
+			{
+				/* Create object and stick it in the cart */
+				pObj = create_object( get_obj_index( temp->obj_vnum ), 1, TRUE );
+				if ( pObj == NULL )
+				{
+					bug( "ERROR: A commodity object did not exist, vnum was:", temp->obj_vnum );
+					return;
+				}
+				obj_to_obj( pObj, cart );
+				temp->qty--;
+			}
+
+			sprintf( buf, "$N places %d units of $p in your cart and takes {Y%ld{x silver coins.", counter, cost );
+			act( buf, ch, trader, NULL, pObj, NULL, NULL, NULL, TO_CHAR );
+			return;
+		}
+
 		return;
-	}
-  return;
     }
 
+	//////////////////////////////////////////
+	//
+	// PLANE TUNNELER - TODO: REWORK
+	//
+	//////////////////////////////////////////
     if (plane_tunneler != NULL)
     {
-	int i;
-	bool found = FALSE;
+		int i;
+		bool found = FALSE;
 
-	if(p_percent_trigger(plane_tunneler, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREBUY, NULL))
-		return;
+//		TODO: TRIG_PREBUY_TUNNELER
+//		if(p_percent_trigger(plane_tunneler, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREBUY, NULL))
+//			return;
 
         if (ch->pulled_cart != NULL) {
-	    act("You can't go into the plane tunnels with $p.", ch, NULL, NULL, ch->pulled_cart, NULL, NULL, NULL, TO_CHAR);
-	    return;
-	}
+		    act("You can't go into the plane tunnels with $p.", ch, NULL, NULL, ch->pulled_cart, NULL, NULL, NULL, TO_CHAR);
+		    return;
+		}
 
-	argument = one_argument(argument, arg);
+		argument = one_argument(argument, arg);
 
         i = 0;
-	while (tunneler_place_table[i].name != NULL)
-	{
-	    if (is_name(arg, tunneler_place_table[i].name))
-	    {
-		found = TRUE;
-		break;
-	    }
-
-	    i++;
-	}
-
-	if (!found)
-	{
-	    sprintf(buf, "That's not a place, %s.", pers(ch, plane_tunneler));
-	    do_say(plane_tunneler, buf);
-	    return;
-	}
-
-	cost = tunneler_place_table[i].price;
-
-	if (cost > ch->silver + (100*ch->gold))
-	{
-	    sprintf(buf, "You don't have enough money, %s. The price is %d silver coins.",
-	    	pers(ch, plane_tunneler), tunneler_place_table[i].price);
-	    do_say(plane_tunneler, buf);
-	    return;
-	}
-
-	deduct_cost(ch, cost);
-
-	act("$n opens up a wavering magical tunnel.", plane_tunneler, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	act("{YYou step through the tunnel.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	act("{Y$n steps through the tunnel.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-
-	char_from_room(ch);
-	char_to_room(ch, get_room_index(tunneler_place_table[i].vnum));
-
-        do_function(ch, &do_look, "auto");
-	return;
-    }
-
-    /* Ship shop
-    if (IS_SET(ch->in_room->room_flags, ROOM_SHIP_SHOP))
-    {
-	SHIP_DATA *ship;
-	SHIP_DATA *pShipData;
-
-	long vnum;
-        int i;
-        ROOM_INDEX_DATA *dest = NULL;
-        OBJ_DATA *obj_ship = NULL;
-        int ship_type = 0;
-
-	if (IS_NPC(ch))
-	    return;
-
-	argument = one_argument(argument,arg);
-	argument = one_argument(argument,arg2);
-
-	vnum = -1;
-	if (!str_prefix(arg, "sailing boat"))
-        {
-	   vnum = OBJ_VNUM_SAILING_BOAT;
-	   ship_type = SHIP_SAILING_BOAT;
-	}
- 	else
- 	if (!str_prefix(arg, "cargo boat"))
-	{
-	    vnum = OBJ_VNUM_CARGO_SHIP;
-	    ship_type = SHIP_CARGO_SHIP;
-
-	    if (
-		    (IN_SERALIA(ch->in_room->area) && ch->pcdata->rank[CONT_SERALIA] < NPC_SHIP_RANK_COMMANDER) ||
-		    (IN_ATHEMIA(ch->in_room->area) && ch->pcdata->rank[CONT_ATHEMIA] < NPC_SHIP_RANK_COMMANDER)) {
-		send_to_char("You must hold the rank of Commander to buy this vessel.\n\r", ch);
-		return;
-	    }
-	}
- 	else
-	if ( !str_prefix(arg, "galleon"))
-	{
-	    vnum = OBJ_VNUM_GALLEON_SHIP;
-	    ship_type = SHIP_GALLEON_SHIP;
-
-	    if (
-		    (IN_SERALIA(ch->in_room->area) && ch->pcdata->rank[CONT_SERALIA] < NPC_SHIP_RANK_CAPTAIN) ||
-		    (IN_ATHEMIA(ch->in_room->area) && ch->pcdata->rank[CONT_ATHEMIA] < NPC_SHIP_RANK_CAPTAIN)) {
-		send_to_char("You must hold the rank of Captain to buy this vessel.\n\r", ch);
-		return;
-	    }
-	}
-	else
-	if (!str_prefix(arg, "frigate"))
-	{
-	    vnum = OBJ_VNUM_FRIGATE_SHIP;
-	    ship_type = SHIP_FRIGATE_SHIP;
-
-	    if (
-		    (IN_SERALIA(ch->in_room->area) && ch->pcdata->rank[CONT_SERALIA] < NPC_SHIP_RANK_COMMODORE) ||
-		    (IN_ATHEMIA(ch->in_room->area) && ch->pcdata->rank[CONT_ATHEMIA] < NPC_SHIP_RANK_COMMODORE)) {
-		send_to_char("You must hold the rank of Commodore to buy this vessel.\n\r", ch);
-		return;
-	    }
-	}
-
-	if (get_obj_index(vnum) == NULL) {
-	    send_to_char("Sorry, that ship type hasn't been built yet.\n\r", ch);
-	    return;
-	}
-
-        if (vnum == -1)
-	{
-	    send_to_char("You can't buy that here.\n\r", ch);
-	    return;
-	}
-
-	i = 0;
-
-	if (get_room_index(plith_docks_table[i]) == NULL) {
-		bug("do_buy: get_room_index was null!\n\r", 0);
-		send_to_char("The wilds arnt loaded. So, you can't do this yet.\n\r", ch);
-		return;
-	}
-
-	obj_to_room(obj_ship, get_room_index(744081));
-
-	obj_ship = create_object(get_obj_index(vnum), ch->tot_level, FALSE);
-
-	obj_to_room(obj_ship, get_room_index(plith_docks_table[i]));
-
-        for(pShipData = ((AREA_DATA *) get_sailing_boat_area())->ship_list;
-	     pShipData != NULL;
-	     pShipData = pShipData->next)
-	{
-	    if (!str_cmp(pShipData->owner_name, ch->name))
-	    {
-		send_to_char("You already own a vessel.\n\r", ch);
-		return;
-	    }
-	}
- 	if (!IS_IMMORTAL(ch) && vnum == OBJ_VNUM_SAILING_BOAT)
-	{
-	  if (ch->gold-5000 < 0) {
-		send_to_char("You don't have enough gold.\n\r", ch);
-		return;
-	  }
-	  ch->gold -= 5000;
-        }
-	ship = create_new_sailing_boat(ch->name, ship_type);
-        ship->owner = ch;
-
-	if (!str_cmp(ch->in_room->area->name, "Plith")) {
-	    i = 0;
-	    while(plith_docks_table[i] != -1)
-	    {
-		bool found;
-		found = FALSE;
-		dest = get_room_index(plith_docks_table[i]);
-		if (dest == NULL)
+		while (tunneler_place_table[i].name != NULL)
 		{
-		    break;
+		    if (is_name(arg, tunneler_place_table[i].name))
+		    {
+				found = TRUE;
+				break;
+		    }
+
+		    i++;
 		}
-		for (obj_ship = dest->contents;
-			obj_ship != NULL;
-			obj_ship = obj_ship->next_content)
-		    if (obj_ship->item_type == ITEM_SHIP)
-			found = TRUE;
 
 		if (!found)
-		    break;
-
-		i++;
-	    }
-	    if (dest == NULL)
-	    {
-		obj_to_room(ship->ship, get_room_index(5700315));
-	    }
-	    else
-	    {
-		obj_to_room(ship->ship, get_room_index(plith_docks_table[i]));
-	    }
-	}
-	else
-	    if (!str_cmp(ch->in_room->area->name, "Olaria")) {
-		obj_to_room(ship->ship, get_room_index(5585041));
-	    }
-	    else
-		if (!str_cmp(ch->in_room->area->name, "Achaeus")) {
-		    obj_to_room(ship->ship, get_room_index(6399516));
-		}
-		else {
-		    obj_to_room(ship->ship, get_room_index(6399516));
+		{
+			sprintf(buf, "That's not a place, %s.", pers(ch, plane_tunneler));
+			do_say(plane_tunneler, buf);
+			return;
 		}
 
+		cost = tunneler_place_table[i].price;
+		if (cost > ch->silver + (100*ch->gold))
+		{
+		    sprintf(buf, "You don't have enough money, %s. The price is %d silver coins.",
+		    	pers(ch, plane_tunneler), tunneler_place_table[i].price);
+		    do_say(plane_tunneler, buf);
+		    return;
+		}
 
-	if (arg2[0] == '\0')
-	    ship->ship_name = str_dup(ch->name);
-	else
-	{
-	    ship->ship_name = str_dup(arg2);
-	}
+		deduct_cost(ch, cost);
 
-	// Change long description of new sailing boat
-	sprintf(buf, ship->ship->description, ship->ship_name);
-	free_string(ship->ship->description);
+		act("$n opens up a wavering magical tunnel.", plane_tunneler, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("{YYou step through the tunnel.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("{Y$n steps through the tunnel.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-	ship->ship->description = str_dup(buf);
+		char_from_room(ch);
+		char_to_room(ch, get_room_index(tunneler_place_table[i].vnum));
 
-	cannon = create_object(get_obj_index(OBJ_VNUM_SAILING_BOAT_CANNON),
-			0, FALSE);
-	sprintf(buf, cannon->description, ship->cannons);
-	free_string(cannon->description);
-	cannon->description = str_dup(buf);
-
-	create_and_add_cannons( ship, 2 );
-
-	if (IN_CHURCH(ch))
-	{
-		ship->flag = str_dup(ch->church->flag);
-	}
-
-	send_to_char("{WYour new vessel awaits you in the docks!{x\n\r", ch);
-	return;
+        do_function(ch, &do_look, "auto");
+		return;
     }
-*/
 
-   /*
-    * Pet Shop
-    */
+
+	//////////////////////////////////////////
+	//
+	// PET SHOP
+	//
+	//////////////////////////////////////////
     if (IS_SET(ch->in_room->room_flags, ROOM_PET_SHOP))
     {
-	char arg[MAX_INPUT_LENGTH];
-	char buf[MAX_STRING_LENGTH];
-	CHAR_DATA *pet;
-	ROOM_INDEX_DATA *pRoomIndexNext;
-	ROOM_INDEX_DATA *in_room;
+		CHAR_DATA *pet;
+		ROOM_INDEX_DATA *pRoomIndexNext;
+		ROOM_INDEX_DATA *in_room;
 
-	smash_tilde(argument);
+		if (IS_NPC(ch))
+			return;
 
-	if (IS_NPC(ch))
-	    return;
+//		TODO: TRIG_PREBUY_PET
+//		if(p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREBUY, NULL))
+//			return;
 
-	argument = one_argument(argument,arg);
+		smash_tilde(argument);
+		argument = one_argument(argument,arg);
 
-	pRoomIndexNext = get_room_index(ch->in_room->vnum + 1);
-	if (pRoomIndexNext == NULL)
-	{
-	    bug("Do_buy: bad pet shop at vnum %d.", ch->in_room->vnum);
-	    send_to_char("Sorry, you can't buy that here.\n\r", ch);
-	    return;
-	}
+		pRoomIndexNext = get_room_index(ch->in_room->vnum + 1);
+		if (pRoomIndexNext == NULL)
+		{
+			bug("Do_buy: bad pet shop at vnum %d.", ch->in_room->vnum);
+			send_to_char("Sorry, you can't buy that here.\n\r", ch);
+			return;
+		}
 
-	in_room     = ch->in_room;
-	ch->in_room = pRoomIndexNext;
-	pet         = get_char_room(ch, NULL, arg);
+		in_room		= ch->in_room;
+		ch->in_room	= pRoomIndexNext;
+		pet			= get_char_room(ch, NULL, arg);
+		ch->in_room	= in_room;
 
-	ch->in_room = in_room;
+		if (pet == NULL || !IS_SET(pet->act, ACT_PET))
+		{
+			send_to_char("Sorry, you can't buy that here.\n\r", ch);
+			return;
+		}
 
-	if (pet == NULL || !IS_SET(pet->act, ACT_PET))
-	{
-	    send_to_char("Sorry, you can't buy that here.\n\r", ch);
-	    return;
-	}
+		if (ch->tot_level < pet->level)
+		{
+			send_to_char("You're not powerful enough to master this pet.\n\r", ch);
+			return;
+		}
 
-	if (ch->pet != NULL)
-	{
-	    send_to_char("You already own a pet.\n\r",ch);
-	    return;
-	}
+		if (ch->pet != NULL)
+		{
+			send_to_char("You already own a pet.\n\r",ch);
+			return;
+		}
 
- 	cost = 10 * pet->level * pet->level;
+		cost = 10 * pet->level * pet->level;
 
-	/* haggle */
-	roll = number_percent();
-	if (roll < get_skill(ch,gsn_haggle))
-	{
-	    cost -= cost / 3 * roll / 100;
-	    /*sprintf(buf,"You haggle the price down to %d coins.\n\r",cost);*/
-	    /*send_to_char(buf,ch);*/
-	    haggled = TRUE;
-	    check_improve(ch,gsn_haggle,TRUE,4);
-	}
+		/* haggle */
+		roll = number_percent();
+		if (roll < get_skill(ch,gsn_haggle))
+		{
+			cost -= cost / 3 * roll / 100;
+			/*sprintf(buf,"You haggle the price down to %d coins.\n\r",cost);*/
+			/*send_to_char(buf,ch);*/
+			haggled = TRUE;
+			check_improve(ch,gsn_haggle,TRUE,4);
+		}
 
-	if ((ch->silver + 100 * ch->gold) < cost)
-	{
-	    send_to_char("You can't afford it.\n\r", ch);
-	    return;
-	}
+		if ((ch->silver + 100 * ch->gold) < cost)
+		{
+			send_to_char("You can't afford it.\n\r", ch);
+			return;
+		}
 
-	if (ch->tot_level < pet->level)
-	{
-	    send_to_char(
-		"You're not powerful enough to master this pet.\n\r", ch);
-	    return;
-	}
+		deduct_cost(ch,cost);
+		pet = create_mobile(pet->pIndexData, FALSE);
+		SET_BIT(pet->act, ACT_PET);
+		SET_BIT(pet->affected_by, AFF_CHARM);
+		pet->comm = COMM_NOTELL|COMM_NOCHANNELS;
 
-	deduct_cost(ch,cost);
-	pet = create_mobile(pet->pIndexData, FALSE);
-	SET_BIT(pet->act, ACT_PET);
-	SET_BIT(pet->affected_by, AFF_CHARM);
-	pet->comm = COMM_NOTELL|COMM_NOCHANNELS;
+		argument = one_argument(argument, arg);
+		if (arg[0] != '\0')
+		{
+			sprintf(buf, "%s %s", pet->name, arg);
+			free_string(pet->name);
+			pet->name = str_dup(buf);
+		}
 
-	argument = one_argument(argument, arg);
-	if (arg[0] != '\0')
-	{
-	    sprintf(buf, "%s %s", pet->name, arg);
-	    free_string(pet->name);
-	    pet->name = str_dup(buf);
-	}
+		sprintf(buf, "%sA neck tag says 'I belong to %s'.\n\r", pet->description, ch->name);
+		free_string(pet->description);
+		pet->description = str_dup(buf);
 
-	sprintf(buf, "%sA neck tag says 'I belong to %s'.\n\r",
-	    pet->description, ch->name);
-	free_string(pet->description);
-	pet->description = str_dup(buf);
+		char_to_room(pet, ch->in_room);
+		add_follower(pet, ch,TRUE);
+		if (!add_grouped(pet, ch,TRUE))
+		{
+			act("$n explodes into thin air!", pet, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			char_from_room(pet);
+			extract_char(pet, TRUE);
+			return;
+		}
 
-	char_to_room(pet, ch->in_room);
-	add_follower(pet, ch,TRUE);
-	if (!add_grouped(pet, ch,TRUE))
-	{
-	    act("$n explodes into thin air!", pet, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	    char_from_room(pet);
-	    extract_char(pet, TRUE);
-	    return;
-	}
-
-	ch->pet = pet;
-	if (haggled) {
-	    sprintf(buf,"You haggle the price down to %ld coins.\n\r",cost);
-	    send_to_char(buf, ch);
-	}
-	send_to_char("Enjoy your pet.\n\r", ch);
-	act("$n bought $N as a pet.", ch, pet, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	return;
-    }
-    else
-    {
-	/* Plain old shop */
-	CHAR_DATA *keeper;
-	OBJ_DATA *obj,*t_obj;
-	char arg[MAX_INPUT_LENGTH];
-	char arg2[MAX_INPUT_LENGTH];
-	int number, count = 1;
-
-	if ((keeper = find_keeper(ch)) == NULL)
-	    return;
-
-	/*number = mult_argument(argument, arg2);*/
-	argument = one_argument(argument, arg);
-	argument = one_argument(argument, arg2);
-
-	if (arg2[0] == '\0')
-	{
-	    number = 1;
-	    obj  = get_obj_keeper(ch,keeper, arg);
-	}
-	else
-	{
-	    number = atoi(arg);
-	    obj  = get_obj_keeper(ch,keeper, arg2);
-	}
-
-	if(p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREBUY, NULL))
+		ch->pet = pet;
+		if (haggled) {
+			sprintf(buf,"You haggle the price down to %ld coins.\n\r",cost);
+			send_to_char(buf, ch);
+		}
+		send_to_char("Enjoy your pet.\n\r", ch);
+		act("$n bought $N as a pet.", ch, pet, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 		return;
-
-	cost = get_cost(keeper, obj, TRUE);
-	if (number < 1 || number > 150)
-	{
-	    act("{R$n tells you 'Get real!'{x",keeper,ch, NULL, NULL, NULL, NULL, NULL,TO_VICT);
-	    return;
-	}
-
-	if (cost <= 0 || !can_see_obj(ch, obj))
-	{
-	    act("{R$n tells you 'I don't sell that -- try 'list''.{x",
-		keeper, ch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
-	    ch->reply = keeper;
-	    return;
-	}
-
-	if (!IS_OBJ_STAT(obj,ITEM_INVENTORY))
-	{
-	    for (t_obj = obj->next_content;
-	     	 count < number && t_obj != NULL;
-	     	 t_obj = t_obj->next_content)
-	    {
-	    	if (t_obj->pIndexData == obj->pIndexData
-	    	&&  !str_cmp(t_obj->short_descr,obj->short_descr))
-		    count++;
-	    	else
-		    break;
-	    }
-
-	    if (count < number || IS_SET(obj->extra2_flags, ITEM_SELL_ONCE))
-	    {
-	    	act("{R$n tells you 'I don't have that many in stock.{x",
-		    keeper,ch, NULL, NULL, NULL, NULL, NULL,TO_VICT);
-	    	ch->reply = keeper;
-	    	return;
-	    }
-	}
-
-	/* haggle */
-	cost = cost * number;
-	roll = number_percent();
-	if (roll < get_skill(ch,gsn_haggle))
-	{
-	    cost -= ((cost/2) * roll)/100;
-	    haggled = TRUE;
-	    check_improve(ch,gsn_haggle,TRUE,4);
-	}
-
-	if ((ch->silver + ch->gold * 100) < cost)
-	{
-	    if (number > 1)
-		act("{R$n tells you 'You can't afford to buy that many.'{x", keeper,ch, NULL, obj, NULL, NULL, NULL,TO_VICT);
-	    else
-	    	act("{R$n tells you 'You can't afford to buy $p'.{x", keeper, ch, NULL, obj, NULL, NULL, NULL, TO_VICT);
-	    ch->reply = keeper;
-	    return;
-	}
-/* AO - this is stupid. Buy whatever you want :P
-	if (obj->level > ch->tot_level
-	&&  !(IS_REMORT(ch) && IS_SET(obj->extra2_flags, ITEM_ALL_REMORT)))
-	{
-	    act("{R$n tells you 'You can't use $p yet'.{x",
-		keeper, ch, NULL, obj, NULL, NULL, NULL, TO_VICT);
-	    ch->reply = keeper;
-	    return;
-	}
-*/
-	if (ch->carry_number +  number * get_obj_number(obj) > can_carry_n(ch))
-	{
-	    send_to_char("You can't carry that many items.\n\r", ch);
-	    return;
-	}
-
-	if (get_carry_weight(ch) + number * get_obj_weight(obj) > can_carry_w(ch))
-	{
-	    send_to_char("You can't carry that much weight.\n\r", ch);
-	    return;
-	}
-
-	if (haggled)
-	    act("You haggle with $N.",ch,keeper, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-
-	if (number > 1)
-	{
-	    sprintf(buf,"$n buys $p[%d].",number);
-	    act(buf,ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
-	    sprintf(buf,"You buy $p[%d] for %ld silver.",number,cost);
-	    act(buf,ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-	}
+    }
 	else
 	{
-	    act("$n buys $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-	    sprintf(buf,"You buy $p for %ld silver.",cost);
-	    act(buf, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		//////////////////////////////////////////
+		//
+		// NORMAL SHOP
+		//
+		//////////////////////////////////////////
+
+		CHAR_DATA *keeper;
+		OBJ_DATA *obj,*t_obj;
+		SHOP_REQUEST_DATA request;
+		int number, count = 1;
+
+		if ((keeper = find_keeper(ch)) == NULL)
+			return;
+
+		argument = one_argument(argument, arg);
+		argument = one_argument(argument, arg2);
+
+		bool found;
+
+		// Find the stock item
+		if (arg2[0] == '\0')
+		{
+			number = 1;
+			found = get_stock_keeper(ch, keeper, &request, arg);
+		}
+		else
+		{
+			number = atoi(arg);
+			found = get_stock_keeper(ch, keeper, &request, arg2);
+		}
+
+		if(!found)
+		{
+			act("{R$n tells you 'I don't sell that -- try 'list''.{x",
+				keeper, ch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+			ch->reply = keeper;
+			return;
+
+		}
+
+		if (number < 1 || number > 150)
+		{
+			act("{R$n tells you 'Get real!'{x",keeper,ch, NULL, NULL, NULL, NULL, NULL,TO_VICT);
+			return;
+		}
+
+		if( request.obj != NULL )
+		{
+			//
+			// Attempting to buy a non-stock object
+			obj = request.obj;
+
+			keeper->tempstore[0] = number;
+			if(p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREBUY_OBJ, NULL))
+				return;
+
+			cost = get_cost(keeper, obj, TRUE);
+
+			if (!IS_OBJ_STAT(obj,ITEM_INVENTORY))
+			{
+				for (t_obj = obj->next_content;
+					count < number && t_obj != NULL;
+					t_obj = t_obj->next_content)
+				{
+					if (t_obj->pIndexData == obj->pIndexData &&
+						!str_cmp(t_obj->short_descr,obj->short_descr))
+						count++;
+					else
+						break;
+				}
+
+				if (count < number || IS_SET(obj->extra2_flags, ITEM_SELL_ONCE))
+				{
+					act("{R$n tells you 'I don't have that many in stock.{x",
+						keeper,ch, NULL, NULL, NULL, NULL, NULL,TO_VICT);
+					ch->reply = keeper;
+					return;
+				}
+			}
+
+			/* haggle */
+			cost = cost * number;
+			roll = number_percent();
+			if (roll < get_skill(ch,gsn_haggle))
+			{
+				cost -= ((cost/2) * roll)/100;
+				haggled = TRUE;
+				check_improve(ch,gsn_haggle,TRUE,4);
+			}
+
+			if ((ch->silver + ch->gold * 100) < cost)
+			{
+				if (number > 1)
+					act("{R$n tells you 'You can't afford to buy that many.'{x", keeper,ch, NULL, obj, NULL, NULL, NULL,TO_VICT);
+				else
+					act("{R$n tells you 'You can't afford to buy $p'.{x", keeper, ch, NULL, obj, NULL, NULL, NULL, TO_VICT);
+				ch->reply = keeper;
+				return;
+			}
+			if (ch->carry_number +  number * get_obj_number(obj) > can_carry_n(ch))
+			{
+				send_to_char("You can't carry that many items.\n\r", ch);
+				return;
+			}
+
+			if (get_carry_weight(ch) + number * get_obj_weight(obj) > can_carry_w(ch))
+			{
+				send_to_char("You can't carry that much weight.\n\r", ch);
+				return;
+			}
+
+			if (haggled)
+				act("You haggle with $N.",ch,keeper, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
+
+			if (number > 1)
+			{
+				sprintf(buf,"$n buys $p[%d].",number);
+				act(buf,ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
+				sprintf(buf,"You buy $p[%d] for %ld silver.",number,cost);
+				act(buf,ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
+			}
+			else
+			{
+				act("$n buys $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+				sprintf(buf,"You buy $p for %ld silver.",cost);
+				act(buf, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			}
+
+			deduct_cost(ch,cost);
+			keeper->gold += cost/100;
+			keeper->silver += cost - (cost/100) * 100;
+
+			for (count = 0; count < number; count++)
+			{
+				if (IS_SET(obj->extra_flags, ITEM_INVENTORY))
+					t_obj = create_object(obj->pIndexData, obj->level, TRUE);
+				else
+				{
+					t_obj = obj;
+					obj = obj->next_content;
+					obj_from_char(t_obj);
+				}
+
+				if (t_obj->timer > 0)
+					t_obj->timer = 0;
+
+				obj_to_char(t_obj, ch);
+				if (cost < t_obj->cost)
+					t_obj->cost = cost;
+			}
+
+		}
+		else
+		{
+			// Attempting to buy from stock
+			keeper->tempstore[0] = number;
+			keeper->tempstore[1] = stock->vnum;
+			if(p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREBUY, stock->custom_keyword))
+				return;
+
+			if( stock->max_quantity > 0 && number > stock->quantity )
+			{
+				act("{R$n tells you 'I do not have that many.'.{x", keeper, ch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+				ch->reply = keeper;
+				return;
+			}
+
+			if( IS_NULLSTR(stock->custom_pricing) )
+			{
+				int chance = get_skill_ch, gsn_haggle);
+
+				long silver = adjust_keeper_price(keeper, number * stock->silver, TRUE);
+
+				if( silver > 0 ) {
+					roll = number_percent();
+					if (roll < chance)
+					{
+						silver -= ((silver/2) * roll)/100;
+						haggled = TRUE;
+					}
+
+					if( (ch->silver + 100*ch->gold) < silver )
+					{
+						if (number > 1)
+							act("{R$n tells you 'You can't afford to buy that many.'{x", keeper,ch, NULL, NULL, NULL, NULL, NULL,TO_VICT);
+						else
+							act("{R$n tells you 'You can't afford to buy that'.{x", keeper, ch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+						ch->reply = keeper;
+						return;
+					}
+				}
+
+				long qp = adjust_keeper_price(keeper, number * stock->qp, TRUE);
+				if( qp > 0 ) {
+					roll = number_percent();
+					if (roll < chance)
+					{
+						qp -= ((qp/2) * roll)/100;
+						haggled = TRUE;
+					}
+
+					if( qp < ch->questpoints )
+					{
+						if (number > 1)
+							act("{R$n tells you 'You can't afford to buy that many.'{x", keeper,ch, NULL, NULL, NULL, NULL, NULL,TO_VICT);
+						else
+							act("{R$n tells you 'You can't afford to buy that'.{x", keeper, ch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+						ch->reply = keeper;
+						return;
+					}
+				}
+
+				long dp = adjust_keeper_price(keeper, number * stock->dp, TRUE);
+				if( dp > 0 ) {
+					roll = number_percent();
+					if (roll < chance)
+					{
+						dp -= ((dp/2) * roll)/100;
+						haggled = TRUE;
+					}
+
+					if( dp < ch->deitypoints )
+					{
+						if (number > 1)
+							act("{R$n tells you 'You can't afford to buy that many.'{x", keeper,ch, NULL, NULL, NULL, NULL, NULL,TO_VICT);
+						else
+							act("{R$n tells you 'You can't afford to buy that'.{x", keeper, ch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+						ch->reply = keeper;
+						return;
+					}
+				}
+
+				long pneuma = adjust_keeper_price(keeper, number * stock->pneuma, TRUE);
+				if( pneuma > 0 ) {
+					roll = number_percent();
+					if (roll < chance)
+					{
+						pneuma -= ((pneuma/2) * roll)/100;
+						haggled = TRUE;
+					}
+
+					if( pneuma < ch->pneuma )
+					{
+						if (number > 1)
+							act("{R$n tells you 'You can't afford to buy that many.'{x", keeper,ch, NULL, NULL, NULL, NULL, NULL,TO_VICT);
+						else
+							act("{R$n tells you 'You can't afford to buy that'.{x", keeper, ch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+						ch->reply = keeper;
+						return;
+					}
+				}
+
+				if( stock->obj != NULL )
+				{
+					if ((ch->carry_number + number) > can_carry_n(ch))
+					{
+						send_to_char("You can't carry that many items.\n\r", ch);
+						return;
+					}
+
+					if ((get_carry_weight(ch) + number * stock->obj->weight) > can_carry_w(ch))
+					{
+						send_to_char("You can't carry that much weight.\n\r", ch);
+						return;
+					}
+				}
+				else
+				{
+					// Check for non-standard objects
+					keeper->tempstore[0] = number;
+					int ret = p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CHECK_BUYER, stock->custom_keyword);
+
+					if( ret == 1 )
+					{
+						send_to_char("You can't carry that many items.\n\r", ch);
+						return;
+					}
+
+					if( ret == 2 )
+					{
+						send_to_char("You can't carry that much weight.\n\r", ch);
+						return;
+					}
+				}
+
+				if( haggled )
+				{
+					act("You haggle with $N.",ch,keeper, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
+					check_improve(ch,gsn_haggle,TRUE,4);
+				}
+
+				if( silver > 0 )
+				{
+					deduct_cost(ch,silver);
+					keeper->gold += silver/100;
+					keeper->silver += silver - (silver/100) * 100;
+				}
+
+				if( qp > 0 )
+				{
+					ch->questpoints -= qp;
+				}
+
+				if( dp > 0 )
+				{
+					ch->deitypoints -= dp;
+				}
+
+				if( pneuma > 0 )
+				{
+					ch->pneuma -= pneuma;
+				}
+
+
+				if( stock->obj != NULL )
+				{
+					bool first = TRUE;
+					for (count = 0; count < number; count++)
+					{
+						t_obj = create_object(stock->obj, stock->obj->level, TRUE);
+
+						if (t_obj->timer > 0)
+							t_obj->timer = 0;
+
+						if( first )
+						{
+							first = FALSE;
+							bool added = FALSE;
+
+							if (number > 1)
+							{
+								sprintf(buf,"$n buys $p[%d].",number);
+								act(buf,ch, NULL, NULL, t_obj, NULL, NULL,NULL,TO_ROOM);
+								sprintf(buf,"You buy $p[%d] for",number);
+								if( silver > 0 )
+								{
+									sprintf(arg, " %ld silver", silver);
+									strcat(buf, arg);
+									added = TRUE;
+								}
+								if( qp > 0 )
+								{
+									sprintf(arg, "%s%ld quest points", (added?", ":""), qp);
+									strcat(buf, arg);
+									added = TRUE;
+								}
+								if( dp > 0 )
+								{
+									sprintf(arg, "%s%ld deity points", (added?", ":""), dp);
+									strcat(buf, arg);
+									added = TRUE;
+								}
+								if( pneuma > 0 )
+								{
+									sprintf(arg, "%s%ld pneuma", (added?", ":""), pneuma);
+									strcat(buf, arg);
+								}
+
+								strcat(buf, ".");
+
+								act(buf,ch, NULL, NULL, t_obj, NULL, NULL,NULL,TO_CHAR);
+							}
+							else
+							{
+								act("$n buys $p.", ch, NULL, NULL, t_obj, NULL, NULL, NULL, TO_ROOM);
+								sprintf(buf,"You buy $p for");
+
+								if( silver > 0 )
+								{
+									sprintf(arg, " %ld silver", silver);
+									strcat(buf, arg);
+									added = TRUE;
+								}
+								if( qp > 0 )
+								{
+									sprintf(arg, "%s%ld quest points", (added?", ":""), qp);
+									strcat(buf, arg);
+									added = TRUE;
+								}
+								if( dp > 0 )
+								{
+									sprintf(arg, "%s%ld deity points", (added?", ":""), dp);
+									strcat(buf, arg);
+									added = TRUE;
+								}
+								if( pneuma > 0 )
+								{
+									sprintf(arg, "%s%ld pneuma", (added?", ":""), pneuma);
+									strcat(buf, arg);
+								}
+
+								strcat(buf, ".");
+
+								act(buf, ch, NULL, NULL, t_obj, NULL, NULL, NULL, TO_CHAR);
+							}
+
+						}
+
+						obj_to_char(t_obj, ch);
+					}
+				}
+				else
+				{
+					keeper->tempstore[0] = number;
+					// Must do all the messages
+					p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BUY, stock->custom_keyword);
+				}
+
+			}
+			else
+			{
+				act("{R$n tells you 'Sorry, I cannot sell you that at this time.'.{x", keeper, ch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+				ch->reply = keeper;
+				return;
+
+			}
+		}
 	}
-
-	deduct_cost(ch,cost);
-	keeper->gold += cost/100;
-	keeper->silver += cost - (cost/100) * 100;
-
-	for (count = 0; count < number; count++)
-	{
-	    if (IS_SET(obj->extra_flags, ITEM_INVENTORY))
-	    	t_obj = create_object(obj->pIndexData, obj->level, TRUE);
-	    else
-	    {
-		t_obj = obj;
-		obj = obj->next_content;
-	    	obj_from_char(t_obj);
-	    }
-
-	    if (t_obj->timer > 0)
-	    	t_obj->timer = 0;
-
-	    obj_to_char(t_obj, ch);
-	    if (cost < t_obj->cost)
-	    	t_obj->cost = cost;
-	}
-    }
 }
 
 
@@ -5468,10 +5626,12 @@ void do_list(CHAR_DATA *ch, char *argument)
 		bool found;
 
 		/* hack to make new thalos pets work */
-		if (ch->in_room->vnum == 9621)
-			pRoomIndexNext = get_room_index(9706);
-		else
-			pRoomIndexNext = get_room_index(ch->in_room->vnum + 1);
+//		These rooms don't exist anymore, removing hack
+//		if (ch->in_room->vnum == 9621)
+//			pRoomIndexNext = get_room_index(9706);
+//		else
+//			pRoomIndexNext = get_room_index(ch->in_room->vnum + 1);
+		pRoomIndexNext = get_room_index(ch->in_room->vnum + 1);
 
 		if (pRoomIndexNext == NULL)
 		{
@@ -5533,11 +5693,9 @@ void do_list(CHAR_DATA *ch, char *argument)
 			OBJ_INDEX_DATA *obj_index = NULL;
 
 			if(stock->vnum > 0) {
-				obj_index = get_obj_index(stock->vnum);
+				if(!stock->obj) continue;
 
-				if(!obj_index) continue;
-
-				if( arg[0] != '\0' && !is_name(arg, obj_index->name) )
+				if( arg[0] != '\0' && !is_name(arg, stock->obj->name) )
 					continue;
 
 				if (!found)
@@ -5547,14 +5705,14 @@ void do_list(CHAR_DATA *ch, char *argument)
 				}
 
 				int level = stock->level;
-				if( level < 1 ) level = obj_index->level;
+				if( level < 1 ) level = stock->obj->level;
 				level = UMAX(level, 1);
 
 				char *pricing = get_shop_stock_price(stock);
 				int pwidth = get_colour_width(pricing) + 8;
 
 				char *descr =
-					IS_NULLSTR(stock->custom_descr) ? obj_index->short_descr : stock->custom_descr;
+					IS_NULLSTR(stock->custom_descr) ? stock->obj->short_descr : stock->custom_descr;
 
 				if( stock->max_quantity > 0 )
 				{
@@ -5597,7 +5755,7 @@ void do_list(CHAR_DATA *ch, char *argument)
 
 		}
 
-
+#if 0
 		for (obj = keeper->carrying; obj; obj = obj->next_content)
 		{
 		    if (obj->wear_loc == WEAR_NONE &&
@@ -5632,6 +5790,7 @@ void do_list(CHAR_DATA *ch, char *argument)
 				send_to_char(buf, ch);
 		    }
 		}
+#endif
 
 		if (!found)
 			send_to_char("You can't buy anything here.\n\r", ch);
