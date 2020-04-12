@@ -7820,5 +7820,6 @@ int church_available_treasure_rooms(CHAR_DATA *ch);
 void church_announce_theft(CHAR_DATA *ch, OBJ_DATA *obj);
 
 int get_colour_width(char *text);
+char *get_shop_stock_price(SHOP_STOCK_DATA *stock);
 
 #endif /* !def __MERC_H__ */

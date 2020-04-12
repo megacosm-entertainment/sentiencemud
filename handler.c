@@ -8504,3 +8504,82 @@ void dice_copy(DICE_DATA *a, DICE_DATA *b)
 	b->last_roll = -1;
 }
 
+char *get_shop_stock_price(SHOP_STOCK_DATA *stock)
+{
+	static char buf[4][MSL];
+	static int count = 0;
+
+	count = (count + 1) & 3;
+
+	char *pricing = buf[count];
+
+	if( IS_NULLSTR(stock->custom_price) )
+	{
+		pricing[0] = '\0';
+		int pj = 0;
+
+		if( stock->silver > 0)
+		{
+			long silver = stock->silver % 100;
+			long gold = stock->silver / 100;
+
+			if( gold > 0 )
+			{
+				if( silver > 0 )
+				{
+					pj = sprintf(pricing, "{x%ld{Yg{x%ld{Ws{x", gold, silver);
+				}
+				else
+				{
+					pj = sprintf(pricing, "{x%ld{Yg{x", gold);
+				}
+			}
+			else
+			{
+				pj = sprintf(pricing, "{x%ld{Ws{x", silver);
+			}
+		}
+
+		if( stock->qp > 0 )
+		{
+			if( pj > 0 )
+			{
+				pricing[pj++] = ',';
+				pricing[pj++] = ' ';
+			}
+
+			pj = sprintf(pricing+pj, "{x%ld{Gqp{x", stock->qp);
+		}
+
+		if( stock->dp > 0 )
+		{
+			if( pj > 0 )
+			{
+				pricing[pj++] = ',';
+				pricing[pj++] = ' ';
+			}
+
+			pj = sprintf(pricing+pj, "{x%ld{Mdp{x", stock->dp);
+		}
+
+		if( stock->pneuma > 0 )
+		{
+			if( pj > 0 )
+			{
+				pricing[pj++] = ',';
+				pricing[pj++] = ' ';
+			}
+
+			pj = sprintf(pricing+pj, "{x%ld{Cpn{x", stock->pneuma);
+		}
+		pricing[pj] = '\0';
+
+	}
+	else
+	{
+		strncpy(pricing, stock->custom_price, MSL-3);
+		strcat(pricing, "{x");
+	}
+
+	return pricing;
+}

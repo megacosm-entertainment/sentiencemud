@@ -5527,6 +5527,77 @@ void do_list(CHAR_DATA *ch, char *argument)
         one_argument(argument,arg);
 
 		found = FALSE;
+		SHOP_STOCK_DATA *stock;
+		for (stock = keeper->pIndexData->pShop->stock; stock; stock = stock->next)
+		{
+			OBJ_INDEX_DATA *obj_index = NULL;
+
+			if(stock->vnum > 0) {
+				obj_index = get_obj_index(stock->vnum);
+
+				if(!obj_index) continue;
+
+				if( arg[0] != '\0' && !is_name(arg, obj_index->name) )
+					continue;
+
+				if (!found)
+				{
+					found = TRUE;
+					send_to_char("{B[ {GLv    Price  Qty{B ]{x {YItem{x\n\r", ch);
+				}
+
+				int level = stock->level;
+				if( level < 1 ) level = obj_index->level;
+				level = UMAX(level, 1);
+
+				char *pricing = get_shop_stock_price(stock);
+				int pwidth = get_colour_width(pricing) + 8;
+
+				char *descr =
+					IS_NULLSTR(stock->custom_descr) ? obj_index->short_descr : stock->custom_descr;
+
+				if( stock->max_quantity > 0 )
+				{
+					sprintf(buf,"{B[{x%3d %-*s {Y%4d{B ]{x %s\n\r", level,pwidth,pricing,stock->quantity,descr);
+				}
+				else
+				{
+					sprintf(buf,"{B[{x%3d %-*s {Y ---{B ]{x %s\n\r", level,pwidth,pricing,descr);
+				}
+
+				send_to_char(buf, ch);
+			}
+			else if(!IS_NULLSTR(stock->custom_keyword))
+			{
+				if( arg[0] != '\0' && !is_name(arg, stock->custom_keyword) )
+					continue;
+
+				if (!found)
+				{
+					found = TRUE;
+					send_to_char("{B[ {GLv    Price  Qty{B ]{x {YItem{x\n\r", ch);
+				}
+
+				int level = UMAX(stock->level, 1);
+
+				char *pricing = get_shop_stock_price(stock);
+				int pwidth = get_colour_width(pricing) + 8;
+
+				if( stock->max_quantity > 0 )
+				{
+					sprintf(buf,"{B[{x%3d %-*s {Y%4d{B ]{x %s\n\r", level,pwidth,pricing,stock->quantity,stock->custom_descr);
+				}
+				else
+				{
+					sprintf(buf,"{B[{x%3d %-*s {Y ---{B ]{x %s\n\r", level,pwidth,pricing,stock->custom_descr);
+				}
+
+				send_to_char(buf, ch);
+			}
+
+		}
+
+
 		for (obj = keeper->carrying; obj; obj = obj->next_content)
 		{
 		    if (obj->wear_loc == WEAR_NONE &&
