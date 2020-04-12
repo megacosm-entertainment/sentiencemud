@@ -5326,16 +5326,16 @@ void do_list(CHAR_DATA *ch, char *argument)
 	/*sprintf(buf, "{G%s has the following vessels for sale:{x\n\r", crew_seller->short_descr);*/
 	/*send_to_char(buf, ch);*/
 
-  send_to_char("Min Crew   Max Crew  Max Cannons  Kg Capacity    Minimum Rank  Price   Name\n\r", ch); send_to_char("                                                 {Y(GOLD){x\n\r", ch);
-  send_to_char("{B-----------------------------------------------------------------------------{x\n\r", ch);
-  send_to_char("   1          5         10           1000        None         {GFree{x    Sailing Boat\n\r", ch);
-  send_to_char("   5          15        25          10000        Explorer     {GFree{x    Cargo Ship\n\r", ch);
-  send_to_char("   15         32        40          25000        Captain      {GFree{x    Galleon\n\r", ch);
-  send_to_char("   10         30        50           7500        Commander    {GFree{x    Frigate\n\r", ch);
-/*  send_to_char("   25         50         75          35000       N/A     War Galleon\n\r", ch);*/
-/*  send_to_char("   50         50         100         40000       N/A     Juggernaught\n\r", ch);*/
+		send_to_char("Min Crew   Max Crew  Max Cannons  Kg Capacity    Minimum Rank  Price   Name\n\r", ch); send_to_char("                                                 {Y(GOLD){x\n\r", ch);
+		send_to_char("{B-----------------------------------------------------------------------------{x\n\r", ch);
+		send_to_char("   1          5         10           1000        None         {GFree{x    Sailing Boat\n\r", ch);
+		send_to_char("   5          15        25          10000        Explorer     {GFree{x    Cargo Ship\n\r", ch);
+		send_to_char("   15         32        40          25000        Captain      {GFree{x    Galleon\n\r", ch);
+		send_to_char("   10         30        50           7500        Commander    {GFree{x    Frigate\n\r", ch);
+	/*  send_to_char("   25         50         75          35000       N/A     War Galleon\n\r", ch);*/
+	/*  send_to_char("   50         50         100         40000       N/A     Juggernaught\n\r", ch);*/
 
-	return;
+		return;
     }
 /*
     if (trader != NULL)
@@ -5460,115 +5460,111 @@ void do_list(CHAR_DATA *ch, char *argument)
         return;
     } */
 
-    if (IS_SET(ch->in_room->room_flags, ROOM_PET_SHOP)
-      || IS_SET(ch->in_room->room_flags, ROOM_MOUNT_SHOP))
-
+    if (IS_SET(ch->in_room->room_flags, ROOM_PET_SHOP) ||
+    	IS_SET(ch->in_room->room_flags, ROOM_MOUNT_SHOP))
     {
-	ROOM_INDEX_DATA *pRoomIndexNext;
-	CHAR_DATA *pet;
-	bool found;
+		ROOM_INDEX_DATA *pRoomIndexNext;
+		CHAR_DATA *pet;
+		bool found;
 
-        /* hack to make new thalos pets work */
-        if (ch->in_room->vnum == 9621)
-            pRoomIndexNext = get_room_index(9706);
-        else
-            pRoomIndexNext = get_room_index(ch->in_room->vnum + 1);
+		/* hack to make new thalos pets work */
+		if (ch->in_room->vnum == 9621)
+			pRoomIndexNext = get_room_index(9706);
+		else
+			pRoomIndexNext = get_room_index(ch->in_room->vnum + 1);
 
-	if (pRoomIndexNext == NULL)
-	{
-	    bug("Do_list: bad pet shop at vnum %d.", ch->in_room->vnum);
-	    send_to_char("You can't do that here.\n\r", ch);
-	    return;
-	}
+		if (pRoomIndexNext == NULL)
+		{
+			bug("Do_list: bad pet shop at vnum %d.", ch->in_room->vnum);
+			send_to_char("You can't do that here.\n\r", ch);
+			return;
+		}
 
-	found = FALSE;
-	for (pet = pRoomIndexNext->people; pet; pet = pet->next_in_room)
-	{
-	    if (IS_SET(pet->act, ACT_PET)
-		|| IS_SET(pet->act, ACT_MOUNT))
+		found = FALSE;
+		for (pet = pRoomIndexNext->people; pet; pet = pet->next_in_room)
+		{
+			if (IS_SET(pet->act, ACT_PET) || IS_SET(pet->act, ACT_MOUNT))
+			{
+				if (!found)
+				{
+					found = TRUE;
+					if (IS_SET(pet->act, ACT_PET))
+						send_to_char("{GPets for sale:{x\n\r", ch);
+					else if (IS_SET(pet->act, ACT_MOUNT))
+						send_to_char("{GMounts for sale:{x\n\r", ch);
+				}
 
-	    {
+				sprintf(buf, "{B[{x%2d{B]{x %8d {G-{x %s\n\r",
+					pet->level, 10 * pet->level * pet->level, pet->short_descr);
+				send_to_char(buf, ch);
+			}
+		}
+
 		if (!found)
 		{
-		    found = TRUE;
-		    if (IS_SET(pet->act, ACT_PET))
-		        send_to_char("{GPets for sale:{x\n\r", ch);
-		    else if (IS_SET(pet->act, ACT_MOUNT))
-		        send_to_char("{GMounts for sale:{x\n\r", ch);
-
-		}
-		sprintf(buf, "{B[{x%2d{B]{x %8d {G-{x %s\n\r",
-		    pet->level,
-		    10 * pet->level * pet->level,
-		    pet->short_descr);
-		send_to_char(buf, ch);
-	    }
-	}
-	if (!found)
-	{
-            if (IS_SET(ch->in_room->room_flags, ROOM_PET_SHOP)) {
-                send_to_char("Sorry, we're out of pets right now.\n\r", ch);
-            } else {
-                send_to_char("Sorry, we're out of mounts right now.\n\r", ch);
+			if (IS_SET(ch->in_room->room_flags, ROOM_PET_SHOP)) {
+				send_to_char("Sorry, we're out of pets right now.\n\r", ch);
+			} else {
+				send_to_char("Sorry, we're out of mounts right now.\n\r", ch);
 			}
+
 			return;
+		}
+
+		return;
 	}
+	else
+	{
+		CHAR_DATA *keeper;
+		OBJ_DATA *obj;
+		int cost,count;
+		bool found;
+		char arg[MAX_INPUT_LENGTH];
 
-	return;
-    }
-    else
-    {
-	CHAR_DATA *keeper;
-	OBJ_DATA *obj;
-	int cost,count;
-	bool found;
-	char arg[MAX_INPUT_LENGTH];
+		if ((keeper = find_keeper(ch)) == NULL)
+		    return;
 
-	if ((keeper = find_keeper(ch)) == NULL)
-	    return;
         one_argument(argument,arg);
 
-	found = FALSE;
-	for (obj = keeper->carrying; obj; obj = obj->next_content)
-	{
-	    if (obj->wear_loc == WEAR_NONE
-	    &&   can_see_obj(ch, obj)
-	    &&   (cost = get_cost(keeper, obj, TRUE)) > 0
-	    &&   (arg[0] == '\0'
- 	       ||  is_name(arg,obj->name)))
-	    {
-		if (!found)
+		found = FALSE;
+		for (obj = keeper->carrying; obj; obj = obj->next_content)
 		{
-		    found = TRUE;
-		    send_to_char("{B[ {GLv    Price  Qty{B ]{x {YItem{x\n\r",
-				    ch);
-		}
+		    if (obj->wear_loc == WEAR_NONE &&
+		    	can_see_obj(ch, obj) &&
+		    	(cost = get_cost(keeper, obj, TRUE)) > 0 &&
+		    	(arg[0] == '\0' || is_name(arg,obj->name)))
+	    	{
+				if (!found)
+				{
+					found = TRUE;
+					send_to_char("{B[ {GLv    Price  Qty{B ]{x {YItem{x\n\r", ch);
+				}
 
-		if (IS_OBJ_STAT(obj,ITEM_INVENTORY))
-		    sprintf(buf,"{B[{x%3d %8d {Y ---{x {B] {x%s\n\r",
-			obj->level,cost,obj->short_descr);
-		else
-		{
-		    count = 1;
+				if (IS_OBJ_STAT(obj,ITEM_INVENTORY))
+				    sprintf(buf,"{B[{x%3d %8d {Y ---{x {B] {x%s\n\r",
+						obj->level,cost,obj->short_descr);
+				else
+				{
+				    count = 1;
 
-		    while (obj->next_content != NULL
-		    && obj->pIndexData == obj->next_content->pIndexData
-		    && !str_cmp(obj->short_descr,
-			        obj->next_content->short_descr))
-		    {
-			obj = obj->next_content;
-			count++;
+				    while (obj->next_content != NULL &&
+				    		obj->pIndexData == obj->next_content->pIndexData &&
+				    		!str_cmp(obj->short_descr, obj->next_content->short_descr))
+		    		{
+						obj = obj->next_content;
+						count++;
+		    		}
+
+		    		sprintf(buf,"{B[{x%3d %8d {Y%4d{B ]{x %s\n\r", obj->level,cost,count,obj->short_descr);
+				}
+
+				send_to_char(buf, ch);
 		    }
-		    sprintf(buf,"{B[{x%3d %8d {Y%4d{B ]{x %s\n\r",
-			obj->level,cost,count,obj->short_descr);
 		}
-		send_to_char(buf, ch);
-	    }
-	}
 
-	if (!found)
-	    send_to_char("You can't buy anything here.\n\r", ch);
-	return;
+		if (!found)
+			send_to_char("You can't buy anything here.\n\r", ch);
+		return;
     }
 }
 
