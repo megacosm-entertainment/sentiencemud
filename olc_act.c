@@ -6608,7 +6608,7 @@ MEDIT(medit_show)
 				}
 				else
 				{
-					strcpy(lvl, "{GAuto{x";
+					strcpy(lvl, "{GAuto{x");
 				}
 				lwidth = get_colour_width(lvl) + 5;
 
@@ -7896,7 +7896,7 @@ MEDIT(medit_shop)
 				return FALSE;
 			}
 
-			int lvl = atoi(arg3);
+			int lvl = atoi(argument);
 
 			if(lvl < 1)
 			{
