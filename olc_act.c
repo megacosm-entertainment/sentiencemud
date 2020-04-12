@@ -6593,7 +6593,7 @@ MEDIT(medit_show)
 			char item[MIL];
 			int qwidth, pwidth;
 
-			for(iStock = 1, pStock = pShop->stock;pStock;pStock = pStock->next)
+			for(iStock = 1, pStock = pShop->stock;pStock;pStock = pStock->next, iStock++)
 			{
 				if(iStock == 1)
 				{
