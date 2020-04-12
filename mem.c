@@ -1378,6 +1378,8 @@ AREA_DATA *new_area( void )
     pArea->land_x	    =   -1;
     pArea->land_y	    =   -1;
     pArea->room_list = list_create(FALSE);
+    pArea->comments =   &str_empty[0];
+    pArea->description  =   &str_empty[0];
 
     pArea->points		= NULL;
 
@@ -1394,6 +1396,8 @@ void free_area( AREA_DATA *pArea )
     free_string( pArea->builders );
     free_string( pArea->credits );
     free_string( pArea->map);
+    free_string( pArea->comments);
+    free_string( pArea->description);
 	list_destroy(pArea->room_list);
 
 	for(boost = pArea->points; boost; boost = boost_next) {
@@ -1499,6 +1503,7 @@ ROOM_INDEX_DATA *new_room_index( void )
     pRoom->mana_rate	    =   100;
     pRoom->visited = 0;
     pRoom->id[0] = pRoom->id[1] = 0;	// Explicitly make this 0,0 until set, or left for static rooms
+    pRoom->comments         =   &str_empty[0];
 
     pRoom->lentity = list_create(FALSE);
     pRoom->lpeople = list_create(FALSE);
@@ -1525,6 +1530,7 @@ void free_room_index( ROOM_INDEX_DATA *pRoom )
     free_string( pRoom->description );
     free_string( pRoom->owner );
     free_string( pRoom->home_owner );
+    free_string( pRoom->comments );
     if(pRoom->progs && pRoom->progs->progs) free_prog_list(pRoom->progs->progs);
     free_prog_data(pRoom->progs);
 
@@ -1670,6 +1676,7 @@ OBJ_INDEX_DATA *new_obj_index( void )
     pObj->skeywds		=	str_dup( "none" );
     for ( value = 0; value < 8; value++ )               /* 5 - ROM */
         pObj->value[value]  =   0;
+    pObj->comments      = &str_empty[0];
 
     return pObj;
 }
@@ -1686,6 +1693,7 @@ void free_obj_index( OBJ_INDEX_DATA *pObj )
     free_string( pObj->imp_sig );
     free_string( pObj->creator_sig );
     free_string( pObj->skeywds );
+    free_string( pObj->comments );
 
     free_prog_list(pObj->progs);
     variable_freelist(&pObj->index_vars);
@@ -1727,6 +1735,7 @@ MOB_INDEX_DATA *new_mob_index( void )
     pMob->sig		=   str_dup( "(none)");
     pMob->creator_sig   =   str_dup( "(none)");
     pMob->description   =   &str_empty[0];
+    pMob->comments      =   &str_empty[0];
     pMob->vnum          =   0;
     pMob->count         =   0;
     pMob->killed        =   0;
@@ -1780,6 +1789,7 @@ void free_mob_index( MOB_INDEX_DATA *pMob )
     free_string( pMob->short_descr );
     free_string( pMob->long_descr );
     free_string( pMob->description );
+    free_string( pMob->comments );
     free_string( pMob->material );
     free_string( pMob->sig );
     free_string( pMob->skeywds );
@@ -2698,6 +2708,7 @@ TOKEN_INDEX_DATA *new_token_index()
 
     token_index->name = str_dup("(no name)");
     token_index->description = &str_empty[0];
+    token_index->comments   = &str_empty[0];
 
     for (i = 0; i < MAX_TOKEN_VALUES; i++)
 	token_index->value_name[i] = str_dup("Unused");
@@ -2714,6 +2725,8 @@ void free_token_index(TOKEN_INDEX_DATA *token_index)
     int i;
 
     free_string(token_index->name);
+    free_string(token_index->description);
+    free_string(token_index->comments);
 
     for (i = 0; i < MAX_TOKEN_VALUES; i++) {
 	if (token_index->value_name[i] != NULL)
@@ -3029,6 +3042,7 @@ SCRIPT_DATA *new_script(void)
 	s->edit_src = s->src = str_dup("");
 	s->name = str_dup("");
 	s->flags = 0;
+    s->comments = &str_empty[0];
 	s->area = NULL;
 
 	return s;
@@ -3063,6 +3077,7 @@ void free_script(SCRIPT_DATA *s)
 	if(s->src != s->edit_src) free_string(s->edit_src);
 	free_string(s->src);
 	free_string(s->name);
+    free_string(s->code);
 
 	s->next = script_freechain;
 	script_freechain = s;

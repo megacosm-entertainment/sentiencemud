@@ -73,8 +73,10 @@ const struct olc_cmd_type aedit_table[] =
     {	"airshipland",	aedit_airshipland	},
     {   "builder",	aedit_builder		},
     {   "commands",	show_commands		},
+    {   "comments", aedit_comments      },
     {   "create",	aedit_create		},
     {   "credits",	aedit_credits		},
+    {   "description",  aedit_desc      },
     {   "filename",	aedit_file		},
     {   "flags",	aedit_flags     	},
     {   "landx",	aedit_land_x 		},
@@ -103,6 +105,7 @@ const struct olc_cmd_type redit_table[] =
     {   "addcdesc",	redit_addcdesc  },
     {	"addrprog",	redit_addrprog	},
     {   "commands",	show_commands	},
+    {   "comments",  redit_comments  },
     {   "coords",	redit_coords	},
     {   "create",	redit_create	},
     {   "delcdesc",	redit_delcdesc  },
@@ -151,6 +154,7 @@ const struct olc_cmd_type oedit_table[] =
     {	"addskill",	oedit_addskill	},
     {   "allowedfixed",	oedit_allowed_fixed },
     {   "commands",	show_commands	},
+    {   "comments", oedit_comments  },
     {   "condition",    oedit_condition },
     {   "cost",		oedit_cost	},
     {   "create",	oedit_create	},
@@ -238,6 +242,7 @@ const struct olc_cmd_type medit_table[] =
     {   "armour",        medit_ac        },
     {   "attacks",	medit_attacks   },
     {   "commands",	show_commands	},
+    {   "comments", medit_comments  },
     {   "create",	medit_create	},
     {   "damdice",      medit_damdice   },
     {	"damtype",	medit_damtype	},
@@ -338,6 +343,7 @@ const struct olc_cmd_type tedit_table[] =
 {
     {   "commands",	show_commands		},
     {	"?",		show_help		},
+    {   "comments", tedit_comments  },
     {	"create",	tedit_create		},
     {	"show",		tedit_show		},
     {	"name",		tedit_name		},
@@ -2560,6 +2566,7 @@ void do_rcopy(CHAR_DATA *ch, char *argument)
     new_room->heal_rate = old_room->heal_rate;
     new_room->mana_rate = old_room->mana_rate;
     new_room->move_rate = old_room->move_rate;
+    new_room->comments = old_room->comments;
 
     SET_BIT(area->area_flags, AREA_CHANGED);
     send_to_char("Room copied.\n\r", ch);
@@ -2645,6 +2652,7 @@ void do_mcopy(CHAR_DATA *ch, char *argument)
     new_mob->short_descr = str_dup(old_mob->short_descr);
     new_mob->long_descr  = str_dup(old_mob->long_descr);
     new_mob->description = str_dup(old_mob->description);
+    new_mob->comments   = str_dup(old_mob->comments);
 
     new_mob->act          = old_mob->act;
     new_mob->act2         = old_mob->act2;
@@ -2813,6 +2821,7 @@ void do_ocopy(CHAR_DATA *ch, char *argument)
     new_obj->cost = old_obj->cost;
     new_obj->fragility = old_obj->fragility;
     new_obj->times_allowed_fixed = old_obj->times_allowed_fixed;
+    new_obj->comments = old_obj->comments;
 
     for (i = 0; i <= 8; i++)
 	new_obj->value[i] = old_obj->value[i];
