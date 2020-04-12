@@ -97,7 +97,6 @@ char *string_replace_static(char * orig, char * old, char * new)
         xb[i] = '\0';
         strcat(xb, new);
         strcat(xb, &orig[i+strlen(old)]);
-        free_string(orig);
     }
 
     return xb;
