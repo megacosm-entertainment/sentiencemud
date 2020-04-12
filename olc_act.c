@@ -7907,7 +7907,7 @@ MEDIT(medit_shop)
 			stock->max_quantity = total;
 			stock->restock_rate = UMAX(rate, 0);		// A rate of zero means it never restock
 			send_to_char("Stock quantity settings changed.\n\r", ch);
-			return FALSE;
+			return TRUE;
 		}
 
 		if(!str_prefix(arg1, "description"))
