@@ -4451,6 +4451,7 @@ bool get_stock_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, SHOP_REQUEST_DATA *reque
     int number;
     int count;
 
+    number = number_argument(argument, arg);
     count  = 0;
     if( keeper->shop != NULL) {
 		// Check stock items first
