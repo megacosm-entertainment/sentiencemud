@@ -547,6 +547,12 @@ AEDIT(aedit_show)
 	    get_room_index(pArea->post_office)->name, pArea->post_office);
     send_to_char(buf, ch);
 
+	sprintf(buf, "Description:\n\r%s\n\r", pArea->description);
+	send_to_char(buf,ch);
+
+	sprintf(buf,"\n\r-----\n\r{WBuilders' Comments:{X\n\r%s\n\r-----\n\r", pArea->comments);
+	send_to_char(buf,ch);
+
     // Trade stuff. One trade center per area at most
     if (pArea->trade_list != NULL)
     {
@@ -922,6 +928,38 @@ AEDIT(aedit_name)
 
     send_to_char("Name set.\n\r", ch);
     return TRUE;
+}
+
+AEDIT(aedit_desc)
+{
+    AREA_DATA *pArea;
+
+    EDIT_AREA(ch, pArea);
+
+    if (argument[0] == '\0')
+    {
+	string_append(ch, &pArea->description);
+	return TRUE;
+    }
+
+    send_to_char("Syntax:  desc\n\r", ch);
+    return FALSE;
+}
+
+AEDIT(aedit_comments)
+{
+    AREA_DATA *pArea;
+
+    EDIT_AREA(ch, pArea);
+
+    if (argument[0] == '\0')
+    {
+	string_append(ch, &pArea->comments);
+	return TRUE;
+    }
+
+    send_to_char("Syntax:  comment\n\r", ch);
+    return FALSE;
 }
 
 
@@ -1421,6 +1459,10 @@ REDIT(redit_show)
 	         "Home owner:   {r[{x%s{r]{x\n\r", pRoom->home_owner);
         add_buf(buf1, buf);
     }
+
+	sprintf(buf, "\n\r-----\n\r{WBuilders' Comments:{X\n\r%s\n\r-----\n\r", pRoom->comments);
+	add_buf(buf1, buf);
+
 
     if (pRoom->extra_descr)
     {
@@ -2516,6 +2558,22 @@ REDIT(redit_desc)
     }
 
     send_to_char("Syntax:  desc\n\r", ch);
+    return FALSE;
+}
+
+REDIT(redit_comments)
+{
+    ROOM_INDEX_DATA *pRoom;
+
+    EDIT_ROOM(ch, pRoom);
+
+    if (argument[0] == '\0')
+    {
+	string_append(ch, &pRoom->comments);
+	return TRUE;
+    }
+
+    send_to_char("Syntax:  comment\n\r", ch);
     return FALSE;
 }
 
@@ -4273,6 +4331,9 @@ OEDIT(oedit_show)
     add_buf(buffer, "Description:{x\n\r");
     sprintf(buf, "%s", pObj->full_description);
     add_buf(buffer, buf);
+
+	sprintf(buf, "\n\r-----\n\r{WBuilders' Comments:{X\n\r%s\n\r-----\n\r", pObj->comments);
+	add_buf(buffer, buf);
 
     for (cnt = 0, paf = pObj->affected; paf; paf = paf->next)
     {
@@ -6473,6 +6534,10 @@ MEDIT(medit_show)
 	sprintf(buf, "Description:\n\r%s", pMob->description);
 	add_buf(buffer, buf);
 
+	sprintf(buf, "\n\r-----\n\r{WBuilders' Comments:{X\n\r%s\n\r-----\n\r", pMob->comments);
+	add_buf(buffer, buf);
+
+
 	/*
 	if (pMob->next_crew_for_sale != NULL)
 	{
@@ -6514,6 +6579,44 @@ MEDIT(medit_show)
 				add_buf(buffer, buf);
 			}
 		}
+	}
+
+	if (pMob->pQuestor)
+	{
+		QUESTOR_DATA *questor = pMob->pQuestor;
+
+		add_buf(buffer, "{YQuestor data:\n\r");
+
+		if(IS_NULLSTR(questor->header))
+			sprintf(buf, "  {YHeader: (empty){x\n\r");
+		else
+			sprintf(buf, "  {YHeader:\n\r%s{x\n\r", questor->header);
+		add_buf(buffer, buf);
+
+		if(IS_NULLSTR(questor->footer))
+			sprintf(buf, "  {YFooter: (empty){x\n\r");
+		else
+			sprintf(buf, "  {YFooter:\n\r%s{x\n\r", questor->footer);
+		add_buf(buffer, buf);
+
+		if(IS_NULLSTR(questor->prefix))
+			sprintf(buf, "  {YPrefix: (empty){x\n\r");
+		else
+			sprintf(buf, "  {YPrefix: %s{x\n\r", questor->prefix);
+		add_buf(buffer, buf);
+
+		if(IS_NULLSTR(questor->suffix))
+			sprintf(buf, "  {YSuffix: (empty){x\n\r");
+		else
+			sprintf(buf, "  {YSuffix: %s{x\n\r", questor->suffix);
+		add_buf(buffer, buf);
+
+		if( questor->line_width > 0 )
+			sprintf(buf, "  {YWidth:  %d{x\n\r", questor->line_width);
+		else
+			sprintf(buf, "  {YWidth:  disabled{x\n\r");
+		add_buf(buffer, buf);
+		add_buf(buffer, "\n\r");
 	}
 
 	if (pMob->progs) {
@@ -6929,6 +7032,22 @@ MEDIT(medit_desc)
     if (argument[0] == '\0')
     {
 	string_append(ch, &pMob->description);
+	return TRUE;
+    }
+
+    send_to_char("Syntax:  desc    - line edit\n\r", ch);
+    return FALSE;
+}
+
+MEDIT(medit_comments)
+{
+    MOB_INDEX_DATA *pMob;
+
+    EDIT_MOB(ch, pMob);
+
+    if (argument[0] == '\0')
+    {
+	string_append(ch, &pMob->comments);
 	return TRUE;
     }
 
@@ -9536,3 +9655,134 @@ VLEDIT ( vledit_show )
 
     return (FALSE);
 }
+
+MEDIT(medit_questor)
+{
+	MOB_INDEX_DATA *pMob;
+	char arg[MIL];
+
+	EDIT_MOB(ch, pMob);
+
+	if(IS_NULLSTR(argument))
+	{
+		send_to_char("QUESTOR ADD             Adds questor data to mob.\n\r", ch);
+		send_to_char("        REMOVE          Removes questor data from mob.\n\r", ch);
+		send_to_char("        HEADER          Edits scroll header.\n\r", ch);
+		send_to_char("        FOOTER          Edits scroll footer.\n\r", ch);
+		send_to_char("        PREFIX          Edits line prefix.\n\r", ch);
+		send_to_char("        SUFFIX          Edits line suffix.\n\r", ch);
+		send_to_char("        WIDTH width     Sets line width.\n\r", ch);
+		return FALSE;
+	}
+
+	argument = one_argument(argument, arg);
+
+	if (!str_cmp(arg,"add"))
+	{
+	    if (!str_cmp(pMob->sig, "none") && ch->tot_level < MAX_LEVEL)
+	    {
+			send_to_char("You can't do this without an IMP's permission.\n\r", ch);
+			return FALSE;
+	    }
+
+	    if( pMob->pQuestor != NULL )
+	    {
+			send_to_char("There is already questor data.\n\r", ch);
+			return FALSE;
+		}
+
+		pMob->pQuestor = new_questor_data();
+	    use_imp_sig(pMob, NULL);
+		send_to_char("Questor data added.\n\r", ch);
+		return TRUE;
+
+	} else if (!str_cmp(arg,"remove")) {
+	    if (!str_cmp(pMob->sig, "none") && ch->tot_level < MAX_LEVEL)
+	    {
+			send_to_char("You can't do this without an IMP's permission.\n\r", ch);
+			return FALSE;
+	    }
+
+	    if( pMob->pQuestor == NULL )
+	    {
+			send_to_char("There is any questor data.\n\r", ch);
+			return FALSE;
+		}
+
+		free_questor_data(pMob->pQuestor);
+		pMob->pQuestor = NULL;
+		send_to_char("Questor data removed.\n\r", ch);
+		return TRUE;
+
+	} else if (!str_cmp(arg,"header")) {
+		send_to_char("Editting the Questor Header:\n\r", ch);
+		send_to_char("  Use {Y$PLAYER${x as a placeholder for the player's name.\n\r", ch);
+		send_to_char("  Use {Y$QUESTOR${x as a placeholder for the questgiver's name.\n\r", ch);
+		send_to_char("\n\r", ch);
+
+		string_append(ch, &pMob->pQuestor->header);
+		return TRUE;
+
+	} else if (!str_cmp(arg,"footer")) {
+		send_to_char("Editting the Questor Footer:\n\r", ch);
+		send_to_char("  Use {Y$PLAYER${x as a placeholder for the player's name.\n\r", ch);
+		send_to_char("  Use {Y$QUESTOR${x as a placeholder for the questgiver's name.\n\r", ch);
+		send_to_char("\n\r", ch);
+
+		string_append(ch, &pMob->pQuestor->footer);
+		return TRUE;
+
+	} else if (!str_cmp(arg,"prefix")) {
+		free_string(pMob->pQuestor->prefix);
+		pMob->pQuestor->prefix = str_dup(argument);
+
+		send_to_char("Prefix set.\n\r", ch);
+		return TRUE;
+
+	} else if (!str_cmp(arg,"suffix")) {
+		free_string(pMob->pQuestor->suffix);
+		pMob->pQuestor->suffix = str_dup(argument);
+
+		send_to_char("Prefix set.\n\r", ch);
+		return TRUE;
+
+	} else if (!str_cmp(arg,"width")) {
+		if(!is_number(argument))
+		{
+			send_to_char("That is not a number.\n\r", ch);
+			return FALSE;
+		}
+
+		int width = atoi(argument);
+		if( width <= 0 )
+		{
+			pMob->pQuestor->line_width = 0;
+			send_to_char("Line width disabled.\n\r", ch);
+			return TRUE;
+
+		}
+		else if(width > 160)
+		{
+			send_to_char("Width is out of range.  Please specify a number from 1 to 160, or 0 to disable width.\n\r", ch);
+			return FALSE;
+		}
+
+		pMob->pQuestor->line_width = width;
+		send_to_char("Line width set.\n\r", ch);
+		return TRUE;
+
+	} else {
+		send_to_char("QUESTOR ADD             Adds questor data to mob.\n\r", ch);
+		send_to_char("        REMOVE          Removes questor data from mob.\n\r", ch);
+		send_to_char("        HEADER          Edits scroll header.\n\r", ch);
+		send_to_char("        FOOTER          Edits scroll footer.\n\r", ch);
+		send_to_char("        PREFIX          Edits line prefix.\n\r", ch);
+		send_to_char("        SUFFIX          Edits line suffix.\n\r", ch);
+		send_to_char("        WIDTH width     Sets line width.\n\r", ch);
+		return FALSE;
+	}
+
+	return TRUE;
+
+}
+

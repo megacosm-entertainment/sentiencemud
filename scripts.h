@@ -2410,6 +2410,12 @@ SCRIPT_CMD(scriptcmd_revokeskill);
 SCRIPT_CMD(scriptcmd_startcombat);
 SCRIPT_CMD(scriptcmd_stopcombat);
 
+SCRIPT_CMD(scriptcmd_questpartcustom);
+SCRIPT_CMD(scriptcmd_questpartgetitem);
+SCRIPT_CMD(scriptcmd_questpartgoto);
+SCRIPT_CMD(scriptcmd_questpartrescue);
+SCRIPT_CMD(scriptcmd_questpartslay);
+
 #include "tables.h"
 
 #endif /* !__SCRIPTS_H__ */

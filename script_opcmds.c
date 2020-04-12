@@ -177,8 +177,13 @@ void do_opstat(CHAR_DATA *ch, char *argument)
 	}
 
 	sprintf(arg, "Object #%-6ld [%s] ID [%08X:%08X]\n\r", obj->pIndexData->vnum, obj->short_descr, (int)obj->id[0], (int)obj->id[1]);
-
 	send_to_char(arg, ch);
+
+	if( !IS_NULLSTR(obj->pIndexData->comments) )
+	{
+		sprintf(arg, "Comments:\n\r%s\n\r", obj->pIndexData->comments);
+		send_to_char(arg, ch);
+	}
 
 	sprintf(arg, "Delay   %-6d [%s]\n\r",
 		obj->progs->delay,

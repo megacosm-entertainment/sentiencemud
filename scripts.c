@@ -4872,6 +4872,30 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 	} else if(!str_cmp(buf,"strformat")) {
 		variables_format_string(vars,name);
 
+	// Format: STRREPLACE <OLD> <NEW>
+	} else if(!str_cmp(buf,"strreplace")) {
+		pVARIABLE var = variable_get(*vars, name);
+		if(!var) return;
+
+		if(var->type != VAR_STRING && var->type != VAR_STRING_S) return;
+
+		char o[MSL];
+		char n[MSL];
+		char *rep;
+
+		if( arg.type != ENT_STRING ) return;
+		strcpy(o, arg.d.str);
+
+		if(!(rest = expand_argument(info,rest,&arg))) return;
+
+		if( arg.type != ENT_STRING ) return;
+		strcpy(n, arg.d.str);
+
+		rep = string_replace(var->_.s, o, n);
+		if( !IS_NULLSTR(rep) ) return;
+
+		variables_set_string(vars,name,rep,FALSE);
+
 	// Copies an extra description
 	// Format: ED <OBJECT or ROOM> <keyword>
 	} else if(!str_cmp(buf,"ed")) {
@@ -5526,6 +5550,51 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 
 			list_clear(var->_.list);
 		}
+
+	// RANDMOB <player> <continent>
+	} else if(!str_cmp(buf,"randmob")) {
+		if( arg.type != ENT_MOBILE || !IS_VALID(arg.d.mob) || IS_NPC(arg.d.mob) )
+			return;
+
+		vch = arg.d.mob;
+
+		if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_STRING)
+			return;
+
+		int continent;
+		if( !str_cmp(arg.d.str, "first") )			continent = FIRST_CONTINENT;
+		else if( !str_cmp(arg.d.str, "second") )	continent = SECOND_CONTINENT;
+		else if( !str_cmp(arg.d.str, "both") )		continent = BOTH_CONTINENTS;
+		else
+			return;
+
+		vch = get_random_mob(vch, continent);
+		if( vch != NULL )
+			variables_set_mobile(vars,name,vch);
+
+
+	// RANDROOM <player> <continent>
+	} else if(!str_cmp(buf,"randroom")) {
+		ROOM_INDEX_DATA *loc;
+
+		if( arg.type != ENT_MOBILE || !IS_VALID(arg.d.mob) || IS_NPC(arg.d.mob) )
+			return;
+
+		vch = arg.d.mob;
+
+		if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_STRING)
+			return;
+
+		int continent;
+		if( !str_cmp(arg.d.str, "first") )			continent = FIRST_CONTINENT;
+		else if( !str_cmp(arg.d.str, "second") )	continent = SECOND_CONTINENT;
+		else if( !str_cmp(arg.d.str, "both") )		continent = BOTH_CONTINENTS;
+		else
+			return;
+
+		loc = get_random_room(vch, continent);
+		if( loc != NULL )
+			variables_set_room(vars,name,loc);
 
 	} else
 		return;

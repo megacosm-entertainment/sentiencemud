@@ -245,6 +245,7 @@ typedef struct	obj_data		OBJ_DATA;
 typedef struct	obj_index_data		OBJ_INDEX_DATA;
 typedef struct	spell_data		SPELL_DATA;
 typedef struct	pc_data			PC_DATA;
+typedef struct	questor_data	QUESTOR_DATA;
 typedef struct	quest_data		QUEST_DATA;
 typedef struct	quest_part_data		QUEST_PART_DATA;
 typedef struct	reset_data		RESET_DATA;
@@ -395,6 +396,7 @@ struct script_data {
 	int depth;	/* Maximum call depth allowed by script */
 	int security;	/* IMP only control over runtime aspects */
 	int run_security;	// Minimum security needed to RUN this script
+    char *comments;
 };
 
 struct script_varinfo {
@@ -3086,6 +3088,7 @@ struct	mob_index_data
     MOB_INDEX_DATA *	next;
     SPEC_FUN *		spec_fun;
     SHOP_DATA *		pShop;
+    QUESTOR_DATA *	pQuestor;
     LLIST **        progs;
     QUEST_LIST *	quests;
     bool	persist;
@@ -3136,6 +3139,7 @@ struct	mob_index_data
     long		corpse;
     long		zombie;	/* Animated corpse */
     int			corpse_type;
+    char *      comments;
 
 	MOB_INDEX_SKILL_DATA *skills;
 
@@ -3181,6 +3185,19 @@ struct gq_data
     GQ_OBJ_DATA *objects;
 };
 
+struct questor_data
+{
+	QUESTOR_DATA *next;
+	bool valid;
+
+	// Appearance data
+	char *header;
+	char *prefix;
+	char *suffix;
+	char *footer;
+
+	int line_width;
+};
 
 /* For randomly generated quests */
 struct quest_data
@@ -3189,6 +3206,7 @@ struct quest_data
     QUEST_PART_DATA *   parts;
     long                questgiver;
     bool		msg_complete;
+    bool		generating;
 };
 
 
@@ -3197,13 +3215,18 @@ struct quest_part_data
     QUEST_PART_DATA *   next;
 
     OBJ_DATA 		*pObj;
+    char *		description;
+
+    int			index;
+
+    long		minutes;	// How many minutes is expected to complete this task?
 
     long 		obj;
     long		mob;
     long		room;
     long		obj_sac;
     long		mob_rescue;
-    char *		custom_task;
+    bool		custom_task;
     bool		complete;
 };
 
@@ -3266,6 +3289,7 @@ struct token_index_data
 
     char 		*name;
     char		*description;
+    char        *comments;
     int			type;
     long 		flags;
     int			timer;
@@ -4072,6 +4096,7 @@ struct	obj_index_data
     bool 		update;
     int			timer;
     char *		skeywds; /* Script keywords */
+    char *      comments;
     pVARIABLE		index_vars;
 
 	int light;		/* Inherent light [-1000 to 1000] */
@@ -4308,6 +4333,8 @@ struct	area_data {
 	char *file_name;
 	char *name;
 	char *credits;
+    char *  description;
+    char *  comments;
 	sh_int age;
 	sh_int nplayer;
 	sh_int low_range;
@@ -4738,6 +4765,7 @@ struct	room_index_data
     char *		name;
     char *		description;
     char *		owner;
+    char *      comments;
     long		vnum;
     long		room_flags;
     long		room2_flags;
@@ -6775,6 +6803,7 @@ QUEST_INDEX_DATA *new_quest_index( void );
 QUEST_DATA *new_quest( void );
 QUEST_LIST *new_quest_list( void );
 QUEST_PART_DATA *new_quest_part(void);
+QUESTOR_DATA *new_questor_data( void );
 RESET_DATA *new_reset_data( void );
 ROOM_INDEX_DATA *new_room_index( void );
 SHIP_CREW_DATA *new_ship_crew args( ( void ) );
@@ -6844,7 +6873,7 @@ char *get_affect_cname(char *name);
 /* quest.c */
 bool generate_quest( CHAR_DATA *ch, CHAR_DATA *questman );
 void quest_update(void);
-bool generate_quest_part( CHAR_DATA *ch, CHAR_DATA *questman, QUEST_PART_DATA *part, int partno, int extra_tasks );
+bool generate_quest_part( CHAR_DATA *ch, CHAR_DATA *questman, QUEST_PART_DATA *part, int partno );
 bool is_quest_item( OBJ_DATA *obj );
 bool is_quest_token( OBJ_DATA *obj );
 int count_quest_parts( CHAR_DATA *ch );
@@ -7294,6 +7323,7 @@ void	do_buy_mount	args( ( CHAR_DATA *ch, char *argument ) );
 /* string.c */
 void	string_edit	args( ( CHAR_DATA *ch, char **pString ) );
 void    string_append   args( ( CHAR_DATA *ch, char **pString ) );
+char *	string_replace_static	args( ( char * orig, char * old, char * new ) );
 char *	string_replace	args( ( char * orig, char * old, char * new ) );
 void    string_add      args( ( CHAR_DATA *ch, char *argument ) );
 char *  format_string   args( ( char *oldstring /*, bool fSpace */ ) );

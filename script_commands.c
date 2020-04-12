@@ -1267,6 +1267,326 @@ SCRIPT_CMD(scriptcmd_questcomplete)
 		info->progs->lastreturn = 1;
 }
 
+// QUESTPARTCUSTOM $PLAYER $STRING[ $MINUTES]
+SCRIPT_CMD(scriptcmd_questpartcustom)
+{
+	char buf[MSL];
+	char *rest;
+	SCRIPT_PARAM arg;
+	CHAR_DATA *questman;
+	CHAR_DATA *ch;
+	int minutes;
+
+	info->progs->lastreturn = 0;
+
+	questman = NULL;
+	if(info->mob) questman = info->mob;
+	else if(info->token && info->token->player) questman = info->token->player;
+
+	// Only allow mprogs or tprogs where the ultimate mob calling them is a questor mob
+	if(!IS_VALID(questman) || !IS_NPC(questman) || !IS_SET(questman->act, ACT_QUESTOR))
+		return;
+
+	if(!(rest = expand_argument(info,argument,&arg)))
+		return;
+
+	if(arg.type != ENT_MOBILE || !arg.d.mob || IS_NPC(arg.d.mob)) return;
+
+	ch = arg.d.mob;
+
+	// Must be in the generation phase
+	if( ch->quest == NULL || !ch->quest->generating ) return;
+
+	if(!(rest = expand_argument(info,rest,&arg)))
+		return;
+
+	if(!IS_NULLSTR(arg.d.str))
+		return;
+
+	QUEST_PART_DATA *part = ch->quest->parts;
+	sprintf(buf, "{xTask {Y%d{x: %s{x.", part->index, arg.d.str);
+
+
+	minutes = number_range(10,20);
+	if(*rest)
+	{
+		if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_NUMBER)
+			return;
+
+		minutes = UMAX(arg.d.num,1);
+	}
+
+
+	part->description = str_dup(buf);
+	part->custom_task = TRUE;
+	part->minutes = minutes;
+
+	info->progs->lastreturn = 1;
+}
+
+
+// QUESTPARTGETITEM $PLAYER $OBJECT[ $MINUTES]
+SCRIPT_CMD(scriptcmd_questpartgetitem)
+{
+	char buf[MSL];
+	char *rest;
+	SCRIPT_PARAM arg;
+	CHAR_DATA *questman;
+	CHAR_DATA *ch;
+	OBJ_DATA *obj;
+	int minutes;
+
+	info->progs->lastreturn = 0;
+
+	questman = NULL;
+	if(info->mob) questman = info->mob;
+	else if(info->token && info->token->player) questman = info->token->player;
+
+	// Only allow mprogs or tprogs where the ultimate mob calling them is a questor mob
+	if(!IS_VALID(questman) || !IS_NPC(questman) || !IS_SET(questman->act, ACT_QUESTOR))
+		return;
+
+	if(!(rest = expand_argument(info,argument,&arg)))
+		return;
+
+	if(arg.type != ENT_MOBILE || !arg.d.mob || IS_NPC(arg.d.mob)) return;
+
+	ch = arg.d.mob;
+
+	// Must be in the generation phase
+	if( ch->quest == NULL || !ch->quest->generating ) return;
+
+	if(!(rest = expand_argument(info,rest,&arg)))
+		return;
+
+	if(arg.type != ENT_OBJECT || !IS_VALID(arg.d.obj)) return;
+	obj = arg.d.obj;
+
+	minutes = number_range(10,20);
+	if(*rest)
+	{
+		if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_NUMBER)
+			return;
+
+		minutes = UMAX(arg.d.num,1);
+	}
+
+	QUEST_PART_DATA *part = ch->quest->parts;
+
+	sprintf(buf, "{xTask {Y%d{x: Retrieve {Y%s{x from {Y%s{x in {Y%s{x.",
+		part->index,
+		obj->short_descr,
+		obj->in_room->name,
+		obj->in_room->area->name);
+
+	part->description = str_dup(buf);
+	free_string(obj->owner);
+	obj->owner = str_dup(ch->name);
+	part->pObj = obj;
+	part->obj = obj->pIndexData->vnum;
+	part->minutes = minutes;
+
+	info->progs->lastreturn = 1;
+}
+
+// QUESTPARTGOTO $PLAYER first|second|both|$ROOM[ $MINUTES]
+SCRIPT_CMD(scriptcmd_questpartgoto)
+{
+	char buf[MSL];
+	char *rest;
+	SCRIPT_PARAM arg;
+	CHAR_DATA *questman;
+	CHAR_DATA *ch;
+	ROOM_INDEX_DATA *destination;
+	int minutes;
+
+	info->progs->lastreturn = 0;
+
+	questman = NULL;
+	if(info->mob) questman = info->mob;
+	else if(info->token && info->token->player) questman = info->token->player;
+
+	// Only allow mprogs or tprogs where the ultimate mob calling them is a questor mob
+	if(!IS_VALID(questman) || !IS_NPC(questman) || !IS_SET(questman->act, ACT_QUESTOR))
+		return;
+
+	if(!(rest = expand_argument(info,argument,&arg)))
+		return;
+
+	if(arg.type != ENT_MOBILE || !arg.d.mob || IS_NPC(arg.d.mob)) return;
+
+	ch = arg.d.mob;
+
+	// Must be in the generation phase
+	if( ch->quest == NULL || !ch->quest->generating ) return;
+
+	if(!(rest = expand_argument(info,rest,&arg)))
+		return;
+
+	destination = NULL;
+	switch(arg.type) {
+	case ENT_STRING:
+		if(!str_cmp(arg.d.str,"first")) destination = get_random_room(ch, FIRST_CONTINENT);
+		else if(!str_cmp(arg.d.str,"second")) destination = get_random_room(ch, SECOND_CONTINENT);
+		else if(!str_cmp(arg.d.str,"both")) destination = get_random_room(ch, BOTH_CONTINENTS);
+		break;
+	case ENT_ROOM:
+		destination = arg.d.room;
+		break;
+	default: return;
+	}
+
+	if(!destination)
+		return;
+
+	minutes = number_range(10,20);
+	if(*rest)
+	{
+		if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_NUMBER)
+			return;
+
+		minutes = UMAX(arg.d.num,1);
+	}
+
+	QUEST_PART_DATA *part = ch->quest->parts;
+
+	sprintf(buf, "{xTask {Y%d{x: Travel to {Y%s{x in {Y%s{x.",
+		part->index,
+		destination->name,
+		destination->area->name);
+
+	part->description = str_dup(buf);
+	part->room = destination->vnum;
+	part->minutes = minutes;
+
+	info->progs->lastreturn = 1;
+}
+
+// QUESTPARTRESCUE $PLAYER $TARGET[ $MINUTES]
+SCRIPT_CMD(scriptcmd_questpartrescue)
+{
+	char buf[MSL];
+	char *rest;
+	SCRIPT_PARAM arg;
+	CHAR_DATA *questman;
+	CHAR_DATA *ch;
+	CHAR_DATA *target;
+	int minutes;
+
+	info->progs->lastreturn = 0;
+
+	questman = NULL;
+	if(info->mob) questman = info->mob;
+	else if(info->token && info->token->player) questman = info->token->player;
+
+	// Only allow mprogs or tprogs where the ultimate mob calling them is a questor mob
+	if(!IS_VALID(questman) || !IS_NPC(questman) || !IS_SET(questman->act, ACT_QUESTOR))
+		return;
+
+	if(!(rest = expand_argument(info,argument,&arg)))
+		return;
+
+	if(arg.type != ENT_MOBILE || !arg.d.mob || IS_NPC(arg.d.mob)) return;
+
+	ch = arg.d.mob;
+
+	// Must be in the generation phase
+	if( ch->quest == NULL || !ch->quest->generating ) return;
+
+	if(!(rest = expand_argument(info,rest,&arg)))
+		return;
+
+	if(arg.type != ENT_MOBILE || !IS_VALID(arg.d.mob) || !IS_NPC(arg.d.mob)) return;
+	target = arg.d.mob;
+
+	minutes = number_range(10,20);
+	if(*rest)
+	{
+		if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_NUMBER)
+			return;
+
+		minutes = UMAX(arg.d.num,1);
+	}
+
+	QUEST_PART_DATA *part = ch->quest->parts;
+
+	sprintf(buf, "{xTask {Y%d{x: Rescue {Y%s{x from {Y%s{x in {Y%s{x.",
+		part->index,
+		target->short_descr,
+		target->in_room->name,
+		target->in_room->area->name);
+
+	part->description = str_dup(buf);
+	part->mob_rescue = target->pIndexData->vnum;
+	part->minutes = minutes;
+
+	info->progs->lastreturn = 1;
+}
+
+
+// QUESTPARTSLAY $PLAYER $TARGET[ $MINUTES]
+SCRIPT_CMD(scriptcmd_questpartslay)
+{
+	char buf[MSL];
+	char *rest;
+	SCRIPT_PARAM arg;
+	CHAR_DATA *questman;
+	CHAR_DATA *ch;
+	CHAR_DATA *target;
+	int minutes;
+
+	info->progs->lastreturn = 0;
+
+	questman = NULL;
+	if(info->mob) questman = info->mob;
+	else if(info->token && info->token->player) questman = info->token->player;
+
+	// Only allow mprogs or tprogs where the ultimate mob calling them is a questor mob
+	if(!IS_VALID(questman) || !IS_NPC(questman) || !IS_SET(questman->act, ACT_QUESTOR))
+		return;
+
+	if(!(rest = expand_argument(info,argument,&arg)))
+		return;
+
+	if(arg.type != ENT_MOBILE || !arg.d.mob || IS_NPC(arg.d.mob)) return;
+
+	ch = arg.d.mob;
+
+	// Must be in the generation phase
+	if( ch->quest == NULL || !ch->quest->generating ) return;
+
+	if(!(rest = expand_argument(info,rest,&arg)))
+		return;
+
+	if(arg.type != ENT_MOBILE || !IS_VALID(arg.d.mob) || !IS_NPC(arg.d.mob)) return;
+	target = arg.d.mob;
+
+	minutes = number_range(10,20);
+	if(*rest)
+	{
+		if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_NUMBER)
+			return;
+
+		minutes = UMAX(arg.d.num,1);
+	}
+
+	QUEST_PART_DATA *part = ch->quest->parts;
+
+	sprintf(buf, "{xTask {Y%d{x: Slay {Y%s{x.  %s was last seen in {Y%s{x.",
+		part->index,
+		target->short_descr,
+		target->sex == SEX_MALE ? "He" :
+		target->sex == SEX_FEMALE ? "She" : "It",
+		target->in_room->area->name);
+
+	part->description = str_dup(buf);
+	part->mob = target->pIndexData->vnum;
+	part->minutes = minutes;
+
+	info->progs->lastreturn = 1;
+}
+
+
 //////////////////////////////////////
 // R
 

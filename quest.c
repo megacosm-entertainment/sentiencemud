@@ -229,8 +229,10 @@ void do_quest(CHAR_DATA *ch, char *argument)
     /* For the following functions, a QM must be present. */
     for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
     {
-        if (IS_NPC(mob) && IS_SET(mob->act, ACT_QUESTOR))
+        if (IS_NPC(mob) && mob->pIndexData->pQuestor != NULL)
 	    break;
+
+
     }
 
     if (mob == NULL)
@@ -653,6 +655,8 @@ void do_quest(CHAR_DATA *ch, char *argument)
 		ch->quest->questgiver = mob->pIndexData->vnum;
 		if (generate_quest(ch, mob))
 		{
+			ch->quest->generating = FALSE;
+
 			sprintf(buf, "Thank you, brave %s!", HANDLE(ch));
 			do_say(mob, buf);
 		}
@@ -905,12 +909,12 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 {
 	char buf[MAX_STRING_LENGTH];
 	char buf2[MAX_STRING_LENGTH*8];
-	MOB_INDEX_DATA *mob;
-	CHAR_DATA *victim;
 	QUEST_PART_DATA *part;
 	OBJ_DATA *scroll;
 	int parts;
 	int i;
+
+	ch->quest->generating = TRUE;
 
 	if (ch->tot_level <= 30)
 		parts = number_range(1, 3);
@@ -929,14 +933,10 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 	// MORE FUN
 	questman->tempstore[0] = parts;				// Number of parts to do (In-Out)
 	questman->tempstore[1] = bFun ? 1 : 0;		// Whether this was a F.U.N. quest (In)
-												// Scripted tasks (Out)
 	if(p_percent_trigger( questman, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_PREQUEST, NULL))
 		return FALSE;
 	parts = questman->tempstore[0];				// Updated number of parts to do
 	if( parts < 1 ) parts = 1;					//    Require at least one part.
-
-												// Whether this was a F.U.N. quest (skipped)
-	int script_tasks = questman->tempstore[2];	// Number of scripted tasks available
 
 
 
@@ -945,26 +945,36 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 	scroll = create_object(get_obj_index(OBJ_VNUM_QUEST_SCROLL), 0, TRUE);
 	free_string(scroll->full_description);
 
+	QUESTOR_DATA *qd = questman->pIndexData->pQuestor;
+
+	char *replace1 = string_replace_static(qd->header, "$PLAYER$", ch->name);
+	char *replace2 = string_replace_static(replace1, "$QUESTOR$", questman->short_descr);
+
+	strcpy(buf2, replace2);
+
+	/*
 	sprintf(buf2,
 		"{W  .-.--------------------------------------------------------------------------------------.-.\n\r"
 		"((o))                                                                                         )\n\r"
 		"{W \\U/_________________________________________________________________________________________/\n\r"
 		"{W  |\n\r"
-		"{W  |  {xNoble %s,\n\r{x  |\n\r"
+		"{W  |  {xNoble %s{x,\n\r{W  |\n\r"
 		"{W  |  {xThis is an official quest scroll given to you by %s.\n\r"
 		"{W  |  {xUpon this scroll is my seal, and my approval to go to any\n\r"
 		"{W  |  {xmeasures in order to complete the set of tasks I have listed.\n\r"
 		"{W  |  {xReturn to me once you have completed these tasks, and you\n\r"
-		"{W  |  {xshall be justly rewarded.\n\r  |  \n\r",
+		"{W  |  {xshall be justly rewarded.\n\r{W  |  {x\n\r",
 		ch->name, questman->short_descr);
+	*/
 
 	for (i = 0; i < parts; i++)
 	{
 		part = new_quest_part();
 		part->next = ch->quest->parts;
 		ch->quest->parts = part;
+		part->index = parts - i;
 
-		if (generate_quest_part(ch, questman, part, i+1, script_tasks))
+		if (generate_quest_part(ch, questman, part, parts - i))
 			continue;
 		else
 		{
@@ -976,9 +986,26 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 	/* Moving all quest-scroll generation shit into here. AO 010517  */
 	for (i = 1, part = ch->quest->parts; part != NULL; part = part->next, i++)
 	{
-		sprintf(buf, "{W  |  {xTask {Y%d{x: ", i);
+		if( qd->line_width > 0 && strlen(qd->suffix) > 0 )
+		{
+			char *plaintext = nocolour(part->description);
+			int plen = strlen(plaintext);
+			free_string(plaintext);
+			int len = strlen(part->description);
+
+			int width = qd->line_width + len - plen;
+
+
+
+			sprintf(buf, "%s%-*.*s%s\n\r", qd->prefix, width, width, part->description, qd->suffix);
+		}
+		else
+		{
+			sprintf(buf, "%s%s\n\r", qd->prefix, part->description);
+		}
 		strcat(buf2, buf);
 
+#if 0
 		if (part->pObj != NULL)
 		{
 			sprintf(buf, "Retrieve {Y%s{x from {Y%s{x in {Y%s{x.\n\r",
@@ -1015,15 +1042,18 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 		}
 		else if ( !IS_NULLSTR(part->custom_task) )
 			sprintf(buf, "%s{x\n\r", part->custom_task);
-
-		strcat(buf2, buf);
+#endif
 	}
 
+	/*
     sprintf(buf, "{W  |__________________________________________________________________________________________\n\r"
 	    "{W /A\\                                                                                         \\\n\r"
 	    "((o))                                                                                         )\n\r"
-	    "{W  '-'----------------------------------------------------------------------------------------'\n\r");
-    strcat(buf2, buf);
+	    "{W  '-'----------------------------------------------------------------------------------------'\n\r");*/
+
+	replace1 = string_replace_static(qd->footer, "$PLAYER$", ch->name);
+	replace2 = string_replace_static(replace1, "$QUESTOR$", questman->short_descr);
+	strcat(buf2, replace2);
 
 
     scroll->full_description = str_dup(buf2);
@@ -1034,10 +1064,15 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
     return TRUE;
 }
 
-
 /* Set up a quest part. */
-bool generate_quest_part(CHAR_DATA *ch, CHAR_DATA *questman, QUEST_PART_DATA *part, int partno, int extra_tasks)
+bool generate_quest_part(CHAR_DATA *ch, CHAR_DATA *questman, QUEST_PART_DATA *part, int partno)
 {
+	questman->tempstore[0] = partno;							// Which quest part *IS* this?  Needed for the "questcomplete" command
+	if(p_percent_trigger( questman, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_PART, NULL))
+		return FALSE;
+
+
+#if 0
     OBJ_DATA *item;
     CHAR_DATA *victim;
     ROOM_INDEX_DATA *rand_room;
@@ -1123,6 +1158,7 @@ bool generate_quest_part(CHAR_DATA *ch, CHAR_DATA *questman, QUEST_PART_DATA *pa
 
 		break;
     }
+#endif
 
     return TRUE;
 }
@@ -1397,7 +1433,7 @@ bool check_quest_custom_task(CHAR_DATA *ch, int task)
         i++;
 
 		// Not the current task nor is a custom task
-        if( task != i || IS_NULLSTR(part->custom_task) )
+        if( task != i || !part->custom_task )
 			continue;
 
 		// already did it

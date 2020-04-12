@@ -4265,11 +4265,12 @@ void fwrite_quest_part(FILE *fp, QUEST_PART_DATA *part)
 	fprintf(fp, "MRPart %ld\n", part->mob_rescue);
     else if (part->room != -1)
 	fprintf(fp, "QRoom %ld\n", part->room);
-    else if (!IS_NULLSTR(part->custom_task))
-		fprintf(fp, "QCustom %s~\n", part->custom_task);
+    else if (part->custom_task)
+		fprintf(fp, "QCustom\n");
 
     if (part->complete)
-	fprintf(fp, "QComplete\n");
+		fprintf(fp, "QComplete\n");
+	fprintf(fp, "QDescription %s~\n", part->description);
 
     fprintf(fp, "End\n");
 }
@@ -4347,7 +4348,12 @@ QUEST_PART_DATA *fread_quest_part(FILE *fp)
 
 		    case 'Q':
 			if (!str_cmp(word, "QCustom")) {
-				part->custom_task = fread_string(fp);
+				part->custom_task = TRUE;
+				fMatch = TRUE;
+				break;
+			}
+			if (!str_cmp(word, "QDescription")) {
+				part->description = fread_string(fp);
 				fMatch = TRUE;
 				break;
 			}
