@@ -7713,6 +7713,18 @@ MEDIT(medit_shop)
 			return FALSE;
 		}
 
+		if(arg1[0] == '\0')
+		{
+			send_to_char("Syntax:  shop stock add [object vnum]\n\r", ch);
+			send_to_char("         shop stock add [keyword]\n\r", ch);
+			send_to_char("         shop stock price [#] [silver|qp|dp|pneuma|custom] [value]\n\r", ch);
+			send_to_char("         shop stock quantity [#] unlimited\n\r", ch);
+			send_to_char("         shop stock quantity [#] [total] [reset rate]\n\r", ch);
+			send_to_char("         shop stock description [#] [description]\n\r", ch);
+			send_to_char("         shop stock remove [#]\n\r", ch);
+			return FALSE;
+		}
+
 		if(!str_prefix(arg1, "add"))
 		{
 			if(is_number(arg2))
