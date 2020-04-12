@@ -3107,7 +3107,7 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)
 		case 'K':
 			KEYS("Keyword", stock->custom_keyword, fread_string(fp));
 			break;
-		case 'M'
+		case 'M':
 			KEY("MaxQuantity", stock->max_quantity, fread_number(fp));
 			break;
 		case 'O':
@@ -3120,7 +3120,7 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)
 		case 'Q':
 			KEY("QuestPnts", stock->qp, fread_number(fp));
 			break;
-		case 'R'
+		case 'R':
 			KEY("RestockRate", stock->restock_rate, fread_number(fp));
 			break;
 		case 'S':
