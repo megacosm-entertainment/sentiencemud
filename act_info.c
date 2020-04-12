@@ -6390,7 +6390,7 @@ char determine_room_type(ROOM_INDEX_DATA *room)
 	    continue;
 	}
 
-	if (pMob->pShop != NULL && !IS_SET(pMob->pShop->flags,SHOPFLAG_HIDE_SHOP)) {
+	if (ch->shop != NULL && !IS_SET(ch->shop->flags,SHOPFLAG_HIDE_SHOP)) {
 	    return 'N';
 	}
     }

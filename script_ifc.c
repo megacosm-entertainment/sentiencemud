@@ -1097,7 +1097,7 @@ DECL_IFC_FUN(ifc_isshooting)
 
 DECL_IFC_FUN(ifc_isshopkeeper)
 {
-	*ret = VALID_NPC(0) && ARG_MOB(0)->pIndexData->pShop;
+	*ret = VALID_NPC(0) && ARG_MOB(0)->shop;
 	return TRUE;
 }
 

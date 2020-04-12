@@ -1297,8 +1297,7 @@ struct shop_stock_data
 	long pneuma;
 	char *custom_price;			// Custom pricing (supercedes other pricing values)
 
-	int quantity;				// Current number of units
-	int max_quantity;			// Maximum number of units
+	int quantity;				// Number of units available
 	int restock_rate;			// How manu units will get restocked per reset cycle (<1 == never)
 
 	long vnum;					// Standard object
@@ -3539,6 +3538,7 @@ struct	char_data
     ROOM_INDEX_DATA *	was_in_room;
     WILDS_DATA *was_in_wilds;
 	ROOM_INDEX_DATA *	checkpoint;
+	SHOP_DATA		* shop;
 
     /* VIZZWILDS */
     CHAR_DATA *        prev_in_wilds;

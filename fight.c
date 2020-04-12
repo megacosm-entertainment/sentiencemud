@@ -1885,7 +1885,7 @@ bool is_safe(CHAR_DATA *ch, CHAR_DATA *victim, bool show)
 	}
 
 	// Shopkeepers are protected
-	if (victim->pIndexData->pShop != NULL)
+	if (victim->shop != NULL)
 	{
 		if (show)
 		act("You can't do that in $N's store!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -2080,7 +2080,7 @@ bool is_safe_spell(CHAR_DATA *ch, CHAR_DATA *victim, bool area)
 	/* killing mobiles */
 	if (IS_NPC(victim))
 	{
-	if (victim->pIndexData->pShop != NULL)
+	if (victim->shop != NULL)
 		return TRUE;
 
 	/* no killing healers, trainers, etc */

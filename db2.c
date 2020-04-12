@@ -314,7 +314,7 @@ OBJ_DATA *get_random_obj( CHAR_DATA *ch, int continent )
 	        continue;
 
 	    if ( IS_NPC( obj->carried_by )
-	    && obj->carried_by->pIndexData->pShop != NULL )
+	    && obj->carried_by->shop != NULL )
 	 	continue;
 
 	    if ( IS_SET( obj->carried_by->in_room->room_flags, ROOM_CPK )
@@ -413,6 +413,9 @@ CHAR_DATA *get_random_mob( CHAR_DATA *ch, int continent )
    	    mob = get_char_world_index( ch, mIndex );
   	    if ( mob == NULL )
                 continue;
+
+		if( mob->shop != NULL )
+			continue;
 	}
 
         if ( can_see_room(ch,mob->in_room)

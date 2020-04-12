@@ -5840,7 +5840,7 @@ bool can_give_obj(CHAR_DATA *ch, OBJ_DATA *obj, CHAR_DATA *victim, bool silent)
 	return FALSE;
     }
 
-    if (IS_NPC(victim) && victim->pIndexData->pShop != NULL)
+    if (IS_NPC(victim) && victim->shop != NULL)
     {
 	if (!silent)
 	    act("{R$N tells you 'Sorry, you'll have to sell that.{x'", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);

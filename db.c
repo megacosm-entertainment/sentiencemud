@@ -1696,7 +1696,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
                 break;
             }
 
-            if (LastMob->pIndexData->pShop)   /* Shop-keeper? */
+            if (LastMob->shop)   /* Shop-keeper? */
             {
                 pObj = create_object(pObjIndex, 0, TRUE);
 
@@ -1783,6 +1783,51 @@ void chance_create_mob(ROOM_INDEX_DATA *pRoom, MOB_INDEX_DATA *pMobIndex, int ch
 	    obj_to_char(obj, pMobile);
 	char_to_room(pMobile, pRoom);
     }
+}
+
+void copy_shop_stock(SHOP_DATA *to_shop, SHOP_STOCK_DATA *from_stock)
+{
+	if( from_stock->next )
+		copy_shop_stock(to_shop, from_stock->next);
+
+	SHOP_STOCK_DATA *to_stock = new_shop_stock();
+
+	to_stock->silver = from_stock->silver;
+	to_stock->qp = from_stock->qp;
+	to_stock->dp = from_stock->dp;
+	to_stock->pneuma = from_stock->pneuma;
+	to_stock->quantity = from_stock->quantity;
+	to_stock->restock_rate = from_stock->restock_rate;
+	to_stock->vnum = from_stock->vnum;
+
+	free_string(to_stock->custom_price);
+	to_stock->custom_price = str_dup(from_stock->custom_price);
+
+	free_string(to_stock->custom_keyword);
+	to_stock->custom_keyword = str_dup(from_stock->custom_keyword);
+
+	free_string(to_stock->custom_descr);
+	to_stock->custom_descr = str_dup(from_stock->custom_descr);
+
+	to_stock->next = to_shop->stock;
+	to_shop->stock = to_stock;
+}
+
+void copy_shop(SHOP_DATA *to_shop, SHOP_DATA *from_shop)
+{
+	int iTrade;
+	to_shop->keeper = from_shop->keeper;
+	for(iTrade = 0; iTrade < MAX_TRADE; iTrade++)
+		to_shop->buy_type[iTrade] = from_shop->buy_type[iTrade];
+
+	to_shop->profit_buy = from_shop->profit_buy;
+	to_shop->profit_sell = from_shop->profit_sell;
+	to_shop->open_hour = from_shop->open_hour;
+	to_shop->close_hour = from_shop->close_hour;
+	to_shop->flags = from_shop->flags;
+
+	if( from_shop->stock )
+		copy_shop_stock(to_shop, from_shop->stock);
 }
 
 
@@ -1952,6 +1997,13 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 
 	if (!persistLoad)
 	{
+		if(pMobIndex->pShop != NULL)
+		{
+			mob->shop = new_shop();
+			copy_shop(mob->shop, pMobIndex->pShop);
+		}
+
+
 		memset(&af,0,sizeof(af));
 		af.slot	= WEAR_NONE;	// None of the subsequent affects are from worn objects
 
@@ -5428,6 +5480,9 @@ void persist_save_mobile(FILE *fp, CHAR_DATA *ch)
 			paf->slot);
 	}
 
+	if( ch->shop )
+		save_shop_new(fp, ch->shop);
+
 	// Save Variables
 	if( ch->progs )
 		persist_save_scriptdata(fp,ch->progs);
@@ -6398,6 +6453,17 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 					fMatch = TRUE;
 					if( token )
 						token_to_char(token, ch);
+					else
+						good = FALSE;
+
+					break;
+				}
+				if (!str_cmp(word,"#SHOP")) {
+					SHOP_DATA *shop = read_shop_new(fp);
+
+					fMatch = TRUE;
+					if( shop )
+						ch->shop = shop;
 					else
 						good = FALSE;
 

@@ -4346,7 +4346,7 @@ CHAR_DATA *find_keeper(CHAR_DATA *ch)
     pShop = NULL;
     for (keeper = ch->in_room->people; keeper; keeper = keeper->next_in_room)
     {
-	if (IS_NPC(keeper) && (pShop = keeper->pIndexData->pShop) != NULL)
+	if (IS_NPC(keeper) && (pShop = keeper->shop) != NULL)
 	    break;
     }
 
@@ -4468,7 +4468,7 @@ int get_cost(CHAR_DATA *keeper, OBJ_DATA *obj, bool fBuy)
     SHOP_DATA *pShop;
     int cost;
 
-    if (obj == NULL || (pShop = keeper->pIndexData->pShop) == NULL)
+    if (obj == NULL || (pShop = keeper->shop) == NULL)
 	return 0;
 
     if (fBuy)

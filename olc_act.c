@@ -6601,15 +6601,15 @@ MEDIT(medit_show)
 					add_buf(buffer, "{G  ------ -------- -------------- ------------------------------{x\n\r");
 				}
 
-				if( pStock->max_quantity > 0 )
+				if( pStock->quantity > 0 )
 				{
 					if( pStock->restock_rate > 0 )
 					{
-						sprintf(qty, "{W%d{x / {W%d{x", pStock->max_quantity, pStock->restock_rate);
+						sprintf(qty, "{W%d{x / {W%d{x", pStock->quantity, pStock->restock_rate);
 					}
 					else
 					{
-						sprintf(qty, "{W%d{x / {D--{x", pStock->max_quantity);
+						sprintf(qty, "{W%d{x / {D--{x", pStock->quantity);
 					}
 				}
 				else
@@ -7881,7 +7881,6 @@ MEDIT(medit_shop)
 			if(!str_prefix(argument, "unlimited"))
 			{
 				stock->quantity = 0;
-				stock->max_quantity = 0;
 				stock->restock_rate = 0;
 				send_to_char("Stock quantity settings changed.\n\r", ch);
 				return TRUE;
@@ -7905,7 +7904,6 @@ MEDIT(medit_shop)
 			}
 
 			stock->quantity = total;
-			stock->max_quantity = total;
 			stock->restock_rate = UMAX(rate, 0);		// A rate of zero means it never restock
 			send_to_char("Stock quantity settings changed.\n\r", ch);
 			return TRUE;

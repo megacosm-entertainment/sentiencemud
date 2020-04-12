@@ -595,6 +595,7 @@ CHAR_DATA *new_char( void )
 
     ch->checkpoint = NULL;
     ch->tempstring = NULL;
+    ch->shop = NULL;
 
     return ch;
 }
@@ -713,6 +714,8 @@ void free_char( CHAR_DATA *ch )
     ch->checkpoint = NULL;
 
 	if( ch->persist ) persist_removemobile(ch);
+
+	if( ch->shop ) free_shop(ch->shop);
 
     ch->next = char_free;
     char_free = ch;
@@ -1622,7 +1625,6 @@ SHOP_STOCK_DATA *new_shop_stock()
 	pStock->vnum = 0;
 
 	pStock->quantity = 0;
-	pStock->max_quantity = 0;
 	pStock->restock_rate = 0;
 
 	pStock->custom_keyword = &str_empty[0];
@@ -1863,7 +1865,7 @@ void free_mob_index( MOB_INDEX_DATA *pMob )
     }
 
 	free_questor_data( pMob->pQuestor );
-    free_shop( pMob->pShop );
+    if(pMob->pShop != NULL) free_shop( pMob->pShop );
 
     pMob->next              = mob_index_free;
     mob_index_free          = pMob;

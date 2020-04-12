@@ -797,7 +797,7 @@ void mobile_update(void)
 		}
 
 		// Give shop owners gold
-		if (ch->pIndexData->pShop != NULL)
+		if (ch->shop != NULL)
 		{
 			if ((ch->gold * 100 + ch->silver) < ch->pIndexData->wealth)
 			{
@@ -2476,7 +2476,7 @@ void aggr_update(void)
 	if (wch->in_room != NULL
 	&&  number_percent() < 10
 	&&  !is_safe(wch, wch, FALSE)
-	&&  ((IS_NPC(wch) && wch->pIndexData->pShop == NULL) ||
+	&&  ((IS_NPC(wch) && wch->shop == NULL) ||
 	    (IS_SET(wch->in_room->room_flags, ROOM_PK)
 	     || IS_SET(wch->in_room->room_flags, ROOM_CPK))
    	     || is_pk(wch)))
@@ -2546,7 +2546,7 @@ void aggr_update(void)
 		    }
 		    if (number_percent() <= 2 && wch->fighting == NULL
 		    && IS_AWAKE(wch) && wch->position == POS_STANDING
-		    &&  !(IS_NPC(wch) && (IS_SET(wch->act,ACT_PROTECTED) || wch->pIndexData->pShop != NULL))
+		    &&  !(IS_NPC(wch) && (IS_SET(wch->act,ACT_PROTECTED) || wch->shop != NULL))
 		    &&  !(!IS_NPC(wch) && IS_IMMORTAL(wch)))
 		    {
 			act("$n stumbles about choking and gagging!",
@@ -2610,7 +2610,7 @@ void aggr_update(void)
 
 			    if (IS_NPC(victim))
 			    {
-				if (victim->pIndexData->pShop != NULL
+				if (victim->shop != NULL
 				||   IS_SET(victim->act, ACT_PROTECTED	)
 				||   IS_SET(victim->act, ACT_SENTINEL	))
 				    continue;
@@ -3499,7 +3499,7 @@ void scare_update(CHAR_DATA *ch)
         // Certain NPCs are protected
 	if (IS_NPC(victim))
 	{
-	    if (victim->pIndexData->pShop != NULL
+	    if (victim->shop != NULL
 	    ||  IS_SET(victim->act, ACT_PROTECTED)
 	    ||  IS_SET(victim->act, ACT_SENTINEL))
 		continue;
