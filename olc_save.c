@@ -1144,13 +1144,13 @@ void save_shop_stock_new(FILE *fp, SHOP_STOCK_DATA *stock)
 	fprintf(fp, "QuestPnts %ld\n", stock->qp);
 	fprintf(fp, "DeityPnts %ld\n", stock->dp);
 	fprintf(fp, "Pneuma %ld\n", stock->pneuma);
-	fprintf(fp, "Pricing %s\n", stock->custom_price);	// EOL string
+	fprintf(fp, "Pricing %s~\n", fix_string(stock->custom_price));
 
 	// Product
 	fprintf(fp, "Object %ld\n", stock->vnum);
-	fprintf(fp, "Keyword %s\n", stock->custom_keyword);	// EOL string
+	fprintf(fp, "Keyword %s~\n", fix_string(stock->custom_keyword));
 
-	fprintf(fp, "Description %s\n", stock->custom_descr);	// EOL string
+	fprintf(fp, "Description %s~\n", fix_string(stock->custom_descr));
 
 	fprintf(fp, "#-STOCK\n");
 }
@@ -3098,16 +3098,17 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)
 		switch (word[0]) {
 		case 'D':
 			KEY("DeityPnts", stock->dp, fread_number(fp));
-			KEYS("Description", stock->custom_descr, fread_string_eol(fp));
+			KEYS("Description", stock->custom_descr, fread_string(fp));
 			break;
 		case 'K':
-			KEYS("Keyword", stock->custom_keyword, fread_string_eol(fp));
+			KEYS("Keyword", stock->custom_keyword, fread_string(fp));
 			break;
 		case 'O':
 			KEY("Object", stock->vnum, fread_number(fp));
 			break;
 		case 'P':
 			KEY("Pneuma", stock->pneuma, fread_number(fp));
+			KEYS("Pricing", stock->custom_price, fread_string(fp));
 			break;
 		case 'Q':
 			KEY("QuestPnts", stock->qp, fread_number(fp));
