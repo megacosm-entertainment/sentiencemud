@@ -245,6 +245,7 @@ typedef struct	obj_data		OBJ_DATA;
 typedef struct	obj_index_data		OBJ_INDEX_DATA;
 typedef struct	spell_data		SPELL_DATA;
 typedef struct	pc_data			PC_DATA;
+typedef struct	questor_data	QUESTOR_DATA;
 typedef struct	quest_data		QUEST_DATA;
 typedef struct	quest_part_data		QUEST_PART_DATA;
 typedef struct	reset_data		RESET_DATA;
@@ -3086,6 +3087,7 @@ struct	mob_index_data
     MOB_INDEX_DATA *	next;
     SPEC_FUN *		spec_fun;
     SHOP_DATA *		pShop;
+    QUESTOR_DATA *	pQuestor;
     LLIST **        progs;
     QUEST_LIST *	quests;
     bool	persist;
@@ -3181,6 +3183,19 @@ struct gq_data
     GQ_OBJ_DATA *objects;
 };
 
+struct questor_data
+{
+	QUESTOR_DATA *next;
+	bool valid;
+
+	// Appearance data
+	char *header;
+	char *prefix;
+	char *suffix;
+	char *footer;
+
+	int line_width;
+}
 
 /* For randomly generated quests */
 struct quest_data
@@ -3198,6 +3213,9 @@ struct quest_part_data
     QUEST_PART_DATA *   next;
 
     OBJ_DATA 		*pObj;
+    char *		description;
+
+    int			index;
 
     long		minutes;	// How many minutes is expected to complete this task?
 
@@ -3206,7 +3224,7 @@ struct quest_part_data
     long		room;
     long		obj_sac;
     long		mob_rescue;
-    char *		custom_task;
+    bool		custom_task;
     bool		complete;
 };
 
@@ -7297,6 +7315,7 @@ void	do_buy_mount	args( ( CHAR_DATA *ch, char *argument ) );
 /* string.c */
 void	string_edit	args( ( CHAR_DATA *ch, char **pString ) );
 void    string_append   args( ( CHAR_DATA *ch, char **pString ) );
+char *	string_replace_static	args( ( char * orig, char * old, char * new ) );
 char *	string_replace	args( ( char * orig, char * old, char * new ) );
 void    string_add      args( ( CHAR_DATA *ch, char *argument ) );
 char *  format_string   args( ( char *oldstring /*, bool fSpace */ ) );

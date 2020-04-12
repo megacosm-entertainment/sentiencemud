@@ -6516,6 +6516,28 @@ MEDIT(medit_show)
 		}
 	}
 
+	if (pMob->pQuestor)
+	{
+		QUESTOR_DATA *questor = pMob->pQuestor;
+
+		add_buf(buffer, "{YQuestor data:\n\r");
+
+		sprintf(buf, "  {YHeader:\n\r%s{x\n\r", questor->header);
+		add_buf(buffer, buf);
+
+		sprintf(buf, "  {YFooter:\n\r%s{x\n\r", questor->footer);
+		add_buf(buffer, buf);
+
+		sprintf(buf, "  {YPrefix: %s{x\n\r", questor->prefix);
+		add_buf(buffer, buf);
+
+		sprintf(buf, "  {YSuffix: %s{x\n\r", questor->suffix);
+		add_buf(buffer, buf);
+
+		sprintf(buf, "  {YWidth:  %d{x\n\r", questor->line_width);
+		add_buf(buffer, buf);
+	}
+
 	if (pMob->progs) {
 		int cnt, slot;
 
@@ -9536,3 +9558,116 @@ VLEDIT ( vledit_show )
 
     return (FALSE);
 }
+
+MEDIT(medit_questor)
+{
+	MOB_INDEX_DATA *pMob;
+	char arg[MIL];
+
+	EDIT_MOB(ch, pMob);
+
+	if(IS_NULLSTR(argument))
+	{
+		send_to_char("QUESTOR ADD             Adds questor data to mob.\n\r", ch);
+		send_to_char("        REMOVE          Removes questor data from mob.\n\r", ch);
+		send_to_char("        HEADER          Edits scroll header.\n\r", ch);
+		send_to_char("        FOOTER          Edits scroll footer.\n\r", ch);
+		send_to_char("        PREFIX          Edits line prefix.\n\r", ch);
+		send_to_char("        SUFFIX          Edits line suffix.\n\r", ch);
+		send_to_char("        WIDTH width     Sets line width.\n\r", ch);
+		return FALSE;
+	}
+
+	argument = one_argument(argument, arg);
+
+	if (!str_cmp(arg,"add"))
+	{
+	    if (!str_cmp(pMob->sig, "none") && ch->tot_level < MAX_LEVEL)
+	    {
+			send_to_char("You can't do this without an IMP's permission.\n\r", ch);
+			return FALSE;
+	    }
+
+	    if( pMob->pQuestor != NULL )
+	    {
+			send_to_char("There is already questor data.\n\r", ch);
+			return FALSE;
+		}
+
+		pMob->pQuestor = new_questor_data();
+	    use_imp_sig(pMob, NULL);
+		send_to_char("Questor data added.\n\r", ch);
+		return TRUE;
+
+	} else if (!str_cmp(arg,"remove")) {
+	    if (!str_cmp(pMob->sig, "none") && ch->tot_level < MAX_LEVEL)
+	    {
+			send_to_char("You can't do this without an IMP's permission.\n\r", ch);
+			return FALSE;
+	    }
+
+	    if( pMob->pQuestor == NULL )
+	    {
+			send_to_char("There is any questor data.\n\r", ch);
+			return FALSE;
+		}
+
+		free_questor_data(pMob->pQuestor);
+		pMob->pQuestor = NULL;
+		send_to_char("Questor data removed.\n\r", ch);
+		return TRUE;
+
+	} else if (!str_cmp(arg,"header")) {
+		string_append(&pMob->pQuestor->header);
+		return TRUE;
+
+	} else if (!str_cmp(arg,"footer")) {
+		string_append(&pMob->pQuestor->footer);
+		return TRUE;
+
+	} else if (!str_cmp(arg,"prefix")) {
+		free_string(pMob->pQuestor->prefix);
+		pMob->pQuestor->prefix = str_dup(argument);
+
+		send_to_char("Prefix set.\n\r", ch);
+		return TRUE;
+
+	} else if (!str_cmp(arg,"suffix")) {
+		free_string(pMob->pQuestor->suffix);
+		pMob->pQuestor->suffix = str_dup(argument);
+
+		send_to_char("Prefix set.\n\r", ch);
+		return TRUE;
+
+	} else if (!str_cmp(arg,"width")) {
+		if(!is_number(argument))
+		{
+			send_to_char("That is not a number.\n\r", ch);
+			return FALSE;
+		}
+
+		int width = atoi(argument);
+		if( width < 1 || width > 80)
+		{
+			send_to_char("Width is out of range.  Please specify a number from 1 to 80.\n\r", ch);
+			return FALSE;
+		}
+
+		pMob->pQuestor->line_width = width;
+		return TRUE;
+
+	} else {
+		send_to_char("QUESTOR ADD             Adds questor data to mob.\n\r", ch);
+		send_to_char("        REMOVE          Removes questor data from mob.\n\r", ch);
+		send_to_char("        HEADER          Edits scroll header.\n\r", ch);
+		send_to_char("        FOOTER          Edits scroll footer.\n\r", ch);
+		send_to_char("        PREFIX          Edits line prefix.\n\r", ch);
+		send_to_char("        SUFFIX          Edits line suffix.\n\r", ch);
+		send_to_char("        WIDTH width     Sets line width.\n\r", ch);
+		return FALSE;
+	}
+
+	return TRUE;
+
+}
+

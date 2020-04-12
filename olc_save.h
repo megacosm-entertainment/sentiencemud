@@ -18,6 +18,7 @@ void save_objects_new( FILE *fp, AREA_DATA *area );
 void save_room_new( FILE *fp, ROOM_INDEX_DATA *room, int recordtype );
 void save_mobile_new( FILE *fp, MOB_INDEX_DATA *mob );
 void save_object_new( FILE *fp, OBJ_INDEX_DATA *obj );
+void save_questor_new( FILE *fp, QUESTOR_DATA *questor );
 void save_scripts_new( FILE *fp, AREA_DATA *area );
 void save_shop_new( FILE *fp, SHOP_DATA *shop );
 void save_spell(FILE *fp, SPELL_DATA *spell);
@@ -37,6 +38,7 @@ RESET_DATA *read_reset_new( FILE *fp );
 AFFECT_DATA *read_obj_affect_new (FILE *fp);
 AFFECT_DATA *read_obj_catalyst_new (FILE *fp);
 SHOP_DATA *read_shop_new( FILE *fp);
+QUESTOR_DATA *read_questor_new( FILE *fp);
 TOKEN_INDEX_DATA *read_token( FILE *fp);
 
 /* help files */

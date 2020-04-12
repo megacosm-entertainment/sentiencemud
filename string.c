@@ -79,6 +79,30 @@ void string_append(CHAR_DATA *ch, char **pString)
     return;
 }
 
+char *string_replace_static(char * orig, char * old, char * new)
+{
+	static int cnt = 0;
+    static char xbuf[4][MAX_STRING_LENGTH];
+
+    cnt = (cnt+1) & 3;;
+
+    int i;
+    char *xb = xbuf[cnt];
+    xb[0] = '\0';
+    strcpy(xb, orig);
+    char *p = strstr(orig, old);
+    if (p != NULL)
+    {
+        i = strlen(orig) - strlen(p);
+        xb[i] = '\0';
+        strcat(xb, new);
+        strcat(xb, &orig[i+strlen(old)]);
+        free_string(orig);
+    }
+
+    return xb;
+}
+
 
 char *string_replace(char * orig, char * old, char * new)
 {
@@ -87,9 +111,10 @@ char *string_replace(char * orig, char * old, char * new)
 
     xbuf[0] = '\0';
     strcpy(xbuf, orig);
-    if (strstr(orig, old) != NULL)
+    char *p = strstr(orig, old);
+    if (p != NULL)
     {
-        i = strlen(orig) - strlen(strstr(orig, old));
+        i = strlen(orig) - strlen(p);
         xbuf[i] = '\0';
         strcat(xbuf, new);
         strcat(xbuf, &orig[i+strlen(old)]);

@@ -1270,11 +1270,11 @@ SCRIPT_CMD(scriptcmd_questcomplete)
 // QUESTPARTCUSTOM $PLAYER $STRING[ $MINUTES]
 SCRIPT_CMD(scriptcmd_questpartcustom)
 {
+	char buf[MSL];
 	char *rest;
 	SCRIPT_PARAM arg;
 	CHAR_DATA *questman;
 	CHAR_DATA *ch;
-	char desc[MSL];
 	int minutes;
 
 	info->progs->lastreturn = 0;
@@ -1303,7 +1303,9 @@ SCRIPT_CMD(scriptcmd_questpartcustom)
 	if(!IS_NULLSTR(arg.d.str))
 		return;
 
-	strcpy(desc, arg.d.str);
+	QUEST_PART_DATA *part = ch->quest->parts;
+	sprintf(buf, "{xTask {Y%d{x: %s{x.", part->index, arg.d.str);
+
 
 	minutes = number_range(10,20);
 	if(*rest)
@@ -1314,9 +1316,9 @@ SCRIPT_CMD(scriptcmd_questpartcustom)
 		minutes = UMAX(arg.d.num,1);
 	}
 
-	QUEST_PART_DATA *part = ch->quest->parts;
 
-	part->custom_task = str_dup(desc);
+	part->description = str_dup(buf);
+	part->custom_task = TRUE;
 	part->minutes = minutes;
 
 	info->progs->lastreturn = 1;
@@ -1370,6 +1372,13 @@ SCRIPT_CMD(scriptcmd_questpartgetitem)
 
 	QUEST_PART_DATA *part = ch->quest->parts;
 
+	sprintf(buf, "{xTask {Y%d{x: Retrieve {Y%s{x from {Y%s{x in {Y%s{x.",
+		part->index,
+		obj->short_descr,
+		obj->in_room->name,
+		obj->in_room->area->name);
+
+	part->description = str_dup(buf);
 	free_string(obj->owner);
 	obj->owner = str_dup(ch->name);
 	part->pObj = obj;
@@ -1382,6 +1391,7 @@ SCRIPT_CMD(scriptcmd_questpartgetitem)
 // QUESTPARTGOTO $PLAYER first|second|both|$ROOM[ $MINUTES]
 SCRIPT_CMD(scriptcmd_questpartgoto)
 {
+	char buf[MSL];
 	char *rest;
 	SCRIPT_PARAM arg;
 	CHAR_DATA *questman;
@@ -1439,6 +1449,12 @@ SCRIPT_CMD(scriptcmd_questpartgoto)
 
 	QUEST_PART_DATA *part = ch->quest->parts;
 
+	sprintf(buf, "{xTask {Y%d{x: Travel to {Y%s{x in {Y%s{x.",
+		part->index,
+		destination->name,
+		destination->area->name);
+
+	part->description = str_dup(buf);
 	part->room = destination->vnum;
 	part->minutes = minutes;
 
@@ -1448,6 +1464,7 @@ SCRIPT_CMD(scriptcmd_questpartgoto)
 // QUESTPARTRESCUE $PLAYER $TARGET[ $MINUTES]
 SCRIPT_CMD(scriptcmd_questpartrescue)
 {
+	char buf[MSL];
 	char *rest;
 	SCRIPT_PARAM arg;
 	CHAR_DATA *questman;
@@ -1492,6 +1509,13 @@ SCRIPT_CMD(scriptcmd_questpartrescue)
 
 	QUEST_PART_DATA *part = ch->quest->parts;
 
+	sprintf(buf, "{xTask {Y%d{x: Rescue {Y%s{x from {Y%s{x in {Y%s{x.",
+		part->index,
+		target->short_descr,
+		target->in_room->name,
+		target->in_room->area->name);
+
+	part->description = str_dup(buf);
 	part->mob_rescue = target->pIndexData->vnum;
 	part->minutes = minutes;
 
@@ -1502,6 +1526,7 @@ SCRIPT_CMD(scriptcmd_questpartrescue)
 // QUESTPARTSLAY $PLAYER $TARGET[ $MINUTES]
 SCRIPT_CMD(scriptcmd_questpartslay)
 {
+	char buf[MSL];
 	char *rest;
 	SCRIPT_PARAM arg;
 	CHAR_DATA *questman;
@@ -1546,6 +1571,14 @@ SCRIPT_CMD(scriptcmd_questpartslay)
 
 	QUEST_PART_DATA *part = ch->quest->parts;
 
+	sprintf(buf, "{xTask {Y%d{x: Slay {Y%s{x.  %s was last seen in {Y%s{x.",
+		part->index,
+		target->short_descr,
+		target->sex == SEX_MALE ? "He" :
+		target->sex == SEX_FEMALE ? "She" : "It",
+		target->in_room->area->name);
+
+	part->description = str_dup(buf);
 	part->mob = target->pIndexData->vnum;
 	part->minutes = minutes;
 

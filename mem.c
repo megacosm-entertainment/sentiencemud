@@ -1799,6 +1799,7 @@ void free_mob_index( MOB_INDEX_DATA *pMob )
 	free_quest_list( quest_list );
     }
 
+	free_questor_data( pMob->pQuestor );
     free_shop( pMob->pShop );
 
     pMob->next              = mob_index_free;
@@ -1952,7 +1953,8 @@ QUEST_PART_DATA *new_quest_part( void )
     pPart->obj_sac = -1;
     pPart->mob_rescue = -1;
     pPart->room = -1;
-    pPart->custom_task = NULL;
+    pPart->description = &str_empty[0];
+    pPart->custom_task = FALSE;
     pPart->complete = FALSE;
 
     top_quest_part++;
@@ -1968,7 +1970,7 @@ void free_quest_part( QUEST_PART_DATA *pPart )
     pPart->next         =   quest_part_free;
     quest_part_free     =   pPart;
 
-    if(pPart->custom_task) free_string(pPart->custom_task);
+    if(pPart->description) free_string(pPart->description);
     return;
 }
 
@@ -3186,3 +3188,40 @@ void free_boolexp(BOOLEXP *boolexp)
 	boolexp_free = boolexp;
 }
 
+QUESTOR_DATA *questor_free = NULL;
+
+QUESTOR_DATA *new_questor_data()
+{
+	QUESTER_DATA *q;
+	if(!questor_free)
+		q = alloc_perm(sizeof(QUESTER_DATA));
+	else
+	{
+		q = questor_free;
+		questor_free = questor_free->next;
+	}
+
+	VALIDATE(q);
+	q->header = &str_empty[0];
+	q->footer = &str_empty[0];
+	q->prefix = &str_empty[0];
+	q->footer = &str_empty[0];
+	q->line_width = 70;
+
+	return q;
+}
+
+void free_questor_data(QUESTOR_DATA *q)
+{
+	if(!IS_VALID(q)) return;
+
+	free_string(q->header);
+	free_string(q->footer);
+	free_string(q->prefix);
+	free_string(q->footer);
+
+	INVALIDATE(q);
+	q->next = questor_free;
+	questor_free = q;
+
+}

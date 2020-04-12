@@ -260,6 +260,7 @@ const struct olc_cmd_type medit_table[] =
     {	"persist",		medit_persist	},
     {   "position",     medit_position  },
     {   "prev", 	medit_prev      },
+    {	"questor",		medit_questor	},
     {   "race",         medit_race      },
     {   "res",          medit_res       },
     {   "sex",          medit_sex       },

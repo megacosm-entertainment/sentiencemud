@@ -229,8 +229,10 @@ void do_quest(CHAR_DATA *ch, char *argument)
     /* For the following functions, a QM must be present. */
     for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
     {
-        if (IS_NPC(mob) && IS_SET(mob->act, ACT_QUESTOR))
+        if (IS_NPC(mob) && mob->pQuestor != NULL)
 	    break;
+
+
     }
 
     if (mob == NULL)
@@ -945,6 +947,14 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 	scroll = create_object(get_obj_index(OBJ_VNUM_QUEST_SCROLL), 0, TRUE);
 	free_string(scroll->full_description);
 
+	QUESTOR_DATA *qd = questman->pQuestor;
+
+	char *replace1 = string_replace_static(qd->header, "$PLAYER$", ch->name);
+	char *replace2 = string_replace_static(replace1, "$QUESTOR$", questman->short_descr);
+
+	strcpy(buf2, replace2);
+
+	/*
 	sprintf(buf2,
 		"{W  .-.--------------------------------------------------------------------------------------.-.\n\r"
 		"((o))                                                                                         )\n\r"
@@ -955,14 +965,16 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 		"{W  |  {xUpon this scroll is my seal, and my approval to go to any\n\r"
 		"{W  |  {xmeasures in order to complete the set of tasks I have listed.\n\r"
 		"{W  |  {xReturn to me once you have completed these tasks, and you\n\r"
-		"{W  |  {xshall be justly rewarded.\n\r  |  \n\r",
+		"{W  |  {xshall be justly rewarded.\n\r{W  |  {x\n\r",
 		ch->name, questman->short_descr);
+	*/
 
 	for (i = 0; i < parts; i++)
 	{
 		part = new_quest_part();
 		part->next = ch->quest->parts;
 		ch->quest->parts = part;
+		part->index = parts - i;
 
 		if (generate_quest_part(ch, questman, part, parts - i))
 			continue;
@@ -976,9 +988,17 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 	/* Moving all quest-scroll generation shit into here. AO 010517  */
 	for (i = 1, part = ch->quest->parts; part != NULL; part = part->next, i++)
 	{
-		sprintf(buf, "{W  |  {xTask {Y%d{x: ", i);
+		char *plaintext = nocolour(part->description);
+		int plen = strlen(plaintext);
+		free_string(plaintext);
+		int len = strlen(part->description);
+
+		int width = part->line_width + len - plen;
+
+		sprintf(buf, "%s%-*.*s%s\n\r", part->prefix, width, width, part->part->description, part->suffix);
 		strcat(buf2, buf);
 
+#if 0
 		if (part->pObj != NULL)
 		{
 			sprintf(buf, "Retrieve {Y%s{x from {Y%s{x in {Y%s{x.\n\r",
@@ -1015,15 +1035,17 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 		}
 		else if ( !IS_NULLSTR(part->custom_task) )
 			sprintf(buf, "%s{x\n\r", part->custom_task);
+#endif
 
-		strcat(buf2, buf);
+		strcat(buf2, part->description);
 	}
 
+	/*
     sprintf(buf, "{W  |__________________________________________________________________________________________\n\r"
 	    "{W /A\\                                                                                         \\\n\r"
 	    "((o))                                                                                         )\n\r"
-	    "{W  '-'----------------------------------------------------------------------------------------'\n\r");
-    strcat(buf2, buf);
+	    "{W  '-'----------------------------------------------------------------------------------------'\n\r");*/
+    strcat(buf2, part->footer);
 
 
     scroll->full_description = str_dup(buf2);
@@ -1403,7 +1425,7 @@ bool check_quest_custom_task(CHAR_DATA *ch, int task)
         i++;
 
 		// Not the current task nor is a custom task
-        if( task != i || IS_NULLSTR(part->custom_task) )
+        if( task != i || !part->custom_task )
 			continue;
 
 		// already did it

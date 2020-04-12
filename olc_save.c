@@ -798,6 +798,9 @@ void save_mobile_new(FILE *fp, MOB_INDEX_DATA *mob)
     if (mob->zombie)
 	fprintf(fp, "CorpseZombie %ld\n", mob->zombie);
 
+	if (mob->pQuestor != NULL)
+		save_questor_new(fp, mob->pQuestor);
+
     /* save the shop */
     if (mob->pShop != NULL)
 	save_shop_new(fp, mob->pShop);
@@ -1100,6 +1103,17 @@ void save_scripts_new(FILE *fp, AREA_DATA *area)
     for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++)
 	if ((scr = get_script_index(vnum, PRG_TPROG)))
 	    save_script_new(fp,area,scr,"TOKEN");
+}
+
+void save_questor_new(FILE *fp, QUESTOR_DATA *questor)
+{
+    fprintf(fp, "#QUESTOR\n");
+    fprintf(fp, "Header %s~\n", questor->header);
+    fprintf(fp, "Footer %s~\n", questor->footer);
+    fprintf(fp, "Prefix %s~\n", questor->prefix);
+    fprintf(fp, "Suffix %s~\n", questor->suffix);
+    fprintf(fp, "LineWidth %d\n", questor->line_width);
+    fprintf(fp, "#-QUESTOR\n");
 }
 
 
@@ -2023,6 +2037,7 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 {
     MOB_INDEX_DATA *mob = NULL;
     SHOP_DATA *shop;
+    QUESTOR_DATA *questor;
     PROG_LIST *mpr;
     char *word;
     int vnum;
@@ -2037,14 +2052,21 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 	switch(word[0]) {
 	    case '#':
 	        if (!str_cmp(word, "#SHOP")) {
-		    fMatch = TRUE;
-		    shop = read_shop_new(fp);
-		    mob->pShop = shop;
-		}
+			    fMatch = TRUE;
+			    shop = read_shop_new(fp);
+			    mob->pShop = shop;
+			    break;
+			}
+	        if (!str_cmp(word, "#QUESTOR")) {
+			    fMatch = TRUE;
+			    questor = read_questor_new(fp);
+			    mob->pQuestor = questor;
+			    break;
+			}
 
-		break;
+			break;
 
-            case 'A':
+		case 'A':
 	        KEY("Act",	mob->act,	fread_number(fp));
 	        KEY("Act2",	mob->act2,	fread_number(fp));
                 KEY("Affected_by", mob->affected_by,	fread_number(fp));
@@ -2964,6 +2986,48 @@ AFFECT_DATA *read_obj_catalyst_new(FILE *fp)
     return af;
 }
 
+
+QUESTOR_DATA *read_questor_new(FILE *fp)
+{
+    QUESTOR_DATA *questor;
+    char *word;
+
+    questor = new_questor();
+
+    while (str_cmp((word = fread_word(fp)), "#-QUESTOR"))
+    {
+	fMatch = FALSE;
+	switch (word[0]) {
+		case 'F':
+	        KEYS("Footer",		questor->footer,	fread_string(fp));
+	        break;
+
+	    case 'H':
+	        KEYS("Header",		questor->header,	fread_string(fp));
+	        break;
+
+	    case 'L':
+	        KEY("LineWidth",	questor->line_width,	fread_number(fp));
+			break;
+
+	    case 'P':
+	        KEYS("Prefix",		questor->prefix,	fread_string(fp));
+	        break;
+
+	    case 'S':
+	        KEYS("Suffix",		questor->suffix,	fread_string(fp));
+			break;
+
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "read_questor_new: no match for word %s", word);
+			bug(buf, 0);
+		}
+    }
+
+    return questor;
+}
 
 SHOP_DATA *read_shop_new(FILE *fp)
 {
