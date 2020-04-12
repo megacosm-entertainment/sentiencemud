@@ -1131,6 +1131,21 @@ void save_questor_new(FILE *fp, QUESTOR_DATA *questor)
     fprintf(fp, "#-QUESTOR\n");
 }
 
+void save_shop_stock_new(FILE *fp, SHOP_STOCK_DATA *stock)
+{
+	fprintf(fp, "#STOCK\n");
+
+	// Pricing
+	fprintf(fp, "Silver %ld\n", stock->silver);
+	fprintf(fp, "QuestPnts %ld\n", stock->qp);
+	fprintf(fp, "DeityPnts %ld\n", stock->dp);
+	fprintf(fp, "Pneuma %ld\n", stock->pneuma);
+	fprintf(fp, "Pricing %s\n", stock->pricing);	// EOL string
+
+	// Product
+	fprintf(fp, "Object %ld\n", stock->vnum);
+	fprintf(fp, "#-STOCK\n");
+}
 
 void save_shop_new(FILE *fp, SHOP_DATA *shop)
 {
@@ -1147,6 +1162,8 @@ void save_shop_new(FILE *fp, SHOP_DATA *shop)
 	if (shop->buy_type[i] != 0)
 	    fprintf(fp, "Trade %d\n", shop->buy_type[i]);
     }
+
+
 
     fprintf(fp, "#-SHOP\n");
 }

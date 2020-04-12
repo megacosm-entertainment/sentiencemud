@@ -2714,3 +2714,13 @@ const struct flag_type skill_flags[] = {
 	{"favourite",		SKILL_FAVOURITE,			FALSE},	// This is set manually
 	{ NULL,				0,			FALSE }
 };
+
+
+const struct flag_type shop_flags[] =
+{
+	{ "stock_only",		SHOPFLAG_STOCK_ONLY,	TRUE	},
+	{ NULL,				0,						FALSE }
+};
+
+
+

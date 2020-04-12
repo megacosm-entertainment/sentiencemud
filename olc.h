@@ -489,3 +489,5 @@ void show_damlist		args ( ( CHAR_DATA *ch ) );
 void show_material_list( CHAR_DATA *ch );
 char *prog_type_to_name       args ( ( int type ) );
 char *token_index_getvaluename args( (TOKEN_INDEX_DATA *token, int v) );
+
+SHOP_STOCK_DATA *get_shop_stock_bypos(SHOP_DATA *shop, int nth);

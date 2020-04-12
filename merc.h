@@ -252,6 +252,7 @@ typedef struct	reset_data		RESET_DATA;
 typedef struct	room_index_data		ROOM_INDEX_DATA;
 typedef struct	ship_crew_data		SHIP_CREW_DATA;
 typedef struct	ship_data		SHIP_DATA;
+typedef struct	shop_stock_data	SHOP_STOCK_DATA;
 typedef struct	shop_data		SHOP_DATA;
 typedef struct	time_info_data		TIME_INFO_DATA;
 typedef struct	trade_area_data		TRADE_AREA_DATA;
@@ -1268,6 +1269,8 @@ struct	help_data
  */
 #define MAX_TRADE	 5
 
+#define SHOPFLAG_STOCK_ONLY		(A)		// Only allow buyback of listed stock
+
 struct	shop_data
 {
     SHOP_DATA *	next;			/* Next shop in list		*/
@@ -1277,7 +1280,33 @@ struct	shop_data
     sh_int	profit_sell;		/* Cost multiplier for selling	*/
     sh_int	open_hour;		/* First opening hour		*/
     sh_int	close_hour;		/* First closing hour		*/
+
+    int		flags;
+
+    SHOP_STOCK_DATA *stock;
 };
+
+struct shop_stock_data
+{
+	SHOP_STOCK_DATA *next;
+
+	long silver;
+	long qp;
+	long dp;
+	long pneuma;
+	char *custom_price;			// Custom pricing (supercedes other pricing values)
+
+	int quantity;				// Current number of units
+	int max_quantity;			// Maximum number of units
+	int restock_rate;			// How manu units will get restocked per reset cycle (<1 == never)
+
+	long vnum;					// Standard object
+
+	char *custom_keyword;		// Concept / Special object
+	char *custom_descr;
+}
+
+
 
 /*
  * Per-class stuff.

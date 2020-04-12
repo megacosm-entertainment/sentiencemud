@@ -104,6 +104,7 @@ const struct olc_help_type help_table[] =
     {	"spell_targets",	spell_target_types,	"Spell Target Types."	},
     {	"song_targets",	song_target_types,	"Song Target Types."	},
     {	"instruments",	instrument_types,	"Instrument Types"	},
+    {	"shop",		shop_flags,	 "Shop flags."		 },
     {	NULL,		NULL,		 NULL				 }
 };
 
@@ -6569,6 +6570,9 @@ MEDIT(medit_show)
 		sprintf(buf, "  Hours: %d to %d.\n\r", pShop->open_hour, pShop->close_hour);
 		add_buf(buffer, buf);
 
+		sprintf(buf, "  Flags: %s\n\r", flag_string(shop_flags, pShop->flags));
+		add_buf(buffer, buf);
+
 		for (iTrade = 0; iTrade < MAX_TRADE; iTrade++) {
 			if (pShop->buy_type[iTrade]) {
 				if (!iTrade) {
@@ -7360,15 +7364,16 @@ MEDIT(medit_zombievnum)
     return FALSE;
 }
 
-
 MEDIT(medit_shop)
 {
     MOB_INDEX_DATA *pMob;
     char command[MAX_INPUT_LENGTH];
     char arg1[MAX_INPUT_LENGTH];
+    char arg2[MAX_INPUT_LENGTH];
 
     argument = one_argument(argument, command);
     argument = one_argument(argument, arg1);
+    argument = one_argument(argument, arg2);
 
     EDIT_MOB(ch, pMob);
 
@@ -7377,6 +7382,14 @@ MEDIT(medit_shop)
 	send_to_char("Syntax:  shop hours [#xopening] [#xclosing]\n\r", ch);
 	send_to_char("         shop profit [#xbuying%] [#xselling%]\n\r", ch);
 	send_to_char("         shop type [#x0-4] [item type]\n\r", ch);
+	send_to_char("         shop flags [flags]\n\r", ch);
+	send_to_char("         shop stock add [object vnum]\n\r", ch);
+	send_to_char("         shop stock add [keyword]\n\r", ch);
+	send_to_char("         shop stock price [#] [silver|qp|dp|pneuma|custom] [value]\n\r", ch);
+	send_to_char("         shop stock quantity [#] unlimited\n\r", ch);
+	send_to_char("         shop stock quantity [#] [total] [reset rate]\n\r", ch);
+	send_to_char("         shop stock description [#] [description]\n\r", ch);
+	send_to_char("         shop stock remove [#]\n\r", ch);
 	send_to_char("         shop assign\n\r", ch);
 	send_to_char("         shop remove\n\r", ch);
 	return FALSE;
@@ -7386,7 +7399,7 @@ MEDIT(medit_shop)
     if (!str_cmp(command, "hours"))
     {
 	if (arg1[0] == '\0' || !is_number(arg1)
-	|| argument[0] == '\0' || !is_number(argument))
+	|| argument[0] == '\0' || !is_number(arg2))
 	{
 	    send_to_char("Syntax:  shop hours [#xopening] [#xclosing]\n\r", ch);
 	    return FALSE;
@@ -7394,12 +7407,12 @@ MEDIT(medit_shop)
 
 	if (!pMob->pShop)
 	{
-	    send_to_char("MEdit:  Debes crear un shop primero (shop assign).\n\r", ch);
+	    send_to_char("MEdit:  Please create a shop first (shop assign).\n\r", ch);
 	    return FALSE;
 	}
 
 	pMob->pShop->open_hour = atoi(arg1);
-	pMob->pShop->close_hour = atoi(argument);
+	pMob->pShop->close_hour = atoi(arg2);
 
 	send_to_char("Shop hours set.\n\r", ch);
 	return TRUE;
@@ -7409,7 +7422,7 @@ MEDIT(medit_shop)
     if (!str_cmp(command, "profit"))
     {
 	if (arg1[0] == '\0' || !is_number(arg1)
-	|| argument[0] == '\0' || !is_number(argument))
+	|| argument[0] == '\0' || !is_number(arg2))
 	{
 	    send_to_char("Syntax:  shop profit [#xbuying%] [#xselling%]\n\r", ch);
 	    return FALSE;
@@ -7417,12 +7430,12 @@ MEDIT(medit_shop)
 
 	if (!pMob->pShop)
 	{
-	    send_to_char("MEdit:  Debes crear un shop primero (shop assign).\n\r", ch);
+	    send_to_char("MEdit:  Please create a shop first (shop assign).\n\r", ch);
 	    return FALSE;
 	}
 
 	pMob->pShop->profit_buy     = atoi(arg1);
-	pMob->pShop->profit_sell    = atoi(argument);
+	pMob->pShop->profit_sell    = atoi(arg2);
 
 	send_to_char("Shop profit set.\n\r", ch);
 	return TRUE;
@@ -7435,7 +7448,7 @@ MEDIT(medit_shop)
 	int value;
 
 	if (arg1[0] == '\0' || !is_number(arg1)
-	|| argument[0] == '\0')
+	|| arg2[0] == '\0')
 	{
 	    send_to_char("Syntax:  shop type [#x0-4] [item type]\n\r", ch);
 	    return FALSE;
@@ -7450,11 +7463,11 @@ MEDIT(medit_shop)
 
 	if (!pMob->pShop)
 	{
-	    send_to_char("MEdit:  Debes crear un shop primero (shop assign).\n\r", ch);
+	    send_to_char("MEdit:  Please create a shop first (shop assign).\n\r", ch);
 	    return FALSE;
 	}
 
-	if ((value = flag_value(type_flags, argument)) == NO_FLAG)
+	if ((value = flag_value(type_flags, arg2)) == NO_FLAG)
 	{
 	    send_to_char("MEdit:  That type of item is not known.\n\r", ch);
 	    return FALSE;
@@ -7530,6 +7543,291 @@ MEDIT(medit_shop)
 	send_to_char("Mobile is no longer a shopkeeper.\n\r", ch);
 	return TRUE;
     }
+
+    if(!str_prefix(command, "flags"))
+    {
+		int value;
+		if (arg1[0] != '\0')
+		{
+
+			if ((value = flag_value(shop, arg1)) != NO_FLAG)
+			{
+				pMob->pShop->flags ^= value;
+
+				send_to_char("Shop flags toggled.\n\r", ch);
+				return TRUE;
+			}
+		}
+
+		send_to_char(	"Syntax: shop flags [flag]\n\r"
+						"Type '? shop' for a list of flags.\n\r", ch);
+
+		return FALSE;
+	}
+
+	if(!str_prefix(command, "stock"))
+	{
+		SHOP_STOCK_DATA *stock;
+
+		if (!pMob->pShop)
+		{
+			send_to_char("MEdit:  Please create a shop first (shop assign).\n\r", ch);
+			return FALSE;
+		}
+
+		if(!str_prefix(arg1, "add"))
+		{
+			if(is_number(arg2))
+			{
+				OBJ_INDEX_DATA *item = get_obj_index(atoi(arg2));
+
+				if(!item)
+				{
+					send_to_char("Object does not exist.\n\r", ch);
+					return FALSE;
+				}
+
+				stock = new_shop_stock();
+
+				if(!stock)
+				{
+					send_to_char("{RERROR{W: Unable to create stock item.{x\n\r", ch);
+					return FALSE;
+				}
+
+				stock->vnum = item->vnum;
+				stock->silver = item->cost;
+
+				stock->next = pMob->pShop->stock;
+				pMob->pShop->stock = stock;
+
+				send_to_char("Stock item added.\n\r", ch);
+				return TRUE;
+			}
+			else if(!IS_NULLSTR(arg2))
+			{
+				stock = new_shop_stock();
+
+				if(!stock)
+				{
+					send_to_char("{RERROR{W: Unable to create stock item.{x\n\r", ch);
+					return FALSE;
+				}
+
+				stock->custom_keyword = str_dup(arg2);
+
+				stock->next = pMob->pShop->stock;
+				pMob->pShop->stock = stock;
+
+				send_to_char("Stock item added.\n\r", ch);
+			}
+
+
+			send_to_char("Syntax:  shop stock add [object vnum]\n\r", ch);
+			send_to_char("         shop stock add [keyword]\n\r", ch);
+			return FALSE;
+		}
+
+		if(!str_prefix(arg1, "price"))
+		{
+			if(is_number(arg2))
+			{
+				char arg3[MIL];
+
+				stock = get_shop_stock_bypos(pMob->pShop, atoi(arg2));
+
+				if(!stock)
+				{
+					send_to_char("Invalid stock number.\n\r", ch);
+					return FALSE;
+				}
+
+				argument = one_argument(argument, arg3);
+
+				if(!str_prefix(arg3, "silver"))
+				{
+					if(!is_number(argument))
+					{
+						send_to_char("Silver price must be a number.\n\r", ch);
+						return FALSE;
+					}
+
+					int silver = atoi(argument);
+
+					stock->silver = UMAX(silver, 0);
+					send_to_char("Stock silver price changed.\n\r", ch);
+					return TRUE;
+				}
+
+				if(!str_prefix(arg3, "qp"))
+				{
+					if(!is_number(argument))
+					{
+						send_to_char("Quest point price must be a number.\n\r", ch);
+						return FALSE;
+					}
+
+					int qp = atoi(argument);
+
+					stock->qp = UMAX(qp, 0);
+					send_to_char("Stock quest point price changed.\n\r", ch);
+					return TRUE;
+				}
+
+				if(!str_prefix(arg3, "dp"))
+				{
+					if(!is_number(argument))
+					{
+						send_to_char("Deity point price must be a number.\n\r", ch);
+						return FALSE;
+					}
+
+					int dp = atoi(argument);
+
+					stock->dp = UMAX(dp, 0);
+					send_to_char("Stock deity point price changed.\n\r", ch);
+					return TRUE;
+				}
+
+				if(!str_prefix(arg3, "pneuma"))
+				{
+					if(!is_number(argument))
+					{
+						send_to_char("Pneuma price must be a number.\n\r", ch);
+						return FALSE;
+					}
+
+					int pneuma = atoi(argument);
+
+					stock->pneuma = UMAX(pneuma, 0);
+					send_to_char("Stock pneuma price changed.\n\r", ch);
+					return TRUE;
+				}
+
+				if(!str_prefix(arg3, "custom"))
+				{
+					free_string(argument);
+					stock->custom_price = str_dup(argument);
+					send_to_char("Stock custom price changed.\n\r", ch);
+					return TRUE;
+				}
+			}
+
+			send_to_char("Syntax:  shop stock price [#] [silver|qp|dp|pneuma|custom] [value]\n\r", ch);
+			return FALSE;
+		}
+
+		if(!str_prefix(arg1, "quantity"))
+		{
+			stock = get_shop_stock_bypos(pMob->pShop, atoi(arg2));
+
+			if(!stock)
+			{
+				send_to_char("Invalid stock number.\n\r", ch);
+				return FALSE;
+			}
+
+			if(!str_prefix(argument, "unlimited"))
+			{
+				stock->quantity = 0;
+				stock->max_quantity = 0;
+				stock->restock_rate = 0;
+				send_to_char("Stock quantity settings changed.\n\r", ch);
+				return TRUE;
+			}
+
+			char arg3[MIL];
+			argument = one_argument(argument, arg3);
+			if(!is_number(arg3) || !is_number(argument))
+			{
+				send_to_char("Syntax:  shop stock quantity [#] [total] [reset rate]\n\r", ch);
+				return FALSE;
+			}
+
+			int total = atoi(arg3);
+			int rate = atoi(argument);
+
+			if(total < 1)
+			{
+				send_to_char("Please specify a positive number for limited quantity.\n\r", ch);
+				return FALSE;
+			}
+
+			stock->quantity = total;
+			stock->max_quantity = total;
+			stock->restock_rate = UMAX(rate, 0);		// A rate of zero means it never restock
+			send_to_char("Stock quantity settings changed.\n\r", ch);
+			return FALSE;
+		}
+
+		if(!str_prefix(arg1, "description"))
+		{
+			stock = get_shop_stock_bypos(pMob->pShop, atoi(arg2));
+
+			if(!stock)
+			{
+				send_to_char("Invalid stock number.\n\r", ch);
+				return FALSE;
+			}
+
+			free_string(stock->custom_descr);
+			stock->custom_descr = str_dup(argument);
+
+			send_to_char("Stock description changed.\n\r", ch);
+			return TRUE;
+		}
+
+		if(!str_prefix(arg1, "remove"))
+		{
+			if(!is_number(arg2))
+			{
+				send_to_char("Please specify a number.\n\r", ch);
+				return FALSE;
+			}
+
+			int idx = atoi(arg2);
+			if( idx < 1 )
+			{
+				send_to_char("Please specify a positive number.\n\r", ch);
+				return FALSE;
+			}
+
+			SHOP_STOCK_DATA *prev = NULL;
+			for(stock = pMob->pShop->stock;stock;prev = stock, stock = stock->next)
+			{
+				if(!--idx)
+					break;
+			}
+
+			if( !stock )
+			{
+				send_to_char("Invalid stock number.\n\r", ch);
+				return FALSE;
+			}
+
+			if( prev != NULL )
+			{
+				prev->next = stock->next;
+			}
+			else
+			{
+				pMob->pShop->stock = stock->next;
+			}
+
+			free_shop_stock(stock);
+			send_to_char("Stock item removed.\n\r", ch);
+			return TRUE;
+		}
+
+		send_to_char("Syntax:  shop stock add [object vnum]\n\r", ch);
+		send_to_char("         shop stock add [keyword]\n\r", ch);
+		send_to_char("         shop stock price [#] [silver|qp|dp|pneuma|custom] [value]\n\r", ch);
+		send_to_char("         shop stock quantity [#] unlimited\n\r", ch);
+		send_to_char("         shop stock quantity [#] [total] [reset rate]\n\r", ch);
+		send_to_char("         shop stock description [#] [description]\n\r", ch);
+		send_to_char("         shop stock remove [#]\n\r", ch);
+		return FALSE;
+	}
 
     medit_shop(ch, "");
     return FALSE;
