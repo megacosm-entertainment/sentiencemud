@@ -1328,6 +1328,7 @@ SCRIPT_CMD(scriptcmd_questpartcustom)
 // QUESTPARTGETITEM $PLAYER $OBJECT[ $MINUTES]
 SCRIPT_CMD(scriptcmd_questpartgetitem)
 {
+	char buf[MSL];
 	char *rest;
 	SCRIPT_PARAM arg;
 	CHAR_DATA *questman;
