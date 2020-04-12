@@ -3205,7 +3205,7 @@ QUESTOR_DATA *new_questor_data()
 	q->header = &str_empty[0];
 	q->footer = &str_empty[0];
 	q->prefix = &str_empty[0];
-	q->footer = &str_empty[0];
+	q->suffix = &str_empty[0];
 	q->line_width = 70;
 
 	return q;
