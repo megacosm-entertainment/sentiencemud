@@ -5108,6 +5108,8 @@ void do_buy(CHAR_DATA *ch, char *argument)
 		}
 		else
 		{
+			SHOP_STOCK_DATA *stock = request.stock;
+
 			// Attempting to buy from stock
 			keeper->tempstore[0] = number;
 			keeper->tempstore[1] = stock->vnum;
@@ -5690,8 +5692,6 @@ void do_list(CHAR_DATA *ch, char *argument)
 		SHOP_STOCK_DATA *stock;
 		for (stock = keeper->shop->stock; stock; stock = stock->next)
 		{
-			OBJ_INDEX_DATA *obj_index = NULL;
-
 			if(stock->vnum > 0) {
 				if(!stock->obj) continue;
 
@@ -5755,7 +5755,6 @@ void do_list(CHAR_DATA *ch, char *argument)
 
 		}
 
-#if 0
 		for (obj = keeper->carrying; obj; obj = obj->next_content)
 		{
 		    if (obj->wear_loc == WEAR_NONE &&
@@ -5790,7 +5789,6 @@ void do_list(CHAR_DATA *ch, char *argument)
 				send_to_char(buf, ch);
 		    }
 		}
-#endif
 
 		if (!found)
 			send_to_char("You can't buy anything here.\n\r", ch);
