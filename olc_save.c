@@ -420,6 +420,9 @@ void save_area_new(AREA_DATA *area)
     fprintf(fp, "Repop %d\n",		area->repop);
     fprintf(fp, "PostOffice %ld\n",	area->post_office);
     fprintf(fp, "AirshipLand %ld\n", 	area->airship_land_spot);
+	fprintf(fp, "Description %s~\n", fix_string(area->description));
+	if(area->comments)
+		fprintf(fp, "Comments %s~\n", fix_string(area->comments));
 
     // Save the current versions of everything
     fprintf(fp, "VersArea %d\n",	VERSION_AREA);
@@ -596,6 +599,9 @@ void save_token(FILE *fp, TOKEN_INDEX_DATA *token)
     for (i = 0; i < MAX_TOKEN_VALUES; i++)
 	fprintf(fp, "ValueName %d %s~\n", i, token->value_name[i]);
 
+	if(token->comments)
+		fprintf(fp, "Comments %s~\n", fix_string(token->comments));
+
     if(token->progs) {
 		for(i = 0; i < TRIGSLOT_MAX; i++) if(list_size(token->progs[i]) > 0) {
 			iterator_start(&it, token->progs[i]);
@@ -688,6 +694,9 @@ void save_room_new(FILE *fp, ROOM_INDEX_DATA *room, int recordtype)
 	fprintf(fp, "Description %s~\n", fix_string(cd->description));
         fprintf(fp, "#-CONDITIONAL_DESCR\n");
     }
+	if (room->comments)
+		fprintf(fp, "Comments %s~\n", fix_string(room->comments));
+
 
     for (door = 0; door < MAX_DIR; door++) {
 	char kwd[MSL];
@@ -797,6 +806,8 @@ void save_mobile_new(FILE *fp, MOB_INDEX_DATA *mob)
 		fprintf(fp, "CorpseVnum %ld\n", mob->corpse);
     if (mob->zombie)
 		fprintf(fp, "CorpseZombie %ld\n", mob->zombie);
+	if(mob->comments)
+	fprintf(fp, "Comments %s~\n", fix_string(mob->comments));
 
 	if (mob->pQuestor != NULL)
 		save_questor_new(fp, mob->pQuestor);
@@ -874,6 +885,8 @@ void save_object_new(FILE *fp, OBJ_INDEX_DATA *obj)
 	fprintf(fp, "Weight %d\n", obj->weight);
 	fprintf(fp, "Cost %ld\n", obj->cost);
 	fprintf(fp, "Condition %d\n", obj->condition);
+	if(obj->comments)
+		fprintf(fp, "Comments %s~\n", fix_string(obj->comments));
 
 	// Affects
 	for (af = obj->affected; af != NULL; af = af->next) {
@@ -1074,6 +1087,8 @@ void save_script_new(FILE *fp, AREA_DATA *area,SCRIPT_DATA *scr,char *type)
 	fprintf(fp, "Flags %s~\n", flag_string(script_flags, scr->flags));
 	fprintf(fp, "Depth %d\n", scr->depth);
 	fprintf(fp, "Security %d\n", scr->security);
+	if(scr->comments)
+		fprintf(fp, "Comments %s~\n", fix_string(scr->comments));
 	fprintf(fp, "#-%sPROG\n", type);
 }
 
@@ -1285,7 +1300,12 @@ AREA_DATA *read_area_new(FILE *fp)
 		break;
 
 	    case 'C':
+		KEYS("Comments", area->comments,	fread_string(fp));
 		KEYS("Credits",	area->credits,		fread_string(fp));
+		break;
+
+		case 'D':
+		KEYS("Description", area->description, fread_string(fp));
 		break;
 
 	    case 'F':
@@ -1871,6 +1891,10 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 
 		break;
 
+		case 'C':
+			KEYS("Comments", room->comments, fread_string(fp));
+		break;
+
 	    case 'D':
 	        KEYS("Description", room->description, fread_string(fp));
 		break;
@@ -2081,6 +2105,7 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 	        KEY("CorpseType", mob->corpse_type,	fread_number(fp));
 	        KEY("CorpseVnum", mob->corpse,	fread_number(fp));
 	        KEY("CorpseZombie", mob->zombie,	fread_number(fp));
+			KEY("Comments", mob->comments, fread_string(fp));
 	        break;
 
 	    case 'D':
@@ -2368,6 +2393,7 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 	        KEYS("CreatorSig", obj->creator_sig,	fread_string(fp));
 	        KEY("Cost",	obj->cost,	fread_number(fp));
 		KEY("Condition",	obj->condition,	fread_number(fp));
+		KEY("Comments", obj->comments, fread_string(fp));
 	        break;
 
 	    case 'D':
@@ -2686,6 +2712,7 @@ SCRIPT_DATA *read_script_new(FILE *fp, AREA_DATA *area, int type)
 		switch (word[0]) {
 		case 'C':
 			KEYS("Code",		scr->edit_src,	fread_string(fp));
+			KEYS("Comments",	scr->comments,	fread_string(fp));
 			break;
 		case 'D':
 			KEY("Depth",		scr->depth,	fread_number(fp));
@@ -3101,6 +3128,9 @@ TOKEN_INDEX_DATA *read_token(FILE *fp)
 		    ed->next = token->ed;
 		    token->ed = ed;
 		}
+
+		case 'C':
+			KEYS("Comments", token->comments, fread_string(fp));
 
 	    case 'D':
 	        KEYS("Description", token->description, fread_string(fp));

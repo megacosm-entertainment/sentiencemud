@@ -322,6 +322,22 @@ OEDIT(oedit_desc)
     return FALSE;
 }
 
+OEDIT(oedit_comments)
+{
+    OBJ_INDEX_DATA *pObj;
+
+    EDIT_OBJ(ch, pObj);
+
+    if (argument[0] == '\0')
+    {
+	string_append(ch, &pObj->comments);
+	return TRUE;
+    }
+
+    send_to_char("Syntax:  comments\n\r", ch);
+    return FALSE;
+}
+
 OEDIT(oedit_update)
 {
     OBJ_INDEX_DATA *pObj;
@@ -2285,6 +2301,11 @@ TEDIT(tedit_show)
     sprintf(buf, "Description:\n\r%s\n\r", token_index->description);
     send_to_char(buf, ch);
 
+    sprintf(buf, "\n\r-----\n\r{WBuilders' Comments:{X\n\r%s\n\r-----\n\r", token_index->comments);
+    send_to_char(buf,ch);
+    
+
+
     buf[0] = '\0';/* not enabled yet
     if (token_index->ed)
     {
@@ -2668,6 +2689,21 @@ TEDIT(tedit_description)
     return TRUE;
 }
 
+TEDIT(tedit_comments)
+{
+    TOKEN_INDEX_DATA *token_index;
+
+    EDIT_TOKEN(ch, token_index);
+
+    if (argument[0] != '\0')
+    {
+	send_to_char("Syntax:  comment\n\r", ch);
+	return FALSE;
+    }
+
+    string_append(ch, &token_index->comments);
+    return TRUE;
+}
 
 TEDIT(tedit_value)
 {

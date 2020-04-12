@@ -547,6 +547,12 @@ AEDIT(aedit_show)
 	    get_room_index(pArea->post_office)->name, pArea->post_office);
     send_to_char(buf, ch);
 
+	sprintf(buf, "Description:\n\r%s\n\r", pArea->description);
+	send_to_char(buf,ch);
+
+	sprintf(buf,"\n\r-----\n\r{WBuilders' Comments:{X\n\r%s\n\r-----\n\r", pArea->comments);
+	send_to_char(buf,ch);
+
     // Trade stuff. One trade center per area at most
     if (pArea->trade_list != NULL)
     {
@@ -922,6 +928,38 @@ AEDIT(aedit_name)
 
     send_to_char("Name set.\n\r", ch);
     return TRUE;
+}
+
+AEDIT(aedit_desc)
+{
+    AREA_DATA *pArea;
+
+    EDIT_AREA(ch, pArea);
+
+    if (argument[0] == '\0')
+    {
+	string_append(ch, &pArea->description);
+	return TRUE;
+    }
+
+    send_to_char("Syntax:  desc\n\r", ch);
+    return FALSE;
+}
+
+AEDIT(aedit_comments)
+{
+    AREA_DATA *pArea;
+
+    EDIT_AREA(ch, pArea);
+
+    if (argument[0] == '\0')
+    {
+	string_append(ch, &pArea->comments);
+	return TRUE;
+    }
+
+    send_to_char("Syntax:  comment\n\r", ch);
+    return FALSE;
 }
 
 
@@ -1421,6 +1459,10 @@ REDIT(redit_show)
 	         "Home owner:   {r[{x%s{r]{x\n\r", pRoom->home_owner);
         add_buf(buf1, buf);
     }
+
+	sprintf(buf, "\n\r-----\n\r{WBuilders' Comments:{X\n\r%s\n\r-----\n\r", pRoom->comments);
+	add_buf(buf1, buf);
+	
 
     if (pRoom->extra_descr)
     {
@@ -2516,6 +2558,22 @@ REDIT(redit_desc)
     }
 
     send_to_char("Syntax:  desc\n\r", ch);
+    return FALSE;
+}
+
+REDIT(redit_comments)
+{
+    ROOM_INDEX_DATA *pRoom;
+
+    EDIT_ROOM(ch, pRoom);
+
+    if (argument[0] == '\0')
+    {
+	string_append(ch, &pRoom->comments);
+	return TRUE;
+    }
+
+    send_to_char("Syntax:  comment\n\r", ch);
     return FALSE;
 }
 
@@ -4273,7 +4331,10 @@ OEDIT(oedit_show)
     add_buf(buffer, "Description:{x\n\r");
     sprintf(buf, "%s", pObj->full_description);
     add_buf(buffer, buf);
-
+	
+	sprintf(buf, "\n\r-----\n\r{WBuilders' Comments:{X\n\r%s\n\r-----\n\r", pObj->comments);
+	add_buf(buffer, buf);
+		
     for (cnt = 0, paf = pObj->affected; paf; paf = paf->next)
     {
 		if( paf->where == TO_OBJECT )
@@ -6473,6 +6534,10 @@ MEDIT(medit_show)
 	sprintf(buf, "Description:\n\r%s", pMob->description);
 	add_buf(buffer, buf);
 
+	sprintf(buf, "\n\r-----\n\r{WBuilders' Comments:{X\n\r%s\n\r-----\n\r", pMob->comments);
+	add_buf(buffer, buf);
+	
+
 	/*
 	if (pMob->next_crew_for_sale != NULL)
 	{
@@ -6951,6 +7016,22 @@ MEDIT(medit_desc)
     if (argument[0] == '\0')
     {
 	string_append(ch, &pMob->description);
+	return TRUE;
+    }
+
+    send_to_char("Syntax:  desc    - line edit\n\r", ch);
+    return FALSE;
+}
+
+MEDIT(medit_comments)
+{
+    MOB_INDEX_DATA *pMob;
+
+    EDIT_MOB(ch, pMob);
+
+    if (argument[0] == '\0')
+    {
+	string_append(ch, &pMob->comments);
 	return TRUE;
     }
 
