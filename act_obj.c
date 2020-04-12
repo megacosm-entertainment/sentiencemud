@@ -5528,7 +5528,7 @@ void do_list(CHAR_DATA *ch, char *argument)
 
 		found = FALSE;
 		SHOP_STOCK_DATA *stock;
-		for (stock = keeper->pIndexData->pShop->stock; stock; stock = stock->next)
+		for (stock = keeper->shop->stock; stock; stock = stock->next)
 		{
 			OBJ_INDEX_DATA *obj_index = NULL;
 
@@ -5558,11 +5558,11 @@ void do_list(CHAR_DATA *ch, char *argument)
 
 				if( stock->max_quantity > 0 )
 				{
-					sprintf(buf,"{B[{x%3d %-*s {Y%4d{B ]{x %s\n\r", level,pwidth,pricing,stock->quantity,descr);
+					sprintf(buf,"{B[{x%3d %*s {Y%4d{B ]{x %s\n\r", level,pwidth,pricing,stock->quantity,descr);
 				}
 				else
 				{
-					sprintf(buf,"{B[{x%3d %-*s {Y ---{B ]{x %s\n\r", level,pwidth,pricing,descr);
+					sprintf(buf,"{B[{x%3d %*s {Y ---{B ]{x %s\n\r", level,pwidth,pricing,descr);
 				}
 
 				send_to_char(buf, ch);
@@ -5585,11 +5585,11 @@ void do_list(CHAR_DATA *ch, char *argument)
 
 				if( stock->max_quantity > 0 )
 				{
-					sprintf(buf,"{B[{x%3d %-*s {Y%4d{B ]{x %s\n\r", level,pwidth,pricing,stock->quantity,stock->custom_descr);
+					sprintf(buf,"{B[{x%3d %*s {Y%4d{B ]{x %s\n\r", level,pwidth,pricing,stock->quantity,stock->custom_descr);
 				}
 				else
 				{
-					sprintf(buf,"{B[{x%3d %-*s {Y ---{B ]{x %s\n\r", level,pwidth,pricing,stock->custom_descr);
+					sprintf(buf,"{B[{x%3d %*s {Y ---{B ]{x %s\n\r", level,pwidth,pricing,stock->custom_descr);
 				}
 
 				send_to_char(buf, ch);
