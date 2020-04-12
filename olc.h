@@ -168,10 +168,8 @@ DECLARE_OLC_FUN( aedit_age		);
 DECLARE_OLC_FUN( aedit_airshipland	);
 DECLARE_OLC_FUN( aedit_areawho		);
 DECLARE_OLC_FUN( aedit_builder		);
-DECLARE_OLC_FUN( aedit_comments     );
 DECLARE_OLC_FUN( aedit_create		);
 DECLARE_OLC_FUN( aedit_credits		);
-DECLARE_OLC_FUN( aedit_desc     );
 DECLARE_OLC_FUN( aedit_file		);
 DECLARE_OLC_FUN( aedit_flags		);
 DECLARE_OLC_FUN( aedit_land_x		);
@@ -196,7 +194,6 @@ DECLARE_OLC_FUN( aedit_postoffice	);
  */
 DECLARE_OLC_FUN( redit_addcdesc		);
 DECLARE_OLC_FUN( redit_addrprog		);
-DECLARE_OLC_FUN( redit_comments     );
 DECLARE_OLC_FUN( redit_coords		);
 DECLARE_OLC_FUN( redit_create		);
 DECLARE_OLC_FUN( redit_delcdesc		);
@@ -246,7 +243,6 @@ DECLARE_OLC_FUN( oedit_addcatalyst	);
 DECLARE_OLC_FUN( oedit_affect           );
 DECLARE_OLC_FUN( oedit_allowed_fixed	);
 DECLARE_OLC_FUN( oedit_armour_strength	);
-DECLARE_OLC_FUN( oedit_comments     );
 DECLARE_OLC_FUN( oedit_condition        );
 DECLARE_OLC_FUN( oedit_cost		);
 DECLARE_OLC_FUN( oedit_create		);
@@ -301,7 +297,6 @@ DECLARE_OLC_FUN( medit_affect		);
 DECLARE_OLC_FUN( medit_affect2	        );
 DECLARE_OLC_FUN( medit_align		);
 DECLARE_OLC_FUN( medit_attacks 		);
-DECLARE_OLC_FUN( medit_comments     );
 DECLARE_OLC_FUN( medit_create		);
 DECLARE_OLC_FUN( medit_damdice		);
 DECLARE_OLC_FUN( medit_damtype		);
@@ -353,7 +348,6 @@ DECLARE_OLC_FUN( scriptedit_compile	);
 DECLARE_OLC_FUN( scriptedit_name	);
 DECLARE_OLC_FUN( scriptedit_flags	);
 DECLARE_OLC_FUN( scriptedit_security	);
-DECLARE_OLC_FUN( scriptedit_comments );
 
 /* Mobprog editor */
 DECLARE_OLC_FUN( mpedit_create		);
@@ -413,7 +407,6 @@ DECLARE_OLC_FUN( hedit_remtopic		);
 
 /* Token Editor */
 DECLARE_OLC_FUN( tedit_show		);
-DECLARE_OLC_FUN( tedit_comments     );
 DECLARE_OLC_FUN( tedit_create		);
 DECLARE_OLC_FUN( tedit_name		);
 DECLARE_OLC_FUN( tedit_type		);

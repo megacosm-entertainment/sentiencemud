@@ -34,7 +34,6 @@ const struct olc_cmd_type mpedit_table[] =
 	{	"create",	mpedit_create	},
 	{	"code",		scriptedit_code	},
 	{	"show",		scriptedit_show	},
-	{	"comments",	scriptedit_comments	},
 	{	"compile",	scriptedit_compile	},
 	{	"name",		scriptedit_name	},
 	{	"flags",	scriptedit_flags	},
@@ -55,7 +54,6 @@ const struct olc_cmd_type opedit_table[] =
 	{	"create",	opedit_create	},
 	{	"code",		scriptedit_code	},
 	{	"show",		scriptedit_show	},
-	{	"comments",	scriptedit_comments	},
 	{	"compile",	scriptedit_compile	},
 	{	"name",		scriptedit_name	},
 	{	"flags",	scriptedit_flags	},
@@ -75,7 +73,6 @@ const struct olc_cmd_type rpedit_table[] =
 	{	"create",	rpedit_create	},
 	{	"code",		scriptedit_code	},
 	{	"show",		scriptedit_show	},
-	{	"comments",	scriptedit_comments	},
 	{	"compile",	scriptedit_compile	},
 	{	"name",		scriptedit_name	},
 	{	"flags",	scriptedit_flags	},
@@ -94,7 +91,6 @@ const struct olc_cmd_type tpedit_table[] =
 	{	"create",	tpedit_create	},
 	{	"code",		scriptedit_code	},
 	{	"show",		scriptedit_show	},
-	{	"comments",	scriptedit_comments	},
 	{	"compile",	scriptedit_compile	},
 	{	"name",		scriptedit_name	},
 	{	"flags",	scriptedit_flags	},
@@ -904,10 +900,6 @@ SCRIPTEDIT(scriptedit_show)
            flag_string(script_flags, pCode->flags),
            pCode->edit_src);
     send_to_char(buf, ch);
-	if (pCode->comments){
-		sprintf(buf, "\n\r-----\n\r{WBuilders' Comments:{X\n\r%s\n\r-----\n\r", pCode->comments);
-		send_to_char(buf,ch);
-	}
 
     return FALSE;
 }
@@ -935,22 +927,6 @@ SCRIPTEDIT(scriptedit_code)
 
 	send_to_char("Syntax: code\n\r",ch);
 	return FALSE;
-}
-
-SCRIPTEDIT(scriptedit_comments)
-{
-    SCRIPT_DATA *pCode;
-
-    EDIT_SCRIPT(ch, pCode);
-
-    if (argument[0] != '\0')
-    {
-	send_to_char("Syntax:  comment\n\r", ch);
-	return FALSE;
-    }
-
-    string_append(ch, &pCode->comments);
-    return TRUE;
 }
 
 SCRIPTEDIT(scriptedit_compile)
