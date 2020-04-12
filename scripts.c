@@ -5534,7 +5534,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 
 		vch = arg.d.mob;
 
-		if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_NUMBER)
+		if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_STRING)
 			return;
 
 		int continent;
@@ -5558,7 +5558,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 
 		vch = arg.d.mob;
 
-		if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_NUMBER)
+		if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_STRING)
 			return;
 
 		int continent;
