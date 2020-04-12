@@ -6796,6 +6796,7 @@ QUEST_INDEX_DATA *new_quest_index( void );
 QUEST_DATA *new_quest( void );
 QUEST_LIST *new_quest_list( void );
 QUEST_PART_DATA *new_quest_part(void);
+QUESTOR_DATA *new_questor_data( void );
 RESET_DATA *new_reset_data( void );
 ROOM_INDEX_DATA *new_room_index( void );
 SHIP_CREW_DATA *new_ship_crew args( ( void ) );

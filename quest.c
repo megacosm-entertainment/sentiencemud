@@ -991,7 +991,7 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 		free_string(plaintext);
 		int len = strlen(part->description);
 
-		int width = part->line_width + len - plen;
+		int width = qd->line_width + len - plen;
 
 		sprintf(buf, "%s%-*.*s%s\n\r", qd->prefix, width, width, part->part->description, qd->suffix);
 		strcat(buf2, buf);
