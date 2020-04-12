@@ -1462,7 +1462,7 @@ REDIT(redit_show)
 
 	sprintf(buf, "\n\r-----\n\r{WBuilders' Comments:{X\n\r%s\n\r-----\n\r", pRoom->comments);
 	add_buf(buf1, buf);
-	
+
 
     if (pRoom->extra_descr)
     {
@@ -4331,10 +4331,10 @@ OEDIT(oedit_show)
     add_buf(buffer, "Description:{x\n\r");
     sprintf(buf, "%s", pObj->full_description);
     add_buf(buffer, buf);
-	
+
 	sprintf(buf, "\n\r-----\n\r{WBuilders' Comments:{X\n\r%s\n\r-----\n\r", pObj->comments);
 	add_buf(buffer, buf);
-		
+
     for (cnt = 0, paf = pObj->affected; paf; paf = paf->next)
     {
 		if( paf->where == TO_OBJECT )
@@ -6536,7 +6536,7 @@ MEDIT(medit_show)
 
 	sprintf(buf, "\n\r-----\n\r{WBuilders' Comments:{X\n\r%s\n\r-----\n\r", pMob->comments);
 	add_buf(buffer, buf);
-	
+
 
 	/*
 	if (pMob->next_crew_for_sale != NULL)
@@ -6587,20 +6587,36 @@ MEDIT(medit_show)
 
 		add_buf(buffer, "{YQuestor data:\n\r");
 
-		sprintf(buf, "  {YHeader:\n\r%s{x\n\r", questor->header);
+		if(IS_NULLSTR(questor->header))
+			sprintf(buf, "  {YHeader: (empty){x\n\r");
+		else
+			sprintf(buf, "  {YHeader:\n\r%s{x\n\r", questor->header);
 		add_buf(buffer, buf);
 
-		sprintf(buf, "  {YFooter:\n\r%s{x\n\r", questor->footer);
+		if(IS_NULLSTR(questor->footer))
+			sprintf(buf, "  {YFooter: (empty){x\n\r");
+		else
+			sprintf(buf, "  {YFooter:\n\r%s{x\n\r", questor->footer);
 		add_buf(buffer, buf);
 
-		sprintf(buf, "  {YPrefix: %s{x\n\r", questor->prefix);
+		if(IS_NULLSTR(questor->prefix))
+			sprintf(buf, "  {YPrefix: (empty){x\n\r");
+		else
+			sprintf(buf, "  {YPrefix: %s{x\n\r", questor->prefix);
 		add_buf(buffer, buf);
 
-		sprintf(buf, "  {YSuffix: %s{x\n\r", questor->suffix);
+		if(IS_NULLSTR(questor->suffix))
+			sprintf(buf, "  {YSuffix: (empty){x\n\r");
+		else
+			sprintf(buf, "  {YSuffix: %s{x\n\r", questor->suffix);
 		add_buf(buffer, buf);
 
-		sprintf(buf, "  {YWidth:  %d{x\n\r", questor->line_width);
+		if( questor->line_width > 0 )
+			sprintf(buf, "  {YWidth:  %d{x\n\r", questor->line_width);
+		else
+			sprintf(buf, "  {YWidth:  disabled{x\n\r");
 		add_buf(buffer, buf);
+		add_buf(buffer, "\n\r");
 	}
 
 	if (pMob->progs) {
@@ -9699,10 +9715,20 @@ MEDIT(medit_questor)
 		return TRUE;
 
 	} else if (!str_cmp(arg,"header")) {
+		send_to_char("Editting the Questor Header:\n\r", ch);
+		send_to_char("  Use {Y$PLAYER${x as a placeholder for the player's name.\n\r", ch);
+		send_to_char("  Use {Y$QUESTOR${x as a placeholder for the questgiver's name.\n\r", ch);
+		send_to_char("\n\r", ch);
+
 		string_append(ch, &pMob->pQuestor->header);
 		return TRUE;
 
 	} else if (!str_cmp(arg,"footer")) {
+		send_to_char("Editting the Questor Footer:\n\r", ch);
+		send_to_char("  Use {Y$PLAYER${x as a placeholder for the player's name.\n\r", ch);
+		send_to_char("  Use {Y$QUESTOR${x as a placeholder for the questgiver's name.\n\r", ch);
+		send_to_char("\n\r", ch);
+
 		string_append(ch, &pMob->pQuestor->footer);
 		return TRUE;
 

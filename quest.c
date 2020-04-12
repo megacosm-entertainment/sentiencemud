@@ -1050,7 +1050,10 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 	    "{W /A\\                                                                                         \\\n\r"
 	    "((o))                                                                                         )\n\r"
 	    "{W  '-'----------------------------------------------------------------------------------------'\n\r");*/
-    strcat(buf2, qd->footer);
+
+	replace1 = string_replace_static(qd->footer, "$PLAYER$", ch->name);
+	replace2 = string_replace_static(replace1, "$QUESTOR$", questman->short_descr);
+	strcat(buf2, replace2);
 
 
     scroll->full_description = str_dup(buf2);
