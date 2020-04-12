@@ -394,6 +394,7 @@ struct script_data {
 	int depth;	/* Maximum call depth allowed by script */
 	int security;	/* IMP only control over runtime aspects */
 	int run_security;	// Minimum security needed to RUN this script
+    char *comments;
 };
 
 struct script_varinfo {
@@ -3126,6 +3127,7 @@ struct	mob_index_data
     long		corpse;
     long		zombie;	/* Animated corpse */
     int			corpse_type;
+    char *      comments;
 
 	MOB_INDEX_SKILL_DATA *skills;
 
@@ -3255,6 +3257,7 @@ struct token_index_data
 
     char 		*name;
     char		*description;
+    char        *comments;
     int			type;
     long 		flags;
     int			timer;
@@ -4060,6 +4063,7 @@ struct	obj_index_data
     bool 		update;
     int			timer;
     char *		skeywds; /* Script keywords */
+    char *      comments;
     pVARIABLE		index_vars;
 
 	int light;		/* Inherent light [-1000 to 1000] */
@@ -4296,6 +4300,8 @@ struct	area_data {
 	char *file_name;
 	char *name;
 	char *credits;
+    char *  description;
+    char *  comments;
 	sh_int age;
 	sh_int nplayer;
 	sh_int low_range;
@@ -4726,6 +4732,7 @@ struct	room_index_data
     char *		name;
     char *		description;
     char *		owner;
+    char *      comments;
     long		vnum;
     long		room_flags;
     long		room2_flags;
