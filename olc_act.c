@@ -6570,6 +6570,12 @@ MEDIT(medit_show)
 		sprintf(buf, "  Hours: %d to %d.\n\r", pShop->open_hour, pShop->close_hour);
 		add_buf(buffer, buf);
 
+		if( pShop->restock_interval > 0 )
+			sprintf(buf, "  Restocking: %d (minutes)\n\r", pShop->restock_interval);
+		else
+			sprintf(buf, "  Restocking: disabled\n\r");
+		add_buf(buffer, buf);
+
 		sprintf(buf, "  Flags: %s\n\r", flag_string(shop_flags, pShop->flags));
 		add_buf(buffer, buf);
 

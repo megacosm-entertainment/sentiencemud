@@ -5386,7 +5386,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 					if (number > 1)
 					{
 						sprintf(buf,"$n buys $T[%d].",number);
-						act(buf,ch, NULL, NULL, NULL, NULL, NULL, stock->description,TO_ROOM);
+						act(buf,ch, NULL, NULL, NULL, NULL, NULL, stock->custom_descr,TO_ROOM);
 						sprintf(buf,"You buy $T[%d] for",number);
 						if( silver > 0 )
 						{
@@ -5414,11 +5414,11 @@ void do_buy(CHAR_DATA *ch, char *argument)
 
 						strcat(buf, ".");
 
-						act(buf,ch, NULL, NULL, NULL, NULL, NULL,stock->description,TO_CHAR);
+						act(buf,ch, NULL, NULL, NULL, NULL, NULL,stock->custom_descr,TO_CHAR);
 					}
 					else
 					{
-						act("$n buys $T.", ch, NULL, NULL, NULL, NULL, NULL, stock->description, TO_ROOM);
+						act("$n buys $T.", ch, NULL, NULL, NULL, NULL, NULL, stock->custom_descr, TO_ROOM);
 						sprintf(buf,"You buy $T for");
 
 						if( silver > 0 )
@@ -5447,7 +5447,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 
 						strcat(buf, ".");
 
-						act(buf, ch, NULL, NULL, NULL, NULL, NULL, stock->description, TO_CHAR);
+						act(buf, ch, NULL, NULL, NULL, NULL, NULL, stock->custom_descr, TO_CHAR);
 					}
 
 					keeper->tempstore[0] = number;
