@@ -5996,7 +5996,7 @@ void do_inspect(CHAR_DATA *ch, char *argument)
 
 	if( request.obj != NULL )
 	{
-		if( IS_SET(request.obj->extra2_flags, ITEM_NO_LORE)
+		if( IS_SET(request.obj->extra2_flags, ITEM_NO_LORE) )
 		{
 			act("{R$N tells you 'Sorry, I do not have any information about $p.'{x", ch, keeper, NULL, request.obj, NULL, NULL, NULL, TO_CHAR);
 			ch->reply = keeper;
@@ -6013,7 +6013,7 @@ void do_inspect(CHAR_DATA *ch, char *argument)
 		{
 		    OBJ_DATA *obj = create_object(request.stock->obj, 0, TRUE);
 
-			if( IS_SET(request.obj->extra2_flags, ITEM_NO_LORE)
+			if( IS_SET(obj->extra2_flags, ITEM_NO_LORE) )
 			{
 				act("{R$N tells you 'Sorry, I do not have any information about $p.'{x", ch, keeper, NULL, request.obj, NULL, NULL, NULL, TO_CHAR);
 				ch->reply = keeper;
@@ -6067,7 +6067,7 @@ void do_inspect(CHAR_DATA *ch, char *argument)
 		}
 		else if( !IS_NULLSTR(request.stock->custom_keyword) )
 		{
-			p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_INSPECT, request.stock->custom_keyword))
+			p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_INSPECT, request.stock->custom_keyword);
 		}
 		else
 		{

@@ -6664,9 +6664,6 @@ void show_room_description(CHAR_DATA *ch, ROOM_INDEX_DATA *room)
 void show_basic_mob_lore(CHAR_DATA *ch, CHAR_DATA *victim)
 {
 	char buf[2*MAX_STRING_LENGTH];
-	char buf2[MSL];
-	char name[MSL];
-	int percent;
 
 	long avg;
 	sprintf(buf, "{MImmune to: {x%s\n\r"
