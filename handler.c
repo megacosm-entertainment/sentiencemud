@@ -8548,7 +8548,7 @@ char *get_shop_stock_price(SHOP_STOCK_DATA *stock)
 				pricing[pj++] = ' ';
 			}
 
-			pj = sprintf(pricing+pj, "{x%ld{Gqp{x", stock->qp);
+			pj += sprintf(pricing+pj, "{x%ld{Gqp{x", stock->qp);
 		}
 
 		if( stock->dp > 0 )
@@ -8559,7 +8559,7 @@ char *get_shop_stock_price(SHOP_STOCK_DATA *stock)
 				pricing[pj++] = ' ';
 			}
 
-			pj = sprintf(pricing+pj, "{x%ld{Mdp{x", stock->dp);
+			pj += sprintf(pricing+pj, "{x%ld{Mdp{x", stock->dp);
 		}
 
 		if( stock->pneuma > 0 )
@@ -8570,7 +8570,7 @@ char *get_shop_stock_price(SHOP_STOCK_DATA *stock)
 				pricing[pj++] = ' ';
 			}
 
-			pj = sprintf(pricing+pj, "{x%ld{Cpn{x", stock->pneuma);
+			pj += sprintf(pricing+pj, "{x%ld{Cpn{x", stock->pneuma);
 		}
 		pricing[pj] = '\0';
 

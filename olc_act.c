@@ -6677,7 +6677,7 @@ MEDIT(medit_show)
 							pricing[pj++] = ' ';
 						}
 
-						pj = sprintf(pricing+pj, "{x%ld{Gqp{x", pStock->qp);
+						pj += sprintf(pricing+pj, "{x%ld{Gqp{x", pStock->qp);
 					}
 
 					if( pStock->dp > 0 )
@@ -6688,7 +6688,7 @@ MEDIT(medit_show)
 							pricing[pj++] = ' ';
 						}
 
-						pj = sprintf(pricing+pj, "{x%ld{Mdp{x", pStock->dp);
+						pj += sprintf(pricing+pj, "{x%ld{Mdp{x", pStock->dp);
 					}
 
 					if( pStock->pneuma > 0 )
@@ -6699,7 +6699,7 @@ MEDIT(medit_show)
 							pricing[pj++] = ' ';
 						}
 
-						pj = sprintf(pricing+pj, "{x%ld{Cpn{x", pStock->pneuma);
+						pj += sprintf(pricing+pj, "{x%ld{Cpn{x", pStock->pneuma);
 					}
 					pricing[pj] = '\0';
 				}
