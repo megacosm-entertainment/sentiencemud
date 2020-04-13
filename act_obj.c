@@ -5228,19 +5228,19 @@ void do_buy(CHAR_DATA *ch, char *argument)
 			{
 
 				// Check price
-				long silver = haggle_price(ch, keeper, chance, number, stock->silver, (ch->silver + 100*ch->gold), 50, &haggled, FALSE);
+				long silver = haggle_price(ch, keeper, chance, number, stock->silver, (ch->silver + 100*ch->gold), stock->discount, &haggled, FALSE);
 				if( silver < 0 )
 					return;
 
-				long qp = haggle_price(ch, keeper, chance, number, stock->qp, ch->questpoints, 50, &haggled, FALSE);
+				long qp = haggle_price(ch, keeper, chance, number, stock->qp, ch->questpoints, stock->discount, &haggled, FALSE);
 				if( qp < 0 )
 					return;
 
-				long dp = haggle_price(ch, keeper, chance, number, stock->dp, ch->deitypoints, 50, &haggled, FALSE);
+				long dp = haggle_price(ch, keeper, chance, number, stock->dp, ch->deitypoints, stock->discount, &haggled, FALSE);
 				if( dp < 0 )
 					return;
 
-				long pneuma = haggle_price(ch, keeper, chance, number, stock->pneuma, ch->pneuma, 50, &haggled, FALSE);
+				long pneuma = haggle_price(ch, keeper, chance, number, stock->pneuma, ch->pneuma, stock->discount, &haggled, FALSE);
 				if( pneuma < 0 )
 					return;
 
@@ -7716,6 +7716,9 @@ long haggle_price(CHAR_DATA *ch, CHAR_DATA *keeper, int chance, int number, long
 	long price = adjust_keeper_price(keeper,(long)number * base_price, TRUE);
 
 	discount = URANGE(0,discount,99);
+
+	if(IS_SET(keeper->shop->flags, SHOPFLAG_NOHAGGLE))
+		haggled = NULL;
 
 	if( price > 0 )
 	{

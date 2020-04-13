@@ -1802,6 +1802,7 @@ void copy_shop_stock(SHOP_DATA *to_shop, SHOP_STOCK_DATA *from_stock)
 	to_stock->type = from_stock->type;
 	to_stock->duration = ( from_stock->duration > 0 ) ? from_stock->duration : -1;
 	to_stock->singular = from_stock->singular;
+	to_stock->discount = URANGE(0,from_stock->discount,100);
 	to_stock->vnum = from_stock->vnum;
 	switch(to_stock->type)
 	{
@@ -1846,6 +1847,8 @@ void copy_shop(SHOP_DATA *to_shop, SHOP_DATA *from_shop)
 	to_shop->restock_interval = from_shop->restock_interval;
 	if( to_shop->restock_interval > 0 )
 		to_shop->next_restock = current_time + to_shop->restock_interval * 60;
+
+	to_shop->discount = URANGE(0,from_shop->discount,100);
 
 	if( from_shop->stock )
 		copy_shop_stock(to_shop, from_shop->stock);

@@ -1272,6 +1272,7 @@ struct	help_data
 
 #define SHOPFLAG_STOCK_ONLY		(A)		// Only allow buyback of listed stock
 #define SHOPFLAG_HIDE_SHOP		(B)		// Hides shop from the minimap
+#define SHOPFLAG_NO_HAGGLE		(C)		// Block haggling
 
 struct	shop_data
 {
@@ -1287,6 +1288,7 @@ struct	shop_data
     time_t next_restock;
 
     int		flags;
+    int		discount;			// Possible percent discount you can get from haggling (0-100)
 
     SHOP_STOCK_DATA *stock;
 };
@@ -1311,6 +1313,8 @@ struct shop_stock_data
 	long dp;
 	long pneuma;
 	char *custom_price;			// Custom pricing (supercedes other pricing values)
+
+	int discount;				// How much of a discount is the shopkeeper willing to haggle (0-100%)
 
 	int quantity;				// Number of units available
 	int max_quantity;			// Total number of units available

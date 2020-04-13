@@ -1678,6 +1678,7 @@ SHOP_DATA *new_shop( void )
     pShop->close_hour   =   23;
     pShop->restock_interval = 0;
     pShop->next_restock = 0;
+    pShop->discount		= 50;
 
     pShop->stock = NULL;
 

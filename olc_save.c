@@ -1140,6 +1140,7 @@ void save_shop_stock_new(FILE *fp, SHOP_STOCK_DATA *stock)
 	fprintf(fp, "#STOCK\n");
 
 	fprintf(fp, "Level %d\n", stock->level);
+	fprintf(fp, "Discount %d\n", stock->discount);
 
 	// Pricing
 	fprintf(fp, "Silver %ld\n", stock->silver);
@@ -1194,7 +1195,11 @@ void save_shop_new(FILE *fp, SHOP_DATA *shop)
     fprintf(fp, "HourClose %d\n", shop->close_hour);
     fprintf(fp, "RestockInterval %d\n", shop->restock_interval);
     if(shop->flags != 0)
+    {
 	    fprintf(fp, "Flags %d\n", shop->flags);
+	}
+
+	fprintf(fp, "Discount %d\n", shop->discount);
 
     for (i = 0; i < MAX_TRADE; i++) {
 		if (shop->buy_type[i] != 0)
@@ -3127,6 +3132,7 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)
 		case 'D':
 			KEY("DeityPnts", stock->dp, fread_number(fp));
 			KEYS("Description", stock->custom_descr, fread_string(fp));
+			KEY("Discount", stock->discount, fread_number(fp));
 			KEY("Duration", stock->duration, fread_number(fp));
 			break;
 		case 'G':
@@ -3205,6 +3211,8 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)
 		}
 	}
 
+	stock->discount = URANGE(0, stock->discount, 100);
+
 	return stock;
 }
 
@@ -3230,6 +3238,9 @@ SHOP_DATA *read_shop_new(FILE *fp)
 				fMatch = TRUE;
 			}
 			break;
+	    case 'D':
+	        KEY("Discount",	shop->discount,	fread_number(fp));
+	        break;
 	    case 'H':
 	        KEY("HourOpen",	shop->open_hour,	fread_number(fp));
 	        KEY("HourClose",	shop->close_hour,	fread_number(fp));
@@ -3269,6 +3280,9 @@ SHOP_DATA *read_shop_new(FILE *fp)
 	    bug(buf, 0);
 	}
     }
+
+	shop->discount = URANGE(0, shop->discount, 100);
+
 
     return shop;
 }

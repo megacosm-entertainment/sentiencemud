@@ -6576,6 +6576,9 @@ MEDIT(medit_show)
 			sprintf(buf, "  Restocking: disabled\n\r");
 		add_buf(buffer, buf);
 
+		sprintf(buf, "  Discount Rate: %d%%\n\r", pShop->discount);
+		add_buf(buffer, buf);
+
 		sprintf(buf, "  Flags: %s\n\r", flag_string(shop_flags, pShop->flags));
 		add_buf(buffer, buf);
 
@@ -6600,14 +6603,15 @@ MEDIT(medit_show)
 			char typ[MIL];
 			char hours[MIL];
 			char item[MIL];
+			char disc[MIL];
 			int hwidth, lwidth, qwidth, pwidth;
 
 			for(iStock = 1, pStock = pShop->stock;pStock;pStock = pStock->next, iStock++)
 			{
 				if(iStock == 1)
 				{
-					add_buf(buffer, "{G  Stock# Level Quantity Sng Hours    Price(s)                     Item{x\n\r");
-					add_buf(buffer, "{G  ------ ----- -------- --- ----- -------------- --------------------------------------{x\n\r");
+					add_buf(buffer, "{G  Stock# Level Quantity Sng Hours    Price(s)    Disc                   Item{x\n\r");
+					add_buf(buffer, "{G  ------ ----- -------- --- ----- -------------- ---- --------------------------------------{x\n\r");
 				}
 
 				if( pStock->level > 0 )
@@ -6651,6 +6655,7 @@ MEDIT(medit_show)
 				{
 					strncpy(pricing, pStock->custom_price, sizeof(pricing)-3);
 					strcat(pricing, "{x");
+					strcpy(disc, " {D--{x ");
 				}
 				else
 				{
@@ -6712,6 +6717,7 @@ MEDIT(medit_show)
 						pj += sprintf(pricing+pj, "{x%ld{Cpn{x", pStock->pneuma);
 					}
 					pricing[pj] = '\0';
+					sprintf(disc, "%3d%%", pStock->discount);
 				}
 				pwidth = get_colour_width(pricing) + 14;
 
@@ -6799,12 +6805,12 @@ MEDIT(medit_show)
 					break;
 				}
 
-				sprintf(buf, "  {G[{x%4d{G]{x %-*s %*s  %s  %*s %-*s %s%s\n\r", iStock, lwidth, lvl, qwidth, qty, (pStock->singular?"{RY{x":"{GN{x"), hwidth, hours, pwidth, pricing, typ, item);
+				sprintf(buf, "  {G[{x%4d{G]{x %-*s %*s  %s  %*s %-*s %s %s%s\n\r", iStock, lwidth, lvl, qwidth, qty, (pStock->singular?"{RY{x":"{GN{x"), hwidth, hours, pwidth, pricing, disc, typ, item);
 				add_buf(buffer,buf);
 
 				if( !IS_NULLSTR(pStock->custom_descr) )
 				{
-					sprintf(buf, "                                                         - %s\n\r", pStock->custom_descr);
+					sprintf(buf, "                                                              - %s\n\r", pStock->custom_descr);
 					add_buf(buffer, buf);
 				}
 			}
@@ -7606,21 +7612,25 @@ MEDIT(medit_shop)
 
     if (command[0] == '\0')
     {
-	send_to_char("Syntax:  shop hours [#xopening] [#xclosing]\n\r", ch);
-	send_to_char("         shop profit [#xbuying%] [#xselling%]\n\r", ch);
-	send_to_char("         shop type [#x0-4] [item type]\n\r", ch);
-	send_to_char("         shop flags [flags]\n\r", ch);
-	send_to_char("         shop stock add [object vnum]\n\r", ch);
-	send_to_char("         shop stock add [keyword]\n\r", ch);
-	send_to_char("         shop stock price [#] [silver|qp|dp|pneuma|custom] [value]\n\r", ch);
-	send_to_char("         shop stock quantity [#] unlimited\n\r", ch);
-	send_to_char("         shop stock quantity [#] [total] [reset rate]\n\r", ch);
-	send_to_char("         shop stock description [#] [description]\n\r", ch);
-	send_to_char("         shop stock remove [#]\n\r", ch);
-	send_to_char("         shop restock [minutes]\n\r", ch);
-	send_to_char("         shop assign\n\r", ch);
-	send_to_char("         shop remove\n\r", ch);
-	return FALSE;
+		send_to_char("Syntax:  shop assign\n\r", ch);
+		send_to_char("         shop remove\n\r\n\r", ch);
+
+		send_to_char("         shop discount [0-100] [reset]\n\r", ch);
+		send_to_char("         shop flags [flags]\n\r", ch);
+		send_to_char("         shop hours [#xopening] [#xclosing]\n\r", ch);
+		send_to_char("         shop profit [#xbuying%] [#xselling%]\n\r", ch);
+		send_to_char("         shop restock [minutes]\n\r", ch);
+		send_to_char("         shop stock add [type] [value]\n\r", ch);
+		send_to_char("         shop stock {#] discount [0-100]\n\r", ch);
+		send_to_char("         shop stock [#] description [description]\n\r", ch);
+		send_to_char("         shop stock {#] level [level]\n\r", ch);
+		send_to_char("         shop stock [#] price [silver|qp|dp|pneuma|custom] [value]\n\r", ch);
+		send_to_char("         shop stock [#] quantity unlimited\n\r", ch);
+		send_to_char("         shop stock [#] quantity [total] [reset rate]\n\r", ch);
+		send_to_char("         shop stock [#] singular\n\r", ch);
+		send_to_char("         shop stock [#] remove\n\r", ch);
+		send_to_char("         shop type [#x0-4] [item type]\n\r", ch);
+		return FALSE;
     }
 
 
@@ -7681,6 +7691,53 @@ MEDIT(medit_shop)
 			return TRUE;
 		}
     }
+
+    if (!str_cmp(command, "discount"))
+    {
+		if (arg1[0] == '\0' || !is_number(arg1))
+		{
+			send_to_char("Syntax:  shop discount [0-100] [reset]\n\r", ch);
+			return FALSE;
+		}
+
+		if (!pMob->pShop)
+		{
+			send_to_char("MEdit:  Please create a shop first (shop assign).\n\r", ch);
+			return FALSE;
+		}
+
+		int disc = atoi(arg1);
+
+		if( disc < 0 || disc > 100 )
+		{
+			send_to_char("Discount must be a percentage (0-100).\n\r", ch);
+			return FALSE;
+		}
+
+		pMob->pShop->discount = disc;
+
+		if( !str_cmp(arg2, "reset") && pMob->pShop->stock != NULL )
+		{
+			bool updated = FALSE;
+			for(SHOP_STOCK_DATA *stock = pMob->pShop->stock; stock; stock = stock->next)
+			{
+				if( IS_NULLSTR(stock->custom_keyword) )
+				{
+					stock->discount = pMob->pShop->discount;
+					updated = TRUE;
+				}
+			}
+
+			if( updated )
+				send_to_char("Discount changed, and stock updated.\n\r", ch);
+			else
+				send_to_char("Discount changed.\n\r", ch);
+		}
+		else
+			send_to_char("Discount changed.\n\r", ch);
+		return TRUE;
+    }
+
 
     if (!str_cmp(command, "profit"))
     {
@@ -7845,6 +7902,7 @@ MEDIT(medit_shop)
 			send_to_char("         shop stock add mount [vnum]\n\r", ch);
 			send_to_char("         shop stock add guard [vnum]\n\r", ch);
 			send_to_char("         shop stock add custom [keyword]\n\r", ch);
+			send_to_char("         shop stock {#] discount [0-100]\n\r", ch);
 			send_to_char("         shop stock [#] description [description]\n\r", ch);
 			send_to_char("         shop stock {#] level [level]\n\r", ch);
 			send_to_char("         shop stock [#] price [silver|qp|dp|pneuma|custom] [value]\n\r", ch);
@@ -7896,6 +7954,7 @@ MEDIT(medit_shop)
 					stock->type = STOCK_OBJECT;
 					stock->vnum = item->vnum;
 					stock->silver = item->cost;
+					stock->discount = pShop->discount;
 
 					stock->next = pMob->pShop->stock;
 					pMob->pShop->stock = stock;
@@ -7931,6 +7990,7 @@ MEDIT(medit_shop)
 					stock->vnum = mob->vnum;
 					stock->silver = 10 * mob->level * mob->level;
 					stock->level = mob->level;
+					stock->discount = pShop->discount;
 
 					stock->next = pMob->pShop->stock;
 					pMob->pShop->stock = stock;
@@ -7966,6 +8026,7 @@ MEDIT(medit_shop)
 					stock->vnum = mob->vnum;
 					stock->silver = 25 * mob->level * mob->level;
 					stock->level = mob->level;
+					stock->discount = pShop->discount;
 
 					stock->next = pMob->pShop->stock;
 					pMob->pShop->stock = stock;
@@ -8001,6 +8062,7 @@ MEDIT(medit_shop)
 					stock->vnum = mob->vnum;
 					stock->silver = 50 * mob->level * mob->level;
 					stock->level = mob->level;
+					stock->discount = pShop->discount;
 
 					stock->next = pMob->pShop->stock;
 					pMob->pShop->stock = stock;
@@ -8025,6 +8087,8 @@ MEDIT(medit_shop)
 					}
 
 					stock->custom_keyword = str_dup(argument);
+					stock->discount = 0;		// They do not handle discounts.
+												// If you wish to do discounts, that has to be scripted.
 
 					stock->next = pMob->pShop->stock;
 					pMob->pShop->stock = stock;
@@ -8132,6 +8196,33 @@ MEDIT(medit_shop)
 
 				send_to_char("Syntax:  shop stock [#] price [silver|qp|dp|pneuma|custom] [value]\n\r", ch);
 				return FALSE;
+			}
+
+			if(!str_prefix(arg2, "discount"))
+			{
+				if( !IS_NULLSTR(stock->custom_keyword) )
+				{
+					send_to_char("Custom stock items do not receive discounts\n\r", ch);
+					return FALSE;
+				}
+
+				if(!is_number(argument))
+				{
+					send_to_char("Syntax:  shop stock [#] discount [0-100]\n\r", ch);
+					return FALSE;
+				}
+
+				int disc = atoi(argument);
+
+				if(disc < 0 || disc > 100)
+				{
+					send_to_char("Discount must be a percentage (0-100).\n\r", ch);
+					return FALSE;
+				}
+
+				stock->discount = disc;
+				send_to_char("Stock discount changed.\n\r", ch);
+				return TRUE;
 			}
 
 			if(!str_prefix(arg2, "level"))
@@ -8245,6 +8336,7 @@ MEDIT(medit_shop)
 			}
 
 			send_to_char("Syntax:  shop stock [#] description [description]\n\r", ch);
+			send_to_char("         shop stock {#] discount [0-100]\n\r", ch);
 			send_to_char("         shop stock {#] level [level]\n\r", ch);
 			send_to_char("         shop stock [#] price [silver|qp|dp|pneuma|custom] [value]\n\r", ch);
 			send_to_char("         shop stock [#] quantity unlimited\n\r", ch);
@@ -8254,19 +8346,7 @@ MEDIT(medit_shop)
 			return FALSE;
 		}
 
-
-		send_to_char("Syntax:  shop stock add object [vnum]\n\r", ch);
-		send_to_char("         shop stock add pet [vnum]\n\r", ch);
-		send_to_char("         shop stock add mount [vnum]\n\r", ch);
-		send_to_char("         shop stock add guard [vnum]\n\r", ch);
-		send_to_char("         shop stock add custom [keyword]\n\r", ch);
-		send_to_char("         shop stock [#] description [description]\n\r", ch);
-		send_to_char("         shop stock {#] level [level]\n\r", ch);
-		send_to_char("         shop stock [#] price [silver|qp|dp|pneuma|custom] [value]\n\r", ch);
-		send_to_char("         shop stock [#] quantity unlimited\n\r", ch);
-		send_to_char("         shop stock [#] quantity [total] [reset rate]\n\r", ch);
-		send_to_char("         shop stock [#] singular\n\r", ch);
-		send_to_char("         shop stock [#] remove\n\r", ch);
+		medit_shop(ch, "stock");
 		return FALSE;
 	}
 
