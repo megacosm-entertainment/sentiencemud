@@ -6035,7 +6035,7 @@ void do_inspect(CHAR_DATA *ch, char *argument)
 
 			if( IS_SET(mob->act, ACT_NO_LORE) )
 			{
-				act("{R$n tells you 'Sorry, I do not have any information about $N.'{x", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_THIRD);
+				act("{R$n tells you 'Sorry, I do not have any information about $N.'{x", keeper, mob, ch, NULL, NULL, NULL, NULL, TO_THIRD);
 				ch->reply = keeper;
 			}
 			else
@@ -6067,7 +6067,12 @@ void do_inspect(CHAR_DATA *ch, char *argument)
 		}
 		else if( !IS_NULLSTR(request.stock->custom_keyword) )
 		{
-			p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_INSPECT, request.stock->custom_keyword);
+	    	if(!p_exact_trigger(request.stock->custom_keyword, keeper, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_INSPECT))
+	    	{
+				act("{R$N tells you 'Sorry, I do not have any information about $T.'{x", ch, mob, NULL, NULL, NULL, NULL, request.stock->custom_descr, TO_CHAR);
+				ch->reply = keeper;
+				return;
+			}
 		}
 		else
 		{
