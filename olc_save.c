@@ -3192,15 +3192,6 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)
 		}
 	}
 
-	if(stock->vnum > 0)
-	{
-		if(!get_obj_index(stock->vnum))
-		{
-			sprintf(buf, "read_shop_stock_new: unknown object index %ld", stock->vnum);
-			bug(buf, 0);
-		}
-	}
-
 	return stock;
 }
 
