@@ -3852,6 +3852,14 @@ void act_new(char *format, CHAR_DATA *ch,
                 case 'T': if (arg2) i = (char *) arg2;
                           else bug("Act: bad code $T for 'arg2'",0);
                           break;
+                case 'v': if (vch2&&to) {
+                          if (see_all || (to->tot_level >= 150 && !IS_NPC(vch2)))
+							i = ch->name;
+                          else
+							i = pers(vch2,  to );
+                          }
+                          else bug("Act: bad code $v for 'vch2' or 'to'",0);
+                          break;
                 case 'n': if (ch&&to) {
                           if (see_all || (to->tot_level >= 150 && !IS_NPC(ch)))
 							i = ch->name;

@@ -5977,28 +5977,105 @@ void do_inspect(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
     CHAR_DATA *keeper;
-    OBJ_DATA *obj;
+	SHOP_REQUEST_DATA request;
+
     one_argument(argument, arg);
 
     if ((keeper = find_keeper(ch)) == NULL)
-	return;
-    obj  = get_obj_keeper(ch,keeper, arg);
-    if (obj == NULL)
-    {
-      act("{R$n tells you 'I don't sell that product. Maybe there is something else you would like to inspect?'{x", keeper, ch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
-      return;
-    }
-	if (!can_see_obj(ch, obj))
-	{
-	    act("{R$n tells you 'I don't sell that -- try 'list''.{x",
-		keeper, ch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
-	    ch->reply = keeper;
-	    return;
-	}
-    /*send_to_char("The shop keeper gives you a little information about the product.\n\r", ch);*/
-    act("$n gives you a little information about the product.{x", keeper, ch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
-    spell_identify(0, ch->tot_level, ch, obj, TARGET_OBJ, WEAR_NONE);
+		return;
 
+
+	bool found = get_stock_keeper(ch, keeper, &request, arg);
+
+	if(!found)
+	{
+		act("{R$n tells you 'I don't sell that product. Maybe there is something else you would like to inspect?'{x", keeper, ch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+		ch->reply = keeper;
+		return;
+	}
+
+	if( request.obj != NULL )
+	{
+		if( IS_SET(request.obj->extra2_flags, ITEM_NO_LORE)
+		{
+			act("{R$N tells you 'Sorry, I do not have any information about $p.'{x", ch, keeper, NULL, request.obj, NULL, NULL, NULL, TO_CHAR);
+			ch->reply = keeper;
+			return;
+		}
+
+		act("You ask $N for some information about $p.", ch, keeper, NULL, request.obj, NULL, NULL, NULL, TO_CHAR);
+		act("$n asks $N for some information about $p.", ch, keeper, NULL, request.obj, NULL, NULL, NULL, TO_ROOM);
+		spell_identify(0, ch->tot_level, ch, request.obj, TARGET_OBJ, WEAR_NONE);
+	}
+	else if( request.stock != NULL )
+	{
+		if( request.stock->obj != NULL )
+		{
+		    OBJ_DATA *obj = create_object(request.stock->obj, 0, TRUE);
+
+			if( IS_SET(request.obj->extra2_flags, ITEM_NO_LORE)
+			{
+				act("{R$N tells you 'Sorry, I do not have any information about $p.'{x", ch, keeper, NULL, request.obj, NULL, NULL, NULL, TO_CHAR);
+				ch->reply = keeper;
+			}
+			else
+			{
+				act("You ask $N for some information about $p.", ch, keeper, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+				act("$n asks $N for some information about $p.", ch, keeper, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+				obj_to_char(obj, ch);
+				spell_identify(0, ch->tot_level, ch, obj, TARGET_OBJ, WEAR_NONE);
+			}
+			extract_obj(obj);
+			return;
+		}
+		else if( request.stock->mob != NULL )
+		{
+			CHAR_DATA *mob = create_mobile(request.stock->mob, FALSE);
+			char_to_room(mob, ch->in_room);
+
+			if( IS_SET(mob->act, ACT_NO_LORE) )
+			{
+				act("{R$n tells you 'Sorry, I do not have any information about $N.'{x", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_THIRD);
+				ch->reply = keeper;
+			}
+			else
+			{
+				act("You ask $N for some information about $v.", ch, keeper, mob, NULL, NULL, NULL, NULL, TO_CHAR);
+				act("$n asks $N for some information about $v.", ch, keeper, mob, NULL, NULL, NULL, NULL, TO_ROOM);
+
+				if( request.stock->type == STOCK_PET )
+				{
+					act("{GPET{g:{x $N", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				}
+				else if( request.stock->type == STOCK_PET )
+				{
+					act("{GMOUNT{g:{x $N", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				}
+				else
+				{
+					act("{GGUARD{g:{x $N", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				}
+
+				show_basic_mob_lore(ch, mob);
+			}
+
+			extract_char(mob, TRUE);
+
+
+
+
+		}
+		else if( !IS_NULLSTR(request.stock->custom_keyword) )
+		{
+			p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_INSPECT, request.stock->custom_keyword))
+		}
+		else
+		{
+			act("{R$n tells you 'I don't sell that product. Maybe there is something else you would like to inspect?'{x", keeper, ch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+			ch->reply = keeper;
+			return;
+		}
+	}
 }
 
 

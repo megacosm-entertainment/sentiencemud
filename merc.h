@@ -5141,6 +5141,7 @@ enum trigger_index_enum {
 	TRIG_HIT,
 	TRIG_HPCNT,
 	TRIG_IDENTIFY,
+	TRIG_INSPECT,		// Called when asking a shopkeeper to inspect a custom stock item
 	TRIG_INTERRUPT,
 	TRIG_KILL,
 	TRIG_KNOCK,
@@ -7859,5 +7860,6 @@ char *get_shop_stock_price(SHOP_STOCK_DATA *stock);
 char *get_shop_purchase_price(long silver, long qp, long dp, long pneuma);
 long haggle_price(CHAR_DATA *ch, CHAR_DATA *keeper, int chance, int number, long base_price, long funds, int discount, bool *haggled, bool silent);
 char *get_stock_description(SHOP_STOCK_DATA *stock);
+void show_basic_mob_lore(CHAR_DATA *ch, CHAR_DATA *victim);
 
 #endif /* !def __MERC_H__ */
