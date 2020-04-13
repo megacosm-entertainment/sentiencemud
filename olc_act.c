@@ -6637,9 +6637,9 @@ MEDIT(medit_show)
 				}
 				qwidth = get_colour_width(qty) + 8;
 
-				if( stock->duration > 0 )
+				if( pStock->duration > 0 )
 				{
-					sprintf(hours, "{G%d{x", stock->duration);
+					sprintf(hours, "{G%d{x", stock->pStock);
 				}
 				else
 				{
