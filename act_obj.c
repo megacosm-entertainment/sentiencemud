@@ -5356,6 +5356,10 @@ void do_buy(CHAR_DATA *ch, char *argument)
 					}
 
 					obj_to_char(t_obj, ch);
+
+					// Handles what happens AFTER you've bought the item.  Called for EVERY item
+					p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, t_obj, NULL, TRIG_BUY, NULL);
+
 				}
 			}
 			else if(stock->mob != NULL)
@@ -5449,7 +5453,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 				}
 
 				p_percent_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
-
+				p_percent_trigger(keeper, NULL, NULL, NULL, ch, mob, NULL, NULL, NULL, TRIG_BUY, NULL);
 			}
 			else
 			{
