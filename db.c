@@ -1828,6 +1828,9 @@ void copy_shop(SHOP_DATA *to_shop, SHOP_DATA *from_shop)
 	to_shop->open_hour = from_shop->open_hour;
 	to_shop->close_hour = from_shop->close_hour;
 	to_shop->flags = from_shop->flags;
+	to_shop->restock_interval = from_shop->restock_interval;
+	if( to_shop->restock_interval > 0 )
+		to_shop->next_restock = current_time + to_shop->restock_interval * 60;
 
 	if( from_shop->stock )
 		copy_shop_stock(to_shop, from_shop->stock);

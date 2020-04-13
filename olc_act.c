@@ -7539,6 +7539,7 @@ MEDIT(medit_shop)
 	send_to_char("         shop stock quantity [#] [total] [reset rate]\n\r", ch);
 	send_to_char("         shop stock description [#] [description]\n\r", ch);
 	send_to_char("         shop stock remove [#]\n\r", ch);
+	send_to_char("         shop restock [minutes]\n\r", ch);
 	send_to_char("         shop assign\n\r", ch);
 	send_to_char("         shop remove\n\r", ch);
 	return FALSE;
@@ -7567,6 +7568,41 @@ MEDIT(medit_shop)
 	return TRUE;
     }
 
+    if (!str_cmp(command, "restock"))
+    {
+		if (arg1[0] == '\0' || !is_number(arg1))
+		{
+			send_to_char("Syntax:  shop restock [minutes]\n\r", ch);
+			send_to_char("   Specify at least 10 minutes, or 0 to disable restocking.\n\r", ch);
+			return FALSE;
+		}
+
+		if (!pMob->pShop)
+		{
+			send_to_char("MEdit:  Please create a shop first (shop assign).\n\r", ch);
+			return FALSE;
+		}
+
+		int interval = atoi(arg1);
+
+		if( interval <= 0 )
+		{
+			send_to_char("Restocking disabled.\n\r", ch);
+			pMob->pShop->restock_interval = 0;
+			return TRUE;
+		}
+		else if( interval < 10 )
+		{
+			send_to_char("Interval too short.\n\rPlease try at least 10 minutes, or 0 to disable restocking.\n\r", ch);
+			return FALSE;
+		}
+		else
+		{
+			send_to_char("Restocking changed.\n\r", ch);
+			pMob->pShop->restock_interval = interval;
+			return TRUE;
+		}
+    }
 
     if (!str_cmp(command, "profit"))
     {

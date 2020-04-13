@@ -796,13 +796,36 @@ void mobile_update(void)
 			continue;
 		}
 
-		// Give shop owners gold
 		if (ch->shop != NULL)
 		{
+			// Give shop owners gold
 			if ((ch->gold * 100 + ch->silver) < ch->pIndexData->wealth)
 			{
-			ch->gold += ch->pIndexData->wealth * number_range(1,20)/5000000;
-			ch->silver += ch->pIndexData->wealth * number_range(1,20)/50000;
+				ch->gold += ch->pIndexData->wealth * number_range(1,20)/5000000;
+				ch->silver += ch->pIndexData->wealth * number_range(1,20)/50000;
+			}
+
+			// Restock their supplies
+			if( ch->shop->restock_interval > 0 ) {
+				if( ch->shop->next_restock < current_time ) {
+
+					bool restocked = FALSE;
+					for(SHOP_STOCK_DATA *stock = ch->shop->stock; stock; stock = stock->next)
+					{
+						if( stock->max_quantity > 0 && stock->restock_rate > 0 && stock->quantity < stock->max_quantity)
+						{
+							stock->quantity += stock->restock_rate;
+							stock->quantity = UMIN(stock->quantity, stock->max_quantity);
+							restocked = TRUE;
+
+						}
+					}
+
+					if( restocked )
+						p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RESTOCKED, NULL);
+
+					ch->shop->next_restock = current_time + ch->shop->restock_interval * 60;
+				}
 			}
 		}
 

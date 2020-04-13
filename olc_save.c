@@ -1171,6 +1171,7 @@ void save_shop_new(FILE *fp, SHOP_DATA *shop)
     fprintf(fp, "ProfitSell %d\n", shop->profit_sell);
     fprintf(fp, "HourOpen %d\n", shop->open_hour);
     fprintf(fp, "HourClose %d\n", shop->close_hour);
+    fprintf(fp, "RestockInterval %d\n", shop->restock_interval);
     if(shop->flags != 0)
 	    fprintf(fp, "Flags %d\n", shop->flags);
 
@@ -3185,6 +3186,9 @@ SHOP_DATA *read_shop_new(FILE *fp)
 		KEY("ProfitBuy",	shop->profit_buy,	fread_number(fp));
 		KEY("ProfitSell",	shop->profit_sell,	fread_number(fp));
 		break;
+		case 'R':
+			KEY("RestockInterval", shop->restock_interval, fread_number(fp));
+			break;
 
 	    case 'T':
 	        if (!str_cmp(word, "Trade")) {

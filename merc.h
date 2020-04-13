@@ -1283,6 +1283,9 @@ struct	shop_data
     sh_int	open_hour;		/* First opening hour		*/
     sh_int	close_hour;		/* First closing hour		*/
 
+    int restock_interval;		// How long between restocking checks, in minutes
+    time_t next_restock;
+
     int		flags;
 
     SHOP_STOCK_DATA *stock;
@@ -5198,6 +5201,7 @@ enum trigger_index_enum {
 	TRIG_REMOVE,		/* NIB : 20070120 */
 	TRIG_REPOP,
 	TRIG_REST,
+	TRIG_RESTOCKED,
 	TRIG_RESTORE,
 	TRIG_RESURRECT,
 	TRIG_SAVE,

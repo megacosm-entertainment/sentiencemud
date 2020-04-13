@@ -4457,6 +4457,9 @@ bool get_stock_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, SHOP_REQUEST_DATA *reque
 		// Check stock items first
 		for(stock = keeper->shop->stock; stock; stock = stock->next)
 		{
+			// Out of stock.
+			if( stock->max_quantity > 0 && stock->quantity < 1) continue;
+
 			if( stock->vnum > 0 )
 			{
 				if( stock->obj == NULL ) continue;		// This is some kind of issue
@@ -5317,19 +5320,19 @@ void do_buy(CHAR_DATA *ch, char *argument)
 								}
 								if( qp > 0 )
 								{
-									sprintf(arg, "%s%ld quest points", (added?", ":""), qp);
+									sprintf(arg, "%s%ld quest points", (added?", ":" "), qp);
 									strcat(buf, arg);
 									added = TRUE;
 								}
 								if( dp > 0 )
 								{
-									sprintf(arg, "%s%ld deity points", (added?", ":""), dp);
+									sprintf(arg, "%s%ld deity points", (added?", ":" "), dp);
 									strcat(buf, arg);
 									added = TRUE;
 								}
 								if( pneuma > 0 )
 								{
-									sprintf(arg, "%s%ld pneuma", (added?", ":""), pneuma);
+									sprintf(arg, "%s%ld pneuma", (added?", ":" "), pneuma);
 									strcat(buf, arg);
 								}
 
@@ -5350,19 +5353,19 @@ void do_buy(CHAR_DATA *ch, char *argument)
 								}
 								if( qp > 0 )
 								{
-									sprintf(arg, "%s%ld quest points", (added?", ":""), qp);
+									sprintf(arg, "%s%ld quest points", (added?", ":" "), qp);
 									strcat(buf, arg);
 									added = TRUE;
 								}
 								if( dp > 0 )
 								{
-									sprintf(arg, "%s%ld deity points", (added?", ":""), dp);
+									sprintf(arg, "%s%ld deity points", (added?", ":" "), dp);
 									strcat(buf, arg);
 									added = TRUE;
 								}
 								if( pneuma > 0 )
 								{
-									sprintf(arg, "%s%ld pneuma", (added?", ":""), pneuma);
+									sprintf(arg, "%s%ld pneuma", (added?", ":" "), pneuma);
 									strcat(buf, arg);
 								}
 
@@ -5382,6 +5385,10 @@ void do_buy(CHAR_DATA *ch, char *argument)
 					// Must do all the messages
 					p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BUY, stock->custom_keyword);
 				}
+
+				// Reduce the available stock when it is limited
+				if( stock->quantity > 0 )
+					stock->quantity -= number;
 
 			}
 			else
@@ -5711,6 +5718,9 @@ void do_list(CHAR_DATA *ch, char *argument)
 		SHOP_STOCK_DATA *stock;
 		for (stock = keeper->shop->stock; stock; stock = stock->next)
 		{
+			// Hide it if it's out of stock
+			if( stock->max_quantity > 0 && stock->quantity < 1) continue;
+
 			if(stock->vnum > 0) {
 				if(!stock->obj) continue;
 
