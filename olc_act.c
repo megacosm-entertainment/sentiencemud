@@ -6598,15 +6598,16 @@ MEDIT(medit_show)
 			char qty[MIL];
 			char pricing[MIL];
 			char typ[MIL];
+			char hours[MIL];
 			char item[MIL];
-			int lwidth, qwidth, pwidth;
+			int hwidth, lwidth, qwidth, pwidth;
 
 			for(iStock = 1, pStock = pShop->stock;pStock;pStock = pStock->next, iStock++)
 			{
 				if(iStock == 1)
 				{
-					add_buf(buffer, "{G  Stock# Level Quantity    Price(s)                     Item{x\n\r");
-					add_buf(buffer, "{G  ------ ----- -------- -------------- --------------------------------------{x\n\r");
+					add_buf(buffer, "{G  Stock# Level Quantity Hours    Price(s)                     Item{x\n\r");
+					add_buf(buffer, "{G  ------ ----- -------- ----- -------------- --------------------------------------{x\n\r");
 				}
 
 				if( pStock->level > 0 )
@@ -6632,10 +6633,19 @@ MEDIT(medit_show)
 				}
 				else
 				{
-					strcpy(qty, "   {Woo{x");
+					strcpy(qty, "   {D--{x   ");
 				}
-
 				qwidth = get_colour_width(qty) + 8;
+
+				if( stock->duration > 0 )
+				{
+					sprintf(hours, "{G%d{x", stock->duration);
+				}
+				else
+				{
+					strcpy(hours, " {D---{x ");
+				}
+				hwidth = get_colour_width(hours) + 5;
 
 				if( !IS_NULLSTR(pStock->custom_price) )
 				{
@@ -6789,12 +6799,12 @@ MEDIT(medit_show)
 					break;
 				}
 
-				sprintf(buf, "  {G[{x%4d{G]{x %-*s %-*s %-*s %s%s\n\r", iStock, lwidth, lvl, qwidth, qty, pwidth, pricing, typ, item);
+				sprintf(buf, "  {G[{x%4d{G]{x %-*s %*s %*s %-*s %s%s\n\r", iStock, lwidth, lvl, qwidth, qty, hwidth, hours, pwidth, pricing, typ, item);
 				add_buf(buffer,buf);
 
 				if( !IS_NULLSTR(pStock->custom_descr) )
 				{
-					sprintf(buf, "                                       - %s\n\r", pStock->custom_descr);
+					sprintf(buf, "                                                     - %s\n\r", pStock->custom_descr);
 					add_buf(buffer, buf);
 				}
 			}

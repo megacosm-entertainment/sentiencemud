@@ -5149,131 +5149,99 @@ void do_buy(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			if( IS_NULLSTR(stock->custom_price) )
+			if( stock->obj != NULL )
 			{
-				int chance = get_skill(ch, gsn_haggle);
-
-				long silver = adjust_keeper_price(keeper, number * stock->silver, TRUE);
-
-				if( silver > 0 ) {
-					roll = number_percent();
-					if (roll < chance)
-					{
-						silver -= ((silver/2) * roll)/100;
-						haggled = TRUE;
-					}
-
-					if( (ch->silver + 100*ch->gold) < silver )
-					{
-						if (number > 1)
-							act("{R$n tells you 'You can't afford to buy that many.'{x", keeper,ch, NULL, NULL, NULL, NULL, NULL,TO_VICT);
-						else
-							act("{R$n tells you 'You can't afford to buy that'.{x", keeper, ch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
-						ch->reply = keeper;
-						return;
-					}
-				}
-
-				long qp = adjust_keeper_price(keeper, number * stock->qp, TRUE);
-				if( qp > 0 ) {
-					roll = number_percent();
-					if (roll < chance)
-					{
-						qp -= ((qp/2) * roll)/100;
-						haggled = TRUE;
-					}
-
-					if( ch->questpoints < qp )
-					{
-						if (number > 1)
-							act("{R$n tells you 'You can't afford to buy that many.'{x", keeper,ch, NULL, NULL, NULL, NULL, NULL,TO_VICT);
-						else
-							act("{R$n tells you 'You can't afford to buy that'.{x", keeper, ch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
-						ch->reply = keeper;
-						return;
-					}
-				}
-
-				long dp = adjust_keeper_price(keeper, number * stock->dp, TRUE);
-				if( dp > 0 ) {
-					roll = number_percent();
-					if (roll < chance)
-					{
-						dp -= ((dp/2) * roll)/100;
-						haggled = TRUE;
-					}
-
-					if( ch->deitypoints < dp )
-					{
-						if (number > 1)
-							act("{R$n tells you 'You can't afford to buy that many.'{x", keeper,ch, NULL, NULL, NULL, NULL, NULL,TO_VICT);
-						else
-							act("{R$n tells you 'You can't afford to buy that'.{x", keeper, ch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
-						ch->reply = keeper;
-						return;
-					}
-				}
-
-				long pneuma = adjust_keeper_price(keeper, number * stock->pneuma, TRUE);
-				if( pneuma > 0 ) {
-					roll = number_percent();
-					if (roll < chance)
-					{
-						pneuma -= ((pneuma/2) * roll)/100;
-						haggled = TRUE;
-					}
-
-					if( ch->pneuma < pneuma )
-					{
-						if (number > 1)
-							act("{R$n tells you 'You can't afford to buy that many.'{x", keeper,ch, NULL, NULL, NULL, NULL, NULL,TO_VICT);
-						else
-							act("{R$n tells you 'You can't afford to buy that'.{x", keeper, ch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
-						ch->reply = keeper;
-						return;
-					}
-				}
-
-				if( stock->obj != NULL )
+				if ((ch->carry_number + number) > can_carry_n(ch))
 				{
-					if ((ch->carry_number + number) > can_carry_n(ch))
-					{
-						send_to_char("You can't carry that many items.\n\r", ch);
-						return;
-					}
-
-					if ((get_carry_weight(ch) + number * stock->obj->weight) > can_carry_w(ch))
-					{
-						send_to_char("You can't carry that much weight.\n\r", ch);
-						return;
-					}
+					send_to_char("You can't carry that many items.\n\r", ch);
+					return;
 				}
-				else if(stock->mob != NULL )
+
+				if ((get_carry_weight(ch) + number * stock->obj->weight) > can_carry_w(ch))
 				{
-					if( stock->type == STOCK_PET && ch->pet != NULL )
+					send_to_char("You can't carry that much weight.\n\r", ch);
+					return;
+				}
+			}
+			else if(stock->mob != NULL )
+			{
+				if( stock->type == STOCK_PET )
+				{
+					if( ch->pet != NULL )
 					{
 						send_to_char("You already have a pet.\n\r", ch);
 						return;
 					}
+
+					if (ch->num_grouped >= 9)
+					{
+						send_to_char("Your group is full.\n\r", ch);
+						return;
+					}
 				}
-				else
+				else if( stock->type == STOCK_MOUNT )
 				{
-					// Check for non-standard objects
-					keeper->tempstore[0] = number;
-					int ret = p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CHECK_BUYER, stock->custom_keyword);
-
-					if( ret == 1 )
+					if( ch->mount != NULL )
 					{
-						send_to_char("You can't carry that many items.\n\r", ch);
+						send_to_char("You already have a mount.\n\r", ch);
 						return;
 					}
 
-					if( ret == 2 )
+					if (ch->num_grouped >= 9)
 					{
-						send_to_char("You can't carry that much weight.\n\r", ch);
+						send_to_char("Your group is full.\n\r", ch);
 						return;
 					}
 				}
+				else if( stock->type == STOCK_GUARD )
+				{
+					if (ch->num_grouped >= 9)
+					{
+						send_to_char("Your group is full.\n\r", ch);
+						return;
+					}
+				}
+
+			}
+			else
+			{
+				// Check for non-standard objects
+				keeper->tempstore[0] = number;
+				int ret = p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CHECK_BUYER, stock->custom_keyword);
+
+				if( ret == 1 )
+				{
+					send_to_char("You can't carry that many items.\n\r", ch);
+					return;
+				}
+
+				if( ret == 2 )
+				{
+					send_to_char("You can't carry that much weight.\n\r", ch);
+					return;
+				}
+			}
+
+			int chance = get_skill(ch, gsn_haggle);
+			if( IS_NULLSTR(stock->custom_price) )
+			{
+
+				// Check price
+				long silver = haggle_price(ch, keeper, chance, number, stock->silver, (ch->silver + 100*ch->gold), 50, &haggled, FALSE);
+				if( silver < 0 )
+					return;
+
+				long qp = haggle_price(ch, keeper, chance, number, stock->qp, ch->questpoints, 50, &haggled, FALSE);
+				if( qp < 0 )
+					return;
+
+				long dp = haggle_price(ch, keeper, chance, number, stock->dp, ch->deitypoints, 50, &haggled, FALSE);
+				if( dp < 0 )
+					return;
+
+				long pneuma = haggle_price(ch, keeper, chance, number, stock->pneuma, ch->pneuma, 50, &haggled, FALSE);
+				if( pneuma < 0 )
+					return;
 
 				if( haggled )
 				{
@@ -5281,6 +5249,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 					check_improve(ch,gsn_haggle,TRUE,4);
 				}
 
+				// Deduct price
 				if( silver > 0 )
 				{
 					deduct_cost(ch,silver);
@@ -5302,290 +5271,182 @@ void do_buy(CHAR_DATA *ch, char *argument)
 				{
 					ch->pneuma -= pneuma;
 				}
+			}
+			else
+			{
+				// Handle the custom pricing
+				// - entire currency transaction needs to take place
+				keeper->tempstore[0] = number;
+				keeper->tempstore[1] = stock->type;
+				keeper->tempstore[2] = stock->vnum;
+				keeper->tempstore[3] = UMAX(chance, 0);
+				if(p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CUSTOM_PRICE, stock->custom_keyword))
+					return;
 
+				// Account for the fact that the value will not change if no script is called
+				//  - to activate, do altermob $(self) tempstore3 = -1
+				haggled = (keeper->tempstore[3] < 0);
+			}
 
-				if( stock->obj != NULL )
+			if( stock->obj != NULL )
+			{
+				bool first = TRUE;
+				for (count = 0; count < number; count++)
 				{
-					bool first = TRUE;
-					for (count = 0; count < number; count++)
+					t_obj = create_object(stock->obj, stock->obj->level, TRUE);
+
+					if (t_obj->timer > 0)
+						t_obj->timer = 0;
+
+					if( stock->duration > 0 )
 					{
-						t_obj = create_object(stock->obj, stock->obj->level, TRUE);
+						// They are only here for a limited time
+						t_obj->timer = stock->duration;
+					}
 
-						if (t_obj->timer > 0)
-							t_obj->timer = 0;
 
-						if( first )
+					if( first )
+					{
+						first = FALSE;
+						bool added = FALSE;
+
+						if (number > 1)
 						{
-							first = FALSE;
-							bool added = FALSE;
-
-							if (number > 1)
-							{
-								sprintf(buf,"$n buys $p[%d].",number);
-								act(buf,ch, NULL, NULL, t_obj, NULL, NULL,NULL,TO_ROOM);
-								sprintf(buf,"You buy $p[%d] for",number);
-								if( silver > 0 )
-								{
-									sprintf(arg, " %ld silver", silver);
-									strcat(buf, arg);
-									added = TRUE;
-								}
-								if( qp > 0 )
-								{
-									sprintf(arg, "%s%ld quest points", (added?", ":" "), qp);
-									strcat(buf, arg);
-									added = TRUE;
-								}
-								if( dp > 0 )
-								{
-									sprintf(arg, "%s%ld deity points", (added?", ":" "), dp);
-									strcat(buf, arg);
-									added = TRUE;
-								}
-								if( pneuma > 0 )
-								{
-									sprintf(arg, "%s%ld pneuma", (added?", ":" "), pneuma);
-									strcat(buf, arg);
-								}
-
-								strcat(buf, ".");
-
-								act(buf,ch, NULL, NULL, t_obj, NULL, NULL,NULL,TO_CHAR);
-							}
-							else
-							{
-								act("$n buys $p.", ch, NULL, NULL, t_obj, NULL, NULL, NULL, TO_ROOM);
-								sprintf(buf,"You buy $p for");
-
-								if( silver > 0 )
-								{
-									sprintf(arg, " %ld silver", silver);
-									strcat(buf, arg);
-									added = TRUE;
-								}
-								if( qp > 0 )
-								{
-									sprintf(arg, "%s%ld quest points", (added?", ":" "), qp);
-									strcat(buf, arg);
-									added = TRUE;
-								}
-								if( dp > 0 )
-								{
-									sprintf(arg, "%s%ld deity points", (added?", ":" "), dp);
-									strcat(buf, arg);
-									added = TRUE;
-								}
-								if( pneuma > 0 )
-								{
-									sprintf(arg, "%s%ld pneuma", (added?", ":" "), pneuma);
-									strcat(buf, arg);
-								}
-
-								strcat(buf, ".");
-
-								act(buf, ch, NULL, NULL, t_obj, NULL, NULL, NULL, TO_CHAR);
-							}
-
+							sprintf(buf,"$n buys $p[%d].",number);
+							act(buf,ch, NULL, NULL, t_obj, NULL, NULL,NULL,TO_ROOM);
+							sprintf(buf,"You buy $p[%d] for%s.",number, get_shop_purchase_price(silver, qp, dp, pneuma));
+							act(buf,ch, NULL, NULL, t_obj, NULL, NULL,NULL,TO_CHAR);
+						}
+						else
+						{
+							act("$n buys $p.", ch, NULL, NULL, t_obj, NULL, NULL, NULL, TO_ROOM);
+							sprintf(buf,"You buy $p for%s.",number, get_shop_purchase_price(silver, qp, dp, pneuma));
+							act(buf, ch, NULL, NULL, t_obj, NULL, NULL, NULL, TO_CHAR);
 						}
 
-						obj_to_char(t_obj, ch);
 					}
+
+					obj_to_char(t_obj, ch);
 				}
-				else if(stock->mob != NULL)
+			}
+			else if(stock->mob != NULL)
+			{
+				CHAR_DATA *mob;
+				if( stock->type == STOCK_PET )
 				{
-					CHAR_DATA *mob;
-					if( stock->type == STOCK_PET )
+					char arg_name[MIL];
+					CHAR_DATA *pet = create_mobile(stock->mob, FALSE);
+					SET_BIT(pet->act, ACT_PET);
+					SET_BIT(pet->affected_by, AFF_CHARM);
+					pet->comm = COMM_NOTELL|COMM_NOCHANNELS;
+
+					one_argument(argument, arg_name);
+
+					if (arg_name[0] != '\0')
 					{
-						char arg_name[MIL];
-						CHAR_DATA *pet = create_mobile(stock->mob, FALSE);
-						SET_BIT(pet->act, ACT_PET);
-						SET_BIT(pet->affected_by, AFF_CHARM);
-						pet->comm = COMM_NOTELL|COMM_NOCHANNELS;
-
-						one_argument(argument, arg_name);
-
-						if (arg_name[0] != '\0')
-						{
-							sprintf(buf, "%s %s", pet->name, arg_name);
-							free_string(pet->name);
-							pet->name = str_dup(buf);
-						}
-
-						sprintf(buf, "%sA neck tag says 'I belong to %s'.\n\r", pet->description, ch->name);
-						free_string(pet->description);
-						pet->description = str_dup(buf);
-
-						char_to_room(pet, ch->in_room);
-						add_follower(pet, ch,TRUE);
-						if (!add_grouped(pet, ch,TRUE))
-						{
-							act("$n explodes into thin air!", pet, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-							char_from_room(pet);
-							extract_char(pet, TRUE);
-							return;
-						}
-
-						ch->pet = pet;
-						mob = pet;
-
-						act("$n buys $N.", ch, pet, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-						sprintf(buf,"You buy $N for");
-
-					}
-					else if( stock->type == STOCK_MOUNT )
-					{
-						CHAR_DATA *mount = create_mobile(stock->mob, FALSE);
-
-						char_to_room(mount, ch->in_room);
-						mob = mount;
-
-						act("$n buys $N.", ch, mount, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-						sprintf(buf,"You buy $N for");
-					}
-					else
-					{
-						// STOCK_GUARD
-						CHAR_DATA *guard = create_mobile(stock->mob, FALSE);
-
-						char_to_room(guard, ch->in_room);
-						act("$n appears to salute $N.", guard, ch, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-
-						add_follower(guard, ch,TRUE);
-						if (!add_grouped(guard, ch,TRUE))
-						{
-							act("$n returns to $s quarters.", guard, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-							char_from_room(guard);
-							extract_char(guard, TRUE);
-							return;
-						}
-
-						mob = guard;
-
-						act("$n hires $N.", ch, guard, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-						sprintf(buf,"You hire $N for");
+						sprintf(buf, "%s %s", pet->name, arg_name);
+						free_string(pet->name);
+						pet->name = str_dup(buf);
 					}
 
-					bool added = FALSE;
-					if( silver > 0 )
+					sprintf(buf, "%sA neck tag says 'I belong to %s'.\n\r", pet->description, ch->name);
+					free_string(pet->description);
+					pet->description = str_dup(buf);
+
+					char_to_room(pet, ch->in_room);
+					add_follower(pet, ch,TRUE);
+					if (!add_grouped(pet, ch,TRUE))
 					{
-						sprintf(arg, " %ld silver", silver);
-						strcat(buf, arg);
-						added = TRUE;
-					}
-					if( qp > 0 )
-					{
-						sprintf(arg, "%s%ld quest points", (added?", ":" "), qp);
-						strcat(buf, arg);
-						added = TRUE;
-					}
-					if( dp > 0 )
-					{
-						sprintf(arg, "%s%ld deity points", (added?", ":" "), dp);
-						strcat(buf, arg);
-						added = TRUE;
-					}
-					if( pneuma > 0 )
-					{
-						sprintf(arg, "%s%ld pneuma", (added?", ":" "), pneuma);
-						strcat(buf, arg);
+						act("$n explodes into thin air!", pet, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+						char_from_room(pet);
+						extract_char(pet, TRUE);
+						return;
 					}
 
-					strcat(buf, ".");
+					ch->pet = pet;
+					mob = pet;
 
-					act(buf, ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+					act("$n buys $N.", ch, pet, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+					sprintf(buf,"You buy $N for");
 
-					p_percent_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+				}
+				else if( stock->type == STOCK_MOUNT )
+				{
+					CHAR_DATA *mount = create_mobile(stock->mob, FALSE);
 
+					char_to_room(mount, ch->in_room);
+					mob = mount;
+
+					act("$n buys $N.", ch, mount, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+					sprintf(buf,"You buy $N for");
 				}
 				else
 				{
-					bool added = FALSE;
+					// STOCK_GUARD
+					CHAR_DATA *guard = create_mobile(stock->mob, FALSE);
 
-					if (number > 1)
+					char_to_room(guard, ch->in_room);
+					act("$n appears to salute $N.", guard, ch, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+
+					add_follower(guard, ch,TRUE);
+					if (!add_grouped(guard, ch,TRUE))
 					{
-						sprintf(buf,"$n buys $T[%d].",number);
-						act(buf,ch, NULL, NULL, NULL, NULL, NULL, stock->custom_descr,TO_ROOM);
-						sprintf(buf,"You buy $T[%d] for",number);
-						if( silver > 0 )
-						{
-							sprintf(arg, " %ld silver", silver);
-							strcat(buf, arg);
-							added = TRUE;
-						}
-						if( qp > 0 )
-						{
-							sprintf(arg, "%s%ld quest points", (added?", ":" "), qp);
-							strcat(buf, arg);
-							added = TRUE;
-						}
-						if( dp > 0 )
-						{
-							sprintf(arg, "%s%ld deity points", (added?", ":" "), dp);
-							strcat(buf, arg);
-							added = TRUE;
-						}
-						if( pneuma > 0 )
-						{
-							sprintf(arg, "%s%ld pneuma", (added?", ":" "), pneuma);
-							strcat(buf, arg);
-						}
-
-						strcat(buf, ".");
-
-						act(buf,ch, NULL, NULL, NULL, NULL, NULL,stock->custom_descr,TO_CHAR);
-					}
-					else
-					{
-						act("$n buys $T.", ch, NULL, NULL, NULL, NULL, NULL, stock->custom_descr, TO_ROOM);
-						sprintf(buf,"You buy $T for");
-
-						if( silver > 0 )
-						{
-							sprintf(arg, " %ld silver", silver);
-							strcat(buf, arg);
-							added = TRUE;
-						}
-						if( qp > 0 )
-						{
-							sprintf(arg, "%s%ld quest points", (added?", ":" "), qp);
-							strcat(buf, arg);
-							added = TRUE;
-						}
-						if( dp > 0 )
-						{
-							sprintf(arg, "%s%ld deity points", (added?", ":" "), dp);
-							strcat(buf, arg);
-							added = TRUE;
-						}
-						if( pneuma > 0 )
-						{
-							sprintf(arg, "%s%ld pneuma", (added?", ":" "), pneuma);
-							strcat(buf, arg);
-						}
-
-						strcat(buf, ".");
-
-						act(buf, ch, NULL, NULL, NULL, NULL, NULL, stock->custom_descr, TO_CHAR);
+						act("$n returns to $s quarters.", guard, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+						char_from_room(guard);
+						extract_char(guard, TRUE);
+						return;
 					}
 
-					keeper->tempstore[0] = number;
-					// Just do the giving of items
-					// All cost transactions have taken place, along with their messages
-					p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BUY, stock->custom_keyword);
+					mob = guard;
+
+					act("$n hires $N.", ch, guard, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+					sprintf(buf,"You hire $N for");
 				}
 
-				// Reduce the available stock when it is limited
-				if( stock->quantity > 0 )
-					stock->quantity -= number;
+				strcat(buf, get_shop_purchase_price(silver, qp, dp, pneuma));
+				strcat(buf, ".");
+
+				act(buf, ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+
+				if( stock->duration > 0 )
+				{
+					// They are only here for a limited time
+					SET_BIT(mob->act2, ACT2_HIRED);
+					mob->hired_to = current_time + stock->duration * 60;
+				}
+
+				p_percent_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
 
 			}
 			else
 			{
-				act("{R$n tells you 'Sorry, I cannot sell you that at this time.'.{x", keeper, ch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
-				ch->reply = keeper;
-				return;
+				bool added = FALSE;
 
+				if (number > 1)
+				{
+					sprintf(buf,"$n buys $T[%d].",number);
+					act(buf,ch, NULL, NULL, NULL, NULL, NULL, stock->custom_descr,TO_ROOM);
+					sprintf(buf,"You buy $T[%d] for%s.",number, get_shop_purchase_price(silver, qp, dp, pneuma));
+					act(buf,ch, NULL, NULL, NULL, NULL, NULL,stock->custom_descr,TO_CHAR);
+				}
+				else
+				{
+					act("$n buys $T.", ch, NULL, NULL, NULL, NULL, NULL, stock->custom_descr, TO_ROOM);
+					sprintf(buf,"You buy $T for%s.",number, get_shop_purchase_price(silver, qp, dp, pneuma));
+					act(buf, ch, NULL, NULL, NULL, NULL, NULL, stock->custom_descr, TO_CHAR);
+				}
+
+				keeper->tempstore[0] = number;						// Number of units
+				keeper->tempstore[1] = UMAX(stock->duration, 0);	// Duration of product / service.
+				// Just do the giving of items
+				// All cost transactions have taken place, along with their messages
+				p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BUY, stock->custom_keyword);
 			}
+
+			// Reduce the available stock when it is limited
+			if( stock->quantity > 0 )
+				stock->quantity -= number;
+
 		}
 	}
 }
@@ -7808,3 +7669,39 @@ void do_conceal(CHAR_DATA *ch, char *argument)
 }
 
 
+long haggle_price(CHAR_DATA *ch, CHAR_DATA *keeper, int chance, int number, long base_price, long funds, int discount, bool *haggled, bool silent)
+{
+	long price = adjust_keeper_price(keeper,(long)number * base_price, TRUE);
+
+	discount = URANGE(0,discount,99);
+
+	if( price > 0 )
+	{
+		if( discount > 0 && haggled != NULL )
+		{
+			int roll = number_percent();
+			if( roll < chance )
+			{
+				long disc = (discount * price) / 100;
+
+				price -= (disc * roll) / 100;
+				*haggled = TRUE;
+			}
+		}
+
+		if( funds < prices )
+		{
+			if( !silent )
+			{
+				if (number > 1)
+					act("{R$n tells you 'You can't afford to buy that many.'{x", keeper,ch, NULL, NULL, NULL, NULL, NULL,TO_VICT);
+				else
+					act("{R$n tells you 'You can't afford to buy that'.{x", keeper, ch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+				ch->reply = keeper;
+			}
+			return -1;
+		}
+	}
+
+	return UMAX(price, 0);
+}

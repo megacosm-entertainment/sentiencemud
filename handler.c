@@ -8584,3 +8584,38 @@ char *get_shop_stock_price(SHOP_STOCK_DATA *stock)
 	return pricing;
 }
 
+char *get_shop_purchase_price(long silver, long qp, long dp, long pneuma)
+{
+	static char buf[4][MSL];
+	static int count = 0;
+
+	count = (count + 1) & 3;
+
+	char *pricing = buf[count];
+	int pj = 0;
+
+	bool added = FALSE;
+	if( silver > 0 )
+	{
+		pj = sprintf(pricing, " %ld silver", silver);
+		added = TRUE;
+	}
+	if( qp > 0 )
+	{
+		pj += sprintf(pricing + pj, "%s%ld quest points", (added?", ":" "), qp);
+		added = TRUE;
+	}
+	if( dp > 0 )
+	{
+		pj += sprintf(pricing + pj, "%s%ld deity points", (added?", ":" "), dp);
+		added = TRUE;
+	}
+	if( pneuma > 0 )
+	{
+		pj += sprintf(pricing + pj, "%s%ld pneuma", (added?", ":" "), pneuma);
+	}
+
+	pricing[pj] = '\0';
+
+	return pricing;
+}

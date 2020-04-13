@@ -563,6 +563,7 @@ char *act_bit_name( int act_type, long act_flags )
 	    if (act_flags & ACT2_PIRATE ) strcat( buf, " pirate");
 	    if (act_flags & ACT2_SEE_WIZI) strcat( buf, " see_wizi");
 	    if (act_flags & ACT2_SOUL_DEPOSIT) strcat( buf, " soul_deposit");
+		if (act_flags & ACT2_HIRED) strcat(buf, " hired");
 		break;
 	case 3:		// PC->act
 		strcat(buf," player");

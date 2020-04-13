@@ -1629,6 +1629,8 @@ SHOP_STOCK_DATA *new_shop_stock()
 	pStock->max_quantity = 0;
 	pStock->restock_rate = 0;
 
+	pStock->duration = -1;
+
 	pStock->custom_keyword = &str_empty[0];
 	pStock->custom_descr = &str_empty[0];
 

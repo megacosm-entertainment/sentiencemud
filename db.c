@@ -1800,6 +1800,7 @@ void copy_shop_stock(SHOP_DATA *to_shop, SHOP_STOCK_DATA *from_stock)
 	to_stock->max_quantity = from_stock->quantity;
 	to_stock->restock_rate = from_stock->restock_rate;
 	to_stock->type = from_stock->type;
+	to_stock->duration = ( from_stock->duration > 0 ) ? from_stock->duration : -1;
 	to_stock->vnum = from_stock->vnum;
 	switch(to_stock->type)
 	{

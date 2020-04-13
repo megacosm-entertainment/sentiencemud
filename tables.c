@@ -604,6 +604,7 @@ const struct flag_type act2_flags[]=
     {   "use_skills_only",	ACT2_USE_SKILLS_ONLY,	TRUE	},
     {   "can_level",		ACT2_CANLEVEL,		TRUE	},
     {   "no_xp",		ACT2_NO_XP,		TRUE	},
+    {   "hired",		ACT2_HIRED,		FALSE	},
     {   NULL,			0,			FALSE	}
 };
 

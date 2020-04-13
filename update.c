@@ -793,7 +793,7 @@ void mobile_update(void)
 		if (ch->spec_fun != 0)
 		{
 			if ((*ch->spec_fun)(ch))
-			continue;
+				continue;
 		}
 
 		if (ch->shop != NULL)
@@ -855,10 +855,53 @@ void mobile_update(void)
 		}
 
 		// get rid of crew when they are past their hired date
-		if (ch->belongs_to_ship != NULL
-		&&   !IS_NPC_SHIP(ch->belongs_to_ship)
-		&&   current_time > ch->hired_to)
+		if (ch->belongs_to_ship != NULL &&
+			!IS_NPC_SHIP(ch->belongs_to_ship) &&
+			current_time > ch->hired_to) {
 			extract_char(ch, TRUE);
+			continue;
+		}
+
+		if( IS_NPC(ch) && IS_SET(ch->act2, ACT2_HIRED) )
+		{
+			if( ch->hired_to > 0 && current_time < ch->hired_to )
+			{
+				// CONTRACT_COMPLETE can allow the mob to remain in existence
+				// - when a script gets executed, you need to return a zero to extract the mob
+				// - when no script gets executed, extraction will be performed
+				if(p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_CONTRACT_COMPLETE, NULL) <= 0)
+				{
+					extract_char(ch, TRUE);
+					continue;
+				}
+
+				// Only get here when the return value is positive
+				// - script execution with no "end" called
+				// - end called with positive value
+
+				if( ch->master != NULL )
+				{
+					// Un..pet
+					if( ch->master->pet == ch )
+						ch->master->pet = NULL;
+				}
+
+				// Check if they are being ridden
+				CHAR_DATA *rider = RIDDEN(ch);
+				if( rider != NULL )
+				{
+					// Silently dismount
+					rider->riding = FALSE;
+					ch->riding = FALSE;
+					ch->rider = NULL;
+					rider->mount = NULL;
+				}
+
+				die_follower(ch);
+				REMOVE_BIT(ch->act2, ACT2_HIRED);
+				ch->hired_to = 0;
+			}
+		}
 
 		// That's all for sleeping / busy monster, and empty zones
 		if (ch->position != POS_STANDING)

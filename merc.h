@@ -1321,6 +1321,8 @@ struct shop_stock_data
 	int type;
 	long vnum;
 
+	int duration;				// How long will the stock item last (in-game hours)
+
 	char *custom_keyword;		// Concept / Special object
 	char *custom_descr;
 };
@@ -1749,6 +1751,8 @@ struct affliction_type {
 #define ACT2_USE_SKILLS_ONLY	(X)
 #define ACT2_CANLEVEL		(aa)
 #define ACT2_NO_XP			(bb)
+#define ACT2_HIRED			(cc)
+
 
 /* Has_done flags - this is for commands which only are allowed */
 /* to be used once in combat. Currently just reverie. */
@@ -5094,15 +5098,15 @@ enum trigger_index_enum {
 	TRIG_CATALYST_SOURCE,
 	TRIG_CHECK_BUYER,		// Called when a stock item is not an object, used to check whether the buyer can GET the item
 	TRIG_CHECK_DAMAGE,
-	TRIG_CHECK_PRICE,		// Called when a stock item has custom pricing
 	TRIG_CLONE_EXTRACT,
 	TRIG_CLOSE,
 	TRIG_COMBAT_STYLE,
+	TRIG_CONTRACT_COMPLETE,
+	TRIG_CUSTOM_PRICE,		// Called when a stock item has custom pricing
 	TRIG_DAMAGE,
 	TRIG_DEATH,
 	TRIG_DEATH_PROTECTION,
 	TRIG_DEATH_TIMER,
-	TRIG_DEDUCT_PRICE,		// Called when a stock item has custom pricing
 	TRIG_DEFENSE,
 	TRIG_DELAY,
 	TRIG_DRINK,
@@ -7846,5 +7850,7 @@ void church_announce_theft(CHAR_DATA *ch, OBJ_DATA *obj);
 
 int get_colour_width(char *text);
 char *get_shop_stock_price(SHOP_STOCK_DATA *stock);
+char *get_shop_purchase_price(long silver, long qp, long dp, long pneuma);
+long haggle_price(CHAR_DATA *ch, CHAR_DATA *keeper, int chance, int number, long base_price, long funds, int discount, bool *haggled, bool silent);
 
 #endif /* !def __MERC_H__ */

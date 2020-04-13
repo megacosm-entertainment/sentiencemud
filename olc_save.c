@@ -1171,6 +1171,8 @@ void save_shop_stock_new(FILE *fp, SHOP_STOCK_DATA *stock)
 		break;
 	}
 
+	fprintf(fp, "Duration %d\n", stock->duration);
+
 	fprintf(fp, "Description %s~\n", fix_string(stock->custom_descr));
 
 	fprintf(fp, "#-STOCK\n");
@@ -3121,6 +3123,7 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)
 		case 'D':
 			KEY("DeityPnts", stock->dp, fread_number(fp));
 			KEYS("Description", stock->custom_descr, fread_string(fp));
+			KEY("Duration", stock->duration, fread_number(fp));
 			break;
 		case 'G':
 			if(!str_cmp(word, "Guard"))
