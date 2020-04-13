@@ -6639,7 +6639,7 @@ MEDIT(medit_show)
 
 				if( pStock->duration > 0 )
 				{
-					sprintf(hours, "{G%d{x", stock->pStock);
+					sprintf(hours, "{G%d{x", pStock->duration);
 				}
 				else
 				{
