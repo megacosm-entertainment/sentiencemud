@@ -5991,136 +5991,257 @@ void do_inspect(CHAR_DATA *ch, char *argument)
 
 void do_sell(CHAR_DATA *ch, char *argument)
 {
-    char buf[MAX_STRING_LENGTH];
-    char arg[MAX_INPUT_LENGTH];
-    CHAR_DATA *keeper = NULL;
-    CHAR_DATA *trader = NULL;
-    CHAR_DATA *mob = NULL;
-    OBJ_DATA *obj = NULL;
-    int cost,roll;
+	char buf[MAX_STRING_LENGTH];
+	char arg[MAX_INPUT_LENGTH];
+	CHAR_DATA *keeper = NULL;
+	CHAR_DATA *trader = NULL;
+	CHAR_DATA *mob = NULL;
+	OBJ_DATA *obj = NULL;
+	int cost,roll;
 
-    one_argument(argument, arg);
+	one_argument(argument, arg);
 
-    if (arg[0] == '\0')
-    {
-	send_to_char("Sell what?\n\r", ch);
-	return;
-    }
-
-    for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
-    {
-	if (IS_SET(mob->act2, ACT2_TRADER) && IS_NPC(mob))
+	if (arg[0] == '\0')
 	{
-	    trader = mob;
-	    break;
+		send_to_char("Sell what?\n\r", ch);
+		return;
 	}
-    }
+
+	for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
+	{
+		if (IS_SET(mob->act2, ACT2_TRADER) && IS_NPC(mob))
+		{
+			trader = mob;
+			break;
+		}
+	}
 
     if (trader != NULL)
     {
-	TRADE_ITEM *temp;
-	OBJ_INDEX_DATA *obj_index;
-	OBJ_DATA *pObj;
-	OBJ_DATA *cart;
+		TRADE_ITEM *temp;
+		OBJ_INDEX_DATA *obj_index;
+		OBJ_DATA *pObj;
+		OBJ_DATA *cart;
 
-	if(p_percent_trigger(trader, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PRESELL, NULL))
+		// TODO: TRIG_PRESELL_TRADER
+//		if(p_percent_trigger(trader, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PRESELL, NULL))
+//			return;
+
+		argument = one_argument(argument, arg);
+
+		if ((cart = ch->pulled_cart) == NULL)
+		{
+			sprintf(buf, "%s, you arn't pulling a cart!", pers(ch, trader));
+			do_say(trader, buf);
+			return;
+		}
+
+		for(pObj = cart->contains; pObj != NULL; pObj = pObj->next_content)
+		{
+			if (is_name(arg, pObj->name))
+			{
+				break;
+			}
+		}
+
+		if (pObj == NULL)
+		{
+			sprintf(buf, "You can't sell what you don't have %s!", pers(ch, trader));
+			do_say(trader, buf);
+			return;
+		}
+
+		for(temp = ch->in_room->area->trade_list; temp != NULL; temp = temp->next)
+		{
+			obj_index = get_obj_index(temp->obj_vnum);
+			if (obj_index->value[0] == pObj->value[0])
+			{
+				break;
+			}
+		}
+
+		if (temp == NULL)
+		{
+			sprintf(buf, "Sorry %s, we aren't buying that commodity at the moment.", pers(ch, trader));
+			do_say(trader, buf);
+			return;
+		}
+
+		sprintf(buf, "You sell %s for {Y%ld{x gold and {Y%ld{x silver.\n\r",
+			pObj->short_descr,
+			temp->sell_price/100,
+			temp->sell_price - (temp->sell_price/100) * 100);
+		send_to_char(buf, ch);
+
+		ch->gold	+= temp->sell_price/100;
+		ch->silver	+= temp->sell_price - (temp->sell_price/100) * 100;
+		temp->qty++;
+
+		obj_from_obj(pObj);
+
+		return;
+    }
+
+	if (trader == NULL && (keeper = find_keeper(ch)) == NULL)
 		return;
 
-	argument = one_argument(argument, arg);
-
-	if ((cart = ch->pulled_cart) == NULL)
+	if ((obj = get_obj_carry(ch, arg, ch)) == NULL)
 	{
-	    sprintf(buf, "%s, you arn't pulling a cart!", pers(ch, trader));
-	    do_say(trader, buf);
-	    return;
+		act("{R$n tells you 'You don't have that item'.{x", keeper, ch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+		ch->reply = keeper;
+		return;
 	}
 
-	pObj = cart->contains;
-	while(pObj != NULL)
+	if(p_percent_trigger(trader, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PRESELL, NULL))
+		return;
+
+	if (!can_drop_obj(ch, obj, TRUE) || IS_SET(obj->extra2_flags, ITEM_KEPT))
 	{
-	    if (is_name(arg, pObj->name))
-	    {
-		break;
-	    }
-	    pObj = pObj->next_content;
+		send_to_char("You can't let go of it.\n\r", ch);
+		return;
 	}
 
-	if (pObj == NULL)
+	if (!can_see_obj(keeper,obj))
 	{
-	    sprintf(buf, "You can't sell what you don't have %s!", pers(ch, trader));
-	    do_say(trader, buf);
-	    return;
+		act("$n doesn't see what you are offering.",keeper,ch, NULL, NULL, NULL, NULL, NULL,TO_VICT);
+		return;
 	}
 
-	temp = ch->in_room->area->trade_list;
-	while(temp != NULL)
+	SHOP_STOCK_DATA *stock;
+	for(stock = keeper->shop->stock; stock; stock = stock->next)
 	{
-	    obj_index = get_obj_index(temp->obj_vnum);
-	    if (obj_index->value[0] == pObj->value[0])
-	    {
-		break;
-	    }
-	    temp = temp->next;
+		if(stock->obj != NULL && stock->obj == obj->pIndexData)
+			break;
 	}
 
-	if (temp == NULL)
+	if( stock != NULL )
 	{
-	    sprintf(buf, "Sorry %s, we aren't buying that commodity at the moment.", pers(ch, trader));
-	    do_say(trader, buf);
-	    return;
+		if( IS_NULLSTR(stock->custom_price )
+		{
+			bool haggled = FALSE;
+			int chance = get_skill(ch, gsn_haggle);
+
+			long silver = adjust_keeper_price(keeper, stock->silver, FALSE);
+			if( silver > 0 )
+			{
+				long wealth = (keeper-> silver + 100 * keeper->gold)
+				roll = number_percent();
+				if (roll < chance)
+				{
+					haggled = TRUE;
+					silver += stock->silver * roll / 200;
+					silver = UMIN(silver,95 * stock->silver / 100);
+					silver = UMIN(silver,wealth);
+				}
+
+				if (silver > wealth)
+				{
+					act("{R$n tells you 'I'm afraid I don't have enough wealth to buy $p.{x",
+						keeper,ch, NULL, obj, NULL, NULL, NULL,TO_VICT);
+					ch->reply = keeper;
+					return;
+				}
+			}
+
+
+			// Add some way to limit these?
+			long qp = adjust_keeper_price(keeper, stock->qp, FALSE);
+			if( qp > 0 )
+			{
+				roll = number_percent();
+				if (roll < chance)
+				{
+					haggled = TRUE;
+					qp += stock->qp * roll / 200;
+					qp = UMIN(qp,95 * stock->qp / 100);
+				}
+			}
+
+			long dp = adjust_keeper_price(keeper, stock->dp, FALSE);
+			if( dp > 0 )
+			{
+				roll = number_percent();
+				if (roll < chance)
+				{
+					haggled = TRUE;
+					dp += stock->dp * roll / 200;
+					dp = UMIN(dp,95 * stock->dp / 100);
+				}
+			}
+
+			long pneuma = adjust_keeper_price(keeper, stock->pneuma, FALSE);
+			if( pneuma > 0 )
+			{
+				roll = number_percent();
+				if (roll < chance)
+				{
+					haggled = TRUE;
+					pneuma += stock->pneuma * roll / 200;
+					pneuma = UMIN(pneuma,95 * stock->pneuma / 100);
+				}
+			}
+
+			act("$n sells $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+
+			if( haggled ) {
+				send_to_char("You haggle with the shopkeeper.\n\r",ch);
+				check_improve(ch,gsn_haggle,TRUE,4);
+			}
+
+			sprintf(buf, "You sell $p for %s.", get_shop_purchase_price(silver, qp, dp, pneuma));
+			act(buf, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+
+			ch->gold		+= silver/100;
+			ch->silver		+= silver%100;
+			ch->questpoints	+= qp;
+			ch->deitypoints	+= dp;
+			ch->pneuma		+= pneuma;
+
+			deduct_cost(keeper,silver);
+			if (keeper->gold < 0)
+				keeper->gold = 0;
+			if (keeper->silver< 0)
+				keeper->silver = 0;
+
+			if (obj->item_type == ITEM_TRASH)
+			{
+				log_string("Item sell extract");
+				extract_obj(obj);
+			}
+			else
+			{
+				long new_value = silver + qp + (dp / 100) + pneuma;	// Get some kind of value for resale
+
+				obj_from_char(obj);
+				obj->timer = number_range(100,250);
+				obj->cost = adjust_keeper_price(keeper, new_value, TRUE);
+				obj_to_keeper(obj, keeper);
+
+			}
+			return;
+		}
+
+		// Custom prices are not eligible for refund
 	}
 
-	sprintf(buf, "You sell %s for {Y%ld{x gold and {Y%ld{x silver.\n\r",
-		pObj->short_descr,
-		temp->sell_price/100,
-		temp->sell_price - (temp->sell_price/100) * 100);
-	send_to_char(buf, ch);
+	if (IS_SET(keeper->shop->flags, SHOPFLAG_STOCK_ONLY))
+	{
+		act("$n looks uninterested in $p.", keeper, ch, NULL, obj, NULL, NULL, NULL, TO_VICT);
+		return;
+	}
 
-	ch->gold    += temp->sell_price/100;
-	ch->silver  += temp->sell_price - (temp->sell_price/100) * 100;
-	temp->qty++;
-
-	obj_from_obj(pObj);
-
-	return;
-    }
-
-    if (trader == NULL && (keeper = find_keeper(ch)) == NULL)
-	return;
-
-    if ((obj = get_obj_carry(ch, arg, ch)) == NULL)
-    {
-	act("{R$n tells you 'You don't have that item'.{x",
-		keeper, ch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
-	ch->reply = keeper;
-	return;
-    }
-
-    if(p_percent_trigger(trader, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PRESELL, NULL))
-	return;
-
-    if (!can_drop_obj(ch, obj, TRUE) || IS_SET(obj->extra2_flags, ITEM_KEPT))
-    {
-	send_to_char("You can't let go of it.\n\r", ch);
-	return;
-    }
-
-    if (!can_see_obj(keeper,obj))
-    {
-	act("$n doesn't see what you are offering.",keeper,ch, NULL, NULL, NULL, NULL, NULL,TO_VICT);
-	return;
-    }
-
+	// Not a part of the stock, or not eligible for stock refund
     if ((cost = get_cost(keeper, obj, FALSE)) <= 0)
     {
-	act("$n looks uninterested in $p.", keeper, ch, NULL, obj, NULL, NULL, NULL, TO_VICT);
-	return;
+		act("$n looks uninterested in $p.", keeper, ch, NULL, obj, NULL, NULL, NULL, TO_VICT);
+		return;
     }
     if (cost > (keeper-> silver + 100 * keeper->gold))
     {
-	act("{R$n tells you 'I'm afraid I don't have enough wealth to buy $p.{x",
-		keeper,ch, NULL, obj, NULL, NULL, NULL,TO_VICT);
-	return;
+		act("{R$n tells you 'I'm afraid I don't have enough wealth to buy $p.{x",
+			keeper,ch, NULL, obj, NULL, NULL, NULL,TO_VICT);
+		ch->reply = keeper;
+		return;
     }
 
     act("$n sells $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
@@ -6128,34 +6249,34 @@ void do_sell(CHAR_DATA *ch, char *argument)
     roll = number_percent();
     if (roll < get_skill(ch,gsn_haggle))
     {
-	send_to_char("You haggle with the shopkeeper.\n\r",ch);
-	cost += obj->cost / 2 * roll / 100;
-	cost = UMIN(cost,95 * get_cost(keeper,obj,TRUE) / 100);
-	cost = UMIN(cost,(keeper->silver + 100 * keeper->gold));
-	check_improve(ch,gsn_haggle,TRUE,4);
+		send_to_char("You haggle with the shopkeeper.\n\r",ch);
+		cost += obj->cost / 2 * roll / 100;
+		cost = UMIN(cost,95 * get_cost(keeper,obj,TRUE) / 100);
+		cost = UMIN(cost,(keeper->silver + 100 * keeper->gold));
+		check_improve(ch,gsn_haggle,TRUE,4);
     }
-    sprintf(buf, "You sell $p for %d silver and %d gold piece%s.",
-	    cost - (cost/100) * 100, cost/100, cost == 1 ? "" : "s");
-    act(buf, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-    ch->gold     += cost/100;
-    ch->silver 	 += cost - (cost/100) * 100;
+	sprintf(buf, "You sell $p for %d silver and %d gold piece%s.",
+		cost - (cost/100) * 100, cost/100, cost == 1 ? "" : "s");
+	act(buf, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+	ch->gold	+= cost/100;
+	ch->silver	+= cost - (cost/100) * 100;
     deduct_cost(keeper,cost);
     if (keeper->gold < 0)
-	keeper->gold = 0;
+		keeper->gold = 0;
     if (keeper->silver< 0)
-	keeper->silver = 0;
+		keeper->silver = 0;
 
-    if (obj->item_type == ITEM_TRASH)
-    {
-	log_string("Item sell extract");
-	extract_obj(obj);
-    }
-    else
-    {
-	obj_from_char(obj);
-	obj->timer = number_range(100,250);
-	obj_to_keeper(obj, keeper);
-    }
+	if (obj->item_type == ITEM_TRASH)
+	{
+		log_string("Item sell extract");
+		extract_obj(obj);
+	}
+	else
+	{
+		obj_from_char(obj);
+		obj->timer = number_range(100,250);
+		obj_to_keeper(obj, keeper);
+	}
 }
 
 

@@ -8597,7 +8597,21 @@ char *get_shop_purchase_price(long silver, long qp, long dp, long pneuma)
 	bool added = FALSE;
 	if( silver > 0 )
 	{
-		pj = sprintf(pricing, " %ld silver", silver);
+		long gold = silver / 100;
+		silver = silver % 100;
+
+		if( gold > 0 )
+		{
+			if( silver > 0 )
+				pj = sprintf(pricing, " %ld gold, %ld silver", gold, silver);
+			else
+				pj = sprintf(pricing, " %ld gold", gold);
+		}
+		else
+		{
+			pj = sprintf(pricing, " %ld silver", silver);
+		}
+
 		added = TRUE;
 	}
 	if( qp > 0 )
