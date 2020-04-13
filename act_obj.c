@@ -5898,73 +5898,75 @@ void do_list(CHAR_DATA *ch, char *argument)
 			switch(stock->type)
 			{
 			case STOCK_OBJECT:
-				if( stock->vnum <= 0 || !stock->obj ) continue;
-
-				if( arg[0] != '\0' && !is_name(arg, stock->obj->name) )
-					continue;
-
-				if (!found)
+				if( stock->vnum > 0 && stock->obj != NULL )
 				{
-					found = TRUE;
-					send_to_char("{B[ {GLv    Price  Qty{B ]{x {YItem{x\n\r", ch);
+					if( arg[0] != '\0' && !is_name(arg, stock->obj->name) )
+						continue;
+
+					if (!found)
+					{
+						found = TRUE;
+						send_to_char("{B[ {GLv    Price  Qty{B ]{x {YItem{x\n\r", ch);
+					}
+
+					int level = stock->level;
+					if( level < 1 ) level = stock->obj->level;
+					level = UMAX(level, 1);
+
+					char *pricing = get_shop_stock_price(stock);
+					int pwidth = get_colour_width(pricing) + 8;
+
+					char *descr =
+						IS_NULLSTR(stock->custom_descr) ? stock->obj->short_descr : stock->custom_descr;
+
+					if( stock->max_quantity > 0 )
+					{
+						sprintf(buf,"{B[{x%3d %*s {Y%4d{B ]{x %s\n\r", level,pwidth,pricing,stock->quantity,descr);
+					}
+					else
+					{
+						sprintf(buf,"{B[{x%3d %*s {Y ---{B ]{x %s\n\r", level,pwidth,pricing,descr);
+					}
+
+					send_to_char(buf, ch);
 				}
-
-				int level = stock->level;
-				if( level < 1 ) level = stock->obj->level;
-				level = UMAX(level, 1);
-
-				char *pricing = get_shop_stock_price(stock);
-				int pwidth = get_colour_width(pricing) + 8;
-
-				char *descr =
-					IS_NULLSTR(stock->custom_descr) ? stock->obj->short_descr : stock->custom_descr;
-
-				if( stock->max_quantity > 0 )
-				{
-					sprintf(buf,"{B[{x%3d %*s {Y%4d{B ]{x %s\n\r", level,pwidth,pricing,stock->quantity,descr);
-				}
-				else
-				{
-					sprintf(buf,"{B[{x%3d %*s {Y ---{B ]{x %s\n\r", level,pwidth,pricing,descr);
-				}
-
-				send_to_char(buf, ch);
 				break;
 
 			case STOCK_PET:
 			case STOCK_MOUNT:
 			case STOCK_GUARD:
-				if( stock->vnum <= 0 || !stock->mob ) continue;
-
-				if( arg[0] != '\0' && !is_name(arg, stock->mob->name) )
-					continue;
-
-				if (!found)
+				if( stock->vnum > 0 && stock->mob != NULL )
 				{
-					found = TRUE;
-					send_to_char("{B[ {GLv    Price  Qty{B ]{x {YItem{x\n\r", ch);
+					if( arg[0] != '\0' && !is_name(arg, stock->mob->player_name) )
+						continue;
+
+					if (!found)
+					{
+						found = TRUE;
+						send_to_char("{B[ {GLv    Price  Qty{B ]{x {YItem{x\n\r", ch);
+					}
+
+					int level = stock->level;
+					if( level < 1 ) level = stock->mob->level;
+					level = UMAX(level, 1);
+
+					char *pricing = get_shop_stock_price(stock);
+					int pwidth = get_colour_width(pricing) + 8;
+
+					char *descr =
+						IS_NULLSTR(stock->custom_descr) ? stock->mob->short_descr : stock->custom_descr;
+
+					if( stock->max_quantity > 0 )
+					{
+						sprintf(buf,"{B[{x%3d %*s {Y%4d{B ]{x %s\n\r", level,pwidth,pricing,stock->quantity,descr);
+					}
+					else
+					{
+						sprintf(buf,"{B[{x%3d %*s {Y ---{B ]{x %s\n\r", level,pwidth,pricing,descr);
+					}
+
+					send_to_char(buf, ch);
 				}
-
-				int level = stock->level;
-				if( level < 1 ) level = stock->mob->level;
-				level = UMAX(level, 1);
-
-				char *pricing = get_shop_stock_price(stock);
-				int pwidth = get_colour_width(pricing) + 8;
-
-				char *descr =
-					IS_NULLSTR(stock->custom_descr) ? stock->mob->short_descr : stock->custom_descr;
-
-				if( stock->max_quantity > 0 )
-				{
-					sprintf(buf,"{B[{x%3d %*s {Y%4d{B ]{x %s\n\r", level,pwidth,pricing,stock->quantity,descr);
-				}
-				else
-				{
-					sprintf(buf,"{B[{x%3d %*s {Y ---{B ]{x %s\n\r", level,pwidth,pricing,descr);
-				}
-
-				send_to_char(buf, ch);
 				break;
 
 			default:
@@ -5997,8 +5999,6 @@ void do_list(CHAR_DATA *ch, char *argument)
 				}
 				break;
 			}
-
-
 		}
 
 		for (obj = keeper->carrying; obj; obj = obj->next_content)
