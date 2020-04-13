@@ -6199,7 +6199,7 @@ void do_sell(CHAR_DATA *ch, char *argument)
 					check_improve(ch,gsn_haggle,TRUE,4);
 				}
 
-				sprintf(buf, "You sell $p for %s.", get_shop_purchase_price(silver, qp, dp, pneuma));
+				sprintf(buf, "You sell $p for%s.", get_shop_purchase_price(silver, qp, dp, pneuma));
 				act(buf, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 
 				ch->gold		+= silver/100;
@@ -6263,8 +6263,7 @@ void do_sell(CHAR_DATA *ch, char *argument)
 		cost = UMIN(cost,(keeper->silver + 100 * keeper->gold));
 		check_improve(ch,gsn_haggle,TRUE,4);
     }
-	sprintf(buf, "You sell $p for %d silver and %d gold piece%s.",
-		cost - (cost/100) * 100, cost/100, cost == 1 ? "" : "s");
+	sprintf(buf, "You sell $p for%s", get_shop_purchase_price(cost, 0, 0, 0));
 	act(buf, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 	ch->gold	+= cost/100;
 	ch->silver	+= cost - (cost/100) * 100;
