@@ -5224,6 +5224,8 @@ void do_buy(CHAR_DATA *ch, char *argument)
 			}
 
 			int chance = get_skill(ch, gsn_haggle);
+			long new_value = 0;
+
 			if( IS_NULLSTR(stock->custom_price) )
 			{
 
@@ -5272,6 +5274,8 @@ void do_buy(CHAR_DATA *ch, char *argument)
 				{
 					ch->pneuma -= pneuma;
 				}
+
+				new_value = silver + qp + (dp / 100) + pneuma;	// Get some kind of value for resale
 
 				// Default messaging
 				strncpy(pricestr, get_shop_purchase_price(silver, qp, dp, pneuma), MIL);
@@ -5356,6 +5360,10 @@ void do_buy(CHAR_DATA *ch, char *argument)
 					}
 
 					obj_to_char(t_obj, ch);
+
+					// Prepare it for selling to vendors
+					if( t_obj->cost <= 0 )
+						t_obj->cost = new_value;
 
 					// Handles what happens AFTER you've bought the item.  Called for EVERY item
 					p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, t_obj, NULL, TRIG_BUY, NULL);
@@ -6107,127 +6115,127 @@ void do_sell(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	SHOP_STOCK_DATA *stock;
-	for(stock = keeper->shop->stock; stock; stock = stock->next)
+	if( keeper->shop->stock != NULL )
 	{
-		if(stock->obj != NULL && stock->obj == obj->pIndexData)
-			break;
-	}
-
-	if( stock != NULL )
-	{
-		if( IS_NULLSTR(stock->custom_price )
+		// Check the keeper's stock for hits
+		SHOP_STOCK_DATA *stock;
+		for(stock = keeper->shop->stock; stock; stock = stock->next)
 		{
-			bool haggled = FALSE;
-			int chance = get_skill(ch, gsn_haggle);
-
-			long silver = adjust_keeper_price(keeper, stock->silver, FALSE);
-			if( silver > 0 )
-			{
-				long wealth = (keeper-> silver + 100 * keeper->gold)
-				roll = number_percent();
-				if (roll < chance)
-				{
-					haggled = TRUE;
-					silver += stock->silver * roll / 200;
-					silver = UMIN(silver,95 * stock->silver / 100);
-					silver = UMIN(silver,wealth);
-				}
-
-				if (silver > wealth)
-				{
-					act("{R$n tells you 'I'm afraid I don't have enough wealth to buy $p.{x",
-						keeper,ch, NULL, obj, NULL, NULL, NULL,TO_VICT);
-					ch->reply = keeper;
-					return;
-				}
-			}
-
-
-			// Add some way to limit these?
-			long qp = adjust_keeper_price(keeper, stock->qp, FALSE);
-			if( qp > 0 )
-			{
-				roll = number_percent();
-				if (roll < chance)
-				{
-					haggled = TRUE;
-					qp += stock->qp * roll / 200;
-					qp = UMIN(qp,95 * stock->qp / 100);
-				}
-			}
-
-			long dp = adjust_keeper_price(keeper, stock->dp, FALSE);
-			if( dp > 0 )
-			{
-				roll = number_percent();
-				if (roll < chance)
-				{
-					haggled = TRUE;
-					dp += stock->dp * roll / 200;
-					dp = UMIN(dp,95 * stock->dp / 100);
-				}
-			}
-
-			long pneuma = adjust_keeper_price(keeper, stock->pneuma, FALSE);
-			if( pneuma > 0 )
-			{
-				roll = number_percent();
-				if (roll < chance)
-				{
-					haggled = TRUE;
-					pneuma += stock->pneuma * roll / 200;
-					pneuma = UMIN(pneuma,95 * stock->pneuma / 100);
-				}
-			}
-
-			act("$n sells $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-
-			if( haggled ) {
-				send_to_char("You haggle with the shopkeeper.\n\r",ch);
-				check_improve(ch,gsn_haggle,TRUE,4);
-			}
-
-			sprintf(buf, "You sell $p for %s.", get_shop_purchase_price(silver, qp, dp, pneuma));
-			act(buf, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-
-			ch->gold		+= silver/100;
-			ch->silver		+= silver%100;
-			ch->questpoints	+= qp;
-			ch->deitypoints	+= dp;
-			ch->pneuma		+= pneuma;
-
-			deduct_cost(keeper,silver);
-			if (keeper->gold < 0)
-				keeper->gold = 0;
-			if (keeper->silver< 0)
-				keeper->silver = 0;
-
-			if (obj->item_type == ITEM_TRASH)
-			{
-				log_string("Item sell extract");
-				extract_obj(obj);
-			}
-			else
-			{
-				long new_value = silver + qp + (dp / 100) + pneuma;	// Get some kind of value for resale
-
-				obj_from_char(obj);
-				obj->timer = number_range(100,250);
-				obj->cost = adjust_keeper_price(keeper, new_value, TRUE);
-				obj_to_keeper(obj, keeper);
-
-			}
-			return;
+			if(stock->obj != NULL && stock->obj == obj->pIndexData)
+				break;
 		}
 
-		// Custom prices are not eligible for refund
-	}
+		if( stock != NULL )
+		{
+			if( IS_NULLSTR(stock->custom_price )
+			{
+				bool haggled = FALSE;
+				int chance = get_skill(ch, gsn_haggle);
 
-	if (IS_SET(keeper->shop->flags, SHOPFLAG_STOCK_ONLY))
-	{
-		act("$n looks uninterested in $p.", keeper, ch, NULL, obj, NULL, NULL, NULL, TO_VICT);
-		return;
+				long silver = adjust_keeper_price(keeper, stock->silver, FALSE);
+				if( silver > 0 )
+				{
+					long wealth = (keeper-> silver + 100 * keeper->gold)
+					roll = number_percent();
+					if (roll < chance)
+					{
+						haggled = TRUE;
+						silver += stock->silver * roll / 200;
+						silver = UMIN(silver,95 * stock->silver / 100);
+						silver = UMIN(silver,wealth);
+					}
+
+					if (silver > wealth)
+					{
+						act("{R$n tells you 'I'm afraid I don't have enough wealth to buy $p.{x",
+							keeper,ch, NULL, obj, NULL, NULL, NULL,TO_VICT);
+						ch->reply = keeper;
+						return;
+					}
+				}
+
+
+				// Add some way to limit these?
+				long qp = adjust_keeper_price(keeper, stock->qp, FALSE);
+				if( qp > 0 )
+				{
+					roll = number_percent();
+					if (roll < chance)
+					{
+						haggled = TRUE;
+						qp += stock->qp * roll / 200;
+						qp = UMIN(qp,95 * stock->qp / 100);
+					}
+				}
+
+				long dp = adjust_keeper_price(keeper, stock->dp, FALSE);
+				if( dp > 0 )
+				{
+					roll = number_percent();
+					if (roll < chance)
+					{
+						haggled = TRUE;
+						dp += stock->dp * roll / 200;
+						dp = UMIN(dp,95 * stock->dp / 100);
+					}
+				}
+
+				long pneuma = adjust_keeper_price(keeper, stock->pneuma, FALSE);
+				if( pneuma > 0 )
+				{
+					roll = number_percent();
+					if (roll < chance)
+					{
+						haggled = TRUE;
+						pneuma += stock->pneuma * roll / 200;
+						pneuma = UMIN(pneuma,95 * stock->pneuma / 100);
+					}
+				}
+
+				act("$n sells $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+
+				if( haggled ) {
+					send_to_char("You haggle with the shopkeeper.\n\r",ch);
+					check_improve(ch,gsn_haggle,TRUE,4);
+				}
+
+				sprintf(buf, "You sell $p for %s.", get_shop_purchase_price(silver, qp, dp, pneuma));
+				act(buf, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+
+				ch->gold		+= silver/100;
+				ch->silver		+= silver%100;
+				ch->questpoints	+= qp;
+				ch->deitypoints	+= dp;
+				ch->pneuma		+= pneuma;
+
+				deduct_cost(keeper,silver);
+				if (keeper->gold < 0)
+					keeper->gold = 0;
+				if (keeper->silver< 0)
+					keeper->silver = 0;
+
+				if (obj->item_type == ITEM_TRASH)
+				{
+					log_string("Item sell extract");
+					extract_obj(obj);
+				}
+				else
+				{
+					obj_from_char(obj);
+					obj->timer = number_range(100,250);
+					obj_to_keeper(obj, keeper);
+				}
+				return;
+			}
+
+			// Custom prices are not eligible for refund
+		}
+
+		if (IS_SET(keeper->shop->flags, SHOPFLAG_STOCK_ONLY))
+		{
+			act("$n looks uninterested in $p.", keeper, ch, NULL, obj, NULL, NULL, NULL, TO_VICT);
+			return;
+		}
 	}
 
 	// Not a part of the stock, or not eligible for stock refund
