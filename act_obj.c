@@ -5137,7 +5137,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 				return;
 
 
-			if( stock->mob != NULL && number > 1 )
+			if( (stock->mob != NULL || stock->singular) && number > 1 )
 			{
 				send_to_char("You can only purchase one of those.\n\r", ch);
 				return;

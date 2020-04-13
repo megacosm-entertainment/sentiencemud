@@ -1151,6 +1151,10 @@ void save_shop_stock_new(FILE *fp, SHOP_STOCK_DATA *stock)
 	// Quantity
 	fprintf(fp, "Quantity %d\n", stock->quantity);
 	fprintf(fp, "RestockRate %d\n", stock->restock_rate);
+	if(stock->singular)
+	{
+		fprintf(fp, "Singular\n");
+	}
 
 	// Product
 	switch(stock->type) {
@@ -3185,6 +3189,12 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)
 			break;
 		case 'S':
 			KEY("Silver", stock->silver, fread_number(fp));
+			if(!str_cmp(word, "Singular"))
+			{
+				fMatch = TRUE;
+				stock->singular = TRUE;
+				break;
+			}
 			break;
 
 		}

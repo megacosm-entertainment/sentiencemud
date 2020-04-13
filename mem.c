@@ -1630,6 +1630,7 @@ SHOP_STOCK_DATA *new_shop_stock()
 	pStock->restock_rate = 0;
 
 	pStock->duration = -1;
+	pStock->singular = FALSE;
 
 	pStock->custom_keyword = &str_empty[0];
 	pStock->custom_descr = &str_empty[0];

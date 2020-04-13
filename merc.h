@@ -1325,6 +1325,8 @@ struct shop_stock_data
 
 	char *custom_keyword;		// Concept / Special object
 	char *custom_descr;
+
+	bool singular;				// Can only buy one unit at a time
 };
 
 struct shop_request_data

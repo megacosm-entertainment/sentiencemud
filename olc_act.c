@@ -6606,8 +6606,8 @@ MEDIT(medit_show)
 			{
 				if(iStock == 1)
 				{
-					add_buf(buffer, "{G  Stock# Level Quantity Hours    Price(s)                     Item{x\n\r");
-					add_buf(buffer, "{G  ------ ----- -------- ----- -------------- --------------------------------------{x\n\r");
+					add_buf(buffer, "{G  Stock# Level Quantity Sng Hours    Price(s)                     Item{x\n\r");
+					add_buf(buffer, "{G  ------ ----- -------- --- ----- -------------- --------------------------------------{x\n\r");
 				}
 
 				if( pStock->level > 0 )
@@ -6799,12 +6799,12 @@ MEDIT(medit_show)
 					break;
 				}
 
-				sprintf(buf, "  {G[{x%4d{G]{x %-*s %*s %*s %-*s %s%s\n\r", iStock, lwidth, lvl, qwidth, qty, hwidth, hours, pwidth, pricing, typ, item);
+				sprintf(buf, "  {G[{x%4d{G]{x %-*s %*s  %s  %*s %-*s %s%s\n\r", iStock, lwidth, lvl, qwidth, qty, (pStock->singular?"{RY{x":"{GN{x"), hwidth, hours, pwidth, pricing, typ, item);
 				add_buf(buffer,buf);
 
 				if( !IS_NULLSTR(pStock->custom_descr) )
 				{
-					sprintf(buf, "                                                     - %s\n\r", pStock->custom_descr);
+					sprintf(buf, "                                                         - %s\n\r", pStock->custom_descr);
 					add_buf(buffer, buf);
 				}
 			}
@@ -7845,11 +7845,12 @@ MEDIT(medit_shop)
 			send_to_char("         shop stock add mount [vnum]\n\r", ch);
 			send_to_char("         shop stock add guard [vnum]\n\r", ch);
 			send_to_char("         shop stock add custom [keyword]\n\r", ch);
+			send_to_char("         shop stock description [#] [description]\n\r", ch);
 			send_to_char("         shop stock level {#] [level]\n\r", ch);
 			send_to_char("         shop stock price [#] [silver|qp|dp|pneuma|custom] [value]\n\r", ch);
 			send_to_char("         shop stock quantity [#] unlimited\n\r", ch);
 			send_to_char("         shop stock quantity [#] [total] [reset rate]\n\r", ch);
-			send_to_char("         shop stock description [#] [description]\n\r", ch);
+			send_to_char("         shop stock singular [#]\n\r", ch);
 			send_to_char("         shop stock remove [#]\n\r", ch);
 			return FALSE;
 		}
@@ -8163,6 +8164,20 @@ MEDIT(medit_shop)
 			return TRUE;
 		}
 
+		if(!str_prefix(arg1, "singular"))
+		{
+			stock = get_shop_stock_bypos(pMob->pShop, atoi(arg2));
+
+			if(!stock)
+			{
+				send_to_char("Invalid stock number.\n\r", ch);
+				return FALSE;
+			}
+
+			stock->singular = !stock->singular;
+			return TRUE;
+		}
+
 
 		if(!str_prefix(arg1, "quantity"))
 		{
@@ -8264,13 +8279,17 @@ MEDIT(medit_shop)
 			return TRUE;
 		}
 
-		send_to_char("Syntax:  shop stock add [object vnum]\n\r", ch);
-		send_to_char("         shop stock add [keyword]\n\r", ch);
+		send_to_char("Syntax:  shop stock add object [vnum]\n\r", ch);
+		send_to_char("         shop stock add pet [vnum]\n\r", ch);
+		send_to_char("         shop stock add mount [vnum]\n\r", ch);
+		send_to_char("         shop stock add guard [vnum]\n\r", ch);
+		send_to_char("         shop stock add custom [keyword]\n\r", ch);
+		send_to_char("         shop stock description [#] [description]\n\r", ch);
 		send_to_char("         shop stock level {#] [level]\n\r", ch);
 		send_to_char("         shop stock price [#] [silver|qp|dp|pneuma|custom] [value]\n\r", ch);
 		send_to_char("         shop stock quantity [#] unlimited\n\r", ch);
 		send_to_char("         shop stock quantity [#] [total] [reset rate]\n\r", ch);
-		send_to_char("         shop stock description [#] [description]\n\r", ch);
+		send_to_char("         shop stock singular [#]\n\r", ch);
 		send_to_char("         shop stock remove [#]\n\r", ch);
 		return FALSE;
 	}
