@@ -4462,14 +4462,28 @@ bool get_stock_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, SHOP_REQUEST_DATA *reque
 
 			if( stock->vnum > 0 )
 			{
-				if( stock->obj == NULL ) continue;		// This is some kind of issue
-				if( is_name(arg, stock->obj->name) )
+				if( stock->obj != NULL )
 				{
-					if( ++count == number )
+					if( is_name(arg, stock->obj->name) )
 					{
-						request->stock = stock;
-						request->obj = NULL;
-						return TRUE;
+						if( ++count == number )
+						{
+							request->stock = stock;
+							request->obj = NULL;
+							return TRUE;
+						}
+					}
+				}
+				else if( stock->mob != NULL )
+				{
+					if( is_name(arg, stock->mob->player_name) )
+					{
+						if( ++count == number )
+						{
+							request->stock = stock;
+							request->obj = NULL;
+							return TRUE;
+						}
 					}
 				}
 			}
