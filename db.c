@@ -1803,6 +1803,7 @@ void copy_shop_stock(SHOP_DATA *to_shop, SHOP_STOCK_DATA *from_stock)
 	to_stock->duration = ( from_stock->duration > 0 ) ? from_stock->duration : -1;
 	to_stock->singular = from_stock->singular;
 	to_stock->discount = URANGE(0,from_stock->discount,100);
+	to_stock->level = from_stock->level;
 	to_stock->vnum = from_stock->vnum;
 	switch(to_stock->type)
 	{
