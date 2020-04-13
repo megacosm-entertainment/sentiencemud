@@ -7852,5 +7852,6 @@ int get_colour_width(char *text);
 char *get_shop_stock_price(SHOP_STOCK_DATA *stock);
 char *get_shop_purchase_price(long silver, long qp, long dp, long pneuma);
 long haggle_price(CHAR_DATA *ch, CHAR_DATA *keeper, int chance, int number, long base_price, long funds, int discount, bool *haggled, bool silent);
+char *get_stock_description(SHOP_STOCK_DATA *stock);
 
 #endif /* !def __MERC_H__ */

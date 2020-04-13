@@ -5127,6 +5127,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 		else
 		{
 			SHOP_STOCK_DATA *stock = request.stock;
+			char pricestr[MIL+1];
 
 			// Attempting to buy from stock
 			keeper->tempstore[0] = number;
@@ -5271,6 +5272,10 @@ void do_buy(CHAR_DATA *ch, char *argument)
 				{
 					ch->pneuma -= pneuma;
 				}
+
+				// Default messaging
+				strncpy(pricestr, get_shop_purchase_price(silver, qp, dp, pneuma), MIL);
+				pricestr[MIL] = '\0';
 			}
 			else
 			{
@@ -5280,17 +5285,29 @@ void do_buy(CHAR_DATA *ch, char *argument)
 				keeper->tempstore[1] = stock->type;
 				keeper->tempstore[2] = stock->vnum;
 				keeper->tempstore[3] = UMAX(chance, 0);
+				free_string(keeper->tempstring);
+				keeper->tempstring = &str_empty[0];
 				if(p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CUSTOM_PRICE, stock->custom_keyword))
 					return;
 
 				// Account for the fact that the value will not change if no script is called
 				//  - to activate, do altermob $(self) tempstore3 = -1
 				haggled = (keeper->tempstore[3] < 0);
+
+				// Script should specify the price string.
+				if(!IS_NULLSTR(keeper->tempstring))
+				{
+					strncpy(pricestr, keeper->tempstring, MIL);
+					pricestr[MIL] = '\0';
+				}
+				else
+					pricestr[0] = '\0';	// No price string
 			}
 
 			if( stock->obj != NULL )
 			{
 				bool first = TRUE;
+
 				for (count = 0; count < number; count++)
 				{
 					t_obj = create_object(stock->obj, stock->obj->level, TRUE);
@@ -5304,23 +5321,37 @@ void do_buy(CHAR_DATA *ch, char *argument)
 						t_obj->timer = stock->duration;
 					}
 
-
 					if( first )
 					{
-						first = FALSE;
 						bool added = FALSE;
 
 						if (number > 1)
 						{
 							sprintf(buf,"$n buys $p[%d].",number);
-							act(buf,ch, NULL, NULL, t_obj, NULL, NULL,NULL,TO_ROOM);
-							sprintf(buf,"You buy $p[%d] for%s.",number, get_shop_purchase_price(silver, qp, dp, pneuma));
+							act(buf,ch, NULL, NULL, t_obj, NULL, NULL, NULL,TO_ROOM);
+							sprintf(buf,"You buy $p[%d]",number);
+
+							if( pricestr[0] != '\0')
+							{
+								strcat(buf, " for");
+								strcat(buf, pricestr);
+							}
+							strcat(buf, ".");
+
 							act(buf,ch, NULL, NULL, t_obj, NULL, NULL,NULL,TO_CHAR);
 						}
 						else
 						{
 							act("$n buys $p.", ch, NULL, NULL, t_obj, NULL, NULL, NULL, TO_ROOM);
-							sprintf(buf,"You buy $p for%s.",number, get_shop_purchase_price(silver, qp, dp, pneuma));
+							sprintf(buf,"You buy $p");
+
+							if( pricestr[0] != '\0')
+							{
+								strcat(buf, " for");
+								strcat(buf, pricestr);
+							}
+							strcat(buf, ".");
+
 							act(buf, ch, NULL, NULL, t_obj, NULL, NULL, NULL, TO_CHAR);
 						}
 
@@ -5367,7 +5398,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 					mob = pet;
 
 					act("$n buys $N.", ch, pet, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-					sprintf(buf,"You buy $N for");
+					sprintf(buf,"You buy $N");
 
 				}
 				else if( stock->type == STOCK_MOUNT )
@@ -5378,7 +5409,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 					mob = mount;
 
 					act("$n buys $N.", ch, mount, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-					sprintf(buf,"You buy $N for");
+					sprintf(buf,"You buy $N");
 				}
 				else
 				{
@@ -5400,10 +5431,14 @@ void do_buy(CHAR_DATA *ch, char *argument)
 					mob = guard;
 
 					act("$n hires $N.", ch, guard, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-					sprintf(buf,"You hire $N for");
+					sprintf(buf,"You hire $N");
 				}
 
-				strcat(buf, get_shop_purchase_price(silver, qp, dp, pneuma));
+				if( pricestr[0] != '\0' )
+				{
+					strcat(buf, " for");
+					strcat(buf, pricestr);
+				}
 				strcat(buf, ".");
 
 				act(buf, ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -5426,13 +5461,13 @@ void do_buy(CHAR_DATA *ch, char *argument)
 				{
 					sprintf(buf,"$n buys $T[%d].",number);
 					act(buf,ch, NULL, NULL, NULL, NULL, NULL, stock->custom_descr,TO_ROOM);
-					sprintf(buf,"You buy $T[%d] for%s.",number, get_shop_purchase_price(silver, qp, dp, pneuma));
+					sprintf(buf,"You buy $T[%d] for%s.",number, pricestr);
 					act(buf,ch, NULL, NULL, NULL, NULL, NULL,stock->custom_descr,TO_CHAR);
 				}
 				else
 				{
 					act("$n buys $T.", ch, NULL, NULL, NULL, NULL, NULL, stock->custom_descr, TO_ROOM);
-					sprintf(buf,"You buy $T for%s.",number, get_shop_purchase_price(silver, qp, dp, pneuma));
+					sprintf(buf,"You buy $T for%s.",number, pricestr);
 					act(buf, ch, NULL, NULL, NULL, NULL, NULL, stock->custom_descr, TO_CHAR);
 				}
 
@@ -7689,7 +7724,7 @@ long haggle_price(CHAR_DATA *ch, CHAR_DATA *keeper, int chance, int number, long
 			}
 		}
 
-		if( funds < prices )
+		if( funds < price )
 		{
 			if( !silent )
 			{
@@ -7704,4 +7739,18 @@ long haggle_price(CHAR_DATA *ch, CHAR_DATA *keeper, int chance, int number, long
 	}
 
 	return UMAX(price, 0);
+}
+
+char *get_stock_description(SHOP_STOCK_DATA *stock)
+{
+	if( !IS_NULLSTR(stock->custom_descr) )
+		return stock->custom_descr;
+
+	else if( stock->obj != NULL )
+		return stock->obj->short_descr;
+
+	else if( stock->mob != NULL )
+		return stock->mob->short_descr;
+
+	return "something";
 }
