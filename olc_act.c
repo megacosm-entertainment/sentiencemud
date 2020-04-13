@@ -7845,13 +7845,13 @@ MEDIT(medit_shop)
 			send_to_char("         shop stock add mount [vnum]\n\r", ch);
 			send_to_char("         shop stock add guard [vnum]\n\r", ch);
 			send_to_char("         shop stock add custom [keyword]\n\r", ch);
-			send_to_char("         shop stock description [#] [description]\n\r", ch);
-			send_to_char("         shop stock level {#] [level]\n\r", ch);
-			send_to_char("         shop stock price [#] [silver|qp|dp|pneuma|custom] [value]\n\r", ch);
-			send_to_char("         shop stock quantity [#] unlimited\n\r", ch);
-			send_to_char("         shop stock quantity [#] [total] [reset rate]\n\r", ch);
-			send_to_char("         shop stock singular [#]\n\r", ch);
-			send_to_char("         shop stock remove [#]\n\r", ch);
+			send_to_char("         shop stock [#] description [description]\n\r", ch);
+			send_to_char("         shop stock {#] level [level]\n\r", ch);
+			send_to_char("         shop stock [#] price [silver|qp|dp|pneuma|custom] [value]\n\r", ch);
+			send_to_char("         shop stock [#] quantity unlimited\n\r", ch);
+			send_to_char("         shop stock [#] quantity [total] [reset rate]\n\r", ch);
+			send_to_char("         shop stock [#] singular\n\r", ch);
+			send_to_char("         shop stock [#] remove\n\r", ch);
 			return FALSE;
 		}
 
@@ -8014,7 +8014,7 @@ MEDIT(medit_shop)
 			}
 			else if(!str_prefix(arg2, "custom"))
 			{
-				if(!IS_NULLSTR(arg2))
+				if(!IS_NULLSTR(argument))
 				{
 					stock = new_shop_stock();
 
@@ -8024,7 +8024,7 @@ MEDIT(medit_shop)
 						return FALSE;
 					}
 
-					stock->custom_keyword = str_dup(arg2);
+					stock->custom_keyword = str_dup(argument);
 
 					stock->next = pMob->pShop->stock;
 					pMob->pShop->stock = stock;
@@ -8045,19 +8045,20 @@ MEDIT(medit_shop)
 			return FALSE;
 		}
 
-		if(!str_prefix(arg1, "price"))
+		if(is_number(arg1))
 		{
-			if(is_number(arg2))
+			int idx = atoi(arg1);
+			stock = get_shop_stock_bypos(pMob->pShop, atoi(idx));
+
+			if(!stock)
+			{
+				send_to_char("Invalid stock number.\n\r", ch);
+				return FALSE;
+			}
+
+			if(!str_prefix(arg2, "price"))
 			{
 				char arg3[MIL];
-
-				stock = get_shop_stock_bypos(pMob->pShop, atoi(arg2));
-
-				if(!stock)
-				{
-					send_to_char("Invalid stock number.\n\r", ch);
-					return FALSE;
-				}
 
 				argument = one_argument(argument, arg3);
 
@@ -8128,169 +8129,144 @@ MEDIT(medit_shop)
 					send_to_char("Stock custom price changed.\n\r", ch);
 					return TRUE;
 				}
-			}
 
-			send_to_char("Syntax:  shop stock price [#] [silver|qp|dp|pneuma|custom] [value]\n\r", ch);
-			return FALSE;
-		}
-
-		if(!str_prefix(arg1, "level"))
-		{
-			stock = get_shop_stock_bypos(pMob->pShop, atoi(arg2));
-
-			if(!stock)
-			{
-				send_to_char("Invalid stock number.\n\r", ch);
+				send_to_char("Syntax:  shop stock [#] price [silver|qp|dp|pneuma|custom] [value]\n\r", ch);
 				return FALSE;
 			}
 
-			if(!is_number(argument))
+			if(!str_prefix(arg2, "level"))
 			{
-				send_to_char("Syntax:  shop stock level [#] [level]\n\r", ch);
-				return FALSE;
-			}
+				if(!is_number(argument))
+				{
+					send_to_char("Syntax:  shop stock [#] level [level]\n\r", ch);
+					return FALSE;
+				}
 
-			int lvl = atoi(argument);
+				int lvl = atoi(argument);
 
-			if(lvl < 1)
-			{
-				stock->level = 0;
-				send_to_char("Stock level set to automatic.\n\r", ch);
+				if(lvl < 1)
+				{
+					stock->level = 0;
+					send_to_char("Stock level set to automatic.\n\r", ch);
+					return TRUE;
+				}
+
+				stock->level = lvl;
+				send_to_char("Stock level changed.\n\r", ch);
 				return TRUE;
 			}
 
-			stock->level = lvl;
-			send_to_char("Stock level changed.\n\r", ch);
-			return TRUE;
-		}
-
-		if(!str_prefix(arg1, "singular"))
-		{
-			stock = get_shop_stock_bypos(pMob->pShop, atoi(arg2));
-
-			if(!stock)
+			if(!str_prefix(arg2, "singular"))
 			{
-				send_to_char("Invalid stock number.\n\r", ch);
-				return FALSE;
+				stock->singular = !stock->singular;
+				if(stock->singular)
+					send_to_char("Stock is now singular.\n\r", ch);
+				else
+					send_to_char("Stock is no longer singular.\n\r", ch);
+				return TRUE;
 			}
 
-			stock->singular = !stock->singular;
-			return TRUE;
-		}
 
-
-		if(!str_prefix(arg1, "quantity"))
-		{
-			stock = get_shop_stock_bypos(pMob->pShop, atoi(arg2));
-
-			if(!stock)
+			if(!str_prefix(arg2, "quantity"))
 			{
-				send_to_char("Invalid stock number.\n\r", ch);
-				return FALSE;
-			}
+				if(!str_prefix(argument, "unlimited"))
+				{
+					stock->quantity = 0;
+					stock->restock_rate = 0;
+					send_to_char("Stock quantity settings changed.\n\r", ch);
+					return TRUE;
+				}
 
-			if(!str_prefix(argument, "unlimited"))
-			{
-				stock->quantity = 0;
-				stock->restock_rate = 0;
+				char arg3[MIL];
+				argument = one_argument(argument, arg3);
+				if(!is_number(arg3) || !is_number(argument))
+				{
+					send_to_char("Syntax:  shop stock [#] quantity [total] [reset rate]\n\r", ch);
+					return FALSE;
+				}
+
+				int total = atoi(arg3);
+				int rate = atoi(argument);
+
+				if(total < 1)
+				{
+					send_to_char("Please specify a positive number for limited quantity.\n\r", ch);
+					return FALSE;
+				}
+
+				stock->quantity = total;
+				stock->restock_rate = UMAX(rate, 0);		// A rate of zero means it never restock
 				send_to_char("Stock quantity settings changed.\n\r", ch);
 				return TRUE;
 			}
 
-			char arg3[MIL];
-			argument = one_argument(argument, arg3);
-			if(!is_number(arg3) || !is_number(argument))
+			if(!str_prefix(arg2, "description"))
 			{
-				send_to_char("Syntax:  shop stock quantity [#] [total] [reset rate]\n\r", ch);
-				return FALSE;
+				free_string(stock->custom_descr);
+				stock->custom_descr = str_dup(argument);
+
+				send_to_char("Stock description changed.\n\r", ch);
+				return TRUE;
 			}
 
-			int total = atoi(arg3);
-			int rate = atoi(argument);
-
-			if(total < 1)
+			if(!str_prefix(arg2, "remove"))
 			{
-				send_to_char("Please specify a positive number for limited quantity.\n\r", ch);
-				return FALSE;
+				if( idx < 1 )
+				{
+					send_to_char("Please specify a positive number.\n\r", ch);
+					return FALSE;
+				}
+
+				SHOP_STOCK_DATA *prev = NULL;
+				for(stock = pMob->pShop->stock;stock;prev = stock, stock = stock->next)
+				{
+					if(!--idx)
+						break;
+				}
+
+				if( !stock )
+				{
+					send_to_char("Invalid stock number.\n\r", ch);
+					return FALSE;
+				}
+
+				if( prev != NULL )
+				{
+					prev->next = stock->next;
+				}
+				else
+				{
+					pMob->pShop->stock = stock->next;
+				}
+
+				free_shop_stock(stock);
+				send_to_char("Stock item removed.\n\r", ch);
+				return TRUE;
 			}
 
-			stock->quantity = total;
-			stock->restock_rate = UMAX(rate, 0);		// A rate of zero means it never restock
-			send_to_char("Stock quantity settings changed.\n\r", ch);
-			return TRUE;
+			send_to_char("Syntax:  shop stock [#] description [description]\n\r", ch);
+			send_to_char("         shop stock {#] level [level]\n\r", ch);
+			send_to_char("         shop stock [#] price [silver|qp|dp|pneuma|custom] [value]\n\r", ch);
+			send_to_char("         shop stock [#] quantity unlimited\n\r", ch);
+			send_to_char("         shop stock [#] quantity [total] [reset rate]\n\r", ch);
+			send_to_char("         shop stock [#] singular\n\r", ch);
+			send_to_char("         shop stock [#] remove\n\r", ch);
+			return FALSE;
 		}
 
-		if(!str_prefix(arg1, "description"))
-		{
-			stock = get_shop_stock_bypos(pMob->pShop, atoi(arg2));
-
-			if(!stock)
-			{
-				send_to_char("Invalid stock number.\n\r", ch);
-				return FALSE;
-			}
-
-			free_string(stock->custom_descr);
-			stock->custom_descr = str_dup(argument);
-
-			send_to_char("Stock description changed.\n\r", ch);
-			return TRUE;
-		}
-
-		if(!str_prefix(arg1, "remove"))
-		{
-			if(!is_number(arg2))
-			{
-				send_to_char("Please specify a number.\n\r", ch);
-				return FALSE;
-			}
-
-			int idx = atoi(arg2);
-			if( idx < 1 )
-			{
-				send_to_char("Please specify a positive number.\n\r", ch);
-				return FALSE;
-			}
-
-			SHOP_STOCK_DATA *prev = NULL;
-			for(stock = pMob->pShop->stock;stock;prev = stock, stock = stock->next)
-			{
-				if(!--idx)
-					break;
-			}
-
-			if( !stock )
-			{
-				send_to_char("Invalid stock number.\n\r", ch);
-				return FALSE;
-			}
-
-			if( prev != NULL )
-			{
-				prev->next = stock->next;
-			}
-			else
-			{
-				pMob->pShop->stock = stock->next;
-			}
-
-			free_shop_stock(stock);
-			send_to_char("Stock item removed.\n\r", ch);
-			return TRUE;
-		}
 
 		send_to_char("Syntax:  shop stock add object [vnum]\n\r", ch);
 		send_to_char("         shop stock add pet [vnum]\n\r", ch);
 		send_to_char("         shop stock add mount [vnum]\n\r", ch);
 		send_to_char("         shop stock add guard [vnum]\n\r", ch);
 		send_to_char("         shop stock add custom [keyword]\n\r", ch);
-		send_to_char("         shop stock description [#] [description]\n\r", ch);
-		send_to_char("         shop stock level {#] [level]\n\r", ch);
-		send_to_char("         shop stock price [#] [silver|qp|dp|pneuma|custom] [value]\n\r", ch);
-		send_to_char("         shop stock quantity [#] unlimited\n\r", ch);
-		send_to_char("         shop stock quantity [#] [total] [reset rate]\n\r", ch);
-		send_to_char("         shop stock singular [#]\n\r", ch);
-		send_to_char("         shop stock remove [#]\n\r", ch);
+		send_to_char("         shop stock [#] description [description]\n\r", ch);
+		send_to_char("         shop stock {#] level [level]\n\r", ch);
+		send_to_char("         shop stock [#] price [silver|qp|dp|pneuma|custom] [value]\n\r", ch);
+		send_to_char("         shop stock [#] quantity unlimited\n\r", ch);
+		send_to_char("         shop stock [#] quantity [total] [reset rate]\n\r", ch);
+		send_to_char("         shop stock [#] singular\n\r", ch);
+		send_to_char("         shop stock [#] remove\n\r", ch);
 		return FALSE;
 	}
 
