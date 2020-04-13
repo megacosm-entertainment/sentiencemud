@@ -6069,7 +6069,7 @@ void do_inspect(CHAR_DATA *ch, char *argument)
 		{
 	    	if(!p_exact_trigger(request.stock->custom_keyword, keeper, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_INSPECT))
 	    	{
-				act("{R$N tells you 'Sorry, I do not have any information about $T.'{x", ch, mob, NULL, NULL, NULL, NULL, request.stock->custom_descr, TO_CHAR);
+				act("{R$N tells you 'Sorry, I do not have any information about $T.'{x", ch, keeper, NULL, NULL, NULL, NULL, request.stock->custom_descr, TO_CHAR);
 				ch->reply = keeper;
 				return;
 			}
