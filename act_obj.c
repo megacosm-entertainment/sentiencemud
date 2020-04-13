@@ -5492,7 +5492,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 
 					strcat(buf, ".");
 
-					act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+					act(buf, ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
 					p_percent_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
 
