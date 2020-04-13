@@ -7717,7 +7717,7 @@ long haggle_price(CHAR_DATA *ch, CHAR_DATA *keeper, int chance, int number, long
 
 	discount = URANGE(0,discount,99);
 
-	if(IS_SET(keeper->shop->flags, SHOPFLAG_NOHAGGLE))
+	if(IS_SET(keeper->shop->flags, SHOPFLAG_NO_HAGGLE))
 		haggled = NULL;
 
 	if( price > 0 )

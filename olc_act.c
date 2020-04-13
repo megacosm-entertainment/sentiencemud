@@ -7954,7 +7954,7 @@ MEDIT(medit_shop)
 					stock->type = STOCK_OBJECT;
 					stock->vnum = item->vnum;
 					stock->silver = item->cost;
-					stock->discount = pShop->discount;
+					stock->discount = pMob->pShop->discount;
 
 					stock->next = pMob->pShop->stock;
 					pMob->pShop->stock = stock;
@@ -7990,7 +7990,7 @@ MEDIT(medit_shop)
 					stock->vnum = mob->vnum;
 					stock->silver = 10 * mob->level * mob->level;
 					stock->level = mob->level;
-					stock->discount = pShop->discount;
+					stock->discount = pMob->pShop->discount;
 
 					stock->next = pMob->pShop->stock;
 					pMob->pShop->stock = stock;
@@ -8026,7 +8026,7 @@ MEDIT(medit_shop)
 					stock->vnum = mob->vnum;
 					stock->silver = 25 * mob->level * mob->level;
 					stock->level = mob->level;
-					stock->discount = pShop->discount;
+					stock->discount = pMob->pShop->discount;
 
 					stock->next = pMob->pShop->stock;
 					pMob->pShop->stock = stock;
@@ -8062,7 +8062,7 @@ MEDIT(medit_shop)
 					stock->vnum = mob->vnum;
 					stock->silver = 50 * mob->level * mob->level;
 					stock->level = mob->level;
-					stock->discount = pShop->discount;
+					stock->discount = pMob->pShop->discount;
 
 					stock->next = pMob->pShop->stock;
 					pMob->pShop->stock = stock;
@@ -8137,6 +8137,12 @@ MEDIT(medit_shop)
 					int silver = atoi(argument);
 
 					stock->silver = UMAX(silver, 0);
+					if( !IS_NULLSTR(stock->custom_price) )
+					{
+						stock->discount = pMob->pShop->discount;
+						free_string(stock->custom_price);
+						stock->custom_price = &str_empty[0];
+					}
 					send_to_char("Stock silver price changed.\n\r", ch);
 					return TRUE;
 				}
@@ -8152,6 +8158,12 @@ MEDIT(medit_shop)
 					int qp = atoi(argument);
 
 					stock->qp = UMAX(qp, 0);
+					if( !IS_NULLSTR(stock->custom_price) )
+					{
+						stock->discount = pMob->pShop->discount;
+						free_string(stock->custom_price);
+						stock->custom_price = &str_empty[0];
+					}
 					send_to_char("Stock quest point price changed.\n\r", ch);
 					return TRUE;
 				}
@@ -8167,6 +8179,12 @@ MEDIT(medit_shop)
 					int dp = atoi(argument);
 
 					stock->dp = UMAX(dp, 0);
+					if( !IS_NULLSTR(stock->custom_price) )
+					{
+						stock->discount = pMob->pShop->discount;
+						free_string(stock->custom_price);
+						stock->custom_price = &str_empty[0];
+					}
 					send_to_char("Stock deity point price changed.\n\r", ch);
 					return TRUE;
 				}
@@ -8182,12 +8200,31 @@ MEDIT(medit_shop)
 					int pneuma = atoi(argument);
 
 					stock->pneuma = UMAX(pneuma, 0);
+					if( !IS_NULLSTR(stock->custom_price) )
+					{
+						stock->discount = pMob->pShop->discount;
+						free_string(stock->custom_price);
+						stock->custom_price = &str_empty[0];
+					}
 					send_to_char("Stock pneuma price changed.\n\r", ch);
 					return TRUE;
 				}
 
 				if(!str_prefix(arg3, "custom"))
 				{
+					if(argument[0] != '\0')
+					{
+						send_to_char("Please specify a custom price string.\n\r", ch);
+						send_to_char("Syntax:  shop stock [#] price custom [value]\n\r\n\r", ch);
+						send_to_char("If you wish to clear the custom pricing, select a different pricing type.\n\r", ch);
+						return FALSE;
+					}
+
+					stock->silver = 0;
+					stock->qp = 0;
+					stock->dp = 0;
+					stock->pneuma = 0;
+					stock->discount = 0;
 					free_string(stock->custom_price);
 					stock->custom_price = str_dup(argument);
 					send_to_char("Stock custom price changed.\n\r", ch);
@@ -8200,9 +8237,10 @@ MEDIT(medit_shop)
 
 			if(!str_prefix(arg2, "discount"))
 			{
-				if( !IS_NULLSTR(stock->custom_keyword) )
+				if( !IS_NULLSTR(stock->custom_price) )
 				{
-					send_to_char("Custom stock items do not receive discounts\n\r", ch);
+					send_to_char("Stock items with custom pricing do not receive discounts.\n\r", ch);
+					send_to_char("Those need to be handled in the CUSTOM_PRICE trigger.\n\r", ch);
 					return FALSE;
 				}
 
