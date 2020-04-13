@@ -5323,8 +5323,6 @@ void do_buy(CHAR_DATA *ch, char *argument)
 
 					if( first )
 					{
-						bool added = FALSE;
-
 						if (number > 1)
 						{
 							sprintf(buf,"$n buys $p[%d].",number);
@@ -5455,21 +5453,26 @@ void do_buy(CHAR_DATA *ch, char *argument)
 			}
 			else
 			{
-				bool added = FALSE;
-
 				if (number > 1)
 				{
 					sprintf(buf,"$n buys $T[%d].",number);
 					act(buf,ch, NULL, NULL, NULL, NULL, NULL, stock->custom_descr,TO_ROOM);
-					sprintf(buf,"You buy $T[%d] for%s.",number, pricestr);
-					act(buf,ch, NULL, NULL, NULL, NULL, NULL,stock->custom_descr,TO_CHAR);
+					sprintf(buf,"You buy $T[%d]",number);
 				}
 				else
 				{
 					act("$n buys $T.", ch, NULL, NULL, NULL, NULL, NULL, stock->custom_descr, TO_ROOM);
-					sprintf(buf,"You buy $T for%s.",number, pricestr);
-					act(buf, ch, NULL, NULL, NULL, NULL, NULL, stock->custom_descr, TO_CHAR);
+					sprintf(buf,"You buy $T");
 				}
+
+				if( pricestr[0] != '\0' )
+				{
+					strcat(buf, " for");
+					strcat(buf, pricestr);
+				}
+				strcat(buf, ".");
+
+				act(buf,ch, NULL, NULL, NULL, NULL, NULL,stock->custom_descr,TO_CHAR);
 
 				keeper->tempstore[0] = number;						// Number of units
 				keeper->tempstore[1] = UMAX(stock->duration, 0);	// Duration of product / service.
