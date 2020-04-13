@@ -1291,6 +1291,12 @@ struct	shop_data
     SHOP_STOCK_DATA *stock;
 };
 
+#define STOCK_CUSTOM	0
+#define STOCK_OBJECT	1
+#define STOCK_PET		2
+#define STOCK_MOUNT		3
+#define STOCK_GUARD		4
+
 struct shop_stock_data
 {
 	SHOP_STOCK_DATA *next;
@@ -1310,7 +1316,9 @@ struct shop_stock_data
 	int max_quantity;			// Total number of units available
 	int restock_rate;			// How manu units will get restocked per reset cycle (<1 == never)
 
+	MOB_INDEX_DATA *mob;
 	OBJ_INDEX_DATA *obj;
+	int type;
 	long vnum;
 
 	char *custom_keyword;		// Concept / Special object

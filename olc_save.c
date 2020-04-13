@@ -1153,8 +1153,23 @@ void save_shop_stock_new(FILE *fp, SHOP_STOCK_DATA *stock)
 	fprintf(fp, "RestockRate %d\n", stock->restock_rate);
 
 	// Product
-	fprintf(fp, "Object %ld\n", stock->vnum);
-	fprintf(fp, "Keyword %s~\n", fix_string(stock->custom_keyword));
+	switch(stock->type) {
+	case STOCK_OBJECT:
+		fprintf(fp, "Object %ld\n", stock->vnum);
+		break;
+	case STOCK_PET:
+		fprintf(fp, "Pet %ld\n", stock->vnum);
+		break;
+	case STOCK_MOUNT:
+		fprintf(fp, "Mount %ld\n", stock->vnum);
+		break;
+	case STOCK_GUARD:
+		fprintf(fp, "Guard %ld\n", stock->vnum);
+		break;
+	case STOCK_CUSTOM:
+		fprintf(fp, "Keyword %s~\n", fix_string(stock->custom_keyword));
+		break;
+	}
 
 	fprintf(fp, "Description %s~\n", fix_string(stock->custom_descr));
 
@@ -3107,16 +3122,54 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)
 			KEY("DeityPnts", stock->dp, fread_number(fp));
 			KEYS("Description", stock->custom_descr, fread_string(fp));
 			break;
+		case 'G':
+			if(!str_cmp(word, "Guard"))
+			{
+				fMatch = TRUE;
+				stock->vnum = fread_number(fp);
+				stock->type = STOCK_GUARD;
+				break;
+			}
+			break;
 		case 'K':
-			KEYS("Keyword", stock->custom_keyword, fread_string(fp));
+			if(!str_cmp(word, "Keyword"))
+			{
+				fMatch = TRUE;
+				stock->custom_keyword = fread_string(fp);
+				stock->vnum = 0;
+				stock->type = STOCK_CUSTOM;
+				break;
+			}
 			break;
 		case 'L':
 			KEY("Level", stock->level, fread_number(fp));
 			break;
+		case 'M':
+			if(!str_cmp(word, "Mount"))
+			{
+				fMatch = TRUE;
+				stock->vnum = fread_number(fp);
+				stock->type = STOCK_MOUNT;
+				break;
+			}
+			break;
 		case 'O':
-			KEY("Object", stock->vnum, fread_number(fp));
+			if(!str_cmp(word, "Object"))
+			{
+				fMatch = TRUE;
+				stock->vnum = fread_number(fp);
+				stock->type = STOCK_OBJECT;
+				break;
+			}
 			break;
 		case 'P':
+			if(!str_cmp(word, "Pet"))
+			{
+				fMatch = TRUE;
+				stock->vnum = fread_number(fp);
+				stock->type = STOCK_PET;
+				break;
+			}
 			KEY("Pneuma", stock->pneuma, fread_number(fp));
 			KEYS("Pricing", stock->custom_price, fread_string(fp));
 			break;

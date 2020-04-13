@@ -1799,15 +1799,28 @@ void copy_shop_stock(SHOP_DATA *to_shop, SHOP_STOCK_DATA *from_stock)
 	to_stock->quantity = from_stock->quantity;
 	to_stock->max_quantity = from_stock->quantity;
 	to_stock->restock_rate = from_stock->restock_rate;
+	to_stock->type = from_stock->type;
 	to_stock->vnum = from_stock->vnum;
-	if(to_stock->vnum > 0)
-		to_stock->obj = get_obj_index(to_stock->vnum);
+	switch(to_stock->type)
+	{
+	case STOCK_OBJECT:
+		if(to_stock->vnum > 0)
+			to_stock->obj = get_obj_index(to_stock->vnum);
+		break;
+	case STOCK_PET:
+	case STOCK_MOUNT:
+	case STOCK_GUARD:
+		if(to_stock->vnum > 0)
+			to_stock->mob = get_mob_index(to_stock->vnum);
+		break;
+	case STOCK_CUSTOM:
+		free_string(to_stock->custom_keyword);
+		to_stock->custom_keyword = str_dup(from_stock->custom_keyword);
+		break;
+	}
 
 	free_string(to_stock->custom_price);
 	to_stock->custom_price = str_dup(from_stock->custom_price);
-
-	free_string(to_stock->custom_keyword);
-	to_stock->custom_keyword = str_dup(from_stock->custom_keyword);
 
 	free_string(to_stock->custom_descr);
 	to_stock->custom_descr = str_dup(from_stock->custom_descr);

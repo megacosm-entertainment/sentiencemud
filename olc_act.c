@@ -6597,6 +6597,7 @@ MEDIT(medit_show)
 			char lvl[MIL];
 			char qty[MIL];
 			char pricing[MIL];
+			char typ[MIL];
 			char item[MIL];
 			int lwidth, qwidth, pwidth;
 
@@ -6604,8 +6605,8 @@ MEDIT(medit_show)
 			{
 				if(iStock == 1)
 				{
-					add_buf(buffer, "{G  Stock# Level Quantity    Price(s)                 Item{x\n\r");
-					add_buf(buffer, "{G  ------ ----- -------- -------------- ------------------------------{x\n\r");
+					add_buf(buffer, "{G  Stock# Level Quantity    Price(s)                     Item{x\n\r");
+					add_buf(buffer, "{G  ------ ----- -------- -------------- --------------------------------------{x\n\r");
 				}
 
 				if( pStock->level > 0 )
@@ -6704,19 +6705,79 @@ MEDIT(medit_show)
 				}
 				pwidth = get_colour_width(pricing) + 14;
 
-				if( pStock->vnum > 0 ) {
-					OBJ_INDEX_DATA *obj = get_obj_index(pStock->vnum);
+				switch(pStock->type)
+				{
+				case STOCK_OBJECT:
+					strcpy(typ,"{GOBJECT{x  ");
+					if( pStock->vnum > 0 ) {
 
-					if( !obj ) {
-						strcpy(item, "-invalid stock item-");
+						OBJ_INDEX_DATA *obj = get_obj_index(pStock->vnum);
+
+						if( !obj ) {
+							strcpy(item, "-invalid-");
+						}
+						else
+						{
+							sprintf(item, "%s (%ld)", obj->short_descr, pStock->vnum);
+						}
 					}
 					else
-					{
-						sprintf(item, "%s (%ld)", obj->short_descr, pStock->vnum);
+						strcpy(item, "-invalid-");
+
+					break;
+				case STOCK_PET:
+					strcpy(typ,"{GPET{x     ");
+					if( pStock->vnum > 0 ) {
+
+						MOB_INDEX_DATA *mob = get_mob_index(pStock->vnum);
+
+						if( !mob ) {
+							strcpy(item, "-invalid-");
+						}
+						else
+						{
+							sprintf(item, "%s (%ld)", mob->short_descr, pStock->vnum);
+						}
 					}
-				}
-				else
-				{
+					else
+						strcpy(item, "-invalid-");
+					break;
+				case STOCK_MOUNT:
+					strcpy(typ,"{GMOUNT{x   ");
+					if( pStock->vnum > 0 ) {
+
+						MOB_INDEX_DATA *mob = get_mob_index(pStock->vnum);
+
+						if( !mob ) {
+							strcpy(item, "-invalid-");
+						}
+						else
+						{
+							sprintf(item, "%s (%ld)", mob->short_descr, pStock->vnum);
+						}
+					}
+					else
+						strcpy(item, "-invalid-");
+					break;
+				case STOCK_GUARD:
+					strcpy(typ,"{GGUARD{x   ");
+					if( pStock->vnum > 0 ) {
+
+						MOB_INDEX_DATA *mob = get_mob_index(pStock->vnum);
+
+						if( !mob ) {
+							strcpy(item, "-invalid-");
+						}
+						else
+						{
+							sprintf(item, "%s (%ld)", mob->short_descr, pStock->vnum);
+						}
+					}
+					else
+						strcpy(item, "-invalid-");
+					break;
+				case STOCK_CUSTOM:
+					strcpy(typ,"{GCUSTOM{x  ");
 					if(IS_NULLSTR(pStock->custom_keyword))
 					{
 						strcpy(item, "-invalid stock item-");
@@ -6725,9 +6786,10 @@ MEDIT(medit_show)
 					{
 						strcpy(item, pStock->custom_keyword);
 					}
+					break;
 				}
 
-				sprintf(buf, "  {G[{x%4d{G]{x %-*s %-*s %-*s %s\n\r", iStock, lwidth, lvl, qwidth, qty, pwidth, pricing, item);
+				sprintf(buf, "  {G[{x%4d{G]{x %-*s %-*s %-*s %s%s\n\r", iStock, lwidth, lvl, qwidth, qty, pwidth, pricing, typ, item);
 				add_buf(buffer,buf);
 
 				if( !IS_NULLSTR(pStock->custom_descr) )
@@ -7768,8 +7830,11 @@ MEDIT(medit_shop)
 
 		if(arg1[0] == '\0')
 		{
-			send_to_char("Syntax:  shop stock add [object vnum]\n\r", ch);
-			send_to_char("         shop stock add [keyword]\n\r", ch);
+			send_to_char("Syntax:  shop stock add object [vnum]\n\r", ch);
+			send_to_char("         shop stock add pet [vnum]\n\r", ch);
+			send_to_char("         shop stock add mount [vnum]\n\r", ch);
+			send_to_char("         shop stock add guard [vnum]\n\r", ch);
+			send_to_char("         shop stock add custom [keyword]\n\r", ch);
 			send_to_char("         shop stock level {#] [level]\n\r", ch);
 			send_to_char("         shop stock price [#] [silver|qp|dp|pneuma|custom] [value]\n\r", ch);
 			send_to_char("         shop stock quantity [#] unlimited\n\r", ch);
@@ -7781,61 +7846,191 @@ MEDIT(medit_shop)
 
 		if(!str_prefix(arg1, "add"))
 		{
-			if(is_number(arg2))
+			if(arg2[0] == '\0' || argument[0] == '\0')
 			{
-				OBJ_INDEX_DATA *item = get_obj_index(atoi(arg2));
-
-				if(!item)
-				{
-					send_to_char("Object does not exist.\n\r", ch);
-					return FALSE;
-				}
-
-				if(item->item_type == ITEM_MONEY)
-				{
-					send_to_char("You cannot sell money.\n\r", ch);
-					return FALSE;
-				}
-
-				stock = new_shop_stock();
-
-				if(!stock)
-				{
-					send_to_char("{RERROR{W: Unable to create stock item.{x\n\r", ch);
-					return FALSE;
-				}
-
-				stock->vnum = item->vnum;
-				stock->silver = item->cost;
-
-				stock->next = pMob->pShop->stock;
-				pMob->pShop->stock = stock;
-
-				send_to_char("Stock item added.\n\r", ch);
-				return TRUE;
-			}
-			else if(!IS_NULLSTR(arg2))
-			{
-				stock = new_shop_stock();
-
-				if(!stock)
-				{
-					send_to_char("{RERROR{W: Unable to create stock item.{x\n\r", ch);
-					return FALSE;
-				}
-
-				stock->custom_keyword = str_dup(arg2);
-
-				stock->next = pMob->pShop->stock;
-				pMob->pShop->stock = stock;
-
-				send_to_char("Stock item added.\n\r", ch);
-				return TRUE;
+				send_to_char("Syntax:  shop stock add object [vnum]\n\r", ch);
+				send_to_char("         shop stock add pet [vnum]\n\r", ch);
+				send_to_char("         shop stock add mount [vnum]\n\r", ch);
+				send_to_char("         shop stock add guard [vnum]\n\r", ch);
+				send_to_char("         shop stock add custom [keyword]\n\r", ch);
+				return FALSE;
 			}
 
+			if(!str_prefix(arg2, "object"))
+			{
+				if(is_number(argument))
+				{
+					OBJ_INDEX_DATA *item = get_obj_index(atoi(argument));
 
-			send_to_char("Syntax:  shop stock add [object vnum]\n\r", ch);
-			send_to_char("         shop stock add [keyword]\n\r", ch);
+					if(!item)
+					{
+						send_to_char("Object does not exist.\n\r", ch);
+						return FALSE;
+					}
+
+					if(item->item_type == ITEM_MONEY)
+					{
+						send_to_char("You cannot sell money.\n\r", ch);
+						return FALSE;
+					}
+
+					stock = new_shop_stock();
+
+					if(!stock)
+					{
+						send_to_char("{RERROR{W: Unable to create stock item.{x\n\r", ch);
+						return FALSE;
+					}
+
+					stock->type = STOCK_OBJECT;
+					stock->vnum = item->vnum;
+					stock->silver = item->cost;
+
+					stock->next = pMob->pShop->stock;
+					pMob->pShop->stock = stock;
+
+					send_to_char("Stock item (OBJECT) added.\n\r", ch);
+					return TRUE;
+				}
+
+				send_to_char("Syntax:  shop stock add object [vnum]\n\r", ch);
+				return FALSE;
+			}
+			else if(!str_prefix(arg2, "pet"))
+			{
+				if(is_number(argument))
+				{
+					MOB_INDEX_DATA *mob = get_mob_index(atoi(argument));
+
+					if(!mob)
+					{
+						send_to_char("Mobile does not exist.\n\r", ch);
+						return FALSE;
+					}
+
+					stock = new_shop_stock();
+
+					if(!stock)
+					{
+						send_to_char("{RERROR{W: Unable to create stock item.{x\n\r", ch);
+						return FALSE;
+					}
+
+					stock->type = STOCK_PET;
+					stock->vnum = mob->vnum;
+					stock->silver = 10 * mob->level * mob->level;
+					stock->level = mob->level;
+
+					stock->next = pMob->pShop->stock;
+					pMob->pShop->stock = stock;
+
+					send_to_char("Stock item (PET) added.\n\r", ch);
+					return TRUE;
+				}
+
+				send_to_char("Syntax:  shop stock add pet [vnum]\n\r", ch);
+				return FALSE;
+			}
+			else if(!str_prefix(arg2, "mount"))
+			{
+				if(is_number(argument))
+				{
+					MOB_INDEX_DATA *mob = get_mob_index(atoi(argument));
+
+					if(!mob)
+					{
+						send_to_char("Mobile does not exist.\n\r", ch);
+						return FALSE;
+					}
+
+					stock = new_shop_stock();
+
+					if(!stock)
+					{
+						send_to_char("{RERROR{W: Unable to create stock item.{x\n\r", ch);
+						return FALSE;
+					}
+
+					stock->type = STOCK_MOUNT;
+					stock->vnum = mob->vnum;
+					stock->silver = 25 * mob->level * mob->level;
+					stock->level = mob->level;
+
+					stock->next = pMob->pShop->stock;
+					pMob->pShop->stock = stock;
+
+					send_to_char("Stock item (MOUNT) added.\n\r", ch);
+					return TRUE;
+				}
+
+				send_to_char("Syntax:  shop stock add mount [vnum]\n\r", ch);
+				return FALSE;
+			}
+			else if(!str_prefix(arg2, "guard"))
+			{
+				if(is_number(argument))
+				{
+					MOB_INDEX_DATA *mob = get_mob_index(atoi(argument));
+
+					if(!mob)
+					{
+						send_to_char("Mobile does not exist.\n\r", ch);
+						return FALSE;
+					}
+
+					stock = new_shop_stock();
+
+					if(!stock)
+					{
+						send_to_char("{RERROR{W: Unable to create stock item.{x\n\r", ch);
+						return FALSE;
+					}
+
+					stock->type = STOCK_GUARD;
+					stock->vnum = mob->vnum;
+					stock->silver = 50 * mob->level * mob->level;
+					stock->level = mob->level;
+
+					stock->next = pMob->pShop->stock;
+					pMob->pShop->stock = stock;
+
+					send_to_char("Stock item (GUARD) added.\n\r", ch);
+					return TRUE;
+				}
+
+				send_to_char("Syntax:  shop stock add guard [vnum]\n\r", ch);
+				return FALSE;
+			}
+			else if(!str_prefix(arg2, "custom"))
+			{
+				if(!IS_NULLSTR(arg2))
+				{
+					stock = new_shop_stock();
+
+					if(!stock)
+					{
+						send_to_char("{RERROR{W: Unable to create stock item.{x\n\r", ch);
+						return FALSE;
+					}
+
+					stock->custom_keyword = str_dup(arg2);
+
+					stock->next = pMob->pShop->stock;
+					pMob->pShop->stock = stock;
+
+					send_to_char("Stock item (CUSTOM) added.\n\r", ch);
+					return TRUE;
+				}
+
+				send_to_char("Syntax:  shop stock add custom [keyword]\n\r", ch);
+				return FALSE;
+			}
+
+			send_to_char("Syntax:  shop stock add object [vnum]\n\r", ch);
+			send_to_char("         shop stock add pet [vnum]\n\r", ch);
+			send_to_char("         shop stock add mount [vnum]\n\r", ch);
+			send_to_char("         shop stock add guard [vnum]\n\r", ch);
+			send_to_char("         shop stock add custom [keyword]\n\r", ch);
 			return FALSE;
 		}
 
