@@ -5381,8 +5381,78 @@ void do_buy(CHAR_DATA *ch, char *argument)
 				}
 				else
 				{
+					bool added = FALSE;
+
+					if (number > 1)
+					{
+						sprintf(buf,"$n buys $T[%d].",number);
+						act(buf,ch, NULL, NULL, NULL, NULL, NULL, stock->description,TO_ROOM);
+						sprintf(buf,"You buy $T[%d] for",number);
+						if( silver > 0 )
+						{
+							sprintf(arg, " %ld silver", silver);
+							strcat(buf, arg);
+							added = TRUE;
+						}
+						if( qp > 0 )
+						{
+							sprintf(arg, "%s%ld quest points", (added?", ":" "), qp);
+							strcat(buf, arg);
+							added = TRUE;
+						}
+						if( dp > 0 )
+						{
+							sprintf(arg, "%s%ld deity points", (added?", ":" "), dp);
+							strcat(buf, arg);
+							added = TRUE;
+						}
+						if( pneuma > 0 )
+						{
+							sprintf(arg, "%s%ld pneuma", (added?", ":" "), pneuma);
+							strcat(buf, arg);
+						}
+
+						strcat(buf, ".");
+
+						act(buf,ch, NULL, NULL, NULL, NULL, NULL,stock->description,TO_CHAR);
+					}
+					else
+					{
+						act("$n buys $T.", ch, NULL, NULL, NULL, NULL, NULL, stock->description, TO_ROOM);
+						sprintf(buf,"You buy $T for");
+
+						if( silver > 0 )
+						{
+							sprintf(arg, " %ld silver", silver);
+							strcat(buf, arg);
+							added = TRUE;
+						}
+						if( qp > 0 )
+						{
+							sprintf(arg, "%s%ld quest points", (added?", ":" "), qp);
+							strcat(buf, arg);
+							added = TRUE;
+						}
+						if( dp > 0 )
+						{
+							sprintf(arg, "%s%ld deity points", (added?", ":" "), dp);
+							strcat(buf, arg);
+							added = TRUE;
+						}
+						if( pneuma > 0 )
+						{
+							sprintf(arg, "%s%ld pneuma", (added?", ":" "), pneuma);
+							strcat(buf, arg);
+						}
+
+						strcat(buf, ".");
+
+						act(buf, ch, NULL, NULL, NULL, NULL, NULL, stock->description, TO_CHAR);
+					}
+
 					keeper->tempstore[0] = number;
-					// Must do all the messages
+					// Just do the giving of items
+					// All cost transactions have taken place, along with their messages
 					p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BUY, stock->custom_keyword);
 				}
 
