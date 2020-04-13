@@ -8048,7 +8048,7 @@ MEDIT(medit_shop)
 		if(is_number(arg1))
 		{
 			int idx = atoi(arg1);
-			stock = get_shop_stock_bypos(pMob->pShop, atoi(idx));
+			stock = get_shop_stock_bypos(pMob->pShop, idx);
 
 			if(!stock)
 			{
