@@ -6127,7 +6127,7 @@ void do_sell(CHAR_DATA *ch, char *argument)
 
 		if( stock != NULL )
 		{
-			if( IS_NULLSTR(stock->custom_price )
+			if( IS_NULLSTR(stock->custom_price) )
 			{
 				bool haggled = FALSE;
 				int chance = get_skill(ch, gsn_haggle);
@@ -6135,7 +6135,7 @@ void do_sell(CHAR_DATA *ch, char *argument)
 				long silver = adjust_keeper_price(keeper, stock->silver, FALSE);
 				if( silver > 0 )
 				{
-					long wealth = (keeper-> silver + 100 * keeper->gold)
+					long wealth = (keeper-> silver + 100 * keeper->gold);
 					roll = number_percent();
 					if (roll < chance)
 					{
