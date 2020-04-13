@@ -6136,13 +6136,16 @@ void do_sell(CHAR_DATA *ch, char *argument)
 				if( silver > 0 )
 				{
 					long wealth = (keeper-> silver + 100 * keeper->gold);
-					roll = number_percent();
-					if (roll < chance)
+					if( !IS_SET(keeper->shop->flags, SHOPFLAG_NO_HAGGLE) )
 					{
-						haggled = TRUE;
-						silver += stock->silver * roll / 200;
-						silver = UMIN(silver,95 * stock->silver / 100);
-						silver = UMIN(silver,wealth);
+						roll = number_percent();
+						if (roll < chance)
+						{
+							haggled = TRUE;
+							silver += stock->silver * roll / 200;
+							silver = UMIN(silver,95 * stock->silver / 100);
+							silver = UMIN(silver,wealth);
+						}
 					}
 
 					if (silver > wealth)
@@ -6159,36 +6162,45 @@ void do_sell(CHAR_DATA *ch, char *argument)
 				long qp = adjust_keeper_price(keeper, stock->qp, FALSE);
 				if( qp > 0 )
 				{
-					roll = number_percent();
-					if (roll < chance)
+					if( !IS_SET(keeper->shop->flags, SHOPFLAG_NO_HAGGLE) )
 					{
-						haggled = TRUE;
-						qp += stock->qp * roll / 200;
-						qp = UMIN(qp,95 * stock->qp / 100);
+						roll = number_percent();
+						if (roll < chance)
+						{
+							haggled = TRUE;
+							qp += stock->qp * roll / 200;
+							qp = UMIN(qp,95 * stock->qp / 100);
+						}
 					}
 				}
 
 				long dp = adjust_keeper_price(keeper, stock->dp, FALSE);
 				if( dp > 0 )
 				{
-					roll = number_percent();
-					if (roll < chance)
+					if( !IS_SET(keeper->shop->flags, SHOPFLAG_NO_HAGGLE) )
 					{
-						haggled = TRUE;
-						dp += stock->dp * roll / 200;
-						dp = UMIN(dp,95 * stock->dp / 100);
+						roll = number_percent();
+						if (roll < chance)
+						{
+							haggled = TRUE;
+							dp += stock->dp * roll / 200;
+							dp = UMIN(dp,95 * stock->dp / 100);
+						}
 					}
 				}
 
 				long pneuma = adjust_keeper_price(keeper, stock->pneuma, FALSE);
 				if( pneuma > 0 )
 				{
-					roll = number_percent();
-					if (roll < chance)
+					if( !IS_SET(keeper->shop->flags, SHOPFLAG_NO_HAGGLE) )
 					{
-						haggled = TRUE;
-						pneuma += stock->pneuma * roll / 200;
-						pneuma = UMIN(pneuma,95 * stock->pneuma / 100);
+						roll = number_percent();
+						if (roll < chance)
+						{
+							haggled = TRUE;
+							pneuma += stock->pneuma * roll / 200;
+							pneuma = UMIN(pneuma,95 * stock->pneuma / 100);
+						}
 					}
 				}
 
