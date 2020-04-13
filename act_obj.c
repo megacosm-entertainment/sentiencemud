@@ -4867,6 +4867,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 	// PET SHOP
 	//
 	//////////////////////////////////////////
+#if 0
     if (IS_SET(ch->in_room->room_flags, ROOM_PET_SHOP))
     {
 		CHAR_DATA *pet;
@@ -4971,6 +4972,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 		return;
     }
 	else
+#endif
 	{
 		//////////////////////////////////////////
 		//
@@ -5052,14 +5054,17 @@ void do_buy(CHAR_DATA *ch, char *argument)
 				}
 			}
 
-			/* haggle */
 			cost = cost * number;
-			roll = number_percent();
-			if (roll < get_skill(ch,gsn_haggle))
+			if( !IS_SET(keeper->shop->flags, SHOPFLAG_NO_HAGGLE) )
 			{
-				cost -= ((cost/2) * roll)/100;
-				haggled = TRUE;
-				check_improve(ch,gsn_haggle,TRUE,4);
+				/* haggle */
+				roll = number_percent();
+				if (roll < get_skill(ch,gsn_haggle))
+				{
+					cost -= ((cost/2) * roll)/100;
+					haggled = TRUE;
+					check_improve(ch,gsn_haggle,TRUE,4);
+				}
 			}
 
 			if ((ch->silver + ch->gold * 100) < cost)
@@ -6265,16 +6270,19 @@ void do_sell(CHAR_DATA *ch, char *argument)
     }
 
     act("$n sells $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-    /* haggle */
-    roll = number_percent();
-    if (roll < get_skill(ch,gsn_haggle))
-    {
-		send_to_char("You haggle with the shopkeeper.\n\r",ch);
-		cost += obj->cost / 2 * roll / 100;
-		cost = UMIN(cost,95 * get_cost(keeper,obj,TRUE) / 100);
-		cost = UMIN(cost,(keeper->silver + 100 * keeper->gold));
-		check_improve(ch,gsn_haggle,TRUE,4);
-    }
+	if( !IS_SET(keeper->shop->flags, SHOPFLAG_NO_HAGGLE) )
+	{
+		/* haggle */
+		roll = number_percent();
+		if (roll < get_skill(ch,gsn_haggle))
+		{
+			send_to_char("You haggle with the shopkeeper.\n\r",ch);
+			cost += obj->cost / 2 * roll / 100;
+			cost = UMIN(cost,95 * get_cost(keeper,obj,TRUE) / 100);
+			cost = UMIN(cost,(keeper->silver + 100 * keeper->gold));
+			check_improve(ch,gsn_haggle,TRUE,4);
+		}
+	}
 	sprintf(buf, "You sell $p for%s", get_shop_purchase_price(cost, 0, 0, 0));
 	act(buf, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 	ch->gold	+= cost/100;
