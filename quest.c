@@ -265,7 +265,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
 		cost = UMAX(cost, 1);
 
 		mob->tempstore[0] = cost;
-		if(p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL,obj, NULL, TRIG_QUEST_PRERENEW, NULL))
+		if(p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL,obj, NULL, TRIG_QUEST_PRERENEW, NULL) <= 0)
 			return;
 
 		cost = mob->tempstore[0];
