@@ -3137,6 +3137,9 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)
 			KEY("Discount", stock->discount, fread_number(fp));
 			KEY("Duration", stock->duration, fread_number(fp));
 			break;
+		case 'F':
+			KEY("Flags", stock->flags, fread_number(fp));
+			break;
 		case 'G':
 			if(!str_cmp(word, "Guard"))
 			{

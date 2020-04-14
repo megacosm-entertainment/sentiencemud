@@ -7872,7 +7872,7 @@ MEDIT(medit_shop)
     if(!str_prefix(command, "flags"))
     {
 		int value;
-		if (arg1[0] != '\0')
+		if (flag_start[0] != '\0')
 		{
 
 			if ((value = flag_value(shop_flags, flag_start)) != NO_FLAG)
