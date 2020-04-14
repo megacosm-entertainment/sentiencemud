@@ -7606,8 +7606,10 @@ MEDIT(medit_shop)
     char command[MAX_INPUT_LENGTH];
     char arg1[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
+    char *flag_start;
 
     argument = one_argument(argument, command);
+    flag_start = argument;
     argument = one_argument(argument, arg1);
     argument = one_argument(argument, arg2);
 
@@ -7873,7 +7875,7 @@ MEDIT(medit_shop)
 		if (arg1[0] != '\0')
 		{
 
-			if ((value = flag_value(shop_flags, arg1)) != NO_FLAG)
+			if ((value = flag_value(shop_flags, flag_start)) != NO_FLAG)
 			{
 				pMob->pShop->flags ^= value;
 
