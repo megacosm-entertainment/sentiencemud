@@ -109,7 +109,7 @@ const long quest_item_token_table[] =
 void do_quest(CHAR_DATA *ch, char *argument)
 {
 	CHAR_DATA *mob;
-	OBJ_DATA *obj = NULL;
+//	OBJ_DATA *obj = NULL;
 	char buf[MAX_STRING_LENGTH];
 	char arg1[MAX_INPUT_LENGTH];
 	char arg2[MAX_INPUT_LENGTH];
@@ -243,8 +243,8 @@ void do_quest(CHAR_DATA *ch, char *argument)
     if (!str_cmp(arg1, "renew"))
     {
 		OBJ_DATA *obj;
-		bool fQuestItem = FALSE;
-		int i;
+//		bool fQuestItem = FALSE;
+//		int i;
 		int cost;
 
 		if (arg2[0] == '\0')
