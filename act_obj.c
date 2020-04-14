@@ -4306,6 +4306,8 @@ void do_steal(CHAR_DATA *ch, char *argument)
 	return;
     }
 
+	/*
+	TODO: Allow highway man to steal stuff from shopkeepers
     if (
          ch->pcdata->second_sub_class_thief != CLASS_THIEF_HIGHWAYMAN
          && (IS_SET(obj->extra_flags, ITEM_INVENTORY)
@@ -4314,6 +4316,7 @@ void do_steal(CHAR_DATA *ch, char *argument)
 	send_to_char("You can't pry it away.\n\r", ch);
 	return;
     }
+    */
 
     if (ch->carry_number + get_obj_number(obj) > can_carry_n(ch))
     {
@@ -4329,7 +4332,6 @@ void do_steal(CHAR_DATA *ch, char *argument)
 
     obj_from_char(obj);
     obj_to_char(obj, ch);
-    if (IS_SET(obj->extra2_flags, ITEM_KEPT))
 	REMOVE_BIT(obj->extra2_flags, ITEM_KEPT);
     act("You pocket $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
     check_improve(ch,gsn_steal,TRUE,2);
@@ -4398,13 +4400,6 @@ void obj_to_keeper(OBJ_DATA *obj, CHAR_DATA *ch)
 	if (obj->pIndexData == t_obj->pIndexData
 	&&  !str_cmp(obj->short_descr,t_obj->short_descr))
 	{
-	    /* if this is an unlimited item, destroy the new one */
-	    if (IS_OBJ_STAT(t_obj,ITEM_INVENTORY))
-	    {
-		    log_string("duplicates found!?");
-		extract_obj(obj);
-		return;
-	    }
 	    obj->cost = t_obj->cost; /* keep it standard */
 	    break;
 	}
@@ -4421,6 +4416,12 @@ void obj_to_keeper(OBJ_DATA *obj, CHAR_DATA *ch)
 	t_obj->next_content = obj;
     }
 
+
+	if(!IS_SET(obj->extra2_flags, ITEM_SELL_ONCE))
+	{
+		// If the item can be sold again, mark it as inventory
+		SET_BIT(obj->extra_flags, ITEM_INVENTORY);
+	}
     obj->carried_by      = ch;
     obj->in_room         = NULL;
     obj->in_obj          = NULL;
@@ -4504,7 +4505,8 @@ bool get_stock_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, SHOP_REQUEST_DATA *reque
 
 	for (obj = keeper->carrying; obj != NULL; obj = obj->next_content)
 	{
-		if (obj->wear_loc == WEAR_NONE &&
+		if (IS_OBJ_STAT(obj, ITEM_INVENTORY) &&
+			obj->wear_loc == WEAR_NONE &&
         	can_see_obj(keeper, obj) &&
         	can_see_obj(ch,obj) &&
         	is_name(arg, obj->name))
@@ -4531,6 +4533,7 @@ bool get_stock_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, SHOP_REQUEST_DATA *reque
 
 /* MOVED: object/shop.c*/
 /* get an object from a shopkeeper's list */
+// UNUSED
 OBJ_DATA *get_obj_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -4597,13 +4600,11 @@ int get_cost(CHAR_DATA *keeper, OBJ_DATA *obj, bool fBuy)
 
 		for (obj2 = keeper->carrying; obj2; obj2 = obj2->next_content)
 		{
-		    if (obj->pIndexData == obj2->pIndexData &&
+		    if (IS_OBJ_STAT(obj2,ITEM_INVENTORY) &&
+				obj->pIndexData == obj2->pIndexData &&
 		    	!str_cmp(obj->short_descr,obj2->short_descr))
 			{
-				if (IS_OBJ_STAT(obj2,ITEM_INVENTORY))
-					cost /= 2;
-				else
-					cost = cost * 3 / 4;
+				cost = cost * 3 / 4;
 			}
 		}
     }
@@ -5032,26 +5033,24 @@ void do_buy(CHAR_DATA *ch, char *argument)
 
 			cost = get_cost(keeper, obj, TRUE);
 
-			if (!IS_OBJ_STAT(obj,ITEM_INVENTORY))
+			for (t_obj = obj->next_content;
+				count < number && t_obj != NULL;
+				t_obj = t_obj->next_content)
 			{
-				for (t_obj = obj->next_content;
-					count < number && t_obj != NULL;
-					t_obj = t_obj->next_content)
-				{
-					if (t_obj->pIndexData == obj->pIndexData &&
-						!str_cmp(t_obj->short_descr,obj->short_descr))
-						count++;
-					else
-						break;
-				}
+				if (t_obj->pIndexData == obj->pIndexData &&
+					IS_OBJ_STAT(t_obj, ITEM_INVENTORY) &&
+					!str_cmp(t_obj->short_descr,obj->short_descr))
+					count++;
+				else
+					break;
+			}
 
-				if (count < number || IS_SET(obj->extra2_flags, ITEM_SELL_ONCE))
-				{
-					act("{R$n tells you 'I don't have that many in stock.{x",
-						keeper,ch, NULL, NULL, NULL, NULL, NULL,TO_VICT);
-					ch->reply = keeper;
-					return;
-				}
+			if (count < number || IS_SET(obj->extra2_flags, ITEM_SELL_ONCE))
+			{
+				act("{R$n tells you 'I don't have that many in stock.{x",
+					keeper,ch, NULL, NULL, NULL, NULL, NULL,TO_VICT);
+				ch->reply = keeper;
+				return;
 			}
 
 			cost = cost * number;
@@ -5109,25 +5108,26 @@ void do_buy(CHAR_DATA *ch, char *argument)
 			keeper->gold += cost/100;
 			keeper->silver += cost - (cost/100) * 100;
 
-			for (count = 0; count < number; count++)
+			for (obj = request.obj, count = 0; count < number && obj != NULL; obj = t_obj)
 			{
-				if (IS_SET(obj->extra_flags, ITEM_INVENTORY))
-					t_obj = create_object(obj->pIndexData, obj->level, TRUE);
-				else
+				t_obj = obj->next_content;
+				if (obj->pIndexData == request.obj->pIndexData &&
+					IS_OBJ_STAT(obj, ITEM_INVENTORY) &&
+					!str_cmp(obj->short_descr,request.obj->short_descr))
 				{
-					t_obj = obj;
-					obj = obj->next_content;
-					obj_from_char(t_obj);
+					obj_from_char(obj);
+
+					if (obj->timer > 0)
+						obj->timer = 0;
+
+					obj_to_char(obj, ch);
+					if (cost < obj->cost)
+						obj->cost = cost;
+
+					count++;
 				}
 
-				if (t_obj->timer > 0)
-					t_obj->timer = 0;
-
-				obj_to_char(t_obj, ch);
-				if (cost < t_obj->cost)
-					t_obj->cost = cost;
 			}
-
 		}
 		else
 		{

@@ -77,6 +77,7 @@ int gconfig_read (void)
     gconfig.next_vroom_uid[0] = 1;	gconfig.next_vroom_uid[1] = 0;
 
     gconfig.next_church_uid = 1;
+    gconfig.db_version = VERSION_DB_000;
 
     for(;;)
     {
@@ -89,6 +90,9 @@ int gconfig_read (void)
                 fMatch = TRUE;
                 fread_to_eol (fp);
             break;
+			case 'D':
+				KEY ("DBVersion", gconfig.db_version, fread_number(fp));
+				break;
 
            case 'E':
                 if (!str_cmp(word, "END"))
@@ -192,6 +196,7 @@ int gconfig_write(void)
         return(1); /* Failure*/
     }
 
+	fprintf(fp, "DBversion %ld\n", (long)VERSION_DB);
     fprintf(fp, "NextMobUID %ld %ld\n", gconfig.next_mob_uid[2], gconfig.next_mob_uid[3]);
     fprintf(fp, "NextObjUID %ld %ld\n", gconfig.next_obj_uid[2], gconfig.next_obj_uid[3]);
     fprintf(fp, "NextTokenUID %ld %ld\n", gconfig.next_token_uid[2], gconfig.next_token_uid[3]);

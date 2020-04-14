@@ -2905,6 +2905,7 @@ REDIT(redit_oreset)
 	olevel  = URANGE(0, to_mob->level - 2, LEVEL_HERO);
         newobj = create_object(pObjIndex, number_fuzzy(olevel), TRUE);
 
+#if 0
 	if (to_mob->pIndexData->pShop)	/* Shop-keeper? */
 	{
 	    switch (pObjIndex->item_type)
@@ -2931,7 +2932,9 @@ REDIT(redit_oreset)
 		SET_BIT(newobj->extra_flags, ITEM_INVENTORY);
 	}
 	else
+#endif
 	    newobj = create_object(pObjIndex, number_fuzzy(olevel), TRUE);
+
 
 	obj_to_char(newobj, to_mob);
 	if (pReset->command == 'E')

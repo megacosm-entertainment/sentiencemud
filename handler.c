@@ -2230,6 +2230,7 @@ void obj_from_char(OBJ_DATA *obj)
 
     --obj->pIndexData->carried;
 
+    REMOVE_BIT(obj->extra_flags, ITEM_INVENTORY);
     obj->carried_by	 = NULL;
     obj->next_content	 = NULL;
     ch->carry_number	-= get_obj_number(obj);

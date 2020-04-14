@@ -3175,7 +3175,7 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messag
 		obj_from_char(obj);
 
 		// If dealing with an npc, treat no_loot items just like inventory items.
-		if (IS_SET(obj->extra_flags, ITEM_INVENTORY) ||
+		if (/*IS_SET(obj->extra_flags, ITEM_INVENTORY) ||*/
 			(!IS_SET(obj->extra3_flags, ITEM_ALWAYS_LOOT) && !IS_SET(obj->extra3_flags, ITEM_FORCE_LOOT) && IS_SET(obj->extra2_flags, ITEM_NO_LOOT) && IS_NPC(ch)))
 			extract_obj(obj);
 		else

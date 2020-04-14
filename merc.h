@@ -156,6 +156,7 @@ struct sound_type {
 
 /* Purge version - anything that is below this version should be considered invalid and to be wiped
 	Useful for players that are too different */
+#define VERSION_DB_PURGE	0x00000000
 #define VERSION_AREA_PURGE	0x00000000
 #define VERSION_MOBILE_PURGE	0x00000000
 #define VERSION_OBJECT_PURGE	0x00000000
@@ -167,6 +168,7 @@ struct sound_type {
 #define VERSION_WILDS_PURGE	0x00000000
 
 /* Base version - initial verison when version isn't present */
+#define VERSION_DB_000		0x00FFFFFF
 #define VERSION_AREA_000	0x00FFFFFF
 #define VERSION_MOBILE_000	0x00FFFFFF
 #define VERSION_OBJECT_000	0x00FFFFFF
@@ -179,10 +181,15 @@ struct sound_type {
 
 #define VERSION_GAME		"DEV 0.0.1"
 
+#define VERSION_DB_001		0x01000001
+
 #define VERSION_AREA_001	0x01000001
 
 #define VERSION_AREA_002	0x01000001
 //	Change #1: Forces the AREA_NEWBIE flag on Alendith
+
+#define VERSION_AREA_003	0x01000002
+//	Change #2: Migrate shopkeeper resets over to shop stock data
 
 #define VERSION_MOBILE_001	0x01000001
 //  Change #1: Update to affects to include object worn location
@@ -207,7 +214,8 @@ struct sound_type {
 #define VERSION_OBJECT_003	0x01000002
 //  Change #1: Added bitvector2 to affect output
 
-#define VERSION_AREA		VERSION_AREA_002
+#define VERSION_DB			VERSION_DB_001
+#define VERSION_AREA		VERSION_AREA_003
 #define VERSION_MOBILE		0x01000000
 #define VERSION_OBJECT		VERSION_OBJECT_003
 #define VERSION_ROOM		0x01000000
@@ -216,6 +224,7 @@ struct sound_type {
 #define VERSION_AFFECT		0x01000000
 #define VERSION_SCRIPT		0x02000000
 #define VERSION_WILDS		0x01000000
+#define VERSION_DATABASE	0x01000000
 
 /* Structures */
 typedef struct	affect_data		AFFECT_DATA;
@@ -939,6 +948,8 @@ struct global_data
     unsigned long next_token_uid[4];	/* next read: [0:1], next write: [2:3] */
     unsigned long next_vroom_uid[4];
     long	next_church_uid;
+
+    long	db_version;
 };
 
 struct bounty_data

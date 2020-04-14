@@ -1444,9 +1444,11 @@ AREA_DATA *read_area_new(FILE *fp)
 	{
 		if( !str_cmp(area->name, "Realm of Alendith") )
 			SET_BIT(area->area_flags, AREA_NEWBIE);
+	}
 
-
-		area->version_area = VERSION_AREA_002;
+	if( area->version_area < VERSION_AREA_003 )
+	{
+		// Handled after all areas are loaded, since there can be cross area handling
 	}
 
     if (area->uid == 0)

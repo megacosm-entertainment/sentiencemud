@@ -75,6 +75,7 @@ extern  MOB_INDEX_DATA  *mob_index_free;
 extern  OBJ_INDEX_DATA  *obj_index_free;
 extern  EXTRA_DESCR_DATA * extra_descr_free;
 extern  RESET_DATA  *reset_free;
+extern	GLOBAL_DATA gconfig;
 
 void free_room_index( ROOM_INDEX_DATA *pRoom );
 void persist_save_room(FILE *fp, ROOM_INDEX_DATA *room);
@@ -674,6 +675,7 @@ void chance_create_mob(ROOM_INDEX_DATA *pRoom, MOB_INDEX_DATA *pMobIndex, int ch
 void reset_npc_sailing_boats (void);
 void fix_tokenprogs(void);
 void check_area_versions(void);
+void migrate_shopkeeper_resets(AREA_DATA *area);
 
 
 bool persist_load(void);
@@ -1431,6 +1433,80 @@ void area_update(bool fBoot)
 	iterator_stop(&it);
 }
 
+void migrate_shopkeeper_resets(AREA_DATA *area)
+{
+	if( area->version_area < VERSION_AREA_003 )
+	{
+		ROOM_INDEX_DATA *room;
+		OBJ_INDEX_DATA *obj;
+		// Migrate all shopkeeper related resets over to shop stock
+		ITERATOR it;
+		iterator_start(&it, area->room_list);
+		while((room = (ROOM_INDEX_DATA *)iterator_nextdata(&it)) != NULL)
+		{
+			RESET_DATA *curr, *prev, *next;
+			MOB_INDEX_DATA *last_mob = NULL;
+
+			for(prev = NULL, curr = room->reset_first; curr; prev = curr, curr = next)
+			{
+				next = curr->next;
+
+				switch(curr->command)
+				{
+				case 'M':
+					if (!(last_mob = get_mob_index(pReset->arg1)))
+						continue;
+
+					break;
+				case 'G':
+					// Don't have a last mob
+					if( last_mob == NULL) continue;
+
+					// Not a shopkeeper
+					if( last_mob->pShop == NULL ) continue;
+
+					// Object doesn't exist
+					if( !(obj = get_obj_index(pReset->arg1)) ) continue;
+
+					// Object is money
+					if( obj->item_type == ITEM_MONEY ) continue;
+
+					SHOP_STOCK_DATA *stock = new_shop_stock();
+					if(!stock) continue;	// SHOULD ABORT?
+
+					// Generate stock entry
+					stock->type = STOCK_OBJECT;
+					stock->vnum = obj->vnum;
+					stock->silver = obj->cost;
+					stock->discount = last_mob->pShop->discount;
+
+					stock->next = last_mob->pShop->stock;
+					last_mob->pShop->stock = stock;
+
+					// Prune this RESET
+
+					if(prev != NULL)
+						prev->next = next;
+					else
+						room->reset_first = next;
+
+					if(next == NULL)
+						room->reset_last = prev;
+
+					free_reset_data(curr);
+
+					SET_BIT(area->area_flags, AREA_CHANGED);
+					break;
+				}
+			}
+		}
+		iterator_stop(&it);
+
+		if( !IS_SET(area->area_flags, AREA_CHANGED) )
+			area->version_area = VERSION_AREA_003;
+	}
+}
+
 
 void reset_room(ROOM_INDEX_DATA *pRoom)
 {
@@ -1696,37 +1772,38 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
                 break;
             }
 
+#if 0
             if (LastMob->shop)   /* Shop-keeper? */
             {
-                pObj = create_object(pObjIndex, 0, TRUE);
+				pObj = create_object(pObjIndex, 0, TRUE);
 
-		if (!IS_SET(pObj->extra2_flags, ITEM_SELL_ONCE))
-		    SET_BIT(pObj->extra_flags, ITEM_INVENTORY);
-            }
-	    else
-	    {
-		int limit;
-		if (pReset->arg2 > 50)
-		    limit = 6;
-		else if (pReset->arg2 == -1 || pReset->arg2 == 0)
-		    limit = 999;
-		else
-		    limit = pReset->arg2;
+				if (!IS_SET(pObj->extra2_flags, ITEM_SELL_ONCE))
+					SET_BIT(pObj->extra_flags, ITEM_INVENTORY);
+			}
+			else
+#endif
+			{
+				int limit;
+				if (pReset->arg2 > 50)
+					limit = 6;
+				else if (pReset->arg2 == -1 || pReset->arg2 == 0)
+					limit = 999;
+				else
+					limit = pReset->arg2;
 
-		if (pObjIndex->count < limit || number_range(0,4) == 0)
-		{
-		    pObj = create_object(pObjIndex,
-			   UMIN(number_fuzzy(level), LEVEL_HERO - 1), TRUE);
-		}
-		else
-		    break;
-	    }
+				if (pObjIndex->count < limit || number_range(0,4) == 0)
+				{
+					pObj = create_object(pObjIndex, UMIN(number_fuzzy(level), LEVEL_HERO - 1), TRUE);
+				}
+				else
+				    break;
+	    	}
 
-            objRepop = TRUE;
-	    obj_to_char(pObj, LastMob);
+			objRepop = TRUE;
+			obj_to_char(pObj, LastMob);
             if (pReset->command == 'E')
-                equip_char(LastMob, pObj, pReset->arg3);
-            last = TRUE;
+				equip_char(LastMob, pObj, pReset->arg3);
+			last = TRUE;
             break;
 
         case 'D':
@@ -4374,14 +4451,23 @@ void check_area_versions(void)
 {
 	AREA_DATA *area;
 
+	for (area = area_first; area; area = area->next)
+	{
+		migrate_shopkeeper_resets(area);
+	}
+
+
 	for (area = area_first; area; area = area->next) {
-		if(	area->version_area != VERSION_AREA ||
+		if( IS_SET(area->area_flags, AREA_CHANGED) ||
+			area->version_area != VERSION_AREA ||
 			area->version_mobile != VERSION_MOBILE ||
 			area->version_object != VERSION_OBJECT ||
 			area->version_room != VERSION_ROOM ||
 			area->version_token != VERSION_TOKEN ||
 			area->version_script != VERSION_SCRIPT ||
 			area->version_wilds != VERSION_WILDS) {
+
+			REMOVE_BIT(area->area_flags, AREA_CHANGED);
 			save_area_new(area);
 		}
 	}
