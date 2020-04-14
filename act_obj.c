@@ -5750,6 +5750,7 @@ void do_list(CHAR_DATA *ch, char *argument)
         return;
     } */
 
+#if 0
     if (IS_SET(ch->in_room->room_flags, ROOM_PET_SHOP) ||
     	IS_SET(ch->in_room->room_flags, ROOM_MOUNT_SHOP))
     {
@@ -5806,6 +5807,7 @@ void do_list(CHAR_DATA *ch, char *argument)
 		return;
 	}
 	else
+#endif
 	{
 		CHAR_DATA *keeper;
 		OBJ_DATA *obj;
@@ -5933,7 +5935,8 @@ void do_list(CHAR_DATA *ch, char *argument)
 
 		for (obj = keeper->carrying; obj; obj = obj->next_content)
 		{
-		    if (obj->wear_loc == WEAR_NONE &&
+		    if (IS_OBJ_STAT(obj,ITEM_INVENTORY) &&
+				obj->wear_loc == WEAR_NONE &&
 		    	can_see_obj(ch, obj) &&
 		    	(cost = get_cost(keeper, obj, TRUE)) > 0 &&
 		    	(arg[0] == '\0' || is_name(arg,obj->name)))
@@ -5944,23 +5947,18 @@ void do_list(CHAR_DATA *ch, char *argument)
 					send_to_char("{B[ {GLv    Price  Qty{B ]{x {YItem{x\n\r", ch);
 				}
 
-				if (IS_OBJ_STAT(obj,ITEM_INVENTORY))
-				    sprintf(buf,"{B[{x%3d %8d {Y ---{x {B] {x%s\n\r",
-						obj->level,cost,obj->short_descr);
-				else
+				count = 1;
+
+				while (obj->next_content != NULL &&
+						IS_OBJ_STAT(obj->next_content,ITEM_INVENTORY) &&
+						obj->pIndexData == obj->next_content->pIndexData &&
+						!str_cmp(obj->short_descr, obj->next_content->short_descr))
 				{
-				    count = 1;
-
-				    while (obj->next_content != NULL &&
-				    		obj->pIndexData == obj->next_content->pIndexData &&
-				    		!str_cmp(obj->short_descr, obj->next_content->short_descr))
-		    		{
-						obj = obj->next_content;
-						count++;
-		    		}
-
-		    		sprintf(buf,"{B[{x%3d %8d {Y%4d{B ]{x %s\n\r", obj->level,cost,count,obj->short_descr);
+					obj = obj->next_content;
+					count++;
 				}
+
+				sprintf(buf,"{B[{x%3d %8d {Y%4d{B ]{x %s\n\r", obj->level,cost,count,obj->short_descr);
 
 				send_to_char(buf, ch);
 		    }
