@@ -1447,57 +1447,60 @@ void migrate_shopkeeper_resets(AREA_DATA *area)
 			RESET_DATA *curr, *prev, *next;
 			MOB_INDEX_DATA *last_mob = NULL;
 
-			for(prev = NULL, curr = room->reset_first; curr; prev = curr, curr = next)
+			for(prev = NULL, curr = room->reset_first; curr; curr = next)
 			{
 				next = curr->next;
 
 				switch(curr->command)
 				{
 				case 'M':
-					if (!(last_mob = get_mob_index(curr->arg1)))
-						continue;
-
+					last_mob = get_mob_index(curr->arg1);
 					break;
+
 				case 'G':
-					// Don't have a last mob
-					if( last_mob == NULL) continue;
+					// Mob must be a shopkeeper, the object must exist and the object must not be money
 
-					// Not a shopkeeper
-					if( last_mob->pShop == NULL ) continue;
+					if( (last_mob != NULL) &&
+						(last_mob->pShop != NULL) &&
+						((obj = get_obj_index(curr->arg1)) != NULL) &&
+						(obj->item_type != ITEM_MONEY))
+					{
 
-					// Object doesn't exist
-					if( !(obj = get_obj_index(curr->arg1)) ) continue;
+						SHOP_STOCK_DATA *stock = new_shop_stock();
+						if(!stock) {
+							prev = curr;
+							break;	// SHOULD ABORT?
+						}
 
-					// Object is money
-					if( obj->item_type == ITEM_MONEY ) continue;
+						// Generate stock entry
+						stock->type = STOCK_OBJECT;
+						stock->vnum = obj->vnum;
+						stock->silver = obj->cost;
+						stock->discount = last_mob->pShop->discount;
 
-					SHOP_STOCK_DATA *stock = new_shop_stock();
-					if(!stock) continue;	// SHOULD ABORT?
+						stock->next = last_mob->pShop->stock;
+						last_mob->pShop->stock = stock;
 
-					// Generate stock entry
-					stock->type = STOCK_OBJECT;
-					stock->vnum = obj->vnum;
-					stock->silver = obj->cost;
-					stock->discount = last_mob->pShop->discount;
+						// Prune this RESET
 
-					stock->next = last_mob->pShop->stock;
-					last_mob->pShop->stock = stock;
+						if(prev != NULL)
+							prev->next = next;
+						else
+							room->reset_first = next;
 
-					// Prune this RESET
+						if(next == NULL)
+							room->reset_last = prev;
 
-					if(prev != NULL)
-						prev->next = next;
-					else
-						room->reset_first = next;
+						free_reset_data(curr);
 
-					if(next == NULL)
-						room->reset_last = prev;
-
-					free_reset_data(curr);
-
-					SET_BIT(area->area_flags, AREA_CHANGED);
+						SET_BIT(area->area_flags, AREA_CHANGED);
+						continue;
+					}
 					break;
 				}
+
+				// Only advance if nothing happened
+				prev = curr;
 			}
 		}
 		iterator_stop(&it);
