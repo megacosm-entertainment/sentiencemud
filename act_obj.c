@@ -5094,13 +5094,13 @@ void do_buy(CHAR_DATA *ch, char *argument)
 			{
 				sprintf(buf,"$n buys $p[%d].",number);
 				act(buf,ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
-				sprintf(buf,"You buy $p[%d] for %ld silver.",number,cost);
+				sprintf(buf,"You buy $p[%d] for%s.", number, get_shop_purchase_price(cost, 0, 0, 0));
 				act(buf,ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
 			}
 			else
 			{
 				act("$n buys $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-				sprintf(buf,"You buy $p for %ld silver.",cost);
+				sprintf(buf,"You buy $p for%s.", get_shop_purchase_price(cost, 0, 0, 0));
 				act(buf, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 			}
 
