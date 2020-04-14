@@ -1454,7 +1454,7 @@ void migrate_shopkeeper_resets(AREA_DATA *area)
 				switch(curr->command)
 				{
 				case 'M':
-					if (!(last_mob = get_mob_index(pReset->arg1)))
+					if (!(last_mob = get_mob_index(curr->arg1)))
 						continue;
 
 					break;
@@ -1466,7 +1466,7 @@ void migrate_shopkeeper_resets(AREA_DATA *area)
 					if( last_mob->pShop == NULL ) continue;
 
 					// Object doesn't exist
-					if( !(obj = get_obj_index(pReset->arg1)) ) continue;
+					if( !(obj = get_obj_index(curr->arg1)) ) continue;
 
 					// Object is money
 					if( obj->item_type == ITEM_MONEY ) continue;
@@ -1502,7 +1502,9 @@ void migrate_shopkeeper_resets(AREA_DATA *area)
 		}
 		iterator_stop(&it);
 
-		if( !IS_SET(area->area_flags, AREA_CHANGED) )
+		// If nothing else has changed besides being one version behind 003,
+		//	move version to 003 automatically so it doesn't need to save
+		if( (area->version_area == VERSION_AREA_002) && !IS_SET(area->area_flags, AREA_CHANGED) )
 			area->version_area = VERSION_AREA_003;
 	}
 }
