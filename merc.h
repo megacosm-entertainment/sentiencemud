@@ -5218,6 +5218,8 @@ enum trigger_index_enum {
 	TRIG_QUEST_COMPLETE,	// Prior to awards being given, called when the quest turned in complete, allowing editing of the awards
 	TRIG_QUEST_INCOMPLETE,	// Prior to awards being given, called when the quest turned in incomplete , allowing editing of the awards
 	TRIG_QUEST_PART,		// Used to generate a custom quest part when selected.
+	TRIG_QUEST_PRERENEW,	// Used by "QUEST RENEW" to get QP cost and whether the item can be renewed
+	TRIG_QUEST_RENEW,		// Used by "QUEST RENEW"
 	TRIG_QUIT,
 	TRIG_RANDOM,
 	TRIG_RECALL,
