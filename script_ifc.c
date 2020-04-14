@@ -1097,7 +1097,7 @@ DECL_IFC_FUN(ifc_isshooting)
 
 DECL_IFC_FUN(ifc_isshopkeeper)
 {
-	*ret = VALID_NPC(0) && ARG_MOB(0)->pIndexData->pShop;
+	*ret = VALID_NPC(0) && ARG_MOB(0)->shop;
 	return TRUE;
 }
 
@@ -1178,7 +1178,11 @@ DECL_IFC_FUN(ifc_lastreturn)
 
 DECL_IFC_FUN(ifc_level)
 {
-	*ret = ISARG_MOB(0) ? ARG_MOB(0)->tot_level : 0;
+	if( ISARG_MOB(0) ) *ret = ARG_MOB(0)->tot_level;
+	else if(ISARG_OBJ(0)) *ret = ARG_OBJ(0)->level;
+	else
+		*ret = 0;
+
 	return TRUE;
 }
 

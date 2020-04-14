@@ -81,6 +81,7 @@ RESET_DATA *reset_free;
 ROOM_INDEX_DATA *room_index_free;
 SHIP_CREW_DATA *ship_crew_free;
 SHOP_DATA *shop_free;
+SHOP_STOCK_DATA *shop_stock_free;
 SPELL_DATA *spell_free;
 STRING_DATA *string_data_free;
 TOKEN_DATA *token_free;
@@ -594,6 +595,7 @@ CHAR_DATA *new_char( void )
 
     ch->checkpoint = NULL;
     ch->tempstring = NULL;
+    ch->shop = NULL;
 
     return ch;
 }
@@ -712,6 +714,8 @@ void free_char( CHAR_DATA *ch )
     ch->checkpoint = NULL;
 
 	if( ch->persist ) persist_removemobile(ch);
+
+	if( ch->shop ) free_shop(ch->shop);
 
     ch->next = char_free;
     char_free = ch;
@@ -1599,6 +1603,52 @@ void free_room_index( ROOM_INDEX_DATA *pRoom )
     return;
 }
 
+SHOP_STOCK_DATA *new_shop_stock()
+{
+	SHOP_STOCK_DATA *pStock;
+
+	if( !shop_stock_free )
+		pStock = alloc_perm( sizeof(*pStock) );
+	else
+	{
+		pStock = shop_stock_free;
+		shop_stock_free = shop_stock_free->next;
+	}
+
+	pStock->next = NULL;
+	pStock->silver = 0;
+	pStock->qp = 0;
+	pStock->dp = 0;
+	pStock->pneuma = 0;
+	pStock->custom_price = &str_empty[0];
+
+	pStock->vnum = 0;
+	pStock->obj = NULL;
+
+	pStock->quantity = 0;
+	pStock->max_quantity = 0;
+	pStock->restock_rate = 0;
+
+	pStock->duration = -1;
+	pStock->singular = FALSE;
+
+	pStock->custom_keyword = &str_empty[0];
+	pStock->custom_descr = &str_empty[0];
+
+	return pStock;
+}
+
+void free_shop_stock(SHOP_STOCK_DATA *pStock)
+{
+	if(!pStock) return;
+
+	free_string(pStock->custom_price);
+	free_string(pStock->custom_keyword);
+	free_string(pStock->custom_descr);
+
+	pStock->next = shop_stock_free;
+	shop_stock_free = pStock;
+}
 
 SHOP_DATA *new_shop( void )
 {
@@ -1626,6 +1676,11 @@ SHOP_DATA *new_shop( void )
     pShop->profit_sell  =   100;
     pShop->open_hour    =   0;
     pShop->close_hour   =   23;
+    pShop->restock_interval = 0;
+    pShop->next_restock = 0;
+    pShop->discount		= 50;
+
+    pShop->stock = NULL;
 
     return pShop;
 }
@@ -1633,6 +1688,14 @@ SHOP_DATA *new_shop( void )
 
 void free_shop( SHOP_DATA *pShop )
 {
+	SHOP_STOCK_DATA *stock, *next_stock;
+
+	for(stock = pShop->stock; stock; stock = next_stock)
+	{
+		next_stock = stock->next;
+		free_shop_stock(stock);
+	}
+
     pShop->next = shop_free;
     shop_free   = pShop;
     return;
@@ -1810,7 +1873,7 @@ void free_mob_index( MOB_INDEX_DATA *pMob )
     }
 
 	free_questor_data( pMob->pQuestor );
-    free_shop( pMob->pShop );
+    if(pMob->pShop != NULL) free_shop( pMob->pShop );
 
     pMob->next              = mob_index_free;
     mob_index_free          = pMob;

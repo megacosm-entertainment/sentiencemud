@@ -264,4 +264,7 @@ extern	const struct flag_type corpse_object_flags[];
 extern	const struct flag_type variable_types[];
 extern	const struct flag_type skill_flags[];
 
+extern	const struct flag_type shop_flags[];
+
+
 #endif

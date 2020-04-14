@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "merc.h"
+#include "recycle.h"
 #include "tables.h"
 #include "olc.h"
 #include "olc_save.h"
@@ -1131,6 +1132,56 @@ void save_questor_new(FILE *fp, QUESTOR_DATA *questor)
     fprintf(fp, "#-QUESTOR\n");
 }
 
+void save_shop_stock_new(FILE *fp, SHOP_STOCK_DATA *stock)
+{
+	if(stock->next)
+		save_shop_stock_new(fp, stock->next);
+
+	fprintf(fp, "#STOCK\n");
+
+	fprintf(fp, "Level %d\n", stock->level);
+	fprintf(fp, "Discount %d\n", stock->discount);
+
+	// Pricing
+	fprintf(fp, "Silver %ld\n", stock->silver);
+	fprintf(fp, "QuestPnts %ld\n", stock->qp);
+	fprintf(fp, "DeityPnts %ld\n", stock->dp);
+	fprintf(fp, "Pneuma %ld\n", stock->pneuma);
+	fprintf(fp, "Pricing %s~\n", fix_string(stock->custom_price));
+
+	// Quantity
+	fprintf(fp, "Quantity %d\n", stock->quantity);
+	fprintf(fp, "RestockRate %d\n", stock->restock_rate);
+	if(stock->singular)
+	{
+		fprintf(fp, "Singular\n");
+	}
+
+	// Product
+	switch(stock->type) {
+	case STOCK_OBJECT:
+		fprintf(fp, "Object %ld\n", stock->vnum);
+		break;
+	case STOCK_PET:
+		fprintf(fp, "Pet %ld\n", stock->vnum);
+		break;
+	case STOCK_MOUNT:
+		fprintf(fp, "Mount %ld\n", stock->vnum);
+		break;
+	case STOCK_GUARD:
+		fprintf(fp, "Guard %ld\n", stock->vnum);
+		break;
+	case STOCK_CUSTOM:
+		fprintf(fp, "Keyword %s~\n", fix_string(stock->custom_keyword));
+		break;
+	}
+
+	fprintf(fp, "Duration %d\n", stock->duration);
+
+	fprintf(fp, "Description %s~\n", fix_string(stock->custom_descr));
+
+	fprintf(fp, "#-STOCK\n");
+}
 
 void save_shop_new(FILE *fp, SHOP_DATA *shop)
 {
@@ -1142,11 +1193,22 @@ void save_shop_new(FILE *fp, SHOP_DATA *shop)
     fprintf(fp, "ProfitSell %d\n", shop->profit_sell);
     fprintf(fp, "HourOpen %d\n", shop->open_hour);
     fprintf(fp, "HourClose %d\n", shop->close_hour);
+    fprintf(fp, "RestockInterval %d\n", shop->restock_interval);
+    if(shop->flags != 0)
+    {
+	    fprintf(fp, "Flags %d\n", shop->flags);
+	}
+
+	fprintf(fp, "Discount %d\n", shop->discount);
 
     for (i = 0; i < MAX_TRADE; i++) {
-	if (shop->buy_type[i] != 0)
-	    fprintf(fp, "Trade %d\n", shop->buy_type[i]);
+		if (shop->buy_type[i] != 0)
+		    fprintf(fp, "Trade %d\n", shop->buy_type[i]);
     }
+
+	if( shop->stock )
+		save_shop_stock_new(fp, shop->stock);
+
 
     fprintf(fp, "#-SHOP\n");
 }
@@ -1382,9 +1444,11 @@ AREA_DATA *read_area_new(FILE *fp)
 	{
 		if( !str_cmp(area->name, "Realm of Alendith") )
 			SET_BIT(area->area_flags, AREA_NEWBIE);
+	}
 
-
-		area->version_area = VERSION_AREA_002;
+	if( area->version_area < VERSION_AREA_003 )
+	{
+		// Handled after all areas are loaded, since there can be cross area handling
 	}
 
     if (area->uid == 0)
@@ -3056,6 +3120,104 @@ QUESTOR_DATA *read_questor_new(FILE *fp)
     return questor;
 }
 
+SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)
+{
+	SHOP_STOCK_DATA *stock;
+	char *word;
+
+	stock = new_shop_stock();
+
+    while (str_cmp((word = fread_word(fp)), "#-STOCK"))
+    {
+		fMatch = FALSE;
+		switch (word[0]) {
+		case 'D':
+			KEY("DeityPnts", stock->dp, fread_number(fp));
+			KEYS("Description", stock->custom_descr, fread_string(fp));
+			KEY("Discount", stock->discount, fread_number(fp));
+			KEY("Duration", stock->duration, fread_number(fp));
+			break;
+		case 'G':
+			if(!str_cmp(word, "Guard"))
+			{
+				fMatch = TRUE;
+				stock->vnum = fread_number(fp);
+				stock->type = STOCK_GUARD;
+				break;
+			}
+			break;
+		case 'K':
+			if(!str_cmp(word, "Keyword"))
+			{
+				fMatch = TRUE;
+				stock->custom_keyword = fread_string(fp);
+				stock->vnum = 0;
+				stock->type = STOCK_CUSTOM;
+				break;
+			}
+			break;
+		case 'L':
+			KEY("Level", stock->level, fread_number(fp));
+			break;
+		case 'M':
+			if(!str_cmp(word, "Mount"))
+			{
+				fMatch = TRUE;
+				stock->vnum = fread_number(fp);
+				stock->type = STOCK_MOUNT;
+				break;
+			}
+			break;
+		case 'O':
+			if(!str_cmp(word, "Object"))
+			{
+				fMatch = TRUE;
+				stock->vnum = fread_number(fp);
+				stock->type = STOCK_OBJECT;
+				break;
+			}
+			break;
+		case 'P':
+			if(!str_cmp(word, "Pet"))
+			{
+				fMatch = TRUE;
+				stock->vnum = fread_number(fp);
+				stock->type = STOCK_PET;
+				break;
+			}
+			KEY("Pneuma", stock->pneuma, fread_number(fp));
+			KEYS("Pricing", stock->custom_price, fread_string(fp));
+			break;
+		case 'Q':
+			KEY("Quantity", stock->quantity, fread_number(fp));
+			KEY("QuestPnts", stock->qp, fread_number(fp));
+			break;
+		case 'R':
+			KEY("RestockRate", stock->restock_rate, fread_number(fp));
+			break;
+		case 'S':
+			KEY("Silver", stock->silver, fread_number(fp));
+			if(!str_cmp(word, "Singular"))
+			{
+				fMatch = TRUE;
+				stock->singular = TRUE;
+				break;
+			}
+			break;
+
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "read_shop_stock_new: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	stock->discount = URANGE(0, stock->discount, 100);
+
+	return stock;
+}
+
 SHOP_DATA *read_shop_new(FILE *fp)
 {
     SHOP_DATA *shop;
@@ -3067,6 +3229,20 @@ SHOP_DATA *read_shop_new(FILE *fp)
     {
 	fMatch = FALSE;
 	switch (word[0]) {
+		case '#':
+			if(!str_cmp(word, "#STOCK")) {
+				SHOP_STOCK_DATA *stock = read_shop_stock_new(fp);
+
+				if(stock) {
+					stock->next = shop->stock;
+					shop->stock = stock;
+				}
+				fMatch = TRUE;
+			}
+			break;
+	    case 'D':
+	        KEY("Discount",	shop->discount,	fread_number(fp));
+	        break;
 	    case 'H':
 	        KEY("HourOpen",	shop->open_hour,	fread_number(fp));
 	        KEY("HourClose",	shop->close_hour,	fread_number(fp));
@@ -3080,6 +3256,9 @@ SHOP_DATA *read_shop_new(FILE *fp)
 		KEY("ProfitBuy",	shop->profit_buy,	fread_number(fp));
 		KEY("ProfitSell",	shop->profit_sell,	fread_number(fp));
 		break;
+		case 'R':
+			KEY("RestockInterval", shop->restock_interval, fread_number(fp));
+			break;
 
 	    case 'T':
 	        if (!str_cmp(word, "Trade")) {
@@ -3099,10 +3278,13 @@ SHOP_DATA *read_shop_new(FILE *fp)
 	}
 
 	if (!fMatch) {
-	    sprintf(buf, "read_reset_new: no match for word %s", word);
+	    sprintf(buf, "read_shop_new: no match for word %s", word);
 	    bug(buf, 0);
 	}
     }
+
+	shop->discount = URANGE(0, shop->discount, 100);
+
 
     return shop;
 }

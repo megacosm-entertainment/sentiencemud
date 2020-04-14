@@ -1066,35 +1066,8 @@ void show_char_to_char_1(CHAR_DATA * victim, CHAR_DATA * ch)
 	    act("\n\r{R$N is too powerful for you to lore.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 	else
 	{
-	    long avg;
-
 	    send_to_char("\n\r{YYou recognize the following things about this creature:{x\n\r", ch);
-	    sprintf(buf, "{MImmune to: {x%s\n\r"
-			    "{MResistant to: {x%s\n\r"
-			    "{MVulnerable to: {x%s\n\r",
-			    imm_bit_name(victim->imm_flags),
-			    res_bit_name(victim->res_flags),
-			    vuln_bit_name(victim->vuln_flags));
-	    send_to_char(buf, ch);
-
-	    avg = (victim->damage.number * victim->damage.size)
-		    + (victim->damage.number);
-	    avg /= 2;
-
-	    avg += victim->damage.bonus;
-
-	    sprintf(buf, "{MHealth:{x %s%.0f%%{x {MAverage Damage:{x %ld\n\r",
-			    victim->hit < victim->max_hit / 2 ? "{R" :
-			    victim->hit < victim->max_hit/1.5 ? "{G" : "{x",
-			    (float) victim->hit/victim->max_hit*100,
-			    /* victim->mana < victim->max_mana / 2 ? "{R" :
-			     	victim->mana < victim->max_mana/1.5 ? "{G" : "{x",
-			    	(float) victim->mana/victim->max_mana*100, */
-			    avg);
-	    send_to_char(buf, ch);
-
-	    p_percent_trigger(victim, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE, NULL);
-
+	    show_basic_mob_lore(ch, victim);
 	    check_improve(ch, gsn_mob_lore, TRUE, 7);
 	}
     }
@@ -6390,7 +6363,7 @@ char determine_room_type(ROOM_INDEX_DATA *room)
 	    continue;
 	}
 
-	if (pMob->pShop != NULL) {
+	if (ch->shop != NULL && !IS_SET(ch->shop->flags,SHOPFLAG_HIDE_SHOP)) {
 	    return 'N';
 	}
     }
@@ -6688,3 +6661,34 @@ void show_room_description(CHAR_DATA *ch, ROOM_INDEX_DATA *room)
 	send_to_char(find_desc_for_room(room,ch),ch);
 }
 
+void show_basic_mob_lore(CHAR_DATA *ch, CHAR_DATA *victim)
+{
+	char buf[2*MAX_STRING_LENGTH];
+
+	long avg;
+	sprintf(buf, "{MImmune to: {x%s\n\r"
+			"{MResistant to: {x%s\n\r"
+			"{MVulnerable to: {x%s\n\r",
+			imm_bit_name(victim->imm_flags),
+			res_bit_name(victim->res_flags),
+			vuln_bit_name(victim->vuln_flags));
+	send_to_char(buf, ch);
+
+	avg = (victim->damage.number * victim->damage.size)
+		+ (victim->damage.number);
+	avg /= 2;
+
+	avg += victim->damage.bonus;
+
+	sprintf(buf, "{MHealth:{x %s%.0f%%{x {MAverage Damage:{x %ld\n\r",
+			victim->hit < victim->max_hit / 2 ? "{R" :
+			victim->hit < victim->max_hit/1.5 ? "{G" : "{x",
+			(float) victim->hit/victim->max_hit*100,
+			/* victim->mana < victim->max_mana / 2 ? "{R" :
+				victim->mana < victim->max_mana/1.5 ? "{G" : "{x",
+				(float) victim->mana/victim->max_mana*100, */
+			avg);
+	send_to_char(buf, ch);
+
+	p_percent_trigger(victim, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE, NULL);
+}

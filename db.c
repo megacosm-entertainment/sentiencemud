@@ -75,6 +75,7 @@ extern  MOB_INDEX_DATA  *mob_index_free;
 extern  OBJ_INDEX_DATA  *obj_index_free;
 extern  EXTRA_DESCR_DATA * extra_descr_free;
 extern  RESET_DATA  *reset_free;
+extern	GLOBAL_DATA gconfig;
 
 void free_room_index( ROOM_INDEX_DATA *pRoom );
 void persist_save_room(FILE *fp, ROOM_INDEX_DATA *room);
@@ -674,6 +675,7 @@ void chance_create_mob(ROOM_INDEX_DATA *pRoom, MOB_INDEX_DATA *pMobIndex, int ch
 void reset_npc_sailing_boats (void);
 void fix_tokenprogs(void);
 void check_area_versions(void);
+void migrate_shopkeeper_resets(AREA_DATA *area);
 
 
 bool persist_load(void);
@@ -1431,6 +1433,85 @@ void area_update(bool fBoot)
 	iterator_stop(&it);
 }
 
+void migrate_shopkeeper_resets(AREA_DATA *area)
+{
+	if( area->version_area < VERSION_AREA_003 )
+	{
+		ROOM_INDEX_DATA *room;
+		OBJ_INDEX_DATA *obj;
+		// Migrate all shopkeeper related resets over to shop stock
+		ITERATOR it;
+		iterator_start(&it, area->room_list);
+		while((room = (ROOM_INDEX_DATA *)iterator_nextdata(&it)) != NULL)
+		{
+			RESET_DATA *curr, *prev, *next;
+			MOB_INDEX_DATA *last_mob = NULL;
+
+			for(prev = NULL, curr = room->reset_first; curr; curr = next)
+			{
+				next = curr->next;
+
+				switch(curr->command)
+				{
+				case 'M':
+					last_mob = get_mob_index(curr->arg1);
+					break;
+
+				case 'G':
+					// Mob must be a shopkeeper, the object must exist and the object must not be money
+
+					if( (last_mob != NULL) &&
+						(last_mob->pShop != NULL) &&
+						((obj = get_obj_index(curr->arg1)) != NULL) &&
+						(obj->item_type != ITEM_MONEY))
+					{
+
+						SHOP_STOCK_DATA *stock = new_shop_stock();
+						if(!stock) {
+							prev = curr;
+							break;	// SHOULD ABORT?
+						}
+
+						// Generate stock entry
+						stock->type = STOCK_OBJECT;
+						stock->vnum = obj->vnum;
+						stock->silver = obj->cost;
+						stock->discount = last_mob->pShop->discount;
+
+						stock->next = last_mob->pShop->stock;
+						last_mob->pShop->stock = stock;
+
+						// Prune this RESET
+
+						if(prev != NULL)
+							prev->next = next;
+						else
+							room->reset_first = next;
+
+						if(next == NULL)
+							room->reset_last = prev;
+
+						free_reset_data(curr);
+
+						SET_BIT(area->area_flags, AREA_CHANGED);
+						continue;
+					}
+					break;
+				}
+
+				// Only advance if nothing happened
+				prev = curr;
+			}
+		}
+		iterator_stop(&it);
+
+		// If nothing else has changed besides being one version behind 003,
+		//	move version to 003 automatically so it doesn't need to save
+		if( (area->version_area == VERSION_AREA_002) && !IS_SET(area->area_flags, AREA_CHANGED) )
+			area->version_area = VERSION_AREA_003;
+	}
+}
+
 
 void reset_room(ROOM_INDEX_DATA *pRoom)
 {
@@ -1696,37 +1777,38 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
                 break;
             }
 
-            if (LastMob->pIndexData->pShop)   /* Shop-keeper? */
+#if 0
+            if (LastMob->shop)   /* Shop-keeper? */
             {
-                pObj = create_object(pObjIndex, 0, TRUE);
+				pObj = create_object(pObjIndex, 0, TRUE);
 
-		if (!IS_SET(pObj->extra2_flags, ITEM_SELL_ONCE))
-		    SET_BIT(pObj->extra_flags, ITEM_INVENTORY);
-            }
-	    else
-	    {
-		int limit;
-		if (pReset->arg2 > 50)
-		    limit = 6;
-		else if (pReset->arg2 == -1 || pReset->arg2 == 0)
-		    limit = 999;
-		else
-		    limit = pReset->arg2;
+				if (!IS_SET(pObj->extra2_flags, ITEM_SELL_ONCE))
+					SET_BIT(pObj->extra_flags, ITEM_INVENTORY);
+			}
+			else
+#endif
+			{
+				int limit;
+				if (pReset->arg2 > 50)
+					limit = 6;
+				else if (pReset->arg2 == -1 || pReset->arg2 == 0)
+					limit = 999;
+				else
+					limit = pReset->arg2;
 
-		if (pObjIndex->count < limit || number_range(0,4) == 0)
-		{
-		    pObj = create_object(pObjIndex,
-			   UMIN(number_fuzzy(level), LEVEL_HERO - 1), TRUE);
-		}
-		else
-		    break;
-	    }
+				if (pObjIndex->count < limit || number_range(0,4) == 0)
+				{
+					pObj = create_object(pObjIndex, UMIN(number_fuzzy(level), LEVEL_HERO - 1), TRUE);
+				}
+				else
+				    break;
+	    	}
 
-            objRepop = TRUE;
-	    obj_to_char(pObj, LastMob);
+			objRepop = TRUE;
+			obj_to_char(pObj, LastMob);
             if (pReset->command == 'E')
-                equip_char(LastMob, pObj, pReset->arg3);
-            last = TRUE;
+				equip_char(LastMob, pObj, pReset->arg3);
+			last = TRUE;
             break;
 
         case 'D':
@@ -1783,6 +1865,76 @@ void chance_create_mob(ROOM_INDEX_DATA *pRoom, MOB_INDEX_DATA *pMobIndex, int ch
 	    obj_to_char(obj, pMobile);
 	char_to_room(pMobile, pRoom);
     }
+}
+
+void copy_shop_stock(SHOP_DATA *to_shop, SHOP_STOCK_DATA *from_stock)
+{
+	if( from_stock->next )
+		copy_shop_stock(to_shop, from_stock->next);
+
+	SHOP_STOCK_DATA *to_stock = new_shop_stock();
+
+	to_stock->silver = from_stock->silver;
+	to_stock->qp = from_stock->qp;
+	to_stock->dp = from_stock->dp;
+	to_stock->pneuma = from_stock->pneuma;
+	to_stock->quantity = from_stock->quantity;
+	to_stock->max_quantity = from_stock->quantity;
+	to_stock->restock_rate = from_stock->restock_rate;
+	to_stock->type = from_stock->type;
+	to_stock->duration = ( from_stock->duration > 0 ) ? from_stock->duration : -1;
+	to_stock->singular = from_stock->singular;
+	to_stock->discount = URANGE(0,from_stock->discount,100);
+	to_stock->level = from_stock->level;
+	to_stock->vnum = from_stock->vnum;
+	switch(to_stock->type)
+	{
+	case STOCK_OBJECT:
+		if(to_stock->vnum > 0)
+			to_stock->obj = get_obj_index(to_stock->vnum);
+		break;
+	case STOCK_PET:
+	case STOCK_MOUNT:
+	case STOCK_GUARD:
+		if(to_stock->vnum > 0)
+			to_stock->mob = get_mob_index(to_stock->vnum);
+		break;
+	case STOCK_CUSTOM:
+		free_string(to_stock->custom_keyword);
+		to_stock->custom_keyword = str_dup(from_stock->custom_keyword);
+		break;
+	}
+
+	free_string(to_stock->custom_price);
+	to_stock->custom_price = str_dup(from_stock->custom_price);
+
+	free_string(to_stock->custom_descr);
+	to_stock->custom_descr = str_dup(from_stock->custom_descr);
+
+	to_stock->next = to_shop->stock;
+	to_shop->stock = to_stock;
+}
+
+void copy_shop(SHOP_DATA *to_shop, SHOP_DATA *from_shop)
+{
+	int iTrade;
+	to_shop->keeper = from_shop->keeper;
+	for(iTrade = 0; iTrade < MAX_TRADE; iTrade++)
+		to_shop->buy_type[iTrade] = from_shop->buy_type[iTrade];
+
+	to_shop->profit_buy = from_shop->profit_buy;
+	to_shop->profit_sell = from_shop->profit_sell;
+	to_shop->open_hour = from_shop->open_hour;
+	to_shop->close_hour = from_shop->close_hour;
+	to_shop->flags = from_shop->flags;
+	to_shop->restock_interval = from_shop->restock_interval;
+	if( to_shop->restock_interval > 0 )
+		to_shop->next_restock = current_time + to_shop->restock_interval * 60;
+
+	to_shop->discount = URANGE(0,from_shop->discount,100);
+
+	if( from_shop->stock )
+		copy_shop_stock(to_shop, from_shop->stock);
 }
 
 
@@ -1952,6 +2104,13 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 
 	if (!persistLoad)
 	{
+		if(pMobIndex->pShop != NULL)
+		{
+			mob->shop = new_shop();
+			copy_shop(mob->shop, pMobIndex->pShop);
+		}
+
+
 		memset(&af,0,sizeof(af));
 		af.slot	= WEAR_NONE;	// None of the subsequent affects are from worn objects
 
@@ -4297,14 +4456,23 @@ void check_area_versions(void)
 {
 	AREA_DATA *area;
 
+	for (area = area_first; area; area = area->next)
+	{
+		migrate_shopkeeper_resets(area);
+	}
+
+
 	for (area = area_first; area; area = area->next) {
-		if(	area->version_area != VERSION_AREA ||
+		if( IS_SET(area->area_flags, AREA_CHANGED) ||
+			area->version_area != VERSION_AREA ||
 			area->version_mobile != VERSION_MOBILE ||
 			area->version_object != VERSION_OBJECT ||
 			area->version_room != VERSION_ROOM ||
 			area->version_token != VERSION_TOKEN ||
 			area->version_script != VERSION_SCRIPT ||
 			area->version_wilds != VERSION_WILDS) {
+
+			REMOVE_BIT(area->area_flags, AREA_CHANGED);
 			save_area_new(area);
 		}
 	}
@@ -5428,6 +5596,9 @@ void persist_save_mobile(FILE *fp, CHAR_DATA *ch)
 			paf->slot);
 	}
 
+	if( ch->shop )
+		save_shop_new(fp, ch->shop);
+
 	// Save Variables
 	if( ch->progs )
 		persist_save_scriptdata(fp,ch->progs);
@@ -6398,6 +6569,17 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 					fMatch = TRUE;
 					if( token )
 						token_to_char(token, ch);
+					else
+						good = FALSE;
+
+					break;
+				}
+				if (!str_cmp(word,"#SHOP")) {
+					SHOP_DATA *shop = read_shop_new(fp);
+
+					fMatch = TRUE;
+					if( shop )
+						ch->shop = shop;
 					else
 						good = FALSE;
 

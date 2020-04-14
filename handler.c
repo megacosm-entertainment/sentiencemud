@@ -2230,6 +2230,7 @@ void obj_from_char(OBJ_DATA *obj)
 
     --obj->pIndexData->carried;
 
+    REMOVE_BIT(obj->extra_flags, ITEM_INVENTORY);
     obj->carried_by	 = NULL;
     obj->next_content	 = NULL;
     ch->carry_number	-= get_obj_number(obj);
@@ -5840,7 +5841,7 @@ bool can_give_obj(CHAR_DATA *ch, OBJ_DATA *obj, CHAR_DATA *victim, bool silent)
 	return FALSE;
     }
 
-    if (IS_NPC(victim) && victim->pIndexData->pShop != NULL)
+    if (IS_NPC(victim) && victim->shop != NULL)
     {
 	if (!silent)
 	    act("{R$N tells you 'Sorry, you'll have to sell that.{x'", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -8504,3 +8505,132 @@ void dice_copy(DICE_DATA *a, DICE_DATA *b)
 	b->last_roll = -1;
 }
 
+char *get_shop_stock_price(SHOP_STOCK_DATA *stock)
+{
+	static char buf[4][MSL];
+	static int count = 0;
+
+	count = (count + 1) & 3;
+
+	char *pricing = buf[count];
+
+	if( IS_NULLSTR(stock->custom_price) )
+	{
+		pricing[0] = '\0';
+		int pj = 0;
+
+		if( stock->silver > 0)
+		{
+			long silver = stock->silver % 100;
+			long gold = stock->silver / 100;
+
+			if( gold > 0 )
+			{
+				if( silver > 0 )
+				{
+					pj = sprintf(pricing, "{x%ld{Yg{x%ld{Ws{x", gold, silver);
+				}
+				else
+				{
+					pj = sprintf(pricing, "{x%ld{Yg{x", gold);
+				}
+			}
+			else
+			{
+				pj = sprintf(pricing, "{x%ld{Ws{x", silver);
+			}
+		}
+
+		if( stock->qp > 0 )
+		{
+			if( pj > 0 )
+			{
+				pricing[pj++] = ',';
+				pricing[pj++] = ' ';
+			}
+
+			pj += sprintf(pricing+pj, "{x%ld{Gqp{x", stock->qp);
+		}
+
+		if( stock->dp > 0 )
+		{
+			if( pj > 0 )
+			{
+				pricing[pj++] = ',';
+				pricing[pj++] = ' ';
+			}
+
+			pj += sprintf(pricing+pj, "{x%ld{Mdp{x", stock->dp);
+		}
+
+		if( stock->pneuma > 0 )
+		{
+			if( pj > 0 )
+			{
+				pricing[pj++] = ',';
+				pricing[pj++] = ' ';
+			}
+
+			pj += sprintf(pricing+pj, "{x%ld{Cpn{x", stock->pneuma);
+		}
+		pricing[pj] = '\0';
+
+	}
+	else
+	{
+		strncpy(pricing, stock->custom_price, MSL-3);
+		strcat(pricing, "{x");
+	}
+
+	return pricing;
+}
+
+char *get_shop_purchase_price(long silver, long qp, long dp, long pneuma)
+{
+	static char buf[4][MSL];
+	static int count = 0;
+
+	count = (count + 1) & 3;
+
+	char *pricing = buf[count];
+	int pj = 0;
+
+	bool added = FALSE;
+	if( silver > 0 )
+	{
+		long gold = silver / 100;
+		silver = silver % 100;
+
+		if( gold > 0 )
+		{
+			if( silver > 0 )
+				pj = sprintf(pricing, " %ld gold, %ld silver", gold, silver);
+			else
+				pj = sprintf(pricing, " %ld gold", gold);
+		}
+		else
+		{
+			pj = sprintf(pricing, " %ld silver", silver);
+		}
+
+		added = TRUE;
+	}
+	if( qp > 0 )
+	{
+		pj += sprintf(pricing + pj, "%s%ld quest points", (added?", ":" "), qp);
+		added = TRUE;
+	}
+	if( dp > 0 )
+	{
+		pj += sprintf(pricing + pj, "%s%ld deity points", (added?", ":" "), dp);
+		added = TRUE;
+	}
+	if( pneuma > 0 )
+	{
+		pj += sprintf(pricing + pj, "%s%ld pneuma", (added?", ":" "), pneuma);
+	}
+
+	pricing[pj] = '\0';
+
+	return pricing;
+}

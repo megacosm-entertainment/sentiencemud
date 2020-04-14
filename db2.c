@@ -314,7 +314,7 @@ OBJ_DATA *get_random_obj( CHAR_DATA *ch, int continent )
 	        continue;
 
 	    if ( IS_NPC( obj->carried_by )
-	    && obj->carried_by->pIndexData->pShop != NULL )
+	    && obj->carried_by->shop != NULL )
 	 	continue;
 
 	    if ( IS_SET( obj->carried_by->in_room->room_flags, ROOM_CPK )
@@ -411,7 +411,7 @@ CHAR_DATA *get_random_mob( CHAR_DATA *ch, int continent )
 		continue;
 
    	    mob = get_char_world_index( ch, mIndex );
-  	    if ( mob == NULL )
+  	    if ( mob == NULL || mob->shop != NULL)
                 continue;
 	}
 
@@ -552,6 +552,17 @@ int strlen_no_colours( const char *str )
     }
 
     return count;
+}
+
+
+int get_colour_width(char *text)
+{
+	char *plaintext = nocolour(text);
+	int plen = strlen(plaintext);
+	free_string(plaintext);
+	int len = strlen(text);
+
+	return len - plen;
 }
 
 

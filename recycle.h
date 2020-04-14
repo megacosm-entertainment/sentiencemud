@@ -122,3 +122,6 @@ void free_questor_data(QUESTOR_DATA *q);
 
 OLC_POINT_BOOST *new_olc_point_boost();
 void free_olc_point_boost(OLC_POINT_BOOST *boost);
+
+SHOP_STOCK_DATA *new_shop_stock();
+void free_shop_stock(SHOP_STOCK_DATA *pStock);

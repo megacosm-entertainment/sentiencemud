@@ -3950,5 +3950,21 @@ void do_tlist(CHAR_DATA *ch, char *argument)
     free_buf(buf1);
 }
 
+SHOP_STOCK_DATA *get_shop_stock_bypos(SHOP_DATA *shop, int nth)
+{
+	if(!shop || !shop->stock || nth < 1 ) return NULL;
+
+	SHOP_STOCK_DATA *stock;
+
+	for(stock = shop->stock; stock; stock = stock->next)
+	{
+		if(!--nth)
+			return stock;
+	}
+
+	return NULL;
+
+
+}
 
 /* Used for handling projects. */

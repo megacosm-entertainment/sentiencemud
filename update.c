@@ -793,16 +793,39 @@ void mobile_update(void)
 		if (ch->spec_fun != 0)
 		{
 			if ((*ch->spec_fun)(ch))
-			continue;
+				continue;
 		}
 
-		// Give shop owners gold
-		if (ch->pIndexData->pShop != NULL)
+		if (ch->shop != NULL)
 		{
+			// Give shop owners gold
 			if ((ch->gold * 100 + ch->silver) < ch->pIndexData->wealth)
 			{
-			ch->gold += ch->pIndexData->wealth * number_range(1,20)/5000000;
-			ch->silver += ch->pIndexData->wealth * number_range(1,20)/50000;
+				ch->gold += ch->pIndexData->wealth * number_range(1,20)/5000000;
+				ch->silver += ch->pIndexData->wealth * number_range(1,20)/50000;
+			}
+
+			// Restock their supplies
+			if( ch->shop->restock_interval > 0 ) {
+				if( ch->shop->next_restock < current_time ) {
+
+					bool restocked = FALSE;
+					for(SHOP_STOCK_DATA *stock = ch->shop->stock; stock; stock = stock->next)
+					{
+						if( stock->max_quantity > 0 && stock->restock_rate > 0 && stock->quantity < stock->max_quantity)
+						{
+							stock->quantity += stock->restock_rate;
+							stock->quantity = UMIN(stock->quantity, stock->max_quantity);
+							restocked = TRUE;
+
+						}
+					}
+
+					if( restocked )
+						p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RESTOCKED, NULL);
+
+					ch->shop->next_restock = current_time + ch->shop->restock_interval * 60;
+				}
 			}
 		}
 
@@ -832,10 +855,53 @@ void mobile_update(void)
 		}
 
 		// get rid of crew when they are past their hired date
-		if (ch->belongs_to_ship != NULL
-		&&   !IS_NPC_SHIP(ch->belongs_to_ship)
-		&&   current_time > ch->hired_to)
+		if (ch->belongs_to_ship != NULL &&
+			!IS_NPC_SHIP(ch->belongs_to_ship) &&
+			current_time > ch->hired_to) {
 			extract_char(ch, TRUE);
+			continue;
+		}
+
+		if( IS_NPC(ch) && IS_SET(ch->act2, ACT2_HIRED) )
+		{
+			if( ch->hired_to > 0 && current_time < ch->hired_to )
+			{
+				// CONTRACT_COMPLETE can allow the mob to remain in existence
+				// - when a script gets executed, you need to return a zero to extract the mob
+				// - when no script gets executed, extraction will be performed
+				if(p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_CONTRACT_COMPLETE, NULL) <= 0)
+				{
+					extract_char(ch, TRUE);
+					continue;
+				}
+
+				// Only get here when the return value is positive
+				// - script execution with no "end" called
+				// - end called with positive value
+
+				if( ch->master != NULL )
+				{
+					// Un..pet
+					if( ch->master->pet == ch )
+						ch->master->pet = NULL;
+				}
+
+				// Check if they are being ridden
+				CHAR_DATA *rider = RIDDEN(ch);
+				if( rider != NULL )
+				{
+					// Silently dismount
+					rider->riding = FALSE;
+					ch->riding = FALSE;
+					ch->rider = NULL;
+					rider->mount = NULL;
+				}
+
+				die_follower(ch);
+				REMOVE_BIT(ch->act2, ACT2_HIRED);
+				ch->hired_to = 0;
+			}
+		}
 
 		// That's all for sleeping / busy monster, and empty zones
 		if (ch->position != POS_STANDING)
@@ -2476,7 +2542,7 @@ void aggr_update(void)
 	if (wch->in_room != NULL
 	&&  number_percent() < 10
 	&&  !is_safe(wch, wch, FALSE)
-	&&  ((IS_NPC(wch) && wch->pIndexData->pShop == NULL) ||
+	&&  ((IS_NPC(wch) && wch->shop == NULL) ||
 	    (IS_SET(wch->in_room->room_flags, ROOM_PK)
 	     || IS_SET(wch->in_room->room_flags, ROOM_CPK))
    	     || is_pk(wch)))
@@ -2546,7 +2612,7 @@ void aggr_update(void)
 		    }
 		    if (number_percent() <= 2 && wch->fighting == NULL
 		    && IS_AWAKE(wch) && wch->position == POS_STANDING
-		    &&  !(IS_NPC(wch) && (IS_SET(wch->act,ACT_PROTECTED) || wch->pIndexData->pShop != NULL))
+		    &&  !(IS_NPC(wch) && (IS_SET(wch->act,ACT_PROTECTED) || wch->shop != NULL))
 		    &&  !(!IS_NPC(wch) && IS_IMMORTAL(wch)))
 		    {
 			act("$n stumbles about choking and gagging!",
@@ -2610,7 +2676,7 @@ void aggr_update(void)
 
 			    if (IS_NPC(victim))
 			    {
-				if (victim->pIndexData->pShop != NULL
+				if (victim->shop != NULL
 				||   IS_SET(victim->act, ACT_PROTECTED	)
 				||   IS_SET(victim->act, ACT_SENTINEL	))
 				    continue;
@@ -3499,7 +3565,7 @@ void scare_update(CHAR_DATA *ch)
         // Certain NPCs are protected
 	if (IS_NPC(victim))
 	{
-	    if (victim->pIndexData->pShop != NULL
+	    if (victim->shop != NULL
 	    ||  IS_SET(victim->act, ACT_PROTECTED)
 	    ||  IS_SET(victim->act, ACT_SENTINEL))
 		continue;

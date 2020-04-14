@@ -156,6 +156,7 @@ struct sound_type {
 
 /* Purge version - anything that is below this version should be considered invalid and to be wiped
 	Useful for players that are too different */
+#define VERSION_DB_PURGE	0x00000000
 #define VERSION_AREA_PURGE	0x00000000
 #define VERSION_MOBILE_PURGE	0x00000000
 #define VERSION_OBJECT_PURGE	0x00000000
@@ -167,6 +168,7 @@ struct sound_type {
 #define VERSION_WILDS_PURGE	0x00000000
 
 /* Base version - initial verison when version isn't present */
+#define VERSION_DB_000		0x00FFFFFF
 #define VERSION_AREA_000	0x00FFFFFF
 #define VERSION_MOBILE_000	0x00FFFFFF
 #define VERSION_OBJECT_000	0x00FFFFFF
@@ -179,10 +181,15 @@ struct sound_type {
 
 #define VERSION_GAME		"DEV 0.0.1"
 
+#define VERSION_DB_001		0x01000001
+
 #define VERSION_AREA_001	0x01000001
 
 #define VERSION_AREA_002	0x01000001
 //	Change #1: Forces the AREA_NEWBIE flag on Alendith
+
+#define VERSION_AREA_003	0x01000002
+//	Change #2: Migrate shopkeeper resets over to shop stock data
 
 #define VERSION_MOBILE_001	0x01000001
 //  Change #1: Update to affects to include object worn location
@@ -207,7 +214,8 @@ struct sound_type {
 #define VERSION_OBJECT_003	0x01000002
 //  Change #1: Added bitvector2 to affect output
 
-#define VERSION_AREA		VERSION_AREA_002
+#define VERSION_DB			VERSION_DB_001
+#define VERSION_AREA		VERSION_AREA_003
 #define VERSION_MOBILE		0x01000000
 #define VERSION_OBJECT		VERSION_OBJECT_003
 #define VERSION_ROOM		0x01000000
@@ -216,6 +224,7 @@ struct sound_type {
 #define VERSION_AFFECT		0x01000000
 #define VERSION_SCRIPT		0x02000000
 #define VERSION_WILDS		0x01000000
+#define VERSION_DATABASE	0x01000000
 
 /* Structures */
 typedef struct	affect_data		AFFECT_DATA;
@@ -252,7 +261,9 @@ typedef struct	reset_data		RESET_DATA;
 typedef struct	room_index_data		ROOM_INDEX_DATA;
 typedef struct	ship_crew_data		SHIP_CREW_DATA;
 typedef struct	ship_data		SHIP_DATA;
+typedef struct	shop_stock_data	SHOP_STOCK_DATA;
 typedef struct	shop_data		SHOP_DATA;
+typedef struct	shop_request_data	SHOP_REQUEST_DATA;
 typedef struct	time_info_data		TIME_INFO_DATA;
 typedef struct	trade_area_data		TRADE_AREA_DATA;
 typedef struct	storm_data		STORM_DATA;
@@ -937,6 +948,8 @@ struct global_data
     unsigned long next_token_uid[4];	/* next read: [0:1], next write: [2:3] */
     unsigned long next_vroom_uid[4];
     long	next_church_uid;
+
+    long	db_version;
 };
 
 struct bounty_data
@@ -1268,6 +1281,10 @@ struct	help_data
  */
 #define MAX_TRADE	 5
 
+#define SHOPFLAG_STOCK_ONLY		(A)		// Only allow buyback of listed stock
+#define SHOPFLAG_HIDE_SHOP		(B)		// Hides shop from the minimap
+#define SHOPFLAG_NO_HAGGLE		(C)		// Block haggling
+
 struct	shop_data
 {
     SHOP_DATA *	next;			/* Next shop in list		*/
@@ -1277,6 +1294,60 @@ struct	shop_data
     sh_int	profit_sell;		/* Cost multiplier for selling	*/
     sh_int	open_hour;		/* First opening hour		*/
     sh_int	close_hour;		/* First closing hour		*/
+
+    int restock_interval;		// How long between restocking checks, in minutes
+    time_t next_restock;
+
+    int		flags;
+    int		discount;			// Possible percent discount you can get from haggling (0-100)
+
+    SHOP_STOCK_DATA *stock;
+};
+
+#define STOCK_CUSTOM	0
+#define STOCK_OBJECT	1
+#define STOCK_PET		2
+#define STOCK_MOUNT		3
+#define STOCK_GUARD		4
+
+struct shop_stock_data
+{
+	SHOP_STOCK_DATA *next;
+
+	int level;					// Minimum level required to buy it
+								// If level is less than 1..
+								//   - if vnum > 0 => object level
+								//   - else => clamped 1
+
+	long silver;
+	long qp;
+	long dp;
+	long pneuma;
+	char *custom_price;			// Custom pricing (supercedes other pricing values)
+
+	int discount;				// How much of a discount is the shopkeeper willing to haggle (0-100%)
+
+	int quantity;				// Number of units available
+	int max_quantity;			// Total number of units available
+	int restock_rate;			// How manu units will get restocked per reset cycle (<1 == never)
+
+	MOB_INDEX_DATA *mob;
+	OBJ_INDEX_DATA *obj;
+	int type;
+	long vnum;
+
+	int duration;				// How long will the stock item last (in-game hours)
+
+	char *custom_keyword;		// Concept / Special object
+	char *custom_descr;
+
+	bool singular;				// Can only buy one unit at a time
+};
+
+struct shop_request_data
+{
+	SHOP_STOCK_DATA *stock;
+	OBJ_DATA *obj;
 };
 
 /*
@@ -1697,6 +1768,8 @@ struct affliction_type {
 #define ACT2_USE_SKILLS_ONLY	(X)
 #define ACT2_CANLEVEL		(aa)
 #define ACT2_NO_XP			(bb)
+#define ACT2_HIRED			(cc)
+
 
 /* Has_done flags - this is for commands which only are allowed */
 /* to be used once in combat. Currently just reverie. */
@@ -3509,6 +3582,7 @@ struct	char_data
     ROOM_INDEX_DATA *	was_in_room;
     WILDS_DATA *was_in_wilds;
 	ROOM_INDEX_DATA *	checkpoint;
+	SHOP_DATA		* shop;
 
     /* VIZZWILDS */
     CHAR_DATA *        prev_in_wilds;
@@ -5034,14 +5108,18 @@ enum trigger_index_enum {
 	TRIG_BRANDISH,
 	TRIG_BRIBE,
 	TRIG_BURY,
+	TRIG_BUY,
 	TRIG_CANINTERRUPT,
 	TRIG_CATALYST,
 	TRIG_CATALYST_FULL,
 	TRIG_CATALYST_SOURCE,
+	TRIG_CHECK_BUYER,		// Called when a stock item is not an object, used to check whether the buyer can GET the item
 	TRIG_CHECK_DAMAGE,
 	TRIG_CLONE_EXTRACT,
 	TRIG_CLOSE,
 	TRIG_COMBAT_STYLE,
+	TRIG_CONTRACT_COMPLETE,
+	TRIG_CUSTOM_PRICE,		// Called when a stock item has custom pricing
 	TRIG_DAMAGE,
 	TRIG_DEATH,
 	TRIG_DEATH_PROTECTION,
@@ -5074,6 +5152,7 @@ enum trigger_index_enum {
 	TRIG_HIT,
 	TRIG_HPCNT,
 	TRIG_IDENTIFY,
+	TRIG_INSPECT,		// Called when asking a shopkeeper to inspect a custom stock item
 	TRIG_INTERRUPT,
 	TRIG_KILL,
 	TRIG_KNOCK,
@@ -5094,6 +5173,7 @@ enum trigger_index_enum {
 	TRIG_PREASSIST,
 	TRIG_PREBITE,
 	TRIG_PREBUY,
+	TRIG_PREBUY_OBJ,
 	TRIG_PRECAST,
 	TRIG_PREDEATH,
 	TRIG_PREDISMOUNT,
@@ -5151,6 +5231,7 @@ enum trigger_index_enum {
 	TRIG_REMOVE,		/* NIB : 20070120 */
 	TRIG_REPOP,
 	TRIG_REST,
+	TRIG_RESTOCKED,
 	TRIG_RESTORE,
 	TRIG_RESURRECT,
 	TRIG_SAVE,
@@ -6512,6 +6593,8 @@ bool is_mana_regen_relic_in_room args( (ROOM_INDEX_DATA *room) );
 bool remove_obj( CHAR_DATA *ch, int iWear, bool fReplace );
 CHAR_DATA *find_keeper( CHAR_DATA *ch );
 int get_cost( CHAR_DATA *keeper, OBJ_DATA *obj, bool fBuy );
+long adjust_keeper_price(CHAR_DATA *keeper, long price, bool fBuy);
+bool get_stock_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, SHOP_REQUEST_DATA *request, char *argument);
 OBJ_DATA *get_obj_keeper( CHAR_DATA *ch, CHAR_DATA *keeper, char *argument );
 void bomb_end( CHAR_DATA *ch);
 void brew_end( CHAR_DATA *ch, sh_int sn );
@@ -7782,5 +7865,12 @@ bool church_set_treasure_room_rank(CHURCH_DATA *church, int nth, int min_rank);
 int church_get_min_positions(int size);
 int church_available_treasure_rooms(CHAR_DATA *ch);
 void church_announce_theft(CHAR_DATA *ch, OBJ_DATA *obj);
+
+int get_colour_width(char *text);
+char *get_shop_stock_price(SHOP_STOCK_DATA *stock);
+char *get_shop_purchase_price(long silver, long qp, long dp, long pneuma);
+long haggle_price(CHAR_DATA *ch, CHAR_DATA *keeper, int chance, int number, long base_price, long funds, int discount, bool *haggled, bool silent);
+char *get_stock_description(SHOP_STOCK_DATA *stock);
+void show_basic_mob_lore(CHAR_DATA *ch, CHAR_DATA *victim);
 
 #endif /* !def __MERC_H__ */

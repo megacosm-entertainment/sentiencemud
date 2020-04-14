@@ -604,6 +604,7 @@ const struct flag_type act2_flags[]=
     {   "use_skills_only",	ACT2_USE_SKILLS_ONLY,	TRUE	},
     {   "can_level",		ACT2_CANLEVEL,		TRUE	},
     {   "no_xp",		ACT2_NO_XP,		TRUE	},
+    {   "hired",		ACT2_HIRED,		FALSE	},
     {   NULL,			0,			FALSE	}
 };
 
@@ -2714,3 +2715,15 @@ const struct flag_type skill_flags[] = {
 	{"favourite",		SKILL_FAVOURITE,			FALSE},	// This is set manually
 	{ NULL,				0,			FALSE }
 };
+
+
+const struct flag_type shop_flags[] =
+{
+	{ "stock_only",		SHOPFLAG_STOCK_ONLY,	TRUE	},
+	{ "hide_shop",		SHOPFLAG_HIDE_SHOP,		TRUE	},
+	{ "no_haggle",		SHOPFLAG_NO_HAGGLE,		TRUE	},
+	{ NULL,				0,						FALSE }
+};
+
+
+
