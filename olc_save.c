@@ -3137,9 +3137,6 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)
 			KEY("Discount", stock->discount, fread_number(fp));
 			KEY("Duration", stock->duration, fread_number(fp));
 			break;
-		case 'F':
-			KEY("Flags", stock->flags, fread_number(fp));
-			break;
 		case 'G':
 			if(!str_cmp(word, "Guard"))
 			{
@@ -3246,6 +3243,9 @@ SHOP_DATA *read_shop_new(FILE *fp)
 	    case 'D':
 	        KEY("Discount",	shop->discount,	fread_number(fp));
 	        break;
+		case 'F':
+			KEY("Flags", shop->flags, fread_number(fp));
+			break;
 	    case 'H':
 	        KEY("HourOpen",	shop->open_hour,	fread_number(fp));
 	        KEY("HourClose",	shop->close_hour,	fread_number(fp));
