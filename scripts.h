@@ -1779,7 +1779,7 @@ DECL_IFC_FUN(ifc_boost);
 DECL_IFC_FUN(ifc_boosttimer);
 
 DECL_IFC_FUN(ifc_ishired);
-DECL_IFC_FUN(ifc_hiredto);
+DECL_IFC_FUN(ifc_hired);
 DECL_IFC_FUN(ifc_canpull);
 
 /* Opcode functions */
