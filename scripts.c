@@ -4896,7 +4896,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 
 		variables_set_string(vars,name,rep,FALSE);
 
-		free_string(ret);	// String is copied
+		free_string(rep);	// String is copied
 
 	// Copies an extra description
 	// Format: ED <OBJECT or ROOM> <keyword>
