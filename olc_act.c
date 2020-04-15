@@ -7626,9 +7626,9 @@ MEDIT(medit_shop)
 		send_to_char("         shop profit [#xbuying%] [#xselling%]\n\r", ch);
 		send_to_char("         shop restock [minutes]\n\r", ch);
 		send_to_char("         shop stock add [type] [value]\n\r", ch);
-		send_to_char("         shop stock {#] discount [0-100]\n\r", ch);
+		send_to_char("         shop stock [#] discount [0-100]\n\r", ch);
 		send_to_char("         shop stock [#] description [description]\n\r", ch);
-		send_to_char("         shop stock {#] level [level]\n\r", ch);
+		send_to_char("         shop stock [#] level [level]\n\r", ch);
 		send_to_char("         shop stock [#] price [silver|qp|dp|pneuma|custom] [value]\n\r", ch);
 		send_to_char("         shop stock [#] quantity unlimited\n\r", ch);
 		send_to_char("         shop stock [#] quantity [total] [reset rate]\n\r", ch);
@@ -7907,9 +7907,9 @@ MEDIT(medit_shop)
 			send_to_char("         shop stock add mount [vnum]\n\r", ch);
 			send_to_char("         shop stock add guard [vnum]\n\r", ch);
 			send_to_char("         shop stock add custom [keyword]\n\r", ch);
-			send_to_char("         shop stock {#] discount [0-100]\n\r", ch);
+			send_to_char("         shop stock [#] discount [0-100]\n\r", ch);
 			send_to_char("         shop stock [#] description [description]\n\r", ch);
-			send_to_char("         shop stock {#] level [level]\n\r", ch);
+			send_to_char("         shop stock [#] level [level]\n\r", ch);
 			send_to_char("         shop stock [#] price [silver|qp|dp|pneuma|custom] [value]\n\r", ch);
 			send_to_char("         shop stock [#] quantity unlimited\n\r", ch);
 			send_to_char("         shop stock [#] quantity [total] [reset rate]\n\r", ch);
@@ -8379,8 +8379,8 @@ MEDIT(medit_shop)
 			}
 
 			send_to_char("Syntax:  shop stock [#] description [description]\n\r", ch);
-			send_to_char("         shop stock {#] discount [0-100]\n\r", ch);
-			send_to_char("         shop stock {#] level [level]\n\r", ch);
+			send_to_char("         shop stock [#] discount [0-100]\n\r", ch);
+			send_to_char("         shop stock [#] level [level]\n\r", ch);
 			send_to_char("         shop stock [#] price [silver|qp|dp|pneuma|custom] [value]\n\r", ch);
 			send_to_char("         shop stock [#] quantity unlimited\n\r", ch);
 			send_to_char("         shop stock [#] quantity [total] [reset rate]\n\r", ch);

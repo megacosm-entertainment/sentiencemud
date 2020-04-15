@@ -1197,6 +1197,9 @@ void do_renew(CHAR_DATA *ch, char *argument)
 			mob->tempstore[0] = cost;
 			mob->tempstore[1] = STOCK_PET;
 			p_percent_trigger( mob, NULL, NULL, NULL, ch, ch->pet, NULL, NULL, NULL, TRIG_RENEW, NULL);
+
+			sprintf(buf, "{YYou renew $n with $N for %d quest points.{x", cost);
+			act(buf, ch->pet, mob, ch, NULL, NULL, NULL, NULL, TO_THIRD);
 			ch->questpoints -= cost;
 		}
 		else
@@ -1252,6 +1255,9 @@ void do_renew(CHAR_DATA *ch, char *argument)
 			mob->tempstore[0] = cost;
 			mob->tempstore[1] = STOCK_MOUNT;
 			p_percent_trigger( mob, NULL, NULL, NULL, ch, ch->mount, NULL, NULL, NULL, TRIG_RENEW, NULL);
+
+			sprintf(buf, "{YYou renew $n with $N for %d quest points.{x", cost);
+			act(buf, ch->mount, mob, ch, NULL, NULL, NULL, NULL, TO_THIRD);
 			ch->questpoints -= cost;
 		}
 		else
@@ -1308,6 +1314,9 @@ void do_renew(CHAR_DATA *ch, char *argument)
 			mob->tempstore[0] = cost;
 			mob->tempstore[1] = STOCK_GUARD;
 			p_percent_trigger( mob, NULL, NULL, NULL, ch, guard, NULL, NULL, NULL, TRIG_RENEW, NULL);
+
+			sprintf(buf, "{YYou renew $n with $N for %d quest points.{x", cost);
+			act(buf, guard, mob, ch, NULL, NULL, NULL, NULL, TO_THIRD);
 			ch->questpoints -= cost;
 		}
 		else
@@ -1333,6 +1342,7 @@ void do_renew(CHAR_DATA *ch, char *argument)
 
 		cost = obj->cost/10;
 		mob->tempstore[0] = UMAX(cost, 1);
+		mob->tempstore[1] = STOCK_OBJECT;
 		if(p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PRERENEW, NULL) <= 0)
 			return;
 
@@ -1352,7 +1362,12 @@ void do_renew(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
+		mob->tempstore[0] = cost;
+		mob->tempstore[1] = STOCK_OBJECT;
 		p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_RENEW, NULL);
+
+		sprintf(buf, "{YYou renew $p with $N for %d quest points.{x", cost);
+		act(buf, ch, mob, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 		ch->questpoints -= cost;
 	}
 	else if( !str_prefix(arg1, "custom") )
@@ -1361,8 +1376,25 @@ void do_renew(CHAR_DATA *ch, char *argument)
 		if( mob == NULL )
 			return;
 
+		// Renewer for custom services MUST be the shopkeeper that sold it
+		if( mob->shop == NULL )
+		{
+			sprintf(buf, "Sorry %s, but I cannot improve that.", pers(ch, mob));
+			do_say(mob, buf);
+			return;
+		}
+
+		SHOP_STOCK_DATA *stock = get_stockonly_keeper(ch, mob, arg3);
+		if( stock == NULL || stock->type != STOCK_CUSTOM )
+		{
+			sprintf(buf, "Sorry %s, but I cannot improve that.", pers(ch, mob));
+			do_say(mob, buf);
+			return;
+		}
+
 		mob->tempstore[0] = 0;	// Customs REQUIRE the script to specify the cost
-		if(p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PRERENEW, arg2) <= 0)
+		mob->tempstore[1] = STOCK_CUSTOM;
+		if(p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PRERENEW, stock->custom_keyword) <= 0)
 			return;
 
 		cost = mob->tempstore[0];
@@ -1381,9 +1413,13 @@ void do_renew(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_RENEW, arg2);
-		ch->questpoints -= cost;
+		mob->tempstore[0] = cost;
+		mob->tempstore[1] = STOCK_CUSTOM;
+		p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_RENEW, stock->custom_keyword);
 
+		sprintf(buf, "{YYou renew %s with $N for %d quest points.{x", stock->custom_descr, cost);
+		act(buf, ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		ch->questpoints -= cost;
 	}
 
 /*
