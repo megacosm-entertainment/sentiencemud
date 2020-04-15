@@ -1348,6 +1348,7 @@ struct shop_request_data
 {
 	SHOP_STOCK_DATA *stock;
 	OBJ_DATA *obj;
+	int nth;
 };
 
 /*

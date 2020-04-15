@@ -4509,6 +4509,8 @@ bool get_stock_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, SHOP_REQUEST_DATA *reque
 
 	number = number_argument(argument, arg);
 	count  = 0;
+	request->nth = number;
+
     if( keeper->shop != NULL) {
 		// Check stock items first
 		for(stock = keeper->shop->stock; stock; stock = stock->next)
@@ -6139,14 +6141,13 @@ void do_inspect(CHAR_DATA *ch, char *argument)
 			}
 
 			extract_char(mob, TRUE);
-
-
-
-
 		}
 		else if( !IS_NULLSTR(request.stock->custom_keyword) )
 		{
-	    	if(!p_exact_trigger(request.stock->custom_keyword, keeper, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_INSPECT))
+			char argno[MIL+20];
+			sprintf(argno, "%d.%s", request.nth, request.stock->custom_keyword);
+
+	    	if(!p_exact_trigger(argno, keeper, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_INSPECT))
 	    	{
 				act("{R$N tells you 'Sorry, I do not have any information about $T.'{x", ch, keeper, NULL, NULL, NULL, NULL, request.stock->custom_descr, TO_CHAR);
 				ch->reply = keeper;
