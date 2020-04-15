@@ -10560,7 +10560,7 @@ MEDIT(medit_questor)
 
 	argument = one_argument(argument, arg);
 
-	if (!str_cmp(str_prefix,"add"))
+	if (!str_prefix(arg,"add"))
 	{
 	    if (!str_cmp(pMob->sig, "none") && ch->tot_level < MAX_LEVEL)
 	    {
