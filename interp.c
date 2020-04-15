@@ -107,6 +107,7 @@ const	struct	cmd_type	cmd_table	[] =
     { "push",       do_push,	POS_SLEEPING,    0,  LOG_NORMAL, 1, FALSE },
     { "quest",      do_quest,       POS_SLEEPING,    0,  LOG_NORMAL, 1, FALSE },
     { "rehearse",   do_rehearse,	POS_FIGHTING,    0,  LOG_NORMAL, 1, FALSE },
+    { "renew",      do_renew,       POS_RESTING,    0,  LOG_NORMAL, 1, FALSE },
     { "reply",		do_reply,	POS_SLEEPING,	 0,  LOG_NEVER,  1, FALSE },
     { "rest",		do_rest,	POS_SLEEPING,	 0,  LOG_NORMAL, 1, FALSE },
     { "resurrect",	do_resurrect,	POS_SLEEPING,	 0,  LOG_ALWAYS, 1, FALSE },

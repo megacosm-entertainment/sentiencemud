@@ -1769,6 +1769,7 @@ struct affliction_type {
 #define ACT2_CANLEVEL		(aa)
 #define ACT2_NO_XP			(bb)
 #define ACT2_HIRED			(cc)
+#define ACT2_RENEWER		(dd)			// Allows the mob to handle the "renew" command
 
 
 /* Has_done flags - this is for commands which only are allowed */
@@ -5197,6 +5198,7 @@ enum trigger_index_enum {
 	TRIG_PRERECKONING,
 	TRIG_PREREHEARSE,
 	TRIG_PREREMOVE,
+	TRIG_PRERENEW,			// Used by "RENEW" to get QP cost and whether the item can be renewed
 	TRIG_PREREST,
 	TRIG_PRERESURRECT,
 	TRIG_PREROUND,
@@ -5218,8 +5220,6 @@ enum trigger_index_enum {
 	TRIG_QUEST_COMPLETE,	// Prior to awards being given, called when the quest turned in complete, allowing editing of the awards
 	TRIG_QUEST_INCOMPLETE,	// Prior to awards being given, called when the quest turned in incomplete , allowing editing of the awards
 	TRIG_QUEST_PART,		// Used to generate a custom quest part when selected.
-	TRIG_QUEST_PRERENEW,	// Used by "QUEST RENEW" to get QP cost and whether the item can be renewed
-	TRIG_QUEST_RENEW,		// Used by "QUEST RENEW"
 	TRIG_QUIT,
 	TRIG_RANDOM,
 	TRIG_RECALL,
@@ -5231,6 +5231,7 @@ enum trigger_index_enum {
 	TRIG_REGEN_MOVE,	/* Modification on ALL move regens */
 	TRIG_REMORT,		// Called when a player remorts
 	TRIG_REMOVE,		/* NIB : 20070120 */
+	TRIG_RENEW,			// Used by "RENEW"
 	TRIG_REPOP,
 	TRIG_REST,
 	TRIG_RESTOCKED,
@@ -7874,5 +7875,7 @@ char *get_shop_purchase_price(long silver, long qp, long dp, long pneuma);
 long haggle_price(CHAR_DATA *ch, CHAR_DATA *keeper, int chance, int number, long base_price, long funds, int discount, bool *haggled, bool silent);
 char *get_stock_description(SHOP_STOCK_DATA *stock);
 void show_basic_mob_lore(CHAR_DATA *ch, CHAR_DATA *victim);
+SHOP_STOCK_DATA *get_stockonly_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, char *argument);
+bool is_pullable(OBJ_DATA *obj);
 
 #endif /* !def __MERC_H__ */

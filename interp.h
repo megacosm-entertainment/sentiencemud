@@ -372,6 +372,7 @@ DECLARE_DO_FUN( do_reckoning	);
 DECLARE_DO_FUN( do_redit	);
 DECLARE_DO_FUN( do_remcommand	);
 DECLARE_DO_FUN(	do_remove	);
+DECLARE_DO_FUN(	do_renew	);
 DECLARE_DO_FUN(	do_repair	);
 DECLARE_DO_FUN( do_replay	);
 DECLARE_DO_FUN(	do_reply	);

@@ -605,6 +605,7 @@ const struct flag_type act2_flags[]=
     {   "can_level",		ACT2_CANLEVEL,		TRUE	},
     {   "no_xp",		ACT2_NO_XP,		TRUE	},
     {   "hired",		ACT2_HIRED,		FALSE	},
+    {   "renewer",		ACT2_RENEWER,		TRUE	},
     {   NULL,			0,			FALSE	}
 };
 

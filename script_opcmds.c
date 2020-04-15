@@ -24,6 +24,7 @@ const struct script_cmd_type obj_cmd_table[] = {
 	{ "applytoxin",			scriptcmd_applytoxin,	FALSE,	TRUE	},
 	{ "asound",				do_opasound,			FALSE,	TRUE	},
 	{ "at",					do_opat,				FALSE,	TRUE	},
+	{ "attach",				scriptcmd_attach,			TRUE,	TRUE	},
 	{ "award",				scriptcmd_award,		TRUE,	TRUE	},
 	{ "call",				do_opcall,				FALSE,	TRUE	},
 	{ "cancel",				do_opcancel,			FALSE,	FALSE	},
@@ -38,6 +39,7 @@ const struct script_cmd_type obj_cmd_table[] = {
 	{ "delay",				do_opdelay,				FALSE,	TRUE	},
 	{ "dequeue",			do_opdequeue,			FALSE,	FALSE	},
 	{ "destroyroom",		do_opdestroyroom,		TRUE,	TRUE	},
+	{ "detach",				scriptcmd_detach,			TRUE,	TRUE	},
 	{ "echo",				do_opecho,				FALSE,	TRUE	},
 	{ "echoaround",			do_opechoaround,		FALSE,	TRUE	},
 	{ "echoat",				do_opechoat,			FALSE,	TRUE	},
@@ -2788,13 +2790,39 @@ SCRIPT_CMD(do_opsettimer)
 	default: amt = 0; break;
 	}
 
-	if(amt > 0) {
+	if( amt < 0 )
+		return;
+
+	if(!str_cmp(buf,"hiredto"))
+	{
+		if(IS_NPC(victim))
+		{
+			SET_BIT(victim->act2, ACT2_HIRED);
+			time_t hired_to = current_time + amt * 60;
+			// If amt is zero, the expiration will be handled in update.c
+		}
+	}
+	else if( amt > 0 || script_security >= 5 ) {
 		if(!str_cmp(buf,"wait")) WAIT_STATE(victim, amt);
 		else if(!str_cmp(buf,"norecall")) NO_RECALL_STATE(victim, amt);
 		else if(!str_cmp(buf,"daze")) DAZE_STATE(victim, amt);
 		else if(!str_cmp(buf,"panic")) PANIC_STATE(victim, amt);
 		else if(!str_cmp(buf,"paroxysm")) PAROXYSM_STATE(victim, amt);
 		else if(!str_cmp(buf,"paralyze")) victim->paralyzed = UMAX(victim->paralyzed,amt);
+		else if(!str_cmp(buf,"quest"))
+		{
+			if(!IS_NPC(victim) && IS_QUESTING(victim))
+			{
+				victim->countdown = amt;
+			}
+		}
+		else if(!str_cmp(buf,"nextquest"))
+		{
+			if(!IS_NPC(victim))
+			{
+				victim->nextquest = amt;
+			}
+		}
 	}
 }
 

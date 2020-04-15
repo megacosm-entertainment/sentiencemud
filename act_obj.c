@@ -4444,16 +4444,71 @@ long adjust_keeper_price(CHAR_DATA *keeper, long price, bool fBuy)
 	}
 }
 
-bool get_stock_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, SHOP_REQUEST_DATA *request, char *argument)
+SHOP_STOCK_DATA *get_stockonly_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, char *argument)
 {
-    char arg[MAX_INPUT_LENGTH];
+	char arg[MAX_INPUT_LENGTH];
 	SHOP_STOCK_DATA *stock;
-    OBJ_DATA *obj;
-    int number;
-    int count;
+	int number;
+	int count;
 
     number = number_argument(argument, arg);
     count  = 0;
+    if( keeper->shop != NULL) {
+		// Check stock items first
+		for(stock = keeper->shop->stock; stock; stock = stock->next)
+		{
+			// Out of stock.
+			if( stock->max_quantity > 0 && stock->quantity < 1) continue;
+
+			if( stock->vnum > 0 )
+			{
+				if( stock->obj != NULL )
+				{
+					if( is_name(arg, stock->obj->name) )
+					{
+						if( ++count == number )
+						{
+							return stock;
+						}
+					}
+				}
+				else if( stock->mob != NULL )
+				{
+					if( is_name(arg, stock->mob->player_name) )
+					{
+						if( ++count == number )
+						{
+							return stock;
+						}
+					}
+				}
+			}
+			else if(!IS_NULLSTR(stock->custom_keyword))
+			{
+				if( is_name(arg, stock->custom_keyword) )
+				{
+					if( ++count == number )
+					{
+						return stock;
+					}
+				}
+			}
+		}
+	}
+
+	return NULL;
+}
+
+bool get_stock_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, SHOP_REQUEST_DATA *request, char *argument)
+{
+	char arg[MAX_INPUT_LENGTH];
+	SHOP_STOCK_DATA *stock;
+	OBJ_DATA *obj;
+	int number;
+	int count;
+
+	number = number_argument(argument, arg);
+	count  = 0;
     if( keeper->shop != NULL) {
 		// Check stock items first
 		for(stock = keeper->shop->stock; stock; stock = stock->next)

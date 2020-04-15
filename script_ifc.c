@@ -2667,6 +2667,7 @@ DECL_IFC_FUN(ifc_timer)
 		else if(!str_prefix(ARG_STR(1),"hide")) *ret = ARG_MOB(0)->hide;
 		else if(!str_prefix(ARG_STR(1),"music")) *ret = ARG_MOB(0)->music;
 		else if(!str_prefix(ARG_STR(1),"next_quest")) *ret = ARG_MOB(0)->nextquest;
+		else if(!str_prefix(ARG_STR(1),"nextquest")) *ret = ARG_MOB(0)->nextquest;
 		else if(!str_prefix(ARG_STR(1),"norecall")) *ret = ARG_MOB(0)->no_recall;
 		else if(!str_prefix(ARG_STR(1),"panic")) *ret = ARG_MOB(0)->panic;
 		else if(!str_prefix(ARG_STR(1),"paralyzed")) *ret = ARG_MOB(0)->paralyzed;
@@ -2682,6 +2683,7 @@ DECL_IFC_FUN(ifc_timer)
 		else if(!str_prefix(ARG_STR(1),"timer")) *ret = ARG_MOB(0)->timer;
 		else if(!str_prefix(ARG_STR(1),"trance")) *ret = ARG_MOB(0)->trance;
 		else if(!str_prefix(ARG_STR(1),"wait")) *ret = ARG_MOB(0)->wait;
+		else if(!str_prefix(ARG_STR(1),"hiredto")) *ret = IS_NPC(ARG_MOB(0)) ? ARG_MOB(0)->hired_to : 0;
 		else return FALSE;
 	} else if(ISARG_STR(0)) {
 		if(!str_prefix(ARG_STR(0),"reckoning"))
@@ -4525,6 +4527,56 @@ DECL_IFC_FUN(ifc_boosttimer)
 
 	*ret = (timer - current_time) / 60;
 	if( *ret < 0 ) *ret = 0;
+
+	return TRUE;
+}
+
+// HIRED $MOBILE -> TRUE/FALSE
+// Shortcut for "IF ACT2 $MOBILE hired"
+DECL_IFC_FUN(ifc_ishired)
+{
+	if( VALID_NPC(0) )
+	{
+		*ret = IS_SET(ARG_MOB(0)->act2, ACT2_HIRED) && TRUE;
+		return TRUE;
+	}
+
+	*ret = FALSE;
+	return FALSE;
+}
+
+// HIRED $MOBILE == NUMBER
+// Gets the number of minutes the mob's hired_to has left
+//  Value is rounded up to the nearest minute to leave 0 to mean expired/nonexistent
+//  Is similar to "IF TIMER $MOBILE hiredto == $[[systemtime]]"
+//  "IF TIMER $MOBILE hiredto" gives the raw timestamp (in seconds)
+//  Is the timer version if you want the full resolution to this timer
+DECL_IFC_FUN(ifc_hired)
+{
+	if(VALID_NPC(0))
+	{
+		if( ARG_MOB(0)->hired_to > current_time )
+			*ret = (int)(ARG_MOB(0)->hired_to - current_time + 59) / 60;
+		else
+			*ret = 0;
+
+		return TRUE;
+	}
+
+	*ret = 0;
+	return FALSE;
+}
+
+// TODO: expand to check whether a mob can pull the object
+// CANPULL $OBJECT - check whether the object is something that can be pulled around
+//
+DECL_IFC_FUN(ifc_canpull)
+{
+	*ret = FALSE;
+	if( ISARG_OBJ(0) )
+	{
+		*ret = is_pullable(ARG_OBJ(0));
+	}
 
 	return TRUE;
 }

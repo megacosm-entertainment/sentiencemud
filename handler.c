@@ -8634,3 +8634,17 @@ char *get_shop_purchase_price(long silver, long qp, long dp, long pneuma)
 
 	return pricing;
 }
+
+bool is_pullable(OBJ_DATA *obj)
+{
+	if(!IS_VALID(obj))
+		return FALSE;
+
+	if( obj->item_type == ITEM_CART ) return TRUE;
+	// if( obj->item_type == ITEM_CORPSE_NPC ) return TRUE;
+	// if( obj->item_type == ITEM_CORPSE_PC ) return TRUE;
+
+
+	return FALSE;
+}
+

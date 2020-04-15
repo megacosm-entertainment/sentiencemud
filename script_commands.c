@@ -487,6 +487,164 @@ SCRIPT_CMD(scriptcmd_applytoxin)
 	info->progs->lastreturn = 1;
 }
 
+
+// ATTACH $ENTITY $TARGET $STRING[ $SILENT]
+// Attaches the $ENTITY to the given field ($STRING) on $TARGET
+// Fields and what they require for ENTITY and TARGET
+// * PET: NPC, MOBILE
+// * MASTER/FOLLOWER: MOBILE, MOBILE
+// * LEADER/GROUP: MOBILE, MOBILE
+// * CART/PULL: OBJECT (Pullable), MOBILE
+// * ON: FURNITURE, MOBILE/OBJECT
+//
+// $SILENT is a boolean to indicate whether the action is silent
+//
+// LASTRETURN will be set to 1 if successful, 0 otherwise
+SCRIPT_CMD(scriptcmd_attach)
+{
+	char buf[MSL], *rest;
+	char field[MIL];
+	CHAR_DATA *entity_mob = NULL;
+	CHAR_DATA *target_mob = NULL;
+	OBJ_DATA *entity_obj = NULL;
+	OBJ_DATA *target_obj = NULL;
+	SCRIPT_PARAM arg;
+	bool show = TRUE;
+
+	info->progs->lastreturn = 0;
+
+	if (!(rest = expand_argument(info,argument,&arg)))
+		return;
+
+	if( arg.type == ENT_MOBILE ) entity_mob = arg.d.mob;
+	else if( arg.type == ENT_OBJECT) entity_obj = arg.d.obj;
+	else
+		return;
+
+	if (!entity_mob && !entity_obj)
+		return;
+
+	if (!(rest = expand_argument(info,rest,&arg)))
+		return;
+
+	if( arg.type == ENT_MOBILE ) target_mob = arg.d.mob;
+	else if( arg.type == ENT_OBJECT) target_obj = arg.d.obj;
+	else
+		return;
+
+	if (!target_mob && !target_obj)
+		return;
+
+	if (!(rest = expand_argument(info,rest,&arg)))
+		return;
+
+	if( arg.type != ENT_STRING ) return;
+	strncpy(field,arg.d.str,MIL-1);
+	field[MIL] = '\0';
+
+	if(*rest) {
+		if (!(rest = expand_argument(info,rest,&arg)))
+			return;
+
+		if( arg.type == ENT_BOOLEAN )
+			show = !arg.d.boolean;
+	}
+
+	if(entity_mob != NULL)
+	{
+		if(field[0] != '\0')
+		{
+			if(!str_prefix(field, "pet"))
+			{
+				// Make sure ENTITY is an NPC, and the TARGET is a MOBILE and doesn't have a pet already
+				if(!IS_NPC(entity_mob) || !target_mob || target_mob->pet != NULL)
+					return;
+
+				// $ENTITY is already someone's pet
+				if( entity_mob->master != NULL && entity_mob->master->pet == entity_mob ) return;
+
+				// Don't allow since their groups is already full
+				if( target_mob->num_grouped >= 9 )
+					return;
+
+				add_follower(entity_mob, target_mob, show);
+				add_grouped(entity_mob, target_mob, show);	// Checks are already done
+
+				target_mob->pet = entity_mob;
+				SET_BIT(entity_mob->act, ACT_PET);
+				SET_BIT(entity_mob->affected_by, AFF_CHARM);
+				entity_mob->comm = COMM_NOTELL|COMM_NOCHANNELS;
+
+			}
+			else if(!str_prefix(field, "master") || !str_cmp(str_prefix, "follower"))
+			{
+				// Make sure ENTITY is an NPC, and the TARGET is a MOBILE
+				if(!IS_NPC(entity_mob) || !target_mob)
+					return;
+
+				// $ENTITY is already following someone
+				if( entity_mob->master != NULL ) return;
+
+				add_follower(entity_mob, target_mob, show);
+			}
+			else if(!str_prefix(field, "leader") || !str_cmp(str_prefix, "group"))
+			{
+				// Make sure ENTITY is an NPC, and the TARGET is a MOBILE and isn't aleady grouped
+				if(!IS_NPC(entity_mob) || !target_mob || target_mob->leader != NULL)
+					return;
+
+				// $ENTITY is already following someone
+				if( entity_mob->master != NULL ) return;
+
+				// $ENTITY is already grouped
+				if( entity_mob->leader != NULL ) return;
+
+				// Don't allow since their groups is already full
+				if( target_mob->num_grouped >= 9 )
+					return;
+
+				add_follower(entity_mob, target_mob, show);
+				add_grouped(entity_mob, target_mob, show);	// Checks are already done
+			}
+		}
+	}
+	else	// entity_obj != NULL
+	{
+		if(!str_prefix(field,"cart") || !str_prefix(field,"pull")
+		{
+			if( target_mob == NULL || target_mob->pulled_cart != NULL ) return;
+
+			// Already being pulled
+			if( entity_obj->pulled_by != NULL ) return;
+
+			// Check it is pullable
+			if( !is_pullable(entity_obj) ) return;
+
+			target_mob->pulled_cart = entity_obj;
+			entity_obj->pulled_by = target_mob;
+		}
+		else if(!str_prefix(field,"on")
+		{
+			// $ENTITY cannot already be on something
+			if( entity_obj->on != NULL ) return;
+
+			if( target_mob != NULL )
+			{
+				target_mob->on = entity_obj;
+			}
+			else	// target_obj != NULL
+			{
+				target_obj->on = entity_obj;
+			}
+		}
+
+	}
+
+	info->progs->lastreturn = 1;
+
+}
+
+
 // AWARD mobile string(type) number(amount)
 // Types: silver, gold, pneuma, deity/dp, practice, train, quest/qp, experience/xp
 //
@@ -503,6 +661,7 @@ SCRIPT_CMD(scriptcmd_award)
 	int amount = 0;
 	SCRIPT_PARAM arg;
 
+	info->progs->lastreturn = 0;
 
 	if (!(rest = expand_argument(info,argument,&arg)))
 		return;
@@ -596,6 +755,8 @@ SCRIPT_CMD(scriptcmd_award)
 			log_string(buf);
 		}
 	}
+
+	info->progs->lastreturn = 1;
 }
 
 //////////////////////////////////////
@@ -856,6 +1017,137 @@ SCRIPT_CMD(scriptcmd_deduct)
 	}
 
 }
+
+
+// DETACH $ENTITY $STRING[ $SILENT]
+// Detaches the given field ($STRING) from $ENTITY
+
+// Fields and what they require for ENTITY
+// * PET: MOBILE
+// * MASTER/FOLLOWER: MOBILE
+// * LEADER/GROUP: MOBILE
+// * CART: MOBILE
+// * ON: MOBILE/OBJECT
+//
+// $SILENT is a boolean to indicate whether the action is silent
+//
+// LASTRETURN will be set to 1 if successful, 0 otherwise
+
+SCRIPT_CMD(scriptcmd_detach)
+{
+	char buf[MSL], *rest;
+	char field[MIL];
+	CHAR_DATA *mob = NULL;
+	OBJ_DATA *obj = NULL;
+	SCRIPT_PARAM arg;
+	bool show = TRUE;
+
+	info->progs->lastreturn = 0;
+
+	if (!(rest = expand_argument(info,argument,&arg)))
+		return;
+
+	if( arg.type == ENT_MOBILE ) mob = arg.d.mob;
+	else if( arg.type == ENT_OBJECT) obj = arg.d.obj;
+	else
+		return;
+
+	if (!mob && !obj)
+		return;
+
+	if (!(rest = expand_argument(info,rest,&arg)))
+		return;
+
+	if( arg.type != ENT_STRING ) return;
+	strncpy(field,arg.d.str,MIL-1);
+	field[MIL] = '\0';
+
+	if(*rest) {
+		if (!(rest = expand_argument(info,rest,&arg)))
+			return;
+
+		if( arg.type == ENT_BOOLEAN )
+			show = !arg.d.boolean;
+	}
+
+	if( mob )
+	{
+		if( !str_prefix(field, "pet") )
+		{
+			if( !IS_NPC(mob->pet) || mob->pet == NULL ) return;
+
+			if( !IS_SET(mob->pet->pIndexData->act, ACT_PET) )
+				REMOVE_BIT(mob->pet->act, ACT_PET);
+
+			if( !IS_SET(mob->pet->pIndexData->affected_by, AFF_CHARM) )
+				REMOVE_BIT(mob->pet->affected_by, AFF_CHARM);
+
+			// This will not ungroup/unfollow
+			mob->pet->comm &= ~(COMM_NOTELL|COMM_NOCHANNELS);
+			mob->pet = NULL;
+		}
+		else if(!str_prefix(field, "master") || !str_cmp(str_prefix, "follower"))
+		{
+			if( mob->master == NULL ) return;
+
+			if( mob->master->pet == mob )
+			{
+				if( !IS_SET(mob->pet->pIndexData->act, ACT_PET) )
+					REMOVE_BIT(mob->pet->act, ACT_PET);
+
+				if( !IS_SET(mob->pet->pIndexData->affected_by, AFF_CHARM) )
+					REMOVE_BIT(mob->pet->affected_by, AFF_CHARM);
+
+				// This will not ungroup/unfollow
+				mob->pet->comm &= ~(COMM_NOTELL|COMM_NOCHANNELS);
+				mob->pet = NULL;
+
+			}
+
+			stop_follower(mob, show);
+		}
+		else if(!str_prefix(field, "leader") || !str_cmp(str_prefix, "group"))
+		{
+			// Make sure ENTITY is an NPC, and the TARGET is a MOBILE and isn't aleady grouped
+			if(!IS_NPC(entity_mob) || !target_mob || target_mob->leader != NULL)
+				return;
+
+			// $ENTITY is already following someone
+			if( entity_mob->master != NULL ) return;
+
+			// $ENTITY is already grouped
+			if( entity_mob->leader != NULL ) return;
+
+			// Don't allow since their groups is already full
+			if( target_mob->num_grouped >= 9 )
+				return;
+
+			add_follower(entity_mob, target_mob, show);
+			add_grouped(entity_mob, target_mob, show);	// Checks are already done
+		}
+		if(!str_prefix(field,"cart") || !str_prefix(field,"pull")
+		{
+			if( mob->pulled_cart == NULL ) return;
+
+			mob->pulled_cart->pulled_by = NULL;
+			mob->pulled_cart = NULL;
+		}
+		else if( !str_prefix(field, "on") )
+		{
+			mob->on = NULL;
+		}
+	}
+	else	// obj != NULL
+	{
+		if( !str_prefix(field, "on") )
+		{
+			obj->on = NULL;
+		}
+	}
+
+	info->progs->lastreturn = 1;
+}
+
 
 //////////////////////////////////////
 // E

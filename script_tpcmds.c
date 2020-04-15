@@ -24,6 +24,7 @@ const struct script_cmd_type token_cmd_table[] = {
 	{ "alterroom",			do_tpalterroom,				TRUE,	TRUE	},
 	{ "applytoxin",			scriptcmd_applytoxin,		FALSE,	TRUE	},
 	{ "asound",				do_tpasound,				FALSE,	TRUE	},
+	{ "attach",				scriptcmd_attach,			TRUE,	TRUE	},
 	{ "award",				scriptcmd_award,			TRUE,	TRUE	},
 	{ "call",				do_tpcall,					FALSE,	TRUE	},
 	{ "castfailure",		do_tpcastfailure,			FALSE,	TRUE	},
@@ -37,6 +38,7 @@ const struct script_cmd_type token_cmd_table[] = {
 	{ "deduct",				scriptcmd_deduct,			TRUE,	TRUE	},
 	{ "dequeue",			do_tpdequeue,				FALSE,	FALSE	},
 	{ "destroyroom",		do_tpdestroyroom,			TRUE,	TRUE	},
+	{ "detach",				scriptcmd_detach,			TRUE,	TRUE	},
 	{ "echo",				do_tpecho,					FALSE,	TRUE	},
 	{ "echoaround",			do_tpechoaround,			FALSE,	TRUE	},
 	{ "echoat",				do_tpechoat,				FALSE,	TRUE	},
@@ -1700,13 +1702,39 @@ SCRIPT_CMD(do_tpsettimer)
 	default: amt = 0; break;
 	}
 
-	if(amt > 0) {
+	if( amt < 0 )
+		return;
+
+	if(!str_cmp(buf,"hiredto"))
+	{
+		if(IS_NPC(victim))
+		{
+			SET_BIT(victim->act2, ACT2_HIRED);
+			time_t hired_to = current_time + amt * 60;
+			// If amt is zero, the expiration will be handled in update.c
+		}
+	}
+	else if( amt > 0 || script_security >= 5 ) {
 		if(!str_cmp(buf,"wait")) WAIT_STATE(victim, amt);
 		else if(!str_cmp(buf,"norecall")) NO_RECALL_STATE(victim, amt);
 		else if(!str_cmp(buf,"daze")) DAZE_STATE(victim, amt);
 		else if(!str_cmp(buf,"panic")) PANIC_STATE(victim, amt);
 		else if(!str_cmp(buf,"paroxysm")) PAROXYSM_STATE(victim, amt);
 		else if(!str_cmp(buf,"paralyze")) victim->paralyzed = UMAX(victim->paralyzed,amt);
+		else if(!str_cmp(buf,"quest"))
+		{
+			if(!IS_NPC(victim) && IS_QUESTING(victim))
+			{
+				victim->countdown = amt;
+			}
+		}
+		else if(!str_cmp(buf,"nextquest"))
+		{
+			if(!IS_NPC(victim))
+			{
+				victim->nextquest = amt;
+			}
+		}
 	}
 }
 
