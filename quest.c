@@ -1153,6 +1153,7 @@ void do_renew(CHAR_DATA *ch, char *argument)
 		send_to_char("RENEW GUARD <MOBILE>[ <RENEWER>]   to renew one of your guards.\n\r", ch);
 		send_to_char("RENEW OBJECT <OBJECT>[ <RENEWER>]  to renew an item.\n\r", ch);
 		send_to_char("RENEW CUSTOM <KEYWORD>[ <RENEWER>] to renew any custom service or good.\n\r", ch);
+		send_to_char("RENEW LIST[ <RENEWER>]             asks for a list of things that can be renewed.\n\r", ch);
 		return;
 	}
 
@@ -1369,6 +1370,8 @@ void do_renew(CHAR_DATA *ch, char *argument)
 		sprintf(buf, "{YYou renew $p with $N for %d quest points.{x", cost);
 		act(buf, ch, mob, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 		ch->questpoints -= cost;
+
+		return;
 	}
 	else if( !str_prefix(arg1, "custom") )
 	{
@@ -1413,6 +1416,24 @@ void do_renew(CHAR_DATA *ch, char *argument)
 		}
 		act(buf, ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		ch->questpoints -= cost;
+
+		return;
+	}
+	else if(!str_prefix(arg1, "list"))
+	{
+		mob = get_renewer_here(ch, arg2);
+		if( mob == NULL )
+			return;
+
+
+		act("{YYou ask $N for a list of things $E can renew.{x", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("$n asks $N for a list of things $E can renew.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		if(p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_RENEW_LIST, NULL))
+			return;
+
+		sprintf(buf, "I don't really do anything special here.");
+		do_say(mob, buf);
+		return;
 	}
 
 /*

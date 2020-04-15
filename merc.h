@@ -5232,6 +5232,7 @@ enum trigger_index_enum {
 	TRIG_REMORT,		// Called when a player remorts
 	TRIG_REMOVE,		/* NIB : 20070120 */
 	TRIG_RENEW,			// Used by "RENEW"
+	TRIG_RENEW_LIST,	// Used by "RENEW LIST"
 	TRIG_REPOP,
 	TRIG_REST,
 	TRIG_RESTOCKED,
