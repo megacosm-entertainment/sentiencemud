@@ -744,10 +744,11 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 bool generate_quest_part(CHAR_DATA *ch, CHAR_DATA *questman, QUEST_PART_DATA *part, int partno)
 {
 	questman->tempstore[0] = partno;							// Which quest part *IS* this?  Needed for the "questcomplete" command
-	if(p_percent_trigger( questman, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_PART, NULL))
-		return FALSE;
 
-    return TRUE;
+	// The quest part must return a positive value to be valid
+	//  returning a zero due to "end 0" or not having the QUEST_PART trigger will be considered invalid
+	//  errors in script execution will be negative, so will be considered invalid.
+    return p_percent_trigger( questman, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_PART, NULL) <= 0;
 }
 
 
