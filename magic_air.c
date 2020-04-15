@@ -124,7 +124,7 @@ SPELL_FUNC(spell_underwater_breathing)
 	af.group = AFFGROUP_MAGICAL;
 	af.type = sn;
 	af.level = level;
-	af.duration = 35;
+	af.duration = perm ? -1 : 35;
 	af.modifier = 0;
 	af.location = 0;
 	af.bitvector = AFF_SWIM;
