@@ -5083,8 +5083,16 @@ void do_buy(CHAR_DATA *ch, char *argument)
 			obj = request.obj;
 
 			keeper->tempstore[0] = number;
-			if(p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREBUY_OBJ, NULL))
+			int ret = p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREBUY_OBJ, NULL);
+			if( ret > 0 ) return;	// Messages should be done in the script
+			if( ret < 0 )
+			{
+				// Error happened.  Give generic message
+				act("{R$n tells you 'I can't sell that'.{x",
+					keeper, ch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+				ch->reply = keeper;
 				return;
+			}
 
 			cost = get_cost(keeper, obj, TRUE);
 
@@ -5193,8 +5201,17 @@ void do_buy(CHAR_DATA *ch, char *argument)
 			keeper->tempstore[0] = number;
 			keeper->tempstore[1] = stock->type;
 			keeper->tempstore[2] = stock->vnum;
-			if(p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREBUY, stock->custom_keyword))
+			int ret = p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREBUY, stock->custom_keyword);
+			if( ret > 0 ) return;	// Messages should be done in the script
+			if( ret < 0 )
+			{
+				// Error happened.  Give generic message
+				act("{R$n tells you 'I can't sell that'.{x",
+					keeper, ch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+				ch->reply = keeper;
 				return;
+			}
+
 
 
 			if( (stock->mob != NULL || stock->singular) && number > 1 )
