@@ -5368,8 +5368,17 @@ void do_buy(CHAR_DATA *ch, char *argument)
 				keeper->tempstore[3] = UMAX(chance, 0);
 				free_string(keeper->tempstring);
 				keeper->tempstring = &str_empty[0];
-				if(p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CUSTOM_PRICE, stock->custom_keyword))
+				int ret = p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CUSTOM_PRICE, stock->custom_keyword);
+				if( ret > 0 ) return;	// Messages should be done in the script
+				if( ret < 0 )
+				{
+					if (number > 1)
+						act("{R$n tells you 'You can't afford to buy that many.'{x", keeper,ch, NULL, NULL, NULL, NULL, NULL,TO_VICT);
+					else
+						act("{R$n tells you 'You can't afford to buy that'.{x", keeper, ch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+					ch->reply = keeper;
 					return;
+				}
 
 				// Account for the fact that the value will not change if no script is called
 				//  - to activate, do altermob $(self) tempstore3 = -1
