@@ -4892,9 +4892,11 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 		strcpy(n, arg.d.str);
 
 		rep = string_replace(var->_.s, o, n);
-		if( !IS_NULLSTR(rep) ) return;
+		if( rep == NULL ) return;	// An error, ret COULD be empty after the replace, so IS_NULLSTR is not the right test
 
 		variables_set_string(vars,name,rep,FALSE);
+
+		free_string(ret);	// String is copied
 
 	// Copies an extra description
 	// Format: ED <OBJECT or ROOM> <keyword>
