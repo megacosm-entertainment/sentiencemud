@@ -8101,6 +8101,21 @@ MEDIT(medit_shop)
 			{
 				if(!IS_NULLSTR(argument))
 				{
+					for(stock = pMob->pShop->stock; stock; stock = stock->next)
+					{
+						if( (stock->type == STOCK_CUSTOM) ||
+							!str_cmp(argument, stock->custom_keyword) )
+						{
+							break;
+						}
+					}
+
+					if( stock != NULL )
+					{
+						send_to_char("Keyword already used.\n\r", ch);
+						return FALSE;
+					}
+
 					stock = new_shop_stock();
 
 					if(!stock)
@@ -8109,6 +8124,7 @@ MEDIT(medit_shop)
 						return FALSE;
 					}
 
+					stock->type = STOCK_CUSTOM;
 					stock->custom_keyword = str_dup(argument);
 					stock->discount = 0;		// They do not handle discounts.
 												// If you wish to do discounts, that has to be scripted.

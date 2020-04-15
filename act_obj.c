@@ -4509,8 +4509,6 @@ bool get_stock_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, SHOP_REQUEST_DATA *reque
 
 	number = number_argument(argument, arg);
 	count  = 0;
-	request->nth = number;
-
     if( keeper->shop != NULL) {
 		// Check stock items first
 		for(stock = keeper->shop->stock; stock; stock = stock->next)
@@ -5921,7 +5919,7 @@ void do_list(CHAR_DATA *ch, char *argument)
 					if (!found)
 					{
 						found = TRUE;
-						send_to_char("{B[ {GLv    Price  Qty{B ]{x {YItem{x\n\r", ch);
+						send_to_char("{B[ {GLv       Price     Qty{B ]{x {YItem{x\n\r", ch);
 					}
 
 					int level = stock->level;
@@ -5929,7 +5927,7 @@ void do_list(CHAR_DATA *ch, char *argument)
 					level = UMAX(level, 1);
 
 					char *pricing = get_shop_stock_price(stock);
-					int pwidth = get_colour_width(pricing) + 8;
+					int pwidth = get_colour_width(pricing) + 14;
 
 					char *descr =
 						IS_NULLSTR(stock->custom_descr) ? stock->obj->short_descr : stock->custom_descr;
@@ -5958,7 +5956,7 @@ void do_list(CHAR_DATA *ch, char *argument)
 					if (!found)
 					{
 						found = TRUE;
-						send_to_char("{B[ {GLv    Price  Qty{B ]{x {YItem{x\n\r", ch);
+						send_to_char("{B[ {GLv       Price     Qty{B ]{x {YItem{x\n\r", ch);
 					}
 
 					int level = stock->level;
@@ -5966,7 +5964,7 @@ void do_list(CHAR_DATA *ch, char *argument)
 					level = UMAX(level, 1);
 
 					char *pricing = get_shop_stock_price(stock);
-					int pwidth = get_colour_width(pricing) + 8;
+					int pwidth = get_colour_width(pricing) + 14;
 
 					char *descr =
 						IS_NULLSTR(stock->custom_descr) ? stock->mob->short_descr : stock->custom_descr;
@@ -5993,21 +5991,21 @@ void do_list(CHAR_DATA *ch, char *argument)
 					if (!found)
 					{
 						found = TRUE;
-						send_to_char("{B[ {GLv    Price  Qty{B ]{x {YItem{x\n\r", ch);
+						send_to_char("{B[ {GLv       Price     Qty{B ]{x {YItem{x\n\r", ch);
 					}
 
 					int level = UMAX(stock->level, 1);
 
 					char *pricing = get_shop_stock_price(stock);
-					int pwidth = get_colour_width(pricing) + 8;
+					int pwidth = get_colour_width(pricing) + 14;
 
 					if( stock->max_quantity > 0 )
 					{
-						sprintf(buf,"{B[{x%3d %*s {Y%4d{B ]{x %s\n\r", level,pwidth,pricing,stock->quantity,stock->custom_descr);
+						sprintf(buf,"{B[{x%3d %*s {Y%4d{B ]{x %s (%s)\n\r", level,pwidth,pricing,stock->quantity,stock->custom_descr, stock->custom_keyword);
 					}
 					else
 					{
-						sprintf(buf,"{B[{x%3d %*s {Y ---{B ]{x %s\n\r", level,pwidth,pricing,stock->custom_descr);
+						sprintf(buf,"{B[{x%3d %*s {Y ---{B ]{x %s (%s)\n\r", level,pwidth,pricing,stock->custom_descr, stock->custom_keyword);
 					}
 
 					send_to_char(buf, ch);
@@ -6027,7 +6025,7 @@ void do_list(CHAR_DATA *ch, char *argument)
 				if (!found)
 				{
 					found = TRUE;
-					send_to_char("{B[ {GLv    Price  Qty{B ]{x {YItem{x\n\r", ch);
+					send_to_char("{B[ {GLv       Price     Qty{B ]{x {YItem{x\n\r", ch);
 				}
 
 				count = 1;
@@ -6041,7 +6039,7 @@ void do_list(CHAR_DATA *ch, char *argument)
 					count++;
 				}
 
-				sprintf(buf,"{B[{x%3d %8d {Y%4d{B ]{x %s\n\r", obj->level,cost,count,obj->short_descr);
+				sprintf(buf,"{B[{x%3d %14d {Y%4d{B ]{x %s\n\r", obj->level,cost,count,obj->short_descr);
 
 				send_to_char(buf, ch);
 		    }
@@ -6144,10 +6142,7 @@ void do_inspect(CHAR_DATA *ch, char *argument)
 		}
 		else if( !IS_NULLSTR(request.stock->custom_keyword) )
 		{
-			char argno[MIL+20];
-			sprintf(argno, "%d.%s", request.nth, request.stock->custom_keyword);
-
-	    	if(!p_exact_trigger(argno, keeper, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_INSPECT))
+	    	if(!p_exact_trigger(request.stock->custom_keyword, keeper, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_INSPECT))
 	    	{
 				act("{R$N tells you 'Sorry, I do not have any information about $T.'{x", ch, keeper, NULL, NULL, NULL, NULL, request.stock->custom_descr, TO_CHAR);
 				ch->reply = keeper;
