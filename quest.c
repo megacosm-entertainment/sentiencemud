@@ -1091,6 +1091,8 @@ void check_quest_part_complete(CHAR_DATA *ch, int type)
 
 CHAR_DATA *get_renewer_here(CHAR_DATA *ch, char *argument)
 {
+	CHAR_DATA *mob;
+
 	if (argument[0] == '\0')
 	{
 		for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
@@ -1106,13 +1108,13 @@ CHAR_DATA *get_renewer_here(CHAR_DATA *ch, char *argument)
 	}
 	else
 	{
-		if ((mob = get_char_room(ch, NULL, arg3)) == NULL)
+		if ((mob = get_char_room(ch, NULL, argument)) == NULL)
 		{
 			send_to_char("They aren't here.\n\r", ch);
 			return NULL;
 		}
 
-		if (!IS_NPC(mob) || !IS_SET(mob->arg3, ACT2_RENEWER))
+		if (!IS_NPC(mob) || !IS_SET(mob->act2, ACT2_RENEWER))
 		{
 			// Make a tell?
 			act("You cannot do that with $N.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -1131,7 +1133,7 @@ CHAR_DATA *get_renewer_here(CHAR_DATA *ch, char *argument)
 // RENEW OTHER <KEYWORD>[ <RENEWER>]
 void do_renew(CHAR_DATA *ch, char *argument)
 {
-	CHAR_DATA *mob, *victim;
+	CHAR_DATA *mob;
 	OBJ_DATA *obj;
 	int cost;
 	char buf[MSL+1];
@@ -1216,7 +1218,7 @@ void do_renew(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		if( !str_cmp(mount->owner, ch->name) )
+		if( !str_cmp(ch->mount->owner, ch->name) )
 		{
 			// Yet?
 			send_to_char("Personal mounts cannot be renewed.\n\r", ch);
@@ -1526,5 +1528,6 @@ void do_renew(CHAR_DATA *ch, char *argument)
 		ch->questpoints -= cost;
 	}
 */
+
 }
 
