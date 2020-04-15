@@ -10560,7 +10560,7 @@ MEDIT(medit_questor)
 
 	argument = one_argument(argument, arg);
 
-	if (!str_cmp(arg,"add"))
+	if (!str_cmp(str_prefix,"add"))
 	{
 	    if (!str_cmp(pMob->sig, "none") && ch->tot_level < MAX_LEVEL)
 	    {
@@ -10579,7 +10579,7 @@ MEDIT(medit_questor)
 		send_to_char("Questor data added.\n\r", ch);
 		return TRUE;
 
-	} else if (!str_cmp(arg,"remove")) {
+	} else if (!str_prefix(arg,"remove")) {
 	    if (!str_cmp(pMob->sig, "none") && ch->tot_level < MAX_LEVEL)
 	    {
 			send_to_char("You can't do this without an IMP's permission.\n\r", ch);
@@ -10597,28 +10597,28 @@ MEDIT(medit_questor)
 		send_to_char("Questor data removed.\n\r", ch);
 		return TRUE;
 
-	} else if (!str_cmp(arg,"keywords")) {
+	} else if (!str_prefix(arg,"keywords")) {
 		free_string(pMob->pQuestor->keywords);
 		pMob->pQuestor->keywords = str_dup(argument);
 
 		send_to_char("Keywords set.\n\r", ch);
 		return TRUE;
 
-	} else if (!str_cmp(arg,"short")) {
+	} else if (!str_prefix(arg,"short")) {
 		free_string(pMob->pQuestor->short_descr);
 		pMob->pQuestor->short_descr = str_dup(argument);
 
 		send_to_char("Short description set.\n\r", ch);
 		return TRUE;
 
-	} else if (!str_cmp(arg,"long")) {
+	} else if (!str_prefix(arg,"long")) {
 		free_string(pMob->pQuestor->long_descr);
 		pMob->pQuestor->long_descr = str_dup(argument);
 
 		send_to_char("Long description set.\n\r", ch);
 		return TRUE;
 
-	} else if (!str_cmp(arg,"header")) {
+	} else if (!str_prefix(arg,"header")) {
 		send_to_char("Editting the Questor Header:\n\r", ch);
 		send_to_char("  Use {Y$PLAYER${x as a placeholder for the player's name.\n\r", ch);
 		send_to_char("  Use {Y$QUESTOR${x as a placeholder for the questgiver's name.\n\r", ch);
@@ -10627,7 +10627,7 @@ MEDIT(medit_questor)
 		string_append(ch, &pMob->pQuestor->header);
 		return TRUE;
 
-	} else if (!str_cmp(arg,"footer")) {
+	} else if (!str_prefix(arg,"footer")) {
 		send_to_char("Editting the Questor Footer:\n\r", ch);
 		send_to_char("  Use {Y$PLAYER${x as a placeholder for the player's name.\n\r", ch);
 		send_to_char("  Use {Y$QUESTOR${x as a placeholder for the questgiver's name.\n\r", ch);
@@ -10636,21 +10636,21 @@ MEDIT(medit_questor)
 		string_append(ch, &pMob->pQuestor->footer);
 		return TRUE;
 
-	} else if (!str_cmp(arg,"prefix")) {
+	} else if (!str_prefix(arg,"prefix")) {
 		free_string(pMob->pQuestor->prefix);
 		pMob->pQuestor->prefix = str_dup(argument);
 
 		send_to_char("Prefix set.\n\r", ch);
 		return TRUE;
 
-	} else if (!str_cmp(arg,"suffix")) {
+	} else if (!str_prefix(arg,"suffix")) {
 		free_string(pMob->pQuestor->suffix);
 		pMob->pQuestor->suffix = str_dup(argument);
 
 		send_to_char("Prefix set.\n\r", ch);
 		return TRUE;
 
-	} else if (!str_cmp(arg,"width")) {
+	} else if (!str_prefix(arg,"width")) {
 		if(!is_number(argument))
 		{
 			send_to_char("That is not a number.\n\r", ch);
@@ -10676,13 +10676,7 @@ MEDIT(medit_questor)
 		return TRUE;
 
 	} else {
-		send_to_char("QUESTOR ADD             Adds questor data to mob.\n\r", ch);
-		send_to_char("        REMOVE          Removes questor data from mob.\n\r", ch);
-		send_to_char("        HEADER          Edits scroll header.\n\r", ch);
-		send_to_char("        FOOTER          Edits scroll footer.\n\r", ch);
-		send_to_char("        PREFIX          Edits line prefix.\n\r", ch);
-		send_to_char("        SUFFIX          Edits line suffix.\n\r", ch);
-		send_to_char("        WIDTH width     Sets line width.\n\r", ch);
+		medit_questor(ch, "");
 		return FALSE;
 	}
 
