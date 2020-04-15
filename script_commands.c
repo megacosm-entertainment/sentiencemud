@@ -576,7 +576,7 @@ SCRIPT_CMD(scriptcmd_attach)
 				entity_mob->comm = COMM_NOTELL|COMM_NOCHANNELS;
 
 			}
-			else if(!str_prefix(field, "master") || !str_cmp(str_prefix, "follower"))
+			else if(!str_prefix(field, "master") || !str_cmp(field, "follower"))
 			{
 				// Make sure ENTITY is an NPC, and the TARGET is a MOBILE
 				if(!IS_NPC(entity_mob) || !target_mob)
@@ -587,7 +587,7 @@ SCRIPT_CMD(scriptcmd_attach)
 
 				add_follower(entity_mob, target_mob, show);
 			}
-			else if(!str_prefix(field, "leader") || !str_cmp(str_prefix, "group"))
+			else if(!str_prefix(field, "leader") || !str_cmp(field, "group"))
 			{
 				// Make sure ENTITY is an NPC, and the TARGET is a MOBILE and isn't aleady grouped
 				if(!IS_NPC(entity_mob) || !target_mob || target_mob->leader != NULL)
@@ -610,7 +610,7 @@ SCRIPT_CMD(scriptcmd_attach)
 	}
 	else	// entity_obj != NULL
 	{
-		if(!str_prefix(field,"cart") || !str_prefix(field,"pull")
+		if(!str_prefix(field,"cart") || !str_prefix(field,"pull") )
 		{
 			if( target_mob == NULL || target_mob->pulled_cart != NULL ) return;
 
@@ -1086,7 +1086,7 @@ SCRIPT_CMD(scriptcmd_detach)
 			mob->pet->comm &= ~(COMM_NOTELL|COMM_NOCHANNELS);
 			mob->pet = NULL;
 		}
-		else if(!str_prefix(field, "master") || !str_cmp(str_prefix, "follower"))
+		else if(!str_prefix(field, "master") || !str_cmp(field, "follower"))
 		{
 			if( mob->master == NULL ) return;
 
@@ -1106,7 +1106,7 @@ SCRIPT_CMD(scriptcmd_detach)
 
 			stop_follower(mob, show);
 		}
-		else if(!str_prefix(field, "leader") || !str_cmp(str_prefix, "group"))
+		else if(!str_prefix(field, "leader") || !str_cmp(field, "group"))
 		{
 			// Make sure ENTITY is an NPC, and the TARGET is a MOBILE and isn't aleady grouped
 			if(!IS_NPC(entity_mob) || !target_mob || target_mob->leader != NULL)
@@ -1125,7 +1125,7 @@ SCRIPT_CMD(scriptcmd_detach)
 			add_follower(entity_mob, target_mob, show);
 			add_grouped(entity_mob, target_mob, show);	// Checks are already done
 		}
-		if(!str_prefix(field,"cart") || !str_prefix(field,"pull")
+		if(!str_prefix(field,"cart") || !str_prefix(field,"pull") )
 		{
 			if( mob->pulled_cart == NULL ) return;
 

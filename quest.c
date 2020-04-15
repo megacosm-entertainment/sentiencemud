@@ -1362,7 +1362,7 @@ void do_renew(CHAR_DATA *ch, char *argument)
 			return;
 
 		mob->tempstore[0] = 0;	// Customs REQUIRE the script to specify the cost
-		if(p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PRERENEW, arg2) <= 0)
+		if(p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PRERENEW, arg2) <= 0)
 			return;
 
 		cost = mob->tempstore[0];
