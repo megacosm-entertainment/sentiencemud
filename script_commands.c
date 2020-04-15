@@ -502,7 +502,7 @@ SCRIPT_CMD(scriptcmd_applytoxin)
 // LASTRETURN will be set to 1 if successful, 0 otherwise
 SCRIPT_CMD(scriptcmd_attach)
 {
-	char buf[MSL], *rest;
+	char *rest;
 	char field[MIL];
 	CHAR_DATA *entity_mob = NULL;
 	CHAR_DATA *target_mob = NULL;
@@ -623,7 +623,7 @@ SCRIPT_CMD(scriptcmd_attach)
 			target_mob->pulled_cart = entity_obj;
 			entity_obj->pulled_by = target_mob;
 		}
-		else if(!str_prefix(field,"on")
+		else if(!str_prefix(field,"on") )
 		{
 			// $ENTITY cannot already be on something
 			if( entity_obj->on != NULL ) return;
@@ -1035,7 +1035,7 @@ SCRIPT_CMD(scriptcmd_deduct)
 
 SCRIPT_CMD(scriptcmd_detach)
 {
-	char buf[MSL], *rest;
+	char *rest;
 	char field[MIL];
 	CHAR_DATA *mob = NULL;
 	OBJ_DATA *obj = NULL;
@@ -1108,22 +1108,9 @@ SCRIPT_CMD(scriptcmd_detach)
 		}
 		else if(!str_prefix(field, "leader") || !str_cmp(field, "group"))
 		{
-			// Make sure ENTITY is an NPC, and the TARGET is a MOBILE and isn't aleady grouped
-			if(!IS_NPC(entity_mob) || !target_mob || target_mob->leader != NULL)
-				return;
+			if( mob->leader == NULL ) return;
 
-			// $ENTITY is already following someone
-			if( entity_mob->master != NULL ) return;
-
-			// $ENTITY is already grouped
-			if( entity_mob->leader != NULL ) return;
-
-			// Don't allow since their groups is already full
-			if( target_mob->num_grouped >= 9 )
-				return;
-
-			add_follower(entity_mob, target_mob, show);
-			add_grouped(entity_mob, target_mob, show);	// Checks are already done
+			stop_grouped(mob);
 		}
 		if(!str_prefix(field,"cart") || !str_prefix(field,"pull") )
 		{
