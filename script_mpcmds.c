@@ -3770,7 +3770,7 @@ SCRIPT_CMD(do_mpsettimer)
 		if(IS_NPC(victim))
 		{
 			SET_BIT(victim->act2, ACT2_HIRED);
-			time_t hired_to = current_time + amt * 60;
+			victim->hired_to = current_time + amt * 60;
 			// If amt is zero, the expiration will be handled in update.c
 		}
 	}
