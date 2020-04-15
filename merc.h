@@ -3265,6 +3265,9 @@ struct questor_data
 	bool valid;
 
 	// Appearance data
+	char *keywords;
+	char *short_descr;
+	char *long_descr;
 	char *header;
 	char *prefix;
 	char *suffix;

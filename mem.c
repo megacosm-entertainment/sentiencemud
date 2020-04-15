@@ -3280,6 +3280,9 @@ QUESTOR_DATA *new_questor_data()
 	}
 
 	VALIDATE(q);
+	q->keywords = &str_empty[0];
+	q->short_descr = &str_empty[0];
+	q->long_descr = &str_empty[0];
 	q->header = &str_empty[0];
 	q->footer = &str_empty[0];
 	q->prefix = &str_empty[0];
@@ -3293,6 +3296,9 @@ void free_questor_data(QUESTOR_DATA *q)
 {
 	if(!IS_VALID(q)) return;
 
+	free_string(q->keywords);
+	free_string(q->short_descr);
+	free_string(q->long_descr);
 	free_string(q->header);
 	free_string(q->footer);
 	free_string(q->prefix);

@@ -1124,10 +1124,13 @@ void save_scripts_new(FILE *fp, AREA_DATA *area)
 void save_questor_new(FILE *fp, QUESTOR_DATA *questor)
 {
     fprintf(fp, "#QUESTOR\n");
-    fprintf(fp, "Header %s~\n", questor->header);
-    fprintf(fp, "Footer %s~\n", questor->footer);
-    fprintf(fp, "Prefix %s~\n", questor->prefix);
-    fprintf(fp, "Suffix %s~\n", questor->suffix);
+    fprintf(fp, "Keywords %s~\n", fix_string(questor->keywords));
+    fprintf(fp, "ShortDescr %s~\n", fix_string(questor->short_descr));
+    fprintf(fp, "LongDescr %s~\n", fix_string(questor->long_descr));
+    fprintf(fp, "Header %s~\n", fix_string(questor->header));
+    fprintf(fp, "Footer %s~\n", fix_string(questor->footer));
+    fprintf(fp, "Prefix %s~\n", fix_string(questor->prefix));
+    fprintf(fp, "Suffix %s~\n", fix_string(questor->suffix));
     fprintf(fp, "LineWidth %d\n", questor->line_width);
     fprintf(fp, "#-QUESTOR\n");
 }
@@ -3097,8 +3100,13 @@ QUESTOR_DATA *read_questor_new(FILE *fp)
 	        KEYS("Header",		questor->header,	fread_string(fp));
 	        break;
 
+	    case 'K':
+	        KEYS("Keywords",	questor->keywords,	fread_string(fp));
+	        break;
+
 	    case 'L':
 	        KEY("LineWidth",	questor->line_width,	fread_number(fp));
+	        KEYS("LongDescr",	questor->long_descr,	fread_string(fp));
 			break;
 
 	    case 'P':
@@ -3106,6 +3114,7 @@ QUESTOR_DATA *read_questor_new(FILE *fp)
 	        break;
 
 	    case 'S':
+	        KEYS("ShortDescr",	questor->short_descr,	fread_string(fp));
 	        KEYS("Suffix",		questor->suffix,	fread_string(fp));
 			break;
 

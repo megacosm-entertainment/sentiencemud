@@ -6827,6 +6827,24 @@ MEDIT(medit_show)
 
 		add_buf(buffer, "{YQuestor data:\n\r");
 
+		if(IS_NULLSTR(questor->keywords))
+			sprintf(buf, "  {YKeywords: (empty){x\n\r");
+		else
+			sprintf(buf, "  {YKeywords: %s{x\n\r", questor->keywords);
+		add_buf(buffer, buf);
+
+		if(IS_NULLSTR(questor->short_descr))
+			sprintf(buf, "  {YShort Description: (empty){x\n\r");
+		else
+			sprintf(buf, "  {YShort Description: %s{x\n\r", questor->short_descr);
+		add_buf(buffer, buf);
+
+		if(IS_NULLSTR(questor->long_descr))
+			sprintf(buf, "  {YDescription: (empty){x\n\r");
+		else
+			sprintf(buf, "  {YDescription: %s{x\n\r", questor->long_descr);
+		add_buf(buffer, buf);
+
 		if(IS_NULLSTR(questor->header))
 			sprintf(buf, "  {YHeader: (empty){x\n\r");
 		else
@@ -10527,13 +10545,16 @@ MEDIT(medit_questor)
 
 	if(IS_NULLSTR(argument))
 	{
-		send_to_char("QUESTOR ADD             Adds questor data to mob.\n\r", ch);
-		send_to_char("        REMOVE          Removes questor data from mob.\n\r", ch);
-		send_to_char("        HEADER          Edits scroll header.\n\r", ch);
-		send_to_char("        FOOTER          Edits scroll footer.\n\r", ch);
-		send_to_char("        PREFIX          Edits line prefix.\n\r", ch);
-		send_to_char("        SUFFIX          Edits line suffix.\n\r", ch);
-		send_to_char("        WIDTH width     Sets line width.\n\r", ch);
+		send_to_char("QUESTOR ADD                 Adds questor data to mob.\n\r", ch);
+		send_to_char("        REMOVE              Removes questor data from mob.\n\r", ch);
+		send_to_char("        KEYWORDS [string]   Sets keywords of scroll.\n\r", ch);
+		send_to_char("        SHORT [string]      Sets short description of scroll.\n\r", ch);
+		send_to_char("        LONG [string]       Sets long description of scroll.\n\r", ch);
+		send_to_char("        HEADER              Edits scroll header.\n\r", ch);
+		send_to_char("        FOOTER              Edits scroll footer.\n\r", ch);
+		send_to_char("        PREFIX [string]     Edits line prefix.\n\r", ch);
+		send_to_char("        SUFFIX [string]     Edits line suffix.\n\r", ch);
+		send_to_char("        WIDTH [width]       Sets line width.\n\r", ch);
 		return FALSE;
 	}
 
@@ -10574,6 +10595,27 @@ MEDIT(medit_questor)
 		free_questor_data(pMob->pQuestor);
 		pMob->pQuestor = NULL;
 		send_to_char("Questor data removed.\n\r", ch);
+		return TRUE;
+
+	} else if (!str_cmp(arg,"keywords")) {
+		free_string(pMob->pQuestor->keywords);
+		pMob->pQuestor->keywords = str_dup(argument);
+
+		send_to_char("Keywords set.\n\r", ch);
+		return TRUE;
+
+	} else if (!str_cmp(arg,"short")) {
+		free_string(pMob->pQuestor->short_descr);
+		pMob->pQuestor->short_descr = str_dup(argument);
+
+		send_to_char("Short description set.\n\r", ch);
+		return TRUE;
+
+	} else if (!str_cmp(arg,"long")) {
+		free_string(pMob->pQuestor->long_descr);
+		pMob->pQuestor->long_descr = str_dup(argument);
+
+		send_to_char("Long description set.\n\r", ch);
 		return TRUE;
 
 	} else if (!str_cmp(arg,"header")) {

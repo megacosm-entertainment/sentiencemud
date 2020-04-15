@@ -612,9 +612,16 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 
 	// create the scroll
 	scroll = create_object(get_obj_index(OBJ_VNUM_QUEST_SCROLL), 0, TRUE);
+	free_string(scroll->name);
+	free_string(scroll->short_descr);
+	free_string(scroll->description);
 	free_string(scroll->full_description);
 
 	QUESTOR_DATA *qd = questman->pIndexData->pQuestor;
+
+	scroll->name = str_dup(qd->keywords);
+	scroll->short_descr = str_dup(qd->short_descr);
+	scroll->description = str_dup(qd->long_descr);
 
 	char *replace1 = string_replace_static(qd->header, "$PLAYER$", ch->name);
 	char *replace2 = string_replace_static(replace1, "$QUESTOR$", questman->short_descr);
