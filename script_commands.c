@@ -1077,7 +1077,7 @@ SCRIPT_CMD(scriptcmd_detach)
 	{
 		if( !str_prefix(field, "pet") )
 		{
-			if( !IS_NPC(mob->pet) || mob->pet == NULL ) return;
+			if( mob->pet == NULL ) return;
 
 			if( !IS_SET(mob->pet->pIndexData->act, ACT_PET) )
 				REMOVE_BIT(mob->pet->act, ACT_PET);
