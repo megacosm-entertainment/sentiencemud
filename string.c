@@ -82,7 +82,7 @@ void string_append(CHAR_DATA *ch, char **pString)
 char *string_replace_static(char * orig, char * old, char * new)
 {
 	static int cnt = 0;
-    static char xbuf[4][MAX_STRING_LENGTH];
+    static char xbuf[4][MAX_STRING_LENGTH * 2];
 
     cnt = (cnt+1) & 3;;
 

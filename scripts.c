@@ -2627,6 +2627,7 @@ CHAR_DATA *script_get_char_blist(LLIST *blist, CHAR_DATA *viewer, bool player, i
 	int nth = 1, i = 0;
 	char buf[MSL];
 	CHAR_DATA *ch;
+	ITERATOR it;
 	LLIST_UID_DATA *luid;
 
 	if(!IS_VALID(blist)) return NULL;
@@ -2663,7 +2664,8 @@ CHAR_DATA *script_get_char_blist(LLIST *blist, CHAR_DATA *viewer, bool player, i
 	iterator_stop(&it);
 
 	if(luid && luid->ptr)
-		variables_set_mobile(vars,name,(CHAR_DATA *)luid->ptr);
+		return (CHAR_DATA *)luid->ptr;
+	return NULL;
 }
 
 CHAR_DATA *script_get_char_list(CHAR_DATA *mobs, CHAR_DATA *viewer, bool player, int vnum, char *name)
@@ -2712,6 +2714,7 @@ OBJ_DATA *script_get_obj_blist(LLIST *blist, CHAR_DATA *viewer, int vnum, char *
 	int nth = 1, i = 0;
 	char buf[MSL];
 	OBJ_DATA *obj;
+	ITERATOR it;
 	LLIST_UID_DATA *luid;
 
 	if(!IS_VALID(blist)) return NULL;
@@ -2745,7 +2748,8 @@ OBJ_DATA *script_get_obj_blist(LLIST *blist, CHAR_DATA *viewer, int vnum, char *
 	iterator_stop(&it);
 
 	if(luid && luid->ptr)
-		variables_set_object(vars,name,(OBJ_DATA *)luid->ptr);
+		return (OBJ_DATA *)luid->ptr;
+	return NULL;
 }
 
 
@@ -5004,8 +5008,6 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 
 		variables_set_string(vars,name,rep,FALSE);
 
-		free_string(rep);	// String is copied
-
 	// Copies an extra description
 	// Format: ED <OBJECT or ROOM> <keyword>
 	} else if(!str_cmp(buf,"ed")) {
@@ -5186,7 +5188,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 			}
 			else if( arg.type == ENT_STRING )
 			{
-				if(is_number(arg.d.str)) {
+				if(is_number(arg.d.str))
 				{
 					vnum = atoi(arg.d.str);
 					str = NULL;
@@ -5305,7 +5307,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 			}
 			else if( arg.type == ENT_STRING )
 			{
-				if(is_number(arg.d.str)) {
+				if(is_number(arg.d.str))
 				{
 					vnum = atoi(arg.d.str);
 					str = NULL;
