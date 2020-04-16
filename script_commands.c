@@ -593,8 +593,8 @@ SCRIPT_CMD(scriptcmd_attach)
 				if(!IS_NPC(entity_mob) || !target_mob || target_mob->leader != NULL)
 					return;
 
-				// $ENTITY is already following someone
-				if( entity_mob->master != NULL ) return;
+				// $ENTITY is already following someone else
+				if( entity_mob->master != NULL && entity_mob->master != target_mob ) return;
 
 				// $ENTITY is already grouped
 				if( entity_mob->leader != NULL ) return;
