@@ -2622,12 +2622,58 @@ int get_order(CHAR_DATA *ch, OBJ_DATA *obj)
     return 0;
 }
 
+CHAR_DATA *script_get_char_blist(LLIST *blist, CHAR_DATA *viewer, bool player, int vnum, char *name)
+{
+	int nth = 1, i = 0;
+	char buf[MSL];
+	CHAR_DATA *ch;
+	LLIST_UID_DATA *luid;
+
+	if(!IS_VALID(blist)) return NULL;
+
+	if( player && vnum > 0 ) return NULL;
+
+	if(name) {
+		nth = number_argument(name,buf);
+
+		if(!player && is_number(buf)) {
+			vnum = atol(buf);
+			name = NULL;
+		} else {
+			vnum = 0;
+			name = buf;
+		}
+	}
+
+	iterator_start(&it, blist);
+	while((luid = (LLIST_UID_DATA *)iterator_nextdata(&it)))
+	{
+		if( !luid->ptr ) continue;
+
+		ch = (CHAR_DATA *)luid->ptr;
+
+		if( player && IS_NPC(ch) ) continue;
+		if( name && !is_name(name,ch->name) ) continue;
+		if( (vnum > 0) && ch->pIndexData->vnum != vnum ) continue;
+		if( viewer && !can_see(viewer,ch) ) continue;
+
+		if( ++i == nth )
+			break;
+	}
+	iterator_stop(&it);
+
+	if(luid && luid->ptr)
+		variables_set_mobile(vars,name,(CHAR_DATA *)luid->ptr);
+}
+
 CHAR_DATA *script_get_char_list(CHAR_DATA *mobs, CHAR_DATA *viewer, bool player, int vnum, char *name)
 {
 	int nth = 1, i = 0;
 	char buf[MSL];
 	CHAR_DATA *ch;
 	if(!mobs) return NULL;
+
+	if( player && vnum > 0 ) return NULL;
 
 	if(name) {
 		nth = number_argument(name,buf);
@@ -2659,6 +2705,49 @@ CHAR_DATA *script_get_char_list(CHAR_DATA *mobs, CHAR_DATA *viewer, bool player,
 	}
 	return NULL;
 }
+
+
+OBJ_DATA *script_get_obj_blist(LLIST *blist, CHAR_DATA *viewer, int vnum, char *name)
+{
+	int nth = 1, i = 0;
+	char buf[MSL];
+	OBJ_DATA *obj;
+	LLIST_UID_DATA *luid;
+
+	if(!IS_VALID(blist)) return NULL;
+
+	if(name) {
+		nth = number_argument(name,buf);
+
+		if(is_number(buf)) {
+			vnum = atol(buf);
+			name = NULL;
+		} else {
+			vnum = 0;
+			name = buf;
+		}
+	}
+
+	iterator_start(&it, blist);
+	while((luid = (LLIST_UID_DATA *)iterator_nextdata(&it)))
+	{
+		if( !luid->ptr ) continue;
+
+		obj = (OBJ_DATA *)luid->ptr;
+
+		if( name && !is_name(name,obj->name) ) continue;
+		if( (vnum > 0) && obj->pIndexData->vnum != vnum ) continue;
+		if( viewer && !can_see_obj(viewer,obj) ) continue;
+
+		if( ++i == nth )
+			break;
+	}
+	iterator_stop(&it);
+
+	if(luid && luid->ptr)
+		variables_set_object(vars,name,(OBJ_DATA *)luid->ptr);
+}
+
 
 OBJ_DATA *script_get_obj_list(OBJ_DATA *objs, CHAR_DATA *viewer, int worn, int vnum, char *name)
 {
@@ -4723,6 +4812,19 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 	argument = one_argument(argument,buf);
 	if(!buf[0]) return;
 
+	// Appends a fully escaped string to the end of a variable along with an EOL.
+	// Format: APPENDLINE[ <string>]
+	if(!str_cmp(buf,"appendline"))
+	{
+		// Special handling to allow "varset <name> appendline" to put a line at the end
+		char tmp[MSL+2];
+		expand_string(info,argument,tmp);
+		strcat(tmp,"\n");
+
+		variables_append_string(vars,name,tmp);
+		return;
+	}
+
 	if(!(rest = expand_argument(info,argument,&arg)))
 		return;
 
@@ -4850,8 +4952,14 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 
 		if( arg.type != ENT_STRING ) return;
 
-		expand_string(info, arg.d.str, tmp);
+		int length;
+		char *comp_str = compile_string(arg.d.str,IFC_ANY,&length,FALSE);	// TODO: Check whether the doquotes needs to be TRUE
+		if( !comp_str ) return;
+
+		expand_string(info, comp_str, tmp);
 		variables_set_string(vars,name,tmp,FALSE);
+
+		free_string(comp_str);
 
 	// Format: ARGREMOVE <word index>
 	// Format: ARGREMOVE <word to remove>
@@ -4891,7 +4999,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 		if( arg.type != ENT_STRING ) return;
 		strcpy(n, arg.d.str);
 
-		rep = string_replace(var->_.s, o, n);
+		rep = string_replace_static(var->_.s, o, n);
 		if( rep == NULL ) return;	// An error, ret COULD be empty after the replace, so IS_NULLSTR is not the right test
 
 		variables_set_string(vars,name,rep,FALSE);
@@ -5065,6 +5173,39 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 	// Format: MOBILE <NAME>
 	// Format: MOBILE <MOBILE>
 	} else if(!str_cmp(buf,"mobile")) {
+		if( arg.type == ENT_BLLIST_MOB )
+		{
+			LLIST *blist = arg.d.blist;
+			if(!(rest = expand_argument(info,rest,&arg)))
+				return;
+
+			if( arg.type == ENT_NUMBER )
+			{
+				vnum = arg.d.num;
+				str = NULL;
+			}
+			else if( arg.type == ENT_STRING )
+			{
+				if(is_number(arg.d.str)) {
+				{
+					vnum = atoi(arg.d.str);
+					str = NULL;
+				}
+				else
+				{
+					vnum = 0;
+					str = arg.d.str;
+				}
+			}
+			else
+				return;
+
+
+			vch = script_get_char_blist(blist, NULL, FALSE, vnum, str);
+			variables_set_mobile(vars,name,vch);
+			return;
+		}
+
 		switch(arg.type) {
 		case ENT_NUMBER:
 			here = get_room_index(arg.d.num);
@@ -5110,6 +5251,21 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 	// Format: PLAYER <NAME>
 	// Format: PLAYER <PLAYER>
 	} else if(!str_cmp(buf,"player")) {
+		if( arg.type == ENT_BLLIST_MOB )
+		{
+			LLIST *blist = arg.d.blist;
+			if(!(rest = expand_argument(info,rest,&arg)))
+				return;
+
+			if( arg.type != ENT_STRING )
+				return;
+
+			vch = script_get_char_blist(blist, NULL, TRUE, 0, arg.d.str);
+			variables_set_mobile(vars,name,vch);
+			return;
+		}
+
+
 		switch(arg.type) {
 		case ENT_STRING:
 			vch = get_player(arg.d.str);
@@ -5136,6 +5292,40 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 	// Format: OBJECT <ROOM VNUM or ROOM or MOBILE or OBJECT or OBJLIST> <VNUM or NAME>
 	// Format: OBJECT <NAME>
 	} else if(!str_cmp(buf,"object")) {
+		if( arg.type == ENT_BLLIST_OBJ)
+		{
+			LLIST *blist = arg.d.blist;
+			if(!(rest = expand_argument(info,rest,&arg)))
+				return;
+
+			if( arg.type == ENT_NUMBER )
+			{
+				vnum = arg.d.num;
+				str = NULL;
+			}
+			else if( arg.type == ENT_STRING )
+			{
+				if(is_number(arg.d.str)) {
+				{
+					vnum = atoi(arg.d.str);
+					str = NULL;
+				}
+				else
+				{
+					vnum = 0;
+					str = arg.d.str;
+				}
+			}
+			else
+				return;
+
+
+			obj = script_get_obj_blist(blist, NULL, vnum, str);
+			variables_set_object(vars,name,obj);
+			return;
+		}
+
+
 		switch(arg.type) {
 		case ENT_NUMBER:
 			here = get_room_index(arg.d.num);
