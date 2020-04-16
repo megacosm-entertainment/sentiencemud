@@ -628,6 +628,9 @@ SCRIPT_CMD(scriptcmd_attach)
 			// $ENTITY cannot already be on something
 			if( entity_obj->on != NULL ) return;
 
+			// $ENTITY is not furniture
+			if( entity_obj->item_type != ITEM_FURNITURE ) return;
+
 			if( target_mob != NULL )
 			{
 				target_mob->on = entity_obj;
