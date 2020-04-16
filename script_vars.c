@@ -1774,6 +1774,7 @@ bool variable_setsave(pVARIABLE vars,char *name,bool state)
 	return FALSE;
 }
 
+
 void variable_clearfield(int type, void *ptr)
 {
 	register pVARIABLE cur = variable_head;
@@ -1782,159 +1783,245 @@ void variable_clearfield(int type, void *ptr)
 	if(!ptr) return;
 
 	while(cur) {
-		// Special case for MOBILES, clear out any skill reference.
-		if(cur->type == VAR_SKILLINFO && type == VAR_MOBILE && cur->_.sk.owner == ptr) {
-			CHAR_DATA *owner = cur->_.sk.owner;
-			TOKEN_DATA *token = cur->_.sk.token;
+		switch(cur->type)
+		{
+		case VAR_SKILLINFO:
 
-			cur->_.skid.sn = cur->_.sk.sn;
-			if(owner) {
-				cur->_.skid.mid[0] = owner->id[0];
-				cur->_.skid.mid[1] = owner->id[1];
+			// Special case for MOBILES, clear out any skill reference.
+			if(type == VAR_MOBILE && cur->_.sk.owner == ptr) {
+				CHAR_DATA *owner = cur->_.sk.owner;
+				TOKEN_DATA *token = cur->_.sk.token;
+
+				cur->_.skid.sn = cur->_.sk.sn;
+				if(owner) {
+					cur->_.skid.mid[0] = owner->id[0];
+					cur->_.skid.mid[1] = owner->id[1];
+				}
+				else
+				{
+					cur->_.skid.mid[0] = 0;
+					cur->_.skid.mid[1] = 0;
+				}
+				if(token) {
+					cur->_.skid.tid[0] = token->id[0];
+					cur->_.skid.tid[1] = token->id[1];
+				}
+				else
+				{
+					cur->_.skid.tid[0] = 0;
+					cur->_.skid.tid[1] = 0;
+				}
+				cur->type = VAR_SKILLINFO_ID;
+
+			} else if(type == VAR_TOKEN && cur->_.sk.token == ptr) {
+				CHAR_DATA *owner = cur->_.sk.owner;
+				TOKEN_DATA *token = cur->_.sk.token;
+
+				cur->_.skid.sn = cur->_.sk.sn;
+				if(owner) {
+					cur->_.skid.mid[0] = owner->id[0];
+					cur->_.skid.mid[1] = owner->id[1];
+				}
+				else
+				{
+					cur->_.skid.mid[0] = 0;
+					cur->_.skid.mid[1] = 0;
+				}
+				if(token) {
+					cur->_.skid.tid[0] = token->id[0];
+					cur->_.skid.tid[1] = token->id[1];
+				}
+				else
+				{
+					cur->_.skid.tid[0] = 0;
+					cur->_.skid.tid[1] = 0;
+				}
+				cur->type = VAR_SKILLINFO_ID;
 			}
-			else
-			{
-				cur->_.skid.mid[0] = 0;
-				cur->_.skid.mid[1] = 0;
-			}
-			if(token) {
-				cur->_.skid.tid[0] = token->id[0];
-				cur->_.skid.tid[1] = token->id[1];
-			}
-			else
-			{
-				cur->_.skid.tid[0] = 0;
-				cur->_.skid.tid[1] = 0;
-			}
-			cur->type = VAR_SKILLINFO_ID;
+			break;
 
-		} else if(cur->type == VAR_SKILLINFO && type == VAR_TOKEN && cur->_.sk.token == ptr) {
-			CHAR_DATA *owner = cur->_.sk.owner;
-			TOKEN_DATA *token = cur->_.sk.token;
-
-			cur->_.skid.sn = cur->_.sk.sn;
-			if(owner) {
-				cur->_.skid.mid[0] = owner->id[0];
-				cur->_.skid.mid[1] = owner->id[1];
-			}
-			else
-			{
-				cur->_.skid.mid[0] = 0;
-				cur->_.skid.mid[1] = 0;
-			}
-			if(token) {
-				cur->_.skid.tid[0] = token->id[0];
-				cur->_.skid.tid[1] = token->id[1];
-			}
-			else
-			{
-				cur->_.skid.tid[0] = 0;
-				cur->_.skid.tid[1] = 0;
-			}
-			cur->type = VAR_SKILLINFO_ID;
-		} else if(cur->type == VAR_EXIT && type == VAR_ROOM && cur->_.door.r == ptr) {
-			ROOM_INDEX_DATA *room = cur->_.door.r;
-			if(room->wilds) {
-				cur->_.wdoor.door = cur->_.door.door;
-				cur->_.wdoor.wuid = room->wilds->uid;
-				cur->_.wdoor.x = room->x;
-				cur->_.wdoor.y = room->y;
-				cur->type = VAR_WILDS_DOOR;
-			} else if(room->source) {
-				cur->_.cdoor.door = cur->_.door.door;
-				cur->_.cdoor.r = room->source;
-				cur->_.cdoor.a = room->id[0];
-				cur->_.cdoor.b = room->id[1];
-				cur->type = VAR_CLONE_DOOR;
-			}
-
-		} else if(cur->type == VAR_ROOM && type == VAR_ROOM && cur->_.r == ptr) {
-			ROOM_INDEX_DATA *room = cur->_.r;
-			if(room->wilds) {
-				cur->_.wroom.wuid = room->wilds->uid;
-				cur->_.wroom.x = room->x;
-				cur->_.wroom.y = room->y;
-				cur->type = VAR_WILDS_ROOM;
-			} else if(room->source) {
-				cur->_.cr.r = room->source;
-				cur->_.cr.a = room->id[0];
-				cur->_.cr.b = room->id[1];
-				cur->type = VAR_CLONE_ROOM;
-			}
-
-		} else if(cur->type == VAR_OBJECT && type == VAR_OBJECT && cur->_.o == ptr) {
-			OBJ_DATA *obj = cur->_.o;
-
-			cur->_.oid.a = obj->id[0];
-			cur->_.oid.b = obj->id[1];
-			cur->type = VAR_OBJECT_ID;
-
-		} else if(cur->type == VAR_MOBILE && type == VAR_MOBILE && cur->_.m == ptr) {
-			CHAR_DATA *mob = cur->_.m;
-
-			cur->_.mid.a = mob->id[0];
-			cur->_.mid.b = mob->id[1];
-			cur->type = VAR_MOBILE_ID;
-
-		} else if(cur->type == VAR_TOKEN && type == VAR_TOKEN && cur->_.t == ptr) {
-			TOKEN_DATA *token = cur->_.t;
-
-			cur->_.tid.a = token->id[0];
-			cur->_.tid.b = token->id[1];
-			cur->type = VAR_TOKEN_ID;
-
-		} else if(cur->type == VAR_BLLIST_ROOM && type == VAR_ROOM && list_isvalid(cur->_.list)) {
-			ITERATOR it;
-			LLIST_ROOM_DATA *lroom;
-
-			iterator_start(&it, cur->_.list);
-
-			while( (lroom = (LLIST_ROOM_DATA *)iterator_nextdata(&it)) ) {
-				if( lroom->room && lroom->room == ptr ) {
-					iterator_remcurrent(&it);
-					break;
+		case VAR_EXIT:
+			if(type == VAR_ROOM && cur->_.door.r == ptr) {
+				ROOM_INDEX_DATA *room = cur->_.door.r;
+				if(room->wilds) {
+					cur->_.wdoor.door = cur->_.door.door;
+					cur->_.wdoor.wuid = room->wilds->uid;
+					cur->_.wdoor.x = room->x;
+					cur->_.wdoor.y = room->y;
+					cur->type = VAR_WILDS_DOOR;
+				} else if(room->source) {
+					cur->_.cdoor.door = cur->_.door.door;
+					cur->_.cdoor.r = room->source;
+					cur->_.cdoor.a = room->id[0];
+					cur->_.cdoor.b = room->id[1];
+					cur->type = VAR_CLONE_DOOR;
 				}
 			}
+			break;
 
-			iterator_stop(&it);
-
-		} else if(((cur->type == VAR_BLLIST_MOB && type == VAR_MOBILE) || (cur->type == VAR_BLLIST_OBJ && type == VAR_OBJECT) || (cur->type == VAR_BLLIST_TOK && type == VAR_TOKEN)) && list_isvalid(cur->_.list)) {
-			ITERATOR it;
-			LLIST_UID_DATA *luid;
-
-			iterator_start(&it, cur->_.list);
-
-			while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) ) {
-				if( luid->ptr && luid->ptr == ptr ) {
-					iterator_remcurrent(&it);
-					break;
+		case VAR_ROOM:
+			if(type == VAR_ROOM && cur->_.r == ptr) {
+				ROOM_INDEX_DATA *room = cur->_.r;
+				if(room->wilds) {
+					cur->_.wroom.wuid = room->wilds->uid;
+					cur->_.wroom.x = room->x;
+					cur->_.wroom.y = room->y;
+					cur->type = VAR_WILDS_ROOM;
+				} else if(room->source) {
+					cur->_.cr.r = room->source;
+					cur->_.cr.a = room->id[0];
+					cur->_.cr.b = room->id[1];
+					cur->type = VAR_CLONE_ROOM;
 				}
 			}
-			iterator_stop(&it);
+			break;
 
-		} else if(cur->type == VAR_PLLIST_STR && type == VAR_STRING && ptr && list_isvalid(cur->_.list)) {
-			list_remlink(cur->_.list, ptr);
+		case VAR_OBJECT:
+			if(type == VAR_OBJECT && cur->_.o == ptr) {
+				OBJ_DATA *obj = cur->_.o;
 
-		} else if(cur->type == VAR_PLLIST_CONN && type == VAR_CONNECTION && ptr && list_isvalid(cur->_.list)) {
-			list_remlink(cur->_.list, ptr);
+				cur->_.oid.a = obj->id[0];
+				cur->_.oid.b = obj->id[1];
+				cur->type = VAR_OBJECT_ID;
+			}
+			break;
 
-		} else if(cur->type == VAR_PLLIST_ROOM && type == VAR_ROOM && ptr && list_isvalid(cur->_.list)) {
-			list_remlink(cur->_.list, ptr);
+		case VAR_MOBILE:
+			if(type == VAR_MOBILE && cur->_.m == ptr) {
+				CHAR_DATA *mob = cur->_.m;
 
-		} else if(cur->type == VAR_PLLIST_MOB && type == VAR_MOBILE && ptr && list_isvalid(cur->_.list)) {
-			list_remlink(cur->_.list, ptr);
+				cur->_.mid.a = mob->id[0];
+				cur->_.mid.b = mob->id[1];
+				cur->type = VAR_MOBILE_ID;
+			}
+			break;
 
-		} else if(cur->type == VAR_PLLIST_OBJ && type == VAR_OBJECT && ptr && list_isvalid(cur->_.list)) {
-			list_remlink(cur->_.list, ptr);
+		case VAR_TOKEN:
+			if(type == VAR_TOKEN && cur->_.t == ptr) {
+				TOKEN_DATA *token = cur->_.t;
 
-		} else if(cur->type == VAR_PLLIST_TOK && type == VAR_TOKEN && ptr && list_isvalid(cur->_.list)) {
-			list_remlink(cur->_.list, ptr);
+				cur->_.tid.a = token->id[0];
+				cur->_.tid.b = token->id[1];
+				cur->type = VAR_TOKEN_ID;
+			}
+			break;
 
-		} else if(cur->type == VAR_PLLIST_CHURCH && type == VAR_CHURCH && ptr && list_isvalid(cur->_.list)) {
-			list_remlink(cur->_.list, ptr);
+		case VAR_BLLIST_ROOM:
+			if(type == VAR_ROOM && list_isvalid(cur->_.list)) {
+				ITERATOR it;
+				LLIST_ROOM_DATA *lroom;
 
-		} else if(cur->type == type && cur->_.raw == ptr)
-			cur->_.raw = NULL;
+				iterator_start(&it, cur->_.list);
+
+				while( (lroom = (LLIST_ROOM_DATA *)iterator_nextdata(&it)) ) {
+					if( lroom->room && lroom->room == ptr ) {
+						iterator_remcurrent(&it);
+						break;
+					}
+				}
+
+				iterator_stop(&it);
+			}
+			break;
+
+		case VAR_BLLIST_MOB:
+			if(type == VAR_MOBILE && list_isvalid(cur->_.list)) {
+				ITERATOR it;
+				LLIST_UID_DATA *luid;
+
+				iterator_start(&it, cur->_.list);
+
+				while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) ) {
+					if( luid->ptr && luid->ptr == ptr ) {
+						iterator_remcurrent(&it);
+						break;
+					}
+				}
+				iterator_stop(&it);
+			}
+			break;
+
+		case VAR_BLLIST_OBJ:
+			if(type == VAR_OBJECT && list_isvalid(cur->_.list)) {
+				ITERATOR it;
+				LLIST_UID_DATA *luid;
+
+				iterator_start(&it, cur->_.list);
+
+				while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) ) {
+					if( luid->ptr && luid->ptr == ptr ) {
+						iterator_remcurrent(&it);
+						break;
+					}
+				}
+				iterator_stop(&it);
+			}
+			break;
+
+		case VAR_BLLIST_TOK:
+			if(type == VAR_TOKEN && list_isvalid(cur->_.list)) {
+				ITERATOR it;
+				LLIST_UID_DATA *luid;
+
+				iterator_start(&it, cur->_.list);
+
+				while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) ) {
+					if( luid->ptr && luid->ptr == ptr ) {
+						iterator_remcurrent(&it);
+						break;
+					}
+				}
+				iterator_stop(&it);
+			}
+			break;
+
+		case VAR_PLLIST_STR:
+			if( type == VAR_STRING && ptr && list_isvalid(cur->_.list)) {
+				list_remlink(cur->_.list, ptr);
+			}
+			break;
+
+		case VAR_PLLIST_CONN:
+			if( type == VAR_CONNECTION && ptr && list_isvalid(cur->_.list)) {
+				list_remlink(cur->_.list, ptr);
+			}
+			break;
+
+		case VAR_PLLIST_ROOM:
+			if( type == VAR_ROOM && ptr && list_isvalid(cur->_.list)) {
+				list_remlink(cur->_.list, ptr);
+			}
+			break;
+
+		case VAR_PLLIST_MOB:
+			if( type == VAR_MOBILE && ptr && list_isvalid(cur->_.list)) {
+				list_remlink(cur->_.list, ptr);
+			}
+			break;
+
+		case VAR_PLLIST_OBJ:
+			if( type == VAR_OBJECT && ptr && list_isvalid(cur->_.list)) {
+				list_remlink(cur->_.list, ptr);
+			}
+			break;
+
+		case VAR_PLLIST_TOK:
+			if( type == VAR_TOKEN && ptr && list_isvalid(cur->_.list)) {
+				list_remlink(cur->_.list, ptr);
+			}
+			break;
+
+		case VAR_PLLIST_CHURCH:
+			if( type == VAR_CHURCH && ptr && list_isvalid(cur->_.list)) {
+				list_remlink(cur->_.list, ptr);
+			}
+			break;
+
+		default:
+			if(cur->_.raw == ptr)
+				cur->_.raw = NULL;
+			break;
+		}
 
 		cur = cur->global_next;
 	}
