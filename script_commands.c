@@ -560,8 +560,8 @@ SCRIPT_CMD(scriptcmd_attach)
 				if(!IS_NPC(entity_mob) || !target_mob || target_mob->pet != NULL)
 					return;
 
-				// $ENTITY is already someone's pet
-				if( entity_mob->master != NULL && entity_mob->master->pet == entity_mob ) return;
+				// $ENTITY is following someone else
+				if( entity_mob->master != NULL && entity_mob->master != target_mob ) return;
 
 				// Don't allow since their groups is already full
 				if( target_mob->num_grouped >= 9 )
