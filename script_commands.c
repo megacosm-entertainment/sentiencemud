@@ -1377,9 +1377,9 @@ SCRIPT_CMD(scriptcmd_grantskill)
 					return;
 				}
 
-				if (!str_cmp(buffer_string(buffer), "none"))
+				if (!str_cmp(buf_string(buffer), "none"))
 					flags = 0;
-				else if ((flags = flag_value(skill_flags, buffer_string(buffer))) == NO_FLAG)
+				else if ((flags = flag_value(skill_flags, buf_string(buffer))) == NO_FLAG)
 					flags = SKILL_AUTOMATIC;
 
 				free_buf(buffer);
@@ -1491,7 +1491,7 @@ SCRIPT_CMD(scriptcmd_inputstring)
 	expand_string(info,rest,buffer);
 
 
-	pVARIABLE var = variable_get(*(info->var),buffer_string(buffer));
+	pVARIABLE var = variable_get(*(info->var),buf_string(buffer));
 	free_buf(buffer);
 
 	mob->desc->input = TRUE;

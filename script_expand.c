@@ -8,6 +8,7 @@
 
 #include "merc.h"
 #include "scripts.h"
+#include "recycle.h"
 #include "wilds.h"
 #include "tables.h"
 
@@ -170,7 +171,7 @@ char *expand_variable_recursive(SCRIPT_VARINFO *info, char *str,BUFFER *buffer)
 	}
 */
 
-	var = variable_get(infovar,buffer_string(name_buffer));
+	var = variable_get(infovar,buf_string(name_buffer));
 	if(var) {
 		if((var->type == VAR_STRING || var->type == VAR_STRING_S) && var->_.s && *var->_.s) {
 			add_buf(store,var->_.s);
@@ -255,7 +256,7 @@ char *expand_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,pVARIABLE *
 	//	wiznet(msg,NULL,NULL,WIZ_SCRIPTS,0,0);
 	//}
 
-	v = variable_get(vars,buffer_string(buffer));
+	v = variable_get(vars,buf_string(buffer));
 	if(deref) {
 		while(v && v->type == VAR_VARIABLE)
 			v = v->_.variable;
@@ -1020,8 +1021,9 @@ char *expand_entity_game(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	switch(*str) {
 	case ENTITY_GAME_NAME:
 		arg->type = ENT_STRING;
-		strcpy(arg->buf,"Sentience");
-		arg->d.str = arg->buf;
+		clear_buf(arg->buffer);
+		add_buf(arg->buffer, "Sentience");
+		arg->d.str = buf_string(arg->buffer);
 		break;
 
 	case ENTITY_GAME_PORT:
@@ -1088,8 +1090,9 @@ char *expand_entity_wilds(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_WILDS_NAME:
 		arg->type = ENT_STRING;
 		if(arg->d.wilds) {
-			strcpy(arg->buf, arg->d.wilds->name);
-			arg->d.str = arg->buf;
+			clear_buf(arg->buffer);
+			add_buf(arg->buffer, arg->d.wilds->name);
+			arg->d.str = buf_string(arg->buffer);
 		} else
 			arg->d.str = &str_empty[0];
 		break;
@@ -1152,8 +1155,9 @@ char *expand_entity_church(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_CHURCH_NAME:
 		arg->type = ENT_STRING;
 		if( arg->d.church && arg->d.church->name && arg->d.church->name[0] ) {
-			strcpy(arg->buf, arg->d.church->name);
-			arg->d.str = arg->buf;
+			clear_buf(arg->buffer);
+			add_buf(arg->buffer, arg->d.church->name);
+			arg->d.str = buf_string(arg->buffer);
 		} else
 			arg->d.str = &str_empty[0];
 		break;
@@ -1161,8 +1165,9 @@ char *expand_entity_church(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_CHURCH_SIZE:
 		arg->type = ENT_STRING;
 		if( arg->d.church ) {
-			strcpy(arg->buf, get_chsize_from_number(arg->d.church->size));
-			arg->d.str = arg->buf;
+			clear_buf(arg->buffer);
+			add_buf(arg->buffer, get_chsize_from_number(arg->d.church->size));
+			arg->d.str = buf_string(arg->buffer);
 		} else
 			arg->d.str = &str_empty[0];
 
@@ -1171,8 +1176,9 @@ char *expand_entity_church(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_CHURCH_FLAG:
 		arg->type = ENT_STRING;
 		if( arg->d.church && arg->d.church->flag && arg->d.church->flag[0] ) {
-			strcpy(arg->buf, arg->d.church->flag);
-			arg->d.str = arg->buf;
+			clear_buf(arg->buffer);
+			add_buf(arg->buffer, arg->d.church->flag);
+			arg->d.str = buf_string(arg->buffer);
 		} else
 			arg->d.str = &str_empty[0];
 		break;
@@ -1185,8 +1191,9 @@ char *expand_entity_church(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_CHURCH_FOUNDER_NAME:
 		arg->type = ENT_STRING;
 		if( arg->d.church && arg->d.church->founder && arg->d.church->founder[0] ) {
-			strcpy(arg->buf, arg->d.church->founder);
-			arg->d.str = arg->buf;
+			clear_buf(arg->buffer);
+			add_buf(arg->buffer, arg->d.church->founder);
+			arg->d.str = buf_string(arg->buffer);
 		} else
 			arg->d.str = &str_empty[0];
 		break;
@@ -1194,24 +1201,27 @@ char *expand_entity_church(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_CHURCH_MOTD:
 		arg->type = ENT_STRING;
 		if( arg->d.church && arg->d.church->motd && arg->d.church->motd[0] && (IS_SET(arg->d.church->settings, CHURCH_PUBLIC_MOTD) || script_security >= MAX_SCRIPT_SECURITY)) {
-			strcpy(arg->buf, arg->d.church->motd);
-			arg->d.str = arg->buf;
+			clear_buf(arg->buffer);
+			add_buf(arg->buffer, arg->d.church->motd);
+			arg->d.str = buf_string(arg->buffer);
 		} else
 			arg->d.str = &str_empty[0];
 		break;
 	case ENTITY_CHURCH_RULES:
 		arg->type = ENT_STRING;
 		if( arg->d.church && arg->d.church->rules && arg->d.church->rules[0] && (IS_SET(arg->d.church->settings, CHURCH_PUBLIC_RULES) || script_security >= MAX_SCRIPT_SECURITY) ) {
-			strcpy(arg->buf, arg->d.church->rules);
-			arg->d.str = arg->buf;
+			clear_buf(arg->buffer);
+			add_buf(arg->buffer, arg->d.church->rules);
+			arg->d.str = buf_string(arg->buffer);
 		} else
 			arg->d.str = &str_empty[0];
 		break;
 	case ENTITY_CHURCH_INFO:
 		arg->type = ENT_STRING;
 		if( arg->d.church && arg->d.church->info && arg->d.church->info[0] && (IS_SET(arg->d.church->settings, CHURCH_PUBLIC_INFO) || script_security >= MAX_SCRIPT_SECURITY) ) {
-			strcpy(arg->buf, arg->d.church->info);
-			arg->d.str = arg->buf;
+			clear_buf(arg->buffer);
+			add_buffer(arg->buffer, arg->d.church->info);
+			arg->d.str = buf_string(arg->buffer);
 		} else
 			arg->d.str = &str_empty[0];
 		break;
@@ -1309,8 +1319,9 @@ char *expand_entity_variable(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_VARIABLE_NAME:
 		arg->type = ENT_STRING;
 		if( arg->d.variable && arg->d.variable->name && arg->d.variable->name[0] ) {
-			strcpy(arg->buf, arg->d.variable->name);
-			arg->d.str = arg->buf;
+			clear_buf(arg->buffer);
+			add_buf(arg->buffer, arg->d.variable->name);
+			arg->d.str = buf_string(arg->buffer);
 		} else
 			arg->d.str = &str_empty[0];
 
@@ -1351,23 +1362,53 @@ char *expand_entity_string(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->d.num = arg->d.str ? strlen(arg->d.str) : 0;
 		break;
 	case ENTITY_STR_LOWER:
-		for(a = arg->buf, b = arg->d.str; *b; a++, b++)
-			*a = LOWER(*b);
-		*a = '\0';
-		arg->d.str = &arg->buf[0];
+		if( arg->d.str == buf_string(arg->buffer) )
+		{
+			// Already in the buffer
+			for( a = arg->d.str; *a; a++)
+				*a = LOWER(*a);
+		}
+		else
+		{
+			clear_buf(arg->buffer);
+			for(a = arg->d.str; *a; a++)
+				add_buf_char(arg->buffer, LOWER(*a));
+
+			arg->d.str = buf_string(arg->buffer);
+		}
 		break;
 	case ENTITY_STR_UPPER:
-		for(a = arg->buf, b = arg->d.str; *b; a++, b++)
-			*a = UPPER(*b);
-		*a = '\0';
-		arg->d.str = &arg->buf[0];
+		if( arg->d.str == buf_string(arg->buffer) )
+		{
+			// Already in the buffer
+			for( a = arg->d.str; *a; a++)
+				*a = UPPER(*a);
+		}
+		else
+		{
+			clear_buf(arg->buffer);
+			for(a = arg->d.str; *a; a++)
+				add_buf_char(arg->buffer, UPPER(*a));
+
+			arg->d.str = buf_string(arg->buffer);
+		}
 		break;
 	case ENTITY_STR_CAPITAL:
-		for(a = arg->buf, b = arg->d.str; *b; a++, b++)
-			*a = LOWER(*b);
-		arg->buf[0] = UPPER(arg->buf[0]);
-		*a = '\0';
-		arg->d.str = &arg->buf[0];
+		if( arg->d.str == buf_string(arg->buffer) )
+		{
+			// Already in the buffer
+			for( a = arg->d.str; *a; a++)
+				*a = LOWER(*a);
+		}
+		else
+		{
+			clear_buf(arg->buffer);
+			for(a = arg->d.str; *a; a++)
+				add_buf_char(arg->buffer, LOWER(*a));
+
+			arg->d.str = buf_string(arg->buffer);
+		}
+		arg->d.str[0] = UPPER(arg->d.str[0]);
 		break;
 	default: return NULL;
 	}
@@ -1387,8 +1428,9 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_MOB_SHORT:
 		arg->type = ENT_STRING;
 		p = arg->d.mob ? (char*)((IS_NPC(arg->d.mob) || arg->d.mob->morphed) ? arg->d.mob->short_descr : capitalize(arg->d.mob->name)) : (char*)"no one";
-		strcpy(arg->buf,p);
-		arg->d.str = arg->buf;
+		clear_buffer(arg->buffer);
+		add_buf(arg->buffer, p);
+		arg->d.str = buf_string(arg->buffer);
 		break;
 	case ENTITY_MOB_LONG:
 		arg->type = ENT_STRING;
@@ -1819,8 +1861,9 @@ char *expand_entity_mobile_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 	case ENTITY_MOB_SHORT:
 		arg->type = ENT_STRING;
-		strcpy(arg->buf,"no one");
-		arg->d.str = arg->buf;
+		clear_buffer(arg->buffer);
+		add_buf(arg->buffer, "no one");
+		arg->d.str = buf_string(arg->buffer);
 		break;
 	case ENTITY_MOB_LONG:
 		arg->type = ENT_STRING;
@@ -1856,8 +1899,9 @@ char *expand_entity_mobile_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 	case ENTITY_MOB_RACE:
 		arg->type = ENT_STRING;
-		strcpy(arg->buf,"unknown");
-		arg->d.str = arg->buf;
+		clear_buffer(arg->buffer);
+		add_buf(arg->buffer, "unknown");
+		arg->d.str = buf_string(arg->buffer);
 		break;
 	case ENTITY_MOB_ROOM:
 		arg->type = ENT_ROOM;
@@ -2823,8 +2867,9 @@ char *expand_entity_skill(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 	case ENTITY_SKILL_NAME:
 		arg->type = ENT_STRING;
-		strcpy(arg->buf,(arg->d.sn >= 0 && arg->d.sn < MAX_SKILL && skill_table[arg->d.sn].name) ? skill_table[arg->d.sn].name : "");
-		arg->d.str = arg->buf;
+		clear_buffer(arg->buffer);
+		add_buf(arg->buffer, (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL && skill_table[arg->d.sn].name) ? skill_table[arg->d.sn].name : "");
+		arg->d.str = buf_string(arg->buffer);
 		break;
 
 	case ENTITY_SKILL_BEATS:
@@ -2885,20 +2930,23 @@ char *expand_entity_skill(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 	case ENTITY_SKILL_NOUN:
 		arg->type = ENT_STRING;
-		strcpy(arg->buf,(arg->d.sn >= 0 && arg->d.sn < MAX_SKILL && skill_table[arg->d.sn].noun_damage) ? skill_table[arg->d.sn].noun_damage: "");
-		arg->d.str = arg->buf;
+		clear_buffer(arg->buffer);
+		add_buf(arg->buffer, (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL && skill_table[arg->d.sn].noun_damage) ? skill_table[arg->d.sn].noun_damage: "");
+		arg->d.str = buf_string(arg->buffer);
 		break;
 
 	case ENTITY_SKILL_WEAROFF:
 		arg->type = ENT_STRING;
-		strcpy(arg->buf,(arg->d.sn >= 0 && arg->d.sn < MAX_SKILL && skill_table[arg->d.sn].msg_off) ? skill_table[arg->d.sn].msg_off : "");
-		arg->d.str = arg->buf;
+		clear_buffer(arg->buffer);
+		add_buf(arg->buffer, (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL && skill_table[arg->d.sn].msg_off) ? skill_table[arg->d.sn].msg_off : "");
+		arg->d.str = buf_string(arg->buffer);
 		break;
 
 	case ENTITY_SKILL_DISPEL:
 		arg->type = ENT_STRING;
-		strcpy(arg->buf,(arg->d.sn >= 0 && arg->d.sn < MAX_SKILL && skill_table[arg->d.sn].msg_disp) ? skill_table[arg->d.sn].msg_disp : "");
-		arg->d.str = arg->buf;
+		clear_buffer(arg->buffer);
+		add_buf(arg->buffer, (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL && skill_table[arg->d.sn].msg_disp) ? skill_table[arg->d.sn].msg_disp : "");
+		arg->d.str = buf_string(arg->buffer);
 		break;
 
 	case ENTITY_SKILL_MANA:
@@ -3419,24 +3467,27 @@ char *expand_entity_plist_str(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
 			p = (char *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
 
-		strcpy(arg->buf, p ? p : "");
-		arg->d.str = arg->buf;
+		clear_buffer(arg->buffer);
+		add_buf(arg->buffer, p ? p : "");
+		arg->d.str = buf_string(arg->buffer);
 		arg->type = ENT_STRING;
 		break;
 	case ENTITY_LIST_FIRST:
 		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
 			p = (char *)list_nthdata(arg->d.blist, 0);
 
-		strcpy(arg->buf, p ? p : "");
-		arg->d.str = arg->buf;
+		clear_buffer(arg->buffer);
+		add_buf(arg->buffer, p ? p : "");
+		arg->d.str = buf_string(arg->buffer);
 		arg->type = ENT_STRING;
 		break;
 	case ENTITY_LIST_LAST:
 		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
 			p = (char *)list_nthdata(arg->d.blist, -1);
 
-		strcpy(arg->buf, p ? p : "");
-		arg->d.str = arg->buf;
+		clear_buffer(arg->buffer);
+		add_buf(arg->buffer, p ? p : "");
+		arg->d.str = buf_string(arg->buffer);
 		arg->type = ENT_STRING;
 		break;
 	default: return NULL;
@@ -4232,8 +4283,9 @@ char *expand_entity_song(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 	case ENTITY_SONG_NAME:
 		arg->type = ENT_STRING;
-		strcpy(arg->buf,(pSong ? pSong->name : ""));
-		arg->d.str = arg->buf;
+		clear_buffer(arg->buffer);
+		add_buf(arg->buffer, (pSong ? pSong->name : ""));
+		arg->d.str = buf_string(arg->buffer);
 		break;
 	case ENTITY_SONG_SPELL1:
 		arg->type = ENT_SKILL;
@@ -4481,7 +4533,7 @@ char *expand_entity_extradesc(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 */
 
 		arg->type = ENT_STRING;
-		arg->d.str = get_extra_descr(buffer_string(buffer), arg->d.ed);
+		arg->d.str = get_extra_descr(buf_string(buffer), arg->d.ed);
 		if (!arg->d.str) arg->d.str = str_dup("");
 		free_buf(buffer);
 		break;
@@ -4509,7 +4561,7 @@ char *expand_entity_bitvector(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 			}
 
 
-			bit = flag_lookup(buffer_string(buffer), arg->d.bv.table);
+			bit = flag_lookup(buf_string(buffer), arg->d.bv.table);
 
 			arg->d.boolean = IS_SET(arg->d.bv.value, bit) && TRUE;
 			free_buf(buffer);
@@ -4937,7 +4989,7 @@ void expand_string_simple_code(SCRIPT_VARINFO *info,unsigned char code, BUFFER *
 	}
 }
 
-char *expand_string_expression(SCRIPT_VARINFO *info,char *str,c BUFFER *buffer)
+char *expand_string_expression(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
 {
 	char buf[MIL];
 	int num, x;
@@ -5065,8 +5117,8 @@ bool expand_string(SCRIPT_VARINFO *info,char *str,BUFFER *buffer)
 			add_buf_char(buffer, *str++);
 
 		if(!str) {
-			buffer_clear(buffer);
-			expand_string_dump(buffer_string(buffer));
+			clear_buf(buffer);
+			expand_string_dump(buf_string(buffer));
 			DBG2EXITVALUE2(FALSE);
 			return FALSE;
 		}
@@ -5074,7 +5126,7 @@ bool expand_string(SCRIPT_VARINFO *info,char *str,BUFFER *buffer)
 
 //	wiznet("EXPAND_STRING:",NULL,NULL,WIZ_TESTING,0,0);
 //	wiznet(start,NULL,NULL,WIZ_TESTING,0,0);
-	expand_string_dump(buffer_string(buffer));
+	expand_string_dump(buf_string(buffer));
 	DBG2EXITVALUE2(TRUE);
 	return TRUE;
 }
@@ -5143,7 +5195,7 @@ char *expand_argument(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 			arg->d.num = atoi(buf);
 		} else if(expand_string(info,buf,arg->buffer)) {
 			arg->type = ENT_STRING;
-			arg->d.str = buffer_string(arg->buffer);
+			arg->d.str = buf_string(arg->buffer);
 		}
 	}
 

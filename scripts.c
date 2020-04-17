@@ -728,7 +728,7 @@ DECL_OPC_FUN(opc_command)
 	if(block->type == IFC_M && block->info.mob) {
 		BUFFER *buffer = new_buf();
 		expand_string(&block->info,block->cur_line->rest,buffer);
-		interpret(block->info.mob,buffer_string(buffer));
+		interpret(block->info.mob,buf_string(buffer));
 		free_buf(buffer);
 	}
 	// Ignore the others
@@ -3249,7 +3249,7 @@ void script_interpret(SCRIPT_VARINFO *info, char *command)
 		else {
 			BUFFER *buffer = new_buf();
 			expand_string(info,command,buffer);
-			interpret(info->mob,buffer_string(buffer));
+			interpret(info->mob,buf_string(buffer));
 			free_buf(buffer);
 		}
 		return;
@@ -4835,7 +4835,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 		expand_string(info,argument,buffer);
 		add_buffer(buffer,"\n");
 
-		variables_append_string(vars,name,buffer_string(buffer));
+		variables_append_string(vars,name,buf_string(buffer));
 		free_buf(buffer);
 		return;
 	}
@@ -4972,7 +4972,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 
 		BUFFER *buffer = new_buf();
 		expand_string(info, comp_str, buffer);
-		variables_set_string(vars,name,buffer_string(buffer),FALSE);
+		variables_set_string(vars,name,buf_string(buffer),FALSE);
 
 		free_buf(buffer);
 		free_string(comp_str);
@@ -5041,7 +5041,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 		BUFFER *buffer = new_buf();
 		expand_string(info,rest,buffer);
 
-		p = get_extra_descr(buffer_string(buffer), desc);
+		p = get_extra_descr(buf_string(buffer), desc);
 
 		variables_set_string(info->var,name,(p ? p : ""),FALSE);
 
