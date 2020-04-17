@@ -434,8 +434,8 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 	lines = 0;
 	leni = 0;
 
-#if 0
-	for (rdesc = xbuf2; *rdesc; )
+#if 1
+	for (rdesc = xbuf3; *rdesc; )
 	{
 		// Get the line length for this line
 		if((leni+1) < lenc && lines >= lens[leni+1][0])
@@ -486,7 +486,7 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 	xbuf[0]=0;
 	i = 0;
 
-	for(rdesc = xbuf2; *rdesc; rdesc++)
+	for(rdesc = xbuf3; *rdesc; rdesc++)
 	{
 		if( *rdesc == '\n' )
 		{
