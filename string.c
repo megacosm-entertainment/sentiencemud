@@ -417,7 +417,6 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 			{
 				*wdesc++ = ' ';
 			}
-
 		}
 		else
 			*wdesc++ = *rdesc;
@@ -488,8 +487,12 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 	{
 		if( *rdesc == '\n' )
 		{
-			xbuf[i++] = '\n';
-			xbuf[i++] = '\r';
+			xbuf[i++] = '{';
+			xbuf[i++] = 'Y';
+			xbuf[i++] = '$';
+			xbuf[i++] = '$';
+			xbuf[i++] = '{';
+			xbuf[i++] = 'x';
 		}
 		else
 		{
