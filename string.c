@@ -251,6 +251,13 @@ void string_add(CHAR_DATA *ch, char *argument)
             return;
         }
 
+        if (!str_cmp(arg1, ".fp"))
+        {
+            *ch->desc->pString = format_paragraph(*ch->desc->pString);
+            send_to_char("String formatted.\n\r", ch);
+            return;
+        }
+
 	if (!str_cmp(arg1, ".ld"))
 	{
 		*ch->desc->pString = string_linedel(*ch->desc->pString, atoi(arg2));
@@ -326,6 +333,142 @@ void string_add(CHAR_DATA *ch, char *argument)
     free_string(*ch->desc->pString);
     *ch->desc->pString = str_dup(buf);
     return;
+}
+
+char *format_paragraghs_len(char *oldstring,int lens[][2], int lenc,bool mem)
+{
+	char xbuf[MAX_STRING_LENGTH];
+	char xbuf2[MAX_STRING_LENGTH];
+	char *rdesc;
+	int i = 0, lines = 0, leni, len;
+	bool cap = TRUE;
+	bool newline = FALSE;
+
+	xbuf[0] = xbuf2[0] = 0;
+
+	// This collapses the string into one line
+	for (rdesc = oldstring; *rdesc; rdesc++) {
+		if (*rdesc=='\n') {
+			if (xbuf2[i-1] != ' ') xbuf2[i++]=' ';
+			if( newline )
+			{
+				// Previous newline
+				if (xbuf2[i-1] == ' ') xbuf2[i - 1] = '\n';
+				else if((xbuf2[i-1] != '\n') xbuf2[i++] = '\n';
+
+				xbuf2[i++] = '\n';
+			}
+			newline = TRUE;
+
+		} else if (*rdesc=='\r') ;
+		else if (*rdesc==' ') {
+			if (xbuf2[i-1] != ' ') xbuf2[i++]=' ';
+		} else if (*rdesc==')') {
+			if (xbuf2[i-1]==' ' && xbuf2[i-2]==' ' &&
+				(xbuf2[i-3]=='.' || xbuf2[i-3]=='?' || xbuf2[i-3]=='!')) {
+				xbuf2[i-2]=*rdesc;
+				xbuf2[i-1]=' ';
+				xbuf2[i]=' ';
+				i++;
+			} else
+				xbuf2[i++]=*rdesc;
+		} else if ((*rdesc=='.' || *rdesc=='?' || *rdesc=='!') && *(rdesc+1) == ' ') {
+			if (xbuf2[i-1]==' ' && xbuf2[i-2]==' ' &&
+				(xbuf2[i-3]=='.' || xbuf2[i-3]=='?' || xbuf2[i-3]=='!')) {
+				xbuf2[i-2]=*rdesc;
+				if (*(rdesc+1) != '\"') {
+					xbuf2[i-1]=' ';
+					xbuf2[i++]=' ';
+				} else {
+					xbuf2[i-1]='\"';
+					xbuf2[i]=' ';
+					xbuf2[i+1]=' ';
+					i+=2;
+					rdesc++;
+				}
+			} else {
+				xbuf2[i]=*rdesc;
+				if (*(rdesc+1) != '\"') {
+					xbuf2[i+1]=' ';
+					xbuf2[i+2]=' ';
+					i += 3;
+				} else {
+					xbuf2[i+1]='\"';
+					xbuf2[i+2]=' ';
+					xbuf2[i+3]=' ';
+					i += 4;
+					rdesc++;
+				}
+			}
+			cap = TRUE;
+		} else {
+			xbuf2[i]=*rdesc;
+			if (cap) {
+				cap = FALSE;
+				xbuf2[i] = UPPER(xbuf2[i]);
+			}
+			i++;
+		}
+
+		if( *rdesc != '\n' && *rdesc != '\r' )
+			newline = FALSE;
+	}
+	xbuf2[i]=0;
+
+	rdesc=xbuf2;
+
+	xbuf[0]=0;
+	lines = 0;
+	leni = 0;
+
+	for (; ;) {
+		// Get the line length for this line
+		if((leni+1) < lenc && lines >= lens[leni+1][0])
+			++leni;
+		len = lens[leni][1];
+
+		// Check if we are the end of the line
+		for (i=0; i<len && *(rdesc+i) && *(rdesc+i) != '\n'; i++);
+		// If the current line will fit completely, break
+		if (i<len) break;
+
+		// Find a line break
+		for (i=len-(xbuf[0]?0:3) ; --i > 0 && *(rdesc+i)!=' ' && *(rdesc+i)!='\n';);
+
+		// Found a line break
+		if (i > 0) {
+			strncat(xbuf,rdesc,i);
+			strcat(xbuf,"\n\r");
+			rdesc += i+1;
+			while (*rdesc == ' ') rdesc++;
+		// The entire line has no breaks
+		} else {
+			bug ("No spaces", 0);
+			strncat(xbuf,rdesc,len-2);
+			strcat(xbuf,"-\n\r");
+			rdesc += len - 2;
+		}
+	}
+
+	// Strip off excess whitespace
+	while (*(rdesc+i) && (*(rdesc+i)==' '||
+		*(rdesc+i)=='\n'|| *(rdesc+i)=='\r')) i--;
+
+	*(rdesc+i+1)=0;
+	strcat(xbuf,rdesc);
+	i = strlen(xbuf);
+	if (xbuf[i-2] != '\n')
+		strcat(xbuf,"\n\r");
+
+	if(mem) free_string(oldstring);
+	return(str_dup(xbuf));
+
+}
+
+char *format_paragragh(char *oldstring)
+{
+	int lens[1][2] = { { 0,77 } };
+	return format_paragragh_len(oldstring,lens,1,TRUE);
 }
 
 
