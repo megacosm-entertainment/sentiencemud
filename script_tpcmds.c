@@ -433,7 +433,7 @@ char *tp_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 	AREA_DATA *area;
 	ROOM_INDEX_DATA *loc;
 	WILDS_DATA *pWilds;
-
+	SCRIPT_PARAM *arg = new_script_param();
 	int x, y;
 
 	*room = NULL;
@@ -547,6 +547,8 @@ char *tp_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 			*room = token_room(arg->d.token); break;
 		}
 	}
+
+	free_script_param(arg);
 	return rest;
 }
 
@@ -560,7 +562,7 @@ char *tp_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 	AREA_DATA *area;
 	ROOM_INDEX_DATA *loc;
 	WILDS_DATA *pWilds;
-
+	SCRIPT_PARAM *arg = new_script_param();
 	int x, y;
 
 	*room = NULL;
@@ -693,6 +695,8 @@ char *tp_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 			*room = token_room(arg->d.token); break;
 		}
 	}
+
+	free_script_param(arg);
 	return rest;
 }
 
@@ -718,7 +722,9 @@ void token_interpret(SCRIPT_VARINFO *info, char *argument)
 		return;
 	}
 
-	(*token_cmd_table[cmd].func) (info, argument);
+	SCRIPT_PARAM *arg = new_script_param();
+	(*token_cmd_table[cmd].func) (info, argument, arg);
+	free_script_param(arg);
 	tail_chain();
 }
 

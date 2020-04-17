@@ -494,7 +494,7 @@ char *op_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 	AREA_DATA *area;
 	ROOM_INDEX_DATA *loc;
 	WILDS_DATA *pWilds;
-
+	SCRIPT_PARAM *arg = new_script_param();
 	EXIT_DATA *ex;
 	int x, y;
 
@@ -632,6 +632,7 @@ char *op_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 			*room = token_room(arg->d.token); break;
 		}
 	}
+	free_script_param(arg);
 	return rest;
 }
 
