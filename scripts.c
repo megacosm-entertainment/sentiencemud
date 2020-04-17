@@ -347,7 +347,7 @@ char *ifcheck_get_value(SCRIPT_VARINFO *info,IFCHECK_DATA *ifc,char *text,int *r
 	if(!ifc->func) return NULL;
 
 	// Clear variables
-	for(i = 0; i < IFC_MAX_PARAMS; i++)
+	for(i = 0; i < IFC_MAXPARAMS; i++)
 		argv[i] = new_script_param();
 
 	text = skip_whitespace(text);
@@ -361,7 +361,7 @@ char *ifcheck_get_value(SCRIPT_VARINFO *info,IFCHECK_DATA *ifc,char *text,int *r
 //			sprintf(buf,"*argument = %02.2X (%c)", *argument, isprint(*argument) ? *argument : ' ');
 //			wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
 //		}
-		buffer_clear(argv[i]->buffer);
+		clear_buf(argv[i]->buffer);
 		argument = expand_argument(info,argument,argv[i]);
 //		if(wiznet_script) {
 //			sprintf(buf,"argv[%d].type = %d (%s)", i, argv[i].type, ifcheck_param_type_names[argv[i].type]);
@@ -380,7 +380,7 @@ char *ifcheck_get_value(SCRIPT_VARINFO *info,IFCHECK_DATA *ifc,char *text,int *r
 //		wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
 //	}
 	DBG2EXITVALUE1(PTR,argument);
-	for(i = 0; i < IFC_MAX_PARAMS; i++)
+	for(i = 0; i < IFC_MAXPARAMS; i++)
 		free_script_param(argv[i]);
 
 	return argument;
@@ -2172,7 +2172,9 @@ DECL_OPC_FUN(opc_obj)
 		bug(buf, 0);
 	} else if(IS_VALID(block->info.obj)) {
 		if( !obj_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
-			(*obj_cmd_table[block->cur_line->param].func) (&block->info,block->cur_line->rest);
+			SCRIPT_PARAM *arg = new_script_param();
+			(*obj_cmd_table[block->cur_line->param].func) (&block->info,block->cur_line->rest, arg);
+			free_script_param(arg);
 			tail_chain();
 		}
 	}
@@ -2199,7 +2201,9 @@ DECL_OPC_FUN(opc_room)
 		bug(buf, 0);
 	} else if(block->info.room) {
 		if( !room_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
-			(*room_cmd_table[block->cur_line->param].func) (&block->info,block->cur_line->rest);
+			SCRIPT_PARAM *arg = new_script_param();
+			(*room_cmd_table[block->cur_line->param].func) (&block->info,block->cur_line->rest, arg);
+			free_script_param(arg);
 			tail_chain();
 		}
 	}
@@ -2226,7 +2230,9 @@ DECL_OPC_FUN(opc_token)
 		bug(buf, 0);
 	} else if(IS_VALID(block->info.token)) {
 		if( !token_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
-			(*token_cmd_table[block->cur_line->param].func) (&block->info,block->cur_line->rest);
+			SCRIPT_PARAM *arg = new_script_param();
+			(*token_cmd_table[block->cur_line->param].func) (&block->info,block->cur_line->rest, arg);
+			free_script_param(arg);
 			tail_chain();
 		}
 	}
@@ -2254,7 +2260,9 @@ DECL_OPC_FUN(opc_tokenother)
 		bug(buf, 0);
 	} else {
 		if( !tokenother_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
-			(*tokenother_cmd_table[block->cur_line->param].func) (&block->info,block->cur_line->rest);
+			SCRIPT_PARAM *arg = new_script_param();
+			(*tokenother_cmd_table[block->cur_line->param].func) (&block->info,block->cur_line->rest, arg);
+			free_script_param(arg);
 			tail_chain();
 		}
 	}
@@ -4833,7 +4841,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 		// Special handling to allow "varset <name> appendline" to put a line at the end
 		BUFFER *buffer = new_buf();
 		expand_string(info,argument,buffer);
-		add_buffer(buffer,"\n");
+		add_buf(buffer,"\n");
 
 		variables_append_string(vars,name,buf_string(buffer));
 		free_buf(buffer);
