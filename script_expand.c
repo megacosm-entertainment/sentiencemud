@@ -174,10 +174,10 @@ char *expand_variable_recursive(SCRIPT_VARINFO *info, char *str,BUFFER *buffer)
 	var = variable_get(infovar,buf_string(name_buffer));
 	if(var) {
 		if((var->type == VAR_STRING || var->type == VAR_STRING_S) && var->_.s && *var->_.s) {
-			add_buf(store,var->_.s);
+			add_buf(buffer,var->_.s);
 		} else if(var->type == VAR_INTEGER) {
 			sprintf(buf, "%d", var->_.i);
-			add_buf(store, buf);
+			add_buf(buffer, buf);
 		}
 /*
 	} else if(var) {
