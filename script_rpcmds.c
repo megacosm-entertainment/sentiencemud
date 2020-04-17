@@ -1081,7 +1081,7 @@ SCRIPT_CMD(do_rpechoroom)
 	if (!room || !room->people) return;
 
 	// Expand the message
-	BUFFER *buffer = new_buf()
+	BUFFER *buffer = new_buf();
 	expand_string(info,rest,buffer);
 
 	if( buffer->string[0] != '\0' )
@@ -2444,7 +2444,7 @@ SCRIPT_CMD(do_rpvarcopy)
 
 SCRIPT_CMD(do_rpvarsave)
 {
-	char name[MIL],arg[MIL];
+	char name[MIL],arg1[MIL];
 	bool on;
 
 	if(!info || !info->room || !info->var) return;
@@ -2452,10 +2452,10 @@ SCRIPT_CMD(do_rpvarsave)
 	// Get name
 	argument = one_argument(argument,name);
 	if(!name[0]) return;
-	argument = one_argument(argument,arg);
+	argument = one_argument(argument,arg1);
 	if(!arg[0]) return;
 
-	on = !str_cmp(arg,"on") || !str_cmp(arg,"true") || !str_cmp(arg,"yes");
+	on = !str_cmp(arg1,"on") || !str_cmp(arg1,"true") || !str_cmp(arg1,"yes");
 
 	variable_setsave(*info->var,name,on);
 }
@@ -2563,7 +2563,7 @@ SCRIPT_CMD(do_rpsettimer)
 
 SCRIPT_CMD(do_rpinterrupt)
 {
-	char buf[MSL],*rest;
+	char *rest;
 	CHAR_DATA *victim = NULL;
 	ROOM_INDEX_DATA *here;
 
@@ -4565,7 +4565,7 @@ SCRIPT_CMD(do_rpalterexit)
 // SYNTAX: room prompt <player> <name>[ <string>]
 SCRIPT_CMD(do_rpprompt)
 {
-	char buf[MSL+2],name[MIL],*rest;
+	char name[MIL],*rest;
 	CHAR_DATA *mob = NULL;
 
 
