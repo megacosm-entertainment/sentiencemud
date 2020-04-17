@@ -349,16 +349,19 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 	// This collapses the string into one line
 	for (rdesc = oldstring; *rdesc; rdesc++) {
 		if (*rdesc=='\n') {
-			if (xbuf2[i-1] != ' ') xbuf2[i++]=' ';
 			if( newline )
 			{
 				// Previous newline
 				if (xbuf2[i-1] == ' ') xbuf2[i - 1] = '\n';
 				else if(xbuf2[i-1] != '\n') xbuf2[i++] = '\n';
 
+				xbuf2[i++] = '\n';
 			}
-			newline = TRUE;
-
+			else
+			{
+				if (xbuf2[i-1] != ' ') xbuf2[i++]=' ';
+				newline = TRUE;
+			}
 		} else if (*rdesc=='\r') ;
 		else if (*rdesc==' ') {
 			if (xbuf2[i-1] != ' ') xbuf2[i++]=' ';
