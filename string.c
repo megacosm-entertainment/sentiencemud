@@ -254,7 +254,7 @@ void string_add(CHAR_DATA *ch, char *argument)
         if (!str_cmp(arg1, ".fp"))
         {
             *ch->desc->pString = format_paragraph(*ch->desc->pString);
-            send_to_char("String formatted.\n\r", ch);
+            send_to_char("String (PARAGRAPH) formatted.\n\r", ch);
             return;
         }
 
