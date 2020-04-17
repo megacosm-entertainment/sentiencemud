@@ -421,6 +421,7 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 	lines = 0;
 	leni = 0;
 
+#if 0
 	for (rdesc = xbuf2; *rdesc; )
 	{
 		// Get the line length for this line
@@ -468,6 +469,10 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 	}
 
 	*rdesc=0;
+#else
+	strncpy(xbuf, xbuf2, MSL-1];
+	xbuf[MSL-1] = '\0';
+#endif
 
 	if(mem) free_string(oldstring);
 	return(str_dup(xbuf));
