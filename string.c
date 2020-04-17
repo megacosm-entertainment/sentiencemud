@@ -339,21 +339,23 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 {
 	char xbuf[MAX_STRING_LENGTH];
 	char xbuf2[MAX_STRING_LENGTH];
+	char xbuf3[MAX_STRING_LENGTH];
 	char *rdesc;
 	int i = 0, lines = 0, leni, len;
 	bool cap = TRUE;
 	bool newline = FALSE;
 
-	xbuf[0] = xbuf2[0] = 0;
+	xbuf[0] = xbuf2[0] = xbuf3[0] = 0;
 
 	// This collapses the string into one line
 	for (rdesc = oldstring; *rdesc; rdesc++) {
 		if (*rdesc=='\n') {
 			xbuf2[i++] = '\n';
 
-		} else if (*rdesc=='\r') ;
+		} else if (*rdesc=='\r')
+			;
 		else if (*rdesc==' ') {
-			if (xbuf2[i-1] != ' ') xbuf2[i++]=' ';
+			if (xbuf2[i-1] != ' ' && xbuf2[i-1] != '\n') xbuf2[i++]=' ';
 		} else if (*rdesc==')') {
 			if (xbuf2[i-1]==' ' && xbuf2[i-2]==' ' &&
 				(xbuf2[i-3]=='.' || xbuf2[i-3]=='?' || xbuf2[i-3]=='!')) {
@@ -404,9 +406,10 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 	xbuf2[i]=0;
 
 	// Collapse all single newlines to spaces
-	char *wdesc = xbuf2;
+	char *wdesc = xbuf3;
 	for(rdesc = xbuf2; *rdesc; rdesc++)
 	{
+		/*
 		if(*rdesc == '\n' )
 		{
 			if( rdesc[1] == '\n' )
@@ -419,13 +422,14 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 			}
 		}
 		else
+		*/
 			*wdesc++ = *rdesc;
 	}
 	while((wdesc > xbuf2) && (*wdesc == ' ' || *wdesc == '\n')) --wdesc;
 	*wdesc++ = '\n';
 	*wdesc = '\0';
 
-	rdesc=xbuf2;
+	rdesc=xbuf3;
 
 	xbuf[0]=0;
 	lines = 0;
