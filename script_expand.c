@@ -140,7 +140,7 @@ char *expand_variable_recursive(SCRIPT_VARINFO *info, char *str,BUFFER *buffer)
 {
 //	char esc[MSL];
 //	char msg[MSL*2];
-	char buf[MSL], *p = buf;
+	char buf[MSL];
 	pVARIABLE var;
 	pVARIABLE infovar = info ? *(info->var) : NULL;
 /*
@@ -193,7 +193,7 @@ char *expand_variable_recursive(SCRIPT_VARINFO *info, char *str,BUFFER *buffer)
 */
 	}
 
-	free_buffer(name_buffer);
+	free_buf(name_buffer);
 
 	return str+1;
 }
@@ -1220,7 +1220,7 @@ char *expand_entity_church(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_STRING;
 		if( arg->d.church && arg->d.church->info && arg->d.church->info[0] && (IS_SET(arg->d.church->settings, CHURCH_PUBLIC_INFO) || script_security >= MAX_SCRIPT_SECURITY) ) {
 			clear_buf(arg->buffer);
-			add_buffer(arg->buffer, arg->d.church->info);
+			add_buf(arg->buffer, arg->d.church->info);
 			arg->d.str = buf_string(arg->buffer);
 		} else
 			arg->d.str = &str_empty[0];
@@ -1428,7 +1428,7 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_MOB_SHORT:
 		arg->type = ENT_STRING;
 		p = arg->d.mob ? (char*)((IS_NPC(arg->d.mob) || arg->d.mob->morphed) ? arg->d.mob->short_descr : capitalize(arg->d.mob->name)) : (char*)"no one";
-		clear_buffer(arg->buffer);
+		clear_buf(arg->buffer);
 		add_buf(arg->buffer, p);
 		arg->d.str = buf_string(arg->buffer);
 		break;
@@ -1861,7 +1861,7 @@ char *expand_entity_mobile_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 	case ENTITY_MOB_SHORT:
 		arg->type = ENT_STRING;
-		clear_buffer(arg->buffer);
+		clear_buf(arg->buffer);
 		add_buf(arg->buffer, "no one");
 		arg->d.str = buf_string(arg->buffer);
 		break;
@@ -1899,7 +1899,7 @@ char *expand_entity_mobile_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 	case ENTITY_MOB_RACE:
 		arg->type = ENT_STRING;
-		clear_buffer(arg->buffer);
+		clear_buf(arg->buffer);
 		add_buf(arg->buffer, "unknown");
 		arg->d.str = buf_string(arg->buffer);
 		break;
@@ -2867,7 +2867,7 @@ char *expand_entity_skill(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 	case ENTITY_SKILL_NAME:
 		arg->type = ENT_STRING;
-		clear_buffer(arg->buffer);
+		clear_buf(arg->buffer);
 		add_buf(arg->buffer, (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL && skill_table[arg->d.sn].name) ? skill_table[arg->d.sn].name : "");
 		arg->d.str = buf_string(arg->buffer);
 		break;
@@ -2930,21 +2930,21 @@ char *expand_entity_skill(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 	case ENTITY_SKILL_NOUN:
 		arg->type = ENT_STRING;
-		clear_buffer(arg->buffer);
+		clear_buf(arg->buffer);
 		add_buf(arg->buffer, (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL && skill_table[arg->d.sn].noun_damage) ? skill_table[arg->d.sn].noun_damage: "");
 		arg->d.str = buf_string(arg->buffer);
 		break;
 
 	case ENTITY_SKILL_WEAROFF:
 		arg->type = ENT_STRING;
-		clear_buffer(arg->buffer);
+		clear_buf(arg->buffer);
 		add_buf(arg->buffer, (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL && skill_table[arg->d.sn].msg_off) ? skill_table[arg->d.sn].msg_off : "");
 		arg->d.str = buf_string(arg->buffer);
 		break;
 
 	case ENTITY_SKILL_DISPEL:
 		arg->type = ENT_STRING;
-		clear_buffer(arg->buffer);
+		clear_buf(arg->buffer);
 		add_buf(arg->buffer, (arg->d.sn >= 0 && arg->d.sn < MAX_SKILL && skill_table[arg->d.sn].msg_disp) ? skill_table[arg->d.sn].msg_disp : "");
 		arg->d.str = buf_string(arg->buffer);
 		break;
@@ -3467,7 +3467,7 @@ char *expand_entity_plist_str(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
 			p = (char *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
 
-		clear_buffer(arg->buffer);
+		clear_buf(arg->buffer);
 		add_buf(arg->buffer, p ? p : "");
 		arg->d.str = buf_string(arg->buffer);
 		arg->type = ENT_STRING;
@@ -3476,7 +3476,7 @@ char *expand_entity_plist_str(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
 			p = (char *)list_nthdata(arg->d.blist, 0);
 
-		clear_buffer(arg->buffer);
+		clear_buf(arg->buffer);
 		add_buf(arg->buffer, p ? p : "");
 		arg->d.str = buf_string(arg->buffer);
 		arg->type = ENT_STRING;
@@ -3485,7 +3485,7 @@ char *expand_entity_plist_str(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
 			p = (char *)list_nthdata(arg->d.blist, -1);
 
-		clear_buffer(arg->buffer);
+		clear_buf(arg->buffer);
 		add_buf(arg->buffer, p ? p : "");
 		arg->d.str = buf_string(arg->buffer);
 		arg->type = ENT_STRING;
@@ -4283,7 +4283,7 @@ char *expand_entity_song(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 	case ENTITY_SONG_NAME:
 		arg->type = ENT_STRING;
-		clear_buffer(arg->buffer);
+		clear_buf(arg->buffer);
 		add_buf(arg->buffer, (pSong ? pSong->name : ""));
 		arg->d.str = buf_string(arg->buffer);
 		break;

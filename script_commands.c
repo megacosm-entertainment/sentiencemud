@@ -1308,7 +1308,6 @@ SCRIPT_CMD(scriptcmd_flee)
 // GRANTSKILL player vnum[ int(rating=1)[ bool(permanent=false)[ string(flags)]]]
 SCRIPT_CMD(scriptcmd_grantskill)
 {
-	char buf[MSL];
 	char *rest;
 
 	CHAR_DATA *mob;
