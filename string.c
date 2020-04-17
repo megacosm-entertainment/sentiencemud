@@ -452,14 +452,12 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 			strcat(xbuf,"\n\r");
 
 			rdesc += i;
-
-			if( *rdesc == '\n' ) rdesc++;
 		}
 		else
 		{
 			int j;
 			// Find a line break
-			for (j = i - 1; --j > 0 && *(rdesc+j)!=' ';);
+			for (j = len - 1; --j > 0 && *(rdesc+j)!=' ';);
 
 			// Found a line break
 			if (j > 0) {
