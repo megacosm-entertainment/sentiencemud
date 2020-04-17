@@ -966,7 +966,7 @@ SCRIPT_CMD(do_mpasound)
 					if(i <= j) {
 						// No, so do the message
 						MOBtrigger  = FALSE;
-						act(buf, room->people, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL);
+						act(buf_string(buffer), room->people, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL);
 						MOBtrigger  = TRUE;
 						rooms[i++] = room;
 					}
@@ -1838,21 +1838,21 @@ SCRIPT_CMD(do_mpdequeue)
 // Syntax: mpecho <string>
 SCRIPT_CMD(do_mpecho)
 {
-	char buf[MSL];
-
 	if(!info || !info->mob) return;
 
-	expand_string(info,argument,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,argument,buffer);
 
-	if(!buf[0]) return;
-	act(buf, info->mob, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	if(buf_string(buffer)[0] != '\0')
+		act(buf_string(buffer), info->mob, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	free_buf(buffer);
 }
 
 // do_mpechoroom
 // Syntax: mob echoroom <location> <string>
 SCRIPT_CMD(do_mpechoroom)
 {
-	char buf[MSL], *rest;
+	char *rest;
 	ROOM_INDEX_DATA *room;
 
 	EXIT_DATA *ex;
@@ -1875,18 +1875,19 @@ SCRIPT_CMD(do_mpechoroom)
 	if (!room || !room->people) return;
 
 	// Expand the message
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,argument,buffer);
 
-	if(!buf[0]) return;
-
-	act(buf, room->people, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL);
+	if(buf_string(buffer)[0] != '\0')
+		act(buf, room->people, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL);
+	free_buf(buffer);
 }
 
 // do_mpechoaround
 // Syntax: mob echoaround <victim> <string>
 SCRIPT_CMD(do_mpechoaround)
 {
-	char buf[MSL], *rest;
+	char *rest;
 	CHAR_DATA *victim;
 
 
@@ -1905,18 +1906,19 @@ SCRIPT_CMD(do_mpechoaround)
 		return;
 
 	// Expand the message
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,argument,buffer);
 
-	if(!buf[0]) return;
-
-	act(buf, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	if(buf_string(buffer)[0] != '\0')
+		act(buf, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	free_buf(buffer);
 }
 
 // do_mpechonotvict
 // Syntax: mob echonotvict <attacker> <victim> <string>
 SCRIPT_CMD(do_mpechonotvict)
 {
-	char buf[MSL], *rest;
+	char *rest;
 	CHAR_DATA *victim, *attacker;
 
 
@@ -1947,18 +1949,19 @@ SCRIPT_CMD(do_mpechonotvict)
 		return;
 
 	// Expand the message
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,argument,buffer);
 
-	if(!buf[0]) return;
-
-	act(buf, attacker, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
+	if(buf_string(buffer)[0] != '\0')
+		act(buf, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
+	free_buf(buffer);
 }
 
 // do_mpechobattlespam
 // Syntax: mob echobattlespam <attacker> <victim> <string>
 SCRIPT_CMD(do_mpechobattlespam)
 {
-	char buf[MSL], *rest;
+	char *rest;
 	CHAR_DATA *victim, *attacker, *ch;
 
 
@@ -1989,22 +1992,25 @@ SCRIPT_CMD(do_mpechobattlespam)
 		return;
 
 	// Expand the message
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,argument,buffer);
 
-	if(!buf[0]) return;
-
-	for (ch = attacker->in_room->people; ch; ch = ch->next_in_room) {
-		if (!IS_NPC(ch) && (ch != attacker && ch != victim) && (is_same_group(ch, attacker) || is_same_group(ch, victim) || !IS_SET(ch->comm, COMM_NOBATTLESPAM))) {
-			act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	if(buf_string(buffer)[0] != '\0')
+	{
+		for (ch = attacker->in_room->people; ch; ch = ch->next_in_room) {
+			if (!IS_NPC(ch) && (ch != attacker && ch != victim) && (is_same_group(ch, attacker) || is_same_group(ch, victim) || !IS_SET(ch->comm, COMM_NOBATTLESPAM))) {
+				act(buf_string(buffer), ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			}
 		}
 	}
+	free_buf(buffer);
 }
 
 // do_mpechochurch
 // Syntax: mob echochurch <victim> <string>
 SCRIPT_CMD(do_mpechochurch)
 {
-	char buf[MSL], *rest;
+	char *rest;
 	CHAR_DATA *victim;
 
 
@@ -2023,18 +2029,20 @@ SCRIPT_CMD(do_mpechochurch)
 		return;
 
 	// Expand the message
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
-	if(!buf[0]) return;
+	if( buf_string(buffer)[0] != '\0' )
+		msg_church_members(victim->church, buf_string(buffer));
 
-	msg_church_members(victim->church, buf);
+	free_buf(buffer);
 }
 
 // do_mpechoat
 // Syntax: mob echoat <victim> <string>
 SCRIPT_CMD(do_mpechoat)
 {
-	char buf[MSL], *rest;
+	char *rest;
 	CHAR_DATA *victim;
 
 
@@ -2053,18 +2061,19 @@ SCRIPT_CMD(do_mpechoat)
 		return;
 
 	// Expand the message
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
-	if(!buf[0]) return;
-
-	act(buf, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	if( buf_string(buffer)[0] != '\0' )
+		act(buf_string(buffer), victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	free_buffer(buffer);
 }
 
 // do_mpechogrouparound
 // Syntax: mob echogrouparound <victim> <string>
 SCRIPT_CMD(do_mpechogrouparound)
 {
-	char buf[MSL], *rest;
+	char *rest;
 	CHAR_DATA *victim;
 
 
@@ -2083,18 +2092,19 @@ SCRIPT_CMD(do_mpechogrouparound)
 		return;
 
 	// Expand the message
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
-	if(!buf[0]) return;
-
-	act_new(buf,victim,NULL,NULL,NULL,NULL,NULL,NULL,TO_NOTFUNC,POS_RESTING,rop_same_group);
+	if( buf_string(buffer)[0] != '\0' )
+		act_new(buf_string(buffer),victim,NULL,NULL,NULL,NULL,NULL,NULL,TO_NOTFUNC,POS_RESTING,rop_same_group);
+	free_buf(buffer);
 }
 
 // do_mpechogroupat
 // Syntax: mob echogroupat <victim> <string>
 SCRIPT_CMD(do_mpechogroupat)
 {
-	char buf[MSL], *rest;
+	char *rest;
 	CHAR_DATA *victim;
 
 
@@ -2113,18 +2123,20 @@ SCRIPT_CMD(do_mpechogroupat)
 		return;
 
 	// Expand the message
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
-	if(!buf[0]) return;
+	if( buf_string(buffer)[0] != '\0' )
+		act_new(buf_string(buffer),victim,NULL,NULL,NULL,NULL,NULL,NULL,TO_FUNC,POS_RESTING,rop_same_group);
 
-	act_new(buf,victim,NULL,NULL,NULL,NULL,NULL,NULL,TO_FUNC,POS_RESTING,rop_same_group);
+	free_buf(buffer);
 }
 
 // do_mpecholeadaround
 // Syntax: mob echoleadaround <victim> <string>
 SCRIPT_CMD(do_mpecholeadaround)
 {
-	char buf[MSL], *rest;
+	char *rest;
 	CHAR_DATA *victim;
 
 
@@ -2147,19 +2159,20 @@ SCRIPT_CMD(do_mpecholeadaround)
 		return;
 
 	// Expand the message
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
-	if(!buf[0]) return;
+	if( buf_string(buffer)[0] != '\0' )
+		act(buf_string(buffer), victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-	act(buf, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-
+	free_buf(buffer);
 }
 
 // do_mpecholeadat
 // Syntax: mob echoleadat <victim> <string>
 SCRIPT_CMD(do_mpecholeadat)
 {
-	char buf[MSL], *rest;
+	char *rest;
 	CHAR_DATA *victim;
 
 
@@ -2182,12 +2195,13 @@ SCRIPT_CMD(do_mpecholeadat)
 		return;
 
 	// Expand the message
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
-	if(!buf[0]) return;
+	if( buf_string(buffer)[0] != '\0' )
+		act(buf_string(buffer), victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
-	act(buf, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-
+	free_buf(buffer);
 }
 
 // do_mpflee[ <target>[ <direction>[ <conceal> <pursue>]]]
@@ -2277,7 +2291,7 @@ SCRIPT_CMD(do_mpflee)
 // do_mpforce
 SCRIPT_CMD(do_mpforce)
 {
-	char buf[MSL],*rest;
+	char *rest;
 	CHAR_DATA *victim = NULL, *next;
 	bool fAll = FALSE, forced;
 
@@ -2303,9 +2317,12 @@ SCRIPT_CMD(do_mpforce)
 		return;
 	}
 
-	expand_string(info,rest,buf);
-	if(!buf[0]) {
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
+
+	if( buf_string(buffer)[0] == '\0' )
 		bug("MpForce - Error in parsing from vnum %ld.", VNUM(info->mob));
+		free_buf(buffer);
 		return;
 	}
 
@@ -2317,18 +2334,27 @@ SCRIPT_CMD(do_mpforce)
 				&& can_see(info->mob, victim)
 				&& (IS_NPC(victim) || !IS_IMMORTAL(victim))) {
 				forced_command = TRUE;
-				interpret(victim, buf);
+				interpret(victim, buf_string(buffer));
 			}
 		}
 	} else {
-		if (victim == info->mob) return;
-		if (!IS_NPC(victim) && IS_IMMORTAL(victim)) return;
+		if (victim == info->mob)
+		{
+			free_buf(buffer);
+			return;
+		}
+		if (!IS_NPC(victim) && IS_IMMORTAL(victim))
+		{
+			free_buf(buffer);
+			return;
+		}
 
 		forced_command = TRUE;
-		interpret(victim, buf);
+		interpret(victim, buf_string(buffer));
 	}
 
 	forced_command = forced;
+	free_buf(buffer);
 }
 
 // do_mpforget
@@ -2468,21 +2494,24 @@ SCRIPT_CMD(do_mpgecho)
 	}
 
 	// Expand the message
-	expand_string(info,argument,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,argument,buffer);
 
 	for (d = descriptor_list; d; d = d->next)
 		if (d->connected == CON_PLAYING) {
 			if (IS_IMMORTAL(d->character))
 				send_to_char("Mob echo> ", d->character);
-			send_to_char(buf, d->character);
+			send_to_char(buf_string(buffer), d->character);
 			send_to_char("\n\r", d->character);
 		}
+
+	free_buf(buffer);
 }
 
 // do_mpgforce
 SCRIPT_CMD(do_mpgforce)
 {
-	char buf[MSL],*rest;
+	char *rest;
 	CHAR_DATA *victim = NULL, *vch, *next;
 
 
@@ -2504,8 +2533,9 @@ SCRIPT_CMD(do_mpgforce)
 		return;
 	}
 
-	expand_string(info,rest,buf);
-	if(!buf[0]) {
+	BUFFER *buffer = new_buf();
+	expand_string(info,argument,buffer);
+	if(buf_string(buffer)[0] == '\0') {
 		bug("MpGforce - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
@@ -2516,8 +2546,10 @@ SCRIPT_CMD(do_mpgforce)
 			get_trust(vch) < get_trust(info->mob)
 			&& can_see(info->mob, vch)
 			&& (IS_NPC(vch) || !IS_IMMORTAL(vch)))
-			interpret(vch, buf);
+			interpret(vch, buf_string(buffer));
 	}
+
+	free_buf(buffer);
 }
 
 // do_mpgoto
@@ -3575,9 +3607,11 @@ SCRIPT_CMD(do_mpvforce)
 		return;
 	}
 
-	expand_string(info,rest,buf);
-	if(!buf[0]) {
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
+	if(buf_string(buffer)[0] == '\0') {
 		bug("MpGforce - Error in parsing from vnum %ld.", VNUM(info->mob));
+		free_buf(buffer);
 		return;
 	}
 
@@ -3587,8 +3621,9 @@ SCRIPT_CMD(do_mpvforce)
 			get_trust(vch) < get_trust(info->mob)
 			&& can_see(info->mob, vch)
 			&& (IS_NPC(vch) || !IS_IMMORTAL(vch)))
-			interpret(vch, buf);
+			interpret(vch, buf_string(buffer));
 	}
+	free_buf(buffer);
 }
 
 // do_mpvis
@@ -3603,28 +3638,33 @@ SCRIPT_CMD(do_mpvis)
 // Syntax: mob zecho <string>
 SCRIPT_CMD(do_mpzecho)
 {
-	char buf[MSL];
 	DESCRIPTOR_DATA *d;
 
 	if(!info || !info->mob) return;
 
 	// Expand the message
-	expand_string(info,argument,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,argument,buffer);
 
-	if (!buf[0]) {
+	if (!buf_string(buffer)[0]) {
 		bug("MpZEcho: missing argument from vnum %d", VNUM(info->mob));
+		free_buf(buffer);
 		return;
 	}
 
 	for (d = descriptor_list; d; d = d->next)
+	{
 		if (d->connected == CON_PLAYING &&
 			d->character->in_room &&
 			d->character->in_room->area == info->mob->in_room->area) {
 			if (IS_IMMORTAL(d->character))
 				send_to_char("Mob echo> ", d->character);
-			send_to_char(buf, d->character);
+			send_to_char(buf_string(buffer), d->character);
 			send_to_char("\n\r", d->character);
 		}
+	}
+
+	free_buf(buffer);
 }
 
 // do_mpzot
@@ -3851,11 +3891,14 @@ SCRIPT_CMD(do_mpinterrupt)
 		return;
 	}
 
-	expand_string(info,rest,buf);
-	if(buf[0]) {
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
+
+	if(!buf_string(buffer)[0]) {
 		stop = flag_value(interrupt_action_types,buf);
 		if(stop == NO_FLAG) {
 			bug("MpInterrupt - invalid interrupt type.", 0);
+			free_buf(buffer);
 			return;
 		}
 	} else
@@ -3993,6 +4036,8 @@ SCRIPT_CMD(do_mpinterrupt)
 
 	// Indicate what was stopped, zero being nothing
 	info->mob->progs->lastreturn = ret;
+
+	free_buf(buffer);
 }
 
 SCRIPT_CMD(do_mpalterobj)
@@ -4306,55 +4351,84 @@ SCRIPT_CMD(do_mpstringobj)
 
 	if(!field[0]) return;
 
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
-	if(!buf[0]) {
+	if(!buf_string(buffer)[0]) {
 		bug("MpStringObj - Empty string used.",0);
+		free_buf(buffer);
 		return;
 	}
 
 	if(!str_cmp(field,"name")) {
-		if(obj->old_short_descr) return;	// Can't change restrings, sorry!
+		if(obj->old_short_descr)
+		{
+			free_buf(buffer);
+			return;	// Can't change restrings, sorry!
+		}
 		str = (char**)&obj->name;
 	} else if(!str_cmp(field,"owner")) {
 		str = (char**)&obj->owner;
 		min_sec = 5;
 	} else if(!str_cmp(field,"short")) {
-		if(obj->old_short_descr) return;	// Can't change restrings, sorry!
+		if(obj->old_short_descr)
+		{
+			free_buf(buffer);
+			return;	// Can't change restrings, sorry!
+		}
 		str = (char**)&obj->short_descr;
 	} else if(!str_cmp(field,"long")) {
-		if(obj->old_description) return;	// Can't change restrings, sorry!
+		if(obj->old_description)
+		{
+			free_buf(buffer);
+			return;	// Can't change restrings, sorry!
+		}
+
 		str = (char**)&obj->description;
 	} else if(!str_cmp(field,"full")) {
-		if(obj->old_full_description) return;	// Can't change restrings, sorry!
+		if(obj->old_full_description)
+		{
+			free_buf(buffer);
+			return;	// Can't change restrings, sorry!
+		}
+
 		str = (char**)&obj->full_description;
 		newlines = TRUE;		// allow newlines
 	} else if(!str_cmp(field,"material")) {
-		int mat = material_lookup(buf);
+		int mat = material_lookup(buf_string(buffer));
 
 		if(mat < 0) {
-			char buf2[sizeof(buf) + 50];
-			sprintf(buf2,"MpStringObj - Invalid material '%s'.\n\r", buf);
-			bug(buf2, 0);
+			bug("MpStringObj - Invalid material.\n\r", 0);
+			free_buf(buffer);
 			return;
 		}
 
 		// Force material to the full name
-		strcpy(buf,material_table[mat].name);
+		clear_buf(buffer);
+		add_buf(buffer,material_table[mat].name);
 
 		str = (char**)&obj->material;
-	} else return;
+	}
+	else
+	{
+		free_buf(buffer);
+		return;
+	}
 
 	if(script_security < min_sec) {
 		sprintf(buf,"MpStringObj - Attempting to restring '%s' with security %d.\n\r", field, script_security);
 		bug(buf, 0);
+		free_buf(buffer);
 		return;
 	}
 
-	strip_newline(buf, newlines);
+	char *p = buf_string(buffer);
+	strip_newline(p, newlines);
 
 	free_string(*str);
-	*str = str_dup(buf);
+	*str = str_dup(p);
+
+	free_buf(buffer);
 }
 
 SCRIPT_CMD(do_mpaltermob)
@@ -4706,10 +4780,12 @@ SCRIPT_CMD(do_mpstringmob)
 
 	if(!field[0]) return;
 
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
-	if(!buf[0]) {
+	if(!buf_string(buffer)[0]) {
 		bug("MpStringMob - Empty string used.",0);
+		free_buf(buffer);
 		return;
 	}
 
@@ -4724,13 +4800,18 @@ SCRIPT_CMD(do_mpstringmob)
 	if(script_security < min_sec) {
 		sprintf(buf,"MpStringMob - Attempting to restring '%s' with security %d.\n\r", field, script_security);
 		bug(buf, 0);
+		free_buf(buffer);
 		return;
 	}
 
-	strip_newline(buf, newlines);
+	char *p = buf_string(buffer);
+	strip_newline(p, newlines);
 
 	free_string(*str);
-	*str = str_dup(buf);
+	*str = str_dup(p);
+
+	free_buf(buffer);
+
 }
 
 SCRIPT_CMD(do_mpskimprove)
@@ -4901,11 +4982,12 @@ SCRIPT_CMD(do_mpinput)
 	default: return;
 	}
 
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
 	mob->desc->input = TRUE;
 	mob->desc->input_var = p ? str_dup(p) : NULL;
-	mob->desc->input_prompt = str_dup(buf[0] ? buf : " >");
+	mob->desc->input_prompt = str_dup(buffer->string[0] ? buffer->string : " >");
 	mob->desc->input_script = vnum;
 	mob->desc->input_mob = info->mob;
 	mob->desc->input_obj = NULL;
@@ -4913,6 +4995,7 @@ SCRIPT_CMD(do_mpinput)
 	mob->desc->input_tok = NULL;
 
 	info->mob->progs->lastreturn = 1;
+	free_buf(buffer);
 }
 
 SCRIPT_CMD(do_mprawkill)
@@ -5668,15 +5751,18 @@ SCRIPT_CMD(do_mpalterexit)
 	else if(!str_cmp(field,"short"))	str = &ex->short_desc;
 
 	if(str) {
-		expand_string(info,rest,buf);
+		BUFFER *buffer = new_buf();
+		expand_string(info,rest,buffer);
 
-		if(!buf[0]) {
+		if(!buf_string(buffer)[0]) {
 			bug("MpAlterExit - Empty string used.",0);
+			free_buf(buffer);
 			return;
 		}
 
 		free_string(*str);
-		*str = str_dup(buf);
+		*str = str_dup(buf_string(buffer));
+		free_buf(buffer);
 		return;
 	}
 
@@ -5864,11 +5950,13 @@ SCRIPT_CMD(do_mpprompt)
 
 	if(!name[0]) return;
 
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
 	// An empty string will clear it
 
-	string_vector_set(&mob->pcdata->script_prompts,name,buf);
+	string_vector_set(&mob->pcdata->script_prompts,name,buf_string(buffer));
+	free_buf(buffer);
 }
 
 SCRIPT_CMD(do_mpvarseton)
@@ -6130,15 +6218,18 @@ SCRIPT_CMD(do_mpalterroom)
 			return;
 		}
 
-		expand_string(info,rest,buf);
+		BUFFER *buffer = new_buf();
+		expand_string(info,rest,buffer);
 
-		if(!allow_empty && !buf[0]) {
+		if(!allow_empty && !buf_string(buffer)[0]) {
 			bug("MpAlterRoom - Empty string used.",0);
+			free_buf(buffer);
 			return;
 		}
 
 		free_string(*str);
-		*str = str_dup(buf);
+		*str = str_dup(buf_string(buffer));
+		free_buf(buffer);
 		return;
 	}
 
@@ -7594,16 +7685,19 @@ SCRIPT_CMD(do_mpcrier)
 
 	if(!info || !info->mob) return;
 
-	expand_string(info,argument,buf+2);
+	BUFFER *buffer = new_buf();
+	add_buf(buffer, "{M");
+	expand_string(info,argument,buffer);
 
-	buf[0] = '{';
-	buf[1] = 'M';
+	if(!buf_string(buffer)[2]) {
+		free_buf(buffer);
+		return;
+	}
 
-	if(!buf[2]) return;
+	add_buf(buffer, "{x");
 
-	strcat(buf, "{x");
-
-	crier_announce(buf);
+	crier_announce(buf_string(buffer));
+	free_buf(buffer);
 }
 
 
