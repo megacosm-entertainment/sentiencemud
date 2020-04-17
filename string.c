@@ -442,6 +442,8 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 			++leni;
 		len = lens[leni][1];
 
+
+
 		// Check if we are the end of the line
 		for (i=0; i<len && *(rdesc+i) && *(rdesc+i) != '\n'; i++);
 
@@ -457,9 +459,8 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 		}
 		else
 		{
-			int j;
 			// Find a line break
-			for (j=len-(xbuf[0]?0:3) ; --j > 0 && *(rdesc+j)!=' ';);
+			for (j = i - 1; --j > 0 && *(rdesc+j)!=' ';);
 
 			// Found a line break
 			if (j > 0) {
@@ -470,9 +471,9 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 			// The entire line has no breaks
 			} else {
 				bug ("No spaces", 0);
-				strncat(xbuf,rdesc,len-2);
+				strncat(xbuf,rdesc,len);
 				strcat(xbuf,"-\n\r");
-				rdesc += len - 2;
+				rdesc += len;
 			}
 
 			if( *rdesc == '\n' ) rdesc++;
