@@ -1910,7 +1910,7 @@ SCRIPT_CMD(do_mpechoaround)
 	expand_string(info,argument,buffer);
 
 	if(buf_string(buffer)[0] != '\0')
-		act(buf, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act(buf_string(buffer), victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 	free_buf(buffer);
 }
 
@@ -2483,7 +2483,6 @@ SCRIPT_CMD(do_mpgdamage)
 // Syntax: mob gecho <string>
 SCRIPT_CMD(do_mpgecho)
 {
-	char buf[MSL];
 	DESCRIPTOR_DATA *d;
 
 	if(!info || !info->mob) return;
@@ -2666,7 +2665,7 @@ SCRIPT_CMD(do_mpjunk)
 			} else {
 				for (obj = info->mob->carrying; obj; obj = obj_next) {
 					obj_next = obj->next_content;
-					if (!arg->d.str[3] || is_name(arg->d.str[4], obj->name)) {
+					if (!arg->d.str[3] || is_name(&arg->d.str[4], obj->name)) {
 						if(!PROG_FLAG(obj,PROG_AT)) {
 							if (obj->wear_loc != WEAR_NONE)
 								unequip_char(info->mob, obj, TRUE);
@@ -3584,7 +3583,7 @@ SCRIPT_CMD(do_mptransfer)
 // do_mpvforce
 SCRIPT_CMD(do_mpvforce)
 {
-	char buf[MSL],*rest;
+	char *rest;
 	int vnum = 0;
 	CHAR_DATA *vch, *next;
 
@@ -3736,7 +3735,7 @@ SCRIPT_CMD(do_mpvarcopy)
 
 SCRIPT_CMD(do_mpvarsave)
 {
-	char name[MIL],arg[MIL];
+	char name[MIL],arg1[MIL];
 	bool on;
 
 	if(!info || !info->mob || !info->var) return;
@@ -3744,10 +3743,10 @@ SCRIPT_CMD(do_mpvarsave)
 	// Get name
 	argument = one_argument(argument,name);
 	if(!name[0]) return;
-	argument = one_argument(argument,arg);
-	if(!arg[0]) return;
+	argument = one_argument(argument,arg1);
+	if(!arg1[0]) return;
 
-	on = !str_cmp(arg,"on") || !str_cmp(arg,"true") || !str_cmp(arg,"yes");
+	on = !str_cmp(arg1,"on") || !str_cmp(arg1,"true") || !str_cmp(arg1,"yes");
 
 	variable_setsave(*info->var,name,on);
 }
@@ -4924,7 +4923,6 @@ SCRIPT_CMD(do_mpskimprove)
 
 SCRIPT_CMD(do_mpinput)
 {
-	char buf[MSL];
 	char *rest, *p;
 	int vnum;
 	CHAR_DATA *mob = NULL;
@@ -5900,7 +5898,7 @@ SCRIPT_CMD(do_mpalterexit)
 // SYNTAX: mob prompt <player> <name>[ <string>]
 SCRIPT_CMD(do_mpprompt)
 {
-	char buf[MSL+2],name[MIL],*rest;
+	char name[MIL],*rest;
 	CHAR_DATA *mob = NULL;
 
 
