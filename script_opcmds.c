@@ -363,7 +363,7 @@ char *op_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 	AREA_DATA *area;
 	ROOM_INDEX_DATA *loc;
 	WILDS_DATA *pWilds;
-
+	SCRIPT_PARAM *arg = new_script_param();
 	EXIT_DATA *ex;
 	int x, y;
 
@@ -479,6 +479,8 @@ char *op_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 			*room = token_room(arg->d.token); break;
 		}
 	}
+
+	free_script_param(arg);
 	return rest;
 }
 
@@ -652,13 +654,14 @@ void obj_interpret(SCRIPT_VARINFO *info, char *argument)
 		return;
 	}
 
-	(*obj_cmd_table[cmd].func) (info, argument);
+	SCRIPT_PARAM *arg = new_script_param();
+	(*obj_cmd_table[cmd].func) (info, argument, arg);
+	free_script_param(arg);
 	tail_chain();
 }
 
 SCRIPT_CMD(do_opasound)
 {
-	char buf[MSL];
 	ROOM_INDEX_DATA *here, *room;
 	ROOM_INDEX_DATA *rooms[MAX_DIR];
 	int door, i, j;
@@ -676,10 +679,16 @@ SCRIPT_CMD(do_opasound)
 
 	if (door < MAX_DIR) {
 		// Expand the message
-		expand_string(info,argument,buf);
-		if(!buf[0]) return;
+		BUFFER *buffer = new_buf()
+		expand_string(info,argument,buffer);
+		if(!buf_string(buffer)[0])
+		{
+			free_buf(buffer);
+			return;
+		}
 
 		for (i = 0; door < MAX_DIR; door++)
+		{
 			if ((pexit = here->exit[door]) && (room = exit_destination(pexit)) && room != here) {
 				// Have we been to this room already?
 				for(j=0;j < i && rooms[j] != room; j++);
@@ -687,12 +696,14 @@ SCRIPT_CMD(do_opasound)
 				if(i <= j) {
 					// No, so do the message
 					MOBtrigger  = FALSE;
-					act(buf, room->people, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL);
+					act(buf_string(buffer), room->people, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL);
 					MOBtrigger  = TRUE;
 					rooms[i++] = room;
 				}
 			}
+		}
 
+		free_buf(buffer);
 	}
 }
 
@@ -1186,23 +1197,27 @@ SCRIPT_CMD(do_opdequeue)
 // do_opecho
 SCRIPT_CMD(do_opecho)
 {
-	char buf[MSL];
-
 	if(!info || !info->obj) return;
 
-	expand_string(info,argument,buf);
+	BUFFER *buf = new_buffer();
+	expand_string(info,argument,buffer);
 
-	if(!buf[0]) return;
+	if(!buf_string(buffer)[0])
+	{
+		free_buf(buffer);
+		return;
+	}
 
-	strcat(buf,"\n\r");
-	room_echo(obj_room(info->obj), buf);
+	add_buffer(buffer,"\n\r");
+	room_echo(obj_room(info->obj), buf_string(buffer));
+	free_buf(buffer);
 }
 
 // do_opechoroom
 // Syntax: obj echoroom <location> <string>
 SCRIPT_CMD(do_opechoroom)
 {
-	char buf[MSL], *rest;
+	char *rest;
 	ROOM_INDEX_DATA *room;
 
 	EXIT_DATA *ex;
@@ -1225,12 +1240,18 @@ SCRIPT_CMD(do_opechoroom)
 	if (!room || !room->people) return;
 
 	// Expand the message
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
-	if(!buf[0]) return;
+	if(!buf_string(buffer)[0])
+	{
+		free_buf(buffer);
+		return;
+	}
 
-	strcat(buf,"\n\r");
-	room_echo(room, buf);
+	add_buf(buffer,"\n\r");
+	room_echo(room, buf_string(buffer));
+	free_buf(buffer);
 }
 
 
@@ -1238,7 +1259,7 @@ SCRIPT_CMD(do_opechoroom)
 // do_opechoaround
 SCRIPT_CMD(do_opechoaround)
 {
-	char buf[MSL], *rest;
+	char *rest;
 	CHAR_DATA *victim;
 
 
@@ -1257,11 +1278,12 @@ SCRIPT_CMD(do_opechoaround)
 		return;
 
 	// Expand the message
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
-	if(!buf[0]) return;
-
-	act(buf, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	if(buffer->string[0] != '\0')
+		act(buffer->string, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	free_buf(buffer);
 }
 
 // do_opechonotvict
@@ -1298,16 +1320,17 @@ SCRIPT_CMD(do_opechonotvict)
 		return;
 
 	// Expand the message
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
-	if(!buf[0]) return;
-
-	act(buf, victim, attacker, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
+	if(buffer->string[0] != '\0)
+		act(buffer->string, victim, attacker, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
+	free_buf(buffer);
 }
 
 SCRIPT_CMD(do_opechobattlespam)
 {
-	char buf[MSL], *rest;
+	char *rest;
 	CHAR_DATA *victim, *attacker, *ch;
 
 
@@ -1338,21 +1361,24 @@ SCRIPT_CMD(do_opechobattlespam)
 		return;
 
 	// Expand the message
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
-	if(!buf[0]) return;
-
-	for (ch = attacker->in_room->people; ch; ch = ch->next_in_room) {
-		if (!IS_NPC(ch) && (ch != attacker && ch != victim) && (is_same_group(ch, attacker) || is_same_group(ch, victim) || !IS_SET(ch->comm, COMM_NOBATTLESPAM))) {
-			act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	if(buffer->string[0] != '\0')
+	{
+		for (ch = attacker->in_room->people; ch; ch = ch->next_in_room) {
+			if (!IS_NPC(ch) && (ch != attacker && ch != victim) && (is_same_group(ch, attacker) || is_same_group(ch, victim) || !IS_SET(ch->comm, COMM_NOBATTLESPAM))) {
+				act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			}
 		}
 	}
+	free_buf(buffer);
 }
 
 // do_opechoat
 SCRIPT_CMD(do_opechoat)
 {
-	char buf[MSL], *rest;
+	char *rest;
 	CHAR_DATA *victim;
 
 
@@ -1371,17 +1397,20 @@ SCRIPT_CMD(do_opechoat)
 		return;
 
 	// Expand the message
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
-	if(!buf[0]) return;
-
-	act(buf, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	if(buffer->string[0] != '\0')
+	{
+		act(buffer->string, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	}
+	free_buf(buffer);
 }
 
 // do_opechochurch
 SCRIPT_CMD(do_opechochurch)
 {
-	char buf[MSL], *rest;
+	char *rest;
 	CHAR_DATA *victim;
 
 
@@ -1400,17 +1429,20 @@ SCRIPT_CMD(do_opechochurch)
 		return;
 
 	// Expand the message
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf()
+	expand_string(info,rest,buffer);
 
-	if(!buf[0]) return;
-
-	msg_church_members(victim->church, buf);
+	if(buffer->string[0] != '\0')
+	{
+		msg_church_members(victim->church, buffer->string);
+	}
+	free_buf(buffer);
 }
 
 // do_opechogrouparound
 SCRIPT_CMD(do_opechogrouparound)
 {
-	char buf[MSL], *rest;
+	char *rest;
 	CHAR_DATA *victim;
 
 
@@ -1429,17 +1461,20 @@ SCRIPT_CMD(do_opechogrouparound)
 		return;
 
 	// Expand the message
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
-	if(!buf[0]) return;
-
-	act_new(buf,victim,NULL,NULL,NULL,NULL,NULL,NULL,TO_NOTFUNC,POS_RESTING,rop_same_group);
+	if(buffer->string[0] != '\0')
+	{
+		act_new(buffer->string,victim,NULL,NULL,NULL,NULL,NULL,NULL,TO_NOTFUNC,POS_RESTING,rop_same_group);
+	}
+	free_buf(buffer);
 }
 
 // do_opechogroupat
 SCRIPT_CMD(do_opechogroupat)
 {
-	char buf[MSL], *rest;
+	char *rest;
 	CHAR_DATA *victim;
 
 
@@ -1458,17 +1493,20 @@ SCRIPT_CMD(do_opechogroupat)
 		return;
 
 	// Expand the message
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf()
+	expand_string(info,rest,buffer);
 
-	if(!buf[0]) return;
-
-	act_new(buf,victim,NULL,NULL,NULL,NULL,NULL,NULL,TO_FUNC,POS_RESTING,rop_same_group);
+	if(buffer->string[0] != '\0')
+	{
+		act_new(buffer->string,victim,NULL,NULL,NULL,NULL,NULL,NULL,TO_FUNC,POS_RESTING,rop_same_group);
+	}
+	free_buf(buffer);
 }
 
 // do_opecholeadaround
 SCRIPT_CMD(do_opecholeadaround)
 {
-	char buf[MSL], *rest;
+	char *rest;
 	CHAR_DATA *victim;
 
 
@@ -1487,17 +1525,20 @@ SCRIPT_CMD(do_opecholeadaround)
 		return;
 
 	// Expand the message
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
-	if(!buf[0]) return;
-
-	act(buf, victim->leader, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	if(buffer->string[0] != '\0')
+	{
+		act(buffer->string, victim->leader, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	}
+	free_buf(buffer);
 }
 
 // do_opecholeadat
 SCRIPT_CMD(do_opecholeadat)
 {
-	char buf[MSL], *rest;
+	char *rest;
 	CHAR_DATA *victim;
 
 
@@ -1516,17 +1557,20 @@ SCRIPT_CMD(do_opecholeadat)
 		return;
 
 	// Expand the message
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
-	if(!buf[0]) return;
-
-	act(buf, victim->leader, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	if(buffer->string[0] != '\0')
+	{
+		act(buffer->string, victim->leader, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	}
+	free_buf(buffer);
 }
 
 // do_opforce
 SCRIPT_CMD(do_opforce)
 {
-	char buf[MSL],*rest;
+	char *rest;
 	CHAR_DATA *victim = NULL, *next;
 	bool fAll = FALSE, forced;
 
@@ -1552,26 +1596,26 @@ SCRIPT_CMD(do_opforce)
 		return;
 	}
 
-	expand_string(info,rest,buf);
-	if(!buf[0]) {
-		bug("OpForce - Error in parsing from vnum %ld.", VNUM(info->obj));
-		return;
-	}
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
+	if(buffer->string[0] != '\0')
+	{
+		forced = forced_command;
 
-	forced = forced_command;
-
-	if (fAll) {
-		for (victim = obj_room(info->obj)->people; victim; victim = next) {
-			next = victim->next_in_room;
+		if (fAll) {
+			for (victim = obj_room(info->obj)->people; victim; victim = next) {
+				next = victim->next_in_room;
+				forced_command = TRUE;
+				interpret(victim, buf);
+			}
+		} else {
 			forced_command = TRUE;
 			interpret(victim, buf);
 		}
-	} else {
-		forced_command = TRUE;
-		interpret(victim, buf);
-	}
 
-	forced_command = forced;
+		forced_command = forced;
+	}
+	free_buf(buffer);
 }
 
 // do_opforget
@@ -1700,7 +1744,6 @@ SCRIPT_CMD(do_opgdamage)
 // do_opgecho
 SCRIPT_CMD(do_opgecho)
 {
-	char buf[MSL];
 	DESCRIPTOR_DATA *d;
 
 	if(!info || !info->obj) return;
@@ -1711,15 +1754,20 @@ SCRIPT_CMD(do_opgecho)
 	}
 
 	// Expand the message
-	expand_string(info,argument,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,argument,buffer);
 
-	for (d = descriptor_list; d; d = d->next)
-		if (d->connected == CON_PLAYING) {
-			if (IS_IMMORTAL(d->character))
-				send_to_char("Obj echo> ", d->character);
-			send_to_char(buf, d->character);
-			send_to_char("\n\r", d->character);
-		}
+	if( buffer->string[0] != '\0' )
+	{
+		for (d = descriptor_list; d; d = d->next)
+			if (d->connected == CON_PLAYING) {
+				if (IS_IMMORTAL(d->character))
+					send_to_char("Obj echo> ", d->character);
+				send_to_char(buf, d->character);
+				send_to_char("\n\r", d->character);
+			}
+	}
+	free_buf(buffer);
 }
 
 // do_opgforce
@@ -1747,17 +1795,17 @@ SCRIPT_CMD(do_opgforce)
 		return;
 	}
 
-	expand_string(info,rest,buf);
-	if(!buf[0]) {
-		bug("OpGforce - Error in parsing from vnum %ld.", VNUM(info->obj));
-		return;
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
+	if(buffer->string[0] != '\0')
+	{
+		for (vch = obj_room(info->obj)->people; vch; vch = next) {
+			next = vch->next_in_room;
+			if (is_same_group(victim,vch))
+				interpret(vch, buf);
+		}
 	}
-
-	for (vch = obj_room(info->obj)->people; vch; vch = next) {
-		next = vch->next_in_room;
-		if (is_same_group(victim,vch))
-			interpret(vch, buf);
-	}
+	free_buf(buffer);
 }
 
 // do_opgoto
@@ -2573,47 +2621,47 @@ SCRIPT_CMD(do_opvforce)
 		return;
 	}
 
-	expand_string(info,rest,buf);
-	if(!buf[0]) {
-		bug("OpGforce - Error in parsing from vnum %ld.", VNUM(info->obj));
-		return;
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
+	if(buffer->string[0] != '\0')
+	{
+		for (vch = obj_room(info->obj)->people; vch; vch = next) {
+			next = vch->next_in_room;
+			if (IS_NPC(vch) &&  vch->pIndexData->vnum == vnum && !vch->fighting)
+				interpret(vch, buf);
+		}
 	}
-
-	for (vch = obj_room(info->obj)->people; vch; vch = next) {
-		next = vch->next_in_room;
-		if (IS_NPC(vch) &&  vch->pIndexData->vnum == vnum && !vch->fighting)
-			interpret(vch, buf);
-	}
+	free_buf(buffer);
 }
 
 // do_opzecho
 SCRIPT_CMD(do_opzecho)
 {
-	char buf[MSL];
 	AREA_DATA *area;
 	DESCRIPTOR_DATA *d;
 
 	if(!info || !info->obj || !obj_room(info->obj)) return;
 
 	// Expand the message
-	expand_string(info,argument,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,argument,buffer);
 
-	if (!buf[0]) {
-		bug("OpZEcho: missing argument from vnum %d", VNUM(info->obj));
-		return;
+	if( buffer->string[0] != '\0' )
+	{
+
+		area = obj_room(info->obj)->area;
+
+		for (d = descriptor_list; d; d = d->next)
+			if (d->connected == CON_PLAYING &&
+				d->character->in_room &&
+				d->character->in_room->area == area) {
+				if (IS_IMMORTAL(d->character))
+					send_to_char("Obj echo> ", d->character);
+				send_to_char(buf, d->character);
+				send_to_char("\n\r", d->character);
+			}
 	}
-
-	area = obj_room(info->obj)->area;
-
-	for (d = descriptor_list; d; d = d->next)
-		if (d->connected == CON_PLAYING &&
-			d->character->in_room &&
-			d->character->in_room->area == area) {
-			if (IS_IMMORTAL(d->character))
-				send_to_char("Obj echo> ", d->character);
-			send_to_char(buf, d->character);
-			send_to_char("\n\r", d->character);
-		}
+	free_buf(buffer);
 }
 
 // do_opzot
@@ -2870,11 +2918,13 @@ SCRIPT_CMD(do_opinterrupt)
 		return;
 	}
 
-	expand_string(info,rest,buf);
-	if(buf[0]) {
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
+	if(buffer->string[0] != '\0') {
 		stop = flag_value(interrupt_action_types,buf);
 		if(stop == NO_FLAG) {
 			bug("OpInterrupt - invalid interrupt type.", 0);
+			free_buf(buffer);
 			return;
 		}
 	} else
@@ -3011,6 +3061,7 @@ SCRIPT_CMD(do_opinterrupt)
 
 	// Indicate what was stopped, zero being nothing
 	info->obj->progs->lastreturn = ret;
+	free_buf(buffer);
 }
 
 SCRIPT_CMD(do_opalterobj)
@@ -3334,55 +3385,73 @@ SCRIPT_CMD(do_opstringobj)
 
 	if(!field[0]) return;
 
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
-	if(!buf[0]) {
-		bug("OpStringObj - Empty string used.",0);
-		return;
-	}
+	if(buffer->string[0] != '\0')
+	{
+		if(!str_cmp(field,"name")) {
+			if(obj->old_short_descr)
+			{
+				free_buf(buffer);
+				return;	// Can't change restrings, sorry!
+			}
+			str = (char**)&obj->name;
+		} else if(!str_cmp(field,"owner")) {
+			str = (char**)&obj->owner;
+			min_sec = 5;
+		} else if(!str_cmp(field,"short")) {
+			if(obj->old_short_descr)
+			{
+				free_buf(buffer);
+				return;	// Can't change restrings, sorry!
+			}
+			str = (char**)&obj->short_descr;
+		} else if(!str_cmp(field,"long")) {
+			if(obj->old_description)
+			{
+				free_buf(buffer);
+				return;	// Can't change restrings, sorry!
+			}
+			str = (char**)&obj->description;
+		} else if(!str_cmp(field,"full")) {
+			if(obj->old_full_description)
+			{
+				free_buf(buffer);
+				return;	// Can't change restrings, sorry!
+			}
+			str = (char**)&obj->full_description;
+			newlines = TRUE;
+		} else if(!str_cmp(field,"material")) {
+			int mat = material_lookup(buf_string(buffer));
 
-	if(!str_cmp(field,"name")) {
-		if(obj->old_short_descr) return;	// Can't change restrings, sorry!
-		str = (char**)&obj->name;
-	} else if(!str_cmp(field,"owner")) {
-		str = (char**)&obj->owner;
-		min_sec = 5;
-	} else if(!str_cmp(field,"short")) {
-		if(obj->old_short_descr) return;	// Can't change restrings, sorry!
-		str = (char**)&obj->short_descr;
-	} else if(!str_cmp(field,"long")) {
-		if(obj->old_description) return;	// Can't change restrings, sorry!
-		str = (char**)&obj->description;
-	} else if(!str_cmp(field,"full")) {
-		if(obj->old_full_description) return;	// Can't change restrings, sorry!
-		str = (char**)&obj->full_description;
-		newlines = TRUE;
-	} else if(!str_cmp(field,"material")) {
-		int mat = material_lookup(buf);
+			if(mat < 0) {
+				bug("OpStringObj - Invalid material.\n\r", 0);
+				free_buf(buffer);
+				return;
+			}
 
-		if(mat < 0) {
-			char buf2[sizeof(buf)+50];
-			sprintf(buf2,"OpStringObj - Invalid material '%s'.\n\r", buf);
-			bug(buf2, 0);
+			// Force material to the full name
+			clear_buf(buffer);
+			add_buf(buffer, material_table[mat].name);
+
+			str = (char**)&obj->material;
+		} else return;
+
+		if(script_security < min_sec) {
+			sprintf(buf,"OpStringObj - Attempting to restring '%s' with security %d.\n\r", field, script_security);
+			bug(buf, 0);
+			free_buf(buffer);
 			return;
 		}
 
-		// Force material to the full name
-		strcpy(buf,material_table[mat].name);
+		char *p = buf_string(buffer);
+		strip_newline(p,newlines);
 
-		str = (char**)&obj->material;
-	} else return;
-
-	if(script_security < min_sec) {
-		sprintf(buf,"OpStringObj - Attempting to restring '%s' with security %d.\n\r", field, script_security);
-		bug(buf, 0);
-		return;
+		free_string(*str);
+		*str = str_dup(p);
 	}
-
-	strip_newline(buf,newlines);
-
-	free_string(*str);
-	*str = str_dup(buf);
+	free_buf(buffer);
 }
 
 SCRIPT_CMD(do_opaltermob)
@@ -3734,32 +3803,33 @@ SCRIPT_CMD(do_opstringmob)
 
 	if(!field[0]) return;
 
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
-	if(!buf[0]) {
-		bug("OpStringMob - Empty string used.",0);
-		return;
+	if(buffer->string[0] != '\0')
+	{
+		if(!str_cmp(field,"name"))				str = (char**)&mob->name;
+		else if(!str_cmp(field,"owner"))		{ str = (char**)&mob->owner; min_sec = 5; }
+		else if(!str_cmp(field,"short"))		str = (char**)&mob->short_descr;
+		else if(!str_cmp(field,"long"))			{ str = (char**)&mob->long_descr; strcat(buf,"\n\r"); newlines = TRUE; }
+		else if(!str_cmp(field,"full"))			{ str = (char**)&mob->description; newlines = TRUE; }
+		else if(!str_cmp(field,"tempstring"))	str = (char**)&mob->tempstring;
+		else return;
+
+		if(script_security < min_sec) {
+			sprintf(buf,"OpStringMob - Attempting to restring '%s' with security %d.\n\r", field, script_security);
+			bug(buf, 0);
+			free_buf(buffer);
+			return;
+		}
+
+		char *p = buf_string(buffer);
+		strip_newline(p, newlines);
+
+		free_string(*str);
+		*str = str_dup(p);
 	}
-
-
-	if(!str_cmp(field,"name"))				str = (char**)&mob->name;
-	else if(!str_cmp(field,"owner"))		{ str = (char**)&mob->owner; min_sec = 5; }
-	else if(!str_cmp(field,"short"))		str = (char**)&mob->short_descr;
-	else if(!str_cmp(field,"long"))			{ str = (char**)&mob->long_descr; strcat(buf,"\n\r"); newlines = TRUE; }
-	else if(!str_cmp(field,"full"))			{ str = (char**)&mob->description; newlines = TRUE; }
-	else if(!str_cmp(field,"tempstring"))	str = (char**)&mob->tempstring;
-	else return;
-
-	if(script_security < min_sec) {
-		sprintf(buf,"OpStringMob - Attempting to restring '%s' with security %d.\n\r", field, script_security);
-		bug(buf, 0);
-		return;
-	}
-
-	strip_newline(buf, newlines);
-
-	free_string(*str);
-	*str = str_dup(buf);
+	free_buf(buffer);
 }
 
 SCRIPT_CMD(do_opskimprove)
@@ -4461,11 +4531,12 @@ SCRIPT_CMD(do_opinput)
 	default: return;
 	}
 
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
 	mob->desc->input = TRUE;
 	mob->desc->input_var = p ? str_dup(p) : NULL;
-	mob->desc->input_prompt = str_dup(buf[0] ? buf : " >");
+	mob->desc->input_prompt = str_dup(buffer->string[0] ? buffer->string : " >");
 	mob->desc->input_script = vnum;
 	mob->desc->input_mob = NULL;
 	mob->desc->input_obj = info->obj;
@@ -4473,6 +4544,7 @@ SCRIPT_CMD(do_opinput)
 	mob->desc->input_tok = NULL;
 
 	info->obj->progs->lastreturn = 1;
+	free_buf(buffer);
 }
 
 SCRIPT_CMD(do_opusecatalyst)
@@ -4670,15 +4742,18 @@ SCRIPT_CMD(do_opalterexit)
 	else if(!str_cmp(field,"short"))	str = &ex->short_desc;
 
 	if(str) {
-		expand_string(info,rest,buf);
+		BUFFER *buffer = new_buf();
+		expand_string(info,rest,buffer);
 
-		if(!buf[0]) {
+		if(!buffer->string[0]) {
 			bug("OpAlterExit - Empty string used.",0);
+			free_buf(buffer);
 			return;
 		}
 
 		free_string(*str);
-		*str = str_dup(buf);
+		*str = str_dup(buffer->string);
+		free_buf(buffer);
 		return;
 	}
 
@@ -4865,14 +4940,14 @@ SCRIPT_CMD(do_opprompt)
 
 	if(!name[0]) return;
 
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
-	if(!buf[0]) {
-		bug("OpPrompt - Empty string used.",0);
-		return;
+	if( buffer->string[0] != '\0' )
+	{
+		string_vector_set(&mob->pcdata->script_prompts,name,buffer->string);
 	}
-
-	string_vector_set(&mob->pcdata->script_prompts,name,buf);
+	free_buf(buffer->string);
 }
 
 SCRIPT_CMD(do_opvarseton)
@@ -4887,10 +4962,10 @@ SCRIPT_CMD(do_opvarseton)
 		return;
 
 	switch(arg->type) {
-	case ENT_MOBILE: vars = (arg->d.mob && IS_NPC(arg->d.mob) && arg->d.mob->progs) ? arg->d.mob->progs->vars : NULL; break;
-	case ENT_OBJECT: vars = (arg->d.obj && arg->d.obj->progs) ? arg->d.obj->progs->vars : NULL; break;
-	case ENT_ROOM: vars = (arg->d.room && arg->d.room->progs) ? arg->d.room->progs->vars : NULL; break;
-	case ENT_TOKEN: vars = (arg->d.token && arg->d.token->progs) ? arg->d.token->progs->vars : NULL; break;
+	case ENT_MOBILE: vars = (arg->d.mob && IS_NPC(arg->d.mob) && arg->d.mob->progs) ? &arg->d.mob->progs->vars : NULL; break;
+	case ENT_OBJECT: vars = (arg->d.obj && arg->d.obj->progs) ? &arg->d.obj->progs->vars : NULL; break;
+	case ENT_ROOM: vars = (arg->d.room && arg->d.room->progs) ? &arg->d.room->progs->vars : NULL; break;
+	case ENT_TOKEN: vars = (arg->d.token && arg->d.token->progs) ? &arg->d.token->progs->vars : NULL; break;
 	default: vars = NULL; break;
 	}
 
@@ -4909,10 +4984,10 @@ SCRIPT_CMD(do_opvarclearon)
 		return;
 
 	switch(arg->type) {
-	case ENT_MOBILE: vars = (arg->d.mob && IS_NPC(arg->d.mob) && arg->d.mob->progs) ? arg->d.mob->progs->vars : NULL; break;
-	case ENT_OBJECT: vars = (arg->d.obj && arg->d.obj->progs) ? arg->d.obj->progs->vars : NULL; break;
-	case ENT_ROOM: vars = (arg->d.room && arg->d.room->progs) ? arg->d.room->progs->vars : NULL; break;
-	case ENT_TOKEN: vars = (arg->d.token && arg->d.token->progs) ? arg->d.token->progs->vars : NULL; break;
+	case ENT_MOBILE: vars = (arg->d.mob && IS_NPC(arg->d.mob) && arg->d.mob->progs) ? &arg->d.mob->progs->vars : NULL; break;
+	case ENT_OBJECT: vars = (arg->d.obj && arg->d.obj->progs) ? &arg->d.obj->progs->vars : NULL; break;
+	case ENT_ROOM: vars = (arg->d.room && arg->d.room->progs) ? &arg->d.room->progs->vars : NULL; break;
+	case ENT_TOKEN: vars = (arg->d.token && arg->d.token->progs) ? &arg->d.token->progs->vars : NULL; break;
 	default: vars = NULL; break;
 	}
 
@@ -5136,15 +5211,18 @@ SCRIPT_CMD(do_opalterroom)
 			return;
 		}
 
-		expand_string(info,rest,buf);
+		BUFFER *buffer = new_buf()
+		expand_string(info,rest,buffer);
 
-		if(!allow_empty && !buf[0]) {
+		if(!allow_empty && !buffer->string[0]) {
 			bug("OpAlterRoom - Empty string used.",0);
+			free_buf(buffer);
 			return;
 		}
 
 		free_string(*str);
-		*str = str_dup(buf);
+		*str = str_dup(buffer->string);
+		free_buf(buffer);
 		return;
 	}
 
@@ -6597,16 +6675,17 @@ SCRIPT_CMD(do_opcrier)
 
 	if(!info || !info->obj) return;
 
-	expand_string(info,argument,buf+2);
+	BUFFER *buffer = new_buf();
+	add_buf(buffer, "{M");
+	expand_string(info,argument,buffer);
 
-	buf[0] = '{';
-	buf[1] = 'M';
+	if(buffer->string[2] != '\0')
+	{
+		add_buf(buffer, "{x");
 
-	if(!buf[2]) return;
-
-	strcat(buf, "{x");
-
-	crier_announce(buf);
+		crier_announce(buffer->string);
+	}
+	free_buf(buffer);
 }
 
 
