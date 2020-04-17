@@ -428,7 +428,13 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 		}
 
 		if( *rdesc != '\n' && *rdesc != '\r' )
+		{
+			if( newline )
+			{
+				xbuf2[i++] = '@';
+			}
 			newline = FALSE;
+		}
 	}
 	xbuf2[i]=0;
 
