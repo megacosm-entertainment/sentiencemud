@@ -335,7 +335,7 @@ void string_add(CHAR_DATA *ch, char *argument)
     return;
 }
 
-char *format_paragraghs_len(char *oldstring,int lens[][2], int lenc,bool mem)
+char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 {
 	char xbuf[MAX_STRING_LENGTH];
 	char xbuf2[MAX_STRING_LENGTH];
@@ -465,10 +465,10 @@ char *format_paragraghs_len(char *oldstring,int lens[][2], int lenc,bool mem)
 
 }
 
-char *format_paragragh(char *oldstring)
+char *format_paragraph(char *oldstring)
 {
 	int lens[1][2] = { { 0,77 } };
-	return format_paragragh_len(oldstring,lens,1,TRUE);
+	return format_paragraph_len(oldstring,lens,1,TRUE);
 }
 
 

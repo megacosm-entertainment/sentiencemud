@@ -7416,7 +7416,7 @@ void    string_append   args( ( CHAR_DATA *ch, char **pString ) );
 char *	string_replace_static	args( ( char * orig, char * old, char * new ) );
 char *	string_replace	args( ( char * orig, char * old, char * new ) );
 void    string_add      args( ( CHAR_DATA *ch, char *argument ) );
-char *  format_paragragh args( (char *oldstring) );
+char *  format_paragraph args( (char *oldstring) );
 char *  format_string   args( ( char *oldstring /*, bool fSpace */ ) );
 char *  first_arg       args( ( char *argument, char *arg_first, bool fCase ) );
 char *	string_unpad	args( ( char * argument ) );
