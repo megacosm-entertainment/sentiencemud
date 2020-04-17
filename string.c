@@ -354,7 +354,7 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 			{
 				// Previous newline
 				if (xbuf2[i-1] == ' ') xbuf2[i - 1] = '\n';
-				else if((xbuf2[i-1] != '\n') xbuf2[i++] = '\n';
+				else if(xbuf2[i-1] != '\n') xbuf2[i++] = '\n';
 
 				xbuf2[i++] = '\n';
 			}
