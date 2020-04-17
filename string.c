@@ -484,10 +484,13 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 		}
 	}
 
-	if( rdesc > xbuf3 )
+	if( xbuf3[0] != '\0' )
 	{
-		while((rdesc > xbuf3) && isspace(*rdesc)) --rdesc;
-		strcat(rdesc, "\n\r");
+		i = strlen(xbuf3);
+		while( (--i > 0) && isspace(xbuf3[i]) );
+		xbuf3[++i] = '\n';
+		xbuf3[++i] = '\r';
+		xbuf3[++i] = '\0';
 	}
 	else
 		*rdesc = '\0';
