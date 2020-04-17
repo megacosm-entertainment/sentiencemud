@@ -3686,54 +3686,56 @@ void page_to_char(const char *txt, CHAR_DATA *ch)
 /* string pager */
 void show_string(struct descriptor_data *d, char *input)
 {
-    char buffer[10*MAX_STRING_LENGTH];
-    char buf[MAX_INPUT_LENGTH];
-    register char *scan, *chk;
-    int lines = 0, toggle = 1;
-    int show_lines;
+	char *buffer;
+	char buf[MAX_INPUT_LENGTH];
+	register char *scan, *chk;
+	int lines = 0, toggle = 1;
+	int show_lines;
 
-    one_argument(input,buf);
-    if (buf[0] != '\0')
-    {
-	if (d->showstr_head)
+	one_argument(input,buf);
+	if (buf[0] != '\0')
 	{
-	    free(d->showstr_head);
-	    d->showstr_head = 0;
-	}
-    	d->showstr_point  = 0;
-	return;
-    }
-
-    if (d->character)
-	show_lines = d->character->lines;
-    else
-	show_lines = 0;
-
-    for (scan = buffer; ; scan++, d->showstr_point++)
-    {
-	if (((*scan = *d->showstr_point) == '\n' || *scan == '\r')
-	    && (toggle = -toggle) < 0)
-	    lines++;
-
-	else if (!*scan || (show_lines > 0 && lines >= show_lines))
-	{
-	    *scan = '\0';
-	    write_to_buffer(d,buffer,strlen(buffer));
-	    for (chk = d->showstr_point; *chk && isspace(*chk); chk++)
-	    	;
-
-		if (!*chk)
+		if (d->showstr_head)
 		{
-			if (d->showstr_head)
-			{
-				free(d->showstr_head);
-				d->showstr_head = NULL;
-			}
-			d->showstr_point  = NULL;
+			free(d->showstr_head);
+			d->showstr_head = 0;
 		}
-	    return;
+		d->showstr_point  = 0;
+		return;
 	}
-    }
+
+	int len = strlen(d->showstr_point);
+	buffer = malloc(len + 1);
+
+	if (d->character)
+		show_lines = d->character->lines;
+	else
+		show_lines = 0;
+
+	for (scan = buffer; ; scan++, d->showstr_point++)
+	{
+		if (((*scan = *d->showstr_point) == '\n' || *scan == '\r') && (toggle = -toggle) < 0)
+			lines++;
+		else if (!*scan || (show_lines > 0 && lines >= show_lines))
+		{
+			*scan = '\0';
+			write_to_buffer(d,buffer,strlen(buffer));
+			for (chk = d->showstr_point; *chk && isspace(*chk); chk++);
+
+			if (!*chk)
+			{
+				if (d->showstr_head)
+				{
+					free(d->showstr_head);
+					d->showstr_head = NULL;
+				}
+				d->showstr_point  = NULL;
+			}
+
+			free(buffer);
+			return;
+		}
+	}
 }
 
 
