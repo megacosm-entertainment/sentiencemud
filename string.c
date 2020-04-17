@@ -409,12 +409,12 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 	char *wdesc = xbuf3;
 	for(rdesc = xbuf2; *rdesc; rdesc++)
 	{
-		/*
-		if(*rdesc == '\n' )
+		if( *rdesc == '\n' )
 		{
 			if( rdesc[1] == '\n' )
 			{
-				*wdesc++ = *rdesc;
+				while(rdesc[1] == '\n')
+					*wdesc++ = *rdesc++;
 			}
 			else
 			{
@@ -422,7 +422,6 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 			}
 		}
 		else
-		*/
 			*wdesc++ = *rdesc;
 	}
 	while((wdesc > xbuf2) && (*wdesc == ' ' || *wdesc == '\n')) --wdesc;
