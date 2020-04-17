@@ -497,7 +497,7 @@ char *mp_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 	AREA_DATA *area;
 	ROOM_INDEX_DATA *loc;
 	WILDS_DATA *pWilds;
-
+	SCRIPT_PARAM *arg = new_script_param();
 	EXIT_DATA *ex;
 	int x, y;
 
@@ -618,6 +618,7 @@ char *mp_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 		}
 	}
 
+	free_script_param(arg);
 	return rest;
 }
 
@@ -1422,8 +1423,8 @@ SCRIPT_CMD(do_mpchargemoney)
 
 	amt = number_range(min, max);
 
-	one_argument(rest,arg->buf);
-	if (!str_cmp(arg->buf,"haggle")) {
+	one_argument(rest,buf);
+	if (!str_cmp(buf,"haggle")) {
 		roll = number_percent();
 		if (roll < get_skill(victim, gsn_haggle)) {
 			amt -= amt * roll / 200;
