@@ -7,6 +7,7 @@
 
 #include "merc.h"
 #include "scripts.h"
+#include "recycle.h"
 #include "tables.h"
 #include "wilds.h"
 
