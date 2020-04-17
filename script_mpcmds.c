@@ -648,7 +648,7 @@ char *mp_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 	AREA_DATA *area;
 	ROOM_INDEX_DATA *loc;
 	WILDS_DATA *pWilds;
-
+	SCRIPT_PARAM *arg = new_script_param();
 	EXIT_DATA *ex;
 	int x, y;
 
@@ -798,6 +798,7 @@ char *mp_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 		}
 	}
 
+	free_script_param(arg);
 	return rest;
 }
 
@@ -935,7 +936,6 @@ SCRIPT_CMD(do_mpairshipsetcrash)
 //
 SCRIPT_CMD(do_mpasound)
 {
-	char buf[MSL];
 	ROOM_INDEX_DATA *was_in_room, *room;
 	ROOM_INDEX_DATA *rooms[MAX_DIR];
 	int door, i, j;
@@ -1879,7 +1879,7 @@ SCRIPT_CMD(do_mpechoroom)
 	expand_string(info,argument,buffer);
 
 	if(buf_string(buffer)[0] != '\0')
-		act(buf, room->people, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL);
+		act(buf_string(buffer), room->people, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL);
 	free_buf(buffer);
 }
 
@@ -1953,7 +1953,7 @@ SCRIPT_CMD(do_mpechonotvict)
 	expand_string(info,argument,buffer);
 
 	if(buf_string(buffer)[0] != '\0')
-		act(buf, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
+		act(buf_string(buffer), victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
 	free_buf(buffer);
 }
 
@@ -2066,7 +2066,7 @@ SCRIPT_CMD(do_mpechoat)
 
 	if( buf_string(buffer)[0] != '\0' )
 		act(buf_string(buffer), victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	free_buffer(buffer);
+	free_buf(buffer);
 }
 
 // do_mpechogrouparound
@@ -2320,7 +2320,7 @@ SCRIPT_CMD(do_mpforce)
 	BUFFER *buffer = new_buf();
 	expand_string(info,rest,buffer);
 
-	if( buf_string(buffer)[0] == '\0' )
+	if( buf_string(buffer)[0] == '\0' ) {
 		bug("MpForce - Error in parsing from vnum %ld.", VNUM(info->mob));
 		free_buf(buffer);
 		return;
