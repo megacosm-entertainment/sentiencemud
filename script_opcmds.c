@@ -3438,7 +3438,12 @@ SCRIPT_CMD(do_opstringobj)
 			add_buf(buffer, material_table[mat].name);
 
 			str = (char**)&obj->material;
-		} else return;
+		}
+		else
+		{
+			free_buf(buffer);
+			return;
+		}
 
 		if(script_security < min_sec) {
 			sprintf(buf,"OpStringObj - Attempting to restring '%s' with security %d.\n\r", field, script_security);

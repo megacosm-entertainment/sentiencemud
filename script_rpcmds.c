@@ -3107,7 +3107,12 @@ SCRIPT_CMD(do_rpstringobj)
 			add_buf(buffer,material_table[mat].name);
 
 			str = (char**)&obj->material;
-		} else return;
+		}
+		else
+		{
+			free_buf(buffer);
+			return;
+		}
 
 		if(script_security < min_sec) {
 			sprintf(buf,"RpStringObj - Attempting to restring '%s' with security %d.\n\r", field, script_security);
