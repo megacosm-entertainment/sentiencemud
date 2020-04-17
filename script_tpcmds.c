@@ -1258,7 +1258,7 @@ SCRIPT_CMD(do_tpechobattlespam)
 // do_tpechoat
 SCRIPT_CMD(do_tpechoat)
 {
-	char buf[MSL], *rest;
+	char *rest;
 	CHAR_DATA *victim;
 
 
@@ -1686,7 +1686,7 @@ SCRIPT_CMD(do_tpvarsave)
 	argument = one_argument(argument,name);
 	if(!name[0]) return;
 	argument = one_argument(argument,arg1);
-	if(!arg[0]) return;
+	if(!arg1[0]) return;
 
 	on = !str_cmp(arg1,"on") || !str_cmp(arg1,"true") || !str_cmp(arg1,"yes");
 
@@ -1796,7 +1796,7 @@ SCRIPT_CMD(do_tpsettimer)
 
 SCRIPT_CMD(do_tpinterrupt)
 {
-	char buf[MSL],*rest;
+	char *rest;
 	CHAR_DATA *victim = NULL;
 	ROOM_INDEX_DATA *here;
 
@@ -2546,7 +2546,6 @@ SCRIPT_CMD(do_tpgdamage)
 
 SCRIPT_CMD(do_tpasound)
 {
-	char buf[MSL];
 	ROOM_INDEX_DATA *here, *room;
 	ROOM_INDEX_DATA *rooms[MAX_DIR];
 	int door, i, j;
@@ -3411,7 +3410,7 @@ SCRIPT_CMD(do_tpforce)
 
 SCRIPT_CMD(do_tpgforce)
 {
-	char buf[MSL],*rest;
+	char *rest;
 	CHAR_DATA *victim = NULL, *vch, *next;
 
 
@@ -3583,7 +3582,7 @@ SCRIPT_CMD(do_tpstringobj)
 		if(script_security < min_sec) {
 			sprintf(buf,"TpStringObj - Attempting to restring '%s' with security %d.\n\r", field, script_security);
 			bug(buf, 0);
-			free_buf(buffer;
+			free_buf(buffer);
 			return;
 		}
 
@@ -4625,7 +4624,6 @@ SCRIPT_CMD(do_tpstripaffectname)
 
 SCRIPT_CMD(do_tpinput)
 {
-	char buf[MSL];
 	char *rest, *p;
 	int vnum;
 	CHAR_DATA *mob = NULL;
@@ -5039,7 +5037,7 @@ SCRIPT_CMD(do_tpalterexit)
 // SYNTAX: token prompt <player> <name>[ <string>]
 SCRIPT_CMD(do_tpprompt)
 {
-	char buf[MSL+2],name[MIL],*rest;
+	char name[MIL],*rest;
 	CHAR_DATA *mob = NULL;
 
 
@@ -6591,8 +6589,6 @@ SCRIPT_CMD(do_tpscriptwait)
 // This prevents undoing the failure by setting the recovery flag.
 SCRIPT_CMD(do_tpcastfailure)
 {
-	char buf[MSL];
-
 	char *rest;
 	CHAR_DATA *mob = NULL;
 
@@ -6617,10 +6613,10 @@ SCRIPT_CMD(do_tpcastfailure)
 			expand_string(info,rest,buffer);
 
 			if( buffer->string[0] != '\0' )
-				strcat(buf, "\n\r");
+			{
+				add_buf(buffer, "\n\r");
 				mob->casting_failure_message = str_dup(buffer->string);
 				mob->cast_successful = MAGICCAST_SCRIPT;
-
 			}
 			else
 			{
