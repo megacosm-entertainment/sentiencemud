@@ -3337,6 +3337,6 @@ void free_script_param(SCRIPT_PARAM *arg)
 	if( arg != NULL )
 	{
 		free_buf(arg->buffer);
-		free_mem(arg);
+		free_mem(arg, sizeof(SCRIPT_PARAM));
 	}
 }
