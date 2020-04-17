@@ -442,8 +442,6 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 			++leni;
 		len = lens[leni][1];
 
-
-
 		// Check if we are the end of the line
 		for (i=0; i<len && *(rdesc+i) && *(rdesc+i) != '\n'; i++);
 
@@ -459,6 +457,7 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 		}
 		else
 		{
+			int j;
 			// Find a line break
 			for (j = i - 1; --j > 0 && *(rdesc+j)!=' ';);
 
@@ -466,7 +465,7 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 			if (j > 0) {
 				strncat(xbuf,rdesc,j);
 				strcat(xbuf,"\n\r");
-				rdesc += i+1;
+				rdesc += j+1;
 				while (*rdesc == ' ') rdesc++;
 			// The entire line has no breaks
 			} else {
