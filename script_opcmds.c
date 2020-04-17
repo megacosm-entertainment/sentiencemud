@@ -4427,6 +4427,8 @@ SCRIPT_CMD(do_opinput)
 
 	if(IS_NPC(mob) || !mob->desc || is_char_busy(mob) || mob->desc->pString != NULL || mob->desc->input) return;
 
+	if( mob->desc->showstr_head != NULL ) return;
+
 	if(!(rest = expand_argument(info,rest,&arg))) {
 		bug("OpInput - Error in parsing.",0);
 		return;

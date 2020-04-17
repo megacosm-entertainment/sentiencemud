@@ -1457,6 +1457,8 @@ SCRIPT_CMD(scriptcmd_inputstring)
 	mob = arg.d.mob;
 	if(IS_NPC(mob) || !mob->desc || is_char_busy(mob) || mob->desc->pString != NULL || mob->desc->input) return;
 
+	if( mob->desc->showstr_head != NULL ) return;
+
 	// Are they already being prompted
 	if(mob->pk_question ||
 		mob->remove_question ||
@@ -1539,6 +1541,8 @@ SCRIPT_CMD(scriptcmd_pager)
 	mob = arg.d.mob;
 
 	if(IS_NPC(mob) || !mob->desc || is_char_busy(mob) || mob->desc->pString != NULL || mob->desc->input) return;
+
+	if( mob->desc->showstr_head != NULL ) return;
 
 	if( !expand_string(info, rest, tmp) )
 		return;
