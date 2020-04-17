@@ -7,6 +7,7 @@
 
 #include "merc.h"
 #include "scripts.h"
+#include "recycle.h"
 #include "wilds.h"
 #include "tables.h"
 
@@ -471,7 +472,10 @@ void mob_interpret(SCRIPT_VARINFO *info, char *argument)
 		return;
 	}
 
-	(*mob_cmd_table[cmd].func) (info, argument);
+	SCRIPT_PARAM *arg = new_script_param();
+	(*mob_cmd_table[cmd].func) (info, argument, arg);
+	free_script_param(arg);
+
 	tail_chain();
 }
 
@@ -952,23 +956,23 @@ SCRIPT_CMD(do_mpasound)
 		BUFFER *buffer = new_buf();
 		expand_string(info,argument,buffer);
 
+		if(buffer->state == BUFFER_SAFE && buffer->string[0] != '\0')
+		{
+			for (i = 0; door < MAX_DIR; door++)
+				if ((pexit = was_in_room->exit[door]) && (room = exit_destination(pexit)) && room != was_in_room) {
+					// Have we been to this room already?
+					for(j=0;j < i && rooms[j] != room; j++);
 
-
-		if(!buf[0]) return;
-
-		for (i = 0; door < MAX_DIR; door++)
-			if ((pexit = was_in_room->exit[door]) && (room = exit_destination(pexit)) && room != was_in_room) {
-				// Have we been to this room already?
-				for(j=0;j < i && rooms[j] != room; j++);
-
-				if(i <= j) {
-					// No, so do the message
-					MOBtrigger  = FALSE;
-					act(buf, room->people, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL);
-					MOBtrigger  = TRUE;
-					rooms[i++] = room;
+					if(i <= j) {
+						// No, so do the message
+						MOBtrigger  = FALSE;
+						act(buf, room->people, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL);
+						MOBtrigger  = TRUE;
+						rooms[i++] = room;
+					}
 				}
-			}
+		}
+		free_buf(buffer);
 	}
 }
 
