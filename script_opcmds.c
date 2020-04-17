@@ -71,7 +71,7 @@ const struct script_cmd_type obj_cmd_table[] = {
 	{ "mload",				do_opmload,				FALSE,	TRUE	},
 	{ "oload",				do_opoload,				FALSE,	TRUE	},
 	{ "otransfer",			do_opotransfer,			FALSE,	TRUE	},
-	{ "pager",				scriptcmd_pager,			FALSE,	TRUE	},
+	{ "pageat",				scriptcmd_pageat,			FALSE,	TRUE	},
 	{ "peace",				do_oppeace,				FALSE,	FALSE	},
 	{ "persist",			do_oppersist,			FALSE,	TRUE	},
 	{ "prompt",				do_opprompt,			FALSE,	TRUE	},

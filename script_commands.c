@@ -1523,8 +1523,8 @@ SCRIPT_CMD(scriptcmd_inputstring)
 //////////////////////////////////////
 // P
 
-// PAGER $PLAYER $STRING
-SCRIPT_CMD(scriptcmd_pager)
+// PAGEAT $PLAYER $STRING
+SCRIPT_CMD(scriptcmd_pageat)
 {
 	char tmp[MSL*2];
 	char *rest;
@@ -1547,7 +1547,11 @@ SCRIPT_CMD(scriptcmd_pager)
 	if( !expand_string(info, rest, tmp) )
 		return;
 
-	page_to_char(tmp, mob);
+	// only do it if they actually HAVE scroll enabled
+	if( mob->lines > 0)
+		page_to_char(tmp, mob);
+	else
+		send_to_char(tmp, mob);
 
 	info->progs->lastreturn = 1;
 }
