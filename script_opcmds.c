@@ -1210,7 +1210,7 @@ SCRIPT_CMD(do_opecho)
 		return;
 	}
 
-	add_buffer(buffer,"\n\r");
+	add_buf(buffer,"\n\r");
 	room_echo(obj_room(info->obj), buf_string(buffer));
 	free_buf(buffer);
 }
