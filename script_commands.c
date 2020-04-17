@@ -1550,6 +1550,8 @@ SCRIPT_CMD(scriptcmd_pageat)
 	// only do it if they actually HAVE scroll enabled
 	if( mob->lines > 0)
 		page_to_char(tmp, mob);
+	else if( strlen(tmp) > MSL )	// Too big for send_to_char.. don't send it
+		return;
 	else
 		send_to_char(tmp, mob);
 

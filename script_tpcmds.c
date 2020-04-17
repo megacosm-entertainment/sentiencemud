@@ -290,8 +290,16 @@ void do_tpstat(CHAR_DATA *ch, char *argument)
 				break;
 			case VAR_STRING:
 			case VAR_STRING_S:
-				sprintf(arg,"Name [%-20s] Type[STRING] Save[%c] Value[%s{x]\n\r",
-					var->name,var->save?'Y':'N',var->_.s?var->_.s:"(empty)");
+				if( var->_.s && strlen(var->_.s) > MIL )
+				{
+					sprintf(arg,"Name [%-20s] Type[STRING] Save[%c] Value[%.*s{x...{W(truncated){x]\n\r",
+						var->name,var->save?'Y':'N',MIL,var->_.s);
+				}
+				else
+				{
+					sprintf(arg,"Name [%-20s] Type[STRING] Save[%c] Value[%s{x]\n\r",
+						var->name,var->save?'Y':'N',var->_.s?var->_.s:"(empty)");
+				}
 				break;
 			case VAR_ROOM:
 				if(var->_.r) {
