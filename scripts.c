@@ -720,7 +720,6 @@ DECL_OPC_FUN(opc_endif)
 
 DECL_OPC_FUN(opc_command)
 {
-	char buf[MSL];
 	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
 		return opc_skip_block(block,block->cur_line->level-1,FALSE);
 
