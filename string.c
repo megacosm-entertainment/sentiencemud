@@ -413,11 +413,17 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 			{
 				*wdesc++ = *rdesc;
 			}
+			else
+			{
+				*wdesc++ = ' ';
+			}
 
 		}
 		else
 			*wdesc++ = *rdesc;
 	}
+	while((wdesc > xbuf2) && (*wdesc == ' ' || *wdesc == '\n')) --wdesc;
+	*wdesc++ = '\n';
 	*wdesc = '\0';
 
 	rdesc=xbuf2;
