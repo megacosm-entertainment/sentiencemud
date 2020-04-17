@@ -69,6 +69,7 @@ const struct script_cmd_type room_cmd_table[] = {
 	{ "mload",				do_rpmload,				FALSE,	TRUE	},
 	{ "oload",				do_rpoload,				FALSE,	TRUE	},
 	{ "otransfer",			do_rpotransfer,			FALSE,	TRUE	},
+	{ "pager",				scriptcmd_pager,			FALSE,	TRUE	},
 	{ "peace",				do_rppeace,				FALSE,	FALSE	},
 	{ "persist",			do_rppersist,			FALSE,	TRUE	},
 	{ "prompt",				do_rpprompt,			FALSE,	TRUE	},

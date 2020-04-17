@@ -1521,6 +1521,33 @@ SCRIPT_CMD(scriptcmd_inputstring)
 //////////////////////////////////////
 // P
 
+// PAGER $PLAYER $STRING
+SCRIPT_CMD(scriptcmd_pager)
+{
+	char tmp[MSL*2];
+	char *rest;
+	SCRIPT_PARAM arg;
+	CHAR_DATA *mob;
+
+	info->progs->lastreturn = 0;
+
+	if(!(rest = expand_argument(info,argument,&arg)))
+		return;
+
+	if(arg.type != ENT_MOBILE || !arg.d.mob || IS_NPC(arg.d.mob)) return;
+
+	mob = arg.d.mob;
+
+	if(IS_NPC(mob) || !mob->desc || is_char_busy(mob) || mob->desc->pString != NULL || mob->desc->input) return;
+
+	if( !expand_string(info, rest, tmp) )
+		return;
+
+	page_to_char(tmp, mob);
+
+	info->progs->lastreturn = 1;
+}
+
 //////////////////////////////////////
 // Q
 

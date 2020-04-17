@@ -2426,6 +2426,8 @@ SCRIPT_CMD(scriptcmd_questpartslay);
 SCRIPT_CMD(scriptcmd_attach);
 SCRIPT_CMD(scriptcmd_detach);
 
+SCRIPT_CMD(scriptcmd_pager);
+
 #include "tables.h"
 
 #endif /* !__SCRIPTS_H__ */

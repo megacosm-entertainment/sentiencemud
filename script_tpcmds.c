@@ -71,6 +71,7 @@ const struct script_cmd_type token_cmd_table[] = {
 	{ "mload",				do_tpmload,					FALSE,	TRUE	},
 	{ "oload",				do_tpoload,					FALSE,	TRUE	},
 	{ "otransfer",			do_tpotransfer,				FALSE,	TRUE	},
+	{ "pager",				scriptcmd_pager,			FALSE,	TRUE	},
 	{ "peace",				do_tppeace,					FALSE,	FALSE	},
 	{ "persist",			do_tppersist,				FALSE,	TRUE	},
 	{ "prompt",				do_tpprompt,				FALSE,	TRUE	},

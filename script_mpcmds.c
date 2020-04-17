@@ -82,6 +82,7 @@ const struct script_cmd_type mob_cmd_table[] = {
 	{ "mload",				do_mpmload,					FALSE,	TRUE	},
 	{ "oload",				do_mpoload,					FALSE,	TRUE	},
 	{ "otransfer",			do_mpotransfer,				FALSE,	TRUE	},
+	{ "pager",				scriptcmd_pager,			FALSE,	TRUE	},
 	{ "peace",				do_mppeace,					FALSE,	FALSE	},
 	{ "persist",			do_mppersist,				FALSE,	TRUE	},
 	{ "prompt",				do_mpprompt,				FALSE,	TRUE	},
