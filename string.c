@@ -352,9 +352,24 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 			if( newline )
 			{
 				// Previous newline
-				if (xbuf2[i-1] == ' ') xbuf2[i - 1] = '\n';
-				else if(xbuf2[i-1] != '\n') xbuf2[i++] = '\n';
+				if (xbuf2[i-1] == ' ')
+				{
+					xbuf2[i - 1] = 'E';
+					xbuf2[i++] = 'O';
+					xbuf2[i++] = 'L';
+					xbuf2[i++] = '\n';
+				}
+				else if(xbuf2[i-1] != '\n')
+				{
+					xbuf2[i++] = 'E';
+					xbuf2[i++] = 'O';
+					xbuf2[i++] = 'L';
+					xbuf2[i++] = '\n';
+				}
 
+				xbuf2[i++] = 'E';
+				xbuf2[i++] = 'O';
+				xbuf2[i++] = 'L';
 				xbuf2[i++] = '\n';
 			}
 			else
