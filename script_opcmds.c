@@ -1201,7 +1201,7 @@ SCRIPT_CMD(do_opecho)
 {
 	if(!info || !info->obj) return;
 
-	BUFFER *buf = new_buf();
+	BUFFER *buffer = new_buf();
 	expand_string(info,argument,buffer);
 
 	if(!buf_string(buffer)[0])
@@ -1431,7 +1431,7 @@ SCRIPT_CMD(do_opechochurch)
 		return;
 
 	// Expand the message
-	BUFFER *buffer = new_buf()
+	BUFFER *buffer = new_buf();
 	expand_string(info,rest,buffer);
 
 	if(buffer->string[0] != '\0')
@@ -1495,7 +1495,7 @@ SCRIPT_CMD(do_opechogroupat)
 		return;
 
 	// Expand the message
-	BUFFER *buffer = new_buf()
+	BUFFER *buffer = new_buf();
 	expand_string(info,rest,buffer);
 
 	if(buffer->string[0] != '\0')
@@ -1608,11 +1608,11 @@ SCRIPT_CMD(do_opforce)
 			for (victim = obj_room(info->obj)->people; victim; victim = next) {
 				next = victim->next_in_room;
 				forced_command = TRUE;
-				interpret(victim, buf);
+				interpret(victim, buffer->string);
 			}
 		} else {
 			forced_command = TRUE;
-			interpret(victim, buf);
+			interpret(victim, buffer->string);
 		}
 
 		forced_command = forced;
@@ -2659,7 +2659,7 @@ SCRIPT_CMD(do_opzecho)
 				d->character->in_room->area == area) {
 				if (IS_IMMORTAL(d->character))
 					send_to_char("Obj echo> ", d->character);
-				send_to_char(buf, d->character);
+				send_to_char(buffer->string, d->character);
 				send_to_char("\n\r", d->character);
 			}
 	}
@@ -4475,7 +4475,6 @@ SCRIPT_CMD(do_opstripaffectname)
 
 SCRIPT_CMD(do_opinput)
 {
-	char buf[MSL];
 	char *rest, *p;
 	int vnum;
 	CHAR_DATA *mob = NULL;
