@@ -681,7 +681,7 @@ SCRIPT_CMD(do_opasound)
 
 	if (door < MAX_DIR) {
 		// Expand the message
-		BUFFER *buffer = new_buf()
+		BUFFER *buffer = new_buf();
 		expand_string(info,argument,buffer);
 		if(!buf_string(buffer)[0])
 		{
@@ -1201,7 +1201,7 @@ SCRIPT_CMD(do_opecho)
 {
 	if(!info || !info->obj) return;
 
-	BUFFER *buf = new_buffer();
+	BUFFER *buf = new_buf();
 	expand_string(info,argument,buffer);
 
 	if(!buf_string(buffer)[0])
@@ -1291,7 +1291,7 @@ SCRIPT_CMD(do_opechoaround)
 // do_opechonotvict
 SCRIPT_CMD(do_opechonotvict)
 {
-	char buf[MSL], *rest;
+	char *rest;
 	CHAR_DATA *victim, *attacker;
 
 
@@ -1325,7 +1325,7 @@ SCRIPT_CMD(do_opechonotvict)
 	BUFFER *buffer = new_buf();
 	expand_string(info,rest,buffer);
 
-	if(buffer->string[0] != '\0)
+	if(buffer->string[0] != '\0')
 		act(buffer->string, victim, attacker, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
 	free_buf(buffer);
 }
@@ -1370,7 +1370,7 @@ SCRIPT_CMD(do_opechobattlespam)
 	{
 		for (ch = attacker->in_room->people; ch; ch = ch->next_in_room) {
 			if (!IS_NPC(ch) && (ch != attacker && ch != victim) && (is_same_group(ch, attacker) || is_same_group(ch, victim) || !IS_SET(ch->comm, COMM_NOBATTLESPAM))) {
-				act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				act(buffer->string, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			}
 		}
 	}
@@ -1765,7 +1765,7 @@ SCRIPT_CMD(do_opgecho)
 			if (d->connected == CON_PLAYING) {
 				if (IS_IMMORTAL(d->character))
 					send_to_char("Obj echo> ", d->character);
-				send_to_char(buf, d->character);
+				send_to_char(buffer->string, d->character);
 				send_to_char("\n\r", d->character);
 			}
 	}
@@ -1913,7 +1913,7 @@ SCRIPT_CMD(do_opjunk)
 			} else {
 				for (obj = info->obj->contains; obj; obj = obj_next) {
 					obj_next = obj->next_content;
-					if (!arg->d.str[3] || is_name(arg->d.str[4], obj->name))
+					if (!arg->d.str[3] || is_name(&arg->d.str[4], obj->name))
 						extract_obj(obj);
 				}
 				return;
@@ -2732,7 +2732,7 @@ SCRIPT_CMD(do_opvarcopy)
 
 SCRIPT_CMD(do_opvarsave)
 {
-	char name[MIL],arg[MIL];
+	char name[MIL],arg1[MIL];
 	bool on;
 
 	if(!info || !info->obj || !info->var) return;
@@ -2740,10 +2740,10 @@ SCRIPT_CMD(do_opvarsave)
 	// Get name
 	argument = one_argument(argument,name);
 	if(!name[0]) return;
-	argument = one_argument(argument,arg);
-	if(!arg[0]) return;
+	argument = one_argument(argument,arg1);
+	if(!arg1[0]) return;
 
-	on = !str_cmp(arg,"on") || !str_cmp(arg,"true") || !str_cmp(arg,"yes");
+	on = !str_cmp(arg1,"on") || !str_cmp(arg1,"true") || !str_cmp(arg1,"yes");
 
 	variable_setsave(*info->var,name,on);
 }
@@ -4892,7 +4892,7 @@ SCRIPT_CMD(do_opalterexit)
 // SYNTAX: obj prompt <player> <name>[ <string>]
 SCRIPT_CMD(do_opprompt)
 {
-	char buf[MSL+2],name[MIL],*rest;
+	char name[MIL],*rest;
 	CHAR_DATA *mob = NULL;
 
 
@@ -4949,7 +4949,7 @@ SCRIPT_CMD(do_opprompt)
 	{
 		string_vector_set(&mob->pcdata->script_prompts,name,buffer->string);
 	}
-	free_buf(buffer->string);
+	free_buf(buffer);
 }
 
 SCRIPT_CMD(do_opvarseton)
@@ -5213,7 +5213,7 @@ SCRIPT_CMD(do_opalterroom)
 			return;
 		}
 
-		BUFFER *buffer = new_buf()
+		BUFFER *buffer = new_buf();
 		expand_string(info,rest,buffer);
 
 		if(!allow_empty && !buffer->string[0]) {
@@ -6673,8 +6673,6 @@ SCRIPT_CMD(do_opalteraffect)
 // Syntax: crier STRING
 SCRIPT_CMD(do_opcrier)
 {
-	char buf[MSL];
-
 	if(!info || !info->obj) return;
 
 	BUFFER *buffer = new_buf();
