@@ -18,8 +18,6 @@
 char *expand_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,pVARIABLE *var);
 char *expand_string_expression(SCRIPT_VARINFO *info,char *str,BUFFER *store);
 
-static bool wiznet_variables = FALSE;
-
 // Check the validity of the script parameters
 //	Should the ids mismatch, reset the field
 bool check_varinfo(SCRIPT_VARINFO *info)
@@ -1354,7 +1352,7 @@ char *expand_entity_number(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 char *expand_entity_string(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	char *a, *b;
+	char *a;
 
 	switch(*str) {
 	case ENTITY_STR_LEN:
@@ -4992,7 +4990,7 @@ void expand_string_simple_code(SCRIPT_VARINFO *info,unsigned char code, BUFFER *
 char *expand_string_expression(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
 {
 	char buf[MIL];
-	int num, x;
+	int num;
 
 	str = expand_argument_expression(info,str,&num);
 //	sprintf(buf,"expand_string_expression: str %08X, %2.2X", str, (str ? (*str&0xFF) : 0));
