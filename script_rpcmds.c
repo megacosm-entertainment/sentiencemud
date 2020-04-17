@@ -2453,7 +2453,7 @@ SCRIPT_CMD(do_rpvarsave)
 	argument = one_argument(argument,name);
 	if(!name[0]) return;
 	argument = one_argument(argument,arg1);
-	if(!arg[0]) return;
+	if(!arg1[0]) return;
 
 	on = !str_cmp(arg1,"on") || !str_cmp(arg1,"true") || !str_cmp(arg1,"yes");
 

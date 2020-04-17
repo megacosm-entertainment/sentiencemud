@@ -1116,12 +1116,16 @@ SCRIPT_CMD(do_tpechoroom)
 	if (!room || !room->people) return;
 
 	// Expand the message
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
-	if(!buf[0]) return;
+	if( buffer->string[0] != '\0' )
+	{
+		add_buf(buffer,"\n\r");
+		room_echo(room, buffer->string);
+	}
 
-	strcat(buf,"\n\r");
-	room_echo(room, buf);
+	free_buf(buffer);
 }
 
 // do_tpechoaround
@@ -1638,7 +1642,7 @@ SCRIPT_CMD(do_tpvarcopy)
 
 SCRIPT_CMD(do_tpvarsave)
 {
-	char name[MIL],arg[MIL];
+	char name[MIL],arg1[MIL];
 	bool on;
 
 	if(!info || !info->token || !info->var) return;
@@ -1646,10 +1650,10 @@ SCRIPT_CMD(do_tpvarsave)
 	// Get name
 	argument = one_argument(argument,name);
 	if(!name[0]) return;
-	argument = one_argument(argument,arg);
+	argument = one_argument(argument,arg1);
 	if(!arg[0]) return;
 
-	on = !str_cmp(arg,"on") || !str_cmp(arg,"true") || !str_cmp(arg,"yes");
+	on = !str_cmp(arg1,"on") || !str_cmp(arg1,"true") || !str_cmp(arg1,"yes");
 
 	variable_setsave(*info->var,name,on);
 }
