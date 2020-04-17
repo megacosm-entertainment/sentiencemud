@@ -464,7 +464,7 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 		{
 			int j;
 			// Find a line break
-			for (j = len - 1; --j > 0 && *(rdesc+j)!=' ';);
+			for (j = len; --j > 0 && *(rdesc+j)!=' ';);
 
 			// Found a line break
 			if (j > 0) {
@@ -482,11 +482,15 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 
 			if( *rdesc == '\n' ) rdesc++;
 		}
-
-
 	}
 
-	*rdesc=0;
+	if( rdesc > xbuf3 )
+	{
+		while((rdesc > xbuf3) && isspace(*rdesc)) --rdesc;
+		strcat(rdesc, "\n\r");
+	}
+	else
+		*rdesc = '\0';
 #else
 	xbuf[0]=0;
 	i = 0;
