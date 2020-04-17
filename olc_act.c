@@ -1664,7 +1664,7 @@ REDIT(redit_show)
 
     if (pRoom->conditional_descr)
     {
-	char phrase[MSL];
+	char phrase[MIL];
 
 	sprintf(buf, "\n\rConditional Descriptions for {r[{x%5ld{r]{x:\n\r", pRoom->vnum);
 
@@ -1681,8 +1681,8 @@ REDIT(redit_show)
 	    if (cd->condition == CONDITION_HOUR || cd->condition == CONDITION_SCRIPT)
 			sprintf(phrase, "%d", cd->phrase);
 		else {
-			strncpy(phrase, condition_phrase_to_name(cd->condition, cd->phrase), MSL-1);
-			phrase[MSL-1] = '\0';
+			strncpy(phrase, condition_phrase_to_name(cd->condition, cd->phrase), MIL-1);
+			phrase[MIL-1] = '\0';
 		}
 
 
