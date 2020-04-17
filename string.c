@@ -442,6 +442,13 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 			++leni;
 		len = lens[leni][1];
 
+		if( *rdesc == '\n' )
+		{
+			strcat(xbuf,"\n\r");
+			rdesc++;
+			continue;
+		}
+
 		// Check if we are the end of the line
 		for (i=0; i<len && *(rdesc+i) && *(rdesc+i) != '\n'; i++);
 
