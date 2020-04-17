@@ -15,7 +15,7 @@
 #include "debug.h"
 
 char *expand_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,pVARIABLE *var);
-char *expand_string_expression(SCRIPT_VARINFO *info,char *str,char **store);
+char *expand_string_expression(SCRIPT_VARINFO *info,char *str,BUFFER *store);
 
 static bool wiznet_variables = FALSE;
 
@@ -27,18 +27,18 @@ bool check_varinfo(SCRIPT_VARINFO *info)
 	return ret;
 }
 
-void expand_escape2print(char *str, char *store)
+void expand_escape2print(char *str, BUFFER *buffer)
 {
+	char hex[10];
 	while(*str) {
-		if(isprint(*str)) *store++ = *str;
+		if(isprint(*str)) add_buf_char(buffer, *str);
 		else {
-			sprintf(store,"0x%2.2X", *str);
-			store+=4;
+			sprintf(hex,"0x%2.2X", *str);
+			add_buf(buffer, hex);
 		}
 		str++;
-		if(*str) *store++ = ' ';
+		if(*str) add_buf_char(buffer, ' ');
 	}
-	*store = 0;
 }
 
 char *expand_skip(register char *str)
@@ -135,7 +135,7 @@ static bool process_expession_stack(STACK *stk_op,STACK *stk_opr,int op)
 // $<speed<oretype>>
 //
 // If 'oretype' is 'iron'... it will translate into... speediron
-char *expand_variable_recursive(SCRIPT_VARINFO *info, char *str,char **store)
+char *expand_variable_recursive(SCRIPT_VARINFO *info, char *str,BUFFER *buffer)
 {
 //	char esc[MSL];
 //	char msg[MSL*2];
@@ -149,18 +149,18 @@ char *expand_variable_recursive(SCRIPT_VARINFO *info, char *str,char **store)
 		wiznet(msg,NULL,NULL,WIZ_SCRIPTS,0,0);
 	}
 */
+	BUFFER *name_buffer = new_buf();
 
 	while(*str && *str != ESCAPE_END) {
 		if(*str == ESCAPE_VARIABLE) {
-			str = expand_variable_recursive(info,str+1,&p);
+			str = expand_variable_recursive(info,str+1,name_buffer);
 			if(!str) return NULL;
 		} else if(*str == ESCAPE_EXPRESSION) {
-			str = expand_string_expression(info,str+1,&p);
+			str = expand_string_expression(info,str+1,name_buffer);
 			if(!str) return NULL;
 		} else
-			*p++ = *str++;
+			add_buf_char(name_buffer, *str++);
 	}
-	*p = 0;
 
 /*
 	{
@@ -170,13 +170,13 @@ char *expand_variable_recursive(SCRIPT_VARINFO *info, char *str,char **store)
 	}
 */
 
-	var = variable_get(infovar,buf);
+	var = variable_get(infovar,buffer_string(name_buffer));
 	if(var) {
 		if((var->type == VAR_STRING || var->type == VAR_STRING_S) && var->_.s && *var->_.s) {
-			strcpy(*store,var->_.s);
-			*store += strlen(var->_.s);
+			add_buf(store,var->_.s);
 		} else if(var->type == VAR_INTEGER) {
-			*store += sprintf(*store,"%d",var->_.i);
+			sprintf(buf, "%d", var->_.i);
+			add_buf(store, buf);
 		}
 /*
 	} else if(var) {
@@ -192,92 +192,95 @@ char *expand_variable_recursive(SCRIPT_VARINFO *info, char *str,char **store)
 */
 	}
 
+	free_buffer(name_buffer);
+
 	return str+1;
 }
 
 char *expand_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,pVARIABLE *var)
 {
-	char buf[MIL], *p = buf;
+	BUFFER *buffer;
 	bool deref = FALSE;
 	pVARIABLE v;
 
-	if(*str == ESCAPE_VARIABLE && wiznet_variables) {
-		char msg[MSL];
-		sprintf(msg,"expand_variable() -> *str IS ESCAPE_VARIABLE\n\r");
-		wiznet(msg,NULL,NULL,WIZ_SCRIPTS,0,0);
-	}
+	//if(*str == ESCAPE_VARIABLE && wiznet_variables) {
+	//	char msg[MSL];
+	//	sprintf(msg,"expand_variable() -> *str IS ESCAPE_VARIABLE\n\r");
+	//	wiznet(msg,NULL,NULL,WIZ_SCRIPTS,0,0);
+	//}
 
 	if(*str == '*') {
 		deref = TRUE;
 		++str;
 	}
 
+	buffer = new_buf();
 	while(*str && *str != ESCAPE_END) {
 		if(*str == ESCAPE_VARIABLE) {
-			str = expand_variable_recursive(info,str+1,&p);
+			str = expand_variable_recursive(info,str+1,buffer);
 			if(!str) {
-				if(wiznet_variables) {
-					char msg[MSL];
-					*p = 0;
-					sprintf(msg,"expand_variable(\"%s\") -> NULL str RETURN\n\r", buf);
-					wiznet(msg,NULL,NULL,WIZ_SCRIPTS,0,0);
-				}
+				//if(wiznet_variables) {
+				//	char msg[MSL];
+				//	*p = 0;
+				//	sprintf(msg,"expand_variable(\"%s\") -> NULL str RETURN\n\r", buf);
+				//	wiznet(msg,NULL,NULL,WIZ_SCRIPTS,0,0);
+				//}
+				free_buf(buffer);
 				return NULL;
 			}
 		} else if(*str == ESCAPE_EXPRESSION) {
-			str = expand_string_expression(info,str+1,&p);
-			if(!str) return NULL;
+			str = expand_string_expression(info,str+1,buffer);
+			if(!str)
+			{
+				free_buf(buffer);
+				return NULL;
+			}
 		} else
-			*p++ = *str++;
+			add_buf_char(buffer, *str++);
 	}
-	*p = 0;
 
 	if(*str != ESCAPE_END) {
-		if(wiznet_variables) {
-			char msg[MSL];
-			sprintf(msg,"expand_variable(\"%s\") -> NO ESCAPE\n\r", buf);
-			wiznet(msg,NULL,NULL,WIZ_SCRIPTS,0,0);
-		}
+		//if(wiznet_variables) {
+		//	char msg[MSL];
+		//	sprintf(msg,"expand_variable(\"%s\") -> NO ESCAPE\n\r", buf);
+		//	wiznet(msg,NULL,NULL,WIZ_SCRIPTS,0,0);
+		//}
+		free_buf(buffer);
 		return NULL;
 	}
 
-	if(wiznet_variables) {
-		char msg[MSL];
-		sprintf(msg,"expand_variable(\"%s\")\n\r", buf);
-		wiznet(msg,NULL,NULL,WIZ_SCRIPTS,0,0);
-	}
+	//if(wiznet_variables) {
+	//	char msg[MSL];
+	//	sprintf(msg,"expand_variable(\"%s\")\n\r", buf);
+	//	wiznet(msg,NULL,NULL,WIZ_SCRIPTS,0,0);
+	//}
 
-	v = variable_get(vars,buf);
+	v = variable_get(vars,buffer_string(buffer));
 	if(deref) {
 		while(v && v->type == VAR_VARIABLE)
 			v = v->_.variable;
 	}
 
-
+	free_buf(buffer);
 	*var = v;
 
 	return str+1;
 }
 
-char *expand_name(SCRIPT_VARINFO *info,pVARIABLE vars,char *str,char *store)
+char *expand_name(SCRIPT_VARINFO *info,pVARIABLE vars,char *str,BUFFER *buffer)
 {
-	char buf[MSL], *p = buf;
-
 	while(*str && *str != ESCAPE_END) {
 		if(*str == ESCAPE_VARIABLE) {
-			str = expand_variable_recursive(info,str+1,&p);
+			str = expand_variable_recursive(info,str+1,buffer);
 			if(!str) return NULL;
 		} else if(*str == ESCAPE_EXPRESSION) {
-			str = expand_string_expression(info,str+1,&p);
+			str = expand_string_expression(info,str+1,buffer);
 			if(!str) return NULL;
 		} else
-			*p++ = *str++;
+			add_buf_char(buffer, *str++);
 	}
-	*p = 0;
 
 	if(*str != ESCAPE_END) return NULL;
-
-	strcpy(store,buf);
 
 	return str+1;
 }
@@ -3036,7 +3039,7 @@ char *expand_entity_conn(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 char *expand_entity_affect(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	printf("expand_entity_affect() called\n\r");
+	//printf("expand_entity_affect() called\n\r");
 	switch(*str) {
 	case ENTITY_AFFECT_NAME:
 		arg->type = ENT_STRING;
@@ -3047,7 +3050,7 @@ char *expand_entity_affect(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 				arg->d.str = skill_table[arg->d.aff->type].name;
 		} else
 			arg->d.str = &str_empty[0];
-		printf("expand_entity_affect(NAME)-> \"%s\"\n\r", arg->d.str);
+		//printf("expand_entity_affect(NAME)-> \"%s\"\n\r", arg->d.str);
 		break;
 
 	case ENTITY_AFFECT_GROUP:
@@ -4447,7 +4450,6 @@ char *expand_entity_objindex(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 char *expand_entity_extradesc(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 //	EXTRA_DESCR_DATA *ed;
-	char buf[MSL];
 	switch(*str) {
 	case ESCAPE_VARIABLE:
 		if(!arg->d.ed || !info->var) return NULL;
@@ -4462,10 +4464,13 @@ char *expand_entity_extradesc(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		}
 */
 
-		wiznet_variables = TRUE;
-		str = expand_name(info,(info?*(info->var):NULL),str+1,buf);
-		wiznet_variables = FALSE;
-		if(!str) return NULL;
+		BUFFER *buffer = new_buf();
+
+		str = expand_name(info,(info?*(info->var):NULL),str+1,buffer);
+		if(!str) {
+			free_buf(buffer);
+			return NULL;
+		}
 
 /*
 		{
@@ -4476,8 +4481,9 @@ char *expand_entity_extradesc(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 */
 
 		arg->type = ENT_STRING;
-		arg->d.str = get_extra_descr(buf, arg->d.ed);
+		arg->d.str = get_extra_descr(buffer_string(buffer), arg->d.ed);
 		if (!arg->d.str) arg->d.str = str_dup("");
+		free_buf(buffer);
 		break;
 	default: return NULL;
 	}
@@ -4487,24 +4493,26 @@ char *expand_entity_extradesc(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 char *expand_entity_bitvector(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	char buf[MSL];
 	switch(*str) {
 	case ESCAPE_VARIABLE:
 		arg->type = ENT_BOOLEAN;
 
 		if(arg->d.bv.table && arg->d.bv.value)
 		{
+			BUFFER *buffer = new_buffer();
 			int bit;
-			str = expand_name(info,(info?*(info->var):NULL),str+1,buf);
+			str = expand_name(info,(info?*(info->var):NULL),str+1,buffer);
 			if(!str) {
+				free_buf(buffer);
 				arg->d.boolean = FALSE;
 				return NULL;
 			}
 
 
-			bit = flag_lookup(buf, arg->d.bv.table);
+			bit = flag_lookup(buffer_string(buffer), arg->d.bv.table);
 
 			arg->d.boolean = IS_SET(arg->d.bv.value, bit) && TRUE;
+			free_buf(buffer);
 		}
 		else
 		{
@@ -4603,30 +4611,71 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	return str && *str ? str+1 : str;
 }
 
-char *expand_string_entity(SCRIPT_VARINFO *info,char *str,char **store)
+char *expand_string_entity(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
 {
+	char buf[MIL];
 	SCRIPT_PARAM arg;
 
 	str = expand_argument_entity(info,str,&arg);
 	if(!str || arg.type == ENT_NONE) return NULL;
 
 	switch(arg.type) {
-	default:		strcpy(*store," {D<{x@{W@{x@{D>{x "); *store += 19;	break;	// Don't display anything
-	case ENT_NUMBER:	*store += sprintf(*store,"%d", arg.d.num); break;
-	case ENT_STRING:	*store += sprintf(*store,"%s", arg.d.str ? arg.d.str : "(null)"); break;
-	case ENT_MOBILE:	*store += sprintf(*store,"%s", arg.d.mob ? (IS_NPC(arg.d.mob) ? arg.d.mob->short_descr : arg.d.mob->name) : SOMEONE); break;
-	case ENT_OBJECT:	*store += sprintf(*store,"%s", arg.d.obj ? arg.d.obj->short_descr : SOMETHING); break;
-	case ENT_ROOM:		*store += sprintf(*store,"%s", arg.d.room ? arg.d.room->name : SOMEWHERE); break;
-	case ENT_EXIT:		*store += sprintf(*store,"%s", dir_name[arg.d.door.door]); break;
-	case ENT_TOKEN:		*store += sprintf(*store,"%s", (arg.d.token && arg.d.token->pIndexData) ? arg.d.token->pIndexData->name : SOMETHING); break;
-	case ENT_AREA:		*store += sprintf(*store,"%s", arg.d.area ? arg.d.area->name : SOMEWHERE); break;
-	case ENT_CONN:		*store += sprintf(*store,"CONN:%s", (arg.d.conn && arg.d.conn->character) ? arg.d.conn->character->name : SOMEONE); break;
+	default:
+		add_buf(buffer, "{D<{x@{W@{x@{D>{x ");
+		break;
+
+	case ENT_NUMBER:
+		sprintf(buf, "%d", arg.d.num);
+		add_buf(buffer, buf);
+		break;
+
+	case ENT_STRING:
+		add_buf(buffer, arg.d.str ? arg.d.str : "(null)");
+		break;
+
+	case ENT_MOBILE:
+		if( IS_VALID(arg.d.mob) )
+		{
+			if( IS_NPC(arg.d.mob) )
+				add_buf(buffer, arg.d.mob->short_descr);
+			else
+				add_buf(buffer, arg.d.mob->name);
+		}
+		else
+		{
+			add_buf(buffer, SOMEONE);
+		}
+		break;
+
+	case ENT_OBJECT:
+		add_buf(buffer, arg.d.obj ? arg.d.obj->short_descr : SOMETHING);
+		break;
+
+	case ENT_ROOM:
+		add_buf(buffer, arg.d.room ? arg.d.room->name : SOMEWHERE);
+		break;
+
+	case ENT_EXIT:
+		add_buf(buffer, dir_name[arg.d.door.door]);
+		break;
+
+	case ENT_TOKEN:
+		add_buf(buffer, (arg.d.token && arg.d.token->pIndexData) ? arg.d.token->pIndexData->name : SOMETHING);
+		break;
+
+	case ENT_AREA:
+		add_buf(buffer, arg.d.area ? arg.d.area->name : SOMEWHERE);
+		break;
+
+	case ENT_CONN:
+		add_buf(buffer, (arg.d.conn && arg.d.conn->character) ? arg.d.conn->character->name : SOMEONE);
+		break;
 	}
 
 	return str;
 }
 
-void expand_string_simple_code(SCRIPT_VARINFO *info,unsigned char code,char **store)
+void expand_string_simple_code(SCRIPT_VARINFO *info,unsigned char code, BUFFER *buffer)
 {
 	char buf[MIL], *s = buf;
 
@@ -4884,13 +4933,13 @@ void expand_string_simple_code(SCRIPT_VARINFO *info,unsigned char code,char **st
 	}
 
 	if(*s) {
-		strcpy(*store,s);
-		*store += strlen(s);
+		add_buf(buffer, s);
 	}
 }
 
-char *expand_string_expression(SCRIPT_VARINFO *info,char *str,char **store)
+char *expand_string_expression(SCRIPT_VARINFO *info,char *str,c BUFFER *buffer)
 {
+	char buf[MIL];
 	int num, x;
 
 	str = expand_argument_expression(info,str,&num);
@@ -4899,19 +4948,18 @@ char *expand_string_expression(SCRIPT_VARINFO *info,char *str,char **store)
 
 	if(!str) return NULL;
 
-	x = sprintf(*store,"%d",num);
+	sprintf(buf,"%d",num);
+	add_buf(buffer,buf);
 
 //	sprintf(buf,"expand_string_expression: %d -> '%s'", num, *store);
 //	wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
 
-	DBG3MSG2("num = '%s', str = %02.2X\n", *store, (*str)&0xFF);
-
-	*store += x;
+	//DBG3MSG2("num = '%s', str = %02.2X\n", *store, (*str)&0xFF);
 
 	return str;
 }
 
-char *expand_string_variable(SCRIPT_VARINFO *info,char *str,char **store)
+char *expand_string_variable(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
 {
 	pVARIABLE var;
 	char buf[MIL];
@@ -4920,8 +4968,7 @@ char *expand_string_variable(SCRIPT_VARINFO *info,char *str,char **store)
 	if(!str) return NULL;
 
 	if(!var) {
-		strcpy(*store,"(null-var)");
-		*store += 10;
+		add_buf(buffer,"(null-var)");
 	} else {
 //		while(var->type == VAR_VARIABLE) {
 //			var = var->_.variable;
@@ -4935,44 +4982,50 @@ char *expand_string_variable(SCRIPT_VARINFO *info,char *str,char **store)
 		switch(var->type) {
 		case VAR_BOOLEAN:
 			if(var->_.boolean) {
-				strcpy(*store,"true");
-				*store += 4;
+				add_buf(buffer,"true");
 			} else {
-				strcpy(*store,"false");
-				*store += 5;
+				add_buf(buffer,"false");
 			}
 			break;
 		case VAR_INTEGER:
-			*store += sprintf(*store,"%d",var->_.i); break;
+			sprintf(buf,"%d",var->_.i);
+			add_buf(buffer, buf);
+			break;
 		case VAR_STRING:
 		case VAR_STRING_S:
 			if(var->_.s && *var->_.s)
-				*store += sprintf(*store,"%s",var->_.s);
+				add_buf(buffer,var->_.s);
 			break;
 		case VAR_ROOM:
-			*store += sprintf(*store,"%d",var->_.r ? (int)var->_.r->vnum : 0); break;
+			sprintf(buf,"%d",var->_.r ? (int)var->_.r->vnum : 0);
+			add_buf(buffer,buf);
+			break;
 		case VAR_EXIT:
-			*store += sprintf(*store,"%s",dir_name[var->_.door.door]); break;
+			add_buf(buffer,dir_name[var->_.door.door]);
+			break;
 		case VAR_MOBILE:
 			if(var->_.m) {
 				one_argument(var->_.m->name,buf);
-				*store += sprintf(*store,"%s",buf);
+				add_buf(buffer,buf);
 			}
 			break;
 		case VAR_OBJECT:
 			if(var->_.o) {
 				one_argument(var->_.o->name,buf);
-				*store += sprintf(*store,"%s",buf);
+				add_buf(buffer,buf);
 			}
 			break;
 		case VAR_TOKEN:
-			*store += sprintf(*store,"%d",var->_.t ? (int)var->_.t->pIndexData->vnum : 0); break;
+			sprintf(buf,"%d",var->_.t ? (int)var->_.t->pIndexData->vnum : 0);
+			add_buf(buffer,buf);
+			break;
+
 		case VAR_CONNECTION:
-			*store += sprintf(*store,"%s",((var->_.conn && var->_.conn->character) ? var->_.conn->character->name : SOMEONE)); break;
+			add_buf(buffer,((var->_.conn && var->_.conn->character) ? var->_.conn->character->name : SOMEONE));
+			break;
 
 		default:
-			strcpy(*store,"(null)");
-			*store += 6;
+			add_buf(buffer,"(null)");
 			break;
 		}
 	}
@@ -4995,35 +5048,33 @@ void expand_string_dump(char *str)
 #endif
 }
 
-bool expand_string(SCRIPT_VARINFO *info,char *str,char *store)
+bool expand_string(SCRIPT_VARINFO *info,char *str,BUFFER *buffer)
 {
-	char *start = store;
 	str = skip_whitespace(str);
 	while(*str) {
 		if(*str == ESCAPE_ENTITY)
-			str = expand_string_entity(info,str+1,&store);
+			str = expand_string_entity(info,str+1,buffer);
 		else if(*str == ESCAPE_EXPRESSION)
-			str = expand_string_expression(info,str+1,&store);
+			str = expand_string_expression(info,str+1,buffer);
 		else if(*str == ESCAPE_VARIABLE)
-			str = expand_string_variable(info,str+1,&store);
+			str = expand_string_variable(info,str+1,buffer);
 		else if((unsigned char)*str >= ESCAPE_UA && (unsigned char)*str <= ESCAPE_LZ) {
-			expand_string_simple_code(info,*str,&store);
+			expand_string_simple_code(info,*str,buffer);
 			++str;
 		} else
-			*store++ = *str++;
+			add_buf_char(buffer, *str++);
 
 		if(!str) {
-			*store = 0;
-			expand_string_dump(start);
+			buffer_clear(buffer);
+			expand_string_dump(buffer_string(buffer));
 			DBG2EXITVALUE2(FALSE);
 			return FALSE;
 		}
 	}
 
-	*store = 0;
 //	wiznet("EXPAND_STRING:",NULL,NULL,WIZ_TESTING,0,0);
 //	wiznet(start,NULL,NULL,WIZ_TESTING,0,0);
-	expand_string_dump(start);
+	expand_string_dump(buffer_string(buffer));
 	DBG2EXITVALUE2(TRUE);
 	return TRUE;
 }
@@ -5070,7 +5121,7 @@ char *one_argument_escape( char *argument, char *arg_first )
 
 char *expand_argument(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	char buf[MIL];
+	char *buf = malloc(strlen(str) + 1);
 
 	str = skip_whitespace(str);
 	arg->type = ENT_NONE;
@@ -5090,11 +5141,13 @@ char *expand_argument(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		if(is_number(buf)) {
 			arg->type = ENT_NUMBER;
 			arg->d.num = atoi(buf);
-		} else if(expand_string(info,buf,arg->buf)) {
+		} else if(expand_string(info,buf,arg->buffer)) {
 			arg->type = ENT_STRING;
-			arg->d.str = arg->buf;
+			arg->d.str = buffer_string(arg->buffer);
 		}
 	}
+
+	free(buf);
 
 	return skip_whitespace(str);
 }

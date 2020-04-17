@@ -354,7 +354,7 @@ typedef struct script_code SCRIPT_CODE;
 typedef struct script_varinfo SCRIPT_VARINFO;
 typedef struct script_control_block SCRIPT_CB;
 typedef struct script_parameter SCRIPT_PARAM;
-typedef bool (*IFC_FUNC)(SCRIPT_VARINFO *info, CHAR_DATA *mob,OBJ_DATA *obj,ROOM_INDEX_DATA *room, TOKEN_DATA *token, int *ret,int argc,SCRIPT_PARAM *argv);
+typedef bool (*IFC_FUNC)(SCRIPT_VARINFO *info, CHAR_DATA *mob,OBJ_DATA *obj,ROOM_INDEX_DATA *room, TOKEN_DATA *token, int *ret,int argc,SCRIPT_PARAM **argv);
 typedef bool (*OPCODE_FUNC)(SCRIPT_CB *block);
 typedef struct entity_field_type ENT_FIELD;
 typedef struct script_var_type VARIABLE, *pVARIABLE, **ppVARIABLE;
@@ -3674,6 +3674,7 @@ struct	char_data
 
     int			fade;
     int			fade_dir;
+    bool		force_fading;		// Caused by scripting
     int			ship_move;
     int			ship_attack;
 

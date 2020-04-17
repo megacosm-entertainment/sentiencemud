@@ -3321,6 +3321,7 @@ void fade_end(CHAR_DATA *ch)
 		if (!move_success(ch)) {
 			act("{W$n fades in.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 			ch->fade_dir = -1;	/* @@@NIB : 20071020 */
+			ch->force_fading = FALSE;
 			return;
 		} else if (counter != 2)
 			act("{W$n fades in then off to the $T.{x", ch, NULL, NULL, NULL, NULL, NULL, dir_name[ch->fade_dir], TO_ROOM);

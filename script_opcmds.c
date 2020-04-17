@@ -363,27 +363,27 @@ char *op_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 	AREA_DATA *area;
 	ROOM_INDEX_DATA *loc;
 	WILDS_DATA *pWilds;
-	SCRIPT_PARAM arg;
+
 	EXIT_DATA *ex;
 	int x, y;
 
 	*room = NULL;
-	if((rest = expand_argument(info,argument,&arg))) {
-		switch(arg.type) {
+	if((rest = expand_argument(info,argument,arg))) {
+		switch(arg->type) {
 		// Nothing was on the string, so it will assume the current room
 		case ENT_NONE: *room = obj_room(info->obj); break;
 		case ENT_NUMBER:
-			x = arg.d.num;
-			if((rest = expand_argument(info,rest,&arg)) && arg.type == ENT_NUMBER) {
-				y = arg.d.num;
-				if((rest = expand_argument(info,rest,&arg)) && arg.type == ENT_NUMBER) {
-					if(!(pWilds = get_wilds_from_uid(NULL, arg.d.num))) break;
+			x = arg->d.num;
+			if((rest = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
+				y = arg->d.num;
+				if((rest = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
+					if(!(pWilds = get_wilds_from_uid(NULL, arg->d.num))) break;
 
 					if (x > (pWilds->map_size_x - 1) || y > (pWilds->map_size_y - 1)) break;
 
 					// if safe is used, it will not go to bad rooms
-					if((rest2 = expand_argument(info,rest,&arg)) && arg.type == ENT_STRING &&
-						!str_cmp(arg.d.str,"safe") && !check_for_bad_room(pWilds, x, y))
+					if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_STRING &&
+						!str_cmp(arg->d.str,"safe") && !check_for_bad_room(pWilds, x, y))
 						break;
 
 					rest = rest2;
@@ -397,43 +397,43 @@ char *op_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 			break;
 
 		case ENT_STRING: // Special named locations
-			if(arg.d.str[0] == '@')
+			if(arg->d.str[0] == '@')
 				// Points to an exit, like @north or @down
-				*room = get_exit_dest(obj_room(info->obj), arg.d.str+1);
-			else if(!str_cmp(arg.d.str,"here"))
+				*room = get_exit_dest(obj_room(info->obj), arg->d.str+1);
+			else if(!str_cmp(arg->d.str,"here"))
 				// Rather self-explanatory
 				*room = obj_room(info->obj);
-			else if(!str_cmp(arg.d.str,"vroom") || !str_cmp(arg.d.str,"clone")) {
+			else if(!str_cmp(arg->d.str,"vroom") || !str_cmp(arg->d.str,"clone")) {
 				// Locates a clone room: vroom <vnum> <id1> <id2>
 				int vnum,id1, id2;
-				if((rest2 = expand_argument(info,rest,&arg)) && arg.type == ENT_NUMBER) {
+				if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
 					rest = rest2;
-					vnum = arg.d.num;
-					if((rest2 = expand_argument(info,rest,&arg)) && arg.type == ENT_NUMBER) {
+					vnum = arg->d.num;
+					if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
 						rest = rest2;
 
-						id1 = arg.d.num;
-						if((rest2 = expand_argument(info,rest,&arg)) && arg.type == ENT_NUMBER) {
+						id1 = arg->d.num;
+						if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
 							rest = rest2;
 
-							id2 = arg.d.num;
+							id2 = arg->d.num;
 							*room = get_clone_room(get_room_index(vnum),id1,id2);
 						}
 					}
 				}
-			} else if(!str_cmp(arg.d.str,"wilds")) {
-				if((rest = expand_argument(info,rest,&arg)) && arg.type == ENT_NUMBER) {
-					x = arg.d.num;
-					if((rest = expand_argument(info,rest,&arg)) && arg.type == ENT_NUMBER) {
-						y = arg.d.num;
-						if((rest = expand_argument(info,rest,&arg)) && arg.type == ENT_NUMBER) {
-							if(!(pWilds = get_wilds_from_uid(NULL, arg.d.num))) break;
+			} else if(!str_cmp(arg->d.str,"wilds")) {
+				if((rest = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
+					x = arg->d.num;
+					if((rest = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
+						y = arg->d.num;
+						if((rest = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
+							if(!(pWilds = get_wilds_from_uid(NULL, arg->d.num))) break;
 
 							if (x > (pWilds->map_size_x - 1) || y > (pWilds->map_size_y - 1)) break;
 
 							// if safe is used, it will not go to bad rooms
-							if((rest2 = expand_argument(info,rest,&arg)) && arg.type == ENT_STRING &&
-								!str_cmp(arg.d.str,"safe") && !check_for_bad_room(pWilds, x, y))
+							if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_STRING &&
+								!str_cmp(arg->d.str,"safe") && !check_for_bad_room(pWilds, x, y))
 								break;
 
 							room_used_for_wilderness.wilds = pWilds;
@@ -446,7 +446,7 @@ char *op_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 			} else {
 				loc = NULL;
 				for (area = area_first; area; area = area->next) {
-					if (!str_infix(arg.d.str, area->name)) {
+					if (!str_infix(arg->d.str, area->name)) {
 						if(!(loc = location_to_room(&area->recall))) {
 							for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++)
 								if ((loc = get_room_index(vnum)))
@@ -458,25 +458,25 @@ char *op_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 				}
 
 				if(!loc) {
-					if((victim = get_char_world(NULL, arg.d.str)))
+					if((victim = get_char_world(NULL, arg->d.str)))
 						loc = victim->in_room;
-					else if ((obj = get_obj_world(NULL, arg.d.str)))
+					else if ((obj = get_obj_world(NULL, arg->d.str)))
 						loc = obj_room(obj);
 				}
 				*room = loc;
 			}
 			break;
 		case ENT_MOBILE:
-			*room = arg.d.mob ? arg.d.mob->in_room : NULL; break;
+			*room = arg->d.mob ? arg->d.mob->in_room : NULL; break;
 		case ENT_OBJECT:
-			*room = arg.d.obj ? obj_room(arg.d.obj) : NULL; break;
+			*room = arg->d.obj ? obj_room(arg->d.obj) : NULL; break;
 		case ENT_ROOM:
-			*room = arg.d.room; break;
+			*room = arg->d.room; break;
 		case ENT_EXIT:
-			ex = arg.d.door.r ? arg.d.door.r->exit[arg.d.door.door] : NULL;
+			ex = arg->d.door.r ? arg->d.door.r->exit[arg->d.door.door] : NULL;
 			*room = ex ? exit_destination(ex) : NULL; break;
 		case ENT_TOKEN:
-			*room = token_room(arg.d.token); break;
+			*room = token_room(arg->d.token); break;
 		}
 	}
 	return rest;
@@ -491,7 +491,7 @@ char *op_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 	AREA_DATA *area;
 	ROOM_INDEX_DATA *loc;
 	WILDS_DATA *pWilds;
-	SCRIPT_PARAM arg;
+
 	EXIT_DATA *ex;
 	int x, y;
 
@@ -499,8 +499,8 @@ char *op_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 	*container = NULL;
 	*carrier = NULL;
 	*wear_loc = WEAR_NONE;
-	if((rest = expand_argument(info,argument,&arg))) {
-		switch(arg.type) {
+	if((rest = expand_argument(info,argument,arg))) {
+		switch(arg->type) {
 		case ENT_NONE:
 			*room = obj_room(info->obj);
 			break;
@@ -509,19 +509,19 @@ char *op_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 			// Room: <vnum>
 			// Wilderness coordinates: <x> <y> <w>
 
-			x = arg.d.num;
-			if((rest2 = expand_argument(info,rest,&arg)) && arg.type == ENT_NUMBER) {
+			x = arg->d.num;
+			if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
 				rest = rest2;
-				y = arg.d.num;
-				if((rest2 = expand_argument(info,rest,&arg)) && arg.type == ENT_NUMBER) {
+				y = arg->d.num;
+				if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
 					rest = rest2;
-					if(!(pWilds = get_wilds_from_uid(NULL, arg.d.num))) break;
+					if(!(pWilds = get_wilds_from_uid(NULL, arg->d.num))) break;
 
 					if (x > (pWilds->map_size_x - 1) || y > (pWilds->map_size_y - 1)) break;
 
 					// if safe is used, it will not go to bad rooms
-					if((rest2 = expand_argument(info,rest,&arg)) && arg.type == ENT_STRING &&
-						!str_cmp(arg.d.str,"safe") && !check_for_bad_room(pWilds, x, y))
+					if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_STRING &&
+						!str_cmp(arg->d.str,"safe") && !check_for_bad_room(pWilds, x, y))
 						break;
 
 					rest = rest2;
@@ -535,42 +535,42 @@ char *op_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 			break;
 
 		case ENT_STRING:
-			if(arg.d.str[0] == '@')
-				*room = get_exit_dest(obj_room(info->obj), arg.d.str+1);
-			else if(!str_cmp(arg.d.str,"here"))
+			if(arg->d.str[0] == '@')
+				*room = get_exit_dest(obj_room(info->obj), arg->d.str+1);
+			else if(!str_cmp(arg->d.str,"here"))
 				*room = obj_room(info->obj);
-			else if(!str_cmp(arg.d.str,"vroom")) {
+			else if(!str_cmp(arg->d.str,"vroom")) {
 				int vnum,id1, id2;
-				if((rest2 = expand_argument(info,rest,&arg)) && arg.type == ENT_NUMBER) {
+				if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
 					rest = rest2;
-					vnum = arg.d.num;
-					if((rest2 = expand_argument(info,rest,&arg)) && arg.type == ENT_NUMBER) {
+					vnum = arg->d.num;
+					if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
 						rest = rest2;
 
-						id1 = arg.d.num;
-						if((rest2 = expand_argument(info,rest,&arg)) && arg.type == ENT_NUMBER) {
+						id1 = arg->d.num;
+						if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
 							rest = rest2;
 
-							id2 = arg.d.num;
+							id2 = arg->d.num;
 							*room = get_clone_room(get_room_index(vnum),id1,id2);
 						}
 					}
 				}
-			} else if(!str_cmp(arg.d.str,"wilds")) {
+			} else if(!str_cmp(arg->d.str,"wilds")) {
 
-				x = arg.d.num;
-				if((rest2 = expand_argument(info,rest,&arg)) && arg.type == ENT_NUMBER) {
+				x = arg->d.num;
+				if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
 					rest = rest2;
-					y = arg.d.num;
-					if((rest2 = expand_argument(info,rest,&arg)) && arg.type == ENT_NUMBER) {
+					y = arg->d.num;
+					if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
 						rest = rest2;
-						if(!(pWilds = get_wilds_from_uid(NULL, arg.d.num))) break;
+						if(!(pWilds = get_wilds_from_uid(NULL, arg->d.num))) break;
 
 						if (x > (pWilds->map_size_x - 1) || y > (pWilds->map_size_y - 1)) break;
 
 						// if safe is used, it will not go to bad rooms
-						if((rest2 = expand_argument(info,rest,&arg)) && arg.type == ENT_STRING &&
-							!str_cmp(arg.d.str,"safe") && !check_for_bad_room(pWilds, x, y))
+						if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_STRING &&
+							!str_cmp(arg->d.str,"safe") && !check_for_bad_room(pWilds, x, y))
 							break;
 
 						rest = rest2;
@@ -583,7 +583,7 @@ char *op_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 			} else {
 				loc = NULL;
 				for (area = area_first; area; area = area->next) {
-					if (!str_infix(arg.d.str, area->name)) {
+					if (!str_infix(arg->d.str, area->name)) {
 						if(!(loc = location_to_room(&area->recall))) {
 							for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++)
 								if ((loc = get_room_index(vnum)))
@@ -595,18 +595,18 @@ char *op_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 				}
 
 				if(!loc) {
-					if((victim = get_char_world(NULL, arg.d.str)))
+					if((victim = get_char_world(NULL, arg->d.str)))
 						loc = victim->in_room;
-					else if ((obj = get_obj_world(NULL, arg.d.str)))
+					else if ((obj = get_obj_world(NULL, arg->d.str)))
 						loc = obj_room(obj);
 				}
 				*room = loc;
 			}
 			break;
 		case ENT_MOBILE:
-			*carrier = arg.d.mob;
-			if((rest2 = expand_argument(info,rest,&arg)) && arg.type == ENT_STRING) {
-				*wear_loc = flag_value(wear_loc_flags, arg.d.str);
+			*carrier = arg->d.mob;
+			if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_STRING) {
+				*wear_loc = flag_value(wear_loc_flags, arg->d.str);
 				if(*wear_loc == NO_FLAG) *wear_loc = WEAR_NONE;
 			} else {
 				*room = *carrier ? (*carrier)->in_room : NULL;
@@ -614,19 +614,19 @@ char *op_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 			}
 			break;
 		case ENT_OBJECT:
-			*container = arg.d.obj;
-			if(!(rest2 = expand_argument(info,rest,&arg)) || arg.type != ENT_STRING || str_cmp(arg.d.str,"inside")) {
+			*container = arg->d.obj;
+			if(!(rest2 = expand_argument(info,rest,arg)) || arg->type != ENT_STRING || str_cmp(arg->d.str,"inside")) {
 				*room = *container ? obj_room(*container) : NULL;
 				*container = NULL;
 			}
 			break;
 		case ENT_ROOM:
-			*room = arg.d.room; break;
+			*room = arg->d.room; break;
 		case ENT_EXIT:
-			ex = arg.d.door.r ? arg.d.door.r->exit[arg.d.door.door] : NULL; break;
+			ex = arg->d.door.r ? arg->d.door.r->exit[arg->d.door.door] : NULL; break;
 			*room = ex ? exit_destination(ex) : NULL; break;
 		case ENT_TOKEN:
-			*room = token_room(arg.d.token); break;
+			*room = token_room(arg->d.token); break;
 		}
 	}
 	return rest;
@@ -758,7 +758,7 @@ SCRIPT_CMD(do_opcall)
 	OBJ_DATA *obj1,*obj2;
 	SCRIPT_DATA *script;
 	int depth, vnum, ret;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj) return;
 
@@ -776,16 +776,16 @@ SCRIPT_CMD(do_opcall)
 		--script_call_depth;
 
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
 		// Restore the call depth to the previous value
 		script_call_depth = depth;
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: vnum = atoi(arg.d.str); break;
-	case ENT_NUMBER: vnum = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: vnum = atoi(arg->d.str); break;
+	case ENT_NUMBER: vnum = arg->d.num; break;
 	default: vnum = 0; break;
 	}
 
@@ -799,23 +799,23 @@ SCRIPT_CMD(do_opcall)
 
 	if(*rest) {	// Enactor
 		argument = rest;
-		if(!(rest = expand_argument(info,argument,&arg))) {
+		if(!(rest = expand_argument(info,argument,arg))) {
 			bug("OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
 			// Restore the call depth to the previous value
 			script_call_depth = depth;
 			return;
 		}
 
-		switch(arg.type) {
-		case ENT_STRING: ch = get_char_room(NULL, obj_room(info->obj), arg.d.str); break;
-		case ENT_MOBILE: ch = arg.d.mob; break;
+		switch(arg->type) {
+		case ENT_STRING: ch = get_char_room(NULL, obj_room(info->obj), arg->d.str); break;
+		case ENT_MOBILE: ch = arg->d.mob; break;
 		default: ch = NULL; break;
 		}
 	}
 
 	if(ch && *rest) {	// Victim
 		argument = rest;
-		if(!(rest = expand_argument(info,argument,&arg))) {
+		if(!(rest = expand_argument(info,argument,arg))) {
 			bug("OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
 			// Restore the call depth to the previous value
 			script_call_depth = depth;
@@ -823,52 +823,52 @@ SCRIPT_CMD(do_opcall)
 		}
 
 		argument = rest;
-		if(!(rest = expand_argument(info,argument,&arg))) {
+		if(!(rest = expand_argument(info,argument,arg))) {
 			bug("OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
 			// Restore the call depth to the previous value
 			script_call_depth = depth;
 			return;
 		}
 
-		switch(arg.type) {
-		case ENT_STRING: vch = get_char_room(NULL, obj_room(info->obj),arg.d.str); break;
-		case ENT_MOBILE: vch = arg.d.mob; break;
+		switch(arg->type) {
+		case ENT_STRING: vch = get_char_room(NULL, obj_room(info->obj),arg->d.str); break;
+		case ENT_MOBILE: vch = arg->d.mob; break;
 		default: vch = NULL; break;
 		}
 	}
 
 	if(*rest) {	// Obj 1
 		argument = rest;
-		if(!(rest = expand_argument(info,argument,&arg))) {
+		if(!(rest = expand_argument(info,argument,arg))) {
 			bug("OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
 			// Restore the call depth to the previous value
 			script_call_depth = depth;
 			return;
 		}
 
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_STRING:
-			obj1 = get_obj_here(NULL, obj_room(info->obj), arg.d.str);
+			obj1 = get_obj_here(NULL, obj_room(info->obj), arg->d.str);
 			break;
-		case ENT_OBJECT: obj1 = arg.d.obj; break;
+		case ENT_OBJECT: obj1 = arg->d.obj; break;
 		default: obj1 = NULL; break;
 		}
 	}
 
 	if(obj1 && *rest) {	// Obj 2
 		argument = rest;
-		if(!(rest = expand_argument(info,argument,&arg))) {
+		if(!(rest = expand_argument(info,argument,arg))) {
 			bug("OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
 			// Restore the call depth to the previous value
 			script_call_depth = depth;
 			return;
 		}
 
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_STRING:
-			obj2 = get_obj_here(NULL, obj_room(info->obj), arg.d.str);
+			obj2 = get_obj_here(NULL, obj_room(info->obj), arg->d.str);
 			break;
-		case ENT_OBJECT: obj2 = arg.d.obj; break;
+		case ENT_OBJECT: obj2 = arg->d.obj; break;
 		default: obj2 = NULL; break;
 		}
 	}
@@ -904,19 +904,19 @@ SCRIPT_CMD(do_opcast)
 	ROOM_INDEX_DATA *room;
 	void *to = NULL;
 	int sn, target = TARGET_NONE;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj || !obj_room(info->obj)) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpCast - Error in parsing from vnum %ld.", VNUM(info->obj));
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if(arg.d.str[0]) {
-			sn = skill_lookup(arg.d.str);
+		if(arg->d.str[0]) {
+			sn = skill_lookup(arg->d.str);
 			break;
 		}
 	default: sn = 0; break;
@@ -931,19 +931,19 @@ SCRIPT_CMD(do_opcast)
 
 	if(*rest) {
 		argument = rest;
-		if(!(rest = expand_argument(info,argument,&arg))) {
+		if(!(rest = expand_argument(info,argument,arg))) {
 			bug("OpCast - Error in parsing from vnum %ld.", VNUM(info->obj));
 			return;
 		}
 
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_STRING:
-			vch = get_char_room(NULL, obj_room(info->obj), arg.d.str);
-			wch = get_char_world(NULL, arg.d.str);
-			obj = get_obj_here(NULL, obj_room(info->obj), arg.d.str);
+			vch = get_char_room(NULL, obj_room(info->obj), arg->d.str);
+			wch = get_char_world(NULL, arg->d.str);
+			obj = get_obj_here(NULL, obj_room(info->obj), arg->d.str);
 			break;
-		case ENT_MOBILE: vch = arg.d.mob; break;
-		case ENT_OBJECT: obj = arg.d.obj; break;
+		case ENT_MOBILE: vch = arg->d.mob; break;
+		case ENT_OBJECT: obj = arg->d.obj; break;
 		}
 	}
 
@@ -1030,21 +1030,21 @@ SCRIPT_CMD(do_opdamage)
 	CHAR_DATA *victim = NULL, *victim_next;
 	int low, high, level, value, dc;
 	bool fAll = FALSE, fKill = FALSE, fLevel = FALSE, fRemort = FALSE, fTwo = FALSE;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj || !obj_room(info->obj)) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpDamage - Error in parsing from vnum %ld.", VNUM(info->obj));
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if(!str_cmp(arg.d.str,"all")) fAll = TRUE;
-		else victim = get_char_room(NULL, obj_room(info->obj), arg.d.str);
+		if(!str_cmp(arg->d.str,"all")) fAll = TRUE;
+		else victim = get_char_room(NULL, obj_room(info->obj), arg->d.str);
 		break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -1059,19 +1059,19 @@ SCRIPT_CMD(do_opdamage)
 	}
 
 	argument = rest;
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpDamage - Error in parsing from vnum %ld.", VNUM(info->obj));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_NUMBER: low = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_NUMBER: low = arg->d.num; break;
 	case ENT_STRING:
-		if(!str_cmp(arg.d.str,"level")) { fLevel = TRUE; break; }
-		if(!str_cmp(arg.d.str,"remort")) { fLevel = fRemort = TRUE; break; }
-		if(!str_cmp(arg.d.str,"dual")) { fLevel = fTwo = TRUE; break; }
-		if(!str_cmp(arg.d.str,"dualremort")) { fLevel = fTwo = fRemort = TRUE; break; }
-		if(is_number(arg.d.str)) { low = atoi(arg.d.str); break; }
+		if(!str_cmp(arg->d.str,"level")) { fLevel = TRUE; break; }
+		if(!str_cmp(arg->d.str,"remort")) { fLevel = fRemort = TRUE; break; }
+		if(!str_cmp(arg->d.str,"dual")) { fLevel = fTwo = TRUE; break; }
+		if(!str_cmp(arg->d.str,"dualremort")) { fLevel = fTwo = fRemort = TRUE; break; }
+		if(is_number(arg->d.str)) { low = atoi(arg->d.str); break; }
 	default:
 		bug("OpDamage - invalid argument from vnum %ld.", VNUM(info->obj));
 		return;
@@ -1083,7 +1083,7 @@ SCRIPT_CMD(do_opdamage)
 	}
 
 	argument = rest;
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpDamage - Error in parsing from vnum %ld.", VNUM(info->obj));
 		return;
 	}
@@ -1095,15 +1095,15 @@ SCRIPT_CMD(do_opdamage)
 
 	level = victim ? victim->tot_level : 1;
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_NUMBER:
-		if(fLevel) level = arg.d.num;
-		else high = arg.d.num;
+		if(fLevel) level = arg->d.num;
+		else high = arg->d.num;
 		break;
 	case ENT_STRING:
-		if(is_number(arg.d.str)) {
-			if(fLevel) level = atoi(arg.d.str);
-			else high = atoi(arg.d.str);
+		if(is_number(arg->d.str)) {
+			if(fLevel) level = atoi(arg->d.str);
+			else high = atoi(arg->d.str);
 		} else {
 			bug("OpDamage - invalid argument from vnum %ld.", VNUM(info->obj));
 			return;
@@ -1111,7 +1111,7 @@ SCRIPT_CMD(do_opdamage)
 		break;
 	case ENT_MOBILE:
 		if(fLevel) {
-			if(arg.d.mob) level = arg.d.mob->tot_level;
+			if(arg->d.mob) level = arg->d.mob->tot_level;
 			else {
 				bug("OpDamage - Null reference mob from vnum %ld.", VNUM(info->obj));
 				return;
@@ -1152,18 +1152,18 @@ SCRIPT_CMD(do_opdamage)
 SCRIPT_CMD(do_opdelay)
 {
 	int delay = 0;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj) return;
 
-	if(!expand_argument(info,argument,&arg)) {
+	if(!expand_argument(info,argument,arg)) {
 		bug("OpDelay - Error in parsing from vnum %ld.", VNUM(info->obj));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: delay = is_number(arg.d.str) ? atoi(arg.d.str) : -1; break;
-	case ENT_NUMBER: delay = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: delay = is_number(arg->d.str) ? atoi(arg->d.str) : -1; break;
+	case ENT_NUMBER: delay = arg->d.num; break;
 	default: delay = 0; break;
 	}
 
@@ -1204,20 +1204,20 @@ SCRIPT_CMD(do_opechoroom)
 {
 	char buf[MSL], *rest;
 	ROOM_INDEX_DATA *room;
-	SCRIPT_PARAM arg;
+
 	EXIT_DATA *ex;
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_MOBILE: room = arg.d.mob->in_room; break;
-	case ENT_OBJECT: room = obj_room(arg.d.obj); break;
-	case ENT_ROOM: room = arg.d.room; break;
+	switch(arg->type) {
+	case ENT_MOBILE: room = arg->d.mob->in_room; break;
+	case ENT_OBJECT: room = obj_room(arg->d.obj); break;
+	case ENT_ROOM: room = arg->d.room; break;
 	case ENT_EXIT:
-		ex = arg.d.door.r ? arg.d.door.r->exit[arg.d.door.door] : NULL;
+		ex = arg->d.door.r ? arg->d.door.r->exit[arg->d.door.door] : NULL;
 		room = ex ? exit_destination(ex) : NULL; break;
 	default: room = NULL; break;
 	}
@@ -1240,16 +1240,16 @@ SCRIPT_CMD(do_opechoaround)
 {
 	char buf[MSL], *rest;
 	CHAR_DATA *victim;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(NULL, obj_room(info->obj),arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(NULL, obj_room(info->obj),arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -1269,28 +1269,28 @@ SCRIPT_CMD(do_opechonotvict)
 {
 	char buf[MSL], *rest;
 	CHAR_DATA *victim, *attacker;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: attacker = get_char_room(NULL, obj_room(info->obj),arg.d.str); break;
-	case ENT_MOBILE: attacker = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: attacker = get_char_room(NULL, obj_room(info->obj),arg->d.str); break;
+	case ENT_MOBILE: attacker = arg->d.mob; break;
 	default: attacker = NULL; break;
 	}
 
 	if (!attacker || attacker->in_room != obj_room(info->obj))
 		return;
 
-	if(!(rest = expand_argument(info,rest,&arg)))
+	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(NULL, obj_room(info->obj),arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(NULL, obj_room(info->obj),arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -1309,28 +1309,28 @@ SCRIPT_CMD(do_opechobattlespam)
 {
 	char buf[MSL], *rest;
 	CHAR_DATA *victim, *attacker, *ch;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: attacker = get_char_room(NULL, obj_room(info->obj),arg.d.str); break;
-	case ENT_MOBILE: attacker = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: attacker = get_char_room(NULL, obj_room(info->obj),arg->d.str); break;
+	case ENT_MOBILE: attacker = arg->d.mob; break;
 	default: attacker = NULL; break;
 	}
 
 	if (!attacker || attacker->in_room != obj_room(info->obj))
 		return;
 
-	if(!(rest = expand_argument(info,rest,&arg)))
+	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(NULL, obj_room(info->obj),arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(NULL, obj_room(info->obj),arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -1354,16 +1354,16 @@ SCRIPT_CMD(do_opechoat)
 {
 	char buf[MSL], *rest;
 	CHAR_DATA *victim;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(NULL, obj_room(info->obj),arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(NULL, obj_room(info->obj),arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -1383,16 +1383,16 @@ SCRIPT_CMD(do_opechochurch)
 {
 	char buf[MSL], *rest;
 	CHAR_DATA *victim;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(NULL, obj_room(info->obj),arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(NULL, obj_room(info->obj),arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -1412,16 +1412,16 @@ SCRIPT_CMD(do_opechogrouparound)
 {
 	char buf[MSL], *rest;
 	CHAR_DATA *victim;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(NULL, obj_room(info->obj),arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(NULL, obj_room(info->obj),arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -1441,16 +1441,16 @@ SCRIPT_CMD(do_opechogroupat)
 {
 	char buf[MSL], *rest;
 	CHAR_DATA *victim;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(NULL, obj_room(info->obj),arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(NULL, obj_room(info->obj),arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -1470,16 +1470,16 @@ SCRIPT_CMD(do_opecholeadaround)
 {
 	char buf[MSL], *rest;
 	CHAR_DATA *victim;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(NULL, obj_room(info->obj),arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(NULL, obj_room(info->obj),arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -1499,16 +1499,16 @@ SCRIPT_CMD(do_opecholeadat)
 {
 	char buf[MSL], *rest;
 	CHAR_DATA *victim;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(NULL, obj_room(info->obj),arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(NULL, obj_room(info->obj),arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -1529,21 +1529,21 @@ SCRIPT_CMD(do_opforce)
 	char buf[MSL],*rest;
 	CHAR_DATA *victim = NULL, *next;
 	bool fAll = FALSE, forced;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpForce - Error in parsing from vnum %ld.", VNUM(info->obj));
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if(!str_cmp(arg.d.str,"all")) fAll = TRUE;
-		else victim = get_char_room(NULL,obj_room(info->obj), arg.d.str);
+		if(!str_cmp(arg->d.str,"all")) fAll = TRUE;
+		else victim = get_char_room(NULL,obj_room(info->obj), arg->d.str);
 		break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: break;
 	}
 
@@ -1590,18 +1590,18 @@ SCRIPT_CMD(do_opgdamage)
 	CHAR_DATA *victim = NULL, *rch, *rch_next;
 	int low, high, level, value, dc;
 	bool fKill = FALSE, fLevel = FALSE, fRemort = FALSE, fTwo = FALSE;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpGdamage - Error in parsing from vnum %ld.", VNUM(info->obj));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(NULL, obj_room(info->obj), arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(NULL, obj_room(info->obj), arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -1616,19 +1616,19 @@ SCRIPT_CMD(do_opgdamage)
 	}
 
 	argument = rest;
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpGdamage - Error in parsing from vnum %ld.", VNUM(info->obj));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_NUMBER: low = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_NUMBER: low = arg->d.num; break;
 	case ENT_STRING:
-		if(!str_cmp(arg.d.str,"level")) { fLevel = TRUE; break; }
-		if(!str_cmp(arg.d.str,"remort")) { fLevel = fRemort = TRUE; break; }
-		if(!str_cmp(arg.d.str,"dual")) { fLevel = fTwo = TRUE; break; }
-		if(!str_cmp(arg.d.str,"dualremort")) { fLevel = fTwo = fRemort = TRUE; break; }
-		if(is_number(arg.d.str)) { low = atoi(arg.d.str); break; }
+		if(!str_cmp(arg->d.str,"level")) { fLevel = TRUE; break; }
+		if(!str_cmp(arg->d.str,"remort")) { fLevel = fRemort = TRUE; break; }
+		if(!str_cmp(arg->d.str,"dual")) { fLevel = fTwo = TRUE; break; }
+		if(!str_cmp(arg->d.str,"dualremort")) { fLevel = fTwo = fRemort = TRUE; break; }
+		if(is_number(arg->d.str)) { low = atoi(arg->d.str); break; }
 	default:
 		bug("OpGdamage - invalid argument from vnum %ld.", VNUM(info->obj));
 		return;
@@ -1640,22 +1640,22 @@ SCRIPT_CMD(do_opgdamage)
 	}
 
 	argument = rest;
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpGdamage - Error in parsing from vnum %ld.", VNUM(info->obj));
 		return;
 	}
 
 	level = victim->tot_level;
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_NUMBER:
-		if(fLevel) level = arg.d.num;
-		else high = arg.d.num;
+		if(fLevel) level = arg->d.num;
+		else high = arg->d.num;
 		break;
 	case ENT_STRING:
-		if(is_number(arg.d.str)) {
-			if(fLevel) level = atoi(arg.d.str);
-			else high = atoi(arg.d.str);
+		if(is_number(arg->d.str)) {
+			if(fLevel) level = atoi(arg->d.str);
+			else high = atoi(arg->d.str);
 		} else {
 			bug("OpGdamage - invalid argument from vnum %ld.", VNUM(info->obj));
 			return;
@@ -1663,7 +1663,7 @@ SCRIPT_CMD(do_opgdamage)
 		break;
 	case ENT_MOBILE:
 		if(fLevel) {
-			if(arg.d.mob) level = arg.d.mob->tot_level;
+			if(arg->d.mob) level = arg->d.mob->tot_level;
 			else {
 				bug("OpGdamage - Null reference mob from vnum %ld.", VNUM(info->obj));
 				return;
@@ -1727,18 +1727,18 @@ SCRIPT_CMD(do_opgforce)
 {
 	char buf[MSL],*rest;
 	CHAR_DATA *victim = NULL, *vch, *next;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj || !obj_room(info->obj)) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpGforce - Error in parsing from vnum %ld.", VNUM(info->obj));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(NULL, obj_room(info->obj), arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(NULL, obj_room(info->obj), arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: break;
 	}
 
@@ -1796,18 +1796,18 @@ SCRIPT_CMD(do_opgtransfer)
 	CHAR_DATA *victim, *vch,*next;
 	ROOM_INDEX_DATA *dest;
 	bool all = FALSE, force = FALSE, quiet = FALSE;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpGtransfer - Bad syntax from vnum %ld.", VNUM(info->obj));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_world(NULL, arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_world(NULL, arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -1851,30 +1851,30 @@ SCRIPT_CMD(do_opjunk)
 {
 	OBJ_DATA *obj;
 	OBJ_DATA *obj_next;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj || !argument[0]) return;
 
-	if(expand_argument(info,argument,&arg)) {
-		switch(arg.type) {
+	if(expand_argument(info,argument,arg)) {
+		switch(arg->type) {
 		case ENT_STRING:
-			if (str_cmp(arg.d.str, "all") && str_prefix("all.", arg.d.str)) {
-				for (obj = info->obj->contains; obj && !is_name(arg.d.str, obj->name); obj = obj->next_content);
+			if (str_cmp(arg->d.str, "all") && str_prefix("all.", arg->d.str)) {
+				for (obj = info->obj->contains; obj && !is_name(arg->d.str, obj->name); obj = obj->next_content);
 			} else {
 				for (obj = info->obj->contains; obj; obj = obj_next) {
 					obj_next = obj->next_content;
-					if (!arg.d.str[3] || is_name(&arg.d.str[4], obj->name))
+					if (!arg->d.str[3] || is_name(arg->d.str[4], obj->name))
 						extract_obj(obj);
 				}
 				return;
 			}
 			break;
 		case ENT_OBJECT:
-			obj = (arg.d.obj && arg.d.obj->in_obj == info->obj) ? arg.d.obj : NULL;
+			obj = (arg->d.obj && arg->d.obj->in_obj == info->obj) ? arg->d.obj : NULL;
 			break;
 		case ENT_OLLIST_OBJ:
-			if(arg.d.list.ptr.obj && *(arg.d.list.ptr.obj) && (*arg.d.list.ptr.obj)->in_obj == info->obj) {
-				for (obj = *(arg.d.list.ptr.obj); obj; obj = obj_next) {
+			if(arg->d.list.ptr.obj && *(arg->d.list.ptr.obj) && (*arg->d.list.ptr.obj)->in_obj == info->obj) {
+				for (obj = *(arg->d.list.ptr.obj); obj; obj = obj_next) {
 					obj_next = obj->next_content;
 					extract_obj(obj);
 				}
@@ -1894,24 +1894,24 @@ SCRIPT_CMD(do_oplink)
 	ROOM_INDEX_DATA *room, *dest;
 	int door, vnum;
 	unsigned long id1, id2;
-	SCRIPT_PARAM arg;
+
 	bool del = FALSE;
 	bool environ = FALSE;
 	EXIT_DATA *ex;
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
 		room = obj_room(info->obj);
-		door = get_num_dir(arg.d.str);
+		door = get_num_dir(arg->d.str);
 		break;
 	case ENT_EXIT:
-		room = arg.d.door.r;
-		door = arg.d.door.door;
+		room = arg->d.door.r;
+		door = arg->d.door.door;
 		break;
 	default:
 		room = NULL;
@@ -1926,58 +1926,58 @@ SCRIPT_CMD(do_oplink)
 	}
 
 	argument = rest;
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
 	vnum = -1;
 	id1 = id2 = 0;
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if(is_number(arg.d.str))
-			vnum = atoi(arg.d.str);
-		else if(!str_cmp(arg.d.str,"delete") ||
-			!str_cmp(arg.d.str,"remove") ||
-			!str_cmp(arg.d.str,"unlink")) {
+		if(is_number(arg->d.str))
+			vnum = atoi(arg->d.str);
+		else if(!str_cmp(arg->d.str,"delete") ||
+			!str_cmp(arg->d.str,"remove") ||
+			!str_cmp(arg->d.str,"unlink")) {
 			vnum = 0;
 			del = TRUE;
-		} else if(!str_cmp(arg.d.str,"environment") ||
-			!str_cmp(arg.d.str,"environ") ||
-			!str_cmp(arg.d.str,"extern") ||
-			!str_cmp(arg.d.str,"outside")) {
+		} else if(!str_cmp(arg->d.str,"environment") ||
+			!str_cmp(arg->d.str,"environ") ||
+			!str_cmp(arg->d.str,"extern") ||
+			!str_cmp(arg->d.str,"outside")) {
 			vnum = 0;
 			environ = TRUE;
-		} else if(!str_cmp(arg.d.str,"vroom")) {
+		} else if(!str_cmp(arg->d.str,"vroom")) {
 			argument = rest;
-			if(!(rest = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+			if(!(rest = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
 				return;
-			vnum = arg.d.num;
+			vnum = arg->d.num;
 
 			argument = rest;
-			if(!(rest = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+			if(!(rest = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
 				return;
-			id1 = arg.d.num;
+			id1 = arg->d.num;
 
 			argument = rest;
-			if(!(rest = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+			if(!(rest = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
 				return;
-			id2 = arg.d.num;
+			id2 = arg->d.num;
 		}
 		break;
 	case ENT_NUMBER:
-		vnum = arg.d.num;
+		vnum = arg->d.num;
 		break;
 	case ENT_ROOM:
-		vnum = arg.d.room ? arg.d.room->vnum : -1;
+		vnum = arg->d.room ? arg->d.room->vnum : -1;
 		break;
 	case ENT_EXIT:
-		ex = arg.d.door.r ? arg.d.door.r->exit[arg.d.door.door] : NULL;
+		ex = arg->d.door.r ? arg->d.door.r->exit[arg->d.door.door] : NULL;
 		vnum = (ex && ex->u1.to_room) ? ex->u1.to_room->vnum : -1;
 		break;
 	case ENT_MOBILE:
-		vnum = (arg.d.mob && arg.d.mob->in_room) ? arg.d.mob->in_room->vnum : -1;
+		vnum = (arg->d.mob && arg->d.mob->in_room) ? arg->d.mob->in_room->vnum : -1;
 		break;
 	case ENT_OBJECT:
-		vnum = (arg.d.obj && obj_room(arg.d.obj)) ? obj_room(arg.d.obj)->vnum : -1;
+		vnum = (arg->d.obj && obj_room(arg->d.obj)) ? obj_room(arg->d.obj)->vnum : -1;
 		break;
 	}
 
@@ -2010,17 +2010,17 @@ SCRIPT_CMD(do_opmload)
 	long vnum;
 	MOB_INDEX_DATA *pMobIndex;
 	CHAR_DATA *victim;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj || !obj_room(info->obj)) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_NUMBER: vnum = arg.d.num; break;
-	case ENT_STRING: vnum = arg.d.str ? atoi(arg.d.str) : 0; break;
-	case ENT_MOBILE: vnum = arg.d.mob ? arg.d.mob->pIndexData->vnum : 0; break;
+	switch(arg->type) {
+	case ENT_NUMBER: vnum = arg->d.num; break;
+	case ENT_STRING: vnum = arg->d.str ? atoi(arg->d.str) : 0; break;
+	case ENT_MOBILE: vnum = arg->d.mob ? arg->d.mob->pIndexData->vnum : 0; break;
 	default: vnum = 0; break;
 	}
 
@@ -2046,20 +2046,20 @@ SCRIPT_CMD(do_opoload)
 
 	OBJ_INDEX_DATA *pObjIndex;
 	OBJ_DATA *obj;
-	SCRIPT_PARAM arg;
+
 	CHAR_DATA *to_mob = NULL;
 	OBJ_DATA *to_obj = NULL;
 	ROOM_INDEX_DATA *to_room = NULL;
 
 	if(!info || !info->obj || !obj_room(info->obj)) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_NUMBER: vnum = arg.d.num; break;
-	case ENT_STRING: vnum = arg.d.str ? atoi(arg.d.str) : 0; break;
-	case ENT_OBJECT: vnum = arg.d.obj ? arg.d.obj->pIndexData->vnum : 0; break;
+	switch(arg->type) {
+	case ENT_NUMBER: vnum = arg->d.num; break;
+	case ENT_STRING: vnum = arg->d.str ? atoi(arg->d.str) : 0; break;
+	case ENT_OBJECT: vnum = arg->d.obj ? arg->d.obj->pIndexData->vnum : 0; break;
 	default: vnum = 0; break;
 	}
 
@@ -2070,14 +2070,14 @@ SCRIPT_CMD(do_opoload)
 
 	if(rest && *rest) {
 		argument = rest;
-		if(!(rest = expand_argument(info,argument,&arg)))
+		if(!(rest = expand_argument(info,argument,arg)))
 			return;
 
-		switch(arg.type) {
-		case ENT_NUMBER: level = arg.d.num; break;
-		case ENT_STRING: level = arg.d.str ? atoi(arg.d.str) : 0; break;
-		case ENT_MOBILE: level = arg.d.mob ? get_trust(arg.d.mob) : 0; break;
-		case ENT_OBJECT: level = arg.d.obj ? arg.d.obj->pIndexData->level : 0; break;
+		switch(arg->type) {
+		case ENT_NUMBER: level = arg->d.num; break;
+		case ENT_STRING: level = arg->d.str ? atoi(arg->d.str) : 0; break;
+		case ENT_MOBILE: level = arg->d.mob ? get_trust(arg->d.mob) : 0; break;
+		case ENT_OBJECT: level = arg->d.obj ? arg->d.obj->pIndexData->level : 0; break;
 		default: level = 0; break;
 		}
 
@@ -2085,7 +2085,7 @@ SCRIPT_CMD(do_opoload)
 
 		if(rest && *rest) {
 			argument = rest;
-			if(!(rest = expand_argument(info,argument,&arg)))
+			if(!(rest = expand_argument(info,argument,arg)))
 				return;
 
 			/*
@@ -2098,9 +2098,9 @@ SCRIPT_CMD(do_opoload)
 			 * ROOM    - load to target room
 			 */
 
-			switch(arg.type) {
+			switch(arg->type) {
 			case ENT_STRING:
-				if (!str_cmp(arg.d.str, "inside") &&
+				if (!str_cmp(arg->d.str, "inside") &&
 					IS_SET(pObjIndex->wear_flags, ITEM_TAKE)) {
 					if( info->obj->item_type == ITEM_CONTAINER ||
 						info->obj->item_type == ITEM_CART)
@@ -2114,7 +2114,7 @@ SCRIPT_CMD(do_opoload)
 				break;
 
 			case ENT_MOBILE:
-				to_mob = arg.d.mob;
+				to_mob = arg->d.mob;
 				if((rest = one_argument(rest,buf))) {
 					if (!str_cmp(buf, "wear"))
 						fWear = TRUE;
@@ -2123,20 +2123,20 @@ SCRIPT_CMD(do_opoload)
 				break;
 
 			case ENT_OBJECT:
-				if( arg.d.obj && IS_SET(pObjIndex->wear_flags, ITEM_TAKE) ) {
-					if(arg.d.obj->item_type == ITEM_CONTAINER ||
-						arg.d.obj->item_type == ITEM_CART)
-						to_obj = arg.d.obj;
-					else if(arg.d.obj->item_type == ITEM_WEAPON_CONTAINER &&
+				if( arg->d.obj && IS_SET(pObjIndex->wear_flags, ITEM_TAKE) ) {
+					if(arg->d.obj->item_type == ITEM_CONTAINER ||
+						arg->d.obj->item_type == ITEM_CART)
+						to_obj = arg->d.obj;
+					else if(arg->d.obj->item_type == ITEM_WEAPON_CONTAINER &&
 						pObjIndex->item_type == ITEM_WEAPON &&
-						pObjIndex->value[0] == arg.d.obj->value[1])
-						to_obj = arg.d.obj;
+						pObjIndex->value[0] == arg->d.obj->value[1])
+						to_obj = arg->d.obj;
 					else
 						return;	// Trying to put the item into a non-container won't work
 				}
 				break;
 
-			case ENT_ROOM:		to_room = arg.d.room; break;
+			case ENT_ROOM:		to_room = arg->d.room; break;
 			}
 		}
 	} else
@@ -2171,18 +2171,18 @@ SCRIPT_CMD(do_opotransfer)
 	OBJ_DATA *container;
 	CHAR_DATA *carrier;
 	int wear_loc = WEAR_NONE;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpOtransfer - Bad syntax from vnum %ld.", VNUM(info->obj));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: obj = get_obj_here(NULL,obj_room(info->obj), arg.d.str); break;
-	case ENT_OBJECT: obj = arg.d.obj; break;
+	switch(arg->type) {
+	case ENT_STRING: obj = get_obj_here(NULL,obj_room(info->obj), arg->d.str); break;
+	case ENT_OBJECT: obj = arg->d.obj; break;
 	default: obj = NULL; break;
 	}
 
@@ -2247,25 +2247,25 @@ SCRIPT_CMD(do_oppurge)
 	CHAR_DATA **mobs = NULL, *victim = NULL,*vnext;
 	OBJ_DATA **objs = NULL, *obj = NULL,*obj_next;
 	ROOM_INDEX_DATA *here = NULL;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj || !obj_room(info->obj)) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_NONE: here = obj_room(info->obj); break;
 	case ENT_STRING:
-		if (!(victim = get_char_room(NULL, obj_room(info->obj), arg.d.str)))
-			obj = get_obj_here(NULL, obj_room(info->obj), arg.d.str);
+		if (!(victim = get_char_room(NULL, obj_room(info->obj), arg->d.str)))
+			obj = get_obj_here(NULL, obj_room(info->obj), arg->d.str);
 		break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
-	case ENT_OBJECT: obj = arg.d.obj; break;
-	case ENT_ROOM: here = arg.d.room; break;
-	case ENT_EXIT: here = (arg.d.door.r && arg.d.door.r->exit[arg.d.door.door]) ? exit_destination(arg.d.door.r->exit[arg.d.door.door]) : NULL; break;
-	case ENT_OLLIST_MOB: mobs = arg.d.list.ptr.mob; break;
-	case ENT_OLLIST_OBJ: objs = arg.d.list.ptr.obj; break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
+	case ENT_OBJECT: obj = arg->d.obj; break;
+	case ENT_ROOM: here = arg->d.room; break;
+	case ENT_EXIT: here = (arg->d.door.r && arg->d.door.r->exit[arg->d.door.door]) ? exit_destination(arg->d.door.r->exit[arg->d.door.door]) : NULL; break;
+	case ENT_OLLIST_MOB: mobs = arg->d.list.ptr.mob; break;
+	case ENT_OLLIST_OBJ: objs = arg->d.list.ptr.obj; break;
 	default: break;
 	}
 
@@ -2312,16 +2312,16 @@ SCRIPT_CMD(do_opqueue)
 {
 	char *rest;
 	int delay;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj || PROG_FLAG(info->obj,PROG_AT)) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_NUMBER: delay = arg.d.num; break;
-	case ENT_STRING: delay = atoi(arg.d.str); break;
+	switch(arg->type) {
+	case ENT_NUMBER: delay = arg->d.num; break;
+	case ENT_STRING: delay = atoi(arg->d.str); break;
 	default:
 		bug("OpQueue:  missing arguments from obj vnum %d.", VNUM(info->obj));
 		return;
@@ -2339,18 +2339,18 @@ SCRIPT_CMD(do_opqueue)
 SCRIPT_CMD(do_opremember)
 {
 	CHAR_DATA *victim;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj) return;
 
-	if(!expand_argument(info,argument,&arg)) {
+	if(!expand_argument(info,argument,arg)) {
 		bug("OpRemember: Bad syntax from vnum %ld.", VNUM(info->obj));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_world(NULL, arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_world(NULL, arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -2369,19 +2369,19 @@ SCRIPT_CMD(do_opremove)
 	OBJ_DATA *obj = NULL, *obj_next;
 	int vnum = 0, count = 0;
 	bool fAll = FALSE;
-	SCRIPT_PARAM arg;
+
 	char name[MIL], *rest;
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpRemove: Bad syntax from vnum %ld.", VNUM(info->obj));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(NULL, obj_room(info->obj), arg.d.str);
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(NULL, obj_room(info->obj), arg->d.str);
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -2393,23 +2393,23 @@ SCRIPT_CMD(do_opremove)
 	if(!*rest) return;
 
 	argument = rest;
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpRemove: Bad syntax from vnum %ld.", VNUM(info->obj));
 		return;
 	}
 
 	name[0] = '\0';
-	switch(arg.type) {
-	case ENT_NUMBER: vnum = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_NUMBER: vnum = arg->d.num; break;
 	case ENT_STRING:
-		if(is_number(arg.d.str))
-			vnum = atoi(arg.d.str);
-		else if(!str_cmp(arg.d.str,"all"))
+		if(is_number(arg->d.str))
+			vnum = atoi(arg->d.str);
+		else if(!str_cmp(arg->d.str,"all"))
 			fAll = TRUE;
 		else
-			strncpy(name,arg.d.str,MIL-1);
+			strncpy(name,arg->d.str,MIL-1);
 		break;
-	case ENT_OBJECT: obj = arg.d.obj; break;
+	case ENT_OBJECT: obj = arg->d.obj; break;
 	default: break;
 	}
 
@@ -2420,14 +2420,14 @@ SCRIPT_CMD(do_opremove)
 
 	if(!fAll && !obj && *rest) {
 		argument = rest;
-		if(!(rest = expand_argument(info,argument,&arg))) {
+		if(!(rest = expand_argument(info,argument,arg))) {
 			bug("OpRemove: Bad syntax from vnum %ld.", VNUM(info->obj));
 			return;
 		}
 
-		switch(arg.type) {
-		case ENT_NUMBER: count = arg.d.num; break;
-		case ENT_STRING: count = atoi(arg.d.str); break;
+		switch(arg->type) {
+		case ENT_NUMBER: count = arg->d.num; break;
+		case ENT_STRING: count = atoi(arg->d.str); break;
 		default: count = 0; break;
 		}
 
@@ -2490,21 +2490,21 @@ SCRIPT_CMD(do_optransfer)
 	CHAR_DATA *victim = NULL,*vnext;
 	ROOM_INDEX_DATA *dest;
 	bool all = FALSE, force = FALSE, quiet = FALSE;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj || !obj_room(info->obj)) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpTransfer - Bad syntax from vnum %ld.", VNUM(info->obj));
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if(!str_cmp(arg.d.str,"all")) all = TRUE;
-		else victim = get_char_world(NULL, arg.d.str);
+		if(!str_cmp(arg->d.str,"all")) all = TRUE;
+		else victim = get_char_world(NULL, arg->d.str);
 		break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -2553,18 +2553,18 @@ SCRIPT_CMD(do_opvforce)
 	char buf[MSL],*rest;
 	int vnum = 0;
 	CHAR_DATA *vch, *next;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj || !obj_room(info->obj)) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpVforce - Error in parsing from vnum %ld.", VNUM(info->obj));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: vnum = atoi(arg.d.str); break;
-	case ENT_NUMBER: vnum = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: vnum = atoi(arg->d.str); break;
+	case ENT_NUMBER: vnum = arg->d.num; break;
 	default: break;
 	}
 
@@ -2620,16 +2620,16 @@ SCRIPT_CMD(do_opzecho)
 SCRIPT_CMD(do_opzot)
 {
 	CHAR_DATA *victim;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj) return;
 
-	if(!expand_argument(info,argument,&arg))
+	if(!expand_argument(info,argument,arg))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(NULL,obj_room(info->obj), arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(NULL,obj_room(info->obj), arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -2739,21 +2739,21 @@ SCRIPT_CMD(do_opsettimer)
 	char buf[MIL],*rest;
 	int amt;
 	CHAR_DATA *victim = NULL;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpSetTimer - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		victim = get_char_world(NULL, arg.d.str);
+		victim = get_char_world(NULL, arg->d.str);
 		break;
 	case ENT_MOBILE:
-		victim = arg.d.mob;
+		victim = arg->d.mob;
 		break;
 	default: break;
 	}
@@ -2770,14 +2770,14 @@ SCRIPT_CMD(do_opsettimer)
 
 	buf[0] = 0;
 	argument = rest;
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpSetTimer - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		strncpy(buf,arg.d.str,MIL);
+		strncpy(buf,arg->d.str,MIL);
 		break;
 	default: break;
 	}
@@ -2788,14 +2788,14 @@ SCRIPT_CMD(do_opsettimer)
 	}
 
 	argument = rest;
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpSetTimer - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: amt = is_number(arg.d.str) ? atoi(arg.d.str) : 0; break;
-	case ENT_NUMBER: amt = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: amt = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
+	case ENT_NUMBER: amt = arg->d.num; break;
 	default: amt = 0; break;
 	}
 
@@ -2840,7 +2840,7 @@ SCRIPT_CMD(do_opinterrupt)
 	char buf[MSL],*rest;
 	CHAR_DATA *victim = NULL;
 	ROOM_INDEX_DATA *here;
-	SCRIPT_PARAM arg;
+
 	int stop, ret = 0;
 	bool silent = FALSE;
 
@@ -2850,17 +2850,17 @@ SCRIPT_CMD(do_opinterrupt)
 
 	info->obj->progs->lastreturn = 0;	// Nothing was interrupted
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpInterrupt - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		victim = get_char_world(NULL, arg.d.str);
+		victim = get_char_world(NULL, arg->d.str);
 		break;
 	case ENT_MOBILE:
-		victim = arg.d.mob;
+		victim = arg->d.mob;
 		break;
 	default: break;
 	}
@@ -3018,25 +3018,25 @@ SCRIPT_CMD(do_opalterobj)
 	char buf[2*MIL],field[MIL],*rest;
 	int value, num, min_sec = MIN_SCRIPT_SECURITY;
 	OBJ_DATA *obj = NULL;
-	SCRIPT_PARAM arg;
+
 	bool allowarith = TRUE;
 	const struct flag_type *flags = NULL;
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpAlterObj - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if(!str_cmp(arg.d.str,"self"))
+		if(!str_cmp(arg->d.str,"self"))
 			obj = info->obj;
 		else
-			obj = get_obj_here(NULL,obj_room(info->obj),arg.d.str);
+			obj = get_obj_here(NULL,obj_room(info->obj),arg->d.str);
 		break;
 	case ENT_OBJECT:
-		obj = arg.d.obj;
+		obj = arg->d.obj;
 		break;
 	default: break;
 	}
@@ -3053,7 +3053,7 @@ SCRIPT_CMD(do_opalterobj)
 		return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("OpAlterObj - Error in parsing.",0);
 		return;
 	}
@@ -3061,16 +3061,16 @@ SCRIPT_CMD(do_opalterobj)
 	field[0] = 0;
 	num = -1;
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if(is_number(arg.d.str)) {
-			num = atoi(arg.d.str);
+		if(is_number(arg->d.str)) {
+			num = atoi(arg->d.str);
 			if(num < 0 || num >= 8) return;
 		} else
-			strncpy(field,arg.d.str,MIL-1);
+			strncpy(field,arg->d.str,MIL-1);
 		break;
 	case ENT_NUMBER:
-		num = arg.d.num;
+		num = arg->d.num;
 		if(num < 0 || num >= 8) return;
 		break;
 	default: return;
@@ -3080,15 +3080,15 @@ SCRIPT_CMD(do_opalterobj)
 
 	argument = one_argument(rest,buf);
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpAlterObj - Error in parsing.",0);
 		return;
 	}
 
 	if(num >= 0) {
-		switch(arg.type) {
-		case ENT_STRING: value = is_number(arg.d.str) ? atoi(arg.d.str) : 0; break;
-		case ENT_NUMBER: value = arg.d.num; break;
+		switch(arg->type) {
+		case ENT_STRING: value = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
+		case ENT_NUMBER: value = arg->d.num; break;
 		default: return;
 		}
 
@@ -3159,20 +3159,20 @@ SCRIPT_CMD(do_opalterobj)
 			return;
 		}
 
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_STRING:
-			if( is_number(arg.d.str) )
-				value = atoi(arg.d.str);
+			if( is_number(arg->d.str) )
+				value = atoi(arg->d.str);
 			else
 			{
 				allowarith = FALSE;	// This is a bit vector, no arithmetic operators.
-				value = script_flag_value(flags, arg.d.str);
+				value = script_flag_value(flags, arg->d.str);
 
 				if( value == NO_FLAG ) value = 0;
 			}
 
 			break;
-		case ENT_NUMBER: value = arg.d.num; break;
+		case ENT_NUMBER: value = arg->d.num; break;
 		default: return;
 		}
 
@@ -3246,24 +3246,24 @@ SCRIPT_CMD(do_opresetdice)
 {
 	char *rest;
 	OBJ_DATA *obj = NULL;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpAlterObj - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if(!str_cmp(arg.d.str,"self"))
+		if(!str_cmp(arg->d.str,"self"))
 			obj = info->obj;
 		else
-			obj = get_obj_here(NULL,obj_room(info->obj),arg.d.str);
+			obj = get_obj_here(NULL,obj_room(info->obj),arg->d.str);
 		break;
 	case ENT_OBJECT:
-		obj = arg.d.obj;
+		obj = arg->d.obj;
 		break;
 	default: break;
 	}
@@ -3286,22 +3286,22 @@ SCRIPT_CMD(do_opstringobj)
 	char buf[MSL],field[MIL],*rest, **str;
 	int min_sec = MIN_SCRIPT_SECURITY;
 	OBJ_DATA *obj = NULL;
-	SCRIPT_PARAM arg;
+
 	bool newlines = FALSE;
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpStringObj - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		obj = get_obj_here(NULL,obj_room(info->obj),arg.d.str);
+		obj = get_obj_here(NULL,obj_room(info->obj),arg->d.str);
 		break;
 	case ENT_OBJECT:
-		obj = arg.d.obj;
+		obj = arg->d.obj;
 		break;
 	default: break;
 	}
@@ -3318,16 +3318,16 @@ SCRIPT_CMD(do_opstringobj)
 		return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("OpStringObj - Error in parsing.",0);
 		return;
 	}
 
 	field[0] = 0;
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		strncpy(field,arg.d.str,MIL-1);
+		strncpy(field,arg->d.str,MIL-1);
 		break;
 	default: return;
 	}
@@ -3390,7 +3390,7 @@ SCRIPT_CMD(do_opaltermob)
 	char buf[MSL],field[MIL],*rest;
 	int value, min_sec = MIN_SCRIPT_SECURITY, min = 0, max = 0;
 	CHAR_DATA *mob = NULL;
-	SCRIPT_PARAM arg;
+
 	int *ptr = NULL;
 	bool allowpc = FALSE;
 	bool allowarith = TRUE;
@@ -3403,17 +3403,17 @@ SCRIPT_CMD(do_opaltermob)
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpAlterMob - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		mob = get_char_room(NULL,obj_room(info->obj),arg.d.str);
+		mob = get_char_room(NULL,obj_room(info->obj),arg->d.str);
 		break;
 	case ENT_MOBILE:
-		mob = arg.d.mob;
+		mob = arg->d.mob;
 		break;
 	default: break;
 	}
@@ -3428,15 +3428,15 @@ SCRIPT_CMD(do_opaltermob)
 		return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("OpAlterMob - Error in parsing.",0);
 		return;
 	}
 
 	field[0] = 0;
 
-	switch(arg.type) {
-	case ENT_STRING: strncpy(field,arg.d.str,MIL-1); break;
+	switch(arg->type) {
+	case ENT_STRING: strncpy(field,arg->d.str,MIL-1); break;
 	default: return;
 	}
 
@@ -3444,7 +3444,7 @@ SCRIPT_CMD(do_opaltermob)
 
 	argument = one_argument(rest,buf);
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpAlterMob - Error in parsing.",0);
 		return;
 	}
@@ -3554,21 +3554,21 @@ SCRIPT_CMD(do_opaltermob)
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if( is_number(arg.d.str) )
-			value = atoi(arg.d.str);
+		if( is_number(arg->d.str) )
+			value = atoi(arg->d.str);
 		else if( lookuprace )
 		{
 			// This is a race, can only be assigned
 			allowarith = FALSE;
 			allowbitwise = FALSE;
-			value = race_lookup(arg.d.str);
+			value = race_lookup(arg->d.str);
 		}
 		else
 		{
 			allowarith = FALSE;	// This is a bit vector, no arithmetic operators.
-			value = script_flag_value(flags, arg.d.str);
+			value = script_flag_value(flags, arg->d.str);
 
 			if( value == NO_FLAG ) value = 0;
 		}
@@ -3577,7 +3577,7 @@ SCRIPT_CMD(do_opaltermob)
 	case ENT_NUMBER:
 		if( lookuprace ) return;
 
-		value = arg.d.num;
+		value = arg->d.num;
 		break;
 	default: return;
 	}
@@ -3685,22 +3685,22 @@ SCRIPT_CMD(do_opstringmob)
 	char buf[MSL+2],field[MIL],*rest, **str;
 	int min_sec = MIN_SCRIPT_SECURITY;
 	CHAR_DATA *mob = NULL;
-	SCRIPT_PARAM arg;
+
 	bool newlines = FALSE;
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpStringMob - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		mob = get_char_room(NULL,obj_room(info->obj),arg.d.str);
+		mob = get_char_room(NULL,obj_room(info->obj),arg->d.str);
 		break;
 	case ENT_MOBILE:
-		mob = arg.d.mob;
+		mob = arg->d.mob;
 		break;
 	default: break;
 	}
@@ -3720,15 +3720,15 @@ SCRIPT_CMD(do_opstringmob)
 		return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("OpStringMob - Error in parsing.",0);
 		return;
 	}
 
 	field[0] = 0;
 
-	switch(arg.type) {
-	case ENT_STRING: strncpy(field,arg.d.str,MIL-1); break;
+	switch(arg->type) {
+	case ENT_STRING: strncpy(field,arg->d.str,MIL-1); break;
 	default: return;
 	}
 
@@ -3767,7 +3767,7 @@ SCRIPT_CMD(do_opskimprove)
 	char skill[MIL],*rest;
 	int min_diff, diff, sn =-1;
 	CHAR_DATA *mob = NULL;
-	SCRIPT_PARAM arg;
+
 	TOKEN_DATA *token = NULL;
 	bool success = FALSE;
 
@@ -3778,20 +3778,20 @@ SCRIPT_CMD(do_opskimprove)
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpSkImprove - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		mob = get_char_room(NULL,obj_room(info->obj),arg.d.str);
+		mob = get_char_room(NULL,obj_room(info->obj),arg->d.str);
 		break;
 	case ENT_MOBILE:
-		mob = arg.d.mob;
+		mob = arg->d.mob;
 		break;
 	case ENT_TOKEN:
-		token = arg.d.token;
+		token = arg->d.token;
 	default: break;
 	}
 
@@ -3807,15 +3807,15 @@ SCRIPT_CMD(do_opskimprove)
 		}
 
 
-		if(!(rest = expand_argument(info,rest,&arg))) {
+		if(!(rest = expand_argument(info,rest,arg))) {
 			bug("OpSkImprove - Error in parsing.",0);
 			return;
 		}
 
 		skill[0] = 0;
 
-		switch(arg.type) {
-		case ENT_STRING: strncpy(skill,arg.d.str,MIL-1); break;
+		switch(arg->type) {
+		case ENT_STRING: strncpy(skill,arg->d.str,MIL-1); break;
 		default: return;
 		}
 
@@ -3831,14 +3831,14 @@ SCRIPT_CMD(do_opskimprove)
 		}
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("OpSkImprove - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: diff = is_number(arg.d.str) ? atoi(arg.d.str) : 0; break;
-	case ENT_NUMBER: diff = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: diff = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
+	case ENT_NUMBER: diff = arg->d.num; break;
 	default: return;
 	}
 
@@ -3849,17 +3849,17 @@ SCRIPT_CMD(do_opskimprove)
 		diff = min_diff;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_NONE: success = TRUE; break;
 	case ENT_STRING:
-		if(is_number(arg.d.str))
-			success = (bool)(atoi(arg.d.str) != 0);
+		if(is_number(arg->d.str))
+			success = (bool)(atoi(arg->d.str) != 0);
 		else
-			success = !str_cmp(arg.d.str,"yes") || !str_cmp(arg.d.str,"true") ||
-				!str_cmp(arg.d.str,"success") || !str_cmp(arg.d.str,"pass");
+			success = !str_cmp(arg->d.str,"yes") || !str_cmp(arg->d.str,"true") ||
+				!str_cmp(arg->d.str,"success") || !str_cmp(arg->d.str,"pass");
 		break;
 	case ENT_NUMBER:
-		success = (bool)(arg.d.num != 0);
+		success = (bool)(arg->d.num != 0);
 		break;
 	default: success = FALSE;
 	}
@@ -3877,21 +3877,21 @@ SCRIPT_CMD(do_oprawkill)
 	int type;
 	bool has_head, show_msg;
 	CHAR_DATA *mob = NULL;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("TpRawkill - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		mob = get_char_room(NULL,obj_room(info->obj),arg.d.str);
+		mob = get_char_room(NULL,obj_room(info->obj),arg->d.str);
 		break;
 	case ENT_MOBILE:
-		mob = arg.d.mob;
+		mob = arg->d.mob;
 		break;
 	default: break;
 	}
@@ -3903,43 +3903,43 @@ SCRIPT_CMD(do_oprawkill)
 
 	if(IS_IMMORTAL(mob)) return;
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("OpRawkill - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: type = flag_lookup(arg.d.str,corpse_types); break;
+	switch(arg->type) {
+	case ENT_STRING: type = flag_lookup(arg->d.str,corpse_types); break;
 	default: return;
 	}
 
 	if(type < 0 || type == NO_FLAG) return;
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("OpRawkill - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_NONE:	has_head = TRUE; break;
 	case ENT_STRING:
-		has_head = !str_cmp(arg.d.str,"true") ||
-			!str_cmp(arg.d.str,"yes") ||
-			!str_cmp(arg.d.str,"head");
+		has_head = !str_cmp(arg->d.str,"true") ||
+			!str_cmp(arg->d.str,"yes") ||
+			!str_cmp(arg->d.str,"head");
 		break;
 	default: return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("OpRawkill - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_NONE:	show_msg = TRUE; break;
 	case ENT_STRING:
-		show_msg = !str_cmp(arg.d.str,"true") ||
-			!str_cmp(arg.d.str,"yes");
+		show_msg = !str_cmp(arg->d.str,"true") ||
+			!str_cmp(arg->d.str,"yes");
 		break;
 	default: return;
 	}
@@ -3964,25 +3964,25 @@ SCRIPT_CMD(do_opaddaffect)
 	CHAR_DATA *mob = NULL;
 	OBJ_DATA *obj = NULL;
 	int wear_loc = WEAR_NONE;
-	SCRIPT_PARAM arg;
+
 	AFFECT_DATA af;
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpAddAffect - Error in parsing.",0);
 		return;
 	}
 
 	// addaffect <target> <where> <skill> <level> <location> <modifier> <duration> <bitvector> <bitvector2>
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if (!(mob = get_char_room(NULL, obj_room(info->obj), arg.d.str)))
-			obj = get_obj_here(NULL, obj_room(info->obj), arg.d.str);
+		if (!(mob = get_char_room(NULL, obj_room(info->obj), arg->d.str)))
+			obj = get_obj_here(NULL, obj_room(info->obj), arg->d.str);
 		break;
-	case ENT_MOBILE: mob = arg.d.mob; break;
-	case ENT_OBJECT: obj = arg.d.obj; break;
+	case ENT_MOBILE: mob = arg->d.mob; break;
+	case ENT_OBJECT: obj = arg->d.obj; break;
 	default: break;
 	}
 
@@ -3991,122 +3991,122 @@ SCRIPT_CMD(do_opaddaffect)
 		return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("OpAddaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: where = flag_lookup(arg.d.str,apply_types); break;
+	switch(arg->type) {
+	case ENT_STRING: where = flag_lookup(arg->d.str,apply_types); break;
 	default: return;
 	}
 
 	if(where == NO_FLAG) return;
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("OpAddaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
 		if(where == TO_OBJECT || where == TO_WEAPON)
-			group = flag_lookup(arg.d.str,affgroup_object_flags);
+			group = flag_lookup(arg->d.str,affgroup_object_flags);
 		else
-			group = flag_lookup(arg.d.str,affgroup_mobile_flags);
+			group = flag_lookup(arg->d.str,affgroup_mobile_flags);
 		break;
 	default: return;
 	}
 
 	if(group == NO_FLAG) return;
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpAddaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: skill = skill_lookup(arg.d.str); break;
+	switch(arg->type) {
+	case ENT_STRING: skill = skill_lookup(arg->d.str); break;
 	default: return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("OpAddaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_NUMBER: level = arg.d.num; break;
-	case ENT_STRING: level = atoi(arg.d.str); break;
-	case ENT_MOBILE: level = arg.d.mob->tot_level; break;
-	case ENT_OBJECT: level = arg.d.obj->level; break;
+	switch(arg->type) {
+	case ENT_NUMBER: level = arg->d.num; break;
+	case ENT_STRING: level = atoi(arg->d.str); break;
+	case ENT_MOBILE: level = arg->d.mob->tot_level; break;
+	case ENT_OBJECT: level = arg->d.obj->level; break;
 	default: return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("OpAddaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: loc = flag_lookup(arg.d.str,apply_flags_full); break;
+	switch(arg->type) {
+	case ENT_STRING: loc = flag_lookup(arg->d.str,apply_flags_full); break;
 	default: return;
 	}
 
 	if(loc == NO_FLAG) return;
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("OpAddaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_NUMBER: mod = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_NUMBER: mod = arg->d.num; break;
 	default: return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("OpAddaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_NUMBER: hours = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_NUMBER: hours = arg->d.num; break;
 	default: return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("OpAddaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: bv = flag_value(affect_flags,arg.d.str); break;
+	switch(arg->type) {
+	case ENT_STRING: bv = flag_value(affect_flags,arg->d.str); break;
 	default: return;
 	}
 
 	if(bv == NO_FLAG) bv = 0;
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("OpAddaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: bv2 = flag_value(affect2_flags,arg.d.str); break;
+	switch(arg->type) {
+	case ENT_STRING: bv2 = flag_value(affect2_flags,arg->d.str); break;
 	default: return;
 	}
 
 	if(bv2 == NO_FLAG) bv2 = 0;
 
 	if(rest && *rest) {
-		if(!(rest = expand_argument(info,rest,&arg))) {
+		if(!(rest = expand_argument(info,rest,arg))) {
 			bug("MpAddaffect - Error in parsing.",0);
 			return;
 		}
 
-		switch(arg.type) {
-		case ENT_OBJECT: wear_loc = arg.d.obj ? arg.d.obj->wear_loc : WEAR_NONE; break;
+		switch(arg->type) {
+		case ENT_OBJECT: wear_loc = arg->d.obj ? arg->d.obj->wear_loc : WEAR_NONE; break;
 		default: return;
 		}
 	}
@@ -4134,25 +4134,25 @@ SCRIPT_CMD(do_opaddaffectname)
 	CHAR_DATA *mob = NULL;
 	OBJ_DATA *obj = NULL;
 	int wear_loc = WEAR_NONE;
-	SCRIPT_PARAM arg;
+
 	AFFECT_DATA af;
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpAddAffect - Error in parsing.",0);
 		return;
 	}
 
 	// addaffectname <target> <where> <name> <level> <location> <modifier> <duration> <bitvector> <bitvector2>
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if (!(mob = get_char_room(NULL,obj_room(info->obj), arg.d.str)))
-			obj = get_obj_here(NULL,obj_room(info->obj), arg.d.str);
+		if (!(mob = get_char_room(NULL,obj_room(info->obj), arg->d.str)))
+			obj = get_obj_here(NULL,obj_room(info->obj), arg->d.str);
 		break;
-	case ENT_MOBILE: mob = arg.d.mob; break;
-	case ENT_OBJECT: obj = arg.d.obj; break;
+	case ENT_MOBILE: mob = arg->d.mob; break;
+	case ENT_OBJECT: obj = arg->d.obj; break;
 	default: break;
 	}
 
@@ -4161,44 +4161,44 @@ SCRIPT_CMD(do_opaddaffectname)
 		return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpAddaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: where = flag_lookup(arg.d.str,apply_types); break;
+	switch(arg->type) {
+	case ENT_STRING: where = flag_lookup(arg->d.str,apply_types); break;
 	default: return;
 	}
 
 	if(where == NO_FLAG) return;
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpAddaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
 		if(where == TO_OBJECT || where == TO_WEAPON)
-			group = flag_lookup(arg.d.str,affgroup_object_flags);
+			group = flag_lookup(arg->d.str,affgroup_object_flags);
 		else
-			group = flag_lookup(arg.d.str,affgroup_mobile_flags);
+			group = flag_lookup(arg->d.str,affgroup_mobile_flags);
 		break;
 	default: return;
 	}
 
 	if(group == NO_FLAG) return;
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpAddaffect - Error in parsing.",0);
 		return;
 	}
 
 
 
-	switch(arg.type) {
-	case ENT_STRING: name = create_affect_cname(arg.d.str); break;
+	switch(arg->type) {
+	case ENT_STRING: name = create_affect_cname(arg->d.str); break;
 	default: return;
 	}
 
@@ -4207,83 +4207,83 @@ SCRIPT_CMD(do_opaddaffectname)
 		return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpAddaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_NUMBER: level = arg.d.num; break;
-	case ENT_STRING: level = atoi(arg.d.str); break;
-	case ENT_MOBILE: level = arg.d.mob->tot_level; break;
-	case ENT_OBJECT: level = arg.d.obj->level; break;
+	switch(arg->type) {
+	case ENT_NUMBER: level = arg->d.num; break;
+	case ENT_STRING: level = atoi(arg->d.str); break;
+	case ENT_MOBILE: level = arg->d.mob->tot_level; break;
+	case ENT_OBJECT: level = arg->d.obj->level; break;
 	default: return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpAddaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: loc = flag_lookup(arg.d.str,apply_flags_full); break;
+	switch(arg->type) {
+	case ENT_STRING: loc = flag_lookup(arg->d.str,apply_flags_full); break;
 	default: return;
 	}
 
 	if(loc == NO_FLAG) return;
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpAddaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_NUMBER: mod = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_NUMBER: mod = arg->d.num; break;
 	default: return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpAddaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_NUMBER: hours = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_NUMBER: hours = arg->d.num; break;
 	default: return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpAddaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: bv = flag_value(affect_flags,arg.d.str); break;
+	switch(arg->type) {
+	case ENT_STRING: bv = flag_value(affect_flags,arg->d.str); break;
 	default: return;
 	}
 
 	if(bv == NO_FLAG) bv = 0;
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpAddaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: bv2 = flag_value(affect2_flags,arg.d.str); break;
+	switch(arg->type) {
+	case ENT_STRING: bv2 = flag_value(affect2_flags,arg->d.str); break;
 	default: return;
 	}
 
 	if(bv2 == NO_FLAG) bv2 = 0;
 
 	if(rest && *rest) {
-		if(!(rest = expand_argument(info,rest,&arg))) {
+		if(!(rest = expand_argument(info,rest,arg))) {
 			bug("MpAddaffect - Error in parsing.",0);
 			return;
 		}
 
-		switch(arg.type) {
-		case ENT_OBJECT: wear_loc = arg.d.obj ? arg.d.obj->wear_loc : WEAR_NONE; break;
+		switch(arg->type) {
+		case ENT_OBJECT: wear_loc = arg->d.obj ? arg->d.obj->wear_loc : WEAR_NONE; break;
 		default: return;
 		}
 	}
@@ -4310,24 +4310,24 @@ SCRIPT_CMD(do_opstripaffect)
 	int skill;
 	CHAR_DATA *mob = NULL;
 	OBJ_DATA *obj = NULL;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpStripaffect - Error in parsing.",0);
 		return;
 	}
 
 	// stripaffect <target> <skill>
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if (!(mob = get_char_room(NULL, obj_room(info->obj), arg.d.str)))
-			obj = get_obj_here(NULL, obj_room(info->obj), arg.d.str);
+		if (!(mob = get_char_room(NULL, obj_room(info->obj), arg->d.str)))
+			obj = get_obj_here(NULL, obj_room(info->obj), arg->d.str);
 		break;
-	case ENT_MOBILE: mob = arg.d.mob; break;
-	case ENT_OBJECT: obj = arg.d.obj; break;
+	case ENT_MOBILE: mob = arg->d.mob; break;
+	case ENT_OBJECT: obj = arg->d.obj; break;
 	default: break;
 	}
 
@@ -4337,13 +4337,13 @@ SCRIPT_CMD(do_opstripaffect)
 	}
 
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("OpStripaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: skill = skill_lookup(arg.d.str); break;
+	switch(arg->type) {
+	case ENT_STRING: skill = skill_lookup(arg->d.str); break;
 	default: return;
 	}
 
@@ -4358,24 +4358,24 @@ SCRIPT_CMD(do_opstripaffectname)
 	char *rest, *name;
 	CHAR_DATA *mob = NULL;
 	OBJ_DATA *obj = NULL;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpStripaffect - Error in parsing.",0);
 		return;
 	}
 
 	// stripaffectname <target> <name>
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if (!(mob = get_char_room(NULL,obj_room(info->obj), arg.d.str)))
-			obj = get_obj_here(NULL,obj_room(info->obj), arg.d.str);
+		if (!(mob = get_char_room(NULL,obj_room(info->obj), arg->d.str)))
+			obj = get_obj_here(NULL,obj_room(info->obj), arg->d.str);
 		break;
-	case ENT_MOBILE: mob = arg.d.mob; break;
-	case ENT_OBJECT: obj = arg.d.obj; break;
+	case ENT_MOBILE: mob = arg->d.mob; break;
+	case ENT_OBJECT: obj = arg->d.obj; break;
 	default: break;
 	}
 
@@ -4385,13 +4385,13 @@ SCRIPT_CMD(do_opstripaffectname)
 	}
 
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpStripaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: name = get_affect_cname(arg.d.str); break;
+	switch(arg->type) {
+	case ENT_STRING: name = get_affect_cname(arg->d.str); break;
 	default: return;
 	}
 
@@ -4407,23 +4407,23 @@ SCRIPT_CMD(do_opinput)
 	char *rest, *p;
 	int vnum;
 	CHAR_DATA *mob = NULL;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj) return;
 
 	info->obj->progs->lastreturn = 0;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpInput - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		mob = get_char_room(NULL,obj_room(info->obj),arg.d.str);
+		mob = get_char_room(NULL,obj_room(info->obj),arg->d.str);
 		break;
 	case ENT_MOBILE:
-		mob = arg.d.mob;
+		mob = arg->d.mob;
 		break;
 	default: break;
 	}
@@ -4437,27 +4437,27 @@ SCRIPT_CMD(do_opinput)
 
 	if( mob->desc->showstr_head != NULL ) return;
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("OpInput - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_NUMBER: vnum = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_NUMBER: vnum = arg->d.num; break;
 	default: return;
 	}
 
 	if(vnum < 1 || !get_script_index(vnum, PRG_OPROG)) return;
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("OpInput - Error in parsing.",0);
 		return;
 	}
 
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_NONE:		p = NULL; break;
-	case ENT_STRING:	p = arg.d.str; break;
+	case ENT_STRING:	p = arg->d.str; break;
 	default: return;
 	}
 
@@ -4481,23 +4481,23 @@ SCRIPT_CMD(do_opusecatalyst)
 	int type, method, amount, min, max, show;
 	CHAR_DATA *mob = NULL;
 	ROOM_INDEX_DATA *room = NULL;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj) return;
 
 	info->obj->progs->lastreturn = 0;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpUseCatalyst - Error in parsing.",0);
 		return;
 	}
 
 	// usecatalyst <target> <type> <method> <amount> <min> <max> <show>
 
-	switch(arg.type) {
-	case ENT_STRING: mob = get_char_room(NULL,obj_room(info->obj), arg.d.str); break;
-	case ENT_MOBILE: mob = arg.d.mob; break;
-	case ENT_ROOM: room = arg.d.room; break;
+	switch(arg->type) {
+	case ENT_STRING: mob = get_char_room(NULL,obj_room(info->obj), arg->d.str); break;
+	case ENT_MOBILE: mob = arg->d.mob; break;
+	case ENT_ROOM: room = arg->d.room; break;
 	default: break;
 	}
 
@@ -4506,74 +4506,74 @@ SCRIPT_CMD(do_opusecatalyst)
 		return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("OpUseCatalyst - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: type = flag_value(catalyst_types,arg.d.str); break;
+	switch(arg->type) {
+	case ENT_STRING: type = flag_value(catalyst_types,arg->d.str); break;
 	default: return;
 	}
 
 	if(type == NO_FLAG) return;
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("OpUseCatalyst - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: method = flag_value(catalyst_method_types,arg.d.str); break;
+	switch(arg->type) {
+	case ENT_STRING: method = flag_value(catalyst_method_types,arg->d.str); break;
 	default: return;
 	}
 
 	if(method == NO_FLAG) return;
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("OpUseCatalyst - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_NUMBER: amount = arg.d.num; break;
-	case ENT_STRING: amount = atoi(arg.d.str); break;
+	switch(arg->type) {
+	case ENT_NUMBER: amount = arg->d.num; break;
+	case ENT_STRING: amount = atoi(arg->d.str); break;
 	default: return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("OpUseCatalyst - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_NUMBER: min = arg.d.num; break;
-	case ENT_STRING: min = atoi(arg.d.str); break;
+	switch(arg->type) {
+	case ENT_NUMBER: min = arg->d.num; break;
+	case ENT_STRING: min = atoi(arg->d.str); break;
 	default: return;
 	}
 
 	if(min < 1 || min > CATALYST_MAXSTRENGTH) return;
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("OpUseCatalyst - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_NUMBER: max = arg.d.num; break;
-	case ENT_STRING: max = atoi(arg.d.str); break;
+	switch(arg->type) {
+	case ENT_NUMBER: max = arg->d.num; break;
+	case ENT_STRING: max = atoi(arg->d.str); break;
 	default: return;
 	}
 
 	if(max < min || max > CATALYST_MAXSTRENGTH) return;
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("OpUseCatalyst - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: show = flag_value(boolean_types,arg.d.str); break;
+	switch(arg->type) {
+	case ENT_STRING: show = flag_value(boolean_types,arg->d.str); break;
 	default: return;
 	}
 
@@ -4588,7 +4588,7 @@ SCRIPT_CMD(do_opalterexit)
 	int value, min_sec = MIN_SCRIPT_SECURITY, door;
 	ROOM_INDEX_DATA *room;
 	EXIT_DATA *ex = NULL;
-	SCRIPT_PARAM arg;
+
 	int *ptr = NULL;
 	sh_int *sptr = NULL;
 	char **str;
@@ -4597,26 +4597,26 @@ SCRIPT_CMD(do_opalterexit)
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpAlterExit - Error in parsing.",0);
 		return;
 	}
 
 	room = obj_room(info->obj);
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_ROOM:
-		room = arg.d.room;
-		if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_STRING) {
+		room = arg->d.room;
+		if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING) {
 			bug("OpAlterExit - Error in parsing.",0);
 			return;
 		}
 	case ENT_STRING:
-		door = get_num_dir(arg.d.str);
+		door = get_num_dir(arg->d.str);
 		ex = (door < 0) ? NULL : room->exit[door];
 		break;
 	case ENT_EXIT:
-		ex = arg.d.door.r ? arg.d.door.r->exit[arg.d.door.door] : NULL;
+		ex = arg->d.door.r ? arg->d.door.r->exit[arg->d.door.door] : NULL;
 		break;
 	default: ex = NULL; break;
 	}
@@ -4628,32 +4628,32 @@ SCRIPT_CMD(do_opalterexit)
 		return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("OpAlterExit - Error in parsing.",0);
 		return;
 	}
 
 	field[0] = 0;
 
-	switch(arg.type) {
-	case ENT_STRING: strncpy(field,arg.d.str,MIL-1); break;
+	switch(arg->type) {
+	case ENT_STRING: strncpy(field,arg->d.str,MIL-1); break;
 	default: return;
 	}
 
 	if(!field[0]) return;
 
 	if(!str_cmp(field,"room") || !str_prefix(field,"destination")) {
-		if(!(rest = expand_argument(info,rest,&arg))) {
+		if(!(rest = expand_argument(info,rest,arg))) {
 			bug("OpAlterExit - Error in parsing.",0);
 			return;
 		}
 
-		switch(arg.type) {
-		case ENT_NUMBER:	room = get_room_index(arg.d.num); break;
-		case ENT_ROOM:		room = arg.d.room; break;
-		case ENT_MOBILE:	room = arg.d.mob->in_room; break;
-		case ENT_OBJECT:	room = obj_room(arg.d.obj); break;
-		case ENT_EXIT:		room = (arg.d.door.r && arg.d.door.r->exit[arg.d.door.door]) ? arg.d.door.r->exit[arg.d.door.door]->u1.to_room : NULL; break;
+		switch(arg->type) {
+		case ENT_NUMBER:	room = get_room_index(arg->d.num); break;
+		case ENT_ROOM:		room = arg->d.room; break;
+		case ENT_MOBILE:	room = arg->d.mob->in_room; break;
+		case ENT_OBJECT:	room = obj_room(arg->d.obj); break;
+		case ENT_EXIT:		room = (arg->d.door.r && arg->d.door.r->exit[arg->d.door.door]) ? arg->d.door.r->exit[arg->d.door.door]->u1.to_room : NULL; break;
 		default: return;
 		}
 
@@ -4684,14 +4684,14 @@ SCRIPT_CMD(do_opalterexit)
 
 	argument = one_argument(rest,buf);
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpAlterExit - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: value = is_number(arg.d.str) ? atoi(arg.d.str) : 0; break;
-	case ENT_NUMBER: value = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: value = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
+	case ENT_NUMBER: value = arg->d.num; break;
 	default: return;
 	}
 
@@ -4709,20 +4709,20 @@ SCRIPT_CMD(do_opalterexit)
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if( is_number(arg.d.str) )
-			value = atoi(arg.d.str);
+		if( is_number(arg->d.str) )
+			value = atoi(arg->d.str);
 		else
 		{
 			allowarith = FALSE;	// This is a bit vector, no arithmetic operators.
-			value = script_flag_value(flags, arg.d.str);
+			value = script_flag_value(flags, arg->d.str);
 
 			if( value == NO_FLAG ) value = 0;
 		}
 
 		break;
-	case ENT_NUMBER: value = arg.d.num; break;
+	case ENT_NUMBER: value = arg->d.num; break;
 	default: return;
 	}
 
@@ -4817,21 +4817,21 @@ SCRIPT_CMD(do_opprompt)
 {
 	char buf[MSL+2],name[MIL],*rest;
 	CHAR_DATA *mob = NULL;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpPrompt - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		mob = get_char_room(NULL,obj_room(info->obj), arg.d.str);
+		mob = get_char_room(NULL,obj_room(info->obj), arg->d.str);
 		break;
 	case ENT_MOBILE:
-		mob = arg.d.mob;
+		mob = arg->d.mob;
 		break;
 	default: break;
 	}
@@ -4851,15 +4851,15 @@ SCRIPT_CMD(do_opprompt)
 		return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("OpPrompt - Error in parsing.",0);
 		return;
 	}
 
 	name[0] = 0;
 
-	switch(arg.type) {
-	case ENT_STRING: strncpy(name,arg.d.str,MIL-1); break;
+	switch(arg->type) {
+	case ENT_STRING: strncpy(name,arg->d.str,MIL-1); break;
 	default: return;
 	}
 
@@ -4877,20 +4877,20 @@ SCRIPT_CMD(do_opprompt)
 
 SCRIPT_CMD(do_opvarseton)
 {
-	SCRIPT_PARAM arg;
+
 	VARIABLE **vars;
 
 	if(!info || !info->obj) return;
 
 	// Get the target
-	if(!(argument = expand_argument(info,argument,&arg)))
+	if(!(argument = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_MOBILE: vars = (arg.d.mob && IS_NPC(arg.d.mob) && arg.d.mob->progs) ? &arg.d.mob->progs->vars : NULL; break;
-	case ENT_OBJECT: vars = (arg.d.obj && arg.d.obj->progs) ? &arg.d.obj->progs->vars : NULL; break;
-	case ENT_ROOM: vars = (arg.d.room && arg.d.room->progs) ? &arg.d.room->progs->vars : NULL; break;
-	case ENT_TOKEN: vars = (arg.d.token && arg.d.token->progs) ? &arg.d.token->progs->vars : NULL; break;
+	switch(arg->type) {
+	case ENT_MOBILE: vars = (arg->d.mob && IS_NPC(arg->d.mob) && arg->d.mob->progs) ? arg->d.mob->progs->vars : NULL; break;
+	case ENT_OBJECT: vars = (arg->d.obj && arg->d.obj->progs) ? arg->d.obj->progs->vars : NULL; break;
+	case ENT_ROOM: vars = (arg->d.room && arg->d.room->progs) ? arg->d.room->progs->vars : NULL; break;
+	case ENT_TOKEN: vars = (arg->d.token && arg->d.token->progs) ? arg->d.token->progs->vars : NULL; break;
 	default: vars = NULL; break;
 	}
 
@@ -4899,20 +4899,20 @@ SCRIPT_CMD(do_opvarseton)
 
 SCRIPT_CMD(do_opvarclearon)
 {
-	SCRIPT_PARAM arg;
+
 	VARIABLE **vars;
 
 	if(!info || !info->obj) return;
 
 	// Get the target
-	if(!(argument = expand_argument(info,argument,&arg)))
+	if(!(argument = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_MOBILE: vars = (arg.d.mob && IS_NPC(arg.d.mob) && arg.d.mob->progs) ? &arg.d.mob->progs->vars : NULL; break;
-	case ENT_OBJECT: vars = (arg.d.obj && arg.d.obj->progs) ? &arg.d.obj->progs->vars : NULL; break;
-	case ENT_ROOM: vars = (arg.d.room && arg.d.room->progs) ? &arg.d.room->progs->vars : NULL; break;
-	case ENT_TOKEN: vars = (arg.d.token && arg.d.token->progs) ? &arg.d.token->progs->vars : NULL; break;
+	switch(arg->type) {
+	case ENT_MOBILE: vars = (arg->d.mob && IS_NPC(arg->d.mob) && arg->d.mob->progs) ? arg->d.mob->progs->vars : NULL; break;
+	case ENT_OBJECT: vars = (arg->d.obj && arg->d.obj->progs) ? arg->d.obj->progs->vars : NULL; break;
+	case ENT_ROOM: vars = (arg->d.room && arg->d.room->progs) ? arg->d.room->progs->vars : NULL; break;
+	case ENT_TOKEN: vars = (arg->d.token && arg->d.token->progs) ? arg->d.token->progs->vars : NULL; break;
 	default: vars = NULL; break;
 	}
 
@@ -4923,20 +4923,20 @@ SCRIPT_CMD(do_opvarsaveon)
 {
 	char name[MIL],buf[MIL];
 	bool on;
-	SCRIPT_PARAM arg;
+
 	VARIABLE *vars;
 
 	if(!info || !info->obj) return;
 
 	// Get the target
-	if(!(argument = expand_argument(info,argument,&arg)))
+	if(!(argument = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_MOBILE: vars = (arg.d.mob && IS_NPC(arg.d.mob) && arg.d.mob->progs) ? arg.d.mob->progs->vars : NULL; break;
-	case ENT_OBJECT: vars = (arg.d.obj && arg.d.obj->progs) ? arg.d.obj->progs->vars : NULL; break;
-	case ENT_ROOM: vars = (arg.d.room && arg.d.room->progs) ? arg.d.room->progs->vars : NULL; break;
-	case ENT_TOKEN: vars = (arg.d.token && arg.d.token->progs) ? arg.d.token->progs->vars : NULL; break;
+	switch(arg->type) {
+	case ENT_MOBILE: vars = (arg->d.mob && IS_NPC(arg->d.mob) && arg->d.mob->progs) ? arg->d.mob->progs->vars : NULL; break;
+	case ENT_OBJECT: vars = (arg->d.obj && arg->d.obj->progs) ? arg->d.obj->progs->vars : NULL; break;
+	case ENT_ROOM: vars = (arg->d.room && arg->d.room->progs) ? arg->d.room->progs->vars : NULL; break;
+	case ENT_TOKEN: vars = (arg->d.token && arg->d.token->progs) ? arg->d.token->progs->vars : NULL; break;
 	default: vars = NULL; break;
 	}
 
@@ -4963,33 +4963,33 @@ SCRIPT_CMD(do_opcloneroom)
 	TOKEN_DATA *tok;
 	ROOM_INDEX_DATA *source, *room, *clone;
 	bool no_env = FALSE;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj) return;
 
 	// Get vnum
-	if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+	if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
 		return;
 
-	vnum = arg.d.num;
+	vnum = arg->d.num;
 
 	source = get_room_index(vnum);
 	if(!source) return;
 
-	if(!(argument = expand_argument(info,argument,&arg)))
+	if(!(argument = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_MOBILE:	mob = arg.d.mob; obj = NULL; room = NULL; tok = NULL; break;
-	case ENT_OBJECT:	mob = NULL; obj = arg.d.obj; room = NULL; tok = NULL; break;
-	case ENT_ROOM:		mob = NULL; obj = NULL; room = arg.d.room; tok = NULL; break;
-	case ENT_TOKEN:		mob = NULL; obj = NULL; room = NULL; tok = arg.d.token; break;
+	switch(arg->type) {
+	case ENT_MOBILE:	mob = arg->d.mob; obj = NULL; room = NULL; tok = NULL; break;
+	case ENT_OBJECT:	mob = NULL; obj = arg->d.obj; room = NULL; tok = NULL; break;
+	case ENT_ROOM:		mob = NULL; obj = NULL; room = arg->d.room; tok = NULL; break;
+	case ENT_TOKEN:		mob = NULL; obj = NULL; room = NULL; tok = arg->d.token; break;
 	case ENT_STRING:
 		mob = NULL;
 		obj = NULL;
 		room = NULL;
 		tok = NULL;
-		if(!str_cmp(arg.d.str, "none"))
+		if(!str_cmp(arg->d.str, "none"))
 			no_env = TRUE;
 		break;
 	default: return;
@@ -4997,10 +4997,10 @@ SCRIPT_CMD(do_opcloneroom)
 
 	if(!mob && !obj && !room && !tok && !no_env) return;
 
-	if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_STRING || !arg.d.str || !arg.d.str[0])
+	if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_STRING || !arg->d.str || !arg->d.str[0])
 		return;
 
-	strncpy(name,arg.d.str,MIL); name[MIL] = 0;
+	strncpy(name,arg->d.str,MIL); name[MIL] = 0;
 
 	log_stringf("do_opcloneroom: variable name '%s'\n", name);
 
@@ -5022,7 +5022,7 @@ SCRIPT_CMD(do_opalterroom)
 	int value, min_sec = MIN_SCRIPT_SECURITY;
 	ROOM_INDEX_DATA *room;
 	WILDS_DATA *wilds;
-	SCRIPT_PARAM arg;
+
 	int *ptr = NULL;
 	sh_int *sptr = NULL;
 	char **str;
@@ -5032,17 +5032,17 @@ SCRIPT_CMD(do_opalterroom)
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpAlterRoom - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_ROOM:
-		room = arg.d.room;
+		room = arg->d.room;
 		break;
 	case ENT_NUMBER:
-		room = get_room_index(arg.d.num);
+		room = get_room_index(arg->d.num);
 		break;
 	default: room = NULL; break;
 	}
@@ -5054,32 +5054,32 @@ SCRIPT_CMD(do_opalterroom)
 		return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("OpAlterRoom - Error in parsing.",0);
 		return;
 	}
 
 	field[0] = 0;
 
-	switch(arg.type) {
-	case ENT_STRING: strncpy(field,arg.d.str,MIL-1); break;
+	switch(arg->type) {
+	case ENT_STRING: strncpy(field,arg->d.str,MIL-1); break;
 	default: return;
 	}
 
 	if(!field[0]) return;
 
         if(!str_cmp(field,"mapid")) {
-                if(!(rest = expand_argument(info,rest,&arg))) {
+                if(!(rest = expand_argument(info,rest,arg))) {
                         bug("MPAlterRoom - Error in parsing.",0);
                         return;
                 }
-                switch(arg.type) {
+                switch(arg->type) {
                 case ENT_STRING:
-                        if(!str_cmp(arg.d.str,"none"))
+                        if(!str_cmp(arg->d.str,"none"))
                                 { room->viewwilds = NULL; }
                         break;
                 case ENT_NUMBER:
-                        wilds = get_wilds_from_uid(NULL,arg.d.num);
+                        wilds = get_wilds_from_uid(NULL,arg->d.num);
                         if(!wilds){
                                 bug("Not a valid wilds uid",0);
                                 return;
@@ -5094,30 +5094,30 @@ SCRIPT_CMD(do_opalterroom)
 	if(!str_cmp(field,"environment") || !str_cmp(field,"environ") ||
 		!str_cmp(field,"extern") || !str_cmp(field,"outside")) {
 
-		if(!(rest = expand_argument(info,rest,&arg))) {
+		if(!(rest = expand_argument(info,rest,arg))) {
 			bug("OpAlterRoom - Error in parsing.",0);
 			return;
 		}
 
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_ROOM:
 			room_from_environment(room);
-			room_to_environment(room,NULL,NULL,arg.d.room, NULL);
+			room_to_environment(room,NULL,NULL,arg->d.room, NULL);
 			break;
 		case ENT_MOBILE:
 			room_from_environment(room);
-			room_to_environment(room,arg.d.mob,NULL,NULL, NULL);
+			room_to_environment(room,arg->d.mob,NULL,NULL, NULL);
 			break;
 		case ENT_OBJECT:
 			room_from_environment(room);
-			room_to_environment(room,NULL,arg.d.obj,NULL, NULL);
+			room_to_environment(room,NULL,arg->d.obj,NULL, NULL);
 			break;
 		case ENT_TOKEN:
 			room_from_environment(room);
-			room_to_environment(room,NULL,NULL,NULL,arg.d.token);
+			room_to_environment(room,NULL,NULL,NULL,arg->d.token);
 			break;
 		case ENT_STRING:
-			if(!str_cmp(arg.d.str, "none"))
+			if(!str_cmp(arg->d.str, "none"))
 				room_from_environment(room);
 		default: return;
 		}
@@ -5150,7 +5150,7 @@ SCRIPT_CMD(do_opalterroom)
 
 	argument = one_argument(rest,buf);
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpAlterRoom - Error in parsing.",0);
 		return;
 	}
@@ -5174,20 +5174,20 @@ SCRIPT_CMD(do_opalterroom)
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if( is_number(arg.d.str) )
-			value = atoi(arg.d.str);
+		if( is_number(arg->d.str) )
+			value = atoi(arg->d.str);
 		else
 		{
 			allowarith = FALSE;	// This is a bit vector, no arithmetic operators.
-			value = script_flag_value(flags, arg.d.str);
+			value = script_flag_value(flags, arg->d.str);
 
 			if( value == NO_FLAG ) value = 0;
 		}
 
 		break;
-	case ENT_NUMBER: value = arg.d.num; break;
+	case ENT_NUMBER: value = arg->d.num; break;
 	default: return;
 	}
 
@@ -5285,40 +5285,40 @@ SCRIPT_CMD(do_opdestroyroom)
 	long vnum;
 	unsigned long id1, id2;
 	ROOM_INDEX_DATA *room;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj) return;
 
 	info->obj->progs->lastreturn = 0;
 
-	if(!(argument = expand_argument(info,argument,&arg)))
+	if(!(argument = expand_argument(info,argument,arg)))
 		return;
 
 	// It's a room, extract it directly
-	if(arg.type == ENT_ROOM) {
+	if(arg->type == ENT_ROOM) {
 		// Need to block this when done by room to itself
-		if(extract_clone_room(arg.d.room->source,arg.d.room->id[0],arg.d.room->id[1],false))
+		if(extract_clone_room(arg->d.room->source,arg->d.room->id[0],arg->d.room->id[1],false))
 			info->obj->progs->lastreturn = 1;
 		return;
 	}
 
-	if(arg.type != ENT_NUMBER) return;
+	if(arg->type != ENT_NUMBER) return;
 
-	vnum = arg.d.num;
+	vnum = arg->d.num;
 
 	room = get_room_index(vnum);
 	if(!room) return;
 
 	// Get id
-	if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+	if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
 		return;
 
-	id1 = arg.d.num;
+	id1 = arg->d.num;
 
-	if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+	if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
 		return;
 
-	id2 = arg.d.num;
+	id2 = arg->d.num;
 
 	if(extract_clone_room(room, id1, id2,false))
 		info->obj->progs->lastreturn = 1;
@@ -5332,7 +5332,7 @@ SCRIPT_CMD(do_opshowroom)
 	CHAR_DATA *viewer = NULL, *next;
 	ROOM_INDEX_DATA *room = NULL, *dest;
 	WILDS_DATA *wilds = NULL;
-	SCRIPT_PARAM arg;
+
 	long mapid;
 	long x,y;
 	long width, height;
@@ -5340,12 +5340,12 @@ SCRIPT_CMD(do_opshowroom)
 
 	if(!info || !info->obj) return;
 
-	if(!(argument = expand_argument(info,argument,&arg)))
+	if(!(argument = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_MOBILE:	viewer = arg.d.mob; break;
-	case ENT_ROOM:		room = arg.d.room; break;
+	switch(arg->type) {
+	case ENT_MOBILE:	viewer = arg->d.mob; break;
+	case ENT_ROOM:		room = arg->d.room; break;
 	}
 
 	if(!viewer && !room) {
@@ -5353,53 +5353,53 @@ SCRIPT_CMD(do_opshowroom)
 		return;
 	}
 
-	if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_STRING)
+	if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_STRING)
 		return;
 
-	if(!str_cmp(arg.d.str,"map")) {
-		if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+	if(!str_cmp(arg->d.str,"map")) {
+		if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
 			return;
 
-		mapid = arg.d.num;
+		mapid = arg->d.num;
 
 		wilds = get_wilds_from_uid(NULL,mapid);
 		if(!wilds) return;
 
-		if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+		if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
 			return;
 
-		x = arg.d.num;
+		x = arg->d.num;
 
-		if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+		if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
 			return;
 
-		y = arg.d.num;
+		y = arg->d.num;
 
-		if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+		if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
 			return;
 
-		//z = arg.d.num;
+		//z = arg->d.num;
 
-		if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+		if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
 			return;
 
-		//scale = arg.d.num;
+		//scale = arg->d.num;
 
-		if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+		if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
 			return;
 
-		width = arg.d.num;
+		width = arg->d.num;
 
-		if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+		if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
 			return;
 
-		height = arg.d.num;
+		height = arg->d.num;
 
-		if(!(argument = expand_argument(info,argument,&arg)))
+		if(!(argument = expand_argument(info,argument,arg)))
 			return;
 
-		if(arg.type == ENT_STRING)
-			force = !str_cmp(arg.d.str,"force");
+		if(arg->type == ENT_STRING)
+			force = !str_cmp(arg->d.str,"force");
 		else
 			force = false;
 
@@ -5429,27 +5429,27 @@ SCRIPT_CMD(do_opshowroom)
 
 	// Both room and vroom have the same end mechanism, just different fetching mechanisms
 
-	if(!str_cmp(arg.d.str,"room")) {
-		if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_ROOM)
+	if(!str_cmp(arg->d.str,"room")) {
+		if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_ROOM)
 			return;
 
-		dest = arg.d.room;
-	} else if(!str_cmp(arg.d.str,"vroom")) {
+		dest = arg->d.room;
+	} else if(!str_cmp(arg->d.str,"vroom")) {
 		unsigned long id1, id2;
-		if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_ROOM)
+		if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_ROOM)
 			return;
 
-		dest = arg.d.room;
+		dest = arg->d.room;
 
-		if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+		if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
 			return;
 
-		id1 = arg.d.num;
+		id1 = arg->d.num;
 
-		if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+		if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
 			return;
 
-		id2 = arg.d.num;
+		id2 = arg->d.num;
 
 		dest = get_clone_room(dest,id1,id2);
 	} else
@@ -5457,11 +5457,11 @@ SCRIPT_CMD(do_opshowroom)
 
 	if(!dest) return;
 
-	if(!(argument = expand_argument(info,argument,&arg)))
+	if(!(argument = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type == ENT_STRING)
-		force = !str_cmp(arg.d.str,"force");
+	if(arg->type == ENT_STRING)
+		force = !str_cmp(arg->d.str,"force");
 	else
 		force = false;
 
@@ -5491,7 +5491,7 @@ SCRIPT_CMD(do_opxcall)
 	OBJ_DATA *obj1,*obj2;
 	SCRIPT_DATA *script;
 	int depth, vnum, ret, space = PRG_MPROG;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj) return;
 
@@ -5513,18 +5513,18 @@ SCRIPT_CMD(do_opxcall)
 	} else if(script_call_depth > 1)
 		--script_call_depth;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
 		// Restore the call depth to the previous value
 		script_call_depth = depth;
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_MOBILE: mob = arg.d.mob; space = PRG_MPROG; break;
-	case ENT_OBJECT: obj = arg.d.obj; space = PRG_OPROG; break;
-	case ENT_ROOM: room = arg.d.room; space = PRG_RPROG; break;
-	case ENT_TOKEN: token = arg.d.token; space = PRG_TPROG; break;
+	switch(arg->type) {
+	case ENT_MOBILE: mob = arg->d.mob; space = PRG_MPROG; break;
+	case ENT_OBJECT: obj = arg->d.obj; space = PRG_OPROG; break;
+	case ENT_ROOM: room = arg->d.room; space = PRG_RPROG; break;
+	case ENT_TOKEN: token = arg->d.token; space = PRG_TPROG; break;
 	}
 
 	if(!mob && !obj && !room && !token) {
@@ -5541,16 +5541,16 @@ SCRIPT_CMD(do_opxcall)
 		return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
 		// Restore the call depth to the previous value
 		script_call_depth = depth;
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: vnum = atoi(arg.d.str); break;
-	case ENT_NUMBER: vnum = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: vnum = atoi(arg->d.str); break;
+	case ENT_NUMBER: vnum = arg->d.num; break;
 	default: vnum = 0; break;
 	}
 
@@ -5564,23 +5564,23 @@ SCRIPT_CMD(do_opxcall)
 
 	if(*rest) {	// Enactor
 		argument = rest;
-		if(!(rest = expand_argument(info,argument,&arg))) {
+		if(!(rest = expand_argument(info,argument,arg))) {
 			bug("OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
 			// Restore the call depth to the previous value
 			script_call_depth = depth;
 			return;
 		}
 
-		switch(arg.type) {
-		case ENT_STRING: ch = get_char_room(NULL, obj_room(info->obj), arg.d.str); break;
-		case ENT_MOBILE: ch = arg.d.mob; break;
+		switch(arg->type) {
+		case ENT_STRING: ch = get_char_room(NULL, obj_room(info->obj), arg->d.str); break;
+		case ENT_MOBILE: ch = arg->d.mob; break;
 		default: ch = NULL; break;
 		}
 	}
 
 	if(ch && *rest) {	// Victim
 		argument = rest;
-		if(!(rest = expand_argument(info,argument,&arg))) {
+		if(!(rest = expand_argument(info,argument,arg))) {
 			bug("OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
 			// Restore the call depth to the previous value
 			script_call_depth = depth;
@@ -5588,52 +5588,52 @@ SCRIPT_CMD(do_opxcall)
 		}
 
 		argument = rest;
-		if(!(rest = expand_argument(info,argument,&arg))) {
+		if(!(rest = expand_argument(info,argument,arg))) {
 			bug("OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
 			// Restore the call depth to the previous value
 			script_call_depth = depth;
 			return;
 		}
 
-		switch(arg.type) {
-		case ENT_STRING: vch = get_char_room(NULL, obj_room(info->obj),arg.d.str); break;
-		case ENT_MOBILE: vch = arg.d.mob; break;
+		switch(arg->type) {
+		case ENT_STRING: vch = get_char_room(NULL, obj_room(info->obj),arg->d.str); break;
+		case ENT_MOBILE: vch = arg->d.mob; break;
 		default: vch = NULL; break;
 		}
 	}
 
 	if(*rest) {	// Obj 1
 		argument = rest;
-		if(!(rest = expand_argument(info,argument,&arg))) {
+		if(!(rest = expand_argument(info,argument,arg))) {
 			bug("OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
 			// Restore the call depth to the previous value
 			script_call_depth = depth;
 			return;
 		}
 
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_STRING:
-			obj1 = get_obj_here(NULL, obj_room(info->obj), arg.d.str);
+			obj1 = get_obj_here(NULL, obj_room(info->obj), arg->d.str);
 			break;
-		case ENT_OBJECT: obj1 = arg.d.obj; break;
+		case ENT_OBJECT: obj1 = arg->d.obj; break;
 		default: obj1 = NULL; break;
 		}
 	}
 
 	if(obj1 && *rest) {	// Obj 2
 		argument = rest;
-		if(!(rest = expand_argument(info,argument,&arg))) {
+		if(!(rest = expand_argument(info,argument,arg))) {
 			bug("OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
 			// Restore the call depth to the previous value
 			script_call_depth = depth;
 			return;
 		}
 
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_STRING:
-			obj2 = get_obj_here(NULL, obj_room(info->obj), arg.d.str);
+			obj2 = get_obj_here(NULL, obj_room(info->obj), arg->d.str);
 			break;
-		case ENT_OBJECT: obj2 = arg.d.obj; break;
+		case ENT_OBJECT: obj2 = arg->d.obj; break;
 		default: obj2 = NULL; break;
 		}
 	}
@@ -5656,18 +5656,18 @@ SCRIPT_CMD(do_opchargebank)
 	char *rest;
 	CHAR_DATA *victim;
 	int amount = 0;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpChargeBank - Error in parsing from vnum %ld.", VNUM(info->obj));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(NULL,obj_room(info->obj), arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(NULL,obj_room(info->obj), arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -5676,14 +5676,14 @@ SCRIPT_CMD(do_opchargebank)
 		return;
 	}
 
-	if(!expand_argument(info,rest,&arg)) {
+	if(!expand_argument(info,rest,arg)) {
 		bug("OpChargeBank - Error in parsing from vnum %ld.", VNUM(info->obj));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: amount = atoi(arg.d.str); break;
-	case ENT_NUMBER: amount = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: amount = atoi(arg->d.str); break;
+	case ENT_NUMBER: amount = arg->d.num; break;
 	default: amount = 0; break;
 	}
 
@@ -5700,18 +5700,18 @@ SCRIPT_CMD(do_opwiretransfer)
 	char buf[MSL], *rest;
 	CHAR_DATA *victim;
 	int amount = 0;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpWireTransfer - Error in parsing from vnum %ld.", VNUM(info->obj));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(NULL,obj_room(info->obj), arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(NULL,obj_room(info->obj), arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -5720,14 +5720,14 @@ SCRIPT_CMD(do_opwiretransfer)
 		return;
 	}
 
-	if(!expand_argument(info,rest,&arg)) {
+	if(!expand_argument(info,rest,arg)) {
 		bug("OpWireTransfer - Error in parsing from vnum %ld.", VNUM(info->obj));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: amount = atoi(arg.d.str); break;
-	case ENT_NUMBER: amount = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: amount = atoi(arg->d.str); break;
+	case ENT_NUMBER: amount = arg->d.num; break;
 	default: amount = 0; break;
 	}
 
@@ -5755,20 +5755,20 @@ SCRIPT_CMD(do_opsetrecall)
 	CHAR_DATA *victim;
 	ROOM_INDEX_DATA *location;
 //	int amount = 0;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpSetRecall - Bad syntax from vnum %ld.", VNUM(info->obj));
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		victim = get_char_world(NULL, arg.d.str);
+		victim = get_char_world(NULL, arg->d.str);
 		break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -5812,20 +5812,20 @@ SCRIPT_CMD(do_opclearrecall)
 	CHAR_DATA *victim;
 //	ROOM_INDEX_DATA *location;
 //	int amount = 0;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpClearRecall - Bad syntax from vnum %ld.", VNUM(info->obj));
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		victim = get_char_world(NULL, arg.d.str);
+		victim = get_char_world(NULL, arg->d.str);
 		break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -5847,18 +5847,18 @@ SCRIPT_CMD(do_ophunt)
 	char *rest;
 	CHAR_DATA *hunter = NULL;
 	CHAR_DATA *prey = NULL;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpHunt - Error in parsing from vnum %ld.", VNUM(info->obj));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: hunter = get_char_world(NULL, arg.d.str); break;
-	case ENT_MOBILE: hunter = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: hunter = get_char_world(NULL, arg->d.str); break;
+	case ENT_MOBILE: hunter = arg->d.mob; break;
 	default: hunter = NULL; break;
 	}
 
@@ -5867,14 +5867,14 @@ SCRIPT_CMD(do_ophunt)
 		return;
 	}
 
-	if(!expand_argument(info,rest,&arg)) {
+	if(!expand_argument(info,rest,arg)) {
 		bug("OpHunt - Error in parsing from vnum %ld.", VNUM(info->obj));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: prey = get_char_world(NULL, arg.d.str); break;
-	case ENT_MOBILE: prey = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: prey = get_char_world(NULL, arg->d.str); break;
+	case ENT_MOBILE: prey = arg->d.mob; break;
 	default: prey = NULL; break;
 	}
 
@@ -5893,25 +5893,25 @@ SCRIPT_CMD(do_opstophunt)
 	char *rest;
 	CHAR_DATA *hunter = NULL;
 	bool stay;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)) || arg.type != ENT_STRING) {
+	if(!(rest = expand_argument(info,argument,arg)) || arg->type != ENT_STRING) {
 		bug("OpStopHunt - Error in parsing from vnum %ld.", VNUM(info->obj));
 		return;
 	}
 
-	stay = !str_cmp(arg.d.str,"true") || !str_cmp(arg.d.str,"yes") || !str_cmp(arg.d.str,"stay");
+	stay = !str_cmp(arg->d.str,"true") || !str_cmp(arg->d.str,"yes") || !str_cmp(arg->d.str,"stay");
 
-	if(!expand_argument(info,rest,&arg)) {
+	if(!expand_argument(info,rest,arg)) {
 		bug("OpStopHunt - Error in parsing from vnum %ld.", VNUM(info->obj));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: hunter = get_char_world(NULL, arg.d.str); break;
-	case ENT_MOBILE: hunter = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: hunter = get_char_world(NULL, arg->d.str); break;
+	case ENT_MOBILE: hunter = arg->d.mob; break;
 	default: hunter = NULL; break;
 	}
 
@@ -5932,19 +5932,19 @@ SCRIPT_CMD(do_oppersist)
 	OBJ_DATA *obj = NULL;
 	ROOM_INDEX_DATA *room = NULL;
 	bool persist = FALSE, current = FALSE;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("OpPersist - Error in parsing from vnum %ld.", VNUM(info->obj));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_MOBILE: mob = arg.d.mob; current = mob->persist; break;
-	case ENT_OBJECT: obj = arg.d.obj; current = obj->persist; break;
-	case ENT_ROOM: room = arg.d.room; current = room->persist; break;
+	switch(arg->type) {
+	case ENT_MOBILE: mob = arg->d.mob; current = mob->persist; break;
+	case ENT_OBJECT: obj = arg->d.obj; current = obj->persist; break;
+	case ENT_ROOM: room = arg->d.room; current = room->persist; break;
 	}
 
 	if(!mob && !obj && !room) {
@@ -5957,14 +5957,14 @@ SCRIPT_CMD(do_oppersist)
 		return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("OpPersist - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_NONE:   persist = !current; break;
-	case ENT_STRING: persist = !str_cmp(arg.d.str,"true") || !str_cmp(arg.d.str,"yes") || !str_cmp(arg.d.str,"on"); break;
+	case ENT_STRING: persist = !str_cmp(arg->d.str,"true") || !str_cmp(arg->d.str,"yes") || !str_cmp(arg->d.str,"on"); break;
 	default: return;
 	}
 
@@ -5999,7 +5999,7 @@ SCRIPT_CMD(do_oppersist)
 SCRIPT_CMD(do_opskill)
 {
 	char buf[MIL];
-	SCRIPT_PARAM arg;
+
 	char *rest;
 	CHAR_DATA *mob = NULL;
 	int sn, value;
@@ -6008,36 +6008,36 @@ SCRIPT_CMD(do_opskill)
 
 	if ( script_security < 9 ) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) return;
+	if(!(rest = expand_argument(info,argument,arg))) return;
 
-	if(arg.type != ENT_MOBILE) return;
+	if(arg->type != ENT_MOBILE) return;
 
-	mob = arg.d.mob;
+	mob = arg->d.mob;
 
 	if( !mob || IS_NPC(mob) ) return;	// only players for now
 
 	if( !*rest) return;
 
-	if(!(rest = expand_argument(info,rest,&arg))) return;
+	if(!(rest = expand_argument(info,rest,arg))) return;
 
-	if(arg.type != ENT_STRING) return;
+	if(arg->type != ENT_STRING) return;
 
-	sn = skill_lookup(arg.d.str);
+	sn = skill_lookup(arg->d.str);
 
 	if( sn < 1 || sn >= MAX_SKILL ) return;
 
 	argument = one_argument(rest,buf);
 
-	if(!(rest = expand_argument(info,argument,&arg))) return;
+	if(!(rest = expand_argument(info,argument,arg))) return;
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if( is_number(arg.d.str ))
-			value = atoi(arg.d.str);
+		if( is_number(arg->d.str ))
+			value = atoi(arg->d.str);
 		else
 			return;
 		break;
-	case ENT_NUMBER: value = arg.d.num; break;
+	case ENT_NUMBER: value = arg->d.num; break;
 	default: return;
 	}
 
@@ -6088,7 +6088,7 @@ SCRIPT_CMD(do_opskill)
 SCRIPT_CMD(do_opskillgroup)
 {
 	char buf[MIL];
-	SCRIPT_PARAM arg;
+
 	char *rest;
 	CHAR_DATA *mob = NULL;
 	int gn;
@@ -6098,12 +6098,12 @@ SCRIPT_CMD(do_opskillgroup)
 
 	if ( script_security < 9 ) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_MOBILE) return;
+	if(arg->type != ENT_MOBILE) return;
 
-	mob = arg.d.mob;
+	mob = arg->d.mob;
 
 	if( !mob || IS_NPC(mob) ) return;	// only players for now
 
@@ -6118,11 +6118,11 @@ SCRIPT_CMD(do_opskillgroup)
 	else
 		return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) return;
+	if(!(rest = expand_argument(info,argument,arg))) return;
 
-	if(arg.type != ENT_STRING) return;
+	if(arg->type != ENT_STRING) return;
 
-	gn = group_lookup(arg.d.str);
+	gn = group_lookup(arg->d.str);
 	if( gn != -1)
 	{
 		if( fAdd )
@@ -6144,34 +6144,34 @@ SCRIPT_CMD(do_opskillgroup)
 // Adjusts the specified condition by the given value
 SCRIPT_CMD(do_opcondition)
 {
-	SCRIPT_PARAM arg;
+
 	char *rest;
 	CHAR_DATA *mob = NULL;
 	int cond, value;
 
 	if(!info || !info->obj || IS_NULLSTR(argument)) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_MOBILE) return;
+	if(arg->type != ENT_MOBILE) return;
 
-	mob = arg.d.mob;
+	mob = arg->d.mob;
 
 	if( !mob || IS_NPC(mob) ) return;	// only players for now
 
 	if( !*rest) return;
 
-	if(!(rest = expand_argument(info,rest,&arg)))
+	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if( !str_cmp(arg.d.str,"drunk") )		cond = COND_DRUNK;
-		else if( !str_cmp(arg.d.str,"full") )	cond = COND_FULL;
-		else if( !str_cmp(arg.d.str,"thirst") )	cond = COND_THIRST;
-		else if( !str_cmp(arg.d.str,"hunger") )	cond = COND_HUNGER;
-		else if( !str_cmp(arg.d.str,"stoned") )	cond = COND_STONED;
+		if( !str_cmp(arg->d.str,"drunk") )		cond = COND_DRUNK;
+		else if( !str_cmp(arg->d.str,"full") )	cond = COND_FULL;
+		else if( !str_cmp(arg->d.str,"thirst") )	cond = COND_THIRST;
+		else if( !str_cmp(arg->d.str,"hunger") )	cond = COND_HUNGER;
+		else if( !str_cmp(arg->d.str,"stoned") )	cond = COND_STONED;
 		else
 			return;
 
@@ -6180,12 +6180,12 @@ SCRIPT_CMD(do_opcondition)
 	}
 
 	if(!*rest) return;
-	if(!(rest = expand_argument(info,rest,&arg)))
+	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: value = is_number(arg.d.str) ? atoi(arg.d.str) : 0; break;
-	case ENT_NUMBER: value = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: value = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
+	case ENT_NUMBER: value = arg->d.num; break;
 	default: return;
 	}
 
@@ -6202,7 +6202,7 @@ SCRIPT_CMD(do_opcondition)
 // addspell $OBJECT STRING[ NUMBER]
 SCRIPT_CMD(do_opaddspell)
 {
-	SCRIPT_PARAM arg;
+
 	char *rest;
 	SPELL_DATA *spell, *spell_new;
 	OBJ_DATA *target;
@@ -6212,33 +6212,33 @@ SCRIPT_CMD(do_opaddspell)
 
 	if(!info || !info->obj || IS_NULLSTR(argument)) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_OBJECT || !arg.d.obj) return;
+	if(arg->type != ENT_OBJECT || !arg->d.obj) return;
 
-	target = arg.d.obj;
+	target = arg->d.obj;
 	level = target->level;
 
-	if(!(rest = expand_argument(info,rest,&arg)))
+	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	if(arg.type != ENT_STRING || IS_NULLSTR(arg.d.str)) return;
+	if(arg->type != ENT_STRING || IS_NULLSTR(arg->d.str)) return;
 
-	sn = skill_lookup(arg.d.str);
+	sn = skill_lookup(arg->d.str);
 	if( sn <= 0 ) return;
 
 	// Add security check for the spell function
 	if(skill_table[sn].spell_fun == spell_null) return;
 
 	if( rest && *rest ) {
-		if(!(rest = expand_argument(info,rest,&arg)))
+		if(!(rest = expand_argument(info,rest,arg)))
 			return;
 
 		// Must be a number, positive and no greater than the object's level
-		if(arg.type != ENT_NUMBER || arg.d.num < 1 || arg.d.num > target->level) return;
+		if(arg->type != ENT_NUMBER || arg->d.num < 1 || arg->d.num > target->level) return;
 
-		level = arg.d.num;
+		level = arg->d.num;
 
 	}
 
@@ -6311,7 +6311,7 @@ SCRIPT_CMD(do_opaddspell)
 // remspell $OBJECT STRING[ silent]
 SCRIPT_CMD(do_opremspell)
 {
-	SCRIPT_PARAM arg;
+
 	char *rest;
 	SPELL_DATA *spell, *spell_prev;
 	OBJ_DATA *target;
@@ -6322,31 +6322,31 @@ SCRIPT_CMD(do_opremspell)
 
 	if(!info || !info->obj || IS_NULLSTR(argument)) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_OBJECT || !arg.d.obj) return;
+	if(arg->type != ENT_OBJECT || !arg->d.obj) return;
 
-	target = arg.d.obj;
+	target = arg->d.obj;
 
-	if(!(rest = expand_argument(info,rest,&arg)))
+	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	if(arg.type != ENT_STRING || IS_NULLSTR(arg.d.str)) return;
+	if(arg->type != ENT_STRING || IS_NULLSTR(arg->d.str)) return;
 
-	sn = skill_lookup(arg.d.str);
+	sn = skill_lookup(arg->d.str);
 	if( sn <= 0 ) return;
 
 	// Add security check for the spell function
 	if(skill_table[sn].spell_fun == spell_null) return;
 
 	if( rest && *rest ) {
-		if(!(rest = expand_argument(info,rest,&arg)))
+		if(!(rest = expand_argument(info,rest,arg)))
 			return;
 
-		if(arg.type != ENT_STRING || IS_NULLSTR(arg.d.str)) return;
+		if(arg->type != ENT_STRING || IS_NULLSTR(arg->d.str)) return;
 
-		if( !str_cmp(arg.d.str, "silent") )
+		if( !str_cmp(arg->d.str, "silent") )
 			show = FALSE;
 	}
 
@@ -6444,42 +6444,42 @@ SCRIPT_CMD(do_opremspell)
 SCRIPT_CMD(do_opalteraffect)
 {
 	char buf[MIL],field[MIL],*rest;
-	SCRIPT_PARAM arg;
+
 	AFFECT_DATA *paf;
 	int value;
 
 	if(!info || !info->obj || IS_NULLSTR(argument)) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_AFFECT || !arg.d.aff) return;
+	if(arg->type != ENT_AFFECT || !arg->d.aff) return;
 
-	paf = arg.d.aff;
+	paf = arg->d.aff;
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("OpAlterAffect - Error in parsing.",0);
 		return;
 	}
 
 	if( IS_NULLSTR(rest) ) return;
 
-	if( arg.type != ENT_STRING || IS_NULLSTR(arg.d.str) ) return;
+	if( arg->type != ENT_STRING || IS_NULLSTR(arg->d.str) ) return;
 
-	strncpy(field,arg.d.str,MIL-1);
+	strncpy(field,arg->d.str,MIL-1);
 
 
 	if( !str_cmp(field, "level") ) {
 		argument = one_argument(rest,buf);
 
-		if(!(rest = expand_argument(info,argument,&arg))) {
+		if(!(rest = expand_argument(info,argument,arg))) {
 			bug("OpAlterAffect - Error in parsing.",0);
 			return;
 		}
 
-		switch(arg.type) {
-		case ENT_STRING: value = is_number(arg.d.str) ? atoi(arg.d.str) : 0; break;
-		case ENT_NUMBER: value = arg.d.num; break;
+		switch(arg->type) {
+		case ENT_STRING: value = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
+		case ENT_NUMBER: value = arg->d.num; break;
 		default: return;
 		}
 
@@ -6515,7 +6515,7 @@ SCRIPT_CMD(do_opalteraffect)
 	if(!str_cmp(field, "duration")) {
 		argument = one_argument(rest,buf);
 
-		if(!(rest = expand_argument(info,argument,&arg))) {
+		if(!(rest = expand_argument(info,argument,arg))) {
 			bug("OpAlterAffect - Error in parsing.",0);
 			return;
 		}
@@ -6536,9 +6536,9 @@ SCRIPT_CMD(do_opalteraffect)
 		}
 
 
-		switch(arg.type) {
-		case ENT_STRING: value = is_number(arg.d.str) ? atoi(arg.d.str) : 0; break;
-		case ENT_NUMBER: value = arg.d.num; break;
+		switch(arg->type) {
+		case ENT_STRING: value = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
+		case ENT_NUMBER: value = arg->d.num; break;
 		default: return;
 		}
 
@@ -6615,7 +6615,7 @@ SCRIPT_CMD(do_opcrier)
 // - scripts must be available for the respective actor type
 SCRIPT_CMD(do_opscriptwait)
 {
-	SCRIPT_PARAM arg;
+
 	char *rest;
 	CHAR_DATA *mob = NULL;
 	int wait;
@@ -6629,12 +6629,12 @@ SCRIPT_CMD(do_opscriptwait)
 
 	info->obj->progs->lastreturn = 0;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_MOBILE) return;
+	if(arg->type != ENT_MOBILE) return;
 
-	mob = arg.d.mob;
+	mob = arg->d.mob;
 
 	if( !mob ) return;	// only players
 
@@ -6645,12 +6645,12 @@ SCRIPT_CMD(do_opscriptwait)
 	}
 	if( !*rest) return;
 
-	if(!(rest = expand_argument(info,rest,&arg)))
+	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: wait = is_number(arg.d.str) ? atoi(arg.d.str) : 0; break;
-	case ENT_NUMBER: wait = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: wait = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
+	case ENT_NUMBER: wait = arg->d.num; break;
 	default: return;
 	}
 
@@ -6659,46 +6659,46 @@ SCRIPT_CMD(do_opscriptwait)
 
 	if( !*rest) return;
 
-	if(!(rest = expand_argument(info,rest,&arg)))
+	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: success = is_number(arg.d.str) ? atoi(arg.d.str) : 0; break;
-	case ENT_NUMBER: success = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: success = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
+	case ENT_NUMBER: success = arg->d.num; break;
 	default: return;
 	}
 
 	if( !*rest) return;
 
-	if(!(rest = expand_argument(info,rest,&arg)))
+	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: failure = is_number(arg.d.str) ? atoi(arg.d.str) : 0; break;
-	case ENT_NUMBER: failure = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: failure = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
+	case ENT_NUMBER: failure = arg->d.num; break;
 	default: return;
 	}
 
 	if( !*rest) return;
 
-	if(!(rest = expand_argument(info,rest,&arg)))
+	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: pulse = is_number(arg.d.str) ? atoi(arg.d.str) : 0; break;
-	case ENT_NUMBER: pulse = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: pulse = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
+	case ENT_NUMBER: pulse = arg->d.num; break;
 	default: return;
 	}
 
 	actor_obj = info->obj;
 	prog_type = PRG_OPROG;
 	if(rest && *rest) {
-		if(!(rest = expand_argument(info,rest,&arg)))
+		if(!(rest = expand_argument(info,rest,arg)))
 			return;
 
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_MOBILE:
-			actor_mob = arg.d.mob;
+			actor_mob = arg->d.mob;
 			actor_obj = NULL;
 			actor_token = NULL;
 			prog_type = PRG_MPROG;
@@ -6706,7 +6706,7 @@ SCRIPT_CMD(do_opscriptwait)
 
 		case ENT_OBJECT:
 			actor_mob = NULL;
-			actor_obj = arg.d.obj;
+			actor_obj = arg->d.obj;
 			actor_token = NULL;
 			prog_type = PRG_OPROG;
 			break;
@@ -6714,7 +6714,7 @@ SCRIPT_CMD(do_opscriptwait)
 		case ENT_TOKEN:
 			actor_mob = NULL;
 			actor_obj = NULL;
-			actor_token = arg.d.token;
+			actor_token = arg->d.token;
 			prog_type = PRG_TPROG;
 			break;
 
@@ -6760,18 +6760,18 @@ SCRIPT_CMD(do_opscriptwait)
 // Syntax: FIXAFFECTS $MOBILE
 SCRIPT_CMD(do_opfixaffects)
 {
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->obj || IS_NULLSTR(argument)) return;
 
-	if(!expand_argument(info,argument,&arg))
+	if(!expand_argument(info,argument,arg))
 		return;
 
-	if(arg.type != ENT_MOBILE) return;
+	if(arg->type != ENT_MOBILE) return;
 
-	if(arg.d.mob == NULL) return;
+	if(arg->d.mob == NULL) return;
 
-	affect_fix_char(arg.d.mob);
+	affect_fix_char(arg->d.mob);
 }
 
 // Syntax:	checkpoint $PLAYER $ROOM
@@ -6784,36 +6784,36 @@ SCRIPT_CMD(do_opfixaffects)
 SCRIPT_CMD(do_opcheckpoint)
 {
 	char *rest;
-	SCRIPT_PARAM arg;
+
     CHAR_DATA *mob;
 
 	if(!info || !info->obj || IS_NULLSTR(argument)) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_MOBILE || !arg.d.mob) return;
+	if(arg->type != ENT_MOBILE || !arg->d.mob) return;
 
-	mob = arg.d.mob;
+	mob = arg->d.mob;
 	if(IS_NPC(mob)) return;
 
-	if(!(rest = expand_argument(info,rest,&arg)))
+	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if( !str_cmp(arg.d.str, "none") ||
-			!str_cmp(arg.d.str, "clear") ||
-			!str_cmp(arg.d.str, "reset") )
+		if( !str_cmp(arg->d.str, "none") ||
+			!str_cmp(arg->d.str, "clear") ||
+			!str_cmp(arg->d.str, "reset") )
 			mob->checkpoint = NULL;
 		break;
 	case ENT_NUMBER:
-		if( arg.d.num > 0 )
-			mob->checkpoint = get_room_index(arg.d.num);
+		if( arg->d.num > 0 )
+			mob->checkpoint = get_room_index(arg->d.num);
 		break;
 	case ENT_ROOM:
-		if( arg.d.room != NULL )
-			mob->checkpoint = arg.d.room;
+		if( arg->d.room != NULL )
+			mob->checkpoint = arg->d.room;
 		break;
 	}
 }
@@ -6822,19 +6822,19 @@ SCRIPT_CMD(do_opcheckpoint)
 SCRIPT_CMD(do_opsaveplayer)
 {
 	char *rest;
-	SCRIPT_PARAM arg;
+
     CHAR_DATA *mob;
 
 	if(!info || !info->obj || IS_NULLSTR(argument)) return;
 
 	info->obj->progs->lastreturn = 0;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_MOBILE || !arg.d.mob) return;
+	if(arg->type != ENT_MOBILE || !arg->d.mob) return;
 
-	mob = arg.d.mob;
+	mob = arg->d.mob;
 	if(IS_NPC(mob)) return;
 
 	save_char_obj(mob);
@@ -6847,19 +6847,19 @@ SCRIPT_CMD(do_opsaveplayer)
 SCRIPT_CMD(do_opremort)
 {
 	char *rest;
-	SCRIPT_PARAM arg;
+
     CHAR_DATA *mob;
 
 	if(!info || !info->obj || IS_NULLSTR(argument)) return;
 
 	info->obj->progs->lastreturn = 0;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_MOBILE || !arg.d.mob) return;
+	if(arg->type != ENT_MOBILE || !arg->d.mob) return;
 
-	mob = arg.d.mob;
+	mob = arg->d.mob;
 	if(IS_NPC(mob) || !mob->desc || is_char_busy(mob)) return;
 
 	// Are they already being prompted
@@ -6887,26 +6887,26 @@ SCRIPT_CMD(do_opremort)
 SCRIPT_CMD(do_oprestore)
 {
 	char *rest;
-	SCRIPT_PARAM arg;
+
 	int amount = 100;
 
 	if(!info || !info->obj || IS_NULLSTR(argument)) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_MOBILE || !arg.d.mob) return;
+	if(arg->type != ENT_MOBILE || !arg->d.mob) return;
 
 	if(*rest) {
-		if(!(rest = expand_argument(info,rest,&arg)))
+		if(!(rest = expand_argument(info,rest,arg)))
 			return;
 
-		if(arg.type != ENT_NUMBER) return;
+		if(arg->type != ENT_NUMBER) return;
 
-		amount = URANGE(1,arg.d.num,100);
+		amount = URANGE(1,arg->d.num,100);
 	}
 
-	restore_char(arg.d.mob, NULL, amount);
+	restore_char(arg->d.mob, NULL, amount);
 }
 
 
@@ -6918,7 +6918,7 @@ SCRIPT_CMD(do_oprestore)
 SCRIPT_CMD(do_opgroup)
 {
 	char *rest;
-	SCRIPT_PARAM arg;
+
 	CHAR_DATA *follower, *leader;
 	bool fShow = TRUE;
 
@@ -6926,31 +6926,31 @@ SCRIPT_CMD(do_opgroup)
 
 	info->obj->progs->lastreturn = 0;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_MOBILE || !arg.d.mob || !IS_NPC(arg.d.mob)) return;
+	if(arg->type != ENT_MOBILE || !arg->d.mob || !IS_NPC(arg->d.mob)) return;
 
-	follower = arg.d.mob;
+	follower = arg->d.mob;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_MOBILE || !arg.d.mob) return;
+	if(arg->type != ENT_MOBILE || !arg->d.mob) return;
 
-	leader = arg.d.mob;
+	leader = arg->d.mob;
 
 	if( *rest ) {
-		if(!(rest = expand_argument(info,rest,&arg)))
+		if(!(rest = expand_argument(info,rest,arg)))
 			return;
 
-		if( arg.type == ENT_NUMBER )
+		if( arg->type == ENT_NUMBER )
 		{
-			fShow = (arg.d.num != 0);
+			fShow = (arg->d.num != 0);
 		}
-		else if( arg.type == ENT_STRING )
+		else if( arg->type == ENT_STRING )
 		{
-			fShow = !str_cmp(arg.d.str, "yes") || !str_cmp(arg.d.str, "true") || !str_cmp(arg.d.str, "show");
+			fShow = !str_cmp(arg->d.str, "yes") || !str_cmp(arg->d.str, "true") || !str_cmp(arg->d.str, "show");
 		}
 		else
 			return;
@@ -6964,24 +6964,24 @@ SCRIPT_CMD(do_opgroup)
 SCRIPT_CMD(do_opungroup)
 {
 	char *rest;
-	SCRIPT_PARAM arg;
+
 	bool fAll = FALSE;
 
 	if(!info || !info->obj || IS_NULLSTR(argument)) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_MOBILE || !arg.d.mob) return;
+	if(arg->type != ENT_MOBILE || !arg->d.mob) return;
 
 	if( *rest ) {
-		if( arg.type == ENT_NUMBER )
+		if( arg->type == ENT_NUMBER )
 		{
-			fAll = (arg.d.num != 0);
+			fAll = (arg->d.num != 0);
 		}
-		else if( arg.type == ENT_STRING )
+		else if( arg->type == ENT_STRING )
 		{
-			fAll = !str_cmp(arg.d.str, "yes") || !str_cmp(arg.d.str, "true") || !str_cmp(arg.d.str, "all");
+			fAll = !str_cmp(arg->d.str, "yes") || !str_cmp(arg->d.str, "true") || !str_cmp(arg->d.str, "all");
 		}
 		else
 			return;
@@ -6989,7 +6989,7 @@ SCRIPT_CMD(do_opungroup)
 
 	if( fAll ) {
 		ITERATOR git;
-		CHAR_DATA *leader = (arg.d.mob->leader != NULL) ? arg.d.mob->leader : arg.d.mob;
+		CHAR_DATA *leader = (arg->d.mob->leader != NULL) ? arg->d.mob->leader : arg->d.mob;
 		CHAR_DATA *follower;
 
 		if( leader->num_grouped < 1 )
@@ -7002,6 +7002,6 @@ SCRIPT_CMD(do_opungroup)
 	}
 	else
 	{
-		stop_grouped(arg.d.mob);
+		stop_grouped(arg->d.mob);
 	}
 }

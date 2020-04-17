@@ -56,9 +56,12 @@
 #define INTERRUPT_SILENT	(ee)	/* Used to make the interrupt SILENT */
 
 
-#define DECL_IFC_FUN(x) bool x (SCRIPT_VARINFO *info, CHAR_DATA *mob,OBJ_DATA *obj,ROOM_INDEX_DATA *room, TOKEN_DATA *token,int *ret,int argc,SCRIPT_PARAM *argv)
+#define DECL_IFC_FUN(x) bool x (SCRIPT_VARINFO *info, CHAR_DATA *mob,OBJ_DATA *obj,ROOM_INDEX_DATA *room, TOKEN_DATA *token,int *ret,int argc,SCRIPT_PARAM **argv)
 #define DECL_OPC_FUN(x) bool x (SCRIPT_CB *block)
-#define SCRIPT_CMD(x)	void x (SCRIPT_VARINFO *info, char *argument)
+#define SCRIPT_CMD(x)	void x (SCRIPT_VARINFO *info, char *argument. SCRIPT_PARAM *arg)
+
+#define SCRIPT_PARAM_INIT(arg)		do { memset(&(arg),0,sizeof((arg))); (arg).buffer = new_buf(); } while(0)
+#define SCRIPT_PARAM_FREE(arg)		(free_buf((arg).buffer))
 
 #define ESCAPE_END		0x01
 #define ESCAPE_ENTITY		0x02
@@ -1295,12 +1298,12 @@ struct script_parameter {
 		unsigned long uid[2];
 		SCRIPT_VARINFO *info;
 	} d;
-	char buf[MSL];
+	BUFFER *buffer;
 };
 
 struct script_cmd_type {
 	char *name;
-	void (*func) (SCRIPT_VARINFO *info, char *argument);
+	void (*func) (SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg);
 	bool restricted;
 	bool required;		// Indicates whether the argument must exist
 };
@@ -1864,7 +1867,7 @@ void script_entity_info(int type, ENT_FIELD **fields, bool *vars);
 
 /* Expansion */
 bool check_varinfo(SCRIPT_VARINFO *info);
-bool expand_string(SCRIPT_VARINFO *info,char *str,char *store);
+bool expand_string(SCRIPT_VARINFO *info,char *str,BUFFER *store);
 char *expand_argument(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg);
 char *expand_argument_expression(SCRIPT_VARINFO *info,char *str,int *num);
 

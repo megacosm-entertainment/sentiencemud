@@ -26,7 +26,7 @@ SCRIPT_CMD(scriptcmd_addaffect)
 	CHAR_DATA *mob = NULL;
 	OBJ_DATA *obj = NULL;
 	int wear_loc = WEAR_NONE;
-	SCRIPT_PARAM arg;
+
 	AFFECT_DATA af;
 
 	info->progs->lastreturn = 0;
@@ -34,18 +34,18 @@ SCRIPT_CMD(scriptcmd_addaffect)
 
 	//
 	// Get mobile or object TARGET
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("AddAffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if (!(mob = script_get_char_room(info, arg.d.str, FALSE)))
-			obj = script_get_obj_here(info, arg.d.str);
+		if (!(mob = script_get_char_room(info, arg->d.str, FALSE)))
+			obj = script_get_obj_here(info, arg->d.str);
 		break;
-	case ENT_MOBILE: mob = arg.d.mob; break;
-	case ENT_OBJECT: obj = arg.d.obj; break;
+	case ENT_MOBILE: mob = arg->d.mob; break;
+	case ENT_OBJECT: obj = arg->d.obj; break;
 	default: break;
 	}
 
@@ -57,13 +57,13 @@ SCRIPT_CMD(scriptcmd_addaffect)
 
 	//
 	// Get APPLY TYPE
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("Addaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: where = flag_lookup(arg.d.str,apply_types); break;
+	switch(arg->type) {
+	case ENT_STRING: where = flag_lookup(arg->d.str,apply_types); break;
 	default: return;
 	}
 
@@ -72,17 +72,17 @@ SCRIPT_CMD(scriptcmd_addaffect)
 
 	//
 	// Get AFFECT GROUP
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("Addaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
 		if(where == TO_OBJECT || where == TO_WEAPON)
-			group = flag_lookup(arg.d.str,affgroup_object_flags);
+			group = flag_lookup(arg->d.str,affgroup_object_flags);
 		else
-			group = flag_lookup(arg.d.str,affgroup_mobile_flags);
+			group = flag_lookup(arg->d.str,affgroup_mobile_flags);
 		break;
 	default: return;
 	}
@@ -92,42 +92,42 @@ SCRIPT_CMD(scriptcmd_addaffect)
 
 	//
 	// Get SKILL number (built-in skill)
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("Addaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: skill = skill_lookup(arg.d.str); break;
+	switch(arg->type) {
+	case ENT_STRING: skill = skill_lookup(arg->d.str); break;
 	default: return;
 	}
 
 
 	//
 	// Get LEVEL
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("Addaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_NUMBER: level = arg.d.num; break;
-	case ENT_STRING: level = atoi(arg.d.str); break;
-	case ENT_MOBILE: level = arg.d.mob->tot_level; break;
-	case ENT_OBJECT: level = arg.d.obj->level; break;
+	switch(arg->type) {
+	case ENT_NUMBER: level = arg->d.num; break;
+	case ENT_STRING: level = atoi(arg->d.str); break;
+	case ENT_MOBILE: level = arg->d.mob->tot_level; break;
+	case ENT_OBJECT: level = arg->d.obj->level; break;
 	default: return;
 	}
 
 
 	//
 	// Get LOCATION
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("Addaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: loc = flag_lookup(arg.d.str,apply_flags_full); break;
+	switch(arg->type) {
+	case ENT_STRING: loc = flag_lookup(arg->d.str,apply_flags_full); break;
 	default: return;
 	}
 
@@ -136,39 +136,39 @@ SCRIPT_CMD(scriptcmd_addaffect)
 
 	//
 	// Get MODIFIER
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("Addaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_NUMBER: mod = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_NUMBER: mod = arg->d.num; break;
 	default: return;
 	}
 
 
 	//
 	// Get DURATION
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("Addaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_NUMBER: hours = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_NUMBER: hours = arg->d.num; break;
 	default: return;
 	}
 
 
 	//
 	// Get BITVECTOR
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("Addaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: bv = flag_value(affect_flags,arg.d.str); break;
+	switch(arg->type) {
+	case ENT_STRING: bv = flag_value(affect_flags,arg->d.str); break;
 	default: return;
 	}
 
@@ -177,13 +177,13 @@ SCRIPT_CMD(scriptcmd_addaffect)
 
 	//
 	// Get BITVECTOR2
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("Addaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: bv2 = flag_value(affect2_flags,arg.d.str); break;
+	switch(arg->type) {
+	case ENT_STRING: bv2 = flag_value(affect2_flags,arg->d.str); break;
 	default: return;
 	}
 
@@ -193,13 +193,13 @@ SCRIPT_CMD(scriptcmd_addaffect)
 	//
 	// Get WEAR-LOCATION of object
 	if(rest && *rest) {
-		if(!(rest = expand_argument(info,rest,&arg))) {
+		if(!(rest = expand_argument(info,rest,arg))) {
 			bug("Addaffect - Error in parsing.",0);
 			return;
 		}
 
-		switch(arg.type) {
-		case ENT_OBJECT: wear_loc = arg.d.obj ? arg.d.obj->wear_loc : WEAR_NONE; break;
+		switch(arg->type) {
+		case ENT_OBJECT: wear_loc = arg->d.obj ? arg->d.obj->wear_loc : WEAR_NONE; break;
 		default: return;
 		}
 	}
@@ -228,7 +228,7 @@ SCRIPT_CMD(scriptcmd_addaffectname)
 	CHAR_DATA *mob = NULL;
 	OBJ_DATA *obj = NULL;
 	int wear_loc = WEAR_NONE;
-	SCRIPT_PARAM arg;
+
 	AFFECT_DATA af;
 
 	info->progs->lastreturn = 0;
@@ -236,18 +236,18 @@ SCRIPT_CMD(scriptcmd_addaffectname)
 
 	//
 	// Get mobile or object TARGET
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("AddAffectName - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if (!(mob = script_get_char_room(info, arg.d.str, FALSE)))
-			obj = script_get_obj_here(info, arg.d.str);
+		if (!(mob = script_get_char_room(info, arg->d.str, FALSE)))
+			obj = script_get_obj_here(info, arg->d.str);
 		break;
-	case ENT_MOBILE: mob = arg.d.mob; break;
-	case ENT_OBJECT: obj = arg.d.obj; break;
+	case ENT_MOBILE: mob = arg->d.mob; break;
+	case ENT_OBJECT: obj = arg->d.obj; break;
 	default: break;
 	}
 
@@ -259,13 +259,13 @@ SCRIPT_CMD(scriptcmd_addaffectname)
 
 	//
 	// Get APPLY TYPE
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("AddAffectName - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: where = flag_lookup(arg.d.str,apply_types); break;
+	switch(arg->type) {
+	case ENT_STRING: where = flag_lookup(arg->d.str,apply_types); break;
 	default: return;
 	}
 
@@ -274,17 +274,17 @@ SCRIPT_CMD(scriptcmd_addaffectname)
 
 	//
 	// Get AFFECT GROUP
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("AddAffectName - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
 		if(where == TO_OBJECT || where == TO_WEAPON)
-			group = flag_lookup(arg.d.str,affgroup_object_flags);
+			group = flag_lookup(arg->d.str,affgroup_object_flags);
 		else
-			group = flag_lookup(arg.d.str,affgroup_mobile_flags);
+			group = flag_lookup(arg->d.str,affgroup_mobile_flags);
 		break;
 	default: return;
 	}
@@ -294,13 +294,13 @@ SCRIPT_CMD(scriptcmd_addaffectname)
 
 	//
 	// Get NAME
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("AddAffectName - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: name = create_affect_cname(arg.d.str); break;
+	switch(arg->type) {
+	case ENT_STRING: name = create_affect_cname(arg->d.str); break;
 	default: return;
 	}
 
@@ -312,29 +312,29 @@ SCRIPT_CMD(scriptcmd_addaffectname)
 
 	//
 	// Get LEVEL
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("AddAffectName - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_NUMBER: level = arg.d.num; break;
-	case ENT_STRING: level = atoi(arg.d.str); break;
-	case ENT_MOBILE: level = arg.d.mob->tot_level; break;
-	case ENT_OBJECT: level = arg.d.obj->level; break;
+	switch(arg->type) {
+	case ENT_NUMBER: level = arg->d.num; break;
+	case ENT_STRING: level = atoi(arg->d.str); break;
+	case ENT_MOBILE: level = arg->d.mob->tot_level; break;
+	case ENT_OBJECT: level = arg->d.obj->level; break;
 	default: return;
 	}
 
 
 	//
 	// Get LOCATION
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("AddAffectName - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: loc = flag_lookup(arg.d.str,apply_flags_full); break;
+	switch(arg->type) {
+	case ENT_STRING: loc = flag_lookup(arg->d.str,apply_flags_full); break;
 	default: return;
 	}
 
@@ -343,39 +343,39 @@ SCRIPT_CMD(scriptcmd_addaffectname)
 
 	//
 	// Get MODIFIER
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("AddAffectName - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_NUMBER: mod = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_NUMBER: mod = arg->d.num; break;
 	default: return;
 	}
 
 
 	//
 	// Get DURATION
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("AddAffectName - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_NUMBER: hours = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_NUMBER: hours = arg->d.num; break;
 	default: return;
 	}
 
 
 	//
 	// Get BITVECTOR
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("AddAffectName - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: bv = flag_value(affect_flags,arg.d.str); break;
+	switch(arg->type) {
+	case ENT_STRING: bv = flag_value(affect_flags,arg->d.str); break;
 	default: return;
 	}
 
@@ -384,13 +384,13 @@ SCRIPT_CMD(scriptcmd_addaffectname)
 
 	//
 	// Get BITVECTOR2
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("AddAffectName - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: bv2 = flag_value(affect2_flags,arg.d.str); break;
+	switch(arg->type) {
+	case ENT_STRING: bv2 = flag_value(affect2_flags,arg->d.str); break;
 	default: return;
 	}
 
@@ -400,13 +400,13 @@ SCRIPT_CMD(scriptcmd_addaffectname)
 	//
 	// Get WEAR-LOCATION of object
 	if(rest && *rest) {
-		if(!(rest = expand_argument(info,rest,&arg))) {
+		if(!(rest = expand_argument(info,rest,arg))) {
 			bug("AddAffectName - Error in parsing.",0);
 			return;
 		}
 
-		switch(arg.type) {
-		case ENT_OBJECT: wear_loc = arg.d.obj ? arg.d.obj->wear_loc : WEAR_NONE; break;
+		switch(arg->type) {
+		case ENT_OBJECT: wear_loc = arg->d.obj ? arg->d.obj->wear_loc : WEAR_NONE; break;
 		default: return;
 		}
 	}
@@ -432,38 +432,38 @@ SCRIPT_CMD(scriptcmd_applytoxin)
 	char *rest;
 	CHAR_DATA *victim = NULL;
 	int level, duration, toxin;
-	SCRIPT_PARAM arg;
+
 
 	info->progs->lastreturn = 0;
 
-	if (!(rest = expand_argument(info,argument,&arg)))
+	if (!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: victim = script_get_char_room(info, arg.d.str, FALSE); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, FALSE); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
 	if (!victim) return;
 
-	if (!(rest = expand_argument(info,rest,&arg)))
+	if (!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	if( arg.type != ENT_STRING ) return;
-	if( (toxin = toxin_lookup(arg.d.str)) < 0) return;
+	if( arg->type != ENT_STRING ) return;
+	if( (toxin = toxin_lookup(arg->d.str)) < 0) return;
 
-	if (!(rest = expand_argument(info,rest,&arg)))
+	if (!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	if( arg.type != ENT_NUMBER ) return;
-	level = UMAX(arg.d.num, 1);
+	if( arg->type != ENT_NUMBER ) return;
+	level = UMAX(arg->d.num, 1);
 
-	if (!(rest = expand_argument(info,rest,&arg)))
+	if (!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	if( arg.type != ENT_NUMBER ) return;
-	duration = UMAX(5, arg.d.num);
+	if( arg->type != ENT_NUMBER ) return;
+	duration = UMAX(5, arg->d.num);
 
 	victim->bitten_type = toxin;
 	victim->bitten = UMAX(500/level, 30);
@@ -508,46 +508,46 @@ SCRIPT_CMD(scriptcmd_attach)
 	CHAR_DATA *target_mob = NULL;
 	OBJ_DATA *entity_obj = NULL;
 	OBJ_DATA *target_obj = NULL;
-	SCRIPT_PARAM arg;
+
 	bool show = TRUE;
 
 	info->progs->lastreturn = 0;
 
-	if (!(rest = expand_argument(info,argument,&arg)))
+	if (!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if( arg.type == ENT_MOBILE ) entity_mob = arg.d.mob;
-	else if( arg.type == ENT_OBJECT) entity_obj = arg.d.obj;
+	if( arg->type == ENT_MOBILE ) entity_mob = arg->d.mob;
+	else if( arg->type == ENT_OBJECT) entity_obj = arg->d.obj;
 	else
 		return;
 
 	if (!entity_mob && !entity_obj)
 		return;
 
-	if (!(rest = expand_argument(info,rest,&arg)))
+	if (!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	if( arg.type == ENT_MOBILE ) target_mob = arg.d.mob;
-	else if( arg.type == ENT_OBJECT) target_obj = arg.d.obj;
+	if( arg->type == ENT_MOBILE ) target_mob = arg->d.mob;
+	else if( arg->type == ENT_OBJECT) target_obj = arg->d.obj;
 	else
 		return;
 
 	if (!target_mob && !target_obj)
 		return;
 
-	if (!(rest = expand_argument(info,rest,&arg)))
+	if (!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	if( arg.type != ENT_STRING ) return;
-	strncpy(field,arg.d.str,MIL-1);
+	if( arg->type != ENT_STRING ) return;
+	strncpy(field,arg->d.str,MIL-1);
 	field[MIL] = '\0';
 
 	if(*rest) {
-		if (!(rest = expand_argument(info,rest,&arg)))
+		if (!(rest = expand_argument(info,rest,arg)))
 			return;
 
-		if( arg.type == ENT_BOOLEAN )
-			show = !arg.d.boolean;
+		if( arg->type == ENT_BOOLEAN )
+			show = !arg->d.boolean;
 	}
 
 	if(entity_mob != NULL)
@@ -662,34 +662,34 @@ SCRIPT_CMD(scriptcmd_award)
 	CHAR_DATA *victim = NULL;
 	CHURCH_DATA *church = NULL;
 	int amount = 0;
-	SCRIPT_PARAM arg;
+
 
 	info->progs->lastreturn = 0;
 
-	if (!(rest = expand_argument(info,argument,&arg)))
+	if (!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_CHURCH: church = arg.d.church; break;
-	case ENT_STRING: victim = script_get_char_room(info, arg.d.str, TRUE); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_CHURCH: church = arg->d.church; break;
+	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, TRUE); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
 	if (!victim && !church) return;
 
-	if (!(rest = expand_argument(info,rest,&arg)))
+	if (!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	if( arg.type != ENT_STRING ) return;
-	strncpy(field,arg.d.str,MIL-1);
+	if( arg->type != ENT_STRING ) return;
+	strncpy(field,arg->d.str,MIL-1);
 
-	if (!(rest = expand_argument(info,rest,&arg)))
+	if (!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: amount = atoi(arg.d.str); break;
-	case ENT_NUMBER: amount = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: amount = atoi(arg->d.str); break;
+	case ENT_NUMBER: amount = arg->d.num; break;
 	default: amount = 0; break;
 	}
 
@@ -779,19 +779,19 @@ SCRIPT_CMD(scriptcmd_damage)
 	CHAR_DATA *victim = NULL, *victim_next, *attacker = NULL;
 	int low, high, level, value, dc;
 	bool fAll = FALSE, fKill = FALSE, fLevel = FALSE, fRemort = FALSE, fTwo = FALSE;
-	SCRIPT_PARAM arg;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+
+	if(!(rest = expand_argument(info,argument,arg))) {
 		//bug("MpDamage - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if(!str_cmp(arg.d.str,"all")) fAll = TRUE;
-		else victim = script_get_char_room(info, arg.d.str, FALSE);
+		if(!str_cmp(arg->d.str,"all")) fAll = TRUE;
+		else victim = script_get_char_room(info, arg->d.str, FALSE);
 		break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -804,17 +804,17 @@ SCRIPT_CMD(scriptcmd_damage)
 	if(!*rest)
 		return;
 
-	if(!(rest = expand_argument(info,rest,&arg)))
+	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_NUMBER: low = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_NUMBER: low = arg->d.num; break;
 	case ENT_STRING:
-		if(!str_cmp(arg.d.str,"level")) { fLevel = TRUE; break; }
-		if(!str_cmp(arg.d.str,"remort")) { fLevel = fRemort = TRUE; break; }
-		if(!str_cmp(arg.d.str,"dual")) { fLevel = fTwo = TRUE; break; }
-		if(!str_cmp(arg.d.str,"dualremort")) { fLevel = fTwo = fRemort = TRUE; break; }
-		if(is_number(arg.d.str)) { low = atoi(arg.d.str); break; }
+		if(!str_cmp(arg->d.str,"level")) { fLevel = TRUE; break; }
+		if(!str_cmp(arg->d.str,"remort")) { fLevel = fRemort = TRUE; break; }
+		if(!str_cmp(arg->d.str,"dual")) { fLevel = fTwo = TRUE; break; }
+		if(!str_cmp(arg->d.str,"dualremort")) { fLevel = fTwo = fRemort = TRUE; break; }
+		if(is_number(arg->d.str)) { low = atoi(arg->d.str); break; }
 	default:
 		return;
 	}
@@ -822,7 +822,7 @@ SCRIPT_CMD(scriptcmd_damage)
 	if(!*rest)
 		return;
 
-	if(!(rest = expand_argument(info,rest,&arg)))
+	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
 	if(fLevel && !victim)
@@ -830,21 +830,21 @@ SCRIPT_CMD(scriptcmd_damage)
 
 	level = victim ? victim->tot_level : 1;
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_NUMBER:
-		if(fLevel) level = arg.d.num;
-		else high = arg.d.num;
+		if(fLevel) level = arg->d.num;
+		else high = arg->d.num;
 		break;
 	case ENT_STRING:
-		if(is_number(arg.d.str)) {
-			if(fLevel) level = atoi(arg.d.str);
-			else high = atoi(arg.d.str);
+		if(is_number(arg->d.str)) {
+			if(fLevel) level = atoi(arg->d.str);
+			else high = atoi(arg->d.str);
 		} else
 			return;
 		break;
 	case ENT_MOBILE:
 		if(fLevel) {
-			if(arg.d.mob) level = arg.d.mob->tot_level;
+			if(arg->d.mob) level = arg->d.mob->tot_level;
 			else
 				return;
 		} else
@@ -856,31 +856,31 @@ SCRIPT_CMD(scriptcmd_damage)
 	}
 
 	if( *rest ) {
-		if(!(rest = expand_argument(info,rest,&arg)))
+		if(!(rest = expand_argument(info,rest,arg)))
 			return;
 
-		if( arg.type != ENT_STRING ) return;
+		if( arg->type != ENT_STRING ) return;
 
-		if (!str_cmp(arg.d.str,"kill") || !str_cmp(arg.d.str,"lethal")) fKill = TRUE;
+		if (!str_cmp(arg->d.str,"kill") || !str_cmp(arg->d.str,"lethal")) fKill = TRUE;
 	}
 
 	if( *rest ) {
-		if(!(rest = expand_argument(info,rest,&arg)))
+		if(!(rest = expand_argument(info,rest,arg)))
 			return;
 
-		if( arg.type != ENT_STRING ) return;
+		if( arg->type != ENT_STRING ) return;
 
-		dc = damage_class_lookup(arg.d.str);
+		dc = damage_class_lookup(arg->d.str);
 	} else
 		dc = DAM_NONE;
 
 	if( *rest ) {
-		if(!(rest = expand_argument(info,rest,&arg)))
+		if(!(rest = expand_argument(info,rest,arg)))
 			return;
 
-		if( arg.type != ENT_MOBILE || !arg.d.mob) return;
+		if( arg->type != ENT_MOBILE || !arg->d.mob) return;
 
-		attacker = arg.d.mob;
+		attacker = arg->d.mob;
 
 	} else
 		attacker = NULL;
@@ -919,34 +919,34 @@ SCRIPT_CMD(scriptcmd_deduct)
 	CHAR_DATA *victim = NULL;
 	CHURCH_DATA *church = NULL;
 	int amount = 0;
-	SCRIPT_PARAM arg;
+
 
 	info->progs->lastreturn = 0;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_CHURCH: church = arg.d.church; break;
-	case ENT_STRING: victim = script_get_char_room(info, arg.d.str, TRUE); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_CHURCH: church = arg->d.church; break;
+	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, TRUE); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
 	if (!victim && !church) return;
 
-	if(!(rest = expand_argument(info,rest,&arg)))
+	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	if( arg.type != ENT_STRING ) return;
-	strncpy(field,arg.d.str,MIL-1);
+	if( arg->type != ENT_STRING ) return;
+	strncpy(field,arg->d.str,MIL-1);
 
-	if(!(rest = expand_argument(info,rest,&arg)))
+	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: amount = atoi(arg.d.str); break;
-	case ENT_NUMBER: amount = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: amount = atoi(arg->d.str); break;
+	case ENT_NUMBER: amount = arg->d.num; break;
 	default: amount = 0; break;
 	}
 
@@ -1042,35 +1042,35 @@ SCRIPT_CMD(scriptcmd_detach)
 	char field[MIL];
 	CHAR_DATA *mob = NULL;
 	OBJ_DATA *obj = NULL;
-	SCRIPT_PARAM arg;
+
 	bool show = TRUE;
 
 	info->progs->lastreturn = 0;
 
-	if (!(rest = expand_argument(info,argument,&arg)))
+	if (!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if( arg.type == ENT_MOBILE ) mob = arg.d.mob;
-	else if( arg.type == ENT_OBJECT) obj = arg.d.obj;
+	if( arg->type == ENT_MOBILE ) mob = arg->d.mob;
+	else if( arg->type == ENT_OBJECT) obj = arg->d.obj;
 	else
 		return;
 
 	if (!mob && !obj)
 		return;
 
-	if (!(rest = expand_argument(info,rest,&arg)))
+	if (!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	if( arg.type != ENT_STRING ) return;
-	strncpy(field,arg.d.str,MIL-1);
+	if( arg->type != ENT_STRING ) return;
+	strncpy(field,arg->d.str,MIL-1);
 	field[MIL] = '\0';
 
 	if(*rest) {
-		if (!(rest = expand_argument(info,rest,&arg)))
+		if (!(rest = expand_argument(info,rest,arg)))
 			return;
 
-		if( arg.type == ENT_BOOLEAN )
-			show = !arg.d.boolean;
+		if( arg->type == ENT_BOOLEAN )
+			show = !arg->d.boolean;
 	}
 
 	if( mob )
@@ -1150,20 +1150,20 @@ SCRIPT_CMD(scriptcmd_entercombat)
 	char *rest;
 	CHAR_DATA *attacker = NULL;
 	CHAR_DATA *victim = NULL;
-	SCRIPT_PARAM arg;
+
 	bool fSilent = FALSE;
 
 
 	info->progs->lastreturn = 0;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpStartCombat - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: victim = script_get_char_room(info, arg.d.str, FALSE); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, FALSE); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -1171,17 +1171,17 @@ SCRIPT_CMD(scriptcmd_entercombat)
 		return;
 
 	if(*rest) {
-		if(!(rest = expand_argument(info,rest,&arg)))
+		if(!(rest = expand_argument(info,rest,arg)))
 			return;
 
 		attacker = victim;
-		if( arg.type == ENT_BOOLEAN ) {
+		if( arg->type == ENT_BOOLEAN ) {
 			// VICTIM SILENT syntax
-			fSilent = arg.d.boolean == TRUE;
+			fSilent = arg->d.boolean == TRUE;
 		} else {
-			switch(arg.type) {
-			case ENT_STRING: victim = script_get_char_room(info, arg.d.str, FALSE); break;
-			case ENT_MOBILE: victim = arg.d.mob; break;
+			switch(arg->type) {
+			case ENT_STRING: victim = script_get_char_room(info, arg->d.str, FALSE); break;
+			case ENT_MOBILE: victim = arg->d.mob; break;
 			default: victim = NULL; break;
 			}
 
@@ -1189,12 +1189,12 @@ SCRIPT_CMD(scriptcmd_entercombat)
 				return;
 
 			if(*rest ) {
-				if(!expand_argument(info,rest,&arg))
+				if(!expand_argument(info,rest,arg))
 					return;
 
 				// ATTACKER VICTIM SILENT syntax
-				if( arg.type == ENT_BOOLEAN )
-					fSilent = arg.d.boolean == TRUE;
+				if( arg->type == ENT_BOOLEAN )
+					fSilent = arg->d.boolean == TRUE;
 			}
 		}
 	} else if(!info->mob)
@@ -1226,7 +1226,7 @@ SCRIPT_CMD(scriptcmd_entercombat)
 SCRIPT_CMD(scriptcmd_flee)
 {
 	char *rest;
-	SCRIPT_PARAM arg;
+
 	CHAR_DATA *target;
 	int door = -1;
 	bool conceal = FALSE, pursue = TRUE;
@@ -1236,13 +1236,13 @@ SCRIPT_CMD(scriptcmd_flee)
 	info->progs->lastreturn = -1;
 	if(!info) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
 	target = info->mob;
-	switch(arg.type) {
-	case ENT_STRING: target = script_get_char_room(info, arg.d.str, TRUE); break;
-	case ENT_MOBILE: target = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: target = script_get_char_room(info, arg->d.str, TRUE); break;
+	case ENT_MOBILE: target = arg->d.mob; break;
 	default: target = NULL; break;
 	}
 
@@ -1252,42 +1252,42 @@ SCRIPT_CMD(scriptcmd_flee)
 		return;
 
 	if(*rest) {
-		if(!(rest = expand_argument(info,rest,&arg)))
+		if(!(rest = expand_argument(info,rest,arg)))
 				return;
 
-		if(arg.type == ENT_STRING) {
-			if (!str_cmp(arg.d.str, "none")) {
+		if(arg->type == ENT_STRING) {
+			if (!str_cmp(arg->d.str, "none")) {
 				fleearg = str_empty;
-			} else if (!str_cmp(arg.d.str, "anyway")) {
+			} else if (!str_cmp(arg->d.str, "anyway")) {
 				strcpy(fleedata,"anyway");
 				fleearg = fleedata;
-			} else if (!str_cmp(arg.d.str, "wimpy"))
+			} else if (!str_cmp(arg->d.str, "wimpy"))
 				fleearg = NULL;
 			else {
-				strncpy(fleedata,arg.d.str,sizeof(fleedata)-1);
+				strncpy(fleedata,arg->d.str,sizeof(fleedata)-1);
 				fleearg = fleedata;
 			}
 
 			if(*rest) {
-				if(!(rest = expand_argument(info,rest,&arg)))
+				if(!(rest = expand_argument(info,rest,arg)))
 					return;
 
-				if( arg.type == ENT_NUMBER )
-					conceal = (arg.d.num != 0);
-				else if( arg.type == ENT_STRING )
-					conceal = !str_cmp(arg.d.str, "yes") || !str_cmp(arg.d.str, "true") || !str_cmp(arg.d.str, "all");
+				if( arg->type == ENT_NUMBER )
+					conceal = (arg->d.num != 0);
+				else if( arg->type == ENT_STRING )
+					conceal = !str_cmp(arg->d.str, "yes") || !str_cmp(arg->d.str, "true") || !str_cmp(arg->d.str, "all");
 				else
 					return;
 			}
 
 			if(*rest) {
-				if(!(rest = expand_argument(info,rest,&arg)))
+				if(!(rest = expand_argument(info,rest,arg)))
 					return;
 
-				if( arg.type == ENT_NUMBER )
-					pursue = (arg.d.num != 0);
-				else if( arg.type == ENT_STRING )
-					pursue = !str_cmp(arg.d.str, "yes") || !str_cmp(arg.d.str, "true") || !str_cmp(arg.d.str, "all");
+				if( arg->type == ENT_NUMBER )
+					pursue = (arg->d.num != 0);
+				else if( arg->type == ENT_STRING )
+					pursue = !str_cmp(arg->d.str, "yes") || !str_cmp(arg->d.str, "true") || !str_cmp(arg->d.str, "all");
 				else
 					return;
 			}
@@ -1310,7 +1310,7 @@ SCRIPT_CMD(scriptcmd_grantskill)
 {
 	char buf[MSL];
 	char *rest;
-	SCRIPT_PARAM arg;
+
 	CHAR_DATA *mob;
 	TOKEN_DATA *token = NULL;
 	TOKEN_INDEX_DATA *token_index = NULL;
@@ -1321,21 +1321,21 @@ SCRIPT_CMD(scriptcmd_grantskill)
 
 	info->progs->lastreturn = 0;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_MOBILE || !arg.d.mob || IS_NPC(arg.d.mob)) return;
+	if(arg->type != ENT_MOBILE || !arg->d.mob || IS_NPC(arg->d.mob)) return;
 
-	mob = arg.d.mob;
+	mob = arg->d.mob;
 
-	if(!(rest = expand_argument(info,rest,&arg)))
+	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	if( arg.type == ENT_STRING ) {
-		sn = skill_lookup(arg.d.str);
+	if( arg->type == ENT_STRING ) {
+		sn = skill_lookup(arg->d.str);
 		if( sn <= 0 ) return;
-	} else if( arg.type == ENT_NUMBER ) {
-		token_index = get_token_index(arg.d.num);
+	} else if( arg->type == ENT_NUMBER ) {
+		token_index = get_token_index(arg->d.num);
 
 		if( !token_index ) return;
 	}
@@ -1345,38 +1345,44 @@ SCRIPT_CMD(scriptcmd_grantskill)
 
 	if( *rest ) {
 
-		if(!(rest = expand_argument(info,rest,&arg)))
+		if(!(rest = expand_argument(info,rest,arg)))
 			return;
 
-		if( arg.type != ENT_NUMBER ) return;
-		rating = URANGE(1,arg.d.num,100);
+		if( arg->type != ENT_NUMBER ) return;
+		rating = URANGE(1,arg->d.num,100);
 
 		if( *rest ) {
 			bool fPerm = FALSE;
 
-			if(!(rest = expand_argument(info,rest,&arg)))
+			if(!(rest = expand_argument(info,rest,arg)))
 				return;
 
-			if( arg.type == ENT_BOOLEAN )
-				fPerm = arg.d.boolean;
-			else if( arg.type == ENT_NUMBER )
-				fPerm = (arg.d.num != 0);
-			else if( arg.type == ENT_STRING )
-				fPerm = !str_cmp(arg.d.str, "true") || !str_cmp(arg.d.str, "yes") || !str_cmp(arg.d.str, "perm");
+			if( arg->type == ENT_BOOLEAN )
+				fPerm = arg->d.boolean;
+			else if( arg->type == ENT_NUMBER )
+				fPerm = (arg->d.num != 0);
+			else if( arg->type == ENT_STRING )
+				fPerm = !str_cmp(arg->d.str, "true") || !str_cmp(arg->d.str, "yes") || !str_cmp(arg->d.str, "perm");
 			else
 				return;
 
 			source = fPerm ? SKILLSRC_SCRIPT_PERM : SKILLSRC_SCRIPT;
 
 			if( *rest ) {
-				expand_string(info,rest,buf);
+				BUFFER *buffer = new_buf();
+				expand_string(info,rest,buffer);
 
-				if(!buf[0]) return;
+				if( buffer->state != BUFFER_SAFE || !*buffer->string ) {
+					free_buf(buffer);
+					return;
+				}
 
-				if (!str_cmp(buf, "none"))
+				if (!str_cmp(buffer_string(buffer), "none"))
 					flags = 0;
-				else if ((flags = flag_value(skill_flags, buf)) == NO_FLAG)
+				else if ((flags = flag_value(skill_flags, buffer_string(buffer))) == NO_FLAG)
 					flags = SKILL_AUTOMATIC;
+
+				free_buf(buffer);
 			}
 		}
 	}
@@ -1436,7 +1442,7 @@ SCRIPT_CMD(scriptcmd_inputstring)
 	char *rest;
 	int vnum;
 	CHAR_DATA *mob = NULL;
-	SCRIPT_PARAM arg;
+
 	int type;
 
 	info->progs->lastreturn = 0;
@@ -1449,12 +1455,12 @@ SCRIPT_CMD(scriptcmd_inputstring)
 		return;
 
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_MOBILE || !arg.d.mob) return;
+	if(arg->type != ENT_MOBILE || !arg->d.mob) return;
 
-	mob = arg.d.mob;
+	mob = arg->d.mob;
 	if(IS_NPC(mob) || !mob->desc || is_char_busy(mob) || mob->desc->pString != NULL || mob->desc->input) return;
 
 	if( mob->desc->showstr_head != NULL ) return;
@@ -1469,20 +1475,24 @@ SCRIPT_CMD(scriptcmd_inputstring)
 		mob->remort_question)
 		return;
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpInput - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_NUMBER: vnum = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_NUMBER: vnum = arg->d.num; break;
 	default: return;
 	}
 
 	if(vnum < 1 || !get_script_index(vnum, type)) return;
+	BUFFER *buffer = new_buf();
 
-	expand_string(info,rest,buf);
-	pVARIABLE var = variable_get(*(info->var),buf);
+	expand_string(info,rest,buffer);
+
+
+	pVARIABLE var = variable_get(*(info->var),buffer_string(buffer));
+	free_buf(buffer);
 
 	mob->desc->input = TRUE;
 	if( var && var->type == VAR_STRING && !IS_NULLSTR(var->_.s) )
@@ -1528,34 +1538,36 @@ SCRIPT_CMD(scriptcmd_pageat)
 {
 	char tmp[MSL*2];
 	char *rest;
-	SCRIPT_PARAM arg;
+
 	CHAR_DATA *mob;
 
 	info->progs->lastreturn = 0;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_MOBILE || !arg.d.mob || IS_NPC(arg.d.mob)) return;
+	if(arg->type != ENT_MOBILE || !arg->d.mob || IS_NPC(arg->d.mob)) return;
 
-	mob = arg.d.mob;
+	mob = arg->d.mob;
 
 	if(IS_NPC(mob) || !mob->desc || is_char_busy(mob) || mob->desc->pString != NULL || mob->desc->input) return;
 
 	if( mob->desc->showstr_head != NULL ) return;
 
-	if( !expand_string(info, rest, tmp) )
-		return;
+	BUFFER *buffer = new_buf();
 
-	// only do it if they actually HAVE scroll enabled
-	if( mob->lines > 0)
-		page_to_char(tmp, mob);
-	else if( strlen(tmp) > MSL )	// Too big for send_to_char.. don't send it
-		return;
-	else
-		send_to_char(tmp, mob);
+	if( expand_string(info, rest, buffer) )
+	{
 
-	info->progs->lastreturn = 1;
+		// only do it if they actually HAVE scroll enabled
+		if( mob->lines > 0)
+			page_to_char(tmp, mob);
+		else
+			send_to_char(tmp, mob);
+
+		info->progs->lastreturn = 1;
+	}
+	free_buf(buffer);
 }
 
 //////////////////////////////////////
@@ -1565,24 +1577,24 @@ SCRIPT_CMD(scriptcmd_pageat)
 SCRIPT_CMD(scriptcmd_questcomplete)
 {
 	char *rest;
-	SCRIPT_PARAM arg;
+
 	CHAR_DATA *mob;
 
 	info->progs->lastreturn = 0;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_MOBILE || !arg.d.mob || IS_NPC(arg.d.mob) || !IS_QUESTING(arg.d.mob)) return;
+	if(arg->type != ENT_MOBILE || !arg->d.mob || IS_NPC(arg->d.mob) || !IS_QUESTING(arg->d.mob)) return;
 
-	mob = arg.d.mob;
+	mob = arg->d.mob;
 
-	if(!(rest = expand_argument(info,rest,&arg)))
+	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	if( arg.type != ENT_NUMBER ) return;
+	if( arg->type != ENT_NUMBER ) return;
 
-	if(check_quest_custom_task(mob, arg.d.num))
+	if(check_quest_custom_task(mob, arg->d.num))
 		info->progs->lastreturn = 1;
 }
 
@@ -1591,7 +1603,7 @@ SCRIPT_CMD(scriptcmd_questpartcustom)
 {
 	char buf[MSL];
 	char *rest;
-	SCRIPT_PARAM arg;
+
 	CHAR_DATA *questman;
 	CHAR_DATA *ch;
 	int minutes;
@@ -1606,33 +1618,33 @@ SCRIPT_CMD(scriptcmd_questpartcustom)
 	if(!IS_VALID(questman) || !IS_NPC(questman) || !IS_SET(questman->act, ACT_QUESTOR))
 		return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_MOBILE || !arg.d.mob || IS_NPC(arg.d.mob)) return;
+	if(arg->type != ENT_MOBILE || !arg->d.mob || IS_NPC(arg->d.mob)) return;
 
-	ch = arg.d.mob;
+	ch = arg->d.mob;
 
 	// Must be in the generation phase
 	if( ch->quest == NULL || !ch->quest->generating ) return;
 
-	if(!(rest = expand_argument(info,rest,&arg)))
+	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	if(!IS_NULLSTR(arg.d.str))
+	if(!IS_NULLSTR(arg->d.str))
 		return;
 
 	QUEST_PART_DATA *part = ch->quest->parts;
-	sprintf(buf, "{xTask {Y%d{x: %s{x.", part->index, arg.d.str);
+	sprintf(buf, "{xTask {Y%d{x: %s{x.", part->index, arg->d.str);
 
 
 	minutes = number_range(10,20);
 	if(*rest)
 	{
-		if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_NUMBER)
+		if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER)
 			return;
 
-		minutes = UMAX(arg.d.num,1);
+		minutes = UMAX(arg->d.num,1);
 	}
 
 
@@ -1649,7 +1661,7 @@ SCRIPT_CMD(scriptcmd_questpartgetitem)
 {
 	char buf[MSL];
 	char *rest;
-	SCRIPT_PARAM arg;
+
 	CHAR_DATA *questman;
 	CHAR_DATA *ch;
 	OBJ_DATA *obj;
@@ -1665,29 +1677,29 @@ SCRIPT_CMD(scriptcmd_questpartgetitem)
 	if(!IS_VALID(questman) || !IS_NPC(questman) || !IS_SET(questman->act, ACT_QUESTOR))
 		return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_MOBILE || !arg.d.mob || IS_NPC(arg.d.mob)) return;
+	if(arg->type != ENT_MOBILE || !arg->d.mob || IS_NPC(arg->d.mob)) return;
 
-	ch = arg.d.mob;
+	ch = arg->d.mob;
 
 	// Must be in the generation phase
 	if( ch->quest == NULL || !ch->quest->generating ) return;
 
-	if(!(rest = expand_argument(info,rest,&arg)))
+	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	if(arg.type != ENT_OBJECT || !IS_VALID(arg.d.obj)) return;
-	obj = arg.d.obj;
+	if(arg->type != ENT_OBJECT || !IS_VALID(arg->d.obj)) return;
+	obj = arg->d.obj;
 
 	minutes = number_range(10,20);
 	if(*rest)
 	{
-		if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_NUMBER)
+		if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER)
 			return;
 
-		minutes = UMAX(arg.d.num,1);
+		minutes = UMAX(arg->d.num,1);
 	}
 
 	QUEST_PART_DATA *part = ch->quest->parts;
@@ -1713,7 +1725,7 @@ SCRIPT_CMD(scriptcmd_questpartgoto)
 {
 	char buf[MSL];
 	char *rest;
-	SCRIPT_PARAM arg;
+
 	CHAR_DATA *questman;
 	CHAR_DATA *ch;
 	ROOM_INDEX_DATA *destination;
@@ -1729,28 +1741,28 @@ SCRIPT_CMD(scriptcmd_questpartgoto)
 	if(!IS_VALID(questman) || !IS_NPC(questman) || !IS_SET(questman->act, ACT_QUESTOR))
 		return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_MOBILE || !arg.d.mob || IS_NPC(arg.d.mob)) return;
+	if(arg->type != ENT_MOBILE || !arg->d.mob || IS_NPC(arg->d.mob)) return;
 
-	ch = arg.d.mob;
+	ch = arg->d.mob;
 
 	// Must be in the generation phase
 	if( ch->quest == NULL || !ch->quest->generating ) return;
 
-	if(!(rest = expand_argument(info,rest,&arg)))
+	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
 	destination = NULL;
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if(!str_cmp(arg.d.str,"first")) destination = get_random_room(ch, FIRST_CONTINENT);
-		else if(!str_cmp(arg.d.str,"second")) destination = get_random_room(ch, SECOND_CONTINENT);
-		else if(!str_cmp(arg.d.str,"both")) destination = get_random_room(ch, BOTH_CONTINENTS);
+		if(!str_cmp(arg->d.str,"first")) destination = get_random_room(ch, FIRST_CONTINENT);
+		else if(!str_cmp(arg->d.str,"second")) destination = get_random_room(ch, SECOND_CONTINENT);
+		else if(!str_cmp(arg->d.str,"both")) destination = get_random_room(ch, BOTH_CONTINENTS);
 		break;
 	case ENT_ROOM:
-		destination = arg.d.room;
+		destination = arg->d.room;
 		break;
 	default: return;
 	}
@@ -1761,10 +1773,10 @@ SCRIPT_CMD(scriptcmd_questpartgoto)
 	minutes = number_range(10,20);
 	if(*rest)
 	{
-		if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_NUMBER)
+		if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER)
 			return;
 
-		minutes = UMAX(arg.d.num,1);
+		minutes = UMAX(arg->d.num,1);
 	}
 
 	QUEST_PART_DATA *part = ch->quest->parts;
@@ -1786,7 +1798,7 @@ SCRIPT_CMD(scriptcmd_questpartrescue)
 {
 	char buf[MSL];
 	char *rest;
-	SCRIPT_PARAM arg;
+
 	CHAR_DATA *questman;
 	CHAR_DATA *ch;
 	CHAR_DATA *target;
@@ -1802,29 +1814,29 @@ SCRIPT_CMD(scriptcmd_questpartrescue)
 	if(!IS_VALID(questman) || !IS_NPC(questman) || !IS_SET(questman->act, ACT_QUESTOR))
 		return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_MOBILE || !arg.d.mob || IS_NPC(arg.d.mob)) return;
+	if(arg->type != ENT_MOBILE || !arg->d.mob || IS_NPC(arg->d.mob)) return;
 
-	ch = arg.d.mob;
+	ch = arg->d.mob;
 
 	// Must be in the generation phase
 	if( ch->quest == NULL || !ch->quest->generating ) return;
 
-	if(!(rest = expand_argument(info,rest,&arg)))
+	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	if(arg.type != ENT_MOBILE || !IS_VALID(arg.d.mob) || !IS_NPC(arg.d.mob)) return;
-	target = arg.d.mob;
+	if(arg->type != ENT_MOBILE || !IS_VALID(arg->d.mob) || !IS_NPC(arg->d.mob)) return;
+	target = arg->d.mob;
 
 	minutes = number_range(10,20);
 	if(*rest)
 	{
-		if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_NUMBER)
+		if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER)
 			return;
 
-		minutes = UMAX(arg.d.num,1);
+		minutes = UMAX(arg->d.num,1);
 	}
 
 	QUEST_PART_DATA *part = ch->quest->parts;
@@ -1848,7 +1860,7 @@ SCRIPT_CMD(scriptcmd_questpartslay)
 {
 	char buf[MSL];
 	char *rest;
-	SCRIPT_PARAM arg;
+
 	CHAR_DATA *questman;
 	CHAR_DATA *ch;
 	CHAR_DATA *target;
@@ -1864,29 +1876,29 @@ SCRIPT_CMD(scriptcmd_questpartslay)
 	if(!IS_VALID(questman) || !IS_NPC(questman) || !IS_SET(questman->act, ACT_QUESTOR))
 		return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_MOBILE || !arg.d.mob || IS_NPC(arg.d.mob)) return;
+	if(arg->type != ENT_MOBILE || !arg->d.mob || IS_NPC(arg->d.mob)) return;
 
-	ch = arg.d.mob;
+	ch = arg->d.mob;
 
 	// Must be in the generation phase
 	if( ch->quest == NULL || !ch->quest->generating ) return;
 
-	if(!(rest = expand_argument(info,rest,&arg)))
+	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	if(arg.type != ENT_MOBILE || !IS_VALID(arg.d.mob) || !IS_NPC(arg.d.mob)) return;
-	target = arg.d.mob;
+	if(arg->type != ENT_MOBILE || !IS_VALID(arg->d.mob) || !IS_NPC(arg->d.mob)) return;
+	target = arg->d.mob;
 
 	minutes = number_range(10,20);
 	if(*rest)
 	{
-		if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_NUMBER)
+		if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER)
 			return;
 
-		minutes = UMAX(arg.d.num,1);
+		minutes = UMAX(arg->d.num,1);
 	}
 
 	QUEST_PART_DATA *part = ch->quest->parts;
@@ -1915,31 +1927,31 @@ SCRIPT_CMD(scriptcmd_revokeskill)
 {
 	char *rest;
 	SKILL_ENTRY *entry;
-	SCRIPT_PARAM arg;
+
 	CHAR_DATA *mob;
 	TOKEN_INDEX_DATA *token_index = NULL;
 	int sn = -1;
 
 	info->progs->lastreturn = 0;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_MOBILE || !arg.d.mob || IS_NPC(arg.d.mob)) return;
+	if(arg->type != ENT_MOBILE || !arg->d.mob || IS_NPC(arg->d.mob)) return;
 
-	mob = arg.d.mob;
+	mob = arg->d.mob;
 
-	if(!(rest = expand_argument(info,rest,&arg)))
+	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	if( arg.type == ENT_STRING ) {
-		sn = skill_lookup(arg.d.str);
+	if( arg->type == ENT_STRING ) {
+		sn = skill_lookup(arg->d.str);
 		if( sn <= 0 ) return;
 
 		entry = skill_entry_findsn(mob->sorted_skills, sn);
 
-	} else if( arg.type == ENT_NUMBER ) {
-		token_index = get_token_index(arg.d.num);
+	} else if( arg->type == ENT_NUMBER ) {
+		token_index = get_token_index(arg->d.num);
 
 		if( !token_index ) return;
 
@@ -1980,20 +1992,20 @@ SCRIPT_CMD(scriptcmd_startcombat)
 	char *rest;
 	CHAR_DATA *attacker = NULL;
 	CHAR_DATA *victim = NULL;
-	SCRIPT_PARAM arg;
+
 
 	info->progs->lastreturn = 0;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpStartCombat - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
 
 
-	switch(arg.type) {
-	case ENT_STRING: victim = script_get_char_room(info, arg.d.str, FALSE); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, FALSE); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -2001,13 +2013,13 @@ SCRIPT_CMD(scriptcmd_startcombat)
 		return;
 
 	if(*rest) {
-		if(!expand_argument(info,rest,&arg))
+		if(!expand_argument(info,rest,arg))
 			return;
 
 		attacker = victim;
-		switch(arg.type) {
-		case ENT_STRING: victim = script_get_char_room(info, arg.d.str, FALSE); break;
-		case ENT_MOBILE: victim = arg.d.mob; break;
+		switch(arg->type) {
+		case ENT_STRING: victim = script_get_char_room(info, arg->d.str, FALSE); break;
+		case ENT_MOBILE: victim = arg->d.mob; break;
 		default: victim = NULL; break;
 		}
 
@@ -2046,30 +2058,30 @@ SCRIPT_CMD(scriptcmd_startcombat)
 SCRIPT_CMD(scriptcmd_stopcombat)
 {
 	char *rest;
-	SCRIPT_PARAM arg;
+
 	CHAR_DATA *mob;
 	bool fBoth = FALSE;
 
 	info->progs->lastreturn = 0;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_MOBILE || !arg.d.mob) return;
+	if(arg->type != ENT_MOBILE || !arg->d.mob) return;
 
-	mob = arg.d.mob;
+	mob = arg->d.mob;
 
 	if(*rest)
 	{
-		if(!(rest = expand_argument(info,rest,&arg)))
+		if(!(rest = expand_argument(info,rest,arg)))
 			return;
 
-		if( arg.type == ENT_BOOLEAN )
-			fBoth = arg.d.boolean;
-		else if( arg.type == ENT_NUMBER )
-			fBoth = (arg.d.num != 0);
-		else if( arg.type == ENT_STRING )
-			fBoth = (!str_cmp(arg.d.str,"yes") || !str_cmp(arg.d.str,"true"));
+		if( arg->type == ENT_BOOLEAN )
+			fBoth = arg->d.boolean;
+		else if( arg->type == ENT_NUMBER )
+			fBoth = (arg->d.num != 0);
+		else if( arg->type == ENT_STRING )
+			fBoth = (!str_cmp(arg->d.str,"yes") || !str_cmp(arg->d.str,"true"));
 	}
 
 	stop_fighting(mob, fBoth);

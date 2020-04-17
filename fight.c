@@ -2797,6 +2797,7 @@ void enter_combat(CHAR_DATA *ch, CHAR_DATA *victim, bool silent)
 	{
 		ch->fade = 0;
 		ch->fade_dir = -1;	//@@@NIB : 20071020
+		ch->force_fading = FALSE;
 		if(!silent) {
 			act("$n fades back into this dimension.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 			act("You fade back into this dimension.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);

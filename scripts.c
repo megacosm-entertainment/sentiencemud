@@ -336,7 +336,7 @@ int ifcheck_lookup(char *name, int type)
 char *ifcheck_get_value(SCRIPT_VARINFO *info,IFCHECK_DATA *ifc,char *text,int *ret,bool *valid)
 {
 	int i;
-	SCRIPT_PARAM argv[IFC_MAXPARAMS];
+	SCRIPT_PARAM *argv[IFC_MAXPARAMS];
 	char *argument;
 
 	*valid = FALSE;
@@ -347,7 +347,8 @@ char *ifcheck_get_value(SCRIPT_VARINFO *info,IFCHECK_DATA *ifc,char *text,int *r
 	if(!ifc->func) return NULL;
 
 	// Clear variables
-	memset(argv,0,sizeof(argv));
+	for(i = 0; i < IFC_MAX_PARAMS; i++)
+		argv[i] = new_script_param();
 
 	text = skip_whitespace(text);
 	argument = text;
@@ -360,8 +361,8 @@ char *ifcheck_get_value(SCRIPT_VARINFO *info,IFCHECK_DATA *ifc,char *text,int *r
 //			sprintf(buf,"*argument = %02.2X (%c)", *argument, isprint(*argument) ? *argument : ' ');
 //			wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
 //		}
-		argv[i].buf[0] = 0;
-		argument = expand_argument(info,argument,&argv[i]);
+		buffer_clear(argv[i]->buffer);
+		argument = expand_argument(info,argument,argv[i]);
 //		if(wiznet_script) {
 //			sprintf(buf,"argv[%d].type = %d (%s)", i, argv[i].type, ifcheck_param_type_names[argv[i].type]);
 //			wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
@@ -379,6 +380,9 @@ char *ifcheck_get_value(SCRIPT_VARINFO *info,IFCHECK_DATA *ifc,char *text,int *r
 //		wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
 //	}
 	DBG2EXITVALUE1(PTR,argument);
+	for(i = 0; i < IFC_MAX_PARAMS; i++)
+		free_script_param(argv[i]);
+
 	return argument;
 }
 
@@ -722,8 +726,10 @@ DECL_OPC_FUN(opc_command)
 
 	// Allow only MOBS to do this...
 	if(block->type == IFC_M && block->info.mob) {
-		expand_string(&block->info,block->cur_line->rest,buf);
-		interpret(block->info.mob,buf);
+		BUFFER *buffer = new_buf();
+		expand_string(&block->info,block->cur_line->rest,buffer);
+		interpret(block->info.mob,buffer_string(buffer));
+		free_buf(buffer);
 	}
 	// Ignore the others
 
@@ -2135,7 +2141,9 @@ DECL_OPC_FUN(opc_mob)
 		bug(buf, 0);
 	} else if(IS_VALID(block->info.mob)) {
 		if( !mob_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
-			(*mob_cmd_table[block->cur_line->param].func) (&block->info,block->cur_line->rest);
+			SCRIPT_PARAM *arg = new_script_param();
+			(*mob_cmd_table[block->cur_line->param].func) (&block->info,block->cur_line->rest, arg);
+			free_script_param(arg);
 			tail_chain();
 		}
 	}
@@ -3239,8 +3247,10 @@ void script_interpret(SCRIPT_VARINFO *info, char *command)
 		if(!str_cmp(buf,"mob")) mob_interpret(info,command);
 		else if(!str_cmp(buf,"token")) tokenother_interpret(info,command);
 		else {
-			expand_string(info,command,buf);
-			interpret(info->mob,buf);
+			BUFFER *buffer = new_buf();
+			expand_string(info,command,buffer);
+			interpret(info->mob,buffer_string(buffer));
+			free_buf(buffer);
 		}
 		return;
 	}
@@ -4821,11 +4831,12 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 	if(!str_cmp(buf,"appendline"))
 	{
 		// Special handling to allow "varset <name> appendline" to put a line at the end
-		char tmp[MSL+2];
-		expand_string(info,argument,tmp);
-		strcat(tmp,"\n");
+		BUFFER *buffer = new_buf();
+		expand_string(info,argument,buffer);
+		add_buffer(buffer,"\n");
 
-		variables_append_string(vars,name,tmp);
+		variables_append_string(vars,name,buffer_string(buffer));
+		free_buf(buffer);
 		return;
 	}
 
@@ -4952,7 +4963,6 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 
 	// Format: EXPAND <string>
 	} else if(!str_cmp(buf,"EXPAND")) {
-		char tmp[MSL*2];
 
 		if( arg.type != ENT_STRING ) return;
 
@@ -4960,9 +4970,11 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 		char *comp_str = compile_string(arg.d.str,IFC_ANY,&length,FALSE);	// TODO: Check whether the doquotes needs to be TRUE
 		if( !comp_str ) return;
 
-		expand_string(info, comp_str, tmp);
-		variables_set_string(vars,name,tmp,FALSE);
+		BUFFER *buffer = new_buf();
+		expand_string(info, comp_str, buffer);
+		variables_set_string(vars,name,buffer_string(buffer),FALSE);
 
+		free_buf(buffer);
 		free_string(comp_str);
 
 	// Format: ARGREMOVE <word index>
@@ -5017,7 +5029,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 	// Format: ED <OBJECT or ROOM> <keyword>
 	} else if(!str_cmp(buf,"ed")) {
 		// ed $<object|room> <keyword>
-		char tmp[MSL],*p;
+		char *p;
 		EXTRA_DESCR_DATA *desc;
 
 		switch(arg.type) {
@@ -5026,11 +5038,14 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 		default:return;
 		}
 
-		expand_string(info,rest,tmp);
+		BUFFER *buffer = new_buf();
+		expand_string(info,rest,buffer);
 
-		p = get_extra_descr(tmp, desc);
+		p = get_extra_descr(buffer_string(buffer), desc);
 
 		variables_set_string(info->var,name,(p ? p : ""),FALSE);
+
+		free_buf(buffer);
 
 	// Format: ROOM <VNUM> - room vnum
 	// Format: ROOM <ROOM> - explicit room

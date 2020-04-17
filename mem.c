@@ -564,6 +564,7 @@ CHAR_DATA *new_char( void )
     ch->in_war = FALSE;
     ch->ship_crash_time = -1;
     ch->fade_dir = -1;		//@@@NIB : 20071020
+    ch->force_fading = FALSE;
     ch->projectile_dir = -1;	//@@@NIB : 20071021
 
     ch->challenger = NULL;
@@ -1020,6 +1021,14 @@ void free_buf(BUFFER *buffer)
 
     buffer->next  = buf_free;
     buf_free      = buffer;
+}
+
+bool add_buf_char(BUFFER *buffer, char ch)
+{
+    char tmp[2];
+    tmp[0] = ch;
+    tmp[1] = '\0';
+    return add_buf(buffer, tmp);
 }
 
 
@@ -3308,4 +3317,26 @@ void free_questor_data(QUESTOR_DATA *q)
 	q->next = questor_free;
 	questor_free = q;
 
+}
+
+
+SCRIPT_PARAM *new_script_param()
+{
+	SCRIPT_PARAM *arg = alloc_mem(sizeof(SCRIPT_PARAM));
+
+	if( arg )
+	{
+		arg->buffer = new_buf();
+	}
+
+	return arg;
+}
+
+void free_script_param(SCRIPT_PARAM *arg)
+{
+	if( arg != NULL )
+	{
+		free_buf(arg->buffer);
+		free_mem(arg);
+	}
 }

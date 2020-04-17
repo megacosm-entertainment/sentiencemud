@@ -110,6 +110,7 @@ void get_vroom_id(ROOM_INDEX_DATA *vroom);
 BUFFER	*new_buf args( (void) );
 BUFFER  *new_buf_size args( (int size) );
 void	free_buf args( (BUFFER *buffer) );
+bool	add_buf_char args( (BUFFER *buffer, char ch) );
 bool	add_buf args( (BUFFER *buffer, char *string) );
 void	clear_buf args( (BUFFER *buffer) );
 char	*buf_string args( (BUFFER *buffer) );
@@ -125,3 +126,6 @@ void free_olc_point_boost(OLC_POINT_BOOST *boost);
 
 SHOP_STOCK_DATA *new_shop_stock();
 void free_shop_stock(SHOP_STOCK_DATA *pStock);
+
+SCRIPT_PARAM *new_script_param();
+void free_script_param(SCRIPT_PARAM *arg);

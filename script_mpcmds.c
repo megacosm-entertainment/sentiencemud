@@ -497,27 +497,27 @@ char *mp_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 	AREA_DATA *area;
 	ROOM_INDEX_DATA *loc;
 	WILDS_DATA *pWilds;
-	SCRIPT_PARAM arg;
+
 	EXIT_DATA *ex;
 	int x, y;
 
 	*room = NULL;
-	if((rest = expand_argument(info,argument,&arg))) {
-		switch(arg.type) {
+	if((rest = expand_argument(info,argument,arg))) {
+		switch(arg->type) {
 		// Nothing was on the string, so it will assume the current room
 		case ENT_NONE: *room = info->mob->in_room; break;
 		case ENT_NUMBER:
-			x = arg.d.num;
-			if((rest = expand_argument(info,rest,&arg)) && arg.type == ENT_NUMBER) {
-				y = arg.d.num;
-				if((rest = expand_argument(info,rest,&arg)) && arg.type == ENT_NUMBER) {
-					if(!(pWilds = get_wilds_from_uid(NULL, arg.d.num))) break;
+			x = arg->d.num;
+			if((rest = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
+				y = arg->d.num;
+				if((rest = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
+					if(!(pWilds = get_wilds_from_uid(NULL, arg->d.num))) break;
 
 					if (x > (pWilds->map_size_x - 1) || y > (pWilds->map_size_y - 1)) break;
 
 					// if safe is used, it will not go to bad rooms
-					if((rest2 = expand_argument(info,rest,&arg)) && arg.type == ENT_STRING &&
-						!str_cmp(arg.d.str,"safe") && !check_for_bad_room(pWilds, x, y))
+					if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_STRING &&
+						!str_cmp(arg->d.str,"safe") && !check_for_bad_room(pWilds, x, y))
 						break;
 
 					rest = rest2;
@@ -531,43 +531,43 @@ char *mp_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 			break;
 
 		case ENT_STRING: // Special named locations
-			if(arg.d.str[0] == '@')
+			if(arg->d.str[0] == '@')
 				// Points to an exit, like @north or @down
-				*room = get_exit_dest(info->mob->in_room, arg.d.str+1);
-			else if(!str_cmp(arg.d.str,"here"))
+				*room = get_exit_dest(info->mob->in_room, arg->d.str+1);
+			else if(!str_cmp(arg->d.str,"here"))
 				// Rather self-explanatory
 				*room = info->mob->in_room;
-			else if(!str_cmp(arg.d.str,"vroom") || !str_cmp(arg.d.str,"clone")) {
+			else if(!str_cmp(arg->d.str,"vroom") || !str_cmp(arg->d.str,"clone")) {
 				// Locates a clone room: vroom <vnum> <id1> <id2>
 				int vnum,id1, id2;
-				if((rest2 = expand_argument(info,rest,&arg)) && arg.type == ENT_NUMBER) {
+				if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
 					rest = rest2;
-					vnum = arg.d.num;
-					if((rest2 = expand_argument(info,rest,&arg)) && arg.type == ENT_NUMBER) {
+					vnum = arg->d.num;
+					if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
 						rest = rest2;
 
-						id1 = arg.d.num;
-						if((rest2 = expand_argument(info,rest,&arg)) && arg.type == ENT_NUMBER) {
+						id1 = arg->d.num;
+						if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
 							rest = rest2;
 
-							id2 = arg.d.num;
+							id2 = arg->d.num;
 							*room = get_clone_room(get_room_index(vnum),id1,id2);
 						}
 					}
 				}
-			} else if(!str_cmp(arg.d.str,"wilds")) {
-				if((rest = expand_argument(info,rest,&arg)) && arg.type == ENT_NUMBER) {
-					x = arg.d.num;
-					if((rest = expand_argument(info,rest,&arg)) && arg.type == ENT_NUMBER) {
-						y = arg.d.num;
-						if((rest = expand_argument(info,rest,&arg)) && arg.type == ENT_NUMBER) {
-							if(!(pWilds = get_wilds_from_uid(NULL, arg.d.num))) break;
+			} else if(!str_cmp(arg->d.str,"wilds")) {
+				if((rest = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
+					x = arg->d.num;
+					if((rest = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
+						y = arg->d.num;
+						if((rest = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
+							if(!(pWilds = get_wilds_from_uid(NULL, arg->d.num))) break;
 
 							if (x > (pWilds->map_size_x - 1) || y > (pWilds->map_size_y - 1)) break;
 
 							// if safe is used, it will not go to bad rooms
-							if((rest2 = expand_argument(info,rest,&arg)) && arg.type == ENT_STRING &&
-								!str_cmp(arg.d.str,"safe") && !check_for_bad_room(pWilds, x, y))
+							if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_STRING &&
+								!str_cmp(arg->d.str,"safe") && !check_for_bad_room(pWilds, x, y))
 								break;
 
 							room_used_for_wilderness.wilds = pWilds;
@@ -582,7 +582,7 @@ char *mp_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 				loc = NULL;
 				// Try area names
 				for (area = area_first; area; area = area->next) {
-					if (!str_infix(arg.d.str, area->name)) {
+					if (!str_infix(arg->d.str, area->name)) {
 						// Get the area's recall location
 						if(!(loc = location_to_room(&area->recall))) {
 							for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++)
@@ -596,25 +596,25 @@ char *mp_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 
 				if(!loc) {
 					// If no area matches, search for mobiles then objects
-					if((victim = get_char_world(info->mob, arg.d.str)))
+					if((victim = get_char_world(info->mob, arg->d.str)))
 						loc = victim->in_room;
-					else if ((obj = get_obj_world(info->mob, arg.d.str)))
+					else if ((obj = get_obj_world(info->mob, arg->d.str)))
 						loc = obj_room(obj);
 				}
 				*room = loc;
 			}
 			break;
 		case ENT_MOBILE:
-			*room = arg.d.mob ? arg.d.mob->in_room : NULL; break;
+			*room = arg->d.mob ? arg->d.mob->in_room : NULL; break;
 		case ENT_OBJECT:
-			*room = arg.d.obj ? obj_room(arg.d.obj) : NULL; break;
+			*room = arg->d.obj ? obj_room(arg->d.obj) : NULL; break;
 		case ENT_ROOM:
-			*room = arg.d.room; break;
+			*room = arg->d.room; break;
 		case ENT_EXIT:
-			ex = arg.d.door.r ? arg.d.door.r->exit[arg.d.door.door] : NULL;
+			ex = arg->d.door.r ? arg->d.door.r->exit[arg->d.door.door] : NULL;
 			*room = ex ? exit_destination(ex) : NULL; break;
 		case ENT_TOKEN:
-			*room = token_room(arg.d.token); break;
+			*room = token_room(arg->d.token); break;
 		}
 	}
 
@@ -643,7 +643,7 @@ char *mp_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 	AREA_DATA *area;
 	ROOM_INDEX_DATA *loc;
 	WILDS_DATA *pWilds;
-	SCRIPT_PARAM arg;
+
 	EXIT_DATA *ex;
 	int x, y;
 
@@ -651,8 +651,8 @@ char *mp_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 	*container = NULL;
 	*carrier = NULL;
 	*wear_loc = WEAR_NONE;
-	if((rest = expand_argument(info,argument,&arg))) {
-		switch(arg.type) {
+	if((rest = expand_argument(info,argument,arg))) {
+		switch(arg->type) {
 		case ENT_NONE:
 			// Nothing was on the string, so it will assume the current room
 			*room = info->mob->in_room;
@@ -662,19 +662,19 @@ char *mp_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 			// Room: <vnum>
 			// Wilderness coordinates: <x> <y> <w>
 
-			x = arg.d.num;
-			if((rest2 = expand_argument(info,rest,&arg)) && arg.type == ENT_NUMBER) {
+			x = arg->d.num;
+			if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
 				rest = rest2;
-				y = arg.d.num;
-				if((rest2 = expand_argument(info,rest,&arg)) && arg.type == ENT_NUMBER) {
+				y = arg->d.num;
+				if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
 					rest = rest2;
-					if(!(pWilds = get_wilds_from_uid(NULL, arg.d.num))) break;
+					if(!(pWilds = get_wilds_from_uid(NULL, arg->d.num))) break;
 
 					if (x > (pWilds->map_size_x - 1) || y > (pWilds->map_size_y - 1)) break;
 
 					// if safe is used, it will not go to bad rooms
-					if((rest2 = expand_argument(info,rest,&arg)) && arg.type == ENT_STRING &&
-						!str_cmp(arg.d.str,"safe") && !check_for_bad_room(pWilds, x, y))
+					if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_STRING &&
+						!str_cmp(arg->d.str,"safe") && !check_for_bad_room(pWilds, x, y))
 						break;
 
 					rest = rest2;
@@ -690,45 +690,45 @@ char *mp_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 		case ENT_STRING:
 			// Special named locations
 
-			if(arg.d.str[0] == '@')
+			if(arg->d.str[0] == '@')
 				// Points to an exit, like @north or @down
-				*room = get_exit_dest(info->mob->in_room, arg.d.str+1);
-			else if(!str_cmp(arg.d.str,"here"))
+				*room = get_exit_dest(info->mob->in_room, arg->d.str+1);
+			else if(!str_cmp(arg->d.str,"here"))
 				// Rather self-explanatory
 				*room = info->mob->in_room;
-			else if(!str_cmp(arg.d.str,"vroom")) {
+			else if(!str_cmp(arg->d.str,"vroom")) {
 				// Locates a clone room: vroom <vnum> <id1> <id2>
 				int vnum,id1, id2;
-				if((rest2 = expand_argument(info,rest,&arg)) && arg.type == ENT_NUMBER) {
+				if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
 					rest = rest2;
-					vnum = arg.d.num;
-					if((rest2 = expand_argument(info,rest,&arg)) && arg.type == ENT_NUMBER) {
+					vnum = arg->d.num;
+					if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
 						rest = rest2;
 
-						id1 = arg.d.num;
-						if((rest2 = expand_argument(info,rest,&arg)) && arg.type == ENT_NUMBER) {
+						id1 = arg->d.num;
+						if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
 							rest = rest2;
 
-							id2 = arg.d.num;
+							id2 = arg->d.num;
 							*room = get_clone_room(get_room_index(vnum),id1,id2);
 						}
 					}
 				}
-			} else if(!str_cmp(arg.d.str,"wilds")) {
+			} else if(!str_cmp(arg->d.str,"wilds")) {
 
-				x = arg.d.num;
-				if((rest2 = expand_argument(info,rest,&arg)) && arg.type == ENT_NUMBER) {
+				x = arg->d.num;
+				if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
 					rest = rest2;
-					y = arg.d.num;
-					if((rest2 = expand_argument(info,rest,&arg)) && arg.type == ENT_NUMBER) {
+					y = arg->d.num;
+					if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
 						rest = rest2;
-						if(!(pWilds = get_wilds_from_uid(NULL, arg.d.num))) break;
+						if(!(pWilds = get_wilds_from_uid(NULL, arg->d.num))) break;
 
 						if (x > (pWilds->map_size_x - 1) || y > (pWilds->map_size_y - 1)) break;
 
 						// if safe is used, it will not go to bad rooms
-						if((rest2 = expand_argument(info,rest,&arg)) && arg.type == ENT_STRING &&
-							!str_cmp(arg.d.str,"safe") && !check_for_bad_room(pWilds, x, y))
+						if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_STRING &&
+							!str_cmp(arg->d.str,"safe") && !check_for_bad_room(pWilds, x, y))
 							break;
 
 						rest = rest2;
@@ -744,7 +744,7 @@ char *mp_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 				loc = NULL;
 				// Try area names
 				for (area = area_first; area; area = area->next) {
-					if (!str_infix(arg.d.str, area->name)) {
+					if (!str_infix(arg->d.str, area->name)) {
 						// Get the area's recall location
 						if(!(loc = location_to_room(&area->recall))) {
 							for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++)
@@ -758,18 +758,18 @@ char *mp_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 
 				if(!loc) {
 					// If no area matches, search for mobiles then objects
-					if((victim = get_char_world(info->mob, arg.d.str)))
+					if((victim = get_char_world(info->mob, arg->d.str)))
 						loc = victim->in_room;
-					else if ((obj = get_obj_world(info->mob, arg.d.str)))
+					else if ((obj = get_obj_world(info->mob, arg->d.str)))
 						loc = obj_room(obj);
 				}
 				*room = loc;
 			}
 			break;
 		case ENT_MOBILE:
-			*carrier = arg.d.mob;
-			if((rest2 = expand_argument(info,rest,&arg)) && arg.type == ENT_STRING) {
-				*wear_loc = flag_value(wear_loc_flags, arg.d.str);
+			*carrier = arg->d.mob;
+			if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_STRING) {
+				*wear_loc = flag_value(wear_loc_flags, arg->d.str);
 				if(*wear_loc == NO_FLAG) *wear_loc = WEAR_NONE;
 			} else {
 				*room = *carrier ? (*carrier)->in_room : NULL;
@@ -777,19 +777,19 @@ char *mp_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 			}
 			break;
 		case ENT_OBJECT:
-			*container = arg.d.obj;
-			if(!(rest2 = expand_argument(info,rest,&arg)) || arg.type != ENT_STRING || str_cmp(arg.d.str,"inside")) {
+			*container = arg->d.obj;
+			if(!(rest2 = expand_argument(info,rest,arg)) || arg->type != ENT_STRING || str_cmp(arg->d.str,"inside")) {
 				*room = *container ? obj_room(*container) : NULL;
 				*container = NULL;
 			}
 			break;
 		case ENT_ROOM:
-			*room = arg.d.room; break;
+			*room = arg->d.room; break;
 		case ENT_EXIT:
-			ex = arg.d.door.r ? arg.d.door.r->exit[arg.d.door.door] : NULL;
+			ex = arg->d.door.r ? arg->d.door.r->exit[arg->d.door.door] : NULL;
 			*room = ex ? exit_destination(ex) : NULL; break;
 		case ENT_TOKEN:
-			*room = token_room(arg.d.token); break;
+			*room = token_room(arg->d.token); break;
 		}
 	}
 
@@ -820,25 +820,25 @@ SCRIPT_CMD(do_mpairshipaddwaypoint)
 #if 0
 	char buf[MSL];
 	AREA_DATA *pArea;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
 	info->mob->progs->lastreturn = 0;	// Wasn't done yet...
 
-	if(!expand_argument(info,argument,&arg)) {
+	if(!expand_argument(info,argument,arg)) {
 		bug("Mpairshipaddwaypoint - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: pArea = find_area(arg.d.str); break;
-	case ENT_AREA: pArea = arg.d.area; break;
+	switch(arg->type) {
+	case ENT_STRING: pArea = find_area(arg->d.str); break;
+	case ENT_AREA: pArea = arg->d.area; break;
 	default: pArea = NULL; break;
 	}
 
 	if (!pArea) {
-		sprintf(buf, "MpAirshipAddWayPoint: no such area '%s'", arg.d.str);
+		sprintf(buf, "MpAirshipAddWayPoint: no such area '%s'", arg->d.str);
 		bug(buf, 0);
 		return;
 	}
@@ -880,20 +880,20 @@ SCRIPT_CMD(do_mpairshipsetcrash)
 #if 0
 	long vnum;
 	NPC_SHIP_DATA *npc_ship;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
 	info->mob->progs->lastreturn = 0;	// Wasn't done yet...
 
-	if(!expand_argument(info,argument,&arg)) {
+	if(!expand_argument(info,argument,arg)) {
 		bug("Mpairshipsetcrash - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: vnum = atoi(arg.d.str); break;
-	case ENT_NUMBER: vnum = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: vnum = atoi(arg->d.str); break;
+	case ENT_NUMBER: vnum = arg->d.num; break;
 	default: vnum = -1; break;
 	}
 
@@ -948,7 +948,11 @@ SCRIPT_CMD(do_mpasound)
 
 	if (door < MAX_DIR) {
 		// Expand the message
-		expand_string(info,argument,buf);
+		BUFFER *buffer = new_buf();
+		expand_string(info,argument,buffer);
+
+
+
 		if(!buf[0]) return;
 
 		for (i = 0; door < MAX_DIR; door++)
@@ -992,20 +996,20 @@ SCRIPT_CMD(do_mpassist)
 {
 	char *rest;
 	CHAR_DATA *victim;//, *leader;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
 	info->mob->progs->lastreturn = 0;	// Wasn't done yet...
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpAssist - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -1112,7 +1116,7 @@ SCRIPT_CMD(do_mpcall)
 	OBJ_DATA *obj1 = NULL,*obj2 = NULL;
 	SCRIPT_DATA *script;
 	int depth, vnum, ret;
-	SCRIPT_PARAM arg;
+
 
 	DBG2ENTRY2(PTR,info,PTR,argument);
 	if(info->mob) {
@@ -1135,16 +1139,16 @@ SCRIPT_CMD(do_mpcall)
 		--script_call_depth;
 
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
 		// Restore the call depth to the previous value
 		script_call_depth = depth;
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: vnum = atoi(arg.d.str); break;
-	case ENT_NUMBER: vnum = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: vnum = atoi(arg->d.str); break;
+	case ENT_NUMBER: vnum = arg->d.num; break;
 	default: vnum = 0; break;
 	}
 
@@ -1158,23 +1162,23 @@ SCRIPT_CMD(do_mpcall)
 
 	if(*rest) {	// Enactor
 		argument = rest;
-		if(!(rest = expand_argument(info,argument,&arg))) {
+		if(!(rest = expand_argument(info,argument,arg))) {
 			bug("MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
 			// Restore the call depth to the previous value
 			script_call_depth = depth;
 			return;
 		}
 
-		switch(arg.type) {
-		case ENT_STRING: ch = get_char_room(info->mob, NULL, arg.d.str); break;
-		case ENT_MOBILE: ch = arg.d.mob; break;
+		switch(arg->type) {
+		case ENT_STRING: ch = get_char_room(info->mob, NULL, arg->d.str); break;
+		case ENT_MOBILE: ch = arg->d.mob; break;
 		default: ch = NULL; break;
 		}
 	}
 
 	if(ch && *rest) {	// Victim
 		argument = rest;
-		if(!(rest = expand_argument(info,argument,&arg))) {
+		if(!(rest = expand_argument(info,argument,arg))) {
 			bug("MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
 			// Restore the call depth to the previous value
 			script_call_depth = depth;
@@ -1182,52 +1186,52 @@ SCRIPT_CMD(do_mpcall)
 		}
 
 		argument = rest;
-		if(!(rest = expand_argument(info,argument,&arg))) {
+		if(!(rest = expand_argument(info,argument,arg))) {
 			bug("MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
 			// Restore the call depth to the previous value
 			script_call_depth = depth;
 			return;
 		}
 
-		switch(arg.type) {
-		case ENT_STRING: vch = get_char_room(info->mob, NULL, arg.d.str); break;
-		case ENT_MOBILE: vch = arg.d.mob; break;
+		switch(arg->type) {
+		case ENT_STRING: vch = get_char_room(info->mob, NULL, arg->d.str); break;
+		case ENT_MOBILE: vch = arg->d.mob; break;
 		default: vch = NULL; break;
 		}
 	}
 
 	if(*rest) {	// Obj 1
 		argument = rest;
-		if(!(rest = expand_argument(info,argument,&arg))) {
+		if(!(rest = expand_argument(info,argument,arg))) {
 			bug("MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
 			// Restore the call depth to the previous value
 			script_call_depth = depth;
 			return;
 		}
 
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_STRING:
-			obj1 = get_obj_here(info->mob, NULL, arg.d.str);
+			obj1 = get_obj_here(info->mob, NULL, arg->d.str);
 			break;
-		case ENT_OBJECT: obj1 = arg.d.obj; break;
+		case ENT_OBJECT: obj1 = arg->d.obj; break;
 		default: obj1 = NULL; break;
 		}
 	}
 
 	if(obj1 && *rest) {	// Obj 2
 		argument = rest;
-		if(!(rest = expand_argument(info,argument,&arg))) {
+		if(!(rest = expand_argument(info,argument,arg))) {
 			bug("MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
 			// Restore the call depth to the previous value
 			script_call_depth = depth;
 			return;
 		}
 
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_STRING:
-			obj2 = get_obj_here(info->mob, NULL, arg.d.str);
+			obj2 = get_obj_here(info->mob, NULL, arg->d.str);
 			break;
-		case ENT_OBJECT: obj2 = arg.d.obj; break;
+		case ENT_OBJECT: obj2 = arg->d.obj; break;
 		default: obj2 = NULL; break;
 		}
 	}
@@ -1260,20 +1264,20 @@ SCRIPT_CMD(do_mpcast)
 	void *to = NULL;
 	char *rest;
 	int sn;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpCast - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if(arg.d.str[0]) {
+		if(arg->d.str[0]) {
 
-			sn = skill_lookup(arg.d.str);
+			sn = skill_lookup(arg->d.str);
 			break;
 		}
 	default: sn = 0; break;
@@ -1286,18 +1290,18 @@ SCRIPT_CMD(do_mpcast)
 
 	if(*rest) {
 		argument = rest;
-		if(!(rest = expand_argument(info,argument,&arg))) {
+		if(!(rest = expand_argument(info,argument,arg))) {
 			bug("MpCast - Error in parsing from vnum %ld.", VNUM(info->mob));
 			return;
 		}
 
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_STRING:
-			vch = get_char_room(info->mob, NULL, arg.d.str);
-			obj = get_obj_here(info->mob, NULL, arg.d.str);
+			vch = get_char_room(info->mob, NULL, arg->d.str);
+			obj = get_obj_here(info->mob, NULL, arg->d.str);
 			break;
-		case ENT_MOBILE: vch = arg.d.mob; break;
-		case ENT_OBJECT: obj = arg.d.obj; break;
+		case ENT_MOBILE: vch = arg->d.mob; break;
+		case ENT_OBJECT: obj = arg->d.obj; break;
 		}
 	}
 
@@ -1330,20 +1334,20 @@ SCRIPT_CMD(do_mpchangevesselname)
 {
 #if 0
 	char buf[MSL], *rest;
-	SCRIPT_PARAM arg;
+
 	SHIP_DATA *ship;
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpAwardXP - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	if(arg.type == ENT_NUMBER)
-		sprintf(buf,"%d",arg.d.num);
-	else if(arg.type == ENT_STRING)
-		strncpy(buf,arg.d.str,MSL-1);
+	if(arg->type == ENT_NUMBER)
+		sprintf(buf,"%d",arg->d.num);
+	else if(arg->type == ENT_STRING)
+		strncpy(buf,arg->d.str,MSL-1);
 	else
 		return;
 
@@ -1366,18 +1370,18 @@ SCRIPT_CMD(do_mpchargemoney)
 	char buf[MIL], *rest;
 	int roll, min, max, amt;
 	CHAR_DATA *victim;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpChargeMoney - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -1389,28 +1393,28 @@ SCRIPT_CMD(do_mpchargemoney)
 	if (!*rest) return;
 
 	argument = rest;
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpChargeMoney - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: min = atoi(arg.d.str); break;
-	case ENT_NUMBER: min = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: min = atoi(arg->d.str); break;
+	case ENT_NUMBER: min = arg->d.num; break;
 	default: min = 0; break;
 	}
 
 	if(min < 1 || !*rest) return;
 
 	argument = rest;
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpChargeMoney - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: max = atoi(arg.d.str); break;
-	case ENT_NUMBER: max = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: max = atoi(arg->d.str); break;
+	case ENT_NUMBER: max = arg->d.num; break;
 	default: max = 0; break;
 	}
 
@@ -1418,8 +1422,8 @@ SCRIPT_CMD(do_mpchargemoney)
 
 	amt = number_range(min, max);
 
-	one_argument(rest,arg.buf);
-	if (!str_cmp(arg.buf,"haggle")) {
+	one_argument(rest,arg->buf);
+	if (!str_cmp(arg->buf,"haggle")) {
 		roll = number_percent();
 		if (roll < get_skill(victim, gsn_haggle)) {
 			amt -= amt * roll / 200;
@@ -1443,21 +1447,21 @@ SCRIPT_CMD(do_mpdamage)
 	CHAR_DATA *victim = NULL, *victim_next;
 	int low, high, level, value, dc;
 	bool fAll = FALSE, fKill = FALSE, fLevel = FALSE, fRemort = FALSE, fTwo = FALSE;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpDamage - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if(!str_cmp(arg.d.str,"all")) fAll = TRUE;
-		else victim = get_char_room(info->mob, NULL, arg.d.str);
+		if(!str_cmp(arg->d.str,"all")) fAll = TRUE;
+		else victim = get_char_room(info->mob, NULL, arg->d.str);
 		break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -1472,19 +1476,19 @@ SCRIPT_CMD(do_mpdamage)
 	}
 
 	argument = rest;
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpDamage - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_NUMBER: low = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_NUMBER: low = arg->d.num; break;
 	case ENT_STRING:
-		if(!str_cmp(arg.d.str,"level")) { fLevel = TRUE; break; }
-		if(!str_cmp(arg.d.str,"remort")) { fLevel = fRemort = TRUE; break; }
-		if(!str_cmp(arg.d.str,"dual")) { fLevel = fTwo = TRUE; break; }
-		if(!str_cmp(arg.d.str,"dualremort")) { fLevel = fTwo = fRemort = TRUE; break; }
-		if(is_number(arg.d.str)) { low = atoi(arg.d.str); break; }
+		if(!str_cmp(arg->d.str,"level")) { fLevel = TRUE; break; }
+		if(!str_cmp(arg->d.str,"remort")) { fLevel = fRemort = TRUE; break; }
+		if(!str_cmp(arg->d.str,"dual")) { fLevel = fTwo = TRUE; break; }
+		if(!str_cmp(arg->d.str,"dualremort")) { fLevel = fTwo = fRemort = TRUE; break; }
+		if(is_number(arg->d.str)) { low = atoi(arg->d.str); break; }
 	default:
 		bug("MpDamage - invalid argument from vnum %ld.", VNUM(info->mob));
 		return;
@@ -1496,7 +1500,7 @@ SCRIPT_CMD(do_mpdamage)
 	}
 
 	argument = rest;
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpDamage - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
@@ -1508,15 +1512,15 @@ SCRIPT_CMD(do_mpdamage)
 
 	level = victim ? victim->tot_level : 1;
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_NUMBER:
-		if(fLevel) level = arg.d.num;
-		else high = arg.d.num;
+		if(fLevel) level = arg->d.num;
+		else high = arg->d.num;
 		break;
 	case ENT_STRING:
-		if(is_number(arg.d.str)) {
-			if(fLevel) level = atoi(arg.d.str);
-			else high = atoi(arg.d.str);
+		if(is_number(arg->d.str)) {
+			if(fLevel) level = atoi(arg->d.str);
+			else high = atoi(arg->d.str);
 		} else {
 			bug("MpDamage - invalid argument from vnum %ld.", VNUM(info->mob));
 			return;
@@ -1524,7 +1528,7 @@ SCRIPT_CMD(do_mpdamage)
 		break;
 	case ENT_MOBILE:
 		if(fLevel) {
-			if(arg.d.mob) level = arg.d.mob->tot_level;
+			if(arg->d.mob) level = arg->d.mob->tot_level;
 			else {
 				bug("MpDamage - Null reference mob from vnum %ld.", VNUM(info->mob));
 				return;
@@ -1569,18 +1573,18 @@ SCRIPT_CMD(do_mpdecdeity)
 	char *rest;//buf[MSL], *rest;
 	CHAR_DATA *victim;
 	int amount = 0;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpDecDeity - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -1589,14 +1593,14 @@ SCRIPT_CMD(do_mpdecdeity)
 		return;
 	}
 
-	if(!expand_argument(info,rest,&arg)) {
+	if(!expand_argument(info,rest,arg)) {
 		bug("MpDecDeity - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: amount = atoi(arg.d.str); break;
-	case ENT_NUMBER: amount = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: amount = atoi(arg->d.str); break;
+	case ENT_NUMBER: amount = arg->d.num; break;
 	default: amount = 0; break;
 	}
 
@@ -1614,18 +1618,18 @@ SCRIPT_CMD(do_mpdecpneuma)
 	char *rest;//buf[MSL], *rest;
 	CHAR_DATA *victim;
 	int amount = 0;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpDecPneuma - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -1634,14 +1638,14 @@ SCRIPT_CMD(do_mpdecpneuma)
 		return;
 	}
 
-	if(!expand_argument(info,rest,&arg)) {
+	if(!expand_argument(info,rest,arg)) {
 		bug("MpDecPneuma - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: amount = atoi(arg.d.str); break;
-	case ENT_NUMBER: amount = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: amount = atoi(arg->d.str); break;
+	case ENT_NUMBER: amount = arg->d.num; break;
 	default: amount = 0; break;
 	}
 
@@ -1659,18 +1663,18 @@ SCRIPT_CMD(do_mpdecprac)
 	char *rest;//buf[MSL], *rest;
 	CHAR_DATA *victim;
 	int amount = 0;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpDecPrac - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -1679,14 +1683,14 @@ SCRIPT_CMD(do_mpdecprac)
 		return;
 	}
 
-	if(!expand_argument(info,rest,&arg)) {
+	if(!expand_argument(info,rest,arg)) {
 		bug("MpDecPrac - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: amount = atoi(arg.d.str); break;
-	case ENT_NUMBER: amount = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: amount = atoi(arg->d.str); break;
+	case ENT_NUMBER: amount = arg->d.num; break;
 	default: amount = 0; break;
 	}
 
@@ -1704,18 +1708,18 @@ SCRIPT_CMD(do_mpdecquest)
 	char *rest;//buf[MSL], *rest;
 	CHAR_DATA *victim;
 	int amount = 0;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpDecQuest - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -1724,14 +1728,14 @@ SCRIPT_CMD(do_mpdecquest)
 		return;
 	}
 
-	if(!expand_argument(info,rest,&arg)) {
+	if(!expand_argument(info,rest,arg)) {
 		bug("MpDecQuest - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: amount = atoi(arg.d.str); break;
-	case ENT_NUMBER: amount = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: amount = atoi(arg->d.str); break;
+	case ENT_NUMBER: amount = arg->d.num; break;
 	default: amount = 0; break;
 	}
 
@@ -1749,18 +1753,18 @@ SCRIPT_CMD(do_mpdectrain)
 	char *rest;//buf[MSL], *rest;
 	CHAR_DATA *victim;
 	int amount = 0;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpDecTrain - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -1769,14 +1773,14 @@ SCRIPT_CMD(do_mpdectrain)
 		return;
 	}
 
-	if(!expand_argument(info,rest,&arg)) {
+	if(!expand_argument(info,rest,arg)) {
 		bug("MpDecTrain - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: amount = atoi(arg.d.str); break;
-	case ENT_NUMBER: amount = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: amount = atoi(arg->d.str); break;
+	case ENT_NUMBER: amount = arg->d.num; break;
 	default: amount = 0; break;
 	}
 
@@ -1793,18 +1797,18 @@ SCRIPT_CMD(do_mpdelay)
 {
 //	char buf[MSL];
 	int delay = 0;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!expand_argument(info,argument,&arg)) {
+	if(!expand_argument(info,argument,arg)) {
 		bug("MpDelay - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: delay = is_number(arg.d.str) ? atoi(arg.d.str) : -1; break;
-	case ENT_NUMBER: delay = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: delay = is_number(arg->d.str) ? atoi(arg->d.str) : -1; break;
+	case ENT_NUMBER: delay = arg->d.num; break;
 	default: delay = 0; break;
 	}
 
@@ -1845,20 +1849,20 @@ SCRIPT_CMD(do_mpechoroom)
 {
 	char buf[MSL], *rest;
 	ROOM_INDEX_DATA *room;
-	SCRIPT_PARAM arg;
+
 	EXIT_DATA *ex;
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_MOBILE: room = arg.d.mob->in_room; break;
-	case ENT_OBJECT: room = obj_room(arg.d.obj); break;
-	case ENT_ROOM: room = arg.d.room; break;
+	switch(arg->type) {
+	case ENT_MOBILE: room = arg->d.mob->in_room; break;
+	case ENT_OBJECT: room = obj_room(arg->d.obj); break;
+	case ENT_ROOM: room = arg->d.room; break;
 	case ENT_EXIT:
-		ex = arg.d.door.r ? arg.d.door.r->exit[arg.d.door.door] : NULL;
+		ex = arg->d.door.r ? arg->d.door.r->exit[arg->d.door.door] : NULL;
 		room = ex ? exit_destination(ex) : NULL; break;
 	default: room = NULL; break;
 	}
@@ -1879,16 +1883,16 @@ SCRIPT_CMD(do_mpechoaround)
 {
 	char buf[MSL], *rest;
 	CHAR_DATA *victim;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -1909,28 +1913,28 @@ SCRIPT_CMD(do_mpechonotvict)
 {
 	char buf[MSL], *rest;
 	CHAR_DATA *victim, *attacker;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: attacker = get_char_room(info->mob, NULL, arg.d.str); break;
-	case ENT_MOBILE: attacker = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: attacker = get_char_room(info->mob, NULL, arg->d.str); break;
+	case ENT_MOBILE: attacker = arg->d.mob; break;
 	default: attacker = NULL; break;
 	}
 
 	if (!attacker || !attacker->in_room)
 		return;
 
-	if(!(rest = expand_argument(info,rest,&arg)))
+	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -1951,28 +1955,28 @@ SCRIPT_CMD(do_mpechobattlespam)
 {
 	char buf[MSL], *rest;
 	CHAR_DATA *victim, *attacker, *ch;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: attacker = get_char_room(info->mob, NULL, arg.d.str); break;
-	case ENT_MOBILE: attacker = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: attacker = get_char_room(info->mob, NULL, arg->d.str); break;
+	case ENT_MOBILE: attacker = arg->d.mob; break;
 	default: attacker = NULL; break;
 	}
 
 	if (!attacker || !attacker->in_room)
 		return;
 
-	if(!(rest = expand_argument(info,rest,&arg)))
+	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -1997,16 +2001,16 @@ SCRIPT_CMD(do_mpechochurch)
 {
 	char buf[MSL], *rest;
 	CHAR_DATA *victim;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -2027,16 +2031,16 @@ SCRIPT_CMD(do_mpechoat)
 {
 	char buf[MSL], *rest;
 	CHAR_DATA *victim;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -2057,16 +2061,16 @@ SCRIPT_CMD(do_mpechogrouparound)
 {
 	char buf[MSL], *rest;
 	CHAR_DATA *victim;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -2087,16 +2091,16 @@ SCRIPT_CMD(do_mpechogroupat)
 {
 	char buf[MSL], *rest;
 	CHAR_DATA *victim;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -2117,16 +2121,16 @@ SCRIPT_CMD(do_mpecholeadaround)
 {
 	char buf[MSL], *rest;
 	CHAR_DATA *victim;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -2152,16 +2156,16 @@ SCRIPT_CMD(do_mpecholeadat)
 {
 	char buf[MSL], *rest;
 	CHAR_DATA *victim;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -2189,7 +2193,7 @@ SCRIPT_CMD(do_mpecholeadat)
 SCRIPT_CMD(do_mpflee)
 {
 	char *rest;
-	SCRIPT_PARAM arg;
+
 	CHAR_DATA *target;
 	int door = MAX_DIR;
 	bool conceal = FALSE, pursue = TRUE;
@@ -2199,13 +2203,13 @@ SCRIPT_CMD(do_mpflee)
 	info->mob->progs->lastreturn = MAX_DIR;
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
 	target = info->mob;
-	switch(arg.type) {
-	case ENT_STRING: target = get_char_room(info->mob, NULL, arg.d.str); break;
-	case ENT_MOBILE: target = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: target = get_char_room(info->mob, NULL, arg->d.str); break;
+	case ENT_MOBILE: target = arg->d.mob; break;
 	default: target = NULL; break;
 	}
 
@@ -2215,42 +2219,42 @@ SCRIPT_CMD(do_mpflee)
 		return;
 
 	if(*rest) {
-		if(!(rest = expand_argument(info,rest,&arg)))
+		if(!(rest = expand_argument(info,rest,arg)))
 				return;
 
-		if(arg.type == ENT_STRING) {
-			if (!str_cmp(arg.d.str, "none")) {
+		if(arg->type == ENT_STRING) {
+			if (!str_cmp(arg->d.str, "none")) {
 				fleearg = str_empty;
-			} else if (!str_cmp(arg.d.str, "anyway")) {
+			} else if (!str_cmp(arg->d.str, "anyway")) {
 				strcpy(fleedata,"anyway");
 				fleearg = fleedata;
-			} else if (!str_cmp(arg.d.str, "wimpy"))
+			} else if (!str_cmp(arg->d.str, "wimpy"))
 				fleearg = NULL;
 			else {
-				strncpy(fleedata,arg.d.str,sizeof(fleedata)-1);
+				strncpy(fleedata,arg->d.str,sizeof(fleedata)-1);
 				fleearg = fleedata;
 			}
 
 			if(*rest) {
-				if(!(rest = expand_argument(info,rest,&arg)))
+				if(!(rest = expand_argument(info,rest,arg)))
 					return;
 
-				if( arg.type == ENT_NUMBER )
-					conceal = (arg.d.num != 0);
-				else if( arg.type == ENT_STRING )
-					conceal = !str_cmp(arg.d.str, "yes") || !str_cmp(arg.d.str, "true") || !str_cmp(arg.d.str, "all");
+				if( arg->type == ENT_NUMBER )
+					conceal = (arg->d.num != 0);
+				else if( arg->type == ENT_STRING )
+					conceal = !str_cmp(arg->d.str, "yes") || !str_cmp(arg->d.str, "true") || !str_cmp(arg->d.str, "all");
 				else
 					return;
 			}
 
 			if(*rest) {
-				if(!(rest = expand_argument(info,rest,&arg)))
+				if(!(rest = expand_argument(info,rest,arg)))
 					return;
 
-				if( arg.type == ENT_NUMBER )
-					pursue = (arg.d.num != 0);
-				else if( arg.type == ENT_STRING )
-					pursue = !str_cmp(arg.d.str, "yes") || !str_cmp(arg.d.str, "true") || !str_cmp(arg.d.str, "all");
+				if( arg->type == ENT_NUMBER )
+					pursue = (arg->d.num != 0);
+				else if( arg->type == ENT_STRING )
+					pursue = !str_cmp(arg->d.str, "yes") || !str_cmp(arg->d.str, "true") || !str_cmp(arg->d.str, "all");
 				else
 					return;
 			}
@@ -2271,21 +2275,21 @@ SCRIPT_CMD(do_mpforce)
 	char buf[MSL],*rest;
 	CHAR_DATA *victim = NULL, *next;
 	bool fAll = FALSE, forced;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpForce - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if(!str_cmp(arg.d.str,"all")) fAll = TRUE;
-		else victim = get_char_room(info->mob, NULL, arg.d.str);
+		if(!str_cmp(arg->d.str,"all")) fAll = TRUE;
+		else victim = get_char_room(info->mob, NULL, arg->d.str);
 		break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: break;
 	}
 
@@ -2337,18 +2341,18 @@ SCRIPT_CMD(do_mpgdamage)
 	CHAR_DATA *victim = NULL, *rch, *rch_next;
 	int low, high, level, value, dc;
 	bool fKill = FALSE, fLevel = FALSE, fRemort = FALSE, fTwo = FALSE;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpDamage - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -2363,19 +2367,19 @@ SCRIPT_CMD(do_mpgdamage)
 	}
 
 	argument = rest;
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpDamage - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_NUMBER: low = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_NUMBER: low = arg->d.num; break;
 	case ENT_STRING:
-		if(!str_cmp(arg.d.str,"level")) { fLevel = TRUE; break; }
-		if(!str_cmp(arg.d.str,"remort")) { fLevel = fRemort = TRUE; break; }
-		if(!str_cmp(arg.d.str,"dual")) { fLevel = fTwo = TRUE; break; }
-		if(!str_cmp(arg.d.str,"dualremort")) { fLevel = fTwo = fRemort = TRUE; break; }
-		if(is_number(arg.d.str)) { low = atoi(arg.d.str); break; }
+		if(!str_cmp(arg->d.str,"level")) { fLevel = TRUE; break; }
+		if(!str_cmp(arg->d.str,"remort")) { fLevel = fRemort = TRUE; break; }
+		if(!str_cmp(arg->d.str,"dual")) { fLevel = fTwo = TRUE; break; }
+		if(!str_cmp(arg->d.str,"dualremort")) { fLevel = fTwo = fRemort = TRUE; break; }
+		if(is_number(arg->d.str)) { low = atoi(arg->d.str); break; }
 	default:
 		bug("MpDamage - invalid argument from vnum %ld.", VNUM(info->mob));
 		return;
@@ -2387,22 +2391,22 @@ SCRIPT_CMD(do_mpgdamage)
 	}
 
 	argument = rest;
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpDamage - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
 	level = victim->tot_level;
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_NUMBER:
-		if(fLevel) level = arg.d.num;
-		else high = arg.d.num;
+		if(fLevel) level = arg->d.num;
+		else high = arg->d.num;
 		break;
 	case ENT_STRING:
-		if(is_number(arg.d.str)) {
-			if(fLevel) level = atoi(arg.d.str);
-			else high = atoi(arg.d.str);
+		if(is_number(arg->d.str)) {
+			if(fLevel) level = atoi(arg->d.str);
+			else high = atoi(arg->d.str);
 		} else {
 			bug("MpDamage - invalid argument from vnum %ld.", VNUM(info->mob));
 			return;
@@ -2410,7 +2414,7 @@ SCRIPT_CMD(do_mpgdamage)
 		break;
 	case ENT_MOBILE:
 		if(fLevel) {
-			if(arg.d.mob) level = arg.d.mob->tot_level;
+			if(arg->d.mob) level = arg->d.mob->tot_level;
 			else {
 				bug("MpDamage - Null reference mob from vnum %ld.", VNUM(info->mob));
 				return;
@@ -2475,18 +2479,18 @@ SCRIPT_CMD(do_mpgforce)
 {
 	char buf[MSL],*rest;
 	CHAR_DATA *victim = NULL, *vch, *next;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpGforce - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: break;
 	}
 
@@ -2548,18 +2552,18 @@ SCRIPT_CMD(do_mpgtransfer)
 	CHAR_DATA *victim, *vch,*next;
 	ROOM_INDEX_DATA *dest;
 	bool all = FALSE, force = FALSE, quiet = FALSE;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpGtransfer - Bad syntax from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_world(info->mob, arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_world(info->mob, arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -2612,20 +2616,20 @@ SCRIPT_CMD(do_mpjunk)
 //	char buf[MIL];
 	OBJ_DATA *obj;
 	OBJ_DATA *obj_next;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob || !argument[0]) return;
 
-	if(expand_argument(info,argument,&arg)) {
-		switch(arg.type) {
+	if(expand_argument(info,argument,arg)) {
+		switch(arg->type) {
 		case ENT_STRING:
-			if (str_cmp(arg.d.str, "all") && str_prefix("all.", arg.d.str)) {
-				if (!(obj = get_obj_wear(info->mob, arg.d.str, TRUE)))
-					obj = get_obj_carry(info->mob, arg.d.str, info->mob);
+			if (str_cmp(arg->d.str, "all") && str_prefix("all.", arg->d.str)) {
+				if (!(obj = get_obj_wear(info->mob, arg->d.str, TRUE)))
+					obj = get_obj_carry(info->mob, arg->d.str, info->mob);
 			} else {
 				for (obj = info->mob->carrying; obj; obj = obj_next) {
 					obj_next = obj->next_content;
-					if (!arg.d.str[3] || is_name(&arg.d.str[4], obj->name)) {
+					if (!arg->d.str[3] || is_name(arg->d.str[4], obj->name)) {
 						if(!PROG_FLAG(obj,PROG_AT)) {
 							if (obj->wear_loc != WEAR_NONE)
 								unequip_char(info->mob, obj, TRUE);
@@ -2637,16 +2641,16 @@ SCRIPT_CMD(do_mpjunk)
 			}
 			break;
 		case ENT_OBJECT:
-			obj = (arg.d.obj && arg.d.obj->carried_by == info->mob) ? arg.d.obj : NULL;
+			obj = (arg->d.obj && arg->d.obj->carried_by == info->mob) ? arg->d.obj : NULL;
 			break;
 		case ENT_OLLIST_OBJ:
-			if(!arg.d.list.ptr.obj || !(*arg.d.list.ptr.obj))
+			if(!arg->d.list.ptr.obj || !(*arg->d.list.ptr.obj))
 				return;
 
-			if((*arg.d.list.ptr.obj)->in_obj && (*arg.d.list.ptr.obj)->in_obj->carried_by != info->mob)
+			if((*arg->d.list.ptr.obj)->in_obj && (*arg->d.list.ptr.obj)->in_obj->carried_by != info->mob)
 				return;
 
-			for (obj = *(arg.d.list.ptr.obj); obj; obj = obj_next) {
+			for (obj = *(arg->d.list.ptr.obj); obj; obj = obj_next) {
 				obj_next = obj->next_content;
 				if(!PROG_FLAG(obj,PROG_AT)) {
 					if (obj->wear_loc != WEAR_NONE)
@@ -2672,16 +2676,16 @@ SCRIPT_CMD(do_mpkill)
 {
 	char *rest;
 	CHAR_DATA *victim;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob || PROG_FLAG(info->mob,PROG_AT)) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -2711,23 +2715,23 @@ SCRIPT_CMD(do_mplink)
 	EXIT_DATA *ex;
 	int door, vnum;
 	unsigned long id1, id2;
-	SCRIPT_PARAM arg;
+
 	bool del = FALSE;
 	bool environ = FALSE;
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
 		room = info->mob->in_room;
-		door = get_num_dir(arg.d.str);
+		door = get_num_dir(arg->d.str);
 		break;
 	case ENT_EXIT:
-		room = arg.d.door.r;
-		door = arg.d.door.door;
+		room = arg->d.door.r;
+		door = arg->d.door.door;
 		break;
 	default:
 		room = NULL;
@@ -2742,58 +2746,58 @@ SCRIPT_CMD(do_mplink)
 	}
 
 	argument = rest;
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
 	vnum = -1;
 	id1 = id2 = 0;
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if(is_number(arg.d.str))
-			vnum = arg.d.num;
-		else if(!str_cmp(arg.d.str,"delete") ||
-			!str_cmp(arg.d.str,"remove") ||
-			!str_cmp(arg.d.str,"unlink")) {
+		if(is_number(arg->d.str))
+			vnum = arg->d.num;
+		else if(!str_cmp(arg->d.str,"delete") ||
+			!str_cmp(arg->d.str,"remove") ||
+			!str_cmp(arg->d.str,"unlink")) {
 			vnum = 0;
 			del = TRUE;
-		} else if(!str_cmp(arg.d.str,"environment") ||
-			!str_cmp(arg.d.str,"environ") ||
-			!str_cmp(arg.d.str,"extern") ||
-			!str_cmp(arg.d.str,"outside")) {
+		} else if(!str_cmp(arg->d.str,"environment") ||
+			!str_cmp(arg->d.str,"environ") ||
+			!str_cmp(arg->d.str,"extern") ||
+			!str_cmp(arg->d.str,"outside")) {
 			vnum = 0;
 			environ = TRUE;
-		} else if(!str_cmp(arg.d.str,"vroom")) {
+		} else if(!str_cmp(arg->d.str,"vroom")) {
 			argument = rest;
-			if(!(rest = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+			if(!(rest = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
 				return;
-			vnum = arg.d.num;
+			vnum = arg->d.num;
 
 			argument = rest;
-			if(!(rest = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+			if(!(rest = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
 				return;
-			id1 = arg.d.num;
+			id1 = arg->d.num;
 
 			argument = rest;
-			if(!(rest = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+			if(!(rest = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
 				return;
-			id2 = arg.d.num;
+			id2 = arg->d.num;
 		}
 		break;
 	case ENT_NUMBER:
-		vnum = arg.d.num;
+		vnum = arg->d.num;
 		break;
 	case ENT_ROOM:
-		vnum = arg.d.room ? arg.d.room->vnum : -1;
+		vnum = arg->d.room ? arg->d.room->vnum : -1;
 		break;
 	case ENT_EXIT:
-		ex = arg.d.door.r ? arg.d.door.r->exit[arg.d.door.door] : NULL;
+		ex = arg->d.door.r ? arg->d.door.r->exit[arg->d.door.door] : NULL;
 		vnum = ex ? ex->u1.to_room->vnum : -1;
 		break;
 	case ENT_MOBILE:
-		vnum = (arg.d.mob && arg.d.mob->in_room) ? arg.d.mob->in_room->vnum : -1;
+		vnum = (arg->d.mob && arg->d.mob->in_room) ? arg->d.mob->in_room->vnum : -1;
 		break;
 	case ENT_OBJECT:
-		vnum = (arg.d.obj && obj_room(arg.d.obj)) ? obj_room(arg.d.obj)->vnum : -1;
+		vnum = (arg->d.obj && obj_room(arg->d.obj)) ? obj_room(arg->d.obj)->vnum : -1;
 		break;
 	}
 
@@ -2826,17 +2830,17 @@ SCRIPT_CMD(do_mpmload)
 	long vnum;
 	MOB_INDEX_DATA *pMobIndex;
 	CHAR_DATA *victim;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob || !info->mob->in_room) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_NUMBER: vnum = arg.d.num; break;
-	case ENT_STRING: vnum = arg.d.str ? atoi(arg.d.str) : 0; break;
-	case ENT_MOBILE: vnum = arg.d.mob ? arg.d.mob->pIndexData->vnum : 0; break;
+	switch(arg->type) {
+	case ENT_NUMBER: vnum = arg->d.num; break;
+	case ENT_STRING: vnum = arg->d.str ? atoi(arg->d.str) : 0; break;
+	case ENT_MOBILE: vnum = arg->d.mob ? arg->d.mob->pIndexData->vnum : 0; break;
 	default: vnum = 0; break;
 	}
 
@@ -2861,20 +2865,20 @@ SCRIPT_CMD(do_mpoload)
 	bool fToroom = FALSE, fWear = FALSE;
 	OBJ_INDEX_DATA *pObjIndex;
 	OBJ_DATA *obj;
-	SCRIPT_PARAM arg;
+
 	CHAR_DATA *to_mob = info->mob;
 	OBJ_DATA *to_obj = NULL;
 	ROOM_INDEX_DATA *to_room = NULL;
 
 	if(!info || !info->mob || !info->mob->in_room) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_NUMBER: vnum = arg.d.num; break;
-	case ENT_STRING: vnum = arg.d.str ? atoi(arg.d.str) : 0; break;
-	case ENT_OBJECT: vnum = arg.d.obj ? arg.d.obj->pIndexData->vnum : 0; break;
+	switch(arg->type) {
+	case ENT_NUMBER: vnum = arg->d.num; break;
+	case ENT_STRING: vnum = arg->d.str ? atoi(arg->d.str) : 0; break;
+	case ENT_OBJECT: vnum = arg->d.obj ? arg->d.obj->pIndexData->vnum : 0; break;
 	default: vnum = 0; break;
 	}
 
@@ -2885,14 +2889,14 @@ SCRIPT_CMD(do_mpoload)
 
 	if(rest && *rest) {
 		argument = rest;
-		if(!(rest = expand_argument(info,argument,&arg)))
+		if(!(rest = expand_argument(info,argument,arg)))
 			return;
 
-		switch(arg.type) {
-		case ENT_NUMBER: level = arg.d.num; break;
-		case ENT_STRING: level = arg.d.str ? atoi(arg.d.str) : 0; break;
-		case ENT_MOBILE: level = arg.d.mob ? get_trust(arg.d.mob) : 0; break;
-		case ENT_OBJECT: level = arg.d.obj ? arg.d.obj->pIndexData->level : 0; break;
+		switch(arg->type) {
+		case ENT_NUMBER: level = arg->d.num; break;
+		case ENT_STRING: level = arg->d.str ? atoi(arg->d.str) : 0; break;
+		case ENT_MOBILE: level = arg->d.mob ? get_trust(arg->d.mob) : 0; break;
+		case ENT_OBJECT: level = arg->d.obj ? arg->d.obj->pIndexData->level : 0; break;
 		default: level = 0; break;
 		}
 
@@ -2901,7 +2905,7 @@ SCRIPT_CMD(do_mpoload)
 
 		if(rest && *rest) {
 			argument = rest;
-			if(!(rest = expand_argument(info,argument,&arg)))
+			if(!(rest = expand_argument(info,argument,arg)))
 				return;
 
 			/*
@@ -2916,16 +2920,16 @@ SCRIPT_CMD(do_mpoload)
 			 * ROOM    - load to target room
 			 */
 
-			switch(arg.type) {
+			switch(arg->type) {
 			case ENT_STRING:
-				if(!str_cmp(arg.d.str, "room"))
+				if(!str_cmp(arg->d.str, "room"))
 					fToroom = TRUE;
-				else if(!str_cmp(arg.d.str, "wear"))
+				else if(!str_cmp(arg->d.str, "wear"))
 					fWear = TRUE;
 				break;
 
 			case ENT_MOBILE:
-				to_mob = arg.d.mob;
+				to_mob = arg->d.mob;
 				if((rest = one_argument(rest,buf))) {
 					if(!str_cmp(buf, "wear"))
 						fWear = TRUE;
@@ -2934,20 +2938,20 @@ SCRIPT_CMD(do_mpoload)
 				break;
 
 			case ENT_OBJECT:
-				if( arg.d.obj && IS_SET(pObjIndex->wear_flags, ITEM_TAKE) ) {
-					if(arg.d.obj->item_type == ITEM_CONTAINER ||
-						arg.d.obj->item_type == ITEM_CART)
-						to_obj = arg.d.obj;
-					else if(arg.d.obj->item_type == ITEM_WEAPON_CONTAINER &&
+				if( arg->d.obj && IS_SET(pObjIndex->wear_flags, ITEM_TAKE) ) {
+					if(arg->d.obj->item_type == ITEM_CONTAINER ||
+						arg->d.obj->item_type == ITEM_CART)
+						to_obj = arg->d.obj;
+					else if(arg->d.obj->item_type == ITEM_WEAPON_CONTAINER &&
 						pObjIndex->item_type == ITEM_WEAPON &&
-						pObjIndex->value[0] == arg.d.obj->value[1])
-						to_obj = arg.d.obj;
+						pObjIndex->value[0] == arg->d.obj->value[1])
+						to_obj = arg->d.obj;
 					else
 						return;	// Trying to put the item into a non-container won't work
 				}
 				break;
 
-			case ENT_ROOM:		to_room = arg.d.room; break;
+			case ENT_ROOM:		to_room = arg->d.room; break;
 			}
 		}
 
@@ -2982,18 +2986,18 @@ SCRIPT_CMD(do_mpotransfer)
 	OBJ_DATA *container;
 	CHAR_DATA *carrier;
 	int wear_loc = WEAR_NONE;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpOtransfer - Bad syntax from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: obj = get_obj_here(info->mob, NULL, arg.d.str); break;
-	case ENT_OBJECT: obj = arg.d.obj; break;
+	switch(arg->type) {
+	case ENT_STRING: obj = get_obj_here(info->mob, NULL, arg->d.str); break;
+	case ENT_OBJECT: obj = arg->d.obj; break;
 	default: obj = NULL; break;
 	}
 
@@ -3059,28 +3063,28 @@ SCRIPT_CMD(do_mppurge)
 	CHAR_DATA **mobs = NULL, *victim = NULL,*vnext;
 	OBJ_DATA **objs = NULL, *obj = NULL,*obj_next;
 	ROOM_INDEX_DATA *here = NULL;
-	SCRIPT_PARAM arg;
+
 	EXIT_DATA *ex;
 
 	if(!info || !info->mob || !info->mob->in_room) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_NONE: here = info->mob->in_room; break;
 	case ENT_STRING:
-		if (!(victim = get_char_room(info->mob, NULL, arg.d.str)))
-			obj = get_obj_here(info->mob, NULL, arg.d.str);
+		if (!(victim = get_char_room(info->mob, NULL, arg->d.str)))
+			obj = get_obj_here(info->mob, NULL, arg->d.str);
 		break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
-	case ENT_OBJECT: obj = arg.d.obj; break;
-	case ENT_ROOM: here = arg.d.room; break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
+	case ENT_OBJECT: obj = arg->d.obj; break;
+	case ENT_ROOM: here = arg->d.room; break;
 	case ENT_EXIT:
-		ex = arg.d.door.r ? arg.d.door.r->exit[arg.d.door.door] : NULL;
+		ex = arg->d.door.r ? arg->d.door.r->exit[arg->d.door.door] : NULL;
 		here = ex ? exit_destination(ex) : NULL; break;
-	case ENT_OLLIST_MOB: mobs = arg.d.list.ptr.mob; break;
-	case ENT_OLLIST_OBJ: objs = arg.d.list.ptr.obj; break;
+	case ENT_OLLIST_MOB: mobs = arg->d.list.ptr.mob; break;
+	case ENT_OLLIST_OBJ: objs = arg->d.list.ptr.obj; break;
 	default: break;
 	}
 
@@ -3130,16 +3134,16 @@ SCRIPT_CMD(do_mpqueue)
 {
 	char *rest;
 	int delay;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob || !info->mob->in_room) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_NUMBER: delay = arg.d.num; break;
-	case ENT_STRING: delay = atoi(arg.d.str); break;
+	switch(arg->type) {
+	case ENT_NUMBER: delay = arg->d.num; break;
+	case ENT_STRING: delay = atoi(arg->d.str); break;
 	default:
 		bug("MpQueue:  missing arguments from mob vnum %d.", VNUM(info->mob));
 		return;
@@ -3158,18 +3162,18 @@ SCRIPT_CMD(do_mpraisedead)
 {
 	char buf[MIL], *rest;
 	CHAR_DATA *victim;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob || !info->mob->in_room) return;
 
 	info->mob->progs->lastreturn = -1;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -3194,18 +3198,18 @@ SCRIPT_CMD(do_mpraisedead)
 SCRIPT_CMD(do_mpremember)
 {
 	CHAR_DATA *victim;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!expand_argument(info,argument,&arg)) {
+	if(!expand_argument(info,argument,arg)) {
 		bug("MpRemember: Bad syntax from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_world(info->mob, arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_world(info->mob, arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -3224,19 +3228,19 @@ SCRIPT_CMD(do_mpremove)
 	OBJ_DATA *obj = NULL, *obj_next;
 	int vnum = 0, count = 0;
 	bool fAll = FALSE;
-	SCRIPT_PARAM arg;
+
 	char name[MIL], *rest;
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpRemove: Bad syntax from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -3248,23 +3252,23 @@ SCRIPT_CMD(do_mpremove)
 	if(!*rest) return;
 
 	argument = rest;
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpRemove: Bad syntax from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
 	name[0] = '\0';
-	switch(arg.type) {
-	case ENT_NUMBER: vnum = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_NUMBER: vnum = arg->d.num; break;
 	case ENT_STRING:
-		if(is_number(arg.d.str))
-			vnum = atoi(arg.d.str);
-		else if(!str_cmp(arg.d.str,"all"))
+		if(is_number(arg->d.str))
+			vnum = atoi(arg->d.str);
+		else if(!str_cmp(arg->d.str,"all"))
 			fAll = TRUE;
 		else
-			strncpy(name,arg.d.str,MIL-1);
+			strncpy(name,arg->d.str,MIL-1);
 		break;
-	case ENT_OBJECT: obj = arg.d.obj; break;
+	case ENT_OBJECT: obj = arg->d.obj; break;
 	default: break;
 	}
 
@@ -3275,14 +3279,14 @@ SCRIPT_CMD(do_mpremove)
 
 	if(!fAll && !obj && *rest) {
 		argument = rest;
-		if(!(rest = expand_argument(info,argument,&arg))) {
+		if(!(rest = expand_argument(info,argument,arg))) {
 			bug("MpRemove: Bad syntax from vnum %ld.", VNUM(info->mob));
 			return;
 		}
 
-		switch(arg.type) {
-		case ENT_NUMBER: count = arg.d.num; break;
-		case ENT_STRING: count = atoi(arg.d.str); break;
+		switch(arg->type) {
+		case ENT_NUMBER: count = arg->d.num; break;
+		case ENT_STRING: count = atoi(arg->d.str); break;
 		default: count = 0; break;
 		}
 
@@ -3338,19 +3342,19 @@ SCRIPT_CMD(do_mptake)
 	OBJ_DATA *obj = NULL, *obj_next;
 	int vnum = 0, count = 0, taken = 0;
 	bool fAll = FALSE, force = FALSE;
-	SCRIPT_PARAM arg;
+
 	char name[MIL], *rest;
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpTake: Bad syntax from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -3362,23 +3366,23 @@ SCRIPT_CMD(do_mptake)
 	if(!*rest) return;
 
 	argument = rest;
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpTake: Bad syntax from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
 	name[0] = '\0';
-	switch(arg.type) {
-	case ENT_NUMBER: vnum = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_NUMBER: vnum = arg->d.num; break;
 	case ENT_STRING:
-		if(is_number(arg.d.str))
-			vnum = atoi(arg.d.str);
-		else if(!str_cmp(arg.d.str,"all"))
+		if(is_number(arg->d.str))
+			vnum = atoi(arg->d.str);
+		else if(!str_cmp(arg->d.str,"all"))
 			fAll = TRUE;
 		else
-			strncpy(name,arg.d.str,MIL-1);
+			strncpy(name,arg->d.str,MIL-1);
 		break;
-	case ENT_OBJECT: obj = arg.d.obj; break;
+	case ENT_OBJECT: obj = arg->d.obj; break;
 	default: break;
 	}
 
@@ -3389,28 +3393,28 @@ SCRIPT_CMD(do_mptake)
 
 	if(*rest) {
 		argument = rest;
-		if(!(rest = expand_argument(info,argument,&arg))) {
+		if(!(rest = expand_argument(info,argument,arg))) {
 			bug("MpTake: Bad syntax from vnum %ld.", VNUM(info->mob));
 			return;
 		}
 
-		switch(arg.type) {
+		switch(arg->type) {
 		default: break;
-		case ENT_STRING: force = !str_cmp(arg.d.str,"force"); break;
+		case ENT_STRING: force = !str_cmp(arg->d.str,"force"); break;
 		}
 	}
 
 	if(!fAll && !obj && *rest) {
 		argument = rest;
-		if(!(rest = expand_argument(info,argument,&arg))) {
+		if(!(rest = expand_argument(info,argument,arg))) {
 			bug("MpTake: Bad syntax from vnum %ld.", VNUM(info->mob));
 			return;
 		}
 
-		switch(arg.type) {
-		case ENT_NUMBER: count = arg.d.num; break;
-		case ENT_STRING: count = atoi(arg.d.str); break;
-		case ENT_OBJECT: obj = arg.d.obj; break;
+		switch(arg->type) {
+		case ENT_NUMBER: count = arg->d.num; break;
+		case ENT_STRING: count = atoi(arg->d.str); break;
+		case ENT_OBJECT: obj = arg->d.obj; break;
 		default: count = 0; break;
 		}
 
@@ -3477,24 +3481,24 @@ SCRIPT_CMD(do_mptransfer)
 	CHAR_DATA *victim = NULL,*vnext;
 	ROOM_INDEX_DATA *dest;
 	bool all = FALSE, force = FALSE, quiet = TRUE;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpTransfer - Bad syntax from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if(!str_cmp(arg.d.str,"all"))
+		if(!str_cmp(arg->d.str,"all"))
 
 			all = TRUE;
 		else
-			victim = get_char_world(info->mob, arg.d.str);
+			victim = get_char_world(info->mob, arg->d.str);
 		break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -3546,18 +3550,18 @@ SCRIPT_CMD(do_mpvforce)
 	char buf[MSL],*rest;
 	int vnum = 0;
 	CHAR_DATA *vch, *next;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpVforce - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: vnum = atoi(arg.d.str); break;
-	case ENT_NUMBER: vnum = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: vnum = atoi(arg->d.str); break;
+	case ENT_NUMBER: vnum = arg->d.num; break;
 	default: break;
 	}
 
@@ -3624,16 +3628,16 @@ SCRIPT_CMD(do_mpzot)
 {
 	char *rest;
 	CHAR_DATA *victim;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -3708,24 +3712,24 @@ SCRIPT_CMD(do_mpsettimer)
 	char buf[MIL],*rest;
 	int amt;
 	CHAR_DATA *victim = NULL;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpSetTimer - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if(!str_cmp(arg.d.str,"self"))
+		if(!str_cmp(arg->d.str,"self"))
 			victim = info->mob;
 		else
-			victim = get_char_world(info->mob, arg.d.str);
+			victim = get_char_world(info->mob, arg->d.str);
 		break;
 	case ENT_MOBILE:
-		victim = arg.d.mob;
+		victim = arg->d.mob;
 		break;
 	default: break;
 	}
@@ -3742,14 +3746,14 @@ SCRIPT_CMD(do_mpsettimer)
 
 	buf[0] = 0;
 	argument = rest;
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpSetTimer - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		strncpy(buf,arg.d.str,MIL);
+		strncpy(buf,arg->d.str,MIL);
 		break;
 	default: break;
 	}
@@ -3760,14 +3764,14 @@ SCRIPT_CMD(do_mpsettimer)
 	}
 
 	argument = rest;
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpSetTimer - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: amt = is_number(arg.d.str) ? atoi(arg.d.str) : 0; break;
-	case ENT_NUMBER: amt = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: amt = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
+	case ENT_NUMBER: amt = arg->d.num; break;
 	default: amt = 0; break;
 	}
 
@@ -3812,7 +3816,7 @@ SCRIPT_CMD(do_mpinterrupt)
 	char buf[MSL],*rest;
 	CHAR_DATA *victim = NULL;
 	ROOM_INDEX_DATA *here;
-	SCRIPT_PARAM arg;
+
 	int stop, ret = 0;
 	bool silent = FALSE;
 
@@ -3822,17 +3826,17 @@ SCRIPT_CMD(do_mpinterrupt)
 
 	info->mob->progs->lastreturn = 0;	// Nothing was interrupted
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpInterrupt - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		victim = get_char_world(info->mob, arg.d.str);
+		victim = get_char_world(info->mob, arg->d.str);
 		break;
 	case ENT_MOBILE:
-		victim = arg.d.mob;
+		victim = arg->d.mob;
 		break;
 	default: break;
 	}
@@ -3991,23 +3995,23 @@ SCRIPT_CMD(do_mpalterobj)
 	char buf[2*MIL],field[MIL],*rest;
 	int value, num, min_sec = MIN_SCRIPT_SECURITY;
 	OBJ_DATA *obj = NULL;
-	SCRIPT_PARAM arg;
+
 	bool allowarith = TRUE;
 	const struct flag_type *flags = NULL;
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpAlterObj - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		obj = get_obj_here(info->mob,NULL,arg.d.str);
+		obj = get_obj_here(info->mob,NULL,arg->d.str);
 		break;
 	case ENT_OBJECT:
-		obj = arg.d.obj;
+		obj = arg->d.obj;
 		break;
 	default: break;
 	}
@@ -4022,7 +4026,7 @@ SCRIPT_CMD(do_mpalterobj)
 		return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpAlterObj - Error in parsing.",0);
 		return;
 	}
@@ -4030,16 +4034,16 @@ SCRIPT_CMD(do_mpalterobj)
 	field[0] = 0;
 	num = -1;
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if(is_number(arg.d.str)) {
-			num = atoi(arg.d.str);
+		if(is_number(arg->d.str)) {
+			num = atoi(arg->d.str);
 			if(num < 0 || num >= 8) return;
 		} else
-			strncpy(field,arg.d.str,MIL-1);
+			strncpy(field,arg->d.str,MIL-1);
 		break;
 	case ENT_NUMBER:
-		num = arg.d.num;
+		num = arg->d.num;
 		if(num < 0 || num >= 8) return;
 		break;
 	default: return;
@@ -4049,15 +4053,15 @@ SCRIPT_CMD(do_mpalterobj)
 
 	argument = one_argument(rest,buf);
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpAlterObj - Error in parsing.",0);
 		return;
 	}
 
 	if(num >= 0) {
-		switch(arg.type) {
-		case ENT_STRING: value = is_number(arg.d.str) ? atoi(arg.d.str) : 0; break;
-		case ENT_NUMBER: value = arg.d.num; break;
+		switch(arg->type) {
+		case ENT_STRING: value = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
+		case ENT_NUMBER: value = arg->d.num; break;
 		default: return;
 		}
 
@@ -4128,20 +4132,20 @@ SCRIPT_CMD(do_mpalterobj)
 			return;
 		}
 
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_STRING:
-			if( is_number(arg.d.str) )
-				value = atoi(arg.d.str);
+			if( is_number(arg->d.str) )
+				value = atoi(arg->d.str);
 			else
 			{
 				allowarith = FALSE;	// This is a bit vector, no arithmetic operators.
-				value = script_flag_value(flags, arg.d.str);
+				value = script_flag_value(flags, arg->d.str);
 
 				if( value == NO_FLAG ) value = 0;
 			}
 
 			break;
-		case ENT_NUMBER: value = arg.d.num; break;
+		case ENT_NUMBER: value = arg->d.num; break;
 		default: return;
 		}
 
@@ -4215,21 +4219,21 @@ SCRIPT_CMD(do_mpresetdice)
 {
 	char *rest;
 	OBJ_DATA *obj = NULL;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpAlterObj - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		obj = get_obj_here(info->mob,NULL,arg.d.str);
+		obj = get_obj_here(info->mob,NULL,arg->d.str);
 		break;
 	case ENT_OBJECT:
-		obj = arg.d.obj;
+		obj = arg->d.obj;
 		break;
 	default: break;
 	}
@@ -4251,22 +4255,22 @@ SCRIPT_CMD(do_mpstringobj)
 	char buf[2*MSL],field[MIL],*rest, **str;
 	int min_sec = MIN_SCRIPT_SECURITY;
 	OBJ_DATA *obj = NULL;
-	SCRIPT_PARAM arg;
+
 	bool newlines = FALSE;
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpStringObj - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		obj = get_obj_here(info->mob,NULL,arg.d.str);
+		obj = get_obj_here(info->mob,NULL,arg->d.str);
 		break;
 	case ENT_OBJECT:
-		obj = arg.d.obj;
+		obj = arg->d.obj;
 		break;
 	default: break;
 	}
@@ -4281,16 +4285,16 @@ SCRIPT_CMD(do_mpstringobj)
 		return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpStringObj - Error in parsing.",0);
 		return;
 	}
 
 	field[0] = 0;
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		strncpy(field,arg.d.str,MIL-1);
+		strncpy(field,arg->d.str,MIL-1);
 		break;
 	default: return;
 	}
@@ -4353,7 +4357,7 @@ SCRIPT_CMD(do_mpaltermob)
 	char buf[MSL],field[MIL],*rest;
 	int value, min_sec = MIN_SCRIPT_SECURITY, min = 0, max = 0;
 	CHAR_DATA *mob = NULL;
-	SCRIPT_PARAM arg;
+
 	int *ptr = NULL;
 	bool allowpc = FALSE;
 	bool allowarith = TRUE;
@@ -4366,17 +4370,17 @@ SCRIPT_CMD(do_mpaltermob)
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpAlterMob - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		mob = get_char_room(info->mob,NULL,arg.d.str);
+		mob = get_char_room(info->mob,NULL,arg->d.str);
 		break;
 	case ENT_MOBILE:
-		mob = arg.d.mob;
+		mob = arg->d.mob;
 		break;
 	default: break;
 	}
@@ -4391,15 +4395,15 @@ SCRIPT_CMD(do_mpaltermob)
 		return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpAlterMob - Error in parsing.",0);
 		return;
 	}
 
 	field[0] = 0;
 
-	switch(arg.type) {
-	case ENT_STRING: strncpy(field,arg.d.str,MIL-1); break;
+	switch(arg->type) {
+	case ENT_STRING: strncpy(field,arg->d.str,MIL-1); break;
 	default: return;
 	}
 
@@ -4407,7 +4411,7 @@ SCRIPT_CMD(do_mpaltermob)
 
 	argument = one_argument(rest,buf);
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpAlterMob - Error in parsing.",0);
 		return;
 	}
@@ -4517,21 +4521,21 @@ SCRIPT_CMD(do_mpaltermob)
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if( is_number(arg.d.str) )
-			value = atoi(arg.d.str);
+		if( is_number(arg->d.str) )
+			value = atoi(arg->d.str);
 		else if( lookuprace )
 		{
 			// This is a race, can only be assigned
 			allowarith = FALSE;
 			allowbitwise = FALSE;
-			value = race_lookup(arg.d.str);
+			value = race_lookup(arg->d.str);
 		}
 		else
 		{
 			allowarith = FALSE;	// This is a bit vector, no arithmetic operators.
-			value = script_flag_value(flags, arg.d.str);
+			value = script_flag_value(flags, arg->d.str);
 
 			if( value == NO_FLAG ) value = 0;
 		}
@@ -4540,7 +4544,7 @@ SCRIPT_CMD(do_mpaltermob)
 	case ENT_NUMBER:
 		if( lookuprace ) return;
 
-		value = arg.d.num;
+		value = arg->d.num;
 		break;
 	default: return;
 	}
@@ -4648,22 +4652,22 @@ SCRIPT_CMD(do_mpstringmob)
 	char buf[MSL+2],field[MIL],*rest, **str;
 	int min_sec = MIN_SCRIPT_SECURITY;
 	CHAR_DATA *mob = NULL;
-	SCRIPT_PARAM arg;
+
 	bool newlines = FALSE;
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpStringMob - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		mob = get_char_room(info->mob,NULL,arg.d.str);
+		mob = get_char_room(info->mob,NULL,arg->d.str);
 		break;
 	case ENT_MOBILE:
-		mob = arg.d.mob;
+		mob = arg->d.mob;
 		break;
 	default: break;
 	}
@@ -4683,15 +4687,15 @@ SCRIPT_CMD(do_mpstringmob)
 		return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpStringMob - Error in parsing.",0);
 		return;
 	}
 
 	field[0] = 0;
 
-	switch(arg.type) {
-	case ENT_STRING: strncpy(field,arg.d.str,MIL-1); break;
+	switch(arg->type) {
+	case ENT_STRING: strncpy(field,arg->d.str,MIL-1); break;
 	default: return;
 	}
 
@@ -4729,7 +4733,7 @@ SCRIPT_CMD(do_mpskimprove)
 	char skill[MIL],*rest;
 	int min_diff, diff, sn = -1;
 	CHAR_DATA *mob = NULL;
-	SCRIPT_PARAM arg;
+
 	TOKEN_DATA *token = NULL;
 	bool success = FALSE;
 
@@ -4740,20 +4744,20 @@ SCRIPT_CMD(do_mpskimprove)
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpSkImprove - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		mob = get_char_room(info->mob,NULL,arg.d.str);
+		mob = get_char_room(info->mob,NULL,arg->d.str);
 		break;
 	case ENT_MOBILE:
-		mob = arg.d.mob;
+		mob = arg->d.mob;
 		break;
 	case ENT_TOKEN:
-		token = arg.d.token;
+		token = arg->d.token;
 	default: break;
 	}
 
@@ -4769,15 +4773,15 @@ SCRIPT_CMD(do_mpskimprove)
 		}
 
 
-		if(!(rest = expand_argument(info,rest,&arg))) {
+		if(!(rest = expand_argument(info,rest,arg))) {
 			bug("MpSkImprove - Error in parsing.",0);
 			return;
 		}
 
 		skill[0] = 0;
 
-		switch(arg.type) {
-		case ENT_STRING: strncpy(skill,arg.d.str,MIL-1); break;
+		switch(arg->type) {
+		case ENT_STRING: strncpy(skill,arg->d.str,MIL-1); break;
 		default: return;
 		}
 
@@ -4793,14 +4797,14 @@ SCRIPT_CMD(do_mpskimprove)
 		}
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpSkImprove - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: diff = is_number(arg.d.str) ? atoi(arg.d.str) : 0; break;
-	case ENT_NUMBER: diff = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: diff = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
+	case ENT_NUMBER: diff = arg->d.num; break;
 	default: return;
 	}
 
@@ -4811,17 +4815,17 @@ SCRIPT_CMD(do_mpskimprove)
 		diff = min_diff;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_NONE: success = TRUE; break;
 	case ENT_STRING:
-		if(is_number(arg.d.str))
-			success = (bool)(atoi(arg.d.str) != 0);
+		if(is_number(arg->d.str))
+			success = (bool)(atoi(arg->d.str) != 0);
 		else
-			success = !str_cmp(arg.d.str,"yes") || !str_cmp(arg.d.str,"true") ||
-				!str_cmp(arg.d.str,"success") || !str_cmp(arg.d.str,"pass");
+			success = !str_cmp(arg->d.str,"yes") || !str_cmp(arg->d.str,"true") ||
+				!str_cmp(arg->d.str,"success") || !str_cmp(arg->d.str,"pass");
 		break;
 	case ENT_NUMBER:
-		success = (bool)(arg.d.num != 0);
+		success = (bool)(arg->d.num != 0);
 		break;
 	default: success = FALSE;
 	}
@@ -4838,23 +4842,23 @@ SCRIPT_CMD(do_mpinput)
 	char *rest, *p;
 	int vnum;
 	CHAR_DATA *mob = NULL;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
 	info->mob->progs->lastreturn = 0;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpInput - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		mob = get_char_room(info->mob,NULL,arg.d.str);
+		mob = get_char_room(info->mob,NULL,arg->d.str);
 		break;
 	case ENT_MOBILE:
-		mob = arg.d.mob;
+		mob = arg->d.mob;
 		break;
 	default: break;
 	}
@@ -4868,27 +4872,27 @@ SCRIPT_CMD(do_mpinput)
 
 	if( mob->desc->showstr_head != NULL ) return;
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpInput - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_NUMBER: vnum = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_NUMBER: vnum = arg->d.num; break;
 	default: return;
 	}
 
 	if(vnum < 1 || !get_script_index(vnum, PRG_MPROG)) return;
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpInput - Error in parsing.",0);
 		return;
 	}
 
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_NONE:		p = NULL; break;
-	case ENT_STRING:	p = arg.d.str; break;
+	case ENT_STRING:	p = arg->d.str; break;
 	default: return;
 	}
 
@@ -4912,21 +4916,21 @@ SCRIPT_CMD(do_mprawkill)
 	int type;
 	bool has_head, show_msg;
 	CHAR_DATA *mob = NULL;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpRawkill - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		mob = get_char_room(info->mob,NULL,arg.d.str);
+		mob = get_char_room(info->mob,NULL,arg->d.str);
 		break;
 	case ENT_MOBILE:
-		mob = arg.d.mob;
+		mob = arg->d.mob;
 		break;
 	default: break;
 	}
@@ -4938,43 +4942,43 @@ SCRIPT_CMD(do_mprawkill)
 
 	if(IS_IMMORTAL(mob)) return;
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpRawkill - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: type = flag_lookup(arg.d.str,corpse_types); break;
+	switch(arg->type) {
+	case ENT_STRING: type = flag_lookup(arg->d.str,corpse_types); break;
 	default: return;
 	}
 
 	if(type < 0 || type == NO_FLAG) return;
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpRawkill - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_NONE:	has_head = TRUE; break;
 	case ENT_STRING:
-		has_head = !str_cmp(arg.d.str,"true") ||
-			!str_cmp(arg.d.str,"yes") ||
-			!str_cmp(arg.d.str,"head");
+		has_head = !str_cmp(arg->d.str,"true") ||
+			!str_cmp(arg->d.str,"yes") ||
+			!str_cmp(arg->d.str,"head");
 		break;
 	default: return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpRawkill - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_NONE:	show_msg = TRUE; break;
 	case ENT_STRING:
-		show_msg = !str_cmp(arg.d.str,"true") ||
-			!str_cmp(arg.d.str,"yes");
+		show_msg = !str_cmp(arg->d.str,"true") ||
+			!str_cmp(arg->d.str,"yes");
 		break;
 	default: return;
 	}
@@ -4997,25 +5001,25 @@ SCRIPT_CMD(do_mpaddaffect)
 	CHAR_DATA *mob = NULL;
 	OBJ_DATA *obj = NULL;
 	int wear_loc = WEAR_NONE;
-	SCRIPT_PARAM arg;
+
 	AFFECT_DATA af;
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpAddAffect - Error in parsing.",0);
 		return;
 	}
 
 	// addaffect <target> <where> <group> <skill> <level> <location> <modifier> <duration> <bitvector> <bitvector2>
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if (!(mob = get_char_room(info->mob, NULL, arg.d.str)))
-			obj = get_obj_here(info->mob, NULL, arg.d.str);
+		if (!(mob = get_char_room(info->mob, NULL, arg->d.str)))
+			obj = get_obj_here(info->mob, NULL, arg->d.str);
 		break;
-	case ENT_MOBILE: mob = arg.d.mob; break;
-	case ENT_OBJECT: obj = arg.d.obj; break;
+	case ENT_MOBILE: mob = arg->d.mob; break;
+	case ENT_OBJECT: obj = arg->d.obj; break;
 	default: break;
 	}
 
@@ -5024,122 +5028,122 @@ SCRIPT_CMD(do_mpaddaffect)
 		return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpAddaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: where = flag_lookup(arg.d.str,apply_types); break;
+	switch(arg->type) {
+	case ENT_STRING: where = flag_lookup(arg->d.str,apply_types); break;
 	default: return;
 	}
 
 	if(where == NO_FLAG) return;
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpAddaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
 		if(where == TO_OBJECT || where == TO_WEAPON)
-			group = flag_lookup(arg.d.str,affgroup_object_flags);
+			group = flag_lookup(arg->d.str,affgroup_object_flags);
 		else
-			group = flag_lookup(arg.d.str,affgroup_mobile_flags);
+			group = flag_lookup(arg->d.str,affgroup_mobile_flags);
 		break;
 	default: return;
 	}
 
 	if(group == NO_FLAG) return;
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpAddaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: skill = skill_lookup(arg.d.str); break;
+	switch(arg->type) {
+	case ENT_STRING: skill = skill_lookup(arg->d.str); break;
 	default: return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpAddaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_NUMBER: level = arg.d.num; break;
-	case ENT_STRING: level = atoi(arg.d.str); break;
-	case ENT_MOBILE: level = arg.d.mob->tot_level; break;
-	case ENT_OBJECT: level = arg.d.obj->level; break;
+	switch(arg->type) {
+	case ENT_NUMBER: level = arg->d.num; break;
+	case ENT_STRING: level = atoi(arg->d.str); break;
+	case ENT_MOBILE: level = arg->d.mob->tot_level; break;
+	case ENT_OBJECT: level = arg->d.obj->level; break;
 	default: return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpAddaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: loc = flag_lookup(arg.d.str,apply_flags_full); break;
+	switch(arg->type) {
+	case ENT_STRING: loc = flag_lookup(arg->d.str,apply_flags_full); break;
 	default: return;
 	}
 
 	if(loc == NO_FLAG) return;
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpAddaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_NUMBER: mod = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_NUMBER: mod = arg->d.num; break;
 	default: return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpAddaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_NUMBER: hours = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_NUMBER: hours = arg->d.num; break;
 	default: return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpAddaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: bv = flag_value(affect_flags,arg.d.str); break;
+	switch(arg->type) {
+	case ENT_STRING: bv = flag_value(affect_flags,arg->d.str); break;
 	default: return;
 	}
 
 	if(bv == NO_FLAG) bv = 0;
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpAddaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: bv2 = flag_value(affect2_flags,arg.d.str); break;
+	switch(arg->type) {
+	case ENT_STRING: bv2 = flag_value(affect2_flags,arg->d.str); break;
 	default: return;
 	}
 
 	if(bv2 == NO_FLAG) bv2 = 0;
 
 	if(rest && *rest) {
-		if(!(rest = expand_argument(info,rest,&arg))) {
+		if(!(rest = expand_argument(info,rest,arg))) {
 			bug("MpAddaffect - Error in parsing.",0);
 			return;
 		}
 
-		switch(arg.type) {
-		case ENT_OBJECT: wear_loc = arg.d.obj ? arg.d.obj->wear_loc : WEAR_NONE; break;
+		switch(arg->type) {
+		case ENT_OBJECT: wear_loc = arg->d.obj ? arg->d.obj->wear_loc : WEAR_NONE; break;
 		default: return;
 		}
 	}
@@ -5167,25 +5171,25 @@ SCRIPT_CMD(do_mpaddaffectname)
 	CHAR_DATA *mob = NULL;
 	OBJ_DATA *obj = NULL;
 	int wear_loc = WEAR_NONE;
-	SCRIPT_PARAM arg;
+
 	AFFECT_DATA af;
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpAddAffect - Error in parsing.",0);
 		return;
 	}
 
 	// addaffectname <target> <where> <name> <level> <location> <modifier> <duration> <bitvector> <bitvector2>
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if (!(mob = get_char_room(info->mob, NULL, arg.d.str)))
-			obj = get_obj_here(info->mob, NULL, arg.d.str);
+		if (!(mob = get_char_room(info->mob, NULL, arg->d.str)))
+			obj = get_obj_here(info->mob, NULL, arg->d.str);
 		break;
-	case ENT_MOBILE: mob = arg.d.mob; break;
-	case ENT_OBJECT: obj = arg.d.obj; break;
+	case ENT_MOBILE: mob = arg->d.mob; break;
+	case ENT_OBJECT: obj = arg->d.obj; break;
 	default: break;
 	}
 
@@ -5194,44 +5198,44 @@ SCRIPT_CMD(do_mpaddaffectname)
 		return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpAddaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: where = flag_lookup(arg.d.str,apply_types); break;
+	switch(arg->type) {
+	case ENT_STRING: where = flag_lookup(arg->d.str,apply_types); break;
 	default: return;
 	}
 
 	if(where == NO_FLAG) return;
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpAddaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
 		if(where == TO_OBJECT || where == TO_WEAPON)
-			group = flag_lookup(arg.d.str,affgroup_object_flags);
+			group = flag_lookup(arg->d.str,affgroup_object_flags);
 		else
-			group = flag_lookup(arg.d.str,affgroup_mobile_flags);
+			group = flag_lookup(arg->d.str,affgroup_mobile_flags);
 		break;
 	default: return;
 	}
 
 	if(group == NO_FLAG) return;
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpAddaffect - Error in parsing.",0);
 		return;
 	}
 
 
 
-	switch(arg.type) {
-	case ENT_STRING: name = create_affect_cname(arg.d.str); break;
+	switch(arg->type) {
+	case ENT_STRING: name = create_affect_cname(arg->d.str); break;
 	default: return;
 	}
 
@@ -5240,83 +5244,83 @@ SCRIPT_CMD(do_mpaddaffectname)
 		return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpAddaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_NUMBER: level = arg.d.num; break;
-	case ENT_STRING: level = atoi(arg.d.str); break;
-	case ENT_MOBILE: level = arg.d.mob->tot_level; break;
-	case ENT_OBJECT: level = arg.d.obj->level; break;
+	switch(arg->type) {
+	case ENT_NUMBER: level = arg->d.num; break;
+	case ENT_STRING: level = atoi(arg->d.str); break;
+	case ENT_MOBILE: level = arg->d.mob->tot_level; break;
+	case ENT_OBJECT: level = arg->d.obj->level; break;
 	default: return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpAddaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: loc = flag_lookup(arg.d.str,apply_flags_full); break;
+	switch(arg->type) {
+	case ENT_STRING: loc = flag_lookup(arg->d.str,apply_flags_full); break;
 	default: return;
 	}
 
 	if(loc == NO_FLAG) return;
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpAddaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_NUMBER: mod = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_NUMBER: mod = arg->d.num; break;
 	default: return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpAddaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_NUMBER: hours = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_NUMBER: hours = arg->d.num; break;
 	default: return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpAddaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: bv = flag_value(affect_flags,arg.d.str); break;
+	switch(arg->type) {
+	case ENT_STRING: bv = flag_value(affect_flags,arg->d.str); break;
 	default: return;
 	}
 
 	if(bv == NO_FLAG) bv = 0;
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpAddaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: bv2 = flag_value(affect2_flags,arg.d.str); break;
+	switch(arg->type) {
+	case ENT_STRING: bv2 = flag_value(affect2_flags,arg->d.str); break;
 	default: return;
 	}
 
 	if(bv2 == NO_FLAG) bv2 = 0;
 
 	if(rest && *rest) {
-		if(!(rest = expand_argument(info,rest,&arg))) {
+		if(!(rest = expand_argument(info,rest,arg))) {
 			bug("MpAddaffect - Error in parsing.",0);
 			return;
 		}
 
-		switch(arg.type) {
-		case ENT_OBJECT: wear_loc = arg.d.obj ? arg.d.obj->wear_loc : WEAR_NONE; break;
+		switch(arg->type) {
+		case ENT_OBJECT: wear_loc = arg->d.obj ? arg->d.obj->wear_loc : WEAR_NONE; break;
 		default: return;
 		}
 	}
@@ -5343,24 +5347,24 @@ SCRIPT_CMD(do_mpstripaffect)
 	int skill;
 	CHAR_DATA *mob = NULL;
 	OBJ_DATA *obj = NULL;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpStripaffect - Error in parsing.",0);
 		return;
 	}
 
 	// stripaffect <target> <skill>
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if (!(mob = get_char_room(info->mob, NULL, arg.d.str)))
-			obj = get_obj_here(info->mob, NULL, arg.d.str);
+		if (!(mob = get_char_room(info->mob, NULL, arg->d.str)))
+			obj = get_obj_here(info->mob, NULL, arg->d.str);
 		break;
-	case ENT_MOBILE: mob = arg.d.mob; break;
-	case ENT_OBJECT: obj = arg.d.obj; break;
+	case ENT_MOBILE: mob = arg->d.mob; break;
+	case ENT_OBJECT: obj = arg->d.obj; break;
 	default: break;
 	}
 
@@ -5370,13 +5374,13 @@ SCRIPT_CMD(do_mpstripaffect)
 	}
 
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpStripaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: skill = skill_lookup(arg.d.str); break;
+	switch(arg->type) {
+	case ENT_STRING: skill = skill_lookup(arg->d.str); break;
 	default: return;
 	}
 
@@ -5391,24 +5395,24 @@ SCRIPT_CMD(do_mpstripaffectname)
 	char *rest, *name;
 	CHAR_DATA *mob = NULL;
 	OBJ_DATA *obj = NULL;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpStripaffect - Error in parsing.",0);
 		return;
 	}
 
 	// stripaffectname <target> <name>
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if (!(mob = get_char_room(info->mob, NULL, arg.d.str)))
-			obj = get_obj_here(info->mob, NULL, arg.d.str);
+		if (!(mob = get_char_room(info->mob, NULL, arg->d.str)))
+			obj = get_obj_here(info->mob, NULL, arg->d.str);
 		break;
-	case ENT_MOBILE: mob = arg.d.mob; break;
-	case ENT_OBJECT: obj = arg.d.obj; break;
+	case ENT_MOBILE: mob = arg->d.mob; break;
+	case ENT_OBJECT: obj = arg->d.obj; break;
 	default: break;
 	}
 
@@ -5418,13 +5422,13 @@ SCRIPT_CMD(do_mpstripaffectname)
 	}
 
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpStripaffect - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: name = get_affect_cname(arg.d.str); break;
+	switch(arg->type) {
+	case ENT_STRING: name = get_affect_cname(arg->d.str); break;
 	default: return;
 	}
 
@@ -5440,23 +5444,23 @@ SCRIPT_CMD(do_mpusecatalyst)
 	int type, method, amount, min, max, show;
 	CHAR_DATA *mob = NULL;
 	ROOM_INDEX_DATA *room = NULL;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
 	info->mob->progs->lastreturn = 0;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpUseCatalyst - Error in parsing.",0);
 		return;
 	}
 
 	// usecatalyst <target> <type> <method> <amount> <min> <max> <show>
 
-	switch(arg.type) {
-	case ENT_STRING: mob = get_char_room(info->mob, NULL, arg.d.str); break;
-	case ENT_MOBILE: mob = arg.d.mob; break;
-	case ENT_ROOM: room = arg.d.room; break;
+	switch(arg->type) {
+	case ENT_STRING: mob = get_char_room(info->mob, NULL, arg->d.str); break;
+	case ENT_MOBILE: mob = arg->d.mob; break;
+	case ENT_ROOM: room = arg->d.room; break;
 	default: break;
 	}
 
@@ -5465,74 +5469,74 @@ SCRIPT_CMD(do_mpusecatalyst)
 		return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpUseCatalyst - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: type = flag_value(catalyst_types,arg.d.str); break;
+	switch(arg->type) {
+	case ENT_STRING: type = flag_value(catalyst_types,arg->d.str); break;
 	default: return;
 	}
 
 	if(type == NO_FLAG) return;
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpUseCatalyst - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: method = flag_value(catalyst_method_types,arg.d.str); break;
+	switch(arg->type) {
+	case ENT_STRING: method = flag_value(catalyst_method_types,arg->d.str); break;
 	default: return;
 	}
 
 	if(method == NO_FLAG) return;
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpUseCatalyst - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_NUMBER: amount = arg.d.num; break;
-	case ENT_STRING: amount = atoi(arg.d.str); break;
+	switch(arg->type) {
+	case ENT_NUMBER: amount = arg->d.num; break;
+	case ENT_STRING: amount = atoi(arg->d.str); break;
 	default: return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpUseCatalyst - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_NUMBER: min = arg.d.num; break;
-	case ENT_STRING: min = atoi(arg.d.str); break;
+	switch(arg->type) {
+	case ENT_NUMBER: min = arg->d.num; break;
+	case ENT_STRING: min = atoi(arg->d.str); break;
 	default: return;
 	}
 
 	if(min < 1 || min > CATALYST_MAXSTRENGTH) return;
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpUseCatalyst - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_NUMBER: max = arg.d.num; break;
-	case ENT_STRING: max = atoi(arg.d.str); break;
+	switch(arg->type) {
+	case ENT_NUMBER: max = arg->d.num; break;
+	case ENT_STRING: max = atoi(arg->d.str); break;
 	default: return;
 	}
 
 	if(max < min || max > CATALYST_MAXSTRENGTH) return;
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpUseCatalyst - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: show = flag_value(boolean_types,arg.d.str); break;
+	switch(arg->type) {
+	case ENT_STRING: show = flag_value(boolean_types,arg->d.str); break;
 	default: return;
 	}
 
@@ -5547,21 +5551,21 @@ SCRIPT_CMD(do_mphunt)
 {
 	char *rest;
 	CHAR_DATA *victim;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type == ENT_NONE) {
+	if(arg->type == ENT_NONE) {
 		info->mob->hunting = NULL;
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_world(info->mob, arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_world(info->mob, arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -5577,7 +5581,7 @@ SCRIPT_CMD(do_mpalterexit)
 	int value,min_sec = MIN_SCRIPT_SECURITY, door;
 	ROOM_INDEX_DATA *room;
 	EXIT_DATA *ex = NULL;
-	SCRIPT_PARAM arg;
+
 	int *ptr = NULL;
 	sh_int *sptr = NULL;
 	char **str;
@@ -5586,26 +5590,26 @@ SCRIPT_CMD(do_mpalterexit)
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpAlterExit - Error in parsing.",0);
 		return;
 	}
 
 	room = info->mob->in_room;
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_ROOM:
-		room = arg.d.room;
-		if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_STRING) {
+		room = arg->d.room;
+		if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING) {
 			bug("MpAlterExit - Error in parsing.",0);
 			return;
 		}
 	case ENT_STRING:
-		door = get_num_dir(arg.d.str);
+		door = get_num_dir(arg->d.str);
 		ex = (door < 0) ? NULL : room->exit[door];
 		break;
 	case ENT_EXIT:
-		ex = arg.d.door.r ? arg.d.door.r->exit[arg.d.door.door] : NULL;
+		ex = arg->d.door.r ? arg->d.door.r->exit[arg->d.door.door] : NULL;
 		break;
 	default: ex = NULL; break;
 	}
@@ -5617,32 +5621,32 @@ SCRIPT_CMD(do_mpalterexit)
 		return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpAlterExit - Error in parsing.",0);
 		return;
 	}
 
 	field[0] = 0;
 
-	switch(arg.type) {
-	case ENT_STRING: strncpy(field,arg.d.str,MIL-1); break;
+	switch(arg->type) {
+	case ENT_STRING: strncpy(field,arg->d.str,MIL-1); break;
 	default: return;
 	}
 
 	if(!field[0]) return;
 
 	if(!str_cmp(field,"room") || !str_prefix(field,"destination")) {
-		if(!(rest = expand_argument(info,rest,&arg))) {
+		if(!(rest = expand_argument(info,rest,arg))) {
 			bug("MpAlterExit - Error in parsing.",0);
 			return;
 		}
 
-		switch(arg.type) {
-		case ENT_NUMBER:	room = get_room_index(arg.d.num); break;
-		case ENT_ROOM:		room = arg.d.room; break;
-		case ENT_MOBILE:	room = arg.d.mob->in_room; break;
-		case ENT_OBJECT:	room = obj_room(arg.d.obj); break;
-		case ENT_EXIT:		room = (arg.d.door.r && arg.d.door.r->exit[arg.d.door.door]) ? arg.d.door.r->exit[arg.d.door.door]->u1.to_room : NULL; break;
+		switch(arg->type) {
+		case ENT_NUMBER:	room = get_room_index(arg->d.num); break;
+		case ENT_ROOM:		room = arg->d.room; break;
+		case ENT_MOBILE:	room = arg->d.mob->in_room; break;
+		case ENT_OBJECT:	room = obj_room(arg->d.obj); break;
+		case ENT_EXIT:		room = (arg->d.door.r && arg->d.door.r->exit[arg->d.door.door]) ? arg->d.door.r->exit[arg->d.door.door]->u1.to_room : NULL; break;
 		default: return;
 		}
 
@@ -5673,14 +5677,14 @@ SCRIPT_CMD(do_mpalterexit)
 
 	argument = one_argument(rest,buf);
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpAlterExit - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: value = is_number(arg.d.str) ? atoi(arg.d.str) : 0; break;
-	case ENT_NUMBER: value = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: value = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
+	case ENT_NUMBER: value = arg->d.num; break;
 	default: return;
 	}
 
@@ -5698,20 +5702,20 @@ SCRIPT_CMD(do_mpalterexit)
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if( is_number(arg.d.str) )
-			value = atoi(arg.d.str);
+		if( is_number(arg->d.str) )
+			value = atoi(arg->d.str);
 		else
 		{
 			allowarith = FALSE;	// This is a bit vector, no arithmetic operators.
-			value = script_flag_value(flags, arg.d.str);
+			value = script_flag_value(flags, arg->d.str);
 
 			if( value == NO_FLAG ) value = 0;
 		}
 
 		break;
-	case ENT_NUMBER: value = arg.d.num; break;
+	case ENT_NUMBER: value = arg->d.num; break;
 	default: return;
 	}
 
@@ -5807,21 +5811,21 @@ SCRIPT_CMD(do_mpprompt)
 {
 	char buf[MSL+2],name[MIL],*rest;
 	CHAR_DATA *mob = NULL;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpPrompt - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		mob = get_char_room(info->mob,NULL,arg.d.str);
+		mob = get_char_room(info->mob,NULL,arg->d.str);
 		break;
 	case ENT_MOBILE:
-		mob = arg.d.mob;
+		mob = arg->d.mob;
 		break;
 	default: break;
 	}
@@ -5841,15 +5845,15 @@ SCRIPT_CMD(do_mpprompt)
 		return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpPrompt - Error in parsing.",0);
 		return;
 	}
 
 	name[0] = 0;
 
-	switch(arg.type) {
-	case ENT_STRING: strncpy(name,arg.d.str,MIL-1); break;
+	switch(arg->type) {
+	case ENT_STRING: strncpy(name,arg->d.str,MIL-1); break;
 	default: return;
 	}
 
@@ -5864,20 +5868,20 @@ SCRIPT_CMD(do_mpprompt)
 
 SCRIPT_CMD(do_mpvarseton)
 {
-	SCRIPT_PARAM arg;
+
 	VARIABLE **vars;
 
 	if(!info || !info->mob) return;
 
 	// Get the target
-	if(!(argument = expand_argument(info,argument,&arg)))
+	if(!(argument = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_MOBILE: vars = (arg.d.mob && IS_NPC(arg.d.mob) && arg.d.mob->progs) ? &arg.d.mob->progs->vars : NULL; break;
-	case ENT_OBJECT: vars = (arg.d.obj && arg.d.obj->progs) ? &arg.d.obj->progs->vars : NULL; break;
-	case ENT_ROOM: vars = (arg.d.room && arg.d.room->progs) ? &arg.d.room->progs->vars : NULL; break;
-	case ENT_TOKEN: vars = (arg.d.token && arg.d.token->progs) ? &arg.d.token->progs->vars : NULL; break;
+	switch(arg->type) {
+	case ENT_MOBILE: vars = (arg->d.mob && IS_NPC(arg->d.mob) && arg->d.mob->progs) ? arg->d.mob->progs->vars : NULL; break;
+	case ENT_OBJECT: vars = (arg->d.obj && arg->d.obj->progs) ? arg->d.obj->progs->vars : NULL; break;
+	case ENT_ROOM: vars = (arg->d.room && arg->d.room->progs) ? arg->d.room->progs->vars : NULL; break;
+	case ENT_TOKEN: vars = (arg->d.token && arg->d.token->progs) ? arg->d.token->progs->vars : NULL; break;
 	default: vars = NULL; break;
 	}
 
@@ -5886,20 +5890,20 @@ SCRIPT_CMD(do_mpvarseton)
 
 SCRIPT_CMD(do_mpvarclearon)
 {
-	SCRIPT_PARAM arg;
+
 	VARIABLE **vars;
 
 	if(!info || !info->mob) return;
 
 	// Get the target
-	if(!(argument = expand_argument(info,argument,&arg)))
+	if(!(argument = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_MOBILE: vars = (arg.d.mob && IS_NPC(arg.d.mob) && arg.d.mob->progs) ? &arg.d.mob->progs->vars : NULL; break;
-	case ENT_OBJECT: vars = (arg.d.obj && arg.d.obj->progs) ? &arg.d.obj->progs->vars : NULL; break;
-	case ENT_ROOM: vars = (arg.d.room && arg.d.room->progs) ? &arg.d.room->progs->vars : NULL; break;
-	case ENT_TOKEN: vars = (arg.d.token && arg.d.token->progs) ? &arg.d.token->progs->vars : NULL; break;
+	switch(arg->type) {
+	case ENT_MOBILE: vars = (arg->d.mob && IS_NPC(arg->d.mob) && arg->d.mob->progs) ? arg->d.mob->progs->vars : NULL; break;
+	case ENT_OBJECT: vars = (arg->d.obj && arg->d.obj->progs) ? arg->d.obj->progs->vars : NULL; break;
+	case ENT_ROOM: vars = (arg->d.room && arg->d.room->progs) ? arg->d.room->progs->vars : NULL; break;
+	case ENT_TOKEN: vars = (arg->d.token && arg->d.token->progs) ? arg->d.token->progs->vars : NULL; break;
 	default: vars = NULL; break;
 	}
 
@@ -5910,20 +5914,20 @@ SCRIPT_CMD(do_mpvarsaveon)
 {
 	char name[MIL],buf[MIL];
 	bool on;
-	SCRIPT_PARAM arg;
+
 	VARIABLE *vars;
 
 	if(!info || !info->mob) return;
 
 	// Get the target
-	if(!(argument = expand_argument(info,argument,&arg)))
+	if(!(argument = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_MOBILE: vars = (arg.d.mob && IS_NPC(arg.d.mob) && arg.d.mob->progs) ? arg.d.mob->progs->vars : NULL; break;
-	case ENT_OBJECT: vars = (arg.d.obj && arg.d.obj->progs) ? arg.d.obj->progs->vars : NULL; break;
-	case ENT_ROOM: vars = (arg.d.room && arg.d.room->progs) ? arg.d.room->progs->vars : NULL; break;
-	case ENT_TOKEN: vars = (arg.d.token && arg.d.token->progs) ? arg.d.token->progs->vars : NULL; break;
+	switch(arg->type) {
+	case ENT_MOBILE: vars = (arg->d.mob && IS_NPC(arg->d.mob) && arg->d.mob->progs) ? arg->d.mob->progs->vars : NULL; break;
+	case ENT_OBJECT: vars = (arg->d.obj && arg->d.obj->progs) ? arg->d.obj->progs->vars : NULL; break;
+	case ENT_ROOM: vars = (arg->d.room && arg->d.room->progs) ? arg->d.room->progs->vars : NULL; break;
+	case ENT_TOKEN: vars = (arg->d.token && arg->d.token->progs) ? arg->d.token->progs->vars : NULL; break;
 	default: vars = NULL; break;
 	}
 
@@ -5950,33 +5954,33 @@ SCRIPT_CMD(do_mpcloneroom)
 	TOKEN_DATA *tok;
 	ROOM_INDEX_DATA *source, *room, *clone;
 	bool no_env = FALSE;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
 	// Get vnum
-	if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+	if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
 		return;
 
-	vnum = arg.d.num;
+	vnum = arg->d.num;
 
 	source = get_room_index(vnum);
 	if(!source) return;
 
-	if(!(argument = expand_argument(info,argument,&arg)))
+	if(!(argument = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_MOBILE:	mob = arg.d.mob; obj = NULL; room = NULL; tok = NULL; break;
-	case ENT_OBJECT:	mob = NULL; obj = arg.d.obj; room = NULL; tok = NULL; break;
-	case ENT_ROOM:		mob = NULL; obj = NULL; room = arg.d.room; tok = NULL; break;
-	case ENT_TOKEN:		mob = NULL; obj = NULL; room = NULL; tok = arg.d.token; break;
+	switch(arg->type) {
+	case ENT_MOBILE:	mob = arg->d.mob; obj = NULL; room = NULL; tok = NULL; break;
+	case ENT_OBJECT:	mob = NULL; obj = arg->d.obj; room = NULL; tok = NULL; break;
+	case ENT_ROOM:		mob = NULL; obj = NULL; room = arg->d.room; tok = NULL; break;
+	case ENT_TOKEN:		mob = NULL; obj = NULL; room = NULL; tok = arg->d.token; break;
 	case ENT_STRING:
 		mob = NULL;
 		obj = NULL;
 		room = NULL;
 		tok = NULL;
-		if(!str_cmp(arg.d.str, "none"))
+		if(!str_cmp(arg->d.str, "none"))
 			no_env = TRUE;
 		break;
 	default: return;
@@ -5984,10 +5988,10 @@ SCRIPT_CMD(do_mpcloneroom)
 
 	if(!mob && !obj && !room && !tok && !no_env) return;
 
-	if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_STRING || !arg.d.str || !arg.d.str[0])
+	if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_STRING || !arg->d.str || !arg->d.str[0])
 		return;
 
-	strncpy(name,arg.d.str,MIL); name[MIL] = 0;
+	strncpy(name,arg->d.str,MIL); name[MIL] = 0;
 
 	clone = create_virtual_room(source,false);
 	if(!clone) return;
@@ -6006,7 +6010,7 @@ SCRIPT_CMD(do_mpalterroom)
 	int value, min_sec = MIN_SCRIPT_SECURITY;
 	ROOM_INDEX_DATA *room;
 	WILDS_DATA *wilds;
-	SCRIPT_PARAM arg;
+
 	int *ptr = NULL;
 	sh_int *sptr = NULL;
 	char **str;
@@ -6016,17 +6020,17 @@ SCRIPT_CMD(do_mpalterroom)
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpAlterRoom - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_ROOM:
-		room = arg.d.room;
+		room = arg->d.room;
 		break;
 	case ENT_NUMBER:
-		room = get_room_index(arg.d.num);
+		room = get_room_index(arg->d.num);
 		break;
 	default: room = NULL; break;
 	}
@@ -6038,32 +6042,32 @@ SCRIPT_CMD(do_mpalterroom)
 		return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpAlterRoom - Error in parsing.",0);
 		return;
 	}
 
 	field[0] = 0;
 
-	switch(arg.type) {
-	case ENT_STRING: strncpy(field,arg.d.str,MIL-1); break;
+	switch(arg->type) {
+	case ENT_STRING: strncpy(field,arg->d.str,MIL-1); break;
 	default: return;
 	}
 
 	if(!field[0]) return;
 
         if(!str_cmp(field,"mapid")) {
-                if(!(rest = expand_argument(info,rest,&arg))) {
+                if(!(rest = expand_argument(info,rest,arg))) {
                         bug("MPAlterRoom - Error in parsing.",0);
                         return;
                 }
-                switch(arg.type) {
+                switch(arg->type) {
                 case ENT_STRING:
-                        if(!str_cmp(arg.d.str,"none"))
+                        if(!str_cmp(arg->d.str,"none"))
                                 { room->viewwilds = NULL; }
                         break;
                 case ENT_NUMBER:
-                        wilds = get_wilds_from_uid(NULL,arg.d.num);
+                        wilds = get_wilds_from_uid(NULL,arg->d.num);
                         if(!wilds){
                                 bug("Not a valid wilds uid",0);
                                 return;
@@ -6079,30 +6083,30 @@ SCRIPT_CMD(do_mpalterroom)
 	if(!str_cmp(field,"environment") || !str_cmp(field,"environ") ||
 		!str_cmp(field,"extern") || !str_cmp(field,"outside")) {
 
-		if(!(rest = expand_argument(info,rest,&arg))) {
+		if(!(rest = expand_argument(info,rest,arg))) {
 			bug("MpAlterRoom - Error in parsing.",0);
 			return;
 		}
 
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_ROOM:
 			room_from_environment(room);
-			room_to_environment(room,NULL,NULL,arg.d.room, NULL);
+			room_to_environment(room,NULL,NULL,arg->d.room, NULL);
 			break;
 		case ENT_MOBILE:
 			room_from_environment(room);
-			room_to_environment(room,arg.d.mob,NULL,NULL, NULL);
+			room_to_environment(room,arg->d.mob,NULL,NULL, NULL);
 			break;
 		case ENT_OBJECT:
 			room_from_environment(room);
-			room_to_environment(room,NULL,arg.d.obj,NULL, NULL);
+			room_to_environment(room,NULL,arg->d.obj,NULL, NULL);
 			break;
 		case ENT_TOKEN:
 			room_from_environment(room);
-			room_to_environment(room,NULL,NULL,NULL,arg.d.token);
+			room_to_environment(room,NULL,NULL,NULL,arg->d.token);
 			break;
 		case ENT_STRING:
-			if(!str_cmp(arg.d.str, "none"))
+			if(!str_cmp(arg->d.str, "none"))
 				room_from_environment(room);
 		default: return;
 		}
@@ -6135,7 +6139,7 @@ SCRIPT_CMD(do_mpalterroom)
 
 	argument = one_argument(rest,buf);
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpAlterRoom - Error in parsing.",0);
 		return;
 	}
@@ -6159,20 +6163,20 @@ SCRIPT_CMD(do_mpalterroom)
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if( is_number(arg.d.str) )
-			value = atoi(arg.d.str);
+		if( is_number(arg->d.str) )
+			value = atoi(arg->d.str);
 		else
 		{
 			allowarith = FALSE;	// This is a bit vector, no arithmetic operators.
-			value = script_flag_value(flags, arg.d.str);
+			value = script_flag_value(flags, arg->d.str);
 
 			if( value == NO_FLAG ) value = 0;
 		}
 
 		break;
-	case ENT_NUMBER: value = arg.d.num; break;
+	case ENT_NUMBER: value = arg->d.num; break;
 	default: return;
 	}
 
@@ -6270,40 +6274,40 @@ SCRIPT_CMD(do_mpdestroyroom)
 	long vnum;
 	unsigned long id1, id2;
 	ROOM_INDEX_DATA *room;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
 	info->mob->progs->lastreturn = 0;
 
-	if(!(argument = expand_argument(info,argument,&arg)))
+	if(!(argument = expand_argument(info,argument,arg)))
 		return;
 
 	// It's a room, extract it directly
-	if(arg.type == ENT_ROOM) {
+	if(arg->type == ENT_ROOM) {
 		// Need to block this when done by room to itself
-		if(extract_clone_room(arg.d.room->source,arg.d.room->id[0],arg.d.room->id[1],false))
+		if(extract_clone_room(arg->d.room->source,arg->d.room->id[0],arg->d.room->id[1],false))
 			info->mob->progs->lastreturn = 1;
 		return;
 	}
 
-	if(arg.type != ENT_NUMBER) return;
+	if(arg->type != ENT_NUMBER) return;
 
-	vnum = arg.d.num;
+	vnum = arg->d.num;
 
 	room = get_room_index(vnum);
 	if(!room) return;
 
 	// Get id
-	if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+	if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
 		return;
 
-	id1 = arg.d.num;
+	id1 = arg->d.num;
 
-	if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+	if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
 		return;
 
-	id2 = arg.d.num;
+	id2 = arg->d.num;
 
 	if(extract_clone_room(room, id1, id2,false))
 		info->mob->progs->lastreturn = 1;
@@ -6318,7 +6322,7 @@ SCRIPT_CMD(do_mpshowroom)
 	CHAR_DATA *viewer = NULL, *next;
 	ROOM_INDEX_DATA *room = NULL, *dest;
 	WILDS_DATA *wilds = NULL;
-	SCRIPT_PARAM arg;
+
 	long mapid;
 	long x,y;
 	long width, height;
@@ -6326,12 +6330,12 @@ SCRIPT_CMD(do_mpshowroom)
 
 	if(!info || !info->mob) return;
 
-	if(!(argument = expand_argument(info,argument,&arg)))
+	if(!(argument = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_MOBILE:	viewer = arg.d.mob; break;
-	case ENT_ROOM:		room = arg.d.room; break;
+	switch(arg->type) {
+	case ENT_MOBILE:	viewer = arg->d.mob; break;
+	case ENT_ROOM:		room = arg->d.room; break;
 	}
 
 	if(!viewer && !room) {
@@ -6339,53 +6343,53 @@ SCRIPT_CMD(do_mpshowroom)
 		return;
 	}
 
-	if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_STRING)
+	if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_STRING)
 		return;
 
-	if(!str_cmp(arg.d.str,"map")) {
-		if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+	if(!str_cmp(arg->d.str,"map")) {
+		if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
 			return;
 
-		mapid = arg.d.num;
+		mapid = arg->d.num;
 
 		wilds = get_wilds_from_uid(NULL,mapid);
 		if(!wilds) return;
 
-		if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+		if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
 			return;
 
-		x = arg.d.num;
+		x = arg->d.num;
 
-		if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+		if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
 			return;
 
-		y = arg.d.num;
+		y = arg->d.num;
 
-		if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+		if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
 			return;
 
-		//z = arg.d.num; TODO: fixme?
+		//z = arg->d.num; TODO: fixme?
 
-		if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+		if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
 			return;
 
-		//scale = arg.d.num; TODO: fixme?
+		//scale = arg->d.num; TODO: fixme?
 
-		if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+		if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
 			return;
 
-		width = arg.d.num;
+		width = arg->d.num;
 
-		if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+		if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
 			return;
 
-		height = arg.d.num;
+		height = arg->d.num;
 
-		if(!(argument = expand_argument(info,argument,&arg)))
+		if(!(argument = expand_argument(info,argument,arg)))
 			return;
 
-		if(arg.type == ENT_STRING)
-			force = !str_cmp(arg.d.str,"force");
+		if(arg->type == ENT_STRING)
+			force = !str_cmp(arg->d.str,"force");
 		else
 			force = false;
 
@@ -6415,27 +6419,27 @@ SCRIPT_CMD(do_mpshowroom)
 
 	// Both room and vroom have the same end mechanism, just different fetching mechanisms
 
-	if(!str_cmp(arg.d.str,"room")) {
-		if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_ROOM)
+	if(!str_cmp(arg->d.str,"room")) {
+		if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_ROOM)
 			return;
 
-		dest = arg.d.room;
-	} else if(!str_cmp(arg.d.str,"vroom")) {
+		dest = arg->d.room;
+	} else if(!str_cmp(arg->d.str,"vroom")) {
 		unsigned long id1, id2;
-		if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_ROOM)
+		if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_ROOM)
 			return;
 
-		dest = arg.d.room;
+		dest = arg->d.room;
 
-		if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+		if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
 			return;
 
-		id1 = arg.d.num;
+		id1 = arg->d.num;
 
-		if(!(argument = expand_argument(info,argument,&arg)) || arg.type != ENT_NUMBER)
+		if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
 			return;
 
-		id2 = arg.d.num;
+		id2 = arg->d.num;
 
 		dest = get_clone_room(dest,id1,id2);
 	} else
@@ -6443,11 +6447,11 @@ SCRIPT_CMD(do_mpshowroom)
 
 	if(!dest) return;
 
-	if(!(argument = expand_argument(info,argument,&arg)))
+	if(!(argument = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type == ENT_STRING)
-		force = !str_cmp(arg.d.str,"force");
+	if(arg->type == ENT_STRING)
+		force = !str_cmp(arg->d.str,"force");
 	else
 		force = false;
 
@@ -6477,7 +6481,7 @@ SCRIPT_CMD(do_mpxcall)
 	OBJ_DATA *obj1 = NULL,*obj2 = NULL;
 	SCRIPT_DATA *script;
 	int depth, vnum, ret, space = PRG_MPROG;
-	SCRIPT_PARAM arg;
+
 
 	DBG2ENTRY2(PTR,info,PTR,argument);
 	if(info->mob) {
@@ -6506,18 +6510,18 @@ SCRIPT_CMD(do_mpxcall)
 		--script_call_depth;
 
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
 		// Restore the call depth to the previous value
 		script_call_depth = depth;
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_MOBILE: mob = arg.d.mob; space = PRG_MPROG; break;
-	case ENT_OBJECT: obj = arg.d.obj; space = PRG_OPROG; break;
-	case ENT_ROOM: room = arg.d.room; space = PRG_RPROG; break;
-	case ENT_TOKEN: token = arg.d.token; space = PRG_TPROG; break;
+	switch(arg->type) {
+	case ENT_MOBILE: mob = arg->d.mob; space = PRG_MPROG; break;
+	case ENT_OBJECT: obj = arg->d.obj; space = PRG_OPROG; break;
+	case ENT_ROOM: room = arg->d.room; space = PRG_RPROG; break;
+	case ENT_TOKEN: token = arg->d.token; space = PRG_TPROG; break;
 	}
 
 	if(!mob && !obj && !room && !token) {
@@ -6535,16 +6539,16 @@ SCRIPT_CMD(do_mpxcall)
 	}
 
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
 		// Restore the call depth to the previous value
 		script_call_depth = depth;
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: vnum = atoi(arg.d.str); break;
-	case ENT_NUMBER: vnum = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: vnum = atoi(arg->d.str); break;
+	case ENT_NUMBER: vnum = arg->d.num; break;
 	default: vnum = 0; break;
 	}
 
@@ -6558,23 +6562,23 @@ SCRIPT_CMD(do_mpxcall)
 
 	if(*rest) {	// Enactor
 		argument = rest;
-		if(!(rest = expand_argument(info,argument,&arg))) {
+		if(!(rest = expand_argument(info,argument,arg))) {
 			bug("MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
 			// Restore the call depth to the previous value
 			script_call_depth = depth;
 			return;
 		}
 
-		switch(arg.type) {
-		case ENT_STRING: ch = get_char_room(info->mob, NULL, arg.d.str); break;
-		case ENT_MOBILE: ch = arg.d.mob; break;
+		switch(arg->type) {
+		case ENT_STRING: ch = get_char_room(info->mob, NULL, arg->d.str); break;
+		case ENT_MOBILE: ch = arg->d.mob; break;
 		default: ch = NULL; break;
 		}
 	}
 
 	if(ch && *rest) {	// Victim
 		argument = rest;
-		if(!(rest = expand_argument(info,argument,&arg))) {
+		if(!(rest = expand_argument(info,argument,arg))) {
 			bug("MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
 			// Restore the call depth to the previous value
 			script_call_depth = depth;
@@ -6582,52 +6586,52 @@ SCRIPT_CMD(do_mpxcall)
 		}
 
 		argument = rest;
-		if(!(rest = expand_argument(info,argument,&arg))) {
+		if(!(rest = expand_argument(info,argument,arg))) {
 			bug("MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
 			// Restore the call depth to the previous value
 			script_call_depth = depth;
 			return;
 		}
 
-		switch(arg.type) {
-		case ENT_STRING: vch = get_char_room(info->mob, NULL, arg.d.str); break;
-		case ENT_MOBILE: vch = arg.d.mob; break;
+		switch(arg->type) {
+		case ENT_STRING: vch = get_char_room(info->mob, NULL, arg->d.str); break;
+		case ENT_MOBILE: vch = arg->d.mob; break;
 		default: vch = NULL; break;
 		}
 	}
 
 	if(*rest) {	// Obj 1
 		argument = rest;
-		if(!(rest = expand_argument(info,argument,&arg))) {
+		if(!(rest = expand_argument(info,argument,arg))) {
 			bug("MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
 			// Restore the call depth to the previous value
 			script_call_depth = depth;
 			return;
 		}
 
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_STRING:
-			obj1 = get_obj_here(info->mob, NULL, arg.d.str);
+			obj1 = get_obj_here(info->mob, NULL, arg->d.str);
 			break;
-		case ENT_OBJECT: obj1 = arg.d.obj; break;
+		case ENT_OBJECT: obj1 = arg->d.obj; break;
 		default: obj1 = NULL; break;
 		}
 	}
 
 	if(obj1 && *rest) {	// Obj 2
 		argument = rest;
-		if(!(rest = expand_argument(info,argument,&arg))) {
+		if(!(rest = expand_argument(info,argument,arg))) {
 			bug("MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
 			// Restore the call depth to the previous value
 			script_call_depth = depth;
 			return;
 		}
 
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_STRING:
-			obj2 = get_obj_here(info->mob, NULL, arg.d.str);
+			obj2 = get_obj_here(info->mob, NULL, arg->d.str);
 			break;
-		case ENT_OBJECT: obj2 = arg.d.obj; break;
+		case ENT_OBJECT: obj2 = arg->d.obj; break;
 		default: obj2 = NULL; break;
 		}
 	}
@@ -6652,18 +6656,18 @@ SCRIPT_CMD(do_mpchargebank)
 	char *rest;
 	CHAR_DATA *victim;
 	int amount = 0;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpChargeBank - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -6672,14 +6676,14 @@ SCRIPT_CMD(do_mpchargebank)
 		return;
 	}
 
-	if(!expand_argument(info,rest,&arg)) {
+	if(!expand_argument(info,rest,arg)) {
 		bug("MpChargeBank - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: amount = atoi(arg.d.str); break;
-	case ENT_NUMBER: amount = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: amount = atoi(arg->d.str); break;
+	case ENT_NUMBER: amount = arg->d.num; break;
 	default: amount = 0; break;
 	}
 
@@ -6696,18 +6700,18 @@ SCRIPT_CMD(do_mpwiretransfer)
 	char buf[MSL], *rest;
 	CHAR_DATA *victim;
 	int amount = 0;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpWireTransfer - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg.d.str); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = get_char_room(info->mob, NULL, arg->d.str); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -6716,14 +6720,14 @@ SCRIPT_CMD(do_mpwiretransfer)
 		return;
 	}
 
-	if(!expand_argument(info,rest,&arg)) {
+	if(!expand_argument(info,rest,arg)) {
 		bug("MpWireTransfer - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: amount = atoi(arg.d.str); break;
-	case ENT_NUMBER: amount = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: amount = atoi(arg->d.str); break;
+	case ENT_NUMBER: amount = arg->d.num; break;
 	default: amount = 0; break;
 	}
 
@@ -6751,20 +6755,20 @@ SCRIPT_CMD(do_mpsetrecall)
 	CHAR_DATA *victim;
 	ROOM_INDEX_DATA *location;
 //	int amount = 0; - Unused???
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpSetRecall - Bad syntax from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		victim = get_char_world(info->mob, arg.d.str);
+		victim = get_char_world(info->mob, arg->d.str);
 		break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -6798,20 +6802,20 @@ SCRIPT_CMD(do_mpclearrecall)
 	CHAR_DATA *victim;
 //	ROOM_INDEX_DATA *location; - Unused???
 //	int amount = 0; - Unused???
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpClearRecall - Bad syntax from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		victim = get_char_world(info->mob, arg.d.str);
+		victim = get_char_world(info->mob, arg->d.str);
 		break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -6831,18 +6835,18 @@ SCRIPT_CMD(do_mphunt)
 	char *rest;
 	CHAR_DATA *hunter = NULL;
 	CHAR_DATA *prey = NULL;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpHunt - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_STRING: prey = get_char_world(info->mob, arg.d.str); break;
-	case ENT_MOBILE: prey = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: prey = get_char_world(info->mob, arg->d.str); break;
+	case ENT_MOBILE: prey = arg->d.mob; break;
 	default: prey = NULL; break;
 	}
 
@@ -6852,16 +6856,16 @@ SCRIPT_CMD(do_mphunt)
 	}
 
 	if(*rest) {
-		if(!expand_argument(info,rest,&arg)) {
+		if(!expand_argument(info,rest,arg)) {
 			bug("MpHunt - Error in parsing from vnum %ld.", VNUM(info->mob));
 			return;
 		}
 
 		hunter = prey;
 
-		switch(arg.type) {
-		case ENT_STRING: prey = get_char_world(info->mob, arg.d.str); break;
-		case ENT_MOBILE: prey = arg.d.mob; break;
+		switch(arg->type) {
+		case ENT_STRING: prey = get_char_world(info->mob, arg->d.str); break;
+		case ENT_MOBILE: prey = arg->d.mob; break;
 		default: prey = NULL; break;
 		}
 
@@ -6882,26 +6886,26 @@ SCRIPT_CMD(do_mpstophunt)
 	char *rest;
 	CHAR_DATA *hunter = NULL;
 	bool stay;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)) || arg.type != ENT_STRING) {
+	if(!(rest = expand_argument(info,argument,arg)) || arg->type != ENT_STRING) {
 		bug("MpStopHunt - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	stay = !str_cmp(arg.d.str,"true") || !str_cmp(arg.d.str,"yes") || !str_cmp(arg.d.str,"stay");
+	stay = !str_cmp(arg->d.str,"true") || !str_cmp(arg->d.str,"yes") || !str_cmp(arg->d.str,"stay");
 
-	if(!expand_argument(info,rest,&arg)) {
+	if(!expand_argument(info,rest,arg)) {
 		bug("MpStopHunt - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_NONE: hunter = info->mob; break;
-	case ENT_STRING: hunter = get_char_world(info->mob, arg.d.str); break;
-	case ENT_MOBILE: hunter = arg.d.mob; break;
+	case ENT_STRING: hunter = get_char_world(info->mob, arg->d.str); break;
+	case ENT_MOBILE: hunter = arg->d.mob; break;
 	default: hunter = NULL; break;
 	}
 
@@ -6922,19 +6926,19 @@ SCRIPT_CMD(do_mppersist)
 	OBJ_DATA *obj = NULL;
 	ROOM_INDEX_DATA *room = NULL;
 	bool persist = FALSE, current = FALSE;
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) {
+	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("MpPersist - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
 
-	switch(arg.type) {
-	case ENT_MOBILE: mob = arg.d.mob; current = mob->persist; break;
-	case ENT_OBJECT: obj = arg.d.obj; current = obj->persist; break;
-	case ENT_ROOM: room = arg.d.room; current = room->persist; break;
+	switch(arg->type) {
+	case ENT_MOBILE: mob = arg->d.mob; current = mob->persist; break;
+	case ENT_OBJECT: obj = arg->d.obj; current = obj->persist; break;
+	case ENT_ROOM: room = arg->d.room; current = room->persist; break;
 	}
 
 	if(!mob && !obj && !room) {
@@ -6947,14 +6951,14 @@ SCRIPT_CMD(do_mppersist)
 		return;
 	}
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpPersist - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_NONE:   persist = !current; break;
-	case ENT_STRING: persist = !str_cmp(arg.d.str,"true") || !str_cmp(arg.d.str,"yes") || !str_cmp(arg.d.str,"on"); break;
+	case ENT_STRING: persist = !str_cmp(arg->d.str,"true") || !str_cmp(arg->d.str,"yes") || !str_cmp(arg->d.str,"on"); break;
 	default: return;
 	}
 
@@ -6990,7 +6994,7 @@ SCRIPT_CMD(do_mppersist)
 SCRIPT_CMD(do_mpskill)
 {
 	char buf[MIL];
-	SCRIPT_PARAM arg;
+
 	char *rest;
 	CHAR_DATA *mob = NULL;
 	int sn, value;
@@ -6999,36 +7003,36 @@ SCRIPT_CMD(do_mpskill)
 
 	if ( script_security < 9 ) return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) return;
+	if(!(rest = expand_argument(info,argument,arg))) return;
 
-	if(arg.type != ENT_MOBILE) return;
+	if(arg->type != ENT_MOBILE) return;
 
-	mob = arg.d.mob;
+	mob = arg->d.mob;
 
 	if( !mob || IS_NPC(mob) ) return;	// only players for now
 
 	if( !*rest) return;
 
-	if(!(rest = expand_argument(info,rest,&arg))) return;
+	if(!(rest = expand_argument(info,rest,arg))) return;
 
-	if(arg.type != ENT_STRING) return;
+	if(arg->type != ENT_STRING) return;
 
-	sn = skill_lookup(arg.d.str);
+	sn = skill_lookup(arg->d.str);
 
 	if( sn < 1 || sn >= MAX_SKILL ) return;
 
 	argument = one_argument(rest,buf);
 
-	if(!(rest = expand_argument(info,argument,&arg))) return;
+	if(!(rest = expand_argument(info,argument,arg))) return;
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if( is_number(arg.d.str ))
-			value = atoi(arg.d.str);
+		if( is_number(arg->d.str ))
+			value = atoi(arg->d.str);
 		else
 			return;
 		break;
-	case ENT_NUMBER: value = arg.d.num; break;
+	case ENT_NUMBER: value = arg->d.num; break;
 	default: return;
 	}
 
@@ -7079,7 +7083,7 @@ SCRIPT_CMD(do_mpskill)
 SCRIPT_CMD(do_mpskillgroup)
 {
 	char buf[MIL];
-	SCRIPT_PARAM arg;
+
 	char *rest;
 	CHAR_DATA *mob = NULL;
 	int gn;
@@ -7089,12 +7093,12 @@ SCRIPT_CMD(do_mpskillgroup)
 
 	if ( script_security < 9 ) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_MOBILE) return;
+	if(arg->type != ENT_MOBILE) return;
 
-	mob = arg.d.mob;
+	mob = arg->d.mob;
 
 	if( !mob || IS_NPC(mob) ) return;	// only players for now
 
@@ -7109,11 +7113,11 @@ SCRIPT_CMD(do_mpskillgroup)
 	else
 		return;
 
-	if(!(rest = expand_argument(info,argument,&arg))) return;
+	if(!(rest = expand_argument(info,argument,arg))) return;
 
-	if(arg.type != ENT_STRING) return;
+	if(arg->type != ENT_STRING) return;
 
-	gn = group_lookup(arg.d.str);
+	gn = group_lookup(arg->d.str);
 	if( gn != -1)
 	{
 		if( fAdd )
@@ -7135,34 +7139,34 @@ SCRIPT_CMD(do_mpskillgroup)
 // Adjusts the specified condition by the given value
 SCRIPT_CMD(do_mpcondition)
 {
-	SCRIPT_PARAM arg;
+
 	char *rest;
 	CHAR_DATA *mob = NULL;
 	int cond, value;
 
 	if(!info || !info->mob || IS_NULLSTR(argument)) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_MOBILE) return;
+	if(arg->type != ENT_MOBILE) return;
 
-	mob = arg.d.mob;
+	mob = arg->d.mob;
 
 	if( !mob || IS_NPC(mob) ) return;	// only players for now
 
 	if( !*rest) return;
 
-	if(!(rest = expand_argument(info,rest,&arg)))
+	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if( !str_cmp(arg.d.str,"drunk") )		cond = COND_DRUNK;
-		else if( !str_cmp(arg.d.str,"full") )	cond = COND_FULL;
-		else if( !str_cmp(arg.d.str,"thirst") )	cond = COND_THIRST;
-		else if( !str_cmp(arg.d.str,"hunger") )	cond = COND_HUNGER;
-		else if( !str_cmp(arg.d.str,"stoned") )	cond = COND_STONED;
+		if( !str_cmp(arg->d.str,"drunk") )		cond = COND_DRUNK;
+		else if( !str_cmp(arg->d.str,"full") )	cond = COND_FULL;
+		else if( !str_cmp(arg->d.str,"thirst") )	cond = COND_THIRST;
+		else if( !str_cmp(arg->d.str,"hunger") )	cond = COND_HUNGER;
+		else if( !str_cmp(arg->d.str,"stoned") )	cond = COND_STONED;
 		else
 			return;
 
@@ -7171,12 +7175,12 @@ SCRIPT_CMD(do_mpcondition)
 	}
 
 	if(!*rest) return;
-	if(!(rest = expand_argument(info,rest,&arg)))
+	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: value = is_number(arg.d.str) ? atoi(arg.d.str) : 0; break;
-	case ENT_NUMBER: value = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: value = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
+	case ENT_NUMBER: value = arg->d.num; break;
 	default: return;
 	}
 
@@ -7193,7 +7197,7 @@ SCRIPT_CMD(do_mpcondition)
 // addspell $OBJECT STRING[ NUMBER]
 SCRIPT_CMD(do_mpaddspell)
 {
-	SCRIPT_PARAM arg;
+
 	char *rest;
 	SPELL_DATA *spell, *spell_new;
 	OBJ_DATA *target;
@@ -7203,33 +7207,33 @@ SCRIPT_CMD(do_mpaddspell)
 
 	if(!info || !info->mob || IS_NULLSTR(argument)) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_OBJECT || !arg.d.obj) return;
+	if(arg->type != ENT_OBJECT || !arg->d.obj) return;
 
-	target = arg.d.obj;
+	target = arg->d.obj;
 	level = target->level;
 
-	if(!(rest = expand_argument(info,rest,&arg)))
+	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	if(arg.type != ENT_STRING || IS_NULLSTR(arg.d.str)) return;
+	if(arg->type != ENT_STRING || IS_NULLSTR(arg->d.str)) return;
 
-	sn = skill_lookup(arg.d.str);
+	sn = skill_lookup(arg->d.str);
 	if( sn <= 0 ) return;
 
 	// Add security check for the spell function
 	if(skill_table[sn].spell_fun == spell_null) return;
 
 	if( rest && *rest ) {
-		if(!(rest = expand_argument(info,rest,&arg)))
+		if(!(rest = expand_argument(info,rest,arg)))
 			return;
 
 		// Must be a number, positive and no greater than the object's level
-		if(arg.type != ENT_NUMBER || arg.d.num < 1 || arg.d.num > target->level) return;
+		if(arg->type != ENT_NUMBER || arg->d.num < 1 || arg->d.num > target->level) return;
 
-		level = arg.d.num;
+		level = arg->d.num;
 
 	}
 
@@ -7303,7 +7307,7 @@ SCRIPT_CMD(do_mpaddspell)
 // remspell $OBJECT STRING[ silent]
 SCRIPT_CMD(do_mpremspell)
 {
-	SCRIPT_PARAM arg;
+
 	char *rest;
 	SPELL_DATA *spell, *spell_prev;
 	OBJ_DATA *target;
@@ -7314,31 +7318,31 @@ SCRIPT_CMD(do_mpremspell)
 
 	if(!info || !info->mob || IS_NULLSTR(argument)) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_OBJECT || !arg.d.obj) return;
+	if(arg->type != ENT_OBJECT || !arg->d.obj) return;
 
-	target = arg.d.obj;
+	target = arg->d.obj;
 
-	if(!(rest = expand_argument(info,rest,&arg)))
+	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	if(arg.type != ENT_STRING || IS_NULLSTR(arg.d.str)) return;
+	if(arg->type != ENT_STRING || IS_NULLSTR(arg->d.str)) return;
 
-	sn = skill_lookup(arg.d.str);
+	sn = skill_lookup(arg->d.str);
 	if( sn <= 0 ) return;
 
 	// Add security check for the spell function
 	if(skill_table[sn].spell_fun == spell_null) return;
 
 	if( rest && *rest ) {
-		if(!(rest = expand_argument(info,rest,&arg)))
+		if(!(rest = expand_argument(info,rest,arg)))
 			return;
 
-		if(arg.type != ENT_STRING || IS_NULLSTR(arg.d.str)) return;
+		if(arg->type != ENT_STRING || IS_NULLSTR(arg->d.str)) return;
 
-		if( !str_cmp(arg.d.str, "silent") )
+		if( !str_cmp(arg->d.str, "silent") )
 			show = FALSE;
 	}
 
@@ -7436,42 +7440,42 @@ SCRIPT_CMD(do_mpremspell)
 SCRIPT_CMD(do_mpalteraffect)
 {
 	char buf[MIL],field[MIL],*rest;
-	SCRIPT_PARAM arg;
+
 	AFFECT_DATA *paf;
 	int value;
 
 	if(!info || !info->mob || IS_NULLSTR(argument)) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_AFFECT || !arg.d.aff) return;
+	if(arg->type != ENT_AFFECT || !arg->d.aff) return;
 
-	paf = arg.d.aff;
+	paf = arg->d.aff;
 
-	if(!(rest = expand_argument(info,rest,&arg))) {
+	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("MpAlterAffect - Error in parsing.",0);
 		return;
 	}
 
 	if( IS_NULLSTR(rest) ) return;
 
-	if( arg.type != ENT_STRING || IS_NULLSTR(arg.d.str) ) return;
+	if( arg->type != ENT_STRING || IS_NULLSTR(arg->d.str) ) return;
 
-	strncpy(field,arg.d.str,MIL-1);
+	strncpy(field,arg->d.str,MIL-1);
 
 
 	if( !str_cmp(field, "level") ) {
 		argument = one_argument(rest,buf);
 
-		if(!(rest = expand_argument(info,argument,&arg))) {
+		if(!(rest = expand_argument(info,argument,arg))) {
 			bug("MpAlterAffect - Error in parsing.",0);
 			return;
 		}
 
-		switch(arg.type) {
-		case ENT_STRING: value = is_number(arg.d.str) ? atoi(arg.d.str) : 0; break;
-		case ENT_NUMBER: value = arg.d.num; break;
+		switch(arg->type) {
+		case ENT_STRING: value = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
+		case ENT_NUMBER: value = arg->d.num; break;
 		default: return;
 		}
 
@@ -7507,7 +7511,7 @@ SCRIPT_CMD(do_mpalteraffect)
 	if(!str_cmp(field, "duration")) {
 		argument = one_argument(rest,buf);
 
-		if(!(rest = expand_argument(info,argument,&arg))) {
+		if(!(rest = expand_argument(info,argument,arg))) {
 			bug("MpAlterAffect - Error in parsing.",0);
 			return;
 		}
@@ -7529,9 +7533,9 @@ SCRIPT_CMD(do_mpalteraffect)
 		}
 
 
-		switch(arg.type) {
-		case ENT_STRING: value = is_number(arg.d.str) ? atoi(arg.d.str) : 0; break;
-		case ENT_NUMBER: value = arg.d.num; break;
+		switch(arg->type) {
+		case ENT_STRING: value = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
+		case ENT_NUMBER: value = arg->d.num; break;
 		default: return;
 		}
 
@@ -7604,7 +7608,7 @@ SCRIPT_CMD(do_mpcrier)
 // - scripts must be available for the respective actor type
 SCRIPT_CMD(do_mpscriptwait)
 {
-	SCRIPT_PARAM arg;
+
 	char *rest;
 	CHAR_DATA *mob = NULL;
 	int wait;
@@ -7618,12 +7622,12 @@ SCRIPT_CMD(do_mpscriptwait)
 
 	info->mob->progs->lastreturn = 0;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_MOBILE) return;
+	if(arg->type != ENT_MOBILE) return;
 
-	mob = arg.d.mob;
+	mob = arg->d.mob;
 
 	if( !mob ) return;
 
@@ -7634,12 +7638,12 @@ SCRIPT_CMD(do_mpscriptwait)
 	}
 	if( !*rest) return;
 
-	if(!(rest = expand_argument(info,rest,&arg)))
+	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: wait = is_number(arg.d.str) ? atoi(arg.d.str) : 0; break;
-	case ENT_NUMBER: wait = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: wait = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
+	case ENT_NUMBER: wait = arg->d.num; break;
 	default: return;
 	}
 
@@ -7648,46 +7652,46 @@ SCRIPT_CMD(do_mpscriptwait)
 
 	if( !*rest) return;
 
-	if(!(rest = expand_argument(info,rest,&arg)))
+	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: success = is_number(arg.d.str) ? atoi(arg.d.str) : 0; break;
-	case ENT_NUMBER: success = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: success = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
+	case ENT_NUMBER: success = arg->d.num; break;
 	default: return;
 	}
 
 	if( !*rest) return;
 
-	if(!(rest = expand_argument(info,rest,&arg)))
+	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: failure = is_number(arg.d.str) ? atoi(arg.d.str) : 0; break;
-	case ENT_NUMBER: failure = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: failure = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
+	case ENT_NUMBER: failure = arg->d.num; break;
 	default: return;
 	}
 
 	if( !*rest) return;
 
-	if(!(rest = expand_argument(info,rest,&arg)))
+	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: pulse = is_number(arg.d.str) ? atoi(arg.d.str) : 0; break;
-	case ENT_NUMBER: pulse = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_STRING: pulse = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
+	case ENT_NUMBER: pulse = arg->d.num; break;
 	default: return;
 	}
 
 	actor_mob = info->mob;
 	prog_type = PRG_MPROG;
 	if(rest && *rest) {
-		if(!(rest = expand_argument(info,rest,&arg)))
+		if(!(rest = expand_argument(info,rest,arg)))
 			return;
 
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_MOBILE:
-			actor_mob = arg.d.mob;
+			actor_mob = arg->d.mob;
 			actor_obj = NULL;
 			actor_token = NULL;
 			prog_type = PRG_MPROG;
@@ -7695,7 +7699,7 @@ SCRIPT_CMD(do_mpscriptwait)
 
 		case ENT_OBJECT:
 			actor_mob = NULL;
-			actor_obj = arg.d.obj;
+			actor_obj = arg->d.obj;
 			actor_token = NULL;
 			prog_type = PRG_OPROG;
 			break;
@@ -7703,7 +7707,7 @@ SCRIPT_CMD(do_mpscriptwait)
 		case ENT_TOKEN:
 			actor_mob = NULL;
 			actor_obj = NULL;
-			actor_token = arg.d.token;
+			actor_token = arg->d.token;
 			prog_type = PRG_TPROG;
 			break;
 
@@ -7747,42 +7751,42 @@ SCRIPT_CMD(do_mpscriptwait)
 SCRIPT_CMD(do_mpsaveplayer)
 {
 	char *rest;
-	SCRIPT_PARAM arg;
+
     CHAR_DATA *mob;
 
 	if(!info || !info->mob || IS_NULLSTR(argument)) return;
 
 	info->mob->progs->lastreturn = 0;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_MOBILE || !arg.d.mob) return;
+	if(arg->type != ENT_MOBILE || !arg->d.mob) return;
 
-	mob = arg.d.mob;
+	mob = arg->d.mob;
 	if(IS_NPC(mob)) return;
 
 	save_char_obj(mob);
 
 	info->mob->progs->lastreturn = 1;
 
-	if(!(rest = expand_argument(info,rest,&arg)))
+	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if( !str_cmp(arg.d.str, "none") ||
-			!str_cmp(arg.d.str, "clear") ||
-			!str_cmp(arg.d.str, "reset") )
+		if( !str_cmp(arg->d.str, "none") ||
+			!str_cmp(arg->d.str, "clear") ||
+			!str_cmp(arg->d.str, "reset") )
 			mob->checkpoint = NULL;
 		break;
 	case ENT_NUMBER:
-		if( arg.d.num > 0 )
-			mob->checkpoint = get_room_index(arg.d.num);
+		if( arg->d.num > 0 )
+			mob->checkpoint = get_room_index(arg->d.num);
 		break;
 	case ENT_ROOM:
-		if( arg.d.room != NULL )
-			mob->checkpoint = arg.d.room;
+		if( arg->d.room != NULL )
+			mob->checkpoint = arg->d.room;
 		break;
 	}
 }
@@ -7797,36 +7801,36 @@ SCRIPT_CMD(do_mpsaveplayer)
 SCRIPT_CMD(do_mpcheckpoint)
 {
 	char *rest;
-	SCRIPT_PARAM arg;
+
     CHAR_DATA *mob;
 
 	if(!info || !info->mob || IS_NULLSTR(argument)) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_MOBILE || !arg.d.mob) return;
+	if(arg->type != ENT_MOBILE || !arg->d.mob) return;
 
-	mob = arg.d.mob;
+	mob = arg->d.mob;
 	if(IS_NPC(mob)) return;
 
-	if(!(rest = expand_argument(info,rest,&arg)))
+	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	switch(arg.type) {
+	switch(arg->type) {
 	case ENT_STRING:
-		if( !str_cmp(arg.d.str, "none") ||
-			!str_cmp(arg.d.str, "clear") ||
-			!str_cmp(arg.d.str, "reset") )
+		if( !str_cmp(arg->d.str, "none") ||
+			!str_cmp(arg->d.str, "clear") ||
+			!str_cmp(arg->d.str, "reset") )
 			mob->checkpoint = NULL;
 		break;
 	case ENT_NUMBER:
-		if( arg.d.num > 0 )
-			mob->checkpoint = get_room_index(arg.d.num);
+		if( arg->d.num > 0 )
+			mob->checkpoint = get_room_index(arg->d.num);
 		break;
 	case ENT_ROOM:
-		if( arg.d.room != NULL )
-			mob->checkpoint = arg.d.room;
+		if( arg->d.room != NULL )
+			mob->checkpoint = arg->d.room;
 		break;
 	}
 }
@@ -7834,18 +7838,18 @@ SCRIPT_CMD(do_mpcheckpoint)
 // Syntax: FIXAFFECTS $MOBILE
 SCRIPT_CMD(do_mpfixaffects)
 {
-	SCRIPT_PARAM arg;
+
 
 	if(!info || !info->mob || IS_NULLSTR(argument)) return;
 
-	if(!expand_argument(info,argument,&arg))
+	if(!expand_argument(info,argument,arg))
 		return;
 
-	if(arg.type != ENT_MOBILE) return;
+	if(arg->type != ENT_MOBILE) return;
 
-	if(arg.d.mob == NULL) return;
+	if(arg->d.mob == NULL) return;
 
-	affect_fix_char(arg.d.mob);
+	affect_fix_char(arg->d.mob);
 }
 
 // Syntax: remort $PLAYER
@@ -7853,19 +7857,19 @@ SCRIPT_CMD(do_mpfixaffects)
 SCRIPT_CMD(do_mpremort)
 {
 	char *rest;
-	SCRIPT_PARAM arg;
+
     CHAR_DATA *mob;
 
 	if(!info || !info->mob || IS_NULLSTR(argument)) return;
 
 	info->mob->progs->lastreturn = 0;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_MOBILE || !arg.d.mob) return;
+	if(arg->type != ENT_MOBILE || !arg->d.mob) return;
 
-	mob = arg.d.mob;
+	mob = arg->d.mob;
 	if(IS_NPC(mob) || !mob->desc || is_char_busy(mob)) return;
 
 	// Are they already being prompted
@@ -7894,26 +7898,26 @@ SCRIPT_CMD(do_mpremort)
 SCRIPT_CMD(do_mprestore)
 {
 	char *rest;
-	SCRIPT_PARAM arg;
+
 	int amount = 100;
 
 	if(!info || !info->mob || IS_NULLSTR(argument)) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_MOBILE || !arg.d.mob) return;
+	if(arg->type != ENT_MOBILE || !arg->d.mob) return;
 
 	if(*rest) {
-		if(!(rest = expand_argument(info,rest,&arg)))
+		if(!(rest = expand_argument(info,rest,arg)))
 			return;
 
-		if(arg.type != ENT_NUMBER) return;
+		if(arg->type != ENT_NUMBER) return;
 
-		amount = URANGE(1,arg.d.num,100);
+		amount = URANGE(1,arg->d.num,100);
 	}
 
-	restore_char(arg.d.mob, NULL, amount);
+	restore_char(arg->d.mob, NULL, amount);
 }
 
 // GROUP npc(FOLLOWER)[ mobile(LEADER=self)][ bool(SHOW=true)]
@@ -7924,7 +7928,7 @@ SCRIPT_CMD(do_mprestore)
 SCRIPT_CMD(do_mpgroup)
 {
 	char *rest;
-	SCRIPT_PARAM arg;
+
 	CHAR_DATA *follower, *leader;
 	bool fShow = TRUE;
 
@@ -7932,41 +7936,41 @@ SCRIPT_CMD(do_mpgroup)
 
 	info->mob->progs->lastreturn = 0;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_MOBILE || !arg.d.mob || !IS_NPC(arg.d.mob)) return;
+	if(arg->type != ENT_MOBILE || !arg->d.mob || !IS_NPC(arg->d.mob)) return;
 
-	follower = arg.d.mob;
+	follower = arg->d.mob;
 	leader = info->mob;
 
 	if( *rest ) {
-		if(!(rest = expand_argument(info,rest,&arg)))
+		if(!(rest = expand_argument(info,rest,arg)))
 			return;
 
-		if( arg.type == ENT_NUMBER )
+		if( arg->type == ENT_NUMBER )
 		{
-			fShow = (arg.d.num != 0);
+			fShow = (arg->d.num != 0);
 		}
-		else if( arg.type == ENT_STRING )
+		else if( arg->type == ENT_STRING )
 		{
-			fShow = !str_cmp(arg.d.str, "yes") || !str_cmp(arg.d.str, "true") || !str_cmp(arg.d.str, "show");
+			fShow = !str_cmp(arg->d.str, "yes") || !str_cmp(arg->d.str, "true") || !str_cmp(arg->d.str, "show");
 		}
-		else if( arg.type == ENT_MOBILE && arg.d.mob )
+		else if( arg->type == ENT_MOBILE && arg->d.mob )
 		{
-			leader = arg.d.mob;
+			leader = arg->d.mob;
 
 			if( *rest ) {
-				if(!(rest = expand_argument(info,rest,&arg)))
+				if(!(rest = expand_argument(info,rest,arg)))
 					return;
 
-				if( arg.type == ENT_NUMBER )
+				if( arg->type == ENT_NUMBER )
 				{
-					fShow = (arg.d.num != 0);
+					fShow = (arg->d.num != 0);
 				}
-				else if( arg.type == ENT_STRING )
+				else if( arg->type == ENT_STRING )
 				{
-					fShow = !str_cmp(arg.d.str, "yes") || !str_cmp(arg.d.str, "true") || !str_cmp(arg.d.str, "show");
+					fShow = !str_cmp(arg->d.str, "yes") || !str_cmp(arg->d.str, "true") || !str_cmp(arg->d.str, "show");
 				}
 				else
 					return;
@@ -7984,24 +7988,24 @@ SCRIPT_CMD(do_mpgroup)
 SCRIPT_CMD(do_mpungroup)
 {
 	char *rest;
-	SCRIPT_PARAM arg;
+
 	bool fAll = FALSE;
 
 	if(!info || !info->mob || IS_NULLSTR(argument)) return;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_MOBILE || !arg.d.mob) return;
+	if(arg->type != ENT_MOBILE || !arg->d.mob) return;
 
 	if( *rest ) {
-		if( arg.type == ENT_NUMBER )
+		if( arg->type == ENT_NUMBER )
 		{
-			fAll = (arg.d.num != 0);
+			fAll = (arg->d.num != 0);
 		}
-		else if( arg.type == ENT_STRING )
+		else if( arg->type == ENT_STRING )
 		{
-			fAll = !str_cmp(arg.d.str, "yes") || !str_cmp(arg.d.str, "true") || !str_cmp(arg.d.str, "all");
+			fAll = !str_cmp(arg->d.str, "yes") || !str_cmp(arg->d.str, "true") || !str_cmp(arg->d.str, "all");
 		}
 		else
 			return;
@@ -8009,7 +8013,7 @@ SCRIPT_CMD(do_mpungroup)
 
 	if( fAll ) {
 		ITERATOR git;
-		CHAR_DATA *leader = (arg.d.mob->leader != NULL) ? arg.d.mob->leader : arg.d.mob;
+		CHAR_DATA *leader = (arg->d.mob->leader != NULL) ? arg->d.mob->leader : arg->d.mob;
 		CHAR_DATA *follower;
 
 		if( leader->num_grouped < 1 )
@@ -8022,7 +8026,7 @@ SCRIPT_CMD(do_mpungroup)
 	}
 	else
 	{
-		stop_grouped(arg.d.mob);
+		stop_grouped(arg->d.mob);
 	}
 }
 
