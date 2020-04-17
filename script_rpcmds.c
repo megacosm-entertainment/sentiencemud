@@ -651,7 +651,6 @@ char *rp_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 
 SCRIPT_CMD(do_rpasound)
 {
-	char buf[MSL];
 	ROOM_INDEX_DATA *rooms[MAX_DIR], *room;
 	int door, i, j;
 	EXIT_DATA *pexit;
@@ -666,22 +665,27 @@ SCRIPT_CMD(do_rpasound)
 
 	if (door < MAX_DIR) {
 		// Expand the message
-		expand_string(info,argument,buf);
-		if(!buf[0]) return;
+		BUFFER *buffer = new_buf();
+		expand_string(info,argument,buffer);
 
-		for (i = 0; door < MAX_DIR; door++)
-			if ((pexit = info->room->exit[door]) && (room = exit_destination(pexit)) && room != info->room) {
-				// Have we been to this room already?
-				for(j=0;j < i && rooms[j] != room; j++);
+		if( buffer->string[0] != '\0' )
+		{
 
-				if(i <= j) {
-					// No, so do the message
-					MOBtrigger  = FALSE;
-					act(buf, room->people, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL);
-					MOBtrigger  = TRUE;
-					rooms[i++] = room;
+			for (i = 0; door < MAX_DIR; door++)
+				if ((pexit = info->room->exit[door]) && (room = exit_destination(pexit)) && room != info->room) {
+					// Have we been to this room already?
+					for(j=0;j < i && rooms[j] != room; j++);
+
+					if(i <= j) {
+						// No, so do the message
+						MOBtrigger  = FALSE;
+						act(buffer->string, room->people, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL);
+						MOBtrigger  = TRUE;
+						rooms[i++] = room;
+					}
 				}
-			}
+		}
+		free_buf(buffer);
 
 	}
 }
@@ -1040,23 +1044,24 @@ SCRIPT_CMD(do_rpdequeue)
 // do_rpecho
 SCRIPT_CMD(do_rpecho)
 {
-	char buf[MSL];
-
 	if(!info || !info->room) return;
 
-	expand_string(info,argument,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,argument,buffer);
 
-	if(!buf[0]) return;
-
-	strcat(buf,"\n\r");
-	room_echo(info->room, buf);
+	if( buffer->string[0] != '\0' )
+	{
+		add_buf(buffer,"\n\r");
+		room_echo(info->room, buffer->string);
+	}
+	free_buf(buffer);
 }
 
 // do_rpechoroom
 // Syntax: room echoroom <location> <string>
 SCRIPT_CMD(do_rpechoroom)
 {
-	char buf[MSL], *rest;
+	char *rest;
 	ROOM_INDEX_DATA *room;
 
 
@@ -1076,19 +1081,22 @@ SCRIPT_CMD(do_rpechoroom)
 	if (!room || !room->people) return;
 
 	// Expand the message
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf()
+	expand_string(info,rest,buffer);
 
-	if(!buf[0]) return;
-
-	strcat(buf,"\n\r");
-	room_echo(room, buf);
+	if( buffer->string[0] != '\0' )
+	{
+		add_buf(buffer,"\n\r");
+		room_echo(room, buffer->string);
+	}
+	free_buf(buffer);
 }
 
 
 // do_rpechoaround
 SCRIPT_CMD(do_rpechoaround)
 {
-	char buf[MSL], *rest;
+	char *rest;
 	CHAR_DATA *victim;
 
 
@@ -1107,17 +1115,21 @@ SCRIPT_CMD(do_rpechoaround)
 		return;
 
 	// Expand the message
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
-	if(!buf[0]) return;
+	if( buffer->string[0] != '\0' )
+	{
+		act(buffer->string, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	}
 
-	act(buf, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	free_buf(buffer);
 }
 
 // do_rpechonotvict
 SCRIPT_CMD(do_rpechonotvict)
 {
-	char buf[MSL], *rest;
+	char *rest;
 	CHAR_DATA *victim, *attacker;
 
 
@@ -1148,16 +1160,20 @@ SCRIPT_CMD(do_rpechonotvict)
 		return;
 
 	// Expand the message
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
-	if(!buf[0]) return;
+	if( buffer->string[0] != '\0' )
+	{
+		act(buffer->string, victim, attacker, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
+	}
 
-	act(buf, victim, attacker, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
+	free_buf(buffer);
 }
 
 SCRIPT_CMD(do_rpechobattlespam)
 {
-	char buf[MSL], *rest;
+	char *rest;
 	CHAR_DATA *victim, *attacker, *ch;
 
 
@@ -1188,21 +1204,25 @@ SCRIPT_CMD(do_rpechobattlespam)
 		return;
 
 	// Expand the message
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
-	if(!buf[0]) return;
-
-	for (ch = attacker->in_room->people; ch; ch = ch->next_in_room) {
-		if (!IS_NPC(ch) && (ch != attacker && ch != victim) && (is_same_group(ch, attacker) || is_same_group(ch, victim) || !IS_SET(ch->comm, COMM_NOBATTLESPAM))) {
-			act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	if( buffer->string[0] != '\0' )
+	{
+		for (ch = attacker->in_room->people; ch; ch = ch->next_in_room) {
+			if (!IS_NPC(ch) && (ch != attacker && ch != victim) && (is_same_group(ch, attacker) || is_same_group(ch, victim) || !IS_SET(ch->comm, COMM_NOBATTLESPAM))) {
+				act(buffer->string, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			}
 		}
 	}
+
+	free_buf(buffer);
 }
 
 // do_rpechoat
 SCRIPT_CMD(do_rpechoat)
 {
-	char buf[MSL], *rest;
+	char *rest;
 	CHAR_DATA *victim;
 
 
@@ -1221,17 +1241,21 @@ SCRIPT_CMD(do_rpechoat)
 		return;
 
 	// Expand the message
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
-	if(!buf[0]) return;
+	if( buffer->string[0] != '\0' )
+	{
+		act(buffer->string, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	}
 
-	act(buf, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	free_buf(buffer);
 }
 
 // do_rpechochurch
 SCRIPT_CMD(do_rpechochurch)
 {
-	char buf[MSL], *rest;
+	char *rest;
 	CHAR_DATA *victim;
 
 
@@ -1250,11 +1274,15 @@ SCRIPT_CMD(do_rpechochurch)
 		return;
 
 	// Expand the message
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
-	if(!buf[0]) return;
+	if( buffer->string[0] != '\0' )
+	{
+		msg_church_members(victim->church, buffer->string);
+	}
 
-	msg_church_members(victim->church, buf);
+	free_buf(buffer);
 }
 
 
@@ -1262,7 +1290,7 @@ SCRIPT_CMD(do_rpechochurch)
 // do_rpechogrouparound
 SCRIPT_CMD(do_rpechogrouparound)
 {
-	char buf[MSL], *rest;
+	char *rest;
 	CHAR_DATA *victim;
 
 
@@ -1281,17 +1309,21 @@ SCRIPT_CMD(do_rpechogrouparound)
 		return;
 
 	// Expand the message
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
-	if(!buf[0]) return;
+	if( buffer->string[0] != '\0' )
+	{
+		act_new(buffer->string,victim,NULL,NULL,NULL,NULL,NULL,NULL,TO_NOTFUNC,POS_RESTING,rop_same_group);
+	}
 
-	act_new(buf,victim,NULL,NULL,NULL,NULL,NULL,NULL,TO_NOTFUNC,POS_RESTING,rop_same_group);
+	free_buf(buffer);
 }
 
 // do_rpechogroupat
 SCRIPT_CMD(do_rpechogroupat)
 {
-	char buf[MSL], *rest;
+	char *rest;
 	CHAR_DATA *victim;
 
 
@@ -1310,17 +1342,21 @@ SCRIPT_CMD(do_rpechogroupat)
 		return;
 
 	// Expand the message
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
-	if(!buf[0]) return;
+	if( buffer->string[0] != '\0' )
+	{
+		act_new(buffer->string,victim,NULL,NULL,NULL,NULL,NULL,NULL,TO_FUNC,POS_RESTING,rop_same_group);
+	}
 
-	act_new(buf,victim,NULL,NULL,NULL,NULL,NULL,NULL,TO_FUNC,POS_RESTING,rop_same_group);
+	free_buf(buffer);
 }
 
 // do_rpecholeadaround
 SCRIPT_CMD(do_rpecholeadaround)
 {
-	char buf[MSL], *rest;
+	char *rest;
 	CHAR_DATA *victim;
 
 
@@ -1339,17 +1375,21 @@ SCRIPT_CMD(do_rpecholeadaround)
 		return;
 
 	// Expand the message
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
-	if(!buf[0]) return;
+	if( buffer->string[0] != '\0' )
+	{
+		act(buffer->string, victim->leader, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	}
 
-	act(buf, victim->leader, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	free_buf(buffer);
 }
 
 // do_rpecholeadat
 SCRIPT_CMD(do_rpecholeadat)
 {
-	char buf[MSL], *rest;
+	char *rest;
 	CHAR_DATA *victim;
 
 
@@ -1368,16 +1408,20 @@ SCRIPT_CMD(do_rpecholeadat)
 		return;
 
 	// Expand the message
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
-	if(!buf[0]) return;
+	if( buffer->string[0] != '\0' )
+	{
+		act(buffer->string, victim->leader, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	}
 
-	act(buf, victim->leader, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	free_buf(buffer);
 }
 
 SCRIPT_CMD(do_rpforce)
 {
-	char buf[MSL],*rest;
+	char *rest;
 	CHAR_DATA *victim = NULL, *next;
 	bool fAll = FALSE, forced;
 
@@ -1403,26 +1447,28 @@ SCRIPT_CMD(do_rpforce)
 		return;
 	}
 
-	expand_string(info,rest,buf);
-	if(!buf[0]) {
-		bug("RpForce - Error in parsing from vnum %ld.", info->room->vnum);
-		return;
-	}
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
-	forced = forced_command;
+	if( buffer->string[0] != '\0' )
+	{
+		forced = forced_command;
 
-	if (fAll) {
-		for (victim = info->room->people; victim; victim = next) {
-			next = victim->next_in_room;
+		if (fAll) {
+			for (victim = info->room->people; victim; victim = next) {
+				next = victim->next_in_room;
+				forced_command = TRUE;
+				interpret(victim, buffer->string);
+			}
+		} else {
 			forced_command = TRUE;
-			interpret(victim, buf);
+			interpret(victim, buffer->string);
 		}
-	} else {
-		forced_command = TRUE;
-		interpret(victim, buf);
+
+		forced_command = forced;
 	}
 
-	forced_command = forced;
+	free_buf(buffer);
 }
 
 SCRIPT_CMD(do_rpforget)
@@ -1546,7 +1592,6 @@ SCRIPT_CMD(do_rpgdamage)
 
 SCRIPT_CMD(do_rpgecho)
 {
-	char buf[MSL];
 	DESCRIPTOR_DATA *d;
 
 	if(!info || !info->room) return;
@@ -1557,20 +1602,26 @@ SCRIPT_CMD(do_rpgecho)
 	}
 
 	// Expand the message
-	expand_string(info,argument,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,argument,buffer);
 
-	for (d = descriptor_list; d; d = d->next)
-		if (d->connected == CON_PLAYING) {
-			if (IS_IMMORTAL(d->character))
-				send_to_char("Obj echo> ", d->character);
-			send_to_char(buf, d->character);
-			send_to_char("\n\r", d->character);
-		}
+	if( buffer->string[0] != '\0' )
+	{
+		for (d = descriptor_list; d; d = d->next)
+			if (d->connected == CON_PLAYING) {
+				if (IS_IMMORTAL(d->character))
+					send_to_char("Obj echo> ", d->character);
+				send_to_char(buffer->string, d->character);
+				send_to_char("\n\r", d->character);
+			}
+	}
+
+	free_buf(buffer);
 }
 
 SCRIPT_CMD(do_rpgforce)
 {
-	char buf[MSL],*rest;
+	char *rest;
 	CHAR_DATA *victim = NULL, *vch, *next;
 
 
@@ -1592,17 +1643,19 @@ SCRIPT_CMD(do_rpgforce)
 		return;
 	}
 
-	expand_string(info,rest,buf);
-	if(!buf[0]) {
-		bug("RpGforce - Error in parsing from vnum %ld.", info->room->vnum);
-		return;
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
+
+	if( buffer->string[0] != '\0' )
+	{
+		for (vch = info->room->people; vch; vch = next) {
+			next = vch->next_in_room;
+			if (is_same_group(victim,vch))
+				interpret(vch, buffer->string);
+		}
 	}
 
-	for (vch = info->room->people; vch; vch = next) {
-		next = vch->next_in_room;
-		if (is_same_group(victim,vch))
-			interpret(vch, buf);
-	}
+	free_buf(buffer);
 }
 
 SCRIPT_CMD(do_rpgtransfer)
@@ -2259,7 +2312,7 @@ SCRIPT_CMD(do_rptransfer)
 
 SCRIPT_CMD(do_rpvforce)
 {
-	char buf[MSL],*rest;
+	char *rest;
 	int vnum = 0;
 	CHAR_DATA *vch, *next;
 
@@ -2282,46 +2335,48 @@ SCRIPT_CMD(do_rpvforce)
 		return;
 	}
 
-	expand_string(info,rest,buf);
-	if(!buf[0]) {
-		bug("RpGforce - Error in parsing from vnum %ld.", info->room->vnum);
-		return;
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
+
+	if( buffer->string[0] != '\0' )
+	{
+		for (vch = info->room->people; vch; vch = next) {
+			next = vch->next_in_room;
+			if (IS_NPC(vch) &&  vch->pIndexData->vnum == vnum && !vch->fighting)
+				interpret(vch, buffer->string);
+		}
 	}
 
-	for (vch = info->room->people; vch; vch = next) {
-		next = vch->next_in_room;
-		if (IS_NPC(vch) &&  vch->pIndexData->vnum == vnum && !vch->fighting)
-			interpret(vch, buf);
-	}
+	free_buf(buffer);
 }
 
 SCRIPT_CMD(do_rpzecho)
 {
-	char buf[MSL];
 	AREA_DATA *area;
 	DESCRIPTOR_DATA *d;
 
 	if(!info || !info->room) return;
 
 	// Expand the message
-	expand_string(info,argument,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,argument,buffer);
 
-	if (!buf[0]) {
-		bug("RpZEcho: missing argument from vnum %d", info->room->vnum);
-		return;
+	if( buffer->string[0] != '\0' )
+	{
+		area = info->room->area;
+
+		for (d = descriptor_list; d; d = d->next)
+			if (d->connected == CON_PLAYING &&
+				d->character->in_room &&
+				d->character->in_room->area == area) {
+				if (IS_IMMORTAL(d->character))
+					send_to_char("Room echo> ", d->character);
+				send_to_char(buffer->string, d->character);
+				send_to_char("\n\r", d->character);
+			}
 	}
 
-	area = info->room->area;
-
-	for (d = descriptor_list; d; d = d->next)
-		if (d->connected == CON_PLAYING &&
-			d->character->in_room &&
-			d->character->in_room->area == area) {
-			if (IS_IMMORTAL(d->character))
-				send_to_char("Room echo> ", d->character);
-			send_to_char(buf, d->character);
-			send_to_char("\n\r", d->character);
-		}
+	free_buf(buffer);
 }
 
 SCRIPT_CMD(do_rpzot)
@@ -2541,11 +2596,13 @@ SCRIPT_CMD(do_rpinterrupt)
 		return;
 	}
 
-	expand_string(info,rest,buf);
-	if(buf[0]) {
-		stop = flag_value(interrupt_action_types,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
+	if(buffer->string[0] != '\0') {
+		stop = flag_value(interrupt_action_types,buffer->string);
 		if(stop == NO_FLAG) {
 			bug("RpInterrupt - invalid interrupt type.", 0);
+			free_buf(buffer);
 			return;
 		}
 	} else
@@ -2682,6 +2739,8 @@ SCRIPT_CMD(do_rpinterrupt)
 
 	// Indicate what was stopped, zero being nothing
 	info->room->progs->lastreturn = ret;
+
+	free_buf(buffer);
 }
 
 SCRIPT_CMD(do_rpalterobj)
@@ -2994,55 +3053,76 @@ SCRIPT_CMD(do_rpstringobj)
 
 	if(!field[0]) return;
 
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
-	if(!buf[0]) {
-		bug("RpStringObj - Empty string used.",0);
-		return;
-	}
+	if( buffer->string[0] != '\0' )
+	{
 
-	if(!str_cmp(field,"name")) {
-		if(obj->old_short_descr) return;	// Can't change restrings, sorry!
-		str = (char**)&obj->name;
-	} else if(!str_cmp(field,"owner")) {
-		str = (char**)&obj->owner;
-		min_sec = 5;
-	} else if(!str_cmp(field,"short")) {
-		if(obj->old_short_descr) return;	// Can't change restrings, sorry!
-		str = (char**)&obj->short_descr;
-	} else if(!str_cmp(field,"long")) {
-		if(obj->old_description) return;	// Can't change restrings, sorry!
-		str = (char**)&obj->description;
-	} else if(!str_cmp(field,"full")) {
-		if(obj->old_full_description) return;	// Can't change restrings, sorry!
-		str = (char**)&obj->full_description;
-		newlines = TRUE;
-	} else if(!str_cmp(field,"material")) {
-		int mat = material_lookup(buf);
+		if(!str_cmp(field,"name")) {
+			if(obj->old_short_descr)
+			{
+				free_buf(buffer);
+				return;	// Can't change restrings, sorry!
+			}
+			str = (char**)&obj->name;
+		} else if(!str_cmp(field,"owner")) {
+			str = (char**)&obj->owner;
+			min_sec = 5;
+		} else if(!str_cmp(field,"short")) {
+			if(obj->old_short_descr)
+			{
+				free_buf(buffer);
+				return;	// Can't change restrings, sorry!
+			}
+			str = (char**)&obj->short_descr;
+		} else if(!str_cmp(field,"long")) {
+			if(obj->old_description)
+			{
+				free_buf(buffer);
+				return;	// Can't change restrings, sorry!
+			}
 
-		if(mat < 0) {
-			char buf2[sizeof(buf)+50];
-			sprintf(buf2,"RpStringObj - Invalid material '%s'.\n\r", buf);
-			bug(buf2, 0);
+			str = (char**)&obj->description;
+		} else if(!str_cmp(field,"full")) {
+			if(obj->old_full_description)
+			{
+				free_buf(buffer);
+				return;	// Can't change restrings, sorry!
+			}
+
+			str = (char**)&obj->full_description;
+			newlines = TRUE;
+		} else if(!str_cmp(field,"material")) {
+			int mat = material_lookup(buf);
+
+			if(mat < 0) {
+				bug("RpStringObj - Invalid material.\n\r", 0);
+				free_buf(buffer);
+				return;
+			}
+
+			// Force material to the full name
+			clear_buf(buffer);
+			add_buf(buffer,material_table[mat].name);
+
+			str = (char**)&obj->material;
+		} else return;
+
+		if(script_security < min_sec) {
+			sprintf(buf,"RpStringObj - Attempting to restring '%s' with security %d.\n\r", field, script_security);
+			bug(buf, 0);
+			free_buf(buffer);
 			return;
 		}
 
-		// Force material to the full name
-		strcpy(buf,material_table[mat].name);
+		strip_newline(buffer->string, newlines);
 
-		str = (char**)&obj->material;
-	} else return;
-
-	if(script_security < min_sec) {
-		sprintf(buf,"RpStringObj - Attempting to restring '%s' with security %d.\n\r", field, script_security);
-		bug(buf, 0);
-		return;
+		free_string(*str);
+		*str = str_dup(buffer->string);
 	}
 
-	strip_newline(buf, newlines);
-
-	free_string(*str);
-	*str = str_dup(buf);
+	free_buf(buffer);
 }
 
 SCRIPT_CMD(do_rpaltermob)
@@ -3394,32 +3474,37 @@ SCRIPT_CMD(do_rpstringmob)
 
 	if(!field[0]) return;
 
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
-	if(!buf[0]) {
-		bug("RpStringMob - Empty string used.",0);
-		return;
+	if( buffer->string[0] != '\0' )
+	{
+		if(!str_cmp(field,"name"))				str = (char**)&mob->name;
+		else if(!str_cmp(field,"owner"))		{ str = (char**)&mob->owner; min_sec = 5; }
+		else if(!str_cmp(field,"short"))		str = (char**)&mob->short_descr;
+		else if(!str_cmp(field,"long"))			{ str = (char**)&mob->long_descr; strcat(buf,"\n\r"); newlines = TRUE; }
+		else if(!str_cmp(field,"full"))			{ str = (char**)&mob->description; newlines = TRUE; }
+		else if(!str_cmp(field,"tempstring"))	str = (char**)&mob->tempstring;
+		else
+		{
+			free_buf(buffer);
+			return;
+		}
+
+		if(script_security < min_sec) {
+			sprintf(buf,"RpStringMob - Attempting to restring '%s' with security %d.\n\r", field, script_security);
+			bug(buf, 0);
+			free_buf(buffer);
+			return;
+		}
+
+		strip_newline(buffer->string, newlines);
+
+		free_string(*str);
+		*str = str_dup(buffer->string);
 	}
 
-
-	if(!str_cmp(field,"name"))				str = (char**)&mob->name;
-	else if(!str_cmp(field,"owner"))		{ str = (char**)&mob->owner; min_sec = 5; }
-	else if(!str_cmp(field,"short"))		str = (char**)&mob->short_descr;
-	else if(!str_cmp(field,"long"))			{ str = (char**)&mob->long_descr; strcat(buf,"\n\r"); newlines = TRUE; }
-	else if(!str_cmp(field,"full"))			{ str = (char**)&mob->description; newlines = TRUE; }
-	else if(!str_cmp(field,"tempstring"))	str = (char**)&mob->tempstring;
-	else return;
-
-	if(script_security < min_sec) {
-		sprintf(buf,"RpStringMob - Attempting to restring '%s' with security %d.\n\r", field, script_security);
-		bug(buf, 0);
-		return;
-	}
-
-	strip_newline(buf, newlines);
-
-	free_string(*str);
-	*str = str_dup(buf);
+	free_buf(buffer);
 }
 
 SCRIPT_CMD(do_rpskimprove)
@@ -4064,7 +4149,6 @@ SCRIPT_CMD(do_rpstripaffectname)
 
 SCRIPT_CMD(do_rpinput)
 {
-	char buf[MSL];
 	char *rest, *p;
 	int vnum;
 	CHAR_DATA *mob = NULL;
@@ -4122,11 +4206,12 @@ SCRIPT_CMD(do_rpinput)
 	default: return;
 	}
 
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
 	mob->desc->input = TRUE;
 	mob->desc->input_var = p ? str_dup(p) : NULL;
-	mob->desc->input_prompt = str_dup(buf[0] ? buf : " >");
+	mob->desc->input_prompt = str_dup(buffer->string[0] ? buffer->string : " >");
 	mob->desc->input_script = vnum;
 	mob->desc->input_mob = NULL;
 	mob->desc->input_obj = NULL;
@@ -4134,6 +4219,8 @@ SCRIPT_CMD(do_rpinput)
 	mob->desc->input_tok = NULL;
 
 	info->room->progs->lastreturn = 1;
+
+	free_buf(buffer);
 }
 
 SCRIPT_CMD(do_rpusecatalyst)
@@ -4331,15 +4418,16 @@ SCRIPT_CMD(do_rpalterexit)
 	else if(!str_cmp(field,"short"))	str = &ex->short_desc;
 
 	if(str) {
-		expand_string(info,rest,buf);
+		BUFFER *buffer = new_buf();
+		expand_string(info,rest,buffer);
 
-		if(!buf[0]) {
-			bug("RpAlterExit - Empty string used.",0);
-			return;
+		if( buffer->string[0] != '\0' )
+		{
+			free_string(*str);
+			*str = str_dup(buffer->string);
 		}
 
-		free_string(*str);
-		*str = str_dup(buf);
+		free_buf(buffer);
 		return;
 	}
 
@@ -4527,14 +4615,14 @@ SCRIPT_CMD(do_rpprompt)
 
 	if(!name[0]) return;
 
-	expand_string(info,rest,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
 
-	if(!buf[0]) {
-		bug("RpPrompt - Empty string used.",0);
-		return;
+	if( buffer->string[0] != '\0' )
+	{
+		string_vector_set(&mob->pcdata->script_prompts,name,buffer->string);
 	}
-
-	string_vector_set(&mob->pcdata->script_prompts,name,buf);
+	free_buf(buffer);
 }
 
 
@@ -4797,15 +4885,16 @@ SCRIPT_CMD(do_rpalterroom)
 			return;
 		}
 
-		expand_string(info,rest,buf);
+		BUFFER *buffer = new_buf();
+		expand_string(info,rest,buffer);
 
-		if(!allow_empty && !buf[0]) {
-			bug("RpAlterRoom - Empty string used.",0);
-			return;
+		if(allow_empty || buffer->string[0] != '\0')
+		{
+			free_string(*str);
+			*str = str_dup(buffer->string);
 		}
 
-		free_string(*str);
-		*str = str_dup(buf);
+		free_buf(buffer);
 		return;
 	}
 
@@ -6247,20 +6336,19 @@ SCRIPT_CMD(do_rpalteraffect)
 // Syntax: crier STRING
 SCRIPT_CMD(do_rpcrier)
 {
-	char buf[MSL];
-
 	if(!info || !info->room) return;
 
-	expand_string(info,argument,buf+2);
+	BUFFER *buffer = new_buf();
+	add_buf(buffer, "{M");
+	expand_string(info,argument,buffer);
 
-	buf[0] = '{';
-	buf[1] = 'M';
+	if( buffer->string[2] != '\0' )
+	{
+		add_buf(buffer, "{x");
 
-	if(!buf[2]) return;
-
-	strcat(buf, "{x");
-
-	crier_announce(buf);
+		crier_announce(buffer->string);
+	}
+	free_buf(buffer);
 }
 
 // Syntax: FIXAFFECTS $MOBILE

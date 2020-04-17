@@ -1079,16 +1079,17 @@ SCRIPT_CMD(do_tpcall)
 // do_tpecho
 SCRIPT_CMD(do_tpecho)
 {
-	char buf[MSL];
-
 	if(!info || !info->token) return;
 
-	expand_string(info,argument,buf);
+	BUFFER *buffer = new_buf();
+	expand_string(info,argument,buffer);
 
-	if(!buf[0]) return;
-
-	strcat(buf,"\n\r");
-	room_echo(token_room(info->token), buf);
+	if( buffer->string[0] != '\0' )
+	{
+		add_buf(buffer,"\n\r");
+		room_echo(token_room(info->token), buffer->string);
+	}
+	free_buf(buffer);
 }
 
 // do_tpechoroom
