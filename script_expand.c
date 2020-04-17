@@ -4551,7 +4551,7 @@ char *expand_entity_bitvector(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 		if(arg->d.bv.table && arg->d.bv.value)
 		{
-			BUFFER *buffer = new_buffer();
+			BUFFER *buffer = new_buf();
 			int bit;
 			str = expand_name(info,(info?*(info->var):NULL),str+1,buffer);
 			if(!str) {
