@@ -421,7 +421,8 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 	lines = 0;
 	leni = 0;
 
-	for (; ;) {
+	for (rdesc = xbuf2; *rdesc; )
+	{
 		// Get the line length for this line
 		if((leni+1) < lenc && lines >= lens[leni+1][0])
 			++leni;
@@ -429,36 +430,44 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 
 		// Check if we are the end of the line
 		for (i=0; i<len && *(rdesc+i) && *(rdesc+i) != '\n'; i++);
+
 		// If the current line will fit completely, break
-		if (i<len) break;
-
-		// Find a line break
-		for (i=len-(xbuf[0]?0:3) ; --i > 0 && *(rdesc+i)!=' ' && *(rdesc+i)!='\n';);
-
-		// Found a line break
-		if (i > 0) {
+		if (i<len)
+		{
 			strncat(xbuf,rdesc,i);
 			strcat(xbuf,"\n\r");
-			rdesc += i+1;
-			while (*rdesc == ' ') rdesc++;
-		// The entire line has no breaks
-		} else {
-			bug ("No spaces", 0);
-			strncat(xbuf,rdesc,len-2);
-			strcat(xbuf,"-\n\r");
-			rdesc += len - 2;
+
+			rdesc += i;
+
+			if( *rdesc == '\n' ) rdesc++;
 		}
+		else
+		{
+			int j;
+			// Find a line break
+			for (j=len-(xbuf[0]?0:3) ; --j > 0 && *(rdesc+j)!=' ';);
+
+			// Found a line break
+			if (j > 0) {
+				strncat(xbuf,rdesc,j);
+				strcat(xbuf,"\n\r");
+				rdesc += i+1;
+				while (*rdesc == ' ') rdesc++;
+			// The entire line has no breaks
+			} else {
+				bug ("No spaces", 0);
+				strncat(xbuf,rdesc,len-2);
+				strcat(xbuf,"-\n\r");
+				rdesc += len - 2;
+			}
+
+			if( *rdesc == '\n' ) rdesc++;
+		}
+
+
 	}
 
-	// Strip off excess whitespace
-	while (*(rdesc+i) && (*(rdesc+i)==' '||
-		*(rdesc+i)=='\n'|| *(rdesc+i)=='\r')) i--;
-
-	*(rdesc+i+1)=0;
-	strcat(xbuf,rdesc);
-	i = strlen(xbuf);
-	if (xbuf[i-2] != '\n')
-		strcat(xbuf,"\n\r");
+	*rdesc=0;
 
 	if(mem) free_string(oldstring);
 	return(str_dup(xbuf));
