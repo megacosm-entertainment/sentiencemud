@@ -349,34 +349,8 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 	// This collapses the string into one line
 	for (rdesc = oldstring; *rdesc; rdesc++) {
 		if (*rdesc=='\n') {
-			if( newline )
-			{
-				// Previous newline
-				if (xbuf2[i-1] == ' ')
-				{
-					xbuf2[i - 1] = 'E';
-					xbuf2[i++] = 'O';
-					xbuf2[i++] = 'L';
-					xbuf2[i++] = '\n';
-				}
-				else if(xbuf2[i-1] != '\n')
-				{
-					xbuf2[i++] = 'E';
-					xbuf2[i++] = 'O';
-					xbuf2[i++] = 'L';
-					xbuf2[i++] = '\n';
-				}
+			xbuf2[i++] = '\n';
 
-				xbuf2[i++] = 'E';
-				xbuf2[i++] = 'O';
-				xbuf2[i++] = 'L';
-				xbuf2[i++] = '\n';
-			}
-			else
-			{
-				if (xbuf2[i-1] != ' ') xbuf2[i++]=' ';
-				newline = TRUE;
-			}
 		} else if (*rdesc=='\r') ;
 		else if (*rdesc==' ') {
 			if (xbuf2[i-1] != ' ') xbuf2[i++]=' ';
@@ -426,17 +400,25 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 			}
 			i++;
 		}
-
-		if( *rdesc != '\n' && *rdesc != '\r' )
-		{
-			if( newline )
-			{
-				xbuf2[i++] = '@';
-			}
-			newline = FALSE;
-		}
 	}
 	xbuf2[i]=0;
+
+	// Collapse all single newlines to spaces
+	char *wdesc = xbuf2;
+	for(rdesc = xbuf2; *rdesc; rdesc++)
+	{
+		if(*rdesc == '\n' )
+		{
+			if( rdesc[1] == '\n' )
+			{
+				*wdesc++ = *rdesc;
+			}
+
+		}
+		else
+			*wdesc++ = *rdesc;
+	}
+	*wdesc = '\0';
 
 	rdesc=xbuf2;
 
