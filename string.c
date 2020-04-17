@@ -356,7 +356,6 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 				if (xbuf2[i-1] == ' ') xbuf2[i - 1] = '\n';
 				else if(xbuf2[i-1] != '\n') xbuf2[i++] = '\n';
 
-				xbuf2[i++] = '\n';
 			}
 			newline = TRUE;
 
@@ -470,8 +469,23 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 
 	*rdesc=0;
 #else
-	strncpy(xbuf, xbuf2, MSL-1];
-	xbuf[MSL-1] = '\0';
+	xbuf[0]=0;
+	i = 0;
+
+	for(rdesc = xbuf2; *rdesc; rdesc++)
+	{
+		if( *rdesc == '\n' )
+		{
+			xbuf[i++] = '\n';
+			xbuf[i++] = '\r';
+		}
+		else
+		{
+			xbuf[i++] = *rdesc;
+		}
+	}
+	xbuf[i] = '\0';
+
 #endif
 
 	if(mem) free_string(oldstring);
