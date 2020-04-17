@@ -343,11 +343,9 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 	char *rdesc;
 	int i = 0, lines = 0, leni, len;
 	bool cap = TRUE;
-	bool newline = FALSE;
 
 	xbuf[0] = xbuf2[0] = xbuf3[0] = 0;
 
-	// This collapses the string into one line
 	for (rdesc = oldstring; *rdesc; rdesc++) {
 		if (*rdesc=='\n') {
 			xbuf2[i++] = '\n';
@@ -428,13 +426,10 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 	*wdesc++ = '\n';
 	*wdesc = '\0';
 
-	rdesc=xbuf3;
 
 	xbuf[0]=0;
 	lines = 0;
 	leni = 0;
-
-#if 1
 	for (rdesc = xbuf3; *rdesc; )
 	{
 		// Get the line length for this line
@@ -484,39 +479,14 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 		}
 	}
 
-	if( xbuf3[0] != '\0' )
+	if( xbuf[0] != '\0' )
 	{
-		i = strlen(xbuf3);
-		while( (--i > 0) && isspace(xbuf3[i]) );
-		xbuf3[++i] = '\n';
-		xbuf3[++i] = '\r';
-		xbuf3[++i] = '\0';
+		int i = strlen(xbuf);
+		while( (--i > 0) && isspace(xbuf[i]) );
+		xbuf[++i] = '\n';
+		xbuf[++i] = '\r';
+		xbuf[++i] = '\0';
 	}
-	else
-		*rdesc = '\0';
-#else
-	xbuf[0]=0;
-	i = 0;
-
-	for(rdesc = xbuf3; *rdesc; rdesc++)
-	{
-		if( *rdesc == '\n' )
-		{
-			xbuf[i++] = '{';
-			xbuf[i++] = 'Y';
-			xbuf[i++] = '$';
-			xbuf[i++] = '$';
-			xbuf[i++] = '{';
-			xbuf[i++] = 'x';
-		}
-		else
-		{
-			xbuf[i++] = *rdesc;
-		}
-	}
-	xbuf[i] = '\0';
-
-#endif
 
 	if(mem) free_string(oldstring);
 	return(str_dup(xbuf));

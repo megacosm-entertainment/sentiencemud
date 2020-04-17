@@ -4984,6 +4984,11 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 	} else if(!str_cmp(buf,"strformat")) {
 		variables_format_string(vars,name);
 
+	// Format: STRFORMATP
+	// TO-DO: Add "STRFORMATP[ <width>]"
+	} else if(!str_cmp(buf,"strformatp")) {
+		variables_format_paragraph(vars,name);
+
 	// Format: STRREPLACE <OLD> <NEW>
 	} else if(!str_cmp(buf,"strreplace")) {
 		pVARIABLE var = variable_get(*vars, name);

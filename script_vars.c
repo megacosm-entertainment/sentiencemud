@@ -1481,6 +1481,17 @@ bool variables_format_string(ppVARIABLE list,char *name)
 }
 
 
+bool variables_format_paragraph(ppVARIABLE list,char *name)
+{
+	pVARIABLE var = variable_get(*list,name);
+
+	if(!var || (var->type != VAR_STRING_S && var->type != VAR_STRING)) return FALSE;
+
+	var->_.s = format_paragraph(var->_.s);
+	var->type = VAR_STRING;
+	return TRUE;
+}
+
 bool variable_remove(ppVARIABLE list,char *name)
 {
 	register pVARIABLE cur,prev;
