@@ -669,16 +669,20 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 	if (bFun)
 		parts = parts * 2;
 
+	QUESTOR_DATA *qd = questman->pIndexData->pQuestor;
+
 	// MORE FUN
 	questman->tempstore[0] = parts;				// Number of parts to do (In-Out)
 	questman->tempstore[1] = bFun ? 1 : 0;		// Whether this was a F.U.N. quest (In)
+	questman->tempstore[2] = qd->scroll;		// Default quest scroll item
 	if(p_percent_trigger( questman, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_PREQUEST, NULL))
 		return FALSE;
 	parts = questman->tempstore[0];				// Updated number of parts to do
 	if( parts < 1 ) parts = 1;					//    Require at least one part.
 
-
-	QUESTOR_DATA *qd = questman->pIndexData->pQuestor;
+	long scroll_vnum = questman->tempstore[2];	// Get value back
+	if( scroll_vnum < 1 )
+		scroll_vnum = qd->scroll;
 
 	for (i = 0; i < parts; i++)
 	{
@@ -694,7 +698,7 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 	}
 
 	// create the scroll
-	scroll = generate_quest_scroll(ch, questman, qd->scroll,
+	scroll = generate_quest_scroll(ch, questman, scroll_vnum,
 		qd->header, qd->footer, qd->prefix, qd->suffix, qd->line_width);
 
 	if( scroll == NULL )
