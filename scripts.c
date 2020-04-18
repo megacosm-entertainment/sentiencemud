@@ -5182,8 +5182,9 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 		variables_format_string(vars,name);
 
 	// Format: STRFORMATP
+	// Format: PARAFORMAT
 	// TO-DO: Add "STRFORMATP[ <width>]"
-	} else if(!str_cmp(buf,"strformatp")) {
+	} else if(!str_cmp(buf,"strformatp") || !str_cmp(buf,"paraformat")) {
 		variables_format_paragraph(vars,name);
 
 	// Format: STRREPLACE <OLD> <NEW>
