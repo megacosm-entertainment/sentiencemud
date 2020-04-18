@@ -648,8 +648,6 @@ void do_quest(CHAR_DATA *ch, char *argument)
  */
 bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 {
-	char buf[MAX_STRING_LENGTH];
-	char buf2[MAX_STRING_LENGTH*8];
 	QUEST_PART_DATA *part;
 	OBJ_DATA *scroll;
 	int parts;
@@ -700,7 +698,7 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 
 	// create the scroll
 	scroll = generate_quest_scroll(ch, questman, qd->scroll,
-		qd->header, qd->footer, qd->prefix, qd->suffix, qd->width);
+		qd->header, qd->footer, qd->prefix, qd->suffix, qd->line_width);
 
 	if( scroll == NULL )
 	{
