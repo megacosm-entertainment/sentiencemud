@@ -1006,7 +1006,7 @@ char *expand_entity_primary(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_MXP:
 		arg->type = ENT_STRING;
 		clear_buf(arg->buffer);
-		add_char(arg->buffer, '\t');
+		add_buf_char(arg->buffer, '\t');
 		arg->d.str = buf_string(arg->buffer);
 		break;
 

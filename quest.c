@@ -690,10 +690,7 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 		if (generate_quest_part(ch, questman, part, parts - i))
 			continue;
 		else
-		{
-			free_obj(scroll); // no memory leak now
 			return FALSE;
-		}
 	}
 
 	// create the scroll
@@ -703,7 +700,6 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 	if( scroll == NULL )
 	{
 		// COMPLAIN
-
 		return FALSE;
 	}
 
