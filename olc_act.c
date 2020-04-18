@@ -6826,7 +6826,7 @@ MEDIT(medit_show)
 
 		add_buf(buffer, "{YQuestor data:\n\r");
 
-		sprintf(buf, "  {YScroll Vnum: %d\n\r", questor->scroll);
+		sprintf(buf, "  {YScroll Vnum: %ld\n\r", questor->scroll);
 		add_buf(buffer, buf);
 
 		if(IS_NULLSTR(questor->keywords))
@@ -10630,8 +10630,8 @@ MEDIT(medit_questor)
 			return FALSE;
 		}
 
-		pMob->pQuester->scroll = vnum;
-		send_to_char("Quester scroll object changed.\n\r", ch);
+		pMob->pQuestor->scroll = vnum;
+		send_to_char("Questor scroll object changed.\n\r", ch);
 		return TRUE;
 
 	} else if (!str_prefix(arg,"keywords")) {
