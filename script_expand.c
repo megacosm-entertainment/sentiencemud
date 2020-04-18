@@ -5180,6 +5180,7 @@ char *expand_argument(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 	str = skip_whitespace(str);
 	arg->type = ENT_NONE;
+	clear_buf(arg->buffer);
 
 	if(*str == ESCAPE_ENTITY)
 		str = expand_argument_entity(info,str+1,arg);
