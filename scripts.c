@@ -436,7 +436,7 @@ int ifcheck_comparison(SCRIPT_VARINFO *info, short param, char *rest, SCRIPT_PAR
 	}
 
 	switch(arg->type) {
-	case ENT_NUMBER: rhs = arg.d->num; break;
+	case ENT_NUMBER: rhs = arg->d->num; break;
 	case ENT_STRING:
 		if(is_number(arg->d.str)) {
 			rhs = atoi(arg->d.str);
@@ -651,7 +651,7 @@ DECL_OPC_FUN(opc_end)
 			return FALSE;
 		}
 
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_STRING: val = atoi(arg->d.str); break;
 		case ENT_NUMBER: val = arg->d.num; break;
 		default: val = 0; break;
@@ -758,7 +758,7 @@ DECL_OPC_FUN(opc_gotoline)
 			return FALSE;
 		}
 
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_STRING: val = atoi(arg->d.str)-1; break;
 		case ENT_NUMBER: val = arg->d.num-1; break;
 		default: val = -1; break;
@@ -811,7 +811,7 @@ DECL_OPC_FUN(opc_for)
 			return FALSE;
 		}
 
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_STRING: cur = atoi(arg->d.str); break;
 		case ENT_NUMBER: cur = arg->d.num; break;
 		default:
@@ -826,7 +826,7 @@ DECL_OPC_FUN(opc_for)
 			return FALSE;
 		}
 
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_STRING: end = atoi(arg->d.str); break;
 		case ENT_NUMBER: end = arg->d.num; break;
 		default:
@@ -841,7 +841,7 @@ DECL_OPC_FUN(opc_for)
 			return FALSE;
 		}
 
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_STRING: inc = atoi(arg->d.str); break;
 		case ENT_NUMBER: inc = arg->d.num; break;
 		default:
@@ -966,7 +966,7 @@ DECL_OPC_FUN(opc_list)
 
 		block->loops[lp].counter = 1;
 
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_STRING:
 			//log_stringf("opc_list: list type ENT_STRING");
 			if(IS_NULLSTR(arg->d.str))
