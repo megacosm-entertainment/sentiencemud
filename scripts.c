@@ -436,7 +436,7 @@ int ifcheck_comparison(SCRIPT_VARINFO *info, short param, char *rest, SCRIPT_PAR
 	}
 
 	switch(arg->type) {
-	case ENT_NUMBER: rhs = arg->d->num; break;
+	case ENT_NUMBER: rhs = arg->d.num; break;
 	case ENT_STRING:
 		if(is_number(arg->d.str)) {
 			rhs = atoi(arg->d.str);
