@@ -992,6 +992,7 @@ const struct flag_type area_flags[] =
     {	"no_recall",	AREA_NO_RECALL,		TRUE	},
     {	"no_rooms",		AREA_NO_ROOMS,		TRUE	},
     {	"newbie",		AREA_NEWBIE,		TRUE	},
+    {	"no_get_random".AREA_NO_GET_RANDOM,	TRUE	},
     {	NULL,			0,			0	}
 };
 

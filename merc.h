@@ -2823,12 +2823,13 @@ enum {
 #define AREA_CHANGED    	(A)
 #define AREA_ADDED      	(B)
 #define AREA_LOADING    	(C)
-#define AREA_DARK		(D)
-#define AREA_NOMAP		(E)
+#define AREA_DARK			(D)
+#define AREA_NOMAP			(E)
 #define AREA_TESTPORT		(F)
 #define AREA_NO_RECALL		(G)
 #define AREA_NO_ROOMS		(H)
 #define AREA_NEWBIE			(I)
+#define AREA_NO_GET_RANDOM	(J)
 #define AREA_NO_SAVE		(Z)
 
 /*
@@ -6737,10 +6738,13 @@ AREA_DATA *get_wilderness_area ( void );
 char *skip_whitespace(register char *str);
 
 /* db2.c */
-AREA_DATA *get_random_area( int continent );
+AREA_DATA *get_random_area( int continent, bool no_get_random );
+CHAR_DATA *get_random_mob_area( CHAR_DATA *ch, AREA_DATA *area);
 CHAR_DATA *get_random_mob( CHAR_DATA *ch, int continent );
 MOB_INDEX_DATA *get_random_mob_index( AREA_DATA *area ) ;
+OBJ_DATA *get_random_obj_area( CHAR_DATA *ch, AREA_DATA *area, ROOM_INDEX_DATA *room);
 OBJ_DATA *get_random_obj( CHAR_DATA *ch, int continent );
+ROOM_INDEX_DATA *get_random_room_area_byflags( CHAR_DATA *ch, AREA_DATA *area, int n_room_flags, int n_room2_flags );
 ROOM_INDEX_DATA *get_random_room( CHAR_DATA *ch, int continent );
 char *nocolour(const char *string);
 char *short_to_name (const char *short_desc);

@@ -210,7 +210,7 @@ void global_reset( void )
 
 
 /* Get a random area. 1 - first continent, 2 - second continent, 0 - either */
-AREA_DATA *get_random_area( int continent )
+AREA_DATA *get_random_area( int continent, bool no_get_random )
 {
     int i;
     AREA_DATA *area;
@@ -239,6 +239,7 @@ AREA_DATA *get_random_area( int continent )
 		area = get_area_data(number_range(1, i));
 	    } while (area == NULL
 	    || !area->open
+	    || (no_get_random && IS_SET(area->area_flags, AREA_NO_GET_RANDOM))
 	    || (area->place_flags != PLACE_FIRST_CONTINENT)
 	    || !str_infix( "Housing", area->name )
 	    || !str_infix( "Arena", area->name)
@@ -253,6 +254,7 @@ AREA_DATA *get_random_area( int continent )
 		area = get_area_data( number_range( 1, i));
 	    } while (area == NULL
 	    || !area->open
+	    || (no_get_random && IS_SET(area->area_flags, AREA_NO_GET_RANDOM))
 	    || ( area->place_flags != PLACE_SECOND_CONTINENT )
 	    || !str_infix("Temples", area->name)
 	    || !str_infix("Maze", area->name ));
@@ -265,6 +267,7 @@ AREA_DATA *get_random_area( int continent )
 		area = get_area_data( number_range( 1, i));
 	    } while ( area == NULL
 	    || !area->open
+	    || (no_get_random && IS_SET(area->area_flags, AREA_NO_GET_RANDOM))
 	    || !str_infix("Temples", area->name)
 	    || !str_infix("Housing", area->name )
 	    || ((area->place_flags != PLACE_FIRST_CONTINENT ) && (area->place_flags != PLACE_SECOND_CONTINENT))
@@ -276,101 +279,78 @@ AREA_DATA *get_random_area( int continent )
     return area;
 }
 
-
-/* get a random obj for a quest */
-OBJ_DATA *get_random_obj( CHAR_DATA *ch, int continent )
+OBJ_DATA *get_random_obj_area( CHAR_DATA *ch, AREA_DATA *area, ROOM_INDEX_DATA *room)
 {
-    OBJ_INDEX_DATA *oIndex;
-    OBJ_DATA *obj = NULL;
-    ROOM_INDEX_DATA *room;
-    AREA_DATA *area;
-    int tries;
+	OBJ_INDEX_DATA *oIndex;
+	OBJ_DATA *obj = NULL;
+	int tries;
+
+	if (area == NULL)
+		return NULL;
 
     for (tries = 0; tries < 200; tries++)
     {
-	switch (continent)
-	{
-	    case FIRST_CONTINENT:	area = get_random_area(FIRST_CONTINENT); 	break;
-	    case SECOND_CONTINENT:	area = get_random_area(SECOND_CONTINENT);	break;
-	    default:		area = get_random_area(BOTH_CONTINENTS);	break;
+		oIndex = get_obj_index( number_range( area->min_vnum, area->max_vnum));
+		if ( oIndex == NULL )
+			continue;
+
+		if ( oIndex != NULL &&
+			IS_SET( oIndex->wear_flags, ITEM_TAKE ) &&
+			!IS_SET( oIndex->wear_flags, ITEM_NO_SAC ) &&
+			!IS_SET( oIndex->extra2_flags, ITEM_NOQUEST ) &&
+			!IS_SET( oIndex->extra_flags, ITEM_MELT_DROP ) &&
+			oIndex->item_type != ITEM_MONEY )
+			break;
 	}
 
-        oIndex = get_obj_index( number_range( area->min_vnum, area->max_vnum));
-
-	if ( oIndex == NULL )
-	    continue;
-/* AO 010417 Not having many hits, so let's make one.
- * else
-	    obj = get_obj_type( get_obj_index(oIndex->vnum) );
-
- 	if ( obj == NULL
-        || ( obj->in_room == NULL && obj->carried_by == NULL))
-	     continue;
-
- 	// This is the case if someone is carrying the object.
-	if ( obj->carried_by != NULL )
-	{
-  	    if ( !IS_NPC( obj->carried_by))
-	        continue;
-
-	    if ( IS_NPC( obj->carried_by )
-	    && obj->carried_by->shop != NULL )
-	 	continue;
-
-	    if ( IS_SET( obj->carried_by->in_room->room_flags, ROOM_CPK )
-	    || IS_SET( obj->carried_by->in_room->room_flags, ROOM_SAFE))
-  	        continue;
-	}
-	else */if ( oIndex != NULL
- 	&& IS_SET( oIndex->wear_flags, ITEM_TAKE )
-	&& !IS_SET( oIndex->wear_flags, ITEM_NO_SAC )
-	&& !IS_SET( oIndex->extra2_flags, ITEM_NOQUEST )
-        && !IS_SET( oIndex->extra_flags, ITEM_MELT_DROP )
-	&& oIndex->item_type != ITEM_MONEY &&
-	//&& oIndex->level < ch->tot_level + 10 &&
-	(!str_cmp(oIndex->area->name, "Cult of Shadows") 	||
-	 !str_cmp(oIndex->area->name, "Goblin Fort") 	||
-	 !str_cmp(oIndex->area->name, "The Maze") 	||
-	 !str_cmp(oIndex->area->name, "Dungeon Mystica") 	||
-	 !str_cmp(oIndex->area->name, "Kalandor") 	||
-	 !str_cmp(oIndex->area->name, "Reza") 		||
-	 !str_cmp(oIndex->area->name, "Wyvern's Keep")	||
-	 !str_cmp(oIndex->area->name, "Olaria") 		||
-	 !str_cmp(oIndex->area->name, "Aethilforge") 	||
-	 !str_cmp(oIndex->area->name, "Arena") 		||
-	 !str_cmp(oIndex->area->name, "Plith") 		||
-	 !str_cmp(oIndex->area->name, "Bone Mountain")))
-		break;
-    }
-
-    room = get_random_room(ch, continent);
     if (room != NULL) {
-	obj = create_object(oIndex, oIndex->level, TRUE);
-	obj_to_room(obj, room);
+		obj = create_object(oIndex, oIndex->level, TRUE);
+		obj_to_room(obj, room);
     } else
-	obj = NULL;
+		obj = NULL;
 
     return obj;
 }
 
-
-/* get a random mob for a quest */
-CHAR_DATA *get_random_mob( CHAR_DATA *ch, int continent )
+/* get a random obj for a quest */
+OBJ_DATA *get_random_obj( CHAR_DATA *ch, int continent )
 {
-    AREA_DATA *area;
+	AREA_DATA *area;
+	OBJ_INDEX_DATA *oIndex;
+	OBJ_DATA *obj = NULL;
+	ROOM_INDEX_DATA *room;
+	int tries;
+
+    room = get_random_room(ch, continent);
+
+	for (tries = 0; tries < 200; tries++)
+	{
+		switch (continent)
+		{
+		case FIRST_CONTINENT:	area = get_random_area(FIRST_CONTINENT, TRUE); 	break;
+		case SECOND_CONTINENT:	area = get_random_area(SECOND_CONTINENT, TRUE);	break;
+		default:				area = get_random_area(BOTH_CONTINENTS, TRUE);	break;
+		}
+
+		if ( IS_SET(area->area_flags,AREA_NO_GET_RANDOM) )
+			continue;
+
+	    return get_random_obj_area(ch, area, room);
+	}
+
+    return NULL;
+}
+
+CHAR_DATA *get_random_mob_area( CHAR_DATA *ch, AREA_DATA *area)
+{
     MOB_INDEX_DATA *mIndex;
     CHAR_DATA *mob = NULL;
     ROOM_INDEX_DATA *first_room;
     long first_vnum;
     int attempts;
-    //char buf[MSL];
 
-    switch (continent)
-    {
-	case FIRST_CONTINENT:	area = get_random_area(FIRST_CONTINENT); 	break;
-	case SECOND_CONTINENT:	area = get_random_area(SECOND_CONTINENT);	break;
-	default:		area = get_random_area(BOTH_CONTINENTS);	break;
-    }
+	if (area == NULL)
+		return NULL;
 
     for (attempts = 0; attempts < 1000; attempts++)
     {
@@ -426,97 +406,85 @@ CHAR_DATA *get_random_mob( CHAR_DATA *ch, int continent )
     }
 
     return mob;
+
+}
+
+/* get a random mob for a quest */
+CHAR_DATA *get_random_mob( CHAR_DATA *ch, int continent )
+{
+    AREA_DATA *area;
+    //char buf[MSL];
+
+    switch (continent)
+    {
+	case FIRST_CONTINENT:	area = get_random_area(FIRST_CONTINENT, TRUE); 	break;
+	case SECOND_CONTINENT:	area = get_random_area(SECOND_CONTINENT, TRUE);	break;
+	default:				area = get_random_area(BOTH_CONTINENTS, TRUE);	break;
+    }
+
+	return get_random_mob_area(ch, area);
+}
+
+ROOM_INDEX_DATA *get_random_room_area_byflags( CHAR_DATA *ch, AREA_DATA *area, int n_room_flags, int n_room2_flags )
+{
+	ROOM_INDEX_DATA *room;
+
+	if (area == NULL)
+		return NULL;
+
+	for ( ; ; )
+	{
+		room = get_room_index( number_range( area->min_vnum, area->max_vnum));
+		if( ch )
+		{
+			if( room != NULL &&
+				can_see_room(ch, room) &&
+				!room_is_private(room, ch) &&
+				str_cmp(room->name, "NULL") &&
+				!is_dislinked(room) &&
+				(!n_room_flags || !IS_SET(room->room_flags, n_room_flags)) &&
+				(!n_room2_flags || !IS_SET(room->room2_flags, n_room2_flags)) )
+				break;
+		}
+		else
+		{
+			if( room != NULL &&
+				!room_is_private(room, NULL) &&
+				!is_dislinked(room) &&
+				(!n_room_flags || !IS_SET(room->room_flags, n_room_flags)) &&
+				(!n_room2_flags || !IS_SET(room->room2_flags, n_room2_flags)) )
+				break;
+		}
+	}
+
+	return room;
 }
 
 
 /* get a random room for a quest */
 ROOM_INDEX_DATA *get_random_room( CHAR_DATA *ch, int continent )
 {
-    ROOM_INDEX_DATA *room;
     AREA_DATA *area;
 
     switch (continent)
     {
-	case FIRST_CONTINENT:	area = get_random_area(FIRST_CONTINENT); 	break;
-	case SECOND_CONTINENT:	area = get_random_area(SECOND_CONTINENT);	break;
-	default:		area = get_random_area(BOTH_CONTINENTS);	break;
+	case FIRST_CONTINENT:	area = get_random_area(FIRST_CONTINENT, TRUE); 	break;
+	case SECOND_CONTINENT:	area = get_random_area(SECOND_CONTINENT, TRUE);	break;
+	default:				area = get_random_area(BOTH_CONTINENTS, TRUE);	break;
     }
 
-    for ( ; ; )
-    {
-        room = get_room_index(number_range(area->min_vnum, area->max_vnum));
-
-	if (ch)
-	{
-            if (room != NULL
-	    &&  can_see_room(ch,room)
-	    &&  !room_is_private(room, ch)
-	    &&  !IS_SET(room->room_flags, ROOM_PRIVATE)
-	    &&  !IS_SET(room->room_flags, ROOM_SOLITARY)
-	    &&  !IS_SET(room->room_flags, ROOM_DEATH_TRAP)
-	    &&  !IS_SET(room->room2_flags, ROOM_NO_QUEST)
-	    &&  str_cmp(room->name, "NULL")
-	    &&  !is_dislinked(room)
-	    &&  !IS_SET(room->room_flags, ROOM_SAFE)
-	    &&  !IS_SET(room->room_flags, ROOM_CPK))
-	        break;
-	}
-	else
-	{
-	   if (room != NULL
-  	   && !room_is_private(room, NULL)
-	   && !IS_SET(room->room_flags, ROOM_PRIVATE)
-	   && !IS_SET(room->room_flags, ROOM_SOLITARY)
-	   && !IS_SET(room->room2_flags, ROOM_NO_QUEST)
-	   && !IS_SET(room->room_flags, ROOM_SAFE)
-	   && !is_dislinked(room)
-	   && !IS_SET(room->room_flags, ROOM_CPK))
-	        break;
-	}
-    }
-
-    return room;
+    return get_random_room_area_byflags(ch, area,
+    	(ROOM_PRIVATE | ROOM_SOLITARY | ROOM_DEATH_TRAP | ROOM_SAFE | ROOM_CPK),
+    	(ROOM_NO_QUEST));
 }
 
 
 /* get a random room from an area */
 ROOM_INDEX_DATA *get_random_room_area( CHAR_DATA *ch, AREA_DATA *area )
 {
-    ROOM_INDEX_DATA *room;
-
-    for ( ; ; )
-    {
-        room = get_room_index( number_range( area->min_vnum, area->max_vnum));
-	if (ch != NULL)
-	{
-            if ( room != NULL
-	    && can_see_room(ch,room)
-	    && !room_is_private(room, ch)
-	    && !IS_SET(room->room_flags, ROOM_PRIVATE)
-	    && !IS_SET(room->room_flags, ROOM_SOLITARY)
-	    && !IS_SET(room->room_flags, ROOM_DEATH_TRAP)
-	    //&& !IS_SET(room->room2_flags, ROOM_NO_QUEST )
-	    && str_cmp(room->name, "NULL")
-	    && !is_dislinked( room )
-	    //&& !IS_SET(room->room_flags, ROOM_SAFE)
-	    && !IS_SET(room->room_flags, ROOM_CPK))
-	        break;
-	}
-	else
-	{
-	   if ( room != NULL
-  	   && !room_is_private(room, ch)
-	   && !IS_SET(room->room_flags, ROOM_PRIVATE)
-	   && !IS_SET(room->room_flags, ROOM_SOLITARY)
-	   //&& !IS_SET(room->room2_flags, ROOM_NO_QUEST )
-	   //&& !IS_SET(room->room_flags, ROOM_SAFE)
-	   && !is_dislinked( room )
-	   && !IS_SET(room->room_flags, ROOM_CPK) )
-	        break;
-	}
-    }
-
-    return room;
+    return get_random_room_area_byflags(ch, area,
+    	(ROOM_PRIVATE | ROOM_SOLITARY | ROOM_DEATH_TRAP | ROOM_CPK),
+    	0);
 }
 
 

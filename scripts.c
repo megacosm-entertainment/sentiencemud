@@ -5878,24 +5878,15 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 	// MOBLIST remove <index>
 	// MOBLIST clear
 	} else if(!str_cmp(buf,"moblist")) {
-//		char tmp[MSL];
 
 		if( arg->type != ENT_STRING )
-		{
-//			wiznet("MOBLIST ???",NULL,NULL,WIZ_SCRIPTS,0,0);
 			return;
-		}
 
-//		sprintf(tmp, "MOBLIST %.*s", MIL, arg->d.str);
-//		wiznet(tmp,NULL,NULL,WIZ_SCRIPTS,0,0);
 
 		// MOBLIST add <mobile>
 		if( !str_cmp(arg->d.str, "add") ) {
 			if(!(rest = expand_argument(info,rest,arg)))
-			{
-//				wiznet("MOBLIST ADD ???",NULL,NULL,WIZ_SCRIPTS,0,0);
 				return;
-			}
 
 			if( arg->type == ENT_MOBILE && IS_VALID(arg->d.mob) )
 				variables_set_list_mob(vars,name,arg->d.mob,TRISTATE);
@@ -5961,25 +5952,36 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 		}
 
 	// RANDMOB <player> <continent>
+	// RANDMOB <player> <area>
 	} else if(!str_cmp(buf,"randmob")) {
 		if( arg->type != ENT_MOBILE || !IS_VALID(arg->d.mob) || IS_NPC(arg->d.mob) )
 			return;
 
 		vch = arg->d.mob;
 
-		if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING)
+		if(!(rest = expand_argument(info,rest,arg)))
 			return;
 
-		int continent;
-		if( !str_cmp(arg->d.str, "first") )			continent = FIRST_CONTINENT;
-		else if( !str_cmp(arg->d.str, "second") )	continent = SECOND_CONTINENT;
-		else if( !str_cmp(arg->d.str, "both") )		continent = BOTH_CONTINENTS;
-		else
-			return;
+		if( arg->type == ENT_STRING )
+		{
+			int continent;
+			if( !str_cmp(arg->d.str, "first") )			continent = FIRST_CONTINENT;
+			else if( !str_cmp(arg->d.str, "second") )	continent = SECOND_CONTINENT;
+			else if( !str_cmp(arg->d.str, "both") )		continent = BOTH_CONTINENTS;
+			else
+				return;
 
-		vch = get_random_mob(vch, continent);
-		if( vch != NULL )
-			variables_set_mobile(vars,name,vch);
+			vch = get_random_mob(vch, continent);
+			if( vch != NULL )
+				variables_set_mobile(vars,name,vch);
+		}
+		else if( arg->type == ENT_AREA )
+		{
+			vch = get_random_mob_area(vch, arg->d.area);
+			if( vch != NULL )
+				variables_set_mobile(vars,name,vch);
+		}
+
 
 
 	// RANDROOM <player> <continent>
