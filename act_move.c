@@ -3282,7 +3282,7 @@ void do_fade(CHAR_DATA *ch, char *argument)
 
 	if( IS_SET(ch->in_room->area->area_flags, AREA_NO_FADING) )
     {
-		send_to_char("Your dimensional powers are powerless here.\n\r", ch);
+		send_to_char("A magical interference dampens your dimensional powers.\n\r", ch);
 		return;
     }
 
