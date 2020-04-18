@@ -1985,7 +1985,6 @@ QUEST_DATA *new_quest( void )
     }
 
     pQuest->next = NULL;
-    pQuest->questgiver = (long)NULL;
     pQuest->parts = NULL;
     pQuest->msg_complete = FALSE;
     pQuest->generating = FALSE;

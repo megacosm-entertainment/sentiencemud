@@ -2388,7 +2388,7 @@ SCRIPT_CMD(scriptcmd_questscroll)
 	rest = __get_questscroll_args(info, rest, arg, &header, &footer, &width, &prefix, &suffix);
 	if( rest && *rest )
 	{
-		rest = expand_argument(info,rest,arg));
+		rest = expand_argument(info,rest,arg);
 
 		if( rest && arg->type == ENT_STRING )
 		{
