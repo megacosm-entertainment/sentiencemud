@@ -1818,12 +1818,12 @@ SCRIPT_CMD(scriptcmd_questgenerate)
 	CHAR_DATA *mob;
 	int qg_type;
 	long qg_vnum;
-
 	CHAR_DATA *qr_mob = NULL;
 	OBJ_DATA *qr_obj = NULL;
 	ROOM_INDEX_DATA *qr_room = NULL;
 	int *tempstores;
 	int type, parts;
+	long vnum;
 	SCRIPT_DATA *script;
 
 	info->progs->lastreturn = 0;
@@ -1918,7 +1918,7 @@ SCRIPT_CMD(scriptcmd_questgenerate)
 	}
 	else if( arg->type == ENT_ROOM )
 	{
-		if( !IS_VALID(arg->d.room) || (arg->d.room->wild != NULL) || (arg->d.room->source != NULL) )
+		if( arg->d.room == NULL || (arg->d.room->wilds != NULL) || (arg->d.room->source != NULL) )
 			return;
 
 		qr_room = arg->d.room;
@@ -2273,6 +2273,8 @@ SCRIPT_CMD(scriptcmd_questpartslay)
 char *__get_questscroll_args(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg,
 	char **header, char **footer, int *width, char **prefix, char **suffix)
 {
+	char *rest;
+
 	*header = NULL;
 	*footer = NULL;
 	*width = 0;
@@ -2317,7 +2319,6 @@ char *__get_questscroll_args(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM 
 SCRIPT_CMD(scriptcmd_questscroll)
 {
 	char *header, *footer, *prefix, *suffix;
-	char *varname;
 	int width;
 	char questgiver[MSL];
 	char *rest;
@@ -2358,7 +2359,7 @@ SCRIPT_CMD(scriptcmd_questscroll)
 	}
 	else if( arg->type == ENT_ROOM )
 	{
-		if( !IS_VALID(arg->d.room) )
+		if( arg->d.room == NULL || arg->d.room->wilds || arg->d.room->source )
 			return;
 
 		strncpy(questgiver, arg->d.room->name, MSL-1);
@@ -2391,7 +2392,7 @@ SCRIPT_CMD(scriptcmd_questscroll)
 
 		if( rest && arg->type == ENT_STRING )
 		{
-			OBJ_DATA *scroll = generate_quest_scroll(mob,questgiver,vnum,header,footer,prefix,suffix,width);
+			OBJ_DATA *scroll = generate_quest_scroll(ch,questgiver,vnum,header,footer,prefix,suffix,width);
 			if( scroll != NULL )
 			{
 				variables_set_object(info->var, arg->d.str, scroll);

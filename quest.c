@@ -474,6 +474,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
 		{
 			// Check for the questGIVER
 			switch(ch->quest->questgiver_type)
+			{
 			case QUESTOR_MOB:
 				for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
 				{
@@ -484,7 +485,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
 
 			case QUESTOR_OBJ:
 				// Check inventory first?
-				for (obj = ch->in_room->carrying; obj != NULL; obj = obj->next_content)
+				for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
 				{
 					if (obj->pIndexData->vnum == ch->quest->questgiver)
 						break;
@@ -595,6 +596,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
 
 		// Check for the questRECEIVER
 		switch(ch->quest->questreceiver_type)
+		{
 		case QUESTOR_MOB:
 			for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
 			{
@@ -608,7 +610,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
 
 		case QUESTOR_OBJ:
 			// Check inventory first?
-			for (obj = ch->in_room->carrying; obj != NULL; obj = obj->next_content)
+			for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
 			{
 				if (obj->pIndexData->vnum == ch->quest->questreceiver)
 				{
@@ -681,7 +683,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
 			tempstores[0] = 10;
 			p_percent_trigger( mob, obj, room, NULL, ch, NULL, NULL,NULL, NULL, TRIG_POSTQUEST, NULL);
 
-			ch->nextquest = tempstore[0];
+			ch->nextquest = tempstores[0];
 			if(ch->nextquest < 1) ch->nextquest = 1;
 
 			return;

@@ -480,9 +480,9 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 
     if (IS_QUESTING(ch)) {
 		fprintf(fp, "Questing\n");
-		fprintf(fp, "QuestGiverType %ld\n", ch->quest->questgiver_type);
+		fprintf(fp, "QuestGiverType %d\n", ch->quest->questgiver_type);
 		fprintf(fp, "QuestGiver %ld\n", ch->quest->questgiver);
-		fprintf(fp, "QuestReceiverType %ld\n", ch->quest->questreceiver_type);
+		fprintf(fp, "QuestReceiverType %d\n", ch->quest->questreceiver_type);
 		fprintf(fp, "QuestReceiver %ld\n", ch->quest->questreceiver);
 
 		fwrite_quest_part(fp, ch->quest->parts);
