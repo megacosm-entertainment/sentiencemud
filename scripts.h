@@ -2431,6 +2431,7 @@ SCRIPT_CMD(scriptcmd_attach);
 SCRIPT_CMD(scriptcmd_detach);
 
 SCRIPT_CMD(scriptcmd_pageat);
+SCRIPT_CMD(scriptcmd_fade);
 
 #include "tables.h"
 

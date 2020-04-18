@@ -1212,6 +1212,102 @@ SCRIPT_CMD(scriptcmd_entercombat)
 //////////////////////////////////////
 // F
 
+// FADE $PLAYER $DIRECTION $RATING[ $INTERRUPT]
+// $PLAYER    - player to force into fading
+// $DIRECTION - exit to travel in, "random"|"any" to pick a random exit
+// $RATING    - skill rating to mimic the fading, ranging from 1 to 100
+// $INTERRUPT - flag (default FALSE) on whether to interrupt the player.
+//
+// Fails if not a player
+// Fails if player is rifting
+// Fails if player is pulling a cart
+// Fails if player is fighting
+// Fails if direction does not exist
+// Fails if rating is out of range
+// Fails if interrupt was false and the player was busy
+//
+// LASTRETURN will return -1 for failure, otherwise will return the door number
+SCRIPT_CMD(scriptcmd_fade)
+{
+	char *rest;
+	CHAR_DATA *target;
+	int door = -1;
+	int rating;
+
+	if(!info) return;
+	info->progs->lastreturn = -1;
+
+	if(!(rest = expand_argument(info,argument,arg)))
+		return;
+
+	target = info->mob;
+	switch(arg->type) {
+	case ENT_STRING: target = script_get_char_room(info, arg->d.str, TRUE); break;
+	case ENT_MOBILE: target = arg->d.mob; break;
+	default: target = NULL; break;
+	}
+
+	if (!target || !IS_VALID(target) || IS_NPC(target)) return;
+
+	// Block rifter, cart pullers and fighters
+	if (IS_SOCIAL(target) || PULLING_CART(target) || (target->fighting != NULL)) return;
+
+	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING)
+		return;
+
+	if( !str_cmp(arg->d.str, "random") || !str_cmp(arg->d.str, "any") )
+	{
+		door = number_range(1, MAX_DIR);
+	}
+	else
+	{
+		door = parse_door(arg->d.str);
+		if( door < 0 )
+			return;
+	}
+
+	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER)
+		return;
+
+	if( arg->d.num < 1 || arg->d.num > 100 )
+		return;
+
+	rating = arg->d.num;
+
+	bool busy = (is_char_busy(target) || ch->desc->pString != NULL || ch->desc->input);
+
+	if( *rest )
+	{
+		if(!(rest = expand_argument(info,rest,arg)))
+			return;
+
+		// Check whether to make the busy flag false
+		if( arg->type == ENT_BOOLEAN )
+		{
+			if( arg->d.boolean ) busy = FALSE;
+		}
+		else if( arg->type == ENT_NUMBER )
+		{
+			if( arg->d.num != 0 ) busy = FALSE;
+		}
+		else if( arg->type == ENT_STRING )
+		{
+			if( !str_cmp(arg->d.str, "yes") || !str_cmp(arg->d.str, "true") )
+				busy = FALSE;
+		}
+
+	}
+
+	if( busy ) return;
+
+	// No message.. the LASTRETURN can indicate whether to do that
+	target->force_fading = URANGE(1, rating, 100);
+    target->fade_dir = door;
+    FADE_STATE(target, 4);
+
+	info->progs->lastreturn = door;
+}
+
 // FLEE[ mobile[ direction[ conceal[ pursue]]]]
 // mobile - target of action (Only optional in mprog)
 // direction - direction of flee
@@ -1226,15 +1322,14 @@ SCRIPT_CMD(scriptcmd_entercombat)
 SCRIPT_CMD(scriptcmd_flee)
 {
 	char *rest;
-
 	CHAR_DATA *target;
 	int door = -1;
 	bool conceal = FALSE, pursue = TRUE;
 	char fleedata[MIL];
 	char *fleearg = str_empty;
 
-	info->progs->lastreturn = -1;
 	if(!info) return;
+	info->progs->lastreturn = -1;
 
 	if(!(rest = expand_argument(info,argument,arg)))
 		return;

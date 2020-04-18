@@ -3280,11 +3280,10 @@ void do_fade(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    /* Kind of a hack to prevent people challenging then fading up from arena */
-    if (!str_cmp(ch->in_room->area->name, "Arena"))
+	if( IS_SET(ch->in_room->area->area_flags, AREA_NO_FADING) )
     {
-	send_to_char("Your dimensional powers are powerless in the arena.\n\r", ch);
-	return;
+		send_to_char("Your dimensional powers are powerless here.\n\r", ch);
+		return;
     }
 
     ch->fade_dir = door;
@@ -3304,16 +3303,23 @@ void fade_end(CHAR_DATA *ch)
 	int beats;
 	int skill;
 
-	skill = get_skill(ch,gsn_fade);
+	if( ch->force_fading > 0)
+	{
+		skill = ch->force_fading;
+	}
+	else
+	{
+		skill = get_skill(ch,gsn_fade);
 
+	}
 	beats = 8 - (skill / 25);
 	/*
 	   Skill   Beats
-	    0-24 = 8
+		0-24 = 8
 	   25-49 = 7
 	   50-74 = 6
 	   75-99 = 5
-	    100  = 4
+		100  = 4
 	*/
 	max_fade = 3 + ((skill > 75) ? (skill/5 - 15) : 0);
 
@@ -3321,7 +3327,7 @@ void fade_end(CHAR_DATA *ch)
 		if (!move_success(ch)) {
 			act("{W$n fades in.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 			ch->fade_dir = -1;	/* @@@NIB : 20071020 */
-			ch->force_fading = FALSE;
+			ch->force_fading = 0;
 			return;
 		} else if (counter != 2)
 			act("{W$n fades in then off to the $T.{x", ch, NULL, NULL, NULL, NULL, NULL, dir_name[ch->fade_dir], TO_ROOM);
@@ -3333,16 +3339,11 @@ void fade_end(CHAR_DATA *ch)
 }
 
 
-/* MOVED: movement/remort.c
-   RENAMED: fade_move_success */
 bool move_success(CHAR_DATA *ch)
 {
-/*	AREA_DATA *pArea; */
 	ROOM_INDEX_DATA *in_room;
 	ROOM_INDEX_DATA *to_room;
-/*	WILDS_DATA *in_wilds = NULL; */
 	WILDS_DATA *to_wilds = NULL;
-/*	WILDS_TERRAIN *pTerrain; */
 	EXIT_DATA *pexit;
 	int door;
 	int to_vroom_x = 0;
@@ -3351,9 +3352,15 @@ bool move_success(CHAR_DATA *ch)
 	in_room = ch->in_room;
 	door = ch->fade_dir;
 
+	if( IS_SET(ch->in_room->area->area_flags, AREA_NO_FADING) )
+    {
+		act("Magical interference stops your ability to fade.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return FALSE;
+    }
+
 	if (ch->in_room && (ch->in_room->sector_type == SECT_WATER_NOSWIM ||
 		ch->in_room->sector_type == SECT_WATER_SWIM)) {
-		act("The magical inteference radiating from the water stops your ability to fade.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("Magical interference stops your ability to fade.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		return FALSE;
 	}
 

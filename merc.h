@@ -2830,6 +2830,7 @@ enum {
 #define AREA_NO_ROOMS		(H)
 #define AREA_NEWBIE			(I)
 #define AREA_NO_GET_RANDOM	(J)
+#define AREA_NO_FADING		(K)
 #define AREA_NO_SAVE		(Z)
 
 /*
@@ -3675,7 +3676,7 @@ struct	char_data
 
     int			fade;
     int			fade_dir;
-    bool		force_fading;		// Caused by scripting
+    int			force_fading;		// Caused by scripting
     int			ship_move;
     int			ship_attack;
 

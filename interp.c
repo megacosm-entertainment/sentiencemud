@@ -1365,7 +1365,7 @@ void interpret( CHAR_DATA *ch, char *argument )
         send_to_char("You fade back into the real world.\n\r", ch );
         ch->fade = 0;
         ch->fade_dir = -1;		//@@@NIB : 20071020
-        ch->force_fading = FALSE;
+        ch->force_fading = 0;
     }
 
     // Stop abuse.

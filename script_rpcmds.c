@@ -54,6 +54,7 @@ const struct script_cmd_type room_cmd_table[] = {
 	{ "echonotvict",		do_rpechonotvict,		FALSE,	TRUE	},
 	{ "echoroom",			do_rpechoroom,			FALSE,	TRUE	},
 	{ "entercombat",		scriptcmd_entercombat,	FALSE,	TRUE	},
+	{ "fade",				scriptcmd_fade,				TRUE,	TRUE	},
 	{ "fixaffects",			do_rpfixaffects,		FALSE,	TRUE	},
 	{ "flee",				scriptcmd_flee,			FALSE,	TRUE	},
 	{ "force",				do_rpforce,				FALSE,	TRUE	},

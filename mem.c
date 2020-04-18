@@ -564,7 +564,7 @@ CHAR_DATA *new_char( void )
     ch->in_war = FALSE;
     ch->ship_crash_time = -1;
     ch->fade_dir = -1;		//@@@NIB : 20071020
-    ch->force_fading = FALSE;
+    ch->force_fading = 0;
     ch->projectile_dir = -1;	//@@@NIB : 20071021
 
     ch->challenger = NULL;
