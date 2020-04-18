@@ -6826,6 +6826,9 @@ MEDIT(medit_show)
 
 		add_buf(buffer, "{YQuestor data:\n\r");
 
+		sprintf(buf, "  {YScroll Vnum: %d\n\r", questor->scroll);
+		add_buf(buffer, buf);
+
 		if(IS_NULLSTR(questor->keywords))
 			sprintf(buf, "  {YKeywords: (empty){x\n\r");
 		else
@@ -10562,6 +10565,7 @@ MEDIT(medit_questor)
 	{
 		send_to_char("QUESTOR ADD                 Adds questor data to mob.\n\r", ch);
 		send_to_char("        REMOVE              Removes questor data from mob.\n\r", ch);
+		send_to_char("        SCROLL [vnum]       Sets the scroll object to the specified vnum.\n\r", ch);
 		send_to_char("        KEYWORDS [string]   Sets keywords of scroll.\n\r", ch);
 		send_to_char("        SHORT [string]      Sets short description of scroll.\n\r", ch);
 		send_to_char("        LONG [string]       Sets long description of scroll.\n\r", ch);
@@ -10610,6 +10614,24 @@ MEDIT(medit_questor)
 		free_questor_data(pMob->pQuestor);
 		pMob->pQuestor = NULL;
 		send_to_char("Questor data removed.\n\r", ch);
+		return TRUE;
+
+	} else if (!str_prefix(arg,"scroll")) {
+		if(!is_number(argument))
+		{
+			send_to_char("That is not a number.\n\r", ch);
+			return FALSE;
+		}
+
+		long vnum = atoi(argument);
+		if( !get_obj_index(vnum) )
+		{
+			send_to_char("Object does not exist.\n\r", ch);
+			return FALSE;
+		}
+
+		pMob->pQuester->scroll = vnum;
+		send_to_char("Quester scroll object changed.\n\r", ch);
 		return TRUE;
 
 	} else if (!str_prefix(arg,"keywords")) {

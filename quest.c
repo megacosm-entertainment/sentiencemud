@@ -106,6 +106,77 @@ const long quest_item_token_table[] =
 };
 
 
+OBJ_DATA *generate_quest_scroll(CHAR_DATA *ch, CHAR_DATA *questman, long vnum,
+	char *header, char *footer, char *prefix, char *suffix, int width)
+{
+	OBJ_INDEX_DATA *scroll_index = get_obj_index(vnum);
+	if( scroll_index == NULL )
+	{
+		scroll_index = get_obj_index(OBJ_VNUM_QUEST_SCROLL);
+	}
+
+	OBJ_DATA *scroll = create_object(scroll_index, 0, TRUE);
+	if( scroll != NULL )
+	{
+		/*
+		sprintf(buf2,
+			"{W  .-.--------------------------------------------------------------------------------------.-.\n\r"
+			"((o))                                                                                         )\n\r"
+			"{W \\U/_________________________________________________________________________________________/\n\r"
+			"{W  |\n\r"
+			"{W  |  {xNoble %s{x,\n\r{W  |\n\r"
+			"{W  |  {xThis is an official quest scroll given to you by %s.\n\r"
+			"{W  |  {xUpon this scroll is my seal, and my approval to go to any\n\r"
+			"{W  |  {xmeasures in order to complete the set of tasks I have listed.\n\r"
+			"{W  |  {xReturn to me once you have completed these tasks, and you\n\r"
+			"{W  |  {xshall be justly rewarded.\n\r{W  |  {x\n\r",
+			ch->name, questman->short_descr);
+		*/
+
+		BUFFER *buffer = new_buf();
+		char buf[MSL];
+
+		// Need to add overflow protection
+		char *replace1 = string_replace_static(header, "$PLAYER$", ch->name);
+		char *replace2 = string_replace_static(replace1, "$QUESTOR$", questman->short_descr);
+		add_buf(buffer, replace2);
+
+		for (QUEST_PART_DATA *part = ch->quest->parts; part != NULL; part = part->next)
+		{
+			if( width > 0 && strlen(suffix) > 0 )
+			{
+				int width = width + get_colour_width(part->description);
+
+				sprintf(buf, "%s%-*.*s%s\n\r", prefix, width, width, part->description, suffix);
+			}
+			else
+			{
+				sprintf(buf, "%s%s\n\r", prefix, part->description);
+			}
+			add_buf(buffer, buf);
+		}
+
+		/*
+		sprintf(buf, "{W  |__________________________________________________________________________________________\n\r"
+			"{W /A\\                                                                                         \\\n\r"
+			"((o))                                                                                         )\n\r"
+			"{W  '-'----------------------------------------------------------------------------------------'\n\r");*/
+
+		// Need to add overflow protection
+		replace1 = string_replace_static(footer, "$PLAYER$", ch->name);
+		replace2 = string_replace_static(replace1, "$QUESTOR$", questman->short_descr);
+		add_buf(buffer, replace2);
+
+		free_string(scroll->full_description);
+		scroll->full_description = str_dup(buffer->string);
+
+		free_buf(buffer);
+	}
+
+	return scroll;
+}
+
+
 void do_quest(CHAR_DATA *ch, char *argument)
 {
 	CHAR_DATA *mob;
@@ -608,40 +679,7 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 	if( parts < 1 ) parts = 1;					//    Require at least one part.
 
 
-
-
-	// create the scroll
-	scroll = create_object(get_obj_index(OBJ_VNUM_QUEST_SCROLL), 0, TRUE);
-	free_string(scroll->name);
-	free_string(scroll->short_descr);
-	free_string(scroll->description);
-	free_string(scroll->full_description);
-
 	QUESTOR_DATA *qd = questman->pIndexData->pQuestor;
-
-	scroll->name = str_dup(qd->keywords);
-	scroll->short_descr = str_dup(qd->short_descr);
-	scroll->description = str_dup(qd->long_descr);
-
-	char *replace1 = string_replace_static(qd->header, "$PLAYER$", ch->name);
-	char *replace2 = string_replace_static(replace1, "$QUESTOR$", questman->short_descr);
-
-	strcpy(buf2, replace2);
-
-	/*
-	sprintf(buf2,
-		"{W  .-.--------------------------------------------------------------------------------------.-.\n\r"
-		"((o))                                                                                         )\n\r"
-		"{W \\U/_________________________________________________________________________________________/\n\r"
-		"{W  |\n\r"
-		"{W  |  {xNoble %s{x,\n\r{W  |\n\r"
-		"{W  |  {xThis is an official quest scroll given to you by %s.\n\r"
-		"{W  |  {xUpon this scroll is my seal, and my approval to go to any\n\r"
-		"{W  |  {xmeasures in order to complete the set of tasks I have listed.\n\r"
-		"{W  |  {xReturn to me once you have completed these tasks, and you\n\r"
-		"{W  |  {xshall be justly rewarded.\n\r{W  |  {x\n\r",
-		ch->name, questman->short_descr);
-	*/
 
 	for (i = 0; i < parts; i++)
 	{
@@ -659,80 +697,25 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 		}
 	}
 
-	/* Moving all quest-scroll generation shit into here. AO 010517  */
-	for (i = 1, part = ch->quest->parts; part != NULL; part = part->next, i++)
+	// create the scroll
+	scroll = generate_quest_scroll(ch, questman, qd->scroll,
+		qd->header, qd->footer, qd->prefix, qd->suffix, qd->width);
+
+	if( scroll == NULL )
 	{
-		if( qd->line_width > 0 && strlen(qd->suffix) > 0 )
-		{
-			char *plaintext = nocolour(part->description);
-			int plen = strlen(plaintext);
-			free_string(plaintext);
-			int len = strlen(part->description);
+		// COMPLAIN
 
-			int width = qd->line_width + len - plen;
-
-
-
-			sprintf(buf, "%s%-*.*s%s\n\r", qd->prefix, width, width, part->description, qd->suffix);
-		}
-		else
-		{
-			sprintf(buf, "%s%s\n\r", qd->prefix, part->description);
-		}
-		strcat(buf2, buf);
-
-#if 0
-		if (part->pObj != NULL)
-		{
-			sprintf(buf, "Retrieve {Y%s{x from {Y%s{x in {Y%s{x.\n\r",
-				part->pObj->short_descr, part->pObj->in_room->name, part->pObj->in_room->area->name);
-		}
-		else if (part->mob_rescue != -1)
-		{
-			mob = get_mob_index(part->mob_rescue);
-
-			victim = get_char_world_index(NULL, mob);
-
-			sprintf(buf, "Rescue {Y%s{x from {Y%s{x in {Y%s{x.\n\r",
-				victim->short_descr,
-				victim->in_room->name,
-				victim->in_room->area->name);
-		}
-		else if (part->mob != -1)
-		{
-			mob = get_mob_index(part->mob);
-
-			victim = get_char_world_index(NULL, mob);
-
-			sprintf(buf, "Slay {Y%s{x.  %s was last seen in {Y%s{x.\n\r",
-				victim->short_descr,
-				victim->sex == SEX_MALE ? "He" :
-				victim->sex == SEX_FEMALE ? "She" : "It",
-				victim->in_room->area->name);
-		}
-		else if (part->room != -1)
-		{
-			ROOM_INDEX_DATA *room = get_room_index(part->room);
-
-			sprintf(buf, "Travel to {Y%s{x in {Y%s{x.\n\r", room->name, room->area->name);
-		}
-		else if ( !IS_NULLSTR(part->custom_task) )
-			sprintf(buf, "%s{x\n\r", part->custom_task);
-#endif
+		return FALSE;
 	}
 
-	/*
-    sprintf(buf, "{W  |__________________________________________________________________________________________\n\r"
-	    "{W /A\\                                                                                         \\\n\r"
-	    "((o))                                                                                         )\n\r"
-	    "{W  '-'----------------------------------------------------------------------------------------'\n\r");*/
+	free_string(scroll->name);
+	free_string(scroll->short_descr);
+	free_string(scroll->description);
 
-	replace1 = string_replace_static(qd->footer, "$PLAYER$", ch->name);
-	replace2 = string_replace_static(replace1, "$QUESTOR$", questman->short_descr);
-	strcat(buf2, replace2);
+	scroll->name = str_dup(qd->keywords);
+	scroll->short_descr = str_dup(qd->short_descr);
+	scroll->description = str_dup(qd->long_descr);
 
-
-    scroll->full_description = str_dup(buf2);
 
     act("$N gives $p to $n.", ch, questman, NULL, scroll, NULL, NULL, NULL, TO_ROOM);
     act("$N gives you $p.",   ch, questman, NULL, scroll, NULL, NULL, NULL, TO_CHAR);

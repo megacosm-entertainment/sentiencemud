@@ -3266,6 +3266,8 @@ struct questor_data
 	QUESTOR_DATA *next;
 	bool valid;
 
+	long scroll;
+
 	// Appearance data
 	char *keywords;
 	char *short_descr;
@@ -7888,5 +7890,8 @@ char *get_stock_description(SHOP_STOCK_DATA *stock);
 void show_basic_mob_lore(CHAR_DATA *ch, CHAR_DATA *victim);
 SHOP_STOCK_DATA *get_stockonly_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, char *argument);
 bool is_pullable(OBJ_DATA *obj);
+
+OBJ_DATA *generate_quest_scroll(CHAR_DATA *ch, CHAR_DATA *questman, long vnum, char *header, char *footer, char *prefix, char *suffix, int width);
+
 
 #endif /* !def __MERC_H__ */

@@ -3297,6 +3297,7 @@ QUESTOR_DATA *new_questor_data()
 	q->prefix = &str_empty[0];
 	q->suffix = &str_empty[0];
 	q->line_width = 70;
+	q->scroll = OBJ_VNUM_QUEST_SCROLL;
 
 	return q;
 }
