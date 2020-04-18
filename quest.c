@@ -50,6 +50,7 @@
 #include <string.h>
 #include <time.h>
 #include "merc.h"
+#include "recycle.h"
 #include "magic.h"
 #include "tables.h"
 
