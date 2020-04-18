@@ -764,7 +764,7 @@ SCRIPT_CMD(do_tpadjust)
 {
 	char buf[MSL],*rest, arg2[MIL];
 	int vnum = 0, num = -1, value = 0, count = 0;
-	bool timer = FALSE;
+	int *ptr = NULL;
 	CHAR_DATA *victim = NULL;
 	OBJ_DATA *object = NULL;
 	ROOM_INDEX_DATA *room = NULL;
@@ -846,16 +846,19 @@ SCRIPT_CMD(do_tpadjust)
 
 	switch(arg->type) {
 	case ENT_STRING:
-		if(is_number(arg->d.str))
-			num = atoi(arg->d.str);
-		else if(!str_cmp(arg->d.str,"timer"))
-			timer = TRUE;
+		if(is_number(arg->d.str))					num = atoi(arg->d.str);
+		else if(!str_cmp(arg->d.str,"tempstore1"))	ptr = &token->tempstore[0];
+		else if(!str_cmp(arg->d.str,"tempstore2"))	ptr = &token->tempstore[1];
+		else if(!str_cmp(arg->d.str,"tempstore3"))	ptr = &token->tempstore[2];
+		else if(!str_cmp(arg->d.str,"tempstore4"))	ptr = &token->tempstore[3];
+		else if(!str_cmp(arg->d.str,"timer"))		ptr = &token->timer;
+
 		break;
 	case ENT_NUMBER: num = arg->d.num; break;
 	default: break;
 	}
 
-	if ((num < 0 || num >= MAX_TOKEN_VALUES) && !timer) {
+	if ((num < 0 || num >= MAX_TOKEN_VALUES) && !ptr) {
 		sprintf(buf, "TpAdjust: bad v#");
 		bug(buf, 0);
 		return;
@@ -884,31 +887,31 @@ SCRIPT_CMD(do_tpadjust)
 		return;
 	}
 
-	if(timer) {
+	if(ptr) {
 		switch (buf[0]) {
-		case '+': token->timer += value; break;
-		case '-': token->timer -= value; break;
-		case '*': token->timer *= value; break;
+		case '+': *ptr += value; break;
+		case '-': *ptr -= value; break;
+		case '*': *ptr *= value; break;
 		case '/':
 			if (!value) {
 				bug("TpAdjust - adjust called with operator / and value 0", 0);
 				return;
 			}
-			token->timer /= value;
+			*ptr /= value;
 			break;
 		case '%':
 			if (!value) {
 				bug("TpAdjust - adjust called with operator % and value 0", 0);
 				return;
 			}
-			token->timer %= value;
+			*ptr %= value;
 			break;
 
-		case '=': token->timer = value; break;
-		case '&': token->timer &= value; break;
-		case '|': token->timer |= value; break;
-		case '!': token->timer &= ~value; break;
-		case '^': token->timer ^= value; break;
+		case '=': *ptr = value; break;
+		case '&': *ptr &= value; break;
+		case '|': *ptr |= value; break;
+		case '!': *ptr &= ~value; break;
+		case '^': *ptr ^= value; break;
 		default:
 			return;
 		}
