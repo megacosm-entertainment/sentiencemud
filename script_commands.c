@@ -1252,6 +1252,8 @@ SCRIPT_CMD(scriptcmd_fade)
 	// Block rifter, cart pullers and fighters
 	if (IS_SOCIAL(target) || PULLING_CART(target) || (target->fighting != NULL)) return;
 
+	if( IS_SET(target->in_room->area->area_flags, AREA_NO_FADING) ) return;
+
 	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING)
 		return;
 
