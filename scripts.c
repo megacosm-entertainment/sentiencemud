@@ -5878,14 +5878,24 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 	// MOBLIST remove <index>
 	// MOBLIST clear
 	} else if(!str_cmp(buf,"moblist")) {
-		if( arg->type != ENT_STRING )
-			return;
+		char tmp[MSL];
 
+		if( arg->type != ENT_STRING )
+		{
+			wiznet("MOBLIST ???",NULL,NULL,WIZ_SCRIPTS,0,0);
+			return;
+		}
+
+		sprintf(tmp, "MOBLIST %.*s", MIL, arg->d.str);
+		wiznet(tmp,NULL,NULL,WIZ_SCRIPTS,0,0);
 
 		// MOBLIST add <mobile>
 		if( !str_cmp(arg->d.str, "add") ) {
 			if(!(rest = expand_argument(info,rest,arg)))
+			{
+				wiznet("MOBLIST ADD ???",NULL,NULL,WIZ_SCRIPTS,0,0);
 				return;
+			}
 
 			if( arg->type == ENT_MOBILE && IS_VALID(arg->d.mob) )
 				variables_set_list_mob(vars,name,arg->d.mob,TRISTATE);
