@@ -108,7 +108,7 @@ const long quest_item_token_table[] =
 
 
 OBJ_DATA *generate_quest_scroll(CHAR_DATA *ch, CHAR_DATA *questman, long vnum,
-	char *header, char *footer, char *prefix, char *suffix, int width)
+	char *header, char *footer, char *prefix, char *suffix, int line_width)
 {
 	OBJ_INDEX_DATA *scroll_index = get_obj_index(vnum);
 	if( scroll_index == NULL )
@@ -144,9 +144,9 @@ OBJ_DATA *generate_quest_scroll(CHAR_DATA *ch, CHAR_DATA *questman, long vnum,
 
 		for (QUEST_PART_DATA *part = ch->quest->parts; part != NULL; part = part->next)
 		{
-			if( width > 0 && strlen(suffix) > 0 )
+			if( line_width > 0 && strlen(suffix) > 0 )
 			{
-				int width = width + get_colour_width(part->description);
+				int width = line_width + get_colour_width(part->description);
 
 				sprintf(buf, "%s%-*.*s%s\n\r", prefix, width, width, part->description, suffix);
 			}
