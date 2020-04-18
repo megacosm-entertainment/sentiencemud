@@ -4929,6 +4929,11 @@ SCRIPT_CMD(do_rpalterroom)
 	else if(!str_cmp(field,"move"))		{ ptr = (int*)&room->move_rate; min_sec = 1; }
 	else if(!str_cmp(field,"mapx"))		{ ptr = (int*)&room->x; min_sec = 5;}
 	else if(!str_cmp(field,"mapy"))		{ ptr = (int*)&room->y; min_sec = 5;}
+	else if(!str_cmp(field,"tempstore1"))	ptr = (int*)&room->tempstore[0];
+	else if(!str_cmp(field,"tempstore2"))	ptr = (int*)&room->tempstore[1];
+	else if(!str_cmp(field,"tempstore3"))	ptr = (int*)&room->tempstore[2];
+	else if(!str_cmp(field,"tempstore4"))	ptr = (int*)&room->tempstore[3];
+
 	if(!ptr && !sptr) return;
 
 	if(script_security < min_sec) {
