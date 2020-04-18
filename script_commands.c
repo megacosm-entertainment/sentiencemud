@@ -1954,6 +1954,8 @@ SCRIPT_CMD(scriptcmd_questgenerate)
 		return;
 
 	mob->quest = new_quest();
+	mob->quest->generating = TRUE;
+	mob->quest->scripted = TRUE;
 	mob->quest->questgiver_type = qg_type;
 	mob->quest->questgiver = qg_vnum;
 	if( qr_mob )

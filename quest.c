@@ -937,7 +937,7 @@ bool generate_quest_part(CHAR_DATA *ch, CHAR_DATA *questman, QUEST_PART_DATA *pa
 	// The quest part must return a positive value to be valid
 	//  returning a zero due to "end 0" or not having the QUEST_PART trigger will be considered invalid
 	//  errors in script execution will be negative, so will be considered invalid.
-    return p_percent_trigger( questman, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_PART, NULL) <= 0;
+    return p_percent_trigger( questman, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_PART, NULL) > 0;
 }
 
 
@@ -965,7 +965,7 @@ void quest_update(void)
 		}
 	    }
 	    else
-	    if (IS_QUESTING(ch))
+	    if (IS_QUESTING(ch) && !ch->quest->generating)
 	    {
 		if (--ch->countdown <= 0)
 		{
