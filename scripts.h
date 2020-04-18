@@ -2434,6 +2434,11 @@ SCRIPT_CMD(scriptcmd_detach);
 SCRIPT_CMD(scriptcmd_pageat);
 SCRIPT_CMD(scriptcmd_fade);
 
+SCRIPT_CMD(scriptcmd_questaccept);
+SCRIPT_CMD(scriptcmd_questcancel);
+SCRIPT_CMD(scriptcmd_questgenerate);
+SCRIPT_CMD(scriptcmd_questscroll);
+
 #include "tables.h"
 
 #endif /* !__SCRIPTS_H__ */

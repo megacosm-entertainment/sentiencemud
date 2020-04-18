@@ -1667,11 +1667,127 @@ SCRIPT_CMD(scriptcmd_pageat)
 //////////////////////////////////////
 // Q
 
+// QUESTACCEPT $PLAYER[ $SCROLL]
+// Finalizes the $PLAYER's pending SCRIPTED quest
+//
+// $PLAYER - player who is on a quest
+// $SCROLL - scroll object to give to player (optional)
+//
+// Fails if the player does not have a pending SCRIPTED quest.
+// Fails if the scroll is defined but does not have WEAR_TAKE set OR is worn.
+//
+// LASTRETURN will be the resulting countdown timer
+SCRIPT_CMD(scriptcmd_questaccept)
+{
+	char *rest;
+	CHAR_DATA *mob;
+
+	info->progs->lastreturn = 0;
+
+	if(!(rest = expand_argument(info,argument,arg)))
+		return;
+
+	if(arg->type != ENT_MOBILE || !arg->d.mob || IS_NPC(arg->d.mob) || !IS_QUESTING(arg->d.mob)) return;
+
+	mob = arg->d.mob;
+
+	// Must be on a scripted quest that is still generating
+	if( !mob->quest->generating || !mob->quest->scripted ) return;
+
+	// Check if there is a SCROLL, if so.. give it to the target
+	if( *rest )
+	{
+		OBJ_DATA *scroll;
+
+		if(!(rest = expand_argument(info,rest,arg)))
+			return;
+
+		if( arg->type != ENT_OBJECT || !IS_VALID(arg->d.obj) )
+			return;
+
+		scroll = arg->d.obj;
+		if( !CAN_WEAR(scroll, ITEM_TAKE) || scroll->wear_loc != WEAR_NONE )
+			return;
+
+		if( scroll->in_room != NULL )
+			obj_from_room(scroll);
+		else if( scroll->carried_by != NULL )
+			obj_from_char(scroll);
+		else if( scroll->in_obj != NULL )
+			obj_from_obj(scroll);
+
+		obj_to_char(scroll, mob);
+	}
+
+	mob->countdown = 0;
+	for (QUEST_PART_DATA *qp = mob->quest->parts; qp != NULL; qp = qp->next)
+		mob->countdown += qp->minutes;
+
+	mob->quest->generating = FALSE;
+	info->progs->lastreturn = mob->countdown;
+}
+
+// QUESTCANCEL $PLAYER $CLEANUP
+// Cancels the $PLAYER's pending SCRIPTED quest
+//
+// $PLAYER  - Cancels the pending quest for this player
+// $CLEANUP - script (caller space) used to clean up generated quest parts
+//
+// Fails if the player does not have a pending scripted quest.
+SCRIPT_CMD(scriptcmd_questcancel)
+{
+	char *rest;
+	CHAR_DATA *mob;
+	long vnum;
+	int type;
+	SCRIPT_DATA *script;
+
+	info->progs->lastreturn = 0;
+
+	if(info->mob) type = PRG_MPROG;
+	else if(info->obj) type = PRG_OPROG;
+	else if(info->room) type = PRG_RPROG;
+	else if(info->token) type = PRG_TPROG;
+	else
+		return;
+
+
+	if(!(rest = expand_argument(info,argument,arg)))
+		return;
+
+	if(arg->type != ENT_MOBILE || !arg->d.mob || IS_NPC(arg->d.mob) || !IS_QUESTING(arg->d.mob)) return;
+
+	mob = arg->d.mob;
+
+	// Must be on a scripted quest that is still generating
+	if( !mob->quest->generating || !mob->quest->scripted ) return;
+
+	// Get cleanup script
+	if(!(rest = expand_argument(info,rest,arg)))
+		return;
+
+	switch(arg->type) {
+	case ENT_STRING: vnum = atoi(arg->d.str); break;
+	case ENT_NUMBER: vnum = arg->d.num; break;
+	default: vnum = 0; break;
+	}
+
+	if (vnum < 1 || !(script = get_script_index(vnum, type)))
+		return;
+
+	// Don't care about response
+	execute_script(script->vnum, script, info->mob, info->obj, info->room, info->token, mob, NULL, NULL, NULL, NULL,NULL, NULL,NULL,NULL,0,0,0,0,0);
+
+	free_quest(mob->quest);
+	mob->quest = NULL;
+
+	info->progs->lastreturn = 1;
+}
+
 // QUESTCOMPLETE $player $partno
 SCRIPT_CMD(scriptcmd_questcomplete)
 {
 	char *rest;
-
 	CHAR_DATA *mob;
 
 	info->progs->lastreturn = 0;
@@ -1692,25 +1808,208 @@ SCRIPT_CMD(scriptcmd_questcomplete)
 		info->progs->lastreturn = 1;
 }
 
+
+// QUESTGENERATE $PLAYER $QUESTRECEIVER $PARTCOUNT $PARTSCRIPT
+
+// QUESTRECEIVER cannot be a wilderness room (for now?)
+SCRIPT_CMD(scriptcmd_questgenerate)
+{
+	char *rest;
+	CHAR_DATA *mob;
+	int qg_type;
+	long qg_vnum;
+
+	CHAR_DATA *qr_mob = NULL;
+	OBJ_DATA *qr_obj = NULL;
+	ROOM_INDEX_DATA *qr_room = NULL;
+	int *tempstores;
+	int type, parts;
+	SCRIPT_DATA *script;
+
+	info->progs->lastreturn = 0;
+
+	if(info->mob)
+	{
+		type = PRG_MPROG;
+		tempstores = info->mob->tempstore;
+
+		if( !IS_NPC(info->mob) )
+			return;
+
+		qg_type = QUESTOR_MOB;
+		qg_vnum = info->mob->pIndexData->vnum;
+	}
+	else if(info->obj)
+	{
+		type = PRG_OPROG;
+		tempstores = info->obj->tempstore;
+
+		qg_type = QUESTOR_OBJ;
+		qg_vnum = info->obj->pIndexData->vnum;
+	}
+	else if(info->room)
+	{
+		type = PRG_RPROG;
+		tempstores = info->room->tempstore;
+		if( info->room->wilds || info->room->source )
+			return;
+
+		qg_type = QUESTOR_ROOM;
+		qg_vnum = info->room->vnum;
+	}
+	else if(info->token)
+	{
+		type = PRG_TPROG;
+		tempstores = info->token->tempstore;
+
+		// Select the owner
+		if( info->token->player )
+		{
+			if( !IS_NPC(info->token->player) )
+				return;
+
+			qg_type = QUESTOR_MOB;
+			qg_vnum = info->token->player->pIndexData->vnum;
+		}
+		else if( info->token->object )
+		{
+			qg_type = QUESTOR_OBJ;
+			qg_vnum = info->token->object->pIndexData->vnum;
+		}
+		else if( info->token->room )
+		{
+			if( info->token->room->wilds || info->token->room->source )
+				return;
+
+			qg_type = QUESTOR_ROOM;
+			qg_vnum = info->token->room->vnum;
+		}
+		else
+			return;
+	}
+	else
+		return;
+
+
+	if(!(rest = expand_argument(info,argument,arg)))
+		return;
+
+	if(arg->type != ENT_MOBILE || !arg->d.mob || IS_NPC(arg->d.mob) || IS_QUESTING(arg->d.mob)) return;
+
+	mob = arg->d.mob;
+
+	// Get quest receiver
+	if(!(rest = expand_argument(info,rest,arg)))
+		return;
+
+	if( arg->type == ENT_MOBILE )
+	{
+		if( !IS_VALID(arg->d.mob) || !IS_NPC(arg->d.mob) )
+			return;
+
+		qr_mob = arg->d.mob;
+	}
+	else if( arg->type == ENT_OBJECT )
+	{
+		if( !IS_VALID(arg->d.obj) )
+			return;
+
+		qr_obj = arg->d.obj;
+	}
+	else if( arg->type == ENT_ROOM )
+	{
+		if( !IS_VALID(arg->d.room) || (arg->d.room->wild != NULL) || (arg->d.room->source != NULL) )
+			return;
+
+		qr_room = arg->d.room;
+	}
+
+	if( !qr_mob && !qr_obj && !qr_room )
+		return;
+
+	// Get part count
+	if(!(rest = expand_argument(info,rest,arg)))
+		return;
+
+	switch(arg->type) {
+	case ENT_STRING: parts = atoi(arg->d.str); break;
+	case ENT_NUMBER: parts = arg->d.num; break;
+	default: parts = 0; break;
+	}
+
+	if( parts < 1 )
+		return;
+
+	// Get generator script
+	if(!(rest = expand_argument(info,rest,arg)))
+		return;
+
+	switch(arg->type) {
+	case ENT_STRING: vnum = atoi(arg->d.str); break;
+	case ENT_NUMBER: vnum = arg->d.num; break;
+	default: vnum = 0; break;
+	}
+
+	if (vnum < 1 || !(script = get_script_index(vnum, type)))
+		return;
+
+	mob->quest = new_quest();
+	mob->quest->questgiver_type = qg_type;
+	mob->quest->questgiver = qg_vnum;
+	if( qr_mob )
+	{
+		mob->quest->questreceiver_type = QUESTOR_MOB;
+		mob->quest->questreceiver = qr_mob->pIndexData->vnum;
+	}
+	else if( qr_obj )
+	{
+		mob->quest->questreceiver_type = QUESTOR_OBJ;
+		mob->quest->questreceiver = qr_obj->pIndexData->vnum;
+	}
+	else if( qr_room )
+	{
+		mob->quest->questreceiver_type = QUESTOR_ROOM;
+		mob->quest->questreceiver = qr_room->vnum;
+	}
+
+	bool success = TRUE;
+	for(int i = 0; i < parts; i++)
+	{
+		QUEST_PART_DATA *part = new_quest_part();
+
+		part->next = mob->quest->parts;
+		mob->quest->parts = part;
+		part->index = parts - i;
+
+		tempstores[0] = part->index;
+
+		if( execute_script(script->vnum, script, info->mob, info->obj, info->room, info->token, mob, NULL, NULL, NULL, NULL,NULL, NULL,NULL,NULL,0,0,0,0,0) <= 0 )
+		{
+			success = FALSE;
+			break;
+		}
+	}
+
+	if( success )
+	{
+		info->progs->lastreturn = 1;
+	}
+	else
+	{
+		free_quest(mob->quest);
+		mob->quest = NULL;
+	}
+}
+
 // QUESTPARTCUSTOM $PLAYER $STRING[ $MINUTES]
 SCRIPT_CMD(scriptcmd_questpartcustom)
 {
 	char buf[MSL];
 	char *rest;
-
-	CHAR_DATA *questman;
 	CHAR_DATA *ch;
 	int minutes;
 
 	info->progs->lastreturn = 0;
-
-	questman = NULL;
-	if(info->mob) questman = info->mob;
-	else if(info->token && info->token->player) questman = info->token->player;
-
-	// Only allow mprogs or tprogs where the ultimate mob calling them is a questor mob
-	if(!IS_VALID(questman) || !IS_NPC(questman) || !IS_SET(questman->act, ACT_QUESTOR))
-		return;
 
 	if(!(rest = expand_argument(info,argument,arg)))
 		return;
@@ -1755,21 +2054,11 @@ SCRIPT_CMD(scriptcmd_questpartgetitem)
 {
 	char buf[MSL];
 	char *rest;
-
-	CHAR_DATA *questman;
 	CHAR_DATA *ch;
 	OBJ_DATA *obj;
 	int minutes;
 
 	info->progs->lastreturn = 0;
-
-	questman = NULL;
-	if(info->mob) questman = info->mob;
-	else if(info->token && info->token->player) questman = info->token->player;
-
-	// Only allow mprogs or tprogs where the ultimate mob calling them is a questor mob
-	if(!IS_VALID(questman) || !IS_NPC(questman) || !IS_SET(questman->act, ACT_QUESTOR))
-		return;
 
 	if(!(rest = expand_argument(info,argument,arg)))
 		return;
@@ -1819,21 +2108,11 @@ SCRIPT_CMD(scriptcmd_questpartgoto)
 {
 	char buf[MSL];
 	char *rest;
-
-	CHAR_DATA *questman;
 	CHAR_DATA *ch;
 	ROOM_INDEX_DATA *destination;
 	int minutes;
 
 	info->progs->lastreturn = 0;
-
-	questman = NULL;
-	if(info->mob) questman = info->mob;
-	else if(info->token && info->token->player) questman = info->token->player;
-
-	// Only allow mprogs or tprogs where the ultimate mob calling them is a questor mob
-	if(!IS_VALID(questman) || !IS_NPC(questman) || !IS_SET(questman->act, ACT_QUESTOR))
-		return;
 
 	if(!(rest = expand_argument(info,argument,arg)))
 		return;
@@ -1892,21 +2171,11 @@ SCRIPT_CMD(scriptcmd_questpartrescue)
 {
 	char buf[MSL];
 	char *rest;
-
-	CHAR_DATA *questman;
 	CHAR_DATA *ch;
 	CHAR_DATA *target;
 	int minutes;
 
 	info->progs->lastreturn = 0;
-
-	questman = NULL;
-	if(info->mob) questman = info->mob;
-	else if(info->token && info->token->player) questman = info->token->player;
-
-	// Only allow mprogs or tprogs where the ultimate mob calling them is a questor mob
-	if(!IS_VALID(questman) || !IS_NPC(questman) || !IS_SET(questman->act, ACT_QUESTOR))
-		return;
 
 	if(!(rest = expand_argument(info,argument,arg)))
 		return;
@@ -1954,21 +2223,11 @@ SCRIPT_CMD(scriptcmd_questpartslay)
 {
 	char buf[MSL];
 	char *rest;
-
-	CHAR_DATA *questman;
 	CHAR_DATA *ch;
 	CHAR_DATA *target;
 	int minutes;
 
 	info->progs->lastreturn = 0;
-
-	questman = NULL;
-	if(info->mob) questman = info->mob;
-	else if(info->token && info->token->player) questman = info->token->player;
-
-	// Only allow mprogs or tprogs where the ultimate mob calling them is a questor mob
-	if(!IS_VALID(questman) || !IS_NPC(questman) || !IS_SET(questman->act, ACT_QUESTOR))
-		return;
 
 	if(!(rest = expand_argument(info,argument,arg)))
 		return;
@@ -2009,6 +2268,142 @@ SCRIPT_CMD(scriptcmd_questpartslay)
 	part->minutes = minutes;
 
 	info->progs->lastreturn = 1;
+}
+
+char *__get_questscroll_args(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg,
+	char **header, char **footer, int *width, char **prefix, char **suffix)
+{
+	*header = NULL;
+	*footer = NULL;
+	*width = 0;
+	*prefix = NULL;
+	*suffix = NULL;
+
+	if(!(rest = expand_argument(info,argument,arg)) || arg->type != ENT_STRING)
+		return NULL;
+
+	*header = str_dup(arg->d.str);
+
+	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING)
+		return NULL;
+
+	*footer = str_dup(arg->d.str);
+
+	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER)
+		return NULL;
+
+	if(arg->d.num < 0)
+		return NULL;
+
+	*width = arg->d.num;
+
+	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING)
+		return NULL;
+
+	*prefix = str_dup(arg->d.str);
+
+	if( *width > 0 )
+	{
+		if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING)
+			return NULL;
+
+		*suffix = str_dup(arg->d.str);
+	}
+
+	return rest;
+}
+
+// QUESTSCROLL $PLAYER $QUESTGIVER $VNUM $HEADER $FOOTER $WIDTH $PREFIX[ $SUFFIX] $VARIABLENAME
+SCRIPT_CMD(scriptcmd_questscroll)
+{
+	char *header, *footer, *prefix, *suffix;
+	char *varname;
+	int width;
+	char questgiver[MSL];
+	char *rest;
+	CHAR_DATA *ch;
+	long vnum;
+
+	info->progs->lastreturn = 0;
+
+	if(!(rest = expand_argument(info,argument,arg)))
+		return;
+
+	if(arg->type != ENT_MOBILE || !arg->d.mob || IS_NPC(arg->d.mob)) return;
+
+	ch = arg->d.mob;
+
+	// Must be in the generation phase
+	if( ch->quest == NULL || !ch->quest->generating || !ch->quest->scripted ) return;
+
+	// Get questreceiver description
+	if(!(rest = expand_argument(info,rest,arg)))
+		return;
+
+	if( arg->type == ENT_MOBILE )
+	{
+		if( !IS_VALID(arg->d.mob) || !IS_NPC(arg->d.mob) )
+			return;
+
+		strncpy(questgiver, arg->d.mob->short_descr, MSL-1);
+		questgiver[MSL-1] = '\0';
+	}
+	else if( arg->type == ENT_OBJECT )
+	{
+		if( !IS_VALID(arg->d.obj) )
+			return;
+
+		strncpy(questgiver, arg->d.obj->short_descr, MSL-1);
+		questgiver[MSL-1] = '\0';
+	}
+	else if( arg->type == ENT_ROOM )
+	{
+		if( !IS_VALID(arg->d.room) )
+			return;
+
+		strncpy(questgiver, arg->d.room->name, MSL-1);
+		questgiver[MSL-1] = '\0';
+	}
+	else if( arg->type == ENT_STRING )
+	{
+		if( IS_NULLSTR(arg->d.str) )
+			return;
+
+		strncpy(questgiver, arg->d.str, MSL-1);
+		questgiver[MSL-1] = '\0';
+	}
+	else
+		return;
+
+	// Get scroll vnum
+	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER)
+		return;
+
+	if( arg->d.num < 1 || !get_obj_index(arg->d.num))
+		return;
+
+	vnum = arg->d.num;
+
+	rest = __get_questscroll_args(info, rest, arg, &header, &footer, &width, &prefix, &suffix);
+	if( rest && *rest )
+	{
+		rest = expand_argument(info,rest,arg));
+
+		if( rest && arg->type == ENT_STRING )
+		{
+			OBJ_DATA *scroll = generate_quest_scroll(mob,questgiver,vnum,header,footer,prefix,suffix,width);
+			if( scroll != NULL )
+			{
+				variables_set_object(info->var, arg->d.str, scroll);
+				info->progs->lastreturn = 1;
+			}
+		}
+	}
+
+	if( header ) free_string(header);
+	if( footer ) free_string(footer);
+	if( prefix ) free_string(prefix);
+	if( suffix ) free_string(suffix);
 }
 
 

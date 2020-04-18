@@ -336,6 +336,7 @@ typedef struct    wilds_terrain    WILDS_TERRAIN;
 #define IS_MEMTYPE(ptr,typ)		(ptr ? (*((char *)((void *)(ptr))) == (typ)) : FALSE)
 #define SET_MEMTYPE(ptr,typ)	(ptr)->__type = (typ)
 
+#define MAX_TEMPSTORE	4
 
 /* Functions */
 typedef	void DO_FUN	(CHAR_DATA *ch, char *argument);
@@ -3280,14 +3281,23 @@ struct questor_data
 	int line_width;
 };
 
+#define QUESTOR_MOB		0
+#define QUESTOR_OBJ		1
+#define QUESTOR_ROOM	2
+
 /* For randomly generated quests */
 struct quest_data
 {
     QUEST_DATA *        next;
     QUEST_PART_DATA *   parts;
+    int					questgiver_type;
     long                questgiver;
+    int					questreceiver_type;
+    long				questreceiver;
+
     bool		msg_complete;
     bool		generating;
+    bool		scripted;
 };
 
 
@@ -3441,6 +3451,8 @@ struct token_data
 	EXTRA_DESCR_DATA	*ed;
 
 	SKILL_ENTRY *skill;		// Is the token used in a skill entry?
+
+    int			tempstore[MAX_TEMPSTORE];		/* Temporary storage values for script processing */
 };
 
 
@@ -3905,7 +3917,7 @@ struct	char_data
     int			hit_type;		/* Type of damage given */
     int			hit_class;		/* Class of damage given */
     int			skill_chance;		/* Current chance used in a given action */
-    int			tempstore[4];		/* Temporary storage values for script processing */
+    int			tempstore[MAX_TEMPSTORE];		/* Temporary storage values for script processing */
     char *		tempstring;
     int			manastore;		/* A storage for "mana" other than the character's mana */
 
@@ -4302,7 +4314,7 @@ struct	obj_data
     long extra4_flags_perm;
     long weapon_flags_perm;	// Used by weapon objects for use with TO_WEAPON
 
-    int			tempstore[4];		/* Temporary storage values for script processing */
+    int			tempstore[MAX_TEMPSTORE];		/* Temporary storage values for script processing */
 
 };
 
@@ -4897,6 +4909,8 @@ struct	room_index_data
 	bool force_destruct;
 
 	LOCATION recall;
+
+    int			tempstore[MAX_TEMPSTORE];		/* Temporary storage values for script processing */
 };
 
 typedef struct blueprint_data BLUEPRINT;
@@ -5225,6 +5239,7 @@ enum trigger_index_enum {
 	TRIG_PUSH,
 	TRIG_PUSH_ON,		/* NIB : 20070121 */
 	TRIG_PUT,
+	TRIG_QUEST_CANCEL,
 	TRIG_QUEST_COMPLETE,	// Prior to awards being given, called when the quest turned in complete, allowing editing of the awards
 	TRIG_QUEST_INCOMPLETE,	// Prior to awards being given, called when the quest turned in incomplete , allowing editing of the awards
 	TRIG_QUEST_PART,		// Used to generate a custom quest part when selected.
@@ -7891,7 +7906,7 @@ void show_basic_mob_lore(CHAR_DATA *ch, CHAR_DATA *victim);
 SHOP_STOCK_DATA *get_stockonly_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, char *argument);
 bool is_pullable(OBJ_DATA *obj);
 
-OBJ_DATA *generate_quest_scroll(CHAR_DATA *ch, CHAR_DATA *questman, long vnum, char *header, char *footer, char *prefix, char *suffix, int width);
+OBJ_DATA *generate_quest_scroll(CHAR_DATA *ch, char *questgiver, long vnum, char *header, char *footer, char *prefix, char *suffix, int width);
 
 
 #endif /* !def __MERC_H__ */

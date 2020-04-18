@@ -479,9 +479,13 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
         fprintf(fp, "QuestNext %d\n",  10             );
 
     if (IS_QUESTING(ch)) {
-	fprintf(fp, "QuestGiver %ld\n", ch->quest->questgiver);
+		fprintf(fp, "Questing\n");
+		fprintf(fp, "QuestGiverType %ld\n", ch->quest->questgiver_type);
+		fprintf(fp, "QuestGiver %ld\n", ch->quest->questgiver);
+		fprintf(fp, "QuestReceiverType %ld\n", ch->quest->questreceiver_type);
+		fprintf(fp, "QuestReceiver %ld\n", ch->quest->questreceiver);
 
-	fwrite_quest_part(fp, ch->quest->parts);
+		fwrite_quest_part(fp, ch->quest->parts);
     }
 
     if (ch->countdown > 0)
@@ -1616,13 +1620,55 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 		break;
 	    }
 
+	    if (!str_cmp(word, "Questing"))
+	    {
+			ch->quest = (QUEST_DATA *)new_quest();
+			fMatch = TRUE;
+			break;
+		}
+
+	    if (!str_cmp(word, "QuestGiverType"))
+	    {
+			if( ch->quest != NULL )
+			{
+				ch->quest = (QUEST_DATA *)new_quest();
+			}
+			ch->quest->questgiver_type = fread_number(fp);
+			fMatch = TRUE;
+			break;
+	    }
 
 	    if (!str_cmp(word, "QuestGiver"))
 	    {
-		ch->quest = (QUEST_DATA *)new_quest();
-		ch->quest->questgiver = fread_number(fp);
-		fMatch = TRUE;
-		break;
+			if( ch->quest != NULL )
+			{
+				ch->quest = (QUEST_DATA *)new_quest();
+			}
+			ch->quest->questgiver = fread_number(fp);
+			fMatch = TRUE;
+			break;
+	    }
+
+	    if (!str_cmp(word, "QuestReceiverType"))
+	    {
+			if( ch->quest != NULL )
+			{
+				ch->quest = (QUEST_DATA *)new_quest();
+			}
+			ch->quest->questreceiver_type = fread_number(fp);
+			fMatch = TRUE;
+			break;
+	    }
+
+	    if (!str_cmp(word, "QuestReceiver"))
+	    {
+			if( ch->quest != NULL )
+			{
+				ch->quest = (QUEST_DATA *)new_quest();
+			}
+			ch->quest->questreceiver = fread_number(fp);
+			fMatch = TRUE;
+			break;
 	    }
 
 	    if (!str_cmp(word, "QOPart"))
@@ -2048,6 +2094,28 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 	    fread_to_eol(fp);
 	}
     }
+
+
+	// Make sure questing data from old info is configured properly
+    if( ch->quest != NULL )
+    {
+		if( ch->quest->questgiver < 0 )
+		{
+			// No questgiver info
+			free_quest(ch->quest);
+			ch->countdown = 0;
+			ch->quest = NULL;
+		}
+		else if( ch->quest->questgiver > 0 )
+		{
+			if( ch->quest->questgiver_type < 0 ) ch->quest->questgiver_type = QUESTOR_MOB;
+			if( ch->quest->questreceiver < 0 || ch->quest->questreceiver_type < 0 )
+			{
+				ch->quest->questreceiver = ch->quest->questgiver;
+				ch->quest->questreceiver_type = QUESTOR_MOB;
+			}
+		}
+	}
 }
 
 

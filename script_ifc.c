@@ -3187,25 +3187,45 @@ DECL_IFC_FUN(ifc_objfrag)
 
 DECL_IFC_FUN(ifc_tempstore1)
 {
-	*ret = ISARG_MOB(0) ? ARG_MOB(0)->tempstore[0] : (ISARG_OBJ(0) ? ARG_OBJ(0)->tempstore[0] : 0);
+	     if( ISARG_MOB(0)  )	*ret = ARG_MOB(0)->tempstore[0];
+	else if( ISARG_OBJ(0)  )	*ret = ARG_OBJ(0)->tempstore[0];
+	else if( ISARG_ROOM(0) )	*ret = ARG_ROOM(0)->tempstore[0];
+	else if( ISARG_TOK(0)  )	*ret = ARG_TOK(0)->tempstore[0];
+	else						*ret = 0;
+
 	return TRUE;
 }
 
 DECL_IFC_FUN(ifc_tempstore2)
 {
-	*ret = ISARG_MOB(0) ? ARG_MOB(0)->tempstore[1] : (ISARG_OBJ(0) ? ARG_OBJ(0)->tempstore[1] : 0);
+	     if( ISARG_MOB(0)  )	*ret = ARG_MOB(0)->tempstore[1];
+	else if( ISARG_OBJ(0)  )	*ret = ARG_OBJ(0)->tempstore[1];
+	else if( ISARG_ROOM(0) )	*ret = ARG_ROOM(0)->tempstore[1];
+	else if( ISARG_TOK(0)  )	*ret = ARG_TOK(0)->tempstore[1];
+	else						*ret = 0;
+
 	return TRUE;
 }
 
 DECL_IFC_FUN(ifc_tempstore3)
 {
-	*ret = ISARG_MOB(0) ? ARG_MOB(0)->tempstore[2] : (ISARG_OBJ(0) ? ARG_OBJ(0)->tempstore[2] : 0);
+	     if( ISARG_MOB(0)  )	*ret = ARG_MOB(0)->tempstore[2];
+	else if( ISARG_OBJ(0)  )	*ret = ARG_OBJ(0)->tempstore[2];
+	else if( ISARG_ROOM(0) )	*ret = ARG_ROOM(0)->tempstore[2];
+	else if( ISARG_TOK(0)  )	*ret = ARG_TOK(0)->tempstore[2];
+	else						*ret = 0;
+
 	return TRUE;
 }
 
 DECL_IFC_FUN(ifc_tempstore4)
 {
-	*ret = ISARG_MOB(0) ? ARG_MOB(0)->tempstore[3] : (ISARG_OBJ(0) ? ARG_OBJ(0)->tempstore[3] : 0);
+	     if( ISARG_MOB(0)  )	*ret = ARG_MOB(0)->tempstore[3];
+	else if( ISARG_OBJ(0)  )	*ret = ARG_OBJ(0)->tempstore[3];
+	else if( ISARG_ROOM(0) )	*ret = ARG_ROOM(0)->tempstore[3];
+	else if( ISARG_TOK(0)  )	*ret = ARG_TOK(0)->tempstore[3];
+	else						*ret = 0;
+
 	return TRUE;
 }
 

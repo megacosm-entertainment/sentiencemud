@@ -1988,6 +1988,13 @@ QUEST_DATA *new_quest( void )
     pQuest->questgiver = (long)NULL;
     pQuest->parts = NULL;
     pQuest->msg_complete = FALSE;
+    pQuest->generating = FALSE;
+    pQuest->scripted = FALSE;
+
+    pQuest->questgiver_type = -1;
+    pQuest->questgiver = -1;
+    pQuest->questreceiver_type = -1;
+    pQuest->questreceiver = -1;
 
     top_quest++;
 
