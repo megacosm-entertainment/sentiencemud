@@ -3706,14 +3706,14 @@ SCRIPT_CMD(do_mpvarset)
 {
 	if(!info || !info->mob || !info->var) return;
 
-	script_varseton(info,info->var,argument);
+	script_varseton(info,info->var,argument, arg);
 }
 
 SCRIPT_CMD(do_mpvarclear)
 {
 	if(!info || !info->mob || !info->var) return;
 
-	script_varclearon(info,info->var, argument);
+	script_varclearon(info,info->var, argument, arg);
 }
 
 SCRIPT_CMD(do_mpvarcopy)
@@ -5981,7 +5981,7 @@ SCRIPT_CMD(do_mpvarseton)
 	default: vars = NULL; break;
 	}
 
-	script_varseton(info, vars, argument);
+	script_varseton(info, vars, argument, arg);
 }
 
 SCRIPT_CMD(do_mpvarclearon)
@@ -6003,7 +6003,7 @@ SCRIPT_CMD(do_mpvarclearon)
 	default: vars = NULL; break;
 	}
 
-	script_varclearon(info,vars,argument);
+	script_varclearon(info,vars,argument, arg);
 }
 
 SCRIPT_CMD(do_mpvarsaveon)

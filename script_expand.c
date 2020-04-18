@@ -4664,32 +4664,35 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 char *expand_string_entity(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
 {
 	char buf[MIL];
-	SCRIPT_PARAM arg;
+	SCRIPT_PARAM *arg = new_script_param();
 
-	str = expand_argument_entity(info,str,&arg);
-	if(!str || arg.type == ENT_NONE) return NULL;
+	str = expand_argument_entity(info,str,arg);
+	if(!str || arg->type == ENT_NONE) {
+		free_script_param(arg);
+		return NULL;
+	}
 
-	switch(arg.type) {
+	switch(arg->type) {
 	default:
 		add_buf(buffer, "{D<{x@{W@{x@{D>{x ");
 		break;
 
 	case ENT_NUMBER:
-		sprintf(buf, "%d", arg.d.num);
+		sprintf(buf, "%d", arg->d.num);
 		add_buf(buffer, buf);
 		break;
 
 	case ENT_STRING:
-		add_buf(buffer, arg.d.str ? arg.d.str : "(null)");
+		add_buf(buffer, arg->d.str ? arg->d.str : "(null)");
 		break;
 
 	case ENT_MOBILE:
-		if( IS_VALID(arg.d.mob) )
+		if( IS_VALID(arg->d.mob) )
 		{
-			if( IS_NPC(arg.d.mob) )
-				add_buf(buffer, arg.d.mob->short_descr);
+			if( IS_NPC(arg->d.mob) )
+				add_buf(buffer, arg->d.mob->short_descr);
 			else
-				add_buf(buffer, arg.d.mob->name);
+				add_buf(buffer, arg->d.mob->name);
 		}
 		else
 		{
@@ -4698,29 +4701,31 @@ char *expand_string_entity(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
 		break;
 
 	case ENT_OBJECT:
-		add_buf(buffer, arg.d.obj ? arg.d.obj->short_descr : SOMETHING);
+		add_buf(buffer, arg->d.obj ? arg->d.obj->short_descr : SOMETHING);
 		break;
 
 	case ENT_ROOM:
-		add_buf(buffer, arg.d.room ? arg.d.room->name : SOMEWHERE);
+		add_buf(buffer, arg->d.room ? arg->d.room->name : SOMEWHERE);
 		break;
 
 	case ENT_EXIT:
-		add_buf(buffer, dir_name[arg.d.door.door]);
+		add_buf(buffer, dir_name[arg->d.door.door]);
 		break;
 
 	case ENT_TOKEN:
-		add_buf(buffer, (arg.d.token && arg.d.token->pIndexData) ? arg.d.token->pIndexData->name : SOMETHING);
+		add_buf(buffer, (arg->d.token && arg->d.token->pIndexData) ? arg->d.token->pIndexData->name : SOMETHING);
 		break;
 
 	case ENT_AREA:
-		add_buf(buffer, arg.d.area ? arg.d.area->name : SOMEWHERE);
+		add_buf(buffer, arg->d.area ? arg->d.area->name : SOMEWHERE);
 		break;
 
 	case ENT_CONN:
-		add_buf(buffer, (arg.d.conn && arg.d.conn->character) ? arg.d.conn->character->name : SOMEONE);
+		add_buf(buffer, (arg->d.conn && arg->d.conn->character) ? arg->d.conn->character->name : SOMEONE);
 		break;
 	}
+
+	free_script_param(arg);
 
 	return str;
 }

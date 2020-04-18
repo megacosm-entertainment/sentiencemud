@@ -3217,20 +3217,19 @@ bool variable_fread(ppVARIABLE vars, int type, FILE *fp)
 	return TRUE;
 }
 
-void script_varclearon(SCRIPT_VARINFO *info, VARIABLE **vars, char *argument)
+void script_varclearon(SCRIPT_VARINFO *info, VARIABLE **vars, char *argument, SCRIPT_PARAM *arg)
 {
-	SCRIPT_PARAM arg;
 	char name[MIL];
 
 	if(!vars) return;
 
 	// Get name
-	if(!(argument = expand_argument(info,argument,&arg)))
+	if(!(argument = expand_argument(info,argument,arg)))
 		return;
 
-	if(arg.type != ENT_STRING) return;
+	if(arg->type != ENT_STRING) return;
 
-	strcpy(name, arg.d.str);
+	strcpy(name, arg->d.str);
 
 	if(!name[0]) return;
 

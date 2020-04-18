@@ -1825,7 +1825,7 @@ bool has_item(CHAR_DATA *ch, long vnum, sh_int item_type, bool fWear);
 CHAR_DATA *get_mob_vnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, long vnum);
 OBJ_DATA *get_obj_vnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, long vnum);
 void do_mob_transfer(CHAR_DATA *ch,ROOM_INDEX_DATA *room,bool quiet);
-TOKEN_DATA *token_find_match(SCRIPT_VARINFO *info, TOKEN_DATA *tokens,char *argument);
+TOKEN_DATA *token_find_match(SCRIPT_VARINFO *info, TOKEN_DATA *tokens,char *argument, SCRIPT_PARAM *arg);
 CHAR_DATA *script_get_char_blist(LLIST *blist, CHAR_DATA *viewer, bool player, int vnum, char *name);
 CHAR_DATA *script_get_char_list(CHAR_DATA *mobs, CHAR_DATA *viewer, bool player, int vnum, char *name);
 OBJ_DATA *script_get_obj_blist(LLIST *blist, CHAR_DATA *viewer, int vnum, char *name);
@@ -1966,7 +1966,7 @@ int variable_fread_type(char *str);
 pVARIABLE variable_create(ppVARIABLE list,char *name, bool index, bool clear);
 pVARIABLE variable_get(pVARIABLE list,char *name);
 pVARIABLE variable_new(void);
-void script_varclearon(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument);
+void script_varclearon(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRIPT_PARAM *arg);
 void variable_add(ppVARIABLE list,pVARIABLE var);
 void variable_clearfield(int type, void *ptr);
 void variable_dynamic_fix_church (CHURCH_DATA *church);
@@ -1987,7 +1987,7 @@ void variable_index_fix(void);
 
 // Prototype for find_path() in hunt.c
 int find_path( long in_room_vnum, long out_room_vnum, CHAR_DATA *ch, int depth, int in_zone );
-void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument);
+void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRIPT_PARAM *arg);
 
 void script_end_success(CHAR_DATA *ch);
 void script_end_failure(CHAR_DATA *ch, bool messages);

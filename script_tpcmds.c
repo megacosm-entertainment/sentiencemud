@@ -1648,14 +1648,14 @@ SCRIPT_CMD(do_tpvarset)
 {
 	if(!info || !info->token || !info->var) return;
 
-	script_varseton(info, info->var, argument);
+	script_varseton(info, info->var, argument, arg);
 }
 
 SCRIPT_CMD(do_tpvarclear)
 {
 	if(!info || !info->token || !info->var) return;
 
-	script_varclearon(info, info->var, argument);
+	script_varclearon(info, info->var, argument, arg);
 }
 
 SCRIPT_CMD(do_tpvarcopy)
@@ -5118,7 +5118,7 @@ SCRIPT_CMD(do_tpvarseton)
 	default: vars = NULL; break;
 	}
 
-	script_varseton(info, vars, argument);
+	script_varseton(info, vars, argument, arg);
 }
 
 SCRIPT_CMD(do_tpvarclearon)
@@ -5140,7 +5140,7 @@ SCRIPT_CMD(do_tpvarclearon)
 	default: vars = NULL; break;
 	}
 
-	script_varclearon(info, vars, argument);
+	script_varclearon(info, vars, argument, arg);
 }
 
 SCRIPT_CMD(do_tpvarsaveon)

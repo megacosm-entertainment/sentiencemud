@@ -2703,14 +2703,14 @@ SCRIPT_CMD(do_opvarset)
 {
 	if(!info || !info->obj || !info->var) return;
 
-	script_varseton(info, info->var, argument);
+	script_varseton(info, info->var, argument, arg);
 }
 
 SCRIPT_CMD(do_opvarclear)
 {
 	if(!info || !info->obj || !info->var) return;
 
-	script_varclearon(info, info->var, argument);
+	script_varclearon(info, info->var, argument, arg);
 }
 
 SCRIPT_CMD(do_opvarcopy)
@@ -4979,7 +4979,7 @@ SCRIPT_CMD(do_opvarseton)
 	default: vars = NULL; break;
 	}
 
-	script_varseton(info, vars, argument);
+	script_varseton(info, vars, argument, arg);
 }
 
 SCRIPT_CMD(do_opvarclearon)
@@ -5001,7 +5001,7 @@ SCRIPT_CMD(do_opvarclearon)
 	default: vars = NULL; break;
 	}
 
-	script_varclearon(info,vars,argument);
+	script_varclearon(info,vars,argument, arg);
 }
 
 SCRIPT_CMD(do_opvarsaveon)

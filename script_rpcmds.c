@@ -2415,14 +2415,14 @@ SCRIPT_CMD(do_rpvarset)
 {
 	if(!info || !info->room || !info->var) return;
 
-	script_varseton(info, info->var, argument);
+	script_varseton(info, info->var, argument, arg);
 }
 
 SCRIPT_CMD(do_rpvarclear)
 {
 	if(!info || !info->room || !info->var) return;
 
-	script_varclearon(info, info->var, argument);
+	script_varclearon(info, info->var, argument, arg);
 }
 
 SCRIPT_CMD(do_rpvarcopy)
@@ -4652,7 +4652,7 @@ SCRIPT_CMD(do_rpvarseton)
 	default: vars = NULL; break;
 	}
 
-	script_varseton(info, vars, argument);
+	script_varseton(info, vars, argument, arg);
 }
 
 SCRIPT_CMD(do_rpvarclearon)
@@ -4674,7 +4674,7 @@ SCRIPT_CMD(do_rpvarclearon)
 	default: vars = NULL; break;
 	}
 
-	script_varclearon(info,vars,argument);
+	script_varclearon(info,vars,argument, arg);
 }
 
 SCRIPT_CMD(do_rpvarsaveon)

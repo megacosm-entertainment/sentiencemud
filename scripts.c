@@ -386,13 +386,12 @@ char *ifcheck_get_value(SCRIPT_VARINFO *info,IFCHECK_DATA *ifc,char *text,int *r
 	return argument;
 }
 
-int ifcheck_comparison(SCRIPT_VARINFO *info, short param, char *rest)
+int ifcheck_comparison(SCRIPT_VARINFO *info, short param, char *rest, SCRIPT_PARAM *arg)
 {
 	int lhs, oper, rhs;
 	char *text, *p, buf[MIL], buf2[MSL];
 	bool valid;
 	IFCHECK_DATA *ifc;
-	SCRIPT_PARAM arg;
 
 	if(!info) return -1;	// Error
 
@@ -400,16 +399,16 @@ int ifcheck_comparison(SCRIPT_VARINFO *info, short param, char *rest)
 		 return -1;
 
 	if(param == -1) {
-		text = expand_argument(info,rest,&arg);
+		text = expand_argument(info,rest,arg);
 		if(!text) return -1;
 
-		if( arg.type == ENT_BOOLEAN )
-			return arg.d.boolean ? 1 : 0;
+		if( arg->type == ENT_BOOLEAN )
+			return arg->d.boolean ? 1 : 0;
 
-		if( arg.type != ENT_NUMBER )
+		if( arg->type != ENT_NUMBER )
 			return -1;
 
-		lhs = arg.d.num;
+		lhs = arg->d.num;
 
 	} else {
 		ifc = &ifcheck_table[param];
@@ -431,16 +430,16 @@ int ifcheck_comparison(SCRIPT_VARINFO *info, short param, char *rest)
 	oper = get_operator(buf);
 	if (oper < 0) return FALSE;
 
-	p = expand_argument(info,text,&arg);
+	p = expand_argument(info,text,arg);
 	if(!p || p == text) {
 		return -1;
 	}
 
-	switch(arg.type) {
-	case ENT_NUMBER: rhs = arg.d.num; break;
+	switch(arg->type) {
+	case ENT_NUMBER: rhs = arg.d->num; break;
 	case ENT_STRING:
-		if(is_number(arg.d.str)) {
-			rhs = atoi(arg.d.str);
+		if(is_number(arg->d.str)) {
+			rhs = atoi(arg->d.str);
 			break;
 		}
 	default:
@@ -459,40 +458,40 @@ int ifcheck_comparison(SCRIPT_VARINFO *info, short param, char *rest)
 	}
 }
 
-int boolexp_evaluate(SCRIPT_CB *block, BOOLEXP *be)
+int boolexp_evaluate(SCRIPT_CB *block, BOOLEXP *be, SCRIPT_PARAM *arg)
 {
 	int ret;
 	if(!block) return -1;	// Error
 
 	switch(be->type) {
 	case BOOLEXP_TRUE:
-		return ifcheck_comparison(&block->info, be->param, be->rest);
+		return ifcheck_comparison(&block->info, be->param, be->rest, arg);
 
 	case BOOLEXP_NOT:
-		ret = ifcheck_comparison(&block->info, be->param, be->rest);
+		ret = ifcheck_comparison(&block->info, be->param, be->rest, arg);
 
 		if( ret < 0 ) return -1;
 
 		return ret ? FALSE : TRUE;
 
 	case BOOLEXP_AND:
-		ret = boolexp_evaluate(block, be->left);
+		ret = boolexp_evaluate(block, be->left, arg);
 		if( ret < 0 ) return -1;
 
 		if( ret == FALSE ) return FALSE;	// Short circuit FALSE
 
-		ret = boolexp_evaluate(block, be->right);
+		ret = boolexp_evaluate(block, be->right, arg);
 		if( ret < 0 ) return -1;
 
 		return ret ? TRUE : FALSE;
 
 	case BOOLEXP_OR:
-		ret = boolexp_evaluate(block, be->left);
+		ret = boolexp_evaluate(block, be->left, arg);
 		if( ret < 0 ) return -1;
 
 		if( ret == TRUE ) return TRUE;		// Short circuit TRUE
 
-		ret = boolexp_evaluate(block, be->right);
+		ret = boolexp_evaluate(block, be->right, arg);
 		if( ret < 0 ) return -1;
 
 		return ret ? TRUE : FALSE;
@@ -639,26 +638,28 @@ void script_loop_cleanup(SCRIPT_CB *block, int level)
 DECL_OPC_FUN(opc_end)
 {
 	int val;
-	SCRIPT_PARAM arg;
 
 	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
 		return opc_skip_block(block,block->cur_line->level-1,FALSE);
 
 	// Anything to evaluate?
 	if(block->cur_line->rest[0]) {
-		if(!expand_argument(&block->info,block->cur_line->rest,&arg)) {
+		SCRIPT_PARAM *arg = new_script_param();
+		if(!expand_argument(&block->info,block->cur_line->rest,arg)) {
 			block->ret_val = PRET_BADSYNTAX;
+			free_script_param(arg);
 			return FALSE;
 		}
 
 		switch(arg.type) {
-		case ENT_STRING: val = atoi(arg.d.str); break;
-		case ENT_NUMBER: val = arg.d.num; break;
+		case ENT_STRING: val = atoi(arg->d.str); break;
+		case ENT_NUMBER: val = arg->d.num; break;
 		default: val = 0; break;
 		}
 
 		DBG3MSG1("val = %d\n", val);
 		if(val >= 0) block->ret_val = val;
+		free_script_param(arg);
 	}
 
 	return FALSE;
@@ -674,7 +675,9 @@ DECL_OPC_FUN(opc_if)
 	if(block->cur_line->opcode == OP_ELSEIF && block->cond[block->cur_line->level])
 		return opc_skip_block(block,block->cur_line->level,TRUE);
 
-	ret = boolexp_evaluate(block, (BOOLEXP *)block->cur_line->rest);
+	SCRIPT_PARAM *arg = new_script_param();
+	ret = boolexp_evaluate(block, (BOOLEXP *)block->cur_line->rest, arg);
+	free_script_param(arg);
 	if(ret < 0) return FALSE;
 
 	block->state[block->cur_line->level] = OP_IF;
@@ -690,7 +693,9 @@ DECL_OPC_FUN(opc_while)
 	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
 		return opc_skip_block(block,block->cur_line->level-1,FALSE);
 
-	ret = boolexp_evaluate(block, (BOOLEXP *)block->cur_line->rest);
+	SCRIPT_PARAM *arg = new_script_param();
+	ret = boolexp_evaluate(block, (BOOLEXP *)block->cur_line->rest, arg);
+	free_script_param(arg);
 	if(ret < 0) return FALSE;
 
 	block->state[block->cur_line->level] = OP_WHILE;
@@ -739,7 +744,6 @@ DECL_OPC_FUN(opc_command)
 DECL_OPC_FUN(opc_gotoline)
 {
 	int val;
-	SCRIPT_PARAM arg;
 
 	script_loop_cleanup(block, block->cur_line->level);
 	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
@@ -747,16 +751,20 @@ DECL_OPC_FUN(opc_gotoline)
 
 	// Anything to evaluate?
 	if(block->cur_line->rest[0]) {
-		if(!expand_argument(&block->info,block->cur_line->rest,&arg)) {
+		SCRIPT_PARAM *arg = new_script_param();
+		if(!expand_argument(&block->info,block->cur_line->rest,arg)) {
 			block->ret_val = PRET_BADSYNTAX;
+			free_script_param(arg);
 			return FALSE;
 		}
 
 		switch(arg.type) {
-		case ENT_STRING: val = atoi(arg.d.str)-1; break;
-		case ENT_NUMBER: val = arg.d.num-1; break;
+		case ENT_STRING: val = atoi(arg->d.str)-1; break;
+		case ENT_NUMBER: val = arg->d.num-1; break;
 		default: val = -1; break;
 		}
+
+		free_script_param(arg);
 
 		if(val >= 0 && val < block->script->lines) {
 			block->line = val;
@@ -775,7 +783,6 @@ DECL_OPC_FUN(opc_for)
 	bool skip = FALSE;
 	int lp, end, cur, inc;
 	char *str1,*str2;
-	SCRIPT_PARAM arg;
 
 	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
 		return opc_skip_block(block,block->cur_line->level-1,FALSE);
@@ -796,45 +803,54 @@ DECL_OPC_FUN(opc_for)
 			return FALSE;
 		}
 
-		if(!(str2 = expand_argument(&block->info,str1,&arg))) {
+		SCRIPT_PARAM *arg = new_script_param();
+
+		if(!(str2 = expand_argument(&block->info,str1,arg))) {
 			block->ret_val = PRET_BADSYNTAX;
+			free_script_param(arg);
 			return FALSE;
 		}
 
 		switch(arg.type) {
-		case ENT_STRING: cur = atoi(arg.d.str); break;
-		case ENT_NUMBER: cur = arg.d.num; break;
+		case ENT_STRING: cur = atoi(arg->d.str); break;
+		case ENT_NUMBER: cur = arg->d.num; break;
+		default:
+			block->ret_val = PRET_BADSYNTAX;
+			free_script_param(arg);
+			return FALSE;
+		}
+
+		if(!(str1 = expand_argument(&block->info,str2,arg))) {
+			block->ret_val = PRET_BADSYNTAX;
+			free_script_param(arg);
+			return FALSE;
+		}
+
+		switch(arg.type) {
+		case ENT_STRING: end = atoi(arg->d.str); break;
+		case ENT_NUMBER: end = arg->d.num; break;
 		default:
 			block->ret_val = PRET_BADSYNTAX;
 			return FALSE;
 		}
 
-		if(!(str1 = expand_argument(&block->info,str2,&arg))) {
+
+		if(!(str2 = expand_argument(&block->info,str1,arg))) {
 			block->ret_val = PRET_BADSYNTAX;
+			free_script_param(arg);
 			return FALSE;
 		}
 
 		switch(arg.type) {
-		case ENT_STRING: end = atoi(arg.d.str); break;
-		case ENT_NUMBER: end = arg.d.num; break;
+		case ENT_STRING: inc = atoi(arg->d.str); break;
+		case ENT_NUMBER: inc = arg->d.num; break;
 		default:
 			block->ret_val = PRET_BADSYNTAX;
+			free_script_param(arg);
 			return FALSE;
 		}
 
-
-		if(!(str2 = expand_argument(&block->info,str1,&arg))) {
-			block->ret_val = PRET_BADSYNTAX;
-			return FALSE;
-		}
-
-		switch(arg.type) {
-		case ENT_STRING: inc = atoi(arg.d.str); break;
-		case ENT_NUMBER: inc = arg.d.num; break;
-		default:
-			block->ret_val = PRET_BADSYNTAX;
-			return FALSE;
-		}
+		free_script_param(arg);
 
 		// No increment?  No looping!
 		if(!inc) return opc_skip_to_label(block,OP_ENDFOR,block->cur_line->label,TRUE);
@@ -917,7 +933,6 @@ DECL_OPC_FUN(opc_list)
 	EXIT_DATA *ex;
 	CHURCH_DATA *church;
 	VARIABLE *variable;
-	SCRIPT_PARAM arg;
 
 	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
 		return opc_skip_block(block,block->cur_line->level-1,FALSE);
@@ -940,9 +955,12 @@ DECL_OPC_FUN(opc_list)
 			return FALSE;
 		}
 
+		SCRIPT_PARAM *arg = new_script_param();
+
 		// Get the LIST
-		if(!(str2 = expand_argument(&block->info,str1,&arg))) {
+		if(!(str2 = expand_argument(&block->info,str1,arg))) {
 			block->ret_val = PRET_BADSYNTAX;
+			free_script_param(arg);
 			return FALSE;
 		}
 
@@ -950,11 +968,14 @@ DECL_OPC_FUN(opc_list)
 
 		switch(arg.type) {
 		case ENT_STRING:
-			log_stringf("opc_list: list type ENT_STRING");
-			if(IS_NULLSTR(arg.d.str))
+			//log_stringf("opc_list: list type ENT_STRING");
+			if(IS_NULLSTR(arg->d.str))
+			{
+				free_script_param(arg);
 				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
 
-			strncpy(block->loops[lp].buf, arg.d.str, MSL-1);
+			strncpy(block->loops[lp].buf, arg->d.str, MSL-1);
 			str = one_argument_norm(block->loops[lp].buf, buf);
 
 			block->loops[lp].d.l.type = ENT_STRING;
@@ -967,17 +988,21 @@ DECL_OPC_FUN(opc_list)
 			variables_set_string(block->info.var,block->loops[lp].var_name,buf,FALSE);
 			break;
 		case ENT_EXIT:
-			log_stringf("opc_list: list type ENT_EXIT");
-			if(!arg.d.door.r)
+			//log_stringf("opc_list: list type ENT_EXIT");
+			if(!arg->d.door.r)
+			{
+				free_script_param(arg);
 				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
 
-			here = arg.d.door.r;
-			ex = here->exit[arg.d.door.door];
+			here = arg->d.door.r;
+			ex = here->exit[arg->d.door.door];
 			block->loops[lp].d.l.type = ENT_EXIT;
-			block->loops[lp].d.l.cur.door = arg.d.door.door;
+			block->loops[lp].d.l.cur.door = arg->d.door.door;
 			block->loops[lp].d.l.next.door = MAX_DIR;
-			block->loops[lp].d.l.owner = arg.d.door.r;
+			block->loops[lp].d.l.owner = arg->d.door.r;
 
+			/*
 			if(ex) {
 				if(here->wilds)
 					log_stringf("opc_list: %s(%ld,%ld,%ld)", dir_name[arg.d.door.door], here->wilds->uid, here->x, here->y);
@@ -987,11 +1012,12 @@ DECL_OPC_FUN(opc_list)
 					log_stringf("opc_list: %s(%ld,%s)", dir_name[arg.d.door.door], here->vnum, here->name);
 			} else
 				log_stringf("opc_list: exit(<END>)");
+			*/
 
 
 			if(ex) {
-				here = arg.d.door.r;
-				for(i=arg.d.door.door + 1; i < MAX_DIR && !here->exit[i]; i++);
+				here = arg->d.door.r;
+				for(i=arg->d.door.door + 1; i < MAX_DIR && !here->exit[i]; i++);
 				block->loops[lp].d.l.next.door = i;
 			}
 			// Set the variable
@@ -999,15 +1025,19 @@ DECL_OPC_FUN(opc_list)
 			break;
 
 		case ENT_OLLIST_MOB:
-			log_stringf("opc_list: list type ENT_MOBILE");
-			if(!arg.d.list.ptr.mob || !*arg.d.list.ptr.mob)
+			//log_stringf("opc_list: list type ENT_MOBILE");
+			if(!arg->d.list.ptr.mob || !*arg->d.list.ptr.mob)
+			{
+				free_script_param(arg);
 				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
 
 			block->loops[lp].d.l.type = ENT_MOBILE;
-			block->loops[lp].d.l.cur.m = *arg.d.list.ptr.mob;
+			block->loops[lp].d.l.cur.m = *arg->d.list.ptr.mob;
 			block->loops[lp].d.l.next.m = block->loops[lp].d.l.cur.m->next_in_room;
-			block->loops[lp].d.l.owner = arg.d.list.owner;
+			block->loops[lp].d.l.owner = arg->d.list.owner;
 
+			/*
 			if(block->loops[lp].d.l.cur.m) {
 				ch = block->loops[lp].d.l.cur.m;
 				if(!IS_NPC(ch))
@@ -1016,59 +1046,74 @@ DECL_OPC_FUN(opc_list)
 					log_stringf("opc_list: mobile(%ld,%ld,%ld)", ch->pIndexData->vnum, ch->id[0], ch->id[1]);
 			} else
 				log_stringf("opc_list: mobile(<END>)");
+			*/
 
 			// Set the variable
-			variables_set_mobile(block->info.var,block->loops[lp].var_name,*arg.d.list.ptr.mob);
+			variables_set_mobile(block->info.var,block->loops[lp].var_name,*arg->d.list.ptr.mob);
 			break;
 
 		case ENT_OLLIST_OBJ:
-			log_stringf("opc_list: list type ENT_OBJECT");
-			if(!arg.d.list.ptr.obj || !*arg.d.list.ptr.obj)
+			//log_stringf("opc_list: list type ENT_OBJECT");
+			if(!arg->d.list.ptr.obj || !*arg->d.list.ptr.obj)
+			{
+				free_script_param(arg);
 				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
 
 			block->loops[lp].d.l.type = ENT_OBJECT;
-			block->loops[lp].d.l.cur.o = *arg.d.list.ptr.obj;
+			block->loops[lp].d.l.cur.o = *arg->d.list.ptr.obj;
 			block->loops[lp].d.l.next.o = block->loops[lp].d.l.cur.o->next_content;
-			block->loops[lp].d.l.owner = arg.d.list.owner;
+			block->loops[lp].d.l.owner = arg->d.list.owner;
 
+			/*
 			if(block->loops[lp].d.l.cur.o)
 				log_stringf("opc_list: object(%ld,%ld,%ld)", block->loops[lp].d.l.cur.o->pIndexData->vnum, block->loops[lp].d.l.cur.o->id[0], block->loops[lp].d.l.cur.o->id[1]);
 			else
 				log_stringf("opc_list: object(<END>)");
+				*/
 
 			// Set the variable
-			variables_set_object(block->info.var,block->loops[lp].var_name,*arg.d.list.ptr.obj);
+			variables_set_object(block->info.var,block->loops[lp].var_name,*arg->d.list.ptr.obj);
 			break;
 
 		case ENT_OLLIST_TOK:
-			log_stringf("opc_list: list type ENT_TOKEN");
-			if(!arg.d.list.ptr.tok || !*arg.d.list.ptr.tok)
+			//log_stringf("opc_list: list type ENT_TOKEN");
+			if(!arg->d.list.ptr.tok || !*arg->d.list.ptr.tok)
+			{
+				free_script_param(arg);
 				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
 
 			block->loops[lp].d.l.type = ENT_TOKEN;
-			block->loops[lp].d.l.cur.t = *arg.d.list.ptr.tok;
+			block->loops[lp].d.l.cur.t = *arg->d.list.ptr.tok;
 			block->loops[lp].d.l.next.t = block->loops[lp].d.l.cur.t->next;
-			block->loops[lp].d.l.owner = arg.d.list.owner;
+			block->loops[lp].d.l.owner = arg->d.list.owner;
 
+			/*
 			if(block->loops[lp].d.l.cur.t)
 				log_stringf("opc_list: token(%ld,%ld,%ld)", block->loops[lp].d.l.cur.t->pIndexData->vnum, block->loops[lp].d.l.cur.t->id[0], block->loops[lp].d.l.cur.t->id[1]);
 			else
 				log_stringf("opc_list: token(<END>)");
+				*/
 
 			// Set the variable
-			variables_set_token(block->info.var,block->loops[lp].var_name,*arg.d.list.ptr.tok);
+			variables_set_token(block->info.var,block->loops[lp].var_name,*arg->d.list.ptr.tok);
 			break;
 
 		case ENT_OLLIST_AFF:
-			log_stringf("opc_list: list type ENT_AFFECT");
-			if(!arg.d.list.ptr.aff || !*arg.d.list.ptr.aff)
+			//log_stringf("opc_list: list type ENT_AFFECT");
+			if(!arg->d.list.ptr.aff || !*arg->d.list.ptr.aff)
+			{
+				free_script_param(arg);
 				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
 
 			block->loops[lp].d.l.type = ENT_AFFECT;
-			block->loops[lp].d.l.cur.aff = *arg.d.list.ptr.aff;
+			block->loops[lp].d.l.cur.aff = *arg->d.list.ptr.aff;
 			block->loops[lp].d.l.next.aff = block->loops[lp].d.l.cur.aff->next;
-			block->loops[lp].d.l.owner = arg.d.list.owner;
+			block->loops[lp].d.l.owner = arg->d.list.owner;
 
+			/*
 			if(block->loops[lp].d.l.cur.aff) {
 				if(block->loops[lp].d.l.cur.aff->custom_name)
 					log_stringf("opc_list: affect(%s)", block->loops[lp].d.l.cur.aff->custom_name);
@@ -1076,30 +1121,37 @@ DECL_OPC_FUN(opc_list)
 					log_stringf("opc_list: affect(%s)", skill_table[block->loops[lp].d.l.cur.aff->type].name);
 			} else
 				log_stringf("opc_list: affect(<END>)");
+				*/
 
 			// Set the variable
-			variables_set_affect(block->info.var,block->loops[lp].var_name,*arg.d.list.ptr.aff);
+			variables_set_affect(block->info.var,block->loops[lp].var_name,*arg->d.list.ptr.aff);
 			break;
 
 		case ENT_PLLIST_STR:
-			log_stringf("opc_list: list type ENT_PLLIST_STR");
-			if(!arg.d.blist || !arg.d.blist->valid)
+			//log_stringf("opc_list: list type ENT_PLLIST_STR");
+			if(!arg->d.blist || !arg->d.blist->valid)
+			{
+				free_script_param(arg);
 				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
 
 			block->loops[lp].d.l.type = ENT_PLLIST_STR;
-			block->loops[lp].d.l.list.lp = arg.d.blist;
-			iterator_start(&block->loops[lp].d.l.list.it,arg.d.blist);
+			block->loops[lp].d.l.list.lp = arg->d.blist;
+			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
 			block->loops[lp].d.l.owner = NULL;
 
 			str = (char *)iterator_nextdata(&block->loops[lp].d.l.list.it);
 
+			/*
 			if(str)
 				log_stringf("opc_list: string(%s)",str);
 			else
 				log_stringf("opc_list: string(<END>)");
+				*/
 
 			if( !str ) {
 				iterator_stop(&block->loops[lp].d.l.list.it);
+				free_script_param(arg);
 				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
 			}
 
@@ -1108,20 +1160,24 @@ DECL_OPC_FUN(opc_list)
 			break;
 
 		case ENT_BLLIST_MOB:
-			log_stringf("opc_list: list type ENT_BLLIST_MOB");
-			if(!arg.d.blist || !arg.d.blist->valid)
+			//log_stringf("opc_list: list type ENT_BLLIST_MOB");
+			if(!arg->d.blist || !arg->d.blist->valid)
+			{
+				free_script_param(arg);
 				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
 
 			block->loops[lp].d.l.type = ENT_BLLIST_MOB;
-			block->loops[lp].d.l.list.lp = arg.d.blist;
-			iterator_start(&block->loops[lp].d.l.list.it,arg.d.blist);
+			block->loops[lp].d.l.list.lp = arg->d.blist;
+			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
 			block->loops[lp].d.l.owner = NULL;
 
 			do {
 				uid = (LLIST_UID_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
 				if( !uid ) {
-					log_stringf("opc_list: mobile(<END>)");
+					//log_stringf("opc_list: mobile(<END>)");
 					iterator_stop(&block->loops[lp].d.l.list.it);
+					free_script_param(arg);
 					return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
 				}
 
@@ -1131,28 +1187,34 @@ DECL_OPC_FUN(opc_list)
 
 			} while( !IS_VALID((CHAR_DATA *)uid->ptr) );
 
+			/*
 			ch = (CHAR_DATA *)(uid->ptr);
 			if(!IS_NPC(ch))
 				log_stringf("opc_list: player(%s,%ld,%ld)", ch->name, ch->id[0], ch->id[1]);
 			else
 				log_stringf("opc_list: mobile(%ld,%ld,%ld)", ch->pIndexData->vnum, ch->id[0], ch->id[1]);
+				*/
 			break;
 
 		case ENT_BLLIST_OBJ:
-			log_stringf("opc_list: list type ENT_BLLIST_OBJ");
-			if(!arg.d.blist || !arg.d.blist->valid)
+			//log_stringf("opc_list: list type ENT_BLLIST_OBJ");
+			if(!arg->d.blist || !arg->d.blist->valid)
+			{
+				free_script_param(arg);
 				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
 
 			block->loops[lp].d.l.type = ENT_BLLIST_OBJ;
-			block->loops[lp].d.l.list.lp = arg.d.blist;
-			iterator_start(&block->loops[lp].d.l.list.it,arg.d.blist);
+			block->loops[lp].d.l.list.lp = arg->d.blist;
+			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
 			block->loops[lp].d.l.owner = NULL;
 
 			do {
 				uid = (LLIST_UID_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
 				if( !uid ) {
-					log_stringf("opc_list: object(<END>)");
+					//log_stringf("opc_list: object(<END>)");
 					iterator_stop(&block->loops[lp].d.l.list.it);
+					free_script_param(arg);
 					return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
 				}
 
@@ -1162,26 +1224,30 @@ DECL_OPC_FUN(opc_list)
 
 			} while( !IS_VALID((OBJ_DATA *)uid->ptr) );
 
-			obj = (OBJ_DATA *)(uid->ptr);
-			log_stringf("opc_list: object(%ld,%ld,%ld)", obj->pIndexData->vnum, obj->id[0], obj->id[1]);
+			//obj = (OBJ_DATA *)(uid->ptr);
+			//log_stringf("opc_list: object(%ld,%ld,%ld)", obj->pIndexData->vnum, obj->id[0], obj->id[1]);
 
 			break;
 
 		case ENT_BLLIST_TOK:
-			log_stringf("opc_list: list type ENT_BLLIST_TOK");
-			if(!arg.d.blist || !arg.d.blist->valid)
+			//log_stringf("opc_list: list type ENT_BLLIST_TOK");
+			if(!arg->d.blist || !arg->d.blist->valid)
+			{
+				free_script_param(arg);
 				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
 
 			block->loops[lp].d.l.type = ENT_BLLIST_TOK;
-			block->loops[lp].d.l.list.lp = arg.d.blist;
-			iterator_start(&block->loops[lp].d.l.list.it,arg.d.blist);
+			block->loops[lp].d.l.list.lp = arg->d.blist;
+			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
 			block->loops[lp].d.l.owner = NULL;
 
 			do {
 				uid = (LLIST_UID_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
 				if( !uid ) {
-					log_stringf("opc_list: token(<END>)");
+					//log_stringf("opc_list: token(<END>)");
 					iterator_stop(&block->loops[lp].d.l.list.it);
+					free_script_param(arg);
 					return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
 				}
 
@@ -1189,26 +1255,31 @@ DECL_OPC_FUN(opc_list)
 				if( IS_VALID((TOKEN_DATA *)uid->ptr) )
 					variables_set_token(block->info.var,block->loops[lp].var_name,(TOKEN_DATA *)uid->ptr);
 			} while( !IS_VALID((TOKEN_DATA *)uid->ptr) );
-			tok = (TOKEN_DATA *)(uid->ptr);
-			log_stringf("opc_list: token(%ld,%ld,%ld)", tok->pIndexData->vnum, tok->id[0], tok->id[1]);
+
+			//tok = (TOKEN_DATA *)(uid->ptr);
+			//log_stringf("opc_list: token(%ld,%ld,%ld)", tok->pIndexData->vnum, tok->id[0], tok->id[1]);
 			break;
 
 		case ENT_BLLIST_ROOM:
-			log_stringf("opc_list: list type ENT_BLLIST_ROOM");
-			if(!arg.d.blist || !arg.d.blist->valid)
+			//log_stringf("opc_list: list type ENT_BLLIST_ROOM");
+			if(!arg->d.blist || !arg->d.blist->valid)
+			{
+				free_script_param(arg);
 				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
 
 			block->loops[lp].d.l.type = ENT_BLLIST_ROOM;
-			block->loops[lp].d.l.list.lp = arg.d.blist;
-			iterator_start(&block->loops[lp].d.l.list.it,arg.d.blist);
+			block->loops[lp].d.l.list.lp = arg->d.blist;
+			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
 			block->loops[lp].d.l.owner = NULL;
 
 			do {
 				lrd = (LLIST_ROOM_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-				log_stringf("opc_list: lrd = %016lX", lrd);
+				//log_stringf("opc_list: lrd = %016lX", lrd);
 				if( !lrd ) {
-					log_stringf("opc_list: room(<END>)");
+					//log_stringf("opc_list: room(<END>)");
 					iterator_stop(&block->loops[lp].d.l.list.it);
+					free_script_param(arg);
 					return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
 				}
 
@@ -1218,6 +1289,7 @@ DECL_OPC_FUN(opc_list)
 
 			} while( !lrd->room );
 
+			/*
 			log_stringf("opc_list: lrd->room = %016lX", lrd->room);
 			if(lrd->room->wilds)
 				log_stringf("opc_list: room(%ld,%ld,%ld)", lrd->room->wilds->uid, lrd->room->x, lrd->room->y);
@@ -1225,24 +1297,29 @@ DECL_OPC_FUN(opc_list)
 				log_stringf("opc_list: room(%ld,%s,%ld,%ld)", lrd->room->vnum, lrd->room->name, lrd->room->id[0], lrd->room->id[1]);
 			else
 				log_stringf("opc_list: room(%ld,%s)", lrd->room->vnum, lrd->room->name);
+				*/
 
 			break;
 
 		case ENT_BLLIST_EXIT:
-			log_stringf("opc_list: list type ENT_BLLIST_EXIT");
-			if(!arg.d.blist || !arg.d.blist->valid)
+			//log_stringf("opc_list: list type ENT_BLLIST_EXIT");
+			if(!arg->d.blist || !arg->d.blist->valid)
+			{
+				free_script_param(arg);
 				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
 
 			block->loops[lp].d.l.type = ENT_BLLIST_EXIT;
-			block->loops[lp].d.l.list.lp = arg.d.blist;
-			iterator_start(&block->loops[lp].d.l.list.it,arg.d.blist);
+			block->loops[lp].d.l.list.lp = arg->d.blist;
+			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
 			block->loops[lp].d.l.owner = NULL;
 
 			do {
 				led = (LLIST_EXIT_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
 				if( !led ) {
-					log_stringf("opc_list: exit(<END>)");
+					//log_stringf("opc_list: exit(<END>)");
 					iterator_stop(&block->loops[lp].d.l.list.it);
+					free_script_param(arg);
 					return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
 				}
 
@@ -1252,30 +1329,36 @@ DECL_OPC_FUN(opc_list)
 
 			} while( !led->room || led->door < 0 || led->door >= MAX_DIR || !led->room->exit[led->door] );
 
+			/*
 			if(led->room->wilds)
 				log_stringf("opc_list: %s(%ld,%ld,%ld)", dir_name[led->door], led->room->wilds->uid, led->room->x, led->room->y);
 			else if(led->room->source)
 				log_stringf("opc_list: %s(%ld,%s,%ld,%ld)", dir_name[led->door], led->room->vnum, led->room->name, led->room->id[0], led->room->id[1]);
 			else
 				log_stringf("opc_list: %s(%ld,%s)", dir_name[led->door], led->room->vnum, led->room->name);
+				*/
 
 			break;
 
 		case ENT_BLLIST_SKILL:
-			log_stringf("opc_list: list type ENT_BLLIST_SKILL");
-			if(!arg.d.blist || !arg.d.blist->valid)
+			//log_stringf("opc_list: list type ENT_BLLIST_SKILL");
+			if(!arg->d.blist || !arg->d.blist->valid)
+			{
+				free_script_param(arg);
 				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
 
 			block->loops[lp].d.l.type = ENT_BLLIST_SKILL;
-			block->loops[lp].d.l.list.lp = arg.d.blist;
-			iterator_start(&block->loops[lp].d.l.list.it,arg.d.blist);
+			block->loops[lp].d.l.list.lp = arg->d.blist;
+			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
 			block->loops[lp].d.l.owner = NULL;
 
 			do {
 				lsk = (LLIST_SKILL_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
 				if( !lsk ) {
-					log_stringf("opc_list: skill(<END>)");
+					//log_stringf("opc_list: skill(<END>)");
 					iterator_stop(&block->loops[lp].d.l.list.it);
+					free_script_param(arg);
 					return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
 				}
 
@@ -1285,28 +1368,34 @@ DECL_OPC_FUN(opc_list)
 
 			} while( !IS_VALID(lsk->mob) || (!IS_VALID(lsk->tok) && ( lsk->sn < 1 || lsk->sn >= MAX_SKILL )) );
 
+			/*
 			if(lsk->tok)
 				log_stringf("opc_list: skill(%ld,%ld,TOKEN,%s)", lsk->mob->id[0], lsk->mob->id[1], lsk->tok->name);
 			else
 				log_stringf("opc_list: skill(%ld,%ld,SKILL,%s)", lsk->mob->id[0], lsk->mob->id[1], skill_table[lsk->sn].name);
+				*/
 
 			break;
 
 		case ENT_BLLIST_AREA:
-			log_stringf("opc_list: list type ENT_BLLIST_AREA");
-			if(!arg.d.blist || !arg.d.blist->valid)
+			//log_stringf("opc_list: list type ENT_BLLIST_AREA");
+			if(!arg->d.blist || !arg->d.blist->valid)
+			{
+				free_script_param(arg);
 				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
 
 			block->loops[lp].d.l.type = ENT_BLLIST_AREA;
-			block->loops[lp].d.l.list.lp = arg.d.blist;
-			iterator_start(&block->loops[lp].d.l.list.it,arg.d.blist);
+			block->loops[lp].d.l.list.lp = arg->d.blist;
+			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
 			block->loops[lp].d.l.owner = NULL;
 
 			do {
 				lar = (LLIST_AREA_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
 				if( !lar ) {
-					log_stringf("opc_list: area(<END>)");
+					//log_stringf("opc_list: area(<END>)");
 					iterator_stop(&block->loops[lp].d.l.list.it);
+					free_script_param(arg);
 					return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
 				}
 
@@ -1316,25 +1405,29 @@ DECL_OPC_FUN(opc_list)
 
 			} while( !lar->area );
 
-			log_stringf("opc_list: area(%ld,%s)", lar->area->uid, lar->area->name);
+			//log_stringf("opc_list: area(%ld,%s)", lar->area->uid, lar->area->name);
 
 			break;
 
 		case ENT_BLLIST_WILDS:
-			log_stringf("opc_list: list type ENT_BLLIST_WILDS");
-			if(!arg.d.blist || !arg.d.blist->valid)
+			//log_stringf("opc_list: list type ENT_BLLIST_WILDS");
+			if(!arg->d.blist || !arg->d.blist->valid)
+			{
+				free_script_param(arg);
 				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
 
 			block->loops[lp].d.l.type = ENT_BLLIST_WILDS;
-			block->loops[lp].d.l.list.lp = arg.d.blist;
-			iterator_start(&block->loops[lp].d.l.list.it,arg.d.blist);
+			block->loops[lp].d.l.list.lp = arg->d.blist;
+			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
 			block->loops[lp].d.l.owner = NULL;
 
 			do {
 				lwd = (LLIST_WILDS_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
 				if( !lwd ) {
-					log_stringf("opc_list: wilds(<END>)");
+					//log_stringf("opc_list: wilds(<END>)");
 					iterator_stop(&block->loops[lp].d.l.list.it);
+					free_script_param(arg);
 					return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
 				}
 
@@ -1344,32 +1437,37 @@ DECL_OPC_FUN(opc_list)
 
 			} while( !lwd->wilds );
 
-			log_stringf("opc_list: wilds(%ld,%s)", lwd->wilds->uid, lwd->wilds->name);
+			//log_stringf("opc_list: wilds(%ld,%s)", lwd->wilds->uid, lwd->wilds->name);
 
 			break;
 
 		case ENT_PLLIST_CONN:
-			log_stringf("opc_list: list type ENT_PLLIST_CONN");
-			if(!arg.d.blist || !arg.d.blist->valid)
+			//log_stringf("opc_list: list type ENT_PLLIST_CONN");
+			if(!arg->d.blist || !arg->d.blist->valid)
+			{
+				free_script_param(arg);
 				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
 
 			block->loops[lp].d.l.type = ENT_PLLIST_CONN;
-			block->loops[lp].d.l.list.lp = arg.d.blist;
-			iterator_start(&block->loops[lp].d.l.list.it,arg.d.blist);
+			block->loops[lp].d.l.list.lp = arg->d.blist;
+			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
 			block->loops[lp].d.l.owner = NULL;
 
 			conn = (DESCRIPTOR_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
 
+			/*
 			if(conn) {
 				if(conn->original)
 					log_stringf("opc_list: connection(%s,%d) [SWITCHED]", conn->original->name, conn->original->tot_level);
 				else
 					log_stringf("opc_list: connection(%s,%d)", conn->character->name, conn->character->tot_level);
 			} else
-				log_stringf("opc_list: connection(<END>)");
+				log_stringf("opc_list: connection(<END>)");*/
 
 			if( !conn ) {
 				iterator_stop(&block->loops[lp].d.l.list.it);
+				free_script_param(arg);
 				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
 			}
 
@@ -1378,17 +1476,21 @@ DECL_OPC_FUN(opc_list)
 			break;
 
 		case ENT_PLLIST_MOB:
-			log_stringf("opc_list: list type ENT_PLLIST_MOB");
-			if(!arg.d.blist || !arg.d.blist->valid)
+			//log_stringf("opc_list: list type ENT_PLLIST_MOB");
+			if(!arg->d.blist || !arg->d.blist->valid)
+			{
+				free_script_param(arg);
 				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
 
 			block->loops[lp].d.l.type = ENT_PLLIST_MOB;
-			block->loops[lp].d.l.list.lp = arg.d.blist;
-			iterator_start(&block->loops[lp].d.l.list.it,arg.d.blist);
+			block->loops[lp].d.l.list.lp = arg->d.blist;
+			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
 			block->loops[lp].d.l.owner = NULL;
 
 			ch = (CHAR_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
 
+			/*
 			if(ch) {
 				if(!IS_NPC(ch))
 					log_stringf("opc_list: player(%s,%ld,%ld)", ch->name, ch->id[0], ch->id[1]);
@@ -1396,9 +1498,11 @@ DECL_OPC_FUN(opc_list)
 					log_stringf("opc_list: mobile(%ld,%ld,%ld)", ch->pIndexData->vnum, ch->id[0], ch->id[1]);
 			} else
 				log_stringf("opc_list: mobile(<END>)");
+				*/
 
 			if( !ch ) {
 				iterator_stop(&block->loops[lp].d.l.list.it);
+				free_script_param(arg);
 				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
 			}
 
@@ -1407,24 +1511,30 @@ DECL_OPC_FUN(opc_list)
 			break;
 
 		case ENT_PLLIST_OBJ:
-			log_stringf("opc_list: list type ENT_PLLIST_OBJ");
-			if(!arg.d.blist || !arg.d.blist->valid)
+			//log_stringf("opc_list: list type ENT_PLLIST_OBJ");
+			if(!arg->d.blist || !arg->d.blist->valid)
+			{
+				free_script_param(arg);
 				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
 
 			block->loops[lp].d.l.type = ENT_PLLIST_OBJ;
-			block->loops[lp].d.l.list.lp = arg.d.blist;
-			iterator_start(&block->loops[lp].d.l.list.it,arg.d.blist);
+			block->loops[lp].d.l.list.lp = arg->d.blist;
+			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
 			block->loops[lp].d.l.owner = NULL;
 
 			obj = (OBJ_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
 
+			/*
 			if(obj)
 				log_stringf("opc_list: object(%ld,%ld,%ld)", obj->pIndexData->vnum, obj->id[0], obj->id[1]);
 			else
 				log_stringf("opc_list: object(<END>)");
+				*/
 
 			if( !obj ) {
 				iterator_stop(&block->loops[lp].d.l.list.it);
+				free_script_param(arg);
 				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
 			}
 
@@ -1433,17 +1543,21 @@ DECL_OPC_FUN(opc_list)
 			break;
 
 		case ENT_PLLIST_ROOM:
-			log_stringf("opc_list: list type ENT_PLLIST_ROOM");
-			if(!arg.d.blist || !arg.d.blist->valid)
+			//log_stringf("opc_list: list type ENT_PLLIST_ROOM");
+			if(!arg->d.blist || !arg->d.blist->valid)
+			{
+				free_script_param(arg);
 				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
 
 			block->loops[lp].d.l.type = ENT_PLLIST_ROOM;
-			block->loops[lp].d.l.list.lp = arg.d.blist;
-			iterator_start(&block->loops[lp].d.l.list.it,arg.d.blist);
+			block->loops[lp].d.l.list.lp = arg->d.blist;
+			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
 			block->loops[lp].d.l.owner = NULL;
 
 			here = (ROOM_INDEX_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
 
+			/*
 			if(here) {
 				if(here->wilds)
 					log_stringf("opc_list: room(%ld,%ld,%ld)", here->wilds->uid, here->x, here->y);
@@ -1453,9 +1567,11 @@ DECL_OPC_FUN(opc_list)
 					log_stringf("opc_list: room(%ld,%s)", here->vnum, here->name);
 			} else
 				log_stringf("opc_list: room(<END>)");
+				*/
 
 			if( !here ) {
 				iterator_stop(&block->loops[lp].d.l.list.it);
+				free_script_param(arg);
 				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
 			}
 
@@ -1464,24 +1580,30 @@ DECL_OPC_FUN(opc_list)
 			break;
 
 		case ENT_PLLIST_TOK:
-			log_stringf("opc_list: list type ENT_PLLIST_TOK");
-			if(!arg.d.blist || !arg.d.blist->valid)
+			//log_stringf("opc_list: list type ENT_PLLIST_TOK");
+			if(!arg->d.blist || !arg->d.blist->valid)
+			{
+				free_script_param(arg);
 				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
 
 			block->loops[lp].d.l.type = ENT_PLLIST_TOK;
-			block->loops[lp].d.l.list.lp = arg.d.blist;
-			iterator_start(&block->loops[lp].d.l.list.it,arg.d.blist);
+			block->loops[lp].d.l.list.lp = arg->d.blist;
+			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
 			block->loops[lp].d.l.owner = NULL;
 
 			tok = (TOKEN_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
 
+			/*
 			if(tok)
 				log_stringf("opc_list: token(%ld,%ld,%ld)", tok->pIndexData->vnum, tok->id[0], tok->id[1]);
 			else
 				log_stringf("opc_list: token(<END>)");
+				*/
 
 			if( !tok ) {
 				iterator_stop(&block->loops[lp].d.l.list.it);
+				free_script_param(arg);
 				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
 			}
 
@@ -1490,21 +1612,25 @@ DECL_OPC_FUN(opc_list)
 			break;
 
 		case ENT_PLLIST_CHURCH:
-			log_stringf("opc_list: list type ENT_PLLIST_CHURCH");
-			if(!arg.d.blist || !arg.d.blist->valid)
+			//log_stringf("opc_list: list type ENT_PLLIST_CHURCH");
+			if(!arg->d.blist || !arg->d.blist->valid)
+			{
+				free_script_param(arg);
 				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
 
 			block->loops[lp].d.l.type = ENT_PLLIST_CHURCH;
-			block->loops[lp].d.l.list.lp = arg.d.blist;
-			iterator_start(&block->loops[lp].d.l.list.it,arg.d.blist);
+			block->loops[lp].d.l.list.lp = arg->d.blist;
+			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
 			block->loops[lp].d.l.owner = NULL;
 
 			church = (CHURCH_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
 
-			log_stringf("opc_list: church(%s)", church ? church->name : "<END>");
+			//log_stringf("opc_list: church(%s)", church ? church->name : "<END>");
 
 			if( !church ) {
 				iterator_stop(&block->loops[lp].d.l.list.it);
+				free_script_param(arg);
 				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
 			}
 
@@ -1513,18 +1639,25 @@ DECL_OPC_FUN(opc_list)
 			break;
 
 		case ENT_ILLIST_MOB_GROUP:
-			log_stringf("opc_list: list type ENT_ILLIST_MOB_GROUP");
-			if(!arg.d.group_owner || !arg.d.group_owner->in_room)
+			//log_stringf("opc_list: list type ENT_ILLIST_MOB_GROUP");
+			if(!arg->d.group_owner || !arg->d.group_owner->in_room)
+			{
+				free_script_param(arg);
 				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
 
-			ch = arg.d.group_owner->leader ? arg.d.group_owner->leader : arg.d.group_owner;
+			ch = arg->d.group_owner->leader ? arg->d.group_owner->leader : arg->d.group_owner;
 
 			list = list_copy(ch->lgroup);
 			if( !list )
+			{
+				free_script_param(arg);
 				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
 
 			if( !list_addlink(list, ch) ) {
 				list_destroy(list);
+				free_script_param(arg);
 				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
 			}
 
@@ -1535,6 +1668,7 @@ DECL_OPC_FUN(opc_list)
 
 			ch = (CHAR_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
 
+			/*
 			if(ch) {
 				if(!IS_NPC(ch))
 					log_stringf("opc_list: player(%s,%ld,%ld)", ch->name, ch->id[0], ch->id[1]);
@@ -1542,6 +1676,7 @@ DECL_OPC_FUN(opc_list)
 					log_stringf("opc_list: mobile(%ld,%ld,%ld)", ch->pIndexData->vnum, ch->id[0], ch->id[1]);
 			} else
 				log_stringf("opc_list: mobile(<END>)");
+				*/
 
 			if( !ch ) {
 				iterator_stop(&block->loops[lp].d.l.list.it);
@@ -1552,21 +1687,25 @@ DECL_OPC_FUN(opc_list)
 			variables_set_mobile(block->info.var,block->loops[lp].var_name,ch);
 
 		case ENT_ILLIST_VARIABLE:
-			log_stringf("opc_list: list type ENT_ILLIST_VARIABLE");
-			if(!arg.d.variables || !*arg.d.variables)
+			//log_stringf("opc_list: list type ENT_ILLIST_VARIABLE");
+			if(!arg->d.variables || !*arg->d.variables)
+			{
+				free_script_param(arg);
 				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
 
 			block->loops[lp].d.l.type = ENT_ILLIST_VARIABLE;
-			block->loops[lp].d.l.list.lp = variable_copy_tolist(arg.d.variables);
+			block->loops[lp].d.l.list.lp = variable_copy_tolist(arg->d.variables);
 			iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
 			block->loops[lp].d.l.owner = NULL;
 
 			variable = (VARIABLE *)iterator_nextdata(&block->loops[lp].d.l.list.it);
 
-			log_stringf("opc_list: variable(%s)", variable ? variable->name : "<END>");
+			//log_stringf("opc_list: variable(%s)", variable ? variable->name : "<END>");
 
 			if( !variable ) {
 				iterator_stop(&block->loops[lp].d.l.list.it);
+				free_script_param(arg);
 				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
 			}
 
@@ -1575,8 +1714,9 @@ DECL_OPC_FUN(opc_list)
 			break;
 
 		default:
-			log_stringf("opc_list: list_type INVALID");
+			//log_stringf("opc_list: list_type INVALID");
 			block->ret_val = PRET_BADSYNTAX;
+			free_script_param(arg);
 			return FALSE;
 		}
 
@@ -1585,14 +1725,15 @@ DECL_OPC_FUN(opc_list)
 		block->loops[lp].level = block->cur_line->level;
 		block->loop++;
 		block->cond[block->cur_line->level] = TRUE;
+		free_script_param(arg);
 	} else {
-		log_stringf("opc_list: next loop variable '%s'", block->loops[lp].var_name);
+		//log_stringf("opc_list: next loop variable '%s'", block->loops[lp].var_name);
 		block->loops[lp].counter++;
 
 		// Continue loop
 		switch(block->loops[lp].d.l.type) {
 		case ENT_STRING:
-			log_stringf("opc_list: list type ENT_STRING");
+			//log_stringf("opc_list: list type ENT_STRING");
 			str = block->loops[lp].d.l.next.str;
 
 			if( IS_NULLSTR(str) )
@@ -1610,7 +1751,7 @@ DECL_OPC_FUN(opc_list)
 
 
 		case ENT_EXIT:
-			log_stringf("opc_list: list type ENT_EXIT");
+			//log_stringf("opc_list: list type ENT_EXIT");
 			i = block->loops[lp].d.l.cur.door = block->loops[lp].d.l.next.door;
 
 			if( i >= MAX_DIR ) {
@@ -1621,6 +1762,7 @@ DECL_OPC_FUN(opc_list)
 			here = (ROOM_INDEX_DATA *)block->loops[lp].d.l.owner;
 			ex = here->exit[i];
 
+			/*
 			if(ex) {
 				if(here->wilds)
 					log_stringf("opc_list: %s(%ld,%ld,%ld)", dir_name[i], here->wilds->uid, here->x, here->y);
@@ -1630,6 +1772,7 @@ DECL_OPC_FUN(opc_list)
 					log_stringf("opc_list: %s(%ld,%s)", dir_name[i], here->vnum, here->name);
 			} else
 				log_stringf("opc_list: exit(<END>)");
+				*/
 
 
 			// Set the variable
@@ -1646,11 +1789,12 @@ DECL_OPC_FUN(opc_list)
 			break;
 
 		case ENT_MOBILE:
-			log_stringf("opc_list: list type ENT_MOBILE");
+			//log_stringf("opc_list: list type ENT_MOBILE");
 			block->loops[lp].d.l.cur.m = block->loops[lp].d.l.next.m;
 			// Set the variable
 			variables_set_mobile(block->info.var,block->loops[lp].var_name,block->loops[lp].d.l.cur.m);
 
+			/*
 			if(block->loops[lp].d.l.cur.m) {
 				ch = block->loops[lp].d.l.cur.m;
 				if(!IS_NPC(ch))
@@ -1659,6 +1803,7 @@ DECL_OPC_FUN(opc_list)
 					log_stringf("opc_list: mobile(%ld,%ld,%ld)", ch->pIndexData->vnum, ch->id[0], ch->id[1]);
 			} else
 				log_stringf("opc_list: mobile(<END>)");
+				*/
 
 			if(!block->loops[lp].d.l.cur.m) {
 				skip = TRUE;
@@ -1669,15 +1814,17 @@ DECL_OPC_FUN(opc_list)
 			break;
 
 		case ENT_OBJECT:
-			log_stringf("opc_list: list type ENT_OBJECT");
+			//log_stringf("opc_list: list type ENT_OBJECT");
 			block->loops[lp].d.l.cur.o = block->loops[lp].d.l.next.o;
 			// Set the variable
 			variables_set_object(block->info.var,block->loops[lp].var_name,block->loops[lp].d.l.cur.o);
 
+			/*
 			if(block->loops[lp].d.l.cur.o)
 				log_stringf("opc_list: object(%ld,%ld,%ld)", block->loops[lp].d.l.cur.o->pIndexData->vnum, block->loops[lp].d.l.cur.o->id[0], block->loops[lp].d.l.cur.o->id[1]);
 			else
 				log_stringf("opc_list: object(<END>)");
+				*/
 
 			if(!block->loops[lp].d.l.cur.o) {
 				skip = TRUE;
@@ -1688,15 +1835,17 @@ DECL_OPC_FUN(opc_list)
 			break;
 
 		case ENT_TOKEN:
-			log_stringf("opc_list: list type ENT_TOKEN");
+			//log_stringf("opc_list: list type ENT_TOKEN");
 			block->loops[lp].d.l.cur.t = block->loops[lp].d.l.next.t;
 			// Set the variable
 			variables_set_token(block->info.var,block->loops[lp].var_name,block->loops[lp].d.l.cur.t);
 
+			/*
 			if(block->loops[lp].d.l.cur.t)
 				log_stringf("opc_list: token(%ld,%ld,%ld)", block->loops[lp].d.l.cur.t->pIndexData->vnum, block->loops[lp].d.l.cur.t->id[0], block->loops[lp].d.l.cur.t->id[1]);
 			else
 				log_stringf("opc_list: token(<END>)");
+				*/
 
 			if(!block->loops[lp].d.l.cur.t) {
 				skip = TRUE;
@@ -1707,11 +1856,12 @@ DECL_OPC_FUN(opc_list)
 			break;
 
 		case ENT_AFFECT:
-			log_stringf("opc_list: list type ENT_AFFECT");
+			//log_stringf("opc_list: list type ENT_AFFECT");
 			block->loops[lp].d.l.cur.aff = block->loops[lp].d.l.next.aff;
 			// Set the variable
 			variables_set_affect(block->info.var,block->loops[lp].var_name,block->loops[lp].d.l.cur.aff);
 
+			/*
 			if(block->loops[lp].d.l.cur.aff) {
 				if(block->loops[lp].d.l.cur.aff->custom_name)
 					log_stringf("opc_list: affect(%s)", block->loops[lp].d.l.cur.aff->custom_name);
@@ -1719,6 +1869,7 @@ DECL_OPC_FUN(opc_list)
 					log_stringf("opc_list: affect(%s)", skill_table[block->loops[lp].d.l.cur.aff->type].name);
 			} else
 				log_stringf("opc_list: affect(<END>)");
+				*/
 
 			if(!block->loops[lp].d.l.cur.aff) {
 				skip = TRUE;
@@ -1729,13 +1880,15 @@ DECL_OPC_FUN(opc_list)
 			break;
 
 		case ENT_PLLIST_STR:
-			log_stringf("opc_list: list type ENT_PLLIST_STR");
+			//log_stringf("opc_list: list type ENT_PLLIST_STR");
 			str = (char *)iterator_nextdata(&block->loops[lp].d.l.list.it);
 
+			/*
 			if(str)
 				log_stringf("opc_list: string(%s)",str);
 			else
 				log_stringf("opc_list: string(<END>)");
+				*/
 
 			// Set the variable
 			variables_set_string(block->info.var,block->loops[lp].var_name,str,FALSE);
@@ -1748,8 +1901,10 @@ DECL_OPC_FUN(opc_list)
 			break;
 
 		case ENT_BLLIST_MOB:
-			log_stringf("opc_list: list type ENT_BLLIST_MOB");
+			//log_stringf("opc_list: list type ENT_BLLIST_MOB");
 			while( (uid = (LLIST_UID_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it)) && !IS_VALID((CHAR_DATA *)uid->ptr) );
+
+			/*
 			if(uid) {
 				ch = (CHAR_DATA *)(uid->ptr);
 				if(!IS_NPC(ch))
@@ -1758,6 +1913,7 @@ DECL_OPC_FUN(opc_list)
 					log_stringf("opc_list: mobile(%ld,%ld,%ld)", ch->pIndexData->vnum, ch->id[0], ch->id[1]);
 			} else
 				log_stringf("opc_list: mobile(<END>)");
+				*/
 
 			variables_set_mobile(block->info.var,block->loops[lp].var_name,(CHAR_DATA *)(uid?uid->ptr:NULL));
 
@@ -1770,13 +1926,15 @@ DECL_OPC_FUN(opc_list)
 			break;
 
 		case ENT_BLLIST_OBJ:
-			log_stringf("opc_list: list type ENT_BLLIST_OBJ");
+			//log_stringf("opc_list: list type ENT_BLLIST_OBJ");
 			while( (uid = (LLIST_UID_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it)) && !IS_VALID((OBJ_DATA *)uid->ptr) );
+			/*
 			if(uid) {
 				obj = (OBJ_DATA *)(uid->ptr);
 				log_stringf("opc_list: object(%ld,%ld,%ld)", obj->pIndexData->vnum, obj->id[0], obj->id[1]);
 			} else
 				log_stringf("opc_list: object(<END>)");
+				*/
 
 			variables_set_object(block->info.var,block->loops[lp].var_name,(OBJ_DATA *)(uid?uid->ptr:NULL));
 
@@ -1789,14 +1947,16 @@ DECL_OPC_FUN(opc_list)
 			break;
 
 		case ENT_BLLIST_TOK:
-			log_stringf("opc_list: list type ENT_BLLIST_TOK");
+			//log_stringf("opc_list: list type ENT_BLLIST_TOK");
 			while( (uid = (LLIST_UID_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it)) && !IS_VALID((TOKEN_DATA *)uid->ptr) );
 
+			/*
 			if(uid) {
 				tok = (TOKEN_DATA *)(uid->ptr);
 				log_stringf("opc_list: token(%ld,%ld,%ld)", tok->pIndexData->vnum, tok->id[0], tok->id[1]);
 			} else
 				log_stringf("opc_list: token(<END>)");
+				*/
 
 			variables_set_token(block->info.var,block->loops[lp].var_name,(TOKEN_DATA *)(uid?uid->ptr:NULL));
 
@@ -1809,8 +1969,9 @@ DECL_OPC_FUN(opc_list)
 			break;
 
 		case ENT_BLLIST_ROOM:
-			log_stringf("opc_list: list type ENT_BLLIST_ROOM");
+			//log_stringf("opc_list: list type ENT_BLLIST_ROOM");
 			while( (lrd = (LLIST_ROOM_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it)) && !lrd->room );
+			/*
 			if(lrd) {
 				if(lrd->room->wilds)
 					log_stringf("opc_list: room(%ld,%ld,%ld)", lrd->room->wilds->uid, lrd->room->x, lrd->room->y);
@@ -1820,6 +1981,7 @@ DECL_OPC_FUN(opc_list)
 					log_stringf("opc_list: room(%ld,%s)", lrd->room->vnum, lrd->room->name);
 			} else
 				log_stringf("opc_list: room(<END>)");
+				*/
 
 			variables_set_room(block->info.var,block->loops[lp].var_name,lrd?lrd->room:NULL);
 
@@ -1831,10 +1993,10 @@ DECL_OPC_FUN(opc_list)
 			break;
 
 		case ENT_BLLIST_EXIT:
-			log_stringf("opc_list: list type ENT_BLLIST_EXIT");
+			//log_stringf("opc_list: list type ENT_BLLIST_EXIT");
 			while( (led = (LLIST_EXIT_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it)) &&
 				(!led->room || led->door < 0 || led->door >= MAX_DIR || !led->room->exit[led->door]));
-
+			/*
 			if(led) {
 				if(led->room->wilds)
 					log_stringf("opc_list: %s(%ld,%ld,%ld)", dir_name[led->door], led->room->wilds->uid, led->room->x, led->room->y);
@@ -1844,6 +2006,7 @@ DECL_OPC_FUN(opc_list)
 					log_stringf("opc_list: %s(%ld,%s)", dir_name[led->door], led->room->vnum, led->room->name);
 			} else
 				log_stringf("opc_list: exit(<END>)");
+				*/
 
 			if( !led ) {
 				variables_set_door(block->info.var,block->loops[lp].var_name,NULL, DIR_NORTH, FALSE);
@@ -1856,9 +2019,10 @@ DECL_OPC_FUN(opc_list)
 			break;
 
 		case ENT_BLLIST_SKILL:
-			log_stringf("opc_list: list type ENT_BLLIST_SKILL");
+			//log_stringf("opc_list: list type ENT_BLLIST_SKILL");
 			while( (lsk = (LLIST_SKILL_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it)) &&
 				(!IS_VALID(lsk->mob) || (!IS_VALID(lsk->tok) && ( lsk->sn < 1 || lsk->sn >= MAX_SKILL ))) );
+			/*
 			if(lsk) {
 				if(lsk->tok)
 					log_stringf("opc_list: skill(%ld,%ld,TOKEN,%s)", lsk->mob->id[0], lsk->mob->id[1], lsk->tok->name);
@@ -1866,7 +2030,7 @@ DECL_OPC_FUN(opc_list)
 					log_stringf("opc_list: skill(%ld,%ld,SKILL,%s)", lsk->mob->id[0], lsk->mob->id[1], skill_table[lsk->sn].name);
 			} else
 				log_stringf("opc_list: skill(<END>)");
-
+				*/
 
 			if( !lsk ) {
 				variables_setsave_skillinfo(block->info.var,block->loops[lp].var_name, NULL, 0, NULL, FALSE);
@@ -1879,12 +2043,14 @@ DECL_OPC_FUN(opc_list)
 			break;
 
 		case ENT_BLLIST_AREA:
-			log_stringf("opc_list: list type ENT_BLLIST_AREA");
+			//log_stringf("opc_list: list type ENT_BLLIST_AREA");
 			while( (lar = (LLIST_AREA_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it)) && !lar->area );
+			/*
 			if(lar) {
 				log_stringf("opc_list: area(%ld,%s)", lar->area->uid, lar->area->name);
 			} else
 				log_stringf("opc_list: area(<END>)");
+				*/
 
 			variables_set_area(block->info.var,block->loops[lp].var_name,lar?lar->area:NULL);
 
@@ -1896,12 +2062,14 @@ DECL_OPC_FUN(opc_list)
 			break;
 
 		case ENT_BLLIST_WILDS:
-			log_stringf("opc_list: list type ENT_BLLIST_WILDS");
+			//log_stringf("opc_list: list type ENT_BLLIST_WILDS");
 			while( (lwd = (LLIST_WILDS_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it)) && !lwd->wilds );
+			/*
 			if(lwd) {
 				log_stringf("opc_list: wilds(%ld,%s)", lwd->wilds->uid, lwd->wilds->name);
 			} else
 				log_stringf("opc_list: wilds(<END>)");
+				*/
 
 			variables_set_wilds(block->info.var,block->loops[lp].var_name,lwd?lwd->wilds:NULL);
 
@@ -1913,8 +2081,9 @@ DECL_OPC_FUN(opc_list)
 			break;
 
 		case ENT_PLLIST_CONN:
-			log_stringf("opc_list: list type ENT_PLLIST_CONN");
+			//log_stringf("opc_list: list type ENT_PLLIST_CONN");
 			conn = (DESCRIPTOR_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+			/*
 			if(conn) {
 				if(conn->original)
 					log_stringf("opc_list: connection(%s,%d) [SWITCHED]", conn->original->name, conn->original->tot_level);
@@ -1922,6 +2091,7 @@ DECL_OPC_FUN(opc_list)
 					log_stringf("opc_list: connection(%s,%d)", conn->character->name, conn->character->tot_level);
 			} else
 				log_stringf("opc_list: connection(<END>)");
+				*/
 
 			// Set the variable
 			variables_set_connection(block->info.var,block->loops[lp].var_name,conn);
@@ -1935,8 +2105,9 @@ DECL_OPC_FUN(opc_list)
 			break;
 
 		case ENT_PLLIST_MOB:
-			log_stringf("opc_list: list type ENT_PLLIST_MOB");
+			//log_stringf("opc_list: list type ENT_PLLIST_MOB");
 			ch = (CHAR_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+			/*
 			if(ch) {
 				if(!IS_NPC(ch))
 					log_stringf("opc_list: player(%s,%ld,%ld)", ch->name, ch->id[0], ch->id[1]);
@@ -1944,6 +2115,7 @@ DECL_OPC_FUN(opc_list)
 					log_stringf("opc_list: mobile(%ld,%ld,%ld)", ch->pIndexData->vnum, ch->id[0], ch->id[1]);
 			} else
 				log_stringf("opc_list: mobile(<END>)");
+				*/
 
 			// Set the variable
 			variables_set_mobile(block->info.var,block->loops[lp].var_name,ch);
@@ -1957,12 +2129,14 @@ DECL_OPC_FUN(opc_list)
 			break;
 
 		case ENT_PLLIST_OBJ:
-			log_stringf("opc_list: list type ENT_PLLIST_OBJ");
+			//log_stringf("opc_list: list type ENT_PLLIST_OBJ");
 			obj = (OBJ_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+			/*
 			if(obj)
 				log_stringf("opc_list: object(%ld,%ld,%ld)", obj->pIndexData->vnum, obj->id[0], obj->id[1]);
 			else
 				log_stringf("opc_list: object(<END>)");
+				*/
 
 			// Set the variable
 			variables_set_object(block->info.var,block->loops[lp].var_name,obj);
@@ -1976,8 +2150,9 @@ DECL_OPC_FUN(opc_list)
 			break;
 
 		case ENT_PLLIST_ROOM:
-			log_stringf("opc_list: list type ENT_PLLIST_ROOM");
+			//log_stringf("opc_list: list type ENT_PLLIST_ROOM");
 			here = (ROOM_INDEX_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+			/*
 			if(here) {
 				if(here->wilds)
 					log_stringf("opc_list: room(%ld,%ld,%ld)", here->wilds->uid, here->x, here->y);
@@ -1987,6 +2162,7 @@ DECL_OPC_FUN(opc_list)
 					log_stringf("opc_list: room(%ld,%s)", here->vnum, here->name);
 			} else
 				log_stringf("opc_list: room(<END>)");
+				*/
 
 			// Set the variable
 			variables_set_room(block->info.var,block->loops[lp].var_name,here);
@@ -2000,12 +2176,14 @@ DECL_OPC_FUN(opc_list)
 			break;
 
 		case ENT_PLLIST_TOK:
-			log_stringf("opc_list: list type ENT_PLLIST_TOK");
+			//log_stringf("opc_list: list type ENT_PLLIST_TOK");
 			tok = (TOKEN_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+			/*
 			if(tok)
 				log_stringf("opc_list: token(%ld,%ld,%ld)", tok->pIndexData->vnum, tok->id[0], tok->id[1]);
 			else
 				log_stringf("opc_list: token(<END>)");
+				*/
 
 			// Set the variable
 			variables_set_token(block->info.var,block->loops[lp].var_name,tok);
@@ -2018,9 +2196,9 @@ DECL_OPC_FUN(opc_list)
 			break;
 
 		case ENT_PLLIST_CHURCH:
-			log_stringf("opc_list: list type ENT_PLLIST_CHURCH");
+			//log_stringf("opc_list: list type ENT_PLLIST_CHURCH");
 			church = (CHURCH_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-			log_stringf("opc_list: church(%s)", church ? church->name : "<END>");
+			//log_stringf("opc_list: church(%s)", church ? church->name : "<END>");
 
 			// Set the variable
 			variables_set_church(block->info.var,block->loops[lp].var_name,church);
@@ -2033,9 +2211,9 @@ DECL_OPC_FUN(opc_list)
 
 			break;
 		case ENT_ILLIST_VARIABLE:
-			log_stringf("opc_list: list type ENT_ILLIST_VARIABLE");
+			//log_stringf("opc_list: list type ENT_ILLIST_VARIABLE");
 			variable = (VARIABLE *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-			log_stringf("opc_list: variable(%s)", variable ? variable->name : "<END>");
+			//log_stringf("opc_list: variable(%s)", variable ? variable->name : "<END>");
 
 			// Set the variable
 			variables_set_variable(block->info.var,block->loops[lp].var_name,variable);
@@ -2049,8 +2227,9 @@ DECL_OPC_FUN(opc_list)
 			break;
 
 		case ENT_ILLIST_MOB_GROUP:
-			log_stringf("opc_list: list type ENT_ILLIST_MOB_GROUP");
+			//log_stringf("opc_list: list type ENT_ILLIST_MOB_GROUP");
 			ch = (CHAR_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+			/*
 			if(ch) {
 				if(!IS_NPC(ch))
 					log_stringf("opc_list: player(%s,%ld,%ld)", ch->name, ch->id[0], ch->id[1]);
@@ -2058,6 +2237,7 @@ DECL_OPC_FUN(opc_list)
 					log_stringf("opc_list: mobile(%ld,%ld,%ld)", ch->pIndexData->vnum, ch->id[0], ch->id[1]);
 			} else
 				log_stringf("opc_list: mobile(<END>)");
+				*/
 
 			// Set the variable
 			variables_set_mobile(block->info.var,block->loops[lp].var_name,ch);
@@ -2826,22 +3006,21 @@ OBJ_DATA *script_get_obj_list(OBJ_DATA *objs, CHAR_DATA *viewer, int worn, int v
 }
 
 
-TOKEN_DATA *token_find_match(SCRIPT_VARINFO *info, TOKEN_DATA *tokens,char *argument)
+TOKEN_DATA *token_find_match(SCRIPT_VARINFO *info, TOKEN_DATA *tokens,char *argument, SCRIPT_PARAM *arg)
 {
 	char *rest;
 	int i, nth = 1, vnum = 0, matches;
 	int values[MAX_TOKEN_VALUES];
 	bool match[MAX_TOKEN_VALUES];
 	char buf[MSL];
-	SCRIPT_PARAM arg;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return NULL;
 
-	if(arg.type == ENT_NUMBER)
-		vnum = arg.d.num;
-	else if(arg.type == ENT_STRING) {
-		nth = number_argument(arg.d.str,buf);
+	if(arg->type == ENT_NUMBER)
+		vnum = arg->d.num;
+	else if(arg->type == ENT_STRING) {
+		nth = number_argument(arg->d.str,buf);
 		if(nth < 1 || !is_number(buf))
 			return NULL;
 		vnum = atoi(buf);
@@ -2852,13 +3031,13 @@ TOKEN_DATA *token_find_match(SCRIPT_VARINFO *info, TOKEN_DATA *tokens,char *argu
 
 	for(i=0;*rest && i < MAX_TOKEN_VALUES; i++) {
 		argument = rest;
-		if(!(rest = expand_argument(info,argument,&arg)))
+		if(!(rest = expand_argument(info,argument,arg)))
 			return NULL;
 
-		if(arg.type == ENT_NUMBER)
-			values[i] = arg.d.num;
-		else if(arg.type == ENT_STRING && is_number(arg.d.str))
-			values[i] = atoi(arg.d.str);
+		if(arg->type == ENT_NUMBER)
+			values[i] = arg->d.num;
+		else if(arg->type == ENT_STRING && is_number(arg->d.str))
+			values[i] = atoi(arg->d.str);
 		else {
 			match[i] = FALSE;
 			continue;
@@ -4794,7 +4973,7 @@ bool interrupt_script( CHAR_DATA *ch, bool silent )
 }
 
 
-void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
+void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRIPT_PARAM *arg)
 {
 	char buf[MIL], name[MIL], *rest, *str = NULL;
 	CHAR_DATA *vch = NULL, *mobs = NULL, *viewer = NULL;
@@ -4806,7 +4985,6 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 	ITERATOR it;
 	int vnum = 0, i, idx;
 	unsigned long id1/*, id2*/;
-	SCRIPT_PARAM arg;
 
 	if(!info) return;
 	viewer = info->mob;
@@ -4821,12 +4999,12 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 	if(!vars) return;
 
 	// Get name
-	if(!(argument = expand_argument(info,argument,&arg)))
+	if(!(argument = expand_argument(info,argument,arg)))
 		return;
 
-	if( arg.type != ENT_STRING ) return;
+	if( arg->type != ENT_STRING ) return;
 
-	strcpy(name, arg.d.str);
+	strcpy(name, arg->d.str);
 	if(!name[0]) return;
 
 	// Get type
@@ -4847,7 +5025,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 		return;
 	}
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
 	// Saves a boolean
@@ -4855,15 +5033,15 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 	// Format: BOOL <number>
 	// Format: BOOL <numerical string>
 	if(!str_cmp(buf,"bool")) {
-		switch(arg.type) {
-		case ENT_BOOLEAN: variables_set_boolean(vars,name,arg.d.boolean); break;
-		case ENT_NUMBER: variables_set_boolean(vars,name,(arg.d.num != 0)); break;
+		switch(arg->type) {
+		case ENT_BOOLEAN: variables_set_boolean(vars,name,arg->d.boolean); break;
+		case ENT_NUMBER: variables_set_boolean(vars,name,(arg->d.num != 0)); break;
 		case ENT_STRING:
-			if(is_number(arg.d.str))
-				variables_set_boolean(vars,name,(atoi(arg.d.str) != 0));
-			else if(!str_cmp(arg.d.str, "true") || !str_cmp(arg.d.str, "yes") || !str_cmp(arg.d.str, "on"))
+			if(is_number(arg->d.str))
+				variables_set_boolean(vars,name,(atoi(arg->d.str) != 0));
+			else if(!str_cmp(arg->d.str, "true") || !str_cmp(arg->d.str, "yes") || !str_cmp(arg->d.str, "on"))
 				variables_set_boolean(vars,name,TRUE);
-			else if(!str_cmp(arg.d.str, "false") || !str_cmp(arg.d.str, "no") || !str_cmp(arg.d.str, "off"))
+			else if(!str_cmp(arg->d.str, "false") || !str_cmp(arg->d.str, "no") || !str_cmp(arg->d.str, "off"))
 				variables_set_boolean(vars,name,FALSE);
 
 			break;
@@ -4874,11 +5052,11 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 	// Format: INTEGER <number>
 	// Format: INTEGER <numerical string>
 	} else if(!str_cmp(buf,"integer") || !str_cmp(buf,"number")) {
-		switch(arg.type) {
-		case ENT_NUMBER: variables_set_integer(vars,name,arg.d.num); break;
+		switch(arg->type) {
+		case ENT_NUMBER: variables_set_integer(vars,name,arg->d.num); break;
 		case ENT_STRING:
-			if(is_number(arg.d.str))
-				variables_set_integer(vars,name,atoi(arg.d.str));
+			if(is_number(arg->d.str))
+				variables_set_integer(vars,name,atoi(arg->d.str));
 			break;
 		}
 
@@ -4891,11 +5069,11 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 
 		if(var->type != VAR_INTEGER) return;	// Must be a number!
 
-		switch(arg.type) {
-		case ENT_NUMBER: var->_.i -= arg.d.num; break;
+		switch(arg->type) {
+		case ENT_NUMBER: var->_.i -= arg->d.num; break;
 		case ENT_STRING:
-			if(is_number(arg.d.str))
-				var->_.i -= atoi(arg.d.str);
+			if(is_number(arg->d.str))
+				var->_.i -= atoi(arg->d.str);
 			break;
 		}
 
@@ -4908,40 +5086,40 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 
 		if(var->type != VAR_INTEGER) return;	// Must be a number!
 
-		switch(arg.type) {
-		case ENT_NUMBER: var->_.i += arg.d.num; break;
+		switch(arg->type) {
+		case ENT_NUMBER: var->_.i += arg->d.num; break;
 		case ENT_STRING:
-			if(is_number(arg.d.str))
-				var->_.i += atoi(arg.d.str);
+			if(is_number(arg->d.str))
+				var->_.i += atoi(arg->d.str);
 			break;
 		}
 	// Format: STRING <string>[ <word index>]
 	} else if(!str_cmp(buf,"string")) {
 		char tmp[MSL],*p;
 
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_NUMBER:
-			sprintf(tmp,"%d",arg.d.num);
+			sprintf(tmp,"%d",arg->d.num);
 			break;
 		case ENT_STRING:
-			strcpy(tmp,arg.d.str);
+			strcpy(tmp,arg->d.str);
 			break;
 		default:return;
 		}
 
-		if(!(rest = expand_argument(info,rest,&arg)))
+		if(!(rest = expand_argument(info,rest,arg)))
 			return;
 
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_NONE:
 			variables_set_string(vars,name,tmp,FALSE);
 			break;
 
 		case ENT_NUMBER:
 			p = tmp;
-			for(i=0;i<arg.d.num && p && *p;i++)
+			for(i=0;i<arg->d.num && p && *p;i++)
 				p = one_argument(p,buf);
-			if(arg.d.num > 0 && i == arg.d.num)
+			if(arg->d.num > 0 && i == arg->d.num)
 				variables_set_string(vars,name,buf,FALSE);
 			break;
 		}
@@ -4950,31 +5128,31 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 	} else if(!str_cmp(buf,"append")) {
 		char tmp[MSL], *p;
 
-		switch(arg.type) {
-		case ENT_NUMBER:	sprintf(tmp,"%d",arg.d.num); break;
-		case ENT_STRING:	strcpy(tmp,arg.d.str); 	break;
+		switch(arg->type) {
+		case ENT_NUMBER:	sprintf(tmp,"%d",arg->d.num); break;
+		case ENT_STRING:	strcpy(tmp,arg->d.str); 	break;
 		default:return;
 		}
 
-		if(!(rest = expand_argument(info,rest,&arg))) return;
+		if(!(rest = expand_argument(info,rest,arg))) return;
 
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_NONE:		variables_append_string(vars,name,tmp); break;
 		case ENT_NUMBER:
 			p = tmp;
-			for(i=0;i<arg.d.num && p && *p;i++) p = one_argument(p,buf);
+			for(i=0;i<arg->d.num && p && *p;i++) p = one_argument(p,buf);
 
-			if(arg.d.num > 0 && (i == arg.d.num)) variables_append_string(vars,name,buf);
+			if(arg->d.num > 0 && (i == arg->d.num)) variables_append_string(vars,name,buf);
 			break;
 		}
 
 	// Format: EXPAND <string>
 	} else if(!str_cmp(buf,"EXPAND")) {
 
-		if( arg.type != ENT_STRING ) return;
+		if( arg->type != ENT_STRING ) return;
 
 		int length;
-		char *comp_str = compile_string(arg.d.str,IFC_ANY,&length,FALSE);	// TODO: Check whether the doquotes needs to be TRUE
+		char *comp_str = compile_string(arg->d.str,IFC_ANY,&length,FALSE);	// TODO: Check whether the doquotes needs to be TRUE
 		if( !comp_str ) return;
 
 		BUFFER *buffer = new_buf();
@@ -4987,14 +5165,14 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 	// Format: ARGREMOVE <word index>
 	// Format: ARGREMOVE <word to remove>
 	} else if(!str_cmp(buf,"ARGREMOVE")) {
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_NUMBER:
 
-			variables_argremove_string_index(vars,name,arg.d.num);
+			variables_argremove_string_index(vars,name,arg->d.num);
 			break;
 		case ENT_STRING:
 
-			variables_argremove_string_phrase(vars,name,arg.d.str);
+			variables_argremove_string_phrase(vars,name,arg->d.str);
 			break;
 		}
 
@@ -5019,13 +5197,13 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 		char n[MSL];
 		char *rep;
 
-		if( arg.type != ENT_STRING ) return;
-		strcpy(o, arg.d.str);
+		if( arg->type != ENT_STRING ) return;
+		strcpy(o, arg->d.str);
 
-		if(!(rest = expand_argument(info,rest,&arg))) return;
+		if(!(rest = expand_argument(info,rest,arg))) return;
 
-		if( arg.type != ENT_STRING ) return;
-		strcpy(n, arg.d.str);
+		if( arg->type != ENT_STRING ) return;
+		strcpy(n, arg->d.str);
 
 		rep = string_replace_static(var->_.s, o, n);
 		if( rep == NULL ) return;	// An error, ret COULD be empty after the replace, so IS_NULLSTR is not the right test
@@ -5039,9 +5217,9 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 		char *p;
 		EXTRA_DESCR_DATA *desc;
 
-		switch(arg.type) {
-		case ENT_OBJECT: desc = arg.d.obj->extra_descr; break;
-		case ENT_ROOM: desc = arg.d.room->extra_descr; break;
+		switch(arg->type) {
+		case ENT_OBJECT: desc = arg->d.obj->extra_descr; break;
+		case ENT_ROOM: desc = arg->d.room->extra_descr; break;
 		default:return;
 		}
 
@@ -5063,36 +5241,36 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 	// Format: ROOM <ROOM-LIST> LAST - last room from the list
 	// Format: ROOM <ROOM-LIST> RANDOM - random valid room from the list
 	} else if(!str_cmp(buf,"room")) {
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_NUMBER:
-			variables_set_room(vars,name,get_room_index(arg.d.num));
+			variables_set_room(vars,name,get_room_index(arg->d.num));
 			break;
 		case ENT_ROOM:
-			variables_set_room(vars,name,arg.d.room);
+			variables_set_room(vars,name,arg->d.room);
 			break;
 		case ENT_EXIT:
-			here = arg.d.door.r ? exit_destination(arg.d.door.r->exit[arg.d.door.door]) : NULL;
+			here = arg->d.door.r ? exit_destination(arg->d.door.r->exit[arg->d.door.door]) : NULL;
 			variables_set_room(vars,name,here);
 			break;
 		case ENT_BLLIST_ROOM:
-			blist = arg.d.blist;
-			if(!(rest = expand_argument(info,rest,&arg)))
+			blist = arg->d.blist;
+			if(!(rest = expand_argument(info,rest,arg)))
 				return;
 
 			idx = 0;
-			switch(arg.type) {
+			switch(arg->type) {
 			default: break;
 			case ENT_STRING:
-				if( !str_cmp(arg.d.str, "first"))
+				if( !str_cmp(arg->d.str, "first"))
 					idx = 0;
-				else if( !str_cmp(arg.d.str, "last"))
+				else if( !str_cmp(arg->d.str, "last"))
 					idx = list_size(blist)-1;
-				else if( !str_cmp(arg.d.str, "random"))
+				else if( !str_cmp(arg->d.str, "random"))
 					idx = number_range(0, list_size(blist)-1);
 				break;
 
 			case ENT_NUMBER:
-				idx = arg.d.num;
+				idx = arg->d.num;
 				break;
 			}
 
@@ -5107,24 +5285,24 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 			}
 			break;
 		case ENT_PLLIST_ROOM:
-			blist = arg.d.blist;
-			if(!(rest = expand_argument(info,rest,&arg)))
+			blist = arg->d.blist;
+			if(!(rest = expand_argument(info,rest,arg)))
 				return;
 
 			idx = 0;
-			switch(arg.type) {
+			switch(arg->type) {
 			default: break;
 			case ENT_STRING:
-				if( !str_cmp(arg.d.str, "first"))
+				if( !str_cmp(arg->d.str, "first"))
 					idx = 0;
-				else if( !str_cmp(arg.d.str, "last"))
+				else if( !str_cmp(arg->d.str, "last"))
 					idx = list_size(blist)-1;
-				else if( !str_cmp(arg.d.str, "random"))
+				else if( !str_cmp(arg->d.str, "random"))
 					idx = number_range(0, list_size(blist)-1);
 				break;
 
 			case ENT_NUMBER:
-				idx = arg.d.num;
+				idx = arg->d.num;
 				break;
 			}
 
@@ -5141,22 +5319,22 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 		int x, y, z;
 		bool ground;
 
-		if(arg.type == ENT_NUMBER) {
-			wilds = get_wilds_from_uid(NULL,arg.d.num);
+		if(arg->type == ENT_NUMBER) {
+			wilds = get_wilds_from_uid(NULL,arg->d.num);
 			if(wilds) {
-				if(!(rest = expand_argument(info,rest,&arg)) && arg.type != ENT_NUMBER) return;
-				x = arg.d.num;
+				if(!(rest = expand_argument(info,rest,arg)) && arg->type != ENT_NUMBER) return;
+				x = arg->d.num;
 				if(x < 0 || x >= wilds->map_size_x) return;
 
-				if(!(rest = expand_argument(info,rest,&arg)) && arg.type != ENT_NUMBER) return;
-				y = arg.d.num;
+				if(!(rest = expand_argument(info,rest,arg)) && arg->type != ENT_NUMBER) return;
+				y = arg->d.num;
 				if(y < 0 || x >= wilds->map_size_y) return;
 
-				if(!(rest = expand_argument(info,rest,&arg)) && arg.type != ENT_NUMBER) return;
-				z = arg.d.num;
+				if(!(rest = expand_argument(info,rest,arg)) && arg->type != ENT_NUMBER) return;
+				z = arg->d.num;
 
-				if(!(rest = expand_argument(info,rest,&arg)) && arg.type != ENT_STRING) return;
-				ground = !str_cmp(arg.d.str,"ground") || !str_cmp(arg.d.str,"true");
+				if(!(rest = expand_argument(info,rest,arg)) && arg->type != ENT_STRING) return;
+				ground = !str_cmp(arg->d.str,"ground") || !str_cmp(arg->d.str,"true");
 
 				variables_set_room(info->var,name,wilds_seek_down(wilds, x, y, z, ground));
 			}
@@ -5166,22 +5344,22 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 	// Format: EXIT <ROOM> <STRING> - same as EXIT <STRING> but at the given room
 	// Format: EXIT <EXIT> - explicit exit
 	} else if(!str_cmp(buf,"exit")) {
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_ROOM:
-			here = arg.d.room;
-			if(!here || !expand_argument(info,rest,&arg))
+			here = arg->d.room;
+			if(!here || !expand_argument(info,rest,arg))
 				return;
-			if(arg.type != ENT_STRING) return;
+			if(arg->type != ENT_STRING) return;
 		case ENT_STRING:
-			vnum = get_num_dir(arg.d.str);
+			vnum = get_num_dir(arg->d.str);
 			if(vnum < 0) {
-				if(!str_cmp(arg.d.str,"random"))
+				if(!str_cmp(arg->d.str,"random"))
 					vnum = number_range(0,MAX_DIR-1);
-				else if(!str_cmp(arg.d.str,"exists")) {
+				else if(!str_cmp(arg->d.str,"exists")) {
 					for(vnum = number_range(0,MAX_DIR-1), i = 0; i < MAX_DIR && !here->exit[vnum]; i++, vnum = (vnum+1)%MAX_DIR);
 
 					if(!here->exit[vnum]) vnum = -1;
-				} else if(!str_cmp(arg.d.str,"open")) {
+				} else if(!str_cmp(arg->d.str,"open")) {
 					for(vnum = number_range(0,MAX_DIR-1), i = 0; i < MAX_DIR && !here->exit[vnum]; i++, vnum = (vnum+1)%MAX_DIR);
 
 					if(!here->exit[vnum] || IS_SET(here->exit[vnum]->exit_info,EX_CLOSED)) vnum = -1;
@@ -5193,7 +5371,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 			ex = here->exit[vnum];
 			break;
 		case ENT_EXIT:
-			ex = arg.d.door.r ? arg.d.door.r->exit[arg.d.door.door] : NULL;
+			ex = arg->d.door.r ? arg->d.door.r->exit[arg->d.door.door] : NULL;
 			break;
 		}
 		variables_set_exit(vars,name,ex);
@@ -5202,28 +5380,28 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 	// Format: MOBILE <NAME>
 	// Format: MOBILE <MOBILE>
 	} else if(!str_cmp(buf,"mobile")) {
-		if( arg.type == ENT_BLLIST_MOB )
+		if( arg->type == ENT_BLLIST_MOB )
 		{
-			LLIST *blist = arg.d.blist;
-			if(!(rest = expand_argument(info,rest,&arg)))
+			LLIST *blist = arg->d.blist;
+			if(!(rest = expand_argument(info,rest,arg)))
 				return;
 
-			if( arg.type == ENT_NUMBER )
+			if( arg->type == ENT_NUMBER )
 			{
-				vnum = arg.d.num;
+				vnum = arg->d.num;
 				str = NULL;
 			}
-			else if( arg.type == ENT_STRING )
+			else if( arg->type == ENT_STRING )
 			{
-				if(is_number(arg.d.str))
+				if(is_number(arg->d.str))
 				{
-					vnum = atoi(arg.d.str);
+					vnum = atoi(arg->d.str);
 					str = NULL;
 				}
 				else
 				{
 					vnum = 0;
-					str = arg.d.str;
+					str = arg->d.str;
 				}
 			}
 			else
@@ -5235,40 +5413,40 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 			return;
 		}
 
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_NUMBER:
-			here = get_room_index(arg.d.num);
+			here = get_room_index(arg->d.num);
 			mobs = here ? here->people : NULL;
 			break;
 		case ENT_STRING:
-			if(is_number(arg.d.str)) {
-				here = get_room_index(atoi(arg.d.str));
+			if(is_number(arg->d.str)) {
+				here = get_room_index(atoi(arg->d.str));
 				mobs = here ? here->people : NULL;
 			} else
-				vch = get_char_world(viewer,arg.d.str);
+				vch = get_char_world(viewer,arg->d.str);
 			break;
 		case ENT_MOBILE:
-			vch = arg.d.mob;
+			vch = arg->d.mob;
 			break;
 		case ENT_OLLIST_MOB:
-			mobs = arg.d.list.ptr.mob ? *arg.d.list.ptr.mob : NULL;
+			mobs = arg->d.list.ptr.mob ? *arg->d.list.ptr.mob : NULL;
 			break;
 		case ENT_ROOM:
-			mobs = arg.d.room ? arg.d.room->people : NULL;
+			mobs = arg->d.room ? arg->d.room->people : NULL;
 			break;
 		default: return;
 		}
 
 		if(mobs) {
-			if(!expand_argument(info,rest,&arg))
+			if(!expand_argument(info,rest,arg))
 				return;
-			if(arg.type == ENT_NUMBER)
-				vnum = arg.d.num;
-			else if(arg.type == ENT_STRING) {
-				if(is_number(arg.d.str))
-					vnum = atoi(arg.d.str);
+			if(arg->type == ENT_NUMBER)
+				vnum = arg->d.num;
+			else if(arg->type == ENT_STRING) {
+				if(is_number(arg->d.str))
+					vnum = atoi(arg->d.str);
 				else
-					str = arg.d.str;
+					str = arg->d.str;
 			} else
 				return;
 
@@ -5280,35 +5458,35 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 	// Format: PLAYER <NAME>
 	// Format: PLAYER <PLAYER>
 	} else if(!str_cmp(buf,"player")) {
-		if( arg.type == ENT_BLLIST_MOB )
+		if( arg->type == ENT_BLLIST_MOB )
 		{
-			LLIST *blist = arg.d.blist;
-			if(!(rest = expand_argument(info,rest,&arg)))
+			LLIST *blist = arg->d.blist;
+			if(!(rest = expand_argument(info,rest,arg)))
 				return;
 
-			if( arg.type != ENT_STRING )
+			if( arg->type != ENT_STRING )
 				return;
 
-			vch = script_get_char_blist(blist, NULL, TRUE, 0, arg.d.str);
+			vch = script_get_char_blist(blist, NULL, TRUE, 0, arg->d.str);
 			variables_set_mobile(vars,name,vch);
 			return;
 		}
 
 
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_STRING:
-			vch = get_player(arg.d.str);
+			vch = get_player(arg->d.str);
 			break;
 		case ENT_MOBILE:
-			vch = arg.d.mob && !IS_NPC(arg.d.mob) ? arg.d.mob : NULL;
+			vch = arg->d.mob && !IS_NPC(arg->d.mob) ? arg->d.mob : NULL;
 			break;
 		case ENT_OLLIST_MOB:
-			mobs = arg.d.list.ptr.mob ? *arg.d.list.ptr.mob : NULL;
+			mobs = arg->d.list.ptr.mob ? *arg->d.list.ptr.mob : NULL;
 			if(mobs) {
-				if(!expand_argument(info,rest,&arg))
+				if(!expand_argument(info,rest,arg))
 					return;
-				if(arg.type == ENT_STRING && !is_number(arg.d.str))
-					str = arg.d.str;
+				if(arg->type == ENT_STRING && !is_number(arg->d.str))
+					str = arg->d.str;
 				else
 					mobs = NULL;
 			}
@@ -5321,28 +5499,28 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 	// Format: OBJECT <ROOM VNUM or ROOM or MOBILE or OBJECT or OBJLIST> <VNUM or NAME>
 	// Format: OBJECT <NAME>
 	} else if(!str_cmp(buf,"object")) {
-		if( arg.type == ENT_BLLIST_OBJ)
+		if( arg->type == ENT_BLLIST_OBJ)
 		{
-			LLIST *blist = arg.d.blist;
-			if(!(rest = expand_argument(info,rest,&arg)))
+			LLIST *blist = arg->d.blist;
+			if(!(rest = expand_argument(info,rest,arg)))
 				return;
 
-			if( arg.type == ENT_NUMBER )
+			if( arg->type == ENT_NUMBER )
 			{
-				vnum = arg.d.num;
+				vnum = arg->d.num;
 				str = NULL;
 			}
-			else if( arg.type == ENT_STRING )
+			else if( arg->type == ENT_STRING )
 			{
-				if(is_number(arg.d.str))
+				if(is_number(arg->d.str))
 				{
-					vnum = atoi(arg.d.str);
+					vnum = atoi(arg->d.str);
 					str = NULL;
 				}
 				else
 				{
 					vnum = 0;
-					str = arg.d.str;
+					str = arg->d.str;
 				}
 			}
 			else
@@ -5355,45 +5533,45 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 		}
 
 
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_NUMBER:
-			here = get_room_index(arg.d.num);
+			here = get_room_index(arg->d.num);
 			objs = here ? here->contents : NULL;
 			break;
 		case ENT_STRING:
-			if(is_number(arg.d.str)) {
-				here = get_room_index(atoi(arg.d.str));
+			if(is_number(arg->d.str)) {
+				here = get_room_index(atoi(arg->d.str));
 				objs = here ? here->contents : NULL;
 			} else if(viewer)
-				obj = get_obj_here(viewer,NULL,arg.d.str);
+				obj = get_obj_here(viewer,NULL,arg->d.str);
 			else
-				obj = get_obj_here(NULL,here,arg.d.str);
+				obj = get_obj_here(NULL,here,arg->d.str);
 			break;
 		case ENT_OBJECT:
-			obj = arg.d.obj;
+			obj = arg->d.obj;
 			break;
 		case ENT_MOBILE:
-			objs = arg.d.mob ? arg.d.mob->carrying : NULL;
+			objs = arg->d.mob ? arg->d.mob->carrying : NULL;
 			break;
 		case ENT_OLLIST_OBJ:
-			objs = arg.d.list.ptr.obj ? *arg.d.list.ptr.obj : NULL;
+			objs = arg->d.list.ptr.obj ? *arg->d.list.ptr.obj : NULL;
 			break;
 		case ENT_ROOM:
-			objs = arg.d.room ? arg.d.room->contents : NULL;
+			objs = arg->d.room ? arg->d.room->contents : NULL;
 			break;
 		default: return;
 		}
 
 		if(objs) {
-			if(!expand_argument(info,rest,&arg))
+			if(!expand_argument(info,rest,arg))
 				return;
-			if(arg.type == ENT_NUMBER)
-				vnum = arg.d.num;
-			else if(arg.type == ENT_STRING) {
-				if(is_number(arg.d.str))
-					vnum = atoi(arg.d.str);
+			if(arg->type == ENT_NUMBER)
+				vnum = arg->d.num;
+			else if(arg->type == ENT_STRING) {
+				if(is_number(arg->d.str))
+					vnum = atoi(arg->d.str);
 				else
-					str = arg.d.str;
+					str = arg->d.str;
 			} else
 				return;
 			obj = script_get_obj_list(objs, viewer, 0, vnum, str);
@@ -5404,37 +5582,37 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 	// Format: CARRY <MOBILE> <VNUM or NAME>
 	// Format: CARRY <OBJLIST> <VNUM or NAME>
 	} else if(!str_cmp(buf,"carry")) {
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_NUMBER:
-			vnum = arg.d.num;
+			vnum = arg->d.num;
 			objs = viewer ? viewer->carrying : NULL;
 			break;
 		case ENT_STRING:
-			if(is_number(arg.d.str))
-				vnum = atoi(arg.d.str);
+			if(is_number(arg->d.str))
+				vnum = atoi(arg->d.str);
 			else
-				str = arg.d.str;
+				str = arg->d.str;
 			objs = viewer ? viewer->carrying : NULL;
 			break;
 		case ENT_MOBILE:
-			objs = arg.d.mob ? arg.d.mob->carrying : NULL;
+			objs = arg->d.mob ? arg->d.mob->carrying : NULL;
 			break;
 		case ENT_OLLIST_OBJ:
-			objs = arg.d.list.ptr.obj ? *arg.d.list.ptr.obj : NULL;
+			objs = arg->d.list.ptr.obj ? *arg->d.list.ptr.obj : NULL;
 			break;
 		default: return;
 		}
 
-		if(objs && arg.type != ENT_NUMBER && arg.type != ENT_STRING) {
-			if(!expand_argument(info,rest,&arg))
+		if(objs && arg->type != ENT_NUMBER && arg->type != ENT_STRING) {
+			if(!expand_argument(info,rest,arg))
 				return;
-			if(arg.type == ENT_NUMBER)
-				vnum = arg.d.num;
-			else if(arg.type == ENT_STRING) {
-				if(is_number(arg.d.str))
-					vnum = atoi(arg.d.str);
+			if(arg->type == ENT_NUMBER)
+				vnum = arg->d.num;
+			else if(arg->type == ENT_STRING) {
+				if(is_number(arg->d.str))
+					vnum = atoi(arg->d.str);
 				else
-					str = arg.d.str;
+					str = arg->d.str;
 			} else
 				return;
 		}
@@ -5444,37 +5622,37 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 	// Format: WORN <VNUM or NAME>
 	// Format: WORN <MOBILE or OBJLIST> <VNUM or NAME>
 	} else if(!str_cmp(buf,"worn")) {
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_NUMBER:
-			vnum = arg.d.num;
+			vnum = arg->d.num;
 			objs = viewer ? viewer->carrying : NULL;
 			break;
 		case ENT_STRING:
-			if(is_number(arg.d.str))
-				vnum = atoi(arg.d.str);
+			if(is_number(arg->d.str))
+				vnum = atoi(arg->d.str);
 			else
-				str = arg.d.str;
+				str = arg->d.str;
 			objs = viewer ? viewer->carrying : NULL;
 			break;
 		case ENT_MOBILE:
-			objs = arg.d.mob ? arg.d.mob->carrying : NULL;
+			objs = arg->d.mob ? arg->d.mob->carrying : NULL;
 			break;
 		case ENT_OLLIST_OBJ:
-			objs = arg.d.list.ptr.obj ? *arg.d.list.ptr.obj : NULL;
+			objs = arg->d.list.ptr.obj ? *arg->d.list.ptr.obj : NULL;
 			break;
 		default: return;
 		}
 
-		if(objs && arg.type != ENT_NUMBER && arg.type != ENT_STRING) {
-			if(!expand_argument(info,rest,&arg))
+		if(objs && arg->type != ENT_NUMBER && arg->type != ENT_STRING) {
+			if(!expand_argument(info,rest,arg))
 				return;
-			if(arg.type == ENT_NUMBER)
-				vnum = arg.d.num;
-			else if(arg.type == ENT_STRING) {
-				if(is_number(arg.d.str))
-					vnum = atoi(arg.d.str);
+			if(arg->type == ENT_NUMBER)
+				vnum = arg->d.num;
+			else if(arg->type == ENT_STRING) {
+				if(is_number(arg->d.str))
+					vnum = atoi(arg->d.str);
 				else
-					str = arg.d.str;
+					str = arg->d.str;
 			} else
 				return;
 		}
@@ -5483,26 +5661,26 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 
 	// Format: CONTENT <OBJECT or OBJLIST> <VNUM or NAME>
 	} else if(!str_cmp(buf,"content")) {
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_OLLIST_OBJ:
-			objs = arg.d.list.ptr.obj ? *arg.d.list.ptr.obj : NULL;
+			objs = arg->d.list.ptr.obj ? *arg->d.list.ptr.obj : NULL;
 			break;
 		case ENT_OBJECT:
-			objs = arg.d.obj ? arg.d.obj->contains : NULL;
+			objs = arg->d.obj ? arg->d.obj->contains : NULL;
 			break;
 		default: return;
 		}
 
 		if(objs) {
-			if(!expand_argument(info,rest,&arg))
+			if(!expand_argument(info,rest,arg))
 				return;
-			if(arg.type == ENT_NUMBER)
-				vnum = arg.d.num;
-			else if(arg.type == ENT_STRING) {
-				if(is_number(arg.d.str))
-					vnum = atoi(arg.d.str);
+			if(arg->type == ENT_NUMBER)
+				vnum = arg->d.num;
+			else if(arg->type == ENT_STRING) {
+				if(is_number(arg->d.str))
+					vnum = atoi(arg->d.str);
 				else
-					str = arg.d.str;
+					str = arg->d.str;
 			} else
 				return;
 			obj = script_get_obj_list(objs, info->mob, 0, vnum, str);
@@ -5512,22 +5690,22 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 	// Format: TOKEN <MOBILE or OBJECT or ROOM or TOKLIST> <Pattern>
 	// Format: TOKEN <TOKEN>
 	} else if(!str_cmp(buf,"token")) {
-		switch(arg.type) {
-		case ENT_MOBILE:   tokens = arg.d.mob ? arg.d.mob->tokens : NULL; break;
-		case ENT_OBJECT:   tokens = arg.d.obj ? arg.d.obj->tokens : NULL; break;
-		case ENT_ROOM:     tokens = arg.d.room ? arg.d.room->tokens : NULL; break;
-		case ENT_TOKEN:    token = arg.d.token; break;
-		case ENT_OLLIST_TOK: tokens = arg.d.list.ptr.tok ? *arg.d.list.ptr.tok : NULL; break;
+		switch(arg->type) {
+		case ENT_MOBILE:   tokens = arg->d.mob ? arg->d.mob->tokens : NULL; break;
+		case ENT_OBJECT:   tokens = arg->d.obj ? arg->d.obj->tokens : NULL; break;
+		case ENT_ROOM:     tokens = arg->d.room ? arg->d.room->tokens : NULL; break;
+		case ENT_TOKEN:    token = arg->d.token; break;
+		case ENT_OLLIST_TOK: tokens = arg->d.list.ptr.tok ? *arg->d.list.ptr.tok : NULL; break;
 		default: return;
 		}
 
-		if(tokens) token = token_find_match(info,tokens, rest);
+		if(tokens) token = token_find_match(info,tokens, rest, arg);
 		variables_set_token(vars,name,token);
 
 	// Format: DICE <DICE>
 	} else if(!str_cmp(buf,"DICE")) {
-		switch(arg.type) {
-		case ENT_DICE:   if(arg.d.dice) variables_set_dice(vars,name,arg.d.dice);
+		switch(arg->type) {
+		case ENT_DICE:   if(arg->d.dice) variables_set_dice(vars,name,arg->d.dice);
 		default: return;
 		}
 
@@ -5537,34 +5715,34 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 	// VARIABLE TOKEN NAME
 	} else if(!str_cmp(buf,"variable")) {
 		pVARIABLE their_vars, their_var;
-		switch(arg.type) {
-		case ENT_MOBILE:   their_vars = (arg.d.mob && IS_NPC(arg.d.mob) && arg.d.mob->progs) ? arg.d.mob->progs->vars : NULL; break;
-		case ENT_OBJECT:   their_vars = (arg.d.obj && arg.d.obj->progs) ? arg.d.obj->progs->vars : NULL; break;
-		case ENT_ROOM:     their_vars = (arg.d.room && arg.d.room->progs) ? arg.d.room->progs->vars : NULL; break;
-		case ENT_TOKEN:    their_vars = (arg.d.token && arg.d.token->progs) ? arg.d.token->progs->vars : NULL; break;
+		switch(arg->type) {
+		case ENT_MOBILE:   their_vars = (arg->d.mob && IS_NPC(arg->d.mob) && arg->d.mob->progs) ? arg->d.mob->progs->vars : NULL; break;
+		case ENT_OBJECT:   their_vars = (arg->d.obj && arg->d.obj->progs) ? arg->d.obj->progs->vars : NULL; break;
+		case ENT_ROOM:     their_vars = (arg->d.room && arg->d.room->progs) ? arg->d.room->progs->vars : NULL; break;
+		case ENT_TOKEN:    their_vars = (arg->d.token && arg->d.token->progs) ? arg->d.token->progs->vars : NULL; break;
 		default: return;
 		}
 
 		if(!their_vars) return;
 
-		if(!expand_argument(info,rest,&arg))
+		if(!expand_argument(info,rest,arg))
 			return;
 
-		if(arg.type != ENT_STRING) return;
+		if(arg->type != ENT_STRING) return;
 
-		their_var = variable_get(their_vars, arg.d.str);
+		their_var = variable_get(their_vars, arg->d.str);
 
 		variables_set_variable(vars,name,their_var);
 
 
 	// Format: IDMOBILE <IDa> <IDb>
 	} else if(!str_cmp(buf,"idmobile")) {
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_NUMBER:
-			id1 = arg.d.num;
-			if(!expand_argument(info,rest,&arg) || arg.type != ENT_NUMBER)
+			id1 = arg->d.num;
+			if(!expand_argument(info,rest,arg) || arg->type != ENT_NUMBER)
 				return;
-			vch = idfind_mobile(id1,arg.d.num);
+			vch = idfind_mobile(id1,arg->d.num);
 			break;
 		default: return;
 		}
@@ -5572,12 +5750,12 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 
 	// Format: IDOBJECT <IDa> <IDb>
 	} else if(!str_cmp(buf,"idobject")) {
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_NUMBER:
-			id1 = arg.d.num;
-			if(!expand_argument(info,rest,&arg) || arg.type != ENT_NUMBER)
+			id1 = arg->d.num;
+			if(!expand_argument(info,rest,arg) || arg->type != ENT_NUMBER)
 				return;
-			obj = idfind_object(id1,arg.d.num);
+			obj = idfind_object(id1,arg->d.num);
 			break;
 		default: return;
 		}
@@ -5585,12 +5763,12 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 
 	// Format: IDPLAYER <IDa> <IDb>
 	} else if(!str_cmp(buf,"idplayer")) {
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_NUMBER:
-			id1 = arg.d.num;
-			if(!expand_argument(info,rest,&arg) || arg.type != ENT_NUMBER)
+			id1 = arg->d.num;
+			if(!expand_argument(info,rest,arg) || arg->type != ENT_NUMBER)
 				return;
-			vch = idfind_player(id1,arg.d.num);
+			vch = idfind_player(id1,arg->d.num);
 			break;
 		default: return;
 		}
@@ -5598,40 +5776,40 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 
 	// Format: CROOM <ROOM VNUM> <IDa> <IDb>
 	} else if(!str_cmp(buf,"croom")) {
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_NUMBER:
-			here = get_room_index(arg.d.num);
-			if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_NUMBER)
+			here = get_room_index(arg->d.num);
+			if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER)
 				return;
-			id1 = arg.d.num;
-			if(!expand_argument(info,rest,&arg) || arg.type != ENT_NUMBER)
+			id1 = arg->d.num;
+			if(!expand_argument(info,rest,arg) || arg->type != ENT_NUMBER)
 				return;
-			variables_set_room(vars,name,get_clone_room(here,id1,arg.d.num));
+			variables_set_room(vars,name,get_clone_room(here,id1,arg->d.num));
 			break;
 		default: return;
 		}
 
 	// Format: SKILL <NAME>
 	} else if(!str_cmp(buf,"skill")) {
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_STRING:
-			variables_set_skill(vars,name,skill_lookup(arg.d.str));
+			variables_set_skill(vars,name,skill_lookup(arg->d.str));
 			break;
 		default: return;
 		}
 
 	// Format: SKILLINFO <MOBILE> <NAME or TOKEN>
 	} else if(!str_cmp(buf,"skillinfo")) {
-		switch(arg.type) {
+		switch(arg->type) {
 		case ENT_MOBILE:
-			vch = arg.d.mob;
-			if(!expand_argument(info,rest,&arg))
+			vch = arg->d.mob;
+			if(!expand_argument(info,rest,arg))
 				return;
 
-			if( arg.type == ENT_STRING )
-				variables_set_skillinfo(vars,name,vch,skill_lookup(arg.d.str), NULL);
-			else if( arg.type == ENT_TOKEN )
-				variables_set_skillinfo(vars,name,vch, 0, arg.d.token);
+			if( arg->type == ENT_STRING )
+				variables_set_skillinfo(vars,name,vch,skill_lookup(arg->d.str), NULL);
+			else if( arg->type == ENT_TOKEN )
+				variables_set_skillinfo(vars,name,vch, 0, arg->d.token);
 			break;
 		default: return;
 		}
@@ -5642,35 +5820,35 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 		int depth, in_zone, doors;
 		int dir;
 
-		switch(arg.type) {
-		case ENT_NUMBER:	start_room = get_room_index(arg.d.num); break;
-		case ENT_ROOM:		start_room = arg.d.room; break;
-		case ENT_EXIT:		start_room = arg.d.door.r ? exit_destination(arg.d.door.r->exit[arg.d.door.door]) : NULL; break;
+		switch(arg->type) {
+		case ENT_NUMBER:	start_room = get_room_index(arg->d.num); break;
+		case ENT_ROOM:		start_room = arg->d.room; break;
+		case ENT_EXIT:		start_room = arg->d.door.r ? exit_destination(arg->d.door.r->exit[arg->d.door.door]) : NULL; break;
 		}
 
-		if(!start_room || !(rest = expand_argument(info,rest,&arg)))
+		if(!start_room || !(rest = expand_argument(info,rest,arg)))
 			return;
 
-		switch(arg.type) {
-		case ENT_NUMBER:	end_room = get_room_index(arg.d.num); break;
-		case ENT_ROOM:		end_room = arg.d.room; break;
-		case ENT_EXIT:		end_room = arg.d.door.r ? exit_destination(arg.d.door.r->exit[arg.d.door.door]) : NULL; break;
+		switch(arg->type) {
+		case ENT_NUMBER:	end_room = get_room_index(arg->d.num); break;
+		case ENT_ROOM:		end_room = arg->d.room; break;
+		case ENT_EXIT:		end_room = arg->d.door.r ? exit_destination(arg->d.door.r->exit[arg->d.door.door]) : NULL; break;
 		}
 
-		if(!end_room || !(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_NUMBER)
+		if(!end_room || !(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER)
 			return;
 
-		depth = arg.d.num;
+		depth = arg->d.num;
 
-		if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_STRING)
+		if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING)
 			return;
 
-		in_zone = !str_cmp(arg.d.str,"true") || !str_cmp(arg.d.str, "yes") || !str_cmp(arg.d.str, "local");
+		in_zone = !str_cmp(arg->d.str,"true") || !str_cmp(arg->d.str, "yes") || !str_cmp(arg->d.str, "local");
 
-		if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_STRING)
+		if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING)
 			return;
 
-		doors = !str_cmp(arg.d.str,"true") || !str_cmp(arg.d.str, "yes") || !str_cmp(arg.d.str, "doors");
+		doors = !str_cmp(arg->d.str,"true") || !str_cmp(arg->d.str, "yes") || !str_cmp(arg->d.str, "doors");
 
 		dir = find_path(start_room->vnum, end_room->vnum, NULL, (doors ? -depth : depth), in_zone);
 		if( dir < 0 || dir >= MAX_DIR )
@@ -5685,11 +5863,11 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 	} else if(!str_cmp(buf,"area")) {
 		AREA_DATA *area;
 
-		switch(arg.type) {
-		case ENT_NUMBER:	area = get_area_from_uid(arg.d.num); break;
-		case ENT_STRING:	area = find_area(arg.d.str); break;
-		case ENT_ROOM:		area = arg.d.room ? arg.d.room->area : NULL; break;
-		case ENT_AREA:		area = arg.d.area; break;
+		switch(arg->type) {
+		case ENT_NUMBER:	area = get_area_from_uid(arg->d.num); break;
+		case ENT_STRING:	area = find_area(arg->d.str); break;
+		case ENT_ROOM:		area = arg->d.room ? arg->d.room->area : NULL; break;
+		case ENT_AREA:		area = arg->d.area; break;
 		default:			area = NULL; break;
 		}
 
@@ -5700,21 +5878,21 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 	// MOBLIST remove <index>
 	// MOBLIST clear
 	} else if(!str_cmp(buf,"moblist")) {
-		if( arg.type != ENT_STRING )
+		if( arg->type != ENT_STRING )
 			return;
 
 
 		// MOBLIST add <mobile>
-		if( !str_cmp(arg.d.str, "add") ) {
-			if(!(rest = expand_argument(info,rest,&arg)))
+		if( !str_cmp(arg->d.str, "add") ) {
+			if(!(rest = expand_argument(info,rest,arg)))
 				return;
 
-			if( arg.type == ENT_MOBILE && IS_VALID(arg.d.mob) )
-				variables_set_list_mob(vars,name,arg.d.mob,TRISTATE);
+			if( arg->type == ENT_MOBILE && IS_VALID(arg->d.mob) )
+				variables_set_list_mob(vars,name,arg->d.mob,TRISTATE);
 
 		// MOBLIST remove <index>
-		} else if( !str_cmp(arg.d.str, "remove") ) {
-			if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_NUMBER)
+		} else if( !str_cmp(arg->d.str, "remove") ) {
+			if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER)
 				return;
 
 			pVARIABLE var = variable_get(*vars, name);
@@ -5722,10 +5900,10 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 			if( !var || var->type != VAR_BLLIST_MOB || !IS_VALID(var->_.list) )
 				return;
 
-			list_remnthlink(var->_.list, arg.d.num);
+			list_remnthlink(var->_.list, arg->d.num);
 
 		// MOBLIST clear
-		} else if( !str_cmp(arg.d.str, "clear") ) {
+		} else if( !str_cmp(arg->d.str, "clear") ) {
 			pVARIABLE var = variable_get(*vars, name);
 
 			if( !var || var->type != VAR_BLLIST_MOB || !IS_VALID(var->_.list) )
@@ -5738,21 +5916,21 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 	// OBJLIST remove <index>
 	// OBJLIST clear
 	} else if(!str_cmp(buf,"objlist")) {
-		if( arg.type != ENT_STRING )
+		if( arg->type != ENT_STRING )
 			return;
 
 
 		// OBJLIST add <object>
-		if( !str_cmp(arg.d.str, "add") ) {
-			if(!(rest = expand_argument(info,rest,&arg)))
+		if( !str_cmp(arg->d.str, "add") ) {
+			if(!(rest = expand_argument(info,rest,arg)))
 				return;
 
-			if( arg.type == ENT_OBJECT && IS_VALID(arg.d.obj) )
-				variables_set_list_obj(vars,name,arg.d.obj,TRISTATE);
+			if( arg->type == ENT_OBJECT && IS_VALID(arg->d.obj) )
+				variables_set_list_obj(vars,name,arg->d.obj,TRISTATE);
 
 		// OBJLIST remove <index>
-		} else if( !str_cmp(arg.d.str, "remove") ) {
-			if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_NUMBER)
+		} else if( !str_cmp(arg->d.str, "remove") ) {
+			if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER)
 				return;
 
 			pVARIABLE var = variable_get(*vars, name);
@@ -5760,10 +5938,10 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 			if( !var || var->type != VAR_BLLIST_OBJ || !IS_VALID(var->_.list) )
 				return;
 
-			list_remnthlink(var->_.list, arg.d.num);
+			list_remnthlink(var->_.list, arg->d.num);
 
 		// OBJLIST clear
-		} else if( !str_cmp(arg.d.str, "clear") ) {
+		} else if( !str_cmp(arg->d.str, "clear") ) {
 			pVARIABLE var = variable_get(*vars, name);
 
 			if( !var || var->type != VAR_BLLIST_OBJ || !IS_VALID(var->_.list) )
@@ -5774,18 +5952,18 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 
 	// RANDMOB <player> <continent>
 	} else if(!str_cmp(buf,"randmob")) {
-		if( arg.type != ENT_MOBILE || !IS_VALID(arg.d.mob) || IS_NPC(arg.d.mob) )
+		if( arg->type != ENT_MOBILE || !IS_VALID(arg->d.mob) || IS_NPC(arg->d.mob) )
 			return;
 
-		vch = arg.d.mob;
+		vch = arg->d.mob;
 
-		if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_STRING)
+		if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING)
 			return;
 
 		int continent;
-		if( !str_cmp(arg.d.str, "first") )			continent = FIRST_CONTINENT;
-		else if( !str_cmp(arg.d.str, "second") )	continent = SECOND_CONTINENT;
-		else if( !str_cmp(arg.d.str, "both") )		continent = BOTH_CONTINENTS;
+		if( !str_cmp(arg->d.str, "first") )			continent = FIRST_CONTINENT;
+		else if( !str_cmp(arg->d.str, "second") )	continent = SECOND_CONTINENT;
+		else if( !str_cmp(arg->d.str, "both") )		continent = BOTH_CONTINENTS;
 		else
 			return;
 
@@ -5798,18 +5976,18 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument)
 	} else if(!str_cmp(buf,"randroom")) {
 		ROOM_INDEX_DATA *loc;
 
-		if( arg.type != ENT_MOBILE || !IS_VALID(arg.d.mob) || IS_NPC(arg.d.mob) )
+		if( arg->type != ENT_MOBILE || !IS_VALID(arg->d.mob) || IS_NPC(arg->d.mob) )
 			return;
 
-		vch = arg.d.mob;
+		vch = arg->d.mob;
 
-		if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_STRING)
+		if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING)
 			return;
 
 		int continent;
-		if( !str_cmp(arg.d.str, "first") )			continent = FIRST_CONTINENT;
-		else if( !str_cmp(arg.d.str, "second") )	continent = SECOND_CONTINENT;
-		else if( !str_cmp(arg.d.str, "both") )		continent = BOTH_CONTINENTS;
+		if( !str_cmp(arg->d.str, "first") )			continent = FIRST_CONTINENT;
+		else if( !str_cmp(arg->d.str, "second") )	continent = SECOND_CONTINENT;
+		else if( !str_cmp(arg->d.str, "both") )		continent = BOTH_CONTINENTS;
 		else
 			return;
 
