@@ -1003,6 +1003,13 @@ char *expand_entity_primary(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->d.num = info->registers[*str-ENTITY_REGISTER1];
 		break;
 
+	case ENTITY_MXP:
+		arg->type = ENT_STRING;
+		clear_buf(arg->buffer);
+		add_char(arg->buffer, '\t');
+		arg->d.str = buf_string(arg->buffer);
+		break;
+
 	case ESCAPE_VARIABLE:
 		str = expand_escape_variable(info,(info?*(info->var):NULL),str+1,arg);
 		if(!str) return NULL;

@@ -512,6 +512,7 @@ enum entity_primary_enum {
 	ENTITY_REGISTER3,
 	ENTITY_REGISTER4,
 	ENTITY_REGISTER5,
+	ENTITY_MXP,
 };
 
 enum entity_variable_types_enum {
