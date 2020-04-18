@@ -1274,7 +1274,7 @@ SCRIPT_CMD(scriptcmd_fade)
 
 	rating = arg->d.num;
 
-	bool busy = (is_char_busy(target) || ch->desc->pString != NULL || ch->desc->input);
+	bool busy = (is_char_busy(target) || target->desc->pString != NULL || target->desc->input);
 
 	if( *rest )
 	{

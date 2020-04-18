@@ -316,8 +316,6 @@ OBJ_DATA *get_random_obj_area( CHAR_DATA *ch, AREA_DATA *area, ROOM_INDEX_DATA *
 OBJ_DATA *get_random_obj( CHAR_DATA *ch, int continent )
 {
 	AREA_DATA *area;
-	OBJ_INDEX_DATA *oIndex;
-	OBJ_DATA *obj = NULL;
 	ROOM_INDEX_DATA *room;
 	int tries;
 
