@@ -3800,145 +3800,166 @@ void do_quaff(CHAR_DATA *ch, char *argument)
 /* MOVED: object/actions.c */
 void do_recite(CHAR_DATA *ch, char *argument)
 {
-    char arg1[MAX_INPUT_LENGTH];
-    char arg2[MAX_INPUT_LENGTH];
-    CHAR_DATA *victim;
-    OBJ_DATA *scroll;
-    OBJ_DATA *obj;
+	char arg1[MAX_INPUT_LENGTH];
+	char arg2[MAX_INPUT_LENGTH];
+	CHAR_DATA *victim;
+	OBJ_DATA *scroll;
+	OBJ_DATA *obj;
 
-    argument = one_argument(argument, arg1);
-    argument = one_argument(argument, arg2);
+	argument = one_argument(argument, arg1);
+	argument = one_argument(argument, arg2);
 
-    if ((scroll = get_obj_carry(ch, arg1, ch)) == NULL)
-    {
-	send_to_char("You do not have that scroll.\n\r", ch);
-	return;
-    }
-
-    if (scroll->item_type != ITEM_SCROLL)
-    {
-	send_to_char("You can recite only scrolls.\n\r", ch);
-	return;
-    }
-
-    if (ch->tot_level < scroll->level)
-    {
-	send_to_char(
-		"This scroll is too complex for you to comprehend.\n\r",ch);
-	return;
-    }
-
-    if (IS_AFFECTED2(ch, AFF2_SILENCE))
-    {
-	send_to_char("You are silenced! You are unable to recite the scroll!\n\r", ch);
-	return;
-    }
-
-    obj = NULL;
-    if (arg2[0] == '\0')
-    {
-	victim = ch;
-    }
-    else
-    {
-	if ((victim = get_char_room (ch, NULL, arg2)) == NULL
-	&&   (obj    = get_obj_here  (ch, NULL, arg2)) == NULL)
+	if ((scroll = get_obj_carry(ch, arg1, ch)) == NULL)
 	{
-	    send_to_char("You can't find it.\n\r", ch);
-	    return;
+		send_to_char("You do not have that scroll.\n\r", ch);
+		return;
 	}
-    }
 
-    if (scroll->value[2] == 0)
-	RECITE_STATE(ch, 10);
-    else if (scroll->value[3] == 0)
-        RECITE_STATE(ch, 14);
-    else
-	RECITE_STATE(ch, 18);
+	if (scroll->item_type != ITEM_SCROLL)
+	{
+		send_to_char("You can recite only scrolls.\n\r", ch);
+		return;
+	}
 
-    act("{W$n begins to recite the words of $p...{x", ch, NULL, NULL, scroll, NULL, NULL, NULL, TO_ROOM);
-    act("{WYou begin to recite the words of $p...{x", ch, NULL, NULL, scroll, NULL, NULL, NULL, TO_CHAR);
+	if (ch->tot_level < scroll->level)
+	{
+		send_to_char("This scroll is too complex for you to comprehend.\n\r",ch);
+		return;
+	}
 
-    ch->recite_scroll = scroll;
+	if (IS_AFFECTED2(ch, AFF2_SILENCE))
+	{
+		send_to_char("You are silenced! You are unable to recite the scroll!\n\r", ch);
+		return;
+	}
 
-    if (victim != NULL)
-	ch->cast_target_name = str_dup(victim->name);
-    else if (obj != NULL)
-	ch->cast_target_name = str_dup(obj->name);
+	obj = NULL;
+	if (arg2[0] == '\0')
+	{
+		victim = ch;
+	}
+	else
+	{
+		if ((victim = get_char_room (ch, NULL, arg2)) == NULL &&
+			(obj    = get_obj_here  (ch, NULL, arg2)) == NULL)
+		{
+			send_to_char("You can't find it.\n\r", ch);
+			return;
+		}
+	}
+
+	int beats;
+	if (scroll->value[2] == 0)
+		beats = 10;
+	else if (scroll->value[3] == 0)
+		beats = 14;
+	else
+		beats = 18;
+
+	// Both scripts MUST provide a reason.
+	// Does the scroll forbid it?
+	scroll->tempstore[0] = beats;
+	if( p_percent_trigger( NULL, scroll, NULL, NULL, ch, victim, NULL,obj, NULL, TRIG_PRERECITE, NULL) )
+		return;
+
+	// Does the ROOM forbid it?
+	ch->in_room->tempstore[0] = scroll->tempstore[0];
+	if( p_percent_trigger( NULL, NULL, ch->in_room, NULL, ch, victim, NULL, obj, scroll, TRIG_PRERECITE, NULL) )
+		return;
+
+	beats = ch->in_room->tempstore[0];
+	beats = UMAX(beats, 1);
+
+	RECITE_STATE(ch, beats);
+
+	act("{W$n begins to recite the words of $p...{x", ch, NULL, NULL, scroll, NULL, NULL, NULL, TO_ROOM);
+	act("{WYou begin to recite the words of $p...{x", ch, NULL, NULL, scroll, NULL, NULL, NULL, TO_CHAR);
+
+	ch->recite_scroll = scroll;
+
+	if (victim != NULL)
+		ch->cast_target_name = str_dup(victim->name);
+	else if (obj != NULL)
+		ch->cast_target_name = str_dup(obj->name);
 }
 
 
 /* MOVED: object/actions.c */
 void recite_end(CHAR_DATA *ch)
 {
-    CHAR_DATA *victim;
-    OBJ_DATA *scroll;
-    OBJ_DATA *obj;
-    int kill;
-    SPELL_DATA *spell;
-    char buf[MSL];
+	CHAR_DATA *victim;
+	OBJ_DATA *scroll;
+	OBJ_DATA *obj;
+	int kill;
+	SPELL_DATA *spell;
+	char buf[MSL];
 
-    scroll = ch->recite_scroll;
+	scroll = ch->recite_scroll;
 
-    act("{W$n has completed reciting the scroll.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-    act("{WYou complete reciting the scroll.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-    if (scroll == NULL)
-    {
-	send_to_char("The scroll has vanished.\n\r", ch);
-	return;
-    }
-
-    if (ch->cast_target_name == NULL)
-    {
-	sprintf(buf, "recite_end: for %s, cast_target_name was null!",
-	    IS_NPC(ch) ? ch->short_descr : ch->name);
-	bug(buf, 0);
-	return;
-    }
-
-    victim = get_char_room(ch, NULL, ch->cast_target_name);
-    obj    = get_obj_here (ch, NULL, ch->cast_target_name);
-
-    free_string(ch->cast_target_name);
-    ch->cast_target_name = NULL;
-
-    if (victim == NULL && obj == NULL)
-    {
-         send_to_char("Your target has left the room.\n\r", ch);
-         return;
-    }
-
-    if (scroll == NULL)
-    {
- 	act("The scroll has disappeared.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	return;
-    }
-
-    kill = find_spell(ch, "kill");
-    for (spell = scroll->spells; spell != NULL; spell = spell->next)
-    {
-	if (spell->sn == kill) {
-	    act("$p explodes into dust!", ch, NULL, NULL, scroll, NULL, NULL, NULL, TO_ALL);
-	    extract_obj(scroll);
-	    return;
+	act("{W$n has completed reciting the scroll.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	act("{WYou complete reciting the scroll.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	if (scroll == NULL)
+	{
+		send_to_char("The scroll has vanished.\n\r", ch);
+		return;
 	}
-    }
 
-    act("$p flares brightly then disappears!", ch, NULL, NULL, scroll, NULL, NULL, NULL, TO_ALL);
+	if (ch->cast_target_name == NULL)
+	{
+		sprintf(buf, "recite_end: for %s, cast_target_name was null!",
+			IS_NPC(ch) ? ch->short_descr : ch->name);
+		bug(buf, 0);
+		return;
+	}
 
-    if (number_percent() >= 20 + get_skill(ch,gsn_scrolls) * 4/5)
-    {
-	send_to_char("You mispronounce a syllable.\n\r",ch);
-	check_improve(ch,gsn_scrolls,FALSE,2);
-    }
-    else
-    {
+	victim = get_char_room(ch, NULL, ch->cast_target_name);
+	obj    = get_obj_here (ch, NULL, ch->cast_target_name);
+
+	free_string(ch->cast_target_name);
+	ch->cast_target_name = NULL;
+
+	if (victim == NULL && obj == NULL)
+	{
+		send_to_char("Your target has left the room.\n\r", ch);
+		return;
+	}
+
+	if (scroll == NULL)
+	{
+		act("The scroll has disappeared.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	kill = find_spell(ch, "kill");
 	for (spell = scroll->spells; spell != NULL; spell = spell->next)
-	    obj_cast_spell(spell->sn, spell->level, ch, victim, obj);
-	check_improve(ch,gsn_scrolls,TRUE,2);
-    }
+	{
+		if (spell->sn == kill) {
+			act("$p explodes into dust!", ch, NULL, NULL, scroll, NULL, NULL, NULL, TO_ALL);
+			extract_obj(scroll);
+			return;
+		}
+	}
 
-    extract_obj(scroll);
+	// Reciting will always do this, regardless of the RECITE trigger
+	act("$p flares brightly then disappears!", ch, NULL, NULL, scroll, NULL, NULL, NULL, TO_ALL);
+
+	if (number_percent() >= 20 + get_skill(ch,gsn_scrolls) * 4/5)
+	{
+		send_to_char("You mispronounce a syllable.\n\r",ch);
+		check_improve(ch,gsn_scrolls,FALSE,2);
+	}
+	else
+	{
+		// Allow the scroll to perform an action from reciting it
+		if( p_percent_trigger( NULL, scroll, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_RECITE, NULL) <= 0 )
+		{
+			for (spell = scroll->spells; spell != NULL; spell = spell->next)
+				obj_cast_spell(spell->sn, spell->level, ch, victim, obj);
+		}
+		check_improve(ch,gsn_scrolls,TRUE,2);
+	}
+
+	extract_obj(scroll);
 }
 
 

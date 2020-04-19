@@ -5217,6 +5217,7 @@ enum trigger_index_enum {
 	TRIG_PREPUT,
 	TRIG_PREQUEST,			// Allows custom checking for questing, also allows setting the number of quest parts.
 	TRIG_PRERECALL,
+	TRIG_PRERECITE,
 	TRIG_PRERECKONING,
 	TRIG_PREREHEARSE,
 	TRIG_PREREMOVE,
