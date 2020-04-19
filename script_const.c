@@ -265,7 +265,7 @@ ENT_FIELD entity_mobile[] = {
 	{"tokens",			ENTITY_MOB_TOKENS,			ENT_OLLIST_TOK	},
 	{"vars",			ENTITY_MOB_VARIABLES,		ENT_ILLIST_VARIABLE	},
 	{"worn",			ENTITY_MOB_WORN,			ENT_PLLIST_OBJ },
-
+	{"index",			ENTITY_MOB_INDEX,			ENT_MOBINDEX },
 	{"act",				ENTITY_MOB_ACT,				ENT_BITVECTOR },
 	{"act2",			ENTITY_MOB_ACT2,			ENT_BITVECTOR },
 	{"affected",		ENTITY_MOB_AFFECT,			ENT_BITVECTOR },

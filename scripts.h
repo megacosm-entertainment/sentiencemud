@@ -691,7 +691,6 @@ enum entity_mobile_enum {
 	ENTITY_MOB_RESIST,
 	ENTITY_MOB_VULN,
 	ENTITY_MOB_TEMPSTRING,
-	ENTITY_MOB_INDEX,
 };
 
 enum entity_object_enum {
