@@ -1851,6 +1851,11 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->d.str = arg->d.mob && arg->d.mob->tempstring ? arg->d.mob->tempstring : &str_empty[0];
 		break;
 
+	case ENTITY_MOB_INDEX:
+		arg->type = ENT_MOBINDEX;
+		arg->d.mobindex = (arg->d.mob && IS_NPC(arg->d.mob)) ? arg->d.mob->pIndexData : NULL;
+		break;
+
 	default: return NULL;
 	}
 
@@ -2113,6 +2118,11 @@ char *expand_entity_mobile_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_MOB_TEMPSTRING:
 		arg->type = ENT_STRING;
 		arg->d.str = (char*)&str_empty[0];
+		break;
+
+	case ENTITY_MOB_INDEX:
+		arg->type = ENT_MOBINDEX;
+		arg->d.mobindex = NULL;
 		break;
 
 	default: return NULL;
@@ -4463,6 +4473,26 @@ char *expand_entity_dice(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 }
 
 
+char *expand_entity_mobindex(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	info = arg->d.info;
+
+	switch(*str) {
+	case ENTITY_MOBINDEX_VNUM:
+		arg->type = ENT_NUMBER;
+		arg->d.num = arg->d.mobindex ? arg->d.mobindex->vnum: 0;
+		break;
+	case ENTITY_MOBINDEX_LOADED:
+		arg->type = ENT_NUMBER;
+		arg->d.num = arg->d.mobindex ? arg->d.mobindex->count : 0;
+		break;
+
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
 char *expand_entity_objindex(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 	info = arg->d.info;
@@ -4647,6 +4677,7 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case ENT_VARIABLE:		next = expand_entity_variable(info,str,arg); break;
 		case ENT_GROUP:			next = expand_entity_group(info,str,arg); break;
 		case ENT_DICE:			next = expand_entity_dice(info,str,arg); break;
+		case ENT_MOBINDEX:		next = expand_entity_mobindex(info,str,arg); break;
 		case ENT_OBJINDEX:		next = expand_entity_objindex(info,str,arg); break;
 		case ENT_BITVECTOR:		next = expand_entity_bitvector(info,str,arg); break;
 		case ENT_NULL:

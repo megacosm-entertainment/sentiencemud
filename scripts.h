@@ -184,7 +184,7 @@ enum ifcheck_enum {
 		CHK_ISWORN,
 
 	/* L */
-	CHK_LASTRETURN,CHK_LEVEL,CHK_LIQUID,CHK_LISTCONTAINS,CHK_LOSTPARTS,
+	CHK_LASTRETURN,CHK_LEVEL,CHK_LIQUID,CHK_LISTCONTAINS,CHK_LOADED,CHK_LOSTPARTS,
 
 	/* M */
 	CHK_MANAREGEN,CHK_MANASTORE,
@@ -691,6 +691,7 @@ enum entity_mobile_enum {
 	ENTITY_MOB_RESIST,
 	ENTITY_MOB_VULN,
 	ENTITY_MOB_TEMPSTRING,
+	ENTITY_MOB_INDEX,
 };
 
 enum entity_object_enum {
@@ -943,6 +944,7 @@ enum entity_dice_enum {
 
 enum entity_mobindex_enum {
 	ENTITY_MOBINDEX_VNUM = ESCAPE_EXTRA,
+	ENTITY_MOBINDEX_LOADED,
 };
 
 enum entity_objindex_enum {
@@ -1785,6 +1787,8 @@ DECL_IFC_FUN(ifc_boosttimer);
 DECL_IFC_FUN(ifc_ishired);
 DECL_IFC_FUN(ifc_hired);
 DECL_IFC_FUN(ifc_canpull);
+
+DECL_IFC_FUN(ifc_loaded);
 
 /* Opcode functions */
 DECL_OPC_FUN(opc_end);

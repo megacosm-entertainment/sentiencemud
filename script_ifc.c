@@ -4600,3 +4600,45 @@ DECL_IFC_FUN(ifc_canpull)
 
 	return TRUE;
 }
+
+// LOADED $ENTITY == NUMBER
+// LOADED "MOBILE" NUMBER == NUMBER
+// LOADED "OBJECT" NUMBER == NUMBER
+DECL_IFC_FUN(ifc_loaded)
+{
+	*ret = 0;
+	if( ISARG_STR(0) )
+	{
+		if( !IS_NULLSTR(ARG_STR(0)) )
+		{
+			if(!str_prefix(ARG_STR(0), "mobile"))
+			{
+				if( ISARG_NUM(1) )
+				{
+					MOB_INDEX_DATA *mobindex = get_mob_index(ARG_NUM(1));
+
+					*ret = mobindex ? mobindex->count : 0;
+				}
+			}
+			else if(!str_prefix(ARG_STR(0), "object"))
+			{
+				if( ISARG_NUM(1) )
+				{
+					OBJ_INDEX_DATA *objindex = get_obj_index(ARG_NUM(1));
+
+					*ret = objindex ? objindex->count : 0;
+				}
+			}
+		}
+	}
+	else if(VALID_NPC(0))
+	{
+		*ret = ARG_MOB(0)->pIndexData->count;
+	}
+	else if(ISARG_OBJ(0))
+	{
+		*ret = ARG_OBJ(0)->pIndexData->count;
+	}
+
+	return TRUE;
+}

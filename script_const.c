@@ -537,6 +537,11 @@ ENT_FIELD entity_dice[] = {
 
 };
 
+ENT_FIELD entity_mobindex[] = {
+	{"vnum",			ENTITY_MOBINDEX_VNUM,			ENT_NUMBER },
+	{"loaded",			ENTITY_MOBINDEX_LOADED,			ENT_NUMBER },
+};
+
 ENT_FIELD entity_objindex[] = {
 	{"vnum",			ENTITY_OBJINDEX_VNUM,			ENT_NUMBER },
 	{"loaded",			ENTITY_OBJINDEX_LOADED,			ENT_NUMBER },
@@ -584,6 +589,7 @@ struct _entity_type_info entity_type_info[] = {
 	{ ENT_PERSIST,		ENT_PERSIST,		entity_persist,		FALSE	},
 	{ ENT_GROUP,		ENT_GROUP,			entity_group,		FALSE	},
 	{ ENT_DICE,			ENT_DICE,			entity_dice,		FALSE	},
+	{ ENT_MOBINDEX,		ENT_MOBINDEX,		entity_mobindex,	FALSE	},
 	{ ENT_OBJINDEX,		ENT_OBJINDEX,		entity_objindex,	FALSE	},
 	{ ENT_UNKNOWN,		ENT_UNKNOWN,		NULL,				FALSE	},
 };
@@ -1018,6 +1024,7 @@ IFCHECK_DATA ifcheck_table[] = {
 	{ "level",				IFC_ANY,	"E",	TRUE,	ifc_level,				"ifcheck level" },
 	{ "liquid",				IFC_ANY,	"ES",	FALSE,	ifc_liquid,				"ifcheck liquid" },
 	{ "listcontains",		IFC_ANY,	"EE",	FALSE,	ifc_listcontains,		"ifcheck listcontains" },
+	{ "loaded",				IFC_ANY,	"",		TRUE,	ifc_loaded,				"ifcheck loaded" },
 	{ "lostparts",			IFC_ANY,	"ES",	FALSE,	ifc_lostparts,			"ifcheck lostparts" },
 	{ "manaregen",			IFC_ANY,	"E",	TRUE,	ifc_manaregen,			"ifcheck manaregen" },
 	{ "manastore",			IFC_ANY,	"E",	TRUE,	ifc_manastore,			"ifcheck manastore" },
