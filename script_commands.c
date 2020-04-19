@@ -1727,11 +1727,11 @@ SCRIPT_CMD(scriptcmd_questaccept)
 	info->progs->lastreturn = mob->countdown;
 }
 
-// QUESTCANCEL $PLAYER $CLEANUP
+// QUESTCANCEL $PLAYER[ $CLEANUP]
 // Cancels the $PLAYER's pending SCRIPTED quest
 //
 // $PLAYER  - Cancels the pending quest for this player
-// $CLEANUP - script (caller space) used to clean up generated quest parts
+// $CLEANUP - script (caller space) used to clean up generated quest parts (optional)
 //
 // Fails if the player does not have a pending scripted quest.
 SCRIPT_CMD(scriptcmd_questcancel)
@@ -1762,21 +1762,24 @@ SCRIPT_CMD(scriptcmd_questcancel)
 	// Must be on a scripted quest that is still generating
 	if( !mob->quest->generating || !mob->quest->scripted ) return;
 
-	// Get cleanup script
-	if(!(rest = expand_argument(info,rest,arg)))
-		return;
+	// Get cleanup script (if there)
+	if( *rest )
+	{
+		if(!(rest = expand_argument(info,rest,arg)))
+			return;
 
-	switch(arg->type) {
-	case ENT_STRING: vnum = atoi(arg->d.str); break;
-	case ENT_NUMBER: vnum = arg->d.num; break;
-	default: vnum = 0; break;
+		switch(arg->type) {
+		case ENT_STRING: vnum = atoi(arg->d.str); break;
+		case ENT_NUMBER: vnum = arg->d.num; break;
+		default: vnum = 0; break;
+		}
+
+		if (vnum < 1 || !(script = get_script_index(vnum, type)))
+			return;
+
+		// Don't care about response
+		execute_script(script->vnum, script, info->mob, info->obj, info->room, info->token, mob, NULL, NULL, NULL, NULL,NULL, NULL,NULL,NULL,0,0,0,0,0);
 	}
-
-	if (vnum < 1 || !(script = get_script_index(vnum, type)))
-		return;
-
-	// Don't care about response
-	execute_script(script->vnum, script, info->mob, info->obj, info->room, info->token, mob, NULL, NULL, NULL, NULL,NULL, NULL,NULL,NULL,0,0,0,0,0);
 
 	free_quest(mob->quest);
 	mob->quest = NULL;
