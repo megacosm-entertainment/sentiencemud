@@ -4642,3 +4642,34 @@ DECL_IFC_FUN(ifc_loaded)
 
 	return TRUE;
 }
+
+// PROTOCOL $PLAYER field
+// FIELD:
+//  * mxp
+//  * msp
+//  * more to come?
+DECL_IFC_FUN(ifc_protocol)
+{
+	*ret = FALSE;
+	if(VALID_PLAYER(0) && ISARG_STR(1) && !IS_NULLSTR(ARG_STR(1)))
+	{
+		DESCRIPTOR_DATA *d = ARG_MOB(0)->desc;
+
+		if( d != NULL )
+		{
+			protocol_t *p = d->pProtocol;
+
+
+			if(!str_cmp(ARG_STR(1), "mxp"))
+			{
+				*ret = (p && p->bMXP);
+			}
+			else if(!str_cmp(ARG_STR(1), "msp"))
+			{
+				*ret = (p && p->bMSP);
+			}
+		}
+	}
+
+	return TRUE;
+}

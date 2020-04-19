@@ -1110,6 +1110,7 @@ IFCHECK_DATA ifcheck_table[] = {
 	{ "portalexit",			IFC_ANY,	"ES",	FALSE,	ifc_portalexit,			"ifcheck portalexit" },
 	{ "pos",				IFC_ANY,	"ES",	FALSE,	ifc_pos,				"ifcheck pos" },
 	{ "practices",			IFC_ANY,	"E",	TRUE,	ifc_practices,			"ifcheck practices" },
+	{ "protocol",			IFC_ANY,	"ES",	FALSE,	ifc_protocol,			"ifcheck protocol" },
 	{ "questpoint",			IFC_ANY,	"E",	TRUE,	ifc_quest,				"ifcheck questpoint" },
 	{ "race",				IFC_ANY,	"ES",	FALSE,	ifc_race,				"ifcheck race" },
 	{ "rand",				IFC_ANY,	"Nn",	FALSE,	ifc_rand,				"ifcheck rand" },
