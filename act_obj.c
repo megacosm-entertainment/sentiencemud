@@ -3940,26 +3940,24 @@ void recite_end(CHAR_DATA *ch)
 		}
 	}
 
-	// Reciting will always do this, regardless of the RECITE trigger
-	act("$p flares brightly then disappears!", ch, NULL, NULL, scroll, NULL, NULL, NULL, TO_ALL);
+	if( p_percent_trigger( NULL, scroll, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_RECITE, NULL) <= 0 )
+	{
+		act("$p flares brightly then disappears!", ch, NULL, NULL, scroll, NULL, NULL, NULL, TO_ALL);
 
-	if (number_percent() >= 20 + get_skill(ch,gsn_scrolls) * 4/5)
-	{
-		send_to_char("You mispronounce a syllable.\n\r",ch);
-		check_improve(ch,gsn_scrolls,FALSE,2);
-	}
-	else
-	{
-		// Allow the scroll to perform an action from reciting it
-		if( p_percent_trigger( NULL, scroll, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_RECITE, NULL) <= 0 )
+		if (number_percent() >= 20 + get_skill(ch,gsn_scrolls) * 4/5)
+		{
+			send_to_char("You mispronounce a syllable.\n\r",ch);
+			check_improve(ch,gsn_scrolls,FALSE,2);
+		}
+		else
 		{
 			for (spell = scroll->spells; spell != NULL; spell = spell->next)
 				obj_cast_spell(spell->sn, spell->level, ch, victim, obj);
+			check_improve(ch,gsn_scrolls,TRUE,2);
 		}
-		check_improve(ch,gsn_scrolls,TRUE,2);
-	}
 
-	extract_obj(scroll);
+		extract_obj(scroll);
+	}
 }
 
 
