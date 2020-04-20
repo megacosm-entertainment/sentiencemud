@@ -2193,7 +2193,15 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 	case ENTITY_OBJ_EXTRADESC:
 		arg->type = ENT_EXTRADESC;
-		arg->d.ed = arg->d.obj?arg->d.obj->extra_descr:NULL;
+		if( arg->d.obj )
+		{
+			if( arg->d.obj->extra_descr )
+				arg->d.ed = arg->d.obj->extra_descr;
+			else
+				arg->d.ed = arg->d.obj->pIndexData->extra_descr;
+		}
+		else
+			arg->d.ed = NULL;
 		break;
 	case ESCAPE_VARIABLE:
 		str = expand_escape_variable(info,arg->d.obj?arg->d.obj->progs->vars:NULL,str+1,arg);
