@@ -3867,7 +3867,12 @@ void do_recite(CHAR_DATA *ch, char *argument)
 	if( p_percent_trigger( NULL, NULL, ch->in_room, NULL, ch, victim, NULL, obj, scroll, TRIG_PRERECITE, NULL) )
 		return;
 
-	beats = ch->in_room->tempstore[0];
+	// Does the PLAYER (TOKENS) forbid it?
+	ch->tempstore[0] = ch->in_room->tempstore[0];
+	if( p_percent_trigger( ch, NULL, NULL, NULL, ch, victim, NULL, obj, scroll, TRIG_PRERECITE, NULL) )
+		return;
+
+	beats = ch->tempstore[0];
 	beats = UMAX(beats, 1);
 
 	RECITE_STATE(ch, beats);
