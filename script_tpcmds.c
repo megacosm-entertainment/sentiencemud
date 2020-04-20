@@ -51,6 +51,7 @@ const struct script_cmd_type token_cmd_table[] = {
 	{ "echoleadat",			do_tpecholeadat,			FALSE,	TRUE	},
 	{ "echonotvict",		do_tpechonotvict,			FALSE,	TRUE	},
 	{ "echoroom",			do_tpechoroom,				FALSE,	TRUE	},
+	{ "ed",					scriptcmd_ed,				FALSE,	TRUE	},
 	{ "entercombat",		scriptcmd_entercombat,		FALSE,	TRUE	},
 	{ "fade",				scriptcmd_fade,				TRUE,	TRUE	},
 	{ "fixaffects",			do_tpfixaffects,			FALSE,	TRUE	},

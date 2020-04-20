@@ -61,6 +61,7 @@ const struct script_cmd_type mob_cmd_table[] = {
 	{ "echoleadat",			do_mpecholeadat,			FALSE,	TRUE	},
 	{ "echonotvict",		do_mpechonotvict,			FALSE,	TRUE	},
 	{ "echoroom",			do_mpechoroom,				FALSE,	TRUE	},
+	{ "ed",					scriptcmd_ed,				FALSE,	TRUE	},
 	{ "entercombat",		scriptcmd_entercombat,		FALSE,	TRUE	},
 	{ "fade",				scriptcmd_fade,				TRUE,	TRUE	},
 	{ "fixaffects",			do_mpfixaffects,			FALSE,	TRUE	},

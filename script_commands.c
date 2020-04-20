@@ -1142,6 +1142,114 @@ SCRIPT_CMD(scriptcmd_detach)
 //////////////////////////////////////
 // E
 
+// ED $OBJECT|$VROOM CLEAR
+//    Clears out the entity's extra descriptions
+//
+// ED $OBJECT|$VROOM SET $NAME $STRING
+//
+// ED $OBJECT|$VROOM DELETE $NAME
+//
+// Extra description manipulation for rooms will only work in Wilderness and Clone rooms for now
+//
+SCRIPT_CMD(scriptcmd_ed)
+{
+	char *rest;
+	EXTRA_DESCR_DATA **ed;
+
+	info->progs->lastreturn = 0;
+
+	if (!(rest = expand_argument(info,argument,arg)))
+		return;
+
+	if( arg->type == ENT_OBJECT )
+		ed = &arg->d.obj->ed;
+	else if( arg->type == ENT_ROOM )
+	{
+		if( !arg->d.room ) return;
+		if( arg->d.room->source || arg->d.room->wilds )
+			ed = &arg->d.room->ed;
+	}
+
+	if( ed )
+		return;
+
+	if (!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING)
+		return;
+
+	if( !str_cmp(arg->d.str, "clear") )
+	{
+		EXTRA_DESCR_DATA *cur, *next;
+
+		for(cur = *ed; cur; cur = next)
+		{
+			next = cur->next;
+			free_extra_descr(cur);
+		}
+
+		*ed = NULL;
+	}
+	else if( !str_cmp(arg->d.str, "delete") )
+	{
+		if (!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING)
+			return;
+
+		EXTRA_DESCR_DATA *prev = NULL, *cur;
+
+		for(cur = *ed; cur; cur = cur->next)
+		{
+			if( is_name(arg->d.str, cur->keyword) )
+				break;
+			else
+				prev = cur;
+		}
+
+		if( !cur ) return;
+
+		if( prev )
+			prev->next = cur->next;
+		else
+			*ed = cur->next;
+
+		free_extra_descr(cur);
+
+	}
+	else if( !str_cmp(arg->d.str, "set") )
+	{
+		if (!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING)
+			return;
+
+		// Save the buffer from the parameter and give it a new buffer
+		BUFFER *tmp_buffer = arg->buffer;
+		arg->buffer = new_buf();	// Will be freed automatically
+
+		if (!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING)
+		{
+			free_buf(tmp_buffer);
+			return;
+		}
+
+		for(cur = *ed; cur; cur = cur->next)
+		{
+			if( is_name(tmp_buffer->string, cur->keyword) )
+				break;
+		}
+
+		if( !cur )
+		{
+			cur = new_extra_descr();
+			cur->next = *ed;
+			*ed = cur;
+		}
+
+		free_string(cur->description);
+		cur->description = str_dup(arg->d.str);
+
+		free_buf(tmp_buffer);
+	}
+
+	info->progs->lastreturn = 1;
+}
+
 // ENTERCOMBAT[ $ATTACKER] $VICTIM[ $SILENT]
 // Switches target explicitly without triggering any standard combat scripts
 //  - used for scripts in combat to change targets

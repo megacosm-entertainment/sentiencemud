@@ -2445,6 +2445,8 @@ SCRIPT_CMD(scriptcmd_questcancel);
 SCRIPT_CMD(scriptcmd_questgenerate);
 SCRIPT_CMD(scriptcmd_questscroll);
 
+SCRIPT_CMD(scriptcmd_ed);
+
 #include "tables.h"
 
 #endif /* !__SCRIPTS_H__ */
