@@ -1189,6 +1189,7 @@ struct loop_data {
 				AFFECT_DATA *aff;
 				void *raw;
 				char *str;
+				EXTRA_DESCR_DATA *ed;
 			} cur, next;
 			struct {
 				LLIST *lp;
@@ -1232,7 +1233,6 @@ struct script_parameter {
 		ROOM_INDEX_DATA *room;
 		AREA_DATA *area;
 		TOKEN_DATA *token;
-		EXTRA_DESCR_DATA *ed;
 		AFFECT_DATA *aff;
 		DESCRIPTOR_DATA *conn;
 		WILDS_DATA *wilds;
@@ -1251,6 +1251,7 @@ struct script_parameter {
 				OBJ_DATA **obj;
 				TOKEN_DATA **tok;
 				AFFECT_DATA **aff;
+				EXTRA_DESCR_DATA **ed;
 			} ptr;
 			void *owner;
 		} list;

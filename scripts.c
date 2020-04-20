@@ -933,6 +933,7 @@ DECL_OPC_FUN(opc_list)
 	EXIT_DATA *ex;
 	CHURCH_DATA *church;
 	VARIABLE *variable;
+	EXTRA_DESCR_DATA *ed;
 
 	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
 		return opc_skip_block(block,block->cur_line->level-1,FALSE);
@@ -1125,6 +1126,22 @@ DECL_OPC_FUN(opc_list)
 
 			// Set the variable
 			variables_set_affect(block->info.var,block->loops[lp].var_name,*arg->d.list.ptr.aff);
+			break;
+
+		case ENT_EXTRADESC:
+			if(!arg->d.list.ptr.ed || !*arg->d.list.ptr.ed)
+			{
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			block->loops[lp].d.l.type = ENT_EXTRADESC;
+			block->loops[lp].d.l.cur.ed = *arg->d.list.ptr.ed;
+			block->loops[lp].d.l.next.ed = block->loops[lp].d.l.cur.ed->next;
+			block->loops[lp].d.l.owner = arg->d.list.owner;
+
+			// Set the variable
+			variables_set_string(block->info.var,block->loops[lp].var_name,(*arg->d.list.ptr.ed)->keyword);
 			break;
 
 		case ENT_PLLIST_STR:
@@ -1879,6 +1896,18 @@ DECL_OPC_FUN(opc_list)
 			block->loops[lp].d.l.next.aff = block->loops[lp].d.l.cur.aff->next;
 			break;
 
+		case ENT_EXTRADESC:
+			block->loops[lp].d.l.cur.ed = block->loops[lp].d.l.next.ed;
+			ed = block->loops[lp].d.l.cur.ed;
+			// Set the variable
+			variables_set_string(block->info.var,block->loops[lp].var_name, ed ? ed->keyword : &str_empty[0]);
+			if(!ed) {
+				skip = TRUE;
+				break;
+			}
+
+			block->loops[lp].d.l.next.ed = ed->next;
+
 		case ENT_PLLIST_STR:
 			//log_stringf("opc_list: list type ENT_PLLIST_STR");
 			str = (char *)iterator_nextdata(&block->loops[lp].d.l.list.it);
@@ -1891,7 +1920,7 @@ DECL_OPC_FUN(opc_list)
 				*/
 
 			// Set the variable
-			variables_set_string(block->info.var,block->loops[lp].var_name,str,FALSE);
+			variables_set_string(block->info.var,block->loops[lp].var_name,str?str:&str_empty[0],FALSE);
 
 			if( !str ) {
 				iterator_stop(&block->loops[lp].d.l.list.it);

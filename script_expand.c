@@ -2193,15 +2193,16 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 	case ENTITY_OBJ_EXTRADESC:
 		arg->type = ENT_EXTRADESC;
-		if( arg->d.obj )
+		if( self )
 		{
-			if( arg->d.obj->extra_descr )
-				arg->d.ed = arg->d.obj->extra_descr;
+			if( self->extra_descr )
+				arg->d.list.ptr.ed = &self->extra_descr;
 			else
-				arg->d.ed = arg->d.obj->pIndexData->extra_descr;
+				arg->d.list.ptr.ed = &self->pIndexData->extra_descr;
 		}
 		else
-			arg->d.ed = NULL;
+			arg->d.list.ptr.ed = NULL;
+		arg->d.list.owner = self;
 		break;
 	case ESCAPE_VARIABLE:
 		str = expand_escape_variable(info,arg->d.obj?arg->d.obj->progs->vars:NULL,str+1,arg);
@@ -2318,7 +2319,8 @@ char *expand_entity_object_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 	case ENTITY_OBJ_EXTRADESC:
 		arg->type = ENT_EXTRADESC;
-		arg->d.ed = NULL;
+		arg->d.list.ptr.ed = NULL;
+		arg->d.list.owner = NULL;
 		break;
 	case ESCAPE_VARIABLE:
 		str = expand_escape_variable(info,NULL,str+1,arg);
@@ -2430,7 +2432,8 @@ char *expand_entity_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 	case ENTITY_ROOM_EXTRADESC:
 		arg->type = ENT_EXTRADESC;
-		arg->d.ed = arg->d.room?arg->d.room->extra_descr:NULL;
+		arg->d.list.ptr.ed = room ? &room->extra_descr : NULL;
+		arg->d.list.owner = room;
 		break;
 
 	case ENTITY_ROOM_DESC:
@@ -3231,7 +3234,8 @@ char *expand_entity_clone_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 	case ENTITY_ROOM_EXTRADESC:
 		arg->type = ENT_EXTRADESC;
-		arg->d.ed = NULL;
+		arg->d.list.ptr.ed = NULL;
+		arg->d.list.owner = NULL;
 		break;
 
 	case ENTITY_ROOM_DESC:
@@ -3325,7 +3329,8 @@ char *expand_entity_wilds_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 	case ENTITY_ROOM_EXTRADESC:
 		arg->type = ENT_EXTRADESC;
-		arg->d.ed = NULL;
+		arg->d.list.ptr.ed = NULL;
+		arg->d.list.owner = NULL;
 		break;
 
 	case ENTITY_ROOM_DESC:
@@ -4547,7 +4552,7 @@ char *expand_entity_extradesc(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 //	EXTRA_DESCR_DATA *ed;
 	switch(*str) {
 	case ESCAPE_VARIABLE:
-		if(!arg->d.ed || !info->var) return NULL;
+		if(!arg->d.list.owner || !arg->d.list.ptr.ed || !*arg->d.list.ptr.ed || !info->var) return NULL;
 
 /*
 		{
@@ -4576,7 +4581,7 @@ char *expand_entity_extradesc(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 */
 
 		arg->type = ENT_STRING;
-		arg->d.str = get_extra_descr(buf_string(buffer), arg->d.ed);
+		arg->d.str = get_extra_descr(buf_string(buffer), *arg->d.list.ptr.ed);
 		if (!arg->d.str) arg->d.str = str_dup("");
 		free_buf(buffer);
 		break;
