@@ -5219,8 +5219,15 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 		EXTRA_DESCR_DATA *desc;
 
 		switch(arg->type) {
-		case ENT_OBJECT: desc = arg->d.obj->extra_descr; break;
-		case ENT_ROOM: desc = arg->d.room->extra_descr; break;
+		case ENT_OBJECT:
+			if( arg->d.obj->extra_descr )
+				desc = arg->d.obj->extra_descr;
+			else
+				desc = arg->d.obj->pIndexData->extra_descr;
+			break;
+		case ENT_ROOM:
+			desc = arg->d.room->extra_descr;
+			break;
 		default:return;
 		}
 
@@ -5378,7 +5385,8 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 		variables_set_exit(vars,name,ex);
 
 	// Format: MOBILE <ROOM VNUM or ROOM or MOBLIST> <VNUM or NAME>
-	// Format: MOBILE <NAME>
+	// Format: MOBILE VNUM <VNUM>
+	// Format: MOBILE NAME <NAME>
 	// Format: MOBILE <MOBILE>
 	} else if(!str_cmp(buf,"mobile")) {
 		if( arg->type == ENT_BLLIST_MOB )
@@ -5420,11 +5428,25 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 			mobs = here ? here->people : NULL;
 			break;
 		case ENT_STRING:
-			if(is_number(arg->d.str)) {
+			if(is_number(arg->d.str))
+			{
 				here = get_room_index(atoi(arg->d.str));
 				mobs = here ? here->people : NULL;
-			} else
+			}
+			else if(!str_cmp(arg->d.str, "name"))
+			{
+				if(!(rest = expand_argument(info,rest,arg)) && arg->type != ENT_STRING) return;
 				vch = get_char_world(viewer,arg->d.str);
+			}
+			else if(!str_cmp(arg->d.str, "vnum"))
+			{
+				if(!(rest = expand_argument(info,rest,arg)) && arg->type != ENT_NUMBER) return;
+
+				MOB_INDEX_DATA mob_index = get_mob_index(arg->d.num);
+				if(!mob_index) return;
+
+				vch = get_char_world_index(NULL, mob_index);
+			}
 			break;
 		case ENT_MOBILE:
 			vch = arg->d.mob;
@@ -5498,7 +5520,10 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 		variables_set_mobile(vars,name,vch);
 
 	// Format: OBJECT <ROOM VNUM or ROOM or MOBILE or OBJECT or OBJLIST> <VNUM or NAME>
-	// Format: OBJECT <NAME>
+	// Format: OBJECT HERE <NAME>
+	// Format: OBJECT WORLD <NAME>
+	// Format: OBJECT VNUM <VNUM>
+	// Format: OBJECT <OBJECT>
 	} else if(!str_cmp(buf,"object")) {
 		if( arg->type == ENT_BLLIST_OBJ)
 		{
@@ -5540,13 +5565,34 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 			objs = here ? here->contents : NULL;
 			break;
 		case ENT_STRING:
-			if(is_number(arg->d.str)) {
+			if(is_number(arg->d.str))
+			{
 				here = get_room_index(atoi(arg->d.str));
 				objs = here ? here->contents : NULL;
-			} else if(viewer)
-				obj = get_obj_here(viewer,NULL,arg->d.str);
-			else
-				obj = get_obj_here(NULL,here,arg->d.str);
+			}
+			else if(!str_cmp(arg->d.str, "here"))
+			{
+				if(!(rest = expand_argument(info,rest,arg)) && arg->type != ENT_STRING) return;
+
+				if(viewer)
+					obj = get_obj_here(viewer,NULL,arg->d.str);
+				else
+					obj = get_obj_here(NULL,here,arg->d.str);
+			}
+			else if(!str_cmp(arg->d.str, "world"))
+			{
+				if(!(rest = expand_argument(info,rest,arg)) && arg->type != ENT_STRING) return;
+
+				obj = get_obj_world(NULL, arg->d.str);
+			}
+			else if(!str_cmp(arg->d.str, "vnum"))
+			{
+				if(!(rest = expand_argument(info,rest,arg)) && arg->type != ENT_NUMBER) return;
+
+				OBJ_INDEX_DATA *obj_index = get_obj_index(arg->d.num);
+
+				obj = get_obj_world_index(NULL, obj_index);
+			}
 			break;
 		case ENT_OBJECT:
 			obj = arg->d.obj;

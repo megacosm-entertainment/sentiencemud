@@ -7908,6 +7908,6 @@ SHOP_STOCK_DATA *get_stockonly_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, char *ar
 bool is_pullable(OBJ_DATA *obj);
 
 OBJ_DATA *generate_quest_scroll(CHAR_DATA *ch, char *questgiver, long vnum, char *header, char *footer, char *prefix, char *suffix, int width);
-
+OBJ_DATA *get_obj_world_index(CHAR_DATA *ch, OBJ_INDEX_DATA *pObjIndex, bool all);
 
 #endif /* !def __MERC_H__ */

@@ -3275,6 +3275,29 @@ CHAR_DATA *get_char_world_index(CHAR_DATA *ch, MOB_INDEX_DATA *pMobIndex)
     return wch;
 }
 
+/*
+ * Find an object in the world by its pIndexData
+ */
+OBJ_DATA *get_obj_world_index(CHAR_DATA *ch, OBJ_INDEX_DATA *pObjIndex, bool all)
+{
+	OBJ_DATA *wobj;
+	ITERATOR it;
+
+	iterator_start(&it, loaded_objects);
+	while(( wobj = (OBJ_DATA *)iterator_nextdata(&it)))
+	{
+		if ((!all && (wobj->locker || wobj->in_mail)) ||
+			(ch && !can_see_obj(ch, wobj)) ||
+			wobj->pIndexData != pObjIndex)
+			continue;
+
+		break;
+    }
+    iterator_stop(&it);
+
+    return wobj;
+}
+
 
 /*
  * Find some object with a given index data.
