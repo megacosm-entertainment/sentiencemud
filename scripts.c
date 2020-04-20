@@ -5386,7 +5386,8 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 
 	// Format: MOBILE <ROOM VNUM or ROOM or MOBLIST> <VNUM or NAME>
 	// Format: MOBILE VNUM <VNUM>
-	// Format: MOBILE NAME <NAME>
+	// Format: MOBILE NAME|WORLD <NAME>
+	// Format: MOBILE HERE <NAME>
 	// Format: MOBILE <MOBILE>
 	} else if(!str_cmp(buf,"mobile")) {
 		if( arg->type == ENT_BLLIST_MOB )
@@ -5433,10 +5434,15 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 				here = get_room_index(atoi(arg->d.str));
 				mobs = here ? here->people : NULL;
 			}
-			else if(!str_cmp(arg->d.str, "name"))
+			else if(!str_cmp(arg->d.str, "name")||!str_cmp(arg->d.str, "world"))
 			{
 				if(!(rest = expand_argument(info,rest,arg)) && arg->type != ENT_STRING) return;
-				vch = get_char_world(viewer,arg->d.str);
+				vch = get_char_world(NULL,arg->d.str);
+			}
+			else if(!str_cmp(arg->d.str, "here"))
+			{
+				if(!(rest = expand_argument(info,rest,arg)) && arg->type != ENT_STRING) return;
+				vch = get_char_room(NULL,here,arg->d.str);
 			}
 			else if(!str_cmp(arg->d.str, "vnum"))
 			{
@@ -5473,7 +5479,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 			} else
 				return;
 
-			vch = script_get_char_list(mobs, viewer, FALSE, vnum, str);
+			vch = script_get_char_list(mobs, NULL, FALSE, vnum, str);
 		}
 		variables_set_mobile(vars,name,vch);
 
@@ -5516,7 +5522,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 			break;
 		default: return;
 		}
-		if(mobs) vch = script_get_char_list(mobs, viewer, TRUE, 0, str);
+		if(mobs) vch = script_get_char_list(mobs, NULL, TRUE, 0, str);
 		variables_set_mobile(vars,name,vch);
 
 	// Format: OBJECT <ROOM VNUM or ROOM or MOBILE or OBJECT or OBJLIST> <VNUM or NAME>
@@ -5574,12 +5580,9 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 			{
 				if(!(rest = expand_argument(info,rest,arg)) && arg->type != ENT_STRING) return;
 
-				if(viewer)
-					obj = get_obj_here(viewer,NULL,arg->d.str);
-				else
-					obj = get_obj_here(NULL,here,arg->d.str);
+				obj = get_obj_here(NULL,here,arg->d.str);
 			}
-			else if(!str_cmp(arg->d.str, "world"))
+			else if(!str_cmp(arg->d.str, "name")||!str_cmp(arg->d.str, "world"))
 			{
 				if(!(rest = expand_argument(info,rest,arg)) && arg->type != ENT_STRING) return;
 
@@ -5621,7 +5624,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 					str = arg->d.str;
 			} else
 				return;
-			obj = script_get_obj_list(objs, viewer, 0, vnum, str);
+			obj = script_get_obj_list(objs, NULL, 0, vnum, str);
 		}
 		variables_set_object(vars,name,obj);
 
@@ -5663,7 +5666,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 			} else
 				return;
 		}
-		obj = script_get_obj_list(objs, viewer, 2, vnum, str);
+		obj = script_get_obj_list(objs, NULL, 2, vnum, str);
 		if(obj) variables_set_object(vars,name,obj);
 
 	// Format: WORN <VNUM or NAME>
@@ -5703,7 +5706,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 			} else
 				return;
 		}
-		obj = script_get_obj_list(objs, viewer, 1, vnum, str);
+		obj = script_get_obj_list(objs, NULL, 1, vnum, str);
 		variables_set_object(vars,name,obj);
 
 	// Format: CONTENT <OBJECT or OBJLIST> <VNUM or NAME>
@@ -5730,7 +5733,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 					str = arg->d.str;
 			} else
 				return;
-			obj = script_get_obj_list(objs, info->mob, 0, vnum, str);
+			obj = script_get_obj_list(objs, NULL, 0, vnum, str);
 		}
 		variables_set_object(vars,name,obj);
 
