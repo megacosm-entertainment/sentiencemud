@@ -2757,11 +2757,11 @@ OBJ_DATA *create_object(OBJ_INDEX_DATA *pObjIndex, int level, bool affects)
 		// Copy the extra descriptions
 		for (EXTRA_DESCR_DATA *ed = pObjIndex->extra_descr; ed != NULL; ed = ed->next)
 		{
-			ed_new                  = new_extra_descr();
-			ed_new->keyword			= str_dup(ed->keyword);
-			ed_new->description     = str_dup(ed->description);
-			ed_new->next           	= obj->extra_descr;
-			obj->extra_descr  	= ed_new;
+			EXTRA_DESCR_DATA *ed_new	= new_extra_descr();
+			ed_new->keyword				= str_dup(ed->keyword);
+			ed_new->description			= str_dup(ed->description);
+			ed_new->next				= obj->extra_descr;
+			obj->extra_descr			= ed_new;
 		}
 
     	get_obj_id(obj);
@@ -2815,15 +2815,15 @@ void clone_object(OBJ_DATA *parent, OBJ_DATA *clone)
     clone->num_enchanted = parent->num_enchanted;
 
     for (i = 0;  i < 8; i ++)
-	clone->value[i]	= parent->value[i];
+		clone->value[i]	= parent->value[i];
 
     /* affects */
     for (paf = parent->affected; paf != NULL; paf = paf->next)
-	affect_to_obj(clone,paf);
+		affect_to_obj(clone,paf);
 
     /* catalyst affects */
     for (paf = parent->catalyst; paf != NULL; paf = paf->next)
-	catalyst_to_obj(clone,paf);
+		catalyst_to_obj(clone,paf);
 
 	// Free loaded extra description
 	if( clone->extra_descr )
