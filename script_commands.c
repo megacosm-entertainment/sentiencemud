@@ -1644,7 +1644,6 @@ SCRIPT_CMD(scriptcmd_grantskill)
 
 SCRIPT_CMD(scriptcmd_inputstring)
 {
-	char buf[MSL];
 	char *rest;
 	int vnum;
 	CHAR_DATA *mob = NULL;
@@ -1698,14 +1697,13 @@ SCRIPT_CMD(scriptcmd_inputstring)
 
 
 	pVARIABLE var = variable_get(*(info->var),buf_string(buffer));
-	free_buf(buffer);
 
 	mob->desc->input = TRUE;
 	if( var && var->type == VAR_STRING && !IS_NULLSTR(var->_.s) )
 		mob->desc->inputString = str_dup(var->_.s);
 	else
 		mob->desc->inputString = &str_empty[0];
-	mob->desc->input_var = str_dup(buf);
+	mob->desc->input_var = str_dup(buf_string(buffer));
 	mob->desc->input_prompt = NULL;
 	mob->desc->input_script = vnum;
 	mob->desc->input_mob = info->mob;
@@ -1714,6 +1712,7 @@ SCRIPT_CMD(scriptcmd_inputstring)
 	mob->desc->input_tok = info->token;
 
 	string_append(mob, &mob->desc->inputString);
+	free_buf(buffer);
 
 	info->progs->lastreturn = 1;
 }
