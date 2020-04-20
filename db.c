@@ -2755,7 +2755,7 @@ OBJ_DATA *create_object(OBJ_INDEX_DATA *pObjIndex, int level, bool affects)
 	if( obj )
 	{
 		// Copy the extra descriptions
-		for (EXTRA_DESC_DATA *ed = pObjIndex->extra_descr; ed != NULL; ed = ed->next)
+		for (EXTRA_DESCR_DATA *ed = pObjIndex->extra_descr; ed != NULL; ed = ed->next)
 		{
 			ed_new                  = new_extra_descr();
 			ed_new->keyword			= str_dup(ed->keyword);
@@ -2828,7 +2828,7 @@ void clone_object(OBJ_DATA *parent, OBJ_DATA *clone)
 	// Free loaded extra description
 	if( clone->extra_descr )
 	{
-		EXTRA_DESC_DESC *ed_next;
+		EXTRA_DESCR_DATA *ed_next;
 
 		for(ed = clone->extra_descr; ed; ed = ed_next)
 		{
