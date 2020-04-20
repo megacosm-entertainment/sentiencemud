@@ -1141,7 +1141,7 @@ DECL_OPC_FUN(opc_list)
 			block->loops[lp].d.l.owner = arg->d.list.owner;
 
 			// Set the variable
-			variables_set_string(block->info.var,block->loops[lp].var_name,(*arg->d.list.ptr.ed)->keyword);
+			variables_set_string(block->info.var,block->loops[lp].var_name,(*arg->d.list.ptr.ed)->keyword, FALSE);
 			break;
 
 		case ENT_PLLIST_STR:
@@ -1900,13 +1900,14 @@ DECL_OPC_FUN(opc_list)
 			block->loops[lp].d.l.cur.ed = block->loops[lp].d.l.next.ed;
 			ed = block->loops[lp].d.l.cur.ed;
 			// Set the variable
-			variables_set_string(block->info.var,block->loops[lp].var_name, ed ? ed->keyword : &str_empty[0]);
+			variables_set_string(block->info.var,block->loops[lp].var_name, ed ? ed->keyword : &str_empty[0], FALSE);
 			if(!ed) {
 				skip = TRUE;
 				break;
 			}
 
 			block->loops[lp].d.l.next.ed = ed->next;
+			break;
 
 		case ENT_PLLIST_STR:
 			//log_stringf("opc_list: list type ENT_PLLIST_STR");
