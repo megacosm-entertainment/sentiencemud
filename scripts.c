@@ -5442,7 +5442,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 			{
 				if(!(rest = expand_argument(info,rest,arg)) && arg->type != ENT_NUMBER) return;
 
-				MOB_INDEX_DATA mob_index = get_mob_index(arg->d.num);
+				MOB_INDEX_DATA *mob_index = get_mob_index(arg->d.num);
 				if(!mob_index) return;
 
 				vch = get_char_world_index(NULL, mob_index);
@@ -5591,7 +5591,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 
 				OBJ_INDEX_DATA *obj_index = get_obj_index(arg->d.num);
 
-				obj = get_obj_world_index(NULL, obj_index);
+				obj = get_obj_world_index(NULL, obj_index, TRUE);
 			}
 			break;
 		case ENT_OBJECT:
