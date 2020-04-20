@@ -1154,7 +1154,7 @@ SCRIPT_CMD(scriptcmd_detach)
 SCRIPT_CMD(scriptcmd_ed)
 {
 	char *rest;
-	EXTRA_DESCR_DATA **ed;
+	EXTRA_DESCR_DATA **ed = NULL;
 
 	info->progs->lastreturn = 0;
 
