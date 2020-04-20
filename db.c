@@ -2752,7 +2752,20 @@ OBJ_DATA *create_object(OBJ_INDEX_DATA *pObjIndex, int level, bool affects)
 
     obj = create_object_noid(pObjIndex,level,affects);
 
-    if(obj) get_obj_id(obj);
+	if( obj )
+	{
+		// Copy the extra descriptions
+		for (EXTRA_DESC_DATA *ed = pObjIndex->extra_descr; ed != NULL; ed = ed->next)
+		{
+			ed_new                  = new_extra_descr();
+			ed_new->keyword			= str_dup(ed->keyword);
+			ed_new->description     = str_dup(ed->description);
+			ed_new->next           	= obj->extra_descr;
+			obj->extra_descr  	= ed_new;
+		}
+
+    	get_obj_id(obj);
+	}
 
     return obj;
 }
@@ -2811,6 +2824,19 @@ void clone_object(OBJ_DATA *parent, OBJ_DATA *clone)
     /* catalyst affects */
     for (paf = parent->catalyst; paf != NULL; paf = paf->next)
 	catalyst_to_obj(clone,paf);
+
+	// Free loaded extra description
+	if( clone->extra_descr )
+	{
+		EXTRA_DESC_DESC *ed_next;
+
+		for(ed = clone->extra_descr; ed; ed = ed_next)
+		{
+			ed_next = ed->next;
+			free_extra_descr(ed);
+		}
+		clone->extra_descr = NULL;
+	}
 
     /* extended desc */
     for (ed = parent->extra_descr; ed != NULL; ed = ed->next)
