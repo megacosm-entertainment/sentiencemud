@@ -1170,7 +1170,7 @@ SCRIPT_CMD(scriptcmd_ed)
 			ed = &arg->d.room->extra_descr;
 	}
 
-	if( ed )
+	if( !ed )
 		return;
 
 	if (!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING)
