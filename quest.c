@@ -622,7 +622,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
 			{
 				for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
 				{
-					if (obj->pIndexData->vnum == ch->quest->questgiver)
+					if (obj->pIndexData->vnum == ch->quest->questreceiver)
 					{
 						tempstores = obj->tempstore;
 						break;
@@ -637,7 +637,6 @@ void do_quest(CHAR_DATA *ch, char *argument)
 			{
 				room = ch->in_room;
 				tempstores = room->tempstore;
-				break;
 			}
 			break;
 		}
