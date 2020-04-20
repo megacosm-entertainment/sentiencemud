@@ -1218,9 +1218,9 @@ SCRIPT_CMD(scriptcmd_ed)
 		if (!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING)
 			return;
 
-		// Save the buffer from the parameter and give it a new buffer
-		BUFFER *tmp_buffer = arg->buffer;
-		arg->buffer = new_buf();	// Will be freed automatically
+		// Save the keyword in a buffer
+		BUFFER *tmp_buffer = new_buf();
+		add_buf(tmp_buffer, arg->d.str);
 
 		if (!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING)
 		{
