@@ -1162,12 +1162,12 @@ SCRIPT_CMD(scriptcmd_ed)
 		return;
 
 	if( arg->type == ENT_OBJECT )
-		ed = &arg->d.obj->ed;
+		ed = &arg->d.obj->extra_descr;
 	else if( arg->type == ENT_ROOM )
 	{
 		if( !arg->d.room ) return;
 		if( arg->d.room->source || arg->d.room->wilds )
-			ed = &arg->d.room->ed;
+			ed = &arg->d.room->extra_descr;
 	}
 
 	if( ed )
