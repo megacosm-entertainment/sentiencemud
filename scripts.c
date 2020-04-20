@@ -5591,7 +5591,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 
 				OBJ_INDEX_DATA *obj_index = get_obj_index(arg->d.num);
 
-				obj = get_obj_world_index(NULL, obj_index, TRUE);
+				obj = get_obj_world_index(NULL, obj_index, FALSE);
 			}
 			break;
 		case ENT_OBJECT:
