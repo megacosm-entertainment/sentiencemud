@@ -1241,6 +1241,9 @@ SCRIPT_CMD(scriptcmd_ed)
 			cur = new_extra_descr();
 			cur->next = *ed;
 			*ed = cur;
+
+			free_string(cur->keyword);
+			cur->keyword = str_dup(tmp_buffer->string);
 		}
 
 		free_string(cur->description);
