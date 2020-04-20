@@ -1228,6 +1228,8 @@ SCRIPT_CMD(scriptcmd_ed)
 			return;
 		}
 
+		EXTRA_DESCR_DATA *cur;
+
 		for(cur = *ed; cur; cur = cur->next)
 		{
 			if( is_name(tmp_buffer->string, cur->keyword) )
