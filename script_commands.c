@@ -775,17 +775,16 @@ SCRIPT_CMD(scriptcmd_breathe)
 	char *rest;
 	CHAR_DATA *attacker = NULL;
 	CHAR_DATA *victim = NULL;
-	SCRIPT_PARAM arg;
 	int i;
 
 	info->progs->lastreturn = 0;
 
-	if(!(rest = expand_argument(info,argument,&arg)))
+	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	switch(arg.type) {
-	case ENT_STRING: victim = script_get_char_room(info, arg.d.str, FALSE); break;
-	case ENT_MOBILE: victim = arg.d.mob; break;
+	switch(arg->type) {
+	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, FALSE); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
 
@@ -802,12 +801,12 @@ SCRIPT_CMD(scriptcmd_breathe)
 
 	attacker = info->mob;
 	if(*rest) {
-		if(!(rest = expand_argument(info,argument,&arg)))
+		if(!(rest = expand_argument(info,argument,arg)))
 			return;
 
-		switch(arg.type) {
-		case ENT_STRING: attacker = script_get_char_room(info, arg.d.str, FALSE); break;
-		case ENT_MOBILE: attacker = arg.d.mob; break;
+		switch(arg->type) {
+		case ENT_STRING: attacker = script_get_char_room(info, arg->d.str, FALSE); break;
+		case ENT_MOBILE: attacker = arg->d.mob; break;
 		default: attacker = NULL; break;
 		}
 	}
