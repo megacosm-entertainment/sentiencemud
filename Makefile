@@ -33,6 +33,7 @@ C_FILES = \
 	autowar.c \
 	ban.c \
 	bit.c \
+	blueprint.c \
 	church.c \
 	comm.c \
 	const.c \
@@ -135,6 +136,7 @@ O_FILES = \
 	$(OBJDIR)/autowar.o \
 	$(OBJDIR)/ban.o \
 	$(OBJDIR)/bit.o \
+	$(OBJDIR)/blueprint.o \
 	$(OBJDIR)/church.o \
 	$(OBJDIR)/comm.o \
 	$(OBJDIR)/const.o \
