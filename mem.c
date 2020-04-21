@@ -94,6 +94,7 @@ COMMAND_DATA *command_free;
 IMMORTAL_DATA *immortal_free;
 SKILL_ENTRY *skill_entry_free;
 OLC_POINT_BOOST *olc_point_boost_free;
+BLUEPRINT *blueprint_free;
 
 OLC_POINT_BOOST *new_olc_point_boost()
 {
@@ -3346,4 +3347,40 @@ void free_script_param(SCRIPT_PARAM *arg)
 		free_buf(arg->buffer);
 		free_mem(arg, sizeof(SCRIPT_PARAM));
 	}
+}
+
+
+BLUEPRINT *new_blueprint()
+{
+	BLUEPRINT *bp;
+	if(blueprint_free == NULL)
+		bp = alloc_perm(sizeof(BLUEPRINT));
+	else {
+		bp = blueprint_free;
+		blueprint_free = blueprint_free->next;
+	}
+
+	bp->vnum = 0;
+
+	bp->name = &str_empty[0];
+	bp->description = &str_empty[0];
+
+	bp->recall = 0;
+	bp->lower_vnum = 0;
+	bp->upper_vnum = 0;
+
+	VALIDATE(bp);
+	return bp;
+}
+
+void free_blueprint(BLUEPRINT *bp)
+{
+	if(!IS_VALID(bp)) return;
+
+	free_string(bp->name);
+	free_string(bp->description);
+
+	INVALIDATE(bp);
+	bp->next = blueprint_free;
+	blueprint_free = bp;
 }
