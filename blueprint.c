@@ -47,7 +47,7 @@
 // load blueprints
 void load_blueprints()
 {
-	FILE *fp = fopen(BLUEPRINT_FILE, "r");
+	FILE *fp = fopen(BLUEPRINTS_FILE, "r");
 	if (fp == NULL)
 	{
 		bug("Couldn't load blueprints.dat", 0);
@@ -62,14 +62,14 @@ void load_blueprints()
 // save blueprints
 bool save_blueprints()
 {
-	FILE *fp = fopen(BLUEPRINT_FILE, "w");
+	FILE *fp = fopen(BLUEPRINTS_FILE, "w");
 	if (fp == NULL)
 	{
 		bug("Couldn't save blueprints.dat", 0);
 		return FALSE;
 	}
 
-	BLUEPRINT bp;
+	BLUEPRINT *bp;
 	for(bp = blueprints; bp; bp = bp->next)
 	{
 		fprintf(fp, "#BLUEPRINT %ld\n\r", bp->vnum);

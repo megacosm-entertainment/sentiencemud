@@ -9,6 +9,7 @@
 #include "recycle.h"
 #include "tables.h"
 #include "scripts.h"
+#include "magic.h"
 
 //#define DEBUG_MODULE
 #include "debug.h"
@@ -791,10 +792,10 @@ SCRIPT_CMD(scriptcmd_breathe)
 	if (!victim)
 		return;
 
-	if(!(rest = expand_argument(info,rest,&arg)) || arg.type != ENT_STRING)
+	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING)
 		return;
 
-	for(i=0;breath_names[i] && str_prefix(arg.d.str,breath_names[i]);i++);
+	for(i=0;breath_names[i] && str_prefix(arg->d.str,breath_names[i]);i++);
 
 	if(!breath_names[i])
 		return;
