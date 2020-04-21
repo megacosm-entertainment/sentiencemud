@@ -27,6 +27,7 @@ const struct script_cmd_type token_cmd_table[] = {
 	{ "asound",				do_tpasound,				FALSE,	TRUE	},
 	{ "attach",				scriptcmd_attach,			TRUE,	TRUE	},
 	{ "award",				scriptcmd_award,			TRUE,	TRUE	},
+	{ "breathe",			scriptcmd_breathe,		FALSE,	TRUE	},
 	{ "call",				do_tpcall,					FALSE,	TRUE	},
 	{ "castfailure",		do_tpcastfailure,			FALSE,	TRUE	},
 	{ "castrecover",		do_tpcastrecover,			FALSE,	TRUE	},

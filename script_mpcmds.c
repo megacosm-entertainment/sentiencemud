@@ -34,6 +34,7 @@ const struct script_cmd_type mob_cmd_table[] = {
 	{ "at",					do_mpat,					FALSE,	TRUE	},
 	{ "attach",				scriptcmd_attach,			TRUE,	TRUE	},
 	{ "award",				scriptcmd_award,			TRUE,	TRUE	},
+	{ "breathe",			scriptcmd_breathe,		FALSE,	TRUE	},
 	{ "call",				do_mpcall,					FALSE,	TRUE	},
 	{ "cancel",				do_mpcancel,				FALSE,	FALSE	},
 	{ "cast",				do_mpcast,					FALSE,	TRUE	},

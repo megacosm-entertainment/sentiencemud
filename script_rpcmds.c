@@ -29,6 +29,7 @@ const struct script_cmd_type room_cmd_table[] = {
 	{ "at",					do_rpat,				FALSE,	TRUE	},
 	{ "attach",				scriptcmd_attach,			TRUE,	TRUE	},
 	{ "award",				scriptcmd_award,		TRUE,	TRUE	},
+	{ "breathe",			scriptcmd_breathe,		FALSE,	TRUE	},
 	{ "call",				do_rpcall,				FALSE,	TRUE	},
 	{ "cancel",				do_rpcancel,			FALSE,	FALSE	},
 	{ "chargebank",			do_rpchargebank,		FALSE,	TRUE	},
