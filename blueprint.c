@@ -432,7 +432,13 @@ void list_blueprint_sections(CHAR_DATA *ch, char *argument)
 				section->recall,
 				section->lower_vnum,
 				section->upper_vnum);
-			add_buf(buffer, buf);
+
+			++lines;
+			if( !add_buf(buffer, buf) || (!ch->lines && strlen(buf_string(buffer)) > MAX_STRING_LENGTH) )
+			{
+				error = TRUE;
+				break;
+			}
 		}
 	}
 
