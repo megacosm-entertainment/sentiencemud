@@ -513,12 +513,10 @@ void do_bsedit(CHAR_DATA *ch, char *argument)
 
 void bsedit(CHAR_DATA *ch, char *argument)
 {
-	BLUEPRINT_SECTION *bs;
 	char command[MAX_INPUT_LENGTH];
 	char arg[MAX_INPUT_LENGTH];
 	int  cmd;
 
-	EDIT_BPSECT(ch, bs);
 	smash_tilde(argument);
 	strcpy(arg, argument);
 	argument = one_argument(argument, command);
@@ -564,6 +562,7 @@ void bsedit(CHAR_DATA *ch, char *argument)
 BSEDIT( bsedit_list )
 {
 	list_blueprint_sections(ch, argument);
+	return FALSE;
 }
 
 BSEDIT( bsedit_show )
@@ -621,7 +620,7 @@ BSEDIT( bsedit_show )
 			char *door = (bl->door >= 0 && bl->door < MAX_DIR) ? dir_name[bl->door] : "none";
 			char excolor = bl->ex ? 'W' : 'D';
 
-			sprintf(buf, " {Y[{W%3d{Y] {G%-30.30s %c%-9s{x in {Y[{W%5ld{Y]{x %s\n\r", bli, bl->name, excolor, dir_name[door], bl->vnum, room ? room->name : "nowhere");
+			sprintf(buf, " {Y[{W%3d{Y] {G%-30.30s %c%-9s{x in {Y[{W%5ld{Y]{x %s\n\r", bli, bl->name, excolor, door, bl->vnum, room ? room->name : "nowhere");
 			add_buf(buffer, buf);
 		}
 	}
@@ -762,7 +761,7 @@ BSEDIT( bsedit_flags )
 		return FALSE;
 	}
 
-	bs->flags ^= flags;
+	bs->flags ^= value;
 	send_to_char("Section flags changed.\n\r", ch);
 	return TRUE;
 }
@@ -872,7 +871,7 @@ bool validate_vnum_range(CHAR_DATA *ch, long lower, long upper)
 				{
 					if( ex->u1.to_room->vnum < lower || ex->u1.to_room->vnum > upper )
 					{
-						sprintf(buf, "{xRoom {W%ld{x has an exit ({W%s{x) leading outside of the vnum range.\n\r", ex->u1.to_room->vnum. dir_names[i]);
+						sprintf(buf, "{xRoom {W%ld{x has an exit ({W%s{x) leading outside of the vnum range.\n\r", ex->u1.to_room->vnum, dir_names[i]);
 						add_buf(buffer, buf);
 						valid = FALSE;
 					}
@@ -902,7 +901,6 @@ BSEDIT( bsedit_rooms )
 	long lvnum, uvnum;
 	char buf[MSL];
 	char arg[MIL];
-	AREA_DATA *larea, *uarea;
 
 	EDIT_BPSECT(ch, bs);
 
@@ -925,14 +923,14 @@ BSEDIT( bsedit_rooms )
 	uvnum = atol(argument);
 
 	// Silently swap the bounds if necessary, don't be annoying
-	if( uvum < lvnum )
+	if( uvnum < lvnum )
 	{
 		long vnum = lvnum;
 		lvnum = uvnum;
-		uvnum = lvnum;
+		uvnum = vnum;
 	}
 
-	if( validate_vnum_range(lvnum, uvnum) )
+	if( validate_vnum_range(ch, lvnum, uvnum) )
 	{
 		bs->lower_vnum = lvnum;
 		bs->upper_vnum = uvnum;
@@ -1011,6 +1009,8 @@ BSEDIT( bsedit_link )
 	{
 		if( bs->links )
 		{
+			char buf[MSL];
+
 			int bli = 0;
 			// List links
 			send_to_char("{YSections Links:{x\n\r", ch);
@@ -1022,7 +1022,7 @@ BSEDIT( bsedit_link )
 				char *door = (bl->door >= 0 && bl->door < MAX_DIR) ? dir_name[bl->door] : "none";
 				char excolor = bl->ex ? 'W' : 'D';
 
-				sprintf(buf, " {Y[{W%3d{Y] {G%-30.30s %c%-9s{x in {Y[{W%5ld{Y]{x %s\n\r", bli, bl->name, excolor, dir_name[door], bl->vnum, room ? room->name : "nowhere");
+				sprintf(buf, " {Y[{W%3d{Y] {G%-30.30s %c%-9s{x in {Y[{W%5ld{Y]{x %s\n\r", bli, bl->name, excolor, door, bl->vnum, room ? room->name : "nowhere");
 				send_to_char(buf, ch);
 			}
 		}
@@ -1089,7 +1089,7 @@ BSEDIT( bsedit_link )
 			return FALSE;
 		}
 
-		if( !IS_SET(ex->exit_flags, EX_ENVIRONMENT) )
+		if( !IS_SET(ex->exit_info, EX_ENVIRONMENT) )
 		{
 			send_to_char("Exit links must be {YENVIRONMENT{x exits.\n\r", ch);
 			return FALSE;
@@ -1244,7 +1244,7 @@ BSEDIT( bsedit_link )
 			return FALSE;
 		}
 
-		if( !IS_SET(ex->exit_flags, EX_ENVIRONMENT) )
+		if( !IS_SET(ex->exit_info, EX_ENVIRONMENT) )
 		{
 			send_to_char("Exit links must be {YENVIRONMENT{x exits.\n\r", ch);
 			return FALSE;
