@@ -573,6 +573,8 @@ BSEDIT( bsedit_show )
 
 	EDIT_BPSECT(ch, bs);
 
+	buffer = new_buf();
+
 	sprintf(buf, "Name:        [%5ld] %s\n\r", bs->vnum, bs->name);
 	add_buf(buffer, buf);
 
@@ -871,7 +873,7 @@ bool validate_vnum_range(CHAR_DATA *ch, long lower, long upper)
 				{
 					if( ex->u1.to_room->vnum < lower || ex->u1.to_room->vnum > upper )
 					{
-						sprintf(buf, "{xRoom {W%ld{x has an exit ({W%s{x) leading outside of the vnum range.\n\r", ex->u1.to_room->vnum, dir_names[i]);
+						sprintf(buf, "{xRoom {W%ld{x has an exit ({W%s{x) leading outside of the vnum range.\n\r", ex->u1.to_room->vnum, dir_name[i]);
 						add_buf(buffer, buf);
 						valid = FALSE;
 					}
@@ -897,7 +899,6 @@ bool validate_vnum_range(CHAR_DATA *ch, long lower, long upper)
 BSEDIT( bsedit_rooms )
 {
 	BLUEPRINT_SECTION *bs;
-	ROOM_INDEX_DATA *room;
 	long lvnum, uvnum;
 	char buf[MSL];
 	char arg[MIL];
@@ -908,7 +909,7 @@ BSEDIT( bsedit_rooms )
 
 	if( arg[0] == '\0' || argument[0] == '\0' )
 	{
-		send_to_char("Syntax:  rooms [lower vnum] [upper vnum]\n\r", ch);
+		send_to_char("Syntax:  rooms [lower vnum][upper vnum]\n\r", ch);
 		send_to_char("{YVnums must be in the same area.{x\n\r", ch);
 		return FALSE;
 	}

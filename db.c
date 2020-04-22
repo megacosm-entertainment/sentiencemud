@@ -175,7 +175,7 @@ SHOP_DATA *		shop_last;
 TIME_INFO_DATA		time_info;
 TRADE_ITEM *	        trade_produce_list;
 WEATHER_DATA 		weather_info;
-BLUEPRINT_SECTION		*blueprint_section_hash[MAX_KEY_HASH]
+BLUEPRINT_SECTION		*blueprint_section_hash[MAX_KEY_HASH];
 
 bool			global;
 char			bug_buf[2*MAX_INPUT_LENGTH];

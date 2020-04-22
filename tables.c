@@ -2736,7 +2736,7 @@ const struct flag_type blueprint_section_flags[] =
 
 const struct flag_type blueprint_section_types[] =
 {
-	( "static",			BSTYPE_STATIC,			TRUE	},
+	{ "static",			BSTYPE_STATIC,			TRUE	},
 	{ NULL,				0,						FALSE	}
 };
 

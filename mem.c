@@ -3374,7 +3374,7 @@ BLUEPRINT_LINK *new_blueprint_link()
 
 void free_blueprint_link(BLUEPRINT_LINK *bl)
 {
-	if(!IS_VALID(bp)) return;
+	if(!IS_VALID(bl)) return;
 
 	free_string(bl->name);
 
@@ -3456,9 +3456,7 @@ STATIC_BLUEPRINT_LINK *new_static_blueprint_link()
 
 void free_static_blueprint_link(STATIC_BLUEPRINT_LINK *bl)
 {
-	if(!IS_VALID(bp)) return;
-
-	free_string(bl->name);
+	if(!IS_VALID(bl)) return;
 
 	INVALIDATE(bl);
 	bl->next = static_blueprint_link_free;
@@ -3494,8 +3492,6 @@ STATIC_BLUEPRINT *new_static_blueprint()
 
 void free_static_blueprint(STATIC_BLUEPRINT *bp)
 {
-	STATIC_BLUEPRINT_SECTION *cur, *next;
-
 	if(!IS_VALID(bp)) return;
 
 	free_string(bp->name);

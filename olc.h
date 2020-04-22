@@ -171,6 +171,7 @@ DECLARE_DO_FUN( do_pedit       );
 /* VIZZWILDS */
 DECLARE_DO_FUN( do_wedit        );
 DECLARE_DO_FUN( do_vledit       );
+DECLARE_DO_FUN( do_bsedit       );
 
 
 /*
