@@ -3399,6 +3399,7 @@ BLUEPRINT_SECTION *new_blueprint_section()
 
 	bs->name = &str_empty[0];
 	bs->description = &str_empty[0];
+	bs->comments = &str_empty[0];
 
 	bs->type = BSTYPE_STATIC;
 	bs->flags = 0;
