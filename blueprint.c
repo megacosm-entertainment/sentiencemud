@@ -630,7 +630,7 @@ BSEDIT( bsedit_show )
 			char *door = (bl->door >= 0 && bl->door < MAX_DIR) ? dir_name[bl->door] : "none";
 			char excolor = bl->ex ? 'W' : 'D';
 
-			sprintf(buf, " {Y[{W%3d{Y] {G%-30.30s %c%-9s{x in {Y[{W%5ld{Y]{x %s\n\r", bli, bl->name, excolor, door, bl->vnum, room ? room->name : "nowhere");
+			sprintf(buf, " {Y[{W%3d{Y] {G%-30.30s {%c%-9s{x in {Y[{W%5ld{Y]{x %s\n\r", bli, bl->name, excolor, door, bl->vnum, room ? room->name : "nowhere");
 			add_buf(buffer, buf);
 		}
 	}
@@ -1031,7 +1031,7 @@ BSEDIT( bsedit_link )
 				char *door = (bl->door >= 0 && bl->door < MAX_DIR) ? dir_name[bl->door] : "none";
 				char excolor = bl->ex ? 'W' : 'D';
 
-				sprintf(buf, " {Y[{W%3d{Y] {G%-30.30s %c%-9s{x in {Y[{W%5ld{Y]{x %s\n\r", bli, bl->name, excolor, door, bl->vnum, room ? room->name : "nowhere");
+				sprintf(buf, " {Y[{W%3d{Y] {G%-30.30s {%c%-9s{x in {Y[{W%5ld{Y]{x %s\n\r", bli, bl->name, excolor, door, bl->vnum, room ? room->name : "nowhere");
 				send_to_char(buf, ch);
 			}
 		}
