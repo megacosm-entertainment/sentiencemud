@@ -94,7 +94,6 @@ COMMAND_DATA *command_free;
 IMMORTAL_DATA *immortal_free;
 SKILL_ENTRY *skill_entry_free;
 OLC_POINT_BOOST *olc_point_boost_free;
-BLUEPRINT *blueprint_free;
 
 OLC_POINT_BOOST *new_olc_point_boost()
 {
@@ -3349,38 +3348,163 @@ void free_script_param(SCRIPT_PARAM *arg)
 	}
 }
 
+BLUEPRINT_LINK *blueprint_link_free;
 
-BLUEPRINT *new_blueprint()
+BLUEPRINT_LINK *new_blueprint_link()
 {
-	BLUEPRINT *bp;
-	if(blueprint_free == NULL)
-		bp = alloc_perm(sizeof(BLUEPRINT));
+	BLUEPRINT_LINK *bl;
+	if(blueprint_link_free == NULL)
+		bl = alloc_perm(sizeof(BLUEPRINT_LINK));
 	else {
-		bp = blueprint_free;
-		blueprint_free = blueprint_free->next;
+		bl = blueprint_link_free;
+		blueprint_link_free = blueprint_link_free->next;
+	}
+
+	bl->name = &str_empty[0];
+
+	bl->vnum = 0;
+	bl->door = -1;
+
+	bl->room = NULL;
+	bl->ex = NULL;
+
+	VALIDATE(bl);
+	return bl;
+}
+
+void free_blueprint_link(BLUEPRINT_LINK *bl)
+{
+	if(!IS_VALID(bp)) return;
+
+	free_string(bl->name);
+
+	INVALIDATE(bl);
+	bl->next = blueprint_link_free;
+	blueprint_link_free = bl;
+}
+
+BLUEPRINT_SECTION *blueprint_section_free;
+
+BLUEPRINT_SECTION *new_blueprint_section()
+{
+	BLUEPRINT_SECTION *bs;
+	if(blueprint_section_free == NULL)
+		bs = alloc_perm(sizeof(BLUEPRINT_SECTION));
+	else {
+		bs = blueprint_section_free;
+		blueprint_section_free = blueprint_section_free->next;
+	}
+
+	bs->vnum = 0;
+
+	bs->name = &str_empty[0];
+	bs->description = &str_empty[0];
+
+	bs->type = BSTYPE_STATIC;
+	bs->flags = 0;
+
+	bs->recall = 0;
+	bs->lower_vnum = 0;
+	bs->upper_vnum = 0;
+
+	bs->links = NULL;
+
+	VALIDATE(bs);
+	return bs;
+}
+
+void free_blueprint_section(BLUEPRINT_SECTION *bs)
+{
+	if(!IS_VALID(bs)) return;
+
+	free_string(bs->name);
+
+	BLUEPRINT_LINK *blc, *bln;
+	for(blc = bs->links; blc; blc = bln)
+	{
+		bln = blc->next;
+		free_blueprint_link(blc);
+	}
+
+	INVALIDATE(bs);
+	bs->next = blueprint_section_free;
+	blueprint_section_free = bs;
+}
+
+
+STATIC_BLUEPRINT_LINK *static_blueprint_link_free;
+
+STATIC_BLUEPRINT_LINK *new_static_blueprint_link()
+{
+	STATIC_BLUEPRINT_LINK *bl;
+	if(static_blueprint_link_free == NULL)
+		bl = alloc_perm(sizeof(STATIC_BLUEPRINT_LINK));
+	else {
+		bl = static_blueprint_link_free;
+		static_blueprint_link_free = static_blueprint_link_free->next;
+	}
+
+	bl->section1 = NULL;
+	bl->link1 = -1;
+
+	bl->section2 = NULL;
+	bl->link2 = -1;
+
+	VALIDATE(bl);
+	return bl;
+}
+
+void free_static_blueprint_link(STATIC_BLUEPRINT_LINK *bl)
+{
+	if(!IS_VALID(bp)) return;
+
+	free_string(bl->name);
+
+	INVALIDATE(bl);
+	bl->next = static_blueprint_link_free;
+	static_blueprint_link_free = bl;
+}
+
+
+STATIC_BLUEPRINT *static_blueprint_free;
+
+STATIC_BLUEPRINT *new_static_blueprint()
+{
+	STATIC_BLUEPRINT *bp;
+	if(static_blueprint_free == NULL)
+		bp = alloc_perm(sizeof(STATIC_BLUEPRINT));
+	else {
+		bp = static_blueprint_free;
+		static_blueprint_free = static_blueprint_free->next;
 	}
 
 	bp->vnum = 0;
 
 	bp->name = &str_empty[0];
 	bp->description = &str_empty[0];
+	bp->comments = &str_empty[0];
 
 	bp->recall = 0;
-	bp->lower_vnum = 0;
-	bp->upper_vnum = 0;
+
+	bp->sections = list_create(FALSE);
 
 	VALIDATE(bp);
 	return bp;
 }
 
-void free_blueprint(BLUEPRINT *bp)
+void free_static_blueprint(STATIC_BLUEPRINT *bp)
 {
+	STATIC_BLUEPRINT_SECTION *cur, *next;
+
 	if(!IS_VALID(bp)) return;
 
 	free_string(bp->name);
 	free_string(bp->description);
 
+	list_destroy(bp->sections);
+
 	INVALIDATE(bp);
-	bp->next = blueprint_free;
-	blueprint_free = bp;
+	bp->next = static_blueprint_free;
+	static_blueprint_free = bp;
 }
+

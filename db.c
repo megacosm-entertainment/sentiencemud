@@ -175,7 +175,8 @@ SHOP_DATA *		shop_last;
 TIME_INFO_DATA		time_info;
 TRADE_ITEM *	        trade_produce_list;
 WEATHER_DATA 		weather_info;
-BLUEPRINT		*blueprints;
+BLUEPRINT_SECTION		*blueprint_section_hash[MAX_KEY_HASH]
+
 bool			global;
 char			bug_buf[2*MAX_INPUT_LENGTH];
 char *			help_greeting;
@@ -929,6 +930,9 @@ void boot_db(void)
 
     log_string("Reading permanent objs");
     read_permanent_objs();
+
+    log_string("Loading blueprints and instances");
+	load_blueprints();
 
     log_string("Reading helpfiles");
     read_helpfiles_new();

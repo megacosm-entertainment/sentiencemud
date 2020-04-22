@@ -47,6 +47,11 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 /* VIZZWILDS */
 #define ED_WILDS	14
 #define ED_VLINK	15
+// Blueprints
+#define ED_BPSECT	16
+#define ED_BPSTATIC	17
+
+
 
 #define AEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define HEDIT( fun )            bool fun( CHAR_DATA *ch, char *argument )
@@ -60,6 +65,9 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 /* VIZZWILDS */
 #define WEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define VLEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
+// Blueprints
+#define BSEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
+
 
 /*
  * Interpreter Prototypes
@@ -80,6 +88,9 @@ void	pedit	( CHAR_DATA *ch, char *argument );
 /* VIZZWILDS */
 void    wedit   ( CHAR_DATA *ch, char *argument );
 void    vledit  ( CHAR_DATA *ch, char *argument );
+// Blueprints
+void    bsedit 	( CHAR_DATA *ch, char *argument );	// Blueprint Sections
+
 
 
 /*
@@ -138,6 +149,8 @@ extern const struct olc_cmd_type        pedit_table[];
 /* VIZZWILDS */
 extern const struct olc_cmd_type        wedit_table[];
 extern const struct olc_cmd_type	vledit_table[];
+// Blueprints
+extern const struct olc_cmd_type	bsedit_table[];
 
 
 /*
@@ -454,6 +467,21 @@ DECLARE_OLC_FUN( wedit_vlink            );
 /* VLink Editor */
 DECLARE_OLC_FUN( vledit_show            );
 
+
+/* Blueprint Section Editor */
+DECLARE_OLC_FUN( bsedit_list			);
+DECLARE_OLC_FUN( bsedit_show			);
+DECLARE_OLC_FUN( bsedit_create			);
+DECLARE_OLC_FUN( bsedit_name			);
+DECLARE_OLC_FUN( bsedit_description		);
+DECLARE_OLC_FUN( bsedit_comments		);
+DECLARE_OLC_FUN( bsedit_recall			);
+DECLARE_OLC_FUN( bsedit_rooms			);
+DECLARE_OLC_FUN( bsedit_link			);
+DECLARE_OLC_FUN( bsedit_flags			);
+DECLARE_OLC_FUN( bsedit_type			);
+
+
 /*
  * Macros
  */
@@ -480,6 +508,7 @@ DECLARE_OLC_FUN( vledit_show            );
 #define EDIT_WILDS(ch, Wilds)   ( Wilds = (WILDS_DATA *)ch->desc->pEdit )
 #define EDIT_VLINK(ch, VLink)   ( VLink = (WILDS_VLINK *)ch->desc->pEdit )
 
+#define EDIT_BPSECT(ch, bpsect)	( bpsect = (BLUEPRINT_SECTION *)ch->desc->pEdit )
 
 /*
  * Prototypes
@@ -491,3 +520,5 @@ char *prog_type_to_name       args ( ( int type ) );
 char *token_index_getvaluename args( (TOKEN_INDEX_DATA *token, int v) );
 
 SHOP_STOCK_DATA *get_shop_stock_bypos(SHOP_DATA *shop, int nth);
+bool check_range(long lower, long upper);
+

@@ -133,14 +133,17 @@ void do_asave_new(CHAR_DATA *ch, char *argument)
 	if (arg1[0] == '\0')
 	{
 		send_to_char("Syntax:\n\r", ch);
-		send_to_char("  asave area     - saves the area you are in\n\r",	ch);
-		send_to_char("  asave changed  - saves all changed areas\n\r",	ch);
-		send_to_char("  asave world    - saves the world (imps only)\n\r",	ch);
-		send_to_char("  asave churches - saves the churches\n\r", ch);
-		send_to_char("  asave help     - saves the help files\n\r", ch);
-		send_to_char("  asave mail     - saves the mail\n\r", ch);
-		send_to_char("  asave projects - saves the project database\n\r", ch);
-		send_to_char("  asave persist  - saves all persistant entities\n\r", ch);
+		send_to_char("  asave area       - saves the area you are in\n\r",	ch);
+		send_to_char("  asave changed    - saves all changed areas\n\r",	ch);
+		send_to_char("  asave world      - saves the world (imps only)\n\r",	ch);
+		send_to_char("  asave churches   - saves the churches\n\r", ch);
+		send_to_char("  asave help       - saves the help files\n\r", ch);
+		send_to_char("  asave mail       - saves the mail\n\r", ch);
+		send_to_char("  asave projects   - saves the project database\n\r", ch);
+		send_to_char("  asave persist    - saves all persistant entities\n\r", ch);
+
+		if( can_edit_blueprints(ch) )
+			send_to_char("  asave blueprints - saves blueprints\n\r", ch);
 
 		if (ch->tot_level == MAX_LEVEL)
 			send_to_char("  asave staff    - saves the immortal staff information\n\r", ch);
@@ -189,6 +192,12 @@ void do_asave_new(CHAR_DATA *ch, char *argument)
 			save_projects();
 			projects_changed = FALSE;
 			send_to_char("Project list saved.\n\r", ch);
+		}
+
+		if (blueprints_changed)
+		{
+			save_blueprints();
+			send_to_char("Blueprints saved.\n\r", ch);
 		}
 
 		log_string("olc_save.c, do_asave: changed, saving area list");
@@ -320,6 +329,13 @@ void do_asave_new(CHAR_DATA *ch, char *argument)
 	send_to_char("Immortal staff list saved.\n\r", ch);
 	return;
     }
+
+    if (!str_cmp(arg1, "blueprints"))
+    {
+		save_blueprints();
+		send_to_char("Blueprints saved.\n\r", ch);
+		return;
+	}
 
     // Show syntax
     do_asave_new(ch, "");

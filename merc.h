@@ -4913,20 +4913,82 @@ struct	room_index_data
     int			tempstore[MAX_TEMPSTORE];		/* Temporary storage values for script processing */
 };
 
-typedef struct blueprint_data BLUEPRINT;
 
-struct blueprint_data {
-	BLUEPRINT *next;
+
+#define BSFLAG_NO_ROTATE	(A)		// Blueprint Section cannot be rotated
+
+#define BSTYPE_STATIC		1		// Only allowed section type in static blueprints
+
+
+typedef struct blueprint_link_data BLUEPRINT_LINK;
+
+struct blueprint_link_data {
+	BLUEPRINT_LINK *next;
+	bool valid;
+
+	char *name;					// Display name of section link
+
+	long vnum;					// Vnum of ROOM
+	int door;					// Exit in ROOM
+
+	ROOM_INDEX_DATA *room;		// Resolved room
+	EXIT_DATA *ex;				// Resolved exit
+};
+
+
+typedef struct blueprint_section_data BLUEPRINT_SECTION;
+
+struct blueprint_section_data {
+	BLUEPRINT_SECTION *next;
 	bool valid;
 
 	long vnum;
+
 	char *name;
 	char *description;
+	char *comments;
+
+	int type;
+	int flags;
 
 	long recall;		// The recall of the blueprint, must be within range
 	long lower_vnum;
 	long upper_vnum;
+
+	BLUEPRINT_LINK *links;
 };
+
+typedef struct static_blueprint_link STATIC_BLUEPRINT_LINK;
+struct static_blueprint_link {
+	STATIC_BLUEPRINT_LINK *next;
+	bool valid;
+
+	BLUEPRINT_SECTION *section1;
+	int link1;
+
+	BLUEPRINT_SECTION *section2;
+	int link2;
+};
+
+typedef struct static_blueprint_data STATIC_BLUEPRINT;
+
+struct static_blueprint_data {
+	STATIC_BLUEPRINT *next;
+	bool valid;
+
+	long vnum;
+
+	char *name;
+	char *description;
+	char *comments;
+
+	long recall;
+
+	LLIST *sections;		// BLUEPRINT_SECTION
+
+	STATIC_BLUEPRINT_LINK *links;
+};
+
 
 /* conditions for conditional descs */
 #define CONDITION_NONE 	 	0 /* never used */
@@ -7742,7 +7804,7 @@ extern LLIST *conn_online;
 extern LLIST *loaded_areas;		// LLIST_AREA_DATA format
 extern LLIST *loaded_wilds;
 
-extern BLUEPRINT *blueprints;
+extern BLUEPRINT_SECTION *blueprint_section_hash[MAX_KEY_HASH];
 
 
 void connection_add(DESCRIPTOR_DATA *d);
@@ -7918,5 +7980,16 @@ bool is_pullable(OBJ_DATA *obj);
 
 OBJ_DATA *generate_quest_scroll(CHAR_DATA *ch, char *questgiver, long vnum, char *header, char *footer, char *prefix, char *suffix, int width);
 OBJ_DATA *get_obj_world_index(CHAR_DATA *ch, OBJ_INDEX_DATA *pObjIndex, bool all);
+
+void load_blueprints();
+bool save_blueprints();
+bool valid_section_link(BLUEPRINT_LINK *bl);
+BLUEPRINT_LINK *get_section_link(BLUEPRINT_SECTION *bs, int link);
+bool valid_static_link(STATIC_BLUEPRINK_LINK *sbl);
+BLUEPRINT_SECTION *get_blueprint_section(long vnum);
+bool can_edit_blueprints(CHAR_DATA *ch);
+
+extern  bool			blueprints_changed;
+
 
 #endif /* !def __MERC_H__ */

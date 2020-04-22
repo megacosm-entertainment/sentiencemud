@@ -92,6 +92,7 @@ const struct flag_stat_type flag_stat_table[] =
     {	place_flags,	TRUE	},
     {	corpse_types,	TRUE	},
     {	variable_types,	TRUE	},
+	{	blueprint_section_types,	TRUE	},
     {   0,			0	}
 };
 

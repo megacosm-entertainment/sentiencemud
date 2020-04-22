@@ -130,5 +130,14 @@ void free_shop_stock(SHOP_STOCK_DATA *pStock);
 SCRIPT_PARAM *new_script_param();
 void free_script_param(SCRIPT_PARAM *arg);
 
-BLUEPRINT *new_blueprint();
-void free_blueprint(BLUEPRINT *bp);
+BLUEPRINT_LINK *new_blueprint_link();
+void free_blueprint_link(BLUEPRINT_LINK *bl);
+
+BLUEPRINT_SECTION *new_blueprint_section();
+void free_blueprint_section(BLUEPRINT_SECTION *bs);
+
+STATIC_BLUEPRINT_LINK *new_static_blueprint_link();
+void free_static_blueprint_link(STATIC_BLUEPRINT_LINK *bl);
+
+STATIC_BLUEPRINT *new_static_blueprint();
+void free_static_blueprint(STATIC_BLUEPRINT *bp);

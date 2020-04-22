@@ -43,6 +43,7 @@ char *editor_name_table[] = {
 	"RSGEdit",
 	"WEdit",
 	"VLEdit",
+	"BSEdit",
 };
 
 const struct editor_cmd_type editor_table[] =
@@ -59,6 +60,7 @@ const struct editor_cmd_type editor_table[] =
     {	"token",	do_tedit	},
     {	"tpcode",	do_tpedit	},
     {	"project",	do_pedit	},
+    {	"bpsect",	do_bsedit	},
     {	NULL,		0,		}
 };
 
@@ -426,9 +428,13 @@ bool run_olc_editor(DESCRIPTOR_DATA *d)
 	case ED_WILDS:
 	    wedit(d->character, d->incomm);
 	    break;
-        case ED_VLINK:
-            vledit(d->character, d->incomm);
-            break;
+	case ED_VLINK:
+		vledit(d->character, d->incomm);
+		break;
+
+	case ED_BPSECT:
+		bsedit(d->character, d->incomm);
+		break;
 
 	default:
 	    return FALSE;
@@ -461,6 +467,7 @@ char *olc_ed_vnum(CHAR_DATA *ch)
     TOKEN_INDEX_DATA *pTokenIndex;
     WILDS_DATA *pWilds;
     WILDS_VLINK *pVLink;
+    BLUEPRINT_SECTION *bpsect;
     static char buf[20];
     char buf2[MSL];
 
@@ -554,10 +561,15 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 	    sprintf(buf, "%ld", pWilds ? pWilds->uid : 0);
 	    break;
 
-        case ED_VLINK:
-            pVLink = (WILDS_VLINK *) ch->desc->pEdit;
-            sprintf(buf, "%ld", pVLink ? pVLink->uid : 0);
-            break;
+	case ED_VLINK:
+		pVLink = (WILDS_VLINK *) ch->desc->pEdit;
+		sprintf(buf, "%ld", pVLink ? pVLink->uid : 0);
+		break;
+
+	case ED_BPSECT:
+	    bpsect = (BLUEPRINT_SECTION *)ch->desc->pEdit;
+	    sprintf(buf, "%ld", bpsect ? bpsect->vnum : 0);
+	    break;
 
 	default:
 	    sprintf(buf, " ");
@@ -638,6 +650,10 @@ bool show_commands(CHAR_DATA *ch, char *argument)
         case ED_VLINK:
             show_olc_cmds (ch, vledit_table);
             break;
+
+	case ED_BPSECT:
+		show_olc_cmds(ch, bsedit_table);
+		break;
     }
 
     return FALSE;

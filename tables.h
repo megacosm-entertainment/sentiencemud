@@ -266,5 +266,7 @@ extern	const struct flag_type skill_flags[];
 
 extern	const struct flag_type shop_flags[];
 
+extern	const struct flag_type blueprint_section_flags[];
+extern	const struct flag_type blueprint_section_types[];
 
 #endif

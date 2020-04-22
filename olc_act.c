@@ -104,7 +104,9 @@ const struct olc_help_type help_table[] =
     {	"spell_targets",	spell_target_types,	"Spell Target Types."	},
     {	"song_targets",	song_target_types,	"Song Target Types."	},
     {	"instruments",	instrument_types,	"Instrument Types"	},
-    {	"shop",		shop_flags,	 "Shop flags."		 },
+    {	"shop",		shop_flags,	 "Shop flags"		 },
+    {	"section_type",		blueprint_section_types,	 "Blueprint Section Types"		 },
+    {	"section_flags",		blueprint_section_flags,	 "Blueprint Section Flags"		 },
     {	NULL,		NULL,		 NULL				 }
 };
 

@@ -2725,8 +2725,18 @@ const struct flag_type shop_flags[] =
 	{ "stock_only",		SHOPFLAG_STOCK_ONLY,	TRUE	},
 	{ "hide_shop",		SHOPFLAG_HIDE_SHOP,		TRUE	},
 	{ "no_haggle",		SHOPFLAG_NO_HAGGLE,		TRUE	},
-	{ NULL,				0,						FALSE }
+	{ NULL,				0,						FALSE	}
 };
 
+const struct flag_type blueprint_section_flags[] =
+{
+	{ "no_rotate",		BSFLAG_NO_ROTATE,		TRUE	},
+	{ NULL,				0,						FALSE	}
+};
 
+const struct flag_type blueprint_section_types[] =
+{
+	( "static",			BSTYPE_STATIC,			TRUE	},
+	{ NULL,				0,						FALSE	}
+};
 
