@@ -382,6 +382,7 @@ BLUEPRINT_SECTION *get_blueprint_section(long vnum)
 const struct olc_cmd_type bsedit_table[] =
 {
 	{ "?",				show_help			},
+	{ "commands",		show_commands		},
 	{ "list",			bsedit_list			},
 	{ "show",			bsedit_show			},
 	{ "create",			bsedit_create		},
