@@ -308,19 +308,42 @@ bool save_blueprints()
 
 bool valid_section_link(BLUEPRINT_LINK *bl)
 {
-	if( !IS_VALID(bl) ) return FALSE;
+	if( !IS_VALID(bl) )
+	{
+		log_string("valid_section_link: !IS_VALID(bl)");
+		return FALSE;
+	}
 
-	if( bl->vnum <= 0 ) return FALSE;
+	if( bl->vnum <= 0 )
+	{
+		log_string("valid_section_link: room vnum invalid");
+		return FALSE;
+	}
 
-	if( bl->door < 0 || bl->door >= MAX_DIR ) return FALSE;
+	if( bl->door < 0 || bl->door >= MAX_DIR )
+	{
+		log_string("valid_section_link: door invalid");
+		return FALSE;
+	}
 
-	if( !bl->room ) return FALSE;
+	if( !bl->room )
+	{
+		log_string("valid_section_link: room is NULL");
+		return FALSE;
+	}
 
-	EXIT_DATA *ex = bl->room->exit[bl->door];
-	if( !IS_VALID(ex) ) return FALSE;
+	if( !IS_VALID(bl->ex) )
+	{
+		log_string("valid_section_link: exit is invalid");
+		return FALSE;
+	}
 
 	// Only environment exits can be used as links
-	if( !IS_SET(ex->exit_info, EX_ENVIRONMENT) ) return FALSE;
+	if( !IS_SET(bl->ex->exit_info, EX_ENVIRONMENT) )
+	{
+		log_string("valid_section_link: exit not environment");
+		return FALSE;
+	}
 
 	return TRUE;
 }
@@ -329,11 +352,11 @@ BLUEPRINT_LINK *get_section_link(BLUEPRINT_SECTION *bs, int link)
 {
 	if( !IS_VALID(bs) ) return NULL;
 
-	if( link < 0 ) return NULL;
+	if( link < 1 ) return NULL;
 
 	for(BLUEPRINT_LINK *bl = bs->links; bl; bl = bl->next)
 	{
-		if( !link-- )
+		if( !--link )
 			return bl;
 	}
 
