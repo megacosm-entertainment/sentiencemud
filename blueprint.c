@@ -411,7 +411,7 @@ void list_blueprint_sections(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-    if(!ch->lines)
+	if(!ch->lines)
 		send_to_char("{RWARNING:{W Having scrolling off may limit how many sections you can see.{x\n\r", ch);
 
 	int lines = 0;
@@ -419,7 +419,7 @@ void list_blueprint_sections(CHAR_DATA *ch, char *argument)
 	BUFFER *buffer = new_buf();
 	char buf[MSL];
 
-	for(long vnum = 1; vnum < top_blueprint_section_vnum; vnum++)
+	for(long vnum = 1; vnum <= top_blueprint_section_vnum; vnum++)
 	{
 		BLUEPRINT_SECTION *section = get_blueprint_section(vnum);
 
@@ -454,8 +454,8 @@ void list_blueprint_sections(CHAR_DATA *ch, char *argument)
 		}
 
 		page_to_char(buffer->string, ch);
-    }
-    free_buf(buffer);
+	}
+	free_buf(buffer);
 }
 
 void do_bslist(CHAR_DATA *ch, char *argument)
