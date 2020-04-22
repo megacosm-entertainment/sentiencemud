@@ -502,9 +502,10 @@ void do_bsedit(CHAR_DATA *ch, char *argument)
 				blueprints_changed = TRUE;
 				ch->desc->editor = ED_BPSECT;
 			}
+
+			return;
 		}
 
-		return;
 	}
 
 	send_to_char("BSEdit:  There is no default blueprint section to edit.\n\r", ch);
