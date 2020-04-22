@@ -554,3 +554,5 @@ DECLARE_DO_FUN( do_land		);
 DECLARE_DO_FUN( do_behead	);
 DECLARE_DO_FUN( do_conceal	);
 DECLARE_DO_FUN(	do_rehearse	);
+
+DECLARE_DO_FUN( do_bsedit	);
