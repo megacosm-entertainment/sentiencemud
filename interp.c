@@ -518,6 +518,7 @@ const	struct	cmd_type	cmd_table	[] =
     //{ "spromote",	do_spromote,	POS_DEAD,    ML,  LOG_ALWAYS, 1, TRUE },
     //{ "sdemote",	do_sdemote,	POS_DEAD,    ML,  LOG_ALWAYS, 1, TRUE },
 
+    { "bsedit",		do_bsedit,	POS_DEAD,    ML,  LOG_NORMAL, 1, TRUE },
 
     { "",		0,		POS_DEAD,     0,  LOG_NORMAL, 0, FALSE }
 };
