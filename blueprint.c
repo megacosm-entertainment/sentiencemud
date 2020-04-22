@@ -44,6 +44,7 @@
 #include "merc.h"
 #include "recycle.h"
 #include "olc.h"
+#include "tables.h"
 
 bool blueprints_changed = FALSE;
 long top_blueprint_section_vnum = 0;
@@ -87,17 +88,18 @@ BLUEPRINT_LINK *load_blueprint_link(FILE *fp)
 			break;
 
 		case 'R':
-			KEY("Room", link->room, fread_number(fp));
+			KEY("Room", link->vnum, fread_number(fp));
 			break;
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "load_blueprint_link: no match for word %s", word);
+			char buf[MSL];
+			sprintf(buf, "load_blueprint_link: no match for word %.50s", word);
 			bug(buf, 0);
 		}
 	}
 
-	return bl;
+	return link;
 }
 
 BLUEPRINT_SECTION *load_blueprint_section(FILE *fp)
@@ -165,7 +167,8 @@ BLUEPRINT_SECTION *load_blueprint_section(FILE *fp)
 
 
 		if (!fMatch) {
-			sprintf(buf, "load_blueprint_section: no match for word %s", word);
+			char buf[MSL];
+			sprintf(buf, "load_blueprint_section: no match for word %.50s", word);
 			bug(buf, 0);
 		}
 	}
@@ -204,7 +207,8 @@ void load_blueprints()
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "load_blueprints: no match for word %s", word);
+			char buf[MSL];
+			sprintf(buf, "load_blueprints: no match for word %.50s", word);
 			bug(buf, 0);
 		}
 
@@ -234,7 +238,7 @@ void save_blueprint_section(FILE *fp, BLUEPRINT_SECTION *bs)
 			fprintf(fp, "#LINK\n\r");
 			fprintf(fp, "Name %s~\n\r", fix_string(bl->name));
 			fprintf(fp, "Room %ld\n\r", bl->vnum);
-			fprintf(fp, "Door %ld\n\r", bl->door);
+			fprintf(fp, "Door %d\n\r", bl->door);
 			fprintf(fp, "#-LINK\n\r");
 		}
 	}
@@ -286,10 +290,9 @@ bool save_blueprints()
 		return FALSE;
 	}
 
-	int iHash;
 	for(int iHash = 0; iHash < MAX_KEY_HASH; iHash++)
 	{
-		for(BLUEPRINT_SECTIONS *bs = blueprint_section_hash[iHash]; bs; bs = bs->next)
+		for(BLUEPRINT_SECTION *bs = blueprint_section_hash[iHash]; bs; bs = bs->next)
 		{
 			save_blueprint_section(fp, bs);
 		}
@@ -337,7 +340,7 @@ BLUEPRINT_LINK *get_section_link(BLUEPRINT_SECTION *bs, int link)
 	return NULL;
 }
 
-bool valid_static_link(STATIC_BLUEPRINK_LINK *sbl)
+bool valid_static_link(STATIC_BLUEPRINT_LINK *sbl)
 {
 	if( !IS_VALID(sbl) ) return FALSE;
 
@@ -486,8 +489,8 @@ void do_bsedit(CHAR_DATA *ch, char *argument)
 		}
 
 		ch->pcdata->immortal->last_olc_command = current_time;
-		ch->desc->pEdit = (void *)pMob;
-		ch->desc->editor = ED_MOBILE;
+		ch->desc->pEdit = (void *)bs;
+		ch->desc->editor = ED_BPSECT;
 		return;
 	}
 	else
@@ -583,7 +586,7 @@ BSEDIT( bsedit_show )
 	if( bs->recall > 0 )
 	{
 		ROOM_INDEX_DATA *recall_room = get_room_index(bs->recall);
-		sprintf(buf, "Recall:      [%5ld] %s\n\r", bs->recall, room ? room->name : "-invalid-");
+		sprintf(buf, "Recall:      [%5ld] %s\n\r", bs->recall, recall_room ? recall_room->name : "-invalid-");
 	}
 	else
 	{
@@ -618,7 +621,7 @@ BSEDIT( bsedit_show )
 			char *door = (bl->door >= 0 && bl->door < MAX_DIR) ? dir_name[bl->door] : "none";
 			char excolor = bl->ex ? 'W' : 'D';
 
-			sprintf(buf, " {Y[{W%3d{Y] %c%-9s{x in {Y[{W%5ld{Y]{x %s\n\r", bli, door, bl->vnum, room ? room->name : "nowhere");
+			sprintf(buf, " {Y[{W%3d{Y] {G%-30.30s %c%-9s{x in {Y[{W%5ld{Y]{x %s\n\r", bli, bl->name, excolor, dir_name[door], bl->vnum, room ? room->name : "nowhere");
 			add_buf(buffer, buf);
 		}
 	}
@@ -632,22 +635,20 @@ BSEDIT( bsedit_create )
 	BLUEPRINT_SECTION *bs;
 	long  value;
 	int  iHash;
-	long auto_vnum = 0;
 
 	value = atol(argument);
 	if (argument[0] == '\0' || value == 0)
 	{
 		long last_vnum = 0;
-		for(bs = blueprint_sections; bs; bs->next)
+		value = top_blueprint_section_vnum + 1;
+		for(last_vnum = 1; last_vnum <= top_blueprint_section_vnum; last_vnum++)
 		{
-			if( (bs->vnum - last_vnum) > 1 )
+			if( !get_blueprint_section(last_vnum) )
 			{
+				value = last_vnum;
 				break;
 			}
-
-			last_vnum = bs->vnum;
 		}
-		value = last_vnum + 1;
 	}
 
 	bs = new_blueprint_section();
@@ -1021,7 +1022,7 @@ BSEDIT( bsedit_link )
 				char *door = (bl->door >= 0 && bl->door < MAX_DIR) ? dir_name[bl->door] : "none";
 				char excolor = bl->ex ? 'W' : 'D';
 
-				sprintf(buf, " {Y[{W%3d{Y] {G%-30.30s %c%-9s{x in {Y[{W%5ld{Y]{x %s\n\r", bli, bl->name, door, bl->vnum, room ? room->name : "nowhere");
+				sprintf(buf, " {Y[{W%3d{Y] {G%-30.30s %c%-9s{x in {Y[{W%5ld{Y]{x %s\n\r", bli, bl->name, excolor, dir_name[door], bl->vnum, room ? room->name : "nowhere");
 				send_to_char(buf, ch);
 			}
 		}

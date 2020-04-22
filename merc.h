@@ -7985,7 +7985,7 @@ void load_blueprints();
 bool save_blueprints();
 bool valid_section_link(BLUEPRINT_LINK *bl);
 BLUEPRINT_LINK *get_section_link(BLUEPRINT_SECTION *bs, int link);
-bool valid_static_link(STATIC_BLUEPRINK_LINK *sbl);
+bool valid_static_link(STATIC_BLUEPRINT_LINK *sbl);
 BLUEPRINT_SECTION *get_blueprint_section(long vnum);
 bool can_edit_blueprints(CHAR_DATA *ch);
 
