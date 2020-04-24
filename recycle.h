@@ -139,5 +139,5 @@ void free_blueprint_section(BLUEPRINT_SECTION *bs);
 STATIC_BLUEPRINT_LINK *new_static_blueprint_link();
 void free_static_blueprint_link(STATIC_BLUEPRINT_LINK *bl);
 
-STATIC_BLUEPRINT *new_static_blueprint();
-void free_static_blueprint(STATIC_BLUEPRINT *bp);
+BLUEPRINT *new_blueprint();
+void free_blueprint(BLUEPRINT *bp);

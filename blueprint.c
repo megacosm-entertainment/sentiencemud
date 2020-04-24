@@ -247,7 +247,7 @@ void save_blueprint_section(FILE *fp, BLUEPRINT_SECTION *bs)
 }
 
 /*
-void save_static_blueprint(FILE *fp, STATIC_BLUEPRINT *bp)
+void save_blueprint(FILE *fp, BLUEPRINT *bp)
 {
 
 	fprintf(fp, "#STATIC %ld\n\r", bp->vnum);
@@ -368,14 +368,137 @@ BLUEPRINT_SECTION *get_blueprint_section(long vnum)
 	return NULL;
 }
 
+BLUEPRINT_SECTION *get_blueprint_section_byroom(long vnum)
+{
+	for(int iHash = 0; iHash < MAX_KEY_HASH; iHash++)
+	{
+		for(BLUEPRINT_SECTION *bs = blueprint_section_hash[iHash]; bs; bs = bs->next)
+		{
+			if( vnum >= bs->lower_vnum && vnum <= bs->upper_vnum )
+				return bs;
+		}
+	}
+
+	return NULL;
+}
+
+bool rooms_in_same_section(long vnum1, long vnum2)
+{
+	BLUEPRINT_SECTION *s1 = get_blueprint_section_byroom(vnum1);
+	BLUEPRINT_SECTION *s2 = get_blueprint_section_byroom(vnum2);
+
+	if( !s1 && !s2 ) return TRUE;	// If neither are in a blueprint section, they are considered in the same section
+
+	return s1 && s2 && (s1 == s2);
+}
+
+
+
+ROOM_INDEX_DATA *instance_section_get_room(INSTANCE_SECTION *section, long vnum)
+{
+	if( !section ) return NULL;
+
+	ROOM_INDEX_DATA *room;
+	ITERATOR rit;
+	iterator_start(&rit, sections->rooms);
+	while((room = (ROOM_INDEX_DATA *)iterator_nextdata(&rit)))
+	{
+		if( room->vnum == vnum )
+			break;
+	}
+	iterator_stop(&rit);
+
+	return room;
+}
+
+
 // create instance
+
+
+INSTANCE_SECTION *clone_blueprint_section(BLUEPRINT_SECTION *parent)
+{
+	ROOM_INDEX_DATA *room;
+
+	INSTANCE_SECTION *section = new_instance_section();
+	if( !section ) return NULL;
+
+	section->section = parent;
+
+	// Clone rooms
+	for(long vnum = parent->lower_vnum; vnum <= parent->upper_vnum; vnum++)
+	{
+		ROOM_INDEX_DATA *source = get_room_index(vnum);
+
+		if( source )
+		{
+			room = create_virtual_room(source, FALSE);
+
+			if( !room )
+			{
+				free_instance_section(section);
+				return NULL;
+			}
+
+			if( !list_appendlink(section->rooms, room) )
+			{
+				extract_clone_room(room->source,room->id[0],room->id[1],true);
+				free_instance_section(section);
+				return NULL;
+			}
+		}
+	}
+
+	ITERATOR &rit;
+	iterator_start(&rit, section->rooms);
+	while((room = (ROOM_INDEX_DATA *)iterator_nextdata(&rit)))
+	{
+		// Clone the non-environment exits
+		for(int i = 0; i < MAX_DIR; i++)
+		{
+			EXIT_DATA *exParent = room->source->exit[i];
+			if( !exParent || !exParent->u1.to_room || IS_SET(exParent->exit_info, EX_ENVIRONMENT) )
+				continue;
+
+			// Get corresponding clone for the destination vnum
+			ROOM_INDEX_DATA *dest = instance_section_get_room(section, exParent->u1.room->vnum);
+
+			EXIT_DATA *exClone;
+
+			room->exit[i] = exClone = new_exit();
+
+			exClone->u1.to_room = dest;
+			exClone->exit_info = exParent->exit_info;
+			exClone->keyword = str_dup(exParent->keyword);
+			exClone->short_desc = str_dup(exParent->short_desc);
+			exClone->long_desc = str_dup(exParent->long_desc);
+			exClone->rs_flags = exParent->rs_flags;
+			exClone->orig_door = exParent->orig_door;
+			exClone->door.strength = exParent->door.strength;
+			exClone->door.material = str_dup(exParent->door.material);
+			exClone->door.key_vnum = exParent->door.key_vnum;
+			exClone->from_room = room;
+		}
+	}
+	iterator_stop(&rit);
+
+
+
+	return section;
+}
 
 // extract instance
 
 
-///////////////////////////////
+//////////////////////////////////////////////////////////////
 //
-// OLC Editor
+// OLC Editors
+//
+//////////////////////////////////////////////////////////////
+
+
+//////////////////////////////////////////////////////////////
+//
+// Blueprint Section Edit
 //
 
 const struct olc_cmd_type bsedit_table[] =
@@ -399,7 +522,7 @@ const struct olc_cmd_type bsedit_table[] =
 
 bool can_edit_blueprints(CHAR_DATA *ch)
 {
-	return ch->pcdata->security >= 9;
+	return !IS_NPC(ch) && (ch->pcdata->security >= 9) && (ch->tot_level >= MAX_LEVEL);
 }
 
 void list_blueprint_sections(CHAR_DATA *ch, char *argument)
@@ -424,7 +547,7 @@ void list_blueprint_sections(CHAR_DATA *ch, char *argument)
 
 		if( section )
 		{
-			sprintf(buf, "{Y[{W%5ld{Y] {x%-30.30s {G%-16.16s{x %11ld %11ld %11ld\n\r",
+			sprintf(buf, "{Y[{W%5ld{Y] {x%-30.30s  {G%-16.16s{x   %11ld   %11ld-%-11ld \n\r",
 				vnum,
 				section->name,
 				flag_string(blueprint_section_types, section->type),
@@ -454,7 +577,7 @@ void list_blueprint_sections(CHAR_DATA *ch, char *argument)
 		else
 		{
 			// Header
-			send_to_char("{Y Vnum   [            Name            ] [     Type     ] [ Recall  ] [   Room Vnum Range   ]{x\n\r", ch);
+			send_to_char("{Y Vnum   [            Name            ] [      Type      ] [  Recall   ] [    Room Vnum Range    ]{x\n\r", ch);
 			send_to_char("{Y==========================================================================================={x\n\r", ch);
 		}
 
@@ -620,7 +743,7 @@ BSEDIT( bsedit_show )
 	{
 		int bli = 0;
 		// List links
-		add_buf(buffer, "{YSections Links:{x\n\r");
+		add_buf(buffer, "{YSection Links:{x\n\r");
 		for(BLUEPRINT_LINK *bl = bs->links; bl; bl = bl->next)
 		{
 			++bli;
@@ -869,6 +992,14 @@ bool validate_vnum_range(CHAR_DATA *ch, long lower, long upper)
 		{
 			found = TRUE;
 
+			if( !IS_SET(room->room2_flags, ROOM_BLUEPRINT) &&
+				!IS_SET(room->area->area_flags, AREA_BLUEPRINT) )
+			{
+				sprintf(buf, "{xRoom {W%ld{x is not allocated for use in blueprints.\n\r", room->vnum);
+				add_buf(buffer, buf);
+				valid = FALSE;
+			}
+
 			// Verify the room does not have non-environment exits pointing OUT of the range of vnums
 			for( int i = 0; i < MAX_DIR; i++ )
 			{
@@ -878,9 +1009,15 @@ bool validate_vnum_range(CHAR_DATA *ch, long lower, long upper)
 					!IS_SET(ex->exit_info, EX_ENVIRONMENT) &&
 					(ex->u1.to_room != NULL) )
 				{
-					if( ex->u1.to_room->vnum < lower || ex->u1.to_room->vnum > upper )
+					if( IS_SET(ex->exit_info, EX_VLINK) )
 					{
-						sprintf(buf, "{xRoom {W%ld{x has an exit ({W%s{x) leading outside of the vnum range.\n\r", ex->u1.to_room->vnum, dir_name[i]);
+						sprintf(buf, "{xRoom {W%ld{x has an exit ({W%s{x) leading to wilderness.\n\r", room->vnum, dir_name[i]);
+						add_buf(buffer, buf);
+						valid = FALSE;
+					}
+					else if( ex->u1.to_room->vnum < lower || ex->u1.to_room->vnum > upper )
+					{
+						sprintf(buf, "{xRoom {W%ld{x has an exit ({W%s{x) leading outside of the vnum range.\n\r", room->vnum, dir_name[i]);
 						add_buf(buffer, buf);
 						valid = FALSE;
 					}
@@ -1021,7 +1158,7 @@ BSEDIT( bsedit_link )
 
 			int bli = 0;
 			// List links
-			send_to_char("{YSections Links:{x\n\r", ch);
+			send_to_char("{YSection Links:{x\n\r", ch);
 			for(BLUEPRINT_LINK *bl = bs->links; bl; bl = bl->next)
 			{
 				++bli;
@@ -1268,3 +1405,8 @@ BSEDIT( bsedit_link )
 	return FALSE;
 }
 
+
+//////////////////////////////////////////////////////////////
+//
+// Blueprint Edit
+//

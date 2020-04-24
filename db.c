@@ -4931,11 +4931,13 @@ bool extract_clone_room(ROOM_INDEX_DATA *room, unsigned long id1, unsigned long 
 		for(ch = clone->people; ch; ch = ch_next) {
 			ch_next = ch->next_in_room;
 
-			char_from_room(ch);
 			if(IS_NPC(ch))
-
-
-			char_to_room(ch,environ);
+				extract_char(ch, TRUE);
+			else
+			{
+				char_from_room(ch);
+				char_to_room(ch,environ);
+			}
 		}
 
 	} else {

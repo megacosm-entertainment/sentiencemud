@@ -390,7 +390,6 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 	} else
 		fprintf(fp,"Room %ld\n", ch->in_room->vnum);
 
-
     if (ch->pcdata->ignoring != NULL)
     {
         IGNORE_DATA *ignore;

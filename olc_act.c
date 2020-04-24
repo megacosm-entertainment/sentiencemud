@@ -38,6 +38,8 @@ AREA_DATA *get_area_data args ((long anum));
 AREA_DATA *get_area_from_uid args ((long uid));
 
 
+bool redit_blueprint_oncreate = FALSE;
+
 struct olc_help_type
 {
     char *command;
@@ -1795,289 +1797,387 @@ bool rp_change_exit(ROOM_INDEX_DATA *pRoom, char *argument, int door)
 /* Local function. */
 bool change_exit(CHAR_DATA *ch, char *argument, int door)
 {
-    ROOM_INDEX_DATA *pRoom;
-    ROOM_INDEX_DATA *to_room;
-    char command[MAX_INPUT_LENGTH];
-    char arg[MAX_INPUT_LENGTH];
-    char buf[MSL];
-    long value;
+	ROOM_INDEX_DATA *pRoom;
+	ROOM_INDEX_DATA *to_room;
+	char command[MAX_INPUT_LENGTH];
+	char arg[MAX_INPUT_LENGTH];
+	char buf[MSL];
+	long value;
 
-    EDIT_ROOM_SIMPLE(ch, pRoom);
+	EDIT_ROOM_SIMPLE(ch, pRoom);
 
-    // Set the exit flags
-    if (!room_is_clone(pRoom) && (value = flag_value(exit_flags, argument)) != NO_FLAG)
-    {
-	ROOM_INDEX_DATA *pToRoom;
-	sh_int rev;
-
-	if (!pRoom->exit[door])
+	// Set the exit flags
+	if (!room_is_clone(pRoom) && (value = flag_value(exit_flags, argument)) != NO_FLAG)
 	{
-	    send_to_char("Exit doesn't exist.\n\r",ch);
-	    return FALSE;
-	}
+		ROOM_INDEX_DATA *pToRoom;
+		sh_int rev;
 
-	TOGGLE_BIT(pRoom->exit[door]->rs_flags,  value);
-	// Don't toggle exit_info because it can be changed by players.
-	pRoom->exit[door]->exit_info = pRoom->exit[door]->rs_flags;
+		if (!pRoom->exit[door])
+		{
+			// Environment exits can be created directly
+			if( value == EX_ENVIRONMENT )
+			{
+				pRoom->exit[door] = new_exit();
+				pRoom->exit[door]->from_room = pRoom;
+				pRoom->exit[door]->u1.to_room = NULL;
+				pRoom->exit[door]->orig_door = door;
+				SET_BIT(pRoom->exit[door]->rs_flags,  EX_ENVIRONMENT);
 
-	pToRoom = pRoom->exit[door]->u1.to_room;
-	rev = rev_dir[door];
+				send_to_char("Environment exit created.\n\r",ch);
+				return TRUE;
+			}
 
-	if (pToRoom->exit[rev] != NULL)
-	{
-	    TOGGLE_BIT(pToRoom->exit[rev]->rs_flags,  value);
-	    TOGGLE_BIT(pToRoom->exit[rev]->exit_info, value);
-	}
+			send_to_char("Exit doesn't exist.\n\r",ch);
+			return FALSE;
+		}
 
-	send_to_char("Exit flag toggled.\n\r", ch);
-	return TRUE;
-    }
+		TOGGLE_BIT(pRoom->exit[door]->rs_flags,  value);
+		// Don't toggle exit_info because it can be changed by players.
+		pRoom->exit[door]->exit_info = pRoom->exit[door]->rs_flags;
 
-    /*
-     * Now parse the arguments.
-     */
-    argument = one_argument_norm(argument, command);
-    one_argument_norm(argument, arg);
+		pToRoom = pRoom->exit[door]->u1.to_room;
+		rev = rev_dir[door];
 
-    if (command[0] == '\0' && argument[0] == '\0')	/* Move command. */
-    {
-	move_char(ch, door, TRUE);
-	return FALSE;
-    }
+		// Set the exit as environment
+		if( IS_SET(pRoom->exit[door]->exit_info) && IS_SET(value, EX_ENVIRONMENT) )
+		{
+			// Delete remote exit
+			if( pToRoom != NULL && pRoom->exit[rev] != NULL && pRoom->exit[rev]->u1.to_room == pRoom)
+			{
+				free_exit(pRoom->exit[rev]);
+				pRoom->exit[rev] = NULL;
+			}
 
-    if(room_is_clone(pRoom)) return FALSE;
+			// Remove destination
+			pRoom->exit[door]->u1.to_room = NULL;
+			send_to_char("Exit flag toggled.\n\rEnvironment exit distination unlinked.\n\r", ch);
+		}
+		else
+		{
+			if (pToRoom->exit[rev] != NULL)
+			{
+				TOGGLE_BIT(pToRoom->exit[rev]->rs_flags,  value);
+				TOGGLE_BIT(pToRoom->exit[rev]->exit_info, value);
+			}
 
-    if (command[0] == '?')
-    {
-	send_to_char("You must specify an argument.\n\r", ch);
-	return FALSE;
-    }
+			send_to_char("Exit flag toggled.\n\r", ch);
+		}
 
-    if (!str_cmp(command, "delete"))
-    {
-	ROOM_INDEX_DATA *pToRoom;
-	sh_int rev;
-
-	if (!pRoom->exit[door])
-	{
-	    send_to_char("REdit:  Cannot delete a null exit.\n\r", ch);
-	    return FALSE;
-	}
-
-	/*
-	 * Remove ToRoom Exit.
-	 */
-	rev = rev_dir[door];
-	pToRoom = pRoom->exit[door]->u1.to_room;
-	if (pToRoom == NULL)
-	{
-	    sprintf(buf, "change_exit: pToRoom was null! room is %s (%ld), door is %i",
-		    pRoom->name,
-		    pRoom->vnum,
-		    door);
-	    bug(buf, 0);
-	    send_to_char("REdit: couldn't delete that exit, probably a bad link. Please report to coder@megacosm.net\n\r", ch);
-	    return FALSE;
-	}
-
-	if (pToRoom->exit[rev])
-	{
-	    free_exit(pToRoom->exit[rev]);
-	    pToRoom->exit[rev] = NULL;
+		return TRUE;
 	}
 
 	/*
-	 * Remove this exit.
-	 */
-	free_exit(pRoom->exit[door]);
-	pRoom->exit[door] = NULL;
+	* Now parse the arguments.
+	*/
+	argument = one_argument_norm(argument, command);
+	one_argument_norm(argument, arg);
 
-	send_to_char("Exit unlinked.\n\r", ch);
-	return TRUE;
-    }
+	if (command[0] == '\0' && argument[0] == '\0')	/* Move command. */
+	{
+		move_char(ch, door, TRUE);
+		return FALSE;
+	}
 
-    if (!str_cmp(command, "link"))
-    {
-	EXIT_DATA *pExit;
+	if(room_is_clone(pRoom)) return FALSE;
 
+	if (command[0] == '?')
+	{
+		send_to_char("You must specify an argument.\n\r", ch);
+		return FALSE;
+	}
+
+	if (!str_cmp(command, "delete"))
+	{
+		ROOM_INDEX_DATA *pToRoom;
+		sh_int rev;
+
+		if (!pRoom->exit[door])
+		{
+			send_to_char("REdit:  Cannot delete a null exit.\n\r", ch);
+			return FALSE;
+		}
+
+		/*
+		* Remove ToRoom Exit.
+		*/
+		rev = rev_dir[door];
+		pToRoom = pRoom->exit[door]->u1.to_room;
+		if (pToRoom == NULL)
+		{
+			sprintf(buf, "change_exit: pToRoom was null! room is %s (%ld), door is %i",
+				pRoom->name, pRoom->vnum, door);
+			bug(buf, 0);
+			send_to_char("REdit: couldn't delete that exit, probably a bad link. Please report to coder@megacosm.net\n\r", ch);
+			return FALSE;
+		}
+
+		if (pToRoom->exit[rev])
+		{
+			free_exit(pToRoom->exit[rev]);
+			pToRoom->exit[rev] = NULL;
+		}
+
+		/*
+		* Remove this exit.
+		*/
+		free_exit(pRoom->exit[door]);
+		pRoom->exit[door] = NULL;
+
+		send_to_char("Exit unlinked.\n\r", ch);
+		return TRUE;
+	}
+
+	if (!str_cmp(command, "link"))
+	{
+		EXIT_DATA *pExit;
+
+		if (arg[0] == '\0' || !is_number(arg))
+		{
+			send_to_char("Syntax:  [direction] link [vnum]\n\r", ch);
+			return FALSE;
+		}
+
+		value = atol(arg);
+
+		ROOM_INDEX_DATA *pToRoom = get_room_index(value);
+
+		if (!pToRoom)
+		{
+			send_to_char("REdit:  Cannot link to non-existant room.\n\r", ch);
+			return FALSE;
+		}
+
+		if (!IS_BUILDER(ch, pToRoom->area))
+		{
+			send_to_char("REdit:  Cannot link to that area.\n\r", ch);
+			return FALSE;
+		}
+
+		if( !rooms_in_same_section(pRoom->vnum, value) )
+		{
+			send_to_char("REdit:  Attempting to link outside of a defined blueprint section.\n\r", ch);
+			return FALSE;
+		}
+
+		if (pToRoom->exit[rev_dir[door]])
+		{
+			send_to_char("REdit:  Remote side's exit already exists.\n\r", ch);
+			return FALSE;
+		}
+
+		if (!pRoom->exit[door])
+		{
+			pRoom->exit[door] = new_exit();
+			pRoom->exit[door]->from_room = pRoom;
+		}
+		else
+		{
+			if( IS_SET(pRoom->exit[door]->exit_info, EX_ENVIRONMENT) )
+			{
+				send_to_char("REdit:  Environment exits cannot be linked.\n\r", ch);
+				return FALSE;
+			}
+		}
+
+
+		pRoom->exit[door]->u1.to_room	= pToRoom;
+		pRoom->exit[door]->orig_door	= door;
+		door							= rev_dir[door];
+		pExit							= new_exit();
+
+		pExit->u1.to_room				= pRoom;
+		pExit->orig_door				= door;
+		pRoom->exit[door]				= pExit;
+		pExit->from_room				= pToRoom;
+
+		send_to_char("Two-way link established.\n\r", ch);
+		return TRUE;
+	}
+
+	if (!str_cmp(command, "dig"))
+	{
+		if (arg[0] == '\0' || !is_number(arg))
+		{
+			send_to_char("Syntax:  [direction] dig [vnum]\n\r", ch);
+			return FALSE;
+		}
+
+		if( IS_SET(ch->in_room->room2_flags, ROOM_BLUEPRINT) ||
+			IS_SET(ch->in_room->area->area_flags, ROOM_BLUEPRINT) )
+		{
+			value = atol(arg);
+
+			if( !rooms_in_same_section(pRoom->vnum, value) )
+			{
+				send_to_char("REdit:  Attempting to dig outside of a defined blueprint section.\n\r", ch);
+				return FALSE;
+			}
+
+			redit_blueprint_oncreate = IS_SET(ch->in_room->room2_flags, ROOM_BLUEPRINT);
+		}
+
+		if( pRoom->exit[door] && IS_SET(pRoom->exit[door]->exit_info, EX_ENVIRONMENT) )
+		{
+			send_to_char("REdit:  Environment exits cannot be linked.\n\r", ch);
+			return FALSE;
+		}
+
+		redit_create(ch, arg);
+		sprintf(buf, "link %s", arg);
+		change_exit(ch, buf, door);
+		return TRUE;
+	}
+
+	if (!str_cmp(command, "room"))
+	{
+		ROOM_INDEX_DATA *pToRoom;
+		EXIT_DATA *pExit;
+		sh_int rev;
+
+		if (arg[0] == '\0' || !is_number(arg))
+		{
+			send_to_char("Syntax:  [direction] room [vnum]\n\r", ch);
+			return FALSE;
+		}
+
+		if (!pRoom->exit[door])
+		{
+			pRoom->exit[door] = new_exit();
+		}
+		else
+		{
+			if( IS_SET(pRoom->exit[door]->exit_info, EX_ENVIRONMENT) )
+			{
+				send_to_char("REdit:  Environment exits cannot be linked.\n\r", ch);
+				return FALSE;
+			}
+
+		}
+
+		value = atol(arg);
+
+		pToRoom = get_room_index(value);
+
+		if (!pToRoom)
+		{
+			send_to_char("REdit:  Cannot link to non-existant room.\n\r", ch);
+			return FALSE;
+		}
+
+		if( !rooms_in_same_section(pRoom->vnum, value) )
+		{
+			send_to_char("REdit:  Attempting to link outside of a defined blueprint section.\n\r", ch);
+			return FALSE;
+		}
+
+		rev = rev_dir[door];
+		if( pToRoom->exit[rev] && IS_SET(pToRoom->exit[rev]->exit_info, EX_ENVIRONMENT) )
+		{
+			send_to_char("REdit:  Destination has an environment exit in the reverse direction.\n\r", ch);
+			return FALSE;
+		}
+
+		pExit							= new_exit();
+		pRoom->exit[door]->u1.to_room	= pToRoom;
+		pRoom->exit[door]->orig_door	= door;
+		pExit->from_room				= pRoom;
+
+		send_to_char("One-way link established.\n\r", ch);
+		return TRUE;
+	}
+
+	if (!str_cmp(command, "key"))
+	{
 	if (arg[0] == '\0' || !is_number(arg))
 	{
-	    send_to_char("Syntax:  [direction] link [vnum]\n\r", ch);
-	    return FALSE;
-	}
-
-	value = atol(arg);
-
-	if (!get_room_index(value))
-	{
-	    send_to_char("REdit:  Cannot link to non-existant room.\n\r", ch);
-	    return FALSE;
-	}
-
-	if (!IS_BUILDER(ch, get_room_index(value)->area))
-	{
-	    send_to_char("REdit:  Cannot link to that area.\n\r", ch);
-	    return FALSE;
-	}
-
-	if (get_room_index(value)->exit[rev_dir[door]])
-	{
-	    send_to_char("REdit:  Remote side's exit already exists.\n\r", ch);
-	    return FALSE;
+	send_to_char("Syntax:  [direction] key [vnum]\n\r", ch);
+	return FALSE;
 	}
 
 	if (!pRoom->exit[door])
 	{
-	    pRoom->exit[door] = new_exit();
-	    pRoom->exit[door]->from_room = pRoom;
-	}
-
-	pRoom->exit[door]->u1.to_room = get_room_index(value);
-	pRoom->exit[door]->orig_door = door;
-	pRoom                   = get_room_index(value);
-	door                    = rev_dir[door];
-	pExit                   = new_exit();
-	pExit->u1.to_room       = ch->in_room;
-	pExit->orig_door	= door;
-	pRoom->exit[door]       = pExit;
-	pExit->from_room = pRoom;
-
-	send_to_char("Two-way link established.\n\r", ch);
-	return TRUE;
-    }
-
-    if (!str_cmp(command, "dig"))
-    {
-	redit_create(ch, arg);
-	sprintf(buf, "link %s", arg);
-	change_exit(ch, buf, door);
-	return TRUE;
-    }
-
-    if (!str_cmp(command, "room"))
-    {
-	EXIT_DATA *pExit;
-
-	if (arg[0] == '\0' || !is_number(arg))
-	{
-	    send_to_char("Syntax:  [direction] room [vnum]\n\r", ch);
-	    return FALSE;
-	}
-
-	if (!pRoom->exit[door])
-	{
-	    pRoom->exit[door] = new_exit();
-	}
-
-	value = atol(arg);
-
-	if (!get_room_index(value))
-	{
-	    send_to_char("REdit:  Cannot link to non-existant room.\n\r", ch);
-	    return FALSE;
-	}
-
-        pExit		= new_exit();
-	pRoom->exit[door]->u1.to_room = get_room_index(value);
-	pRoom->exit[door]->orig_door = door;
-	pExit->from_room = pRoom;
-
-	send_to_char("One-way link established.\n\r", ch);
-	return TRUE;
-    }
-
-    if (!str_cmp(command, "key"))
-    {
-	if (arg[0] == '\0' || !is_number(arg))
-	{
-	    send_to_char("Syntax:  [direction] key [vnum]\n\r", ch);
-	    return FALSE;
-	}
-
-	if (!pRoom->exit[door])
-	{
-	    send_to_char("Exit doesn't exist.\n\r",ch);
-	    return FALSE;
+	send_to_char("Exit doesn't exist.\n\r",ch);
+	return FALSE;
 	}
 
 	value = atoi(arg);
 
 	if (!get_obj_index(value))
 	{
-	    send_to_char("REdit:  Item doesn't exist.\n\r", ch);
-	    return FALSE;
+	send_to_char("REdit:  Item doesn't exist.\n\r", ch);
+	return FALSE;
 	}
 
 	if (get_obj_index(atol(argument))->item_type != ITEM_KEY)
 	{
-	    send_to_char("REdit:  Key doesn't exist.\n\r", ch);
-	    return FALSE;
+	send_to_char("REdit:  Key doesn't exist.\n\r", ch);
+	return FALSE;
 	}
 
 	pRoom->exit[door]->door.key_vnum = atol(arg);
 
 	send_to_char("Exit key set.\n\r", ch);
 	return TRUE;
-    }
+	}
 
-    if (!str_cmp(command, "name"))
-    {
+	if (!str_cmp(command, "name"))
+	{
 	if (arg[0] == '\0')
 	{
-	    send_to_char("Syntax:  [direction] name [string]\n\r", ch);
-	    send_to_char("         [direction] name none\n\r", ch);
-	    return FALSE;
+	send_to_char("Syntax:  [direction] name [string]\n\r", ch);
+	send_to_char("         [direction] name none\n\r", ch);
+	return FALSE;
 	}
 
 	if (!pRoom->exit[door])
 	{
-	    send_to_char("Exit doesn't exist.\n\r",ch);
-	    return FALSE;
+	send_to_char("Exit doesn't exist.\n\r",ch);
+	return FALSE;
 	}
 
 	free_string(pRoom->exit[door]->keyword);
 	if (str_cmp(arg,"none"))
 	{
-	    pRoom->exit[door]->keyword = str_dup(arg);
-	    if ((to_room = pRoom->exit[door]->u1.to_room) != NULL
-		    &&   to_room->exit[rev_dir[door]] != NULL) {
-		free_string(to_room->exit[rev_dir[door]]->keyword);
-		to_room->exit[rev_dir[door]]->keyword = str_dup(arg);
-	    }
+	pRoom->exit[door]->keyword = str_dup(arg);
+	if ((to_room = pRoom->exit[door]->u1.to_room) != NULL
+	&&   to_room->exit[rev_dir[door]] != NULL) {
+	free_string(to_room->exit[rev_dir[door]]->keyword);
+	to_room->exit[rev_dir[door]]->keyword = str_dup(arg);
+	}
 	}
 	else
 	{
-	    pRoom->exit[door]->keyword = str_dup("");
-	    if ((to_room = pRoom->exit[door]->u1.to_room) != NULL
-		    &&   to_room->exit[rev_dir[door]] != NULL) {
-		free_string(to_room->exit[rev_dir[door]]->keyword);
-		to_room->exit[rev_dir[door]]->keyword = str_dup("");
-	    }
+	pRoom->exit[door]->keyword = str_dup("");
+	if ((to_room = pRoom->exit[door]->u1.to_room) != NULL
+	&&   to_room->exit[rev_dir[door]] != NULL) {
+	free_string(to_room->exit[rev_dir[door]]->keyword);
+	to_room->exit[rev_dir[door]]->keyword = str_dup("");
+	}
 	}
 
 	send_to_char("Exit name set.\n\r", ch);
 	return TRUE;
-    }
+	}
 
-    if (!str_prefix(command, "description"))
-    {
+	if (!str_prefix(command, "description"))
+	{
 	if (arg[0] == '\0')
 	{
-	    if (!pRoom->exit[door])
-	    {
-		send_to_char("Exit doesn't exist.\n\r",ch);
-		return FALSE;
-	    }
+	if (!pRoom->exit[door])
+	{
+	send_to_char("Exit doesn't exist.\n\r",ch);
+	return FALSE;
+	}
 
-	    string_append(ch, &pRoom->exit[door]->short_desc);
-	    return TRUE;
+	string_append(ch, &pRoom->exit[door]->short_desc);
+	return TRUE;
 	}
 
 	send_to_char("Syntax:  [direction] desc\n\r", ch);
 	return FALSE;
-    }
+	}
 
-    return FALSE;
+	return FALSE;
 }
 
 
@@ -2513,6 +2613,20 @@ REDIT(redit_create)
     pRoom->vnum			= value;
     if (value > top_vnum_room)
         top_vnum_room = value;
+
+	// Check whether to automatically set the room as blueprint
+    if( redit_blueprint_oncreate )
+    {
+		ROOM_INDEX_DATA *pPrevRoom;
+
+		EDIT_ROOM(ch, pPrevRoom);
+		// Only copy if the new room is in the same area as the previous room
+		if( pPrevRoom && pPrevRoom->area == pArea )
+		{
+			SET_BIT(pRoom->room2_flags, ROOM_BLUEPRINT);
+		}
+		redit_blueprint_oncreate = FALSE;
+	}
 
     iHash			= value % MAX_KEY_HASH;
     pRoom->next			= room_index_hash[iHash];
@@ -9425,9 +9539,25 @@ REDIT(redit_room2)
 
     if ((value = flag_value(room2_flags, argument)) == NO_FLAG)
     {
-	send_to_char("Syntax: room2 [flags]\n\r", ch);
-	return FALSE;
+		send_to_char("Syntax: room2 [flags]\n\r", ch);
+		return FALSE;
     }
+
+    if( IS_SET(value, ROOM_BLUEPRINT) )
+    {
+		// Only those that can edit blueprints can toggle this flag
+		if( !can_edit_blueprints(ch) )
+		{
+			value &= ~ROOM_BLUEPRINT;
+
+			if( !value )
+			{
+				send_to_char("Syntax: room2 [flags]\n\r", ch);
+				return FALSE;
+			}
+		}
+	}
+
 
     TOGGLE_BIT(room->room2_flags, value);
     send_to_char("Room flags toggled.\n\r", ch);
@@ -9476,7 +9606,8 @@ REDIT(redit_coords)
     }
 
     if(IS_NULLSTR(argument)) {
-	    send_to_char("coords <wilds uid> <x> <y> <z>\n\r",ch);
+	    send_to_char("coords <x> <y> <z>[ <wilds uid>]\n\r",ch);
+	    send_to_char("<wilds uid> can be omitted if dealing with a blueprint room.\n\r", ch);
 	    return FALSE;
     }
 
@@ -9490,27 +9621,33 @@ REDIT(redit_coords)
 		argument = one_argument(argument,arg2);
 		argument = one_argument(argument,arg3);
 
-		w = get_wilds_from_uid(NULL,atoi(arg1));
-		if(!w) {
-		send_to_char("No such wilderness.\n\r",ch);
-		return FALSE;
+
+		x = atoi(arg1);
+		y = atoi(arg2);
+		z = atoi(arg3);
+
+		if( !IS_SET(room->room2_flags, ROOM_BLUEPRINT) )
+		{
+			w = get_wilds_from_uid(NULL,atoi(argument));
+			if(!w) {
+				send_to_char("No such wilderness.\n\r",ch);
+				return FALSE;
+			}
+
+			if(x < 0 || x >= w->map_size_x) {
+				send_to_char("Invalid map coordinate.\n\r",ch);
+				return FALSE;
+			}
+			if(y < 0 || y >= w->map_size_y) {
+				send_to_char("Invalid map coordinate.\n\r",ch);
+				return FALSE;
+			}
+
+			room->viewwilds = w;
 		}
+		else
+			room->viewwilds = NULL;
 
-		x = atoi(arg2);
-		if(x < 0 || x >= w->map_size_x) {
-		send_to_char("Invalid map coordinate.\n\r",ch);
-		return FALSE;
-		}
-
-		y = atoi(arg3);
-		if(y < 0 || y >= w->map_size_y) {
-		send_to_char("Invalid map coordinate.\n\r",ch);
-		return FALSE;
-		}
-
-		z = atoi(argument);
-
-		room->viewwilds = w;
 		room->x = x;
 		room->y = y;
 		room->z = z;
@@ -10400,6 +10537,21 @@ WEDIT ( wedit_vlink )
         if(pVLink) {
 		if(pVLink->current_linkage == VLINK_UNLINKED) {
 			if (is_number(arg3) && (value = atoi(arg3)) > 0) {
+				ROOM_INDEX_DATA *destRoom = get_room_index(value);
+
+				if( !destRoom )
+				{
+					send_to_char("Wedit vlink: Invalid destination.\n\r", ch);
+					return FALSE;
+				}
+
+				if( IS_SET(destRoom->room2_flags, ROOM_BLUEPRINT) ||
+					IS_SET(destRoom->area->area_flags, AREA_BLUEPRINT) )
+				{
+					send_to_char("Wedit vlink: Invalid destination.\n\r", ch);
+					return FALSE;
+				}
+
 				pVLink->destvnum = value;
 				send_to_char("Wedit vlink: Destination set.\n\r", ch);
 				return TRUE;

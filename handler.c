@@ -8383,7 +8383,16 @@ void visit_room_direction(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, int max_de
 			pVLink = vroom_get_to_vlink(dest.wilds, dest.wx, dest.wy, door);
 			if( pVLink != NULL ) {
 				if( !pVLink->pDestRoom )
+				{
 					nextdest.room = get_room_index(pVLink->destvnum);
+
+					if( nextdest.room &&
+						(IS_SET(nextdest.room->room2_flags, ROOM_BLUEPRINT) ||
+						IS_SET(nextdest.room->area->area_flags, AREA_BLUEPRINT)) )
+					{
+						nextdest.room = NULL;
+					}
+				}
 				else
 					nextdest.room = pVLink->pDestRoom;
 

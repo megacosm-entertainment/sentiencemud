@@ -1121,31 +1121,39 @@ bool link_vlink(WILDS_VLINK *pVLink)
         // if the static room happens to be loaded up
         if ((pRevRoom=get_room_index(pVLink->destvnum))!=NULL)
         {
-            rev = rev_dir[pVLink->door];
+			if( IS_SET(pRevRoom->room2_flags, ROOM_BLUEPRINT) ||
+				IS_SET(pRevRoom->area->area_flags, AREA_BLUEPRINT) )
+			{
+				plogf("wilds.c, link_vlink(): Room involved in blueprints.");
+			}
+			else
+			{
+				rev = rev_dir[pVLink->door];
 
-            if (pRevRoom->exit[rev]==NULL)
-            {
-                found = TRUE;
-                pExit = new_exit ();
-                pExit->long_desc = str_dup(pVLink->rev_description);
-                pExit->keyword = str_dup(pVLink->rev_keyword);
-                pExit->rs_flags = pVLink->rev_rs_flags | EX_VLINK;
-                pExit->exit_info = pExit->rs_flags;
-                pExit->door.key_vnum = pVLink->rev_key;
-                pExit->u1.vnum = 0;
-                pExit->u1.to_room = NULL;
-                pExit->wilds.x = pVLink->wildsorigin_x;
-                pExit->wilds.y = pVLink->wildsorigin_y;
-                pExit->wilds.area_uid = pVLink->pWilds->pArea->uid;
-                pExit->wilds.wilds_uid = pVLink->pWilds->uid;
-                pExit->orig_door = rev;    /* OLC */
+				if (pRevRoom->exit[rev]==NULL)
+				{
+					found = TRUE;
+					pExit = new_exit ();
+					pExit->long_desc = str_dup(pVLink->rev_description);
+					pExit->keyword = str_dup(pVLink->rev_keyword);
+					pExit->rs_flags = pVLink->rev_rs_flags | EX_VLINK;
+					pExit->exit_info = pExit->rs_flags;
+					pExit->door.key_vnum = pVLink->rev_key;
+					pExit->u1.vnum = 0;
+					pExit->u1.to_room = NULL;
+					pExit->wilds.x = pVLink->wildsorigin_x;
+					pExit->wilds.y = pVLink->wildsorigin_y;
+					pExit->wilds.area_uid = pVLink->pWilds->pArea->uid;
+					pExit->wilds.wilds_uid = pVLink->pWilds->uid;
+					pExit->orig_door = rev;    /* OLC */
 
-                pRevRoom->exit[rev] = pExit;
-                pExit->from_room = pRevRoom;
-                SET_BIT(pVLink->current_linkage, VLINK_TO_WILDS);
-            }
-            else
-		return (FALSE);
+					pRevRoom->exit[rev] = pExit;
+					pExit->from_room = pRevRoom;
+					SET_BIT(pVLink->current_linkage, VLINK_TO_WILDS);
+				}
+				else
+					return (FALSE);
+			}
         }
         else
         {
@@ -2455,6 +2463,13 @@ void link_vlinks (WILDS_DATA *pWilds)
             plogf("wilds.c, apply_vlink(): destvnum %ld does not exist.", pVLink->destvnum);
             continue;
         }
+
+        if (IS_SET(pRevLinkRoomIndex->room2_flags, ROOM_BLUEPRINT) ||
+        	IS_SET(pRevLinkRoomIndex->area->area_flags, AREA_BLUEPRINT))
+        {
+            plogf("wilds.c, apply_vlink(): destvnum %ld involved in blueprints.", pVLink->destvnum);
+            continue;
+		}
 
         if (IS_SET(pVLink->default_linkage, VLINK_FROM_WILDS))
         {

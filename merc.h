@@ -321,11 +321,19 @@ typedef struct olc_point_area_data OLC_POINT_AREA;
 
 typedef struct dice_data DICE_DATA;
 
-
 /* VIZZWILDS */
 typedef struct    wilds_vlink      WILDS_VLINK;
 typedef struct    wilds_data       WILDS_DATA;
 typedef struct    wilds_terrain    WILDS_TERRAIN;
+
+// Blueprints
+typedef struct blueprint_link_data BLUEPRINT_LINK;
+typedef struct blueprint_section_data BLUEPRINT_SECTION;
+typedef struct static_blueprint_link STATIC_BLUEPRINT_LINK;
+typedef struct blueprint_data BLUEPRINT;
+typedef struct instance_section_data INSTANCE_SECTION;
+typedef struct instance_data INSTANCE;
+
 
 #define MEMTYPE_MOB		'M'
 #define MEMTYPE_OBJ		'O'
@@ -2711,6 +2719,7 @@ enum {
 #define ROOM_VISIBLE_ON_MAP	(R)	/* Used with coords - will show people in room on VMAP, even if !ROOM_VIEWWILDS */
 #define ROOM_NOFLOOR		(S)	/* The room requires you to be flying, on non-takable furniture or floating furniture */
 #define ROOM_CLONE_PERSIST	(T)	/* Set on rooms that can be cloned.  If set, allows clone rooms to be made persistant */
+#define ROOM_BLUEPRINT		(U)	// Room is used in a blueprint.  Allows setting the coordinates without the wilderness
 #define ROOM_ALWAYS_UPDATE	(Z)	/* Allows the room to perform scripting even if the area is empty */
 
 #define ENVIRON_NONE		0	// Special case to indicate the clone room is free floating
@@ -2832,6 +2841,7 @@ enum {
 #define AREA_NEWBIE			(I)
 #define AREA_NO_GET_RANDOM	(J)
 #define AREA_NO_FADING		(K)
+#define AREA_BLUEPRINT		(L)		// Area is used to hold rooms used for Blueprints.  Will block VLINKs
 #define AREA_NO_SAVE		(Z)
 
 /*
@@ -4848,6 +4858,7 @@ struct	room_index_data
     CONDITIONAL_DESCR_DATA *conditional_descr;
     AREA_DATA *		area;
     ROOM_INDEX_DATA *	source;
+    INSTANCE			*instance;
     bool		persist;
     int version;
 
@@ -4920,7 +4931,7 @@ struct	room_index_data
 #define BSTYPE_STATIC		1		// Only allowed section type in static blueprints
 
 
-typedef struct blueprint_link_data BLUEPRINT_LINK;
+
 
 struct blueprint_link_data {
 	BLUEPRINT_LINK *next;
@@ -4933,10 +4944,10 @@ struct blueprint_link_data {
 
 	ROOM_INDEX_DATA *room;		// Resolved room
 	EXIT_DATA *ex;				// Resolved exit
+
+	bool used;					// Used in generating layouts, indicating whether the link has already been used
 };
 
-
-typedef struct blueprint_section_data BLUEPRINT_SECTION;
 
 struct blueprint_section_data {
 	BLUEPRINT_SECTION *next;
@@ -4958,7 +4969,7 @@ struct blueprint_section_data {
 	BLUEPRINT_LINK *links;
 };
 
-typedef struct static_blueprint_link STATIC_BLUEPRINT_LINK;
+
 struct static_blueprint_link {
 	STATIC_BLUEPRINT_LINK *next;
 	bool valid;
@@ -4970,10 +4981,12 @@ struct static_blueprint_link {
 	int link2;
 };
 
-typedef struct static_blueprint_data STATIC_BLUEPRINT;
+#define BLUEPRINT_MODE_STATIC		0	// Fixed layout, Fixed sections
+#define BLUEPRINT_MODE_DYNAMIC		1	// Fixed layout, Variable sections
+#define BLUEPRINT_MODE_PROCEDURAL	2	// Variable layout, Variable sections
 
-struct static_blueprint_data {
-	STATIC_BLUEPRINT *next;
+struct blueprint_data {
+	BLUEPRINT *next;
 	bool valid;
 
 	long vnum;
@@ -4984,10 +4997,53 @@ struct static_blueprint_data {
 
 	long recall;
 
-	LLIST *sections;		// BLUEPRINT_SECTION
+	int mode;
 
-	STATIC_BLUEPRINT_LINK *links;
+	LLIST *sections;						// BLUEPRINT_SECTION
+
+	// BLUEPRINT_MODE_STATIC
+	STATIC_BLUEPRINT_LINK *static_layout;
 };
+
+
+
+struct instance_section_data {
+	INSTANCE_SECTION *next;
+	bool valid;
+
+	BLUEPRINT_SECTION *section;
+	BLUEPRINT *blueprint;
+	INSTANCE *instance;
+
+	LLIST *rooms;
+};
+
+struct instance_data {
+	INSTANCE *next;
+	bool valid;
+
+	BLUEPRINT *blueprint;		// Source blueprint
+	INSTANCE_SECTION *sections;	// Sections created
+
+	ROOM_INDEX_DATA *recall;	// Location in the instance that is considered the recall point
+								//   Leave NULL to have no recall
+								// Instance rooms will override normal recall checks
+
+	CHAR_DATA *player;			// Player owner of the instance
+	long player_uid[2];			//   Allows reseting of the instance manually
+								//   Should another player exist in the instance,
+								//   ownership is merely transferred.
+
+	OBJ_DATA *object;			// Object owner of the instance
+	long object_uid[2];			//   If the object owner is extracted, all players inside will be
+								//   dropped to the room of the object.
+
+	int idle_timer;				// Timer before it is purged automatically
+								// If normally zero, the instance will never purge without
+								//   explicitly being forced by the code
+};
+
+#define INSTANCE_IDLE_TIMEOUT	10		// Minutes before an instance is purged from not having players in it.
 
 
 /* conditions for conditional descs */
@@ -7988,6 +8044,7 @@ BLUEPRINT_LINK *get_section_link(BLUEPRINT_SECTION *bs, int link);
 bool valid_static_link(STATIC_BLUEPRINT_LINK *sbl);
 BLUEPRINT_SECTION *get_blueprint_section(long vnum);
 bool can_edit_blueprints(CHAR_DATA *ch);
+bool rooms_in_same_section(long vnum1, long vnum2);
 
 extern  bool			blueprints_changed;
 

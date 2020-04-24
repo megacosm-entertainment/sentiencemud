@@ -681,6 +681,10 @@ void save_room_new(FILE *fp, ROOM_INDEX_DATA *room, int recordtype)
 	if(room->viewwilds) {
 		fprintf(fp,"Wilds %1u %1u %1u %1u\n", (unsigned)room->viewwilds->uid, (unsigned)room->x, (unsigned)room->y, (unsigned)room->z);
 	}
+	else if(IS_SET(room->room2_flags, ROOM_BLUEPRINT))
+	{
+		fprintf(fp,"Blueprint %1u %1u %1u\n", (unsigned)room->x, (unsigned)room->y, (unsigned)room->z);
+	}
 
     fprintf(fp, "Room_flags %ld\n", room->room_flags);
     fprintf(fp, "Room2_flags %ld\n", room->room2_flags);
@@ -716,23 +720,23 @@ void save_room_new(FILE *fp, ROOM_INDEX_DATA *room, int recordtype)
 
 
     for (door = 0; door < MAX_DIR; door++) {
-	char kwd[MSL];
+		char kwd[MSL];
 
-	if ((ex = room->exit[door]) != NULL && ex->u1.to_room != NULL) {
-	    fprintf(fp, "#X '%s'\n", dir_name[ex->orig_door]);	// FIX IF SPACES ARE NEEDED IN NAMES!
+		if ((ex = room->exit[door]) != NULL) {
+			fprintf(fp, "#X '%s'\n", dir_name[ex->orig_door]);	// FIX IF SPACES ARE NEEDED IN NAMES!
 
-            if (ex->keyword[0] == ' ') {
-		sprintf(kwd, " ");
-		strcat(kwd, ex->keyword + 1);
-	    }
-	    else
-		sprintf(kwd, ex->keyword);
+				if (ex->keyword[0] == ' ') {
+			sprintf(kwd, " ");
+			strcat(kwd, ex->keyword + 1);
+			}
+			else
+			sprintf(kwd, ex->keyword);
 
-	    fprintf(fp, "Key %ld To_room %ld Rs_flags %d Keyword %s~\n",
-	        ex->door.key_vnum, ex->u1.to_room->vnum, ex->rs_flags, kwd);
-	    fprintf(fp, "Description %s~\n", fix_string(ex->short_desc));
-	    fprintf(fp, "#-X\n");
-	}
+			fprintf(fp, "Key %ld To_room %ld Rs_flags %d Keyword %s~\n",
+				ex->door.key_vnum, (ex->u1.to_room ? ex->u1.to_room->vnum : -1), ex->rs_flags, kwd);
+			fprintf(fp, "Description %s~\n", fix_string(ex->short_desc));
+			fprintf(fp, "#-X\n");
+		}
     }
 
     if(room->progs->progs) {
@@ -1974,6 +1978,15 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 		}
 
 		break;
+		case 'B':
+			if (!str_cmp(word, "Blueprint")) {
+				room->w = 0;
+				room->x = fread_number(fp);
+				room->y = fread_number(fp);
+				room->z = fread_number(fp);
+				fMatch = TRUE;
+			}
+			break;
 
 		case 'C':
 			KEYS("Comments", room->comments, fread_string(fp));

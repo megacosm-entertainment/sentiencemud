@@ -994,6 +994,7 @@ const struct flag_type area_flags[] =
     {	"newbie",		AREA_NEWBIE,		TRUE	},
     {	"no_get_random",AREA_NO_GET_RANDOM,	TRUE	},
     {	"no_fading",	AREA_NO_FADING,		TRUE	},
+    {	"blueprint",	AREA_BLUEPRINT,		TRUE	},
     {	NULL,			0,			0	}
 };
 
@@ -1112,6 +1113,7 @@ const struct flag_type room2_flags[] =
     {	"vis_on_map",		ROOM_VISIBLE_ON_MAP,	TRUE	},
     {	"no_floor",		ROOM_NOFLOOR,	TRUE	},
     {	"clone_persist",		ROOM_CLONE_PERSIST,	TRUE	},
+    {	"blueprint",			ROOM_BLUEPRINT, TRUE	},
     {	"always_update",		ROOM_ALWAYS_UPDATE,	TRUE	},
     {	NULL,			0,			0	}
 

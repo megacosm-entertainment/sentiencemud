@@ -3368,6 +3368,8 @@ BLUEPRINT_LINK *new_blueprint_link()
 	bl->room = NULL;
 	bl->ex = NULL;
 
+	bl->used = FALSE;
+
 	VALIDATE(bl);
 	return bl;
 }
@@ -3465,16 +3467,16 @@ void free_static_blueprint_link(STATIC_BLUEPRINT_LINK *bl)
 }
 
 
-STATIC_BLUEPRINT *static_blueprint_free;
+BLUEPRINT *blueprint_free;
 
-STATIC_BLUEPRINT *new_static_blueprint()
+BLUEPRINT *new_blueprint()
 {
-	STATIC_BLUEPRINT *bp;
-	if(static_blueprint_free == NULL)
-		bp = alloc_perm(sizeof(STATIC_BLUEPRINT));
+	BLUEPRINT *bp;
+	if(blueprint_free == NULL)
+		bp = alloc_perm(sizeof(BLUEPRINT));
 	else {
-		bp = static_blueprint_free;
-		static_blueprint_free = static_blueprint_free->next;
+		bp = blueprint_free;
+		blueprint_free = blueprint_free->next;
 	}
 
 	bp->vnum = 0;
@@ -3484,14 +3486,17 @@ STATIC_BLUEPRINT *new_static_blueprint()
 	bp->comments = &str_empty[0];
 
 	bp->recall = 0;
+	bp->mode = BLUEPRINT_MODE_STATIC;
 
 	bp->sections = list_create(FALSE);
+
+	bp->links = NULL;
 
 	VALIDATE(bp);
 	return bp;
 }
 
-void free_static_blueprint(STATIC_BLUEPRINT *bp)
+void free_blueprint(BLUEPRINT *bp)
 {
 	if(!IS_VALID(bp)) return;
 
@@ -3500,8 +3505,56 @@ void free_static_blueprint(STATIC_BLUEPRINT *bp)
 
 	list_destroy(bp->sections);
 
+	STATIC_BLUEPRINT_LINK *cur, *next;
+	for(cur = bp->links; cur; cur = next)
+	{
+		cur = cur->next;
+		free_static_blueprint_link(cur);
+	}
+
 	INVALIDATE(bp);
-	bp->next = static_blueprint_free;
-	static_blueprint_free = bp;
+	bp->next = blueprint_free;
+	blueprint_free = bp;
 }
+
+INSTANCE_SECTION *instance_section_free;
+
+INSTANCE_SECTION *new_instance_section()
+{
+	INSTANCE_SECTION *section;
+
+	if( instance_section_free )
+	{
+		section = instance_section_free;
+		instance_section_free = instance_section_free->next;
+	}
+	else
+		section = alloc_mem(sizeof(INSTANCE_SECTION));
+
+	section->rooms = list_create(FALSE);
+
+	VALIDATE(section);
+	return section;
+}
+
+void free_instance_section(INSTANCE_SECTION *section)
+{
+	if(!IS_VALID(section)) return;
+
+	ITERATOR rit;
+	ROOM_INDEX_DATA *room;
+	iterator_start(&rit,section->rooms);
+	while((room = (ROOM_INDEX_DATA *)iterator_nextdata(&rit)))
+	{
+		extract_clone_room(room->source,room->id[0],room->id[1],true);
+	}
+	iterator_stop(&rit);
+
+	list_destroy(section->rooms);
+
+	INVALIDATE(section);
+	section->next = instance_section_free;
+	instance_section_free = section;
+}
+
 
