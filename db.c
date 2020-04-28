@@ -3704,7 +3704,7 @@ char *str_dup(const char *str)
 {
     char *str_new;
 
-    if (str[0] == '\0')
+    if (IS_NULLSTR(str))
 	return &str_empty[0];
 
     if (str >= string_space && str < top_string)
