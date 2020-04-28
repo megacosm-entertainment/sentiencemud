@@ -248,6 +248,7 @@ DECLARE_DO_FUN( do_imotd	);
 DECLARE_DO_FUN( do_incognito	);
 DECLARE_DO_FUN(	do_infuse	);
 DECLARE_DO_FUN( do_inspect	);
+DECLARE_DO_FUN( do_instance );
 DECLARE_DO_FUN(	do_intimidate	);
 DECLARE_DO_FUN(	do_intone	);
 DECLARE_DO_FUN(	do_inventory	);

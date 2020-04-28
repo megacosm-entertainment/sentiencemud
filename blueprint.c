@@ -744,6 +744,23 @@ INSTANCE *create_instance(BLUEPRINT *blueprint)
 // extract instance
 
 
+// instance room resets
+
+void instance_section_reset_rooms(INSTANCE_SECTION *section)
+{
+	ITERATOR rit;
+	ROOM_INDEX_DATA *room;
+
+	iterator_start(&rit, section->rooms);
+	while((room = (ROOM_INDEX_DATA *)iterator_nextdata(&rit)))
+	{
+		reset_room(room);
+	}
+
+	iterator_stop(&rit);
+}
+
+
 //////////////////////////////////////////////////////////////
 //
 // OLC Editors
@@ -1665,3 +1682,114 @@ BSEDIT( bsedit_link )
 //
 // Blueprint Edit
 //
+
+
+//////////////////////////////////////////////////////////////
+//
+// Immortal Commands
+//
+
+INSTANCE_SECTION *loaded_section = NULL;
+
+
+// TEMPORARY - redo after stuff is verified
+// instance load <vnum>
+// instance unload
+void do_instance(CHAR_DATA *ch, char *argument)
+{
+	char arg1[MIL];
+
+	if( argument[0] == '\0' )
+	{
+		send_to_char("Syntax:  instance load <vnum>\n\r", ch);
+		send_to_char("         instance unload\n\r", ch);
+		return;
+	}
+
+	argument = one_argument(argument, arg1);
+
+	if( !str_prefix(arg1, "load") )
+	{
+		if( !can_edit_blueprints(ch) )
+		{
+			send_to_char("Insufficient access to load blueprints.\n\r", ch);
+			return;
+		}
+
+		if( loaded_section )
+		{
+			send_to_char("TEMPORARY: There is already a section loaded.\n\r", ch);
+			return;
+		}
+
+		if( !is_number(argument) )
+		{
+			send_to_char("That is not a number.\n\r", ch);
+			return;
+		}
+
+		BLUEPRINT_SECTION *bs = get_blueprint_section(atol(argument));
+
+		if( !bs )
+		{
+			send_to_char("That blueprint section does not exist.\n\r", ch);
+			return;
+		}
+
+		loaded_section = clone_blueprint_section(bs);
+
+		if( !loaded_section )
+		{
+			send_to_char("{WERROR LOADING BLUEPRINT SECTION!{x\n\r", ch);
+			return;
+		}
+
+		ROOM_INDEX_DATA *first_room = (ROOM_INDEX_DATA *)list_nthdata(loaded_section->rooms, 1);
+
+		if( !IS_VALID(first_room) )
+		{
+			send_to_char("{WERROR GETTING FIRST ROOM IN INSTANCE!{x\n\r", ch);
+			return;
+		}
+
+		char_from_room(ch);
+		char_to_room(ch, first_room);
+		do_function (ch, &do_look, "");
+
+		send_to_char("{YInstance section loaded.{x\n\r", ch);
+		return;
+	}
+	else if( !str_prefix(arg1, "unload") )
+	{
+		if( !can_edit_blueprints(ch) )
+		{
+			send_to_char("Insufficient access to unload blueprints.\n\r", ch);
+			return;
+		}
+
+		if( !loaded_section )
+		{
+			send_to_char("TEMPORARY: There is already a section loaded.\n\r", ch);
+			return;
+		}
+
+		if( ch->in_room->instance_section == loaded_section )
+		{
+			// Take them out of the instance
+			ROOM_INDEX_DATA *plith_recall = get_room_index(11001);
+
+			char_from_room(ch);
+			char_to_room(ch, plith_recall);
+		}
+
+		free_instance_section(loaded_section);
+		loaded_section = NULL;
+
+		send_to_char("TEMPORARY: Section unloaded.\n\r", ch);
+		return;
+	}
+
+	do_instance(ch, "");
+	return;
+}
+
