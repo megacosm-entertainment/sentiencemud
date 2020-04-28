@@ -4806,21 +4806,39 @@ SCRIPT_CMD(do_opalterexit)
 		return;
 	}
 
-	switch(arg->type) {
-	case ENT_STRING:
-		if( is_number(arg->d.str) )
-			value = atoi(arg->d.str);
-		else
+	if( flags != NULL )
+	{
+		if( arg->type != ENT_STRING || !ptr ) return;
+
+		allowarith = FALSE;	// This is a bit vector, no arithmetic operators.
+		value = script_flag_value(flags, arg->d.str);
+
+		if( value == NO_FLAG ) value = 0;
+
+		if( flags == exit_flags )
 		{
-			allowarith = FALSE;	// This is a bit vector, no arithmetic operators.
-			value = script_flag_value(flags, arg->d.str);
+			// Scripted exits cannot change NOUNLINK|PREVFLOOR|NEXTFLOOR
+			REMOVE_BIT(value, (EX_NOUNLINK|EX_PREVFLOOR|EX_NEXTFLOOR));
 
-			if( value == NO_FLAG ) value = 0;
+			if( (buf[0] == '=') || (buf[0] == '&') )
+			{
+				value |= (*ptr & (EX_NOUNLINK|EX_PREVFLOOR|EX_NEXTFLOOR));
+			}
 		}
+	}
+	else
+	{
+		switch(arg->type) {
+		case ENT_STRING:
+			if( is_number(arg->d.str) )
+				value = atoi(arg->d.str);
+			else
+				return;
 
-		break;
-	case ENT_NUMBER: value = arg->d.num; break;
-	default: return;
+			break;
+		case ENT_NUMBER: value = arg->d.num; break;
+		default: return;
+		}
 	}
 
 

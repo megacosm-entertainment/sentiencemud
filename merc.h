@@ -334,6 +334,10 @@ typedef struct blueprint_data BLUEPRINT;
 typedef struct instance_section_data INSTANCE_SECTION;
 typedef struct instance_data INSTANCE;
 
+// Dungeons
+typedef struct dungeon_floor_data DUNGEON_FLOOR_DATA;
+typedef struct dungeon_index_data DUNGEON_INDEX_DATA;
+typedef struct dungeon_data DUNGEON;
 
 #define MEMTYPE_MOB		'M'
 #define MEMTYPE_OBJ		'O'
@@ -2768,6 +2772,9 @@ enum {
 #define EX_AERIAL			(S)
 #define EX_NOHUNT			(T)
 #define EX_ENVIRONMENT			(U)
+#define EX_NOUNLINK				(V)
+#define EX_PREVFLOOR			(W)
+#define EX_NEXTFLOOR			(X)
 
 
 /*
@@ -4858,7 +4865,7 @@ struct	room_index_data
     CONDITIONAL_DESCR_DATA *conditional_descr;
     AREA_DATA *		area;
     ROOM_INDEX_DATA *	source;
-    INSTANCE			*instance;
+    INSTANCE_SECTION		*instance_section;
     bool		persist;
     int version;
 
@@ -4974,10 +4981,12 @@ struct static_blueprint_link {
 	STATIC_BLUEPRINT_LINK *next;
 	bool valid;
 
-	BLUEPRINT_SECTION *section1;
-	int link1;
+	BLUEPRINT *blueprint;
 
-	BLUEPRINT_SECTION *section2;
+	int section1;	// Index of the section in the list of sections
+	int link1;		// Index of the link in the section
+
+	int section2;
 	int link2;
 };
 
@@ -4995,14 +5004,18 @@ struct blueprint_data {
 	char *description;
 	char *comments;
 
-	long recall;
-
 	int mode;
 
 	LLIST *sections;						// BLUEPRINT_SECTION
 
 	// BLUEPRINT_MODE_STATIC
 	STATIC_BLUEPRINT_LINK *static_layout;
+	int static_recall;						// Which section has the recall?
+
+	int static_entry_section;
+	int static_entry_link;
+	int static_exit_section;
+	int static_exit_link;
 };
 
 
@@ -5025,25 +5038,69 @@ struct instance_data {
 	BLUEPRINT *blueprint;		// Source blueprint
 	INSTANCE_SECTION *sections;	// Sections created
 
+	int floor;					// Floor identifier, used in traversing multi-level dungeons
+								// Defaults to 0 when not used
+
 	ROOM_INDEX_DATA *recall;	// Location in the instance that is considered the recall point
 								//   Leave NULL to have no recall
 								// Instance rooms will override normal recall checks
-
-	CHAR_DATA *player;			// Player owner of the instance
-	long player_uid[2];			//   Allows reseting of the instance manually
-								//   Should another player exist in the instance,
-								//   ownership is merely transferred.
 
 	OBJ_DATA *object;			// Object owner of the instance
 	long object_uid[2];			//   If the object owner is extracted, all players inside will be
 								//   dropped to the room of the object.
 
-	int idle_timer;				// Timer before it is purged automatically
-								// If normally zero, the instance will never purge without
-								//   explicitly being forced by the code
+	ROOM_INDEX_DATA *environ;	// Explicit environment for instance
+								//   If NULL, will use the current room of the object
+								//   Must be a static room
+								//   Example use: Exit Room of
+
 };
 
-#define INSTANCE_IDLE_TIMEOUT	10		// Minutes before an instance is purged from not having players in it.
+struct dungeon_index_data
+{
+	DUNGEON_INDEX_DATA *next;
+	bool valid;
+
+	long vnum;
+
+	char *name;
+	char *description;
+
+	LLIST *floors;
+	long entry_room;
+	long exit_room;
+
+	long flags;						// Potential flags
+};
+
+struct dungeon_data
+{
+	DUNGEON *next;
+	bool valid;
+
+	DUNGEON_INDEX_DATA *index;		// Dungeon definition
+
+	long uid[2];					// UID of the dungeon instance
+
+	LLIST *floors;
+	ROOM_INDEX_DATA *entry_room;
+	ROOM_INDEX_DATA *exit_room;
+
+	long flags;						// Potential instanced flags
+
+	CHAR_DATA *player;				// Player owner of the dungeon
+	long player_uid[2];				//   Allows reseting of the dungeon manually
+									//   Should another player exist in the dungeon,
+									//   ownership is merely transferred.
+
+	LLIST *players;					// List of players inside the dungeon
+
+	int idle_timer;					// Timer before it is purged automatically
+									// If normally zero, the dungeon will never purge without
+									//   explicitly being forced by the code
+};
+
+#define DUNGEON_IDLE_TIMEOUT	10		// Minutes before a dungeon is purged from not having players in it.
 
 
 /* conditions for conditional descs */

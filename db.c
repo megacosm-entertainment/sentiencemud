@@ -4727,6 +4727,7 @@ ROOM_INDEX_DATA *create_virtual_room_nouid(ROOM_INDEX_DATA *source, bool objects
 	vroom->description = str_dup(source->description);
 	vroom->room_flags = source->room_flags;
 	vroom->room2_flags = source->room2_flags | ROOM_VIRTUAL_ROOM;
+	REMOVE_BIT(vroom->room2_flags, ROOM_BLUEPRINT);					// Clones can never be "blueprint" rooms
 	vroom->sector_type = source->sector_type;
 	vroom->viewwilds = source->viewwilds;
 	vroom->w = source->w;

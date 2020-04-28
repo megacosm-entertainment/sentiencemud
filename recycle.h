@@ -141,3 +141,15 @@ void free_static_blueprint_link(STATIC_BLUEPRINT_LINK *bl);
 
 BLUEPRINT *new_blueprint();
 void free_blueprint(BLUEPRINT *bp);
+
+INSTANCE_SECTION *new_instance_section();
+void free_instance_section(INSTANCE_SECTION *section);
+
+INSTANCE *new_instance();
+void free_instance(INSTANCE *instance);
+
+DUNGEON_INDEX_DATA *new_dungeon_index();
+void free_dungeon_index(DUNGEON_INDEX_DATA *dungeon);
+
+DUNGEON_DATA *new_dungeon();
+void free_dungeon(DUNGEON_INDEX *dungeon);

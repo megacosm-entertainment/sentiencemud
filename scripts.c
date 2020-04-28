@@ -3310,6 +3310,12 @@ bool script_change_exit(ROOM_INDEX_DATA *pRoom, ROOM_INDEX_DATA *pToRoom, int do
 			return FALSE;
 		}
 
+		if( IS_SET(pRoom->exit[door]->exit_info, (EX_NOUNLINK|EX_PREVFLOOR|EX_NEXTFLOOR)) )
+		{
+			bug("script_change_exit: Exit is protected from deletion. %d", pRoom->vnum);
+			return FALSE;
+		}
+
 		// Remove ToRoom Exit.
 		rev = rev_dir[door];
 		pToRoom = pRoom->exit[door]->u1.to_room;

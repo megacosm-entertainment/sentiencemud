@@ -7931,7 +7931,10 @@ void *list_nthdata(LLIST *lp, register int nth)
 		if( nth < 0 ) nth = lp->size + nth;
 		for(link = lp->head; link && nth > 0; link = link->next)
 			if(link->data)
+			{
 				--nth;
+				if( !nth ) break;
+			}
 	}
 
 	return (link && !nth) ? link->data : NULL;
@@ -8383,18 +8386,16 @@ void visit_room_direction(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, int max_de
 			pVLink = vroom_get_to_vlink(dest.wilds, dest.wx, dest.wy, door);
 			if( pVLink != NULL ) {
 				if( !pVLink->pDestRoom )
-				{
 					nextdest.room = get_room_index(pVLink->destvnum);
-
-					if( nextdest.room &&
-						(IS_SET(nextdest.room->room2_flags, ROOM_BLUEPRINT) ||
-						IS_SET(nextdest.room->area->area_flags, AREA_BLUEPRINT)) )
-					{
-						nextdest.room = NULL;
-					}
-				}
 				else
 					nextdest.room = pVLink->pDestRoom;
+
+				if( nextdest.room &&
+					(IS_SET(nextdest.room->room2_flags, ROOM_BLUEPRINT) ||
+					IS_SET(nextdest.room->area->area_flags, AREA_BLUEPRINT)) )
+				{
+					nextdest.room = NULL;
+				}
 
 			} else {
 				to_x = get_wilds_vroom_x_by_dir(dest.wilds, dest.wx, dest.wy, door);

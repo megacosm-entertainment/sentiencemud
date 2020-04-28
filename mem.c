@@ -3447,10 +3447,12 @@ STATIC_BLUEPRINT_LINK *new_static_blueprint_link()
 		static_blueprint_link_free = static_blueprint_link_free->next;
 	}
 
-	bl->section1 = NULL;
+	bl->blueprint = NULL;
+
+	bl->section1 = -1;
 	bl->link1 = -1;
 
-	bl->section2 = NULL;
+	bl->section2 = -1;
 	bl->link2 = -1;
 
 	VALIDATE(bl);
@@ -3485,15 +3487,33 @@ BLUEPRINT *new_blueprint()
 	bp->description = &str_empty[0];
 	bp->comments = &str_empty[0];
 
-	bp->recall = 0;
 	bp->mode = BLUEPRINT_MODE_STATIC;
 
 	bp->sections = list_create(FALSE);
 
-	bp->links = NULL;
+	bp->static_layout = NULL;
+	bp->static_recall = -1;
+
+	bp->static_entry_section = -1;
+	bp->static_entry_link = -1;
+	bp->static_exit_section = -1;
+	bp->static_exit_link = -1;
 
 	VALIDATE(bp);
 	return bp;
+}
+
+void free_static_blueprint_data(BLUEPRINT *bp)
+{
+	STATIC_BLUEPRINT_LINK *cur, *next;
+
+	for(cur = bp->static_layout; cur; cur = next)
+	{
+		cur = cur->next;
+		free_static_blueprint_link(cur);
+	}
+
+	bp->static_layout = NULL;
 }
 
 void free_blueprint(BLUEPRINT *bp)
@@ -3505,12 +3525,8 @@ void free_blueprint(BLUEPRINT *bp)
 
 	list_destroy(bp->sections);
 
-	STATIC_BLUEPRINT_LINK *cur, *next;
-	for(cur = bp->links; cur; cur = next)
-	{
-		cur = cur->next;
-		free_static_blueprint_link(cur);
-	}
+	if( bp->mode == BLUEPRINT_MODE_STATIC )
+		free_static_blueprint_data(bp);
 
 	INVALIDATE(bp);
 	bp->next = blueprint_free;
@@ -3529,7 +3545,7 @@ INSTANCE_SECTION *new_instance_section()
 		instance_section_free = instance_section_free->next;
 	}
 	else
-		section = alloc_mem(sizeof(INSTANCE_SECTION));
+		section = alloc_perm(sizeof(INSTANCE_SECTION));
 
 	section->rooms = list_create(FALSE);
 
@@ -3557,4 +3573,56 @@ void free_instance_section(INSTANCE_SECTION *section)
 	instance_section_free = section;
 }
 
+
+INSTANCE *instance_free;
+
+INSTANCE *new_instance()
+{
+	INSTANCE *instance;
+
+	if( instance_free )
+	{
+		instance = instance_free;
+		instance_free = instance_free->next;
+	}
+	else
+		instance = alloc_perm(sizeof(INSTANCE));
+
+	instance->blueprint = NULL;
+	instance->sections = NULL;
+
+	instance->recall = NULL;
+
+	instance->player = NULL;
+	instance->player_uid[0] = 0;
+	instance->player_uid[1] = 0;
+
+	instance->object = NULL;
+	instance->object_uid[0] = 0;
+	instance->object_uid[1] = 0;
+
+	instance->idle_timer = 0;
+
+	VALIDATE(instance);
+	return instance;
+}
+
+void free_instance(INSTANCE *instance)
+{
+	if(!IS_VALID(instance)) return;
+
+	INSTANCE_SECTION *cur, *next;
+	for(cur = instance->sections; cur; cur = next)
+	{
+		next = cur->next;
+		free_instance_section(cur);
+	}
+
+	instance->sections = NULL;
+
+
+	INVALIDATE(instance);
+	instance->next = instance_free;
+	instance_free = instance;
+}
 

@@ -342,11 +342,18 @@ BLUEPRINT_LINK *get_section_link(BLUEPRINT_SECTION *bs, int link)
 bool valid_static_link(STATIC_BLUEPRINT_LINK *sbl)
 {
 	if( !IS_VALID(sbl) ) return FALSE;
+	if( !IS_VALID(sbl->blueprint) ) return FALSE;
 
-	BLUEPRINT_LINK *link1 = get_section_link(sbl->section1, sbl->link1);
+	BLUEPRINT_SECTION *section1 = (BLUEPRINT_SECTION *)list_nthdata(sbl->blueprint->sections, sbl->section1);
+	if( !IS_VALID(section1) ) return FALSE;
+
+	BLUEPRINT_SECTION *section2 = (BLUEPRINT_SECTION *)list_nthdata(sbl->blueprint->sections, sbl->section2);
+	if( !IS_VALID(section2) ) return FALSE;
+
+	BLUEPRINT_LINK *link1 = get_section_link(section1, sbl->link1);
 	if( !valid_section_link(link1) ) return FALSE;
 
-	BLUEPRINT_LINK *link2 = get_section_link(sbl->section2, sbl->link2);
+	BLUEPRINT_LINK *link2 = get_section_link(section2, sbl->link2);
 	if( !valid_section_link(link2) ) return FALSE;
 
 	// Only allow links that are reverse directions to link
@@ -392,9 +399,7 @@ bool rooms_in_same_section(long vnum1, long vnum2)
 	return s1 && s2 && (s1 == s2);
 }
 
-
-
-ROOM_INDEX_DATA *instance_section_get_room(INSTANCE_SECTION *section, long vnum)
+ROOM_INDEX_DATA *instance_section_get_room_byvnum(INSTANCE_SECTION *section, long vnum)
 {
 	if( !section ) return NULL;
 
@@ -409,6 +414,14 @@ ROOM_INDEX_DATA *instance_section_get_room(INSTANCE_SECTION *section, long vnum)
 	iterator_stop(&rit);
 
 	return room;
+
+}
+
+ROOM_INDEX_DATA *instance_section_get_room(INSTANCE_SECTION *section, ROOM_INDEX_DATA *source)
+{
+	if( !source ) return NULL;
+
+	return instance_section_get_room_byvnum(section, source->vnum);
 }
 
 
@@ -445,6 +458,8 @@ INSTANCE_SECTION *clone_blueprint_section(BLUEPRINT_SECTION *parent)
 				free_instance_section(section);
 				return NULL;
 			}
+
+			room->instance_section = section;
 		}
 	}
 
@@ -456,34 +471,274 @@ INSTANCE_SECTION *clone_blueprint_section(BLUEPRINT_SECTION *parent)
 		for(int i = 0; i < MAX_DIR; i++)
 		{
 			EXIT_DATA *exParent = room->source->exit[i];
-			if( !exParent || !exParent->u1.to_room || IS_SET(exParent->exit_info, EX_ENVIRONMENT) )
-				continue;
 
-			// Get corresponding clone for the destination vnum
-			ROOM_INDEX_DATA *dest = instance_section_get_room(section, exParent->u1.room->vnum);
+			if( exParent )
+			{
+				EXIT_DATA *exClone;
 
-			EXIT_DATA *exClone;
+				room->exit[i] = exClone = new_exit();
+				exClone->u1.to_room = instance_section_get_room(section, exParent->u1.room);
+				exClone->exit_info = exParent->exit_info;
+				exClone->keyword = str_dup(exParent->keyword);
+				exClone->short_desc = str_dup(exParent->short_desc);
+				exClone->long_desc = str_dup(exParent->long_desc);
+				exClone->rs_flags = exParent->rs_flags;
+				exClone->orig_door = exParent->orig_door;
+				exClone->door.strength = exParent->door.strength;
+				exClone->door.material = str_dup(exParent->door.material);
+				exClone->door.key_vnum = exParent->door.key_vnum;
+				exClone->from_room = room;
+			}
+		}
 
-			room->exit[i] = exClone = new_exit();
+		// Correct any portal objects
+		for(OBJ_DATA *obj = room->contents; obj; obj = obj->next_content)
+		{
+			// Make sure portals that lead anywhere within the section uses the correct room id
+			if( obj->item_type == ITEM_PORTAL )
+			{
+				ROOM_INDEX_DATA *dest;
+				long vnum = obj->value[3];	// Destination vnum
 
-			exClone->u1.to_room = dest;
-			exClone->exit_info = exParent->exit_info;
-			exClone->keyword = str_dup(exParent->keyword);
-			exClone->short_desc = str_dup(exParent->short_desc);
-			exClone->long_desc = str_dup(exParent->long_desc);
-			exClone->rs_flags = exParent->rs_flags;
-			exClone->orig_door = exParent->orig_door;
-			exClone->door.strength = exParent->door.strength;
-			exClone->door.material = str_dup(exParent->door.material);
-			exClone->door.key_vnum = exParent->door.key_vnum;
-			exClone->from_room = room;
+				// Must point to a non-wilderness room
+				if( vnum > 0 && portal->value[5] <= 0 )
+				{
+					if( (dest = instance_section_get_room_byvnum(section, vnum)) )
+					{
+						obj->value[6] = dest->id[0];
+						obj->value[7] = dest->id[1];
+					}
+					else
+					{
+						dest = get_room_index(vnum);
+
+						if( !dest ||
+							IS_SET(dest->room2_flags, ROOM_BLUEPRINT) ||
+							IS_SET(dest->area->area_flags, AREA_BLUEPRINT) )
+						{
+							// Nullify destination
+							obj->value[3] = 0;
+						}
+
+						// Force it to be static
+						obj->value[6] = 0;
+						obj->value[7] = 0;
+					}
+				}
+			}
 		}
 	}
 	iterator_stop(&rit);
 
-
-
 	return section;
+}
+
+INSTANCE_SECTION *instance_get_section(INSTANCE *instance, int section_no)
+{
+	INSTANCE_SECTION *cur;
+
+	if( section_no < 1 ) return NULL;
+
+	for(cur = instance->sections; cur && section_no > 0; cur = cur->next)
+	{
+		if( !--section_no )
+			return cur;
+	}
+
+	return NULL;
+}
+
+bool generate_static_instance(INSTANCE *instance)
+{
+	ITERATOR bsit;
+	BLUEPRINT_SECTION *bs;
+	BLUEPRINT *bp = instance->blueprint;
+
+	bool valid = TRUE;
+	iterator_start(&bsit, bp->sections);
+	while((bs = (BLUEPRINT_SECTION *)iterator_nextdata(&bsit)))
+	{
+		INSTANCE_SECTION *section = clone_blueprint_section(bs);
+
+		if( !section )
+		{
+			valid = FALSE;
+			break;
+		}
+
+		section->blueprint = bp;
+		section->instance = instance;
+
+		section->next = instance->sections;
+		instance->sections = section;
+	}
+	iterator_stop(&bsit);
+
+	if( valid )
+	{
+		// Connect all the sections together
+		STATIC_BLUEPRINT_LINK *link;
+
+		for(link = bp->static_layout; link; link = link->next)
+		{
+			INSTANCE_SECTION *section1 = instance_get_section(instance, link->section1);
+			INSTANCE_SECTION *section2 = instance_get_section(instance, link->section2);
+
+			if( section1 && section2 )
+			{
+				BLUEPRINT_LINK *link1 = get_section_link(section1->section, link->link1);
+				BLUEPRINT_LINK *link2 = get_section_link(section2->section, link->link2);
+
+				if( link1 && link2 )
+				{
+					ROOM_INDEX_DATA *room1 = instance_section_get_room_byvnum(section1, link1->vnum);
+					ROOM_INDEX_DATA *room2 = instance_section_get_room_byvnum(section2, link2->vnum);
+
+					if( room1 && room2 )
+					{
+						EXIT_DATA *ex1 = room1->exit[link1->door];
+						EXIT_DATA *ex2 = room2->exit[link2->door];
+
+						if( !ex1 )
+						{
+							ex1 = new_exit();
+							ex1->from_room = room1;
+							ex1->orig_door = link1->door;
+
+							room1->exit[link1->door] = ex1;
+						}
+
+						if( !ex2 )
+						{
+							ex2 = new_exit();
+							ex2->from_room = room2;
+							ex2->orig_door = link2->door;
+
+							room1->exit[link2->door] = ex2;
+						}
+
+						REMOVE_BIT(ex1->rs_flags, EX_ENVIRONMENT);
+						ex1->exit_info = ex1->rs_flags;
+						ex1->u1.to_room = room2;
+
+						REMOVE_BIT(ex2->rs_flags, EX_ENVIRONMENT);
+						ex2->exit_info = ex2->rs_flags;
+						ex2->u1.to_room = room1;
+					}
+				}
+			}
+		}
+
+		// Assign the entry exit (PREVFLOOR) if defined
+		if( bp->static_entry_section > 0 && bp->static_entry_link > 0 )
+		{
+			INSTANCE_SECTION *section = instance_get_section(instance, bp->static_entry_section);
+			if( section )
+			{
+				BLUEPRINT_LINK *bl = get_section_link(section->section, bp->static_entry_link);
+
+				if( bl )
+				{
+					ROOM_INDEX_DATA *room = instance_section_get_room_byvnum(section, bl->vnum);
+					if( room )
+					{
+						EXIT_DATA *ex = room->exit[bl->door];
+
+						if( !ex )
+						{
+							ex = new_exit();
+							ex->from_room = room;
+							ex->orig_door = bl->door;
+							room->exit[bl->door] = ex;
+						}
+
+						REMOVE_BIT(ex->rs_flags, EX_ENVIRONMENT);
+						SET_BIT(ex->rs_flags, EX_PREVFLOOR);
+						ex->exit_info = ex->rs_flags;
+						ex->u1.to_room = NULL;
+					}
+				}
+			}
+		}
+
+		// Assign the exit exit (NEXTFLOOR) if defined
+		if( bp->static_exit_section > 0 && bp->static_exit_link > 0 )
+		{
+			INSTANCE_SECTION *section = instance_get_section(instance, bp->static_exit_section);
+			if( section )
+			{
+				BLUEPRINT_LINK *bl = get_section_link(section->section, bp->static_exit_link);
+
+				if( bl )
+				{
+					ROOM_INDEX_DATA *room = instance_section_get_room_byvnum(section, bl->vnum);
+					if( room )
+					{
+						EXIT_DATA *ex = room->exit[bl->door];
+
+						if( !ex )
+						{
+							ex = new_exit();
+							ex->from_room = room;
+							ex->orig_door = bl->door;
+							room->exit[bl->door] = ex;
+						}
+
+						REMOVE_BIT(ex->rs_flags, EX_ENVIRONMENT);
+						SET_BIT(ex->rs_flags, EX_NEXTFLOOR);
+						ex->exit_info = ex->rs_flags;
+						ex->u1.to_room = NULL;
+					}
+				}
+			}
+		}
+
+		// Assign the recall point based upon the recall section's recall, if defined
+		if( bp->static_recall > 0 )
+		{
+			INSTANCE_SECTION *recall_section = instance_get_section(instance, bp->static_recall);
+
+			if( recall_section )
+			{
+				instance->recall = instance_section_get_room_byvnum(recall_section, recall_section->section->recall);
+			}
+		}
+	}
+
+	return valid;
+}
+
+
+INSTANCE *create_instance(BLUEPRINT *blueprint)
+{
+	INSTANCE *instance = new_instance();
+
+	if( instance )
+	{
+		instance->blueprint = blueprint;
+
+		if( blueprint->mode == BLUEPRINT_MODE_STATIC )
+		{
+			if( !generate_static_instance(instance) )
+			{
+				free_instance(instance);
+				return NULL;
+			}
+		}
+		else
+		{
+			// Unsupported blueprint mode
+			char buf[MSL];
+			sprintf(buf, "create_instance - unsupported mode %d for blueprint %ld", blueprint->mode, blueprint->vnum);
+			bug(buf, 0);
+
+			free_instance(instance);
+			return NULL;
+		}
+
+	}
+
+	return instance;
 }
 
 // extract instance
