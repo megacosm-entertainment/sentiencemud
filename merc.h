@@ -5045,6 +5045,8 @@ struct instance_data {
 								//   Leave NULL to have no recall
 								// Instance rooms will override normal recall checks
 
+	DUNGEON *dungeon;			// Dungeon owner of the instance
+
 	OBJ_DATA *object;			// Object owner of the instance
 	long object_uid[2];			//   If the object owner is extracted, all players inside will be
 								//   dropped to the room of the object.
@@ -5052,7 +5054,6 @@ struct instance_data {
 	ROOM_INDEX_DATA *environ;	// Explicit environment for instance
 								//   If NULL, will use the current room of the object
 								//   Must be a static room
-								//   Example use: Exit Room of
 
 };
 

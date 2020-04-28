@@ -3593,15 +3593,11 @@ INSTANCE *new_instance()
 
 	instance->recall = NULL;
 
-	instance->player = NULL;
-	instance->player_uid[0] = 0;
-	instance->player_uid[1] = 0;
+	instance->dungeon = NULL;
 
 	instance->object = NULL;
 	instance->object_uid[0] = 0;
 	instance->object_uid[1] = 0;
-
-	instance->idle_timer = 0;
 
 	VALIDATE(instance);
 	return instance;

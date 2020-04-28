@@ -405,7 +405,7 @@ ROOM_INDEX_DATA *instance_section_get_room_byvnum(INSTANCE_SECTION *section, lon
 
 	ROOM_INDEX_DATA *room;
 	ITERATOR rit;
-	iterator_start(&rit, sections->rooms);
+	iterator_start(&rit, section->rooms);
 	while((room = (ROOM_INDEX_DATA *)iterator_nextdata(&rit)))
 	{
 		if( room->vnum == vnum )
@@ -463,7 +463,7 @@ INSTANCE_SECTION *clone_blueprint_section(BLUEPRINT_SECTION *parent)
 		}
 	}
 
-	ITERATOR &rit;
+	ITERATOR rit;
 	iterator_start(&rit, section->rooms);
 	while((room = (ROOM_INDEX_DATA *)iterator_nextdata(&rit)))
 	{
@@ -477,7 +477,7 @@ INSTANCE_SECTION *clone_blueprint_section(BLUEPRINT_SECTION *parent)
 				EXIT_DATA *exClone;
 
 				room->exit[i] = exClone = new_exit();
-				exClone->u1.to_room = instance_section_get_room(section, exParent->u1.room);
+				exClone->u1.to_room = instance_section_get_room(section, exParent->u1.to_room);
 				exClone->exit_info = exParent->exit_info;
 				exClone->keyword = str_dup(exParent->keyword);
 				exClone->short_desc = str_dup(exParent->short_desc);
@@ -501,7 +501,7 @@ INSTANCE_SECTION *clone_blueprint_section(BLUEPRINT_SECTION *parent)
 				long vnum = obj->value[3];	// Destination vnum
 
 				// Must point to a non-wilderness room
-				if( vnum > 0 && portal->value[5] <= 0 )
+				if( vnum > 0 && obj->value[5] <= 0 )
 				{
 					if( (dest = instance_section_get_room_byvnum(section, vnum)) )
 					{

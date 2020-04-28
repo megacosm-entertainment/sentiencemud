@@ -151,5 +151,5 @@ void free_instance(INSTANCE *instance);
 DUNGEON_INDEX_DATA *new_dungeon_index();
 void free_dungeon_index(DUNGEON_INDEX_DATA *dungeon);
 
-DUNGEON_DATA *new_dungeon();
-void free_dungeon(DUNGEON_INDEX *dungeon);
+DUNGEON *new_dungeon();
+void free_dungeon(DUNGEON *dungeon);
