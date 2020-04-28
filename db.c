@@ -4922,7 +4922,7 @@ bool extract_clone_room(ROOM_INDEX_DATA *room, unsigned long id1, unsigned long 
 	if(destruct || clone->force_destruct) {
 		for(obj = clone->contents; obj; obj = obj_next) {
 			obj_next = obj->next_content;
-			extract_obj(obj_next);
+			extract_obj(obj);
 		}
 
 		/* Transfer all players in the clone to its environment or the Beginning*/
