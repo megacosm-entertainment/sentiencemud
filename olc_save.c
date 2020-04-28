@@ -735,6 +735,7 @@ void save_room_new(FILE *fp, ROOM_INDEX_DATA *room, int recordtype)
 			fprintf(fp, "Key %ld To_room %ld Rs_flags %d Keyword %s~\n",
 				ex->door.key_vnum, (ex->u1.to_room ? ex->u1.to_room->vnum : -1), ex->rs_flags, kwd);
 			fprintf(fp, "Description %s~\n", fix_string(ex->short_desc));
+			fprintf(fp, "LongDescription %s~\n", fix_string(ex->long_desc));
 			fprintf(fp, "#-X\n");
 		}
     }
@@ -2956,8 +2957,12 @@ EXIT_DATA *read_exit_new(FILE *fp)
 		    free_string(ex->keyword);
 		    ex->keyword = str_dup(buf);
 		}
-
 		break;
+
+	    case 'L':
+		KEYS("LongDescription",	ex->long_desc, fread_string(fp));
+		break;
+
 
 	    case 'R':
 		KEY("Rs_flags",	ex->rs_flags,	fread_number(fp));
