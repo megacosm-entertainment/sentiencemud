@@ -1043,7 +1043,7 @@ const struct flag_type exit_flags[] =
     {   "aerial",		EX_AERIAL,		TRUE	},
     {   "nohunt",		EX_NOHUNT,		TRUE	},
     {	"environment",		EX_ENVIRONMENT,		TRUE	},
-    {	"nounlink",		EX_UNLINK,		TRUE	},
+    {	"nounlink",		EX_NOUNLINK,		TRUE	},
     {	"prevfloor",		EX_PREVFLOOR,		FALSE	},
     {	"nextfloor",		EX_NEXTFLOOR,		FALSE	},
     {	NULL,			0,			0	}

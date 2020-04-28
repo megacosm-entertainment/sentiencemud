@@ -1839,7 +1839,7 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 		rev = rev_dir[door];
 
 		// Set the exit as environment
-		if( IS_SET(pRoom->exit[door]->exit_info) && IS_SET(value, EX_ENVIRONMENT) )
+		if( IS_SET(pRoom->exit[door]->exit_info, EX_ENVIRONMENT) && IS_SET(value, EX_ENVIRONMENT) )
 		{
 			// Delete remote exit
 			if( pToRoom != NULL && pRoom->exit[rev] != NULL && pRoom->exit[rev]->u1.to_room == pRoom)
@@ -2013,7 +2013,7 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 				return FALSE;
 			}
 
-			redit_blueprint_oncreate = IS_SET(ch->in_room->room2_flags, ROOM_BLUEPRINT);
+			redit_blueprint_oncreate = (IS_SET(ch->in_room->room2_flags, ROOM_BLUEPRINT)) && TRUE;
 		}
 
 		if( pRoom->exit[door] && IS_SET(pRoom->exit[door]->exit_info, EX_ENVIRONMENT) )

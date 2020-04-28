@@ -3509,7 +3509,7 @@ void free_static_blueprint_data(BLUEPRINT *bp)
 
 	for(cur = bp->static_layout; cur; cur = next)
 	{
-		cur = cur->next;
+		next = cur->next;
 		free_static_blueprint_link(cur);
 	}
 
