@@ -5119,7 +5119,7 @@ SCRIPT_CMD(do_opcloneroom)
 
 	log_stringf("do_opcloneroom: variable name '%s'\n", name);
 
-	clone = create_virtual_room(source,false);
+	clone = create_virtual_room(source,false,false);
 	if(!clone) return;
 
 	log_stringf("do_opcloneroom: cloned room %ld:%ld\n", clone->vnum, clone->id[1]);

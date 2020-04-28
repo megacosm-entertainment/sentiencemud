@@ -462,6 +462,7 @@ int instance_count_mob(INSTANCE *instance, MOB_INDEX_DATA *pMobIndex)
 // create instance
 
 
+
 INSTANCE_SECTION *clone_blueprint_section(BLUEPRINT_SECTION *parent)
 {
 	ROOM_INDEX_DATA *room;
@@ -478,7 +479,7 @@ INSTANCE_SECTION *clone_blueprint_section(BLUEPRINT_SECTION *parent)
 
 		if( source )
 		{
-			room = create_virtual_room(source, FALSE);
+			room = create_virtual_room(source,false,true);
 
 			if( !room )
 			{

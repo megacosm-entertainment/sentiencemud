@@ -7955,8 +7955,8 @@ ROOM_INDEX_DATA *idfind_vroom(register unsigned long id1, register unsigned long
 ROOM_INDEX_DATA *get_environment(ROOM_INDEX_DATA *room);
 bool mobile_is_flying(CHAR_DATA *mob);
 
-ROOM_INDEX_DATA *create_virtual_room_nouid(ROOM_INDEX_DATA *source, bool objects,bool links);
-ROOM_INDEX_DATA *create_virtual_room(ROOM_INDEX_DATA *source,bool links);
+ROOM_INDEX_DATA *create_virtual_room_nouid(ROOM_INDEX_DATA *source, bool objects,bool links,bool resets);
+ROOM_INDEX_DATA *create_virtual_room(ROOM_INDEX_DATA *source,bool links,bool resets);
 ROOM_INDEX_DATA *get_clone_room(register ROOM_INDEX_DATA *source, register unsigned long id1, register unsigned long id2);
 bool room_is_clone(ROOM_INDEX_DATA *room);
 bool extract_clone_room(ROOM_INDEX_DATA *room, unsigned long id1, unsigned long id2, bool destruct);

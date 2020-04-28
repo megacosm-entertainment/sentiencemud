@@ -4790,7 +4790,7 @@ SCRIPT_CMD(do_rpcloneroom)
 
 	strncpy(name,arg->d.str,MIL); name[MIL] = 0;
 
-	clone = create_virtual_room(source,false);
+	clone = create_virtual_room(source,false,false);
 	if(!clone) return;
 
 	if(!no_env)

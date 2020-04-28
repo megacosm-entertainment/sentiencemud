@@ -3340,7 +3340,7 @@ bool script_change_exit(ROOM_INDEX_DATA *pRoom, ROOM_INDEX_DATA *pToRoom, int do
 
 	if(pToRoom != &room_pointer_environment) {
 		if(room_is_clone(pRoom)) {
-			if(!room_is_clone(pToRoom) && !(pToRoom = create_virtual_room(pToRoom,false)))
+			if(!room_is_clone(pToRoom) && !(pToRoom = create_virtual_room(pToRoom,false,false)))
 				return false;
 		} else if(room_is_clone(pToRoom)) {
 			bug("script_change_exit: A link cannot be made from a static room to a clone room.\n\r",0);

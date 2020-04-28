@@ -4683,7 +4683,7 @@ char *fread_filename(char *filename)
 	return str;
 }
 
-ROOM_INDEX_DATA *create_virtual_room_nouid(ROOM_INDEX_DATA *source, bool objects, bool links)
+ROOM_INDEX_DATA *create_virtual_room_nouid(ROOM_INDEX_DATA *source, bool objects, bool links, bool resets)
 {
 	ROOM_INDEX_DATA *vroom;
 	EXTRA_DESCR_DATA *ed, *ed2;
@@ -4787,6 +4787,22 @@ ROOM_INDEX_DATA *create_virtual_room_nouid(ROOM_INDEX_DATA *source, bool objects
 		}
 	}
 
+	if(resets)
+	{
+		for(RESET_DATA *pResetOld = source->reset_first; pResetOld; pResetOld = pResetOld->next)
+		{
+			RESET_DATA *pResetNew = new_reset_data();
+
+			pResetNew->command = pResetOld->command;
+			pResetNew->arg1 = pResetOld->arg1;
+			pResetNew->arg2 = pResetOld->arg2;
+			pResetNew->arg3 = pResetOld->arg3;
+			pResetNew->arg4 = pResetOld->arg4;
+
+			add_reset(vroom, pResetNew, 0);
+		}
+	}
+
 	vroom->next = source->clones;
 	source->clones = vroom;
 
@@ -4795,9 +4811,9 @@ ROOM_INDEX_DATA *create_virtual_room_nouid(ROOM_INDEX_DATA *source, bool objects
 	return vroom;
 }
 
-ROOM_INDEX_DATA *create_virtual_room(ROOM_INDEX_DATA *source,bool links)
+ROOM_INDEX_DATA *create_virtual_room(ROOM_INDEX_DATA *source,bool links, bool resets)
 {
-	ROOM_INDEX_DATA *vroom = create_virtual_room_nouid(source, TRUE,links);
+	ROOM_INDEX_DATA *vroom = create_virtual_room_nouid(source, TRUE,links,resets);
 
 	get_vroom_id(vroom);
 
@@ -7017,7 +7033,7 @@ EXIT_DATA *persist_load_exit(FILE *fp)
 							if( room ) {
 								if( !(clone = get_clone_room( room, y, z )) ) {
 									// Create the room
-									if( (clone = create_virtual_room_nouid(room, FALSE, TRUE)) ) {
+									if( (clone = create_virtual_room_nouid(room, FALSE, TRUE, FALSE)) ) {
 										clone->id[0] = y;
 										clone->id[1] = z;
 									}
@@ -7172,7 +7188,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 		// Find the clone
 		room = get_clone_room(source,x,y);
 		if( !room ) {
-			room = create_virtual_room_nouid( source, FALSE, FALSE );
+			room = create_virtual_room_nouid( source, FALSE, FALSE, FALSE );
 			if( !room ) {
 				sprintf(buf, "persist_load_room: could not create clone room for %ld with uid %08X:%08X.", vnum, x, y);
 				bug(buf,0);
