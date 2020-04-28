@@ -1520,278 +1520,264 @@ void migrate_shopkeeper_resets(AREA_DATA *area)
 
 void reset_room(ROOM_INDEX_DATA *pRoom)
 {
-    RESET_DATA  *pReset;
-    CHAR_DATA   *pMob;
-    CHAR_DATA	*mob;
-    OBJ_DATA    *pObj;
-    OBJ_DATA    *obj;
-    CHAR_DATA   *LastMob = NULL;
-    OBJ_DATA    *LastObj = NULL;
-    int iExit;
-    int level = 0;
-    bool last;
-    int i;
-    int c;
+	RESET_DATA  *pReset;
+	CHAR_DATA   *pMob;
+	CHAR_DATA	*mob;
+	OBJ_DATA    *pObj;
+	OBJ_DATA    *obj;
+	CHAR_DATA   *LastMob = NULL;
+	OBJ_DATA    *LastObj = NULL;
+	int iExit;
+	int level = 0;
+	bool last;
+	int i;
+	int c;
 
-// Invalid room or the room is persistant
-    if (!pRoom || pRoom->persist)
-        return;
+	// Invalid room or the room is persistant
+	if (!pRoom || pRoom->persist)
+		return;
 
-    pMob = NULL;
-    last = FALSE;
+	pMob = NULL;
+	last = FALSE;
 
-    for (iExit = 0;  iExit < MAX_DIR;  iExit++)
-    {
-        EXIT_DATA *pExit;
-        if ((pExit = pRoom->exit[iExit]))
-        {
-            pExit->exit_info = pExit->rs_flags;
-            if ((pExit->u1.to_room != NULL)
-            && ((pExit = pExit->u1.to_room->exit[rev_dir[iExit]])))
-            {
-                /* nail the other side */
-                pExit->exit_info = pExit->rs_flags;
-            }
-        }
-    }
-
-    for (pReset = pRoom->reset_first; pReset != NULL; pReset = pReset->next)
-    {
-        MOB_INDEX_DATA  *pMobIndex;
-        OBJ_INDEX_DATA  *pObjIndex;
-        OBJ_INDEX_DATA  *pObjToIndex;
-        ROOM_INDEX_DATA *pRoomIndex;
-	char buf[MAX_STRING_LENGTH];
-	int count,limit=0;
-
-        switch (pReset->command)
-        {
-        default:
-	    bug("Reset_room: bad command %c.", pReset->command);
-	    break;
-
-        case 'M':
-            if (!(pMobIndex = get_mob_index(pReset->arg1)))
-            {
-                bug("Reset_room: 'M': bad vnum %ld.", pReset->arg1);
-                continue;
-            }
-
-	    if ((pRoomIndex = get_room_index(pReset->arg3)) == NULL)
-	    {
-		bug("Reset_area: 'R': bad vnum %ld.", pReset->arg3);
-		continue;
-	    }
-            if (pMobIndex->count >= pReset->arg2)
-            {
-                last = FALSE;
-                break;
-            }
-
-	    count = 0;
-
-	    for (mob = pRoomIndex->people; mob != NULL; mob = mob->next_in_room)
-	    {
-		if (mob->pIndexData == pMobIndex && !IS_SET(mob->act, ACT_ANIMATED))
+	for (iExit = 0;  iExit < MAX_DIR;  iExit++)
+	{
+		EXIT_DATA *pExit;
+		if ((pExit = pRoom->exit[iExit]))
 		{
-		    count++;
-		    if (count >= pReset->arg4)
-		    {
-		    	last = FALSE;
-		    	break;
-		    }
-		}
-	    }
-
-	    if (count >= pReset->arg4)
-		break;
-
-	    pMob = create_mobile(pMobIndex, FALSE);
-
-            /*
-             * Some more hard coding.
-             */
-            if (room_is_dark(pRoom))
-                SET_BIT(pMob->affected_by, AFF_INFRARED);
-
-            /*
-             * Pet shop mobiles get ACT_PET set.
-             */
-            {
-                ROOM_INDEX_DATA *pRoomIndexPrev;
-
-                pRoomIndexPrev = get_room_index(pRoom->vnum - 1);
-                if (pRoomIndexPrev
-		&&  IS_SET(pRoomIndexPrev->room_flags, ROOM_PET_SHOP))
-                    SET_BIT(pMob->act, ACT_PET);
-            }
-
-            char_to_room(pMob, pRoom);
-	    pMob->home_room = pRoom;
-
-	    /* Give some pneuma to POA mobs.*/
-	    if (!str_cmp(pMob->in_room->area->name, "Maze-Level1"))
-	    {
-		i = number_range(1,2);
-		for (c = 0; c < i; c++)
-		{
-		    obj = create_object(get_obj_index(OBJ_VNUM_BOTTLED_SOUL), 1, FALSE);
-		    obj_to_char(obj, pMob);
-		}
-	    }
-	    else if (!str_cmp(pMob->in_room->area->name, "Maze-Level2"))
-	    {
-		i = number_range(2,3);
-		for (c = 0; c < i; c++)
-		{
-		    obj = create_object(get_obj_index(OBJ_VNUM_BOTTLED_SOUL), 1, FALSE);
-		    obj_to_char(obj, pMob);
-		}
-	    }
-	    else if (!str_cmp(pMob->in_room->area->name, "Maze-Level3"))
-	    {
-		i = number_range(3,4);
-		for (c = 0; c < i; c++)
-		{
-		    obj = create_object(get_obj_index(OBJ_VNUM_BOTTLED_SOUL), 1, FALSE);
-		    obj_to_char(obj, pMob);
-		}
-	    }
-	    else if (!str_cmp(pMob->in_room->area->name, "Maze-Level4"))
-	    {
-		i = number_range(4,6);
-		for (c = 0; c < i; c++)
-		{
-		    obj = create_object(get_obj_index(OBJ_VNUM_BOTTLED_SOUL), 1, FALSE);
-		    obj_to_char(obj, pMob);
-		}
-	    }
-	    else if (!str_cmp(pMob->in_room->area->name, "Maze-Level5"))
-	    {
-		i = number_range(10,15);
-		for (c = 0; c < i; c++)
-		{
-		    obj = create_object(get_obj_index(OBJ_VNUM_BOTTLED_SOUL), 1, FALSE);
-		    obj_to_char(obj, pMob);
-		}
-	    }
-
-            LastMob = pMob;
-            level  = URANGE(0, pMob->level - 2, LEVEL_HERO - 1); /* -1 ROM */
-            last = TRUE;
-            objRepop = TRUE;
-	    p_percent_trigger(pMob, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
-            break;
-
-        case 'O':
-            if (!(pObjIndex = get_obj_index(pReset->arg1)))
-            {
-                bug("Reset_room: 'O' 1 : bad vnum %ld", pReset->arg1);
-                sprintf (buf,"%ld %ld %ld %ld",pReset->arg1, pReset->arg2, pReset->arg3,
-                pReset->arg4);
-		bug(buf,1);
-                continue;
-            }
-
-            if (!(pRoomIndex = get_room_index(pReset->arg3)))
-            {
-                bug("Reset_room: 'O' 2 : bad vnum %ld.", pReset->arg3);
-                sprintf (buf,"%ld %ld %ld %ld",pReset->arg1, pReset->arg2, pReset->arg3,
-                pReset->arg4);
-		bug(buf,1);
-                continue;
-            }
-
-            if (pRoom->area->nplayer > 0
-              || count_obj_list(pObjIndex, pRoom->contents) > 0)
-	    {
-		last = FALSE;
-		break;
-	    }
-
-            pObj = create_object(pObjIndex,
-				  UMIN(number_fuzzy(level), LEVEL_HERO -1) , TRUE);
-            pObj->cost = 0;
-            objRepop = TRUE;
-	    obj_to_room(pObj, pRoom);
-	    last = TRUE;
-            break;
-
-        case 'P':
-            if (!(pObjIndex = get_obj_index(pReset->arg1)))
-            {
-                bug("Reset_room: 'P': bad vnum %ld.", pReset->arg1);
-                continue;
-            }
-
-            if (!(pObjToIndex = get_obj_index(pReset->arg3)))
-            {
-                bug("Reset_room: 'P': bad vnum %ld.", pReset->arg3);
-                continue;
-            }
-
-            if (pReset->arg2 > 50) /* old format */
-                limit = 6;
-            else if (pReset->arg2 == -1) /* no limit */
-                limit = 999;
-            else
-                limit = pReset->arg2;
-
-            if (pRoom->area->nplayer > 0
-            || (LastObj = get_obj_type(pObjToIndex, pRoom)) == NULL
-            || (LastObj->in_room == NULL && !last)
-            || (pObjIndex->count >= limit)
-            || (count = count_obj_list(pObjIndex, LastObj->contains))
-	                > pReset->arg4 )
-	    {
-		last = FALSE;
-		break;
-	    }
-				                /* lastObj->level  -  ROM */
-
-	    while (count < pReset->arg4)
-	    {
-		pObj = create_object(pObjIndex, number_fuzzy(LastObj->level), TRUE);
-		obj_to_obj(pObj, LastObj);
-		count++;
-		if (pObjIndex->count >= limit)
-		    break;
-	    }
-
-	    /* fix object lock state! */
-	    LastObj->value[1] = LastObj->pIndexData->value[1];
-	    last = TRUE;
-            break;
-
-        case 'G':
-        case 'E':
-            if (!(pObjIndex = get_obj_index(pReset->arg1)))
-            {
-                bug("Reset_room: 'E' or 'G': bad vnum %ld.", pReset->arg1);
-                continue;
-            }
-
-            if (!last)
-                break;
-
-            if (!LastMob)
-            {
-                bug("Reset_room: 'E' or 'G': null mob for vnum %ld.",
-                    pReset->arg1);
-                last = FALSE;
-                break;
-            }
-
-#if 0
-            if (LastMob->shop)   /* Shop-keeper? */
-            {
-				pObj = create_object(pObjIndex, 0, TRUE);
-
-				if (!IS_SET(pObj->extra2_flags, ITEM_SELL_ONCE))
-					SET_BIT(pObj->extra_flags, ITEM_INVENTORY);
+			pExit->exit_info = pExit->rs_flags;
+			if ((pExit->u1.to_room != NULL) &&
+				((pExit = pExit->u1.to_room->exit[rev_dir[iExit]])))
+			{
+				/* nail the other side */
+				pExit->exit_info = pExit->rs_flags;
 			}
+		}
+	}
+
+	for (pReset = pRoom->reset_first; pReset != NULL; pReset = pReset->next)
+	{
+		MOB_INDEX_DATA  *pMobIndex;
+		OBJ_INDEX_DATA  *pObjIndex;
+		OBJ_INDEX_DATA  *pObjToIndex;
+		ROOM_INDEX_DATA *pRoomIndex;
+		char buf[MAX_STRING_LENGTH];
+		int count,limit=0;
+
+		switch (pReset->command)
+		{
+		default:
+			bug("Reset_room: bad command %c.", pReset->command);
+			break;
+
+		case 'M':
+			if (!(pMobIndex = get_mob_index(pReset->arg1)))
+			{
+				bug("Reset_room: 'M': bad vnum %ld.", pReset->arg1);
+				continue;
+			}
+
+			if ((pRoomIndex = get_room_index(pReset->arg3)) == NULL)
+			{
+				bug("Reset_area: 'R': bad vnum %ld.", pReset->arg3);
+				continue;
+			}
+
+			// When the room is in an instance
+			if( pRoom->instance_section != NULL )
+			{
+				// TODO: Change to instance count
+				count = instance_section_count_mob(pRoom->instance_section, pMobIndex);
+
+				if( count >= pReset->arg2 )
+				{
+					last = FALSE;
+					break;
+				}
+			}
+			else if (pMobIndex->count >= pReset->arg2)
+			{
+				last = FALSE;
+				break;
+			}
+
+			count = 0;
+			for (mob = pRoomIndex->people; mob != NULL; mob = mob->next_in_room)
+			{
+				if (mob->pIndexData == pMobIndex && !IS_SET(mob->act, ACT_ANIMATED))
+				{
+					count++;
+					if (count >= pReset->arg4)
+					{
+						last = FALSE;
+						break;
+					}
+				}
+			}
+
+			if (count >= pReset->arg4)
+				break;
+
+			pMob = create_mobile(pMobIndex, FALSE);
+
+			/*
+			* Some more hard coding.
+			*/
+			if (room_is_dark(pRoom))
+				SET_BIT(pMob->affected_by, AFF_INFRARED);
+
+			char_to_room(pMob, pRoom);
+			pMob->home_room = pRoom;
+
+			/* Give some pneuma to POA mobs.*/
+			if (!str_cmp(pMob->in_room->area->name, "Maze-Level1"))
+			{
+				i = number_range(1,2);
+				for (c = 0; c < i; c++)
+				{
+					obj = create_object(get_obj_index(OBJ_VNUM_BOTTLED_SOUL), 1, FALSE);
+					obj_to_char(obj, pMob);
+				}
+			}
+			else if (!str_cmp(pMob->in_room->area->name, "Maze-Level2"))
+			{
+				i = number_range(2,3);
+				for (c = 0; c < i; c++)
+				{
+					obj = create_object(get_obj_index(OBJ_VNUM_BOTTLED_SOUL), 1, FALSE);
+					obj_to_char(obj, pMob);
+				}
+			}
+			else if (!str_cmp(pMob->in_room->area->name, "Maze-Level3"))
+			{
+				i = number_range(3,4);
+				for (c = 0; c < i; c++)
+				{
+					obj = create_object(get_obj_index(OBJ_VNUM_BOTTLED_SOUL), 1, FALSE);
+					obj_to_char(obj, pMob);
+				}
+			}
+			else if (!str_cmp(pMob->in_room->area->name, "Maze-Level4"))
+			{
+				i = number_range(4,6);
+				for (c = 0; c < i; c++)
+				{
+					obj = create_object(get_obj_index(OBJ_VNUM_BOTTLED_SOUL), 1, FALSE);
+					obj_to_char(obj, pMob);
+				}
+			}
+			else if (!str_cmp(pMob->in_room->area->name, "Maze-Level5"))
+			{
+				i = number_range(10,15);
+				for (c = 0; c < i; c++)
+				{
+					obj = create_object(get_obj_index(OBJ_VNUM_BOTTLED_SOUL), 1, FALSE);
+					obj_to_char(obj, pMob);
+				}
+			}
+
+			LastMob = pMob;
+			level  = URANGE(0, pMob->level - 2, LEVEL_HERO - 1); /* -1 ROM */
+			last = TRUE;
+			objRepop = TRUE;
+			p_percent_trigger(pMob, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+			break;
+
+		case 'O':
+			if (!(pObjIndex = get_obj_index(pReset->arg1)))
+			{
+				bug("Reset_room: 'O' 1 : bad vnum %ld", pReset->arg1);
+				sprintf (buf,"%ld %ld %ld %ld",pReset->arg1, pReset->arg2, pReset->arg3, pReset->arg4);
+				bug(buf,1);
+				continue;
+			}
+
+			if (!(pRoomIndex = get_room_index(pReset->arg3)))
+			{
+				bug("Reset_room: 'O' 2 : bad vnum %ld.", pReset->arg3);
+				sprintf (buf,"%ld %ld %ld %ld",pReset->arg1, pReset->arg2, pReset->arg3,
+				pReset->arg4);
+				bug(buf,1);
+				continue;
+			}
+
+			if (pRoom->area->nplayer > 0 || count_obj_list(pObjIndex, pRoom->contents) > 0)
+			{
+				last = FALSE;
+				break;
+			}
+
+			pObj = create_object(pObjIndex, UMIN(number_fuzzy(level), LEVEL_HERO -1) , TRUE);
+			pObj->cost = 0;
+			objRepop = TRUE;
+			obj_to_room(pObj, pRoom);
+			last = TRUE;
+			break;
+
+		case 'P':
+			if (!(pObjIndex = get_obj_index(pReset->arg1)))
+			{
+				bug("Reset_room: 'P': bad vnum %ld.", pReset->arg1);
+				continue;
+			}
+
+			if (!(pObjToIndex = get_obj_index(pReset->arg3)))
+			{
+				bug("Reset_room: 'P': bad vnum %ld.", pReset->arg3);
+				continue;
+			}
+
+			if (pReset->arg2 > 50) /* old format */
+				limit = 6;
+			else if (pReset->arg2 == -1) /* no limit */
+				limit = 999;
 			else
-#endif
+				limit = pReset->arg2;
+
+			if (pRoom->area->nplayer > 0 ||
+				(LastObj = get_obj_type(pObjToIndex, pRoom)) == NULL ||
+				(LastObj->in_room == NULL && !last) ||
+				(pObjIndex->count >= limit) ||
+				(count = count_obj_list(pObjIndex, LastObj->contains)) > pReset->arg4 )
+			{
+				last = FALSE;
+				break;
+			}
+			/* lastObj->level  -  ROM */
+
+			while (count < pReset->arg4)
+			{
+				pObj = create_object(pObjIndex, number_fuzzy(LastObj->level), TRUE);
+				obj_to_obj(pObj, LastObj);
+				count++;
+				if (pObjIndex->count >= limit)
+					break;
+			}
+
+			/* fix object lock state! */
+			LastObj->value[1] = LastObj->pIndexData->value[1];
+			last = TRUE;
+			break;
+
+		case 'G':
+		case 'E':
+			if (!(pObjIndex = get_obj_index(pReset->arg1)))
+			{
+				bug("Reset_room: 'E' or 'G': bad vnum %ld.", pReset->arg1);
+				continue;
+			}
+
+			if (!last)
+				break;
+
+			if (!LastMob)
+			{
+				bug("Reset_room: 'E' or 'G': null mob for vnum %ld.",
+				pReset->arg1);
+				last = FALSE;
+				break;
+			}
+
 			{
 				int limit;
 				if (pReset->arg2 > 50)
@@ -1806,42 +1792,42 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 					pObj = create_object(pObjIndex, UMIN(number_fuzzy(level), LEVEL_HERO - 1), TRUE);
 				}
 				else
-				    break;
-	    	}
+					break;
+			}
 
 			objRepop = TRUE;
 			obj_to_char(pObj, LastMob);
-            if (pReset->command == 'E')
+			if (pReset->command == 'E')
 				equip_char(LastMob, pObj, pReset->arg3);
 			last = TRUE;
-            break;
+			break;
 
-        case 'D':
-            break;
+		case 'D':
+			break;
 
-        case 'R':
-            if (!(pRoomIndex = get_room_index(pReset->arg1)))
-            {
-                bug("Reset_room: 'R': bad vnum %ld.", pReset->arg1);
-                continue;
-            }
+		case 'R':
+			if (!(pRoomIndex = get_room_index(pReset->arg1)))
+			{
+				bug("Reset_room: 'R': bad vnum %ld.", pReset->arg1);
+				continue;
+			}
 
-            {
-                EXIT_DATA *pExit;
-                int d0;
-                int d1;
+			{
+				EXIT_DATA *pExit;
+				int d0;
+				int d1;
 
-                for (d0 = 0; d0 < pReset->arg2 - 1; d0++)
-                {
-                    d1                   = number_range(d0, pReset->arg2-1);
-                    pExit                = pRoomIndex->exit[d0];
-                    pRoomIndex->exit[d0] = pRoomIndex->exit[d1];
-                    pRoomIndex->exit[d1] = pExit;
-                }
-            }
-            break;
-        }
-    }
+				for (d0 = 0; d0 < pReset->arg2 - 1; d0++)
+				{
+					d1                   = number_range(d0, pReset->arg2-1);
+					pExit                = pRoomIndex->exit[d0];
+					pRoomIndex->exit[d0] = pRoomIndex->exit[d1];
+					pRoomIndex->exit[d1] = pExit;
+				}
+			}
+			break;
+		}
+	}
 }
 
 

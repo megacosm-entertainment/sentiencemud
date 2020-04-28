@@ -8103,6 +8103,8 @@ bool valid_static_link(STATIC_BLUEPRINT_LINK *sbl);
 BLUEPRINT_SECTION *get_blueprint_section(long vnum);
 bool can_edit_blueprints(CHAR_DATA *ch);
 bool rooms_in_same_section(long vnum1, long vnum2);
+int instance_section_count_mob(INSTANCE_SECTION *section, MOB_INDEX_DATA *pMobIndex);
+int instance_count_mob(INSTANCE *instance, MOB_INDEX_DATA *pMobIndex);
 
 extern  bool			blueprints_changed;
 

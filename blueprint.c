@@ -401,7 +401,7 @@ bool rooms_in_same_section(long vnum1, long vnum2)
 
 ROOM_INDEX_DATA *instance_section_get_room_byvnum(INSTANCE_SECTION *section, long vnum)
 {
-	if( !section ) return NULL;
+	if( !IS_VALID(section) ) return NULL;
 
 	ROOM_INDEX_DATA *room;
 	ITERATOR rit;
@@ -424,6 +424,40 @@ ROOM_INDEX_DATA *instance_section_get_room(INSTANCE_SECTION *section, ROOM_INDEX
 	return instance_section_get_room_byvnum(section, source->vnum);
 }
 
+int instance_section_count_mob(INSTANCE_SECTION *section, MOB_INDEX_DATA *pMobIndex)
+{
+	if( !IS_VALID(section) ) return 0;
+
+	int count = 0;
+	ROOM_INDEX_DATA *room;
+	ITERATOR rit;
+	iterator_start(&rit, section->rooms);
+	while((room = (ROOM_INDEX_DATA *)iterator_nextdata(&rit)))
+	{
+		for(CHAR_DATA *pMob = room->people; pMob; pMob = pMob->next_in_room)
+		{
+			if( IS_NPC(pMob) && pMob->pIndexData == pMobIndex && !IS_SET(pMob->act, ACT_ANIMATED) )
+				++count;
+		}
+	}
+	iterator_stop(&rit);
+
+	return count;
+}
+
+int instance_count_mob(INSTANCE *instance, MOB_INDEX_DATA *pMobIndex)
+{
+	if( !IS_VALID(instance) ) return 0;
+
+	int count = 0;
+
+	for(INSTANCE_SECTION *section = instance->sections; section ; section = section->next)
+	{
+		count += instance_section_count_mob(section, pMobIndex);
+	}
+
+	return count;
+}
 
 // create instance
 
@@ -1743,6 +1777,9 @@ void do_instance(CHAR_DATA *ch, char *argument)
 			send_to_char("{WERROR LOADING BLUEPRINT SECTION!{x\n\r", ch);
 			return;
 		}
+
+		// Trigger the resets in the rooms
+		instance_section_reset_rooms(loaded_section);
 
 		ROOM_INDEX_DATA *first_room = (ROOM_INDEX_DATA *)list_nthdata(loaded_section->rooms, 1);
 
