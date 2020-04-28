@@ -1451,6 +1451,7 @@ EXIT_DATA *new_exit( void )
     pExit->door.key_vnum=   0;
     pExit->keyword      =   &str_empty[0];
     pExit->short_desc   =   &str_empty[0];
+    pExit->long_desc	=	&str_empty[0];
     pExit->rs_flags     =   0;
 
     return pExit;
@@ -1461,6 +1462,7 @@ void free_exit( EXIT_DATA *pExit )
 {
     free_string( pExit->keyword );
     free_string( pExit->short_desc );
+    free_string( pExit->long_desc );
 
     --top_exit;
 
