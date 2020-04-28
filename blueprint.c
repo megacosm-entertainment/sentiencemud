@@ -1746,7 +1746,7 @@ void do_instance(CHAR_DATA *ch, char *argument)
 
 		ROOM_INDEX_DATA *first_room = (ROOM_INDEX_DATA *)list_nthdata(loaded_section->rooms, 1);
 
-		if( !IS_VALID(first_room) )
+		if( !first_room )
 		{
 			send_to_char("{WERROR GETTING FIRST ROOM IN INSTANCE!{x\n\r", ch);
 			return;

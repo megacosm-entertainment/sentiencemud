@@ -1987,7 +1987,7 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 
 		pExit->u1.to_room				= pRoom;
 		pExit->orig_door				= door;
-		pRoom->exit[door]				= pExit;
+		pToRoom->exit[door]				= pExit;
 		pExit->from_room				= pToRoom;
 
 		send_to_char("Two-way link established.\n\r", ch);
