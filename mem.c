@@ -1572,8 +1572,10 @@ void free_room_index( ROOM_INDEX_DATA *pRoom )
 	free_conditional_descr( pCd );
     }
 
-    for ( pReset = pRoom->reset_first; pReset; pReset = pReset->next )
+	RESET_NEXT_DATA *pNextReset;
+    for ( pReset = pRoom->reset_first; pReset; pReset = pNextReset )
     {
+		pNextReset = pReset->next;
         free_reset_data( pReset );
     }
 
