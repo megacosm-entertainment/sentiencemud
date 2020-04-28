@@ -4982,8 +4982,8 @@ bool extract_clone_room(ROOM_INDEX_DATA *room, unsigned long id1, unsigned long 
 	room_from_environment(clone);
 	free_room_index(clone);
 
-
-
+	sprintf(buf,"extract_clone_room(%lu, %lu, %lu) clone extracted", room->vnum, id1, id2);
+	wiznet(buf, NULL, NULL, WIZ_TESTING, 0, 0);
 
 	return true;
 }
