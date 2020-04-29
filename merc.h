@@ -5052,6 +5052,10 @@ struct instance_data {
 								//   Leave NULL to have no recall
 								// Instance rooms will override normal recall checks
 
+	ROOM_INDEX_DATA *entrance;	// Entry room to the instance as defined by the blueprint
+
+	ROOM_INDEX_DATA *exit		// Exit room from the instance as defined by the blueprint
+
 	DUNGEON *dungeon;			// Dungeon owner of the instance
 
 	OBJ_DATA *object;			// Object owner of the instance

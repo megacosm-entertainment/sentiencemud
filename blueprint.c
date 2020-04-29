@@ -671,8 +671,6 @@ INSTANCE_SECTION *clone_blueprint_section(BLUEPRINT_SECTION *parent)
 			}
 
 			room->instance_section = section;
-
-			reset_room(room);
 		}
 	}
 
@@ -783,8 +781,19 @@ bool generate_static_instance(INSTANCE *instance)
 		section->blueprint = bp;
 		section->instance = instance;
 
-		section->next = instance->sections;
-		instance->sections = section;
+
+		section->next = NULL;
+		if( instance->sections )
+		{
+			INSTANCE_SECTION *cur;
+			for( cur = instance->sections; cur->next; cur = cur->next );
+
+			cur->next = section;
+		}
+		else
+		{
+			instance->sections = section;
+		}
 	}
 	iterator_stop(&bsit);
 
@@ -870,6 +879,8 @@ bool generate_static_instance(INSTANCE *instance)
 						SET_BIT(ex->rs_flags, EX_PREVFLOOR);
 						ex->exit_info = ex->rs_flags;
 						ex->u1.to_room = NULL;
+
+						instance->entrance = room;
 					}
 				}
 			}
@@ -902,6 +913,9 @@ bool generate_static_instance(INSTANCE *instance)
 						SET_BIT(ex->rs_flags, EX_NEXTFLOOR);
 						ex->exit_info = ex->rs_flags;
 						ex->u1.to_room = NULL;
+
+
+						instance->exit = room;
 					}
 				}
 			}
@@ -920,6 +934,20 @@ bool generate_static_instance(INSTANCE *instance)
 	}
 
 	return valid;
+}
+
+void instance_section_reset_rooms(INSTANCE_SECTION *section)
+{
+	ITERATOR rit;
+	ROOM_INDEX_DATA *room;
+
+	iterator_start(&rit, section->rooms);
+	while((room = (ROOM_INDEX_DATA *)iterator_nextdata(&rit)))
+	{
+		reset_room(room);
+	}
+
+	iterator_stop(&rit);
 }
 
 
@@ -950,29 +978,17 @@ INSTANCE *create_instance(BLUEPRINT *blueprint)
 			return NULL;
 		}
 
+		for(INSTANCE_SECTION *section = instance->sections; section; section = section->next)
+		{
+			instance_section_reset_rooms(section);
+		}
+
 	}
 
 	return instance;
 }
 
-// extract instance
 
-
-// instance room resets
-
-void instance_section_reset_rooms(INSTANCE_SECTION *section)
-{
-	ITERATOR rit;
-	ROOM_INDEX_DATA *room;
-
-	iterator_start(&rit, section->rooms);
-	while((room = (ROOM_INDEX_DATA *)iterator_nextdata(&rit)))
-	{
-		reset_room(room);
-	}
-
-	iterator_stop(&rit);
-}
 
 
 //////////////////////////////////////////////////////////////
@@ -2892,7 +2908,7 @@ BPEDIT( bpedit_static )
 // Immortal Commands
 //
 
-INSTANCE_SECTION *loaded_section = NULL;
+LLIST *loaded_instances = list_create(FALSE);
 
 
 // TEMPORARY - redo after stuff is verified
@@ -2911,6 +2927,78 @@ void do_instance(CHAR_DATA *ch, char *argument)
 
 	argument = one_argument(argument, arg1);
 
+	if( !str_prefix(arg1, "list") )
+	{
+		if(!ch->lines)
+			send_to_char("{RWARNING:{W Having scrolling off may limit how many instances you can see.{x\n\r", ch);
+
+		int lines = 0;
+		bool error = FALSE;
+		BUFFER *buffer = new_buf();
+		char buf[MSL];
+
+
+		ITERATOR it;
+		INSTANCE *instance;
+
+		iterator_start(&it, loaded_instances);
+		while((instance = (INSTANCE *)iterator_nextdata(&it)))
+		{
+			++lines;
+
+			char owner[MIL];
+			if( instance->object )
+			{
+				strcpy(owner, "{Y     OBJECT     {x");
+			}
+			else if( instance->dungeon )
+			{
+				strcpy(owner, "{R     DUNGEON    {x");
+			}
+			else
+			{
+				strcpy(owner, "{D   - {WORPHAN{D -   {x");
+			}
+
+			sprintf(buf, "%4d {Y[{W%5ld{Y] {x%-30.30s  %s{x\n\r",
+				lines,
+				instance->blueprint->vnum,
+				instance->blueprint->name,
+				owner);
+
+			if( !add_buf(buffer, buf) || (!ch->lines && strlen(buf_string(buffer)) > MAX_STRING_LENGTH) )
+			{
+				error = TRUE;
+				break;
+			}
+		}
+		iterator_stop(&it);
+
+		if( error )
+		{
+			send_to_char("Too many instances to list.  Please shorten!\n\r", ch);
+		}
+		else
+		{
+			if( !lines )
+			{
+				add_buf( buffer, "No instances to display.\n\r" );
+			}
+			else
+			{
+				// Header
+				send_to_char("{Y      Vnum   [            Name            ] [      Owner     ]{x\n\r", ch);
+				send_to_char("{Y==============================================================={x\n\r", ch);
+			}
+
+			page_to_char(buffer->string, ch);
+		}
+		free_buf(buffer);
+
+		return;
+	}
+
+
 	if( !str_prefix(arg1, "load") )
 	{
 		if( !can_edit_blueprints(ch) )
@@ -2919,9 +3007,9 @@ void do_instance(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		if( loaded_section )
+		if( list_size(loaded_instances) > 0 )
 		{
-			send_to_char("TEMPORARY: There is already a section loaded.\n\r", ch);
+			send_to_char("TEMPORARY: There is already an instance loaded.\n\r", ch);
 			return;
 		}
 
@@ -2931,55 +3019,68 @@ void do_instance(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		BLUEPRINT_SECTION *bs = get_blueprint_section(atol(argument));
+		BLUEPRINT *bp = get_blueprint(atol(argument));
 
-		if( !bs )
+		if( !bp )
 		{
-			send_to_char("That blueprint section does not exist.\n\r", ch);
+			send_to_char("That blueprint does not exist.\n\r", ch);
 			return;
 		}
 
-		loaded_section = clone_blueprint_section(bs);
+		INSTANCE *instance = create_instance(bp);
 
-		if( !loaded_section )
+		if( !instance )
 		{
-			send_to_char("{WERROR LOADING BLUEPRINT SECTION!{x\n\r", ch);
+			send_to_char("{WERROR SPAWNING INSTANCE!{x\n\r", ch);
 			return;
 		}
 
-		// Trigger the resets in the rooms
-		instance_section_reset_rooms(loaded_section);
+		list_appendlink(loaded_instances, instance);
 
-		ROOM_INDEX_DATA *first_room = (ROOM_INDEX_DATA *)list_nthdata(loaded_section->rooms, 1);
 
-		if( !first_room )
+		// Get the entry point
+		ROOM_INDEX_DATA *room = instance->entrance;
+
+		if( !room )
 		{
-			send_to_char("{WERROR GETTING FIRST ROOM IN INSTANCE!{x\n\r", ch);
+			// Fallback to the recall if the entry is not defined
+			room = instance->recall;
+		}
+
+		if( !room )
+		{
+			send_to_char("{WERROR GETTING ENTRY ROOM IN INSTANCE!{x\n\r", ch);
 			return;
 		}
 
 		char_from_room(ch);
-		char_to_room(ch, first_room);
+		char_to_room(ch, room);
 		do_function (ch, &do_look, "");
 
-		send_to_char("{YInstance section loaded.{x\n\r", ch);
+		send_to_char("{YInstance loaded.{x\n\r", ch);
 		return;
 	}
-	else if( !str_prefix(arg1, "unload") )
+
+	if( !str_prefix(arg1, "unload") )
 	{
+		// TODO: Add a look up for legitmate instances for being able to purge orphaned instances
+
 		if( !can_edit_blueprints(ch) )
 		{
 			send_to_char("Insufficient access to unload blueprints.\n\r", ch);
 			return;
 		}
 
-		if( !loaded_section )
+		if( list_size(loaded_instance) < 1 )
 		{
-			send_to_char("TEMPORARY: There is already a section loaded.\n\r", ch);
+			send_to_char("TEMPORARY: There is no instance loaded.\n\r", ch);
 			return;
 		}
 
-		if( ch->in_room->instance_section == loaded_section )
+		INSTANCE *instance = (INSTANCE *)list_nthdata(loaded_instance, 1);
+		list_remlink(loaded_instance, instance);
+
+		if( ch->in_room->instance_section->instance == instance )
 		{
 			// Take them out of the instance
 			ROOM_INDEX_DATA *plith_recall = get_room_index(11001);
@@ -2988,10 +3089,9 @@ void do_instance(CHAR_DATA *ch, char *argument)
 			char_to_room(ch, plith_recall);
 		}
 
-		free_instance_section(loaded_section);
-		loaded_section = NULL;
+		free_instance(instance);
 
-		send_to_char("TEMPORARY: Section unloaded.\n\r", ch);
+		send_to_char("Instance unloaded.\n\r", ch);
 		return;
 	}
 
