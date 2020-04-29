@@ -1294,11 +1294,11 @@ void time_update(void)
 
 		reck_time = (struct tm *) localtime(&current_time);
 		reck_time->tm_min += 30;
-		boost_table[BOOST_RECKONING].timer = (time_t) mktime(reck_time);
+	    reckoning_timer = (time_t) mktime(reck_time);
 		pre_reckoning = 1;
 	}
 
-	// If pre_reckoning is 0 then it is taking place
+	// If pre_reckoning > 0 then it is taking place
 	if (reckoning_timer > 0 && pre_reckoning > 0) {
 		if (pre_reckoning == 5) {
 			sprintf(buf, "{MA thick purple hazy mist descends around as you the reckoning takes hold!{x\n\r"

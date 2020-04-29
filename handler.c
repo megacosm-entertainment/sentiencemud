@@ -7948,7 +7948,10 @@ void list_remnthlink(LLIST *lp, register int nth)
 		if( nth < 0 ) nth = lp->size + nth;
 		for(link = lp->head; link && nth > 0; link = link->next)
 			if(link->data)
+			{
 				--nth;
+				if( !nth ) break;
+			}
 	}
 
 	if( link && !nth ) {

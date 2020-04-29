@@ -48,8 +48,8 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 #define ED_WILDS	14
 #define ED_VLINK	15
 // Blueprints
-#define ED_BPSECT	16
-#define ED_BPSTATIC	17
+#define ED_BPSECT		16
+#define ED_BLUEPRINT	17
 
 
 
@@ -67,6 +67,7 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 #define VLEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 // Blueprints
 #define BSEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
+#define BPEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 
 
 /*
@@ -90,6 +91,7 @@ void    wedit   ( CHAR_DATA *ch, char *argument );
 void    vledit  ( CHAR_DATA *ch, char *argument );
 // Blueprints
 void    bsedit 	( CHAR_DATA *ch, char *argument );	// Blueprint Sections
+void    bpedit 	( CHAR_DATA *ch, char *argument );	// Blueprints
 
 
 
@@ -151,6 +153,7 @@ extern const struct olc_cmd_type        wedit_table[];
 extern const struct olc_cmd_type	vledit_table[];
 // Blueprints
 extern const struct olc_cmd_type	bsedit_table[];
+extern const struct olc_cmd_type	bpedit_table[];
 
 
 /*
@@ -482,6 +485,17 @@ DECLARE_OLC_FUN( bsedit_link			);
 DECLARE_OLC_FUN( bsedit_flags			);
 DECLARE_OLC_FUN( bsedit_type			);
 
+// Blueprint Editor
+DECLARE_OLC_FUN( bpedit_list			);
+DECLARE_OLC_FUN( bpedit_show			);
+DECLARE_OLC_FUN( bpedit_create			);
+DECLARE_OLC_FUN( bpedit_name			);
+DECLARE_OLC_FUN( bpedit_description		);
+DECLARE_OLC_FUN( bpedit_comments		);
+DECLARE_OLC_FUN( bpedit_mode			);
+DECLARE_OLC_FUN( bpedit_section			);
+DECLARE_OLC_FUN( bpedit_static			);
+
 
 /*
  * Macros
@@ -509,7 +523,8 @@ DECLARE_OLC_FUN( bsedit_type			);
 #define EDIT_WILDS(ch, Wilds)   ( Wilds = (WILDS_DATA *)ch->desc->pEdit )
 #define EDIT_VLINK(ch, VLink)   ( VLink = (WILDS_VLINK *)ch->desc->pEdit )
 
-#define EDIT_BPSECT(ch, bpsect)	( bpsect = (BLUEPRINT_SECTION *)ch->desc->pEdit )
+#define EDIT_BPSECT(ch, bs)		( bs = (BLUEPRINT_SECTION *)ch->desc->pEdit )
+#define EDIT_BLUEPRINT(ch, bp)	( bp = (BLUEPRINT *)ch->desc->pEdit )
 
 /*
  * Prototypes

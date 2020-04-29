@@ -556,5 +556,7 @@ DECLARE_DO_FUN( do_behead	);
 DECLARE_DO_FUN( do_conceal	);
 DECLARE_DO_FUN(	do_rehearse	);
 
+DECLARE_DO_FUN( do_bpedit	);
+DECLARE_DO_FUN( do_bplist	);
 DECLARE_DO_FUN( do_bsedit	);
 DECLARE_DO_FUN( do_bslist	);

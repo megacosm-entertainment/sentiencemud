@@ -436,6 +436,10 @@ bool run_olc_editor(DESCRIPTOR_DATA *d)
 		bsedit(d->character, d->incomm);
 		break;
 
+	case ED_BLUEPRINT:
+		bpedit(d->character, d->incomm);
+		break;
+
 	default:
 	    return FALSE;
     }
@@ -468,6 +472,7 @@ char *olc_ed_vnum(CHAR_DATA *ch)
     WILDS_DATA *pWilds;
     WILDS_VLINK *pVLink;
     BLUEPRINT_SECTION *bpsect;
+    BLUEPRINT *blueprint;
     static char buf[20];
     char buf2[MSL];
 
@@ -571,6 +576,11 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 	    sprintf(buf, "%ld", bpsect ? bpsect->vnum : 0);
 	    break;
 
+	case ED_BLUEPRINT:
+	    blueprint = (BLUEPRINT *)ch->desc->pEdit;
+	    sprintf(buf, "%ld", blueprint ? blueprint->vnum : 0);
+	    break;
+
 	default:
 	    sprintf(buf, " ");
 	    break;
@@ -653,6 +663,10 @@ bool show_commands(CHAR_DATA *ch, char *argument)
 
 	case ED_BPSECT:
 		show_olc_cmds(ch, bsedit_table);
+		break;
+
+	case ED_BLUEPRINT:
+		show_olc_cmds(ch, bpedit_table);
 		break;
     }
 

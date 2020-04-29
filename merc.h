@@ -7926,6 +7926,7 @@ extern LLIST *loaded_areas;		// LLIST_AREA_DATA format
 extern LLIST *loaded_wilds;
 
 extern BLUEPRINT_SECTION *blueprint_section_hash[MAX_KEY_HASH];
+extern BLUEPRINT *blueprint_hash[MAX_KEY_HASH];
 
 
 void connection_add(DESCRIPTOR_DATA *d);
@@ -8108,6 +8109,7 @@ bool valid_section_link(BLUEPRINT_LINK *bl);
 BLUEPRINT_LINK *get_section_link(BLUEPRINT_SECTION *bs, int link);
 bool valid_static_link(STATIC_BLUEPRINT_LINK *sbl);
 BLUEPRINT_SECTION *get_blueprint_section(long vnum);
+BLUEPRINT *get_blueprint(long vnum);
 bool can_edit_blueprints(CHAR_DATA *ch);
 bool rooms_in_same_section(long vnum1, long vnum2);
 int instance_section_count_mob(INSTANCE_SECTION *section, MOB_INDEX_DATA *pMobIndex);

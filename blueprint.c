@@ -48,6 +48,7 @@
 
 bool blueprints_changed = FALSE;
 long top_blueprint_section_vnum = 0;
+long top_blueprint_vnum = 0;
 
 void fix_blueprint_section(BLUEPRINT_SECTION *bs)
 {
@@ -177,6 +178,117 @@ BLUEPRINT_SECTION *load_blueprint_section(FILE *fp)
 	return bs;
 }
 
+BLUEPRINT *load_blueprint(FILE *fp)
+{
+	BLUEPRINT *bp;
+	char *word;
+	bool fMatch;
+
+	bp = new_blueprint();
+	bp->vnum = fread_number(fp);
+
+	if( bp->vnum > top_blueprint_vnum)
+		top_blueprint_vnum = bp->vnum;
+
+	while (str_cmp((word = fread_word(fp)), "#-BLUEPRINT"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+		case 'C':
+			KEYS("Comments", bp->comments, fread_string(fp));
+			break;
+
+		case 'D':
+			KEYS("Description", bp->description, fread_string(fp));
+			break;
+
+		case 'N':
+			KEYS("Name", bp->name, fread_string(fp));
+			break;
+
+		case 'S':
+			if( !str_cmp(word, "Static") )
+			{
+				bp->mode = BLUEPRINT_MODE_STATIC;
+
+				fMatch = TRUE;
+				break;
+			}
+
+			KEY("StaticRecall", bp->static_recall, fread_number(fp));
+
+			if( !str_cmp(word, "StaticEntry") )
+			{
+				int section = fread_number(fp);
+				int link = fread_number(fp);
+
+				bp->static_entry_section = section;
+				bp->static_entry_link = link;
+
+				fMatch = TRUE;
+				break;
+			}
+
+			if( !str_cmp(word, "StaticExit") )
+			{
+				int section = fread_number(fp);
+				int link = fread_number(fp);
+
+				bp->static_exit_section = section;
+				bp->static_exit_link = link;
+
+				fMatch = TRUE;
+				break;
+			}
+
+			if( !str_cmp(word, "StaticLink") )
+			{
+				int section1 = fread_number(fp);
+				int link1 = fread_number(fp);
+				int section2 = fread_number(fp);
+				int link2 = fread_number(fp);
+
+				STATIC_BLUEPRINT_LINK *sbl = new_static_blueprint_link();
+
+				sbl->blueprint = bp;
+				sbl->section1 = section1;
+				sbl->link1 = link1;
+				sbl->section2 = section2;
+				sbl->link2 = link2;
+
+				sbl->next = bp->static_layout;
+				bp->static_layout = sbl;
+			}
+
+			if( !str_cmp(word, "Section") )
+			{
+				long section = fread_number(fp);
+
+				BLUEPRINT_SECTION *bs = get_blueprint_section(section);
+				if( bs )
+				{
+					list_appendlink(bp->sections, bs);
+				}
+				fMatch = TRUE;
+				break;
+			}
+
+			break;
+		}
+
+
+		if (!fMatch) {
+			char buf[MSL];
+			sprintf(buf, "load_blueprint: no match for word %.50s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return bp;
+}
+
 
 // load blueprints
 // CALLED AFTER ALL AREAS ARE LOADED
@@ -202,6 +314,17 @@ void load_blueprints()
 
 			bs->next = blueprint_section_hash[iHash];
 			blueprint_section_hash[iHash] = bs;
+
+			fMatch = TRUE;
+		}
+
+		if( !str_cmp(word, "#BLUEPRINT") )
+		{
+			BLUEPRINT *bp = load_blueprint(fp);
+			int iHash = bp->vnum % MAX_KEY_HASH;
+
+			bp->next = blueprint_hash[iHash];
+			blueprint_hash[iHash] = bp;
 
 			fMatch = TRUE;
 		}
@@ -246,15 +369,14 @@ void save_blueprint_section(FILE *fp, BLUEPRINT_SECTION *bs)
 	fprintf(fp, "#-SECTION\n\r\n\r");
 }
 
-/*
+
 void save_blueprint(FILE *fp, BLUEPRINT *bp)
 {
 
-	fprintf(fp, "#STATIC %ld\n\r", bp->vnum);
+	fprintf(fp, "#BLUEPRINT %ld\n\r", bp->vnum);
 	fprintf(fp, "Name %s~\n\r", fix_string(bp->name));
 	fprintf(fp, "Description %s~\n\r", fix_string(bp->description));
 	fprintf(fp, "Comments %s~\n\r", fix_string(bp->comments));
-	fprintf(fp, "Recall %ld\n\r", bp->recall);
 
 	ITERATOR sit;
 	BLUEPRINT_SECTION *bs;
@@ -265,20 +387,32 @@ void save_blueprint(FILE *fp, BLUEPRINT *bp)
 	}
 	iterator_stop(&sit);
 
-
-	for(STATIC_BLUEPRINT_LINK *sbl = bp->links; sbl; sbl = sbl->next)
+	if( bp->mode == BLUEPRINT_MODE_STATIC )
 	{
-		if( valid_static_link(sbl) )
+		fprintf(fp, "Static\n\r");
+
+		if( bp->static_recall > 0 )
+			fprintf(fp, "StaticRecall %d\n\r", bp->static_recall);
+
+		if( bp->static_entry_section > 0 && bp->static_entry_link > 0 )
+			fprintf(fp, "StaticEntry %d %d\n\r", bp->static_entry_section, bp->static_entry_link);
+
+		if( bp->static_exit_section > 0 && bp->static_exit_link > 0 )
+			fprintf(fp, "StaticExit %d %d\n\r", bp->static_exit_section, bp->static_exit_link);
+
+		for(STATIC_BLUEPRINT_LINK *sbl = bp->links; sbl; sbl = sbl->next)
 		{
-			fprintf(fp, "Link %ld %d %ld %d\n\r",
-				sbl->section1->vnum, sbl->link1,
-				sbl->section2->vnum, sbl->link2);
+			if( valid_static_link(sbl) )
+			{
+				fprintf(fp, "StaticLink %ld %d %ld %d\n\r",
+					sbl->section1->vnum, sbl->link1,
+					sbl->section2->vnum, sbl->link2);
+			}
 		}
 	}
 
-	fprintf(fp, "#-STATIC\n\r\n\r");
+	fprintf(fp, "#-BLUEPRINT\n\r\n\r");
 }
-*/
 
 // save blueprints
 bool save_blueprints()
@@ -290,11 +424,21 @@ bool save_blueprints()
 		return FALSE;
 	}
 
-	for(int iHash = 0; iHash < MAX_KEY_HASH; iHash++)
+	int iHash;
+
+	for(iHash = 0; iHash < MAX_KEY_HASH; iHash++)
 	{
 		for(BLUEPRINT_SECTION *bs = blueprint_section_hash[iHash]; bs; bs = bs->next)
 		{
 			save_blueprint_section(fp, bs);
+		}
+	}
+
+	for(iHash = 0; iHash < MAX_KEY_HASH; iHash++)
+	{
+		for(BLUEPRINT *bp = blueprint_hash[iHash]; bp; bp = bp->next)
+		{
+			save_blueprint(fp, bp);
 		}
 	}
 
@@ -389,6 +533,19 @@ BLUEPRINT_SECTION *get_blueprint_section_byroom(long vnum)
 	return NULL;
 }
 
+BLUEPRINT *get_blueprint(long vnum)
+{
+	int iHash = vnum % MAX_KEY_HASH;
+
+	for(BLUEPRINT *bp = blueprint_hash[iHash]; bp; bp = bp->next)
+	{
+		if( bp->vnum == vnum )
+			return bp;
+	}
+
+	return NULL;
+}
+
 bool rooms_in_same_section(long vnum1, long vnum2)
 {
 	BLUEPRINT_SECTION *s1 = get_blueprint_section_byroom(vnum1);
@@ -466,30 +623,24 @@ int instance_count_mob(INSTANCE *instance, MOB_INDEX_DATA *pMobIndex)
 INSTANCE_SECTION *clone_blueprint_section(BLUEPRINT_SECTION *parent)
 {
 	ROOM_INDEX_DATA *room;
-__D__
 
 	INSTANCE_SECTION *section = new_instance_section();
-__D__
 
 	if( !section ) return NULL;
-__D__
 
 	section->section = parent;
 
 	// Clone rooms
 	for(long vnum = parent->lower_vnum; vnum <= parent->upper_vnum; vnum++)
 	{
-__D__
 		ROOM_INDEX_DATA *source = get_room_index(vnum);
 
 		if( source )
 		{
-__D__
 			room = create_virtual_room_nouid(source,false,false,true);
 
 			if( !room )
 			{
-__D__
 				free_instance_section(section);
 				return NULL;
 			}
@@ -498,32 +649,25 @@ __D__
 
 			if( !list_appendlink(section->rooms, room) )
 			{
-__D__
 				extract_clone_room(room->source,room->id[0],room->id[1],true);
 				free_instance_section(section);
 				return NULL;
 			}
 
-__D__
 			room->instance_section = section;
 
-__D__
 			reset_room(room);
-__D__
 		}
 	}
 
 
-__D__
 	ITERATOR rit;
 	iterator_start(&rit, section->rooms);
 	while((room = (ROOM_INDEX_DATA *)iterator_nextdata(&rit)))
 	{
-__D__
 		// Clone the non-environment exits
 		for(int i = 0; i < MAX_DIR; i++)
 		{
-__D__
 			EXIT_DATA *exParent = room->source->exit[i];
 
 			if( exParent )
@@ -545,11 +689,9 @@ __D__
 			}
 		}
 
-__D__
 		// Correct any portal objects
 		for(OBJ_DATA *obj = room->contents; obj; obj = obj->next_content)
 		{
-__D__
 			// Make sure portals that lead anywhere within the section uses the correct room id
 			if( obj->item_type == ITEM_PORTAL )
 			{
@@ -585,7 +727,6 @@ __D__
 		}
 	}
 	iterator_stop(&rit);
-__D__
 
 	return section;
 }
@@ -1087,6 +1228,8 @@ BSEDIT( bsedit_show )
 	}
 
 	page_to_char(buffer->string, ch);
+
+	free_buf(buffer);
 	return FALSE;
 }
 
@@ -1739,6 +1882,885 @@ BSEDIT( bsedit_link )
 //
 // Blueprint Edit
 //
+
+const struct olc_cmd_type bpedit_table[] =
+{
+	{ "?",				show_help			},
+	{ "commands",		show_commands		},
+	{ "list",			bpedit_list			},
+	{ "show",			bpedit_show			},
+	{ "create",			bpedit_create		},
+	{ "name",			bpedit_name			},
+	{ "description",	bpedit_description	},
+	{ "comments",		bpedit_comments		},
+	{ "mode",			bpedit_mode			},
+	{ "section",		bpedit_section		},
+	{ "static",			bpedit_static		},
+	{ NULL,				NULL				}
+};
+
+void list_blueprints(CHAR_DATA *ch, char *argument)
+{
+	static const char *blueprint_modes[] =
+	{
+		"{GStatic",
+		"{YDynamic",
+		"{RProcedural"
+	};
+
+	if( !can_edit_blueprints(ch) )
+	{
+		send_to_char("You do not have access to blueprints.\n\r", ch);
+		return;
+	}
+
+	if(!ch->lines)
+		send_to_char("{RWARNING:{W Having scrolling off may limit how many blueprints you can see.{x\n\r", ch);
+
+	int lines = 0;
+	bool error = FALSE;
+	BUFFER *buffer = new_buf();
+	char buf[MSL];
+
+	for(long vnum = 1; vnum <= top_blueprint_vnum; vnum++)
+	{
+		BLUEPRINT *blueprint= get_blueprint(vnum);
+
+		if( blueprint )
+		{
+			sprintf(buf, "{Y[{W%5ld{Y] {x%-30.30s  %-16.16s{x\n\r",
+				vnum,
+				blueprint->name,
+				blueprint_modes[URANGE(0,blueprint->mode,2)]);
+
+			++lines;
+			if( !add_buf(buffer, buf) || (!ch->lines && strlen(buf_string(buffer)) > MAX_STRING_LENGTH) )
+			{
+				error = TRUE;
+				break;
+			}
+		}
+	}
+
+	if( error )
+	{
+		send_to_char("Too many blueprints to list.  Please shorten!\n\r", ch);
+	}
+	else
+	{
+		if( !lines )
+		{
+			add_buf( buffer, "No blueprint to display.\n\r" );
+		}
+		else
+		{
+			// Header
+			send_to_char("{Y Vnum   [            Name            ] [      Mode      ]{x\n\r", ch);
+			send_to_char("{Y=========================================================={x\n\r", ch);
+		}
+
+		page_to_char(buffer->string, ch);
+	}
+	free_buf(buffer);
+}
+
+
+void do_bplist(CHAR_DATA *ch, char *argument)
+{
+	list_blueprints(ch, argument);
+}
+
+void do_bpedit(CHAR_DATA *ch, char *argument)
+{
+	BLUEPRINT *bp;
+	long value;
+	char arg1[MAX_STRING_LENGTH];
+
+	argument = one_argument(argument, arg1);
+
+	if (IS_NPC(ch))
+		return;
+
+	if (is_number(arg1))
+	{
+		value = atol(arg1);
+		if (!(bp = get_blueprint(value)))
+		{
+			send_to_char("BPEdit:  That vnum does not exist.\n\r", ch);
+			return;
+		}
+
+		if (!can_edit_blueprints(ch))
+		{
+			send_to_char("BPEdit:  Insufficient security to edit blueprint.\n\r", ch);
+			return;
+		}
+
+		ch->pcdata->immortal->last_olc_command = current_time;
+		ch->desc->pEdit = (void *)bp;
+		ch->desc->editor = ED_BLUEPRINT;
+		return;
+	}
+	else
+	{
+		if (!str_cmp(arg1, "create"))
+		{
+			if (bpedit_create(ch, argument))
+			{
+				blueprints_changed = TRUE;
+				ch->desc->editor = ED_BLUEPRINT;
+			}
+
+			return;
+		}
+
+	}
+
+	send_to_char("BPEdit:  There is no default blueprint to edit.\n\r", ch);
+}
+
+
+void bpedit(CHAR_DATA *ch, char *argument)
+{
+	char command[MAX_INPUT_LENGTH];
+	char arg[MAX_INPUT_LENGTH];
+	int  cmd;
+
+	smash_tilde(argument);
+	strcpy(arg, argument);
+	argument = one_argument(argument, command);
+
+	if (!can_edit_blueprints(ch))
+	{
+		send_to_char("BPEdit:  Insufficient security to edit blueprints.\n\r", ch);
+		edit_done(ch);
+		return;
+	}
+
+	if (!str_cmp(command, "done"))
+	{
+		edit_done(ch);
+		return;
+	}
+
+    ch->pcdata->immortal->last_olc_command = current_time;
+
+	if (command[0] == '\0')
+	{
+		bpedit_show(ch, argument);
+		return;
+	}
+
+	for (cmd = 0; bsedit_table[cmd].name != NULL; cmd++)
+	{
+		if (!str_prefix(command, bpedit_table[cmd].name))
+		{
+			if ((*bpedit_table[cmd].olc_fun) (ch, argument))
+			{
+				blueprints_changed = TRUE;
+				return;
+			}
+			else
+				return;
+		}
+	}
+
+    interpret(ch, arg);
+}
+
+BPEDIT( bpedit_list )
+{
+	list_blueprints(ch, argument);
+	return FALSE;
+}
+
+BPEDIT( bpedit_show )
+{
+	BLUEPRINT *bp;
+	BUFFER *buffer;
+	char buf[MSL];
+
+	EDIT_BLUEPRINT(ch, bp);
+
+	sprintf(buf, "{xName:        [%5ld] %s{x\n\r", bp->vnum, bp->name);
+	add_buf(buffer, buf);
+
+	add_buf(buffer, "Description:\n\r");
+	add_buf(buffer, bp->description);
+	add_buf(buffer, "\n\r");
+
+	add_buf(buffer, "\n\r-----\n\r{WBuilders' Comments:{X\n\r");
+	add_buf(buffer, bp->comments);
+	add_buf(buffer, "\n\r-----\n\r");
+
+	switch(bp->mode)
+	{
+	case BLUEPRINT_MODE_STATIC:
+		add_buf(buffer, "{xMode:        [{WStatic{x]\n\r");
+		break;
+
+	default:
+		add_buf(buffer, "{xMode:        [Unknown]\n\r");
+		break;
+	}
+
+	if( list_size(bp->sections) > 0 )
+	{
+		int line = 0;
+
+		ITERATOR sit;
+
+		add_buf(buffer, "{YSections:{x\n\r");
+		add_buf(buffer, "     [  Vnum  ] [             Name             ]\n\r");
+		add_buf(buffer, "------------------------------------------------\n\r");
+
+		iterator_start(&sit, bp->sections);
+		while( (bs = (BLUEPRINT_SECTION *)iterator_nextdata(&sit)) )
+		{
+			sprintf(buf, "{W%4d  {G%8ld{x   %-30.30s{x\n\r", ++line, bs->vnum, bs->name);
+			add_buf(buffer, buf);
+		}
+
+		iterator_stop(&sit);
+		add_buf(buffer, "------------------------------------------------\n\r\n\r");
+	}
+	else
+	{
+		add_buf(buffer, "{YSections:{x\n\r   None\n\r\n\r");
+	}
+
+	if( bp->mode == BLUEPRINT_MODE_STATIC )
+	{
+		if( bp->static_layout )
+		{
+			int linkno = 0;
+			add_buf(buffer, "{CLinks:{x\n\r");
+
+			add_buf(buffer, "     [ Section 1 ] [ Link 1 ] [ Section 2 ] [ Link 2 ]\n\r");
+			add_buf(buffer, "-------------------------------------------------------\n\r");
+
+			STATIC_BLUEPRINT_LINK *sbl;
+			for(sbl = bp->static_layout; sbl; sbl = sbl->next)
+			{
+				sprintf(buf, "{W%4d   {G%9d     {G%6d     {G%9d     {g%6d{x\n\r",
+					++linkno, sbl->section1, sbl->link1, sbl->section2, sbl->link2);
+				add_buf(buffer, buf);
+			}
+
+			add_buf(buffer, "-------------------------------------------------------\n\r\n\r");
+		}
+		else
+		{
+			add_buf(buffer, "{CLinks:{x\n\r   None\n\r\n\r");
+		}
+	}
+
+	if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+	{
+		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+	}
+	else
+	{
+		page_to_char(buffer->string, ch);
+	}
+
+	free_buf(buffer);
+	return FALSE;
+}
+
+BPEDIT( bpedit_create )
+{
+	BLUEPRINT *bp;
+	long vnum;
+
+	long  value;
+	int  iHash;
+
+	value = atol(argument);
+	if (argument[0] == '\0' || value == 0)
+	{
+		long last_vnum = 0;
+		value = top_blueprint_vnum + 1;
+		for(last_vnum = 1; last_vnum <= top_blueprint_vnum; last_vnum++)
+		{
+			if( !get_blueprint(last_vnum) )
+			{
+				value = last_vnum;
+				break;
+			}
+		}
+	}
+
+	bp = new_blueprint();
+	bp->vnum = value;
+
+	iHash							= bp->vnum % MAX_KEY_HASH;
+	bp->next						= blueprint_hash[iHash];
+	blueprint_hash[iHash]			= bp;
+	ch->desc->pEdit					= (void *)bp;
+
+	if( bp->vnum > top_blueprint_vnum)
+		top_blueprint_vnum = bp->vnum;
+
+    return TRUE;
+
+}
+
+
+BPEDIT( bsedit_name )
+{
+	BLUEPRINT *bp;
+
+	EDIT_BLUEPRINT(ch, bp);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  name [string]\n\r", ch);
+		return FALSE;
+	}
+
+	free_string(bp->name);
+	bp->name = str_dup(argument);
+
+	return TRUE;
+}
+
+BPEDIT( bsedit_description )
+{
+	BLUEPRINT *bp;
+
+	EDIT_BLUEPRINT(ch, bp);
+
+	if (argument[0] == '\0')
+	{
+		string_append(ch, &bp->description);
+		return TRUE;
+	}
+
+	send_to_char("Syntax:  description\n\r", ch);
+	return FALSE;
+}
+
+BPEDIT( bsedit_comments )
+{
+	BLUEPRINT *bp;
+
+	EDIT_BLUEPRINT(ch, bp);
+
+	if (argument[0] == '\0')
+	{
+		string_append(ch, &bp->comments);
+		return TRUE;
+	}
+
+	send_to_char("Syntax:  comments\n\r", ch);
+	return FALSE;
+}
+
+
+BPEDIT( bpedit_mode )
+{
+	BLUEPRINT *bp;
+
+	EDIT_BLUEPRINT(ch, bp);
+
+	if( argument[0] == '\0' )
+	{
+		send_to_char("Syntax:  mode static|procedural\n\r", ch);
+		return FALSE;
+	}
+
+	if( !str_prefix(argument, "static") )
+	{
+		if( bp->mode == BLUEPRINT_MODE_STATIC )
+		{
+			send_to_char("Blueprint is already in STATIC mode.\n\r", ch);
+			return FALSE;
+		}
+
+
+		bp->mode = BLUEPRINT_MODE_STATIC;
+		// Remove non-static data
+
+		// Initialize static data
+		bp->static_layout = NULL;
+		bp->static_recall = -1;
+		bp->static_entry_section = -1;
+		bp->static_entry_link = -1;
+		bp->static_exit_section = -1;
+		bp->static_exit_link = -1;
+
+		send_to_char("Blueprint changed to STATIC mode.\n\r", ch);
+		return TRUE;
+	}
+
+	if( !str_prefix(argument, "procedural") )
+	{
+		send_to_char("Procedural mode is not implemented yet.\n\r", ch);
+		return FALSE;
+	}
+
+	bpedit_mode(ch, "");
+	return FALSE;
+}
+
+BPEDIT( bpedit_section )
+{
+	BLUEPRINT *bp;
+	BLUEPRINT_SECTION *bs;
+	char arg[MIL];
+
+	EDIT_BLUEPRINT(ch, bp);
+
+	if( argument[0] == '\0' )
+	{
+		send_to_char("Syntax:  section add <vnum>\n\r", ch);
+		send_to_char("         section delete <#>\n\r", ch);
+		send_to_char("         section list\n\r", ch);
+		return FALSE;
+	}
+
+	argument = one_argument(argument, arg);
+
+	if( !str_prefix(arg, "add") )
+	{
+		if(!is_number(argument))
+		{
+			send_to_char("That is not a number.\n\r", ch);
+			return FALSE;
+		}
+
+		bs = get_blueprint_section(atol(argument));
+		if( !bs )
+		{
+			send_to_char("That blueprint section does not exist.\n\r", ch);
+			return FALSE;
+		}
+
+		if( !list_appendlink(bp->sections, bs) )
+		{
+			send_to_char("{WError adding blueprint section to blueprint.{x\n\r", ch);
+			return FALSE;
+		}
+
+
+		send_to_char("Blueprint section added.\n\r", ch);
+		return TRUE;
+	}
+
+	if( !str_prefix(arg, "delete") )
+	{
+		if(!is_number(argument))
+		{
+			send_to_char("That is not a number.\n\r", ch);
+			return FALSE;
+		}
+
+		int index = atoi(argument);
+
+		if( index < 1 || index > list_size(bp->sections) )
+		{
+			send_to_char("Index out of range.\n\r", ch);
+			return FALSE;
+		}
+
+		list_remnthlink(bp->sections, index);
+
+		send_to_char("Blueprint section removed.\n\r", ch);
+		if( bp->mode == BLUEPRINT_MODE_STATIC )
+		{
+			// Remove any invalid layout definitions since the section has been removed
+			BLUEPRINT_STATIC_LINK *prev, *cur, *next;
+
+			prev = NULL;
+			for(cur = bp->static_layout; cur; cur = next)
+			{
+				next = cur->next;
+
+				// Link references deleted section
+				if( cur->section1 == index || cur->section2 == index )
+				{
+					if( !prev )
+						bp->static_layout = next;
+					else
+						prev->next = next;
+					free_static_blueprint_link(cur);
+					continue;
+				}
+
+				// If link references a section AFTER the specified index, shift down by one
+				if( cur->section1 > index )
+					cur->section1--;
+
+				if( cur->section2 > index )
+					cur->section2--;
+
+				prev = cur;
+			}
+
+			// Check RECALL
+			if( bp->static_recall == index )
+				bp->static_recall = -1;
+			else if( bp->static_recall > index )
+				bp->static_recall--;
+
+			// Check ENTRY
+			if( bp->static_entry_section == index )
+			{
+				bp->static_entry_section = -1;
+				bp->static_entry_link = -1;
+			}
+			else if( bp->static_entry_section > index )
+				bp->static_entry_section--;
+
+			// Check EXIT
+			if( bp->static_exit_section == index )
+			{
+				bp->static_exit_section = -1;
+				bp->static_exit_link = -1;
+			}
+			else if( bp->static_exit_section > index )
+				bp->static_exit_section--;
+		}
+
+		return TRUE;
+	}
+
+	if( !str_prefix(arg, "list") )
+	{
+		if( list_size(bp->sections) > 0 )
+		{
+			BUFFER *buffer = new_buf();
+
+			char buf[MSL];
+			int line = 0;
+
+			ITERATOR sit;
+
+			add_buf(buffer, "     [  Vnum  ] [             Name             ]\n\r");
+			add_buf(buffer, "------------------------------------------------\n\r");
+
+			iterator_start(&sit, bp->sections);
+			while( (bs = (BLUEPRINT_SECTION *)iterator_nextdata(&sit)) )
+			{
+				sprintf(buf, "{W%4d  {G%8ld{x   %-30.30s{x\n\r", ++line, bs->vnum, bs->name);
+				add_buf(buffer, buf);
+			}
+
+			iterator_stop(&sit);
+			add_buf(buffer, "------------------------------------------------\n\r");
+
+			if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+			{
+				send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+			}
+			else
+			{
+				page_to_char(buffer->string, ch);
+			}
+
+			free_buf(buffer);
+		}
+		else
+		{
+			send_to_char("Blueprint has no blueprint sections assigned.\n\r", ch);
+		}
+
+		return FALSE;
+	}
+
+	bpedit_section(ch, "");
+	return FALSE;
+}
+
+BPEDIT( bpedit_static )
+{
+	BLUEPRINT *bp;
+	char arg[MIL];
+
+	EDIT_BLUEPRINT(ch, bp);
+
+	if( bp->mode != BLUEPRINT_MODE_STATIC )
+	{
+		send_to_char("Blueprint is not in STATIC mode.\n\r", ch);
+		return FALSE;
+	}
+
+	if( argument[0] == '\0' )
+	{
+		send_to_char("Syntax:  static link add <section1#> <link1#> <section2#> <link2#>\n\r", ch);
+		send_to_char("         static link remove #\n\r", ch);
+		send_to_char("         static recall <section#>\n\r", ch);
+		send_to_char("         static recall clear\n\r", ch);
+		send_to_char("         static entry <section#> <link#>\n\r", ch);
+		send_to_char("         static entry clear\n\r", ch);
+		send_to_char("         static exit <section#> <link#>\n\r", ch);
+		send_to_char("         static exit clear\n\r", ch);
+		return FALSE;
+	}
+
+	argument = one_argument(argument, arg);
+
+	if( !str_prefix(arg, "link") )
+	{
+		char arg2[MIL];
+		char arg3[MIL];
+		char arg4[MIL];
+		char arg5[MIL];
+
+		if( argument[0] == '\0' )
+		{
+			send_to_char("Syntax:  static link add <section1#> <link1#> <section2#> <link2#>\n\r", ch);
+			send_to_char("         static link remove #\n\r", ch);
+			return FALSE;
+		}
+
+		argument = one_argument(argument, arg2);
+
+		if( !str_prefix(arg2, "add") )
+		{
+			BLUEPRINT_SECTION *bs;
+
+			argument = one_argument(argument, arg3);
+			argument = one_argument(argument, arg4);
+			argument = one_argument(argument, arg5);
+
+			if( !is_number(arg3) || !is_number(arg4) || !is_number(arg5) || !is_number(argument) )
+			{
+				send_to_char("That is not a number.\n\r", ch);
+				return FALSE;
+			}
+
+			int section1 = atoi(arg3);
+			int link1 = atoi(arg4);
+			int section2 = atoi(arg5);
+			int link2 = atoi(argument);
+
+			if( section1 < 1 || section1 > list_size(bp->sections) )
+			{
+				send_to_char("Index out of range.\n\r", ch);
+				return FALSE;
+			}
+
+			bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, section1);
+			if( !get_section_link(bs, link1) )
+			{
+				send_to_char("Link index out of range.\n\r", ch);
+				return FALSE;
+			}
+
+			if( section2 < 1 || section2 > list_size(bp->sections) )
+			{
+				send_to_char("Index out of range.\n\r", ch);
+				return FALSE;
+			}
+
+			bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, section2);
+			if( !get_section_link(bs, link2) )
+			{
+				send_to_char("Link index out of range.\n\r", ch);
+				return FALSE;
+			}
+
+			STATIC_BLUEPRINT_LINK *sbl = new_static_blueprint_link();
+
+			sbl->blueprint = bp;
+			sbl->section1 = section1;
+			sbl->link1 = link1;
+			sbl->section2 = section2;
+			sbl->link2 = link2;
+
+			sbl->next = bp->static_layout;
+			bp->static_layout = sbl;
+
+			send_to_char("Static link added.\n\r", ch);
+			return TRUE;
+		}
+
+		if( !str_prefix(arg2, "remove") )
+		{
+			BLUEPRINT_STATIC_LINK *prev, *cur;
+
+			if( !is_number(arg2) )
+			{
+				send_to_char("That is not a number.\n\r", ch);
+				return FALSE;
+			}
+
+			int index = atoi(arg);
+			if( index < 1 )
+			{
+				send_to_char("Link does not exist.\n\r", ch);
+				return FALSE;
+			}
+
+			prev = NULL;
+			for(cur = bp->static_layout; cur && index > 0; prev = cur, cur = cur->next)
+			{
+				if( !--index )
+				{
+					if( prev )
+						prev->next = cur->next;
+					else
+						bp->static_layout = cur->next;
+
+					free_static_blueprint_link(cur);
+					send_to_char("Link removed.\n\r", ch);
+					return TRUE;
+				}
+			}
+
+
+			send_to_char("Link does not exist.\n\r", ch);
+			return FALSE;
+		}
+
+		bpedit_static(ch, "link");
+		return FALSE;
+	}
+
+	if( !str_prefix(arg, "recall") )
+	{
+		if( argument[0] == '\0' )
+		{
+			send_to_char("Syntax:  static recall <section#>\n\r", ch);
+			send_to_char("         static recall clear\n\r", ch);
+			return FALSE;
+		}
+
+		if( is_number(argument) )
+		{
+			int index = atoi(argument);
+			if( index < 1 || index > list_size(bp->sections) )
+			{
+				send_to_char("Index out of range.\n\r", ch);
+				return FALSE;
+			}
+
+			bp->static_recall = index;
+			send_to_char("Blueprint recall section changed.\n\r", ch);
+			return TRUE;
+		}
+
+		if( !str_prefix(argument, "clear") )
+		{
+			bp->static_recall = -1;
+			send_to_char("Blueprint recall section cleared.\n\r", ch);
+			return TRUE;
+		}
+
+		bpedit_static(ch, "recall");
+		return FALSE;
+	}
+
+	if( !str_prefix(arg, "entry") )
+	{
+		char arg2[MIL];
+
+		if( argument[0] == '\0' )
+		{
+			send_to_char("Syntax:  static entry <section#> <link#>\n\r", ch);
+			send_to_char("         static entry clear\n\r", ch);
+			return FALSE;
+		}
+
+		argument = one_argument(argument, arg2);
+
+		if( is_number(arg2) && is_number(argument) )
+		{
+			int section = atoi(arg);
+			int link = atoi(argument);
+
+			if( section < 1 || section > list_size(bp->sections) )
+			{
+				send_to_char("Section index out of range.\n\r", ch);
+				return FALSE;
+			}
+
+			BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, section);
+
+			if( !get_section_link(bs, link) )
+			{
+				send_to_char("Link index out of range.\n\r", ch);
+				return FALSE;
+			}
+
+
+			bp->static_entry_section = section;
+			bp->static_entry_link = link;
+			send_to_char("Blueprint entry point changed.\n\r", ch);
+			return TRUE;
+		}
+
+		if( !str_prefix(arg2, "clear") )
+		{
+			bp->static_entry_section = -1;
+			bp->static_entry_link = -1;
+			send_to_char("Blueprint entry point cleared.\n\r", ch);
+			return TRUE;
+		}
+
+		bpedit_static(ch, "entry");
+		return FALSE;
+	}
+
+	if( !str_prefix(arg, "exit") )
+	{
+		char arg2[MIL];
+
+		if( argument[0] == '\0' )
+		{
+			send_to_char("Syntax:  static exit <section#> <link#>\n\r", ch);
+			send_to_char("         static exit clear\n\r", ch);
+			return FALSE;
+		}
+
+		argument = one_argument(argument, arg2);
+
+		if( is_number(arg2) && is_number(argument) )
+		{
+			int section = atoi(arg);
+			int link = atoi(argument);
+
+			if( section < 1 || section > list_size(bp->sections) )
+			{
+				send_to_char("Section index out of range.\n\r", ch);
+				return FALSE;
+			}
+
+			BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, section);
+
+			if( !get_section_link(bs, link) )
+			{
+				send_to_char("Link index out of range.\n\r", ch);
+				return FALSE;
+			}
+
+
+			bp->static_exit_section = section;
+			bp->static_exit_link = link;
+			send_to_char("Blueprint exit point changed.\n\r", ch);
+			return TRUE;
+		}
+
+		if( !str_prefix(arg2, "clear") )
+		{
+			bp->static_exit_section = -1;
+			bp->static_exit_link = -1;
+			send_to_char("Blueprint exit point cleared.\n\r", ch);
+			return TRUE;
+		}
+
+		bpedit_static(ch, "exit");
+		return FALSE;
+	}
+
+
+	bpedit_static(ch, "");
+	return FALSE;
+}
+
+
 
 
 //////////////////////////////////////////////////////////////
