@@ -5092,7 +5092,7 @@ struct dungeon_index_data
 	long entry_room;
 	long exit_room;
 
-	long flags;						// Potential flags
+	int flags;						// Potential flags
 };
 
 struct dungeon_data
@@ -8136,6 +8136,7 @@ void instance_update();
 void load_dungeons();
 bool save_dungeons();
 bool can_edit_dungeons(CHAR_DATA *ch);
+DUNGEON_INDEX_DATA *get_dungeon_index(long vnum);
 
 
 bool can_room_update(ROOM_INDEX_DATA *room);

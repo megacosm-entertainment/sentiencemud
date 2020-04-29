@@ -560,3 +560,6 @@ DECLARE_DO_FUN( do_bpedit	);
 DECLARE_DO_FUN( do_bplist	);
 DECLARE_DO_FUN( do_bsedit	);
 DECLARE_DO_FUN( do_bslist	);
+
+DECLARE_DO_FUN( do_dngedit	);
+DECLARE_DO_FUN( do_dnglist	);

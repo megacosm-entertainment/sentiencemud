@@ -50,6 +50,7 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 // Blueprints
 #define ED_BPSECT		16
 #define ED_BLUEPRINT	17
+#define ED_DUNGEON		18
 
 
 
@@ -68,7 +69,7 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 // Blueprints
 #define BSEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define BPEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
-
+#define DNGEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 
 /*
  * Interpreter Prototypes
@@ -92,7 +93,7 @@ void    vledit  ( CHAR_DATA *ch, char *argument );
 // Blueprints
 void    bsedit 	( CHAR_DATA *ch, char *argument );	// Blueprint Sections
 void    bpedit 	( CHAR_DATA *ch, char *argument );	// Blueprints
-
+void	dngedit ( CHAR_DATA *ch, char *argument );	// Dungeons
 
 
 /*
@@ -154,6 +155,7 @@ extern const struct olc_cmd_type	vledit_table[];
 // Blueprints
 extern const struct olc_cmd_type	bsedit_table[];
 extern const struct olc_cmd_type	bpedit_table[];
+extern const struct olc_cmd_type	dngedit_table[];
 
 
 /*
@@ -175,6 +177,7 @@ DECLARE_DO_FUN( do_pedit       );
 DECLARE_DO_FUN( do_wedit        );
 DECLARE_DO_FUN( do_vledit       );
 DECLARE_DO_FUN( do_bsedit       );
+DECLARE_DO_FUN( do_dngedit       );
 
 
 /*
@@ -497,6 +500,19 @@ DECLARE_OLC_FUN( bpedit_mode			);
 DECLARE_OLC_FUN( bpedit_section			);
 DECLARE_OLC_FUN( bpedit_static			);
 
+// Dungeon Editor
+DECLARE_OLC_FUN( dngedit_list			);
+DECLARE_OLC_FUN( dngedit_show			);
+DECLARE_OLC_FUN( dngedit_create			);
+DECLARE_OLC_FUN( dngedit_name			);
+DECLARE_OLC_FUN( dngedit_description	);
+DECLARE_OLC_FUN( dngedit_comments		);
+DECLARE_OLC_FUN( dngedit_areawho		);
+DECLARE_OLC_FUN( dngedit_floors			);
+DECLARE_OLC_FUN( dngedit_entry			);
+DECLARE_OLC_FUN( dngedit_exit			);
+DECLARE_OLC_FUN( dngedit_flags			);
+
 /*
  * Macros
  */
@@ -525,6 +541,7 @@ DECLARE_OLC_FUN( bpedit_static			);
 
 #define EDIT_BPSECT(ch, bs)		( bs = (BLUEPRINT_SECTION *)ch->desc->pEdit )
 #define EDIT_BLUEPRINT(ch, bp)	( bp = (BLUEPRINT *)ch->desc->pEdit )
+#define EDIT_DUNGEON(ch, dng)	( dng = (DUNGEON_INDEX_DATA *)ch->desc->pEdit )
 
 /*
  * Prototypes

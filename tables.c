@@ -2752,3 +2752,8 @@ const struct flag_type blueprint_section_types[] =
 	{ NULL,				0,						FALSE	}
 };
 
+const struct flag_type dungeon_flags[] =
+{
+	{ NULL,				0,						FALSE	}
+};
+

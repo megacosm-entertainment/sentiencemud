@@ -45,6 +45,7 @@ char *editor_name_table[] = {
 	"VLEdit",
 	"BSEdit",
 	"BPEdit",
+	"DNGEdit",
 };
 
 const struct editor_cmd_type editor_table[] =
@@ -63,6 +64,7 @@ const struct editor_cmd_type editor_table[] =
     {	"project",	do_pedit	},
     {	"bpsect",	do_bsedit	},
     {	"blueprint",	do_bpedit	},
+    {	"dungeon",		do_dngedit	},
     {	NULL,		0,		}
 };
 

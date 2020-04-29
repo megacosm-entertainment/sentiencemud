@@ -50,9 +50,9 @@ bool blueprints_changed = FALSE;
 long top_dungeon_vnum = 0;
 LLIST *loaded_dungeons;
 
-DUNGEON_INDEX *load_dungeon_index(FILE *fp)
+DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp)
 {
-	DUNGEON_INDEX *dng;
+	DUNGEON_INDEX_DATA *dng;
 	char *word;
 	bool fMatch;
 
@@ -81,8 +81,8 @@ DUNGEON_INDEX *load_dungeon_index(FILE *fp)
 			break;
 
 		case 'E':
-			KEY("Entry", dng->entry_room, fread_string(fp));
-			KEY("Exit", dng->exit_room, fread_string(fp));
+			KEY("Entry", dng->entry_room, fread_number(fp));
+			KEY("Exit", dng->exit_room, fread_number(fp));
 			break;
 
 		case 'F':
@@ -108,6 +108,12 @@ DUNGEON_INDEX *load_dungeon_index(FILE *fp)
 			break;
 
 		}
+
+		if (!fMatch) {
+			char buf[MSL];
+			sprintf(buf, "load_dungeon_index: no match for word %.50s", word);
+			bug(buf, 0);
+		}
 	}
 
 	return dng;
@@ -131,8 +137,8 @@ void load_dungeons()
 
 		if( !str_cmp(word, "#DUNGEON") )
 		{
-			DUNGEON_INDEX *dng = load_dungeon_index(fp);
-			int iHash = bp->vnum % MAX_KEY_HASH;
+			DUNGEON_INDEX_DATA *dng = load_dungeon_index(fp);
+			int iHash = dng->vnum % MAX_KEY_HASH;
 
 			dng->next = dungeon_index_hash[iHash];
 			dungeon_index_hash[iHash] = dng;
@@ -210,3 +216,598 @@ bool can_edit_dungeons(CHAR_DATA *ch)
 {
 	return !IS_NPC(ch) && (ch->pcdata->security >= 9) && (ch->tot_level >= MAX_LEVEL);
 }
+
+
+DUNGEON_INDEX_DATA *get_dungeon_index(long vnum)
+{
+	for(int iHash = 0; iHash < MAX_KEY_HASH; iHash++)
+	{
+		for(DUNGEON_INDEX_DATA *dng = dungeon_index_hash[iHash]; dng; dng = dng->next)
+		{
+			if( dng->vnum == vnum )
+				return dng;
+		}
+	}
+
+	return NULL;
+}
+
+/////////////////////////////////////////
+//
+// DUNGEON EDITOR
+//
+
+const struct olc_cmd_type dngedit_table[] =
+{
+	{ "?",				show_help			},
+	{ "commands",		show_commands		},
+	{ "list",			dngedit_list		},
+	{ "show",			dngedit_show		},
+	{ "create",			dngedit_create		},
+	{ "name",			dngedit_name		},
+	{ "description",	dngedit_description	},
+	{ "comments",		dngedit_comments	},
+	{ "areawho",		dngedit_areawho		},
+	{ "floors",			dngedit_floors		},
+	{ "entry",			dngedit_entry		},
+	{ "exit",			dngedit_exit		},
+	{ "flags",			dngedit_flags		},
+	{ NULL,				NULL				}
+
+};
+
+void list_dungeons(CHAR_DATA *ch, char *argument)
+{
+	if( !can_edit_dungeons(ch) )
+	{
+		send_to_char("You do not have access to dungeons.\n\r", ch);
+		return;
+	}
+
+	if(!ch->lines)
+		send_to_char("{RWARNING:{W Having scrolling off may limit how many dungeons you can see.{x\n\r", ch);
+
+	int lines = 0;
+	bool error = FALSE;
+	BUFFER *buffer = new_buf();
+	char buf[MSL];
+
+	for(long vnum = 1; vnum <= top_dungeon_vnum; vnum++)
+	{
+		DUNGEON_INDEX_DATA *dng = get_dungeon_index(vnum);
+
+		if( dng )
+		{
+			sprintf(buf, "{Y[{W%5ld{Y] {x%-30.30s\n\r",
+				vnum,
+				dng->name);
+
+			++lines;
+			if( !add_buf(buffer, buf) || (!ch->lines && strlen(buf_string(buffer)) > MAX_STRING_LENGTH) )
+			{
+				error = TRUE;
+				break;
+			}
+		}
+	}
+
+	if( error )
+	{
+		send_to_char("Too many dungeons to list.  Please shorten!\n\r", ch);
+	}
+	else
+	{
+		if( !lines )
+		{
+			add_buf( buffer, "No dungeons to display.\n\r" );
+		}
+		else
+		{
+			// Header
+			send_to_char("{Y Vnum   [            Name            ]{x\n\r", ch);
+			send_to_char("{Y======================================={x\n\r", ch);
+		}
+
+		page_to_char(buffer->string, ch);
+	}
+	free_buf(buffer);
+}
+
+void do_dnglist(CHAR_DATA *ch, char *argument)
+{
+	list_dungeons(ch, argument);
+}
+
+void do_dngedit(CHAR_DATA *ch, char *argument)
+{
+	DUNGEON_INDEX_DATA *dng;
+	long value;
+	char arg1[MAX_STRING_LENGTH];
+
+	argument = one_argument(argument, arg1);
+
+	if (IS_NPC(ch))
+		return;
+
+	if (is_number(arg1))
+	{
+		value = atol(arg1);
+		if (!(dng = get_dungeon_index(value)))
+		{
+			send_to_char("DNGEdit:  That vnum does not exist.\n\r", ch);
+			return;
+		}
+
+		if (!can_edit_blueprints(ch))
+		{
+			send_to_char("DNGEdit:  Insufficient security to edit dungeons.\n\r", ch);
+			return;
+		}
+
+		ch->pcdata->immortal->last_olc_command = current_time;
+		ch->desc->pEdit = (void *)dng;
+		ch->desc->editor = ED_DUNGEON;
+		return;
+	}
+	else
+	{
+		if (!str_cmp(arg1, "create"))
+		{
+			if (dngedit_create(ch, argument))
+			{
+				dungeons_changed = TRUE;
+				ch->desc->editor = ED_DUNGEON;
+			}
+
+			return;
+		}
+
+	}
+
+	send_to_char("DNGEdit:  There is no default dungeon to edit.\n\r", ch);
+}
+
+void dngedit(CHAR_DATA *ch, char *argument)
+{
+	char command[MAX_INPUT_LENGTH];
+	char arg[MAX_INPUT_LENGTH];
+	int  cmd;
+
+	smash_tilde(argument);
+	strcpy(arg, argument);
+	argument = one_argument(argument, command);
+
+	if (!can_edit_dungeons(ch))
+	{
+		send_to_char("DNGEdit:  Insufficient security to edit dungeons.\n\r", ch);
+		edit_done(ch);
+		return;
+	}
+
+	if (!str_cmp(command, "done"))
+	{
+		edit_done(ch);
+		return;
+	}
+
+    ch->pcdata->immortal->last_olc_command = current_time;
+
+	if (command[0] == '\0')
+	{
+		dngedit_show(ch, argument);
+		return;
+	}
+
+	for (cmd = 0; dngedit_table[cmd].name != NULL; cmd++)
+	{
+		if (!str_prefix(command, dngedit_table[cmd].name))
+		{
+			if ((*dngedit_table[cmd].olc_fun) (ch, argument))
+			{
+				dungeons_changed = TRUE;
+				return;
+			}
+			else
+				return;
+		}
+	}
+
+    interpret(ch, arg);
+}
+
+DNGEDIT( dngedit_list )
+{
+	list_dungeons(ch, argument);
+	return FALSE;
+}
+
+void dngedit_buffer_floors(BUFFER *buffer, DUNGEON_INDEX_DATA *dng)
+{
+	char buf[MSL];
+
+	if( list_size(dng->floors) > 0 )
+	{
+		ITERATOR fit;
+		BLUEPRINT *bp;
+
+		add_buf(buffer, "{gFloors:{x\n\r");
+		add_buf(buffer, "{g     [  Vnum  ] [             Name             ]\n\r");
+		add_buf(buffer, "{g=================================================\n\r");
+
+		int floor = 0;
+		iterator_start(&fit, dng->floors);
+		while( (bp = (BLUEPRINT *)iterator_nextdata(&fit)) )
+		{
+			sprintf(buf, "{W%4d  {G%8ld   {x%-.30s{x\n\r", ++floor, bp->vnum, bp->name);
+			add_buf(buffer, buf);
+		}
+		iterator_stop(&fit);
+		add_buf(buffer, "=================================================\n\r");
+	}
+	else
+	{
+		add_buf(buffer, "{gFloors:{x\n\r");
+		add_buf(buffer, "   None\n\r");
+	}
+
+}
+
+DNGEDIT( dngedit_show )
+{
+	DUNGEON_INDEX_DATA *dng;
+	ROOM_INDEX_DATA *room;
+	BUFFER *buffer;
+	char buf[MSL];
+
+	EDIT_DUNGEON(ch, dng);
+
+	buffer = new_buf();
+
+	sprintf(buf, "Name:        [%5ld] %s\n\r", dng->vnum, dng->name);
+	add_buf(buffer, buf);
+
+	sprintf(buf, "Flags:       %s\n\r", flag_string(dungeon_flags, dng->flags));
+	add_buf(buffer, buf);
+
+	sprintf(buf, "AreaWho:     %s\n\r", flag_string(area_who_titles, dng->area_who));
+	add_buf(buffer, buf);
+
+	room = get_room_index(dng->entry_room);
+	if( room )
+	{
+		sprintf(buf, "Entry:       [%ld] %-.30s\n\r", room->vnum, room->name);
+		add_buf(buffer, buf);
+	}
+	else
+		add_buf(buffer, "Entry:       {Dinvalid{x\n\r");
+
+	room = get_room_index(dng->exit_room);
+	if( room )
+	{
+		sprintf(buf, "Exit:        [%ld] %-.30s\n\r", room->vnum, room->name);
+		add_buf(buffer, buf);
+	}
+	else
+		add_buf(buffer, "Exit:        {Dinvalid{x\n\r");
+
+	add_buf(buffer, "Description:\n\r");
+	add_buf(buffer, dng->description);
+	add_buf(buffer, "\n\r");
+
+	add_buf(buffer, "\n\r-----\n\r{WBuilders' Comments:{X\n\r");
+	add_buf(buffer, dng->comments);
+	add_buf(buffer, "\n\r-----\n\r");
+
+	dngedit_buffer_floors(buffer, dng);
+
+	page_to_char(buffer->string, ch);
+
+	free_buf(buffer);
+	return FALSE;
+}
+
+
+DNGEDIT( dngedit_create )
+{
+	DUNGEON_INDEX_DATA *dng;
+	long  value;
+	int  iHash;
+
+	value = atol(argument);
+	if (argument[0] == '\0' || value == 0)
+	{
+		long last_vnum = 0;
+		value = top_dungeon_vnum + 1;
+		for(last_vnum = 1; last_vnum <= top_dungeon_vnum; last_vnum++)
+		{
+			if( !get_dungeon_index(last_vnum) )
+			{
+				value = last_vnum;
+				break;
+			}
+		}
+	}
+
+	dng = new_dungeon_index();
+	dng->vnum = value;
+
+	iHash							= dng->vnum % MAX_KEY_HASH;
+	bs->next						= dungeon_index_hash[iHash];
+	dungeon_index_hash[iHash]	= dng;
+	ch->desc->pEdit					= (void *)dng;
+
+	if( dng->vnum > top_dungeon_vnum)
+		top_dungeon_vnum = dng->vnum;
+
+    return TRUE;
+}
+
+DNGEDIT( dngedit_name )
+{
+	DUNGEON_INDEX_DATA *dng;
+
+	EDIT_DUNGEON(ch, dng);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  name [string]\n\r", ch);
+		return FALSE;
+	}
+
+	free_string(dng->name);
+	dng->name = str_dup(argument);
+	send_to_char("Name changed.\n\r", ch);
+	return TRUE;
+}
+
+DNGEDIT( dngedit_description )
+{
+	DUNGEON_INDEX_DATA *dng;
+
+	EDIT_DUNGEON(ch, dng);
+
+	if (argument[0] == '\0')
+	{
+		string_append(ch, &dng->description);
+		return TRUE;
+	}
+
+	send_to_char("Syntax:  description - line edit\n\r", ch);
+	return FALSE;
+}
+
+DNGEDIT( dngedit_comments )
+{
+	DUNGEON_INDEX_DATA *dng;
+
+	EDIT_DUNGEON(ch, dng);
+
+	if (argument[0] == '\0')
+	{
+		string_append(ch, &dng->comments);
+		return TRUE;
+	}
+
+	send_to_char("Syntax:  comments - line edit\n\r", ch);
+	return FALSE;
+}
+
+DNGEDIT( dngedit_areawho )
+{
+	DUNGEON_INDEX_DATA *dng;
+	int value;
+
+	EDIT_DUNGEON(ch, dng);
+
+    if (argument[0] != '\0')
+    {
+		if ( !str_prefix(argument, "blank") )
+		{
+			dng->area_who = AREA_BLANK;
+
+			send_to_char("Area who title cleared.\n\r", ch);
+			return TRUE;
+		}
+
+		if ((value = flag_value(area_who_titles, argument)) != NO_FLAG)
+		{
+			if( value == AREA_INSTANCE || value == AREA_DUTY )
+			{
+				send_to_char("Area who title only allowed in blueprints.\n\r", ch);
+				return FALSE;
+			}
+
+			dng->area_who = value;
+
+			send_to_char("Area who title set.\n\r", ch);
+			return TRUE;
+		}
+    }
+
+    send_to_char("Syntax:  areawho [title]\n\r"
+				"Type '? areawho' for a list of who titles.\n\r", ch);
+    return FALSE;
+
+}
+
+DNGEDIT( dngedit_floors )
+{
+	DUNGEON_INDEX_DATA *dng;
+	char arg[MIL];
+
+	EDIT_DUNGEON(ch, dng);
+
+	if( argument[0] == '\0' )
+	{
+		send_to_char("Syntax:  floors add <vnum>\n\r", ch);
+		send_to_char("         floors remove #\n\r", ch);
+		send_to_char("         floors list\n\r", ch);
+		return FALSE;
+	}
+
+	argument = one_argument(argument, arg);
+
+	if( !str_prefix(arg, "list") )
+	{
+		BUFFER *buffer = new_buf();
+
+		dngedit_buffer_floors(buffer, dng);
+
+		page_to_char(buffer->string, ch);
+		free_buf(buffer);
+		return FALSE;
+	}
+
+	if( !str_prefix(arg, "add") )
+	{
+		if( !is_number(argument) )
+		{
+			send_to_char("That is not a number.\n\r", ch);
+			return FALSE;
+		}
+
+		long vnum = atol(argument);
+
+		BLUEPRINT *bp = get_blueprint(vnum);
+
+		if( !bp )
+		{
+			send_to_char("That blueprint does not exist.\n\r", ch);
+			return FALSE;
+		}
+
+		if( bp->mode == BLUEPRINT_MODE_STATIC )
+		{
+			if( bp->static_entry_section < 1 || bp->static_entry_link < 1 ||
+				bp->static_exit_section < 1 || bp->static_exit_link < 1 )
+			{
+				send_to_char("Blueprint must have an entrance and exit specified.\n\r", ch);
+				return FALSE;
+			}
+		}
+		else
+		{
+			send_to_char("Blueprint mode not supported yet.\n\r", ch);
+			return FALSE;
+		}
+
+		list_appendlink(dng->floors, bp);
+		send_to_char("Floor added.\n\r");
+		return TRUE;
+	}
+
+	if( !str_prefix(arg, "remove") )
+	{
+		if( !is_number(argument) )
+		{
+			send_to_char("That is not a number.\n\r", ch);
+			return FALSE;
+		}
+
+		int index = atoi(argument);
+
+		if( index < 1 || index > list_size(dng->floors) )
+		{
+			send_to_char("Index out of range.\n\r", ch);
+			return FALSE;
+		}
+
+		list_remnthlink(dng->floors, index);
+		send_to_char("Floor removed.\n\r", ch);
+		return TRUE;
+	}
+
+	dngedit_floors(ch, "");
+	return FALSE;
+}
+
+DNGEDIT( dngedit_entry )
+{
+	DUNGEON_INDEX_DATA *dng;
+	long value;
+
+	EDIT_DUNGEON(ch, dng);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  entry <vnum>\n\r", ch);
+		return FALSE;
+	}
+
+	if( !is_number(argument) )
+	{
+		send_to_char("That is not a number.\n\r", ch);
+		return FALSE;
+	}
+
+	value = atol(argument);
+
+	if( !get_room_index(value) )
+	{
+		send_to_char("That room does not exist.\n\r", ch);
+		return FALSE;
+	}
+
+	dng->entry_room = value;
+	send_to_char("Entry room changed.\n\r", ch);
+	return TRUE;
+}
+
+DNGEDIT( dngedit_exit )
+{
+	DUNGEON_INDEX_DATA *dng;
+	long value;
+
+	EDIT_DUNGEON(ch, dng);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  exit <vnum>\n\r", ch);
+		return FALSE;
+	}
+
+	if( !is_number(argument) )
+	{
+		send_to_char("That is not a number.\n\r", ch);
+		return FALSE;
+	}
+
+	value = atol(argument);
+
+	if( !get_room_index(value) )
+	{
+		send_to_char("That room does not exist.\n\r", ch);
+		return FALSE;
+	}
+
+	dng->exit_room = value;
+	send_to_char("Exit room changed.\n\r", ch);
+	return TRUE;
+}
+
+DNGEDIT( dngedit_flags )
+{
+	DUNGEON_INDEX_DATA *dng;
+	int value;
+
+	EDIT_DUNGEON(ch, dng);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  flags <flags>\n\r", ch);
+		send_to_char("'? dungeon' for list of flags.\n\r", ch);
+		return FALSE;
+	}
+
+	if( (value = flag_value(blueprint_section_flags, argument)) != NO_FLAG )
+	{
+		dng->flags ^= value;
+		send_to_char("Dungeon flags changed.\n\r", ch);
+		return TRUE;
+	}
+
+	dngedit_flags(ch, "");
+	return FALSE;
+
+}
+
