@@ -3071,14 +3071,14 @@ void do_instance(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		if( list_size(loaded_instance) < 1 )
+		if( list_size(loaded_instances) < 1 )
 		{
 			send_to_char("TEMPORARY: There is no instance loaded.\n\r", ch);
 			return;
 		}
 
-		INSTANCE *instance = (INSTANCE *)list_nthdata(loaded_instance, 1);
-		list_remlink(loaded_instance, instance);
+		INSTANCE *instance = (INSTANCE *)list_nthdata(loaded_instances, 1);
+		list_remlink(loaded_instances, instance);
 
 		if( ch->in_room->instance_section->instance == instance )
 		{
