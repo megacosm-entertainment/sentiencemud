@@ -1488,6 +1488,9 @@ ROOM_INDEX_DATA *new_room_index( void )
         room_index_free =   room_index_free->next;
     }
 
+    // Flush it all
+    memset(pRoom, 0, sizeof(ROOM_INDEX_DATA));
+
     SET_MEMTYPE(pRoom,MEMTYPE_ROOM);
     pRoom->next             =   NULL;
     pRoom->people           =   NULL;
@@ -1524,6 +1527,9 @@ ROOM_INDEX_DATA *new_room_index( void )
     pRoom->visited = 0;
     pRoom->id[0] = pRoom->id[1] = 0;	// Explicitly make this 0,0 until set, or left for static rooms
     pRoom->comments         =   &str_empty[0];
+
+    pRoom->reset_first = NULL;
+    pRoom->reset_last = NULL;
 
     pRoom->lentity = list_create(FALSE);
     pRoom->lpeople = list_create(FALSE);
