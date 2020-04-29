@@ -2908,7 +2908,7 @@ BPEDIT( bpedit_static )
 // Immortal Commands
 //
 
-LLIST *loaded_instances = list_create(FALSE);
+LLIST *loaded_instances;
 
 
 // TEMPORARY - redo after stuff is verified

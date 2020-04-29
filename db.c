@@ -76,6 +76,7 @@ extern  OBJ_INDEX_DATA  *obj_index_free;
 extern  EXTRA_DESCR_DATA * extra_descr_free;
 extern  RESET_DATA  *reset_free;
 extern	GLOBAL_DATA gconfig;
+extern	LLIST *loaded_instances;
 
 void free_room_index( ROOM_INDEX_DATA *pRoom );
 void persist_save_room(FILE *fp, ROOM_INDEX_DATA *room);
@@ -802,6 +803,9 @@ void boot_db(void)
 	}
 
     }
+
+	// Initialize instance list
+	loaded_instances = list_create(FALSE);
 
     /*
      * Read in all the area files.
