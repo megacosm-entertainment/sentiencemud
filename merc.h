@@ -5084,6 +5084,7 @@ struct dungeon_index_data
 
 	char *name;
 	char *description;
+	char *comments;
 
 	int area_who;
 
@@ -6671,6 +6672,7 @@ char *	crypt		args( ( const char *key, const char *salt ) );
 #define HELP_DB_FILE	DUMP_DIR "help_db.txt"
 
 #define BLUEPRINTS_FILE		WORLD_DIR "blueprints.dat"
+#define DUNGEONS_FILE		WORLD_DIR "dungeons.dat"
 
 
 /* POST msg queue */
@@ -7940,6 +7942,7 @@ extern LLIST *loaded_wilds;
 
 extern BLUEPRINT_SECTION *blueprint_section_hash[MAX_KEY_HASH];
 extern BLUEPRINT *blueprint_hash[MAX_KEY_HASH];
+extern DUNGEON_INDEX_DATA *dungeon_index_hash[MAX_KEY_HASH];
 
 
 void connection_add(DESCRIPTOR_DATA *d);
@@ -8130,9 +8133,15 @@ int instance_section_count_mob(INSTANCE_SECTION *section, MOB_INDEX_DATA *pMobIn
 int instance_count_mob(INSTANCE *instance, MOB_INDEX_DATA *pMobIndex);
 void instance_update();
 
+void load_dungeons();
+bool save_dungeons();
+bool can_edit_dungeons(CHAR_DATA *ch);
+
+
 bool can_room_update(ROOM_INDEX_DATA *room);
 
 extern  bool			blueprints_changed;
+extern  bool			dungeons_changed;
 
 
 #endif /* !def __MERC_H__ */

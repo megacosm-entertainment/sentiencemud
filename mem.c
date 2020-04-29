@@ -3637,3 +3637,53 @@ void free_instance(INSTANCE *instance)
 	instance_free = instance;
 }
 
+DUNGEON_INDEX_DATA *dungeon_index_free;
+
+DUNGEON_INDEX_DATA *new_dungeon_index()
+{
+	DUNGEON_INDEX_DATA *dungeon_index;
+
+	if( dungeon_index_free )
+	{
+		dungeon_index = dungeon_index_free;
+		dungeon_index_free = dungeon_index_free->next;
+	}
+	else
+		dungeon_index = alloc_perm(sizeof(DUNGEON_INDEX_DATA));
+
+	memset(dungeon_index, 0, sizeof(DUNGEON_INDEX_DATA));
+
+	dungeon_index->vnum = 0;
+
+	dungeon_index->name = &str_empty[0];
+	dungeon_index->description = &str_empty[0];
+	dungeon_index->comments = &str_empty[0];
+
+	dungeon_index->area_who = AREA_BLANK;
+
+	dungeon_index->floors = list_create(FALSE);
+	dungeon_index->entry_room = 0;
+	dungeon_index->exit_room = 0;
+
+	dungeon_index->flags = 0;
+
+	VALIDATE(dungeon_index);
+	return dungeon_index;
+}
+
+void free_dungeon_index(DUNGEON_INDEX_DATA *dungeon_index)
+{
+	if( !IS_VALID(dungeon_index) )
+		return;
+
+	free_string(dungeon_index->name);
+	free_string(dungeon_index->description);
+	free_string(dungeon_index->comments);
+
+	list_destroy(dungeon_index->floors);
+
+	INVALIDATE(dungeon_index);
+	dungeon_index->next = dungeon_index_free;
+	dungeon_index_free = dungeon_index;
+}
+

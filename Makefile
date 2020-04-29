@@ -40,6 +40,7 @@ C_FILES = \
 	db.c \
 	db2.c \
 	drunk.c \
+	dungeon.c \
 	effects.c \
 	events.c \
 	fight.c \
@@ -143,6 +144,7 @@ O_FILES = \
 	$(OBJDIR)/db.o \
 	$(OBJDIR)/db2.o \
 	$(OBJDIR)/drunk.o \
+	$(OBJDIR)/dungeon.o \
 	$(OBJDIR)/effects.o \
 	$(OBJDIR)/events.o \
 	$(OBJDIR)/fight.o \

@@ -145,8 +145,11 @@ void do_asave_new(CHAR_DATA *ch, char *argument)
 		if( can_edit_blueprints(ch) )
 			send_to_char("  asave blueprints - saves blueprints\n\r", ch);
 
+		if( can_edit_dungeons(ch) )
+			send_to_char("  asave dungeons   - saves dungeons\n\r", ch);
+
 		if (ch->tot_level == MAX_LEVEL)
-			send_to_char("  asave staff    - saves the immortal staff information\n\r", ch);
+			send_to_char("  asave staff      - saves the immortal staff information\n\r", ch);
 
 		//send_to_char("  asave wilds    - saves wilderness templates (imps only)\n\r", ch);
 		return;
@@ -198,6 +201,12 @@ void do_asave_new(CHAR_DATA *ch, char *argument)
 		{
 			save_blueprints();
 			send_to_char("Blueprints saved.\n\r", ch);
+		}
+
+		if (dungeons_changed)
+		{
+			save_dungeons();
+			send_to_char("Dungeons saved.\n\r", ch);
 		}
 
 		log_string("olc_save.c, do_asave: changed, saving area list");
@@ -334,6 +343,13 @@ void do_asave_new(CHAR_DATA *ch, char *argument)
     {
 		save_blueprints();
 		send_to_char("Blueprints saved.\n\r", ch);
+		return;
+	}
+
+    if (!str_cmp(arg1, "dungeons"))
+    {
+		save_dungeons();
+		send_to_char("Dungeons saved.\n\r", ch);
 		return;
 	}
 

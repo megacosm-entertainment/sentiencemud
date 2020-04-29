@@ -77,6 +77,7 @@ extern  EXTRA_DESCR_DATA * extra_descr_free;
 extern  RESET_DATA  *reset_free;
 extern	GLOBAL_DATA gconfig;
 extern	LLIST *loaded_instances;
+extern	LLIST *loaded_dungeons;
 
 void free_room_index( ROOM_INDEX_DATA *pRoom );
 void persist_save_room(FILE *fp, ROOM_INDEX_DATA *room);
@@ -178,6 +179,7 @@ TRADE_ITEM *	        trade_produce_list;
 WEATHER_DATA 		weather_info;
 BLUEPRINT_SECTION		*blueprint_section_hash[MAX_KEY_HASH];
 BLUEPRINT				*blueprint_hash[MAX_KEY_HASH];
+DUNGEON_INDEX_DATA		*dungeon_index_hash[MAX_KEY_HASH];
 
 bool			global;
 char			bug_buf[2*MAX_INPUT_LENGTH];
@@ -804,8 +806,9 @@ void boot_db(void)
 
     }
 
-	// Initialize instance list
+	// Initialize instance/dungeon lists
 	loaded_instances = list_create(FALSE);
+	loaded_dungeons = list_create(FALSE);
 
     /*
      * Read in all the area files.
@@ -938,6 +941,9 @@ void boot_db(void)
 
     log_string("Loading blueprints and instances");
 	load_blueprints();
+
+    log_string("Loading dungeons");
+	load_dungeons();
 
     log_string("Reading helpfiles");
     read_helpfiles_new();
