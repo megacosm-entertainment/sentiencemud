@@ -1473,29 +1473,70 @@ void do_rstat(CHAR_DATA *ch, char *argument)
 
     add_buf(output, "\n\r{C*Exits*{x\n\r");
 
-    for (door = 0; door <= 9; door++)
+    for (door = 0; door < MAX_DIR; door++)
     {
-	EXIT_DATA *pexit;
+		EXIT_DATA *pexit;
 
-	if ((pexit = location->exit[door]) != NULL)
-	{
-            if ((location->wilds == NULL && !IS_SET(pexit->exit_info, EX_VLINK))
-                || (location->wilds != NULL && IS_SET(pexit->exit_info, EX_VLINK)))
-            {
-	        sprintf(buf,
-                        "{x%s {Yto vnum {x%ld '%s' {Yin Area uid:{x %ld '%s'\n\r"
-		        "    {YKey: {x%ld  {YExit flags: {x%s\n\r"
+		if ((pexit = location->exit[door]) != NULL)
+		{
+			if( IS_SET(pexit->exit_info, EX_ENVIRONMENT) )
+			{
+				sprintf(buf,
+                        "{x%s {Y[ENVIRONMENT]{x\n\r"
+						"    {YKey: {x%ld  {YExit flags: {x%s\n\r"
                         "    {YKeyword:{x '%s'  {YDescription: {x%s",
                         dir_name[door],
-                        (pexit->u1.to_room == NULL ? -1 : pexit->u1.to_room->vnum),
-                        pexit->u1.to_room->name,
-                        pexit->u1.to_room->area->uid,
-                        pexit->u1.to_room->area->name,
                         pexit->door.key_vnum,
                         flag_string(exit_flags, pexit->exit_info),
                         pexit->keyword,
                         pexit->short_desc[0] != '\0'
                         ? pexit->short_desc : "(none).\n\r");
+			}
+			else if( IS_SET(pexit->exit_info, EX_PREVFLOOR) )
+			{
+				sprintf(buf,
+                        "{x%s {Y[PREVIOUS FLOOR]{x\n\r"
+						"    {YKey: {x%ld  {YExit flags: {x%s\n\r"
+                        "    {YKeyword:{x '%s'  {YDescription: {x%s",
+                        dir_name[door],
+                        pexit->door.key_vnum,
+                        flag_string(exit_flags, pexit->exit_info),
+                        pexit->keyword,
+                        pexit->short_desc[0] != '\0'
+                        ? pexit->short_desc : "(none).\n\r");
+			}
+			else if( IS_SET(pexit->exit_info, EX_NEXTFLOOR) )
+			{
+				sprintf(buf,
+					"{x%s {Y[NEXT FLOOR]{x\n\r"
+					"    {YKey: {x%ld  {YExit flags: {x%s\n\r"
+					"    {YKeyword:{x '%s'  {YDescription: {x%s",
+					dir_name[door],
+					pexit->door.key_vnum,
+					flag_string(exit_flags, pexit->exit_info),
+					pexit->keyword,
+					pexit->short_desc[0] != '\0'
+					? pexit->short_desc : "(none).\n\r");
+			}
+			else if ((location->wilds == NULL && !IS_SET(pexit->exit_info, EX_VLINK)) ||
+					(location->wilds != NULL && IS_SET(pexit->exit_info, EX_VLINK)))
+            {
+				ROOM_INDEX_DATA *dest = pexit->u1.to_room;
+
+				sprintf(buf,
+					"{x%s {Yto vnum {x%ld '%s' {Yin Area uid:{x %ld '%s'\n\r"
+					"    {YKey: {x%ld  {YExit flags: {x%s\n\r"
+					"    {YKeyword:{x '%s'  {YDescription: {x%s",
+					dir_name[door],
+					(room ? pexit->u1.to_room->vnum : -1),
+					(room ? pexit->u1.to_room->name : "(null)"),
+					(room ? pexit->u1.to_room->area->uid : -1),
+					(room ? pexit->u1.to_room->area->name : "(null)"),
+					pexit->door.key_vnum,
+					flag_string(exit_flags, pexit->exit_info),
+					pexit->keyword,
+					pexit->short_desc[0] != '\0'
+					? pexit->short_desc : "(none).\n\r");
             }
             else
             {
