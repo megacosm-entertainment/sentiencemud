@@ -4792,29 +4792,34 @@ char *get_char_where(CHAR_DATA *ch)
 
 		if( IS_VALID(instance->dungeon) )
 		{
-			return str_dup(flag_string(area_who_display,AREA_DUNGEON));
+			// Prioritize the blueprint
+			int area_who = instance->blueprint->area_who;
+
+			// If blank, fall back to the dungeon index
+			if( area_who == AREA_BLANK )
+				area_who = instance->dungeon->index->area_who;
+
+			// If blank, fall back to default
+			if( area_who == AREA_BLANK )
+				area_who = AREA_DUNGEON;
+
+			return str_dup(flag_string(area_who_display,area_who));
 		}
 		else if( IS_VALID(instance->object) )
 		{
 			if( instance->object->item_type == ITEM_SHIP )
 			{
-				// For now, just do ship
+				// When the object is a ship, it doesn't matter what the instance is labeled as
 				return str_dup(flag_string(area_who_display,AREA_ON_SHIP));
 			}
 			else
 			{
-				return str_dup("Instce");
+				return str_dup(flag_string(area_who_display,instance->blueprint->area_who));
 			}
 		}
-		/*
-		else if( IS_VALID(instance->quest) )
-		{
-			return str_dup("Duty");
-		}
-		*/
 		else
 		{
-			return str_dup("Instce");
+			return str_dup(flag_string(area_who_display,instance->blueprint->area_who));
 		}
 
 	}

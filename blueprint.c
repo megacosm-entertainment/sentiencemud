@@ -215,6 +215,9 @@ BLUEPRINT *load_blueprint(FILE *fp)
 
 		switch(word[0])
 		{
+		case 'A':
+			KEY("AreaWho", bp->area_who, fread_number(fp));
+
 		case 'C':
 			KEYS("Comments", bp->comments, fread_string(fp));
 			break;
@@ -396,6 +399,7 @@ void save_blueprint(FILE *fp, BLUEPRINT *bp)
 	fprintf(fp, "Name %s~\n\r", fix_string(bp->name));
 	fprintf(fp, "Description %s~\n\r", fix_string(bp->description));
 	fprintf(fp, "Comments %s~\n\r", fix_string(bp->comments));
+	fprintf(fp, "AreaWho %d\n\r", bp->area_who);
 
 	ITERATOR sit;
 	BLUEPRINT_SECTION *bs;
@@ -2000,6 +2004,7 @@ const struct olc_cmd_type bpedit_table[] =
 	{ "name",			bpedit_name			},
 	{ "description",	bpedit_description	},
 	{ "comments",		bpedit_comments		},
+	{ "areawho",		bpedit_areawho		},
 	{ "mode",			bpedit_mode			},
 	{ "section",		bpedit_section		},
 	{ "static",			bpedit_static		},
@@ -2201,6 +2206,9 @@ BPEDIT( bpedit_show )
 	add_buf(buffer, "\n\r-----\n\r{WBuilders' Comments:{X\n\r");
 	add_buf(buffer, bp->comments);
 	add_buf(buffer, "\n\r-----\n\r");
+
+	sprintf(buf, "{xAreaWho:     [%s] [%s]{x\n\r", flag_string(area_who_titles, bp->area_who), flag_string(area_who_display, bp->area_who));
+	add_buf(buffer, buf);
 
 	switch(bp->mode)
 	{
@@ -2456,6 +2464,30 @@ BPEDIT( bpedit_comments )
 	return FALSE;
 }
 
+BPEDIT( bpedit_areawho )
+{
+	BLUEPRINT *bp;
+
+	EDIT_BLUEPRINT(ch, bp);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  areawho <value>\n\r", ch);
+		send_to_char("See '? areawho' for list\n\r", ch);
+		return FALSE;
+	}
+
+	if ((value = flag_value(area_who_titles, argument)) != NO_FLAG)
+	{
+		bp->area_who = value;
+
+		send_to_char("Area who title set.\n\r", ch);
+		return TRUE;
+	}
+
+	bpedit_areawho(ch, "");
+	return FALSE;
+}
 
 BPEDIT( bpedit_mode )
 {

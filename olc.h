@@ -492,10 +492,10 @@ DECLARE_OLC_FUN( bpedit_create			);
 DECLARE_OLC_FUN( bpedit_name			);
 DECLARE_OLC_FUN( bpedit_description		);
 DECLARE_OLC_FUN( bpedit_comments		);
+DECLARE_OLC_FUN( bpedit_areawho			);
 DECLARE_OLC_FUN( bpedit_mode			);
 DECLARE_OLC_FUN( bpedit_section			);
 DECLARE_OLC_FUN( bpedit_static			);
-
 
 /*
  * Macros

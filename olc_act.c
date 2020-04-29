@@ -513,7 +513,7 @@ AEDIT(aedit_show)
     sprintf(buf, "Players:   [%d]\n\r", pArea->nplayer);
     send_to_char(buf, ch);
 
-    sprintf(buf, "AreaWho:   [%s]\n\r", flag_string(area_who_titles, pArea->area_who));
+    sprintf(buf, "AreaWho:   [%s] [%s]\n\r", flag_string(area_who_titles, pArea->area_who), flag_string(area_who_display, pArea->area_who));
     send_to_char(buf, ch);
 
     sprintf(buf, "Security:  [%d]\n\r", pArea->security);
@@ -1030,6 +1030,12 @@ AEDIT(aedit_areawho)
 
 	if ((value = flag_value(area_who_titles, argument)) != NO_FLAG)
 	{
+		if( value == AREA_INSTANCE || value == AREA_DUTY )
+		{
+			send_to_char("Area who title only allowed in blueprints.\n\r", ch);
+			return FALSE;
+		}
+
 	    pArea->area_who = value;
 
 	    send_to_char("Area who title set.\n\r", ch);

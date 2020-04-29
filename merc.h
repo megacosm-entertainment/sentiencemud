@@ -2831,6 +2831,8 @@ enum {
 	AREA_VILLAGE,
 	AREA_VOLCANO,
 	AREA_WILDER,
+	AREA_INSTANCE,
+	AREA_DUTY,
 	AREA_WHO_MAX
 };
 
@@ -5012,6 +5014,8 @@ struct blueprint_data {
 	char *description;
 	char *comments;
 
+	int area_who;
+
 	int mode;
 
 	LLIST *sections;						// BLUEPRINT_SECTION
@@ -5080,6 +5084,8 @@ struct dungeon_index_data
 
 	char *name;
 	char *description;
+
+	int area_who;
 
 	LLIST *floors;
 	long entry_room;

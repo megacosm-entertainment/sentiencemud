@@ -172,11 +172,11 @@ long flag_value( const struct flag_type *flag_table, char *argument)
  ****************************************************************************/
 char *flag_string( const struct flag_type *flag_table, long bits )
 {
-    static char buf[2][512];
+    static char buf[4][512];
     static int cnt = 0;
     int  flag;
 
-    if ( ++cnt > 1 )
+    if ( ++cnt > 3 )
     	cnt = 0;
 
     buf[cnt][0] = '\0';

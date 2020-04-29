@@ -3497,6 +3497,7 @@ BLUEPRINT *new_blueprint()
 	bp->description = &str_empty[0];
 	bp->comments = &str_empty[0];
 
+	bp->area_who = AREA_INSTANCE;
 	bp->mode = BLUEPRINT_MODE_STATIC;
 
 	bp->sections = list_create(FALSE);

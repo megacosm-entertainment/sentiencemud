@@ -889,6 +889,7 @@ const struct flag_type comm_flags[] =
 };
 
 const struct flag_type area_who_display[] = {
+	{	"      ",	AREA_BLANK,		TRUE	},
 	{	"Abyss",	AREA_ABYSS,		TRUE	},
 	{	"Arena",	AREA_ARENA,		TRUE	},
 	{	"At Sea",	AREA_AT_SEA,		TRUE	},
@@ -929,12 +930,15 @@ const struct flag_type area_who_display[] = {
 	{	"Villa",	AREA_VILLAGE,		TRUE	},
 	{	"Vulcan",	AREA_VOLCANO,		TRUE	},
 	{	"Wilder",	AREA_WILDER,		TRUE	},
+	{	"Instce",	AREA_INSTANCE,		TRUE	},
+	{	"Duty",		AREA_DUTY,			TRUE	},
 	{	NULL,		0,		0	},
 };
 
 
 
 const struct flag_type area_who_titles[] = {
+	{	"blank",	AREA_BLANK,		TRUE	},
 	{	"abyss",	AREA_ABYSS,		TRUE	},
 	{	"aerial",	AREA_AERIAL,		TRUE	},
 	{	"arena",	AREA_ARENA,		TRUE	},
@@ -975,6 +979,8 @@ const struct flag_type area_who_titles[] = {
 	{	"village",	AREA_VILLAGE,		TRUE	},
 	{	"volcano",	AREA_VOLCANO,		TRUE	},
 	{	"wilderness",	AREA_WILDER,		TRUE	},
+	{	"instance",		AREA_INSTANCE,		TRUE	},
+	{	"duty",	AREA_DUTY,			TRUE	},
 	{	NULL,		0,		0	},
 };
 
