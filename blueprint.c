@@ -2467,6 +2467,7 @@ BPEDIT( bpedit_comments )
 BPEDIT( bpedit_areawho )
 {
 	BLUEPRINT *bp;
+	int value;
 
 	EDIT_BLUEPRINT(ch, bp);
 
