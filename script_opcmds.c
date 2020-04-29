@@ -5329,6 +5329,8 @@ SCRIPT_CMD(do_opalterroom)
 		case ENT_STRING:
 			if( is_number(arg->d.str) )
 				value = atoi(arg->d.str);
+			else
+				return;
 
 			break;
 		case ENT_NUMBER: value = arg->d.num; break;
