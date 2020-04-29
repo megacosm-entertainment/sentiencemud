@@ -2176,7 +2176,7 @@ BPEDIT( bpedit_show )
 			STATIC_BLUEPRINT_LINK *sbl;
 			for(sbl = bp->static_layout; sbl; sbl = sbl->next)
 			{
-				sprintf(buf, "{W%4d   {G%9d     {G%6d     {G%9d     {g%6d{x\n\r",
+				sprintf(buf, "{W%4d   {G%9d     {Y%6d     {G%9d     {Y%6d{x\n\r",
 					++linkno, sbl->section1, sbl->link1, sbl->section2, sbl->link2);
 				add_buf(buffer, buf);
 			}
@@ -2792,7 +2792,7 @@ BPEDIT( bpedit_static )
 
 		if( is_number(arg2) && is_number(argument) )
 		{
-			int section = atoi(arg);
+			int section = atoi(arg2);
 			int link = atoi(argument);
 
 			if( section < 1 || section > list_size(bp->sections) )
@@ -2843,7 +2843,7 @@ BPEDIT( bpedit_static )
 
 		if( is_number(arg2) && is_number(argument) )
 		{
-			int section = atoi(arg);
+			int section = atoi(arg2);
 			int link = atoi(argument);
 
 			if( section < 1 || section > list_size(bp->sections) )
