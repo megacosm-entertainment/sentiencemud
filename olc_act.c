@@ -1028,6 +1028,14 @@ AEDIT(aedit_areawho)
     {
 	EDIT_AREA(ch, pArea);
 
+	if ( !str_prefix(argument, "blank") )
+	{
+	    pArea->area_who = AREA_BLANK;
+
+	    send_to_char("Area who title cleared.\n\r", ch);
+	    return TRUE;
+	}
+
 	if ((value = flag_value(area_who_titles, argument)) != NO_FLAG)
 	{
 		if( value == AREA_INSTANCE || value == AREA_DUTY )

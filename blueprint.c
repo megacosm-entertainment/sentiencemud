@@ -2478,6 +2478,15 @@ BPEDIT( bpedit_areawho )
 		return FALSE;
 	}
 
+	if ( !str_prefix(argument, "blank") )
+	{
+	    bp->area_who = AREA_BLANK;
+
+	    send_to_char("Area who title cleared.\n\r", ch);
+	    return TRUE;
+	}
+
+
 	if ((value = flag_value(area_who_titles, argument)) != NO_FLAG)
 	{
 		bp->area_who = value;
