@@ -8114,6 +8114,7 @@ bool valid_section_link(BLUEPRINT_LINK *bl);
 BLUEPRINT_LINK *get_section_link(BLUEPRINT_SECTION *bs, int link);
 bool valid_static_link(STATIC_BLUEPRINT_LINK *sbl);
 BLUEPRINT_SECTION *get_blueprint_section(long vnum);
+BLUEPRINT_SECTION *get_blueprint_section_byroom(long vnum);
 BLUEPRINT *get_blueprint(long vnum);
 bool can_edit_blueprints(CHAR_DATA *ch);
 bool rooms_in_same_section(long vnum1, long vnum2);

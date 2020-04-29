@@ -9561,7 +9561,7 @@ REDIT(redit_room2)
 			send_to_char("No-clone room cannot be used in blueprints.\n\r", ch);
 			return FALSE;
 		}
-		else if( IS_SET(value, ROOM_NOCLONE && !IS_SET(room->room2_flags, ROOM_NOCLONE) )
+		else if( IS_SET(value, ROOM_NOCLONE) && !IS_SET(room->room2_flags, ROOM_NOCLONE) )
 		{
 			send_to_char("BLUEPRINT and NO_CLONE cannot mix.\n\r", ch);
 			return FALSE;

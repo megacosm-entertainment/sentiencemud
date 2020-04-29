@@ -1508,11 +1508,11 @@ bool validate_vnum_range(CHAR_DATA *ch, BLUEPRINT_SECTION *section, long lower, 
 	}
 
 	// Check that are no overlaps
-	BLUEPRINT_SECTION bs;
+	BLUEPRINT_SECTION *bs;
 	int iHash;
 	for(iHash = 0; iHash < MAX_KEY_HASH; iHash++)
 	{
-		for(bs = blueprint_sections_hash[iHash]; bs; bs = bs->next)
+		for(bs = blueprint_section_hash[iHash]; bs; bs = bs->next)
 		{
 			// Only check against other sections
 			if( bs != section )
