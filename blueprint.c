@@ -466,45 +466,62 @@ int instance_count_mob(INSTANCE *instance, MOB_INDEX_DATA *pMobIndex)
 INSTANCE_SECTION *clone_blueprint_section(BLUEPRINT_SECTION *parent)
 {
 	ROOM_INDEX_DATA *room;
+__D__
 
 	INSTANCE_SECTION *section = new_instance_section();
+__D__
+
 	if( !section ) return NULL;
+__D__
 
 	section->section = parent;
 
 	// Clone rooms
 	for(long vnum = parent->lower_vnum; vnum <= parent->upper_vnum; vnum++)
 	{
+__D__
 		ROOM_INDEX_DATA *source = get_room_index(vnum);
 
 		if( source )
 		{
+__D__
 			room = create_virtual_room(source,false,true);
 
 			if( !room )
 			{
+__D__
 				free_instance_section(section);
 				return NULL;
 			}
 
 			if( !list_appendlink(section->rooms, room) )
 			{
+__D__
 				extract_clone_room(room->source,room->id[0],room->id[1],true);
 				free_instance_section(section);
 				return NULL;
 			}
 
+__D__
 			room->instance_section = section;
+
+__D__
+			reset_room(room);
+__D__
 		}
 	}
 
+
+__D__
 	ITERATOR rit;
 	iterator_start(&rit, section->rooms);
 	while((room = (ROOM_INDEX_DATA *)iterator_nextdata(&rit)))
 	{
+__D__
 		// Clone the non-environment exits
 		for(int i = 0; i < MAX_DIR; i++)
 		{
+__D__
 			EXIT_DATA *exParent = room->source->exit[i];
 
 			if( exParent )
@@ -526,9 +543,11 @@ INSTANCE_SECTION *clone_blueprint_section(BLUEPRINT_SECTION *parent)
 			}
 		}
 
+__D__
 		// Correct any portal objects
 		for(OBJ_DATA *obj = room->contents; obj; obj = obj->next_content)
 		{
+__D__
 			// Make sure portals that lead anywhere within the section uses the correct room id
 			if( obj->item_type == ITEM_PORTAL )
 			{
@@ -564,6 +583,7 @@ INSTANCE_SECTION *clone_blueprint_section(BLUEPRINT_SECTION *parent)
 		}
 	}
 	iterator_stop(&rit);
+__D__
 
 	return section;
 }

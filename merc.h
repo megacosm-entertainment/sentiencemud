@@ -4,6 +4,8 @@
 // 2014-05-21 NIB - comment this to return SHOWDAMAGE functionality to immortals and testport only
 #define DEBUG_ALLOW_SHOW_DAMAGE
 
+#define __D__ log_string(__FILE__ ":" __FUNCTION__ ":" __LINE__);
+
 /**************************************************************************
  *  Original Diku Mud copyright (C) 1990, 1991 by Sebastian Hammer,        *
  *  Michael Seifert, Hans Henrik St{rfeldt, Tom Madsen, and Katja Nyboe.   *
