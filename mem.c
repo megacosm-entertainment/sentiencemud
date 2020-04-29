@@ -3609,6 +3609,8 @@ INSTANCE *new_instance()
 	instance->object_uid[0] = 0;
 	instance->object_uid[1] = 0;
 
+	instance->players = list_create(FALSE);
+
 	VALIDATE(instance);
 	return instance;
 }
@@ -3626,6 +3628,8 @@ void free_instance(INSTANCE *instance)
 
 	instance->sections = NULL;
 
+	list_destroy(instance->players);
+	instance->players = NULL;
 
 	INVALIDATE(instance);
 	instance->next = instance_free;

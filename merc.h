@@ -5067,6 +5067,8 @@ struct instance_data {
 								//   If NULL, will use the current room of the object
 								//   Must be a static room
 
+	LLIST *players;
+
 };
 
 struct dungeon_index_data
@@ -8120,7 +8122,9 @@ bool can_edit_blueprints(CHAR_DATA *ch);
 bool rooms_in_same_section(long vnum1, long vnum2);
 int instance_section_count_mob(INSTANCE_SECTION *section, MOB_INDEX_DATA *pMobIndex);
 int instance_count_mob(INSTANCE *instance, MOB_INDEX_DATA *pMobIndex);
-int instance_count_players(INSTANCE *instance);
+void instance_update();
+
+bool can_room_update(ROOM_INDEX_DATA *room);
 
 extern  bool			blueprints_changed;
 

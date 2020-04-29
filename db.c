@@ -1426,8 +1426,7 @@ void area_update(bool fBoot)
 		for (room = room_index_hash[hash]; room; room = room->next)
 		{
 			// Persistant rooms are handled separately!
-
-			if (!room->persist && (!room->area->empty || IS_SET(room->room2_flags, ROOM_ALWAYS_UPDATE)))
+			if (!room->persist && can_room_update(room))
 			{
 				room_update(room);
 			}
@@ -1441,6 +1440,8 @@ void area_update(bool fBoot)
 		room_update(room);
 	}
 	iterator_stop(&it);
+
+	instance_update();
 }
 
 void migrate_shopkeeper_resets(AREA_DATA *area)
@@ -1722,7 +1723,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 					if( IS_VALID(instance->dungeon) )
 						players = list_size(instance->dungeon->players);
 					else
-						players = instance_count_players(instance);
+						players = list_size(instance->players);
 				}
 				else
 					players = 0;

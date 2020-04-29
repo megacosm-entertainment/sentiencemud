@@ -46,9 +46,12 @@
 #include "olc.h"
 #include "tables.h"
 
+void room_update(ROOM_INDEX_DATA *room);
+
 bool blueprints_changed = FALSE;
 long top_blueprint_section_vnum = 0;
 long top_blueprint_vnum = 0;
+LLIST *loaded_instances;
 
 void fix_blueprint_section(BLUEPRINT_SECTION *bs)
 {
@@ -989,28 +992,31 @@ INSTANCE *create_instance(BLUEPRINT *blueprint)
 }
 
 
-int instance_count_players(INSTANCE *instance)
+void instance_section_update(INSTANCE_SECTION *section)
 {
-	DESCRIPTOR_DATA *d;
+	ITERATOR rit;
+	ROOM_INDEX_DATA *room;
 
-	if( !IS_VALID(instance) ) return 0;
+	iterator_start(&rit, section->rooms);
+	while((room = (ROOM_INDEX_DATA *)iterator_nextdata(&rit)))
+		room_update(room);
+	iterator_stop(&rit);
+}
 
-	int count = 0;
-	for( d = descriptor_list; d; d = d->next )
+void instance_update()
+{
+	ITERATOR it;
+	INSTANCE *instance;
+	INSTANCE_SECTION *section;
+
+	iterator_start(&it, loaded_instances);
+	while((instance = (INSTANCE *)iterator_nextdata(&it)))
 	{
-		if (d->connected != CON_PLAYING )
-			continue;
+		for(section = instance->sections; section; section = section->next)
+			instance_section_update(section);
 
-		CHAR_DATA *ch = (d->original != NULL) ? d->original : d->character;
-
-		if( ch && ch->in_room && IS_VALID(ch->in_room->instance_section) )
-		{
-			if( ch->in_room->instance_section->instance == instance )
-				++count;
-		}
 	}
-
-	return count;
+	iterator_stop(&it);
 }
 
 
@@ -2960,8 +2966,6 @@ BPEDIT( bpedit_static )
 //
 // Immortal Commands
 //
-
-LLIST *loaded_instances;
 
 
 // TEMPORARY - redo after stuff is verified

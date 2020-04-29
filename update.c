@@ -766,7 +766,7 @@ void mobile_update(void)
 		    continue;
 		}
 
-		if (ch->in_room->area->empty && !IS_SET(ch->act,ACT_UPDATE_ALWAYS))
+		if (!can_room_update(ch->in_room))
 			continue;
 
 		// A dirty hack to remove any Death mobs that have been stranded
@@ -2836,7 +2836,7 @@ void aggr_update(void)
 	if (IS_NPC(wch)
 	||  wch->level >= LEVEL_IMMORTAL
 	||  wch->in_room == NULL
-	||  wch->in_room->area->empty)
+	||  !can_room_update(wch->in_room))
 	    continue;
 
 	if (wch->boarded_ship == NULL)

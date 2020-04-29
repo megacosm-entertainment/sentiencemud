@@ -1814,20 +1814,24 @@ void char_from_room(CHAR_DATA *ch)
 
     if (!IS_NPC(ch))
     {
-	--ch->in_room->area->nplayer;
-
-        if (ch->in_wilds)
-        {
-            --ch->in_wilds->nplayer;
-        }
-
 		if( IS_VALID(ch->in_room->instance_section) && IS_VALID(ch->in_room->instance_section->instance) )
 		{
-			DUNGEON *dungeon = ch->in_room->instance_section->instance->dungeon;
+			INSTANCE *instance = ch->in_room->instance_section->instance;
+			DUNGEON *dungeon = instance->dungeon;
 
 			if( IS_VALID(dungeon) )
 			{
 				list_remlink(dungeon->players, ch);
+			}
+
+			list_remlink(instance->players, ch);
+		}
+		else
+		{
+			--ch->in_room->area->nplayer;
+			if (ch->in_wilds)
+			{
+				--ch->in_wilds->nplayer;
 			}
 		}
 
@@ -1969,36 +1973,40 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
 
     if (!IS_NPC(ch))
     {
-	if (ch->in_room->area->empty)
-	{
-	    ch->in_room->area->empty = FALSE;
-	    ch->in_room->area->age = 0;
-	}
-
-	++ch->in_room->area->nplayer;
-// VIZZWILDS - Check char's wilds pointer
-       if (ch->in_wilds)
-        {
-            plogf("handler.c, char_to_room(): %s is entering a wilds area.", ch->name);
-
-            if (ch->in_wilds->empty)
-            {
-                ch->in_wilds->empty = FALSE;
-                ch->in_wilds->age = 0;
-            }
-
-            ++ch->in_wilds->nplayer;
-        }
-
 		if( IS_VALID(pRoomIndex->instance_section) && IS_VALID(pRoomIndex->instance_section->instance) )
 		{
-			DUNGEON *dungeon = pRoomIndex->instance_section->instance->dungeon;
+			INSTANCE *instance = pRoomIndex->instance_section->instance;
+			DUNGEON *dungeon = instance->dungeon;
 
 			if( IS_VALID(dungeon) )
 			{
 				list_appendlink(dungeon->players, ch);
 			}
 
+			list_appendlink(instance->players, ch);
+		}
+		else
+		{
+			if (ch->in_room->area->empty)
+			{
+				ch->in_room->area->empty = FALSE;
+				ch->in_room->area->age = 0;
+			}
+
+			++ch->in_room->area->nplayer;
+		// VIZZWILDS - Check char's wilds pointer
+			if (ch->in_wilds)
+			{
+				//plogf("handler.c, char_to_room(): %s is entering a wilds area.", ch->name);
+
+				if (ch->in_wilds->empty)
+				{
+					ch->in_wilds->empty = FALSE;
+					ch->in_wilds->age = 0;
+				}
+
+				++ch->in_wilds->nplayer;
+			}
 		}
     }
 
@@ -8705,3 +8713,27 @@ bool is_pullable(OBJ_DATA *obj)
 	return FALSE;
 }
 
+
+bool can_room_update(ROOM_INDEX_DATA *room)
+{
+	if( !room ) return FALSE;
+
+	if( IS_SET(room->room2_flags, ROOM_ALWAYS_UPDATE) ) return TRUE;
+
+	if( IS_VALID(room->instance_section) )
+	{
+		INSTANCE *instance = room->instance_section->instance;
+
+		if( IS_VALID(instance) )
+		{
+			if( IS_VALID(instance->dungeon) )
+				return list_size(instance->dungeon->players) > 0;
+			else
+				return list_size(instance->players) > 0;
+		}
+
+		return TRUE;
+	}
+
+	return !room->area->empty;
+}
