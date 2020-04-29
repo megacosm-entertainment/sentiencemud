@@ -126,8 +126,24 @@ BLUEPRINT_SECTION *load_blueprint_section(FILE *fp)
 			{
 				BLUEPRINT_LINK *link = load_blueprint_link(fp);
 
-				link->next = bs->links;
-				bs->links = link;
+				// Append to the end
+				link->next = NULL;
+				if( bs->links )
+				{
+					BLUEPRINT_LINK *cur;
+
+					for(cur = bs->links;cur->next; cur = cur->next)
+					{
+						;
+					}
+
+					cur->next = link;
+				}
+				else
+				{
+					bs->links = link;
+				}
+
 				fMatch = TRUE;
 				break;
 			}
@@ -1717,8 +1733,24 @@ BSEDIT( bsedit_link )
 		link->door = door;
 		link->room = room;
 		link->ex = ex;
-		link->next = bs->links;
-		bs->links = link;
+
+		// Append to the end
+		link->next = NULL;
+		if( bs->links )
+		{
+			BLUEPRINT_LINK *cur;
+
+			for(cur = bs->links;cur->next; cur = cur->next)
+			{
+				;
+			}
+
+			cur->next = link;
+		}
+		else
+		{
+			bs->links = link;
+		}
 
 		send_to_char("Link added.\n\r", ch);
 		return TRUE;
