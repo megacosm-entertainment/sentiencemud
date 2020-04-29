@@ -400,13 +400,13 @@ void save_blueprint(FILE *fp, BLUEPRINT *bp)
 		if( bp->static_exit_section > 0 && bp->static_exit_link > 0 )
 			fprintf(fp, "StaticExit %d %d\n\r", bp->static_exit_section, bp->static_exit_link);
 
-		for(STATIC_BLUEPRINT_LINK *sbl = bp->links; sbl; sbl = sbl->next)
+		for(STATIC_BLUEPRINT_LINK *sbl = bp->static_layout; sbl; sbl = sbl->next)
 		{
 			if( valid_static_link(sbl) )
 			{
-				fprintf(fp, "StaticLink %ld %d %ld %d\n\r",
-					sbl->section1->vnum, sbl->link1,
-					sbl->section2->vnum, sbl->link2);
+				fprintf(fp, "StaticLink %d %d %d %d\n\r",
+					sbl->section1, sbl->link1,
+					sbl->section2, sbl->link2);
 			}
 		}
 	}
@@ -2107,7 +2107,7 @@ BPEDIT( bpedit_show )
 	if( list_size(bp->sections) > 0 )
 	{
 		int line = 0;
-
+		BLUEPRINT_SECTION * bs;
 		ITERATOR sit;
 
 		add_buf(buffer, "{YSections:{x\n\r");
@@ -2171,7 +2171,7 @@ BPEDIT( bpedit_show )
 BPEDIT( bpedit_create )
 {
 	BLUEPRINT *bp;
-	long vnum;
+
 
 	long  value;
 	int  iHash;
@@ -2207,7 +2207,7 @@ BPEDIT( bpedit_create )
 }
 
 
-BPEDIT( bsedit_name )
+BPEDIT( bpedit_name )
 {
 	BLUEPRINT *bp;
 
@@ -2225,7 +2225,7 @@ BPEDIT( bsedit_name )
 	return TRUE;
 }
 
-BPEDIT( bsedit_description )
+BPEDIT( bpedit_description )
 {
 	BLUEPRINT *bp;
 
@@ -2241,7 +2241,7 @@ BPEDIT( bsedit_description )
 	return FALSE;
 }
 
-BPEDIT( bsedit_comments )
+BPEDIT( bpedit_comments )
 {
 	BLUEPRINT *bp;
 
@@ -2370,7 +2370,7 @@ BPEDIT( bpedit_section )
 		if( bp->mode == BLUEPRINT_MODE_STATIC )
 		{
 			// Remove any invalid layout definitions since the section has been removed
-			BLUEPRINT_STATIC_LINK *prev, *cur, *next;
+			STATIC_BLUEPRINT_LINK *prev, *cur, *next;
 
 			prev = NULL;
 			for(cur = bp->static_layout; cur; cur = next)
@@ -2579,7 +2579,7 @@ BPEDIT( bpedit_static )
 
 		if( !str_prefix(arg2, "remove") )
 		{
-			BLUEPRINT_STATIC_LINK *prev, *cur;
+			STATIC_BLUEPRINT_LINK *prev, *cur;
 
 			if( !is_number(arg2) )
 			{
