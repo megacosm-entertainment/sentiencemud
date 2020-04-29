@@ -444,6 +444,10 @@ bool run_olc_editor(DESCRIPTOR_DATA *d)
 		bpedit(d->character, d->incomm);
 		break;
 
+	case ED_DUNGEON:
+		dngedit(d->character, d->incomm);
+		break;
+
 	default:
 	    return FALSE;
     }
@@ -477,6 +481,7 @@ char *olc_ed_vnum(CHAR_DATA *ch)
     WILDS_VLINK *pVLink;
     BLUEPRINT_SECTION *bpsect;
     BLUEPRINT *blueprint;
+    DUNGEON_INDEX_DATA *dungeon;
     static char buf[20];
     char buf2[MSL];
 
@@ -585,6 +590,11 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 	    sprintf(buf, "%ld", blueprint ? blueprint->vnum : 0);
 	    break;
 
+	case ED_DUNGEON:
+	    dungeon = (DUNGEON_INDEX_DATA*)ch->desc->pEdit;
+	    sprintf(buf, "%ld", dungeon ? dungeon->vnum : 0);
+	    break;
+
 	default:
 	    sprintf(buf, " ");
 	    break;
@@ -671,6 +681,10 @@ bool show_commands(CHAR_DATA *ch, char *argument)
 
 	case ED_BLUEPRINT:
 		show_olc_cmds(ch, bpedit_table);
+		break;
+
+	case ED_DUNGEON:
+		show_olc_cmds(ch, dngedit_table);
 		break;
     }
 

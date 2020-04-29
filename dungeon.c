@@ -532,7 +532,7 @@ DNGEDIT( dngedit_create )
 	dng->vnum = value;
 
 	iHash							= dng->vnum % MAX_KEY_HASH;
-	bs->next						= dungeon_index_hash[iHash];
+	dng->next						= dungeon_index_hash[iHash];
 	dungeon_index_hash[iHash]	= dng;
 	ch->desc->pEdit					= (void *)dng;
 
@@ -692,7 +692,7 @@ DNGEDIT( dngedit_floors )
 		}
 
 		list_appendlink(dng->floors, bp);
-		send_to_char("Floor added.\n\r");
+		send_to_char("Floor added.\n\r", ch);
 		return TRUE;
 	}
 
