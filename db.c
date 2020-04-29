@@ -1589,6 +1589,10 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 				// TODO: Change to instance count
 				count = instance_section_count_mob(pRoom->instance_section, pMobIndex);
 
+				char buf[MSL];
+				sprintf(buf, "reset_room(M): %ld -> %ld = %d / %ld", pRoom->vnum, pMobIndex->vnum, count, pReset->arg2);
+				wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
+
 				if( count >= pReset->arg2 )
 				{
 					last = FALSE;
@@ -1602,7 +1606,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 			}
 
 			count = 0;
-			for (mob = pRoomIndex->people; mob != NULL; mob = mob->next_in_room)
+			for (mob = pRoom->people; mob != NULL; mob = mob->next_in_room)
 			{
 				if (mob->pIndexData == pMobIndex && !IS_SET(mob->act, ACT_ANIMATED))
 				{
