@@ -46,7 +46,7 @@
 #include "olc.h"
 #include "tables.h"
 
-bool blueprints_changed = FALSE;
+bool dungeons_changed = FALSE;
 long top_dungeon_vnum = 0;
 LLIST *loaded_dungeons;
 
