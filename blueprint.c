@@ -2082,6 +2082,8 @@ BPEDIT( bpedit_show )
 
 	EDIT_BLUEPRINT(ch, bp);
 
+	buffer = new_buf();
+
 	sprintf(buf, "{xName:        [%5ld] %s{x\n\r", bp->vnum, bp->name);
 	add_buf(buffer, buf);
 
