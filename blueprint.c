@@ -485,7 +485,7 @@ __D__
 		if( source )
 		{
 __D__
-			room = create_virtual_room(source,false,true);
+			room = create_virtual_room_nouid(source,false,false,true);
 
 			if( !room )
 			{
@@ -493,6 +493,8 @@ __D__
 				free_instance_section(section);
 				return NULL;
 			}
+
+			get_vroom_id(room);
 
 			if( !list_appendlink(section->rooms, room) )
 			{
