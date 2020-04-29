@@ -1710,7 +1710,28 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 				continue;
 			}
 
-			if (pRoom->area->nplayer > 0 || count_obj_list(pObjIndex, pRoom->contents) > 0)
+			int players;
+
+			if( IS_VALID(pRoom->instance_section) )
+			{
+				INSTANCE *instance = pRoom->instance_section->instance;
+
+				if( IS_VALID(instance) )
+				{
+					// Dungeons must check across all floors of the dungeon
+					if( IS_VALID(instance->dungeon) )
+						players = list_size(instance->dungeon->players);
+					else
+						players = instance_count_players(instance);
+				}
+				else
+					players = 0;
+			}
+			else
+				players = pRoom->area->nplayer;	// In a normal area
+
+
+			if (players > 0 || count_obj_list(pObjIndex, pRoom->contents) > 0)
 			{
 				last = FALSE;
 				break;
@@ -4704,6 +4725,8 @@ ROOM_INDEX_DATA *create_virtual_room_nouid(ROOM_INDEX_DATA *source, bool objects
 	if(!source) return NULL;
 
 	if(source->source) source = source->source;
+
+	if(IS_SET(source->room2_flags, ROOM_NOCLONE)) return NULL;
 
 	/* Can't clone a purely virtual room... ever*/
 	if(IS_SET(source->room2_flags,ROOM_VIRTUAL_ROOM)) return NULL;

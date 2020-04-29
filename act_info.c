@@ -4786,6 +4786,39 @@ void do_botter(CHAR_DATA* ch, char *argument)
  @@@NIB : 20070126 : Added types */
 char *get_char_where(CHAR_DATA *ch)
 {
+	if( IS_VALID(ch->in_room->instance_section) && IS_VALID(ch->in_room->instance_section->instance) )
+	{
+		INSTANCE *instance = ch->in_room->instance_section->instance;
+
+		if( IS_VALID(instance->dungeon) )
+		{
+			return str_dup(flag_string(area_who_display,AREA_DUNGEON));
+		}
+		else if( IS_VALID(instance->object) )
+		{
+			if( instance->object->item_type == ITEM_SHIP )
+			{
+				// For now, just do ship
+				return str_dup(flag_string(area_who_display,AREA_ON_SHIP));
+			}
+			else
+			{
+				return str_dup("Instce");
+			}
+		}
+		/*
+		else if( IS_VALID(instance->quest) )
+		{
+			return str_dup("Duty");
+		}
+		*/
+		else
+		{
+			return str_dup("Instce");
+		}
+
+	}
+
 	if(ch->in_room->area->area_who <= AREA_BLANK || ch->in_room->area->area_who >= AREA_WHO_MAX)
 		return str_dup("      ");
 

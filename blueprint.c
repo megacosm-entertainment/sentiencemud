@@ -989,6 +989,30 @@ INSTANCE *create_instance(BLUEPRINT *blueprint)
 }
 
 
+int instance_count_players(INSTANCE *instance)
+{
+	DESCRIPTOR_DATA *d;
+
+	if( !IS_VALID(instance) ) return 0;
+
+	int count = 0;
+	for( d = descriptor_list; d; d = d->next )
+	{
+		if (d->connected != CON_PLAYING )
+			continue;
+
+		CHAR_DATA *ch = (d->original != NULL) ? d->original : d->character;
+
+		if( ch && ch->in_room && IS_VALID(ch->in_room->instance_section) )
+		{
+			if( ch->in_room->instance_section->instance == instance )
+				++count;
+		}
+	}
+
+	return count;
+}
+
 
 
 //////////////////////////////////////////////////////////////
@@ -1472,7 +1496,7 @@ BSEDIT( bsedit_recall )
 	return TRUE;
 }
 
-bool validate_vnum_range(CHAR_DATA *ch, long lower, long upper)
+bool validate_vnum_range(CHAR_DATA *ch, BLUEPRINT_SECTION *section, long lower, long upper)
 {
 	char buf[MSL];
 
@@ -1481,6 +1505,28 @@ bool validate_vnum_range(CHAR_DATA *ch, long lower, long upper)
 	{
 		send_to_char("Vnums must be in the same area.\n\r", ch);
 		return FALSE;
+	}
+
+	// Check that are no overlaps
+	BLUEPRINT_SECTION bs;
+	int iHash;
+	for(iHash = 0; iHash < MAX_KEY_HASH; iHash++)
+	{
+		for(bs = blueprint_sections_hash[iHash]; bs; bs = bs->next)
+		{
+			// Only check against other sections
+			if( bs != section )
+			{
+				if( (bs->lower_vnum >= lower && lower <= bs->upper_vnum ) ||
+					(bs->lower_vnum >= upper && upper <= bs->upper_vnum ) ||
+					(lower >= bs->lower_vnum && bs->lower_vnum <= upper ) ||
+					(lower >= bs->upper_vnum && bs->upper_vnum <= upper ) )
+				{
+					send_to_char("Blueprint section vnum ranges cannot overlap.\n\r", ch);
+					return FALSE;
+				}
+			}
+		}
 	}
 
 	// Verify there are any rooms in the range
@@ -1500,6 +1546,13 @@ bool validate_vnum_range(CHAR_DATA *ch, long lower, long upper)
 				!IS_SET(room->area->area_flags, AREA_BLUEPRINT) )
 			{
 				sprintf(buf, "{xRoom {W%ld{x is not allocated for use in blueprints.\n\r", room->vnum);
+				add_buf(buffer, buf);
+				valid = FALSE;
+			}
+
+			if( IS_SET(room->room2_flags, (ROOM_NOCLONE|ROOM_VIRTUAL_ROOM)) )
+			{
+				sprintf(buf, "{xRoom {W%ld{x cannot be used in blueprints.\n\r", room->vnum);
 				add_buf(buffer, buf);
 				valid = FALSE;
 			}
@@ -1579,7 +1632,7 @@ BSEDIT( bsedit_rooms )
 		uvnum = vnum;
 	}
 
-	if( validate_vnum_range(ch, lvnum, uvnum) )
+	if( validate_vnum_range(ch, bs, lvnum, uvnum) )
 	{
 		bs->lower_vnum = lvnum;
 		bs->upper_vnum = uvnum;

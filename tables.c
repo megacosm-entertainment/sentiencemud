@@ -1117,6 +1117,7 @@ const struct flag_type room2_flags[] =
     {	"no_floor",		ROOM_NOFLOOR,	TRUE	},
     {	"clone_persist",		ROOM_CLONE_PERSIST,	TRUE	},
     {	"blueprint",			ROOM_BLUEPRINT, TRUE	},
+    {	"no_clone",				ROOM_NOCLONE, TRUE	},
     {	"always_update",		ROOM_ALWAYS_UPDATE,	TRUE	},
     {	NULL,			0,			0	}
 

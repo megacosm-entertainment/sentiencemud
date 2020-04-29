@@ -9556,8 +9556,40 @@ REDIT(redit_room2)
 				return FALSE;
 			}
 		}
+		else if( !IS_SET(value, ROOM_NOCLONE) && IS_SET(room->room2_flags, ROOM_NOCLONE) )
+		{
+			send_to_char("No-clone room cannot be used in blueprints.\n\r", ch);
+			return FALSE;
+		}
+		else if( IS_SET(value, ROOM_NOCLONE && !IS_SET(room->room2_flags, ROOM_NOCLONE) )
+		{
+			send_to_char("BLUEPRINT and NO_CLONE cannot mix.\n\r", ch);
+			return FALSE;
+		}
 	}
 
+	if( IS_SET(value, ROOM_NOCLONE) )
+	{
+		if( !IS_SET(value, ROOM_BLUEPRINT) && IS_SET(room->room2_flags, ROOM_BLUEPRINT) )
+		{
+			send_to_char("Blueprint rooms cannot be no-clone.\n\r", ch);
+			return FALSE;
+		}
+
+		// Check if room is already used in a section
+		if( get_blueprint_section_byroom(room->vnum) )
+		{
+			send_to_char("Room is currently used in a blueprint.\n\r", ch);
+			// Clear it out, JIC
+			if( IS_SET(room->room2_flags, ROOM_NOCLONE) )
+			{
+			    REMOVE_BIT(room->room2_flags, ROOM_NOCLONE);
+			    return TRUE;
+			}
+
+			return FALSE;
+		}
+	}
 
     TOGGLE_BIT(room->room2_flags, value);
     send_to_char("Room flags toggled.\n\r", ch);

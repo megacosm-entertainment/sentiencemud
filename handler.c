@@ -1820,6 +1820,17 @@ void char_from_room(CHAR_DATA *ch)
         {
             --ch->in_wilds->nplayer;
         }
+
+		if( IS_VALID(ch->in_room->instance_section) && IS_VALID(ch->in_room->instance_section->instance) )
+		{
+			DUNGEON *dungeon = ch->in_room->instance_section->instance->dungeon;
+
+			if( IS_VALID(dungeon) )
+			{
+				list_remlink(dungeon->players, ch);
+			}
+		}
+
     }
 
 
@@ -1979,6 +1990,16 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
             ++ch->in_wilds->nplayer;
         }
 
+		if( IS_VALID(pRoomIndex->instance_section) && IS_VALID(pRoomIndex->instance_section->instance) )
+		{
+			DUNGEON *dungeon = pRoomIndex->instance_section->instance->dungeon;
+
+			if( IS_VALID(dungeon) )
+			{
+				list_appendlink(dungeon->players, ch);
+			}
+
+		}
     }
 
     if ((obj = get_eq_char(ch, WEAR_LIGHT)) != NULL

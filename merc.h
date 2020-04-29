@@ -2731,6 +2731,7 @@ enum {
 #define ROOM_NOFLOOR		(S)	/* The room requires you to be flying, on non-takable furniture or floating furniture */
 #define ROOM_CLONE_PERSIST	(T)	/* Set on rooms that can be cloned.  If set, allows clone rooms to be made persistant */
 #define ROOM_BLUEPRINT		(U)	// Room is used in a blueprint.  Allows setting the coordinates without the wilderness
+#define ROOM_NOCLONE		(V)	// Room cannot be used for cloning
 #define ROOM_ALWAYS_UPDATE	(Z)	/* Allows the room to perform scripting even if the area is empty */
 
 #define ENVIRON_NONE		0	// Special case to indicate the clone room is free floating
@@ -8118,6 +8119,7 @@ bool can_edit_blueprints(CHAR_DATA *ch);
 bool rooms_in_same_section(long vnum1, long vnum2);
 int instance_section_count_mob(INSTANCE_SECTION *section, MOB_INDEX_DATA *pMobIndex);
 int instance_count_mob(INSTANCE *instance, MOB_INDEX_DATA *pMobIndex);
+int instance_count_players(INSTANCE *instance);
 
 extern  bool			blueprints_changed;
 

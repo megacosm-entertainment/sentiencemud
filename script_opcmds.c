@@ -5079,8 +5079,9 @@ SCRIPT_CMD(do_opcloneroom)
 	ROOM_INDEX_DATA *source, *room, *clone;
 	bool no_env = FALSE;
 
-
 	if(!info || !info->obj) return;
+
+	info->progs->lastreturn = 0;
 
 	// Get vnum
 	if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
@@ -5090,6 +5091,9 @@ SCRIPT_CMD(do_opcloneroom)
 
 	source = get_room_index(vnum);
 	if(!source) return;
+
+	if( IS_SET(source->room2_flags, ROOM_NOCLONE) )
+		return;
 
 	if(!(argument = expand_argument(info,argument,arg)))
 		return;
@@ -5128,6 +5132,8 @@ SCRIPT_CMD(do_opcloneroom)
 		room_to_environment(clone,mob,obj,room,tok);
 
 	variables_set_room(info->var,name,clone);
+
+	info->progs->lastreturn = 1;
 }
 
 // alterroom <room> <field> <parameters>
@@ -5296,21 +5302,38 @@ SCRIPT_CMD(do_opalterroom)
 		return;
 	}
 
-	switch(arg->type) {
-	case ENT_STRING:
-		if( is_number(arg->d.str) )
-			value = atoi(arg->d.str);
-		else
+	if( flags != NULL )
+	{
+		if( arg->type != ENT_STRING ) return;
+
+		allowarith = FALSE;	// This is a bit vector, no arithmetic operators.
+		value = script_flag_value(flags, arg->d.str);
+
+		if( value == NO_FLAG ) value = 0;
+
+		// ROOM2 has flags that cannot be manipulated by alterroom
+		if( flags == room2_flags )
 		{
-			allowarith = FALSE;	// This is a bit vector, no arithmetic operators.
-			value = script_flag_value(flags, arg->d.str);
+			REMOVE_BIT(value, ROOM_NOCLONE);
 
-			if( value == NO_FLAG ) value = 0;
+			if( buf[0] == '=' || buf[0] == '&' )
+			{
+				if( IS_SET(*ptr, ROOM_NOCLONE) ) SET_BIT(value, ROOM_NOCLONE);
+				if( IS_SET(*ptr, ROOM_VIRTUAL_ROOM) ) SET_BIT(value, ROOM_VIRTUAL_ROOM);
+			}
 		}
+	}
+	else
+	{
+		switch(arg->type) {
+		case ENT_STRING:
+			if( is_number(arg->d.str) )
+				value = atoi(arg->d.str);
 
-		break;
-	case ENT_NUMBER: value = arg->d.num; break;
-	default: return;
+			break;
+		case ENT_NUMBER: value = arg->d.num; break;
+		default: return;
+		}
 	}
 
 	if(ptr) {
