@@ -1282,7 +1282,7 @@ BSEDIT( bsedit_name )
 
 	free_string(bs->name);
 	bs->name = str_dup(argument);
-
+	send_to_char("Name changed.\n\r", ch);
 	return TRUE;
 }
 
@@ -2155,6 +2155,96 @@ BPEDIT( bpedit_show )
 		{
 			add_buf(buffer, "{CLinks:{x\n\r   None\n\r\n\r");
 		}
+
+		if( bp->static_recall > 0 )
+		{
+			BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, bp->static_recall);
+
+			if( bs )
+			{
+				sprintf(buf, "{xRecall:     %d [%ld] %-.30s\n\r", bp->static_recall, bs->vnum, bs->name);
+			}
+			else
+			{
+				sprintf(buf, "{xRecall:     %d [---] {Dinvalid{x\n\r", bp->static_recall);
+			}
+
+			add_buf(buffer, buf);
+		}
+		else
+		{
+			add_buf(buffer, "{xRecall:     None\n\r");
+		}
+
+		if( bp->static_entry_section > 0 && bp->static_entry_link > 0 )
+		{
+			BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, bp->static_entry_section);
+
+			if( bs )
+			{
+				BLUEPRINT_LINK *bl = get_section_link(bs, bp->static_entry_link);
+
+				char section_name[31];
+
+				strncpy(section_name, bs->name, 30);
+				section_name[30] = '\0';
+
+				if( bl && bl->vnum > 0 && bl->door >= 0 && bl->door < MAX_DIR )
+				{
+					sprintf(buf, "{xEntry:      %d [%ld] %s (%ld:%s)\n\r", bp->static_entry_section, bs->vnum, section_name, bl->vnum, dir_name[bl->door]);
+				}
+				else
+				{
+					sprintf(buf, "{xEntry:      %d [%ld] %s ({Dinvalid{x)\n\r", bp->static_entry_section, bs->vnum, section_name);
+				}
+			}
+			else
+			{
+				sprintf(buf, "{xEntry:      %d [---] {Dinvalid{x\n\r", bp->static_entry_section);
+			}
+
+			add_buf(buffer, buf);
+		}
+		else
+		{
+			add_buf(buffer, "{xEntry:      None\n\r");
+		}
+
+
+		if( bp->static_exit_section > 0 && bp->static_exit_link > 0 )
+		{
+			BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, bp->static_exit_section);
+
+			if( bs )
+			{
+				BLUEPRINT_LINK *bl = get_section_link(bs, bp->static_exit_link);
+
+				char section_name[31];
+
+				strncpy(section_name, bs->name, 30);
+				section_name[30] = '\0';
+
+				if( bl && bl->vnum > 0 && bl->door >= 0 && bl->door < MAX_DIR )
+				{
+					sprintf(buf, "{xExit:       %d [%ld] %s (%ld:%s)\n\r", bp->static_exit_section, bs->vnum, section_name, bl->vnum, dir_name[bl->door]);
+				}
+				else
+				{
+					sprintf(buf, "{xExit:       %d [%ld] %s ({Dinvalid{x)\n\r", bp->static_exit_section, bs->vnum, section_name);
+				}
+			}
+			else
+			{
+				sprintf(buf, "{xExit:       %d [---] {Dinvalid{x\n\r", bp->static_exit_section);
+			}
+
+			add_buf(buffer, buf);
+		}
+		else
+		{
+			add_buf(buffer, "{xExit:       None\n\r");
+		}
+
 	}
 
 	if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
@@ -2223,7 +2313,7 @@ BPEDIT( bpedit_name )
 
 	free_string(bp->name);
 	bp->name = str_dup(argument);
-
+	send_to_char("Name changed.\n\r", ch);
 	return TRUE;
 }
 
