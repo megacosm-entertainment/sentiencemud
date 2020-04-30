@@ -3675,6 +3675,10 @@ DUNGEON_INDEX_DATA *new_dungeon_index()
 
 	dungeon_index->flags = 0;
 
+	dungeon_index->zone_out = &str_empty[0];
+	dungeon_index->zone_out_portal = &str_empty[0];
+	dungeon_index->zone_out_mount = &str_empty[0];
+
 	VALIDATE(dungeon_index);
 	return dungeon_index;
 }
@@ -3689,6 +3693,10 @@ void free_dungeon_index(DUNGEON_INDEX_DATA *dungeon_index)
 	free_string(dungeon_index->comments);
 
 	list_destroy(dungeon_index->floors);
+
+	free_string(dungeon_index->zone_out);
+	free_string(dungeon_index->zone_out_portal);
+	free_string(dungeon_index->zone_out_mount);
 
 	INVALIDATE(dungeon_index);
 	dungeon_index->next = dungeon_index_free;

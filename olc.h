@@ -512,6 +512,9 @@ DECLARE_OLC_FUN( dngedit_floors			);
 DECLARE_OLC_FUN( dngedit_entry			);
 DECLARE_OLC_FUN( dngedit_exit			);
 DECLARE_OLC_FUN( dngedit_flags			);
+DECLARE_OLC_FUN( dngedit_zoneout		);
+DECLARE_OLC_FUN( dngedit_portalout		);
+DECLARE_OLC_FUN( dngedit_mountout		);
 
 /*
  * Macros

@@ -607,8 +607,42 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 	else
 		char_to_room(ch, to_room);
 
+	DUNGEON *in_dungeon = get_room_dungeon(in_room);
+	DUNGEON *to_dungeon = get_room_dungeon(to_room);
+
 	if (!IS_AFFECTED(ch, AFF_SNEAK) && ch->invis_level < LEVEL_HERO) {
-		if (in_room->sector_type == SECT_WATER_NOSWIM)
+		if( IS_VALID(in_dungeon) && !IS_VALID(to_dungeon) )
+		{
+			OBJ_DATA *portal = get_room_dungeon_portal(to_room, in_dungeon->index->vnum);
+
+			if( IS_VALID(portal) )
+			{
+				if( !IS_NULLSTR(dungeon->index->zoneout_portal) )
+				{
+					act(dungeon->index->zoneout_portal, ch, NULL, NULL, portal, NULL, NULL, dir_name[door], TO_ROOM);
+				}
+				else
+				{
+					act("$n has arrived through $p.",ch, NULL, NULL,portal, NULL, NULL,NULL,TO_ROOM);
+				}
+			}
+			else if(MOUNTED(ch)) {
+			{
+				if( !IS_NULLSTR(dungeon->index->zoneout_mount) )
+					act(dungeon->index->zoneout_mount, ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+				else
+
+					act("{W$n materializes, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			}
+			else
+			{
+				if( !IS_NULLSTR(dungeon->index->zoneout) )
+					act(dungeon->index->zoneout, ch, NULL, NULL, portal, NULL, NULL, dir_name[door], TO_ROOM);
+				else
+					act("{W$n materializes.{x", ch,NULL,NULL,NULL,NULL, NULL, NULL, TO_ROOM);
+			}
+		}
+		else if (in_room->sector_type == SECT_WATER_NOSWIM)
 			act("{W$n swims in.{x", ch, NULL, NULL, NULL, NULL, NULL, dir_name[door], TO_ROOM);
 		else if (PULLING_CART(ch))
 			act("{W$n has arrived, pulling $p.{x", ch, NULL, NULL, PULLING_CART(ch), NULL, NULL, NULL, TO_ROOM);

@@ -107,8 +107,20 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp)
 			}
 			break;
 
+		case 'M':
+			KEYS("MountOut", dng->zoneout_mount, fread_string(fp));
+			break;
+
 		case 'N':
 			KEYS("Name", dng->name, fread_string(fp));
+			break;
+
+		case 'P':
+			KEYS("PortalOut", dng->zoneout_portal, fread_string(fp));
+			break;
+
+		case 'Z':
+			KEYS("ZoneOut", dng->zoneout, fread_string(fp));
 			break;
 
 		}
@@ -177,6 +189,10 @@ void save_dungeon_index(FILE *fp, DUNGEON_INDEX_DATA *dng)
 
 	if( dng->exit_room > 0 )
 		fprintf(fp, "Exit %ld\n\r", dng->exit_room);
+
+	fprintf(fp, "ZoneOut %s~\n\r", fix_string(dng->zoneout));
+	fprintf(fp, "PortalOut %s~\n\r", fix_string(dng->zoneout_portal));
+	fprintf(fp, "MountOut %s~\n\r", fix_string(dng->zoneout_mount));
 
 	ITERATOR fit;
 	BLUEPRINT *bp;
@@ -531,6 +547,9 @@ const struct olc_cmd_type dngedit_table[] =
 	{ "entry",			dngedit_entry		},
 	{ "exit",			dngedit_exit		},
 	{ "flags",			dngedit_flags		},
+	{ "zoneout",		dngedit_zoneout		},
+	{ "portalout",		dngedit_portalout	},
+	{ "mountout",		dngedit_mountout	},
 	{ NULL,				NULL				}
 
 };
@@ -769,15 +788,27 @@ DNGEDIT( dngedit_show )
 	else
 		add_buf(buffer, "Exit:        {Dinvalid{x\n\r");
 
+	add_buf(buffer, "ZoneOut:     ");
+	add_buf(buffer, dng->zoneout);
+	add_buf(buffer, "{x\n\r");
+
+	add_buf(buffer, "PortalOut:     ");
+	add_buf(buffer, dng->zoneout_portal);
+	add_buf(buffer, "{x\n\r");
+
+	add_buf(buffer, "MountOut:     ");
+	add_buf(buffer, dng->zoneout_mount);
+	add_buf(buffer, "{x\n\r");
+
 	add_buf(buffer, "Description:\n\r");
 	add_buf(buffer, dng->description);
 	add_buf(buffer, "\n\r");
 
+	dngedit_buffer_floors(buffer, dng);
+
 	add_buf(buffer, "\n\r-----\n\r{WBuilders' Comments:{X\n\r");
 	add_buf(buffer, dng->comments);
 	add_buf(buffer, "\n\r-----\n\r");
-
-	dngedit_buffer_floors(buffer, dng);
 
 	page_to_char(buffer->string, ch);
 
@@ -1089,6 +1120,61 @@ DNGEDIT( dngedit_flags )
 	return FALSE;
 
 }
+
+DNGEDIT( dngedit_zoneout )
+{
+	DUNGEON_INDEX_DATA *dng;
+
+	EDIT_DUNGEON(ch, dng);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  zoneout [string]\n\r", ch);
+		return FALSE;
+	}
+
+	free_string(dng->zoneout);
+	dng->zoneout = str_dup(argument);
+	send_to_char("ZoneOut changed.\n\r", ch);
+	return TRUE;
+}
+
+DNGEDIT( dngedit_portalout )
+{
+	DUNGEON_INDEX_DATA *dng;
+
+	EDIT_DUNGEON(ch, dng);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  portalout [string]\n\r", ch);
+		return FALSE;
+	}
+
+	free_string(dng->zoneout_portal);
+	dng->zoneout_portal = str_dup(argument);
+	send_to_char("PortalOut changed.\n\r", ch);
+	return TRUE;
+}
+
+DNGEDIT( dngedit_mountout )
+{
+	DUNGEON_INDEX_DATA *dng;
+
+	EDIT_DUNGEON(ch, dng);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  mountout [string]\n\r", ch);
+		return FALSE;
+	}
+
+	free_string(dng->zoneout_mount);
+	dng->zoneout_mount = str_dup(argument);
+	send_to_char("MountOut changed.\n\r", ch);
+	return TRUE;
+}
+
 
 //////////////////////////////////////////////////////////////
 //
@@ -1429,4 +1515,34 @@ ROOM_INDEX_DATA *dungeon_random_room(CHAR_DATA *ch, DUNGEON *dungeon)
 	return get_random_room_list_byflags( ch, dungeon->rooms,
 		(ROOM_PRIVATE | ROOM_SOLITARY | ROOM_DEATH_TRAP | ROOM_CPK),
 		ROOM_NO_GET_RANDOM );
+}
+
+DUNGEON *get_room_dungeon(ROOM_INDEX_DATA *room)
+{
+	if( !room ) return NULL;
+
+	if( !IS_VALID(room->instance_section) ) return NULL;
+
+	if( !IS_VALID(room->instance_section->instance) ) return NULL;
+
+	if( !IS_VALID(room->instance_section->instance->dungeon) ) return NULL;
+
+	return room->instance_section->instance->dungeon;
+}
+
+OBJ_DATA *get_room_dungeon_portal(ROOM_INDEX_DATA *room, long vnum)
+{
+	OBJ_DATA *obj;
+
+	for(obj = room->contents; obj; obj->next_content)
+	{
+		if( (obj->item_type == ITEM_PORTAL) &&
+			IS_SET(obj->value[2], GATE_DUNGEON) &&
+			(obj->value[3] == vnum) )
+		{
+			return obj;
+		}
+	}
+
+	return NULL;
 }

@@ -5113,6 +5113,10 @@ struct dungeon_index_data
 	long exit_room;
 
 	int flags;						// Potential flags
+
+	char *zone_out;
+	char *zone_out_portal;			// Zoneout if there is a dungeon portal defined
+	char *zone_out_mount;			// Zoneout when riding a mount
 };
 
 struct dungeon_data
@@ -8178,6 +8182,8 @@ void dungeon_save(FILE *fp, DUNGEON *dungeon);
 void dungeon_check_empty(DUNGEON *dungeon);
 void dungeon_echo(DUNGEON *dungeon, char *text);
 ROOM_INDEX_DATA *dungeon_random_room(CHAR_DATA *ch, DUNGEON *dungeon);
+DUNGEON *get_room_dungeon(ROOM_INDEX_DATA *room);
+OBJ_DATA *get_room_dungeon_portal(ROOM_INDEX_DATA *room, long vnum);
 
 bool can_room_update(ROOM_INDEX_DATA *room);
 
