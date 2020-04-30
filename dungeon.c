@@ -1534,7 +1534,7 @@ OBJ_DATA *get_room_dungeon_portal(ROOM_INDEX_DATA *room, long vnum)
 {
 	OBJ_DATA *obj;
 
-	for(obj = room->contents; obj; obj->next_content)
+	for(obj = room->contents; obj; obj = obj->next_content)
 	{
 		if( (obj->item_type == ITEM_PORTAL) &&
 			IS_SET(obj->value[2], GATE_DUNGEON) &&
