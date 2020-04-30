@@ -716,7 +716,7 @@ INSTANCE_SECTION *clone_blueprint_section(BLUEPRINT_SECTION *parent)
 			// Make sure portals that lead anywhere within the section uses the correct room id
 			if( obj->item_type == ITEM_PORTAL )
 			{
-				if( !IS_SET(obj->value[2], GATE_DUNGEON)
+				if( !IS_SET(obj->value[2], GATE_DUNGEON) )
 				{
 					ROOM_INDEX_DATA *dest;
 					long vnum = obj->value[3];	// Destination vnum

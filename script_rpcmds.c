@@ -2897,7 +2897,7 @@ SCRIPT_CMD(do_rpalterobj)
 			return;
 		}
 
-		if( flag != NULL )
+		if( flags != NULL )
 		{
 			if( arg->type != ENT_STRING ) return;
 
@@ -2906,7 +2906,7 @@ SCRIPT_CMD(do_rpalterobj)
 
 			if( value == NO_FLAG ) value = 0;
 
-			if( flag == extra3_flags )
+			if( flags == extra3_flags )
 			{
 				REMOVE_BIT(value, ITEM_INSTANCE_OBJ);
 

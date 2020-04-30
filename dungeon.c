@@ -344,7 +344,7 @@ DUNGEON *find_dungeon_byplayer(CHAR_DATA *ch, long vnum)
 	iterator_start(&dit, loaded_dungeons);
 	while( (dng = (DUNGEON *)iterator_nextdata(&dit)) )
 	{
-		if( dng->vnum == vnum && dng->player == ch )
+		if( dng->index->vnum == vnum && dng->player == ch )
 			break;
 	}
 	iterator_stop(&dit);
@@ -357,7 +357,7 @@ ROOM_INDEX_DATA *spawn_dungeon(CHAR_DATA *ch, long vnum)
 {
 	CHAR_DATA *master = (ch->master != NULL) ? ch->master : ch;
 
-	DUNGEON_DATA *dng = find_dungeon_byplayer(master, vnum);
+	DUNGEON *dng = find_dungeon_byplayer(master, vnum);
 
 	if( dng )
 	{
@@ -377,7 +377,7 @@ ROOM_INDEX_DATA *spawn_dungeon(CHAR_DATA *ch, long vnum)
 	}
 	else
 	{
-		dng = create_dungeon();
+		dng = create_dungeon(vnum);
 
 		if( !dng )
 			return NULL;
@@ -1067,7 +1067,7 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		DUNGEON *dungeon = (INSTANCE *)list_nthdata(loaded_dungeons, index);
+		DUNGEON *dungeon = (DUNGEON *)list_nthdata(loaded_dungeons, index);
 
 		extract_dungeon(dungeon);
 		send_to_char("Dungeon unloaded.\n\r", ch);

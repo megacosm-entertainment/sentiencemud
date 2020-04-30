@@ -3703,9 +3703,9 @@ DUNGEON *new_dungeon()
 		dungeon_free = dungeon_free->next;
 	}
 	else
-		dng = alloc_perm(sizeof(DUNGEON_DATA));
+		dng = alloc_perm(sizeof(DUNGEON));
 
-	memset(dng, 0, sizeof(DUNGEON_DATA));
+	memset(dng, 0, sizeof(DUNGEON));
 
 	dng->floors = list_create(FALSE);
 	dng->players = list_create(FALSE);
@@ -3734,7 +3734,7 @@ void free_dungeon(DUNGEON *dng)
 
 	iterator_stop(&fit);
 
-	INVALID(dng);
+	INVALIDATE(dng);
 	dng->next = dungeon_free;
 	dungeon_free = dng;
 }
