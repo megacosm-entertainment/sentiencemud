@@ -254,11 +254,14 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 	if(p_percent_trigger(NULL, portal, NULL, NULL, ch, NULL, NULL,NULL, NULL,TRIG_PREENTER, NULL))
 		return;
 
-	portal->value[3] = location->vnum;
-	portal->value[4] = location->area->uid;
-	portal->value[5] = location->wilds ? location->wilds->uid : 0;
-	portal->value[6] = location->wilds ? location->x : 0;
-	portal->value[7] = location->wilds ? location->y : 0;
+	if( !IS_SET(portal->value[2], GATE_DUNGEON) )
+	{
+		portal->value[3] = location->vnum;
+		portal->value[4] = location->area->uid;
+		portal->value[5] = location->wilds ? location->wilds->uid : 0;
+		portal->value[6] = location->wilds ? location->x : 0;
+		portal->value[7] = location->wilds ? location->y : 0;
+	}
 
  	/* @@@NIB : 20070126 : added the check */
  	if(!IS_SET(portal->value[2],GATE_SILENTENTRY))
