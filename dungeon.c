@@ -234,11 +234,17 @@ DUNGEON_INDEX_DATA *get_dungeon_index(long vnum)
 
 DUNGEON *create_dungeon(long vnum)
 {
+	char buf[MSL];
 	ITERATOR it;
 
 	DUNGEON_INDEX_DATA *index = get_dungeon_index(vnum);
 
-	if( !IS_VALID(index) ) return NULL;
+	if( !IS_VALID(index) )
+	{
+		sprintf(buf, "create_dungeon: Dungeon index %ld invalid\n\r", vnum);
+		wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
+		return NULL;
+	}
 
 	DUNGEON *dng = new_dungeon();
 	dng->index = index;
@@ -246,6 +252,8 @@ DUNGEON *create_dungeon(long vnum)
 	dng->entry_room = get_room_index(index->entry_room);
 	if( !dng->entry_room )
 	{
+		sprintf(buf, "create_dungeon: Failed to find exit room %ld\n\r", index->entry_room);
+		wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
 		free_dungeon(dng);
 		return NULL;
 	}
@@ -253,6 +261,8 @@ DUNGEON *create_dungeon(long vnum)
 	dng->exit_room = get_room_index(index->exit_room);
 	if( !dng->exit_room )
 	{
+		sprintf(buf, "create_dungeon: Failed to find exit room %ld\n\r", index->exit_room);
+		wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
 		free_dungeon(dng);
 		return NULL;
 	}
@@ -270,6 +280,8 @@ DUNGEON *create_dungeon(long vnum)
 
 		if( !instance )
 		{
+			sprintf(buf, "create_dungeon: Failed to create instance %d for blueprint %ld\n\r", floor, bp->vnum);
+			wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
 			error = TRUE;
 			break;
 		}
