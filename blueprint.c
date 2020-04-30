@@ -634,11 +634,14 @@ int instance_count_mob(INSTANCE *instance, MOB_INDEX_DATA *pMobIndex)
 	if( !IS_VALID(instance) ) return 0;
 
 	int count = 0;
-
-	for(INSTANCE_SECTION *section = instance->sections; section ; section = section->next)
+	ITERATOR it;
+	INSTANCE_SECTION *section
+	iterator_start(&it, instance->sections);
+	while( (section = (INSTANCE_SECTION *)iterator_nextdata(&it)) )
 	{
 		count += instance_section_count_mob(section, pMobIndex);
 	}
+	iterator_stop(&it);
 
 	return count;
 }
@@ -761,17 +764,9 @@ INSTANCE_SECTION *clone_blueprint_section(BLUEPRINT_SECTION *parent)
 
 INSTANCE_SECTION *instance_get_section(INSTANCE *instance, int section_no)
 {
-	INSTANCE_SECTION *cur;
-
 	if( section_no < 1 ) return NULL;
 
-	for(cur = instance->sections; cur && section_no > 0; cur = cur->next)
-	{
-		if( !--section_no )
-			return cur;
-	}
-
-	return NULL;
+	return list_nthdata(instance->sections, section_no);
 }
 
 bool generate_static_instance(INSTANCE *instance)
@@ -797,18 +792,7 @@ bool generate_static_instance(INSTANCE *instance)
 
 		list_appendlist(instance->rooms, section->rooms);
 
-		section->next = NULL;
-		if( instance->sections )
-		{
-			INSTANCE_SECTION *cur;
-			for( cur = instance->sections; cur->next; cur = cur->next );
-
-			cur->next = section;
-		}
-		else
-		{
-			instance->sections = section;
-		}
+		list_appendlink(instance->sections, section);
 	}
 	iterator_stop(&bsit);
 
@@ -993,11 +977,14 @@ INSTANCE *create_instance(BLUEPRINT *blueprint)
 			return NULL;
 		}
 
-		for(INSTANCE_SECTION *section = instance->sections; section; section = section->next)
+		ITERATOR it;
+		INSTANCE_SECTION *section;
+		iterator_start(&it, instance->sections);
+		while( (section = (INSTANCE_SECTION *)iterator_nextdata(&it)) )
 		{
 			instance_section_reset_rooms(section);
 		}
-
+		iterator_stop(&it);
 	}
 
 	return instance;
@@ -1017,15 +1004,19 @@ void instance_section_update(INSTANCE_SECTION *section)
 
 void instance_update()
 {
-	ITERATOR it;
+	ITERATOR it, sit;
 	INSTANCE *instance;
 	INSTANCE_SECTION *section;
 
 	iterator_start(&it, loaded_instances);
 	while((instance = (INSTANCE *)iterator_nextdata(&it)))
 	{
-		for(section = instance->sections; section; section = section->next)
+		iterator_start(&sit, instance->sections);
+		while( (section = (INSTANCE_SECTION *)iterator_nextdata(&sit)) )
+		{
 			instance_section_update(section);
+		}
+		iterator_stop(&sit);
 
 	}
 	iterator_stop(&it);
@@ -3301,10 +3292,14 @@ void instance_save(FILE *fp, INSTANCE *instance)
 		fprintf(fp, "Object %lu %lu\n\r", instance->object_uid[0], instance->object_uid[1]);
 	}
 
-	for(INSTANCE_SECTION *section = instance->sections; section; section = section->next)
+	ITERATOR it;
+	INSTANCE_SECTION *section;
+	iterator_start(&it, instance->sections);
+	while( (section = (INSTANCE_SECTION *)iterator_nextdata(&it)) )
 	{
 		instance_section_save(fp, section);
 	}
+	iterator_stop(&it);
 
 	instance_save_roominfo(fp, "Recall", instance->recall);
 	instance_save_roominfo(fp, "Entrance", instance->entrance);
@@ -3422,8 +3417,7 @@ INSTANCE *instance_load(FILE *fp)
 					section->instance = instance;
 					section->blueprint = instance->blueprint;
 
-					section->next = instance->sections;
-					instance->sections = section;
+					list_appendlink(instance->sections, section);
 
 					instance_section_tallyentities(section);
 				}
@@ -3569,4 +3563,22 @@ void instance_echo(INSTANCE *instance, char *text)
 		send_to_char(text, ch);
 	}
 	iterator_stop(&it);
+}
+
+ROOM_INDEX_DATA *section_random_room(CHAR_DATA *ch, INSTANCE_SECTION *section)
+{
+	if( !IS_VALID(section) ) return NULL;
+
+	return get_random_room_list_byflags( ch, section->rooms,
+		(ROOM_PRIVATE | ROOM_SOLITARY | ROOM_DEATH_TRAP | ROOM_CPK),
+		ROOM_NO_GET_RANDOM );
+}
+
+ROOM_INDEX_DATA *instance_random_room(CHAR_DATA *ch, INSTANCE *instance)
+{
+	if( !IS_VALID(instance) ) return NULL;
+
+	return get_random_room_list_byflags( ch, instance->rooms,
+		(ROOM_PRIVATE | ROOM_SOLITARY | ROOM_DEATH_TRAP | ROOM_CPK),
+		ROOM_NO_GET_RANDOM );
 }

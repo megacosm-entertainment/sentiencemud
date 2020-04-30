@@ -207,6 +207,42 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 
 	if (IS_SET(portal->value[2],GATE_DUNGEON) ) {
 		location = spawn_dungeon_player(ch, portal->value[3]);
+	} else if (IS_SET(portal->value[2],GATE_DUNGEONRANDOM)) {
+		if( IS_VALID(old_room->instance_section) )
+		{
+			if( IS_VALID(old_room->instance_section->instance) )
+			{
+				if( IS_VALID(old_room->instance_section->instance->dungeon) )
+				{
+					location = dungeon_random_room(ch, old_room->instance_section->instance->dungeon );
+				}
+				else
+				{
+					location = instance_random_room(ch, old_room->instance_section->instance );
+				}
+			}
+			else
+			{
+				location = section_random_room(ch, old_room->instance_section );
+			}
+		}
+	} else if (IS_SET(portal->value[2],GATE_INSTANCERANDOM)) {
+		if( IS_VALID(old_room->instance_section) )
+		{
+			if( IS_VALID(old_room->instance_section->instance) )
+			{
+				location = instance_random_room(ch, old_room->instance_section->instance );
+			}
+			else
+			{
+				location = section_random_room(ch, old_room->instance_section );
+			}
+		}
+	} else if (IS_SET(portal->value[2],GATE_SECTIONRANDOM)) {
+		if( IS_VALID(old_room->instance_section) )
+		{
+			location = section_random_room(ch, old_room->instance_section );
+		}
 	} else if (IS_SET(portal->value[1],EX_ENVIRONMENT) && old_room && old_room->source) {
 		location = get_environment(old_room);
 	} else if (IS_SET(portal->value[2],GATE_RANDOM) || portal->value[4] == -1 || (IS_SET(portal->value[2],GATE_BUGGY) && (number_percent() < 5)))

@@ -3602,7 +3602,6 @@ INSTANCE *new_instance()
 	memset(instance, 0, sizeof(INSTANCE));
 
 	instance->blueprint = NULL;
-	instance->sections = NULL;
 
 	instance->recall = NULL;
 
@@ -3612,6 +3611,7 @@ INSTANCE *new_instance()
 	instance->object_uid[0] = 0;
 	instance->object_uid[1] = 0;
 
+	instance->sections = list_create(FALSE);
 	instance->players = list_create(FALSE);
 	instance->mobiles = list_create(FALSE);
 	instance->objects = list_create(FALSE);
@@ -3625,14 +3625,16 @@ void free_instance(INSTANCE *instance)
 {
 	if(!IS_VALID(instance)) return;
 
-	INSTANCE_SECTION *cur, *next;
-	for(cur = instance->sections; cur; cur = next)
+	ITERATOR it;
+	INSTANCE_SECTION *section;
+	iterator_start(&it, instance->sections);
+	while( (section = (INSTANCE_SECTION *)iterator_nextdata(&it)) )
 	{
-		next = cur->next;
 		free_instance_section(cur);
 	}
-	instance->sections = NULL;
+	iterator_stop(&it);
 
+	list_destroy(instance->sections);
 	list_destroy(instance->players);
 	list_destroy(instance->mobiles);
 	list_destroy(instance->objects);

@@ -2558,6 +2558,9 @@ struct affliction_type {
 #define GATE_CANDRAGITEMS	(O)
 #define GATE_FORCE_BRIEF	(P)
 #define GATE_DUNGEON		(Q)
+#define GATE_SECTIONRANDOM	(R)
+#define GATE_INSTANCERANDOM (S)
+#define GATE_DUNGEONRANDOM	(T)
 
 /* furniture flags */
 #define STAND_AT		(A)
@@ -2738,6 +2741,7 @@ enum {
 #define ROOM_CLONE_PERSIST	(T)	/* Set on rooms that can be cloned.  If set, allows clone rooms to be made persistant */
 #define ROOM_BLUEPRINT		(U)	// Room is used in a blueprint.  Allows setting the coordinates without the wilderness
 #define ROOM_NOCLONE		(V)	// Room cannot be used for cloning
+#define ROOM_NO_GET_RANDOM	(W)	// Room cannot be selected on a random search
 #define ROOM_ALWAYS_UPDATE	(Z)	/* Allows the room to perform scripting even if the area is empty */
 
 #define ENVIRON_NONE		0	// Special case to indicate the clone room is free floating
@@ -5055,7 +5059,7 @@ struct instance_data {
 	bool valid;
 
 	BLUEPRINT *blueprint;		// Source blueprint
-	INSTANCE_SECTION *sections;	// Sections created
+	LLIST *sections;			// Sections created
 
 	int floor;					// Floor identifier, used in traversing multi-level dungeons
 								// Defaults to 0 when not used
@@ -6990,6 +6994,7 @@ CHAR_DATA *get_random_mob( CHAR_DATA *ch, int continent );
 MOB_INDEX_DATA *get_random_mob_index( AREA_DATA *area ) ;
 OBJ_DATA *get_random_obj_area( CHAR_DATA *ch, AREA_DATA *area, ROOM_INDEX_DATA *room);
 OBJ_DATA *get_random_obj( CHAR_DATA *ch, int continent );
+ROOM_INDEX_DATA *get_random_room_list_byflags( CHAR_DATA *ch, LLIST *rooms, int n_room_flags, int n_room2_flags );
 ROOM_INDEX_DATA *get_random_room_area_byflags( CHAR_DATA *ch, AREA_DATA *area, int n_room_flags, int n_room2_flags );
 ROOM_INDEX_DATA *get_random_room( CHAR_DATA *ch, int continent );
 char *nocolour(const char *string);
@@ -8161,6 +8166,8 @@ void instance_save(FILE *fp, INSTANCE *instance);
 bool save_instances();
 void instance_echo(INSTANCE *instance, char *text);
 void extract_instance(INSTANCE *instance);
+ROOM_INDEX_DATA *section_random_room(CHAR_DATA *ch, INSTANCE_SECTION *section);
+ROOM_INDEX_DATA *instance_random_room(CHAR_DATA *ch, INSTANCE *instance);
 
 void load_dungeons();
 bool save_dungeons();
@@ -8170,6 +8177,7 @@ ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, long vnum);
 void dungeon_save(FILE *fp, DUNGEON *dungeon);
 void dungeon_check_empty(DUNGEON *dungeon);
 void dungeon_echo(DUNGEON *dungeon, char *text);
+ROOM_INDEX_DATA *dungeon_random_room(CHAR_DATA *ch, DUNGEON *dungeon);
 
 bool can_room_update(ROOM_INDEX_DATA *room);
 

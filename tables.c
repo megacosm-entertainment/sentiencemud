@@ -1127,6 +1127,7 @@ const struct flag_type room2_flags[] =
     {	"clone_persist",		ROOM_CLONE_PERSIST,	TRUE	},
     {	"blueprint",			ROOM_BLUEPRINT, TRUE	},
     {	"no_clone",				ROOM_NOCLONE, TRUE	},
+    {	"no_get_random",		ROOM_NO_GET_RANDOM, TRUE	},
     {	"always_update",		ROOM_ALWAYS_UPDATE,	TRUE	},
     {	NULL,			0,			0	}
 
@@ -1759,23 +1760,26 @@ const struct flag_type position_flags[] =
 
 const struct flag_type portal_flags[]=
 {
-    {	"arearandom",	GATE_AREARANDOM,	TRUE	},
-    {	"candragitems",	GATE_CANDRAGITEMS,	TRUE	},
-    {	"force_brief",	GATE_FORCE_BRIEF,	TRUE	},
-    {	"gravity",		GATE_GRAVITY,		FALSE	},	// @@@NIB : 20070126 : Not imped yet
-    {	"no_curse",		GATE_NOCURSE,		TRUE	},
-    {	"noprivacy",	GATE_NOPRIVACY,		TRUE	},	// @@@NIB : 20070126
-    {	"nosneak",		GATE_NOSNEAK,		TRUE	},	// @@@NIB : 20070126
-    {	"random",		GATE_RANDOM,		TRUE	},
-    {	"safe",			GATE_SAFE,			FALSE	},	// @@@NIB : 20070126 : Not imped yet
-    {	"silententry",	GATE_SILENTENTRY,	TRUE	},	// @@@NIB : 20070126
-    {	"silentexit",	GATE_SILENTEXIT,	TRUE	},	// @@@NIB : 20070126
-    {	"sneak",		GATE_SNEAK,			TRUE	},	// @@@NIB : 20070126
-    {	"turbulent",	GATE_TURBULENT,		FALSE	},	// @@@NIB : 20070126 : Not imped yet
-    {   "buggy",		GATE_BUGGY,			TRUE	},
-    {   "go_with",		GATE_GOWITH,		TRUE	},
-    {   "normal_exit",	GATE_NORMAL_EXIT,	TRUE	},
-    {   "dungeon",		GATE_DUNGEON,	TRUE	},
+    {	"arearandom",		GATE_AREARANDOM,	TRUE	},
+    {	"candragitems",		GATE_CANDRAGITEMS,	TRUE	},
+    {	"force_brief",		GATE_FORCE_BRIEF,	TRUE	},
+    {	"gravity",			GATE_GRAVITY,		FALSE	},	// @@@NIB : 20070126 : Not imped yet
+    {	"no_curse",			GATE_NOCURSE,		TRUE	},
+    {	"noprivacy",		GATE_NOPRIVACY,		TRUE	},	// @@@NIB : 20070126
+    {	"nosneak",			GATE_NOSNEAK,		TRUE	},	// @@@NIB : 20070126
+    {	"random",			GATE_RANDOM,		TRUE	},
+    {	"safe",				GATE_SAFE,			FALSE	},	// @@@NIB : 20070126 : Not imped yet
+    {	"silententry",		GATE_SILENTENTRY,	TRUE	},	// @@@NIB : 20070126
+    {	"silentexit",		GATE_SILENTEXIT,	TRUE	},	// @@@NIB : 20070126
+    {	"sneak",			GATE_SNEAK,			TRUE	},	// @@@NIB : 20070126
+    {	"turbulent",		GATE_TURBULENT,		FALSE	},	// @@@NIB : 20070126 : Not imped yet
+    {   "buggy",			GATE_BUGGY,			TRUE	},
+    {   "go_with",			GATE_GOWITH,		TRUE	},
+    {   "normal_exit",		GATE_NORMAL_EXIT,	TRUE	},
+    {   "dungeon",			GATE_DUNGEON,	TRUE	},
+    {   "dungeonrandom",	GATE_DUNGEONRANDOM,	TRUE	},
+    {   "instancerandom",	GATE_INSTANCERANDOM,	TRUE	},
+    {   "sectionrandom",	GATE_SECTIONRANDOM,	TRUE	},
     {   NULL,		0,			0	}
 };
 
