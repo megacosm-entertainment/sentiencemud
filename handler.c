@@ -47,6 +47,8 @@
 #include "scripts.h"
 #include "wilds.h"
 
+extern LLIST *loaded_instances;
+
 // from act_info.c
 void show_char_to_char args((CHAR_DATA * list, CHAR_DATA * ch, CHAR_DATA * victim));
 bool check_blind args((CHAR_DATA * ch));
@@ -2936,6 +2938,9 @@ void extract_obj(OBJ_DATA *obj)
     OBJ_DATA *obj_content;
     OBJ_DATA *obj_next;
     ROOM_INDEX_DATA *clone, *next_clone;
+    ITERATOR it;
+    INSTANCE *instance;
+
 
     if (obj == NULL)
     {
@@ -2975,6 +2980,17 @@ void extract_obj(OBJ_DATA *obj)
 	    }
 	}
     }
+
+	iterator_start(&it, loaded_instances);
+	while( (instance = (INSTANCE *)iterator_nextdata(&it)) )
+	{
+		if( IS_VALID(instance->object) && instance->object == obj)
+		{
+			extract_instance(instance);
+		}
+	}
+
+	iterator_stop(&it);
 
     if (obj->carried_by != NULL)
 	obj_from_char(obj);
@@ -8773,7 +8789,13 @@ bool can_room_update(ROOM_INDEX_DATA *room)
 		if( IS_VALID(instance) )
 		{
 			if( IS_VALID(instance->dungeon) )
+			{
+				// If the dungeon is flagged for unloading, stop normal updates
+				if( IS_SET(instance->dungeon->flags, DUNGEON_DESTROY) )
+					return FALSE;
+
 				return list_size(instance->dungeon->players) > 0;
+			}
 			else
 				return list_size(instance->players) > 0;
 		}

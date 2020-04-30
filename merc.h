@@ -5404,6 +5404,7 @@ enum trigger_index_enum {
 	TRIG_LORE_EX,
 	TRIG_MOON,
 	TRIG_MOUNT,
+	TRIG_MOVE_CHAR,
 	TRIG_MULTICLASS,	// Called when a player multiclasses
 	TRIG_OPEN,
 	TRIG_POSTQUEST,			// Called after all quest rewards and messages are given
@@ -8154,6 +8155,7 @@ void instance_update();
 void instance_save(FILE *fp, INSTANCE *instance);
 bool save_instances();
 void instance_echo(INSTANCE *instance, char *text);
+void extract_instance(INSTANCE *instance);
 
 void load_dungeons();
 bool save_dungeons();

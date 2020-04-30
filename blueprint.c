@@ -1030,7 +1030,56 @@ void instance_update()
 	iterator_stop(&it);
 }
 
+void extract_instance(INSTANCE *instance)
+{
+	ITERATOR it;
+	CHAR_DATA *ch;
+	OBJ_DATA *obj;
+	ROOM_INDEX_DATA *room;
+	ROOM_INDEX_DATA *environ = NULL;
 
+	if( IS_VALID(instance->object) )
+		environ = obj_room(instance->object);
+
+	if( !environ )
+		environ = instance->environ;
+
+	room = environ;
+	if( !room )
+		room = get_room_index(11001);
+
+	// Dump all mobiles
+	iterator_start(&it, instance->mobiles);
+	while( (ch = (CHAR_DATA *)iterator_nextdata(&it)) )
+	{
+		char_from_room(ch);
+		char_to_room(ch, room);
+	}
+	iterator_stop(&it);
+
+	// Dump objects
+	room = environ;
+	if( !room )
+		room = get_room_index(ROOM_VNUM_DONATION);
+
+	iterator_start(&it, instance->objects);
+	while( (obj = (OBJ_DATA *)iterator_nextdata(&it)) )
+	{
+		if( obj->in_obj )
+			obj_from_obj (obj);
+		else if( obj->carried_by )
+			obj_from_char(obj);
+		else if( obj->in_room)
+			obj_from_room(obj);
+
+		obj_to_room(obj, room);
+	}
+	iterator_stop(&it);
+
+	list_remlink(loaded_instances, instance);
+
+	free_instance(instance);
+}
 
 //////////////////////////////////////////////////////////////
 //
