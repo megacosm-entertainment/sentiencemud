@@ -1235,7 +1235,10 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
 
 
 		SET_BIT(dungeon->flags, DUNGEON_DESTROY);
-		dungeon->idle_timer = UMAX(5, dungeon->idle_timer);
+		if( dungeon->idle_timer > 0 )
+			dungeon->idle_timer = UMIN(5, dungeon->idle_timer);
+		else
+			dungeon->idle_timer = 5;
 
 		sprintf(buf, "{RWARNING: Dungeon is being forcibly unloaded.  You have %d minutes to escape before the end!{x\n\r", dungeon->idle_timer);
 		dungeon_echo(dungeon, buf);
