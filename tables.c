@@ -2759,6 +2759,8 @@ const struct flag_type blueprint_section_types[] =
 
 const struct flag_type dungeon_flags[] =
 {
+	{ "destroy",		DUNGEON_DESTROY,		FALSE	},
+	{ "no_save",		DUNGEON_NO_SAVE,		TRUE	},
 	{ NULL,				0,						FALSE	}
 };
 

@@ -322,6 +322,7 @@ void load_blueprints()
 		bug("Couldn't load blueprints.dat", 0);
 		return;
 	}
+
 	char *word;
 	bool fMatch;
 
@@ -3259,3 +3260,209 @@ void instance_save(FILE *fp, INSTANCE *instance)
 	fprintf(fp, "#-INSTANCE\n\r");
 }
 
+INSTANCE_SECTION *instance_section_load(FILE *fp)
+{
+	char *word;
+	bool fMatch;
+	bool fError = FALSE;
+
+	INSTANCE_SECTION *section = new_instance_section();
+	long vnum = fread_number(fp);
+
+	section->section = get_blueprint_section(vnum);
+
+	while (str_cmp((word = fread_word(fp)), "#-INSTANCE"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+		case '#':
+			if( !str_cmp(word, "CROOM") )
+			{
+				ROOM_INDEX_DATA *room = persist_load_room(fp, 'C');
+				if(room)
+				{
+					variable_dynamic_fix_clone_room(room);
+					list_appendlink(section->section, room);
+				}
+				else
+					fError = TRUE;
+
+				fMatch = TRUE;
+				break;
+			}
+			break;
+		}
+
+		if (!fMatch) {
+			char buf[MSL];
+			sprintf(buf, "instance_section_load: no match for word %.50s", word);
+			bug(buf, 0);
+		}
+	}
+
+	if( fError )
+	{
+		free_instance_section(section);
+		return NULL;
+	}
+
+	return section;
+}
+
+INSTANCE *instance_load(FILE *fp)
+{
+	char *word;
+	bool fMatch;
+	bool fError = FALSE;
+
+	INSTANCE *instance = new_instance();
+	long vnum = fread_number(fp);
+
+	instance->blueprint = get_blueprint(vnum);
+
+	while (str_cmp((word = fread_word(fp)), "#-INSTANCE"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+		case '#':
+			if( !str_cmp(word, "#SECTION") )
+			{
+				INSTANCE_SECTION *section = instance_section_load(fp);
+
+				if( section )
+				{
+					section->instance = instance;
+					section->blueprint = instance->blueprint;
+
+					section->next = instance->sections;
+					instance->sections = section;
+				}
+				else
+					fError = TRUE;
+
+				fMatch = TRUE;
+				break;
+			}
+			break;
+
+		case 'E':
+			if( !str_cmp(word, "Entrance") )
+			{
+				long room_vnum = fread_number(fp);
+				unsigned long id1 = fread_number(fp);
+				unsigned long id2 = fread_number(fp);
+
+				instance->entrance = get_clone_room(get_room_index(room_vnum), id1, id2);
+
+				fMatch = TRUE;
+				break;
+			}
+
+			if( !str_cmp(word, "Exit") )
+			{
+				long room_vnum = fread_number(fp);
+				unsigned long id1 = fread_number(fp);
+				unsigned long id2 = fread_number(fp);
+
+				instance->exit = get_clone_room(get_room_index(room_vnum), id1, id2);
+
+				fMatch = TRUE;
+				break;
+			}
+
+			break;
+
+		case 'F':
+			KEY("Floor", instance->floor, fread_number(fp));
+			break;
+
+		case 'O':
+			if( !str_cmp(word, "Object") )
+			{
+				instance->object_uid[0] = fread_number(fp);
+				instance->object_uid[1] = fread_number(fp);
+
+				fMatch = TRUE;
+				break;
+			}
+			break;
+
+		case 'R':
+			if( !str_cmp(word, "Recall") )
+			{
+				long room_vnum = fread_number(fp);
+				unsigned long id1 = fread_number(fp);
+				unsigned long id2 = fread_number(fp);
+
+				instance->recall = get_clone_room(get_room_index(room_vnum), id1, id2);
+
+				fMatch = TRUE;
+				break;
+			}
+			break;
+		}
+
+		if (!fMatch) {
+			char buf[MSL];
+			sprintf(buf, "instance_load: no match for word %.50s", word);
+			bug(buf, 0);
+		}
+	}
+
+	if( fError )
+	{
+		free_instance(instance);
+		return NULL;
+	}
+
+	if( instance->object_uid[0] > 0 && instance->object_uid[1] > 0 )
+	{
+		OBJ_DATA *obj = idfind_object(instance->object_uid[0], instance->object_uid[1]);
+
+		if( IS_VALID(obj) )
+			instance->object = obj;
+	}
+
+	return instance;
+}
+
+
+
+void resolve_instances()
+{
+	ITERATOR it;
+	INSTANCE *instance;
+
+	iterator_start(&it, loaded_instances);
+	while( (instance = (INSTANCE *)iterator_nextdata(&it)) )
+	{
+		if( instance->object_uid[0] > 0 && instance->object_uid[1] > 0 )
+		{
+			OBJ_DATA *obj = idfind_object(instance->object_uid[0], instance->object_uid[1]);
+
+			if( IS_VALID(obj) )
+				instance->object = obj;
+		}
+	}
+	iterator_stop(&it);
+}
+
+void resolve_instances_quests(CHAR_DATA *ch)
+{
+	if( IS_NPC(ch) ) return;
+
+	ITERATOR it;
+	INSTANCE *instance;
+
+	iterator_start(&it, loaded_instances);
+	while( (instance = (INSTANCE *)iterator_nextdata(&it)) )
+	{
+		// Iterate over the character's quest list
+
+	}
+	iterator_stop(&it);
+}

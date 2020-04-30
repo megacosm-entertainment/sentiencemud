@@ -7393,7 +7393,7 @@ CHAR_DATA *idfind_player(register unsigned long id1, register unsigned long id2)
 	return ch;
 }
 
-OBJ_DATA *idfind_object(unsigned long id1, unsigned long id2)
+OBJ_DATA *idfind_object(register unsigned long id1, register unsigned long id2)
 {
 	register OBJ_DATA *obj;
 	ITERATOR it;

@@ -80,7 +80,9 @@ extern	LLIST *loaded_instances;
 extern	LLIST *loaded_dungeons;
 
 void free_room_index( ROOM_INDEX_DATA *pRoom );
-
+void load_instances();
+INSTANCE *instance_load(FILE *fp);
+DUNGEON *dungeon_load(FILE *fp);
 
 /* Reading of keys*/
 #if defined(KEY)
@@ -937,11 +939,14 @@ void boot_db(void)
     log_string("Reading permanent objs");
     read_permanent_objs();
 
-    log_string("Loading blueprints and instances");
+    log_string("Loading blueprints");
 	load_blueprints();
 
-    log_string("Loading dungeons");
+    log_string("Loading dungeon definitions");
 	load_dungeons();
+
+	log_string("Loading instances");
+	load_instances();
 
     log_string("Reading helpfiles");
     read_helpfiles_new();
@@ -7632,7 +7637,6 @@ bool persist_load(void)
 
 bool save_instances()
 {
-	FILE *fp;
 	ITERATOR it;
 	INSTANCE *instance;
 	DUNGEON *dungeon;
@@ -7647,7 +7651,10 @@ bool save_instances()
 	iterator_start(&it, loaded_dungeons);
 	while( (dungeon = (DUNGEON *)iterator_nextdata(&it)) )
 	{
-		dungeon_save(fp, dungeon);
+		if( !IS_SET(dungeon->flags, (DUNGEON_NO_SAVE|DUNGEON_DESTROY)) )
+		{
+			dungeon_save(fp, dungeon);
+		}
 	}
 	iterator_stop(&it);
 
@@ -7666,5 +7673,57 @@ bool save_instances()
 	return true;
 }
 
+
+void load_instances()
+{
+	FILE *fp = fopen(INSTANCES_FILE, "r");
+	if (fp == NULL)
+	{
+		bug("Couldn't load instances.dat", 0);
+		return;
+	}
+
+	char *word;
+	bool fMatch;
+
+	while (str_cmp((word = fread_word(fp)), "#END"))
+	{
+		fMatch = FALSE;
+
+		if (!str_cmp(word, "#INSTANCE"))
+		{
+			INSTANCE *instance = instance_load(fp);
+
+			if( instance )
+			{
+				list_appendlink(loaded_instances, instance);
+			}
+
+			fMatch = TRUE;
+		}
+
+		if (!str_cmp(word, "#DUNGEON"))
+		{
+			DUNGEON *dungeon = dungeon_load(fp);
+
+			if( dungeon )
+			{
+				list_appendlink(loaded_dungeons, dungeon);
+			}
+
+			fMatch = TRUE;
+		}
+
+
+		if (!fMatch) {
+			char buf[MSL];
+			sprintf(buf, "load_instances: no match for word %.50s", word);
+			bug(buf, 0);
+		}
+
+	}
+
+	fclose(fp);
+}
 
 

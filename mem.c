@@ -3707,6 +3707,7 @@ DUNGEON *new_dungeon()
 
 	memset(dng, 0, sizeof(DUNGEON));
 
+	dng->empty = FALSE;
 	dng->floors = list_create(FALSE);
 	dng->players = list_create(FALSE);
 	dng->mobiles = list_create(FALSE);

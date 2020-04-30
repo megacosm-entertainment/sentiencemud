@@ -460,6 +460,46 @@ ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, long vnum)
 	return first_floor->entrance;
 }
 
+
+void dungeon_check_empty(DUNGEON *dungeon)
+{
+	if( dungeon->empty )
+	{
+		if( list_size(dungeon->players) > 0 )
+			dungeon->empty = FALSE;
+	}
+	else if( list_size(dungeon->players) < 1 )
+	{
+		dungeon->empty = TRUE;
+		dungeon->idle_timer = UMAX(15, dungeon->idle_timer);
+	}
+
+	if( !dungeon->empty && !IS_SET(dungeon->flags, DUNGEON_DESTROY) )
+		dungeon->idle_timer = 0;
+}
+
+void dungeon_update()
+{
+	ITERATOR it;
+	DUNGEON *dungeon;
+
+	iterator_start(&it, loaded_dungeons);
+	while( (dungeon = (DUNGEON *)iterator_nextdata(&it)) )
+	{
+		dungeon_check_empty();
+
+		if( dungeon->idle_timer > 0 )
+		{
+			if( --dungeon->idle_timer )
+			{
+				extract_dungeon(dungeon);
+			}
+		}
+	}
+	iterator_stop(&it);
+}
+
+
 /////////////////////////////////////////
 //
 // DUNGEON EDITOR
@@ -1075,12 +1115,43 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
 		iterator_start(&it, loaded_dungeons);
 		while((dungeon = (DUNGEON *)iterator_nextdata(&it)))
 		{
+			char plr_str[21];
+			char idle_str[21];
 			++lines;
 
-			sprintf(buf, "%4d {Y[{W%5ld{Y] {x%-30.30s{x\n\r",
+			int players = list_size(dungeon->players);
+
+			if( players > 0 )
+			{
+				snprintf(plr_str, 20, "{W%d", players);
+				plr_str[20] = '\0';
+			}
+			else
+			{
+				strcpy(plr_str, "{Dempty");
+			}
+
+			if( dungeon->idle_timer > 0 )
+			{
+				snprintf(idle_str, 20, "{G%d", dungeon->idle_timer);
+				idle_str[20] = '\0';
+			}
+			else
+			{
+				strcpy(idle_str, "{YActive");
+			}
+
+			char color = 'x';
+
+			if( IS_SET(dungeon->flags, DUNGEON_DESTROY) )
+				color = 'R';
+
+
+			sprintf(buf, "%4d {Y[{W%5ld{Y] {c%-30.30s   %.13s   %.8s{x\n\r",
 				lines,
 				dungeon->index->vnum,
-				dungeon->index->name);
+				color, dungeon->index->name
+				plr_str, idle_str);
 
 			if( !add_buf(buffer, buf) || (!ch->lines && strlen(buf_string(buffer)) > MAX_STRING_LENGTH) )
 			{
@@ -1103,8 +1174,8 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
 			else
 			{
 				// Header
-				send_to_char("{Y      Vnum   [            Name            ] {x\n\r", ch);
-				send_to_char("{Y============================================{x\n\r", ch);
+				send_to_char("{Y      Vnum   [            Name            ] [  Players  ] [ Idle ]{x\n\r", ch);
+				send_to_char("{Y==================================================================={x\n\r", ch);
 			}
 
 			page_to_char(buffer->string, ch);
@@ -1136,10 +1207,20 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
+		// Maybe instead of outright destroy it...
+		// Set a flag on the dungeon and set the idle timer
+
 		DUNGEON *dungeon = (DUNGEON *)list_nthdata(loaded_dungeons, index);
 
-		extract_dungeon(dungeon);
-		send_to_char("Dungeon unloaded.\n\r", ch);
+		if( IS_SET(dungeon->flags, DUNGEON_DESTROY) )
+		{
+			send_to_char("Dungeon is already flagged for unloading.\n\r", ch);
+			return;
+		}
+
+		SET_BIT(dungeon->flags, DUNGEON_DESTROY);
+		dungeon->idle_timer = UMAX(5, dungeon->idle_timer);
+		send_to_char("Dungeon flagged for unloading.\n\r", ch);
 		return;
 	}
 
@@ -1185,5 +1266,105 @@ void dungeon_save(FILE *fp, DUNGEON *dungeon)
 
 
 	fprintf(fp, "#-DUNGEON\n\r");
+}
+
+DUNGEON *dungeon_load(FILE *fp)
+{
+	char *word;
+	bool fMatch;
+
+	DUNGEON *dungeon = new_dungeon();
+	dungeon->vnum = fread_number(fp);
+
+	dungeon->index = get_dungeon_index(dungeon->vnum);
+
+	dungeon->entry_room = get_room_index(dungeon->index->entry_room);
+	dungeon->exit_room = get_room_index(dungeon->index->exit_room);
+
+	while (str_cmp((word = fread_word(fp)), "#-DUNGEON"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+		case '#':
+			if( !str_cmp(word, "#INSTANCE") )
+			{
+				INSTANCE *instance = instance_load(fp);
+
+				if( instance )
+				{
+					instance->dungeon = dungeon;
+					list_appendlink(dungeon->floors, instance);
+				}
+
+				fMatch = TRUE;
+				break;
+			}
+
+			break;
+
+		case 'F':
+			KEY("Flags", dungeon->flags, fread_number(fp));
+			break;
+
+		case 'I':
+			KEY("IdleTimer", dungeon->idle_timer, fread_number(fp));
+			break;
+
+		case 'P':
+			if( !str_cmp(word, "Player") )
+			{
+				dungeon->player_uid[0] = fread_number(fp);
+				dungeon->player_uid[1] = fread_number(fp);
+
+				fMatch = TRUE;
+				break;
+			}
+			break;
+
+		case 'U':
+			if( !str_cmp(word, "Uid") )
+			{
+				dungeon->uid[0] = fread_number(fp);
+				dungeon->uid[1] = fread_number(fp);
+
+				fMatch = TRUE;
+				break;
+			}
+
+			break;
+		}
+
+		if (!fMatch) {
+			char buf[MSL];
+			sprintf(buf, "dungeon_load: no match for word %.50s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return dungeon;
+}
+
+void resolve_dungeon_player(CHAR_DATA *ch)
+{
+	if( IS_NPC(ch) ) return;
+
+	ITERATOR it;
+	DUNGEON *dungeon;
+	iterator_start(&it, loaded_dungeons);
+	while( (dungeon = (DUNGEON *)iterator_nextdata(&it)) )
+	{
+		if( dungeon->player_uid[0] == ch->id[0] &&
+			dungeon->player_uid[1] == ch->id[1] )
+		{
+			dungeon->player = ch;
+			continue;
+		}
+
+		// Check player quests
+	}
+	iterator_stop(&it);
+
 }
 

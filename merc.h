@@ -5083,6 +5083,12 @@ struct instance_data {
 	LLIST *objects;
 };
 
+#define DUNGEON_NO_SAVE		(A)		// Dungeon will not save to disk.
+
+#define DUNGEON_DESTROY		(Z)		// Flagged for destruction.
+									//   Will handle the idle timer regardless if dungeon is empty
+
+
 struct dungeon_index_data
 {
 	DUNGEON_INDEX_DATA *next;
@@ -5107,6 +5113,7 @@ struct dungeon_data
 {
 	DUNGEON *next;
 	bool valid;
+	bool empty;
 
 	DUNGEON_INDEX_DATA *index;		// Dungeon definition
 
@@ -8153,6 +8160,7 @@ bool can_edit_dungeons(CHAR_DATA *ch);
 DUNGEON_INDEX_DATA *get_dungeon_index(long vnum);
 ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, long vnum);
 void dungeon_save(FILE *fp, DUNGEON *dungeon);
+void dungeon_check_empty(DUNGEON *dungeon);
 
 bool can_room_update(ROOM_INDEX_DATA *room);
 
@@ -8161,5 +8169,9 @@ extern  bool			dungeons_changed;
 
 void persist_save_room(FILE *fp, ROOM_INDEX_DATA *room);
 ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype);
+
+void resolve_dungeon_player(CHAR_DATA *ch);
+void resolve_instances();
+void resolve_instances_quests(CHAR_DATA *ch);
 
 #endif /* !def __MERC_H__ */

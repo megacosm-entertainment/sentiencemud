@@ -55,6 +55,8 @@ void reset_waypoint(NPC_SHIP_DATA *npc_ship) ;
 void relic_update(void);
 void check_relic_vanish(OBJ_DATA *relic);
 void update_invasion_quest();
+void instance_update();
+void dungeon_update();
 
 /*
  * Handle all kinds of updates.
@@ -88,6 +90,8 @@ void update_handler(void)
 	save_projects();
 	save_immstaff();
 	save_instances();
+	instance_update();
+	dungeon_update();
     }
 
     if (--pulse_auction <= 0)
