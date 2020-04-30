@@ -6130,6 +6130,18 @@ void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
 
         *(map + 10 * y + x) = '|';
 
+        if( IS_SET(last_room->exit[ DIR_NORTH ]->exit_info, EX_PREVFLOOR) )
+        {
+        	*(map + 10 * (y-1) + x) = '<';
+        	break;
+		}
+
+        if( IS_SET(last_room->exit[ DIR_NORTH ]->exit_info, EX_NEXTFLOOR) )
+        {
+        	*(map + 10 * (y-1) + x) = '>';
+        	break;
+		}
+
 	if ((room = last_room->exit[ DIR_NORTH ]->u1.to_room)==NULL)
             break;
 
@@ -6147,6 +6159,18 @@ void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
         {
             *(map + 10 * y2 + x2 + 1) = '-';
 
+			if( IS_SET(temp->exit[ DIR_EAST ]->exit_info, EX_PREVFLOOR) )
+			{
+				*(map + 10 * y2 + x2 + 2) = '<';
+				break;
+			}
+
+			if( IS_SET(temp->exit[ DIR_EAST ]->exit_info, EX_NEXTFLOOR) )
+			{
+				*(map + 10 * y2 + x2 + 2) = '>';
+				break;
+			}
+
             if ((temp = temp->exit[ DIR_EAST ]->u1.to_room)==NULL)
                 break;
 
@@ -6159,6 +6183,18 @@ void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
             {
 
                 *(map + 10 * (y2+1) + x2) = '|';
+
+				if( IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_PREVFLOOR) )
+				{
+					*(map + 10 * (y2+2) + x2) = '<';
+					break;
+				}
+
+				if( IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_NEXTFLOOR) )
+				{
+					*(map + 10 * (y2+2) + x2) = '>';
+					break;
+				}
 
                 if ((temp2 = temp->exit[ DIR_SOUTH ]->u1.to_room)==NULL)
                     break;
@@ -6178,6 +6214,19 @@ void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
         {
             *(map + 10 * y2 + x2 - 1) = '-';
 
+			if( IS_SET(temp->exit[ DIR_WEST ]->exit_info, EX_PREVFLOOR) )
+			{
+				*(map + 10 * y2 + x2 - 2) = '<';
+				break;
+			}
+
+			if( IS_SET(temp->exit[ DIR_WEST ]->exit_info, EX_NEXTFLOOR) )
+			{
+				*(map + 10 * y2 + x2 - 2) = '>';
+				break;
+			}
+
+
             if ((temp = temp->exit[ DIR_WEST ]->u1.to_room)==NULL)
                 break;
 
@@ -6189,6 +6238,18 @@ void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
                 && !IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_HIDDEN))
             {
                 *(map + 10 * (y2+1) + x2) = '|';
+
+				if( IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_PREVFLOOR) )
+				{
+					*(map + 10 * (y2+2) + x2) = '<';
+					break;
+				}
+
+				if( IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_NEXTFLOOR) )
+				{
+					*(map + 10 * (y2+2) + x2) = '>';
+					break;
+				}
 
                 if ((temp2 = temp->exit[ DIR_SOUTH ]->u1.to_room)==NULL)
                     break;
@@ -6213,6 +6274,18 @@ void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
         /* Intermediate char */
         *(map + 10 * y + x) = '|';
 
+        if( IS_SET(last_room->exit[ DIR_SOUTH ]->exit_info, EX_PREVFLOOR) )
+        {
+        	*(map + 10 * (y+1) + x) = '<';
+        	break;
+		}
+
+        if( IS_SET(last_room->exit[ DIR_SOUTH ]->exit_info, EX_NEXTFLOOR) )
+        {
+        	*(map + 10 * (y+1) + x) = '>';
+        	break;
+		}
+
         if ((room = last_room->exit[ DIR_SOUTH ]->u1.to_room)==NULL)
             break;
 
@@ -6231,6 +6304,18 @@ void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
         {
             *(map + 10 * y2 + x2 + 1) = '-';
 
+			if( IS_SET(temp->exit[ DIR_EAST ]->exit_info, EX_PREVFLOOR) )
+			{
+				*(map + 10 * y2 + x2 + 2) = '<';
+				break;
+			}
+
+			if( IS_SET(temp->exit[ DIR_EAST ]->exit_info, EX_NEXTFLOOR) )
+			{
+				*(map + 10 * y2 + x2 + 2) = '>';
+				break;
+			}
+
             if ((temp = temp->exit[ DIR_EAST ]->u1.to_room)==NULL)
                 break;
 
@@ -6242,6 +6327,17 @@ void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
                 && !IS_SET(temp->exit[ DIR_NORTH ]->exit_info, EX_HIDDEN))
             {
                 *(map + 10 * (y2-1) + x2) = '|';
+
+				if( IS_SET(temp->exit[ DIR_NORTH ]->exit_info, EX_NEXTFLOOR) )
+				{
+					*(map + 10 * (y2-2) + x2) = '>';
+					break;
+				}
+				if( IS_SET(temp->exit[ DIR_NORTH]->exit_info, EX_PREVFLOOR) )
+				{
+					*(map + 10 * (y2-2) + x2) = '<';
+					break;
+				}
 
                 if ((temp2 = temp->exit[ DIR_NORTH ]->u1.to_room)==NULL)
                     break;
@@ -6261,6 +6357,18 @@ void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
         {
             *(map + 10 * y2 + x2 - 1) = '-';
 
+			if( IS_SET(temp->exit[ DIR_WEST ]->exit_info, EX_PREVFLOOR) )
+			{
+				*(map + 10 * y2 + x2 - 2) = '<';
+				break;
+			}
+
+			if( IS_SET(temp->exit[ DIR_WEST ]->exit_info, EX_NEXTFLOOR) )
+			{
+				*(map + 10 * y2 + x2 - 2) = '>';
+				break;
+			}
+
             if ((temp = temp->exit[ DIR_WEST ]->u1.to_room)== NULL)
                 break;
 
@@ -6272,6 +6380,17 @@ void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
                 && !IS_SET(temp->exit[ DIR_NORTH ]->exit_info, EX_HIDDEN))
             {
                 *(map + 10 * (y2-1) + x2) = '|';
+
+				if( IS_SET(temp->exit[ DIR_NORTH ]->exit_info, EX_NEXTFLOOR) )
+				{
+					*(map + 10 * (y2-2) + x2) = '>';
+					break;
+				}
+				if( IS_SET(temp->exit[ DIR_NORTH]->exit_info, EX_PREVFLOOR) )
+				{
+					*(map + 10 * (y2-2) + x2) = '<';
+					break;
+				}
 
                 if ((temp2 = temp->exit[ DIR_NORTH ]->u1.to_room)==NULL)
                     break;
@@ -6295,6 +6414,18 @@ void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
     {
         *(map + 10 * y2 + x2 + 1) = '-';
 
+        if( IS_SET(temp->exit[ DIR_EAST ]->exit_info, EX_PREVFLOOR) )
+        {
+        	*(map + 10 * y2 + x2 + 2) = '<';
+        	break;
+		}
+
+        if( IS_SET(temp->exit[ DIR_EAST ]->exit_info, EX_NEXTFLOOR) )
+        {
+        	*(map + 10 * y2 + x2 + 2) = '>';
+        	break;
+		}
+
         if ((temp = temp->exit[ DIR_EAST ]->u1.to_room)==NULL)
             break;
 
@@ -6307,6 +6438,18 @@ void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
         {
             *(map + 10 * (y2+1) + x2) = '|';
 
+			if( IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_PREVFLOOR) )
+			{
+				*(map + 10 * (y2+2) + x2) = '<';
+				break;
+			}
+
+			if( IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_NEXTFLOOR) )
+			{
+				*(map + 10 * (y2+2) + x2) = '>';
+				break;
+			}
+
             if ((temp2 = temp->exit[ DIR_SOUTH ]->u1.to_room)==NULL)
                 break;
 
@@ -6317,6 +6460,19 @@ void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
             && !IS_SET(temp->exit[ DIR_NORTH ]->exit_info, EX_HIDDEN))
         {
             *(map + 10 * (y2-1) + x2) = '|';
+
+			if( IS_SET(temp->exit[ DIR_NORTH ]->exit_info, EX_PREVFLOOR) )
+			{
+				*(map + 10 * (y2-2) + x2) = '<';
+				break;
+			}
+
+			if( IS_SET(temp->exit[ DIR_NORTH ]->exit_info, EX_NEXTFLOOR) )
+			{
+				*(map + 10 * (y2-2) + x2) = '>';
+				break;
+			}
+
             if ((temp2 = temp->exit[ DIR_NORTH ]->u1.to_room)==NULL)
                 break;
 
@@ -6338,6 +6494,19 @@ void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
     {
         *(map + 10 * y2 + x2 - 1) = '-';
 
+        if( IS_SET(temp->exit[ DIR_WEST ]->exit_info, EX_PREVFLOOR) )
+        {
+        	*(map + 10 * y2 + x2 - 2) = '<';
+        	break;
+		}
+
+        if( IS_SET(temp->exit[ DIR_WEST ]->exit_info, EX_NEXTFLOOR) )
+        {
+        	*(map + 10 * y2 + x2 - 2) = '>';
+        	break;
+		}
+
+
         if ((temp = temp->exit[ DIR_WEST ]->u1.to_room)==NULL)
             break;
 
@@ -6350,6 +6519,18 @@ void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
         {
             *(map + 10 * (y2+1) + x2) = '|';
 
+			if( IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_PREVFLOOR) )
+			{
+				*(map + 10 * (y2+2) + x2) = '<';
+				break;
+			}
+
+			if( IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_NEXTFLOOR) )
+			{
+				*(map + 10 * (y2+2) + x2) = '>';
+				break;
+			}
+
             if ((temp2 = temp->exit[ DIR_SOUTH ]->u1.to_room)==NULL)
                 break;
 
@@ -6360,6 +6541,18 @@ void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
             && !IS_SET(temp->exit[ DIR_NORTH ]->exit_info, EX_HIDDEN))
         {
             *(map + 10 * (y2-1) + x2) = '|';
+
+			if( IS_SET(temp->exit[ DIR_NORTH ]->exit_info, EX_PREVFLOOR) )
+			{
+				*(map + 10 * (y2-2) + x2) = '<';
+				break;
+			}
+
+			if( IS_SET(temp->exit[ DIR_NORTH ]->exit_info, EX_NEXTFLOOR) )
+			{
+				*(map + 10 * (y2-2) + x2) = '>';
+				break;
+			}
 
             if ((temp2 = temp->exit[ DIR_NORTH ]->u1.to_room)==NULL)
                 break;
@@ -6496,6 +6689,16 @@ void convert_map_char(char *buf, char ch)
 	    *(buf++) = '{';
 	    *(buf++) = 'M';
 	    *(buf++) = '@';
+	    break;
+	case '>':
+	    *(buf++) = '{';
+	    *(buf++) = 'Y';
+	    *(buf++) = '>';
+	    break;
+	case '<':
+	    *(buf++) = '{';
+	    *(buf++) = 'Y';
+	    *(buf++) = '<';
 	    break;
     }
 }

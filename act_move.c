@@ -129,6 +129,56 @@ ROOM_INDEX_DATA *exit_destination(EXIT_DATA *pexit)
 	in_room = pexit->from_room;
 	in_wilds = in_room->wilds;
 
+	if ( IS_SET(pexit->exit_info, EX_PREVFLOOR) )
+	{
+		if( !IS_VALID(pexit->from_room->instance_section) ||
+			!IS_VALID(pexit->from_room->instance_section->instance) ||
+			!IS_VALID(pexit->from_room->instance_section->instance->dungeon) )
+		{
+			return NULL;
+		}
+
+		int floor = pexit->from_room->instance_section->instance->floor - 1;
+		DUNGEON *dungeon = pexit->from_room->instance_section->instance->dungeon;
+
+		if( floor < 1 )	// Heading out the dungeon
+			return dungeon->entry_room;
+		else
+		{
+			INSTANCE *prev_floor = list_nthdata(dungeon->floors, floor);
+
+			if( prev_floor )
+				return prev_floor->exit;
+		}
+
+		return NULL;
+	}
+
+	if ( IS_SET(pexit->exit_info, EX_NEXTFLOOR) )
+	{
+		if( !IS_VALID(pexit->from_room->instance_section) ||
+			!IS_VALID(pexit->from_room->instance_section->instance) ||
+			!IS_VALID(pexit->from_room->instance_section->instance->dungeon) )
+		{
+			return NULL;
+		}
+
+		int floor = pexit->from_room->instance_section->instance->floor + 1;
+		DUNGEON *dungeon = pexit->from_room->instance_section->instance->dungeon;
+
+		if( floor > list_size(dungeon->floors) )	// Heading out the dungeon
+			return dungeon->exit_room;
+		else
+		{
+			INSTANCE *next_floor = list_nthdata(dungeon->floors, floor);
+
+			if( next_floor )
+				return next_floor->entrance;
+		}
+
+		return NULL;
+	}
+
 	if (pexit->from_room->wilds) {
 		/* Char is in a wilds virtual room. */
 		if (IS_SET(pexit->exit_info, EX_VLINK)) {
