@@ -393,7 +393,7 @@ ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, long vnum)
 			return NULL;
 
 		dng->player = master;
-		sprintf(buf, "spawn_dungeon_player: dungeon assigned to %s", player->player_name);
+		sprintf(buf, "spawn_dungeon_player: dungeon assigned to %s", master->name);
 		wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
 	}
 
@@ -413,8 +413,8 @@ ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, long vnum)
 	{
 		sprintf(buf, "spawn_dungeon_player: entrance located (%ld:%lu:%lu) %s",
 			first_floor->entrance->vnum,
-			first_floor->entrance->uid[0],
-			first_floor->entrance->uid[1]
+			first_floor->entrance->id[0],
+			first_floor->entrance->id[1],
 			first_floor->entrance->name);
 		wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
 	}
