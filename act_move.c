@@ -408,6 +408,17 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 		return;
 	}
 
+	// Requires that you MUST see the exit in order to use it.
+	if (IS_SET(pexit->exit_flags, EX_HIDDEN) && !IS_SET(pexit->exit_flags, EX_FOUND) && IS_SET(pexit->exit_flags, EX_MUSTSEE) )
+	{
+		// If they are not an immortal or have holylight off, they can't use the exit
+		if( !IS_IMMORTAL(ch) || !IS_SET(ch->act,PLR_HOLYLIGHT) )
+		{
+			send_to_char("Alas, you cannot move that way.\n\r", ch);
+			return;
+		}
+	}
+
 	if(!(to_room = exit_destination(pexit))) {
 		send_to_char ("Alas, you cannot go that way.\n\r", ch);
 /*		wiznet("move_char()-> NULL to_room",NULL,NULL,WIZ_TESTING,0,0); */
@@ -1082,7 +1093,7 @@ void do_search(CHAR_DATA *ch, char *argument)
 		{
 			if ((pexit = ch->in_room->exit[door]) != NULL && pexit->u1.to_room != NULL &&
 				(pexit_rev = pexit->u1.to_room->exit[rev_dir[door]]) != NULL &&
-				IS_SET(pexit->exit_info, EX_HIDDEN) && !IS_SET(pexit->exit_info, EX_FOUND))
+				IS_SET(pexit->exit_info, EX_HIDDEN) && !IS_SET(pexit->exit_info, (EX_FOUND|EX_NOSEARCH)))
 			{
 				exit_name(ch->in_room, door, exit);
 				if (door == DIR_UP)
@@ -1254,6 +1265,16 @@ int find_door(CHAR_DATA *ch, char *arg, bool show)
 		if (show)
 		act("I see no door $T here.", ch, NULL, NULL, NULL, NULL, NULL, arg, TO_CHAR);
 		return -1;
+	}
+
+	if(IS_SET(pexit->exit_info, EX_HIDDEN) && !IS_SET(pexit->exit_info, EX_FOUND) && IS_SET(pexit->exit_info, EX_MUSTSEE) )
+	{
+		if(!IS_IMMORTAL(ch) || !IS_SET(ch->act,PLR_HOLYLIGHT))
+		{
+			if (show)
+				act("I see no door $T here.", ch, NULL, NULL, NULL, NULL, NULL, arg, TO_CHAR);
+			return -1;
+		}
 	}
 
 	if (!IS_SET(pexit->exit_info, EX_ISDOOR)) {

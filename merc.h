@@ -2789,7 +2789,8 @@ enum {
 #define EX_NOUNLINK				(V)
 #define EX_PREVFLOOR			(W)
 #define EX_NEXTFLOOR			(X)
-
+#define EX_NOSEARCH				(Y)		// Makes hidden exits unsearchable
+#define EX_MUSTSEE				(Z)		// Requires the exit be visible to use it
 
 /*
  * Area Who Flags

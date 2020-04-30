@@ -1053,6 +1053,8 @@ const struct flag_type exit_flags[] =
     {	"nounlink",		EX_NOUNLINK,		TRUE	},
     {	"prevfloor",		EX_PREVFLOOR,		FALSE	},
     {	"nextfloor",		EX_NEXTFLOOR,		FALSE	},
+    {	"nosearch",			EX_NOSEARCH,		TRUE	},
+    {	"mustsee",			EX_MUSTSEE,			TRUE	},
     {	NULL,			0,			0	}
 };
 
