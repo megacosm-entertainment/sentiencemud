@@ -3274,7 +3274,7 @@ INSTANCE_SECTION *instance_section_load(FILE *fp)
 
 	section->section = get_blueprint_section(vnum);
 
-	while (str_cmp((word = fread_word(fp)), "#-INSTANCE"))
+	while (str_cmp((word = fread_word(fp)), "#-SECTION"))
 	{
 		fMatch = FALSE;
 
