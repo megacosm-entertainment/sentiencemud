@@ -7099,6 +7099,7 @@ EXIT_DATA *persist_load_exit(FILE *fp)
 							room = get_room_index( x );
 
 							if( room ) {
+								log_string("get_clone_room: persist_load_exit");
 								if( !(clone = get_clone_room( room, y, z )) ) {
 									// Create the room
 									if( (clone = create_virtual_room_nouid(room, FALSE, FALSE, FALSE)) ) {
@@ -7254,6 +7255,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 		y = fread_number(fp);
 
 		// Find the clone
+		log_string("get_clone_room: persist_load_room");
 		room = get_clone_room(source,x,y);
 		if( !room ) {
 			room = create_virtual_room_nouid( source, FALSE, FALSE, FALSE );

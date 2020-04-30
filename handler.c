@@ -223,7 +223,11 @@ ROOM_INDEX_DATA *find_location(CHAR_DATA *ch, char *arg)
     if (is_number(arg1)) {
 	room = get_room_index(atol(arg1));
 	if(is_number(arg2) && is_number(arg))
+	{
+		log_stringf("get_clone_room: find_location(%ld,%lu,%lu)", room->vnum,atol(arg2),atol(arg));
+
 		return get_clone_room(room,atol(arg2),atol(arg));
+	}
 	else
 		return room;
 	}

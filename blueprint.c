@@ -3359,6 +3359,7 @@ INSTANCE *instance_load(FILE *fp)
 				unsigned long id1 = fread_number(fp);
 				unsigned long id2 = fread_number(fp);
 
+				log_string("get_clone_room: instance->entrance");
 				instance->entrance = get_clone_room(get_room_index(room_vnum), id1, id2);
 
 				fMatch = TRUE;
@@ -3371,6 +3372,7 @@ INSTANCE *instance_load(FILE *fp)
 				unsigned long id1 = fread_number(fp);
 				unsigned long id2 = fread_number(fp);
 
+				log_string("get_clone_room: instance->exit");
 				instance->exit = get_clone_room(get_room_index(room_vnum), id1, id2);
 
 				fMatch = TRUE;
@@ -3401,6 +3403,7 @@ INSTANCE *instance_load(FILE *fp)
 				unsigned long id1 = fread_number(fp);
 				unsigned long id2 = fread_number(fp);
 
+				log_string("get_clone_room: instance->recall");
 				instance->recall = get_clone_room(get_room_index(room_vnum), id1, id2);
 
 				fMatch = TRUE;
