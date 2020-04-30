@@ -3263,6 +3263,33 @@ void instance_save(FILE *fp, INSTANCE *instance)
 	fprintf(fp, "#-INSTANCE\n\r");
 }
 
+void instance_section_tallyentities(INSTANCE_SECTION *section)
+{
+	ITERATOR it;
+	ROOM_INDEX_DATA *room;
+
+	iterator_start(&it, section->rooms);
+	while( (room = (ROOM_INDEX_DATA *)iterator_nextdata(&it)) )
+	{
+		for(OBJ_DATA *obj = room->contents; obj; obj = obj->next_content)
+		{
+			if(!IS_SET(obj->extra3_flags, ITEM_INSTANCE_OBJ))
+			{
+				list_appendlink(section->instance->objects, obj);
+			}
+		}
+
+		for(CHAR_DATA *ch = room->people; ch; ch = ch->next_in_room)
+		{
+			if( IS_NPC(ch) && !IS_SET(ch->act2, ACT2_INSTANCE_MOB) )
+			{
+				list_appendlink(section->instance->mobiles, ch);
+			}
+		}
+	}
+	iterator_stop(&it);
+}
+
 INSTANCE_SECTION *instance_section_load(FILE *fp)
 {
 	char *word;
@@ -3345,6 +3372,8 @@ INSTANCE *instance_load(FILE *fp)
 
 					section->next = instance->sections;
 					instance->sections = section;
+
+					instance_section_tallyentities(section);
 				}
 				else
 					fError = TRUE;
@@ -3434,6 +3463,8 @@ INSTANCE *instance_load(FILE *fp)
 		if( IS_VALID(obj) )
 			instance->object = obj;
 	}
+
+
 
 	return instance;
 }

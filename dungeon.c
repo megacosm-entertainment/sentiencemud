@@ -1288,6 +1288,28 @@ void dungeon_save(FILE *fp, DUNGEON *dungeon)
 	fprintf(fp, "#-DUNGEON\n\r");
 }
 
+void dungeon_tallyentities(DUNGEON *dungeon, INSTANCE *instance)
+{
+	ITERATOR it;
+	CHAR_DATA *ch;
+	OBJ_DATA *obj;
+
+	iterator_start(&it, instance->mobiles);
+	while( (ch = (CHAR_DATA *)iterator_nextdata(&it)) )
+	{
+		list_appendlink(dungeon->mobiles, ch);
+	}
+	iterator_stop(&it);
+
+	iterator_start(&it, instance->objects);
+	while( (obj = (OBJ_DATA *)iterator_nextdata(&it)) )
+	{
+		list_appendlink(dungeon->objects, obj);
+	}
+	iterator_stop(&it);
+
+}
+
 DUNGEON *dungeon_load(FILE *fp)
 {
 	char *word;
@@ -1316,6 +1338,8 @@ DUNGEON *dungeon_load(FILE *fp)
 				{
 					instance->dungeon = dungeon;
 					list_appendlink(dungeon->floors, instance);
+
+					dungeon_tallyentities(dungeon, instance);
 				}
 
 				fMatch = TRUE;
@@ -1364,6 +1388,9 @@ DUNGEON *dungeon_load(FILE *fp)
 	}
 
 	log_stringf("dungeon_load: dungeon %ld loaded", dungeon->index->vnum);
+
+
+
 	return dungeon;
 }
 
