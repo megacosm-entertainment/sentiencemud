@@ -617,27 +617,27 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 
 			if( IS_VALID(portal) )
 			{
-				if( !IS_NULLSTR(dungeon->index->zoneout_portal) )
+				if( !IS_NULLSTR(in_dungeon->index->zoneout_portal) )
 				{
-					act(dungeon->index->zoneout_portal, ch, NULL, NULL, portal, NULL, NULL, dir_name[door], TO_ROOM);
+					act(in_dungeon->index->zoneout_portal, ch, NULL, NULL, portal, NULL, NULL, dir_name[door], TO_ROOM);
 				}
 				else
 				{
 					act("$n has arrived through $p.",ch, NULL, NULL,portal, NULL, NULL,NULL,TO_ROOM);
 				}
 			}
-			else if(MOUNTED(ch)) {
+			else if(MOUNTED(ch))
 			{
-				if( !IS_NULLSTR(dungeon->index->zoneout_mount) )
-					act(dungeon->index->zoneout_mount, ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+				if( !IS_NULLSTR(in_dungeon->index->zoneout_mount) )
+					act(in_dungeon->index->zoneout_mount, ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 				else
 
 					act("{W$n materializes, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 			}
 			else
 			{
-				if( !IS_NULLSTR(dungeon->index->zoneout) )
-					act(dungeon->index->zoneout, ch, NULL, NULL, portal, NULL, NULL, dir_name[door], TO_ROOM);
+				if( !IS_NULLSTR(in_dungeon->index->zoneout) )
+					act(in_dungeon->index->zoneout, ch, NULL, NULL, portal, NULL, NULL, dir_name[door], TO_ROOM);
 				else
 					act("{W$n materializes.{x", ch,NULL,NULL,NULL,NULL, NULL, NULL, TO_ROOM);
 			}
