@@ -131,10 +131,13 @@ ROOM_INDEX_DATA *exit_destination(EXIT_DATA *pexit)
 
 	if ( IS_SET(pexit->exit_info, EX_PREVFLOOR) )
 	{
+		char buf[MSL];
+
 		if( !IS_VALID(pexit->from_room->instance_section) ||
 			!IS_VALID(pexit->from_room->instance_section->instance) ||
 			!IS_VALID(pexit->from_room->instance_section->instance->dungeon) )
 		{
+			wiznet("PREVFLOOR: invalid dungeon",NULL,NULL,WIZ_TESTING,0,0);
 			return NULL;
 		}
 
@@ -142,15 +145,24 @@ ROOM_INDEX_DATA *exit_destination(EXIT_DATA *pexit)
 		DUNGEON *dungeon = pexit->from_room->instance_section->instance->dungeon;
 
 		if( floor < 1 )	// Heading out the dungeon
+		{
+			sprintf(buf, "PREVFLOOR: %s", dungeon->entry_room?dungeon->entry_room->name:"(null)");
+			wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
 			return dungeon->entry_room;
+		}
 		else
 		{
 			INSTANCE *prev_floor = list_nthdata(dungeon->floors, floor);
 
 			if( prev_floor )
+			{
+				sprintf(buf, "PREVFLOOR: prev_floor->exit %s", prev_floor->exit?"exists":"does not exist");
+				wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
 				return prev_floor->exit;
+			}
 		}
 
+		wiznet("PREVFLOOR: invalid destination",NULL,NULL,WIZ_TESTING,0,0);
 		return NULL;
 	}
 
@@ -160,6 +172,7 @@ ROOM_INDEX_DATA *exit_destination(EXIT_DATA *pexit)
 			!IS_VALID(pexit->from_room->instance_section->instance) ||
 			!IS_VALID(pexit->from_room->instance_section->instance->dungeon) )
 		{
+			wiznet("NEXTFLOOR invalid dungeon",NULL,NULL,WIZ_TESTING,0,0);
 			return NULL;
 		}
 
