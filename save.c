@@ -363,7 +363,7 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 
 	if( IS_VALID(ch->in_room->instance_section) &&
 		IS_VALID(ch->in_room->instance_section->instance) &&
-		IS_VALID(ch->in_room->instance_section->instance->dungeon )
+		IS_VALID(ch->in_room->instance_section->instance->dungeon) )
 	{
 		DUNGEON *dungeon = ch->in_room->instance_section->instance->dungeon;
 
