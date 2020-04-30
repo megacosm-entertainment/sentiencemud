@@ -205,7 +205,9 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 	    return;
 	}
 
-	if (IS_SET(portal->value[1],EX_ENVIRONMENT) && old_room && old_room->source) {
+	if (IS_SET(portal->value[2],GATE_DUNGEON) ) {
+		location = spawn_dungeon(ch, portal->value[3]);
+	} else if (IS_SET(portal->value[1],EX_ENVIRONMENT) && old_room && old_room->source) {
 		location = get_environment(old_room);
 	} else if (IS_SET(portal->value[2],GATE_RANDOM) || portal->value[4] == -1 || (IS_SET(portal->value[2],GATE_BUGGY) && (number_percent() < 5)))
 		location = get_random_room( ch, 0 );

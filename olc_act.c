@@ -3150,20 +3150,35 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 	    break;
 
 	case ITEM_PORTAL:
-	    sprintf(buf,
-	        "{B[  {Wv0{B]{G Charges:{x        [%ld]\n\r"
-	        "{B[  {Wv1{B]{G Exit Flags:{x     %s\n\r"
-	        "{B[  {Wv2{B]{G Portal Flags:{x   %s\n\r"
-	        "{B[  {Wv3{B]{G Goes to (vnum):{x [%ld]\n\r"
-	        "{B[  {Wv4{B]{G Goes to (auid):{x [%ld]\n\r"
-	        "{B[  {Wv5{B]{G Goes to (map):{x  [%ld]\n\r"
-	        "{B[  {Wv6{B]{G Goes to (mapx):{x [%ld]\n\r"
-	        "{B[  {Wv7{B]{G Goes to (mapy):{x [%ld]\n\r",
-	        obj->value[0],
-	        flag_string(exit_flags, obj->value[1]),
-	        flag_string(portal_flags, obj->value[2]),
-	        obj->value[3],obj->value[4],obj->value[5],
-	        obj->value[6],obj->value[7]);
+		if( IS_SET(obj->value[2], GATE_DUNGEON) )
+		{
+			sprintf(buf,
+				"{B[  {Wv0{B]{G Charges:{x           [%ld]\n\r"
+				"{B[  {Wv1{B]{G Exit Flags:{x        %s\n\r"
+				"{B[  {Wv2{B]{G Portal Flags:{x      %s\n\r"
+				"{B[  {Wv3{B]{G Goes to (dungeon):{x [%ld]\n\r",
+				obj->value[0],
+				flag_string(exit_flags, obj->value[1]),
+				flag_string(portal_flags, obj->value[2]),
+				obj->value[3]);
+		}
+		else
+		{
+			sprintf(buf,
+				"{B[  {Wv0{B]{G Charges:{x        [%ld]\n\r"
+				"{B[  {Wv1{B]{G Exit Flags:{x     %s\n\r"
+				"{B[  {Wv2{B]{G Portal Flags:{x   %s\n\r"
+				"{B[  {Wv3{B]{G Goes to (vnum):{x [%ld]\n\r"
+				"{B[  {Wv4{B]{G Goes to (auid):{x [%ld]\n\r"
+				"{B[  {Wv5{B]{G Goes to (map):{x  [%ld]\n\r"
+				"{B[  {Wv6{B]{G Goes to (mapx):{x [%ld]\n\r"
+				"{B[  {Wv7{B]{G Goes to (mapy):{x [%ld]\n\r",
+				obj->value[0],
+				flag_string(exit_flags, obj->value[1]),
+				flag_string(portal_flags, obj->value[2]),
+				obj->value[3],obj->value[4],obj->value[5],
+				obj->value[6],obj->value[7]);
+		}
 	    add_buf(buffer, buf);
 	    break;
 
@@ -3894,29 +3909,66 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			? flag_value(exit_flags, argument) : 0);
 	    	    break;
 	    	case 2:
-	    	    send_to_char("PORTAL FLAGS SET.\n\r\n\r", ch);
-	    	    pObj->value[2] ^= (flag_value(portal_flags, argument) != NO_FLAG
-		        ? flag_value(portal_flags, argument) : 0);
+	    		{
+		    	    send_to_char("PORTAL FLAGS SET.\n\r\n\r", ch);
+		    	    int flags = flag_value(portal_flags, argument);
+
+		    	    if( flags != NO_FLAG )
+		    	    {
+		    	    	pObj->value[2] ^= flags;
+
+		    	    	if( IS_SET(flags, GATE_DUNGEON) && IS_SET(pObj->value[2], GATE_DUNGEON) )
+		    	    	{
+							pObj->value[3] = 0;
+							pObj->value[4] = 0;
+							pObj->value[5] = 0;
+							pObj->value[6] = 0;
+							pObj->value[7] = 0;
+						}
+					}
+				}
 	    	    break;
 	    	case 3:
-	    	    send_to_char("EXIT VNUM SET.\n\r\n\r", ch);
+	    		if( IS_SET(pObj->value[2], GATE_DUNGEON) )
+	    		{
+					if( !get_dungeon_index(atoi(argument)) )
+					{
+						send_to_char("THERE IS NO SUCH DUNGEON.\n\r\n\r", ch);
+						return FALSE;
+					}
+		    	    send_to_char("DUNGEON VNUM SET.\n\r\n\r", ch);
+				}
+				else
+	    			send_to_char("EXIT VNUM SET.\n\r\n\r", ch);
 	    	    pObj->value[3] = atoi (argument);
 	    	    break;
 		case 4:
-	    	    send_to_char("AREA UID SET.\n\r\n\r", ch);
-		    pObj->value[4] = atoi (argument);
+	    		if( !IS_SET(pObj->value[2], GATE_DUNGEON) )
+	    		{
+		    	    send_to_char("AREA UID SET.\n\r\n\r", ch);
+				    pObj->value[4] = atoi (argument);
+				}
 		    break;
 		case 5:
-	    	    send_to_char("WILDERNESS MAP UID SET.\n\r\n\r", ch);
-		    pObj->value[5] = atoi (argument);
+	    		if( !IS_SET(pObj->value[2], GATE_DUNGEON) )
+	    		{
+					send_to_char("WILDERNESS MAP UID SET.\n\r\n\r", ch);
+					pObj->value[5] = atoi (argument);
+				}
 		    break;
 		case 6:
-	    	    send_to_char("WILDERNESS MAP X-COORDINATE SET.\n\r\n\r", ch);
-		    pObj->value[6] = atoi (argument);
+	    		if( !IS_SET(pObj->value[2], GATE_DUNGEON) )
+	    		{
+		    	    send_to_char("WILDERNESS MAP X-COORDINATE SET.\n\r\n\r", ch);
+				    pObj->value[6] = atoi (argument);
+				}
 		    break;
 		case 7:
-	    	    send_to_char("WILDERNESS MAP Y-COORDINATE SET.\n\r\n\r", ch);
-		    pObj->value[7] = atoi (argument);
+	    		if( !IS_SET(pObj->value[2], GATE_DUNGEON) )
+	    		{
+		    	    send_to_char("WILDERNESS MAP Y-COORDINATE SET.\n\r\n\r", ch);
+			    	pObj->value[7] = atoi (argument);
+				}
 		    break;
 	   }
 	   break;

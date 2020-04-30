@@ -1812,22 +1812,29 @@ void char_from_room(CHAR_DATA *ch)
 	return;
     }
 
-    if (!IS_NPC(ch))
-    {
-		if( IS_VALID(ch->in_room->instance_section) && IS_VALID(ch->in_room->instance_section->instance) )
+	if( IS_VALID(ch->in_room->instance_section) && IS_VALID(ch->in_room->instance_section->instance) )
+	{
+		if( !IS_NPC(ch) || !IS_SET(ch->act2, ACT2_INSTANCE_MOB) )
 		{
 			INSTANCE *instance = ch->in_room->instance_section->instance;
 			DUNGEON *dungeon = instance->dungeon;
 
 			if( IS_VALID(dungeon) )
 			{
-				list_remlink(dungeon->players, ch);
+				if( !IS_NPC(ch) )
+					list_remlink(dungeon->players, ch);
+				list_remlink(dungeon->mobiles, ch);
 			}
 
-			list_remlink(instance->players, ch);
+			if( !IS_NPC(ch) )
+				list_remlink(instance->players, ch);
+			list_remlink(instance->mobiles, ch);
 		}
-		else
-		{
+	}
+	else
+	{
+	    if (!IS_NPC(ch))
+	    {
 			--ch->in_room->area->nplayer;
 			if (ch->in_wilds)
 			{
@@ -1905,7 +1912,6 @@ void char_from_room(CHAR_DATA *ch)
     return;
 }
 
-
 /*
  * Move a char into a room.
  */
@@ -1971,22 +1977,29 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
     && IS_SOCIAL(ch))
 	REMOVE_BIT(ch->comm, COMM_SOCIAL);
 
-    if (!IS_NPC(ch))
-    {
-		if( IS_VALID(pRoomIndex->instance_section) && IS_VALID(pRoomIndex->instance_section->instance) )
+	if( IS_VALID(pRoomIndex->instance_section) && IS_VALID(pRoomIndex->instance_section->instance) )
+	{
+		if( !IS_NPC(ch) || !IS_SET(ch->act2, ACT2_INSTANCE_MOB) )
 		{
 			INSTANCE *instance = pRoomIndex->instance_section->instance;
 			DUNGEON *dungeon = instance->dungeon;
 
 			if( IS_VALID(dungeon) )
 			{
-				list_appendlink(dungeon->players, ch);
+				if( !IS_NPC(ch) )
+					list_appendlink(dungeon->players, ch);
+				list_appendlink(dungeon->mobiles, ch);
 			}
 
-			list_appendlink(instance->players, ch);
+			if( !IS_NPC(ch) )
+				list_appendlink(instance->players, ch);
+			list_appendlink(instance->mobiles, ch);
 		}
-		else
-		{
+	}
+	else
+	{
+	    if (!IS_NPC(ch))
+	    {
 			if (ch->in_room->area->empty)
 			{
 				ch->in_room->area->empty = FALSE;
@@ -2602,6 +2615,21 @@ void obj_from_room(OBJ_DATA *obj)
 		}
 	}
 
+	if( IS_VALID(obj->in_room->instance_section) && IS_VALID(obj->in_room->instance_section->instance) )
+	{
+		if( !IS_SET(obj->extra3_flags, ITEM_INSTANCE_OBJ) )
+		{
+			INSTANCE *instance = obj->in_room->instance_section->instance;
+			DUNGEON *dungeon = instance->dungeon;
+
+			if( IS_VALID(dungeon) )
+			{
+				list_appendlink(dungeon->objects, obj);
+			}
+		}
+	}
+
+
 	if (obj->in_wilds)
 	{
 		if (!obj->in_room->people && !obj->in_room->contents)
@@ -2629,6 +2657,20 @@ void obj_to_room(OBJ_DATA *obj, ROOM_INDEX_DATA *pRoomIndex)
 
     list_addlink(pRoomIndex->lcontents, obj);
     list_addlink(pRoomIndex->lentity, obj);
+
+	if( IS_VALID(pRoomIndex->instance_section) && IS_VALID(pRoomIndex->instance_section->instance) )
+	{
+		if( !IS_SET(obj->extra3_flags, ITEM_INSTANCE_OBJ) )
+		{
+			INSTANCE *instance = pRoomIndex->instance_section->instance;
+			DUNGEON *dungeon = instance->dungeon;
+
+			if( IS_VALID(dungeon) )
+			{
+				list_appendlink(dungeon->objects, obj);
+			}
+		}
+	}
 
     if (obj->item_type == ITEM_SHIP)
 
@@ -8737,3 +8779,4 @@ bool can_room_update(ROOM_INDEX_DATA *room)
 
 	return !room->area->empty;
 }
+

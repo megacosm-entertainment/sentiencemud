@@ -716,32 +716,35 @@ INSTANCE_SECTION *clone_blueprint_section(BLUEPRINT_SECTION *parent)
 			// Make sure portals that lead anywhere within the section uses the correct room id
 			if( obj->item_type == ITEM_PORTAL )
 			{
-				ROOM_INDEX_DATA *dest;
-				long vnum = obj->value[3];	// Destination vnum
-
-				// Must point to a non-wilderness room
-				if( vnum > 0 && obj->value[5] <= 0 )
+				if( !IS_SET(obj->value[2], GATE_DUNGEON)
 				{
-					if( (dest = instance_section_get_room_byvnum(section, vnum)) )
-					{
-						obj->value[6] = dest->id[0];
-						obj->value[7] = dest->id[1];
-					}
-					else
-					{
-						dest = get_room_index(vnum);
+					ROOM_INDEX_DATA *dest;
+					long vnum = obj->value[3];	// Destination vnum
 
-						if( !dest ||
-							IS_SET(dest->room2_flags, ROOM_BLUEPRINT) ||
-							IS_SET(dest->area->area_flags, AREA_BLUEPRINT) )
+					// Must point to a non-wilderness room
+					if( vnum > 0 && obj->value[5] <= 0 )
+					{
+						if( (dest = instance_section_get_room_byvnum(section, vnum)) )
 						{
-							// Nullify destination
-							obj->value[3] = 0;
+							obj->value[6] = dest->id[0];
+							obj->value[7] = dest->id[1];
 						}
+						else
+						{
+							dest = get_room_index(vnum);
 
-						// Force it to be static
-						obj->value[6] = 0;
-						obj->value[7] = 0;
+							if( !dest ||
+								IS_SET(dest->room2_flags, ROOM_BLUEPRINT) ||
+								IS_SET(dest->area->area_flags, AREA_BLUEPRINT) )
+							{
+								// Nullify destination
+								obj->value[3] = 0;
+							}
+
+							// Force it to be static
+							obj->value[6] = 0;
+							obj->value[7] = 0;
+						}
 					}
 				}
 			}

@@ -190,6 +190,7 @@ DECLARE_DO_FUN(	do_down		);
 DECLARE_DO_FUN(	do_drink	);
 DECLARE_DO_FUN(	do_drop		);
 DECLARE_DO_FUN( do_dump		);
+DECLARE_DO_FUN( do_dungeon  );
 DECLARE_DO_FUN(	do_east		);
 DECLARE_DO_FUN(	do_eat		);
 DECLARE_DO_FUN(	do_echo		);

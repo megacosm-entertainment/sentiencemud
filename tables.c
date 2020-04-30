@@ -606,6 +606,7 @@ const struct flag_type act2_flags[]=
     {   "no_xp",		ACT2_NO_XP,		TRUE	},
     {   "hired",		ACT2_HIRED,		FALSE	},
     {   "renewer",		ACT2_RENEWER,		TRUE	},
+    {   "instance_mob",	ACT2_INSTANCE_MOB,	FALSE	},
     {   NULL,			0,			FALSE	}
 };
 
@@ -1314,6 +1315,7 @@ const struct flag_type extra3_flags[] =
     {	"keep_equipped",	ITEM_KEEP_EQUIPPED,	TRUE	},
     {   "no_animate",		ITEM_NO_ANIMATE,	FALSE   },
     {	"rift_update",		ITEM_RIFT_UPDATE,	TRUE	},
+    {	"instance_obj",		ITEM_INSTANCE_OBJ,	FALSE	},
     {   NULL,			0,			0	}
 };
 

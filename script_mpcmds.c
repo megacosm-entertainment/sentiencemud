@@ -4188,21 +4188,38 @@ SCRIPT_CMD(do_mpalterobj)
 			return;
 		}
 
-		switch(arg->type) {
-		case ENT_STRING:
-			if( is_number(arg->d.str) )
-				value = atoi(arg->d.str);
-			else
+		if( flag != NULL )
+		{
+			if( arg->type != ENT_STRING ) return;
+
+			allowarith = FALSE;	// This is a bit vector, no arithmetic operators.
+			value = script_flag_value(flags, arg->d.str);
+
+			if( value == NO_FLAG ) value = 0;
+
+			if( flag == extra3_flags )
 			{
-				allowarith = FALSE;	// This is a bit vector, no arithmetic operators.
-				value = script_flag_value(flags, arg->d.str);
+				REMOVE_BIT(value, ITEM_INSTANCE_OBJ);
 
-				if( value == NO_FLAG ) value = 0;
+				if( buf[0] == '=' || buf[0] == '&' )
+				{
+					if( IS_SET(*ptr, ITEM_INSTANCE_OBJ) ) SET_BIT(value, ITEM_INSTANCE_OBJ);
+				}
 			}
+		}
+		else
+		{
+			switch(arg->type) {
+			case ENT_STRING:
+				if( is_number(arg->d.str) )
+					value = atoi(arg->d.str);
+				else
+					return;
 
-			break;
-		case ENT_NUMBER: value = arg->d.num; break;
-		default: return;
+				break;
+			case ENT_NUMBER: value = arg->d.num; break;
+			default: return;
+			}
 		}
 
 		switch (buf[0]) {
@@ -4606,32 +4623,50 @@ SCRIPT_CMD(do_mpaltermob)
 		return;
 	}
 
-	switch(arg->type) {
-	case ENT_STRING:
-		if( is_number(arg->d.str) )
-			value = atoi(arg->d.str);
-		else if( lookuprace )
+	if( lookuprace )
+	{
+		if( arg->type != ENT_STRING ) return;
+
+		// This is a race, can only be assigned
+		allowarith = FALSE;
+		allowbitwise = FALSE;
+		value = race_lookup(arg->d.str);
+	}
+	else if( flags != NULL )
+	{
+		if( arg->type != ENT_STRING ) return;
+
+		allowarith = FALSE;	// This is a bit vector, no arithmetic operators.
+		value = script_flag_value(flags, arg->d.str);
+
+		if( value == NO_FLAG ) value = 0;
+
+		if( flags == act2_flags )
 		{
-			// This is a race, can only be assigned
-			allowarith = FALSE;
-			allowbitwise = FALSE;
-			value = race_lookup(arg->d.str);
+			REMOVE_BIT(value, ACT2_INSTANCE_MOB);
+
+			if( buf[0] == '=' || buf[0] == '&' )
+			{
+				if( IS_SET(*ptr, ACT2_INSTANCE_MOB) ) SET_BIT(value, ACT2_INSTANCE_MOB);
+			}
 		}
-		else
-		{
-			allowarith = FALSE;	// This is a bit vector, no arithmetic operators.
-			value = script_flag_value(flags, arg->d.str);
+	}
+	else
+	{
 
-			if( value == NO_FLAG ) value = 0;
+		switch(arg->type) {
+		case ENT_STRING:
+			if( is_number(arg->d.str) )
+				value = atoi(arg->d.str);
+			else
+				return;
+
+			break;
+		case ENT_NUMBER:
+			value = arg->d.num;
+			break;
+		default: return;
 		}
-
-		break;
-	case ENT_NUMBER:
-		if( lookuprace ) return;
-
-		value = arg->d.num;
-		break;
-	default: return;
 	}
 
 	switch (buf[0]) {

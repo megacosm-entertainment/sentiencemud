@@ -1542,6 +1542,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 	int iExit;
 	int level = 0;
 	bool last;
+	bool instanced = FALSE;
 	int i;
 	int c;
 
@@ -1575,6 +1576,8 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 		ROOM_INDEX_DATA *pRoomIndex;
 		char buf[MAX_STRING_LENGTH];
 		int count,limit=0;
+
+		instanced = FALSE;
 
 		switch (pReset->command)
 		{
@@ -1610,6 +1613,8 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 					last = FALSE;
 					break;
 				}
+
+				instanced = TRUE;
 			}
 			else if (pMobIndex->count >= pReset->arg2)
 			{
@@ -1635,6 +1640,8 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 				break;
 
 			pMob = create_mobile(pMobIndex, FALSE);
+			if( instanced )
+				SET_BIT(pMob->act2, ACT2_INSTANCE_MOB);
 
 			/*
 			* Some more hard coding.
@@ -1730,9 +1737,12 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 						players = list_size(instance->dungeon->players);
 					else
 						players = list_size(instance->players);
+
 				}
 				else
 					players = 0;
+
+				instanced = TRUE;
 			}
 			else
 				players = pRoom->area->nplayer;	// In a normal area
@@ -1745,6 +1755,8 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 			}
 
 			pObj = create_object(pObjIndex, UMIN(number_fuzzy(level), LEVEL_HERO -1) , TRUE);
+			if( instanced )
+				SET_BIT(pObj->extra3_flags, ITEM_INSTANCE_OBJ);
 			pObj->cost = 0;
 			objRepop = TRUE;
 			obj_to_room(pObj, pRoom);

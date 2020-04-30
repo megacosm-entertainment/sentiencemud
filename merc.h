@@ -1786,6 +1786,7 @@ struct affliction_type {
 #define ACT2_SEE_WIZI		(V)
 #define ACT2_SOUL_DEPOSIT	(W)
 #define ACT2_USE_SKILLS_ONLY	(X)
+#define ACT2_INSTANCE_MOB	(Z)				// Mob is spawned by the instance, does not get added to the dungeon lists
 #define ACT2_CANLEVEL		(aa)
 #define ACT2_NO_XP			(bb)
 #define ACT2_HIRED			(cc)
@@ -2395,6 +2396,10 @@ struct affliction_type {
 #define ITEM_KEEP_EQUIPPED	(F)	// Item will not be unequipped on death.
 #define ITEM_NO_ANIMATE		(G)	// Similar to ITEM_NO_RESURRECT, but designed for animate dead, instead
 #define ITEM_RIFT_UPDATE	(H)	// Allows the item to update in the rift.
+#define ITEM_INSTANCE_OBJ	(Z)	// Object is part of an instance
+
+/* Extra4 */
+
 
 /*
  * Wear flags.
@@ -2552,6 +2557,7 @@ struct affliction_type {
 #define GATE_TURBULENT		(N)	/* @@@NIB : 20070126 */
 #define GATE_CANDRAGITEMS	(O)
 #define GATE_FORCE_BRIEF	(P)
+#define GATE_DUNGEON		(Q)
 
 /* furniture flags */
 #define STAND_AT		(A)
@@ -5072,7 +5078,8 @@ struct instance_data {
 								//   Must be a static room
 
 	LLIST *players;
-
+	LLIST *mobiles;					// List of mobiles (include players) not part of the instance
+	LLIST *objects;
 };
 
 struct dungeon_index_data
@@ -5116,6 +5123,8 @@ struct dungeon_data
 									//   ownership is merely transferred.
 
 	LLIST *players;					// List of players inside the dungeon
+	LLIST *mobiles;					// List of mobiles (include players) inside the dungeon not part of the instance
+	LLIST *objects;					// List of objects not part of the dungeon
 
 	int idle_timer;					// Timer before it is purged automatically
 									// If normally zero, the dungeon will never purge without
@@ -8127,6 +8136,7 @@ bool valid_static_link(STATIC_BLUEPRINT_LINK *sbl);
 BLUEPRINT_SECTION *get_blueprint_section(long vnum);
 BLUEPRINT_SECTION *get_blueprint_section_byroom(long vnum);
 BLUEPRINT *get_blueprint(long vnum);
+INSTANCE *create_instance(BLUEPRINT *blueprint);
 bool can_edit_blueprints(CHAR_DATA *ch);
 bool rooms_in_same_section(long vnum1, long vnum2);
 int instance_section_count_mob(INSTANCE_SECTION *section, MOB_INDEX_DATA *pMobIndex);
@@ -8137,7 +8147,7 @@ void load_dungeons();
 bool save_dungeons();
 bool can_edit_dungeons(CHAR_DATA *ch);
 DUNGEON_INDEX_DATA *get_dungeon_index(long vnum);
-
+ROOM_INDEX_DATA *spawn_dungeon(CHAR_DATA *ch, long vnum);
 
 bool can_room_update(ROOM_INDEX_DATA *room);
 

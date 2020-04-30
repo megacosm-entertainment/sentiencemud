@@ -232,6 +232,165 @@ DUNGEON_INDEX_DATA *get_dungeon_index(long vnum)
 	return NULL;
 }
 
+DUNGEON *create_dungeon(long vnum)
+{
+	ITERATOR it;
+
+	DUNGEON_INDEX_DATA *index = get_dungeon_index(vnum);
+
+	if( !IS_VALID(index) ) return NULL;
+
+	DUNGEON *dng = new_dungeon();
+	dng->index = index;
+
+	dng->entry_room = get_room_index(index->entry_room);
+	if( !dng->entry_room )
+	{
+		free_dungeon(dng);
+		return NULL;
+	}
+
+	dng->exit_room = get_room_index(index->exit_room);
+	if( !dng->exit_room )
+	{
+		free_dungeon(dng);
+		return NULL;
+	}
+
+	dng->flags = index->flags;
+
+	int floor = 1;
+	bool error = FALSE;
+	BLUEPRINT *bp;
+	INSTANCE *instance;
+	iterator_start(&it, index->floors);
+	while( (bp = (BLUEPRINT *)iterator_nextdata(&it)) )
+	{
+		instance = create_instance(bp);
+
+		if( !instance )
+		{
+			error = TRUE;
+			break;
+		}
+
+		instance->floor = floor++;
+		instance->dungeon = dng;
+		list_appendlink(dng->floors, instance);
+	}
+	iterator_stop(&it);
+
+	if( error )
+	{
+		free_dungeon(dng);
+		return NULL;
+	}
+
+	list_appendlink(loaded_dungeons, dng);
+	return dng;
+}
+
+
+void extract_dungeon(DUNGEON *dungeon)
+{
+	ITERATOR it;
+	CHAR_DATA *ch;
+	OBJ_DATA *obj;
+	ROOM_INDEX_DATA *room;
+
+	room = dungeon->entry_room;
+	if( !room )
+		room = get_room_index(11001);
+
+	// Dump all mobiles
+	iterator_start(&it, dungeon->mobiles);
+	while( (ch = (CHAR_DATA *)iterator_nextdata(&it)) )
+	{
+		char_from_room(ch);
+		char_to_room(ch, room);
+	}
+	iterator_stop(&it);
+
+	// Dump objects
+	room = dungeon->entry_room;
+	if( !room )
+		room = get_room_index(ROOM_VNUM_DONATION);
+
+	iterator_start(&it, dungeon->objects);
+	while( (obj = (OBJ_DATA *)iterator_nextdata(&it)) )
+	{
+		if( obj->in_obj )
+			obj_from_obj (obj);
+		else if( obj->carried_by )
+			obj_from_char(obj);
+		else if( obj->in_room)
+			obj_from_room(obj);
+
+		obj_to_room(obj, room);
+	}
+	iterator_stop(&it);
+
+
+	list_remlink(loaded_dungeons, dungeon);
+	free_dungeon(dungeon);
+}
+
+
+DUNGEON *find_dungeon_byplayer(CHAR_DATA *ch, long vnum)
+{
+	ITERATOR dit;
+	DUNGEON *dng;
+
+	iterator_start(&dit, loaded_dungeons);
+	while( (dng = (DUNGEON *)iterator_nextdata(&dit)) )
+	{
+		if( dng->vnum == vnum && dng->player == ch )
+			break;
+	}
+	iterator_stop(&dit);
+
+	return dng;
+}
+
+
+ROOM_INDEX_DATA *spawn_dungeon(CHAR_DATA *ch, long vnum)
+{
+	CHAR_DATA *master = (ch->master != NULL) ? ch->master : ch;
+
+	DUNGEON_DATA *dng = find_dungeon_byplayer(master, vnum);
+
+	if( dng )
+	{
+		if( !IS_NPC(ch) && dng->player != ch )
+		{
+			// CH has gone into someone else's dungeon.  Purge
+			DUNGEON *old_dng = find_dungeon_byplayer(ch, vnum);
+
+			if( old_dng )
+			{
+				extract_dungeon(old_dng);
+			}
+
+			// Tell the player?
+		}
+
+	}
+	else
+	{
+		dng = create_dungeon();
+
+		if( !dng )
+			return NULL;
+	}
+
+	INSTANCE *first_floor = (INSTANCE *)list_nthdata(dng->floors, 1);
+
+	if( !IS_VALID(first_floor) )
+		return NULL;
+
+	return first_floor->entrance;
+}
+
 /////////////////////////////////////////
 //
 // DUNGEON EDITOR
@@ -809,5 +968,113 @@ DNGEDIT( dngedit_flags )
 	dngedit_flags(ch, "");
 	return FALSE;
 
+}
+
+//////////////////////////////////////////////////////////////
+//
+// Immortal Commands
+//
+
+
+void do_dungeon(CHAR_DATA *ch, char *argument)
+{
+	char arg1[MIL];
+
+	if( argument[0] == '\0' )
+	{
+		send_to_char("Syntax:  dungeon list\n\r", ch);
+		send_to_char("         dungeon unload #\n\r", ch);
+		return;
+	}
+
+	argument = one_argument(argument, arg1);
+
+	if( !str_prefix(arg1, "list") )
+	{
+		if(!ch->lines)
+			send_to_char("{RWARNING:{W Having scrolling off may limit how many dungeons you can see.{x\n\r", ch);
+
+		int lines = 0;
+		bool error = FALSE;
+		BUFFER *buffer = new_buf();
+		char buf[MSL];
+
+
+		ITERATOR it;
+		DUNGEON *dungeon;
+
+		iterator_start(&it, loaded_dungeons);
+		while((dungeon = (DUNGEON *)iterator_nextdata(&it)))
+		{
+			++lines;
+
+			sprintf(buf, "%4d {Y[{W%5ld{Y] {x%-30.30s{x\n\r",
+				lines,
+				dungeon->index->vnum,
+				dungeon->index->name);
+
+			if( !add_buf(buffer, buf) || (!ch->lines && strlen(buf_string(buffer)) > MAX_STRING_LENGTH) )
+			{
+				error = TRUE;
+				break;
+			}
+		}
+		iterator_stop(&it);
+
+		if( error )
+		{
+			send_to_char("Too many dungeons to list.  Please shorten!\n\r", ch);
+		}
+		else
+		{
+			if( !lines )
+			{
+				add_buf( buffer, "No dungeons to display.\n\r" );
+			}
+			else
+			{
+				// Header
+				send_to_char("{Y      Vnum   [            Name            ] {x\n\r", ch);
+				send_to_char("{Y============================================{x\n\r", ch);
+			}
+
+			page_to_char(buffer->string, ch);
+		}
+		free_buf(buffer);
+
+		return;
+	}
+
+	if( !str_prefix(arg1, "unload") )
+	{
+		if( !can_edit_dungeons(ch) )
+		{
+			send_to_char("Insufficient access to unload dungeons.\n\r", ch);
+			return;
+		}
+
+		if( !is_number(argument) )
+		{
+			send_to_char("That is not a number.\n\r", ch);
+			return;
+		}
+
+		int index = atoi(argument);
+
+		if( list_size(loaded_dungeons) < index )
+		{
+			send_to_char("No dungeon at that index.\n\r", ch);
+			return;
+		}
+
+		DUNGEON *dungeon = (INSTANCE *)list_nthdata(loaded_dungeons, index);
+
+		extract_dungeon(dungeon);
+		send_to_char("Dungeon unloaded.\n\r", ch);
+		return;
+	}
+
+	do_dungeon(ch, "");
+	return;
 }
 

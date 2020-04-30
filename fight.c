@@ -3119,6 +3119,10 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messag
 		ch->pcdata->corpse = corpse;
 	}
 
+	// Propagate INSTANCE status from mob to corpse
+	if( IS_SET(ch->act2, ACT2_INSTANCE_MOB) )
+		SET_BIT(corpse->extra3_flags, ITEM_INSTANCE_OBJ);
+
 	corpse->owner_name = str_dup(name);
 	corpse->owner_short = str_dup(short_desc);
 

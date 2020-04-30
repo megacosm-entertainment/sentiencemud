@@ -46,8 +46,9 @@ int flag_lookup (const char *name, const struct flag_type *flag_table)
 
     for (flag = 0; flag_table[flag].name != NULL; flag++)
     {
-	if (LOWER(name[0]) == LOWER(flag_table[flag].name[0])
-	&&  !str_prefix(name,flag_table[flag].name))
+	if (LOWER(name[0]) == LOWER(flag_table[flag].name[0]) &&
+		!str_prefix(name,flag_table[flag].name) &&
+		flag_table[flag].settable)
 	    return flag_table[flag].bit;
     }
 

@@ -3599,6 +3599,8 @@ INSTANCE *new_instance()
 	else
 		instance = alloc_perm(sizeof(INSTANCE));
 
+	memset(instance, 0, sizeof(INSTANCE));
+
 	instance->blueprint = NULL;
 	instance->sections = NULL;
 
@@ -3611,6 +3613,8 @@ INSTANCE *new_instance()
 	instance->object_uid[1] = 0;
 
 	instance->players = list_create(FALSE);
+	instance->mobiles = list_create(FALSE);
+	instance->objects = list_create(FALSE);
 
 	VALIDATE(instance);
 	return instance;
@@ -3626,11 +3630,11 @@ void free_instance(INSTANCE *instance)
 		next = cur->next;
 		free_instance_section(cur);
 	}
-
 	instance->sections = NULL;
 
 	list_destroy(instance->players);
-	instance->players = NULL;
+	list_destroy(instance->mobiles);
+	list_destroy(instance->objects);
 
 	INVALIDATE(instance);
 	instance->next = instance_free;
@@ -3687,3 +3691,50 @@ void free_dungeon_index(DUNGEON_INDEX_DATA *dungeon_index)
 	dungeon_index_free = dungeon_index;
 }
 
+DUNGEON *dungeon_free;
+
+DUNGEON *new_dungeon()
+{
+	DUNGEON *dng;
+
+	if( dungeon_free )
+	{
+		dng = dungeon_free;
+		dungeon_free = dungeon_free->next;
+	}
+	else
+		dng = alloc_perm(sizeof(DUNGEON_DATA));
+
+	memset(dng, 0, sizeof(DUNGEON_DATA));
+
+	dng->floors = list_create(FALSE);
+	dng->players = list_create(FALSE);
+	dng->mobiles = list_create(FALSE);
+	dng->objects = list_create(FALSE);
+
+	VALIDATE(dng);
+	return dng;
+}
+
+void free_dungeon(DUNGEON *dng)
+{
+	if( !IS_VALID(dng) ) return;
+
+	ITERATOR fit;
+	INSTANCE *floor;
+	iterator_start(&fit, dng->floors);
+	while( (floor = (INSTANCE *)iterator_nextdata(&fit)) )
+	{
+		free_instance(floor);
+	}
+	list_destroy(dng->floors);
+	list_destroy(dng->players);
+	list_destroy(dng->mobiles);
+	list_destroy(dng->objects);
+
+	iterator_stop(&fit);
+
+	INVALID(dng);
+	dng->next = dungeon_free;
+	dungeon_free = dng;
+}
