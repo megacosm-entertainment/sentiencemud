@@ -3474,3 +3474,18 @@ void resolve_instances_quests(CHAR_DATA *ch)
 	}
 	iterator_stop(&it);
 }
+
+void instance_echo(INSTANCE *instance, char *text)
+{
+	if( !IS_VALID(instance) || IS_NULLSTR(text) ) return;
+
+	ITERATOR it;
+	CHAR_DATA *ch;
+
+	iterator_start(&it, instance->players);
+	while( (ch = (CHAR_DATA *)iterator_nextdata(&it)) )
+	{
+		send_to_char(text, ch);
+	}
+	iterator_stop(&it);
+}

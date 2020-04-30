@@ -1199,6 +1199,8 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
 
 	if( !str_prefix(arg1, "unload") )
 	{
+		char buf[MSL];
+
 		if( !can_edit_dungeons(ch) )
 		{
 			send_to_char("Insufficient access to unload dungeons.\n\r", ch);
@@ -1230,8 +1232,13 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
+
 		SET_BIT(dungeon->flags, DUNGEON_DESTROY);
 		dungeon->idle_timer = UMAX(5, dungeon->idle_timer);
+
+		sprintf(buf, "{RWARNING: Dungeon is being forcibly unloaded.  You have %d minutes to escape before the end!{x\n\r", dungeon->idle_timer);
+		dungeon_echo(dungeon, buf);
+
 		send_to_char("Dungeon flagged for unloading.\n\r", ch);
 		return;
 	}
@@ -1381,3 +1388,18 @@ void resolve_dungeon_player(CHAR_DATA *ch)
 
 }
 
+
+void dungeon_echo(DUNGEON *dungeon, char *text)
+{
+	if( !IS_VALID(dungeon) || IS_NULLSTR(text) ) return;
+
+	ITERATOR it;
+	CHAR_DATA *ch;
+
+	iterator_start(&it, dungeon->players);
+	while( (ch = (CHAR_DATA *)iterator_nextdata(&it)) )
+	{
+		send_to_char(text, ch);
+	}
+	iterator_stop(&it);
+}
