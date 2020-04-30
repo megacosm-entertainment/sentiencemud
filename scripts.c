@@ -6276,6 +6276,20 @@ void script_end_pulse(CHAR_DATA *ch)
 		execute_script(ch->script_wait_pulse->vnum, ch->script_wait_pulse, mob, obj, NULL, tok, ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,0,0,0,0,0);
 }
 
+int script_flag_lookup (const char *name, const struct flag_type *flag_table)
+{
+    int flag;
+
+    for (flag = 0; flag_table[flag].name != NULL; flag++)
+    {
+	if (LOWER(name[0]) == LOWER(flag_table[flag].name[0]) &&
+		!str_prefix(name,flag_table[flag].name))
+	    return flag_table[flag].bit;
+    }
+
+    return 0;
+}
+
 
 long script_flag_value( const struct flag_type *flag_table, char *argument)
 {
@@ -6311,7 +6325,7 @@ long script_flag_value( const struct flag_type *flag_table, char *argument)
         if ( word[0] == '\0' )
 	    break;
 
-        if ( ( bit = flag_lookup( word, flag_table ) ) != 0 )
+        if ( ( bit = script_flag_lookup( word, flag_table ) ) != 0 )
         {
             SET_BIT( marked, bit );
             found = TRUE;
