@@ -8147,7 +8147,7 @@ void load_dungeons();
 bool save_dungeons();
 bool can_edit_dungeons(CHAR_DATA *ch);
 DUNGEON_INDEX_DATA *get_dungeon_index(long vnum);
-ROOM_INDEX_DATA *spawn_dungeon(CHAR_DATA *ch, long vnum);
+ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, long vnum);
 
 bool can_room_update(ROOM_INDEX_DATA *room);
 

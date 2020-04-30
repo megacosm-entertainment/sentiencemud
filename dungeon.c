@@ -353,7 +353,7 @@ DUNGEON *find_dungeon_byplayer(CHAR_DATA *ch, long vnum)
 }
 
 
-ROOM_INDEX_DATA *spawn_dungeon(CHAR_DATA *ch, long vnum)
+ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, long vnum)
 {
 	CHAR_DATA *master = (ch->master != NULL) ? ch->master : ch;
 
@@ -377,10 +377,15 @@ ROOM_INDEX_DATA *spawn_dungeon(CHAR_DATA *ch, long vnum)
 	}
 	else
 	{
+		if( !IS_NPC(master) )
+			return NULL;
+
 		dng = create_dungeon(vnum);
 
 		if( !dng )
 			return NULL;
+
+		dng->player = master;
 	}
 
 	INSTANCE *first_floor = (INSTANCE *)list_nthdata(dng->floors, 1);
