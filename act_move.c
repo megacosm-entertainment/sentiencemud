@@ -131,7 +131,7 @@ ROOM_INDEX_DATA *exit_destination(EXIT_DATA *pexit)
 
 	if ( IS_SET(pexit->exit_info, EX_PREVFLOOR) )
 	{
-		char buf[MSL];
+		//char buf[MSL];
 
 		if( !IS_VALID(pexit->from_room->instance_section) ||
 			!IS_VALID(pexit->from_room->instance_section->instance) ||
