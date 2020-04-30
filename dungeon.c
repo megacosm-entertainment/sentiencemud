@@ -433,6 +433,8 @@ ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, long vnum)
 			return NULL;
 
 		dng->player = master;
+		dng->player_uid[0] = master->id[0];
+		dng->player_uid[1] = master->id[1];
 		sprintf(buf, "spawn_dungeon_player: dungeon assigned to %s", master->name);
 		wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
 	}

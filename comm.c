@@ -2979,7 +2979,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 
 		list_appendlink(loaded_chars, ch);
 		// Temprarily disabled for reconnect crash
-		//list_appendlink(loaded_players, ch);
+		// list_appendlink(loaded_players, ch);
 		d->connected	= CON_PLAYING;
 
 		if (ch->pcdata->old_pwd != NULL)
@@ -3047,6 +3047,11 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 			ch->level = 1;
 			ch->tot_level = 1;
 		}
+
+		// Fix variable and dungeon referencs
+		variable_dynamic_fix_mobile(ch);
+		resolve_dungeon_player(ch);
+		resolve_instances_quests(ch);
 
 		if (ch->in_room != NULL)
 		{
