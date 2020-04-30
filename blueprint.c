@@ -45,6 +45,7 @@
 #include "recycle.h"
 #include "olc.h"
 #include "tables.h"
+#include "scripts.h"
 
 void room_update(ROOM_INDEX_DATA *room);
 
@@ -282,6 +283,8 @@ BLUEPRINT *load_blueprint(FILE *fp)
 
 				sbl->next = bp->static_layout;
 				bp->static_layout = sbl;
+				fMatch = TRUE;
+				break;
 			}
 
 			if( !str_cmp(word, "Section") )
@@ -3278,13 +3281,13 @@ INSTANCE_SECTION *instance_section_load(FILE *fp)
 		switch(word[0])
 		{
 		case '#':
-			if( !str_cmp(word, "CROOM") )
+			if( !str_cmp(word, "#CROOM") )
 			{
 				ROOM_INDEX_DATA *room = persist_load_room(fp, 'C');
 				if(room)
 				{
 					variable_dynamic_fix_clone_room(room);
-					list_appendlink(section->section, room);
+					list_appendlink(section->rooms, room);
 				}
 				else
 					fError = TRUE;

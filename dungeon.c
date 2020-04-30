@@ -46,6 +46,8 @@
 #include "olc.h"
 #include "tables.h"
 
+INSTANCE *instance_load(FILE *fp);
+
 extern LLIST *loaded_instances;
 
 bool dungeons_changed = FALSE;
@@ -486,7 +488,7 @@ void dungeon_update()
 	iterator_start(&it, loaded_dungeons);
 	while( (dungeon = (DUNGEON *)iterator_nextdata(&it)) )
 	{
-		dungeon_check_empty();
+		dungeon_check_empty(dungeon);
 
 		if( dungeon->idle_timer > 0 )
 		{
@@ -1147,10 +1149,10 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
 				color = 'R';
 
 
-			sprintf(buf, "%4d {Y[{W%5ld{Y] {c%-30.30s   %.13s   %.8s{x\n\r",
+			sprintf(buf, "%4d {Y[{W%5ld{Y] {%c%-30.30s   %.13s   %.8s{x\n\r",
 				lines,
 				dungeon->index->vnum,
-				color, dungeon->index->name
+				color, dungeon->index->name,
 				plr_str, idle_str);
 
 			if( !add_buf(buffer, buf) || (!ch->lines && strlen(buf_string(buffer)) > MAX_STRING_LENGTH) )
@@ -1274,9 +1276,9 @@ DUNGEON *dungeon_load(FILE *fp)
 	bool fMatch;
 
 	DUNGEON *dungeon = new_dungeon();
-	dungeon->vnum = fread_number(fp);
+	long vnum = fread_number(fp);
 
-	dungeon->index = get_dungeon_index(dungeon->vnum);
+	dungeon->index = get_dungeon_index(vnum);
 
 	dungeon->entry_room = get_room_index(dungeon->index->entry_room);
 	dungeon->exit_room = get_room_index(dungeon->index->exit_room);
