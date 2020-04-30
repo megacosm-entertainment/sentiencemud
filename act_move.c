@@ -409,7 +409,7 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 	}
 
 	// Requires that you MUST see the exit in order to use it.
-	if (IS_SET(pexit->exit_flags, EX_HIDDEN) && !IS_SET(pexit->exit_flags, EX_FOUND) && IS_SET(pexit->exit_flags, EX_MUSTSEE) )
+	if (IS_SET(pexit->exit_info, EX_HIDDEN) && !IS_SET(pexit->exit_info, EX_FOUND) && IS_SET(pexit->exit_info, EX_MUSTSEE) )
 	{
 		// If they are not an immortal or have holylight off, they can't use the exit
 		if( !IS_IMMORTAL(ch) || !IS_SET(ch->act,PLR_HOLYLIGHT) )

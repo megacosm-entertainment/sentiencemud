@@ -377,7 +377,7 @@ ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, long vnum)
 	}
 	else
 	{
-		if( !IS_NPC(master) )
+		if( IS_NPC(master) )
 			return NULL;
 
 		dng = create_dungeon(vnum);
