@@ -1258,8 +1258,14 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 	    if (!str_cmp(word, "CloneRoom"))
 	    {
 		    ROOM_INDEX_DATA *room;
-		    room = get_room_index(fread_number(fp));
-		    ch->in_room = get_clone_room(room,fread_number(fp),fread_number(fp));
+		    long v = fread_number(fp);
+		    unsigned long id1 = fread_number(fp);
+		    unsigned long id2 = fread_number(fp);
+
+		    room = get_room_index(v);
+
+
+		    ch->in_room = get_clone_room(room,id1,id2);
 
 			if (ch->in_room == NULL)
 				ch->in_room = get_room_index(11001);
