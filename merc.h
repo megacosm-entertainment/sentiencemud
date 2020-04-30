@@ -8145,6 +8145,7 @@ int instance_section_count_mob(INSTANCE_SECTION *section, MOB_INDEX_DATA *pMobIn
 int instance_count_mob(INSTANCE *instance, MOB_INDEX_DATA *pMobIndex);
 void instance_update();
 void instance_save(FILE *fp, INSTANCE *instance);
+bool save_instances();
 
 void load_dungeons();
 bool save_dungeons();
