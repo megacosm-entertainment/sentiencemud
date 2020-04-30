@@ -355,14 +355,17 @@ DUNGEON *find_dungeon_byplayer(CHAR_DATA *ch, long vnum)
 
 ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, long vnum)
 {
+	char buf[MSL];
 	CHAR_DATA *master = (ch->master != NULL) ? ch->master : ch;
 
 	DUNGEON *dng = find_dungeon_byplayer(master, vnum);
 
 	if( dng )
 	{
+		wiznet("spawn_dungeon_player: Dungeon Found",NULL,NULL,WIZ_TESTING,0,0);
 		if( !IS_NPC(ch) && dng->player != ch )
 		{
+			wiznet("spawn_dungeon_player: Dungeon not owned by player",NULL,NULL,WIZ_TESTING,0,0);
 			// CH has gone into someone else's dungeon.  Purge
 			DUNGEON *old_dng = find_dungeon_byplayer(ch, vnum);
 
@@ -373,12 +376,16 @@ ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, long vnum)
 
 			// Tell the player?
 		}
-
 	}
 	else
 	{
+		wiznet("spawn_dungeon_player: Dungeon not found",NULL,NULL,WIZ_TESTING,0,0);
+
 		if( IS_NPC(master) )
+		{
+			wiznet("spawn_dungeon_player: not a player",NULL,NULL,WIZ_TESTING,0,0);
 			return NULL;
+		}
 
 		dng = create_dungeon(vnum);
 
@@ -386,12 +393,31 @@ ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, long vnum)
 			return NULL;
 
 		dng->player = master;
+		sprintf(buf, "spawn_dungeon_player: dungeon assigned to %s", player->player_name);
+		wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
 	}
 
 	INSTANCE *first_floor = (INSTANCE *)list_nthdata(dng->floors, 1);
 
 	if( !IS_VALID(first_floor) )
+	{
+		wiznet("spawn_dungeon_player: first floor invalid",NULL,NULL,WIZ_TESTING,0,0);
 		return NULL;
+	}
+
+	if( !first_floor->entrance )
+	{
+		wiznet("spawn_dungeon_player: first floor entrance invalid",NULL,NULL,WIZ_TESTING,0,0);
+	}
+	else
+	{
+		sprintf(buf, "spawn_dungeon_player: entrance located (%ld:%lu:%lu) %s",
+			first_floor->entrance->vnum,
+			first_floor->entrance->uid[0],
+			first_floor->entrance->uid[1]
+			first_floor->entrance->name);
+		wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
+	}
 
 	return first_floor->entrance;
 }
