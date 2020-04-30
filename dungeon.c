@@ -475,7 +475,8 @@ void dungeon_check_empty(DUNGEON *dungeon)
 	else if( list_size(dungeon->players) < 1 )
 	{
 		dungeon->empty = TRUE;
-		dungeon->idle_timer = UMAX(15, dungeon->idle_timer);
+		if( !IS_SET(dungeon->flags, DUNGEON_DESTROY) )
+			dungeon->idle_timer = UMAX(15, dungeon->idle_timer);
 	}
 
 	if( !dungeon->empty && !IS_SET(dungeon->flags, DUNGEON_DESTROY) )
