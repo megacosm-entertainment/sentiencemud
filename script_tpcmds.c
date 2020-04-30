@@ -6281,9 +6281,21 @@ SCRIPT_CMD(do_tppersist)
 		return;
 	}
 
-	if(mob && !IS_NPC(mob)) {
-		bug("TpPersist - Player targets not allowed.", VNUM(info->token));
-		return;
+	if(mob)
+	{
+		if( !IS_NPC(mob) ) return;
+
+		if( IS_SET(mob->act2, ACT2_INSTANCE_MOB) ) return;
+	}
+
+	if(obj)
+	{
+		if( IS_SET(obj->extra3_flags, ITEM_INSTANCE_OBJ) ) return;
+	}
+
+	if( room )
+	{
+		if( get_blueprint_section_byroom(room->vnum) ) return;
 	}
 
 	if(!(rest = expand_argument(info,rest,arg))) {

@@ -46,6 +46,8 @@
 #include "olc.h"
 #include "tables.h"
 
+extern LLIST *loaded_instances;
+
 bool dungeons_changed = FALSE;
 long top_dungeon_vnum = 0;
 LLIST *loaded_dungeons;
@@ -289,6 +291,7 @@ DUNGEON *create_dungeon(long vnum)
 		instance->floor = floor++;
 		instance->dungeon = dng;
 		list_appendlink(dng->floors, instance);
+		list_appendlink(loaded_instances, instance);
 	}
 	iterator_stop(&it);
 
@@ -309,6 +312,7 @@ void extract_dungeon(DUNGEON *dungeon)
 	CHAR_DATA *ch;
 	OBJ_DATA *obj;
 	ROOM_INDEX_DATA *room;
+	INSTANCE *instance;
 
 	room = dungeon->entry_room;
 	if( !room )
@@ -344,6 +348,15 @@ void extract_dungeon(DUNGEON *dungeon)
 
 
 	list_remlink(loaded_dungeons, dungeon);
+
+	// Remove instances from loaded list
+	iterator_start(&it, dungeon->floors);
+	while( (instance = (INSTANCE *)iterator_nextdata(&it)) )
+	{
+		list_remlink(loaded_instances, instance);
+	}
+	iterator_stop(&it);
+
 	free_dungeon(dungeon);
 }
 
@@ -364,11 +377,22 @@ DUNGEON *find_dungeon_byplayer(CHAR_DATA *ch, long vnum)
 	return dng;
 }
 
+CHAR_DATA *get_player_master(CHAR_DATA *ch)
+{
+	CHAR_DATA *master = ch;
+
+	while( (master->master != NULL) && !IS_NPC(master->master) )
+	{
+		master = master->master;
+	}
+
+	return master;
+}
 
 ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, long vnum)
 {
 	char buf[MSL];
-	CHAR_DATA *master = (ch->master != NULL) ? ch->master : ch;
+	CHAR_DATA *master = get_player_master(ch);
 
 	DUNGEON *dng = find_dungeon_byplayer(master, vnum);
 
@@ -380,6 +404,8 @@ ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, long vnum)
 			wiznet("spawn_dungeon_player: Dungeon not owned by player",NULL,NULL,WIZ_TESTING,0,0);
 			// CH has gone into someone else's dungeon.  Purge
 			DUNGEON *old_dng = find_dungeon_byplayer(ch, vnum);
+
+			// Need to deal with exclusive lockouts
 
 			if( old_dng )
 			{
@@ -1119,5 +1145,45 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
 
 	do_dungeon(ch, "");
 	return;
+}
+
+//////////////////////////////////////////////////////////
+//
+// Dungeon Save/Load
+//
+
+
+void dungeon_save(FILE *fp, DUNGEON *dungeon)
+{
+	ITERATOR it;
+	INSTANCE *instance;
+
+	fprintf(fp, "#DUNGEON %ld\n\r", dungeon->index->vnum);
+	fprintf(fp, "Uid %ld %ld\n\r", dungeon->uid[0], dungeon->uid[1]);
+	// ->entry_room - not saved... resolved on load
+	// ->exit_room - not saved...  resolved on load
+
+	fprintf(fp, "Flags %d\n\r", dungeon->flags);
+
+	if( dungeon->player && !IS_NPC(dungeon->player) )
+	{
+		fprintf(fp, "Player %lu %lu\n\r", dungeon->player->id[0], dungeon->player->id[1]);
+	}
+
+	if( dungeon->idle_timer > 0 )
+	{
+		fprintf(fp, "IdleTimer %d\n\r", dungeon->idle_timer);
+	}
+
+	iterator_start(&it, dungeon->floors);
+	while( (instance = (INSTANCE *)iterator_nextdata(&it)) )
+	{
+		instance_save(fp, instance);
+	}
+
+	iterator_stop(&it);
+
+
+	fprintf(fp, "#-DUNGEON\n\r");
 }
 

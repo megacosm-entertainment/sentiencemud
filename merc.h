@@ -5070,9 +5070,9 @@ struct instance_data {
 
 	DUNGEON *dungeon;			// Dungeon owner of the instance
 
-	OBJ_DATA *object;			// Object owner of the instance
-	long object_uid[2];			//   If the object owner is extracted, all players inside will be
-								//   dropped to the room of the object.
+	OBJ_DATA *object;				// Object owner of the instance
+	unsigned long object_uid[2];	//   If the object owner is extracted, all players inside will be
+									//   dropped to the room of the object.
 
 	ROOM_INDEX_DATA *environ;	// Explicit environment for instance
 								//   If NULL, will use the current room of the object
@@ -5116,10 +5116,10 @@ struct dungeon_data
 	ROOM_INDEX_DATA *entry_room;
 	ROOM_INDEX_DATA *exit_room;
 
-	long flags;						// Potential instanced flags
+	int flags;						// Potential instanced flags
 
 	CHAR_DATA *player;				// Player owner of the dungeon
-	long player_uid[2];				//   Allows reseting of the dungeon manually
+	unsigned long player_uid[2];	//   Allows reseting of the dungeon manually
 									//   Should another player exist in the dungeon,
 									//   ownership is merely transferred.
 
@@ -6683,6 +6683,7 @@ char *	crypt		args( ( const char *key, const char *salt ) );
 
 #define BLUEPRINTS_FILE		WORLD_DIR "blueprints.dat"
 #define DUNGEONS_FILE		WORLD_DIR "dungeons.dat"
+#define INSTANCES_FILE		WORLD_DIR "instances.dat"
 
 
 /* POST msg queue */
@@ -8143,17 +8144,21 @@ bool rooms_in_same_section(long vnum1, long vnum2);
 int instance_section_count_mob(INSTANCE_SECTION *section, MOB_INDEX_DATA *pMobIndex);
 int instance_count_mob(INSTANCE *instance, MOB_INDEX_DATA *pMobIndex);
 void instance_update();
+void instance_save(FILE *fp, INSTANCE *instance);
 
 void load_dungeons();
 bool save_dungeons();
 bool can_edit_dungeons(CHAR_DATA *ch);
 DUNGEON_INDEX_DATA *get_dungeon_index(long vnum);
 ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, long vnum);
+void dungeon_save(FILE *fp, DUNGEON *dungeon);
 
 bool can_room_update(ROOM_INDEX_DATA *room);
 
 extern  bool			blueprints_changed;
 extern  bool			dungeons_changed;
 
+void persist_save_room(FILE *fp, ROOM_INDEX_DATA *room);
+ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype);
 
 #endif /* !def __MERC_H__ */

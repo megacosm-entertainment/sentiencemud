@@ -2760,6 +2760,7 @@ void do_shutdown(CHAR_DATA *ch, char *argument)
     write_permanent_objs();
     persist_save();
     save_projects();
+    save_instances();
 }
 
 

@@ -3013,16 +3013,13 @@ BPEDIT( bpedit_static )
 //
 
 
-// TEMPORARY - redo after stuff is verified
-// instance load <vnum>
-// instance unload
 void do_instance(CHAR_DATA *ch, char *argument)
 {
 	char arg1[MIL];
 
 	if( argument[0] == '\0' )
 	{
-		send_to_char("Syntax:  instance load <vnum>\n\r", ch);
+		send_to_char("Syntax:  instance list\n\r", ch);
 		send_to_char("         instance unload\n\r", ch);
 		return;
 	}
@@ -3049,11 +3046,11 @@ void do_instance(CHAR_DATA *ch, char *argument)
 			++lines;
 
 			char owner[MIL];
-			if( instance->object )
+			if( IS_VALID(instance->object) )
 			{
 				strcpy(owner, "{Y     OBJECT     {x");
 			}
-			else if( instance->dungeon )
+			else if( IS_VALID(instance->dungeon) )
 			{
 				strcpy(owner, "{R     DUNGEON    {x");
 			}
@@ -3101,6 +3098,7 @@ void do_instance(CHAR_DATA *ch, char *argument)
 	}
 
 
+	/*
 	if( !str_prefix(arg1, "load") )
 	{
 		if( !can_edit_blueprints(ch) )
@@ -3162,24 +3160,31 @@ void do_instance(CHAR_DATA *ch, char *argument)
 		send_to_char("{YInstance loaded.{x\n\r", ch);
 		return;
 	}
+	*/
 
 	if( !str_prefix(arg1, "unload") )
 	{
-		// TODO: Add a look up for legitmate instances for being able to purge orphaned instances
-
 		if( !can_edit_blueprints(ch) )
 		{
 			send_to_char("Insufficient access to unload blueprints.\n\r", ch);
 			return;
 		}
 
-		if( list_size(loaded_instances) < 1 )
+		if( !is_number(argument) )
 		{
-			send_to_char("TEMPORARY: There is no instance loaded.\n\r", ch);
+			send_to_char("That is not a number.\n\r", ch);
 			return;
 		}
 
-		INSTANCE *instance = (INSTANCE *)list_nthdata(loaded_instances, 1);
+		int index = atoi(argument);
+
+		if( list_size(loaded_instances) < index )
+		{
+			send_to_char("There is no instance loaded.\n\r", ch);
+			return;
+		}
+
+		INSTANCE *instance = (INSTANCE *)list_nthdata(loaded_instances, index);
 		list_remlink(loaded_instances, instance);
 
 		if( ch->in_room->instance_section->instance == instance )
@@ -3201,3 +3206,61 @@ void do_instance(CHAR_DATA *ch, char *argument)
 	return;
 }
 
+////////////////////////////////////////////////////////
+//
+// Instance Save/Load
+//
+
+void instance_section_save(FILE *fp, INSTANCE_SECTION *section)
+{
+	fprintf(fp, "#SECTION %ld\n\r", section->section->vnum);
+
+	ITERATOR it;
+	ROOM_INDEX_DATA *room;
+	iterator_start(&it, section->rooms);
+	while( (room = (ROOM_INDEX_DATA *)iterator_nextdata(&it)) )
+	{
+		persist_save_room(fp, room);
+	}
+
+	iterator_stop(&it);
+
+	fprintf(fp, "#-SECTION\n\r");
+}
+
+void instance_save_roominfo(FILE *fp, char *field, ROOM_INDEX_DATA *room)
+{
+	if( room )
+	{
+		fprintf(fp, "%s %ld %lu %lu\n\r", field, room->vnum, room->id[0], room->id[1]);
+	}
+}
+
+void instance_save(FILE *fp, INSTANCE *instance)
+{
+	fprintf(fp, "#INSTANCE %ld\n\r", instance->blueprint->vnum);
+
+	fprintf(fp, "Floor %d\n\r", instance->floor);
+
+	if( IS_VALID(instance->object) )
+	{
+		fprintf(fp, "Object %lu %lu\n\r", instance->object->id[0], instance->object->id[1]);
+	}
+
+	for(INSTANCE_SECTION *section = instance->sections; section; section = section->next)
+	{
+		instance_section_save(fp, section);
+	}
+
+	instance_save_roominfo(fp, "Recall", instance->recall);
+	instance_save_roominfo(fp, "Entrance", instance->entrance);
+	instance_save_roominfo(fp, "Exit", instance->exit);
+
+	fprintf(fp, "#-INSTANCE\n\r");
+
+	return true;
+}
+
+bool save_instances()
+{
+}

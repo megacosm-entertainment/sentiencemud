@@ -80,8 +80,6 @@ extern	LLIST *loaded_instances;
 extern	LLIST *loaded_dungeons;
 
 void free_room_index( ROOM_INDEX_DATA *pRoom );
-void persist_save_room(FILE *fp, ROOM_INDEX_DATA *room);
-ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype);
 
 
 /* Reading of keys*/
@@ -7631,3 +7629,42 @@ bool persist_load(void)
 
 	return good;
 }
+
+bool save_instances()
+{
+	FILE *fp;
+	ITERATOR it;
+	INSTANCE *instance;
+	DUNGEON *dungeon;
+
+	FILE *fp = fopen(INSTANCES_FILE, "w");
+	if (fp == NULL)
+	{
+		bug("Couldn't save instances.dat", 0);
+		return false;
+	}
+
+	iterator_start(&it, loaded_dungeons);
+	while( (dungeon = (DUNGEON *)iterator_nextdata(&it)) )
+	{
+		dungeon_save(fp, dungeon);
+	}
+	iterator_stop(&it);
+
+	iterator_start(&it, loaded_instances);
+	while( (instance = (INSTANCE *)iterator_nextdata(&it)) )
+	{
+		if( !IS_VALID(instance->dungeon) )		// Skip instances owned by dungeons
+			instance_save(fp, instance);
+	}
+	iterator_stop(&it);
+
+	fprintf(fp, "#END\n\r\n\r");
+
+	fclose(fp);
+
+	return true;
+}
+
+
+

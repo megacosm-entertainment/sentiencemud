@@ -87,6 +87,7 @@ void update_handler(void)
 	write_mail();
 	save_projects();
 	save_immstaff();
+	save_instances();
     }
 
     if (--pulse_auction <= 0)
