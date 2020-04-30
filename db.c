@@ -4904,7 +4904,7 @@ bool extract_clone_room(ROOM_INDEX_DATA *room, unsigned long id1, unsigned long 
 	CHAR_DATA *ch, *ch_next;
 	OBJ_DATA *obj, *obj_next;
 	int door, rev_door;
-	char buf[MSL];
+//	char buf[MSL];
 
 	if(!room) return false;
 
