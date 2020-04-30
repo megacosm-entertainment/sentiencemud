@@ -3257,10 +3257,5 @@ void instance_save(FILE *fp, INSTANCE *instance)
 	instance_save_roominfo(fp, "Exit", instance->exit);
 
 	fprintf(fp, "#-INSTANCE\n\r");
-
-	return true;
 }
 
-bool save_instances()
-{
-}
