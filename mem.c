@@ -3630,7 +3630,7 @@ void free_instance(INSTANCE *instance)
 	iterator_start(&it, instance->sections);
 	while( (section = (INSTANCE_SECTION *)iterator_nextdata(&it)) )
 	{
-		free_instance_section(cur);
+		free_instance_section(section);
 	}
 	iterator_stop(&it);
 

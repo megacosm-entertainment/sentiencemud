@@ -635,7 +635,7 @@ int instance_count_mob(INSTANCE *instance, MOB_INDEX_DATA *pMobIndex)
 
 	int count = 0;
 	ITERATOR it;
-	INSTANCE_SECTION *section
+	INSTANCE_SECTION *section;
 	iterator_start(&it, instance->sections);
 	while( (section = (INSTANCE_SECTION *)iterator_nextdata(&it)) )
 	{
