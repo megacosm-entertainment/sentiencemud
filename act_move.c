@@ -390,6 +390,18 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 		return;
 	}
 
+	// Allow scripting to screw with the direction of travel
+	ch->tempstore[0] = door;
+	if( p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_MOVE_CHAR, dir_name[ch->tempstore[0]]) )
+		return;
+
+	ch->in_room->tempstore[0] = URANGE(0,ch->tempstore[0],(MAX_DIR-1));;
+	if( p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, NULL, NULL, TRIG_MOVE_CHAR, dir_name[ch->in_room->tempstore[0]]) )
+		return;
+
+	door = URANGE(0,ch->in_room->tempstore[0],(MAX_DIR-1));
+
+
 	/* Exit trigger, if activated, bail out. Only PCs are triggered. */
 	if (!IS_NPC(ch) && (p_exit_trigger(ch, door, PRG_MPROG) ||
 			p_exit_trigger(ch, door, PRG_OPROG) || p_exit_trigger(ch, door, PRG_RPROG)))
@@ -645,7 +657,7 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 	* If someone is following the char, these triggers get activated
 	* for the followers before the char, but it's safer this way...
 	*/
-	if (IS_NPC(ch)) p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_ENTRY, NULL);
+	p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_ENTRY, NULL);
 
 	if (!IS_NPC(ch)) {
 		p_greet_trigger(ch, PRG_MPROG);
