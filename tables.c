@@ -1773,6 +1773,7 @@ const struct flag_type portal_flags[]=
     {   "buggy",		GATE_BUGGY,			TRUE	},
     {   "go_with",		GATE_GOWITH,		TRUE	},
     {   "normal_exit",	GATE_NORMAL_EXIT,	TRUE	},
+    {   "dungeon",		GATE_DUNGEON,	TRUE	},
     {   NULL,		0,			0	}
 };
 
