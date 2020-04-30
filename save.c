@@ -361,7 +361,18 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
     if (IS_IMMORTAL(ch))
 		fprintf(fp, "LastInquiryRead %ld\n", (long int)ch->pcdata->last_project_inquiry);
 
-	if( ch->checkpoint ) {
+	if( IS_VALID(ch->in_room->instance_section) &&
+		IS_VALID(ch->in_room->instance_section->instance) &&
+		IS_VALID(ch->in_room->instance_section->instance->dungeon )
+	{
+		DUNGEON *dungeon = ch->in_room->instance_section->instance->dungeon;
+
+		if( dungeon->entry_room )
+			fprintf(fp,"Room %ld\n", dungeon->entry_room->vnum);
+		else
+			fprintf (fp, "Room %ld\n", (long int)ROOM_VNUM_TEMPLE);
+	}
+	else if( ch->checkpoint ) {
 		if( ch->checkpoint->wilds )
 			fprintf (fp, "Vroom %ld %ld %ld %ld\n",
 				ch->checkpoint->x, ch->checkpoint->y, ch->checkpoint->wilds->pArea->uid, ch->checkpoint->wilds->uid);
