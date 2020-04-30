@@ -293,6 +293,7 @@ DUNGEON *create_dungeon(long vnum)
 		instance->floor = floor++;
 		instance->dungeon = dng;
 		list_appendlink(dng->floors, instance);
+		list_appendlist(dng->rooms, instance->rooms);
 		list_appendlink(loaded_instances, instance);
 	}
 	iterator_stop(&it);
@@ -1293,24 +1294,9 @@ void dungeon_save(FILE *fp, DUNGEON *dungeon)
 
 void dungeon_tallyentities(DUNGEON *dungeon, INSTANCE *instance)
 {
-	ITERATOR it;
-	CHAR_DATA *ch;
-	OBJ_DATA *obj;
-
-	iterator_start(&it, instance->mobiles);
-	while( (ch = (CHAR_DATA *)iterator_nextdata(&it)) )
-	{
-		list_appendlink(dungeon->mobiles, ch);
-	}
-	iterator_stop(&it);
-
-	iterator_start(&it, instance->objects);
-	while( (obj = (OBJ_DATA *)iterator_nextdata(&it)) )
-	{
-		list_appendlink(dungeon->objects, obj);
-	}
-	iterator_stop(&it);
-
+	list_appendlist(dungeon->mobiles, instance->mobiles);
+	list_appendlist(dungeon->objects, instance->objects);
+	list_appendlist(dungeon->rooms, instance->rooms);
 }
 
 DUNGEON *dungeon_load(FILE *fp)

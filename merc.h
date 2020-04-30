@@ -5081,6 +5081,8 @@ struct instance_data {
 	LLIST *players;
 	LLIST *mobiles;					// List of mobiles (include players) not part of the instance
 	LLIST *objects;
+
+	LLIST *rooms;
 };
 
 #define DUNGEON_NO_SAVE		(A)		// Dungeon will not save to disk.
@@ -5133,6 +5135,8 @@ struct dungeon_data
 	LLIST *players;					// List of players inside the dungeon
 	LLIST *mobiles;					// List of mobiles (include players) inside the dungeon not part of the instance
 	LLIST *objects;					// List of objects not part of the dungeon
+
+	LLIST *rooms;
 
 	int idle_timer;					// Timer before it is purged automatically
 									// If normally zero, the dungeon will never purge without
@@ -8075,6 +8079,7 @@ void list_addref(LLIST *lp);
 void list_remref(LLIST *lp);
 bool list_addlink(LLIST *lp, void *data);
 bool list_appendlink(LLIST *lp, void *data);
+bool list_appendlist(LLIST *lp, LLIST *src);
 void list_remlink(LLIST *lp, void *data);
 void *list_nthdata(LLIST *lp, int nth);
 void list_remnthlink(LLIST *lp, register int nth);

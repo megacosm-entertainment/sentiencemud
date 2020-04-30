@@ -795,6 +795,7 @@ bool generate_static_instance(INSTANCE *instance)
 		section->blueprint = bp;
 		section->instance = instance;
 
+		list_appendlist(instance->rooms, section->rooms);
 
 		section->next = NULL;
 		if( instance->sections )
@@ -3335,6 +3336,8 @@ void instance_section_tallyentities(INSTANCE_SECTION *section)
 				list_appendlink(section->instance->mobiles, ch);
 			}
 		}
+
+		list_appendlink(section->instance->rooms, room);
 	}
 	iterator_stop(&it);
 }
@@ -3512,8 +3515,6 @@ INSTANCE *instance_load(FILE *fp)
 		if( IS_VALID(obj) )
 			instance->object = obj;
 	}
-
-
 
 	return instance;
 }

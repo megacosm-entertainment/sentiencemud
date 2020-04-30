@@ -3615,6 +3615,7 @@ INSTANCE *new_instance()
 	instance->players = list_create(FALSE);
 	instance->mobiles = list_create(FALSE);
 	instance->objects = list_create(FALSE);
+	instance->rooms = list_create(FALSE);
 
 	VALIDATE(instance);
 	return instance;
@@ -3635,6 +3636,7 @@ void free_instance(INSTANCE *instance)
 	list_destroy(instance->players);
 	list_destroy(instance->mobiles);
 	list_destroy(instance->objects);
+	list_destroy(instance->rooms);
 
 	INVALIDATE(instance);
 	instance->next = instance_free;
@@ -3712,6 +3714,7 @@ DUNGEON *new_dungeon()
 	dng->players = list_create(FALSE);
 	dng->mobiles = list_create(FALSE);
 	dng->objects = list_create(FALSE);
+	dng->rooms = list_create(FALSE);
 
 	VALIDATE(dng);
 	return dng;
@@ -3728,12 +3731,13 @@ void free_dungeon(DUNGEON *dng)
 	{
 		free_instance(floor);
 	}
+	iterator_stop(&fit);
+
 	list_destroy(dng->floors);
 	list_destroy(dng->players);
 	list_destroy(dng->mobiles);
 	list_destroy(dng->objects);
-
-	iterator_stop(&fit);
+	list_destroy(dng->rooms);
 
 	INVALIDATE(dng);
 	dng->next = dungeon_free;

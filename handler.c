@@ -7989,6 +7989,33 @@ bool list_appendlink(LLIST *lp, void *data)
 	return false;
 }
 
+// DOES NOT DEEP COPY ELEMENTS
+bool list_appendlist(LLIST *lp, LLIST *src)
+{
+	if( IS_VALID(lp) && IS_VALID(src) )
+	{
+		ITERATOR it;
+		void *data;
+		bool good = true;
+
+
+		iterator_start(&it, src);
+		while( (data = iterator_nextdata(&it)) )
+		{
+			if( !list_appendlink(lp, data) )
+			{
+				good = false;
+				break;
+			}
+		}
+		iterator_stop(&it);
+
+		return good;
+	}
+
+	return false;
+}
+
 // Nulls out any data pointer that matches the supplied pointer
 // It will NOT cull the list
 void list_remlink(LLIST *lp, void *data)
