@@ -6795,9 +6795,14 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 				break;
 			case 'C':
 				if(IS_KEY("CloneRoom")) {
-					ROOM_INDEX_DATA *source = get_room_index(fread_number(fp));
+					long v = fread_number(fp);
+					unsigned long id1 = fread_number(fp);
+					unsigned long id2 = fread_number(fp);
 
-					here = get_clone_room(source, fread_number(fp), fread_number(fp));
+					ROOM_INDEX_DATA *source = get_room_index(v);
+
+
+					here = get_clone_room(source, id1, id2);
 
 					fMatch = TRUE;
 				}
