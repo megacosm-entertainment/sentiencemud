@@ -5002,7 +5002,7 @@ bool extract_clone_room(ROOM_INDEX_DATA *room, unsigned long id1, unsigned long 
 		for(ch = clone->people; ch; ch = ch_next) {
 			ch_next = ch->next_in_room;
 
-			if(IS_NPC(ch))
+			if(IS_NPC(ch) && !ch->persist)
 				extract_char(ch, TRUE);
 			else
 			{
