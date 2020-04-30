@@ -4881,27 +4881,27 @@ ROOM_INDEX_DATA *get_clone_room(register ROOM_INDEX_DATA *source, register unsig
 
 	if(source->source) return get_clone_room(source->source,id1,id2);
 
-	log_stringf("get_clone_room: search for %ld, %lu, %lu", source->vnum, id1, id2);
+	//log_stringf("get_clone_room: search for %ld, %lu, %lu", source->vnum, id1, id2);
 
 	/* Can't clone a purely virtual room... ever*/
 	if(IS_SET(source->room2_flags,ROOM_VIRTUAL_ROOM))
 	{
-		log_string("get_clone_room: source is a virtual room");
+		//log_string("get_clone_room: source is a virtual room");
 		return NULL;
 	}
 
 	for(room = source->clones; room; room = room->next)
 	{
-		log_stringf("get_clone_room: clone %lu, %lu", room->id[0], room->id[1]);
+		//log_stringf("get_clone_room: clone %lu, %lu", room->id[0], room->id[1]);
 
 		if(room->id[0] == id1 && room->id[1] == id2)
 		{
-			log_string("get_clone_room: clone found");
+			//log_string("get_clone_room: clone found");
 			return room;
 		}
 	}
 
-	log_string("get_clone_room: clone not found");
+	//log_string("get_clone_room: clone not found");
 
 	return NULL;
 }
@@ -7104,7 +7104,7 @@ EXIT_DATA *persist_load_exit(FILE *fp)
 							room = get_room_index( x );
 
 							if( room ) {
-								log_string("get_clone_room: persist_load_exit");
+								//log_string("get_clone_room: persist_load_exit");
 								if( !(clone = get_clone_room( room, y, z )) ) {
 									// Create the room
 									if( (clone = create_virtual_room_nouid(room, FALSE, FALSE, FALSE)) ) {
@@ -7260,7 +7260,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 		y = fread_number(fp);
 
 		// Find the clone
-		log_string("get_clone_room: persist_load_room");
+		//log_string("get_clone_room: persist_load_room");
 		room = get_clone_room(source,x,y);
 		if( !room ) {
 			room = create_virtual_room_nouid( source, FALSE, FALSE, FALSE );
