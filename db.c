@@ -115,14 +115,14 @@ DUNGEON *dungeon_load(FILE *fp);
 
 #define FVKEY(literal, field, string, tbl) \
 	if (IS_KEY(literal)) { \
-		field = flag_value(tbl, string); \
+		field = script_flag_value(tbl, string); \
 		fMatch = TRUE; \
 		break; \
 	}
 
 #define FVDKEY(literal, field, string, tbl, bad, def) \
 	if (!str_cmp(word, literal)) { \
-		field = flag_value(tbl, string); \
+		field = script_flag_value(tbl, string); \
 		if( field == bad ) { \
 			field = def; \
 		} \
@@ -5851,7 +5851,7 @@ void persist_save_room(FILE *fp, ROOM_INDEX_DATA *room)
 	// Conditional Descriptions?
 
 	// Save Exits
-	for( i=0; i < 10; i++)
+	for( i=0; i < MAX_DIR; i++)
 		if( room->exit[i] )
 			persist_save_exit(fp,room->exit[i]);
 
