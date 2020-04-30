@@ -1513,7 +1513,7 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 					room->area->anum, room->area->name,
 					room->source->vnum,room->id[0],room->id[1]);
 			} else {
-				sprintf(buf, "{G[Room %ld]", room->vnum);
+				sprintf(buf, "{g[Room %ld]", room->vnum);
 			}
 		} else {
 			sprintf(buf, "{G[Room %ld]", room->vnum);
