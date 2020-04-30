@@ -1258,7 +1258,7 @@ void dungeon_save(FILE *fp, DUNGEON *dungeon)
 
 	fprintf(fp, "Flags %d\n\r", dungeon->flags);
 
-	if( dungeon->player_uid[0] > 0 && dungeon->player_uid[1] > 0 )
+	if( dungeon->player_uid[0] > 0 || dungeon->player_uid[1] > 0 )
 	{
 		fprintf(fp, "Player %lu %lu\n\r", dungeon->player_uid[0], dungeon->player_uid[1]);
 	}

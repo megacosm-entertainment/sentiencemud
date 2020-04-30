@@ -3246,7 +3246,7 @@ void instance_save(FILE *fp, INSTANCE *instance)
 
 	fprintf(fp, "Floor %d\n\r", instance->floor);
 
-	if( instance->object_uid[0] > 0 && instance->object_uid[1] > 0 )
+	if( instance->object_uid[0] > 0 || instance->object_uid[1] > 0 )
 	{
 		fprintf(fp, "Object %lu %lu\n\r", instance->object_uid[0], instance->object_uid[1]);
 	}
