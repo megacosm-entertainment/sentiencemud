@@ -1159,11 +1159,11 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
 				color = 'R';
 
 
-			sprintf(buf, "%4d {Y[{W%5ld{Y] {%c%-30.30s   %13.13s   %8.8s{x\n\r",
+			sprintf(buf, "%4d {Y[{W%5ld{Y] {%c%-30.30s   %13.13s   %8.8s{x  %lu %lu\n\r",
 				lines,
 				dungeon->index->vnum,
 				color, dungeon->index->name,
-				plr_str, idle_str);
+				plr_str, idle_str, dungeon->player_uid[0], dungeon->player_uid[1]);
 
 			if( !add_buf(buffer, buf) || (!ch->lines && strlen(buf_string(buffer)) > MAX_STRING_LENGTH) )
 			{
