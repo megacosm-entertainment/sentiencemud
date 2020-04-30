@@ -108,7 +108,7 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp)
 			break;
 
 		case 'M':
-			KEYS("MountOut", dng->zoneout_mount, fread_string(fp));
+			KEYS("MountOut", dng->zone_out_mount, fread_string(fp));
 			break;
 
 		case 'N':
@@ -116,11 +116,11 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp)
 			break;
 
 		case 'P':
-			KEYS("PortalOut", dng->zoneout_portal, fread_string(fp));
+			KEYS("PortalOut", dng->zone_out_portal, fread_string(fp));
 			break;
 
 		case 'Z':
-			KEYS("ZoneOut", dng->zoneout, fread_string(fp));
+			KEYS("ZoneOut", dng->zone_out, fread_string(fp));
 			break;
 
 		}
@@ -190,9 +190,9 @@ void save_dungeon_index(FILE *fp, DUNGEON_INDEX_DATA *dng)
 	if( dng->exit_room > 0 )
 		fprintf(fp, "Exit %ld\n\r", dng->exit_room);
 
-	fprintf(fp, "ZoneOut %s~\n\r", fix_string(dng->zoneout));
-	fprintf(fp, "PortalOut %s~\n\r", fix_string(dng->zoneout_portal));
-	fprintf(fp, "MountOut %s~\n\r", fix_string(dng->zoneout_mount));
+	fprintf(fp, "ZoneOut %s~\n\r", fix_string(dng->zone_out));
+	fprintf(fp, "PortalOut %s~\n\r", fix_string(dng->zone_out_portal));
+	fprintf(fp, "MountOut %s~\n\r", fix_string(dng->zone_out_mount));
 
 	ITERATOR fit;
 	BLUEPRINT *bp;
@@ -789,15 +789,15 @@ DNGEDIT( dngedit_show )
 		add_buf(buffer, "Exit:        {Dinvalid{x\n\r");
 
 	add_buf(buffer, "ZoneOut:     ");
-	add_buf(buffer, dng->zoneout);
+	add_buf(buffer, dng->zone_out);
 	add_buf(buffer, "{x\n\r");
 
 	add_buf(buffer, "PortalOut:     ");
-	add_buf(buffer, dng->zoneout_portal);
+	add_buf(buffer, dng->zone_out_portal);
 	add_buf(buffer, "{x\n\r");
 
 	add_buf(buffer, "MountOut:     ");
-	add_buf(buffer, dng->zoneout_mount);
+	add_buf(buffer, dng->zone_out_mount);
 	add_buf(buffer, "{x\n\r");
 
 	add_buf(buffer, "Description:\n\r");
@@ -1133,8 +1133,8 @@ DNGEDIT( dngedit_zoneout )
 		return FALSE;
 	}
 
-	free_string(dng->zoneout);
-	dng->zoneout = str_dup(argument);
+	free_string(dng->zone_out);
+	dng->zone_out = str_dup(argument);
 	send_to_char("ZoneOut changed.\n\r", ch);
 	return TRUE;
 }
@@ -1151,8 +1151,8 @@ DNGEDIT( dngedit_portalout )
 		return FALSE;
 	}
 
-	free_string(dng->zoneout_portal);
-	dng->zoneout_portal = str_dup(argument);
+	free_string(dng->zone_out_portal);
+	dng->zone_out_portal = str_dup(argument);
 	send_to_char("PortalOut changed.\n\r", ch);
 	return TRUE;
 }
@@ -1169,8 +1169,8 @@ DNGEDIT( dngedit_mountout )
 		return FALSE;
 	}
 
-	free_string(dng->zoneout_mount);
-	dng->zoneout_mount = str_dup(argument);
+	free_string(dng->zone_out_mount);
+	dng->zone_out_mount = str_dup(argument);
 	send_to_char("MountOut changed.\n\r", ch);
 	return TRUE;
 }
