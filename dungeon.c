@@ -488,15 +488,20 @@ void dungeon_update()
 	iterator_start(&it, loaded_dungeons);
 	while( (dungeon = (DUNGEON *)iterator_nextdata(&it)) )
 	{
-		dungeon_check_empty(dungeon);
-
 		if( dungeon->idle_timer > 0 )
 		{
-			if( --dungeon->idle_timer )
+			if( !--dungeon->idle_timer )
 			{
+				char buf[MSL];
+				sprintf(buf, "dungeon_update: dungeon purging %s", dungeon->index->name);
+				wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
+
 				extract_dungeon(dungeon);
+				continue;
 			}
 		}
+
+		dungeon_check_empty(dungeon);
 	}
 	iterator_stop(&it);
 }
@@ -1117,6 +1122,9 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
 		iterator_start(&it, loaded_dungeons);
 		while((dungeon = (DUNGEON *)iterator_nextdata(&it)))
 		{
+			sprintf(buf, "dungeon list: %ld, %s", dungeon->index->vnum, dungeon->index->name);
+			wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
+
 			char plr_str[21];
 			char idle_str[21];
 			++lines;
@@ -1149,7 +1157,7 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
 				color = 'R';
 
 
-			sprintf(buf, "%4d {Y[{W%5ld{Y] {%c%-30.30s   %.13s   %.8s{x\n\r",
+			sprintf(buf, "%4d {Y[{W%5ld{Y] {%c%-30.30s   %13.13s   %8.8s{x\n\r",
 				lines,
 				dungeon->index->vnum,
 				color, dungeon->index->name,
@@ -1345,6 +1353,7 @@ DUNGEON *dungeon_load(FILE *fp)
 		}
 	}
 
+	log_stringf("dungeon_load: dungeon %ld loaded", dungeon->index->vnum);
 	return dungeon;
 }
 

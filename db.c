@@ -4910,8 +4910,8 @@ bool extract_clone_room(ROOM_INDEX_DATA *room, unsigned long id1, unsigned long 
 
 	if(room->source) room = room->source;
 
-	sprintf(buf,"extract_clone_room(%lu, %lu, %lu) called", room->vnum, id1, id2);
-	wiznet(buf, NULL, NULL, WIZ_TESTING, 0, 0);
+//	sprintf(buf,"extract_clone_room(%lu, %lu, %lu) called", room->vnum, id1, id2);
+//	wiznet(buf, NULL, NULL, WIZ_TESTING, 0, 0);
 
 
 /*	if(room->vnum == 11001) return false;	  Oh, hell, no*/
@@ -4934,30 +4934,30 @@ bool extract_clone_room(ROOM_INDEX_DATA *room, unsigned long id1, unsigned long 
 	}
 
 	if(!clone) {
-		sprintf(buf,"extract_clone_room(%lu, %lu, %lu) clone not found", room->vnum, id1, id2);
-		wiznet(buf, NULL, NULL, WIZ_TESTING, 0, 0);
+//		sprintf(buf,"extract_clone_room(%lu, %lu, %lu) clone not found", room->vnum, id1, id2);
+//		wiznet(buf, NULL, NULL, WIZ_TESTING, 0, 0);
 		return false;
 	}
 
 	/* Prevents infinite loops*/
 	if(clone->progs && PROG_FLAG(clone,PROG_NODESTRUCT)) {
-		sprintf(buf,"extract_clone_room(%lu, %lu, %lu) clone already being destructed", room->vnum, id1, id2);
-		wiznet(buf, NULL, NULL, WIZ_TESTING, 0, 0);
+//		sprintf(buf,"extract_clone_room(%lu, %lu, %lu) clone already being destructed", room->vnum, id1, id2);
+//		wiznet(buf, NULL, NULL, WIZ_TESTING, 0, 0);
 		return false;
 	}
 
 	/* Do extraction stuff*/
 	if(clone->progs && room->progs && room->progs->progs) {
-		sprintf(buf,"extract_clone_room(%lu, %lu, %lu) calling EXTRACT trigger", room->vnum, id1, id2);
-		wiznet(buf, NULL, NULL, WIZ_TESTING, 0, 0);
+//		sprintf(buf,"extract_clone_room(%lu, %lu, %lu) calling EXTRACT trigger", room->vnum, id1, id2);
+//		wiznet(buf, NULL, NULL, WIZ_TESTING, 0, 0);
 		SET_BIT(clone->progs->entity_flags,PROG_NODESTRUCT);
 		p_percent_trigger(NULL, NULL, clone, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_EXTRACT, NULL);
 	}
 
 	/* Destroy all exits*/
 	for(door = 0; door < MAX_DIR; door++) if(clone->exit[door]) {
-		sprintf(buf,"extract_clone_room(%lu, %lu, %lu) removing door %d", room->vnum, id1, id2, door);
-		wiznet(buf, NULL, NULL, WIZ_TESTING, 0, 0);
+//		sprintf(buf,"extract_clone_room(%lu, %lu, %lu) removing door %d", room->vnum, id1, id2, door);
+//		wiznet(buf, NULL, NULL, WIZ_TESTING, 0, 0);
 		if((dest = clone->exit[door]->u1.to_room)) {
 			rev_door = rev_dir[door];
 
@@ -5036,8 +5036,8 @@ bool extract_clone_room(ROOM_INDEX_DATA *room, unsigned long id1, unsigned long 
 	room_from_environment(clone);
 	free_room_index(clone);
 
-	sprintf(buf,"extract_clone_room(%lu, %lu, %lu) clone extracted", room->vnum, id1, id2);
-	wiznet(buf, NULL, NULL, WIZ_TESTING, 0, 0);
+//	sprintf(buf,"extract_clone_room(%lu, %lu, %lu) clone extracted", room->vnum, id1, id2);
+//	wiznet(buf, NULL, NULL, WIZ_TESTING, 0, 0);
 
 	return true;
 }
@@ -7709,6 +7709,7 @@ void load_instances()
 			if( dungeon )
 			{
 				list_appendlink(loaded_dungeons, dungeon);
+				log_stringf("Loaded Dungeons: %d\n\r", list_size(loaded_dungeons));
 			}
 
 			fMatch = TRUE;
