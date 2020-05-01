@@ -2707,7 +2707,7 @@ DECL_IFC_FUN(ifc_timer)
 	} else if(ISARG_TOK(0)) {
 		*ret = ARG_TOK(0)->timer;
 	} else if(ISARG_DUNGEON(0)) {
-		*ret = ARG_DUNGEO(0)->idle_timer;
+		*ret = ARG_DUNGEON(0)->idle_timer;
 	} else
 		return FALSE;
 
@@ -4695,6 +4695,6 @@ DECL_IFC_FUN(ifc_dungeonflag)
 
 DECL_IFC_FUN(ifc_sectionflag)
 {
-	*ret = (ISARG_SECTION(0) && ISARG_STR(1) && IS_SET(ARG_SECTION(0)->flags, flag_value_ifcheck( blueprint_section_flags,ARG_STR(1))));
+	*ret = (ISARG_SECTION(0) && ISARG_STR(1) && IS_SET(ARG_SECTION(0)->section->flags, flag_value_ifcheck( blueprint_section_flags,ARG_STR(1))));
 	return TRUE;
 }
