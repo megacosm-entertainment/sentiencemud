@@ -1475,7 +1475,15 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 	case ENTITY_MOB_HOUSE:
 		arg->type = ENT_ROOM;
-		arg->d.room = arg->d.mob && arg->d.mob->home > 0 ? get_room_index(arg->d.mob->home) : NULL;
+		if( arg->d.mob )
+		{
+			if( IS_NPC(arg->d.mob) )
+				arg->d.room = arg->d.mob->home_room;
+			else if( arg->d.mob->home > 0 )
+				arg->d.room = get_room_index(arg->d.mob->home);
+		}
+		else
+			arg->d.room = NULL;
 		break;
 	case ENTITY_MOB_CARRYING:
 		arg->type = ENT_OLLIST_OBJ;
