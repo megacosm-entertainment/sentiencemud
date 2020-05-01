@@ -1186,157 +1186,237 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
 {
 	char arg1[MIL];
 
+	if( IS_NPC(ch) ) return;
+
 	if( argument[0] == '\0' )
 	{
-		send_to_char("Syntax:  dungeon list\n\r", ch);
-		send_to_char("         dungeon unload #\n\r", ch);
+		send_to_char("Syntax:  dungeon leave\n\r", ch);
+		if( ch->tot_level >= MAX_LEVEL )
+		{
+			send_to_char("         dungeon list\n\r", ch);
+			send_to_char("         dungeon unload #\n\r", ch);
+		}
 		return;
 	}
 
 	argument = one_argument(argument, arg1);
 
-	if( !str_prefix(arg1, "list") )
+	if( !str_prefix(arg1, "leave") )
 	{
-		if(!ch->lines)
-			send_to_char("{RWARNING:{W Having scrolling off may limit how many dungeons you can see.{x\n\r", ch);
+		DUNGEON *dungeon = get_room_dungeon(ch->in_room);
 
-		int lines = 0;
-		bool error = FALSE;
-		BUFFER *buffer = new_buf();
-		char buf[MSL];
-
-
-		ITERATOR it;
-		DUNGEON *dungeon;
-
-		iterator_start(&it, loaded_dungeons);
-		while((dungeon = (DUNGEON *)iterator_nextdata(&it)))
+		if( !IS_VALID(dungeon) )
 		{
-			sprintf(buf, "dungeon list: %ld, %s", dungeon->index->vnum, dungeon->index->name);
-			wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
+			send_to_char("You are not in a dungeon.\n\r", ch);
+			return;
+		}
 
-			char plr_str[21];
-			char idle_str[21];
-			++lines;
-
-			int players = list_size(dungeon->players);
-
-			if( players > 0 )
+		// Prevent them from just up and leaving the dungeon mid... anything
+		if( ch->position != POS_STANDING )
+		{
+			switch( ch->position )
 			{
-				snprintf(plr_str, 20, "{W%d", players);
-				plr_str[20] = '\0';
-			}
-			else
-			{
-				strcpy(plr_str, "{Dempty");
-			}
+			case POS_DEAD:
+				send_to_char( "Lie still; you are DEAD.\n\r", ch );
+				break;
 
-			if( dungeon->idle_timer > 0 )
-			{
-				snprintf(idle_str, 20, "{G%d", dungeon->idle_timer);
-				idle_str[20] = '\0';
-			}
-			else
-			{
-				strcpy(idle_str, "{YActive");
-			}
+			case POS_MORTAL:
+			case POS_INCAP:
+				send_to_char( "You are far too hurt for that.\n\r", ch );
+				break;
 
-			char color = 'x';
+			case POS_STUNNED:
+				send_to_char( "You are too stunned to do that.\n\r", ch );
+				break;
 
-			if( IS_SET(dungeon->flags, DUNGEON_DESTROY) )
-				color = 'R';
+			case POS_SLEEPING:
+				send_to_char( "In your dreams, or what?\n\r", ch );
+				break;
 
+			case POS_RESTING:
+				send_to_char( "You are resting at the moment.\n\r", ch);
+				break;
 
-			sprintf(buf, "%4d {Y[{W%5ld{Y] {%c%-30.30s   %13.13s   %8.8s{x  %lu %lu\n\r",
-				lines,
-				dungeon->index->vnum,
-				color, dungeon->index->name,
-				plr_str, idle_str, dungeon->player_uid[0], dungeon->player_uid[1]);
+			case POS_SITTING:
+				send_to_char( "Better stand up first.\n\r",ch);
+				break;
 
-			if( !add_buf(buffer, buf) || (!ch->lines && strlen(buf_string(buffer)) > MAX_STRING_LENGTH) )
-			{
-				error = TRUE;
+			case POS_FIGHTING:
+				send_to_char( "No way!  You are still fighting!\n\r", ch);
 				break;
 			}
-		}
-		iterator_stop(&it);
 
-		if( error )
+			return;
+		}
+
+		ROOM_INDEX_DATA *room = dungeon->entry_room;
+
+		if( !room )
+			room = get_room_index(11001);
+
+		// Should deal with their mount and pet if they have one
+		char_from_room(ch);
+		char_to_room(ch, room);
+
+		if (ch->pet != NULL)
 		{
-			send_to_char("Too many dungeons to list.  Please shorten!\n\r", ch);
+			char_from_room (ch->pet);
+			char_to_room(ch->pet, room);
 		}
-		else
-		{
-			if( !lines )
-			{
-				add_buf( buffer, "No dungeons to display.\n\r" );
-			}
-			else
-			{
-				// Header
-				send_to_char("{Y      Vnum   [            Name            ] [  Players  ] [ Idle ]{x\n\r", ch);
-				send_to_char("{Y==================================================================={x\n\r", ch);
-			}
 
-			page_to_char(buffer->string, ch);
-		}
-		free_buf(buffer);
-
+		act("{Y$n leaves $T.{x", ch, NULL, NULL, NULL, NULL, NULL, dungeon->index->name, TO_ROOM);
+		act("{YYou leave $T.{x", ch, NULL, NULL, NULL, NULL, NULL, dungeon->index->name, TO_CHAR);
+		do_function(ch, &do_look, "auto");
 		return;
 	}
 
-	if( !str_prefix(arg1, "unload") )
+
+	if( ch->tot_level >= MAX_LEVEL )
 	{
-		char buf[MSL];
-
-		if( !can_edit_dungeons(ch) )
+		if( !str_prefix(arg1, "list") )
 		{
-			send_to_char("Insufficient access to unload dungeons.\n\r", ch);
-			return;
-		}
 
-		if( !is_number(argument) )
-		{
-			send_to_char("That is not a number.\n\r", ch);
-			return;
-		}
+			if(!ch->lines)
+				send_to_char("{RWARNING:{W Having scrolling off may limit how many dungeons you can see.{x\n\r", ch);
 
-		int index = atoi(argument);
+			int lines = 0;
+			bool error = FALSE;
+			BUFFER *buffer = new_buf();
+			char buf[MSL];
 
-		if( list_size(loaded_dungeons) < index )
-		{
-			send_to_char("No dungeon at that index.\n\r", ch);
-			return;
-		}
 
-		// Set a flag on the dungeon and set the idle timer
-		DUNGEON *dungeon = (DUNGEON *)list_nthdata(loaded_dungeons, index);
+			ITERATOR it;
+			DUNGEON *dungeon;
 
-		if( list_size(dungeon->players) > 0 )
-		{
-			if( IS_SET(dungeon->flags, DUNGEON_DESTROY) )
+			iterator_start(&it, loaded_dungeons);
+			while((dungeon = (DUNGEON *)iterator_nextdata(&it)))
 			{
-				send_to_char("Dungeon is already flagged for unloading.\n\r", ch);
+				sprintf(buf, "dungeon list: %ld, %s", dungeon->index->vnum, dungeon->index->name);
+				wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
+
+				char plr_str[21];
+				char idle_str[21];
+				++lines;
+
+				int players = list_size(dungeon->players);
+
+				if( players > 0 )
+				{
+					snprintf(plr_str, 20, "{W%d", players);
+					plr_str[20] = '\0';
+				}
+				else
+				{
+					strcpy(plr_str, "{Dempty");
+				}
+
+				if( dungeon->idle_timer > 0 )
+				{
+					snprintf(idle_str, 20, "{G%d", dungeon->idle_timer);
+					idle_str[20] = '\0';
+				}
+				else
+				{
+					strcpy(idle_str, "{YActive");
+				}
+
+				char color = 'x';
+
+				if( IS_SET(dungeon->flags, DUNGEON_DESTROY) )
+					color = 'R';
+
+
+				sprintf(buf, "%4d {Y[{W%5ld{Y] {%c%-30.30s   %13.13s   %8.8s{x  %lu %lu\n\r",
+					lines,
+					dungeon->index->vnum,
+					color, dungeon->index->name,
+					plr_str, idle_str, dungeon->player_uid[0], dungeon->player_uid[1]);
+
+				if( !add_buf(buffer, buf) || (!ch->lines && strlen(buf_string(buffer)) > MAX_STRING_LENGTH) )
+				{
+					error = TRUE;
+					break;
+				}
+			}
+			iterator_stop(&it);
+
+			if( error )
+			{
+				send_to_char("Too many dungeons to list.  Please shorten!\n\r", ch);
+			}
+			else
+			{
+				if( !lines )
+				{
+					add_buf( buffer, "No dungeons to display.\n\r" );
+				}
+				else
+				{
+					// Header
+					send_to_char("{Y      Vnum   [            Name            ] [  Players  ] [ Idle ]{x\n\r", ch);
+					send_to_char("{Y==================================================================={x\n\r", ch);
+				}
+
+				page_to_char(buffer->string, ch);
+			}
+			free_buf(buffer);
+
+			return;
+		}
+
+		if( !str_prefix(arg1, "unload") )
+		{
+			char buf[MSL];
+
+			if( !can_edit_dungeons(ch) )
+			{
+				send_to_char("Insufficient access to unload dungeons.\n\r", ch);
 				return;
 			}
 
-			SET_BIT(dungeon->flags, DUNGEON_DESTROY);
-			if( dungeon->idle_timer > 0 )
-				dungeon->idle_timer = UMIN(5, dungeon->idle_timer);
+			if( !is_number(argument) )
+			{
+				send_to_char("That is not a number.\n\r", ch);
+				return;
+			}
+
+			int index = atoi(argument);
+
+			if( list_size(loaded_dungeons) < index )
+			{
+				send_to_char("No dungeon at that index.\n\r", ch);
+				return;
+			}
+
+			// Set a flag on the dungeon and set the idle timer
+			DUNGEON *dungeon = (DUNGEON *)list_nthdata(loaded_dungeons, index);
+
+			if( list_size(dungeon->players) > 0 )
+			{
+				if( IS_SET(dungeon->flags, DUNGEON_DESTROY) )
+				{
+					send_to_char("Dungeon is already flagged for unloading.\n\r", ch);
+					return;
+				}
+
+				SET_BIT(dungeon->flags, DUNGEON_DESTROY);
+				if( dungeon->idle_timer > 0 )
+					dungeon->idle_timer = UMIN(5, dungeon->idle_timer);
+				else
+					dungeon->idle_timer = 5;
+
+				sprintf(buf, "{RWARNING: Dungeon is being forcibly unloaded.  You have %d minutes to escape before the end!{x\n\r", dungeon->idle_timer);
+				dungeon_echo(dungeon, buf);
+
+				send_to_char("Dungeon flagged for unloading.\n\r", ch);
+			}
 			else
-				dungeon->idle_timer = 5;
-
-			sprintf(buf, "{RWARNING: Dungeon is being forcibly unloaded.  You have %d minutes to escape before the end!{x\n\r", dungeon->idle_timer);
-			dungeon_echo(dungeon, buf);
-
-			send_to_char("Dungeon flagged for unloading.\n\r", ch);
+			{
+				extract_dungeon(dungeon);
+				send_to_char("Dungeon unloaded.\n\r", ch);
+			}
+			return;
 		}
-		else
-		{
-			extract_dungeon(dungeon);
-			send_to_char("Dungeon unloaded.\n\r", ch);
-		}
-		return;
 	}
 
 	do_dungeon(ch, "");

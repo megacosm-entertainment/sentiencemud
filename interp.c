@@ -528,7 +528,7 @@ const	struct	cmd_type	cmd_table	[] =
     { "dngedit",		do_dngedit,	POS_DEAD,    ML,  LOG_NORMAL, 1, TRUE },
     { "dnglist",		do_dnglist,	POS_DEAD,    ML,  LOG_NORMAL, 1, TRUE },
 
-    { "dungeon",		do_dungeon,	POS_DEAD,	ML,  LOG_NORMAL, 1, TRUE },
+    { "dungeon",		do_dungeon,	POS_DEAD,	0,  LOG_NORMAL, 1, TRUE },
 
     { "",		0,		POS_DEAD,     0,  LOG_NORMAL, 0, FALSE }
 };

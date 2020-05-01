@@ -839,7 +839,7 @@ void do_transfer(CHAR_DATA *ch, char *argument)
 
     if (victim->pet != NULL)
     {
-    	char_from_room (ch->pet);
+    	char_from_room (victim->pet);
 	if(location->wilds)
 		char_to_vroom(victim->pet, location->wilds, location->x, location->y);
 	else
