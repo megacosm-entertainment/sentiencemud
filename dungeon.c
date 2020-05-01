@@ -1468,6 +1468,7 @@ void dungeon_tallyentities(DUNGEON *dungeon, INSTANCE *instance)
 	list_appendlist(dungeon->mobiles, instance->mobiles);
 	list_appendlist(dungeon->objects, instance->objects);
 	list_appendlist(dungeon->rooms, instance->rooms);
+	list_appendlist(dungeon->bosses, instance->bosses);
 }
 
 DUNGEON *dungeon_load(FILE *fp)

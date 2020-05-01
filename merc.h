@@ -3258,6 +3258,7 @@ struct	mob_index_data
 
 	MOB_INDEX_SKILL_DATA *skills;
 
+	bool		boss;
 };
 
 
@@ -5088,6 +5089,7 @@ struct instance_data {
 	LLIST *players;
 	LLIST *mobiles;					// List of mobiles (include players) not part of the instance
 	LLIST *objects;
+	LLIST *bosses;					// List of INSTANCE MOB BOSSES
 
 	LLIST *rooms;
 };
@@ -5146,6 +5148,7 @@ struct dungeon_data
 	LLIST *players;					// List of players inside the dungeon
 	LLIST *mobiles;					// List of mobiles (include players) inside the dungeon not part of the instance
 	LLIST *objects;					// List of objects not part of the dungeon
+	LLIST *bosses;					// List of INSTANCE MOB BOSSES
 
 	LLIST *rooms;
 
@@ -6273,6 +6276,7 @@ extern sh_int grn_unique;
 #define sqr(a) 			( a * a )
 #define IS_DEAD(ch)		(ch->dead == TRUE)
 #define IS_NPC(ch)		(IS_SET((ch)->act, ACT_IS_NPC))
+#define IS_BOSS(ch)		(IS_NPC(ch) && ((ch)->pIndexData->boss)
 #define IS_NPC_SHIP(ship)	(ship->npc_ship != NULL)
 #define IS_IMMORTAL(ch)		(get_trust(ch) >= LEVEL_IMMORTAL && !IS_NPC(ch) && ch->pcdata->immortal != NULL)
 #define IS_HERO(ch)		(get_trust(ch) >= LEVEL_HERO)

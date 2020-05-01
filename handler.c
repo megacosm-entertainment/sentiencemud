@@ -1820,10 +1820,10 @@ void char_from_room(CHAR_DATA *ch)
 
 	if( IS_VALID(ch->in_room->instance_section) && IS_VALID(ch->in_room->instance_section->instance) )
 	{
+		INSTANCE *instance = ch->in_room->instance_section->instance;
+		DUNGEON *dungeon = instance->dungeon;
 		if( !IS_NPC(ch) || !IS_SET(ch->act2, ACT2_INSTANCE_MOB) )
 		{
-			INSTANCE *instance = ch->in_room->instance_section->instance;
-			DUNGEON *dungeon = instance->dungeon;
 
 			if( IS_VALID(dungeon) )
 			{
@@ -1835,6 +1835,12 @@ void char_from_room(CHAR_DATA *ch)
 			if( !IS_NPC(ch) )
 				list_remlink(instance->players, ch);
 			list_remlink(instance->mobiles, ch);
+		}
+		else if( IS_BOSS(ch) )
+		{
+			if( IS_VALID(dungeon) )
+				list_remlink(dungeon->bosses, ch);
+			list_remlink(instance->bosses, ch);
 		}
 	}
 	else
@@ -1985,11 +1991,11 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
 
 	if( IS_VALID(pRoomIndex->instance_section) && IS_VALID(pRoomIndex->instance_section->instance) )
 	{
+		INSTANCE *instance = pRoomIndex->instance_section->instance;
+		DUNGEON *dungeon = instance->dungeon;
+
 		if( !IS_NPC(ch) || !IS_SET(ch->act2, ACT2_INSTANCE_MOB) )
 		{
-			INSTANCE *instance = pRoomIndex->instance_section->instance;
-			DUNGEON *dungeon = instance->dungeon;
-
 			if( IS_VALID(dungeon) )
 			{
 				if( !IS_NPC(ch) )
@@ -2000,6 +2006,12 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
 			if( !IS_NPC(ch) )
 				list_appendlink(instance->players, ch);
 			list_appendlink(instance->mobiles, ch);
+		}
+		else if( IS_BOSS(ch) )
+		{
+			if( IS_VALID(dungeon) )
+				list_appendlink(dungeon->bosses, ch);
+			list_appendlink(instance->bosses, ch);
 		}
 	}
 	else

@@ -576,6 +576,10 @@ ENT_FIELD entity_instance[] = {
 	{"recall",			ENTITY_INSTANCE_RECALL,			ENT_ROOM			},
 	{"environ",			ENTITY_INSTANCE_ENVIRON,		ENT_ROOM			},
 	{"rooms",			ENTITY_INSTANCE_ROOMS,			ENT_PLLIST_ROOM		},
+	{"players",			ENTITY_INSTANCE_PLAYERS,		ENT_PLLIST_MOB		},
+	{"mobiles",			ENTITY_INSTANCE_MOBILES,		ENT_PLLIST_MOB		},
+	{"objects",			ENTITY_INSTANCE_OBJECTS,		ENT_PLLIST_OBJ		},
+	{"bosses",			ENTITY_INSTANCE_BOSSES,			ENT_PLLIST_MOB		},
 	{NULL,				0,								ENT_UNKNOWN			}
 };
 
@@ -587,6 +591,10 @@ ENT_FIELD entity_dungeon[] = {
 	{"entry",			ENTITY_DUNGEON_ENTRY,			ENT_ROOM			},
 	{"exit",			ENTITY_DUNGEON_EXIT,			ENT_ROOM			},
 	{"rooms",			ENTITY_DUNGEON_ROOMS,			ENT_PLLIST_ROOM		},
+	{"players",			ENTITY_DUNGEON_PLAYERS,			ENT_PLLIST_MOB		},
+	{"mobiles",			ENTITY_DUNGEON_MOBILES,			ENT_PLLIST_MOB		},
+	{"objects",			ENTITY_DUNGEON_OBJECTS,			ENT_PLLIST_OBJ		},
+	{"bosses",			ENTITY_DUNGEON_BOSSES,			ENT_PLLIST_MOB		},
 	{NULL,				0,								ENT_UNKNOWN			}
 };
 

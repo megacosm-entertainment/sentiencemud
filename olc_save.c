@@ -845,7 +845,11 @@ void save_mobile_new(FILE *fp, MOB_INDEX_DATA *mob)
     if (mob->zombie)
 		fprintf(fp, "CorpseZombie %ld\n", mob->zombie);
 	if(mob->comments)
-	fprintf(fp, "Comments %s~\n", fix_string(mob->comments));
+		fprintf(fp, "Comments %s~\n", fix_string(mob->comments));
+
+	if(mob->boss)
+		fprintf(fp, "Boss\n");
+
 
 	if (mob->pQuestor != NULL)
 		save_questor_new(fp, mob->pQuestor);
@@ -2214,6 +2218,10 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 		KEY("Attacks",	mob->attacks,	fread_number(fp));
 		break;
 
+		case 'B':
+			KEY("Boss", mob->boss, TRUE);
+			break;
+
 	    case 'C':
 	        KEYS("CreatorSig", mob->creator_sig,	fread_string(fp));
 	        KEY("CorpseType", mob->corpse_type,	fread_number(fp));
@@ -2330,10 +2338,7 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 		break;
 	    case 'P':
 	        KEY("Parts",	mob->parts,	fread_number(fp));
-			if(!str_cmp(word, "Persist")) {
-				mob->persist = TRUE;
-				fMatch = TRUE;
-			}
+	        KEY("Persist",	mob->persist, TRUE);
 		break;
 
 	    case 'R':

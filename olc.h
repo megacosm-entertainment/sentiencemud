@@ -363,7 +363,7 @@ DECLARE_OLC_FUN( medit_corpsevnum	);
 DECLARE_OLC_FUN( medit_zombievnum	);
 DECLARE_OLC_FUN( medit_persist  );
 DECLARE_OLC_FUN( medit_questor  );
-
+DECLARE_OLC_FUN( medit_boss		);
 
 /* Any script editor */
 DECLARE_OLC_FUN( scriptedit_show	);

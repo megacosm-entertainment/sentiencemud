@@ -4717,6 +4717,27 @@ char *expand_entity_instance(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_PLLIST_ROOM;
 		arg->d.blist = IS_VALID(instance) ? instance->rooms : NULL;
 		break;
+
+	case ENTITY_INSTANCE_PLAYERS:
+		arg->type = ENT_PLLIST_MOB;
+		arg->d.blist = IS_VALID(instance) ? instance->players : NULL;
+		break;
+
+	case ENTITY_INSTANCE_MOBILES:
+		arg->type = ENT_PLLIST_MOB;
+		arg->d.blist = IS_VALID(instance) ? instance->mobiles : NULL;
+		break;
+
+	case ENTITY_INSTANCE_OBJECTS:
+		arg->type = ENT_PLLIST_OBJ;
+		arg->d.blist = IS_VALID(instance) ? instance->objects : NULL;
+		break;
+
+	case ENTITY_INSTANCE_BOSSES:
+		arg->type = ENT_PLLIST_MOB;
+		arg->d.blist = IS_VALID(instance) ? instance->bosses : NULL;
+		break;
+
 	default: return NULL;
 	}
 
@@ -4780,6 +4801,27 @@ char *expand_entity_dungeon(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_PLLIST_ROOM;
 		arg->d.blist = IS_VALID(dungeon) ? dungeon->rooms : NULL;
 		break;
+
+	case ENTITY_DUNGEON_PLAYERS:
+		arg->type = ENT_PLLIST_MOB;
+		arg->d.blist = IS_VALID(dungeon) ? dungeon->players : NULL;
+		break;
+
+	case ENTITY_DUNGEON_MOBILES:
+		arg->type = ENT_PLLIST_MOB;
+		arg->d.blist = IS_VALID(dungeon) ? dungeon->mobiles : NULL;
+		break;
+
+	case ENTITY_DUNGEON_OBJECTS:
+		arg->type = ENT_PLLIST_OBJ;
+		arg->d.blist = IS_VALID(dungeon) ? dungeon->objects : NULL;
+		break;
+
+	case ENTITY_DUNGEON_BOSSES:
+		arg->type = ENT_PLLIST_MOB;
+		arg->d.blist = IS_VALID(dungeon) ? dungeon->bosses : NULL;
+		break;
+
 	default: return NULL;
 	}
 

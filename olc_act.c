@@ -6606,6 +6606,9 @@ MEDIT(medit_show)
 		race_table[pMob->race].name);
 	add_buf(buffer, buf);
 
+    sprintf(buf, "Boss:         {C[%s{C]{x\n\r", (pMob->persist ? "{RYES" : "{gno"));
+    add_buf(buffer, buf);
+
     sprintf(buf, "Persist:      {C[%s{C]{x\n\r", (pMob->persist ? "{WON" : "{Doff"));
     add_buf(buffer, buf);
 
@@ -7188,6 +7191,32 @@ MEDIT(medit_persist)
 	return TRUE;
 }
 
+
+MEDIT(medit_boss)
+{
+	MOB_INDEX_DATA *pMob;
+
+	EDIT_MOB(ch, pMob);
+
+	if (!str_cmp(argument,"on")) {
+	    if (!str_cmp(pMob->sig, "none") && ch->tot_level < MAX_LEVEL) {
+			send_to_char("You can't do this without an IMP's permission.\n\r", ch);
+			return FALSE;
+	    }
+
+		pMob->boss = TRUE;
+	    use_imp_sig(pMob, NULL);
+		send_to_char("Boss status enabled.\n\r", ch);
+	} else if (!str_cmp(argument,"off")) {
+		pMob->boss= FALSE;
+		send_to_char("Boss status disabled.\n\r", ch);
+	} else {
+		send_to_char("Usage: boss on/off\n\r", ch);
+		return FALSE;
+	}
+
+	return TRUE;
+}
 
 MEDIT(medit_prev)
 {

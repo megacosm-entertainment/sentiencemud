@@ -3335,9 +3335,12 @@ void instance_section_tallyentities(INSTANCE_SECTION *section)
 
 		for(CHAR_DATA *ch = room->people; ch; ch = ch->next_in_room)
 		{
-			if( IS_NPC(ch) && !IS_SET(ch->act2, ACT2_INSTANCE_MOB) )
+			if( IS_NPC(ch) )
 			{
-				list_appendlink(section->instance->mobiles, ch);
+				if( !IS_SET(ch->act2, ACT2_INSTANCE_MOB) )
+					list_appendlink(section->instance->mobiles, ch);
+				else if ( IS_BOSS(ch) )
+					list_appendlink(section->instance->bosses, ch);
 			}
 		}
 
