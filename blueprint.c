@@ -1575,10 +1575,10 @@ bool validate_vnum_range(CHAR_DATA *ch, BLUEPRINT_SECTION *section, long lower, 
 			// Only check against other sections
 			if( bs != section )
 			{
-				if( (bs->lower_vnum >= lower && lower <= bs->upper_vnum ) ||
-					(bs->lower_vnum >= upper && upper <= bs->upper_vnum ) ||
-					(lower >= bs->lower_vnum && bs->lower_vnum <= upper ) ||
-					(lower >= bs->upper_vnum && bs->upper_vnum <= upper ) )
+				if( (lower >= bs->lower_vnum && lower <= bs->upper_vnum ) ||
+					(upper >= bs->lower_vnum && upper <= bs->upper_vnum ) ||
+					(bs->lower_vnum >= lower && bs->lower_vnum <= upper ) ||
+					(bs->upper_vnum >= lower && bs->upper_vnum <= upper ) )
 				{
 					send_to_char("Blueprint section vnum ranges cannot overlap.\n\r", ch);
 					return FALSE;
