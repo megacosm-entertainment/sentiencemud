@@ -1309,28 +1309,33 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		// Maybe instead of outright destroy it...
 		// Set a flag on the dungeon and set the idle timer
-
 		DUNGEON *dungeon = (DUNGEON *)list_nthdata(loaded_dungeons, index);
 
-		if( IS_SET(dungeon->flags, DUNGEON_DESTROY) )
+		if( list_size(dungeon->players) > 0 )
 		{
-			send_to_char("Dungeon is already flagged for unloading.\n\r", ch);
-			return;
+			if( IS_SET(dungeon->flags, DUNGEON_DESTROY) )
+			{
+				send_to_char("Dungeon is already flagged for unloading.\n\r", ch);
+				return;
+			}
+
+			SET_BIT(dungeon->flags, DUNGEON_DESTROY);
+			if( dungeon->idle_timer > 0 )
+				dungeon->idle_timer = UMIN(5, dungeon->idle_timer);
+			else
+				dungeon->idle_timer = 5;
+
+			sprintf(buf, "{RWARNING: Dungeon is being forcibly unloaded.  You have %d minutes to escape before the end!{x\n\r", dungeon->idle_timer);
+			dungeon_echo(dungeon, buf);
+
+			send_to_char("Dungeon flagged for unloading.\n\r", ch);
 		}
-
-
-		SET_BIT(dungeon->flags, DUNGEON_DESTROY);
-		if( dungeon->idle_timer > 0 )
-			dungeon->idle_timer = UMIN(5, dungeon->idle_timer);
 		else
-			dungeon->idle_timer = 5;
-
-		sprintf(buf, "{RWARNING: Dungeon is being forcibly unloaded.  You have %d minutes to escape before the end!{x\n\r", dungeon->idle_timer);
-		dungeon_echo(dungeon, buf);
-
-		send_to_char("Dungeon flagged for unloading.\n\r", ch);
+		{
+			extract_dungeon(dungeon);
+			send_to_char("Dungeon unloaded.\n\r", ch);
+		}
 		return;
 	}
 
