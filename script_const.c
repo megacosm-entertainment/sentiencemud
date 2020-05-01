@@ -344,6 +344,9 @@ ENT_FIELD entity_room[] = {
 	{"west",		ENTITY_ROOM_WEST,			ENT_EXIT	},
 	{"wilds",		ENTITY_ROOM_WILDS,			ENT_WILDS	},
 	{"vars",		ENTITY_ROOM_VARIABLES,		ENT_ILLIST_VARIABLE	},
+	{"section",		ENTITY_ROOM_SECTION,		ENT_SECTION	},
+	{"instance",	ENTITY_ROOM_INSTANCE,		ENT_INSTANCE	},
+	{"dungeon",		ENTITY_ROOM_DUNGEON,		ENT_DUNGEON	},
 	{NULL,			0,							ENT_UNKNOWN	}
 };
 
@@ -428,7 +431,7 @@ ENT_FIELD entity_church[] = {
 	{"rules",		ENTITY_CHURCH_RULES,		ENT_STRING	},
 	{"info",		ENTITY_CHURCH_INFO,			ENT_STRING	},
 	{"recall",		ENTITY_CHURCH_RECALL,		ENT_ROOM	},
-	{"treasure",	ENTITY_CHURCH_TREASURE,		ENT_BLLIST_ROOM	},
+	{"treasure",	ENTITY_CHURCH_TREASURE,		ENT_PLLIST_ROOM	},
 	{"key",			ENTITY_CHURCH_KEY,			ENT_NUMBER	},
 	{"online",		ENTITY_CHURCH_ONLINE,		ENT_PLLIST_CONN	},
 	{"roster",		ENTITY_CHURCH_ROSTER,		ENT_PLLIST_STR	},
@@ -553,45 +556,90 @@ ENT_FIELD entity_objindex[] = {
 	{NULL,				0,								ENT_UNKNOWN	}
 };
 
+ENT_FIELD entity_instance_section[] = {
+	{"rooms",			ENTITY_SECTION_ROOMS,			ENT_PLLIST_ROOM	},
+	{"instance",		ENTITY_SECTION_INSTANCE,		ENT_INSTANCE },
+	{NULL,				0,								ENT_UNKNOWN	}
+};
+
+
+ENT_FIELD entity_instance[] = {
+	{"name",			ENTITY_INSTANCE_NAME,			ENT_STRING			},
+	{"sections",		ENTITY_INSTANCE_SECTIONS,		ENT_ILLIST_SECTIONS	},
+	{"player",			ENTITY_INSTANCE_PLAYER,			ENT_MOBILE			},
+	{"object",			ENTITY_INSTANCE_OBJECT,			ENT_OBJECT			},
+	{"dungeon",			ENTITY_INSTANCE_DUNGEON,		ENT_DUNGEON			},
+//	{"quest",			ENTITY_INSTANCE_QUEST,			ENT_QUEST			},
+	{"floor",			ENTITY_INSTANCE_FLOOR,			ENT_NUMBER			},
+	{"entry",			ENTITY_INSTANCE_ENTRY,			ENT_ROOM			},
+	{"exit",			ENTITY_INSTANCE_EXIT,			ENT_ROOM			},
+	{"recall",			ENTITY_INSTANCE_RECALL,			ENT_ROOM			},
+	{"environ",			ENTITY_INSTANCE_ENVIRON,		ENT_ROOM			},
+	{"rooms",			ENTITY_INSTANCE_ROOMS,			ENT_PLLIST_ROOM		},
+	{NULL,				0,								ENT_UNKNOWN			}
+};
+
+ENT_FIELD entity_dungeon[] = {
+	{"name",			ENTITY_DUNGEON_NAME,			ENT_STRING			},
+	{"floors",			ENTITY_DUNGEON_FLOORS,			ENT_ILLIST_INSTANCES},
+	{"desc",			ENTITY_DUNGEON_DESC,			ENT_STRING			},
+	{"player",			ENTITY_DUNGEON_PLAYER,			ENT_MOBILE			},
+	{"entry",			ENTITY_DUNGEON_ENTRY,			ENT_ROOM			},
+	{"exit",			ENTITY_DUNGEON_EXIT,			ENT_ROOM			},
+	{"rooms",			ENTITY_DUNGEON_ROOMS,			ENT_PLLIST_ROOM		},
+	{NULL,				0,								ENT_UNKNOWN			}
+};
+
+ENT_FIELD entity_quest_part[] = {
+	{NULL,				0,								ENT_UNKNOWN			}
+};
+
+ENT_FIELD entity_quest[] = {
+	{NULL,				0,								ENT_UNKNOWN			}
+};
+
 struct _entity_type_info entity_type_info[] = {
-	{ ENT_PRIMARY,		ENT_PRIMARY,		entity_primary,		TRUE	},
-	{ ENT_NUMBER,		ENT_NUMBER,			entity_number,		FALSE	},
-	{ ENT_STRING,		ENT_STRING,			entity_string,		FALSE	},
-	{ ENT_MOBILE,		ENT_MOBILE,			entity_mobile,		TRUE	},
-	{ ENT_OBJECT,		ENT_OBJECT,			entity_object,		TRUE	},
-	{ ENT_ROOM,			ENT_ROOM,			entity_room,		TRUE	},
-	{ ENT_EXIT,			ENT_EXIT,			entity_exit,		FALSE	},
-	{ ENT_TOKEN,		ENT_TOKEN,			entity_token,		TRUE	},
-	{ ENT_AREA,			ENT_AREA,			entity_area,		FALSE	},
-	{ ENT_SKILL,		ENT_SKILL,			entity_skill,		FALSE	},
-	{ ENT_SKILLINFO,	ENT_SKILLINFO,		entity_skill_info,	FALSE	},
-	{ ENT_CONN,			ENT_CONN,			entity_conn,		FALSE	},
-	{ ENT_AFFECT,		ENT_AFFECT,			entity_affect,		FALSE	},
-	{ ENT_EXTRADESC,	ENT_EXTRADESC,		NULL,				FALSE	},
-	{ ENT_HELP,			ENT_HELP,			NULL,				FALSE	},
-	{ ENT_PRIOR,		ENT_PRIOR,			entity_prior,		FALSE	},
-	{ ENT_MOBILE_ID,	ENT_MOBILE_ID,		entity_mobile,		FALSE	},
-	{ ENT_OBJECT_ID,	ENT_OBJECT_ID,		entity_object,		FALSE	},
-	{ ENT_TOKEN_ID,		ENT_TOKEN_ID,		entity_token,		FALSE	},
-	{ ENT_AREA_ID,		ENT_AREA_ID,		entity_area,		FALSE	},
-	{ ENT_SKILLINFO_ID,	ENT_SKILLINFO_ID,	entity_skill_info,	FALSE	},
-	{ ENT_CLONE_ROOM,	ENT_WILDS_ROOM,		entity_room,		FALSE	},
-	{ ENT_CLONE_DOOR,	ENT_WILDS_DOOR,		entity_exit,		FALSE	},
-	{ ENT_WILDS,		ENT_WILDS,			entity_wilds,		FALSE	},
-	{ ENT_GAME,			ENT_GAME,			entity_game,		FALSE	},
-	{ ENT_CHURCH,		ENT_CHURCH,			entity_church,		FALSE	},
-	{ ENT_BLLIST_MIN,	ENT_BLLIST_MAX,		entity_list,		FALSE	},
-	{ ENT_PLLIST_MIN,	ENT_PLLIST_MAX,		entity_list,		FALSE	},
-	{ ENT_OLLIST_MIN,	ENT_OLLIST_MAX,		entity_list,		FALSE	},
-	{ ENT_ILLIST_MIN,	ENT_ILLIST_MAX,		NULL,				FALSE	},
-	{ ENT_NULL,			ENT_NULL,			NULL,				FALSE	},
-	{ ENT_VARIABLE,		ENT_VARIABLE,		entity_variable,	FALSE	},
-	{ ENT_PERSIST,		ENT_PERSIST,		entity_persist,		FALSE	},
-	{ ENT_GROUP,		ENT_GROUP,			entity_group,		FALSE	},
-	{ ENT_DICE,			ENT_DICE,			entity_dice,		FALSE	},
-	{ ENT_MOBINDEX,		ENT_MOBINDEX,		entity_mobindex,	FALSE	},
-	{ ENT_OBJINDEX,		ENT_OBJINDEX,		entity_objindex,	FALSE	},
-	{ ENT_UNKNOWN,		ENT_UNKNOWN,		NULL,				FALSE	},
+	{ ENT_PRIMARY,		ENT_PRIMARY,		entity_primary,				TRUE	},
+	{ ENT_NUMBER,		ENT_NUMBER,			entity_number,				FALSE	},
+	{ ENT_STRING,		ENT_STRING,			entity_string,				FALSE	},
+	{ ENT_MOBILE,		ENT_MOBILE,			entity_mobile,				TRUE	},
+	{ ENT_OBJECT,		ENT_OBJECT,			entity_object,				TRUE	},
+	{ ENT_ROOM,			ENT_ROOM,			entity_room,				TRUE	},
+	{ ENT_EXIT,			ENT_EXIT,			entity_exit,				FALSE	},
+	{ ENT_TOKEN,		ENT_TOKEN,			entity_token,				TRUE	},
+	{ ENT_AREA,			ENT_AREA,			entity_area,				FALSE	},
+	{ ENT_SKILL,		ENT_SKILL,			entity_skill,				FALSE	},
+	{ ENT_SKILLINFO,	ENT_SKILLINFO,		entity_skill_info,			FALSE	},
+	{ ENT_CONN,			ENT_CONN,			entity_conn,				FALSE	},
+	{ ENT_AFFECT,		ENT_AFFECT,			entity_affect,				FALSE	},
+	{ ENT_EXTRADESC,	ENT_EXTRADESC,		NULL,						FALSE	},
+	{ ENT_HELP,			ENT_HELP,			NULL,						FALSE	},
+	{ ENT_PRIOR,		ENT_PRIOR,			entity_prior,				FALSE	},
+	{ ENT_MOBILE_ID,	ENT_MOBILE_ID,		entity_mobile,				FALSE	},
+	{ ENT_OBJECT_ID,	ENT_OBJECT_ID,		entity_object,				FALSE	},
+	{ ENT_TOKEN_ID,		ENT_TOKEN_ID,		entity_token,				FALSE	},
+	{ ENT_AREA_ID,		ENT_AREA_ID,		entity_area,				FALSE	},
+	{ ENT_SKILLINFO_ID,	ENT_SKILLINFO_ID,	entity_skill_info,			FALSE	},
+	{ ENT_CLONE_ROOM,	ENT_WILDS_ROOM,		entity_room,				FALSE	},
+	{ ENT_CLONE_DOOR,	ENT_WILDS_DOOR,		entity_exit,				FALSE	},
+	{ ENT_WILDS,		ENT_WILDS,			entity_wilds,				FALSE	},
+	{ ENT_GAME,			ENT_GAME,			entity_game,				FALSE	},
+	{ ENT_CHURCH,		ENT_CHURCH,			entity_church,				FALSE	},
+	{ ENT_BLLIST_MIN,	ENT_BLLIST_MAX,		entity_list,				FALSE	},
+	{ ENT_PLLIST_MIN,	ENT_PLLIST_MAX,		entity_list,				FALSE	},
+	{ ENT_OLLIST_MIN,	ENT_OLLIST_MAX,		entity_list,				FALSE	},
+	{ ENT_ILLIST_MIN,	ENT_ILLIST_MAX,		NULL,						FALSE	},
+	{ ENT_NULL,			ENT_NULL,			NULL,						FALSE	},
+	{ ENT_VARIABLE,		ENT_VARIABLE,		entity_variable,			FALSE	},
+	{ ENT_PERSIST,		ENT_PERSIST,		entity_persist,				FALSE	},
+	{ ENT_GROUP,		ENT_GROUP,			entity_group,				FALSE	},
+	{ ENT_DICE,			ENT_DICE,			entity_dice,				FALSE	},
+	{ ENT_MOBINDEX,		ENT_MOBINDEX,		entity_mobindex,			FALSE	},
+	{ ENT_OBJINDEX,		ENT_OBJINDEX,		entity_objindex,			FALSE	},
+	{ ENT_SECTION,		ENT_SECTION,		entity_instance_section,	FALSE	},
+	{ ENT_INSTANCE,		ENT_INSTANCE,		entity_instance,			FALSE	},
+	{ ENT_DUNGEON,		ENT_DUNGEON,		entity_dungeon,				FALSE	},
+	{ ENT_UNKNOWN,		ENT_UNKNOWN,		NULL,						FALSE	},
 };
 
 

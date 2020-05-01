@@ -934,6 +934,8 @@ DECL_OPC_FUN(opc_list)
 	CHURCH_DATA *church;
 	VARIABLE *variable;
 	EXTRA_DESCR_DATA *ed;
+	INSTANCE_SECTION *section;
+	INSTANCE *instance;
 
 	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
 		return opc_skip_block(block,block->cur_line->level-1,FALSE);
@@ -1730,6 +1732,54 @@ DECL_OPC_FUN(opc_list)
 			variables_set_variable(block->info.var,block->loops[lp].var_name,variable);
 			break;
 
+		case ENT_ILLIST_SECTIONS:
+			if(!IS_VALID(arg->d.blist))
+			{
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			block->loops[lp].d.l.type = ENT_ILLIST_SECTIONS;
+			block->loops[lp].d.l.list.lp = arg->d.blist;
+			iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
+			block->loops[lp].d.l.owner = NULL;
+
+			section = (INSTANCE_SECTION *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+			if( !section ) {
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			// Set the variable
+			variables_set_instance_section(block->info.var,block->loops[lp].var_name,section);
+			break;
+
+		case ENT_ILLIST_INSTANCES:
+			if(!IS_VALID(arg->d.blist))
+			{
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			block->loops[lp].d.l.type = ENT_ILLIST_INSTANCES;
+			block->loops[lp].d.l.list.lp = arg->d.blist;
+			iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
+			block->loops[lp].d.l.owner = NULL;
+
+			instance = (INSTANCE *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+			if( !instance ) {
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			// Set the variable
+			variables_set_instance(block->info.var,block->loops[lp].var_name,instance);
+			break;
+
 		default:
 			//log_stringf("opc_list: list_type INVALID");
 			block->ret_val = PRET_BADSYNTAX;
@@ -2280,6 +2330,37 @@ DECL_OPC_FUN(opc_list)
 
 			break;
 
+		case ENT_ILLIST_SECTIONS:
+			//log_stringf("opc_list: list type ENT_ILLIST_VARIABLE");
+			section = (INSTANCE_SECTION *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+			//log_stringf("opc_list: variable(%s)", variable ? variable->name : "<END>");
+
+			// Set the variable
+			variables_set_instance_section(block->info.var,block->loops[lp].var_name,section);
+
+			if( !section) {
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				skip = TRUE;
+				break;
+			}
+
+			break;
+
+		case ENT_ILLIST_INSTANCES:
+			//log_stringf("opc_list: list type ENT_ILLIST_VARIABLE");
+			instance = (INSTANCE *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+			//log_stringf("opc_list: variable(%s)", variable ? variable->name : "<END>");
+
+			// Set the variable
+			variables_set_instance(block->info.var,block->loops[lp].var_name,instance);
+
+			if( !section) {
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				skip = TRUE;
+				break;
+			}
+
+			break;
 		}
 
 		if(skip) {

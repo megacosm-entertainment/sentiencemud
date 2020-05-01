@@ -310,6 +310,8 @@ enum variable_enum {
 	VAR_CHURCH_ID,
 	VAR_VARIABLE,		// Yo dawg, I heard you like variables...
 	VAR_DICE,
+	VAR_SECTION,		// Only used in section loops
+	VAR_INSTANCE,		// Only used in instance loops
 
 	VAR_BLLIST_FIRST,
 	////////////////////////
@@ -465,6 +467,8 @@ enum entity_type_enum {
 	ENT_ILLIST_MIN,
 	ENT_ILLIST_MOB_GROUP,
 	ENT_ILLIST_VARIABLE,
+	ENT_ILLIST_SECTIONS,
+	ENT_ILLIST_INSTANCES,
 	ENT_ILLIST_MAX,
 	//////////////////////////////
 
@@ -484,6 +488,13 @@ enum entity_type_enum {
 	ENT_GAME,			// Used to reference things about the game itself
 	ENT_PERSIST,		// Grouping of persistant entities
 	ENT_HELP,			// Way of accessing help strings, uses the same construct as ENT_EXTRADESC
+
+	ENT_SECTION,
+	ENT_INSTANCE,
+	ENT_DUNGEON,
+
+	ENT_QUESTPART,
+	ENT_QUEST,
 
 	ENT_MAX,
 	ENT_UNKNOWN = ENT_MAX+1,
@@ -748,6 +759,9 @@ enum entity_room_enum {
 	ENTITY_ROOM_CLONES,
 	ENTITY_ROOM_CLONEROOMS,
 	ENTITY_ROOM_VARIABLES,
+	ENTITY_ROOM_SECTION,
+	ENTITY_ROOM_INSTANCE,
+	ENTITY_ROOM_DUNGEON,
 };
 
 enum entity_exit_enum {
@@ -957,6 +971,37 @@ enum entity_objindex_enum {
 };
 
 
+enum entity_instance_section_enum {
+	ENTITY_SECTION_ROOMS = ESCAPE_EXTRA,
+	ENTITY_SECTION_INSTANCE,
+};
+
+
+enum entity_instance_enum {
+	ENTITY_INSTANCE_NAME = ESCAPE_EXTRA,
+	ENTITY_INSTANCE_SECTIONS,
+	ENTITY_INSTANCE_PLAYER,
+	ENTITY_INSTANCE_OBJECT,
+	ENTITY_INSTANCE_DUNGEON,
+	ENTITY_INSTANCE_QUEST,
+	ENTITY_INSTANCE_FLOOR,
+	ENTITY_INSTANCE_ENTRY,
+	ENTITY_INSTANCE_EXIT,
+	ENTITY_INSTANCE_RECALL,
+	ENTITY_INSTANCE_ENVIRON,
+	ENTITY_INSTANCE_ROOMS,
+};
+
+enum entity_dungeon_enum {
+	ENTITY_DUNGEON_NAME = ESCAPE_EXTRA,
+	ENTITY_DUNGEON_FLOORS,
+	ENTITY_DUNGEON_DESC,
+	ENTITY_DUNGEON_PLAYER,
+	ENTITY_DUNGEON_ENTRY,
+	ENTITY_DUNGEON_EXIT,
+	ENTITY_DUNGEON_ROOMS,
+};
+
 /* Single letter $* codes ($i, $n) */
 #define ESCAPE_UA		0x80
 #define ESCAPE_UB		0x81
@@ -1073,6 +1118,8 @@ struct script_var_type {
 		WILDS_DATA *wilds;
 		VARIABLE *variable;
 		VARIABLE **variables;
+		INSTANCE_SECTION *section;
+		INSTANCE *instance;
 		bool boolean;
 		int sn;
 		int song;
@@ -1243,6 +1290,10 @@ struct script_parameter {
 		MOB_INDEX_DATA *mobindex;
 		OBJ_INDEX_DATA *objindex;
 
+		INSTANCE_SECTION *section;
+		INSTANCE *instance;
+		DUNGEON *dungeon;
+
 		int sn;
 		int song;
 		struct {
@@ -1357,6 +1408,9 @@ extern ENT_FIELD entity_skill_info[];
 extern ENT_FIELD entity_skill[];
 extern ENT_FIELD entity_conn[];
 extern ENT_FIELD entity_prior[];
+extern ENT_FIELD entity_instance_section[];
+extern ENT_FIELD entity_instance[];
+extern ENT_FIELD entity_dungeon[];
 extern bool entity_allow_vars[];
 extern bool forced_command;
 extern int trigger_table_size;
@@ -1950,6 +2004,8 @@ bool variables_set_wilds (ppVARIABLE list,char *name,WILDS_DATA* wilds);
 bool variables_set_variable (ppVARIABLE list,char *name,pVARIABLE var);
 bool variables_set_dice (ppVARIABLE list,char *name,DICE_DATA *d);
 bool variables_set_boolean (ppVARIABLE list,char *name,bool boolean);
+bool variables_set_instance_section (ppVARIABLE list,char *name,INSTANCE_SECTION *section);
+bool variables_set_instance (ppVARIABLE list,char *name,INSTANCE *instance);
 bool variables_setindex_integer(ppVARIABLE list,char *name,int num, bool saved);
 bool variables_setindex_room(ppVARIABLE list,char *name,long vnum, bool saved);
 bool variables_setindex_string(ppVARIABLE list,char *name,char *str,bool shared, bool saved);
@@ -1969,6 +2025,8 @@ bool variables_setsave_wilds (ppVARIABLE list, char *name,WILDS_DATA* wilds, boo
 bool variables_setsave_variable (ppVARIABLE list, char *name,pVARIABLE var, bool save);
 bool variables_setsave_dice (ppVARIABLE list, char *name,DICE_DATA *d, bool save);
 bool variables_setsave_boolean (ppVARIABLE list, char *name,bool boolean, bool save);
+bool variables_setsave_instance_section (ppVARIABLE list,char *name,INSTANCE_SECTION *section, bool save);
+bool variables_setsave_instance (ppVARIABLE list,char *name,INSTANCE *instance, bool save);
 int variable_fread_type(char *str);
 pVARIABLE variable_create(ppVARIABLE list,char *name, bool index, bool clear);
 pVARIABLE variable_get(pVARIABLE list,char *name);

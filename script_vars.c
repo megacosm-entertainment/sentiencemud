@@ -423,6 +423,9 @@ varset(wilds,WILDS,WILDS_DATA*,wilds,wilds)
 varset(church,CHURCH,CHURCH_DATA*,church,church)
 varset(affect,AFFECT,AFFECT_DATA*,aff,aff)
 varset(variable,VARIABLE,pVARIABLE,v,variable)
+varset(instance_section,SECTION,INSTANCE_SECTION *,section,section)
+varset(instance,INSTANCE,INSTANCE *,instance,instance)
+
 
 bool variables_set_dice (ppVARIABLE list,char *name,DICE_DATA *d)
 {

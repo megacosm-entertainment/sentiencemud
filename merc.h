@@ -5154,7 +5154,8 @@ struct dungeon_data
 									//   explicitly being forced by the code
 };
 
-#define DUNGEON_IDLE_TIMEOUT	10		// Minutes before a dungeon is purged from not having players in it.
+#define DUNGEON_DESTROY_TIMEOUT	5
+#define DUNGEON_IDLE_TIMEOUT	15		// Minutes before a dungeon is purged from not having players in it.
 
 
 /* conditions for conditional descs */

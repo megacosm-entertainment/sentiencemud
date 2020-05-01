@@ -2264,6 +2264,8 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_OBJ_VARIABLES:
 		arg->type = ENT_ILLIST_VARIABLE;
 		arg->d.variables = (arg->d.obj && arg->d.obj->progs) ? &arg->d.obj->progs->vars : NULL;
+		break;
+
 	// SPELLS?
 	default: return NULL;
 	}
@@ -2362,6 +2364,8 @@ char *expand_entity_object_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_OBJ_VARIABLES:
 		arg->type = ENT_ILLIST_VARIABLE;
 		arg->d.variables = NULL;
+		break;
+
 	default: return NULL;
 	}
 
@@ -2461,6 +2465,25 @@ char *expand_entity_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_ROOM_VARIABLES:
 		arg->type = ENT_ILLIST_VARIABLE;
 		arg->d.variables = (arg->d.room && arg->d.room->progs) ? &arg->d.room->progs->vars : NULL;
+		break;
+	case ENTITY_ROOM_SECTION:
+		arg->type = ENT_SECTION;
+		arg->d.section = (arg->d.room && IS_VALID(arg->d.room->instance_section)) ? arg->d.room->instance_section : NULL;
+		break;
+
+	case ENTITY_ROOM_INSTANCE:
+		arg->type = ENT_INSTANCE;
+		arg->d.section = (arg->d.room && IS_VALID(arg->d.room->instance_section)) ? arg->d.room->instance_section : NULL;
+		arg->d.instance = (arg->d.section && IS_VALID(arg->d.section->instance)) ? arg->d.section->instance : NULL;
+		break;
+
+	case ENTITY_ROOM_DUNGEON:
+		arg->type = ENT_DUNGEON;
+		arg->d.section = (arg->d.room && IS_VALID(arg->d.room->instance_section)) ? arg->d.room->instance_section : NULL;
+		arg->d.instance = (arg->d.section && IS_VALID(arg->d.section->instance)) ? arg->d.section->instance : NULL;
+		arg->d.dungeon = (arg->d.instance && IS_VALID(arg->d.instance->dungeon)) ? arg->d.instance->dungeon : NULL;
+		break;
+
 	default: return NULL;
 	}
 
@@ -3256,6 +3279,21 @@ char *expand_entity_clone_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->d.blist = NULL;
 		break;
 
+	case ENTITY_ROOM_SECTION:
+		arg->type = ENT_SECTION;
+		arg->d.section = NULL;
+		break;
+
+	case ENTITY_ROOM_INSTANCE:
+		arg->type = ENT_INSTANCE;
+		arg->d.instance = NULL;
+		break;
+
+	case ENTITY_ROOM_DUNGEON:
+		arg->type = ENT_DUNGEON;
+		arg->d.dungeon = NULL;
+		break;
+
 	case ESCAPE_VARIABLE:
 		str = expand_escape_variable(info,NULL,str+1,arg);
 		if(!str) return NULL;
@@ -3349,6 +3387,21 @@ char *expand_entity_wilds_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_ROOM_CLONEROOMS:
 		arg->type = ENT_PLLIST_ROOM;
 		arg->d.blist = NULL;
+		break;
+
+	case ENTITY_ROOM_SECTION:
+		arg->type = ENT_SECTION;
+		arg->d.section = NULL;
+		break;
+
+	case ENTITY_ROOM_INSTANCE:
+		arg->type = ENT_INSTANCE;
+		arg->d.instance = NULL;
+		break;
+
+	case ENTITY_ROOM_DUNGEON:
+		arg->type = ENT_DUNGEON;
+		arg->d.dungeon = NULL;
 		break;
 
 	case ESCAPE_VARIABLE:
@@ -4554,6 +4607,185 @@ char *expand_entity_objindex(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	return str+1;
 }
 
+char *expand_entity_instance_section(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	INSTANCE_SECTION *section = arg->d.section;
+
+	switch(*str) {
+	case ENTITY_SECTION_ROOMS:
+		arg->type = ENT_PLLIST_ROOM;
+		arg->d.blist = (section) ? section->rooms : NULL;
+		break;
+	case ENTITY_SECTION_INSTANCE:
+		arg->type = ENT_INSTANCE;
+		arg->d.instance = (section && IS_VALID(section->instance)) ? section->instance : NULL;
+		break;
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_instance(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	INSTANCE *instance = arg->d.instance;
+
+	switch(*str) {
+	case ENTITY_INSTANCE_NAME:
+		arg->type = ENT_STRING;
+		clear_buf(arg->buffer);
+		add_buf(arg->buffer, IS_VALID(instance) ? instance->blueprint->name : "");
+		arg->d.str = buf_string(arg->buffer);
+		break;
+	case ENTITY_INSTANCE_SECTIONS:
+		arg->type = ENT_ILLIST_SECTIONS;
+		arg->d.blist = IS_VALID(instance) ? instance->sections : NULL;
+		break;
+	case ENTITY_INSTANCE_PLAYER:
+		if( IS_VALID(instance->player) )
+		{
+			arg->type = ENT_MOBILE;
+			arg->d.mob = instance->player;
+		}
+		else if( instance->player_uid[0] > 0 || instance->player_uid[1] > 0)
+		{
+			arg->type = ENT_MOBILE_ID;
+			arg->d.uid[0] = instance->player_uid[0];
+			arg->d.uid[1] = instance->player_uid[1];
+		}
+		else
+		{
+			arg->type = ENT_MOBILE;
+			arg->d.mob = NULL;
+		}
+		break;
+
+	case ENTITY_INSTANCE_OBJECT:
+		if( IS_VALID(instance->object) )
+		{
+			arg->type = ENT_OBJECT;
+			arg->d.obj = instance->object;
+		}
+		else if( instance->object_uid[0] > 0 || instance->object_uid[1] > 0)
+		{
+			arg->type = ENT_OBJECT_ID;
+			arg->d.uid[0] = instance->object_uid[0];
+			arg->d.uid[1] = instance->object_uid[1];
+		}
+		else
+		{
+			arg->type = ENT_OBJECT;
+			arg->d.obj = NULL;
+		}
+		break;
+
+	case ENTITY_INSTANCE_DUNGEON:
+		arg->type = ENT_DUNGEON;
+		arg->d.dungeon = IS_VALID(instance->dungeon) ? instance->dungeon : NULL;
+		break;
+
+	case ENTITY_INSTANCE_QUEST:
+		// TODO: Fix QUEST entity
+		return NULL;
+
+	case ENTITY_INSTANCE_FLOOR:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(instance) ? instance->floor : 0;
+		break;
+
+	case ENTITY_INSTANCE_ENTRY:
+		arg->type = ENT_ROOM;
+		arg->d.room = IS_VALID(instance) ? instance->entrance : NULL;
+		break;
+
+	case ENTITY_INSTANCE_EXIT:
+		arg->type = ENT_ROOM;
+		arg->d.room = IS_VALID(instance) ? instance->exit : NULL;
+		break;
+
+	case ENTITY_INSTANCE_RECALL:
+		arg->type = ENT_ROOM;
+		arg->d.room = IS_VALID(instance) ? instance->recall : NULL;
+		break;
+
+	case ENTITY_INSTANCE_ENVIRON:
+		arg->type = ENT_ROOM;
+		arg->d.room = IS_VALID(instance) ? instance->environ : NULL;
+		break;
+
+	case ENTITY_INSTANCE_ROOMS:
+		arg->type = ENT_PLLIST_ROOM;
+		arg->d.blist = IS_VALID(instance) ? instance->rooms : NULL;
+		break;
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_dungeon(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	DUNGEON *dungeon = arg->d.dungeon;
+
+	switch(*str) {
+	case ENTITY_DUNGEON_NAME:
+		arg->type = ENT_STRING;
+		clear_buf(arg->buffer);
+		add_buf(arg->buffer, IS_VALID(dungeon) ? dungeon->index->name : "");
+		arg->d.str = buf_string(arg->buffer);
+		break;
+
+	case ENTITY_DUNGEON_FLOORS:
+		arg->type = ENT_ILLIST_INSTANCES;
+		arg->d.blist = IS_VALID(dungeon) ? dungeon->floors : NULL;
+		break;
+
+	case ENTITY_DUNGEON_DESC:
+		arg->type = ENT_STRING;
+		clear_buf(arg->buffer);
+		add_buf(arg->buffer, IS_VALID(dungeon) ? dungeon->index->description : "");
+		arg->d.str = buf_string(arg->buffer);
+		break;
+
+	case ENTITY_DUNGEON_PLAYER:
+		if( IS_VALID(dungeon->player) )
+		{
+			arg->type = ENT_MOBILE;
+			arg->d.mob = dungeon->player;
+		}
+		else if( dungeon->player_uid[0] > 0 || dungeon->player_uid[1] > 0)
+		{
+			arg->type = ENT_MOBILE_ID;
+			arg->d.uid[0] = dungeon->player_uid[0];
+			arg->d.uid[1] = dungeon->player_uid[1];
+		}
+		else
+		{
+			arg->type = ENT_MOBILE;
+			arg->d.mob = NULL;
+		}
+		break;
+
+	case ENTITY_DUNGEON_ENTRY:
+		arg->type = ENT_ROOM;
+		arg->d.room = IS_VALID(dungeon) ? dungeon->entry_room : NULL;
+		break;
+
+	case ENTITY_DUNGEON_EXIT:
+		arg->type = ENT_ROOM;
+		arg->d.room = IS_VALID(dungeon) ? dungeon->exit_room : NULL;
+		break;
+
+	case ENTITY_DUNGEON_ROOMS:
+		arg->type = ENT_PLLIST_ROOM;
+		arg->d.blist = IS_VALID(dungeon) ? dungeon->rooms : NULL;
+		break;
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
 
 char *expand_entity_extradesc(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
@@ -4700,6 +4932,11 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case ENT_DICE:			next = expand_entity_dice(info,str,arg); break;
 		case ENT_MOBINDEX:		next = expand_entity_mobindex(info,str,arg); break;
 		case ENT_OBJINDEX:		next = expand_entity_objindex(info,str,arg); break;
+
+		case ENT_SECTION:		next = expand_entity_instance_section(info,str,arg); break;
+		case ENT_INSTANCE:		next = expand_entity_instance(info,str,arg); break;
+		case ENT_DUNGEON:		next = expand_entity_dungeon(info,str,arg); break;
+
 		case ENT_BITVECTOR:		next = expand_entity_bitvector(info,str,arg); break;
 		case ENT_NULL:
 			next = str+1;
