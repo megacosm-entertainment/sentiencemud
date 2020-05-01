@@ -48,6 +48,8 @@
 #include "scripts.h"
 
 void room_update(ROOM_INDEX_DATA *room);
+void save_script_new(FILE *fp, AREA_DATA *area,SCRIPT_DATA *scr,char *type);
+SCRIPT_DATA *read_script_new( FILE *fp, AREA_DATA *area, int type);
 
 bool blueprints_changed = FALSE;
 long top_blueprint_section_vnum = 0;
@@ -232,7 +234,7 @@ BLUEPRINT *load_blueprint(FILE *fp)
 				int tindex;
 				char *p;
 
-				vnum = fread_number(fp);
+				long vnum = fread_number(fp);
 				p = fread_string(fp);
 
 				tindex = trigger_index(p, PRG_IPROG);
@@ -240,7 +242,7 @@ BLUEPRINT *load_blueprint(FILE *fp)
 					sprintf(buf, "load_blueprint: invalid trigger type %s", p);
 					bug(buf, 0);
 				} else {
-					ipr = new_trigger();
+					PROG_LIST *ipr = new_trigger();
 
 					ipr->vnum = vnum;
 					ipr->trig_type = tindex;

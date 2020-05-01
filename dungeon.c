@@ -47,6 +47,8 @@
 #include "tables.h"
 
 INSTANCE *instance_load(FILE *fp);
+void save_script_new(FILE *fp, AREA_DATA *area,SCRIPT_DATA *scr,char *type);
+SCRIPT_DATA *read_script_new( FILE *fp, AREA_DATA *area, int type);
 
 extern LLIST *loaded_instances;
 
@@ -86,7 +88,8 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp)
 				int tindex;
 				char *p;
 
-				vnum = fread_number(fp);
+
+				long vnum = fread_number(fp);
 				p = fread_string(fp);
 
 				tindex = trigger_index(p, PRG_DPROG);
@@ -94,7 +97,7 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp)
 					sprintf(buf, "load_dungeon_index: invalid trigger type %s", p);
 					bug(buf, 0);
 				} else {
-					dpr = new_trigger();
+					PROG_LIST *dpr = new_trigger();
 
 					dpr->vnum = vnum;
 					dpr->trig_type = tindex;

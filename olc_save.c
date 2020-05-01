@@ -1434,7 +1434,7 @@ AREA_DATA *read_area_new(FILE *fp)
 		    int tindex;
 		    char *p;
 
-		    vnum = fread_number(fp);
+		    long vnum = fread_number(fp);
 		    p = fread_string(fp);
 
 		    tindex = trigger_index(p, PRG_APROG);
@@ -1442,7 +1442,7 @@ AREA_DATA *read_area_new(FILE *fp)
 			    sprintf(buf, "read_area_new: invalid trigger type %s", p);
 			    bug(buf, 0);
 		    } else {
-			    apr = new_trigger();
+			    PROG_LIST *apr = new_trigger();
 
 			    apr->vnum = vnum;
 			    apr->trig_type = tindex;
