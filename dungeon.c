@@ -230,7 +230,7 @@ void save_dungeon_index(FILE *fp, DUNGEON_INDEX_DATA *dng)
 	iterator_start(&it, dng->special_rooms);
 	while( (special = (DUNGEON_SPECIAL_ROOM *)iterator_nextdata(&it)) )
 	{
-		fprintf(fp, "SpecialRoom %s~ %d %d %ld\n\r", fix_string(special->name), special->floor, special, section, special->vnum);
+		fprintf(fp, "SpecialRoom %s~ %d %d %ld\n\r", fix_string(special->name), special->floor, special->section, special->vnum);
 	}
 	iterator_stop(&it);
 
@@ -347,7 +347,6 @@ DUNGEON *create_dungeon(long vnum)
 
 	DUNGEON_SPECIAL_ROOM *special;
 	iterator_start(&it, index->special_rooms);
-	iterator_start(&it, blueprint->special_rooms);
 	while( (special = (DUNGEON_SPECIAL_ROOM *)iterator_nextdata(&it)) )
 	{
 		instance = (INSTANCE *)list_nthdata(dng->floors, special->floor);
@@ -879,17 +878,27 @@ DNGEDIT( dngedit_show )
 		iterator_start(&sit, dng->special_rooms);
 		while( (special = (DUNGEON_SPECIAL_ROOM *)iterator_nextdata(&sit)) )
 		{
-			BLUEPRINT_SECTION *section = list_nthdata(dng->sections, special->section);
-			ROOM_INDEX_DATA *room = get_room_index(special->vnum);
+			BLUEPRINT *blueprint = (BLUEPRINT *)list_nthdata(dng->floors, special->floor);
 
-			if( !IS_VALID(section) || !room || room->vnum < section->lower_vnum || room->vnum > section->upper_vnum)
+			if( !IS_VALID(blueprint) || blueprint->mode != BLUEPRINT_MODE_STATIC )
 			{
-				snprintf(buf, MSL-1, "{W%4d  %-30.30s   {G%7ld{x   {D-{Winvalid{D-{x\n\r", ++line, special->name, special->floor);
+				snprintf(buf, MSL-1, "{W%4d  %-30.30s   {G%7d{x   {D-{Winvalid{D-{x\n\r", ++line, special->name, special->floor);
 			}
 			else
 			{
-				snprintf(buf, MSL-1, "{W%4d  %-30.30s   {G%7ld{x   (%ld) {Y%s{x in (%ld) {Y%s{x\n\r", ++line, special->name, special->floor, room->vnum, room->name, section->vnum, section->name);
+				BLUEPRINT_SECTION *section = list_nthdata(blueprint->sections, special->section);
+				ROOM_INDEX_DATA *room = get_room_index(special->vnum);
+
+				if( !IS_VALID(section) || !room || room->vnum < section->lower_vnum || room->vnum > section->upper_vnum)
+				{
+					snprintf(buf, MSL-1, "{W%4d  %-30.30s   {G%7d{x   {D-{Winvalid{D-{x\n\r", ++line, special->name, special->floor);
+				}
+				else
+				{
+					snprintf(buf, MSL-1, "{W%4d  %-30.30s   {G%7d{x   (%ld) {Y%s{x in (%ld) {Y%s{x\n\r", ++line, special->name, special->floor, room->vnum, room->name, section->vnum, section->name);
+				}
 			}
+
 			buf[MSL-1] = '\0';
 			add_buf(buffer, buf);
 		}
@@ -1304,7 +1313,7 @@ DNGEDIT( dngedit_mountout )
 	return TRUE;
 }
 
-DECLARE_OLC_FUN( dngedit_special )
+DNGEDIT( dngedit_special )
 {
 	DUNGEON_INDEX_DATA *dng;
 	char arg1[MIL];
@@ -1345,16 +1354,25 @@ DECLARE_OLC_FUN( dngedit_special )
 			iterator_start(&sit, dng->special_rooms);
 			while( (special = (DUNGEON_SPECIAL_ROOM *)iterator_nextdata(&sit)) )
 			{
-				BLUEPRINT_SECTION *section = list_nthdata(dng->sections, special->section);
-				ROOM_INDEX_DATA *room = get_room_index(special->vnum);
+				BLUEPRINT *blueprint = (BLUEPRINT *)list_nthdata(dng->floors, special->floor);
 
-				if( !IS_VALID(section) || !room || room->vnum < section->lower_vnum || room->vnum > section->upper_vnum)
+				if( !IS_VALID(blueprint) || blueprint->mode != BLUEPRINT_MODE_STATIC )
 				{
-					snprintf(buf, MSL-1, "{W%4d  %-30.30s   {G%7ld{x   {D-{Winvalid{D-{x\n\r", ++line, special->name, special->floor);
+					snprintf(buf, MSL-1, "{W%4d  %-30.30s   {G%7d{x   {D-{Winvalid{D-{x\n\r", ++line, special->name, special->floor);
 				}
 				else
 				{
-					snprintf(buf, MSL-1, "{W%4d  %-30.30s   {G%7ld{x   (%ld) {Y%s{x in (%ld) {Y%s{x\n\r", ++line, special->name, special->floor, room->vnum, room->name, section->vnum, section->name);
+					BLUEPRINT_SECTION *section = list_nthdata(blueprint->sections, special->section);
+					ROOM_INDEX_DATA *room = get_room_index(special->vnum);
+
+					if( !IS_VALID(section) || !room || room->vnum < section->lower_vnum || room->vnum > section->upper_vnum)
+					{
+						snprintf(buf, MSL-1, "{W%4d  %-30.30s   {G%7d{x   {D-{Winvalid{D-{x\n\r", ++line, special->name, special->floor);
+					}
+					else
+					{
+						snprintf(buf, MSL-1, "{W%4d  %-30.30s   {G%7d{x   (%ld) {Y%s{x in (%ld) {Y%s{x\n\r", ++line, special->name, special->floor, room->vnum, room->name, section->vnum, section->name);
+					}
 				}
 				buf[MSL-1] = '\0';
 				add_buf(buffer, buf);
@@ -1490,11 +1508,11 @@ DECLARE_OLC_FUN( dngedit_special )
 	}
 	else if( !str_prefix(arg1, "add") )
 	{
-		argument = argument(argument, arg2);
-		argument = argument(argument, arg3);
-		argument = argument(argument, arg4);
+		argument = one_argument(argument, arg2);
+		argument = one_argument(argument, arg3);
+		argument = one_argument(argument, arg4);
 
-		if( argument[0] = '\0' )
+		if( argument[0] == '\0' )
 		{
 			send_to_char("Syntax:  special add [floor] [section] [room vnum] [name]\n\r", ch);
 			return FALSE;
@@ -1516,7 +1534,13 @@ DECLARE_OLC_FUN( dngedit_special )
 			return FALSE;
 		}
 
-		BLUEPRINT *bp = list_nthdata(dng->floors, special->floor);
+		BLUEPRINT *bp = list_nthdata(dng->floors, floor);
+
+		if( bp->mode != BLUEPRINT_MODE_STATIC )
+		{
+			send_to_char("Only STATIC blueprints are supported.\n\r", ch);
+			return FALSE;
+		}
 
 		if( section < 1 || section > list_size(bp->sections) )
 		{

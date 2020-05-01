@@ -3540,6 +3540,7 @@ BLUEPRINT *new_blueprint()
 	bp->mode = BLUEPRINT_MODE_STATIC;
 
 	bp->sections = list_create(FALSE);
+	bp->special_rooms = list_createx(FALSE, NULL, delete_blueprint_special_room);
 
 	bp->static_layout = NULL;
 	bp->static_recall = -1;
@@ -3574,6 +3575,7 @@ void free_blueprint(BLUEPRINT *bp)
 	free_string(bp->description);
 
 	list_destroy(bp->sections);
+	list_destroy(bp->special_rooms);
 
 	if( bp->mode == BLUEPRINT_MODE_STATIC )
 		free_static_blueprint_data(bp);
@@ -3656,6 +3658,7 @@ INSTANCE *new_instance()
 	instance->objects = list_create(FALSE);
 	instance->rooms = list_create(FALSE);
 	instance->bosses = list_create(FALSE);
+	instance->special_rooms = list_create(FALSE);
 
 	VALIDATE(instance);
 	return instance;
@@ -3680,6 +3683,7 @@ void free_instance(INSTANCE *instance)
 	list_destroy(instance->objects);
 	list_destroy(instance->rooms);
 	list_destroy(instance->bosses);
+	list_destroy(instance->special_rooms);
 
 	INVALIDATE(instance);
 	instance->next = instance_free;
@@ -3765,9 +3769,6 @@ DUNGEON_INDEX_DATA *new_dungeon_index()
 
 void free_dungeon_index(DUNGEON_INDEX_DATA *dungeon_index)
 {
-	ITERATOR it;
-	DUNGEON_SPECIAL_ROOM *special;
-
 	if( !IS_VALID(dungeon_index) )
 		return;
 

@@ -5123,8 +5123,8 @@ struct dungeon_special_room_data
 
 	int floor;
 	int section;
-	long room;
-}
+	long vnum;
+};
 
 struct dungeon_index_data
 {
@@ -8208,7 +8208,7 @@ void instance_echo(INSTANCE *instance, char *text);
 void extract_instance(INSTANCE *instance);
 ROOM_INDEX_DATA *section_random_room(CHAR_DATA *ch, INSTANCE_SECTION *section);
 ROOM_INDEX_DATA *instance_random_room(CHAR_DATA *ch, INSTANCE *instance);
-
+ROOM_INDEX_DATA *instance_section_get_room_byvnum(INSTANCE_SECTION *section, long vnum);
 
 
 void load_dungeons();

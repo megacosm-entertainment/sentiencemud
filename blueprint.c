@@ -2920,7 +2920,7 @@ BPEDIT( bpedit_static )
 
 			if( !str_prefix(argument, "remove") || !str_prefix(argument, "delete") )
 			{
-				list_remlink(bp->special_rooms, index);
+				list_remnthlink(bp->special_rooms, index);
 				send_to_char("Special Room removed.\n\r", ch);
 				return TRUE;
 			}
@@ -3028,7 +3028,7 @@ BPEDIT( bpedit_static )
 
 			char name[MIL+1];
 			strncpy(name, argument, MIL);
-			name[MIL];
+			name[MIL] = '\0';
 
 			smash_tilde(name);
 
