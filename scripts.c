@@ -2387,7 +2387,7 @@ DECL_OPC_FUN(opc_list)
 
 			break;
 
-		case ENT_ILLIST_SPECIAL_ROOMS:
+		case ENT_ILLIST_SPECIALROOMS:
 			//log_stringf("opc_list: list type ENT_ILLIST_VARIABLE");
 			special_room = (NAMED_SPECIAL_ROOM *)iterator_nextdata(&block->loops[lp].d.l.list.it);
 			//log_stringf("opc_list: variable(%s)", variable ? variable->name : "<END>");

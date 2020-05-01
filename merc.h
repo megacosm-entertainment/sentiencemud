@@ -5069,9 +5069,9 @@ struct instance_section_data {
 	LLIST *rooms;
 };
 
-typedef struct instanced_special_room_data INSTANCED_SPECIAL_ROOM;
-struct instanced_special_room_data {
-	INSTANCED_SPECIAL_ROOM *next;
+typedef struct named_special_room_data NAMED_SPECIAL_ROOM;
+struct named_special_room_data {
+	NAMED_SPECIAL_ROOM *next;
 	bool valid;
 
 	char *name;

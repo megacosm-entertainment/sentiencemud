@@ -2089,9 +2089,11 @@ ROOM_INDEX_DATA *get_dungeon_special_room_byname(DUNGEON *dungeon, char *name)
 	int number;
 	char arg[MSL];
 
-	if( !IS_VALID(dungeon) || number < 1) return NULL;
+	if( !IS_VALID(dungeon) ) return NULL;
 
 	number = number_argument(name, arg);
+
+	if( number < 1 ) return NULL;
 
 	ITERATOR it;
 	ROOM_INDEX_DATA *room = NULL;

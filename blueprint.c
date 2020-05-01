@@ -3919,9 +3919,11 @@ ROOM_INDEX_DATA *get_instance_special_room_byname(INSTANCE *instance, char *name
 	int number;
 	char arg[MSL];
 
-	if( !IS_VALID(instance) || number < 1) return NULL;
+	if( !IS_VALID(instance) ) return NULL;
 
 	number = number_argument(name, arg);
+
+	if( number < 1 ) return NULL;
 
 	ITERATOR it;
 	ROOM_INDEX_DATA *room = NULL;
