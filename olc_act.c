@@ -1869,7 +1869,7 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 		}
 		else
 		{
-			if (pToRoom->exit[rev] != NULL)
+			if (pToRoom != NULL && pToRoom->exit[rev] != NULL)
 			{
 				TOGGLE_BIT(pToRoom->exit[rev]->rs_flags,  value);
 				TOGGLE_BIT(pToRoom->exit[rev]->exit_info, value);
