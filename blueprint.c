@@ -1122,6 +1122,10 @@ INSTANCE *create_instance(BLUEPRINT *blueprint)
 	{
 		instance->blueprint = blueprint;
 
+		instance->progs			= new_prog_data();
+		instance->progs->progs	= blueprint->progs;
+		variable_copylist(&blueprint->index_vars,&instance->progs->vars,FALSE);
+
 		if( blueprint->mode == BLUEPRINT_MODE_STATIC )
 		{
 			if( !generate_static_instance(instance) )

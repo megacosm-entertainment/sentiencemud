@@ -435,6 +435,10 @@ DUNGEON *create_dungeon(long vnum)
 	DUNGEON *dng = new_dungeon();
 	dng->index = index;
 
+	dng->progs			= new_prog_data();
+	dng->progs->progs	= index->progs;
+	variable_copylist(&index->index_vars,&dng->progs->vars,FALSE);
+
 	dng->entry_room = get_room_index(index->entry_room);
 	if( !dng->entry_room )
 	{
