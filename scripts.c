@@ -2338,7 +2338,7 @@ DECL_OPC_FUN(opc_list)
 			// Set the variable
 			variables_set_instance_section(block->info.var,block->loops[lp].var_name,section);
 
-			if( !section) {
+			if( !section ) {
 				iterator_stop(&block->loops[lp].d.l.list.it);
 				skip = TRUE;
 				break;
@@ -2354,7 +2354,7 @@ DECL_OPC_FUN(opc_list)
 			// Set the variable
 			variables_set_instance(block->info.var,block->loops[lp].var_name,instance);
 
-			if( !section) {
+			if( !instance ) {
 				iterator_stop(&block->loops[lp].d.l.list.it);
 				skip = TRUE;
 				break;

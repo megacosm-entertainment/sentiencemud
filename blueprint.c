@@ -3564,7 +3564,7 @@ void resolve_instances_player(CHAR_DATA *ch)
 	iterator_start(&it, loaded_instances);
 	while( (instance = (INSTANCE *)iterator_nextdata(&it)) )
 	{
-		if( (instance->player_uid[0] == ch->id[0] &&
+		if( instance->player_uid[0] == ch->id[0] &&
 			instance->player_uid[1] == ch->id[1])
 		{
 			instance->player = ch;
@@ -3587,7 +3587,7 @@ void detach_instances_player(CHAR_DATA *ch)
 	iterator_start(&it, loaded_instances);
 	while( (instance = (INSTANCE *)iterator_nextdata(&it)) )
 	{
-		if( (instance->player_uid[0] == ch->id[0] &&
+		if( instance->player_uid[0] == ch->id[0] &&
 			instance->player_uid[1] == ch->id[1])
 		{
 			instance->player = NULL;
