@@ -4738,6 +4738,11 @@ char *expand_entity_instance(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->d.blist = IS_VALID(instance) ? instance->bosses : NULL;
 		break;
 
+	case ENTITY_INSTANCE_SPECIAL_ROOMS:
+		arg->type = ENT_PLLIST_ROOM;
+		arg->d.blist = IS_VALID(instance) ? instance->special_rooms : NULL;
+		break;
+
 	default: return NULL;
 	}
 
@@ -4820,6 +4825,11 @@ char *expand_entity_dungeon(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_DUNGEON_BOSSES:
 		arg->type = ENT_PLLIST_MOB;
 		arg->d.blist = IS_VALID(dungeon) ? dungeon->bosses : NULL;
+		break;
+
+	case ENTITY_DUNGEON_SPECIAL_ROOMS:
+		arg->type = ENT_PLLIST_ROOM;
+		arg->d.blist = IS_VALID(dungeon) ? dungeon->special_rooms : NULL;
 		break;
 
 	default: return NULL;

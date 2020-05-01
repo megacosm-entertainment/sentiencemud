@@ -990,6 +990,7 @@ enum entity_instance_enum {
 	ENTITY_INSTANCE_MOBILES,
 	ENTITY_INSTANCE_OBJECTS,
 	ENTITY_INSTANCE_BOSSES,
+	ENTITY_INSTANCE_SPECIAL_ROOMS,
 };
 
 enum entity_dungeon_enum {
@@ -1004,6 +1005,7 @@ enum entity_dungeon_enum {
 	ENTITY_DUNGEON_MOBILES,
 	ENTITY_DUNGEON_OBJECTS,
 	ENTITY_DUNGEON_BOSSES,
+	ENTITY_DUNGEON_SPECIAL_ROOMS,
 };
 
 /* Single letter $* codes ($i, $n) */

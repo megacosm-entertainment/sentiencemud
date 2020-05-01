@@ -139,6 +139,9 @@ void free_blueprint_section(BLUEPRINT_SECTION *bs);
 STATIC_BLUEPRINT_LINK *new_static_blueprint_link();
 void free_static_blueprint_link(STATIC_BLUEPRINT_LINK *bl);
 
+BLUEPRINT_SPECIAL_ROOM *new_blueprint_special_room();
+void free_blueprint_special_room(BLUEPRINT_SPECIAL_ROOM *special);
+
 BLUEPRINT *new_blueprint();
 void free_blueprint(BLUEPRINT *bp);
 
@@ -147,6 +150,9 @@ void free_instance_section(INSTANCE_SECTION *section);
 
 INSTANCE *new_instance();
 void free_instance(INSTANCE *instance);
+
+DUNGEON_SPECIAL_ROOM *new_dungeon_special_room();
+void free_dungeon_special_room(DUNGEON_SPECIAL_ROOM *special);
 
 DUNGEON_INDEX_DATA *new_dungeon_index();
 void free_dungeon_index(DUNGEON_INDEX_DATA *dungeon);

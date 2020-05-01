@@ -342,6 +342,7 @@ typedef struct instance_section_data INSTANCE_SECTION;
 typedef struct instance_data INSTANCE;
 
 // Dungeons
+typedef struct dungeon_special_room_data DUNGEON_SPECIAL_ROOM;
 typedef struct dungeon_floor_data DUNGEON_FLOOR_DATA;
 typedef struct dungeon_index_data DUNGEON_INDEX_DATA;
 typedef struct dungeon_data DUNGEON;
@@ -5016,6 +5017,18 @@ struct static_blueprint_link {
 #define BLUEPRINT_MODE_DYNAMIC		1	// Fixed layout, Variable sections
 #define BLUEPRINT_MODE_PROCEDURAL	2	// Variable layout, Variable sections
 
+typedef struct blueprint_special_room_data BLUEPRINT_SPECIAL_ROOM;
+struct blueprint_special_room_data {
+	BLUEPRINT_SPECIAL_ROOM *next;
+	bool valid;
+
+	char *name;					// Display name of section link
+
+	int section;
+	long vnum;					// Vnum of ROOM
+};
+
+
 struct blueprint_data {
 	BLUEPRINT *next;
 	bool valid;
@@ -5031,6 +5044,7 @@ struct blueprint_data {
 	int mode;
 
 	LLIST *sections;						// BLUEPRINT_SECTION
+	LLIST *special_rooms;
 
 	// BLUEPRINT_MODE_STATIC
 	STATIC_BLUEPRINT_LINK *static_layout;
@@ -5092,6 +5106,7 @@ struct instance_data {
 	LLIST *bosses;					// List of INSTANCE MOB BOSSES
 
 	LLIST *rooms;
+	LLIST *special_rooms;
 };
 
 #define DUNGEON_NO_SAVE		(A)		// Dungeon will not save to disk.
@@ -5099,6 +5114,17 @@ struct instance_data {
 #define DUNGEON_DESTROY		(Z)		// Flagged for destruction.
 									//   Will handle the idle timer regardless if dungeon is empty
 
+struct dungeon_special_room_data
+{
+	DUNGEON_SPECIAL_ROOM *next;
+	bool valid;
+
+	char *name;
+
+	int floor;
+	int section;
+	long room;
+}
 
 struct dungeon_index_data
 {
@@ -5114,6 +5140,7 @@ struct dungeon_index_data
 	int area_who;
 
 	LLIST *floors;
+	LLIST *special_rooms;
 	long entry_room;
 	long exit_room;
 
@@ -5135,6 +5162,7 @@ struct dungeon_data
 	long uid[2];					// UID of the dungeon instance
 
 	LLIST *floors;
+	LLIST *special_rooms;
 	ROOM_INDEX_DATA *entry_room;
 	ROOM_INDEX_DATA *exit_room;
 

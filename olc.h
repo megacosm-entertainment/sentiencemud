@@ -515,6 +515,7 @@ DECLARE_OLC_FUN( dngedit_flags			);
 DECLARE_OLC_FUN( dngedit_zoneout		);
 DECLARE_OLC_FUN( dngedit_portalout		);
 DECLARE_OLC_FUN( dngedit_mountout		);
+DECLARE_OLC_FUN( dngedit_special		);
 
 /*
  * Macros

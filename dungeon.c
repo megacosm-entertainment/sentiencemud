@@ -119,6 +119,27 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp)
 			KEYS("PortalOut", dng->zone_out_portal, fread_string(fp));
 			break;
 
+		case 'S':
+			if( !str_cmp(word, "SpecialRoom") )
+			{
+				char *name = fread_string(fp);
+				int floor = fread_number(fp);
+				int section = fread_number(fp);
+				long vnum = fread_number(fp);
+
+				DUNGEON_SPECIAL_ROOM *special = new_dungeon_special_room();
+
+				special->name = name;
+				special->floor = floor;
+				special->section = section;
+				special->vnum = vnum;
+
+				list_appendlink(dng->special_rooms, special);
+				fMatch = TRUE;
+				break;
+			}
+			break;
+
 		case 'Z':
 			KEYS("ZoneOut", dng->zone_out, fread_string(fp));
 			break;
@@ -176,6 +197,8 @@ void load_dungeons()
 
 void save_dungeon_index(FILE *fp, DUNGEON_INDEX_DATA *dng)
 {
+	ITERATOR it;
+
 	fprintf(fp, "#DUNGEON %ld\n\r", dng->vnum);
 	fprintf(fp, "Name %s~\n\r", fix_string(dng->name));
 	fprintf(fp, "Description %s~\n\r", fix_string(dng->description));
@@ -194,14 +217,22 @@ void save_dungeon_index(FILE *fp, DUNGEON_INDEX_DATA *dng)
 	fprintf(fp, "PortalOut %s~\n\r", fix_string(dng->zone_out_portal));
 	fprintf(fp, "MountOut %s~\n\r", fix_string(dng->zone_out_mount));
 
-	ITERATOR fit;
 	BLUEPRINT *bp;
-	iterator_start(&fit, dng->floors);
-	while((bp = (BLUEPRINT *)iterator_nextdata(&fit)))
+	iterator_start(&it, dng->floors);
+	while((bp = (BLUEPRINT *)iterator_nextdata(&it)))
 	{
 		fprintf(fp, "Floor %ld\n\r", bp->vnum);
 	}
-	iterator_stop(&fit);
+	iterator_stop(&it);
+
+
+	DUNGEON_SPECIAL_ROOM *special;
+	iterator_start(&it, dng->special_rooms);
+	while( (special = (DUNGEON_SPECIAL_ROOM *)iterator_nextdata(&it)) )
+	{
+		fprintf(fp, "SpecialRoom %s~ %d %d %ld\n\r", fix_string(special->name), special->floor, special, section, special->vnum);
+	}
+	iterator_stop(&it);
 
 	fprintf(fp, "#-DUNGEON\n\r\n\r");
 }
@@ -313,6 +344,31 @@ DUNGEON *create_dungeon(long vnum)
 		list_appendlink(loaded_instances, instance);
 	}
 	iterator_stop(&it);
+
+	DUNGEON_SPECIAL_ROOM *special;
+	iterator_start(&it, index->special_rooms);
+	iterator_start(&it, blueprint->special_rooms);
+	while( (special = (DUNGEON_SPECIAL_ROOM *)iterator_nextdata(&it)) )
+	{
+		instance = (INSTANCE *)list_nthdata(dng->floors, special->floor);
+
+		if( IS_VALID(instance) )
+		{
+			INSTANCE_SECTION *section = (INSTANCE_SECTION *)list_nthdata(instance->sections, special->section);
+			if( IS_VALID(section) )
+			{
+				ROOM_INDEX_DATA *room = instance_section_get_room_byvnum(section, special->vnum);
+
+				if( room )
+				{
+					list_appendlink(instance->special_rooms, room);
+				}
+			}
+		}
+
+	}
+	iterator_stop(&it);
+
 
 	if( error )
 	{
@@ -806,11 +862,59 @@ DNGEDIT( dngedit_show )
 
 	dngedit_buffer_floors(buffer, dng);
 
+	add_buf(buffer, "Special Rooms:\n\r");
+	if( list_size(dng->special_rooms) > 0 )
+	{
+		BUFFER *buffer = new_buf();
+		DUNGEON_SPECIAL_ROOM *special;
+
+		char buf[MSL];
+		int line = 0;
+
+		ITERATOR sit;
+
+		add_buf(buffer, "     [             Name             ] [ Floor ] [             Room             ]\n\r");
+		add_buf(buffer, "---------------------------------------------------------------------------------\n\r");
+
+		iterator_start(&sit, dng->special_rooms);
+		while( (special = (DUNGEON_SPECIAL_ROOM *)iterator_nextdata(&sit)) )
+		{
+			BLUEPRINT_SECTION *section = list_nthdata(dng->sections, special->section);
+			ROOM_INDEX_DATA *room = get_room_index(special->vnum);
+
+			if( !IS_VALID(section) || !room || room->vnum < section->lower_vnum || room->vnum > section->upper_vnum)
+			{
+				snprintf(buf, MSL-1, "{W%4d  %-30.30s   {G%7ld{x   {D-{Winvalid{D-{x\n\r", ++line, special->name, special->floor);
+			}
+			else
+			{
+				snprintf(buf, MSL-1, "{W%4d  %-30.30s   {G%7ld{x   (%ld) {Y%s{x in (%ld) {Y%s{x\n\r", ++line, special->name, special->floor, room->vnum, room->name, section->vnum, section->name);
+			}
+			buf[MSL-1] = '\0';
+			add_buf(buffer, buf);
+		}
+
+		iterator_stop(&sit);
+		add_buf(buffer, "---------------------------------------------------------------------------------\n\r");
+	}
+	else
+	{
+		add_buf(buffer, "   None\n\r");
+	}
+	add_buf(buffer, "\n\r");
+
 	add_buf(buffer, "\n\r-----\n\r{WBuilders' Comments:{X\n\r");
 	add_buf(buffer, dng->comments);
 	add_buf(buffer, "\n\r-----\n\r");
 
-	page_to_char(buffer->string, ch);
+	if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH)
+	{
+		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+	}
+	else
+	{
+		page_to_char(buffer->string, ch);
+	}
 
 	free_buf(buffer);
 	return FALSE;
@@ -857,6 +961,8 @@ DNGEDIT( dngedit_name )
 	DUNGEON_INDEX_DATA *dng;
 
 	EDIT_DUNGEON(ch, dng);
+
+	smash_tilde(argument);
 
 	if (argument[0] == '\0')
 	{
@@ -1006,7 +1112,7 @@ DNGEDIT( dngedit_floors )
 		return TRUE;
 	}
 
-	if( !str_prefix(arg, "remove") )
+	if( !str_prefix(arg, "remove") || !str_prefix(arg, "delete") )
 	{
 		if( !is_number(argument) )
 		{
@@ -1023,6 +1129,23 @@ DNGEDIT( dngedit_floors )
 		}
 
 		list_remnthlink(dng->floors, index);
+
+		ITERATOR it;
+		DUNGEON_SPECIAL_ROOM *special;
+		iterator_start(&it, dng->special_rooms);
+		while( (special = (DUNGEON_SPECIAL_ROOM *)iterator_nextdata(&it)) )
+		{
+			if( special->floor == index )
+			{
+				iterator_remcurrent(&it);
+			}
+			else if( special->floor > index )
+			{
+				special->floor--;
+			}
+		}
+		iterator_stop(&it);
+
 		send_to_char("Floor removed.\n\r", ch);
 		return TRUE;
 	}
@@ -1127,6 +1250,8 @@ DNGEDIT( dngedit_zoneout )
 
 	EDIT_DUNGEON(ch, dng);
 
+	smash_tilde(argument);
+
 	if (argument[0] == '\0')
 	{
 		send_to_char("Syntax:  zoneout [string]\n\r", ch);
@@ -1144,6 +1269,8 @@ DNGEDIT( dngedit_portalout )
 	DUNGEON_INDEX_DATA *dng;
 
 	EDIT_DUNGEON(ch, dng);
+
+	smash_tilde(argument);
 
 	if (argument[0] == '\0')
 	{
@@ -1163,6 +1290,8 @@ DNGEDIT( dngedit_mountout )
 
 	EDIT_DUNGEON(ch, dng);
 
+	smash_tilde(argument);
+
 	if (argument[0] == '\0')
 	{
 		send_to_char("Syntax:  mountout [string]\n\r", ch);
@@ -1173,6 +1302,264 @@ DNGEDIT( dngedit_mountout )
 	dng->zone_out_mount = str_dup(argument);
 	send_to_char("MountOut changed.\n\r", ch);
 	return TRUE;
+}
+
+DECLARE_OLC_FUN( dngedit_special )
+{
+	DUNGEON_INDEX_DATA *dng;
+	char arg1[MIL];
+	char arg2[MIL];
+	char arg3[MIL];
+	char arg4[MIL];
+
+	EDIT_DUNGEON(ch, dng);
+
+	argument = one_argument(argument, arg1);
+
+	if (arg1[0] == '\0')
+	{
+		send_to_char("Syntax:  special list\n\r", ch);
+		send_to_char("         special add [floor] [section] [room vnum] [name]\n\r", ch);
+		send_to_char("         special # remove\n\r", ch);
+		send_to_char("         special # name [name]\n\r", ch);
+		send_to_char("         special # floor [floor]\n\r", ch);
+		send_to_char("         special # room [section] [room vnum]\n\r", ch);
+		return FALSE;
+	}
+
+	if( !str_prefix(arg1, "list") )
+	{
+		if( list_size(dng->special_rooms) > 0 )
+		{
+			BUFFER *buffer = new_buf();
+			DUNGEON_SPECIAL_ROOM *special;
+
+			char buf[MSL];
+			int line = 0;
+
+			ITERATOR sit;
+
+			add_buf(buffer, "     [             Name             ] [ Floor ] [             Room             ]\n\r");
+			add_buf(buffer, "---------------------------------------------------------------------------------\n\r");
+
+			iterator_start(&sit, dng->special_rooms);
+			while( (special = (DUNGEON_SPECIAL_ROOM *)iterator_nextdata(&sit)) )
+			{
+				BLUEPRINT_SECTION *section = list_nthdata(dng->sections, special->section);
+				ROOM_INDEX_DATA *room = get_room_index(special->vnum);
+
+				if( !IS_VALID(section) || !room || room->vnum < section->lower_vnum || room->vnum > section->upper_vnum)
+				{
+					snprintf(buf, MSL-1, "{W%4d  %-30.30s   {G%7ld{x   {D-{Winvalid{D-{x\n\r", ++line, special->name, special->floor);
+				}
+				else
+				{
+					snprintf(buf, MSL-1, "{W%4d  %-30.30s   {G%7ld{x   (%ld) {Y%s{x in (%ld) {Y%s{x\n\r", ++line, special->name, special->floor, room->vnum, room->name, section->vnum, section->name);
+				}
+				buf[MSL-1] = '\0';
+				add_buf(buffer, buf);
+			}
+
+			iterator_stop(&sit);
+			add_buf(buffer, "---------------------------------------------------------------------------------\n\r");
+
+			if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+			{
+				send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+			}
+			else
+			{
+				page_to_char(buffer->string, ch);
+			}
+
+			free_buf(buffer);
+		}
+		else
+		{
+			send_to_char("Dungeon has no special rooms defined.\n\r", ch);
+		}
+
+		return FALSE;
+	}
+
+	if( is_number(arg1) )
+	{
+		int index = atoi(arg1);
+
+		DUNGEON_SPECIAL_ROOM *special = list_nthdata(dng->special_rooms, index);
+
+		if( !IS_VALID(special) )
+		{
+			send_to_char("No such special room.\n\r", ch);
+			return FALSE;
+		}
+
+		if( arg2[0] == '\0' )
+		{
+			dngedit_special(ch, "");
+			return FALSE;
+		}
+
+		if( !str_prefix(arg2, "remove") || !str_prefix(arg2, "delete") )
+		{
+			list_remnthlink(dng->special_rooms, index);
+
+			send_to_char("Special room deleted.\n\r", ch);
+			return TRUE;
+		}
+
+		if( !str_prefix(arg2, "floor") )
+		{
+			if( !is_number(arg3) )
+			{
+				send_to_char("That is not a number.\n\r", ch);
+				return FALSE;
+			}
+
+			int floor = atoi(arg3);
+
+			if( floor < 1 || floor > list_size(dng->floors) )
+			{
+				send_to_char("Floor out of range.\n\r", ch);
+				return FALSE;
+			}
+
+			special->floor = floor;
+			special->section = -1;
+			special->vnum = -1;
+
+			send_to_char("Floor changed.\n\r", ch);
+			return TRUE;
+		}
+
+		if( !str_prefix(arg2, "name") )
+		{
+			if( IS_NULLSTR(arg3) )
+			{
+				send_to_char("Syntax:  special # name [name]\n\r", ch);
+				return FALSE;
+			}
+
+			smash_tilde(arg3);
+			free_string(special->name);
+			special->name = str_dup(arg3);
+
+			send_to_char("Special room name changed.\n\r", ch);
+			return TRUE;
+		}
+
+		if( !str_prefix(arg2, "room") )
+		{
+			if( !is_number(arg3) || !is_number(arg4) )
+			{
+				send_to_char("That is not a number.\n\r", ch);
+				return FALSE;
+			}
+
+			int section = atoi(arg3);
+			long vnum = atol(arg4);
+
+			BLUEPRINT *bp = list_nthdata(dng->floors, special->floor);
+
+			if( section < 1 || section > list_size(bp->sections) )
+			{
+				send_to_char("Section number out of range.\n\r", ch);
+				return FALSE;
+			}
+
+			BLUEPRINT_SECTION *bs = list_nthdata(bp->sections, section);
+
+			if( vnum < bs->lower_vnum || vnum > bs->upper_vnum )
+			{
+				send_to_char("Room vnum not in the section.\n\r", ch);
+				return FALSE;
+			}
+
+			if( !get_room_index(vnum) )
+			{
+				send_to_char("Room does not exist.\n\r", ch);
+				return FALSE;
+			}
+
+			special->section = section;
+			special->vnum = vnum;
+
+			send_to_char("Special room changed.\n\r", ch);
+			return TRUE;
+		}
+	}
+	else if( !str_prefix(arg1, "add") )
+	{
+		argument = argument(argument, arg2);
+		argument = argument(argument, arg3);
+		argument = argument(argument, arg4);
+
+		if( argument[0] = '\0' )
+		{
+			send_to_char("Syntax:  special add [floor] [section] [room vnum] [name]\n\r", ch);
+			return FALSE;
+		}
+
+		if( !is_number(arg2) || !is_number(arg3) || !is_number(arg4) )
+		{
+			send_to_char("That is not a number.\n\r", ch);
+			return FALSE;
+		}
+
+		int floor = atoi(arg2);
+		int section = atoi(arg3);
+		long vnum = atol(arg4);
+
+		if( floor < 1 || floor > list_size(dng->floors) )
+		{
+			send_to_char("Floor out of range.\n\r", ch);
+			return FALSE;
+		}
+
+		BLUEPRINT *bp = list_nthdata(dng->floors, special->floor);
+
+		if( section < 1 || section > list_size(bp->sections) )
+		{
+			send_to_char("Section number out of range.\n\r", ch);
+			return FALSE;
+		}
+
+		BLUEPRINT_SECTION *bs = list_nthdata(bp->sections, section);
+
+		if( vnum < bs->lower_vnum || vnum > bs->upper_vnum )
+		{
+			send_to_char("Room vnum not in the section.\n\r", ch);
+			return FALSE;
+		}
+
+		if( !get_room_index(vnum) )
+		{
+			send_to_char("Room does not exist.\n\r", ch);
+			return FALSE;
+		}
+
+		char name[MIL+1];
+		strncpy(name, argument, MIL);
+		name[MIL] = '\0';
+		smash_tilde(name);
+
+		DUNGEON_SPECIAL_ROOM *special = new_dungeon_special_room();
+
+		free_string(special->name);
+		special->name = str_dup(name);
+		special->floor = floor;
+		special->section = section;
+		special->vnum = vnum;
+
+		list_appendlink(dng->special_rooms, special);
+
+		send_to_char("Special Room added.\n\r", ch);
+		return TRUE;
+	}
+
+
+	dngedit_special(ch, "");
+	return FALSE;
 }
 
 

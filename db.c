@@ -3328,7 +3328,7 @@ char *fix_string(const char *str)
     int i;
     int o;
     if (str == NULL)
-	return '\0';
+	return &str_empty[0];
     for (o = i = 0; str[i+o] != '\0'; i++)
     {
 	if (str[i+o] == '\r' || str[i+o] == '~')

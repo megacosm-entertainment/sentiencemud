@@ -232,6 +232,23 @@ BLUEPRINT *load_blueprint(FILE *fp)
 			break;
 
 		case 'S':
+			if( !str_cmp(word, "SpecialRoom") )
+			{
+				char *name = fread_string(fp);
+				int section = fread_number(fp);
+				long vnum = fread_number(fp);
+
+				BLUEPRINT_SPECIAL_ROOM *special = new_blueprint_special_room();
+
+				special->name = name;
+				special->section = section;
+				special->vnum = vnum;
+
+				list_appendlink(bp->special_rooms, special);
+				fMatch = TRUE;
+				break;
+			}
+
 			if( !str_cmp(word, "Static") )
 			{
 				bp->mode = BLUEPRINT_MODE_STATIC;
@@ -436,6 +453,15 @@ void save_blueprint(FILE *fp, BLUEPRINT *bp)
 					sbl->section2, sbl->link2);
 			}
 		}
+
+		ITERATOR rit;
+		BLUEPRINT_SPECIAL_ROOM *special;
+		iterator_start(&rit, bp->special_rooms);
+		while( (special = BLUEPRINT_SPECIAL_ROOM *)iterator_nextdata(&rit)) )
+		{
+			fprintf(fp, "SpecialRoom %s~ %d %ld\n\r", fix_string(special->name), special->section, special->vnum);
+		}
+		iterator_stop(&rit);
 	}
 
 	fprintf(fp, "#-BLUEPRINT\n\r\n\r");
@@ -983,6 +1009,24 @@ INSTANCE *create_instance(BLUEPRINT *blueprint)
 		while( (section = (INSTANCE_SECTION *)iterator_nextdata(&it)) )
 		{
 			instance_section_reset_rooms(section);
+		}
+		iterator_stop(&it);
+
+		BLUEPRINT_SPECIAL_ROOM *special;
+		iterator_start(&it, blueprint->special_rooms);
+		while( (special = (BLUEPRINT_SPECIAL_ROOM *)iterator_nextdata(&it)) )
+		{
+			section = (INSTANCE_SECTION *)list_nthdata(instance->sections, special->section);
+			if( IS_VALID(section) )
+			{
+				ROOM_INDEX_DATA *room = instance_section_get_room_byvnum(section, special->vnum);
+
+				if( room )
+				{
+					list_appendlink(instance->special_rooms, room);
+				}
+			}
+
 		}
 		iterator_stop(&it);
 	}
@@ -2294,6 +2338,49 @@ BPEDIT( bpedit_show )
 		add_buf(buffer, "{YSections:{x\n\r   None\n\r\n\r");
 	}
 
+	add_buf(buffer, "Special Rooms:\n\r");
+	if( list_size(bp->special_rooms) > 0 )
+	{
+		BUFFER *buffer = new_buf();
+		BLUEPRINT_SPECIAL_ROOM *special;
+
+		char buf[MSL];
+		int line = 0;
+
+		ITERATOR sit;
+
+		add_buf(buffer, "     [             Name             ] [             Room             ]\n\r");
+		add_buf(buffer, "---------------------------------------------------------------------------------\n\r");
+
+		iterator_start(&sit, bp->special_rooms);
+		while( (special = (BLUEPRINT_SPECIAL_ROOM *)iterator_nextdata(&sit)) )
+		{
+			BLUEPRINT_SECTION *section = list_nthdata(bp->sections, special->section);
+			ROOM_INDEX_DATA *room = get_room_index(special->vnum);
+
+			if( !IS_VALID(section) || !room || room->vnum < section->lower_vnum || room->vnum > section->upper_vnum)
+			{
+				snprintf(buf, MSL-1, "{W%4d  %-30.30s   {D-{Winvalid{D-{x\n\r", ++line, special->name);
+			}
+			else
+			{
+				snprintf(buf, MSL-1, "{W%4d  %-30.30s   (%ld) {Y%s{x in (%ld) {Y%s{x\n\r", ++line, special->name, room->vnum, room->name, section->vnum, section->name);
+			}
+			buf[MSL-1] = '\0';
+			add_buf(buffer, buf);
+		}
+
+		iterator_stop(&sit);
+		add_buf(buffer, "---------------------------------------------------------------------------------\n\r");
+	}
+	else
+	{
+		add_buf(buffer, "   None\n\r");
+	}
+	add_buf(buffer, "\n\r");
+
+
+
 	if( bp->mode == BLUEPRINT_MODE_STATIC )
 	{
 		if( bp->static_layout )
@@ -2785,10 +2872,184 @@ BPEDIT( bpedit_static )
 		send_to_char("         static entry clear\n\r", ch);
 		send_to_char("         static exit <section#> <link#>\n\r", ch);
 		send_to_char("         static exit clear\n\r", ch);
+		send_to_char("         static special add <section#> <room vnum> <name>\n\r", ch);
+		send_to_char("         static special # remove\n\r", ch);
+		send_to_char("         static special # name <name>\n\r", ch);
+		send_to_char("         static special # room <section#> <room vnum>\n\r", ch);
 		return FALSE;
 	}
 
 	argument = one_argument(argument, arg);
+
+	if( !str_prefix(arg, "special") )
+	{
+		char arg2[MIL];
+		char arg3[MIL];
+		char arg4[MIL];
+
+		argument = one_argument(argument, arg2);
+
+		if( argument[0] == '\0' )
+		{
+			send_to_char("Syntax:  static special add <section#> <room vnum> <name>\n\r", ch);
+			send_to_char("         static special # remove\n\r", ch);
+			send_to_char("         static special # name <name>\n\r", ch);
+			send_to_char("         static special # room <section#> <room vnum>\n\r", ch);
+			return FALSE;
+		}
+
+		if( is_number(arg2) )
+		{
+			int index = atoi(arg2);
+
+			BLUEPRINT_SPECIAL_ROOM *special = list_nthdata(bp->special_rooms, index);
+
+			if( !IS_VALID(special) )
+			{
+				send_to_char("No such special room.\n\r", ch);
+				return FALSE;
+			}
+
+			if( argument[0] == '\0' )
+			{
+				send_to_char("Syntax:  static special # remove\n\r", ch);
+				send_to_char("         static special # name <name>\n\r", ch);
+				send_to_char("         static special # room <section#> <room vnum>\n\r", ch);
+				return FALSE;
+			}
+
+			if( !str_prefix(argument, "remove") || !str_prefix(argument, "delete") )
+			{
+				list_remlink(bp->special_rooms, index);
+				send_to_char("Special Room removed.\n\r", ch);
+				return TRUE;
+			}
+
+
+			argument = one_argument(argument, arg3);
+
+			if( !str_prefix(arg3, "name") )
+			{
+				if( argument[0] == '\0' )
+				{
+					send_to_char("Syntax:  static special # name <name>\n\r", ch);
+					return FALSE;
+				}
+
+				free_string(special->name);
+				special->name = str_dup(argument);
+
+				send_to_char("Name changed.\n\r", ch);
+				return TRUE;
+			}
+
+			argument = one_argument(argument, arg4);
+
+			if( !str_prefix(arg3, "room") )
+			{
+				if( !is_number(arg4) || !is_number(argument) )
+				{
+					send_to_char("That is not a number.\n\r", ch);
+					return FALSE;
+				}
+
+				int section = atoi(arg4);
+				long vnum = atol(argument);
+
+				if( section < 1 || section > list_size(bp->sections) )
+				{
+					send_to_char("Section number out of range.\n\r", ch);
+					return FALSE;
+				}
+
+				BLUEPRINT_SECTION *bs = list_nthdata(bp->sections, section);
+
+				if( vnum < bs->lower_vnum || vnum > bs->upper_vnum )
+				{
+					send_to_char("Room vnum not in the section.\n\r", ch);
+					return FALSE;
+				}
+
+				if( !get_room_index(vnum) )
+				{
+					send_to_char("Room does not exist.\n\r", ch);
+					return FALSE;
+				}
+
+				special->section = section;
+				special->vnum = vnum;
+
+				send_to_char("Special room changed.\n\r", ch);
+				return TRUE;
+			}
+
+			send_to_char("Syntax:  static special # remove\n\r", ch);
+			send_to_char("         static special # name <name>\n\r", ch);
+			send_to_char("         static special # room <section#> <room vnum>\n\r", ch);
+			return FALSE;
+		}
+
+		if( !str_prefix(arg2, "add") )
+		{
+			if( argument[0] == '\0' )
+			{
+				send_to_char("Syntax:  static special add <section#> <room vnum> <name>\n\r", ch);
+				return FALSE;
+			}
+
+			if( !is_number(arg3) || !is_number(arg4) )
+			{
+				send_to_char("That is not a number.\n\r", ch);
+				return FALSE;
+			}
+
+			int section = atoi(arg3);
+			long vnum = atol(arg4);
+
+			if( section < 1 || section > list_size(bp->sections) )
+			{
+				send_to_char("Section number out of range.\n\r", ch);
+				return FALSE;
+			}
+
+			BLUEPRINT_SECTION *bs = list_nthdata(bp->sections, section);
+
+			if( vnum < bs->lower_vnum || vnum > bs->upper_vnum )
+			{
+				send_to_char("Room vnum not in the section.\n\r", ch);
+				return FALSE;
+			}
+
+			if( !get_room_index(vnum) )
+			{
+				send_to_char("Room does not exist.\n\r", ch);
+				return FALSE;
+			}
+
+			char name[MIL+1];
+			strncpy(name, argument, MIL);
+			name[MIL];
+
+			smash_tilde(name);
+
+			BLUEPRINT_SPECIAL_ROOM *special = new_blueprint_special_room();
+			free_string(special->name);
+			special->name = str_dup(name);
+			special->section = section;
+			special->vnum = vnum;
+
+			list_appendlink(bp->special_rooms, special);
+
+			send_to_char("Special Room added.\n\r", ch);
+			return TRUE;
+		}
+
+		send_to_char("Syntax:  static special add <name> <section#> <room vnum>\n\r", ch);
+		send_to_char("         static special # remove\n\r", ch);
+		send_to_char("         static special # name <name>\n\r", ch);
+		send_to_char("         static special # room <section#> <room vnum>\n\r", ch);
+		return FALSE;
+	}
 
 	if( !str_prefix(arg, "link") )
 	{

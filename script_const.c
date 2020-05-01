@@ -580,6 +580,7 @@ ENT_FIELD entity_instance[] = {
 	{"mobiles",			ENTITY_INSTANCE_MOBILES,		ENT_PLLIST_MOB		},
 	{"objects",			ENTITY_INSTANCE_OBJECTS,		ENT_PLLIST_OBJ		},
 	{"bosses",			ENTITY_INSTANCE_BOSSES,			ENT_PLLIST_MOB		},
+	{"specialrooms",	ENTITY_INSTANCE_SPECIAL_ROOMS,	ENT_PLLIST_ROOM		},
 	{NULL,				0,								ENT_UNKNOWN			}
 };
 
@@ -595,6 +596,7 @@ ENT_FIELD entity_dungeon[] = {
 	{"mobiles",			ENTITY_DUNGEON_MOBILES,			ENT_PLLIST_MOB		},
 	{"objects",			ENTITY_DUNGEON_OBJECTS,			ENT_PLLIST_OBJ		},
 	{"bosses",			ENTITY_DUNGEON_BOSSES,			ENT_PLLIST_MOB		},
+	{"specialrooms",	ENTITY_DUNGEON_SPECIAL_ROOMS,	ENT_PLLIST_ROOM		},
 	{NULL,				0,								ENT_UNKNOWN			}
 };
 
