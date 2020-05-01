@@ -2055,9 +2055,9 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 			return FALSE;
 		}
 
-		if (!pRoom->exit[door])
+		if (!(pExit = pRoom->exit[door]))
 		{
-			pRoom->exit[door] = new_exit();
+			pExit = pRoom->exit[door] = new_exit();
 		}
 		else
 		{
@@ -2092,7 +2092,6 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 			return FALSE;
 		}
 
-		pExit							= new_exit();
 		pRoom->exit[door]->u1.to_room	= pToRoom;
 		pRoom->exit[door]->orig_door	= door;
 		pExit->from_room				= pRoom;
