@@ -62,7 +62,9 @@ extern bool wiznet_script;
 #define ISARG_PLLIST_CHURCH(x)	ISARG_BLIST(x,ENT_PLLIST_CHURCH)
 
 #define ISARG_DICE(x)	((argv[(x)]->type == ENT_DICE) && argv[(x)]->d.dice)
-
+#define ISARG_SECTION(x)	((argv[(x)]->type == ENT_SECTION) && argv[(x)]->d.section)
+#define ISARG_INSTANCE(x)	((argv[(x)]->type == ENT_INSTANCE) && argv[(x)]->d.instance)
+#define ISARG_DUNGEON(x)	((argv[(x)]->type == ENT_DUNGEON) && argv[(x)]->d.dungeon)
 
 #define ARG_NUM(x)	ARG_TYPE(x,num)
 #define ARG_STR(x)	ARG_TYPE(x,str)
@@ -85,6 +87,9 @@ extern bool wiznet_script;
 #define ARG_WID(x)	ARG_TYPE(x,wid)
 #define ARG_CHID(x)	ARG_TYPE(x,chid)
 #define ARG_DICE(x) ARG_TYPE(x,dice)
+#define ARG_SECTION(x) ARG_TYPE(x,section)
+#define ARG_INSTANCE(x) ARG_TYPE(x,instance)
+#define ARG_DUNGEON(x) ARG_TYPE(x,dungeon)
 
 #define SHIFT_MOB()	do { if(ISARG_MOB(0)) { mob = ARG_MOB(0); ++argv; --argc; } } while(0)
 #define SHIFT_OBJ()	do { if(ISARG_OBJ(0)) { obj = ARG_OBJ(0); ++argv; --argc; } } while(0)
@@ -2701,6 +2706,8 @@ DECL_IFC_FUN(ifc_timer)
 		}
 	} else if(ISARG_TOK(0)) {
 		*ret = ARG_TOK(0)->timer;
+	} else if(ISARG_DUNGEON(0)) {
+		*ret = ARG_DUNGEO(0)->idle_timer;
 	} else
 		return FALSE;
 
@@ -4671,5 +4678,23 @@ DECL_IFC_FUN(ifc_protocol)
 		}
 	}
 
+	return TRUE;
+}
+
+DECL_IFC_FUN(ifc_isboss)
+{
+	*ret = VALID_NPC(0) ? IS_BOSS(ARG_MOB(0)) : FALSE;
+	return TRUE;
+}
+
+DECL_IFC_FUN(ifc_dungeonflag)
+{
+	*ret = (ISARG_DUNGEON(0) && ISARG_STR(1) && IS_SET(ARG_DUNGEON(0)->flags, flag_value_ifcheck( dungeon_flags,ARG_STR(1))));
+	return TRUE;
+}
+
+DECL_IFC_FUN(ifc_sectionflag)
+{
+	*ret = (ISARG_SECTION(0) && ISARG_STR(1) && IS_SET(ARG_SECTION(0)->flags, flag_value_ifcheck( blueprint_section_flags,ARG_STR(1))));
 	return TRUE;
 }
