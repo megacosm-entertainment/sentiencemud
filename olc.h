@@ -52,6 +52,10 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 #define ED_BLUEPRINT	17
 #define ED_DUNGEON		18
 
+#define ED_APCODE	19
+#define ED_IPCODE	20
+#define ED_DPCODE	21
+
 
 
 #define AEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
@@ -516,6 +520,16 @@ DECLARE_OLC_FUN( dngedit_zoneout		);
 DECLARE_OLC_FUN( dngedit_portalout		);
 DECLARE_OLC_FUN( dngedit_mountout		);
 DECLARE_OLC_FUN( dngedit_special		);
+
+
+DECLARE_OLC_FUN( apedit_list		);
+DECLARE_OLC_FUN( apedit_create		);
+
+DECLARE_OLC_FUN( ipedit_list		);
+DECLARE_OLC_FUN( ipedit_create		);
+
+DECLARE_OLC_FUN( dpedit_list		);
+DECLARE_OLC_FUN( dpedit_create		);
 
 /*
  * Macros

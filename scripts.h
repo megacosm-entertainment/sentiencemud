@@ -14,9 +14,11 @@
 #define	IFC_R	(C)	/* Allowed in rprogs */
 #define	IFC_T	(D)	/* Allowed in tprogs */
 #define	IFC_A	(E)	/* Allowed in aprogs */
+#define IFC_I	(F)	// Allowed in iprogs
+#define IFC_D	(G)	// Allowed in dprogs
 
 #define IFC_MO	(IFC_M|IFC_O)
-#define	IFC_ANY	(IFC_M|IFC_O|IFC_R|IFC_T|IFC_A)	/* Any prog type */
+#define	IFC_ANY	(IFC_M|IFC_O|IFC_R|IFC_T|IFC_A|IFC_I|IFC_D)	/* Any prog type */
 
 #define IFC_MAXPARAMS		20
 #define MAX_STACK		20	/* Adjust as desired */
@@ -306,8 +308,9 @@ enum variable_enum {
 	VAR_CHURCH_ID,
 	VAR_VARIABLE,		// Yo dawg, I heard you like variables...
 	VAR_DICE,
-	VAR_SECTION,		// Only used in section loops
-	VAR_INSTANCE,		// Only used in instance loops
+	VAR_SECTION,
+	VAR_INSTANCE,
+	VAR_DUNGEON,
 
 	VAR_BLLIST_FIRST,
 	////////////////////////
@@ -541,6 +544,9 @@ enum entity_variable_types_enum {
 	ENTITY_VAR_VARIABLE,
 	ENTITY_VAR_DICE,
 	ENTITY_VAR_BOOLEAN,
+	ENTITY_VAR_SECTION,
+	ENTITY_VAR_INSTANCE,
+	ENTITY_VAR_DUNGEON,
 
 	ENTITY_VAR_BLLIST_ROOM,
 	ENTITY_VAR_BLLIST_MOB,
@@ -1127,6 +1133,7 @@ struct script_var_type {
 		VARIABLE **variables;
 		INSTANCE_SECTION *section;
 		INSTANCE *instance;
+		DUNGEON *dungeon;
 		bool boolean;
 		int sn;
 		int song;
@@ -1885,9 +1892,10 @@ DECL_OPC_FUN(opc_tokenother);
 /* General */
 long script_flag_value( const struct flag_type *flag_table, char *argument);
 char *ifcheck_get_value(SCRIPT_VARINFO *info,IFCHECK_DATA *ifc,char *text,int *ret,bool *valid);
-int execute_script(long pvnum, SCRIPT_DATA *script, CHAR_DATA *mob, OBJ_DATA *obj,
-	ROOM_INDEX_DATA *room, TOKEN_DATA *token, CHAR_DATA *ch,
-	OBJ_DATA *obj1,OBJ_DATA *obj2,CHAR_DATA *vch,CHAR_DATA *vch2,CHAR_DATA *rch,
+int execute_script(long pvnum, SCRIPT_DATA *script,
+	CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token,
+	AREA_DATA *area, INSTANCE *instance, DUNGEON *dungeon,
+	CHAR_DATA *ch, OBJ_DATA *obj1,OBJ_DATA *obj2,CHAR_DATA *vch,CHAR_DATA *vch2,CHAR_DATA *rch,
 	TOKEN_DATA *tok, char *phrase, char *trigger,
 	int number1, int number2, int number3, int number4, int number5);
 void get_level_damage(int level, int *num, int *type, bool fRemort, bool fTwo);
@@ -1922,6 +1930,8 @@ void script_clear_room(ROOM_INDEX_DATA *ptr);
 void script_clear_token(TOKEN_DATA *ptr);
 void script_clear_affect(AFFECT_DATA *ptr);
 void script_clear_list(void *owner);
+void script_clear_instance(INSTANCE *ptr);
+void script_clear_dungeon(DUNGEON *ptr);
 SCRIPT_VARINFO *script_get_prior(SCRIPT_VARINFO *info);
 
 void script_mobile_addref(CHAR_DATA *ch);
@@ -2018,6 +2028,7 @@ bool variables_set_dice (ppVARIABLE list,char *name,DICE_DATA *d);
 bool variables_set_boolean (ppVARIABLE list,char *name,bool boolean);
 bool variables_set_instance_section (ppVARIABLE list,char *name,INSTANCE_SECTION *section);
 bool variables_set_instance (ppVARIABLE list,char *name,INSTANCE *instance);
+bool variables_set_dungeon (ppVARIABLE list,char *name,DUNGEON *dungeon);
 bool variables_setindex_integer(ppVARIABLE list,char *name,int num, bool saved);
 bool variables_setindex_room(ppVARIABLE list,char *name,long vnum, bool saved);
 bool variables_setindex_string(ppVARIABLE list,char *name,char *str,bool shared, bool saved);
@@ -2039,6 +2050,7 @@ bool variables_setsave_dice (ppVARIABLE list, char *name,DICE_DATA *d, bool save
 bool variables_setsave_boolean (ppVARIABLE list, char *name,bool boolean, bool save);
 bool variables_setsave_instance_section (ppVARIABLE list,char *name,INSTANCE_SECTION *section, bool save);
 bool variables_setsave_instance (ppVARIABLE list,char *name,INSTANCE *instance, bool save);
+bool variables_setsave_dungeon (ppVARIABLE list,char *name,DUNGEON *dungeon, bool save);
 int variable_fread_type(char *str);
 pVARIABLE variable_create(ppVARIABLE list,char *name, bool index, bool clear);
 pVARIABLE variable_get(pVARIABLE list,char *name);
@@ -2517,6 +2529,9 @@ SCRIPT_CMD(scriptcmd_questgenerate);
 SCRIPT_CMD(scriptcmd_questscroll);
 
 SCRIPT_CMD(scriptcmd_ed);
+
+
+
 
 #include "tables.h"
 

@@ -530,6 +530,16 @@ const	struct	cmd_type	cmd_table	[] =
 
     { "dungeon",		do_dungeon,	POS_DEAD,	0,  LOG_NORMAL, 1, TRUE },
 
+    { "apdump",		do_apdump,	POS_DEAD,    L5,  LOG_NEVER,  1, TRUE },
+    { "apedit",		do_apedit,	POS_DEAD,    L5,  LOG_NORMAL, 1, TRUE },
+    { "aplist",		do_aplist,	POS_DEAD,    L5,  LOG_NORMAL, 1, TRUE },
+    { "ipdump",		do_ipdump,	POS_DEAD,    L5,  LOG_NEVER,  1, TRUE },
+    { "ipedit",		do_ipedit,	POS_DEAD,    L5,  LOG_NORMAL, 1, TRUE },
+    { "iplist",		do_iplist,	POS_DEAD,    L5,  LOG_NORMAL, 1, TRUE },
+    { "dpdump",		do_dpdump,	POS_DEAD,    L5,  LOG_NEVER,  1, TRUE },
+    { "dpedit",		do_dpedit,	POS_DEAD,    L5,  LOG_NORMAL, 1, TRUE },
+    { "dplist",		do_dplist,	POS_DEAD,    L5,  LOG_NORMAL, 1, TRUE },
+
     { "",		0,		POS_DEAD,     0,  LOG_NORMAL, 0, FALSE }
 };
 

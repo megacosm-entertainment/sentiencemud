@@ -842,6 +842,30 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
 		arg->type = ENT_SKILL;
 		break;
 
+	case ENTITY_VAR_SECTION:
+		if(var && var->type == VAR_SECTION && IS_VALID(var->_.section))
+			arg->d.section = var->_.section;
+		else return NULL;
+
+		arg->type = ENT_SECTION;
+		break;
+
+	case ENTITY_VAR_INSTANCE:
+		if(var && var->type == VAR_INSTANCE && IS_VALID(var->_.instance))
+			arg->d.instance = var->_.instance;
+		else return NULL;
+
+		arg->type = ENT_INSTANCE;
+		break;
+
+	case ENTITY_VAR_DUNGEON:
+		if(var && var->type == VAR_SECTION && IS_VALID(var->_.dungeon))
+			arg->d.dungeon= var->_.dungeon;
+		else return NULL;
+
+		arg->type = ENT_DUNGEON;
+		break;
+
 	case ENTITY_VAR_SKILLINFO:
 		if(var) {
 			if( var->type == VAR_SKILLINFO ) {

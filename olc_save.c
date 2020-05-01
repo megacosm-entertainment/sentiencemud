@@ -473,6 +473,26 @@ void save_area_new(AREA_DATA *area)
 			boost->imp,
 			boost->area);
 
+    if(area->progs->progs) {
+		for(i = 0; i < TRIGSLOT_MAX; i++) if(list_size(area->progs->progs[i]) > 0) {
+			iterator_start(&it, area->progs->progs[i]);
+			while((trigger = (PROG_LIST *)iterator_nextdata(&it)))
+				fprintf(fp, "AreaProg %ld %s~ %s~\n", trigger->vnum, trigger_name(trigger->trig_type), trigger_phrase(trigger->trig_type,trigger->trig_phrase));
+			iterator_stop(&it);
+		}
+	}
+
+	if(area->index_vars) {
+		for(var = area->index_vars; var; var = var->next) {
+			if(var->type == VAR_INTEGER)
+				fprintf(fp, "VarInt %s~ %d %d\n", var->name, var->save, var->_.i);
+			else if(var->type == VAR_STRING || var->type == VAR_STRING_S)
+				fprintf(fp, "VarStr %s~ %d %s~\n", var->name, var->save, var->_.s ? var->_.s : "");
+			else if(var->type == VAR_ROOM && var->_.r && var->_.r->vnum)
+				fprintf(fp, "VarRoom %s~ %d %d\n", var->name, var->save, (int)var->_.r->vnum);
+
+		}
+	}
 
     /* Whisp - write this function */
     save_area_trade(fp, area);
@@ -1160,6 +1180,11 @@ void save_scripts_new(FILE *fp, AREA_DATA *area)
     for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++)
 	if ((scr = get_script_index(vnum, PRG_TPROG)))
 	    save_script_new(fp,area,scr,"TOKEN");
+
+	// Areas
+    for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++)
+	if ((scr = get_script_index(vnum, PRG_APROG)))
+	    save_script_new(fp,area,scr,"AREA");
 }
 
 void save_questor_new(FILE *fp, QUESTOR_DATA *questor)
@@ -1265,7 +1290,7 @@ AREA_DATA *read_area_new(FILE *fp)
     ROOM_INDEX_DATA *room;
     MOB_INDEX_DATA *mob;
     OBJ_INDEX_DATA *obj;
-    SCRIPT_DATA *rpr, *mpr, *opr, *tpr;
+    SCRIPT_DATA *rpr, *mpr, *opr, *tpr, *apr;
     TOKEN_INDEX_DATA *token;
     char buf[MSL];
     long vnum;
@@ -1380,6 +1405,14 @@ AREA_DATA *read_area_new(FILE *fp)
 			tprog_list = tpr;
 		    }
 		}
+		else if (!str_cmp(word, "#AREAPROG"))
+		{
+		    apr = read_script_new(fp, area, IFC_A);
+		    if(apr) {
+			apr->next = aprog_list;
+			aprog_list = tpr;
+		    }
+		}
 		/* VIZZWILDS */
 		else if (!str_cmp(word, "#WILDS"))
 		{
@@ -1396,6 +1429,55 @@ AREA_DATA *read_area_new(FILE *fp)
 
 	    case 'A':
 		KEY("AreaFlags",	area->area_flags,	fread_number(fp));
+
+		if (!str_cmp(word, "AreaProg")) {
+		    int tindex;
+		    char *p;
+
+		    vnum = fread_number(fp);
+		    p = fread_string(fp);
+
+		    tindex = trigger_index(p, PRG_APROG);
+		    if(tindex < 0) {
+			    sprintf(buf, "read_area_new: invalid trigger type %s", p);
+			    bug(buf, 0);
+		    } else {
+			    apr = new_trigger();
+
+			    apr->vnum = vnum;
+			    apr->trig_type = tindex;
+			    apr->trig_phrase = fread_string(fp);
+			    if( tindex == TRIG_SPELLCAST ) {
+					char buf[MIL];
+					int tsn = skill_lookup(apr->trig_phrase);
+
+					if( tsn < 0 ) {
+						sprintf(buf, "read_area_new: invalid spell '%s' for TRIG_SPELLCAST", p);
+						bug(buf, 0);
+						free_trigger(apr);
+						fMatch = TRUE;
+						break;
+					}
+
+					free_string(apr->trig_phrase);
+					sprintf(buf, "%d", tsn);
+					apr->trig_phrase = str_dup(buf);
+					apr->trig_number = tsn;
+					apr->numeric = TRUE;
+
+				} else {
+			    	apr->trig_number = atoi(apr->trig_phrase);
+					apr->numeric = is_number(apr->trig_phrase);
+				}
+
+			    if(!area->progs->progs) area->progs->progs = new_prog_bank();
+
+				list_appendlink(area->progs->progs[trigger_table[tindex].slot], apr);
+		    }
+		    fMatch = TRUE;
+		}
+
+
 		KEY("AreaWhoFlags",	dummy,	fread_number(fp));
 		KEY("AreaWhoFlags2",	dummy,	fread_number(fp));
 		KEY("AreaWho",		area->area_who,	fread_number(fp));
@@ -1449,6 +1531,48 @@ AREA_DATA *read_area_new(FILE *fp)
                 KEY ("UID", area->uid, fread_number (fp));
 
 	    case 'V':
+		if (!str_cmp(word, "VarInt")) {
+			char *name;
+			int value;
+			bool saved;
+
+			fMatch = TRUE;
+
+			name = fread_string(fp);
+			saved = fread_number(fp);
+			value = fread_number(fp);
+
+			variables_setindex_integer (&area->index_vars,name,value,saved);
+		}
+
+		if (!str_cmp(word, "VarStr")) {
+			char *name;
+			char *str;
+			bool saved;
+
+			fMatch = TRUE;
+
+			name = fread_string(fp);
+			saved = fread_number(fp);
+			str = fread_string(fp);
+
+			variables_setindex_string (&area->index_vars,name,str,FALSE,saved);
+		}
+
+		if (!str_cmp(word, "VarRoom")) {
+			char *name;
+			int value;
+			bool saved;
+
+			fMatch = TRUE;
+
+			name = fread_string(fp);
+			saved = fread_number(fp);
+			value = fread_number(fp);
+
+			variables_setindex_room (&area->index_vars,name,value,saved);
+		}
+
 		KEY("VersArea", area->version_area, fread_number(fp));
 		KEY("VersMobile", area->version_mobile, fread_number(fp));
 		KEY("VersObject", area->version_object, fread_number(fp));
@@ -2816,16 +2940,27 @@ SCRIPT_DATA *read_script_new(FILE *fp, AREA_DATA *area, int type)
 {
 	SCRIPT_DATA *scr = NULL;
 	char *word;
+	char *last_word;
+
+	switch(type)
+	{
+		case IFC_M:	last_word = "#-MOBPROG";		break;
+		case IFC_O:	last_word = "#-OBJPROG";		break;
+		case IFC_R:	last_word = "#-ROOMPROG";		break;
+		case IFC_T:	last_word = "#-TOKENPROG";		break;
+		case IFC_A:	last_word = "#-AREAPROG";		break;
+		case IFC_I:	last_word = "#-INSTANCEPROG";	break;
+		case IFC_D:	last_word = "#-DUNGEONPROG";	break;
+		default:
+			return NULL;
+	}
 
 	scr = new_script();
 	if(!scr) return NULL;
 	scr->vnum = fread_number(fp);
 	scr->area = area;
 
-	while (str_cmp((word = fread_word(fp)), "#-MOBPROG") &&
-		str_cmp(word, "#-OBJPROG") &&
-		str_cmp(word, "#-ROOMPROG") &&
-		str_cmp(word, "#-TOKENPROG")) {
+	while (str_cmp((word = fread_word(fp)), last_word)) {
 		fMatch = FALSE;
 
 		switch (word[0]) {

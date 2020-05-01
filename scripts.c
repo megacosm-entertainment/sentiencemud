@@ -163,6 +163,37 @@ void script_clear_list(register void *owner)
 	}
 }
 
+void script_clear_instance(INSTANCE *ptr)
+{
+	register SCRIPT_CB *stack = script_call_stack;
+
+	while(stack) {
+		if(stack->info.instance == ptr) {
+			stack->info.instance = NULL;
+			stack->info.var = NULL;
+			stack->info.targ = NULL;
+			SET_BIT(stack->flags,SCRIPTEXEC_HALT);
+		}
+		stack = stack->next;
+	}
+}
+
+void script_clear_dungeon(DUNGEON *ptr)
+{
+	register SCRIPT_CB *stack = script_call_stack;
+
+	while(stack) {
+		if(stack->info.dungeon == ptr) {
+			stack->info.dungeon = NULL;
+			stack->info.var = NULL;
+			stack->info.targ = NULL;
+			SET_BIT(stack->flags,SCRIPTEXEC_HALT);
+		}
+		stack = stack->next;
+	}
+}
+
+
 void script_mobile_addref(CHAR_DATA *ch)
 {
 	if(IS_VALID(ch) && IS_NPC(ch) && ch->progs)
@@ -2641,9 +2672,10 @@ void script_dump_wiznet(SCRIPT_DATA *script)
 	}
 }
 
-int execute_script(long pvnum, SCRIPT_DATA *script, CHAR_DATA *mob, OBJ_DATA *obj,
-	ROOM_INDEX_DATA *room, TOKEN_DATA *token, CHAR_DATA *ch,
-	OBJ_DATA *obj1,OBJ_DATA *obj2,CHAR_DATA *vch,CHAR_DATA *vch2,CHAR_DATA *rch,
+int execute_script(long pvnum, SCRIPT_DATA *script,
+	CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token,
+	AREA_DATA *area, INSTANCE *instance, DUNGEON *dungeon,
+	CHAR_DATA *ch, OBJ_DATA *obj1,OBJ_DATA *obj2,CHAR_DATA *vch,CHAR_DATA *vch2,CHAR_DATA *rch,
 	TOKEN_DATA *tok, char *phrase, char *trigger,
 	int number1, int number2, int number3, int number4, int number5)
 {
@@ -2669,8 +2701,12 @@ int execute_script(long pvnum, SCRIPT_DATA *script, CHAR_DATA *mob, OBJ_DATA *ob
 		return PRET_NOSCRIPT;
 	}
 
-	if ((mob && obj) || (mob && room) || (obj && room) ||
-		(token && mob) || (token && obj) || (token && room)) {
+	if ((mob && obj) || (mob && room) || (mob && token) || (mob && area) || (mob && instance) || (mob && dungeon) ||
+		(obj && room) || (obj && token) || (obj && area) || (obj && instance) || (obj && dungeon) ||
+		(room && token) || (room && area) || (room && instance) || (room && dungeon) ||
+		(token && area) || (token && instance) || (token && dungeon) ||
+		(area && instance) || (area && dungeon) ||
+		(instance && dungeon)) {
 		bug("PROGs: program_flow received multiple prog types for vnum.", pvnum);
 		return PRET_BADTYPE;
 	}
@@ -2709,6 +2745,7 @@ int execute_script(long pvnum, SCRIPT_DATA *script, CHAR_DATA *mob, OBJ_DATA *ob
 		block.info.location = obj_room(obj);
 		block.info.var = &obj->progs->vars;
 		block.info.targ = &obj->progs->target;
+
 	} else if (room) {
 		room->progs->lastreturn = PRET_EXECUTED;
 		block.type = IFC_R;
@@ -2716,6 +2753,7 @@ int execute_script(long pvnum, SCRIPT_DATA *script, CHAR_DATA *mob, OBJ_DATA *ob
 		block.info.location = room;
 		block.info.var = &room->progs->vars;
 		block.info.targ = &room->progs->target;
+
 	} else if (token) {
 		token->progs->lastreturn = PRET_EXECUTED;
 		block.type = IFC_T;
@@ -2723,6 +2761,31 @@ int execute_script(long pvnum, SCRIPT_DATA *script, CHAR_DATA *mob, OBJ_DATA *ob
 		block.info.location = token_room(token);
 		block.info.var = &token->progs->vars;
 		block.info.targ = &token->progs->target;
+
+	} else if (area) {
+		area->progs->lastreturn = PRET_EXECUTED;
+		block.type = IFC_A;
+		block.info.progs = area->progs;
+		block.info.location = NULL;
+		block.info.var = &area->progs->vars;
+		block.info.targ = &area->progs->target;
+
+	} else if (instance) {
+		instance->progs->lastreturn = PRET_EXECUTED;
+		block.type = IFC_I;
+		block.info.progs = instance->progs;
+		block.info.location = NULL;
+		block.info.var = &instance->progs->vars;
+		block.info.targ = &instance->progs->target;
+
+	} else if (dungeon) {
+		dungeon->progs->lastreturn = PRET_EXECUTED;
+		block.type = IFC_D;
+		block.info.progs = dungeon->progs;
+		block.info.location = NULL;
+		block.info.var = &dungeon->progs->vars;
+		block.info.targ = &dungeon->progs->target;
+
 	} else {
 		// Log error
 		return PRET_BADTYPE;
@@ -3360,6 +3423,9 @@ int trigger_index(char *name, int type)
 			case PRG_OPROG: if (trigger_table[i].obj) return i;
 			case PRG_RPROG: if (trigger_table[i].room) return i;
 			case PRG_TPROG: if (trigger_table[i].token) return i;
+			case PRG_APROG: if (trigger_table[i].area) return i;
+			case PRG_IPROG: if (trigger_table[i].instance) return i;
+			case PRG_DPROG: if (trigger_table[i].dungeon) return i;
 			}
 	}
 
@@ -3371,6 +3437,9 @@ int trigger_index(char *name, int type)
 			case PRG_OPROG: if (trigger_table[i].obj) return i;
 			case PRG_RPROG: if (trigger_table[i].room) return i;
 			case PRG_TPROG: if (trigger_table[i].token) return i;
+			case PRG_APROG: if (trigger_table[i].area) return i;
+			case PRG_IPROG: if (trigger_table[i].instance) return i;
+			case PRG_DPROG: if (trigger_table[i].dungeon) return i;
 			}
 	}
 
@@ -3749,7 +3818,7 @@ int test_string_trigger(char *string, MATCH_STRING match, int type,
 				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
 					if (is_trigger_type(prg->trig_type,type)) {
 						if ((*match)(string, prg->trig_phrase)) {
-							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, enactor, obj1, obj2, victim, victim2,NULL, NULL,string,prg->trig_phrase,0,0,0,0,0);
+							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,string,prg->trig_phrase,0,0,0,0,0);
 							if( ret != PRET_NOSCRIPT) {
 								iterator_stop(&tit);
 								iterator_stop(&pit);
@@ -3773,7 +3842,7 @@ int test_string_trigger(char *string, MATCH_STRING match, int type,
 			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
 				if (is_trigger_type(prg->trig_type,type)) {
 					if ((*match)(string, prg->trig_phrase)) {
-						ret = execute_script(prg->vnum, prg->script, mob, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,string,prg->trig_phrase,0,0,0,0,0);
+						ret = execute_script(prg->vnum, prg->script, mob, NULL, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,string,prg->trig_phrase,0,0,0,0,0);
 						if( ret != PRET_NOSCRIPT) {
 							iterator_stop(&pit);
 							script_mobile_remref(mob);
@@ -3804,7 +3873,7 @@ int test_string_trigger(char *string, MATCH_STRING match, int type,
 				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
 					if (is_trigger_type(prg->trig_type,type)) {
 						if ((*match)(string, prg->trig_phrase)) {
-							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, enactor, obj1, obj2, victim, victim2,NULL, NULL,string,prg->trig_phrase,0,0,0,0,0);
+							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,string,prg->trig_phrase,0,0,0,0,0);
 							if( ret != PRET_NOSCRIPT) {
 								iterator_stop(&tit);
 								iterator_stop(&pit);
@@ -3831,7 +3900,7 @@ int test_string_trigger(char *string, MATCH_STRING match, int type,
 			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
 				if (is_trigger_type(prg->trig_type,type)) {
 					if ((*match)(string, prg->trig_phrase)) {
-						ret = execute_script(prg->vnum, prg->script, NULL, obj, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,string,prg->trig_phrase,0,0,0,0,0);
+						ret = execute_script(prg->vnum, prg->script, NULL, obj, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,string,prg->trig_phrase,0,0,0,0,0);
 						if( ret != PRET_NOSCRIPT) {
 							iterator_stop(&pit);
 							script_object_remref(obj);
@@ -3870,7 +3939,7 @@ int test_string_trigger(char *string, MATCH_STRING match, int type,
 				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
 					if (is_trigger_type(prg->trig_type,type)) {
 						if ((*match)(string, prg->trig_phrase)) {
-							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, enactor, obj1, obj2, victim, victim2,NULL, NULL,string,prg->trig_phrase,0,0,0,0,0);
+							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,string,prg->trig_phrase,0,0,0,0,0);
 							if( ret != PRET_NOSCRIPT) {
 								iterator_stop(&tit);
 								iterator_stop(&pit);
@@ -3897,7 +3966,7 @@ int test_string_trigger(char *string, MATCH_STRING match, int type,
 			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
 				if (is_trigger_type(prg->trig_type,type)) {
 					if ((*match)(string, prg->trig_phrase)) {
-						ret = execute_script(prg->vnum, prg->script, NULL, NULL, room, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,string,prg->trig_phrase,0,0,0,0,0);
+						ret = execute_script(prg->vnum, prg->script, NULL, NULL, room, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,string,prg->trig_phrase,0,0,0,0,0);
 						if( ret != PRET_NOSCRIPT) {
 							iterator_stop(&pit);
 							script_room_remref(room);
@@ -3955,6 +4024,7 @@ int p_name_trigger(char *argument, CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DAT
 
 int test_number_trigger(int number, MATCH_NUMBER match, int type,
 			CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token,
+			AREA_DATA *area, INSTANCE *instance, DUNGEON *dungeon,
 			CHAR_DATA *enactor, CHAR_DATA *victim, CHAR_DATA *victim2,
 			OBJ_DATA *obj1, OBJ_DATA *obj2, TOKEN_DATA *tok,
 			char *phrase)
@@ -3967,7 +4037,12 @@ int test_number_trigger(int number, MATCH_NUMBER match, int type,
 	int slot;
 	int ret_val = PRET_NOSCRIPT, ret;
 
-	if ((mob && obj) || (mob && room) || (mob && token) || (obj && room) || (obj && token) || (room && token)) {
+	if ((mob && obj) || (mob && room) || (mob && token) || (mob && area) || (mob && instance) || (mob && dungeon) ||
+		(obj && room) || (obj && token) || (obj && area) || (obj && instance) || (obj && dungeon) ||
+		(room && token) || (room && area) || (room && instance) || (room && dungeon) ||
+		(token && area) || (token && instance) || (token && dungeon) ||
+		(area && instance) || (area && dungeon) ||
+		(instance && dungeon)) {
 		bug("test_number_trigger: Multiple program types in trigger %d.", type);
 		PRETURN;
 	}
@@ -3997,7 +4072,7 @@ int test_number_trigger(int number, MATCH_NUMBER match, int type,
 				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
 					if (is_trigger_type(prg->trig_type,type)) {
 						if ((*match)(prg->trig_number, number)) {
-							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, enactor, obj1, obj2, victim, victim2,NULL, tok, phrase, prg->trig_phrase,0,0,0,0,0);
+							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok, phrase, prg->trig_phrase,0,0,0,0,0);
 							SETPRET;
 						}
 					}
@@ -4014,7 +4089,7 @@ int test_number_trigger(int number, MATCH_NUMBER match, int type,
 			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
 				if (is_trigger_type(prg->trig_type,type)) {
 					if ((*match)(prg->trig_number, number)) {
-						ret = execute_script(prg->vnum, prg->script, mob, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok,phrase,prg->trig_phrase,0,0,0,0,0);
+						ret = execute_script(prg->vnum, prg->script, mob, NULL, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok,phrase,prg->trig_phrase,0,0,0,0,0);
 						SETPRET;
 					}
 				}
@@ -4039,7 +4114,7 @@ int test_number_trigger(int number, MATCH_NUMBER match, int type,
 				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
 					if (is_trigger_type(prg->trig_type,type)) {
 						if ((*match)(prg->trig_number, number)) {
-							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, enactor, obj1, obj2, victim, victim2,NULL, tok,phrase,prg->trig_phrase,0,0,0,0,0);
+							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok,phrase,prg->trig_phrase,0,0,0,0,0);
 							SETPRET;
 						}
 					}
@@ -4057,7 +4132,7 @@ int test_number_trigger(int number, MATCH_NUMBER match, int type,
 			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
 				if (is_trigger_type(prg->trig_type,type)) {
 					if ((*match)(prg->trig_number, number)) {
-						ret = execute_script(prg->vnum, prg->script, NULL, obj, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok,phrase,prg->trig_phrase,0,0,0,0,0);
+						ret = execute_script(prg->vnum, prg->script, NULL, obj, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok,phrase,prg->trig_phrase,0,0,0,0,0);
 							SETPRET;
 					}
 				}
@@ -4090,7 +4165,7 @@ int test_number_trigger(int number, MATCH_NUMBER match, int type,
 				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
 					if (is_trigger_type(prg->trig_type,type)) {
 						if ((*match)(prg->trig_number, number)) {
-							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, enactor, obj1, obj2, victim, victim2,NULL, tok,phrase,prg->trig_phrase,0,0,0,0,0);
+							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok,phrase,prg->trig_phrase,0,0,0,0,0);
 							SETPRET;
 						}
 					}
@@ -4107,7 +4182,7 @@ int test_number_trigger(int number, MATCH_NUMBER match, int type,
 			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
 				if (is_trigger_type(prg->trig_type,type)) {
 					if ((*match)(prg->trig_number, number)) {
-						ret = execute_script(prg->vnum, prg->script, NULL, NULL, room, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok,phrase,prg->trig_phrase,0,0,0,0,0);
+						ret = execute_script(prg->vnum, prg->script, NULL, NULL, room, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok,phrase,prg->trig_phrase,0,0,0,0,0);
 							SETPRET;
 					}
 				}
@@ -4125,7 +4200,7 @@ int test_number_trigger(int number, MATCH_NUMBER match, int type,
 			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
 				if (is_trigger_type(prg->trig_type,type)) {
 					if ((*match)(prg->trig_number, number)) {
-						ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, enactor, obj1, obj2, victim, victim2,NULL, tok, phrase, prg->trig_phrase,0,0,0,0,0);
+						ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok, phrase, prg->trig_phrase,0,0,0,0,0);
 							SETPRET;
 					}
 				}
@@ -4144,13 +4219,13 @@ int test_number_trigger(int number, MATCH_NUMBER match, int type,
 int p_percent_trigger(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token,
 	CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, char *phrase)
 {
-	return test_number_trigger(0, match_percent, type, mob, obj, room, token, ch, victim, victim2, obj1, obj1, NULL, phrase);
+	return test_number_trigger(0, match_percent, type, mob, obj, room, token, NULL, NULL, NULL, ch, victim, victim2, obj1, obj1, NULL, phrase);
 }
 
 int p_percent_token_trigger(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token,
 	CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, TOKEN_DATA *tok, int type, char *phrase)
 {
-	return test_number_trigger(0, match_percent, type, mob, obj, room, token, ch, victim, victim2, obj1, obj1, tok, phrase);
+	return test_number_trigger(0, match_percent, type, mob, obj, room, token, NULL, NULL, NULL, ch, victim, victim2, obj1, obj1, tok, phrase);
 }
 
 
@@ -4158,12 +4233,12 @@ int p_percent_token_trigger(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room
 int p_number_trigger(int number, CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token,
 	CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, char *phrase)
 {
-	return test_number_trigger(number, match_equal, type, mob, obj, room, token, ch, victim, victim2, obj1, obj1, NULL, phrase);
+	return test_number_trigger(number, match_equal, type, mob, obj, room, token, NULL, NULL, NULL, ch, victim, victim2, obj1, obj1, NULL, phrase);
 }
 
 int p_bribe_trigger(CHAR_DATA *mob, CHAR_DATA *ch, int amount)
 {
-	return test_number_trigger(amount, match_gte, TRIG_BRIBE, mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL);
+	return test_number_trigger(amount, match_gte, TRIG_BRIBE, mob, NULL, NULL, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL);
 }
 
 
@@ -4216,7 +4291,7 @@ int test_number_sight_trigger(int number, MATCH_NUMBER match, int type, int type
 						(IS_SET(token->flags, TOKEN_SEE_ALL) ||
 							(mob->position == mob->pIndexData->default_pos && can_see(mob, enactor))) &&
 						(*match)(prg->trig_number, number)) {
-						ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, enactor, obj1, obj2, victim, victim2,NULL, NULL, phrase, prg->trig_phrase,0,0,0,0,0);
+						ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL, phrase, prg->trig_phrase,0,0,0,0,0);
 						if( ret != PRET_NOSCRIPT) {
 							iterator_stop(&tit);
 							iterator_stop(&pit);
@@ -4227,7 +4302,7 @@ int test_number_sight_trigger(int number, MATCH_NUMBER match, int type, int type
 
 					} else if (is_trigger_type(prg->trig_type,typeall) &&
 						(*match)(prg->trig_number, number)) {
-						ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, enactor, obj1, obj2, victim, victim2,NULL, NULL, phrase, prg->trig_phrase,0,0,0,0,0);
+						ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL, phrase, prg->trig_phrase,0,0,0,0,0);
 						if( ret != PRET_NOSCRIPT) {
 							iterator_stop(&tit);
 							iterator_stop(&pit);
@@ -4254,7 +4329,7 @@ int test_number_sight_trigger(int number, MATCH_NUMBER match, int type, int type
 					mob->position == mob->pIndexData->default_pos &&
 					can_see(mob, enactor) &&
 					(*match)(prg->trig_number, number)) {
-					ret = execute_script(prg->vnum, prg->script, mob, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL, phrase, prg->trig_phrase,0,0,0,0,0);
+					ret = execute_script(prg->vnum, prg->script, mob, NULL, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL, phrase, prg->trig_phrase,0,0,0,0,0);
 					if( ret != PRET_NOSCRIPT) {
 						iterator_stop(&pit);
 						script_mobile_remref(mob);
@@ -4263,7 +4338,7 @@ int test_number_sight_trigger(int number, MATCH_NUMBER match, int type, int type
 
 				} else if (is_trigger_type(prg->trig_type,typeall) &&
 					(*match)(prg->trig_number, number)) {
-					ret = execute_script(prg->vnum, prg->script, mob, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL, phrase, prg->trig_phrase,0,0,0,0,0);
+					ret = execute_script(prg->vnum, prg->script, mob, NULL, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL, phrase, prg->trig_phrase,0,0,0,0,0);
 					if( ret != PRET_NOSCRIPT) {
 						iterator_stop(&pit);
 						script_mobile_remref(mob);
@@ -4292,7 +4367,7 @@ int test_number_sight_trigger(int number, MATCH_NUMBER match, int type, int type
 				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
 					if (is_trigger_type(prg->trig_type,typeall)) {
 						if ((*match)(prg->trig_number, number)) {
-							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,0,0,0,0,0);
+							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,0,0,0,0,0);
 							if( ret != PRET_NOSCRIPT) {
 								iterator_stop(&tit);
 								iterator_stop(&pit);
@@ -4318,7 +4393,7 @@ int test_number_sight_trigger(int number, MATCH_NUMBER match, int type, int type
 			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
 				if (is_trigger_type(prg->trig_type,typeall)) {
 					if ((*match)(prg->trig_number, number)) {
-						ret = execute_script(prg->vnum, prg->script, NULL, obj, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,0,0,0,0,0);
+						ret = execute_script(prg->vnum, prg->script, NULL, obj, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,0,0,0,0,0);
 						if( ret != PRET_NOSCRIPT) {
 							iterator_stop(&pit);
 							script_object_remref(obj);
@@ -4356,7 +4431,7 @@ int test_number_sight_trigger(int number, MATCH_NUMBER match, int type, int type
 				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
 					if (is_trigger_type(prg->trig_type,typeall)) {
 						if ((*match)(prg->trig_number, number)) {
-							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,0,0,0,0,0);
+							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,0,0,0,0,0);
 							if( ret != PRET_NOSCRIPT) {
 								iterator_stop(&tit);
 								iterator_stop(&pit);
@@ -4383,7 +4458,7 @@ int test_number_sight_trigger(int number, MATCH_NUMBER match, int type, int type
 			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
 				if (is_trigger_type(prg->trig_type,typeall)) {
 					if ((*match)(prg->trig_number, number)) {
-						ret = execute_script(prg->vnum, prg->script, NULL, NULL, room, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,0,0,0,0,0);
+						ret = execute_script(prg->vnum, prg->script, NULL, NULL, room, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,0,0,0,0,0);
 							if( ret != PRET_NOSCRIPT) {
 								iterator_stop(&pit);
 
@@ -4540,7 +4615,7 @@ int test_vnumname_trigger(char *name, int vnum, int type,
 					if (is_trigger_type(prg->trig_type,type)) {
 						if ( (prg->numeric && match_equal(prg->trig_number, vnum)) ||
 							(!prg->numeric && match_target_name(prg->trig_phrase, name)) ) {
-							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, enactor, obj1, obj2, victim, victim2,NULL, NULL, phrase, prg->trig_phrase,0,0,0,0,0);
+							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL, phrase, prg->trig_phrase,0,0,0,0,0);
 							if( ret != PRET_NOSCRIPT) {
 								iterator_stop(&tit);
 								iterator_stop(&pit);
@@ -4565,7 +4640,7 @@ int test_vnumname_trigger(char *name, int vnum, int type,
 				if (is_trigger_type(prg->trig_type,type)) {
 					if ( (prg->numeric && match_equal(prg->trig_number, vnum)) ||
 						(!prg->numeric && match_target_name(prg->trig_phrase, name)) ) {
-						ret = execute_script(prg->vnum, prg->script, mob, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,0,0,0,0,0);
+						ret = execute_script(prg->vnum, prg->script, mob, NULL, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,0,0,0,0,0);
 							if( ret != PRET_NOSCRIPT) {
 								iterator_stop(&pit);
 
@@ -4598,7 +4673,7 @@ int test_vnumname_trigger(char *name, int vnum, int type,
 					if (is_trigger_type(prg->trig_type,type)) {
 						if ( (prg->numeric && match_equal(prg->trig_number, vnum)) ||
 							(!prg->numeric && match_target_name(prg->trig_phrase, name)) ) {
-							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,0,0,0,0,0);
+							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,0,0,0,0,0);
 							if( ret != PRET_NOSCRIPT) {
 								iterator_stop(&tit);
 								iterator_stop(&pit);
@@ -4626,7 +4701,7 @@ int test_vnumname_trigger(char *name, int vnum, int type,
 				if (is_trigger_type(prg->trig_type,type)) {
 					if ( (prg->numeric && match_equal(prg->trig_number, vnum)) ||
 						(!prg->numeric && match_target_name(prg->trig_phrase, name)) ) {
-						ret = execute_script(prg->vnum, prg->script, NULL, obj, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,0,0,0,0,0);
+						ret = execute_script(prg->vnum, prg->script, NULL, obj, NULL, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,0,0,0,0,0);
 							if( ret != PRET_NOSCRIPT) {
 								iterator_stop(&pit);
 
@@ -4667,7 +4742,7 @@ int test_vnumname_trigger(char *name, int vnum, int type,
 					if (is_trigger_type(prg->trig_type,type)) {
 						if ( (prg->numeric && match_equal(prg->trig_number, vnum)) ||
 							(!prg->numeric && match_target_name(prg->trig_phrase, name)) ) {
-							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,0,0,0,0,0);
+							ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,0,0,0,0,0);
 							if( ret != PRET_NOSCRIPT) {
 								iterator_stop(&tit);
 								iterator_stop(&pit);
@@ -4693,7 +4768,7 @@ int test_vnumname_trigger(char *name, int vnum, int type,
 				if (is_trigger_type(prg->trig_type,type)) {
 					if ( (prg->numeric && match_equal(prg->trig_number, vnum)) ||
 						(!prg->numeric && match_target_name(prg->trig_phrase, name)) ) {
-						ret = execute_script(prg->vnum, prg->script, NULL, NULL, room, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,0,0,0,0,0);
+						ret = execute_script(prg->vnum, prg->script, NULL, NULL, room, NULL, NULL, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, NULL,phrase,prg->trig_phrase,0,0,0,0,0);
 							if( ret != PRET_NOSCRIPT) {
 								iterator_stop(&pit);
 
@@ -4736,7 +4811,7 @@ int p_use_trigger(CHAR_DATA *ch, OBJ_DATA *obj, int type)
 
 
 	if (type == TRIG_PUSH || type == TRIG_TURN || type == TRIG_PULL || type == TRIG_USE)
-		return test_number_trigger(0, match_percent, type, NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL);
+		return test_number_trigger(0, match_percent, type, NULL, obj, NULL, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL);
 
 	return PRET_NOSCRIPT;
 }
@@ -4766,7 +4841,7 @@ int p_use_with_trigger(CHAR_DATA *ch, OBJ_DATA *obj, int type, OBJ_DATA *obj1, O
 	if (!obj_room(obj)) return PRET_NOSCRIPT;
 
 	if (type == TRIG_USEWITH)
-		return test_number_trigger(0, match_percent, type, NULL, obj, NULL, NULL, ch, victim, victim2, obj1, obj2, NULL, NULL);
+		return test_number_trigger(0, match_percent, type, NULL, obj, NULL, NULL, NULL, NULL, NULL, ch, victim, victim2, obj1, obj2, NULL, NULL);
 
 	return PRET_NOSCRIPT;
 }
@@ -4780,7 +4855,7 @@ int p_greet_trigger(CHAR_DATA *ch, int type)
 
 int p_hprct_trigger(CHAR_DATA *mob, CHAR_DATA *ch) // @@@NIB
 {
-	return test_number_trigger((100 * mob->hit / mob->max_hit), match_lt, TRIG_HPCNT, mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL);
+	return test_number_trigger((100 * mob->hit / mob->max_hit), match_lt, TRIG_HPCNT, mob, NULL, NULL, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL);
 }
 
 int p_emote_trigger(CHAR_DATA *ch, char *emote)
@@ -4838,7 +4913,7 @@ int script_login(CHAR_DATA *ch) // @@@NIB
 	if(script) {
 		script_force_execute = TRUE;
 		script_security = SYSTEM_SCRIPT_SECURITY;
-		execute_script(RPROG_VNUM_PLAYER_INIT, script, NULL, NULL, get_room_index(1), NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,NULL, NULL,0,0,0,0,0);
+		execute_script(RPROG_VNUM_PLAYER_INIT, script, NULL, NULL, get_room_index(1), NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,NULL, NULL,0,0,0,0,0);
 		script_security = INIT_SCRIPT_SECURITY;
 		script_force_execute = FALSE;
 	}
@@ -4859,7 +4934,7 @@ int script_login(CHAR_DATA *ch) // @@@NIB
 			iterator_start(&pit, token->pIndexData->progs[slot]);
 			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
 				if (is_trigger_type(prg->trig_type,TRIG_LOGIN) && number_percent() < prg->trig_number) {
-					ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, ch, NULL, NULL, NULL, NULL,NULL,NULL,NULL, NULL,0,0,0,0,0);
+					ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,NULL, NULL,0,0,0,0,0);
 					SETPRET;
 				}
 			}
@@ -4879,7 +4954,7 @@ int script_login(CHAR_DATA *ch) // @@@NIB
 				iterator_start(&pit, token->pIndexData->progs[slot]);
 				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
 					if (is_trigger_type(prg->trig_type,TRIG_LOGIN) && number_percent() < prg->trig_number) {
-						ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, ch, NULL, NULL, NULL,NULL, NULL,NULL,NULL, NULL,0,0,0,0,0);
+						ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, NULL,NULL, NULL,NULL,NULL, NULL,0,0,0,0,0);
 						SETPRET;
 					}
 				}
@@ -4893,7 +4968,7 @@ int script_login(CHAR_DATA *ch) // @@@NIB
 			iterator_start(&pit, obj->pIndexData->progs[slot]);
 			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
 				if (is_trigger_type(prg->trig_type,TRIG_LOGIN) && number_percent() < prg->trig_number) {
-					ret = execute_script(prg->vnum, prg->script, NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,NULL, NULL,0,0,0,0,0);
+					ret = execute_script(prg->vnum, prg->script, NULL, obj, NULL, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,NULL, NULL,0,0,0,0,0);
 					SETPRET;
 				}
 			}
@@ -4907,7 +4982,7 @@ int script_login(CHAR_DATA *ch) // @@@NIB
 		iterator_start(&pit, ch->pIndexData->progs[slot]);
 		while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
 			if (is_trigger_type(prg->trig_type,TRIG_LOGIN) && number_percent() < prg->trig_number &&
-				((ret = execute_script(prg->vnum, prg->script, ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,NULL, NULL,0,0,0,0,0)) != PRET_NOSCRIPT)) {
+				((ret = execute_script(prg->vnum, prg->script, ch, NULL, NULL, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,NULL, NULL,0,0,0,0,0)) != PRET_NOSCRIPT)) {
 				ret_val = ret;
 				break;
 			}
@@ -5047,7 +5122,7 @@ bool script_spell_deflection(CHAR_DATA *ch, CHAR_DATA *victim, TOKEN_DATA *token
 
 		token->value[3] = ch ? ch->tot_level : af->level;
 
-		execute_script(script->vnum, script, NULL, NULL, NULL, token, ch ? ch : rch, NULL, NULL, rch, NULL,NULL, NULL,"deflection",NULL,0,0,0,0,0);
+		execute_script(script->vnum, script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch ? ch : rch, NULL, NULL, rch, NULL,NULL, NULL,"deflection",NULL,0,0,0,0,0);
 	} else if (ch) {
 		act("{YYour spell bounces around for a while, then dies out.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		act("{Y$n's spell bounces around for a while, then dies out.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
@@ -6328,7 +6403,7 @@ bool visit_script_execute(ROOM_INDEX_DATA *room, void *argv[], int argc, int dep
 	int ret;
 	SCRIPT_DATA *script = (SCRIPT_DATA *)argv[0];
 
-	ret = execute_script(script->vnum, script, NULL, NULL, room, NULL,
+	ret = execute_script(script->vnum, script, NULL, NULL, room, NULL, NULL, NULL, NULL,
 		(CHAR_DATA *)argv[1],	// enactor
 		(OBJ_DATA *)argv[2],	// object 1
 		(OBJ_DATA *)argv[3],	// object 2
@@ -6391,7 +6466,7 @@ void script_end_success(CHAR_DATA *ch)
 	ch->script_wait_token = NULL;
 
 	if( var != NULL && script != NULL )
-		execute_script(script->vnum, script, mob, obj, NULL, tok, ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,0,0,0,0,0);
+		execute_script(script->vnum, script, mob, obj, NULL, tok, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,0,0,0,0,0);
 
 	ch->script_wait = 0;
 }
@@ -6439,7 +6514,7 @@ void script_end_failure(CHAR_DATA *ch, bool messages)
 	ch->script_wait_token = NULL;
 
 	if( var != NULL && script != NULL )
-		execute_script(script->vnum, script, mob, obj, NULL, tok, ch, NULL, NULL, NULL, NULL, NULL, NULL, (messages?NULL:"silent"), NULL,0,0,0,0,0);
+		execute_script(script->vnum, script, mob, obj, NULL, tok, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL, (messages?NULL:"silent"), NULL,0,0,0,0,0);
 
 	ch->script_wait = 0;
 }
@@ -6483,7 +6558,7 @@ void script_end_pulse(CHAR_DATA *ch)
 	if(!mob && !obj && !tok) return;
 
 	if( var != NULL )
-		execute_script(ch->script_wait_pulse->vnum, ch->script_wait_pulse, mob, obj, NULL, tok, ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,0,0,0,0,0);
+		execute_script(ch->script_wait_pulse->vnum, ch->script_wait_pulse, mob, obj, NULL, tok, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,0,0,0,0,0);
 }
 
 int script_flag_lookup (const char *name, const struct flag_type *flag_table)

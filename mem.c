@@ -1401,6 +1401,12 @@ AREA_DATA *new_area( void )
 
     pArea->points		= NULL;
 
+    pArea->progs	    	=   new_prog_data();
+    pArea->progs->progs	    =	NULL;
+    pArea->progs->vars      =	NULL;
+    pArea->index_vars       =	NULL;
+
+
     return pArea;
 }
 
@@ -1423,6 +1429,12 @@ void free_area( AREA_DATA *pArea )
 
 		free_olc_point_boost(boost);
 	}
+
+    if(pArea->progs && pArea->progs->progs) free_prog_list(pArea->progs->progs);
+    free_prog_data(pArea->progs);
+    variable_clearfield(VAR_AREA, pArea);
+    variable_freelist(&pRoom->index_vars);
+
 
     pArea->next         =   area_free->next;
     area_free           =   pArea;
@@ -3580,6 +3592,9 @@ void free_blueprint(BLUEPRINT *bp)
 	if( bp->mode == BLUEPRINT_MODE_STATIC )
 		free_static_blueprint_data(bp);
 
+    free_prog_list(bp->progs);
+    variable_freelist(&bp->index_vars);
+
 	INVALIDATE(bp);
 	bp->next = blueprint_free;
 	blueprint_free = bp;
@@ -3619,6 +3634,8 @@ void free_instance_section(INSTANCE_SECTION *section)
 	iterator_stop(&rit);
 
 	list_destroy(section->rooms);
+
+    variable_clearfield(VAR_SECTION, section);
 
 	INVALIDATE(section);
 	section->next = instance_section_free;
@@ -3723,6 +3740,10 @@ void free_instance(INSTANCE *instance)
 	list_destroy(instance->bosses);
 	list_destroy(instance->special_rooms);
 
+    variable_clearfield(VAR_INSTANCE, instance);
+    script_clear_instance(instance);
+    free_prog_data(instance->progs);
+
 	INVALIDATE(instance);
 	instance->next = instance_free;
 	instance_free = instance;
@@ -3801,6 +3822,7 @@ DUNGEON_INDEX_DATA *new_dungeon_index()
 	dungeon_index->zone_out_portal = &str_empty[0];
 	dungeon_index->zone_out_mount = &str_empty[0];
 
+
 	VALIDATE(dungeon_index);
 	return dungeon_index;
 }
@@ -3820,6 +3842,9 @@ void free_dungeon_index(DUNGEON_INDEX_DATA *dungeon_index)
 	free_string(dungeon_index->zone_out);
 	free_string(dungeon_index->zone_out_portal);
 	free_string(dungeon_index->zone_out_mount);
+
+    free_prog_list(dungeon_index->progs);
+    variable_freelist(&dungeon_index->index_vars);
 
 	INVALIDATE(dungeon_index);
 	dungeon_index->next = dungeon_index_free;
@@ -3876,6 +3901,10 @@ void free_dungeon(DUNGEON *dng)
 	list_destroy(dng->rooms);
 	list_destroy(dng->bosses);
 	list_destroy(dng->special_rooms);
+
+    variable_clearfield(VAR_DUNGEON, dng);
+    script_clear_dungeon(dng);
+    free_prog_data(dng->progs);
 
 	INVALIDATE(dng);
 	dng->next = dungeon_free;

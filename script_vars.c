@@ -425,6 +425,7 @@ varset(affect,AFFECT,AFFECT_DATA*,aff,aff)
 varset(variable,VARIABLE,pVARIABLE,v,variable)
 varset(instance_section,SECTION,INSTANCE_SECTION *,section,section)
 varset(instance,INSTANCE,INSTANCE *,instance,instance)
+varset(dungeon,DUNGEON,DUNGEON *,dungeon,dungeon)
 
 
 bool variables_set_dice (ppVARIABLE list,char *name,DICE_DATA *d)
@@ -2029,6 +2030,21 @@ void variable_clearfield(int type, void *ptr)
 			if( type == VAR_CHURCH && ptr && list_isvalid(cur->_.list)) {
 				list_remlink(cur->_.list, ptr);
 			}
+			break;
+
+		case VAR_SECTION:
+			if(type == VAR_SECTION && cur->_.section == ptr)
+				cur->_.section = NULL;
+			break;
+
+		case VAR_INSTANCE:
+			if(type == VAR_INSTANCE && cur->_.section == ptr)
+				cur->_.instance = NULL;
+			break;
+
+		case VAR_DUNGEON:
+			if(type == VAR_DUNGEON && cur->_.section == ptr)
+				cur->_.dungeon = NULL;
 			break;
 
 		default:

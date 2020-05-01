@@ -449,6 +449,16 @@ bool run_olc_editor(DESCRIPTOR_DATA *d)
 		dngedit(d->character, d->incomm);
 		break;
 
+	case ED_APCODE:
+	    apedit(d->character, d->incomm);
+	    break;
+	case ED_IPCODE:
+	    ipedit(d->character, d->incomm);
+	    break;
+	case ED_DPCODE:
+	    dpedit(d->character, d->incomm);
+	    break;
+
 	default:
 	    return FALSE;
     }
@@ -509,6 +519,9 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 	case ED_OPCODE:
 	case ED_RPCODE:
 	case ED_TPCODE:
+	case ED_APCODE:
+	case ED_IPCODE:
+	case ED_DPCODE:
 	    prog = (SCRIPT_DATA *)ch->desc->pEdit;
 	    sprintf(buf, "%ld", (long int)(prog ? prog->vnum : 0));
 	    break;

@@ -23,6 +23,9 @@
 #define OPEDIT( fun )		bool fun(CHAR_DATA *ch, char*argument)
 #define RPEDIT( fun )		bool fun(CHAR_DATA *ch, char*argument)
 #define TPEDIT( fun )		bool fun(CHAR_DATA *ch, char*argument)
+#define APEDIT( fun )		bool fun(CHAR_DATA *ch, char*argument)
+#define IPEDIT( fun )		bool fun(CHAR_DATA *ch, char*argument)
+#define DPEDIT( fun )		bool fun(CHAR_DATA *ch, char*argument)
 #define SCRIPTEDIT( fun )	bool fun(CHAR_DATA *ch, char*argument)
 
 const struct olc_cmd_type mpedit_table[] =
@@ -106,11 +109,74 @@ const struct olc_cmd_type tpedit_table[] =
 };
 
 
+const struct olc_cmd_type apedit_table[] =
+{
+/*	{	command		function	}, */
+
+	{	"commands",	show_commands	},
+	{	"list",		apedit_list	},
+	{	"create",	apedit_create	},
+	{	"code",		scriptedit_code	},
+	{	"show",		scriptedit_show	},
+	{	"comments",	scriptedit_comments	},
+	{	"compile",	scriptedit_compile	},
+	{	"name",		scriptedit_name	},
+	{	"flags",	scriptedit_flags	},
+	{	"depth",	scriptedit_depth	},
+	{	"security",	scriptedit_security	},
+	{	"?",		show_help	},
+
+	{	NULL,		0		}
+};
+
+const struct olc_cmd_type ipedit_table[] =
+{
+/*	{	command		function	}, */
+
+	{	"commands",	show_commands	},
+	{	"list",		ipedit_list	},
+	{	"create",	ipedit_create	},
+	{	"code",		scriptedit_code	},
+	{	"show",		scriptedit_show	},
+	{	"comments",	scriptedit_comments	},
+	{	"compile",	scriptedit_compile	},
+	{	"name",		scriptedit_name	},
+	{	"flags",	scriptedit_flags	},
+	{	"depth",	scriptedit_depth	},
+	{	"security",	scriptedit_security	},
+	{	"?",		show_help	},
+
+	{	NULL,		0		}
+};
+
+const struct olc_cmd_type dpedit_table[] =
+{
+/*	{	command		function	}, */
+
+	{	"commands",	show_commands	},
+	{	"list",		dpedit_list	},
+	{	"create",	dpedit_create	},
+	{	"code",		scriptedit_code	},
+	{	"show",		scriptedit_show	},
+	{	"comments",	scriptedit_comments	},
+	{	"compile",	scriptedit_compile	},
+	{	"name",		scriptedit_name	},
+	{	"flags",	scriptedit_flags	},
+	{	"depth",	scriptedit_depth	},
+	{	"security",	scriptedit_security	},
+	{	"?",		show_help	},
+
+	{	NULL,		0		}
+};
+
 static int olc_script_typeifc[] = {
 	IFC_M,
 	IFC_O,
 	IFC_R,
-	IFC_T
+	IFC_T,
+	IFC_A,
+	IFC_I,
+	IFC_D,
 };
 
 // Testports have reduced security checks
@@ -594,6 +660,134 @@ void do_tpedit(CHAR_DATA *ch, char *argument)
     send_to_char( "         tpedit create [vnum]\n\r", ch );
 }
 
+void do_apedit(CHAR_DATA *ch, char *argument)
+{
+    SCRIPT_DATA *pAcode;
+    char command[MAX_INPUT_LENGTH];
+
+    argument = one_argument(argument, command);
+
+    if( is_number(command) )
+    {
+		long vnum = atol(command);
+		AREA_DATA *ad;
+
+		if ( (pAcode = get_script_index(vnum,PRG_APROG)) == NULL )
+		{
+			send_to_char("APEdit : That vnum does not exist.\n\r",ch);
+			return;
+		}
+
+		ad = get_vnum_area(vnum);
+
+		if ( ad == NULL )
+		{
+			send_to_char( "APEdit : Vnum is not assigned an area.\n\r", ch );
+			return;
+		}
+
+		if ( !IS_BUILDER(ch, ad) )
+		{
+			send_to_char("APEdit : Insufficient security to modify area.\n\r", ch );
+			return;
+		}
+
+		ch->desc->pEdit		= (void *)pAcode;
+		ch->desc->editor	= ED_APCODE;
+
+		return;
+	}
+
+	if ( !str_cmp(command, "create") )
+	{
+		apedit_create(ch, argument);
+		return;
+	}
+
+	send_to_char( "Syntax : apedit [vnum]\n\r", ch );
+	send_to_char( "         apedit create [vnum]\n\r", ch );
+}
+
+
+void do_ipedit(CHAR_DATA *ch, char *argument)
+{
+    SCRIPT_DATA *pIcode;
+    char command[MAX_INPUT_LENGTH];
+
+    argument = one_argument(argument, command);
+
+    if( is_number(command) )
+    {
+		long vnum = atol(command);
+
+		if ( (pIcode = get_script_index(vnum,PRG_IPROG)) == NULL )
+		{
+			send_to_char("IPEdit : That vnum does not exist.\n\r",ch);
+			return;
+		}
+
+		if ( !can_edit_blueprints(ch) )
+		{
+			send_to_char("IPEdit : Insufficient security to modify blueprints.\n\r", ch );
+			return;
+		}
+
+		ch->desc->pEdit		= (void *)pIcode;
+		ch->desc->editor	= ED_IPCODE;
+
+		return;
+	}
+
+	if ( !str_cmp(command, "create") )
+	{
+		ipedit_create(ch, argument);
+		return;
+	}
+
+	send_to_char( "Syntax : ipedit [vnum]\n\r", ch );
+	send_to_char( "         ipedit create [vnum]\n\r", ch );
+}
+
+void do_dpedit(CHAR_DATA *ch, char *argument)
+{
+    SCRDPT_DATA *pDcode;
+    char command[MAX_INPUT_LENGTH];
+
+    argument = one_argument(argument, command);
+
+    if( is_number(command) )
+    {
+		long vnum = atol(command);
+
+		if ( (pDcode = get_scrdpt_index(vnum,PRG_DPROG)) == NULL )
+		{
+			send_to_char("DPEdit : That vnum does not exist.\n\r",ch);
+			return;
+		}
+
+		if ( !can_edit_dungeons(ch) )
+		{
+			send_to_char("DPEdit : Insufficient security to modify dungeons.\n\r", ch );
+			return;
+		}
+
+		ch->desc->pEdit		= (void *)pDcode;
+		ch->desc->editor	= ED_DPCODE;
+
+		return;
+	}
+
+	if ( !str_cmp(command, "create") )
+	{
+		dpedit_create(ch, argument);
+		return;
+	}
+
+	send_to_char( "Syntax : dpedit [vnum]\n\r", ch );
+	send_to_char( "         dpedit create [vnum]\n\r", ch );
+}
+
+
 MPEDIT (mpedit_create)
 {
     SCRIPT_DATA *pMcode;
@@ -854,7 +1048,7 @@ TPEDIT (tpedit_create)
 
     if ( !IS_BUILDER(ch, ad) )
     {
-        send_to_char("TPEdit : Insufficient security to create RoomProgs.\n\r", ch);
+        send_to_char("TPEdit : Insufficient security to create TokenProgs.\n\r", ch);
         return FALSE;
     }
 
@@ -877,6 +1071,182 @@ TPEDIT (tpedit_create)
 
     return TRUE;
 }
+
+
+
+APEDIT (apedit_create)
+{
+	SCRIPT_DATA *pAcode;
+	long value = atol(argument);
+	AREA_DATA *ad;
+	long auto_vnum = 0;
+
+	if ( argument[0] == '\0' || value < 1 )
+	{
+		//send_to_char( "Syntax:  tpedit create [vnum]\n\r", ch );
+		SCRIPT_DATA *temp_prog;
+
+		auto_vnum = ch->in_room->area->min_vnum;
+		temp_prog = get_script_index( auto_vnum, PRG_APROG );
+		if ( temp_prog != NULL ) {
+			while ( temp_prog != NULL )
+			{
+				temp_prog = get_script_index( auto_vnum, PRG_APROG );
+				if ( temp_prog == NULL ) break;
+				auto_vnum++;
+			}
+		}
+
+		if ( auto_vnum > ch->in_room->area->max_vnum ) {
+			send_to_char("Sorry, this area has no more space left.\n\r", ch );
+			return FALSE;
+		}
+	}
+
+	if ( auto_vnum != 0 ) value = auto_vnum;
+
+	ad = get_vnum_area(value);
+
+	if ( ad == NULL )
+	{
+		send_to_char( "APEdit : Vnum is not assigned an area.\n\r", ch );
+		return FALSE;
+	}
+
+	if ( !IS_BUILDER(ch, ad) )
+	{
+	send_to_char("APEdit : Insufficient security to create AreaProgs.\n\r", ch);
+	return FALSE;
+	}
+
+	if ( get_script_index(value,PRG_APROG) )
+	{
+	send_to_char("APEdit: Code vnum already exists.\n\r",ch);
+	return FALSE;
+	}
+
+	pAcode			= new_script();
+	pAcode->vnum		= value;
+	pAcode->area		= ad;
+	pAcode->next		= aprog_list;
+	aprog_list			= pAcode;
+	pAcode->type		= PRG_APROG;
+	ch->desc->pEdit		= (void *)pAcode;
+	ch->desc->editor		= ED_APCODE;
+
+	send_to_char("AreaProgram Code Created.\n\r",ch);
+
+	return TRUE;
+}
+
+IPEDIT (ipedit_create)
+{
+	SCRIPT_DATA *pIcode;
+	long value = atol(argument);
+	AREA_DATA *ad;
+	long auto_vnum = 0;
+
+	if ( argument[0] == '\0' || value < 1 )
+	{
+		SCRIPT_DATA *temp_prog;
+
+		auto_vnum = 1;
+		temp_prog = get_script_index( auto_vnum, PRG_IPROG );
+		if ( temp_prog != NULL ) {
+			while ( temp_prog != NULL )
+			{
+				temp_prog = get_script_index( auto_vnum, PRG_IPROG );
+				if ( temp_prog == NULL ) break;
+				auto_vnum++;
+			}
+		}
+	}
+
+	if ( auto_vnum != 0 ) value = auto_vnum;
+
+	if ( !can_edit_blueprints(ch) )
+	{
+		send_to_char("IPEdit : Insufficient security to create InstanceProgs.\n\r", ch);
+		return FALSE;
+	}
+
+	if ( get_script_index(value,PRG_IPROG) )
+	{
+		send_to_char("IPEdit: Code vnum already exists.\n\r",ch);
+		return FALSE;
+	}
+
+	pIcode			= new_script();
+	pIcode->vnum		= value;
+	pIcode->area		= ad;
+	pIcode->next		= iprog_list;
+	iprog_list			= pIcode;
+	pIcode->type		= PRG_IPROG;
+	ch->desc->pEdit		= (void *)pIcode;
+	ch->desc->editor		= ED_IPCODE;
+
+	if( value > top_iprog_index )
+		top_iprog_index = value;
+
+	send_to_char("InstanceProgram Code Created.\n\r",ch);
+
+	return TRUE;
+}
+
+DPEDIT (dpedit_create)
+{
+	SCRDPT_DATA *pDcode;
+	long value = atol(argument);
+	AREA_DATA *ad;
+	long auto_vnum = 0;
+
+	if ( argument[0] == '\0' || value < 1 )
+	{
+		SCRDPT_DATA *temp_prog;
+
+		auto_vnum = 1;
+		temp_prog = get_script_index( auto_vnum, PRG_DPROG );
+		if ( temp_prog != NULL ) {
+			while ( temp_prog != NULL )
+			{
+				temp_prog = get_script_index( auto_vnum, PRG_DPROG );
+				if ( temp_prog == NULL ) break;
+				auto_vnum++;
+			}
+		}
+	}
+
+	if ( auto_vnum != 0 ) value = auto_vnum;
+
+	if ( !can_edit_dungeons(ch) )
+	{
+		send_to_char("DPEdit : Insufficient security to create DungeonProgs.\n\r", ch);
+		return FALSE;
+	}
+
+	if ( get_script_index(value,PRG_DPROG) )
+	{
+		send_to_char("DPEdit: Code vnum already exists.\n\r",ch);
+		return FALSE;
+	}
+
+	pDcode			= new_scrdpt();
+	pDcode->vnum		= value;
+	pDcode->area		= ad;
+	pDcode->next		= dprog_list;
+	dprog_list			= pDcode;
+	pDcode->type		= PRG_DPROG;
+	ch->desc->pEdit		= (void *)pDcode;
+	ch->desc->editor		= ED_DPCODE;
+
+	if( value > top_dprog_index )
+		top_dprog_index = value;
+
+	send_to_char("DungeonProgram Code Created.\n\r",ch);
+
+	return TRUE;
+}
+
 
 SCRIPTEDIT(scriptedit_show)
 {
@@ -1128,50 +1498,85 @@ void show_script_list(CHAR_DATA *ch, char *argument,int type)
     bool error;
     AREA_DATA *area, *ad;
 
+
     area = ch->in_room->area;
 
     if(argument[0]) {
-	argument = one_argument(argument,buf);
-	if(!is_number(buf)) return;
-	min = atoi(buf);
+		argument = one_argument(argument,buf);
+		if(!is_number(buf)) return;
+		min = atoi(buf);
 
-	argument = one_argument(argument,buf);
-	if(!is_number(buf)) return;
-	max = atoi(buf);
+		if( min < 1 ) return;
 
-	if(max < min) {
-	    tmp = max;
-	    max = min;
-	    min = tmp;
-	}
-    } else {
-	min = area->min_vnum;
-	max = area->max_vnum;
+		argument = one_argument(argument,buf);
+		if(!is_number(buf)) return;
+		max = atoi(buf);
+
+		if( max < 1 ) return;
+
+		if(max < min) {
+			tmp = max;
+			max = min;
+			min = tmp;
+		}
+	} else {
+		min = -1;
+		max = -1;
     }
+
+    switch(type) {
+    case PRG_MPROG:
+    case PRG_OPROG:
+    case PRG_RPROG:
+    case PRG_TPROG:
+    case PRG_APROG:
+		if( min < 0 )
+		{
+			min = area->min_vnum;
+			max = area->max_vnum;
+		}
+    	break;
+
+    case PRG_IPROG:
+    	prg = iprog_list;
+    	if( min < 0 )
+    	{
+			min = 1;
+			min = top_iprog_index;
+		}
+
+    	break;
+    case PRG_DPROG:
+    	prg = dprog_list;
+    	if( min < 0 )
+    	{
+			min = 1;
+			min = top_dprog_index;
+		}
+    	break;
+    default: return;
+    }
+
+
 
     if(!ch->lines)
 		send_to_char("{RWARNING:{W Having scrolling off limits how many scripts you can see.{x\n\r", ch);
 
     buffer = new_buf();
 
-    switch(type) {
-    case PRG_MPROG: prg = mprog_list; break;
-    case PRG_OPROG: prg = oprog_list; break;
-    case PRG_RPROG: prg = rprog_list; break;
-    case PRG_TPROG: prg = tprog_list; break;
-    default: return;
-    }
-
     error = FALSE;
-    for (; prg; prg = prg->next)
-    	if ( prg->vnum >= min && prg->vnum <= max ) {
+    for( long vnum = min; vnum <= max; vnum++)
+    {
+    	prg = get_script_index(vnum, type);
+    	if( !prg ) continue;
+
 		ad = get_vnum_area(prg->vnum);
 
 		len = sprintf(buf,"{B[{W%-4d{B]  ",count);
 		if(!ad)
-			len += sprintf(buf+len,"{Y??");
+			len += sprintf(buf+len,"  ");
 		else
-			len += sprintf(buf+len,"{W%-2d",(int)ad->anum);
+			len += sprintf(buf+len,"{W%-2ld",ad->anum);
 
 		len += sprintf(buf+len,"  {W%c%c{B {G%-8d {W%-5d ",
 			((ad && IS_BUILDER(ch, ad)) ? 'B' : ' '),
@@ -1256,6 +1661,24 @@ TPEDIT( tpedit_list )
 	return FALSE;
 }
 
+APEDIT( apedit_list )
+{
+	show_script_list(ch,argument,PRG_APROG);
+	return FALSE;
+}
+
+IPEDIT( ipedit_list )
+{
+	show_script_list(ch,argument,PRG_IPROG);
+	return FALSE;
+}
+
+DPEDIT( dpedit_list )
+{
+	show_script_list(ch,argument,PRG_DPROG);
+	return FALSE;
+}
+
 
 void do_mplist (CHAR_DATA *ch, char *argument)
 {
@@ -1275,6 +1698,21 @@ void do_rplist (CHAR_DATA *ch, char *argument)
 void do_tplist (CHAR_DATA *ch, char *argument)
 {
 	show_script_list(ch,argument,PRG_TPROG);
+}
+
+void do_aplist (CHAR_DATA *ch, char *argument)
+{
+	show_script_list(ch,argument,PRG_APROG);
+}
+
+void do_iplist (CHAR_DATA *ch, char *argument)
+{
+	show_script_list(ch,argument,PRG_IPROG);
+}
+
+void do_dplist (CHAR_DATA *ch, char *argument)
+{
+	show_script_list(ch,argument,PRG_DPROG);
 }
 
 

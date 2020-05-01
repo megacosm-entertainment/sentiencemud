@@ -437,6 +437,9 @@ struct script_varinfo {
 	OBJ_DATA *obj;
 	ROOM_INDEX_DATA *room;
 	TOKEN_DATA *token;
+	AREA_DATA *area;
+	INSTANCE *instance;
+	DUNGEON *dungeon;
 	VARIABLE **var;
 	CHAR_DATA *ch;
 	OBJ_DATA *obj1;
@@ -4564,6 +4567,8 @@ struct	area_data {
 								//		Can only be returned if resulting point reduction on the bucket doesn't cause the used number to exceed the total.
 								//		Only the imp-boost can do this.
 
+    PROG_DATA *		progs;
+    pVARIABLE		index_vars;
 };
 
 struct storm_data
@@ -5054,6 +5059,9 @@ struct blueprint_data {
 	int static_entry_link;
 	int static_exit_section;
 	int static_exit_link;
+
+    LLIST **        progs;
+    pVARIABLE		index_vars;
 };
 
 
@@ -5116,6 +5124,8 @@ struct instance_data {
 
 	LLIST *rooms;
 	LLIST *special_rooms;
+
+    PROG_DATA *		progs;		// Script data
 };
 
 #define DUNGEON_NO_SAVE		(A)		// Dungeon will not save to disk.
@@ -5158,6 +5168,9 @@ struct dungeon_index_data
 	char *zone_out;
 	char *zone_out_portal;			// Zoneout if there is a dungeon portal defined
 	char *zone_out_mount;			// Zoneout when riding a mount
+
+    LLIST **        progs;
+    pVARIABLE		index_vars;
 };
 
 struct dungeon_data
@@ -5192,6 +5205,8 @@ struct dungeon_data
 	int idle_timer;					// Timer before it is purged automatically
 									// If normally zero, the dungeon will never purge without
 									//   explicitly being forced by the code
+
+    PROG_DATA *		progs;
 };
 
 #define DUNGEON_DESTROY_TIMEOUT	5
@@ -5414,6 +5429,7 @@ enum trigger_index_enum {
 	TRIG_CLONE_EXTRACT,
 	TRIG_CLOSE,
 	TRIG_COMBAT_STYLE,
+	TRIG_COMPLETED,
 	TRIG_CONTRACT_COMPLETE,
 	TRIG_CUSTOM_PRICE,		// Called when a stock item has custom pricing
 	TRIG_DAMAGE,
@@ -5532,6 +5548,7 @@ enum trigger_index_enum {
 	TRIG_RENEW,			// Used by "RENEW"
 	TRIG_RENEW_LIST,	// Used by "RENEW LIST"
 	TRIG_REPOP,
+	TRIG_RESET,
 	TRIG_REST,
 	TRIG_RESTOCKED,
 	TRIG_RESTORE,
@@ -5597,10 +5614,13 @@ enum trigger_index_enum {
 #define TRIGSLOT_MAX			15
 
 /* program types */
-#define PRG_MPROG	0
-#define PRG_OPROG	1
-#define PRG_RPROG	2
-#define PRG_TPROG	3
+#define PRG_MPROG	0	// Mobiles
+#define PRG_OPROG	1	// Objects
+#define PRG_RPROG	2	// Rooms
+#define PRG_TPROG	3	// Tokens
+#define PRG_APROG	4	// Area
+#define PRG_IPROG	5	// Instances
+#define PRG_DPROG	6	// Dungeons
 
 #define NEWEST_OBJ_VERSION 1
 
@@ -5613,6 +5633,9 @@ struct trigger_type {
 	bool obj;
 	bool room;
 	bool token;
+	bool area;
+	bool instance;
+	bool dungeon;
 };
 
 #define PROG_NODESTRUCT		(A)		/* Used to indicate the item is already destructing and should not fire any destructions */
@@ -6611,6 +6634,9 @@ extern          SCRIPT_DATA       *     mprog_list;
 extern          SCRIPT_DATA       *     oprog_list;
 extern          SCRIPT_DATA       *     rprog_list;
 extern          SCRIPT_DATA       *     tprog_list;
+extern          SCRIPT_DATA       *     aprog_list;
+extern          SCRIPT_DATA       *     iprog_list;
+extern          SCRIPT_DATA       *     dprog_list;
 extern          ROOM_INDEX_DATA   *	room_index_hash[MAX_KEY_HASH];
 extern		PROG_DATA	  *	prog_data_virtual;
 extern		char		  *     room_name_virtual;
@@ -8250,6 +8276,9 @@ void resolve_instances_player(CHAR_DATA *ch);
 
 void detach_dungeon_player(CHAR_DATA *ch);
 void detach_instances_player(CHAR_DATA *ch);
+
+extern long top_iprog_index;
+extern long top_dprog_index;
 
 
 #endif /* !def __MERC_H__ */

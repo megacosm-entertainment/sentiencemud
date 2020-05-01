@@ -170,6 +170,9 @@ SCRIPT_DATA *mprog_list;
 SCRIPT_DATA *oprog_list;
 SCRIPT_DATA *rprog_list;
 SCRIPT_DATA *tprog_list;
+SCRIPT_DATA *aprog_list;
+SCRIPT_DATA *iprog_list;
+SCRIPT_DATA *dprog_list;
 PROJECT_DATA *		project_list;
 bool			projects_changed;
 SHOP_DATA *		shop_first;
@@ -628,6 +631,10 @@ long top_ship_crew;
 long top_vroom;
 long top_waypoint;
 
+long top_aprog_index;
+long top_iprog_index;
+long top_dprog_index;
+
 LLIST *loaded_chars;
 // Temporarily disabled for reconnect crash.
 //LLIST *loaded_players;
@@ -682,6 +689,9 @@ void reset_npc_sailing_boats (void);
 void fix_tokenprogs(void);
 void check_area_versions(void);
 void migrate_shopkeeper_resets(AREA_DATA *area);
+void fix_areaprogs(void);
+void fix_instanceprogs(void);
+void fix_dungeonprogs(void);
 
 
 bool persist_load(void);
@@ -879,6 +889,13 @@ void boot_db(void)
     fix_rooms();
     log_string("Doing fix_vlinks");
     fix_vlinks();
+
+    log_string("Loading blueprints");
+	load_blueprints();
+
+    log_string("Loading dungeon definitions");
+	load_dungeons();
+
     log_string("Doing variable_index_fix");
     variable_index_fix();
     log_string("Doing variable_fix");
@@ -891,6 +908,12 @@ void boot_db(void)
     fix_roomprogs();
     log_string("Doing fix_tokenprogs");
     fix_tokenprogs();
+    log_string("Doing fix_areaprogs");
+    fix_areaprogs();
+    log_string("Doing fix_instanceprogs");
+    fix_instanceprogs();
+    log_string("Doing fix_dungeonprogs");
+    fix_dungeonprogs();
 
     log_string("Loading persistance");
     if(!persist_load()) {
@@ -938,12 +961,6 @@ void boot_db(void)
 
     log_string("Reading permanent objs");
     read_permanent_objs();
-
-    log_string("Loading blueprints");
-	load_blueprints();
-
-    log_string("Loading dungeon definitions");
-	load_dungeons();
 
 	log_string("Loading instances");
 	load_instances();
@@ -1210,6 +1227,81 @@ void fix_tokenprogs(void)
 		}
 	}
 }
+
+/*
+ * Translate mobprog vnums pointers to real code
+ */
+void fix_areaprogs(void)
+{
+	AREA_DATA *pArea;
+	PROG_LIST *trigger;
+	ITERATOR it;
+	int slot;
+
+	for (pArea = area_first; pArea != NULL; pArea = pArea->next) if(pArea->progs) {
+		for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( pArea->progs[slot] ) {
+			iterator_start(&it, pArea->progs[slot]);
+			while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
+				if (!(trigger->script = get_script_index(trigger->vnum, PRG_APROG))) {
+					bug("fix_areaprogs: code vnum %d not found.", trigger->vnum);
+					bug("fix_areaprogs: on area %ld", pArea->vnum);
+					exit(1);
+				}
+			}
+			iterator_stop(&it);
+		}
+	}
+}
+
+void fix_instanceprogs(void)
+{
+	BLUEPRINT *blueprint;
+	PROG_LIST *trigger;
+	ITERATOR it;
+	int iHash, slot;
+
+	for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
+		for (blueprint = blueprint_hash[iHash]; blueprint != NULL; blueprint = blueprint->next) if(blueprint->progs) {
+			for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( blueprint->progs[slot] ) {
+				iterator_start(&it, blueprint->progs[slot]);
+				while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
+					if (!(trigger->script = get_script_index(trigger->vnum, PRG_IPROG))) {
+						bug("Fix_instanceprogs: code vnum %d not found.", trigger->vnum);
+						bug("Fix_instanceprogs: on blueprint %ld", blueprint->vnum);
+						exit(1);
+					}
+				}
+				iterator_stop(&it);
+			}
+		}
+	}
+}
+
+
+void fix_dungeonprogs(void)
+{
+	DUNGEON_INDEX *dungeon_index;
+	PROG_LIST *trigger;
+	ITERATOR it;
+	int iHash, slot;
+
+	for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
+		for (dungeon_index = dungeon_index_hash[iHash]; dungeon_index != NULL; dungeon_index = dungeon_index->next) if(dungeon_index->progs) {
+			for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( dungeon_index->progs[slot] ) {
+				iterator_start(&it, dungeon_index->progs[slot]);
+				while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
+					if (!(trigger->script = get_script_index(trigger->vnum, PRG_DPROG))) {
+						bug("Fix_dungeonprogs: code vnum %d not found.", trigger->vnum);
+						bug("Fix_dungeonprogs: on dungeon_index %ld", dungeon_index->vnum);
+						exit(1);
+					}
+				}
+				iterator_stop(&it);
+			}
+		}
+	}
+}
+
 
 void reset_wilds(WILDS_DATA *pWilds)
 {
@@ -3025,6 +3117,15 @@ SCRIPT_DATA *get_script_index(long  vnum, int type)
 	    break;
 	case PRG_TPROG:
 	    prg = tprog_list;
+	    break;
+	case PRG_APROG:
+	    prg = aprog_list;
+	    break;
+	case PRG_IPROG:
+	    prg = iprog_list;
+	    break;
+	case PRG_DPROG:
+	    prg = dprog_list;
 	    break;
 	default:
 	    return NULL;
