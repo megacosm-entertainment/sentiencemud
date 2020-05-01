@@ -465,6 +465,7 @@ enum entity_type_enum {
 	ENT_ILLIST_VARIABLE,
 	ENT_ILLIST_SECTIONS,
 	ENT_ILLIST_INSTANCES,
+	ENT_ILLIST_SPECIALROOMS,
 	ENT_ILLIST_MAX,
 	//////////////////////////////
 

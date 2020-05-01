@@ -127,7 +127,7 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp)
 				int section = fread_number(fp);
 				long vnum = fread_number(fp);
 
-				DUNGEON_SPECIAL_ROOM *special = new_dungeon_special_room();
+				DUNGEON_INDEX_SPECIAL_ROOM *special = new_dungeon_index_special_room();
 
 				special->name = name;
 				special->floor = floor;
@@ -226,9 +226,9 @@ void save_dungeon_index(FILE *fp, DUNGEON_INDEX_DATA *dng)
 	iterator_stop(&it);
 
 
-	DUNGEON_SPECIAL_ROOM *special;
+	DUNGEON_INDEX_SPECIAL_ROOM *special;
 	iterator_start(&it, dng->special_rooms);
-	while( (special = (DUNGEON_SPECIAL_ROOM *)iterator_nextdata(&it)) )
+	while( (special = (DUNGEON_INDEX_SPECIAL_ROOM *)iterator_nextdata(&it)) )
 	{
 		fprintf(fp, "SpecialRoom %s~ %d %d %ld\n\r", fix_string(special->name), special->floor, special->section, special->vnum);
 	}
@@ -345,9 +345,9 @@ DUNGEON *create_dungeon(long vnum)
 	}
 	iterator_stop(&it);
 
-	DUNGEON_SPECIAL_ROOM *special;
+	DUNGEON_INDEX_SPECIAL_ROOM *special;
 	iterator_start(&it, index->special_rooms);
-	while( (special = (DUNGEON_SPECIAL_ROOM *)iterator_nextdata(&it)) )
+	while( (special = (DUNGEON_INDEX_SPECIAL_ROOM *)iterator_nextdata(&it)) )
 	{
 		instance = (INSTANCE *)list_nthdata(dng->floors, special->floor);
 
@@ -360,7 +360,13 @@ DUNGEON *create_dungeon(long vnum)
 
 				if( room )
 				{
-					list_appendlink(instance->special_rooms, room);
+					NAMED_SPECIAL_ROOM *dsr = new_named_special_room();
+
+					free_string(dsr->name);
+					dsr->name = str_dup(special->name);
+					dsr->room = room;
+
+					list_appendlink(dng->special_rooms, dsr);
 				}
 			}
 		}
@@ -865,7 +871,7 @@ DNGEDIT( dngedit_show )
 	if( list_size(dng->special_rooms) > 0 )
 	{
 		BUFFER *buffer = new_buf();
-		DUNGEON_SPECIAL_ROOM *special;
+		DUNGEON_INDEX_SPECIAL_ROOM *special;
 
 		char buf[MSL];
 		int line = 0;
@@ -876,7 +882,7 @@ DNGEDIT( dngedit_show )
 		add_buf(buffer, "---------------------------------------------------------------------------------\n\r");
 
 		iterator_start(&sit, dng->special_rooms);
-		while( (special = (DUNGEON_SPECIAL_ROOM *)iterator_nextdata(&sit)) )
+		while( (special = (DUNGEON_INDEX_SPECIAL_ROOM *)iterator_nextdata(&sit)) )
 		{
 			BLUEPRINT *blueprint = (BLUEPRINT *)list_nthdata(dng->floors, special->floor);
 
@@ -1140,9 +1146,9 @@ DNGEDIT( dngedit_floors )
 		list_remnthlink(dng->floors, index);
 
 		ITERATOR it;
-		DUNGEON_SPECIAL_ROOM *special;
+		DUNGEON_INDEX_SPECIAL_ROOM *special;
 		iterator_start(&it, dng->special_rooms);
-		while( (special = (DUNGEON_SPECIAL_ROOM *)iterator_nextdata(&it)) )
+		while( (special = (DUNGEON_INDEX_SPECIAL_ROOM *)iterator_nextdata(&it)) )
 		{
 			if( special->floor == index )
 			{
@@ -1341,7 +1347,7 @@ DNGEDIT( dngedit_special )
 		if( list_size(dng->special_rooms) > 0 )
 		{
 			BUFFER *buffer = new_buf();
-			DUNGEON_SPECIAL_ROOM *special;
+			DUNGEON_INDEX_SPECIAL_ROOM *special;
 
 			char buf[MSL];
 			int line = 0;
@@ -1352,7 +1358,7 @@ DNGEDIT( dngedit_special )
 			add_buf(buffer, "---------------------------------------------------------------------------------\n\r");
 
 			iterator_start(&sit, dng->special_rooms);
-			while( (special = (DUNGEON_SPECIAL_ROOM *)iterator_nextdata(&sit)) )
+			while( (special = (DUNGEON_INDEX_SPECIAL_ROOM *)iterator_nextdata(&sit)) )
 			{
 				BLUEPRINT *blueprint = (BLUEPRINT *)list_nthdata(dng->floors, special->floor);
 
@@ -1404,7 +1410,7 @@ DNGEDIT( dngedit_special )
 	{
 		int index = atoi(arg1);
 
-		DUNGEON_SPECIAL_ROOM *special = list_nthdata(dng->special_rooms, index);
+		DUNGEON_INDEX_SPECIAL_ROOM *special = list_nthdata(dng->special_rooms, index);
 
 		if( !IS_VALID(special) )
 		{
@@ -1567,7 +1573,7 @@ DNGEDIT( dngedit_special )
 		name[MIL] = '\0';
 		smash_tilde(name);
 
-		DUNGEON_SPECIAL_ROOM *special = new_dungeon_special_room();
+		DUNGEON_INDEX_SPECIAL_ROOM *special = new_dungeon_index_special_room();
 
 		free_string(special->name);
 		special->name = str_dup(name);
@@ -2065,3 +2071,45 @@ OBJ_DATA *get_room_dungeon_portal(ROOM_INDEX_DATA *room, long vnum)
 
 	return NULL;
 }
+
+ROOM_INDEX_DATA *get_dungeon_special_room(DUNGEON *dungeon, int index)
+{
+	if( !IS_VALID(dungeon) || index < 1) return NULL;
+
+	NAMED_SPECIAL_ROOM *special = list_nthdata(dungeon->special_rooms, index);
+
+	if( IS_VALID(special) )
+		return special->room;
+
+	return NULL;
+}
+
+ROOM_INDEX_DATA *get_dungeon_special_room_byname(DUNGEON *dungeon, char *name)
+{
+	int number;
+	char arg[MSL];
+
+	if( !IS_VALID(dungeon) || number < 1) return NULL;
+
+	number = number_argument(name, arg);
+
+	ITERATOR it;
+	ROOM_INDEX_DATA *room = NULL;
+	NAMED_SPECIAL_ROOM *special;
+	iterator_start(&it, dungeon->special_rooms);
+	while( (special = (NAMED_SPECIAL_ROOM *)iterator_nextdata(&it)) )
+	{
+		if( is_name(arg, special->name) )
+		{
+			if( !--number )
+			{
+				room = special->room;
+				break;
+			}
+		}
+	}
+	iterator_stop(&it);
+
+	return room;
+}
+

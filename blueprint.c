@@ -457,7 +457,7 @@ void save_blueprint(FILE *fp, BLUEPRINT *bp)
 		ITERATOR rit;
 		BLUEPRINT_SPECIAL_ROOM *special;
 		iterator_start(&rit, bp->special_rooms);
-		while( (special = BLUEPRINT_SPECIAL_ROOM *)iterator_nextdata(&rit)) )
+		while( (special = (BLUEPRINT_SPECIAL_ROOM *)iterator_nextdata(&rit)) )
 		{
 			fprintf(fp, "SpecialRoom %s~ %d %ld\n\r", fix_string(special->name), special->section, special->vnum);
 		}
@@ -1023,7 +1023,13 @@ INSTANCE *create_instance(BLUEPRINT *blueprint)
 
 				if( room )
 				{
-					list_appendlink(instance->special_rooms, room);
+					NAMED_SPECIAL_ROOM *isr = new_named_special_room();
+
+					free_string(isr->name);
+					isr->name = str_dup(special->name);
+					isr->room = room;
+
+					list_appendlink(instance->special_rooms, isr);
 				}
 			}
 
@@ -3894,4 +3900,45 @@ ROOM_INDEX_DATA *instance_random_room(CHAR_DATA *ch, INSTANCE *instance)
 	return get_random_room_list_byflags( ch, instance->rooms,
 		(ROOM_PRIVATE | ROOM_SOLITARY | ROOM_DEATH_TRAP | ROOM_CPK),
 		ROOM_NO_GET_RANDOM );
+}
+
+ROOM_INDEX_DATA *get_instance_special_room(INSTANCE *instance, int index)
+{
+	if( !IS_VALID(instance) || index < 1) return NULL;
+
+	NAMED_SPECIAL_ROOM *special = list_nthdata(instance->special_rooms, index);
+
+	if( IS_VALID(special) )
+		return special->room;
+
+	return NULL;
+}
+
+ROOM_INDEX_DATA *get_instance_special_room_byname(INSTANCE *instance, char *name)
+{
+	int number;
+	char arg[MSL];
+
+	if( !IS_VALID(instance) || number < 1) return NULL;
+
+	number = number_argument(name, arg);
+
+	ITERATOR it;
+	ROOM_INDEX_DATA *room = NULL;
+	NAMED_SPECIAL_ROOM *special;
+	iterator_start(&it, instance->special_rooms);
+	while( (special = (NAMED_SPECIAL_ROOM *)iterator_nextdata(&it)) )
+	{
+		if( is_name(arg, special->name) )
+		{
+			if( !--number )
+			{
+				room = special->room;
+				break;
+			}
+		}
+	}
+	iterator_stop(&it);
+
+	return room;
 }

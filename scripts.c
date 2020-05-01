@@ -936,6 +936,7 @@ DECL_OPC_FUN(opc_list)
 	EXTRA_DESCR_DATA *ed;
 	INSTANCE_SECTION *section;
 	INSTANCE *instance;
+	NAMED_SPECIAL_ROOM *special_room;
 
 	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
 		return opc_skip_block(block,block->cur_line->level-1,FALSE);
@@ -1780,6 +1781,30 @@ DECL_OPC_FUN(opc_list)
 			variables_set_instance(block->info.var,block->loops[lp].var_name,instance);
 			break;
 
+		case ENT_ILLIST_SPECIALROOMS:
+			if(!IS_VALID(arg->d.blist))
+			{
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			block->loops[lp].d.l.type = ENT_ILLIST_SPECIALROOMS;
+			block->loops[lp].d.l.list.lp = arg->d.blist;
+			iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
+			block->loops[lp].d.l.owner = NULL;
+
+			special_room = (NAMED_SPECIAL_ROOM *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+			if( !special_room ) {
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			// Set the variable
+			variables_set_room(block->info.var,block->loops[lp].var_name,special_room->room);
+			break;
+
 		default:
 			//log_stringf("opc_list: list_type INVALID");
 			block->ret_val = PRET_BADSYNTAX;
@@ -2361,6 +2386,23 @@ DECL_OPC_FUN(opc_list)
 			}
 
 			break;
+
+		case ENT_ILLIST_SPECIAL_ROOMS:
+			//log_stringf("opc_list: list type ENT_ILLIST_VARIABLE");
+			special_room = (NAMED_SPECIAL_ROOM *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+			//log_stringf("opc_list: variable(%s)", variable ? variable->name : "<END>");
+
+			// Set the variable
+			variables_set_room(block->info.var,block->loops[lp].var_name,special_room ? special_room->room : NULL);
+
+			if( !special_room ) {
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				skip = TRUE;
+				break;
+			}
+
+			break;
+
 		}
 
 		if(skip) {
@@ -6173,6 +6215,93 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 		loc = get_random_room(vch, continent);
 		if( loc != NULL )
 			variables_set_room(vars,name,loc);
+
+	// DUNGEONRAND $(SECTION|INSTANCE|DUNGEON)
+	} else if(!str_cmp(buf,"dungeonrand")) {
+		ROOM_INDEX_DATA *loc = NULL;
+
+		if( arg->type == ENT_DUNGEON )
+			loc = dungeon_random_room(NULL, arg->d.dungeon );
+		else if( arg->type == ENT_INSTANCE )
+		{
+			if( IS_VALID(arg->d.instance) && IS_VALID(arg->d.instance->dungeon) )
+				loc = dungeon_random_room(NULL, arg->d.instance->dungeon );
+		}
+		else if( arg->type == ENT_SECTION )
+		{
+			if( IS_VALID(arg->d.section) && IS_VALID(arg->d.section->instance) && IS_VALID(arg->d.section->instance->dungeon) )
+				loc = dungeon_random_room(NULL, arg->d.section->instance->dungeon );
+		}
+
+		if( loc != NULL )
+			variables_set_room(vars,name,loc);
+
+	// INSTANCERAND $(SECTION|INSTANCE)
+	} else if(!str_cmp(buf,"instancerand")) {
+		ROOM_INDEX_DATA *loc = NULL;
+
+		if( arg->type == ENT_INSTANCE )
+		{
+			if( IS_VALID(arg->d.instance) )
+				loc = instance_random_room(NULL, arg->d.instance );
+		}
+		else if( arg->type == ENT_SECTION )
+		{
+			if( IS_VALID(arg->d.section) && IS_VALID(arg->d.section->instance) )
+				loc = instance_random_room(NULL, arg->d.section->instance );
+		}
+
+		if( loc != NULL )
+			variables_set_room(vars,name,loc);
+
+	// SECTIONRAND $(SECTION)
+	} else if(!str_cmp(buf,"sectionrand")) {
+		ROOM_INDEX_DATA *loc = NULL;
+
+		if( arg->type == ENT_SECTION )
+		{
+			if( IS_VALID(arg->d.section) )
+				loc = section_random_room(NULL, arg->d.section );
+		}
+
+		if( loc != NULL )
+			variables_set_room(vars,name,loc);
+
+	// SPECIALROOM $(INSTANCE|DUNGEON) [#.]KEYWORD
+	// SPECIALROOM $(INSTANCE|DUNGEON) INDEX
+	} else if(!str_cmp(buf,"specialroom")) {
+		ROOM_INDEX_DATA *loc = NULL;
+
+		if( arg->type == ENT_DUNGEON )
+		{
+			DUNGEON *dungeon = arg->d.dungeon;
+
+			if(!(rest = expand_argument(info,rest,arg)))
+				return;
+
+			if(arg->type == ENT_STRING)
+				loc = get_dungeon_special_room_byname(dungeon, arg->d.str);
+			else if(arg->type == ENT_NUMBER)
+				loc = get_dungeon_special_room(dungeon, arg->d.num);
+
+		}
+		else if( arg->type == ENT_INSTANCE )
+		{
+			INSTANCE *instance = arg->d.instance;
+
+			if(!(rest = expand_argument(info,rest,arg)))
+				return;
+
+			if(arg->type == ENT_STRING)
+				loc = get_instance_special_room_byname(instance, arg->d.str);
+			else if(arg->type == ENT_NUMBER)
+				loc = get_instance_special_room(instance, arg->d.num);
+		}
+
+		if( loc != NULL )
+			variables_set_room(vars,name,loc);
+
+
 
 	} else
 		return;

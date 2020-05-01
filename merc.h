@@ -342,7 +342,7 @@ typedef struct instance_section_data INSTANCE_SECTION;
 typedef struct instance_data INSTANCE;
 
 // Dungeons
-typedef struct dungeon_special_room_data DUNGEON_SPECIAL_ROOM;
+typedef struct dungeon_index_special_room_data DUNGEON_INDEX_SPECIAL_ROOM;
 typedef struct dungeon_floor_data DUNGEON_FLOOR_DATA;
 typedef struct dungeon_index_data DUNGEON_INDEX_DATA;
 typedef struct dungeon_data DUNGEON;
@@ -5022,7 +5022,7 @@ struct blueprint_special_room_data {
 	BLUEPRINT_SPECIAL_ROOM *next;
 	bool valid;
 
-	char *name;					// Display name of section link
+	char *name;
 
 	int section;
 	long vnum;					// Vnum of ROOM
@@ -5067,6 +5067,15 @@ struct instance_section_data {
 	INSTANCE *instance;
 
 	LLIST *rooms;
+};
+
+typedef struct instanced_special_room_data INSTANCED_SPECIAL_ROOM;
+struct instanced_special_room_data {
+	INSTANCED_SPECIAL_ROOM *next;
+	bool valid;
+
+	char *name;
+	ROOM_INDEX_DATA *room;
 };
 
 struct instance_data {
@@ -5114,9 +5123,9 @@ struct instance_data {
 #define DUNGEON_DESTROY		(Z)		// Flagged for destruction.
 									//   Will handle the idle timer regardless if dungeon is empty
 
-struct dungeon_special_room_data
+struct dungeon_index_special_room_data
 {
-	DUNGEON_SPECIAL_ROOM *next;
+	DUNGEON_INDEX_SPECIAL_ROOM *next;
 	bool valid;
 
 	char *name;
@@ -8209,6 +8218,8 @@ void extract_instance(INSTANCE *instance);
 ROOM_INDEX_DATA *section_random_room(CHAR_DATA *ch, INSTANCE_SECTION *section);
 ROOM_INDEX_DATA *instance_random_room(CHAR_DATA *ch, INSTANCE *instance);
 ROOM_INDEX_DATA *instance_section_get_room_byvnum(INSTANCE_SECTION *section, long vnum);
+ROOM_INDEX_DATA *get_instance_special_room(INSTANCE *instance, int index);
+ROOM_INDEX_DATA *get_instance_special_room_byname(INSTANCE *instance, char *name);
 
 
 void load_dungeons();
@@ -8222,6 +8233,8 @@ void dungeon_echo(DUNGEON *dungeon, char *text);
 ROOM_INDEX_DATA *dungeon_random_room(CHAR_DATA *ch, DUNGEON *dungeon);
 DUNGEON *get_room_dungeon(ROOM_INDEX_DATA *room);
 OBJ_DATA *get_room_dungeon_portal(ROOM_INDEX_DATA *room, long vnum);
+ROOM_INDEX_DATA *get_dungeon_special_room(DUNGEON *dungeon, int index);
+ROOM_INDEX_DATA *get_dungeon_special_room_byname(DUNGEON *dungeon, char *name);
 
 bool can_room_update(ROOM_INDEX_DATA *room);
 

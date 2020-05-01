@@ -148,11 +148,14 @@ void free_blueprint(BLUEPRINT *bp);
 INSTANCE_SECTION *new_instance_section();
 void free_instance_section(INSTANCE_SECTION *section);
 
+NAMED_SPECIAL_ROOM *new_named_special_room();
+void free_named_special_room(NAMED_SPECIAL_ROOM *special);
+
 INSTANCE *new_instance();
 void free_instance(INSTANCE *instance);
 
-DUNGEON_SPECIAL_ROOM *new_dungeon_special_room();
-void free_dungeon_special_room(DUNGEON_SPECIAL_ROOM *special);
+DUNGEON_INDEX_SPECIAL_ROOM *new_dungeon_index_special_room();
+void free_dungeon_index_special_room(DUNGEON_INDEX_SPECIAL_ROOM *special);
 
 DUNGEON_INDEX_DATA *new_dungeon_index();
 void free_dungeon_index(DUNGEON_INDEX_DATA *dungeon);
