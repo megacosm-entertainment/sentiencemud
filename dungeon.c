@@ -1497,6 +1497,28 @@ void resolve_dungeon_player(CHAR_DATA *ch)
 }
 
 
+void detach_dungeon_player(CHAR_DATA *ch)
+{
+	if( IS_NPC(ch) ) return;
+
+	ITERATOR it;
+	DUNGEON *dungeon;
+	iterator_start(&it, loaded_dungeons);
+	while( (dungeon = (DUNGEON *)iterator_nextdata(&it)) )
+	{
+		if( dungeon->player_uid[0] == ch->id[0] &&
+			dungeon->player_uid[1] == ch->id[1] )
+		{
+			dungeon->player = NULL;
+			continue;
+		}
+
+		// Check player quests
+	}
+	iterator_stop(&it);
+
+}
+
 void dungeon_echo(DUNGEON *dungeon, char *text)
 {
 	if( !IS_VALID(dungeon) || IS_NULLSTR(text) ) return;

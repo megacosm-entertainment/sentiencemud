@@ -3091,7 +3091,11 @@ void do_instance(CHAR_DATA *ch, char *argument)
 			++lines;
 
 			char owner[MIL];
-			if( IS_VALID(instance->object) )
+			if( IS_VALID(instance->player) || instance->player_uid[0] > 0 || instance->player_uid[1] > 0 )
+			{
+				strcpy(owner, "{G     PLAYER     {x");
+			}
+			else if( IS_VALID(instance->object) || instance->object_uid[0] > 0 || instance->object_uid[1] > 0 )
 			{
 				strcpy(owner, "{Y     OBJECT     {x");
 			}
@@ -3292,6 +3296,11 @@ void instance_save(FILE *fp, INSTANCE *instance)
 		fprintf(fp, "Object %lu %lu\n\r", instance->object_uid[0], instance->object_uid[1]);
 	}
 
+	if( instance->player_uid[0] > 0 || instance->player_uid[1] > 0 )
+	{
+		fprintf(fp, "Player %lu %lu\n\r", instance->player_uid[0], instance->player_uid[1]);
+	}
+
 	ITERATOR it;
 	INSTANCE_SECTION *section;
 	iterator_start(&it, instance->sections);
@@ -3473,6 +3482,17 @@ INSTANCE *instance_load(FILE *fp)
 			}
 			break;
 
+		case 'P':
+			if( !str_cmp(word, "Player") )
+			{
+				instance->player_uid[0] = fread_number(fp);
+				instance->player_uid[1] = fread_number(fp);
+
+				fMatch = TRUE;
+				break;
+			}
+			break;
+
 		case 'R':
 			if( !str_cmp(word, "Recall") )
 			{
@@ -3534,7 +3554,7 @@ void resolve_instances()
 	iterator_stop(&it);
 }
 
-void resolve_instances_quests(CHAR_DATA *ch)
+void resolve_instances_player(CHAR_DATA *ch)
 {
 	if( IS_NPC(ch) ) return;
 
@@ -3544,8 +3564,37 @@ void resolve_instances_quests(CHAR_DATA *ch)
 	iterator_start(&it, loaded_instances);
 	while( (instance = (INSTANCE *)iterator_nextdata(&it)) )
 	{
-		// Iterate over the character's quest list
+		if( (instance->player_uid[0] == ch->id[0] &&
+			instance->player_uid[1] == ch->id[1])
+		{
+			instance->player = ch;
+			continue;
+		}
 
+		// Iterate over the character's quest list
+	}
+	iterator_stop(&it);
+}
+
+
+void detach_instances_player(CHAR_DATA *ch)
+{
+	if( IS_NPC(ch) ) return;
+
+	ITERATOR it;
+	INSTANCE *instance;
+
+	iterator_start(&it, loaded_instances);
+	while( (instance = (INSTANCE *)iterator_nextdata(&it)) )
+	{
+		if( (instance->player_uid[0] == ch->id[0] &&
+			instance->player_uid[1] == ch->id[1])
+		{
+			instance->player = NULL;
+			continue;
+		}
+
+		// Iterate over the character's quest list
 	}
 	iterator_stop(&it);
 }

@@ -5078,6 +5078,9 @@ struct instance_data {
 	unsigned long object_uid[2];	//   If the object owner is extracted, all players inside will be
 									//   dropped to the room of the object.
 
+	CHAR_DATA *player;
+	unsigned long player_uid[2];
+
 	ROOM_INDEX_DATA *environ;	// Explicit environment for instance
 								//   If NULL, will use the current room of the object
 								//   Must be a static room
@@ -8173,6 +8176,8 @@ void extract_instance(INSTANCE *instance);
 ROOM_INDEX_DATA *section_random_room(CHAR_DATA *ch, INSTANCE_SECTION *section);
 ROOM_INDEX_DATA *instance_random_room(CHAR_DATA *ch, INSTANCE *instance);
 
+
+
 void load_dungeons();
 bool save_dungeons();
 bool can_edit_dungeons(CHAR_DATA *ch);
@@ -8195,7 +8200,10 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype);
 
 void resolve_dungeon_player(CHAR_DATA *ch);
 void resolve_instances();
-void resolve_instances_quests(CHAR_DATA *ch);
+void resolve_instances_player(CHAR_DATA *ch);
+
+void detach_dungeon_player(CHAR_DATA *ch);
+void detach_instances_player(CHAR_DATA *ch);
 
 
 #endif /* !def __MERC_H__ */

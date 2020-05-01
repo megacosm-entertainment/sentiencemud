@@ -3192,6 +3192,9 @@ void extract_char(CHAR_DATA *ch, bool fPull)
 		}
     }
 
+    detach_instances_player(ch);
+    detach_dungeon_player(ch);
+
     free_char(ch);
     return;
 }
