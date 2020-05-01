@@ -878,7 +878,7 @@ SCRIPT_CMD(do_rpcall)
 		}
 	}
 
-	ret = execute_script(script->vnum, script, NULL, NULL, info->room, NULL, ch, obj1, obj2, vch,NULL, NULL, NULL,info->phrase,info->trigger,0,0,0,0,0);
+	ret = execute_script(script->vnum, script, NULL, NULL, info->room, NULL, NULL, NULL, NULL, ch, obj1, obj2, vch,NULL, NULL, NULL,info->phrase,info->trigger,0,0,0,0,0);
 	if(info->room) {
 		info->room->progs->lastreturn = ret;
 		DBG3MSG1("lastreturn = %d\n", info->room->progs->lastreturn);
@@ -5484,7 +5484,7 @@ SCRIPT_CMD(do_rpxcall)
 		}
 	}
 
-	ret = execute_script(script->vnum, script, mob, obj, room, token, ch, obj1, obj2, vch, NULL,NULL, NULL,info->phrase,info->trigger,0,0,0,0,0);
+	ret = execute_script(script->vnum, script, mob, obj, room, token, NULL, NULL, NULL, ch, obj1, obj2, vch, NULL,NULL, NULL,info->phrase,info->trigger,0,0,0,0,0);
 	if(info->room) {
 		info->room->progs->lastreturn = ret;
 		DBG3MSG1("lastreturn = %d\n", info->room->progs->lastreturn);

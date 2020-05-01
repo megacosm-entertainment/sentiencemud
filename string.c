@@ -170,7 +170,7 @@ void string_postprocess(CHAR_DATA *ch, bool execute)
 				variables_set_string(var,v,s,FALSE);
 			}
 
-			ret = execute_script(script->vnum, script, mob, obj, room, tok, ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL,NULL,0,0,0,0,0);
+			ret = execute_script(script->vnum, script, mob, obj, room, tok, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL,NULL,0,0,0,0,0);
 			if(ret > 0 && !IS_NPC(ch) && ch->pcdata->quit_on_input)
 				do_function(ch, &do_quit, NULL);
 		}

@@ -929,10 +929,10 @@ void cast_end(CHAR_DATA *ch)
 		id[1] = token->id[1];
 		if (target == TARGET_CHAR && victim && IS_AFFECTED2(victim, AFF2_SPELL_DEFLECTION)) {
 			if (check_spell_deflection_token(ch, victim, token, script,ch->cast_target_name)) {
-				execute_script(script->vnum, script, NULL, NULL, NULL, token, ch, NULL, NULL, victim, NULL, NULL, NULL,ch->cast_target_name,NULL,0,0,0,0,0);
+				execute_script(script->vnum, script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, victim, NULL, NULL, NULL,ch->cast_target_name,NULL,0,0,0,0,0);
 			}
 		} else {
-			execute_script(script->vnum, script, NULL, NULL, NULL, token, ch, (target == TARGET_OBJ)?obj:NULL, NULL, (target == TARGET_CHAR)?victim:NULL, NULL,NULL, NULL,ch->cast_target_name,NULL,0,0,0,0,0);
+			execute_script(script->vnum, script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, (target == TARGET_OBJ)?obj:NULL, NULL, (target == TARGET_CHAR)?victim:NULL, NULL,NULL, NULL,ch->cast_target_name,NULL,0,0,0,0,0);
 		}
 
 		// Only bother with the token if it is valid and the SAME token as before the casting

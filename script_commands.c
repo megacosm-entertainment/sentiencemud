@@ -1943,7 +1943,7 @@ SCRIPT_CMD(scriptcmd_questcancel)
 			return;
 
 		// Don't care about response
-		execute_script(script->vnum, script, info->mob, info->obj, info->room, info->token, mob, NULL, NULL, NULL, NULL,NULL, NULL,NULL,NULL,0,0,0,0,0);
+		execute_script(script->vnum, script, info->mob, info->obj, info->room, info->token, NULL, NULL, NULL, mob, NULL, NULL, NULL, NULL,NULL, NULL,NULL,NULL,0,0,0,0,0);
 	}
 
 	free_quest(mob->quest);
@@ -2153,7 +2153,7 @@ SCRIPT_CMD(scriptcmd_questgenerate)
 
 		tempstores[0] = part->index;
 
-		if( execute_script(script->vnum, script, info->mob, info->obj, info->room, info->token, mob, NULL, NULL, NULL, NULL,NULL, NULL,NULL,NULL,0,0,0,0,0) <= 0 )
+		if( execute_script(script->vnum, script, info->mob, info->obj, info->room, info->token, NULL, NULL, NULL, mob, NULL, NULL, NULL, NULL,NULL, NULL,NULL,NULL,0,0,0,0,0) <= 0 )
 		{
 			success = FALSE;
 			break;

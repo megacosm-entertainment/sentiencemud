@@ -1077,7 +1077,7 @@ SCRIPT_CMD(do_tpcall)
 		}
 	}
 
-	ret = execute_script(script->vnum, script, NULL, NULL, NULL, info->token, ch, obj1, obj2, vch, NULL,NULL, NULL,info->phrase,info->trigger,0,0,0,0,0);
+	ret = execute_script(script->vnum, script, NULL, NULL, NULL, info->token, NULL, NULL, NULL, ch, obj1, obj2, vch, NULL,NULL, NULL,info->phrase,info->trigger,0,0,0,0,0);
 	if(info->token) {
 		info->token->progs->lastreturn = ret;
 		DBG3MSG1("lastreturn = %d\n", info->token->progs->lastreturn);
@@ -5959,7 +5959,7 @@ SCRIPT_CMD(do_tpxcall)
 	}
 
 	// The last return goes to THIS enactor not the one called for the script
-	ret = execute_script(script->vnum, script, mob, obj, room, token, ch, obj1, obj2, vch, NULL,NULL, NULL,info->phrase,info->trigger,0,0,0,0,0);
+	ret = execute_script(script->vnum, script, mob, obj, room, token, NULL, NULL, NULL, ch, obj1, obj2, vch, NULL,NULL, NULL,info->phrase,info->trigger,0,0,0,0,0);
 	if(info->token)
 		info->token->progs->lastreturn = ret;
 	else
