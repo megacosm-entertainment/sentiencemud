@@ -512,7 +512,7 @@ void ipedit( CHAR_DATA *ch, char *argument)
     if (pIcode)
     {
 
-	if ( !can_edit_bluepints(ch) )
+	if ( !can_edit_blueprints(ch) )
 	{
 		send_to_char("IPEdit: Insufficient security to modify code.\n\r", ch);
 		edit_done(ch);
@@ -560,7 +560,7 @@ void dpedit( CHAR_DATA *ch, char *argument)
 
     EDIT_SCRIPT(ch, pDcode);
 
-    if (pIcode)
+    if (pDcode)
     {
 
 	if ( !can_edit_dungeons(ch) )
