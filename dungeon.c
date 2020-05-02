@@ -2480,6 +2480,7 @@ void dungeon_echo(DUNGEON *dungeon, char *text)
 	while( (ch = (CHAR_DATA *)iterator_nextdata(&it)) )
 	{
 		send_to_char(text, ch);
+		send_to_char("\n\r", ch);
 	}
 	iterator_stop(&it);
 }
