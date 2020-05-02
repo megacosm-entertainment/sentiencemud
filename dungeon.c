@@ -1810,7 +1810,7 @@ DNGEDIT( dngedit_special )
 
 DNGEDIT (dngedit_adddprog)
 {
-    int tindex, value, slot;
+    int tindex, slot;
 	DUNGEON_INDEX_DATA *dungeon;
     PROG_LIST *list;
     SCRIPT_DATA *code;

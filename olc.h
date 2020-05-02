@@ -217,6 +217,7 @@ DECLARE_OLC_FUN( aedit_view_trade	);
 DECLARE_OLC_FUN( aedit_vnum		);
 DECLARE_OLC_FUN( aedit_x		);
 DECLARE_OLC_FUN( aedit_y		);
+DECLARE_OLC_FUN( aedit_postoffice	);
 DECLARE_OLC_FUN( aedit_varset	);
 DECLARE_OLC_FUN( aedit_varclear	);
 DECLARE_OLC_FUN( aedit_addaprog		);

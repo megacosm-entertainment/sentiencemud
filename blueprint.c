@@ -3536,7 +3536,7 @@ BPEDIT( bpedit_static )
 
 BPEDIT (bpedit_addiprog)
 {
-    int tindex, value, slot;
+    int tindex, slot;
 	BLUEPRINT *blueprint;
     PROG_LIST *list;
     SCRIPT_DATA *code;
