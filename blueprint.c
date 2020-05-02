@@ -2242,17 +2242,21 @@ BSEDIT( bsedit_link )
 const struct olc_cmd_type bpedit_table[] =
 {
 	{ "?",				show_help			},
-	{ "commands",		show_commands		},
-	{ "list",			bpedit_list			},
-	{ "show",			bpedit_show			},
-	{ "create",			bpedit_create		},
-	{ "name",			bpedit_name			},
-	{ "description",	bpedit_description	},
-	{ "comments",		bpedit_comments		},
+	{ "addiprog",		bpedit_addiprog		},
 	{ "areawho",		bpedit_areawho		},
+	{ "commands",		show_commands		},
+	{ "comments",		bpedit_comments		},
+	{ "create",			bpedit_create		},
+	{ "deliprog",		bpedit_deliprog		},
+	{ "description",	bpedit_description	},
+	{ "list",			bpedit_list			},
 	{ "mode",			bpedit_mode			},
+	{ "name",			bpedit_name			},
 	{ "section",		bpedit_section		},
+	{ "show",			bpedit_show			},
 	{ "static",			bpedit_static		},
+	{ "varclear",		bpedit_varclear		},
+	{ "varset",			bpedit_varset		},
 	{ NULL,				NULL				}
 };
 
@@ -2649,6 +2653,70 @@ BPEDIT( bpedit_show )
 		}
 
 	}
+
+	if (bp->progs) {
+		int cnt, slot;
+
+		for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++)
+			if(list_size(bp->progs[slot]) > 0) ++cnt;
+
+		if (cnt > 0) {
+			sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "Number", "Prog Vnum", "Trigger", "Phrase");
+			add_buf(buffer, buf);
+
+			sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "------", "-------------", "-------", "------");
+			add_buf(buffer, buf);
+
+			for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
+				iterator_start(&it, bp->progs[slot]);
+				while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
+					sprintf(buf, "{C[{W%4d{C]{x %-20ld %-10s %-6s\n\r", cnt,
+						trigger->vnum,trigger_name(trigger->trig_type),
+						trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, FALSE, FALSE));
+					add_buf(buffer, buf);
+					cnt++;
+				}
+				iterator_stop(&it);
+			}
+		}
+	}
+
+	if (bp->index_vars) {
+		pVARIABLE var;
+		int cnt;
+
+		for (cnt = 0, var = bp->index_vars; var; var = var->next) ++cnt;
+
+		if (cnt > 0) {
+			sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "Name", "Type", "Saved", "Value");
+			add_buf(buffer, buf);
+
+			sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "----", "----", "-----", "-----");
+			add_buf(buffer, buf);
+
+			for (var = bp->index_vars; var; var = var->next) {
+				switch(var->type) {
+				case VAR_INTEGER:
+					sprintf(buf, "{x%-20.20s {GNUMBER     {Y%c   {W%d{x\n\r", var->name,var->save?'Y':'N',var->_.i);
+					break;
+				case VAR_STRING:
+				case VAR_STRING_S:
+					sprintf(buf, "{x%-20.20s {GSTRING     {Y%c   {W%s{x\n\r", var->name,var->save?'Y':'N',var->_.s?var->_.s:"(empty)");
+					break;
+				case VAR_ROOM:
+					if(var->_.r && var->_.r->vnum > 0)
+						sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W%s {R({W%d{R){x\n\r", var->name,var->save?'Y':'N',var->_.r->name,(int)var->_.r->vnum);
+					else
+						sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W-no-where-{x\n\r",var->name,var->save?'Y':'N');
+					break;
+				default:
+					continue;
+				}
+				add_buf(buffer, buf);
+			}
+		}
+	}
+
 
 	if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
 	{
@@ -3464,6 +3532,171 @@ BPEDIT( bpedit_static )
 }
 
 
+BPEDIT (bpedit_addiprog)
+{
+    int tindex, value, slot;
+	BLUEPRINT *blueprint;
+    PROG_LIST *list;
+    SCRIPT_DATA *code;
+    char trigger[MAX_STRING_LENGTH];
+    char phrase[MAX_STRING_LENGTH];
+    char num[MAX_STRING_LENGTH];
+
+    EDIT_BLUEPRINT(ch, blueprint);
+    argument = one_argument(argument, num);
+    argument = one_argument(argument, trigger);
+    argument = one_argument(argument, phrase);
+
+    if (!is_number(num) || trigger[0] =='\0' || phrase[0] =='\0')
+    {
+	send_to_char("Syntax:   addiprog [vnum] [trigger] [phrase]\n\r",ch);
+	return FALSE;
+    }
+
+    if ((tindex = trigger_index(trigger, PRG_IPROG)) < 0) {
+	send_to_char("Valid flags are:\n\r",ch);
+	show_help(ch, "iprog");
+	return FALSE;
+    }
+
+    value = tindex;//trigger_table[tindex].value;
+    slot = trigger_table[tindex].slot;
+
+    if ((code = get_script_index (atol(num), PRG_IPROG)) == NULL)
+    {
+	send_to_char("No such INSTANCEProgram.\n\r",ch);
+	return FALSE;
+    }
+
+    // Make sure this has a list of progs!
+    if(!blueprint->progs) blueprint->progs = new_prog_bank();
+
+    list                  = new_trigger();
+    list->vnum            = atol(num);
+    list->trig_type       = tindex;
+    list->trig_phrase     = str_dup(phrase);
+	list->trig_number		= atoi(list->trig_phrase);
+    list->numeric		= is_number(list->trig_phrase);
+    list->script          = code;
+
+    list_appendlink(blueprint->progs[slot], list);
+
+    send_to_char("Iprog Added.\n\r",ch);
+    return TRUE;
+}
+
+BPEDIT (bpedit_deliprog)
+{
+    BLUEPRINT *blueprint;
+    char iprog[MAX_STRING_LENGTH];
+    int value;
+
+    EDIT_BLUEPRINT(ch, blueprint);
+
+    one_argument(argument, iprog);
+    if (!is_number(iprog) || iprog[0] == '\0')
+    {
+       send_to_char("Syntax:  deliprog [#iprog]\n\r",ch);
+       return FALSE;
+    }
+
+    value = atol (iprog);
+
+    if (value < 0)
+    {
+        send_to_char("Only non-negative iprog-numbers allowed.\n\r",ch);
+        return FALSE;
+    }
+
+    if(!edit_deltrigger(blueprint->progs,value)) {
+	send_to_char("No such iprog.\n\r",ch);
+	return FALSE;
+    }
+
+    send_to_char("Iprog removed.\n\r", ch);
+    return TRUE;
+}
+
+BPEDIT(bpedit_varset)
+{
+    BLUEPRINT *blueprint;
+
+    char name[MIL];
+    char type[MIL];
+    char yesno[MIL];
+    bool saved;
+
+	EDIT_BLUEPRINT(ch, blueprint);
+
+    if (argument[0] == '\0') {
+	send_to_char("Syntax:  varset <name> <number|string|room> <yes|no> <value>\n\r", ch);
+	return FALSE;
+    }
+
+    argument = one_argument(argument, name);
+    argument = one_argument(argument, type);
+    argument = one_argument(argument, yesno);
+
+    if(!variable_validname(name)) {
+	send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
+	return FALSE;
+    }
+
+    saved = !str_cmp(yesno,"yes");
+
+    if(!argument[0]) {
+	send_to_char("Set what on the variable?\n\r", ch);
+	return FALSE;
+    }
+
+    if(!str_cmp(type,"room")) {
+	if(!is_number(argument)) {
+	    send_to_char("Specify a room vnum.\n\r", ch);
+	    return FALSE;
+	}
+
+	variables_setindex_room(&blueprint->index_vars,name,atoi(argument),saved);
+    } else if(!str_cmp(type,"string"))
+	variables_setindex_string(&blueprint->index_vars,name,argument,FALSE,saved);
+    else if(!str_cmp(type,"number")) {
+	if(!is_number(argument)) {
+	    send_to_char("Specify an integer.\n\r", ch);
+	    return FALSE;
+	}
+
+	variables_setindex_integer(&blueprint->index_vars,name,atoi(argument),saved);
+    } else {
+	send_to_char("Invalid type of variable.\n\r", ch);
+	return FALSE;
+    }
+    send_to_char("Variable set.\n\r", ch);
+    return TRUE;
+}
+
+BPEDIT(bpedit_varclear)
+{
+    BLUEPRINT *blueprint;
+
+	EDIT_BLUEPRINT(ch, blueprint);
+
+    if (argument[0] == '\0') {
+	send_to_char("Syntax:  varclear <name>\n\r", ch);
+	return FALSE;
+    }
+
+    if(!variable_validname(argument)) {
+	send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
+	return FALSE;
+    }
+
+    if(!variable_remove(&blueprint->index_vars,argument)) {
+	send_to_char("No such variable defined.\n\r", ch);
+	return FALSE;
+    }
+
+    send_to_char("Variable cleared.\n\r", ch);
+    return TRUE;
+}
 
 
 //////////////////////////////////////////////////////////////

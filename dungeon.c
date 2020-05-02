@@ -742,21 +742,25 @@ void dungeon_update()
 const struct olc_cmd_type dngedit_table[] =
 {
 	{ "?",				show_help			},
-	{ "commands",		show_commands		},
-	{ "list",			dngedit_list		},
-	{ "show",			dngedit_show		},
-	{ "create",			dngedit_create		},
-	{ "name",			dngedit_name		},
-	{ "description",	dngedit_description	},
-	{ "comments",		dngedit_comments	},
+	{ "adddprog",		dngedit_adddprog	},
 	{ "areawho",		dngedit_areawho		},
-	{ "floors",			dngedit_floors		},
+	{ "commands",		show_commands		},
+	{ "comments",		dngedit_comments	},
+	{ "create",			dngedit_create		},
+	{ "deldprog",		dngedit_deldprog	},
+	{ "description",	dngedit_description	},
 	{ "entry",			dngedit_entry		},
 	{ "exit",			dngedit_exit		},
 	{ "flags",			dngedit_flags		},
-	{ "zoneout",		dngedit_zoneout		},
-	{ "portalout",		dngedit_portalout	},
+	{ "floors",			dngedit_floors		},
+	{ "list",			dngedit_list		},
 	{ "mountout",		dngedit_mountout	},
+	{ "name",			dngedit_name		},
+	{ "portalout",		dngedit_portalout	},
+	{ "show",			dngedit_show		},
+	{ "varclear",		dngedit_varclear	},
+	{ "varset",			dngedit_varset		},
+	{ "zoneout",		dngedit_zoneout		},
 	{ NULL,				NULL				}
 
 };
@@ -1067,6 +1071,70 @@ DNGEDIT( dngedit_show )
 	add_buf(buffer, "\n\r-----\n\r{WBuilders' Comments:{X\n\r");
 	add_buf(buffer, dng->comments);
 	add_buf(buffer, "\n\r-----\n\r");
+
+
+	if (dng->progs) {
+		int cnt, slot;
+
+		for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++)
+			if(list_size(dng->progs[slot]) > 0) ++cnt;
+
+		if (cnt > 0) {
+			sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "Number", "Prog Vnum", "Trigger", "Phrase");
+			add_buf(buffer, buf);
+
+			sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "------", "-------------", "-------", "------");
+			add_buf(buffer, buf);
+
+			for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
+				iterator_start(&it, dng->progs[slot]);
+				while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
+					sprintf(buf, "{C[{W%4d{C]{x %-20ld %-10s %-6s\n\r", cnt,
+						trigger->vnum,trigger_name(trigger->trig_type),
+						trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, FALSE, FALSE));
+					add_buf(buffer, buf);
+					cnt++;
+				}
+				iterator_stop(&it);
+			}
+		}
+	}
+
+	if (dng->index_vars) {
+		pVARIABLE var;
+		int cnt;
+
+		for (cnt = 0, var = dng->index_vars; var; var = var->next) ++cnt;
+
+		if (cnt > 0) {
+			sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "Name", "Type", "Saved", "Value");
+			add_buf(buffer, buf);
+
+			sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "----", "----", "-----", "-----");
+			add_buf(buffer, buf);
+
+			for (var = dng->index_vars; var; var = var->next) {
+				switch(var->type) {
+				case VAR_INTEGER:
+					sprintf(buf, "{x%-20.20s {GNUMBER     {Y%c   {W%d{x\n\r", var->name,var->save?'Y':'N',var->_.i);
+					break;
+				case VAR_STRING:
+				case VAR_STRING_S:
+					sprintf(buf, "{x%-20.20s {GSTRING     {Y%c   {W%s{x\n\r", var->name,var->save?'Y':'N',var->_.s?var->_.s:"(empty)");
+					break;
+				case VAR_ROOM:
+					if(var->_.r && var->_.r->vnum > 0)
+						sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W%s {R({W%d{R){x\n\r", var->name,var->save?'Y':'N',var->_.r->name,(int)var->_.r->vnum);
+					else
+						sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W-no-where-{x\n\r",var->name,var->save?'Y':'N');
+					break;
+				default:
+					continue;
+				}
+				add_buf(buffer, buf);
+			}
+		}
+	}
 
 	if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH)
 	{
@@ -1737,6 +1805,173 @@ DNGEDIT( dngedit_special )
 	dngedit_special(ch, "");
 	return FALSE;
 }
+
+DNGEDIT (dngedit_adddprog)
+{
+    int tindex, value, slot;
+	DUNGEON_INDEX_DATA *dungeon;
+    PROG_LIST *list;
+    SCRIPT_DATA *code;
+    char trigger[MAX_STRING_LENGTH];
+    char phrase[MAX_STRING_LENGTH];
+    char num[MAX_STRING_LENGTH];
+
+    EDIT_DUNGEON(ch, dungeon);
+    argument = one_argument(argument, num);
+    argument = one_argument(argument, trigger);
+    argument = one_argument(argument, phrase);
+
+    if (!is_number(num) || trigger[0] =='\0' || phrase[0] =='\0')
+    {
+	send_to_char("Syntax:   adddprog [vnum] [trigger] [phrase]\n\r",ch);
+	return FALSE;
+    }
+
+    if ((tindex = trigger_index(trigger, PRG_DPROG)) < 0) {
+	send_to_char("Valid flags are:\n\r",ch);
+	show_help(ch, "dprog");
+	return FALSE;
+    }
+
+    value = tindex;//trigger_table[tindex].value;
+    slot = trigger_table[tindex].slot;
+
+    if ((code = get_script_index (atol(num), PRG_DPROG)) == NULL)
+    {
+	send_to_char("No such DUNGEONProgram.\n\r",ch);
+	return FALSE;
+    }
+
+    // Make sure this has a list of progs!
+    if(!dungeon->progs) dungeon->progs = new_prog_bank();
+
+    list                  = new_trigger();
+    list->vnum            = atol(num);
+    list->trig_type       = tindex;
+    list->trig_phrase     = str_dup(phrase);
+	list->trig_number		= atoi(list->trig_phrase);
+    list->numeric		= is_number(list->trig_phrase);
+    list->script          = code;
+
+    list_appendlink(dungeon->progs[slot], list);
+
+    send_to_char("Dprog Added.\n\r",ch);
+    return TRUE;
+}
+
+DNGEDIT (dngedit_deldprog)
+{
+    DUNGEON_INDEX_DATA *dungeon;
+    char dprog[MAX_STRING_LENGTH];
+    int value;
+
+    EDIT_DUNGEON(ch, dungeon);
+
+    one_argument(argument, dprog);
+    if (!is_number(dprog) || dprog[0] == '\0')
+    {
+       send_to_char("Syntax:  deldprog [#dprog]\n\r",ch);
+       return FALSE;
+    }
+
+    value = atol (dprog);
+
+    if (value < 0)
+    {
+        send_to_char("Only non-negative dprog-numbers allowed.\n\r",ch);
+        return FALSE;
+    }
+
+    if(!edit_deltrigger(dungeon->progs,value)) {
+	send_to_char("No such dprog.\n\r",ch);
+	return FALSE;
+    }
+
+    send_to_char("Dprog removed.\n\r", ch);
+    return TRUE;
+}
+
+DNGEDIT(dngedit_varset)
+{
+    DUNGEON_INDEX_DATA *dungeon;
+
+    char name[MIL];
+    char type[MIL];
+    char yesno[MIL];
+    bool saved;
+
+	EDIT_DUNGEON(ch, dungeon);
+
+    if (argument[0] == '\0') {
+	send_to_char("Syntax:  varset <name> <number|string|room> <yes|no> <value>\n\r", ch);
+	return FALSE;
+    }
+
+    argument = one_argument(argument, name);
+    argument = one_argument(argument, type);
+    argument = one_argument(argument, yesno);
+
+    if(!variable_validname(name)) {
+	send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
+	return FALSE;
+    }
+
+    saved = !str_cmp(yesno,"yes");
+
+    if(!argument[0]) {
+	send_to_char("Set what on the variable?\n\r", ch);
+	return FALSE;
+    }
+
+    if(!str_cmp(type,"room")) {
+	if(!is_number(argument)) {
+	    send_to_char("Specify a room vnum.\n\r", ch);
+	    return FALSE;
+	}
+
+	variables_setindex_room(&dungeon->index_vars,name,atoi(argument),saved);
+    } else if(!str_cmp(type,"string"))
+	variables_setindex_string(&dungeon->index_vars,name,argument,FALSE,saved);
+    else if(!str_cmp(type,"number")) {
+	if(!is_number(argument)) {
+	    send_to_char("Specify an integer.\n\r", ch);
+	    return FALSE;
+	}
+
+	variables_setindex_integer(&dungeon->index_vars,name,atoi(argument),saved);
+    } else {
+	send_to_char("Invalid type of variable.\n\r", ch);
+	return FALSE;
+    }
+    send_to_char("Variable set.\n\r", ch);
+    return TRUE;
+}
+
+DNGEDIT(dngedit_varclear)
+{
+    DUNGEON_INDEX_DATA *dungeon;
+
+	EDIT_DUNGEON(ch, dungeon);
+
+    if (argument[0] == '\0') {
+	send_to_char("Syntax:  varclear <name>\n\r", ch);
+	return FALSE;
+    }
+
+    if(!variable_validname(argument)) {
+	send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
+	return FALSE;
+    }
+
+    if(!variable_remove(&dungeon->index_vars,argument)) {
+	send_to_char("No such variable defined.\n\r", ch);
+	return FALSE;
+    }
+
+    send_to_char("Variable cleared.\n\r", ch);
+    return TRUE;
+}
+
 
 
 //////////////////////////////////////////////////////////////

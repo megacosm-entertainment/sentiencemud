@@ -96,6 +96,9 @@ const struct olc_help_type help_table[] =
     {	"oprog",	trigger_table,	 "ObjProgram types."		 },
     {	"rprog",	trigger_table,	 "RoomProgram types."		 },
     {	"tprog",	trigger_table,	 "TokenProgram types."		 },
+    {	"aprog",	trigger_table,	 "AreaProgram types."		 },
+    {	"iprog",	trigger_table,	 "InstanceProgram types."		 },
+    {	"dprog",	trigger_table,	 "DungeonProgram types."		 },
     {   "condition",    room_condition_flags, "Room Condition types."    },
     {   "tokenflags",   token_flags,	 "Token flags."			 },
     {	"projectflags",	project_flags,	 "Project flags."		 },
@@ -292,85 +295,136 @@ bool show_help(CHAR_DATA *ch, char *argument)
 	    else
 	    if (help_table[cnt].structure == trigger_table)
 	    {
-		int i, n;
+			int i, n;
 
-		if (!str_prefix(arg, "mprog"))
-		{
-		    send_to_char("MobProgram Triggers:\n\r", ch);
-		    for (i = 0, n = 0; trigger_table[i].name != NULL; i++)
-		    {
-			if (trigger_table[i].mob)
+			if (!str_prefix(arg, "mprog"))
 			{
-			    n++;
-			    sprintf(buf, "%-20s", trigger_table[i].name);
-			    send_to_char(buf, ch);
-			    if (!(n % 4))
+				send_to_char("MobProgram Triggers:\n\r", ch);
+				for (i = 0, n = 0; trigger_table[i].name != NULL; i++)
+				{
+				if (trigger_table[i].mob)
+				{
+					n++;
+					sprintf(buf, "%-20s", trigger_table[i].name);
+					send_to_char(buf, ch);
+					if (!(n % 4))
+					send_to_char("\n\r", ch);
+				}
+				}
+
+				if (n % 4)
 				send_to_char("\n\r", ch);
 			}
-		    }
-
-		    if (n % 4)
-			send_to_char("\n\r", ch);
-		}
-		else
-		if (!str_prefix(arg, "oprog"))
-		{
-		    send_to_char("ObjProgram Triggers:\n\r", ch);
-		    for (i = 0, n = 0; trigger_table[i].name != NULL; i++)
-		    {
-			if (trigger_table[i].obj)
+			else if (!str_prefix(arg, "oprog"))
 			{
-			    n++;
-			    sprintf(buf, "%-20s", trigger_table[i].name);
-			    send_to_char(buf, ch);
-			    if (!(n % 4))
+				send_to_char("ObjProgram Triggers:\n\r", ch);
+				for (i = 0, n = 0; trigger_table[i].name != NULL; i++)
+				{
+				if (trigger_table[i].obj)
+				{
+					n++;
+					sprintf(buf, "%-20s", trigger_table[i].name);
+					send_to_char(buf, ch);
+					if (!(n % 4))
+					send_to_char("\n\r", ch);
+				}
+				}
+
+				if (n % 4)
 				send_to_char("\n\r", ch);
 			}
-		    }
-
-		    if (n % 4)
-			send_to_char("\n\r", ch);
-		}
-		else
-		if (!str_prefix(arg, "rprog"))
-		{
-		    send_to_char("RoomProgram Triggers:\n\r", ch);
-		    for (i = 0, n = 0; trigger_table[i].name != NULL; i++)
-		    {
-			if (trigger_table[i].room)
+			else if (!str_prefix(arg, "rprog"))
 			{
-			    n++;
-			    sprintf(buf, "%-20s", trigger_table[i].name);
-			    send_to_char(buf, ch);
-			    if (!(n % 4))
+				send_to_char("RoomProgram Triggers:\n\r", ch);
+				for (i = 0, n = 0; trigger_table[i].name != NULL; i++)
+				{
+				if (trigger_table[i].room)
+				{
+					n++;
+					sprintf(buf, "%-20s", trigger_table[i].name);
+					send_to_char(buf, ch);
+					if (!(n % 4))
+					send_to_char("\n\r", ch);
+				}
+				}
+
+				if (n % 4)
 				send_to_char("\n\r", ch);
 			}
-		    }
-
-		    if (n % 4)
-			send_to_char("\n\r", ch);
-		}
-		else
-		if (!str_prefix(arg, "tprog"))
-		{
-		    send_to_char("TokenProgram Triggers:\n\r", ch);
-		    for (i = 0, n = 0; trigger_table[i].name != NULL; i++)
-		    {
-			if (trigger_table[i].token)
+			else if (!str_prefix(arg, "tprog"))
 			{
-			    n++;
-			    sprintf(buf, "%-20s", trigger_table[i].name);
-			    send_to_char(buf, ch);
-			    if (!(n % 4))
-				send_to_char("\n\r", ch);
+				send_to_char("TokenProgram Triggers:\n\r", ch);
+				for (i = 0, n = 0; trigger_table[i].name != NULL; i++)
+				{
+					if (trigger_table[i].token)
+					{
+						n++;
+						sprintf(buf, "%-20s", trigger_table[i].name);
+						send_to_char(buf, ch);
+						if (!(n % 4))
+							send_to_char("\n\r", ch);
+					}
+				}
+
+				if (n % 4)
+					send_to_char("\n\r", ch);
 			}
-		    }
+			else if (!str_prefix(arg, "aprog"))
+			{
+				send_to_char("AreaProgram Triggers:\n\r", ch);
+				for (i = 0, n = 0; trigger_table[i].name != NULL; i++)
+				{
+					if (trigger_table[i].area)
+					{
+						n++;
+						sprintf(buf, "%-20s", trigger_table[i].name);
+						send_to_char(buf, ch);
+						if (!(n % 4))
+							send_to_char("\n\r", ch);
+					}
+				}
 
-		    if (n % 4)
-			send_to_char("\n\r", ch);
-		}
+				if (n % 4)
+					send_to_char("\n\r", ch);
+			}
+			else if (!str_prefix(arg, "iprog"))
+			{
+				send_to_char("InstanceProgram Triggers:\n\r", ch);
+				for (i = 0, n = 0; trigger_table[i].name != NULL; i++)
+				{
+					if (trigger_table[i].instance)
+					{
+						n++;
+						sprintf(buf, "%-20s", trigger_table[i].name);
+						send_to_char(buf, ch);
+						if (!(n % 4))
+							send_to_char("\n\r", ch);
+					}
+				}
 
-		return FALSE;
+				if (n % 4)
+					send_to_char("\n\r", ch);
+			}
+			else if (!str_prefix(arg, "dprog"))
+			{
+				send_to_char("DungeonProgram Triggers:\n\r", ch);
+				for (i = 0, n = 0; trigger_table[i].name != NULL; i++)
+				{
+					if (trigger_table[i].dungeon)
+					{
+						n++;
+						sprintf(buf, "%-20s", trigger_table[i].name);
+						send_to_char(buf, ch);
+						if (!(n % 4))
+							send_to_char("\n\r", ch);
+					}
+				}
+
+				if (n % 4)
+					send_to_char("\n\r", ch);
+			}
+
+			return FALSE;
 	    }
 	    else
 	    {
@@ -1399,6 +1453,179 @@ AEDIT(aedit_postoffice)
     pArea->post_office = vnum;
     return TRUE;
 }
+
+AEDIT (aedit_addaprog)
+{
+    int tindex, value, slot;
+    AREA_DATA *pArea;
+    PROG_LIST *list;
+    SCRIPT_DATA *code;
+    char trigger[MAX_STRING_LENGTH];
+    char phrase[MAX_STRING_LENGTH];
+    char num[MAX_STRING_LENGTH];
+
+    EDIT_AREA(ch, pArea);
+    argument = one_argument(argument, num);
+    argument = one_argument(argument, trigger);
+    argument = one_argument(argument, phrase);
+
+    if (!is_number(num) || trigger[0] =='\0' || phrase[0] =='\0')
+    {
+	send_to_char("Syntax:   addaprog [vnum] [trigger] [phrase]\n\r",ch);
+	return FALSE;
+    }
+
+    if ((tindex = trigger_index(trigger, PRG_APROG)) < 0) {
+	send_to_char("Valid flags are:\n\r",ch);
+	show_help(ch, "aprog");
+	return FALSE;
+    }
+
+    value = tindex;//trigger_table[tindex].value;
+    slot = trigger_table[tindex].slot;
+
+    if ((code = get_script_index (atol(num), PRG_APROG)) == NULL)
+    {
+	send_to_char("No such AREAProgram.\n\r",ch);
+	return FALSE;
+    }
+
+    // Make sure this has a list of progs!
+    if(!pArea->progs->progs) pArea->progs->progs = new_prog_bank();
+
+    list                  = new_trigger();
+    list->vnum            = atol(num);
+    list->trig_type       = tindex;
+    list->trig_phrase     = str_dup(phrase);
+	list->trig_number		= atoi(list->trig_phrase);
+    list->numeric		= is_number(list->trig_phrase);
+
+    list->script          = code;
+    //SET_BIT(pMob->mprog_flags,value);
+
+    list_appendlink(pArea->progs->progs[slot], list);
+
+    send_to_char("Aprog Added.\n\r",ch);
+    return TRUE;
+}
+
+
+AEDIT (aedit_delaprog)
+{
+    AREA_DATA *pArea;
+    char aprog[MAX_STRING_LENGTH];
+    int value;
+
+    EDIT_AREA(ch, pArea);
+
+    one_argument(argument, aprog);
+    if (!is_number(aprog) || aprog[0] == '\0')
+    {
+       send_to_char("Syntax:  delaprog [#aprog]\n\r",ch);
+       return FALSE;
+    }
+
+    value = atol (aprog);
+
+    if (value < 0)
+    {
+        send_to_char("Only non-negative aprog-numbers allowed.\n\r",ch);
+        return FALSE;
+    }
+
+    if(!edit_deltrigger(pArea->progs->progs,value)) {
+	send_to_char("No such aprog.\n\r",ch);
+	return FALSE;
+    }
+
+    send_to_char("Aprog removed.\n\r", ch);
+    return TRUE;
+}
+
+AEDIT(aedit_varset)
+{
+    AREA_DATA *pArea;
+    char name[MIL];
+    char type[MIL];
+    char yesno[MIL];
+    bool saved;
+
+    EDIT_AREA(ch, pArea);
+
+    if (argument[0] == '\0') {
+	send_to_char("Syntax:  varset <name> <number|string|room> <yes|no> <value>\n\r", ch);
+	return FALSE;
+    }
+
+    argument = one_argument(argument, name);
+    argument = one_argument(argument, type);
+    argument = one_argument(argument, yesno);
+
+    if(!variable_validname(name)) {
+	send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
+	return FALSE;
+    }
+
+    saved = !str_cmp(yesno,"yes");
+
+    if(!argument[0]) {
+	send_to_char("Set what on the variable?\n\r", ch);
+	return FALSE;
+    }
+
+    if(!str_cmp(type,"room")) {
+	if(!is_number(argument)) {
+	    send_to_char("Specify a room vnum.\n\r", ch);
+	    return FALSE;
+	}
+
+	variables_setindex_room(&pArea->index_vars,name,atoi(argument), saved);
+    } else if(!str_cmp(type,"string"))
+	variables_setindex_string(&pArea->index_vars,name,argument,FALSE, saved);
+    else if(!str_cmp(type,"number")) {
+	if(!is_number(argument)) {
+	    send_to_char("Specify an integer.\n\r", ch);
+	    return FALSE;
+	}
+
+	variables_setindex_integer(&pArea->index_vars,name,atoi(argument), saved);
+    } else {
+	send_to_char("Invalid type of variable.\n\r", ch);
+	return FALSE;
+    }
+
+    variable_copyto(&pArea->index_vars,&pArea->progs->vars,name,name,FALSE);
+    send_to_char("Variable set.\n\r", ch);
+    return TRUE;
+}
+
+AEDIT(aedit_varclear)
+{
+    AREA_DATA *pArea;
+
+    EDIT_AREA(ch, pArea);
+
+
+    if (argument[0] == '\0') {
+	send_to_char("Syntax:  varclear <name>\n\r", ch);
+	return FALSE;
+    }
+
+    if(!variable_validname(argument)) {
+	send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
+	return FALSE;
+    }
+
+    if(!variable_remove(&pArea->index_vars,argument)) {
+	send_to_char("No such variable defined.\n\r", ch);
+	return FALSE;
+    }
+
+    variable_remove(&pArea->progs->vars,argument);
+    send_to_char("Variable cleared.\n\r", ch);
+    return TRUE;
+}
+
 
 
 REDIT(redit_show)

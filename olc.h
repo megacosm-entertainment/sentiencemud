@@ -217,7 +217,10 @@ DECLARE_OLC_FUN( aedit_view_trade	);
 DECLARE_OLC_FUN( aedit_vnum		);
 DECLARE_OLC_FUN( aedit_x		);
 DECLARE_OLC_FUN( aedit_y		);
-DECLARE_OLC_FUN( aedit_postoffice	);
+DECLARE_OLC_FUN( aedit_varset	);
+DECLARE_OLC_FUN( aedit_varclear	);
+DECLARE_OLC_FUN( aedit_addaprog		);
+DECLARE_OLC_FUN( aedit_delaprog		);
 
 /*
  * Room Editor Prototypes
@@ -507,6 +510,10 @@ DECLARE_OLC_FUN( bpedit_areawho			);
 DECLARE_OLC_FUN( bpedit_mode			);
 DECLARE_OLC_FUN( bpedit_section			);
 DECLARE_OLC_FUN( bpedit_static			);
+DECLARE_OLC_FUN( bpedit_varset	);
+DECLARE_OLC_FUN( bpedit_varclear	);
+DECLARE_OLC_FUN( bpedit_addiprog		);
+DECLARE_OLC_FUN( bpedit_deliprog		);
 
 // Dungeon Editor
 DECLARE_OLC_FUN( dngedit_list			);
@@ -524,6 +531,10 @@ DECLARE_OLC_FUN( dngedit_zoneout		);
 DECLARE_OLC_FUN( dngedit_portalout		);
 DECLARE_OLC_FUN( dngedit_mountout		);
 DECLARE_OLC_FUN( dngedit_special		);
+DECLARE_OLC_FUN( dngedit_varset	);
+DECLARE_OLC_FUN( dngedit_varclear	);
+DECLARE_OLC_FUN( dngedit_adddprog		);
+DECLARE_OLC_FUN( dngedit_deldprog		);
 
 
 DECLARE_OLC_FUN( apedit_list		);
