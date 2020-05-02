@@ -1086,6 +1086,8 @@ DNGEDIT( dngedit_show )
 			sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "------", "-------------", "-------", "------");
 			add_buf(buffer, buf);
 
+			ITERATOR it;
+			PROG_LIST *trigger;
 			for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
 				iterator_start(&it, dng->progs[slot]);
 				while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
