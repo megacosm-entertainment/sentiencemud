@@ -1835,7 +1835,6 @@ DNGEDIT (dngedit_adddprog)
 	return FALSE;
     }
 
-    value = tindex;//trigger_table[tindex].value;
     slot = trigger_table[tindex].slot;
 
     if ((code = get_script_index (atol(num), PRG_DPROG)) == NULL)
