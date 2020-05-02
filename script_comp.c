@@ -1550,7 +1550,7 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 					doquotes = FALSE;
 
 				} else if(!str_cmp(buf,"dungeon")) {
-					if(type != IFC_A) {
+					if(type != IFC_D) {
 						sprintf(rbuf,"Line %d: Attempting to do a dungeon command outside a dprog.", rline);
 						compile_error_show(rbuf);
 						linevalid = FALSE;
