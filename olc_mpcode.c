@@ -750,7 +750,7 @@ void do_ipedit(CHAR_DATA *ch, char *argument)
 
 void do_dpedit(CHAR_DATA *ch, char *argument)
 {
-    SCRDPT_DATA *pDcode;
+    SCRIPT_DATA *pDcode;
     char command[MAX_INPUT_LENGTH];
 
     argument = one_argument(argument, command);
@@ -1195,14 +1195,14 @@ IPEDIT (ipedit_create)
 
 DPEDIT (dpedit_create)
 {
-	SCRDPT_DATA *pDcode;
+	SCRIPT_DATA *pDcode;
 	long value = atol(argument);
 	AREA_DATA *ad;
 	long auto_vnum = 0;
 
 	if ( argument[0] == '\0' || value < 1 )
 	{
-		SCRDPT_DATA *temp_prog;
+		SCRIPT_DATA *temp_prog;
 
 		auto_vnum = 1;
 		temp_prog = get_script_index( auto_vnum, PRG_DPROG );

@@ -99,6 +99,10 @@ void    bsedit 	( CHAR_DATA *ch, char *argument );	// Blueprint Sections
 void    bpedit 	( CHAR_DATA *ch, char *argument );	// Blueprints
 void	dngedit ( CHAR_DATA *ch, char *argument );	// Dungeons
 
+void	apedit	( CHAR_DATA *ch, char *argument );
+void	ipedit	( CHAR_DATA *ch, char *argument );
+void	dpedit	( CHAR_DATA *ch, char *argument );
+
 
 /*
  * OLC Constants

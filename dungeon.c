@@ -45,6 +45,7 @@
 #include "recycle.h"
 #include "olc.h"
 #include "tables.h"
+#include "scripts.h"
 
 INSTANCE *instance_load(FILE *fp);
 void save_script_new(FILE *fp, AREA_DATA *area,SCRIPT_DATA *scr,char *type);
@@ -282,7 +283,7 @@ void load_dungeons()
 
 		if (!str_cmp(word, "#DUNGEONPROG"))
 		{
-		    SCRIPT_DATA *pr = read_script_new(fp, area, IFC_D);
+		    SCRIPT_DATA *pr = read_script_new(fp, NULL, IFC_D);
 		    if(pr) {
 		    	pr->next = dprog_list;
 		    	dprog_list = pr;

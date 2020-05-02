@@ -1433,7 +1433,7 @@ void free_area( AREA_DATA *pArea )
     if(pArea->progs && pArea->progs->progs) free_prog_list(pArea->progs->progs);
     free_prog_data(pArea->progs);
     variable_clearfield(VAR_AREA, pArea);
-    variable_freelist(&pRoom->index_vars);
+    variable_freelist(&pArea->index_vars);
 
 
     pArea->next         =   area_free->next;
