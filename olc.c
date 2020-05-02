@@ -46,6 +46,9 @@ char *editor_name_table[] = {
 	"BSEdit",
 	"BPEdit",
 	"DNGEdit",
+	"ApEdit",
+	"IpEdit",
+	"DpEdit",
 };
 
 const struct editor_cmd_type editor_table[] =
@@ -65,6 +68,9 @@ const struct editor_cmd_type editor_table[] =
     {	"bpsect",	do_bsedit	},
     {	"blueprint",	do_bpedit	},
     {	"dungeon",		do_dngedit	},
+    {	"apcode",	do_apedit	},
+    {	"ipcode",	do_ipedit	},
+    {	"dpcode",	do_dpedit	},
     {	NULL,		0,		}
 };
 
@@ -704,6 +710,16 @@ bool show_commands(CHAR_DATA *ch, char *argument)
 	case ED_DUNGEON:
 		show_olc_cmds(ch, dngedit_table);
 		break;
+
+	case ED_APCODE:
+	    show_olc_cmds(ch, apedit_table);
+	    break;
+	case ED_IPCODE:
+	    show_olc_cmds(ch, ipedit_table);
+	    break;
+	case ED_DPCODE:
+	    show_olc_cmds(ch, dpedit_table);
+	    break;
     }
 
     return FALSE;
