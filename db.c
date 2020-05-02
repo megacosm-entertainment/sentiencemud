@@ -1238,13 +1238,13 @@ void fix_areaprogs(void)
 	ITERATOR it;
 	int slot;
 
-	for (pArea = area_first; pArea != NULL; pArea = pArea->next) if(pArea->progs) {
-		for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( pArea->progs[slot] ) {
+	for (pArea = area_first; pArea != NULL; pArea = pArea->next) if(pArea->progs->progs) {
+		for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( pArea->progs->progs[slot] ) {
 			iterator_start(&it, pArea->progs[slot]);
 			while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
 				if (!(trigger->script = get_script_index(trigger->vnum, PRG_APROG))) {
 					bug("fix_areaprogs: code vnum %d not found.", trigger->vnum);
-					bug("fix_areaprogs: on area %ld", pArea->vnum);
+					bug("fix_areaprogs: on area %ld", pArea->anum);
 					exit(1);
 				}
 			}
@@ -1280,7 +1280,7 @@ void fix_instanceprogs(void)
 
 void fix_dungeonprogs(void)
 {
-	DUNGEON_INDEX *dungeon_index;
+	DUNGEON_INDEX_DATA *dungeon_index;
 	PROG_LIST *trigger;
 	ITERATOR it;
 	int iHash, slot;
