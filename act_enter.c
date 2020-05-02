@@ -316,6 +316,18 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 
 	move_cart(ch,location,TRUE);
 
+	DUNGEON *in_dungeon = get_room_dungeon(in_room);
+	DUNGEON *to_dungeon = get_room_dungeon(to_room);
+
+	INSTANCE *in_instance = NULL;
+	if( IS_VALID(in_room->instance_section) && IS_VALID(in_room->instance_section->instance) )
+		in_instance = in_room->instance_section->instance;
+
+	INSTANCE *to_instance = NULL;
+	if( IS_VALID(to_room->instance_section) && IS_VALID(to_room->instance_section->instance) )
+		to_instance = to_room->instance_section->instance;
+
+
 	char_from_room(ch);
 	char_to_room(ch, location);
 
@@ -439,8 +451,19 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 	 * If someone is following the char, these triggers get activated
 	 * for the followers before the char, but it's safer this way...
 	 */
-	if (IS_NPC(ch))
-	    p_percent_trigger( ch, NULL, NULL, NULL,NULL, NULL, NULL, NULL, NULL, TRIG_ENTRY , NULL);
+
+	if( IS_VALID(to_dungeon) && (in_dungeon != to_dungeon) )
+	{
+		p_percent2_trigger(NULL, NULL, to_dungeon, ch, NULL, NULL, NULL, NULL, TRIG_ENTRY, NULL);
+	}
+
+	if( to_instance != in_instance )
+	{
+		p_percent2_trigger(NULL, to_instance, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ENTRY, NULL);
+	}
+
+	p_percent_trigger( ch, NULL, NULL, NULL,NULL, NULL, NULL, NULL, NULL, TRIG_ENTRY , NULL);
+
 	if ( !IS_NPC( ch ) ) {
 	    p_greet_trigger( ch, PRG_MPROG );
 	    p_greet_trigger( ch, PRG_OPROG );
