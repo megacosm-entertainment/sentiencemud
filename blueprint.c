@@ -1168,6 +1168,7 @@ INSTANCE *create_instance(BLUEPRINT *blueprint)
 		}
 
 		ITERATOR it;
+		INSTANCE_SECTION *section;
 		BLUEPRINT_SPECIAL_ROOM *special;
 		iterator_start(&it, blueprint->special_rooms);
 		while( (special = (BLUEPRINT_SPECIAL_ROOM *)iterator_nextdata(&it)) )
