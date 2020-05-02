@@ -8272,6 +8272,7 @@ OBJ_DATA *get_room_dungeon_portal(ROOM_INDEX_DATA *room, long vnum);
 ROOM_INDEX_DATA *get_dungeon_special_room(DUNGEON *dungeon, int index);
 ROOM_INDEX_DATA *get_dungeon_special_room_byname(DUNGEON *dungeon, char *name);
 int dungeon_count_mob(DUNGEON *dungeon, MOB_INDEX_DATA *pMobIndex);
+void extract_dungeon(DUNGEON *dungeon);
 
 bool can_room_update(ROOM_INDEX_DATA *room);
 

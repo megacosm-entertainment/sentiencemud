@@ -695,7 +695,7 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 		}
 	}
 
-	if( IS_VALID(to_dungeon) && (from_dungeon != to_dungeon) )
+	if( IS_VALID(to_dungeon) && (in_dungeon != to_dungeon) )
 	{
 		p_percent2_trigger(NULL, NULL, to_dungeon, ch, NULL, NULL, NULL, NULL, TRIG_ENTRY, NULL);
 	}

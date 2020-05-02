@@ -1214,19 +1214,20 @@ void update_instance(INSTANCE *instance)
 {
 	p_percent2_trigger(NULL, instance, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RANDOM, NULL);
 
+	ITERATOR sit;
+	INSTANCE_SECTION *section;
 	iterator_start(&sit, instance->sections);
 	while( (section = (INSTANCE_SECTION *)iterator_nextdata(&sit)) )
 	{
-		instance_section_update(section);
+		update_instance_section(section);
 	}
 	iterator_stop(&sit);
 }
 
 void instance_update()
 {
-	ITERATOR it, sit;
+	ITERATOR it;
 	INSTANCE *instance;
-	INSTANCE_SECTION *section;
 
 	iterator_start(&it, loaded_instances);
 	while((instance = (INSTANCE *)iterator_nextdata(&it)))

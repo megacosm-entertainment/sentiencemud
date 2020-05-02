@@ -1975,7 +1975,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 		}
 	}
 
-	p_percent_trigger(NULL, NULL, pRoom, NULL, ch, NULL, NULL,NULL, NULL, TRIG_RESET, NULL);
+	p_percent_trigger(NULL, NULL, pRoom, NULL, NULL, NULL, NULL,NULL, NULL, TRIG_RESET, NULL);
 }
 
 

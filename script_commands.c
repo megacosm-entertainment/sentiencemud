@@ -1527,8 +1527,8 @@ SCRIPT_CMD(scriptcmd_dungeoncomplete)
 	if(!expand_argument(info,argument,arg))
 		return;
 
-	if( arg->type == ENT_DUNGEN )
-		p_percent2_trigger(NULL, NULL, arg->d.dungeon, ch, NULL, NULL, NULL, NULL, TRIG_COMPLETED,NULL);
+	if( arg->type == ENT_DUNGEON )
+		p_percent2_trigger(NULL, NULL, arg->d.dungeon, NULL, NULL, NULL, NULL, NULL, TRIG_COMPLETED,NULL);
 }
 
 
@@ -2167,7 +2167,7 @@ SCRIPT_CMD(scriptcmd_instancecomplete)
 		return;
 
 	if( arg->type == ENT_INSTANCE )
-		p_percent2_trigger(NULL, arg->d.instance, NULL, ch, NULL, NULL, NULL, NULL, TRIG_COMPLETED,NULL);
+		p_percent2_trigger(NULL, arg->d.instance, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_COMPLETED,NULL);
 }
 
 
@@ -2349,8 +2349,8 @@ SCRIPT_CMD(scriptcmd_oload)
 	OBJ_DATA *obj;
 	CHAR_DATA *to_mob = info->mob;
 	OBJ_DATA *to_obj = NULL;
-	ROOM_INDEX_DATA *here;
-	ROOM_INDEX_DATA *to_room;
+	ROOM_INDEX_DATA *here = NULL;
+	ROOM_INDEX_DATA *to_room = NULL;
 
 	if(!info) return;
 
@@ -2359,13 +2359,10 @@ SCRIPT_CMD(scriptcmd_oload)
 	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	if( !here )
-	{
-		if( info->mob ) here = info->mob->in_room;
-		else if( info->obj ) here = obj_room(info->obj);
-		else if( info->room ) here = info->room;
-		else if( info->token ) here = token_room(info->token);
-	}
+	if( info->mob ) here = info->mob->in_room;
+	else if( info->obj ) here = obj_room(info->obj);
+	else if( info->room ) here = info->room;
+	else if( info->token ) here = token_room(info->token);
 
 	switch(arg->type) {
 	case ENT_NUMBER: vnum = arg->d.num; break;

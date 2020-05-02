@@ -309,7 +309,7 @@ bool script_instance_remref(INSTANCE *instance)
 
 void script_dungeon_addref(DUNGEON *dungeon)
 {
-	if(IS_VALID(dungeon) && instance->progs)
+	if(IS_VALID(dungeon) && dungeon->progs)
 		dungeon->progs->script_ref++;
 }
 
@@ -4366,7 +4366,7 @@ int test_number_trigger(int number, MATCH_NUMBER match, int type,
 		if( instance->progs ) {
 			script_instance_addref(instance);
 			script_destructed = FALSE;
-			iterator_start(&pit, instance->progs[slot]);
+			iterator_start(&pit, instance->blueprint->progs[slot]);
 			// Loop Level 2
 			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
 				if (is_trigger_type(prg->trig_type,type)) {
@@ -4384,7 +4384,7 @@ int test_number_trigger(int number, MATCH_NUMBER match, int type,
 		if( dungeon->progs ) {
 			script_dungeon_addref(dungeon);
 			script_destructed = FALSE;
-			iterator_start(&pit, dungeon->progs[slot]);
+			iterator_start(&pit, dungeon->index->progs[slot]);
 			// Loop Level 2
 			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
 				if (is_trigger_type(prg->trig_type,type)) {

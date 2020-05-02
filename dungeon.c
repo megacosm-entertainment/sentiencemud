@@ -2576,5 +2576,7 @@ int dungeon_count_mob(DUNGEON *dungeon, MOB_INDEX_DATA *pMobIndex)
 		count += instance_count_mob(instance, pMobIndex);
 	}
 	iterator_stop(&it);
+
+	return count;
 }
 
