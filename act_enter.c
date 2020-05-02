@@ -316,16 +316,16 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 
 	move_cart(ch,location,TRUE);
 
-	DUNGEON *in_dungeon = get_room_dungeon(in_room);
-	DUNGEON *to_dungeon = get_room_dungeon(to_room);
+	DUNGEON *in_dungeon = get_room_dungeon(old_room);
+	DUNGEON *to_dungeon = get_room_dungeon(location);
 
 	INSTANCE *in_instance = NULL;
 	if( IS_VALID(in_room->instance_section) && IS_VALID(in_room->instance_section->instance) )
-		in_instance = in_room->instance_section->instance;
+		in_instance = old_room->instance_section->instance;
 
 	INSTANCE *to_instance = NULL;
 	if( IS_VALID(to_room->instance_section) && IS_VALID(to_room->instance_section->instance) )
-		to_instance = to_room->instance_section->instance;
+		to_instance = location->instance_section->instance;
 
 
 	char_from_room(ch);
