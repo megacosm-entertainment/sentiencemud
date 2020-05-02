@@ -474,7 +474,9 @@ void save_area_new(AREA_DATA *area)
 			boost->area);
 
     if(area->progs->progs) {
-		for(i = 0; i < TRIGSLOT_MAX; i++) if(list_size(area->progs->progs[i]) > 0) {
+		ITERATOR it;
+		PROG_LIST *trigger;
+		for(int i = 0; i < TRIGSLOT_MAX; i++) if(list_size(area->progs->progs[i]) > 0) {
 			iterator_start(&it, area->progs->progs[i]);
 			while((trigger = (PROG_LIST *)iterator_nextdata(&it)))
 				fprintf(fp, "AreaProg %ld %s~ %s~\n", trigger->vnum, trigger_name(trigger->trig_type), trigger_phrase(trigger->trig_type,trigger->trig_phrase));

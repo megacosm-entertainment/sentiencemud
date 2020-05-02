@@ -759,7 +759,7 @@ void do_dpedit(CHAR_DATA *ch, char *argument)
     {
 		long vnum = atol(command);
 
-		if ( (pDcode = get_scrdpt_index(vnum,PRG_DPROG)) == NULL )
+		if ( (pDcode = get_script_index(vnum,PRG_DPROG)) == NULL )
 		{
 			send_to_char("DPEdit : That vnum does not exist.\n\r",ch);
 			return;
@@ -1230,7 +1230,7 @@ DPEDIT (dpedit_create)
 		return FALSE;
 	}
 
-	pDcode			= new_scrdpt();
+	pDcode			= new_script();
 	pDcode->vnum		= value;
 	pDcode->area		= ad;
 	pDcode->next		= dprog_list;
