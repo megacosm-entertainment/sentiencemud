@@ -4363,7 +4363,7 @@ int test_number_trigger(int number, MATCH_NUMBER match, int type,
 		}
 
 	} else if(instance) {
-		if( instance->progs ) {
+		if( instance->blueprint->progs ) {
 			script_instance_addref(instance);
 			script_destructed = FALSE;
 			iterator_start(&pit, instance->blueprint->progs[slot]);
@@ -4381,7 +4381,7 @@ int test_number_trigger(int number, MATCH_NUMBER match, int type,
 		}
 
 	} else if(dungeon) {
-		if( dungeon->progs ) {
+		if( dungeon->index->progs ) {
 			script_dungeon_addref(dungeon);
 			script_destructed = FALSE;
 			iterator_start(&pit, dungeon->index->progs[slot]);
