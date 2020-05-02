@@ -1049,6 +1049,7 @@ SCRIPT_CMD(scriptcmd_call)
 	else if(info->area) space = PRG_APROG;
 	else if(info->instance) space = PRG_IPROG;
 	else if(info->dungeon) space = PRG_DPROG;
+	else return;
 
 	if (vnum < 1 || !(script = get_script_index(vnum, space))) {
 		return;
