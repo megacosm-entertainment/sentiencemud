@@ -2207,11 +2207,18 @@ SCRIPT_CMD(scriptcmd_makeinstanced)
 		if( !IS_VALID(section->instance) )
 			return;
 
+		INSTANCE *instance = section->instance;
+
+		if( info->instance && info->instance != instance )
+			return;
+
+		if( info->dungeon && (info->dungeon != instance->dungeon || !IS_VALID(instance->dungeon)) )
+			return;
+
 		if( !IS_SET(arg->d.mob->act2, ACT2_INSTANCE_MOB) )
 		{
 			SET_BIT(arg->d.mob->act2, ACT2_INSTANCE_MOB);
 
-			INSTANCE *instance = section->instance;
 
 			list_remlink(instance->mobiles, arg->d.mob);
 			if( IS_VALID(instance->dungeon) )
@@ -2229,11 +2236,17 @@ SCRIPT_CMD(scriptcmd_makeinstanced)
 		if( !IS_VALID(section->instance) )
 			return;
 
+		INSTANCE *instance = section->instance;
+
+		if( info->instance && info->instance != instance )
+			return;
+
+		if( info->dungeon && (info->dungeon != instance->dungeon || !IS_VALID(instance->dungeon)) )
+			return;
+
 		if( !IS_SET(arg->d.obj->extra3_flags, ITEM_INSTANCE_OBJ) )
 		{
 			SET_BIT(arg->d.obj->extra3_flags, ITEM_INSTANCE_OBJ);
-
-			INSTANCE *instance = section->instance;
 
 			list_remlink(instance->objects, arg->d.obj);
 			if( IS_VALID(instance->dungeon) )
