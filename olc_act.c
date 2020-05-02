@@ -1456,7 +1456,7 @@ AEDIT(aedit_postoffice)
 
 AEDIT (aedit_addaprog)
 {
-    int tindex, value, slot;
+    int tindex, slot;
     AREA_DATA *pArea;
     PROG_LIST *list;
     SCRIPT_DATA *code;
@@ -1481,7 +1481,6 @@ AEDIT (aedit_addaprog)
 	return FALSE;
     }
 
-    value = tindex;//trigger_table[tindex].value;
     slot = trigger_table[tindex].slot;
 
     if ((code = get_script_index (atol(num), PRG_APROG)) == NULL)
