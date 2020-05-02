@@ -320,11 +320,11 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 	DUNGEON *to_dungeon = get_room_dungeon(location);
 
 	INSTANCE *in_instance = NULL;
-	if( IS_VALID(in_room->instance_section) && IS_VALID(in_room->instance_section->instance) )
+	if( IS_VALID(old_room->instance_section) && IS_VALID(old_room->instance_section->instance) )
 		in_instance = old_room->instance_section->instance;
 
 	INSTANCE *to_instance = NULL;
-	if( IS_VALID(to_room->instance_section) && IS_VALID(to_room->instance_section->instance) )
+	if( IS_VALID(location->instance_section) && IS_VALID(location->instance_section->instance) )
 		to_instance = location->instance_section->instance;
 
 
