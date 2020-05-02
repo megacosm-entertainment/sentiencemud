@@ -994,6 +994,15 @@ char *expand_entity_primary(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		} else if(info->token) {
 			arg->type = ENT_TOKEN;
 			arg->d.token = info->token;
+		} else if(info->area) {
+			arg->type = ENT_AREA;
+			arg->d.area = info->area;
+		} else if(info->instance) {
+			arg->type = ENT_INSTANCE;
+			arg->d.instance = info->instance;
+		} else if(info->dungeon) {
+			arg->type = ENT_DUNGEON;
+			arg->d.dungeon = info->dungeon;
 		} else return NULL;
 		break;
 	case ENTITY_PHRASE:
@@ -5094,6 +5103,14 @@ char *expand_string_entity(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
 
 	case ENT_CONN:
 		add_buf(buffer, (arg->d.conn && arg->d.conn->character) ? arg->d.conn->character->name : SOMEONE);
+		break;
+
+	case ENT_INSTANCE:
+		add_buf(buffer, (arg->d.instance) ? arg->d.instance->blueprint->name : SOMEWHERE);
+		break;
+
+	case ENT_DUNGEON:
+		add_buf(buffer, (arg->d.dungeon) ? arg->d.dungeon->instance->name : SOMEWHERE);
 		break;
 	}
 
