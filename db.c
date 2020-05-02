@@ -1414,10 +1414,13 @@ void reset_area(AREA_DATA *pArea)
     }
     else
     */
+
+    p_percent2_trigger(pArea, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RESET, NULL);
+
 	for (vnum = pArea->min_vnum; vnum <= pArea->max_vnum; vnum++)
 	{
 	    if ((pRoom = get_room_index(vnum)))
-		reset_room(pRoom);
+			reset_room(pRoom);
 	}
 }
 
@@ -1696,7 +1699,6 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 			// When the room is in an instance
 			if( pRoom->instance_section != NULL )
 			{
-				// TODO: Change to instance count
 				count = instance_count_mob(pRoom->instance_section->instance, pMobIndex);
 
 				char buf[MSL];
@@ -1972,6 +1974,8 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 			break;
 		}
 	}
+
+	p_percent_trigger(NULL, NULL, pRoom, NULL, ch, NULL, NULL,NULL, NULL, TRIG_RESET, NULL);
 }
 
 

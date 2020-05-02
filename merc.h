@@ -5046,6 +5046,8 @@ struct blueprint_data {
 
 	int area_who;
 
+	int repop;
+
 	int mode;
 
 	LLIST *sections;						// BLUEPRINT_SECTION
@@ -5125,6 +5127,8 @@ struct instance_data {
 	LLIST *rooms;
 	LLIST *special_rooms;
 
+	int age;
+
     PROG_DATA *		progs;		// Script data
 };
 
@@ -5162,6 +5166,8 @@ struct dungeon_index_data
 	LLIST *special_rooms;
 	long entry_room;
 	long exit_room;
+
+	int repop;
 
 	int flags;						// Potential flags
 
@@ -5201,6 +5207,8 @@ struct dungeon_data
 	LLIST *bosses;					// List of INSTANCE MOB BOSSES
 
 	LLIST *rooms;
+
+	int age;
 
 	int idle_timer;					// Timer before it is purged automatically
 									// If normally zero, the dungeon will never purge without
@@ -7618,6 +7626,7 @@ int p_exact_trigger(char *argument, CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DA
 int p_name_trigger(char *argument, CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type);
 int p_percent_trigger(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, char *phrase);
 int p_percent_token_trigger(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, TOKEN_DATA *tok, int type, char *phrase);
+int p_percent2_trigger(AREA_DATA *area, INSTANCE *instance, DUNGEON *dungeon, CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, char *phrase);
 int p_number_trigger(int number, CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, char *phrase);
 int p_bribe_trigger(CHAR_DATA *mob, CHAR_DATA *ch, int amount);
 int p_exit_trigger(CHAR_DATA *ch, int dir, int type);
@@ -8262,6 +8271,7 @@ DUNGEON *get_room_dungeon(ROOM_INDEX_DATA *room);
 OBJ_DATA *get_room_dungeon_portal(ROOM_INDEX_DATA *room, long vnum);
 ROOM_INDEX_DATA *get_dungeon_special_room(DUNGEON *dungeon, int index);
 ROOM_INDEX_DATA *get_dungeon_special_room_byname(DUNGEON *dungeon, char *name);
+int dungeon_count_mob(DUNGEON *dungeon, MOB_INDEX_DATA *pMobIndex);
 
 bool can_room_update(ROOM_INDEX_DATA *room);
 

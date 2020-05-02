@@ -48,6 +48,8 @@
 #include "scripts.h"
 
 INSTANCE *instance_load(FILE *fp);
+void update_instance(INSTANCE *instance);
+void reset_instance(INSTANCE *instance);
 void save_script_new(FILE *fp, AREA_DATA *area,SCRIPT_DATA *scr,char *type);
 SCRIPT_DATA *read_script_new( FILE *fp, AREA_DATA *area, int type);
 
@@ -168,6 +170,10 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp)
 
 		case 'P':
 			KEYS("PortalOut", dng->zone_out_portal, fread_string(fp));
+			break;
+
+		case 'R':
+			KEY("Repop", dng->repop, fread_number(fp));
 			break;
 
 		case 'S':
@@ -317,6 +323,7 @@ void save_dungeon_index(FILE *fp, DUNGEON_INDEX_DATA *dng)
 	fprintf(fp, "Description %s~\n\r", fix_string(dng->description));
 	fprintf(fp, "Comments %s~\n\r", fix_string(dng->comments));
 	fprintf(fp, "AreaWho %d\n\r", dng->area_who);
+	fprintf(fp, "Repop %d\n\r", dng->repop);
 
 	fprintf(fp, "Flags %d\n\r", dng->flags);
 
@@ -427,15 +434,12 @@ DUNGEON_INDEX_DATA *get_dungeon_index(long vnum)
 
 DUNGEON *create_dungeon(long vnum)
 {
-	char buf[MSL];
 	ITERATOR it;
 
 	DUNGEON_INDEX_DATA *index = get_dungeon_index(vnum);
 
 	if( !IS_VALID(index) )
 	{
-		sprintf(buf, "create_dungeon: Dungeon index %ld invalid\n\r", vnum);
-		wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
 		return NULL;
 	}
 
@@ -449,8 +453,6 @@ DUNGEON *create_dungeon(long vnum)
 	dng->entry_room = get_room_index(index->entry_room);
 	if( !dng->entry_room )
 	{
-		sprintf(buf, "create_dungeon: Failed to find exit room %ld\n\r", index->entry_room);
-		wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
 		free_dungeon(dng);
 		return NULL;
 	}
@@ -458,8 +460,6 @@ DUNGEON *create_dungeon(long vnum)
 	dng->exit_room = get_room_index(index->exit_room);
 	if( !dng->exit_room )
 	{
-		sprintf(buf, "create_dungeon: Failed to find exit room %ld\n\r", index->exit_room);
-		wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
 		free_dungeon(dng);
 		return NULL;
 	}
@@ -477,8 +477,6 @@ DUNGEON *create_dungeon(long vnum)
 
 		if( !instance )
 		{
-			sprintf(buf, "create_dungeon: Failed to create instance %d for blueprint %ld\n\r", floor, bp->vnum);
-			wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
 			error = TRUE;
 			break;
 		}
@@ -539,6 +537,14 @@ void extract_dungeon(DUNGEON *dungeon)
 	OBJ_DATA *obj;
 	ROOM_INDEX_DATA *room;
 	INSTANCE *instance;
+
+    if(dungeon->progs) {
+	    SET_BIT(dungeon->progs->entity_flags,PROG_NODESTRUCT);
+	    if(dungeon->progs->script_ref > 0) {
+			dungeon->progs->extract_when_done = TRUE;
+			return;
+		}
+    }
 
 	room = dungeon->entry_room;
 	if( !room )
@@ -647,7 +653,6 @@ ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, long vnum)
 
 		if( IS_NPC(master) )
 		{
-			wiznet("spawn_dungeon_player: not a player",NULL,NULL,WIZ_TESTING,0,0);
 			return NULL;
 		}
 
@@ -659,8 +664,16 @@ ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, long vnum)
 		dng->player = master;
 		dng->player_uid[0] = master->id[0];
 		dng->player_uid[1] = master->id[1];
-		sprintf(buf, "spawn_dungeon_player: dungeon assigned to %s", master->name);
-		wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
+
+		p_percent2_trigger(NULL, NULL, dng, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+		ITERATOR it;
+		INSTANCE *instance;
+		iterator_start(&it, dng->floors);
+		while( (instance = (INSTANCE *)iterator_nextdata(&it)) )
+		{
+			p_percent2_trigger(NULL, instance, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+		}
+		iterator_stop(&it);
 	}
 
 	INSTANCE *first_floor = (INSTANCE *)list_nthdata(dng->floors, 1);
@@ -710,11 +723,23 @@ void dungeon_check_empty(DUNGEON *dungeon)
 void dungeon_update()
 {
 	ITERATOR it;
+	ITERATOR iit;
 	DUNGEON *dungeon;
+	INSTANCE *instance;
 
 	iterator_start(&it, loaded_dungeons);
 	while( (dungeon = (DUNGEON *)iterator_nextdata(&it)) )
 	{
+		p_percent2_trigger(NULL, NULL, dungeon, NULL, NULL, NULL, NULL, NULL, TRIG_RANDOM, NULL);
+
+		iterator_start(&iit, dungeon->floors);
+		while( (instance = (INSTANCE *)iterator_nextdata(&iit)) )
+		{
+			update_instance(instance);
+		}
+		iterator_stop(&iit);
+
+
 		if( dungeon->idle_timer > 0 )
 		{
 			if( !--dungeon->idle_timer )
@@ -729,6 +754,21 @@ void dungeon_update()
 		}
 
 		dungeon_check_empty(dungeon);
+
+		dungeon->age++;
+		if (dungeon->index->repop > 0 && (dungeon->age >= dungeon->index->repop) )
+		{
+			p_percent2_trigger(NULL, NULL, dungeon, NULL, NULL, NULL, NULL, NULL, TRIG_RESET, NULL);
+
+			iterator_start(&iit, dungeon->floors);
+			while( (instance = (INSTANCE *)iterator_nextdata(&iit)) )
+			{
+				reset_instance(instance);
+			}
+			iterator_stop(&iit);
+
+			dungeon->age = 0;
+		}
 	}
 	iterator_stop(&it);
 }
@@ -981,6 +1021,12 @@ DNGEDIT( dngedit_show )
 	sprintf(buf, "AreaWho:     %s\n\r", flag_string(area_who_titles, dng->area_who));
 	add_buf(buffer, buf);
 
+	if( dng->repop > 0)
+		sprintf(buf, "Repop:       %d minutes\n\r", dng->repop);
+	else
+		sprintf(buf, "Repop:       {Dnever{X\n\r");
+	add_buf(buffer, buf);
+
 	room = get_room_index(dng->entry_room);
 	if( room )
 	{
@@ -1206,6 +1252,25 @@ DNGEDIT( dngedit_name )
 	send_to_char("Name changed.\n\r", ch);
 	return TRUE;
 }
+
+DNGEDIT( dngedit_repop )
+{
+	DUNGEON_INDEX_DATA *dng;
+
+	EDIT_DUNGEON(ch, dng);
+
+	if( !is_number(argument) )
+	{
+		send_to_char("Syntax:  repop [age]\n\r", ch);
+		return FALSE;
+	}
+
+	int repop = atoi(argument);
+	dng->repop = UMAX(0, repop);
+	send_to_char("Repop changed.\n\r", ch);
+	return TRUE;
+}
+
 
 DNGEDIT( dngedit_description )
 {
@@ -2495,5 +2560,21 @@ ROOM_INDEX_DATA *get_dungeon_special_room_byname(DUNGEON *dungeon, char *name)
 	iterator_stop(&it);
 
 	return room;
+}
+
+int dungeon_count_mob(DUNGEON *dungeon, MOB_INDEX_DATA *pMobIndex)
+{
+	ITERATOR it;
+	INSTANCE *instance;
+
+	if( !IS_VALID(dungeon) || !pMobIndex ) return 0;
+
+	int count = 0;
+	iterator_start(&it, dungeon->floors);
+	while( (instance = (INSTANCE *)iterator_nextdata(&it)) )
+	{
+		count += instance_count_mob(instance, pMobIndex);
+	}
+	iterator_stop(&it);
 }
 

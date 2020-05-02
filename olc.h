@@ -515,6 +515,7 @@ DECLARE_OLC_FUN( bpedit_varset	);
 DECLARE_OLC_FUN( bpedit_varclear	);
 DECLARE_OLC_FUN( bpedit_addiprog		);
 DECLARE_OLC_FUN( bpedit_deliprog		);
+DECLARE_OLC_FUN( bpedit_repop			);
 
 // Dungeon Editor
 DECLARE_OLC_FUN( dngedit_list			);
@@ -532,10 +533,11 @@ DECLARE_OLC_FUN( dngedit_zoneout		);
 DECLARE_OLC_FUN( dngedit_portalout		);
 DECLARE_OLC_FUN( dngedit_mountout		);
 DECLARE_OLC_FUN( dngedit_special		);
-DECLARE_OLC_FUN( dngedit_varset	);
-DECLARE_OLC_FUN( dngedit_varclear	);
+DECLARE_OLC_FUN( dngedit_varset			);
+DECLARE_OLC_FUN( dngedit_varclear		);
 DECLARE_OLC_FUN( dngedit_adddprog		);
 DECLARE_OLC_FUN( dngedit_deldprog		);
+DECLARE_OLC_FUN( dngedit_repop			);
 
 
 DECLARE_OLC_FUN( apedit_list		);

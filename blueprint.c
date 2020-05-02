@@ -283,6 +283,10 @@ BLUEPRINT *load_blueprint(FILE *fp)
 			KEYS("Name", bp->name, fread_string(fp));
 			break;
 
+		case 'R':
+			KEY("Repop", bp->repop, fread_number(fp));
+			break;
+
 		case 'S':
 			if( !str_cmp(word, "SpecialRoom") )
 			{
@@ -536,6 +540,7 @@ void save_blueprint(FILE *fp, BLUEPRINT *bp)
 	fprintf(fp, "Description %s~\n\r", fix_string(bp->description));
 	fprintf(fp, "Comments %s~\n\r", fix_string(bp->comments));
 	fprintf(fp, "AreaWho %d\n\r", bp->area_who);
+	fprintf(fp, "Repop %d\n\r", bp->repop);
 
 	ITERATOR sit;
 	BLUEPRINT_SECTION *bs;
@@ -1118,6 +1123,18 @@ void instance_section_reset_rooms(INSTANCE_SECTION *section)
 	iterator_stop(&rit);
 }
 
+void reset_instance(INSTANCE *instance)
+{
+	ITERATOR it;
+	INSTANCE_SECTION *section;
+	iterator_start(&it, instance->sections);
+	while( (section = (INSTANCE_SECTION *)iterator_nextdata(&it)) )
+	{
+		instance_section_reset_rooms(section);
+	}
+	iterator_stop(&it);
+}
+
 
 INSTANCE *create_instance(BLUEPRINT *blueprint)
 {
@@ -1151,14 +1168,6 @@ INSTANCE *create_instance(BLUEPRINT *blueprint)
 		}
 
 		ITERATOR it;
-		INSTANCE_SECTION *section;
-		iterator_start(&it, instance->sections);
-		while( (section = (INSTANCE_SECTION *)iterator_nextdata(&it)) )
-		{
-			instance_section_reset_rooms(section);
-		}
-		iterator_stop(&it);
-
 		BLUEPRINT_SPECIAL_ROOM *special;
 		iterator_start(&it, blueprint->special_rooms);
 		while( (special = (BLUEPRINT_SPECIAL_ROOM *)iterator_nextdata(&it)) )
@@ -1182,13 +1191,15 @@ INSTANCE *create_instance(BLUEPRINT *blueprint)
 
 		}
 		iterator_stop(&it);
+
+		reset_instance(instance);
 	}
 
 	return instance;
 }
 
 
-void instance_section_update(INSTANCE_SECTION *section)
+void update_instance_section(INSTANCE_SECTION *section)
 {
 	ITERATOR rit;
 	ROOM_INDEX_DATA *room;
@@ -1197,6 +1208,18 @@ void instance_section_update(INSTANCE_SECTION *section)
 	while((room = (ROOM_INDEX_DATA *)iterator_nextdata(&rit)))
 		room_update(room);
 	iterator_stop(&rit);
+}
+
+void update_instance(INSTANCE *instance)
+{
+	p_percent2_trigger(NULL, instance, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RANDOM, NULL);
+
+	iterator_start(&sit, instance->sections);
+	while( (section = (INSTANCE_SECTION *)iterator_nextdata(&sit)) )
+	{
+		instance_section_update(section);
+	}
+	iterator_stop(&sit);
 }
 
 void instance_update()
@@ -1208,13 +1231,19 @@ void instance_update()
 	iterator_start(&it, loaded_instances);
 	while((instance = (INSTANCE *)iterator_nextdata(&it)))
 	{
-		iterator_start(&sit, instance->sections);
-		while( (section = (INSTANCE_SECTION *)iterator_nextdata(&sit)) )
-		{
-			instance_section_update(section);
-		}
-		iterator_stop(&sit);
+		if( IS_VALID(instance->dungeon) ) continue;
 
+		update_instance(instance);
+
+		instance->age++;
+		if( instance->blueprint->repop > 0 && (instance->age >= instance->blueprint->repop) )
+		{
+			p_percent2_trigger(NULL, instance, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RESET, NULL);
+
+			reset_instance(instance);
+
+			instance->age = 0;
+		}
 	}
 	iterator_stop(&it);
 }
@@ -1226,6 +1255,14 @@ void extract_instance(INSTANCE *instance)
 	OBJ_DATA *obj;
 	ROOM_INDEX_DATA *room;
 	ROOM_INDEX_DATA *environ = NULL;
+
+    if(instance->progs) {
+	    SET_BIT(instance->progs->entity_flags,PROG_NODESTRUCT);
+	    if(instance->progs->script_ref > 0) {
+			instance->progs->extract_when_done = TRUE;
+			return;
+		}
+    }
 
 	if( IS_VALID(instance->object) )
 		environ = obj_room(instance->object);
@@ -2252,6 +2289,7 @@ const struct olc_cmd_type bpedit_table[] =
 	{ "list",			bpedit_list			},
 	{ "mode",			bpedit_mode			},
 	{ "name",			bpedit_name			},
+	{ "repop",			bpedit_repop		},
 	{ "section",		bpedit_section		},
 	{ "show",			bpedit_show			},
 	{ "static",			bpedit_static		},
@@ -2448,6 +2486,15 @@ BPEDIT( bpedit_show )
 	sprintf(buf, "{xName:        [%5ld] %s{x\n\r", bp->vnum, bp->name);
 	add_buf(buffer, buf);
 
+	if( bp->repop > 0)
+		sprintf(buf, "Repop:       %d minutes\n\r", bp->repop);
+	else
+		sprintf(buf, "Repop:       {Dnever{x\n\r");
+	add_buf(buffer, buf);
+
+	sprintf(buf, "{xAreaWho:     [%s] [%s]{x\n\r", flag_string(area_who_titles, bp->area_who), flag_string(area_who_display, bp->area_who));
+	add_buf(buffer, buf);
+
 	add_buf(buffer, "Description:\n\r");
 	add_buf(buffer, bp->description);
 	add_buf(buffer, "\n\r");
@@ -2455,9 +2502,6 @@ BPEDIT( bpedit_show )
 	add_buf(buffer, "\n\r-----\n\r{WBuilders' Comments:{X\n\r");
 	add_buf(buffer, bp->comments);
 	add_buf(buffer, "\n\r-----\n\r");
-
-	sprintf(buf, "{xAreaWho:     [%s] [%s]{x\n\r", flag_string(area_who_titles, bp->area_who), flag_string(area_who_display, bp->area_who));
-	add_buf(buffer, buf);
 
 	switch(bp->mode)
 	{
@@ -2787,6 +2831,24 @@ BPEDIT( bpedit_name )
 	free_string(bp->name);
 	bp->name = str_dup(argument);
 	send_to_char("Name changed.\n\r", ch);
+	return TRUE;
+}
+
+BPEDIT( bpedit_repop )
+{
+	BLUEPRINT *bp;
+
+	EDIT_BLUEPRINT(ch, bp);
+
+	if( !is_number(argument) )
+	{
+		send_to_char("Syntax:  repop [age]\n\r", ch);
+		return FALSE;
+	}
+
+	int repop = atoi(argument);
+	bp->repop = UMAX(0, repop);
+	send_to_char("Repop changed.\n\r", ch);
 	return TRUE;
 }
 

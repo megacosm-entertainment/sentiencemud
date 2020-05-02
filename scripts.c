@@ -285,6 +285,50 @@ bool script_token_remref(TOKEN_DATA *token)
 	return FALSE;
 }
 
+void script_instance_addref(INSTANCE *instance)
+{
+	if(IS_VALID(instance) && instance->progs)
+		instance->progs->script_ref++;
+}
+
+bool script_instance_remref(INSTANCE *instance)
+{
+	if(IS_VALID(instance) && instance->progs) {
+		if( instance->progs->script_ref > 0 && !--instance->progs->script_ref ) {
+			if( instance->progs->extract_when_done ) {
+				// Remove!
+				instance->progs->extract_when_done = FALSE;
+				extract_instance(instance);
+				return TRUE;
+			}
+		}
+	}
+
+	return FALSE;
+}
+
+void script_dungeon_addref(DUNGEON *dungeon)
+{
+	if(IS_VALID(dungeon) && instance->progs)
+		dungeon->progs->script_ref++;
+}
+
+bool script_dungeon_remref(DUNGEON *dungeon)
+{
+	if(IS_VALID(dungeon) && dungeon->progs) {
+		if( dungeon->progs->script_ref > 0 && !--dungeon->progs->script_ref ) {
+			if( dungeon->progs->extract_when_done ) {
+				// Remove!
+				dungeon->progs->extract_when_done = FALSE;
+				extract_dungeon(dungeon);
+				return TRUE;
+			}
+		}
+	}
+
+	return FALSE;
+}
+
 ENT_FIELD *script_entity_fields(int type)
 {
 	int i;
@@ -4304,18 +4348,74 @@ int test_number_trigger(int number, MATCH_NUMBER match, int type,
 			script_token_remref(token);
 		}
 
+	} else if(area) {
+		if( area->progs->progs ) {
+			iterator_start(&pit, area->progs->progs[slot]);
+			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+				if (is_trigger_type(prg->trig_type,type)) {
+					if ((*match)(prg->trig_number, number)) {
+						ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, NULL, area, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok, phrase, prg->trig_phrase,0,0,0,0,0);
+							SETPRET;
+					}
+				}
+			}
+			iterator_stop(&pit);
+		}
+
+	} else if(instance) {
+		if( instance->progs ) {
+			script_instance_addref(instance);
+			script_destructed = FALSE;
+			iterator_start(&pit, instance->progs[slot]);
+			// Loop Level 2
+			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+				if (is_trigger_type(prg->trig_type,type)) {
+					if ((*match)(prg->trig_number, number)) {
+						ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, NULL, area, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok, phrase, prg->trig_phrase,0,0,0,0,0);
+							SETPRET;
+					}
+				}
+			}
+			iterator_stop(&pit);
+			script_instance_remref(instance);
+		}
+
+	} else if(dungeon) {
+		if( dungeon->progs ) {
+			script_dungeon_addref(dungeon);
+			script_destructed = FALSE;
+			iterator_start(&pit, dungeon->progs[slot]);
+			// Loop Level 2
+			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+				if (is_trigger_type(prg->trig_type,type)) {
+					if ((*match)(prg->trig_number, number)) {
+						ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, NULL, area, NULL, NULL, enactor, obj1, obj2, victim, victim2,NULL, tok, phrase, prg->trig_phrase,0,0,0,0,0);
+							SETPRET;
+					}
+				}
+			}
+			iterator_stop(&pit);
+			script_dungeon_remref(dungeon);
+		}
+
 	} else
 		bug("test_number_trigger: no program type for trigger %d.", type);
 
 	PRETURN;
 }
 
-
 int p_percent_trigger(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token,
 	CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, char *phrase)
 {
 	return test_number_trigger(0, match_percent, type, mob, obj, room, token, NULL, NULL, NULL, ch, victim, victim2, obj1, obj1, NULL, phrase);
 }
+
+int p_percent2_trigger(AREA_DATA *area, INSTANCE *instance, DUNGEON *dungeon,
+	CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, char *phrase)
+{
+	return test_number_trigger(0, match_percent, type, NULL, NULL, NULL, NULL, area, instance, dungeon, ch, victim, victim2, obj1, obj1, NULL, phrase);
+}
+
 
 int p_percent_token_trigger(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token,
 	CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, TOKEN_DATA *tok, int type, char *phrase)

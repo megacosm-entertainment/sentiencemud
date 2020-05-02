@@ -4608,8 +4608,9 @@ DECL_IFC_FUN(ifc_canpull)
 	return TRUE;
 }
 
-// LOADED $ENTITY == NUMBER
-// LOADED "MOBILE" NUMBER == NUMBER
+// LOADED $MOBILE[ $INSTANCE|$DUNGEON] == NUMBER
+// LOADED $OBJECT == NUMBER
+// LOADED "MOBILE" NUMBER[ $INSTANCE|$DUNGEON] == NUMBER
 // LOADED "OBJECT" NUMBER == NUMBER
 DECL_IFC_FUN(ifc_loaded)
 {
@@ -4624,7 +4625,18 @@ DECL_IFC_FUN(ifc_loaded)
 				{
 					MOB_INDEX_DATA *mobindex = get_mob_index(ARG_NUM(1));
 
-					*ret = mobindex ? mobindex->count : 0;
+					if( mobindex )
+					{
+						if( ISARG_INSTANCE(2) )
+							*ret = instance_count_mob(ARG_INSTANCE(2), mobindex);
+						else if( ISARG_DUNGEON(2) )
+							*ret = dungeon_count_mob(ARG_DUNGEON(2), mobindex);
+						else
+							*ret = mobindex->count;
+
+					}
+					else
+						*ret = 0;
 				}
 			}
 			else if(!str_prefix(ARG_STR(0), "object"))
@@ -4640,7 +4652,14 @@ DECL_IFC_FUN(ifc_loaded)
 	}
 	else if(VALID_NPC(0))
 	{
-		*ret = ARG_MOB(0)->pIndexData->count;
+		MOB_INDEX_DATA *mobindex = ARG_MOB(0)->pIndexData;
+
+		if( ISARG_INSTANCE(1) )
+			*ret = instance_count_mob(ARG_INSTANCE(1), mobindex);
+		else if( ISARG_DUNGEON(1) )
+			*ret = dungeon_count_mob(ARG_DUNGEON(1), mobindex);
+		else
+			*ret = mobindex->count;
 	}
 	else if(ISARG_OBJ(0))
 	{

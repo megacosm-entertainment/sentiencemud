@@ -1949,6 +1949,10 @@ void script_room_addref(ROOM_INDEX_DATA *room);
 bool script_room_remref(ROOM_INDEX_DATA *room);
 void script_token_addref(TOKEN_DATA *token);
 bool script_token_remref(TOKEN_DATA *token);
+void script_instance_addref(INSTANCE *instance);
+bool script_instance_remref(INSTANCE *instance);
+void script_dungeon_addref(DUNGEON *dungeon);
+bool script_dungeon_remref(DUNGEON *dungeon);
 
 
 ENT_FIELD *script_entity_fields(int type);
@@ -2553,6 +2557,12 @@ SCRIPT_CMD(scriptcmd_varset);
 SCRIPT_CMD(scriptcmd_varseton);
 
 SCRIPT_CMD(scriptcmd_echoat);
+SCRIPT_CMD(scriptcmd_dungeoncomplete);
+SCRIPT_CMD(scriptcmd_instancecomplete);
+
+SCRIPT_CMD(scriptcmd_makeinstanced);
+SCRIPT_CMD(scriptcmd_mload);
+SCRIPT_CMD(scriptcmd_oload);
 
 #include "tables.h"
 

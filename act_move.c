@@ -610,6 +610,14 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 	DUNGEON *in_dungeon = get_room_dungeon(in_room);
 	DUNGEON *to_dungeon = get_room_dungeon(to_room);
 
+	INSTANCE *in_instance = NULL;
+	if( IS_VALID(in_room->instance_section) && IS_VALID(in_room->instance_section->instance) )
+		in_instance = in_room->instance_section->instance;
+
+	INSTANCE *to_instance = NULL;
+	if( IS_VALID(to_room->instance_section) && IS_VALID(to_room->instance_section->instance) )
+		to_instance = to_room->instance_section->instance;
+
 	if (!IS_AFFECTED(ch, AFF_SNEAK) && ch->invis_level < LEVEL_HERO) {
 		if( IS_VALID(in_dungeon) && !IS_VALID(to_dungeon) )
 		{
@@ -687,6 +695,16 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 		}
 	}
 
+	if( IS_VALID(to_dungeon) && (from_dungeon != to_dungeon) )
+	{
+		p_percent2_trigger(NULL, NULL, to_dungeon, ch, NULL, NULL, NULL, NULL, TRIG_ENTRY, NULL);
+	}
+
+	if( to_instance != in_instance )
+	{
+		p_percent2_trigger(NULL, to_instance, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ENTRY, NULL);
+	}
+
 	/*
 	* If someone is following the char, these triggers get activated
 	* for the followers before the char, but it's safer this way...
@@ -724,6 +742,7 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 
 	if (!IS_NPC(ch))
 		check_quest_rescue_mob(ch);
+
 }
 
 /* combat/hidden.c */
