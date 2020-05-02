@@ -446,6 +446,8 @@ char *compile_entity(char *str,int type, char **store)
 				case IFC_R: ent = ENT_ROOM; break;
 				case IFC_T: ent = ENT_TOKEN; break;
 				case IFC_A: ent = ENT_AREA; break;
+				case IFC_I: ent = ENT_INSTANCE; break;
+				case IFC_D: ent = ENT_DUNGEON; break;
 				default:
 					sprintf(buf,"Line %d: Invalid primary $() identifier '%s'.", compile_current_line, field);
 					compile_error_show(buf);
