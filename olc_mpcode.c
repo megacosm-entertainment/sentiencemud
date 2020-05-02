@@ -436,6 +436,168 @@ void tpedit( CHAR_DATA *ch, char *argument)
     return;
 }
 
+void apedit( CHAR_DATA *ch, char *argument)
+{
+    SCRIPT_DATA *pAcode;
+    char arg[MAX_INPUT_LENGTH];
+    char command[MAX_INPUT_LENGTH];
+    int cmd;
+    AREA_DATA *ad;
+
+    smash_tilde(argument);
+    strcpy(arg, argument);
+    argument = one_argument( argument, command);
+
+    EDIT_SCRIPT(ch, pAcode);
+
+    if (pAcode)
+    {
+	ad = get_vnum_area( pAcode->vnum );
+
+	if ( ad == NULL ) /* ??? */
+	{
+		edit_done(ch);
+		return;
+	}
+
+	if ( !IS_BUILDER(ch, ad) )
+	{
+		send_to_char("APEdit: Insufficient security to modify code.\n\r", ch);
+		edit_done(ch);
+		return;
+	}
+    }
+
+    if (command[0] == '\0')
+    {
+        scriptedit_show(ch, argument);
+        return;
+    }
+
+    if (!str_cmp(command, "done") )
+    {
+        edit_done(ch);
+        return;
+    }
+
+    for (cmd = 0; apedit_table[cmd].name != NULL; cmd++)
+    {
+	if (!str_prefix(command, apedit_table[cmd].name) )
+	{
+		if ((*apedit_table[cmd].olc_fun) (ch, argument) && pAcode)
+			if ((ad = get_vnum_area(pAcode->vnum)) != NULL)
+				SET_BIT(ad->area_flags, AREA_CHANGED);
+		return;
+	}
+    }
+
+    interpret(ch, arg);
+
+    return;
+}
+
+void ipedit( CHAR_DATA *ch, char *argument)
+{
+    SCRIPT_DATA *pIcode;
+    char arg[MAX_INPUT_LENGTH];
+    char command[MAX_INPUT_LENGTH];
+    int cmd;
+
+    smash_tilde(argument);
+    strcpy(arg, argument);
+    argument = one_argument( argument, command);
+
+    EDIT_SCRIPT(ch, pIcode);
+
+    if (pIcode)
+    {
+
+	if ( !can_edit_bluepints(ch) )
+	{
+		send_to_char("IPEdit: Insufficient security to modify code.\n\r", ch);
+		edit_done(ch);
+		return;
+	}
+    }
+
+    if (command[0] == '\0')
+    {
+        scriptedit_show(ch, argument);
+        return;
+    }
+
+    if (!str_cmp(command, "done") )
+    {
+        edit_done(ch);
+        return;
+    }
+
+    for (cmd = 0; ipedit_table[cmd].name != NULL; cmd++)
+    {
+	if (!str_prefix(command, ipedit_table[cmd].name) )
+	{
+		if ((*ipedit_table[cmd].olc_fun) (ch, argument) && pIcode)
+			blueprints_changed = TRUE;
+		return;
+	}
+    }
+
+    interpret(ch, arg);
+
+    return;
+}
+
+void dpedit( CHAR_DATA *ch, char *argument)
+{
+    SCRIPT_DATA *pDcode;
+    char arg[MAX_INPUT_LENGTH];
+    char command[MAX_INPUT_LENGTH];
+    int cmd;
+
+    smash_tilde(argument);
+    strcpy(arg, argument);
+    argument = one_argument( argument, command);
+
+    EDIT_SCRIPT(ch, pDcode);
+
+    if (pIcode)
+    {
+
+	if ( !can_edit_dungeons(ch) )
+	{
+		send_to_char("DPEdit: Insufficient security to modify code.\n\r", ch);
+		edit_done(ch);
+		return;
+	}
+    }
+
+    if (command[0] == '\0')
+    {
+        scriptedit_show(ch, argument);
+        return;
+    }
+
+    if (!str_cmp(command, "done") )
+    {
+        edit_done(ch);
+        return;
+    }
+
+    for (cmd = 0; dpedit_table[cmd].name != NULL; cmd++)
+    {
+	if (!str_prefix(command, dpedit_table[cmd].name) )
+	{
+		if ((*dpedit_table[cmd].olc_fun) (ch, argument) && pDcode)
+			dungeons_changed = TRUE;
+		return;
+	}
+    }
+
+    interpret(ch, arg);
+
+    return;
+}
+
 void do_mpedit(CHAR_DATA *ch, char *argument)
 {
     SCRIPT_DATA *pMcode;
@@ -1143,7 +1305,6 @@ IPEDIT (ipedit_create)
 {
 	SCRIPT_DATA *pIcode;
 	long value = atol(argument);
-	AREA_DATA *ad;
 	long auto_vnum = 0;
 
 	if ( argument[0] == '\0' || value < 1 )
@@ -1178,7 +1339,7 @@ IPEDIT (ipedit_create)
 
 	pIcode			= new_script();
 	pIcode->vnum		= value;
-	pIcode->area		= ad;
+	pIcode->area		= NULL;
 	pIcode->next		= iprog_list;
 	iprog_list			= pIcode;
 	pIcode->type		= PRG_IPROG;
@@ -1197,7 +1358,6 @@ DPEDIT (dpedit_create)
 {
 	SCRIPT_DATA *pDcode;
 	long value = atol(argument);
-	AREA_DATA *ad;
 	long auto_vnum = 0;
 
 	if ( argument[0] == '\0' || value < 1 )
@@ -1232,7 +1392,7 @@ DPEDIT (dpedit_create)
 
 	pDcode			= new_script();
 	pDcode->vnum		= value;
-	pDcode->area		= ad;
+	pDcode->area		= NULL;
 	pDcode->next		= dprog_list;
 	dprog_list			= pDcode;
 	pDcode->type		= PRG_DPROG;

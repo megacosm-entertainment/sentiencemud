@@ -485,7 +485,7 @@ void save_area_new(AREA_DATA *area)
 	}
 
 	if(area->index_vars) {
-		for(var = area->index_vars; var; var = var->next) {
+		for(pVARIABLE var = area->index_vars; var; var = var->next) {
 			if(var->type == VAR_INTEGER)
 				fprintf(fp, "VarInt %s~ %d %d\n", var->name, var->save, var->_.i);
 			else if(var->type == VAR_STRING || var->type == VAR_STRING_S)
@@ -1412,7 +1412,7 @@ AREA_DATA *read_area_new(FILE *fp)
 		    apr = read_script_new(fp, area, IFC_A);
 		    if(apr) {
 			apr->next = aprog_list;
-			aprog_list = tpr;
+			aprog_list = apr;
 		    }
 		}
 		/* VIZZWILDS */

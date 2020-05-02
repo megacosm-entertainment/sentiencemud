@@ -15,6 +15,112 @@
 #include "debug.h"
 
 
+///////////////////////////////////////////
+//
+// Function: do_apdump
+//
+// Section: Script/APROG
+//
+// Purpose: Displays the current edit source code of an APROG.
+//
+// Syntax: apdump <vnum>
+//
+// Restrictions: Viewer must have READ access on the script to see it.
+//
+void do_apdump(CHAR_DATA *ch, char *argument)
+{
+	char buf[ MAX_INPUT_LENGTH ];
+	SCRIPT_DATA *aprg;
+	long vnum;
+
+	one_argument(argument, buf);
+	vnum = atoi(buf);
+
+	if (!(aprg = get_script_index(vnum, PRG_APROG))) {
+		send_to_char("No such AREAprogram.\n\r", ch);
+		return;
+	}
+
+	if (!area_has_read_access(ch,aprg->area)) {
+		send_to_char("You do not have permission to view that script.\n\r", ch);
+		return;
+	}
+
+	page_to_char(aprg->edit_src, ch);
+}
+
+
+///////////////////////////////////////////
+//
+// Function: do_ipdump
+//
+// Section: Script/IPROG
+//
+// Purpose: Displays the current edit source code of an IPROG.
+//
+// Syntax: ipdump <vnum>
+//
+// Restrictions: Viewer must be able to edit blueprints
+//
+void do_ipdump(CHAR_DATA *ch, char *argument)
+{
+	char buf[ MAX_INPUT_LENGTH ];
+	SCRIPT_DATA *iprg;
+	long vnum;
+
+	one_argument(argument, buf);
+	vnum = atoi(buf);
+
+	if (!(iprg = get_script_index(vnum, PRG_IPROG))) {
+		send_to_char("No such INSTANCEprogram.\n\r", ch);
+		return;
+	}
+
+	if (!can_edit_blueprints(ch)) {
+		send_to_char("You do not have permission to view that script.\n\r", ch);
+		return;
+	}
+
+	page_to_char(iprg->edit_src, ch);
+}
+
+///////////////////////////////////////////
+//
+// Function: do_dpdump
+//
+// Section: Script/DPROG
+//
+// Purpose: Displays the current edit source code of a DPROG.
+//
+// Syntax: dpdump <vnum>
+//
+// Restrictions: Viewer must be able to edit dungeons
+//
+void do_dpdump(CHAR_DATA *ch, char *argument)
+{
+	char buf[ MAX_INPUT_LENGTH ];
+	SCRIPT_DATA *dprg;
+	long vnum;
+
+	one_argument(argument, buf);
+	vnum = atoi(buf);
+
+	if (!(dprg = get_script_index(vnum, PRG_DPROG))) {
+		send_to_char("No such DUNGEONprogram.\n\r", ch);
+		return;
+	}
+
+	if (!can_edit_dungeons(ch)) {
+		send_to_char("You do not have permission to view that script.\n\r", ch);
+		return;
+	}
+
+	page_to_char(dprg->edit_src, ch);
+}
+
+
+
+
 //////////////////////////////////////
 // A
 
