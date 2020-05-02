@@ -1294,7 +1294,7 @@ void time_update(void)
     else if(hours < (4*MOON_CARDINAL_STEP - MOON_CARDINAL_HALF)) time_info.moon = MOON_WANING_CRESCENT;
     else time_info.moon = MOON_NEW;
 
-	if (time_info.moon == MOON_FULL && weather_info.sunlight == SUN_DARK && number_percent() < reckoning_chance) {
+	if (!reckoning_timer && !pre_reckoning && time_info.moon == MOON_FULL && weather_info.sunlight == SUN_DARK && number_percent() < reckoning_chance) {
 		struct tm *reck_time;
 
 		reck_time = (struct tm *) localtime(&current_time);
