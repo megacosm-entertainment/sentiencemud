@@ -673,6 +673,15 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 	} else if(type == IFC_T) {
 		script->type = PRG_TPROG;
 		type_name = "TOKEN";
+	} else if(type == IFC_A) {
+		script->type = PRG_APROG;
+		type_name = "AREA";
+	} else if(type == IFC_I) {
+		script->type = PRG_IPROG;
+		type_name = "INSTANCE";
+	} else if(type == IFC_D) {
+		script->type = PRG_DPROG;
+		type_name = "DUNGEON";
 	} else {
 		script->type = -1;
 		type_name = "???";
