@@ -164,6 +164,9 @@ extern const struct olc_cmd_type	vledit_table[];
 extern const struct olc_cmd_type	bsedit_table[];
 extern const struct olc_cmd_type	bpedit_table[];
 extern const struct olc_cmd_type	dngedit_table[];
+extern const struct olc_cmd_type        apedit_table[];
+extern const struct olc_cmd_type        ipedit_table[];
+extern const struct olc_cmd_type        dpedit_table[];
 
 
 /*
