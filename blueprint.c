@@ -4125,6 +4125,10 @@ INSTANCE *instance_load(FILE *fp)
 
 	instance->blueprint = get_blueprint(vnum);
 
+	instance->progs			= new_prog_data();
+	instance->progs->progs	= instance->blueprint->progs;
+	variable_copylist(&instance->blueprint->index_vars,&instance->progs->vars,FALSE);
+
 	while (str_cmp((word = fread_word(fp)), "#-INSTANCE"))
 	{
 		fMatch = FALSE;

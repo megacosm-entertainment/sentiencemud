@@ -2345,6 +2345,11 @@ DUNGEON *dungeon_load(FILE *fp)
 
 	dungeon->index = get_dungeon_index(vnum);
 
+	dungeon->progs			= new_prog_data();
+	dungeon->progs->progs	= dungeon->index->progs;
+	variable_copylist(&dungeon->index->index_vars,&dungeon->progs->vars,FALSE);
+
+
 	dungeon->entry_room = get_room_index(dungeon->index->entry_room);
 	dungeon->exit_room = get_room_index(dungeon->index->exit_room);
 
