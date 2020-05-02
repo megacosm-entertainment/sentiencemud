@@ -5110,7 +5110,7 @@ char *expand_string_entity(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
 		break;
 
 	case ENT_DUNGEON:
-		add_buf(buffer, (arg->d.dungeon) ? arg->d.dungeon->instance->name : SOMEWHERE);
+		add_buf(buffer, (arg->d.dungeon) ? arg->d.dungeon->index->name : SOMEWHERE);
 		break;
 	}
 
