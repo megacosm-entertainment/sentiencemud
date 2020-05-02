@@ -1300,7 +1300,10 @@ OPCODE_FUNC opcode_table[OP_LASTCODE] = {
 	opc_obj,
 	opc_room,
 	opc_token,
-	opc_tokenother
+	opc_tokenother,
+	opc_area,
+	opc_instance,
+	opc_dungeon,
 };
 
 char *script_operators[] = { "==", ">=", "<=", ">", "<", "!=", "&", NULL };

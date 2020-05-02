@@ -6810,6 +6810,7 @@ void gecho		args( ( char *message ) );
 void nuke_pets	args( ( CHAR_DATA *ch ) );
 void room_echo       args( ( ROOM_INDEX_DATA *pRoom, char *message) );
 void sector_echo     args( ( AREA_DATA *pArea, char *message, int sector) );
+void area_echo     args( ( AREA_DATA *pArea, char *message) );
 void stop_follower	args( ( CHAR_DATA *ch, bool show ) );
 void stop_grouped	args( ( CHAR_DATA *ch ) );
 

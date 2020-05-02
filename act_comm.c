@@ -2240,16 +2240,41 @@ void sector_echo(AREA_DATA *area, char *message, int sector)
 
 	for (d = descriptor_list; d; d = d->next)
 	{
-	if (d->connected == CON_PLAYING
-	&&   d->character->in_room != NULL
-	&&   d->character->in_room->area == area
-	&&   d->character->in_room->sector_type == sector)
-	{
-	if (IS_IMMORTAL(d->character))
-	send_to_char("SECTOR_ECHO> ", d->character);
-	send_to_char(message, d->character);
-	send_to_char("\n\r", d->character);
+		if (d->connected == CON_PLAYING &&
+			d->character->in_room != NULL &&
+			!room_is_clone(d->character->in_room) &&
+			!IS_VALID(d->character->in_room->instance_section) &&
+			d->character->in_room->area == area &&
+			d->character->in_room->sector_type == sector)
+		{
+			if (IS_IMMORTAL(d->character))
+				send_to_char("SECTOR ECHO> ", d->character);
+			send_to_char(message, d->character);
+			send_to_char("\n\r", d->character);
+		}
 	}
+}
+
+void area_echo(AREA_DATA *area, char *message)
+{
+	DESCRIPTOR_DATA *d;
+
+	if (area == NULL)
+	return;
+
+	for (d = descriptor_list; d; d = d->next)
+	{
+		if (d->connected == CON_PLAYING &&
+			d->character->in_room != NULL &&
+			!room_is_clone(d->character->in_room) &&
+			!IS_VALID(d->character->in_room->instance_section) &&
+			d->character->in_room->area == area)
+		{
+			if (IS_IMMORTAL(d->character))
+				send_to_char("AREA ECHO> ", d->character);
+			send_to_char(message, d->character);
+			send_to_char("\n\r", d->character);
+		}
 	}
 }
 

@@ -385,7 +385,9 @@ enum script_command_enum {
 	OP_ROOM,		/* A room command */
 	OP_TOKEN,		/* A token command */
 	OP_TOKENOTHER,		/* A token command from other scripts */
-/*	OP_AREA,		 An area command */
+	OP_AREA,		 // An area command
+	OP_INSTANCE,
+	OP_DUNGEON,
 	OP_LASTCODE
 };
 
@@ -1406,6 +1408,9 @@ extern const struct script_cmd_type obj_cmd_table[];
 extern const struct script_cmd_type room_cmd_table[];
 extern const struct script_cmd_type token_cmd_table[];
 extern const struct script_cmd_type tokenother_cmd_table[];
+extern const struct script_cmd_type area_cmd_table[];
+extern const struct script_cmd_type instance_cmd_table[];
+extern const struct script_cmd_type dungeon_cmd_table[];
 extern ENT_FIELD entity_primary[];
 extern ENT_FIELD entity_types[];
 extern ENT_FIELD entity_number[];
@@ -1886,7 +1891,9 @@ DECL_OPC_FUN(opc_obj);
 DECL_OPC_FUN(opc_room);
 DECL_OPC_FUN(opc_token);
 DECL_OPC_FUN(opc_tokenother);
-/* DECL_OPC_FUN(opc_area);	Not yet */
+DECL_OPC_FUN(opc_area);
+DECL_OPC_FUN(opc_instance);
+DECL_OPC_FUN(opc_dungeon);
 
 
 /* General */
@@ -2089,6 +2096,9 @@ int mpcmd_lookup(char *command);
 int opcmd_lookup(char *command);
 int rpcmd_lookup(char *command);
 int tpcmd_lookup(char *command,bool istoken);
+int apcmd_lookup(char *command);
+int ipcmd_lookup(char *command);
+int dpcmd_lookup(char *command);
 void mob_interpret(SCRIPT_VARINFO *info, char *argument);
 void obj_interpret(SCRIPT_VARINFO *info, char *argument);
 void room_interpret(SCRIPT_VARINFO *info, char *argument);
@@ -2530,8 +2540,19 @@ SCRIPT_CMD(scriptcmd_questscroll);
 
 SCRIPT_CMD(scriptcmd_ed);
 
+SCRIPT_CMD(scriptcmd_call);
+SCRIPT_CMD(scriptcmd_xcall);
 
 
+SCRIPT_CMD(scriptcmd_varclear);
+SCRIPT_CMD(scriptcmd_varclearon);
+SCRIPT_CMD(scriptcmd_varcopy);
+SCRIPT_CMD(scriptcmd_varsave);
+SCRIPT_CMD(scriptcmd_varsaveon);
+SCRIPT_CMD(scriptcmd_varset);
+SCRIPT_CMD(scriptcmd_varseton);
+
+SCRIPT_CMD(scriptcmd_echoat);
 
 #include "tables.h"
 

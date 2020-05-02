@@ -14,6 +14,84 @@
 //#define DEBUG_MODULE
 #include "debug.h"
 
+const struct script_cmd_type area_cmd_table[] = {
+	{ "call",				scriptcmd_call,				FALSE,	TRUE	},
+	{ "echoat",				scriptcmd_echoat,			FALSE,	TRUE	},
+	{ "varclear",			scriptcmd_varclear,			FALSE,	TRUE	},
+	{ "varclearon",			scriptcmd_varclearon,		FALSE,	TRUE	},
+	{ "varcopy",			scriptcmd_varcopy,			FALSE,	TRUE	},
+	{ "varsave",			scriptcmd_varsave,			FALSE,	TRUE	},
+	{ "varsaveon",			scriptcmd_varsaveon,		FALSE,	TRUE	},
+	{ "varset",				scriptcmd_varset,			FALSE,	TRUE	},
+	{ "varseton",			scriptcmd_varseton,			FALSE,	TRUE	},
+	{ "xcall",				scriptcmd_xcall,			FALSE,	TRUE	},
+	{ NULL,					NULL,						FALSE,	FALSE	}
+};
+
+const struct script_cmd_type instance_cmd_table[] = {
+	{ "call",				scriptcmd_call,				FALSE,	TRUE	},
+	{ "echoat",				scriptcmd_echoat,			FALSE,	TRUE	},
+	{ "varclear",			scriptcmd_varclear,			FALSE,	TRUE	},
+	{ "varclearon",			scriptcmd_varclearon,		FALSE,	TRUE	},
+	{ "varcopy",			scriptcmd_varcopy,			FALSE,	TRUE	},
+	{ "varsave",			scriptcmd_varsave,			FALSE,	TRUE	},
+	{ "varsaveon",			scriptcmd_varsaveon,		FALSE,	TRUE	},
+	{ "varset",				scriptcmd_varset,			FALSE,	TRUE	},
+	{ "varseton",			scriptcmd_varseton,			FALSE,	TRUE	},
+	{ "xcall",				scriptcmd_xcall,			FALSE,	TRUE	},
+	{ NULL,					NULL,						FALSE,	FALSE	}
+};
+
+const struct script_cmd_type dungeon_cmd_table[] = {
+	{ "call",				scriptcmd_call,				FALSE,	TRUE	},
+	{ "echoat",				scriptcmd_echoat,			FALSE,	TRUE	},
+	{ "varclear",			scriptcmd_varclear,			FALSE,	TRUE	},
+	{ "varclearon",			scriptcmd_varclearon,		FALSE,	TRUE	},
+	{ "varcopy",			scriptcmd_varcopy,			FALSE,	TRUE	},
+	{ "varsave",			scriptcmd_varsave,			FALSE,	TRUE	},
+	{ "varsaveon",			scriptcmd_varsaveon,		FALSE,	TRUE	},
+	{ "varset",				scriptcmd_varset,			FALSE,	TRUE	},
+	{ "varseton",			scriptcmd_varseton,			FALSE,	TRUE	},
+	{ "xcall",				scriptcmd_xcall,			FALSE,	TRUE	},
+	{ NULL,					NULL,						FALSE,	FALSE	}
+};
+
+int apcmd_lookup(char *command)
+{
+	int cmd;
+
+	for (cmd = 0; area_cmd_table[cmd].name; cmd++)
+		if (command[0] == area_cmd_table[cmd].name[0] &&
+			!str_prefix(command, area_cmd_table[cmd].name))
+			return cmd;
+
+	return -1;
+}
+
+int ipcmd_lookup(char *command)
+{
+	int cmd;
+
+	for (cmd = 0; instance_cmd_table[cmd].name; cmd++)
+		if (command[0] == instance_cmd_table[cmd].name[0] &&
+			!str_prefix(command, instance_cmd_table[cmd].name))
+			return cmd;
+
+	return -1;
+}
+
+int dpcmd_lookup(char *command)
+{
+	int cmd;
+
+	for (cmd = 0; dungeon_cmd_table[cmd].name; cmd++)
+		if (command[0] == dungeon_cmd_table[cmd].name[0] &&
+			!str_prefix(command, dungeon_cmd_table[cmd].name))
+			return cmd;
+
+	return -1;
+}
+
 
 ///////////////////////////////////////////
 //
@@ -929,6 +1007,135 @@ SCRIPT_CMD(scriptcmd_breathe)
 //////////////////////////////////////
 // C
 
+SCRIPT_CMD(scriptcmd_call)
+{
+	char *rest; //buf[MSL], *rest;
+	CHAR_DATA *vch = NULL,*ch = NULL;
+	OBJ_DATA *obj1 = NULL,*obj2 = NULL;
+	SCRIPT_DATA *script;
+	int depth, vnum, ret;
+	int space;
+
+	if(!info) return;
+
+	if (!argument[0]) {
+		return;
+	}
+
+	// Call depth checking
+	depth = script_call_depth;
+	if(script_call_depth == 1) {
+		return;
+	} else if(script_call_depth > 1)
+		--script_call_depth;
+
+
+	if(!(rest = expand_argument(info,argument,arg))) {
+		// Restore the call depth to the previous value
+		script_call_depth = depth;
+		return;
+	}
+
+	switch(arg->type) {
+	case ENT_STRING: vnum = atoi(arg->d.str); break;
+	case ENT_NUMBER: vnum = arg->d.num; break;
+	default: vnum = 0; break;
+	}
+
+	if (info->mob) space = PRG_MPROG;
+	else if(info->obj) space = PRG_OPROG;
+	else if(info->room) space = PRG_RPROG;
+	else if(info->token) space = PRG_TPROG;
+	else if(info->area) space = PRG_APROG;
+	else if(info->instance) space = PRG_IPROG;
+	else if(info->dungeon) space = PRG_DPROG;
+
+	if (vnum < 1 || !(script = get_script_index(vnum, space))) {
+		return;
+	}
+
+	ch = vch = NULL;
+	obj1 = obj2 = NULL;
+
+	if(*rest) {	// Enactor
+		argument = rest;
+		if(!(rest = expand_argument(info,argument,arg))) {
+			// Restore the call depth to the previous value
+			script_call_depth = depth;
+			return;
+		}
+
+		switch(arg->type) {
+		case ENT_STRING: ch = script_get_char_room(info, arg->d.str, FALSE); break;
+		case ENT_MOBILE: ch = arg->d.mob; break;
+		default: ch = NULL; break;
+		}
+	}
+
+	if(ch && *rest) {	// Victim
+		argument = rest;
+		if(!(rest = expand_argument(info,argument,arg))) {
+			bug("MpCall: Error in parsing from vnum %ld.", VNUM(info->mob));
+			// Restore the call depth to the previous value
+			script_call_depth = depth;
+			return;
+		}
+
+		argument = rest;
+		if(!(rest = expand_argument(info,argument,arg))) {
+			// Restore the call depth to the previous value
+			script_call_depth = depth;
+			return;
+		}
+
+		switch(arg->type) {
+		case ENT_STRING: vch = script_get_char_room(info, arg->d.str, FALSE); break;
+		case ENT_MOBILE: vch = arg->d.mob; break;
+		default: vch = NULL; break;
+		}
+	}
+
+	if(*rest) {	// Obj 1
+		argument = rest;
+		if(!(rest = expand_argument(info,argument,arg))) {
+			// Restore the call depth to the previous value
+			script_call_depth = depth;
+			return;
+		}
+
+		switch(arg->type) {
+		case ENT_STRING: obj1 = script_get_obj_here(info, arg->d.str); break;
+		case ENT_OBJECT: obj1 = arg->d.obj; break;
+		default: obj1 = NULL; break;
+		}
+	}
+
+	if(obj1 && *rest) {	// Obj 2
+		argument = rest;
+		if(!(rest = expand_argument(info,argument,arg))) {
+			// Restore the call depth to the previous value
+			script_call_depth = depth;
+			return;
+		}
+
+		switch(arg->type) {
+		case ENT_STRING: obj2 = script_get_obj_here(info, arg->d.str); break;
+		case ENT_OBJECT: obj2 = arg->d.obj; break;
+		default: obj2 = NULL; break;
+		}
+	}
+
+	// Do this to account for possible destructions
+	ret = execute_script(script->vnum, script, info->mob, info->obj, info->room, info->token, info->area, info->instance, info->dungeon, ch, obj1, obj2, vch, NULL,NULL, NULL,info->phrase,info->trigger,0,0,0,0,0);
+	if(info->progs) {
+		info->progs->lastreturn = ret;
+	} else
+		info->block->ret_val = ret;
+
+	// restore the call depth to the previous value
+	script_call_depth = depth;
+}
+
 //////////////////////////////////////
 // D
 
@@ -1302,6 +1509,55 @@ SCRIPT_CMD(scriptcmd_detach)
 
 //////////////////////////////////////
 // E
+
+// ECHOAT $MOBILE|ROOM|$AREA|INSTANCE|DUNGEON string
+SCRIPT_CMD(scriptcmd_echoat)
+{
+	char *rest;
+	CHAR_DATA *victim = NULL;
+	ROOM_INDEX_DATA *room = NULL;
+	AREA_DATA *area = NULL;
+	INSTANCE *instance = NULL;
+	DUNGEON *dungeon = NULL;
+
+	if(!info) return;
+
+	if(!(rest = expand_argument(info,argument,arg)))
+		return;
+
+
+	switch(arg->type) {
+	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, FALSE); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
+	case ENT_AREA: area = arg->d.area; break;
+	case ENT_INSTANCE: instance = arg->d.instance; break;
+	case ENT_DUNGEON: dungeon = arg->d.dungeon; break;
+	default: return;
+	}
+
+	if ((!victim || !victim->in_room) && !room && !area && !instance && !dungeon)
+		return;
+
+	// Expand the message
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
+
+	if( !IS_NULLSTR(buffer->string) )
+	{
+		if( IS_VALID(instance) )
+			instance_echo(instance, buffer->string);
+		else if( IS_VALID(dungeon) )
+			dungeon_echo(dungeon, buffer->string);
+		else if( area )
+			area_echo(area, buffer->string);
+		else if( room )
+			room_echo(room, buffer->string);
+		else
+			act(buffer->string, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	}
+	free_buf(buffer);
+}
+
 
 // ED $OBJECT|$VROOM CLEAR
 //    Clears out the entity's extra descriptions
@@ -2866,11 +3122,305 @@ SCRIPT_CMD(scriptcmd_stopcombat)
 //////////////////////////////////////
 // V
 
+SCRIPT_CMD(scriptcmd_varclear)
+{
+	if(!info || !info->var) return;
+
+	script_varclearon(info,info->var, argument, arg);
+}
+
+SCRIPT_CMD(scriptcmd_varclearon)
+{
+	VARIABLE **vars;
+
+	if(!info) return;
+
+	// Get the target
+	if(!(argument = expand_argument(info,argument,arg)))
+		return;
+
+	switch(arg->type) {
+	case ENT_MOBILE: vars = (arg->d.mob && IS_NPC(arg->d.mob) && arg->d.mob->progs) ? &arg->d.mob->progs->vars : NULL; break;
+	case ENT_OBJECT: vars = (arg->d.obj && arg->d.obj->progs) ? &arg->d.obj->progs->vars : NULL; break;
+	case ENT_ROOM: vars = (arg->d.room && arg->d.room->progs) ? &arg->d.room->progs->vars : NULL; break;
+	case ENT_TOKEN: vars = (arg->d.token && arg->d.token->progs) ? &arg->d.token->progs->vars : NULL; break;
+	default: vars = NULL; break;
+	}
+
+	script_varclearon(info,vars,argument, arg);
+}
+
+
+SCRIPT_CMD(scriptcmd_varcopy)
+{
+	char oldname[MIL],newname[MIL];
+
+	if(!info || !info->var) return;
+
+	// Get name
+	argument = one_argument(argument,oldname);
+	if(!oldname[0]) return;
+	argument = one_argument(argument,newname);
+	if(!newname[0]) return;
+
+	if(!str_cmp(oldname,newname)) return;
+
+	variable_copy(info->var,oldname,newname);
+}
+
+SCRIPT_CMD(scriptcmd_varsave)
+{
+	char name[MIL],arg1[MIL];
+	bool on;
+
+	if(!info || !info->var) return;
+
+	// Get name
+	argument = one_argument(argument,name);
+	if(!name[0]) return;
+	argument = one_argument(argument,arg1);
+	if(!arg1[0]) return;
+
+	on = !str_cmp(arg1,"on") || !str_cmp(arg1,"true") || !str_cmp(arg1,"yes");
+
+	variable_setsave(*info->var,name,on);
+}
+
+SCRIPT_CMD(scriptcmd_varsaveon)
+{
+	char name[MIL],buf[MIL];
+	bool on;
+
+	VARIABLE *vars;
+
+	if(!info) return;
+
+	// Get the target
+	if(!(argument = expand_argument(info,argument,arg)))
+		return;
+
+	switch(arg->type) {
+	case ENT_MOBILE: vars = (arg->d.mob && IS_NPC(arg->d.mob) && arg->d.mob->progs) ? arg->d.mob->progs->vars : NULL; break;
+	case ENT_OBJECT: vars = (arg->d.obj && arg->d.obj->progs) ? arg->d.obj->progs->vars : NULL; break;
+	case ENT_ROOM: vars = (arg->d.room && arg->d.room->progs) ? arg->d.room->progs->vars : NULL; break;
+	case ENT_TOKEN: vars = (arg->d.token && arg->d.token->progs) ? arg->d.token->progs->vars : NULL; break;
+	default: vars = NULL; break;
+	}
+
+	if(!vars) return;
+
+	// Get name
+	argument = one_argument(argument,name);
+	if(!name[0]) return;
+	argument = one_argument(argument,buf);
+	if(!buf[0]) return;
+
+	on = !str_cmp(buf,"on") || !str_cmp(buf,"true") || !str_cmp(buf,"yes");
+
+	variable_setsave(vars,name,on);
+}
+
+SCRIPT_CMD(scriptcmd_varset)
+{
+	if(!info || !info->var) return;
+
+	script_varseton(info,info->var,argument, arg);
+}
+
+SCRIPT_CMD(scriptcmd_varseton)
+{
+
+	VARIABLE **vars;
+
+	if(!info) return;
+
+	// Get the target
+	if(!(argument = expand_argument(info,argument,arg)))
+		return;
+
+	switch(arg->type) {
+	case ENT_MOBILE: vars = (arg->d.mob && IS_NPC(arg->d.mob) && arg->d.mob->progs) ? &arg->d.mob->progs->vars : NULL; break;
+	case ENT_OBJECT: vars = (arg->d.obj && arg->d.obj->progs) ? &arg->d.obj->progs->vars : NULL; break;
+	case ENT_ROOM: vars = (arg->d.room && arg->d.room->progs) ? &arg->d.room->progs->vars : NULL; break;
+	case ENT_TOKEN: vars = (arg->d.token && arg->d.token->progs) ? &arg->d.token->progs->vars : NULL; break;
+	default: vars = NULL; break;
+	}
+
+	script_varseton(info, vars, argument, arg);
+}
+
+
 //////////////////////////////////////
 // W
 
 //////////////////////////////////////
 // X
+
+// do_mpxcall
+SCRIPT_CMD(scriptcmd_xcall)
+{
+	char *rest; //buf[MSL], *rest;
+	CHAR_DATA *mob = NULL;
+	OBJ_DATA *obj = NULL;
+	ROOM_INDEX_DATA *room = NULL;
+	TOKEN_DATA *token = NULL;
+	AREA_DATA *area = NULL;
+	INSTANCE *instance = NULL;
+	DUNGEON *dungeon = NULL;
+	CHAR_DATA *vch = NULL,*ch = NULL;
+	OBJ_DATA *obj1 = NULL,*obj2 = NULL;
+	SCRIPT_DATA *script;
+	int depth, vnum, ret, space = PRG_MPROG;
+
+
+	DBG2ENTRY2(PTR,info,PTR,argument);
+	if(!info) return;
+
+	info->progs->lastreturn = 0;
+
+	if (!argument[0]) {
+		return;
+	}
+
+	if(script_security < 5) {
+		return;
+	}
+
+
+	// Call depth checking
+	depth = script_call_depth;
+	if(script_call_depth == 1) {
+		return;
+	} else if(script_call_depth > 1)
+		--script_call_depth;
+
+
+	if(!(rest = expand_argument(info,argument,arg))) {
+		// Restore the call depth to the previous value
+		script_call_depth = depth;
+		return;
+	}
+
+	switch(arg->type) {
+	case ENT_MOBILE:	mob = arg->d.mob; space = PRG_MPROG; break;
+	case ENT_OBJECT:	obj = arg->d.obj; space = PRG_OPROG; break;
+	case ENT_ROOM:		room = arg->d.room; space = PRG_RPROG; break;
+	case ENT_TOKEN:		token = arg->d.token; space = PRG_TPROG; break;
+	case ENT_AREA:		area = arg->d.area; space = PRG_APROG; break;
+	case ENT_INSTANCE:	instance = arg->d.instance; space = PRG_IPROG; break;
+	case ENT_DUNGEON:	dungeon = arg->d.dungeon; space = PRG_DPROG; break;
+	}
+
+	if(!mob && !obj && !room && !token && !area && !instance && !dungeon) {
+		// Restore the call depth to the previous value
+		script_call_depth = depth;
+		return;
+	}
+
+	if(mob && !IS_NPC(mob)) {
+		// Restore the call depth to the previous value
+		script_call_depth = depth;
+		return;
+	}
+
+
+	if(!(rest = expand_argument(info,rest,arg))) {
+		// Restore the call depth to the previous value
+		script_call_depth = depth;
+		return;
+	}
+
+	switch(arg->type) {
+	case ENT_STRING: vnum = atoi(arg->d.str); break;
+	case ENT_NUMBER: vnum = arg->d.num; break;
+	default: vnum = 0; break;
+	}
+
+	if (vnum < 1 || !(script = get_script_index(vnum, space))) {
+		return;
+	}
+
+	ch = vch = NULL;
+	obj1 = obj2 = NULL;
+
+	if(*rest) {	// Enactor
+		argument = rest;
+		if(!(rest = expand_argument(info,argument,arg))) {
+			// Restore the call depth to the previous value
+			script_call_depth = depth;
+			return;
+		}
+
+		switch(arg->type) {
+		case ENT_STRING: ch = script_get_char_room(info, arg->d.str, FALSE); break;
+		case ENT_MOBILE: ch = arg->d.mob; break;
+		default: ch = NULL; break;
+		}
+	}
+
+	if(ch && *rest) {	// Victim
+		argument = rest;
+		if(!(rest = expand_argument(info,argument,arg))) {
+			// Restore the call depth to the previous value
+			script_call_depth = depth;
+			return;
+		}
+
+		argument = rest;
+		if(!(rest = expand_argument(info,argument,arg))) {
+			// Restore the call depth to the previous value
+			script_call_depth = depth;
+			return;
+		}
+
+		switch(arg->type) {
+		case ENT_STRING: vch = script_get_char_room(info, arg->d.str, FALSE); break;
+		case ENT_MOBILE: vch = arg->d.mob; break;
+		default: vch = NULL; break;
+		}
+	}
+
+	if(*rest) {	// Obj 1
+		argument = rest;
+		if(!(rest = expand_argument(info,argument,arg))) {
+			// Restore the call depth to the previous value
+			script_call_depth = depth;
+			return;
+		}
+
+		switch(arg->type) {
+		case ENT_STRING: obj1 = script_get_obj_here(info, arg->d.str); break;
+		case ENT_OBJECT: obj1 = arg->d.obj; break;
+		default: obj1 = NULL; break;
+		}
+	}
+
+	if(obj1 && *rest) {	// Obj 2
+		argument = rest;
+		if(!(rest = expand_argument(info,argument,arg))) {
+			// Restore the call depth to the previous value
+			script_call_depth = depth;
+			return;
+		}
+
+		switch(arg->type) {
+		case ENT_STRING: obj2 = script_get_obj_here(info, arg->d.str); break;
+		case ENT_OBJECT: obj2 = arg->d.obj; break;
+		default: obj2 = NULL; break;
+		}
+	}
+
+	// Do this to account for possible destructions
+	ret = execute_script(script->vnum, script, mob, obj, room, token, area, instance, dungeon, ch, obj1, obj2, vch, NULL,NULL, NULL,info->phrase,info->trigger,0,0,0,0,0);
+	if(info->progs)
+		info->progs->lastreturn = ret;
+	else
+		info->block->ret_val = ret;
+
+	// restore the call depth to the previous value
+	script_call_depth = depth;
+}
+
 
 //////////////////////////////////////
 // Y

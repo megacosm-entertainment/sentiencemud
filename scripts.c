@@ -2633,6 +2633,98 @@ DECL_OPC_FUN(opc_tokenother)
 	return TRUE;
 }
 
+DECL_OPC_FUN(opc_area)
+{
+	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
+		return opc_skip_block(block,block->cur_line->level-1,FALSE);
+
+	// Verify
+	if(block->type != IFC_A) {
+		// Log the error
+		return FALSE;
+	}
+
+	DBG3MSG2("Executing: %d(%s)\n", block->cur_line->param,area_cmd_table[block->cur_line->param].name);
+
+	if(area_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
+		char buf[MIL];
+		sprintf(buf, "Attempted execution of a restricted area command '%s' with nulled security.",area_cmd_table[block->cur_line->param].name);
+		bug(buf, 0);
+	} else if(block->info.area) {
+		if( !area_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
+			SCRIPT_PARAM *arg = new_script_param();
+			(*area_cmd_table[block->cur_line->param].func) (&block->info,block->cur_line->rest, arg);
+			free_script_param(arg);
+			tail_chain();
+		}
+	}
+
+	opc_next_line(block);
+	return TRUE;
+}
+
+DECL_OPC_FUN(opc_instance)
+{
+	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
+		return opc_skip_block(block,block->cur_line->level-1,FALSE);
+
+	// Verify
+	if(block->type != IFC_I) {
+		// Log the error
+		return FALSE;
+	}
+
+	DBG3MSG2("Executing: %d(%s)\n", block->cur_line->param,instance_cmd_table[block->cur_line->param].name);
+
+	if(instance_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
+		char buf[MIL];
+		sprintf(buf, "Attempted execution of a restricted instance command '%s' with nulled security.",instance_cmd_table[block->cur_line->param].name);
+		bug(buf, 0);
+	} else if(IS_VALID(block->info.instance)) {
+		if( !instance_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
+			SCRIPT_PARAM *arg = new_script_param();
+			(*instance_cmd_table[block->cur_line->param].func) (&block->info,block->cur_line->rest, arg);
+			free_script_param(arg);
+			tail_chain();
+		}
+	}
+
+	opc_next_line(block);
+	return TRUE;
+}
+
+DECL_OPC_FUN(opc_dungeon)
+{
+	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
+		return opc_skip_block(block,block->cur_line->level-1,FALSE);
+
+	// Verify
+	if(block->type != IFC_D) {
+		// Log the error
+		return FALSE;
+	}
+
+	DBG3MSG2("Executing: %d(%s)\n", block->cur_line->param,dungeon_cmd_table[block->cur_line->param].name);
+
+	if(area_cmd_table[block->cur_line->param].restricted && script_security < MIN_SCRIPT_SECURITY) {
+		char buf[MIL];
+		sprintf(buf, "Attempted execution of a restricted dungeon command '%s' with nulled security.",dungeon_cmd_table[block->cur_line->param].name);
+		bug(buf, 0);
+	} else if(IS_VALID(block->info.dungeon)) {
+		if( !dungeon_cmd_table[block->cur_line->param].required || !IS_NULLSTR(block->cur_line->rest) ) {
+			SCRIPT_PARAM *arg = new_script_param();
+			(*dungeon_cmd_table[block->cur_line->param].func) (&block->info,block->cur_line->rest, arg);
+			free_script_param(arg);
+			tail_chain();
+		}
+	}
+
+
+	opc_next_line(block);
+	return TRUE;
+}
+
+
 bool echo_line(SCRIPT_CB *block)
 {
 	char buf[MSL];
@@ -2816,6 +2908,9 @@ int execute_script(long pvnum, SCRIPT_DATA *script,
 	block.info.obj = obj;
 	block.info.room = room;
 	block.info.token = token;
+	block.info.area = area;
+	block.info.instance = instance;
+	block.info.dungeon = dungeon;
 	block.info.ch = ch;
 	block.info.obj1 = obj1;
 	block.info.obj2 = obj2;

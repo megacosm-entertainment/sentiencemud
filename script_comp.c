@@ -1499,6 +1499,81 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 						}
 					}
 					doquotes = FALSE;
+				} else if(!str_cmp(buf,"area")) {
+					if(type != IFC_A) {
+						sprintf(rbuf,"Line %d: Attempting to do an area command outside an aprog.", rline);
+						compile_error_show(rbuf);
+						linevalid = FALSE;
+						break;
+					}
+
+					line = one_argument(line,buf);
+					state[level] = IN_BLOCK;
+					code[cline].opcode = OP_AREA;
+					code[cline].level = level;
+					code[cline].param = apcmd_lookup(buf);
+					if(code[cline].param < 0) {
+						sprintf(rbuf,"Line %d: Invalid area command '%s'.", rline, buf);
+						compile_error_show(rbuf);
+						linevalid = FALSE;
+						break;
+					} else if(inspect && area_cmd_table[code[cline].param].restricted) {
+						sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'area %s' requires inspection by an IMP.", rline, area_cmd_table[code[cline].param].name);
+						compile_error_show(rbuf);
+						disable = TRUE;
+					}
+					doquotes = FALSE;
+
+				} else if(!str_cmp(buf,"instance")) {
+					if(type != IFC_I) {
+						sprintf(rbuf,"Line %d: Attempting to do an instance command outside an iprog.", rline);
+						compile_error_show(rbuf);
+						linevalid = FALSE;
+						break;
+					}
+
+					line = one_argument(line,buf);
+					state[level] = IN_BLOCK;
+					code[cline].opcode = OP_INSTANCE;
+					code[cline].level = level;
+					code[cline].param = ipcmd_lookup(buf);
+					if(code[cline].param < 0) {
+						sprintf(rbuf,"Line %d: Invalid instance command '%s'.", rline, buf);
+						compile_error_show(rbuf);
+						linevalid = FALSE;
+						break;
+					} else if(inspect && instance_cmd_table[code[cline].param].restricted) {
+						sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'instance %s' requires inspection by an IMP.", rline, instance_cmd_table[code[cline].param].name);
+						compile_error_show(rbuf);
+						disable = TRUE;
+					}
+					doquotes = FALSE;
+
+				} else if(!str_cmp(buf,"dungeon")) {
+					if(type != IFC_A) {
+						sprintf(rbuf,"Line %d: Attempting to do a dungeon command outside a dprog.", rline);
+						compile_error_show(rbuf);
+						linevalid = FALSE;
+						break;
+					}
+
+					line = one_argument(line,buf);
+					state[level] = IN_BLOCK;
+					code[cline].opcode = OP_DUNGEON;
+					code[cline].level = level;
+					code[cline].param = dpcmd_lookup(buf);
+					if(code[cline].param < 0) {
+						sprintf(rbuf,"Line %d: Invalid dungeon command '%s'.", rline, buf);
+						compile_error_show(rbuf);
+						linevalid = FALSE;
+						break;
+					} else if(inspect && dungeon_cmd_table[code[cline].param].restricted) {
+						sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'dungeon %s' requires inspection by an IMP.", rline, dungeon_cmd_table[code[cline].param].name);
+						compile_error_show(rbuf);
+						disable = TRUE;
+					}
+					doquotes = FALSE;
+
 				} else if(type == IFC_M) {
 					state[level] = IN_BLOCK;
 					code[cline].opcode = OP_COMMAND;
