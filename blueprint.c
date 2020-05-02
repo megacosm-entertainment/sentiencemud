@@ -205,6 +205,7 @@ BLUEPRINT *load_blueprint(FILE *fp)
 	BLUEPRINT *bp;
 	char *word;
 	bool fMatch;
+	char buf[MSL];
 
 	bp = new_blueprint();
 	bp->vnum = fread_number(fp);
@@ -473,7 +474,7 @@ void load_blueprints()
 
 		if (!str_cmp(word, "#INSTANCEPROG"))
 		{
-		    SCRIPT_DATA *pr = read_script_new(fp, area, IFC_I);
+		    SCRIPT_DATA *pr = read_script_new(fp, NULL, IFC_I);
 		    if(pr) {
 		    	pr->next = iprog_list;
 		    	iprog_list = pr;
@@ -579,7 +580,9 @@ void save_blueprint(FILE *fp, BLUEPRINT *bp)
 	}
 
     if(bp->progs) {
-		for(i = 0; i < TRIGSLOT_MAX; i++) if(list_size(bp->progs[i]) > 0) {
+		ITERATOR it;
+		PROG_LIST *trigger;
+		for(int i = 0; i < TRIGSLOT_MAX; i++) if(list_size(bp->progs[i]) > 0) {
 			iterator_start(&it, bp->progs[i]);
 			while((trigger = (PROG_LIST *)iterator_nextdata(&it)))
 				fprintf(fp, "InstanceProg %ld %s~ %s~\n", trigger->vnum, trigger_name(trigger->trig_type), trigger_phrase(trigger->trig_type,trigger->trig_phrase));
@@ -588,7 +591,7 @@ void save_blueprint(FILE *fp, BLUEPRINT *bp)
 	}
 
 	if(bp->index_vars) {
-		for(var = bp->index_vars; var; var = var->next) {
+		for(pVARIABLE var = bp->index_vars; var; var = var->next) {
 			if(var->type == VAR_INTEGER)
 				fprintf(fp, "VarInt %s~ %d %d\n", var->name, var->save, var->_.i);
 			else if(var->type == VAR_STRING || var->type == VAR_STRING_S)

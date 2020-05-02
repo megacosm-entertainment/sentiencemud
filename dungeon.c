@@ -61,6 +61,7 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp)
 	DUNGEON_INDEX_DATA *dng;
 	char *word;
 	bool fMatch;
+	char buf[MSL];
 
 	dng = new_dungeon_index();
 	dng->vnum = fread_number(fp);
@@ -346,7 +347,9 @@ void save_dungeon_index(FILE *fp, DUNGEON_INDEX_DATA *dng)
 	iterator_stop(&it);
 
     if(dng->progs) {
-		for(i = 0; i < TRIGSLOT_MAX; i++) if(list_size(dng->progs[i]) > 0) {
+		ITERATOR it;
+		PROG_LIST *trigger;
+		for(int i = 0; i < TRIGSLOT_MAX; i++) if(list_size(dng->progs[i]) > 0) {
 			iterator_start(&it, dng->progs[i]);
 			while((trigger = (PROG_LIST *)iterator_nextdata(&it)))
 				fprintf(fp, "DungeonProg %ld %s~ %s~\n", trigger->vnum, trigger_name(trigger->trig_type), trigger_phrase(trigger->trig_type,trigger->trig_phrase));
@@ -355,7 +358,7 @@ void save_dungeon_index(FILE *fp, DUNGEON_INDEX_DATA *dng)
 	}
 
 	if(dng->index_vars) {
-		for(var = dng->index_vars; var; var = var->next) {
+		for(pVARIABLE var = dng->index_vars; var; var = var->next) {
 			if(var->type == VAR_INTEGER)
 				fprintf(fp, "VarInt %s~ %d %d\n", var->name, var->save, var->_.i);
 			else if(var->type == VAR_STRING || var->type == VAR_STRING_S)
