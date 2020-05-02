@@ -1702,7 +1702,7 @@ void show_script_list(CHAR_DATA *ch, char *argument,int type)
     	if( min < 0 )
     	{
 			min = 1;
-			min = top_iprog_index;
+			max = top_iprog_index;
 		}
 
     	break;
@@ -1711,7 +1711,7 @@ void show_script_list(CHAR_DATA *ch, char *argument,int type)
     	if( min < 0 )
     	{
 			min = 1;
-			min = top_dprog_index;
+			max = top_dprog_index;
 		}
     	break;
     default: return;
