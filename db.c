@@ -1240,7 +1240,7 @@ void fix_areaprogs(void)
 
 	for (pArea = area_first; pArea != NULL; pArea = pArea->next) if(pArea->progs->progs) {
 		for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( pArea->progs->progs[slot] ) {
-			iterator_start(&it, pArea->progs[slot]);
+			iterator_start(&it, pArea->progs->progs[slot]);
 			while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
 				if (!(trigger->script = get_script_index(trigger->vnum, PRG_APROG))) {
 					bug("fix_areaprogs: code vnum %d not found.", trigger->vnum);
