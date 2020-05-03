@@ -1002,6 +1002,7 @@ const struct flag_type area_flags[] =
     {	"no_get_random",AREA_NO_GET_RANDOM,	TRUE	},
     {	"no_fading",	AREA_NO_FADING,		TRUE	},
     {	"blueprint",	AREA_BLUEPRINT,		TRUE	},
+    {	"locked",		AREA_LOCKED,		TRUE	},
     {	NULL,			0,			0	}
 };
 
