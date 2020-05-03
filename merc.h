@@ -2879,7 +2879,7 @@ enum {
 #define AREA_NO_GET_RANDOM	(J)
 #define AREA_NO_FADING		(K)
 #define AREA_BLUEPRINT		(L)		// Area is used to hold rooms used for Blueprints.  Will block VLINKs
-#define AREA_LOCKED			(K)		// Area requires the player to unlock the area first
+#define AREA_LOCKED			(M)		// Area requires the player to unlock the area first
 #define AREA_NO_SAVE		(Z)
 
 /*
