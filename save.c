@@ -841,17 +841,6 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 
 	get_mob_id(ch);
 
-    // Fix char.
-    if (found)
-	fix_character(ch);
-
-    /* Redo shift. Remember ch->shifted was just used as a placeholder to tell the game
-       to re-shift, so we have to switch it to none first. */
-    if (ch->shifted != SHIFTED_NONE) {
-	ch->shifted = SHIFTED_NONE;
-	shift_char(ch, TRUE);
-    }
-
     /* The immortal-only information associated with an imm is stored in a seperate list
        (immortal_list) so that it is always accessible, instead of only when the char
        is logged in. On game shutdown it is written to ../data/world/staff.dat. When
@@ -879,6 +868,18 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 	    //ch->level = immortal->level;
 	    //ch->tot_level = immortal->level;
 	}
+    }
+
+
+    // Fix char.
+    if (found)
+	fix_character(ch);
+
+    /* Redo shift. Remember ch->shifted was just used as a placeholder to tell the game
+       to re-shift, so we have to switch it to none first. */
+    if (ch->shifted != SHIFTED_NONE) {
+	ch->shifted = SHIFTED_NONE;
+	shift_char(ch, TRUE);
     }
 
 	variable_fix_list(last_var ? last_var : variable_head);
