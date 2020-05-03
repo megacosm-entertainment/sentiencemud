@@ -8302,7 +8302,7 @@ void dungeon_removeowner_player(DUNGEON *dungeon, CHAR_DATA *ch);
 void dungeon_removeowner_playerid(DUNGEON *dungeon, unsigned long id1, unsigned long id2);
 bool dungeon_isowner_player(DUNGEON *dungeon, CHAR_DATA *ch);
 bool dungeon_isowner_playerid(DUNGEON *dungeon, unsigned long id1, unsigned long id2);
-bool dungeon_can_player_switch(DUNGEON *dungeon, CHAR_DATA *ch);
+bool dungeon_canswitch_player(DUNGEON *dungeon, CHAR_DATA *ch);
 bool dungeon_isorphaned(DUNGEON *dungeon);
 bool dungeon_can_idle(DUNGEON *dungeon);
 

@@ -2438,7 +2438,7 @@ void resolve_dungeon_player(DUNGEON *dungeon, CHAR_DATA *ch)
 	iterator_start(&it, dungeon->player_owners);
 	while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
 	{
-		if( luid->id[0] == id1 && luid->id[1] == id2)
+		if( luid->id[0] == ch->id[0] && luid->id[1] == ch->id[1])
 		{
 			luid->ptr = ch;
 			break;
@@ -2472,7 +2472,7 @@ void detach_dungeon_player(DUNGEON *dungeon, CHAR_DATA *ch)
 	iterator_start(&it, dungeon->player_owners);
 	while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
 	{
-		if( luid->id[0] == id1 && luid->id[1] == id2)
+		if( luid->id[0] == ch->id[0] && luid->id[1] == ch->id[1])
 		{
 			luid->ptr = NULL;
 			break;
@@ -2721,7 +2721,7 @@ bool dungeon_isowner_playerid(DUNGEON *dungeon, unsigned long id1, unsigned long
 	return ret;
 }
 
-bool dungeon_canswitch_player(c, CHAR_DATA *ch)
+bool dungeon_canswitch_player(DUNGEON *dungeon, CHAR_DATA *ch)
 {
 	// TODO: Add lockout system
 	return true;
