@@ -1279,7 +1279,7 @@ DECL_OPC_FUN(opc_list)
 			if( IS_VALID((CHAR_DATA *)uid->ptr) )
 				variables_set_mobile(block->info.var,block->loops[lp].var_name,(CHAR_DATA *)uid->ptr);
 			else
-				variables_set_mobile_id(block->info.var,block->loops[lp].var_name, uid->id[0], uid->id[1]);
+				variables_set_mobile_id(block->info.var,block->loops[lp].var_name, uid->id[0], uid->id[1],false);
 
 			/*
 			ch = (CHAR_DATA *)(uid->ptr);
@@ -1315,7 +1315,7 @@ DECL_OPC_FUN(opc_list)
 			if( IS_VALID((OBJ_DATA *)uid->ptr) )
 				variables_set_object(block->info.var,block->loops[lp].var_name,(OBJ_DATA *)uid->ptr);
 			else
-				variables_set_object_id(block->info.var,block->loops[lp].var_name,uid->id[0],uid->id[1]);
+				variables_set_object_id(block->info.var,block->loops[lp].var_name,uid->id[0],uid->id[1],false);
 
 			//obj = (OBJ_DATA *)(uid->ptr);
 			//log_stringf("opc_list: object(%ld,%ld,%ld)", obj->pIndexData->vnum, obj->id[0], obj->id[1]);
@@ -1347,7 +1347,7 @@ DECL_OPC_FUN(opc_list)
 			if( IS_VALID((TOKEN_DATA *)uid->ptr) )
 				variables_set_token(block->info.var,block->loops[lp].var_name,(TOKEN_DATA *)uid->ptr);
 			else
-				variables_set_token_id(block->info.var,block->loops[lp].var_name,uid->id[0],uid->id[1]);
+				variables_set_token_id(block->info.var,block->loops[lp].var_name,uid->id[0],uid->id[1],false);
 
 			//tok = (TOKEN_DATA *)(uid->ptr);
 			//log_stringf("opc_list: token(%ld,%ld,%ld)", tok->pIndexData->vnum, tok->id[0], tok->id[1]);
@@ -2098,7 +2098,7 @@ DECL_OPC_FUN(opc_list)
 				if( IS_VALID((CHAR_DATA *)uid->ptr) )
 					variables_set_mobile(block->info.var,block->loops[lp].var_name,(CHAR_DATA *)uid->ptr);
 				else
-					variables_set_mobile_id(block->info.var,block->loops[lp].var_name,uid->id[0],uid->id[1]);
+					variables_set_mobile_id(block->info.var,block->loops[lp].var_name,uid->id[0],uid->id[1],false);
 			}
 			else
 				variables_set_mobile(block->info.var,block->loops[lp].var_name,(CHAR_DATA *)NULL);
@@ -2127,7 +2127,7 @@ DECL_OPC_FUN(opc_list)
 				if( IS_VALID((OBJ_DATA *)uid->ptr) )
 					variables_set_object(block->info.var,block->loops[lp].var_name,(OBJ_DATA *)uid->ptr);
 				else
-					variables_set_object_id(block->info.var,block->loops[lp].var_name,uid->id[0],uid->id[1]);
+					variables_set_object_id(block->info.var,block->loops[lp].var_name,uid->id[0],uid->id[1],false);
 			}
 			else
 				variables_set_object(block->info.var,block->loops[lp].var_name,(OBJ_DATA *)NULL);
@@ -2157,7 +2157,7 @@ DECL_OPC_FUN(opc_list)
 				if( IS_VALID((TOKEN_DATA *)uid->ptr) )
 					variables_set_token(block->info.var,block->loops[lp].var_name,(TOKEN_DATA *)uid->ptr);
 				else
-					variables_set_token_id(block->info.var,block->loops[lp].var_name,uid->id[0],uid->id[1]);
+					variables_set_token_id(block->info.var,block->loops[lp].var_name,uid->id[0],uid->id[1],false);
 			}
 			else
 				variables_set_token(block->info.var,block->loops[lp].var_name,(TOKEN_DATA *)NULL);
