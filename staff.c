@@ -416,6 +416,27 @@ IMMORTAL_DATA *read_immortal(FILE *fp)
 	}
     }
 
+	// Missing creation date
+	if(immortal->created < 1)
+	{
+		DESCRIPTOR d;
+		// TEMPORARY
+	    CHAR_DATA *ch = load_char_obj(&d, immortal->name);
+
+	    if( !ch || !ch->pcdata )
+	    {
+		    sprintf(buf, "read_immortal: attempting to correct created timestamp failed for %s", immortal->name);
+		    bug(buf, 0);
+		}
+		else
+		{
+			immortal->created = ch->pcdata->creation_time;
+			ch->desc = NULL;
+			extract_char(ch, TRUE);
+		}
+	}
+
+
     sprintf(buf, "read_immortal: immortal %s", immortal->name);
     log_string(buf);
     return immortal;
