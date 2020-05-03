@@ -3529,12 +3529,9 @@ void get_level_damage(int level, int *num, int *type, bool fRemort, bool fTwo)
 
 void do_mob_transfer(CHAR_DATA *ch,ROOM_INDEX_DATA *room,bool quiet, int mode)
 {
-	bool muted = false;
-
 	if( ch->desc && quiet )
 	{
-		muted = ch->desc->muted;
-		ch->desc->muted = true;
+		ch->desc->muted++;
 	}
 
 	bool show = !quiet;
@@ -3714,9 +3711,9 @@ void do_mob_transfer(CHAR_DATA *ch,ROOM_INDEX_DATA *room,bool quiet, int mode)
 			check_quest_rescue_mob(ch, show);
 	}
 
-	if( ch->desc && quiet )
+	if( ch->desc && quiet && ch->desc->muted > 0)
 	{
-		ch->desc->muted = muted;
+		ch->desc->muted--;
 	}
 }
 

@@ -1205,7 +1205,7 @@ struct	descriptor_data
     ROOM_INDEX_DATA *	input_room;
     TOKEN_DATA *	input_tok;
 
-    bool		muted;			// All text heading to the output will be blocked
+    unsigned int		muted;			// All text heading to the output will be blocked
 
 };
 

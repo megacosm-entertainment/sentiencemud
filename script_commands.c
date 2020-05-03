@@ -2364,7 +2364,7 @@ SCRIPT_CMD(scriptcmd_mute)
 	if( !arg->d.mob->desc )
 		return;
 
-	arg->d.mob->desc->muted = true;
+	arg->d.mob->desc->muted++;
 
 	info->progs->lastreturn = 1;
 }
@@ -3531,7 +3531,8 @@ SCRIPT_CMD(scriptcmd_unmute)
 	if( !arg->d.mob->desc )
 		return;
 
-	arg->d.mob->desc->muted = false;
+	if( arg->d.mob->desc->muted > 0 )
+		arg->d.mob->desc->muted--;
 
 	info->progs->lastreturn = 1;
 }
