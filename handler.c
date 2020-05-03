@@ -2099,7 +2099,7 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
     }
 
     if (ch->quest != NULL)
-	check_quest_travel_room(ch, pRoomIndex);
+	check_quest_travel_room(ch, pRoomIndex, true);
 
     return;
 }
@@ -2174,7 +2174,7 @@ void obj_to_char(OBJ_DATA *obj, CHAR_DATA *ch)
     list_addlink(ch->lcarrying, obj);
 
     if (!IS_NPC(ch))
-        check_quest_retrieve_obj(ch, obj);
+        check_quest_retrieve_obj(ch, obj, true);
 
     obj->pIndexData->carried++;
 

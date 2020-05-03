@@ -576,10 +576,10 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 		}
 	}
 
-	check_room_shield_source(ch);
+	check_room_shield_source(ch, true);
 
 	if (!IS_DEAD(ch)) {
-		check_room_flames(ch);
+		check_room_flames(ch, true);
 		if ((!IS_NPC(ch) && IS_DEAD(ch)) || (IS_NPC(ch) && ch->hit < 1))
 			return;
 	}
@@ -610,13 +610,8 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 	DUNGEON *in_dungeon = get_room_dungeon(in_room);
 	DUNGEON *to_dungeon = get_room_dungeon(to_room);
 
-	INSTANCE *in_instance = NULL;
-	if( IS_VALID(in_room->instance_section) && IS_VALID(in_room->instance_section->instance) )
-		in_instance = in_room->instance_section->instance;
-
-	INSTANCE *to_instance = NULL;
-	if( IS_VALID(to_room->instance_section) && IS_VALID(to_room->instance_section->instance) )
-		to_instance = to_room->instance_section->instance;
+	INSTANCE *in_instance = get_room_instance(in_room);
+	INSTANCE *to_instance = get_room_instance(to_room);
 
 	if (!IS_AFFECTED(ch, AFF_SNEAK) && ch->invis_level < LEVEL_HERO) {
 		if( IS_VALID(in_dungeon) && !IS_VALID(to_dungeon) )
@@ -678,7 +673,7 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 	check_see_hidden(ch);
 
 	if (!IS_WILDERNESS(ch->in_room))
-		check_traps(ch);
+		check_traps(ch, true);
 
 	if (in_room == to_room) /* no circular following */
 		return;
@@ -700,7 +695,7 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 		p_percent2_trigger(NULL, NULL, to_dungeon, ch, NULL, NULL, NULL, NULL, TRIG_ENTRY, NULL);
 	}
 
-	if( to_instance != in_instance )
+	if( IS_VALID(to_instance) && to_instance != in_instance )
 	{
 		p_percent2_trigger(NULL, to_instance, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ENTRY, NULL);
 	}
@@ -717,9 +712,9 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 		p_greet_trigger(ch, PRG_RPROG);
 	}
 
-	if (!IS_DEAD(ch)) check_rocks(ch);
-	if (!IS_DEAD(ch)) check_ice(ch);
-	if (!IS_DEAD(ch)) check_room_flames(ch);
+	if (!IS_DEAD(ch)) check_rocks(ch, true);
+	if (!IS_DEAD(ch)) check_ice(ch, true);
+	if (!IS_DEAD(ch)) check_room_flames(ch, true);
 	if (!IS_DEAD(ch)) check_ambush(ch);
 
 	/* Enable this?
@@ -741,7 +736,7 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 	}
 
 	if (!IS_NPC(ch))
-		check_quest_rescue_mob(ch);
+		check_quest_rescue_mob(ch, true);
 
 }
 
@@ -804,43 +799,50 @@ void check_ambush(CHAR_DATA *ch)
 
 
 /* MOVED: room/affects.c */
-bool check_rocks(CHAR_DATA *ch)
+bool check_rocks(CHAR_DATA *ch, bool show)
 {
-    CHAR_DATA *vch, *vch_next;
+	CHAR_DATA *vch, *vch_next;
 
-    if (ch->in_room == NULL)
-	return FALSE;
+	if (ch->in_room == NULL)
+		return FALSE;
 
-    if (IS_SET(ch->in_room->room_flags, ROOM_ROCKS)
-    && number_percent() < 75
-    && !IS_DEAD(ch)
-    && !IS_AFFECTED(ch, AFF_FLYING))
-    {
- 	act("{yLoose rocks fall from the ceiling!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL);
-   	for (vch = ch->in_room->people; vch != NULL; vch = vch_next)
-     	{
-    	    vch_next = vch->next_in_room;
+	if (IS_SET(ch->in_room->room_flags, ROOM_ROCKS) &&
+		number_percent() < 75 &&
+		!IS_DEAD(ch) &&
+		!IS_AFFECTED(ch, AFF_FLYING))
+	{
+		if( show )
+		{
+			act("{yLoose rocks fall from the ceiling!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL);
+		}
 
- 	    if (number_percent() < 50)
- 	    {
- 		act("{RYou are struck by a rock!{x", vch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		act("{R$n is struck by a rock!{x", vch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-		vch->set_death_type = DEATHTYPE_ROCKS;
- 	   	damage(vch, vch, number_range(vch->tot_level * 4, vch->tot_level * 10), 0, DAM_BASH, FALSE);
-	    }
+		for (vch = ch->in_room->people; vch != NULL; vch = vch_next)
+		{
+			vch_next = vch->next_in_room;
+
+			if (number_percent() < 50)
+			{
+				if( show )
+				{
+					act("{RYou are struck by a rock!{x", vch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+					act("{R$n is struck by a rock!{x", vch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+				}
+				vch->set_death_type = DEATHTYPE_ROCKS;
+				damage(vch, vch, number_range(vch->tot_level * 4, vch->tot_level * 10), 0, DAM_BASH, FALSE);
+			}
+		}
 	}
-    }
 
-    if ((!IS_NPC(ch) && IS_DEAD(ch))
-    ||   ( IS_NPC(ch) && ch->in_room == NULL))
-	return TRUE;
+	if ((!IS_NPC(ch) && IS_DEAD(ch)) ||
+		( IS_NPC(ch) && ch->in_room == NULL))
+		return TRUE;
 
-    return FALSE;
+	return FALSE;
 }
 
 
 /* MOVED: room/affects.c */
-bool check_ice(CHAR_DATA *ch)
+bool check_ice(CHAR_DATA *ch, bool show)
 {
     if (ch->in_room == NULL)
 	return FALSE;
@@ -854,11 +856,14 @@ bool check_ice(CHAR_DATA *ch)
 
     if (number_percent() > get_curr_stat(ch, STAT_DEX) * 2 + ch->tot_level / 20 && !IS_AFFECTED(ch, AFF_FLYING))
     {
-	act("{xYou slip on the icy ground and fall down!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	act("{x$n slips on the icy ground and falls down!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	damage(ch, ch, UMIN(ch->max_hit/2, 50), 0, DAM_BASH, FALSE);
-	ch->position = POS_RESTING;
-	return TRUE;
+		if( show )
+		{
+			act("{xYou slip on the icy ground and fall down!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("{x$n slips on the icy ground and falls down!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		}
+		damage(ch, ch, UMIN(ch->max_hit/2, 50), 0, DAM_BASH, FALSE);
+		ch->position = POS_RESTING;
+		return TRUE;
     }
 
     return FALSE;
@@ -867,73 +872,80 @@ bool check_ice(CHAR_DATA *ch)
 
 /* MOVED: room/affects.c
    Returns true if it kills them */
-bool check_room_flames(CHAR_DATA *ch)
+bool check_room_flames(CHAR_DATA *ch, bool show)
 {
-    OBJ_DATA *obj;
+	OBJ_DATA *obj;
 
-    if (ch->in_room == NULL)
-	return FALSE;
+	if (ch->in_room == NULL)
+		return FALSE;
 
-    for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
-    {
-	if (obj->item_type == ITEM_ROOM_FLAME)
+	for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
 	{
-	    if (!IS_DEAD(ch)
-	    &&	(IS_SET(ch->in_room->room_flags, ROOM_PK)
- 		 || IS_SET(ch->in_room->room_flags, ROOM_CPK)
-		 || IS_SET(ch->in_room->room_flags, ROOM_ARENA)
-		 || is_pk(ch)
-		 || IS_NPC(ch)))
-	    {
-		act("{RYou are scorched by flames!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		act("{R$n is scorched by flames!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-		damage(ch, ch, number_range(50, 500),
-			TYPE_UNDEFINED, DAM_FIRE, FALSE);
-
-		if (!IS_DEAD(ch) && number_percent() < 10)
+		if (obj->item_type == ITEM_ROOM_FLAME)
 		{
-		    AFFECT_DATA af;
-			memset(&af,0,sizeof(af));
+			if (!IS_DEAD(ch) &&
+				(IS_SET(ch->in_room->room_flags, ROOM_PK) ||
+					IS_SET(ch->in_room->room_flags, ROOM_CPK) ||
+					IS_SET(ch->in_room->room_flags, ROOM_ARENA) ||
+					is_pk(ch) || IS_NPC(ch)))
+			{
+				if( show )
+				{
+					act("{RYou are scorched by flames!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+					act("{R$n is scorched by flames!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+				}
+				damage(ch, ch, number_range(50, 500), TYPE_UNDEFINED, DAM_FIRE, FALSE);
 
-		    act("{DYou are blinded by smoke!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		    act("{D$n is blinded by smoke!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-		    af.where     = TO_AFFECTS;
-		    af.group     = AFFGROUP_PHYSICAL;
-		    af.type      = gsn_blindness;
-		    af.level     = 3; /* obj->level; */
-		    af.location  = APPLY_HITROLL;
-		    af.modifier  = -4;
-		    af.duration  = 2;
-		    af.bitvector = AFF_BLIND;
-		    af.bitvector2 = 0;
-			af.slot	= WEAR_NONE;
+				if (!IS_DEAD(ch) && number_percent() < 10)
+				{
+					AFFECT_DATA af;
+					memset(&af,0,sizeof(af));
+
+					if( show )
+					{
+						act("{DYou are blinded by smoke!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+						act("{D$n is blinded by smoke!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+					}
+					af.where     = TO_AFFECTS;
+					af.group     = AFFGROUP_PHYSICAL;
+					af.type      = gsn_blindness;
+					af.level     = 3; /* obj->level; */
+					af.location  = APPLY_HITROLL;
+					af.modifier  = -4;
+					af.duration  = 2;
+					af.bitvector = AFF_BLIND;
+					af.bitvector2 = 0;
+					af.slot	= WEAR_NONE;
+				}
+			}
+			else if( show )
+			{
+				act("{RYou pass through the scorching inferno unscathed.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				act("{R$n passes through the scorching inferno unscathed.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			}
 		}
-	    }
-	    else
-	    {
-		act("{RYou pass through the scorching inferno unscathed.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		act("{R$n passes through the scorching inferno unscathed.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	    }
 	}
-    }
 
-    if ((!IS_NPC(ch) && IS_DEAD(ch)) || ch->in_room == NULL)
-	return TRUE;
+	if ((!IS_NPC(ch) && IS_DEAD(ch)) || ch->in_room == NULL)
+		return TRUE;
 
-    return FALSE;
+	return FALSE;
 }
 
 
 /* MOVED: room/affects.c */
-void check_room_shield_source(CHAR_DATA *ch)
+void check_room_shield_source(CHAR_DATA *ch, bool show)
 {
     OBJ_DATA *obj;
 
-    for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
-	if (obj->item_type == ITEM_ROOM_ROOMSHIELD)
+	if( show )
 	{
-	    act("{YYou pass through the shimmering shield.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	    act("{Y$n passes through the shimmering shield.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
+			if (obj->item_type == ITEM_ROOM_ROOMSHIELD)
+			{
+				act("{YYou pass through the shimmering shield.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				act("{Y$n passes through the shimmering shield.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			}
 	}
 }
 
@@ -3761,80 +3773,80 @@ void do_warp(CHAR_DATA *ch, char *argument)
    See hidden - vibrates on hidden exits and items in the room */
 void check_see_hidden(CHAR_DATA *ch)
 {
-    OBJ_DATA *obj;
+	OBJ_DATA *obj;
 
-    for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
-    {
-	if (IS_SET(obj->extra2_flags, ITEM_SEE_HIDDEN)
-	&&  obj->wear_loc != WEAR_NONE)
-	    break;
-    }
-
-    if (obj)
-    {
-	int i = 0;
-	EXIT_DATA *temp_exit;
-
-	for (temp_exit = ch->in_room->exit[0]; i < MAX_DIR; temp_exit = ch->in_room->exit[i++])
+	for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
 	{
-	    if (temp_exit != NULL
-	    &&  IS_SET(temp_exit->exit_info, EX_HIDDEN)
-	    &&  !IS_SET(temp_exit->exit_info, EX_FOUND))
-	    {
-		act("{Y$p{Y begins to vibrate and hum.{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-		act("{Y$n's $p{Y begins to vibrate and hum.{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-		return;
-	    }
+		if (IS_SET(obj->extra2_flags, ITEM_SEE_HIDDEN) &&
+			obj->wear_loc != WEAR_NONE)
+			break;
 	}
-    }
+
+	if (obj)
+	{
+		int i = 0;
+		EXIT_DATA *temp_exit;
+
+		for (temp_exit = ch->in_room->exit[0]; i < MAX_DIR; temp_exit = ch->in_room->exit[i++])
+		{
+			if (temp_exit != NULL &&
+				IS_SET(temp_exit->exit_info, EX_HIDDEN) &&
+				!IS_SET(temp_exit->exit_info, (EX_FOUND|EX_NOSEARCH)))
+			{
+				act("{Y$p{Y begins to vibrate and hum.{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+				act("{Y$n's $p{Y begins to vibrate and hum.{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+				return;
+			}
+		}
+	}
 }
 
 /* MOVED: senses/mental.c
    Detect traps skill - deathtrap-exits and trapped items */
-void check_traps(CHAR_DATA *ch)
+void check_traps(CHAR_DATA *ch, bool show)
 {
-    EXIT_DATA *exit;
-    OBJ_DATA *obj;
-    int i;
+	EXIT_DATA *exit;
+	OBJ_DATA *obj;
+	int i;
 
-    if (ch == NULL)
-    {
-	bug("checked traps for null ch!", 0);
-	return;
-    }
-
-    for (i = 0; i < MAX_DIR; i++)
-    {
-	exit = ch->in_room->exit[i];
-	if (exit == NULL
-	||  IS_SET(exit->exit_info, EX_HIDDEN)
-	||  exit->u1.to_room == NULL)
-	    continue;
-
-        if (IS_SET(exit->u1.to_room->room_flags,ROOM_DEATH_TRAP)
-	&&  number_percent() < get_skill(ch, gsn_detect_traps))
+	if (ch == NULL)
 	{
-	    act("{RYou sense a strong feeling of danger coming from the $t.{x",
-		ch, NULL, NULL, NULL, NULL, dir_name[i], NULL, TO_CHAR);
-
-	    if (number_percent() < 5)
-		check_improve(ch, gsn_detect_traps, TRUE, 5);
+		bug("checked traps for null ch!", 0);
+		return;
 	}
-    }
 
-    for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
-    {
-    	if (!IS_SET(obj->extra_flags, ITEM_HIDDEN)
-	&&  IS_SET(obj->extra2_flags, ITEM_TRAPPED)
-	&&  number_percent() < get_skill(ch, gsn_detect_traps))
+	for (i = 0; i < MAX_DIR; i++)
 	{
-	    act("{RYou sense a strong feeling of danger coming from $p.{x",
-		    ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		exit = ch->in_room->exit[i];
+		if (exit == NULL ||
+			IS_SET(exit->exit_info, EX_HIDDEN) ||
+			exit->u1.to_room == NULL)
+			continue;
 
-	    if (number_percent() < 5)
-		check_improve(ch, gsn_detect_traps, TRUE, 5);
+		if (IS_SET(exit->u1.to_room->room_flags,ROOM_DEATH_TRAP) &&
+			number_percent() < get_skill(ch, gsn_detect_traps))
+		{
+			if( show )
+				act("{RYou sense a strong feeling of danger coming from the $t.{x", ch, NULL, NULL, NULL, NULL, dir_name[i], NULL, TO_CHAR);
+
+			if (number_percent() < 5)
+				check_improve_show(ch, gsn_detect_traps, TRUE, 5, show);
+		}
 	}
-    }
+
+	for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
+	{
+		if (!IS_SET(obj->extra_flags, ITEM_HIDDEN) &&
+			IS_SET(obj->extra2_flags, ITEM_TRAPPED) &&
+			number_percent() < get_skill(ch, gsn_detect_traps))
+		{
+			if ( show )
+				act("{RYou sense a strong feeling of danger coming from $p.{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+
+			if (number_percent() < 5)
+				check_improve_show(ch, gsn_detect_traps, TRUE, 5, show);
+		}
+	}
 }
 
 /* MOVED: combat/hidden.c

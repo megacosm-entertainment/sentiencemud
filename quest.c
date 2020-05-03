@@ -1004,7 +1004,7 @@ bool is_quest_token(OBJ_DATA *obj)
 }
 
 
-void check_quest_rescue_mob(CHAR_DATA *ch)
+void check_quest_rescue_mob(CHAR_DATA *ch, bool show)
 {
     QUEST_PART_DATA *part;
     CHAR_DATA *mob;
@@ -1036,13 +1036,15 @@ void check_quest_rescue_mob(CHAR_DATA *ch)
 		{
 			if (IS_NPC(mob) && mob->pIndexData->vnum == part->mob_rescue && !part->complete)
 		    {
-		        sprintf(buf, "Thank you for rescuing me, %s!", ch->name);
-		        do_say(mob, buf);
+				if( show ) {
+		        	sprintf(buf, "Thank you for rescuing me, %s!", ch->name);
+		        	do_say(mob, buf);
+				}
 
 				if (mob->master != NULL)
-					stop_follower(mob,TRUE);
+					stop_follower(mob,show);
 
-				add_follower(mob, ch, TRUE);
+				add_follower(mob, ch, show);
 
 				if (IS_NPC(mob) && IS_SET(mob->act, ACT_AGGRESSIVE))
 				    REMOVE_BIT(mob->act, ACT_AGGRESSIVE);
@@ -1056,8 +1058,11 @@ void check_quest_rescue_mob(CHAR_DATA *ch)
 
 		if (found && !part->complete)
 		{
-			sprintf(buf, "{YYou have completed task %d of your quest!{x\n\r", i);
-			send_to_char(buf, ch);
+			if( show )
+			{
+				sprintf(buf, "{YYou have completed task %d of your quest!{x\n\r", i);
+				send_to_char(buf, ch);
+			}
 
 			part->complete = TRUE;
 			break;
@@ -1066,7 +1071,7 @@ void check_quest_rescue_mob(CHAR_DATA *ch)
 }
 
 
-void check_quest_retrieve_obj(CHAR_DATA *ch, OBJ_DATA *obj)
+void check_quest_retrieve_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool show)
 {
     QUEST_PART_DATA *part;
     int i;
@@ -1097,19 +1102,21 @@ void check_quest_retrieve_obj(CHAR_DATA *ch, OBJ_DATA *obj)
 
 			if (part->pObj == obj)
 			{
-				char buf[MAX_STRING_LENGTH];
+				if( show )
+				{
+					char buf[MAX_STRING_LENGTH];
+					sprintf(buf, "{YYou have completed task %d of your quest!{x\n\r", i);
+					send_to_char(buf, ch);
+				}
 
 				part->complete = TRUE;
-
-				sprintf(buf, "{YYou have completed task %d of your quest!{x\n\r", i);
-				send_to_char(buf, ch);
 			}
 		}
     }
 }
 
 
-void check_quest_slay_mob(CHAR_DATA *ch, CHAR_DATA *mob)
+void check_quest_slay_mob(CHAR_DATA *ch, CHAR_DATA *mob, bool show)
 {
     QUEST_PART_DATA *part;
     int i;
@@ -1134,17 +1141,18 @@ void check_quest_slay_mob(CHAR_DATA *ch, CHAR_DATA *mob)
 
         if (part->mob == mob->pIndexData->vnum && !part->complete)
 		{
-			char buf[MAX_STRING_LENGTH];
-
-			sprintf(buf, "{YYou have completed task %d of your quest!{x\n\r", i);
-			send_to_char(buf, ch);
+			if( show ) {
+				char buf[MAX_STRING_LENGTH];
+				sprintf(buf, "{YYou have completed task %d of your quest!{x\n\r", i);
+				send_to_char(buf, ch);
+			}
 
 			part->complete = TRUE;
 		}
     }
 }
 
-void check_quest_travel_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room)
+void check_quest_travel_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool show)
 {
     QUEST_PART_DATA *part;
     ROOM_INDEX_DATA *target_room;
@@ -1179,17 +1187,20 @@ void check_quest_travel_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room)
 		/* Not going by room vnum to prevent multiple rooms with the same name */
 		if (target_room != NULL && !str_cmp(target_room->name, room->name))
 		{
-			char buf[MAX_STRING_LENGTH];
 
-			sprintf(buf, "{YYou have completed task %d of your quest!{x\n\r", i);
-			send_to_char(buf, ch);
+			if( show )
+			{
+				char buf[MAX_STRING_LENGTH];
+				sprintf(buf, "{YYou have completed task %d of your quest!{x\n\r", i);
+				send_to_char(buf, ch);
+			}
 
 			part->complete = TRUE;
 		}
     }
 }
 
-bool check_quest_custom_task(CHAR_DATA *ch, int task)
+bool check_quest_custom_task(CHAR_DATA *ch, int task, bool show)
 {
 	QUEST_PART_DATA *part;
 	int i;
@@ -1216,10 +1227,13 @@ bool check_quest_custom_task(CHAR_DATA *ch, int task)
 		if (part->complete == TRUE)
 	    	continue;
 
-	    char buf[MAX_STRING_LENGTH];
 
-	    sprintf(buf, "{YYou have completed task %d of your quest!{x\n\r", i);
-	    send_to_char(buf, ch);
+		if( show )
+		{
+		    char buf[MAX_STRING_LENGTH];
+	    	sprintf(buf, "{YYou have completed task %d of your quest!{x\n\r", i);
+	    	send_to_char(buf, ch);
+		}
 	    part->complete = TRUE;
 
 	    return TRUE;

@@ -2781,3 +2781,10 @@ const struct flag_type dungeon_flags[] =
 	{ NULL,					0,							FALSE	}
 };
 
+const struct flag_type transfer_modes[] =
+{
+	{ "silent",			TRANSFER_MODE_SILENT,	TRUE	},
+	{ "portal",			TRANSFER_MODE_PORTAL,	TRUE	},
+	{ "movement",		TRANSFER_MODE_MOVEMENT,	TRUE	},
+	{ NULL,				0,						FALSE	}
+};

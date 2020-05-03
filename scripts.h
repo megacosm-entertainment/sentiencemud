@@ -57,6 +57,10 @@
 #define INTERRUPT_SCRIPT	(dd)	/* Used to interrupt whatever script action is going, that is up to the individual scripts to determine that! */
 #define INTERRUPT_SILENT	(ee)	/* Used to make the interrupt SILENT */
 
+#define TRANSFER_MODE_SILENT	0
+#define TRANSFER_MODE_PORTAL	1
+#define TRANSFER_MODE_MOVEMENT	2
+
 
 #define DECL_IFC_FUN(x) bool x (SCRIPT_VARINFO *info, CHAR_DATA *mob,OBJ_DATA *obj,ROOM_INDEX_DATA *room, TOKEN_DATA *token,int *ret,int argc,SCRIPT_PARAM **argv)
 #define DECL_OPC_FUN(x) bool x (SCRIPT_CB *block)
@@ -1913,7 +1917,7 @@ int get_order(CHAR_DATA *ch, OBJ_DATA *obj);
 bool has_item(CHAR_DATA *ch, long vnum, sh_int item_type, bool fWear);
 CHAR_DATA *get_mob_vnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, long vnum);
 OBJ_DATA *get_obj_vnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, long vnum);
-void do_mob_transfer(CHAR_DATA *ch,ROOM_INDEX_DATA *room,bool quiet);
+void do_mob_transfer(CHAR_DATA *ch,ROOM_INDEX_DATA *room,bool quiet,int mode);
 TOKEN_DATA *token_find_match(SCRIPT_VARINFO *info, TOKEN_DATA *tokens,char *argument, SCRIPT_PARAM *arg);
 CHAR_DATA *script_get_char_blist(LLIST *blist, CHAR_DATA *viewer, bool player, int vnum, char *name);
 CHAR_DATA *script_get_char_list(CHAR_DATA *mobs, CHAR_DATA *viewer, bool player, int vnum, char *name);
@@ -2577,6 +2581,9 @@ SCRIPT_CMD(scriptcmd_mload);
 SCRIPT_CMD(scriptcmd_oload);
 
 SCRIPT_CMD(scriptcmd_spawndungeon);
+
+SCRIPT_CMD(scriptcmd_mute);
+SCRIPT_CMD(scriptcmd_unmute);
 
 #include "tables.h"
 

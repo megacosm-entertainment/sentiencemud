@@ -654,12 +654,12 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 	SCRIPT_CODE *code;
 	char *src, *start, *line, eol;
 	char buf[MIL], rbuf[MSL];
-	bool comment, neg, doquotes, valid, linevalid, disable, inspect, processrest, incline;
+	bool comment, neg, doquotes, valid, linevalid, disable, inspect, processrest, incline, muted;
 	int state[MAX_NESTED_LEVEL];
 	int loops[MAX_NESTED_LOOPS];
 	int i, x, y, level, loop, rline, cline, lines, length, errors,named_labels, bool_exp_cline;
 	char *type_name;
-
+	struct script_cmd_type *cmd;
 
 	DBG2ENTRY4(PTR,err_buf,PTR,script,PTR,source,NUM,type);
 
@@ -695,6 +695,7 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 
 	inspect = (bool)IS_SET(script->flags,SCRIPT_INSPECT);
 	disable = FALSE;
+	muted = false;
 
 	// Clear the inspection flag.  This is only set when the COMPILE command
 	//	is issued by a non-IMP.
@@ -775,6 +776,13 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 
 
 				if(!str_cmp(buf,"end") || !str_cmp(buf,"break")) {
+					if( muted )
+					{
+						sprintf(rbuf,"Line %d: {RWARNING:{x Reached '%s' while possibly muted.  Please add the necessary 'unmute' call.", rline, buf);
+						compile_error_show(rbuf);
+						valid = TRUE;
+						break;
+					}
 					code[cline].opcode = OP_END;
 					code[cline].level = level;
 					state[level] = IN_BLOCK;
@@ -1428,16 +1436,26 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 					code[cline].opcode = OP_MOB;
 					code[cline].level = level;
 					code[cline].param = mpcmd_lookup(buf);
+
 					if(code[cline].param < 0) {
 						sprintf(rbuf,"Line %d: Invalid mob command '%s'.", rline, buf);
 						compile_error_show(rbuf);
 						linevalid = FALSE;
 						break;
-					} else if(inspect && mob_cmd_table[code[cline].param].restricted) {
-						sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'mob %s' requires inspection by an IMP.", rline, mob_cmd_table[code[cline].param].name);
+					}
+
+					cmd = mob_cmd_table[code[cline].param];
+					if(inspect && cmd->restricted) {
+						sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'mob %s' requires inspection by an IMP.", rline, cmd->name);
 						compile_error_show(rbuf);
 						disable = TRUE;
 					}
+
+					if( cmd->func == scriptcmd_mute )
+						muted = true;
+					else if(cmd->func == scriptcmd_unmute )
+						muted = false;
+
 					doquotes = FALSE;
 				} else if(!str_cmp(buf,"obj")) {
 					if(type != IFC_O) {
@@ -1452,16 +1470,26 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 					code[cline].opcode = OP_OBJ;
 					code[cline].level = level;
 					code[cline].param = opcmd_lookup(buf);
+
 					if(code[cline].param < 0) {
 						sprintf(rbuf,"Line %d: Invalid obj command '%s'.", rline, buf);
 						compile_error_show(rbuf);
 						linevalid = FALSE;
 						break;
-					} else if(inspect && obj_cmd_table[code[cline].param].restricted) {
-						sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'obj %s' requires inspection by an IMP.", rline, obj_cmd_table[code[cline].param].name);
+					}
+
+					cmd = obj_cmd_table[code[cline].param];
+					if(inspect && cmd->restricted) {
+						sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'obj %s' requires inspection by an IMP.", rline, cmd->name);
 						compile_error_show(rbuf);
 						disable = TRUE;
 					}
+
+					if( cmd->func == scriptcmd_mute )
+						muted = true;
+					else if(cmd->func == scriptcmd_unmute )
+						muted = false;
+
 					doquotes = FALSE;
 				} else if(!str_cmp(buf,"room")) {
 					if(type != IFC_R) {
@@ -1481,11 +1509,20 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 						compile_error_show(rbuf);
 						linevalid = FALSE;
 						break;
-					} else if(inspect && room_cmd_table[code[cline].param].restricted) {
-						sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'room %s' requires inspection by an IMP.", rline, room_cmd_table[code[cline].param].name);
+					}
+
+					cmd = room_cmd_table[code[cline].param];
+					if(inspect && cmd->restricted) {
+						sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'room %s' requires inspection by an IMP.", rline, cmd->name);
 						compile_error_show(rbuf);
 						disable = TRUE;
 					}
+
+					if( cmd->func == scriptcmd_mute )
+						muted = true;
+					else if(cmd->func == scriptcmd_unmute )
+						muted = false;
+
 					doquotes = FALSE;
 				} else if(!str_cmp(buf,"token")) {
 					line = one_argument(line,buf);
@@ -1498,17 +1535,23 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 						compile_error_show(rbuf);
 						linevalid = FALSE;
 						break;
-					} else if(inspect) {
-						if((type == IFC_T) && token_cmd_table[code[cline].param].restricted) {
-							sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'token %s' requires inspection by an IMP.", rline, token_cmd_table[code[cline].param].name);
-							compile_error_show(rbuf);
-							disable = TRUE;
-						} else if((type != IFC_T) && tokenother_cmd_table[code[cline].param].restricted) {
-							sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'token %s' requires inspection by an IMP.", rline, tokenother_cmd_table[code[cline].param].name);
-							compile_error_show(rbuf);
-							disable = TRUE;
-						}
 					}
+
+					if( type == IFC_T )
+						cmd = token_cmd_table[code[cline].param];
+					else
+						cmd = tokenother_cmd_table[code[cline].param];
+					if(inspect && cmd->restricted) {
+						sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'token %s' requires inspection by an IMP.", rline, cmd->name);
+						compile_error_show(rbuf);
+						disable = TRUE;
+					}
+
+					if( cmd->func == scriptcmd_mute )
+						muted = true;
+					else if(cmd->func == scriptcmd_unmute )
+						muted = false;
+
 					doquotes = FALSE;
 				} else if(!str_cmp(buf,"area")) {
 					if(type != IFC_A) {
@@ -1523,16 +1566,26 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 					code[cline].opcode = OP_AREA;
 					code[cline].level = level;
 					code[cline].param = apcmd_lookup(buf);
+
 					if(code[cline].param < 0) {
 						sprintf(rbuf,"Line %d: Invalid area command '%s'.", rline, buf);
 						compile_error_show(rbuf);
 						linevalid = FALSE;
 						break;
-					} else if(inspect && area_cmd_table[code[cline].param].restricted) {
-						sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'area %s' requires inspection by an IMP.", rline, area_cmd_table[code[cline].param].name);
+					}
+
+					cmd = area_cmd_table[code[cline].param];
+					if(inspect && cmd->restricted) {
+						sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'area %s' requires inspection by an IMP.", rline, cmd->name);
 						compile_error_show(rbuf);
 						disable = TRUE;
 					}
+
+					if( cmd->func == scriptcmd_mute )
+						muted = true;
+					else if(cmd->func == scriptcmd_unmute )
+						muted = false;
+
 					doquotes = FALSE;
 
 				} else if(!str_cmp(buf,"instance")) {
@@ -1548,16 +1601,26 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 					code[cline].opcode = OP_INSTANCE;
 					code[cline].level = level;
 					code[cline].param = ipcmd_lookup(buf);
+
 					if(code[cline].param < 0) {
 						sprintf(rbuf,"Line %d: Invalid instance command '%s'.", rline, buf);
 						compile_error_show(rbuf);
 						linevalid = FALSE;
 						break;
-					} else if(inspect && instance_cmd_table[code[cline].param].restricted) {
-						sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'instance %s' requires inspection by an IMP.", rline, instance_cmd_table[code[cline].param].name);
+					}
+
+					cmd = instance_cmd_table[code[cline].param];
+					if(inspect && cmd->restricted) {
+						sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'instance %s' requires inspection by an IMP.", rline, cmd->name);
 						compile_error_show(rbuf);
 						disable = TRUE;
 					}
+
+					if( cmd->func == scriptcmd_mute )
+						muted = true;
+					else if(cmd->func == scriptcmd_unmute )
+						muted = false;
+
 					doquotes = FALSE;
 
 				} else if(!str_cmp(buf,"dungeon")) {
@@ -1573,16 +1636,26 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 					code[cline].opcode = OP_DUNGEON;
 					code[cline].level = level;
 					code[cline].param = dpcmd_lookup(buf);
+
 					if(code[cline].param < 0) {
 						sprintf(rbuf,"Line %d: Invalid dungeon command '%s'.", rline, buf);
 						compile_error_show(rbuf);
 						linevalid = FALSE;
 						break;
-					} else if(inspect && dungeon_cmd_table[code[cline].param].restricted) {
-						sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'dungeon %s' requires inspection by an IMP.", rline, dungeon_cmd_table[code[cline].param].name);
+					}
+
+					cmd = dungeon_cmd_table[code[cline].param];
+					if(inspect && cmd->restricted) {
+						sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'dungeon %s' requires inspection by an IMP.", rline, cmd->name);
 						compile_error_show(rbuf);
 						disable = TRUE;
 					}
+
+					if( cmd->func == scriptcmd_mute )
+						muted = true;
+					else if(cmd->func == scriptcmd_unmute )
+						muted = false;
+
 					doquotes = FALSE;
 
 				} else if(type == IFC_M) {
@@ -1626,6 +1699,13 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 		// Skip over repeated EOL's, including blank lines
 		while(*src == '\n' || *src == '\r') ++src;
 
+	}
+
+	if( muted )
+	{
+		sprintf(rbuf,"END OF SCRIPT: {RWARNING:{x Reached end of script while possibly muted.  Please add the necessary 'unmute' call.");
+		compile_error_show(rbuf);
+		valid = TRUE;
 	}
 
 	if(eol) *src = eol;

@@ -3527,12 +3527,61 @@ void get_level_damage(int level, int *num, int *type, bool fRemort, bool fTwo)
 	*type = UMAX(8, *type);
 }
 
-void do_mob_transfer(CHAR_DATA *ch,ROOM_INDEX_DATA *room,bool quiet)
+void do_mob_transfer(CHAR_DATA *ch,ROOM_INDEX_DATA *room,bool quiet, int mode)
 {
+	bool muted = false;
+
+	if( ch->desc && quiet )
+	{
+		muted = ch->desc->muted;
+		ch->desc->muted = true;
+	}
+
+	bool show = !quiet;
+	char *phrase = quiet?"silent":NULL;
+
+	ROOM_INDEX_DATA *in_room = ch->in_room;
+
+	DUNGEON *in_dungeon = get_room_dungeon(ch->in_room);
+	DUNGEON *to_dungeon = get_room_dungeon(room);
+
+	INSTANCE *in_instance = get_room_instance(ch->in_room);
+	INSTANCE *to_instance = get_room_instance(room);
+
 	if (ch->fighting)
 		stop_fighting(ch, TRUE);
 
-	move_cart(ch,room,!quiet);
+	if( mode == TRANSFER_MODE_MOVEMENT )
+	{
+		check_room_shield_source(ch, show);
+
+		if (!IS_DEAD(ch)) {
+			check_room_flames(ch, show);
+			if ((!IS_NPC(ch) && IS_DEAD(ch)) || (IS_NPC(ch) && ch->hit < 1))
+				return;
+		}
+
+		/* moving your char negates your ambush */
+		if (ch->ambush) {
+			if( show )
+			{
+				send_to_char("You stop your ambush.\n\r", ch);
+			}
+			free_ambush(ch->ambush);
+			ch->ambush = NULL;
+		}
+
+		/* Cancels your reciting too. This is incase move_char is called
+		   from some other function and doesnt go through interpret(). */
+		if (ch->recite > 0) {
+			if( show )
+			{
+				send_to_char("You stop reciting.\n\r", ch);
+				act("$n stops reciting.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			}
+			ch->recite = 0;
+		}
+	}
 
 	char_from_room(ch);
 	if(room->wilds)
@@ -3540,7 +3589,135 @@ void do_mob_transfer(CHAR_DATA *ch,ROOM_INDEX_DATA *room,bool quiet)
 	else
 		char_to_room(ch, room);
 
-	if(!quiet) do_look(ch, "auto");
+	if( mode == TRANSFER_MODE_MOVEMENT )
+	{
+		if (show && !IS_AFFECTED(ch, AFF_SNEAK) && ch->invis_level < LEVEL_HERO) {
+			if( IS_VALID(in_dungeon) && !IS_VALID(to_dungeon) )
+			{
+				OBJ_DATA *portal = get_room_dungeon_portal(room, in_dungeon->index->vnum);
+
+				if( IS_VALID(portal) )
+				{
+					if( !IS_NULLSTR(in_dungeon->index->zone_out_portal) )
+					{
+						act(in_dungeon->index->zone_out_portal, ch, NULL, NULL, portal, NULL, NULL, dir_name[door], TO_ROOM);
+					}
+					else
+					{
+						act("$n has arrived through $p.",ch, NULL, NULL,portal, NULL, NULL,NULL,TO_ROOM);
+					}
+				}
+				else if(MOUNTED(ch))
+				{
+					if( !IS_NULLSTR(in_dungeon->index->zone_out_mount) )
+						act(in_dungeon->index->zone_out_mount, ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+					else
+
+						act("{W$n materializes, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+				}
+				else
+				{
+					if( !IS_NULLSTR(in_dungeon->index->zone_out) )
+						act(in_dungeon->index->zone_out, ch, NULL, NULL, portal, NULL, NULL, dir_name[door], TO_ROOM);
+					else
+						act("{W$n materializes.{x", ch,NULL,NULL,NULL,NULL, NULL, NULL, TO_ROOM);
+				}
+			}
+			else if (in_room->sector_type == SECT_WATER_NOSWIM)
+				act("{W$n swims in.{x", ch, NULL, NULL, NULL, NULL, NULL, dir_name[door], TO_ROOM);
+			else if (PULLING_CART(ch))
+				act("{W$n has arrived, pulling $p.{x", ch, NULL, NULL, PULLING_CART(ch), NULL, NULL, NULL, TO_ROOM);
+			else if(!MOUNTED(ch)) {
+				if (!IS_NPC(ch) && ch->pcdata->condition[COND_DRUNK] > 10)
+					act("{W$n stumbles in drunkenly.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+				else
+					act("{W$n has arrived.{x", ch,NULL,NULL,NULL,NULL, NULL, NULL, TO_ROOM);
+			} else {
+				if (!IS_AFFECTED(MOUNTED(ch), AFF_FLYING))
+					act("{W$n has arrived, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+				else
+					act("{W$n soars in, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			}
+		}
+	}
+
+	move_cart(ch,room,show);
+
+	if(show) do_look(ch, "auto");
+
+	if( mode == TRANSFER_MODE_PORTAL )
+	{
+		if( IS_VALID(to_dungeon) && (in_dungeon != to_dungeon) )
+		{
+			p_percent2_trigger(NULL, NULL, to_dungeon, ch, NULL, NULL, NULL, NULL, TRIG_ENTRY, phrase);
+		}
+
+		if( to_instance != in_instance )
+		{
+			p_percent2_trigger(NULL, to_instance, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ENTRY, phrase);
+		}
+
+		p_percent_trigger( ch, NULL, NULL, NULL,NULL, NULL, NULL, NULL, NULL, TRIG_ENTRY , phrase);
+
+		if ( !IS_NPC( ch ) ) {
+			p_greet_trigger( ch, PRG_MPROG );
+			p_greet_trigger( ch, PRG_OPROG );
+			p_greet_trigger( ch, PRG_RPROG );
+		}
+
+	}
+	else if( mode == TRANSFER_MODE_MOVEMENT )
+	{
+		if (!IS_WILDERNESS(room))
+			check_traps(ch, show);
+
+		if( IS_VALID(to_dungeon) && (in_dungeon != to_dungeon) )
+		{
+			p_percent2_trigger(NULL, NULL, to_dungeon, ch, NULL, NULL, NULL, NULL, TRIG_ENTRY, phrase);
+		}
+
+		if( IS_VALID(to_instance) && to_instance != in_instance )
+		{
+			p_percent2_trigger(NULL, to_instance, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ENTRY, phrase);
+		}
+
+		p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_ENTRY, phrase);
+
+		/*
+		if (!IS_NPC(ch)) {
+			p_greet_trigger(ch, PRG_MPROG);
+			p_greet_trigger(ch, PRG_OPROG);
+			p_greet_trigger(ch, PRG_RPROG);
+		}
+		*/
+
+		if (!IS_DEAD(ch)) check_rocks(ch, show);
+		if (!IS_DEAD(ch)) check_ice(ch, show);
+		if (!IS_DEAD(ch)) check_room_flames(ch, show);
+		//if (!IS_DEAD(ch)) check_ambush(ch);
+
+		if (MOUNTED(ch) && number_percent() == 1 && get_skill(ch, gsn_riding) > 0)
+			check_improve_show(ch, gsn_riding, TRUE, 8, show);
+
+		if (!MOUNTED(ch) && get_skill(ch, gsn_trackless_step) > 0 && number_percent() == 1)
+			check_improve_show(ch, gsn_trackless_step, TRUE, 8, show);
+
+		/* Druids regenerate in nature */
+		if (get_profession(ch, SUBCLASS_CLERIC) == CLASS_CLERIC_DRUID && is_in_nature(ch)) {
+			ch->move += number_range(1,3);
+			ch->move = UMIN(ch->move, ch->max_move);
+			ch->hit += number_range(1,3);
+			ch->hit  = UMIN(ch->hit, ch->max_hit);
+		}
+
+		if (!IS_NPC(ch))
+			check_quest_rescue_mob(ch, show);
+	}
+
+	if( ch->desc && quiet )
+	{
+		ch->desc->muted = muted;
+	}
 }
 
 

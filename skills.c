@@ -1172,7 +1172,7 @@ long exp_per_level(CHAR_DATA *ch, long points)
 }
 
 
-void check_improve( CHAR_DATA *ch, int sn, bool success, int multiplier )
+void check_improve_show( CHAR_DATA *ch, int sn, bool success, int multiplier, bool show )
 {
     int chance;
     char buf[100];
@@ -1238,6 +1238,10 @@ void check_improve( CHAR_DATA *ch, int sn, bool success, int multiplier )
     }
 }
 
+void check_improve( CHAR_DATA *ch, int sn, bool success, int multiplier )
+{
+	check_improve_show( ch, sn, success, multiplier, true );
+}
 
 int group_lookup( const char *name )
 {

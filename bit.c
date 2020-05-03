@@ -93,6 +93,7 @@ const struct flag_stat_type flag_stat_table[] =
     {	corpse_types,	TRUE	},
     {	variable_types,	TRUE	},
 	{	blueprint_section_types,	TRUE	},
+	{	transfer_modes,	TRUE	},
     {   0,			0	}
 };
 

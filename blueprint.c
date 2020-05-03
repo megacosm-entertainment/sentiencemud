@@ -4700,3 +4700,14 @@ char *instance_get_ownership(INSTANCE *instance)
 	return p;
 }
 
+
+INSTANCE *get_room_instance(ROOM_INDEX_DATA *room)
+{
+	if( !room ) return NULL;
+
+	if( !IS_VALID(room->instance_section) ) return NULL;
+
+	if( !IS_VALID(room->instance_section->instance) ) return NULL;
+
+	return room->instance_section->instance;
+}

@@ -901,6 +901,8 @@ void game_loop_unix(int control)
 		    close_socket(d);
 		    continue;
 		}
+
+		    d->muted = FALSE;		// Force it to unmute every time they give any kind of command
 	    }
 
 	    if (d->character != NULL && d->character->wait > 0)
@@ -1890,6 +1892,8 @@ void bust_a_prompt(CHAR_DATA *ch)
  */
 void write_to_buffer(DESCRIPTOR_DATA *d, const char *txt, int length)
 {
+	if( d->muted ) return;
+
     txt = ProtocolOutput(d,txt,&length);
     if (d->pProtocol->WriteOOB > 0)
         --d->pProtocol->WriteOOB;

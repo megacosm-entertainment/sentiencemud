@@ -20,7 +20,9 @@ const struct script_cmd_type area_cmd_table[] = {
 	{ "echoat",				scriptcmd_echoat,			FALSE,	TRUE	},
 	{ "instancecomplete",	scriptcmd_instancecomplete,	TRUE,	TRUE	},
 	{ "mload",				scriptcmd_mload,			FALSE,	TRUE	},
+	{ "mute",				scriptcmd_mute,				FALSE,	TRUE	},
 	{ "oload",				scriptcmd_oload,			FALSE,	TRUE	},
+	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
 	{ "varclear",			scriptcmd_varclear,			FALSE,	TRUE	},
 	{ "varclearon",			scriptcmd_varclearon,		FALSE,	TRUE	},
 	{ "varcopy",			scriptcmd_varcopy,			FALSE,	TRUE	},
@@ -39,7 +41,9 @@ const struct script_cmd_type instance_cmd_table[] = {
 	{ "instancecomplete",	scriptcmd_instancecomplete,	TRUE,	TRUE	},
 	{ "makeinstanced",		scriptcmd_makeinstanced,	TRUE,	TRUE	},
 	{ "mload",				scriptcmd_mload,			FALSE,	TRUE	},
+	{ "mute",				scriptcmd_mute,				FALSE,	TRUE	},
 	{ "oload",				scriptcmd_oload,			FALSE,	TRUE	},
+	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
 	{ "varclear",			scriptcmd_varclear,			FALSE,	TRUE	},
 	{ "varclearon",			scriptcmd_varclearon,		FALSE,	TRUE	},
 	{ "varcopy",			scriptcmd_varcopy,			FALSE,	TRUE	},
@@ -58,7 +62,9 @@ const struct script_cmd_type dungeon_cmd_table[] = {
 	{ "instancecomplete",	scriptcmd_instancecomplete,	TRUE,	TRUE	},
 	{ "makeinstanced",		scriptcmd_makeinstanced,	TRUE,	TRUE	},
 	{ "mload",				scriptcmd_mload,			FALSE,	TRUE	},
+	{ "mute",				scriptcmd_mute,				FALSE,	TRUE	},
 	{ "oload",				scriptcmd_oload,			FALSE,	TRUE	},
+	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
 	{ "varclear",			scriptcmd_varclear,			FALSE,	TRUE	},
 	{ "varclearon",			scriptcmd_varclearon,		FALSE,	TRUE	},
 	{ "varcopy",			scriptcmd_varcopy,			FALSE,	TRUE	},
@@ -2345,6 +2351,24 @@ SCRIPT_CMD(scriptcmd_mload)
 	info->progs->lastreturn = 1;
 }
 
+// MUTE $PLAYER
+SCRIPT_CMD(scriptcmd_mute)
+{
+	if(!info) return;
+
+	info->progs->lastreturn = 0;
+
+	if(!expand_argument(info,argument,arg) || arg->type != ENT_MOBILE || IS_NPC(arg->d.mob) )
+		return;
+
+	if( !arg->d.mob->desc )
+		return;
+
+	arg->d.mob->desc->muted = true;
+
+	info->progs->lastreturn = 1;
+}
+
 
 //////////////////////////////////////
 // N
@@ -2677,7 +2701,7 @@ SCRIPT_CMD(scriptcmd_questcomplete)
 
 	if( arg->type != ENT_NUMBER ) return;
 
-	if(check_quest_custom_task(mob, arg->d.num))
+	if(check_quest_custom_task(mob, arg->d.num, true))
 		info->progs->lastreturn = 1;
 }
 
@@ -3493,6 +3517,25 @@ SCRIPT_CMD(scriptcmd_stopcombat)
 
 //////////////////////////////////////
 // U
+
+// UNMUTE $PLAYER
+SCRIPT_CMD(scriptcmd_unmute)
+{
+	if(!info) return;
+
+	info->progs->lastreturn = 0;
+
+	if(!expand_argument(info,argument,arg) || arg->type != ENT_MOBILE || IS_NPC(arg->d.mob) )
+		return;
+
+	if( !arg->d.mob->desc )
+		return;
+
+	arg->d.mob->desc->muted = false;
+
+	info->progs->lastreturn = 1;
+}
+
 
 //////////////////////////////////////
 // V

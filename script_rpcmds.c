@@ -73,6 +73,7 @@ const struct script_cmd_type room_cmd_table[] = {
 	{ "interrupt",			do_rpinterrupt,			FALSE,	TRUE	},
 	{ "link",				do_rplink,				FALSE,	TRUE	},
 	{ "mload",				do_rpmload,				FALSE,	TRUE	},
+	{ "mute",				scriptcmd_mute,				FALSE,	TRUE	},
 	{ "oload",				do_rpoload,				FALSE,	TRUE	},
 	{ "otransfer",			do_rpotransfer,			FALSE,	TRUE	},
 	{ "pageat",				scriptcmd_pageat,			FALSE,	TRUE	},
@@ -113,6 +114,7 @@ const struct script_cmd_type room_cmd_table[] = {
 	{ "stripaffectname",	do_rpstripaffectname,	TRUE,	TRUE	},
 	{ "transfer",			do_rptransfer,			FALSE,	TRUE	},
 	{ "ungroup",			do_rpungroup,			FALSE,	TRUE	},
+	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
 	{ "usecatalyst",		do_rpusecatalyst,		FALSE,	TRUE	},
 	{ "varclear",			do_rpvarclear,			FALSE,	TRUE	},
 	{ "varclearon",			do_rpvarclearon,		FALSE,	TRUE	},
@@ -1675,10 +1677,11 @@ SCRIPT_CMD(do_rpgforce)
 
 SCRIPT_CMD(do_rpgtransfer)
 {
-	char buf[MIL], buf2[MIL], *rest;
+	char buf[MIL], buf2[MIL], buf3[MIL], *rest;
 	CHAR_DATA *victim, *vch,*next;
 	ROOM_INDEX_DATA *dest;
 	bool all = FALSE, force = FALSE, quiet = FALSE;
+	int mode;
 
 
 	if(!info || !info->room) return;
@@ -1714,16 +1717,22 @@ SCRIPT_CMD(do_rpgtransfer)
 
 	argument = one_argument(argument,buf);
 	argument = one_argument(argument,buf2);
-	all = !str_cmp(buf,"all") || !str_cmp(buf2,"all") || !str_cmp(argument,"all");
-	force = !str_cmp(buf,"force") || !str_cmp(buf2,"force") || !str_cmp(argument,"force");
-	quiet = !str_cmp(buf,"quiet") || !str_cmp(buf2,"quiet") || !str_cmp(argument,"quiet");
+	argument = one_argument(argument,buf3);
+	all = !str_cmp(buf,"all") || !str_cmp(buf2,"all") || !str_cmp(buf3,"all") || !str_cmp(argument,"all");
+	force = !str_cmp(buf,"force") || !str_cmp(buf2,"force") || !str_cmp(buf3,"force") || !str_cmp(argument,"all");
+	quiet = !str_cmp(buf,"quiet") || !str_cmp(buf2,"quiet") || !str_cmp(buf3,"quiet") || !str_cmp(argument,"all");
+	mode = script_flag_value(transfer_modes, buf);
+	if( mode == NO_FLAG ) mode = script_flag_value(transfer_modes, buf2);
+	if( mode == NO_FLAG ) mode = script_flag_value(transfer_modes, buf3);
+	if( mode == NO_FLAG ) mode = script_flag_value(transfer_modes, argument);
+	if( mode == NO_FLAG ) mode = TRANSFER_MODE_SILENT;
 
-	for (vch = victim->in_room->people; vch; vch = next) {
+	for (vch = info->room->people; vch; vch = next) {
 		next = vch->next_in_room;
 		if (!IS_NPC(vch) && is_same_group(victim,vch)) {
 			if (!all && vch->position != POS_STANDING) continue;
-			if (!force && room_is_private(dest, NULL)) break;
-			do_mob_transfer(vch,dest,quiet);
+			if (!force && room_is_private(dest, info->mob)) break;
+			do_mob_transfer(vch,dest,quiet,mode);
 		}
 	}
 }
@@ -2266,10 +2275,11 @@ SCRIPT_CMD(do_rpremove)
 
 SCRIPT_CMD(do_rptransfer)
 {
-	char buf[MIL], *rest;
+	char buf[MIL], buf2[MIL], *rest;
 	CHAR_DATA *victim = NULL,*vnext;
 	ROOM_INDEX_DATA *dest;
 	bool all = FALSE, force = FALSE, quiet = FALSE;
+	int mode;
 
 
 	if(!info || !info->room) return;
@@ -2305,15 +2315,21 @@ SCRIPT_CMD(do_rptransfer)
 	}
 
 	argument = one_argument(argument,buf);
-	force = !str_cmp(buf,"force") || !str_cmp(argument,"force");
-	quiet = !str_cmp(buf,"quiet") || !str_cmp(argument,"quiet");
+	argument = one_argument(argument,buf2);
+	force = !str_cmp(buf,"force") || !str_cmp(buf2,"force") || !str_cmp(argument,"force");
+	quiet = !str_cmp(buf,"quiet") || !str_cmp(buf2,"quiet") || !str_cmp(argument,"quiet");
+	mode = script_flag_value(transfer_modes, buf);
+	if( mode == NO_FLAG ) mode = script_flag_value(transfer_modes, buf2);
+	if( mode == NO_FLAG ) mode = script_flag_value(transfer_modes, argument);
+	if( mode == NO_FLAG ) mode = TRANSFER_MODE_SILENT;
 
 	if (all) {
 		for (victim = info->room->people; victim; victim = vnext) {
 			vnext = victim->next_in_room;
+			if (PROG_FLAG(victim,PROG_AT)) continue;
 			if (!IS_NPC(victim)) {
 				if (!force && room_is_private(dest, NULL)) break;
-				do_mob_transfer(victim,dest,quiet);
+				do_mob_transfer(victim,dest,quiet,mode);
 			}
 		}
 		return;
@@ -2322,7 +2338,10 @@ SCRIPT_CMD(do_rptransfer)
 	if (!force && room_is_private(dest, NULL))
 		return;
 
-	do_mob_transfer(victim,dest,quiet);
+	if (PROG_FLAG(victim,PROG_AT))
+		return;
+
+	do_mob_transfer(victim,dest,quiet,mode);
 }
 
 SCRIPT_CMD(do_rpvforce)

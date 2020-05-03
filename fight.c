@@ -1687,12 +1687,12 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, int
 
 		// Check if slain victim was part of a quest. Checks if your horse got the kill, too.
 		if (!IS_NPC(ch)) {
-			check_quest_slay_mob(ch, victim);
+			check_quest_slay_mob(ch, victim, true);
 			check_invasion_quest_slay_mob(ch, victim);
 		}
 
 		// Hahahaha
-		if (RIDDEN(ch)) check_quest_slay_mob(RIDDEN(ch), victim);
+		if (RIDDEN(ch)) check_quest_slay_mob(RIDDEN(ch), victim, true);
 
 		// Autoloot
 		if (!IS_NPC(ch) && kill_in_room && (corpse != NULL) &&

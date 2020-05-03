@@ -1205,6 +1205,8 @@ struct	descriptor_data
     ROOM_INDEX_DATA *	input_room;
     TOKEN_DATA *	input_tok;
 
+    bool		muted;			// All text heading to the output will be blocked
+
 };
 
 
@@ -6909,13 +6911,13 @@ BUFFER *get_stats( int type );
 /* act_move.c */
 bool can_move( CHAR_DATA *ch, ROOM_INDEX_DATA *room );
 bool can_move_room( CHAR_DATA *ch, int door, ROOM_INDEX_DATA *room );
-bool check_ice( CHAR_DATA *ch );
+bool check_ice( CHAR_DATA *ch, bool show );
 bool room_check( CHAR_DATA *ch, ROOM_INDEX_DATA *room );
 int find_door( CHAR_DATA *ch, char *arg, bool show );
 int get_player_classnth args( ( CHAR_DATA *ch ) );
 void check_ambush( CHAR_DATA *ch );
 void check_see_hidden( CHAR_DATA *ch );
-void check_traps( CHAR_DATA *ch );
+void check_traps( CHAR_DATA *ch, bool show );
 void drunk_walk( CHAR_DATA *ch, int door );
 void fade_end       args( ( CHAR_DATA *ch ) );
 void hide_end       args( ( CHAR_DATA *ch ) );
@@ -6926,9 +6928,9 @@ void move_char_new( CHAR_DATA *ch, int door );
 OBJ_DATA *get_key( CHAR_DATA *ch, int vnum );
 void use_key( CHAR_DATA *ch, OBJ_DATA *key );
 bool move_success args( ( CHAR_DATA *ch ) );
-bool check_room_flames( CHAR_DATA *ch );
-bool check_rocks( CHAR_DATA *ch );
-void check_room_shield_source( CHAR_DATA *ch );
+bool check_room_flames( CHAR_DATA *ch, bool show );
+bool check_rocks( CHAR_DATA *ch, bool show );
+void check_room_shield_source( CHAR_DATA *ch, bool show );
 
 /* music.c */
 void    music_end       args( ( CHAR_DATA *ch ) );
@@ -7322,12 +7324,12 @@ bool is_quest_item( OBJ_DATA *obj );
 bool is_quest_token( OBJ_DATA *obj );
 int count_quest_parts( CHAR_DATA *ch );
 QUEST_INDEX_DATA *get_quest_index( long vnum );
-void check_quest_rescue_mob( CHAR_DATA *ch );
-void check_quest_retrieve_obj( CHAR_DATA *ch, OBJ_DATA *obj );
-void check_quest_slay_mob( CHAR_DATA *ch, CHAR_DATA *mob );
-void check_quest_totally_complete( CHAR_DATA *ch );
-void check_quest_travel_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room);
-bool check_quest_custom_task(CHAR_DATA *ch, int task);
+void check_quest_rescue_mob( CHAR_DATA *ch, bool show );
+void check_quest_retrieve_obj( CHAR_DATA *ch, OBJ_DATA *obj, bool show );
+void check_quest_slay_mob( CHAR_DATA *ch, CHAR_DATA *mob, bool show );
+void check_quest_totally_complete( CHAR_DATA *ch, bool show );
+void check_quest_travel_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool show);
+bool check_quest_custom_task(CHAR_DATA *ch, int task, bool show);
 
 /* handler.c */
 int get_coord_distance( int x1, int y1, int x2, int y2 );
@@ -7706,8 +7708,8 @@ bool 	parse_gen_groups args( ( CHAR_DATA *ch,char *argument ) );
 void 	list_group_costs args( ( CHAR_DATA *ch ) );
 void    list_group_known args( ( CHAR_DATA *ch ) );
 long 	exp_per_level	args( ( CHAR_DATA *ch, long points ) );
-void 	check_improve	args( ( CHAR_DATA *ch, int sn, bool success,
-				    int multiplier ) );
+void 	check_improve	args( ( CHAR_DATA *ch, int sn, bool success, int multiplier ) );
+void check_improve_show( CHAR_DATA *ch, int sn, bool success, int multiplier, bool show );
 int 	group_lookup	args( (const char *name) );
 void	gn_add		args( ( CHAR_DATA *ch, int gn) );
 void 	gn_remove	args( ( CHAR_DATA *ch, int gn) );
@@ -8280,6 +8282,7 @@ bool instance_canswitch_player(INSTANCE *instance, CHAR_DATA *ch);
 bool instance_isorphaned(INSTANCE *instance);
 char *instance_get_ownership(INSTANCE *instance);
 bool instance_can_idle(INSTANCE *instance);
+INSTANCE *get_room_instance(ROOM_INDEX_DATA *room);
 
 void load_dungeons();
 bool save_dungeons();
