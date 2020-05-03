@@ -30,7 +30,7 @@ void do_staff(CHAR_DATA *ch, char *argument)
     if (IS_NPC(ch))
 	return;
 
-    if (str_cmp(ch->name, "Syn") && !IS_SET(ch->pcdata->immortal->duties, IMMORTAL_STAFF))
+    if (ch->pcdata->security < 10 && !IS_SET(ch->pcdata->immortal->duties, IMMORTAL_STAFF))
     {
 	send_to_char("You aren't authorized to do this.\n\r", ch);
 	return;

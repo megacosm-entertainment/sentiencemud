@@ -848,26 +848,27 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
        here. */
     if (ch->tot_level >= LEVEL_IMMORTAL) {
 	/* If their immortal isn't found, give them a blank one so we don't segfault. */
-	if ((immortal = find_immortal(ch->name)) == NULL) {
-	    sprintf(buf, "load_char_obj: no immortal_data found for immortal character %s!", ch->name);
-	    bug(buf, 0);
+		if ((immortal = find_immortal(ch->name)) == NULL) {
+			sprintf(buf, "load_char_obj: no immortal_data found for immortal character %s!", ch->name);
+			bug(buf, 0);
 
-	    immortal = new_immortal();
-	    immortal->name = str_dup(ch->name);
-	    //immortal->level = ch->tot_level;
-	    ch->pcdata->immortal = immortal;
+			immortal = new_immortal();
+			immortal->name = str_dup(ch->name);
+			//immortal->level = ch->tot_level;
+			ch->pcdata->immortal = immortal;
+
+			add_immortal(immortal);
+
+		} else { // Readjust the char's level accordingly.
+			sprintf(buf, "load_char_obj: reading immortal char %s.\n\r", ch->name);
+			log_string(buf);
+
+			ch->pcdata->immortal = immortal;
+			//ch->level = immortal->level;
+			//ch->tot_level = immortal->level;
+		}
 	    immortal->pc = ch->pcdata;
 
-	    add_immortal(immortal);
-
-	} else { // Readjust the char's level accordingly.
-	    sprintf(buf, "load_char_obj: reading immortal char %s.\n\r", ch->name);
-	    log_string(buf);
-
-	    ch->pcdata->immortal = immortal;
-	    //ch->level = immortal->level;
-	    //ch->tot_level = immortal->level;
-	}
     }
 
 
