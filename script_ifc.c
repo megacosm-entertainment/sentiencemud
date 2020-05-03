@@ -4724,7 +4724,7 @@ DECL_IFC_FUN(ifc_sectionflag)
 	return TRUE;
 }
 
-// ISAREAUNLOCKED $PLAYER $AREA|$ROOM
+// ISAREAUNLOCKED $PLAYER $AREA|$ROOM|$ANUM
 DECL_IFC_FUN(ifc_isareaunlocked)
 {
 	*ret = FALSE;
@@ -4732,6 +4732,11 @@ DECL_IFC_FUN(ifc_isareaunlocked)
 	{
 		if( ISARG_AREA(1) )		*ret = is_area_unlocked(ARG_MOB(0), ARG_AREA(1));
 		else if(ISARG_ROOM(1))	*ret = is_room_unlocked(ARG_MOB(0), ARG_ROOM(1));
+		else if(ISARG_NUM(1))
+		{
+			AREA_DATA *area = get_area_data(ARG_NUM(1));
+			*ret = (area && is_area_unlocked(ARG_MOB(0), area));
+		}
 	}
 	return TRUE;
 }
