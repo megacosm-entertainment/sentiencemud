@@ -844,7 +844,9 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
     // The only reason this is true will be during the reading of the staff list
     //   and needed to get the creation date
     if(loading_immortal_data)
-    	return ch;
+    {
+    	return found;
+	}
 
 	get_mob_id(ch);
 
