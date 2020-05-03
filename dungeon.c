@@ -445,6 +445,7 @@ DUNGEON *create_dungeon(long vnum)
 
 	DUNGEON *dng = new_dungeon();
 	dng->index = index;
+	dng->flags = index->flags;
 
 	dng->progs			= new_prog_data();
 	dng->progs->progs	= index->progs;
@@ -598,10 +599,12 @@ DUNGEON *find_dungeon_byplayer(CHAR_DATA *ch, long vnum)
 	ITERATOR dit;
 	DUNGEON *dng;
 
+	if( IS_NPC(ch) ) return NULL;
+
 	iterator_start(&dit, loaded_dungeons);
 	while( (dng = (DUNGEON *)iterator_nextdata(&dit)) )
 	{
-		if( dng->index->vnum == vnum && dng->player == ch )
+		if( dng->index->vnum == vnum && dungeon_isowner_player(dng, ch) )
 			break;
 	}
 	iterator_stop(&dit);
@@ -609,66 +612,62 @@ DUNGEON *find_dungeon_byplayer(CHAR_DATA *ch, long vnum)
 	return dng;
 }
 
-CHAR_DATA *get_player_master(CHAR_DATA *ch)
+CHAR_DATA *get_player_leader(CHAR_DATA *ch)
 {
-	CHAR_DATA *master = ch;
+	CHAR_DATA *leader = ch;
 
-	while( (master->master != NULL) && !IS_NPC(master->master) )
+	while( (leader->leader != NULL) && !IS_NPC(leader->leader) )
 	{
-		master = master->master;
+		leader = leader->leader;
 	}
 
-	return master;
+	return leader;
 }
 
 ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, long vnum)
 {
 	char buf[MSL];
-	CHAR_DATA *master = get_player_master(ch);
 
-	DUNGEON *dng = find_dungeon_byplayer(master, vnum);
+	CHAR_DATA *leader = get_player_leader(ch);
 
-	if( dng )
+	DUNGEON *leader_dng = find_dungeon_byplayer(leader, vnum);
+	DUNGEON *ch_dng = find_dungeon_byplayer(ch, vnum);
+
+	// Check if the player already has a dungeon
+	if( IS_VALID(ch_dng) )
 	{
-		wiznet("spawn_dungeon_player: Dungeon Found",NULL,NULL,WIZ_TESTING,0,0);
-		if( !IS_NPC(ch) && dng->player != ch )
+		// Different dungeon?
+		if( ch_dng != leader_dng )
 		{
-			wiznet("spawn_dungeon_player: Dungeon not owned by player",NULL,NULL,WIZ_TESTING,0,0);
-			// CH has gone into someone else's dungeon.  Purge
-			DUNGEON *old_dng = find_dungeon_byplayer(ch, vnum);
-
-			// Need to deal with exclusive lockouts
-
-			if( old_dng )
+			if( !dungeon_canswitch_player(ch_dng, ch) )
 			{
-				extract_dungeon(old_dng);
+				leader_dng = ch_dng;
 			}
-
-			// Tell the player?
+			else
+			{
+				dungeon_removeowner_player(ch_dng, ch);
+			}
 		}
 	}
-	else
-	{
-		wiznet("spawn_dungeon_player: Dungeon not found",NULL,NULL,WIZ_TESTING,0,0);
 
-		if( IS_NPC(master) )
+	if( !IS_VALID(leader_dng) )
+	{
+		if( IS_NPC(leader) )
 		{
 			return NULL;
 		}
 
-		dng = create_dungeon(vnum);
+		leader_dng = create_dungeon(vnum);
 
-		if( !dng )
+		if( !leader_dng )
 			return NULL;
 
-		dng->player = master;
-		dng->player_uid[0] = master->id[0];
-		dng->player_uid[1] = master->id[1];
+		dungeon_addowner_player(leader_dng, leader);
 
-		p_percent2_trigger(NULL, NULL, dng, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+		p_percent2_trigger(NULL, NULL, leader_dng, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
 		ITERATOR it;
 		INSTANCE *instance;
-		iterator_start(&it, dng->floors);
+		iterator_start(&it, leader_dng->floors);
 		while( (instance = (INSTANCE *)iterator_nextdata(&it)) )
 		{
 			p_percent2_trigger(NULL, instance, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
@@ -676,31 +675,25 @@ ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, long vnum)
 		iterator_stop(&it);
 	}
 
-	INSTANCE *first_floor = (INSTANCE *)list_nthdata(dng->floors, 1);
+	dungeon_addowner_player(leader_dng, ch);
+
+	INSTANCE *first_floor = (INSTANCE *)list_nthdata(leader_dng->floors, 1);
 
 	if( !IS_VALID(first_floor) )
 	{
-		wiznet("spawn_dungeon_player: first floor invalid",NULL,NULL,WIZ_TESTING,0,0);
 		return NULL;
-	}
-
-	if( !first_floor->entrance )
-	{
-		wiznet("spawn_dungeon_player: first floor entrance invalid",NULL,NULL,WIZ_TESTING,0,0);
-	}
-	else
-	{
-		sprintf(buf, "spawn_dungeon_player: entrance located (%ld:%lu:%lu) %s",
-			first_floor->entrance->vnum,
-			first_floor->entrance->id[0],
-			first_floor->entrance->id[1],
-			first_floor->entrance->name);
-		wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
 	}
 
 	return first_floor->entrance;
 }
 
+bool dungeon_can_idle(DUNGEON *dungeon)
+{
+	return IS_SET(dungeon->flags, DUNGEON_DESTROY) ||
+			!IS_SET(dungeon->flags, DUNGEON_NO_IDLE) &&
+			(!IS_SET(dungeon->flags, DUNGEON_IDLE_ON_COMPLETE) ||
+			IS_SET(dungeon->flags, DUNGEON_COMPLETED));
+}
 
 void dungeon_check_empty(DUNGEON *dungeon)
 {
@@ -712,11 +705,11 @@ void dungeon_check_empty(DUNGEON *dungeon)
 	else if( list_size(dungeon->players) < 1 )
 	{
 		dungeon->empty = TRUE;
-		if( !IS_SET(dungeon->flags, DUNGEON_DESTROY) )
-			dungeon->idle_timer = UMAX(15, dungeon->idle_timer);
+		if( dungeon_can_idle(dungeon) )
+			dungeon->idle_timer = UMAX(DUNGEON_IDLE_TIMEOUT, dungeon->idle_timer);
 	}
 
-	if( !dungeon->empty && !IS_SET(dungeon->flags, DUNGEON_DESTROY) )
+	if( !dungeon->empty && !dungeon_can_idle(dungeon) )
 		dungeon->idle_timer = 0;
 }
 
@@ -730,6 +723,13 @@ void dungeon_update()
 	iterator_start(&it, loaded_dungeons);
 	while( (dungeon = (DUNGEON *)iterator_nextdata(&it)) )
 	{
+		if( dungeon_isorphaned(dungeon) && list_size(dungeon->players) < 1 )
+		{
+			// Do NOT keep an empty orphaned dungeon
+			extract_dungeon(dungeon);
+			continue;
+		}
+
 		p_percent2_trigger(NULL, NULL, dungeon, NULL, NULL, NULL, NULL, NULL, TRIG_RANDOM, NULL);
 
 		iterator_start(&iit, dungeon->floors);
@@ -739,17 +739,15 @@ void dungeon_update()
 		}
 		iterator_stop(&iit);
 
-
-		if( dungeon->idle_timer > 0 )
+		if( IS_SET(dungeon->flags, DUNGEON_DESTROY) || !IS_SET(dungeon->flags, DUNGEON_IDLE_ON_COMPLETE) || IS_SET(dungeon->flags, DUNGEON_COMPLETED) )
 		{
-			if( !--dungeon->idle_timer )
+			if( dungeon->idle_timer > 0 )
 			{
-				char buf[MSL];
-				sprintf(buf, "dungeon_update: dungeon purging %s", dungeon->index->name);
-				wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
-
-				extract_dungeon(dungeon);
-				continue;
+				if( !--dungeon->idle_timer )
+				{
+					extract_dungeon(dungeon);
+					continue;
+				}
 			}
 		}
 
@@ -1528,7 +1526,7 @@ DNGEDIT( dngedit_flags )
 		return FALSE;
 	}
 
-	if( (value = flag_value(blueprint_section_flags, argument)) != NO_FLAG )
+	if( (value = flag_value(dungeon_flags, argument)) != NO_FLAG )
 	{
 		dng->flags ^= value;
 		send_to_char("Dungeon flags changed.\n\r", ch);
@@ -2174,7 +2172,8 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
 					strcpy(plr_str, "{Dempty");
 				}
 
-				if( dungeon->idle_timer > 0 )
+				if( (IS_SET(dungeon->flags, DUNGEON_DESTROY) || !IS_SET(dungeon->flags, DUNGEON_IDLE_ON_COMPLETE) || IS_SET(dungeon->flags, DUNGEON_COMPLETED)) &&
+					dungeon->idle_timer > 0 )
 				{
 					snprintf(idle_str, 20, "{G%d", dungeon->idle_timer);
 					idle_str[20] = '\0';
@@ -2184,17 +2183,18 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
 					strcpy(idle_str, "{YActive");
 				}
 
-				char color = 'x';
+				char color = 'G';
 
 				if( IS_SET(dungeon->flags, DUNGEON_DESTROY) )
 					color = 'R';
+				else if( IS_SET(dungeon->flags, DUNGEON_COMPLETED) )
+					color = 'W';
 
-
-				sprintf(buf, "%4d {Y[{W%5ld{Y] {%c%-30.30s   %13.13s   %8.8s{x  %lu %lu\n\r",
+				sprintf(buf, "%4d {Y[{W%5ld{Y] {%c%-30.30s   %13.13s   %8.8s{x\n\r",
 					lines,
 					dungeon->index->vnum,
 					color, dungeon->index->name,
-					plr_str, idle_str, dungeon->player_uid[0], dungeon->player_uid[1]);
+					plr_str, idle_str);
 
 				if( !add_buf(buffer, buf) || (!ch->lines && strlen(buf_string(buffer)) > MAX_STRING_LENGTH) )
 				{
@@ -2265,9 +2265,9 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
 
 				SET_BIT(dungeon->flags, DUNGEON_DESTROY);
 				if( dungeon->idle_timer > 0 )
-					dungeon->idle_timer = UMIN(5, dungeon->idle_timer);
+					dungeon->idle_timer = UMIN(DUNGEON_DESTROY_TIMEOUT, dungeon->idle_timer);
 				else
-					dungeon->idle_timer = 5;
+					dungeon->idle_timer = DUNGEON_DESTROY_TIMEOUT;
 
 				sprintf(buf, "{RWARNING: Dungeon is being forcibly unloaded.  You have %d minutes to escape before the end!{x\n\r", dungeon->idle_timer);
 				dungeon_echo(dungeon, buf);
@@ -2297,6 +2297,7 @@ void dungeon_save(FILE *fp, DUNGEON *dungeon)
 {
 	ITERATOR it;
 	INSTANCE *instance;
+	LLIST_UID_DATA *luid;
 
 	fprintf(fp, "#DUNGEON %ld\n\r", dungeon->index->vnum);
 	fprintf(fp, "Uid %ld %ld\n\r", dungeon->uid[0], dungeon->uid[1]);
@@ -2305,10 +2306,12 @@ void dungeon_save(FILE *fp, DUNGEON *dungeon)
 
 	fprintf(fp, "Flags %d\n\r", dungeon->flags);
 
-	if( dungeon->player_uid[0] > 0 || dungeon->player_uid[1] > 0 )
+	iterator_start(&it, dungeon->player_owners);
+	while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
 	{
-		fprintf(fp, "Player %lu %lu\n\r", dungeon->player_uid[0], dungeon->player_uid[1]);
+		fprintf(fp, "Player %lu %lu\n\r", luid->uid[0], luid->uid[1]);
 	}
+	iterator_stop(&it);
 
 	if( dungeon->idle_timer > 0 )
 	{
@@ -2320,7 +2323,6 @@ void dungeon_save(FILE *fp, DUNGEON *dungeon)
 	{
 		instance_save(fp, instance);
 	}
-
 	iterator_stop(&it);
 
 
@@ -2389,8 +2391,10 @@ DUNGEON *dungeon_load(FILE *fp)
 		case 'P':
 			if( !str_cmp(word, "Player") )
 			{
-				dungeon->player_uid[0] = fread_number(fp);
-				dungeon->player_uid[1] = fread_number(fp);
+				unsigned long id1 = fread_number(fp);
+				unsigned long id2 = fread_number(fp);
+
+				dungeon_addowner_playerid(dungeon, id1, id2);
 
 				fMatch = TRUE;
 				break;
@@ -2424,7 +2428,26 @@ DUNGEON *dungeon_load(FILE *fp)
 	return dungeon;
 }
 
-void resolve_dungeon_player(CHAR_DATA *ch)
+void resolve_dungeon_player(DUNGEON *dungeon, CHAR_DATA *ch)
+{
+	if( IS_NPC(ch) ) return;
+
+	ITERATOR it;
+	LLIST_UID_DATA *luid;
+
+	iterator_start(&it, dungeon->player_owners);
+	while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
+	{
+		if( luid->uid[0] == id1 && luid->uid[1] == id2)
+		{
+			luid->ptr = ch;
+			break;
+		}
+	}
+	iterator_stop(&it);
+}
+
+void resolve_dungeons_player(CHAR_DATA *ch)
 {
 	if( IS_NPC(ch) ) return;
 
@@ -2433,21 +2456,33 @@ void resolve_dungeon_player(CHAR_DATA *ch)
 	iterator_start(&it, loaded_dungeons);
 	while( (dungeon = (DUNGEON *)iterator_nextdata(&it)) )
 	{
-		if( dungeon->player_uid[0] == ch->id[0] &&
-			dungeon->player_uid[1] == ch->id[1] )
-		{
-			dungeon->player = ch;
-			continue;
-		}
-
-		// Check player quests
+		resolve_dungeon_player(dungeon, ch);
 	}
 	iterator_stop(&it);
 
 }
 
+void detach_dungeon_player(DUNGEON *dungeon, CHAR_DATA *ch)
+{
+	if( IS_NPC(ch) ) return;
 
-void detach_dungeon_player(CHAR_DATA *ch)
+	ITERATOR it;
+	LLIST_UID_DATA *luid;
+
+	iterator_start(&it, dungeon->player_owners);
+	while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
+	{
+		if( luid->uid[0] == id1 && luid->uid[1] == id2)
+		{
+			luid->ptr = NULL;
+			break;
+		}
+	}
+	iterator_stop(&it);
+}
+
+
+void detach_dungeons_player(CHAR_DATA *ch)
 {
 	if( IS_NPC(ch) ) return;
 
@@ -2456,12 +2491,7 @@ void detach_dungeon_player(CHAR_DATA *ch)
 	iterator_start(&it, loaded_dungeons);
 	while( (dungeon = (DUNGEON *)iterator_nextdata(&it)) )
 	{
-		if( dungeon->player_uid[0] == ch->id[0] &&
-			dungeon->player_uid[1] == ch->id[1] )
-		{
-			dungeon->player = NULL;
-			continue;
-		}
+		detach_dungeon_player(dungeon, ch);
 
 		// Check player quests
 	}
@@ -2586,3 +2616,124 @@ int dungeon_count_mob(DUNGEON *dungeon, MOB_INDEX_DATA *pMobIndex)
 	return count;
 }
 
+
+void dungeon_addowner_player(DUNGEON *dungeon, CHAR_DATA *ch)
+{
+	// Don't add twice
+	if( dungeon_isowner_player(dungeon, ch) ) return;
+
+	LLIST_UID_DATA *luid = new_list_uid_data();
+	luid->uid[0] = ch->id[0];
+	luid->uid[1] = ch->id[1];
+	luid->ptr = ch;
+
+	list_appendlink(dungeon->player_owners, luid);
+}
+
+void dungeon_addowner_playerid(DUNGEON *dungeon, unsigned long id1, unsigned long id2)
+{
+	// Don't add twice
+	if( dungeon_isowner_playerid(dungeon, id1, id2) ) return;
+
+	LLIST_UID_DATA *luid = new_list_uid_data();
+	luid->uid[0] = id1;
+	luid->uid[1] = id2;
+	luid->ptr = NULL;
+
+	list_appendlink(dungeon->player_owners, luid);
+}
+
+void dungeon_removeowner_player(DUNGEON *dungeon, CHAR_DATA *ch)
+{
+	if( IS_NPC(ch) ) return;
+
+	ITERATOR it;
+	LLIST_UID_DATA *luid;
+	bool ret = false;
+
+	iterator_start(&it, dungeon->player_owners);
+	while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
+	{
+		if( luid->uid[0] == ch->id[0] && luid->uid[1] == ch->id[1] )
+		{
+			iterator_remcurrent(&it);
+			break;
+		}
+	}
+	iterator_stop(&it);
+}
+
+void dungeon_removeowner_playerid(DUNGEON *dungeon, unsigned long id1, unsigned long id2)
+{
+	ITERATOR it;
+	LLIST_UID_DATA *luid;
+	bool ret = false;
+
+	iterator_start(&it, dungeon->player_owners);
+	while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
+	{
+		if( luid->uid[0] == id1 && luid->uid[1] == id2 )
+		{
+			iterator_remcurrent(&it);
+			break;
+		}
+	}
+	iterator_stop(&it);
+}
+
+bool dungeon_isowner_player(DUNGEON *dungeon, CHAR_DATA *ch)
+{
+	if( IS_NPC(ch) ) return false;
+
+	ITERATOR it;
+	LLIST_UID_DATA *luid;
+	bool ret = false;
+
+	iterator_start(&it, dungeon->player_owners);
+	while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
+	{
+		if( luid->uid[0] == ch->id[0] && luid->uid[1] == ch->id[1] )
+		{
+			ret = true;
+			break;
+		}
+	}
+	iterator_stop(&it);
+
+	return true;
+}
+
+bool dungeon_isowner_playerid(DUNGEON *dungeon, unsigned long id1, unsigned long id2)
+{
+	ITERATOR it;
+	LLIST_UID_DATA *luid;
+	bool ret = false;
+
+	iterator_start(&it, dungeon->player_owners);
+	while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
+	{
+		if( luid->uid[0] == id1 && luid->uid[1] == id2)
+		{
+			ret = true;
+			break;
+		}
+	}
+	iterator_stop(&it);
+
+	return true;
+}
+
+bool dungeon_canswitch_player(c, CHAR_DATA *ch)
+{
+	// TODO: Add lockout system
+	return true;
+}
+
+bool dungeon_isorphaned(DUNGEON *dungeon)
+{
+	if( list_size(dungeon->player_owners) > 0 ) return false;
+
+	// Any other owners?
+
+	return true;
+}

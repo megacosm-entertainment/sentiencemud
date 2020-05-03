@@ -112,6 +112,7 @@ const struct olc_help_type help_table[] =
     {	"shop",		shop_flags,	 "Shop flags"		 },
     {	"section_type",		blueprint_section_types,	 "Blueprint Section Types"		 },
     {	"section_flags",		blueprint_section_flags,	 "Blueprint Section Flags"		 },
+    {	"instance",		instance_flags,	 "Instance Flags"		 },
     {	"dungeon",		dungeon_flags,	 "Dungeon Flags"		 },
     {	NULL,		NULL,		 NULL				 }
 };

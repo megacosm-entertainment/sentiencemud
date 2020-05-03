@@ -230,6 +230,10 @@ BLUEPRINT *load_blueprint(FILE *fp)
 			KEYS("Description", bp->description, fread_string(fp));
 			break;
 
+		case 'F':
+			KEY("Flags", bp->flags, fread_number(fp));
+			break;
+
 		case 'I':
 			if (!str_cmp(word, "InstanceProg")) {
 				int tindex;
@@ -541,6 +545,7 @@ void save_blueprint(FILE *fp, BLUEPRINT *bp)
 	fprintf(fp, "Comments %s~\n\r", fix_string(bp->comments));
 	fprintf(fp, "AreaWho %d\n\r", bp->area_who);
 	fprintf(fp, "Repop %d\n\r", bp->repop);
+	fprintf(fp, "Flags %d\n\r", bp->flags);
 
 	ITERATOR sit;
 	BLUEPRINT_SECTION *bs;
@@ -1143,6 +1148,7 @@ INSTANCE *create_instance(BLUEPRINT *blueprint)
 	if( instance )
 	{
 		instance->blueprint = blueprint;
+		instance->flags = blueprint->flags;
 
 		instance->progs			= new_prog_data();
 		instance->progs->progs	= blueprint->progs;
@@ -1225,6 +1231,33 @@ void update_instance(INSTANCE *instance)
 	iterator_stop(&sit);
 }
 
+bool instance_can_idle(INSTANCE *instance)
+{
+	return IS_SET(instance->flags, INSTANCE_DESTROY) ||
+			!IS_SET(instance->flags, INSTANCE_NO_IDLE) &&
+				(!IS_SET(instance->flags, INSTANCE_IDLE_ON_COMPLETE) ||
+				IS_SET(instance->flags, INSTANCE_COMPLETED));
+}
+
+void instance_check_empty(INSTANCE *instance)
+{
+	if( instance->empty )
+	{
+		if( list_size(instance->players) > 0 )
+			instance->empty = FALSE;
+	}
+	else if( list_size(instance->players) < 1 )
+	{
+		instance->empty = TRUE;
+		if( instance_can_idle(instance) )
+			instance->idle_timer = UMAX(15, instance->idle_timer);
+	}
+
+	if( !instance->empty && !instance_can_idle(instance) )
+		instance->idle_timer = 0;
+}
+
+
 void instance_update()
 {
 	ITERATOR it;
@@ -1233,9 +1266,31 @@ void instance_update()
 	iterator_start(&it, loaded_instances);
 	while((instance = (INSTANCE *)iterator_nextdata(&it)))
 	{
+		// Skip instances owned by dungeons
 		if( IS_VALID(instance->dungeon) ) continue;
 
+		if( instance_isorphaned(instance) && list_size(instance->players) < 1 )
+		{
+			// Do not keep an empty orphaned instance
+			extract_instance(instance);
+			continue;
+		}
+
 		update_instance(instance);
+
+		if( instance_can_idle(instance) )
+		{
+			if( instance->idle_timer > 0 )
+			{
+				if( !--instance->idle_timer )
+				{
+					extract_instance(instance);
+					continue;
+				}
+			}
+		}
+
+		instance_check_empty(instance);
 
 		instance->age++;
 		if( instance->blueprint->repop > 0 && (instance->age >= instance->blueprint->repop) )
@@ -2288,6 +2343,7 @@ const struct olc_cmd_type bpedit_table[] =
 	{ "create",			bpedit_create		},
 	{ "deliprog",		bpedit_deliprog		},
 	{ "description",	bpedit_description	},
+	{ "flags",			bpedit_flags		},
 	{ "list",			bpedit_list			},
 	{ "mode",			bpedit_mode			},
 	{ "name",			bpedit_name			},
@@ -2495,6 +2551,9 @@ BPEDIT( bpedit_show )
 	add_buf(buffer, buf);
 
 	sprintf(buf, "{xAreaWho:     [%s] [%s]{x\n\r", flag_string(area_who_titles, bp->area_who), flag_string(area_who_display, bp->area_who));
+	add_buf(buffer, buf);
+
+	sprintf(buf, "{xFlags:       %s{x\n\r", flag_string(instance_flags, bp->flags));
 	add_buf(buffer, buf);
 
 	add_buf(buffer, "Description:\n\r");
@@ -2853,6 +2912,33 @@ BPEDIT( bpedit_repop )
 	send_to_char("Repop changed.\n\r", ch);
 	return TRUE;
 }
+
+BPEDIT( bpedit_flags )
+{
+	BLUEPRINT *bp;
+	int value;
+
+	EDIT_BLUEPRINT(ch, bp);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  flags <flags>\n\r", ch);
+		send_to_char("'? instance' for list of flags.\n\r", ch);
+		return FALSE;
+	}
+
+	if( (value = flag_value(instance_flags, argument)) != NO_FLAG )
+	{
+		bp->flags ^= value;
+		send_to_char("Instance flags changed.\n\r", ch);
+		return TRUE;
+	}
+
+	bpedit_flags(ch, "");
+	return FALSE;
+
+}
+
 
 BPEDIT( bpedit_description )
 {
@@ -3802,23 +3888,14 @@ void do_instance(CHAR_DATA *ch, char *argument)
 		{
 			++lines;
 
-			char owner[MIL];
-			if( IS_VALID(instance->player) || instance->player_uid[0] > 0 || instance->player_uid[1] > 0 )
-			{
-				strcpy(owner, "{G     PLAYER     {x");
-			}
-			else if( IS_VALID(instance->object) || instance->object_uid[0] > 0 || instance->object_uid[1] > 0 )
-			{
-				strcpy(owner, "{Y     OBJECT     {x");
-			}
-			else if( IS_VALID(instance->dungeon) )
-			{
-				strcpy(owner, "{R     DUNGEON    {x");
-			}
-			else
-			{
-				strcpy(owner, "{D   - {WORPHAN{D -   {x");
-			}
+			char *owner = instance_get_ownership(instance);
+
+			char color = 'G';
+
+			if( IS_SET(instance->flags, INSTANCE_DESTROY) )
+				color = 'R';
+			else if( IS_SET(instance->flags, INSTANCE_COMPLETED) )
+				color = 'W';
 
 			sprintf(buf, "%4d {Y[{W%5ld{Y] {x%-30.30s  %s{x\n\r",
 				lines,
@@ -3945,7 +4022,41 @@ void do_instance(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
+
 		INSTANCE *instance = (INSTANCE *)list_nthdata(loaded_instances, index);
+
+		if( !instance_isorphaned(instance) )
+		{
+			send_to_char("Instance is not orphaned.\n\r", ch);
+			return;
+		}
+
+		if( list_size(instance->players) > 0 )
+		{
+			if( IS_SET(instance->flags, INSTANCE_DESTROY) )
+			{
+				send_to_char("Instance is already flagged for unloading.\n\r", ch);
+				return;
+			}
+
+			SET_BIT(instance->flags, INSTANCE_DESTROY);
+			if( instance->idle_timer > 0 )
+				instance->idle_timer = UMIN(INSTANCE_DESTROY_TIMEOUT, instance->idle_timer);
+			else
+				instance->idle_timer = INSTANCE_DESTROY_TIMEOUT;
+
+			sprintf(buf, "{RWARNING: Instance is being forcibly unloaded.  You have %d minutes to escape before the end!{x\n\r", instance->idle_timer);
+			instance_echo(instance, buf);
+
+			send_to_char("Instance flagged for unloading.\n\r", ch);
+		}
+		else
+		{
+			extract_instance(instance);
+			send_to_char("Instance unloaded.\n\r", ch);
+		}
+
+		/*
 		list_remlink(loaded_instances, instance);
 
 		if( ch->in_room->instance_section->instance == instance )
@@ -3960,6 +4071,7 @@ void do_instance(CHAR_DATA *ch, char *argument)
 		free_instance(instance);
 
 		send_to_char("Instance unloaded.\n\r", ch);
+		*/
 		return;
 	}
 
@@ -4002,18 +4114,22 @@ void instance_save(FILE *fp, INSTANCE *instance)
 	fprintf(fp, "#INSTANCE %ld\n\r", instance->blueprint->vnum);
 
 	fprintf(fp, "Floor %d\n\r", instance->floor);
+	fprintf(fp, "Flags %d\n\r", instance->flags);
 
 	if( instance->object_uid[0] > 0 || instance->object_uid[1] > 0 )
 	{
 		fprintf(fp, "Object %lu %lu\n\r", instance->object_uid[0], instance->object_uid[1]);
 	}
 
-	if( instance->player_uid[0] > 0 || instance->player_uid[1] > 0 )
-	{
-		fprintf(fp, "Player %lu %lu\n\r", instance->player_uid[0], instance->player_uid[1]);
-	}
-
 	ITERATOR it;
+	LLIST_UID_DATA *luid;
+	iterator_start(&it, instance->player_owners);
+	while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
+	{
+		fprintf(fp, "Player %lu %lu\n\r", luid->uid[0], luid->uid[1]);
+	}
+	iterator_stop(&it);
+
 	INSTANCE_SECTION *section;
 	iterator_start(&it, instance->sections);
 	while( (section = (INSTANCE_SECTION *)iterator_nextdata(&it)) )
@@ -4187,6 +4303,7 @@ INSTANCE *instance_load(FILE *fp)
 			break;
 
 		case 'F':
+			KEY("Flags", instance->flags, fread_number(fp));
 			KEY("Floor", instance->floor, fread_number(fp));
 			break;
 
@@ -4204,8 +4321,11 @@ INSTANCE *instance_load(FILE *fp)
 		case 'P':
 			if( !str_cmp(word, "Player") )
 			{
-				instance->player_uid[0] = fread_number(fp);
-				instance->player_uid[1] = fread_number(fp);
+				unsigned long uid[2];
+				uid[0] = fread_number(fp);
+				uid[1] = fread_number(fp);
+
+				instance_addowner_playerid(instance, uid[0], uid[1]);
 
 				fMatch = TRUE;
 				break;
@@ -4273,6 +4393,26 @@ void resolve_instances()
 	iterator_stop(&it);
 }
 
+void resolve_instance_player(INSTANCE *instance, CHAR_DATA *ch)
+{
+	if( IS_NPC(ch) ) return;
+
+	ITERATOR it;
+	LLIST_UID_DATA *luid;
+
+	iterator_start(&it, instance->player_owners);
+	while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
+	{
+		if( luid->uid[0] == ch->id[0] &&
+			luid->uid[1] == ch->id[1])
+		{
+			luid->ptr = ch;
+			continue;
+		}
+	}
+	iterator_stop(&it);
+}
+
 void resolve_instances_player(CHAR_DATA *ch)
 {
 	if( IS_NPC(ch) ) return;
@@ -4283,12 +4423,7 @@ void resolve_instances_player(CHAR_DATA *ch)
 	iterator_start(&it, loaded_instances);
 	while( (instance = (INSTANCE *)iterator_nextdata(&it)) )
 	{
-		if( instance->player_uid[0] == ch->id[0] &&
-			instance->player_uid[1] == ch->id[1])
-		{
-			instance->player = ch;
-			continue;
-		}
+		resolve_instance_player(ch);
 
 		// Iterate over the character's quest list
 	}
@@ -4306,12 +4441,7 @@ void detach_instances_player(CHAR_DATA *ch)
 	iterator_start(&it, loaded_instances);
 	while( (instance = (INSTANCE *)iterator_nextdata(&it)) )
 	{
-		if( instance->player_uid[0] == ch->id[0] &&
-			instance->player_uid[1] == ch->id[1])
-		{
-			instance->player = NULL;
-			continue;
-		}
+		instance_remove_player_owner(instance, ch);
 
 		// Iterate over the character's quest list
 	}
@@ -4394,3 +4524,179 @@ ROOM_INDEX_DATA *get_instance_special_room_byname(INSTANCE *instance, char *name
 
 	return room;
 }
+
+
+void instance_addowner_player(INSTANCE *instance, CHAR_DATA *ch)
+{
+	// Don't add twice
+	if( instance_isowner_player(instance, ch) ) return;
+
+	LLIST_UID_DATA *luid = new_list_uid_data();
+	luid->uid[0] = ch->id[0];
+	luid->uid[1] = ch->id[1];
+	luid->ptr = ch;
+
+	list_appendlink(instance->player_owners, luid);
+}
+
+void instance_addowner_playerid(INSTANCE *instance, unsigned long id1, unsigned long id2)
+{
+	// Don't add twice
+	if( instance_isowner_playerid(instance, id1, id2) ) return;
+
+	LLIST_UID_DATA *luid = new_list_uid_data();
+	luid->uid[0] = id1;
+	luid->uid[1] = id2;
+	luid->ptr = NULL;
+
+	list_appendlink(instance->player_owners, luid);
+}
+
+void instance_removeowner_player(INSTANCE *instance, CHAR_DATA *ch)
+{
+	if( IS_NPC(ch) ) return;
+
+	ITERATOR it;
+	LLIST_UID_DATA *luid;
+	bool ret = false;
+
+	iterator_start(&it, instance->player_owners);
+	while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
+	{
+		if( luid->uid[0] == ch->id[0] && luid->uid[1] == ch->id[1] )
+		{
+			iterator_remcurrent(&it);
+			break;
+		}
+	}
+	iterator_stop(&it);
+}
+
+void instance_removeowner_playerid(INSTANCE *instance, unsigned long id1, unsigned long id2)
+{
+	ITERATOR it;
+	LLIST_UID_DATA *luid;
+	bool ret = false;
+
+	iterator_start(&it, instance->player_owners);
+	while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
+	{
+		if( luid->uid[0] == id1 && luid->uid[1] == id2 )
+		{
+			iterator_remcurrent(&it);
+			break;
+		}
+	}
+	iterator_stop(&it);
+}
+
+bool instance_isowner_player(INSTANCE *instance, CHAR_DATA *ch)
+{
+	if( IS_NPC(ch) ) return false;
+
+	ITERATOR it;
+	LLIST_UID_DATA *luid;
+	bool ret = false;
+
+	iterator_start(&it, instance->player_owners);
+	while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
+	{
+		if( luid->uid[0] == ch->id[0] && luid->uid[1] == ch->id[1] )
+		{
+			ret = true;
+			break;
+		}
+	}
+	iterator_stop(&it);
+
+	return true;
+}
+
+bool instance_isowner_playerid(INSTANCE *instance, unsigned long id1, unsigned long id2)
+{
+	ITERATOR it;
+	LLIST_UID_DATA *luid;
+	bool ret = false;
+
+	iterator_start(&it, instance->player_owners);
+	while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
+	{
+		if( luid->uid[0] == id1 && luid->uid[1] == id2)
+		{
+			ret = true;
+			break;
+		}
+	}
+	iterator_stop(&it);
+
+	return true;
+}
+
+bool instance_canswitch_player(INSTANCE *instance, CHAR_DATA *ch)
+{
+	// TODO: Add lockout system
+	return true;
+}
+
+bool instance_isorphaned(INSTANCE *instance)
+{
+	if( !IS_VALID(instance) ) return true;
+
+	if( IS_VALID(instance->dungeon) ) return false;
+
+	// Does it have player owners?
+	if( list_size(instance->player_owners) > 0 ) return false;
+
+	// Does it have an object owner?
+	if( IS_VALID(instance->object) ||
+		instance->object_uid[0] > 0 ||
+		instance->object_uid[1] > 0)
+		return false;
+
+	// Does it have a quest owner?
+//  if( IS_VALID(instance->quest) ) return false;
+
+	// Add other ownership
+
+	return true;
+}
+
+char *instance_get_ownership(INSTANCE *instance)
+{
+	static char buf[4][MSL+1];
+	static int idx = 0;
+
+	if (++idx > 3)
+		idx = 0;
+
+	char *p = buf[idx];
+	if( !IS_VALID(instance) )
+	{
+		strncpy(p, "{R    ! {WERROR {R!   {x", MSL);
+	}
+	else if( IS_VALID(instance->dungeon) )
+	{
+		strncpy(p, "{R     D{rU{RN{rG{RE{rO{RN    {x", MSL);
+	}
+	else if( IS_VALID(instance->object) || instance->object_uid[0] > 0 || instance->object_uid[1] > 0)
+	{
+		strncpy(p, "{Y     OBJECT     {x", MSL);
+	}
+//	else if( IS_VALID(instance->quest) )
+//	{
+//		strncpy(p, "{C      QUEST     {x", MSL);
+//	}
+	else if( list_size(instance->player_owners) > 0 )
+	{
+		strncpy(p, "{G     PLAYER     {x", MSL);
+	}
+	else
+	{
+		strncpy(p, "{D   - {WORPHAN{D -   {x", MSL);
+	}
+
+
+	p[MSL] = '\0';
+	return p;
+}
+

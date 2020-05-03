@@ -95,6 +95,24 @@ IMMORTAL_DATA *immortal_free;
 SKILL_ENTRY *skill_entry_free;
 OLC_POINT_BOOST *olc_point_boost_free;
 
+
+LLIST_UID_DATA *new_list_uid_data()
+{
+	return alloc_mem(sizeof(LLIST_UID_DATA));
+}
+
+// NOT DOUBLE FREE SAFE
+void free_list_uid_data(LLIST_UID_DATA *luid)
+{
+	free_mem(luid,sizeof(LLIST_UID_DATA));
+}
+
+static void delete_list_uid_data(void *ptr)
+{
+	free_list_uid_data((LLIST_UID_DATA *)ptr);
+}
+
+
 OLC_POINT_BOOST *new_olc_point_boost()
 {
 	OLC_POINT_BOOST *boost;
@@ -3714,6 +3732,7 @@ INSTANCE *new_instance()
 	instance->rooms = list_create(FALSE);
 	instance->bosses = list_create(FALSE);
 	instance->special_rooms = list_createx(FALSE, NULL, delete_named_special_room);
+	instance->player_owners = list_createx(FALSE, NULL, delete_list_uid_data);
 
 	VALIDATE(instance);
 	return instance;
@@ -3739,6 +3758,7 @@ void free_instance(INSTANCE *instance)
 	list_destroy(instance->rooms);
 	list_destroy(instance->bosses);
 	list_destroy(instance->special_rooms);
+	list_destroy(instance->player_owners);
 
     variable_clearfield(VAR_INSTANCE, instance);
     script_clear_instance(instance);
@@ -3876,6 +3896,7 @@ DUNGEON *new_dungeon()
 	dng->rooms = list_create(FALSE);
 	dng->bosses = list_create(FALSE);
 	dng->special_rooms = list_createx(FALSE, NULL, delete_named_special_room);
+	dng->player_owners = list_createx(FALSE, NULL, delete_list_uid_data);
 
 	VALIDATE(dng);
 	return dng;
@@ -3901,6 +3922,7 @@ void free_dungeon(DUNGEON *dng)
 	list_destroy(dng->rooms);
 	list_destroy(dng->bosses);
 	list_destroy(dng->special_rooms);
+	list_destroy(dng->player_owners);
 
     variable_clearfield(VAR_DUNGEON, dng);
     script_clear_dungeon(dng);
@@ -3910,3 +3932,4 @@ void free_dungeon(DUNGEON *dng)
 	dng->next = dungeon_free;
 	dungeon_free = dng;
 }
+

@@ -108,6 +108,7 @@ const struct script_cmd_type obj_cmd_table[] = {
 	{ "settimer",			do_opsettimer,			FALSE,	TRUE	},
 	{ "showroom",			do_opshowroom,			TRUE,	TRUE	},
 	{ "skimprove",			do_opskimprove,			TRUE,	TRUE	},
+	{ "spawndungeon",		scriptcmd_spawndungeon,		TRUE,	TRUE	},
 	{ "startcombat",		scriptcmd_startcombat,	FALSE,	TRUE	},
 	{ "stopcombat",			scriptcmd_stopcombat,	FALSE,	TRUE	},
 	{ "stringmob",			do_opstringmob,			TRUE,	TRUE	},

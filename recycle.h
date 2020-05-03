@@ -117,6 +117,8 @@ char	*buf_string args( (BUFFER *buffer) );
 
 HELP_DATA *	new_help	args( ( void ) );
 
+LLIST_UID_DATA *new_list_uid_data();
+void free_list_uid_data(LLIST_UID_DATA *luid);
 
 QUESTOR_DATA *new_questor_data();
 void free_questor_data(QUESTOR_DATA *q);

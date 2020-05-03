@@ -1527,8 +1527,14 @@ SCRIPT_CMD(scriptcmd_dungeoncomplete)
 	if(!expand_argument(info,argument,arg))
 		return;
 
-	if( arg->type == ENT_DUNGEON )
-		p_percent2_trigger(NULL, NULL, arg->d.dungeon, NULL, NULL, NULL, NULL, NULL, TRIG_COMPLETED,NULL);
+	if( arg->type == ENT_DUNGEON ) {
+		if( !IS_SET(arg->d.dungeon->flags, DUNGEON_COMPLETED) )
+		{
+			p_percent2_trigger(NULL, NULL, arg->d.dungeon, NULL, NULL, NULL, NULL, NULL, TRIG_COMPLETED,NULL);
+
+			SET_BIT(arg->d.dungeon->flags, DUNGEON_COMPLETED);
+		}
+	}
 }
 
 
@@ -2167,7 +2173,14 @@ SCRIPT_CMD(scriptcmd_instancecomplete)
 		return;
 
 	if( arg->type == ENT_INSTANCE )
-		p_percent2_trigger(NULL, arg->d.instance, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_COMPLETED,NULL);
+	{
+		if( !IS_SET(arg->d.instance->flags, INSTANCE_COMPLETED) )
+		{
+			p_percent2_trigger(NULL, arg->d.instance, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_COMPLETED,NULL);
+
+			SET_BIT(arg->d.instance->flags, INSTANCE_COMPLETED);
+		}
+	}
 }
 
 
@@ -3338,6 +3351,43 @@ SCRIPT_CMD(scriptcmd_setsubclass)
 {
 }
 
+
+// SPAWNDUNGEON $PLAYER $DUNGEONID $VARIABLENAME
+// This does not automatically send the player to the dungeon
+// That is what the room variable is for.
+//
+SCRIPT_CMD(scriptcmd_spawndungeon)
+{
+	char *rest;
+	CHAR_DATA *ch;
+	long vnum;
+
+	info->progs->lastreturn = 0;
+
+	if(!(rest = expand_argument(info,argument,arg)))
+		return;
+
+	switch(arg->type) {
+	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, FALSE); break;
+	case ENT_MOBILE: victim = arg->d.mob; break;
+	default: victim = NULL; break;
+	}
+
+	if (!victim || IS_NPC(victim))
+		return;
+
+	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER || !*rest)
+		return;
+
+	ROOM_INDEX_DATA *room = spawn_dungeon_player(arg->d.num);
+
+	if( !room )
+		return;
+
+	variable_set_room(info->vars,rest,room);
+	info->progs->lastreturn = 1;
+}
+
 // STARTCOMBAT[ $ATTACKER] $VICTIM
 SCRIPT_CMD(scriptcmd_startcombat)
 {
@@ -3345,15 +3395,11 @@ SCRIPT_CMD(scriptcmd_startcombat)
 	CHAR_DATA *attacker = NULL;
 	CHAR_DATA *victim = NULL;
 
-
 	info->progs->lastreturn = 0;
 
 	if(!(rest = expand_argument(info,argument,arg))) {
-		bug("MpStartCombat - Error in parsing from vnum %ld.", VNUM(info->mob));
 		return;
 	}
-
-
 
 	switch(arg->type) {
 	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, FALSE); break;

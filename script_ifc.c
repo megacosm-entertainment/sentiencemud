@@ -4712,6 +4712,12 @@ DECL_IFC_FUN(ifc_dungeonflag)
 	return TRUE;
 }
 
+DECL_IFC_FUN(ifc_instanceflag)
+{
+	*ret = (ISARG_INSTANCE(0) && ISARG_STR(1) && IS_SET(ARG_INSTANCE(0)->flags, flag_value_ifcheck( instance_flags,ARG_STR(1))));
+	return TRUE;
+}
+
 DECL_IFC_FUN(ifc_sectionflag)
 {
 	*ret = (ISARG_SECTION(0) && ISARG_STR(1) && IS_SET(ARG_SECTION(0)->section->flags, flag_value_ifcheck( blueprint_section_flags,ARG_STR(1))));

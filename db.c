@@ -7777,6 +7777,7 @@ bool save_instances()
 	iterator_start(&it, loaded_dungeons);
 	while( (dungeon = (DUNGEON *)iterator_nextdata(&it)) )
 	{
+		// Skip dungeons that cannot save
 		if( !IS_SET(dungeon->flags, (DUNGEON_NO_SAVE|DUNGEON_DESTROY)) )
 		{
 			dungeon_save(fp, dungeon);
@@ -7787,7 +7788,8 @@ bool save_instances()
 	iterator_start(&it, loaded_instances);
 	while( (instance = (INSTANCE *)iterator_nextdata(&it)) )
 	{
-		if( !IS_VALID(instance->dungeon) )		// Skip instances owned by dungeons
+		// Skip dungeon instances and instances that cannot save
+		if( !IS_VALID(instance->dungeon) && !IS_SET(instance->flags, (INSTANCE_NO_SAVE|INSTANCE_DESTROY))  )
 			instance_save(fp, instance);
 	}
 	iterator_stop(&it);

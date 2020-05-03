@@ -5048,6 +5048,8 @@ struct blueprint_data {
 
 	int repop;
 
+	int flags;
+
 	int mode;
 
 	LLIST *sections;						// BLUEPRINT_SECTION
@@ -5066,6 +5068,14 @@ struct blueprint_data {
     pVARIABLE		index_vars;
 };
 
+#define INSTANCE_NO_SAVE			(A)
+#define INSTANCE_COMPLETED			(B)
+#define INSTANCE_IDLE_ON_COMPLETE	(C)
+#define INSTANCE_NO_IDLE			(D)
+#define INSTANCE_DESTROY			(Z)
+
+#define INSTANCE_DESTROY_TIMEOUT	5
+#define INSTANCE_IDLE_TIMEOUT		15		// Minutes before a dungeon is purged from not having players in it.
 
 
 struct instance_section_data {
@@ -5098,6 +5108,8 @@ struct instance_data {
 	int floor;					// Floor identifier, used in traversing multi-level dungeons
 								// Defaults to 0 when not used
 
+	int flags;
+
 	ROOM_INDEX_DATA *recall;	// Location in the instance that is considered the recall point
 								//   Leave NULL to have no recall
 								// Instance rooms will override normal recall checks
@@ -5112,8 +5124,7 @@ struct instance_data {
 	unsigned long object_uid[2];	//   If the object owner is extracted, all players inside will be
 									//   dropped to the room of the object.
 
-	CHAR_DATA *player;
-	unsigned long player_uid[2];
+	LLIST *player_owners;
 
 	ROOM_INDEX_DATA *environ;	// Explicit environment for instance
 								//   If NULL, will use the current room of the object
@@ -5128,14 +5139,21 @@ struct instance_data {
 	LLIST *special_rooms;
 
 	int age;
+	int idle_timer;
+	bool empty;
 
     PROG_DATA *		progs;		// Script data
 };
 
-#define DUNGEON_NO_SAVE		(A)		// Dungeon will not save to disk.
+#define DUNGEON_NO_SAVE				(A)		// Dungeon will not save to disk.
+#define DUNGEON_COMPLETED			(B)		// Dungeon has completed
+#define DUNGEON_IDLE_ON_COMPLETE	(C)		// Only update the idle_timer when DUNGEON_COMPLETED has been set
+#define DUNGEON_NO_IDLE				(D)		//
+#define DUNGEON_DESTROY				(Z)		// Flagged for destruction.
+											//   Will handle the idle timer regardless if dungeon is empty
+#define DUNGEON_DESTROY_TIMEOUT	5
+#define DUNGEON_IDLE_TIMEOUT	15		// Minutes before a dungeon is purged from not having players in it.
 
-#define DUNGEON_DESTROY		(Z)		// Flagged for destruction.
-									//   Will handle the idle timer regardless if dungeon is empty
 
 struct dungeon_index_special_room_data
 {
@@ -5196,10 +5214,8 @@ struct dungeon_data
 
 	int flags;						// Potential instanced flags
 
-	CHAR_DATA *player;				// Player owner of the dungeon
-	unsigned long player_uid[2];	//   Allows reseting of the dungeon manually
-									//   Should another player exist in the dungeon,
-									//   ownership is merely transferred.
+	LLIST *player_owners;			// Player owners of the dungeon
+									//  Must be a SUPERSET of the players list inside the dungeon
 
 	LLIST *players;					// List of players inside the dungeon
 	LLIST *mobiles;					// List of mobiles (include players) inside the dungeon not part of the instance
@@ -5217,8 +5233,6 @@ struct dungeon_data
     PROG_DATA *		progs;
 };
 
-#define DUNGEON_DESTROY_TIMEOUT	5
-#define DUNGEON_IDLE_TIMEOUT	15		// Minutes before a dungeon is purged from not having players in it.
 
 
 /* conditions for conditional descs */
@@ -8256,7 +8270,16 @@ ROOM_INDEX_DATA *instance_random_room(CHAR_DATA *ch, INSTANCE *instance);
 ROOM_INDEX_DATA *instance_section_get_room_byvnum(INSTANCE_SECTION *section, long vnum);
 ROOM_INDEX_DATA *get_instance_special_room(INSTANCE *instance, int index);
 ROOM_INDEX_DATA *get_instance_special_room_byname(INSTANCE *instance, char *name);
-
+void instance_addowner_player(INSTANCE *instance, CHAR_DATA *ch);
+void instance_addowner_playerid(INSTANCE *instance, unsigned long id1, unsigned long id2);
+void instance_removeowner_player(INSTANCE *instance, CHAR_DATA *ch);
+void instance_removeowner_playerid(INSTANCE *instance, unsigned long id1, unsigned long id2);
+bool instance_isowner_player(INSTANCE *instance, CHAR_DATA *ch);
+bool instance_isowner_playerid(INSTANCE *instance, unsigned long id1, unsigned long id2);
+bool instance_canswitch_player(INSTANCE *instance, CHAR_DATA *ch);
+bool instance_isorphaned(INSTANCE *instance);
+char *instance_get_ownership(INSTANCE *instance);
+bool instance_can_idle(INSTANCE *instance);
 
 void load_dungeons();
 bool save_dungeons();
@@ -8273,6 +8296,16 @@ ROOM_INDEX_DATA *get_dungeon_special_room(DUNGEON *dungeon, int index);
 ROOM_INDEX_DATA *get_dungeon_special_room_byname(DUNGEON *dungeon, char *name);
 int dungeon_count_mob(DUNGEON *dungeon, MOB_INDEX_DATA *pMobIndex);
 void extract_dungeon(DUNGEON *dungeon);
+void dungeon_addowner_player(DUNGEON *dungeon, CHAR_DATA *ch);
+void dungeon_addowner_playerid(DUNGEON *dungeon, unsigned long id1, unsigned long id2);
+void dungeon_removeowner_player(DUNGEON *dungeon, CHAR_DATA *ch);
+void dungeon_removeowner_playerid(DUNGEON *dungeon, unsigned long id1, unsigned long id2);
+bool dungeon_isowner_player(DUNGEON *dungeon, CHAR_DATA *ch);
+bool dungeon_isowner_playerid(DUNGEON *dungeon, unsigned long id1, unsigned long id2);
+bool dungeon_can_player_switch(DUNGEON *dungeon, CHAR_DATA *ch);
+bool dungeon_isorphaned(DUNGEON *dungeon);
+bool dungeon_can_idle(DUNGEON *dungeon);
+
 
 bool can_room_update(ROOM_INDEX_DATA *room);
 
@@ -8282,11 +8315,11 @@ extern  bool			dungeons_changed;
 void persist_save_room(FILE *fp, ROOM_INDEX_DATA *room);
 ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype);
 
-void resolve_dungeon_player(CHAR_DATA *ch);
+void resolve_dungeons_player(CHAR_DATA *ch);
 void resolve_instances();
 void resolve_instances_player(CHAR_DATA *ch);
 
-void detach_dungeon_player(CHAR_DATA *ch);
+void detach_dungeons_player(CHAR_DATA *ch);
 void detach_instances_player(CHAR_DATA *ch);
 
 extern long top_iprog_index;

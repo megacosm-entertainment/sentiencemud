@@ -153,7 +153,7 @@ enum ifcheck_enum {
 
 
 	/* I */
-	CHK_ID,CHK_ID2,CHK_IDENTICAL,CHK_IMM,CHK_INCHURCH,CHK_INNATURE,CHK_INPUTWAIT,CHK_INWILDS,
+	CHK_ID,CHK_ID2,CHK_IDENTICAL,CHK_IMM,CHK_INCHURCH,CHK_INNATURE,CHK_INPUTWAIT,CHK_INSTANCEFLAG,CHK_INWILDS,
 
 	/* IS */
 		CHK_ISACTIVE,
@@ -1867,6 +1867,7 @@ DECL_IFC_FUN(ifc_protocol);
 
 DECL_IFC_FUN(ifc_isboss);
 DECL_IFC_FUN(ifc_dungeonflag);
+DECL_IFC_FUN(ifc_instanceflag);
 DECL_IFC_FUN(ifc_sectionflag);
 
 
@@ -2563,6 +2564,8 @@ SCRIPT_CMD(scriptcmd_instancecomplete);
 SCRIPT_CMD(scriptcmd_makeinstanced);
 SCRIPT_CMD(scriptcmd_mload);
 SCRIPT_CMD(scriptcmd_oload);
+
+SCRIPT_CMD(scriptcmd_spawndungeon);
 
 #include "tables.h"
 

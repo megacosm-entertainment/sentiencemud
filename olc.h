@@ -519,6 +519,7 @@ DECLARE_OLC_FUN( bpedit_varclear	);
 DECLARE_OLC_FUN( bpedit_addiprog		);
 DECLARE_OLC_FUN( bpedit_deliprog		);
 DECLARE_OLC_FUN( bpedit_repop			);
+DECLARE_OLC_FUN( bpedit_flags			);
 
 // Dungeon Editor
 DECLARE_OLC_FUN( dngedit_list			);

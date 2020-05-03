@@ -3050,7 +3050,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 
 		// Fix variable and dungeon referencs
 		variable_dynamic_fix_mobile(ch);
-		resolve_dungeon_player(ch);
+		resolve_dungeons_player(ch);
 		resolve_instances_player(ch);
 
 		if (ch->in_room != NULL)

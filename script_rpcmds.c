@@ -104,6 +104,7 @@ const struct script_cmd_type room_cmd_table[] = {
 	{ "settimer",			do_rpsettimer,			FALSE,	TRUE	},
 	{ "showroom",			do_rpshowroom,			FALSE,	TRUE	},
 	{ "skimprove",			do_rpskimprove,			TRUE,	TRUE	},
+	{ "spawndungeon",		scriptcmd_spawndungeon,		TRUE,	TRUE	},
 	{ "startcombat",		scriptcmd_startcombat,	FALSE,	TRUE	},
 	{ "stopcombat",			scriptcmd_stopcombat,	FALSE,	TRUE	},
 	{ "stringmob",			do_rpstringmob,			TRUE,	TRUE	},

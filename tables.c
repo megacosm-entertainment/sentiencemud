@@ -2761,10 +2761,23 @@ const struct flag_type blueprint_section_types[] =
 	{ NULL,				0,						FALSE	}
 };
 
+const struct flag_type instance_flags[] =
+{
+	{ "completed",			INSTANCE_COMPLETED,			FALSE	},
+	{ "destroy",			INSTANCE_DESTROY,			FALSE	},
+	{ "idle_on_complete",	INSTANCE_IDLE_ON_COMPLETE,	TRUE	},
+	{ "no_idle",			INSTANCE_NO_IDLE,			TRUE	},
+	{ "no_save",			INSTANCE_NO_SAVE,			TRUE	},
+	{ NULL,					0,							FALSE	}
+};
+
 const struct flag_type dungeon_flags[] =
 {
-	{ "destroy",		DUNGEON_DESTROY,		FALSE	},
-	{ "no_save",		DUNGEON_NO_SAVE,		TRUE	},
-	{ NULL,				0,						FALSE	}
+	{ "completed",			DUNGEON_COMPLETED,			FALSE	},
+	{ "destroy",			DUNGEON_DESTROY,			FALSE	},
+	{ "idle_on_complete",	DUNGEON_IDLE_ON_COMPLETE,	TRUE	},
+	{ "no_idle",			DUNGEON_NO_IDLE,			TRUE	},
+	{ "no_save",			DUNGEON_NO_SAVE,			TRUE	},
+	{ NULL,					0,							FALSE	}
 };
 

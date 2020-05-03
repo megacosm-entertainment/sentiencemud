@@ -120,6 +120,7 @@ const struct script_cmd_type mob_cmd_table[] = {
 	{ "settimer",			do_mpsettimer,				FALSE,	TRUE	},
 	{ "showroom",			do_mpshowroom,				TRUE,	TRUE	},
 	{ "skimprove",			do_mpskimprove,				TRUE,	TRUE	},
+	{ "spawndungeon",		scriptcmd_spawndungeon,		TRUE,	TRUE	},
 	{ "startcombat",		scriptcmd_startcombat,		FALSE,	TRUE	},
 	{ "stopcombat",			scriptcmd_stopcombat,		FALSE,	TRUE	},
 	{ "stringmob",			do_mpstringmob,				TRUE,	TRUE	},

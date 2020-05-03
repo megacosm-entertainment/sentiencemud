@@ -108,6 +108,7 @@ const struct script_cmd_type token_cmd_table[] = {
 	{ "settimer",			do_tpsettimer,				FALSE,	TRUE	},
 	{ "showroom",			do_tpshowroom,				TRUE,	TRUE	},
 	{ "skimprove",			do_tpskimprove,				TRUE,	TRUE	},
+	{ "spawndungeon",		scriptcmd_spawndungeon,		TRUE,	TRUE	},
 	{ "startcombat",		scriptcmd_startcombat,		FALSE,	TRUE	},
 	{ "stopcombat",			scriptcmd_stopcombat,		FALSE,	TRUE	},
 	{ "stringmob",			do_tpstringmob,				TRUE,	TRUE	},
