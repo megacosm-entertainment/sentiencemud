@@ -654,7 +654,7 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 	SCRIPT_CODE *code;
 	char *src, *start, *line, eol;
 	char buf[MIL], rbuf[MSL];
-	bool comment, neg, doquotes, valid, linevalid, disable, inspect, processrest, incline, muted;
+	bool comment, neg, doquotes, valid, linevalid, disable, inspect, processrest, incline, muted, mute_used;
 	int state[MAX_NESTED_LEVEL];
 	int loops[MAX_NESTED_LOOPS];
 	int i, x, y, level, loop, rline, cline, lines, length, errors,named_labels, bool_exp_cline;
@@ -696,6 +696,7 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 	inspect = (bool)IS_SET(script->flags,SCRIPT_INSPECT);
 	disable = FALSE;
 	muted = false;
+	mute_used = false;
 
 	// Clear the inspection flag.  This is only set when the COMPILE command
 	//	is issued by a non-IMP.
@@ -1452,7 +1453,10 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 					}
 
 					if( cmd->func == scriptcmd_mute )
+					{
 						muted = true;
+						mute_used = true;
+					}
 					else if(cmd->func == scriptcmd_unmute )
 						muted = false;
 
@@ -1486,7 +1490,10 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 					}
 
 					if( cmd->func == scriptcmd_mute )
+					{
 						muted = true;
+						mute_used = true;
+					}
 					else if(cmd->func == scriptcmd_unmute )
 						muted = false;
 
@@ -1519,7 +1526,10 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 					}
 
 					if( cmd->func == scriptcmd_mute )
+					{
 						muted = true;
+						mute_used = true;
+					}
 					else if(cmd->func == scriptcmd_unmute )
 						muted = false;
 
@@ -1548,7 +1558,10 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 					}
 
 					if( cmd->func == scriptcmd_mute )
+					{
 						muted = true;
+						mute_used = true;
+					}
 					else if(cmd->func == scriptcmd_unmute )
 						muted = false;
 
@@ -1582,7 +1595,10 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 					}
 
 					if( cmd->func == scriptcmd_mute )
+					{
 						muted = true;
+						mute_used = true;
+					}
 					else if(cmd->func == scriptcmd_unmute )
 						muted = false;
 
@@ -1617,7 +1633,10 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 					}
 
 					if( cmd->func == scriptcmd_mute )
+					{
 						muted = true;
+						mute_used = true;
+					}
 					else if(cmd->func == scriptcmd_unmute )
 						muted = false;
 
@@ -1652,7 +1671,10 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 					}
 
 					if( cmd->func == scriptcmd_mute )
+					{
 						muted = true;
+						mute_used = true;
+					}
 					else if(cmd->func == scriptcmd_unmute )
 						muted = false;
 
@@ -1706,6 +1728,12 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 		sprintf(rbuf,"END OF SCRIPT: {RWARNING:{x Reached end of script while possibly muted.  Please add the necessary 'unmute' call.");
 		compile_error_show(rbuf);
 		valid = TRUE;
+	}
+
+	if( mute_used )
+	{
+		sprintf(rbuf,"{RWARNING:{x MUTE command encountered.  Please verify a corresponding UNMUTE is applied to given target to play nice.");
+		compile_error_show(rbuf);
 	}
 
 	if(eol) *src = eol;
