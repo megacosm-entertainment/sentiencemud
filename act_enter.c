@@ -215,10 +215,10 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 
 			if( floor < 1 )
 			{
-				if( IS_SET(portal->values[1], EX_PREVFLOOR) )
-					floor = instance->floor - 1;
-				else if( IS_SET(portal->values[1], EX_NEXTFLOOR) )
-					floor = instance->floor + 1;
+				if( IS_SET(portal->value[1], EX_PREVFLOOR) )
+					floor = in_instance->floor - 1;
+				else if( IS_SET(portal->value[1], EX_NEXTFLOOR) )
+					floor = in_instance->floor + 1;
 				else
 					floor = 0;
 			}
@@ -316,10 +316,10 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 
 	if(!is_room_unlocked(ch, location) )
 	{
-		if(p_percent2_trigger(location->area, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREENTER, dir_name[door]))
+		if(p_percent2_trigger(location->area, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREENTER, NULL))
 			send_to_char("You cannot enter that place yet.\n\r", ch);
 
-		return FALSE;
+		return;
 	}
 
 	if(p_percent_trigger(NULL, NULL, location, NULL, ch, NULL, NULL,portal, NULL,TRIG_PREENTER, "portal"))
