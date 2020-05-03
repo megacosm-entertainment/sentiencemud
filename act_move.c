@@ -1090,7 +1090,7 @@ bool can_move_room(CHAR_DATA *ch, int door, ROOM_INDEX_DATA *room)
 		return FALSE;
 	}
 
-	if (check_ice(ch))
+	if (check_ice(ch, true))
 		return FALSE;
 
 	if (ch->mail) {

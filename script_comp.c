@@ -659,7 +659,7 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 	int loops[MAX_NESTED_LOOPS];
 	int i, x, y, level, loop, rline, cline, lines, length, errors,named_labels, bool_exp_cline;
 	char *type_name;
-	struct script_cmd_type *cmd;
+	const struct script_cmd_type *cmd;
 
 	DBG2ENTRY4(PTR,err_buf,PTR,script,PTR,source,NUM,type);
 
@@ -1444,7 +1444,7 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 						break;
 					}
 
-					cmd = mob_cmd_table[code[cline].param];
+					cmd = &mob_cmd_table[code[cline].param];
 					if(inspect && cmd->restricted) {
 						sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'mob %s' requires inspection by an IMP.", rline, cmd->name);
 						compile_error_show(rbuf);
@@ -1478,7 +1478,7 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 						break;
 					}
 
-					cmd = obj_cmd_table[code[cline].param];
+					cmd = &obj_cmd_table[code[cline].param];
 					if(inspect && cmd->restricted) {
 						sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'obj %s' requires inspection by an IMP.", rline, cmd->name);
 						compile_error_show(rbuf);
@@ -1511,7 +1511,7 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 						break;
 					}
 
-					cmd = room_cmd_table[code[cline].param];
+					cmd = &room_cmd_table[code[cline].param];
 					if(inspect && cmd->restricted) {
 						sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'room %s' requires inspection by an IMP.", rline, cmd->name);
 						compile_error_show(rbuf);
@@ -1538,9 +1538,9 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 					}
 
 					if( type == IFC_T )
-						cmd = token_cmd_table[code[cline].param];
+						cmd = &token_cmd_table[code[cline].param];
 					else
-						cmd = tokenother_cmd_table[code[cline].param];
+						cmd = &tokenother_cmd_table[code[cline].param];
 					if(inspect && cmd->restricted) {
 						sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'token %s' requires inspection by an IMP.", rline, cmd->name);
 						compile_error_show(rbuf);
@@ -1574,7 +1574,7 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 						break;
 					}
 
-					cmd = area_cmd_table[code[cline].param];
+					cmd = &area_cmd_table[code[cline].param];
 					if(inspect && cmd->restricted) {
 						sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'area %s' requires inspection by an IMP.", rline, cmd->name);
 						compile_error_show(rbuf);
@@ -1609,7 +1609,7 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 						break;
 					}
 
-					cmd = instance_cmd_table[code[cline].param];
+					cmd = &instance_cmd_table[code[cline].param];
 					if(inspect && cmd->restricted) {
 						sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'instance %s' requires inspection by an IMP.", rline, cmd->name);
 						compile_error_show(rbuf);
@@ -1644,7 +1644,7 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 						break;
 					}
 
-					cmd = dungeon_cmd_table[code[cline].param];
+					cmd = &dungeon_cmd_table[code[cline].param];
 					if(inspect && cmd->restricted) {
 						sprintf(rbuf,"Line %d: {RWARNING:{x Use of 'dungeon %s' requires inspection by an IMP.", rline, cmd->name);
 						compile_error_show(rbuf);

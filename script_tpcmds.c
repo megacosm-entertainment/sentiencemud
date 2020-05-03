@@ -2980,7 +2980,7 @@ SCRIPT_CMD(do_tptransfer)
 			if (PROG_FLAG(victim,PROG_AT)) continue;
 			if (!IS_NPC(victim)) {
 				if (!force && room_is_private(dest, NULL)) break;
-				do_mob_transfer(victim,dest,quiet);
+				do_mob_transfer(victim,dest,quiet,mode);
 			}
 		}
 		return;
@@ -2992,7 +2992,7 @@ SCRIPT_CMD(do_tptransfer)
 	if (PROG_FLAG(victim,PROG_AT))
 		return;
 
-	do_mob_transfer(victim,dest,quiet);
+	do_mob_transfer(victim,dest,quiet,mode);
 }
 
 SCRIPT_CMD(do_tpremove)

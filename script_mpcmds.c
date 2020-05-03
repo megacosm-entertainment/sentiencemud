@@ -3576,27 +3576,6 @@ SCRIPT_CMD(do_mptransfer)
 
 	argument = one_argument(argument,buf);
 	argument = one_argument(argument,buf2);
-	argument = one_argument(argument,buf3);
-	all = !str_cmp(buf,"all") || !str_cmp(buf2,"all") || !str_cmp(buf3,"all") || !str_cmp(argument,"all");
-	force = !str_cmp(buf,"force") || !str_cmp(buf2,"force") || !str_cmp(buf3,"force") || !str_cmp(argument,"all");
-	quiet = !str_cmp(buf,"quiet") || !str_cmp(buf2,"quiet") || !str_cmp(buf3,"quiet") || !str_cmp(argument,"all");
-	mode = script_flag_value(transfer_modes, buf);
-	if( mode == NO_FLAG ) mode = script_flag_value(transfer_modes, buf2);
-	if( mode == NO_FLAG ) mode = script_flag_value(transfer_modes, buf3);
-	if( mode == NO_FLAG ) mode = script_flag_value(transfer_modes, argument);
-	if( mode == NO_FLAG ) mode = TRANSFER_MODE_SILENT;
-
-	for (vch = victim->in_room->people; vch; vch = next) {
-		next = vch->next_in_room;
-		if (!IS_NPC(vch) && is_same_group(victim,vch)) {
-			if (!all && vch->position != POS_STANDING) continue;
-			if (!force && room_is_private(dest, info->mob)) break;
-			do_mob_transfer(vch,dest,quiet,mode);
-		}
-	}
-
-	argument = one_argument(argument,buf);
-	argument = one_argument(argument,buf2);
 	force = !str_cmp(buf,"force") || !str_cmp(buf2,"force") || !str_cmp(argument,"force");
 	quiet = !str_cmp(buf,"quiet") || !str_cmp(buf2,"quiet") || !str_cmp(argument,"quiet");
 	mode = script_flag_value(transfer_modes, buf);

@@ -3600,7 +3600,7 @@ void do_mob_transfer(CHAR_DATA *ch,ROOM_INDEX_DATA *room,bool quiet, int mode)
 				{
 					if( !IS_NULLSTR(in_dungeon->index->zone_out_portal) )
 					{
-						act(in_dungeon->index->zone_out_portal, ch, NULL, NULL, portal, NULL, NULL, dir_name[door], TO_ROOM);
+						act(in_dungeon->index->zone_out_portal, ch, NULL, NULL, portal, NULL, NULL, NULL, TO_ROOM);
 					}
 					else
 					{
@@ -3618,13 +3618,13 @@ void do_mob_transfer(CHAR_DATA *ch,ROOM_INDEX_DATA *room,bool quiet, int mode)
 				else
 				{
 					if( !IS_NULLSTR(in_dungeon->index->zone_out) )
-						act(in_dungeon->index->zone_out, ch, NULL, NULL, portal, NULL, NULL, dir_name[door], TO_ROOM);
+						act(in_dungeon->index->zone_out, ch, NULL, NULL, portal, NULL, NULL, NULL, TO_ROOM);
 					else
 						act("{W$n materializes.{x", ch,NULL,NULL,NULL,NULL, NULL, NULL, TO_ROOM);
 				}
 			}
 			else if (in_room->sector_type == SECT_WATER_NOSWIM)
-				act("{W$n swims in.{x", ch, NULL, NULL, NULL, NULL, NULL, dir_name[door], TO_ROOM);
+				act("{W$n swims in.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 			else if (PULLING_CART(ch))
 				act("{W$n has arrived, pulling $p.{x", ch, NULL, NULL, PULLING_CART(ch), NULL, NULL, NULL, TO_ROOM);
 			else if(!MOUNTED(ch)) {
