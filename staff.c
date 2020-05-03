@@ -426,16 +426,16 @@ IMMORTAL_DATA *read_immortal(FILE *fp)
 		    sprintf(buf, "read_immortal: attempting to correct created timestamp failed for %s", immortal->name);
 		    bug(buf, 0);
 		}
-		else if( !d->character || !d->character->pcdata )
+		else if( !d.character || !d.character->pcdata )
 	    {
 		    sprintf(buf, "read_immortal: attempting to correct created timestamp failed for %s", immortal->name);
 		    bug(buf, 0);
 		}
 		else
 		{
-			immortal->created = d->character->pcdata->creation_date;
-			d->character->desc = NULL;
-			extract_char(d->character, TRUE);
+			immortal->created = d.character->pcdata->creation_date;
+			d.character->desc = NULL;
+			extract_char(d.character, TRUE);
 		}
 	}
 
