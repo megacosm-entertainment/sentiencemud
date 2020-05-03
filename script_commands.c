@@ -3404,7 +3404,7 @@ SCRIPT_CMD(scriptcmd_sendfloor)
 	if( !IS_VALID(instance) )
 		return;
 
-	if( !IS_VALID(instance->entrance) )
+	if( !instance->entrance )
 		return;
 
 	if( !(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING )
