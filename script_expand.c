@@ -4674,23 +4674,10 @@ char *expand_entity_instance(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_ILLIST_SECTIONS;
 		arg->d.blist = IS_VALID(instance) ? instance->sections : NULL;
 		break;
-	case ENTITY_INSTANCE_PLAYER:
-		if( IS_VALID(instance->player) )
-		{
-			arg->type = ENT_MOBILE;
-			arg->d.mob = instance->player;
-		}
-		else if( instance->player_uid[0] > 0 || instance->player_uid[1] > 0)
-		{
-			arg->type = ENT_MOBILE_ID;
-			arg->d.uid[0] = instance->player_uid[0];
-			arg->d.uid[1] = instance->player_uid[1];
-		}
-		else
-		{
-			arg->type = ENT_MOBILE;
-			arg->d.mob = NULL;
-		}
+
+	case ENTITY_INSTANCE_OWNERS:
+		arg->type = ENT_BLLIST_MOB;
+		arg->d.blist = IS_VALID(instance) ? instance->player_owners : NULL;
 		break;
 
 	case ENTITY_INSTANCE_OBJECT:
@@ -4806,23 +4793,9 @@ char *expand_entity_dungeon(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->d.str = buf_string(arg->buffer);
 		break;
 
-	case ENTITY_DUNGEON_PLAYER:
-		if( IS_VALID(dungeon->player) )
-		{
-			arg->type = ENT_MOBILE;
-			arg->d.mob = dungeon->player;
-		}
-		else if( dungeon->player_uid[0] > 0 || dungeon->player_uid[1] > 0)
-		{
-			arg->type = ENT_MOBILE_ID;
-			arg->d.uid[0] = dungeon->player_uid[0];
-			arg->d.uid[1] = dungeon->player_uid[1];
-		}
-		else
-		{
-			arg->type = ENT_MOBILE;
-			arg->d.mob = NULL;
-		}
+	case ENTITY_DUNGEON_OWNERS:
+		arg->type = ENT_BLLIST_MOB;
+		arg->d.blist = IS_VALID(dungeon) ? dungeon->player_owners : NULL;
 		break;
 
 	case ENTITY_DUNGEON_ENTRY:

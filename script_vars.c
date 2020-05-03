@@ -521,7 +521,7 @@ bool variables_setsave_skillinfo (ppVARIABLE list,char *name,CHAR_DATA *owner, i
 	return TRUE;
 }
 
-static bool variables_set_mobile_id (ppVARIABLE list,char *name,unsigned long a, unsigned long b, bool save)
+bool variables_set_mobile_id (ppVARIABLE list,char *name,unsigned long a, unsigned long b, bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 
@@ -535,7 +535,7 @@ static bool variables_set_mobile_id (ppVARIABLE list,char *name,unsigned long a,
 	return TRUE;
 }
 
-static bool variables_set_object_id (ppVARIABLE list,char *name,unsigned long a, unsigned long b, bool save)
+bool variables_set_object_id (ppVARIABLE list,char *name,unsigned long a, unsigned long b, bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 
@@ -549,7 +549,7 @@ static bool variables_set_object_id (ppVARIABLE list,char *name,unsigned long a,
 	return TRUE;
 }
 
-static bool variables_set_token_id (ppVARIABLE list,char *name,unsigned long a, unsigned long b, bool save)
+bool variables_set_token_id (ppVARIABLE list,char *name,unsigned long a, unsigned long b, bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 
@@ -563,7 +563,7 @@ static bool variables_set_token_id (ppVARIABLE list,char *name,unsigned long a, 
 	return TRUE;
 }
 
-static bool variables_set_area_id (ppVARIABLE list,char *name, long aid, bool save)
+bool variables_set_area_id (ppVARIABLE list,char *name, long aid, bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 
@@ -576,7 +576,7 @@ static bool variables_set_area_id (ppVARIABLE list,char *name, long aid, bool sa
 	return TRUE;
 }
 
-static bool variables_set_wilds_id (ppVARIABLE list,char *name, long wid, bool save)
+bool variables_set_wilds_id (ppVARIABLE list,char *name, long wid, bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 
@@ -589,7 +589,7 @@ static bool variables_set_wilds_id (ppVARIABLE list,char *name, long wid, bool s
 	return TRUE;
 }
 
-static bool variables_set_church_id (ppVARIABLE list,char *name, long chid, bool save)
+bool variables_set_church_id (ppVARIABLE list,char *name, long chid, bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 
@@ -602,7 +602,7 @@ static bool variables_set_church_id (ppVARIABLE list,char *name, long chid, bool
 	return TRUE;
 }
 
-static bool variables_set_clone_room (ppVARIABLE list,char *name, ROOM_INDEX_DATA *source,unsigned long a, unsigned long b, bool save)
+bool variables_set_clone_room (ppVARIABLE list,char *name, ROOM_INDEX_DATA *source,unsigned long a, unsigned long b, bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 
@@ -617,7 +617,7 @@ static bool variables_set_clone_room (ppVARIABLE list,char *name, ROOM_INDEX_DAT
 	return TRUE;
 }
 
-static bool variables_set_wilds_room (ppVARIABLE list,char *name, unsigned long w, int x, int y, bool save)
+bool variables_set_wilds_room (ppVARIABLE list,char *name, unsigned long w, int x, int y, bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 
@@ -632,7 +632,7 @@ static bool variables_set_wilds_room (ppVARIABLE list,char *name, unsigned long 
 	return TRUE;
 }
 
-static bool variables_set_clone_door (ppVARIABLE list,char *name, ROOM_INDEX_DATA *source,unsigned long a, unsigned long b, int door, bool save)
+bool variables_set_clone_door (ppVARIABLE list,char *name, ROOM_INDEX_DATA *source,unsigned long a, unsigned long b, int door, bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 
@@ -648,7 +648,7 @@ static bool variables_set_clone_door (ppVARIABLE list,char *name, ROOM_INDEX_DAT
 	return TRUE;
 }
 
-static bool variables_set_wilds_door (ppVARIABLE list,char *name, unsigned long w, int x, int y, int door, bool save)
+bool variables_set_wilds_door (ppVARIABLE list,char *name, unsigned long w, int x, int y, int door, bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 
@@ -664,7 +664,7 @@ static bool variables_set_wilds_door (ppVARIABLE list,char *name, unsigned long 
 	return TRUE;
 }
 
-static bool variables_set_skillinfo_id (ppVARIABLE list,char *name, unsigned long ma, unsigned long mb, unsigned long ta, unsigned long tb, int sn, bool save)
+bool variables_set_skillinfo_id (ppVARIABLE list,char *name, unsigned long ma, unsigned long mb, unsigned long ta, unsigned long tb, int sn, bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 

@@ -3360,7 +3360,6 @@ SCRIPT_CMD(scriptcmd_spawndungeon)
 {
 	char *rest;
 	CHAR_DATA *ch;
-	long vnum;
 
 	info->progs->lastreturn = 0;
 
@@ -3368,23 +3367,23 @@ SCRIPT_CMD(scriptcmd_spawndungeon)
 		return;
 
 	switch(arg->type) {
-	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, FALSE); break;
-	case ENT_MOBILE: victim = arg->d.mob; break;
-	default: victim = NULL; break;
+	case ENT_STRING: ch = script_get_char_room(info, arg->d.str, FALSE); break;
+	case ENT_MOBILE: ch = arg->d.mob; break;
+	default: ch = NULL; break;
 	}
 
-	if (!victim || IS_NPC(victim))
+	if (!ch || IS_NPC(ch))
 		return;
 
 	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER || !*rest)
 		return;
 
-	ROOM_INDEX_DATA *room = spawn_dungeon_player(arg->d.num);
+	ROOM_INDEX_DATA *room = spawn_dungeon_player(ch, arg->d.num);
 
 	if( !room )
 		return;
 
-	variable_set_room(info->vars,rest,room);
+	variables_set_room(info->var,rest,room);
 	info->progs->lastreturn = 1;
 }
 

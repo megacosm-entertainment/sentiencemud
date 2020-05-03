@@ -626,8 +626,6 @@ CHAR_DATA *get_player_leader(CHAR_DATA *ch)
 
 ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, long vnum)
 {
-	char buf[MSL];
-
 	CHAR_DATA *leader = get_player_leader(ch);
 
 	DUNGEON *leader_dng = find_dungeon_byplayer(leader, vnum);

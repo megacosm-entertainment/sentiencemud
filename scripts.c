@@ -1267,20 +1267,19 @@ DECL_OPC_FUN(opc_list)
 			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
 			block->loops[lp].d.l.owner = NULL;
 
-			do {
-				uid = (LLIST_UID_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-				if( !uid ) {
-					//log_stringf("opc_list: mobile(<END>)");
-					iterator_stop(&block->loops[lp].d.l.list.it);
-					free_script_param(arg);
-					return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
-				}
+			uid = (LLIST_UID_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+			if( !uid ) {
+				//log_stringf("opc_list: mobile(<END>)");
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
 
-				// Set the variable
-				if( IS_VALID((CHAR_DATA *)uid->ptr) )
-					variables_set_mobile(block->info.var,block->loops[lp].var_name,(CHAR_DATA *)uid->ptr);
-
-			} while( !IS_VALID((CHAR_DATA *)uid->ptr) );
+			// Set the variable
+			if( IS_VALID((CHAR_DATA *)uid->ptr) )
+				variables_set_mobile(block->info.var,block->loops[lp].var_name,(CHAR_DATA *)uid->ptr);
+			else
+				variables_set_mobile_id(block->info.var,block->loops[lp].var_name, uid->id[0], uid->id[1]);
 
 			/*
 			ch = (CHAR_DATA *)(uid->ptr);
@@ -1304,20 +1303,19 @@ DECL_OPC_FUN(opc_list)
 			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
 			block->loops[lp].d.l.owner = NULL;
 
-			do {
-				uid = (LLIST_UID_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-				if( !uid ) {
-					//log_stringf("opc_list: object(<END>)");
-					iterator_stop(&block->loops[lp].d.l.list.it);
-					free_script_param(arg);
-					return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
-				}
+			uid = (LLIST_UID_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+			if( !uid ) {
+				//log_stringf("opc_list: object(<END>)");
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
 
-				// Set the variable
-				if( IS_VALID((OBJ_DATA *)uid->ptr) )
-					variables_set_object(block->info.var,block->loops[lp].var_name,(OBJ_DATA *)uid->ptr);
-
-			} while( !IS_VALID((OBJ_DATA *)uid->ptr) );
+			// Set the variable
+			if( IS_VALID((OBJ_DATA *)uid->ptr) )
+				variables_set_object(block->info.var,block->loops[lp].var_name,(OBJ_DATA *)uid->ptr);
+			else
+				variables_set_object_id(block->info.var,block->loops[lp].var_name,uid->id[0],uid->id[1]);
 
 			//obj = (OBJ_DATA *)(uid->ptr);
 			//log_stringf("opc_list: object(%ld,%ld,%ld)", obj->pIndexData->vnum, obj->id[0], obj->id[1]);
@@ -1337,19 +1335,19 @@ DECL_OPC_FUN(opc_list)
 			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
 			block->loops[lp].d.l.owner = NULL;
 
-			do {
-				uid = (LLIST_UID_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
-				if( !uid ) {
-					//log_stringf("opc_list: token(<END>)");
-					iterator_stop(&block->loops[lp].d.l.list.it);
-					free_script_param(arg);
-					return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
-				}
+			uid = (LLIST_UID_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+			if( !uid ) {
+				//log_stringf("opc_list: token(<END>)");
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
 
-				// Set the variable
-				if( IS_VALID((TOKEN_DATA *)uid->ptr) )
-					variables_set_token(block->info.var,block->loops[lp].var_name,(TOKEN_DATA *)uid->ptr);
-			} while( !IS_VALID((TOKEN_DATA *)uid->ptr) );
+			// Set the variable
+			if( IS_VALID((TOKEN_DATA *)uid->ptr) )
+				variables_set_token(block->info.var,block->loops[lp].var_name,(TOKEN_DATA *)uid->ptr);
+			else
+				variables_set_token_id(block->info.var,block->loops[lp].var_name,uid->id[0],uid->id[1]);
 
 			//tok = (TOKEN_DATA *)(uid->ptr);
 			//log_stringf("opc_list: token(%ld,%ld,%ld)", tok->pIndexData->vnum, tok->id[0], tok->id[1]);
@@ -2095,7 +2093,15 @@ DECL_OPC_FUN(opc_list)
 				log_stringf("opc_list: mobile(<END>)");
 				*/
 
-			variables_set_mobile(block->info.var,block->loops[lp].var_name,(CHAR_DATA *)(uid?uid->ptr:NULL));
+			if( uid )
+			{
+				if( IS_VALID((CHAR_DATA *)uid->ptr) )
+					variables_set_mobile(block->info.var,block->loops[lp].var_name,(CHAR_DATA *)uid->ptr);
+				else
+					variables_set_mobile_id(block->info.var,block->loops[lp].var_name,uid->id[0],uid->id[1]);
+			}
+			else
+				variables_set_mobile(block->info.var,block->loops[lp].var_name,(CHAR_DATA *)NULL);
 
 			if( !uid ) {
 				iterator_stop(&block->loops[lp].d.l.list.it);
@@ -2116,7 +2122,15 @@ DECL_OPC_FUN(opc_list)
 				log_stringf("opc_list: object(<END>)");
 				*/
 
-			variables_set_object(block->info.var,block->loops[lp].var_name,(OBJ_DATA *)(uid?uid->ptr:NULL));
+			if( uid )
+			{
+				if( IS_VALID((OBJ_DATA *)uid->ptr) )
+					variables_set_object(block->info.var,block->loops[lp].var_name,(OBJ_DATA *)uid->ptr);
+				else
+					variables_set_object_id(block->info.var,block->loops[lp].var_name,uid->id[0],uid->id[1]);
+			}
+			else
+				variables_set_object(block->info.var,block->loops[lp].var_name,(OBJ_DATA *)NULL);
 
 			if( !uid ) {
 				iterator_stop(&block->loops[lp].d.l.list.it);
@@ -2138,7 +2152,15 @@ DECL_OPC_FUN(opc_list)
 				log_stringf("opc_list: token(<END>)");
 				*/
 
-			variables_set_token(block->info.var,block->loops[lp].var_name,(TOKEN_DATA *)(uid?uid->ptr:NULL));
+			if( uid )
+			{
+				if( IS_VALID((TOKEN_DATA *)uid->ptr) )
+					variables_set_token(block->info.var,block->loops[lp].var_name,(TOKEN_DATA *)uid->ptr);
+				else
+					variables_set_token_id(block->info.var,block->loops[lp].var_name,uid->id[0],uid->id[1]);
+			}
+			else
+				variables_set_token(block->info.var,block->loops[lp].var_name,(TOKEN_DATA *)NULL);
 
 			if( !uid ) {
 				iterator_stop(&block->loops[lp].d.l.list.it);

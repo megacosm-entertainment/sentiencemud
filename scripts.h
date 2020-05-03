@@ -985,7 +985,7 @@ enum entity_instance_section_enum {
 enum entity_instance_enum {
 	ENTITY_INSTANCE_NAME = ESCAPE_EXTRA,
 	ENTITY_INSTANCE_SECTIONS,
-	ENTITY_INSTANCE_PLAYER,
+	ENTITY_INSTANCE_OWNERS,
 	ENTITY_INSTANCE_OBJECT,
 	ENTITY_INSTANCE_DUNGEON,
 	ENTITY_INSTANCE_QUEST,
@@ -1006,7 +1006,7 @@ enum entity_dungeon_enum {
 	ENTITY_DUNGEON_NAME = ESCAPE_EXTRA,
 	ENTITY_DUNGEON_FLOORS,
 	ENTITY_DUNGEON_DESC,
-	ENTITY_DUNGEON_PLAYER,
+	ENTITY_DUNGEON_OWNERS,
 	ENTITY_DUNGEON_ENTRY,
 	ENTITY_DUNGEON_EXIT,
 	ENTITY_DUNGEON_ROOMS,
@@ -2041,6 +2041,17 @@ bool variables_set_boolean (ppVARIABLE list,char *name,bool boolean);
 bool variables_set_instance_section (ppVARIABLE list,char *name,INSTANCE_SECTION *section);
 bool variables_set_instance (ppVARIABLE list,char *name,INSTANCE *instance);
 bool variables_set_dungeon (ppVARIABLE list,char *name,DUNGEON *dungeon);
+bool variables_set_mobile_id (ppVARIABLE list,char *name,unsigned long a, unsigned long b, bool save);
+bool variables_set_object_id (ppVARIABLE list,char *name,unsigned long a, unsigned long b, bool save);
+bool variables_set_token_id (ppVARIABLE list,char *name,unsigned long a, unsigned long b, bool save);
+bool variables_set_area_id (ppVARIABLE list,char *name, long aid, bool save);
+bool variables_set_wilds_id (ppVARIABLE list,char *name, long wid, bool save);
+bool variables_set_church_id (ppVARIABLE list,char *name, long chid, bool save);
+bool variables_set_clone_room (ppVARIABLE list,char *name, ROOM_INDEX_DATA *source,unsigned long a, unsigned long b, bool save);
+bool variables_set_wilds_room (ppVARIABLE list,char *name, unsigned long w, int x, int y, bool save);
+bool variables_set_clone_door (ppVARIABLE list,char *name, ROOM_INDEX_DATA *source,unsigned long a, unsigned long b, int door, bool save);
+bool variables_set_wilds_door (ppVARIABLE list,char *name, unsigned long w, int x, int y, int door, bool save);
+bool variables_set_skillinfo_id (ppVARIABLE list,char *name, unsigned long ma, unsigned long mb, unsigned long ta, unsigned long tb, int sn, bool save);
 bool variables_setindex_integer(ppVARIABLE list,char *name,int num, bool saved);
 bool variables_setindex_room(ppVARIABLE list,char *name,long vnum, bool saved);
 bool variables_setindex_string(ppVARIABLE list,char *name,char *str,bool shared, bool saved);

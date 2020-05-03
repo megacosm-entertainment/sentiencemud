@@ -569,7 +569,7 @@ ENT_FIELD entity_instance_section[] = {
 ENT_FIELD entity_instance[] = {
 	{"name",			ENTITY_INSTANCE_NAME,			ENT_STRING			},
 	{"sections",		ENTITY_INSTANCE_SECTIONS,		ENT_ILLIST_SECTIONS	},
-	{"player",			ENTITY_INSTANCE_PLAYER,			ENT_MOBILE			},
+	{"owners",			ENTITY_INSTANCE_OWNERS,			ENT_BLLIST_MOB		},
 	{"object",			ENTITY_INSTANCE_OBJECT,			ENT_OBJECT			},
 	{"dungeon",			ENTITY_INSTANCE_DUNGEON,		ENT_DUNGEON			},
 //	{"quest",			ENTITY_INSTANCE_QUEST,			ENT_QUEST			},
@@ -591,7 +591,7 @@ ENT_FIELD entity_dungeon[] = {
 	{"name",			ENTITY_DUNGEON_NAME,			ENT_STRING			},
 	{"floors",			ENTITY_DUNGEON_FLOORS,			ENT_ILLIST_INSTANCES},
 	{"desc",			ENTITY_DUNGEON_DESC,			ENT_STRING			},
-	{"player",			ENTITY_DUNGEON_PLAYER,			ENT_MOBILE			},
+	{"owners",			ENTITY_DUNGEON_OWNERS,			ENT_BLLIST_MOB		},
 	{"entry",			ENTITY_DUNGEON_ENTRY,			ENT_ROOM			},
 	{"exit",			ENTITY_DUNGEON_EXIT,			ENT_ROOM			},
 	{"rooms",			ENTITY_DUNGEON_ROOMS,			ENT_PLLIST_ROOM		},
