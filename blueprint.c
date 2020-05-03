@@ -4443,7 +4443,7 @@ void detach_instances_player(CHAR_DATA *ch)
 	iterator_start(&it, loaded_instances);
 	while( (instance = (INSTANCE *)iterator_nextdata(&it)) )
 	{
-		instance_remove_player_owner(instance, ch);
+		instance_removeowner_player(instance, ch);
 
 		// Iterate over the character's quest list
 	}
@@ -4560,7 +4560,6 @@ void instance_removeowner_player(INSTANCE *instance, CHAR_DATA *ch)
 
 	ITERATOR it;
 	LLIST_UID_DATA *luid;
-	bool ret = false;
 
 	iterator_start(&it, instance->player_owners);
 	while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
@@ -4578,7 +4577,6 @@ void instance_removeowner_playerid(INSTANCE *instance, unsigned long id1, unsign
 {
 	ITERATOR it;
 	LLIST_UID_DATA *luid;
-	bool ret = false;
 
 	iterator_start(&it, instance->player_owners);
 	while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
@@ -4631,7 +4629,7 @@ bool instance_isowner_playerid(INSTANCE *instance, unsigned long id1, unsigned l
 	}
 	iterator_stop(&it);
 
-	return true;
+	return ret;
 }
 
 bool instance_canswitch_player(INSTANCE *instance, CHAR_DATA *ch)

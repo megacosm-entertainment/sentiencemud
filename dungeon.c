@@ -2649,7 +2649,6 @@ void dungeon_removeowner_player(DUNGEON *dungeon, CHAR_DATA *ch)
 
 	ITERATOR it;
 	LLIST_UID_DATA *luid;
-	bool ret = false;
 
 	iterator_start(&it, dungeon->player_owners);
 	while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
@@ -2667,7 +2666,6 @@ void dungeon_removeowner_playerid(DUNGEON *dungeon, unsigned long id1, unsigned 
 {
 	ITERATOR it;
 	LLIST_UID_DATA *luid;
-	bool ret = false;
 
 	iterator_start(&it, dungeon->player_owners);
 	while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
@@ -2700,7 +2698,7 @@ bool dungeon_isowner_player(DUNGEON *dungeon, CHAR_DATA *ch)
 	}
 	iterator_stop(&it);
 
-	return true;
+	return ret;
 }
 
 bool dungeon_isowner_playerid(DUNGEON *dungeon, unsigned long id1, unsigned long id2)
