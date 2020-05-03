@@ -8854,7 +8854,7 @@ bool is_area_unlocked(CHAR_DATA *ch, AREA_DATA *area)
 	if( !IS_VALID(ch) || IS_NPC(ch) || !IS_VALID(ch->pcdata) || (IS_IMMORTAL(ch) && IS_SET(ch->act2, PLR_HOLYWARP))) return true;
 
 	// Check area
-	if( !area || !IS_SET(area->flags, AREA_LOCKED) || IS_SET(area->flags, AREA_BLUEPRINT) ) return true;
+	if( !area || !IS_SET(area->area_flags, AREA_LOCKED) || IS_SET(area->area_flags, AREA_BLUEPRINT) ) return true;
 
 	// Check if the area is in their list
 	bool ret = false;
