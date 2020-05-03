@@ -205,8 +205,36 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 	    return;
 	}
 
+	DUNGEON *in_dungeon = get_room_dungeon(old_room);
+	INSTANCE *in_instance = get_room_instance(old_room);
+
 	if (IS_SET(portal->value[2],GATE_DUNGEON) ) {
-		location = spawn_dungeon_player(ch, portal->value[3]);
+		if( IS_VALID(in_dungeon) && in_dungeon->index->vnum == portal->value[3])
+		{
+			int floor = portal->value[4];
+
+			if( floor < 1 )
+			{
+				if( IS_SET(portal->values[1], EX_PREVFLOOR) )
+					floor = instance->floor - 1;
+				else if( IS_SET(portal->values[1], EX_NEXTFLOOR) )
+					floor = instance->floor + 1;
+				else
+					floor = 0;
+			}
+
+			if( floor > 0 )
+			{
+				INSTANCE *instance = list_nthdata(in_dungeon->floors, floor);
+
+				if( IS_VALID(instance) )
+					location = instance->entrance;
+			}
+		}
+		else
+		{
+			location = spawn_dungeon_player(ch, portal->value[3], portal->value[4]);
+		}
 	} else if (IS_SET(portal->value[2],GATE_DUNGEONRANDOM)) {
 		if( IS_VALID(old_room->instance_section) )
 		{
@@ -286,7 +314,7 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 	    return;
 	}
 
-	if(IS_SET(location->area->flags, AREA_LOCKED) && !is_area_unlocked(ch, location->area) )
+	if(!is_room_unlocked(ch, location) )
 	{
 		if(p_percent2_trigger(location->area, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREENTER, dir_name[door]))
 			send_to_char("You cannot enter that place yet.\n\r", ch);
@@ -324,10 +352,7 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 
 	move_cart(ch,location,TRUE);
 
-	DUNGEON *in_dungeon = get_room_dungeon(old_room);
 	DUNGEON *to_dungeon = get_room_dungeon(location);
-
-	INSTANCE *in_instance = get_room_instance(old_room);
 	INSTANCE *to_instance = get_room_instance(location);
 
 	char_from_room(ch);
@@ -381,8 +406,40 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 
 	/* @@@NIB : 20070126 : added the check */
 	if(!IS_SET(portal->value[2],GATE_SILENTEXIT)) {
-  		if (IS_SET(portal->value[2],GATE_NORMAL_EXIT))
-  		    act("$n has arrived.",ch, NULL, NULL,portal, NULL, NULL,NULL,TO_ROOM);
+
+		if( IS_VALID(in_dungeon) && !IS_VALID(to_dungeon) )
+		{
+			OBJ_DATA *dp = get_room_dungeon_portal(location, in_dungeon->index->vnum);
+
+			if( IS_VALID(dp) )
+			{
+				if( !IS_NULLSTR(in_dungeon->index->zone_out_portal) )
+				{
+					act(in_dungeon->index->zone_out_portal, ch, NULL, NULL, dp, NULL, NULL, NULL, TO_ROOM);
+				}
+				else
+				{
+					act("$n has arrived through $p.",ch, NULL, NULL,dp, NULL, NULL,NULL,TO_ROOM);
+				}
+			}
+			else if(MOUNTED(ch))
+			{
+				if( !IS_NULLSTR(in_dungeon->index->zone_out_mount) )
+					act(in_dungeon->index->zone_out_mount, ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+				else
+
+					act("{W$n materializes, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			}
+			else
+			{
+				if( !IS_NULLSTR(in_dungeon->index->zone_out) )
+					act(in_dungeon->index->zone_out, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+				else
+					act("{W$n materializes.{x", ch,NULL,NULL,NULL,NULL, NULL, NULL, TO_ROOM);
+			}
+		}
+		else if (IS_SET(portal->value[2],GATE_NORMAL_EXIT))
+  		    act("$n has arrived.",ch, NULL, NULL, NULL, NULL, NULL,NULL,TO_ROOM);
   		else
   		    act("$n has arrived through $p.",ch, NULL, NULL,portal, NULL, NULL,NULL,TO_ROOM);
 	}

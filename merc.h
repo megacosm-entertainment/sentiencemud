@@ -8295,7 +8295,7 @@ void load_dungeons();
 bool save_dungeons();
 bool can_edit_dungeons(CHAR_DATA *ch);
 DUNGEON_INDEX_DATA *get_dungeon_index(long vnum);
-ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, long vnum);
+ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, long vnum, int floor);
 void dungeon_save(FILE *fp, DUNGEON *dungeon);
 void dungeon_check_empty(DUNGEON *dungeon);
 void dungeon_echo(DUNGEON *dungeon, char *text);
@@ -8336,6 +8336,7 @@ extern long top_iprog_index;
 extern long top_dprog_index;
 
 bool is_area_unlocked(CHAR_DATA *ch, AREA_DATA *area);
+bool is_room_unlocked(CHAR_DATA *ch, ROOM_INDEX_DATA *room);
 void player_unlock_area(CHAR_DATA *ch, AREA_DATA *area);
 
 

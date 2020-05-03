@@ -1058,6 +1058,34 @@ const struct flag_type exit_flags[] =
     {	NULL,			0,			0	}
 };
 
+const struct flag_type portal_exit_flags[] =
+{
+    {   "door",			EX_ISDOOR,		TRUE    },
+    {	"closed",		EX_CLOSED,		TRUE	},
+    {	"locked",		EX_LOCKED,		TRUE	},
+    {	"pickproof",		EX_PICKPROOF,		TRUE	},
+    {   "nopass",		EX_NOPASS,		TRUE	},
+    {   "easy",			EX_EASY,		TRUE	},
+    {   "hard",			EX_HARD,		TRUE	},
+    {	"infuriating",		EX_INFURIATING,		TRUE	},
+    {	"noclose",		EX_NOCLOSE,		TRUE	},
+    {	"nolock",		EX_NOLOCK,		TRUE	},
+    {   "hidden",		EX_HIDDEN,		TRUE	},
+    {   "found",		EX_FOUND,		TRUE	},
+    {   "broken",		EX_BROKEN,		TRUE	},
+    {   "nobash",		EX_NOBASH,		TRUE    },
+    {   "walkthrough",		EX_WALKTHROUGH,		TRUE    },
+    {   "nobar",		EX_NOBAR,		TRUE    },
+    {   "aerial",		EX_AERIAL,		TRUE	},
+    {   "nohunt",		EX_NOHUNT,		TRUE	},
+    {	"environment",		EX_ENVIRONMENT,		TRUE	},
+    {	"prevfloor",		EX_PREVFLOOR,		TRUE	},
+    {	"nextfloor",		EX_NEXTFLOOR,		TRUE	},
+    {	"nosearch",			EX_NOSEARCH,		TRUE	},
+    {	"mustsee",			EX_MUSTSEE,			TRUE	},
+    {	NULL,			0,			0	}
+};
+
 
 const struct flag_type door_resets[] =
 {

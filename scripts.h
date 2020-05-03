@@ -2586,6 +2586,7 @@ SCRIPT_CMD(scriptcmd_spawndungeon);
 SCRIPT_CMD(scriptcmd_mute);
 SCRIPT_CMD(scriptcmd_unmute);
 SCRIPT_CMD(scriptcmd_unlockarea);
+SCRIPT_CMD(scriptcmd_sendfloor);
 
 #include "tables.h"
 

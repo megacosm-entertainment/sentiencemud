@@ -22,6 +22,7 @@ const struct script_cmd_type area_cmd_table[] = {
 	{ "mload",				scriptcmd_mload,			FALSE,	TRUE	},
 	{ "mute",				scriptcmd_mute,				FALSE,	TRUE	},
 	{ "oload",				scriptcmd_oload,			FALSE,	TRUE	},
+	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
 	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
 	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
 	{ "varclear",			scriptcmd_varclear,			FALSE,	TRUE	},
@@ -44,6 +45,7 @@ const struct script_cmd_type instance_cmd_table[] = {
 	{ "mload",				scriptcmd_mload,			FALSE,	TRUE	},
 	{ "mute",				scriptcmd_mute,				FALSE,	TRUE	},
 	{ "oload",				scriptcmd_oload,			FALSE,	TRUE	},
+	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
 	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
 	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
 	{ "varclear",			scriptcmd_varclear,			FALSE,	TRUE	},
@@ -66,6 +68,7 @@ const struct script_cmd_type dungeon_cmd_table[] = {
 	{ "mload",				scriptcmd_mload,			FALSE,	TRUE	},
 	{ "mute",				scriptcmd_mute,				FALSE,	TRUE	},
 	{ "oload",				scriptcmd_oload,			FALSE,	TRUE	},
+	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
 	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
 	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
 	{ "varclear",			scriptcmd_varclear,			FALSE,	TRUE	},
@@ -3362,6 +3365,97 @@ SCRIPT_CMD(scriptcmd_revokeskill)
 //////////////////////////////////////
 // S
 
+// SENDFLOOR $MOBILE $DUNGEON|$DUNGEONROOM $FLOOR $MODE[ 'group'|'all']
+SCRIPT_CMD(scriptcmd_sendfloor)
+{
+	char *rest;
+	CHAR_DATA *ch;
+	DUNGEON *dungeon;
+	int floor, mode;
+
+	info->progs->lastreturn = 0;
+
+	if( !(rest = expand_argument(info,argument,arg)) || arg->type != ENT_MOBILE )
+		return;
+
+	ch = arg->d.mob;
+
+	if( !(rest = expand_argument(info,rest,arg)) )
+		return;
+
+	dungeon = NULL;
+	if( arg->type == ENT_DUNGEON )
+		dungeon = arg->d.dungeon;
+	else if( arg->type == ENT_ROOM )
+		dungeon = get_room_dungeon(arg->d.room);
+
+	if( !IS_VALID(dungeon) )
+		return;
+
+	if( !(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER )
+		return;
+
+	floor = arg->d.num;
+
+	if( floor < 1 || floor > list_size(dungeon->floors) )
+		return;
+
+	INSTANCE *instance = (INSTANCE *)list_nthdata(dungeon->floors, floor);
+	if( !IS_VALID(instance) )
+		return;
+
+	if( !instance->entrance) )
+		return;
+
+	if( !(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING )
+		return;
+
+	mode = script_flag_value(transfer_modes, arg->d.str);
+	if( mode == NO_FLAG ) mode = TRANSFER_MODE_PORTAL;
+
+	bool group = false;
+	bool all = false;
+	if( rest && *rest )
+	{
+		group = !str_prefix(arg->d.str, "group");
+		all = !str_prefix(arg->d.str, "all");
+	}
+
+	if( group )
+	{
+		for (CHAR_DATA *vch = ch->in_room->people; vch; vch = next) {
+			next = vch->next_in_room;
+			if (PROG_FLAG(vch,PROG_AT)) continue;
+			if ((!IS_NPC(vch) || !IS_SET(vch->act2,ACT2_INSTANCE_MOB)) &&
+				is_same_group(ch,vch)) {
+				if (vch->position != POS_STANDING) continue;
+				if (room_is_private(instance->entrance, info->mob)) break;
+				do_mob_transfer(vch,instance->entrance,false,mode);
+			}
+		}
+	}
+	else if( all )
+	{
+		for (CHAR_DATA *vch = ch->in_room->people; victim; victim = vnext) {
+			vnext = vch->next_in_room;
+			if (PROG_FLAG(vch,PROG_AT)) continue;
+			if (!IS_NPC(vch) || !IS_SET(vch->act2,ACT2_INSTANCE_MOB)) {
+				if (vch->position != POS_STANDING) continue;
+				if (room_is_private(instance->entrance, info->mob)) break;
+				do_mob_transfer(vch,instance->entrance,false,mode);
+			}
+		}
+	}
+	else
+	{
+		if( PROG_FLAG(ch,PROG_AT) ) return;
+
+		do_mob_transfer(ch, instance->entrance, false, mode);
+	}
+
+	info->progs->lastreturn = 0;
+}
+
 SCRIPT_CMD(scriptcmd_setalign)
 {
 }
@@ -3379,7 +3473,7 @@ SCRIPT_CMD(scriptcmd_setsubclass)
 }
 
 
-// SPAWNDUNGEON $PLAYER $DUNGEONID $VARIABLENAME
+// SPAWNDUNGEON $PLAYER $DUNGEONID $FLOOR $VARIABLENAME
 // This does not automatically send the player to the dungeon
 // That is what the room variable is for.
 //
@@ -3402,10 +3496,17 @@ SCRIPT_CMD(scriptcmd_spawndungeon)
 	if (!ch || IS_NPC(ch))
 		return;
 
+	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER)
+		return;
+
+	long vnum = arg->d.num;
+
 	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER || !*rest)
 		return;
 
-	ROOM_INDEX_DATA *room = spawn_dungeon_player(ch, arg->d.num);
+	int floor = arg->d.num
+
+	ROOM_INDEX_DATA *room = spawn_dungeon_player(ch, vnum, floor);
 
 	if( !room )
 		return;

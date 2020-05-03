@@ -624,7 +624,7 @@ CHAR_DATA *get_player_leader(CHAR_DATA *ch)
 	return leader;
 }
 
-ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, long vnum)
+ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, long vnum, int floor)
 {
 	CHAR_DATA *leader = get_player_leader(ch);
 
@@ -675,14 +675,14 @@ ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, long vnum)
 
 	dungeon_addowner_player(leader_dng, ch);
 
-	INSTANCE *first_floor = (INSTANCE *)list_nthdata(leader_dng->floors, 1);
+	INSTANCE *floor = (INSTANCE *)list_nthdata(leader_dng->floors, floor);
 
-	if( !IS_VALID(first_floor) )
+	if( !IS_VALID(floor) )
 	{
 		return NULL;
 	}
 
-	return first_floor->entrance;
+	return floor->entrance;
 }
 
 bool dungeon_can_idle(DUNGEON *dungeon)
@@ -2539,6 +2539,8 @@ DUNGEON *get_room_dungeon(ROOM_INDEX_DATA *room)
 OBJ_DATA *get_room_dungeon_portal(ROOM_INDEX_DATA *room, long vnum)
 {
 	OBJ_DATA *obj;
+
+	if( get_room_dungeon(room) ) return NULL;
 
 	for(obj = room->contents; obj; obj = obj->next_content)
 	{

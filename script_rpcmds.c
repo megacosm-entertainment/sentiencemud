@@ -101,6 +101,7 @@ const struct script_cmd_type room_cmd_table[] = {
 	{ "restore",			do_rprestore,			TRUE,	TRUE	},
 	{ "revokeskill",		scriptcmd_revokeskill,	FALSE,	TRUE	},
 	{ "saveplayer",			do_rpsaveplayer,		FALSE,	TRUE	},
+	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
 	{ "setrecall",			do_rpsetrecall,			FALSE,	TRUE	},
 	{ "settimer",			do_rpsettimer,			FALSE,	TRUE	},
 	{ "showroom",			do_rpshowroom,			FALSE,	TRUE	},

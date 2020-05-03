@@ -117,6 +117,7 @@ const struct script_cmd_type mob_cmd_table[] = {
 	{ "saveplayer",			do_mpsaveplayer,			FALSE,	TRUE	},
 	{ "scriptwait",			do_mpscriptwait,			FALSE,	TRUE	},
 	{ "selfdestruct",		do_mpselfdestruct,			FALSE,	FALSE	},
+	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
 	{ "setrecall",			do_mpsetrecall,				FALSE,	TRUE,	},
 	{ "settimer",			do_mpsettimer,				FALSE,	TRUE	},
 	{ "showroom",			do_mpshowroom,				TRUE,	TRUE	},

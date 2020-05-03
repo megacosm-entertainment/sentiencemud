@@ -3586,7 +3586,54 @@ void do_mob_transfer(CHAR_DATA *ch,ROOM_INDEX_DATA *room,bool quiet, int mode)
 	else
 		char_to_room(ch, room);
 
-	if( mode == TRANSFER_MODE_MOVEMENT )
+	if( mode == TRANSFER_MODE_PORTAL )
+	{
+		if (show) {
+			if( IS_VALID(in_dungeon) && !IS_VALID(to_dungeon) )
+			{
+				OBJ_DATA *portal = get_room_dungeon_portal(room, in_dungeon->index->vnum);
+
+				if( IS_VALID(portal) )
+				{
+					if( !IS_NULLSTR(in_dungeon->index->zone_out_portal) )
+					{
+						act(in_dungeon->index->zone_out_portal, ch, NULL, NULL, portal, NULL, NULL, NULL, TO_ROOM);
+					}
+					else
+					{
+						act("$n has arrived through $p.",ch, NULL, NULL,portal, NULL, NULL,NULL,TO_ROOM);
+					}
+				}
+				else if(MOUNTED(ch))
+				{
+					if( !IS_NULLSTR(in_dungeon->index->zone_out_mount) )
+						act(in_dungeon->index->zone_out_mount, ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+					else
+
+						act("{W$n materializes, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+				}
+				else
+				{
+					if( !IS_NULLSTR(in_dungeon->index->zone_out) )
+						act(in_dungeon->index->zone_out, ch, NULL, NULL, portal, NULL, NULL, NULL, TO_ROOM);
+					else
+						act("{W$n materializes.{x", ch,NULL,NULL,NULL,NULL, NULL, NULL, TO_ROOM);
+				}
+			}
+			else if(!MOUNTED(ch)) {
+				if (!IS_NPC(ch) && ch->pcdata->condition[COND_DRUNK] > 10)
+					act("{W$n stumbles in drunkenly.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+				else
+					act("{W$n has arrived.{x", ch,NULL,NULL,NULL,NULL, NULL, NULL, TO_ROOM);
+			} else {
+				if (!IS_AFFECTED(MOUNTED(ch), AFF_FLYING))
+					act("{W$n has arrived, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+				else
+					act("{W$n soars in, riding on $N.{x", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			}
+		}
+	}
+	else if( mode == TRANSFER_MODE_MOVEMENT )
 	{
 		if (show && !IS_AFFECTED(ch, AFF_SNEAK) && ch->invis_level < LEVEL_HERO) {
 			if( IS_VALID(in_dungeon) && !IS_VALID(to_dungeon) )

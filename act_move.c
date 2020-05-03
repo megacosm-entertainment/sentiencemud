@@ -640,7 +640,7 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 			else
 			{
 				if( !IS_NULLSTR(in_dungeon->index->zone_out) )
-					act(in_dungeon->index->zone_out, ch, NULL, NULL, portal, NULL, NULL, dir_name[door], TO_ROOM);
+					act(in_dungeon->index->zone_out, ch, NULL, NULL, NULL, NULL, NULL, dir_name[door], TO_ROOM);
 				else
 					act("{W$n materializes.{x", ch,NULL,NULL,NULL,NULL, NULL, NULL, TO_ROOM);
 			}
@@ -1033,7 +1033,7 @@ bool can_move_room(CHAR_DATA *ch, int door, ROOM_INDEX_DATA *room)
 		return FALSE;
 	}
 
-	if(IS_SET(room->area->flags, AREA_LOCKED) && !is_area_unlocked(ch, room->area) )
+	if(!is_room_unlocked(ch, room) )
 	{
 		if(p_percent2_trigger(room->area, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREENTER, dir_name[door]))
 			send_to_char("You cannot enter that place yet.\n\r", ch);

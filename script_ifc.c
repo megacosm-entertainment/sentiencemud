@@ -1686,7 +1686,7 @@ DECL_IFC_FUN(ifc_portal)
 DECL_IFC_FUN(ifc_portalexit)
 {
 	*ret = ISARG_OBJ(0) && ARG_OBJ(0)->item_type == ITEM_PORTAL &&
-		IS_SET(ARG_OBJ(0)->value[1], flag_value_ifcheck(exit_flags,ARG_STR(1)));
+		IS_SET(ARG_OBJ(0)->value[1], flag_value_ifcheck(portal_exit_flags,ARG_STR(1)));
 	return TRUE;
 }
 
@@ -4724,9 +4724,14 @@ DECL_IFC_FUN(ifc_sectionflag)
 	return TRUE;
 }
 
-// ISAREAUNLOCKED $PLAYER $AREA
+// ISAREAUNLOCKED $PLAYER $AREA|$ROOM
 DECL_IFC_FUN(ifc_isareaunlocked)
 {
-	*ret = VALID_PLAYER(0) && ISARG_AREA(1) && is_area_unlocked(ARG_MOB(0), ARG_AREA(1));
+	*ret = FALSE;
+	if( VALID_PLAYER(0) )
+	{
+		if( ISARG_AREA(1) )		*ret = is_area_unlocked(ARG_MOB(0), ARG_AREA(1));
+		else if(ISARG_ROOM(1))	*ret = is_room_unlocked(ARG_MOB(0), ARG_ROOM(1));
+	}
 	return TRUE;
 }

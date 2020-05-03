@@ -8854,7 +8854,7 @@ bool is_area_unlocked(CHAR_DATA *ch, AREA_DATA *area)
 	if( !IS_VALID(ch) || IS_NPC(ch) || !IS_VALID(ch->pcdata) || (IS_IMMORTAL(ch) && IS_SET(ch->act2, PLR_HOLYWARP))) return true;
 
 	// Check area
-	if( !area || !IS_SET(area->flags, AREA_LOCKED) ) return true;
+	if( !area || !IS_SET(area->flags, AREA_LOCKED) || IS_SET(area->flags, AREA_BLUEPRINT) ) return true;
 
 	// Check if the area is in their list
 	bool ret = false;
@@ -8873,6 +8873,17 @@ bool is_area_unlocked(CHAR_DATA *ch, AREA_DATA *area)
 	iterator_stop(&it);
 
 	return ret;
+}
+
+bool is_room_unlocked(CHAR_DATA *ch, ROOM_INDEX_DATA *room)
+{
+	if( !room ||											// Phantom room
+		room_is_clone(room) ||								// General clone
+		IS_SET(room->room2_flags,ROOM_VIRTUAL_ROOM) ||		// Wilderness room
+		IS_VALID(room->instance_section) )					// Instance room (should count as clone, though)
+		return true;
+
+	return is_area_unlocked(ch, room->area);
 }
 
 void player_unlock_area(CHAR_DATA *ch, AREA_DATA *area)

@@ -56,6 +56,7 @@ const struct olc_help_type help_table[] =
     {   "room2",	room2_flags,	 "Room2 attributes."		 },
     {	"sector",	sector_flags,	 "Sector types, terrain."	 },
     {	"exit",		exit_flags,	 "Exit types."			 },
+    {	"portal_exit",		portal_exit_flags,	 "Exit (Portal) types."			 },
     {	"type",		type_flags,	 "Types of objects."		 },
     {	"areawho",	area_who_titles, "Type of area for who."	 },
     {	"placetype",	place_flags,	 "Where is the town/city etc."	 },
@@ -3383,10 +3384,11 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 				"{B[  {Wv1{B]{G Exit Flags:{x        %s\n\r"
 				"{B[  {Wv2{B]{G Portal Flags:{x      %s\n\r"
 				"{B[  {Wv3{B]{G Goes to (dungeon):{x [%ld]\n\r",
+				"{B[  {Wv3{B]{G Goes to (floor):  {x [%ld]\n\r",
 				obj->value[0],
-				flag_string(exit_flags, obj->value[1]),
+				flag_string(portal_exit_flags, obj->value[1]),
 				flag_string(portal_flags, obj->value[2]),
-				obj->value[3]);
+				obj->value[3], obj->value[4]);
 		}
 		else
 		{
@@ -3400,7 +3402,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 				"{B[  {Wv6{B]{G Goes to (mapx):{x [%ld]\n\r"
 				"{B[  {Wv7{B]{G Goes to (mapy):{x [%ld]\n\r",
 				obj->value[0],
-				flag_string(exit_flags, obj->value[1]),
+				flag_string(portal_exit_flags, obj->value[1]),
 				flag_string(portal_flags, obj->value[2]),
 				obj->value[3],obj->value[4],obj->value[5],
 				obj->value[6],obj->value[7]);
@@ -4130,9 +4132,9 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 	    	    pObj->value[0] = atoi (argument);
 	    	    break;
 	    	case 1:
-	    	    send_to_char("EXIT FLAGS SET.\n\r\n\r", ch);
-		    pObj->value[1] ^= (flag_value(exit_flags, argument) != NO_FLAG
-			? flag_value(exit_flags, argument) : 0);
+	    	    send_to_char("EXIT (PORTAL) FLAGS SET.\n\r\n\r", ch);
+		    pObj->value[1] ^= (flag_value(portal_exit_flags, argument) != NO_FLAG
+			? flag_value(portal_exit_flags, argument) : 0);
 	    	    break;
 	    	case 2:
 	    		{
@@ -4172,8 +4174,12 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 	    		if( !IS_SET(pObj->value[2], GATE_DUNGEON) )
 	    		{
 		    	    send_to_char("AREA UID SET.\n\r\n\r", ch);
-				    pObj->value[4] = atoi (argument);
 				}
+				else
+				{
+		    	    send_to_char("DUNGEON FLOOR SET.\n\r\n\r", ch);
+				}
+			    pObj->value[4] = atoi (argument);
 		    break;
 		case 5:
 	    		if( !IS_SET(pObj->value[2], GATE_DUNGEON) )
