@@ -1282,7 +1282,7 @@ void do_wizlist(CHAR_DATA *ch, char *argument)
 	int years;
 
 	send_to_char("\n\r{b.,-{B-^--,._.,{C[ {WThe Immortals of Sentience {C]{B-.._.,--^-{b-,.{x\n\r", ch);
-	send_to_char("{B`{x\n\r", ch);
+	send_to_char("{B``{x\n\r", ch);
 	for (immortal = immortal_list; immortal != NULL; immortal = immortal->next) {
 		years = ((long)current_time - immortal->created)/31556926;
 
@@ -1290,13 +1290,13 @@ void do_wizlist(CHAR_DATA *ch, char *argument)
 /*		if (duties != 0)*/
 			sprintf(duties, "%s", flag_string_commas(immortal_flags, immortal->duties));
 
-		sprintf(buf, "{B` {W%11s {B-{x %s{B({Y%d{B){x\n\r",
+		sprintf(buf, "{B`` {W%11s {B-{x %s{B({Y%d{B){x\n\r",
 		immortal->name, immortal->duties == 0 ? "None" : duties + 1, years );
 
 		send_to_char(buf, ch);
 	}
-	send_to_char("{b`\n\r", ch);
-	send_to_char("{b`--{B-^--,._.,-.._.,--^-------------^--,._.,-.._.,--^-{b-,.{x\n\r", ch);
+	send_to_char("{b``\n\r", ch);
+	send_to_char("{b``--{B-^--,._.,-.._.,--^-------------^--,._.,-.._.,--^-{b-,.{x\n\r", ch);
 }
 
 
@@ -3448,30 +3448,6 @@ const char *moon_phase_desc[][3] = {
 /* MOVED: weather/moon.c */
 char *moon_face[19] = {
 	".----------.",
-	".--':;:o;;::.;;:'--.",
-	".-'@;:@@@@@@:O:::.:;:.:'-.",
-	".'.@@@:@@@@@@@@:::@@@@:::.::'.",
-	"/:::':.'@@@@@@@@,;@@@@:@:;;::.:\\",
-	"/@@::o::::@@@:@,.::;@@@@::;;O;:;@\\",
-	"/@@@@;;::::::;;;:;;::@@@@@@;;:::@@@\\",
-	".:@@@@@\\;:'.-./:'.;.:@@@@@@@@;;.::@@ .",
-	"|:@@@@);;--'-'::.;-;;;:@@@@@@@::;;;::|",
-	"|@:@@@::;;;:;';;;::;o::@@@@@@:@@@@:::|",
-	"|:;);;;@@:::;;::(o);::::@@;;:@@@@@@;:|",
-	"';.::@::():::@@;;::;();;;@@@;:@@@@;;:'",
-	"\\;;;::@@::;@@@@;:;;::::.;@@:::.:'o;/",
-	"\\;;:@@@@:;@@\\;;.;@:::;::;:;o;::::/",
-	"\\:.;@@:;::;_\\:/:@@;.:::;;;.-.';/",
-	"'.:::;.:;::()---;;;::;;;'-' .'",
-	"'-.:::;./@|;:.|;;o;;::;.-'",
-	"'--./:::.;;;::;;.--'",
-	"'----------'"
-};
-
-/*
-PROTOCOL doesn't like the ` in the string
-char *moon_face[19] = {
-	".----------.",
 	".--':;:o;;::.;;:`--.",
 	".-'@;:@@@@@@:O:::.:;:.:`-.",
 	".'.@@@:@@@@@@@@:::@@@@:::.::`.",
@@ -3491,7 +3467,6 @@ char *moon_face[19] = {
 	"`--./:::.;;;::;;.--'",
 	"`----------'"
 };
-*/
 
 /* MOVED: weather/moon.c */
 char *moon_colours[][19] = {
@@ -3539,6 +3514,28 @@ char *moon_colours[][19] = {
 	}
 };
 
+char *moon_colours_mxp[19] = {
+				 "333333333333",
+			 "33335531333313333333",
+		  "35313311111131333133313333",
+		"533113311111111333111133313355",
+	   "33553313111111113311111133333133",
+	  "3113313333111111133311113333133313",
+	 "311113333333333333333111111333331113",
+	"33111113331111133331311111111331331133",
+	"33111133311111331333333111111133333333",
+	"31311333333331333333133111111311113333",
+	"33333331133333333133333311333111111333",
+	"33133133333331133333113331113311113333",
+	 "333333113331111333333331311333133133",
+	  "3333111133111331333333333331333333",
+	   "33131133333113133331333333111333",
+		"333333133331111133333333111333",
+		  "33333331131331333133333111",
+			 "33331333133333333333",
+				 "333333333333"
+};
+
 /* MOVED: weather/moon.c */
 char *moon_shadow[19] = {
 	".----------.",
@@ -3563,6 +3560,7 @@ char *moon_shadow[19] = {
 };
 
 char moon_shadow_colours[] = "Dr";
+char moon_shadow_colour_mxp = '1';
 
 char *moon_spacing = "                                        ";
 
@@ -3573,6 +3571,11 @@ void draw_moon(CHAR_DATA *ch,int colour)
 	int hours;
 	double h, c;
 	char buf[MIL],lastc;
+	bool mxp = false;
+
+	// Check if they can get better coloring of the moon!
+	if( ch || ch->desc || ch->desc->pProtocol )
+		mxp = ch->desc->pProtocol->bMXP;
 
 	hours = ((((time_info.year*12)+time_info.month)*35+time_info.day)*24+time_info.hour+MOON_OFFSET) % MOON_PERIOD;
 	hours = (hours + MOON_PERIOD) % MOON_PERIOD;
@@ -3598,20 +3601,73 @@ void draw_moon(CHAR_DATA *ch,int colour)
 			lastc = 'x';
 			if(time_info.hour < 6 || time_info.hour > 19) {
 				send_to_char(moon_spacing+20+l/2, ch);
-				lastc = moon_shadow_colours[colour];
-				j = sprintf(buf,"{%c",lastc);
-				strncpy(buf+j,moon_shadow[i],ld); buf[j+ld] = 0;
+				if( mxp )
+				{
+					lastc = moon_shadow_colour_mxp;
+					if( colour )
+					{
+						j = sprintf(buf,"%c[F%c00]",COLOUR_CHAR,lastc);
+					}
+					else
+					{
+						j = sprintf(buf,"%c[F%c%c%c]",COLOUR_CHAR,lastc,lastc,lastc);
+					}
+				}
+				else
+				{
+					lastc = moon_shadow_colours[colour];
+					j = sprintf(buf,"{%c",lastc);
+				}
+
+				for(k = 0; k < ld && moon_shadow[i][k] != 0; k++)
+				{
+					char ms = moon_shadow[i][k];
+
+					if( ms == '{' || ms == COLOUR_CHAR)
+						buf[j++] = ms;
+
+					buf[j++] = ms;
+				}
+				buf[j] = 0;
 				send_to_char(buf, ch);
 			} else
 				send_to_char(moon_spacing+20+ll-l/2, ch);
 
+
 			for(k=j=0;k<ll;k++) {
-				if(lastc != moon_colours[colour][i][k+ld]) {
-					buf[j++] = '{';
-					buf[j++] = lastc = moon_colours[colour][i][k+ld];
+				if( mxp )
+				{
+					if(lastc != moon_colours_mxp[i][k+ld])
+					{
+						lastc = moon_colours_mxp[i][k+ld];
+
+						if( colour )
+						{
+							j += sprintf(buf+j,"%c[F%c00]",COLOUR_CHAR,lastc);
+						}
+						else
+						{
+							j += sprintf(buf+j,"%c[F%c%c%c]",COLOUR_CHAR,lastc,lastc,lastc);
+						}
+					}
+				}
+				else
+				{
+					if(lastc != moon_colours[colour][i][k+ld]) {
+						buf[j++] = '{';
+						buf[j++] = lastc = moon_colours[colour][i][k+ld];
+					}
 				}
 
-				buf[j++] = moon_face[i][k+ld];
+				char mf = moon_face[i][k+ld];
+
+				if( mf == '{' || mf == COLOUR_CHAR )
+				{
+					// Double up escaping codes
+					buf[j++] = mf;
+				}
+
+				buf[j++] = mf;
 			}
 			buf[j] = 0;
 			send_to_char(buf, ch);
@@ -3627,26 +3683,78 @@ void draw_moon(CHAR_DATA *ch,int colour)
 			lastc = 'x';
 			send_to_char(moon_spacing+20+l/2, ch);
 			for(k=j=0;k<ll;k++) {
-				if(lastc != moon_colours[colour][i][k]) {
-					buf[j++] = '{';
-					buf[j++] = lastc = moon_colours[colour][i][k];
+				if( mxp )
+				{
+					if(lastc != moon_colours_mxp[i][k+ld])
+					{
+						lastc = moon_colours_mxp[i][k+ld];
+
+						if( colour )
+						{
+							j += sprintf(buf+j,"%c[F%c00]",COLOUR_CHAR,lastc);
+						}
+						else
+						{
+							j += sprintf(buf+j,"%c[F%c%c%c]",COLOUR_CHAR,lastc,lastc,lastc);
+						}
+					}
+				}
+				else
+				{
+					if(lastc != moon_colours[colour][i][k+ld]) {
+						buf[j++] = '{';
+						buf[j++] = lastc = moon_colours[colour][i][k+ld];
+					}
 				}
 
-				buf[j++] = moon_face[i][k];
+				char mf = moon_face[i][k];
+
+				if( mf == '{' || mf == COLOUR_CHAR )
+				{
+					// Double up escaping codes
+					buf[j++] = mf;
+				}
+
+				buf[j++] = mf;
 			}
 			buf[j] = 0;
 			send_to_char(buf, ch);
 
 			if(time_info.hour < 6 || time_info.hour > 19) {
-				lastc = moon_shadow_colours[colour];
-				j = sprintf(buf,"{%c",lastc);
-				strncpy(buf+j,moon_shadow[i]+ll,ld); buf[j+ld] = 0;
+				if( mxp )
+				{
+					lastc = moon_shadow_colour_mxp;
+					if( colour )
+					{
+						j = sprintf(buf,"%c[F%c00]",COLOUR_CHAR,lastc);
+					}
+					else
+					{
+						j = sprintf(buf,"%c[F%c%c%c]",COLOUR_CHAR,lastc,lastc,lastc);
+					}
+				}
+				else
+				{
+					lastc = moon_shadow_colours[colour];
+					j = sprintf(buf,"{%c",lastc);
+				}
+
+				for(k = 0; k < ld && moon_shadow[i][k] != 0; k++)
+				{
+					char ms = moon_shadow[i][k+ll];
+
+					if( ms == '{' || ms == COLOUR_CHAR)
+						buf[j++] = ms;
+
+					buf[j++] = ms;
+				}
+				buf[j] = 0;
 				send_to_char(buf, ch);
 				send_to_char("{x", ch);
-				send_to_char(moon_spacing+20+l/2, ch);
+				//send_to_char(moon_spacing+20+l/2, ch);		// This isn't necessary
 			} else {
 				send_to_char("{x", ch);
-				send_to_char(moon_spacing+20+ll-l/2, ch);
+				//send_to_char(moon_spacing+20+ll-l/2, ch);		// This isn't necessary
 			}
 		}
 

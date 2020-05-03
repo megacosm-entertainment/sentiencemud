@@ -533,35 +533,39 @@ ROOM_INDEX_DATA *get_random_room_area( CHAR_DATA *ch, AREA_DATA *area )
 /* Count how many letters in a string, not counting colour codes. */
 int strlen_no_colours( const char *str )
 {
-    int count;
-    int i;
+	int count;
+	int i;
 
-    if ( str == NULL )
-        return 0;
+	if ( str == NULL )
+		return 0;
 
-    count = 0;
-    for ( i = 0; str[i] != '\0'; i++ )
-    {
-
-        if (str[i] == '`' )
-        {
-		i++;
-                if (str[i] == '[' )
-			i += 5;
-                continue;
-        }
-
-
-	if (str[i] == '{' )
+	count = 0;
+	for ( i = 0; str[i] != '\0'; i++ )
 	{
-	    i++;
-	    continue;
+
+		if (str[i] == '`' )
+		{
+			i++;
+			if (str[i] == '[' )
+				i += 5;
+			else if(str[i] == '`')	// Double `` becomes ` when processed, but still counts as two
+				count+=2;
+			continue;
+		}
+
+		if (str[i] == '{' )		// Double {{ becomes { when processed, but still counts as two
+		{
+			i++;
+
+			if( str[i] == '{' )
+				count+=2;
+			continue;
+		}
+
+		count++;
 	}
 
-	count++;
-    }
-
-    return count;
+	return count;
 }
 
 
@@ -579,26 +583,51 @@ int get_colour_width(char *text)
 /* return a string without colour codes- {x {Y etc. */
 char *nocolour( const char *string )
 {
-    int i,n;
-    char buf[MSL];
+	int i,n;
+	char buf[MSL];
 
-    for (i = 0, n = 0; string[i] != '\0'; i++, n++) {
-	while (string[i] == '{')
-	    i+= 2;
-        while (string[i] == '`')
-        {
-                if (string[i+1] == '[')
-                        i+= 7;
-                else
-                        i+= 2;
-        }
+	if( string[0] == '\0' )
+		return str_dup(&str_empty[0]);
 
-        buf[n] = string[i];
-    }
+	int len = strlen(string);
 
-    buf[n] = '\0';
+	for (i = 0, n = 0; i < len && string[i] != '\0'; i++, n++) {
+		while( i < len && string[i] == '{' )
+		{
+			++i;
 
-    return str_dup(buf);
+			if( string[i] == '{' )		// Double {{ becomes { when processed, but still counts as two
+			{
+				buf[n++] = '{';
+				buf[n] = '{';
+			}
+
+			++i;
+		}
+
+		while (i < len && string[i] == '`')
+		{
+			if (string[i+1] == '[')
+				i+= 7;
+			else if(string[i+1] == '`')	// Double `` becomes ` when processed, but still counts as two
+			{
+				buf[n++] = '`';
+				buf[n] = '`';
+				i+= 2;
+			}
+			else
+			{
+				i+= 2;
+			}
+		}
+
+		if( i < len )
+			buf[n] = string[i];
+	}
+
+	buf[n] = '\0';
+
+	return str_dup(buf);
 }
 
 

@@ -111,7 +111,7 @@ void do_war(CHAR_DATA *ch, char *argument)
 	{
 	    CHAR_DATA *wch;
 
-	    sprintf( buf, "{R,.-'`^`'-.,'- {YWar Statistics {R-',.-'`^`'-.,{x\n\r"
+	    sprintf( buf, "{R,.-'``^``'-.,'- {YWar Statistics {R-',.-'``^``'-.,{x\n\r"
 		    "\n\rThis is a {Y%s{x war for levels {Y%d{x - {Y%d{x.\n\r"
 		    "\n\rThe minimum number of players required is {G%d{x.\n\r"
 		    "\n\rThere is still approximately {Y%d{x minutes remaining before the start.\n\r"

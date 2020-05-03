@@ -2125,7 +2125,7 @@ void do_chinfo(CHAR_DATA *ch, char *argument)
 	add_buf(buffer, buf);
 
 	/* Bottom edge*/
-	add_buf(buffer, "{b`");
+	add_buf(buffer, "{b``");
 	for (x = 0; x < box_width; x++)
 	    add_buf(buffer, "-");
 
