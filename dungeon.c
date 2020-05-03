@@ -675,14 +675,14 @@ ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, long vnum, int floor)
 
 	dungeon_addowner_player(leader_dng, ch);
 
-	INSTANCE *floor = (INSTANCE *)list_nthdata(leader_dng->floors, floor);
+	INSTANCE *instance = (INSTANCE *)list_nthdata(leader_dng->floors, floor);
 
-	if( !IS_VALID(floor) )
+	if( !IS_VALID(instance) )
 	{
 		return NULL;
 	}
 
-	return floor->entrance;
+	return instance->entrance;
 }
 
 bool dungeon_can_idle(DUNGEON *dungeon)
