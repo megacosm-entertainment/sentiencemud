@@ -3680,13 +3680,11 @@ void do_mob_transfer(CHAR_DATA *ch,ROOM_INDEX_DATA *room,bool quiet, int mode)
 
 		p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_ENTRY, phrase);
 
-		/*
 		if (!IS_NPC(ch)) {
 			p_greet_trigger(ch, PRG_MPROG);
 			p_greet_trigger(ch, PRG_OPROG);
 			p_greet_trigger(ch, PRG_RPROG);
 		}
-		*/
 
 		if (!IS_DEAD(ch)) check_rocks(ch, show);
 		if (!IS_DEAD(ch)) check_ice(ch, show);
