@@ -419,20 +419,23 @@ IMMORTAL_DATA *read_immortal(FILE *fp)
 	// Missing creation date
 	if(immortal->created < 1)
 	{
-		DESCRIPTOR d;
+		DESCRIPTOR_DATA d;
 		// TEMPORARY
-	    CHAR_DATA *ch = load_char_obj(&d, immortal->name);
-
-	    if( !ch || !ch->pcdata )
+		if( !load_char_obj(&d, immortal->name) )
+		{
+		    sprintf(buf, "read_immortal: attempting to correct created timestamp failed for %s", immortal->name);
+		    bug(buf, 0);
+		}
+		else if( !d->character || !d->character->pcdata )
 	    {
 		    sprintf(buf, "read_immortal: attempting to correct created timestamp failed for %s", immortal->name);
 		    bug(buf, 0);
 		}
 		else
 		{
-			immortal->created = ch->pcdata->creation_time;
-			ch->desc = NULL;
-			extract_char(ch, TRUE);
+			immortal->created = d->character->pcdata->creation_date;
+			d->character->desc = NULL;
+			extract_char(d->character, TRUE);
 		}
 	}
 
