@@ -334,6 +334,7 @@ void save_immortal(FILE *fp, IMMORTAL_DATA *immortal)
       are global to avoid redundancy. */
 static bool fMatch;
 static char *word;
+bool loading_immortal_data = false;
 
 
 /* Read imm staff at bootup. */
@@ -347,6 +348,7 @@ void read_immstaff()
 	exit(1);
     }
 
+	loading_immortal_data = true;
     for (;;)
     {
 	word = fread_word(fp);
@@ -360,6 +362,7 @@ void read_immstaff()
 	if (!str_cmp(word, "#END"))
 	    break;
     }
+	loading_immortal_data = false;
 
     fclose(fp);
 }

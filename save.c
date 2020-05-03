@@ -97,6 +97,7 @@
 	}
 
 // External functions
+extern bool loading_immortal_data;
 
 // Globals.
 OBJ_DATA *	pneuma_relic;
@@ -838,6 +839,12 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 		if(!ch->pcdata->creation_date)
 			ch->pcdata->creation_date = get_pc_id();
 	}
+
+    // Do not bother fixing ANYTHING on the player
+    // The only reason this is true will be during the reading of the staff list
+    //   and needed to get the creation date
+    if(loading_immortal_data)
+    	return ch;
 
 	get_mob_id(ch);
 
