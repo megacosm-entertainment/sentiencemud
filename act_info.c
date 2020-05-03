@@ -3248,6 +3248,11 @@ void do_score(CHAR_DATA * ch, char *argument)
 	else
 	    send_to_char(" {DAURA{x", ch);
 
+	if (IS_SET(ch->act2, PLR_HOLYWARP))
+	    send_to_char(" {WWARP{x", ch);
+	else
+	    send_to_char(" {DWARP{x", ch);
+
 	if (ch->invis_level)
 	{
 	    sprintf(buf, "  Invisible: level %d", ch->invis_level);

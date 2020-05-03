@@ -662,7 +662,7 @@ const struct flag_type plr_flags[] =
 
 const struct flag_type plr2_flags[] =
 {
-    {	"autosurvey",		PLR_HOLYAURA,		FALSE	},
+    {	"autosurvey",		PLR_AUTOSURVEY,		FALSE	},
     {	"sacrifice_all",		PLR_SACRIFICE_ALL,		FALSE	},
     {	"no_wake",		PLR_NO_WAKE,		FALSE	},
     {	"holyaura",		PLR_HOLYAURA,		FALSE	},

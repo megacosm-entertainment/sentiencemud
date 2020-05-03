@@ -654,6 +654,15 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 	    paf->slot);
     }
 
+    ITERATOR uait;
+    AREA_DATA *unlocked_area;
+    iterator_start(&uait, ch->pcdata->unlocked_areas);
+    while( (unlocked_area = (AREA_DATA *)iterator_nextdata(&uait)) )
+    {
+		fprintf(fp, "UnlockedArea %ld\n", unlocked_area->anum);
+	}
+    iterator_start(&uait);
+
     for (cmd = ch->pcdata->commands; cmd != NULL; cmd = cmd->next)
 	fprintf(fp, "GrantedCommand %s~\n", cmd->name);
 	#ifdef IMC
@@ -2039,6 +2048,23 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 	    }
 
 	    break;
+
+	case 'U':
+		if(!str_cmp(word, "UnlockedArea"))
+		{
+			long anum = fread_number(fp);
+			AREA_DATA *unlocked_area = get_area_data(anum);
+
+			if( unlocked_area )
+			{
+				// This will prevent duplication
+				player_unlock_area(ch, unlocked_area);
+			}
+
+			fMatch = TRUE;
+			break;
+		}
+		break;
 
 	case 'V':
 	    KEY("Version",     ch->version,		fread_number (fp));
@@ -3865,6 +3891,17 @@ void fix_character(CHAR_DATA *ch)
 		ch->version = VERSION_PLAYER_004;
 	}
 
+	if( ch->version < VERSION_PLAYER_005 )
+	{
+		if( IS_IMMORTAL(ch) )
+		{
+			// Give existing immortals HOLYWARP
+			SET_BIT(ch->act2, PLR_HOLYWARP);
+		}
+
+
+		ch->version = VERSION_PLAYER_005;
+	}
 }
 
 

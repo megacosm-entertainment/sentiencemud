@@ -132,6 +132,7 @@ const struct script_cmd_type mob_cmd_table[] = {
 	{ "teleport", 			do_mpteleport,				FALSE,	FALSE	},
 	{ "transfer",			do_mptransfer,				FALSE,	TRUE	},
 	{ "ungroup",			do_mpungroup,				FALSE,	TRUE	},
+	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
 	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
 	{ "usecatalyst",		do_mpusecatalyst,			FALSE,	TRUE	},
 	{ "varclear",			do_mpvarclear,				FALSE,	TRUE	},

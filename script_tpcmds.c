@@ -118,6 +118,7 @@ const struct script_cmd_type token_cmd_table[] = {
 	{ "stripaffectname",	do_tpstripaffectname,		TRUE,	TRUE	},
 	{ "transfer",			do_tptransfer,				FALSE,	TRUE	},
 	{ "ungroup",			do_tpungroup,				FALSE,	TRUE	},
+	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
 	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
 	{ "usecatalyst",		do_tpusecatalyst,			FALSE,	TRUE	},
 	{ "varclear",			do_tpvarclear,				FALSE,	TRUE	},

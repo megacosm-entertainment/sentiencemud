@@ -236,6 +236,7 @@ DECLARE_DO_FUN(	do_hints	);
 DECLARE_DO_FUN(	do_holdup	);
 DECLARE_DO_FUN(	do_holylight	);
 DECLARE_DO_FUN(	do_holyaura	);
+DECLARE_DO_FUN(	do_holywarp	);
 DECLARE_DO_FUN(	do_house	);
 DECLARE_DO_FUN(	do_housemove	);
 DECLARE_DO_FUN(	do_hunt		);

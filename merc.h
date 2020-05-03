@@ -212,6 +212,9 @@ struct sound_type {
 #define VERSION_PLAYER_004	0x01000003
 //  Change #1: Update to affects to include object worn location
 
+#define VERSION_PLAYER_005	0x01000004
+//	Change #1: Existin Immortals will have HOLYWARP turned on automagically
+
 
 #define VERSION_OBJECT_001	0x01000000
 
@@ -2876,6 +2879,7 @@ enum {
 #define AREA_NO_GET_RANDOM	(J)
 #define AREA_NO_FADING		(K)
 #define AREA_BLUEPRINT		(L)		// Area is used to hold rooms used for Blueprints.  Will block VLINKs
+#define AREA_LOCKED			(K)		// Area requires the player to unlock the area first
 #define AREA_NO_SAVE		(Z)
 
 /*
@@ -3039,6 +3043,7 @@ enum {
 #define PLR_HOLYAURA		(D)
 #define PLR_MOBILE			(E)
 #define PLR_FAVSKILLS		(F)
+#define PLR_HOLYWARP		(G)
 
 #define COMM_QUIET              (A)
 #define COMM_NOMUSIC           	(B)
@@ -4148,6 +4153,8 @@ struct	pc_data
     #ifdef IMC
         IMC_CHARDATA *imcchardata;
     #endif
+
+    LLIST *unlocked_areas;
 };
 
 
@@ -7088,7 +7095,7 @@ AREA_DATA *get_wilderness_area ( void );
 char *skip_whitespace(register char *str);
 
 /* db2.c */
-AREA_DATA *get_random_area( int continent, bool no_get_random );
+AREA_DATA *get_random_area( CHAR_DATA *ch, int continent, bool no_get_random );
 CHAR_DATA *get_random_mob_area( CHAR_DATA *ch, AREA_DATA *area);
 CHAR_DATA *get_random_mob( CHAR_DATA *ch, int continent );
 MOB_INDEX_DATA *get_random_mob_index( AREA_DATA *area ) ;
@@ -8327,6 +8334,9 @@ void detach_instances_player(CHAR_DATA *ch);
 
 extern long top_iprog_index;
 extern long top_dprog_index;
+
+bool is_area_unlocked(CHAR_DATA *ch, AREA_DATA *area);
+void player_unlock_area(CHAR_DATA *ch, AREA_DATA *area);
 
 
 #endif /* !def __MERC_H__ */

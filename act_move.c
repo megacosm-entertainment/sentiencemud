@@ -1033,6 +1033,15 @@ bool can_move_room(CHAR_DATA *ch, int door, ROOM_INDEX_DATA *room)
 		return FALSE;
 	}
 
+	if(IS_SET(room->area->flags, AREA_LOCKED) && !is_area_unlocked(ch, room->area) )
+	{
+		if(p_percent2_trigger(room->area, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREENTER, dir_name[door]))
+			send_to_char("You cannot enter that place yet.\n\r", ch);
+
+		return FALSE;
+	}
+
+
 	if(p_percent_trigger(NULL, NULL, room, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREENTER, dir_name[door]))
 		return FALSE;
 

@@ -286,6 +286,14 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 	    return;
 	}
 
+	if(IS_SET(location->area->flags, AREA_LOCKED) && !is_area_unlocked(ch, location->area) )
+	{
+		if(p_percent2_trigger(location->area, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREENTER, dir_name[door]))
+			send_to_char("You cannot enter that place yet.\n\r", ch);
+
+		return FALSE;
+	}
+
 	if(p_percent_trigger(NULL, NULL, location, NULL, ch, NULL, NULL,portal, NULL,TRIG_PREENTER, "portal"))
 		return;
 

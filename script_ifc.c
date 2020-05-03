@@ -4723,3 +4723,10 @@ DECL_IFC_FUN(ifc_sectionflag)
 	*ret = (ISARG_SECTION(0) && ISARG_STR(1) && IS_SET(ARG_SECTION(0)->section->flags, flag_value_ifcheck( blueprint_section_flags,ARG_STR(1))));
 	return TRUE;
 }
+
+// ISAREAUNLOCKED $PLAYER $AREA
+DECL_IFC_FUN(ifc_isareaunlocked)
+{
+	*ret = VALID_PLAYER(0) && ISARG_AREA(1) && is_area_unlocked(ARG_MOB(0), ARG_AREA(1));
+	return TRUE;
+}

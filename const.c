@@ -400,6 +400,7 @@ const  struct player_setting_type    pc_set_table[] =
     {	"formstate",	0,		 0,		COMM_SHOW_FORM_STATE,FALSE,0,	SETTING_ON	},
     {   "holyaura",	0,		PLR_HOLYAURA,	 0,		FALSE,	IM,	SETTING_OFF	},
     {   "holylight",	PLR_HOLYLIGHT,	 0,		0,		FALSE,	IM,	SETTING_OFF	},
+    {   "holywarp",	0,		PLR_HOLYWARP,	 0,		FALSE,	IM,	SETTING_OFF	},
     {	"map",		0,		 0,		COMM_NOMAP,	TRUE,	0,	SETTING_OFF	},
     {	"nochallenge",	PLR_NO_CHALLENGE,0,		0,		FALSE,	0,	SETTING_OFF	},
     {	"nofollow",	PLR_NOFOLLOW,	 0,		0,		FALSE,	0,	SETTING_OFF	},

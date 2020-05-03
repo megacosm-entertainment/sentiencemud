@@ -592,6 +592,7 @@ char *act_bit_name( int act_type, long act_flags )
 		if (act_flags & PLR_HOLYAURA	) strcat(buf, " holy_aura");
 		if (act_flags & PLR_MOBILE		) strcat(buf, " mobile");
 		if (act_flags & PLR_FAVSKILLS		) strcat(buf, " favskills");
+		if (act_flags & PLR_HOLYWARP	) strcat(buf, " holy_warp");
 		break;
 	}
     return ( buf[0] != '\0' ) ? buf+1 : "none";

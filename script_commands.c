@@ -22,6 +22,7 @@ const struct script_cmd_type area_cmd_table[] = {
 	{ "mload",				scriptcmd_mload,			FALSE,	TRUE	},
 	{ "mute",				scriptcmd_mute,				FALSE,	TRUE	},
 	{ "oload",				scriptcmd_oload,			FALSE,	TRUE	},
+	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
 	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
 	{ "varclear",			scriptcmd_varclear,			FALSE,	TRUE	},
 	{ "varclearon",			scriptcmd_varclearon,		FALSE,	TRUE	},
@@ -43,6 +44,7 @@ const struct script_cmd_type instance_cmd_table[] = {
 	{ "mload",				scriptcmd_mload,			FALSE,	TRUE	},
 	{ "mute",				scriptcmd_mute,				FALSE,	TRUE	},
 	{ "oload",				scriptcmd_oload,			FALSE,	TRUE	},
+	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
 	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
 	{ "varclear",			scriptcmd_varclear,			FALSE,	TRUE	},
 	{ "varclearon",			scriptcmd_varclearon,		FALSE,	TRUE	},
@@ -64,6 +66,7 @@ const struct script_cmd_type dungeon_cmd_table[] = {
 	{ "mload",				scriptcmd_mload,			FALSE,	TRUE	},
 	{ "mute",				scriptcmd_mute,				FALSE,	TRUE	},
 	{ "oload",				scriptcmd_oload,			FALSE,	TRUE	},
+	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
 	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
 	{ "varclear",			scriptcmd_varclear,			FALSE,	TRUE	},
 	{ "varclearon",			scriptcmd_varclearon,		FALSE,	TRUE	},
@@ -3537,6 +3540,55 @@ SCRIPT_CMD(scriptcmd_unmute)
 	info->progs->lastreturn = 1;
 }
 
+
+// UNLOCKAREA $PLAYER $AREA|$AREANAME|$ANUM|$ROOM
+SCRIPT_CMD(scriptcmd_unlockarea)
+{
+	char *rest;
+	CHAR_DATA *player;
+	AREA_DATA *area;
+
+	if(!info) return;
+
+	info->progs->lastreturn = 0;
+
+	if(!(rest = expand_argument(info,argument,arg)) || arg->type != ENT_MOBILE || IS_NPC(arg->d.mob) )
+		return;
+
+	player = arg->d.mob;
+
+	if(!expand_argument(info,rest,arg))
+		return;
+
+	area = NULL;
+	if( arg->type == ENT_NUMBER )
+	{
+		area = get_area_data(arg->d.num);
+	}
+	else if( arg->type == ENT_STRING )
+	{
+		for (area = area_first; area != NULL; area = area->next) {
+			if (!str_infix(arg->d.str, area->name)) {
+				break;
+			}
+		}
+	}
+	else if( arg->type == ENT_ROOM )
+	{
+		area = arg->d.room ? arg->d.room->area : NULL;
+	}
+	else if( arg->type == ENT_AREA )
+	{
+		area = arg->d.area;
+	}
+
+	if( !area )
+		return;
+
+	player_unlock_area(player, area);
+
+	info->progs->lastreturn = 1;
+}
 
 //////////////////////////////////////
 // V

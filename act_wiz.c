@@ -3503,6 +3503,7 @@ void do_advance(CHAR_DATA *ch, char *argument)
 		send_to_char(buf,victim);
 	victim->invis_level = level;
 	do_function(victim, &do_holylight, "");
+	do_function(victim, &do_holywarp, "");
 	sprintf(buf, "\n\rYou have been set to wizinvis level {W%d{x.\n\r", victim->invis_level);
 	send_to_char(buf,victim);
 	}
@@ -5891,6 +5892,25 @@ void do_holylight(CHAR_DATA *ch, char *argument)
     {
 	SET_BIT(ch->act, PLR_HOLYLIGHT);
 	send_to_char("Holy light mode on.\n\r", ch);
+    }
+
+    return;
+}
+
+void do_holywarp(CHAR_DATA *ch, char *argument)
+{
+    if (IS_NPC(ch))
+		return;
+
+    if (IS_SET(ch->act2, PLR_HOLYWARP))
+    {
+		REMOVE_BIT(ch->act2, PLR_HOLYWARP);
+		send_to_char("Holy warp mode off.\n\r", ch);
+    }
+    else
+    {
+		SET_BIT(ch->act2, PLR_HOLYWARP);
+		send_to_char("Holy warp mode on.\n\r", ch);
     }
 
     return;

@@ -1021,6 +1021,7 @@ IFCHECK_DATA ifcheck_table[] = {
 	{ "isaffectskill",		IFC_ANY,	"E",	FALSE,	ifc_isaffectskill,		"ifcheck isaffectskill" },
 	{ "isaffectwhere",		IFC_ANY,	"E",	FALSE,	ifc_isaffectwhere,		"ifcheck isaffectwhere" },
 	{ "isangel",			IFC_ANY,	"E",	FALSE,	ifc_isangel,			"ifcheck isangel" },
+	{ "isareaunlocked",		IFC_ANY,	"E",	FALSE,	ifc_isareaunlocked,		"ifcheck isareaunlocked" },
 	{ "isboss",				IFC_ANY,	"E",	FALSE,	ifc_isboss,				"ifcheck isboss" },
 	{ "isbrewing",			IFC_ANY,	"Es",	FALSE,	ifc_isbrewing,			"ifcheck isbrewing" },
 	{ "isbusy",				IFC_ANY,	"E",	FALSE,	ifc_isbusy,				"ifcheck isbusy" },

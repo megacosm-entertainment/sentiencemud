@@ -8848,3 +8848,37 @@ bool can_room_update(ROOM_INDEX_DATA *room)
 	return !room->area->empty;
 }
 
+bool is_area_unlocked(CHAR_DATA *ch, AREA_DATA *area)
+{
+	// Check player
+	if( !IS_VALID(ch) || IS_NPC(ch) || !IS_VALID(ch->pcdata) || (IS_IMMORTAL(ch) && IS_SET(ch->act2, PLR_HOLYWARP))) return true;
+
+	// Check area
+	if( !area || !IS_SET(area->flags, AREA_LOCKED) ) return true;
+
+	// Check if the area is in their list
+	bool ret = false;
+
+	ITERATOR it;
+	AREA_DATA *unlocked;
+	iterator_start(&it, ch->pcdata->unlocked_areas);
+	while( (unlocked = (AREA_DATA *)iterator_nextdata(&it)) )
+	{
+		if( unlocked == area )
+		{
+			ret = true;
+			break;
+		}
+	}
+	iterator_stop(&it);
+
+	return ret;
+}
+
+void player_unlock_area(CHAR_DATA *ch, AREA_DATA *area)
+{
+	if( is_area_unlocked(ch, area) ) return;
+
+	list_appendlink(ch->pcdata->unlocked_areas, area);
+}
+

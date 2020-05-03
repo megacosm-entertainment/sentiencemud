@@ -391,6 +391,7 @@ const	struct	cmd_type	cmd_table	[] =
     { "gq",		do_gq,		POS_DEAD,	L4,  LOG_ALWAYS, 1, TRUE },
     { "holyaura",	do_holyaura,	POS_DEAD,	L5,  LOG_NORMAL, 1, TRUE },
     { "holylight",	do_holylight,	POS_DEAD,	L5,  LOG_NORMAL, 1, TRUE },
+    { "holywarp",	do_holywarp,	POS_DEAD,	L5,  LOG_NORMAL, 1, TRUE },
     { "housemove",	do_housemove,   POS_DEAD,	L5,  LOG_ALWAYS, 1, TRUE },
     { "immflag",	do_immflag,	POS_DEAD,	L5,  LOG_ALWAYS, 1, TRUE },
     { "immtalk",	do_immtalk,	POS_DEAD,	L5,  LOG_NORMAL, 1, TRUE },

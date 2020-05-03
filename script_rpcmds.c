@@ -114,6 +114,7 @@ const struct script_cmd_type room_cmd_table[] = {
 	{ "stripaffectname",	do_rpstripaffectname,	TRUE,	TRUE	},
 	{ "transfer",			do_rptransfer,			FALSE,	TRUE	},
 	{ "ungroup",			do_rpungroup,			FALSE,	TRUE	},
+	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
 	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
 	{ "usecatalyst",		do_rpusecatalyst,		FALSE,	TRUE	},
 	{ "varclear",			do_rpvarclear,			FALSE,	TRUE	},

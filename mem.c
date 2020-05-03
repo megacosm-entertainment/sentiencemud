@@ -799,6 +799,8 @@ PC_DATA *new_pcdata(void)
     pcdata->second_sub_class_thief = -1;
     pcdata->second_sub_class_warrior = -1;
 
+    pcdata->unlocked_areas = list_create(FALSE);
+
     VALIDATE(pcdata);
     return pcdata;
 }
@@ -851,6 +853,8 @@ void free_pcdata(PC_DATA *pcdata)
 
     string_vector_freeall(pcdata->script_prompts);
     pcdata->script_prompts = NULL;
+
+    list_destroy(pcdata->unlocked_areas);
 
     INVALIDATE(pcdata);
     pcdata->next = pcdata_free;

@@ -118,6 +118,7 @@ const struct script_cmd_type obj_cmd_table[] = {
 	{ "stripaffectname",	do_opstripaffectname,	TRUE,	TRUE	},
 	{ "transfer",			do_optransfer,			FALSE,	TRUE	},
 	{ "ungroup",			do_opungroup,			FALSE,	TRUE	},
+	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
 	{ "unmute",				scriptcmd_unmute,		FALSE,	TRUE	},
 	{ "usecatalyst",		do_opusecatalyst,		FALSE,	TRUE	},
 	{ "varclear",			do_opvarclear,			FALSE,	TRUE	},

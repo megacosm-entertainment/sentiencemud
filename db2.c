@@ -210,73 +210,76 @@ void global_reset( void )
 
 
 /* Get a random area. 1 - first continent, 2 - second continent, 0 - either */
-AREA_DATA *get_random_area( int continent, bool no_get_random )
+AREA_DATA *get_random_area( CHAR_DATA *ch, int continent, bool no_get_random )
 {
-    int i;
-    AREA_DATA *area;
+	int i;
+	AREA_DATA *area;
 
-    switch (continent)
-    {
+	switch (continent)
+	{
+		case FIRST_CONTINENT:
+		case SECOND_CONTINENT:
+		case BOTH_CONTINENTS:
+			break;
+
+		default: return NULL;
+	}
+
+	/* get max #areas */
+	i = 0;
+	for ( area = area_first; area != NULL; area = area->next )
+		i++;
+
+
+	switch (continent)
+	{
 	case FIRST_CONTINENT:
-	case SECOND_CONTINENT:
-	case BOTH_CONTINENTS:
-	    break;
-
-	default: return NULL;
-    }
-
-    /* get max #areas */
-    i = 0;
-    for ( area = area_first; area != NULL; area = area->next )
-        i++;
-
-
-    switch (continent)
-    {
-	case FIRST_CONTINENT:
-	    do
-	    {
-		area = get_area_data(number_range(1, i));
-	    } while (area == NULL
-	    || !area->open
-	    || (no_get_random && IS_SET(area->area_flags, AREA_NO_GET_RANDOM))
-	    || (area->place_flags != PLACE_FIRST_CONTINENT)
-	    || !str_infix( "Housing", area->name )
-	    || !str_infix( "Arena", area->name)
-	    || !str_infix( "Temples", area->name)
-	    || !str_infix( "Maze", area->name));
-
-	    break;
+		do
+		{
+			area = get_area_data(number_range(1, i));
+		} while (area == NULL ||
+				!area->open ||
+				!is_area_unlocked(ch, area) ||
+				(no_get_random && IS_SET(area->area_flags, AREA_NO_GET_RANDOM)) ||
+				(area->place_flags != PLACE_FIRST_CONTINENT) ||
+				!str_infix( "Housing", area->name ) ||
+				!str_infix( "Arena", area->name) ||
+				!str_infix( "Temples", area->name) ||
+				!str_infix( "Maze", area->name));
+		break;
 
 	case SECOND_CONTINENT:
-	    do
-	    {
-		area = get_area_data( number_range( 1, i));
-	    } while (area == NULL
-	    || !area->open
-	    || (no_get_random && IS_SET(area->area_flags, AREA_NO_GET_RANDOM))
-	    || ( area->place_flags != PLACE_SECOND_CONTINENT )
-	    || !str_infix("Temples", area->name)
-	    || !str_infix("Maze", area->name ));
+		do
+		{
+			area = get_area_data( number_range( 1, i));
+		} while (area == NULL ||
+				!area->open ||
+				!is_area_unlocked(ch, area) ||
+				(no_get_random && IS_SET(area->area_flags, AREA_NO_GET_RANDOM)) ||
+				( area->place_flags != PLACE_SECOND_CONTINENT ) ||
+				!str_infix("Temples", area->name) ||
+				!str_infix("Maze", area->name ));
 
-	    break;
+		break;
 
 	default:
-	    do
-	    {
-		area = get_area_data( number_range( 1, i));
-	    } while ( area == NULL
-	    || !area->open
-	    || (no_get_random && IS_SET(area->area_flags, AREA_NO_GET_RANDOM))
-	    || !str_infix("Temples", area->name)
-	    || !str_infix("Housing", area->name )
-	    || ((area->place_flags != PLACE_FIRST_CONTINENT ) && (area->place_flags != PLACE_SECOND_CONTINENT))
-	    || !str_infix("Arena", area->name)
-	    || !str_infix("Maze", area->name));
-	    break;
-    }
+		do
+		{
+			area = get_area_data( number_range( 1, i));
+		} while ( area == NULL ||
+				!area->open ||
+				!is_area_unlocked(ch, area) ||
+				(no_get_random && IS_SET(area->area_flags, AREA_NO_GET_RANDOM)) ||
+				!str_infix("Temples", area->name) ||
+				!str_infix("Housing", area->name ) ||
+				((area->place_flags != PLACE_FIRST_CONTINENT ) &&
+				 (area->place_flags != PLACE_SECOND_CONTINENT)) ||
+				!str_infix("Arena", area->name) ||
+				!str_infix("Maze", area->name));
+		break;
+	}
 
-    return area;
+	return area;
 }
 
 OBJ_DATA *get_random_obj_area( CHAR_DATA *ch, AREA_DATA *area, ROOM_INDEX_DATA *room)
@@ -325,9 +328,9 @@ OBJ_DATA *get_random_obj( CHAR_DATA *ch, int continent )
 	{
 		switch (continent)
 		{
-		case FIRST_CONTINENT:	area = get_random_area(FIRST_CONTINENT, TRUE); 	break;
-		case SECOND_CONTINENT:	area = get_random_area(SECOND_CONTINENT, TRUE);	break;
-		default:				area = get_random_area(BOTH_CONTINENTS, TRUE);	break;
+		case FIRST_CONTINENT:	area = get_random_area(ch, FIRST_CONTINENT, TRUE); 	break;
+		case SECOND_CONTINENT:	area = get_random_area(ch, SECOND_CONTINENT, TRUE);	break;
+		default:				area = get_random_area(ch, BOTH_CONTINENTS, TRUE);	break;
 		}
 
 		if ( IS_SET(area->area_flags,AREA_NO_GET_RANDOM) )
@@ -416,9 +419,9 @@ CHAR_DATA *get_random_mob( CHAR_DATA *ch, int continent )
 
     switch (continent)
     {
-	case FIRST_CONTINENT:	area = get_random_area(FIRST_CONTINENT, TRUE); 	break;
-	case SECOND_CONTINENT:	area = get_random_area(SECOND_CONTINENT, TRUE);	break;
-	default:				area = get_random_area(BOTH_CONTINENTS, TRUE);	break;
+	case FIRST_CONTINENT:	area = get_random_area(ch, FIRST_CONTINENT, TRUE); 	break;
+	case SECOND_CONTINENT:	area = get_random_area(ch, SECOND_CONTINENT, TRUE);	break;
+	default:				area = get_random_area(ch, BOTH_CONTINENTS, TRUE);	break;
     }
 
 	return get_random_mob_area(ch, area);
@@ -507,9 +510,9 @@ ROOM_INDEX_DATA *get_random_room( CHAR_DATA *ch, int continent )
 
     switch (continent)
     {
-	case FIRST_CONTINENT:	area = get_random_area(FIRST_CONTINENT, TRUE); 	break;
-	case SECOND_CONTINENT:	area = get_random_area(SECOND_CONTINENT, TRUE);	break;
-	default:				area = get_random_area(BOTH_CONTINENTS, TRUE);	break;
+	case FIRST_CONTINENT:	area = get_random_area(ch, FIRST_CONTINENT, TRUE); 	break;
+	case SECOND_CONTINENT:	area = get_random_area(ch, SECOND_CONTINENT, TRUE);	break;
+	default:				area = get_random_area(ch, BOTH_CONTINENTS, TRUE);	break;
     }
 
     return get_random_room_area_byflags(ch, area,
