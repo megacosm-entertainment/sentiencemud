@@ -661,7 +661,7 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
     {
 		fprintf(fp, "UnlockedArea %ld\n", unlocked_area->anum);
 	}
-    iterator_start(&uait);
+    iterator_stop(&uait);
 
     for (cmd = ch->pcdata->commands; cmd != NULL; cmd = cmd->next)
 	fprintf(fp, "GrantedCommand %s~\n", cmd->name);

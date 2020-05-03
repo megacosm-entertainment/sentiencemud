@@ -3383,8 +3383,8 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 				"{B[  {Wv0{B]{G Charges:{x           [%ld]\n\r"
 				"{B[  {Wv1{B]{G Exit Flags:{x        %s\n\r"
 				"{B[  {Wv2{B]{G Portal Flags:{x      %s\n\r"
-				"{B[  {Wv3{B]{G Goes to (dungeon):{x [%ld]\n\r",
-				"{B[  {Wv3{B]{G Goes to (floor):  {x [%ld]\n\r",
+				"{B[  {Wv3{B]{G Goes to (dungeon):{x [%ld]\n\r"
+				"{B[  {Wv4{B]{G Goes to (floor):  {x [%ld]\n\r",
 				obj->value[0],
 				flag_string(portal_exit_flags, obj->value[1]),
 				flag_string(portal_flags, obj->value[2]),
