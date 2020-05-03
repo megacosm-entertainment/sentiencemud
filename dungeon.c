@@ -690,9 +690,9 @@ ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, long vnum)
 bool dungeon_can_idle(DUNGEON *dungeon)
 {
 	return IS_SET(dungeon->flags, DUNGEON_DESTROY) ||
-			!IS_SET(dungeon->flags, DUNGEON_NO_IDLE) &&
-			(!IS_SET(dungeon->flags, DUNGEON_IDLE_ON_COMPLETE) ||
-			IS_SET(dungeon->flags, DUNGEON_COMPLETED));
+			(!IS_SET(dungeon->flags, DUNGEON_NO_IDLE) &&
+				(!IS_SET(dungeon->flags, DUNGEON_IDLE_ON_COMPLETE) ||
+				IS_SET(dungeon->flags, DUNGEON_COMPLETED)));
 }
 
 void dungeon_check_empty(DUNGEON *dungeon)
@@ -2309,7 +2309,7 @@ void dungeon_save(FILE *fp, DUNGEON *dungeon)
 	iterator_start(&it, dungeon->player_owners);
 	while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
 	{
-		fprintf(fp, "Player %lu %lu\n\r", luid->uid[0], luid->uid[1]);
+		fprintf(fp, "Player %lu %lu\n\r", luid->id[0], luid->id[1]);
 	}
 	iterator_stop(&it);
 
@@ -2438,7 +2438,7 @@ void resolve_dungeon_player(DUNGEON *dungeon, CHAR_DATA *ch)
 	iterator_start(&it, dungeon->player_owners);
 	while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
 	{
-		if( luid->uid[0] == id1 && luid->uid[1] == id2)
+		if( luid->id[0] == id1 && luid->id[1] == id2)
 		{
 			luid->ptr = ch;
 			break;
@@ -2472,7 +2472,7 @@ void detach_dungeon_player(DUNGEON *dungeon, CHAR_DATA *ch)
 	iterator_start(&it, dungeon->player_owners);
 	while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
 	{
-		if( luid->uid[0] == id1 && luid->uid[1] == id2)
+		if( luid->id[0] == id1 && luid->id[1] == id2)
 		{
 			luid->ptr = NULL;
 			break;
@@ -2623,8 +2623,8 @@ void dungeon_addowner_player(DUNGEON *dungeon, CHAR_DATA *ch)
 	if( dungeon_isowner_player(dungeon, ch) ) return;
 
 	LLIST_UID_DATA *luid = new_list_uid_data();
-	luid->uid[0] = ch->id[0];
-	luid->uid[1] = ch->id[1];
+	luid->id[0] = ch->id[0];
+	luid->id[1] = ch->id[1];
 	luid->ptr = ch;
 
 	list_appendlink(dungeon->player_owners, luid);
@@ -2636,8 +2636,8 @@ void dungeon_addowner_playerid(DUNGEON *dungeon, unsigned long id1, unsigned lon
 	if( dungeon_isowner_playerid(dungeon, id1, id2) ) return;
 
 	LLIST_UID_DATA *luid = new_list_uid_data();
-	luid->uid[0] = id1;
-	luid->uid[1] = id2;
+	luid->id[0] = id1;
+	luid->id[1] = id2;
 	luid->ptr = NULL;
 
 	list_appendlink(dungeon->player_owners, luid);
@@ -2654,7 +2654,7 @@ void dungeon_removeowner_player(DUNGEON *dungeon, CHAR_DATA *ch)
 	iterator_start(&it, dungeon->player_owners);
 	while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
 	{
-		if( luid->uid[0] == ch->id[0] && luid->uid[1] == ch->id[1] )
+		if( luid->id[0] == ch->id[0] && luid->id[1] == ch->id[1] )
 		{
 			iterator_remcurrent(&it);
 			break;
@@ -2672,7 +2672,7 @@ void dungeon_removeowner_playerid(DUNGEON *dungeon, unsigned long id1, unsigned 
 	iterator_start(&it, dungeon->player_owners);
 	while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
 	{
-		if( luid->uid[0] == id1 && luid->uid[1] == id2 )
+		if( luid->id[0] == id1 && luid->id[1] == id2 )
 		{
 			iterator_remcurrent(&it);
 			break;
@@ -2692,7 +2692,7 @@ bool dungeon_isowner_player(DUNGEON *dungeon, CHAR_DATA *ch)
 	iterator_start(&it, dungeon->player_owners);
 	while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
 	{
-		if( luid->uid[0] == ch->id[0] && luid->uid[1] == ch->id[1] )
+		if( luid->id[0] == ch->id[0] && luid->id[1] == ch->id[1] )
 		{
 			ret = true;
 			break;
@@ -2712,7 +2712,7 @@ bool dungeon_isowner_playerid(DUNGEON *dungeon, unsigned long id1, unsigned long
 	iterator_start(&it, dungeon->player_owners);
 	while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
 	{
-		if( luid->uid[0] == id1 && luid->uid[1] == id2)
+		if( luid->id[0] == id1 && luid->id[1] == id2)
 		{
 			ret = true;
 			break;
@@ -2720,7 +2720,7 @@ bool dungeon_isowner_playerid(DUNGEON *dungeon, unsigned long id1, unsigned long
 	}
 	iterator_stop(&it);
 
-	return true;
+	return ret;
 }
 
 bool dungeon_canswitch_player(c, CHAR_DATA *ch)

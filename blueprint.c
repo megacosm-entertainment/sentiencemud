@@ -1234,9 +1234,9 @@ void update_instance(INSTANCE *instance)
 bool instance_can_idle(INSTANCE *instance)
 {
 	return IS_SET(instance->flags, INSTANCE_DESTROY) ||
-			!IS_SET(instance->flags, INSTANCE_NO_IDLE) &&
+			(!IS_SET(instance->flags, INSTANCE_NO_IDLE) &&
 				(!IS_SET(instance->flags, INSTANCE_IDLE_ON_COMPLETE) ||
-				IS_SET(instance->flags, INSTANCE_COMPLETED));
+				IS_SET(instance->flags, INSTANCE_COMPLETED)));
 }
 
 void instance_check_empty(INSTANCE *instance)
@@ -3897,9 +3897,10 @@ void do_instance(CHAR_DATA *ch, char *argument)
 			else if( IS_SET(instance->flags, INSTANCE_COMPLETED) )
 				color = 'W';
 
-			sprintf(buf, "%4d {Y[{W%5ld{Y] {x%-30.30s  %s{x\n\r",
+			sprintf(buf, "%4d {Y[{W%5ld{Y] {%c%-30.30s{x  %s{x\n\r",
 				lines,
 				instance->blueprint->vnum,
+				color,
 				instance->blueprint->name,
 				owner);
 
@@ -4033,6 +4034,7 @@ void do_instance(CHAR_DATA *ch, char *argument)
 
 		if( list_size(instance->players) > 0 )
 		{
+			char buf[MSL];
 			if( IS_SET(instance->flags, INSTANCE_DESTROY) )
 			{
 				send_to_char("Instance is already flagged for unloading.\n\r", ch);
@@ -4126,7 +4128,7 @@ void instance_save(FILE *fp, INSTANCE *instance)
 	iterator_start(&it, instance->player_owners);
 	while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
 	{
-		fprintf(fp, "Player %lu %lu\n\r", luid->uid[0], luid->uid[1]);
+		fprintf(fp, "Player %lu %lu\n\r", luid->id[0], luid->id[1]);
 	}
 	iterator_stop(&it);
 
@@ -4403,8 +4405,8 @@ void resolve_instance_player(INSTANCE *instance, CHAR_DATA *ch)
 	iterator_start(&it, instance->player_owners);
 	while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
 	{
-		if( luid->uid[0] == ch->id[0] &&
-			luid->uid[1] == ch->id[1])
+		if( luid->id[0] == ch->id[0] &&
+			luid->id[1] == ch->id[1])
 		{
 			luid->ptr = ch;
 			continue;
@@ -4423,7 +4425,7 @@ void resolve_instances_player(CHAR_DATA *ch)
 	iterator_start(&it, loaded_instances);
 	while( (instance = (INSTANCE *)iterator_nextdata(&it)) )
 	{
-		resolve_instance_player(ch);
+		resolve_instance_player(instance, ch);
 
 		// Iterate over the character's quest list
 	}
@@ -4532,8 +4534,8 @@ void instance_addowner_player(INSTANCE *instance, CHAR_DATA *ch)
 	if( instance_isowner_player(instance, ch) ) return;
 
 	LLIST_UID_DATA *luid = new_list_uid_data();
-	luid->uid[0] = ch->id[0];
-	luid->uid[1] = ch->id[1];
+	luid->id[0] = ch->id[0];
+	luid->id[1] = ch->id[1];
 	luid->ptr = ch;
 
 	list_appendlink(instance->player_owners, luid);
@@ -4545,8 +4547,8 @@ void instance_addowner_playerid(INSTANCE *instance, unsigned long id1, unsigned 
 	if( instance_isowner_playerid(instance, id1, id2) ) return;
 
 	LLIST_UID_DATA *luid = new_list_uid_data();
-	luid->uid[0] = id1;
-	luid->uid[1] = id2;
+	luid->id[0] = id1;
+	luid->id[1] = id2;
 	luid->ptr = NULL;
 
 	list_appendlink(instance->player_owners, luid);
@@ -4563,7 +4565,7 @@ void instance_removeowner_player(INSTANCE *instance, CHAR_DATA *ch)
 	iterator_start(&it, instance->player_owners);
 	while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
 	{
-		if( luid->uid[0] == ch->id[0] && luid->uid[1] == ch->id[1] )
+		if( luid->id[0] == ch->id[0] && luid->id[1] == ch->id[1] )
 		{
 			iterator_remcurrent(&it);
 			break;
@@ -4581,7 +4583,7 @@ void instance_removeowner_playerid(INSTANCE *instance, unsigned long id1, unsign
 	iterator_start(&it, instance->player_owners);
 	while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
 	{
-		if( luid->uid[0] == id1 && luid->uid[1] == id2 )
+		if( luid->id[0] == id1 && luid->id[1] == id2 )
 		{
 			iterator_remcurrent(&it);
 			break;
@@ -4601,7 +4603,7 @@ bool instance_isowner_player(INSTANCE *instance, CHAR_DATA *ch)
 	iterator_start(&it, instance->player_owners);
 	while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
 	{
-		if( luid->uid[0] == ch->id[0] && luid->uid[1] == ch->id[1] )
+		if( luid->id[0] == ch->id[0] && luid->id[1] == ch->id[1] )
 		{
 			ret = true;
 			break;
@@ -4609,7 +4611,7 @@ bool instance_isowner_player(INSTANCE *instance, CHAR_DATA *ch)
 	}
 	iterator_stop(&it);
 
-	return true;
+	return ret;
 }
 
 bool instance_isowner_playerid(INSTANCE *instance, unsigned long id1, unsigned long id2)
@@ -4621,7 +4623,7 @@ bool instance_isowner_playerid(INSTANCE *instance, unsigned long id1, unsigned l
 	iterator_start(&it, instance->player_owners);
 	while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
 	{
-		if( luid->uid[0] == id1 && luid->uid[1] == id2)
+		if( luid->id[0] == id1 && luid->id[1] == id2)
 		{
 			ret = true;
 			break;
