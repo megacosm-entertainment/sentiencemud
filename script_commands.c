@@ -3369,7 +3369,7 @@ SCRIPT_CMD(scriptcmd_revokeskill)
 SCRIPT_CMD(scriptcmd_sendfloor)
 {
 	char *rest;
-	CHAR_DATA *ch;
+	CHAR_DATA *ch, *vch, *next;
 	DUNGEON *dungeon;
 	int floor, mode;
 
@@ -3404,7 +3404,7 @@ SCRIPT_CMD(scriptcmd_sendfloor)
 	if( !IS_VALID(instance) )
 		return;
 
-	if( !instance->entrance) )
+	if( !IS_VALID(instance->entrance) )
 		return;
 
 	if( !(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING )
@@ -3423,7 +3423,7 @@ SCRIPT_CMD(scriptcmd_sendfloor)
 
 	if( group )
 	{
-		for (CHAR_DATA *vch = ch->in_room->people; vch; vch = next) {
+		for (vch = ch->in_room->people; vch; vch = next) {
 			next = vch->next_in_room;
 			if (PROG_FLAG(vch,PROG_AT)) continue;
 			if ((!IS_NPC(vch) || !IS_SET(vch->act2,ACT2_INSTANCE_MOB)) &&
@@ -3436,8 +3436,8 @@ SCRIPT_CMD(scriptcmd_sendfloor)
 	}
 	else if( all )
 	{
-		for (CHAR_DATA *vch = ch->in_room->people; victim; victim = vnext) {
-			vnext = vch->next_in_room;
+		for (vch = ch->in_room->people; vch; vch = next) {
+			next = vch->next_in_room;
 			if (PROG_FLAG(vch,PROG_AT)) continue;
 			if (!IS_NPC(vch) || !IS_SET(vch->act2,ACT2_INSTANCE_MOB)) {
 				if (vch->position != POS_STANDING) continue;
@@ -3504,7 +3504,7 @@ SCRIPT_CMD(scriptcmd_spawndungeon)
 	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER || !*rest)
 		return;
 
-	int floor = arg->d.num
+	int floor = arg->d.num;
 
 	ROOM_INDEX_DATA *room = spawn_dungeon_player(ch, vnum, floor);
 
