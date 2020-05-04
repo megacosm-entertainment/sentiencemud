@@ -4326,15 +4326,15 @@ SCRIPT_CMD(do_mpalterobj)
 		default:
 			return;
 		}
-	}
 
-	if( ptr )
-	{
-		if(hasmin && *ptr < min)
-			*ptr = min;
+		if( ptr )
+		{
+			if(hasmin && *ptr < min)
+				*ptr = min;
 
-		if(hasmax && *ptr > max)
-			*ptr = max;
+			if(hasmax && *ptr > max)
+				*ptr = max;
+		}
 	}
 }
 
