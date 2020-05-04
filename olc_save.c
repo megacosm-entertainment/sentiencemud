@@ -3013,12 +3013,14 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 	log_string(buf);
     }
 */
-    if (obj->item_type == ITEM_SCROLL
-    ||  obj->item_type == ITEM_POTION
-    ||  obj->item_type == ITEM_PILL
-    ||  obj->item_type == ITEM_STAFF
-    ||  obj->item_type == ITEM_WAND)
-	fix_magic_object_index(obj);
+    if (obj->item_type == ITEM_SCROLL ||
+    	obj->item_type == ITEM_POTION ||
+    	obj->item_type == ITEM_PILL ||
+    	obj->item_type == ITEM_STAFF ||
+    	obj->item_type == ITEM_WAND)
+    {
+		fix_magic_object_index(obj);
+	}
 
 	if (area)
 	{
@@ -3047,7 +3049,7 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 
 						if( IS_SET(obj->value[1], VO_004_CONT_PICKPROOF) )
 						{
-							SET_BIT(obj->lock->pick_chance = 0;
+							obj->lock->pick_chance = 0;
 						}
 
 						if( IS_SET(obj->value[1], VO_004_CONT_SNAPKEY) )
@@ -3079,19 +3081,19 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 
 						if( IS_SET(obj->value[1], VO_004_EX_PICKPROOF) )
 						{
-							SET_BIT(obj->lock->pick_chance = 0;
+							obj->lock->pick_chance = 0;
 						}
 						else if( IS_SET(obj->value[1], VO_004_EX_INFURIATING) )
 						{
-							SET_BIT(obj->lock->pick_chance = 10;
+							obj->lock->pick_chance = 10;
 						}
 						else if( IS_SET(obj->value[1], VO_004_EX_HARD) )
 						{
-							SET_BIT(obj->lock->pick_chance = 40;
+							obj->lock->pick_chance = 40;
 						}
 						else if( IS_SET(obj->value[1], VO_004_EX_EASY) )
 						{
-							SET_BIT(obj->lock->pick_chance = 80;
+							obj->lock->pick_chance = 80;
 						}
 
 

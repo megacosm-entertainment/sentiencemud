@@ -4912,7 +4912,7 @@ OEDIT(oedit_show)
 		OBJ_INDEX_DATA *lock_key = (pObj->lock->key_vnum > 0) ? get_obj_index(pObj->lock->key_vnum) : NULL;
 
 	    sprintf(buf,"Lock State:\n\r"
-	    			"  Key:         {B[{x%7d{B]{x %s\n\r"
+	    			"  Key:         {B[{x%7ld{B]{x %s\n\r"
 	    			"  Flags:       {B[{x%s{B]{x\n\r"
 	    			"  Pick Chance: {B[{x%d%%{B]{x\n\r",
 	    			pObj->lock->key_vnum,
@@ -5886,15 +5886,15 @@ OEDIT(oedit_lock)
 				return FALSE;
 			}
 
-			pObj->lock->key = vnum;
+			pObj->lock->key_vnum = vnum;
 			send_to_char("Lock State key set.\n\r", ch);
-			return TRUE:
+			return TRUE;
 		}
 		else if( !str_prefix(argument, "clear") )
 		{
-			pObj->lock->key = 0;
+			pObj->lock->key_vnum = 0;
 			send_to_char("Lock State key removed.\n\r", ch);
-			return TRUE:
+			return TRUE;
 		}
 
 		oedit_lock(ch, "lock key");

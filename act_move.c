@@ -1902,7 +1902,7 @@ void do_unlock(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			if ((key = get_key(obj->lock->key_vnum)) == NULL)
+			if ((key = get_key(ch, obj->lock->key_vnum)) == NULL)
 			{
 				send_to_char("You lack the key.\n\r",ch);
 				return;
@@ -1938,7 +1938,7 @@ void do_unlock(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		if ((key = get_key(obj->lock->key_vnum)) == NULL)
+		if ((key = get_key(ch, obj->lock->key_vnum)) == NULL)
 		{
 			send_to_char("You lack the key.\n\r",ch);
 			return;

@@ -3656,7 +3656,7 @@ void fix_object(OBJ_DATA *obj)
 
 					if( IS_SET(obj->value[1], VO_004_CONT_PICKPROOF) )
 					{
-						SET_BIT(obj->lock->pick_chance = 0;
+						obj->lock->pick_chance = 0;
 					}
 
 					if( IS_SET(obj->value[1], VO_004_CONT_SNAPKEY) )

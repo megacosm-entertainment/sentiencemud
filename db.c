@@ -2759,7 +2759,7 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects)
 
     if( pObjIndex->lock )
     {
-		obj->lock = new_lock_state()
+		obj->lock = new_lock_state();
 		obj->lock->key_vnum = pObjIndex->lock->key_vnum;
 		obj->lock->flags = pObjIndex->lock->flags;
 		obj->lock->pick_chance = pObjIndex->lock->pick_chance;
@@ -7758,7 +7758,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 		// Correct exits
 		for( int e = 0; e < MAX_DIR; e++)
 		{
-			ex = room->exit[e];
+			EXIT_DATA *ex = room->exit[e];
 
 			if( !ex ) continue;
 
@@ -7794,24 +7794,24 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 			// Correct Active
 			if( IS_SET(ex->exit_info, VR_002_EX_LOCKED) )
 			{
-				SET_BIT(ex->door.lock,flags, LOCK_LOCKED);
+				SET_BIT(ex->door.lock.flags, LOCK_LOCKED);
 			}
 
 			if( IS_SET(ex->exit_info, VR_002_EX_PICKPROOF) )
 			{
-				ex->door.lock,pick_chance = 0;
+				ex->door.lock.pick_chance = 0;
 			}
 			else if( IS_SET(ex->exit_info, VR_002_EX_INFURIATING) )
 			{
-				ex->door.lock,pick_chance = 10;
+				ex->door.lock.pick_chance = 10;
 			}
 			else if( IS_SET(ex->exit_info, VR_002_EX_HARD) )
 			{
-				ex->door.lock,pick_chance = 40;
+				ex->door.lock.pick_chance = 40;
 			}
 			else if( IS_SET(ex->exit_info, VR_002_EX_EASY) )
 			{
-				ex->door.lock,pick_chance = 80;
+				ex->door.lock.pick_chance = 80;
 			}
 			else
 			{
