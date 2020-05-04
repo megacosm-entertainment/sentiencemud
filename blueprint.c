@@ -1094,8 +1094,7 @@ bool generate_static_instance(INSTANCE *instance)
 						REMOVE_BIT(ex->rs_flags, EX_ENVIRONMENT);
 						SET_BIT(ex->rs_flags, EX_NEXTFLOOR);
 						ex->exit_info = ex->rs_flags;
-						ex->door.lock.flags = ex->door.rs_lock_flags;
-						ex->door.lock.pick_chance = ex->door.rs_pick_chance;
+						ex->door.lock = ex->door.rs_lock;
 						ex->u1.to_room = NULL;
 
 

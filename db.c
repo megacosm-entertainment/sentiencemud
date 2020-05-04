@@ -5886,6 +5886,7 @@ void persist_save_exit(FILE *fp, EXIT_DATA *ex)
 		ex->door.lock.key_vnum,
 		flag_string(lock_flags, ex->door.lock.flags),
 		ex->door.lock.pick_chance,
+		ex->door.rs_lock.key_vnum,
 		flag_string(lock_flags, ex->door.rs_lock.flags),
 		ex->door.rs_lock.pick_chance,
 		ex->door.strength);
@@ -7286,7 +7287,7 @@ EXIT_DATA *persist_load_exit(FILE *fp)
 					ex->door.rs_lock.key_vnum = fread_number(fp);
 					ex->door.rs_lock.flags = 0;
 					ex->door.rs_lock.pick_chance = 100;
-					ex->door.lock.flags = ex->door.rs_lock;
+					ex->door.lock = ex->door.rs_lock;
 					ex->door.strength = fread_number(fp);
 					fMatch = TRUE;
 					break;

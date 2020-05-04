@@ -1109,7 +1109,7 @@ bool link_vlink(WILDS_VLINK *pVLink)
 			pExit->exit_info = pExit->rs_flags;
 			pExit->door.rs_lock.key_vnum = pVLink->orig_key;
 			pExit->door.rs_lock.flags = pVLink->orig_lock;
-			pExit->door.rs_lock.pick_chance =  = pVLink->orig_pick;
+			pExit->door.rs_lock.pick_chance = pVLink->orig_pick;
 			pExit->door.lock = pExit->door.rs_lock;
 			pExit->u1.vnum = pVLink->destvnum;
 			pExit->u1.to_room = get_room_index(pExit->u1.vnum);
@@ -1149,7 +1149,7 @@ bool link_vlink(WILDS_VLINK *pVLink)
 					pExit->exit_info = pExit->rs_flags;
 					pExit->door.rs_lock.key_vnum = pVLink->rev_key;
 					pExit->door.rs_lock.flags = pVLink->rev_lock;
-					pExit->door.rs_lock.pick_chance =  = pVLink->rev_pick;
+					pExit->door.rs_lock.pick_chance = pVLink->rev_pick;
 					pExit->door.lock = pExit->door.rs_lock;
 					pExit->u1.vnum = 0;
 					pExit->u1.to_room = NULL;

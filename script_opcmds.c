@@ -4853,7 +4853,7 @@ SCRIPT_CMD(do_opalterexit)
 	else if(!str_cmp(field,"resets"))			{ ptr = (int*)&ex->rs_flags; flags = exit_flags; min_sec = 7; }
 	else if(!str_cmp(field,"strength"))			sptr = (sh_int*)&ex->door.strength;
 	else if(!str_cmp(field,"lock"))				{ ptr = (int*)&ex->door.lock.flags; flags = lock_flags; }
-	else if(!str_cmp(field,"lockreset"))		{ ptr = (int*)&ex->door.rs_lock_flags; flags = lock_flags; min_sec = 7; }
+	else if(!str_cmp(field,"lockreset"))		{ ptr = (int*)&ex->door.rs_lock.flags; flags = lock_flags; min_sec = 7; }
 	else if(!str_cmp(field,"key"))				ptr = (int*)&ex->door.lock.key_vnum;
 	else if(!str_cmp(field,"keyreset"))			{ ptr = (int*)&ex->door.rs_lock.key_vnum; min_sec = 7; }
 	else if(!str_cmp(field,"pick"))				ptr = (int*)&ex->door.lock.pick_chance;

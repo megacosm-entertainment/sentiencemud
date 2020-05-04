@@ -2346,16 +2346,16 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 			return FALSE;
 		}
 
-		TOGGLE_BIT(pRoom->exit[door]->door.rs_lock_flags,  value);
+		TOGGLE_BIT(pRoom->exit[door]->door.rs_lock.flags,  value);
 		// Don't toggle exit_info because it can be changed by players.
-		pRoom->exit[door]->door.lock.flags = pRoom->exit[door]->door.rs_lock_flags;
+		pRoom->exit[door]->door.lock.flags = pRoom->exit[door]->door.rs_lock.flags;
 
 		ROOM_INDEX_DATA *pToRoom = pRoom->exit[door]->u1.to_room;
 		int rev = rev_dir[door];
 
 		if (pToRoom != NULL && pToRoom->exit[rev] != NULL)
 		{
-			TOGGLE_BIT(pToRoom->exit[rev]->door.rs_lock_flags,  value);
+			TOGGLE_BIT(pToRoom->exit[rev]->door.rs_lock.flags,  value);
 			TOGGLE_BIT(pToRoom->exit[rev]->door.lock.flags, value);
 		}
 
