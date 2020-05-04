@@ -202,6 +202,7 @@ extern	const	struct	flag_type	portal_flags[];
 extern	const	struct	flag_type	room_flags[];
 extern	const	struct	flag_type	room2_flags[];
 extern	const	struct	flag_type	exit_flags[];
+extern	const	struct	flag_type	lock_flags[];
 extern	const	struct	flag_type	portal_exit_flags[];
 extern 	const	struct  flag_type	mprog_flags[];
 extern	const	struct	flag_type	oprog_flags[];

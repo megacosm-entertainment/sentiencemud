@@ -1472,9 +1472,9 @@ void do_open(CHAR_DATA *ch, char *argument)
 			send_to_char("It has been barred.\n\r", ch);
 			return;
 		}
-		if ( IS_SET(pexit->exit_info, EX_LOCKED))
+		if ( IS_SET(pexit->door.lock.flags, LOCK_LOCKED))
 		{
-			if ((key = get_key(ch, pexit->door.key_vnum)) != NULL)
+			if ((key = get_key(ch, pexit->door.lock.key_vnum)) != NULL)
 			{
 				do_function(ch, &do_unlock, dir_name[door]);
 				do_function(ch, &do_open, dir_name[door]);
@@ -1809,23 +1809,23 @@ void do_lock(CHAR_DATA *ch, char *argument)
 			send_to_char("It's not closed.\n\r", ch);
 			return;
 		}
-		if (pexit->door.key_vnum < 0)
+		if (pexit->door.lock.key_vnum < 0)
 		{
 			send_to_char("It can't be locked.\n\r", ch);
 			return;
 		}
-		if ((key = get_key(ch, pexit->door.key_vnum)) == NULL)
+		if ((key = get_key(ch, pexit->door.lock.key_vnum)) == NULL)
 		{
 			send_to_char("You lack the key.\n\r", ch);
 			return;
 		}
-		if (IS_SET(pexit->exit_info, EX_LOCKED))
+		if (IS_SET(pexit->door.lock.flags, LOCK_LOCKED))
 		{
 			send_to_char("It's already locked.\n\r", ch);
 			return;
 		}
 
-		SET_BIT(pexit->exit_info, EX_LOCKED);
+		SET_BIT(pexit->door.lock.flags, LOCK_LOCKED);
 		/* send_to_char("*Click*\n\r", ch); */
 		exit_name(ch->in_room, door, exit);
 		act("You lock $T.", ch, NULL, NULL, NULL, NULL, NULL, exit, TO_CHAR);
@@ -1835,7 +1835,7 @@ void do_lock(CHAR_DATA *ch, char *argument)
 		if ((to_room   = pexit->u1.to_room) != NULL &&
 			(pexit_rev = to_room->exit[rev_dir[door]]) != 0 &&
 			pexit_rev->u1.to_room == ch->in_room)
-			SET_BIT(pexit_rev->exit_info, EX_LOCKED);
+			SET_BIT(pexit_rev->door.lock.flags, LOCK_LOCKED);
 
 		use_key(ch, key);
 	}
@@ -1961,23 +1961,23 @@ void do_unlock(CHAR_DATA *ch, char *argument)
 			send_to_char("It's not closed.\n\r", ch);
 			return;
 		}
-		if (pexit->door.key_vnum < 0)
+		if (pexit->door.lock.key_vnum < 0)
 		{
 			send_to_char("It can't be unlocked.\n\r", ch);
 			return;
 		}
-		if ((key = get_key(ch, pexit->door.key_vnum)) == NULL)
+		if ((key = get_key(ch, pexit->door.lock.key_vnum)) == NULL)
 		{
 			send_to_char("You lack the key.\n\r", ch);
 			return;
 		}
-		if (!IS_SET(pexit->exit_info, EX_LOCKED))
+		if (!IS_SET(pexit->door.lock.flags, LOCK_LOCKED))
 		{
 			send_to_char("It's already unlocked.\n\r", ch);
 			return;
 		}
 
-		REMOVE_BIT(pexit->exit_info, EX_LOCKED);
+		REMOVE_BIT(pexit->door.lock.flags, LOCK_LOCKED);
 		/* send_to_char("*Click*\n\r", ch); */
 		exit_name(ch->in_room, door, exit);
 		act("You unlock $T.", ch, NULL, NULL, NULL, NULL, NULL, exit, TO_CHAR);
@@ -1987,7 +1987,7 @@ void do_unlock(CHAR_DATA *ch, char *argument)
 		if ((to_room   = pexit->u1.to_room) != NULL &&
 			(pexit_rev = to_room->exit[rev_dir[door]]) != NULL &&
 			pexit_rev->u1.to_room == ch->in_room)
-			REMOVE_BIT(pexit_rev->exit_info, EX_LOCKED);
+			REMOVE_BIT(pexit_rev->door.lock.flags, LOCK_LOCKED);
 
 		use_key(ch, key);
 	}
@@ -2113,12 +2113,12 @@ void do_pick(CHAR_DATA *ch, char *argument)
 			send_to_char("It's not closed.\n\r", ch);
 			return;
 		}
-		if (pexit->door.key_vnum < 0 && !IS_IMMORTAL(ch))
+		if (pexit->door.lock.key_vnum < 0 && !IS_IMMORTAL(ch))
 		{
 			send_to_char("It can't be picked.\n\r", ch);
 			return;
 		}
-		if (!IS_SET(pexit->exit_info, EX_LOCKED))
+		if (!IS_SET(pexit->door.lock.flags, LOCK_LOCKED))
 		{
 			send_to_char("It's already unlocked.\n\r", ch);
 			return;
@@ -2129,7 +2129,7 @@ void do_pick(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		REMOVE_BIT(pexit->exit_info, EX_LOCKED);
+		REMOVE_BIT(pexit->door.lock.flags, LOCK_LOCKED);
 		send_to_char("*Click*\n\r", ch);
 		act("$n picks the $d.", ch, NULL, NULL, NULL, NULL, NULL, pexit->keyword, TO_ROOM);
 		check_improve(ch,gsn_pick_lock,TRUE,2);
@@ -2139,7 +2139,7 @@ void do_pick(CHAR_DATA *ch, char *argument)
 			(pexit_rev = to_room->exit[rev_dir[door]]) != NULL &&
 			pexit_rev->u1.to_room == ch->in_room)
 		{
-			REMOVE_BIT(pexit_rev->exit_info, EX_LOCKED);
+			REMOVE_BIT(pexit_rev->door.lock.flags, LOCK_LOCKED);
 		}
 	}
 }

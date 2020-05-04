@@ -1830,10 +1830,12 @@ REDIT(redit_show)
 
             if (IS_SET(pexit->rs_flags, EX_ISDOOR))
             {
-                sprintf (buf, "    -Door Material: [{W%s{x] Strength: [{W%d{x] Key vnum: [{W%ld{x]\n\r",
+                sprintf (buf, "    -Door Material: [{W%s{x] Strength: [{W%d{x]  Lock Flags: [{W%s{x]  Key vnum: [{W%ld{x] Pick chance: [{W%d%%{x]\n\r",
                          pexit->door.material,
                          pexit->door.strength,
-                         pexit->door.key_vnum);
+                         flag_string(lock_flags, pexit->door.lock.flags),
+                         pexit->door.lock.key_vnum,
+                         pexit->door.lock.pick_chance);
                 add_buf(buf1, buf);
             }
             else
@@ -2328,38 +2330,99 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 		return TRUE;
 	}
 
+	if (!str_cmp(command, "lockflags"))
+	{
+		if( (value = flag_value(lock_flags, argument)) == NO_FLAG )
+		{
+			send_to_char("Syntax:  [direction] lockflags [flags]\n\r", ch);
+			return FALSE;
+		}
+
+
+		if (!pRoom->exit[door])
+		{
+			send_to_char("Exit doesn't exist.\n\r",ch);
+			return FALSE;
+		}
+
+		TOGGLE_BIT(pRoom->exit[door]->door.rs_lock_flags,  value);
+		// Don't toggle exit_info because it can be changed by players.
+		pRoom->exit[door]->door.lock.flags = pRoom->exit[door]->door.rs_lock_flags;
+
+		pToRoom = pRoom->exit[door]->u1.to_room;
+		rev = rev_dir[door];
+
+		if (pToRoom != NULL && pToRoom->exit[rev] != NULL)
+		{
+			TOGGLE_BIT(pToRoom->exit[rev]->door.rs_lock_flags,  value);
+			TOGGLE_BIT(pToRoom->exit[rev]->door.lock.flags, value);
+		}
+
+		send_to_char("Exit flag toggled.\n\r", ch);
+		return TRUE;
+	}
+
+
+	if (!str_cmp(command, "pick_chance"))
+	{
+		if (arg[0] == '\0' || !is_number(arg))
+		{
+			send_to_char("Syntax:  [direction] pick_chance [0-100]\n\r", ch);
+			return FALSE;
+		}
+
+		if (!pRoom->exit[door])
+		{
+			send_to_char("Exit doesn't exist.\n\r",ch);
+			return FALSE;
+		}
+
+		value = atoi(arg);
+
+		if( value < 0 || value > 100 )
+		{
+			send_to_char("Chance between 0% and 100%.\n\r",ch);
+			return FALSE;
+		}
+
+		pRoom->exit[door]->door.pick_chance = value;
+
+		send_to_char("Exit pick chance set.\n\r", ch);
+		return TRUE;
+	}
+
 	if (!str_cmp(command, "key"))
 	{
-	if (arg[0] == '\0' || !is_number(arg))
-	{
-	send_to_char("Syntax:  [direction] key [vnum]\n\r", ch);
-	return FALSE;
-	}
+		if (arg[0] == '\0' || !is_number(arg))
+		{
+			send_to_char("Syntax:  [direction] key [vnum]\n\r", ch);
+			return FALSE;
+		}
 
-	if (!pRoom->exit[door])
-	{
-	send_to_char("Exit doesn't exist.\n\r",ch);
-	return FALSE;
-	}
+		if (!pRoom->exit[door])
+		{
+			send_to_char("Exit doesn't exist.\n\r",ch);
+			return FALSE;
+		}
 
-	value = atoi(arg);
+		value = atoi(arg);
 
-	if (!get_obj_index(value))
-	{
-	send_to_char("REdit:  Item doesn't exist.\n\r", ch);
-	return FALSE;
-	}
+		if (!get_obj_index(value))
+		{
+			send_to_char("REdit:  Item doesn't exist.\n\r", ch);
+			return FALSE;
+		}
 
-	if (get_obj_index(atol(argument))->item_type != ITEM_KEY)
-	{
-	send_to_char("REdit:  Key doesn't exist.\n\r", ch);
-	return FALSE;
-	}
+		if (get_obj_index(atol(argument))->item_type != ITEM_KEY)
+		{
+			send_to_char("REdit:  Key doesn't exist.\n\r", ch);
+			return FALSE;
+		}
 
-	pRoom->exit[door]->door.key_vnum = atol(arg);
+		pRoom->exit[door]->door.lock.key_vnum = atol(arg);
 
-	send_to_char("Exit key set.\n\r", ch);
-	return TRUE;
+		send_to_char("Exit key set.\n\r", ch);
+		return TRUE;
 	}
 
 	if (!str_cmp(command, "name"))
@@ -11177,10 +11240,14 @@ VLEDIT ( vledit_show )
     printf_to_char(ch, "Wilds link keyword: %s\n\r",   pVLink->orig_keyword);
     printf_to_char(ch, "Wilds link rs_flags: %s\n\r",   flag_string(exit_flags, pVLink->orig_rs_flags));
     printf_to_char(ch, "Wilds key obj vnum: %ld\n\r\n\r",   pVLink->orig_key);
+    printf_to_char(ch, "Wilds lock flags: %s\n\r",   flag_string(lock_flags, pVLink->orig_lock));
+    printf_to_char(ch, "Wilds link pick chance: %d%%\n\r\n\r",   pVLink->orig_pick);
     printf_to_char(ch, "Reverse link description: %s\n\r",   pVLink->rev_description);
     printf_to_char(ch, "Reverse link keyword: %s\n\r",   pVLink->rev_keyword);
     printf_to_char(ch, "Reverse link rs_flags: %s\n\r",   flag_string (exit_flags, pVLink->rev_rs_flags));
     printf_to_char(ch, "Reverse key obj vnum: %ld\n\r\n\r",   pVLink->rev_key);
+    printf_to_char(ch, "Reverse lock flags: %s\n\r",   flag_string(lock_flags, pVLink->rev_lock));
+    printf_to_char(ch, "Reverse link pick chance: %d%%\n\r\n\r",   pVLink->rev_pick);
 
     return (FALSE);
 }

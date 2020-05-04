@@ -1483,6 +1483,7 @@ EXIT_DATA *new_exit( void )
     pExit->next         =   NULL;
     pExit->exit_info    =   0;
     pExit->door.key_vnum=   0;
+    pExit->door.pick_chance	= 100;
     pExit->keyword      =   &str_empty[0];
     pExit->short_desc   =   &str_empty[0];
     pExit->long_desc	=	&str_empty[0];
@@ -3935,5 +3936,26 @@ void free_dungeon(DUNGEON *dng)
 	INVALIDATE(dng);
 	dng->next = dungeon_free;
 	dungeon_free = dng;
+}
+
+
+
+LOCK_STATE *new_lock_state()
+{
+	LOCK_STATE *state = alloc_mem(sizeof(LOCK_STATE));
+
+	state->key_vnum		= 0;
+	state->pick_chance	= 100;
+	state->flags		= 0;
+
+	return state;
+}
+
+void free_lock_state(LOCK_STATE *state)
+{
+	if( state )
+	{
+		free_mem(state, sizeof(LOCK_STATE));
+	}
 }
 

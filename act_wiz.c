@@ -1483,10 +1483,13 @@ void do_rstat(CHAR_DATA *ch, char *argument)
 			{
 				sprintf(buf,
                         "{x%s {Y[ENVIRONMENT]{x\n\r"
-						"    {YKey: {x%ld  {YExit flags: {x%s\n\r"
-                        "    {YKeyword:{x '%s'  {YDescription: {x%s",
+						"    {YKey: {x%ld  Pick Chance: {x%d%%\n\r"
+						"    {YLock Flags: {x%s\n\r"
+						"    {YExit flags: {x%s\n\r"
+						"    {YKeyword:{x '%s'  {YDescription: {x%s",
                         dir_name[door],
-                        pexit->door.key_vnum,
+                        pexit->door.lock.key_vnum, pexit->door.lock.pick_chance,
+						flag_string(lock_flags, pexit->door.lock.flags),
                         flag_string(exit_flags, pexit->exit_info),
                         pexit->keyword,
                         pexit->short_desc[0] != '\0'
@@ -1496,10 +1499,13 @@ void do_rstat(CHAR_DATA *ch, char *argument)
 			{
 				sprintf(buf,
                         "{x%s {Y[PREVIOUS FLOOR]{x\n\r"
-						"    {YKey: {x%ld  {YExit flags: {x%s\n\r"
+						"    {YKey: {x%ld  Pick Chance: {x%d%%\n\r"
+						"    {YLock Flags: {x%s\n\r"
+						"    {YExit flags: {x%s\n\r"
                         "    {YKeyword:{x '%s'  {YDescription: {x%s",
                         dir_name[door],
-                        pexit->door.key_vnum,
+                        pexit->door.lock.key_vnum, pexit->door.lock.pick_chance,
+						flag_string(lock_flags, pexit->door.lock.flags),
                         flag_string(exit_flags, pexit->exit_info),
                         pexit->keyword,
                         pexit->short_desc[0] != '\0'
@@ -1509,10 +1515,13 @@ void do_rstat(CHAR_DATA *ch, char *argument)
 			{
 				sprintf(buf,
 					"{x%s {Y[NEXT FLOOR]{x\n\r"
-					"    {YKey: {x%ld  {YExit flags: {x%s\n\r"
+					"    {YKey: {x%ld  Pick Chance: {x%d%%\n\r"
+					"    {YLock Flags: {x%s\n\r"
+					"    {YExit flags: {x%s\n\r"
 					"    {YKeyword:{x '%s'  {YDescription: {x%s",
 					dir_name[door],
-					pexit->door.key_vnum,
+					pexit->door.lock.key_vnum, pexit->door.lock.pick_chance,
+					flag_string(lock_flags, pexit->door.lock.flags),
 					flag_string(exit_flags, pexit->exit_info),
 					pexit->keyword,
 					pexit->short_desc[0] != '\0'
@@ -1525,14 +1534,17 @@ void do_rstat(CHAR_DATA *ch, char *argument)
 
 				sprintf(buf,
 					"{x%s {Yto vnum {x%ld '%s' {Yin Area uid:{x %ld '%s'\n\r"
-					"    {YKey: {x%ld  {YExit flags: {x%s\n\r"
+					"    {YKey: {x%ld  Pick Chance: {x%d%%\n\r"
+					"    {YLock Flags: {x%s\n\r"
+					"    {YExit flags: {x%s\n\r"
 					"    {YKeyword:{x '%s'  {YDescription: {x%s",
 					dir_name[door],
 					(dest ? dest->vnum : -1),
 					(dest ? dest->name : "(null)"),
 					(dest ? dest->area->uid : -1),
 					(dest ? dest->area->name : "(null)"),
-					pexit->door.key_vnum,
+					pexit->door.lock.key_vnum, pexit->door.lock.pick_chance,
+					flag_string(lock_flags, pexit->door.lock.flags),
 					flag_string(exit_flags, pexit->exit_info),
 					pexit->keyword,
 					pexit->short_desc[0] != '\0'
@@ -1544,14 +1556,17 @@ void do_rstat(CHAR_DATA *ch, char *argument)
                     /* Exit goes to a wilds location from a static one*/
                     sprintf(buf,
                             "{x%s {Yto coors{x(%d, %d) {Yin Wilds uid:{x %ld{Y, Area uid:{x %ld\n\r"
-                            "    {YKey: {x%ld  {YExit flags: {x%s\n\r"
+                            "    {YKey: {x%ld  Pick Chance: {x%d%%\n\r"
+							"    {YLock Flags: {x%s\n\r"
+							"    {YExit flags: {x%s\n\r"
                             "    {YKeyword:{x '%s'  {YDescription: {x%s",
                             dir_name[door],
                             pexit->wilds.x,
                             pexit->wilds.y,
                             pexit->wilds.wilds_uid,
                             pexit->wilds.area_uid,
-                            pexit->door.key_vnum,
+                            pexit->door.lock.key_vnum, pexit->door.lock.pick_chance,
+							flag_string(lock_flags, pexit->door.lock.flags),
                             flag_string(exit_flags, pexit->exit_info),
                             pexit->keyword,
                             pexit->short_desc[0] != '\0'
@@ -1560,12 +1575,15 @@ void do_rstat(CHAR_DATA *ch, char *argument)
                     /* Exit goes to a wilds location from another wilds one*/
                     sprintf(buf,
                             "{x%s {Yto coors{x (%d, %d)\n\r"
-                            "    {YKey: {x%ld  {YExit flags: {x%s\n\r"
+                            "    {YKey: {x%ld  Pick Chance: {x%d%%\n\r"
+							"    {YLock Flags: {x%s\n\r"
+							"    {YExit flags: {x%s\n\r"
                             "    {YKeyword:{x '%s'  {YDescription: {x%s",
                             dir_name[door],
                             pexit->wilds.x,
                             pexit->wilds.y,
-                            pexit->door.key_vnum,
+                            pexit->door.lock.key_vnum, pexit->door.lock.pick_chance,
+							flag_string(lock_flags, pexit->door.lock.flags),
                             flag_string(exit_flags, pexit->exit_info),
                             pexit->keyword,
                             pexit->short_desc[0] != '\0'

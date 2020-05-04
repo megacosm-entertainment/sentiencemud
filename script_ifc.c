@@ -892,11 +892,11 @@ DECL_IFC_FUN(ifc_iskey)
 		if(ISARG_EXIT(1)) {
 			ex = ARG_EXIT(1).r ? ARG_EXIT(1).r->exit[ARG_EXIT(1).door] : NULL;
 			*ret = ex && ARG_OBJ(0)->item_type == ITEM_KEY &&
-				ex->door.key_vnum == ARG_OBJ(0)->pIndexData->vnum;
+				ex->door.lock.key_vnum == ARG_OBJ(0)->pIndexData->vnum;
 		} else if(ISARG_STR(1))
 			*ret = ARG_OBJ(0)->item_type == ITEM_KEY && (room = obj_room(ARG_OBJ(0))) &&
 				(door = get_num_dir(ARG_STR(1))) != -1 && room->exit[door] &&
-				room->exit[door]->door.key_vnum == ARG_OBJ(0)->pIndexData->vnum;
+				room->exit[door]->door.lock.key_vnum == ARG_OBJ(0)->pIndexData->vnum;
 		else *ret = FALSE;
 
 		return TRUE;
@@ -904,11 +904,11 @@ DECL_IFC_FUN(ifc_iskey)
 		if(ISARG_EXIT(0)) {
 			ex = ARG_EXIT(0).r ? ARG_EXIT(0).r->exit[ARG_EXIT(0).door] : NULL;
 			*ret = ex && obj->item_type == ITEM_KEY &&
-				ex->door.key_vnum == obj->pIndexData->vnum;
+				ex->door.lock.key_vnum == obj->pIndexData->vnum;
 		} else if(ISARG_STR(0))
 			*ret = obj->item_type == ITEM_KEY && (room = obj_room(obj)) &&
 				(door = get_num_dir(ARG_STR(0))) != -1 && room->exit[door] &&
-				room->exit[door]->door.key_vnum == obj->pIndexData->vnum;
+				room->exit[door]->door.lock.key_vnum == obj->pIndexData->vnum;
 		else *ret = FALSE;
 
 		return TRUE;
@@ -4760,3 +4760,4 @@ DECL_IFC_FUN(ifc_isareaunlocked)
 	}
 	return TRUE;
 }
+

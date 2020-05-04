@@ -4696,7 +4696,7 @@ void do_bash(CHAR_DATA *ch, char *argument)
 		}
 
 		if (number_percent() < chance) {
-			if (IS_SET(pexit->exit_info , EX_LOCKED)) REMOVE_BIT(pexit->exit_info , EX_LOCKED);
+			if (IS_SET(pexit->door.lock.flags, LOCK_LOCKED)) REMOVE_BIT(pexit->door.lock.flags, LOCK_LOCKED);
 			if (IS_SET(pexit->exit_info, EX_CLOSED)) REMOVE_BIT(pexit->exit_info , EX_CLOSED);
 			if (IS_SET(pexit->exit_info, EX_BARRED)) REMOVE_BIT(pexit->exit_info , EX_BARRED);
 
@@ -4705,7 +4705,7 @@ void do_bash(CHAR_DATA *ch, char *argument)
 			if ((to_room = pexit->u1.to_room) && (pexit_rev = to_room->exit[rev_dir[door]]) &&
 				pexit_rev->u1.to_room == ch->in_room) {
 
-				if (IS_SET(pexit_rev->exit_info , EX_LOCKED)) REMOVE_BIT(pexit->exit_info , EX_LOCKED);
+				if (IS_SET(pexit_rev->door.lock.flags , LOCK_LOCKED)) REMOVE_BIT(pexit->door.lock.flags , LOCK_LOCKED);
 				if (IS_SET(pexit_rev->exit_info , EX_CLOSED)) REMOVE_BIT(pexit_rev->exit_info, EX_CLOSED);
 				if (IS_SET(pexit_rev->exit_info , EX_BARRED)) REMOVE_BIT(pexit_rev->exit_info, EX_BARRED);
 

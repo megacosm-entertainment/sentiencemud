@@ -815,30 +815,32 @@ WILDS_VLINK *fread_vlink(FILE *fp)
             case 'O':
                 if (!str_cmp(word, "Orig_desc"))
                     pVLink->orig_description = fread_string (fp);
-                else
-                if (!str_cmp(word, "Orig_keyword"))
+                else if (!str_cmp(word, "Orig_keyword"))
                     pVLink->orig_keyword = fread_string (fp);
-                else
-                if (!str_cmp(word, "Orig_rsflags"))
+                else if (!str_cmp(word, "Orig_rsflags"))
                     pVLink->orig_rs_flags = fread_flag (fp);
-                else
-                if (!str_cmp(word, "Orig_key"))
+                else if (!str_cmp(word, "Orig_key"))
                     pVLink->orig_key = fread_number (fp);
+                else if (!str_cmp(word, "Orig_lock"))
+                    pVLink->orig_lock = fread_number (fp);
+                else if (!str_cmp(word, "Orig_pick"))
+                    pVLink->orig_pick = fread_number (fp);
 
             break;
 
             case 'R':
                 if (!str_cmp(word, "Rev_desc"))
                     pVLink->rev_description = fread_string (fp);
-                else
-                if (!str_cmp(word, "Rev_keyword"))
+                else if (!str_cmp(word, "Rev_keyword"))
                     pVLink->rev_keyword = fread_string (fp);
-                else
-                if (!str_cmp(word, "Rev_rsflags"))
+                else if (!str_cmp(word, "Rev_rsflags"))
                     pVLink->rev_rs_flags = fread_flag (fp);
-                else
-                if (!str_cmp(word, "Rev_key"))
+                else if (!str_cmp(word, "Rev_key"))
                     pVLink->rev_key = fread_number (fp);
+                else if (!str_cmp(word, "Rev_lock"))
+                    pVLink->rev_lock = fread_number (fp);
+                else if (!str_cmp(word, "Rev_pick"))
+                    pVLink->rev_pick = fread_number (fp);
 
             break;
 
@@ -888,10 +890,14 @@ void fwrite_vlink (FILE *fp, WILDS_VLINK *pVLink)
     fprintf(fp, "Orig_keyword %s~\n", fix_string(pVLink->orig_keyword));
     fprintf(fp, "Orig_rsflags %ld\n", pVLink->orig_rs_flags);
     fprintf(fp, "Orig_key %ld\n", pVLink->orig_key);
+    fprintf(fp, "Orig_lock %d\n", pVLink->orig_lock);
+    fprintf(fp, "Orig_pick %d\n", pVLink->orig_pick);
     fprintf(fp, "Rev_desc %s~\n",  fix_string(pVLink->rev_description));
     fprintf(fp, "Rev_keyword %s~\n",  fix_string(pVLink->rev_keyword));
     fprintf(fp, "Rev_rsflags %ld\n", pVLink->rev_rs_flags);
     fprintf(fp, "Rev_key %ld\n", pVLink->rev_key);
+    fprintf(fp, "Rev_lock %d\n", pVLink->rev_lock);
+    fprintf(fp, "Rev_pick %d\n", pVLink->rev_pick);
     fprintf(fp, "#-VLINK\n\n");
 
     return;
@@ -1101,7 +1107,11 @@ bool link_vlink(WILDS_VLINK *pVLink)
 			pExit->keyword = str_dup(pVLink->orig_keyword);
 			pExit->rs_flags = pVLink->orig_rs_flags | EX_VLINK;
 			pExit->exit_info = pExit->rs_flags;
-			pExit->door.key_vnum = pVLink->orig_key;
+			pExit->door.lock.key_vnum = pVLink->orig_key;
+			pExit->door.lock.flags = pVlink->orig_lock;
+			pExit->door.rs_lock_flags = pVlink->orig_lock;
+			pExit->door.lock.pick_chance = pVlink->orig_pick;
+			pExit->door.rs_pick_chance = pVlink->orig_pick;
 			pExit->u1.vnum = pVLink->destvnum;
 			pExit->u1.to_room = get_room_index(pExit->u1.vnum);
 			pExit->orig_door = pVLink->door;    /* OLC */
@@ -1138,7 +1148,11 @@ bool link_vlink(WILDS_VLINK *pVLink)
 					pExit->keyword = str_dup(pVLink->rev_keyword);
 					pExit->rs_flags = pVLink->rev_rs_flags | EX_VLINK;
 					pExit->exit_info = pExit->rs_flags;
-					pExit->door.key_vnum = pVLink->rev_key;
+					pExit->door.lock.key_vnum = pVLink->rev_key;
+					pExit->door.lock.flags = pVlink->rev_lock;
+					pExit->door.rs_lock_flags = pVlink->rev_lock;
+					pExit->door.lock.pick_chance = pVlink->rev_pick;
+					pExit->door.rs_pick_chance = pVlink->rev_pick;
 					pExit->u1.vnum = 0;
 					pExit->u1.to_room = NULL;
 					pExit->wilds.x = pVLink->wildsorigin_x;
@@ -2312,6 +2326,9 @@ WILDS_VLINK *new_vlink ()
 
     pVLink->next = NULL;
     pVLink->pWilds = NULL;
+    pVLink->orig_pick = 100;
+    pVLink->rev_pick = 100;
+
     VALIDATE (pVLink);
 
     return pVLink;

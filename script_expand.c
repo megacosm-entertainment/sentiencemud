@@ -2552,7 +2552,7 @@ char *expand_entity_exit(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 				i = 1;
 			else if(ex->exit_info & EX_CLOSED) {
 				i = 2;
-				if(ex->exit_info & EX_LOCKED) i++;
+				if(ex->door.lock.flags & LOCK_LOCKED) i++;
 				if(ex->exit_info & EX_BARRED) i+=2;
 			} else i = 0;
 			arg->d.str = (char*)exit_states[i];

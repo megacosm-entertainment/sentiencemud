@@ -1033,12 +1033,12 @@ const struct flag_type exit_flags[] =
 {
     {   "door",			EX_ISDOOR,		TRUE    },
     {	"closed",		EX_CLOSED,		TRUE	},
-    {	"locked",		EX_LOCKED,		TRUE	},
-    {	"pickproof",		EX_PICKPROOF,		TRUE	},
+//    {	"locked",		EX_LOCKED,		TRUE	},
+//    {	"pickproof",		EX_PICKPROOF,		TRUE	},
     {   "nopass",		EX_NOPASS,		TRUE	},
-    {   "easy",			EX_EASY,		TRUE	},
-    {   "hard",			EX_HARD,		TRUE	},
-    {	"infuriating",		EX_INFURIATING,		TRUE	},
+//    {   "easy",			EX_EASY,		TRUE	},
+//    {   "hard",			EX_HARD,		TRUE	},
+//    {	"infuriating",		EX_INFURIATING,		TRUE	},
     {	"noclose",		EX_NOCLOSE,		TRUE	},
     {	"nolock",		EX_NOLOCK,		TRUE	},
     {   "hidden",		EX_HIDDEN,		TRUE	},
@@ -1059,16 +1059,24 @@ const struct flag_type exit_flags[] =
     {	NULL,			0,			0	}
 };
 
+const struct flag_type lock_flags[] =
+{
+	{	"locked",		LOCK_LOCKED,		TRUE	},
+	{	"magic",		LOCK_MAGIC,			TRUE	},
+	{	"snap_key",		LOCK_SNAPKEY,		TRUE	},
+	{	NULL,			0,					0	}
+}
+
 const struct flag_type portal_exit_flags[] =
 {
     {   "door",			EX_ISDOOR,		TRUE    },
     {	"closed",		EX_CLOSED,		TRUE	},
-    {	"locked",		EX_LOCKED,		TRUE	},
-    {	"pickproof",		EX_PICKPROOF,		TRUE	},
+//    {	"locked",		EX_LOCKED,		TRUE	},
+//    {	"pickproof",		EX_PICKPROOF,		TRUE	},
     {   "nopass",		EX_NOPASS,		TRUE	},
-    {   "easy",			EX_EASY,		TRUE	},
-    {   "hard",			EX_HARD,		TRUE	},
-    {	"infuriating",		EX_INFURIATING,		TRUE	},
+//    {   "easy",			EX_EASY,		TRUE	},
+//    {   "hard",			EX_HARD,		TRUE	},
+//    {	"infuriating",		EX_INFURIATING,		TRUE	},
     {	"noclose",		EX_NOCLOSE,		TRUE	},
     {	"nolock",		EX_NOLOCK,		TRUE	},
     {   "hidden",		EX_HIDDEN,		TRUE	},

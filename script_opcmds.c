@@ -4849,10 +4849,14 @@ SCRIPT_CMD(do_opalterexit)
 	default: return;
 	}
 
-	if(!str_cmp(field,"flags"))			{ ptr = (int*)&ex->exit_info; flags = exit_flags; }
-	else if(!str_cmp(field,"resets"))	{ ptr = (int*)&ex->rs_flags; flags = exit_flags; }
-	else if(!str_cmp(field,"strength"))	sptr = (sh_int*)&ex->door.strength;
-	else if(!str_cmp(field,"key"))		ptr = (int*)&ex->door.key_vnum;
+	if(!str_cmp(field,"flags"))					{ ptr = (int*)&ex->exit_info; flags = exit_flags; }
+	else if(!str_cmp(field,"resets"))			{ ptr = (int*)&ex->rs_flags; flags = exit_flags; }
+	else if(!str_cmp(field,"strength"))			sptr = (sh_int*)&ex->door.strength;
+	else if(!str_cmp(field,"lock"))				{ ptr = (int*)&ex->door.lock.flags; flags = lock_flags; }
+	else if(!str_cmp(field,"lockreset"))		{ ptr = (int*)&ex->door.rs_lock_flags; flags = lock_flags; }
+	else if(!str_cmp(field,"key"))				ptr = (int*)&ex->door.lock.key_vnum;
+	else if(!str_cmp(field,"pick"))				ptr = (int*)&ex->door.lock.pick_chance;
+	else if(!str_cmp(field,"pickreset"))		ptr = (int*)&ex->door.rs_pick_chance;
 
 	if(!ptr && !sptr) return;
 

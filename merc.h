@@ -224,11 +224,14 @@ struct sound_type {
 #define VERSION_OBJECT_003	0x01000002
 //  Change #1: Added bitvector2 to affect output
 
+#define VERSION_ROOM_001	0x01000001
+//  Change #1: lock states
+
 #define VERSION_DB			VERSION_DB_001
 #define VERSION_AREA		VERSION_AREA_003
 #define VERSION_MOBILE		0x01000000
 #define VERSION_OBJECT		VERSION_OBJECT_003
-#define VERSION_ROOM		0x01000000
+#define VERSION_ROOM		VERSION_ROOM_001
 #define VERSION_PLAYER		VERSION_PLAYER_005
 #define VERSION_TOKEN		0x01000000
 #define VERSION_AFFECT		0x01000000
@@ -4393,6 +4396,16 @@ struct	obj_data
 
 };
 
+#define LOCK_LOCKED 		(A)		// Currently locked
+#define LOCK_MAGIC			(B)		// Requires magic to break
+#define LOCK_SNAPKEY		(C)		// Key snaps on use
+
+typedef struct lock_state_data {
+	long key_vnum;
+	int pick_chance;		// 0 = impossible (normally), 100 trivial
+	int flags;
+} LOCK_STATE;
+
 /* fragility */
 #define OBJ_FRAGILE_NORMAL 	0
 #define OBJ_FRAGILE_SOLID  	1
@@ -4437,7 +4450,9 @@ struct	exit_data
 	struct door_data {
 		sh_int strength;
 		char *material;
-		long key_vnum;
+		LOCK_STATE lock;
+		int rs_lock_flags;
+		int rs_pick_chance;
 	} door;
 
 	struct {

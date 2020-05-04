@@ -165,10 +165,14 @@ struct wilds_vlink
     char            *orig_keyword;
     long            orig_rs_flags;
     long            orig_key;
+    int             orig_lock;
+    int             orig_pick;
     char            *rev_description;
     char            *rev_keyword;
     long            rev_rs_flags;
     long            rev_key;
+    int             rev_lock;
+    int             rev_pick;
 };
 
 

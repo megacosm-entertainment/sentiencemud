@@ -164,3 +164,7 @@ void free_dungeon_index(DUNGEON_INDEX_DATA *dungeon);
 
 DUNGEON *new_dungeon();
 void free_dungeon(DUNGEON *dungeon);
+
+LOCK_STATE *new_lock_state();
+void free_lock_state(LOCK_STATE *state);
+
