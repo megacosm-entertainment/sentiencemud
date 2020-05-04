@@ -189,11 +189,15 @@ char			bug_buf[2*MAX_INPUT_LENGTH];
 char *			help_greeting;
 char			log_buf[2*MAX_INPUT_LENGTH];
 char			*reboot_by;
-int			down_timer;
-int			pre_reckoning;
-int			reckoning_chance = 25;
+int				down_timer;
+int				pre_reckoning;
+int				reckoning_duration = 30;
+int				reckoning_intensity = 100;
+int				reckoning_cooldown = 0;
+int				reckoning_chance = 5;
 time_t			reboot_timer;
 time_t			reckoning_timer;
+time_t			reckoning_cooldown_timer;
 PROG_DATA *		prog_data_virtual;
 char *			room_name_virtual;
 bool			objRepop;
@@ -987,7 +991,11 @@ void boot_db(void)
     }
 
     reckoning_timer = 0;
+    reckoning_cooldown_timer = 0;
     pre_reckoning = 0;
+    reckoning_duration = 30;
+    reckoning_intensity = 100;
+    reckoning_chance = 5;
     objRepop = FALSE;
 
     prog_data_virtual = new_prog_data();

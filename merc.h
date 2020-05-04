@@ -813,6 +813,28 @@ struct olc_point_area_data {
 #define PULSE_VIOLENCE		( 3 * PULSE_PER_SECOND)
 #define PULSE_AGGR		PULSE_PER_SECOND
 
+#define RECKONING_CHANCE_MIN		0
+#define RECKONING_CHANCE_MAX_RESET	25
+#define RECKONING_CHANCE_MAX		100
+#define RECKONING_CHANCE(ch)		URANGE(RECKONING_CHANCE_MIN, (ch), RECKONING_CHANCE_MAX)
+#define RECKONING_CHANCE_RESET(ch)	URANGE(RECKONING_CHANCE_MIN, (ch), RECKONING_CHANCE_MAX_RESET)
+
+#define RECKONING_COOLDOWN_MIN		0
+#define RECKONING_COOLDOWN_USE_MIN	10
+#define RECKONING_COOLDOWN_MAX		10080
+#define RECKONING_COOLDOWN(cd)		URANGE(RECKONING_COOLDOWN_MIN, (cd), RECKONING_COOLDOWN_MAX)
+
+#define RECKONING_DURATION_DEFAULT	30
+#define RECKONING_DURATION_MIN		10
+#define RECKONING_DURATION_MAX		1440
+#define RECKONING_DURATION(dur)		URANGE(RECKONING_DURATION_MIN, (dur), RECKONING_DURATION_MAX)
+
+#define RECKONING_INTENSITY_DEFAULT	100
+#define RECKONING_INTENSITY_MIN		10
+#define RECKONING_INTENSITY_MAX		200
+#define RECKONING_INTENSITY(in)		URANGE(RECKONING_INTENSITY_MIN, (in), RECKONING_INTENSITY_MAX)
+
+
 
 #ifdef IMC
 	#include "imc.h"
@@ -3044,6 +3066,7 @@ enum {
 #define PLR_MOBILE			(E)
 #define PLR_FAVSKILLS		(F)
 #define PLR_HOLYWARP		(G)
+#define PLR_NORECKONING		(H)
 
 #define COMM_QUIET              (A)
 #define COMM_NOMUSIC           	(B)
@@ -5305,12 +5328,16 @@ extern		int			call_depth;
 
 /* Timer that reckoning is active */
 extern          time_t			reckoning_timer;
+extern          time_t			reckoning_cooldown_timer;
 
 /* Which hour it is before the reckoning hits */
 extern          int			pre_reckoning;
 
 /* 20070606 : NIB : Chance the reckoning will occur on a full moon at night... */
 extern          int			reckoning_chance;
+extern          int			reckoning_duration;
+extern          int			reckoning_intensity;
+extern          int			reckoning_cooldown;
 
 /*
  * Types of attacks.

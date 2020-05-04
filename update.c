@@ -1294,13 +1294,37 @@ void time_update(void)
     else if(hours < (4*MOON_CARDINAL_STEP - MOON_CARDINAL_HALF)) time_info.moon = MOON_WANING_CRESCENT;
     else time_info.moon = MOON_NEW;
 
-	if (!reckoning_timer && !pre_reckoning && time_info.moon == MOON_FULL && weather_info.sunlight == SUN_DARK && number_percent() < reckoning_chance) {
+	if (!reckoning_timer && !pre_reckoning && reckoning_cooldown_timer < current_time &&
+		time_info.moon == MOON_FULL &&
+		weather_info.sunlight == SUN_DARK) {
 		struct tm *reck_time;
+		if (number_percent() < reckoning_chance) {
+			// Success
 
-		reck_time = (struct tm *) localtime(&current_time);
-		reck_time->tm_min += 30;
-	    reckoning_timer = (time_t) mktime(reck_time);
-		pre_reckoning = 1;
+
+			reck_time = (struct tm *) localtime(&current_time);
+			reck_time->tm_min += reckoning_duration;
+		    reckoning_timer = (time_t) mktime(reck_time);
+		    reckoning_cooldown_timer = 0;
+			pre_reckoning = 1;
+
+		} else {
+		    reckoning_timer = 0;
+
+			reck_time->tm_min += 10;	// This should make it through the night
+			reckoning_cooldown_timer = (time_t) mktime(reck_time);
+
+			reckoning_chance += 5;
+			reckoning_chance = RECKONING_CHANCE(reckoning_chance);
+
+			int rnd = number_random(-10,10);
+			reckoning_intensity += UMAX(0, rnd);
+			reckoning_intensity = RECKONING_INTENSITY(reckoning_intensity);
+
+			rnd = number_random(-5,5);
+			reckoning_duration += UMAX(0, rnd);
+			reckoning_duration = RECKONING_DURATION(reckoning_duration);
+		}
 	}
 
 	// If pre_reckoning > 0 then it is taking place
@@ -1310,7 +1334,7 @@ void time_update(void)
 				"{yYou feel a sudden urge to kill the innocent for personal gain!{x\n\r");
 			pre_reckoning = 0;
 			boost_table[BOOST_RECKONING].timer = reckoning_timer;
-			boost_table[BOOST_RECKONING].boost = 200;
+			boost_table[BOOST_RECKONING].boost = 100 + URANGE(10,reckoning_intensity,200);	// Allow from 110 to 300%
 		} else {
 			switch(pre_reckoning++) {
 			case 1: sprintf(buf, "You notice a slight discolouration in the sky.\n\r"); break;
@@ -1324,7 +1348,26 @@ void time_update(void)
 	if (reckoning_timer > 0 && current_time > reckoning_timer) {
 		gecho("{MAs quickly as it appeared, the hazy purple mist dissipates. The reckoning has ended.{x\n\r");
 		reckoning_timer = 0;
-		reckoning_chance = 25;
+
+		if( reckoning_chance > RECKONING_CHANCE_MAX_RESET )
+			reckoning_chance /= 4;
+		else
+			reckoning_chance -= 5;
+		reckoning_chance = RECKONING_CHANCE_RESET(reckoning_chance);
+
+		reckoning_duration = RECKONING_DURATION_DEFAULT;
+		reckoning_intensity = RECKONING_INTENSITY_DEFAULT;
+
+		if( reckoning_cooldown > 0 )
+		{
+			reck_time->tm_min += UMAX(RECKONING_COOLDOWN_USE_MIN, reckoning_cooldown);
+			reckoning_cooldown_timer = (time_t) mktime(reck_time);
+		}
+		else
+			reckoning_cooldown_timer = 0;
+
+		reckoning_cooldown = 0;
+
 		boost_table[BOOST_RECKONING].boost = 100;
 	}
 
@@ -1720,6 +1763,15 @@ void char_update(void)
 				int num = number_range(0,5);
 				int sn = skill_lookup("lightning bolt");
 				//int attack_rand = number_percent();
+				int lbdam;
+				int lbchance = 5;
+
+
+				lbdam = number_range(500,30000) * reckoning_intensity / 100;
+				if ( reckoning_intensity > 100 )
+				{
+					lbchance = 5 + ((reckoning_intensity - 100) / 5);
+				}
 
 				if (ch->in_room != NULL &&
 					ch->in_room->sector_type != SECT_INSIDE &&
@@ -1741,10 +1793,11 @@ void char_update(void)
 						act("{YLightning crashes to the ground next to you!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 						break;
 					case 4:
-						if (number_percent() < 5 && !IS_SET(ch->in_room->room_flags, ROOM_SAFE) && ch->fighting == NULL)
+						if (number_percent() < lbchance && !IS_SET(ch->in_room->room_flags, ROOM_SAFE) && (IS_NPC(ch) || !IS_SET(ch->act2, PLR_NORECKONING)) && ch->fighting == NULL)
 						{
 							act("{YZAAAAAAAAAAAAAAP! You are struck by a bolt from the sky...{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-							damage(ch, ch, number_range(500,30000), sn, DAM_LIGHTNING, FALSE);
+
+							damage(ch, ch, lbdam, sn, DAM_LIGHTNING, FALSE);
 						}
 						break;
 					case 5:

@@ -2693,6 +2693,8 @@ DECL_IFC_FUN(ifc_timer)
 	} else if(ISARG_STR(0)) {
 		if(!str_prefix(ARG_STR(0),"reckoning"))
 			*ret = UMAX(0,reckoning_timer);
+		else if(!str_prefix(ARG_STR(0),"reckoningcooldown"))
+			*ret = UMAX(0,reckoning_cooldown_timer);
 		else if(!str_prefix(ARG_STR(0),"prereckoning"))
 			*ret = UMAX(0,pre_reckoning);
 		else {
@@ -2797,6 +2799,24 @@ DECL_IFC_FUN(ifc_reckoning)
 DECL_IFC_FUN(ifc_reckoningchance)
 {
 	*ret = reckoning_chance;
+	return TRUE;
+}
+
+DECL_IFC_FUN(ifc_reckoningintensity)
+{
+	*ret = reckoning_intensity;
+	return TRUE;
+}
+
+DECL_IFC_FUN(ifc_reckoningduration)
+{
+	*ret = reckoning_duration;
+	return TRUE;
+}
+
+DECL_IFC_FUN(ifc_reckoningcooldown)
+{
+	*ret = reckoning_cooldown;
 	return TRUE;
 }
 

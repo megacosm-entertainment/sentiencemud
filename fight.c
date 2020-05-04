@@ -2004,20 +2004,6 @@ bool is_safe(CHAR_DATA *ch, CHAR_DATA *victim, bool show)
 		}
 		}
 
-		// Is it the reckoning?
-		if (pre_reckoning == 0 && reckoning_timer > 0)
-		{
-		if (ch->tot_level <= 30 || victim->tot_level <= 30)
-		{
-			if (show)
-			send_to_char("Only players level 31 and above are affected by 'The Reckoning'.\n\r",ch);
-
-			return TRUE;
-		}
-
-		return FALSE;
-		}
-
 		// PK rooms. Be sure that BOTH players are in a PK room for ranged attacks!
 		if ((IS_SET(ch->in_room->room_flags, ROOM_PK)
 			 || IS_SET(ch->in_room->room_flags, ROOM_CPK)
@@ -2029,6 +2015,29 @@ bool is_safe(CHAR_DATA *ch, CHAR_DATA *victim, bool show)
 
 		if (IS_SET(victim->act,PLR_BOTTER))
 		return FALSE;
+
+		// Is it the reckoning?
+		if (pre_reckoning == 0 && reckoning_timer > 0)
+		{
+			if (ch->tot_level <= 30 || victim->tot_level <= 30)
+			{
+				if (show)
+					send_to_char("Only players level 31 and above are affected by 'The Reckoning'.\n\r",ch);
+
+				return TRUE;
+			}
+
+			if (IS_SET(ch->act2, PLR_NORECKONING))
+			{
+				if (show)
+					act("$N has opted out of 'The Reckoning'.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+
+				return TRUE;
+			}
+
+			return FALSE;
+		}
+
 
 		if (!is_pk(ch))
 		{
@@ -3929,9 +3938,11 @@ void group_gain(CHAR_DATA *ch, CHAR_DATA *victim)
 		{
 			int pc_xp = xp;
 			/* Check for reckoning boost in addition to experience boost. If reckoning is active, do a flat 2x experience -- Areo */
+			// Reckoning now has an intensity which affects the experience boost, from +10% to +200%
+			//  Players with NORECKONING turned on will not get reckoning boosts
 			if (boost_table[BOOST_EXPERIENCE].boost != 100 || boost_table[BOOST_RECKONING].boost != 100)
 			{
-				if (boost_table[BOOST_RECKONING].boost != 100)
+				if (boost_table[BOOST_RECKONING].boost != 100 && !IS_SET(ch->act2, PLR_NORECKONING))
 				{
 					sprintf(buf, "{W%d%% experience!{x\n\r", boost_table[BOOST_RECKONING].boost);
 					send_to_char(buf,gch);

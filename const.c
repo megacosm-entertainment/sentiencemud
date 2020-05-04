@@ -404,6 +404,7 @@ const  struct player_setting_type    pc_set_table[] =
     {	"map",		0,		 0,		COMM_NOMAP,	TRUE,	0,	SETTING_OFF	},
     {	"nochallenge",	PLR_NO_CHALLENGE,0,		0,		FALSE,	0,	SETTING_OFF	},
     {	"nofollow",	PLR_NOFOLLOW,	 0,		0,		FALSE,	0,	SETTING_OFF	},
+    {   "noreckoning",	0,		PLR_NORECKONING,	 0,		FALSE,	0,	SETTING_OFF	},
     {	"noresurrect",	PLR_NO_RESURRECT,0,		0,		FALSE,	0,	SETTING_ON	},
     {	"nosummon",	PLR_NOSUMMON,	 0,		0,		FALSE,	0,	SETTING_ON	},
     {   "nowake",	0,		 PLR_NO_WAKE,	0,		FALSE,  0,      SETTING_OFF	},

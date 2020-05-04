@@ -96,6 +96,7 @@ const struct script_cmd_type token_cmd_table[] = {
 	{ "queue",				do_tpqueue,					FALSE,	TRUE	},
 	{ "raisedead",			do_tpraisedead,				TRUE,	TRUE	},
 	{ "rawkill",			do_tprawkill,				FALSE,	TRUE	},
+	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
 	{ "remember",			do_tpremember,				FALSE,	TRUE	},
 	{ "remort",				do_tpremort,				TRUE,	TRUE	},
 	{ "remove",				do_tpremove,				FALSE,	TRUE	},

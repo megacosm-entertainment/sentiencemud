@@ -95,6 +95,7 @@ const struct script_cmd_type obj_cmd_table[] = {
 	{ "questscroll",		scriptcmd_questscroll,		FALSE,	TRUE	},
 	{ "queue",				do_opqueue,				FALSE,	TRUE	},
 	{ "rawkill",			do_oprawkill,			FALSE,	TRUE	},
+	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
 	{ "remember",			do_opremember,			FALSE,	TRUE	},
 	{ "remort",				do_opremort,			TRUE,	TRUE	},
 	{ "remove",				do_opremove,			FALSE,	TRUE	},

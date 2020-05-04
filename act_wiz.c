@@ -6073,12 +6073,38 @@ void do_reckoning(CHAR_DATA *ch, char *argument)
 {
     struct tm *reck_time;
 
-    reck_time = (struct tm *) localtime(&current_time);
-    reck_time->tm_min += 30;
-    reckoning_timer = (time_t) mktime(reck_time);
-    pre_reckoning = 1;
+    if( argument[0] == '\0' )
+    {
+		if( reckoning_timer > 0 )
+		{
+			send_to_char("There is already a reckoning in progress.\n\r", ch);
+		}
+		else
+		{
+			reckoning_intensity = 100;
+			reckoning_duration = 30;
+			reckoning_cooldown = 0;
 
-    send_to_char("{RLet the reckoning begin.{x\n\r", ch);
+			reck_time = (struct tm *) localtime(&current_time);
+			reck_time->tm_min += reckoning_duration;
+			reckoning_timer = (time_t) mktime(reck_time);
+			reckoning_cooldown_timer = 0;
+			pre_reckoning = 1;
+
+			send_to_char("{RLet the reckoning begin.{x\n\r", ch);
+		}
+		return;
+	}
+
+	if( !str_prefix(argument, "info") )
+	{
+		send_to_char("Coming soon.\n\r", ch);
+		return;
+	}
+
+	send_to_char("Syntax:  reckoning         - Initiates a reckoning\n\r", ch);
+	send_to_char("         reckoning info    - Provides information about The Reckoning\n\r", ch);
+
 }
 
 

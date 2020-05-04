@@ -22,6 +22,7 @@ const struct script_cmd_type area_cmd_table[] = {
 	{ "mload",				scriptcmd_mload,			FALSE,	TRUE	},
 	{ "mute",				scriptcmd_mute,				FALSE,	TRUE	},
 	{ "oload",				scriptcmd_oload,			FALSE,	TRUE	},
+	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
 	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
 	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
 	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
@@ -45,6 +46,7 @@ const struct script_cmd_type instance_cmd_table[] = {
 	{ "mload",				scriptcmd_mload,			FALSE,	TRUE	},
 	{ "mute",				scriptcmd_mute,				FALSE,	TRUE	},
 	{ "oload",				scriptcmd_oload,			FALSE,	TRUE	},
+	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
 	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
 	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
 	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
@@ -68,6 +70,7 @@ const struct script_cmd_type dungeon_cmd_table[] = {
 	{ "mload",				scriptcmd_mload,			FALSE,	TRUE	},
 	{ "mute",				scriptcmd_mute,				FALSE,	TRUE	},
 	{ "oload",				scriptcmd_oload,			FALSE,	TRUE	},
+	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
 	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
 	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
 	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
@@ -3315,6 +3318,77 @@ SCRIPT_CMD(scriptcmd_questscroll)
 
 //////////////////////////////////////
 // R
+
+// RECKONING FIELD OP NUMBER
+// Affects the parameters of a Reckoing.
+// Most fields cannot be modified during a reckoning
+//
+// FIELDS (allowed during a reckoning)
+//  cooldown
+//
+// FIELDS (allowed when no reckoning is active)
+//  chance
+//  cooldown
+//  duration
+//  intensity
+//
+SCRIPT_CMD(scriptcmd_reckoning)
+{
+	char *rest;
+	char field[MIL+1];
+	char op[MIL+1];
+	int *ptr = NULL;
+	int min, max;
+
+	info->progs->lastreturn = 0;
+
+	if(!(rest = expand_argument(info,argument,arg)) || arg->type != ENT_STRING)
+		return;
+
+	strncpy(field, arg->d.str, MIL);
+	field[MIL] = 0;
+
+	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING)
+		return;
+
+	strncpy(op, arg->d.str, MIL);
+	op[MIL] = 0;
+
+	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER)
+		return;
+
+	int value = arg->d.num;
+
+	ptr = NULL;
+
+	if( reckoning_timer > 0 )
+	{
+		if( !str_cmp(field, "cooldown") )	{ ptr = &reckoning_cooldown; min = RECKONING_COOLDOWN_MIN; max = RECKONING_COOLDOWN_MAX; }
+	}
+	else
+	{
+		if( !str_cmp(field, "chance") )			{ ptr = &reckoning_chance; min = RECKONING_CHANCE_MIN; max = RECKONING_CHANCE_MAX; }
+		else if( !str_cmp(field, "cooldown") )	{ ptr = &reckoning_cooldown; min = RECKONING_COOLDOWN_MIN; max = RECKONING_COOLDOWN_MAX; }
+		else if( !str_cmp(field, "duration") )	{ ptr = &reckoning_duration; min = RECKONING_DURATION_MIN; max = RECKONING_DURATION_MAX; }
+		else if( !str_cmp(field, "intensity") )	{ ptr = &reckoning_intensity; min = RECKONING_INTENSITY_MIN; max = RECKONING_INTENSITY_MAX; }
+	}
+
+	if( !ptr ) return;
+
+	switch(op[0])
+	{
+	case '=': *ptr = value; break;
+	case '+': *ptr += value; break;
+	case '-': *ptr -= value; break;
+	default:
+		return;
+	}
+
+	*ptr = URANGE(min, *ptr, max);
+
+	info->progs->lastreturn = 1;
+}
+
 
 // REVOKESKILL player name
 // REVOKESKILL player vnum

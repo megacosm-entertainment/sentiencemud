@@ -226,7 +226,9 @@ enum ifcheck_enum {
 
 	/* R */
 	CHK_RACE,CHK_RAND,CHK_RANDPOINT,
-	CHK_RECKONING,CHK_RECKONINGCHANCE,CHK_REGISTER,
+	CHK_RECKONING,
+	CHK_RECKONINGCHANCE,CHK_RECKONINGCOOLDOWN,CHK_RECKONINGDURATION,CHK_RECKONINGINTENSITY,
+	CHK_REGISTER,
 	CHK_RES,CHK_ROLL,CHK_ROOM,CHK_ROOMFLAG,CHK_ROOMFLAG2,CHK_ROOMVIEWWILDS,
 	CHK_ROOMWEIGHT,CHK_ROOMWILDS,CHK_ROOMX,CHK_ROOMY,CHK_ROOMZ,
 
@@ -1875,6 +1877,10 @@ DECL_IFC_FUN(ifc_instanceflag);
 DECL_IFC_FUN(ifc_sectionflag);
 DECL_IFC_FUN(ifc_isareaunlocked);
 
+DECL_IFC_FUN(ifc_reckoningcooldown);
+DECL_IFC_FUN(ifc_reckoningduration);
+DECL_IFC_FUN(ifc_reckoningintensity);
+
 
 /* Opcode functions */
 DECL_OPC_FUN(opc_end);
@@ -2587,6 +2593,7 @@ SCRIPT_CMD(scriptcmd_mute);
 SCRIPT_CMD(scriptcmd_unmute);
 SCRIPT_CMD(scriptcmd_unlockarea);
 SCRIPT_CMD(scriptcmd_sendfloor);
+SCRIPT_CMD(scriptcmd_reckoning);
 
 #include "tables.h"
 
