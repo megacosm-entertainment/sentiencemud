@@ -1320,7 +1320,7 @@ void time_update(void)
 			reckoning_intensity += UMAX(0, rnd);
 			reckoning_intensity = RECKONING_INTENSITY(reckoning_intensity);
 
-			rnd = number_random(-5,5);
+			rnd = number_range(-5,5);
 			reckoning_duration += UMAX(0, rnd);
 			reckoning_duration = RECKONING_DURATION(reckoning_duration);
 		}
