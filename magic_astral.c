@@ -199,7 +199,7 @@ SPELL_FUNC(spell_nexus)
 		portal = create_object(get_obj_index(OBJ_VNUM_PORTAL),0, TRUE);
 		portal->timer = 1 + level/10;
 
-		if( to_room->wilds && IS_SET(to_room->room2_flags, ROOM_VIRTUAL_ROOM) )
+		if( from_room->wilds && IS_SET(from_room->room2_flags, ROOM_VIRTUAL_ROOM) )
 		{
 			portal->value[3] = 0;
 			portal->value[4] = 0;
