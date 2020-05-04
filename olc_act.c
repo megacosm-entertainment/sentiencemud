@@ -2387,7 +2387,7 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 		}
 
 		pRoom->exit[door]->door.lock.pick_chance =
-		pRoom->exit[door]->door.rs_pick_chance = value;
+		pRoom->exit[door]->door.rs_lock.pick_chance = value;
 
 		send_to_char("Exit pick chance set.\n\r", ch);
 		return TRUE;
@@ -2421,7 +2421,8 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 			return FALSE;
 		}
 
-		pRoom->exit[door]->door.lock.key_vnum = atol(arg);
+		pRoom->exit[door]->door.lock.key_vnum =
+		pRoom->exit[door]->door.rs_lock.key_vnum = atol(arg);
 
 		send_to_char("Exit key set.\n\r", ch);
 		return TRUE;

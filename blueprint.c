@@ -891,11 +891,8 @@ INSTANCE_SECTION *clone_blueprint_section(BLUEPRINT_SECTION *parent)
 				exClone->orig_door = exParent->orig_door;
 				exClone->door.strength = exParent->door.strength;
 				exClone->door.material = str_dup(exParent->door.material);
-				exClone->door.lock.key_vnum = exParent->door.lock.key_vnum;
-				exClone->door.lock.flags = exParent->door.rs_lock_flags;
-				exClone->door.lock.pick_chance = exParent->door.rs_pick_chance;
-				exClone->door.rs_lock_flags = exParent->door.rs_lock_flags;
-				exClone->door.rs_pick_chance = exParent->door.rs_pick_chance;
+				exClone->door.lock = exParent->door.rs_lock;
+				exClone->door.rs_lock = exParent->door.rs_lock;
 				exClone->from_room = room;
 			}
 		}
@@ -1024,14 +1021,12 @@ bool generate_static_instance(INSTANCE *instance)
 
 						REMOVE_BIT(ex1->rs_flags, EX_ENVIRONMENT);
 						ex1->exit_info = ex1->rs_flags;
-						ex1->door.lock.flags = ex1->door.rs_lock_flags;
-						ex1->door.lock.pick_chance = ex1->door.rs_pick_chance;
+						ex1->door.lock = ex1->door.rs_lock;
 						ex1->u1.to_room = room2;
 
 						REMOVE_BIT(ex2->rs_flags, EX_ENVIRONMENT);
 						ex2->exit_info = ex2->rs_flags;
-						ex2->door.lock.flags = ex2->door.rs_lock_flags;
-						ex2->door.lock.pick_chance = ex2->door.rs_pick_chance;
+						ex2->door.lock = ex2->door.rs_lock;
 						ex2->u1.to_room = room1;
 					}
 				}
@@ -1064,8 +1059,7 @@ bool generate_static_instance(INSTANCE *instance)
 						REMOVE_BIT(ex->rs_flags, EX_ENVIRONMENT);
 						SET_BIT(ex->rs_flags, EX_PREVFLOOR);
 						ex->exit_info = ex->rs_flags;
-						ex->door.lock.flags = ex->door.rs_lock_flags;
-						ex->door.lock.pick_chance = ex->door.rs_pick_chance;
+						ex->door.lock = ex->door.rs_lock;
 						ex->u1.to_room = NULL;
 
 						instance->entrance = room;

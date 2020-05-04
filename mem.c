@@ -1492,8 +1492,9 @@ EXIT_DATA *new_exit( void )
     pExit->door.lock.key_vnum=   0;
     pExit->door.lock.flags	= 0;
     pExit->door.lock.pick_chance	= 100;
-    pExit->door.rs_lock_flags	= 0;
-    pExit->door.rs_pick_chance	= 100;
+    pExit->door.rs_lock.key_vnum=   0;
+    pExit->door.rs_lock.flags	= 0;
+    pExit->door.rs_lock.pick_chance	= 100;
     pExit->keyword      =   &str_empty[0];
     pExit->short_desc   =   &str_empty[0];
     pExit->long_desc	=	&str_empty[0];

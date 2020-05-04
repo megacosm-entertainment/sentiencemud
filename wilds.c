@@ -1107,11 +1107,10 @@ bool link_vlink(WILDS_VLINK *pVLink)
 			pExit->keyword = str_dup(pVLink->orig_keyword);
 			pExit->rs_flags = pVLink->orig_rs_flags | EX_VLINK;
 			pExit->exit_info = pExit->rs_flags;
-			pExit->door.lock.key_vnum = pVLink->orig_key;
-			pExit->door.lock.flags = pVLink->orig_lock;
-			pExit->door.rs_lock_flags = pVLink->orig_lock;
-			pExit->door.lock.pick_chance = pVLink->orig_pick;
-			pExit->door.rs_pick_chance = pVLink->orig_pick;
+			pExit->door.rs_lock.key_vnum = pVLink->orig_key;
+			pExit->door.rs_lock.flags = pVLink->orig_lock;
+			pExit->door.rs_lock.pick_chance =  = pVLink->orig_pick;
+			pExit->door.lock = pExit->door.rs_lock;
 			pExit->u1.vnum = pVLink->destvnum;
 			pExit->u1.to_room = get_room_index(pExit->u1.vnum);
 			pExit->orig_door = pVLink->door;    /* OLC */
@@ -1148,11 +1147,10 @@ bool link_vlink(WILDS_VLINK *pVLink)
 					pExit->keyword = str_dup(pVLink->rev_keyword);
 					pExit->rs_flags = pVLink->rev_rs_flags | EX_VLINK;
 					pExit->exit_info = pExit->rs_flags;
-					pExit->door.lock.key_vnum = pVLink->rev_key;
-					pExit->door.lock.flags = pVLink->rev_lock;
-					pExit->door.rs_lock_flags = pVLink->rev_lock;
-					pExit->door.lock.pick_chance = pVLink->rev_pick;
-					pExit->door.rs_pick_chance = pVLink->rev_pick;
+					pExit->door.rs_lock.key_vnum = pVLink->rev_key;
+					pExit->door.rs_lock.flags = pVLink->rev_lock;
+					pExit->door.rs_lock.pick_chance =  = pVLink->rev_pick;
+					pExit->door.lock = pExit->door.rs_lock;
 					pExit->u1.vnum = 0;
 					pExit->u1.to_room = NULL;
 					pExit->wilds.x = pVLink->wildsorigin_x;

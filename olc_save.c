@@ -790,8 +790,8 @@ void save_room_new(FILE *fp, ROOM_INDEX_DATA *room, int recordtype)
 
 			fprintf(fp, "Key %ld To_room %ld Rs_flags %d Keyword %s~\n",
 				ex->door.lock.key_vnum, (ex->u1.to_room ? ex->u1.to_room->vnum : -1), ex->rs_flags, kwd);
-			fprintf(fp, "LockFlags %d\n", ex->door.rs_lock_flags);
-			fprintf(fp, "PickChance %d\n", ex->door.rs_pick_chance);
+			fprintf(fp, "LockFlags %d\n", ex->door.rs_lock.flags);
+			fprintf(fp, "PickChance %d\n", ex->door.rs_lock.pick_chance);
 			fprintf(fp, "Description %s~\n", fix_string(ex->short_desc));
 			fprintf(fp, "LongDescription %s~\n", fix_string(ex->long_desc));
 			fprintf(fp, "#-X\n");
@@ -2331,36 +2331,36 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 
 				if( IS_SET(ex->rs_flags, VR_001_EX_LOCKED) )
 				{
-					SET_BIT(ex->door.rs_lock_flags, LOCK_LOCKED);
+					SET_BIT(ex->door.rs_lock.flags, LOCK_LOCKED);
 				}
 
 				if( IS_SET(ex->rs_flags, VR_001_EX_PICKPROOF) )
 				{
-					ex->door.rs_pick_chance = 0;
+					ex->door.rs_lock.pick_chance = 0;
 				}
 				else if( IS_SET(ex->rs_flags, VR_001_EX_INFURIATING) )
 				{
-					ex->door.rs_pick_chance = 10;
+					ex->door.rs_lock.pick_chance = 10;
 				}
 				else if( IS_SET(ex->rs_flags, VR_001_EX_HARD) )
 				{
-					ex->door.rs_pick_chance = 40;
+					ex->door.rs_lock.pick_chance = 40;
 				}
 				else if( IS_SET(ex->rs_flags, VR_001_EX_EASY) )
 				{
-					ex->door.rs_pick_chance = 80;
+					ex->door.rs_lock.pick_chance = 80;
 				}
 				else
 				{
-					ex->door.rs_pick_chance = 100;
+					ex->door.rs_lock.pick_chance = 100;
 				}
 
 
 				REMOVE_BIT(ex->rs_flags, (VR_001_EX_LOCKED|VR_001_EX_PICKPROOF|VR_001_EX_INFURIATING|VR_001_EX_HARD|VR_001_EX_EASY));
 
 //				ex->exit_info = ex->rs_flags;
-//				ex->door.lock.flags = ex->door.rs_lock_flags;
-//				ex->door.lock.pick_chance = ex->door.rs_pick_chance;
+//				ex->door.lock.flags = ex->door.rs_lock.flags;
+//				ex->door.lock.pick_chance = ex->door.rs_lock.pick_chance;
 			}
 		}
 	}
@@ -3298,12 +3298,12 @@ EXIT_DATA *read_exit_new(FILE *fp)
 		break;
 
 	    case 'L':
-		KEY("LockFlags",		ex->door.rs_lock_flags,	fread_number(fp));
+		KEY("LockFlags",		ex->door.rs_lock.flags,	fread_number(fp));
 		KEYS("LongDescription",	ex->long_desc, fread_string(fp));
 		break;
 
 		case 'P':
-		KEY("PickChance",		ex->door.rs_pick_chance,	fread_number(fp));
+		KEY("PickChance",		ex->door.rs_lock.pick_chance,	fread_number(fp));
 
 
 	    case 'R':

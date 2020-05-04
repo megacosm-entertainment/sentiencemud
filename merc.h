@@ -4463,8 +4463,9 @@ struct	exit_data
 		sh_int strength;
 		char *material;
 		LOCK_STATE lock;
-		int rs_lock_flags;
-		int rs_pick_chance;
+		LOCK_STATE rs_lock;
+//		int rs_lock_flags;
+//		int rs_pick_chance;
 	} door;
 
 	struct {

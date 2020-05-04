@@ -1673,15 +1673,13 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 		if ((pExit = pRoom->exit[iExit]))
 		{
 			pExit->exit_info = pExit->rs_flags;
-			pExit->door.lock.flags = pExit->door.rs_lock_flags;
-			pExit->door.lock.pick_chance = pExit->door.rs_pick_chance;
+			pExit->door.lock = pExit->door.rs_lock;
 			if ((pExit->u1.to_room != NULL) &&
 				((pExit = pExit->u1.to_room->exit[rev_dir[iExit]])))
 			{
 				/* nail the other side */
 				pExit->exit_info = pExit->rs_flags;
-				pExit->door.lock.flags = pExit->door.rs_lock_flags;
-				pExit->door.lock.pick_chance = pExit->door.rs_pick_chance;
+				pExit->door.lock = pExit->door.rs_lock;
 			}
 		}
 	}
@@ -4969,11 +4967,8 @@ ROOM_INDEX_DATA *create_virtual_room_nouid(ROOM_INDEX_DATA *source, bool objects
 			ex2->orig_door = ex->orig_door;
 			ex2->door.strength = ex->door.strength;
 			ex2->door.material = str_dup(ex->door.material);
-			ex2->door.lock.key_vnum = ex->door.lock.key_vnum;
-			ex2->door.lock.flags = ex->door.lock.flags;
-			ex2->door.lock.pick_chance = ex->door.lock.pick_chance;
-			ex2->door.rs_lock_flags = ex->door.rs_lock_flags;
-			ex2->door.rs_pick_chance = ex->door.rs_pick_chance;
+			ex2->door.lock = ex->door.lock;
+			ex2->door.rs_lock = ex->door.rs_lock;
 			ex2->from_room = vroom;
 		}
 	}
@@ -5887,12 +5882,12 @@ void persist_save_exit(FILE *fp, EXIT_DATA *ex)
 	fprintf(fp, "Flags %s~\n", flag_string(exit_flags, ex->exit_info));
 	fprintf(fp, "ResetFlags %s~\n", flag_string(exit_flags, ex->rs_flags));
 
-	fprintf(fp, "DoorLock %ld %s~ %d %s~ %d %d\n",
+	fprintf(fp, "DoorLockReset %ld %s~ %d %ld %s~ %d %d\n",
 		ex->door.lock.key_vnum,
 		flag_string(lock_flags, ex->door.lock.flags),
 		ex->door.lock.pick_chance,
-		flag_string(lock_flags, ex->door.rs_lock_flags),
-		ex->door.rs_pick_chance,
+		flag_string(lock_flags, ex->door.rs_lock.flags),
+		ex->door.rs_lock.pick_chance,
 		ex->door.strength);
 	if(!IS_NULLSTR(ex->door.material))
 		fprintf(fp, "DoorMat %s~\n", ex->door.material);
@@ -7288,11 +7283,10 @@ EXIT_DATA *persist_load_exit(FILE *fp)
 				}
 
 				if( !str_cmp(word, "Door") ) {
-					ex->door.lock.key_vnum = fread_number(fp);
-					ex->door.lock.flags = 0;
-					ex->door.lock.pick_chance = 100;
-					ex->door.rs_lock_flags = 0;
-					ex->door.rs_pick_chance = 100;
+					ex->door.rs_lock.key_vnum = fread_number(fp);
+					ex->door.rs_lock.flags = 0;
+					ex->door.rs_lock.pick_chance = 100;
+					ex->door.lock.flags = ex->door.rs_lock;
 					ex->door.strength = fread_number(fp);
 					fMatch = TRUE;
 					break;
@@ -7304,14 +7298,32 @@ EXIT_DATA *persist_load_exit(FILE *fp)
 					if( ex->door.lock.flags == NO_FLAG ) ex->door.lock.flags = 0;
 					ex->door.lock.pick_chance = fread_number(fp);
 
-					ex->door.rs_lock_flags = script_flag_value(lock_flags, fread_string(fp));
-					if( ex->door.rs_lock_flags == NO_FLAG ) ex->door.rs_lock_flags = 0;
-					ex->door.rs_pick_chance = fread_number(fp);
+					ex->door.rs_lock.key_vnum = ex->door.lock.key_vnum;
+					ex->door.rs_lock.flags = script_flag_value(lock_flags, fread_string(fp));
+					if( ex->door.rs_lock.flags == NO_FLAG ) ex->door.rs_lock.flags = 0;
+					ex->door.rs_lock.pick_chance = fread_number(fp);
 
 					ex->door.strength = fread_number(fp);
 					fMatch = TRUE;
 					break;
 				}
+
+				if( !str_cmp(word, "DoorLockReset") ) {
+					ex->door.lock.key_vnum = fread_number(fp);
+					ex->door.lock.flags = script_flag_value(lock_flags, fread_string(fp));
+					if( ex->door.lock.flags == NO_FLAG ) ex->door.lock.flags = 0;
+					ex->door.lock.pick_chance = fread_number(fp);
+
+					ex->door.rs_lock.key_vnum = fread_number(fp);
+					ex->door.rs_lock.flags = script_flag_value(lock_flags, fread_string(fp));
+					if( ex->door.rs_lock.flags == NO_FLAG ) ex->door.rs_lock.flags = 0;
+					ex->door.rs_lock.pick_chance = fread_number(fp);
+
+					ex->door.strength = fread_number(fp);
+					fMatch = TRUE;
+					break;
+				}
+
 				SKEY("DoorMat", ex->door.material);
 				break;
 			case 'E':
@@ -7765,28 +7777,28 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 			// Correct RESETS
 			if( IS_SET(ex->rs_flags, VR_002_EX_LOCKED) )
 			{
-				SET_BIT(ex->door.rs_lock_flags, LOCK_LOCKED);
+				SET_BIT(ex->door.rs_lock.flags, LOCK_LOCKED);
 			}
 
 			if( IS_SET(ex->rs_flags, VR_002_EX_PICKPROOF) )
 			{
-				ex->door.rs_pick_chance = 0;
+				ex->door.rs_lock.pick_chance = 0;
 			}
 			else if( IS_SET(ex->rs_flags, VR_002_EX_INFURIATING) )
 			{
-				ex->door.rs_pick_chance = 10;
+				ex->door.rs_lock.pick_chance = 10;
 			}
 			else if( IS_SET(ex->rs_flags, VR_002_EX_HARD) )
 			{
-				ex->door.rs_pick_chance = 40;
+				ex->door.rs_lock.pick_chance = 40;
 			}
 			else if( IS_SET(ex->rs_flags, VR_002_EX_EASY) )
 			{
-				ex->door.rs_pick_chance = 80;
+				ex->door.rs_lock.pick_chance = 80;
 			}
 			else
 			{
-				ex->door.rs_pick_chance = 100;
+				ex->door.rs_lock.pick_chance = 100;
 			}
 
 			REMOVE_BIT(ex->rs_flags, (VR_002_EX_LOCKED|VR_002_EX_PICKPROOF|VR_002_EX_INFURIATING|VR_002_EX_HARD|VR_002_EX_EASY));
