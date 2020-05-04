@@ -3394,7 +3394,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 				obj->value[4], get_obj_index(obj->value[4]) ? get_obj_index(obj->value[4])->short_descr : "none",
 				obj->value[5]);
 		}
-		else if( IS_SET(obj->value[2], GATE_AREARANDOM) || pObj->value[3] == -1 )
+		else if( IS_SET(obj->value[2], GATE_AREARANDOM) || obj->value[3] == -1 )
 		{
 			// AREARANDOM portal
 			sprintf(buf,
@@ -3409,14 +3409,14 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 				obj->value[4], get_obj_index(obj->value[4]) ? get_obj_index(obj->value[4])->short_descr : "none",
 				obj->value[5]);
 		}
-		else if(pObj->value[3] > 0)
+		else if(obj->value[3] > 0)
 		{
 			// STATIC portal
 			sprintf(buf,
 				"{B[  {Wv0{B]{G Charges:{x        [%ld]\n\r"
 				"{B[  {Wv1{B]{G Exit Flags:{x     %s\n\r"
 				"{B[  {Wv2{B]{G Portal Flags:{x   %s\n\r"
-				"{B[  {Wv3{B]{G Goes to (vnum):{x [%ld]\n\r",
+				"{B[  {Wv3{B]{G Goes to (vnum):{x [%ld]\n\r"
 				"{B[  {Wv4{B]{G Key:{x            [%ld] %s\n\r",
 				obj->value[0],
 				flag_string(portal_exit_flags, obj->value[1]),
@@ -4247,7 +4247,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			{
 				send_to_char("DUNGEON FLOOR SET.\n\r\n\r", ch);
 			}
-			else if( IS_SET(obj->value[2], GATE_AREARANDOM) || pObj->value[3] == -1 )
+			else if( IS_SET(pObj->value[2], GATE_AREARANDOM) || pObj->value[3] == -1 )
 			{
 				send_to_char("AREA ANUM SET.\n\r\n\r", ch);
 			}
