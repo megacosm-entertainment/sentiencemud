@@ -3422,7 +3422,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 				flag_string(portal_exit_flags, obj->value[1]),
 				flag_string(portal_flags, obj->value[2]),
 				obj->value[3],
-				get_obj_index(obj->value[4]) ? get_obj_index(obj->value[4])->short_descr : "none");
+				obj->value[4], get_obj_index(obj->value[4]) ? get_obj_index(obj->value[4])->short_descr : "none");
 		}
 		else
 		{
@@ -4258,14 +4258,14 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			pObj->value[5] = atoi (argument);
 			break;
 		case 6:
-			if( !IS_SET(pObj->value[2], GATE_DUNGEON) && !IS_SET(obj->value[2], GATE_AREARANDOM) && !pObj->value[3] )
+			if( !IS_SET(pObj->value[2], GATE_DUNGEON) && !IS_SET(pObj->value[2], GATE_AREARANDOM) && !pObj->value[3] )
 			{
 				send_to_char("WILDERNESS MAP X-COORDINATE SET.\n\r\n\r", ch);
 				pObj->value[6] = atoi (argument);
 			}
 			break;
 		case 7:
-			if( !IS_SET(pObj->value[2], GATE_DUNGEON) && !IS_SET(obj->value[2], GATE_AREARANDOM) && !pObj->value[3] )
+			if( !IS_SET(pObj->value[2], GATE_DUNGEON) && !IS_SET(pObj->value[2], GATE_AREARANDOM) && !pObj->value[3] )
 			{
 				send_to_char("WILDERNESS MAP Y-COORDINATE SET.\n\r\n\r", ch);
 				pObj->value[7] = atoi (argument);
