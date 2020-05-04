@@ -2594,6 +2594,8 @@ SCRIPT_CMD(scriptcmd_unmute);
 SCRIPT_CMD(scriptcmd_unlockarea);
 SCRIPT_CMD(scriptcmd_sendfloor);
 SCRIPT_CMD(scriptcmd_reckoning);
+SCRIPT_CMD(scriptcmd_lockadd);
+SCRIPT_CMD(scriptcmd_lockremove);
 
 #include "tables.h"
 

@@ -2208,6 +2208,62 @@ SCRIPT_CMD(scriptcmd_instancecomplete)
 //////////////////////////////////////
 // L
 
+// LOCKADD $OBJECT
+SCRIPT_CMD(scriptcmd_lockadd)
+{
+	info->progs->lastreturn = 0;
+
+	if( !expand_argument(info,argument,arg) || arg->type != ENT_OBJECT || !IS_VALID(arg->d.obj) )
+		return;
+
+	if( arg->d.obj->lock )
+		return
+
+	switch(arg->d.obj->item_type)
+	{
+	case ITEM_CONTAINER:
+	case ITEM_BOOK:
+	case ITEM_PORTAL:
+//	case ITEM_WEAPON_CONTAINER:
+//	case ITEM_DRINKCONTAINER:
+		break;
+	default:
+		return;
+	}
+
+	LOCK_STATE *lock = new_lock_state();
+	SET_BIT(lock->flags, LOCK_CREATED);
+
+	arg->d.obj->lock = lock;
+
+	info->progs->lastreturn = 1;
+}
+
+// LOCKREMOVE $OBJECT
+SCRIPT_CMD(scriptcmd_lockremove)
+{
+	info->progs->lastreturn = 0;
+
+	if( !expand_argument(info,argument,arg) || arg->type != ENT_OBJECT || !IS_VALID(arg->d.obj) )
+		return;
+
+	LOCK_STATE *lock = arg->d.obj->lock;
+
+	if( !lock )
+		return
+
+	// Only CREATED locks with noremove can be stripped off by this command.
+	if( IS_SET(lock->flags, LOCK_NOREMOVE) && !IS_SET(lock->flags, LOCK_CREATED))
+		return;
+
+	free_lock_state(lock);
+
+	arg->d.obj->lock = NULL;
+
+	info->progs->lastreturn = 1;
+}
+
+
 //////////////////////////////////////
 // M
 

@@ -1065,7 +1065,12 @@ const struct flag_type lock_flags[] =
 	{	"magic",		LOCK_MAGIC,			TRUE	},
 	{	"snap_key",		LOCK_SNAPKEY,		TRUE	},
 	{	"script",		LOCK_SCRIPT,		TRUE	},
-	{	NULL,			0,					0	}
+	{	"noremove",		LOCK_NOREMOVE,		TRUE	},
+	{	"broken",		LOCK_BROKEN,		TRUE	},
+	{	"jammed",		LOCK_JAMMED,		TRUE	},
+	{	"nojam",		LOCK_NOJAM,			TRUE	},
+	{	"created",		LOCK_CREATED,		FALSE	},
+	{	NULL,			0,					0		}
 };
 
 const struct flag_type portal_exit_flags[] =
@@ -1080,7 +1085,7 @@ const struct flag_type portal_exit_flags[] =
 //    {	"infuriating",		EX_INFURIATING,		TRUE	},
     {	"noclose",		EX_NOCLOSE,		TRUE	},
     {	"nolock",		EX_NOLOCK,		TRUE	},
-    {   "hidden",		EX_HIDDEN,		TRUE	},
+//    {   "hidden",		EX_HIDDEN,		TRUE	},			// Portals can be made hidden in other ways
     {   "found",		EX_FOUND,		TRUE	},
     {   "broken",		EX_BROKEN,		TRUE	},
     {   "nobash",		EX_NOBASH,		TRUE    },

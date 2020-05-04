@@ -74,6 +74,8 @@ const struct script_cmd_type token_cmd_table[] = {
 	{ "interrupt",			do_tpinterrupt,				FALSE,	TRUE	},
 	{ "junk",				do_tpjunk,					FALSE,	TRUE	},
 	{ "link",				do_tplink,					FALSE,	TRUE	},
+	{ "lockadd",			scriptcmd_lockadd,			FALSE,	TRUE	},
+	{ "lockremove",			scriptcmd_lockremove,		FALSE,	TRUE	},
 	{ "mload",				do_tpmload,					FALSE,	TRUE	},
 	{ "mute",				scriptcmd_mute,				FALSE,	TRUE	},
 	{ "oload",				do_tpoload,					FALSE,	TRUE	},
@@ -1998,7 +2000,8 @@ SCRIPT_CMD(do_tpalterobj)
 	char buf[2*MIL],field[MIL],*rest;
 	int value, num, min_sec = MIN_SCRIPT_SECURITY;
 	OBJ_DATA *obj = NULL;
-
+	int min, max;
+	bool hasmin = FALSE, hasmax = FALSE;
 	bool allowarith = TRUE;
 	const struct flag_type *flags = NULL;
 
@@ -2108,24 +2111,27 @@ SCRIPT_CMD(do_tpalterobj)
 	} else {
 		int *ptr = NULL;
 
-		if(!str_cmp(field,"extra"))			{ ptr = (int*)&obj->extra_flags; flags = extra_flags; }
-		else if(!str_cmp(field,"extra2"))	{ ptr = (int*)&obj->extra2_flags; flags = extra2_flags; min_sec = 7; }
-		else if(!str_cmp(field,"extra3"))	{ ptr = (int*)&obj->extra3_flags; flags = extra3_flags; min_sec = 7; }
-		else if(!str_cmp(field,"extra4"))	{ ptr = (int*)&obj->extra4_flags; flags = extra4_flags; min_sec = 7; }
-		else if(!str_cmp(field,"wear"))		{ ptr = (int*)&obj->wear_flags; flags = wear_flags; }
-		else if(!str_cmp(field,"wearloc"))	{ ptr = (int*)&obj->wear_loc; flags = wear_loc_flags; }
-		else if(!str_cmp(field,"weight"))	ptr = (int*)&obj->weight;
-		else if(!str_cmp(field,"cond"))		ptr = (int*)&obj->condition;
-		else if(!str_cmp(field,"timer"))	ptr = (int*)&obj->timer;
-		else if(!str_cmp(field,"level"))	{ ptr = (int*)&obj->level; min_sec = 5; }
-		else if(!str_cmp(field,"repairs"))	ptr = (int*)&obj->times_fixed;
-		else if(!str_cmp(field,"fixes"))	{ ptr = (int*)&obj->times_allowed_fixed; min_sec = 5; }
-		else if(!str_cmp(field,"type"))		{ ptr = (int*)&obj->item_type; flags = type_flags; min_sec = 7; }
-		else if(!str_cmp(field,"cost"))		{ ptr = (int*)&obj->cost; min_sec = 5; }
+		if(!str_cmp(field,"cond"))				ptr = (int*)&obj->condition;
+		else if(!str_cmp(field,"cost"))			{ ptr = (int*)&obj->cost; min_sec = 5; }
+		else if(!str_cmp(field,"extra"))		{ ptr = (int*)&obj->extra_flags; flags = extra_flags; }
+		else if(!str_cmp(field,"extra2"))		{ ptr = (int*)&obj->extra2_flags; flags = extra2_flags; min_sec = 7; }
+		else if(!str_cmp(field,"extra3"))		{ ptr = (int*)&obj->extra3_flags; flags = extra3_flags; min_sec = 7; }
+		else if(!str_cmp(field,"extra4"))		{ ptr = (int*)&obj->extra4_flags; flags = extra4_flags; min_sec = 7; }
+		else if(!str_cmp(field,"fixes"))		{ ptr = (int*)&obj->times_allowed_fixed; min_sec = 5; }
+		else if(!str_cmp(field,"key"))			{ if( obj->lock ) { ptr = (int*)&obj->lock->key_vnum; } }
+		else if(!str_cmp(field,"level"))		{ ptr = (int*)&obj->level; min_sec = 5; }
+		else if(!str_cmp(field,"lockflags"))	{ if( obj->lock ) { ptr = (int*)&obj->lock->flags; flags = lock_flags; } }
+		else if(!str_cmp(field,"pickchance"))	{ if( obj->lock ) { ptr = (int*)&obj->lock->pick_chance; min = 0; max = 100; hasmin = hasmax = TRUE; } }
+		else if(!str_cmp(field,"repairs"))		ptr = (int*)&obj->times_fixed;
 		else if(!str_cmp(field,"tempstore1"))	ptr = (int*)&obj->tempstore[0];
 		else if(!str_cmp(field,"tempstore2"))	ptr = (int*)&obj->tempstore[1];
 		else if(!str_cmp(field,"tempstore3"))	ptr = (int*)&obj->tempstore[2];
 		else if(!str_cmp(field,"tempstore4"))	ptr = (int*)&obj->tempstore[3];
+		else if(!str_cmp(field,"timer"))		ptr = (int*)&obj->timer;
+		else if(!str_cmp(field,"type"))			{ ptr = (int*)&obj->item_type; flags = type_flags; min_sec = 7; }
+		else if(!str_cmp(field,"wear"))			{ ptr = (int*)&obj->wear_flags; flags = wear_flags; }
+		else if(!str_cmp(field,"wearloc"))		{ ptr = (int*)&obj->wear_loc; flags = wear_loc_flags; }
+		else if(!str_cmp(field,"weight"))		ptr = (int*)&obj->weight;
 
 		if(!ptr) return;
 
@@ -2150,7 +2156,24 @@ SCRIPT_CMD(do_tpalterobj)
 
 				if( buf[0] == '=' || buf[0] == '&' )
 				{
-					if( IS_SET(*ptr, ITEM_INSTANCE_OBJ) ) SET_BIT(value, ITEM_INSTANCE_OBJ);
+					value |= (*ptr & (ITEM_INSTANCE_OBJ));
+				}
+			}
+			else if( flags == lock_flags )
+			{
+				int keep = LOCK_CREATED;
+
+				if( !IS_SET(*ptr, LOCK_CREATED) )
+				{
+					SET_BIT(keep, LOCK_NOREMOVE);
+					SET_BIT(keep, LOCK_NOJAM);
+				}
+
+				REMOVE_BIT(value, keep);
+
+				if( buf[0] == '=' || buf[0] == '&' )
+				{
+					value |= (*ptr & keep);
 				}
 			}
 		}
@@ -5022,6 +5045,22 @@ SCRIPT_CMD(do_tpalterexit)
 			if( (buf[0] == '=') || (buf[0] == '&') )
 			{
 				value |= (*ptr & (EX_NOUNLINK|EX_PREVFLOOR|EX_NEXTFLOOR));
+			}
+		}
+		else if( flags == lock_flags )
+		{
+			int keep = LOCK_CREATED;
+
+			if( !IS_SET(*ptr, LOCK_CREATED) )
+			{
+				// OLC created locks can lose noremove
+				SET_BIT(value, LOCK_REMOVE);
+			}
+
+			REMOVE_BIT(value, keep);
+			if( (buf[0] == '=') || (buf[0] == '&') )
+			{
+				value |= (*ptr & keep);
 			}
 		}
 	}

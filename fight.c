@@ -4603,6 +4603,7 @@ void do_intimidate(CHAR_DATA *ch, char *argument)
 void do_bash(CHAR_DATA *ch, char *argument)
 {
 	CHAR_DATA *victim;
+	OBJ_DATA *obj;
 	int chance, riding;
 	int door;
 	int dam;
@@ -4632,6 +4633,90 @@ void do_bash(CHAR_DATA *ch, char *argument)
 		send_to_char("You can't bash while riding!\n\r", ch);
 		return;
 	}
+
+	// Bash a portal
+	if ((obj = get_obj_here(ch, NULL, arg)) != NULL)
+	{
+		if (obj->item_type == ITEM_PORTAL)
+		{
+			if (!IS_SET(obj->value[1],EX_ISDOOR))
+			{
+				send_to_char("You can't do that.\n\r",ch);
+				return;
+			}
+
+			if (!IS_SET(obj->value[1],EX_CLOSED))
+			{
+				act("$n attempts to bash down the already open $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+				send_to_char("It's already open.\n\r", ch);
+				return;
+			}
+
+			chance = get_skill(ch, gsn_bash) / 2 + 15;
+
+			switch (ch->size) {
+			case SIZE_TINY: chance = 0; break;
+			case SIZE_SMALL: chance /= 2; break;
+			case SIZE_MEDIUM: break;
+			case SIZE_LARGE: chance *= .2; break;
+			case SIZE_HUGE: chance *= 2; break;
+			case SIZE_GIANT: chance *= 5; break;
+			}
+
+			chance += (get_curr_stat(ch, STAT_STR)) / 4;
+
+			if (IS_AFFECTED2(ch, AFF2_WARCRY)) chance = chance * 3/2;
+
+			act("You charge into $p at full speed!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			act("$n charges into $p at full speed!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+
+			dam = number_range(2, 15 + 2 * ch->size + chance/20 + ch->tot_level * 3);
+			dam = UMIN(ch->hit, dam);
+
+			damage(ch, ch, dam, gsn_bash, DAM_BASH, FALSE);
+			deduct_move(ch, 75);
+
+			if (IS_SET(obj->value[1], EX_NOBASH) ||
+				(!pexit->door.lock.pick_chance && IS_SET(obj->value[1], EX_NOPASS)))
+			{
+				chance = chance / 5;	// Only 1/5 the original chance to break off any bars on the door
+
+				if (IS_SET(obj->value[1], EX_BARRED) && number_percent() < chance)
+				{
+					REMOVE_BIT(obj->value[1], EX_BARRED);
+					act("You rebound off $p, managing to break off the bars holding the $p closed, before flying backwards!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+					act("$n rebounds off $p and flies backwards, breaking the bars on the $p in the process!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+				}
+				else
+				{
+					act("You rebound off $p and fly backwards!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+					act("$n rebounds off $p and flies backwards!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+				}
+
+
+				ch->position = POS_RESTING;
+				ch->bashed = number_range(2, 4);
+				return;
+			}
+
+			if (number_percent() < chance) {
+				if( obj->lock )
+				{
+					REMOVE_BIT(obj->lock->flags, LOCK_LOCKED);
+				}
+
+				REMOVE_BIT(obj->value[1], (EX_CLOSED|EX_BARRED));
+				SET_BIT(obj->value[1], EX_BROKEN);
+
+				act("$p explodes, sending pieces everywhere!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+				act("$p explodes, sending pieces everywhere!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+				check_improve(ch,gsn_bash,TRUE,5);
+			}
+
+			return;
+		}
+	}
+
 
 	// Bash a door
 	if ((door = find_door(ch, argument, FALSE)) >= 0) {
@@ -4672,15 +4757,16 @@ void do_bash(CHAR_DATA *ch, char *argument)
 		damage(ch, ch, dam, gsn_bash, DAM_BASH, FALSE);
 		deduct_move(ch, 75);
 
-		if (IS_SET(pexit->exit_info, EX_NOBASH) || (IS_SET(pexit->exit_info, EX_PICKPROOF) &&
-			IS_SET(pexit->exit_info, EX_NOPASS))) {
+		if (IS_SET(pexit->exit_info, EX_NOBASH) ||
+			(!pexit->door.lock.pick_chance && IS_SET(pexit->exit_info, EX_NOPASS)))
+		{
 
 			chance = chance / 5;	// Only 1/5 the original chance to break off any bars on the door
 
 			if (IS_SET(pexit->exit_info, EX_BARRED) && number_percent() < chance)
 			{
 				REMOVE_BIT(pexit->exit_info , EX_BARRED);
-				act("You rebound off the the $p, managing to break off the bars holding the $p closed, before flying backwards!", ch, NULL, NULL, NULL, NULL, NULL, pexit->keyword, TO_CHAR);
+				act("You rebound off the $d, managing to break off the bars holding the $p closed, before flying backwards!", ch, NULL, NULL, NULL, NULL, NULL, pexit->keyword, TO_CHAR);
 				act("$n rebounds off the $d and flies backwards, breaking the bars on the $p in the process!", ch, NULL, NULL, NULL, NULL, NULL, pexit->keyword, TO_ROOM);
 			}
 			else

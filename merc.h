@@ -4239,6 +4239,12 @@ struct  conditional_descr_data
 #define LOCK_MAGIC			(B)		// Requires magic to break
 #define LOCK_SNAPKEY		(C)		// Key snaps on use
 #define LOCK_SCRIPT			(D)		// Requires a script to alter the lock to unlock it.
+#define LOCK_NOREMOVE		(E)		// Cannot be removed by scripting
+#define LOCK_BROKEN			(F)		// Lock has been damaged physically
+#define LOCK_JAMMED			(G)		// Locking mechanism has been jammed
+#define LOCK_NOJAM			(H)		// Lock does not allow being jammed
+
+#define LOCK_CREATED		(Z)		// Lock was created by a script, so allows full alter exit manipulation
 
 typedef struct lock_state_data {
 	long key_vnum;

@@ -97,8 +97,6 @@ const	sh_int	movement_loss	[SECT_MAX]	=
 	4,		/* SECT_JUNGLE */
 };
 
-/* MOVED: player/class.c
-   get class (1st class, 2nd class, 3rd or 4th.) */
 int get_player_classnth(CHAR_DATA *ch)
 {
 	int num = 4;
@@ -360,7 +358,6 @@ bool exit_destination_data(EXIT_DATA *pexit, DESTINATION_DATA *pDest)
 	return TRUE;
 }
 
-/* MOVED: movement/move.c */
 void move_char(CHAR_DATA *ch, int door, bool follow)
 {
 	CHAR_DATA *fch;
@@ -798,7 +795,6 @@ void check_ambush(CHAR_DATA *ch)
 }
 
 
-/* MOVED: room/affects.c */
 bool check_rocks(CHAR_DATA *ch, bool show)
 {
 	CHAR_DATA *vch, *vch_next;
@@ -841,7 +837,6 @@ bool check_rocks(CHAR_DATA *ch, bool show)
 }
 
 
-/* MOVED: room/affects.c */
 bool check_ice(CHAR_DATA *ch, bool show)
 {
     if (ch->in_room == NULL)
@@ -870,8 +865,6 @@ bool check_ice(CHAR_DATA *ch, bool show)
 }
 
 
-/* MOVED: room/affects.c
-   Returns true if it kills them */
 bool check_room_flames(CHAR_DATA *ch, bool show)
 {
 	OBJ_DATA *obj;
@@ -933,7 +926,6 @@ bool check_room_flames(CHAR_DATA *ch, bool show)
 }
 
 
-/* MOVED: room/affects.c */
 void check_room_shield_source(CHAR_DATA *ch, bool show)
 {
     OBJ_DATA *obj;
@@ -949,7 +941,6 @@ void check_room_shield_source(CHAR_DATA *ch, bool show)
 	}
 }
 
-/* MOVED: movement/move.c */
 bool can_move_room(CHAR_DATA *ch, int door, ROOM_INDEX_DATA *room)
 {
 	OBJ_DATA *obj;
@@ -1110,7 +1101,6 @@ bool can_move_room(CHAR_DATA *ch, int door, ROOM_INDEX_DATA *room)
 	return TRUE;
 }
 
-/* MOVED: movement/move.c */
 void drunk_walk(CHAR_DATA *ch, int door)
 {
 	EXIT_DATA *pexit;
@@ -1147,7 +1137,6 @@ void drunk_walk(CHAR_DATA *ch, int door)
 }
 
 
-/* MOVED: senses/vision.c */
 void do_search(CHAR_DATA *ch, char *argument)
 {
     char buf[2*MAX_STRING_LENGTH];
@@ -1250,7 +1239,6 @@ void do_search(CHAR_DATA *ch, char *argument)
 		act("You find nothing unusual.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 }
 
-/* MOVED: movement/move.c */
 void do_north(CHAR_DATA *ch, char *argument)
 {
     move_char(ch, DIR_NORTH, FALSE);
@@ -1331,51 +1319,53 @@ int find_door(CHAR_DATA *ch, char *arg, bool show)
     else if (!ch)
     	return -1;
     else {
-	for (door = 0; door <= 9; door++)
-	{
-	    if ((pexit = ch->in_room->exit[door]) != NULL
-	    &&   IS_SET(pexit->exit_info, EX_ISDOOR)
-	    &&   pexit->keyword != NULL
-	    &&   strlen(arg) > 2
-	    &&   str_infix(arg, "the and")
-	    &&   is_name(arg, pexit->keyword))
-		return door;
-	}
+		for (door = 0; door < MAX_DIR; door++)
+		{
+			if ((pexit = ch->in_room->exit[door]) != NULL &&
+				IS_SET(pexit->exit_info, EX_ISDOOR) &&
+				pexit->keyword != NULL &&
+				strlen(arg) > 2 &&
+				str_infix(arg, "the and") &&
+				is_name(arg, pexit->keyword))
+				break;
+		}
 
-	if (show)
-	    act("I see no $T here.", ch, NULL, NULL, NULL, NULL, NULL, arg, TO_CHAR);
+		if( door >= MAX_DIR )
+		{
+			if (show)
+			    act("I see no $T here.", ch, NULL, NULL, NULL, NULL, NULL, arg, TO_CHAR);
 
-	return -1;
+			return -1;
+		}
     }
 
     if(ch) {
-	if ((pexit = ch->in_room->exit[door]) == NULL) {
-		if (show)
-		act("I see no door $T here.", ch, NULL, NULL, NULL, NULL, NULL, arg, TO_CHAR);
-		return -1;
-	}
-
-	if(IS_SET(pexit->exit_info, EX_HIDDEN) && !IS_SET(pexit->exit_info, EX_FOUND) && IS_SET(pexit->exit_info, EX_MUSTSEE) )
-	{
-		if(!IS_IMMORTAL(ch) || !IS_SET(ch->act,PLR_HOLYLIGHT))
-		{
+		if ((pexit = ch->in_room->exit[door]) == NULL) {
 			if (show)
 				act("I see no door $T here.", ch, NULL, NULL, NULL, NULL, NULL, arg, TO_CHAR);
 			return -1;
 		}
-	}
 
-	if (!IS_SET(pexit->exit_info, EX_ISDOOR)) {
-		if (show)
-		    send_to_char("You can't do that.\n\r", ch);
-		return -1;
-	}
+		if(IS_SET(pexit->exit_info, EX_HIDDEN) && !IS_SET(pexit->exit_info, EX_FOUND) && IS_SET(pexit->exit_info, EX_MUSTSEE) )
+		{
+			if(!IS_IMMORTAL(ch) || !IS_SET(ch->act,PLR_HOLYLIGHT))
+			{
+				if (show)
+					act("I see no door $T here.", ch, NULL, NULL, NULL, NULL, NULL, arg, TO_CHAR);
+				return -1;
+			}
+		}
+
+		if (!IS_SET(pexit->exit_info, EX_ISDOOR)) {
+			if (show)
+			    send_to_char("You can't do that.\n\r", ch);
+			return -1;
+		}
     }
 
     return door;
 }
 
-/* MOVED: movement/doors.c */
 void do_open(CHAR_DATA *ch, char *argument)
 {
 	char arg[MAX_INPUT_LENGTH];
@@ -1525,7 +1515,6 @@ void do_open(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: movement/doors.c */
 void do_close(CHAR_DATA *ch, char *argument)
 {
 	char arg[MAX_INPUT_LENGTH];
@@ -1546,9 +1535,22 @@ void do_close(CHAR_DATA *ch, char *argument)
 		/* portal stuff */
 		if (obj->item_type == ITEM_PORTAL)
 		{
+			if (!IS_SET(obj->value[1],EX_ISDOOR) ||
+				IS_SET(obj->value[1],EX_NOCLOSE))
+			{
+				send_to_char("You can't do that.\n\r",ch);
+				return;
+			}
+
 			if (IS_SET(obj->value[1],EX_CLOSED))
 			{
 				send_to_char("It's already closed.\n\r",ch);
+				return;
+			}
+
+			if (IS_SET(obj->value[1],EX_BROKEN))
+			{
+				send_to_char("That door has been destroyed. It cannot be closed.\n\r",ch);
 				return;
 			}
 
@@ -1632,7 +1634,6 @@ void do_close(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: movement/doors.c */
 OBJ_DATA *get_key(CHAR_DATA *ch, int vnum)
 {
 	OBJ_DATA *obj;
@@ -1663,7 +1664,6 @@ OBJ_DATA *get_key(CHAR_DATA *ch, int vnum)
 }
 
 
-/* MOVED: movement/doors.c */
 void use_key(CHAR_DATA *ch, OBJ_DATA *key)
 {
 	CHURCH_DATA *church;
@@ -1720,7 +1720,6 @@ void use_key(CHAR_DATA *ch, OBJ_DATA *key)
 }
 
 
-/* MOVED: movement/doors.c */
 void do_lock(CHAR_DATA *ch, char *argument)
 {
 	char arg[MAX_INPUT_LENGTH];
@@ -1767,6 +1766,18 @@ void do_lock(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
+			if (IS_SET(obj->lock->flags,LOCK_BROKEN))
+			{
+				send_to_char("The lock is broken.\n\r",ch);
+				return;
+			}
+
+			if (IS_SET(obj->lock->flags,LOCK_JAMMED))
+			{
+				send_to_char("The lock has been jammed.\n\r",ch);
+				return;
+			}
+
 			if (IS_SET(obj->lock->flags,LOCK_LOCKED))
 			{
 				send_to_char("It's already locked.\n\r",ch);
@@ -1800,6 +1811,18 @@ void do_lock(CHAR_DATA *ch, char *argument)
 		if ((key = get_key(ch, obj->lock->key_vnum)) == NULL)
 		{
 			send_to_char("You lack the key.\n\r", ch);
+			return;
+		}
+
+		if (IS_SET(obj->lock->flags,LOCK_BROKEN))
+		{
+			send_to_char("The lock is broken.\n\r",ch);
+			return;
+		}
+
+		if (IS_SET(obj->lock->flags,LOCK_JAMMED))
+		{
+			send_to_char("The lock has been jammed.\n\r",ch);
 			return;
 		}
 
@@ -1840,6 +1863,16 @@ void do_lock(CHAR_DATA *ch, char *argument)
 			send_to_char("You lack the key.\n\r", ch);
 			return;
 		}
+		if (IS_SET(pexit->door.lock.flags,LOCK_BROKEN))
+		{
+			send_to_char("The lock is broken.\n\r",ch);
+			return;
+		}
+		if (IS_SET(pexit->door.lock.flags,LOCK_JAMMED))
+		{
+			send_to_char("The lock has been jammed.\n\r",ch);
+			return;
+		}
 		if (IS_SET(pexit->door.lock.flags, LOCK_LOCKED))
 		{
 			send_to_char("It's already locked.\n\r", ch);
@@ -1863,7 +1896,6 @@ void do_lock(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: movement/doors.c */
 void do_unlock(CHAR_DATA *ch, char *argument)
 {
 	char arg[MAX_INPUT_LENGTH];
@@ -1908,6 +1940,18 @@ void do_unlock(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
+			if (IS_SET(obj->lock->flags,LOCK_BROKEN))
+			{
+				send_to_char("The lock is broken.\n\r",ch);
+				return;
+			}
+
+			if (IS_SET(obj->lock->flags,LOCK_JAMMED))
+			{
+				send_to_char("The lock has been jammed.\n\r",ch);
+				return;
+			}
+
 			if (!IS_SET(obj->lock->flags,LOCK_LOCKED))
 			{
 				send_to_char("It's already unlocked.\n\r",ch);
@@ -1941,6 +1985,16 @@ void do_unlock(CHAR_DATA *ch, char *argument)
 		if ((key = get_key(ch, obj->lock->key_vnum)) == NULL)
 		{
 			send_to_char("You lack the key.\n\r",ch);
+			return;
+		}
+		if (IS_SET(obj->lock->flags,LOCK_BROKEN))
+		{
+			send_to_char("The lock is broken.\n\r",ch);
+			return;
+		}
+		if (IS_SET(obj->lock->flags,LOCK_JAMMED))
+		{
+			send_to_char("The lock has been jammed.\n\r",ch);
 			return;
 		}
 		if (!IS_SET(obj->lock->flags,LOCK_LOCKED))
@@ -1991,6 +2045,16 @@ void do_unlock(CHAR_DATA *ch, char *argument)
 			send_to_char("You lack the key.\n\r", ch);
 			return;
 		}
+		if (IS_SET(pexit->door.lock.flags,LOCK_BROKEN))
+		{
+			send_to_char("The lock is broken.\n\r",ch);
+			return;
+		}
+		if (IS_SET(pexit->door.lock.flags,LOCK_JAMMED))
+		{
+			send_to_char("The lock has been jammed.\n\r",ch);
+			return;
+		}
 		if (!IS_SET(pexit->door.lock.flags, LOCK_LOCKED))
 		{
 			send_to_char("It's already unlocked.\n\r", ch);
@@ -2014,7 +2078,6 @@ void do_unlock(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: movement/doors.c */
 void do_pick(CHAR_DATA *ch, char *argument)
 {
 	char arg[MAX_INPUT_LENGTH];
@@ -2075,6 +2138,18 @@ void do_pick(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
+			if (IS_SET(obj->lock->flags,LOCK_BROKEN))
+			{
+				send_to_char("The lock is broken.\n\r",ch);
+				return;
+			}
+
+			if (IS_SET(obj->lock->flags,LOCK_JAMMED))
+			{
+				send_to_char("The lock has been jammed.\n\r",ch);
+				return;
+			}
+
 			if (!IS_SET(obj->lock->flags, LOCK_LOCKED) )
 			{
 				send_to_char("It's already unlocked.\n\r", ch);
@@ -2108,6 +2183,16 @@ void do_pick(CHAR_DATA *ch, char *argument)
 		if (!obj->lock || obj->lock->key_vnum < 1)
 		{
 			send_to_char("It can't be unlocked.\n\r",ch);
+			return;
+		}
+		if (IS_SET(obj->lock->flags,LOCK_BROKEN))
+		{
+			send_to_char("The lock is broken.\n\r",ch);
+			return;
+		}
+		if (IS_SET(obj->lock->flags,LOCK_JAMMED))
+		{
+			send_to_char("The lock has been jammed.\n\r",ch);
 			return;
 		}
 		if (!IS_SET(obj->lock->flags, LOCK_LOCKED) )
@@ -2147,11 +2232,22 @@ void do_pick(CHAR_DATA *ch, char *argument)
 			send_to_char("It can't be picked.\n\r", ch);
 			return;
 		}
+		if (IS_SET(pexit->door.lock.flags,LOCK_BROKEN))
+		{
+			send_to_char("The lock is broken.\n\r",ch);
+			return;
+		}
+		if (IS_SET(pexit->door.lock.flags,LOCK_JAMMED))
+		{
+			send_to_char("The lock has been jammed.\n\r",ch);
+			return;
+		}
 		if (!IS_SET(pexit->door.lock.flags, LOCK_LOCKED))
 		{
 			send_to_char("It's already unlocked.\n\r", ch);
 			return;
 		}
+
 		if ((number_percent() >= pexit->door.lock.pick_chance) && !IS_IMMORTAL(ch))
 		{
 			send_to_char("You failed.\n\r", ch);
@@ -2173,7 +2269,6 @@ void do_pick(CHAR_DATA *ch, char *argument)
 	}
 }
 
-/* MOVED: player/position.c */
 void do_stand(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj = NULL;
@@ -2320,7 +2415,6 @@ void do_stand(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: player/position.c */
 void do_rest(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj = NULL;
@@ -2463,7 +2557,6 @@ void do_rest(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: player/position.c */
 void do_sit (CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj = NULL;
@@ -2598,7 +2691,6 @@ void do_sit (CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: player/position.c */
 void do_sleep(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj = NULL;
@@ -2685,7 +2777,6 @@ void do_sleep(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: player/position.c */
 void do_wake(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -2712,7 +2803,6 @@ void do_wake(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: player/position.c */
 void do_sneak(CHAR_DATA *ch, char *argument)
 {
     AFFECT_DATA af;
@@ -2779,8 +2869,6 @@ memset(&af,0,sizeof(af));
 }
 
 
-/* MOVED: player/position.c
-   Hide in the shadows, or hide an item */
 void do_hide(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj;
@@ -3040,7 +3128,6 @@ void do_hide(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: player/position.c */
 void hide_end(CHAR_DATA *ch)
 {
     CHAR_DATA *rch;
@@ -3073,7 +3160,6 @@ void hide_end(CHAR_DATA *ch)
     }
 }
 
-/* MOVED: senses/vision.c */
 void do_visible(CHAR_DATA *ch, char *argument)
 {
     affect_strip (ch, gsn_invis			);
@@ -3089,7 +3175,6 @@ void do_visible(CHAR_DATA *ch, char *argument)
     send_to_char("You reveal yourself.\n\r", ch);
 }
 
-/* MOVED: */
 void do_recall(CHAR_DATA *ch, char *argument)
 {
     ROOM_INDEX_DATA *location;
@@ -3168,7 +3253,6 @@ void do_recall(CHAR_DATA *ch, char *argument)
 }
 
 #if 0
-/* MOVED: ship.c */
 void do_steer( CHAR_DATA *ch, char *argument )
 {
     char arg[MAX_INPUT_LENGTH];
@@ -3269,7 +3353,6 @@ void do_steer( CHAR_DATA *ch, char *argument )
 }
 
 
-/* MOVED: ship.c */
 void do_speed( CHAR_DATA *ch, char *argument )
 {
     char arg[MAX_INPUT_LENGTH];
@@ -3340,7 +3423,6 @@ void do_speed( CHAR_DATA *ch, char *argument )
     return;
 }
 
-/* MOVED: ship.c */
 void do_aim( CHAR_DATA *ch, char *argument )
 {
 	char arg[MAX_INPUT_LENGTH];
@@ -3504,8 +3586,6 @@ void do_aim( CHAR_DATA *ch, char *argument )
 }
 #endif
 
-/* MOVED: movement/remort.c
-   Fade remort skill */
 void do_fade(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -3594,7 +3674,6 @@ void do_fade(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: movement/remort.c */
 void fade_end(CHAR_DATA *ch)
 {
 	int counter = 0;
@@ -3701,7 +3780,6 @@ bool move_success(CHAR_DATA *ch)
 	return TRUE;
 }
 
-/* MOVED: movement/remort.c*/
 /*  Project for remorts - work in progress
 void do_project(CHAR_DATA *ch, char *argument)
 {
@@ -3767,101 +3845,120 @@ void do_project(CHAR_DATA *ch, char *argument)
     }
 } */
 
-/* MOVED: movement/doors.c
-   Highwayman bar skill - bars a door so no-one can open it w/o bashing */
 void do_bar(CHAR_DATA *ch, char *argument)
 {
-    char arg[MAX_INPUT_LENGTH];
-    char exit[MSL];
-    OBJ_DATA *obj;
-    int door;
+	char arg[MAX_INPUT_LENGTH];
+	char exit[MSL];
+	OBJ_DATA *obj;
+	int door;
 
-    one_argument(argument, arg);
+	one_argument(argument, arg);
 
-    if (get_skill(ch, gsn_bar) == 0)
-    {
-	send_to_char("You have no knowledge of this skill.\n\r", ch);
-	return;
-    }
-
-    if (arg[0] == '\0')
-    {
-	send_to_char("Bar what?\n\r", ch);
-	return;
-    }
-
-    if ((obj = get_obj_here(ch, NULL, arg)) != NULL)
-    {
-	if (obj->item_type == ITEM_PORTAL)
+	if (get_skill(ch, gsn_bar) == 0)
 	{
-	    if (!IS_SET(obj->value[1],EX_ISDOOR))
-	    {
-		send_to_char("You can't do that.\n\r",ch);
+		send_to_char("You have no knowledge of this skill.\n\r", ch);
 		return;
-	    }
-
-	    if (!IS_SET(obj->value[1],EX_CLOSED))
-	    {
-		send_to_char("It's not closed.\n\r",ch);
-		return;
-	    }
-
-	    if (IS_SET(obj->value[1],EX_BARRED))
-	    {
-		send_to_char("It's already barred.\n\r",ch);
-		return;
-	    }
-
-	    if (IS_SET(obj->value[1],EX_NOBAR))
-	    {
-	    act("You can't find a way to bar up the $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-		return;
-	    }
-
-	    SET_BIT(obj->value[1],EX_BARRED);
-	    act("You bar up the $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-	    act("$n bars up the $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
-	    check_improve(ch, gsn_bar, TRUE, 1);
-	    return;
 	}
 
-	act("You can't bar up the $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-	return;
-    }
-
-    if ((door = find_door(ch, arg, TRUE)) >= 0)
-    {
-	ROOM_INDEX_DATA *to_room;
-	EXIT_DATA *pexit;
-	EXIT_DATA *pexit_rev;
-
-	pexit = ch->in_room->exit[door];
-	if (!IS_SET(pexit->exit_info, EX_CLOSED))
-	    { send_to_char("It's not closed.\n\r",        ch); return; }
-	if (IS_SET(pexit->exit_info, EX_BARRED))
-	    { send_to_char("It's already barred.\n\r",  ch); return; }
-	if (IS_SET(pexit->exit_info, EX_NOBAR))
-	    { send_to_char("You can't bar it.\n\r", ch); return; }
-
-	exit_name(ch->in_room, door, exit);
-
-	SET_BIT(pexit->exit_info, EX_BARRED);
-	act("You bar up the $T.", ch, NULL, NULL, NULL, NULL, NULL, exit, TO_CHAR);
-	act("$n bars the $T.", ch, NULL, NULL, NULL, NULL, NULL, exit, TO_ROOM);
-	check_improve(ch, gsn_bar, TRUE, 1);
-
-	/* bar the other side */
-	if ((to_room   = pexit->u1.to_room           ) != NULL
-	&&   (pexit_rev = to_room->exit[rev_dir[door]]) != NULL
-	&&   pexit_rev->u1.to_room == ch->in_room)
+	if (arg[0] == '\0')
 	{
-	    SET_BIT(pexit_rev->exit_info, EX_BARRED);
+		send_to_char("Bar what?\n\r", ch);
+		return;
 	}
-    }
+
+	if ((obj = get_obj_here(ch, NULL, arg)) != NULL)
+	{
+		if (obj->item_type == ITEM_PORTAL)
+		{
+			if (!IS_SET(obj->value[1],EX_ISDOOR) ||
+				IS_SET(obj->value[1],EX_NOCLOSE))
+			{
+				send_to_char("You can't do that.\n\r",ch);
+				return;
+			}
+
+			if (!IS_SET(obj->value[1],EX_CLOSED))
+			{
+				send_to_char("It's not closed.\n\r",ch);
+				return;
+			}
+
+			if (IS_SET(obj->value[1],EX_BARRED))
+			{
+				send_to_char("It's already barred.\n\r",ch);
+				return;
+			}
+
+			if (IS_SET(obj->value[1],EX_NOBAR))
+			{
+				act("You can't find a way to bar up the $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
+				return;
+			}
+
+			SET_BIT(obj->value[1],EX_BARRED);
+			act("You bar up the $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
+			act("$n bars up the $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
+			check_improve(ch, gsn_bar, TRUE, 1);
+			return;
+		}
+
+		act("You can't bar up the $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
+		return;
+	}
+
+	if ((door = find_door(ch, arg, TRUE)) >= 0)
+	{
+		ROOM_INDEX_DATA *to_room;
+		EXIT_DATA *pexit;
+		EXIT_DATA *pexit_rev;
+
+		pexit = ch->in_room->exit[door];
+
+		if (!IS_SET(pexit->exit_info,EX_ISDOOR) ||
+			IS_SET(pexit->exit_info,EX_NOCLOSE))
+		{
+			send_to_char("You can't do that.\n\r",ch);
+			return;
+		}
+
+		if (!IS_SET(pexit->exit_info, EX_CLOSED))
+		{
+			send_to_char("It's not closed.\n\r", ch);
+			return;
+		}
+		if (IS_SET(pexit->exit_info, EX_BARRED))
+		{
+			send_to_char("It's already barred.\n\r", ch);
+			return;
+		}
+		if (IS_SET(pexit->exit_info, EX_NOBAR))
+		{
+			send_to_char("You can't bar it.\n\r", ch);
+			return;
+		}
+
+		exit_name(ch->in_room, door, exit);
+
+		SET_BIT(pexit->exit_info, EX_BARRED);
+		act("You bar up the $T.", ch, NULL, NULL, NULL, NULL, NULL, exit, TO_CHAR);
+		act("$n bars the $T.", ch, NULL, NULL, NULL, NULL, NULL, exit, TO_ROOM);
+		check_improve(ch, gsn_bar, TRUE, 1);
+
+		/* bar the other side */
+		if ((to_room   = pexit->u1.to_room) != NULL &&
+			(pexit_rev = to_room->exit[rev_dir[door]]) != NULL &&
+			pexit_rev->u1.to_room == ch->in_room)
+		{
+			SET_BIT(pexit_rev->exit_info, EX_BARRED);
+		}
+	}
 }
 
+void do_jam(CHAR_DATA *ch, char *argument)
+{
 
-/* MOVED: combat/defense.c */
+}
+
 void do_evasion(CHAR_DATA *ch, char *argument)
 {
     AFFECT_DATA af;
@@ -3909,8 +4006,6 @@ memset(&af,0,sizeof(af));
 }
 
 
-/* MOVED: movement/teleport.c
-   Warp for star chart theorem quest item */
 void do_warp(CHAR_DATA *ch, char *argument)
 {
 	send_to_char("Warp speed! NOW!!!\n\r", ch);
@@ -3918,8 +4013,6 @@ void do_warp(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: senses/objects.c
-   See hidden - vibrates on hidden exits and items in the room */
 void check_see_hidden(CHAR_DATA *ch)
 {
 	OBJ_DATA *obj;
@@ -3950,8 +4043,6 @@ void check_see_hidden(CHAR_DATA *ch)
 	}
 }
 
-/* MOVED: senses/mental.c
-   Detect traps skill - deathtrap-exits and trapped items */
 void check_traps(CHAR_DATA *ch, bool show)
 {
 	EXIT_DATA *exit;
@@ -3998,8 +4089,6 @@ void check_traps(CHAR_DATA *ch, bool show)
 	}
 }
 
-/* MOVED: combat/hidden.c
-   Highwayman ambush skill */
 void do_ambush(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL];
@@ -4083,8 +4172,6 @@ void do_ambush(CHAR_DATA *ch, char *argument)
     act("$n finds a good place to hide and crouches down.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 }
 
-/* MOVED: combat/pk.c
-   Toggle personal PK flag */
 void do_pk(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *mob = NULL;
@@ -4131,7 +4218,6 @@ void do_pk(CHAR_DATA *ch, char *argument)
     }
 }
 
-/* MOVED: movement/doors.c */
 void do_knock(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -4175,7 +4261,6 @@ void do_knock(CHAR_DATA *ch, char *argument)
     }
 }
 
-/* MOVED: movement/move.c */
 void do_takeoff(CHAR_DATA *ch, char *argument)
 {
 	int chance;
@@ -4285,7 +4370,6 @@ void do_takeoff(CHAR_DATA *ch, char *argument)
 	}
 }
 
-/* MOVED: movement/move.c */
 void do_land(CHAR_DATA *ch, char *argument)
 {
 	if(MOUNTED(ch)) {
