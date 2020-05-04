@@ -4235,6 +4235,18 @@ struct  conditional_descr_data
 };
 
 
+#define LOCK_LOCKED 		(A)		// Currently locked
+#define LOCK_MAGIC			(B)		// Requires magic to break
+#define LOCK_SNAPKEY		(C)		// Key snaps on use
+#define LOCK_SCRIPT			(D)		// Requires a script to alter the lock to unlock it.
+
+typedef struct lock_state_data {
+	long key_vnum;
+	int pick_chance;		// 0 = impossible (normally), 100 trivial
+	int flags;
+} LOCK_STATE;
+
+
 /*
  * Prototype for an object.
  */
@@ -4405,17 +4417,6 @@ struct	obj_data
     int			tempstore[MAX_TEMPSTORE];		/* Temporary storage values for script processing */
 
 };
-
-#define LOCK_LOCKED 		(A)		// Currently locked
-#define LOCK_MAGIC			(B)		// Requires magic to break
-#define LOCK_SNAPKEY		(C)		// Key snaps on use
-#define LOCK_SCRIPT			(D)		// Requires a script to alter the lock to unlock it.
-
-typedef struct lock_state_data {
-	long key_vnum;
-	int pick_chance;		// 0 = impossible (normally), 100 trivial
-	int flags;
-} LOCK_STATE;
 
 /* fragility */
 #define OBJ_FRAGILE_NORMAL 	0
