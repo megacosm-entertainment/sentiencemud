@@ -211,7 +211,7 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 	if (IS_SET(portal->value[2],GATE_DUNGEON) ) {
 		if( IS_VALID(in_dungeon) && in_dungeon->index->vnum == portal->value[3])
 		{
-			int floor = portal->value[4];
+			int floor = portal->value[5];
 
 			if( floor < 1 )
 			{
@@ -273,22 +273,31 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 		}
 	} else if (IS_SET(portal->value[1],EX_ENVIRONMENT) && old_room && old_room->source) {
 		location = get_environment(old_room);
-	} else if (IS_SET(portal->value[2],GATE_RANDOM) || portal->value[4] == -1 || (IS_SET(portal->value[2],GATE_BUGGY) && (number_percent() < 5)))
+	}
+	else if (IS_SET(portal->value[2],GATE_RANDOM) || (IS_SET(portal->value[2],GATE_BUGGY) && (number_percent() < 5)))
+	{
 		location = get_random_room( ch, 0 );
+	}
 	else if (IS_SET(portal->value[2],GATE_AREARANDOM) || portal->value[3] == -1) {
 		ROOM_INDEX_DATA *here;
 
 		here = obj_room(portal);
 
 		if(here) {
-			if(here->wilds) {
+			if(here->wilds)
+			{
 				int x,y;
 				x = number_range(0,here->wilds->map_size_x-1);
 				y = number_range(0,here->wilds->map_size_y-1);
 				location = get_wilds_vroom(here->wilds,x,y);
 				if(!location)
 					location = create_wilds_vroom(here->wilds,x,y);
-			} else
+			}
+			else if(portal->value[5] > 0)
+			{
+				location = get_random_room_area(ch, get_area_data(portal->value[5]));
+			}
+			else
 				location = get_random_room_area(ch, here->area);
 		} else
 			location = get_random_room_area(ch, find_area("Plith"));

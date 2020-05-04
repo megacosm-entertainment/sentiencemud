@@ -3379,33 +3379,67 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 	case ITEM_PORTAL:
 		if( IS_SET(obj->value[2], GATE_DUNGEON) )
 		{
+			// DUNGEON portal
 			sprintf(buf,
 				"{B[  {Wv0{B]{G Charges:{x           [%ld]\n\r"
 				"{B[  {Wv1{B]{G Exit Flags:{x        %s\n\r"
 				"{B[  {Wv2{B]{G Portal Flags:{x      %s\n\r"
 				"{B[  {Wv3{B]{G Goes to (dungeon):{x [%ld]\n\r"
-				"{B[  {Wv4{B]{G Goes to (floor):  {x [%ld]\n\r",
+				"{B[  {Wv4{B]{G Key:{x               [%ld] %s\n\r"
+				"{B[  {Wv5{B]{G Goes to (floor):  {x [%ld]\n\r",
 				obj->value[0],
 				flag_string(portal_exit_flags, obj->value[1]),
 				flag_string(portal_flags, obj->value[2]),
-				obj->value[3], obj->value[4]);
+				obj->value[3],
+				obj->value[4], get_obj_index(obj->value[4]) ? get_obj_index(obj->value[4])->short_descr : "none",
+				obj->value[5]);
 		}
-		else
+		else if( IS_SET(obj->value[2], GATE_AREARANDOM) || pObj->value[3] == -1 )
 		{
+			// AREARANDOM portal
 			sprintf(buf,
 				"{B[  {Wv0{B]{G Charges:{x        [%ld]\n\r"
 				"{B[  {Wv1{B]{G Exit Flags:{x     %s\n\r"
 				"{B[  {Wv2{B]{G Portal Flags:{x   %s\n\r"
-				"{B[  {Wv3{B]{G Goes to (vnum):{x [%ld]\n\r"
-				"{B[  {Wv4{B]{G Goes to (auid):{x [%ld]\n\r"
+				"{B[  {Wv4{B]{G Key:{x            [%ld] %s\n\r"
+				"{B[  {Wv5{B]{G Goes to (anum):{x [%ld]\n\r",
+				obj->value[0],
+				flag_string(portal_exit_flags, obj->value[1]),
+				flag_string(portal_flags, obj->value[2]),
+				obj->value[4], get_obj_index(obj->value[4]) ? get_obj_index(obj->value[4])->short_descr : "none",
+				obj->value[5]);
+		}
+		else if(pObj->value[3] > 0)
+		{
+			// STATIC portal
+			sprintf(buf,
+				"{B[  {Wv0{B]{G Charges:{x        [%ld]\n\r"
+				"{B[  {Wv1{B]{G Exit Flags:{x     %s\n\r"
+				"{B[  {Wv2{B]{G Portal Flags:{x   %s\n\r"
+				"{B[  {Wv3{B]{G Goes to (vnum):{x [%ld]\n\r",
+				"{B[  {Wv4{B]{G Key:{x            [%ld] %s\n\r",
+				obj->value[0],
+				flag_string(portal_exit_flags, obj->value[1]),
+				flag_string(portal_flags, obj->value[2]),
+				obj->value[3],
+				get_obj_index(obj->value[4]) ? get_obj_index(obj->value[4])->short_descr : "none");
+		}
+		else
+		{
+			// WILDERNESS portal
+			sprintf(buf,
+				"{B[  {Wv0{B]{G Charges:{x        [%ld]\n\r"
+				"{B[  {Wv1{B]{G Exit Flags:{x     %s\n\r"
+				"{B[  {Wv2{B]{G Portal Flags:{x   %s\n\r"
+				"{B[  {Wv4{B]{G Key:{x            [%ld] %s\n\r"
 				"{B[  {Wv5{B]{G Goes to (map):{x  [%ld]\n\r"
 				"{B[  {Wv6{B]{G Goes to (mapx):{x [%ld]\n\r"
 				"{B[  {Wv7{B]{G Goes to (mapy):{x [%ld]\n\r",
 				obj->value[0],
 				flag_string(portal_exit_flags, obj->value[1]),
 				flag_string(portal_flags, obj->value[2]),
-				obj->value[3],obj->value[4],obj->value[5],
-				obj->value[6],obj->value[7]);
+				obj->value[4], get_obj_index(obj->value[4]) ? get_obj_index(obj->value[4])->short_descr : "none",
+				obj->value[5], obj->value[6],obj->value[7]);
 		}
 	    add_buf(buffer, buf);
 	    break;
@@ -3426,6 +3460,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		obj->value[5]);
 	    add_buf(buffer, buf);
 	    break;
+
 	case ITEM_HERB:
 	    sprintf(buf,
 	        "{B[  {Wv0{B]{G Type:{x            [%s]\n\r"
@@ -3486,7 +3521,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 	    add_buf(buffer, buf);
 	    break;
 
-        case ITEM_ARMOUR:
+	case ITEM_ARMOUR:
 	    sprintf(buf,
 		"{B[  {Wv0{B] {GAc pierce       {x[%ld]\n\r"
 		"{B[  {Wv1{B] {GAc bash         {x[%ld]\n\r"
@@ -3517,6 +3552,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 	    sprintf(buf, "{B[  {Wv3{B]{G Projectile Distance:{x [%ld]\n\r", obj->value[3]);
 	    add_buf(buffer, buf);
 	    break;
+
 	case ITEM_WEAPON:
             sprintf(buf, "{B[  {Wv0{B]{G Weapon class:{x   %s\n\r",
 		     flag_string(weapon_class, obj->value[0]));
@@ -3684,903 +3720,945 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 	    add_buf(buffer, buf);
 	    break;
 
+	case ITEM_BOOK:
+	    sprintf(buf,
+		"{B[  {Wv1{B]{G Flags:{x      [%s]\n\r"
+		"{B[  {Wv2{B]{G Key:{x     %s [%ld]\n\r",
+		flag_string(container_flags, obj->value[1]),
+                get_obj_index(obj->value[2])
+                    ? get_obj_index(obj->value[2])->short_descr
+                    : "none",
+                obj->value[2]);
+	    add_buf(buffer, buf);
+	    break;
+
     }
 }
 
 
 bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *argument)
 {
-    long i = 0;
-    BUFFER *buffer;
+	long i = 0;
+	BUFFER *buffer;
 
-    switch(pObj->item_type)
-    {
-        default:
-            break;
-        case ITEM_LIGHT:
-	    switch (value_num)
-	    {
-	        default:
-		    do_help(ch, "ITEM_LIGHT");
-	            return FALSE;
-	        case 2:
-	            send_to_char("HOURS OF LIGHT SET.\n\r\n\r", ch);
-	            pObj->value[2] = atoi(argument);
-	            break;
-	        case 3:
-	            send_to_char("Spell level set.\n\r\n\r", ch);
-	            pObj->value[3] = atoi(argument);
-	            break;
-	        case 4:
-	            send_to_char("SPELL SET.\n\r\n\r", ch);
-	            pObj->value[4] = skill_lookup(argument);
-	            break;
-	        case 5:
-	            send_to_char("SPELL SET.\n\r\n\r", ch);
-	            pObj->value[5] = skill_lookup(argument);
-	            break;
-	    }
-            break;
+	switch(pObj->item_type)
+	{
+	default:
+		break;
 
-        case ITEM_WAND:
-        case ITEM_STAFF:
-	    switch (value_num)
-	    {
-	        default:
-		    do_help(ch, "ITEM_STAFF_WAND");
-	            return FALSE;
-	        case 0:
-	            send_to_char("SPELL LEVEL SET.\n\r\n\r", ch);
-	            pObj->value[0] = atoi(argument);
-	            break;
-	        case 1:
-	            send_to_char("TOTAL NUMBER OF CHARGES SET.\n\r\n\r", ch);
-	            pObj->value[1] = atoi(argument);
-	            break;
-	        case 2:
-	            send_to_char("CURRENT NUMBER OF CHARGES SET.\n\r\n\r", ch);
-	            pObj->value[2] = atoi(argument);
-	            break;
-	        case 3:
-	            send_to_char("SPELL TYPE SET.\n\r", ch);
-	            pObj->value[3] = skill_lookup(argument);
-	            break;
-	    }
-            break;
+	case ITEM_LIGHT:
+		switch (value_num)
+		{
+		default:
+			do_help(ch, "ITEM_LIGHT");
+			return FALSE;
+		case 2:
+			send_to_char("HOURS OF LIGHT SET.\n\r\n\r", ch);
+			pObj->value[2] = atoi(argument);
+			break;
+		case 3:
+			send_to_char("Spell level set.\n\r\n\r", ch);
+			pObj->value[3] = atoi(argument);
+			break;
+		case 4:
+			send_to_char("SPELL SET.\n\r\n\r", ch);
+			pObj->value[4] = skill_lookup(argument);
+			break;
+		case 5:
+			send_to_char("SPELL SET.\n\r\n\r", ch);
+			pObj->value[5] = skill_lookup(argument);
+			break;
+		}
+		break;
 
-        case ITEM_SCROLL:
-        case ITEM_POTION:
-        case ITEM_PILL:
-	    break;
+	case ITEM_WAND:
+	case ITEM_STAFF:
+		switch (value_num)
+		{
+		default:
+			do_help(ch, "ITEM_STAFF_WAND");
+			return FALSE;
+		case 0:
+			send_to_char("SPELL LEVEL SET.\n\r\n\r", ch);
+			pObj->value[0] = atoi(argument);
+			break;
+		case 1:
+			send_to_char("TOTAL NUMBER OF CHARGES SET.\n\r\n\r", ch);
+			pObj->value[1] = atoi(argument);
+			break;
+		case 2:
+			send_to_char("CURRENT NUMBER OF CHARGES SET.\n\r\n\r", ch);
+			pObj->value[2] = atoi(argument);
+			break;
+		case 3:
+			send_to_char("SPELL TYPE SET.\n\r", ch);
+			pObj->value[3] = skill_lookup(argument);
+			break;
+		}
+		break;
 
-        case ITEM_TATTOO:
-	    switch (value_num)
-	    {
-	        default:
-		    do_help(ch, "ITEM_TATTOO");
-	            return FALSE;
-	        case 0:
-	            send_to_char("TOUCHES SET.\n\r\n\r", ch);
-	            pObj->value[0] = atoi(argument);
-	            break;
-	        case 1:
-	            send_to_char("FADING CHANCE SET.\n\r\n\r", ch);
-	            pObj->value[1] = atoi(argument);
-	            break;
- 	    }
-	    break;
+	case ITEM_SCROLL:
+	case ITEM_POTION:
+	case ITEM_PILL:
+		break;
 
-        case ITEM_INK:
-	    switch (value_num)
-	    {
-	        default:
-		    do_help(ch, "ITEM_INK");
-	            return FALSE;
-	        case 0:
-	            send_to_char("TYPE 1 SET.\n\r\n\r", ch);
-	            pObj->value[0] = flag_lookup(argument,catalyst_types);
-	            break;
-	        case 1:
-	            send_to_char("TYPE 2 SET.\n\r\n\r", ch);
-	            pObj->value[1] = flag_lookup(argument,catalyst_types);
-	            break;
-	        case 2:
-	            send_to_char("TYPE 3 SET.\n\r\n\r", ch);
-	            pObj->value[2] = flag_lookup(argument,catalyst_types);
-	            break;
- 	    }
-	    break;
+	case ITEM_TATTOO:
+		switch (value_num)
+		{
+		default:
+			do_help(ch, "ITEM_TATTOO");
+			return FALSE;
+		case 0:
+			send_to_char("TOUCHES SET.\n\r\n\r", ch);
+			pObj->value[0] = atoi(argument);
+			break;
+		case 1:
+			send_to_char("FADING CHANCE SET.\n\r\n\r", ch);
+			pObj->value[1] = atoi(argument);
+			break;
+		}
+		break;
+
+	case ITEM_INK:
+		switch (value_num)
+		{
+		default:
+			do_help(ch, "ITEM_INK");
+			return FALSE;
+		case 0:
+			send_to_char("TYPE 1 SET.\n\r\n\r", ch);
+			pObj->value[0] = flag_lookup(argument,catalyst_types);
+			break;
+		case 1:
+			send_to_char("TYPE 2 SET.\n\r\n\r", ch);
+			pObj->value[1] = flag_lookup(argument,catalyst_types);
+			break;
+		case 2:
+			send_to_char("TYPE 3 SET.\n\r\n\r", ch);
+			pObj->value[2] = flag_lookup(argument,catalyst_types);
+			break;
+		}
+		break;
+
 	case ITEM_SEXTANT:
-	  switch(value_num)
-	  {
+		switch(value_num)
+		{
 		default:
-		  do_help(ch, "ITEM_SEXTANT");
-		  return FALSE;
+			do_help(ch, "ITEM_SEXTANT");
+			return FALSE;
 		case 0:
-		    send_to_char("Accuracy set.\n\r\n\r", ch);
-		    pObj->value[0] = atoi(argument);
-		    break;
-	  }
-	  break;
+			send_to_char("Accuracy set.\n\r\n\r", ch);
+			pObj->value[0] = atoi(argument);
+			break;
+		}
+		break;
+
 	case ITEM_SEED:
-	  switch(value_num)
-	  {
+		switch(value_num)
+		{
 		default:
-		  do_help(ch, "ITEM_SEED");
-		  return FALSE;
+			do_help(ch, "ITEM_SEED");
+			return FALSE;
 		case 0:
-		    send_to_char("Time set.\n\r\n\r", ch);
-		    pObj->value[0] = atoi(argument);
-		    break;
-	        case 1:
-		    if (atoi(argument) != 0)
-		    {
-			if (!get_obj_index(atoi(argument)))
+			send_to_char("Time set.\n\r\n\r", ch);
+			pObj->value[0] = atoi(argument);
+			break;
+		case 1:
+			if (atoi(argument) != 0)
 			{
-			    send_to_char("No such object exists.\n\r\n\r", ch);
-			    return FALSE;
+				if (!get_obj_index(atoi(argument)))
+				{
+					send_to_char("No such object exists.\n\r\n\r", ch);
+					return FALSE;
+				}
 			}
-		    }
-		    send_to_char("Vnum set.\n\r\n\r", ch);
-		    pObj->value[1] = atoi(argument);
-		    break;
-	  }
-	  break;
+			send_to_char("Vnum set.\n\r\n\r", ch);
+			pObj->value[1] = atoi(argument);
+			break;
+		}
+		break;
 
 	case ITEM_ARTIFACT:
-	  switch(value_num)
-	  {
-	        case 0:
-	            if (ch->tot_level < MAX_LEVEL && !has_imp_sig(NULL, pObj))
-		    {
-			send_to_char("You can't do this without an IMP's "
-				"permission.\n\r", ch);
+		switch(value_num)
+		{
+		case 0:
+			// TODO: UNUSED?
+			if (ch->tot_level < MAX_LEVEL && !has_imp_sig(NULL, pObj))
+			{
+				send_to_char("You can't do this without an IMP's permission.\n\r", ch);
+				return FALSE;
+			}
+
+			send_to_char("SPELL LEVEL SET.\n\r\n\r", ch);
+			pObj->value[0] = atoi(argument);
+			break;
+		case 1:
+			// TODO: UNUSED?
+			if (ch->tot_level < MAX_LEVEL && !has_imp_sig(NULL, pObj))
+			{
+				send_to_char("You can't do this without an IMP's permission.\n\r", ch);
+				return FALSE;
+			}
+
+			send_to_char("SPELL SET.\n\r\n\r", ch);
+			pObj->value[1] = skill_lookup(argument);
+			use_imp_sig(NULL, pObj);
+			break;
+		case 2:
+			// TODO: UNUSED?
+			if (ch->tot_level < MAX_LEVEL && !has_imp_sig(NULL, pObj))
+			{
+				send_to_char("You can't do this without an IMP's permission.\n\r", ch);
+				return FALSE;
+			}
+
+			send_to_char("SPELL SET.\n\r\n\r", ch);
+			pObj->value[2] = skill_lookup(argument);
+			use_imp_sig(NULL, pObj);
+			break;
+		}
+		break;
+
+	case ITEM_ARMOUR:
+		switch (value_num)
+		{
+		default:
+			do_help(ch, "ITEM_ARMOUR");
 			return FALSE;
-		    }
+		case 0:
+			send_to_char("AC PIERCE SET.\n\r\n\r", ch);
+			pObj->value[0] = atoi(argument);
+			break;
+		case 1:
+			send_to_char("AC BASH SET.\n\r\n\r", ch);
+			pObj->value[1] = atoi(argument);
+			break;
+		case 2:
+			send_to_char("AC SLASH SET.\n\r\n\r", ch);
+			pObj->value[2] = atoi(argument);
+			break;
+		case 3:
+			send_to_char("AC EXOTIC SET.\n\r\n\r", ch);
+			pObj->value[3] = atoi(argument);
+			break;
+		case 4:
+			send_to_char("ARMOUR STRENGTH SET.\n\r", ch);
+			send_to_char("ARMOUR CLASS SET.\n\r\n\r", ch);
 
-	            send_to_char("SPELL LEVEL SET.\n\r\n\r", ch);
-	            pObj->value[0] = atoi(argument);
-	            break;
-	        case 1:
-	            if (ch->tot_level < MAX_LEVEL && !has_imp_sig(NULL, pObj))
-		    {
-			send_to_char("You can't do this without an IMP's "
-				"permission.\n\r", ch);
-			return FALSE;
-		    }
-	            send_to_char("SPELL SET.\n\r\n\r", ch);
-	            pObj->value[1] = skill_lookup(argument);
-		    use_imp_sig(NULL, pObj);
-	            break;
-	        case 2:
-	            if (ch->tot_level < MAX_LEVEL && !has_imp_sig(NULL, pObj))
-		    {
-			send_to_char("You can't do this without an IMP's "
-				"permission.\n\r", ch);
-			return FALSE;
-		    }
-	            send_to_char("SPELL SET.\n\r\n\r", ch);
-	            pObj->value[2] = skill_lookup(argument);
-		    use_imp_sig(NULL, pObj);
-	            break;
-	  }
-
-	  break;
-
-        case ITEM_ARMOUR:
-	    switch (value_num)
-	    {
-	        default:
-		    do_help(ch, "ITEM_ARMOUR");
-		    return FALSE;
-	        case 0:
-		    send_to_char("AC PIERCE SET.\n\r\n\r", ch);
-		    pObj->value[0] = atoi(argument);
-		    break;
-	        case 1:
-		    send_to_char("AC BASH SET.\n\r\n\r", ch);
-		    pObj->value[1] = atoi(argument);
-		    break;
-	        case 2:
-		    send_to_char("AC SLASH SET.\n\r\n\r", ch);
-		    pObj->value[2] = atoi(argument);
-		    break;
-	        case 3:
-		    send_to_char("AC EXOTIC SET.\n\r\n\r", ch);
-		    pObj->value[3] = atoi(argument);
-		    break;
-      	        case 4:
-	        	send_to_char("ARMOUR STRENGTH SET.\n\r", ch);
-	        	send_to_char("ARMOUR CLASS SET.\n\r\n\r", ch);
-
-	        	pObj->value[4] = get_armour_strength(argument);
+			pObj->value[4] = get_armour_strength(argument);
 
 			set_armour(pObj);
 
-	        	break;
-	        case 5:
-	            if (!str_cmp(pObj->imp_sig, "none")
-		    && ch->tot_level < MAX_LEVEL)
-		    {
-			send_to_char("You can't do this without an IMP's "
-				"permission.\n\r", ch);
-			return FALSE;
-		    }
-
-	            send_to_char("SPELL LEVEL SET.\n\r\n\r", ch);
-	            pObj->value[5] = atoi(argument);
-	            break;
-	        case 6:
-	            if (!str_cmp(pObj->imp_sig, "none")
-		    && ch->tot_level < MAX_LEVEL)
-		    {
-			send_to_char("You can't do this without an IMP's "
-				"permission.\n\r", ch);
-			return FALSE;
-		    }
-	            send_to_char("SPELL SET.\n\r\n\r", ch);
-	            pObj->value[6] = skill_lookup(argument);
-		    use_imp_sig(NULL, pObj);
-	            break;
-	        case 7:
-	            if (!str_cmp(pObj->imp_sig, "none")
-		    && ch->tot_level < MAX_LEVEL)
-		    {
-			send_to_char("You can't do this without an IMP's "
-				"permission.\n\r", ch);
-			return FALSE;
-		    }
-	            send_to_char("SPELL SET.\n\r\n\r", ch);
-	            pObj->value[7] = skill_lookup(argument);
-		    use_imp_sig(NULL, pObj);
-	            break;
-	    }
-	    break;
-
-	case ITEM_RANGED_WEAPON:
-	    switch (value_num)
-	    {
-	        default:
-		    do_help(ch, "ITEM_RANGED_WEAPON");
-	            return FALSE;
-	        case 0:
-		    send_to_char("RANGED WEAPON CLASS SET.\n\r\n\r", ch);
-		    pObj->value[0] = flag_value(ranged_weapon_class, argument);
-		    break;
-
-	        case 1:
-	            send_to_char("NUMBER OF DICE SET.\n\r\n\r", ch);
-	            pObj->value[1] = atoi(argument);
-	            break;
-	        case 2:
-	            send_to_char("TYPE OF DICE SET.\n\r\n\r", ch);
-	            pObj->value[2] = atoi(argument);
-	            break;
-	        case 3:
-	            send_to_char("PROJECTILE DISTANCE SET.\n\r\n\r", ch);
-	            pObj->value[3] = atoi(argument);
-	            break;
-
-	        case 5:
-	            send_to_char("Spell level set.\n\r\n\r", ch);
-	            pObj->value[5] = atoi(argument);
-	            break;
-	        case 6:
-	            send_to_char("SPELL SET.\n\r\n\r", ch);
-	            pObj->value[6] = skill_lookup(argument);
-	            break;
-	        case 7:
-	            send_to_char("SPELL SET.\n\r\n\r", ch);
-	            pObj->value[7] = skill_lookup(argument);
-	            break;
-	    }
-            break;
-
-	case ITEM_HERB:
-	    switch (value_num)
-	    {
-		default:
-		    do_help(ch, "ITEM_HERB");
-		    return FALSE;
-		case 0:
-		    for (i = 0; i < MAX_HERB; i++)
-		    {
-			if (!str_prefix(argument, herb_table[i].name))
-			    break;
-		    }
-
-		    if (i < MAX_HERB)
-		    {
-			pObj->value[0] = i;
-			send_to_char("HERB TYPE SET.\n\r", ch);
-		    }
-		    else
-			send_to_char("Invalid herb type.\n\r", ch);
-		    break;
-		case 1:
-		    send_to_char("HEALING RATE SET.\n\r", ch);
-		    pObj->value[1] = atoi(argument);
-		    break;
-		case 2:
-		    send_to_char("REGENERATIVE RATE SET.\n\r", ch);
-		    pObj->value[2] = atoi(argument);
-		    break;
-		case 3:
-		    send_to_char("REFRESHING RATE SET.\n\r", ch);
-		    pObj->value[3] = atoi(argument);
-		    break;
-		case 4:
-		    if ((i = flag_value(imm_flags, argument)) != NO_FLAG)
-		    {
-			pObj->value[4] ^= i;
-			send_to_char("IMMUNITY SET.\n\r", ch);
-		    }
-		    else
-			send_to_char("Invalid immunity.\n\r", ch);
-		    break;
+			break;
 		case 5:
-		    if ((i = flag_value(res_flags, argument)) != NO_FLAG)
-		    {
-			pObj->value[5] ^= i;
-			send_to_char("RESISTANCE SET.\n\r", ch);
-		    }
-		    else
-			send_to_char("Invalid resistance.\n\r", ch);
-		    break;
-		case 6:
-		    if ((i = flag_value(vuln_flags, argument)) != NO_FLAG)
-		    {
-			pObj->value[6] ^= i;
-			send_to_char("VULNERABILITY SET.\n\r", ch);
-		    }
-		    else
-			send_to_char("Invalid vulnerability.\n\r", ch);
-		    break;
-		case 7:
-		    if ((i = skill_lookup(argument)) > 0 && skill_table[i].spell_fun != spell_null)
-		    {
-			send_to_char("SPELL SET.\n\r", ch);
-			pObj->value[7] = i;
-		    }
-		    else if (i == 0)
-		    {
-			send_to_char("SPELL RESET.\n\r", ch);
-			pObj->value[7] = 0;
-		    }
-		    else
-			send_to_char("INVALID ARGUMENT.\n\r", ch);
-
-		    break;
-	    }
-
-	    break;
-
-	case ITEM_WEAPON:
-	    switch (value_num)
-	    {
-	        default:
-		    do_help(ch, "ITEM_WEAPON");
-	            return FALSE;
-	        case 0:
-		    send_to_char("WEAPON CLASS SET.\n\r\n\r", ch);
-		    pObj->value[0] = flag_value(weapon_class, argument);
-		    break;
-	        case 1:
-	            send_to_char("NUMBER OF DICE SET.\n\r\n\r", ch);
-	            pObj->value[1] = atoi(argument);
-	            break;
-	        case 2:
-	            send_to_char("TYPE OF DICE SET.\n\r\n\r", ch);
-	            pObj->value[2] = atoi(argument);
-	            break;
-	        case 3:
-	            send_to_char("WEAPON TYPE SET.\n\r\n\r", ch);
-	            pObj->value[3] = attack_lookup(argument);
-	            break;
-	        case 4:
-                    send_to_char("SPECIAL WEAPON TYPE TOGGLED.\n\r\n\r", ch);
-		    pObj->value[4] ^= (flag_value(weapon_type2, argument) != NO_FLAG
-		    ? flag_value(weapon_type2, argument) : 0);
-		    break;
-	        case 5:
-	            if (!str_cmp(pObj->imp_sig, "none")
-		    && ch->tot_level < MAX_LEVEL)
-		    {
-			send_to_char("You can't do this without an IMP's "
-				"permission.\n\r", ch);
-			return FALSE;
-		    }
-	            send_to_char("Spell level set.\n\r\n\r", ch);
-	            pObj->value[5] = atoi(argument);
-	            break;
-	        case 6:
-	            if (!str_cmp(pObj->imp_sig, "none")
-		    && ch->tot_level < MAX_LEVEL)
-		    {
-			send_to_char("You can't do this without an IMP's "
-				"permission.\n\r", ch);
-			return FALSE;
-		    }
-	            send_to_char("SPELL SET.\n\r\n\r", ch);
-	            pObj->value[6] = skill_lookup(argument);
-		    use_imp_sig(NULL, pObj);
-	            break;
-	        case 7:
-	            if (!str_cmp(pObj->imp_sig, "none")
-		    && ch->tot_level < MAX_LEVEL)
-		    {
-			send_to_char("You can't do this without an IMP's "
-				"permission.\n\r", ch);
-			return FALSE;
-		    }
-	            send_to_char("SPELL SET.\n\r\n\r", ch);
-	            pObj->value[7] = skill_lookup(argument);
-		    use_imp_sig(NULL, pObj);
-	            break;
-	    }
-            break;
-
-	case ITEM_PORTAL:
-	    switch (value_num)
-	    {
-	        default:
-	            do_help(ch, "ITEM_PORTAL");
-	            return FALSE;
-
-	    	case 0:
-	    	    send_to_char("CHARGES SET.\n\r\n\r", ch);
-	    	    pObj->value[0] = atoi (argument);
-	    	    break;
-	    	case 1:
-	    	    send_to_char("EXIT (PORTAL) FLAGS SET.\n\r\n\r", ch);
-		    pObj->value[1] ^= (flag_value(portal_exit_flags, argument) != NO_FLAG
-			? flag_value(portal_exit_flags, argument) : 0);
-	    	    break;
-	    	case 2:
-	    		{
-		    	    send_to_char("PORTAL FLAGS SET.\n\r\n\r", ch);
-		    	    int flags = flag_value(portal_flags, argument);
-
-		    	    if( flags != NO_FLAG )
-		    	    {
-		    	    	pObj->value[2] ^= flags;
-
-		    	    	if( IS_SET(flags, GATE_DUNGEON) && IS_SET(pObj->value[2], GATE_DUNGEON) )
-		    	    	{
-							pObj->value[3] = 0;
-							pObj->value[4] = 0;
-							pObj->value[5] = 0;
-							pObj->value[6] = 0;
-							pObj->value[7] = 0;
-						}
-					}
-				}
-	    	    break;
-	    	case 3:
-	    		if( IS_SET(pObj->value[2], GATE_DUNGEON) )
-	    		{
-					if( !get_dungeon_index(atoi(argument)) )
-					{
-						send_to_char("THERE IS NO SUCH DUNGEON.\n\r\n\r", ch);
-						return FALSE;
-					}
-		    	    send_to_char("DUNGEON VNUM SET.\n\r\n\r", ch);
-				}
-				else
-	    			send_to_char("EXIT VNUM SET.\n\r\n\r", ch);
-	    	    pObj->value[3] = atoi (argument);
-	    	    break;
-		case 4:
-	    		if( !IS_SET(pObj->value[2], GATE_DUNGEON) )
-	    		{
-		    	    send_to_char("AREA UID SET.\n\r\n\r", ch);
-				}
-				else
-				{
-		    	    send_to_char("DUNGEON FLOOR SET.\n\r\n\r", ch);
-				}
-			    pObj->value[4] = atoi (argument);
-		    break;
-		case 5:
-	    		if( !IS_SET(pObj->value[2], GATE_DUNGEON) )
-	    		{
-					send_to_char("WILDERNESS MAP UID SET.\n\r\n\r", ch);
-					pObj->value[5] = atoi (argument);
-				}
-		    break;
-		case 6:
-	    		if( !IS_SET(pObj->value[2], GATE_DUNGEON) )
-	    		{
-		    	    send_to_char("WILDERNESS MAP X-COORDINATE SET.\n\r\n\r", ch);
-				    pObj->value[6] = atoi (argument);
-				}
-		    break;
-		case 7:
-	    		if( !IS_SET(pObj->value[2], GATE_DUNGEON) )
-	    		{
-		    	    send_to_char("WILDERNESS MAP Y-COORDINATE SET.\n\r\n\r", ch);
-			    	pObj->value[7] = atoi (argument);
-				}
-		    break;
-	   }
-	   break;
-
-	case ITEM_FURNITURE:
-	    switch (value_num)
-	    {
-	        default:
-	            do_help(ch, "ITEM_FURNITURE");
-	            return FALSE;
-
-	        case 0:
-	            send_to_char("NUMBER OF PEOPLE SET.\n\r\n\r", ch);
-	            pObj->value[0] = atoi (argument);
-	            break;
-	        case 1:
-	            send_to_char("MAX WEIGHT SET.\n\r\n\r", ch);
-	            pObj->value[1] = atoi (argument);
-	            break;
-	        case 2:
-	            send_to_char("FURNITURE FLAGS TOGGLED.\n\r\n\r", ch);
-	            pObj->value[2] ^= (flag_value(furniture_flags, argument) != NO_FLAG
-	            ? flag_value(furniture_flags, argument) : 0);
-	            break;
-	        case 3:
-	            send_to_char("HEAL BONUS SET.\n\r\n\r", ch);
-	            pObj->value[3] = atoi (argument);
-	            break;
-	        case 4:
-	            send_to_char("MANA BONUS SET.\n\r\n\r", ch);
-	            pObj->value[4] = atoi (argument);
-	            break;
-		case 5:
-		    send_to_char("MOVE BONUS SET.\n\r\n\r", ch);
-		    pObj->value[5] = atoi (argument);
-	    }
-	    break;
-
-        case ITEM_SHIP:
-	    switch (value_num)
-	    {
-		default:
-		    do_help(ch, "ITEM_SHIP");
-	            return FALSE;
-		case 0:
-	            send_to_char("WEIGHT CAPACITY SET.\n\r\n\r", ch);
-	            pObj->value[0] = atoi(argument);
-	            break;
-		case 1:
-	            send_to_char("MOVE DELAY SET.\n\r\n\r", ch);
-	            pObj->value[1] = atoi(argument);
-	            break;
-		case 2:
-	            send_to_char("MIN CREW SET.\n\r\n\r", ch);
-	            pObj->value[2] = atoi(argument);
-	            break;
-		case 3:
-	            send_to_char("CAPACITY SET.\n\r\n\r", ch);
-	            pObj->value[3] = atoi(argument);
-	            break;
-		case 4:
-	            send_to_char("MAX CREW SET.\n\r\n\r", ch);
-	            pObj->value[4] = atoi(argument);
-	            break;
-		case 5:
-		    if (atoi(argument) != 0)
-		    {
-			if (!get_room_index(atoi(argument)))
+			// TODO: UNUSED?
+			if (!str_cmp(pObj->imp_sig, "none") && ch->tot_level < MAX_LEVEL)
 			{
-			    send_to_char("THERE IS NO SUCH ROOM.\n\r\n\r", ch);
-			    return FALSE;
+				send_to_char("You can't do this without an IMP's permission.\n\r", ch);
+				return FALSE;
 			}
-		    }
-		    send_to_char("BOARDING ROOM SET.\n\r\n\r", ch);
-		    pObj->value[5] = atoi(argument);
-		    break;
+
+			send_to_char("SPELL LEVEL SET.\n\r\n\r", ch);
+			pObj->value[5] = atoi(argument);
+			break;
 		case 6:
-		    send_to_char("HIT POINTS SET.\n\r", ch);
-		    pObj->value[6] = atoi(argument);
-		    break;
+			// TODO: UNUSED?
+			if (!str_cmp(pObj->imp_sig, "none") && ch->tot_level < MAX_LEVEL)
+			{
+				send_to_char("You can't do this without an IMP's permission.\n\r", ch);
+				return FALSE;
+			}
+			send_to_char("SPELL SET.\n\r\n\r", ch);
+			pObj->value[6] = skill_lookup(argument);
+			use_imp_sig(NULL, pObj);
+			break;
 		case 7:
-		    send_to_char("MAX GUNS SET.\n\r\n\r", ch);
-		    pObj->value[7] = atoi (argument);
-		    break;
-	    }
-            break;
-        case ITEM_CART:
-	    switch (value_num)
-	    {
-		default:
-		    do_help(ch, "ITEM_CART");
-	            return FALSE;
-		case 0:
-	            send_to_char("WEIGHT CAPACITY SET.\n\r\n\r", ch);
-	            pObj->value[0] = atol(argument);
-	            break;
-		case 1:
-	            send_to_char("DELAY SET.\n\r\n\r", ch);
-	            pObj->value[1] = atol(argument);
-	            break;
-		case 2:
-	            send_to_char("STRENGTH SET.\n\r\n\r", ch);
-	            pObj->value[2] = atol(argument);
-	            break;
-		case 3:
-		    send_to_char("CART MAX WEIGHT SET.\n\r", ch);
-		    pObj->value[3] = atol(argument);
-		    break;
-		case 4:
-		    send_to_char("WEIGHT MULTIPLIER SET.\n\r\n\r", ch);
-		    pObj->value[4] = atol (argument);
-		    break;
-		case 5:
-		    send_to_char("VANISH TIME SET.\n\r\n\r", ch);
-		    pObj->value[5] = atol (argument);
-		    break;
-	    }
-	    break;
-
-        case ITEM_TRADE_TYPE:
-
-    if ((argument[0] == '\0') || ((i = get_trade_item(argument)) == 0))
-    {
-		send_to_char("Trade Types:\n\r", ch);
-
-		while(trade_table[ i ].trade_type != -1)
-		{
-			send_to_char(trade_table[ i ].name, ch);
-			send_to_char("\n\r", ch);
-			i++;
+			// TODO: UNUSED?
+			if (!str_cmp(pObj->imp_sig, "none") && ch->tot_level < MAX_LEVEL)
+			{
+				send_to_char("You can't do this without an IMP's permission.\n\r", ch);
+				return FALSE;
+			}
+			send_to_char("SPELL SET.\n\r\n\r", ch);
+			pObj->value[7] = skill_lookup(argument);
+			use_imp_sig(NULL, pObj);
+			break;
 		}
 		break;
-    }
 
-	pObj->value[0] = i;
-   	send_to_char("Trade type set.\n\r", ch);
-    break;
-
-        case ITEM_WEAPON_CONTAINER:
-	    switch (value_num)
-	    {
-		//int value;
-
+	case ITEM_RANGED_WEAPON:
+		switch (value_num)
+		{
 		default:
-		    do_help(ch, "ITEM_WEAPON_CONTAINER");
-	            return FALSE;
+			do_help(ch, "ITEM_RANGED_WEAPON");
+			return FALSE;
 		case 0:
-	            send_to_char("WEIGHT CAPACITY SET.\n\r\n\r", ch);
-	            pObj->value[0] = atoi(argument);
-	            break;
+			send_to_char("RANGED WEAPON CLASS SET.\n\r\n\r", ch);
+			pObj->value[0] = flag_value(ranged_weapon_class, argument);
+			break;
 		case 1:
-	            pObj->value[1] = flag_value(weapon_class, argument);
-	            send_to_char("WEAPON TYPE SET.\n\r\n\r", ch);
-	            break;
+			send_to_char("NUMBER OF DICE SET.\n\r\n\r", ch);
+			pObj->value[1] = atoi(argument);
+			break;
+		case 2:
+			send_to_char("TYPE OF DICE SET.\n\r\n\r", ch);
+			pObj->value[2] = atoi(argument);
+			break;
 		case 3:
-		    send_to_char("CONTAINER MAX ITEMS SET.\n\r", ch);
-		    pObj->value[3] = atoi(argument);
-		    break;
-		case 4:
-		    send_to_char("WEIGHT MULTIPLIER SET.\n\r\n\r", ch);
-		    pObj->value[4] = atoi (argument);
-		    break;
-	    }
-	    break;
+			send_to_char("PROJECTILE DISTANCE SET.\n\r\n\r", ch);
+			pObj->value[3] = atoi(argument);
+			break;
+		case 5:
+			// TODO: UNUSED?
+			send_to_char("Spell level set.\n\r\n\r", ch);
+			pObj->value[5] = atoi(argument);
+			break;
+		case 6:
+			// TODO: UNUSED?
+			send_to_char("SPELL SET.\n\r\n\r", ch);
+			pObj->value[6] = skill_lookup(argument);
+			break;
+		case 7:
+			// TODO: UNUSED?
+			send_to_char("SPELL SET.\n\r\n\r", ch);
+			pObj->value[7] = skill_lookup(argument);
+			break;
+		}
+		break;
 
-        case ITEM_CONTAINER:
-	    switch (value_num)
-	    {
+	case ITEM_HERB:
+		switch (value_num)
+		{
+		default:
+			do_help(ch, "ITEM_HERB");
+			return FALSE;
+		case 0:
+			for (i = 0; i < MAX_HERB; i++)
+			{
+				if (!str_prefix(argument, herb_table[i].name))
+				break;
+			}
+
+			if (i < MAX_HERB)
+			{
+				pObj->value[0] = i;
+				send_to_char("HERB TYPE SET.\n\r", ch);
+			}
+			else
+				send_to_char("Invalid herb type.\n\r", ch);
+			break;
+		case 1:
+			send_to_char("HEALING RATE SET.\n\r", ch);
+			pObj->value[1] = atoi(argument);
+			break;
+		case 2:
+			send_to_char("REGENERATIVE RATE SET.\n\r", ch);
+			pObj->value[2] = atoi(argument);
+			break;
+		case 3:
+			send_to_char("REFRESHING RATE SET.\n\r", ch);
+			pObj->value[3] = atoi(argument);
+			break;
+		case 4:
+			if ((i = flag_value(imm_flags, argument)) != NO_FLAG)
+			{
+				pObj->value[4] ^= i;
+				send_to_char("IMMUNITY SET.\n\r", ch);
+			}
+			else
+				send_to_char("Invalid immunity.\n\r", ch);
+			break;
+		case 5:
+			if ((i = flag_value(res_flags, argument)) != NO_FLAG)
+			{
+				pObj->value[5] ^= i;
+				send_to_char("RESISTANCE SET.\n\r", ch);
+			}
+			else
+			send_to_char("Invalid resistance.\n\r", ch);
+			break;
+		case 6:
+			if ((i = flag_value(vuln_flags, argument)) != NO_FLAG)
+			{
+				pObj->value[6] ^= i;
+				send_to_char("VULNERABILITY SET.\n\r", ch);
+			}
+			else
+				send_to_char("Invalid vulnerability.\n\r", ch);
+			break;
+		case 7:
+			// TODO: UNUSED?
+			if ((i = skill_lookup(argument)) > 0 && skill_table[i].spell_fun != spell_null)
+			{
+				send_to_char("SPELL SET.\n\r", ch);
+				pObj->value[7] = i;
+			}
+			else if (i == 0)
+			{
+				send_to_char("SPELL RESET.\n\r", ch);
+				pObj->value[7] = 0;
+			}
+			else
+				send_to_char("INVALID ARGUMENT.\n\r", ch);
+
+			break;
+		}
+
+		break;
+
+	case ITEM_WEAPON:
+		switch (value_num)
+		{
+		default:
+			do_help(ch, "ITEM_WEAPON");
+			return FALSE;
+		case 0:
+			send_to_char("WEAPON CLASS SET.\n\r\n\r", ch);
+			pObj->value[0] = flag_value(weapon_class, argument);
+			break;
+		case 1:
+			send_to_char("NUMBER OF DICE SET.\n\r\n\r", ch);
+			pObj->value[1] = atoi(argument);
+			break;
+		case 2:
+			send_to_char("TYPE OF DICE SET.\n\r\n\r", ch);
+			pObj->value[2] = atoi(argument);
+			break;
+		case 3:
+			send_to_char("WEAPON TYPE SET.\n\r\n\r", ch);
+			pObj->value[3] = attack_lookup(argument);
+			break;
+		case 4:
+			send_to_char("SPECIAL WEAPON TYPE TOGGLED.\n\r\n\r", ch);
+			pObj->value[4] ^= (flag_value(weapon_type2, argument) != NO_FLAG ? flag_value(weapon_type2, argument) : 0);
+			break;
+		case 5:
+			// TODO: UNUSED?
+			if (!str_cmp(pObj->imp_sig, "none") && ch->tot_level < MAX_LEVEL)
+			{
+				send_to_char("You can't do this without an IMP's permission.\n\r", ch);
+				return FALSE;
+			}
+			send_to_char("Spell level set.\n\r\n\r", ch);
+			pObj->value[5] = atoi(argument);
+			break;
+		case 6:
+			// TODO: UNUSED?
+			if (!str_cmp(pObj->imp_sig, "none") && ch->tot_level < MAX_LEVEL)
+			{
+				send_to_char("You can't do this without an IMP's permission.\n\r", ch);
+				return FALSE;
+			}
+			send_to_char("SPELL SET.\n\r\n\r", ch);
+			pObj->value[6] = skill_lookup(argument);
+			use_imp_sig(NULL, pObj);
+			break;
+		case 7:
+			// TODO: UNUSED?
+			if (!str_cmp(pObj->imp_sig, "none") && ch->tot_level < MAX_LEVEL)
+			{
+				send_to_char("You can't do this without an IMP's permission.\n\r", ch);
+				return FALSE;
+			}
+			send_to_char("SPELL SET.\n\r\n\r", ch);
+			pObj->value[7] = skill_lookup(argument);
+			use_imp_sig(NULL, pObj);
+			break;
+		}
+		break;
+
+	case ITEM_PORTAL:
+		switch (value_num)
+		{
+		default:
+			do_help(ch, "ITEM_PORTAL");
+			return FALSE;
+		case 0:
+			send_to_char("CHARGES SET.\n\r\n\r", ch);
+			pObj->value[0] = atoi (argument);
+			break;
+		case 1:
+			send_to_char("EXIT (PORTAL) FLAGS SET.\n\r\n\r", ch);
+			pObj->value[1] ^= (flag_value(portal_exit_flags, argument) != NO_FLAG ? flag_value(portal_exit_flags, argument) : 0);
+			break;
+		case 2:
+			{
+				send_to_char("PORTAL FLAGS SET.\n\r\n\r", ch);
+				int flags = flag_value(portal_flags, argument);
+
+				if( flags != NO_FLAG )
+				{
+					pObj->value[2] ^= flags;
+
+					if( IS_SET(pObj->value[2], GATE_DUNGEON) )
+					{
+						REMOVE_BIT(pObj->value[2], GATE_AREARANDOM);
+					}
+
+					if( IS_SET(flags, GATE_DUNGEON) && IS_SET(pObj->value[2], GATE_DUNGEON) )
+					{
+						pObj->value[3] = 0;
+						pObj->value[4] = 0;
+						pObj->value[5] = 0;
+						pObj->value[6] = 0;
+						pObj->value[7] = 0;
+					}
+					else if( IS_SET(flags, GATE_AREARANDOM) && IS_SET(pObj->value[2], GATE_AREARANDOM) )
+					{
+					}
+
+				}
+			}
+			break;
+		case 3:
+			if( IS_SET(pObj->value[2], GATE_DUNGEON) )
+			{
+				if( !get_dungeon_index(atoi(argument)) )
+				{
+					send_to_char("THERE IS NO SUCH DUNGEON.\n\r\n\r", ch);
+					return FALSE;
+				}
+				send_to_char("DUNGEON VNUM SET.\n\r\n\r", ch);
+			}
+			else
+				send_to_char("EXIT VNUM SET.\n\r\n\r", ch);
+			pObj->value[3] = atoi (argument);
+			break;
+		case 4:
+			if (atoi(argument) != 0)
+			{
+				if (!get_obj_index(atoi(argument)))
+				{
+					send_to_char("THERE IS NO SUCH ITEM.\n\r\n\r", ch);
+					return FALSE;
+				}
+
+				if (get_obj_index(atoi(argument))->item_type != ITEM_KEY)
+				{
+					send_to_char("THAT ITEM IS NOT A KEY.\n\r\n\r", ch);
+					return FALSE;
+				}
+			}
+			send_to_char("PORTAL KEY SET.\n\r\n\r", ch);
+			pObj->value[4] = atoi(argument);
+			break;
+		case 5:
+			if( IS_SET(pObj->value[2], GATE_DUNGEON) )
+			{
+				send_to_char("DUNGEON FLOOR SET.\n\r\n\r", ch);
+			}
+			else if( IS_SET(obj->value[2], GATE_AREARANDOM) || pObj->value[3] == -1 )
+			{
+				send_to_char("AREA ANUM SET.\n\r\n\r", ch);
+			}
+			else if( !IS_SET(pObj->value[2], GATE_DUNGEON) )
+			{
+				send_to_char("WILDERNESS MAP UID SET.\n\r\n\r", ch);
+			}
+			pObj->value[5] = atoi (argument);
+			break;
+		case 6:
+			if( !IS_SET(pObj->value[2], GATE_DUNGEON) && !IS_SET(obj->value[2], GATE_AREARANDOM) && !pObj->value[3] )
+			{
+				send_to_char("WILDERNESS MAP X-COORDINATE SET.\n\r\n\r", ch);
+				pObj->value[6] = atoi (argument);
+			}
+			break;
+		case 7:
+			if( !IS_SET(pObj->value[2], GATE_DUNGEON) && !IS_SET(obj->value[2], GATE_AREARANDOM) && !pObj->value[3] )
+			{
+				send_to_char("WILDERNESS MAP Y-COORDINATE SET.\n\r\n\r", ch);
+				pObj->value[7] = atoi (argument);
+			}
+			break;
+		}
+		break;
+
+	case ITEM_FURNITURE:
+		switch (value_num)
+		{
+		default:
+			do_help(ch, "ITEM_FURNITURE");
+			return FALSE;
+		case 0:
+			send_to_char("NUMBER OF PEOPLE SET.\n\r\n\r", ch);
+			pObj->value[0] = atoi (argument);
+			break;
+		case 1:
+			send_to_char("MAX WEIGHT SET.\n\r\n\r", ch);
+			pObj->value[1] = atoi (argument);
+			break;
+		case 2:
+			send_to_char("FURNITURE FLAGS TOGGLED.\n\r\n\r", ch);
+			pObj->value[2] ^= (flag_value(furniture_flags, argument) != NO_FLAG ? flag_value(furniture_flags, argument) : 0);
+			break;
+		case 3:
+			send_to_char("HEAL BONUS SET.\n\r\n\r", ch);
+			pObj->value[3] = atoi (argument);
+			break;
+		case 4:
+			send_to_char("MANA BONUS SET.\n\r\n\r", ch);
+			pObj->value[4] = atoi (argument);
+			break;
+		case 5:
+			send_to_char("MOVE BONUS SET.\n\r\n\r", ch);
+			pObj->value[5] = atoi (argument);
+			break;
+		}
+		break;
+
+	case ITEM_SHIP:
+		switch (value_num)
+		{
+		default:
+			do_help(ch, "ITEM_SHIP");
+			return FALSE;
+		case 0:
+			send_to_char("WEIGHT CAPACITY SET.\n\r\n\r", ch);
+			pObj->value[0] = atoi(argument);
+			break;
+		case 1:
+			send_to_char("MOVE DELAY SET.\n\r\n\r", ch);
+			pObj->value[1] = atoi(argument);
+			break;
+		case 2:
+			send_to_char("MIN CREW SET.\n\r\n\r", ch);
+			pObj->value[2] = atoi(argument);
+			break;
+		case 3:
+			send_to_char("CAPACITY SET.\n\r\n\r", ch);
+			pObj->value[3] = atoi(argument);
+			break;
+		case 4:
+			send_to_char("MAX CREW SET.\n\r\n\r", ch);
+			pObj->value[4] = atoi(argument);
+			break;
+		case 5:
+			if (atoi(argument) != 0)
+			{
+				if (!get_room_index(atoi(argument)))
+				{
+					send_to_char("THERE IS NO SUCH ROOM.\n\r\n\r", ch);
+					return FALSE;
+				}
+			}
+			send_to_char("BOARDING ROOM SET.\n\r\n\r", ch);
+			pObj->value[5] = atoi(argument);
+			break;
+		case 6:
+			send_to_char("HIT POINTS SET.\n\r", ch);
+			pObj->value[6] = atoi(argument);
+			break;
+		case 7:
+			send_to_char("MAX GUNS SET.\n\r\n\r", ch);
+			pObj->value[7] = atoi (argument);
+			break;
+		}
+		break;
+
+	case ITEM_CART:
+		switch (value_num)
+		{
+		default:
+			do_help(ch, "ITEM_CART");
+			return FALSE;
+		case 0:
+			send_to_char("WEIGHT CAPACITY SET.\n\r\n\r", ch);
+			pObj->value[0] = atol(argument);
+			break;
+		case 1:
+			send_to_char("DELAY SET.\n\r\n\r", ch);
+			pObj->value[1] = atol(argument);
+			break;
+		case 2:
+			send_to_char("STRENGTH SET.\n\r\n\r", ch);
+			pObj->value[2] = atol(argument);
+			break;
+		case 3:
+			send_to_char("CART MAX WEIGHT SET.\n\r", ch);
+			pObj->value[3] = atol(argument);
+			break;
+		case 4:
+			send_to_char("WEIGHT MULTIPLIER SET.\n\r\n\r", ch);
+			pObj->value[4] = atol (argument);
+			break;
+		case 5:
+			send_to_char("VANISH TIME SET.\n\r\n\r", ch);
+			pObj->value[5] = atol (argument);
+			break;
+		}
+		break;
+
+	case ITEM_TRADE_TYPE:
+		switch(value_num)
+		{
+		default:
+			do_help(ch, "ITEM_TRADE_TYPE");
+			return FALSE;
+
+		case 0:
+			if ((argument[0] == '\0') || ((i = get_trade_item(argument)) == 0))
+			{
+				send_to_char("Trade Types:\n\r", ch);
+
+				while(trade_table[ i ].trade_type != -1)
+				{
+					send_to_char(trade_table[ i ].name, ch);
+					send_to_char("\n\r", ch);
+					i++;
+				}
+				break;
+			}
+
+			pObj->value[0] = i;
+			send_to_char("Trade type set.\n\r", ch);
+			break;
+		}
+		break;
+
+	case ITEM_WEAPON_CONTAINER:
+		switch (value_num)
+		{
+		default:
+			do_help(ch, "ITEM_WEAPON_CONTAINER");
+			return FALSE;
+		case 0:
+			send_to_char("WEIGHT CAPACITY SET.\n\r\n\r", ch);
+			pObj->value[0] = atoi(argument);
+			break;
+		case 1:
+			pObj->value[1] = flag_value(weapon_class, argument);
+			send_to_char("WEAPON TYPE SET.\n\r\n\r", ch);
+			break;
+		case 3:
+			send_to_char("CONTAINER MAX ITEMS SET.\n\r", ch);
+			pObj->value[3] = atoi(argument);
+			break;
+		case 4:
+			send_to_char("WEIGHT MULTIPLIER SET.\n\r\n\r", ch);
+			pObj->value[4] = atoi (argument);
+			break;
+		}
+		break;
+
+	case ITEM_CONTAINER:
+		switch (value_num)
+		{
 		int value;
 
 		default:
-		    do_help(ch, "ITEM_CONTAINER");
-	            return FALSE;
+			do_help(ch, "ITEM_CONTAINER");
+			return FALSE;
 		case 0:
-	            send_to_char("WEIGHT CAPACITY SET.\n\r\n\r", ch);
-	            pObj->value[0] = atoi(argument);
-	            break;
+			send_to_char("WEIGHT CAPACITY SET.\n\r\n\r", ch);
+			pObj->value[0] = atoi(argument);
+			break;
 		case 1:
-	            if ((value = flag_value(container_flags, argument))
-	              != NO_FLAG)
-	        	TOGGLE_BIT(pObj->value[1], value);
-		    else
-		    {
-			do_help (ch, "ITEM_CONTAINER");
-			return FALSE;
-		    }
-	            send_to_char("CONTAINER TYPE SET.\n\r\n\r", ch);
-	            break;
+			if ((value = flag_value(container_flags, argument)) != NO_FLAG)
+				TOGGLE_BIT(pObj->value[1], value);
+			else
+			{
+				do_help (ch, "ITEM_CONTAINER");
+				return FALSE;
+			}
+			send_to_char("CONTAINER TYPE SET.\n\r\n\r", ch);
+			break;
 		case 2:
-		    if (atoi(argument) != 0)
-		    {
-			if (!get_obj_index(atoi(argument)))
+			if (atoi(argument) != 0)
 			{
-			    send_to_char("THERE IS NO SUCH ITEM.\n\r\n\r", ch);
-			    return FALSE;
-			}
+				if (!get_obj_index(atoi(argument)))
+				{
+					send_to_char("THERE IS NO SUCH ITEM.\n\r\n\r", ch);
+					return FALSE;
+				}
 
-			if (get_obj_index(atoi(argument))->item_type != ITEM_KEY)
-			{
-			    send_to_char("THAT ITEM IS NOT A KEY.\n\r\n\r", ch);
-			    return FALSE;
+				if (get_obj_index(atoi(argument))->item_type != ITEM_KEY)
+				{
+					send_to_char("THAT ITEM IS NOT A KEY.\n\r\n\r", ch);
+					return FALSE;
+				}
 			}
-		    }
-		    send_to_char("CONTAINER KEY SET.\n\r\n\r", ch);
-		    pObj->value[2] = atoi(argument);
-		    break;
+			send_to_char("CONTAINER KEY SET.\n\r\n\r", ch);
+			pObj->value[2] = atoi(argument);
+			break;
 		case 3:
-		    if (atoi (argument) > 225 && ch->tot_level < MAX_LEVEL)
-		    {
-			send_to_char("Sorry, that value is out of range.\n\r", ch);
-			return FALSE;
-		    }
+			if (atoi (argument) > 225 && ch->tot_level < MAX_LEVEL)
+			{
+				send_to_char("Sorry, that value is out of range.\n\r", ch);
+				return FALSE;
+			}
 
-		    send_to_char("CONTAINER MAX ITEMS SET.\n\r", ch);
-		    pObj->value[3] = atoi(argument);
-		    break;
+			send_to_char("CONTAINER MAX ITEMS SET.\n\r", ch);
+			pObj->value[3] = atoi(argument);
+			break;
+
 		case 4:
-		    if(atoi(argument) <= 0 || atoi(argument) > 1000)
-		    {
-			send_to_char("Weight multiplier must be between 1 and 1000.\n\r",  ch);
-			return FALSE;
-		    }
+			if(atoi(argument) <= 0 || atoi(argument) > 1000)
+			{
+				send_to_char("Weight multiplier must be between 1 and 1000.\n\r",  ch);
+				return FALSE;
+			}
 
-                    if (atoi(argument) < 1000 && !has_imp_sig(NULL, pObj) && ch->tot_level < MAX_LEVEL) {
-			send_to_char("An imp sig is required to set the weight multiplier below 100%.\n\r", ch);
-			return FALSE;
-		    }
+			if (atoi(argument) < 1000 && !has_imp_sig(NULL, pObj) && ch->tot_level < MAX_LEVEL) {
+				send_to_char("An imp sig is required to set the weight multiplier below 100%.\n\r", ch);
+				return FALSE;
+			}
 
-		    if (has_imp_sig(NULL, pObj))
-			use_imp_sig(NULL, pObj);
+			if (has_imp_sig(NULL, pObj))
+				use_imp_sig(NULL, pObj);
 
-		    send_to_char("WEIGHT MULTIPLIER SET.\n\r\n\r", ch);
-		    pObj->value[4] = atoi (argument);
-		    break;
-	    }
-	    break;
+			send_to_char("WEIGHT MULTIPLIER SET.\n\r\n\r", ch);
+			pObj->value[4] = atoi (argument);
+			break;
+		}
+		break;
 
 	case ITEM_DRINK_CON:
-	    switch (value_num)
-	    {
-	        default:
-		    do_help(ch, "ITEM_DRINK");
-	            return FALSE;
-	        case 0:
-	            send_to_char("MAXIMUM AMOUT OF LIQUID HOURS SET.\n\r\n\r", ch);
-	            pObj->value[0] = atoi(argument);
-	            break;
-	        case 1:
-	            send_to_char("CURRENT AMOUNT OF LIQUID HOURS SET.\n\r\n\r", ch);
-	            pObj->value[1] = atoi(argument);
-	            break;
-	        case 2:
-	            send_to_char("LIQUID TYPE SET.\n\r\n\r", ch);
-	            pObj->value[2] = (liq_lookup(argument) != -1 ?
-	            		       liq_lookup(argument) : 0);
-	            break;
-	        case 3:
-	            send_to_char("POISON VALUE TOGGLED.\n\r\n\r", ch);
-	            pObj->value[3] = (pObj->value[3] == 0) ? 1 : 0;
-	            break;
-	    }
-            break;
+		switch (value_num)
+		{
+		default:
+			do_help(ch, "ITEM_DRINK");
+			return FALSE;
+		case 0:
+			send_to_char("MAXIMUM AMOUT OF LIQUID HOURS SET.\n\r\n\r", ch);
+			pObj->value[0] = atoi(argument);
+			break;
+		case 1:
+			send_to_char("CURRENT AMOUNT OF LIQUID HOURS SET.\n\r\n\r", ch);
+			pObj->value[1] = atoi(argument);
+			break;
+		case 2:
+			send_to_char("LIQUID TYPE SET.\n\r\n\r", ch);
+			pObj->value[2] = (liq_lookup(argument) != -1 ? liq_lookup(argument) : 0);
+			break;
+		case 3:
+			send_to_char("POISON VALUE TOGGLED.\n\r\n\r", ch);
+			pObj->value[3] = (pObj->value[3] == 0) ? 1 : 0;
+			break;
+		}
+		break;
 
 	case ITEM_FOUNTAIN:
-	    switch (value_num)
-	    {
-	    	default:
-		    do_help(ch, "ITEM_FOUNTAIN");
-/* OLC		    do_help(ch, "liquids");    */
-	            return FALSE;
-	        case 0:
-	            send_to_char("MAXIMUM AMOUT OF LIQUID HOURS SET.\n\r\n\r", ch);
-	            pObj->value[0] = atoi(argument);
-	            break;
-	        case 1:
-	            send_to_char("CURRENT AMOUNT OF LIQUID HOURS SET.\n\r\n\r", ch);
-	            pObj->value[1] = atoi(argument);
-	            break;
-	        case 2:
-	            send_to_char("LIQUID TYPE SET.\n\r\n\r", ch);
-	            pObj->value[2] = (liq_lookup(argument) != -1 ?
-	            		       liq_lookup(argument) : 0);
-	            break;
-            }
-	break;
+		switch (value_num)
+		{
+		default:
+			do_help(ch, "ITEM_FOUNTAIN");
+			return FALSE;
+		case 0:
+			send_to_char("MAXIMUM AMOUT OF LIQUID HOURS SET.\n\r\n\r", ch);
+			pObj->value[0] = atoi(argument);
+			break;
+		case 1:
+			send_to_char("CURRENT AMOUNT OF LIQUID HOURS SET.\n\r\n\r", ch);
+			pObj->value[1] = atoi(argument);
+			break;
+		case 2:
+			send_to_char("LIQUID TYPE SET.\n\r\n\r", ch);
+			pObj->value[2] = (liq_lookup(argument) != -1 ? liq_lookup(argument) : 0);
+			break;
+		}
+		break;
 
 	case ITEM_FOOD:
-	    switch (value_num)
-	    {
-	        default:
-		    do_help(ch, "ITEM_FOOD");
-	            return FALSE;
-	        case 0:
-	            send_to_char("HOURS OF FOOD SET.\n\r\n\r", ch);
-	            pObj->value[0] = atoi(argument);
-	            break;
-	        case 1:
-	            send_to_char("HOURS OF FULL SET.\n\r\n\r", ch);
-	            pObj->value[1] = atoi(argument);
-	            break;
-	        case 3:
-	            send_to_char("POISON VALUE TOGGLED.\n\r\n\r", ch);
-	            pObj->value[3] = (pObj->value[3] == 0) ? 1 : 0;
-	            break;
-	        case 4:
-	            send_to_char("TIMER TO DISAPPEAR SET.\n\r\n\r", ch);
-	            pObj->value[4] = atoi(argument);
-	            break;
-	    }
-            break;
+		switch (value_num)
+		{
+		default:
+			do_help(ch, "ITEM_FOOD");
+			return FALSE;
+		case 0:
+			send_to_char("HOURS OF FOOD SET.\n\r\n\r", ch);
+			pObj->value[0] = atoi(argument);
+			break;
+		case 1:
+			send_to_char("HOURS OF FULL SET.\n\r\n\r", ch);
+			pObj->value[1] = atoi(argument);
+			break;
+		case 3:
+			send_to_char("POISON VALUE TOGGLED.\n\r\n\r", ch);
+			pObj->value[3] = (pObj->value[3] == 0) ? 1 : 0;
+			break;
+		case 4:
+			send_to_char("TIMER TO DISAPPEAR SET.\n\r\n\r", ch);
+			pObj->value[4] = atoi(argument);
+			break;
+		}
+		break;
 
 	case ITEM_MONEY:
-	    switch (value_num)
-	    {
-	        default:
-		    do_help(ch, "ITEM_MONEY");
-	            return FALSE;
-	        case 0:
-	            send_to_char("SILVER AMOUNT SET.\n\r\n\r", ch);
-	            pObj->value[0] = atoi(argument);
-	            break;
+		switch (value_num)
+		{
+		default:
+			do_help(ch, "ITEM_MONEY");
+			return FALSE;
+		case 0:
+			send_to_char("SILVER AMOUNT SET.\n\r\n\r", ch);
+			pObj->value[0] = atoi(argument);
+			break;
 		case 1:
-		    send_to_char("GOLD AMOUNT SET.\n\r\n\r", ch);
-		    pObj->value[1] = atoi(argument);
-		    break;
-	    }
-            break;
+			send_to_char("GOLD AMOUNT SET.\n\r\n\r", ch);
+			pObj->value[1] = atoi(argument);
+			break;
+		}
+		break;
 
 	case ITEM_MIST:
-	    switch (value_num)
-	    {
-		default: return FALSE;
+		switch (value_num)
+		{
+		default:
+			do_help(ch, "ITEM_MIST");
+			return FALSE;
 		case 0:
-		    send_to_char("PERCENTAGE TO HIDE OBJECTS SET.\n\r", ch);
-		    pObj->value[0] = atoi(argument);
-		    break;
+			send_to_char("PERCENTAGE TO HIDE OBJECTS SET.\n\r", ch);
+			pObj->value[0] = atoi(argument);
+			break;
 		case 1:
-		    send_to_char("PERCENTAGE TO HIDE CHARACTERS SET.\n\r", ch);
-		    pObj->value[1] = atoi(argument);
-		    break;
-	    }
-
-	    break;
+			send_to_char("PERCENTAGE TO HIDE CHARACTERS SET.\n\r", ch);
+			pObj->value[1] = atoi(argument);
+			break;
+		}
+		break;
 
 	case ITEM_CORPSE_NPC:
-	    switch (value_num)
-	    {
+		switch (value_num)
+		{
 		int value;
-		default: return FALSE;
+		default:
+			do_help(ch, "ITEM_CORPSE_NPC");
+			return FALSE;
 		case 0:
-	            if ((value = flag_value(corpse_types, argument)) == NO_FLAG)
-			return FALSE;
-		    send_to_char("CORPSE TYPE SET.\n\r", ch);
-		    pObj->value[0] = value;
-		    break;
+			if ((value = flag_value(corpse_types, argument)) == NO_FLAG)
+				return FALSE;
+			send_to_char("CORPSE TYPE SET.\n\r", ch);
+			pObj->value[0] = value;
+			break;
 		case 1:
-		    send_to_char("RESURRECTION CHANCE SET.\n\r", ch);
-		    pObj->value[1] = atoi(argument);
-		    break;
+			send_to_char("RESURRECTION CHANCE SET.\n\r", ch);
+			pObj->value[1] = atoi(argument);
+			break;
 		case 2:
-		    send_to_char("ANIMATION CHANCE SET.\n\r", ch);
-		    pObj->value[2] = atoi(argument);
-		    break;
+			send_to_char("ANIMATION CHANCE SET.\n\r", ch);
+			pObj->value[2] = atoi(argument);
+			break;
 		case 3:
-	            if ((value = flag_value(part_flags, argument)) == NO_FLAG)
-			return FALSE;
-		    send_to_char("BODY PARTS SET.\n\r", ch);
-		    pObj->value[3] = value;
-		    break;
+			if ((value = flag_value(part_flags, argument)) == NO_FLAG)
+				return FALSE;
+			send_to_char("BODY PARTS SET.\n\r", ch);
+			pObj->value[3] = value;
+			break;
 		case 5:
-		    send_to_char("MOBILE INDEX VNUM SET.\n\r", ch);
-		    pObj->value[5] = atoi(argument);
-		    break;
-	    }
-	    break;
+			send_to_char("MOBILE INDEX VNUM SET.\n\r", ch);
+			pObj->value[5] = atoi(argument);
+			break;
+		}
+		break;
+
 	case ITEM_INSTRUMENT:
-	    switch (value_num)
-	    {
+		switch (value_num)
+		{
 		int value;
-		default: return FALSE;
+		default:
+			do_help(ch,"ITEM_INSTRUMENT");
+			return FALSE;
 		case 0:
 			if ((value = flag_value(instrument_types, argument)) == NO_FLAG)
 				return FALSE;
@@ -4590,39 +4668,78 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 		case 1:
 			if ((value = flag_value(instrument_flags, argument)) == NO_FLAG)
 				return FALSE;
-		    send_to_char("INSTRUMENT FLAGS TOGGLED.\n\r", ch);
-		    pObj->value[1] ^= value;
-		    break;
+			send_to_char("INSTRUMENT FLAGS TOGGLED.\n\r", ch);
+			pObj->value[1] ^= value;
+			break;
 		case 2:
 			value = atoi(argument);
 			if( value < 1 || value > 5000)
 			{
-			    send_to_char("Minimum scale factor for playtime can only be between 1% and 5000%.\n\r", ch);
+				send_to_char("Minimum scale factor for playtime can only be between 1% and 5000%.\n\r", ch);
 				return FALSE;
 			}
-		    send_to_char("MINIMUM PLAYTIME SCALE FACTOR SET.\n\r", ch);
-		    pObj->value[2] = value;
-		    break;
+			send_to_char("MINIMUM PLAYTIME SCALE FACTOR SET.\n\r", ch);
+			pObj->value[2] = value;
+			break;
 		case 3:
 			value = atoi(argument);
 			if( value < 1 || value > 5000)
 			{
-			    send_to_char("Maximum scale factor for playtime can only be between 1% and 5000%.\n\r", ch);
+				send_to_char("Maximum scale factor for playtime can only be between 1% and 5000%.\n\r", ch);
 				return FALSE;
 			}
-		    send_to_char("MAXIMUM PLAYTIME SCALE FACTOR SET.\n\r", ch);
-		    pObj->value[3] = value;
-		    break;
-	    }
-	    break;
-    }
+			send_to_char("MAXIMUM PLAYTIME SCALE FACTOR SET.\n\r", ch);
+			pObj->value[3] = value;
+			break;
+		}
+		break;
 
-    buffer = new_buf();
-    print_obj_values(pObj, buffer);
-    page_to_char(buf_string(buffer), ch);
-    free_buf(buffer);
+	case ITEM_BOOK:
+		switch (value_num)
+		{
+		int value;
 
-    return TRUE;
+		default:
+			do_help(ch, "ITEM_BOOK");
+			return FALSE;
+		case 1:
+			if ((value = flag_value(container_flags, argument)) != NO_FLAG)
+				TOGGLE_BIT(pObj->value[1], value);
+			else
+			{
+				do_help (ch, "ITEM_BOOK");
+				return FALSE;
+			}
+			send_to_char("BOOK (CONTAINER) FLAGS SET.\n\r\n\r", ch);
+			break;
+		case 2:
+			if (atoi(argument) != 0)
+			{
+				if (!get_obj_index(atoi(argument)))
+				{
+					send_to_char("THERE IS NO SUCH ITEM.\n\r\n\r", ch);
+					return FALSE;
+				}
+
+				if (get_obj_index(atoi(argument))->item_type != ITEM_KEY)
+				{
+					send_to_char("THAT ITEM IS NOT A KEY.\n\r\n\r", ch);
+					return FALSE;
+				}
+			}
+			send_to_char("BOOK KEY SET.\n\r\n\r", ch);
+			pObj->value[2] = atoi(argument);
+			break;
+		}
+		break;
+	}
+
+	buffer = new_buf();
+	print_obj_values(pObj, buffer);
+	page_to_char(buf_string(buffer), ch);
+	free_buf(buffer);
+
+	return TRUE;
 }
 
 
