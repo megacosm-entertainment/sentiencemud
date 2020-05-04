@@ -2254,6 +2254,15 @@ SCRIPT_CMD(do_tpalterobj)
 			return;
 		}
 	}
+
+	if( ptr )
+	{
+		if(hasmin && *ptr < min)
+			*ptr = min;
+
+		if(hasmax && *ptr > max)
+			*ptr = max;
+	}
 }
 
 
@@ -4902,10 +4911,11 @@ SCRIPT_CMD(do_tpalterexit)
 	int value, min_sec = MIN_SCRIPT_SECURITY, door;
 	ROOM_INDEX_DATA *room;
 	EXIT_DATA *ex = NULL;
-
 	int *ptr = NULL;
 	sh_int *sptr = NULL;
 	char **str;
+	int min, max;
+	bool hasmin = FALSE, hasmax = FALSE;
 	bool allowarith = TRUE;
 	const struct flag_type *flags = NULL;
 
@@ -5016,8 +5026,8 @@ SCRIPT_CMD(do_tpalterexit)
 	else if(!str_cmp(field,"lockreset"))		{ ptr = (int*)&ex->door.rs_lock.flags; flags = lock_flags; min_sec = 7; }
 	else if(!str_cmp(field,"key"))				ptr = (int*)&ex->door.lock.key_vnum;
 	else if(!str_cmp(field,"keyreset"))			{ ptr = (int*)&ex->door.rs_lock.key_vnum; min_sec = 7; }
-	else if(!str_cmp(field,"pick"))				ptr = (int*)&ex->door.lock.pick_chance;
-	else if(!str_cmp(field,"pickreset"))		{ ptr = (int*)&ex->door.rs_lock.pick_chance; min_sec = 7; }
+	else if(!str_cmp(field,"pick"))				{ ptr = (int*)&ex->door.lock.pick_chance; min = 0; max = 100; hasmin = hasmax = TRUE; }
+	else if(!str_cmp(field,"pickreset"))		{ ptr = (int*)&ex->door.rs_lock.pick_chance; min_sec = 7; min = 0; max = 100; hasmin = hasmax = TRUE; }
 
 	if(!ptr && !sptr) return;
 
@@ -5054,7 +5064,8 @@ SCRIPT_CMD(do_tpalterexit)
 			if( !IS_SET(*ptr, LOCK_CREATED) )
 			{
 				// OLC created locks can lose noremove
-				SET_BIT(value, LOCK_REMOVE);
+				SET_BIT(value, LOCK_NOREMOVE);
+				SET_BIT(value, LOCK_NOJAM);
 			}
 
 			REMOVE_BIT(value, keep);
@@ -5162,6 +5173,15 @@ SCRIPT_CMD(do_tpalterexit)
 		default:
 			return;
 		}
+	}
+
+	if( ptr )
+	{
+		if(hasmin && *ptr < min)
+			*ptr = min;
+
+		if(hasmax && *ptr > max)
+			*ptr = max;
 	}
 }
 

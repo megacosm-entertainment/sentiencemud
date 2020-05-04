@@ -4635,7 +4635,7 @@ void do_bash(CHAR_DATA *ch, char *argument)
 	}
 
 	// Bash a portal
-	if ((obj = get_obj_here(ch, NULL, arg)) != NULL)
+	if ((obj = get_obj_here(ch, NULL, argument)) != NULL)
 	{
 		if (obj->item_type == ITEM_PORTAL)
 		{
@@ -4677,7 +4677,7 @@ void do_bash(CHAR_DATA *ch, char *argument)
 			deduct_move(ch, 75);
 
 			if (IS_SET(obj->value[1], EX_NOBASH) ||
-				(!pexit->door.lock.pick_chance && IS_SET(obj->value[1], EX_NOPASS)))
+				(!obj->lock && !obj->lock->pick_chance && IS_SET(obj->value[1], EX_NOPASS)))
 			{
 				chance = chance / 5;	// Only 1/5 the original chance to break off any bars on the door
 

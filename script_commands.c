@@ -2217,7 +2217,7 @@ SCRIPT_CMD(scriptcmd_lockadd)
 		return;
 
 	if( arg->d.obj->lock )
-		return
+		return;
 
 	switch(arg->d.obj->item_type)
 	{
@@ -2250,7 +2250,7 @@ SCRIPT_CMD(scriptcmd_lockremove)
 	LOCK_STATE *lock = arg->d.obj->lock;
 
 	if( !lock )
-		return
+		return;
 
 	// Only CREATED locks with noremove can be stripped off by this command.
 	if( IS_SET(lock->flags, LOCK_NOREMOVE) && !IS_SET(lock->flags, LOCK_CREATED))
