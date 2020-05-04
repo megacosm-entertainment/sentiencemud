@@ -1784,15 +1784,16 @@ void do_lock(CHAR_DATA *ch, char *argument)
 		}
 		if (IS_SET(obj->value[1], CONT_LOCKED))
 		{
-			send_to_char("It's already locked.\n\r",    ch); return; }
-
-			SET_BIT(obj->value[1], CONT_LOCKED);
-			act("You lock $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-			act("$n locks $p.",ch, NULL, NULL,obj, NULL, NULL, NULL, TO_ROOM);
-
-			use_key(ch, key);
+			send_to_char("It's already locked.\n\r", ch);
 			return;
 		}
+
+		SET_BIT(obj->value[1], CONT_LOCKED);
+		act("You lock $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
+		act("$n locks $p.",ch, NULL, NULL,obj, NULL, NULL, NULL, TO_ROOM);
+
+		use_key(ch, key);
+		return;
 	}
 
 	if ((door = find_door(ch, arg, TRUE)) >= 0)
