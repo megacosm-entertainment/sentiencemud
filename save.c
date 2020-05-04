@@ -3688,19 +3688,19 @@ void fix_object(OBJ_DATA *obj)
 
 					if( IS_SET(obj->value[1], VO_004_EX_PICKPROOF) )
 					{
-						SET_BIT(obj->lock->pick_chance = 0;
+						obj->lock->pick_chance = 0;
 					}
 					else if( IS_SET(obj->value[1], VO_004_EX_INFURIATING) )
 					{
-						SET_BIT(obj->lock->pick_chance = 10;
+						obj->lock->pick_chance = 10;
 					}
 					else if( IS_SET(obj->value[1], VO_004_EX_HARD) )
 					{
-						SET_BIT(obj->lock->pick_chance = 40;
+						obj->lock->pick_chance = 40;
 					}
 					else if( IS_SET(obj->value[1], VO_004_EX_EASY) )
 					{
-						SET_BIT(obj->lock->pick_chance = 80;
+						obj->lock->pick_chance = 80;
 					}
 
 
