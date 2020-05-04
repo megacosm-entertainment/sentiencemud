@@ -2349,8 +2349,8 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 		// Don't toggle exit_info because it can be changed by players.
 		pRoom->exit[door]->door.lock.flags = pRoom->exit[door]->door.rs_lock_flags;
 
-		pToRoom = pRoom->exit[door]->u1.to_room;
-		rev = rev_dir[door];
+		ROOM_INDEX_DATA *pToRoom = pRoom->exit[door]->u1.to_room;
+		int rev = rev_dir[door];
 
 		if (pToRoom != NULL && pToRoom->exit[rev] != NULL)
 		{
@@ -2385,7 +2385,8 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 			return FALSE;
 		}
 
-		pRoom->exit[door]->door.pick_chance = value;
+		pRoom->exit[door]->door.lock.pick_chance =
+		pRoom->exit[door]->door.rs_pick_chance = value;
 
 		send_to_char("Exit pick chance set.\n\r", ch);
 		return TRUE;

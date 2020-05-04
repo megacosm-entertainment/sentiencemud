@@ -4399,6 +4399,7 @@ struct	obj_data
 #define LOCK_LOCKED 		(A)		// Currently locked
 #define LOCK_MAGIC			(B)		// Requires magic to break
 #define LOCK_SNAPKEY		(C)		// Key snaps on use
+#define LOCK_SCRIPT			(D)		// Requires a script to alter the lock to unlock it.
 
 typedef struct lock_state_data {
 	long key_vnum;

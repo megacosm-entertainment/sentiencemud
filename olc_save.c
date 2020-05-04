@@ -2303,47 +2303,50 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 	if( room->persist )
 		persist_addroom(room);
 
+	if (recordtype != ROOMTYPE_TERRAIN)
+	{
 	if( area->version_room < VERSION_ROOM_001 )
 	{
-		// Correct exits
-		for( int e = 0; e < MAX_DIR; e++)
-		{
-			ex = room->exit[e];
-
-			if( !ex ) continue;
-
-			if( IS_SET(ex->rs_flags, VR_001_EX_LOCKED) )
+			// Correct exits
+			for( int e = 0; e < MAX_DIR; e++)
 			{
-				SET_BIT(ex->door.rs_lock_flags, LOCK_LOCKED);
-			}
+				ex = room->exit[e];
 
-			if( IS_SET(ex->rs_flags, VR_001_EX_PICKPROOF) )
-			{
-				ex->door.rs_pick_chance = 0;
-			}
-			else if( IS_SET(ex->rs_flags, VR_001_EX_INFURIATING) )
-			{
-				ex->door.rs_pick_chance = 10;
-			}
-			else if( IS_SET(ex->rs_flags, VR_001_EX_HARD) )
-			{
-				ex->door.rs_pick_chance = 40;
-			}
-			else if( IS_SET(ex->rs_flags, VR_001_EX_EASY) )
-			{
-				ex->door.rs_pick_chance = 80;
-			}
-			else
-			{
-				ex->door.rs_pick_chance = 100;
-			}
+				if( !ex ) continue;
+
+				if( IS_SET(ex->rs_flags, VR_001_EX_LOCKED) )
+				{
+					SET_BIT(ex->door.rs_lock_flags, LOCK_LOCKED);
+				}
+
+				if( IS_SET(ex->rs_flags, VR_001_EX_PICKPROOF) )
+				{
+					ex->door.rs_pick_chance = 0;
+				}
+				else if( IS_SET(ex->rs_flags, VR_001_EX_INFURIATING) )
+				{
+					ex->door.rs_pick_chance = 10;
+				}
+				else if( IS_SET(ex->rs_flags, VR_001_EX_HARD) )
+				{
+					ex->door.rs_pick_chance = 40;
+				}
+				else if( IS_SET(ex->rs_flags, VR_001_EX_EASY) )
+				{
+					ex->door.rs_pick_chance = 80;
+				}
+				else
+				{
+					ex->door.rs_pick_chance = 100;
+				}
 
 
-			REMOVE_BIT(ex->rs_flags, (VR_001_EX_LOCKED|VR_001_EX_PICKPROOF|VR_001_EX_INFURIATING|VR_001_EX_HARD|VR_001_EX_EASY));
+				REMOVE_BIT(ex->rs_flags, (VR_001_EX_LOCKED|VR_001_EX_PICKPROOF|VR_001_EX_INFURIATING|VR_001_EX_HARD|VR_001_EX_EASY));
 
-//			ex->exit_info = ex->rs_flags;
-//			ex->door.lock.flags = ex->door.rs_lock_flags;
-//			ex->door.lock.pick_chance = ex->door.rs_pick_chance;
+//				ex->exit_info = ex->rs_flags;
+//				ex->door.lock.flags = ex->door.rs_lock_flags;
+//				ex->door.lock.pick_chance = ex->door.rs_pick_chance;
+			}
 		}
 	}
 
@@ -3151,7 +3154,7 @@ EXIT_DATA *read_exit_new(FILE *fp)
 		break;
 
 	    case 'K':
-	        KEY("Key",		ex->door.key_vnum,	fread_number(fp));
+	        KEY("Key",		ex->door.lock.key_vnum,	fread_number(fp));
 
 		if (!str_cmp(word, "Keyword")) {
 		    int i;

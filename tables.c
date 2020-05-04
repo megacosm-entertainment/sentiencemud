@@ -1064,8 +1064,9 @@ const struct flag_type lock_flags[] =
 	{	"locked",		LOCK_LOCKED,		TRUE	},
 	{	"magic",		LOCK_MAGIC,			TRUE	},
 	{	"snap_key",		LOCK_SNAPKEY,		TRUE	},
+	{	"script",		LOCK_SCRIPT,		TRUE	},
 	{	NULL,			0,					0	}
-}
+};
 
 const struct flag_type portal_exit_flags[] =
 {
