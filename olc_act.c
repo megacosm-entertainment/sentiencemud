@@ -57,6 +57,7 @@ const struct olc_help_type help_table[] =
     {	"sector",	sector_flags,	 "Sector types, terrain."	 },
     {	"exit",		exit_flags,	 "Exit types."			 },
     {	"portal_exit",		portal_exit_flags,	 "Exit (Portal) types."			 },
+    {	"lock",		lock_flags,	 "Lock state types."			 },
     {	"type",		type_flags,	 "Types of objects."		 },
     {	"areawho",	area_who_titles, "Type of area for who."	 },
     {	"placetype",	place_flags,	 "Where is the town/city etc."	 },
@@ -4906,6 +4907,21 @@ OEDIT(oedit_show)
          pObj->points);
     add_buf(buffer, buf);
 
+    if( pObj->lock )
+    {
+		OBJ_INDEX_DATA *lock_key = (pObj->lock->key_vnum > 0) ? get_obj_index(pObj->lock->key_vnum) : NULL;
+
+	    sprintf(buf,"Lock State:\n\r"
+	    			"  Key:         {B[{x%7d{B]{x %s\n\r"
+	    			"  Flags:       {B[{x%s{B]{x\n\r"
+	    			"  Pick Chance: {B[{x%d%%{B]{x\n\r",
+	    			pObj->lock->key_vnum,
+	    			lock_key ? lock_key->short_descr : "none",
+	    			flag_string(lock_flags, pObj->lock->flags),
+	    			pObj->lock->pick_chance);
+	    add_buf(buffer, buf);
+	}
+
     if (pObj->extra_descr)
     {
 	EXTRA_DESCR_DATA *ed;
@@ -5770,6 +5786,172 @@ OEDIT(oedit_next)
 	ch->desc->editor = ED_OBJECT;
     }
     return FALSE;
+}
+
+OEDIT(oedit_lock)
+{
+	char arg[MIL];
+	OBJ_INDEX_DATA *pObj;
+
+	EDIT_OBJ(ch, pObj);
+
+	if( argument[0] == '\0' )
+	{
+		send_to_char("Syntax:  lock add\n\r", ch);
+		send_to_char("         lock remove\n\r", ch);
+		send_to_char("         lock key [vnum]\n\r", ch);
+		send_to_char("         lock key clear\n\r", ch);
+		send_to_char("         lock flags [flags]\n\r", ch);
+		send_to_char("         lock pick [0-100]\n\r", ch);
+		return FALSE;
+	}
+
+	argument = one_argument(argument, arg);
+
+	if( !str_prefix(arg, "add") )
+	{
+		if( pObj->lock )
+		{
+			send_to_char("Object already has a lock state.\n\r", ch);
+			return FALSE;
+		}
+
+		// TODO: Add closeability to weapon_containers and drinkcontainers
+		if( pObj->item_type != ITEM_CONTAINER &&
+			pObj->item_type != ITEM_PORTAL &&
+//			pObj->item_type != ITEM_WEAPON_CONTAINER &&
+//			pObj->item_type != ITEM_DRINKCONTAINER &&
+			pObj->item_type != ITEM_BOOK )
+		{
+			send_to_char("Invalid object type.\n\r", ch);
+			send_to_char("Only the following types may have lock state added:\n\r", ch);
+			send_to_char("{Y*{x CONTAINER\n\r", ch);
+			send_to_char("{Y*{x PORTAL\n\r", ch);
+//			send_to_char("{Y*{x WEAPON_CONTAINER\n\r", ch);
+//			send_to_char("{Y*{x DRINKCONTAINER\n\r", ch);
+			send_to_char("{Y*{x BOOK\n\r", ch);
+			return FALSE;
+		}
+
+		pObj->lock = new_lock_state();
+		send_to_char("Lock State added.\n\r", ch);
+		return TRUE;
+	}
+
+	if( !str_prefix(arg, "remove") )
+	{
+		if( !pObj->lock )
+		{
+			send_to_char("Object does not have a lock state.\n\r", ch);
+			return FALSE;
+		}
+
+
+		free_lock_state(pObj->lock);
+		pObj->lock = NULL;
+
+		send_to_char("Lock State removed.\n\r", ch);
+		return TRUE;
+	}
+
+	if( !str_prefix(arg, "key") )
+	{
+		if( !pObj->lock )
+		{
+			send_to_char("Object does not have a lock state.\n\r", ch);
+			return FALSE;
+		}
+
+		if( argument[0] == '\0' )
+		{
+			send_to_char("Syntax:  lock key [vnum]\n\r", ch);
+			send_to_char("         lock key clear\n\r", ch);
+			return FALSE;
+		}
+
+		if( is_number(argument) )
+		{
+			long vnum = atol(argument);
+			OBJ_INDEX_DATA *key = get_obj_index(vnum);
+
+			if( !key )
+			{
+				send_to_char("That object does not exist.\n\r", ch);
+				return FALSE;
+			}
+
+			if( key->item_type != ITEM_KEY )
+			{
+				send_to_char("That object is not a key.\n\r", ch);
+				return FALSE;
+			}
+
+			pObj->lock->key = vnum;
+			send_to_char("Lock State key set.\n\r", ch);
+			return TRUE:
+		}
+		else if( !str_prefix(argument, "clear") )
+		{
+			pObj->lock->key = 0;
+			send_to_char("Lock State key removed.\n\r", ch);
+			return TRUE:
+		}
+
+		oedit_lock(ch, "lock key");
+		return FALSE;
+	}
+
+	if( !str_prefix(arg, "flags") )
+	{
+		if( !pObj->lock )
+		{
+			send_to_char("Object does not have a lock state.\n\r", ch);
+			return FALSE;
+		}
+
+		int value = flag_value(lock_flags, argument);
+
+		if( value == NO_FLAG )
+		{
+			send_to_char("Syntax:  lock flags [flags]\n\r", ch);
+			send_to_char("See \"? lock\" for list of flags\n\r\n\r", ch);
+			show_help(ch, "lock");
+			return FALSE;
+		}
+
+		pObj->lock->flags ^= value;
+		send_to_char("Lock State flags changed.\n\r", ch);
+		return TRUE;
+	}
+
+	if( !str_prefix(arg, "pick") )
+	{
+		if( !pObj->lock )
+		{
+			send_to_char("Object does not have a lock state.\n\r", ch);
+			return FALSE;
+		}
+
+		if( !is_number(argument) )
+		{
+			send_to_char("That is not a number.\n\r", ch);
+			return FALSE;
+		}
+
+		int value = atoi(argument);
+		if( value < 0 || value > 100 )
+		{
+			send_to_char("Pick chance must be from 0 to 100.\n\r", ch);
+			return FALSE;
+		}
+
+		pObj->lock->pick_chance = value;
+		send_to_char("Lock State pick chance set.\n\r", ch);
+		return TRUE;
+	}
+
+	oedit_lock(ch, "");
+	return FALSE;
 }
 
 OEDIT(oedit_persist)
@@ -6725,51 +6907,57 @@ OEDIT(oedit_wear)
 
 OEDIT(oedit_type)
 {
-    OBJ_INDEX_DATA *pObj;
-    int value;
-    int i;
+	OBJ_INDEX_DATA *pObj;
+	int value;
+	int i;
 
-    if (argument[0] != '\0')
-    {
-	EDIT_OBJ(ch, pObj);
-
-	if ((value = flag_value(type_flags, argument)) != NO_FLAG)
+	if (argument[0] != '\0')
 	{
-            if ((value == ITEM_KEYRING
-	    || value == ITEM_BANK
-	    || value == ITEM_SHARECERT
-	    || value == ITEM_ROOM_DARKNESS
-	    || value == ITEM_ROOM_FLAME
-	    || value == ITEM_SMOKE_BOMB
-	    || value == ITEM_MONEY
-	    || value == ITEM_WITHERING_CLOUD
-	    || value == ITEM_ROOM_ROOMSHIELD
-	    || value == ITEM_CATALYST
-	    || value == ITEM_SHIP
-	    || value == ITEM_SHRINE)
-		    && ch->tot_level < MAX_LEVEL)
-	    {
-		send_to_char("Sorry, only an IMP can set that item-type.\n\r",ch);
-		return FALSE;
-	    }
+		EDIT_OBJ(ch, pObj);
 
-	    pObj->item_type = value;
+		if ((value = flag_value(type_flags, argument)) != NO_FLAG)
+		{
+			if ((value == ITEM_KEYRING ||
+				 value == ITEM_BANK ||
+				 value == ITEM_SHARECERT ||
+				 value == ITEM_ROOM_DARKNESS ||
+				 value == ITEM_ROOM_FLAME ||
+				 value == ITEM_SMOKE_BOMB ||
+				 value == ITEM_MONEY ||
+				 value == ITEM_WITHERING_CLOUD ||
+				 value == ITEM_ROOM_ROOMSHIELD ||
+				 value == ITEM_CATALYST ||
+				 value == ITEM_SHIP ||
+				 value == ITEM_SHRINE) &&
+				ch->tot_level < MAX_LEVEL)
+			{
+				send_to_char("Sorry, only an IMP can set that item-type.\n\r",ch);
+				return FALSE;
+			}
 
-	    send_to_char("Type set.\n\r", ch);
+			pObj->item_type = value;
 
-	    /*
-	     * Clear the values.
-	     */
-	    for (i = 0; i < 9; i++)
-		pObj->value[i] = 0;
+			send_to_char("Type set.\n\r", ch);
 
-	    return TRUE;
+			// Clear the values.
+			for (i = 0; i < 8; i++)
+			{
+				pObj->value[i] = 0;
+			}
+
+			if( pObj->lock )
+			{
+				free_lock_state(pObj->lock);
+				pObj->lock = NULL;
+			}
+
+			return TRUE;
+		}
 	}
-    }
 
-    send_to_char("Syntax:  type [flag]\n\r"
-		  "Type '? type' for a list of flags.\n\r", ch);
-    return FALSE;
+	send_to_char("Syntax:  type [flag]\n\r"
+				"Type '? type' for a list of flags.\n\r", ch);
+	return FALSE;
 }
 
 

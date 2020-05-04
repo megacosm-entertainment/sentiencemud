@@ -397,6 +397,7 @@ OBJ_DATA *new_obj(void)
 	obj->ltokens = list_create(FALSE);
 	obj->lcontains = list_create(FALSE);
 	obj->lclonerooms = list_create(FALSE);
+	obj->lock = NULL;
 
 
     VALIDATE(obj);
@@ -480,6 +481,12 @@ void free_obj(OBJ_DATA *obj)
 
 	if(obj->owner_name != NULL)		free_string(obj->owner_name);
 	if(obj->owner_short != NULL)	free_string(obj->owner_short);
+
+	if(obj->lock)
+	{
+		free_lock_state(obj->lock);
+		obj->lock = NULL;
+	}
 
     INVALIDATE(obj);
 
@@ -1802,6 +1809,7 @@ OBJ_INDEX_DATA *new_obj_index( void )
     for ( value = 0; value < 8; value++ )               /* 5 - ROM */
         pObj->value[value]  =   0;
     pObj->comments      = &str_empty[0];
+    pObj->lock			= NULL;
 
     return pObj;
 }
@@ -1828,6 +1836,8 @@ void free_obj_index( OBJ_INDEX_DATA *pObj )
 
     for ( pExtra = pObj->extra_descr; pExtra; pExtra = pExtra->next )
         free_extra_descr( pExtra );
+
+    free_lock_state( pObj->lock );
 
     pObj->next              = obj_index_free;
     obj_index_free          = pObj;

@@ -59,6 +59,14 @@ int getpid();
 time_t time(time_t *tloc);
 #endif
 
+// VERSION_ROOM_002 special defines
+#define VR_002_EX_LOCKED		(C)
+#define VR_002_EX_PICKPROOF		(F)
+#define VR_002_EX_EASY			(H)
+#define VR_002_EX_HARD			(I)
+#define VR_002_EX_INFURIATING	(J)
+
+
 /* externals for counting purposes */
 extern  OBJ_DATA  *obj_free;
 extern  CHAR_DATA *char_free;
@@ -2749,13 +2757,21 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects)
     obj->cost           = pObjIndex->cost;
     obj->timer		= pObjIndex->timer;
 
+    if( pObjIndex->lock )
+    {
+		obj->lock = new_lock_state()
+		obj->lock->key_vnum = pObjIndex->lock->key_vnum;
+		obj->lock->flags = pObjIndex->lock->flags;
+		obj->lock->pick_chance = pObjIndex->lock->pick_chance;
+	}
+
     /*
      * Mess with object properties.
      */
     switch (obj->item_type)
     {
 	case ITEM_LIGHT:
-	    if (obj->value[2] == 999)
+	    if (obj->value[2] >= 999)
 		obj->value[2] = -1;
 	    break;
 
@@ -5541,6 +5557,13 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
 	for(i = 0; i < 8; i++)
 		fprintf(fp, "Value %d %d\n", i, obj->value[i]);			// **
 
+	if( obj->lock )
+	{
+		fprintf(fp, "Lock %ld '%s' %d\n",
+			obj->lock->key_vnum,
+			flag_string(lock_flags, obj->lock->flags),
+			obj->lock->pick_chance);
+	}
 
 	if (obj->spells)
 		save_spell(fp, obj->spells);		// SpellNew **
@@ -6603,6 +6626,20 @@ OBJ_DATA *persist_load_object(FILE *fp)
 				KEY("LastWearLoc",	obj->last_wear_loc,	fread_number(fp));
 				KEY("Level",		obj->level,		fread_number(fp));
 				KEY("LoadedBy",		obj->loaded_by,		fread_string(fp));
+				if( !str_cmp(word,"Lock") )
+				{
+					if( !obj->lock )
+					{
+						obj->lock = new_lock_state();
+					}
+
+					obj->lock->key_vnum = fread_number(fp);
+					obj->lock->flags = script_flag_value(lock_flags, fread_word(fp));
+					obj->lock->pick_chance = fread_number(fp);
+
+					fMatch = TRUE;
+					break;
+				}
 				FKEY("Locker",		obj->locker);
 				KEY("LongDesc",		obj->description,	fread_string(fp));
 				break;
@@ -7714,6 +7751,79 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 		if (!fMatch)
 			fread_to_eol(fp);
 	}
+
+	if( room->version < VERSION_ROOM_002 )
+	{
+
+		// Correct exits
+		for( int e = 0; e < MAX_DIR; e++)
+		{
+			ex = room->exit[e];
+
+			if( !ex ) continue;
+
+			// Correct RESETS
+			if( IS_SET(ex->rs_flags, VR_002_EX_LOCKED) )
+			{
+				SET_BIT(ex->door.rs_lock_flags, LOCK_LOCKED);
+			}
+
+			if( IS_SET(ex->rs_flags, VR_002_EX_PICKPROOF) )
+			{
+				ex->door.rs_pick_chance = 0;
+			}
+			else if( IS_SET(ex->rs_flags, VR_002_EX_INFURIATING) )
+			{
+				ex->door.rs_pick_chance = 10;
+			}
+			else if( IS_SET(ex->rs_flags, VR_002_EX_HARD) )
+			{
+				ex->door.rs_pick_chance = 40;
+			}
+			else if( IS_SET(ex->rs_flags, VR_002_EX_EASY) )
+			{
+				ex->door.rs_pick_chance = 80;
+			}
+			else
+			{
+				ex->door.rs_pick_chance = 100;
+			}
+
+			REMOVE_BIT(ex->rs_flags, (VR_002_EX_LOCKED|VR_002_EX_PICKPROOF|VR_002_EX_INFURIATING|VR_002_EX_HARD|VR_002_EX_EASY));
+
+			// Correct Active
+			if( IS_SET(ex->exit_info, VR_002_EX_LOCKED) )
+			{
+				SET_BIT(ex->door.lock,flags, LOCK_LOCKED);
+			}
+
+			if( IS_SET(ex->exit_info, VR_002_EX_PICKPROOF) )
+			{
+				ex->door.lock,pick_chance = 0;
+			}
+			else if( IS_SET(ex->exit_info, VR_002_EX_INFURIATING) )
+			{
+				ex->door.lock,pick_chance = 10;
+			}
+			else if( IS_SET(ex->exit_info, VR_002_EX_HARD) )
+			{
+				ex->door.lock,pick_chance = 40;
+			}
+			else if( IS_SET(ex->exit_info, VR_002_EX_EASY) )
+			{
+				ex->door.lock,pick_chance = 80;
+			}
+			else
+			{
+				ex->door.lock.pick_chance = 100;
+			}
+
+			REMOVE_BIT(ex->exit_info, (VR_002_EX_LOCKED|VR_002_EX_PICKPROOF|VR_002_EX_INFURIATING|VR_002_EX_HARD|VR_002_EX_EASY));
+		}
+	}
+
+
+	room->version = VERSION_ROOM;
 
 	if(room->persist) persist_addroom(room);
 

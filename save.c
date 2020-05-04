@@ -96,6 +96,17 @@
 		break; \
 	}
 
+// VERSION_OBJECT_004 special defines
+#define VO_004_CONT_PICKPROOF	(B)		// For Containers and Books
+#define VO_004_CONT_LOCKED		(D)
+#define VO_004_CONT_SNAPKEY		(F)
+#define VO_004_EX_LOCKED		(C)		// For Portals
+#define VO_004_EX_PICKPROOF		(F)
+#define VO_004_EX_EASY			(H)
+#define VO_004_EX_HARD			(I)
+#define VO_004_EX_INFURIATING	(J)
+
+
 // External functions
 extern bool loading_immortal_data;
 
@@ -2271,6 +2282,9 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
     if (obj->locker == TRUE)
     	fprintf(fp, "Locker %d\n", obj->locker);
 
+    if (obj->lock)
+    	fprintf(fp, "Lock %ld %d %d\n", obj->lock->key_vnum, obj->lock->flags, obj->lock->pick_chance);
+
 	// Permanent flags based
     fprintf(fp, "PermExtra %ld\n",	obj->extra_flags_perm );
     fprintf(fp, "PermExtra2 %ld\n",	obj->extra2_flags_perm );
@@ -2970,6 +2984,22 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 			KEY("LastWear",	obj->last_wear_loc,	fread_number(fp));
 			KEY("Locker",	obj->locker,		fread_number(fp));
 
+			if( !str_cmp(word,"Lock") )
+			{
+				if( !obj->lock )
+				{
+					obj->lock = new_lock_state();
+				}
+
+				obj->lock->key_vnum = fread_number(fp);
+				obj->lock->flags = fread_number(fp);
+				obj->lock->pick_chance = fread_number(fp);
+
+				fMatch = TRUE;
+				break;
+			}
+
+
 			if (!str_cmp(word, "Level") || !str_cmp(word, "Lev"))
 			{
 				obj->level = fread_number(fp);
@@ -3601,6 +3631,99 @@ void fix_object(OBJ_DATA *obj)
 		obj->version = VERSION_OBJECT_003;
 	}
 
+	if( obj->version < VERSION_OBJECT_004 )
+	{
+		if( !obj->lock )
+		{
+			switch(obj->item_type)
+			{
+			case ITEM_CONTAINER:
+			case ITEM_BOOK:
+				// Value[1] == CONT flags
+				// Value[2] == Key
+
+				if( (obj->value[2] > 0) || IS_SET(obj->value[1], VO_004_CONT_LOCKED) )
+				{
+					obj->lock = new_lock_state();
+					obj->lock->key_vnum = obj->value[2];
+					obj->lock->flags = 0;
+					obj->lock->pick_chance = 100;
+
+					if( IS_SET(obj->value[1], VO_004_CONT_LOCKED) )
+					{
+						SET_BIT(obj->lock->flags, LOCK_LOCKED);
+					}
+
+					if( IS_SET(obj->value[1], VO_004_CONT_PICKPROOF) )
+					{
+						SET_BIT(obj->lock->pick_chance = 0;
+					}
+
+					if( IS_SET(obj->value[1], VO_004_CONT_SNAPKEY) )
+					{
+						SET_BIT(obj->lock->flags, LOCK_SNAPKEY);
+					}
+
+					// Remove the old data
+					REMOVE_BIT(obj->value[1], (VO_004_CONT_PICKPROOF|VO_004_CONT_LOCKED|VO_004_CONT_SNAPKEY));
+					obj->value[2] = 0;
+				}
+				break;
+
+			case ITEM_PORTAL:
+				// Value[1] == EXIT flags
+				// Value[4] == Key
+
+				if( (obj->value[4] > 0) || IS_SET(obj->value[1], VO_004_EX_LOCKED) )
+				{
+					obj->lock = new_lock_state();
+					obj->lock->key_vnum = obj->value[4];
+					obj->lock->flags = 0;
+					obj->lock->pick_chance = 100;
+
+					if( IS_SET(obj->value[1], VO_004_EX_LOCKED) )
+					{
+						SET_BIT(obj->lock->flags, LOCK_LOCKED);
+					}
+
+					if( IS_SET(obj->value[1], VO_004_EX_PICKPROOF) )
+					{
+						SET_BIT(obj->lock->pick_chance = 0;
+					}
+					else if( IS_SET(obj->value[1], VO_004_EX_INFURIATING) )
+					{
+						SET_BIT(obj->lock->pick_chance = 10;
+					}
+					else if( IS_SET(obj->value[1], VO_004_EX_HARD) )
+					{
+						SET_BIT(obj->lock->pick_chance = 40;
+					}
+					else if( IS_SET(obj->value[1], VO_004_EX_EASY) )
+					{
+						SET_BIT(obj->lock->pick_chance = 80;
+					}
+
+
+					REMOVE_BIT(obj->value[1], (VO_004_EX_LOCKED|VO_004_EX_PICKPROOF|VO_004_EX_INFURIATING|VO_004_EX_HARD|VO_004_EX_EASY));
+					obj->value[4] = 0;
+				}
+				break;
+
+
+//			case ITEM_WEAPON_CONTAINER:
+//			case ITEM_DRINKCONTAINER:
+//				break;
+
+			}
+		}
+
+
+		obj->version = VERSION_OBJECT_004;
+	}
+
+
+	// Just update it
+	obj->version = VERSION_OBJECT;
 }
 
 

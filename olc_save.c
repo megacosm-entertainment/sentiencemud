@@ -27,6 +27,16 @@
 #define VR_001_EX_HARD			(I)
 #define VR_001_EX_INFURIATING	(J)
 
+// VERSION_OBJECT_004 special defines
+#define VO_004_CONT_PICKPROOF	(B)		// For Containers and Books
+#define VO_004_CONT_LOCKED		(D)
+#define VO_004_CONT_SNAPKEY		(F)
+#define VO_004_EX_LOCKED		(C)		// For Portals
+#define VO_004_EX_PICKPROOF		(F)
+#define VO_004_EX_EASY			(H)
+#define VO_004_EX_HARD			(I)
+#define VO_004_EX_INFURIATING	(J)
+
 
 void save_area_trade( FILE *fp, AREA_DATA *pArea );
 
@@ -1024,6 +1034,11 @@ void save_object_new(FILE *fp, OBJ_INDEX_DATA *obj)
 			else if(var->type == VAR_ROOM && var->_.r && var->_.r->vnum)
 				fprintf(fp, "VarRoom %s~ %d %d\n", var->name, var->save, (int)var->_.r->vnum);
 		}
+	}
+
+	if(obj->lock)
+	{
+		fprintf(fp, "Lock %ld %d %d\n", obj->lock->key_vnum, obj->lock->flags, obj->lock->pick_chance);
 	}
 
 	// Save item spells here.
@@ -2305,8 +2320,8 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 
 	if (recordtype != ROOMTYPE_TERRAIN)
 	{
-	if( area->version_room < VERSION_ROOM_001 )
-	{
+		if( area->version_room < VERSION_ROOM_001 )
+		{
 			// Correct exits
 			for( int e = 0; e < MAX_DIR; e++)
 			{
@@ -2729,6 +2744,20 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 
 	    case 'L':
 	        KEY("Level",		obj->level,		fread_number(fp));
+	        if( !str_cmp(word, "Lock") )
+	        {
+				if( !obj->lock )
+				{
+					obj->lock = new_lock_state();
+				}
+
+				obj->lock->key_vnum = fread_number(fp);
+				obj->lock->flags = fread_number(fp);
+				obj->lock->pick_chance = fread_number(fp);
+				fMatch = TRUE;
+				break;
+			}
+
 		KEYS("LongDesc",	obj->description,	fread_string(fp));
 		break;
 
@@ -2990,6 +3019,97 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
     ||  obj->item_type == ITEM_STAFF
     ||  obj->item_type == ITEM_WAND)
 	fix_magic_object_index(obj);
+
+	if (area)
+	{
+		if( area->version_object < VERSION_OBJECT_004 )
+		{
+			if( !obj->lock )
+			{
+				switch(obj->item_type)
+				{
+				case ITEM_CONTAINER:
+				case ITEM_BOOK:
+					// Value[1] == CONT flags
+					// Value[2] == Key
+
+					if( (obj->value[2] > 0) || IS_SET(obj->value[1], VO_004_CONT_LOCKED) )
+					{
+						obj->lock = new_lock_state();
+						obj->lock->key_vnum = obj->value[2];
+						obj->lock->flags = 0;
+						obj->lock->pick_chance = 100;
+
+						if( IS_SET(obj->value[1], VO_004_CONT_LOCKED) )
+						{
+							SET_BIT(obj->lock->flags, LOCK_LOCKED);
+						}
+
+						if( IS_SET(obj->value[1], VO_004_CONT_PICKPROOF) )
+						{
+							SET_BIT(obj->lock->pick_chance = 0;
+						}
+
+						if( IS_SET(obj->value[1], VO_004_CONT_SNAPKEY) )
+						{
+							SET_BIT(obj->lock->flags, LOCK_SNAPKEY);
+						}
+
+						// Remove the old data
+						REMOVE_BIT(obj->value[1], (VO_004_CONT_PICKPROOF|VO_004_CONT_LOCKED|VO_004_CONT_SNAPKEY));
+						obj->value[2] = 0;
+					}
+					break;
+
+				case ITEM_PORTAL:
+					// Value[1] == EXIT flags
+					// Value[4] == Key
+
+					if( (obj->value[4] > 0) || IS_SET(obj->value[1], VO_004_EX_LOCKED) )
+					{
+						obj->lock = new_lock_state();
+						obj->lock->key_vnum = obj->value[4];
+						obj->lock->flags = 0;
+						obj->lock->pick_chance = 100;
+
+						if( IS_SET(obj->value[1], VO_004_EX_LOCKED) )
+						{
+							SET_BIT(obj->lock->flags, LOCK_LOCKED);
+						}
+
+						if( IS_SET(obj->value[1], VO_004_EX_PICKPROOF) )
+						{
+							SET_BIT(obj->lock->pick_chance = 0;
+						}
+						else if( IS_SET(obj->value[1], VO_004_EX_INFURIATING) )
+						{
+							SET_BIT(obj->lock->pick_chance = 10;
+						}
+						else if( IS_SET(obj->value[1], VO_004_EX_HARD) )
+						{
+							SET_BIT(obj->lock->pick_chance = 40;
+						}
+						else if( IS_SET(obj->value[1], VO_004_EX_EASY) )
+						{
+							SET_BIT(obj->lock->pick_chance = 80;
+						}
+
+
+						REMOVE_BIT(obj->value[1], (VO_004_EX_LOCKED|VO_004_EX_PICKPROOF|VO_004_EX_INFURIATING|VO_004_EX_HARD|VO_004_EX_EASY));
+						obj->value[4] = 0;
+					}
+					break;
+
+
+//				case ITEM_WEAPON_CONTAINER:
+//				case ITEM_DRINKCONTAINER:
+//					break;
+
+				}
+			}
+		}
+
+	}
 
     return obj;
 }

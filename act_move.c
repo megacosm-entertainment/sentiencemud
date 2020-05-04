@@ -1403,6 +1403,22 @@ void do_open(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
+			if( obj->lock )
+			{
+				if (IS_SET(obj->lock->flags, LOCK_LOCKED))
+				{
+					if ((key = get_key(ch, obj->lock->key_vnum)) != NULL)
+					{
+						do_function(ch, &do_unlock, obj->name);
+						do_function(ch, &do_open, obj->name);
+						return;
+					}
+
+					send_to_char("It's locked.\n\r", ch);
+					return;
+				}
+			}
+
 			REMOVE_BIT(obj->value[1],EX_CLOSED);
 			act("You open $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
 			act("$n opens $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
@@ -1431,17 +1447,20 @@ void do_open(CHAR_DATA *ch, char *argument)
 			send_to_char("You need to push it open.\n\r", ch);
 			return;
 		}
-		if (IS_SET(obj->value[1], CONT_LOCKED))
+		if( obj->lock )
 		{
-			if ((key = get_key(ch, obj->value[2])) != NULL)
+			if (IS_SET(obj->lock->flags, LOCK_LOCKED))
 			{
-				do_function(ch, &do_unlock, obj->name);
-				do_function(ch, &do_open, obj->name);
+				if ((key = get_key(ch, obj->lock->key_vnum)) != NULL)
+				{
+					do_function(ch, &do_unlock, obj->name);
+					do_function(ch, &do_open, obj->name);
+					return;
+				}
+
+				send_to_char("It's locked.\n\r", ch);
 				return;
 			}
-
-			send_to_char("It's locked.\n\r", ch);
-			return;
 		}
 
 		REMOVE_BIT(obj->value[1], CONT_CLOSED);
@@ -1559,11 +1578,10 @@ void do_close(CHAR_DATA *ch, char *argument)
 		SET_BIT(obj->value[1], CONT_CLOSED);
 		act("You close $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
 		act("$n closes $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-		/* @@@NIB : 20070126 */
-		if (IS_SET(obj->value[1], CONT_CLOSELOCK))
+		if (obj->lock && IS_SET(obj->value[1], CONT_CLOSELOCK))
 		{
 			act("$p locks once closed.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL);
-			SET_BIT(obj->value[1], CONT_LOCKED);
+			SET_BIT(obj->lock->flags, LOCK_LOCKED);
 		}
 		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CLOSE, NULL);
 		return;
@@ -1619,6 +1637,8 @@ OBJ_DATA *get_key(CHAR_DATA *ch, int vnum)
 {
 	OBJ_DATA *obj;
 	OBJ_DATA *key;
+
+	if( vnum < 1 ) return NULL;
 
 	for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
 	{
@@ -1735,25 +1755,25 @@ void do_lock(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			if (obj->value[4] < 0 || IS_SET(obj->value[1],EX_NOLOCK))
+			if (!obj->lock || obj->lock->key_vnum < 1)
 			{
 				send_to_char("It can't be locked.\n\r",ch);
 				return;
 			}
 
-			if ((key = get_key(ch,obj->value[4])) == NULL)
+			if ((key = get_key(ch,obj->lock->key_vnum)) == NULL)
 			{
 				send_to_char("You lack the key.\n\r",ch);
 				return;
 			}
 
-			if (IS_SET(obj->value[1],EX_LOCKED))
+			if (IS_SET(obj->lock->flags,LOCK_LOCKED))
 			{
 				send_to_char("It's already locked.\n\r",ch);
 				return;
 			}
 
-			SET_BIT(obj->value[1],EX_LOCKED);
+			SET_BIT(obj->lock->flags,LOCK_LOCKED);
 			act("You lock $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
 			act("$n locks $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
 
@@ -1772,23 +1792,24 @@ void do_lock(CHAR_DATA *ch, char *argument)
 			send_to_char("It's not closed.\n\r", ch);
 			return;
 		}
-		if (obj->value[2] <= 0)
+		if (!obj->lock || obj->lock->key_vnum < 1)
 		{
 			send_to_char("It can't be locked.\n\r", ch);
 			return;
 		}
-		if ((key = get_key(ch, obj->value[2])) == NULL)
+		if ((key = get_key(ch, obj->lock->key_vnum)) == NULL)
 		{
 			send_to_char("You lack the key.\n\r", ch);
 			return;
 		}
-		if (IS_SET(obj->value[1], CONT_LOCKED))
+
+		if (IS_SET(obj->lock->flags, LOCK_LOCKED))
 		{
 			send_to_char("It's already locked.\n\r", ch);
 			return;
 		}
 
-		SET_BIT(obj->value[1], CONT_LOCKED);
+		SET_BIT(obj->lock->flags, LOCK_LOCKED);
 		act("You lock $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
 		act("$n locks $p.",ch, NULL, NULL,obj, NULL, NULL, NULL, TO_ROOM);
 
@@ -1875,25 +1896,25 @@ void do_unlock(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			if (obj->value[4] < 0)
+			if (!obj->lock || obj->lock->key_vnum < 1)
 			{
 				send_to_char("It can't be unlocked.\n\r",ch);
 				return;
 			}
 
-			if ((key = get_key(ch,obj->value[4])) == NULL)
+			if ((key = get_key(obj->lock->key_vnum)) == NULL)
 			{
 				send_to_char("You lack the key.\n\r",ch);
 				return;
 			}
 
-			if (!IS_SET(obj->value[1],EX_LOCKED))
+			if (!IS_SET(obj->lock->flags,LOCK_LOCKED))
 			{
 				send_to_char("It's already unlocked.\n\r",ch);
 				return;
 			}
 
-			REMOVE_BIT(obj->value[1],EX_LOCKED);
+			REMOVE_BIT(obj->lock->flags,LOCK_LOCKED);
 			act("You unlock $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
 			act("$n unlocks $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
 			use_key(ch, key);
@@ -1911,33 +1932,32 @@ void do_unlock(CHAR_DATA *ch, char *argument)
 			send_to_char("It's not closed.\n\r", ch);
 			return;
 		}
-		if (obj->value[2] < 0)
+		if (!obj->lock || obj->lock->key_vnum < 1)
 		{
-			send_to_char("It can't be unlocked.\n\r", ch);
-			return;
-		}
-		if ((key = get_key(ch, obj->value[2])) == NULL)
-		{
-			send_to_char("You lack the key.\n\r", ch);
-			return;
-		}
-		if (!IS_SET(obj->value[1], CONT_LOCKED))
-		{
-			send_to_char("It's already unlocked.\n\r", ch);
+			send_to_char("It can't be unlocked.\n\r",ch);
 			return;
 		}
 
-		key = get_obj_list(ch, get_obj_index(obj->value[2])->name, ch->carrying);
+		if ((key = get_key(obj->lock->key_vnum)) == NULL)
+		{
+			send_to_char("You lack the key.\n\r",ch);
+			return;
+		}
+		if (!IS_SET(obj->lock->flags,LOCK_LOCKED))
+		{
+			send_to_char("It's already unlocked.\n\r",ch);
+			return;
+		}
 
-		REMOVE_BIT(obj->value[1], CONT_LOCKED);
+		REMOVE_BIT(obj->lock->flags,LOCK_LOCKED);
 		act("You unlock $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
 		act("$n unlocks $p.",ch, NULL, NULL,obj, NULL, NULL,NULL, TO_ROOM);
 
 		if (key && !is_name("house",key->name))
 		{
 			--key->condition;
-			/* @@@NIB : 20070126 */
-			if (IS_SET(obj->value[1], CONT_SNAPKEY) || key->condition <= 0)
+
+			if (IS_SET(obj->lock->flags,LOCK_SNAPKEY) || key->condition <= 0)
 			{
 				act("$p snaps and breaks in the lock.", ch, NULL, NULL, key, NULL, NULL, NULL, TO_CHAR);
 				act("$p snaps and breaks in the lock.", ch, NULL, NULL, key, NULL, NULL, NULL, TO_ROOM);
@@ -2022,7 +2042,9 @@ void do_pick(CHAR_DATA *ch, char *argument)
 
 	if (get_profession(ch, SECOND_SUBCLASS_THIEF) != CLASS_THIEF_HIGHWAYMAN)
 	{
-		if (number_percent() > UMAX(get_skill(ch,gsn_pick_lock), 20))
+		int skill = get_skill(ch,gsn_pick_lock);
+
+		if (number_percent() > UMAX(skill, 20))
 		{
 			send_to_char("You failed.\n\r", ch);
 			check_improve(ch,gsn_pick_lock,FALSE,2);
@@ -2047,19 +2069,25 @@ void do_pick(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			if (obj->value[4] < 0)
+			if (!obj->lock || obj->lock->key_vnum < 1)
 			{
 				send_to_char("It can't be unlocked.\n\r",ch);
 				return;
 			}
 
-			if (IS_SET(obj->value[1],EX_PICKPROOF))
+			if (!IS_SET(obj->lock->flags, LOCK_LOCKED) )
+			{
+				send_to_char("It's already unlocked.\n\r", ch);
+				return;
+			}
+
+			if (number_percent() >= obj->lock->pick_chance)
 			{
 				send_to_char("You failed.\n\r",ch);
 				return;
 			}
 
-			REMOVE_BIT(obj->value[1],EX_LOCKED);
+			REMOVE_BIT(obj->lock->flags,LOCK_LOCKED);
 			act("You pick the lock on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
 			act("$n picks the lock on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
 			check_improve(ch,gsn_pick_lock,TRUE,2);
@@ -2077,23 +2105,24 @@ void do_pick(CHAR_DATA *ch, char *argument)
 			send_to_char("It's not closed.\n\r", ch);
 			return;
 		}
-		if (obj->value[2] < 0)
+		if (!obj->lock || obj->lock->key_vnum < 1)
 		{
-			send_to_char("It can't be unlocked.\n\r", ch);
+			send_to_char("It can't be unlocked.\n\r",ch);
 			return;
 		}
-		if (!IS_SET(obj->value[1], CONT_LOCKED))
+		if (!IS_SET(obj->lock->flags, LOCK_LOCKED) )
 		{
 			send_to_char("It's already unlocked.\n\r", ch);
 			return;
 		}
-		if (IS_SET(obj->value[1], CONT_PICKPROOF))
+
+		if (number_percent() >= obj->lock->pick_chance)
 		{
-			send_to_char("You failed.\n\r", ch);
+			send_to_char("You failed.\n\r",ch);
 			return;
 		}
 
-		REMOVE_BIT(obj->value[1], CONT_LOCKED);
+		REMOVE_BIT(obj->lock->flags,LOCK_LOCKED);
 		act("You pick the lock on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
 		act("$n picks the lock on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
 		check_improve(ch,gsn_pick_lock,TRUE,2);
@@ -2123,7 +2152,7 @@ void do_pick(CHAR_DATA *ch, char *argument)
 			send_to_char("It's already unlocked.\n\r", ch);
 			return;
 		}
-		if (IS_SET(pexit->exit_info, EX_PICKPROOF) && !IS_IMMORTAL(ch))
+		if ((number_percent() >= pexit->door.lock.pick_chance) && !IS_IMMORTAL(ch))
 		{
 			send_to_char("You failed.\n\r", ch);
 			return;

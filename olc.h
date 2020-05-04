@@ -323,6 +323,7 @@ DECLARE_OLC_FUN( oedit_skeywds			);
 DECLARE_OLC_FUN( oedit_varset	);
 DECLARE_OLC_FUN( oedit_varclear	);
 DECLARE_OLC_FUN( oedit_persist  );
+DECLARE_OLC_FUN( oedit_lock		);
 
 /*
  * Mobile Editor Prototypes

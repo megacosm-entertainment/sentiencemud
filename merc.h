@@ -224,14 +224,20 @@ struct sound_type {
 #define VERSION_OBJECT_003	0x01000002
 //  Change #1: Added bitvector2 to affect output
 
+#define VERSION_OBJECT_004	0x01000003
+//	Change #1: lock states
+
 #define VERSION_ROOM_001	0x01000001
 //  Change #1: lock states
+
+#define VERSION_ROOM_002	0x01000002
+//	Change #2: forgot persistent exits
 
 #define VERSION_DB			VERSION_DB_001
 #define VERSION_AREA		VERSION_AREA_003
 #define VERSION_MOBILE		0x01000000
-#define VERSION_OBJECT		VERSION_OBJECT_003
-#define VERSION_ROOM		VERSION_ROOM_001
+#define VERSION_OBJECT		VERSION_OBJECT_004
+#define VERSION_ROOM		VERSION_ROOM_002
 #define VERSION_PLAYER		VERSION_PLAYER_005
 #define VERSION_TOKEN		0x01000000
 #define VERSION_AFFECT		0x01000000
@@ -4282,6 +4288,8 @@ struct	obj_index_data
 	long carried;
 	long lockered;
 	long incontainer;
+
+	LOCK_STATE *lock;
 };
 
 
@@ -4361,6 +4369,8 @@ struct	obj_data
     int 		value	[8];
     SPELL_DATA		*spells;
     long		orig_vnum;
+
+    LOCK_STATE		*lock;
 
     SHIP_DATA		*ship;
 

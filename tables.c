@@ -1619,11 +1619,11 @@ const struct flag_type wear_loc_flags[] =
 const struct flag_type container_flags[] =
 {
     {	"closeable",		CONT_CLOSEABLE,	TRUE	},
-    {	"pickproof",		CONT_PICKPROOF,	TRUE	},
+//    {	"pickproof",		CONT_PICKPROOF,	TRUE	},
     {	"closed",		CONT_CLOSED,	TRUE	},
-    {	"locked",		CONT_LOCKED,	TRUE	},
+//    {	"locked",		CONT_LOCKED,	TRUE	},
     {	"puton",		CONT_PUT_ON,	TRUE	},
-    {	"snapkey",		CONT_SNAPKEY,	TRUE	},	// @@@NIB : 20070126
+//    {	"snapkey",		CONT_SNAPKEY,	TRUE	},	// @@@NIB : 20070126
     {	"pushopen",		CONT_PUSHOPEN,	TRUE	},	// @@@NIB : 20070126
     {	"closelock",		CONT_CLOSELOCK,	TRUE	},	// @@@NIB : 20070126
     {	NULL,			0,		0	}
