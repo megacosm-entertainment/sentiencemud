@@ -1297,12 +1297,11 @@ void time_update(void)
 	if (!reckoning_timer && !pre_reckoning && reckoning_cooldown_timer < current_time &&
 		time_info.moon == MOON_FULL &&
 		weather_info.sunlight == SUN_DARK) {
-		struct tm *reck_time;
+		struct tm *reck_time = (struct tm *) localtime(&current_time);
 		if (number_percent() < reckoning_chance) {
 			// Success
 
 
-			reck_time = (struct tm *) localtime(&current_time);
 			reck_time->tm_min += reckoning_duration;
 		    reckoning_timer = (time_t) mktime(reck_time);
 		    reckoning_cooldown_timer = 0;
@@ -1317,7 +1316,7 @@ void time_update(void)
 			reckoning_chance += 5;
 			reckoning_chance = RECKONING_CHANCE(reckoning_chance);
 
-			int rnd = number_random(-10,10);
+			int rnd = number_range(-10,10);
 			reckoning_intensity += UMAX(0, rnd);
 			reckoning_intensity = RECKONING_INTENSITY(reckoning_intensity);
 
@@ -1360,6 +1359,7 @@ void time_update(void)
 
 		if( reckoning_cooldown > 0 )
 		{
+			struct tm *reck_time = (struct tm *) localtime(&current_time);
 			reck_time->tm_min += UMAX(RECKONING_COOLDOWN_USE_MIN, reckoning_cooldown);
 			reckoning_cooldown_timer = (time_t) mktime(reck_time);
 		}
