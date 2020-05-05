@@ -471,6 +471,7 @@ void free_obj(OBJ_DATA *obj)
     }
 
     obj->events = NULL;
+    obj->events_tail = NULL;
     obj->id[0] = obj->id[1] = 0;
 
 	if( obj->persist ) persist_removeobject(obj);
@@ -735,6 +736,7 @@ void free_char( CHAR_DATA *ch )
     }
 
     ch->events = NULL;
+    ch->events_tail = NULL;
     ch->id[0] = ch->id[1] = 0;
 
     ch->checkpoint = NULL;
@@ -1644,8 +1646,9 @@ void free_room_index( ROOM_INDEX_DATA *pRoom )
 	extract_event(ev);
     }
 
-    variable_freelist(&pRoom->index_vars);
     pRoom->events = NULL;
+    pRoom->events_tail = NULL;
+    variable_freelist(&pRoom->index_vars);
 
     // Handle any outstanding cloned rooms
     // Do not worry about anything in the rooms, since everything else had to have been freed already
@@ -2911,10 +2914,20 @@ TOKEN_DATA *new_token()
 void free_token(TOKEN_DATA *token)
 {
 	TOKEN_DATA *prev, *cur;
+	EVENT_DATA *ev, *ev_next;
 
     free_string(token->name);
     if(token->pIndexData)	// @@@NIB : 20070127 : for "tokenexists" ifcheck
 	token->pIndexData->loaded--;
+
+    for (ev = token->events; ev != NULL; ev = ev_next) {
+		ev_next = ev->next_event;
+
+		extract_event(ev);
+    }
+
+    token->events = NULL;
+    token->events_tail = NULL;
 
     variable_clearfield(VAR_TOKEN, token);
     script_clear_token(token);

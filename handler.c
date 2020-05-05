@@ -6901,77 +6901,96 @@ void fix_magic_object_index(OBJ_INDEX_DATA *obj)
    used in more than one place. */
 void extract_event(EVENT_DATA *ev)
 {
-    EVENT_DATA *ev_last, *ev_temp; /* For removing from global list */
-    EVENT_DATA *ev_entity_last, *ev_entity_temp; /* For removing from entity list */
-    EVENT_DATA **ev_head;
-    CHAR_DATA *ch = NULL;
-    OBJ_DATA *obj = NULL;
-    ROOM_INDEX_DATA *room = NULL;
-    TOKEN_DATA *token = NULL;
+	EVENT_DATA *ev_last, *ev_temp; /* For removing from global list */
+	EVENT_DATA *ev_entity_last, *ev_entity_temp; /* For removing from entity list */
+	EVENT_DATA **ev_head, **ev_tail;
+	CHAR_DATA *ch = NULL;
+	OBJ_DATA *obj = NULL;
+	ROOM_INDEX_DATA *room = NULL;
+	TOKEN_DATA *token = NULL;
 
-    /* Remove from global list */
+	/* Remove from global list */
 
-    /* Find it in the list first
-       "*_next = *->next saving is not required here since we're not modifying structures within the for-loop */
-    ev_last = NULL;
-    for (ev_temp = events; ev_temp != NULL; ev_temp = ev_temp->next) {
-	if (ev_temp == ev)
-	    break;
+	/* Find it in the list first
+	"*_next = *->next saving is not required here since we're not modifying structures within the for-loop */
+	ev_last = NULL;
+	for (ev_temp = events; ev_temp != NULL; ev_temp = ev_temp->next) {
+		if (ev_temp == ev)
+			break;
 
-	ev_last = ev_temp;
-    }
-
-    if (ev_last != NULL)
-	ev_last->next = ev_temp->next;
-    else
-	events = ev_temp->next;
-
-    /* Remove from entity list */
-
-    /* Figure out which type of entity we are using */
-    switch (ev->event_type) {
-    case EVENT_MOBQUEUE:
-	ch = (CHAR_DATA *) ev->entity;
-	ev_head = &ch->events;
-	break;
-
-    case EVENT_OBJQUEUE:
-	obj = (OBJ_DATA *) ev->entity;
-	ev_head = &obj->events;
-	break;
-
-    case EVENT_ROOMQUEUE:
-    case EVENT_ECHO:
-	room = (ROOM_INDEX_DATA *) ev->entity;
-	ev_head = &room->events;
-	break;
-
-    case EVENT_TOKENQUEUE:
-	token = (TOKEN_DATA *) ev->entity;
-	ev_head = &token->events;
-	break;
-    default:
-	ev_head = NULL;
-	break;
-    }
-
-    ev_entity_last = NULL;
-    /* Locate it in the list and re-link the list */
-    if (ev_head) {
-	for (ev_entity_temp = *ev_head; ev_entity_temp; ev_entity_temp = ev_entity_temp->next_event) {
-	    if (ev_entity_temp == ev)
-		break;
-
-	    ev_entity_last = ev_entity_temp;
+		ev_last = ev_temp;
 	}
 
-	if (ev_entity_last)
-	    ev_entity_last->next_event = ev_entity_temp->next_event;
+	if (ev_last != NULL)
+		ev_last->next = ev_temp->next;
 	else
-	    *ev_head = ev_entity_temp->next_event;
-    }
+		events = ev_temp->next;
 
-    free_event(ev);
+	if( events_tail == ev_temp )
+	{
+		if( ev_last )
+			events_tail = ev_last;
+		else
+			events_tail = NULL;
+	}
+
+	/* Remove from entity list */
+
+	/* Figure out which type of entity we are using */
+	switch (ev->event_type) {
+	case EVENT_MOBQUEUE:
+		ch = (CHAR_DATA *) ev->entity;
+		ev_head = &ch->events;
+		ev_tail = &ch->events_tail;
+		break;
+
+	case EVENT_OBJQUEUE:
+		obj = (OBJ_DATA *) ev->entity;
+		ev_head = &obj->events;
+		ev_tail = &obj->events_tail;
+		break;
+
+	case EVENT_ROOMQUEUE:
+	case EVENT_ECHO:
+		room = (ROOM_INDEX_DATA *) ev->entity;
+		ev_head = &room->events;
+		ev_tail = &room->events_tail;
+		break;
+
+	case EVENT_TOKENQUEUE:
+		token = (TOKEN_DATA *) ev->entity;
+		ev_head = &token->events;
+		ev_tail = &token->events_tail;
+		break;
+	default:
+		ev_head = NULL;
+		ev_tail = NULL;
+		break;
+	}
+
+	ev_entity_last = NULL;
+	/* Locate it in the list and re-link the list */
+	if (ev_head && ev_tail) {
+		for (ev_entity_temp = *ev_head; ev_entity_temp; ev_entity_temp = ev_entity_temp->next_event) {
+			if (ev_entity_temp == ev)
+				break;
+
+			ev_entity_last = ev_entity_temp;
+		}
+
+		if (ev_entity_last)
+			ev_entity_last->next_event = ev_entity_temp->next_event;
+		else
+			*ev_head = ev_entity_temp->next_event;
+
+		if( *ev_tail == ev_entity_temp )
+			*ev_tail = ev_entity_last;
+		else
+			*ev_tail = NULL;
+
+	}
+
+	free_event(ev);
 }
 
 

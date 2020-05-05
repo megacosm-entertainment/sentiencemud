@@ -38,8 +38,11 @@ EVENT_DATA *create_event(int delay, int type)
 
 void add_event(EVENT_DATA *ev)
 {
-	ev->next = events;
-	events = ev;
+	if( events_tail )
+		events_tail->next = ev;
+	else
+		events = ev;
+	events_tail = ev;
 }
 
 
@@ -66,28 +69,43 @@ void wait_function(void *entity, SCRIPT_VARINFO *info, int event_type, int delay
 	switch (event_type) {
 	case EVENT_MOBQUEUE:
 		ch = entity;
-		ev->next_event = ch->events;
-		ch->events = ev;
+		if( ch->events_tail )
+			ch->events_tail->next_event = ev;
+		else
+			ch->events = ev;
+		ch->events_tail = ev;
 		break;
 	case EVENT_OBJQUEUE:
 		obj = entity;
-		ev->next_event = obj->events;
-		obj->events = ev;
+		if( obj->events_tail )
+			obj->events_tail->next_event = ev;
+		else
+			obj->events = ev;
+		obj->events_tail = ev;
 		break;
 	case EVENT_ROOMQUEUE:
 		room = entity;
-		ev->next_event = room->events;
-		room->events = ev;
+		if( room->events_tail )
+			room->events_tail->next_event = ev;
+		else
+			room->events = ev;
+		room->events_tail = ev;
 		break;
 	case EVENT_TOKENQUEUE:
 		token = entity;
-		ev->next_event = token->events;
-		token->events = ev;
+		if( token->events_tail )
+			token->events_tail->next_event = ev;
+		else
+			token->events = ev;
+		token->events_tail = ev;
 		break;
 	case EVENT_ECHO:
 		room = entity;
-		ev->next_event = room->events;
-		room->events = ev;
+		if( room->events_tail )
+			room->events_tail->next_event = ev;
+		else
+			room->events = ev;
+		room->events_tail = ev;
 		break;
 	default:
 		break;

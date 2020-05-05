@@ -3517,6 +3517,7 @@ struct token_data
 	ROOM_INDEX_DATA		*room;
 	PROG_DATA		*progs;
 	EVENT_DATA		*events;
+	EVENT_DATA		*events_tail;
 	ROOM_INDEX_DATA	*clone_rooms;
     LLIST	*lclonerooms;
 
@@ -3699,6 +3700,7 @@ struct	char_data
     PC_DATA *		pcdata;
     AMBUSH_DATA *	ambush;
     EVENT_DATA *	events;
+	EVENT_DATA		*events_tail;
     bool		valid;
     bool		persist;
 
@@ -4349,6 +4351,7 @@ struct	obj_data
     ROOM_INDEX_DATA *	in_room;
     ROOM_INDEX_DATA *	clone_rooms;
     EVENT_DATA *	events;
+	EVENT_DATA		*events_tail;
     WILDS_DATA *        in_wilds;
     TOKEN_DATA *	tokens;
     int                 x;
@@ -4969,6 +4972,7 @@ struct	room_index_data
     RESET_DATA *	reset_first;
     RESET_DATA *	reset_last;
     EVENT_DATA *	events;
+	EVENT_DATA		*events_tail;
     char *		name;
     char *		description;
     char *		owner;
@@ -5358,6 +5362,7 @@ extern          AUCTION_DATA            auction_info;
 extern          GQ_DATA			global_quest;
 extern		bool			objRepop;
 extern 		EVENT_DATA 		*events;
+extern		EVENT_DATA		*events_tail;
 extern		int			call_depth;
 
 /* Timer that reckoning is active */

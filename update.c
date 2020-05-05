@@ -26,6 +26,7 @@ int pulse_point;
 
 // Event system for queued events.
 EVENT_DATA *events;
+EVENT_DATA *events_tail;
 
 // Local functions
 int hit_gain	args((CHAR_DATA *ch));
