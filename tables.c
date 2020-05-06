@@ -2835,12 +2835,13 @@ const struct flag_type transfer_modes[] =
 const struct flag_type ship_class_types[] =
 {
 	{ "sailboat",		SHIP_SAILING_BOAT,		TRUE	},
-	{ "cargo",			SHIP_CARGO_SHIP,		TRUE	},
-	{ "adventurer",		SHIP_ADVENTURER_SHIP,	TRUE	},
-	{ "galleon",		SHIP_GALLEON_SHIP,		TRUE	},
-	{ "frigate",		SHIP_FRIGATE_SHIP,		TRUE	},
-	{ "war_galleon",	SHIP_WAR_GALLEON_SHIP,	TRUE	},
 	{ "airship",		SHIP_AIR_SHIP,			TRUE	},
+	{ NULL,				0,						FALSE	}
+};
+
+const struct flag_type ship_flags[] =
+{
+	{ "protected",		SHIP_PROTECTED,			TRUE	},
 	{ NULL,				0,						FALSE	}
 };
 

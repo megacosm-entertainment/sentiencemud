@@ -111,6 +111,10 @@ SHIP_INDEX_DATA *load_ship_index(FILE *fp)
 			KEYS("Description", ship->description, fread_string(fp));
 			break;
 
+		case 'F':
+			KEY("Flags", ship->flags, fread_number(fp));
+			break;
+
 		case 'G':
 			KEY("Guns", ship->guns, fread_number(fp));
 			break;
@@ -194,6 +198,7 @@ void save_ship_index(FILE *fp, SHIP_INDEX_DATA *ship)
 	fprintf(fp, "Name %s~\n", fix_string(ship->name));
 	fprintf(fp, "Description %s~\n", fix_string(ship->description));
 	fprintf(fp, "Class %d\n", ship->ship_class);
+	fprintf(fp, "Flags %d\n", ship->flags);
 
 	if( IS_VALID(ship->blueprint) )
 		fprintf(fp, "Blueprint %ld\n", ship->blueprint->vnum);
@@ -277,6 +282,7 @@ const struct olc_cmd_type shedit_table[] =
 	{ "create",				shedit_create		},
 	{ "crew",				shedit_crew			},
 	{ "desc",				shedit_desc			},
+	{ "flags",				shedit_flags		},
 	{ "guns",				shedit_guns			},
 	{ "hit",				shedit_hit			},
 	{ "list",				shedit_list			},
@@ -506,6 +512,9 @@ SHEDIT( shedit_show )
 	sprintf(buf, "Ship Class:  %s{x\n\r", flag_string(ship_class_types, ship->ship_class));
 	add_buf(buffer, buf);
 
+	sprintf(buf, "Flags:       [%s]\n\r", flag_String(ship_flags, ship->flags));
+	add_buf(buffer, buf);
+
 	if( IS_VALID(ship->blueprint) )
 		sprintf(buf, "Blueprint:   [%5ld] %s{x\n\r", ship->blueprint->vnum, ship->blueprint->name);
 	else
@@ -651,6 +660,27 @@ SHEDIT( shedit_class )
 
 	ship->ship_class = value;
 	send_to_char("Ship Class changed.\n\r", ch);
+	return TRUE;
+}
+
+SHEDIT( shedit_flags)
+{
+	SHIP_INDEX_DATA *ship;
+	int value;
+
+	EDIT_SHIP(ch, ship);
+
+	value = flag_value(ship_flags, argument);
+	if( value == NO_FLAG )
+	{
+		send_to_char("Syntax:  flags [flags]\n\r", ch);
+		send_to_char("See '? ship' for list of flags.\n\r\n\r", ch);
+		show_help(ch, "ship");
+		return FALSE;
+	}
+
+	ship->flags ^= value;
+	send_to_char("Ship flags changed.\n\r", ch);
 	return TRUE;
 }
 

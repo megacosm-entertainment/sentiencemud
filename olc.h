@@ -423,6 +423,7 @@ DECLARE_OLC_FUN( shedit_crew		);
 DECLARE_OLC_FUN( shedit_move_delay	);
 DECLARE_OLC_FUN( shedit_weight		);
 DECLARE_OLC_FUN( shedit_capacity	);
+DECLARE_OLC_RUN( shedit_flags		);
 
 
 /* Help Editor */

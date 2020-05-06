@@ -4750,12 +4750,12 @@ struct rep_type
 };
 
 #define SHIP_SAILING_BOAT			0
-#define SHIP_CARGO_SHIP				1
-#define SHIP_ADVENTURER_SHIP		2
-#define SHIP_GALLEON_SHIP			3
-#define SHIP_FRIGATE_SHIP			4
-#define SHIP_WAR_GALLEON_SHIP		5
-#define SHIP_AIR_SHIP				6
+//#define SHIP_CARGO_SHIP				1
+//#define SHIP_ADVENTURER_SHIP		2
+//#define SHIP_GALLEON_SHIP			3
+//#define SHIP_FRIGATE_SHIP			4
+//#define SHIP_WAR_GALLEON_SHIP		5
+#define SHIP_AIR_SHIP				1
 
 #define NPC_SHIP_RATING_UNKNOWN        0
 #define NPC_SHIP_RATING_RECOGNIZED     1
@@ -4795,6 +4795,8 @@ struct rep_type
 #define NPC_SHIP_STATE_BOARDING        3
 #define NPC_SHIP_STATE_FLEEING         4
 #define NPC_SHIP_STATE_CHASING         5
+
+#define SHIP_PROTECTED				(A)		// Ship cannot be attacked
 
 /* Reports */
 #define REPORT_TOP_PLAYER_KILLERS      0
@@ -4909,6 +4911,8 @@ struct ship_index_data
 	char *name;
 	char *description;
 	int ship_class;
+
+	int flags;
 
 	long ship_object;
 

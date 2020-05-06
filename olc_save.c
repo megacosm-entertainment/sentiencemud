@@ -166,6 +166,9 @@ void do_asave_new(CHAR_DATA *ch, char *argument)
 		if( can_edit_dungeons(ch) )
 			send_to_char("  asave dungeons   - saves dungeons\n\r", ch);
 
+		if( can_edit_ships(ch) )
+			send_to_char("  asave ships      - saves ships\n\r", ch);
+
 		if (ch->tot_level == MAX_LEVEL)
 			send_to_char("  asave staff      - saves the immortal staff information\n\r", ch);
 
