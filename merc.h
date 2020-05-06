@@ -8406,6 +8406,7 @@ bool can_room_update(ROOM_INDEX_DATA *room);
 
 extern  bool			blueprints_changed;
 extern  bool			dungeons_changed;
+extern  bool			ships_changed;
 
 void persist_save_room(FILE *fp, ROOM_INDEX_DATA *room);
 ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype);
