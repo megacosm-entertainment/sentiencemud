@@ -155,7 +155,7 @@ void save_ship_index(FILE *fp, SHIP_INDEX_DATA *ship)
 	fprintf(fp, "#SHIP %ld\n", ship->vnum);
 
 	fprintf(fp, "Name %s~\n", fix_string(ship->name));
-	fprintf(fp, "Description %s~\n", fix_string(ship->desc));
+	fprintf(fp, "Description %s~\n", fix_string(ship->description));
 	fprintf(fp, "Class %d\n", ship->ship_class);
 
 	if( IS_VALID(ship->blueprint) )

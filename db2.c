@@ -756,7 +756,7 @@ void fix_short_description( char *short_descr )
     }
 }
 
-
+#if 0
 void load_npc_ships()
 {
     FILE *fp;
@@ -938,7 +938,7 @@ void load_npc_ships()
     fclose( fp );
     return;
 }
-
+#endif
 
 void do_dump( CHAR_DATA *ch, char *argument )
 {
