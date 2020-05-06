@@ -1668,7 +1668,7 @@ void do_bsshow(CHAR_DATA *ch, char *argument)
 	}
 
 	value = atol(argument);
-	if (!(dng= get_blueprint_section(value)))
+	if (!(bs = get_blueprint_section(value)))
 	{
 		send_to_char("That blueprint section does not exist.\n\r", ch);
 		return;
@@ -2907,7 +2907,7 @@ void do_bpshow(CHAR_DATA *ch, char *argument)
 	}
 
 	value = atol(argument);
-	if (!(dng= get_blueprint_section(value)))
+	if (!(bp = get_blueprint_section(value)))
 	{
 		send_to_char("That blueprint does not exist.\n\r", ch);
 		return;
