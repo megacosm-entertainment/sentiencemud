@@ -4340,6 +4340,7 @@ TRADE_ITEM *find_trade_item args((AREA_DATA* pArea, char *arg)) {
  */
 void char_to_crew(CHAR_DATA *ch, SHIP_DATA *ship)
 {
+#if 0
     ROOM_INDEX_DATA *pRoomIndex;
 
     if (ship == NULL)
@@ -4354,6 +4355,7 @@ void char_to_crew(CHAR_DATA *ch, SHIP_DATA *ship)
     ch->belongs_to_ship  = ship;
     ch->next_in_crew    = ship->crew_list;
     ship->crew_list     = ch;
+#endif
 
     return;
 }
