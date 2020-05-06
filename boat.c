@@ -1004,7 +1004,7 @@ SHEDIT( shedit_capacity )
 		return FALSE;
 	}
 
-	ship->weight = value;
+	ship->capacity = value;
 	send_to_char("Ship capacity changed.\n\r", ch);
 	return TRUE;
 }
