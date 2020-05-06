@@ -47,6 +47,14 @@
 #include "tables.h"
 #include "scripts.h"
 
+INSTANCE *instance_load(FILE *fp);
+void update_instance(INSTANCE *instance);
+void reset_instance(INSTANCE *instance);
+void save_script_new(FILE *fp, AREA_DATA *area,SCRIPT_DATA *scr,char *type);
+SCRIPT_DATA *read_script_new( FILE *fp, AREA_DATA *area, int type);
+
+extern LLIST *loaded_instances;
+
 bool ships_changed = false;
 long top_ship_index_vnum = 0;
 
@@ -124,6 +132,22 @@ SHIP_INDEX_DATA *load_ship_index(FILE *fp)
 			KEY("Hit", ship->hit, fread_number(fp));
 			break;
 
+		case 'K':
+			if( !str_cmp(word, "Key") )
+			{
+				long key_vnum = fread_number(fp);
+
+				OBJ_INDEX_DATA *key = get_obj_index(key_vnum);
+				if( key )
+				{
+					list_appendlink(ship->special_keys, key);
+				}
+
+				fMatch = TRUE;
+				break;
+			}
+			break;
+
 		case 'M':
 			KEY("MoveDelay", ship->move_delay, fread_number(fp));
 			break;
@@ -194,6 +218,9 @@ void load_ships()
 
 void save_ship_index(FILE *fp, SHIP_INDEX_DATA *ship)
 {
+	ITERATOR it;
+	OBJ_INDEX_DATA *obj;
+
 	fprintf(fp, "#SHIP %ld\n", ship->vnum);
 
 	fprintf(fp, "Name %s~\n", fix_string(ship->name));
@@ -214,6 +241,14 @@ void save_ship_index(FILE *fp, SHIP_INDEX_DATA *ship)
 	fprintf(fp, "Weight %d\n", ship->weight);
 	fprintf(fp, "Capacity %d\n", ship->capacity);
 	fprintf(fp, "Armor %d\n", ship->armor);
+
+	iterator_start(&it, ship->special_keys);
+	while( (obj = (OBJ_INDEX_DATA *)iterator_nextdata(&it)) )
+	{
+		if( obj->item_type == ITEM_KEY )
+			fprintf(fp, "Key %ld\n", obj->vnum);
+	}
+	iterator_stop(&it);
 
 	fprintf(fp, "#-SHIP\n\n");
 }
@@ -264,6 +299,107 @@ SHIP_INDEX_DATA *get_ship_index(long vnum)
 // Ships
 //
 
+SHIP_DATA *create_ship(long vnum)
+{
+	OBJ_DATA *obj;						// Physical ship object
+	OBJ_INDEX_DATA *obj_index;			// Ship object index to create
+	SHIP_DATA *ship;					// Runtime ship data
+	SHIP_INDEX_DATA *ship_index;		// Ship index to create
+	INSTANCE *instance;
+	ITERATOR it;
+
+	// Verify the ship index exists
+	if( !(ship_index = get_ship_index(vnum)) )
+		return NULL;
+
+	// Verify the object index exists and is a ship
+	if( !(obj_index = get_obj_index(ship_index->object)) )
+		return NULL;
+
+	if( obj_index->item_type != ITEM_SHIP )
+	{
+		char buf[MSL];
+		sprintf(buf, "create_ship: attempting to use object (%ld) that is not a ship object for ship (%ld)", obj_index->vnum, ship->vnum);
+		bug(buf, 0);
+		return NULL;
+	}
+
+	ship = new_ship();
+	if( !IS_VALID(ship) )
+		return NULL;
+
+	obj = create_object(obj_index, 0, FALSE);
+	if( !IS_VALID(obj) )
+	{
+		free_ship(ship);
+		return NULL;
+	}
+	ship->ship = obj;
+
+	instance = create_instance(ship_index->blueprint);
+	if( !IS_VALID(instance) )
+	{
+		list_remlink(loaded_objects, obj);
+		--obj->pIndexData->count;
+		free_obj(obj);
+		free_ship(ship);
+		return NULL;
+	}
+
+	if( list_size(ship_index->keys) > 0 )
+	{
+		iterator_start(&it, ship_index->keys);
+		OBJ_INDEX_DATA *key;
+		while( (key = (OBJ_INDEX_DATA *)iterator_nextdata(&it)) )
+		{
+			SPECIAL_KEY_DATA *sk = new_special_key();
+
+			sk->vnum = key->vnum;
+
+			list_appendlink(ship->special_keys, sk);
+		}
+		iterator_stop(&it);
+		instance_apply_specialkeys(instance, ship->special_keys);
+	}
+	ship->instance = instance;
+	instance->ship = ship;
+
+	ship->hit = ship_index->hit;
+	ship->flags = ship_index->flags;
+	ship->armor = ship_index->armor;
+
+	// Build cannons
+
+	list_appendlink(loaded_ships, ship);
+	return ship;
+}
+
+void extract_ship(SHIP_DATA *ship)
+{
+	if( !IS_VALID(ship) ) return;
+
+	list_remlink(loaded_ships, ship);
+
+	extract_obj(ship->ship);
+	extract_instance(ship->instance);
+
+	free_ship(ship);
+}
+
+bool ship_isowner_player(SHIP_DATA *ship, CHAR_DATA *ch)
+{
+	if( !IS_VALID(ship) ) return false;
+
+	if( !IS_VALID(ch) ) return false;
+
+	return ( (ship->owner_uid[0] == ch->id[0]) && (ship->owner_uid[1] == ch->id[1]) );
+}
+
+void ships_update()
+{
+
+}
+
 /////////////////////////////////////////////////////////////////
 //
 // NPC Ships
@@ -288,6 +424,7 @@ const struct olc_cmd_type shedit_table[] =
 	{ "flags",				shedit_flags		},
 	{ "guns",				shedit_guns			},
 	{ "hit",				shedit_hit			},
+	{ "keys",				shedit_keys			},
 	{ "list",				shedit_list			},
 	{ "movedelay",			shedit_move_delay	},
 	{ "name",				shedit_name			},
@@ -557,7 +694,41 @@ SHEDIT( shedit_show )
 
 	add_buf(buffer, "Description:\n\r");
 	add_buf(buffer, fix_string(ship->description));
-	add_buf(buffer, "\n\r");
+	add_buf(buffer, "\n\r\n\r");
+
+	add_buf(buffer, "Special Keys:\n\r");
+	if( list_size(ship->special_keys) > 0 )
+	{
+		ITERATOR it;
+		OBJ_INDEX_DATA *key;
+		int count = 0;
+
+		add_buf(buffer, "    [  Vnum  ]  Name\n\r");
+		add_buf(buffer, "==============================================\n\r");
+
+		iterator_start(&it, ship->special_keys);
+		while( (key = (OBJ_INDEX_DATA *)iterator_nextdata(&it)) )
+		{
+			char key_color = 'Y';
+
+			if( key->item_type != ITEM_KEY )
+			{
+				key_color = 'R';
+			}
+
+
+			sprintf(buf, "{W%3d  {G%8ld  {%c%s{x\n\r", ++count, key->vnum, key_color, key->short_descr);
+			add_buf(buffer, buf);
+		}
+		iterator_stop(&it);
+
+		add_buf(buffer, "==============================================\n\r");
+		add_buf(buffer, "{RRED{x = not a key.\n\r");
+	}
+	else
+	{
+		add_buf(buffer, "  None\n\r");
+	}
 
 	if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
 	{
@@ -1073,6 +1244,134 @@ SHEDIT( shedit_armor)
 	ship->armor = value;
 	send_to_char("Ship base armor changed.\n\r", ch);
 	return TRUE;
+}
+
+
+SHEDIT( shedit_keys )
+{
+	SHIP_INDEX_DATA *ship;
+	char arg[MIL];
+
+	EDIT_SHIP(ch, ship);
+
+	if( argument[0] == '\0' )
+	{
+		send_to_char("Syntax:  keys list\n\r", ch);
+		send_to_char("Syntax:  keys add <vnum>\n\r", ch);
+		send_to_char("Syntax:  keys remove <#>\n\r", ch);
+		return FALSE;
+	}
+
+	argument = one_argument(argument, arg);
+
+	if( !str_cmp(arg, "list") )
+	{
+		if( list_size(ship->special_keys) > 0 )
+		{
+			ITERATOR it;
+			OBJ_INDEX_DATA *key;
+			BUFFER *buffer = new_buf();
+			int count = 0;
+
+			add_buf(buffer, "    [  Vnum  ]  Name\n\r");
+			add_buf(buffer, "==============================================\n\r");
+
+			iterator_start(&it, ship->special_keys);
+			while( (key = (OBJ_INDEX_DATA *)iterator_nextdata(&it)) )
+			{
+				char key_color = 'Y';
+
+				if( key->item_type != ITEM_KEY )
+				{
+					key_color = 'R';
+				}
+
+				sprintf(buf, "{W%3d  {G%8ld  {%c%s{x\n\r", ++count, key->vnum, key_color, key->short_descr);
+				add_buf(buffer, buf);
+			}
+			iterator_stop(&it);
+
+			add_buf(buffer, "==============================================\n\r");
+			add_buf(buffer, "{RRED{x = not a key.\n\r");
+
+			if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+			{
+				send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+			}
+			else
+			{
+				page_to_char(buffer->string, ch);
+			}
+
+			free_buf(buffer);
+		}
+		else
+		{
+			send_to_char("No special keys to display.\n\r", ch);
+		}
+
+		return FALSE;
+	}
+
+	if( !str_cmp(arg, "add") )
+	{
+		OBJ_INDEX_DATA *key, *obj;
+		ITERATOR it;
+		long vnum;
+
+		if( !is_number(argument) )
+		{
+			send_to_char("That is not a number,\n\r", ch);
+			return FALSE;
+		}
+
+		vnum = atol(argument);
+		if( !(key = get_obj_index(vnum)) )
+		{
+			send_to_char("That object does not exist.\n\r", ch);
+			return FALSE;
+		}
+
+		if( key->item_type != ITEM_KEY )
+		{
+			send_to_char("That is not a key.\n\r", ch);
+			return FALSE;
+		}
+
+		if( list_hasdata(ship->special_keys, key) )
+		{
+			send_to_char("That key is already in the list.\n\r", ch);
+			return FALSE;
+		}
+
+		list_appendlink(ship->special_rooms, key);
+		send_to_char("Key added.\n\r", ch);
+		return TRUE;
+	}
+
+	if( !str_cmp(arg, "remove") )
+	{
+		if( !is_number(argument) )
+		{
+			send_to_char("That is not a number,\n\r", ch);
+			return FALSE;
+		}
+
+		int value = atoi(argument);
+		if( value < 0 || value > list_size(ship->special_rooms) )
+		{
+			send_to_char("Index out of range.\n\r", ch);
+			return FALSE;
+		}
+
+		list_remnthlink(ship->special_rooms, value);
+		send_to_char("Key removed.\n\r", ch);
+		return TRUE;
+	}
+
+	shedit_keys(ch, "");
+	return FALSE;
+
 }
 
 

@@ -1397,7 +1397,7 @@ void do_open(CHAR_DATA *ch, char *argument)
 			{
 				if (IS_SET(obj->lock->flags, LOCK_LOCKED))
 				{
-					if ((key = get_key(ch, obj->lock->key_vnum)) != NULL)
+					if ((key = lockstate_getkey(ch,obj->lock)) != NULL)
 					{
 						do_function(ch, &do_unlock, obj->name);
 						do_function(ch, &do_open, obj->name);
@@ -1441,7 +1441,7 @@ void do_open(CHAR_DATA *ch, char *argument)
 		{
 			if (IS_SET(obj->lock->flags, LOCK_LOCKED))
 			{
-				if ((key = get_key(ch, obj->lock->key_vnum)) != NULL)
+				if ((key = lockstate_getkey(ch, obj->lock)) != NULL)
 				{
 					do_function(ch, &do_unlock, obj->name);
 					do_function(ch, &do_open, obj->name);
@@ -1483,7 +1483,7 @@ void do_open(CHAR_DATA *ch, char *argument)
 		}
 		if ( IS_SET(pexit->door.lock.flags, LOCK_LOCKED))
 		{
-			if ((key = get_key(ch, pexit->door.lock.key_vnum)) != NULL)
+			if ((key = lockstate_getkey(ch, &pexit->door.lock)) != NULL)
 			{
 				do_function(ch, &do_unlock, dir_name[door]);
 				do_function(ch, &do_open, dir_name[door]);
@@ -1719,7 +1719,6 @@ void use_key(CHAR_DATA *ch, OBJ_DATA *key)
 	}
 }
 
-
 void do_lock(CHAR_DATA *ch, char *argument)
 {
 	char arg[MAX_INPUT_LENGTH];
@@ -1754,13 +1753,13 @@ void do_lock(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			if (!obj->lock || obj->lock->key_vnum < 1)
+			if (!lockstate_functional(obj->lock))
 			{
 				send_to_char("It can't be locked.\n\r",ch);
 				return;
 			}
 
-			if ((key = get_key(ch,obj->lock->key_vnum)) == NULL)
+			if ((key = lockstate_getkey(ch,obj->lock)) == NULL)
 			{
 				send_to_char("You lack the key.\n\r",ch);
 				return;
@@ -1803,17 +1802,16 @@ void do_lock(CHAR_DATA *ch, char *argument)
 			send_to_char("It's not closed.\n\r", ch);
 			return;
 		}
-		if (!obj->lock || obj->lock->key_vnum < 1)
+		if (!lockstate_functional(obj->lock))
 		{
-			send_to_char("It can't be locked.\n\r", ch);
+			send_to_char("It can't be locked.\n\r",ch);
 			return;
 		}
-		if ((key = get_key(ch, obj->lock->key_vnum)) == NULL)
+		if ((key = lockstate_getkey(ch,obj->lock)) == NULL)
 		{
-			send_to_char("You lack the key.\n\r", ch);
+			send_to_char("You lack the key.\n\r",ch);
 			return;
 		}
-
 		if (IS_SET(obj->lock->flags,LOCK_BROKEN))
 		{
 			send_to_char("The lock is broken.\n\r",ch);
@@ -1853,14 +1851,14 @@ void do_lock(CHAR_DATA *ch, char *argument)
 			send_to_char("It's not closed.\n\r", ch);
 			return;
 		}
-		if (pexit->door.lock.key_vnum < 0)
+		if (!lockstate_functional(&pexit->door.lock))
 		{
-			send_to_char("It can't be locked.\n\r", ch);
+			send_to_char("It can't be locked.\n\r",ch);
 			return;
 		}
-		if ((key = get_key(ch, pexit->door.lock.key_vnum)) == NULL)
+		if ((key = lockstate_getkey(ch,&pexit->door.lock)) == NULL)
 		{
-			send_to_char("You lack the key.\n\r", ch);
+			send_to_char("You lack the key.\n\r",ch);
 			return;
 		}
 		if (IS_SET(pexit->door.lock.flags,LOCK_BROKEN))
@@ -1928,13 +1926,13 @@ void do_unlock(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			if (!obj->lock || obj->lock->key_vnum < 1)
+			if (!lockstate_functional(obj->lock))
 			{
-				send_to_char("It can't be unlocked.\n\r",ch);
+				send_to_char("It can't be locked.\n\r",ch);
 				return;
 			}
 
-			if ((key = get_key(ch, obj->lock->key_vnum)) == NULL)
+			if ((key = lockstate_getkey(ch,obj->lock)) == NULL)
 			{
 				send_to_char("You lack the key.\n\r",ch);
 				return;
@@ -1976,13 +1974,13 @@ void do_unlock(CHAR_DATA *ch, char *argument)
 			send_to_char("It's not closed.\n\r", ch);
 			return;
 		}
-		if (!obj->lock || obj->lock->key_vnum < 1)
+		if (!lockstate_functional(obj->lock))
 		{
-			send_to_char("It can't be unlocked.\n\r",ch);
+			send_to_char("It can't be locked.\n\r",ch);
 			return;
 		}
 
-		if ((key = get_key(ch, obj->lock->key_vnum)) == NULL)
+		if ((key = lockstate_getkey(ch,obj->lock)) == NULL)
 		{
 			send_to_char("You lack the key.\n\r",ch);
 			return;
@@ -2035,14 +2033,14 @@ void do_unlock(CHAR_DATA *ch, char *argument)
 			send_to_char("It's not closed.\n\r", ch);
 			return;
 		}
-		if (pexit->door.lock.key_vnum < 0)
+		if (!lockstate_functional(&pexit->door.lock))
 		{
-			send_to_char("It can't be unlocked.\n\r", ch);
+			send_to_char("It can't be locked.\n\r",ch);
 			return;
 		}
-		if ((key = get_key(ch, pexit->door.lock.key_vnum)) == NULL)
+		if ((key = lockstate_getkey(ch,&pexit->door.lock)) == NULL)
 		{
-			send_to_char("You lack the key.\n\r", ch);
+			send_to_char("You lack the key.\n\r",ch);
 			return;
 		}
 		if (IS_SET(pexit->door.lock.flags,LOCK_BROKEN))
@@ -2132,7 +2130,7 @@ void do_pick(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			if (!obj->lock || obj->lock->key_vnum < 1)
+			if (!lockstate_functional(obj->lock))
 			{
 				send_to_char("It can't be unlocked.\n\r",ch);
 				return;
@@ -2180,7 +2178,7 @@ void do_pick(CHAR_DATA *ch, char *argument)
 			send_to_char("It's not closed.\n\r", ch);
 			return;
 		}
-		if (!obj->lock || obj->lock->key_vnum < 1)
+		if (!lockstate_functional(obj->lock))
 		{
 			send_to_char("It can't be unlocked.\n\r",ch);
 			return;
@@ -2227,7 +2225,7 @@ void do_pick(CHAR_DATA *ch, char *argument)
 			send_to_char("It's not closed.\n\r", ch);
 			return;
 		}
-		if (pexit->door.lock.key_vnum < 0 && !IS_IMMORTAL(ch))
+		if (!lockstate_functional(&pexit->door.lock) && !IS_IMMORTAL(ch))
 		{
 			send_to_char("It can't be picked.\n\r", ch);
 			return;

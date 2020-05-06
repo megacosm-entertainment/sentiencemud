@@ -795,6 +795,8 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 				if (obj == NULL)
 					continue;
 
+				resolve_special_key(obj);
+
 				objNestList[obj->nest] = obj;
 				if (obj->locker == TRUE)
 				{

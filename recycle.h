@@ -171,3 +171,8 @@ void free_lock_state(LOCK_STATE *state);
 SHIP_INDEX_DATA *new_ship_index();
 void free_ship_index(SHIP_INDEX_DATA *ship);
 
+SHIP_INDEX *new_ship();
+void free_ship(SHIP_INDEX *ship);
+
+SPECIAL_KEY_DATA *new_special_key();
+void free_special_key(SPECIAL_KEY_DATA *sk);

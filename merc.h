@@ -350,6 +350,7 @@ typedef struct    wilds_data       WILDS_DATA;
 typedef struct    wilds_terrain    WILDS_TERRAIN;
 
 typedef struct named_special_room_data NAMED_SPECIAL_ROOM;
+typedef struct special_key_data SPECIAL_KEY_DATA;
 
 // Blueprints
 typedef struct blueprint_link_data BLUEPRINT_LINK;
@@ -364,6 +365,15 @@ typedef struct dungeon_index_special_room_data DUNGEON_INDEX_SPECIAL_ROOM;
 typedef struct dungeon_floor_data DUNGEON_FLOOR_DATA;
 typedef struct dungeon_index_data DUNGEON_INDEX_DATA;
 typedef struct dungeon_data DUNGEON;
+
+struct special_key_data
+{
+	SPECIAL_KEY_DATA *next;
+	bool valid;
+
+	long key_vnum;		// Base key vnum
+	LLIST *list;		// Actual list of keys
+};
 
 #define MEMTYPE_MOB		'M'
 #define MEMTYPE_OBJ		'O'
@@ -4258,6 +4268,7 @@ typedef struct lock_state_data {
 	long key_vnum;
 	int pick_chance;		// 0 = impossible (normally), 100 trivial
 	int flags;
+	LLIST *keys;			// Handled by other entities, not owned by lock state
 } LOCK_STATE;
 
 
@@ -4926,35 +4937,38 @@ struct ship_index_data
 	int capacity;		// How many items can FIT on the ship (ignores non-takable objects)
 	int armor;			// Base protective armor
 
+	LLIST *special_keys;		// Various key object indexes used by the ship
+
 	BLUEPRINT *blueprint;
 };
 
 struct ship_data
 {
 	SHIP_DATA			*next;
+	SHIP_INDEX_DATA		*index;
 	OBJ_DATA			*ship;
 	NPC_SHIP_DATA		*npc_ship;
 	bool				valid;
 
 	CHAR_DATA			*owner;
+	unsigned long		owner_uid[2];
 
-	CHAR_DATA			*crew_list;
-	char				*owner_name;
+	LLIST *crew;
+
 	char				*flag;
-//	long				first_room;
 
 	sh_int				dir;
 	sh_int				speed;
 	long				hit;
+	long				armor;
+
+	int					ship_flags;
 
 	sh_int				ship_type;
 	INSTANCE			*instance;
 
-//	ROOM_INDEX_DATA		*ship_rooms[MAX_SHIP_ROOMS];
-//	ROOM_INDEX_DATA		*last_room[3];
-//	sh_int				num_rooms;
-
 	int					cannons;
+
 	char				*ship_name;
 
 	sh_int				max_crew;
@@ -4974,6 +4988,8 @@ struct ship_data
 	/* When scuttled show different steps of scuttling */
 	sh_int				scuttle_time;
 	OBJ_DATA			*cannons_obj;
+
+	LLIST				*special_keys;
 
 	bool				pk;
 };
@@ -8459,7 +8475,19 @@ bool can_edit_ships(CHAR_DATA *ch);
 //SHIP_DATA *ship_load(FILE *fp);
 //bool ship_save(FILE *fp, SHIP_DATA *ship);
 
+SHIP_DATA *create_ship(long vnum);
+void extract_ship(SHIP_DATA *ship);
+bool ship_isowner_player(SHIP_DATA *ship, CHAR_DATA *ch);
+void ships_update();
 
 
+bool lockstate_functional(LOCK_STATE *lock);
+OBJ_DATA *lockstate_getkey(CHAR_DATA *ch, LOCK_STATE *lock);
+
+SPECIAL_KEY_DATA *get_special_key(LLIST *list, long vnum);
+void extract_special_key(OBJ_DATA *obj);
+void resolve_special_key(OBJ_DATA *obj);
+
+extern LLIST *loaded_special_keys;
 
 #endif /* !def __MERC_H__ */

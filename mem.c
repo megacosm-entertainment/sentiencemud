@@ -95,6 +95,7 @@ IMMORTAL_DATA *immortal_free;
 SKILL_ENTRY *skill_entry_free;
 OLC_POINT_BOOST *olc_point_boost_free;
 SHIP_INDEX_DATA *ship_index_free;
+SHIP_DATA *ship_free;
 
 
 LLIST_UID_DATA *new_list_uid_data()
@@ -2145,6 +2146,8 @@ SHIP_INDEX_DATA *new_ship_index()
 	ship->description = &str_empty[0];
 	ship->hit = 1;
 
+	ship->keys = list_create(FALSE);
+
 	return ship;
 }
 
@@ -2153,10 +2156,52 @@ void free_ship_index(SHIP_INDEX_DATA *ship)
 	free_string(ship->name);
 	free_string(ship->description);
 
+	list_destroy(ship->keys);
+
 	ship->next = ship_index_free;
 	ship_index_free = ship;
 }
 
+SHIP_DATA *new_ship()
+{
+	SHIP_DATA *ship;
+
+	if( ship_free )
+	{
+		ship = ship_free;
+		ship_free = ship_free->next;
+	}
+	else
+	{
+		ship = alloc_mem(sizeof(SHIP_DATA *));
+	}
+
+	memset(ship, 0, sizeof(SHIP_DATA);
+
+	ship->owner_name = &str_empty[0];
+	ship->flag = &str_empty[0];
+	ship->ship_name = &str_empty[0];
+
+	ship->crew = list_create(FALSE);
+
+	VALIDATE(ship);
+	return ship;
+}
+
+void free_ship(SHIP_DATA *ship)
+{
+	if( !IS_VALID(ship) ) return;
+
+	free_string(ship->owner_name);
+	free_string(ship->flag);
+	free_string(ship->ship_name);
+
+	list_destroy(ship->crew);
+
+	INVALIDATE(ship);
+	ship->next = ship_free;
+	ship_free = ship;
+}
 
 NPC_SHIP_INDEX_DATA *new_npc_ship_index( void )
 {
@@ -3999,6 +4044,43 @@ void free_dungeon(DUNGEON *dng)
 }
 
 
+SPECIAL_KEY_DATA *special_key_free;
+SPECIAL_KEY_DATA *new_special_key()
+{
+	SPECIAL_KEY_DATA *sk;
+
+	if( special_key_free )
+	{
+		sk = special_key_free;
+		special_key_free = special_key_free->next;
+	}
+	else
+	{
+		sk = alloc_mem(sizeof(SPECIAL_KEY_DATA));
+	}
+
+	memset(sk, 0, sizeof(SPECIAL_KEY_DATA));
+
+	sk->list = list_createx(FALSE, NULL, delete_list_uid_data);
+
+	VALIDATE(sk);
+
+	list_appendlink(loaded_special_keys, sk);
+	return sk;
+}
+
+void free_special_key(SPECIAL_KEY_DATA *sk)
+{
+	if( !IS_VALID(sk) ) return;
+
+	list_remlink(loaded_special_keys, sk);
+
+	list_destroy(sk->list);
+
+	INVALIDATE(sk);
+	sk->next = special_key_free;
+	special_key_free = sk;
+}
 
 LOCK_STATE *new_lock_state()
 {
@@ -4007,6 +4089,7 @@ LOCK_STATE *new_lock_state()
 	state->key_vnum		= 0;
 	state->pick_chance	= 100;
 	state->flags		= 0;
+	state->keys			= NULL;
 
 	return state;
 }

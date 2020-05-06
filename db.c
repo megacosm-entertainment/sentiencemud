@@ -87,6 +87,7 @@ extern	GLOBAL_DATA gconfig;
 extern	LLIST *loaded_instances;
 extern	LLIST *loaded_dungeons;
 extern	LLIST *loaded_ships;
+LLIST *loaded_special_keys;
 
 void free_room_index( ROOM_INDEX_DATA *pRoom );
 void load_instances();
@@ -829,10 +830,11 @@ void boot_db(void)
 
     }
 
-	// Initialize instance/dungeon lists
+	// Initialize certain lists
 	loaded_instances = list_create(FALSE);
 	loaded_dungeons = list_create(FALSE);
 	loaded_ships = list_create(FALSE);
+	loaded_special_keys = list_create(FALSE);
 
     /*
      * Read in all the area files.
@@ -7963,7 +7965,7 @@ bool save_instances()
 	iterator_start(&it, loaded_ships);
 	while( (ship = (SHIP_DATA *)iterator_nextdata(&it)) )
 	{
-
+		ship_save(fp, ship);
 	}
 	iterator_stop(&it);
 
@@ -8011,9 +8013,9 @@ void load_instances()
 			}
 
 			fMatch = TRUE;
+			continue;
 		}
-
-		if (!str_cmp(word, "#DUNGEON"))
+		else if (!str_cmp(word, "#DUNGEON"))
 		{
 			DUNGEON *dungeon = dungeon_load(fp);
 
@@ -8023,14 +8025,19 @@ void load_instances()
 			}
 
 			fMatch = TRUE;
+			continue;
 		}
-
-		if (!str_cmp(word, "#SHIP"))
+		else if (!str_cmp(word, "#SHIP"))
 		{
+			SHIP_DATA *ship = ship_load(fp);
+
+			if(ship)
+			{
+				list_appendlink(loaded_ships, ship);
+			}
+
 			fMatch = TRUE;
 		}
-
-
 
 		if (!fMatch) {
 			char buf[MSL];

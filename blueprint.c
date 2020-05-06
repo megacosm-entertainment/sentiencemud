@@ -1372,6 +1372,41 @@ void extract_instance(INSTANCE *instance)
 	free_instance(instance);
 }
 
+void instance_apply_specialkeys(INSTANCE *instance, LLIST *special_keys)
+{
+	ITERATOR sit, rit;
+	INSTANCE_SECTION *section;
+	ROOM_INDEX_DATA *room;
+
+	if( !IS_VALID(instance) || !IS_VALID(special_keys) ) return;
+
+	iterator_start(&sit, instance->sections);
+	while( (section = (INSTANCE_SECTION *)iterator_nextdata(&sit)) )
+	{
+		iterator_start(&rit, section->rooms);
+		while( (room = (ROOM_INDEX_DATA *)iterator_nextdata(&rit)) )
+		{
+			for( int i = 0; i < MAX_DIR; i++ )
+			{
+				EXIT_DATA *ex = room->exit[i];
+
+				if( ex && ex->door.lock.key_vnum > 0 )
+				{
+					SPECIAL_KEY_DATA *sk = get_special_key(special_keys, ex->door.lock.key_vnum);
+
+					if( sk )
+					{
+						ex->door.lock.keys = sk->list;
+						ex->door.rs_lock.keys = sk->list;
+					}
+				}
+			}
+		}
+		iterator_stop(&rit);
+	}
+	iterator_stop(&sit);
+}
+
 //////////////////////////////////////////////////////////////
 //
 // OLC Editors

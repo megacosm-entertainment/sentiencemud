@@ -3028,6 +3028,8 @@ void extract_obj(OBJ_DATA *obj)
 			victim->pcdata->corpse = NULL;
 	}
 
+	extract_special_key(obj);
+
     --obj->pIndexData->count;
     free_obj(obj);
 }
@@ -8907,5 +8909,159 @@ void player_unlock_area(CHAR_DATA *ch, AREA_DATA *area)
 	if( is_area_unlocked(ch, area) ) return;
 
 	list_appendlink(ch->pcdata->unlocked_areas, area);
+}
+
+bool lockstate_functional(LOCK_STATE *lock)
+{
+	if( !lock ) return false;
+
+	if( list_size(lock->keys) > 0 )
+	{
+		return true;
+	}
+
+	if( lock->key_vnum > 0 )
+	{
+		return true;
+	}
+
+	return false;
+}
+
+OBJ_DATA *lockstate_getkey(CHAR_DATA *ch, LOCK_STATE *lock)
+{
+	if( !lock ) return NULL;
+
+	if( IS_VALID(lock->keys) )
+	{
+		LLIST_UID_DATA *luid;
+		OBJ_DATA *obj = NULL;
+
+		ITERATOR it;
+		iterator_start(&it, lock->keys);
+		while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
+		{
+			if( luid->ptr )
+			{
+				obj = (OBJ_DATA *)luid->ptr;
+
+				// In primary inventory?
+				if( obj->carried_by == ch )
+					break;
+
+				// Inside a keyring that is in the primary inventory?
+				if( obj->in_obj != NULL && obj->in_obj->item_type == ITEM_KEYRING )
+				{
+					if( obj->in_obj->carried_by == ch )
+						break;
+				}
+
+			}
+		}
+		iterator_stop(&it);
+
+		return obj;
+	}
+
+	if( lock->key_vnum > 0 )
+	{
+		OBJ_DATA *obj;
+		OBJ_DATA *key;
+
+		for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
+		{
+			if (obj->pIndexData->vnum == lock->key_vnum)
+				return obj;
+		}
+
+		/* Keyring */
+		for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
+		{
+			if (obj->pIndexData->item_type == ITEM_KEYRING)
+			{
+				for (key = obj->contains; key != NULL; key = key->next_content)
+				{
+					if (key->pIndexData->vnum == lock->key_vnum)
+						return key;
+				}
+			}
+		}
+
+		return NULL;
+	}
+
+	return NULL;
+}
+
+SPECIAL_KEY_DATA *get_special_key(LLIST *list, long vnum)
+{
+	ITERATOR it;
+	SPECIAL_KEY_DATA *sk;
+
+	if( !IS_VALID(list) ) return NULL;
+
+	iterator_start(&it, list);
+	while( (sk = (SPECIAL_KEY_DATA *)iterator_nextdata(&it)) )
+	{
+		if( sk->vnum == vnum)
+			break;
+	}
+	iterator_stop(&it);
+
+	return sk;
+}
+
+void extract_special_key(OBJ_DATA *obj)
+{
+	ITERATOR skit, kit;
+	SPECIAL_KEY_DATA *sk;
+	LLIST_UID_DATA *luid;
+
+	iterator_start(&skit, loaded_special_keys);
+	while( (sk = (SPECIAL_KEY_DATA *)iterator_nextdata(&skit)) )
+	{
+		if( sk->vnum == obj->pIndexData->vnum)
+		{
+			iterator_start(&kit, sk->list);
+			while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&kit)) )
+			{
+				if( luid->id[0] == obj->id[0] &&
+					luid->id[1] == obj->id[1] )
+				{
+					luid->ptr = NULL;
+				}
+			}
+			iterator_stop(&kit);
+
+		}
+	}
+	iterator_stop(&skit);
+}
+
+void resolve_special_key(OBJ_DATA *obj)
+{
+	ITERATOR skit, kit;
+	SPECIAL_KEY_DATA *sk;
+	LLIST_UID_DATA *luid;
+
+	iterator_start(&skit, loaded_special_keys);
+	while( (sk = (SPECIAL_KEY_DATA *)iterator_nextdata(&skit)) )
+	{
+		if( sk->vnum == obj->pIndexData->vnum)
+		{
+			iterator_start(&kit, sk->list);
+			while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&kit)) )
+			{
+				if( luid->id[0] == obj->id[0] &&
+					luid->id[1] == obj->id[1] )
+				{
+					luid->ptr = obj;
+				}
+			}
+			iterator_stop(&kit);
+
+		}
+	}
+	iterator_stop(&skit);
 }
 

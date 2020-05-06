@@ -425,7 +425,7 @@ DECLARE_OLC_FUN( shedit_weight		);
 DECLARE_OLC_FUN( shedit_capacity	);
 DECLARE_OLC_FUN( shedit_flags		);
 DECLARE_OLC_FUN( shedit_armor		);
-
+DECLARE_OLC_FUN( shedit_keys		);
 
 /* Help Editor */
 DECLARE_OLC_FUN( hedit_show    		);
