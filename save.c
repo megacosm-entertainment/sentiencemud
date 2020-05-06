@@ -373,7 +373,8 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
     if (IS_IMMORTAL(ch))
 		fprintf(fp, "LastInquiryRead %ld\n", (long int)ch->pcdata->last_project_inquiry);
 
-	if( IS_VALID(ch->in_room->instance_section) &&
+	if( ch->in_room &&
+		IS_VALID(ch->in_room->instance_section) &&
 		IS_VALID(ch->in_room->instance_section->instance) &&
 		IS_VALID(ch->in_room->instance_section->instance->dungeon) )
 	{

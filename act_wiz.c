@@ -2757,7 +2757,7 @@ void do_shutdown(CHAR_DATA *ch, char *argument)
     for (d = descriptor_list; d != NULL; d = d_next) {
 		d_next = d->next;
 		vch = d->original ? d->original : d->character;
-		if (vch != NULL) {
+		if (IS_VALID(vch)) {
 		    /* save their shift */
 		    if (ch->shifted != SHIFTED_NONE) {
 				shift_char(ch, TRUE);
