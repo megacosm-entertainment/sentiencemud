@@ -7908,8 +7908,6 @@ void save_area args( ( AREA_DATA *pArea ) );
 void save_help( void );
 void save_quest( FILE *fp, QUEST_INDEX_DATA *pQuestIndex );
 void save_quests( FILE *fp, AREA_DATA *pArea );
-void save_ship args( (FILE *fp, NPC_SHIP_INDEX_DATA *pShipIndex) );
-void save_npc_ships();
 char *fwrite_flag( long flags, char buf[] );
 
 /* wilderness.c */

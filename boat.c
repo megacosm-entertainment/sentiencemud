@@ -55,12 +55,11 @@ long top_ship_index_vnum = 0;
 // Ship Types
 //
 
-SHIP_INDEX_DATA *load_ship(FILE *fp)
+SHIP_INDEX_DATA *load_ship_index(FILE *fp)
 {
 	SHIP_INDEX_DATA *ship;
 	char *word;
 	bool fMatch;
-	char buf[MSL];
 
 	ship = new_ship_index();
 	ship->vnum = fread_number(fp);
@@ -151,7 +150,7 @@ void load_ships()
 	fclose(fp);
 }
 
-void save_ship(FILE *fp, SHIP_INDEX_DATA *ship)
+void save_ship_index(FILE *fp, SHIP_INDEX_DATA *ship)
 {
 	fprintf(fp, "#SHIP %ld\n", ship->vnum);
 
@@ -180,7 +179,7 @@ bool save_ships()
 	{
 		for(SHIP_INDEX_DATA *ship = ship_index_hash[iHash]; ship; ship = ship->next)
 		{
-			save_ship(fp, ship);
+			save_ship_index(fp, ship);
 		}
 	}
 
@@ -195,7 +194,7 @@ SHIP_INDEX_DATA *get_ship_index(long vnum)
 {
 	for(int iHash = 0; iHash < MAX_KEY_HASH; iHash++)
 	{
-		for(SHIP_INDEX_DATA *ship = ship_index_hash[iHash]; dng; dng = dng->next)
+		for(SHIP_INDEX_DATA *ship = ship_index_hash[iHash]; ship; ship = ship->next)
 		{
 			if( ship->vnum == vnum )
 				return ship;
@@ -415,7 +414,7 @@ void do_shshow(CHAR_DATA *ch, char *argument)
 	}
 
 	value = atol(argument);
-	if (!(dng= get_ship_index(value)))
+	if (!(ship = get_ship_index(value)))
 	{
 		send_to_char("That ship does not exist.\n\r", ch);
 		return;
@@ -450,7 +449,7 @@ SHEDIT( shedit_show )
 	sprintf(buf, "Name:        [%5ld] %s{x\n\r", ship->vnum, ship->name);
 	add_buf(buffer, buf);
 
-	sprintf(buf, "Ship Class:  %s{x\n\r", flag_string(ship_class_type, ship->ship_class));
+	sprintf(buf, "Ship Class:  %s{x\n\r", flag_string(ship_class_types, ship->ship_class));
 	add_buf(buffer, buf);
 
 	if( IS_VALID(ship->blueprint) )
@@ -460,7 +459,7 @@ SHEDIT( shedit_show )
 	add_buf(buffer, buf);
 
 	add_buf(buffer, "Description:\n\r");
-	add_buf(buffer, ship->desc);
+	add_buf(buffer, fix_string(ship->description));
 	add_buf(buffer, "\n\r");
 
 	if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
@@ -548,7 +547,7 @@ SHEDIT( shedit_desc )
 		return FALSE;
 	}
 
-	string_append(&ship->description);
+	string_append(ch, &ship->description);
 	return TRUE;
 }
 
@@ -686,7 +685,7 @@ SHEDIT( shedit_blueprint )
 
 
 	ship->blueprint = bp;
-	send_to_char("Ship blueprint changed.\n\r");
+	send_to_char("Ship blueprint changed.\n\r", ch);
 	return TRUE;
 }
 
