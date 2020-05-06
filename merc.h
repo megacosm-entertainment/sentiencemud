@@ -58,7 +58,7 @@
 #include "sha256.h"
 
 #define STR_HELPER(x) #x
-#define STR(x) STR_HELPER(x)
+#define __STR(x) STR_HELPER(x)
 
 #define args( list )			list
 #define DECLARE_DO_FUN( fun )		DO_FUN    fun
@@ -4914,7 +4914,7 @@ struct ship_index_data
 
 	int hit;			// Maximum hit points for the ship
 	int guns;			// How many guns can the ship have?
-	int min_crew:		// How many crew is required to OPERATE the ship?
+	int min_crew;		// How many crew is required to OPERATE the ship?
 	int max_crew;		// How many crew can the ship have?
 	int move_delay;		// Minimum move delay
 	int weight;			// Weight limit before ship sinks (ignores non-takable objects)

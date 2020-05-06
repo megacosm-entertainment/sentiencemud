@@ -280,7 +280,7 @@ const struct olc_cmd_type shedit_table[] =
 	{ "guns",				shedit_guns			},
 	{ "hit",				shedit_hit			},
 	{ "list",				shedit_list			},
-	{ "movedelay",			shedit_movedelay	},
+	{ "movedelay",			shedit_move_delay	},
 	{ "name",				shedit_name			},
 	{ "object",				shedit_object		},
 	{ "show",				shedit_show			},
@@ -512,7 +512,7 @@ SHEDIT( shedit_show )
 		sprintf(buf, "Blueprint:   {Dunassigned{x\n\r");
 	add_buf(buffer, buf);
 
-	OBJ_INDEX_DATA *obj = get_object_index(ship->ship_object);
+	OBJ_INDEX_DATA *obj = get_obj_index(ship->ship_object);
 	if( obj )
 		sprintf(buf, "Ship Object: [%5ld] %s{x\n\r", obj->vnum, obj->short_descr);
 	else
@@ -831,7 +831,7 @@ SHEDIT( shedit_hit )
 	int value = atoi(argument);
 	if( value < 1 || value > SHIP_MAX_HIT )
 	{
-		send_to_char("Hit points must be in the range of 1 to " STR(SHIP_MAX_HIT) ".\n\r", ch);
+		send_to_char("Hit points must be in the range of 1 to " __STR(SHIP_MAX_HIT) ".\n\r", ch);
 		return FALSE;
 	}
 
@@ -861,7 +861,7 @@ SHEDIT( shedit_guns )
 	int value = atoi(argument);
 	if( value < 0 || value > SHIP_MAX_GUNS )
 	{
-		send_to_char("Gun allowance must be in the range of 0 to " STR(SHIP_MAX_GUNS) ".\n\r", ch);
+		send_to_char("Gun allowance must be in the range of 0 to " __STR(SHIP_MAX_GUNS) ".\n\r", ch);
 		return FALSE;
 	}
 
@@ -874,7 +874,6 @@ SHEDIT( shedit_crew )
 {
 	SHIP_INDEX_DATA *ship;
 	char arg[MIL];
-	int min_crew, max_crew;
 
 	EDIT_SHIP(ch, ship);
 
@@ -904,13 +903,13 @@ SHEDIT( shedit_crew )
 
 	if( min_crew < 0 || min_crew > SHIP_MAX_CREW )
 	{
-		send_to_char("Minimum crew allowance must be in the range of 0 to " STR(SHIP_MAX_CREW) ".\n\r", ch);
+		send_to_char("Minimum crew allowance must be in the range of 0 to " __STR(SHIP_MAX_CREW) ".\n\r", ch);
 		return FALSE;
 	}
 
 	if( max_crew < 0 || max_crew > SHIP_MAX_CREW )
 	{
-		send_to_char("Maximum crew allowance must be in the range of 0 to " STR(SHIP_MAX_CREW) ".\n\r", ch);
+		send_to_char("Maximum crew allowance must be in the range of 0 to " __STR(SHIP_MAX_CREW) ".\n\r", ch);
 		return FALSE;
 	}
 
@@ -941,7 +940,7 @@ SHEDIT( shedit_move_delay )
 	int value = atoi(argument);
 	if( value < SHIP_MIN_DELAY )
 	{
-		send_to_char("Move delay must be at least " STR(SHIP_MIN_DELAY) ".\n\r", ch);
+		send_to_char("Move delay must be at least " __STR(SHIP_MIN_DELAY) ".\n\r", ch);
 		return FALSE;
 	}
 
@@ -971,7 +970,7 @@ SHEDIT( shedit_weight )
 	int value = atoi(argument);
 	if( value < 0 || value > SHIP_MAX_WEIGHT )
 	{
-		send_to_char("Weight allowance must be in the range of 0 to " STR(SHIP_MAX_WEIGHT) ".\n\r", ch);
+		send_to_char("Weight allowance must be in the range of 0 to " __STR(SHIP_MAX_WEIGHT) ".\n\r", ch);
 		return FALSE;
 	}
 
@@ -1001,7 +1000,7 @@ SHEDIT( shedit_capacity )
 	int value = atoi(argument);
 	if( value < 0 || value > SHIP_MAX_CAPACITY )
 	{
-		send_to_char("Ship capacity must be in the range of 0 to " STR(SHIP_MAX_CAPACITY) ".\n\r", ch);
+		send_to_char("Ship capacity must be in the range of 0 to " __STR(SHIP_MAX_CAPACITY) ".\n\r", ch);
 		return FALSE;
 	}
 
