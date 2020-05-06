@@ -318,30 +318,30 @@ void save_dungeon_index(FILE *fp, DUNGEON_INDEX_DATA *dng)
 {
 	ITERATOR it;
 
-	fprintf(fp, "#DUNGEON %ld\n\r", dng->vnum);
-	fprintf(fp, "Name %s~\n\r", fix_string(dng->name));
-	fprintf(fp, "Description %s~\n\r", fix_string(dng->description));
-	fprintf(fp, "Comments %s~\n\r", fix_string(dng->comments));
-	fprintf(fp, "AreaWho %d\n\r", dng->area_who);
-	fprintf(fp, "Repop %d\n\r", dng->repop);
+	fprintf(fp, "#DUNGEON %ld\n", dng->vnum);
+	fprintf(fp, "Name %s~\n", fix_string(dng->name));
+	fprintf(fp, "Description %s~\n", fix_string(dng->description));
+	fprintf(fp, "Comments %s~\n", fix_string(dng->comments));
+	fprintf(fp, "AreaWho %d\n", dng->area_who);
+	fprintf(fp, "Repop %d\n", dng->repop);
 
-	fprintf(fp, "Flags %d\n\r", dng->flags);
+	fprintf(fp, "Flags %d\n", dng->flags);
 
 	if( dng->entry_room > 0 )
-		fprintf(fp, "Entry %ld\n\r", dng->entry_room);
+		fprintf(fp, "Entry %ld\n", dng->entry_room);
 
 	if( dng->exit_room > 0 )
-		fprintf(fp, "Exit %ld\n\r", dng->exit_room);
+		fprintf(fp, "Exit %ld\n", dng->exit_room);
 
-	fprintf(fp, "ZoneOut %s~\n\r", fix_string(dng->zone_out));
-	fprintf(fp, "PortalOut %s~\n\r", fix_string(dng->zone_out_portal));
-	fprintf(fp, "MountOut %s~\n\r", fix_string(dng->zone_out_mount));
+	fprintf(fp, "ZoneOut %s~\n", fix_string(dng->zone_out));
+	fprintf(fp, "PortalOut %s~\n", fix_string(dng->zone_out_portal));
+	fprintf(fp, "MountOut %s~\n", fix_string(dng->zone_out_mount));
 
 	BLUEPRINT *bp;
 	iterator_start(&it, dng->floors);
 	while((bp = (BLUEPRINT *)iterator_nextdata(&it)))
 	{
-		fprintf(fp, "Floor %ld\n\r", bp->vnum);
+		fprintf(fp, "Floor %ld\n", bp->vnum);
 	}
 	iterator_stop(&it);
 
@@ -350,7 +350,7 @@ void save_dungeon_index(FILE *fp, DUNGEON_INDEX_DATA *dng)
 	iterator_start(&it, dng->special_rooms);
 	while( (special = (DUNGEON_INDEX_SPECIAL_ROOM *)iterator_nextdata(&it)) )
 	{
-		fprintf(fp, "SpecialRoom %s~ %d %d %ld\n\r", fix_string(special->name), special->floor, special->section, special->vnum);
+		fprintf(fp, "SpecialRoom %s~ %d %d %ld\n", fix_string(special->name), special->floor, special->section, special->vnum);
 	}
 	iterator_stop(&it);
 
@@ -378,7 +378,7 @@ void save_dungeon_index(FILE *fp, DUNGEON_INDEX_DATA *dng)
 	}
 
 
-	fprintf(fp, "#-DUNGEON\n\r\n\r");
+	fprintf(fp, "#-DUNGEON\n\n");
 }
 
 bool save_dungeons()
@@ -404,7 +404,7 @@ bool save_dungeons()
 		save_script_new(fp,NULL,scr,"DUNGEON");
 	}
 
-	fprintf(fp, "#END\n\r");
+	fprintf(fp, "#END\n");
 
 	fclose(fp);
 

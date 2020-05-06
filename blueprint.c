@@ -511,72 +511,72 @@ void load_blueprints()
 
 void save_blueprint_section(FILE *fp, BLUEPRINT_SECTION *bs)
 {
-	fprintf(fp, "#SECTION %ld\n\r", bs->vnum);
-	fprintf(fp, "Name %s~\n\r", fix_string(bs->name));
-	fprintf(fp, "Description %s~\n\r", fix_string(bs->description));
-	fprintf(fp, "Comments %s~\n\r", fix_string(bs->comments));
+	fprintf(fp, "#SECTION %ld\n", bs->vnum);
+	fprintf(fp, "Name %s~\n", fix_string(bs->name));
+	fprintf(fp, "Description %s~\n", fix_string(bs->description));
+	fprintf(fp, "Comments %s~\n", fix_string(bs->comments));
 
-	fprintf(fp, "Type %d\n\r", bs->type);
-	fprintf(fp, "Flags %d\n\r", bs->flags);
+	fprintf(fp, "Type %d\n", bs->type);
+	fprintf(fp, "Flags %d\n", bs->flags);
 
-	fprintf(fp, "Recall %ld\n\r", bs->recall);
-	fprintf(fp, "Lower %ld\n\r", bs->lower_vnum);
-	fprintf(fp, "Upper %ld\n\r", bs->upper_vnum);
+	fprintf(fp, "Recall %ld\n", bs->recall);
+	fprintf(fp, "Lower %ld\n", bs->lower_vnum);
+	fprintf(fp, "Upper %ld\n", bs->upper_vnum);
 
 	for(BLUEPRINT_LINK *bl = bs->links; bl; bl = bl->next)
 	{
 		if( valid_section_link(bl) )
 		{
-			fprintf(fp, "#LINK\n\r");
-			fprintf(fp, "Name %s~\n\r", fix_string(bl->name));
-			fprintf(fp, "Room %ld\n\r", bl->vnum);
-			fprintf(fp, "Door %d\n\r", bl->door);
-			fprintf(fp, "#-LINK\n\r");
+			fprintf(fp, "#LINK\n");
+			fprintf(fp, "Name %s~\n", fix_string(bl->name));
+			fprintf(fp, "Room %ld\n", bl->vnum);
+			fprintf(fp, "Door %d\n", bl->door);
+			fprintf(fp, "#-LINK\n");
 		}
 	}
 
-	fprintf(fp, "#-SECTION\n\r\n\r");
+	fprintf(fp, "#-SECTION\n\n");
 }
 
 
 void save_blueprint(FILE *fp, BLUEPRINT *bp)
 {
 
-	fprintf(fp, "#BLUEPRINT %ld\n\r", bp->vnum);
-	fprintf(fp, "Name %s~\n\r", fix_string(bp->name));
-	fprintf(fp, "Description %s~\n\r", fix_string(bp->description));
-	fprintf(fp, "Comments %s~\n\r", fix_string(bp->comments));
-	fprintf(fp, "AreaWho %d\n\r", bp->area_who);
-	fprintf(fp, "Repop %d\n\r", bp->repop);
-	fprintf(fp, "Flags %d\n\r", bp->flags);
+	fprintf(fp, "#BLUEPRINT %ld\n", bp->vnum);
+	fprintf(fp, "Name %s~\n", fix_string(bp->name));
+	fprintf(fp, "Description %s~\n", fix_string(bp->description));
+	fprintf(fp, "Comments %s~\n", fix_string(bp->comments));
+	fprintf(fp, "AreaWho %d\n", bp->area_who);
+	fprintf(fp, "Repop %d\n", bp->repop);
+	fprintf(fp, "Flags %d\n", bp->flags);
 
 	ITERATOR sit;
 	BLUEPRINT_SECTION *bs;
 	iterator_start(&sit, bp->sections);
 	while( (bs = (BLUEPRINT_SECTION *)iterator_nextdata(&sit)) )
 	{
-		fprintf(fp, "Section %ld\n\r", bs->vnum);
+		fprintf(fp, "Section %ld\n", bs->vnum);
 	}
 	iterator_stop(&sit);
 
 	if( bp->mode == BLUEPRINT_MODE_STATIC )
 	{
-		fprintf(fp, "Static\n\r");
+		fprintf(fp, "Static\n");
 
 		if( bp->static_recall > 0 )
-			fprintf(fp, "StaticRecall %d\n\r", bp->static_recall);
+			fprintf(fp, "StaticRecall %d\n", bp->static_recall);
 
 		if( bp->static_entry_section > 0 && bp->static_entry_link > 0 )
-			fprintf(fp, "StaticEntry %d %d\n\r", bp->static_entry_section, bp->static_entry_link);
+			fprintf(fp, "StaticEntry %d %d\n", bp->static_entry_section, bp->static_entry_link);
 
 		if( bp->static_exit_section > 0 && bp->static_exit_link > 0 )
-			fprintf(fp, "StaticExit %d %d\n\r", bp->static_exit_section, bp->static_exit_link);
+			fprintf(fp, "StaticExit %d %d\n", bp->static_exit_section, bp->static_exit_link);
 
 		for(STATIC_BLUEPRINT_LINK *sbl = bp->static_layout; sbl; sbl = sbl->next)
 		{
 			if( valid_static_link(sbl) )
 			{
-				fprintf(fp, "StaticLink %d %d %d %d\n\r",
+				fprintf(fp, "StaticLink %d %d %d %d\n",
 					sbl->section1, sbl->link1,
 					sbl->section2, sbl->link2);
 			}
@@ -587,7 +587,7 @@ void save_blueprint(FILE *fp, BLUEPRINT *bp)
 		iterator_start(&rit, bp->special_rooms);
 		while( (special = (BLUEPRINT_SPECIAL_ROOM *)iterator_nextdata(&rit)) )
 		{
-			fprintf(fp, "SpecialRoom %s~ %d %ld\n\r", fix_string(special->name), special->section, special->vnum);
+			fprintf(fp, "SpecialRoom %s~ %d %ld\n", fix_string(special->name), special->section, special->vnum);
 		}
 		iterator_stop(&rit);
 	}
@@ -615,7 +615,7 @@ void save_blueprint(FILE *fp, BLUEPRINT *bp)
 		}
 	}
 
-	fprintf(fp, "#-BLUEPRINT\n\r\n\r");
+	fprintf(fp, "#-BLUEPRINT\n\n");
 }
 
 // save blueprints
@@ -651,7 +651,7 @@ bool save_blueprints()
 		save_script_new(fp,NULL,scr,"INSTANCE");
 	}
 
-	fprintf(fp, "#END\n\r");
+	fprintf(fp, "#END\n");
 
 	fclose(fp);
 
@@ -2678,10 +2678,8 @@ BPEDIT( bpedit_show )
 			{
 				snprintf(buf, MSL-1, "{W%4d  %-30.30s   (%ld) {Y%s{x in (%ld) {Y%s{x\n\r", ++line, special->name, room->vnum, room->name, section->vnum, section->name);
 			}
-			buf[MSL-1] = '\0';
 			add_buf(buffer, buf);
 		}
-
 		iterator_stop(&sit);
 		add_buf(buffer, "---------------------------------------------------------------------------------\n\r");
 	}
