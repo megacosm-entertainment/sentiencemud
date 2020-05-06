@@ -50,6 +50,8 @@
 bool ships_changed = false;
 long top_ship_index_vnum = 0;
 
+LLIST *loaded_ships;
+
 /////////////////////////////////////////////////////////////////
 //
 // Ship Types
