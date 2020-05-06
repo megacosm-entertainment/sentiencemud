@@ -139,7 +139,7 @@ O_FILES = \
 	$(OBJDIR)/ban.o \
 	$(OBJDIR)/bit.o \
 	$(OBJDIR)/blueprint.o \
-	$(OBJDIR)/boat.c \
+	$(OBJDIR)/boat.o \
 	$(OBJDIR)/church.o \
 	$(OBJDIR)/comm.o \
 	$(OBJDIR)/const.o \
