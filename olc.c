@@ -497,7 +497,7 @@ char *olc_ed_vnum(CHAR_DATA *ch)
     SCRIPT_DATA *prog;
     PROJECT_DATA *project;
     HELP_DATA *help;
-    NPC_SHIP_INDEX_DATA *pShip;
+    SHIP_INDEX_DATA *pShip;
     TOKEN_INDEX_DATA *pTokenIndex;
     WILDS_DATA *pWilds;
     WILDS_VLINK *pVLink;
@@ -585,7 +585,7 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 	    break;
 
 	case ED_SHIP:
-	    pShip = (NPC_SHIP_INDEX_DATA *)ch->desc->pEdit;
+	    pShip = (SHIP_INDEX_DATA *)ch->desc->pEdit;
 	    sprintf(buf, "%ld", pShip ? pShip->vnum : 0);
 	    break;
 
