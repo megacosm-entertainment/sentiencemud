@@ -2143,6 +2143,7 @@ SHIP_INDEX_DATA *new_ship_index()
 
 	ship->name = &str_empty[0];
 	ship->description = &str_empty[0];
+	ship->hit = 1;
 
 	return ship;
 }

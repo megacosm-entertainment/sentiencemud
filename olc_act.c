@@ -3641,7 +3641,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		"{B[  {Wv0{B]{G Weight:{x     [%ld kg]\n\r"
 		"{B[  {Wv1{B]{G Move delay:{x [%ld]\n\r"
 		"{B[  {Wv2{B]{G Min Crew:{x   [%ld]\n\r"
-		"{B[  {Wv3{B]{G Capacity    [%ld]\n\r"
+		"{B[  {Wv3{B]{G Capacity:{x   [%ld]\n\r"
 		"{B[  {Wv4{B]{G Max Crew:{x   [%ld]\n\r"
 		"{B[  {Wv5{B]{G First Room:{x [%ld]\n\r"
 		"{B[  {Wv6{B]{G Hit Points:{x [%ld]\n\r"

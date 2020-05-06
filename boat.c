@@ -73,6 +73,9 @@ SHIP_INDEX_DATA *load_ship_index(FILE *fp)
 	{
 		fMatch = FALSE;
 
+	fprintf(fp, "Hit %d\n", ship->hit);
+	fprintf(fp, "Guns %d\n", ship->guns);
+
 		switch(word[0])
 		{
 		case 'B':
@@ -90,14 +93,46 @@ SHIP_INDEX_DATA *load_ship_index(FILE *fp)
 				break;
 			}
 			break;
+
 		case 'C':
+			KEY("Capacity", ship->capacity, fread_number(fp));
 			KEY("Class", ship->ship_class, fread_number(fp));
+			if( !str_cmp(word, "Crew") )
+			{
+				ship->min_crew = fread_number(fp);
+				ship->max_crew = fread_number(fp);
+
+				fMatch = TRUE;
+				break;
+			}
 			break;
+
 		case 'D':
 			KEYS("Description", ship->description, fread_string(fp));
 			break;
+
+		case 'G':
+			KEY("Guns", ship->guns, fread_number(fp));
+			break;
+
+		case 'H':
+			KEY("Hit", ship->hit, fread_number(fp));
+			break;
+
+		case 'M':
+			KEY("MoveDelay", ship->move_delay, fread_number(fp));
+			break;
+
 		case 'N':
 			KEYS("Name", ship->name, fread_string(fp));
+			break;
+
+		case 'O':
+			KEY("Object", ship->ship_object, fread_number(fp));
+			break;
+
+		case 'W':
+			KEY("Weight", ship->weight, fread_number(fp));
 			break;
 		}
 
@@ -163,6 +198,16 @@ void save_ship_index(FILE *fp, SHIP_INDEX_DATA *ship)
 	if( IS_VALID(ship->blueprint) )
 		fprintf(fp, "Blueprint %ld\n", ship->blueprint->vnum);
 
+	if( ship->ship_object > 0 )
+		fprintf(fp, "Object %ld\n", ship->ship_object);
+
+	fprintf(fp, "Hit %d\n", ship->hit);
+	fprintf(fp, "Guns %d\n", ship->guns);
+	fprintf(fp, "Crew %d %d\n", ship->min_crew, ship->max_crew);
+	fprintf(fp, "MoveDelay %d\n", ship->move_delay);
+	fprintf(fp, "Weight %d\n", ship->weight);
+	fprintf(fp, "Capacity %d\n", ship->capacity);
+
 	fprintf(fp, "#-SHIP\n\n");
 }
 
@@ -226,13 +271,20 @@ const struct olc_cmd_type shedit_table[] =
 {
 	{ "?",					show_help			},
 	{ "blueprint",			shedit_blueprint	},
+	{ "capacity",			shedit_capacity		},
 	{ "class",				shedit_class		},
 	{ "commands",			show_commands		},
 	{ "create",				shedit_create		},
+	{ "crew",				shedit_crew			},
 	{ "desc",				shedit_desc			},
+	{ "guns",				shedit_guns			},
+	{ "hit",				shedit_hit			},
 	{ "list",				shedit_list			},
+	{ "movedelay",			shedit_movedelay	},
 	{ "name",				shedit_name			},
+	{ "object",				shedit_object		},
 	{ "show",				shedit_show			},
+	{ "weight",				shedit_weight		},
 	{ NULL,					0,					}
 };
 
@@ -458,6 +510,34 @@ SHEDIT( shedit_show )
 		sprintf(buf, "Blueprint:   [%5ld] %s{x\n\r", ship->blueprint->vnum, ship->blueprint->name);
 	else
 		sprintf(buf, "Blueprint:   {Dunassigned{x\n\r");
+	add_buf(buffer, buf);
+
+	OBJ_INDEX_DATA *obj = get_object_index(ship->ship_object);
+	if( obj )
+		sprintf(buf, "Ship Object: [%5ld] %s{x\n\r", obj->vnum, obj->short_descr);
+	else
+		sprintf(buf, "Ship Object: {Dunassigned{x\n\r");
+	add_buf(buffer, buf);
+
+	sprintf(buf, "Hit Points:  [%5d]{x\n\r", ship->hit);
+	add_buf(buffer, buf);
+
+	sprintf(buf, "Max Guns:    [%5d]{x\n\r", ship->guns);
+	add_buf(buffer, buf);
+
+	sprintf(buf, "Min Crew:    [%5d]{x\n\r", ship->min_crew);
+	add_buf(buffer, buf);
+
+	sprintf(buf, "Max Crew:    [%5d]{x\n\r", ship->max_crew);
+	add_buf(buffer, buf);
+
+	sprintf(buf, "Move Delay:  [%5d]{x\n\r", ship->move_delay);
+	add_buf(buffer, buf);
+
+	sprintf(buf, "Max Weight:  [%5d]{x\n\r", ship->weight);
+	add_buf(buffer, buf);
+
+	sprintf(buf, "Capacity:    [%5d]{x\n\r", ship->capacity);
 	add_buf(buffer, buf);
 
 	add_buf(buffer, "Description:\n\r");
@@ -688,6 +768,245 @@ SHEDIT( shedit_blueprint )
 
 	ship->blueprint = bp;
 	send_to_char("Ship blueprint changed.\n\r", ch);
+	return TRUE;
+}
+
+SHEDIT( shedit_object )
+{
+	SHIP_INDEX_DATA *ship;
+	OBJ_INDEX_DATA *obj;
+	long vnum;
+
+	EDIT_SHIP(ch, ship);
+
+	if( argument[0] == '\0' )
+	{
+		send_to_char("Syntax:  object [vnum]\n\r", ch);
+		return FALSE;
+	}
+
+	if( !is_number(argument) )
+	{
+		send_to_char("That is not a number.\n\r", ch);
+		return FALSE;
+	}
+
+	vnum = atol(argument);
+	obj = get_obj_index(vnum);
+	if( !obj )
+	{
+		send_to_char("That object does not exist.\n\r", ch);
+		return FALSE;
+	}
+
+	if( obj->item_type != ITEM_SHIP )
+	{
+		send_to_char("Object is not a ship.\n\r", ch);
+		return FALSE;
+	}
+
+	ship->ship_object = vnum;
+	send_to_char("Ship object set.\n\r", ch);
+	return TRUE;
+}
+
+SHEDIT( shedit_hit )
+{
+	SHIP_INDEX_DATA *ship;
+
+	EDIT_SHIP(ch, ship);
+
+	if( argument[0] == '\0' )
+	{
+		send_to_char("Syntax:  hit [points]\n\r", ch);
+		return FALSE;
+	}
+
+	if( !is_number(argument) )
+	{
+		send_to_char("That is not a number.\n\r", ch);
+		return FALSE;
+	}
+
+	int value = atoi(argument);
+	if( value < 1 || value > SHIP_MAX_HIT )
+	{
+		send_to_char("Hit points must be in the range of 1 to " STR(SHIP_MAX_HIT) ".\n\r", ch);
+		return FALSE;
+	}
+
+	ship->hit = value;
+	send_to_char("Ship hit points changed.\n\r", ch);
+	return TRUE;
+}
+
+SHEDIT( shedit_guns )
+{
+	SHIP_INDEX_DATA *ship;
+
+	EDIT_SHIP(ch, ship);
+
+	if( argument[0] == '\0' )
+	{
+		send_to_char("Syntax:  guns [count]\n\r", ch);
+		return FALSE;
+	}
+
+	if( !is_number(argument) )
+	{
+		send_to_char("That is not a number.\n\r", ch);
+		return FALSE;
+	}
+
+	int value = atoi(argument);
+	if( value < 0 || value > SHIP_MAX_GUNS )
+	{
+		send_to_char("Gun allowance must be in the range of 0 to " STR(SHIP_MAX_GUNS) ".\n\r", ch);
+		return FALSE;
+	}
+
+	ship->guns = value;
+	send_to_char("Ship gun allowance changed.\n\r", ch);
+	return TRUE;
+}
+
+SHEDIT( shedit_crew )
+{
+	SHIP_INDEX_DATA *ship;
+	char arg[MIL];
+	int min_crew, max_crew;
+
+	EDIT_SHIP(ch, ship);
+
+	if( argument[0] == '\0' )
+	{
+		send_to_char("Syntax:  crew [min] [max]\n\r", ch);
+		return FALSE;
+	}
+
+	argument = one_argument(argument, arg);
+
+	if( !is_number(arg) ||  !is_number(argument) )
+	{
+		send_to_char("That is not a number.\n\r", ch);
+		return FALSE;
+	}
+
+	int min_crew = atoi(arg);
+	int max_crew = atoi(argument);
+
+	if( max_crew < min_crew )
+	{
+		int value = min_crew;
+		min_crew = max_crew;
+		max_crew = value;
+	}
+
+	if( min_crew < 0 || min_crew > SHIP_MAX_CREW )
+	{
+		send_to_char("Minimum crew allowance must be in the range of 0 to " STR(SHIP_MAX_CREW) ".\n\r", ch);
+		return FALSE;
+	}
+
+	if( max_crew < 0 || max_crew > SHIP_MAX_CREW )
+	{
+		send_to_char("Maximum crew allowance must be in the range of 0 to " STR(SHIP_MAX_CREW) ".\n\r", ch);
+		return FALSE;
+	}
+
+	ship->min_crew = min_crew;
+	ship->max_crew = max_crew;
+	send_to_char("Ship crew allowance changed.\n\r", ch);
+	return TRUE;
+}
+
+SHEDIT( shedit_move_delay )
+{
+	SHIP_INDEX_DATA *ship;
+
+	EDIT_SHIP(ch, ship);
+
+	if( argument[0] == '\0' )
+	{
+		send_to_char("Syntax:  movedelay [count]\n\r", ch);
+		return FALSE;
+	}
+
+	if( !is_number(argument) )
+	{
+		send_to_char("That is not a number.\n\r", ch);
+		return FALSE;
+	}
+
+	int value = atoi(argument);
+	if( value < SHIP_MIN_DELAY )
+	{
+		send_to_char("Move delay must be at least " STR(SHIP_MIN_DELAY) ".\n\r", ch);
+		return FALSE;
+	}
+
+	ship->move_delay = value;
+	send_to_char("Ship move delay changed.\n\r", ch);
+	return TRUE;
+}
+
+SHEDIT( shedit_weight )
+{
+	SHIP_INDEX_DATA *ship;
+
+	EDIT_SHIP(ch, ship);
+
+	if( argument[0] == '\0' )
+	{
+		send_to_char("Syntax:  weight [weight]\n\r", ch);
+		return FALSE;
+	}
+
+	if( !is_number(argument) )
+	{
+		send_to_char("That is not a number.\n\r", ch);
+		return FALSE;
+	}
+
+	int value = atoi(argument);
+	if( value < 0 || value > SHIP_MAX_WEIGHT )
+	{
+		send_to_char("Weight allowance must be in the range of 0 to " STR(SHIP_MAX_WEIGHT) ".\n\r", ch);
+		return FALSE;
+	}
+
+	ship->weight = value;
+	send_to_char("Ship weight allowance changed.\n\r", ch);
+	return TRUE;
+}
+
+SHEDIT( shedit_capacity )
+{
+	SHIP_INDEX_DATA *ship;
+
+	EDIT_SHIP(ch, ship);
+
+	if( argument[0] == '\0' )
+	{
+		send_to_char("Syntax:  capacity [count]\n\r", ch);
+		return FALSE;
+	}
+
+	if( !is_number(argument) )
+	{
+		send_to_char("That is not a number.\n\r", ch);
+		return FALSE;
+	}
+
+	int value = atoi(argument);
+	if( value < 0 || value > SHIP_MAX_CAPACITY )
+	{
+		send_to_char("Ship capacity must be in the range of 0 to " STR(SHIP_MAX_CAPACITY) ".\n\r", ch);
+		return FALSE;
+	}
+
+	ship->weight = value;
+	send_to_char("Ship capacity changed.\n\r", ch);
 	return TRUE;
 }
 

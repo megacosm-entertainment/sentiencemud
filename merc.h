@@ -57,6 +57,9 @@
 #include "protocol.h"
 #include "sha256.h"
 
+#define STR_HELPER(x) #x
+#define STR(x) STR_HELPER(x)
+
 #define args( list )			list
 #define DECLARE_DO_FUN( fun )		DO_FUN    fun
 #define DECLARE_SPEC_FUN( fun )		SPEC_FUN  fun
@@ -4870,6 +4873,14 @@ struct stat_data
     char 	*value[10];
 };
 
+#define SHIP_MAX_HIT		100000
+#define SHIP_MAX_GUNS		20
+#define SHIP_MAX_CREW		20
+#define SHIP_MIN_DELAY		5
+#define SHIP_MAX_WEIGHT		10000
+#define SHIP_MAX_CAPACITY	100
+
+
 struct npc_ship_data
 {
     NPC_SHIP_DATA *	 next;
@@ -4898,6 +4909,16 @@ struct ship_index_data
 	char *name;
 	char *description;
 	int ship_class;
+
+	long ship_object;
+
+	int hit;			// Maximum hit points for the ship
+	int guns;			// How many guns can the ship have?
+	int min_crew:		// How many crew is required to OPERATE the ship?
+	int max_crew;		// How many crew can the ship have?
+	int move_delay;		// Minimum move delay
+	int weight;			// Weight limit before ship sinks (ignores non-takable objects)
+	int capacity;		// How many items can FIT on the ship (ignores non-takable objects)
 
 	BLUEPRINT *blueprint;
 };

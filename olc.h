@@ -416,6 +416,13 @@ DECLARE_OLC_FUN( shedit_show		);
 DECLARE_OLC_FUN( shedit_class		);
 DECLARE_OLC_FUN( shedit_blueprint	);
 DECLARE_OLC_FUN( shedit_desc		);
+DECLARE_OLC_FUN( shedit_object		);
+DECLARE_OLC_FUN( shedit_hit			);
+DECLARE_OLC_FUN( shedit_guns		);
+DECLARE_OLC_FUN( shedit_crew		);
+DECLARE_OLC_FUN( shedit_move_delay	);
+DECLARE_OLC_FUN( shedit_weight		);
+DECLARE_OLC_FUN( shedit_capacity	);
 
 
 /* Help Editor */
