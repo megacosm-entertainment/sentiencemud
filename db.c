@@ -86,6 +86,7 @@ extern  RESET_DATA  *reset_free;
 extern	GLOBAL_DATA gconfig;
 extern	LLIST *loaded_instances;
 extern	LLIST *loaded_dungeons;
+extern	LLIST *loaded_ships;
 
 void free_room_index( ROOM_INDEX_DATA *pRoom );
 void load_instances();
@@ -831,6 +832,7 @@ void boot_db(void)
 	// Initialize instance/dungeon lists
 	loaded_instances = list_create(FALSE);
 	loaded_dungeons = list_create(FALSE);
+	loaded_ships = list_create(FALSE);
 
     /*
      * Read in all the area files.
@@ -7936,6 +7938,7 @@ bool save_instances()
 	ITERATOR it;
 	INSTANCE *instance;
 	DUNGEON *dungeon;
+	SHIP_DATA *ship;
 
 	FILE *fp = fopen(INSTANCES_FILE, "w");
 	if (fp == NULL)
@@ -7944,6 +7947,7 @@ bool save_instances()
 		return false;
 	}
 
+	// Save dungeons
 	iterator_start(&it, loaded_dungeons);
 	while( (dungeon = (DUNGEON *)iterator_nextdata(&it)) )
 	{
@@ -7955,11 +7959,20 @@ bool save_instances()
 	}
 	iterator_stop(&it);
 
+	// Save ships
+	iterator_start(&it, loaded_ships);
+	while( (ship = (SHIP_DATA *)iterator_nextdata(&it)) )
+	{
+
+	}
+	iterator_stop(&it);
+
+	// Save the rest of the instances
 	iterator_start(&it, loaded_instances);
 	while( (instance = (INSTANCE *)iterator_nextdata(&it)) )
 	{
 		// Skip dungeon instances and instances that cannot save
-		if( !IS_VALID(instance->dungeon) && !IS_SET(instance->flags, (INSTANCE_NO_SAVE|INSTANCE_DESTROY))  )
+		if( !IS_VALID(instance->dungeon) && !IS_VALID(instance->ship) && !IS_SET(instance->flags, (INSTANCE_NO_SAVE|INSTANCE_DESTROY))  )
 			instance_save(fp, instance);
 	}
 	iterator_stop(&it);
@@ -8007,11 +8020,16 @@ void load_instances()
 			if( dungeon )
 			{
 				list_appendlink(loaded_dungeons, dungeon);
-				log_stringf("Loaded Dungeons: %d\n\r", list_size(loaded_dungeons));
 			}
 
 			fMatch = TRUE;
 		}
+
+		if (!str_cmp(word, "#SHIP"))
+		{
+			fMatch = TRUE;
+		}
+
 
 
 		if (!fMatch) {

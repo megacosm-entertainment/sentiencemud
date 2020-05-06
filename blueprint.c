@@ -2559,7 +2559,7 @@ void bpedit(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	for (cmd = 0; bsedit_table[cmd].name != NULL; cmd++)
+	for (cmd = 0; bpedit_table[cmd].name != NULL; cmd++)
 	{
 		if (!str_prefix(command, bpedit_table[cmd].name))
 		{
@@ -4732,6 +4732,8 @@ bool instance_isorphaned(INSTANCE *instance)
 
 	if( IS_VALID(instance->dungeon) ) return false;
 
+	if( IS_VALID(instance->ship) ) return false;
+
 	// Does it have player owners?
 	if( list_size(instance->player_owners) > 0 ) return false;
 
@@ -4765,6 +4767,10 @@ char *instance_get_ownership(INSTANCE *instance)
 	else if( IS_VALID(instance->dungeon) )
 	{
 		strncpy(p, "{R     D{rU{RN{rG{RE{rO{RN    {x", MSL);
+	}
+	else if( IS_VALID(instance->ship) )
+	{
+		strncpy(p, "{C      S{cH{CI{cP      {x", MSL);
 	}
 	else if( IS_VALID(instance->object) || instance->object_uid[0] > 0 || instance->object_uid[1] > 0)
 	{
