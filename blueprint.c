@@ -3458,6 +3458,10 @@ BPEDIT( bpedit_static )
 				return FALSE;
 			}
 
+			argument = one_argument(argument, arg3);
+			argument = one_argument(argument, arg4);
+
+
 			if( !is_number(arg3) || !is_number(arg4) )
 			{
 				send_to_char("That is not a number.\n\r", ch);
@@ -3505,7 +3509,7 @@ BPEDIT( bpedit_static )
 			return TRUE;
 		}
 
-		send_to_char("Syntax:  static special add <name> <section#> <room vnum>\n\r", ch);
+		send_to_char("Syntax:  static special add <section#> <room vnum> <name>\n\r", ch);
 		send_to_char("         static special # remove\n\r", ch);
 		send_to_char("         static special # name <name>\n\r", ch);
 		send_to_char("         static special # room <section#> <room vnum>\n\r", ch);
