@@ -2653,7 +2653,6 @@ BPEDIT( bpedit_show )
 	add_buf(buffer, "Special Rooms:\n\r");
 	if( list_size(bp->special_rooms) > 0 )
 	{
-		BUFFER *buffer = new_buf();
 		BLUEPRINT_SPECIAL_ROOM *special;
 
 		char buf[MSL];
