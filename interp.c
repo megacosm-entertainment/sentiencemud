@@ -521,13 +521,16 @@ const	struct	cmd_type	cmd_table	[] =
 
     { "bpedit",		do_bpedit,	POS_DEAD,    ML,  LOG_NORMAL, 1, TRUE },
     { "bplist",		do_bplist,	POS_DEAD,    ML,  LOG_NORMAL, 1, TRUE },
+    { "bpshow",		do_bpshow,	POS_DEAD,    ML,  LOG_NORMAL, 1, TRUE },
     { "bsedit",		do_bsedit,	POS_DEAD,    ML,  LOG_NORMAL, 1, TRUE },
     { "bslist",		do_bslist,	POS_DEAD,    ML,  LOG_NORMAL, 1, TRUE },
+    { "bsshow",		do_bsshow,	POS_DEAD,    ML,  LOG_NORMAL, 1, TRUE },
 
     { "instance",		do_instance,	POS_DEAD,	ML,  LOG_ALWAYS, 1, TRUE },
 
     { "dngedit",		do_dngedit,	POS_DEAD,    ML,  LOG_NORMAL, 1, TRUE },
     { "dnglist",		do_dnglist,	POS_DEAD,    ML,  LOG_NORMAL, 1, TRUE },
+    { "dngshow",		do_dngshow,	POS_DEAD,    ML,  LOG_NORMAL, 1, TRUE },
 
     { "dungeon",		do_dungeon,	POS_DEAD,	0,  LOG_NORMAL, 1, TRUE },
 
@@ -540,6 +543,10 @@ const	struct	cmd_type	cmd_table	[] =
     { "dpdump",		do_dpdump,	POS_DEAD,    L5,  LOG_NEVER,  1, TRUE },
     { "dpedit",		do_dpedit,	POS_DEAD,    L5,  LOG_NORMAL, 1, TRUE },
     { "dplist",		do_dplist,	POS_DEAD,    L5,  LOG_NORMAL, 1, TRUE },
+
+    { "shedit",		do_shedit,	POS_DEAD,    L5,  LOG_NORMAL, 1, TRUE },
+    { "shlist",		do_shlist,	POS_DEAD,    L5,  LOG_NORMAL, 1, TRUE },
+    { "shshow",		do_shshow,	POS_DEAD,    L5,  LOG_NORMAL, 1, TRUE },
 
     { "",		0,		POS_DEAD,     0,  LOG_NORMAL, 0, FALSE }
 };

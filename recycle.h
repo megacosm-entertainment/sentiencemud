@@ -168,3 +168,6 @@ void free_dungeon(DUNGEON *dungeon);
 LOCK_STATE *new_lock_state();
 void free_lock_state(LOCK_STATE *state);
 
+SHIP_INDEX_DATA *new_ship_index();
+void free_ship_index(SHIP_INDEX_DATA *ship);
+

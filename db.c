@@ -191,6 +191,7 @@ WEATHER_DATA 		weather_info;
 BLUEPRINT_SECTION		*blueprint_section_hash[MAX_KEY_HASH];
 BLUEPRINT				*blueprint_hash[MAX_KEY_HASH];
 DUNGEON_INDEX_DATA		*dungeon_index_hash[MAX_KEY_HASH];
+SHIP_INDEX_DATA			*ship_index_hash[MAX_KEY_HASH];
 
 bool			global;
 char			bug_buf[2*MAX_INPUT_LENGTH];
@@ -907,6 +908,9 @@ void boot_db(void)
 
     log_string("Loading dungeon definitions");
 	load_dungeons();
+
+	log_string("Loading ships");
+	load_ships();
 
     log_string("Doing variable_index_fix");
     variable_index_fix();

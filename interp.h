@@ -563,16 +563,25 @@ DECLARE_DO_FUN(	do_rehearse	);
 
 DECLARE_DO_FUN( do_bpedit	);
 DECLARE_DO_FUN( do_bplist	);
+DECLARE_DO_FUN( do_bpshow	);
+
 DECLARE_DO_FUN( do_bsedit	);
 DECLARE_DO_FUN( do_bslist	);
+DECLARE_DO_FUN( do_bsshow	);
 
 DECLARE_DO_FUN( do_dngedit	);
 DECLARE_DO_FUN( do_dnglist	);
+DECLARE_DO_FUN( do_dngshow	);
 
 DECLARE_DO_FUN( do_apdump 	);
 DECLARE_DO_FUN( do_ipdump 	);
 DECLARE_DO_FUN( do_dpdump 	);
 
-DECLARE_DO_FUN(	do_apedit       );
-DECLARE_DO_FUN(	do_ipedit       );
-DECLARE_DO_FUN(	do_dpedit       );
+DECLARE_DO_FUN(	do_apedit	);
+DECLARE_DO_FUN(	do_ipedit	);
+DECLARE_DO_FUN(	do_dpedit	);
+
+DECLARE_DO_FUN(	do_shedit	);
+DECLARE_DO_FUN(	do_shlist	);
+DECLARE_DO_FUN(	do_shshow	);
+

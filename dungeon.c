@@ -874,18 +874,18 @@ void do_dngedit(CHAR_DATA *ch, char *argument)
 	if (IS_NPC(ch))
 		return;
 
+	if (!can_edit_dungeons(ch))
+	{
+		send_to_char("DNGEdit:  Insufficient security to edit dungeons.\n\r", ch);
+		return;
+	}
+
 	if (is_number(arg1))
 	{
 		value = atol(arg1);
 		if (!(dng = get_dungeon_index(value)))
 		{
 			send_to_char("DNGEdit:  That vnum does not exist.\n\r", ch);
-			return;
-		}
-
-		if (!can_edit_blueprints(ch))
-		{
-			send_to_char("DNGEdit:  Insufficient security to edit dungeons.\n\r", ch);
 			return;
 		}
 
@@ -901,6 +901,7 @@ void do_dngedit(CHAR_DATA *ch, char *argument)
 			if (dngedit_create(ch, argument))
 			{
 				dungeons_changed = TRUE;
+				ch->pcdata->immortal->last_olc_command = current_time;
 				ch->desc->editor = ED_DUNGEON;
 			}
 
@@ -909,7 +910,8 @@ void do_dngedit(CHAR_DATA *ch, char *argument)
 
 	}
 
-	send_to_char("DNGEdit:  There is no default dungeon to edit.\n\r", ch);
+	send_to_char("Syntax: dngedit <vnum>\n\r"
+				 "        dngedit create <vnum>\n\r", ch);
 }
 
 void dngedit(CHAR_DATA *ch, char *argument)
@@ -950,10 +952,9 @@ void dngedit(CHAR_DATA *ch, char *argument)
 			if ((*dngedit_table[cmd].olc_fun) (ch, argument))
 			{
 				dungeons_changed = TRUE;
-				return;
 			}
-			else
-				return;
+
+			return;
 		}
 	}
 
@@ -1193,6 +1194,40 @@ DNGEDIT( dngedit_show )
 	return FALSE;
 }
 
+void do_dngshow(CHAR_DATA *ch, char *argument)
+{
+	DUNGEON_INDEX_DATA *dng;
+	void *old_edit;
+	long value;
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  dngshow <vnum>\n\r", ch);
+		return;
+	}
+
+	if (!is_number(argument))
+	{
+		send_to_char("Vnum must be a number.\n\r", ch);
+		return;
+	}
+
+	value = atol(argument);
+	if (!(dng= get_dungeon_index(value)))
+	{
+		send_to_char("That dungeon does not exist.\n\r", ch);
+		return;
+	}
+
+	old_edit = ch->desc->pEdit;
+	ch->desc->pEdit = (void *) dng;
+
+	dngedit_show(ch, argument);
+	ch->desc->pEdit = old_edit;
+	return;
+}
+
+
 
 DNGEDIT( dngedit_create )
 {
@@ -1213,6 +1248,11 @@ DNGEDIT( dngedit_create )
 				break;
 			}
 		}
+	}
+	else if( get_dungeon_index(value) )
+	{
+		send_to_char("That vnum already exists.\n\r", ch);
+		return FALSE;
 	}
 
 	dng = new_dungeon_index();

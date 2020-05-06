@@ -409,22 +409,14 @@ DECLARE_OLC_FUN( tpedit_create		);
 
 
 /* Ship editor */
-DECLARE_OLC_FUN( shedit_addmob		);
-DECLARE_OLC_FUN( shedit_addwaypoint	);
-DECLARE_OLC_FUN( shedit_captain		);
-DECLARE_OLC_FUN( shedit_coord		);
 DECLARE_OLC_FUN( shedit_create		);
-DECLARE_OLC_FUN( shedit_delmob		);
-DECLARE_OLC_FUN( shedit_delwaypoint	);
-DECLARE_OLC_FUN( shedit_flag		);
-DECLARE_OLC_FUN( shedit_chance		);
-DECLARE_OLC_FUN( shedit_initial		);
 DECLARE_OLC_FUN( shedit_list		);
 DECLARE_OLC_FUN( shedit_name		);
-DECLARE_OLC_FUN( shedit_npc		);
-DECLARE_OLC_FUN( shedit_npcsub		);
 DECLARE_OLC_FUN( shedit_show		);
-DECLARE_OLC_FUN( shedit_type		);
+DECLARE_OLC_FUN( shedit_class		);
+DECLARE_OLC_FUN( shedit_blueprint	);
+DECLARE_OLC_FUN( shedit_desc		);
+
 
 /* Help Editor */
 DECLARE_OLC_FUN( hedit_show    		);
@@ -571,7 +563,6 @@ DECLARE_OLC_FUN( dpedit_create		);
 #define EDIT_ROOM_VOID(ch, room)	do { room = ch->in_room; if(!room || IS_SET(room->room2_flags,ROOM_VIRTUAL_ROOM) || room->source) return; } while(0)
 #define EDIT_ROOM_SIMPLE(ch,room)	( room = ch->in_room )
 #define EDIT_RPCODE(ch, code)   ( code = (SCRIPT_DATA*)ch->desc->pEdit )
-#define EDIT_SHIP(ch, ship)     ( ship = (NPC_SHIP_INDEX_DATA *)ch->desc->pEdit )
 #define EDIT_TOKEN(ch, token)	( token = (TOKEN_INDEX_DATA *)ch->desc->pEdit )
 #define EDIT_TPCODE(ch, code)   ( code = (SCRIPT_DATA*)ch->desc->pEdit )
 #define EDIT_PROJECT(ch, project) ( project = (PROJECT_DATA *)ch->desc->pEdit)
@@ -583,6 +574,8 @@ DECLARE_OLC_FUN( dpedit_create		);
 #define EDIT_BPSECT(ch, bs)		( bs = (BLUEPRINT_SECTION *)ch->desc->pEdit )
 #define EDIT_BLUEPRINT(ch, bp)	( bp = (BLUEPRINT *)ch->desc->pEdit )
 #define EDIT_DUNGEON(ch, dng)	( dng = (DUNGEON_INDEX_DATA *)ch->desc->pEdit )
+
+#define EDIT_SHIP(ch, ship)     ( ship = (SHIP_INDEX_DATA *)ch->desc->pEdit )
 
 /*
  * Prototypes

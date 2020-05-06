@@ -467,6 +467,7 @@ void load_blueprints()
 			blueprint_section_hash[iHash] = bs;
 
 			fMatch = TRUE;
+			continue;
 		}
 
 		if( !str_cmp(word, "#BLUEPRINT") )
@@ -478,6 +479,7 @@ void load_blueprints()
 			blueprint_hash[iHash] = bp;
 
 			fMatch = TRUE;
+			continue;
 		}
 
 		if (!str_cmp(word, "#INSTANCEPROG"))
@@ -492,6 +494,7 @@ void load_blueprints()
 		    }
 
 		    fMatch = TRUE;
+			continue;
 		}
 
 
@@ -1482,18 +1485,19 @@ void do_bsedit(CHAR_DATA *ch, char *argument)
 	if (IS_NPC(ch))
 		return;
 
+
+	if (!can_edit_blueprints(ch))
+	{
+		send_to_char("BPEdit:  Insufficient security to edit blueprints.\n\r", ch);
+		return;
+	}
+
 	if (is_number(arg1))
 	{
 		value = atol(arg1);
 		if (!(bs = get_blueprint_section(value)))
 		{
 			send_to_char("BSEdit:  That vnum does not exist.\n\r", ch);
-			return;
-		}
-
-		if (!can_edit_blueprints(ch))
-		{
-			send_to_char("BSEdit:  Insufficient security to edit blueprint sections.\n\r", ch);
 			return;
 		}
 
@@ -1509,6 +1513,7 @@ void do_bsedit(CHAR_DATA *ch, char *argument)
 			if (bsedit_create(ch, argument))
 			{
 				blueprints_changed = TRUE;
+				ch->pcdata->immortal->last_olc_command = current_time;
 				ch->desc->editor = ED_BPSECT;
 			}
 
@@ -1517,7 +1522,8 @@ void do_bsedit(CHAR_DATA *ch, char *argument)
 
 	}
 
-	send_to_char("BSEdit:  There is no default blueprint section to edit.\n\r", ch);
+	send_to_char("Syntax: bsedit <vnum>\n\r"
+				 "        bsedit create <vnum>\n\r", ch);
 }
 
 
@@ -1559,10 +1565,9 @@ void bsedit(CHAR_DATA *ch, char *argument)
 			if ((*bsedit_table[cmd].olc_fun) (ch, argument))
 			{
 				blueprints_changed = TRUE;
-				return;
 			}
-			else
-				return;
+
+			return;
 		}
 	}
 
@@ -1643,6 +1648,41 @@ BSEDIT( bsedit_show )
 	return FALSE;
 }
 
+
+void do_bsshow(CHAR_DATA *ch, char *argument)
+{
+	BLUEPRINT_SECTION *bs;
+	void *old_edit;
+	long value;
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  bsshow <vnum>\n\r", ch);
+		return;
+	}
+
+	if (!is_number(argument))
+	{
+		send_to_char("Vnum must be a number.\n\r", ch);
+		return;
+	}
+
+	value = atol(argument);
+	if (!(dng= get_blueprint_section(value)))
+	{
+		send_to_char("That blueprint section does not exist.\n\r", ch);
+		return;
+	}
+
+	old_edit = ch->desc->pEdit;
+	ch->desc->pEdit = (void *) bs;
+
+	bsedit_show(ch, argument);
+	ch->desc->pEdit = old_edit;
+	return;
+}
+
+
 BSEDIT( bsedit_create )
 {
 	BLUEPRINT_SECTION *bs;
@@ -1662,6 +1702,11 @@ BSEDIT( bsedit_create )
 				break;
 			}
 		}
+	}
+	else if( get_blueprint_section(value) )
+	{
+		send_to_char("That vnum already exists.\n\r", ch);
+		return FALSE;
 	}
 
 	bs = new_blueprint_section();
@@ -2443,18 +2488,18 @@ void do_bpedit(CHAR_DATA *ch, char *argument)
 	if (IS_NPC(ch))
 		return;
 
+	if (!can_edit_blueprints(ch))
+	{
+		send_to_char("BPEdit:  Insufficient security to edit blueprints.\n\r", ch);
+		return;
+	}
+
 	if (is_number(arg1))
 	{
 		value = atol(arg1);
 		if (!(bp = get_blueprint(value)))
 		{
 			send_to_char("BPEdit:  That vnum does not exist.\n\r", ch);
-			return;
-		}
-
-		if (!can_edit_blueprints(ch))
-		{
-			send_to_char("BPEdit:  Insufficient security to edit blueprint.\n\r", ch);
 			return;
 		}
 
@@ -2470,15 +2515,16 @@ void do_bpedit(CHAR_DATA *ch, char *argument)
 			if (bpedit_create(ch, argument))
 			{
 				blueprints_changed = TRUE;
+				ch->pcdata->immortal->last_olc_command = current_time;
 				ch->desc->editor = ED_BLUEPRINT;
 			}
 
 			return;
 		}
-
 	}
 
-	send_to_char("BPEdit:  There is no default blueprint to edit.\n\r", ch);
+	send_to_char("Syntax: bpedit <vnum>\n\r"
+				 "        bpedit create <vnum>\n\r", ch);
 }
 
 
@@ -2520,10 +2566,9 @@ void bpedit(CHAR_DATA *ch, char *argument)
 			if ((*bpedit_table[cmd].olc_fun) (ch, argument))
 			{
 				blueprints_changed = TRUE;
-				return;
 			}
-			else
-				return;
+
+			return;
 		}
 	}
 
@@ -2843,10 +2888,43 @@ BPEDIT( bpedit_show )
 	return FALSE;
 }
 
+void do_bpshow(CHAR_DATA *ch, char *argument)
+{
+	BLUEPRINT *bp;
+	void *old_edit;
+	long value;
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  bpshow <vnum>\n\r", ch);
+		return;
+	}
+
+	if (!is_number(argument))
+	{
+		send_to_char("Vnum must be a number.\n\r", ch);
+		return;
+	}
+
+	value = atol(argument);
+	if (!(dng= get_blueprint_section(value)))
+	{
+		send_to_char("That blueprint does not exist.\n\r", ch);
+		return;
+	}
+
+	old_edit = ch->desc->pEdit;
+	ch->desc->pEdit = (void *) bp;
+
+	bpedit_show(ch, argument);
+	ch->desc->pEdit = old_edit;
+	return;
+}
+
+
 BPEDIT( bpedit_create )
 {
 	BLUEPRINT *bp;
-
 
 	long  value;
 	int  iHash;
@@ -2864,6 +2942,11 @@ BPEDIT( bpedit_create )
 				break;
 			}
 		}
+	}
+	else if( get_blueprint(value) )
+	{
+		send_to_char("That vnum already exists.\n\r", ch);
+		return FALSE;
 	}
 
 	bp = new_blueprint();

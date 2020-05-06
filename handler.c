@@ -2690,11 +2690,6 @@ void obj_to_room(OBJ_DATA *obj, ROOM_INDEX_DATA *pRoomIndex)
 		}
 	}
 
-    if (obj->item_type == ITEM_SHIP)
-
-    if (pRoomIndex == NULL)
-	bug("obj_to_room: ERROR IN_ROOM WAS NULL", 0);
-
     obj->pIndexData->inrooms++;
 
     if (objRepop == TRUE)

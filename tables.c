@@ -1113,37 +1113,37 @@ const struct flag_type door_resets[] =
 
 const struct flag_type room_flags[] =
 {
-    {	"dark",			ROOM_DARK,		TRUE	},
-    {	"gods_only",	        ROOM_GODS_ONLY,		TRUE    },
-    {	"imp_only",		ROOM_IMP_ONLY,		TRUE    },
-    {	"indoors",		ROOM_INDOORS,		TRUE	},
-    {	"newbies_only",		ROOM_NEWBIES_ONLY,	TRUE	},
-    {	"no_map",		ROOM_NOMAP,		TRUE	},
-    {	"no_mob",		ROOM_NO_MOB,		TRUE	},
-    {	"no_recall",		ROOM_NO_RECALL,		TRUE	},
-    {	"no_wander",		ROOM_NO_WANDER,		TRUE	},
-    {	"noview",		ROOM_NOVIEW, 		TRUE	},
-    {	"pet_shop",		ROOM_PET_SHOP,		TRUE	},
-    {	"private",		ROOM_PRIVATE,		TRUE    },
-    {	"safe",			ROOM_SAFE,		TRUE	},
-    {	"solitary",		ROOM_SOLITARY,		TRUE	},
-    {   "arena", 		ROOM_ARENA,		TRUE	},
-    {   "bank",			ROOM_BANK,		TRUE    },
-    {   "cpk",			ROOM_CPK,		TRUE	},
-    {   "dark_attack", 		ROOM_ATTACK_IF_DARK,	TRUE	},
-    {   "death_trap", 		ROOM_DEATH_TRAP,	TRUE	},
-    {   "helm",  		ROOM_SHIP_HELM,		TRUE	},
-    {   "locker",		ROOM_LOCKER,		TRUE	},
-    {   "nocomm",		ROOM_NOCOMM,		TRUE    },
-    {   "nomagic",		ROOM_NOMAGIC,		TRUE	},
-    {   "nowhere",		ROOM_NOWHERE,		TRUE	},
-    {   "pk",			ROOM_PK,		TRUE	},
-    {   "real_estate",		ROOM_HOUSE_UNSOLD,	TRUE	},
-    {   "rocks",		ROOM_ROCKS,		TRUE	},
-    {   "ship_shop",	        ROOM_SHIP_SHOP,		TRUE	},
-    {   "underwater", 		ROOM_UNDERWATER,	TRUE	},
-    {   "view_wilds",	        ROOM_VIEWWILDS,		TRUE	},
-    {	NULL,			0,			0	}
+	{	"dark",				ROOM_DARK,				TRUE	},
+	{	"gods_only",		ROOM_GODS_ONLY,			TRUE	},
+	{	"imp_only",			ROOM_IMP_ONLY,			TRUE	},
+	{	"indoors",			ROOM_INDOORS,			TRUE	},
+	{	"newbies_only",		ROOM_NEWBIES_ONLY,		TRUE	},
+	{	"no_map",			ROOM_NOMAP,				TRUE	},
+	{	"no_mob",			ROOM_NO_MOB,			TRUE	},
+	{	"no_recall",		ROOM_NO_RECALL,			TRUE	},
+	{	"no_wander",		ROOM_NO_WANDER,			TRUE	},
+	{	"noview",			ROOM_NOVIEW,			TRUE	},
+	{	"pet_shop",			ROOM_PET_SHOP,			TRUE	},
+	{	"private",			ROOM_PRIVATE,			TRUE	},
+	{	"safe",				ROOM_SAFE,				TRUE	},
+	{	"solitary",			ROOM_SOLITARY,			TRUE	},
+	{	"arena",			ROOM_ARENA,				TRUE	},
+	{	"bank",				ROOM_BANK,				TRUE	},
+	{	"cpk",				ROOM_CPK,				TRUE	},
+	{	"dark_attack",		ROOM_ATTACK_IF_DARK,	TRUE	},
+	{	"death_trap",		ROOM_DEATH_TRAP,		TRUE	},
+	{	"helm",				ROOM_SHIP_HELM,			TRUE	},
+	{	"locker",			ROOM_LOCKER,			TRUE	},
+	{	"nocomm",			ROOM_NOCOMM,			TRUE	},
+	{	"nomagic",			ROOM_NOMAGIC,			TRUE	},
+	{	"nowhere",			ROOM_NOWHERE,			TRUE	},
+	{	"pk",				ROOM_PK,				TRUE	},
+	{	"real_estate",		ROOM_HOUSE_UNSOLD,		TRUE	},
+	{	"rocks",			ROOM_ROCKS,				TRUE	},
+	{	"ship_shop",		ROOM_SHIP_SHOP,			TRUE	},
+	{	"underwater",		ROOM_UNDERWATER,		TRUE	},
+	{	"view_wilds",		ROOM_VIEWWILDS,			TRUE	},
+	{	NULL,	0,	0	}
 };
 
 
@@ -2831,3 +2831,16 @@ const struct flag_type transfer_modes[] =
 	{ "movement",		TRANSFER_MODE_MOVEMENT,	TRUE	},
 	{ NULL,				0,						FALSE	}
 };
+
+const struct flag_type ship_class_types[] =
+{
+	{ "sailboat",		SHIP_SAILING_BOAT,		TRUE	},
+	{ "cargo",			SHIP_CARGO_SHIP,		TRUE	},
+	{ "adventurer",		SHIP_ADVENTURER_SHIP,	TRUE	},
+	{ "galleon",		SHIP_GALLEON_SHIP,		TRUE	},
+	{ "frigate",		SHIP_FRIGATE_SHIP,		TRUE	},
+	{ "war_galleon",	SHIP_WAR_GALLEON_SHIP,	TRUE	},
+	{ "airship",		SHIP_AIR_SHIP,			TRUE	},
+	{ NULL,				0,						FALSE	}
+};
+

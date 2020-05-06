@@ -53,25 +53,25 @@ char *editor_name_table[] = {
 
 const struct editor_cmd_type editor_table[] =
 {
-    {   "area",		do_aedit	},
-    {   "room",		do_redit	},
-    {   "object",	do_oedit	},
-    {   "mobile",	do_medit	},
-    {	"mpcode",	do_mpedit	},
-    {	"opcode",	do_opedit	},
-    {	"rpcode",	do_rpedit	},
-    {	"ship",		do_shedit	},
-    {   "help",         do_hedit        },
-    {	"token",	do_tedit	},
-    {	"tpcode",	do_tpedit	},
-    {	"project",	do_pedit	},
-    {	"bpsect",	do_bsedit	},
-    {	"blueprint",	do_bpedit	},
-    {	"dungeon",		do_dngedit	},
-    {	"apcode",	do_apedit	},
-    {	"ipcode",	do_ipedit	},
-    {	"dpcode",	do_dpedit	},
-    {	NULL,		0,		}
+    { "area",		do_aedit	},
+    { "room",		do_redit	},
+    { "object",		do_oedit	},
+    { "mobile",		do_medit	},
+    { "mpcode",		do_mpedit	},
+    { "opcode",		do_opedit	},
+    { "rpcode",		do_rpedit	},
+    { "ship",		do_shedit	},
+    { "help",		do_hedit	},
+    { "token",		do_tedit	},
+    { "tpcode",		do_tpedit	},
+    { "project",	do_pedit	},
+    { "bpsect",		do_bsedit	},
+    { "blueprint",	do_bpedit	},
+    { "dungeon",	do_dngedit	},
+    { "apcode",		do_apedit	},
+    { "ipcode",		do_ipedit	},
+    { "dpcode",		do_dpedit	},
+    { NULL,			0,			}
 };
 
 
@@ -334,7 +334,7 @@ const struct olc_cmd_type hedit_table[] =
     {   NULL,		0,			}
 };
 
-
+/*
 const struct olc_cmd_type shedit_table[] =
 {
     {   "addmob",       shedit_addmob    	},
@@ -356,7 +356,7 @@ const struct olc_cmd_type shedit_table[] =
     {   "type",         shedit_type     	},
     {   NULL,		0,			}
 };
-
+*/
 
 const struct olc_cmd_type tedit_table[] =
 {
@@ -657,48 +657,59 @@ void show_olc_cmds(CHAR_DATA *ch, const struct olc_cmd_type *olc_table)
 /* Display all OLC commands for your current editor */
 bool show_commands(CHAR_DATA *ch, char *argument)
 {
-    switch (ch->desc->editor)
-    {
+	switch (ch->desc->editor)
+	{
 	case ED_AREA:
-	    show_olc_cmds(ch, aedit_table);
-	    break;
+		show_olc_cmds(ch, aedit_table);
+		break;
+
 	case ED_ROOM:
-	    show_olc_cmds(ch, redit_table);
-	    break;
+		show_olc_cmds(ch, redit_table);
+		break;
+
 	case ED_OBJECT:
-	    show_olc_cmds(ch, oedit_table);
-	    break;
+		show_olc_cmds(ch, oedit_table);
+		break;
+
 	case ED_MOBILE:
-	    show_olc_cmds(ch, medit_table);
-	    break;
+		show_olc_cmds(ch, medit_table);
+		break;
+
 	case ED_MPCODE:
-	    show_olc_cmds(ch, mpedit_table);
-	    break;
+		show_olc_cmds(ch, mpedit_table);
+		break;
+
 	case ED_OPCODE:
-	    show_olc_cmds(ch, opedit_table);
-	    break;
+		show_olc_cmds(ch, opedit_table);
+		break;
+
 	case ED_RPCODE:
-	    show_olc_cmds(ch, rpedit_table);
-	    break;
-        case ED_HELP:
-            show_olc_cmds(ch, hedit_table);
-            break;
+		show_olc_cmds(ch, rpedit_table);
+		break;
+
+	case ED_HELP:
+		show_olc_cmds(ch, hedit_table);
+		break;
+
 	case ED_SHIP:
-	    show_olc_cmds(ch, shedit_table);
-	    break;
+		show_olc_cmds(ch, shedit_table);
+		break;
+
 	case ED_TOKEN:
-	    show_olc_cmds(ch, tedit_table);
-	    break;
+		show_olc_cmds(ch, tedit_table);
+		break;
+
 	case ED_PROJECT:
-	    show_olc_cmds(ch, pedit_table);
-            break;
-/* VIZZWILDS */
-        case ED_WILDS:
-            show_olc_cmds (ch, wedit_table);
-            break;
-        case ED_VLINK:
-            show_olc_cmds (ch, vledit_table);
-            break;
+		show_olc_cmds(ch, pedit_table);
+		break;
+
+	case ED_WILDS:
+		show_olc_cmds (ch, wedit_table);
+		break;
+
+	case ED_VLINK:
+		show_olc_cmds (ch, vledit_table);
+		break;
 
 	case ED_BPSECT:
 		show_olc_cmds(ch, bsedit_table);
@@ -713,17 +724,19 @@ bool show_commands(CHAR_DATA *ch, char *argument)
 		break;
 
 	case ED_APCODE:
-	    show_olc_cmds(ch, apedit_table);
-	    break;
-	case ED_IPCODE:
-	    show_olc_cmds(ch, ipedit_table);
-	    break;
-	case ED_DPCODE:
-	    show_olc_cmds(ch, dpedit_table);
-	    break;
-    }
+		show_olc_cmds(ch, apedit_table);
+		break;
 
-    return FALSE;
+	case ED_IPCODE:
+		show_olc_cmds(ch, ipedit_table);
+		break;
+
+	case ED_DPCODE:
+		show_olc_cmds(ch, dpedit_table);
+		break;
+	}
+
+	return FALSE;
 }
 
 // Given "anum" of an area, retrieve its area struct
@@ -996,54 +1009,6 @@ void medit(CHAR_DATA *ch, char *argument)
     interpret(ch, arg);
 }
 
-
-void shedit(CHAR_DATA *ch, char *argument)
-{
-    char command[MAX_INPUT_LENGTH];
-    char arg[MAX_INPUT_LENGTH];
-    int  cmd;
-
-    smash_tilde(argument);
-    strcpy(arg, argument);
-    argument = one_argument(argument, command);
-
-   // if (!IS_BUILDER(ch, pArea))
-    if (get_trust(ch) < MAX_LEVEL - 1)
-    {
-	send_to_char("SHEdit:  Insufficient security to edit area - action logged.\n\r", ch);
-	edit_done(ch);
-	return;
-    }
-
-    if (!str_cmp(command, "done"))
-    {
-	edit_done(ch);
-	return;
-    }
-
-    if (command[0] == '\0')
-    {
-	shedit_show(ch, argument);
-	return;
-    }
-
-    for (cmd = 0; shedit_table[cmd].name != NULL; cmd++)
-    {
-	if (!str_prefix(command, shedit_table[cmd].name))
-	{
-	    if ((*shedit_table[cmd].olc_fun) (ch, argument))
-	    {
-		return;
-	    }
-	    else
-		return;
-	}
-    }
-
-    interpret(ch, arg);
-}
-
-
 void tedit(CHAR_DATA *ch, char *argument)
 {
     TOKEN_INDEX_DATA *token_index;
@@ -1179,59 +1144,6 @@ void do_olc(CHAR_DATA *ch, char *argument)
     /* Invalid command, send help. */
     do_help(ch, "olc");
 }
-
-
-void do_shedit(CHAR_DATA *ch, char *argument)
-{
-    NPC_SHIP_INDEX_DATA *npc_ship_index = NULL;
-    int value;
-    char arg[MAX_STRING_LENGTH];
-
-    if (IS_NPC(ch))
-    	return;
-
-    argument	= one_argument(argument,arg);
-
-    if (is_number(arg))
-    {
-	value = atoi(arg);
-	npc_ship_index = get_npc_ship_index(value);
-	if (npc_ship_index == NULL)
-	{
-	    send_to_char("That ship vnum does not exist.\n\r", ch);
-	    return;
-	}
-    }
-    else
-    if (!str_cmp(arg, "create"))
-    {
-	if (ch->pcdata->security < 9)
-	{
-	    send_to_char("SHEdit : Insufficient security to edit area - action logged.\n\r", ch);
-	    return;
-	}
-
-	shedit_create(ch, "");
-	ch->desc->editor = ED_SHIP;
-	return;
-    }
-    else
-    {
-	send_to_char("Syntax: shedit <vnum>\n\r"
-	             "        shedit create <vnum>\n\r", ch);
-	return;
-    }
-
-    if (get_trust(ch) < MAX_LEVEL)
-    {
-	send_to_char("Insufficient security...\n\r", ch);
-	return;
-    }
-
-    ch->desc->pEdit = (void *)npc_ship_index;
-    ch->desc->editor = ED_SHIP;
-}
-
 
 void do_tedit(CHAR_DATA *ch, char *argument)
 {

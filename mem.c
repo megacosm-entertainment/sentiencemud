@@ -94,6 +94,7 @@ COMMAND_DATA *command_free;
 IMMORTAL_DATA *immortal_free;
 SKILL_ENTRY *skill_entry_free;
 OLC_POINT_BOOST *olc_point_boost_free;
+SHIP_INDEX_DATA *ship_index_free;
 
 
 LLIST_UID_DATA *new_list_uid_data()
@@ -2122,6 +2123,37 @@ void free_quest_part( QUEST_PART_DATA *pPart )
 
     if(pPart->description) free_string(pPart->description);
     return;
+}
+
+SHIP_INDEX_DATA *new_ship_index()
+{
+	SHIP_INDEX_DATA *ship;
+
+	if( ship_index_free )
+	{
+		ship = ship_index_free;
+		ship_index_free = ship_index_free->next;
+	}
+	else
+	{
+		ship = alloc_perm(sizeof(SHIP_INDEX_DATA));
+	}
+
+	memset(ship, 0, sizeof(SHIP_INDEX_DATA));
+
+	ship->name = &str_empty[0];
+	ship->description = &str_empty[0];
+
+	return ship;
+}
+
+void free_ship_index(SHIP_INDEX_DATA *ship)
+{
+	free_string(ship->name);
+	free_string(ship->description);
+
+	ship->next = ship_index_free;
+	ship_index_free = ship;
 }
 
 

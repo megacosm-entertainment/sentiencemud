@@ -227,6 +227,12 @@ void do_asave_new(CHAR_DATA *ch, char *argument)
 			send_to_char("Dungeons saved.\n\r", ch);
 		}
 
+		if (ships_changed)
+		{
+			save_ships();
+			send_to_char("Ships saved.\n\r", ch);
+		}
+
 		log_string("olc_save.c, do_asave: changed, saving area list");
 		save_area_list();
 
@@ -368,6 +374,13 @@ void do_asave_new(CHAR_DATA *ch, char *argument)
     {
 		save_dungeons();
 		send_to_char("Dungeons saved.\n\r", ch);
+		return;
+	}
+
+	if (!str_cmp(arg1, "ships"))
+	{
+		save_ships();
+		send_to_char("Ships saved.\n\r", ch);
 		return;
 	}
 

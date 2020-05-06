@@ -279,6 +279,7 @@ typedef struct	quest_part_data		QUEST_PART_DATA;
 typedef struct	reset_data		RESET_DATA;
 typedef struct	room_index_data		ROOM_INDEX_DATA;
 typedef struct	ship_crew_data		SHIP_CREW_DATA;
+typedef struct	ship_index_data		SHIP_INDEX_DATA;
 typedef struct	ship_data		SHIP_DATA;
 typedef struct	shop_stock_data	SHOP_STOCK_DATA;
 typedef struct	shop_data		SHOP_DATA;
@@ -344,6 +345,8 @@ typedef struct dice_data DICE_DATA;
 typedef struct    wilds_vlink      WILDS_VLINK;
 typedef struct    wilds_data       WILDS_DATA;
 typedef struct    wilds_terrain    WILDS_TERRAIN;
+
+typedef struct named_special_room_data NAMED_SPECIAL_ROOM;
 
 // Blueprints
 typedef struct blueprint_link_data BLUEPRINT_LINK;
@@ -4743,13 +4746,13 @@ struct rep_type
     long points;
 };
 
-#define SHIP_SAILING_BOAT   	0
-#define SHIP_CARGO_SHIP         1
-#define SHIP_ADVENTURER_SHIP    2
-#define SHIP_GALLEON_SHIP       3
-#define SHIP_FRIGATE_SHIP       4
-#define SHIP_WAR_GALLEON_SHIP   5
-#define SHIP_AIR_SHIP		6
+#define SHIP_SAILING_BOAT			0
+#define SHIP_CARGO_SHIP				1
+#define SHIP_ADVENTURER_SHIP		2
+#define SHIP_GALLEON_SHIP			3
+#define SHIP_FRIGATE_SHIP			4
+#define SHIP_WAR_GALLEON_SHIP		5
+#define SHIP_AIR_SHIP				6
 
 #define NPC_SHIP_RATING_UNKNOWN        0
 #define NPC_SHIP_RATING_RECOGNIZED     1
@@ -4886,50 +4889,65 @@ struct ship_type
     long                 rooms[MAX_SHIP_ROOMS];
 };
 
+struct ship_index_data
+{
+	SHIP_INDEX_DATA *next;
+
+	long vnum;
+
+	char *name;
+	char *description;
+	int ship_class;
+
+	BLUEPRINT *blueprint;
+};
+
 struct ship_data
 {
-    SHIP_DATA *  	 next;
-    OBJ_DATA *  	 ship;
-    NPC_SHIP_DATA *	 npc_ship;
+	SHIP_DATA			*next;
+	OBJ_DATA			*ship;
+	NPC_SHIP_DATA		*npc_ship;
 
-    CHAR_DATA *  	 owner;
+	CHAR_DATA			*owner;
 
-    CHAR_DATA *		 crew_list;
-    char      *      	 owner_name;
-    char      *      	 flag;
-    long		 first_room;
+	CHAR_DATA			*crew_list;
+	char				*owner_name;
+	char				*flag;
+//	long				first_room;
 
-    sh_int 		 dir;
-    sh_int		 speed;
-    long		 hit;
+	sh_int				dir;
+	sh_int				speed;
+	long				hit;
 
-    sh_int		 ship_type;
-    ROOM_INDEX_DATA *    ship_rooms[MAX_SHIP_ROOMS];
-    ROOM_INDEX_DATA *    last_room[3];
-    sh_int		 num_rooms;
+	sh_int				ship_type;
+	INSTANCE			*instance;
 
-    int			 cannons;
-    char *		 ship_name;
+//	ROOM_INDEX_DATA		*ship_rooms[MAX_SHIP_ROOMS];
+//	ROOM_INDEX_DATA		*last_room[3];
+//	sh_int				num_rooms;
 
-    sh_int		 max_crew;
-    sh_int       min_crew;
+	int					cannons;
+	char				*ship_name;
 
-    sh_int 		 attack_position;
-    SHIP_DATA *  	 ship_attacked;
-    CHAR_DATA *		 char_attacked;
+	sh_int				max_crew;
+	sh_int				min_crew;
 
-    SHIP_DATA *		 ship_chased;
-    ROOM_INDEX_DATA *	 destination;
-    SHIP_DATA *		 boarded_by;
+	sh_int				attack_position;
+	SHIP_DATA			*ship_attacked;
+	CHAR_DATA			*char_attacked;
 
-    WAYPOINT_DATA *	 waypoint_list;
-    WAYPOINT_DATA *	 current_waypoint;
+	SHIP_DATA			*ship_chased;
+	ROOM_INDEX_DATA		*destination;
+	SHIP_DATA			*boarded_by;
 
-    /* When scuttled show different steps of scuttling */
-    sh_int               scuttle_time;
-    OBJ_DATA *	 	cannons_obj;
+	WAYPOINT_DATA		*waypoint_list;
+	WAYPOINT_DATA		*current_waypoint;
 
-    bool pk;
+	/* When scuttled show different steps of scuttling */
+	sh_int				scuttle_time;
+	OBJ_DATA			*cannons_obj;
+
+	bool				pk;
 };
 
 /*
@@ -5159,7 +5177,6 @@ struct instance_section_data {
 	LLIST *rooms;
 };
 
-typedef struct named_special_room_data NAMED_SPECIAL_ROOM;
 struct named_special_room_data {
 	NAMED_SPECIAL_ROOM *next;
 	bool valid;
@@ -5193,6 +5210,8 @@ struct instance_data {
 	OBJ_DATA *object;				// Object owner of the instance
 	unsigned long object_uid[2];	//   If the object owner is extracted, all players inside will be
 									//   dropped to the room of the object.
+
+	SHIP_DATA *ship;
 
 	LLIST *player_owners;
 
@@ -6872,7 +6891,7 @@ char *	crypt		args( ( const char *key, const char *salt ) );
 #define BLUEPRINTS_FILE		WORLD_DIR "blueprints.dat"
 #define DUNGEONS_FILE		WORLD_DIR "dungeons.dat"
 #define INSTANCES_FILE		WORLD_DIR "instances.dat"
-
+#define SHIPS_FILE			WORLD_DIR "ships.dat"
 
 /* POST msg queue */
 #define MSGQUEUE	1111
@@ -8145,6 +8164,7 @@ extern LLIST *loaded_wilds;
 extern BLUEPRINT_SECTION *blueprint_section_hash[MAX_KEY_HASH];
 extern BLUEPRINT *blueprint_hash[MAX_KEY_HASH];
 extern DUNGEON_INDEX_DATA *dungeon_index_hash[MAX_KEY_HASH];
+extern SHIP_INDEX_DATA *ship_index_hash[MAX_KEY_HASH];
 
 
 void connection_add(DESCRIPTOR_DATA *d);
@@ -8404,6 +8424,16 @@ extern long top_dprog_index;
 bool is_area_unlocked(CHAR_DATA *ch, AREA_DATA *area);
 bool is_room_unlocked(CHAR_DATA *ch, ROOM_INDEX_DATA *room);
 void player_unlock_area(CHAR_DATA *ch, AREA_DATA *area);
+
+
+void load_ships();
+bool save_ships();
+SHIP_INDEX_DATA *get_ship_index(long vnum);
+bool can_edit_ships(CHAR_DATA *ch);
+//SHIP_DATA *ship_load(FILE *fp);
+//bool ship_save(FILE *fp, SHIP_DATA *ship);
+
+
 
 
 #endif /* !def __MERC_H__ */
