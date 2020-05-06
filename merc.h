@@ -4907,6 +4907,7 @@ struct ship_data
 	SHIP_DATA			*next;
 	OBJ_DATA			*ship;
 	NPC_SHIP_DATA		*npc_ship;
+	bool				valid;
 
 	CHAR_DATA			*owner;
 
