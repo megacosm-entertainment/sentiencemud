@@ -4881,6 +4881,7 @@ struct stat_data
 #define SHIP_MIN_DELAY		5
 #define SHIP_MAX_WEIGHT		10000
 #define SHIP_MAX_CAPACITY	100
+#define SHIP_MAX_ARMOR		1000
 
 
 struct npc_ship_data
@@ -4923,6 +4924,7 @@ struct ship_index_data
 	int move_delay;		// Minimum move delay
 	int weight;			// Weight limit before ship sinks (ignores non-takable objects)
 	int capacity;		// How many items can FIT on the ship (ignores non-takable objects)
+	int armor;			// Base protective armor
 
 	BLUEPRINT *blueprint;
 };

@@ -73,11 +73,12 @@ SHIP_INDEX_DATA *load_ship_index(FILE *fp)
 	{
 		fMatch = FALSE;
 
-	fprintf(fp, "Hit %d\n", ship->hit);
-	fprintf(fp, "Guns %d\n", ship->guns);
-
 		switch(word[0])
 		{
+		case 'A':
+			KEY("Armor", ship->armor, fread_number(fp));
+			break;
+
 		case 'B':
 			if( !str_cmp(word, "Blueprint") )
 			{
@@ -212,6 +213,7 @@ void save_ship_index(FILE *fp, SHIP_INDEX_DATA *ship)
 	fprintf(fp, "MoveDelay %d\n", ship->move_delay);
 	fprintf(fp, "Weight %d\n", ship->weight);
 	fprintf(fp, "Capacity %d\n", ship->capacity);
+	fprintf(fp, "Armor %d\n", ship->armor);
 
 	fprintf(fp, "#-SHIP\n\n");
 }
@@ -275,6 +277,7 @@ SHIP_INDEX_DATA *get_ship_index(long vnum)
 const struct olc_cmd_type shedit_table[] =
 {
 	{ "?",					show_help			},
+	{ "armor",				shedit_armor		},
 	{ "blueprint",			shedit_blueprint	},
 	{ "capacity",			shedit_capacity		},
 	{ "class",				shedit_class		},
@@ -512,7 +515,7 @@ SHEDIT( shedit_show )
 	sprintf(buf, "Ship Class:  %s{x\n\r", flag_string(ship_class_types, ship->ship_class));
 	add_buf(buffer, buf);
 
-	sprintf(buf, "Flags:       [%s]\n\r", flag_String(ship_flags, ship->flags));
+	sprintf(buf, "Flags:       [%s]\n\r", flag_string(ship_flags, ship->flags));
 	add_buf(buffer, buf);
 
 	if( IS_VALID(ship->blueprint) )
@@ -547,6 +550,9 @@ SHEDIT( shedit_show )
 	add_buf(buffer, buf);
 
 	sprintf(buf, "Capacity:    [%5d]{x\n\r", ship->capacity);
+	add_buf(buffer, buf);
+
+	sprintf(buf, "Base Armor:  [%5d]{x\n\r", ship->armor);
 	add_buf(buffer, buf);
 
 	add_buf(buffer, "Description:\n\r");
@@ -1036,6 +1042,36 @@ SHEDIT( shedit_capacity )
 
 	ship->capacity = value;
 	send_to_char("Ship capacity changed.\n\r", ch);
+	return TRUE;
+}
+
+SHEDIT( shedit_armor)
+{
+	SHIP_INDEX_DATA *ship;
+
+	EDIT_SHIP(ch, ship);
+
+	if( argument[0] == '\0' )
+	{
+		send_to_char("Syntax:  armor [rating]\n\r", ch);
+		return FALSE;
+	}
+
+	if( !is_number(argument) )
+	{
+		send_to_char("That is not a number.\n\r", ch);
+		return FALSE;
+	}
+
+	int value = atoi(argument);
+	if( value < 0 || value > SHIP_MAX_ARMOR )
+	{
+		send_to_char("Ship base armor must be in the range of 0 to " __STR(SHIP_MAX_ARMOR) ".\n\r", ch);
+		return FALSE;
+	}
+
+	ship->armor = value;
+	send_to_char("Ship base armor changed.\n\r", ch);
 	return TRUE;
 }
 

@@ -98,11 +98,11 @@ const struct item_type          auto_war_table [] =
 const struct item_type          boat_table [] =
 {
     {   SHIP_SAILING_BOAT, 	"sailing boat" 	},
-    {   SHIP_CARGO_SHIP,   	"cargo ship"   	},
-    {   SHIP_ADVENTURER_SHIP, 	"adventurer"	},
-    {   SHIP_GALLEON_SHIP,    	"galleon"   	},
-    {   SHIP_FRIGATE_SHIP,    	"frigate"   	},
-    {   SHIP_WAR_GALLEON_SHIP, 	"war galleon"	},
+//    {   SHIP_CARGO_SHIP,   	"cargo ship"   	},
+//    {   SHIP_ADVENTURER_SHIP, 	"adventurer"	},
+//    {   SHIP_GALLEON_SHIP,    	"galleon"   	},
+//    {   SHIP_FRIGATE_SHIP,    	"frigate"   	},
+//    {   SHIP_WAR_GALLEON_SHIP, 	"war galleon"	},
     {   SHIP_AIR_SHIP,		"airship"   	},
     {   0,		       	NULL       	}
 };
