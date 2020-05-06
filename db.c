@@ -597,7 +597,6 @@ AREA_DATA *area_last;
 AREA_DATA *current_area;
 CHAR_DATA *hunt_last;
 MOB_INDEX_DATA *mob_index_hash[MAX_KEY_HASH];
-NPC_SHIP_INDEX_DATA *ship_index_hash[MAX_KEY_HASH];
 OBJ_INDEX_DATA *obj_index_hash[MAX_KEY_HASH];
 ROOM_INDEX_DATA *room_index_hash[MAX_KEY_HASH];
 TOKEN_INDEX_DATA *token_index_hash[MAX_KEY_HASH];
@@ -4390,8 +4389,10 @@ void load_reboot_objs()
 }
 
 
+
 NPC_SHIP_INDEX_DATA *get_npc_ship_index(long vnum)
 {
+#if 0
     NPC_SHIP_INDEX_DATA *npc_ship;
 
     for (npc_ship  = ship_index_hash[vnum % MAX_KEY_HASH];
@@ -4408,7 +4409,7 @@ NPC_SHIP_INDEX_DATA *get_npc_ship_index(long vnum)
         return NULL;
 	/*exit(1);*/
     }
-
+#endif
     return NULL;
 }
 

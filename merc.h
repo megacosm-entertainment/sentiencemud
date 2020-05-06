@@ -8127,7 +8127,6 @@ extern	char			str_empty       [1];
 extern	MOB_INDEX_DATA *	mob_index_hash  [MAX_KEY_HASH];
 extern	OBJ_INDEX_DATA *	obj_index_hash  [MAX_KEY_HASH];
 extern	ROOM_INDEX_DATA *	room_index_hash [MAX_KEY_HASH];
-extern	NPC_SHIP_INDEX_DATA *	ship_index_hash [MAX_KEY_HASH];
 extern  TOKEN_INDEX_DATA *	token_index_hash [MAX_KEY_HASH];
 
 extern long top_mprog_index;
