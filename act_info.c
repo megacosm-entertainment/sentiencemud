@@ -1775,14 +1775,31 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 
 	if(!IS_NPC(ch) /*&& !IS_SET(room->room2_flags, ROOM_VIRTUAL_ROOM)*/ &&
 		IS_SET(room->room_flags, ROOM_VIEWWILDS) &&
-		room->viewwilds &&
 		(!automatic || !IS_SET(ch->comm, COMM_BRIEF))) {
 		int vp_x, vp_y;
+		WILD_DATA *viewwilds = NULL;
 
-		vp_x = get_squares_to_show_x(ch->wildview_bonus_x);
-		vp_y = get_squares_to_show_y(ch->wildview_bonus_y);
-		show_map_to_char_wyx(room->viewwilds, room->x, room->y, ch, room->x, room->y, vp_x, vp_y, FALSE);
+		if( room->viewwilds )
+		{
+			viewwilds = room->viewwilds;
+		}
+		else if( IS_VALID(room->instance_section) &&
+			IS_VALID(room->instance_section->instance) &&
+			IS_VALID(room->instance_section->instance->ship) &&
+			IS_VALID(room->instance_section->instance->ship->ship) &&
+			room->instance_section->instance->ship->ship->room )
+		{
+			viewwilds = room->instance_section->instance->ship->ship->room->wilds;
+		}
+
+		if( viewwilds )
+		{
+			vp_x = get_squares_to_show_x(ch->wildview_bonus_x);
+			vp_y = get_squares_to_show_y(ch->wildview_bonus_y);
+			show_map_to_char_wyx(room->viewwilds, room->x, room->y, ch, room->x, room->y, vp_x, vp_y, FALSE);
+		}
 	}
+
 
 	/* Check for the reckoning */
 	if (reckoning_timer > 0 && pre_reckoning == 0 && !IS_IMMORTAL(ch)) {
