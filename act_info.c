@@ -1777,7 +1777,7 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 		IS_SET(room->room_flags, ROOM_VIEWWILDS) &&
 		(!automatic || !IS_SET(ch->comm, COMM_BRIEF))) {
 		int vp_x, vp_y;
-		WILD_DATA *viewwilds = NULL;
+		WILDS_DATA *viewwilds = NULL;
 
 		if( room->viewwilds )
 		{
@@ -1787,9 +1787,9 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 			IS_VALID(room->instance_section->instance) &&
 			IS_VALID(room->instance_section->instance->ship) &&
 			IS_VALID(room->instance_section->instance->ship->ship) &&
-			room->instance_section->instance->ship->ship->room )
+			room->instance_section->instance->ship->ship->in_room )
 		{
-			viewwilds = room->instance_section->instance->ship->ship->room->wilds;
+			viewwilds = room->instance_section->instance->ship->ship->in_room->wilds;
 		}
 
 		if( viewwilds )
