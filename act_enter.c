@@ -54,8 +54,8 @@ void do_disembark( CHAR_DATA *ch, char *argument)
 		return;
     }
 
-    if( !IS_VALID(ch->in_room->instance_section) &&
-    	!IS_VALID(ch->in_room->instance_section->instance) &&
+    if( !IS_VALID(ch->in_room->instance_section) ||
+    	!IS_VALID(ch->in_room->instance_section->instance) ||
 		!IS_VALID(ch->in_room->instance_section->instance->ship) )
 	{
 		send_to_char("You are not on a ship.\n\r", ch);
