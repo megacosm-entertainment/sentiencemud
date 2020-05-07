@@ -449,11 +449,14 @@ void do_ships(CHAR_DATA *ch, char *argument)
 			iterator_start(&it, loaded_ships);
 			while( (ship = (SHIP_DATA *)iterator_nextdata(&it)) )
 			{
+				if( owner && ship->owner != owner )
+					continue;
+
 				sprintf(buf, "{W%4d{x)  {G%8ld  {x%-30.30s   {x%s{x\n\r",
 					++lines,
 					ship->index->vnum,
 					ship->ship_name,
-					owner ? owner->name : "{DNone");
+					ship->owner ? ship->owner->name : "{DNone");
 
 				if( !add_buf(buffer, buf) || (!ch->lines && strlen(buf_string(buffer)) > MAX_STRING_LENGTH) )
 				{
@@ -536,6 +539,16 @@ void do_ships(CHAR_DATA *ch, char *argument)
 			}
 
 			CHAR_DATA *owner = get_player(arg3);
+
+			if( owner )
+			{
+				sprintf(buf, "Ship Owner: %s\n\r", owner->name);
+			}
+			else
+			{
+				sprintf(buf, "Ship Owner: '%s' not found\n\r", arg3);
+			}
+			send_to_char(buf, ch);
 
 			ship = create_ship(vnum);
 
