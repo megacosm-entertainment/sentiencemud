@@ -409,7 +409,7 @@ void ships_update()
 
 }
 
-SPECIAL_KEY_DATA ship_special_key_load(FILE *fp)
+SPECIAL_KEY_DATA *ship_special_key_load(FILE *fp)
 {
 	SPECIAL_KEY_DATA *sk;
 	char *word;
