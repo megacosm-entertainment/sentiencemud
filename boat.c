@@ -328,6 +328,8 @@ SHIP_DATA *create_ship(long vnum)
 	if( !IS_VALID(ship) )
 		return NULL;
 
+	ship->index = ship_index;
+
 	obj = create_object(obj_index, 0, FALSE);
 	if( !IS_VALID(obj) )
 	{
@@ -364,6 +366,7 @@ SHIP_DATA *create_ship(long vnum)
 	ship->instance = instance;
 	instance->ship = ship;
 
+	ship->ship_type = ship_index->ship_class;
 	ship->hit = ship_index->hit;
 	ship->ship_flags = ship_index->flags;
 	ship->armor = ship_index->armor;

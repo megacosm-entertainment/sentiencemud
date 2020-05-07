@@ -46,40 +46,38 @@ void do_disembark( CHAR_DATA *ch, char *argument)
 {
     ROOM_INDEX_DATA *location;
     OBJ_DATA *ship_obj;
+    SHIP_DATA *ship;
 
     if ( ch->fighting != NULL )
     {
-	act("You can't disembark while fighting.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	return;
+		act("You can't disembark while fighting.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
     }
 
-    if ( ch->in_room->area->ship_list == NULL )
+    if( !IS_VALID(ch->in_room->instance_section) &&
+    	!IS_VALID(ch->in_room->instance_section->instance) &&
+		!IS_VALID(ch->in_room->instance_section->instance->ship) )
+	{
+		send_to_char("You are not on a ship.\n\r", ch);
+		return;
+	}
+
+	ship = ch->in_room->instance_section->instance->ship;
+    if ( ship->ship_type == SHIP_AIR_SHIP && ship->speed != SHIP_SPEED_STOPPED )
     {
-	act("You arn't on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	return;
-    }
-
-    if ( ch->in_room->ship->ship_type == SHIP_AIR_SHIP &&
-    ch->in_room->ship->speed != SHIP_SPEED_STOPPED )
-    {
-	act( "The doors of the airship are locked!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
-	return;
+		act( "The doors of the airship are locked!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
+		return;
     }
 
 
-    location = ch->in_room->ship->ship->in_room;
-    ship_obj = ch->in_room->ship->ship;
+    location = ship->ship->in_room;
+    ship_obj = ship->ship;
 
     char_from_room(ch);
     char_to_room(ch, location);
 
     act("{WYou disembark from $p.{x", ch, NULL, NULL, ship_obj, NULL, NULL, NULL, TO_CHAR);
     act("{W$n disembarks from $p.{x", ch, NULL, NULL, ship_obj, NULL, NULL, NULL, TO_ROOM);
-
-/*
-    if ( IS_SET( ch->in_room->room_flags, ROOM_SHIP))
-	act("{W$n disembarks from the.{x", ch,
-*/
 
 	move_cart(ch,location,TRUE);
 }
@@ -133,28 +131,32 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 	{
 	    if (MOUNTED(ch))
 	    {
-		act("You can't board this vessel while mounted.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		return;
+			act("You can't board this vessel while mounted.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			return;
 	    }
 
 	    if (portal->ship->speed != SHIP_SPEED_STOPPED)
 	    {
-		act("You can't board a moving vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		return;
+			act("You can't board a moving vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			return;
 	    }
 
-	    if ( portal->value[5] != -1 && (location = get_room_index(portal->value[5])))
+	    location = portal->ship->instance->entrance;
+
+	    if ( location )
 	    {
-		/* CHAR_DATA *pMob; */
-		act("{WYou board $p.{x\n\r", ch, NULL, NULL, portal, NULL, NULL, NULL, TO_CHAR);
-		act("{W$n boards $p.{x\n\r", ch, NULL, NULL, portal, NULL, NULL, NULL, TO_ROOM);
+			/* CHAR_DATA *pMob; */
+			act("{WYou board $p.{x\n\r", ch, NULL, NULL, portal, NULL, NULL, NULL, TO_CHAR);
+			act("{W$n boards $p.{x\n\r", ch, NULL, NULL, portal, NULL, NULL, NULL, TO_ROOM);
 
-		move_cart(ch,location,TRUE);
+			move_cart(ch,location,TRUE);
 
-		char_from_room(ch);
-		char_to_room(ch, location);
+			char_from_room(ch);
+			char_to_room(ch, location);
 
-		act("{W$n boards $p.{x", ch, NULL, NULL, portal, NULL, NULL, NULL, TO_ROOM);
+			act("{W$n boards $p.{x", ch, NULL, NULL, portal, NULL, NULL, NULL, TO_ROOM);
+
+			do_function(ch, &do_look, "auto");
 
                 /* For now this makes airship captain kill people.
 		   disable it for now as i dont know how this thing works
@@ -181,7 +183,7 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 		}
 		*/
 
-		return;
+			return;
 	    }
 	}
 
