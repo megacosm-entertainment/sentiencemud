@@ -75,6 +75,7 @@ int gconfig_read (void)
     gconfig.next_obj_uid[0] = 1;	gconfig.next_obj_uid[1] = 0;
     gconfig.next_token_uid[0] = 1;	gconfig.next_token_uid[1] = 0;
     gconfig.next_vroom_uid[0] = 1;	gconfig.next_vroom_uid[1] = 0;
+    gconfig.next_ship_uid[0] = 1;	gconfig.next_ship_uid[1] = 0;
 
     gconfig.next_church_uid = 1;
     gconfig.db_version = VERSION_DB_000;
@@ -113,6 +114,10 @@ int gconfig_read (void)
 					gconfig.next_vroom_uid[2] = gconfig.next_vroom_uid[0] + UID_INC - (gconfig.next_vroom_uid[0] & UID_MASK);
 					if(!gconfig.next_vroom_uid[2]) gconfig.next_vroom_uid[3]++;
 
+					gconfig.next_ship_uid[3] = gconfig.next_ship_uid[1];
+					gconfig.next_ship_uid[2] = gconfig.next_ship_uid[0] + UID_INC - (gconfig.next_ship_uid[0] & UID_MASK);
+					if(!gconfig.next_ship_uid[2]) gconfig.next_ship_uid[3]++;
+
 
 					if(!gconfig.next_church_uid) gconfig.next_church_uid++;
 					fclose(fp);
@@ -143,6 +148,12 @@ int gconfig_read (void)
             	if(!str_cmp(word,"NextVRoomUID")) {
 					gconfig.next_vroom_uid[0] = fread_number(fp);
 					gconfig.next_vroom_uid[1] = fread_number(fp);
+					fMatch = TRUE;
+					break;
+				}
+            	if(!str_cmp(word,"NextShipUID")) {
+					gconfig.next_ship_uid[0] = fread_number(fp);
+					gconfig.next_ship_uid[1] = fread_number(fp);
 					fMatch = TRUE;
 					break;
 				}
@@ -201,6 +212,7 @@ int gconfig_write(void)
     fprintf(fp, "NextObjUID %ld %ld\n", gconfig.next_obj_uid[2], gconfig.next_obj_uid[3]);
     fprintf(fp, "NextTokenUID %ld %ld\n", gconfig.next_token_uid[2], gconfig.next_token_uid[3]);
     fprintf(fp, "NextVRoomUID %ld %ld\n", gconfig.next_vroom_uid[2], gconfig.next_vroom_uid[3]);
+    fprintf(fp, "NextShipUID %ld %ld\n", gconfig.next_ship_uid[2], gconfig.next_ship_uid[3]);
     fprintf(fp, "NextAreaUID %ld\n", gconfig.next_area_uid);
     fprintf(fp, "NextWildsUID %ld\n", gconfig.next_wilds_uid);
     fprintf(fp, "NextVlinkUID %ld\n", gconfig.next_vlink_uid);
@@ -2756,15 +2768,18 @@ void do_shutdown(CHAR_DATA *ch, char *argument)
     merc_down = TRUE;
     for (d = descriptor_list; d != NULL; d = d_next) {
 		d_next = d->next;
-		vch = d->original ? d->original : d->character;
-		if (IS_VALID(vch)) {
-		    /* save their shift */
-		    if (ch->shifted != SHIFTED_NONE) {
-				shift_char(ch, TRUE);
-				ch->shifted = IS_VAMPIRE(ch) ? SHIFTED_WEREWOLF : SHIFTED_SLAYER;
-		    }
+		if( d->connected == CON_PLAYING )
+		{
+			vch = d->original ? d->original : d->character;
+			if (IS_VALID(vch)) {
+				/* save their shift */
+				if (ch->shifted != SHIFTED_NONE) {
+					shift_char(ch, TRUE);
+					ch->shifted = IS_VAMPIRE(ch) ? SHIFTED_WEREWOLF : SHIFTED_SLAYER;
+				}
 
-		    save_char_obj(vch);
+				save_char_obj(vch);
+			}
 		}
 
 		close_socket(d);

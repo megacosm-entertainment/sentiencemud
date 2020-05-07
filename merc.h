@@ -1023,6 +1023,8 @@ struct global_data
     unsigned long next_vroom_uid[4];
     long	next_church_uid;
 
+    unsigned long next_ship_uid[4];
+
     long	db_version;
 };
 
@@ -4950,6 +4952,8 @@ struct ship_data
 	NPC_SHIP_DATA		*npc_ship;
 	bool				valid;
 
+	unsigned long		id[2];
+
 	CHAR_DATA			*owner;
 	unsigned long		owner_uid[2];
 
@@ -4976,11 +4980,17 @@ struct ship_data
 
 	sh_int				attack_position;
 	SHIP_DATA			*ship_attacked;
+	unsigned long		ship_attack_uid[2];
+
 	CHAR_DATA			*char_attacked;
+	unsigned long		char_attack_uid[2];
 
 	SHIP_DATA			*ship_chased;
+	unsigned long		ship_chased_uid[2];
+
 	ROOM_INDEX_DATA		*destination;
 	SHIP_DATA			*boarded_by;
+	unsigned long		boarded_by_uid[2];
 
 	WAYPOINT_DATA		*waypoint_list;
 	WAYPOINT_DATA		*current_waypoint;

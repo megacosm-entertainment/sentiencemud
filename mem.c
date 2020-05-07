@@ -966,6 +966,27 @@ void get_church_id(CHURCH_DATA *church)
 	}
 }
 
+
+
+void get_ship_id(SHIP_DATA *ship)
+{
+	if(!ship->id[0] && !ship->id[1]) {
+		ship->id[0] = gconfig.next_ship_uid[0];
+		ship->id[1] = gconfig.next_ship_uid[1];
+		if(!++gconfig.next_ship_uid[0])
+			++gconfig.next_ship_uid[1];
+
+		if(gconfig.next_ship_uid[0] == gconfig.next_ship_uid[2] &&
+			gconfig.next_ship_uid[1] == gconfig.next_ship_uid[3]) {
+			gconfig.next_ship_uid[2] += UID_INC;
+			if(!gconfig.next_ship_uid[2])
+				++gconfig.next_ship_uid[3];
+			gconfig_write();
+		}
+	}
+}
+
+
 /* buffer sizes */
 const int buf_size[MAX_BUF_LIST] =
 {

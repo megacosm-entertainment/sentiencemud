@@ -377,6 +377,9 @@ SHIP_DATA *create_ship(long vnum)
 	// Build cannons
 
 	list_appendlink(loaded_ships, ship);
+
+
+	get_ship_id(ship);
 	return ship;
 }
 
@@ -406,14 +409,282 @@ void ships_update()
 
 }
 
-
-SHIP_DATA *ship_load(FILE *fp)
+SPECIAL_KEY_DATA ship_special_key_load(FILE *fp)
 {
-	return NULL;
+	SPECIAL_KEY_DATA sk;
+	char *word;
+	bool fMatch;
+
+	sk = new_special_key();
+	sk->key_vnum = fread_number(fp);
+
+	while (str_cmp((word = fread_word(fp)), "#-SPECIALKEY"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+		case 'K':
+			if( !str_cmp(word, "Key") )
+			{
+				LLIST_UID_DATA *luid = new_list_uid_data();
+				luid->id[0] = fread_number(fp);
+				luid->id[1] = fread_number(fp);
+
+				list_appendlink(sk->list, luid);
+			}
+			break;
+		}
+
+		if (!fMatch) {
+			char buf[MSL];
+			sprintf(buf, "ship_special_key_load: no match for word %.50s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return sk;
+
 }
 
+INSTANCE *instance_load(FILE *fp);
+SHIP_DATA *ship_load(FILE *fp)
+{
+	SHIP_DATA *ship;
+	SHIP_INDEX_DATA *index;
+	char *word;
+	bool fMatch;
+
+	index = get_ship_index(fread_number(fp));
+	if( !index ) return NULL;
+
+	ship = new_ship();
+	ship->index = index;
+
+	while (str_cmp((word = fread_word(fp)), "#-SHIP"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+		case '#':
+			if( !str_cmp(word, "#INSTANCE") )
+			{
+				ship->instance = instance_load(fp);
+				fMatch = TRUE;
+				break;
+			}
+			if( !str_cmp(word, "#OBJECT") )
+			{
+				ship->ship = instance_load(fp);
+				ship->ship->ship = ship;
+				fMatch = TRUE;
+				break;
+			}
+			if( !str_cmp(word, "#SPECIALKEY") )
+			{
+				SPECIAL_KEY_DATA *sk = ship_special_key_load(fp);
+
+				list_appendlink(ship->special_keys, sk);
+				fMatch = TRUE;
+				break;
+			}
+			break;
+
+		case 'A':
+			KEY("Armor", ship->armor, fread_number(fp));
+			KEY("AttackPos", ship->attack_position, fread_number(fp));
+			break;
+
+		case 'B':
+			if( !str_cmp(word, "BoardedBy") )
+			{
+				ship->boarded_by_uid[0] = fread_number(fp);
+				ship->boarded_by_uid[1] = fread_number(fp);
+				fMatch = TRUE;
+				break;
+			}
+			break;
+
+		case 'C':
+			KEY("Cannons", ship->cannons, fread_number(fp));
+			if( !str_cmp(word, "CharAttacked") )
+			{
+				ship->char_attacked_uid[0] = fread_number(fp);
+				ship->char_attacked_uid[1] = fread_number(fp);
+				fMatch = TRUE;
+				break;
+			}
+			if( !str_cmp(word, "Crew") )
+			{
+				ship->min_crew = fread_number(fp);
+				ship->max_crew = fread_number(fp);
+				fMatch = TRUE;
+				break;
+			}
+			break;
+
+		case 'D':
+			KEY("Direction", ship->dir, fread_number(fp));
+			break;
+
+		case 'F':
+			KEYS("Flag", ship->flag, fread_string(fp));
+			break;
+
+		case 'H':
+			KEY("Hit", ship->hit, fread_number(fp));
+			break;
+
+		case 'N':
+			KEYS("Name", ship->ship_name, fread_string(fp));
+			break;
+
+		case 'O':
+			if( !str_cmp(word, "Owner") )
+			{
+				ship->owner_uid[0] = fread_number(fp);
+				ship->owner_uid[1] = fread_number(fp);
+				fMatch = TRUE;
+				break;
+			}
+			break;
+
+		case 'P':
+			KEY("PK", ship->pk, true);
+			break;
+
+		case 'S':
+			KEY("ScuttleTime", ship->scuttle_time, fread_number(fp));
+			if( !str_cmp(word, "ShipAttacked") )
+			{
+				ship->ship_attacked_uid[0] = fread_number(fp);
+				ship->ship_attacked_uid[1] = fread_number(fp);
+				fMatch = TRUE;
+				break;
+			}
+			if( !str_cmp(word, "ShipChased") )
+			{
+				ship->ship_chased_uid[0] = fread_number(fp);
+				ship->ship_chased_uid[1] = fread_number(fp);
+				fMatch = TRUE;
+				break;
+			}
+			KEY("ShipFlags", ship->ship_flags, fread_number(fp));
+			KEY("Speed", ship->speed, fread_number(fp));
+			break;
+
+		case 'U':
+			if( !str_cmp(word, "Uid") )
+			{
+				ship->id[0] = fread_number(fp);
+				ship->id[1] = fread_number(fp);
+			}
+			break;
+
+		}
+
+		if (!fMatch) {
+			char buf[MSL];
+			sprintf(buf, "ship_load: no match for word %.50s", word);
+			bug(buf, 0);
+		}
+
+	}
+
+	get_ship_id(ship);
+
+	return ship;
+}
+
+void save_ship_uid(FILE *fp, char *field, unsigned long uid[2])
+{
+	if( uid[0] > 0 || uid[1] > 0 )
+	{
+		fprintf(fp, "%s %lu %lu\n", field, uid[0], uid[1]);
+	}
+}
+
+void ship_special_key_save(FILE *fp, SPECIAL_KEY_DATA *sk)
+{
+	ITERATOR it;
+	LLIST_UID_DATA *luid;
+
+	fprintf(fp, "#SPECIALKEY %ld\n", sk->key_vnum);
+
+	iterator_start(&it, sk->list);
+	while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
+	{
+		fprintf(fp, "Key %lu %lu\n", luid->id[0], luid->id[1]);
+
+	}
+	iterator_stop(&it);
+
+	fprintf(fp, "#-SPECIALKEY\n");
+}
+
+void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple);
 bool ship_save(FILE *fp, SHIP_DATA *ship)
 {
+	ITERATOR it;
+	SPECIAL_KEY_DATA sk;
+
+	fprintf(fp, "#SHIP %ld\n", ship->index->vnum);
+
+	save_ship_uid(fp, "Uid", ship->id);
+
+	fprintf(fp, "Name %s~\n", fix_string(ship->ship_name));
+
+	if( ship->owner_uid[0] > 0 || ship->owner_uid[1] > 0 )
+	{
+		fprintf(fp, "Owner %lu %lu\n", ship->owner_uid[0], ship->owner_uid[1]);
+	}
+
+	fprintf(fp, "Flag %s~\n", fix_string(ship->flag));
+
+	fprintf(fp, "Direction %d\n", ship->dir);
+	fprintf(fp, "Speed %d\n", ship->speed);
+	fprintf(fp, "Hit %ld\n", ship->hit);
+	fprintf(fp, "Armor %ld\n", ship->armor);
+
+	fprintf(fp, "ShipFlags %d\n", ship->ship_flags);
+	fprintf(fp, "Cannons %d\n", ship->cannons);
+	fprintf(fp, "Crew %d %d\n", ship->min_crew, ship->max_crew);
+
+	if( ship->pk )
+	{
+		fprintf(fp, "PK\n");
+	}
+
+	// TODO: Iterate over crew
+
+	persist_save_object(fp, ship->ship, false);
+
+	instance_save(fp, ship->instance);
+
+	iterator_start(&it, ship->special_keys);
+	while( (sk = (SPECIAL_KEY_DATA *)iterator_nextdata(&it)) )
+	{
+		ship_special_key_save(fp, sk);
+	}
+	iterator_stop(&it);
+
+	fprintf(fp, "AttackPos %d\n", ship->attack_position);
+
+	save_ship_uid(fp, "ShipAttacked", ship->ship_attacked_uid);
+	save_ship_uid(fp, "CharAttacked", ship->char_attacked_uid);
+
+	save_ship_uid(fp, "ShipChased", ship->ship_chased_uid);
+	save_ship_uid(fp, "BoardedBy", ship->boarded_by_uid);
+
+	fprintf(fp, "ScuttleTime %d\n", ship->scuttle_time);
+
+	// TODO: Save proper destination
+	// TODO: Save waypoints
+	// TODO: Save current waypoint index
+	// TODO: Save cannon
+
+	fprintf(fp, "#-SHIP\n");
 	return true;
 }
 
@@ -562,6 +833,11 @@ void do_ships(CHAR_DATA *ch, char *argument)
 			}
 
 			ship->owner = owner;
+			if( owner )
+			{
+				ship->owner_uid[0] = owner->id[0];
+				ship->owner_uid[1] = owner->id[1];
+			}
 
 			free_string(ship->ship_name);
 			ship->ship_name = str_dup(argument);

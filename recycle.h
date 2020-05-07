@@ -104,6 +104,7 @@ void get_mob_id(CHAR_DATA *ch);
 void get_token_id(TOKEN_DATA *token);
 void get_obj_id(OBJ_DATA *obj);
 void get_vroom_id(ROOM_INDEX_DATA *vroom);
+void get_ship_id(SHIP_DATA *ship);
 #undef MD
 
 /* buffer procedures */
