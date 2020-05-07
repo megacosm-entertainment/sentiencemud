@@ -470,7 +470,14 @@ SHIP_DATA *ship_load(FILE *fp)
 		case '#':
 			if( !str_cmp(word, "#INSTANCE") )
 			{
-				ship->instance = instance_load(fp);
+				INSTANCE *instance = instance_load(fp);
+
+				if( IS_VALID(instance) )
+				{
+					ship->instance = instance;
+					ship->instance->ship = ship;
+				}
+
 				fMatch = TRUE;
 				break;
 			}
@@ -478,7 +485,7 @@ SHIP_DATA *ship_load(FILE *fp)
 			{
 				OBJ_DATA *obj = persist_load_object(fp);
 
-				if( obj ) {
+				if( IS_VALID(obj) ) {
 					ship->ship = obj;
 					obj->ship = ship;
 					obj_to_room(obj, obj->in_room);
