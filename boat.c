@@ -411,7 +411,7 @@ void ships_update()
 
 SPECIAL_KEY_DATA ship_special_key_load(FILE *fp)
 {
-	SPECIAL_KEY_DATA sk;
+	SPECIAL_KEY_DATA *sk;
 	char *word;
 	bool fMatch;
 
@@ -448,6 +448,7 @@ SPECIAL_KEY_DATA ship_special_key_load(FILE *fp)
 }
 
 INSTANCE *instance_load(FILE *fp);
+OBJ_DATA *persist_load_object(FILE *fp);
 SHIP_DATA *ship_load(FILE *fp)
 {
 	SHIP_DATA *ship;
@@ -476,7 +477,7 @@ SHIP_DATA *ship_load(FILE *fp)
 			}
 			if( !str_cmp(word, "#OBJECT") )
 			{
-				ship->ship = instance_load(fp);
+				ship->ship = persist_load_object(fp);
 				ship->ship->ship = ship;
 				fMatch = TRUE;
 				break;

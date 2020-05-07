@@ -4980,10 +4980,10 @@ struct ship_data
 
 	sh_int				attack_position;
 	SHIP_DATA			*ship_attacked;
-	unsigned long		ship_attack_uid[2];
+	unsigned long		ship_attacked_uid[2];
 
 	CHAR_DATA			*char_attacked;
-	unsigned long		char_attack_uid[2];
+	unsigned long		char_attacked_uid[2];
 
 	SHIP_DATA			*ship_chased;
 	unsigned long		ship_chased_uid[2];
