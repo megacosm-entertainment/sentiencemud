@@ -1525,12 +1525,6 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 			found = TRUE;
 		}
 
-                if ((vx == x) && (vy == y))
-                {
-                    sprintf(temp, "{M@{x");
-                    found = TRUE;
-                }
-
                 for (d = descriptor_list; d != NULL;d = d->next)
                 {
                     if (d->connected == CON_PLAYING && d->character != to &&
@@ -1561,6 +1555,12 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 					}
 				}
 				iterator_stop(&it);
+
+                if ((vx == x) && (vy == y))
+                {
+                    sprintf(temp, "{M@{x");
+                    found = TRUE;
+                }
 
 
 /* Vizz - if no PC found in the room, display the terrain char */
