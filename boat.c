@@ -366,6 +366,8 @@ SHIP_DATA *create_ship(long vnum)
 	ship->instance = instance;
 	instance->ship = ship;
 
+	list_appendlink(loaded_instances, instance);
+
 	ship->ship_type = ship_index->ship_class;
 	ship->hit = ship_index->hit;
 	ship->ship_flags = ship_index->flags;

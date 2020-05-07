@@ -3606,7 +3606,7 @@ void page_to_char(const char *txt, CHAR_DATA *ch)
     const	char	*point;
     		char	*point2;
     		char	*buf;
-    		char cbuf[16];
+    		char cbuf[20];
 		int	skip = 0, len;
 
     if(txt && ch->desc)
