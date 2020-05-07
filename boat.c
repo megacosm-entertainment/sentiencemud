@@ -566,7 +566,6 @@ void do_ships(CHAR_DATA *ch, char *argument)
 			free_string(ship->ship_name);
 			ship->ship_name = str_dup(argument);
 
-			/*
 			// Install ship_name
 			free_string(ship->ship->name);
 			sprintf(buf, ship->ship->pIndexData->name, ship->ship_name);
@@ -582,7 +581,6 @@ void do_ships(CHAR_DATA *ch, char *argument)
 
 			obj_to_room(ship->ship, ch->in_room);
 			act("$p splashes down after being christened '$T'.",ch, NULL, NULL,ship->ship, NULL, NULL,ship->ship_name,TO_ALL);
-			*/
 		}
 		else if( !str_prefix(arg, "unload") )
 		{
