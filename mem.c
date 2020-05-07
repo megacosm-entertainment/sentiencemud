@@ -2146,7 +2146,7 @@ SHIP_INDEX_DATA *new_ship_index()
 	ship->description = &str_empty[0];
 	ship->hit = 1;
 
-	ship->keys = list_create(FALSE);
+	ship->special_keys = list_create(FALSE);
 
 	return ship;
 }
@@ -2156,7 +2156,7 @@ void free_ship_index(SHIP_INDEX_DATA *ship)
 	free_string(ship->name);
 	free_string(ship->description);
 
-	list_destroy(ship->keys);
+	list_destroy(ship->special_keys);
 
 	ship->next = ship_index_free;
 	ship_index_free = ship;
@@ -2176,7 +2176,7 @@ SHIP_DATA *new_ship()
 		ship = alloc_mem(sizeof(SHIP_DATA *));
 	}
 
-	memset(ship, 0, sizeof(SHIP_DATA);
+	memset(ship, 0, sizeof(SHIP_DATA));
 
 	ship->owner_name = &str_empty[0];
 	ship->flag = &str_empty[0];
@@ -2192,7 +2192,6 @@ void free_ship(SHIP_DATA *ship)
 {
 	if( !IS_VALID(ship) ) return;
 
-	free_string(ship->owner_name);
 	free_string(ship->flag);
 	free_string(ship->ship_name);
 
