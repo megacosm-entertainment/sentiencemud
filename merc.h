@@ -8502,7 +8502,7 @@ SHIP_DATA *get_ship_nearby(char *name, ROOM_INDEX_DATA *room, CHAR_DATA *owner);
 SHIP_DATA *get_room_ship(ROOM_INDEX_DATA *room);
 bool ischar_onboard_ship(CHAR_DATA *ch, SHIP_DATA *ship);
 void ship_echo( SHIP_DATA *ship, char *str );
-
+void resolve_ships();
 
 
 bool lockstate_functional(LOCK_STATE *lock);
