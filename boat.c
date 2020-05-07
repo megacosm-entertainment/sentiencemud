@@ -335,6 +335,7 @@ SHIP_DATA *create_ship(long vnum)
 		return NULL;
 	}
 	ship->ship = obj;
+	obj->ship = ship;
 
 	instance = create_instance(ship_index->blueprint);
 	if( !IS_VALID(instance) )
