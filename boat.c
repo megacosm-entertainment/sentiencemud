@@ -516,7 +516,7 @@ void do_ships(CHAR_DATA *ch, char *argument)
 				}
 
 				if( ch->in_room->sector_type != SECT_WATER_SWIM &&
-					ch->in_room->pRoom->sector_type != SECT_WATER_NOSWIM )
+					ch->in_room->sector_type != SECT_WATER_NOSWIM )
 				{
 					send_to_char("Must be in the water.\n\r", ch);
 					return;
@@ -540,6 +540,8 @@ void do_ships(CHAR_DATA *ch, char *argument)
 				send_to_char("Failed to create ship.\n\r", ch);
 				return;
 			}
+
+			ship->owner = owner;
 
 			free_string(ship->ship_name);
 			ship->ship_name = str_dup(argument);
