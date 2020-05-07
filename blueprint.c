@@ -1332,6 +1332,9 @@ void extract_instance(INSTANCE *instance)
 	if( IS_VALID(instance->object) )
 		environ = obj_room(instance->object);
 
+	else if( IS_VALID(instance->ship) )
+		environ = obj_room(instance->ship->ship);
+
 	if( !environ )
 		environ = instance->environ;
 
