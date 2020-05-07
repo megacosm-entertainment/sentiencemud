@@ -2173,7 +2173,7 @@ SHIP_DATA *new_ship()
 	}
 	else
 	{
-		ship = alloc_mem(sizeof(SHIP_DATA *));
+		ship = alloc_mem(sizeof(SHIP_DATA));
 	}
 
 	memset(ship, 0, sizeof(SHIP_DATA));

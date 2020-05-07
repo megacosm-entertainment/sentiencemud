@@ -330,7 +330,6 @@ SHIP_DATA *create_ship(long vnum)
 
 	ship->index = ship_index;
 
-	/*
 	obj = create_object(obj_index, 0, FALSE);
 	if( !IS_VALID(obj) )
 	{
@@ -339,21 +338,17 @@ SHIP_DATA *create_ship(long vnum)
 	}
 	ship->ship = obj;
 	obj->ship = ship;
-	*/
 
 	instance = create_instance(ship_index->blueprint);
 	if( !IS_VALID(instance) )
 	{
-		/*
 		list_remlink(loaded_objects, obj);
 		--obj->pIndexData->count;
 		free_obj(obj);
-		*/
 		free_ship(ship);
 		return NULL;
 	}
 
-	/*
 	if( list_size(ship_index->special_keys) > 0 )
 	{
 		iterator_start(&it, ship_index->special_keys);
@@ -368,7 +363,7 @@ SHIP_DATA *create_ship(long vnum)
 		iterator_stop(&it);
 		instance_apply_specialkeys(instance, ship->special_keys);
 	}
-	*/
+
 	ship->instance = instance;
 	instance->ship = ship;
 
