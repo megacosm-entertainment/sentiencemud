@@ -7534,8 +7534,6 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 					fMatch = TRUE;
 					if( item ) {
 						obj_to_room(item, room);
-						variable_dynamic_fix_object(item);
-						persist_fix_environment_object(item);
 					} else
 						good = FALSE;
 

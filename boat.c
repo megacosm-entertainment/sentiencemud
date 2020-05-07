@@ -378,7 +378,6 @@ SHIP_DATA *create_ship(long vnum)
 
 	list_appendlink(loaded_ships, ship);
 
-
 	get_ship_id(ship);
 	return ship;
 }
@@ -477,8 +476,14 @@ SHIP_DATA *ship_load(FILE *fp)
 			}
 			if( !str_cmp(word, "#OBJECT") )
 			{
-				ship->ship = persist_load_object(fp);
-				ship->ship->ship = ship;
+				OBJ_DATA *obj = persist_load_object(fp);
+
+				if( obj ) {
+					ship->ship = obj;
+					obj->ship = ship;
+					obj_to_room(obj, obj->in_room);
+				}
+
 				fMatch = TRUE;
 				break;
 			}
@@ -593,8 +598,13 @@ SHIP_DATA *ship_load(FILE *fp)
 
 	}
 
-	get_ship_id(ship);
+	if( !IS_VALID(ship->ship) || !IS_VALID(ship->instance) )
+	{
+		extract_ship(ship);
+		return NULL;
+	}
 
+	get_ship_id(ship);
 	return ship;
 }
 
