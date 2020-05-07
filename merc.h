@@ -8417,6 +8417,7 @@ bool instance_isorphaned(INSTANCE *instance);
 char *instance_get_ownership(INSTANCE *instance);
 bool instance_can_idle(INSTANCE *instance);
 INSTANCE *get_room_instance(ROOM_INDEX_DATA *room);
+void instance_apply_specialkeys(INSTANCE *instance, LLIST *special_keys);
 
 void load_dungeons();
 bool save_dungeons();

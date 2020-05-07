@@ -313,13 +313,13 @@ SHIP_DATA *create_ship(long vnum)
 		return NULL;
 
 	// Verify the object index exists and is a ship
-	if( !(obj_index = get_obj_index(ship_index->object)) )
+	if( !(obj_index = get_obj_index(ship_index->ship_object)) )
 		return NULL;
 
 	if( obj_index->item_type != ITEM_SHIP )
 	{
 		char buf[MSL];
-		sprintf(buf, "create_ship: attempting to use object (%ld) that is not a ship object for ship (%ld)", obj_index->vnum, ship->vnum);
+		sprintf(buf, "create_ship: attempting to use object (%ld) that is not a ship object for ship (%ld)", obj_index->vnum, ship_index->vnum);
 		bug(buf, 0);
 		return NULL;
 	}
@@ -346,16 +346,15 @@ SHIP_DATA *create_ship(long vnum)
 		return NULL;
 	}
 
-	if( list_size(ship_index->keys) > 0 )
+	if( list_size(ship_index->special_keys) > 0 )
 	{
-		iterator_start(&it, ship_index->keys);
+		iterator_start(&it, ship_index->special_keys);
 		OBJ_INDEX_DATA *key;
 		while( (key = (OBJ_INDEX_DATA *)iterator_nextdata(&it)) )
 		{
 			SPECIAL_KEY_DATA *sk = new_special_key();
 
-			sk->vnum = key->vnum;
-
+			sk->key_vnum = key->vnum;
 			list_appendlink(ship->special_keys, sk);
 		}
 		iterator_stop(&it);
@@ -365,7 +364,7 @@ SHIP_DATA *create_ship(long vnum)
 	instance->ship = ship;
 
 	ship->hit = ship_index->hit;
-	ship->flags = ship_index->flags;
+	ship->ship_flags = ship_index->flags;
 	ship->armor = ship_index->armor;
 
 	// Build cannons
@@ -1271,6 +1270,7 @@ SHEDIT( shedit_keys )
 			ITERATOR it;
 			OBJ_INDEX_DATA *key;
 			BUFFER *buffer = new_buf();
+			char buf[MSL];
 			int count = 0;
 
 			add_buf(buffer, "    [  Vnum  ]  Name\n\r");
@@ -1315,8 +1315,7 @@ SHEDIT( shedit_keys )
 
 	if( !str_cmp(arg, "add") )
 	{
-		OBJ_INDEX_DATA *key, *obj;
-		ITERATOR it;
+		OBJ_INDEX_DATA *key;
 		long vnum;
 
 		if( !is_number(argument) )
@@ -1344,7 +1343,7 @@ SHEDIT( shedit_keys )
 			return FALSE;
 		}
 
-		list_appendlink(ship->special_rooms, key);
+		list_appendlink(ship->special_keys, key);
 		send_to_char("Key added.\n\r", ch);
 		return TRUE;
 	}
@@ -1358,13 +1357,13 @@ SHEDIT( shedit_keys )
 		}
 
 		int value = atoi(argument);
-		if( value < 0 || value > list_size(ship->special_rooms) )
+		if( value < 0 || value > list_size(ship->special_keys) )
 		{
 			send_to_char("Index out of range.\n\r", ch);
 			return FALSE;
 		}
 
-		list_remnthlink(ship->special_rooms, value);
+		list_remnthlink(ship->special_keys, value);
 		send_to_char("Key removed.\n\r", ch);
 		return TRUE;
 	}
