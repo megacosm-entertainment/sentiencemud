@@ -8045,6 +8045,8 @@ void load_instances()
 
 	}
 
+	resolve_ships();
+
 	fclose(fp);
 }
 

@@ -386,6 +386,8 @@ void extract_ship(SHIP_DATA *ship)
 {
 	if( !IS_VALID(ship) ) return;
 
+	detach_ships_ship(ship);
+
 	list_remlink(loaded_ships, ship);
 
 	extract_obj(ship->ship);
@@ -706,6 +708,170 @@ bool ship_save(FILE *fp, SHIP_DATA *ship)
 	return true;
 }
 
+void resolve_ships_player(CHAR_DATA *ch)
+{
+	if( IS_NPC(ch) ) return;
+
+	ITERATOR it;
+	SHIP_DATA *ship;
+	iterator_start(&it, loaded_ships);
+	while( (ship = (SHIP_DATA *)iterator_nextdata(&it)) )
+	{
+		if( uid_match(ship->owner_uid,ch->id) )
+		{
+			ship->owner = ch;
+		}
+
+		if( uid_match(ship->char_attacked_uid,ch->id) )
+		{
+			ship->char_attacked = ch;
+		}
+	}
+	iterator_stop(&it);
+}
+
+void resolve_ships(void)
+{
+	ITERATOR it;
+	SHIP_DATA *ship;
+	iterator_start(&it, loaded_ships);
+	while( (ship = (SHIP_DATA *)iterator_nextdata(&it)) )
+	{
+		ship->ship_attacked = get_ship_uid(ship->ship_attacked_uid);
+		ship->ship_chased = get_ship_uid(ship->ship_chased_uid);
+		ship->boarded_by = get_ship_uid(ship->boarded_by_uid);
+	}
+	iterator_stop(&it);
+}
+
+void detach_ships_player(CHAR_DATA *ch)
+{
+	if( IS_NPC(ch) ) return;
+
+	ITERATOR it;
+	SHIP_DATA *ship;
+	iterator_start(&it, loaded_ships);
+	while( (ship = (SHIP_DATA *)iterator_nextdata(&it)) )
+	{
+		if( ship->owner == ch ) ship->owner = NULL;
+		if( ship->char_attacked == ch ) ship->char_attacked = NULL;
+	}
+	iterator_stop(&it);
+}
+
+void detach_ships_ship(SHIP_DATA *old_ship)
+{
+	ITERATOR it;
+	SHIP_DATA *ship;
+	iterator_start(&it, loaded_ships);
+	while( (ship = (SHIP_DATA *)iterator_nextdata(&it)) )
+	{
+		if( ship->ship_attacked == old_ship ) ship->ship_attacked = NULL;
+		if( ship->ship_chased == old_ship ) ship->ship_chased = NULL;
+		if( ship->boarded_by_uid == old_ship ) ship->boarded_by_uid = NULL;
+	}
+	iterator_stop(&it);
+}
+
+
+SHIP_DATA *get_ship_uids(unsigned long id1, unsigned long id2)
+{
+	unsigned long id[2];
+	id[0] = id1;
+	id[1] = id2;
+
+	return get_ship_uid(id);
+}
+
+SHIP_DATA *get_ship_uid(unsigned long id[2])
+{
+	ITERATOR it;
+	SHIP_DATA *ship = NULL;
+	iterator_start(&it, loaded_ships);
+	while( (ship = (SHIP_DATA *)iterator_nextdata(&it)) )
+	{
+		if( uid_match(ship->id,id) )
+		{
+			break;
+		}
+	}
+	iterator_stop(&it);
+
+	return ship;
+}
+
+SHIP_DATA *get_ship_nearby(char *name, ROOM_INDEX_DATA *room, CHAR_DATA *owner)
+{
+	ITERATOR it;
+	SHIP_DATA *ship = NULL;
+	iterator_start(&it, loaded_ships);
+	while( (ship = (SHIP_DATA *)iterator_nextdata(&it)) )
+	{
+		if( is_name(ship->ship_name, name) &&
+			ship->ship->in_room == room &&
+			ship->owner != owner )
+			break;
+	}
+	iterator_stop(&it);
+
+	return ship;
+}
+
+bool is_ship_safe(CHAR_DATA *ch, SHIP_DATA *ship, SHIP_DATA *ship2)
+{
+	if( IS_SET(ship->ship_flags, SHIP_PROTECTED) )
+		return true;
+
+	if ( ship2 == NULL )
+	{
+		if( !ship->ship->in_room )
+			return false;
+
+		if( IS_SET(ship->ship->in_room->room2_flags, ROOM_SAFE_HARBOR) )
+			return true;
+
+		return false;
+	}
+
+
+	return true;
+}
+
+SHIP_DATA *get_room_ship(ROOM_INDEX_DATA *room)
+{
+	if( !room ) return NULL;
+	if( !IS_VALID(room->instance_section) ) return NULL;
+	if( !IS_VALID(room->instance_section->instance) ) return NULL;
+	if( !IS_VALID(room->instance_section->instance->ship) ) return NULL;
+
+	return room->instance_section->instance->ship;
+}
+
+bool ischar_onboard_ship(CHAR_DATA *ch, SHIP_DATA *ship)
+{
+	if( !IS_VALID(ch) || !ch->in_room ) return false;
+	if( !IS_VALID(ship) ) return false;
+
+	return get_room_ship(ch->in_room) == ship;
+}
+
+void ship_echo( SHIP_DATA *ship, char *str )
+{
+	DESCRIPTOR_DATA *d;
+
+	for ( d = descriptor_list; d != NULL; d = d->next )
+	{
+	CHAR_DATA *victim;
+
+	victim = d->original ? d->original : d->character;
+
+	if( d->connected == CON_PLAYING &&
+		victim->in_room != NULL &&
+		ischar_onboard_ship(victim->in_room, ship) )
+		act(str, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	}
+}
+
 
 void do_ships(CHAR_DATA *ch, char *argument)
 {
@@ -906,6 +1072,146 @@ void do_ships(CHAR_DATA *ch, char *argument)
 }
 
 
+
+void do_scuttle( CHAR_DATA *ch, char *argument)
+{
+	ROOM_INDEX_DATA *location;
+    OBJ_DATA *ship_obj;
+    SHIP_DATA *ship;
+	char buf[MSL];
+
+	ship = get_room_ship(ch->in_room);
+
+    if( !IS_VALID(ship) )
+	{
+		send_to_char("You are not on a ship.\n\r", ch);
+		return;
+	}
+
+	if( ship->scuttle_time > 0 )
+	{
+		send_to_char("The vessel has already been scuttled!\n\r", ch);
+		return;
+	}
+
+	// is NPC ship
+	if ( IS_NPC_SHIP(ship) )
+	{
+		// NYI
+		send_to_char("Not yet implemented.\n\r", ch);
+		return;
+	}
+	else if( ship->owner != ch )
+	{
+		if( is_ship_safe(ch, ship, NULL) )
+		{
+			send_to_char("The vessel is in safe harbor.\n\r", ch);
+			return;
+		}
+
+		// Check to see if the owner of the ship is onboard
+	}
+
+	sprintf(buf, "%s douses the vessel with fuel and ignites it!", ch->name);
+	ship_echo(ship, buf);
+
+	ship->scuttle_time = 5;
+
+	// TODO: STOP BOARDING
+#if 0
+	if ( ship->boarded_by != NULL )
+	{
+		ship->boarded_by->ship_attacked = NULL;
+		ship->boarded_by->ship_chased = NULL;
+		ship->boarded_by->destination = NULL;
+	}
+	ship->ship_attacked = NULL;
+	ship->ship_chased = NULL;
+	ship->destination = NULL;
+
+	stop_boarding(ship);
+#endif
+
+
+#if 0
+
+	char buf[MAX_STRING_LENGTH];
+	CHAR_DATA *temp_char;
+	SHIP_DATA *ship;
+
+	/* Is player on a boat? */
+	if ( ( ship = ch->in_room->ship ) == NULL )
+	{
+	send_to_char("You aren't on a vessel.\n\r", ch);
+	return;
+	}
+
+	if ( ship->scuttle_time > 0 )
+	{
+	send_to_char("The vessel has already been scuttled!\n\r", ch);
+	return;
+	}
+
+	if ( is_boat_safe( ch, ship, ship ) )
+	{
+	send_to_char("The vessel is docked in a protected area.\n\r", ch);
+	return;
+	}
+
+	/* Is player on a boarded boat? */
+	if ( IS_NPC_SHIP(ship) )
+	{
+	/* Is captain on the ship or dead */
+	if ( ship->npc_ship->captain != NULL )
+	{
+	send_to_char("You can't scuttle this vessel, the captain is not dead yet!\n\r", ch);
+	return;
+	}
+	}
+	else
+	{
+	for ( temp_char = ship->crew_list; temp_char != NULL; temp_char = temp_char->next_in_crew)
+	{
+	if ( temp_char == ship->owner )
+	{
+	break;
+	}
+	}
+
+	if ( temp_char != NULL )
+	{
+	send_to_char("The captain is still on the vessel!\n\r", ch);
+	return;
+	}
+	}
+
+	sprintf(buf, "%s douses the vessel with fuel and ignites it!", ch->name);
+	boat_echo(ship, buf);
+
+	if ( ( ship->ship->in_room->vnum == ROOM_VNUM_SEA_PLITH_HARBOUR ||
+	ship->ship->in_room->vnum == ROOM_VNUM_SEA_SOUTHERN_HARBOUR ||
+	ship->ship->in_room->vnum == ROOM_VNUM_SEA_NORTHERN_HARBOUR ) &&
+	ship->owner != ch )
+	{
+	boat_echo(ship, "{MThe flames are extinguished by a mysterious protective magic.{x");
+	return;
+	}
+
+	ship->scuttle_time = 5;
+
+	if ( ship->boarded_by != NULL )
+	{
+	ship->boarded_by->ship_attacked = NULL;
+	ship->boarded_by->ship_chased = NULL;
+	ship->boarded_by->destination = NULL;
+	}
+	ship->ship_attacked = NULL;
+	ship->ship_chased = NULL;
+	ship->destination = NULL;
+
+	stop_boarding(ship);
+#endif
+}
 
 
 

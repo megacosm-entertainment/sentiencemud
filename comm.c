@@ -3056,6 +3056,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		variable_dynamic_fix_mobile(ch);
 		resolve_dungeons_player(ch);
 		resolve_instances_player(ch);
+		resolve_ships_player(ch);
 
 		if (ch->in_room != NULL)
 		{

@@ -2801,7 +2801,7 @@ void enter_combat(CHAR_DATA *ch, CHAR_DATA *victim, bool silent)
 	ch->fighting = victim;
 	ch->position = POS_FIGHTING;
 
-	// Make sure they arn't fading
+	// Make sure they aren't fading
 	if (ch->fade > 0)
 	{
 		ch->fade = 0;

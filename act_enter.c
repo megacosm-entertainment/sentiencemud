@@ -54,15 +54,14 @@ void do_disembark( CHAR_DATA *ch, char *argument)
 		return;
     }
 
-    if( !IS_VALID(ch->in_room->instance_section) ||
-    	!IS_VALID(ch->in_room->instance_section->instance) ||
-		!IS_VALID(ch->in_room->instance_section->instance->ship) )
+	ship = get_room_ship(ch->in_room);
+
+    if( !IS_VALID(ship) )
 	{
 		send_to_char("You are not on a ship.\n\r", ch);
 		return;
 	}
 
-	ship = ch->in_room->instance_section->instance->ship;
     if ( ship->ship_type == SHIP_AIR_SHIP && ship->speed != SHIP_SPEED_STOPPED )
     {
 		act( "The doors of the airship are locked!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );

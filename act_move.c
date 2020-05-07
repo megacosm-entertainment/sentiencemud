@@ -3261,7 +3261,7 @@ void do_steer( CHAR_DATA *ch, char *argument )
 
     if (!ON_SHIP(ch))
     {
-	 act("You arn't even on a vessel.", ch, NULL, NULL, TO_CHAR);
+	 act("You aren't even on a vessel.", ch, NULL, NULL, TO_CHAR);
 	 return;
     }
 
@@ -3360,7 +3360,7 @@ void do_speed( CHAR_DATA *ch, char *argument )
 
     if (!ON_SHIP(ch))
     {
-	 act("You arn't even on a vessel.", ch, NULL, NULL, TO_CHAR);
+	 act("You aren't even on a vessel.", ch, NULL, NULL, TO_CHAR);
 	 return;
     }
 
@@ -3436,7 +3436,7 @@ void do_aim( CHAR_DATA *ch, char *argument )
 
 	if (!ON_SHIP(ch))
 	{
-		act("You arn't even on a vessel.", ch, NULL, NULL, TO_CHAR);
+		act("You aren't even on a vessel.", ch, NULL, NULL, TO_CHAR);
 		return;
 	}
 

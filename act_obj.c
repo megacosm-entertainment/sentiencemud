@@ -6225,7 +6225,7 @@ void do_sell(CHAR_DATA *ch, char *argument)
 
 		if ((cart = ch->pulled_cart) == NULL)
 		{
-			sprintf(buf, "%s, you arn't pulling a cart!", pers(ch, trader));
+			sprintf(buf, "%s, you aren't pulling a cart!", pers(ch, trader));
 			do_say(trader, buf);
 			return;
 		}

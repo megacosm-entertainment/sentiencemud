@@ -386,6 +386,8 @@ struct special_key_data
 
 #define MAX_TEMPSTORE	4
 
+#define uid_match(u1, u2)		(((u1)[0] == (u2)[0]) && ((u1)[1] == (u2)[1]))
+
 /* Functions */
 typedef	void DO_FUN	(CHAR_DATA *ch, char *argument);
 typedef bool SPEC_FUN	(CHAR_DATA *ch);
@@ -2800,6 +2802,7 @@ enum {
 #define ROOM_BLUEPRINT		(U)	// Room is used in a blueprint.  Allows setting the coordinates without the wilderness
 #define ROOM_NOCLONE		(V)	// Room cannot be used for cloning
 #define ROOM_NO_GET_RANDOM	(W)	// Room cannot be selected on a random search
+#define ROOM_SAFE_HARBOR	(X)	// Room is part of a harbor and considered ship safe
 #define ROOM_ALWAYS_UPDATE	(Z)	/* Allows the room to perform scripting even if the area is empty */
 
 #define ENVIRON_NONE		0	// Special case to indicate the clone room is free floating
@@ -8490,6 +8493,16 @@ SHIP_DATA *create_ship(long vnum);
 void extract_ship(SHIP_DATA *ship);
 bool ship_isowner_player(SHIP_DATA *ship, CHAR_DATA *ch);
 void ships_update();
+void resolve_ships_player(CHAR_DATA *ch);
+void detach_ships_player(CHAR_DATA *ch);
+void detach_ships_ship(SHIP_DATA *old_ship);
+SHIP_DATA *get_ship_uids(unsigned long id1, unsigned long id2);
+SHIP_DATA *get_ship_uid(unsigned long id[2]);
+SHIP_DATA *get_ship_nearby(char *name, ROOM_INDEX_DATA *room, CHAR_DATA *owner);
+SHIP_DATA *get_room_ship(ROOM_INDEX_DATA *room);
+bool ischar_onboard_ship(CHAR_DATA *ch, SHIP_DATA *ship);
+void ship_echo( SHIP_DATA *ship, char *str );
+
 
 
 bool lockstate_functional(LOCK_STATE *lock);

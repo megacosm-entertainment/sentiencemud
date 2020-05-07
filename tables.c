@@ -1149,29 +1149,30 @@ const struct flag_type room_flags[] =
 
 const struct flag_type room2_flags[] =
 {
-    {	"alchemy",		ROOM_ALCHEMY,		TRUE	},
-    {	"bar",			ROOM_BAR,		TRUE	},
-    {	"briars",		ROOM_BRIARS,		TRUE	},	// @@@NIB : 20070126
-    {	"citymove",		ROOM_CITYMOVE,		TRUE	},
-    {	"drain_mana",		ROOM_DRAIN_MANA,	TRUE	},	// @@@NIB : 20070126
-    {	"hard_magic",		ROOM_HARD_MAGIC,	TRUE	},	// @@@NIB : 20070126
-    {	"multiplay",		ROOM_MULTIPLAY,		TRUE	},
-    {	"slow_magic",		ROOM_SLOW_MAGIC,	TRUE	},	// @@@NIB : 20070126
-    {	"toxic_bog",		ROOM_TOXIC_BOG,		TRUE	},	// @@@NIB : 20070126
-    {	"virtual_room",		ROOM_VIRTUAL_ROOM,	FALSE	}, /* VIZZWILDS */
-    {   "fire",			ROOM_FIRE,		TRUE    },
-    {   "icy",			ROOM_ICY,		TRUE    },
-    {   "no_quest",		ROOM_NO_QUEST,		TRUE    },
-    {   "no_quit",		ROOM_NO_QUIT,		TRUE 	},
-    {   "post_office",		ROOM_POST_OFFICE,	TRUE	},
-    {	"underground",		ROOM_UNDERGROUND,	TRUE	},
-    {	"vis_on_map",		ROOM_VISIBLE_ON_MAP,	TRUE	},
-    {	"no_floor",		ROOM_NOFLOOR,	TRUE	},
-    {	"clone_persist",		ROOM_CLONE_PERSIST,	TRUE	},
-    {	"blueprint",			ROOM_BLUEPRINT, TRUE	},
-    {	"no_clone",				ROOM_NOCLONE, TRUE	},
-    {	"no_get_random",		ROOM_NO_GET_RANDOM, TRUE	},
-    {	"always_update",		ROOM_ALWAYS_UPDATE,	TRUE	},
+    {	"alchemy",				ROOM_ALCHEMY,			TRUE	},
+    {	"bar",					ROOM_BAR,				TRUE	},
+    {	"briars",				ROOM_BRIARS,			TRUE	},
+    {	"citymove",				ROOM_CITYMOVE,			TRUE	},
+    {	"drain_mana",			ROOM_DRAIN_MANA,		TRUE	},
+    {	"hard_magic",			ROOM_HARD_MAGIC,		TRUE	},
+    {	"multiplay",			ROOM_MULTIPLAY,			TRUE	},
+    {	"slow_magic",			ROOM_SLOW_MAGIC,		TRUE	},
+    {	"toxic_bog",			ROOM_TOXIC_BOG,			TRUE	},
+    {	"virtual_room",			ROOM_VIRTUAL_ROOM,		FALSE	},
+    {   "fire",					ROOM_FIRE,				TRUE    },
+    {   "icy",					ROOM_ICY,				TRUE    },
+    {   "no_quest",				ROOM_NO_QUEST,			TRUE    },
+    {   "no_quit",				ROOM_NO_QUIT,			TRUE 	},
+    {   "post_office",			ROOM_POST_OFFICE,		TRUE	},
+    {	"underground",			ROOM_UNDERGROUND,		TRUE	},
+    {	"vis_on_map",			ROOM_VISIBLE_ON_MAP,	TRUE	},
+    {	"no_floor",				ROOM_NOFLOOR,			TRUE	},
+    {	"clone_persist",		ROOM_CLONE_PERSIST,		TRUE	},
+    {	"blueprint",			ROOM_BLUEPRINT, 		TRUE	},
+    {	"no_clone",				ROOM_NOCLONE,			TRUE	},
+    {	"no_get_random",		ROOM_NO_GET_RANDOM,		TRUE	},
+    {	"always_update",		ROOM_ALWAYS_UPDATE,		TRUE	},
+    {	"safe_harbor",			ROOM_SAFE_HARBOR,		TRUE	},
     {	NULL,			0,			0	}
 
 };
