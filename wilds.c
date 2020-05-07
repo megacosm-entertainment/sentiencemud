@@ -1560,7 +1560,7 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 						break;
 					}
 				}
-				iterator_stop(&it, loaded_ships);
+				iterator_stop(&it);
 
 
 /* Vizz - if no PC found in the room, display the terrain char */
