@@ -572,6 +572,7 @@ void do_ships(CHAR_DATA *ch, char *argument)
 
 		}
 
+		return;
 	}
 	else
 	{
@@ -582,6 +583,8 @@ void do_ships(CHAR_DATA *ch, char *argument)
 		}
 
 		argument = one_argument(argument, arg);
+
+		return;
 	}
 
 

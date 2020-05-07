@@ -10976,7 +10976,7 @@ WEDIT ( wedit_terrain )
         return TRUE;
     }
 
-    if (!str_cmp(arg, "briefdesc"))
+    if (!str_cmp(arg2, "briefdesc"))
     {
         if (pTerrain == NULL)
         {
@@ -10997,7 +10997,7 @@ WEDIT ( wedit_terrain )
         return TRUE;
     }
 
-    if (!str_cmp(arg, "roomflag"))
+    if (!str_cmp(arg2, "roomflag"))
     {
 	if ((value = flag_value(room_flags, argument)) == NO_FLAG)
 	{
@@ -11011,7 +11011,7 @@ WEDIT ( wedit_terrain )
         return TRUE;
     }
 
-    if (!str_cmp(arg, "room2flag"))
+    if (!str_cmp(arg2, "room2flag"))
     {
 	if ((value = flag_value(room2_flags, argument)) == NO_FLAG)
 	{
@@ -11025,7 +11025,7 @@ WEDIT ( wedit_terrain )
         return TRUE;
     }
 
-    if (!str_cmp(arg, "sector"))
+    if (!str_cmp(arg2, "sector"))
     {
 	if ((value = flag_value(sector_flags, argument)) == NO_FLAG)
 	{
