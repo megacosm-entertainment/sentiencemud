@@ -768,7 +768,7 @@ void detach_ships_ship(SHIP_DATA *old_ship)
 	{
 		if( ship->ship_attacked == old_ship ) ship->ship_attacked = NULL;
 		if( ship->ship_chased == old_ship ) ship->ship_chased = NULL;
-		if( ship->boarded_by_uid == old_ship ) ship->boarded_by_uid = NULL;
+		if( ship->boarded_by == old_ship ) ship->boarded_by = NULL;
 	}
 	iterator_stop(&it);
 }
@@ -867,7 +867,7 @@ void ship_echo( SHIP_DATA *ship, char *str )
 
 	if( d->connected == CON_PLAYING &&
 		victim->in_room != NULL &&
-		ischar_onboard_ship(victim->in_room, ship) )
+		ischar_onboard_ship(victim, ship) )
 		act(str, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 	}
 }
@@ -1075,8 +1075,8 @@ void do_ships(CHAR_DATA *ch, char *argument)
 
 void do_scuttle( CHAR_DATA *ch, char *argument)
 {
-	ROOM_INDEX_DATA *location;
-    OBJ_DATA *ship_obj;
+//	ROOM_INDEX_DATA *location;
+//    OBJ_DATA *ship_obj;
     SHIP_DATA *ship;
 	char buf[MSL];
 
