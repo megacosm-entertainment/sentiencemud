@@ -585,3 +585,5 @@ DECLARE_DO_FUN(	do_shedit	);
 DECLARE_DO_FUN(	do_shlist	);
 DECLARE_DO_FUN(	do_shshow	);
 
+DECLARE_DO_FUN( do_ships	);
+

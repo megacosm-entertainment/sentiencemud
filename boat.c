@@ -411,6 +411,185 @@ bool ship_save(FILE *fp, SHIP_DATA *ship)
 }
 
 
+void do_ships(CHAR_DATA *ch, char *argument)
+{
+	char arg[MIL];
+	SHIP_DATA *ship;
+
+	if( IS_IMMORTAL(ch) )
+	{
+		if( argument[0] == '\0' )
+		{
+			send_to_char("Syntax:  ships list[ player]\n\r", ch);
+			send_to_char("         ships load [vnum] [owner] [name]\n\r", ch);
+			// TODO: NPC ship handling
+			send_to_char("         ships unload [#]\n\r", ch);
+			return;
+		}
+
+		argument = one_argument(argument, arg);
+
+		if( !str_prefix(arg, "list") )
+		{
+			CHAR_DATA *owner = get_player(argument);
+
+			if(!ch->lines)
+				send_to_char("{RWARNING:{W Having scrolling off may limit how many ships you can see.{x\n\r", ch);
+
+			int lines = 0;
+			bool error = FALSE;
+			BUFFER *buffer = new_buf();
+			ITERATOR it;
+			char buf[MSL];
+
+			iterator_start(&it, loaded_ships);
+			while( (ship = (SHIP_DATA *)iterator_nextdata(&it)) )
+			{
+				sprintf(buf, "{W%4d{x)  {G%8ld  {x%-30.30s   {x%s{x\n\r",
+					++lines,
+					ship->index->vnum,
+					ship->ship_name,
+					owner ? owner->name : "{DNone");
+
+				if( !add_buf(buffer, buf) || (!ch->lines && strlen(buf_string(buffer)) > MAX_STRING_LENGTH) )
+				{
+					error = TRUE;
+					break;
+				}
+			}
+			iterator_stop(&it);
+
+
+			if( error )
+			{
+				send_to_char("Too many ships to list.  Please shorten!\n\r", ch);
+			}
+			else
+			{
+				if( !lines )
+				{
+					add_buf( buffer, "No ships to display.\n\r" );
+				}
+				else
+				{
+					// Header
+					send_to_char("{Y      [  Vnum  ] [             Name             ]  Owner{x\n\r", ch);
+					send_to_char("{Y======================================================================={x\n\r", ch);
+				}
+
+				page_to_char(buffer->string, ch);
+			}
+			free_buf(buffer);
+		}
+		else if( !str_prefix(arg, "load") )
+		{
+			char buf[2*MSL];
+			char arg2[MIL];
+			char arg3[MIL];
+			long vnum;
+
+			argument = one_argument(argument, arg2);
+			argument = one_argument(argument, arg3);
+
+			if( !is_number(arg2) )
+			{
+				send_to_char("That is not a number.\n\r", ch);
+				return;
+			}
+
+			vnum = atol(arg2);
+
+			SHIP_INDEX_DATA *index = get_ship_index(vnum);
+
+			if( !index )
+			{
+				send_to_char("That ship does not exist.\n\r", ch);
+				return;
+			}
+
+			if( index->ship_class == SHIP_SAILING_BOAT )
+			{
+				if( !IS_WILDERNESS(ch->in_room) )
+				{
+					send_to_char("Must be in the wilderness.\n\r", ch);
+					return;
+				}
+
+				if( ch->in_room->sector_type != SECT_WATER_SWIM &&
+					ch->in_room->pRoom->sector_type != SECT_WATER_NOSWIM )
+				{
+					send_to_char("Must be in the water.\n\r", ch);
+					return;
+				}
+			}
+			else if( index->ship_class == SHIP_AIR_SHIP )
+			{
+				if( !IS_OUTSIDE(ch) )
+				{
+					send_to_char("Must be outside.\n\r", ch);
+					return;
+				}
+			}
+
+			CHAR_DATA *owner = get_player(arg3);
+
+			ship = create_ship(vnum);
+
+			if( !IS_VALID(ship) )
+			{
+				send_to_char("Failed to create ship.\n\r", ch);
+				return;
+			}
+
+			free_string(ship->ship_name);
+			ship->ship_name = str_dup(argument);
+
+			// Install ship_name
+			free_string(ship->ship->name);
+			sprintf(buf, ship->ship->pIndexData->name, ship->ship_name);
+			ship->ship->name = str_dup(buf);
+
+			free_string(ship->ship->short_descr);
+			sprintf(buf, ship->ship->pIndexData->short_descr, ship->ship_name);
+			ship->ship->short_descr = str_dup(buf);
+
+			free_string(ship->ship->description);
+			sprintf(buf, ship->ship->pIndexData->description, ship->ship_name);
+			ship->ship->description = str_dup(buf);
+
+			obj_to_room(ship->ship, ch->in_room);
+			act("$p splashes down after being christened '$T'.",ch, NULL, NULL,ship->ship, NULL, NULL,ship->ship_name,TO_ALL);
+		}
+		else if( !str_prefix(arg, "unload") )
+		{
+			// Require that the ship being unloaded is not a special ship:
+			//   Endeavour
+			//   Goblin Airship
+			//
+
+
+		}
+
+	}
+	else
+	{
+		if( argument[0] == '\0' )
+		{
+			send_to_char("Syntax:  ships list\n\r", ch);
+			return;
+		}
+
+		argument = one_argument(argument, arg);
+	}
+
+
+	do_ships(ch, "");
+}
+
+
+
+
+
 /////////////////////////////////////////////////////////////////
 //
 // NPC Ships

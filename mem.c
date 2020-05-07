@@ -2178,7 +2178,6 @@ SHIP_DATA *new_ship()
 
 	memset(ship, 0, sizeof(SHIP_DATA));
 
-	ship->owner_name = &str_empty[0];
 	ship->flag = &str_empty[0];
 	ship->ship_name = &str_empty[0];
 
