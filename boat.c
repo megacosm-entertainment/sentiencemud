@@ -399,6 +399,18 @@ void ships_update()
 
 }
 
+
+SHIP_DATA *ship_load(FILE *fp)
+{
+	return NULL;
+}
+
+bool ship_save(FILE *fp, SHIP_DATA *ship)
+{
+	return true;
+}
+
+
 /////////////////////////////////////////////////////////////////
 //
 // NPC Ships

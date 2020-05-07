@@ -4412,37 +4412,39 @@ void char_from_invasion(CHAR_DATA *ch, INVASION_QUEST *quest)
  */
 void char_from_crew(CHAR_DATA *ch)
 {
-    if (ch->belongs_to_ship == NULL)
-    {
-	bug("Char_from_crew: belongs_to_ship was null.", 0);
-	return;
-    }
-
-    if (ch == ch->belongs_to_ship->crew_list)
-    {
-	ch->belongs_to_ship->crew_list = ch->next_in_crew;
-    }
-    else
-    {
-	CHAR_DATA *prev;
-
-	for (prev = ch->belongs_to_ship->crew_list; prev; prev = prev->next_in_crew)
+#if 0
+	if (ch->belongs_to_ship == NULL)
 	{
-	    if (prev->next_in_crew == ch)
-	    {
-		prev->next_in_crew = ch->next_in_crew;
-		break;
-	    }
+		bug("Char_from_crew: belongs_to_ship was null.", 0);
+		return;
 	}
 
-	if (prev == NULL)
-	    bug("Char_from_crew: ch not found.", 0);
-    }
+	if (ch == ch->belongs_to_ship->crew_list)
+	{
+		ch->belongs_to_ship->crew_list = ch->next_in_crew;
+	}
+	else
+	{
+		CHAR_DATA *prev;
 
-    ch->belongs_to_ship  = NULL;
-    ch->next_in_crew     = NULL;
-    ch->on 	         = NULL;  /* sanity check! */
-    return;
+		for (prev = ch->belongs_to_ship->crew_list; prev; prev = prev->next_in_crew)
+		{
+			if (prev->next_in_crew == ch)
+			{
+				prev->next_in_crew = ch->next_in_crew;
+				break;
+			}
+		}
+
+		if (prev == NULL)
+			bug("Char_from_crew: ch not found.", 0);
+	}
+
+	ch->belongs_to_ship  = NULL;
+	ch->next_in_crew     = NULL;
+	ch->on 	         = NULL;  /* sanity check! */
+#endif
+	return;
 }
 
 /*
@@ -9003,7 +9005,7 @@ SPECIAL_KEY_DATA *get_special_key(LLIST *list, long vnum)
 	iterator_start(&it, list);
 	while( (sk = (SPECIAL_KEY_DATA *)iterator_nextdata(&it)) )
 	{
-		if( sk->vnum == vnum)
+		if( sk->key_vnum == vnum)
 			break;
 	}
 	iterator_stop(&it);
@@ -9020,7 +9022,7 @@ void extract_special_key(OBJ_DATA *obj)
 	iterator_start(&skit, loaded_special_keys);
 	while( (sk = (SPECIAL_KEY_DATA *)iterator_nextdata(&skit)) )
 	{
-		if( sk->vnum == obj->pIndexData->vnum)
+		if( sk->key_vnum == obj->pIndexData->vnum)
 		{
 			iterator_start(&kit, sk->list);
 			while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&kit)) )
@@ -9047,7 +9049,7 @@ void resolve_special_key(OBJ_DATA *obj)
 	iterator_start(&skit, loaded_special_keys);
 	while( (sk = (SPECIAL_KEY_DATA *)iterator_nextdata(&skit)) )
 	{
-		if( sk->vnum == obj->pIndexData->vnum)
+		if( sk->key_vnum == obj->pIndexData->vnum)
 		{
 			iterator_start(&kit, sk->list);
 			while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&kit)) )

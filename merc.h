@@ -8473,8 +8473,8 @@ void load_ships();
 bool save_ships();
 SHIP_INDEX_DATA *get_ship_index(long vnum);
 bool can_edit_ships(CHAR_DATA *ch);
-//SHIP_DATA *ship_load(FILE *fp);
-//bool ship_save(FILE *fp, SHIP_DATA *ship);
+SHIP_DATA *ship_load(FILE *fp);
+bool ship_save(FILE *fp, SHIP_DATA *ship);
 
 SHIP_DATA *create_ship(long vnum);
 void extract_ship(SHIP_DATA *ship);
