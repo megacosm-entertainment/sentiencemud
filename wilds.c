@@ -1437,6 +1437,9 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
     int cString;
     int vp_startx, vp_starty, vp_endx, vp_endy;
     int i, pad;
+    ITERATOR it;
+    SHIP_DATA *ship;
+	extern	LLIST *loaded_ships;
 
     squares_to_show_x = get_squares_to_show_x(bonus_view_x);
     squares_to_show_y = get_squares_to_show_y(bonus_view_y);
@@ -1541,6 +1544,24 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
                         found = TRUE;
                     }
                 }
+
+				iterator_start(&it, loaded_ships);
+				while( (ship = (SHIP_DATA *)iterator_nextdata(&it)) )
+				{
+					if( ship->ship->in_room->wilds == pWilds &&
+						ship->ship->in_room->x == x &&
+						ship->ship->in_room->y == y )
+					{
+						if( ship->npc_ship )
+							sprintf(temp, "{DO{x");
+						else
+							sprintf(temp, "{WO{x");
+						found = TRUE;
+						break;
+					}
+				}
+				iterator_stop(&it, loaded_ships);
+
 
 /* Vizz - if no PC found in the room, display the terrain char */
                 if (!found)
