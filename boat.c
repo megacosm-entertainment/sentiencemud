@@ -628,7 +628,7 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple);
 bool ship_save(FILE *fp, SHIP_DATA *ship)
 {
 	ITERATOR it;
-	SPECIAL_KEY_DATA sk;
+	SPECIAL_KEY_DATA *sk;
 
 	fprintf(fp, "#SHIP %ld\n", ship->index->vnum);
 
