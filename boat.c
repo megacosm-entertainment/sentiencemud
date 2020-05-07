@@ -330,6 +330,7 @@ SHIP_DATA *create_ship(long vnum)
 
 	ship->index = ship_index;
 
+	/*
 	obj = create_object(obj_index, 0, FALSE);
 	if( !IS_VALID(obj) )
 	{
@@ -338,17 +339,21 @@ SHIP_DATA *create_ship(long vnum)
 	}
 	ship->ship = obj;
 	obj->ship = ship;
+	*/
 
 	instance = create_instance(ship_index->blueprint);
 	if( !IS_VALID(instance) )
 	{
+		/*
 		list_remlink(loaded_objects, obj);
 		--obj->pIndexData->count;
 		free_obj(obj);
+		*/
 		free_ship(ship);
 		return NULL;
 	}
 
+	/*
 	if( list_size(ship_index->special_keys) > 0 )
 	{
 		iterator_start(&it, ship_index->special_keys);
@@ -363,6 +368,7 @@ SHIP_DATA *create_ship(long vnum)
 		iterator_stop(&it);
 		instance_apply_specialkeys(instance, ship->special_keys);
 	}
+	*/
 	ship->instance = instance;
 	instance->ship = ship;
 
@@ -565,6 +571,7 @@ void do_ships(CHAR_DATA *ch, char *argument)
 			free_string(ship->ship_name);
 			ship->ship_name = str_dup(argument);
 
+			/*
 			// Install ship_name
 			free_string(ship->ship->name);
 			sprintf(buf, ship->ship->pIndexData->name, ship->ship_name);
@@ -580,6 +587,7 @@ void do_ships(CHAR_DATA *ch, char *argument)
 
 			obj_to_room(ship->ship, ch->in_room);
 			act("$p splashes down after being christened '$T'.",ch, NULL, NULL,ship->ship, NULL, NULL,ship->ship_name,TO_ALL);
+			*/
 		}
 		else if( !str_prefix(arg, "unload") )
 		{
