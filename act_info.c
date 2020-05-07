@@ -1777,11 +1777,14 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 		IS_SET(room->room_flags, ROOM_VIEWWILDS) &&
 		(!automatic || !IS_SET(ch->comm, COMM_BRIEF))) {
 		int vp_x, vp_y;
+		int x, y;
 		WILDS_DATA *viewwilds = NULL;
 
 		if( room->viewwilds )
 		{
 			viewwilds = room->viewwilds;
+			x = room->x;
+			y = room->y;
 		}
 		else if( IS_VALID(room->instance_section) &&
 			IS_VALID(room->instance_section->instance) &&
@@ -1789,14 +1792,17 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 			IS_VALID(room->instance_section->instance->ship->ship) &&
 			room->instance_section->instance->ship->ship->in_room )
 		{
-			viewwilds = room->instance_section->instance->ship->ship->in_room->wilds;
+			ROOM_INDEX_DATA *ship_room = room->instance_section->instance->ship->ship->in_room;
+			viewwilds = ship_room->wilds;
+			x = ship_room->x;
+			y = ship_room->y;
 		}
 
 		if( viewwilds )
 		{
 			vp_x = get_squares_to_show_x(ch->wildview_bonus_x);
 			vp_y = get_squares_to_show_y(ch->wildview_bonus_y);
-			show_map_to_char_wyx(room->viewwilds, room->x, room->y, ch, room->x, room->y, vp_x, vp_y, FALSE);
+			show_map_to_char_wyx(viewwilds, x, y, ch, x, y, vp_x, vp_y, FALSE);
 		}
 	}
 
