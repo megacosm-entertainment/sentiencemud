@@ -1681,8 +1681,10 @@ void do_steer( CHAR_DATA *ch, char *argument )
     ship->dir_y = -(int)(1000 * cos(3.1415926 * door / 180));
     ship->move_x = 0;
     ship->move_y = 0;
-
-
+    ship->abs_x = abs(ship->dir_x);
+    ship->abs_y = abs(ship->dir_y);
+    ship->sgn_x = (ship->dir_x > 0) ? 1 : ((ship->dir_x < 0) ? -1 : 0);
+    ship->sgn_y = (ship->dir_y > 0) ? 1 : ((ship->dir_y < 0) ? -1 : 0);
 
     act("{WThe vessel is now steered to the $T.{x", ch, NULL, NULL, NULL, NULL, NULL, dir_name[door], TO_CHAR);
     act("{WThe vessel is now steered to the $T.{x", ch, NULL, NULL, NULL, NULL, NULL, dir_name[door], TO_ROOM);
