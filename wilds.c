@@ -2056,7 +2056,16 @@ void do_vlinks(CHAR_DATA *ch, char *argument)
     WILDS_VLINK *pVLink;
     char buf[MSL];
 
-    if (!ch->in_wilds)
+    WILDS_DATA *pWilds = ch->in_wilds;
+
+    if( is_number(argument) )
+    {
+		pWilds = get_wilds_from_uid(NULL, atol(argument);
+
+		send_to_char("Vlinks: That is not a wilds region.\n\r", ch);
+		return;
+	}
+	else if (!ch->in_wilds)
     {
         plogf("wilds.c, do_vlinks(): ch->in_wilds invalid.");
         send_to_char("Vlinks: You don't appear to be in a wilds region.\n\r", ch);
@@ -2065,13 +2074,13 @@ void do_vlinks(CHAR_DATA *ch, char *argument)
 
     send_to_char("{w[{WVLinks{w]{x\n\r\n\r", ch);
 
-    if (ch->in_wilds->pVLink)
+    if (pWilds->pVLink)
     {
         BUFFER *buffer;
 
         buffer=new_buf();
         add_buf(buffer, "[   Uid] [x coor] [y coor] [direction] [destvnum] [default state] [current state]{x\n\r");
-        for(pVLink=ch->in_wilds->pVLink;pVLink!=NULL;pVLink = pVLink->next)
+        for(pVLink=pWilds->pVLink;pVLink!=NULL;pVLink = pVLink->next)
         {
             sprintf(buf, "{x({W%6ld{x)  {W%6d   %6d   %9s    %7ld   %7s   %7s{x\n\r",
                            pVLink->uid,
@@ -2523,7 +2532,7 @@ void link_vlinks (WILDS_DATA *pWilds)
             continue;
 		}
 
-        if (IS_SET(pVLink->default_linkage, VLINK_FROM_WILDS))
+        if (IS_SET(pVLink->default_linkage, (VLINK_FROM_WILDS|VLINK_TO_WILDS)))
         {
             if (pVLink->wildsorigin_x >= 0 && pVLink->wildsorigin_y >= 0
                 && pVLink->wildsorigin_x < pWilds->map_size_x

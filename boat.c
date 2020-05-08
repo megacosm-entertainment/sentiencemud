@@ -413,11 +413,60 @@ bool ship_isowner_player(SHIP_DATA *ship, CHAR_DATA *ch)
 void ship_stop(SHIP_DATA *ship)
 {
 	ship->speed = SHIP_SPEED_STOPPED;
-	ship->move_delay = 0;
+	ship->move_steps = 0;
+	ship->move_x = 0;
+	ship->move_y = 0;
 	ship->ship_move = 0;
 	ship->last_times[0] = current_time + 15;
 	ship->last_times[1] = current_time + 10;
 	ship->last_times[2] = current_time + 5;
+}
+
+int door_from_delta(int dx, int dy)
+{
+	if( dx == 0 )
+	{
+		// North-south
+		if( dy < 0 )
+		{
+			return DIR_NORTH;
+		}
+		else if( dy > 0 )
+		{
+			return DIR_SOUTH;
+		}
+
+		// Still
+		return -1;
+	}
+	else if( dx < 0 )
+	{
+		// Westward
+		if( dy < 0 )
+		{
+			return DIR_NORTHWEST;
+		}
+		else if( dy > 0 )
+		{
+			return DIR_SOUTHWEST;
+		}
+
+		return DIR_WEST;
+	}
+	else
+	{
+		// Eastward
+		if( dy < 0 )
+		{
+			return DIR_NORTHEAST;
+		}
+		else if( dy > 0 )
+		{
+			return DIR_SOUTHEAST;
+		}
+
+		return DIR_EAST;
+	}
 }
 
 bool move_ship_success(SHIP_DATA *ship)
@@ -432,8 +481,34 @@ bool move_ship_success(SHIP_DATA *ship)
 
 	obj = ship->ship;
 	in_room = ship->ship->in_room;
-	door = ship->dir;
 
+	int dx, dy;
+	if( ship->abs_y > ship->abs_x )
+	{
+		// More North-South
+		dx = 0;
+		dy = ship->sgn_y;
+		ship->move_y += ship->abs_x;
+		if( ship->move_y > ship->abs_y )
+		{
+			ship->move_y -= ship->abs_y;
+			dx = ship->sgn_x;
+		}
+	}
+	else
+	{
+		// More East-West
+		dx = ship->sgn_x;
+		dy = 0;
+		ship->move_x += ship->abs_y;
+		if( ship->move_x > ship->abs_x )
+		{
+			ship->move_x -= ship->abs_x;
+			dy = ship->sgn_y;
+		}
+	}
+
+	door = door_from_delta(dx, dy);
 	if( door < 0 || door >= MAX_DIR )
 		return false;
 
@@ -479,11 +554,11 @@ bool move_ship_success(SHIP_DATA *ship)
 	switch(ship->ship_type)
 	{
 	case SHIP_AIR_SHIP:
-		sprintf(buf, "{W%s flies away to the %s.{x\n\r", capitalize(obj->short_descr), dir_name[ship->dir]);
+		sprintf(buf, "{W%s flies away to the %s.{x\n\r", capitalize(obj->short_descr), dir_name[door]);
 		break;
 
 	default:
-		sprintf(buf, "{W%s sails away to the %s.{x\n\r", capitalize(obj->short_descr), dir_name[ship->dir]);
+		sprintf(buf, "{W%s sails away to the %s.{x\n\r", capitalize(obj->short_descr), dir_name[door]);
 		break;
 	}
 	room_echo(in_room, buf);
@@ -494,11 +569,11 @@ bool move_ship_success(SHIP_DATA *ship)
 	switch(ship->ship_type)
 	{
 	case SHIP_AIR_SHIP:
-		sprintf(buf, "{W%s flies in from the %s.{x\n\r", capitalize(obj->short_descr), dir_name[ship->dir]);
+		sprintf(buf, "{W%s flies in from the %s.{x\n\r", capitalize(obj->short_descr), dir_name[door]);
 		break;
 
 	default:
-		sprintf(buf, "{W%s sails in from the %s.{x\n\r", capitalize(obj->short_descr), dir_name[ship->dir]);
+		sprintf(buf, "{W%s sails in from the %s.{x\n\r", capitalize(obj->short_descr), dir_name[door]);
 		break;
 	}
 	room_echo(to_room, buf);
@@ -508,26 +583,26 @@ bool move_ship_success(SHIP_DATA *ship)
 
 double ln2_50 = log(2) / 50.0;	// I want 'a' to satisfy exp(a * 50) = 2
 
-void ship_set_move_delay(SHIP_DATA *ship)
+void ship_set_move_steps(SHIP_DATA *ship)
 {
 	if( ship->speed > SHIP_SPEED_STOPPED )
 	{
 		int speed = ship->speed;
 
 		// TODO: Add some kind of modifiers for speed
+		// - encumberance (cargo weight)
 		// - damaged propulsion
 		// - wind?
 		// - relic modifier
 
-		ship->move_delay = (int)(ship->index->move_delay * exp(ln2_50 * (100 - speed)) + 0.5);
-
-		ship->move_delay = UMAX(1, ship->move_delay);
+		ship->move_steps = speed * ship->index->move_steps / 100;
+		ship->move_steps = UMAX(0, ship->move_steps);
 	}
 	else
 	{
-		ship->move_delay = 0;
+		ship->move_steps = 0;
 	}
-	ship->ship_move = ship->move_delay;
+	ship->ship_move = ship->index->move_delay;
 }
 
 void ship_move_update(SHIP_DATA *ship)
@@ -539,14 +614,14 @@ void ship_move_update(SHIP_DATA *ship)
 		return;
 	}
 
-	for( int i = 0; i < ship->index->move_steps; i++)
+	for( int i = 0; i < ship->move_steps; i++)
 	{
 		if( !move_ship_success(ship) ) return;
 	}
 
 	ship_autosurvey(ship);
 
-	ship_set_move_delay(ship);
+	ship_set_move_steps(ship);
 //	ship->ship_move = ship->move_delay;
 }
 
@@ -760,7 +835,21 @@ SHIP_DATA *ship_load(FILE *fp)
 			break;
 
 		case 'M':
-			KEY("MoveDelay", ship->move_delay, fread_number(fp));
+			if( !str_cmp(word, "MoveDir") )
+			{
+				ship->dir_x = fread_number(fp);
+				ship->dir_y = fread_number(fp);
+				ship->abs_x = fread_number(fp);
+				ship->abs_y = fread_number(fp);
+				ship->sgn_x = fread_number(fp);
+				ship->sgn_y = fread_number(fp);
+				ship->move_x = fread_number(fp);
+				ship->move_y = fread_number(fp);
+
+				fMatch = TRUE;
+				break;
+			}
+			KEY("MoveSteps", ship->move_steps, fread_number(fp));
 			break;
 
 		case 'N':
@@ -889,9 +978,10 @@ bool ship_save(FILE *fp, SHIP_DATA *ship)
 		fprintf(fp, "ShipMove %d\n", ship->ship_move);
 	}
 
-	if( ship->move_delay > 0 )
+	if( ship->move_steps > 0 )
 	{
-		fprintf(fp, "MoveDelay %d\n", ship->move_delay);
+		fprintf(fp, "MoveSteps %d\n", ship->move_steps);
+		fprintf(fp, "MoveDir %d %d %d %d %d %d %d %d\n", ship->dir_x, ship->dir_y, ship->abs_x, ship->abs_y, ship->sgn_x, ship->sgn_y, ship->move_x, ship->move_y);
 	}
 
 	if( ship->pk )
@@ -1183,7 +1273,26 @@ void do_ships(CHAR_DATA *ch, char *argument)
 				if( owner && ship->owner != owner )
 					continue;
 
-				char *dir;
+				char dir[20];
+				if( ship->dir < 0 )
+				{
+					dir[0] = '\0';
+				}
+				else
+				{
+					switch(ship->dir)
+					case 0:		strcpy(dir, "North"); break;
+					case 45:	strcpy(dir, "Northeast"); break;
+					case 90:	strcpy(dir, "East"); break;
+					case 135:	strcpy(dir, "Southeast"); break;
+					case 180:	strcpy(dir, "South"); break;
+					case 225:	strcpy(dir, "Southwest"); break;
+					case 270:	strcpy(dir, "West"); break;
+					case 315:	strcpy(dir, "Northwest"); break;
+					default:
+						sprintf(dir, "%d",ship->dir);
+						break;
+				}
 
 				if( ship->dir < 0 || ship->dir >= MAX_DIR )
 					dir = "";
@@ -1529,23 +1638,51 @@ void do_steer( CHAR_DATA *ch, char *argument )
 		return;
 	}
 
-	door = parse_direction(arg);
-
-	if ( door < 0 || door == DIR_UP || door == DIR_DOWN )
-	{
-		send_to_char("That isn't a valid direction.\n\r", ch);
-		return;
-	}
-
     if ( !ship_has_enough_crew( ch->in_room->ship ) )
     {
 		send_to_char( "There isn't enough crew to order that command!\n\r", ch );
 		return;
     }
 
+	if( is_number(arg) )
+	{
+		door = atoi(arg);
+
+		if( door < 0 || door >= 360 )
+		{
+			send_to_char("That isn't a valid direction.\n\r", ch);
+			return;
+		}
+	}
+	else
+	{
+		door = parse_direction(arg);
+
+		switch(door)
+		{
+		case DIR_NORTH:				door = 0; break;
+		case DIR_NORTHEAST:			door = 45; break;
+		case DIR_EAST:				door = 90; break;
+		case DIR_SOUTHEAST:			door = 135; break;
+		case DIR_SOUTH:				door = 180; break;
+		case DIR_SOUTHWEST:			door = 225; break;
+		case DIR_WEST:				door = 270; break;
+		case DIR_NORTHWEST:			door = 315; break;
+		default:
+			send_to_char("That isn't a valid direction.\n\r", ch);
+			return;
+		}
+	}
+
 	// TODO: Cancel waypoint
 	// TODO: Cancel chasing
     ship->dir = door;
+    ship->dir_x = (int)(1000 * sin(3.1415926 * door / 180));
+    ship->dir_y = -(int)(1000 * cos(3.1415926 * door / 180));
+    ship->move_x = 0;
+    ship->move_y = 0;
+
+
 
     act("{WThe vessel is now steered to the $T.{x", ch, NULL, NULL, NULL, NULL, NULL, dir_name[door], TO_CHAR);
     act("{WThe vessel is now steered to the $T.{x", ch, NULL, NULL, NULL, NULL, NULL, dir_name[door], TO_ROOM);
@@ -1633,7 +1770,7 @@ void do_speed( CHAR_DATA *ch, char *argument )
 		}
 
 		ship->speed = SHIP_SPEED_HALF_SPEED;
-		ship_set_move_delay(ship);
+		ship_set_move_steps(ship);
 		return;
 	}
 
@@ -1645,7 +1782,7 @@ void do_speed( CHAR_DATA *ch, char *argument )
 			act("$n gives the order for full speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
 			ship->speed = SHIP_SPEED_FULL_SPEED;
-			ship_set_move_delay(ship);
+			ship_set_move_steps(ship);
 		}
 		else
 		{

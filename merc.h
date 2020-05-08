@@ -4978,8 +4978,16 @@ struct ship_data
 	char				*flag;
 
 	sh_int				dir;
+	sh_int				dir_x;
+	sh_int				dir_y;
+	sh_int				abs_x;
+	sh_int				abs_y;
+	sh_int				sgn_x;
+	sh_int				sgn_y;
+	sh_int				move_x;
+	sh_int				move_y;
 	sh_int				speed;
-	int					move_delay;
+	int					move_steps;
 	long				hit;
 	long				armor;
 
@@ -8522,7 +8530,7 @@ void ship_echo( SHIP_DATA *ship, char *str );
 void resolve_ships();
 void get_ship_wildsicon(SHIP_DATA *ship, char *buf, size_t len);
 bool ship_has_enough_crew( SHIP_DATA *ship );
-void ship_set_move_delay(SHIP_DATA *ship);
+void ship_set_move_steps(SHIP_DATA *ship);
 
 bool lockstate_functional(LOCK_STATE *lock);
 OBJ_DATA *lockstate_getkey(CHAR_DATA *ch, LOCK_STATE *lock);
