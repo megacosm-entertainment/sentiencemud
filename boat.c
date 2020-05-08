@@ -1159,12 +1159,19 @@ void do_ships(CHAR_DATA *ch, char *argument)
 				if( owner && ship->owner != owner )
 					continue;
 
-				sprintf(buf, "{W%4d{x)  {G%8ld  {x%-30.30s   {x%s{x  %d %d %d\n\r",
+				char *dir;
+
+				if( ship->dir < 0 || ship->dir >= MAX_DIR )
+					dir = "";
+				else
+					dir = dir_name[ship->dir];
+
+				sprintf(buf, "{W%4d{x)  {G%8ld  {x%-30.30s   {x%s{x  %d %d %d %s\n\r",
 					++lines,
 					ship->index->vnum,
 					ship->ship_name,
 					ship->owner ? ship->owner->name : "{DNone",
-					ship->speed, ship->move_delay, ship->ship_move);
+					ship->speed, ship->move_delay, ship->ship_move, dir);
 
 				if( !add_buf(buffer, buf) || (!ch->lines && strlen(buf_string(buffer)) > MAX_STRING_LENGTH) )
 				{
