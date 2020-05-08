@@ -1281,6 +1281,7 @@ void do_ships(CHAR_DATA *ch, char *argument)
 				else
 				{
 					switch(ship->dir)
+					{
 					case 0:		strcpy(dir, "North"); break;
 					case 45:	strcpy(dir, "Northeast"); break;
 					case 90:	strcpy(dir, "East"); break;
@@ -1292,19 +1293,15 @@ void do_ships(CHAR_DATA *ch, char *argument)
 					default:
 						sprintf(dir, "%d",ship->dir);
 						break;
+					}
 				}
-
-				if( ship->dir < 0 || ship->dir >= MAX_DIR )
-					dir = "";
-				else
-					dir = dir_name[ship->dir];
 
 				sprintf(buf, "{W%4d{x)  {G%8ld  {x%-30.30s   {x%s{x  %d %d %d %s\n\r",
 					++lines,
 					ship->index->vnum,
 					ship->ship_name,
 					ship->owner ? ship->owner->name : "{DNone",
-					ship->speed, ship->move_delay, ship->ship_move, dir);
+					ship->speed, ship->move_steps, ship->ship_move, dir);
 
 				if( !add_buf(buffer, buf) || (!ch->lines && strlen(buf_string(buffer)) > MAX_STRING_LENGTH) )
 				{
