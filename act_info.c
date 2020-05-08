@@ -1378,8 +1378,6 @@ void do_survey(CHAR_DATA *ch, char *argument)
 		show_map_to_char_wyx(ship->ship->in_room->wilds, ship->ship->in_room->x, ship->ship->in_room->y, ch, ship->ship->in_room->x, ship->ship->in_room->y, x, y, FALSE);
 
 		// Display sailing vessels in the same room as the ship
-
-
 		return;
 	}
 
@@ -2051,16 +2049,18 @@ void do_look(CHAR_DATA * ch, char *argument)
 	    /* sextant */
 	    if (obj->item_type == ITEM_SEXTANT
 	    && (is_name(arg2, obj->name) || is_name(arg3, obj->name))
-	    && (IN_WILDERNESS(ch)/* || ON_SHIP(ch)*/)
+	    && (IN_WILDERNESS(ch) || ON_SHIP(ch))
 	    && ch->in_room != NULL)
 	    {
 		long x, y;
-/*		if (ON_SHIP(ch))
+		SHIP_DATA *ship = get_room_ship(ch->in_room);
+
+		if (IS_VALID(ship))
 		{
-		    x = ch->in_room->ship->ship->in_room->x;
-		    y = ch->in_room->ship->ship->in_room->y;
+		    x = ship->ship->in_room->x;
+		    y = ship->ship->in_room->y;
 		}
-		else*/
+		else
 		{
 		    x = ch->in_room->x;
 		    y = ch->in_room->y;

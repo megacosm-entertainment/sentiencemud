@@ -6636,8 +6636,7 @@ extern sh_int grn_unique;
 			ch->pcdata->rank[CONT_SERALIA] == NPC_SHIP_RANK_PIRATE) || \
 					((ch->in_room->area->place_flags == PLACE_SECOND_CONTINENT) && \
 			ch->pcdata->rank[CONT_ATHEMIA] == NPC_SHIP_RANK_PIRATE)))
-#define ON_SHIP(ch)             ((ch)->in_room->area == get_sailing_boat_area() \
-          			&& (ch)->in_room->ship != NULL)
+#define ON_SHIP(ch)             (get_room_ship((ch)->in_room) != NULL)
 #define IN_SHIP_NEST(ch)        (ch->in_room->vnum == ROOM_VNUM_SAILING_BOAT_NEST)
 
 #define IS_SHIP_IN_HARBOUR(ship) (ship->ship->in_room->vnum == ROOM_VNUM_SEA_PLITH_HARBOUR || \
