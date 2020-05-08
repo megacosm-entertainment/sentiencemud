@@ -4903,6 +4903,7 @@ struct stat_data
 #define SHIP_MAX_GUNS		20
 #define SHIP_MAX_CREW		20
 #define SHIP_MIN_DELAY		1
+#define SHIP_MIN_STEPS		1
 #define SHIP_MAX_WEIGHT		10000
 #define SHIP_MAX_CAPACITY	100
 #define SHIP_MAX_ARMOR		1000
@@ -4946,6 +4947,7 @@ struct ship_index_data
 	int min_crew;		// How many crew is required to OPERATE the ship?
 	int max_crew;		// How many crew can the ship have?
 	int move_delay;		// Minimum move delay
+	int move_steps:		// Number of steps the ship will attempt per movement
 	int weight;			// Weight limit before ship sinks (ignores non-takable objects)
 	int capacity;		// How many items can FIT on the ship (ignores non-takable objects)
 	int armor;			// Base protective armor
@@ -4969,6 +4971,7 @@ struct ship_data
 	unsigned long		owner_uid[2];
 
 	WILDS_COORD			last_coords[3];
+	time_t				last_times[3];
 
 	LLIST *crew;
 

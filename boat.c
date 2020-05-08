@@ -153,6 +153,7 @@ SHIP_INDEX_DATA *load_ship_index(FILE *fp)
 
 		case 'M':
 			KEY("MoveDelay", ship->move_delay, fread_number(fp));
+			KEY("MoveSteps", ship->move_steps, fread_number(fp));
 			break;
 
 		case 'N':
@@ -241,6 +242,7 @@ void save_ship_index(FILE *fp, SHIP_INDEX_DATA *ship)
 	fprintf(fp, "Guns %d\n", ship->guns);
 	fprintf(fp, "Crew %d %d\n", ship->min_crew, ship->max_crew);
 	fprintf(fp, "MoveDelay %d\n", ship->move_delay);
+	fprintf(fp, "MoveSteps %d\n", ship->move_steps);
 	fprintf(fp, "Weight %d\n", ship->weight);
 	fprintf(fp, "Capacity %d\n", ship->capacity);
 	fprintf(fp, "Armor %d\n", ship->armor);
@@ -413,7 +415,9 @@ void ship_stop(SHIP_DATA *ship)
 	ship->speed = SHIP_SPEED_STOPPED;
 	ship->move_delay = 0;
 	ship->ship_move = 0;
-	memset(ship->last_coords, 0, sizeof(ship->last_coords));
+	ship->last_times[0] = current_time + 15;
+	ship->last_times[1] = current_time + 10;
+	ship->last_times[2] = current_time + 5;
 }
 
 bool move_ship_success(SHIP_DATA *ship)
@@ -467,6 +471,9 @@ bool move_ship_success(SHIP_DATA *ship)
 		ship->last_coords[0].w = in_room->wilds->uid;
 		ship->last_coords[0].x = in_room->x;
 		ship->last_coords[0].y = in_room->y;
+		ship->last_times[2] = current_time + 5;
+		ship->last_times[1] = 0;
+		ship->last_times[0] = 0;
 	}
 
 	switch(ship->ship_type)
@@ -532,7 +539,10 @@ void ship_move_update(SHIP_DATA *ship)
 		return;
 	}
 
-	if( !move_ship_success(ship) ) return;
+	for( int i = 0; i < ship->index->move_steps; i++)
+	{
+		if( !move_ship_success(ship) ) return;
+	}
 
 	ship_autosurvey(ship);
 
@@ -549,6 +559,19 @@ void ship_pulse_update(SHIP_DATA *ship)
 		if( !--ship->ship_move )
 		{
 			ship_move_update(ship);
+		}
+
+		// Update the wake
+		for( int i = 0; i < 3; i++ )
+		{
+			if( ship->last_times[i] > 0 && ship->last_times[i] < current_time )
+			{
+				ship->last_coords[i].wilds = NULL;
+				ship->last_coords[i].x = 0;
+				ship->last_coords[i].y = 0;
+				ship->last_times[i] = 0;
+
+			}
 		}
 	}
 }
@@ -1086,9 +1109,10 @@ void ship_autosurvey( SHIP_DATA *ship )
 		victim = d->original ? d->original : d->character;
 
 		if( d->connected == CON_PLAYING &&
+			IS_SET(victim->act2, PLR_AUTOSURVEY) &&
 			victim->in_room != NULL &&
 			ischar_onboard_ship(victim, ship) &&
-			IS_AWAKE(victim) && IS_SET(victim->act2, PLR_AUTOSURVEY))
+			IS_AWAKE(victim) && IS_OUTSIDE(victim) )
 		{
 			do_function(victim, &do_survey, "auto" );
 		}
@@ -1827,7 +1851,7 @@ const struct olc_cmd_type shedit_table[] =
 	{ "hit",				shedit_hit			},
 	{ "keys",				shedit_keys			},
 	{ "list",				shedit_list			},
-	{ "movedelay",			shedit_move_delay	},
+	{ "move",				shedit_move			},
 	{ "name",				shedit_name			},
 	{ "object",				shedit_object		},
 	{ "show",				shedit_show			},
@@ -2082,6 +2106,9 @@ SHEDIT( shedit_show )
 	add_buf(buffer, buf);
 
 	sprintf(buf, "Move Delay:  [%5d]{x\n\r", ship->move_delay);
+	add_buf(buffer, buf);
+
+	sprintf(buf, "Move Steps:  [%5d]{x\n\r", ship->move_steps);
 	add_buf(buffer, buf);
 
 	sprintf(buf, "Max Weight:  [%5d]{x\n\r", ship->weight);
@@ -2527,33 +2554,45 @@ SHEDIT( shedit_crew )
 	return TRUE;
 }
 
-SHEDIT( shedit_move_delay )
+SHEDIT( shedit_move )
 {
 	SHIP_INDEX_DATA *ship;
+	char arg[MIL];
 
 	EDIT_SHIP(ch, ship);
 
 	if( argument[0] == '\0' )
 	{
-		send_to_char("Syntax:  movedelay [count]\n\r", ch);
+		send_to_char("Syntax:  move [delay] [steps]\n\r", ch);
 		return FALSE;
 	}
 
-	if( !is_number(argument) )
+	argument = one_argument(argument, arg);
+
+	if( !is_number(arg) || !is_number(argument) )
 	{
 		send_to_char("That is not a number.\n\r", ch);
 		return FALSE;
 	}
 
-	int value = atoi(argument);
-	if( value < SHIP_MIN_DELAY )
+	int delay = atoi(arg);
+	int steps = atoi(argument);
+
+	if( delay < SHIP_MIN_DELAY )
 	{
 		send_to_char("Move delay must be at least " __STR(SHIP_MIN_DELAY) ".\n\r", ch);
 		return FALSE;
 	}
 
-	ship->move_delay = value;
-	send_to_char("Ship move delay changed.\n\r", ch);
+	if( steps < SHIP_MIN_STEPS )
+	{
+		send_to_char("Move steps must be at least " __STR(SHIP_MIN_STEPS) ".\n\r", ch);
+		return FALSE;
+	}
+
+	ship->move_steps = steps;
+	ship->move_delay = delay;
+	send_to_char("Ship movement changed.\n\r", ch);
 	return TRUE;
 }
 

@@ -420,7 +420,7 @@ DECLARE_OLC_FUN( shedit_object		);
 DECLARE_OLC_FUN( shedit_hit			);
 DECLARE_OLC_FUN( shedit_guns		);
 DECLARE_OLC_FUN( shedit_crew		);
-DECLARE_OLC_FUN( shedit_move_delay	);
+DECLARE_OLC_FUN( shedit_move		);
 DECLARE_OLC_FUN( shedit_weight		);
 DECLARE_OLC_FUN( shedit_capacity	);
 DECLARE_OLC_FUN( shedit_flags		);
