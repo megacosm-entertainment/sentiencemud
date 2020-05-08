@@ -140,8 +140,13 @@ SPELL_FUNC(spell_control_weather)
 SPELL_FUNC(spell_eagle_eye)
 {
 	long bonus_view;
+	SHIP_DATA *ship = get_room_ship(ch->in_room);
+	ROOM_INDEX_DATA *room = ch->in_room;
 
-	if (!IN_WILDERNESS(ch)) {
+	if (IS_VALID(ship))
+		room = obj_room(ship->ship);
+
+	if (!IS_WILDERNESS(room)) {
 		send_to_char("Eagles won't come near the city. You must be in the wilderness.\n\r", ch);
 		return FALSE;
 	}
@@ -151,10 +156,13 @@ SPELL_FUNC(spell_eagle_eye)
 
 	bonus_view = 20;
 
-	show_map_to_char(ch, ch, bonus_view * 2, bonus_view/2, FALSE);
+	show_map_to_char_wyx(room->wilds, room->x, room->y, ch, room->x, room->y, bonus_view * 2, bonus_view / 2, false);
 
-	// Add an event
-	wait_function(ch->in_room, NULL, EVENT_ECHO, number_range(1,2), NULL, "An eagle can be seen flying high in the sky...\n\r");
+	// Add an event, must be outside to see it
+	if(IS_OUTSIDE(ch))
+	{
+		wait_function(ch->in_room, NULL, EVENT_ECHO, number_range(1,2), NULL, "An eagle can be seen flying high in the sky...\n\r");
+	}
 	return TRUE;
 }
 
@@ -222,13 +230,16 @@ SPELL_FUNC(spell_master_weather)
 
 SPELL_FUNC(spell_vision)
 {
-	ROOM_INDEX_DATA *room;
+	SHIP_DATA *ship = get_room_ship(ch->in_room);
+	ROOM_INDEX_DATA *room = ch->in_room;
 	long bonus_view;
 
-	if (!IN_WILDERNESS(ch) && /*!ON_SHIP(ch) &&*/
+	if (IS_VALID(ship))
+		room = obj_room(ship->ship);
+
+	if (!IS_WILDERNESS(room) && /*!ON_SHIP(ch) &&*/
 		(!IS_SET(ch->in_room->room_flags, ROOM_VIEWWILDS) ||
-		IS_SET((ch)->in_room->room_flags,ROOM_INDOORS) ||
-		ch->in_room->sector_type == SECT_INSIDE)) {
+		!IS_OUTSIDE(ch))) {
 		act("You must be outdoors.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		return FALSE;
 	}
@@ -236,25 +247,13 @@ SPELL_FUNC(spell_vision)
 	act("$n blinks $s eyes.\n\r", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 	act("You have a vision of your surrounding terrain.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
+	WILDS_DATA *wilds = room->wilds;
+	if(IS_SET(ch->in_room->room_flags, ROOM_VIEWWILDS))
+		wilds = room->viewwilds;
+
 	bonus_view = 16;
 
-	room = NULL;
-/*	if (ON_SHIP(ch)) {
-		room = ch->in_room;
-		char_from_room(ch);
-		char_to_room(ch, room->ship->ship->in_room);
-	} else */if(IS_SET(ch->in_room->room_flags, ROOM_VIEWWILDS)) {
-		room = ch->in_room;
-		char_from_room(ch);
-		char_to_vroom(ch,room->viewwilds,room->x,room->y);
-	}
-
-	show_map_to_char(ch, ch, bonus_view * 2, bonus_view * 2/3, FALSE);
-
-	if (room) {
-		char_from_room(ch);
-		char_to_room(ch, room);
-	}
+	show_map_to_char_wyx(wilds, room->x, room->y, ch, room->x, room->y, bonus_view * 2, bonus_view / 2, false);
 
 	return TRUE;
 }
