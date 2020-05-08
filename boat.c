@@ -1505,7 +1505,7 @@ void do_steer( CHAR_DATA *ch, char *argument )
 		return;
 	}
 
-    if ( !has_enough_crew( ch->in_room->ship ) )
+    if ( !ship_has_enough_crew( ch->in_room->ship ) )
     {
 		send_to_char( "There isn't enough crew to order that command!\n\r", ch );
 		return;
@@ -1549,7 +1549,7 @@ void do_speed( CHAR_DATA *ch, char *argument )
 		return;
 	}
 
-	if ( !has_enough_crew( ship ) ) {
+	if ( !ship_has_enough_crew( ship ) ) {
 		send_to_char( "There isn't enough crew to order that command!\n\r", ch );
 		return;
 	}
@@ -1659,7 +1659,7 @@ void do_aim( CHAR_DATA *ch, char *argument )
 		return;
 	}
 
-	if ( !has_enough_crew( ch->in_room->ship ) ) {
+	if ( !ship_has_enough_crew( ch->in_room->ship ) ) {
 		send_to_char( "There isn't enough crew to order that command!\n\r", ch );
 		return;
 	}
