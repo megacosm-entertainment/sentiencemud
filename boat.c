@@ -1296,12 +1296,15 @@ void do_ships(CHAR_DATA *ch, char *argument)
 					}
 				}
 
-				sprintf(buf, "{W%4d{x)  {G%8ld  {x%-30.30s   {x%s{x  %d %d %d %s\n\r",
+				sprintf(buf, "{W%4d{x)  {G%8ld  {x%-30.30s   {x%s{x  %d %d %d %d %d %d %d %d %d %d %d %s\n\r",
 					++lines,
 					ship->index->vnum,
 					ship->ship_name,
 					ship->owner ? ship->owner->name : "{DNone",
-					ship->speed, ship->move_steps, ship->ship_move, dir);
+					ship->speed, ship->move_steps, ship->ship_move,
+					ship->dir_x, ship->dir_y,ship->abs_x, ship->abs_y,ship->sgn_x, ship->sgn_y,ship->move_x, ship->move_y,
+
+					dir);
 
 				if( !add_buf(buffer, buf) || (!ch->lines && strlen(buf_string(buffer)) > MAX_STRING_LENGTH) )
 				{
