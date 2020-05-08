@@ -1578,8 +1578,7 @@ void do_speed( CHAR_DATA *ch, char *argument )
 				act("$n gives the order for the sails to be lowered.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 				break;
 			}
-			ship->speed = SHIP_SPEED_STOPPED;
-			ship_set_move_delay(ship);
+			ship_stop(ship);
 
 			// TODO: Cancel waypoint
 			// TODO: Cancel chasing

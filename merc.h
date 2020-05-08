@@ -4902,7 +4902,7 @@ struct stat_data
 #define SHIP_MAX_HIT		100000
 #define SHIP_MAX_GUNS		20
 #define SHIP_MAX_CREW		20
-#define SHIP_MIN_DELAY		5
+#define SHIP_MIN_DELAY		1
 #define SHIP_MAX_WEIGHT		10000
 #define SHIP_MAX_CAPACITY	100
 #define SHIP_MAX_ARMOR		1000
