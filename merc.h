@@ -348,6 +348,12 @@ typedef struct dice_data DICE_DATA;
 typedef struct    wilds_vlink      WILDS_VLINK;
 typedef struct    wilds_data       WILDS_DATA;
 typedef struct    wilds_terrain    WILDS_TERRAIN;
+typedef struct wilds_coord {
+	WILDS_DATA *wilds;
+	int w;
+	int x;
+	int y;
+} WILDS_COORD;
 
 typedef struct named_special_room_data NAMED_SPECIAL_ROOM;
 typedef struct special_key_data SPECIAL_KEY_DATA;
@@ -839,6 +845,7 @@ struct olc_point_area_data {
 #define PULSE_TICK		(60 * PULSE_PER_SECOND)
 #define PULSE_VIOLENCE		( 3 * PULSE_PER_SECOND)
 #define PULSE_AGGR		PULSE_PER_SECOND
+#define PULSE_SHIPS		PULSE_PER_SECOND
 
 #define RECKONING_CHANCE_MIN		0
 #define RECKONING_CHANCE_MAX_RESET	25
@@ -3156,6 +3163,7 @@ enum {
 #define WIZ_BUILDING		(X)
 #define WIZ_SCRIPTS		(Y)
 #define WIZ_SHIPS		(Z)
+#define WIZ_BUGS		(aa)
 
 /*
  * Autowars
@@ -4733,8 +4741,8 @@ struct trade_type
 
 /* ships */
 #define SHIP_SPEED_STOPPED    	0
-#define SHIP_SPEED_HALF_SPEED 	1
-#define SHIP_SPEED_FULL_SPEED 	2
+#define SHIP_SPEED_HALF_SPEED 	50
+#define SHIP_SPEED_FULL_SPEED 	100
 
 #define SHIP_DAMAGE_GRIND     	0
 #define SHIP_DAMAGE_FIRE      	1
@@ -4960,6 +4968,8 @@ struct ship_data
 	CHAR_DATA			*owner;
 	unsigned long		owner_uid[2];
 
+	WILDS_COORD			last_coords[3];
+
 	LLIST *crew;
 
 	char				*flag;
@@ -5005,6 +5015,8 @@ struct ship_data
 	LLIST				*special_keys;
 
 	bool				pk;
+
+	int					ship_move;
 };
 
 /*
@@ -8492,7 +8504,8 @@ bool ship_save(FILE *fp, SHIP_DATA *ship);
 SHIP_DATA *create_ship(long vnum);
 void extract_ship(SHIP_DATA *ship);
 bool ship_isowner_player(SHIP_DATA *ship, CHAR_DATA *ch);
-void ships_update();
+void ships_ticks_update();
+void ships_pulse_update();
 void resolve_ships_player(CHAR_DATA *ch);
 void detach_ships_player(CHAR_DATA *ch);
 void detach_ships_ship(SHIP_DATA *old_ship);
@@ -8501,9 +8514,11 @@ SHIP_DATA *get_ship_uid(unsigned long id[2]);
 SHIP_DATA *get_ship_nearby(char *name, ROOM_INDEX_DATA *room, CHAR_DATA *owner);
 SHIP_DATA *get_room_ship(ROOM_INDEX_DATA *room);
 bool ischar_onboard_ship(CHAR_DATA *ch, SHIP_DATA *ship);
+void ship_autosurvey( SHIP_DATA *ship );
 void ship_echo( SHIP_DATA *ship, char *str );
 void resolve_ships();
-
+void get_ship_wildsicon(SHIP_DATA *ship, char *buf, size_t len);
+bool ship_has_enough_crew( SHIP_DATA *ship );
 
 bool lockstate_functional(LOCK_STATE *lock);
 OBJ_DATA *lockstate_getkey(CHAR_DATA *ch, LOCK_STATE *lock);

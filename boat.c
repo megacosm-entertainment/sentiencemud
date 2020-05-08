@@ -405,9 +405,170 @@ bool ship_isowner_player(SHIP_DATA *ship, CHAR_DATA *ch)
 	return ( (ship->owner_uid[0] == ch->id[0]) && (ship->owner_uid[1] == ch->id[1]) );
 }
 
-void ships_update()
+void ship_stop(SHIP_DATA *ship)
 {
+	ship->speed = SHIP_SPEED_STOPPED;
+	memset(ship->last_coords, 0, sizeof(ship->last_coords));
+}
 
+bool move_ship_success(SHIP_DATA *ship)
+{
+	char buf[MSL];
+	ROOM_INDEX_DATA *in_room = NULL;
+	ROOM_INDEX_DATA *to_room = NULL;
+	OBJ_DATA *obj;
+	int door;
+	int msg;
+	int storm_type;
+
+	obj = ship->ship;
+	in_room = ship->ship->in_room;
+	door = ship->dir;
+
+	if( door < 0 || door >= MAX_DIR )
+		return false;
+
+	if( !in_room )
+		return false;
+
+	// Get destination
+	EXIT_DATA *pexit = in_room->exit[door];
+	if( !pexit )
+		return false;
+
+	to_room = exit_destination(pexit);
+	if( !to_room || !IS_WILDERNESS(to_room) )
+		return false;
+
+	if ( ship->ship_type != SHIP_AIR_SHIP )
+	{
+		if( to_room->sector_type != SECT_WATER_NOSWIM &&
+			to_room->sector_type != SECT_WATER_SWIM )
+		{
+			ship_echo(ship, "The vessel has run aground.");
+			ship_stop(ship);
+			return false;
+		}
+	}
+
+	// TODO: Handle Weather
+
+	// Save the wake of non-floating ships
+	if ( ship->ship_type != SHIP_AIR_SHIP )
+	{
+		ship->last_coord[2] = ship->last_coord[1];
+		ship->last_coord[1] = ship->last_coord[0];
+		ship->last_coord[0].wilds = in_room->wilds;
+		ship->last_coord[0].w = in_room->wilds->uid;
+		ship->last_coord[0].x = in_room->x;
+		ship->last_coord[0].y = in_room->y;
+	}
+
+	switch(ship->ship_type)
+	{
+	case SHIP_AIR_SHIP:
+		sprintf(buf, "{W%s flies away to the %s.{x\n\r", capitalize(obj->short_descr), dir_name[ship->dir]);
+		break;
+
+	default:
+		sprintf(buf, "{W%s sails away to the %s.{x\n\r", capitalize(obj->short_descr), dir_name[ship->dir]);
+		break;
+	}
+	room_echo(in_room, buf);
+
+	obj_from_room(obj);
+	obj_to_room(obj, to_room);
+
+	switch(ship->ship_type)
+	{
+	case SHIP_AIR_SHIP:
+		sprintf(buf, "{W%s flies in from the %s.{x\n\r", capitalize(obj->short_descr), dir_name[ship->dir]);
+		break;
+
+	default:
+		sprintf(buf, "{W%s sails in from the %s.{x\n\r", capitalize(obj->short_descr), dir_name[ship->dir]);
+		break;
+	}
+	room_echo(to_room, buf);
+
+	return true;
+}
+
+void ship_move(SHIP_DATA *ship)
+{
+	if( ship->speed == SHIP_SPEED_STOPPED )
+	{
+		ship_echo(ship, "The vessel has stopped.");
+		ship_stop(ship);
+		return;
+	}
+
+	bool success = move_ship_success(ship);
+
+	ship_autosurvey(ship);
+
+    if ( ship->speed == SHIP_SPEED_FULL_SPEED )
+    {
+   	/*success = move_boat_success(ch);*/
+	SHIP_STATE(ch, ship->ship->value[1]);
+    }
+    else
+	SHIP_STATE(ch, ship->ship->value[1]*2);
+}
+
+void ship_pulse_update(SHIP_DATA *ship)
+{
+	if( !IS_VALID(ship) ) return;
+
+	if( ship->ship_move > 0 )
+	{
+		if( !--ship_move )
+		{
+			ship_move(ship);
+		}
+	}
+}
+
+// Called on the pulse
+void ships_pulse_update()
+{
+	ITERATOR it;
+	SHIP_DATA *ship;
+
+	iterator_start(&it, loaded_ships);
+	while( (ship = (SHIP_DATA *)iterator_nextdata(&it)) )
+	{
+		ship_pulse_update(ship);
+	}
+	iterator_stop(&it);
+}
+
+void ship_tick_update(SHIP_DATA *ship)
+{
+	// Update scuttling
+	if( ship->scuttle_time > 0 )
+	{
+		if(!--ship->scuttle_time)
+		{
+			ship_echo(ship, "{R[INSERT SCUTTLE MESSAGE]{x");
+			extract_ship(ship);
+			return;
+		}
+	}
+}
+
+// Called on the tick
+void ships_ticks_update()
+{
+	ITERATOR it;
+	SHIP_DATA *ship;
+
+	iterator_start(&it, loaded_ships);
+	while( (ship = (SHIP_DATA *)iterator_nextdata(&it)) )
+	{
+		ship_tick_update(ship);
+	}
+	iterator_stop(&it);
 }
 
 SPECIAL_KEY_DATA *ship_special_key_load(FILE *fp)
@@ -855,21 +1016,70 @@ bool ischar_onboard_ship(CHAR_DATA *ch, SHIP_DATA *ship)
 	return get_room_ship(ch->in_room) == ship;
 }
 
+void get_ship_wildsicon(SHIP_DATA *ship, char *buf, size_t len)
+{
+	if( IS_NPC_SHIP(ship) )
+	{
+		if( ship->scuttle_time > 0 )
+			strncpy(buf, "{rO{x", len);
+		else
+			strncpy(buf, "{DO{x", len);
+	}
+	else
+	{
+		if( ship->scuttle_time > 0 )
+			strncpy(buf, "{RO{x", len);
+		else
+			strncpy(buf, "{WO{x", len);
+	}
+
+	buf[len] = '\0';
+}
+
+void ship_autosurvey( SHIP_DATA *ship )
+{
+	DESCRIPTOR_DATA *d;
+
+	for ( d = descriptor_list; d != NULL; d = d->next )
+	{
+		CHAR_DATA *victim;
+
+		victim = d->original ? d->original : d->character;
+
+		if( d->connected == CON_PLAYING &&
+			victim->in_room != NULL &&
+			ischar_onboard_ship(victim, ship) &&
+			IS_AWAKE(victim) && IS_SET(victim->act2, PLR_AUTOSURVEY))
+		{
+			do_function(victim, &do_survey, "auto" );
+		}
+	}
+}
+
+
 void ship_echo( SHIP_DATA *ship, char *str )
 {
 	DESCRIPTOR_DATA *d;
 
 	for ( d = descriptor_list; d != NULL; d = d->next )
 	{
-	CHAR_DATA *victim;
+		CHAR_DATA *victim;
 
-	victim = d->original ? d->original : d->character;
+		victim = d->original ? d->original : d->character;
 
-	if( d->connected == CON_PLAYING &&
-		victim->in_room != NULL &&
-		ischar_onboard_ship(victim, ship) )
-		act(str, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		if( d->connected == CON_PLAYING &&
+			victim->in_room != NULL &&
+			ischar_onboard_ship(victim, ship) )
+			act(str, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 	}
+}
+
+
+bool ship_has_enough_crew( SHIP_DATA *ship )
+{
+	// TODO: Implement crew
+
+	return true;
 }
 
 
@@ -1210,6 +1420,336 @@ void do_scuttle( CHAR_DATA *ch, char *argument)
 	ship->destination = NULL;
 
 	stop_boarding(ship);
+#endif
+}
+
+
+void do_steer( CHAR_DATA *ch, char *argument )
+{
+	char arg[MAX_INPUT_LENGTH];
+	SHIP_DATA *ship;
+	int door;
+	int counter;
+
+	argument = one_argument( argument, arg);
+
+	ship = get_room_ship(ch->in_room);
+
+	if (!IS_VALID(ship))
+	{
+		act("You aren't even on a vessel.", ch, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if (!IS_SET(ch->in_room->room_flags, ROOM_SHIP_HELM))
+	{
+		act("You must be at the helm of the vessel to steer.", ch, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if (!IS_IMMORTAL(ch) && ship_isowner_player(ship, ch))
+	{
+		act("The wheel is magically locked. This isn't your vessel.", ch, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if (arg[0] == '\0')
+	{
+		send_to_char("Steer which way?\n\r", ch);
+		return;
+	}
+
+	door = parse_direction(arg);
+
+	if ( door < 0 || door == DIR_UP || door == DIR_DOWN )
+	{
+		send_to_char("That isn't a valid direction.\n\r", ch);
+		return;
+	}
+
+    if ( !has_enough_crew( ch->in_room->ship ) )
+    {
+		send_to_char( "There isn't enough crew to order that command!\n\r", ch );
+		return;
+    }
+
+	// TODO: Cancel waypoint
+	// TODO: Cancel chasing
+    ship->dir = door;
+
+    act("{WThe vessel is now steered to the $T.{x", ch, NULL, dir_name[door], TO_CHAR);
+    act("{WThe vessel is now steered to the $T.{x", ch, NULL, dir_name[door], TO_ROOM);
+
+    ship_autosurvey(ship);
+}
+
+
+void do_speed( CHAR_DATA *ch, char *argument )
+{
+	char arg[MAX_INPUT_LENGTH];
+	SHIP_DATA *ship;
+
+	argument = one_argument( argument, arg);
+
+	ship = get_room_ship(ch->in_room);
+
+	if (!IS_VALID(ship))
+	{
+		act("You aren't even on a vessel.", ch, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if (!IS_SET(ch->in_room->room_flags, ROOM_SHIP_HELM))
+	{
+		act("You must be at the helm of the vessel to steer.", ch, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if (!IS_IMMORTAL(ch) && ship_isowner_player(ship, ch))
+	{
+		act("The wheel is magically locked. This isn't your vessel.", ch, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if ( !has_enough_crew( ship ) ) {
+		send_to_char( "There isn't enough crew to order that command!\n\r", ch );
+		return;
+	}
+
+	if ( !str_prefix( arg, "stop" ) )
+	{
+		if( ship->speed > SHIP_SPEED_STOPPED )
+		{
+			switch(ship->ship_type)
+			{
+			case SHIP_AIR_SHIP:
+				act("You give the order for the furnace output to be lowered.", ch, NULL, NULL, TO_CHAR);
+				act("$n gives the order for the furnace output to be lowered.", ch, NULL, NULL, TO_ROOM);
+				break;
+
+			default:
+				act("You give the order for the sails to be lowered.", ch, NULL, NULL, TO_CHAR);
+				act("$n gives the order for the sails to be lowered.", ch, NULL, NULL, TO_ROOM);
+				break;
+			}
+			ship->speed = SHIP_SPEED_STOPPED;
+
+			// TODO: Cancel waypoint
+			// TODO: Cancel chasing
+		}
+		else
+		{
+			send_to_char("Ship is already stopped.\n\r", ch);
+		}
+		return;
+	}
+
+	if ( !str_prefix( arg, "half" ) )
+	{
+		if( ship->speed > SHIP_SPEED_HALF_SPEED )
+		{
+			act("You give the order to reduce speed.", ch, NULL, NULL, TO_CHAR);
+			act("$n gives the order to reduce speed.", ch, NULL, NULL, TO_ROOM);
+		}
+		else if( ship->speed < SHIP_SPEED_HALF_SPEED )
+		{
+			act("You give the order to increase speed.", ch, NULL, NULL, TO_CHAR);
+			act("$n gives the order to increase speed.", ch, NULL, NULL, TO_ROOM);
+		}
+		else
+		{
+			send_to_char("Ship is already going at half speed.\n\r", ch);
+			return;
+		}
+
+		ship->speed = SHIP_SPEED_HALF_SPEED;
+		ship->ship_move = ship->speed * ship->move_delay / 100;
+		return;
+	}
+
+	if ( !str_prefix( arg, "full" ) )
+	{
+		if( ship->speed < SHIP_SPEED_FULL_SPEED )
+		{
+			act("You give the order for full speed.", ch, NULL, NULL, TO_CHAR);
+			act("$n gives the order for full speed.", ch, NULL, NULL, TO_ROOM);
+
+			ch->in_room->ship->speed = SHIP_SPEED_FULL_SPEED;
+			ship->ship_move = ship->speed * ship->move_delay / 100;
+		}
+		else
+		{
+			send_to_char("Ship is already going at full speed.\n\r", ch);
+		}
+		return;
+	}
+
+	send_to_char("You may stop the vessel, or order half or full speed.\n\r", ch);
+	return;
+}
+
+void do_aim( CHAR_DATA *ch, char *argument )
+{
+#if 0
+	char arg[MAX_INPUT_LENGTH];
+	char buf[MAX_STRING_LENGTH];
+	ROOM_INDEX_DATA *orig;
+	SHIP_DATA *orig_ship;
+	SHIP_DATA *ship;
+	SHIP_DATA *attack;
+	CHAR_DATA *victim;
+	int x, y;
+
+	argument = one_argument( argument, arg);
+
+	if (!ON_SHIP(ch))
+	{
+		act("You aren't even on a vessel.", ch, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if (!IS_SET(ch->in_room->room_flags, ROOM_SHIP_HELM))
+	{
+		act("You must be at the helm of the vessel to order an attack.", ch, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if (!IS_IMMORTAL(ch) && str_cmp(ch->name, ch->in_room->ship->owner_name))
+	{
+		act("You must be the owner to order an attack.", ch, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if ( !has_enough_crew( ch->in_room->ship ) ) {
+		send_to_char( "There isn't enough crew to order that command!\n\r", ch );
+		return;
+	}
+
+	if ( !str_prefix( arg, "stop" ) )
+	{
+		act("You give the order to cease the attack.", ch, NULL, NULL, TO_CHAR);
+		act("$n gives the order to cease the attack.", ch, NULL, NULL, TO_ROOM);
+		ch->in_room->ship->speed = SHIP_SPEED_STOPPED;
+		return;
+	}
+
+	orig_ship = ch->in_room->ship;
+
+	orig = ch->in_room;
+	char_from_room(ch);
+	char_to_room(ch, orig->ship->ship->in_room);
+
+	show_map_to_char(ch, ch, ch->wildview_bonus_x, ch->wildview_bonus_y,FALSE);
+
+	x = get_squares_to_show_x(ch->wildview_bonus_x);
+	y = get_squares_to_show_y(ch->wildview_bonus_y);
+
+	attack = NULL;
+
+	victim = get_char_world( ch, arg);
+
+	if (!(victim != NULL && IN_WILDERNESS(victim) && !is_safe(ch, victim, TRUE) &&
+				(victim->in_room->x < ch->in_room->x + x &&
+				 victim->in_room->x > ch->in_room->x - x)
+				&& (victim->in_room->y < ch->in_room->y + y &&
+					victim->in_room->y > ch->in_room->y - y)))
+	{
+		victim = NULL;
+		/* Check for sailing ships */
+		for ( ship = ((AREA_DATA *) get_sailing_boat_area())->ship_list;
+				ship != NULL;
+				ship = ship->next)
+
+			if ( orig_ship != ship
+					&& (ship->ship->in_room->x < ch->in_room->x + x &&
+						ship->ship->in_room->x > ch->in_room->x - x)
+					&& (ship->ship->in_room->y < ch->in_room->y + y &&
+						ship->ship->in_room->y > ch->in_room->y - y) &&
+					(!str_prefix( ship->owner_name, arg)
+					 || !str_prefix( ship->ship_name, arg)))
+			{
+				attack = ship;
+			}
+	}
+
+	if (attack == NULL && victim == NULL)
+	{
+		send_to_char("That person or ship is not in range.\n\r", ch);
+		char_from_room(ch);
+		char_to_room(ch, orig);
+		return;
+	}
+
+	/* Make sure the enemey ship isn't in a safe zone */
+	if ( attack != NULL && is_boat_safe( ch, orig_ship, attack ) )
+	{
+		char_from_room(ch);
+		char_to_room(ch, orig);
+		return;
+	}
+
+	char_from_room(ch);
+	char_to_room(ch, orig);
+
+	act("You give the order to fire the cannons.", ch, NULL, NULL, TO_CHAR);
+	act("$n gives the order to fire the cannons.", ch, NULL, NULL, TO_ROOM);
+
+	SHIP_ATTACK_STATE(ch, 8);
+
+	ch->in_room->ship->attack_position = SHIP_ATTACK_LOADING;
+	ch->in_room->ship->ship_attacked = attack;
+	ch->in_room->ship->char_attacked = victim;
+
+	sprintf(buf, "{W%s's sailing boat is turning to aim at you!{x", ch->in_room->ship->owner_name);
+
+	if (attack != NULL)
+	{
+		boat_echo(attack, buf);
+
+		/*  If you are in range of coast guard or attacking coast guard then pirate */
+		if (IS_NPC_SHIP(attack) && attack->npc_ship->pShipData->npc_sub_type == NPC_SHIP_SUB_TYPE_COAST_GUARD_SERALIA) {
+			/* set_pirate_status(ch, CONT_SERALIA, ch->tot_level * 1000); */
+		}
+		else
+			if (IS_NPC_SHIP(attack) && attack->npc_ship->pShipData->npc_sub_type == NPC_SHIP_SUB_TYPE_COAST_GUARD_ATHEMIA) {
+			/*	set_pirate_status(ch, CONT_ATHEMIA, ch->tot_level * 1000); */
+			}
+			else {
+				NPC_SHIP_DATA *npc_ship;
+				int distance = 0;
+
+				for (npc_ship = npc_ship_list; npc_ship != NULL; npc_ship = npc_ship->next)
+				{
+					if (npc_ship->pShipData->npc_sub_type == NPC_SHIP_SUB_TYPE_COAST_GUARD_SERALIA ||
+							npc_ship->pShipData->npc_sub_type == NPC_SHIP_SUB_TYPE_COAST_GUARD_ATHEMIA) {
+
+						/* get distance between coast guard and ship to attack */
+						distance = (int) sqrt( 					\
+								( npc_ship->ship->ship->in_room->x - ch->in_room->ship->ship->in_room->x ) *	\
+								( npc_ship->ship->ship->in_room->x - ch->in_room->ship->ship->in_room->x ) +	\
+								( npc_ship->ship->ship->in_room->y - ch->in_room->ship->ship->in_room->y ) *	\
+								( npc_ship->ship->ship->in_room->y - ch->in_room->ship->ship->in_room->y ) );
+
+						if (distance < 6) {
+							break;
+						}
+					}
+				}
+/*
+				 coast guard ship saw attack
+				if (npc_ship != NULL) {
+					set_pirate_status(ch, npc_ship->pShipData->npc_sub_type == NPC_SHIP_SUB_TYPE_COAST_GUARD_SERALIA ? CONT_SERALIA : CONT_ATHEMIA, ch->tot_level * 1000);
+
+				}*/
+		}
+
+	}
+	else
+	{
+		act(buf, victim, NULL, NULL, TO_CHAR);
+	}
+#else
+	send_to_char("Not implemented yet.\n\r", ch);
 #endif
 }
 

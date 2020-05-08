@@ -390,64 +390,64 @@ char *format_obj_to_char(OBJ_DATA * obj, CHAR_DATA * ch, bool fShort)
 
 		    ship = obj->ship;
 
-		    if (obj->ship->speed != SHIP_SPEED_STOPPED)
+		    if (obj->ship->speed > SHIP_SPEED_STOPPED)
 		    {
-			if (obj->ship->ship_type == SHIP_AIR_SHIP)
-			{
-			    sprintf(buf2, "{MThe %s flies high above the ground heading %s.{x", ship->ship_name, dir_name[ship->dir]);
-			    strcat(buf, buf2);
-			}
-			else
-			{
-			    sprintf(buf2, "{MThe %s '%s', powers through the water sailing %s.{x", boat_table[ship->ship_type].name, ship->ship_name, dir_name[ship->dir]);
-			    strcat(buf, buf2);
-			}
-		    }
-		    else
-		    {
-			if (obj->ship->ship_type == SHIP_AIR_SHIP)
-			{
-			    sprintf(buf2, "{MThe %s floats gently just above the ground.{x", ship->ship_name);
-			    strcat(buf, buf2);
-			}
-			else
-			{
-			    if (ship->scuttle_time <= 0)
-			    {
-				if (ship->flag == NULL || strlen(ship->flag) == 0)
+				if (obj->ship->ship_type == SHIP_AIR_SHIP)
 				{
-				    sprintf(buf2,
-					    "{MA %s named '%s' gracefully floats here.{x\n\r",
-					    boat_table[ship->ship_type].name, ship->ship_name);
+					sprintf(buf2, "{MThe %s flies high above heading %s.{x", ship->ship_name, dir_name[ship->dir]);
 				}
 				else
 				{
-				    sprintf(buf2,
-					    "{MA %s named '%s', flying the flag '%s', floats here.{x\n\r",
-					    boat_table[ship->ship_type].name, ship->ship_name, ship->flag);
+					sprintf(buf2, "{MThe %s '%s', powers through the water sailing %s.{x", ship->index->name, ship->ship_name, dir_name[ship->dir]);
 				}
-
-			    }
-			    else
-			    {
-				if (ship->flag == NULL || strlen(ship->flag) == 0)
+		    }
+		    else if( ship->scuttle_time > 0 )
+		    {
+				if (IS_NULLSTR(ship->flag))
 				{
-				    sprintf(buf2,
-					    "{RA %s named '%s', burns brightly as flames engulf the vessel!{x\n\r",
-					    boat_table[ship->ship_type].name, ship->ship_name);
+					sprintf(buf2,
+						"{RThe %s named '%s', burns brightly as flames engulf the vessel!{x\n\r",
+						ship->index->name, ship->ship_name);
 				}
 				else
 				{
-				    sprintf(buf2,
-					    "{RA %s named '%s', flying the flag, '%s', burns brightly as flames engulf the vessel!{x\n\r",
-					    boat_table[ship->ship_type].name, ship->ship_name, ship->flag);
+					sprintf(buf2,
+						"{RThe %s named '%s', flying the flag, '%s', burns brightly as flames engulf the vessel!{x\n\r",
+						ship->index->name, ship->ship_name, ship->flag);
 				}
-			    }
 
-			    strcat(buf, buf2);
-			    /* strcat(buf, obj->description); */
 			}
+			else
+		    {
+				if (obj->ship->ship_type == SHIP_AIR_SHIP)
+				{
+					if( IS_NULLSTR(ship->flag) )
+					{
+						sprintf(buf2, "{MThe %s floats gently just above the ground.{x", ship->ship_name);
+					}
+					else
+					{
+						sprintf(buf2, "{MThe %s, flying the flag '%s', floats gently just above the ground.{x", ship->ship_name, ship->flag);
+					}
+				}
+				else
+				{
+					if (IS_NULLSTR(ship->flag))
+					{
+						sprintf(buf2,
+							"{MThe %s named '%s' gracefully floats here.{x\n\r",
+							ship->index->name, ship->ship_name);
+					}
+					else
+					{
+						sprintf(buf2,
+							"{MThe %s named '%s', flying the flag '%s', floats here.{x\n\r",
+							ship->index->name, ship->ship_name, ship->flag);
+					}
+				}
 		    }
+
+			strcat(buf, buf2);
 		}
 		else
 		{
@@ -1340,20 +1340,49 @@ void do_prompt(CHAR_DATA * ch, char *argument)
     return;
 }
 
-/* MOVED: senses/vision.c */
 void do_survey(CHAR_DATA *ch, char *argument)
 {
-/*    AREA_DATA *area;
-    ROOM_INDEX_DATA *orig;
-    SHIP_DATA *ship;
-    SHIP_DATA *orig_ship;*/
+	SHIP_DATA *ship;
     char arg[MAX_INPUT_LENGTH];
     char buf[MAX_STRING_LENGTH];
-/*    long bonus_view;
-    long x;
-    long y; */
 
     argument = one_argument(argument, arg);
+
+    ship = get_room_ship(ch->in_room);
+    if( IS_VALID(ship) )
+    {
+		if( str_cmp(arg, "auto") )
+		{
+			if (ship->ship_type != SHIP_AIR_SHIP)
+				act("You survey the area around the boat.", ch, NULL, NULL, TO_CHAR);
+			else
+				act("You survey the area around the airship.", ch, NULL, NULL, TO_CHAR);
+		}
+
+		long bonus_view;
+		if( IS_SET(ch->in_room->room_flags, ROOM_VIEWWILDS) )
+			bonus_view = 8;
+		else
+			bonus_view = 2;
+
+		long x = get_squares_to_show_x(bonus_view);
+		long y = get_squares_to_show_y(bonus_view);
+
+		if( !IS_WILDERNESS(ship->ship->in_room) )
+		{
+			AREA_DATA *area = ship->ship->in_room->area;
+		    act("$p has landed in $T.", ch, ship->ship, area->name, TO_CHAR);
+		    return;
+		}
+
+		show_map_to_char_wyx(ship->ship->in_room->wilds, ship->ship->in_room->x, ship->ship->in_room->y, ch, ship->ship->in_room->x, ship->ship->in_room->y,
+			bonus_view * 3+ch->wildview_bonus_x, 2*bonus_view/3+ch->wildview_bonus_y, FALSE);
+
+		// Display sailing vessels in the same room as the ship
+
+
+		return;
+	}
 
 #if 0
 /*

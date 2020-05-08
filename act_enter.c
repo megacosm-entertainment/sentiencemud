@@ -62,7 +62,7 @@ void do_disembark( CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-    if ( ship->ship_type == SHIP_AIR_SHIP && ship->speed != SHIP_SPEED_STOPPED )
+    if ( ship->ship_type == SHIP_AIR_SHIP && ship->speed > SHIP_SPEED_STOPPED )
     {
 		act( "The doors of the airship are locked!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
 		return;

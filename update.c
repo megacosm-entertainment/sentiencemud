@@ -74,6 +74,7 @@ void update_handler(void)
     static int pulse_aggr;
     static int pulse_event;
     static int pulse_msdp;
+    static int pulse_ships;
     char buf[MSL];
     int i;
 
@@ -91,8 +92,6 @@ void update_handler(void)
 	save_projects();
 	save_immstaff();
 	save_instances();
-	instance_update();
-	dungeon_update();
     }
 
     if (--pulse_auction <= 0)
@@ -157,6 +156,10 @@ void update_handler(void)
     	pneuma_relic_update();
 	relic_update();
 	update_area_trade();
+	instance_update();
+	dungeon_update();
+	ships_tick_update();
+
 	/* 2006-07-27 This is now redundant, and this function seems to loop (Syn).
 	   Wilderness exits are cleaned up in char_from_room, which is much easier and more elegant.
 	if (top_wilderness_exit > MAX_WILDERNESS_EXITS)
@@ -234,6 +237,12 @@ void update_handler(void)
 	pulse_event             = PULSE_EVENT;
 	event_update();
     }
+
+    if ( --pulse_ships <= 0 )
+    {
+		pulse_ships = PULSE_SHIPS;
+		ships_pulse_update();
+	}
 
     tail_chain();
 }

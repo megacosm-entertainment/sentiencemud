@@ -308,15 +308,15 @@ const	struct	cmd_type	cmd_table	[] =
     // Mob command interpreter (placed here for faster scan...)
     { "mob",		do_mob,		POS_DEAD,	 0,  LOG_NEVER,  0, FALSE },
 
-    { "scuttle", 	do_scuttle, 	POS_STANDING,	0,  LOG_NORMAL, 1, FALSE },
+    { "scuttle",	do_scuttle,	POS_STANDING,	0,	LOG_NORMAL, 1, FALSE },
+    { "speed",		do_speed,	POS_STANDING,	0,	LOG_NORMAL, 1, FALSE },
+    { "steer",		do_steer,	POS_STANDING,	0,	LOG_NORMAL, 1, FALSE },
 
     //  Ship commands. Declared here for ease of use. Called using do_function from do_ship.
     //  High imm level so people dont see them on commands list.
 //    { "ship",		do_ship,	POS_RESTING,	 0,  LOG_NORMAL,  1, FALSE },
   /*{ "sail", 		do_steer, 	POS_STANDING,	L1,  LOG_NORMAL, 1, FALSE },
     { "scuttle", 	do_scuttle, 	POS_STANDING,	L1,  LOG_NORMAL, 1, FALSE },
-    { "speed", 		do_speed, 	POS_STANDING,	L1,  LOG_NORMAL, 1, FALSE },
-    { "steer", 		do_steer, 	POS_STANDING,	L1,  LOG_NORMAL, 1, FALSE },
     { "aim",		do_aim, 	POS_STANDING,	L1,  LOG_NORMAL, 1, FALSE },
     { "chase",		do_boat_chase,	POS_FIGHTING,   L1,  LOG_ALWAYS, 1, FALSE },
     { "crew",           do_crew,   	POS_SLEEPING,    0,  LOG_ALWAYS, 1, FALSE }, */

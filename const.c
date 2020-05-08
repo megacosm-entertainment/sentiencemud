@@ -378,6 +378,7 @@ const   struct wiznet_type      wiznet_table    [] =
    {	"building",	WIZ_BUILDING,	IM },
    {	"scripts",	WIZ_SCRIPTS,	L1 },
    {	"ships",	WIZ_SHIPS,	IM },
+   {	"bugs",	WIZ_BUGS,	ML },
    {	NULL,		0,		0  }
 };
 
