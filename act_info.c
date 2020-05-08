@@ -1354,9 +1354,9 @@ void do_survey(CHAR_DATA *ch, char *argument)
 		if( str_cmp(arg, "auto") )
 		{
 			if (ship->ship_type != SHIP_AIR_SHIP)
-				act("You survey the area around the boat.", ch, NULL, NULL, TO_CHAR);
+				act("You survey the area around the boat.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			else
-				act("You survey the area around the airship.", ch, NULL, NULL, TO_CHAR);
+				act("You survey the area around the airship.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		}
 
 		long bonus_view;
@@ -1365,18 +1365,17 @@ void do_survey(CHAR_DATA *ch, char *argument)
 		else
 			bonus_view = 2;
 
-		long x = get_squares_to_show_x(bonus_view);
-		long y = get_squares_to_show_y(bonus_view);
+		long x = get_squares_to_show_x(bonus_view * 3) + ch->wildview_bonus_x;
+		long y = get_squares_to_show_y(2 * bonus_view / 3) + ch->wildview_bonus_y;
 
 		if( !IS_WILDERNESS(ship->ship->in_room) )
 		{
 			AREA_DATA *area = ship->ship->in_room->area;
-		    act("$p has landed in $T.", ch, ship->ship, area->name, TO_CHAR);
+		    act("$p has landed in $T.", ch, NULL, NULL, ship->ship, NULL, NULL, area->name, TO_CHAR);
 		    return;
 		}
 
-		show_map_to_char_wyx(ship->ship->in_room->wilds, ship->ship->in_room->x, ship->ship->in_room->y, ch, ship->ship->in_room->x, ship->ship->in_room->y,
-			bonus_view * 3+ch->wildview_bonus_x, 2*bonus_view/3+ch->wildview_bonus_y, FALSE);
+		show_map_to_char_wyx(ship->ship->in_room->wilds, ship->ship->in_room->x, ship->ship->in_room->y, ch, ship->ship->in_room->x, ship->ship->in_room->y, x, y, FALSE);
 
 		// Display sailing vessels in the same room as the ship
 

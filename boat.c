@@ -41,11 +41,13 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <stdarg.h>
+#include <math.h>
 #include "merc.h"
 #include "recycle.h"
 #include "olc.h"
 #include "tables.h"
 #include "scripts.h"
+#include "wilds.h"
 
 INSTANCE *instance_load(FILE *fp);
 void update_instance(INSTANCE *instance);
@@ -408,6 +410,8 @@ bool ship_isowner_player(SHIP_DATA *ship, CHAR_DATA *ch)
 void ship_stop(SHIP_DATA *ship)
 {
 	ship->speed = SHIP_SPEED_STOPPED;
+	ship->move_delay = 0;
+	ship->ship_move = 0;
 	memset(ship->last_coords, 0, sizeof(ship->last_coords));
 }
 
@@ -456,12 +460,12 @@ bool move_ship_success(SHIP_DATA *ship)
 	// Save the wake of non-floating ships
 	if ( ship->ship_type != SHIP_AIR_SHIP )
 	{
-		ship->last_coord[2] = ship->last_coord[1];
-		ship->last_coord[1] = ship->last_coord[0];
-		ship->last_coord[0].wilds = in_room->wilds;
-		ship->last_coord[0].w = in_room->wilds->uid;
-		ship->last_coord[0].x = in_room->x;
-		ship->last_coord[0].y = in_room->y;
+		ship->last_coords[2] = ship->last_coords[1];
+		ship->last_coords[1] = ship->last_coords[0];
+		ship->last_coords[0].wilds = in_room->wilds;
+		ship->last_coords[0].w = in_room->wilds->uid;
+		ship->last_coords[0].x = in_room->x;
+		ship->last_coords[0].y = in_room->y;
 	}
 
 	switch(ship->ship_type)
@@ -494,6 +498,30 @@ bool move_ship_success(SHIP_DATA *ship)
 	return true;
 }
 
+double ln2_50 = log(2) / 50.0;	// I want 'a' to satisfy exp(a * 50) = 2
+
+void ship_set_move_delay(SHIP_DATA *ship)
+{
+	if( ship->speed > SHIP_SPEED_STOPPED )
+	{
+		int speed = ship->speed;
+
+		// TODO: Add some kind of modifiers for speed
+		// - damaged propulsion
+		// - wind?
+		// - relic modifier
+
+		ship->move_delay = (int)(ship->index->move_delay * exp(ln2_50 * (100 - speed)) + 0.5);
+
+		ship->move_delay = UMAX(1, ship->move_delay);
+	}
+	else
+	{
+		ship->move_delay = 0;
+	}
+	ship->ship_move = ship->move_delay;
+}
+
 void ship_move(SHIP_DATA *ship)
 {
 	if( ship->speed == SHIP_SPEED_STOPPED )
@@ -507,13 +535,8 @@ void ship_move(SHIP_DATA *ship)
 
 	ship_autosurvey(ship);
 
-    if ( ship->speed == SHIP_SPEED_FULL_SPEED )
-    {
-   	/*success = move_boat_success(ch);*/
-	SHIP_STATE(ch, ship->ship->value[1]);
-    }
-    else
-	SHIP_STATE(ch, ship->ship->value[1]*2);
+	ship_set_move_delay(ship);
+//	ship->ship_move = ship->move_delay;
 }
 
 void ship_pulse_update(SHIP_DATA *ship)
@@ -1437,19 +1460,19 @@ void do_steer( CHAR_DATA *ch, char *argument )
 
 	if (!IS_VALID(ship))
 	{
-		act("You aren't even on a vessel.", ch, NULL, NULL, TO_CHAR);
+		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		return;
 	}
 
 	if (!IS_SET(ch->in_room->room_flags, ROOM_SHIP_HELM))
 	{
-		act("You must be at the helm of the vessel to steer.", ch, NULL, NULL, TO_CHAR);
+		act("You must be at the helm of the vessel to steer.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		return;
 	}
 
 	if (!IS_IMMORTAL(ch) && ship_isowner_player(ship, ch))
 	{
-		act("The wheel is magically locked. This isn't your vessel.", ch, NULL, NULL, TO_CHAR);
+		act("The wheel is magically locked. This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		return;
 	}
 
@@ -1495,19 +1518,19 @@ void do_speed( CHAR_DATA *ch, char *argument )
 
 	if (!IS_VALID(ship))
 	{
-		act("You aren't even on a vessel.", ch, NULL, NULL, TO_CHAR);
+		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		return;
 	}
 
 	if (!IS_SET(ch->in_room->room_flags, ROOM_SHIP_HELM))
 	{
-		act("You must be at the helm of the vessel to steer.", ch, NULL, NULL, TO_CHAR);
+		act("You must be at the helm of the vessel to steer.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		return;
 	}
 
 	if (!IS_IMMORTAL(ch) && ship_isowner_player(ship, ch))
 	{
-		act("The wheel is magically locked. This isn't your vessel.", ch, NULL, NULL, TO_CHAR);
+		act("The wheel is magically locked. This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		return;
 	}
 
@@ -1523,16 +1546,17 @@ void do_speed( CHAR_DATA *ch, char *argument )
 			switch(ship->ship_type)
 			{
 			case SHIP_AIR_SHIP:
-				act("You give the order for the furnace output to be lowered.", ch, NULL, NULL, TO_CHAR);
-				act("$n gives the order for the furnace output to be lowered.", ch, NULL, NULL, TO_ROOM);
+				act("You give the order for the furnace output to be lowered.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				act("$n gives the order for the furnace output to be lowered.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 				break;
 
 			default:
-				act("You give the order for the sails to be lowered.", ch, NULL, NULL, TO_CHAR);
-				act("$n gives the order for the sails to be lowered.", ch, NULL, NULL, TO_ROOM);
+				act("You give the order for the sails to be lowered.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				act("$n gives the order for the sails to be lowered.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 				break;
 			}
 			ship->speed = SHIP_SPEED_STOPPED;
+			ship_set_move_delay(ship);
 
 			// TODO: Cancel waypoint
 			// TODO: Cancel chasing
@@ -1548,13 +1572,13 @@ void do_speed( CHAR_DATA *ch, char *argument )
 	{
 		if( ship->speed > SHIP_SPEED_HALF_SPEED )
 		{
-			act("You give the order to reduce speed.", ch, NULL, NULL, TO_CHAR);
-			act("$n gives the order to reduce speed.", ch, NULL, NULL, TO_ROOM);
+			act("You give the order to reduce speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("$n gives the order to reduce speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 		}
 		else if( ship->speed < SHIP_SPEED_HALF_SPEED )
 		{
-			act("You give the order to increase speed.", ch, NULL, NULL, TO_CHAR);
-			act("$n gives the order to increase speed.", ch, NULL, NULL, TO_ROOM);
+			act("You give the order to increase speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("$n gives the order to increase speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 		}
 		else
 		{
@@ -1563,7 +1587,7 @@ void do_speed( CHAR_DATA *ch, char *argument )
 		}
 
 		ship->speed = SHIP_SPEED_HALF_SPEED;
-		ship->ship_move = ship->speed * ship->move_delay / 100;
+		ship_set_move_delay(ship);
 		return;
 	}
 
@@ -1571,11 +1595,11 @@ void do_speed( CHAR_DATA *ch, char *argument )
 	{
 		if( ship->speed < SHIP_SPEED_FULL_SPEED )
 		{
-			act("You give the order for full speed.", ch, NULL, NULL, TO_CHAR);
-			act("$n gives the order for full speed.", ch, NULL, NULL, TO_ROOM);
+			act("You give the order for full speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("$n gives the order for full speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
 			ch->in_room->ship->speed = SHIP_SPEED_FULL_SPEED;
-			ship->ship_move = ship->speed * ship->move_delay / 100;
+			ship_set_move_delay(ship);
 		}
 		else
 		{
@@ -1604,19 +1628,19 @@ void do_aim( CHAR_DATA *ch, char *argument )
 
 	if (!ON_SHIP(ch))
 	{
-		act("You aren't even on a vessel.", ch, NULL, NULL, TO_CHAR);
+		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		return;
 	}
 
 	if (!IS_SET(ch->in_room->room_flags, ROOM_SHIP_HELM))
 	{
-		act("You must be at the helm of the vessel to order an attack.", ch, NULL, NULL, TO_CHAR);
+		act("You must be at the helm of the vessel to order an attack.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		return;
 	}
 
 	if (!IS_IMMORTAL(ch) && str_cmp(ch->name, ch->in_room->ship->owner_name))
 	{
-		act("You must be the owner to order an attack.", ch, NULL, NULL, TO_CHAR);
+		act("You must be the owner to order an attack.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		return;
 	}
 
@@ -1627,8 +1651,8 @@ void do_aim( CHAR_DATA *ch, char *argument )
 
 	if ( !str_prefix( arg, "stop" ) )
 	{
-		act("You give the order to cease the attack.", ch, NULL, NULL, TO_CHAR);
-		act("$n gives the order to cease the attack.", ch, NULL, NULL, TO_ROOM);
+		act("You give the order to cease the attack.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("$n gives the order to cease the attack.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 		ch->in_room->ship->speed = SHIP_SPEED_STOPPED;
 		return;
 	}
@@ -1691,8 +1715,8 @@ void do_aim( CHAR_DATA *ch, char *argument )
 	char_from_room(ch);
 	char_to_room(ch, orig);
 
-	act("You give the order to fire the cannons.", ch, NULL, NULL, TO_CHAR);
-	act("$n gives the order to fire the cannons.", ch, NULL, NULL, TO_ROOM);
+	act("You give the order to fire the cannons.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	act("$n gives the order to fire the cannons.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
 	SHIP_ATTACK_STATE(ch, 8);
 
