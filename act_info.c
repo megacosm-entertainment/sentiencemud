@@ -2057,6 +2057,12 @@ void do_look(CHAR_DATA * ch, char *argument)
 
 		if (IS_VALID(ship))
 		{
+			if( !ship->ship->in_room || !IS_WILDERNESS(ship->ship->in_room) )
+			{
+				// Doesn't do anything
+				return;
+			}
+
 		    x = ship->ship->in_room->x;
 		    y = ship->ship->in_room->y;
 		}
