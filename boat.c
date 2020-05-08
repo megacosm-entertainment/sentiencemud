@@ -1674,6 +1674,20 @@ void do_steer( CHAR_DATA *ch, char *argument )
 		}
 	}
 
+	switch(door)
+	{
+	case 0:		strcpy(arg, "to the north"); break;
+	case 45:	strcpy(arg, "to the northeast"); break;
+	case 90:	strcpy(arg, "to the east"); break;
+	case 135:	strcpy(arg, "to the southeast"); break;
+	case 180:	strcpy(arg, "to the south"); break;
+	case 225:	strcpy(arg, "to the southwest"); break;
+	case 270:	strcpy(arg, "to the west"); break;
+	case 315:	strcpy(arg, "to the northwest"); break;
+	default:
+		sprintf(arg, " by %d degrees", door);
+	}
+
 	// TODO: Cancel waypoint
 	// TODO: Cancel chasing
     ship->dir = door;
@@ -1686,8 +1700,8 @@ void do_steer( CHAR_DATA *ch, char *argument )
     ship->sgn_x = (ship->dir_x > 0) ? 1 : ((ship->dir_x < 0) ? -1 : 0);
     ship->sgn_y = (ship->dir_y > 0) ? 1 : ((ship->dir_y < 0) ? -1 : 0);
 
-    act("{WThe vessel is now steered to the $T.{x", ch, NULL, NULL, NULL, NULL, NULL, dir_name[door], TO_CHAR);
-    act("{WThe vessel is now steered to the $T.{x", ch, NULL, NULL, NULL, NULL, NULL, dir_name[door], TO_ROOM);
+    act("{WThe vessel is now steered $T.{x", ch, NULL, NULL, NULL, NULL, NULL, arg, TO_CHAR);
+    act("{WThe vessel is now steered $T.{x", ch, NULL, NULL, NULL, NULL, NULL, arg, TO_ROOM);
 
     ship_autosurvey(ship);
 }
