@@ -2061,9 +2061,11 @@ void do_vlinks(CHAR_DATA *ch, char *argument)
     if( is_number(argument) )
     {
 		pWilds = get_wilds_from_uid(NULL, atol(argument));
-
-		send_to_char("Vlinks: That is not a wilds region.\n\r", ch);
-		return;
+		if( !pWilds )
+		{
+			send_to_char("Vlinks: That is not a wilds region.\n\r", ch);
+			return;
+		}
 	}
 	else if (!ch->in_wilds)
     {
