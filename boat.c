@@ -48,6 +48,7 @@
 #include "tables.h"
 #include "scripts.h"
 #include "wilds.h"
+#include "interp.h"
 
 INSTANCE *instance_load(FILE *fp);
 void update_instance(INSTANCE *instance);
@@ -422,8 +423,8 @@ bool move_ship_success(SHIP_DATA *ship)
 	ROOM_INDEX_DATA *to_room = NULL;
 	OBJ_DATA *obj;
 	int door;
-	int msg;
-	int storm_type;
+	//int msg;
+	//int storm_type;
 
 	obj = ship->ship;
 	in_room = ship->ship->in_room;
@@ -522,7 +523,7 @@ void ship_set_move_delay(SHIP_DATA *ship)
 	ship->ship_move = ship->move_delay;
 }
 
-void ship_move(SHIP_DATA *ship)
+void ship_move_update(SHIP_DATA *ship)
 {
 	if( ship->speed == SHIP_SPEED_STOPPED )
 	{
@@ -531,7 +532,7 @@ void ship_move(SHIP_DATA *ship)
 		return;
 	}
 
-	bool success = move_ship_success(ship);
+	if( !move_ship_success(ship) ) return;
 
 	ship_autosurvey(ship);
 
@@ -545,9 +546,9 @@ void ship_pulse_update(SHIP_DATA *ship)
 
 	if( ship->ship_move > 0 )
 	{
-		if( !--ship_move )
+		if( !--ship->ship_move )
 		{
-			ship_move(ship);
+			ship_move_update(ship);
 		}
 	}
 }
@@ -1452,7 +1453,6 @@ void do_steer( CHAR_DATA *ch, char *argument )
 	char arg[MAX_INPUT_LENGTH];
 	SHIP_DATA *ship;
 	int door;
-	int counter;
 
 	argument = one_argument( argument, arg);
 
@@ -1500,8 +1500,8 @@ void do_steer( CHAR_DATA *ch, char *argument )
 	// TODO: Cancel chasing
     ship->dir = door;
 
-    act("{WThe vessel is now steered to the $T.{x", ch, NULL, dir_name[door], TO_CHAR);
-    act("{WThe vessel is now steered to the $T.{x", ch, NULL, dir_name[door], TO_ROOM);
+    act("{WThe vessel is now steered to the $T.{x", ch, NULL, NULL, NULL, NULL, NULL, dir_name[door], TO_CHAR);
+    act("{WThe vessel is now steered to the $T.{x", ch, NULL, NULL, NULL, NULL, NULL, dir_name[door], TO_ROOM);
 
     ship_autosurvey(ship);
 }
