@@ -4947,7 +4947,7 @@ struct ship_index_data
 	int min_crew;		// How many crew is required to OPERATE the ship?
 	int max_crew;		// How many crew can the ship have?
 	int move_delay;		// Minimum move delay
-	int move_steps:		// Number of steps the ship will attempt per movement
+	int move_steps;		// Number of steps the ship will attempt per movement
 	int weight;			// Weight limit before ship sinks (ignores non-takable objects)
 	int capacity;		// How many items can FIT on the ship (ignores non-takable objects)
 	int armor;			// Base protective armor
