@@ -158,7 +158,7 @@ void update_handler(void)
 	update_area_trade();
 	instance_update();
 	dungeon_update();
-	ships_tick_update();
+	ships_ticks_update();
 
 	/* 2006-07-27 This is now redundant, and this function seems to loop (Syn).
 	   Wilderness exits are cleaned up in char_from_room, which is much easier and more elegant.

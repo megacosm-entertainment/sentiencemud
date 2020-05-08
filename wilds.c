@@ -1404,13 +1404,13 @@ void show_vroom_header_to_char(WILDS_TERRAIN *pTerrain, WILDS_DATA *pWilds, int 
 
 bool is_wilds_coords(WILDS_COORD *coord, WILDS_DATA *wilds, int x, int y)
 {
-	if( !coords ) return false;
+	if( !coord ) return false;
 
-	if( coords->wilds != wilds ) return false;
+	if( coord->wilds != wilds ) return false;
 
-	if( coords->x != x ) return false;
+	if( coord->x != x ) return false;
 
-	if( coords->y != y ) return false;
+	if( coord->y != y ) return false;
 
 	return true;
 }
@@ -1561,9 +1561,9 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 						get_ship_wildsicon(ship, temp, sizeof(temp) - 1);
 						found = TRUE;
 					}
-					else if(is_wilds_coords(&ship->last_coords[0]) ||
-						is_wilds_coords(&ship->last_coords[1]) ||
-						is_wilds_coords(&ship->last_coords[2]) )
+					else if(is_wilds_coords(&ship->last_coords[0], pWilds, x, y) ||
+						is_wilds_coords(&ship->last_coords[1], pWilds, x, y) ||
+						is_wilds_coords(&ship->last_coords[2], pWilds, x, y) )
 					{
 	                    sprintf(temp, "{C~");
 	                    found = TRUE;
