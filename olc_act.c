@@ -1778,7 +1778,8 @@ REDIT(redit_show)
 	            add_buf(buf1, buf);
 
 		    sprintf (buf, "                         Area Uid ({W%ld{x), '{W%s{x'.\n\r",
-			     pArea->uid, pArea->name);
+			     pArea ? pArea->uid : 0,
+			     pArea ? pArea->name : "(null)");
 		}
                 else
                     sprintf (buf, "-{W%-9s{x to {W%6ld{x\n\r",
