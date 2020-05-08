@@ -1613,7 +1613,7 @@ void do_speed( CHAR_DATA *ch, char *argument )
 			act("You give the order for full speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			act("$n gives the order for full speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-			ch->in_room->ship->speed = SHIP_SPEED_FULL_SPEED;
+			ship->speed = SHIP_SPEED_FULL_SPEED;
 			ship_set_move_delay(ship);
 		}
 		else
