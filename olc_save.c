@@ -795,6 +795,10 @@ void save_room_new(FILE *fp, ROOM_INDEX_DATA *room, int recordtype)
 		char kwd[MSL];
 
 		if ((ex = room->exit[door]) != NULL) {
+			// Skip vlink exits
+			if( IS_SET(ex->rs_flags, EX_VLINK) )
+				continue;
+
 			fprintf(fp, "#X '%s'\n", dir_name[ex->orig_door]);	// FIX IF SPACES ARE NEEDED IN NAMES!
 
 				if (ex->keyword[0] == ' ') {
@@ -2149,20 +2153,32 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 		    ed = read_extra_descr_new(fp);
 		    ed->next = room->extra_descr;
 		    room->extra_descr = ed;
+		    fMatch = TRUE;
 		}
 		else if (!str_cmp(word, "#CONDITIONAL_DESCR")) {
 		    cd = read_conditional_descr_new(fp);
 		    cd->next = room->conditional_descr;
 		    room->conditional_descr = cd;
+		    fMatch = TRUE;
 		}
 		else if (!str_cmp(word, "#X")) { // finish here
 		    ex = read_exit_new(fp);
-		    room->exit[ex->orig_door] = ex;
-		    ex->from_room = room;
+		    if( IS_SET(ex->exit_info, EX_VLINK) )
+		    {
+				// discard VLINK exits
+				free_exit(ex);
+			}
+			else
+			{
+		    	room->exit[ex->orig_door] = ex;
+		    	ex->from_room = room;
+			}
+		    fMatch = TRUE;
 		}
 		else if (!str_cmp(word, "#RESET")) {
 	   	    reset = read_reset_new(fp);
 		    new_reset(room, reset);
+		    fMatch = TRUE;
 		}
 
 		break;
