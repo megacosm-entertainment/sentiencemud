@@ -1773,7 +1773,8 @@ REDIT(redit_show)
                     sprintf (buf, "-{W%-9s{x to ({W%d{x,{W%d{x), Wilds Uid ({W%ld{x), '{W%s{x'.\n\r",
                              capitalize (dir_name[door]),
                              pexit->wilds.x, pexit->wilds.y,
-			     pWilds->uid, pWilds->name);
+			     pWilds ? pWilds->uid : 0,
+			     pWilds ? pWilds->name : "(null)");
 	            add_buf(buf1, buf);
 
 		    sprintf (buf, "                         Area Uid ({W%ld{x), '{W%s{x'.\n\r",
