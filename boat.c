@@ -736,6 +736,10 @@ SHIP_DATA *ship_load(FILE *fp)
 			KEY("Hit", ship->hit, fread_number(fp));
 			break;
 
+		case 'M':
+			KEY("MoveDelay", ship->move_delay, fread_number(fp));
+			break;
+
 		case 'N':
 			KEYS("Name", ship->ship_name, fread_string(fp));
 			break;
@@ -771,6 +775,7 @@ SHIP_DATA *ship_load(FILE *fp)
 				break;
 			}
 			KEY("ShipFlags", ship->ship_flags, fread_number(fp));
+			KEY("ShipMove", ship->ship_move, fread_number(fp));
 			KEY("Speed", ship->speed, fread_number(fp));
 			break;
 
@@ -855,6 +860,16 @@ bool ship_save(FILE *fp, SHIP_DATA *ship)
 	fprintf(fp, "ShipFlags %d\n", ship->ship_flags);
 	fprintf(fp, "Cannons %d\n", ship->cannons);
 	fprintf(fp, "Crew %d %d\n", ship->min_crew, ship->max_crew);
+
+	if( ship->ship_move > 0 )
+	{
+		fprintf(fp, "ShipMove %d\n", ship->ship_move);
+	}
+
+	if( ship->move_delay > 0 )
+	{
+		fprintf(fp, "MoveDelay %d\n", ship->move_delay);
+	}
 
 	if( ship->pk )
 	{
