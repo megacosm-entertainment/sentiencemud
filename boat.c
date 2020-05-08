@@ -1685,7 +1685,7 @@ void do_steer( CHAR_DATA *ch, char *argument )
 	case 270:	strcpy(arg, "to the west"); break;
 	case 315:	strcpy(arg, "to the northwest"); break;
 	default:
-		sprintf(arg, " by %d degrees", door);
+		sprintf(arg, "by %d degrees", door);
 	}
 
 	// TODO: Cancel waypoint
