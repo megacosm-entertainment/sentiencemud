@@ -131,7 +131,7 @@ bool steering_update(SHIP_DATA *ship, int *x, int *y, int *door)
 
 	if( ship->steering.turning_dir )
 	{
-		int power = ship->index->turning_power;
+		int power = ship->index->turning;
 		if( ship->speed == SHIP_SPEED_STOPPED )
 		{
 			// Cut the turning power while motionless
@@ -244,7 +244,7 @@ bool steering_update(SHIP_DATA *ship, int *x, int *y, int *door)
 
 	// Only airships can fly over whereever
 	if( ship->ship_type != SHIP_AIR_SHIP &&
-		check_for_bad_room(rooms->wilds,_x,_y) ) return false;
+		check_for_bad_room(room->wilds,_x,_y) ) return false;
 
 	*x = _x;
 	*y = _y;
@@ -735,7 +735,7 @@ void ship_move_update(SHIP_DATA *ship)
 
 		ship_autosurvey(ship);
 	}
-	else if( !ship->steering.turning_dir) )
+	else if( !ship->steering.turning_dir )
 	{
 		ship_echo(ship, "The vessel has stopped.");
 		ship_stop(ship);
@@ -946,10 +946,6 @@ SHIP_DATA *ship_load(FILE *fp)
 			}
 			break;
 
-		case 'D':
-			KEY("Direction", ship->dir, fread_number(fp));
-			break;
-
 		case 'F':
 			KEYS("Flag", ship->flag, fread_string(fp));
 			break;
@@ -1087,7 +1083,6 @@ bool ship_save(FILE *fp, SHIP_DATA *ship)
 
 	fprintf(fp, "Flag %s~\n", fix_string(ship->flag));
 
-	fprintf(fp, "Direction %d\n", ship->dir);
 	fprintf(fp, "Speed %d\n", ship->speed);
 	fprintf(fp, "Hit %ld\n", ship->hit);
 	fprintf(fp, "Armor %ld\n", ship->armor);
@@ -1420,13 +1415,13 @@ void do_ships(CHAR_DATA *ch, char *argument)
 					continue;
 
 				char dir[20];
-				if( ship->dir < 0 )
+				if( ship->steering.heading < 0 )
 				{
 					dir[0] = '\0';
 				}
 				else
 				{
-					switch(ship->dir)
+					switch(ship->steering.heading)
 					{
 					case 0:		strcpy(dir, "North"); break;
 					case 45:	strcpy(dir, "Northeast"); break;
@@ -1437,7 +1432,7 @@ void do_ships(CHAR_DATA *ch, char *argument)
 					case 270:	strcpy(dir, "West"); break;
 					case 315:	strcpy(dir, "Northwest"); break;
 					default:
-						sprintf(dir, "%d",ship->dir);
+						sprintf(dir, "%d",ship->steering.heading);
 						break;
 					}
 				}
@@ -1445,15 +1440,14 @@ void do_ships(CHAR_DATA *ch, char *argument)
 				int snwidth = get_colour_width(ship->ship_name) + 30;
 
 
-				sprintf(buf, "{W%4d{x)  {G%8ld  {x%-*.*s   {x%-20.20s{x  %d %d %d %d %d %d %d %d %d %d %d %s\n\r",
+				sprintf(buf, "{W%4d{x)  {G%8ld  {x%-*.*s   {x%-20.20s{x  %d %d %d %d %d %d %d %d %d %s\n\r",
 					++lines,
 					ship->index->vnum,
 					snwidth, snwidth, ship->ship_name,
 					ship->owner ? ship->owner->name : "{DNone",
 					ship->speed, ship->move_steps, ship->ship_move,
-					ship->dir_x, ship->dir_y,ship->abs_x, ship->abs_y,ship->sgn_x, ship->sgn_y,ship->move_x, ship->move_y,
-
-					dir);
+					ship->steering.heading, ship->steering.heading_target, ship->steering.turning_dir,
+					ship->steering.dx, ship->steering.dy, ship->steering.move, dir);
 
 				if( !add_buf(buffer, buf) || (!ch->lines && strlen(buf_string(buffer)) > MAX_STRING_LENGTH) )
 				{
