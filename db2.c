@@ -591,8 +591,8 @@ char *nocolour( const char *string )
 
 	int len = strlen(string);
 
-	for (i = 0, n = 0; i < len && string[i] != '\0'; i++, n++) {
-		while( i < len && string[i] == '{' )
+	for (i = 0, n = 0; i < len && string[i] != '\0'; i++) {
+		if( string[i] == '{' )
 		{
 			if( string[i+1] == '{' )		// Double {{ becomes { when processed, but still counts as two
 			{
@@ -602,8 +602,7 @@ char *nocolour( const char *string )
 
 			i+=2;
 		}
-
-		while (i < len && string[i] == '`')
+		else if (string[i] == '`')
 		{
 			if (string[i+1] == '[')
 				i+= 7;
@@ -618,9 +617,8 @@ char *nocolour( const char *string )
 				i+= 2;
 			}
 		}
-
-		if( i < len )
-			buf[n] = string[i];
+		else
+			buf[n++] = string[i];
 	}
 
 	buf[n] = '\0';
