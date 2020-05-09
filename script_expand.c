@@ -1096,6 +1096,32 @@ char *expand_entity_game(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_PLLIST_CHURCH;
 		arg->d.blist = list_churches;
 		break;
+
+	case ENTITY_GAME_RELIC_POWER:
+		arg->type = ENT_OBJECT;
+		arg->d.obj = damage_relic;
+		break;
+
+	case ENTITY_GAME_RELIC_KNOWLEDGE:
+		arg->type = ENT_OBJECT;
+		arg->d.obj = xp_relic;
+		break;
+
+	case ENTITY_GAME_RELIC_LOSTSOULS:
+		arg->type = ENT_OBJECT;
+		arg->d.obj = pneuma_relic;
+		break;
+
+	case ENTITY_GAME_RELIC_HEALTH:
+		arg->type = ENT_OBJECT;
+		arg->d.obj = hp_regen_relic;
+		break;
+
+	case ENTITY_GAME_RELIC_MAGIC:
+		arg->type = ENT_OBJECT;
+		arg->d.obj = mana_regen_relic;
+		break;
+
 	default: return NULL;
 	}
 
