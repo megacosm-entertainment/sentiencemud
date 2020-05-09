@@ -2166,6 +2166,8 @@ SHIP_INDEX_DATA *new_ship_index()
 	ship->name = &str_empty[0];
 	ship->description = &str_empty[0];
 	ship->hit = 1;
+	ship->turning = 1;
+	ship->steering->heading = -1;
 
 	ship->special_keys = list_create(FALSE);
 

@@ -4948,6 +4948,7 @@ struct ship_index_data
 	int max_crew;		// How many crew can the ship have?
 	int move_delay;		// Minimum move delay
 	int move_steps;		// Number of steps the ship will attempt per movement
+	int turning;		// Base turning speed, number of degrees the ship will turn per step
 	int weight;			// Weight limit before ship sinks (ignores non-takable objects)
 	int capacity;		// How many items can FIT on the ship (ignores non-takable objects)
 	int armor;			// Base protective armor
@@ -4956,6 +4957,22 @@ struct ship_index_data
 
 	BLUEPRINT *blueprint;
 };
+
+typedef struct steering_data {
+	int heading;			// Current heading
+	int heading_target;		// Target heading
+	char turning_dir;		// Direction of turning: -1 = port, 1 = starboard(+), 0 = no turning
+
+	int compass;			// One of eight compass directions that approximates current heading
+
+	int dx;					// Delta X for current heading
+	int dy;					// Delta Y for current heading
+	int ax;					// Magnitude of DX
+	int ay;					// Magnitude of DY
+	char sx;				// Sign of DX
+	char sy;				// Sign of DY
+	int move;				// Counter used in moving along the heading
+} STEERING;
 
 struct ship_data
 {
@@ -4977,16 +4994,8 @@ struct ship_data
 
 	char				*flag;
 
-	sh_int				door;
-	sh_int				dir;
-	sh_int				dir_x;
-	sh_int				dir_y;
-	sh_int				abs_x;
-	sh_int				abs_y;
-	sh_int				sgn_x;
-	sh_int				sgn_y;
-	sh_int				move_x;
-	sh_int				move_y;
+	STEERING			steering;
+
 	sh_int				speed;
 	int					move_steps;
 	long				hit;

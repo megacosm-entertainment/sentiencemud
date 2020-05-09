@@ -56,6 +56,7 @@ void reset_instance(INSTANCE *instance);
 void save_script_new(FILE *fp, AREA_DATA *area,SCRIPT_DATA *scr,char *type);
 SCRIPT_DATA *read_script_new( FILE *fp, AREA_DATA *area, int type);
 
+
 extern LLIST *loaded_instances;
 
 bool ships_changed = false;
@@ -63,7 +64,7 @@ long top_ship_index_vnum = 0;
 
 LLIST *loaded_ships;
 
-// Measured in 2 * ship->dir / 45
+// Measured in 2 * ship->steering.heading / 45
 int bearing_door[] = {
 	DIR_NORTH,				// 0
 	DIR_NORTHEAST,			// 1
@@ -82,6 +83,174 @@ int bearing_door[] = {
 	DIR_NORTHWEST,			// 14
 	DIR_NORTH,				// 15
 };
+
+/////////////////////////////////////////////////////////////////
+//
+// Steering
+//
+
+void steering_calc_heading(SHIP_DATA *ship)
+{
+	ship->steering.dx = (int)(1000 * sin(3.14159 * ship->steering.heading / 180));
+	ship->steering.dy = -(int)(1000 * cos(3.14159 * ship->steering.heading / 180));
+
+	ship->steering.ax = abs(ship->steering.dx);
+	ship->steering.ay = abs(ship->steering.dy);
+
+	ship->steering.sx = (ship->steering.dx > 0) ? 1 : ((ship->steering.dx < 0) ? -1 : 0);
+	ship->steering.sy = (ship->steering.dy > 0) ? 1 : ((ship->steering.dy < 0) ? -1 : 0);
+
+	ship->steering.compass = bearing_door[2 * ship->steering.heading / 45];
+
+	ship->steering.move = 0;
+}
+
+void steering_set_heading(SHIP_DATA *ship, int heading)
+{
+	// Initialize it
+	if( ship->steering.heading < 0 )
+	{
+		ship->steering.heading = heading;
+	}
+
+	ship->steering.heading_target = heading;
+}
+
+void steering_set_turning(SHIP_DATA *ship, char direction)
+{
+	ship->steering.turning_dir = direction;
+}
+
+bool steering_update(SHIP_DATA *ship, int *x, int *y, int *door)
+{
+	static int compasses[] = {
+		DIR_NORTHWEST, DIR_NORTH, DIR_NORTHEAST,
+		DIR_WEST, -1, DIR_EAST,
+		DIR_SOUTHWEST, DIR_SOUTH, DIR_SOUTHEAST
+	};
+
+	if( ship->steering.turning_dir )
+	{
+		int power = ship->index->turning_power;
+		if( ship->speed == SHIP_SPEED_STOPPED )
+		{
+			// Cut the turning power while motionless
+			power /= 2;
+			power = UMAX(1, power);
+		}
+
+
+		if( ship->steering.heading_target < 0 )
+		{
+			// Simply turning, rather than turning to a direction
+			ship->steering.heading += ship->steering.turning_dir * power;
+			if( ship->steering.heading < 0 )
+				ship->steering.heading += 360;
+			else if( ship->steering.heading >= 360 )
+				ship->steering.heading -= 360;
+		}
+		else
+		{
+			int delta = abs(ship->steering.heading - ship->steering.heading_target);
+			if( delta > 180 ) delta = 360 - delta;
+
+			if( delta <= power )
+			{
+				ship->steering.heading = ship->steering.heading_target;
+
+				// Stationary targeted turning
+				//  Ship has reading its desired heading
+				if( ship->speed == SHIP_SPEED_STOPPED )
+				{
+					char buf[MSL];
+					char arg[MIL];
+					switch(ship->steering.heading)
+					{
+					case 0:		strcpy(arg, "to the north"); break;
+					case 45:	strcpy(arg, "to the northeast"); break;
+					case 90:	strcpy(arg, "to the east"); break;
+					case 135:	strcpy(arg, "to the southeast"); break;
+					case 180:	strcpy(arg, "to the south"); break;
+					case 225:	strcpy(arg, "to the southwest"); break;
+					case 270:	strcpy(arg, "to the west"); break;
+					case 315:	strcpy(arg, "to the northwest"); break;
+					default:
+						sprintf(arg, "toward %d degrees", ship->steering.heading);
+					}
+
+					sprintf(buf, "{WThe vessel is now heading %s.{x", arg);
+					ship_echo(ship, buf);
+				}
+			}
+			else
+			{
+				ship->steering.heading += ship->steering.turning_dir * power;
+				if( ship->steering.heading < 0 )
+					ship->steering.heading += 360;
+				else if( ship->steering.heading >= 360 )
+					ship->steering.heading -= 360;
+			}
+		}
+
+		steering_calc_heading(ship);
+	}
+
+	// Allow for steering updates while stopped
+	if( ship->speed <= SHIP_SPEED_STOPPED ) return false;
+
+	// x, y, door can be NULL -------^^^^^^
+	// x, y, door cannot be NULL ----vvvvvv
+
+	ROOM_INDEX_DATA *room = obj_room(ship->ship);
+
+	if( !room || !room->wilds ) return false;
+
+	// No heading, no movement!
+	if( !ship->steering.ax && !ship->steering.ay ) return false;
+
+	int _x = room->x;
+	int _y = room->y;
+	int _d;
+
+	if( ship->steering.ay > ship->steering.ax )
+	{
+		// more North/South
+		_y += ship->steering.sy;
+		_d = 4 + 3 * ship->steering.sy;	// Will result in 1(North) or 7(South)
+
+		ship->steering.move += ship->steering.ax;
+		if( ship->steering.move >= ship->steering.ay )
+		{
+			ship->steering.move -= ship->steering.ay;
+
+			_x += ship->steering.sx;
+			_d += ship->steering.sx;	// Shift to 0/6(West corner) or 2/8(East corner)
+		}
+	}
+	else
+	{
+		_x += ship->steering.dx;
+		_d = 4 + ship->steering.sx;		// Will result in 3(West) or 5(East)
+
+		ship->steering.move += ship->steering.ay;
+		if( ship->steering.move >= ship->steering.ax )
+		{
+			ship->steering.move -= ship->steering.ax;
+
+			_y += ship->steering.sy;
+			_d += ship->steering.sy * 3;	// Shift to 0/2(North corner) or 6/8(South corner)
+		}
+	}
+
+	// Only airships can fly over whereever
+	if( ship->ship_type != SHIP_AIR_SHIP &&
+		check_for_bad_room(rooms->wilds,_x,_y) ) return false;
+
+	*x = _x;
+	*y = _y;
+	*door = compasses[_d];
+	return true;
+}
 
 /////////////////////////////////////////////////////////////////
 //
@@ -184,6 +353,10 @@ SHIP_INDEX_DATA *load_ship_index(FILE *fp)
 			KEY("Object", ship->ship_object, fread_number(fp));
 			break;
 
+		case 'T':
+			KEY("Turning", ship->turning, fread_number(fp));
+			break;
+
 		case 'W':
 			KEY("Weight", ship->weight, fread_number(fp));
 			break;
@@ -263,6 +436,7 @@ void save_ship_index(FILE *fp, SHIP_INDEX_DATA *ship)
 	fprintf(fp, "Crew %d %d\n", ship->min_crew, ship->max_crew);
 	fprintf(fp, "MoveDelay %d\n", ship->move_delay);
 	fprintf(fp, "MoveSteps %d\n", ship->move_steps);
+	fprintf(fp, "Turning %d\n", ship->turning);
 	fprintf(fp, "Weight %d\n", ship->weight);
 	fprintf(fp, "Capacity %d\n", ship->capacity);
 	fprintf(fp, "Armor %d\n", ship->armor);
@@ -434,59 +608,12 @@ void ship_stop(SHIP_DATA *ship)
 {
 	ship->speed = SHIP_SPEED_STOPPED;
 	ship->move_steps = 0;
-	ship->move_x = 0;
-	ship->move_y = 0;
+	ship->steering.move = 0;
+	ship->steering.turning_dir = 0;
 	ship->ship_move = 0;
 	ship->last_times[0] = current_time + 15;
 	ship->last_times[1] = current_time + 10;
 	ship->last_times[2] = current_time + 5;
-}
-
-int door_from_delta(int dx, int dy)
-{
-	if( dx == 0 )
-	{
-		// North-south
-		if( dy < 0 )
-		{
-			return DIR_NORTH;
-		}
-		else if( dy > 0 )
-		{
-			return DIR_SOUTH;
-		}
-
-		// Still
-		return -1;
-	}
-	else if( dx < 0 )
-	{
-		// Westward
-		if( dy < 0 )
-		{
-			return DIR_NORTHWEST;
-		}
-		else if( dy > 0 )
-		{
-			return DIR_SOUTHWEST;
-		}
-
-		return DIR_WEST;
-	}
-	else
-	{
-		// Eastward
-		if( dy < 0 )
-		{
-			return DIR_NORTHEAST;
-		}
-		else if( dy > 0 )
-		{
-			return DIR_SOUTHEAST;
-		}
-
-		return DIR_EAST;
-	}
 }
 
 bool move_ship_success(SHIP_DATA *ship)
@@ -496,64 +623,36 @@ bool move_ship_success(SHIP_DATA *ship)
 	ROOM_INDEX_DATA *to_room = NULL;
 	OBJ_DATA *obj;
 	int door;
-	//int msg;
-	//int storm_type;
+	int x;
+	int y;
 
 	obj = ship->ship;
 	in_room = ship->ship->in_room;
 
-	int dx, dy;
-	if( ship->abs_y > ship->abs_x )
-	{
-		// More North-South
-		dx = 0;
-		dy = ship->sgn_y;
-		ship->move_y += ship->abs_x;
-		if( ship->move_y >= ship->abs_y )
-		{
-			ship->move_y -= ship->abs_y;
-			dx = ship->sgn_x;
-		}
-	}
-	else
-	{
-		// More East-West
-		dx = ship->sgn_x;
-		dy = 0;
-		ship->move_x += ship->abs_y;
-		if( ship->move_x >= ship->abs_x )
-		{
-			ship->move_x -= ship->abs_x;
-			dy = ship->sgn_y;
-		}
-	}
-
-	door = door_from_delta(dx, dy);
-	if( door < 0 || door >= MAX_DIR )
+	if( !in_room || !in_room->wilds )
 		return false;
 
-	if( !in_room )
-		return false;
-
-	// Get destination
-	EXIT_DATA *pexit = in_room->exit[door];
-	if( !pexit )
-		return false;
-
-	to_room = exit_destination(pexit);
-	if( !to_room || !IS_WILDERNESS(to_room) )
-		return false;
+	if( !steering_update(ship, &x, &y, &door) ) return false;
 
 	if ( ship->ship_type != SHIP_AIR_SHIP )
 	{
-		if( to_room->sector_type != SECT_WATER_NOSWIM &&
-			to_room->sector_type != SECT_WATER_SWIM )
+		WILDS_TERRAIN *pTerrain = get_terrain_by_coors(in_room->wilds, x, y);
+
+		EXIT_DATA *pexit = in_room->exit[door];
+		bool vlink = (pexit && IS_SET(pexit->exit_info, EX_VLINK));
+
+		if( (pTerrain->template->sector_type != SECT_WATER_NOSWIM &&
+			pTerrain->template->sector_type != SECT_WATER_SWIM) || vlink )
 		{
 			ship_echo(ship, "The vessel has run aground.");
 			ship_stop(ship);
 			return false;
 		}
 	}
+
+	to_room = get_wilds_vroom(in_room->wilds, x, y);
+	if(!to_room)
+		to_room = create_wilds_vroom(in_room->wilds,x, y);
 
 	// TODO: Handle Weather
 
@@ -627,22 +726,27 @@ void ship_set_move_steps(SHIP_DATA *ship)
 
 void ship_move_update(SHIP_DATA *ship)
 {
-	if( ship->speed == SHIP_SPEED_STOPPED )
+	if( ship->speed > SHIP_SPEED_STOPPED )
+	{
+		for( int i = 0; i < ship->move_steps; i++)
+		{
+			if( !move_ship_success(ship) ) return;
+		}
+
+		ship_autosurvey(ship);
+	}
+	else if( !ship->steering.turning_dir) )
 	{
 		ship_echo(ship, "The vessel has stopped.");
 		ship_stop(ship);
 		return;
 	}
-
-	for( int i = 0; i < ship->move_steps; i++)
+	else
 	{
-		if( !move_ship_success(ship) ) return;
+		steering_update(ship, NULL, NULL, NULL);	// Stationary turning
 	}
 
-	ship_autosurvey(ship);
-
 	ship_set_move_steps(ship);
-//	ship->ship_move = ship->move_delay;
 }
 
 void ship_pulse_update(SHIP_DATA *ship)
@@ -855,20 +959,6 @@ SHIP_DATA *ship_load(FILE *fp)
 			break;
 
 		case 'M':
-			if( !str_cmp(word, "MoveDir") )
-			{
-				ship->dir_x = fread_number(fp);
-				ship->dir_y = fread_number(fp);
-				ship->abs_x = fread_number(fp);
-				ship->abs_y = fread_number(fp);
-				ship->sgn_x = fread_number(fp);
-				ship->sgn_y = fread_number(fp);
-				ship->move_x = fread_number(fp);
-				ship->move_y = fread_number(fp);
-
-				fMatch = TRUE;
-				break;
-			}
 			KEY("MoveSteps", ship->move_steps, fread_number(fp));
 			break;
 
@@ -909,6 +999,19 @@ SHIP_DATA *ship_load(FILE *fp)
 			KEY("ShipFlags", ship->ship_flags, fread_number(fp));
 			KEY("ShipMove", ship->ship_move, fread_number(fp));
 			KEY("Speed", ship->speed, fread_number(fp));
+			if(!str_cmp(word, "Steering") )
+			{
+				ship->steering.heading = fread_number(fp);
+				ship->steering.heading_target = fread_number(fp);
+				ship->steering.turning_dir = (char)fread_number(fp);
+
+				steering_calc_heading(ship);
+
+				ship->steering.move = fread_number(fp);
+
+				fMatch = TRUE;
+				break;
+			}
 			break;
 
 		case 'U':
@@ -935,7 +1038,6 @@ SHIP_DATA *ship_load(FILE *fp)
 		return NULL;
 	}
 
-    ship->door = bearing_door[2 * ship->dir / 45];
 	get_ship_id(ship);
 	return ship;
 }
@@ -1003,7 +1105,12 @@ bool ship_save(FILE *fp, SHIP_DATA *ship)
 	{
 		fprintf(fp, "MoveSteps %d\n", ship->move_steps);
 	}
-	fprintf(fp, "MoveDir %d %d %d %d %d %d %d %d\n", ship->dir_x, ship->dir_y, ship->abs_x, ship->abs_y, ship->sgn_x, ship->sgn_y, ship->move_x, ship->move_y);
+
+	fprintf(fp, "Steering %d %d %d %d\n",
+		ship->steering.heading,
+		ship->steering.heading_target,
+		ship->steering.turning_dir,
+		ship->steering.move);
 
 	if( ship->pk )
 	{
@@ -1648,11 +1755,14 @@ void do_scuttle( CHAR_DATA *ch, char *argument)
 
 void do_steer( CHAR_DATA *ch, char *argument )
 {
-	char arg[MAX_INPUT_LENGTH];
+	char buf[MSL];
+	char arg[MIL];
+	char arg2[MIL];
 	SHIP_DATA *ship;
-	int door;
+	int heading;
 
 	argument = one_argument( argument, arg);
+	argument = one_argument( argument, arg2);
 
 	ship = get_room_ship(ch->in_room);
 
@@ -1676,7 +1786,47 @@ void do_steer( CHAR_DATA *ch, char *argument )
 
 	if (arg[0] == '\0')
 	{
-		send_to_char("Steer which way?\n\r", ch);
+		// For now.. tell the bearing
+		//  - Maybe adding a compass item?
+
+		if( ship->speed > SHIP_SPEED_STOPPED )
+		{
+			switch(ship->steering.heading)
+			{
+			case 0:		strcpy(arg, "heading to the north"); break;
+			case 45:	strcpy(arg, "heading to the northeast"); break;
+			case 90:	strcpy(arg, "heading to the east"); break;
+			case 135:	strcpy(arg, "heading to the southeast"); break;
+			case 180:	strcpy(arg, "heading to the south"); break;
+			case 225:	strcpy(arg, "heading to the southwest"); break;
+			case 270:	strcpy(arg, "heading to the west"); break;
+			case 315:	strcpy(arg, "heading to the northwest"); break;
+			default:
+				sprintf(arg, "heading toward %d degrees", heading);
+			}
+
+			if( ship->steering.turning_dir < 0 )
+				strcpy(arg2, ", and is turning to port");
+			else if( ship->steering.turning_dir > 0 )
+				strcpy(arg2, ", and is turning to starboard");
+			else
+				arg2[0] = '\0';
+		}
+		else
+		{
+			strcpy(arg, "stationary");
+
+			if( ship->steering.turning_dir < 0 )
+				strcpy(arg2, ", but is turning to port");
+			else if( ship->steering.turning_dir > 0 )
+				strcpy(arg2, ", but is turning to starboard");
+			else
+				arg2[0] = '\0';
+		}
+
+		sprintf(buf, "The vessel is %s%s.\n\r", arg, arg2);
+		send_to_char(buf, ch);
+		//send_to_char("Steer which way?\n\r", ch);
 		return;
 	}
 
@@ -1688,19 +1838,77 @@ void do_steer( CHAR_DATA *ch, char *argument )
 
 	if( is_number(arg) )
 	{
-		door = atoi(arg);
+		heading = atoi(arg);
 
-		if( door < 0 || door >= 360 )
+		if( heading < 0 || heading >= 360 )
 		{
 			send_to_char("That isn't a valid direction.\n\r", ch);
 			return;
 		}
 	}
+	else if( !str_prefix(arg, "port") )
+	{
+		if( ship->steering.turning_dir != -1 )
+		{
+			ship->steering.turning_dir = -1;
+			ship->steering.heading_target = -1;	// Aimless
+
+			ship_echo(ship, "{WThe vessel is now turning to port.");
+
+			// Allow stationary turning
+			if( ship->speed == SHIP_SPEED_STOPPED && ship->ship_move <= 0)
+			{
+				ship->ship_move = ship->index->move_delay;
+			}
+
+		}
+		else
+		{
+			send_to_char("The vessel is already turning to port.\n\r", ch);
+		}
+		return;
+	}
+	else if( !str_prefix(arg, "starboard") )
+	{
+		if( ship->steering.turning_dir != 1 )
+		{
+			ship->steering.turning_dir = 1;
+			ship->steering.heading_target = -1;	// Aimless
+
+			ship_echo(ship, "{WThe vessel is now turning to starboard.");
+
+			// Allow stationary turning
+			if( ship->speed == SHIP_SPEED_STOPPED && ship->ship_move <= 0)
+			{
+				ship->ship_move = ship->index->move_delay;
+			}
+		}
+		else
+		{
+			send_to_char("The vessel is already turning to starboard.\n\r", ch);
+		}
+		return;
+	}
+	else if( !str_prefix(arg, "ahead") || !str_prefix(arg, "straight") )
+	{
+		if( ship->steering.turning_dir != 0 )
+		{
+			ship->steering.turning_dir = 0;
+			ship->steering.heading_target = ship->steering.heading;
+
+			ship_echo(ship, "{WThe vessel is now heading straight ahead.");
+		}
+		else
+		{
+			send_to_char("The vessel is already heading straight ahead.\n\r", ch);
+		}
+		return;
+	}
 	else
 	{
-		door = parse_direction(arg);
+		heading = parse_direction(arg);
 
-		switch(door)
+		switch(heading)
 		{
 		case DIR_NORTH:				door = 0; break;
 		case DIR_NORTHEAST:			door = 45; break;
@@ -1716,7 +1924,7 @@ void do_steer( CHAR_DATA *ch, char *argument )
 		}
 	}
 
-	switch(door)
+	switch(heading)
 	{
 	case 0:		strcpy(arg, "to the north"); break;
 	case 45:	strcpy(arg, "to the northeast"); break;
@@ -1727,26 +1935,49 @@ void do_steer( CHAR_DATA *ch, char *argument )
 	case 270:	strcpy(arg, "to the west"); break;
 	case 315:	strcpy(arg, "to the northwest"); break;
 	default:
-		sprintf(arg, "by %d degrees", door);
+		sprintf(arg, "toward %d degrees", heading);
 	}
+
+	char turning_dir = 0;
+
+	if( arg2[0] != '\0' )
+	{
+		if( !str_prefix(arg2, "port") )
+			turning_dir = -1;
+		else if(!str_prefix(arg2, "starboard") )
+			turning_dir = 1;
+	}
+
+	int delta = heading - ship->steering.heading;
+	if( delta > 180 ) delta -= 360;
+	else if( delta <= -180 ) delta += 360;
+
+	if( !turning_dir )
+	{
+		// Going in opposite direction? Need to specify which way to turn
+		if( delta == 180 )	// Delta should never be -180, so only need to check this
+		{
+			send_to_char("Turning direction ambiguous.\n\rPlease specify whether to go 'port' or 'starboard'.\n\r", ch);
+			return;
+		}
+
+		turning_dir = (delta < 0) ? -1 : 1;
+	}
+
+	steering_set_heading(ship, heading);
+	steering_set_turning(ship, turning_dir);
 
 	// TODO: Cancel waypoint
 	// TODO: Cancel chasing
-    ship->dir = door;
-    ship->dir_x = (int)(1000 * sin(3.1415926 * door / 180));
-    ship->dir_y = -(int)(1000 * cos(3.1415926 * door / 180));
-    ship->move_x = 0;
-    ship->move_y = 0;
-    ship->abs_x = abs(ship->dir_x);
-    ship->abs_y = abs(ship->dir_y);
-    ship->sgn_x = (ship->dir_x > 0) ? 1 : ((ship->dir_x < 0) ? -1 : 0);
-    ship->sgn_y = (ship->dir_y > 0) ? 1 : ((ship->dir_y < 0) ? -1 : 0);
-    ship->door = bearing_door[2 * ship->dir / 45];
 
-
-	char buf[MSL];
-	sprintf(buf, "{WThe vessel is now steered %s.{x", arg);
+	sprintf(buf, "{WThe vessel is now turning %s.{x", arg);
 	ship_echo(ship, buf);
+
+	// Allow stationary turning
+	if( ship->speed == SHIP_SPEED_STOPPED && ship->ship_move <= 0)
+	{
+		ship->ship_move = ship->index->move_delay;
+	}
 }
 
 
@@ -2151,6 +2382,7 @@ const struct olc_cmd_type shedit_table[] =
 	{ "name",				shedit_name			},
 	{ "object",				shedit_object		},
 	{ "show",				shedit_show			},
+	{ "turning",			shedit_turning		},
 	{ "weight",				shedit_weight		},
 	{ NULL,					0,					}
 };
@@ -2405,6 +2637,9 @@ SHEDIT( shedit_show )
 	add_buf(buffer, buf);
 
 	sprintf(buf, "Move Steps:  [%5d]{x\n\r", ship->move_steps);
+	add_buf(buffer, buf);
+
+	sprintf(buf, "Max Turning: %d degrees{x\n\r", ship->turning);
 	add_buf(buffer, buf);
 
 	sprintf(buf, "Max Weight:  [%5d]{x\n\r", ship->weight);
@@ -2770,6 +3005,37 @@ SHEDIT( shedit_hit )
 	send_to_char("Ship hit points changed.\n\r", ch);
 	return TRUE;
 }
+
+SHEDIT( shedit_turning )
+{
+	SHIP_INDEX_DATA *ship;
+
+	EDIT_SHIP(ch, ship);
+
+	if( argument[0] == '\0' )
+	{
+		send_to_char("Syntax:  turning [degrees]\n\r", ch);
+		return FALSE;
+	}
+
+	if( !is_number(argument) )
+	{
+		send_to_char("That is not a number.\n\r", ch);
+		return FALSE;
+	}
+
+	int value = atoi(argument);
+	if( value < 1 || value > 60 )
+	{
+		send_to_char("Turning power must be in the range of 1 to 60 degrees.\n\r", ch);
+		return FALSE;
+	}
+
+	ship->turning = value;
+	send_to_char("Turning power changed.\n\r", ch);
+	return TRUE;
+}
+
 
 SHEDIT( shedit_guns )
 {

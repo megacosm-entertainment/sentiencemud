@@ -2652,6 +2652,8 @@ void obj_from_room(OBJ_DATA *obj)
 	{
 		if (!obj->in_room->people && !obj->in_room->contents)
 			destroy_wilds_vroom(obj->in_room);
+
+		obj->in_wilds->loaded_objs--;
 	}
 
 	--obj->pIndexData->inrooms;
@@ -2676,7 +2678,13 @@ void obj_to_room(OBJ_DATA *obj, ROOM_INDEX_DATA *pRoomIndex)
     list_addlink(pRoomIndex->lcontents, obj);
     list_addlink(pRoomIndex->lentity, obj);
 
-	if( IS_VALID(pRoomIndex->instance_section) && IS_VALID(pRoomIndex->instance_section->instance) )
+		// Vroom
+    if( pRoomIndex->wilds )
+    {
+		pRoomIndex->wilds->loaded_objs++;
+		obj->in_wilds = pRoomIndex->wilds;
+	}
+	else if( IS_VALID(pRoomIndex->instance_section) && IS_VALID(pRoomIndex->instance_section->instance) )
 	{
 		if( !IS_SET(obj->extra3_flags, ITEM_INSTANCE_OBJ) )
 		{
