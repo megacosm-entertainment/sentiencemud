@@ -1904,14 +1904,14 @@ void do_steer( CHAR_DATA *ch, char *argument )
 
 		switch(heading)
 		{
-		case DIR_NORTH:				door = 0; break;
-		case DIR_NORTHEAST:			door = 45; break;
-		case DIR_EAST:				door = 90; break;
-		case DIR_SOUTHEAST:			door = 135; break;
-		case DIR_SOUTH:				door = 180; break;
-		case DIR_SOUTHWEST:			door = 225; break;
-		case DIR_WEST:				door = 270; break;
-		case DIR_NORTHWEST:			door = 315; break;
+		case DIR_NORTH:				heading = 0; break;
+		case DIR_NORTHEAST:			heading = 45; break;
+		case DIR_EAST:				heading = 90; break;
+		case DIR_SOUTHEAST:			heading = 135; break;
+		case DIR_SOUTH:				heading = 180; break;
+		case DIR_SOUTHWEST:			heading = 225; break;
+		case DIR_WEST:				heading = 270; break;
+		case DIR_NORTHWEST:			heading = 315; break;
 		default:
 			send_to_char("That isn't a valid direction.\n\r", ch);
 			return;
