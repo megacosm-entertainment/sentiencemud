@@ -981,8 +981,8 @@ bool ship_save(FILE *fp, SHIP_DATA *ship)
 	if( ship->move_steps > 0 )
 	{
 		fprintf(fp, "MoveSteps %d\n", ship->move_steps);
-		fprintf(fp, "MoveDir %d %d %d %d %d %d %d %d\n", ship->dir_x, ship->dir_y, ship->abs_x, ship->abs_y, ship->sgn_x, ship->sgn_y, ship->move_x, ship->move_y);
 	}
+	fprintf(fp, "MoveDir %d %d %d %d %d %d %d %d\n", ship->dir_x, ship->dir_y, ship->abs_x, ship->abs_y, ship->sgn_x, ship->sgn_y, ship->move_x, ship->move_y);
 
 	if( ship->pk )
 	{
