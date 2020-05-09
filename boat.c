@@ -1822,7 +1822,7 @@ void do_speed( CHAR_DATA *ch, char *argument )
 	int speed = -1;
 	if ( is_number(arg) )
 	{
-		speed = atoi(arg) * 100 / ship->index->move_steps;
+		speed = atoi(arg);
 	}
 	else if(!str_prefix(arg, "stop"))
 	{
