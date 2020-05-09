@@ -576,7 +576,7 @@ int get_colour_width(char *text)
 	free_string(plaintext);
 	int len = strlen(text);
 
-	return len - plen;
+	return (len - plen);
 }
 
 
@@ -594,15 +594,13 @@ char *nocolour( const char *string )
 	for (i = 0, n = 0; i < len && string[i] != '\0'; i++, n++) {
 		while( i < len && string[i] == '{' )
 		{
-			++i;
-
-			if( string[i] == '{' )		// Double {{ becomes { when processed, but still counts as two
+			if( string[i+1] == '{' )		// Double {{ becomes { when processed, but still counts as two
 			{
 				buf[n++] = '{';
-				buf[n] = '{';
+				buf[n++] = '{';
 			}
 
-			++i;
+			i+=2;
 		}
 
 		while (i < len && string[i] == '`')
@@ -612,7 +610,7 @@ char *nocolour( const char *string )
 			else if(string[i+1] == '`')	// Double `` becomes ` when processed, but still counts as two
 			{
 				buf[n++] = '`';
-				buf[n] = '`';
+				buf[n++] = '`';
 				i+= 2;
 			}
 			else
