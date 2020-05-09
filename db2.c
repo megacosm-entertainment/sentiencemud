@@ -591,7 +591,7 @@ char *nocolour( const char *string )
 
 	int len = strlen(string);
 
-	for (i = 0, n = 0; i < len && string[i] != '\0'; i++) {
+	for (i = 0, n = 0; i < len && string[i] != '\0';) {
 		if( string[i] == '{' )
 		{
 			if( string[i+1] == '{' )		// Double {{ becomes { when processed, but still counts as two
@@ -618,7 +618,7 @@ char *nocolour( const char *string )
 			}
 		}
 		else
-			buf[n++] = string[i];
+			buf[n++] = string[i++];
 	}
 
 	buf[n] = '\0';
