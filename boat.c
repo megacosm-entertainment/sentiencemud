@@ -596,7 +596,7 @@ void ship_set_move_steps(SHIP_DATA *ship)
 		// - relic modifier
 
 		ship->move_steps = speed * ship->index->move_steps / 100;
-		ship->move_steps = UMAX(0, ship->move_steps);
+		ship->move_steps = UMAX(1, ship->move_steps);
 	}
 	else
 	{
