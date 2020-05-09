@@ -746,6 +746,8 @@ void ship_move_update(SHIP_DATA *ship)
 	else
 	{
 		steering_update(ship, NULL, NULL, NULL);	// Stationary turning
+
+		if( !ship->steering.turning_dir ) return;
 	}
 
 	ship_set_move_steps(ship);
