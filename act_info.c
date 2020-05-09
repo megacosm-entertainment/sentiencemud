@@ -394,11 +394,11 @@ char *format_obj_to_char(OBJ_DATA * obj, CHAR_DATA * ch, bool fShort)
 		    {
 				if (obj->ship->ship_type == SHIP_AIR_SHIP)
 				{
-					sprintf(buf2, "{MThe {x%s{M flies high above heading %s.{x", ship->ship_name, dir_name[ship->door]);
+					sprintf(buf2, "{MThe {x%s{M flies high above heading %s.{x", ship->ship_name, dir_name[ship->steering.compass]);
 				}
 				else
 				{
-					sprintf(buf2, "{MThe %s '{x%s{M', powers through the water sailing %s.{x", ship->index->name, ship->ship_name, dir_name[ship->door]);
+					sprintf(buf2, "{MThe %s '{x%s{M', powers through the water sailing %s.{x", ship->index->name, ship->ship_name, dir_name[ship->steering.compass]);
 				}
 		    }
 		    else if( ship->scuttle_time > 0 )
