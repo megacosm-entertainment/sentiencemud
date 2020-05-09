@@ -406,13 +406,13 @@ char *format_obj_to_char(OBJ_DATA * obj, CHAR_DATA * ch, bool fShort)
 				if (IS_NULLSTR(ship->flag))
 				{
 					sprintf(buf2,
-						"{RThe %s named '{x%s{R', burns brightly as flames engulf the vessel!{x\n\r",
+						"{RThe %s named '{x%s{R', burns brightly as flames engulf the vessel!{x",
 						ship->index->name, ship->ship_name);
 				}
 				else
 				{
 					sprintf(buf2,
-						"{RThe %s named '{x%s{R', flying the flag, '{x%s{R', burns brightly as flames engulf the vessel!{x\n\r",
+						"{RThe %s named '{x%s{R', flying the flag, '{x%s{R', burns brightly as flames engulf the vessel!{x",
 						ship->index->name, ship->ship_name, ship->flag);
 				}
 
@@ -435,13 +435,13 @@ char *format_obj_to_char(OBJ_DATA * obj, CHAR_DATA * ch, bool fShort)
 					if (IS_NULLSTR(ship->flag))
 					{
 						sprintf(buf2,
-							"{MThe %s named '{x%s{M' gracefully floats here.{x\n\r",
+							"{MThe %s named '{x%s{M' gracefully floats here.{x",
 							ship->index->name, ship->ship_name);
 					}
 					else
 					{
 						sprintf(buf2,
-							"{MThe %s named '{x%s{M', flying the flag '{x%s{M', floats here.{x\n\r",
+							"{MThe %s named '{x%s{M', flying the flag '{x%s{M', floats here.{x",
 							ship->index->name, ship->ship_name, ship->flag);
 					}
 				}

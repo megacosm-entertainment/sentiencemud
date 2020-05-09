@@ -145,15 +145,15 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 	    if ( location )
 	    {
 			/* CHAR_DATA *pMob; */
-			act("{WYou board $p.{x\n\r", ch, NULL, NULL, portal, NULL, NULL, NULL, TO_CHAR);
-			act("{W$n boards $p.{x\n\r", ch, NULL, NULL, portal, NULL, NULL, NULL, TO_ROOM);
+			act("{WYou board {x$p{W.{x\n\r", ch, NULL, NULL, portal, NULL, NULL, NULL, TO_CHAR);
+			act("{W$n boards {x$p{W.{x\n\r", ch, NULL, NULL, portal, NULL, NULL, NULL, TO_ROOM);
 
 			move_cart(ch,location,TRUE);
 
 			char_from_room(ch);
 			char_to_room(ch, location);
 
-			act("{W$n boards $p.{x", ch, NULL, NULL, portal, NULL, NULL, NULL, TO_ROOM);
+			act("{W$n boards {x$p{W.{x", ch, NULL, NULL, portal, NULL, NULL, NULL, TO_ROOM);
 
 			do_function(ch, &do_look, "auto");
 
