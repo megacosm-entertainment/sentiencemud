@@ -8527,6 +8527,7 @@ SHIP_DATA *get_room_ship(ROOM_INDEX_DATA *room);
 bool ischar_onboard_ship(CHAR_DATA *ch, SHIP_DATA *ship);
 void ship_autosurvey( SHIP_DATA *ship );
 void ship_echo( SHIP_DATA *ship, char *str );
+void ship_echoaround( SHIP_DATA *ship, CHAR_DATA *ch, char *str );
 void resolve_ships();
 void get_ship_wildsicon(SHIP_DATA *ship, char *buf, size_t len);
 bool ship_has_enough_crew( SHIP_DATA *ship );

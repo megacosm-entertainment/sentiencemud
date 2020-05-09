@@ -395,8 +395,8 @@ void extract_ship(SHIP_DATA *ship)
 
 	list_remlink(loaded_ships, ship);
 
-	extract_obj(ship->ship);
 	extract_instance(ship->instance);
+	extract_obj(ship->ship);
 
 	free_ship(ship);
 }
@@ -489,7 +489,7 @@ bool move_ship_success(SHIP_DATA *ship)
 		dx = 0;
 		dy = ship->sgn_y;
 		ship->move_y += ship->abs_x;
-		if( ship->move_y > ship->abs_y )
+		if( ship->move_y >= ship->abs_y )
 		{
 			ship->move_y -= ship->abs_y;
 			dx = ship->sgn_x;
@@ -501,7 +501,7 @@ bool move_ship_success(SHIP_DATA *ship)
 		dx = ship->sgn_x;
 		dy = 0;
 		ship->move_x += ship->abs_y;
-		if( ship->move_x > ship->abs_x )
+		if( ship->move_x >= ship->abs_x )
 		{
 			ship->move_x -= ship->abs_x;
 			dy = ship->sgn_y;
@@ -635,18 +635,18 @@ void ship_pulse_update(SHIP_DATA *ship)
 		{
 			ship_move_update(ship);
 		}
+	}
 
-		// Update the wake
-		for( int i = 0; i < 3; i++ )
+	// Update the wake
+	for( int i = 0; i < 3; i++ )
+	{
+		if( ship->last_times[i] > 0 && ship->last_times[i] < current_time )
 		{
-			if( ship->last_times[i] > 0 && ship->last_times[i] < current_time )
-			{
-				ship->last_coords[i].wilds = NULL;
-				ship->last_coords[i].x = 0;
-				ship->last_coords[i].y = 0;
-				ship->last_times[i] = 0;
+			ship->last_coords[i].wilds = NULL;
+			ship->last_coords[i].x = 0;
+			ship->last_coords[i].y = 0;
+			ship->last_times[i] = 0;
 
-			}
 		}
 	}
 }
@@ -1227,6 +1227,24 @@ void ship_echo( SHIP_DATA *ship, char *str )
 	}
 }
 
+void ship_echoaround( SHIP_DATA *ship, CHAR_DATA *ch, char *str )
+{
+	DESCRIPTOR_DATA *d;
+
+	for ( d = descriptor_list; d != NULL; d = d->next )
+	{
+		CHAR_DATA *victim;
+
+		victim = d->original ? d->original : d->character;
+
+		if( d->connected == CON_PLAYING &&
+			victim != ch &&
+			victim->in_room != NULL &&
+			ischar_onboard_ship(victim, ship) )
+			act(str, victim, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	}
+}
+
 
 bool ship_has_enough_crew( SHIP_DATA *ship )
 {
@@ -1502,8 +1520,8 @@ void do_scuttle( CHAR_DATA *ch, char *argument)
 		// Check to see if the owner of the ship is onboard
 	}
 
-	sprintf(buf, "%s douses the vessel with fuel and ignites it!", ch->name);
-	ship_echo(ship, buf);
+	send_to_char("You douse the vessel with fuel and ignite it!\n\r", ch);
+	ship_echoaround(ship, ch, "$N douses the vessel with fuel and ignites it!");
 
 	ship->scuttle_time = 5;
 
@@ -1722,6 +1740,61 @@ void do_speed( CHAR_DATA *ch, char *argument )
 		return;
 	}
 
+	if( argument[0] == '\0' )
+	{
+		int speed;
+
+		if( ship->index->move_steps > 0 )
+		{
+			speed = 100 * ship->move_steps / ship->index->move_steps;
+			speed = UMAX(0, speed);
+		}
+		else
+			speed = -1;
+
+		if( speed < 0 )
+		{
+			send_to_char("The vessel is unable to move.\n\r", ch);
+		}
+		else if( speed == SHIP_SPEED_STOPPED )
+		{
+			send_to_char("The vessel is stopped.\n\r", ch);
+		}
+		else if( speed > SHIP_SPEED_FULL_SPEED )
+		{
+			send_to_char("The vessel is going beyond its maximum speed.\n\r", ch);
+		}
+		else if( speed == SHIP_SPEED_FULL_SPEED )
+		{
+			send_to_char("The vessel is going at full speed.\n\r", ch);
+		}
+		else if( speed >= 90 )
+		{
+			send_to_char("The vessel is nearly going full speed.\n\r", ch);
+		}
+		else if( speed > 55 )
+		{
+			send_to_char("The vessel is going over half speed.\n\r", ch);
+		}
+		else if( speed >= 45 && ship->speed <= 55 )
+		{
+			send_to_char("The vessel is going about half speed.\n\r", ch);
+		}
+		else if( speed > 10 )
+		{
+			send_to_char("The vessel is going below half speed.\n\r", ch);
+		}
+		else
+		{
+			send_to_char("The vessel is going minimal speed.\n\r", ch);
+		}
+
+
+		return;
+	}
+
+
+
 	if (!IS_SET(ch->in_room->room_flags, ROOM_SHIP_HELM))
 	{
 		act("You must be at the helm of the vessel to steer.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -1739,7 +1812,42 @@ void do_speed( CHAR_DATA *ch, char *argument )
 		return;
 	}
 
-	if ( !str_prefix( arg, "stop" ) )
+	if ( ship->index->move_steps < 1) )
+	{
+		send_to_char( "The vessel doesn't seem to have enough power to move!\n\r", ch );
+		return;
+	}
+
+
+	int speed = -1;
+	if ( is_number(arg) )
+	{
+		speed = atoi(arg) * 100 / ship->index->move_steps;
+	}
+	else if(!str_prefix(arg, "stop")
+	{
+		speed = SHIP_SPEED_STOPPED;
+	}
+	else if(!str_prefix(arg, "minimal")
+	{
+		speed = 1;
+	}
+	else if(!str_prefix(arg, "half")
+	{
+		speed = SHIP_SPEED_HALF_SPEED;
+	}
+	else if(!str_prefix(arg, "full")
+	{
+		speed = SHIP_SPEED_FULL_SPEED;
+	}
+
+	if( speed < 0 || speed > 100 )
+	{
+		send_to_char("You may stop the vessel, or order half, full or some percentage speed.\n\r", ch);
+		return;
+	}
+
+	if( speed == SHIP_SPEED_STOPPED )
 	{
 		if( ship->speed > SHIP_SPEED_STOPPED )
 		{
@@ -1767,30 +1875,7 @@ void do_speed( CHAR_DATA *ch, char *argument )
 		return;
 	}
 
-	if ( !str_prefix( arg, "half" ) )
-	{
-		if( ship->speed > SHIP_SPEED_HALF_SPEED )
-		{
-			act("You give the order to reduce speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-			act("$n gives the order to reduce speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-		}
-		else if( ship->speed < SHIP_SPEED_HALF_SPEED )
-		{
-			act("You give the order to increase speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-			act("$n gives the order to increase speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-		}
-		else
-		{
-			send_to_char("Ship is already going at half speed.\n\r", ch);
-			return;
-		}
-
-		ship->speed = SHIP_SPEED_HALF_SPEED;
-		ship_set_move_steps(ship);
-		return;
-	}
-
-	if ( !str_prefix( arg, "full" ) )
+	if( speed == SHIP_SPEED_FULL )
 	{
 		if( ship->speed < SHIP_SPEED_FULL_SPEED )
 		{
@@ -1807,7 +1892,24 @@ void do_speed( CHAR_DATA *ch, char *argument )
 		return;
 	}
 
-	send_to_char("You may stop the vessel, or order half or full speed.\n\r", ch);
+	if( ship->speed > speed )
+	{
+		act("You give the order to reduce speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("$n gives the order to reduce speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	}
+	else if( ship->speed < speed )
+	{
+		act("You give the order to increase speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("$n gives the order to increase speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	}
+	else
+	{
+		send_to_char("Ship is already going at that speed.\n\r", ch);
+		return;
+	}
+
+	ship->speed = URANGE(1,speed,100);
+	ship_set_move_steps(ship);
 	return;
 }
 
