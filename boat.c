@@ -121,14 +121,8 @@ void steering_set_turning(SHIP_DATA *ship, char direction)
 	ship->steering.turning_dir = direction;
 }
 
-bool steering_update(SHIP_DATA *ship, int *x, int *y, int *door)
+void steering_update(SHIP_DATA *ship)
 {
-	static int compasses[] = {
-		DIR_NORTHWEST, DIR_NORTH, DIR_NORTHEAST,
-		DIR_WEST, -1, DIR_EAST,
-		DIR_SOUTHWEST, DIR_SOUTH, DIR_SOUTHEAST
-	};
-
 	if( ship->steering.turning_dir )
 	{
 		int power = ship->index->turning;
@@ -196,6 +190,15 @@ bool steering_update(SHIP_DATA *ship, int *x, int *y, int *door)
 
 		steering_calc_heading(ship);
 	}
+}
+
+bool steering_movement(SHIP_DATA *ship, int *x, int *y, int *door)
+{
+	static int compasses[] = {
+		DIR_NORTHWEST, DIR_NORTH, DIR_NORTHEAST,
+		DIR_WEST, -1, DIR_EAST,
+		DIR_SOUTHWEST, DIR_SOUTH, DIR_SOUTHEAST
+	};
 
 	// Allow for steering updates while stopped
 	if( ship->speed <= SHIP_SPEED_STOPPED ) return false;
@@ -634,7 +637,7 @@ bool move_ship_success(SHIP_DATA *ship)
 	if( !in_room || !in_room->wilds )
 		return false;
 
-	if( !steering_update(ship, &x, &y, &door) ) return false;
+	if( !steering_movement(ship, &x, &y, &door) ) return false;
 
 	if ( ship->ship_type != SHIP_AIR_SHIP )
 	{
@@ -730,6 +733,8 @@ void ship_move_update(SHIP_DATA *ship)
 {
 	if( ship->speed > SHIP_SPEED_STOPPED )
 	{
+		steering_update(ship);
+
 		for( int i = 0; i < ship->move_steps; i++)
 		{
 			if( !move_ship_success(ship) ) return;
@@ -745,7 +750,7 @@ void ship_move_update(SHIP_DATA *ship)
 	}
 	else
 	{
-		steering_update(ship, NULL, NULL, NULL);	// Stationary turning
+		steering_update(ship);	// Stationary turning
 
 		if( !ship->steering.turning_dir ) return;
 	}
