@@ -246,7 +246,7 @@ bool steering_update(SHIP_DATA *ship, int *x, int *y, int *door)
 
 	// Only airships can fly over whereever
 	if( ship->ship_type != SHIP_AIR_SHIP &&
-		check_for_bad_room(room->wilds,_x,_y) ) return false;
+		!check_for_bad_room(room->wilds,_x,_y) ) return false;
 
 	*x = _x;
 	*y = _y;
