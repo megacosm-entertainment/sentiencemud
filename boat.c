@@ -231,7 +231,7 @@ bool steering_update(SHIP_DATA *ship, int *x, int *y, int *door)
 	}
 	else
 	{
-		_x += ship->steering.dx;
+		_x += ship->steering.sx;
 		_d = 4 + ship->steering.sx;		// Will result in 3(West) or 5(East)
 
 		ship->steering.move += ship->steering.ay;
