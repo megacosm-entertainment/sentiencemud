@@ -1718,10 +1718,9 @@ void do_steer( CHAR_DATA *ch, char *argument )
     ship->sgn_x = (ship->dir_x > 0) ? 1 : ((ship->dir_x < 0) ? -1 : 0);
     ship->sgn_y = (ship->dir_y > 0) ? 1 : ((ship->dir_y < 0) ? -1 : 0);
 
-    act("{WThe vessel is now steered $T.{x", ch, NULL, NULL, NULL, NULL, NULL, arg, TO_CHAR);
-    act("{WThe vessel is now steered $T.{x", ch, NULL, NULL, NULL, NULL, NULL, arg, TO_ROOM);
-
-    ship_autosurvey(ship);
+	char buf[MSL];
+	sprintf(buf, "{WThe vessel is now steered %s.{x", arg);
+	ship_echo(ship, buf);
 }
 
 
@@ -1820,9 +1819,23 @@ void do_speed( CHAR_DATA *ch, char *argument )
 
 
 	int speed = -1;
-	if ( is_number(arg) )
+	if ( is_percent(arg) )
 	{
 		speed = atoi(arg);
+	}
+	else if ( is_number(arg) )
+	{
+		speed = atoi(arg);
+
+		if( speed < 1 || speed > ship->index->move_steps )
+		{
+			char buf[MSL];
+			sprintf(buf, "Explicit distance values must be from 1 to %d\n\r", ship->index->move_steps);
+			send_to_char(buf, ch);
+			return;
+		}
+
+		speed = 100 * speed / ship->index->move_steps;
 	}
 	else if(!str_prefix(arg, "stop"))
 	{
@@ -1843,7 +1856,7 @@ void do_speed( CHAR_DATA *ch, char *argument )
 
 	if( speed < 0 || speed > 100 )
 	{
-		send_to_char("You may stop the vessel, or order half, full or some percentage speed.\n\r", ch);
+		send_to_char("You may stop the vessel, or order half, full, some percentage speed or specific distance count.\n\r", ch);
 		return;
 	}
 
@@ -1911,7 +1924,8 @@ void do_speed( CHAR_DATA *ch, char *argument )
 
 	ship->speed = URANGE(1,speed,100);
 	ship_set_move_steps(ship);
-	return;
+
+    ship_autosurvey(ship);
 }
 
 void do_aim( CHAR_DATA *ch, char *argument )

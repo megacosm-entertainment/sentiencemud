@@ -7756,6 +7756,7 @@ HELP_DATA *read_help_new( FILE *fp );
 bool check_social( CHAR_DATA *ch, char *command, char *argument );
 void	interpret	args( ( CHAR_DATA *ch, char *argument ) );
 bool	is_number	args( ( char *arg ) );
+bool	is_percent	args( ( char *arg ) );
 int	number_argument	args( ( char *argument, char *arg ) );
 int	mult_argument	args( ( char *argument, char *arg) );
 char *	one_argument_norm	args( ( char *argument, char *arg_first ) );

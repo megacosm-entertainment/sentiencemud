@@ -1649,6 +1649,26 @@ bool is_number( char *arg )
     return TRUE;
 }
 
+bool is_percent( char *arg )
+{
+	if ( *arg == '\0' )
+	return FALSE;
+
+	for ( ; *arg != '%' && *arg != '\0'; arg++ )
+	{
+		if ( !isdigit( *arg ) )
+			return FALSE;
+	}
+
+	if( *arg != '%' )
+		return FALSE;
+
+	// Skip the %
+	++arg;
+
+	return !*arg;	// Does the string end a null
+}
+
 
 // Given a string like 14.foo, return 14 and 'foo'
 int number_argument( char *argument, char *arg )
