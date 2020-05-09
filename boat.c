@@ -1824,19 +1824,19 @@ void do_speed( CHAR_DATA *ch, char *argument )
 	{
 		speed = atoi(arg) * 100 / ship->index->move_steps;
 	}
-	else if(!str_prefix(arg, "stop")
+	else if(!str_prefix(arg, "stop"))
 	{
 		speed = SHIP_SPEED_STOPPED;
 	}
-	else if(!str_prefix(arg, "minimal")
+	else if(!str_prefix(arg, "minimal"))
 	{
 		speed = 1;
 	}
-	else if(!str_prefix(arg, "half")
+	else if(!str_prefix(arg, "half"))
 	{
 		speed = SHIP_SPEED_HALF_SPEED;
 	}
-	else if(!str_prefix(arg, "full")
+	else if(!str_prefix(arg, "full"))
 	{
 		speed = SHIP_SPEED_FULL_SPEED;
 	}
