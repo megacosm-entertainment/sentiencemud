@@ -181,6 +181,8 @@ bool steering_update(SHIP_DATA *ship, int *x, int *y, int *door)
 					sprintf(buf, "{WThe vessel is now heading %s.{x", arg);
 					ship_echo(ship, buf);
 				}
+
+				ship->steering.turning_dir = 0;
 			}
 			else
 			{
