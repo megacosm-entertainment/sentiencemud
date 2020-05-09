@@ -1486,7 +1486,7 @@ void do_scuttle( CHAR_DATA *ch, char *argument)
 //	ROOM_INDEX_DATA *location;
 //    OBJ_DATA *ship_obj;
     SHIP_DATA *ship;
-	char buf[MSL];
+//	char buf[MSL];
 
 	ship = get_room_ship(ch->in_room);
 
@@ -1812,7 +1812,7 @@ void do_speed( CHAR_DATA *ch, char *argument )
 		return;
 	}
 
-	if ( ship->index->move_steps < 1) )
+	if ( ship->index->move_steps < 1 )
 	{
 		send_to_char( "The vessel doesn't seem to have enough power to move!\n\r", ch );
 		return;
@@ -1863,6 +1863,7 @@ void do_speed( CHAR_DATA *ch, char *argument )
 				act("$n gives the order for the sails to be lowered.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 				break;
 			}
+			ship->speed = speed;
 			ship_stop(ship);
 
 			// TODO: Cancel waypoint
@@ -1882,7 +1883,7 @@ void do_speed( CHAR_DATA *ch, char *argument )
 			act("You give the order for full speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			act("$n gives the order for full speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-			ship->speed = SHIP_SPEED_FULL_SPEED;
+			ship->speed = speed;
 			ship_set_move_steps(ship);
 		}
 		else
