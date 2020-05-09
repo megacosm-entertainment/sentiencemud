@@ -394,11 +394,11 @@ char *format_obj_to_char(OBJ_DATA * obj, CHAR_DATA * ch, bool fShort)
 		    {
 				if (obj->ship->ship_type == SHIP_AIR_SHIP)
 				{
-					sprintf(buf2, "{MThe %s flies high above heading %s.{x", ship->ship_name, dir_name[ship->dir]);
+					sprintf(buf2, "{MThe {x%s{M flies high above heading %s.{x", ship->ship_name, dir_name[ship->door]);
 				}
 				else
 				{
-					sprintf(buf2, "{MThe %s '%s', powers through the water sailing %s.{x", ship->index->name, ship->ship_name, dir_name[ship->dir]);
+					sprintf(buf2, "{MThe %s '{x%s{M', powers through the water sailing %s.{x", ship->index->name, ship->ship_name, dir_name[ship->door]);
 				}
 		    }
 		    else if( ship->scuttle_time > 0 )
@@ -406,13 +406,13 @@ char *format_obj_to_char(OBJ_DATA * obj, CHAR_DATA * ch, bool fShort)
 				if (IS_NULLSTR(ship->flag))
 				{
 					sprintf(buf2,
-						"{RThe %s named '%s', burns brightly as flames engulf the vessel!{x\n\r",
+						"{RThe %s named '{x%s{R', burns brightly as flames engulf the vessel!{x\n\r",
 						ship->index->name, ship->ship_name);
 				}
 				else
 				{
 					sprintf(buf2,
-						"{RThe %s named '%s', flying the flag, '%s', burns brightly as flames engulf the vessel!{x\n\r",
+						"{RThe %s named '{x%s{R', flying the flag, '{x%s{R', burns brightly as flames engulf the vessel!{x\n\r",
 						ship->index->name, ship->ship_name, ship->flag);
 				}
 
@@ -423,11 +423,11 @@ char *format_obj_to_char(OBJ_DATA * obj, CHAR_DATA * ch, bool fShort)
 				{
 					if( IS_NULLSTR(ship->flag) )
 					{
-						sprintf(buf2, "{MThe %s floats gently just above the ground.{x", ship->ship_name);
+						sprintf(buf2, "{MThe {x%s{M floats gently just above the ground.{x", ship->ship_name);
 					}
 					else
 					{
-						sprintf(buf2, "{MThe %s, flying the flag '%s', floats gently just above the ground.{x", ship->ship_name, ship->flag);
+						sprintf(buf2, "{MThe {x%s{M, flying the flag '{x%s{M', floats gently just above the ground.{x", ship->ship_name, ship->flag);
 					}
 				}
 				else
@@ -435,13 +435,13 @@ char *format_obj_to_char(OBJ_DATA * obj, CHAR_DATA * ch, bool fShort)
 					if (IS_NULLSTR(ship->flag))
 					{
 						sprintf(buf2,
-							"{MThe %s named '%s' gracefully floats here.{x\n\r",
+							"{MThe %s named '{x%s{M' gracefully floats here.{x\n\r",
 							ship->index->name, ship->ship_name);
 					}
 					else
 					{
 						sprintf(buf2,
-							"{MThe %s named '%s', flying the flag '%s', floats here.{x\n\r",
+							"{MThe %s named '{x%s{M', flying the flag '{x%s{M', floats here.{x\n\r",
 							ship->index->name, ship->ship_name, ship->flag);
 					}
 				}

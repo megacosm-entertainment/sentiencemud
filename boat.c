@@ -63,6 +63,26 @@ long top_ship_index_vnum = 0;
 
 LLIST *loaded_ships;
 
+// Measured in 2 * ship->dir / 45
+int bearing_door[] = {
+	DIR_NORTH,				// 0
+	DIR_NORTHEAST,			// 1
+	DIR_NORTHEAST,			// 2
+	DIR_EAST,				// 3
+	DIR_EAST,				// 4
+	DIR_SOUTHEAST,			// 5
+	DIR_SOUTHEAST,			// 6
+	DIR_SOUTH,				// 7
+	DIR_SOUTH,				// 8
+	DIR_SOUTHWEST,			// 9
+	DIR_SOUTHWEST,			// 10
+	DIR_WEST,				// 11
+	DIR_WEST,				// 12
+	DIR_NORTHWEST,			// 13
+	DIR_NORTHWEST,			// 14
+	DIR_NORTH,				// 15
+};
+
 /////////////////////////////////////////////////////////////////
 //
 // Ship Types
@@ -915,6 +935,7 @@ SHIP_DATA *ship_load(FILE *fp)
 		return NULL;
 	}
 
+    ship->door = bearing_door[2 * ship->dir / 45];
 	get_ship_id(ship);
 	return ship;
 }
@@ -1314,10 +1335,13 @@ void do_ships(CHAR_DATA *ch, char *argument)
 					}
 				}
 
-				sprintf(buf, "{W%4d{x)  {G%8ld  {x%-30.30s   {x%s{x  %d %d %d %d %d %d %d %d %d %d %d %s\n\r",
+				int snwidth = get_colour_width(ship->ship_name) + 30;
+
+
+				sprintf(buf, "{W%4d{x)  {G%8ld  {x%-*.*s   {x%-20.20s{x  %d %d %d %d %d %d %d %d %d %d %d %s\n\r",
 					++lines,
 					ship->index->vnum,
-					ship->ship_name,
+					snwidth, snwidth, ship->ship_name,
 					ship->owner ? ship->owner->name : "{DNone",
 					ship->speed, ship->move_steps, ship->ship_move,
 					ship->dir_x, ship->dir_y,ship->abs_x, ship->abs_y,ship->sgn_x, ship->sgn_y,ship->move_x, ship->move_y,
@@ -1347,7 +1371,7 @@ void do_ships(CHAR_DATA *ch, char *argument)
 				{
 					// Header
 					send_to_char("{Y      [  Vnum  ] [             Name             ]  Owner{x\n\r", ch);
-					send_to_char("{Y======================================================================={x\n\r", ch);
+					send_to_char("{Y========================================================================{x\n\r", ch);
 				}
 
 				page_to_char(buffer->string, ch);
@@ -1717,6 +1741,8 @@ void do_steer( CHAR_DATA *ch, char *argument )
     ship->abs_y = abs(ship->dir_y);
     ship->sgn_x = (ship->dir_x > 0) ? 1 : ((ship->dir_x < 0) ? -1 : 0);
     ship->sgn_y = (ship->dir_y > 0) ? 1 : ((ship->dir_y < 0) ? -1 : 0);
+    ship->door = bearing_door[2 * ship->dir / 45];
+
 
 	char buf[MSL];
 	sprintf(buf, "{WThe vessel is now steered %s.{x", arg);

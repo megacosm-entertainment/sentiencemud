@@ -4977,6 +4977,7 @@ struct ship_data
 
 	char				*flag;
 
+	sh_int				door;
 	sh_int				dir;
 	sh_int				dir_x;
 	sh_int				dir_y;
