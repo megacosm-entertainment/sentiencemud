@@ -1876,7 +1876,7 @@ void do_speed( CHAR_DATA *ch, char *argument )
 		return;
 	}
 
-	if( speed == SHIP_SPEED_FULL )
+	if( speed == SHIP_SPEED_FULL_SPEED )
 	{
 		if( ship->speed < SHIP_SPEED_FULL_SPEED )
 		{
