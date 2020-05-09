@@ -1796,7 +1796,7 @@ void do_steer( CHAR_DATA *ch, char *argument )
 			case 270:	strcpy(arg, "heading to the west"); break;
 			case 315:	strcpy(arg, "heading to the northwest"); break;
 			default:
-				sprintf(arg, "heading toward %d degrees", heading);
+				sprintf(arg, "heading toward %d degrees", ship->steering.heading);
 			}
 
 			if( ship->steering.turning_dir < 0 )
