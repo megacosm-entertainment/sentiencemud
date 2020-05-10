@@ -56,6 +56,7 @@ void reset_instance(INSTANCE *instance);
 void save_script_new(FILE *fp, AREA_DATA *area,SCRIPT_DATA *scr,char *type);
 SCRIPT_DATA *read_script_new( FILE *fp, AREA_DATA *area, int type);
 void steering_set_heading(SHIP_DATA *ship, int heading);
+void ship_stop(SHIP_DATA *ship);
 
 extern LLIST *loaded_instances;
 
@@ -100,10 +101,10 @@ bool ship_seek_point(SHIP_DATA *ship)
 		if( room->x == ship->seek_point.x &&
 			room->y == ship->seek_point.y )
 		{
-			// Is there another waypoint?
+			// TODO: Is there another waypoint?
 
-			memset(&ship->seek_point, 0, sizeof(ship->seek_point));
-
+			ship_echo(ship, "{WThe vessel has reached its destination.{x");
+			ship_stop(ship);
 			return false;	// Return false to indicate stop movement
 		}
 
@@ -115,7 +116,19 @@ bool ship_seek_point(SHIP_DATA *ship)
 
 		if( abs(heading - ship->steering.heading_target) > 5)
 		{
+			int delta = heading - ship->steering.heading;
+			if( delta > 180 ) delta -= 360;
+			else if( delta <= -180 ) delta += 360;
+
+			char turning_dir;
+
+			if( delta == 180 )
+				turning_dir = (number_percent() < 50) ? -1 : 1;
+			else
+				turning_dir = (delta < 0) ? -1 : 1;
+
 			steering_set_heading(ship, heading);
+			steering_set_turning(ship, turning_dir);
 		}
 	}
 
@@ -658,7 +671,7 @@ void ship_stop(SHIP_DATA *ship)
 	ship->last_times[0] = current_time + 15;
 	ship->last_times[1] = current_time + 10;
 	ship->last_times[2] = current_time + 5;
-	memset(ship->seek_point, 0, sizeof(ship->seek_point));
+	memset(&ship->seek_point, 0, sizeof(ship->seek_point));
 }
 
 bool move_ship_success(SHIP_DATA *ship)
@@ -806,7 +819,6 @@ void ship_pulse_update(SHIP_DATA *ship)
 	{
 		if( !--ship->ship_move )
 		{
-			ship_seek_point(ship);
 			ship_move_update(ship);
 		}
 	}
