@@ -1569,9 +1569,11 @@ void do_ships(CHAR_DATA *ch, char *argument)
 			ship->ship_name = str_dup(argument);
 
 			// Install ship_name
+			char *plaintext = nocolour(ship->ship_name);
 			free_string(ship->ship->name);
-			sprintf(buf, ship->ship->pIndexData->name, ship->ship_name);
+			sprintf(buf, ship->ship->pIndexData->name, plaintext);
 			ship->ship->name = str_dup(buf);
+			free_string(plaintext);
 
 			free_string(ship->ship->short_descr);
 			sprintf(buf, ship->ship->pIndexData->short_descr, ship->ship_name);
