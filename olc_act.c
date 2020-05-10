@@ -4843,7 +4843,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			value = atoi(argument);
 			if( value < 0 || (value > 0 && value < pObj->value[1]) || value > pObj->value[2] )
 			{
-				sprintf(buf, "TELESCOPE DISTANCE must be 0(for collapsed), or from %d to %d.\n\r", pObj->value[1], pObj->value[2]);
+				sprintf(buf, "TELESCOPE DISTANCE must be 0(for collapsed), or from %ld to %ld.\n\r", pObj->value[1], pObj->value[2]);
 				send_to_char(buf, ch);
 				return FALSE;
 			}
@@ -4859,7 +4859,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			}
 			if( value > pObj->value[2] )
 			{
-				sprintf(buf, "TELESCOPE MINIMUM DISTANCE must be less than or equal to %d.\n\r", pObj->value[2]);
+				sprintf(buf, "TELESCOPE MINIMUM DISTANCE must be less than or equal to %ld.\n\r", pObj->value[2]);
 				send_to_char(buf, ch);
 				return FALSE;
 			}
@@ -4875,7 +4875,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			}
 			if( value < pObj->value[1] )
 			{
-				sprintf(buf, "TELESCOPE MAXIMUM DISTANCE must be greater than or equal to %d.\n\r", pObj->value[1]);
+				sprintf(buf, "TELESCOPE MAXIMUM DISTANCE must be greater than or equal to %ld.\n\r", pObj->value[1]);
 				send_to_char(buf, ch);
 				return FALSE;
 			}
@@ -4895,11 +4895,6 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			break;
 		case 3:
 			value = atoi(argument);
-			if( value <= 0 )
-			{
-				send_to_char("TELESCOPE BONUSVIEW must be greater than zero.\n\r", ch);
-				return FALSE;
-			}
 			if( value <= 0 )
 			{
 				send_to_char("TELESCOPE BONUSVIEW must be greater than zero.\n\r", ch);

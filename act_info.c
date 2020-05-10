@@ -2145,38 +2145,38 @@ void do_look(CHAR_DATA * ch, char *argument)
 								send_to_char(buf, ch);
 							}
 						}
-						else if(obj->item_type == ITEM_TELESCOPE)
+					}
+					else if(obj->item_type == ITEM_TELESCOPE)
+					{
+						look_through_telescope(ch, obj, arg2);
+					}
+					else if((obj->pIndexData->vnum == OBJ_VNUM_SKULL || obj->pIndexData->vnum == OBJ_VNUM_GOLD_SKULL) &&
+						affect_find(obj->affected, skill_lookup("third eye")) != NULL)
+					{
+						if ((victim = get_char_world(NULL, obj->owner)) != NULL)
 						{
-							look_through_telescope(ch, obj, arg2);
-						}
-						else if((obj->pIndexData->vnum == OBJ_VNUM_SKULL || obj->pIndexData->vnum == OBJ_VNUM_GOLD_SKULL) &&
-		    				affect_find(obj->affected, skill_lookup("third eye")) != NULL)
-		    			{
-							if ((victim = get_char_world(NULL, obj->owner)) != NULL)
+							if (victim == ch)
 							{
-								if (victim == ch)
-								{
-									send_to_char("{RYou can just as easily use your own eyes.{x\n\r", ch);
-									return;
-								}
-
-								if (!can_see_room(ch,victim->in_room) ||
-									IS_SET(victim->in_room->room_flags, ROOM_NOVIEW) ||
-									IS_SET(victim->in_room->room_flags, ROOM_PRIVATE) ||
-									IS_SET(victim->in_room->room_flags, ROOM_SOLITARY))
-								{
-									send_to_char("{DAll you see is darkness.{x\n\r", ch);
-									return;
-								}
-
-								act("{YYou look through the eyes of $N:{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-
-								//Updated show_room_to_char to show_room. -- Tieryo 08/18/2010
-								show_room(ch,victim->in_room,true,false,false);
+								send_to_char("{RYou can just as easily use your own eyes.{x\n\r", ch);
+								return;
 							}
-							else
-								act("{DThe soul of {x$T{D has left this world.", ch, NULL, NULL, NULL, NULL, NULL, obj->owner, TO_CHAR);
+
+							if (!can_see_room(ch,victim->in_room) ||
+								IS_SET(victim->in_room->room_flags, ROOM_NOVIEW) ||
+								IS_SET(victim->in_room->room_flags, ROOM_PRIVATE) ||
+								IS_SET(victim->in_room->room_flags, ROOM_SOLITARY))
+							{
+								send_to_char("{DAll you see is darkness.{x\n\r", ch);
+								return;
+							}
+
+							act("{YYou look through the eyes of $N:{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+
+							//Updated show_room_to_char to show_room. -- Tieryo 08/18/2010
+							show_room(ch,victim->in_room,true,false,false);
 						}
+						else
+							act("{DThe soul of {x$T{D has left this world.", ch, NULL, NULL, NULL, NULL, NULL, obj->owner, TO_CHAR);
 					}
 
 				    return;
@@ -7255,7 +7255,7 @@ void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument)
 	int heading;
 	if( argument[0] == '\0' )
 	{
-		if( telescope->value[4] < 0 )
+		if( CAN_WEAR(telescope, ITEM_TAKE) || telescope->value[4] < 0 )
 		{
 			send_to_char("{RThe telescope is pointing nowhere.\n\r", ch);
 			return;
@@ -7323,11 +7323,14 @@ void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument)
 
 			// Bonusview size
 			int bvx = telescope->value[3];
-			int bvy = 2 * vx / 3;
+			int bvy = 2 * bvx / 3;
 
+			act("{xPeering through $p{x, you see:{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
 			show_map_to_char_wyx(wilds, tx, ty, ch, x, y, bvx, bvy, false);
 		}
 	}
 
-	telescope->value[4] = heading;
+	// Stationary telescopes can save their heading
+	if( !CAN_WEAR(telescope, ITEM_TAKE) )
+		telescope->value[4] = heading;
 }
