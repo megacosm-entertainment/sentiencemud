@@ -7325,7 +7325,7 @@ void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument)
 			int bvx = telescope->value[3];
 			int bvy = 2 * bvx / 3;
 
-			act("{xPeering through $p{x, you see:{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
+			act("{xPeering through $p{x, you see:{x", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
 			show_map_to_char_wyx(wilds, tx, ty, ch, x, y, bvx, bvy, false);
 		}
 	}
