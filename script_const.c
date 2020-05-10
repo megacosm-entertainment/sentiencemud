@@ -68,6 +68,7 @@ ENT_FIELD entity_primary[] = {
 	{"register4",	ENTITY_REGISTER4,	ENT_NUMBER	},
 	{"register5",	ENTITY_REGISTER5,	ENT_NUMBER	},
 	{"mxp",			ENTITY_MXP,		ENT_STRING		},
+	{"tab",			ENTITY_MXP,		ENT_STRING		},
 	{NULL,		0,			ENT_UNKNOWN	}
 };
 
