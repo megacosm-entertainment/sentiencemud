@@ -2071,6 +2071,9 @@ void do_look(CHAR_DATA * ch, char *argument)
 						send_to_char ("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
 						spell_identify(gsn_lore, ch->tot_level,ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
 		    		}
+				    else
+				        send_to_char("\n\r", ch);
+
 		    		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
 		    		check_improve(ch, gsn_lore, TRUE, 10);
 		    		return;
@@ -2090,6 +2093,8 @@ void do_look(CHAR_DATA * ch, char *argument)
 						send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
 						spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
 				    }
+				    else
+				        send_to_char("\n\r", ch);
 
 				    p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
 				    check_improve(ch, gsn_lore, TRUE, 10);
@@ -2104,12 +2109,13 @@ void do_look(CHAR_DATA * ch, char *argument)
 				if (++count == number)
 				{
 				    send_to_char(obj->full_description, ch);
-				    /* send_to_char("\n\r", ch); */
 				    if (perform_lore)
 				    {
 						send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
 						spell_identify(gsn_lore, ch->tot_level,ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
 				    }
+				    else
+				        send_to_char("\n\r", ch);
 
 				    p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
 				    check_improve(ch, gsn_lore, TRUE, 10);
@@ -2182,9 +2188,12 @@ void do_look(CHAR_DATA * ch, char *argument)
 		    send_to_char(pdesc, ch);
 		    if (perform_lore)
 		    {
-			send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-			spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
+				send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
+				spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
 		    }
+		    else
+		        send_to_char("\n\r", ch);
+
 
 		    p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
 		    check_improve(ch, gsn_lore, TRUE, 10);
@@ -2198,9 +2207,11 @@ void do_look(CHAR_DATA * ch, char *argument)
 		    send_to_char(pdesc, ch);
 		    if (perform_lore)
 		    {
-			send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-			spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
+				send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
+				spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
 		    }
+			else
+				send_to_char("\n\r", ch);
 
 		    p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
 		    check_improve(ch, gsn_lore, TRUE, 10);
@@ -2214,9 +2225,11 @@ void do_look(CHAR_DATA * ch, char *argument)
 /*		    send_to_char("\n\r", ch); */
 		    if (perform_lore)
 		    {
-			send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-			spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
+				send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
+				spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
 		    }
+			else
+				send_to_char("\n\r", ch);
 
 		    p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
 		    check_improve(ch, gsn_lore, TRUE, 10);
