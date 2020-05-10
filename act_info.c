@@ -52,6 +52,7 @@
 #include "sha256.h"
 
 bool can_see_imm(CHAR_DATA *ch, CHAR_DATA *victim);
+void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument);
 
 /* MOVED: equip.c */
 char *const where_name[] = {
@@ -2043,148 +2044,145 @@ void do_look(CHAR_DATA * ch, char *argument)
     /* look at an object in the inventory */
     for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
     {
-	perform_lore = FALSE;
-	if (can_see_obj(ch, obj))
-	{
-	    /* sextant */
-	    if (obj->item_type == ITEM_SEXTANT
-	    && (is_name(arg2, obj->name) || is_name(arg3, obj->name))
-	    && (IN_WILDERNESS(ch) || ON_SHIP(ch))
-	    && ch->in_room != NULL)
-	    {
-		long x, y;
-		SHIP_DATA *ship = get_room_ship(ch->in_room);
+		perform_lore = FALSE;
+		if (can_see_obj(ch, obj))
+		{
+		    /* Can person lore object */
+	    	perform_lore = FALSE;
+	    	if (get_skill(ch, gsn_lore) > 0 &&
+	    		number_percent() <= get_skill(ch, skill_lookup("lore")) &&
+	    		!IS_SET(obj->extra2_flags, ITEM_NO_LORE))
+	    		perform_lore = TRUE;
 
-		if (IS_VALID(ship))
-		{
-			if( !ship->ship->in_room || !IS_WILDERNESS(ship->ship->in_room) )
-			{
-				// Doesn't do anything
-				return;
-			}
+	    	pdesc = get_extra_descr(arg3, obj->extra_descr);
+	    	if (pdesc != NULL)
+	    	{
+				if (++count == number)
+				{
+				    send_to_char(pdesc, ch);
+				    if (perform_lore)
+		    		{
+						send_to_char ("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
+						spell_identify(gsn_lore, ch->tot_level,ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
+		    		}
+		    		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+		    		check_improve(ch, gsn_lore, TRUE, 10);
+		    		return;
+				}
+				else
+				    continue;
+	    	}
 
-		    x = ship->ship->in_room->x;
-		    y = ship->ship->in_room->y;
-		}
-		else
-		{
-		    x = ch->in_room->x;
-		    y = ch->in_room->y;
-		}
+	    	pdesc = get_extra_descr(arg3, obj->pIndexData->extra_descr);
+	    	if (pdesc != NULL)
+	    	{
+				if (++count == number)
+				{
+				    send_to_char(pdesc, ch);
+				    if (perform_lore)
+				    {
+						send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
+						spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
+				    }
 
-		if (number_percent() < obj->value[0])
-		{
-		    sprintf(buf, "The sextant reads %ld south, %ld east.\n\r",
-			    y, x);
-		    send_to_char(buf, ch);
-		    return;
-		}
-		else
-		{
-		    sprintf(buf, "The sextant reads %ld south, %ld east.\n\r",
-			    y + number_range(1, 30) - number_range(1,30), x + number_range(1,30) - number_range(1, 30));
-		    send_to_char(buf, ch);
-		    return;
-		}
-	    }
-
-	    /* Skull with third eye */
-	    if ((obj->pIndexData->vnum == OBJ_VNUM_SKULL || obj->pIndexData->vnum == OBJ_VNUM_GOLD_SKULL)
-	    &&  affect_find(obj->affected, skill_lookup("third eye")) != NULL
-	    &&  (is_name(arg2, obj->name) || is_name(arg3, obj->name)))
-	    {
-		if ((victim = get_char_world(NULL, obj->owner)) != NULL)
-		{
-		    if (victim == ch)
-		    {
-			send_to_char("You can just as easily use your own eyes.\n\r", ch);
-			return;
+				    p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+				    check_improve(ch, gsn_lore, TRUE, 10);
+				    return;
+				}
+				else
+					continue;
 		    }
 
-	            if (!can_see_room(ch,victim->in_room)
-		    ||   IS_SET(victim->in_room->room_flags, ROOM_NOVIEW)
-		    ||   IS_SET(victim->in_room->room_flags, ROOM_PRIVATE)
-		    ||   IS_SET(victim->in_room->room_flags, ROOM_SOLITARY))
+		    if (is_name(arg3, obj->name))
 		    {
-		    	send_to_char("All you see is darkness.\n\r", ch);
-			return;
+				if (++count == number)
+				{
+				    send_to_char(obj->full_description, ch);
+				    /* send_to_char("\n\r", ch); */
+				    if (perform_lore)
+				    {
+						send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
+						spell_identify(gsn_lore, ch->tot_level,ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
+				    }
+
+				    p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+				    check_improve(ch, gsn_lore, TRUE, 10);
+
+
+					if( obj->item_type == ITEM_SEXTANT )
+					{
+						if( (IN_WILDERNESS(ch) || ON_SHIP(ch)) && ch->in_room != NULL )
+						{
+							long x, y;
+							SHIP_DATA *ship = get_room_ship(ch->in_room);
+
+							if (IS_VALID(ship))
+							{
+								if( !ship->ship->in_room || !IS_WILDERNESS(ship->ship->in_room) )
+								{
+									// Doesn't do anything
+									return;
+								}
+
+								x = ship->ship->in_room->x;
+								y = ship->ship->in_room->y;
+							}
+							else
+							{
+								x = ch->in_room->x;
+								y = ch->in_room->y;
+							}
+
+							if (number_percent() < obj->value[0])
+							{
+								sprintf(buf, "The sextant reads %ld south, %ld east.\n\r", y, x);
+								send_to_char(buf, ch);
+							}
+							else
+							{
+								sprintf(buf, "The sextant reads %ld south, %ld east.\n\r",
+									y + number_range(1, 30) - number_range(1,30), x + number_range(1,30) - number_range(1, 30));
+								send_to_char(buf, ch);
+							}
+						}
+						else if(obj->item_type == ITEM_TELESCOPE)
+						{
+							look_through_telescope(ch, obj, arg2);
+						}
+						else if((obj->pIndexData->vnum == OBJ_VNUM_SKULL || obj->pIndexData->vnum == OBJ_VNUM_GOLD_SKULL) &&
+		    				affect_find(obj->affected, skill_lookup("third eye")) != NULL)
+		    			{
+							if ((victim = get_char_world(NULL, obj->owner)) != NULL)
+							{
+								if (victim == ch)
+								{
+									send_to_char("{RYou can just as easily use your own eyes.{x\n\r", ch);
+									return;
+								}
+
+								if (!can_see_room(ch,victim->in_room) ||
+									IS_SET(victim->in_room->room_flags, ROOM_NOVIEW) ||
+									IS_SET(victim->in_room->room_flags, ROOM_PRIVATE) ||
+									IS_SET(victim->in_room->room_flags, ROOM_SOLITARY))
+								{
+									send_to_char("{DAll you see is darkness.{x\n\r", ch);
+									return;
+								}
+
+								act("{YYou look through the eyes of $N:{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+
+								//Updated show_room_to_char to show_room. -- Tieryo 08/18/2010
+								show_room(ch,victim->in_room,true,false,false);
+							}
+							else
+								act("{DThe soul of {x$T{D has left this world.", ch, NULL, NULL, NULL, NULL, NULL, obj->owner, TO_CHAR);
+						}
+					}
+
+				    return;
+				}
 		    }
-
-		    act("{YYou look through the eyes of $N:{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-
-			//Updated show_room_to_char to show_room. -- Tieryo 08/18/2010
-			show_room(ch,victim->in_room,true,false,false);
 		}
-		else
-		    act("The soul of $T has left this world.", ch, NULL, NULL, NULL, NULL, NULL, obj->owner, TO_CHAR);
-
-		return;
-	    }
-
-	    /* Can person lore object */
-	    perform_lore = FALSE;
-	    if (get_skill(ch, gsn_lore) > 0
-	    && number_percent() <= get_skill(ch, skill_lookup("lore"))
-	    && !IS_SET(obj->extra2_flags, ITEM_NO_LORE))
-		perform_lore = TRUE;
-
-	    pdesc = get_extra_descr(arg3, obj->extra_descr);
-	    if (pdesc != NULL)
-	    {
-		if (++count == number)
-		{
-		    send_to_char(pdesc, ch);
-		    if (perform_lore)
-		    {
-			send_to_char ("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-			spell_identify(gsn_lore, ch->tot_level,ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
-		    }
-		    p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
-		    check_improve(ch, gsn_lore, TRUE, 10);
-		    return;
-		}
-		else
-		    continue;
-	    }
-
-	    pdesc = get_extra_descr(arg3, obj->pIndexData->extra_descr);
-	    if (pdesc != NULL)
-	    {
-		if (++count == number)
-		{
-		    send_to_char(pdesc, ch);
-		    if (perform_lore)
-		    {
-			send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-			spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
-		    }
-
-		    p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
-		    check_improve(ch, gsn_lore, TRUE, 10);
-		    return;
-		}
-		else
-		    continue;
-	    }
-
-	    if (is_name(arg3, obj->name))
-	    {
-		if (++count == number)
-		{
-		    send_to_char(obj->full_description, ch);
-		    /* send_to_char("\n\r", ch); */
-		    if (perform_lore)
-		    {
-			send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-			spell_identify(gsn_lore, ch->tot_level,ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
-		    }
-
-		    p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
-		    check_improve(ch, gsn_lore, TRUE, 10);
-		    return;
-		}
-	    }
-	}
     }
 
     for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
@@ -7127,4 +7125,209 @@ void show_basic_mob_lore(CHAR_DATA *ch, CHAR_DATA *victim)
 	send_to_char(buf, ch);
 
 	p_percent_trigger(victim, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE, NULL);
+}
+
+
+void do_expand(CHAR_DATA *ch, char *argument)
+{
+	char arg[MIL];
+	OBJ_DATA *telescope;
+
+	if( IS_NULLSTR(argument) )
+	{
+		send_to_char("Expand what?\n\r", ch);
+		return;
+	}
+
+	argument = one_argument(argument, arg);
+
+	if( (telescope = get_obj_carry(ch, arg, ch)) == NULL )
+	{
+		send_to_char("You don't see that.\n\r", ch);
+		return;
+	}
+
+	int distance;
+	if( is_number(argument) )
+	{
+		distance = atoi(argument);
+		if( distance < telescope->value[1] ||
+			distance > telescope->value[2] )
+		{
+			char buf[MSL];
+			sprintf(buf, "{xCannot expand $p{x to that distance.  Please pick a value from %d to %d.",
+				telescope->value[1], telescope->value[2]);
+
+			act(buf, ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
+			return;
+		}
+
+	}
+	else
+		distance = telescope->value[2];
+
+	if( distance > telescope->value[0] )
+	{
+		telescope->value[0] = distance;
+    	act("{xYou expand $p{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
+    	act("{x$n expands $p{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_ROOM);
+	}
+	else if( distance < telescope->value[0] )
+	{
+		act("{x$p{x is already expanded further.{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
+	}
+	else
+	{
+		act("{x$p{x is already expanded that far.{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
+	}
+}
+
+void do_collapse(CHAR_DATA *ch, char *argument)
+{
+	char arg[MIL];
+	OBJ_DATA *telescope;
+
+	if( IS_NULLSTR(argument) )
+	{
+		send_to_char("Expand what?\n\r", ch);
+		return;
+	}
+
+	argument = one_argument(argument, arg);
+
+	if( (telescope = get_obj_carry(ch, arg, ch)) == NULL )
+	{
+		send_to_char("You don't see that.\n\r", ch);
+		return;
+	}
+
+	int distance;
+	if( is_number(argument) )
+	{
+		distance = atoi(argument);
+		if( distance < telescope->value[1] ||
+			distance > telescope->value[2] )
+		{
+			char buf[MSL];
+			sprintf(buf, "{xCannot collapse $p{x to that distance.  Please pick a value from %d to %d.",
+				telescope->value[1], telescope->value[2]);
+
+			act(buf, ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
+			return;
+		}
+
+	}
+	else
+		distance = 0;
+
+	if( distance > telescope->value[0] )
+	{
+		if( telescope->value[0] > 0 )
+			act("{x$p{x is already collapsed further.{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
+		else
+			act("{xYou cannot collapse $p{x any further.{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
+	}
+	else if( distance < telescope->value[0] )
+	{
+		telescope->value[0] = distance;
+    	act("{xYou collapse $p{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
+    	act("{x$n collapses $p{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_ROOM);
+	}
+	else
+	{
+		act("{x$p{x is already collapsed that far.{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
+	}
+}
+
+void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument)
+{
+	if( !IS_VALID(telescope) || telescope->item_type != ITEM_TELESCOPE )
+	{
+		return;
+	}
+
+	if( telescope->value[0] <= 0 )
+	{
+		send_to_char("{DThe telescope is fully collapsed.\n\r", ch);
+		return;
+	}
+
+	int heading;
+	if( argument[0] == '\0' )
+	{
+		if( telescope->value[4] < 0 )
+		{
+			send_to_char("{RThe telescope is pointing nowhere.\n\r", ch);
+			return;
+		}
+
+		heading = telescope->value[4];
+	}
+	else if( is_number(argument) )
+	{
+		heading = atoi(argument);
+
+		if( heading < 0 || heading >= 360 )
+		{
+			return;
+		}
+	}
+	else
+	{
+		heading = parse_direction(argument);
+
+		switch(heading)
+		{
+		case DIR_NORTH:				heading = 0; break;
+		case DIR_NORTHEAST:			heading = 45; break;
+		case DIR_EAST:				heading = 90; break;
+		case DIR_SOUTHEAST:			heading = 135; break;
+		case DIR_SOUTH:				heading = 180; break;
+		case DIR_SOUTHWEST:			heading = 225; break;
+		case DIR_WEST:				heading = 270; break;
+		case DIR_NORTHWEST:			heading = 315; break;
+		default:
+			return;
+		}
+	}
+
+	if( (IN_WILDERNESS(ch) || ON_SHIP(ch)) && ch->in_room != NULL )
+	{
+		long x, y;
+		SHIP_DATA *ship = get_room_ship(ch->in_room);
+		WILDS_DATA *wilds = NULL;
+
+		if (IS_VALID(ship))
+		{
+			if( ship->ship->in_room && IS_WILDERNESS(ship->ship->in_room) )
+			{
+				wilds = ship->ship->in_room->wilds;
+				x = ship->ship->in_room->x;
+				y = ship->ship->in_room->y;
+			}
+
+		}
+		else
+		{
+			wilds = ch->in_room->wilds;
+			x = ch->in_room->x;
+			y = ch->in_room->y;
+		}
+
+
+		if( wilds )
+		{
+			// Telescope position
+			int tx = x + (int)(telescope->value[0] * sin(3.14159 * heading / 180));
+			int ty = y - (int)(telescope->value[0] * cos(3.14159 * heading / 180));
+
+			// Bonusview size
+			int bvx = telescope->value[3];
+			int bvy = 2 * vx / 3;
+
+			show_map_to_char_wyx(wilds, tx, ty, ch, x, y, bvx, bvy, false);
+		}
+	}
+
+	telescope->value[4] = heading;
 }

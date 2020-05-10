@@ -1277,10 +1277,19 @@ const struct flag_type type_flags[] =
     {	"shrine",		ITEM_SHRINE,		TRUE	},
     {   "whistle",		ITEM_WHISTLE, TRUE  },
     {   "shovel",		ITEM_SHOVEL,		TRUE	},
-    {   "tool",			ITEM_TOOL,		TRUE	},	// @@@NIB : 20070215
+    //{   "tool",			ITEM_TOOL,			TRUE	},	// @@@NIB : 20070215
     {   "tattoo",		ITEM_TATTOO,		TRUE	},
-    {   "ink",			ITEM_INK,		TRUE	},
-    {   "part",			ITEM_PART,		TRUE	},
+    {   "ink",			ITEM_INK,			TRUE	},
+    {   "part",			ITEM_PART,			TRUE	},
+	{	"telescope",	ITEM_TELESCOPE,		TRUE	},
+	{	"compass",		ITEM_COMPASS,		TRUE	},
+	{	"whetstone",	ITEM_WHETSTONE,		TRUE	},
+	{	"chisel",		ITEM_CHISEL,		TRUE	},
+	{	"pick",			ITEM_PICK,			TRUE	},
+	{	"tinderbox",	ITEM_TINDERBOX,		TRUE	},
+	{	"drying_cloth",	ITEM_DRYING_CLOTH,	TRUE	},
+	{	"needle",		ITEM_NEEDLE,		TRUE	},
+	{	"body_part",	ITEM_BODY_PART,		TRUE	},
     {	NULL,			0,			0	}
 };
 

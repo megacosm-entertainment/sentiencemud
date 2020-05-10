@@ -1817,7 +1817,19 @@ void do_steer( CHAR_DATA *ch, char *argument )
 		}
 		else
 		{
-			strcpy(arg, "stationary");
+			switch(ship->steering.heading)
+			{
+			case 0:		strcpy(arg, "stationary pointing to the north"); break;
+			case 45:	strcpy(arg, "stationary pointing to the northeast"); break;
+			case 90:	strcpy(arg, "stationary pointing to the east"); break;
+			case 135:	strcpy(arg, "stationary pointing to the southeast"); break;
+			case 180:	strcpy(arg, "stationary pointing to the south"); break;
+			case 225:	strcpy(arg, "stationary pointing to the southwest"); break;
+			case 270:	strcpy(arg, "stationary pointing to the west"); break;
+			case 315:	strcpy(arg, "stationary pointing to the northwest"); break;
+			default:
+				sprintf(arg, "stationary pointing toward %d degrees", ship->steering.heading);
+			}
 
 			if( ship->steering.turning_dir < 0 )
 				strcpy(arg2, ", but is turning to port");

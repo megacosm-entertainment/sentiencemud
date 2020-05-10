@@ -586,4 +586,6 @@ DECLARE_DO_FUN(	do_shlist	);
 DECLARE_DO_FUN(	do_shshow	);
 
 DECLARE_DO_FUN( do_ships	);
+DECLARE_DO_FUN( do_expand	);
+DECLARE_DO_FUN( do_collapse	);
 

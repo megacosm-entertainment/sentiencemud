@@ -1470,8 +1470,8 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
     {
         if (vp_startx < 0)
         {
-            vp_startx = wx;
-            vp_endx   = wx + (squares_to_show_x * 2);
+            vp_startx = 0;
+            vp_endx   = (squares_to_show_x * 2);
         }
         else
             if (vp_startx > pWilds->map_size_x)
@@ -1482,8 +1482,8 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 
         if (vp_starty < 0)
         {
-            vp_starty = wy;
-            vp_endy   = wy + (squares_to_show_y * 2);
+            vp_starty = 0;
+            vp_endy   = (squares_to_show_y * 2);
         }
         else
             if (vp_startx > pWilds->map_size_x)

@@ -263,8 +263,10 @@ const	struct	cmd_type	cmd_table	[] =
     { "ink",			do_ink,		POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
     { "ruboff",			do_ruboff,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
     { "touch",			do_touch,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
-    { "takeoff",		do_takeoff,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
-    { "land",			do_land,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
+    { "takeoff",		do_takeoff,	POS_STANDING,	 0,  LOG_NORMAL, 1, FALSE },
+    { "land",			do_land,	POS_STANDING,	 0,  LOG_NORMAL, 1, FALSE },
+    { "expand",			do_expand,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
+    { "collapse",		do_collapse,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
 
     // Race specific commands.
     { "bite",		do_bite, 	POS_FIGHTING,	 0,  LOG_NORMAL, 1, FALSE },

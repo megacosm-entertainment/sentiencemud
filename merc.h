@@ -2383,6 +2383,15 @@ struct affliction_type {
 #define ITEM_INK			73
 #define ITEM_PART		     74
 #define ITEM_COMMODITY			75
+#define ITEM_TELESCOPE			76
+#define ITEM_COMPASS			77
+#define ITEM_WHETSTONE			78		// Sharpening weapons
+#define ITEM_CHISEL				79 		// Carving gems
+#define ITEM_PICK				80		// Picking locks
+#define ITEM_TINDERBOX			81		// Light fires or pipes
+#define ITEM_DRYING_CLOTH		82		// Used to dry plants for smoking!
+#define ITEM_NEEDLE				83		// Used to sew things
+#define ITEM_BODY_PART			84
 
 /*
  * Extra flags.

@@ -3802,6 +3802,33 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 	    add_buf(buffer, buf);
 	    break;
 
+	case ITEM_TELESCOPE:
+		if( obj->value[4] < 0 )
+			sprintf(buf,
+				"{B[  {Wv0{B]{G Current Distance:{x  [%ld]\n\r"
+				"{B[  {Wv1{B]{G Minimum Distance:{x  [%ld]\n\r"
+				"{B[  {Wv2{B]{G Maximum Distance:{x  [%ld]\n\r"
+				"{B[  {Wv3{B]{G Bonusview Size:{x    [%ld]\n\r"
+				"{B[  {Wv4{B]{G Current Heading:{x   [none]\n\r",
+					obj->value[0],
+					obj->value[1],
+					obj->value[2],
+					obj->value[3]);
+		else
+			sprintf(buf,
+				"{B[  {Wv0{B]{G Current Distance:{x  [%ld]\n\r"
+				"{B[  {Wv1{B]{G Minimum Distance:{x  [%ld]\n\r"
+				"{B[  {Wv2{B]{G Maximum Distance:{x  [%ld]\n\r"
+				"{B[  {Wv3{B]{G Bonusview Size:{x    [%ld]\n\r"
+				"{B[  {Wv4{B]{G Current Heading:{x   [%ld]\n\r",
+					obj->value[0],
+					obj->value[1],
+					obj->value[2],
+					obj->value[3],
+					obj->value[4]);
+	    add_buf(buffer, buf);
+	    break;
+
     }
 }
 
@@ -3810,6 +3837,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 {
 	long i = 0;
 	BUFFER *buffer;
+	char buf[MSL];
 
 	switch(pObj->item_type)
 	{
@@ -4799,6 +4827,116 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			}
 			send_to_char("BOOK KEY SET.\n\r\n\r", ch);
 			pObj->value[2] = atoi(argument);
+			break;
+		}
+		break;
+
+	case ITEM_TELESCOPE:
+		switch (value_num)
+		{
+		int value;
+
+		default:
+			do_help(ch, "ITEM_TELESCOPE");
+			return FALSE;
+		case 0:
+			value = atoi(argument);
+			if( value < 0 || (value > 0 && value < pObj->value[1]) || value > pObj->value[2] )
+			{
+				sprintf(buf, "TELESCOPE DISTANCE must be 0(for collapsed), or from %d to %d.\n\r", pObj->value[1], pObj->value[2]);
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+			pObj->value[0] = value;
+			send_to_char("TELESCOPE DISTANCE SET\n\r", ch);
+			break;
+		case 1:
+			value = atoi(argument);
+			if( value <= 0 )
+			{
+				send_to_char("TELESCOPE MINIMUM DISTANCE must be greater than zero.\n\r", ch);
+				return FALSE;
+			}
+			if( value > pObj->value[2] )
+			{
+				sprintf(buf, "TELESCOPE MINIMUM DISTANCE must be less than or equal to %d.\n\r", pObj->value[2]);
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+			pObj->value[1] = value;
+			send_to_char("TELESCOPE MINIMUM DISTANCE SET\n\r", ch);
+			break;
+		case 2:
+			value = atoi(argument);
+			if( value <= 0 )
+			{
+				send_to_char("TELESCOPE MAXIMUM DISTANCE must be greater than zero.\n\r", ch);
+				return FALSE;
+			}
+			if( value < pObj->value[1] )
+			{
+				sprintf(buf, "TELESCOPE MAXIMUM DISTANCE must be greater than or equal to %d.\n\r", pObj->value[1]);
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+			if( value > 50 )
+			{
+				if( !has_imp_sig(NULL, pObj) && ch->tot_level < MAX_LEVEL )
+				{
+					send_to_char("An imp sig is required to set the TELESCOPE MAXIMUM DISTANCE greater than 50.\n\r", ch);
+					return FALSE;
+				}
+
+				if (has_imp_sig(NULL, pObj))
+					use_imp_sig(NULL, pObj);
+			}
+			pObj->value[2] = value;
+			send_to_char("TELESCOPE MAXIMUM DISTANCE SET\n\r", ch);
+			break;
+		case 3:
+			value = atoi(argument);
+			if( value <= 0 )
+			{
+				send_to_char("TELESCOPE BONUSVIEW must be greater than zero.\n\r", ch);
+				return FALSE;
+			}
+			if( value <= 0 )
+			{
+				send_to_char("TELESCOPE BONUSVIEW must be greater than zero.\n\r", ch);
+				return FALSE;
+			}
+			if( value > 10 )
+			{
+				if( !has_imp_sig(NULL, pObj) && ch->tot_level < MAX_LEVEL )
+				{
+					send_to_char("An imp sig is required to set the TELESCOPE BONUSVIEW greater than 50.\n\r", ch);
+					return FALSE;
+				}
+
+				if (has_imp_sig(NULL, pObj))
+					use_imp_sig(NULL, pObj);
+			}
+			pObj->value[3] = value;
+			send_to_char("TELESCOPE BONUSVIEW SET\n\r", ch);
+			break;
+		case 4:
+			if( is_number(argument) )
+			{
+				value = atoi(argument);
+				if( value < 0 || value >= 360 )
+				{
+					send_to_char("TELESCOPE HEADING must be from 0 to 359.\n\r", ch);
+					return FALSE;
+				}
+
+				pObj->value[4] = value;
+				send_to_char("TELESCOPE HEADING SET\n\r", ch);
+			}
+			else if( !str_cmp(argument, "none") || !str_cmp(argument, "clear") )
+			{
+				pObj->value[4] = -1;
+				send_to_char("TELESCOPE HEADING CLEARED\n\r", ch);
+			}
 			break;
 		}
 		break;
@@ -6948,6 +7086,12 @@ OEDIT(oedit_type)
 			for (i = 0; i < 8; i++)
 			{
 				pObj->value[i] = 0;
+			}
+
+			// Defaults
+			if( pObj->item_type == ITEM_TELESCOPE )
+			{
+				pObj->value[4] = -1;
 			}
 
 			if( pObj->lock )

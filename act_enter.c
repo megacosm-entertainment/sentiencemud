@@ -75,8 +75,8 @@ void do_disembark( CHAR_DATA *ch, char *argument)
     char_from_room(ch);
     char_to_room(ch, location);
 
-    act("{WYou disembark from $p.{x", ch, NULL, NULL, ship_obj, NULL, NULL, NULL, TO_CHAR);
-    act("{W$n disembarks from $p.{x", ch, NULL, NULL, ship_obj, NULL, NULL, NULL, TO_ROOM);
+    act("{WYou disembark from {x$p{W.{x", ch, NULL, NULL, ship_obj, NULL, NULL, NULL, TO_CHAR);
+    act("{W$n disembarks from {x$p{W.{x", ch, NULL, NULL, ship_obj, NULL, NULL, NULL, TO_ROOM);
 
 	move_cart(ch,location,TRUE);
 }
