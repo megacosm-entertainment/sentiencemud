@@ -2484,10 +2484,10 @@ void variable_dynamic_fix_mobile (CHAR_DATA *ch)
 	register LLIST_UID_DATA *luid;
 
 	while(cur) {
-		log_stringf("variable_dynamic_fix_mobile: %s, %s, %d", ch->name, cur->name, cur->type);
+//		log_stringf("variable_dynamic_fix_mobile: %s, %s, %d", ch->name, cur->name, cur->type);
 		switch(cur->type) {
 		case VAR_MOBILE_ID:
-			log_stringf("variable_dynamic_fix_mobile:VAR_MOBILE_ID[%s]: %08lX - %08lX :: %08lX - %08lX", cur->name, ch->id[0], cur->_.mid.a, ch->id[1], cur->_.mid.b);
+//			log_stringf("variable_dynamic_fix_mobile:VAR_MOBILE_ID[%s]: %08lX - %08lX :: %08lX - %08lX", cur->name, ch->id[0], cur->_.mid.a, ch->id[1], cur->_.mid.b);
 			if( ch->id[0] == cur->_.mid.a && ch->id[1] == cur->_.mid.b) {
 				cur->_.m = ch;
 				cur->type = VAR_MOBILE;
