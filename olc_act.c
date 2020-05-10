@@ -3830,13 +3830,13 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 	    break;
 
 	case ITEM_COMPASS:
-		if( pObj->value[1] > 0 )
+		if( obj->value[1] > 0 )
 		{
-			WILDS_DATA *pWilds = get_wild_from_uid(NULL,pObj->value[1]);
+			WILDS_DATA *pWilds = get_wilds_from_uid(NULL,pObj->value[1]);
 
 			sprintf(buf,
 				"{B[  {Wv0{B]{G Accuracy:{x      [%ld]\n\r"
-				"{B[  {Wv1{B]{G Wilderness:{x    [%ld] %d\n\r"
+				"{B[  {Wv1{B]{G Wilderness:{x    [%ld] %s\n\r"
 				"{B[  {Wv2{B]{G X Coordinate:{x  [%ld]\n\r"
 				"{B[  {Wv3{B]{G Y Coordinate:{x  [%ld]\n\r",
 					obj->value[0],
