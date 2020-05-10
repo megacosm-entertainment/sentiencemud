@@ -7408,8 +7408,11 @@ void look_compass(CHAR_DATA *ch, OBJ_DATA *compass)
 			int dx = compass->value[2] - here->x;
 			int dy = here->y - compass->value[3];
 
-			heading = (int)(180 * atan2(dx, dy) / 3.14159);
-			if( heading < -180 ) heading += 360;
+			if( dx != 0 && dy != 0 )
+			{
+				heading = (int)(180 * atan2(dx, dy) / 3.14159);
+				if( heading < -180 ) heading += 360;
+			}
 		}
 	}
 	else if( IS_VALID(ship) )
