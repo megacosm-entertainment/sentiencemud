@@ -1187,10 +1187,10 @@ bool ship_save(FILE *fp, SHIP_DATA *ship)
 		ship->steering.turning_dir,
 		ship->steering.move);
 
-	if( ship->seek_point.wild != NULL )
+	if( ship->seek_point.wilds != NULL )
 	{
 		fprintf(fp, "SeekPoint %ld %d %d\n",
-			ship->seek_point.wild->uid,
+			ship->seek_point.wilds->uid,
 			ship->seek_point.x,
 			ship->seek_point.y);
 	}
