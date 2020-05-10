@@ -56,6 +56,7 @@ void reset_instance(INSTANCE *instance);
 void save_script_new(FILE *fp, AREA_DATA *area,SCRIPT_DATA *scr,char *type);
 SCRIPT_DATA *read_script_new( FILE *fp, AREA_DATA *area, int type);
 void steering_set_heading(SHIP_DATA *ship, int heading);
+void steering_set_turning(SHIP_DATA *ship, char direction);
 void ship_stop(SHIP_DATA *ship);
 
 extern LLIST *loaded_instances;
@@ -2480,7 +2481,7 @@ void do_navigate(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		wilds = room->in_wilds;
+		wilds = room->wilds;
 
 		argument = one_argument(argument, arg2);
 

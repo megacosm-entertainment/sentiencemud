@@ -2243,7 +2243,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 		    p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
 		    check_improve(ch, gsn_lore, TRUE, 10);
 
-		    if( obj->item_type == TELESCOPE )
+		    if( obj->item_type == ITEM_TELESCOPE )
 		    {
 				look_through_telescope(ch, obj, arg2);
 			}
