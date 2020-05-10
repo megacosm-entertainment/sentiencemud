@@ -54,6 +54,7 @@
 bool can_see_imm(CHAR_DATA *ch, CHAR_DATA *victim);
 void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument);
 void look_compass(CHAR_DATA *ch, OBJ_DATA *compass);
+void look_sextant(CHAR_DATA *ch, OBJ_DATA *sextant);
 
 /* MOVED: equip.c */
 char *const where_name[] = {
@@ -7274,13 +7275,14 @@ void look_sextant(CHAR_DATA *ch, OBJ_DATA *sextant)
 			dist = -1;	// No distance
 		}
 
+		char buf[MSL];
 		sprintf(buf, "{xThe sextant reads {W%ld{x south, {W%ld{x east.{x\n\r", y, x);
 		send_to_char(buf, ch);
 
 		if( dist >= 0 )
 		{
 			sprintf(buf, "{YYour vessel about %ld miles away.{x\n\r", dist);
-			send_to_chat(buf, ch);
+			send_to_char(buf, ch);
 		}
 	}
 
