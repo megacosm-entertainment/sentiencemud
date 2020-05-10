@@ -3832,7 +3832,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 	case ITEM_COMPASS:
 		if( obj->value[1] > 0 )
 		{
-			WILDS_DATA *pWilds = get_wilds_from_uid(NULL,pObj->value[1]);
+			WILDS_DATA *pWilds = get_wilds_from_uid(NULL,obj->value[1]);
 
 			sprintf(buf,
 				"{B[  {Wv0{B]{G Accuracy:{x      [%ld]\n\r"
