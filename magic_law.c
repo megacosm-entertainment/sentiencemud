@@ -215,10 +215,10 @@ SPELL_FUNC(spell_identify)
 			(pArea->place_flags == PLACE_SECOND_CONTINENT) ||
 			(pArea->place_flags == PLACE_ISLAND) ||
 			!str_cmp(pArea->name, "Undersea")) {
-			sprintf(buf, "{MThis item comes from {x%s{M.\n\r", pArea->name);
+			sprintf(buf, "{MThis item comes from {x%s{M.{x\n\r", pArea->name);
 			add_buf(buffer, buf);
 		} else
-			add_buf(buffer, "{MThis item is not of the mortal world.\n\r");
+			add_buf(buffer, "{MThis item is not of the mortal world.{x\n\r");
 	}
 
 	switch (obj->item_type) {
