@@ -87,7 +87,6 @@ void update_handler(void)
 	area_update(FALSE);
 	write_permanent_objs();
 	persist_save();
-//	save_npc_ships();
 	write_mail();
 	save_projects();
 	save_immstaff();

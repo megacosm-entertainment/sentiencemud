@@ -48,97 +48,6 @@ static bool 	fMatch;
 static char 	*word;
 static char 	buf[MSL];
 
-void save_npc_ships()
-{
-#if 0
-    NPC_SHIP_INDEX_DATA *pShipIndex;
-    FILE *fp;
-    long i;
-
-    if ( ( fp = fopen( NPC_SHIPS_FILE, "w" ) ) == NULL )
-    {
-  bug( "Save_npc_ship_list: fopen", 0 );
-    }
-
-    for( i = 0; i <= top_vnum_npc_ship; i++ )
-    {
-  if ( (pShipIndex = get_npc_ship_index(i)) != NULL)
-  {
-      save_ship( fp, pShipIndex);
-  }
-    }
-
-    fprintf(fp,"#0\n\n");
-    fclose( fp );
-#endif
-}
-
-void save_ship(FILE *fp, NPC_SHIP_INDEX_DATA *pShipIndex)
-{
-#if 0
-    //CHAR_DATA *ch;
-    WAYPOINT_DATA *waypoint;
-    SHIP_CREW_DATA *crew;
-  OBJ_DATA *obj;
-  SHIP_DATA *ship;
-
-    fprintf( fp, "#%ld\n",  pShipIndex->vnum );
-    fprintf( fp, "%ld\n",   pShipIndex->captain != NULL ? pShipIndex->captain->vnum : 0);
-    fprintf( fp, "%s~\n",   pShipIndex->name );
-    fprintf( fp, "%s~\n",   pShipIndex->flag );
-    fprintf( fp, "%ld\n", pShipIndex->gold );
-    fprintf( fp, "%d\n",  pShipIndex->ship_type );
-    fprintf( fp, "%d\n",  pShipIndex->npc_type );
-    fprintf( fp, "%d\n",  pShipIndex->npc_sub_type );
-    fprintf( fp, "%d\n",  pShipIndex->original_x );
-    fprintf( fp, "%d\n",  pShipIndex->original_y );
-    fprintf( fp, "%s~\n", pShipIndex->area );
-    fprintf( fp, "%d\n",  pShipIndex->ships_destroyed );
-    fprintf( fp, "%ld\n", pShipIndex->plunder_captured );
-    fprintf( fp, "%s~\n", pShipIndex->current_name );
-    fprintf( fp, "%d\n",  pShipIndex->chance_repop );
-    fprintf( fp, "%d\n",  pShipIndex->initial_ships_destroyed );
-
-    for ( crew = pShipIndex->crew; crew != NULL; crew = crew->next)
-    {
-  fprintf( fp, "C\n" );
-  fprintf( fp, "%ld\n", crew->vnum);
-    }
-
-    for ( waypoint = pShipIndex->waypoint_list; waypoint != NULL; waypoint = waypoint->next)
-    {
-        fprintf( fp, "W\n");
-    fprintf( fp, "%d\n", waypoint->x );
-    fprintf( fp, "%d\n", waypoint->y );
-    fprintf( fp, "%d\n", waypoint->hour );
-    fprintf( fp, "%d\n", waypoint->day );
-    fprintf( fp, "%d\n", waypoint->month );
-   }
-
-
-  // Find ship in game to see what cargo it has
-    for ( ship = ((AREA_DATA *) get_sailing_boat_area())->ship_list; ship !=NULL; ship = ship->next)
-    {
-    if ( IS_NPC_SHIP( ship ) && ship->npc_ship->captain != NULL && pShipIndex->vnum == ship->npc_ship->pShipData->vnum )
-    {
-      break;
-    }
-  }
-
-  // Save cargo
-  if (ship != NULL &&
-        ship->ship != NULL &&
-        ship->ship->contains != NULL )
-  {
-    for ( obj = ship->ship->contains; obj != NULL; obj = obj->next_content)
-    {
-      fprintf( fp, "G\n" );
-      fprintf( fp, "%ld\n", obj->pIndexData->vnum);
-    }
-  }
-#endif
-}
-
 void do_asave_new(CHAR_DATA *ch, char *argument)
 {
 	char arg1[MAX_INPUT_LENGTH];
@@ -175,9 +84,6 @@ void do_asave_new(CHAR_DATA *ch, char *argument)
 		//send_to_char("  asave wilds    - saves wilderness templates (imps only)\n\r", ch);
 		return;
 	}
-
-	save_npc_ships();
-
 
 	// Save all areas
 	if (!str_cmp("world", arg1))

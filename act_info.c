@@ -2135,12 +2135,12 @@ void do_look(CHAR_DATA * ch, char *argument)
 
 							if (number_percent() < obj->value[0])
 							{
-								sprintf(buf, "The sextant reads %ld south, %ld east.\n\r", y, x);
+								sprintf(buf, "{xThe sextant reads {W%ld{x south, {W%ld{x east.{x\n\r", y, x);
 								send_to_char(buf, ch);
 							}
 							else
 							{
-								sprintf(buf, "The sextant reads %ld south, %ld east.\n\r",
+								sprintf(buf, "{xThe sextant reads {W%ld{x south, {W%ld{x east.{x\n\r",
 									y + number_range(1, 30) - number_range(1,30), x + number_range(1,30) - number_range(1, 30));
 								send_to_char(buf, ch);
 							}

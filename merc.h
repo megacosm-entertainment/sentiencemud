@@ -293,6 +293,7 @@ typedef struct	storm_data		STORM_DATA;
 typedef struct	trade_item		TRADE_ITEM;
 typedef struct	trade_type		TRADE_TYPE;
 typedef struct	waypoint_data		WAYPOINT_DATA;
+typedef struct waypoint_path_data WAYPOINT_PATH;
 typedef struct 	buf_type	 	BUFFER;
 typedef struct  ambush_data             AMBUSH_DATA;
 typedef struct  chat_ban_data		CHAT_BAN_DATA;
@@ -4840,19 +4841,33 @@ struct rep_type
 #define REPORT_TOP_QUESTS              5
 #define REPORT_TOP_BEST_RATIO          6
 
-/* ship waypoints */
+/* navigation waypoints */
 struct waypoint_data
 {
     WAYPOINT_DATA *next;
+    bool valid;
 
-    /* destination coords */
+	long uid;
+	char *name;				// Display name (if it has one)
+
+	WILDS_DATA *wilds;
     int x;
     int y;
+};
 
-    /* time to emabark times */
-    sh_int hour;
-    sh_int day;
-    sh_int month;
+struct waypoint_path_data
+{
+	WAYPOINT_DATA *from;
+	WAYPOINT_DATA *to;
+};
+
+struct route_segment_data
+{
+};
+
+struct route_data
+{
+
 };
 
 struct ship_crew_data
@@ -5036,8 +5051,9 @@ struct ship_data
 	SHIP_DATA			*boarded_by;
 	unsigned long		boarded_by_uid[2];
 
-	WAYPOINT_DATA		*waypoint_list;
-	WAYPOINT_DATA		*current_waypoint;
+	// TODO: WAYPOINTS
+
+	WILDS_COORD			seek_point;
 
 	/* When scuttled show different steps of scuttling */
 	sh_int				scuttle_time;
@@ -8561,5 +8577,7 @@ void extract_special_key(OBJ_DATA *obj);
 void resolve_special_key(OBJ_DATA *obj);
 
 extern LLIST *loaded_special_keys;
+extern LLIST *loaded_waypoints;
+extern LLIST *loaded_waypoint_paths;
 
 #endif /* !def __MERC_H__ */

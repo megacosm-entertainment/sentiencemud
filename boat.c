@@ -55,7 +55,7 @@ void update_instance(INSTANCE *instance);
 void reset_instance(INSTANCE *instance);
 void save_script_new(FILE *fp, AREA_DATA *area,SCRIPT_DATA *scr,char *type);
 SCRIPT_DATA *read_script_new( FILE *fp, AREA_DATA *area, int type);
-
+void steering_set_heading(SHIP_DATA *ship, int heading);
 
 extern LLIST *loaded_instances;
 
@@ -63,6 +63,9 @@ bool ships_changed = false;
 long top_ship_index_vnum = 0;
 
 LLIST *loaded_ships;
+LLIST *loaded_waypoints;
+LLIST *loaded_waypoint_paths;
+
 
 // Measured in 2 * ship->steering.heading / 45
 int bearing_door[] = {
@@ -83,6 +86,43 @@ int bearing_door[] = {
 	DIR_NORTHWEST,			// 14
 	DIR_NORTH,				// 15
 };
+
+/////////////////////////////////////////////////////////////////
+//
+// Navigation
+//
+
+bool ship_seek_point(SHIP_DATA *ship)
+{
+	ROOM_INDEX_DATA *room = obj_room(ship->ship);
+	if( IS_WILDERNESS(room) && ship->seek_point.wilds == room->wilds )
+	{
+		if( room->x == ship->seek_point.x &&
+			room->y == ship->seek_point.y )
+		{
+			// Is there another waypoint?
+
+			memset(&ship->seek_point, 0, sizeof(ship->seek_point));
+
+			return false;	// Return false to indicate stop movement
+		}
+
+
+		int dx = ship->seek_point.x - room->x;
+		int dy = room->y - ship->seek_point.y;
+
+		int heading = (int)(180 * atan2(dx, dy) / 3.14159);
+
+		if( abs(heading - ship->steering.heading_target) > 5)
+		{
+			steering_set_heading(ship, heading);
+		}
+	}
+
+	return true;
+}
+
+
 
 /////////////////////////////////////////////////////////////////
 //
@@ -203,12 +243,11 @@ bool steering_movement(SHIP_DATA *ship, int *x, int *y, int *door)
 	// Allow for steering updates while stopped
 	if( ship->speed <= SHIP_SPEED_STOPPED ) return false;
 
-	// x, y, door can be NULL -------^^^^^^
-	// x, y, door cannot be NULL ----vvvvvv
-
 	ROOM_INDEX_DATA *room = obj_room(ship->ship);
 
 	if( !room || !room->wilds ) return false;
+
+	if( !ship_seek_point(ship) ) return false;
 
 	// No heading, no movement!
 	if( !ship->steering.ax && !ship->steering.ay ) return false;
@@ -619,6 +658,7 @@ void ship_stop(SHIP_DATA *ship)
 	ship->last_times[0] = current_time + 15;
 	ship->last_times[1] = current_time + 10;
 	ship->last_times[2] = current_time + 5;
+	memset(ship->seek_point, 0, sizeof(ship->seek_point));
 }
 
 bool move_ship_success(SHIP_DATA *ship)
@@ -766,6 +806,7 @@ void ship_pulse_update(SHIP_DATA *ship)
 	{
 		if( !--ship->ship_move )
 		{
+			ship_seek_point(ship);
 			ship_move_update(ship);
 		}
 	}
@@ -2066,8 +2107,6 @@ void do_speed( CHAR_DATA *ch, char *argument )
 		return;
 	}
 
-
-
 	if (!IS_SET(ch->in_room->room_flags, ROOM_SHIP_HELM))
 	{
 		act("You must be at the helm of the vessel to steer.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -2367,6 +2406,101 @@ void do_aim( CHAR_DATA *ch, char *argument )
 #endif
 }
 
+void do_navigate(CHAR_DATA *ch, char *argument)
+{
+	char buf[MSL];
+	char arg[MIL];
+	SHIP_DATA *ship;
+	ROOM_INDEX_DATA *room;
+	WILDS_DATA *wilds;
+
+	argument = one_argument(argument, arg);
+
+	ship = get_room_ship(ch->in_room);
+
+	if (!IS_VALID(ship))
+	{
+		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	// TODO: Check for first mate
+	if (!IS_SET(ch->in_room->room_flags, ROOM_SHIP_HELM))
+	{
+		act("You must be at the helm of the vessel to naviate.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if (!IS_IMMORTAL(ch) && ship_isowner_player(ship, ch))
+	{
+		act("The wheel is magically locked. This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if ( !ship_has_enough_crew( ship ) ) {
+		send_to_char( "There isn't enough crew to order that command!\n\r", ch );
+		return;
+	}
+
+	// TODO: Check for navigator or player "navigation" skill
+
+	if( arg[0] == '\0' )
+	{
+		send_to_char("Navigate where?\n\r", ch);
+		return;
+	}
+
+	if( !str_prefix(arg, "seek") )
+	{
+		char arg2[MIL];
+
+		if( argument[0] == '\0' )
+		{
+			send_to_char("Seek what point?\n\r"
+						 "Syntax: navigate seek [south] [east]\n\r", ch);
+			return;
+		}
+
+		room = obj_room(ship->ship);
+		if( !IS_WILDERNESS(room) )
+		{
+			act("The vessel is not in the wilderness.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			return;
+		}
+
+		wilds = room->in_wilds;
+
+		argument = one_argument(argument, arg2);
+
+		if( !is_number(arg2) || !is_number(argument) )
+		{
+			send_to_char("That is not a number.\n\r", ch);
+			return;
+		}
+		int south = atoi(arg2);
+		int east = atoi(argument);
+
+		if( east < 0 || east >= wilds->map_size_x )
+		{
+			sprintf(buf, "East coordinate is out of bounds.  Range: 0 to %d\n\r", wilds->map_size_x - 1);
+			return;
+		}
+
+		if( south < 0 || south >= wilds->map_size_y )
+		{
+			sprintf(buf, "South coordinate is out of bounds.  Range: 0 to %d\n\r", wilds->map_size_y - 1);
+			return;
+		}
+
+		ship->seek_point.wilds = wilds;
+		ship->seek_point.w = wilds->uid;
+		ship->seek_point.x = east;
+		ship->seek_point.y = south;
+
+		send_to_char("{WSeek point set.{x\n\r", ch);
+		return;
+	}
+}
 
 
 /////////////////////////////////////////////////////////////////
