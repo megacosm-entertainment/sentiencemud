@@ -3114,6 +3114,7 @@ enum {
 #define PLR_FAVSKILLS		(F)
 #define PLR_HOLYWARP		(G)
 #define PLR_NORECKONING		(H)
+#define PLR_NOLORE			(I)
 
 #define COMM_QUIET              (A)
 #define COMM_NOMUSIC           	(B)

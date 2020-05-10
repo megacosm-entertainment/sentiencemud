@@ -2309,7 +2309,7 @@ const struct corpse_info corpse_info_table[] = {
 		NULL,
 		"{YThe last thing you feel is your flesh charring...{x",
 		"{RFlames consume $n!{x",
-		"$p blows away...",
+		"$p blow away...",
 		NULL,
 		NULL,
 		NULL,

@@ -1041,6 +1041,22 @@ SHIP_DATA *ship_load(FILE *fp)
 
 		case 'S':
 			KEY("ScuttleTime", ship->scuttle_time, fread_number(fp));
+			if(!str_cmp(word, "SeekPoint") )
+			{
+				long wuid = fread_number(fp);
+				ship->seek_point.wilds = get_wilds_from_uid(NULL, wuid);
+				ship->seek_point.w = wuid;
+				ship->seek_point.x = fread_number(fp);
+				ship->seek_point.y = fread_number(fp);
+
+				if( !ship->seek_point.wilds )
+				{
+					memset(&ship->seek_point, 0, sizeof(ship->seek_point));
+				}
+
+				fMatch = TRUE;
+				break;
+			}
 			if( !str_cmp(word, "ShipAttacked") )
 			{
 				ship->ship_attacked_uid[0] = fread_number(fp);
@@ -1169,6 +1185,14 @@ bool ship_save(FILE *fp, SHIP_DATA *ship)
 		ship->steering.heading_target,
 		ship->steering.turning_dir,
 		ship->steering.move);
+
+	if( ship->seek_point.wild != NULL )
+	{
+		fprintf(fp, "SeekPoint %ld %d %d\n",
+			ship->seek_point.wild->uid,
+			ship->seek_point.x,
+			ship->seek_point.y);
+	}
 
 	if( ship->pk )
 	{
@@ -2496,12 +2520,14 @@ void do_navigate(CHAR_DATA *ch, char *argument)
 		if( east < 0 || east >= wilds->map_size_x )
 		{
 			sprintf(buf, "East coordinate is out of bounds.  Range: 0 to %d\n\r", wilds->map_size_x - 1);
+			send_to_char(buf, ch);
 			return;
 		}
 
 		if( south < 0 || south >= wilds->map_size_y )
 		{
 			sprintf(buf, "South coordinate is out of bounds.  Range: 0 to %d\n\r", wilds->map_size_y - 1);
+			send_to_char(buf, ch);
 			return;
 		}
 
@@ -2513,6 +2539,8 @@ void do_navigate(CHAR_DATA *ch, char *argument)
 		send_to_char("{WSeek point set.{x\n\r", ch);
 		return;
 	}
+
+	do_navigate(ch, "");
 }
 
 

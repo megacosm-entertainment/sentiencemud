@@ -1061,6 +1061,8 @@ void show_char_to_char_1(CHAR_DATA * victim, CHAR_DATA * ch)
 	show_list_to_char(victim->carrying, ch, TRUE, TRUE);
     }
 
+	if( IS_NPC(ch) || !IS_SET(ch->act2, PLR_NOLORE) )
+	{
     if (IS_NPC(victim) && number_percent() < get_skill(ch, gsn_mob_lore))
     {
         if (IS_SET(victim->act, ACT_NO_LORE))
@@ -1070,6 +1072,7 @@ void show_char_to_char_1(CHAR_DATA * victim, CHAR_DATA * ch)
 	    send_to_char("\n\r{YYou recognize the following things about this creature:{x\n\r", ch);
 	    show_basic_mob_lore(ch, victim);
 	    check_improve(ch, gsn_mob_lore, TRUE, 7);
+	}
 	}
     }
 
@@ -2049,7 +2052,8 @@ void do_look(CHAR_DATA * ch, char *argument)
 		{
 		    /* Can person lore object */
 	    	perform_lore = FALSE;
-	    	if (get_skill(ch, gsn_lore) > 0 &&
+	    	if ((IS_NPC(ch) || !IS_SET(ch->act2, PLR_NOLORE)) &&
+				get_skill(ch, gsn_lore) > 0 &&
 	    		number_percent() <= get_skill(ch, skill_lookup("lore")) &&
 	    		!IS_SET(obj->extra2_flags, ITEM_NO_LORE))
 	    		perform_lore = TRUE;
@@ -2111,40 +2115,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 
 					if( obj->item_type == ITEM_SEXTANT )
 					{
-						if( (IN_WILDERNESS(ch) || ON_SHIP(ch)) && ch->in_room != NULL )
-						{
-							long x, y;
-							SHIP_DATA *ship = get_room_ship(ch->in_room);
-
-							if (IS_VALID(ship))
-							{
-								if( !ship->ship->in_room || !IS_WILDERNESS(ship->ship->in_room) )
-								{
-									// Doesn't do anything
-									return;
-								}
-
-								x = ship->ship->in_room->x;
-								y = ship->ship->in_room->y;
-							}
-							else
-							{
-								x = ch->in_room->x;
-								y = ch->in_room->y;
-							}
-
-							if (number_percent() < obj->value[0])
-							{
-								sprintf(buf, "{xThe sextant reads {W%ld{x south, {W%ld{x east.{x\n\r", y, x);
-								send_to_char(buf, ch);
-							}
-							else
-							{
-								sprintf(buf, "{xThe sextant reads {W%ld{x south, {W%ld{x east.{x\n\r",
-									y + number_range(1, 30) - number_range(1,30), x + number_range(1,30) - number_range(1, 30));
-								send_to_char(buf, ch);
-							}
-						}
+						look_sextant(ch, obj);
 					}
 					else if(obj->item_type == ITEM_TELESCOPE)
 					{
@@ -2191,10 +2162,11 @@ void do_look(CHAR_DATA * ch, char *argument)
 	{
 	    /* Can person lore object */
 	    perform_lore = FALSE;
-	    if (get_skill(ch, gsn_lore) > 0
-	    && number_percent() <= get_skill(ch, skill_lookup("lore"))
-	    && !IS_SET(obj->extra2_flags, ITEM_NO_LORE))
-		perform_lore = TRUE;
+	    if ((IS_NPC(ch) || !IS_SET(ch->act2, PLR_NOLORE)) &&
+			get_skill(ch, gsn_lore) > 0 &&
+			number_percent() <= get_skill(ch, skill_lookup("lore")) &&
+			!IS_SET(obj->extra2_flags, ITEM_NO_LORE))
+			perform_lore = TRUE;
 
 	    /* Check extra desc first */
 	    pdesc = get_extra_descr(arg3, obj->extra_descr);
@@ -7242,6 +7214,67 @@ void do_collapse(CHAR_DATA *ch, char *argument)
 	{
 		act("{x$p{x is already collapsed that far.{x.", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
 	}
+}
+
+void look_sextant(CHAR_DATA *ch, OBJ_DATA *sextant)
+{
+	if( IS_VALID(sextant) && sextant->item_type == ITEM_SEXTANT &&
+		(IN_WILDERNESS(ch) || ON_SHIP(ch)) && ch->in_room != NULL )
+	{
+		long x, y;
+		SHIP_DATA *ship = get_room_ship(ch->in_room);
+		long dist;
+
+		if (IS_VALID(ship))
+		{
+			if( !ship->ship->in_room || !IS_WILDERNESS(ship->ship->in_room) )
+			{
+				// Doesn't do anything
+				return;
+			}
+
+			x = ship->ship->in_room->x;
+			y = ship->ship->in_room->y;
+
+			if (number_percent() >= sextant->value[0])
+			{
+				x = x + number_range(-30, 30);
+				y = y + number_range(-30, 30);
+			}
+
+			if( ship->seek_point.wilds != NULL )
+			{
+				long dx = (x - ship->seek_point.x);
+				long dy = (y - ship->seek_point.y);
+
+				dist = (long)(sqrt(dx * dx + dy * dy) + 0.5);
+			}
+
+		}
+		else
+		{
+			x = ch->in_room->x;
+			y = ch->in_room->y;
+
+			if (number_percent() >= sextant->value[0])
+			{
+				x = x + number_range(-30, 30);
+				y = y + number_range(-30, 30);
+			}
+
+			dist = -1;	// No distance
+		}
+
+		sprintf(buf, "{xThe sextant reads {W%ld{x south, {W%ld{x east.{x\n\r", y, x);
+		send_to_char(buf, ch);
+
+		if( dist >= 0 )
+		{
+			sprintf(buf, "{YYour vessel about %ld miles away.{x\n\r", dist);
+			send_to_chat(buf, ch);
+		}
+	}
+
 }
 
 void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument)
