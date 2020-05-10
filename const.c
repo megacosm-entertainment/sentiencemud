@@ -241,11 +241,21 @@ const struct item_type		item_table	[]	=
     {   ITEM_BLANK_SCROLL,	"blank_scroll" 			},
     {   ITEM_MIST,		"mist"				},
     {	ITEM_SHRINE,		"shrine"			},
-    {   ITEM_WHISTLE,   "whistle",    },
-    {   ITEM_SHOVEL,   "shovel",    },
-    {   ITEM_TATTOO,   "tattoo",    },
-    {   ITEM_INK,   "ink",    },
+    {   ITEM_WHISTLE,   "whistle"    },
+    {   ITEM_SHOVEL,   "shovel"    },
+    {   ITEM_TATTOO,   "tattoo"    },
+    {   ITEM_INK,   "ink"    },
     {	ITEM_PART,		"part"	},
+	{	ITEM_TELESCOPE,		"telescope"	},
+	{	ITEM_COMPASS,		"compass"	},
+	{	ITEM_WHETSTONE,		"whetstone"	},
+	{	ITEM_CHISEL,		"chisel" },
+	{	ITEM_PICK,			"pick"	},
+	{	ITEM_TINDERBOX,		"tinderbox"},
+	{	ITEM_DRYING_CLOTH,	"drying_cloth"},
+	{	ITEM_NEEDLE,		"needle"},
+	{	ITEM_BODY_PART,		"body_part"},
+
     {   0,			NULL				}
 };
 
