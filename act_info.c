@@ -7233,7 +7233,7 @@ void look_sextant(CHAR_DATA *ch, OBJ_DATA *sextant)
 	{
 		long x, y;
 		SHIP_DATA *ship = get_room_ship(ch->in_room);
-		long dist;
+		long dist = -1;
 
 		if (IS_VALID(ship))
 		{
@@ -7271,8 +7271,6 @@ void look_sextant(CHAR_DATA *ch, OBJ_DATA *sextant)
 				x = x + number_range(-30, 30);
 				y = y + number_range(-30, 30);
 			}
-
-			dist = -1;	// No distance
 		}
 
 		char buf[MSL];
