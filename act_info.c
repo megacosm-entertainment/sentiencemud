@@ -7443,6 +7443,8 @@ void look_compass(CHAR_DATA *ch, OBJ_DATA *compass)
 	if( number_percent() >= compass->value[0] )
 	{
 		heading += number_range(-30, 30);
+		if( heading < 0 ) heading += 360;
+		else if(heading >= 360) heading -= 360;
 	}
 
 	if( IS_IMMORTAL(ch) /* || TODO: add skill */ )
