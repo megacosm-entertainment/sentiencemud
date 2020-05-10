@@ -3829,6 +3829,30 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 	    add_buf(buffer, buf);
 	    break;
 
+	case ITEM_COMPASS:
+		if( pObj->value[1] > 0 )
+		{
+			WILDS_DATA *pWilds = get_wild_from_uid(NULL,pObj->value[1]);
+
+			sprintf(buf,
+				"{B[  {Wv0{B]{G Accuracy:{x      [%ld]\n\r"
+				"{B[  {Wv1{B]{G Wilderness:{x    [%ld] %d\n\r"
+				"{B[  {Wv2{B]{G X Coordinate:{x  [%ld]\n\r"
+				"{B[  {Wv3{B]{G Y Coordinate:{x  [%ld]\n\r",
+					obj->value[0],
+					obj->value[1], (pWilds?pWilds->name:"???"),
+					obj->value[2],
+					obj->value[3]);
+		}
+		else
+		{
+			sprintf(buf,
+				"{B[  {Wv0{B]{G Accuracy:{x      [%ld]\n\r"
+				"{B[  {Wv1{B]{G Wilderness:{x    [none]\n\r",
+					obj->value[0]);
+		}
+	    add_buf(buffer, buf);
+		break;
     }
 }
 
@@ -3976,7 +4000,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 		}
 		break;
 
-	case ITEM_ARTIFACT:
+/*	case ITEM_ARTIFACT:
 		switch(value_num)
 		{
 		case 0:
@@ -4015,7 +4039,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			use_imp_sig(NULL, pObj);
 			break;
 		}
-		break;
+		break;*/
 
 	case ITEM_ARMOUR:
 		switch (value_num)
@@ -4405,7 +4429,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 		}
 		break;
 
-	case ITEM_SHIP:
+/*	case ITEM_SHIP:
 		switch (value_num)
 		{
 		default:
@@ -4452,7 +4476,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			pObj->value[7] = atoi (argument);
 			break;
 		}
-		break;
+		break;*/
 
 	case ITEM_CART:
 		switch (value_num)
@@ -4932,6 +4956,97 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 				pObj->value[4] = -1;
 				send_to_char("TELESCOPE HEADING CLEARED\n\r", ch);
 			}
+			break;
+		}
+		break;
+	case ITEM_COMPASS:
+		switch (value_num)
+		{
+		int value;
+		long wuid;
+		WILDS_DATA *pWilds;
+
+		default:
+			do_help(ch, "ITEM_COMPASS");
+			return FALSE;
+		case 0:
+			send_to_char("Accuracy set.\n\r\n\r", ch);
+			pObj->value[0] = atoi(argument);
+			break;
+		case 1:
+			wuid = atoi(argument);
+			if( wuid > 0 )
+			{
+				pWilds = get_wilds_from_uid(NULL,wuid);
+				if( !pWilds )
+				{
+					send_to_char("Invalid Wilds.\n\r", ch);
+					return FALSE;
+				}
+
+				pObj->value[1] = wuid;
+				pObj->value[2] = pWilds->map_size_x / 2;
+				pObj->value[3] = pWilds->map_size_y / 2;
+
+				send_to_char("WILDS set.\n\r", ch);
+			}
+			else
+			{
+				pObj->value[1] = 0;
+				pObj->value[2] = -1;
+				pObj->value[3] = -1;
+				send_to_char("WILDS cleared.\n\r", ch);
+			}
+			break;
+		case 2:
+			if( !pObj->value[1] )
+			{
+				send_to_char("Please set the WILDS({Wv1{x) before assigning coordinates.\n\r", ch);
+				return FALSE;
+			}
+
+			pWilds = get_wilds_from_uid(NULL,pObj->value[1]);
+			if( !pWilds )
+			{
+				send_to_char("Please set the WILDS({Wv1{x) to a valid wilderness before assigning coordinates.\n\r", ch);
+				return FALSE;
+			}
+
+			value = atoi(argument);
+			if( value < 0 || value >= pWilds->map_size_x )
+			{
+				sprintf(buf, "X COORDINATE must be from 0 to %d.\n\r", pWilds->map_size_x - 1);
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			pObj->value[2] = value;
+			send_to_char("X COORDINATE set.\n\r", ch);
+			break;
+		case 3:
+			if( !pObj->value[1] )
+			{
+				send_to_char("Please set the WILDS({Wv1{x) before assigning coordinates.\n\r", ch);
+				return FALSE;
+			}
+
+			pWilds = get_wilds_from_uid(NULL,pObj->value[1]);
+			if( !pWilds )
+			{
+				send_to_char("Please set the WILDS({Wv1{x) to a valid wilderness before assigning coordinates.\n\r", ch);
+				return FALSE;
+			}
+
+			value = atoi(argument);
+			if( value < 0 || value >= pWilds->map_size_y )
+			{
+				sprintf(buf, "Y COORDINATE must be from 0 to %d.\n\r", pWilds->map_size_y - 1);
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			pObj->value[3] = value;
+			send_to_char("Y COORDINATE set.\n\r", ch);
 			break;
 		}
 		break;

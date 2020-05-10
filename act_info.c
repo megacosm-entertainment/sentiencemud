@@ -53,6 +53,7 @@
 
 bool can_see_imm(CHAR_DATA *ch, CHAR_DATA *victim);
 void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument);
+void look_compass(CHAR_DATA *ch, OBJ_DATA *compass);
 
 /* MOVED: equip.c */
 char *const where_name[] = {
@@ -2121,6 +2122,10 @@ void do_look(CHAR_DATA * ch, char *argument)
 					{
 						look_through_telescope(ch, obj, arg2);
 					}
+					else if(obj->item_type == ITEM_COMPASS)
+					{
+						look_compass(ch, obj);
+					}
 					else if((obj->pIndexData->vnum == OBJ_VNUM_SKULL || obj->pIndexData->vnum == OBJ_VNUM_GOLD_SKULL) &&
 						affect_find(obj->affected, skill_lookup("third eye")) != NULL)
 					{
@@ -2218,6 +2223,10 @@ void do_look(CHAR_DATA * ch, char *argument)
 		    if( obj->item_type == ITEM_TELESCOPE )
 		    {
 				look_through_telescope(ch, obj, arg2);
+			}
+			else if(obj->item_type == ITEM_COMPASS)
+			{
+				look_compass(ch, obj);
 			}
 		    return;
 		}
@@ -7371,4 +7380,109 @@ void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument)
 	// Stationary telescopes can save their heading
 	if( !CAN_WEAR(telescope, ITEM_TAKE) )
 		telescope->value[4] = heading;
+}
+
+void look_compass(CHAR_DATA *ch, OBJ_DATA *compass)
+{
+	char buf[MSL], arg[MIL];
+	ROOM_INDEX_DATA *here = ch->in_room;
+	SHIP_DATA *ship = get_room_ship(here);
+	int heading = -1;
+
+	if( compass->value[1] > 0 )
+	{
+		if( IS_VALID(ship) )
+		{
+			here = obj_room(ship->ship);
+		}
+
+		if( !here || !IS_WILDERNESS(here) )
+		{
+			return;
+		}
+
+		if( here->wilds->uid == compass->value[1] )
+		{
+			int dx = compass->value[2] - here->x;
+			int dy = here->y - compass->value[3];
+
+			heading = (int)(180 * atan2(dx, dy) / 3.14159);
+			if( heading < -180 ) heading += 360;
+		}
+	}
+	else if( IS_VALID(ship) )
+	{
+		// get the heading
+		heading = ship->steering.heading;
+	}
+	else
+		return;
+
+	if( heading < 0 )
+	{
+		act("{xThe needle on $p{x is spinning.{x", ch, NULL, NULL, compass, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if( number_percent() >= compass->value[0] )
+	{
+		heading += number_range(-30, 30);
+	}
+
+	if( IS_IMMORTAL(ch) /* || TODO: add skill */ )
+	{
+		switch(heading)
+		{
+		case 0:		strcpy(arg, "to the north"); break;
+		case 45:	strcpy(arg, "to the northeast"); break;
+		case 90:	strcpy(arg, "to the east"); break;
+		case 135:	strcpy(arg, "to the southeast"); break;
+		case 180:	strcpy(arg, "to the south"); break;
+		case 225:	strcpy(arg, "to the southwest"); break;
+		case 270:	strcpy(arg, "to the west"); break;
+		case 315:	strcpy(arg, "to the northwest"); break;
+		default:
+			sprintf(arg, "to {W%d{x degrees", heading);
+			break;
+		}
+	}
+	else
+	{
+		heading += 23;
+		if( heading >= 360 || heading < 45 )
+		{
+			strcpy(arg, "northward");
+		}
+		else if( heading < 90 )
+		{
+			strcpy(arg, "northeastward");
+		}
+		else if( heading < 135 )
+		{
+			strcpy(arg, "eastward");
+		}
+		else if( heading < 180 )
+		{
+			strcpy(arg, "southeastward");
+		}
+		else if( heading < 225 )
+		{
+			strcpy(arg, "southward");
+		}
+		else if( heading < 270 )
+		{
+			strcpy(arg, "southwestward");
+		}
+		else if( heading < 315 )
+		{
+			strcpy(arg, "westward");
+		}
+		else if( heading < 360 )
+		{
+			strcpy(arg, "northwestward");
+		}
+	}
+
+	sprintf(buf, "{xThe needle on $p{x points %s.", arg);
+	act(buf, ch, NULL, NULL, compass, NULL, NULL, NULL, TO_CHAR);
 }

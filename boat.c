@@ -114,6 +114,7 @@ bool ship_seek_point(SHIP_DATA *ship)
 		int dy = room->y - ship->seek_point.y;
 
 		int heading = (int)(180 * atan2(dx, dy) / 3.14159);
+		if( heading < -180 ) heading += 360;
 
 		if( abs(heading - ship->steering.heading_target) > 5)
 		{
