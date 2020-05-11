@@ -7350,7 +7350,7 @@ void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument)
 
 		if (IS_VALID(ship))
 		{
-			if( ship->ship->in_room && IS_WILDERNESS(ship->ship->in_room) )
+			if( ship->ship->in_room && IS_WILDERNESS(ship->ship->in_room) && IS_OUTSIDE(ch) )
 			{
 				wilds = ship->ship->in_room->wilds;
 				x = ship->ship->in_room->x;
