@@ -30,7 +30,6 @@ OBJ_DATA* create_treasure_map(WILDS_DATA *pWilds)
 	char *map;
 	OBJ_DATA *scroll;
 	OBJ_DATA *treasure;
-	AREA_DATA *pArea;
 	AREA_DATA *closestArea;
 	int distance;
 	AREA_DATA *bestArea = NULL;
@@ -48,7 +47,7 @@ OBJ_DATA* create_treasure_map(WILDS_DATA *pWilds)
 		vx = number_range(0, pWilds->map_size_x - 1);
 		vy = number_range(0, pWilds->map_size_y - 1);
 
-		WILDS_TERRAIN *pTerrain = get_terrain_by_coords(pWilds, vx, vy);
+		WILDS_TERRAIN *pTerrain = get_terrain_by_coors(pWilds, vx, vy);
 
 		if( pTerrain != NULL && !pTerrain->nonroom &&
 			pTerrain->template->sector_type != SECT_WATER_SWIM &&
@@ -58,10 +57,10 @@ OBJ_DATA* create_treasure_map(WILDS_DATA *pWilds)
 		}
 	}
 
-	if( !(pRoom = get_wilds_vroom(wilds, vx, vy)) )
-		pRoom = create_wilds_vroom(wilds, vx, vy);
+	if( !(pRoom = get_wilds_vroom(pWilds, vx, vy)) )
+		pRoom = create_wilds_vroom(pWilds, vx, vy);
 
-
+	obj_to_room(treasure, pRoom);
 
 	int wx = vx + number_range(-7, 7);
 	int wy = vy + number_range(-7, 7);
