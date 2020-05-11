@@ -44,8 +44,8 @@ OBJ_DATA* create_treasure_map(WILDS_DATA *pWilds, AREA_DATA *pArea)
 	while(TRUE) {
 		if( pArea && pArea->open )
 		{
-			vx = number_range(-200, 200);
-			vy = number_range(-200, 200);
+			vx = number_range(-50, 50);
+			vy = number_range(-50, 50);
 
 			if( (vx * vx + vy * vy) >= 40000 )
 				continue;
