@@ -19,6 +19,7 @@
 #include "recycle.h"
 #include "tables.h"
 #include "olc.h"
+#include "wilds.h"
 
 // Puts some treasure in the wilds, buries it and creates a map
 OBJ_DATA* create_treasure_map(WILDS_DATA *pWilds)
@@ -85,7 +86,7 @@ OBJ_DATA* create_treasure_map(WILDS_DATA *pWilds)
 	{
 		BUFFER *buffer = new_buf();
 
-		get_wilds_mapstring(buffer, pWilds, wx, wy, vx, vy);
+		get_wilds_mapstring(buffer, pWilds, wx, wy, vx, vy, 0, 0);
 
 		if (scroll->full_description != NULL)
 			free_string(scroll->full_description);
