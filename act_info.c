@@ -1853,273 +1853,261 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 	return;
 }
 
-/* MOVED: senses/vision.c */
 void do_look(CHAR_DATA * ch, char *argument)
 {
-    char buf[MAX_STRING_LENGTH];
-    char arg1[MAX_INPUT_LENGTH];
-    char arg2[MAX_INPUT_LENGTH];
-    char arg3[MAX_INPUT_LENGTH];
-    EXIT_DATA *pexit;
-    ROOM_INDEX_DATA *char_room;
-    ROOM_INDEX_DATA *look_room = NULL;
-    CHAR_DATA *victim;
-    OBJ_DATA *obj;
-    char *pdesc;
-    int door;
-    int number, count;
-    int i;
-    bool perform_lore = FALSE;
+	char buf[MAX_STRING_LENGTH];
+	char arg1[MAX_INPUT_LENGTH];
+	char arg2[MAX_INPUT_LENGTH];
+	char arg3[MAX_INPUT_LENGTH];
+	EXIT_DATA *pexit;
+	ROOM_INDEX_DATA *char_room;
+	ROOM_INDEX_DATA *look_room = NULL;
+	CHAR_DATA *victim;
+	OBJ_DATA *obj;
+	char *pdesc;
+	int door;
+	int number, count;
+	int i;
+	bool perform_lore = FALSE;
 
-    if (ch->desc == NULL)
-	return;
+	if (ch->desc == NULL)
+		return;
 
-    if (ch->position < POS_SLEEPING)
-    {
-	send_to_char("You can't see anything but stars!\n\r", ch);
-	return;
-    }
+	if (ch->position < POS_SLEEPING)
+	{
+		send_to_char("You can't see anything but stars!\n\r", ch);
+		return;
+	}
 
-    if (ch->position == POS_SLEEPING)
-    {
-	send_to_char("You can't see anything, you're sleeping!\n\r", ch);
-	return;
-    }
+	if (ch->position == POS_SLEEPING)
+	{
+		send_to_char("You can't see anything, you're sleeping!\n\r", ch);
+		return;
+	}
 
 	if(!check_vision(ch,ch->in_room,true,true))
 		return;
 
-    argument = one_argument(argument, arg1);
-    argument = one_argument(argument, arg2);
-    number = number_argument(arg1, arg3);
-    count = 0;
+	argument = one_argument(argument, arg1);
+	number = number_argument(arg1, arg3);
+	count = 0;
 
-    /*
-     * 'look' or 'look auto'
-     */
-    if (arg1[0] == '\0')
-    {
-	    show_room(ch,ch->in_room,false,false,false);
-	    return;
+	// 'look' or 'look auto'
+	if (arg1[0] == '\0')
+	{
+		show_room(ch,ch->in_room,false,false,false);
+		return;
 	}
 
 	if (!str_cmp(arg1, "auto")) {
-	    show_room(ch,ch->in_room,false,false,true);
-	    return;
+		show_room(ch,ch->in_room,false,false,true);
+		return;
 	}
 
-	if(arg1[0] == '.' || arg3[0] == '.') {
+	if(arg1[0] == '.' || arg3[0] == '.')
+	{
 		send_to_char("You do not see that here.\n\r", ch);
 		return;
 	}
 
-    /*
-     * 'look in'
-     */
-    if (!str_cmp(arg1, "i") || !str_cmp(arg1, "in")
-	|| !str_cmp(arg1, "on"))
-    {
-	if (arg2[0] == '\0')
+	// 'look in'
+	if (!str_cmp(arg1, "i") || !str_cmp(arg1, "in") || !str_cmp(arg1, "on"))
 	{
-	    send_to_char("Look in what?\n\r", ch);
-	    return;
-	}
-
-	if ((obj = get_obj_here(ch, NULL, arg2)) == NULL)
-	{
-	    send_to_char("You do not see that here.\n\r", ch);
-	    return;
-	}
-
-	switch (obj->item_type)
-	{
-	default:
-	    send_to_char("That is not a container.\n\r", ch);
-	    break;
-
-	case ITEM_DRINK_CON:
-	    if (obj->value[1] <= 0)
-	    {
-		send_to_char("It is empty.\n\r", ch);
-		break;
-	    }
-
-	    sprintf(buf, "It's %sfilled with a %s liquid.\n\r",
-		    obj->value[1] < obj->value[0] / 4
-		    ? "less than half-" :
-		    obj->value[1] < 3 * obj->value[0] / 4
-		    ? "about half-" : "more than half-",
-		    liq_table[obj->value[2]].liq_colour);
-
-	    send_to_char(buf, ch);
-	    break;
-
-	case ITEM_CONTAINER:
-	case ITEM_CART:
-	case ITEM_CORPSE_NPC:
-	case ITEM_WEAPON_CONTAINER:
-	case ITEM_CORPSE_PC:
-	    if (obj->item_type == ITEM_CONTAINER && IS_SET(obj->value[1], CONT_CLOSED))
-	    {
-		act("$p is closed.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-		break;
-	    }
-
-	    act("$p holds:", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-	    show_list_to_char(obj->contains, ch, TRUE, TRUE);
-	    break;
-	}
-	return;
-    }
-
-    /* look <person> */
-    /* look <person> <worn item> */
-    if ((victim = get_char_room(ch, NULL, arg1)) != NULL)
-    {
-
-	    if(arg2[0]) {
-		    number = number_argument(arg2, arg3);
-		    count = 0;
-		    /* look at an object in the inventory */
-		    for (obj = victim->carrying; obj != NULL; obj = obj->next_content)
-			if (can_see_obj(ch, obj) && obj->wear_loc != WEAR_NONE && wear_params[obj->wear_loc][WEAR_PARAM_SEEN] &&
-				is_name(arg3, obj->name) && (++count == number)) {
-				if (ch != victim) {
-					if(can_see(victim, ch) && ch->invis_level < 150) {
-						act("$n looks at $p on you.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_VICT);
-						act("$n looks at $p on $N.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_NOTVICT);
-					}
-					act("{MYou take a look at {W$p{M on {W$N{M.{x", ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-				}
-				send_to_char(obj->full_description, ch);
-				send_to_char("\n\r", ch);
-				return;
-		        }
-
-		    if (count > 0 && count != number)
-		    {
-			if (count == 1)
-			    sprintf(buf, "You only see one %s here.\n\r", arg3);
-			else
-			    sprintf(buf, "You only see %d of those here.\n\r", count);
-
-			send_to_char(buf, ch);
-			return;
-		    }
-		    act("You don't see anything like that on $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	    } else
-		show_char_to_char_1(victim, ch);
-	return;
-    }
-
-    /*
-     * hack for the crystal ball in Mordrakes tower
-     */
-    if (!str_cmp(arg1, "at"))
-    {
-	for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
-	{
-	    if (obj->pIndexData->vnum == 152533)
-	    {
-		CHAR_DATA *victim;
-
-		send_to_char(
-		    "{MThe crystal ball sparks and splutters as an image appears.{x\n\r", ch);
-		if ((victim = get_char_world(ch, arg2)) == NULL
-		|| (victim->in_room != NULL
-                    && IS_SET(victim->in_room->room_flags, ROOM_SAFE)))
+		if (argument[0] == '\0')
 		{
-		    send_to_char
-			("{MThe image blurs and fades into nothing.{x\n\r",
-			 ch);
-		    return;
+			send_to_char("Look in what?\n\r", ch);
+			return;
 		}
 
-		act("For a moment in time you see through the eyes of $N!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		act("You feel a momentary shiver up your spine as if you were being watched.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		act("$n peers into the crystal ball.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		if ((obj = get_obj_here(ch, NULL, argument)) == NULL)
+		{
+			send_to_char("You do not see that here.\n\r", ch);
+			return;
+		}
 
-		//Updated from show_room_to_char to show_room. -- Tieryo 08/18/2010
-		show_room(ch,victim->in_room,true,false,false);
+		switch (obj->item_type)
+		{
+		default:
+			send_to_char("That is not a container.\n\r", ch);
+			break;
+
+		case ITEM_DRINK_CON:
+			if (obj->value[1] <= 0)
+			{
+				send_to_char("It is empty.\n\r", ch);
+				break;
+			}
+
+			sprintf(buf, "It's %sfilled with a %s liquid.\n\r",
+				obj->value[1] < obj->value[0] / 4 ? "less than half-" :
+					obj->value[1] < 3 * obj->value[0] / 4 ? "about half-" : "more than half-",
+				liq_table[obj->value[2]].liq_colour);
+			send_to_char(buf, ch);
+			break;
+
+		case ITEM_CONTAINER:
+		case ITEM_CART:
+		case ITEM_CORPSE_NPC:
+		case ITEM_WEAPON_CONTAINER:
+		case ITEM_CORPSE_PC:
+			if (obj->item_type == ITEM_CONTAINER && IS_SET(obj->value[1], CONT_CLOSED))
+			{
+				act("$p is closed.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+				break;
+			}
+
+			act("$p holds:", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			show_list_to_char(obj->contains, ch, TRUE, TRUE);
+			break;
+		}
 		return;
-	    }
 	}
-    }
 
-    /* look at an object in the inventory */
-    for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
-    {
+	// look <person>[ <worn item>]
+	if ((victim = get_char_room(ch, NULL, arg1)) != NULL)
+	{
+
+		if(argument[0])
+		{
+			number = number_argument(argument, arg3);
+			count = 0;
+			// look at an object in the inventory
+			for (obj = victim->carrying; obj != NULL; obj = obj->next_content)
+				if (can_see_obj(ch, obj) && obj->wear_loc != WEAR_NONE && wear_params[obj->wear_loc][WEAR_PARAM_SEEN] &&
+					is_name(arg3, obj->name) && (++count == number))
+				{
+					if (ch != victim)
+					{
+						if(can_see(victim, ch) && ch->invis_level < LEVEL_IMMORTAL)
+						{
+							act("$n looks at $p on you.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_VICT);
+							act("$n looks at $p on $N.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_NOTVICT);
+						}
+						act("{MYou take a look at {W$p{M on {W$N{M.{x", ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+					}
+					send_to_char(obj->full_description, ch);
+					send_to_char("\n\r", ch);
+					return;
+				}
+
+			if (count > 0 && count != number)
+			{
+				if (count == 1)
+					sprintf(buf, "You only see one %s here.\n\r", arg3);
+				else
+					sprintf(buf, "You only see %d of those here.\n\r", count);
+
+				send_to_char(buf, ch);
+				return;
+			}
+
+			act("You don't see anything like that on $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		} else
+			show_char_to_char_1(victim, ch);
+		return;
+	}
+
+	// hack for the crystal ball in Mordrakes tower
+	if (!str_cmp(arg1, "at"))
+	{
+		for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
+		{
+			if (obj->pIndexData->vnum == 152533)
+			{
+				CHAR_DATA *victim;
+
+				send_to_char("{MThe crystal ball sparks and splutters as an image appears.{x\n\r", ch);
+				if ((victim = get_char_world(ch, argument)) == NULL ||
+					(victim->in_room != NULL && IS_SET(victim->in_room->room_flags, ROOM_SAFE)))
+				{
+					send_to_char("{MThe image blurs and fades into nothing.{x\n\r", ch);
+					return;
+				}
+
+				act("For a moment in time you see through the eyes of $N!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				act("You feel a momentary shiver up your spine as if you were being watched.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				act("$n peers into the crystal ball.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+
+				//Updated from show_room_to_char to show_room. -- Tieryo 08/18/2010
+				show_room(ch,victim->in_room,true,false,false);
+				return;
+			}
+		}
+	}
+
+	/* look at an object in the inventory */
+	for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
+	{
 		perform_lore = FALSE;
 		if (can_see_obj(ch, obj))
 		{
-		    /* Can person lore object */
-	    	perform_lore = FALSE;
-	    	if ((IS_NPC(ch) || !IS_SET(ch->act2, PLR_NOLORE)) &&
+			/* Can person lore object */
+			perform_lore = FALSE;
+			if ((IS_NPC(ch) || !IS_SET(ch->act2, PLR_NOLORE)) &&
 				get_skill(ch, gsn_lore) > 0 &&
-	    		number_percent() <= get_skill(ch, skill_lookup("lore")) &&
-	    		!IS_SET(obj->extra2_flags, ITEM_NO_LORE))
-	    		perform_lore = TRUE;
+				number_percent() <= get_skill(ch, skill_lookup("lore")) &&
+				!IS_SET(obj->extra2_flags, ITEM_NO_LORE))
+				perform_lore = TRUE;
 
-	    	pdesc = get_extra_descr(arg3, obj->extra_descr);
-	    	if (pdesc != NULL)
-	    	{
+			pdesc = get_extra_descr(arg3, obj->extra_descr);
+			if (pdesc != NULL)
+			{
 				if (++count == number)
 				{
-				    send_to_char(pdesc, ch);
-				    if (perform_lore)
-		    		{
+					send_to_char(pdesc, ch);
+					if (perform_lore)
+					{
 						send_to_char ("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
 						spell_identify(gsn_lore, ch->tot_level,ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
-		    		}
-				    else
-				        send_to_char("\n\r", ch);
+					}
+					else
+						send_to_char("\n\r", ch);
 
-		    		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
-		    		check_improve(ch, gsn_lore, TRUE, 10);
-		    		return;
-				}
-				else
-				    continue;
-	    	}
-
-	    	pdesc = get_extra_descr(arg3, obj->pIndexData->extra_descr);
-	    	if (pdesc != NULL)
-	    	{
-				if (++count == number)
-				{
-				    send_to_char(pdesc, ch);
-				    if (perform_lore)
-				    {
-						send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-						spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
-				    }
-				    else
-				        send_to_char("\n\r", ch);
-
-				    p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
-				    check_improve(ch, gsn_lore, TRUE, 10);
-				    return;
+					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+					check_improve(ch, gsn_lore, TRUE, 10);
+					return;
 				}
 				else
 					continue;
-		    }
+			}
 
-		    if (is_name(arg3, obj->name))
-		    {
+			pdesc = get_extra_descr(arg3, obj->pIndexData->extra_descr);
+			if (pdesc != NULL)
+			{
 				if (++count == number)
 				{
-				    send_to_char(obj->full_description, ch);
-				    if (perform_lore)
-				    {
+					send_to_char(pdesc, ch);
+					if (perform_lore)
+					{
+						send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
+						spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
+					}
+					else
+						send_to_char("\n\r", ch);
+
+					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+					check_improve(ch, gsn_lore, TRUE, 10);
+					return;
+				}
+				else
+					continue;
+			}
+
+			if (is_name(arg3, obj->name))
+			{
+				if (++count == number)
+				{
+					send_to_char(obj->full_description, ch);
+					if (perform_lore)
+					{
 						send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
 						spell_identify(gsn_lore, ch->tot_level,ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
-				    }
-				    else
-				        send_to_char("\n\r", ch);
+					}
+					else
+						send_to_char("\n\r", ch);
 
-				    p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
-				    check_improve(ch, gsn_lore, TRUE, 10);
-
+					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+					check_improve(ch, gsn_lore, TRUE, 10);
 
 					if( obj->item_type == ITEM_SEXTANT )
 					{
@@ -2127,7 +2115,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 					}
 					else if(obj->item_type == ITEM_TELESCOPE)
 					{
-						look_through_telescope(ch, obj, arg2);
+						look_through_telescope(ch, obj, argument);
 					}
 					else if(obj->item_type == ITEM_COMPASS)
 					{
@@ -2162,176 +2150,174 @@ void do_look(CHAR_DATA * ch, char *argument)
 							act("{DThe soul of {x$T{D has left this world.", ch, NULL, NULL, NULL, NULL, NULL, obj->owner, TO_CHAR);
 					}
 
-				    return;
+					return;
 				}
-		    }
-		}
-    }
-
-    for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
-    {
-	if (can_see_obj(ch, obj))
-	{
-	    /* Can person lore object */
-	    perform_lore = FALSE;
-	    if ((IS_NPC(ch) || !IS_SET(ch->act2, PLR_NOLORE)) &&
-			get_skill(ch, gsn_lore) > 0 &&
-			number_percent() <= get_skill(ch, skill_lookup("lore")) &&
-			!IS_SET(obj->extra2_flags, ITEM_NO_LORE))
-			perform_lore = TRUE;
-
-	    /* Check extra desc first */
-	    pdesc = get_extra_descr(arg3, obj->extra_descr);
-	    if (pdesc != NULL)
-		if (++count == number)
-		{
-		    send_to_char(pdesc, ch);
-		    if (perform_lore)
-		    {
-				send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-				spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
-		    }
-		    else
-		        send_to_char("\n\r", ch);
-
-
-		    p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
-		    check_improve(ch, gsn_lore, TRUE, 10);
-		    return;
-		}
-
-	    pdesc = get_extra_descr(arg3, obj->pIndexData->extra_descr);
-	    if (pdesc != NULL)
-		if (++count == number)
-		{
-		    send_to_char(pdesc, ch);
-		    if (perform_lore)
-		    {
-				send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-				spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
-		    }
-			else
-				send_to_char("\n\r", ch);
-
-		    p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
-		    check_improve(ch, gsn_lore, TRUE, 10);
-		    return;
-		}
-
-	    if (is_name(arg3, obj->name))
-		if (++count == number)
-		{
-		    send_to_char(obj->full_description, ch);
-/*		    send_to_char("\n\r", ch); */
-		    if (perform_lore)
-		    {
-				send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-				spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
-		    }
-			else
-				send_to_char("\n\r", ch);
-
-		    p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
-		    check_improve(ch, gsn_lore, TRUE, 10);
-
-		    if( obj->item_type == ITEM_TELESCOPE )
-		    {
-				look_through_telescope(ch, obj, arg2);
 			}
-			else if(obj->item_type == ITEM_COMPASS)
+		}
+	}
+
+	for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
+	{
+		if (can_see_obj(ch, obj))
+		{
+			/* Can person lore object */
+			perform_lore = FALSE;
+			if ((IS_NPC(ch) || !IS_SET(ch->act2, PLR_NOLORE)) &&
+				get_skill(ch, gsn_lore) > 0 &&
+				number_percent() <= get_skill(ch, skill_lookup("lore")) &&
+				!IS_SET(obj->extra2_flags, ITEM_NO_LORE))
+				perform_lore = TRUE;
+
+			/* Check extra desc first */
+			pdesc = get_extra_descr(arg3, obj->extra_descr);
+			if (pdesc != NULL)
+			if (++count == number)
 			{
-				look_compass(ch, obj);
+				send_to_char(pdesc, ch);
+				if (perform_lore)
+				{
+					send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
+					spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
+				}
+				else
+					send_to_char("\n\r", ch);
+
+				p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+				check_improve(ch, gsn_lore, TRUE, 10);
+				return;
 			}
-		    return;
+
+			pdesc = get_extra_descr(arg3, obj->pIndexData->extra_descr);
+			if (pdesc != NULL)
+				if (++count == number)
+				{
+					send_to_char(pdesc, ch);
+					if (perform_lore)
+					{
+						send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
+						spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
+					}
+					else
+						send_to_char("\n\r", ch);
+
+					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+					check_improve(ch, gsn_lore, TRUE, 10);
+					return;
+				}
+
+			if (is_name(arg3, obj->name))
+				if (++count == number)
+				{
+					send_to_char(obj->full_description, ch);
+					if (perform_lore)
+					{
+						send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
+						spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
+					}
+					else
+						send_to_char("\n\r", ch);
+
+					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+					check_improve(ch, gsn_lore, TRUE, 10);
+
+					if( obj->item_type == ITEM_TELESCOPE )
+					{
+						look_through_telescope(ch, obj, argument);
+					}
+					else if(obj->item_type == ITEM_COMPASS)
+					{
+						look_compass(ch, obj);
+					}
+					return;
+				}
 		}
 	}
-    }
 
-    pdesc = get_extra_descr(arg3, ch->in_room->extra_descr);
-    if (pdesc != NULL)
-    {
-	if (++count == number)
+	pdesc = get_extra_descr(arg3, ch->in_room->extra_descr);
+	if (pdesc != NULL)
 	{
-	    send_to_char(pdesc, ch);
-	    return;
-	}
-    }
-
-    if (count > 0 && count != number)
-    {
-	if (count == 1)
-	    sprintf(buf, "You only see one %s here.\n\r", arg3);
-	else
-	    sprintf(buf, "You only see %d of those here.\n\r", count);
-
-	send_to_char(buf, ch);
-	return;
-    }
-
-    /* look <exit keyword> */
-    i = 0;
-    for (pexit = ch->in_room->exit[i]; i < MAX_DIR; pexit = ch->in_room->exit[i])
-    {
-	if (pexit != NULL
-	&& pexit->u1.to_room != NULL
-	&& pexit->keyword != NULL
-	&& pexit->keyword[0] != '\0'
-	&& pexit->keyword[0] != ' '
-	&& !str_cmp(pexit->keyword, arg1)
-	&& pexit->short_desc != NULL
-	&& pexit->short_desc[0] != '\0')
-	{
-	    send_to_char(pexit->short_desc, ch);
-	    return;
+		if (++count == number)
+		{
+			send_to_char(pdesc, ch);
+			return;
+		}
 	}
 
-	i++;
-    }
+	if (count > 0 && count != number)
+	{
+		if (count == 1)
+			sprintf(buf, "You only see one %s here.\n\r", arg3);
+		else
+			sprintf(buf, "You only see %d of those here.\n\r", count);
 
-    /* look <direction> */
-    if (!str_cmp(arg1, "n") || !str_cmp(arg1, "north"))
-	door = DIR_NORTH;
-    else if (!str_cmp(arg1, "e") || !str_cmp(arg1, "east"))
-	door = DIR_EAST;
-    else if (!str_cmp(arg1, "s") || !str_cmp(arg1, "south"))
-	door = DIR_SOUTH;
-    else if (!str_cmp(arg1, "w") || !str_cmp(arg1, "west"))
-	door = DIR_WEST;
-    else if (!str_cmp(arg1, "u") || !str_cmp(arg1, "up"))
-	door = DIR_UP;
-    else if (!str_cmp(arg1, "d") || !str_cmp(arg1, "down"))
-	door = DIR_DOWN;
-    else if (!str_cmp(arg1, "ne") || !str_cmp(arg1, "northeast"))
-	door = DIR_NORTHEAST;
-    else if (!str_cmp(arg1, "nw") || !str_cmp(arg1, "northwest"))
-	door = DIR_NORTHWEST;
-    else if (!str_cmp(arg1, "se") || !str_cmp(arg1, "southeast"))
-	door = DIR_SOUTHEAST;
-    else if (!str_cmp(arg1, "sw") || !str_cmp(arg1, "southwest"))
-	door = DIR_SOUTHWEST;
-    else {
-	send_to_char("You do not see that here.\n\r", ch);
-	return;
-    }
+		send_to_char(buf, ch);
+		return;
+	}
 
-    /*
-     * 'look direction'
-     */
-    if ((pexit = ch->in_room->exit[door]) == NULL || pexit->u1.to_room == NULL)
-    {
+	/* look <exit keyword> */
+	for (i = 0; i < MAX_DIR; i++)
+	{
+		pexit = ch->in_room->exit[i];
+		if (pexit != NULL &&
+			pexit->u1.to_room != NULL &&
+			(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND) &&		// Hidden exists should not be included in this search
+			pexit->keyword != NULL &&
+			pexit->keyword[0] != '\0' &&
+			pexit->keyword[0] != ' ' &&
+			pexit->keyword[0] != '.' &&
+			!str_cmp(pexit->keyword, arg1) &&
+			pexit->short_desc != NULL &&
+			pexit->short_desc[0] != '\0')
+		{
+			send_to_char(pexit->short_desc, ch);
+			return;
+		}
+	}
+
+	/* look <direction> */
+	if (!str_cmp(arg1, "n") || !str_cmp(arg1, "north"))
+		door = DIR_NORTH;
+	else if (!str_cmp(arg1, "e") || !str_cmp(arg1, "east"))
+		door = DIR_EAST;
+	else if (!str_cmp(arg1, "s") || !str_cmp(arg1, "south"))
+		door = DIR_SOUTH;
+	else if (!str_cmp(arg1, "w") || !str_cmp(arg1, "west"))
+		door = DIR_WEST;
+	else if (!str_cmp(arg1, "u") || !str_cmp(arg1, "up"))
+		door = DIR_UP;
+	else if (!str_cmp(arg1, "d") || !str_cmp(arg1, "down"))
+		door = DIR_DOWN;
+	else if (!str_cmp(arg1, "ne") || !str_cmp(arg1, "northeast"))
+		door = DIR_NORTHEAST;
+	else if (!str_cmp(arg1, "nw") || !str_cmp(arg1, "northwest"))
+		door = DIR_NORTHWEST;
+	else if (!str_cmp(arg1, "se") || !str_cmp(arg1, "southeast"))
+		door = DIR_SOUTHEAST;
+	else if (!str_cmp(arg1, "sw") || !str_cmp(arg1, "southwest"))
+		door = DIR_SOUTHWEST;
+	else {
+		send_to_char("You do not see that here.\n\r", ch);
+		return;
+	}
+
+	// 'look direction'
+	if ((pexit = ch->in_room->exit[door]) == NULL || pexit->u1.to_room == NULL)
+	{
 		// Check if this is a wilds room
 		//  skip up and down directions
-		if(ch->in_room->wilds && door != DIR_UP && door != DIR_DOWN) {
+		if(ch->in_room->wilds && door != DIR_UP && door != DIR_DOWN)
+		{
 			WILDS_TERRAIN *pTerrain;
 			int to_x = get_wilds_vroom_x_by_dir(ch->in_room->wilds, ch->in_room->x, ch->in_room->y, door);
 			int to_y = get_wilds_vroom_y_by_dir(ch->in_room->wilds, ch->in_room->x, ch->in_room->y, door);
 
 			look_room = get_wilds_vroom(ch->in_room->wilds, to_x, to_y);
-			if( look_room == NULL ) {
-
+			if( look_room == NULL )
+			{
 				pTerrain = get_terrain_by_coors(ch->in_room->wilds, to_x, to_y);
 
-				if (pTerrain != NULL && !pTerrain->nonroom) {
+				if (pTerrain != NULL && !pTerrain->nonroom)
+				{
 					int vp_x, vp_y;
 
 					vp_x = get_squares_to_show_x(ch->wildview_bonus_x);
@@ -2343,40 +2329,46 @@ void do_look(CHAR_DATA * ch, char *argument)
 					if (reckoning_timer > 0 && pre_reckoning == 0 && !IS_IMMORTAL(ch))
 						send_to_char("     {MA heavy thick purple mist obscures the view.{x\n\r", ch);
 
-
 					return;
 				}
 			}
 		}
 
-		if( look_room == NULL ) {
+		if( look_room == NULL )
+		{
 			send_to_char("Nothing special there.\n\r", ch);
 			return;
 		}
-    } else {
-
-	    if (IS_SET(pexit->exit_info, EX_HIDDEN) && !IS_SET(pexit->exit_info, EX_FOUND)) {
+	}
+	else
+	{
+		if (IS_SET(pexit->exit_info, EX_HIDDEN) && !IS_SET(pexit->exit_info, EX_FOUND))
+		{
 			send_to_char("Nothing special there.\n\r", ch);
 			return;
-	    }
+		}
 
-	    if (IS_SET(pexit->exit_info, EX_CLOSED)) {
-			if (pexit->keyword != NULL && pexit->keyword[0] != '\0' && pexit->keyword[0] != ' ') {
-			    act("You can't see past the $d.", ch, NULL, NULL, NULL, NULL, NULL, pexit->keyword, TO_CHAR);
-			    return;
-			} else {
-			    send_to_char("You fail to see further in that direction.\n\r", ch);
-			    return;
+		if (IS_SET(pexit->exit_info, EX_CLOSED))
+		{
+			if (pexit->keyword != NULL && pexit->keyword[0] != '\0' && pexit->keyword[0] != ' ')
+			{
+				act("You can't see past the $d.", ch, NULL, NULL, NULL, NULL, NULL, pexit->keyword, TO_CHAR);
+				return;
 			}
-	    }
+			else
+			{
+				send_to_char("You fail to see further in that direction.\n\r", ch);
+				return;
+			}
+		}
 
-	    look_room = pexit->u1.to_room;
+		look_room = pexit->u1.to_room;
 	}
 
-    char_room = ch->in_room;
-    ch->in_room = look_room;
-    do_function(ch, &do_look, "auto");
-    ch->in_room = char_room;
+	char_room = ch->in_room;
+	ch->in_room = look_room;
+	do_function(ch, &do_look, "auto");
+	ch->in_room = char_room;
 }
 
 
@@ -7422,7 +7414,7 @@ void look_compass(CHAR_DATA *ch, OBJ_DATA *compass)
 			if( dx != 0 || dy != 0 )
 			{
 				heading = (int)(180 * atan2(dx, dy) / 3.14159);
-				if( heading < -180 ) heading += 360;
+				if( heading < 0 ) heading += 360;
 			}
 		}
 	}
