@@ -73,12 +73,20 @@ OBJ_DATA* create_treasure_map(WILDS_DATA *pWilds, AREA_DATA *pArea)
 		pRoom = create_wilds_vroom(pWilds, vx, vy);
 
 	obj_to_room(treasure, pRoom);
+	SET_BIT(treasure->extra2_flags, ITEM_BURIED);	// Bury the treasure, yar!
 
-	int w = get_squares_to_show_x(0);
-	int h = get_squares_to_show_y(0);
+	int w = get_squares_to_show_x(0) - 1;
+	int h = get_squares_to_show_y(0) - 1;
 
 	int wx = vx + number_range(-w, w);
 	int wy = vy + number_range(-h, h);
+
+	// 5% chance the X is off by +/-1
+	if( number_percent() < 5 )
+	{
+		vx += number_range(-1, 1);
+		vy += number_range(-1, 1);
+	}
 
 	// Get closest area
 	for (closestArea = area_first; closestArea != NULL; closestArea = closestArea->next)
