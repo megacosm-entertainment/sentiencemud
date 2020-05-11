@@ -23,6 +23,11 @@
 
 OBJ_DATA *create_wilderness_map(WILDS_DATA *pWilds, int vx, int vy, OBJ_DATA *scroll, int offset)
 {
+	int distance;
+	AREA_DATA *bestArea = NULL;
+	AREA_DATA *closestArea;
+	int bestDistance = 200;
+
 	if( !pWilds ) return NULL;
 	if( !scroll ) return NULL;
 
@@ -88,10 +93,6 @@ OBJ_DATA *create_treasure_map(WILDS_DATA *pWilds, AREA_DATA *pArea, OBJ_DATA *tr
 {
 	ROOM_INDEX_DATA *pRoom = NULL;
 	OBJ_DATA *scroll;
-	AREA_DATA *closestArea;
-	int distance;
-	AREA_DATA *bestArea = NULL;
-	int bestDistance = 200;
 	int vx, vy;
 
 	if( !IS_VALID(treasure) ) return NULL;
@@ -102,7 +103,7 @@ OBJ_DATA *create_treasure_map(WILDS_DATA *pWilds, AREA_DATA *pArea, OBJ_DATA *tr
 	{
 		if( treasure->carried_by )
 			obj_from_char(treasure);
-		else if( treasure->in_obj);
+		else if( treasure->in_obj)
 			obj_from_obj(treasure);
 		else if( pRoom )
 			obj_from_room(treasure);
