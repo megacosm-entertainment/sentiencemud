@@ -66,6 +66,9 @@ OBJ_DATA* create_treasure_map(WILDS_DATA *pWilds)
 	// Get closest area
 	for (closestArea = area_first; closestArea != NULL; closestArea = closestArea->next)
 	{
+		if( !closestArea->open )
+			continue;
+
 		distance = (int) sqrt(
 				( closestArea->x - vx ) * ( closestArea->x - vx ) +
 				( closestArea->y - vy ) * ( closestArea->y - vy ) );
