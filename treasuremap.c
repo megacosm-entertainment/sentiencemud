@@ -156,6 +156,7 @@ OBJ_DATA *create_treasure_map(WILDS_DATA *pWilds, AREA_DATA *pArea, OBJ_DATA *tr
 
 void do_spawntreasuremap(CHAR_DATA *ch, char *argument)
 {
+	char arg[MIL];
 	AREA_DATA *area = NULL;
 
 	if( !IN_WILDERNESS(ch) )
@@ -164,20 +165,45 @@ void do_spawntreasuremap(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if( argument[0] != '\0' )
+	argument = one_argument(argument, arg);
+
+	if( arg[0] != '\0' )
 	{
 		for (area = area_first; area != NULL; area = area->next) {
-			if (!is_number(argument) && !str_infix(argument, area->name)) {
+			if (!is_number(arg) && !str_infix(argument, area->name)) {
 				break;
 			}
 		}
 	}
 
-	// find treasure
-	int i = number_range(0, MAX_TREASURES-1);
+	bool generated = false;
+	OBJ_DATA *treasure = NULL;
+	if( argument[0] != '\0' )
+	{
+		treasure = get_obj_carry(ch, argument, ch);
 
-	// create object
-	OBJ_DATA *treasure = create_object(get_obj_index(treasure_table[i]), 0, TRUE);
+		if( treasure == NULL )
+		{
+			send_to_char("You do not have that.\n\r", ch);
+			return;
+		}
+	}
+	else
+	{
+		// find treasure
+		int i = number_range(0, MAX_TREASURES-1);
+
+		// create object
+		treasure = create_object(get_obj_index(treasure_table[i]), 0, TRUE);
+
+		if( !treasure )
+		{
+			send_to_char("Try again next time.\n\r", ch);
+			return;
+		}
+
+		generated = true;
+	}
 
 	OBJ_DATA *map = create_treasure_map(ch->in_room->wilds, area, treasure);
 
@@ -192,15 +218,18 @@ void do_spawntreasuremap(CHAR_DATA *ch, char *argument)
 	}
 	else
 	{
-		if( treasure->in_room )
-			extract_obj(treasure);
-		else
+		if( generated )
 		{
-			list_remlink(loaded_objects, treasure);
-			--treasure->pIndexData->count;
-			free_obj(treasure);
+			if( treasure->in_room )
+				extract_obj(treasure);
+			else
+			{
+				list_remlink(loaded_objects, treasure);
+				--treasure->pIndexData->count;
+				free_obj(treasure);
+			}
 		}
-		send_to_char("Try again next time.\n\r", ch);
+		send_to_char("You seem to have misplaced the map.  Try again next time.\n\r", ch);
 		return;
 	}
 }
