@@ -84,6 +84,12 @@ OBJ_DATA *create_wilderness_map(WILDS_DATA *pWilds, int vx, int vy, OBJ_DATA *sc
 		scroll->full_description = str_dup(buffer->string);
 
 		free_buf(buffer);
+
+		if( scroll->item_type == ITEM_MAP )
+		{
+			scroll->values[0] = wx;
+			scroll->values[1] = wy;
+		}
 	}
 
 	return scroll;
