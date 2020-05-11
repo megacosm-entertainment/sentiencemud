@@ -22,7 +22,7 @@
 #include "wilds.h"
 
 // Puts some treasure in the wilds, buries it and creates a map
-OBJ_DATA* create_treasure_map(WILDS_DATA *pWilds)
+OBJ_DATA* create_treasure_map(WILDS_DATA *pWilds, AREA_DATA *pArea)
 {
 	int i;
 	ROOM_INDEX_DATA *pRoom = NULL;
@@ -42,8 +42,22 @@ OBJ_DATA* create_treasure_map(WILDS_DATA *pWilds)
 	// Find location for map
 	int vx, vy;
 	while(TRUE) {
-		vx = number_range(0, pWilds->map_size_x - 1);
-		vy = number_range(0, pWilds->map_size_y - 1);
+		if( pArea && pArea->open )
+		{
+			vx = number_range(-200, 200);
+			vy = number_range(-200, 200);
+
+			if( (vx * vx + vy * vy) >= 40000 )
+				continue;
+
+			vx += pArea->x;
+			vy += pArea->y;
+		}
+		else
+		{
+			vx = number_range(0, pWilds->map_size_x - 1);
+			vy = number_range(0, pWilds->map_size_y - 1);
+		}
 
 		WILDS_TERRAIN *pTerrain = get_terrain_by_coors(pWilds, vx, vy);
 
@@ -60,8 +74,11 @@ OBJ_DATA* create_treasure_map(WILDS_DATA *pWilds)
 
 	obj_to_room(treasure, pRoom);
 
-	int wx = vx + number_range(-7, 7);
-	int wy = vy + number_range(-7, 7);
+	int w = get_squares_to_show_x(0);
+	int h = get_squares_to_show_y(0);
+
+	int wx = vx + number_range(-w, w);
+	int wy = vy + number_range(-h, h);
 
 	// Get closest area
 	for (closestArea = area_first; closestArea != NULL; closestArea = closestArea->next)
@@ -112,13 +129,25 @@ OBJ_DATA* create_treasure_map(WILDS_DATA *pWilds)
 
 void do_spawntreasuremap(CHAR_DATA *ch, char *argument)
 {
+	AREA_DATA *area = NULL;
+
 	if( !IN_WILDERNESS(ch) )
 	{
 		send_to_char("You must be in the wilderness.\n\r", ch);
 		return;
 	}
 
-	OBJ_DATA *map = create_treasure_map(ch->in_room->wilds);
+	if( argument[0] != '\0' )
+	{
+		for (area = area_first; area != NULL; area = area->next) {
+			if (!is_number(argument) && !str_infix(argument, area->name)) {
+				break;
+			}
+		}
+	}
+
+
+	OBJ_DATA *map = create_treasure_map(ch->in_room->wilds, area);
 
 	if( map )
 	{
