@@ -21,59 +21,10 @@
 #include "olc.h"
 #include "wilds.h"
 
-// Puts some treasure in the wilds, buries it and creates a map
-OBJ_DATA* create_treasure_map(WILDS_DATA *pWilds, AREA_DATA *pArea)
+OBJ_DATA *create_wilderness_map(WILD_DATA *pWilds, int vx, int vy, OBJ_DATA *scroll, int offset)
 {
-	int i;
-	ROOM_INDEX_DATA *pRoom = NULL;
-	OBJ_DATA *scroll;
-	OBJ_DATA *treasure;
-	AREA_DATA *closestArea;
-	int distance;
-	AREA_DATA *bestArea = NULL;
-	int bestDistance = 200;
-
-	// find treasure
-	i = number_range(0, MAX_TREASURES-1);
-
-	// create object
-	treasure = create_object(get_obj_index(treasure_table[i]), 0, TRUE);
-
-	// Find location for map
-	int vx, vy;
-	while(TRUE) {
-		if( pArea && pArea->open )
-		{
-			vx = number_range(-50, 50);
-			vy = number_range(-50, 50);
-
-			if( (vx * vx + vy * vy) >= 40000 )
-				continue;
-
-			vx += pArea->x;
-			vy += pArea->y;
-		}
-		else
-		{
-			vx = number_range(0, pWilds->map_size_x - 1);
-			vy = number_range(0, pWilds->map_size_y - 1);
-		}
-
-		WILDS_TERRAIN *pTerrain = get_terrain_by_coors(pWilds, vx, vy);
-
-		if( pTerrain != NULL && !pTerrain->nonroom &&
-			pTerrain->template->sector_type != SECT_WATER_SWIM &&
-			pTerrain->template->sector_type != SECT_WATER_NOSWIM)
-		{
-			break;
-		}
-	}
-
-	if( !(pRoom = get_wilds_vroom(pWilds, vx, vy)) )
-		pRoom = create_wilds_vroom(pWilds, vx, vy);
-
-	obj_to_room(treasure, pRoom);
-	SET_BIT(treasure->extra2_flags, ITEM_BURIED);	// Bury the treasure, yar!
+	if( !pWilds ) return NULL;
+	if( !scroll ) return NULL;
 
 	int w = get_squares_to_show_x(0) - 1;
 	int h = get_squares_to_show_y(0) - 1;
@@ -81,8 +32,8 @@ OBJ_DATA* create_treasure_map(WILDS_DATA *pWilds, AREA_DATA *pArea)
 	int wx = vx + number_range(-w, w);
 	int wy = vy + number_range(-h, h);
 
-	// 5% chance the X is off by +/-1
-	if( number_percent() < 5 )
+	// OFFSET% chance the marker is off by +/-1
+	if( number_percent() < offset )
 	{
 		vx += number_range(-1, 1);
 		vy += number_range(-1, 1);
@@ -105,8 +56,6 @@ OBJ_DATA* create_treasure_map(WILDS_DATA *pWilds, AREA_DATA *pArea)
 		}
 	}
 
-	// create the scroll
-	scroll = create_object(get_obj_index(OBJ_VNUM_TREASURE_MAP), 0, TRUE);
 	if (scroll != NULL)
 	{
 		BUFFER *buffer = new_buf();
@@ -118,7 +67,7 @@ OBJ_DATA* create_treasure_map(WILDS_DATA *pWilds, AREA_DATA *pArea)
 
 		if( bestArea )
 		{
-			add_buf(buffer, "\n\r{RX{x marks the spot! The location be near ");
+			add_buf(buffer, "\n\r{RX{x marks the spot! The location is near ");
 			add_buf(buffer, bestArea->name);
 			add_buf(buffer, ".\n\r");
 		}
@@ -133,6 +82,76 @@ OBJ_DATA* create_treasure_map(WILDS_DATA *pWilds, AREA_DATA *pArea)
 	}
 
 	return scroll;
+}
+
+OBJ_DATA *create_treasure_map(WILDS_DATA *pWilds, AREA_DATA *pArea, OBJ_DATA *treasure)
+{
+	ROOM_INDEX_DATA *pRoom = NULL;
+	OBJ_DATA *scroll;
+	AREA_DATA *closestArea;
+	int distance;
+	AREA_DATA *bestArea = NULL;
+	int bestDistance = 200;
+	int vx, vy;
+
+	if( !IS_VALID(treasure) ) return NULL;
+
+	pRoom = obj_room(treasure);
+
+	if( !pRoom || !IS_WILDERNESS(pRoom) || pRoom->wilds != pWilds || treasure->carried_by || treasure->in_obj)
+	{
+		if( treasure->carried_by )
+			obj_from_char(treasure);
+		else if( treasure->in_obj);
+			obj_from_obj(treasure);
+		else if( pRoom )
+			obj_from_room(treasure);
+
+		// Find location for map
+		while(TRUE) {
+			if( pArea && pArea->open )
+			{
+				vx = number_range(-50, 50);
+				vy = number_range(-50, 50);
+
+				if( (vx * vx + vy * vy) >= 40000 )
+					continue;
+
+				vx += pArea->x;
+				vy += pArea->y;
+			}
+			else
+			{
+				vx = number_range(0, pWilds->map_size_x - 1);
+				vy = number_range(0, pWilds->map_size_y - 1);
+			}
+
+			WILDS_TERRAIN *pTerrain = get_terrain_by_coors(pWilds, vx, vy);
+
+			if( pTerrain != NULL && !pTerrain->nonroom &&
+				pTerrain->template->sector_type != SECT_WATER_SWIM &&
+				pTerrain->template->sector_type != SECT_WATER_NOSWIM)
+			{
+				break;
+			}
+		}
+
+		if( !(pRoom = get_wilds_vroom(pWilds, vx, vy)) )
+			pRoom = create_wilds_vroom(pWilds, vx, vy);
+
+		obj_to_room(treasure, pRoom);
+	}
+	else
+	{
+		// In a Wilderess Room already
+		vx = pRoom->x;
+		vy = pRoom->y;
+	}
+
+	// create the scroll
+	scroll = create_object(get_obj_index(OBJ_VNUM_TREASURE_MAP), 0, TRUE);
+
+	return create_wilderness_map(pWilds, vx, vy, scroll, 5);
 }
 
 void do_spawntreasuremap(CHAR_DATA *ch, char *argument)
@@ -154,11 +173,18 @@ void do_spawntreasuremap(CHAR_DATA *ch, char *argument)
 		}
 	}
 
+	// find treasure
+	int i = number_range(0, MAX_TREASURES-1);
 
-	OBJ_DATA *map = create_treasure_map(ch->in_room->wilds, area);
+	// create object
+	OBJ_DATA *treasure = create_object(get_obj_index(treasure_table[i]), 0, TRUE);
+
+	OBJ_DATA *map = create_treasure_map(ch->in_room->wilds, area, treasure);
 
 	if( map )
 	{
+		SET_BIT(treasure->extra2_flags, ITEM_BURIED);	// Bury the treasure, yar!
+
 		obj_to_char(map, ch);
 		act("You spawn $p out of thin air.", ch, NULL, NULL, map, NULL, NULL, NULL, TO_CHAR);
 		act("$n spawns $p out of thin air.", ch, NULL, NULL, map, NULL, NULL, NULL, TO_ROOM);
@@ -166,6 +192,14 @@ void do_spawntreasuremap(CHAR_DATA *ch, char *argument)
 	}
 	else
 	{
+		if( treasure->in_room )
+			extract_obj(treasure);
+		else
+		{
+			list_remlink(loaded_objects, treasure);
+			--treasure->pIndexData->count;
+			free_obj(treasure);
+		}
 		send_to_char("Try again next time.\n\r", ch);
 		return;
 	}
