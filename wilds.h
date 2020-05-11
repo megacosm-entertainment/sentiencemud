@@ -65,6 +65,7 @@ void            show_map_to_char_wyx args(( WILDS_DATA *pWilds, int wx, int wy, 
                                         int vx, int vy, int bonus_view_x, int bonus_view_y, bool olc ));
 void            show_map_to_char args(( CHAR_DATA *ch, CHAR_DATA *to,
                                         int bonus_view_x, int bonus_view_y, bool olc ));
+void get_wilds_mapstring args((BUFFER *buffer, WILDS_DATA *pWilds, int wx, int wy, int vx, int vy, int bonus_view_x, int bonus_view_y));
 
 WILDS_VLINK *vroom_get_to_vlink args((WILDS_DATA *pWilds, int x, int y, int door));
 void show_vroom_header_to_char args((WILDS_TERRAIN *pTerrain, WILDS_DATA *pWilds, int wx, int wy, CHAR_DATA *to));

@@ -589,3 +589,5 @@ DECLARE_DO_FUN( do_ships	);
 DECLARE_DO_FUN( do_expand	);
 DECLARE_DO_FUN( do_collapse	);
 DECLARE_DO_FUN( do_navigate );
+
+DECLARE_DO_FUN( do_spawntreasuremap );

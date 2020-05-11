@@ -7094,7 +7094,7 @@ void extract_invasion_quest(INVASION_QUEST *quest);
 void check_invasion_quest_slay_mob(CHAR_DATA *ch, CHAR_DATA *victim);
 
 /* treasuremap.c */
-OBJ_DATA* create_treasure_map();
+OBJ_DATA* create_treasure_map(WILDS_DATA *pWilds);
 
 /* act_info.c */
 char* get_wilderness_map args((AREA_DATA *pArea, int lx, int ly, int bonus_view_x, int bonus_view_y));

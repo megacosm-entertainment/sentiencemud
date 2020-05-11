@@ -1727,6 +1727,151 @@ void show_map_to_char(CHAR_DATA * ch, CHAR_DATA * to, int bonus_view_x, int bonu
 	show_map_to_char_wyx(pWilds, ch->in_room->x, ch->in_room->y, to, ch->in_room->x, ch->in_room->y, bonus_view_x, bonus_view_y, olc);
 }
 
+void get_wilds_mapstring(BUFFER *buffer, WILDS_DATA *pWilds,
+						int wx, int wy,
+						int vx, int vy,
+						int bonus_view_x, int bonus_view_y)
+{
+    WILDS_TERRAIN *pTerrain;
+    WILDS_VLINK *pVLink;
+    int x, y;
+    long index;
+    DESCRIPTOR_DATA * d;
+    bool found = FALSE;
+    bool foundterrain = FALSE;
+    char j[6];
+    char last_terrain[6];
+    char temp[6];
+    int squares_to_show_x;
+    int squares_to_show_y;
+    bool last_char_same;
+    char last_char;
+    char last_colour_char;
+    char edit_mapstring[80];
+    char buf[MSL];
+    char padding1[MIL];
+    char padding2[MIL];
+    char tlcoor[MIL];
+    char trcoor[MIL];
+    char blcoor[MIL];
+    char brcoor[MIL];
+    int cString;
+    int vp_startx, vp_starty, vp_endx, vp_endy;
+    int i, pad;
+
+    squares_to_show_x = get_squares_to_show_x(bonus_view_x);
+    squares_to_show_y = get_squares_to_show_y(bonus_view_y);
+    last_char_same = FALSE;
+    last_char = ' ';
+    last_colour_char = ' ';
+    edit_mapstring[0] = '\0';
+    send_to_char("\n\r", to);
+
+    vp_startx = wx - squares_to_show_x;
+    vp_endx   = wx + squares_to_show_x;
+    vp_starty = wy - squares_to_show_y;
+    vp_endy   = wy + squares_to_show_y;
+
+    for (y = vp_starty;y <= vp_endy;y++)
+    {
+        cString = 0;
+        for (x = vp_startx;x <= vp_endx;x++)
+
+        {
+            found = FALSE;
+            index = y * pWilds->map_size_x + x;
+
+            if (x >= 0 && x < pWilds->map_size_x && y >= 0 && y < pWilds->map_size_y)
+            {
+				if((pVLink = find_vlink_to_coord(pWilds,x,y)) && pVLink->map_tile && pVLink->map_tile[0]) {
+					strcpy(temp,pVLink->map_tile);
+					found = TRUE;
+				}
+
+                if ((vx == x) && (vy == y))
+                {
+                    sprintf(temp, "{RX{x");
+                    found = TRUE;
+                }
+
+                if (!found)
+                {
+                    sprintf(j, "%c",pWilds->map[index]);
+                    if (!str_cmp(j, last_terrain))
+                    {
+                        sprintf(temp, last_terrain);
+                    }
+                    else
+                    {
+                        foundterrain = FALSE;
+                        for(pTerrain = pWilds->pTerrain;pTerrain;pTerrain = pTerrain->next)
+                        {
+                            if (pWilds->map[index] == pTerrain->mapchar)
+                            {
+                                sprintf(temp, pTerrain->showchar);
+                                sprintf(last_terrain, temp);
+                                foundterrain = TRUE;
+                            }
+
+                        }
+
+                        if (!foundterrain)
+                        {
+                            if (!strcmp(j, "0"))
+                                sprintf(temp, "{YO");
+                            else
+                                sprintf(temp, j);
+                        }
+                    }
+                }
+
+                if (last_char_same
+                    && (temp[2] != last_char
+                        || temp[1] != last_colour_char))
+                {
+                    last_char_same = FALSE;
+                }
+
+                if (temp[2] == last_char && temp[1] == last_colour_char)
+                {
+                     last_char_same = TRUE;
+                }
+
+                if (last_char_same)
+                {
+                     sprintf(temp, "%c", temp[2]);
+                }
+
+				add_buf(buffer, tmp);
+
+                if (last_char_same)
+                {
+                    last_char = temp[0];
+                }
+                else
+                {
+                    last_char = temp[2];
+                    last_colour_char = temp[1];
+                }
+            }
+            else
+            {
+                /* If we're displaying outside the map bounds, fill in with starfield */
+				if (x % 5 + y % 6 == 0 && x % 2 + y % 3 == 0)
+				{
+					last_char = '.'; last_colour_char = 'x';
+					add_buf(buffer, "{x.");
+				}
+				else
+					add_buf(buffer, " ");
+				cString++;
+            }
+        }
+    }
+    return;
+}
+
+
 #if 0
 void show_map_to_char(CHAR_DATA * ch,
                       CHAR_DATA * to,

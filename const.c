@@ -361,7 +361,8 @@ const   long   			plith_docks_table[] 		=
 /* Treasure vnums*/
 const long          treasure_table[] =
 {
-   11001
+	// TODO: TEMPORARY
+	265555
 };
 const   struct wiznet_type      wiznet_table    [] =
 {
