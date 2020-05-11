@@ -1765,7 +1765,6 @@ void get_wilds_mapstring(BUFFER *buffer, WILDS_DATA *pWilds,
     last_char = ' ';
     last_colour_char = ' ';
     edit_mapstring[0] = '\0';
-    send_to_char("\n\r", to);
 
     vp_startx = wx - squares_to_show_x;
     vp_endx   = wx + squares_to_show_x;
@@ -1842,7 +1841,7 @@ void get_wilds_mapstring(BUFFER *buffer, WILDS_DATA *pWilds,
                      sprintf(temp, "%c", temp[2]);
                 }
 
-				add_buf(buffer, tmp);
+				add_buf(buffer, temp);
 
                 if (last_char_same)
                 {

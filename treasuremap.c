@@ -24,10 +24,8 @@
 // Puts some treasure in the wilds, buries it and creates a map
 OBJ_DATA* create_treasure_map(WILDS_DATA *pWilds)
 {
-	long vnum;
 	int i;
 	ROOM_INDEX_DATA *pRoom = NULL;
-	char *map;
 	OBJ_DATA *scroll;
 	OBJ_DATA *treasure;
 	AREA_DATA *closestArea;
