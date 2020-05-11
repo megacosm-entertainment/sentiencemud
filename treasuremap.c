@@ -177,7 +177,7 @@ void do_spawntreasuremap(CHAR_DATA *ch, char *argument)
 	if( arg[0] != '\0' )
 	{
 		for (area = area_first; area != NULL; area = area->next) {
-			if (!is_number(arg) && !str_infix(argument, area->name)) {
+			if (!is_number(arg) && !str_infix(arg, area->name)) {
 				break;
 			}
 		}
