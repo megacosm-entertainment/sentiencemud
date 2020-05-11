@@ -21,7 +21,7 @@
 #include "olc.h"
 #include "wilds.h"
 
-OBJ_DATA *create_wilderness_map(WILD_DATA *pWilds, int vx, int vy, OBJ_DATA *scroll, int offset)
+OBJ_DATA *create_wilderness_map(WILDS_DATA *pWilds, int vx, int vy, OBJ_DATA *scroll, int offset)
 {
 	if( !pWilds ) return NULL;
 	if( !scroll ) return NULL;
