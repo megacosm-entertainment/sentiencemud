@@ -1736,7 +1736,6 @@ void get_wilds_mapstring(BUFFER *buffer, WILDS_DATA *pWilds,
     WILDS_VLINK *pVLink;
     int x, y;
     long index;
-    DESCRIPTOR_DATA * d;
     bool found = FALSE;
     bool foundterrain = FALSE;
     char j[6];
@@ -1747,24 +1746,13 @@ void get_wilds_mapstring(BUFFER *buffer, WILDS_DATA *pWilds,
     bool last_char_same;
     char last_char;
     char last_colour_char;
-    char edit_mapstring[80];
-    char buf[MSL];
-    char padding1[MIL];
-    char padding2[MIL];
-    char tlcoor[MIL];
-    char trcoor[MIL];
-    char blcoor[MIL];
-    char brcoor[MIL];
-    int cString;
     int vp_startx, vp_starty, vp_endx, vp_endy;
-    int i, pad;
 
     squares_to_show_x = get_squares_to_show_x(bonus_view_x);
     squares_to_show_y = get_squares_to_show_y(bonus_view_y);
     last_char_same = FALSE;
     last_char = ' ';
     last_colour_char = ' ';
-    edit_mapstring[0] = '\0';
 
     vp_startx = wx - squares_to_show_x;
     vp_endx   = wx + squares_to_show_x;
@@ -1773,7 +1761,6 @@ void get_wilds_mapstring(BUFFER *buffer, WILDS_DATA *pWilds,
 
     for (y = vp_starty;y <= vp_endy;y++)
     {
-        cString = 0;
         for (x = vp_startx;x <= vp_endx;x++)
 
         {
@@ -1863,9 +1850,9 @@ void get_wilds_mapstring(BUFFER *buffer, WILDS_DATA *pWilds,
 				}
 				else
 					add_buf(buffer, " ");
-				cString++;
             }
         }
+		add_buf(buffer, "\n\r");
     }
     return;
 }
