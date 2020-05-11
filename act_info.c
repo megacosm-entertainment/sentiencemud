@@ -1857,7 +1857,6 @@ void do_look(CHAR_DATA * ch, char *argument)
 {
 	char buf[MAX_STRING_LENGTH];
 	char arg1[MAX_INPUT_LENGTH];
-	char arg2[MAX_INPUT_LENGTH];
 	char arg3[MAX_INPUT_LENGTH];
 	EXIT_DATA *pexit;
 	ROOM_INDEX_DATA *char_room;
@@ -2260,7 +2259,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 		pexit = ch->in_room->exit[i];
 		if (pexit != NULL &&
 			pexit->u1.to_room != NULL &&
-			(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND) &&		// Hidden exists should not be included in this search
+			(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND)) &&		// Hidden exists should not be included in this search
 			pexit->keyword != NULL &&
 			pexit->keyword[0] != '\0' &&
 			pexit->keyword[0] != ' ' &&
