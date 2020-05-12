@@ -1575,6 +1575,7 @@ SCRIPT_CMD(scriptcmd_echoat)
 	switch(arg->type) {
 	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, FALSE); break;
 	case ENT_MOBILE: victim = arg->d.mob; break;
+	case ENT_ROOM: room = arg->d.room; break;
 	case ENT_AREA: area = arg->d.area; break;
 	case ENT_INSTANCE: instance = arg->d.instance; break;
 	case ENT_DUNGEON: dungeon = arg->d.dungeon; break;

@@ -44,7 +44,7 @@ const struct script_cmd_type token_cmd_table[] = {
 	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	TRUE,	TRUE	},
 	{ "echo",				do_tpecho,					FALSE,	TRUE	},
 	{ "echoaround",			do_tpechoaround,			FALSE,	TRUE	},
-	{ "echoat",				do_tpechoat,				FALSE,	TRUE	},
+	{ "echoat",				scriptcmd_echoat,			FALSE,	TRUE	},
 	{ "echobattlespam",		do_tpechobattlespam,		FALSE,	TRUE	},
 	{ "echochurch",			do_tpechochurch,			FALSE,	TRUE	},
 	{ "echogrouparound",	do_tpechogrouparound,		FALSE,	TRUE	},

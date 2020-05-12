@@ -54,7 +54,7 @@ const struct script_cmd_type mob_cmd_table[] = {
 	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	TRUE,	TRUE	},
 	{ "echo",				do_mpecho,					FALSE,	TRUE	},
 	{ "echoaround",			do_mpechoaround,			FALSE,	TRUE	},
-	{ "echoat",				do_mpechoat,				FALSE,	TRUE	},
+	{ "echoat",				scriptcmd_echoat,			FALSE,	TRUE	},
 	{ "echobattlespam",		do_mpechobattlespam,		FALSE,	TRUE	},
 	{ "echochurch",			do_mpechochurch,			FALSE,	TRUE	},
 	{ "echogrouparound",	do_mpechogrouparound,		FALSE,	TRUE	},

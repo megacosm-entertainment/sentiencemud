@@ -45,7 +45,7 @@ const struct script_cmd_type obj_cmd_table[] = {
 	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	TRUE,	TRUE	},
 	{ "echo",				do_opecho,				FALSE,	TRUE	},
 	{ "echoaround",			do_opechoaround,		FALSE,	TRUE	},
-	{ "echoat",				do_opechoat,			FALSE,	TRUE	},
+	{ "echoat",				scriptcmd_echoat,		FALSE,	TRUE	},
 	{ "echobattlespam",		do_opechobattlespam,	FALSE,	TRUE	},
 	{ "echochurch",			do_opechochurch,		FALSE,	TRUE	},
 	{ "echogrouparound",	do_opechogrouparound,	FALSE,	TRUE	},

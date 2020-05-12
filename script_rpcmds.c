@@ -46,7 +46,7 @@ const struct script_cmd_type room_cmd_table[] = {
 	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	TRUE,	TRUE	},
 	{ "echo",				do_rpecho,				FALSE,	TRUE	},
 	{ "echoaround",			do_rpechoaround,		FALSE,	TRUE	},
-	{ "echoat",				do_rpechoat,			FALSE,	TRUE	},
+	{ "echoat",				scriptcmd_echoat,			FALSE,	TRUE	},
 	{ "echobattlespam",		do_rpechobattlespam,	FALSE,	TRUE	},
 	{ "echochurch",			do_rpechochurch,		FALSE,	TRUE	},
 	{ "echogrouparound",	do_rpechogrouparound,	FALSE,	TRUE	},
