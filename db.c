@@ -2099,6 +2099,18 @@ void copy_shop(SHOP_DATA *to_shop, SHOP_DATA *from_shop)
 	if( to_shop->restock_interval > 0 )
 		to_shop->next_restock = current_time + to_shop->restock_interval * 60;
 
+	if( to_shop->shipyard > 0 )
+	{
+		to_shop->shipyard = from_shop->shipyard;
+		to_shop->shipyard_region[0][0] = from_shop->shipyard_region[0][0];
+		to_shop->shipyard_region[0][1] = from_shop->shipyard_region[0][1];
+		to_shop->shipyard_region[1][0] = from_shop->shipyard_region[1][0];
+		to_shop->shipyard_region[1][1] = from_shop->shipyard_region[1][1];
+
+		free_string(to_shop->shipyard_description);
+		to_shop->shipyard_description = str_dup(from_shop->shipyard_description);
+	}
+
 	to_shop->discount = URANGE(0,from_shop->discount,100);
 
 	if( from_shop->stock )
