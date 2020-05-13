@@ -6074,6 +6074,40 @@ void do_list(CHAR_DATA *ch, char *argument)
 				}
 				break;
 
+			case STOCK_SHIP:
+				if( stock->vnum > 0 && stock->ship != NULL )
+				{
+					if( arg[0] != '\0' && !is_name(arg, stock->ship->name) )
+						continue;
+
+					if (!found)
+					{
+						found = TRUE;
+						send_to_char("{B[ {GLv       Price     Qty{B ]{x {YItem{x\n\r", ch);
+					}
+
+					int level = stock->level;
+					level = UMAX(level, 1);
+
+					char *pricing = get_shop_stock_price(stock);
+					int pwidth = get_colour_width(pricing) + 14;
+
+					char *descr =
+						IS_NULLSTR(stock->custom_descr) ? stock->ship->name : stock->custom_descr;
+
+					if( stock->max_quantity > 0 )
+					{
+						sprintf(buf,"{B[{x%3d %*s {Y%4d{B ]{x %s\n\r", level,pwidth,pricing,stock->quantity,descr);
+					}
+					else
+					{
+						sprintf(buf,"{B[{x%3d %*s {Y ---{B ]{x %s\n\r", level,pwidth,pricing,descr);
+					}
+
+					send_to_char(buf, ch);
+				}
+				break;
+
 			default:
 				if(!IS_NULLSTR(stock->custom_keyword))
 				{
