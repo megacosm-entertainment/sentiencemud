@@ -2866,11 +2866,11 @@ bool _is_terrain_land(WILDS_DATA *wilds, int x, int y)
 	if( x < 0 || x >= wilds->map_size_x ) return false;
 	if( y < 0 || y >= wilds->map_size_y ) return false;
 
-	WILDS_TERRAIN *terrain = get_terrain_by_coords(wilds, _x, _y);
+	WILDS_TERRAIN *terrain = get_terrain_by_coors(wilds, x, y);
 
 	return ( terrain && !terrain->nonroom &&
 		terrain->template->sector_type != SECT_WATER_NOSWIM &&
-		terrain->template->sector_type != SECT_WATER_SWIM) );
+		terrain->template->sector_type != SECT_WATER_SWIM);
 }
 
 // Not very smart, just checks whether there is a SAFE_HARBOR water room next to land
@@ -2890,12 +2890,12 @@ bool is_shipyard_valid(long wuid, int x1, int y1, int x2, int y2)
 	{
 		for( int x = x1; x <= x2; x++ )
 		{
-			WILDS_TERRAIN *terrain = get_terrain_by_coords(wilds, x, y);
+			WILDS_TERRAIN *terrain = get_terrain_by_coors(wilds, x, y);
 
 			if( terrain && !terrain->nonroom &&
 				(terrain->template->sector_type == SECT_WATER_NOSWIM ||
 				 terrain->template->sector_type == SECT_WATER_SWIM) &&
-				IS_SET(terrain->template->room2_flag, ROOM_SAFE_HARBOR) )
+				IS_SET(terrain->template->room2_flags, ROOM_SAFE_HARBOR) )
 			{
 
 				if( _is_terrain_land(wilds, x-1,y) ||
@@ -2924,12 +2924,12 @@ bool get_shipyard_location(long wuid, int x1, int y1, int x2, int y2, int *x, in
 		int _x = number_range(x1, x2);
 		int _y = number_range(y1, y2);
 
-		WILDS_TERRAIN *terrain = get_terrain_by_coords(wilds, _x, _y);
+		WILDS_TERRAIN *terrain = get_terrain_by_coors(wilds, _x, _y);
 
 		if( terrain && !terrain->nonroom &&
 			(terrain->template->sector_type == SECT_WATER_NOSWIM ||
 			 terrain->template->sector_type == SECT_WATER_SWIM) &&
-			IS_SET(terrain->template->room2_flag, ROOM_SAFE_HARBOR) )
+			IS_SET(terrain->template->room2_flags, ROOM_SAFE_HARBOR) )
 		{
 			if( _is_terrain_land(wilds, _x-1,_y) ||
 				_is_terrain_land(wilds, _x+1,_y) ||
@@ -2947,6 +2947,7 @@ bool get_shipyard_location(long wuid, int x1, int y1, int x2, int y2, int *x, in
 
 SHIP_DATA *purchase_ship(CHAR_DATA *ch, long vnum, SHOP_DATA *shop)
 {
+	char buf[MSL];
 	WILDS_DATA *wilds = get_wilds_from_uid(NULL, shop->shipyard);
 
 	if(!wilds) return NULL;
@@ -2968,17 +2969,13 @@ SHIP_DATA *purchase_ship(CHAR_DATA *ch, long vnum, SHOP_DATA *shop)
 		return NULL;
 	}
 
-	ship->owner = owner;
-	if( owner )
-	{
-		ship->owner_uid[0] = owner->id[0];
-		ship->owner_uid[1] = owner->id[1];
-	}
+	ship->owner = ch;
+	ship->owner_uid[0] = ch->id[0];
+	ship->owner_uid[1] = ch->id[1];
 
 	ROOM_INDEX_DATA *room = get_wilds_vroom(wilds, x, y);
 	if( !room )
 		room = create_wilds_vroom(wilds, x, y);
-
 
 	free_string(ship->ship->name);
 	sprintf(buf, ship->ship->pIndexData->name, ch->name);
