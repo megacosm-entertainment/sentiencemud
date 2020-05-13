@@ -9278,10 +9278,17 @@ MEDIT(medit_shop)
 				if( is_number(argument) )
 				{
 					long vnum = atol(argument);
+					SHIP_INDEX_DATA *ship;
 
-					if( !get_ship_index(vnum) )
+					if( !(ship = get_ship_index(vnum)) )
 					{
 						send_to_char("That ship does not exist.\n\r", ch);
+						return FALSE;
+					}
+
+					if( !ship->blueprint || !ship->object )
+					{
+						send_to_char("Ship is incomplete.  Cannot be sold yet.\n\r", ch);
 						return FALSE;
 					}
 

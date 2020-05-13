@@ -2790,6 +2790,7 @@ void do_ship(CHAR_DATA *ch, char *argument)
 					 "         ship launch       (airship only)\n\r"
 					 "         ship list\n\r"
 					 "         ship navigate[ <action>]\n\r"
+					 "         ship scuttle\n\r"
 					 "         ship speed[ <speed>]\n\r"
 					 "         ship steer[ <heading>[ <turn direction>]]\n\r", ch);
 		return;
@@ -2840,6 +2841,12 @@ void do_ship(CHAR_DATA *ch, char *argument)
 	if( !str_prefix(arg, "navigate") )
 	{
 		do_ship_navigate(ch, argument);
+		return;
+	}
+
+	if( !str_prefix(arg, "scuttle") )
+	{
+		do_ship_scuttle(ch, argument);
 		return;
 	}
 
@@ -2972,6 +2979,9 @@ SHIP_DATA *purchase_ship(CHAR_DATA *ch, long vnum, SHOP_DATA *shop)
 	ship->owner = ch;
 	ship->owner_uid[0] = ch->id[0];
 	ship->owner_uid[1] = ch->id[1];
+
+	if( ship->ship_type == SHIP_AIR_SHIP )
+		ship->speed = SHIP_SPEED_LANDED;
 
 	ROOM_INDEX_DATA *room = get_wilds_vroom(wilds, x, y);
 	if( !room )

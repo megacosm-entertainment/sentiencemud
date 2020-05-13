@@ -83,8 +83,16 @@ void do_disembark( CHAR_DATA *ch, char *argument)
     char_from_room(ch);
     char_to_room(ch, location);
 
-    act("{WYou disembark from {x$p{W.{x", ch, NULL, NULL, ship_obj, NULL, NULL, NULL, TO_CHAR);
-    act("{W$n disembarks from {x$p{W.{x", ch, NULL, NULL, ship_obj, NULL, NULL, NULL, TO_ROOM);
+    if( get_colour_width(ship_obj->short_descr) > 0 )
+    {
+	    act("{WYou disembark from {x$p{W.{x", ch, NULL, NULL, ship_obj, NULL, NULL, NULL, TO_CHAR);
+    	act("{W$n disembarks from {x$p{W.{x", ch, NULL, NULL, ship_obj, NULL, NULL, NULL, TO_ROOM);
+	}
+	else
+	{
+	    act("{WYou disembark from $p.{x", ch, NULL, NULL, ship_obj, NULL, NULL, NULL, TO_CHAR);
+    	act("{W$n disembarks from $p.{x", ch, NULL, NULL, ship_obj, NULL, NULL, NULL, TO_ROOM);
+	}
 
 	move_cart(ch,location,TRUE);
 }
@@ -136,17 +144,27 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 
 	if (portal->item_type == ITEM_SHIP)
 	{
+		// Why?
 	    if (MOUNTED(ch))
 	    {
 			act("You can't board this vessel while mounted.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			return;
 	    }
 
-	    if (portal->ship->speed != SHIP_SPEED_STOPPED)
+	    if( portal->ship->ship_type == SHIP_AIR_SHIP )
 	    {
+	    	if( !mobile_is_flying(ch) && portal->ship->speed != SHIP_SPEED_LANDED )
+	    	{
+				act("You need to be flying to board a flying airship.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				return;
+			}
+		}
+
+		if (portal->ship->speed > SHIP_SPEED_STOPPED)
+		{
 			act("You can't board a moving vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			return;
-	    }
+		}
 
 	    location = portal->ship->instance->entrance;
 
