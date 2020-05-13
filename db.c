@@ -2099,7 +2099,7 @@ void copy_shop(SHOP_DATA *to_shop, SHOP_DATA *from_shop)
 	if( to_shop->restock_interval > 0 )
 		to_shop->next_restock = current_time + to_shop->restock_interval * 60;
 
-	if( to_shop->shipyard > 0 )
+	if( from_shop->shipyard > 0 )
 	{
 		to_shop->shipyard = from_shop->shipyard;
 		to_shop->shipyard_region[0][0] = from_shop->shipyard_region[0][0];
