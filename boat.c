@@ -1413,7 +1413,10 @@ void ship_autosurvey( SHIP_DATA *ship )
 			IS_SET(victim->act2, PLR_AUTOSURVEY) &&
 			victim->in_room != NULL &&
 			ischar_onboard_ship(victim, ship) &&
-			IS_AWAKE(victim) && IS_OUTSIDE(victim) )
+			IS_AWAKE(victim) &&
+			(IS_OUTSIDE(victim) ||
+				IS_SET(victim->in_room->room_flags, ROOM_HELM) ||
+				IS_SET(victim->in_room->room_flags, ROOM_VIEWWILDS)) )
 		{
 			do_function(victim, &do_survey, "auto" );
 		}
