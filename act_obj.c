@@ -5330,11 +5330,11 @@ void do_buy(CHAR_DATA *ch, char *argument)
 			}
 			else if( stock->ship != NULL )
 			{
-				if( !is_shipyard_valid(keeper->pShop->shipyard,
-					keeper->pShop->shipyard_region[0][0],
-					keeper->pShop->shipyard_region[0][1],
-					keeper->pShop->shipyard_region[1][0],
-					keeper->pShop->shipyard_region[1][1]) )
+				if( !is_shipyard_valid(keeper->shop->shipyard,
+					keeper->shop->shipyard_region[0][0],
+					keeper->shop->shipyard_region[0][1],
+					keeper->shop->shipyard_region[1][0],
+					keeper->shop->shipyard_region[1][1]) )
 				{
 					send_to_char("The shipyard is currently shutdown at the moment.\n\r", ch);
 					return;
@@ -5610,7 +5610,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 			}
 			else if( stock->ship != NULL )
 			{
-				SHIP_DATA *ship = purchase_ship(ch, stock->ship->vnum, keeper->pShop);
+				SHIP_DATA *ship = purchase_ship(ch, stock->ship->vnum, keeper->shop);
 
 				if( !IS_VALID(ship) )
 				{
@@ -5624,13 +5624,13 @@ void do_buy(CHAR_DATA *ch, char *argument)
 
 				sprintf(buf, "You buy %s %s.", get_article(stock->ship->name, false), stock->ship->name);
 				act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-				if( IS_NULLSTR(keeper->pShop->shipyard_description) )
+				if( IS_NULLSTR(keeper->shop->shipyard_description) )
 				{
 					sprintf(buf, "You may find your %s in the nearby harbor.", stock->ship->name);
 				}
 				else
 				{
-					sprintf(buf, "You may find your %s %s.", stock->ship->name, keeper->pShop->shipyard_description);
+					sprintf(buf, "You may find your %s %s.", stock->ship->name, keeper->shop->shipyard_description);
 				}
 
 				act("{C$n says to $N, '$T{C'{x", keeper, ch, NULL, NULL, NULL, NULL, buf, TO_NOTVICT);

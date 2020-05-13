@@ -414,13 +414,13 @@ char *format_obj_to_char(OBJ_DATA * obj, CHAR_DATA * ch, bool fShort)
 					{
 						sprintf(buf2,
 							"{R%s %s burns brightly as flames engulf the vessel!{x",
-							get_article(ship->index->name, true), ship->index->name, ship->ship_name);
+							get_article(ship->index->name, true), ship->index->name);
 					}
 					else
 					{
 						sprintf(buf2,
 							"{R%s %s flying the flag, '{x%s{R', burns brightly as flames engulf the vessel!{x",
-							get_article(ship->index->name, true), ship->index->name, ship->ship_name, ship->flag);
+							get_article(ship->index->name, true), ship->index->name, ship->flag);
 					}
 				}
 				else
@@ -432,12 +432,12 @@ char *format_obj_to_char(OBJ_DATA * obj, CHAR_DATA * ch, bool fShort)
 							if( IS_NULLSTR(ship->flag) )
 							{
 								sprintf(buf2, "{M%s %s floats gently just above the ground.{x",
-									get_article(ship->index->name, true), ship->index->name, ship->ship_name);
+									get_article(ship->index->name, true), ship->index->name);
 							}
 							else
 							{
 								sprintf(buf2, "{M%s %s, flying the flag '{x%s{M', floats gently just above the ground.{x",
-									get_article(ship->index->name, true), ship->index->name, ship->ship_name, ship->flag);
+									get_article(ship->index->name, true), ship->index->name, ship->flag);
 							}
 						}
 						else
@@ -445,12 +445,12 @@ char *format_obj_to_char(OBJ_DATA * obj, CHAR_DATA * ch, bool fShort)
 							if( IS_NULLSTR(ship->flag) )
 							{
 								sprintf(buf2, "{M%s %s floats gently high in the air.{x",
-									get_article(ship->index->name, true), ship->index->name, ship->ship_name);
+									get_article(ship->index->name, true), ship->index->name);
 							}
 							else
 							{
 								sprintf(buf2, "{M%s %s, flying the flag '{x%s{M', floats gently high in the air.{x",
-									get_article(ship->index->name, true), ship->index->name, ship->ship_name, ship->flag);
+									get_article(ship->index->name, true), ship->index->name, ship->flag);
 							}
 						}
 					}
