@@ -1194,6 +1194,9 @@ void save_shop_stock_new(FILE *fp, SHOP_STOCK_DATA *stock)
 	case STOCK_GUARD:
 		fprintf(fp, "Guard %ld\n", stock->vnum);
 		break;
+	case STOCK_SHIP:
+		fprintf(fp, "Ship %ld\n", stock->vnum);
+		break;
 	case STOCK_CUSTOM:
 		fprintf(fp, "Keyword %s~\n", fix_string(stock->custom_keyword));
 		break;
@@ -1228,6 +1231,17 @@ void save_shop_new(FILE *fp, SHOP_DATA *shop)
 		if (shop->buy_type[i] != 0)
 		    fprintf(fp, "Trade %d\n", shop->buy_type[i]);
     }
+
+    if( shop->shipyard > 0 )
+    {
+		fprintf(fp, "Shipyard %ld %d %d %d %d %s~\n",
+			shop->shipyard,
+			shop->shipyard_region[0][0],
+			shop->shipyard_region[0][1],
+			shop->shipyard_region[1][0],
+			shop->shipyard_region[1][1],
+			shop->shipyard_description);
+	}
 
 	if( shop->stock )
 		save_shop_stock_new(fp, shop->stock);
@@ -3521,13 +3535,15 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)
 			KEY("RestockRate", stock->restock_rate, fread_number(fp));
 			break;
 		case 'S':
-			KEY("Silver", stock->silver, fread_number(fp));
-			if(!str_cmp(word, "Singular"))
+			if(!str_cmp(word, "Ship"))
 			{
 				fMatch = TRUE;
-				stock->singular = TRUE;
+				stock->vnum = fread_number(fp);
+				stock->type = STOCK_SHIP;
 				break;
 			}
+			KEY("Silver", stock->silver, fread_number(fp));
+			KEY("Singular", stock->singular, TRUE);
 			break;
 
 		}
@@ -3581,11 +3597,25 @@ SHOP_DATA *read_shop_new(FILE *fp)
 		break;
 
 	    case 'P':
-		KEY("ProfitBuy",	shop->profit_buy,	fread_number(fp));
-		KEY("ProfitSell",	shop->profit_sell,	fread_number(fp));
-		break;
+			KEY("ProfitBuy",	shop->profit_buy,	fread_number(fp));
+			KEY("ProfitSell",	shop->profit_sell,	fread_number(fp));
+			break;
 		case 'R':
 			KEY("RestockInterval", shop->restock_interval, fread_number(fp));
+			break;
+
+		case 'S':
+			if( !str_cmp(word, "Shipyard") )
+			{
+				shop->shipyard = fread_number(fp);
+				shop->shipyard_region[0][0] = fread_number(fp);
+				shop->shipyard_region[0][1] = fread_number(fp);
+				shop->shipyard_region[1][0] = fread_number(fp);
+				shop->shipyard_region[1][1] = fread_number(fp);
+				shop->shipyard_description = fread_string(fp);
+				fMatch = TRUE;
+				break;
+			}
 			break;
 
 	    case 'T':

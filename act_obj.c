@@ -4506,6 +4506,16 @@ SHOP_STOCK_DATA *get_stockonly_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, char *ar
 						}
 					}
 				}
+				else if( stock->ship != NULL )
+				{
+					if( is_name(arg, stock->ship->name) )
+					{
+						if( ++count == number )
+						{
+							return stock;
+						}
+					}
+				}
 			}
 			else if(!IS_NULLSTR(stock->custom_keyword))
 			{
@@ -4566,6 +4576,19 @@ bool get_stock_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, SHOP_REQUEST_DATA *reque
 						}
 					}
 				}
+				else if( stock->ship != NULL )
+				{
+					if( is_name(arg, stock->ship->name) )
+					{
+						if( ++count == number )
+						{
+							request->stock = stock;
+							request->obj = NULL;
+							return TRUE;
+						}
+					}
+				}
+
 			}
 			else if(!IS_NULLSTR(stock->custom_keyword))
 			{
@@ -5238,9 +5261,9 @@ void do_buy(CHAR_DATA *ch, char *argument)
 
 
 
-			if( (stock->mob != NULL || stock->singular) && number > 1 )
+			if( (stock->mob != NULL || stock->ship != NULL || stock->singular) && number > 1 )
 			{
-				send_to_char("You can only purchase one of those.\n\r", ch);
+				send_to_char("You can only purchase one of those at a time.\n\r", ch);
 				return;
 			}
 
@@ -5304,6 +5327,18 @@ void do_buy(CHAR_DATA *ch, char *argument)
 					}
 				}
 
+			}
+			else if( stock->ship != NULL )
+			{
+				if( !is_shipyard_valid(keeper->pShop->shipyard,
+					keeper->pShop->shipyard_region[0][0],
+					keeper->pShop->shipyard_region[0][1],
+					keeper->pShop->shipyard_region[1][0],
+					keeper->pShop->shipyard_region[1][1]) )
+				{
+					send_to_char("The shipyard is currently shutdown at the moment.\n\r", ch);
+					return;
+				}
 			}
 			else
 			{
@@ -5572,6 +5607,39 @@ void do_buy(CHAR_DATA *ch, char *argument)
 
 				p_percent_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
 				p_percent_trigger(keeper, NULL, NULL, NULL, ch, mob, NULL, NULL, NULL, TRIG_BUY, NULL);
+			}
+			else if( stock->ship != NULL )
+			{
+				SHIP_DATA *ship = purchase_ship(ch, stock->ship->vnum, keeper->pShop);
+
+				if( !IS_VALID(ship) )
+				{
+					// An error has occured!
+					send_to_char("{RERROR: {WSomething has occured in purchasing the ship.  Please notify an IMP.{x\n\r", ch);
+					return;
+				}
+
+				sprintf(buf, "$n buys %s %s.", get_article(stock->ship->name, false), stock->ship->name);
+				act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+
+				sprintf(buf, "You buy %s %s.", get_article(stock->ship->name, false), stock->ship->name);
+				act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				if( IS_NULLSTR(keeper->pShop->shipyard_description) )
+				{
+					sprintf(buf, "You may find your %s in the nearby harbor.", stock->ship->name);
+				}
+				else
+				{
+					sprintf(buf, "You may find your %s %s.", stock->ship->name, keeper->pShop->shipyard_description);
+				}
+
+				act("{C$n says to $N, '$T{C'{x", keeper, ch, NULL, NULL, NULL, NULL, buf, TO_NOTVICT);
+				act("{C$n says to you, '$T{C'{x", keeper, ch, NULL, NULL, NULL, NULL, buf, TO_VICT);
+				act("{CYou say to $N, '$T{C'{x", keeper, ch, NULL, NULL, NULL, NULL, buf, TO_CHAR);
+
+				act("{xTo board your ship, use '{Yenter $T{x' until you give it a name.{x", ch, NULL, NULL, NULL, NULL, NULL, ch->name, TO_CHAR);
+
+				p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, ship->ship, NULL, TRIG_BUY, NULL);
 			}
 			else
 			{

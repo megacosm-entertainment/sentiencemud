@@ -7641,6 +7641,20 @@ MEDIT(medit_show)
 			}
 		}
 
+		if(pShop->shipyard > 0)
+		{
+			WILDS_DATA *wilds = get_wilds_from_uid(NULL, pShop->shipyard);
+
+			sprintf(buf, "  Shipyard: %s (%ld) at (%d,%d) to (%d,%d)\n\r",
+				wilds?wilds->name:"(null)", pShop->shipyard,
+				pShop->shipyard_region[0][0], pShop->shipyard_region[0][1],
+				pShop->shipyard_region[1][0], pShop->shipyard_region[1][1]);
+			add_buf(buffer, buf);
+
+			sprintf(buf, "            %s\n\r", pShop->shipyard_description);
+			add_buf(buffer, buf);
+		}
+
 		if(pShop->stock != NULL)
 		{
 			SHOP_STOCK_DATA *pStock;
@@ -7836,6 +7850,24 @@ MEDIT(medit_show)
 						{
 							sprintf(item, "%s (%ld)", mob->short_descr, pStock->vnum);
 						}
+					}
+					else
+						strcpy(item, "-invalid-");
+					break;
+				case STOCK_SHIP:
+					strcpy(tye,"{GSHIP{x    ");
+					if( pStock->vnum > 0 )
+					{
+						SHIP_INDEX_DATA *ship_index = get_ship_index(pStock->vnum);
+
+						if( !ship_index ) {
+							strcpy(item, "-invalid-");
+						}
+						else
+						{
+							sprintf(item, "%s (%ld", ship_index->name, pStock->vnum);
+						}
+
 					}
 					else
 						strcpy(item, "-invalid-");
@@ -8717,6 +8749,8 @@ MEDIT(medit_shop)
 		send_to_char("         shop hours [#xopening] [#xclosing]\n\r", ch);
 		send_to_char("         shop profit [#xbuying%] [#xselling%]\n\r", ch);
 		send_to_char("         shop restock [minutes]\n\r", ch);
+		send_to_char("         shop shipyard clear\n\r", ch);
+		send_to_char("         shop shipyard <wuid> <x1> <y1> <x2> <y2> <description>\n\r", ch);
 		send_to_char("         shop stock add [type] [value]\n\r", ch);
 		send_to_char("         shop stock [#] discount [0-100]\n\r", ch);
 		send_to_char("         shop stock [#] description [description]\n\r", ch);
@@ -8731,29 +8765,29 @@ MEDIT(medit_shop)
     }
 
 
-    if (!str_cmp(command, "hours"))
+    if (!str_prefix(command, "hours"))
     {
-	if (arg1[0] == '\0' || !is_number(arg1)
-	|| argument[0] == '\0' || !is_number(arg2))
-	{
-	    send_to_char("Syntax:  shop hours [#xopening] [#xclosing]\n\r", ch);
-	    return FALSE;
-	}
+		if (arg1[0] == '\0' || !is_number(arg1) ||
+			argument[0] == '\0' || !is_number(arg2))
+		{
+			send_to_char("Syntax:  shop hours [#xopening] [#xclosing]\n\r", ch);
+			return FALSE;
+		}
 
-	if (!pMob->pShop)
-	{
-	    send_to_char("MEdit:  Please create a shop first (shop assign).\n\r", ch);
-	    return FALSE;
-	}
+		if (!pMob->pShop)
+		{
+			send_to_char("MEdit:  Please create a shop first (shop assign).\n\r", ch);
+			return FALSE;
+		}
 
-	pMob->pShop->open_hour = atoi(arg1);
-	pMob->pShop->close_hour = atoi(arg2);
+		pMob->pShop->open_hour = atoi(arg1);
+		pMob->pShop->close_hour = atoi(arg2);
 
-	send_to_char("Shop hours set.\n\r", ch);
-	return TRUE;
+		send_to_char("Shop hours set.\n\r", ch);
+		return TRUE;
     }
 
-    if (!str_cmp(command, "restock"))
+    if (!str_prefix(command, "restock"))
     {
 		if (arg1[0] == '\0' || !is_number(arg1))
 		{
@@ -8789,7 +8823,64 @@ MEDIT(medit_shop)
 		}
     }
 
-    if (!str_cmp(command, "discount"))
+    if (!str_prefix(command, "shipyard"))
+    {
+		char arg3[MIL];
+		char arg4[MIL];
+		char arg5[MIL];
+		argument = one_argument(argument, arg3);
+		argument = one_argument(argument, arg4);
+		argument = one_argument(argument, arg5);
+
+		if( !str_cmp(arg1, "clear" )
+		{
+			pMob->pShop->shipyard = 0;
+			pMob->pShop->shipyard_region[0][0] = 0;
+			pMob->pShop->shipyard_region[0][1] = 0;
+			pMob->pShop->shipyard_region[1][0] = 0;
+			pMob->pShop->shipyard_region[1][1] = 0;
+
+			free_string(pMob->pShop->shipyard_description);
+			pMob->pShop->shipyard_description = &str_empty[0];
+
+			send_to_char("Shipyard cleared.\n\r", ch);
+			return TRUE;
+		}
+		if( !is_number(arg1) || !is_number(arg2) || !is_number(arg3) || !is_number(arg4) || !is_number(arg5) || IS_NULLSTR(argument) )
+		{
+			send_to_char("Syntax:  shop shipyard <wuid> <x1> <y1> <x2> <y2> <description>\n\r", ch);
+			send_to_char("         shop shipyard clear\n\r", ch);
+			return FALSE;
+		}
+		long wuid = atol(arg1);
+		int x1 = atoi(arg2);
+		int y1 = atoi(arg3);
+		int x2 = atoi(arg4);
+		int y2 = atoi(arg5);
+
+		if( !is_shipyard_valid(wuid, x1, y1, x2, y2) )
+		{
+			send_to_char("Shipyard not valid.  Please verify wilderness and coordinates.\n\r", ch);
+			send_to_char("Make sure Shipyard has safe harbor water tiles next to non-water tiles.\n\r", ch);
+			return FALSE;
+		}
+
+		pMob->pShop->shipyard = wuid;
+		pMob->pShop->shipyard_region[0][0] = x1;
+		pMob->pShop->shipyard_region[0][1] = y1;
+		pMob->pShop->shipyard_region[1][0] = x2;
+		pMob->pShop->shipyard_region[1][1] = y2;
+
+		smash_tilde(argument);
+		free_string(pMob->pShop->shipyard_description);
+		pMob->pShop->shipyard_description = str_dup(argument);
+
+
+		send_to_char("Shipyard set.\n\r", ch);
+		return TRUE;
+	}
+
+    if (!str_prefix(command, "discount"))
     {
 		if (arg1[0] == '\0' || !is_number(arg1))
 		{
@@ -8836,64 +8927,63 @@ MEDIT(medit_shop)
     }
 
 
-    if (!str_cmp(command, "profit"))
+    if (!str_prefix(command, "profit"))
     {
-	if (arg1[0] == '\0' || !is_number(arg1)
-	|| argument[0] == '\0' || !is_number(arg2))
-	{
-	    send_to_char("Syntax:  shop profit [#xbuying%] [#xselling%]\n\r", ch);
-	    return FALSE;
-	}
+		if (arg1[0] == '\0' || !is_number(arg1) ||
+			argument[0] == '\0' || !is_number(arg2))
+		{
+			send_to_char("Syntax:  shop profit [#xbuying%] [#xselling%]\n\r", ch);
+			return FALSE;
+		}
 
-	if (!pMob->pShop)
-	{
-	    send_to_char("MEdit:  Please create a shop first (shop assign).\n\r", ch);
-	    return FALSE;
-	}
+		if (!pMob->pShop)
+		{
+			send_to_char("MEdit:  Please create a shop first (shop assign).\n\r", ch);
+			return FALSE;
+		}
 
-	pMob->pShop->profit_buy     = atoi(arg1);
-	pMob->pShop->profit_sell    = atoi(arg2);
+		pMob->pShop->profit_buy     = atoi(arg1);
+		pMob->pShop->profit_sell    = atoi(arg2);
 
-	send_to_char("Shop profit set.\n\r", ch);
-	return TRUE;
+		send_to_char("Shop profit set.\n\r", ch);
+		return TRUE;
     }
 
 
-    if (!str_cmp(command, "type"))
+    if (!str_prefix(command, "type"))
     {
-	char buf[MAX_INPUT_LENGTH];
-	int value;
+		char buf[MAX_INPUT_LENGTH];
+		int value;
 
-	if (arg1[0] == '\0' || !is_number(arg1)
-	|| arg2[0] == '\0')
-	{
-	    send_to_char("Syntax:  shop type [#x0-4] [item type]\n\r", ch);
-	    return FALSE;
-	}
+		if (arg1[0] == '\0' || !is_number(arg1) || arg2[0] == '\0')
+		{
+		    send_to_char("Syntax:  shop type [#x0-4] [item type]\n\r", ch);
+		    return FALSE;
+		}
 
-	if (atoi(arg1) >= MAX_TRADE)
-	{
-	    sprintf(buf, "MEdit:  May sell %d items max.\n\r", MAX_TRADE);
-	    send_to_char(buf, ch);
-	    return FALSE;
-	}
+		if (atoi(arg1) >= MAX_TRADE)
+		{
+			sprintf(buf, "MEdit:  May sell %d items max.\n\r", MAX_TRADE);
+			send_to_char(buf, ch);
+			return FALSE;
+		}
 
-	if (!pMob->pShop)
-	{
-	    send_to_char("MEdit:  Please create a shop first (shop assign).\n\r", ch);
-	    return FALSE;
-	}
+		if (!pMob->pShop)
+		{
+			send_to_char("MEdit:  Please create a shop first (shop assign).\n\r", ch);
+			return FALSE;
+		}
 
-	if ((value = flag_value(type_flags, arg2)) == NO_FLAG)
-	{
-	    send_to_char("MEdit:  That type of item is not known.\n\r", ch);
-	    return FALSE;
-	}
+		if ((value = flag_value(type_flags, arg2)) == NO_FLAG)
+		{
+			send_to_char("MEdit:  That type of item is not known.\n\r", ch);
+			return FALSE;
+		}
 
-	pMob->pShop->buy_type[atoi(arg1)] = value;
+		pMob->pShop->buy_type[atoi(arg1)] = value;
 
-	send_to_char("Shop type set.\n\r", ch);
-	return TRUE;
+		send_to_char("Shop type set.\n\r", ch);
+		return TRUE;
     }
 
     /* shop assign && shop delete by Phoenix */
@@ -8904,61 +8994,61 @@ MEDIT(medit_shop)
     	{
         	send_to_char("Mob already has a shop assigned to it.\n\r", ch);
         	return FALSE;
-	}
+		}
 
-	pMob->pShop		= new_shop();
-	if (!shop_first)
-        	shop_first	= pMob->pShop;
-	if (shop_last)
-		shop_last->next	= pMob->pShop;
-	shop_last		= pMob->pShop;
+		pMob->pShop		= new_shop();
+		if (!shop_first)
+				shop_first	= pMob->pShop;
+		if (shop_last)
+			shop_last->next	= pMob->pShop;
+		shop_last		= pMob->pShop;
 
-	pMob->pShop->keeper	= pMob->vnum;
+		pMob->pShop->keeper	= pMob->vnum;
 
-	send_to_char("New shop assigned to mobile.\n\r", ch);
-	return TRUE;
+		send_to_char("New shop assigned to mobile.\n\r", ch);
+		return TRUE;
     }
 
     if (!str_prefix(command, "remove"))
     {
-	SHOP_DATA *pShop;
+		SHOP_DATA *pShop;
 
-	pShop		= pMob->pShop;
-	pMob->pShop	= NULL;
+		pShop		= pMob->pShop;
+		pMob->pShop	= NULL;
 
-	if (pShop == shop_first)
-	{
-		if (!pShop->next)
+		if (pShop == shop_first)
 		{
-			shop_first = NULL;
-			shop_last = NULL;
+			if (!pShop->next)
+			{
+				shop_first = NULL;
+				shop_last = NULL;
+			}
+			else
+				shop_first = pShop->next;
 		}
 		else
-			shop_first = pShop->next;
-	}
-	else
-	{
-		SHOP_DATA *ipShop;
-
-		for (ipShop = shop_first; ipShop; ipShop = ipShop->next)
 		{
-			if (ipShop->next == pShop)
+			SHOP_DATA *ipShop;
+
+			for (ipShop = shop_first; ipShop; ipShop = ipShop->next)
 			{
-				if (!pShop->next)
+				if (ipShop->next == pShop)
 				{
-					shop_last = ipShop;
-					shop_last->next = NULL;
+					if (!pShop->next)
+					{
+						shop_last = ipShop;
+						shop_last->next = NULL;
+					}
+					else
+						ipShop->next = pShop->next;
 				}
-				else
-					ipShop->next = pShop->next;
 			}
 		}
-	}
 
-	free_shop(pShop);
+		free_shop(pShop);
 
-	send_to_char("Mobile is no longer a shopkeeper.\n\r", ch);
-	return TRUE;
+		send_to_char("Mobile is no longer a shopkeeper.\n\r", ch);
+		return TRUE;
     }
 
     if(!str_prefix(command, "flags"))
@@ -8998,6 +9088,7 @@ MEDIT(medit_shop)
 			send_to_char("         shop stock add pet [vnum]\n\r", ch);
 			send_to_char("         shop stock add mount [vnum]\n\r", ch);
 			send_to_char("         shop stock add guard [vnum]\n\r", ch);
+			send_to_char("         shop stock add ship [vnum]\n\r", ch);
 			send_to_char("         shop stock add custom [keyword]\n\r", ch);
 			send_to_char("         shop stock [#] discount [0-100]\n\r", ch);
 			send_to_char("         shop stock [#] description [description]\n\r", ch);
@@ -9018,6 +9109,7 @@ MEDIT(medit_shop)
 				send_to_char("         shop stock add pet [vnum]\n\r", ch);
 				send_to_char("         shop stock add mount [vnum]\n\r", ch);
 				send_to_char("         shop stock add guard [vnum]\n\r", ch);
+				send_to_char("         shop stock add ship [vnum]\n\r", ch);
 				send_to_char("         shop stock add custom [keyword]\n\r", ch);
 				return FALSE;
 			}
@@ -9170,6 +9262,53 @@ MEDIT(medit_shop)
 
 				send_to_char("Syntax:  shop stock add guard [vnum]\n\r", ch);
 				return FALSE;
+			}
+			else if(!str_prefix(arg2, "ship"))
+			{
+				if( !is_shipyard_valid(pMob->pShop->shipyard,
+					pMob->pShop->shipyard_region[0][0],
+					pMob->pShop->shipyard_region[0][1],
+					pMob->pShop->shipyard_region[1][0],
+					pMob->pShop->shipyard_region[1][1]) )
+				{
+					send_to_char("Shopkeeper needs to have a valid shipyard defined first before you can add a ship.\n\r", ch);
+					return;
+				}
+
+				if( is_number(arg2) )
+				{
+					long vnum = atol(arg2);
+
+					if( !get_ship_index(vnum) )
+					{
+						send_to_char("That ship does not exist.\n\r", ch);
+						return FALSE;
+					}
+
+					stock = new_shop_stock();
+
+					if(!stock)
+					{
+						send_to_char("{RERROR{W: Unable to create stock item.{x\n\r", ch);
+						return FALSE;
+					}
+
+					stock->type = STOCK_SHIP;
+					stock->vnum = vnum;
+					stock->silver = 100000;	// Default 1000gold
+					stock->level = 1;
+					stock->discount = pMob->pShop->discount;
+
+					stock->next = pMob->pShop->stock;
+					pMob->pShop->stock = stock;
+
+					send_to_char("Stock item (SHIP) added.\n\r", ch);
+					return TRUE;
+				}
+
+				send_to_char("Syntax:  shop stock add ship [vnum]\n\r", ch);
+				return FALSE;
+
 			}
 			else if(!str_prefix(arg2, "custom"))
 			{

@@ -9076,3 +9076,18 @@ void resolve_special_key(OBJ_DATA *obj)
 	iterator_stop(&skit);
 }
 
+char *get_article(char *text, bool upper)
+{
+	switch(UPPER(text[0]))
+	{
+	case 'A':
+	case 'E':
+	case 'I':
+	case 'O':
+	case 'U':
+		return upper ? "An" : "an";
+	}
+
+	return upper ? "A" : "a";
+
+}

@@ -1757,6 +1757,8 @@ SHOP_DATA *new_shop( void )
         shop_free       =   shop_free->next;
     }
 
+    memset(pShop, 0, sizeof(*pShop));
+
     pShop->next         =   NULL;
     pShop->keeper       =   0;
 
@@ -1770,6 +1772,7 @@ SHOP_DATA *new_shop( void )
     pShop->restock_interval = 0;
     pShop->next_restock = 0;
     pShop->discount		= 50;
+    pShop->shipyard_description = &str_empty[0];
 
     pShop->stock = NULL;
 
@@ -1786,6 +1789,9 @@ void free_shop( SHOP_DATA *pShop )
 		next_stock = stock->next;
 		free_shop_stock(stock);
 	}
+
+	free_string(pShop->shipyard_description);
+	pShop->shipyard_description = NULL;
 
     pShop->next = shop_free;
     shop_free   = pShop;

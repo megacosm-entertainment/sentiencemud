@@ -1694,9 +1694,21 @@ void do_ships(CHAR_DATA *ch, char *argument)
 	do_ships(ch, "");
 }
 
+bool ship_can_issue_command(CHAR_DATA *ch, SHIP_DATA *ship)
+{
+	// Search crew for FIRST MATE
+
+	if (!IS_SET(ch->in_room->room_flags, ROOM_SHIP_HELM))
+	{
+		return false;
+	}
+
+	return true;
+}
 
 
-void do_scuttle( CHAR_DATA *ch, char *argument)
+
+void do_ship_scuttle( CHAR_DATA *ch, char *argument)
 {
 //	ROOM_INDEX_DATA *location;
 //    OBJ_DATA *ship_obj;
@@ -1837,7 +1849,7 @@ void do_scuttle( CHAR_DATA *ch, char *argument)
 }
 
 
-void do_steer( CHAR_DATA *ch, char *argument )
+void do_ship_steer( CHAR_DATA *ch, char *argument )
 {
 	char buf[MSL];
 	char arg[MIL];
@@ -1856,7 +1868,7 @@ void do_steer( CHAR_DATA *ch, char *argument )
 		return;
 	}
 
-	if (!IS_SET(ch->in_room->room_flags, ROOM_SHIP_HELM))
+	if( !ship_can_issue_command(ch, ship) )
 	{
 		act("You must be at the helm of the vessel to steer.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		return;
@@ -1931,6 +1943,12 @@ void do_steer( CHAR_DATA *ch, char *argument )
 		send_to_char( "There isn't enough crew to order that command!\n\r", ch );
 		return;
     }
+
+	if( ship->ship_type == SHIP_AIR_SHIP && ship->speed == SHIP_SPEED_LANDED )
+	{
+		send_to_char( "The vessel needs to be airborne first.\n\r  Try 'ship launch' to go airborne.\n\r", ch );
+		return;
+	}
 
 	if( is_number(arg) )
 	{
@@ -2077,7 +2095,7 @@ void do_steer( CHAR_DATA *ch, char *argument )
 }
 
 
-void do_speed( CHAR_DATA *ch, char *argument )
+void do_ship_speed( CHAR_DATA *ch, char *argument )
 {
 	char arg[MAX_INPUT_LENGTH];
 	SHIP_DATA *ship;
@@ -2145,7 +2163,7 @@ void do_speed( CHAR_DATA *ch, char *argument )
 		return;
 	}
 
-	if (!IS_SET(ch->in_room->room_flags, ROOM_SHIP_HELM))
+	if( !ship_can_issue_command(ch, ship) )
 	{
 		act("You must be at the helm of the vessel to steer.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		return;
@@ -2168,6 +2186,11 @@ void do_speed( CHAR_DATA *ch, char *argument )
 		return;
 	}
 
+	if( ship->ship_type == SHIP_AIR_SHIP && ship->speed == SHIP_SPEED_LANDED )
+	{
+		send_to_char( "The vessel needs to be airborne first.\n\r  Try 'ship launch' to go airborne.\n\r", ch );
+		return;
+	}
 
 	int speed = -1;
 	if ( is_percent(arg) )
@@ -2279,8 +2302,10 @@ void do_speed( CHAR_DATA *ch, char *argument )
     ship_autosurvey(ship);
 }
 
-void do_aim( CHAR_DATA *ch, char *argument )
+void do_ship_aim( CHAR_DATA *ch, char *argument )
 {
+	send_to_char("Not yet implemented.\n\r", ch);
+
 #if 0
 	char arg[MAX_INPUT_LENGTH];
 	char buf[MAX_STRING_LENGTH];
@@ -2444,7 +2469,7 @@ void do_aim( CHAR_DATA *ch, char *argument )
 #endif
 }
 
-void do_navigate(CHAR_DATA *ch, char *argument)
+void do_ship_navigate(CHAR_DATA *ch, char *argument)
 {
 	char buf[MSL];
 	char arg[MIL];
@@ -2462,10 +2487,9 @@ void do_navigate(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	// TODO: Check for first mate
-	if (!IS_SET(ch->in_room->room_flags, ROOM_SHIP_HELM))
+	if( !ship_can_issue_command(ch, ship) )
 	{
-		act("You must be at the helm of the vessel to naviate.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("You must be at the helm of the vessel to navigate.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		return;
 	}
 
@@ -2541,9 +2565,453 @@ void do_navigate(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	do_navigate(ch, "");
+	do_ship_navigate(ch, "");
 }
 
+void do_ship_christen(CHAR_DATA *ch, char *argument)
+{
+	SHIP_DATA *ship;
+
+	ship = get_room_ship(ch->in_room);
+
+	if (!IS_VALID(ship))
+	{
+		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if (!IS_IMMORTAL(ch) && ship_isowner_player(ship, ch))
+	{
+		send_to_char("This isn't your vessel.\n\r", ch);
+		return;
+	}
+
+	if( !IS_NULLSTR(ship->ship_name) )
+	{
+		send_to_char("The vessel already has a name!\n\r", ch);
+		return;
+	}
+
+	free_string(ship->ship_name);
+	ship->ship_name = str_dup(argument);
+
+	// Install ship_name
+	char *plaintext = nocolour(ship->ship_name);
+	free_string(ship->ship->name);
+	sprintf(buf, ship->ship->pIndexData->name, plaintext);
+	ship->ship->name = str_dup(buf);
+	free_string(plaintext);
+
+	free_string(ship->ship->short_descr);
+	sprintf(buf, ship->ship->pIndexData->short_descr, ship->ship_name);
+	ship->ship->short_descr = str_dup(buf);
+
+	free_string(ship->ship->description);
+	sprintf(buf, ship->ship->pIndexData->description, ship->ship_name);
+	ship->ship->description = str_dup(buf);
+
+	act("{Y$n christens the vessel '{x$T{Y'.{x", ch, NULL, NULL, NULL, NULL, NULL, ship->ship_name, TO_ROOM);
+	act("{YYou christen the vessel '{x$T{Y'.{x", ch, NULL, NULL, NULL, NULL, NULL, ship->ship_name, TO_CHAR);
+}
+
+void do_ship_land(CHAR_DATA *ch, char *argument)
+{
+	SHIP_DATA *ship = get_room_ship(ch->in_room);
+
+	if( !IS_VALID(ship) )
+	{
+		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if( ship->ship_type != SHIP_AIR_SHIP )
+	{
+		send_to_char("Land?  The vessel can only be in water.\n\r", ch);
+		return;
+	}
+
+	if( !ship_can_issue_command(ch, ship) )
+	{
+		act("You must be at the helm of the vessel to steer.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if (!IS_IMMORTAL(ch) && ship_isowner_player(ship, ch))
+	{
+		act("The wheel is magically locked. This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if ( !ship_has_enough_crew( ship ) ) {
+		send_to_char( "There isn't enough crew to order that command!\n\r", ch );
+		return;
+	}
+
+	if( ship->speed > SHIP_SPEED_STOPPED )
+	{
+		send_to_char("Please stop the vessel first, lest you crash.\n\r", ch);
+		return;
+	}
+
+	ship->speed = SHIP_SPEED_LANDED;
+	ship_echo(ship, "{WThe vessel descends to the ground below.{x");
+
+	char buf[MSL];
+	if( IS_NULLSTR(ship->ship_name) )
+	{
+		sprintf(buf, "{W%s %s descends from above to land.{x", get_article(ship->index->name, true), ship->index->name));
+	}
+	else
+	{
+		sprintf(buf, "{WThe %s '{x%s{W' descends from above to land.{x", get_article(ship->index->name, true), ship->index->name), ship->ship_name);
+	}
+	room_echo(ship->ship->in_room, buf);
+}
+
+void do_ship_launch(CHAR_DATA *ch, char *argument)
+{
+	SHIP_DATA *ship = get_room_ship(ch->in_room);
+
+	if( !IS_VALID(ship) )
+	{
+		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if( ship->ship_type != SHIP_AIR_SHIP )
+	{
+		send_to_char("The vessel must remain in the water.\n\r", ch);
+		return;
+	}
+
+	if( !ship_can_issue_command(ch, ship) )
+	{
+		act("You must be at the helm of the vessel to steer.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if (!IS_IMMORTAL(ch) && ship_isowner_player(ship, ch))
+	{
+		act("The wheel is magically locked. This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if ( !ship_has_enough_crew( ship ) ) {
+		send_to_char( "There isn't enough crew to order that command!\n\r", ch );
+		return;
+	}
+
+	if( ship->speed >= SHIP_SPEED_STOPPED )
+	{
+		send_to_char("The vessel is already airborne.\n\r", ch);
+		return;
+	}
+
+	ship->speed = SHIP_SPEED_SPEED;
+	ship_echo(ship, "{WThe vessel groans a bit before taking flight.{x");
+
+	char buf[MSL];
+	if( IS_NULLSTR(ship->ship_name) )
+	{
+		sprintf(buf, "{W%s %s groans a bit before taking flight.{x", get_article(ship->index->name, true), ship->index->name));
+	}
+	else
+	{
+		sprintf(buf, "{WThe %s '{x%s{W' groans a bit before taking flight.{x", get_article(ship->index->name, true), ship->index->name), ship->ship_name);
+	}
+	room_echo(ship->ship->in_room, buf);
+}
+
+void do_ship_chase(CHAR_DATA *ch, char *argument)
+{
+	send_to_char("Not yet implemented.\n\r", ch);
+}
+
+void do_ship_flag(CHAR_DATA *ch, char *argument)
+{
+	SHIP_DATA *ship;
+
+	ship = get_room_ship(ch->in_room);
+
+	if (!IS_VALID(ship))
+	{
+		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if (!IS_IMMORTAL(ch) && ship_isowner_player(ship, ch))
+	{
+		send_to_char("This isn't your vessel.\n\r", ch);
+		return;
+	}
+
+	if( argument[0] == '\0' )
+	{
+		send_to_char("Please specify a flag.\n\r", ch);
+		return;
+	}
+
+	char buf[MIL];
+	if( IS_NULLSTR(ship->flag) )
+	{
+		sprintf(buf, "{WThe flag adorned with '{x%s{W' is hoisted up the mast.{x", argument);
+	}
+	else
+	{
+		sprintf(buf, "{WThe flag is lowered before a new flag adorned with '{x%s{W' is hoisted back up the mast.{x", argument);
+	}
+
+	ship_echo(ship, buf);
+	free_string(ship->flag);
+	ship->flag = str_dup(argument);
+}
+
+void do_ship_list(CHAR_DATA *ch, char *argument)
+{
+	send_to_char("Not yet implemented.\n\r", ch);
+}
+
+void do_ship(CHAR_DATA *ch, char *argument)
+{
+	char arg[MIL];
+
+	if( IS_NPC(ch) ) return;
+
+	argument = one_argument(argument, arg);
+
+	if( arg[0] == '\0' )
+	{
+		send_to_char("Syntax:  ship aim <ship>\n\r"
+					 "         ship chase <ship>\n\r"
+					 "         ship christen <name>\n\r"
+					 "         ship flag[ <flag>]\n\r"
+					 "         ship land         (airship only)\n\r"
+					 "         ship launch       (airship only)\n\r"
+					 "         ship list\n\r"
+					 "         ship navigate[ <action>]\n\r"
+					 "         ship speed[ <speed>]\n\r"
+					 "         ship steer[ <heading>[ <turn direction>]]\n\r", ch);
+		return;
+	}
+
+	if( !str_prefix(arg, "aim") )
+	{
+		do_ship_aim(ch, argument);
+		return;
+	}
+
+	if( !str_prefix(arg, "chase") )
+	{
+		do_ship_chase(ch, argument);
+		return;
+	}
+
+	if( !str_prefix(arg, "christen") )
+	{
+		do_ship_christen(ch, argument);
+		return;
+	}
+
+	if( !str_prefix(arg, "flag") )
+	{
+		do_ship_flag(ch, argument);
+		return;
+	}
+
+	if( !str_prefix(arg, "land") )
+	{
+		do_ship_land(ch, argument);
+		return;
+	}
+
+	if( !str_prefix(arg, "launch") )
+	{
+		do_ship_launch(ch, argument);
+		return;
+	}
+
+	if( !str_prefix(arg, "list") )
+	{
+		do_ship_list(ch, argument);
+		return;
+	}
+
+	if( !str_prefix(arg, "navigate") )
+	{
+		do_ship_navigate(ch, argument);
+		return;
+	}
+
+	if( !str_prefix(arg, "speed") )
+	{
+		do_ship_speed(ch, argument);
+		return;
+	}
+
+	if( !str_prefix(arg, "steer") )
+	{
+		do_ship_steer(ch, argument);
+		return;
+	}
+
+	do_ship(ch, "");
+}
+
+
+bool _is_terrain_land(WILDS_DATA *wilds, int x, int y)
+{
+	if(!wilds) return false;
+
+	if( x < 0 || x >= wilds->map_size_x ) return false;
+	if( y < 0 || y >= wilds->map_size_y ) return false;
+
+	WILDS_TERRAIN *terrain = get_terrain_by_coords(wilds, _x, _y);
+
+	return ( terrain && !terrain->nonroom &&
+		terrain->template->sector_type != SECT_WATER_NOSWIM &&
+		terrain->template->sector_type != SECT_WATER_SWIM) );
+}
+
+// Not very smart, just checks whether there is a SAFE_HARBOR water room next to land
+//  Does not check whether that room has access to the edge
+bool is_shipyard_valid(long wuid, int x1, int y1, int x2, int y2)
+{
+	WILDS_DATA *wilds = get_wilds_from_uid(NULL, wuid);
+
+	if(!wilds) return false;
+
+	if( x1 < 0 || x1 >= wilds->map_size_x ) return false;
+	if( x2 < 0 || x2 >= wilds->map_size_x ) return false;
+	if( y1 < 0 || y1 >= wilds->map_size_y ) return false;
+	if( y2 < 0 || y2 >= wilds->map_size_y ) return false;
+
+	for( int y = y1; y <= y2; y++ )
+	{
+		for( int x = x1; x <= x2; x++ )
+		{
+			WILDS_TERRAIN *terrain = get_terrain_by_coords(wilds, x, y);
+
+			if( terrain && !terrain->nonroom &&
+				(terrain->template->sector_type == SECT_WATER_NOSWIM ||
+				 terrain->template->sector_type == SECT_WATER_SWIM) &&
+				IS_SET(terrain->template->room2_flag, ROOM_SAFE_HARBOR) )
+			{
+
+				if( _is_terrain_land(wilds, x-1,y) ||
+					_is_terrain_land(wilds, x+1,y) ||
+					_is_terrain_land(wilds, x,y-1) ||
+					_is_terrain_land(wilds, x,y+1) )
+					return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+
+bool get_shipyard_location(long wuid, int x1, int y1, int x2, int y2, int *x, int *y)
+{
+	// Verify the shipyard is valid still
+	if( !is_shipyard_valid(wuid, x1, y1, x2, y2) ) return false;
+
+	WILDS_DATA *wilds = get_wilds_from_uid(NULL, wuid);
+
+	if(!wilds) return false;
+
+	while(true) {
+		int _x = number_range(x1, x2);
+		int _y = number_range(y1, y2);
+
+		WILDS_TERRAIN *terrain = get_terrain_by_coords(wilds, _x, _y);
+
+		if( terrain && !terrain->nonroom &&
+			(terrain->template->sector_type == SECT_WATER_NOSWIM ||
+			 terrain->template->sector_type == SECT_WATER_SWIM) &&
+			IS_SET(terrain->template->room2_flag, ROOM_SAFE_HARBOR) )
+		{
+			if( _is_terrain_land(wilds, _x-1,_y) ||
+				_is_terrain_land(wilds, _x+1,_y) ||
+				_is_terrain_land(wilds, _x,_y-1) ||
+				_is_terrain_land(wilds, _x,_y+1) )
+			{
+				*x = _x;
+				*y = _y;
+
+				return true;
+			}
+		}
+	}
+}
+
+SHIP_DATA *purchase_ship(CHAR_DATA *ch, long vnum, SHOP_DATA *shop)
+{
+	WILDS_DATA *wilds = get_wilds_from_uid(NULL, shop->shipyard);
+
+	if(!wilds) return NULL;
+
+	int x, y;
+	if( !get_shipyard_location(shop->shipyard,
+			shop->shipyard_region[0][0],
+			shop->shipyard_region[0][1],
+			shop->shipyard_region[1][0],
+			shop->shipyard_region[1][1], &x, &y) )
+	{
+		return NULL;
+	}
+
+	SHIP_DATA *ship = create_ship(vnum);
+
+	if( !IS_VALID(ship) )
+	{
+		return NULL;
+	}
+
+	ship->owner = owner;
+	if( owner )
+	{
+		ship->owner_uid[0] = owner->id[0];
+		ship->owner_uid[1] = owner->id[1];
+	}
+
+	ROOM_INDEX_DATA *room = get_wilds_vroom(wilds, x, y);
+	if( !room )
+		room = create_wilds_vroom(wilds, x, y);
+
+
+	free_string(ship->ship->name);
+	sprintf(buf, ship->ship->pIndexData->name, ch->name);
+	ship->ship->name = str_dup(buf);
+
+	free_string(ship->ship->short_descr);
+	sprintf(buf, "%s %s", get_article(ship->index->name, false), ship->index->name);
+	ship->ship->short_descr = str_dup(buf);
+
+	// Long description is never seen
+
+	obj_to_room(ship->ship, room);
+	return ship;
+}
+
+int ships_player_owned(CHAR_DATA *ch, SHIP_INDEX_DATA *index)
+{
+	ITERATOR it;
+	SHIP_DATA *ship;
+
+	int count = 0;
+	iterator_start(&it, loaded_ships);
+	while( (ship = (SHIP_DATA *)iterator_nextdata(&it)) )
+	{
+		if( (!index || ship->index == index) &&
+			ship_isowner_player(ship, ch) )
+		{
+			++count;
+		}
+	}
+	iterator_stop(&it);
+
+	return count;
+}
 
 /////////////////////////////////////////////////////////////////
 //

@@ -1389,6 +1389,10 @@ struct	shop_data
     int		flags;
     int		discount;			// Possible percent discount you can get from haggling (0-100)
 
+	long	shipyard;				// Wilderness location for shipyard
+    int		shipyard_region[2][2];
+    char	*shipyard_description;	// Used when purchasing a ship to tell the buyer where the ship is located.
+
     SHOP_STOCK_DATA *stock;
 };
 
@@ -1397,6 +1401,7 @@ struct	shop_data
 #define STOCK_PET		2
 #define STOCK_MOUNT		3
 #define STOCK_GUARD		4
+#define STOCK_SHIP		5
 
 struct shop_stock_data
 {
@@ -1421,6 +1426,7 @@ struct shop_stock_data
 
 	MOB_INDEX_DATA *mob;
 	OBJ_INDEX_DATA *obj;
+	SHIP_INDEX_DATA *ship;
 	int type;
 	long vnum;
 
@@ -4751,6 +4757,7 @@ struct trade_type
 };
 
 /* ships */
+#define SHIP_SPEED_LANDED    	-1
 #define SHIP_SPEED_STOPPED    	0
 #define SHIP_SPEED_HALF_SPEED 	50
 #define SHIP_SPEED_FULL_SPEED 	100
@@ -8577,6 +8584,12 @@ OBJ_DATA *lockstate_getkey(CHAR_DATA *ch, LOCK_STATE *lock);
 SPECIAL_KEY_DATA *get_special_key(LLIST *list, long vnum);
 void extract_special_key(OBJ_DATA *obj);
 void resolve_special_key(OBJ_DATA *obj);
+
+char *get_article(char *text, bool upper);
+bool is_shipyard_valid(long wuid, int x1, int y1, int x2, int y2);
+bool get_shipyard_location(long wuid, int x1, int y1, int x2, int y2, int *x, int *y);
+SHIP_DATA *purchase_ship(CHAR_DATA *ch, long vnum, SHOP_DATA *shop);
+int ships_player_owned(CHAR_DATA *ch, SHIP_INDEX_DATA *index);
 
 extern LLIST *loaded_special_keys;
 extern LLIST *loaded_waypoints;

@@ -393,62 +393,156 @@ char *format_obj_to_char(OBJ_DATA * obj, CHAR_DATA * ch, bool fShort)
 
 		    ship = obj->ship;
 
-		    if (obj->ship->speed > SHIP_SPEED_STOPPED)
+		    if( IS_NULLSTR(ship->ship_name) )
 		    {
-				if (obj->ship->ship_type == SHIP_AIR_SHIP)
+				if (obj->ship->speed > SHIP_SPEED_STOPPED)
 				{
-					sprintf(buf2, "{MThe {x%s{M flies high above heading %s.{x", ship->ship_name, dir_name[ship->steering.compass]);
-				}
-				else
-				{
-					sprintf(buf2, "{MThe %s '{x%s{M', powers through the water sailing %s.{x", ship->index->name, ship->ship_name, dir_name[ship->steering.compass]);
-				}
-		    }
-		    else if( ship->scuttle_time > 0 )
-		    {
-				if (IS_NULLSTR(ship->flag))
-				{
-					sprintf(buf2,
-						"{RThe %s named '{x%s{R', burns brightly as flames engulf the vessel!{x",
-						ship->index->name, ship->ship_name);
-				}
-				else
-				{
-					sprintf(buf2,
-						"{RThe %s named '{x%s{R', flying the flag, '{x%s{R', burns brightly as flames engulf the vessel!{x",
-						ship->index->name, ship->ship_name, ship->flag);
-				}
-
-			}
-			else
-		    {
-				if (obj->ship->ship_type == SHIP_AIR_SHIP)
-				{
-					if( IS_NULLSTR(ship->flag) )
+					if (obj->ship->ship_type == SHIP_AIR_SHIP)
 					{
-						sprintf(buf2, "{MThe {x%s{M floats gently just above the ground.{x", ship->ship_name);
+						sprintf(buf2, "{M%s %s flies high above heading %s.{x",
+							get_article(ship->index->name, true), ship->index->name, dir_name[ship->steering.compass]);
 					}
 					else
 					{
-						sprintf(buf2, "{MThe {x%s{M, flying the flag '{x%s{M', floats gently just above the ground.{x", ship->ship_name, ship->flag);
+						sprintf(buf2, "{M%s %s powers through the water sailing %s.{x",
+							get_article(ship->index->name, true), ship->index->name, dir_name[ship->steering.compass]);
 					}
 				}
-				else
+				else if( ship->scuttle_time > 0 )
 				{
 					if (IS_NULLSTR(ship->flag))
 					{
 						sprintf(buf2,
-							"{MThe %s named '{x%s{M' gracefully floats here.{x",
+							"{R%s %s burns brightly as flames engulf the vessel!{x",
+							get_article(ship->index->name, true), ship->index->name, ship->ship_name);
+					}
+					else
+					{
+						sprintf(buf2,
+							"{R%s %s flying the flag, '{x%s{R', burns brightly as flames engulf the vessel!{x",
+							get_article(ship->index->name, true), ship->index->name, ship->ship_name, ship->flag);
+					}
+				}
+				else
+				{
+					if (obj->ship->ship_type == SHIP_AIR_SHIP)
+					{
+						if( ship->speed == SHIP_SPEED_LANDED )
+						{
+							if( IS_NULLSTR(ship->flag) )
+							{
+								sprintf(buf2, "{M%s %s floats gently just above the ground.{x",
+									get_article(ship->index->name, true), ship->index->name, ship->ship_name);
+							}
+							else
+							{
+								sprintf(buf2, "{M%s %s, flying the flag '{x%s{M', floats gently just above the ground.{x",
+									get_article(ship->index->name, true), ship->index->name, ship->ship_name, ship->flag);
+							}
+						}
+						else
+						{
+							if( IS_NULLSTR(ship->flag) )
+							{
+								sprintf(buf2, "{M%s %s floats gently high in the air.{x",
+									get_article(ship->index->name, true), ship->index->name, ship->ship_name);
+							}
+							else
+							{
+								sprintf(buf2, "{M%s %s, flying the flag '{x%s{M', floats gently high in the air.{x",
+									get_article(ship->index->name, true), ship->index->name, ship->ship_name, ship->flag);
+							}
+						}
+					}
+					else
+					{
+						if (IS_NULLSTR(ship->flag))
+						{
+							sprintf(buf2,
+								"{M%s %s gracefully floats here.{x",
+								get_article(ship->index->name, true), ship->index->name, ship->ship_name);
+						}
+						else
+						{
+							sprintf(buf2,
+								"{M%s %s, flying the flag '{x%s{M', floats here.{x",
+								get_article(ship->index->name, true), ship->index->name, ship->ship_name, ship->flag);
+						}
+					}
+				}
+			}
+			else
+			{
+				if (obj->ship->speed > SHIP_SPEED_STOPPED)
+				{
+					if (obj->ship->ship_type == SHIP_AIR_SHIP)
+					{
+						sprintf(buf2, "{MThe %s '{x%s{M' flies high above heading %s.{x", ship->index->name, ship->ship_name, dir_name[ship->steering.compass]);
+					}
+					else
+					{
+						sprintf(buf2, "{MThe %s '{x%s{M', powers through the water sailing %s.{x", ship->index->name, ship->ship_name, dir_name[ship->steering.compass]);
+					}
+				}
+				else if( ship->scuttle_time > 0 )
+				{
+					if (IS_NULLSTR(ship->flag))
+					{
+						sprintf(buf2,
+							"{RThe %s named '{x%s{R', burns brightly as flames engulf the vessel!{x",
 							ship->index->name, ship->ship_name);
 					}
 					else
 					{
 						sprintf(buf2,
-							"{MThe %s named '{x%s{M', flying the flag '{x%s{M', floats here.{x",
+							"{RThe %s named '{x%s{R', flying the flag, '{x%s{R', burns brightly as flames engulf the vessel!{x",
 							ship->index->name, ship->ship_name, ship->flag);
 					}
 				}
-		    }
+				else
+				{
+					if (obj->ship->ship_type == SHIP_AIR_SHIP)
+					{
+						if( ship->speed == SHIP_SPEED_LANDED )
+						{
+							if( IS_NULLSTR(ship->flag) )
+							{
+								sprintf(buf2, "{MThe %s {x%s{M floats gently just above the ground.{x", ship->index->name, ship->ship_name);
+							}
+							else
+							{
+								sprintf(buf2, "{MThe %s {x%s{M, flying the flag '{x%s{M', floats gently just above the ground.{x", ship->index->name, ship->ship_name, ship->flag);
+							}
+						}
+						else
+						{
+							if( IS_NULLSTR(ship->flag) )
+							{
+								sprintf(buf2, "{MThe %s {x%s{M floats gently high in the air.{x", ship->index->name, ship->ship_name);
+							}
+							else
+							{
+								sprintf(buf2, "{MThe %s {x%s{M, flying the flag '{x%s{M', floats gently high in the air.{x", ship->index->name, ship->ship_name, ship->flag);
+							}
+						}
+					}
+					else
+					{
+						if (IS_NULLSTR(ship->flag))
+						{
+							sprintf(buf2,
+								"{MThe %s named '{x%s{M' gracefully floats here.{x",
+								ship->index->name, ship->ship_name);
+						}
+						else
+						{
+							sprintf(buf2,
+								"{MThe %s named '{x%s{M', flying the flag '{x%s{M', floats here.{x",
+								ship->index->name, ship->ship_name, ship->flag);
+						}
+					}
+				}
+			}
 
 			strcat(buf, buf2);
 		}

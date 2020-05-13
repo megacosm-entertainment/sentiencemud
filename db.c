@@ -2063,6 +2063,10 @@ void copy_shop_stock(SHOP_DATA *to_shop, SHOP_STOCK_DATA *from_stock)
 		if(to_stock->vnum > 0)
 			to_stock->mob = get_mob_index(to_stock->vnum);
 		break;
+	case STOCK_SHIP:
+		if(to_stock->vnum > 0)
+			to_stock->ship = get_ship_index(to_stock->vnum);
+		break;
 	case STOCK_CUSTOM:
 		free_string(to_stock->custom_keyword);
 		to_stock->custom_keyword = str_dup(from_stock->custom_keyword);
