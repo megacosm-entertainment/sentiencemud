@@ -2570,6 +2570,7 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 
 void do_ship_christen(CHAR_DATA *ch, char *argument)
 {
+	char buf[MSL];
 	SHIP_DATA *ship;
 
 	ship = get_room_ship(ch->in_room);
@@ -2659,11 +2660,11 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 	char buf[MSL];
 	if( IS_NULLSTR(ship->ship_name) )
 	{
-		sprintf(buf, "{W%s %s descends from above to land.{x", get_article(ship->index->name, true), ship->index->name));
+		sprintf(buf, "{W%s %s descends from above to land.{x", get_article(ship->index->name, true), ship->index->name);
 	}
 	else
 	{
-		sprintf(buf, "{WThe %s '{x%s{W' descends from above to land.{x", get_article(ship->index->name, true), ship->index->name), ship->ship_name);
+		sprintf(buf, "{WThe %s '{x%s{W' descends from above to land.{x", ship->index->name, ship->ship_name);
 	}
 	room_echo(ship->ship->in_room, buf);
 }
@@ -2707,17 +2708,17 @@ void do_ship_launch(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	ship->speed = SHIP_SPEED_SPEED;
+	ship->speed = SHIP_SPEED_STOPPED;
 	ship_echo(ship, "{WThe vessel groans a bit before taking flight.{x");
 
 	char buf[MSL];
 	if( IS_NULLSTR(ship->ship_name) )
 	{
-		sprintf(buf, "{W%s %s groans a bit before taking flight.{x", get_article(ship->index->name, true), ship->index->name));
+		sprintf(buf, "{W%s %s groans a bit before taking flight.{x", get_article(ship->index->name, true), ship->index->name);
 	}
 	else
 	{
-		sprintf(buf, "{WThe %s '{x%s{W' groans a bit before taking flight.{x", get_article(ship->index->name, true), ship->index->name), ship->ship_name);
+		sprintf(buf, "{WThe %s '{x%s{W' groans a bit before taking flight.{x", ship->index->name, ship->ship_name);
 	}
 	room_echo(ship->ship->in_room, buf);
 }

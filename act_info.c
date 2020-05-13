@@ -460,13 +460,13 @@ char *format_obj_to_char(OBJ_DATA * obj, CHAR_DATA * ch, bool fShort)
 						{
 							sprintf(buf2,
 								"{M%s %s gracefully floats here.{x",
-								get_article(ship->index->name, true), ship->index->name, ship->ship_name);
+								get_article(ship->index->name, true), ship->index->name);
 						}
 						else
 						{
 							sprintf(buf2,
 								"{M%s %s, flying the flag '{x%s{M', floats here.{x",
-								get_article(ship->index->name, true), ship->index->name, ship->ship_name, ship->flag);
+								get_article(ship->index->name, true), ship->index->name, ship->flag);
 						}
 					}
 				}
