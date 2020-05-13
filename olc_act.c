@@ -9286,7 +9286,7 @@ MEDIT(medit_shop)
 						return FALSE;
 					}
 
-					if( !ship->blueprint || !ship->object )
+					if( !IS_VALID(ship->blueprint) || !get_obj_index(ship->ship_object) )
 					{
 						send_to_char("Ship is incomplete.  Cannot be sold yet.\n\r", ch);
 						return FALSE;
