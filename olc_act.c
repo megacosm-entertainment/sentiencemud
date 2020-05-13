@@ -7855,7 +7855,7 @@ MEDIT(medit_show)
 						strcpy(item, "-invalid-");
 					break;
 				case STOCK_SHIP:
-					strcpy(tye,"{GSHIP{x    ");
+					strcpy(typ,"{GSHIP{x    ");
 					if( pStock->vnum > 0 )
 					{
 						SHIP_INDEX_DATA *ship_index = get_ship_index(pStock->vnum);
@@ -8832,7 +8832,7 @@ MEDIT(medit_shop)
 		argument = one_argument(argument, arg4);
 		argument = one_argument(argument, arg5);
 
-		if( !str_cmp(arg1, "clear" )
+		if( !str_cmp(arg1, "clear") )
 		{
 			pMob->pShop->shipyard = 0;
 			pMob->pShop->shipyard_region[0][0] = 0;
@@ -9272,7 +9272,7 @@ MEDIT(medit_shop)
 					pMob->pShop->shipyard_region[1][1]) )
 				{
 					send_to_char("Shopkeeper needs to have a valid shipyard defined first before you can add a ship.\n\r", ch);
-					return;
+					return FALSE;
 				}
 
 				if( is_number(arg2) )
