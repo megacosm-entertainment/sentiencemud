@@ -62,12 +62,20 @@ void do_disembark( CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-    if ( ship->ship_type == SHIP_AIR_SHIP && ship->speed > SHIP_SPEED_STOPPED )
+    if ( ship->ship_type == SHIP_AIR_SHIP && !mobile_is_flying(ch) )
     {
-		act( "The doors of the airship are locked!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
-		return;
-    }
+		if ( ship->speed > SHIP_SPEED_STOPPED )
+		{
+			act( "The doors of the airship are locked!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
+			return;
+		}
 
+		if ( ship->speed == SHIP_SPEED_STOPPED )
+		{
+			act( "You need to be flying to disembark a flying airship.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
+			return;
+		}
+    }
 
     location = ship->ship->in_room;
     ship_obj = ship->ship;
