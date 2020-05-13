@@ -7865,7 +7865,7 @@ MEDIT(medit_show)
 						}
 						else
 						{
-							sprintf(item, "%s (%ld", ship_index->name, pStock->vnum);
+							sprintf(item, "%s (%ld)", ship_index->name, pStock->vnum);
 						}
 
 					}
