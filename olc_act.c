@@ -9275,9 +9275,9 @@ MEDIT(medit_shop)
 					return FALSE;
 				}
 
-				if( is_number(arg2) )
+				if( is_number(argument) )
 				{
-					long vnum = atol(arg2);
+					long vnum = atol(argument);
 
 					if( !get_ship_index(vnum) )
 					{
