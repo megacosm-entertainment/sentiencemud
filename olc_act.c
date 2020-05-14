@@ -542,72 +542,84 @@ AEDIT(aedit_show)
 
     EDIT_AREA(ch, pArea);
 
-    sprintf(buf, "Name:      [%5ld] %s\n\r", pArea->anum, pArea->name);
+    sprintf(buf, "Name:        [%5ld] %s\n\r", pArea->anum, pArea->name);
     send_to_char(buf, ch);
 
 	if(pArea->recall.wuid) {
 		WILDS_DATA *wilds = get_wilds_from_uid(NULL,pArea->recall.wuid);
 		if(wilds)
-			sprintf(buf, "Recall:    Wilds %s [%lu] at <%lu,%lu,%lu>\n\r", wilds->name, pArea->recall.wuid,
+			sprintf(buf, "Recall:      Wilds %s [%lu] at <%lu,%lu,%lu>\n\r", wilds->name, pArea->recall.wuid,
 				pArea->recall.id[0],pArea->recall.id[1],pArea->recall.id[2]);
 		else
-			sprintf(buf, "Recall:    Wilds ??? [%lu]\n\r", pArea->recall.wuid);
+			sprintf(buf, "Recall:      Wilds ??? [%lu]\n\r", pArea->recall.wuid);
 	} else if(pArea->recall.id[0] > 0 && (recall = get_room_index(pArea->recall.id[0]))) {
 		sprintf(buf, "Recall:    Room [%5ld] %s\n\r", pArea->recall.id[0], recall->name);
 	} else
-			sprintf(buf, "Recall:    [%lu] none\n\r", pArea->recall.id[0]);
+			sprintf(buf, "Recall:      [%lu] none\n\r", pArea->recall.id[0]);
 	send_to_char(buf, ch);
 
-    sprintf(buf, "File:      %s\n\r", pArea->file_name);
+    sprintf(buf, "File:        %s\n\r", pArea->file_name);
     send_to_char(buf, ch);
 
-    sprintf(buf, "Vnums:     [%ld-%ld]\n\r", pArea->min_vnum, pArea->max_vnum);
+    sprintf(buf, "Vnums:       [%ld-%ld]\n\r", pArea->min_vnum, pArea->max_vnum);
     send_to_char(buf, ch);
 
-    sprintf(buf, "Age:       [%d]\n\r",	pArea->age);
+    sprintf(buf, "Age:         [%d]\n\r",	pArea->age);
     send_to_char(buf, ch);
 
-    sprintf(buf, "Repop:     [%d minutes]\n\r", pArea->repop);
+    sprintf(buf, "Repop:       [%d minutes]\n\r", pArea->repop);
     send_to_char(buf, ch);
 
-    sprintf(buf, "Players:   [%d]\n\r", pArea->nplayer);
+    sprintf(buf, "Players:     [%d]\n\r", pArea->nplayer);
     send_to_char(buf, ch);
 
-    sprintf(buf, "AreaWho:   [%s] [%s]\n\r", flag_string(area_who_titles, pArea->area_who), flag_string(area_who_display, pArea->area_who));
+    sprintf(buf, "AreaWho:     [%s] [%s]\n\r", flag_string(area_who_titles, pArea->area_who), flag_string(area_who_display, pArea->area_who));
     send_to_char(buf, ch);
 
-    sprintf(buf, "Security:  [%d]\n\r", pArea->security);
+    sprintf(buf, "Security:    [%d]\n\r", pArea->security);
     send_to_char(buf, ch);
 
-    sprintf(buf, "PlaceType: [%s]\n\r",
+    sprintf(buf, "PlaceType:   [%s]\n\r",
 	    flag_string(place_flags, pArea->place_flags));
     send_to_char(buf, ch);
 
-    sprintf(buf, "Builders:  [%s]\n\r", pArea->builders);
+    sprintf(buf, "Builders:    [%s]\n\r", pArea->builders);
     send_to_char(buf, ch);
 
-    sprintf(buf, "Credits :  [%s]\n\r", pArea->credits);
+    sprintf(buf, "Credits:     [%s]\n\r", pArea->credits);
     send_to_char(buf, ch);
 
-    sprintf(buf, "Flags:     [%s]\n\r",
+    sprintf(buf, "Flags:       [%s]\n\r",
 		   flag_string(area_flags, pArea->area_flags));
     send_to_char(buf, ch);
 
-    sprintf(buf, "X : Y:     [%d, %d]\n\r", pArea->x, pArea->y);
+    if( pArea->wilds_uid > 0 )
+    {
+		WILDS_DATA *pWilds = get_wilds_from_uid(NULL, pArea->wilds_uid);
+    	sprintf(buf, "Wilderness:  [%ld] %s\n\r", pArea->wilds_uid, pWilds?pWilds->name:"(null)");
+	    send_to_char(buf, ch);
+	}
+	else
+	{
+    	sprintf(buf, "Wilderness:  none\n\r");
+	    send_to_char(buf, ch);
+	}
+
+    sprintf(buf, "X : Y:       [%d, %d]\n\r", pArea->x, pArea->y);
     send_to_char(buf, ch);
 
-    sprintf(buf, "Land X:Y:  [%d, %d]\n\r", pArea->land_x, pArea->land_y);
+    sprintf(buf, "Land X:Y:    [%d, %d]\n\r", pArea->land_x, pArea->land_y);
     send_to_char(buf, ch);
 
     sprintf(buf, "AirshipLand: [%s(%ld)]\n\r", get_room_index(pArea->airship_land_spot) == NULL ? "None" :
         get_room_index(pArea->airship_land_spot)->name, pArea->airship_land_spot);
     send_to_char(buf, ch);
 
-    sprintf(buf, "Open:      [%s]\n\r", pArea->open ? "Yes" : "No");
+    sprintf(buf, "Open:        [%s]\n\r", pArea->open ? "Yes" : "No");
     send_to_char(buf, ch);
 
     // One post office per area
-    sprintf(buf, "PostOffice [%s (%ld)]\n\r",
+    sprintf(buf, "PostOffice   [%s (%ld)]\n\r",
         get_room_index(pArea->post_office) == NULL ? "None" :
 	    get_room_index(pArea->post_office)->name, pArea->post_office);
     send_to_char(buf, ch);
@@ -733,6 +745,32 @@ AEDIT(aedit_land_y)
 
     pArea->land_y = atoi(argument);
     send_to_char("Y Coordinate set.\n\r", ch);
+
+    return TRUE;
+}
+
+AEDIT(aedit_wilds)
+{
+    AREA_DATA *pArea;
+
+    EDIT_AREA(ch, pArea);
+
+    if (!is_number(argument))
+    {
+		send_to_char("Syntax:  wilds [map uid]\n\r", ch);
+		return FALSE;
+    }
+
+    long wuid = atol(argument);
+
+    if( !get_wilds_from_uid(NULL, wuid) )
+    {
+		send_to_char("Invalid wilds map.\n\r", ch);
+		return FALSE;
+	}
+
+    pArea->wilds_uid = wuid;
+    send_to_char("Wilderness Map UID set set.\n\r", ch);
 
     return TRUE;
 }

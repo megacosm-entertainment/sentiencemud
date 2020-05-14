@@ -4602,6 +4602,8 @@ struct	area_data {
 	int security;
 	bool open;
 
+	long wilds_uid;	// What wilderness are the coordinates even in?
+
 	int x;
 	int y;
 

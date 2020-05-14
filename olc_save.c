@@ -379,6 +379,7 @@ void save_area_new(AREA_DATA *area)
     fprintf(fp, "AreaFlags %ld\n", 	area->area_flags);
     fprintf(fp, "Builders %s~\n",      	fix_string(area->builders));
     fprintf(fp, "VNUMs %ld %ld\n",     	area->min_vnum, area->max_vnum);
+    fprintf(fp, "WildsVnum %ld\n",	area->wilds_vnum);
     fprintf(fp, "XCoord %d\n", 		area->x);
     fprintf(fp, "YCoord %d\n", 		area->y);
     fprintf(fp, "XLand %d\n",	 	area->land_x);
@@ -1554,6 +1555,8 @@ AREA_DATA *read_area_new(FILE *fp)
 		}
 
 		break;
+		case 'W':
+		KEY("WildsVnum",	area->wilds_vnum, fread_number(fp));
 
 	    case 'X':
 		KEY("XCoord",		area->x,		fread_number(fp));
@@ -1585,6 +1588,11 @@ AREA_DATA *read_area_new(FILE *fp)
 	if( area->version_area < VERSION_AREA_003 )
 	{
 		// Handled after all areas are loaded, since there can be cross area handling
+	}
+
+	if (!area->wilds_vnum && area->airship_land_spot > 0)
+	{
+		area->wilds_vnum = 6;	// The overworld wilderness
 	}
 
     if (area->uid == 0)

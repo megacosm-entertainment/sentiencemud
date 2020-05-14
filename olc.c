@@ -109,6 +109,7 @@ const struct olc_cmd_type aedit_table[] =
 	{	"varset",		aedit_varset		},
 	{	"viewtrade",	aedit_view_trade	},
 	{	"vnum",			aedit_vnum			},
+	{	"wilds",		aedit_wilds			},
 	{	"x",			aedit_x				},
 	{	"y",			aedit_y				},
 	{	NULL,			0,					}

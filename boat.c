@@ -694,9 +694,16 @@ bool move_ship_success(SHIP_DATA *ship)
 
 	if( !steering_movement(ship, &x, &y, &door) ) return false;
 
+	if (x < 0 || x >= in_room->wilds->map_size_x ) return false;
+	if (y < 0 || y >= in_room->wilds->map_size_y ) return false;
+
 	if ( ship->ship_type != SHIP_AIR_SHIP )
 	{
 		WILDS_TERRAIN *pTerrain = get_terrain_by_coors(in_room->wilds, x, y);
+
+		// Invalid terrain
+		if( !pTerrain || pTerrain->nonroom )
+			return false;
 
 		EXIT_DATA *pexit = in_room->exit[door];
 		bool vlink = (pexit && IS_SET(pexit->exit_info, EX_VLINK));
@@ -2657,10 +2664,86 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
+	if( ship->speed == SHIP_SPEED_LANDED )
+	{
+		send_to_char("The vessel has already landed.\n\r", ch);
+		return;
+	}
+
+	WILDS_TERRAIN *pTerrain = get_terrain_by_coors(ship->ship->in_room->wilds, ship->ship->in_room->x, ship->ship->in_room->y);
+
+	ROOM_INDEX_DATA *to_room = NULL;
+	AREA_DATA *bestArea = NULL;
+	if( !pTerrain || pTerrain->nonroom )
+	{
+		// Indicative of the terrain being part of some city region on the wilds
+		if( pTerrain->template->sector_type != SECT_CITY )
+		{
+			send_to_char("The vessel cannot land here.\n\r", ch);
+			return;
+		}
+
+		int bestDistanceSq = 400;	// 20 distance radius
+
+		long uid = ship->ship->in_room->wilds->uid;
+		int x = ship->ship->in_room->x;
+		int y = ship->ship->in_room->y;
+
+		for( AREA_DATA *area = area_first; area; area = area->next )
+		{
+			if( area->wilds_vnum != uid || area->airship_land_spot < 1 ) continue;
+
+			int distanceSq = ( x - area->x ) * ( x - area->x ) + ( y - area->y ) * ( y - area->y );
+
+			if( distanceSq < bestDistanceSq )
+			{
+				bestDistanceSq = distanceSq;
+				bestArea = area;
+			}
+		}
+
+		if( bestArea == NULL )
+		{
+			send_to_char("The vessel cannot land here.\n\r", ch);
+			return;
+		}
+
+		to_room = get_room_index(bestArea->airship_land_spot);
+		if( !to_room )
+		{
+			send_to_char("There is no safe place to land the ship here.\n\r", ch);
+			return;
+		}
+	}
+
+
+
 	ship->speed = SHIP_SPEED_LANDED;
-	ship_echo(ship, "{WThe vessel descends to the ground below.{x");
 
 	char buf[MSL];
+	if( to_room && bestArea )
+	{
+		sprintf(buf, "{WThe vessel descends down to {Y%s{W below.{x", bestArea->name);
+		ship_echo(ship, buf);
+
+		if( IS_NULLSTR(ship->ship_name) )
+		{
+			sprintf(buf, "{W%s %s descends from above to land in {Y%s{W.{x", get_article(ship->index->name, true), ship->index->name, bestArea->name);
+		}
+		else
+		{
+			sprintf(buf, "{WThe %s '{x%s{W' descends from above to land in {Y%s{W.{x", ship->index->name, ship->ship_name, bestArea->name);
+		}
+		room_echo(ship->ship->in_room, buf);
+
+		obj_from_room(ship->ship);
+		obj_to_room(ship->ship, to_room);
+	}
+	else
+	{
+		ship_echo(ship, "{WThe vessel descends to the ground below.{x");
+	}
+
 	if( IS_NULLSTR(ship->ship_name) )
 	{
 		sprintf(buf, "{W%s %s descends from above to land.{x", get_article(ship->index->name, true), ship->index->name);
@@ -2670,6 +2753,7 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 		sprintf(buf, "{WThe %s '{x%s{W' descends from above to land.{x", ship->index->name, ship->ship_name);
 	}
 	room_echo(ship->ship->in_room, buf);
+
 }
 
 void do_ship_launch(CHAR_DATA *ch, char *argument)
@@ -2715,15 +2799,59 @@ void do_ship_launch(CHAR_DATA *ch, char *argument)
 	ship_echo(ship, "{WThe vessel groans a bit before taking flight.{x");
 
 	char buf[MSL];
-	if( IS_NULLSTR(ship->ship_name) )
+	if( !ship->ship->in_room->wilds )
 	{
-		sprintf(buf, "{W%s %s groans a bit before taking flight.{x", get_article(ship->index->name, true), ship->index->name);
+		// In a fixed area
+		AREA_DATA *area = ship->ship->in_room->area;
+		WILDS_DATA *wilds = get_wilds_from_uid(NULL, area->wilds_uid);
+
+		if( !wilds || area->x < 0 || area->y < 0 )
+		{
+			send_to_char("There is nowhere for the vessel to go.\n\r", ch);
+			return;
+		}
+
+		ROOM_INDEX_DATA *room = get_wilds_vroom(wilds, area->x, area->y);
+		if( !room )
+			room = create_wilds_vroom(wilds, area->x, area->y);
+
+
+		if( IS_NULLSTR(ship->ship_name) )
+		{
+			sprintf(buf, "{W%s %s groans a bit before taking flight.{x", get_article(ship->index->name, true), ship->index->name);
+		}
+		else
+		{
+			sprintf(buf, "{WThe %s '{x%s{W' groans a bit before taking flight.{x", ship->index->name, ship->ship_name);
+		}
+		room_echo(ship->ship->in_room, buf);
+
+		obj_from_room(ship->ship);
+		obj_to_room(ship->ship, room);
+
+		if( IS_NULLSTR(ship->ship_name) )
+		{
+			sprintf(buf, "{W%s %s soars into the air from %s below.{x", get_article(ship->index->name, true), ship->index->name, area->name);
+		}
+		else
+		{
+			sprintf(buf, "{WThe %s '{x%s{W' soars into the air from %s below.{x", ship->index->name, ship->ship_name, area->name);
+		}
+		room_echo(ship->ship->in_room, buf);
 	}
 	else
 	{
-		sprintf(buf, "{WThe %s '{x%s{W' groans a bit before taking flight.{x", ship->index->name, ship->ship_name);
+		if( IS_NULLSTR(ship->ship_name) )
+		{
+			sprintf(buf, "{W%s %s groans a bit before taking flight.{x", get_article(ship->index->name, true), ship->index->name);
+		}
+		else
+		{
+			sprintf(buf, "{WThe %s '{x%s{W' groans a bit before taking flight.{x", ship->index->name, ship->ship_name);
+		}
+		room_echo(ship->ship->in_room, buf);
 	}
-	room_echo(ship->ship->in_room, buf);
+
 }
 
 void do_ship_chase(CHAR_DATA *ch, char *argument)

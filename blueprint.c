@@ -1277,6 +1277,8 @@ void instance_update()
 		// Skip instances owned by dungeons
 		if( IS_VALID(instance->dungeon) ) continue;
 
+		if( IS_VALID(instance->ship) ) continue;
+
 		if( instance_isorphaned(instance) && list_size(instance->players) < 1 )
 		{
 			// Do not keep an empty orphaned instance
