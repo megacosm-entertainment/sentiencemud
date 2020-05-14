@@ -2764,20 +2764,13 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	WILDS_TERRAIN *pTerrain = get_terrain_by_coors(ship->ship->in_room->wilds, ship->ship->in_room->x, ship->ship->in_room->y);
-
 	ROOM_INDEX_DATA *to_room = NULL;
-	AREA_DATA *bestArea = NULL;
-	if( !pTerrain || pTerrain->nonroom )
-	{
-		// Indicative of the terrain being part of some city region on the wilds
-		if( pTerrain->template->sector_type != SECT_CITY )
-		{
-			send_to_char("The vessel cannot land here.\n\r", ch);
-			return;
-		}
+	AREA_DATA *to_area = NULL;
 
-		int bestDistanceSq = 400;	// 20 distance radius
+	if( argument[0] != '\0' )
+	{
+		// Target a nearby area
+		int bestDistanceSq = 100;	// 10 distance radius
 
 		long uid = ship->ship->in_room->wilds->uid;
 		int x = ship->ship->in_room->x;
@@ -2785,6 +2778,8 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 
 		for( AREA_DATA *area = area_first; area; area = area->next )
 		{
+			if( str_infix(argument, area->name) ) continue;
+
 			if( area->wilds_uid != uid || area->airship_land_spot < 1 ) continue;
 
 			int distanceSq = ( x - area->x ) * ( x - area->x ) + ( y - area->y ) * ( y - area->y );
@@ -2792,41 +2787,91 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 			if( distanceSq < bestDistanceSq )
 			{
 				bestDistanceSq = distanceSq;
-				bestArea = area;
+				to_area = area;
 			}
 		}
 
-		if( bestArea == NULL )
+		if( to_area == NULL )
 		{
 			send_to_char("The vessel cannot land here.\n\r", ch);
 			return;
 		}
 
-		to_room = get_room_index(bestArea->airship_land_spot);
+		to_room = get_room_index(to_area->airship_land_spot);
 		if( !to_room )
 		{
 			send_to_char("There is no safe place to land the ship here.\n\r", ch);
 			return;
 		}
 	}
+	else
+	{
+		WILDS_TERRAIN *pTerrain = get_terrain_by_coors(ship->ship->in_room->wilds, ship->ship->in_room->x, ship->ship->in_room->y);
 
+		if( !pTerrain )
+		{
+			send_to_char("The vessel cannot land here.\n\r", ch);
+			return;
+		}
 
+		if( pTerrain->nonroom )
+		{
+			// Indicative of the terrain being part of some city region on the wilds
+			if( pTerrain->template->sector_type != SECT_CITY )
+			{
+				send_to_char("The vessel cannot land here.\n\r", ch);
+				return;
+			}
+
+			int bestDistanceSq = 400;	// 20 distance radius
+
+			long uid = ship->ship->in_room->wilds->uid;
+			int x = ship->ship->in_room->x;
+			int y = ship->ship->in_room->y;
+
+			for( AREA_DATA *area = area_first; area; area = area->next )
+			{
+				if( area->wilds_uid != uid || area->airship_land_spot < 1 ) continue;
+
+				int distanceSq = ( x - area->x ) * ( x - area->x ) + ( y - area->y ) * ( y - area->y );
+
+				if( distanceSq < bestDistanceSq )
+				{
+					bestDistanceSq = distanceSq;
+					to_area = area;
+				}
+			}
+
+			if( to_area == NULL )
+			{
+				send_to_char("The vessel cannot land here.\n\r", ch);
+				return;
+			}
+
+			to_room = get_room_index(to_area->airship_land_spot);
+			if( !to_room )
+			{
+				send_to_char("There is no safe place to land the ship here.\n\r", ch);
+				return;
+			}
+		}
+	}
 
 	ship->speed = SHIP_SPEED_LANDED;
 
 	char buf[MSL];
-	if( to_room && bestArea )
+	if( to_room && to_area )
 	{
-		sprintf(buf, "{WThe vessel descends down to {Y%s{W below.{x", bestArea->name);
+		sprintf(buf, "{WThe vessel descends down to {Y%s{W below.{x", to_area->name);
 		ship_echo(ship, buf);
 
 		if( IS_NULLSTR(ship->ship_name) )
 		{
-			sprintf(buf, "{W%s %s descends from above to land in {Y%s{W.{x", get_article(ship->index->name, true), ship->index->name, bestArea->name);
+			sprintf(buf, "{W%s %s descends from above to land in {Y%s{W.{x", get_article(ship->index->name, true), ship->index->name, to_area->name);
 		}
 		else
 		{
-			sprintf(buf, "{WThe %s '{x%s{W' descends from above to land in {Y%s{W.{x", ship->index->name, ship->ship_name, bestArea->name);
+			sprintf(buf, "{WThe %s '{x%s{W' descends from above to land in {Y%s{W.{x", ship->index->name, ship->ship_name, to_area->name);
 		}
 		room_echo(ship->ship->in_room, buf);
 
