@@ -1081,6 +1081,7 @@ SHIP_DATA *ship_load(FILE *fp)
 			}
 			KEY("ShipFlags", ship->ship_flags, fread_number(fp));
 			KEY("ShipMove", ship->ship_move, fread_number(fp));
+			KEY("ShipType", ship->ship_type, fread_number(fp));
 			KEY("Speed", ship->speed, fread_number(fp));
 			if(!str_cmp(word, "Steering") )
 			{
@@ -1162,6 +1163,7 @@ bool ship_save(FILE *fp, SHIP_DATA *ship)
 	save_ship_uid(fp, "Uid", ship->id);
 
 	fprintf(fp, "Name %s~\n", fix_string(ship->ship_name));
+	fprintf(fp, "ShipType %d\n", ship->ship_type);
 
 	if( ship->owner_uid[0] > 0 || ship->owner_uid[1] > 0 )
 	{
