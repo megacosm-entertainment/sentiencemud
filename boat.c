@@ -113,9 +113,9 @@ bool ship_seek_point(SHIP_DATA *ship)
 
 
 		int dx = ship->seek_point.x - room->x;
-		int dy = room->y - ship->seek_point.y;
+		int dy = ship->seek_point.y - room->y;
 
-		int heading = (int)(180 * atan2(dy, dx) / 3.14159);
+		int heading = (int)(180 * atan2(dx, -dy) / 3.14159);
 		if( heading < 0 ) heading += 360;
 
 		if( abs(heading - ship->steering.heading_target) > 5)
@@ -177,7 +177,7 @@ void steering_calc_forceheading(SHIP_DATA *ship, int dx, int dy)
 
 	ship->steering.move = 0;
 
-	int heading = (int)(180 * atan2(-dy, dx) / 3.14159 + 0.5);
+	int heading = (int)(180 * atan2(dx, -dy) / 3.14159 + 0.5);
 	if( heading < 0 ) heading += 360;
 
 	ship->steering.heading = heading;
@@ -265,6 +265,7 @@ void steering_update(SHIP_DATA *ship)
 						ship->seek_point.x - room->x,
 						ship->seek_point.y - room->y);
 
+					return;
 				}
 			}
 			else
