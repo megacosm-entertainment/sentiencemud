@@ -225,7 +225,7 @@ DECLARE_OLC_FUN( aedit_varset	);
 DECLARE_OLC_FUN( aedit_varclear	);
 DECLARE_OLC_FUN( aedit_addaprog		);
 DECLARE_OLC_FUN( aedit_delaprog		);
-DECLARE_OLC_FUN( aedit_wilds		};
+DECLARE_OLC_FUN( aedit_wilds		);
 
 /*
  * Room Editor Prototypes

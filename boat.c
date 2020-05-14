@@ -1422,7 +1422,7 @@ void ship_autosurvey( SHIP_DATA *ship )
 			ischar_onboard_ship(victim, ship) &&
 			IS_AWAKE(victim) &&
 			(IS_OUTSIDE(victim) ||
-				IS_SET(victim->in_room->room_flags, ROOM_HELM) ||
+				IS_SET(victim->in_room->room_flags, ROOM_SHIP_HELM) ||
 				IS_SET(victim->in_room->room_flags, ROOM_VIEWWILDS)) )
 		{
 			do_function(victim, &do_survey, "auto" );
@@ -2691,7 +2691,7 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 
 		for( AREA_DATA *area = area_first; area; area = area->next )
 		{
-			if( area->wilds_vnum != uid || area->airship_land_spot < 1 ) continue;
+			if( area->wilds_uid != uid || area->airship_land_spot < 1 ) continue;
 
 			int distanceSq = ( x - area->x ) * ( x - area->x ) + ( y - area->y ) * ( y - area->y );
 
