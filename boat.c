@@ -99,8 +99,10 @@ bool ship_seek_point(SHIP_DATA *ship)
 	ROOM_INDEX_DATA *room = obj_room(ship->ship);
 	if( IS_WILDERNESS(room) && ship->seek_point.wilds == room->wilds )
 	{
-		if( room->x == ship->seek_point.x &&
-			room->y == ship->seek_point.y )
+		int distSq = (room->x - ship->seek_point.x) * (room->x - ship->seek_point.x) + (room->y - ship->seek_point.y) * (room->y - ship->seek_point.y);
+
+		// Within 3 block radius of location
+		if( distSq <= 9 )
 		{
 			// TODO: Is there another waypoint?
 
@@ -113,8 +115,8 @@ bool ship_seek_point(SHIP_DATA *ship)
 		int dx = ship->seek_point.x - room->x;
 		int dy = room->y - ship->seek_point.y;
 
-		int heading = (int)(180 * atan2(dx, dy) / 3.14159);
-		if( heading < -180 ) heading += 360;
+		int heading = (int)(180 * atan2(dy, dx) / 3.14159);
+		if( heading < 0 ) heading += 360;
 
 		if( abs(heading - ship->steering.heading_target) > 5)
 		{
@@ -158,6 +160,28 @@ void steering_calc_heading(SHIP_DATA *ship)
 	ship->steering.compass = bearing_door[2 * ship->steering.heading / 45];
 
 	ship->steering.move = 0;
+}
+
+void steering_calc_forceheading(SHIP_DATA *ship, int dx, int dy)
+{
+	ship->steering.dx = dx;
+	ship->steering.dy = dy;
+
+	ship->steering.ax = abs(ship->steering.dx);
+	ship->steering.ay = abs(ship->steering.dy);
+
+	ship->steering.sx = (ship->steering.dx > 0) ? 1 : ((ship->steering.dx < 0) ? -1 : 0);
+	ship->steering.sy = (ship->steering.dy > 0) ? 1 : ((ship->steering.dy < 0) ? -1 : 0);
+
+	ship->steering.compass = bearing_door[2 * ship->steering.heading / 45];
+
+	ship->steering.move = 0;
+
+	int heading = (int)(180 * atan2(-dy, dx) / 3.14159 + 0.5);
+	if( heading < 0 ) heading += 360;
+
+	ship->steering.heading = heading;
+	ship->steering.heading_target = heading;
 }
 
 void steering_set_heading(SHIP_DATA *ship, int heading)
@@ -232,6 +256,16 @@ void steering_update(SHIP_DATA *ship)
 				}
 
 				ship->steering.turning_dir = 0;
+
+				if( ship->seek_point.wilds != NULL )
+				{
+					ROOM_INDEX_DATA *room = obj_room(ship->ship);
+
+					steering_calc_forceheading(ship,
+						ship->seek_point.x - room->x,
+						ship->seek_point.y - room->y);
+
+				}
 			}
 			else
 			{
