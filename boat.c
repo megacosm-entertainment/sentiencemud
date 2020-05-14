@@ -701,6 +701,8 @@ bool ship_isowner_player(SHIP_DATA *ship, CHAR_DATA *ch)
 void ship_stop(SHIP_DATA *ship)
 {
 	ship->speed = SHIP_SPEED_STOPPED;
+	ship->sextant_x = -1;
+	ship->sextant_y = -1;
 	ship->move_steps = 0;
 	ship->steering.move = 0;
 	ship->steering.turning_dir = 0;
@@ -818,6 +820,10 @@ void ship_set_move_steps(SHIP_DATA *ship)
 
 		ship->move_steps = speed * ship->index->move_steps / 100;
 		ship->move_steps = UMAX(1, ship->move_steps);
+
+		// Clear last sextant reading
+		ship->sextant_x = -1;
+		ship->sextant_y = -1;
 	}
 	else
 	{
@@ -1441,6 +1447,132 @@ void get_ship_wildsicon(SHIP_DATA *ship, char *buf, size_t len)
 	}
 
 	buf[len] = '\0';
+}
+
+void get_ship_location(CHAR_DATA *ch, SHIP_DATA *ship, char *buf, size_t len)
+{
+	ROOM_INDEX_DATA *room = obj_room(ship->ship);
+	if( IS_IMMORTAL(ch) )
+	{
+		// Give exact location of ship
+		if( IS_WILDERNESS(room) )
+		{
+			snprintf(buf, len, "{Y%s {x({W%ld{x) at ({C%d{x,{C%d{x)", room->wilds->name, room->wilds->uid, room->x, room->y);
+		}
+		else if( room->source )
+		{
+			// Only scripting should ever cause this situation
+			snprintf(buf, len, "{Y%s {x({W%ld{x):{C%lu{x:{C%lu{x", room->name, room->source->vnum, room->id[0], room->id[1]);
+		}
+		else
+		{
+			snprintf(buf, len, "{Y%s {x({W%ld{x)", room->name, room->vnum);
+		}
+	}
+	else
+	{
+		if( IS_WILDERNESS(room) )
+		{
+			WILDS_DATA *wilds = room->wilds;
+			WILDS_TERRAIN *terrain = get_terrain_from_coors(wilds, room->x, room->y);
+
+			int closestDistanceSq = 401;	// 20 distance radius
+			AREA_DATA *closestArea = NULL;
+			for( AREA_DATA *area = area_first; area; area = area->next )
+			{
+				if( area->wilds_uid == wilds->uid )
+				{
+					int distanceSq =
+						(area->x - room->x) * (area->x - room->x) +
+						(area->y - room->y) * (area->y - room->y);
+
+					if( distanceSq < closestDistanceSq )
+					{
+						closestDistanceSq = distanceSq;
+						closestArea = area;
+					}
+				}
+			}
+
+			if( closestArea != NULL )
+			{
+				if( ship_isowner_player(ship, ch) && ship->sextant_x >= 0 && ship->sextant_y >= 0 )
+				{
+					snprintf(buf, len, "Anchored at {YSouth {W%d{x by {YEast {W%d{x near {Y%s{x", ship->sextant_y, ship->sextant_x, area->name);
+				}
+				else
+				{
+					snprintf(buf, len, "{Y%s{x near {Y%s{x", terrain->template->name, area->name);
+				}
+			}
+			else
+			{
+				int region = get_region(room);
+
+
+				if( ship_isowner_player(ship, ch) && ship->sextant_x >= 0 && ship->sextant_y >= 0 )
+				{
+					char loc[51];
+
+					switch(region)
+					{
+					case REGION_FIRST_CONTINENT:	strncpy(loc, "near {YSeralia{x", 50); break;
+					case REGION_SECOND_CONTINENT:	strncpy(loc, "near {YAthemia{x", 50); break;
+					case REGION_THIRD_CONTINENT:	strncpy(loc, "near {YNaranda{x", 50); break;
+					case REGION_FOURTH_CONTINENT:	strncpy(loc, "near {YHeletane{x", 50); break;
+					case REGION_MORDRAKE_ISLAND:	strncpy(loc, "near {YMordrake's Island{x", 50); break;
+					case REGION_TEMPLE_ISLAND:		strncpy(loc, "near {YVarkhan's Island{x", 50); break;
+					case REGION_ARENA_ISLAND:		strncpy(loc, "near the {YArena Island{x", 50); break;
+					case REGION_DRAGON_ISLAND:		strncpy(loc, "near the {YDragon Isle{x", 50); break;
+					case REGION_UNDERSEA:			strncpy(loc, "near the {YUndersea{x", 50); break;
+					case REGION_NORTH_POLE:			strncpy(loc, "near the {YNorthern Pole{x", 50); break;
+					case REGION_SOUTH_POLE:			strncpy(loc, "near the {YSouthern Pole{x", 50); break;
+					case REGION_NORTHERN_OCEAN:		strncpy(loc, "in the {YNorthern Equidorian Ocean{x", 50); break;
+					case REGION_WESTERN_OCEAN:		strncpy(loc, "in the {YWestern Equidorian Ocean{x", 50); break;
+					case REGION_CENTRAL_OCEAN:		strncpy(loc, "in the {YCentral Equidorian Ocean{x", 50); break;
+					case REGION_EASTERN_OCEAN:		strncpy(loc, "in the {YEastern Equidorian Ocean{x", 50); break;
+					case REGION_SOUTHERN_OCEAN:		strncpy(loc, "in the {YSouthern Equidorian Ocean{x", 50); break;
+					default:						snprintf(loc, 50, "in the {Y%s{x", wilds->name); break;
+					}
+
+					snprintf(buf, len, "Anchored at {YSouth {W%d{x by {YEast {W%d{x %s", ship->sextant_y, ship->sextant_x, lock); break;
+				}
+				else
+				{
+					switch(region)
+					{
+					case REGION_FIRST_CONTINENT:	strncpy(buf, "near {YSeralia{x", len); break;
+					case REGION_SECOND_CONTINENT:	strncpy(buf, "near {YAthemia{x", len); break;
+					case REGION_THIRD_CONTINENT:	strncpy(buf, "near {YNaranda{x", len); break;
+					case REGION_FOURTH_CONTINENT:	strncpy(buf, "near {YHeletane{x", len); break;
+					case REGION_MORDRAKE_ISLAND:	strncpy(buf, "near {YMordrake's Island{x", len); break;
+					case REGION_TEMPLE_ISLAND:		strncpy(buf, "near {YVarkhan's Island{x", len); break;
+					case REGION_ARENA_ISLAND:		strncpy(buf, "near {YArena Island{x", len); break;
+					case REGION_DRAGON_ISLAND:		strncpy(buf, "near {YDragon Isle{x", len); break;
+					case REGION_UNDERSEA:			strncpy(buf, "near {YUndersea{x", len); break;
+					case REGION_NORTH_POLE:			strncpy(buf, "near the {YNorthern Pole{x", len); break;
+					case REGION_SOUTH_POLE:			strncpy(buf, "near the {YSouthern Pole{x", len); break;
+					case REGION_NORTHERN_OCEAN:		strncpy(buf, "in the {YNorthern Equidorian Ocean{x", len); break;
+					case REGION_WESTERN_OCEAN:		strncpy(buf, "in the {YWestern Equidorian Ocean{x", len); break;
+					case REGION_CENTRAL_OCEAN:		strncpy(buf, "in the {YCentral Equidorian Ocean{x", len); break;
+					case REGION_EASTERN_OCEAN:		strncpy(buf, "in the {YEastern Equidorian Ocean{x", len); break;
+					case REGION_SOUTHERN_OCEAN:		strncpy(buf, "in the {YSouthern Equidorian Ocean{x", len); break;
+					default:						snprintf(buf, len, "in the {Y%s{x", wilds->name); break;
+					}
+				}
+			}
+
+		}
+		else if( room->source )
+		{
+			ROOM_INDEX_DATA *environ = get_environment(room);
+			snprintf(buf, len, "{Y%s{x located within {Y%s{x in {Y%s{x", room->name, environ->name, environ->area->name);
+		}
+		else
+		{
+			snprintf(buf, len, "{Y%s{x in {Y%s{x", room->name, room->area->name);
+		}
+	}
 }
 
 void ship_autosurvey( SHIP_DATA *ship )
@@ -3039,7 +3171,68 @@ void do_ship_flag(CHAR_DATA *ch, char *argument)
 
 void do_ship_list(CHAR_DATA *ch, char *argument)
 {
-	send_to_char("Not yet implemented.\n\r", ch);
+	BUFFER *buffer;
+	char buf[MSL];
+	ITERATOR it;
+	SHIP_DATA *ship;
+	int lines = 0;
+	bool error = false;
+
+	buffer = new_buf();
+
+	iterator_start(&it, loaded_ships);
+	while( (ship = (SHIP_DATA *)iterator_nextdata(&it)) )
+	{
+		if( ship_isowner_player(ship, ch) )
+		{
+			// Filter by name if specified
+			if( argument[0] && is_name(argument, ship->ship->name) ) continue;
+
+			int twidth = get_colour_width(ship->index->name) + 18;		// Type
+			int nwidth = get_colour_width(ship->ship_name) + 30;		// Name
+			// Location?
+
+			char loc[MIL];
+			get_ship_location(ch, ship, loc, MIL-1);
+
+			sprintf(buf, "{W%3d{C)  {G%-*.*s   {x%-*.*s   {x%s{x\r", ++lines,
+				twidth, twidth, ship->index->name,
+				nwidth, nwidth, ship->ship_name,
+				loc);
+
+			if( !add_buf(buffer, buf) || (!ch->lines && strlen(buffer->string) > MSL) )
+			{
+				error = true;
+				break;
+			}
+		}
+	}
+	iterator_stop(&it);
+
+	if( error )
+	{
+		send_to_char("Too many ships to list.  Please shorten,\n\r", ch);
+	}
+	else if(!lines)
+	{
+		send_to_char("You do not own any ships.\n\r", ch);
+	}
+	else
+	{
+		send_to_char("{C     [{B       Type       {C] [{B             Name             {C] [{B           Location           {C]{x\n\r", ch);
+		send_to_char("{C============================================================================================{x\n\r", ch);
+
+		if(ch->lines > 0)
+		{
+			page_to_char(buffer->string, ch);
+		}
+		else
+		{
+			send_to_char(buffer->string, ch);
+		}
+	}
+
+	free_buf(buffer);
 }
 
 void do_ship(CHAR_DATA *ch, char *argument)

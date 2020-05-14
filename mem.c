@@ -2209,6 +2209,8 @@ SHIP_DATA *new_ship()
 	ship->flag = &str_empty[0];
 	ship->ship_name = &str_empty[0];
 	ship->steering.heading = -1;
+	ship->sextant_x = -1;
+	ship->sextant_y = -1;
 
 	ship->crew = list_create(FALSE);
 

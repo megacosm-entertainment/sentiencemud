@@ -1203,12 +1203,28 @@ enum {
 /* Regions for wilderness */
 enum {
 	REGION_UNKNOWN = 0,
+
+	// Overworld regions
 	REGION_FIRST_CONTINENT,
 	REGION_SECOND_CONTINENT,
+	REGION_THIRD_CONTINENT,
+	REGION_FOURTH_CONTINENT,
 	REGION_MORDRAKE_ISLAND,
 	REGION_TEMPLE_ISLAND,
+	REGION_ARENA_ISLAND,
+	REGION_DRAGON_ISLAND,
 	REGION_UNDERSEA,
-	REGION_OCEAN
+	REGION_NORTH_POLE,
+	REGION_SOUTH_POLE,
+	REGION_NORTHERN_OCEAN,
+	REGION_WESTERN_OCEAN,
+	REGION_CENTRAL_OCEAN,
+	REGION_EASTERN_OCEAN,
+	REGION_SOUTHERN_OCEAN,
+
+	// Abyss regions
+
+	// Other regions
 };
 
 /* For random functions - getting random mobs, objs etc */
@@ -5065,6 +5081,9 @@ struct ship_data
 
 	WILDS_COORD			seek_point;
 
+	int					sextant_x;
+	int					sextant_y;
+
 	/* When scuttled show different steps of scuttling */
 	sh_int				scuttle_time;
 	OBJ_DATA			*cannons_obj;
@@ -7722,7 +7741,7 @@ long get_dp_value( OBJ_DATA *obj );
 bool can_tell_while_quiet( CHAR_DATA *ch, CHAR_DATA *victim );
 CHAR_DATA *get_char_world_index( CHAR_DATA *ch, MOB_INDEX_DATA *pMobIndex );
 bool can_hunt( CHAR_DATA *ch, CHAR_DATA *victim );
-int get_region( CHAR_DATA *ch );
+int get_region( ROOM_INDEX_DATA *room );
 int get_weight_coins( long silver, long gold );
 bool check_ice_storm( ROOM_INDEX_DATA *room );
 bool player_exists( char *argument );
@@ -8592,6 +8611,7 @@ bool is_shipyard_valid(long wuid, int x1, int y1, int x2, int y2);
 bool get_shipyard_location(long wuid, int x1, int y1, int x2, int y2, int *x, int *y);
 SHIP_DATA *purchase_ship(CHAR_DATA *ch, long vnum, SHOP_DATA *shop);
 int ships_player_owned(CHAR_DATA *ch, SHIP_INDEX_DATA *index);
+void get_ship_location(CHAR_DATA *ch, SHIP_DATA *ship, char *buf, size_t len);
 
 extern LLIST *loaded_special_keys;
 extern LLIST *loaded_waypoints;

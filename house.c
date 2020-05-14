@@ -374,9 +374,9 @@ void do_gohome(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if ( !str_cmp( ch->in_room->area->name, "Wilderness") )
+    if ( IS_WILDERNESS(ch->in_room) )
     {
-	if ( get_region( ch ) != REGION_FIRST_CONTINENT )
+	if ( get_region( ch->in_room ) != REGION_FIRST_CONTINENT )
 	{
 	    send_to_char("Your home is too far away.\n\r", ch );
 	    return;

@@ -1380,13 +1380,13 @@ bool can_gate(CHAR_DATA *ch, CHAR_DATA *victim)
 	}
 
 	/* take care of the wilderness case */
-	if (!str_cmp(ch->in_room->area->name, "Wilderness")) {
+	if (IN_WILDERNESS(ch)) {
 		if (ch->in_room->sector_type == SECT_WATER_NOSWIM) {
 			send_to_char("The deep ocean waters cancel out your magic.\n\r", ch);
 			return FALSE;
 		}
 
-		if (get_region(ch) != get_region(victim)) {
+		if (get_region(ch->in_room) != get_region(victim->in_room)) {
 			act("$N is too far away.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			return FALSE;
 		}

@@ -5326,19 +5326,106 @@ bool can_hunt(CHAR_DATA *ch, CHAR_DATA *victim)
     return TRUE;
 }
 
-
 // get region (roughly) in the wilds
-int get_region(CHAR_DATA *ch)
+int get_region(ROOM_INDEX_DATA *room)
 {
-    ROOM_INDEX_DATA *room;
+	if( !room )
+		return -1;
 
-    if (ch->in_room == NULL)
-	return -1;
+	if( !IS_WILDERESS(room) )
+		return -1;
 
-    if (str_cmp(ch->in_room->area->name, "Wilderness"))
-    	return -1;
+    // Small Wilds
+    if( room->wilds->uid == 6 )
+    {
+		// Handle smallest regions FIRST
+		if( room->x >= 193 && room->x <= 301 &&
+			room->y >= 607 && room->y <= 683 )
+			return REGION_MORDRAKE_ISLAND;
 
-    room = ch->in_room;
+		if( room->x >= 103 && room->x <= 206 &&
+			room->y >= 1043 && room->y <= 1153 )
+			return REGION_DRAGON_ISLAND;
+
+		if( room->x >= 1277 && room->x <= 1340 &&
+			room->y >= 1132 && room->y <= 1185 )
+			return REGION_TEMPLE_ISLAND;
+
+		if( room->x >= 771 && room->x <= 895 &&
+			room->y >= 537 && room->y <= 626 )
+			return REGION_ARENA_ISLAND;
+
+		if( room->x >= 1277 && room->x <= 1360 &&
+			room->y >= 203 && room->y <= 253 )
+			return REGION_UNDERSEA;
+
+		// Smaller continents
+		if( room->x >= 185 && room->x <= 517 &&
+			room->y >= 335 && room->y <= 542 )
+			return REGION_FIRST_CONTINENT;
+
+		if( room->x >= 1011 && room->x <= 1488 &&
+			room->y >= 746 && room->y <= 993 )
+			return REGION_SECOND_CONTINENT;
+
+		if( room->x >= 294 && room->x <= 674 &&
+			room->y >= 741 && room->y <= 1078 )
+			return REGION_THIRD_CONTINENT;
+
+		// Polar Regions (since parts of the fourth continent overlaps)
+		if( room->x >= 313 && room->x <= 454 &&
+			room->y <= 97 )
+			return REGION_NORTH_POLE;
+
+		if( room->x >= 1419 && room->x <= 1532 &&
+			room->y <= 92 )
+			return REGION_NORTH_POLE;
+
+		if( room->y <= 55 )
+			return REGION_NORTH_POLE;
+
+		if( room->x >= 469 && room->x <= 612 &&
+			room->y >= 1125 )
+			return REGION_SOUTH_POLE;
+
+		if( room->y >= 1175 )
+			return REGION_SOUTH_POLE;
+
+		// Larger continents
+		// Fourth's shape needs to be broken up into subregions
+		if( room->x >= 717 && room->x <= 1469 &&
+			room->y >= 0 && room->y <= 410 )
+			return REGION_FOURTH_CONTINENT;
+
+		if( room->x >= 393 && room->x <= 717 &&
+			room->y >= 0 && room->y <= 247 )
+			return REGION_FOURTH_CONTINENT;
+
+		if( room->x >= 619 && room->x <= 717 &&
+			room->y >= 248 && room->y <= 337 )
+			return REGION_FOURTH_CONTINENT;
+
+		if( room->x >= 925 && room->x <= 1133 &&
+			room->y >= 410 && room->y <= 516 )
+			return REGION_FOURTH_CONTINENT;
+
+		// Oceans
+		if( room->y <= 363 )
+			return REGION_NORTHERN_OCEAN;
+
+		if( room->y >= 937 )
+			return REGION_SOUTHERN_OCEAN;
+
+		if( room->x <= 371 )
+			return REGION_WESTERN_OCEAN;
+
+		if( room->x >= 1146 )
+			return REGION_EASTERN_OCEAN;
+
+		return REGION_CENTRAL_OCEAN;
+	}
+
+/*
 
     if (room->x > 200
     && room->x < 510
@@ -5371,6 +5458,10 @@ int get_region(CHAR_DATA *ch)
 	return REGION_UNDERSEA;
 
     return REGION_OCEAN;
+    */
+
+    return REGION_UNKNOWN;
+
 }
 
 

@@ -7350,6 +7350,12 @@ void look_sextant(CHAR_DATA *ch, OBJ_DATA *sextant)
 				y = y + number_range(-30, 30);
 			}
 
+			if( ship->speed <= SHIP_SPEED_STOPPED && ship_isowner_player(ship, ch) )
+			{
+				ship->sextant_x = x;
+				ship->sextant_y = y;
+			}
+
 			if( ship->seek_point.wilds != NULL )
 			{
 				long dx = (x - ship->seek_point.x);
