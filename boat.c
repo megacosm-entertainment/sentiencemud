@@ -101,8 +101,8 @@ bool ship_seek_point(SHIP_DATA *ship)
 	{
 		int distSq = (room->x - ship->seek_point.x) * (room->x - ship->seek_point.x) + (room->y - ship->seek_point.y) * (room->y - ship->seek_point.y);
 
-		// Within 3 block radius of location
-		if( distSq <= 9 )
+		// Within 2.44 block radius of location
+		if( distSq <= 6 )
 		{
 			// TODO: Is there another waypoint?
 
