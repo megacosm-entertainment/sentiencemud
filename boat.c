@@ -2559,6 +2559,63 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
+	if( str_prefix(arg, "goto") )
+	{
+		if( ship->ship_type != SHIP_AIR_SHIP )
+		{
+			send_to_char("Not on an airship.\n\r", ch);
+			return;
+		}
+
+		if( argument[0] == '\0' )
+		{
+			send_to_char("Goto where?\n\r"
+						 "Syntax: navigate goto <area>\n\r", ch);
+			return;
+		}
+
+
+		WILDS_DATA *wilds;
+		room = obj_room(ship->ship);
+		if( IS_WILDERNESS(room) )
+			wilds = room->wilds;
+		else if( room->area->wilds_uid > 0 )
+			wilds = get_wilds_from_uid(NULL, room->area->wilds_uid);
+
+		if( !wilds )
+		{
+			send_to_char("Cannot find a way to get there.\n\r", ch);
+			return;
+		}
+
+		AREA_DATA *area;
+		for(area = area_first; area; area = area->next)
+		{
+			if( area->wilds_uid == wilds->uid &&
+				(area->x >= 0 && area->x < wilds->map_size_x) &&
+				(area->y >= 0 && area->y < wilds->map_size_y) &&
+				!str_infix(argument, area->name) )
+			{
+				break;
+			}
+		}
+
+		if( !area )
+		{
+			send_to_char("No such place exists.\n\r", ch);
+			return;
+		}
+
+		ship->seek_point.wilds = wilds;
+		ship->seek_point.w = wilds->uid;
+		ship->seek_point.x = area->x;
+		ship->seek_point.y = area->y;
+
+		send_to_char("{WLocation set.{x\n\r", ch);
+		return;
+	}
+
+
 	if( !str_prefix(arg, "seek") )
 	{
 		char arg2[MIL];
