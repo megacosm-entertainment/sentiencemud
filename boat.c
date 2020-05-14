@@ -2575,7 +2575,7 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 		}
 
 
-		WILDS_DATA *wilds;
+		WILDS_DATA *wilds = NULL;
 		room = obj_room(ship->ship);
 		if( IS_WILDERNESS(room) )
 			wilds = room->wilds;
