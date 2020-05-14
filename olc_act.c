@@ -11586,7 +11586,7 @@ WEDIT ( wedit_vlink )
         if (arg2[0]) {
 		if((!is_number(arg2) || (x = atoi(arg2)) < 0 || x > (pWilds->map_size_x - 1)) ||
 			(!is_number(arg3) || (y = atoi(arg3)) < 0 || y > (pWilds->map_size_y - 1)) ||
-			(!is_number(arg4) || (door = parse_direction(arg4)) < 0))
+			((door = parse_direction(arg4)) < 0))
 	        {
 	            send_to_char("Syntax: vlink create [<x coord> <y coord> <direction>]", ch);
 	            return FALSE;
