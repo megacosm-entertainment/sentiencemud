@@ -2559,7 +2559,7 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if( str_prefix(arg, "goto") )
+	if( !str_prefix(arg, "goto") )
 	{
 		if( ship->ship_type != SHIP_AIR_SHIP )
 		{
