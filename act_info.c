@@ -7621,10 +7621,10 @@ void look_map(CHAR_DATA *ch, OBJ_DATA *map)
 			send_to_char("{M     [{W     Wilderness     {M] [{W South {M] [{W  East {M] [{W        Name        {M]{x\n\r", ch);
 			send_to_char("{M======================================================================={x\n\r", ch);
 
-			iterator_start(&it, pObj->waypoints);
+			iterator_start(&wit, map->waypoints);
 			while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
 			{
-				wilds = get_wilds_from_uid(NULL, wp->w);
+				WILDS_DATA *wilds = get_wilds_from_uid(NULL, wp->w);
 
 				char *wname = wilds ? wilds->name : "{D(null){x";
 
