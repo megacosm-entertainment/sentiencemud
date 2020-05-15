@@ -104,10 +104,19 @@ bool ship_seek_point(SHIP_DATA *ship)
 		// Within 2.44 block radius of location
 		if( distSq <= 6 )
 		{
-			// TODO: Is there another waypoint?
-
-			ship_echo(ship, "{WThe vessel has reached its destination.{x");
-			ship_stop(ship);
+			WAYPOINT_DATA *wp = (WAYPOINT_DATA *)iterator_nextdata(&ship->route_it);
+			if( wp )
+			{
+				ship->seek_point.wilds = get_wilds_from_uid(wp->w);
+				ship->seek_point.w = wp->w;
+				ship->seek_point.x = wp->x;
+				ship->seek_point.y = wp->y;
+			}
+			else
+			{
+				ship_echo(ship, "{WThe vessel has reached its destination.{x");
+				ship_stop(ship);
+			}
 			return false;	// Return false to indicate stop movement
 		}
 
@@ -586,7 +595,6 @@ SHIP_INDEX_DATA *get_ship_index(long vnum)
 	return NULL;
 }
 
-
 /////////////////////////////////////////////////////////////////
 //
 // Ships
@@ -698,6 +706,17 @@ bool ship_isowner_player(SHIP_DATA *ship, CHAR_DATA *ch)
 	return ( (ship->owner_uid[0] == ch->id[0]) && (ship->owner_uid[1] == ch->id[1]) );
 }
 
+void ship_cancel_route(SHIP_DATA *ship)
+{
+	if( list_size(ship->current_route) > 0 )
+	{
+		iterator_stop(&ship->route_it);
+		list_clear(ship->current_route);
+	}
+
+	memset(&ship->seek_point, 0, sizeof(ship->seek_point));
+}
+
 void ship_stop(SHIP_DATA *ship)
 {
 	ship->speed = SHIP_SPEED_STOPPED;
@@ -707,10 +726,10 @@ void ship_stop(SHIP_DATA *ship)
 	ship->steering.move = 0;
 	ship->steering.turning_dir = 0;
 	ship->ship_move = 0;
+	ship_cancel_route(ship);
 	ship->last_times[0] = current_time + 15;
 	ship->last_times[1] = current_time + 10;
 	ship->last_times[2] = current_time + 5;
-	memset(&ship->seek_point, 0, sizeof(ship->seek_point));
 }
 
 bool move_ship_success(SHIP_DATA *ship)
@@ -1554,7 +1573,7 @@ void get_ship_location(CHAR_DATA *ch, SHIP_DATA *ship, char *buf, size_t len)
 					case REGION_CENTRAL_OCEAN:		strncpy(loc, "in the {YCentral Equidorian Ocean{x", 50); break;
 					case REGION_EASTERN_OCEAN:		strncpy(loc, "in the {YEastern Equidorian Ocean{x", 50); break;
 					case REGION_SOUTHERN_OCEAN:		strncpy(loc, "in the {YSouthern Equidorian Ocean{x", 50); break;
-					default:						snprintf(loc, 50, "in the {Y%s{x", wilds->name); break;
+					default:						snprintf(loc, 50, "in {Y%s{x", wilds->name); break;
 					}
 
 					snprintf(buf, len, "Anchored at {YSouth {W%d{x by {YEast {W%d{x %s", ship->sextant_y, ship->sextant_x, loc);
@@ -1563,23 +1582,23 @@ void get_ship_location(CHAR_DATA *ch, SHIP_DATA *ship, char *buf, size_t len)
 				{
 					switch(region)
 					{
-					case REGION_FIRST_CONTINENT:	strncpy(buf, "near {YSeralia{x", len); break;
-					case REGION_SECOND_CONTINENT:	strncpy(buf, "near {YAthemia{x", len); break;
-					case REGION_THIRD_CONTINENT:	strncpy(buf, "near {YNaranda{x", len); break;
-					case REGION_FOURTH_CONTINENT:	strncpy(buf, "near {YHeletane{x", len); break;
-					case REGION_MORDRAKE_ISLAND:	strncpy(buf, "near {YMordrake's Island{x", len); break;
-					case REGION_TEMPLE_ISLAND:		strncpy(buf, "near {YVarkhan's Island{x", len); break;
-					case REGION_ARENA_ISLAND:		strncpy(buf, "near {YArena Island{x", len); break;
-					case REGION_DRAGON_ISLAND:		strncpy(buf, "near {YDragon Isle{x", len); break;
-					case REGION_UNDERSEA:			strncpy(buf, "near {YUndersea{x", len); break;
-					case REGION_NORTH_POLE:			strncpy(buf, "near the {YNorthern Pole{x", len); break;
-					case REGION_SOUTH_POLE:			strncpy(buf, "near the {YSouthern Pole{x", len); break;
-					case REGION_NORTHERN_OCEAN:		strncpy(buf, "in the {YNorthern Equidorian Ocean{x", len); break;
-					case REGION_WESTERN_OCEAN:		strncpy(buf, "in the {YWestern Equidorian Ocean{x", len); break;
-					case REGION_CENTRAL_OCEAN:		strncpy(buf, "in the {YCentral Equidorian Ocean{x", len); break;
-					case REGION_EASTERN_OCEAN:		strncpy(buf, "in the {YEastern Equidorian Ocean{x", len); break;
-					case REGION_SOUTHERN_OCEAN:		strncpy(buf, "in the {YSouthern Equidorian Ocean{x", len); break;
-					default:						snprintf(buf, len, "in the {Y%s{x", wilds->name); break;
+					case REGION_FIRST_CONTINENT:	strncpy(buf, "Near {YSeralia{x", len); break;
+					case REGION_SECOND_CONTINENT:	strncpy(buf, "Near {YAthemia{x", len); break;
+					case REGION_THIRD_CONTINENT:	strncpy(buf, "Near {YNaranda{x", len); break;
+					case REGION_FOURTH_CONTINENT:	strncpy(buf, "Near {YHeletane{x", len); break;
+					case REGION_MORDRAKE_ISLAND:	strncpy(buf, "Near {YMordrake's Island{x", len); break;
+					case REGION_TEMPLE_ISLAND:		strncpy(buf, "Near {YVarkhan's Island{x", len); break;
+					case REGION_ARENA_ISLAND:		strncpy(buf, "Near {YArena Island{x", len); break;
+					case REGION_DRAGON_ISLAND:		strncpy(buf, "Near {YDragon Isle{x", len); break;
+					case REGION_UNDERSEA:			strncpy(buf, "Near {YUndersea{x", len); break;
+					case REGION_NORTH_POLE:			strncpy(buf, "Near the {YNorthern Pole{x", len); break;
+					case REGION_SOUTH_POLE:			strncpy(buf, "Near the {YSouthern Pole{x", len); break;
+					case REGION_NORTHERN_OCEAN:		strncpy(buf, "In the {YNorthern Equidorian Ocean{x", len); break;
+					case REGION_WESTERN_OCEAN:		strncpy(buf, "In the {YWestern Equidorian Ocean{x", len); break;
+					case REGION_CENTRAL_OCEAN:		strncpy(buf, "In the {YCentral Equidorian Ocean{x", len); break;
+					case REGION_EASTERN_OCEAN:		strncpy(buf, "In the {YEastern Equidorian Ocean{x", len); break;
+					case REGION_SOUTHERN_OCEAN:		strncpy(buf, "In the {YSouthern Equidorian Ocean{x", len); break;
+					default:						snprintf(buf, len, "In {Y%s{x", wilds->name); break;
 					}
 				}
 			}
@@ -2281,8 +2300,8 @@ void do_ship_steer( CHAR_DATA *ch, char *argument )
 
 	steering_set_heading(ship, heading);
 	steering_set_turning(ship, turning_dir);
+	ship_cancel_route(ship);
 
-	// TODO: Cancel waypoint
 	// TODO: Cancel chasing
 
 	sprintf(buf, "{WThe vessel is now turning %s.{x", arg);
@@ -2453,8 +2472,6 @@ void do_ship_speed( CHAR_DATA *ch, char *argument )
 			}
 			ship->speed = speed;
 			ship_stop(ship);
-
-			// TODO: Cancel waypoint
 			// TODO: Cancel chasing
 		}
 		else
@@ -2709,7 +2726,10 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 
 	if( arg[0] == '\0' )
 	{
-		send_to_char("Navigate where?\n\r", ch);
+		send_to_char("Syntax:  ship navigate goto <named waypoint>\n\r", ch);
+		send_to_char("         ship navigate seek <south> <east>\n\r", ch);
+		send_to_char("         ship navigate plot <waypoint#1> <waypoint#2> ... <waypoint#N>\n\r", ch);
+
 		return;
 	}
 
@@ -2724,10 +2744,9 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 		if( argument[0] == '\0' )
 		{
 			send_to_char("Goto where?\n\r"
-						 "Syntax: navigate goto <area>\n\r", ch);
+						 "Syntax: navigate goto <waypoint>\n\r", ch);
 			return;
 		}
-
 
 		WILDS_DATA *wilds = NULL;
 		room = obj_room(ship->ship);
@@ -2741,6 +2760,32 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 			send_to_char("Cannot find a way to get there.\n\r", ch);
 			return;
 		}
+
+		ITERATOR wit;
+		WAYPOINT_DATA *wp;
+
+		iterator_start(&wit, ship->waypoints);
+		while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
+		{
+			if( wp->w == wilds->uid && !IS_NULLSTR(wp->name) && is_name(argument, wp->name) )
+				break;
+		}
+		iterator_stop(&wit);
+
+		if( !wp )
+		{
+			send_to_char("Cannot find a way to get there.\n\r", ch);
+			return;
+		}
+
+		ship_cancel_route(ship);
+
+		ship->seek_point.wilds = wilds;
+		ship->seek_point.w = wilds->uid;
+		ship->seek_point.x = wp->x;
+		ship->seek_point.y = wp->y;
+
+		/*
 
 		AREA_DATA *area;
 		for(area = area_first; area; area = area->next)
@@ -2760,15 +2805,16 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
+
 		ship->seek_point.wilds = wilds;
 		ship->seek_point.w = wilds->uid;
 		ship->seek_point.x = area->x;
 		ship->seek_point.y = area->y;
+		*/
 
 		send_to_char("{WLocation set.{x\n\r", ch);
 		return;
 	}
-
 
 	if( !str_prefix(arg, "seek") )
 	{
@@ -2777,18 +2823,22 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 		if( argument[0] == '\0' )
 		{
 			send_to_char("Seek what point?\n\r"
-						 "Syntax: navigate seek [south] [east]\n\r", ch);
+						 "Syntax: ship navigate seek [south] [east]\n\r", ch);
 			return;
 		}
 
+		WILDS_DATA *wilds = NULL;
 		room = obj_room(ship->ship);
-		if( !IS_WILDERNESS(room) )
+		if( IS_WILDERNESS(room) )
+			wilds = room->wilds;
+		else if( room->area->wilds_uid > 0 )
+			wilds = get_wilds_from_uid(NULL, room->area->wilds_uid);
+
+		if( !wilds )
 		{
-			act("The vessel is not in the wilderness.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			send_to_char("Cannot find a way to get there.\n\r", ch);
 			return;
 		}
-
-		wilds = room->wilds;
 
 		argument = one_argument(argument, arg2);
 
@@ -2814,12 +2864,78 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
+		ship_cancel_route(ship);
+
 		ship->seek_point.wilds = wilds;
 		ship->seek_point.w = wilds->uid;
 		ship->seek_point.x = east;
 		ship->seek_point.y = south;
 
 		send_to_char("{WSeek point set.{x\n\r", ch);
+		return;
+	}
+
+	if( !str_prefix(arg, "plot") )
+	{
+		char arg[MIL];
+
+		if( argument[0] == '\0' )
+		{
+			send_to_char("Plot what route?\n\r"
+						 "Syntax: ship navigate plot [waypoint#1] [waypoint#2] ...  [waypoint#N]\n\r", ch);
+			return;
+		}
+
+		WILDS_DATA *wilds = NULL;
+		room = obj_room(ship->ship);
+		if( IS_WILDERNESS(room) )
+			wilds = room->wilds;
+		else if( room->area->wilds_uid > 0 )
+			wilds = get_wilds_from_uid(NULL, room->area->wilds_uid);
+
+		if( !wilds )
+		{
+			send_to_char("Cannot find a way to get there.\n\r", ch);
+			return;
+		}
+
+		ship_cancel_route(ship);
+		WAYPOINT_DATA *wp;
+
+		while(argument[0] != '\0')
+		{
+			argument = one_argument(argument, arg);
+			if( !is_number(arg) )
+			{
+				ship_cancel_route(ship);
+				send_to_char("That is not a number.\n\r", ch);
+				return;
+			}
+
+			int value = atoi(arg);
+			if( value < 1 || value > list_size(ship->waypoints))
+			{
+				ship_cancel_route(ship);
+				send_to_char("Index out of range.\n\r", ch);
+				return;
+			}
+
+			wp = (WAYPOINT_DATA *)list_nthdata(ship->waypoints, value);
+			wp = clone_waypoint(wp);
+
+			list_appendlink(ship->current_route, wp);
+		}
+
+		iterator_start(&ship->route_it, ship->current_route);
+
+		wp = (WAYPOINT_DATA *)iterator_nextdata(&ship->route_it);
+
+		ship->seek_point.wilds = get_wilds_from_uid(wp->w);
+		ship->seek_point.w = wp->w;
+		ship->seek_point.x = wp->x;
+		ship->seek_point.y = wp->y;
+
+		send_to_char("{WCourse plotted.{x\n\r", ch);
 		return;
 	}
 
