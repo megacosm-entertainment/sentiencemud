@@ -2920,6 +2920,15 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 			}
 
 			wp = (WAYPOINT_DATA *)list_nthdata(ship->waypoints, value);
+
+			if( wp->w != wilds->uid )
+			{
+				ship_cancel_route(ship);
+				sprintf(buf, "Invalid waypoint #%d.  Must be in the current wilderness.\n\r", value);
+				send_to_char(buf, ch);
+				return;
+			}
+
 			wp = clone_waypoint(wp);
 
 			list_appendlink(ship->current_route, wp);
