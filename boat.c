@@ -107,7 +107,7 @@ bool ship_seek_point(SHIP_DATA *ship)
 			WAYPOINT_DATA *wp = (WAYPOINT_DATA *)iterator_nextdata(&ship->route_it);
 			if( wp )
 			{
-				ship->seek_point.wilds = get_wilds_from_uid(wp->w);
+				ship->seek_point.wilds = get_wilds_from_uid(NULL, wp->w);
 				ship->seek_point.w = wp->w;
 				ship->seek_point.x = wp->x;
 				ship->seek_point.y = wp->y;
@@ -2693,7 +2693,6 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 	char arg[MIL];
 	SHIP_DATA *ship;
 	ROOM_INDEX_DATA *room;
-	WILDS_DATA *wilds;
 
 	argument = one_argument(argument, arg);
 
@@ -2930,7 +2929,7 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 
 		wp = (WAYPOINT_DATA *)iterator_nextdata(&ship->route_it);
 
-		ship->seek_point.wilds = get_wilds_from_uid(wp->w);
+		ship->seek_point.wilds = get_wilds_from_uid(NULL, wp->w);
 		ship->seek_point.w = wp->w;
 		ship->seek_point.x = wp->x;
 		ship->seek_point.y = wp->y;
