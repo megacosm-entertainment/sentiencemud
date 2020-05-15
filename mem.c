@@ -2352,7 +2352,7 @@ void free_waypoint( WAYPOINT_DATA *waypoint )
 
 WAYPOINT_DATA *clone_waypoint(WAYPOINT_DATA *waypoint)
 {
-	if( !IS_VALID(wo) ) return NULL;
+	if( !IS_VALID(waypoint) ) return NULL;
 
 	WAYPOINT_DATA *wn = new_waypoint();
 
