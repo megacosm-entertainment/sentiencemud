@@ -6255,7 +6255,7 @@ OEDIT(oedit_waypoints)
 			return FALSE;
 		}
 
-		if( !IS_VALID(obj->waypoints) )
+		if( !IS_VALID(pObj->waypoints) )
 		{
 			send_to_char("There are no waypoints to delete.\n\r", ch);
 			return FALSE;
