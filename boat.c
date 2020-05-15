@@ -1474,7 +1474,7 @@ void get_ship_wildsicon(SHIP_DATA *ship, char *buf, size_t len)
 void get_ship_location(CHAR_DATA *ch, SHIP_DATA *ship, char *buf, size_t len)
 {
 	ROOM_INDEX_DATA *room = obj_room(ship->ship);
-	if( IS_IMMORTAL(ch) && IS_SET(ch->act2, PLR_HOLYLIGHT) )
+	if( IS_IMMORTAL(ch) && IS_SET(ch->act, PLR_HOLYLIGHT) )
 	{
 		// Give exact location of ship
 		if( IS_WILDERNESS(room) )
