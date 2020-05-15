@@ -6274,6 +6274,7 @@ OEDIT(oedit_waypoints)
 	}
 
 	oedit_waypoints(ch, "");
+	return FALSE;
 }
 
 OEDIT(oedit_lock)
