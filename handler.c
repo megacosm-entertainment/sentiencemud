@@ -8095,6 +8095,8 @@ bool list_addlink(LLIST *lp, void *data)
 
 		// No need to worry about the linkage and reference
 		link->next = lp->head;
+		if( !lp->head )
+			lp->tail = link;
 		lp->head = link;
 
 		link->data = data;

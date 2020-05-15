@@ -2952,6 +2952,11 @@ OBJ_DATA *create_object(OBJ_INDEX_DATA *pObjIndex, int level, bool affects)
 			obj->extra_descr			= ed_new;
 		}
 
+		if( pObjIndex->waypoints )
+		{
+			obj->waypoints = list_copy(pObjIndex->waypoints);
+		}
+
     	get_obj_id(obj);
 	}
 
@@ -2983,6 +2988,11 @@ void clone_object(OBJ_DATA *parent, OBJ_DATA *clone)
 
     clone->affected = NULL;
     clone->catalyst = NULL;
+    if( clone->waypoints )
+    {
+		list_destroy(clone->waypoints);
+		clone->waypoints = NULL;
+	}
 
     /* start fixing the object */
     clone->name 	= str_dup(parent->name);
@@ -3024,6 +3034,11 @@ void clone_object(OBJ_DATA *parent, OBJ_DATA *clone)
 			free_extra_descr(ed);
 		}
 		clone->extra_descr = NULL;
+	}
+
+	if( parent->waypoints )
+	{
+		clone->waypoints = list_copy(parent->waypoints);
 	}
 
     /* extended desc */
@@ -5585,6 +5600,19 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
 			obj->lock->pick_chance);
 	}
 
+	if( obj->waypoints )
+	{
+		ITERATOR wit;
+		WAYPOINT_DATA *wp;
+
+		iterator_start(&wit, obj->waypoints);
+		while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
+		{
+			fprintf(fp, "MapWaypoint %lu %d %d %s~\n", wp->w, wp->x, wp->y, fix_string(wp->name));
+		}
+		iterator_stop(&wit);
+	}
+
 	if (obj->spells)
 		save_spell(fp, obj->spells);		// SpellNew **
 
@@ -6665,6 +6693,25 @@ OBJ_DATA *persist_load_object(FILE *fp)
 				KEY("LongDesc",		obj->description,	fread_string(fp));
 				break;
 			case 'M':
+				if( !str_cmp(word, "MapWaypoint") )
+				{
+					WAYPOINT_DATA *wp = new_waypoint();
+
+					wp->w = fread_number(fp);
+					wp->x = fread_number(fp);
+					wp->y = fread_number(fp);
+					wp->name = fread_string(fp);
+
+					if( !obj->waypoints )
+					{
+						obj->waypoints = new_waypoints_list();
+					}
+
+					list_appendlink(obj->waypoints, wp);
+
+					fMatch = TRUE;
+					break;
+				}
 				break;
 			case 'N':
 				KEY("Name",		obj->name,			fread_string(fp));

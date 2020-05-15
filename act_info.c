@@ -55,6 +55,7 @@ bool can_see_imm(CHAR_DATA *ch, CHAR_DATA *victim);
 void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument);
 void look_compass(CHAR_DATA *ch, OBJ_DATA *compass);
 void look_sextant(CHAR_DATA *ch, OBJ_DATA *sextant);
+void look_map(CHAR_DATA *ch, OBJ_DATA *map);
 
 /* MOVED: equip.c */
 char *const where_name[] = {
@@ -2206,6 +2207,10 @@ void do_look(CHAR_DATA * ch, char *argument)
 					{
 						look_sextant(ch, obj);
 					}
+					else if(obj->item_type == ITEM_MAP)
+					{
+						look_map(ch, obj);
+					}
 					else if(obj->item_type == ITEM_TELESCOPE)
 					{
 						look_through_telescope(ch, obj, argument);
@@ -2320,6 +2325,10 @@ void do_look(CHAR_DATA * ch, char *argument)
 					else if(obj->item_type == ITEM_COMPASS)
 					{
 						look_compass(ch, obj);
+					}
+					else if(obj->item_type == ITEM_MAP)
+					{
+						look_map(ch, obj);
 					}
 					return;
 				}
@@ -7594,4 +7603,46 @@ void look_compass(CHAR_DATA *ch, OBJ_DATA *compass)
 
 	sprintf(buf, "{xThe needle on $p{x points %s.", arg);
 	act(buf, ch, NULL, NULL, compass, NULL, NULL, NULL, TO_CHAR);
+}
+
+void look_map(CHAR_DATA *ch, OBJ_DATA *map)
+{
+	if( list_size(map->waypoints) > 0 )
+	{
+		int cnt = 0;
+		char buf[MSL];
+		ITERATOR wit;
+		WAYPOINT_DATA *wp;
+
+		iterator_start(&wit, map->waypoints);
+		while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
+		{
+			add_buf(buffer, "{WCartographer Waypoints:{x\n\r\n\r");
+			add_buf(buffer, "{M     [{W     Wilderness     {M] [{W South {M] [{W  East {M] [{W        Name        {M]{x\n\r");
+			add_buf(buffer, "{M======================================================================={x\n\r");
+
+			iterator_start(&it, pObj->waypoints);
+			while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
+			{
+				wilds = get_wilds_from_uid(NULL, wp->w);
+
+				char *wname = wilds ? wilds->name : "{D(null){x";
+
+				int wwidth = get_colour_width(wname) + 20;
+
+				sprintf(buf, "{W%3d{Y)  {x%-*.*s    {W%5d     %5d    {Y%s{x\n\r",
+					++cnt,
+					wwidth, wwidth, wname,
+					wp->y, wp->x, wp->name);
+
+				add_buf(buffer, buf);
+			}
+
+			iterator_stop(&wit);
+
+			add_buf(buffer, "\n\r");
+		}
+		iterator_stop(&wit);
+
+	}
 }

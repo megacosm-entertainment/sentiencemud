@@ -5347,6 +5347,39 @@ OEDIT(oedit_show)
 		}
     }
 
+    if (list_size(pObj->waypoints) > 0)
+    {
+		int cnt = 0;
+		ITERATOR wit;
+		WAYPOINT_DATA *wp;
+		WILDS_DATA *wilds;
+
+		add_buf(buffer, "{BCartographer Waypoints:{x\n\r\n\r");
+		add_buf(buffer, "{B     [     Wilderness     ] [ South ] [  East ] [        Name        ]{x\n\r");
+		add_buf(buffer, "{B======================================================================={x\n\r");
+
+		iterator_start(&it, pObj->waypoints);
+		while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
+		{
+			wilds = get_wilds_from_uid(NULL, wp->w);
+
+			char *wname = wilds ? wilds->name : "{D(null){x";
+
+			int wwidth = get_colour_width(wname) + 20;
+
+			sprintf(buf, "{B%3d{b)  {W%-*.*s    {G%5d     %5d    {Y%s{x\n\r",
+				++cnt,
+				wwidth, wwidth, wname,
+				wp->y, wp->x, wp->name);
+
+			add_buf(buffer, buf);
+		}
+
+		iterator_stop(&wit);
+
+		add_buf(buffer, "\n\r");
+	}
+
 
     if (pObj->progs) {
 	int cnt, slot;
@@ -6077,6 +6110,170 @@ OEDIT(oedit_next)
 	ch->desc->editor = ED_OBJECT;
     }
     return FALSE;
+}
+
+OEDIT(oedit_waypoints)
+{
+	char buf[MSL];
+	char arg[MIL];
+	OBJ_INDEX_DATA *pObj;
+
+	EDIT_OBJ(ch, pObj);
+
+	if( pObj->item_type != ITEM_MAP )
+	{
+		send_to_char("Only MAP objects can have waypoints.\n\r", ch);
+		return FALSE;
+	}
+
+	if( argument[0] == '\0' )
+	{
+		send_to_char("Syntax:  waypoints list\n\r", ch);
+		send_to_char("         waypoints add <wilds> <south> <east>[ <name>]\n\r", ch);
+		send_to_char("         waypoints delete <#>\n\r", ch);
+		return FALSE;
+	}
+
+	argument = one_argument(argument, arg);
+
+	if( !str_prefix(arg, "list") )
+	{
+		if (list_size(pObj->waypoints) > 0)
+		{
+			int cnt = 0;
+			ITERATOR wit;
+			WAYPOINT_DATA *wp;
+			WILDS_DATA *wilds;
+
+			BUFFER *buffer = new_buf();
+
+			add_buf(buffer, "{BCartographer Waypoints:{x\n\r\n\r");
+			add_buf(buffer, "{B     [     Wilderness     ] [ South ] [  East ] [        Name        ]{x\n\r");
+			add_buf(buffer, "{B======================================================================={x\n\r");
+
+			iterator_start(&it, pObj->waypoints);
+			while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
+			{
+				wilds = get_wilds_from_uid(NULL, wp->w);
+
+				char *wname = wilds ? wilds->name : "{D(null){x";
+
+				int wwidth = get_colour_width(wname) + 20;
+
+				sprintf(buf, "{B%3d{b)  {W%-*.*s    {G%5d     %5d    {Y%s{x\n\r",
+					++cnt,
+					wwidth, wwidth, wname,
+					wp->y, wp->x, wp->name);
+
+				add_buf(buffer, buf);
+			}
+
+			iterator_stop(&wit);
+
+			add_buf(buffer, "\n\r");
+
+			page_to_char(buffer->string, ch);
+
+			free_buf(buffer);
+		}
+		else
+			send_to_char("No waypoints to display.\n\r", ch);
+
+		return FALSE;
+	}
+
+	if( !str_prefix(arg, "add") )
+	{
+		char arg2[MIL];
+		char arg3[MIL];
+		char arg4[MIL];
+
+		long uid;
+		WILDS_DATA *wilds;
+		int x, y;
+
+		argument = one_argument(argument, arg2);
+		argument = one_argument(argument, arg3);
+		argument = one_argument(argument, arg4);
+
+		if( !is_number(arg2) || !is_number(arg3) || !is_number(arg4) )
+		{
+			send_to_char("That is not a number.\n\r", ch);
+			return FALSE;
+		}
+
+		uid = atol(arg2);
+		wilds = get_wilds_from_uid(NULL, uid);
+		if( !wilds )
+		{
+			send_to_char("No such wilderness.\n\r", ch);
+			return FALSE;
+		}
+
+		y = atoi(arg3);
+		x = atoi(arg4);
+
+		if( y < 0 || y >= wilds->map_size_y )
+		{
+			sprintf(buf, "South coordinate is out of bounds.  Please limit from 0 to %d.\n\r", wilds->map_size_y - 1);
+			send_to_char(buf, ch);
+			return FALSE;
+		}
+
+		if( x < 0 || x >= wilds->map_size_x )
+		{
+			sprintf(buf, "East coordinate is out of bounds.  Please limit from 0 to %d.\n\r", wilds->map_size_x - 1);
+			send_to_char(buf, ch);
+			return FALSE;
+		}
+
+		WAYPOINT_DATA *wp = new_waypoint();
+
+		free_string(wp->name);
+		wp->name = str_dup(argument);
+		wp->w = uid;
+		wp->x = x;
+		wp->y = y;
+
+		if( !obj->waypoints )
+		{
+			obj->waypoints = new_waypoints_list();
+		}
+
+		list_appendlink(obj->waypoints, wp);
+		send_to_char("Waypoint added.\n\r", ch);
+		return TRUE;
+	}
+
+	if( !str_prefix(arg, "delete") )
+	{
+		int value;
+
+		if( !is_number(argument) )
+		{
+			send_to_char("That is not a number.\n\r", ch);
+			return FALSE;
+		}
+
+		if( !IS_VALID(obj->waypoints) )
+		{
+			send_to_char("There are no waypoints to delete.\n\r", ch);
+			return FALSE;
+		}
+
+		value = atoi(argument);
+		if( value < 1 || value > list_size(obj->waypoints) )
+		{
+			send_to_char("No such waypoint.\n\r", ch);
+			return FALSE;
+		}
+
+		list_remnthlink(obj->waypoints, value);
+		send_to_char("Waypoint deleted.\n\r", ch);
+		return TRUE;
+	}
+
+	oedit_waypoints(ch, "");
 }
 
 OEDIT(oedit_lock)
@@ -7246,6 +7443,12 @@ OEDIT(oedit_type)
 			{
 				free_lock_state(pObj->lock);
 				pObj->lock = NULL;
+			}
+
+			if( pObj->waypoints )
+			{
+				list_destroy(pObj->waypoints);
+				pObj->waypoints = NULL;
 			}
 
 			return TRUE;

@@ -3235,6 +3235,57 @@ void do_ship_list(CHAR_DATA *ch, char *argument)
 	free_buf(buffer);
 }
 
+void do_ship_waypoints(CHAR_DATA *ch, char *argument)
+{
+	SHIP_DATA *ship;
+	char arg[MIL];
+
+	argument = one_argument(argument, arg);
+
+	if( arg[0] == '\0' )
+	{
+		send_to_char("Syntax:  ship waypoints list\n\r"
+					 "         ship waypoints add <x> <y>\n\r"
+					 "         ship waypoints delete <#>\n\r"
+					 "         ship waypoints load <map>\n\r"
+					 "         ship waypoints save <#> <map>\n\r", ch);
+
+		return;
+	}
+
+	if( !str_prefix(arg, "list") )
+	{
+		send_to_char("Not implemented yet.\n\r", ch);
+		return;
+	}
+
+	if( !str_prefix(arg, "add") )
+	{
+		send_to_char("Not implemented yet.\n\r", ch);
+		return;
+	}
+
+	if( !str_prefix(arg, "delete") )
+	{
+		send_to_char("Not implemented yet.\n\r", ch);
+		return;
+	}
+
+	if( !str_prefix(arg, "load") )
+	{
+		send_to_char("Loading waypoints from maps not implemented yet.\n\r", ch);
+		return;
+	}
+
+	if( !str_prefix(arg, "save") )
+	{
+		send_to_char("Saving waypoints to maps not implemented yet.\n\r", ch);
+		return;
+	}
+
+	do_ship_waypoints(ch, "");
+}
+
 void do_ship(CHAR_DATA *ch, char *argument)
 {
 	char arg[MIL];
@@ -3255,7 +3306,9 @@ void do_ship(CHAR_DATA *ch, char *argument)
 					 "         ship navigate[ <action>]\n\r"
 					 "         ship scuttle\n\r"
 					 "         ship speed[ <speed>]\n\r"
-					 "         ship steer[ <heading>[ <turn direction>]]\n\r", ch);
+					 "         ship steer[ <heading>[ <turn direction>]]\n\r"
+					 "         ship waypoints[ <action>]\n\r", ch);
+
 		return;
 	}
 
@@ -3324,6 +3377,12 @@ void do_ship(CHAR_DATA *ch, char *argument)
 		do_ship_steer(ch, argument);
 		return;
 	}
+
+	if( !str_prefix(arg, "waypoint") )
+	{
+		return;
+	}
+
 
 	do_ship(ch, "");
 }

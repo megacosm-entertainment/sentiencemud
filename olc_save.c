@@ -899,6 +899,19 @@ void save_object_new(FILE *fp, OBJ_INDEX_DATA *obj)
 	if(obj->comments)
 		fprintf(fp, "Comments %s~\n", fix_string(obj->comments));
 
+	if( obj->waypoints )
+	{
+		ITERATOR wit;
+		WAYPOINT_DATA *wp;
+
+		iterator_start(&wit, obj->waypoints);
+		while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
+		{
+			fprintf(fp, "MapWaypoint %lu %d %d %s~\n", wp->w, wp->x, wp->y, fix_string(wp->name));
+		}
+		iterator_stop(&wit);
+	}
+
 	// Affects
 	for (af = obj->affected; af != NULL; af = af->next) {
 		fprintf(fp, "#AFFECT %d\n", af->where);
@@ -2722,6 +2735,26 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 		break;
 
 	    case 'M':
+	    	if( !str_cmp(word, "MapWaypoint") )
+	    	{
+				WAYPOINT_DATA *wp = new_waypoint();
+
+				wp->w = fread_number(fp);
+				wp->x = fread_number(fp);
+				wp->y = fread_number(fp);
+				wp->name = fread_string(fp);
+
+				if( !obj->waypoints )
+				{
+					obj->waypoints = new_waypoints_list();
+				}
+
+				list_appendlink(obj->waypoints, wp);
+
+				fMatch = TRUE;
+				break;
+			}
+
 	        KEYS("Material",	obj->material,	fread_string(fp));
 		break;
 

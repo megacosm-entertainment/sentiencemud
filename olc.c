@@ -212,6 +212,7 @@ const struct olc_cmd_type oedit_table[] =
 	{ "v7",				oedit_value7			},
 	{ "varclear",		oedit_varclear			},
 	{ "varset",			oedit_varset			},
+	{ "waypoints",		oedit_waypoints			},
 	{ "wear",			oedit_wear				},
 	{ "weight",			oedit_weight			},
 	{ NULL,				0,						}

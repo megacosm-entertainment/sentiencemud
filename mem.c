@@ -114,6 +114,32 @@ static void delete_list_uid_data(void *ptr)
 	free_list_uid_data((LLIST_UID_DATA *)ptr);
 }
 
+static void *copy_waypoint(void *ptr)
+{
+	WAYPOINT_DATA *wo = (WAYPOINT_DATA *)ptr;
+	if( !IS_VALID(wo) ) return NULL;
+
+	WAYPOINT_DATA *wn = new_waypoint();
+
+	free_string(wn->name);
+	wn->name = str_dup(wo->name);
+
+	wn->w = wo->w;
+	wn->x = wo->x;
+	wn->y = wo->y;
+
+	return wn;
+}
+
+static void delete_waypoint(void *ptr)
+{
+	free_waypoint((WAYPOINT_DATA *)ptr);
+}
+
+LLIST *new_waypoints_list()
+{
+	return list_createx(FALSE,copy_waypoint,delete_waypoint);
+}
 
 OLC_POINT_BOOST *new_olc_point_boost()
 {
@@ -400,6 +426,7 @@ OBJ_DATA *new_obj(void)
 	obj->lcontains = list_create(FALSE);
 	obj->lclonerooms = list_create(FALSE);
 	obj->lock = NULL;
+	obj->waypoints = NULL;
 
 
     VALIDATE(obj);
@@ -489,6 +516,12 @@ void free_obj(OBJ_DATA *obj)
 	{
 		free_lock_state(obj->lock);
 		obj->lock = NULL;
+	}
+
+	if(obj->waypoints)
+	{
+		list_destroy(obj->waypoints);
+		obj->waypoints = NULL;
 	}
 
     INVALIDATE(obj);
@@ -1843,6 +1876,7 @@ OBJ_INDEX_DATA *new_obj_index( void )
         pObj->value[value]  =   0;
     pObj->comments      = &str_empty[0];
     pObj->lock			= NULL;
+    pObj->waypoints		= NULL;
 
     return pObj;
 }
@@ -1871,6 +1905,12 @@ void free_obj_index( OBJ_INDEX_DATA *pObj )
         free_extra_descr( pExtra );
 
     free_lock_state( pObj->lock );
+
+    if( pObj->waypoints )
+    {
+		list_destroy(pObj->waypoints);
+		pObj->waypoints = NULL;
+	}
 
     pObj->next              = obj_index_free;
     obj_index_free          = pObj;
@@ -2287,9 +2327,13 @@ WAYPOINT_DATA *new_waypoint( void )
         waypoint_free      =  waypoint_free->next;
     }
 
+    memset(waypoint, 0, sizeof(*waypoint));
+
+	waypoint->name = &str_empty[0];
     waypoint->x = 0;
     waypoint->y = 0;
     waypoint->next = NULL;
+    VALIDATE(waypoint);
 
     top_waypoint++;
 
@@ -2299,6 +2343,11 @@ WAYPOINT_DATA *new_waypoint( void )
 
 void free_waypoint( WAYPOINT_DATA *waypoint )
 {
+	if( !IS_VALID(waypoint) ) return;
+
+	free_string(waypoint->name);
+
+	INVALIDATE(waypoint);
     waypoint->next     =   waypoint_free;
     waypoint_free =   waypoint;
     top_waypoint--;

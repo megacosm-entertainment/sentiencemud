@@ -325,6 +325,7 @@ DECLARE_OLC_FUN( oedit_varset	);
 DECLARE_OLC_FUN( oedit_varclear	);
 DECLARE_OLC_FUN( oedit_persist  );
 DECLARE_OLC_FUN( oedit_lock		);
+DECLARE_OLC_FUN( oedit_waypoints	);
 
 /*
  * Mobile Editor Prototypes

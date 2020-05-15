@@ -4373,6 +4373,8 @@ struct	obj_index_data
 	long incontainer;
 
 	LOCK_STATE *lock;
+
+	LLIST *waypoints;
 };
 
 
@@ -4457,6 +4459,7 @@ struct	obj_data
     LOCK_STATE		*lock;
 
     SHIP_DATA		*ship;
+    LLIST			*waypoints;
 
     int			trap_dam;
     int 		last_wear_loc;
@@ -4873,10 +4876,9 @@ struct waypoint_data
     WAYPOINT_DATA *next;
     bool valid;
 
-	long uid;
 	char *name;				// Display name (if it has one)
 
-	WILDS_DATA *wilds;
+	long w;
     int x;
     int y;
 };

@@ -2449,6 +2449,20 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
 		}
     }
 
+	if( obj->waypoints )
+	{
+		ITERATOR wit;
+		WAYPOINT_DATA *wp;
+
+		iterator_start(&wit, obj->waypoints);
+		while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
+		{
+			fprintf(fp, "MapWaypoint %lu %d %d %s~\n", wp->w, wp->x, wp->y, fix_string(wp->name));
+		}
+		iterator_stop(&wit);
+	}
+
+
     for (ed = obj->extra_descr; ed != NULL; ed = ed->next)
     {
 	fprintf(fp, "ExDe %s~ %s~\n",
@@ -3025,6 +3039,28 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 			}
 
 			KEY("LoadedBy",	obj->loaded_by,		fread_string(fp));
+			break;
+		case 'M':
+	    	if( !str_cmp(word, "MapWaypoint") )
+	    	{
+				WAYPOINT_DATA *wp = new_waypoint();
+
+				wp->w = fread_number(fp);
+				wp->x = fread_number(fp);
+				wp->y = fread_number(fp);
+				wp->name = fread_string(fp);
+
+				if( !obj->waypoints )
+				{
+					obj->waypoints = new_waypoints_list();
+				}
+
+				list_appendlink(obj->waypoints, wp);
+
+				fMatch = TRUE;
+				break;
+			}
+
 			break;
 
 		case 'N':
