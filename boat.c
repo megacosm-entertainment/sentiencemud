@@ -709,6 +709,43 @@ bool ship_isowner_player(SHIP_DATA *ship, CHAR_DATA *ch)
 	return ( (ship->owner_uid[0] == ch->id[0]) && (ship->owner_uid[1] == ch->id[1]) );
 }
 
+WAYPOINT_DATA *get_ship_waypoint(SHIP_DATA *ship, char *argument, WILDS_DATA *wilds)
+{
+	if( is_number(argument) )
+	{
+		int value = atoi(argument);
+
+		if( value < 1 || value > list_size(ship->waypoints) )
+			return NULL;
+
+		return (WAYPOINT_DATA *)list_nthdata(ship->waypoints, value);
+	}
+	else
+	{
+		char arg[MIL];
+		int number;
+
+		number = number_argument(argument, arg);
+		if( number < 1 ) return NULL;
+
+		ITERATOR it;
+		WAYPOINT_DATA *wp;
+
+		iterator_start(&it, ship->waypoints);
+		while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&it)) )
+		{
+			if( (!wilds || (wp->w == wilds->uid)) && is_name(arg, wp->name) )
+			{
+				if( !--number) )
+					break;
+			}
+		}
+		iterator_stop(&it);
+
+		return wp;
+	}
+}
+
 void ship_cancel_route(SHIP_DATA *ship)
 {
 	if( list_size(ship->current_route) > 0 )
@@ -2730,7 +2767,7 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 	{
 		send_to_char("Syntax:  ship navigate goto <#.named waypoint>\n\r", ch);
 		send_to_char("         ship navigate seek <south> <east>\n\r", ch);
-		send_to_char("         ship navigate plot <waypoint#1> <waypoint#2> ... <waypoint#N>\n\r", ch);
+		send_to_char("         ship navigate plot <waypoint1> <waypoint2> ... <waypointN>\n\r", ch);
 
 		return;
 	}
@@ -2760,27 +2797,7 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		number = number_argument(argument, arg2);
-
-		if( number < 1 )
-		{
-			send_to_char("Cannot find a way to get there.\n\r", ch);
-			return;
-		}
-
-		ITERATOR wit;
-		WAYPOINT_DATA *wp;
-		iterator_start(&wit, ship->waypoints);
-		while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
-		{
-			if( wp->w == wilds->uid && !IS_NULLSTR(wp->name) && is_name(arg2, wp->name) )
-			{
-				if( !--number)
-					break;
-			}
-		}
-		iterator_stop(&wit);
-
+		wp = get_ship_waypoint(ship, argument, wilds);
 		if( !wp )
 		{
 			send_to_char("Cannot find a way to get there.\n\r", ch);
@@ -2891,7 +2908,7 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 		if( argument[0] == '\0' )
 		{
 			send_to_char("Plot what route?\n\r"
-						 "Syntax: ship navigate plot [waypoint#1] [waypoint#2] ...  [waypoint#N]\n\r", ch);
+						 "Syntax: ship navigate plot [waypoint1] [waypoint2] ...  [waypointN]\n\r", ch);
 			return;
 		}
 
@@ -2914,27 +2931,21 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 		while(argument[0] != '\0')
 		{
 			argument = one_argument(argument, arg);
-			if( !is_number(arg) )
+
+			wp = get_ship_waypoint(ship, arg, NULL);
+
+			if( !wp )
 			{
 				ship_cancel_route(ship);
-				send_to_char("That is not a number.\n\r", ch);
+				sprintf(buf, "No such waypoint '%s'.\n\r", arg);
+				send_to_char(buf, ch);
 				return;
 			}
-
-			int value = atoi(arg);
-			if( value < 1 || value > list_size(ship->waypoints))
-			{
-				ship_cancel_route(ship);
-				send_to_char("Index out of range.\n\r", ch);
-				return;
-			}
-
-			wp = (WAYPOINT_DATA *)list_nthdata(ship->waypoints, value);
 
 			if( wp->w != wilds->uid )
 			{
 				ship_cancel_route(ship);
-				sprintf(buf, "Invalid waypoint #%d.  Must be in the current wilderness.\n\r", value);
+				sprintf(buf, "Invalid waypoint '%s'.  Must be in the current wilderness.\n\r", arg);
 				send_to_char(buf, ch);
 				return;
 			}
@@ -3531,6 +3542,8 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 			}
 		}
 
+		smash_tilde(argument);
+
 		WAYPOINT_DATA *wp;
 		ITERATOR wit;
 
@@ -3540,7 +3553,7 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 			if( wp->w == wilds->uid && wp->x == x && wp->y == y )
 			{
 				free_string(wp->name);
-				wp->name = str_dup(argument);
+				wp->name = nocolour(argument);
 				break;
 			}
 		}
@@ -3551,7 +3564,7 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 			wp = new_waypoint();
 
 			free_string(wp->name);
-			wp->name = str_dup(argument);
+			wp->name = nocolour(argument);
 			wp->w = room->wilds->uid;
 			wp->x = x;
 			wp->y = y;
@@ -3607,8 +3620,9 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 
 		WAYPOINT_DATA *wp = (WAYPOINT_DATA *)list_nthdata(ship->waypoints, value);
 
+		smash_tilde(argument);
 		free_string(wp->name);
-		wp->name = str_dup(argument);
+		wp->name = nocolour(argument);
 
 		send_to_char("Waypoint renamed.\n\r", ch);
 		return;

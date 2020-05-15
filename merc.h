@@ -8620,6 +8620,7 @@ SHIP_DATA *purchase_ship(CHAR_DATA *ch, long vnum, SHOP_DATA *shop);
 int ships_player_owned(CHAR_DATA *ch, SHIP_INDEX_DATA *index);
 void get_ship_location(CHAR_DATA *ch, SHIP_DATA *ship, char *buf, size_t len);
 void ship_cancel_route(SHIP_DATA *ship);
+WAYPOINT_DATA *get_ship_waypoint(SHIP_DATA *ship, char *argument, WILDS_DATA *wilds);
 
 extern LLIST *loaded_special_keys;
 extern LLIST *loaded_waypoints;
