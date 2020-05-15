@@ -5358,7 +5358,7 @@ OEDIT(oedit_show)
 		add_buf(buffer, "{B     [     Wilderness     ] [ South ] [  East ] [        Name        ]{x\n\r");
 		add_buf(buffer, "{B======================================================================={x\n\r");
 
-		iterator_start(&it, pObj->waypoints);
+		iterator_start(&wit, pObj->waypoints);
 		while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
 		{
 			wilds = get_wilds_from_uid(NULL, wp->w);
