@@ -736,7 +736,7 @@ WAYPOINT_DATA *get_ship_waypoint(SHIP_DATA *ship, char *argument, WILDS_DATA *wi
 		{
 			if( (!wilds || (wp->w == wilds->uid)) && is_name(arg, wp->name) )
 			{
-				if( !--number) )
+				if( !--number )
 					break;
 			}
 		}
@@ -2774,9 +2774,6 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 
 	if( !str_prefix(arg, "goto") )
 	{
-		int number;
-		char arg2[MIL];
-
 		if( argument[0] == '\0' )
 		{
 			send_to_char("Goto where?\n\r"
@@ -2797,7 +2794,7 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		wp = get_ship_waypoint(ship, argument, wilds);
+		WAYPOINT_DATA *wp = get_ship_waypoint(ship, argument, wilds);
 		if( !wp )
 		{
 			send_to_char("Cannot find a way to get there.\n\r", ch);
