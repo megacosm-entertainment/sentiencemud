@@ -2728,7 +2728,7 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 
 	if( arg[0] == '\0' )
 	{
-		send_to_char("Syntax:  ship navigate goto <named waypoint>\n\r", ch);
+		send_to_char("Syntax:  ship navigate goto <#.named waypoint>\n\r", ch);
 		send_to_char("         ship navigate seek <south> <east>\n\r", ch);
 		send_to_char("         ship navigate plot <waypoint#1> <waypoint#2> ... <waypoint#N>\n\r", ch);
 
@@ -2737,16 +2737,13 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 
 	if( !str_prefix(arg, "goto") )
 	{
-		if( ship->ship_type != SHIP_AIR_SHIP )
-		{
-			send_to_char("Not on an airship.\n\r", ch);
-			return;
-		}
+		int number;
+		char arg2[MIL];
 
 		if( argument[0] == '\0' )
 		{
 			send_to_char("Goto where?\n\r"
-						 "Syntax: navigate goto <waypoint>\n\r", ch);
+						 "Syntax: navigate goto <#.named waypoint>\n\r", ch);
 			return;
 		}
 
@@ -2763,14 +2760,24 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
+		number = number_argument(argument, arg2);
+
+		if( number < 1 )
+		{
+			send_to_char("Cannot find a way to get there.\n\r", ch);
+			return;
+		}
+
 		ITERATOR wit;
 		WAYPOINT_DATA *wp;
-
 		iterator_start(&wit, ship->waypoints);
 		while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
 		{
-			if( wp->w == wilds->uid && !IS_NULLSTR(wp->name) && is_name(argument, wp->name) )
-				break;
+			if( wp->w == wilds->uid && !IS_NULLSTR(wp->name) && is_name(arg2, wp->name) )
+			{
+				if( !--number)
+					break;
+			}
 		}
 		iterator_stop(&wit);
 
@@ -3411,10 +3418,11 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 	if( arg[0] == '\0' )
 	{
 		send_to_char("Syntax:  ship waypoints list\n\r"
-					 "         ship waypoints add <south> <east>\n\r"
+					 "         ship waypoints add <south> <east>[ <name>]\n\r"
 					 "         ship waypoints delete <#>\n\r"
+					 "         ship waypoints rename <#> <name>\n\r"
 					 "         ship waypoints load <map>\n\r"
-					 "         ship waypoints save <#> <map>\n\r", ch);
+					 "         ship waypoints save <#>[ <map>]\n\r", ch);
 
 		return;
 	}
@@ -3510,6 +3518,19 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
+		// Only Airships can specify waypoints over any terrain
+		if( ship->ship_type != SHIP_AIR_SHIP )
+		{
+			WILDS_TERRAIN *terrain = get_terrain_by_coors(wilds, x, y);
+			if( !terrain || terrain->nonroom ||
+				(terrain->template->sector_type == SECT_WATER_SWIM &&
+				 terrain->template->sector_type == SECT_WATER_NOSWIM) )
+			{
+				send_to_char("You can only specify locations over water.\n\r", ch);
+				return;
+			}
+		}
+
 		WAYPOINT_DATA *wp;
 		ITERATOR wit;
 
@@ -3565,15 +3586,202 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
+	if( !str_prefix(arg, "rename") )
+	{
+		char arg2[MIL];
+
+		argument = one_argument(argument, arg2);
+
+		if( !is_number(arg2) )
+		{
+			send_to_char("That is not a number.\n\r", ch);
+			return;
+		}
+
+		int value = atoi(arg2);
+		if( value < 1 || value > list_size(ship->waypoints) )
+		{
+			send_to_char("No such waypoint.\n\r", ch);
+			return;
+		}
+
+		WAYPOINT_DATA *wp = (WAYPOINT_DATA *)list_nthdata(ship->waypoints, value);
+
+		free_string(wp->name);
+		wp->name = str_dup(argument);
+
+		send_to_char("Waypoint renamed.\n\r", ch);
+		return;
+	}
+
 	if( !str_prefix(arg, "load") )
 	{
-		send_to_char("Loading waypoints from maps not implemented yet.\n\r", ch);
+		OBJ_DATA *map = get_obj_carry(ch, argument, ch);
+		if( !IS_VALID(map) )
+		{
+			send_to_char("You don't have that.\n\r", ch);
+			return;
+		}
+
+		if( map->item_type != ITEM_MAP )
+		{
+			send_to_char("That is not a map.\n\r", ch);
+			return;
+		}
+
+		if( list_size(map->waypoints) < 1 )
+		{
+			act("{xThere are no waypoints on $p{x.\n\r", ch, NULL, NULL, map, NULL, NULL, NULL, TO_CHAR);
+			return;
+		}
+
+		int copied = 0;
+		int updated = 0;
+		ITERATOR wit;
+		WAYPOINT_DATA *wp;
+		iterator_start(&wit, map->waypoints);
+		while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
+		{
+			WILDS_DATA *wilds = get_wilds_from_uid(NULL, wp->w);
+			if( !wilds ) continue;
+			if( ship->ship_type != SHIP_AIR_SHIP )
+			{
+				WILDS_TERRAIN *terrain = get_terrain_by_coors(wilds, wp->x, wp->y);
+				if( !terrain || terrain->nonroom ||
+					(terrain->template->sector_type == SECT_WATER_SWIM &&
+					 terrain->template->sector_type == SECT_WATER_NOSWIM) )
+				{
+					continue;
+				}
+			}
+
+			ITERATOR it;
+			WAYPOINT_DATA *ws;
+			iterator_start(&it, ship->waypoints);
+			while( (ws = (WAYPOINT_DATA *)iterator_nextdata(&it)) )
+			{
+				if( ws->w == wp->w && ws->x == wp->x && ws->y == wp->y )
+				{
+					break;
+				}
+			}
+			iterator_stop(&it);
+
+			if( ws )
+			{
+				// Update the name
+				free_string(ws->name);
+				ws->name = str_dup(wp->name);
+				updated++;
+			}
+			else
+			{
+				ws = clone_waypoint(wp);
+				list_appendlink(ship->waypoints, ws);
+				copied++;
+			}
+		}
+		iterator_stop(&wit);
+
+		if( copied > 0 )
+		{
+			if(updated > 0)
+			{
+				sprintf(buf, "{W%d{x copied.  {W%d{x updated.\n\r", copied, updated);
+			}
+			else
+			{
+				sprintf(buf, "{W%d{x copied.\n\r", copied);
+			}
+		}
+		else if(updated > 0)
+		{
+			sprintf(buf, "{W%d{x updated.\n\r", updated);
+		}
+		else
+		{
+			sprintf(buf, "No waypoints were copied nor updated.\n\r");
+		}
+
+		send_to_char(buf, ch);
 		return;
 	}
 
 	if( !str_prefix(arg, "save") )
 	{
-		send_to_char("Saving waypoints to maps not implemented yet.\n\r", ch);
+		char arg2[MIL];
+		OBJ_DATA *map;
+
+		argument = one_argument(argument, arg2);
+
+		if( !is_number(arg2) )
+		{
+			send_to_char("That is not a number.\n\r", ch);
+			return;
+		}
+
+		int value = atoi(arg2);
+
+		if( value < 1 || value > list_size(ship->waypoints) )
+		{
+			send_to_char("No such waypoint.\n\r", ch);
+			return;
+		}
+
+		if( IS_NULLSTR(argument) )
+		{
+			map = NULL;
+			for (map = ch->carrying; map != NULL; map = map->next_content) {
+				if (map->item_type == ITEM_BLANK_SCROLL || map->pIndexData->vnum == OBJ_VNUM_BLANK_SCROLL)
+					break;
+			}
+
+			if (map == NULL)
+			{
+				send_to_char("You do not have a blank scroll.\n\r", ch);
+				return;
+			}
+
+			extract_obj(map);
+			map = create_object(get_obj_index(OBJ_VNUM_NAVIGATIONAL_CHART), 0, FALSE);
+			obj_to_char(map, ch);
+		}
+		else
+		{
+			map = get_obj_carry(ch, arg, ch);
+			if( !IS_VALID(map) )
+			{
+				send_to_char("You don't have that.\n\r", ch);
+				return;
+			}
+
+			if( map->item_type == ITEM_BLANK_SCROLL || map->pIndexData->vnum == OBJ_VNUM_BLANK_SCROLL )
+			{
+				// Replace blank scroll with map object
+				extract_obj(map);
+				map = create_object(get_obj_index(OBJ_VNUM_NAVIGATIONAL_CHART), 0, FALSE);
+				obj_to_char(map, ch);
+			}
+			else if( map->item_type != ITEM_MAP )
+			{
+				send_to_char("That is not a map nor a blank scroll.\n\r", ch);
+				return;
+			}
+		}
+
+		if( !map->waypoints )
+		{
+			map->waypoints = new_waypoints_list();
+		}
+
+		WAYPOINT_DATA *wp = (WAYPOINT_DATA *)list_nthdata(ship->waypoints, value);
+
+		wp = clone_waypoint(wp);
+
+		list_appendlink(map->waypoints, wp);
+
+	    act("{Y$n jots something down onto $p{Y.{x", ch, NULL, NULL, map, NULL, NULL, NULL, TO_ROOM);
+	    act("{YYou jot down coordinates onto $p{Y.{x\n\r", ch, NULL, NULL, map, NULL, NULL, NULL, TO_CHAR);
 		return;
 	}
 

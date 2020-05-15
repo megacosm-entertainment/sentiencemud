@@ -2199,24 +2199,25 @@ struct affliction_type {
 /*
  * Well known object virtual numbers.
  */
-#define OBJ_VNUM_SILVER_ONE	      1
-#define OBJ_VNUM_GOLD_ONE	      2
-#define OBJ_VNUM_GOLD_SOME	      3
-#define OBJ_VNUM_SILVER_SOME	      4
-#define OBJ_VNUM_COINS		      5
-#define OBJ_VNUM_CORPSE_NPC	     10
-#define OBJ_VNUM_CORPSE_PC	     11
-#define OBJ_VNUM_SEVERED_HEAD	     12
-#define OBJ_VNUM_TORN_HEART	     13
-#define OBJ_VNUM_SLICED_ARM	     14
-#define OBJ_VNUM_SLICED_LEG	     15
-#define OBJ_VNUM_GUTS		     16
-#define OBJ_VNUM_BRAINS		     17
-#define OBJ_VNUM_MUSHROOM	     20
-#define OBJ_VNUM_LIGHT_BALL	     21
-#define OBJ_VNUM_SPRING		     22
-#define OBJ_VNUM_DISC		     23
-#define OBJ_VNUM_PORTAL		     25
+#define OBJ_VNUM_SILVER_ONE				1
+#define OBJ_VNUM_GOLD_ONE				2
+#define OBJ_VNUM_GOLD_SOME				3
+#define OBJ_VNUM_SILVER_SOME			4
+#define OBJ_VNUM_COINS					5
+#define OBJ_VNUM_CORPSE_NPC				10
+#define OBJ_VNUM_CORPSE_PC				11
+#define OBJ_VNUM_SEVERED_HEAD			12
+#define OBJ_VNUM_TORN_HEART				13
+#define OBJ_VNUM_SLICED_ARM				14
+#define OBJ_VNUM_SLICED_LEG				15
+#define OBJ_VNUM_GUTS					16
+#define OBJ_VNUM_BRAINS					17
+#define OBJ_VNUM_MUSHROOM				20
+#define OBJ_VNUM_LIGHT_BALL				21
+#define OBJ_VNUM_SPRING					22
+#define OBJ_VNUM_DISC					23
+#define OBJ_VNUM_PORTAL					25
+#define OBJ_VNUM_NAVIGATIONAL_CHART		26
 
 #define OBJ_VNUM_NEWB_QUARTERSTAFF 3740
 #define OBJ_VNUM_NEWB_DAGGER	   3741
