@@ -1457,7 +1457,7 @@ void get_ship_location(CHAR_DATA *ch, SHIP_DATA *ship, char *buf, size_t len)
 		// Give exact location of ship
 		if( IS_WILDERNESS(room) )
 		{
-			snprintf(buf, len, "{Y%s {x({W%ld{x) at ({C%d{x,{C%d{x)", room->wilds->name, room->wilds->uid, room->x, room->y);
+			snprintf(buf, len, "{Y%s {x({W%ld{x) at ({C%ld{x,{C%ld{x)", room->wilds->name, room->wilds->uid, room->x, room->y);
 		}
 		else if( room->source )
 		{
@@ -1474,7 +1474,7 @@ void get_ship_location(CHAR_DATA *ch, SHIP_DATA *ship, char *buf, size_t len)
 		if( IS_WILDERNESS(room) )
 		{
 			WILDS_DATA *wilds = room->wilds;
-			WILDS_TERRAIN *terrain = get_terrain_from_coors(wilds, room->x, room->y);
+			WILDS_TERRAIN *terrain = get_terrain_by_coors(wilds, room->x, room->y);
 
 			int closestDistanceSq = 401;	// 20 distance radius
 			AREA_DATA *closestArea = NULL;
@@ -1498,11 +1498,11 @@ void get_ship_location(CHAR_DATA *ch, SHIP_DATA *ship, char *buf, size_t len)
 			{
 				if( ship_isowner_player(ship, ch) && ship->sextant_x >= 0 && ship->sextant_y >= 0 )
 				{
-					snprintf(buf, len, "Anchored at {YSouth {W%d{x by {YEast {W%d{x near {Y%s{x", ship->sextant_y, ship->sextant_x, area->name);
+					snprintf(buf, len, "Anchored at {YSouth {W%d{x by {YEast {W%d{x near {Y%s{x", ship->sextant_y, ship->sextant_x, closestArea->name);
 				}
 				else
 				{
-					snprintf(buf, len, "{Y%s{x near {Y%s{x", terrain->template->name, area->name);
+					snprintf(buf, len, "{Y%s{x near {Y%s{x", terrain->template->name, closestArea->name);
 				}
 			}
 			else
@@ -1535,7 +1535,7 @@ void get_ship_location(CHAR_DATA *ch, SHIP_DATA *ship, char *buf, size_t len)
 					default:						snprintf(loc, 50, "in the {Y%s{x", wilds->name); break;
 					}
 
-					snprintf(buf, len, "Anchored at {YSouth {W%d{x by {YEast {W%d{x %s", ship->sextant_y, ship->sextant_x, lock); break;
+					snprintf(buf, len, "Anchored at {YSouth {W%d{x by {YEast {W%d{x %s", ship->sextant_y, ship->sextant_x, loc);
 				}
 				else
 				{
@@ -3237,7 +3237,7 @@ void do_ship_list(CHAR_DATA *ch, char *argument)
 
 void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 {
-	SHIP_DATA *ship;
+//	SHIP_DATA *ship;
 	char arg[MIL];
 
 	argument = one_argument(argument, arg);
