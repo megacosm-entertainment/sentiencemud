@@ -5332,7 +5332,7 @@ int get_region(ROOM_INDEX_DATA *room)
 	if( !room )
 		return -1;
 
-	if( !IS_WILDERESS(room) )
+	if( !IS_WILDERNESS(room) )
 		return -1;
 
     // Small Wilds
