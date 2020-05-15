@@ -7617,9 +7617,9 @@ void look_map(CHAR_DATA *ch, OBJ_DATA *map)
 		iterator_start(&wit, map->waypoints);
 		while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
 		{
-			add_buf(buffer, "{WCartographer Waypoints:{x\n\r\n\r");
-			add_buf(buffer, "{M     [{W     Wilderness     {M] [{W South {M] [{W  East {M] [{W        Name        {M]{x\n\r");
-			add_buf(buffer, "{M======================================================================={x\n\r");
+			send_to_char("{WCartographer Waypoints:{x\n\r\n\r", ch);
+			send_to_char("{M     [{W     Wilderness     {M] [{W South {M] [{W  East {M] [{W        Name        {M]{x\n\r", ch);
+			send_to_char("{M======================================================================={x\n\r", ch);
 
 			iterator_start(&it, pObj->waypoints);
 			while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
@@ -7635,12 +7635,12 @@ void look_map(CHAR_DATA *ch, OBJ_DATA *map)
 					wwidth, wwidth, wname,
 					wp->y, wp->x, wp->name);
 
-				add_buf(buffer, buf);
+				send_to_char(buf, ch);
 			}
 
 			iterator_stop(&wit);
 
-			add_buf(buffer, "\n\r");
+			send_to_char("\n\r", ch);
 		}
 		iterator_stop(&wit);
 
