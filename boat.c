@@ -107,6 +107,9 @@ bool ship_seek_point(SHIP_DATA *ship)
 			WAYPOINT_DATA *wp = (WAYPOINT_DATA *)iterator_nextdata(&ship->route_it);
 			if( wp )
 			{
+//				char buf[MSL];
+//				sprintf(buf, "{WNext Waypoint:{x {YS{x%d {YE{x%d", wp->y, wp->x);
+//				ship_echo(ship, buf);
 				ship->seek_point.wilds = get_wilds_from_uid(NULL, wp->w);
 				ship->seek_point.w = wp->w;
 				ship->seek_point.x = wp->x;
@@ -116,8 +119,8 @@ bool ship_seek_point(SHIP_DATA *ship)
 			{
 				ship_echo(ship, "{WThe vessel has reached its destination.{x");
 				ship_stop(ship);
+				return false;	// Return false to indicate stop movement
 			}
-			return false;	// Return false to indicate stop movement
 		}
 
 
