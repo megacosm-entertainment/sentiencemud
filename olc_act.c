@@ -6151,7 +6151,7 @@ OEDIT(oedit_waypoints)
 			add_buf(buffer, "{B     [     Wilderness     ] [ South ] [  East ] [        Name        ]{x\n\r");
 			add_buf(buffer, "{B======================================================================={x\n\r");
 
-			iterator_start(&it, pObj->waypoints);
+			iterator_start(&wit, pObj->waypoints);
 			while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
 			{
 				wilds = get_wilds_from_uid(NULL, wp->w);
@@ -6235,12 +6235,12 @@ OEDIT(oedit_waypoints)
 		wp->x = x;
 		wp->y = y;
 
-		if( !obj->waypoints )
+		if( !pObj->waypoints )
 		{
-			obj->waypoints = new_waypoints_list();
+			pObj->waypoints = new_waypoints_list();
 		}
 
-		list_appendlink(obj->waypoints, wp);
+		list_appendlink(pObj->waypoints, wp);
 		send_to_char("Waypoint added.\n\r", ch);
 		return TRUE;
 	}
@@ -6262,13 +6262,13 @@ OEDIT(oedit_waypoints)
 		}
 
 		value = atoi(argument);
-		if( value < 1 || value > list_size(obj->waypoints) )
+		if( value < 1 || value > list_size(pObj->waypoints) )
 		{
 			send_to_char("No such waypoint.\n\r", ch);
 			return FALSE;
 		}
 
-		list_remnthlink(obj->waypoints, value);
+		list_remnthlink(pObj->waypoints, value);
 		send_to_char("Waypoint deleted.\n\r", ch);
 		return TRUE;
 	}
