@@ -116,19 +116,7 @@ static void delete_list_uid_data(void *ptr)
 
 static void *copy_waypoint(void *ptr)
 {
-	WAYPOINT_DATA *wo = (WAYPOINT_DATA *)ptr;
-	if( !IS_VALID(wo) ) return NULL;
-
-	WAYPOINT_DATA *wn = new_waypoint();
-
-	free_string(wn->name);
-	wn->name = str_dup(wo->name);
-
-	wn->w = wo->w;
-	wn->x = wo->x;
-	wn->y = wo->y;
-
-	return wn;
+	return clone_waypoint((WAYPOINT_DATA *)ptr);
 }
 
 static void delete_waypoint(void *ptr)
@@ -2254,6 +2242,9 @@ SHIP_DATA *new_ship()
 
 	ship->crew = list_create(FALSE);
 
+	ship->waypoints = new_waypoints_list();
+	ship->current_route = list_createx(FALSE, NULL, delete_waypoint);
+
 	VALIDATE(ship);
 	return ship;
 }
@@ -2266,6 +2257,11 @@ void free_ship(SHIP_DATA *ship)
 	free_string(ship->ship_name);
 
 	list_destroy(ship->crew);
+
+	list_destroy(ship->waypoints);
+
+	iterator_stop(&ship->route_it);
+	list_destroy(ship->current_route);
 
 	INVALIDATE(ship);
 	ship->next = ship_free;
@@ -2352,6 +2348,22 @@ void free_waypoint( WAYPOINT_DATA *waypoint )
     waypoint_free =   waypoint;
     top_waypoint--;
     return;
+}
+
+WAYPOINT_DATA *clone_waypoint(WAYPOINT_DATA *waypoint)
+{
+	if( !IS_VALID(wo) ) return NULL;
+
+	WAYPOINT_DATA *wn = new_waypoint();
+
+	free_string(wn->name);
+	wn->name = str_dup(waypoint->name);
+
+	wn->w = waypoint->w;
+	wn->x = waypoint->x;
+	wn->y = waypoint->y;
+
+	return wn;
 }
 
 

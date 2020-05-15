@@ -5080,6 +5080,10 @@ struct ship_data
 	unsigned long		boarded_by_uid[2];
 
 	// TODO: WAYPOINTS
+	LLIST *waypoints;
+
+	ITERATOR route_it;
+	LLIST *current_route;				// Will be a simple list of waypoints
 
 	WILDS_COORD			seek_point;
 

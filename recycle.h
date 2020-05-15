@@ -179,3 +179,4 @@ SPECIAL_KEY_DATA *new_special_key();
 void free_special_key(SPECIAL_KEY_DATA *sk);
 
 LLIST *new_waypoints_list();
+WAYPOINT_DATA *clone_waypoint(WAYPOINT_DATA *waypoint);

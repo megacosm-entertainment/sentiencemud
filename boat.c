@@ -1067,6 +1067,20 @@ SHIP_DATA *ship_load(FILE *fp)
 			break;
 
 		case 'M':
+			if( !str_cmp(word, "MapWaypoint") )
+			{
+				WAYPOINT_DATA *wp = new_waypoint();
+
+				wp->w = fread_number(fp);
+				wp->x = fread_number(fp);
+				wp->y = fread_number(fp);
+				wp->name = fread_string(fp);
+
+				list_appendlink(ship->waypoints, wp);
+
+				fMatch = TRUE;
+				break;
+			}
 			KEY("MoveSteps", ship->move_steps, fread_number(fp));
 			break;
 
@@ -1244,6 +1258,14 @@ bool ship_save(FILE *fp, SHIP_DATA *ship)
 			ship->seek_point.x,
 			ship->seek_point.y);
 	}
+
+	WAYPOINT_DATA *wp;
+	iterator_start(&it, ship->waypoints);
+	while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&it)) )
+	{
+		fprintf(fp, "MapWaypoint %lu %d %d %s~\n", wp->w, wp->x, wp->y, fix_string(wp->name));
+	}
+	iterator_stop(&it);
 
 	if( ship->pk )
 	{
@@ -3237,15 +3259,32 @@ void do_ship_list(CHAR_DATA *ch, char *argument)
 
 void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 {
-//	SHIP_DATA *ship;
+	SHIP_DATA *ship = get_room_ship(ch->in_room);
+	char buf[MSL];
 	char arg[MIL];
+
+	if (!IS_VALID(ship))
+	{
+		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if (!IS_IMMORTAL(ch) && ship_isowner_player(ship, ch))
+	{
+		send_to_char("This isn't your vessel.\n\r", ch);
+		return;
+	}
+
+	ROOM_INDEX_DATA *room = obj_room(ship->ship);
+
+	// Require a Navigator or "navigation" skill
 
 	argument = one_argument(argument, arg);
 
 	if( arg[0] == '\0' )
 	{
 		send_to_char("Syntax:  ship waypoints list\n\r"
-					 "         ship waypoints add <x> <y>\n\r"
+					 "         ship waypoints add <south> <east>\n\r"
 					 "         ship waypoints delete <#>\n\r"
 					 "         ship waypoints load <map>\n\r"
 					 "         ship waypoints save <#> <map>\n\r", ch);
@@ -3255,19 +3294,146 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 
 	if( !str_prefix(arg, "list") )
 	{
-		send_to_char("Not implemented yet.\n\r", ch);
+		if (list_size(ship->waypoints) > 0)
+		{
+			int cnt = 0;
+			ITERATOR wit;
+			WAYPOINT_DATA *wp;
+			WILDS_DATA *wilds;
+
+			BUFFER *buffer = new_buf();
+
+			add_buf(buffer, "{BCartographer Waypoints:{x\n\r\n\r");
+			add_buf(buffer, "{B     [     Wilderness     ] [ South ] [  East ] [        Name        ]{x\n\r");
+			add_buf(buffer, "{B======================================================================={x\n\r");
+
+			iterator_start(&wit, ship->waypoints);
+			while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
+			{
+				wilds = get_wilds_from_uid(NULL, wp->w);
+
+				char *wname = wilds ? wilds->name : "{D(null){x";
+
+				int wwidth = get_colour_width(wname) + 20;
+
+				sprintf(buf, "{B%3d{b)  {W%-*.*s    {G%5d     %5d    {Y%s{x\n\r",
+					++cnt,
+					wwidth, wwidth, wname,
+					wp->y, wp->x, wp->name);
+
+				add_buf(buffer, buf);
+			}
+
+			iterator_stop(&wit);
+
+			add_buf(buffer, "\n\r");
+
+			if( cnt > 0 )
+			{
+				page_to_char(buffer->string, ch);
+			}
+			else
+			{
+				send_to_char("No waypoints to display.\n\r", ch);
+			}
+
+			free_buf(buffer);
+		}
+		else
+			send_to_char("No waypoints to display.\n\r", ch);
+
 		return;
 	}
 
 	if( !str_prefix(arg, "add") )
 	{
-		send_to_char("Not implemented yet.\n\r", ch);
+		char arg2[MIL];
+		char arg3[MIL];
+
+		argument = one_argument(argument, arg2);
+		argument = one_argument(argument, arg3);
+
+		if( !is_number(arg2) || !is_number(argument3) )
+		{
+			send_to_char("That is not a number.\n\r", ch);
+			return;
+		}
+
+		if( !wilds )
+		{
+			send_to_char("The vessel is not in the wilderness.\n\r", ch);
+			return;
+		}
+
+		int y = atoi(arg2);
+		int x = atoi(arg3);
+
+		if( y < 0 || y >= wilds->map_size_y )
+		{
+			sprintf(buf, "South coordinate is out of bounds.  Please limit from 0 to %d.\n\r", wilds->map_size_y - 1);
+			send_to_char(buf, ch);
+			return FALSE;
+		}
+
+		if( x < 0 || x >= wilds->map_size_x )
+		{
+			sprintf(buf, "East coordinate is out of bounds.  Please limit from 0 to %d.\n\r", wilds->map_size_x - 1);
+			send_to_char(buf, ch);
+			return FALSE;
+		}
+
+		WAYPOINT_DATA *wp;
+		ITERATOR wit;
+
+		iterator_start(&wit, ship->waypoints);
+		while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
+		{
+			if( wp->w == wilds->uid && wp->x == x && wp->y == y )
+			{
+				free_string(wp->name);
+				wp->name = str_dup(argument);
+				break;
+			}
+		}
+		iterator_stop(&wit);
+
+		if( wp == NULL )
+		{
+			wp = new_waypoint();
+
+			free_string(wp->name);
+			wp->name = str_dup(argument);
+			wp->w = room->wilds->uid;
+			wp->x = x;
+			wp->y = y;
+
+			list_appendlink(ship->waypoints, wp);
+			send_to_char("Waypoint added.\n\r", ch);
+		}
+		else
+		{
+			send_to_char("Waypoint updated.\n\r", ch);
+		}
 		return;
 	}
 
 	if( !str_prefix(arg, "delete") )
 	{
-		send_to_char("Not implemented yet.\n\r", ch);
+		if( !is_number(argument) )
+		{
+			send_to_char("That is not a number.\n\r", ch);
+			return;
+		}
+
+		int value = atoi(argument);
+		if( value < 1 || value > list_size(ship->waypoints) )
+		{
+			send_to_char("No such waypoint.\n\r", ch);
+			return;
+		}
+
+		list_remnthlink(ship->waypoints, value);
+		send_to_char("Waypoint deleted.\n\r", ch);
 		return;
 	}
 
@@ -3378,8 +3544,9 @@ void do_ship(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if( !str_prefix(arg, "waypoint") )
+	if( !str_prefix(arg, "waypoints") )
 	{
+		do_ship_waypoints(ch, argument);
 		return;
 	}
 
