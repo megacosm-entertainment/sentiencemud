@@ -3353,18 +3353,19 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 		argument = one_argument(argument, arg2);
 		argument = one_argument(argument, arg3);
 
-		if( !is_number(arg2) || !is_number(argument3) )
+		if( !is_number(arg2) || !is_number(arg3) )
 		{
 			send_to_char("That is not a number.\n\r", ch);
 			return;
 		}
 
-		if( !wilds )
+		if( !IS_WILDERNESS(room) )
 		{
 			send_to_char("The vessel is not in the wilderness.\n\r", ch);
 			return;
 		}
 
+		WILDS_DATA *wilds = room->wilds;
 		int y = atoi(arg2);
 		int x = atoi(arg3);
 
@@ -3372,14 +3373,14 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 		{
 			sprintf(buf, "South coordinate is out of bounds.  Please limit from 0 to %d.\n\r", wilds->map_size_y - 1);
 			send_to_char(buf, ch);
-			return FALSE;
+			return;
 		}
 
 		if( x < 0 || x >= wilds->map_size_x )
 		{
 			sprintf(buf, "East coordinate is out of bounds.  Please limit from 0 to %d.\n\r", wilds->map_size_x - 1);
 			send_to_char(buf, ch);
-			return FALSE;
+			return;
 		}
 
 		WAYPOINT_DATA *wp;
