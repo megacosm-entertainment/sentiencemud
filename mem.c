@@ -2249,7 +2249,7 @@ SHIP_DATA *new_ship()
 	ship->crew = list_create(FALSE);
 
 	ship->waypoints = new_waypoints_list();
-	ship->current_route = list_createx(FALSE, NULL, delete_waypoint);
+	ship->route_waypoints = list_createx(FALSE, NULL, delete_waypoint);
 	ship->routes = list_createx(FALSE, NULL, delete_ship_route);
 
 	VALIDATE(ship);
@@ -2268,7 +2268,7 @@ void free_ship(SHIP_DATA *ship)
 	list_destroy(ship->waypoints);
 
 	iterator_stop(&ship->route_it);
-	list_destroy(ship->current_route);
+	list_destroy(ship->route_waypoints);
 	list_destroy(ship->routes);
 
 	INVALIDATE(ship);
