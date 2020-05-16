@@ -3845,7 +3845,7 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 
 		if( list_size(map->waypoints) < 1 )
 		{
-			act("{xThere are no waypoints on $p{x.\n\r", ch, NULL, NULL, map, NULL, NULL, NULL, TO_CHAR);
+			act("{xThere are no waypoints on $p{x.", ch, NULL, NULL, map, NULL, NULL, NULL, TO_CHAR);
 			return;
 		}
 
@@ -3942,6 +3942,8 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
+		WAYPOINT_DATA *wp = (WAYPOINT_DATA *)list_nthdata(ship->waypoints, value);
+
 		if( IS_NULLSTR(argument) )
 		{
 			map = NULL;
@@ -3981,6 +3983,26 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 				send_to_char("That is not a map nor a blank scroll.\n\r", ch);
 				return;
 			}
+
+			if( map->waypoints )
+			{
+				ITERATOR it;
+				WAYPOINT_DATA *wm;
+				iterator_start(&it, map->waypoints);
+				while( (wm = (WAYPOINT_DATA *)iterator_nextdata(&it)) )
+				{
+					if( wp->w == wm->w && wp->x == wm->x && wp->y == wm->y )
+						break;
+				}
+				iterator_stop(&it);
+
+				if( wm )
+				{
+					act("{YThat coordinate is already on $p{Y.{x", ch, NULL, NULL, map, NULL, NULL, NULL, TO_CHAR);
+					return;
+				}
+			}
+
 		}
 
 		if( !map->waypoints )
@@ -3988,14 +4010,12 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 			map->waypoints = new_waypoints_list();
 		}
 
-		WAYPOINT_DATA *wp = (WAYPOINT_DATA *)list_nthdata(ship->waypoints, value);
-
 		wp = clone_waypoint(wp);
 
 		list_appendlink(map->waypoints, wp);
 
 	    act("{Y$n jots something down onto $p{Y.{x", ch, NULL, NULL, map, NULL, NULL, NULL, TO_ROOM);
-	    act("{YYou jot down coordinates onto $p{Y.{x\n\r", ch, NULL, NULL, map, NULL, NULL, NULL, TO_CHAR);
+	    act("{YYou jot down coordinates onto $p{Y.{x", ch, NULL, NULL, map, NULL, NULL, NULL, TO_CHAR);
 		return;
 	}
 
