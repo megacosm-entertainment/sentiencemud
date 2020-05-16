@@ -2814,7 +2814,7 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 			{
 				char col = (ship->current_waypoint == wp) ? 'C' : 'c';
 
-				sprintf(buf, "{%c%3d   {G%5d  %5d  {Y%s{x\n\r", col, ++stop, wp->y, wp->x. wp->name);
+				sprintf(buf, "{%c%3d   {G%5d  %5d  {Y%s{x\n\r", col, ++stop, wp->y, wp->x, wp->name);
 				send_to_char(buf, ch);
 			}
 			iterator_stop(&it);
@@ -3548,7 +3548,7 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 
 					if( !is_number(argS1) || !is_number(argE1) || !is_number(argS2) || !is_number(argE2) )
 					{
-						send_to_char("Coords argument not a number.\n\r");
+						send_to_char("Coords argument not a number.\n\r", ch);
 						return;
 					}
 
@@ -3579,7 +3579,7 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 
 					if( map_name[0] == '\0' )
 					{
-						send_to_char("Missing map name.\n\r");
+						send_to_char("Missing map name.\n\r", ch);
 						return;
 					}
 
@@ -3591,7 +3591,7 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 
 					if( name[0] == '\0' )
 					{
-						send_to_char("Waypoint name.\n\r");
+						send_to_char("Waypoint name.\n\r", ch);
 						return;
 					}
 
