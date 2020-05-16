@@ -3564,7 +3564,7 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 						s2 = temp;
 					}
 
-					if( e2 > e1 )
+					if( e1 > e2 )
 					{
 						int temp = e1;
 						e1 = e2;
