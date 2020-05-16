@@ -2465,8 +2465,10 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
 
     for (ed = obj->extra_descr; ed != NULL; ed = ed->next)
     {
-	fprintf(fp, "ExDe %s~ %s~\n",
-	    ed->keyword, ed->description);
+		if( ed->description )
+			fprintf(fp, "ExDe %s~ %s~\n", ed->keyword, ed->description);
+		else
+			fprintf(fp, "ExDeEnv %s~\n", ed->keyword, ed->description);
     }
 
     if(obj->progs && obj->progs->vars) {
@@ -2921,6 +2923,19 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 
 				ed->keyword		= fread_string(fp);
 				ed->description		= fread_string(fp);
+				ed->next		= obj->extra_descr;
+				obj->extra_descr	= ed;
+				fMatch = TRUE;
+			}
+
+			if (!str_cmp(word, "ExtraDescrEnv") || !str_cmp(word,"ExDeEnv"))
+			{
+				EXTRA_DESCR_DATA *ed;
+
+				ed = new_extra_descr();
+
+				ed->keyword		= fread_string(fp);
+				ed->description		= NULL;
 				ed->next		= obj->extra_descr;
 				obj->extra_descr	= ed;
 				fMatch = TRUE;
