@@ -2543,7 +2543,10 @@ void do_rcopy(CHAR_DATA *ch, char *argument)
     {
 	new_ed = new_extra_descr();
 	new_ed->keyword = str_dup(ed->keyword);
-	new_ed->description = str_dup(ed->description);
+	if( ed->description )
+		new_ed->description = str_dup(ed->description);
+	else
+		new_ed->description = NULL;
 	new_ed->next = new_room->extra_descr;
 	new_room->extra_descr = new_ed;
     }
@@ -2775,7 +2778,10 @@ void do_ocopy(CHAR_DATA *ch, char *argument)
     {
 	new_ed = new_extra_descr();
 	new_ed->keyword = str_dup(ed->keyword);
-	new_ed->description = str_dup(ed->description);
+	if(ed->description)
+		new_ed->description = str_dup(ed->description);
+	else
+		new_ed->description = NULL;
 	new_ed->next = new_obj->extra_descr;
 	new_obj->extra_descr = new_ed;
     }

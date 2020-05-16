@@ -1548,16 +1548,19 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_OLLIST_OBJ;
 		arg->d.list.ptr.obj = self ? &self->carrying : NULL;
 		arg->d.list.owner = self;
+		arg->d.list.owner_type = ENT_UNKNOWN;
 		break;
 	case ENTITY_MOB_TOKENS:
 		arg->type = ENT_OLLIST_TOK;
 		arg->d.list.ptr.tok = self ? &self->tokens : NULL;
 		arg->d.list.owner = self;
+		arg->d.list.owner_type = ENT_UNKNOWN;
 		break;
 	case ENTITY_MOB_AFFECTS:
 		arg->type = ENT_OLLIST_AFF;
 		arg->d.list.ptr.aff = self ? &self->affected : NULL;
 		arg->d.list.owner = self;
+		arg->d.list.owner_type = ENT_UNKNOWN;
 		break;
 	case ENTITY_MOB_MOUNT:
 		arg->d.mob = arg->d.mob ? arg->d.mob->mount : NULL;
@@ -1992,16 +1995,19 @@ char *expand_entity_mobile_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_OLLIST_OBJ;
 		arg->d.list.ptr.obj = NULL;
 		arg->d.list.owner = NULL;
+		arg->d.list.owner_type = ENT_UNKNOWN;
 		break;
 	case ENTITY_MOB_TOKENS:
 		arg->type = ENT_OLLIST_TOK;
 		arg->d.list.ptr.tok = NULL;
 		arg->d.list.owner = NULL;
+		arg->d.list.owner_type = ENT_UNKNOWN;
 		break;
 	case ENTITY_MOB_AFFECTS:
 		arg->type = ENT_OLLIST_AFF;
 		arg->d.list.ptr.aff = NULL;
 		arg->d.list.owner = NULL;
+		arg->d.list.owner_type = ENT_UNKNOWN;
 		break;
 	case ENTITY_MOB_MOUNT:
 		arg->d.mob = NULL;
@@ -2228,6 +2234,7 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_OLLIST_OBJ;
 		arg->d.list.ptr.obj = self ? &self->contains : NULL;
 		arg->d.list.owner = self;
+		arg->d.list.owner_type = ENT_UNKNOWN;
 		break;
 	case ENTITY_OBJ_OWNER:
 		arg->type = ENT_STRING;
@@ -2245,6 +2252,7 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_OLLIST_TOK;
 		arg->d.list.ptr.tok = self ? &self->tokens : NULL;
 		arg->d.list.owner = self;
+		arg->d.list.owner_type = ENT_UNKNOWN;
 		break;
 	case ENTITY_OBJ_TARGET:
 		arg->d.mob = (arg->d.obj && arg->d.obj->progs) ? arg->d.obj->progs->target : NULL;
@@ -2270,6 +2278,7 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		else
 			arg->d.list.ptr.ed = NULL;
 		arg->d.list.owner = self;
+		arg->d.list.owner_type = ENT_OBJECT;
 		break;
 	case ESCAPE_VARIABLE:
 		str = expand_escape_variable(info,arg->d.obj?arg->d.obj->progs->vars:NULL,str+1,arg);
@@ -2283,6 +2292,7 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_OLLIST_AFF;
 		arg->d.list.ptr.aff = self ? &self->affected: NULL;
 		arg->d.list.owner = self;
+		arg->d.list.owner_type = ENT_UNKNOWN;
 		break;
 
 	case ENTITY_OBJ_INDEX:
@@ -2357,6 +2367,7 @@ char *expand_entity_object_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_OLLIST_OBJ;
 		arg->d.list.ptr.obj = NULL;
 		arg->d.list.owner = NULL;
+		arg->d.list.owner_type = ENT_UNKNOWN;
 		break;
 	case ENTITY_OBJ_OWNER:
 		arg->type = ENT_STRING;
@@ -2374,6 +2385,7 @@ char *expand_entity_object_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_OLLIST_TOK;
 		arg->d.list.ptr.tok = NULL;
 		arg->d.list.owner = NULL;
+		arg->d.list.owner_type = ENT_UNKNOWN;
 		break;
 	case ENTITY_OBJ_TARGET:
 		arg->d.mob = NULL;
@@ -2390,6 +2402,7 @@ char *expand_entity_object_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_EXTRADESC;
 		arg->d.list.ptr.ed = NULL;
 		arg->d.list.owner = NULL;
+		arg->d.list.owner_type = ENT_OBJECT;
 		break;
 	case ESCAPE_VARIABLE:
 		str = expand_escape_variable(info,NULL,str+1,arg);
@@ -2403,6 +2416,7 @@ char *expand_entity_object_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_OLLIST_AFF;
 		arg->d.list.ptr.aff = NULL;
 		arg->d.list.owner = NULL;
+		arg->d.list.owner_type = ENT_UNKNOWN;
 		break;
 
 	case ENTITY_OBJ_INDEX:
@@ -2443,16 +2457,19 @@ char *expand_entity_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_OLLIST_MOB;
 		arg->d.list.ptr.mob = room ? &room->people : NULL;
 		arg->d.list.owner = room;
+		arg->d.list.owner_type = ENT_UNKNOWN;
 		break;
 	case ENTITY_ROOM_OBJECTS:
 		arg->type = ENT_OLLIST_OBJ;
 		arg->d.list.ptr.obj = room ? &room->contents : NULL;
 		arg->d.list.owner = room;
+		arg->d.list.owner_type = ENT_UNKNOWN;
 		break;
 	case ENTITY_ROOM_TOKENS:
 		arg->type = ENT_OLLIST_TOK;
 		arg->d.list.ptr.tok = room ? &room->tokens : NULL;
 		arg->d.list.owner = room;
+		arg->d.list.owner_type = ENT_UNKNOWN;
 		break;
 	case ENTITY_ROOM_AREA:
 		arg->type = ENT_AREA;
@@ -2505,6 +2522,7 @@ char *expand_entity_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_EXTRADESC;
 		arg->d.list.ptr.ed = room ? &room->extra_descr : NULL;
 		arg->d.list.owner = room;
+		arg->d.list.owner_type = ENT_ROOM;
 		break;
 
 	case ENTITY_ROOM_DESC:
@@ -3264,16 +3282,19 @@ char *expand_entity_clone_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_OLLIST_MOB;
 		arg->d.list.ptr.mob = NULL;
 		arg->d.list.owner = NULL;
+		arg->d.list.owner_type = ENT_UNKNOWN;
 		break;
 	case ENTITY_ROOM_OBJECTS:
 		arg->type = ENT_OLLIST_OBJ;
 		arg->d.list.ptr.obj = NULL;
 		arg->d.list.owner = NULL;
+		arg->d.list.owner_type = ENT_UNKNOWN;
 		break;
 	case ENTITY_ROOM_TOKENS:
 		arg->type = ENT_OLLIST_TOK;
 		arg->d.list.ptr.tok = NULL;
 		arg->d.list.owner = NULL;
+		arg->d.list.owner_type = ENT_UNKNOWN;
 		break;
 	case ENTITY_ROOM_AREA:
 		arg->type = ENT_AREA;
@@ -3326,6 +3347,7 @@ char *expand_entity_clone_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_EXTRADESC;
 		arg->d.list.ptr.ed = NULL;
 		arg->d.list.owner = NULL;
+		arg->d.list.owner_type = ENT_ROOM;
 		break;
 
 	case ENTITY_ROOM_DESC:
@@ -3374,16 +3396,19 @@ char *expand_entity_wilds_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_OLLIST_MOB;
 		arg->d.list.ptr.mob = NULL;
 		arg->d.list.owner = NULL;
+		arg->d.list.owner_type = ENT_UNKNOWN;
 		break;
 	case ENTITY_ROOM_OBJECTS:
 		arg->type = ENT_OLLIST_OBJ;
 		arg->d.list.ptr.obj = NULL;
 		arg->d.list.owner = NULL;
+		arg->d.list.owner_type = ENT_UNKNOWN;
 		break;
 	case ENTITY_ROOM_TOKENS:
 		arg->type = ENT_OLLIST_TOK;
 		arg->d.list.ptr.tok = NULL;
 		arg->d.list.owner = NULL;
+		arg->d.list.owner_type = ENT_UNKNOWN;
 		break;
 	case ENTITY_ROOM_AREA:
 		arg->type = ENT_AREA;
@@ -3436,6 +3461,7 @@ char *expand_entity_wilds_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_EXTRADESC;
 		arg->d.list.ptr.ed = NULL;
 		arg->d.list.owner = NULL;
+		arg->d.list.owner_type = ENT_ROOM;
 		break;
 
 	case ENTITY_ROOM_DESC:
@@ -4905,7 +4931,45 @@ char *expand_entity_extradesc(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 */
 
 		arg->type = ENT_STRING;
-		arg->d.str = get_extra_descr(buf_string(buffer), *arg->d.list.ptr.ed);
+		int owner_type = arg->d.list.owner_type;
+		EXTRA_DESCR_DATA *edesc = get_extra_descr(buf_string(buffer), *arg->d.list.ptr.ed);
+
+		if( edesc != NULL )
+		{
+			char *desc = edesc->description;
+
+			// Enviroment ED
+			if( !desc )
+			{
+				ROOM_INDEX_DATA *environ = NULL;
+
+				if( owner_type == ENT_ROOM )
+				{
+					environ = get_environment((ROOM_INDEX_DATA *)arg->d.list.owner);
+				}
+				else if( owner_type == ENT_OBJECT )
+				{
+					OBJ_DATA *obj = (OBJ_DATA *)arg->d.list.owner;
+
+					if( obj )
+					{
+						if( !obj->carried_by && !obj->in_obj && !obj->locker && !obj->in_mail)
+						{
+							environ = get_environment(obj->in_room);
+						}
+					}
+				}
+
+				if( environ )
+				{
+					desc = environ->description;
+				}
+			}
+
+			arg->d.str = desc;
+		}
+		else
+			arg->d.str = NULL;
 		if (!arg->d.str) arg->d.str = str_dup("");
 		free_buf(buffer);
 		break;

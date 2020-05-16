@@ -1270,6 +1270,7 @@ struct loop_data {
 				ITERATOR it;
 			} list;
 			void *owner;
+			int owner_type;
 		} l;
 	} d;
 	char var_name[MIL];
@@ -1332,6 +1333,7 @@ struct script_parameter {
 				EXTRA_DESCR_DATA **ed;
 			} ptr;
 			void *owner;
+			int owner_type;
 		} list;
 		struct {
 			ROOM_INDEX_DATA *r;

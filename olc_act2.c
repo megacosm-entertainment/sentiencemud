@@ -1770,9 +1770,29 @@ TEDIT(tedit_ed)
 	send_to_char("         ed delete [keyword]\n\r", ch);
 	send_to_char("         ed format [keyword]\n\r", ch);
 	send_to_char("         ed copy existing_keyword new_keyword\n\r", ch);
+	send_to_char("         ed environment [keyword]\n\r", ch);
 
 
 	return FALSE;
+    }
+
+    if (!str_cmp(command, "environment"))
+    {
+	if (keyword[0] == '\0')
+	{
+	    send_to_char("Syntax:  ed environment [keyword]\n\r", ch);
+	    return FALSE;
+	}
+
+	ed			=   new_extra_descr();
+	ed->keyword		=   str_dup(keyword);
+	ed->description		= NULL;
+	ed->next		=   token_index->extra_descr;
+	token_index->extra_descr	=   ed;
+
+	send_to_char("Enviromental extra description added.\n\r", ch);
+
+	return TRUE;
     }
 
     if (!str_cmp(command, "copy"))
@@ -1799,7 +1819,10 @@ TEDIT(tedit_ed)
 
 	ed2			=   new_extra_descr();
 	ed2->keyword		=   str_dup(copy_item);
-	ed2->description		=   str_dup(ed->description);
+	if( ed->description )
+		ed2->description		= str_dup(ed->description);
+	else
+		ed2->description		= NULL;
 	ed2->next		=   token_index->ed;
 	token_index->ed	=   ed2;
 
@@ -1847,6 +1870,9 @@ TEDIT(tedit_ed)
 	    send_to_char("TEdit:  Extra description keyword not found.\n\r", ch);
 	    return FALSE;
 	}
+
+	if( !ed->description )
+		ed->description = str_dup("");
 
 	string_append(ch, &ed->description);
 
@@ -1909,13 +1935,50 @@ TEDIT(tedit_ed)
 	    return FALSE;
 	}
 
+	if( !ed->description )
+	{
+	    send_to_char("TEdit:  Extra description is an environmental extra description.\n\r", ch);
+	    return FALSE;
+	}
+
 	ed->description = format_string(ed->description);
 
 	send_to_char("Extra description formatted.\n\r", ch);
 	return TRUE;
     }
 
-    redit_ed(ch, "");
+	if (!str_cmp(command, "show"))
+	{
+		if (keyword[0] == '\0')
+		{
+			send_to_char("Syntax:  ed show [keyword]\n\r", ch);
+			return FALSE;
+		}
+
+		for (ed = token_index->extra_descr; ed; ed = ed->next)
+		{
+			if (is_name(keyword, ed->keyword))
+				break;
+		}
+
+		if (!ed)
+		{
+			send_to_char("TEdit:  Extra description keyword not found.\n\r", ch);
+			return FALSE;
+		}
+
+		if (!ed->description)
+		{
+			send_to_char("TEdit:  Cannot show environmental extra description.\n\r", ch);
+			return FALSE;
+		}
+
+		page_to_char(ed->description, ch);
+
+		return TRUE;
+	}
+
+    tedit_ed(ch, "");
     return TRUE;
 }
 

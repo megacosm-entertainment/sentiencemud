@@ -155,6 +155,7 @@ void script_clear_list(register void *owner)
 		for(lp = 0; lp < stack->loop; lp++) {
 			if(stack->loops[lp].d.l.owner == owner) {
 				stack->loops[lp].d.l.owner = NULL;
+				stack->loops[lp].d.l.owner_type = ENT_UNKNOWN;
 				stack->loops[lp].d.l.cur.raw = NULL;
 				stack->loops[lp].d.l.next.raw = NULL;
 			}
@@ -1061,6 +1062,7 @@ DECL_OPC_FUN(opc_list)
 			block->loops[lp].d.l.cur.str = NULL;
 			block->loops[lp].d.l.next.str = str;
 			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
 
 
 			// Set the variable
@@ -1080,6 +1082,7 @@ DECL_OPC_FUN(opc_list)
 			block->loops[lp].d.l.cur.door = arg->d.door.door;
 			block->loops[lp].d.l.next.door = MAX_DIR;
 			block->loops[lp].d.l.owner = arg->d.door.r;
+			block->loops[lp].d.l.owner_type = ENT_EXIT;
 
 			/*
 			if(ex) {
@@ -1115,6 +1118,7 @@ DECL_OPC_FUN(opc_list)
 			block->loops[lp].d.l.cur.m = *arg->d.list.ptr.mob;
 			block->loops[lp].d.l.next.m = block->loops[lp].d.l.cur.m->next_in_room;
 			block->loops[lp].d.l.owner = arg->d.list.owner;
+			block->loops[lp].d.l.owner_type = ENT_MOBILE;
 
 			/*
 			if(block->loops[lp].d.l.cur.m) {
@@ -1143,6 +1147,7 @@ DECL_OPC_FUN(opc_list)
 			block->loops[lp].d.l.cur.o = *arg->d.list.ptr.obj;
 			block->loops[lp].d.l.next.o = block->loops[lp].d.l.cur.o->next_content;
 			block->loops[lp].d.l.owner = arg->d.list.owner;
+			block->loops[lp].d.l.owner_type = ENT_OBJECT;
 
 			/*
 			if(block->loops[lp].d.l.cur.o)
@@ -1167,6 +1172,7 @@ DECL_OPC_FUN(opc_list)
 			block->loops[lp].d.l.cur.t = *arg->d.list.ptr.tok;
 			block->loops[lp].d.l.next.t = block->loops[lp].d.l.cur.t->next;
 			block->loops[lp].d.l.owner = arg->d.list.owner;
+			block->loops[lp].d.l.owner_type = ENT_TOKEN;
 
 			/*
 			if(block->loops[lp].d.l.cur.t)
@@ -1191,6 +1197,7 @@ DECL_OPC_FUN(opc_list)
 			block->loops[lp].d.l.cur.aff = *arg->d.list.ptr.aff;
 			block->loops[lp].d.l.next.aff = block->loops[lp].d.l.cur.aff->next;
 			block->loops[lp].d.l.owner = arg->d.list.owner;
+			block->loops[lp].d.l.owner_type = ENT_AFFECT;
 
 			/*
 			if(block->loops[lp].d.l.cur.aff) {
@@ -1217,6 +1224,7 @@ DECL_OPC_FUN(opc_list)
 			block->loops[lp].d.l.cur.ed = *arg->d.list.ptr.ed;
 			block->loops[lp].d.l.next.ed = block->loops[lp].d.l.cur.ed->next;
 			block->loops[lp].d.l.owner = arg->d.list.owner;
+			block->loops[lp].d.l.owner_type = arg->d.list.owner_type;
 
 			// Set the variable
 			variables_set_string(block->info.var,block->loops[lp].var_name,(*arg->d.list.ptr.ed)->keyword, FALSE);
@@ -1234,6 +1242,7 @@ DECL_OPC_FUN(opc_list)
 			block->loops[lp].d.l.list.lp = arg->d.blist;
 			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
 			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
 
 			str = (char *)iterator_nextdata(&block->loops[lp].d.l.list.it);
 
@@ -1266,6 +1275,7 @@ DECL_OPC_FUN(opc_list)
 			block->loops[lp].d.l.list.lp = arg->d.blist;
 			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
 			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
 
 			uid = (LLIST_UID_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
 			if( !uid ) {
@@ -1302,6 +1312,7 @@ DECL_OPC_FUN(opc_list)
 			block->loops[lp].d.l.list.lp = arg->d.blist;
 			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
 			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
 
 			uid = (LLIST_UID_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
 			if( !uid ) {
@@ -1334,6 +1345,7 @@ DECL_OPC_FUN(opc_list)
 			block->loops[lp].d.l.list.lp = arg->d.blist;
 			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
 			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
 
 			uid = (LLIST_UID_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
 			if( !uid ) {
@@ -1365,6 +1377,7 @@ DECL_OPC_FUN(opc_list)
 			block->loops[lp].d.l.list.lp = arg->d.blist;
 			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
 			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
 
 			do {
 				lrd = (LLIST_ROOM_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
@@ -1406,6 +1419,7 @@ DECL_OPC_FUN(opc_list)
 			block->loops[lp].d.l.list.lp = arg->d.blist;
 			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
 			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
 
 			do {
 				led = (LLIST_EXIT_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
@@ -1445,6 +1459,7 @@ DECL_OPC_FUN(opc_list)
 			block->loops[lp].d.l.list.lp = arg->d.blist;
 			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
 			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
 
 			do {
 				lsk = (LLIST_SKILL_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
@@ -1482,6 +1497,7 @@ DECL_OPC_FUN(opc_list)
 			block->loops[lp].d.l.list.lp = arg->d.blist;
 			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
 			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
 
 			do {
 				lar = (LLIST_AREA_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
@@ -1514,6 +1530,7 @@ DECL_OPC_FUN(opc_list)
 			block->loops[lp].d.l.list.lp = arg->d.blist;
 			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
 			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
 
 			do {
 				lwd = (LLIST_WILDS_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
@@ -1546,6 +1563,7 @@ DECL_OPC_FUN(opc_list)
 			block->loops[lp].d.l.list.lp = arg->d.blist;
 			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
 			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
 
 			conn = (DESCRIPTOR_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
 
@@ -1580,6 +1598,7 @@ DECL_OPC_FUN(opc_list)
 			block->loops[lp].d.l.list.lp = arg->d.blist;
 			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
 			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
 
 			ch = (CHAR_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
 
@@ -1615,6 +1634,7 @@ DECL_OPC_FUN(opc_list)
 			block->loops[lp].d.l.list.lp = arg->d.blist;
 			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
 			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
 
 			obj = (OBJ_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
 
@@ -1647,6 +1667,7 @@ DECL_OPC_FUN(opc_list)
 			block->loops[lp].d.l.list.lp = arg->d.blist;
 			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
 			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
 
 			here = (ROOM_INDEX_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
 
@@ -1684,6 +1705,7 @@ DECL_OPC_FUN(opc_list)
 			block->loops[lp].d.l.list.lp = arg->d.blist;
 			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
 			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
 
 			tok = (TOKEN_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
 
@@ -1716,6 +1738,7 @@ DECL_OPC_FUN(opc_list)
 			block->loops[lp].d.l.list.lp = arg->d.blist;
 			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
 			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
 
 			church = (CHURCH_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
 
@@ -1758,6 +1781,7 @@ DECL_OPC_FUN(opc_list)
 			block->loops[lp].d.l.list.lp = list;
 			iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
 			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
 
 			ch = (CHAR_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
 
@@ -1791,6 +1815,7 @@ DECL_OPC_FUN(opc_list)
 			block->loops[lp].d.l.list.lp = variable_copy_tolist(arg->d.variables);
 			iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
 			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
 
 			variable = (VARIABLE *)iterator_nextdata(&block->loops[lp].d.l.list.it);
 
@@ -1817,6 +1842,7 @@ DECL_OPC_FUN(opc_list)
 			block->loops[lp].d.l.list.lp = arg->d.blist;
 			iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
 			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
 
 			section = (INSTANCE_SECTION *)iterator_nextdata(&block->loops[lp].d.l.list.it);
 
@@ -1841,6 +1867,7 @@ DECL_OPC_FUN(opc_list)
 			block->loops[lp].d.l.list.lp = arg->d.blist;
 			iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
 			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
 
 			instance = (INSTANCE *)iterator_nextdata(&block->loops[lp].d.l.list.it);
 
@@ -1865,6 +1892,7 @@ DECL_OPC_FUN(opc_list)
 			block->loops[lp].d.l.list.lp = arg->d.blist;
 			iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
 			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
 
 			special_room = (NAMED_SPECIAL_ROOM *)iterator_nextdata(&block->loops[lp].d.l.list.it);
 
@@ -5885,8 +5913,9 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 	// Format: ED <OBJECT or ROOM> <keyword>
 	} else if(!str_cmp(buf,"ed")) {
 		// ed $<object|room> <keyword>
-		char *p;
+		char *p = NULL;
 		EXTRA_DESCR_DATA *desc;
+		ROOM_INDEX_DATA *edroom = NULL;
 
 		switch(arg->type) {
 		case ENT_OBJECT:
@@ -5894,9 +5923,13 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 				desc = arg->d.obj->extra_descr;
 			else
 				desc = arg->d.obj->pIndexData->extra_descr;
+
+			if( !arg->d.obj->carried_by && !arg->d.obj->in_obj && !arg->d.obj->locker && !arg->d.obj->in_mail )
+				edroom = get_environment(arg->d.obj->in_room);
 			break;
 		case ENT_ROOM:
 			desc = arg->d.room->extra_descr;
+			edroom = get_environment(arg->d.room);
 			break;
 		default:return;
 		}
@@ -5904,7 +5937,17 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 		BUFFER *buffer = new_buf();
 		expand_string(info,rest,buffer);
 
-		p = get_extra_descr(buf_string(buffer), desc);
+		EXTRA_DESCR_DATA *ed = get_extra_descr(buf_string(buffer), desc);
+
+		if( ed )
+		{
+			p = ed->description;
+
+			if( !p && edroom )
+			{
+				p = edroom->description;
+			}
+		}
 
 		variables_set_string(info->var,name,(p ? p : ""),FALSE);
 

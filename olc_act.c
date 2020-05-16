@@ -2728,7 +2728,8 @@ REDIT(redit_ed)
 	send_to_char("         ed show [keyword]\n\r", ch);
 	send_to_char("         ed delete [keyword]\n\r", ch);
 	send_to_char("         ed format [keyword]\n\r", ch);
-	send_to_char("		ed copy existing_keyword new_keyword\n\r", ch);
+	send_to_char("         ed copy existing_keyword new_keyword\n\r", ch);
+	send_to_char("         ed environment [keyword]\n\r", ch);
 
 	return FALSE;
     }
@@ -2757,11 +2758,33 @@ REDIT(redit_ed)
 
 	ed2			=   new_extra_descr();
 	ed2->keyword		=   str_dup(copy_item);
-	ed2->description		=   str_dup(ed->description);
+	if( ed->description )
+		ed2->description		= str_dup(ed->description);
+	else
+		ed2->description		= NULL;
 	ed2->next		=   pRoom->extra_descr;
 	pRoom->extra_descr	=   ed2;
 
 	send_to_char("Done.\n\r", ch);
+
+	return TRUE;
+    }
+
+    if (!str_cmp(command, "environment"))
+    {
+	if (keyword[0] == '\0')
+	{
+	    send_to_char("Syntax:  ed environment [keyword]\n\r", ch);
+	    return FALSE;
+	}
+
+	ed			=   new_extra_descr();
+	ed->keyword		=   str_dup(keyword);
+	ed->description		= NULL;
+	ed->next		=   pRoom->extra_descr;
+	pRoom->extra_descr	=   ed;
+
+	send_to_char("Enviromental extra description added.\n\r", ch);
 
 	return TRUE;
     }
@@ -2805,6 +2828,9 @@ REDIT(redit_ed)
 	    send_to_char("REdit:  Extra description keyword not found.\n\r", ch);
 	    return FALSE;
 	}
+
+	if( !ed->description )
+		ed->description = str_dup("");
 
 	string_append(ch, &ed->description);
 
@@ -2867,6 +2893,12 @@ REDIT(redit_ed)
 	    return FALSE;
 	}
 
+	if( !ed->description )
+	{
+	    send_to_char("REdit:  Extra description is an environmental extra description.\n\r", ch);
+	    return FALSE;
+	}
+
 	ed->description = format_string(ed->description);
 
 	send_to_char("Extra description formatted.\n\r", ch);
@@ -2891,6 +2923,12 @@ REDIT(redit_ed)
 	{
 	    send_to_char("REdit:  Extra description keyword not found.\n\r", ch);
 	    return FALSE;
+	}
+
+	if (!ed->description)
+	{
+		send_to_char("REdit:  Cannot show environmental extra description.\n\r", ch);
+		return FALSE;
 	}
 
 	page_to_char(ed->description, ch);
@@ -7050,9 +7088,29 @@ OEDIT(oedit_ed)
 		send_to_char("         ed edit [keyword]\n\r", ch);
 		send_to_char("         ed format [keyword]\n\r", ch);
 		send_to_char("         ed copy old_keyword new_keyword\n\r", ch);
+		send_to_char("         ed environment [keyword]\n\r", ch);
 
 		return FALSE;
 	}
+
+    if (!str_cmp(command, "environment"))
+    {
+	if (keyword[0] == '\0')
+	{
+	    send_to_char("Syntax:  ed environment [keyword]\n\r", ch);
+	    return FALSE;
+	}
+
+	ed			=   new_extra_descr();
+	ed->keyword		=   str_dup(keyword);
+	ed->description		= NULL;
+	ed->next		=   pObj->extra_descr;
+	pObj->extra_descr	=   ed;
+
+	send_to_char("Enviromental extra description added.\n\r", ch);
+
+	return TRUE;
+    }
 
 	if (!str_cmp(command, "copy"))
 	{
@@ -7125,6 +7183,9 @@ OEDIT(oedit_ed)
 			return FALSE;
 		}
 
+		if( !ed->description )
+			ed->description = str_dup("");
+
 		string_append(ch, &ed->description);
 
 		return TRUE;
@@ -7185,6 +7246,12 @@ OEDIT(oedit_ed)
 			return FALSE;
 		}
 
+		if( !ed->description )
+		{
+			send_to_char("OEdit:  Extra description is an environmental extra description.\n\r", ch);
+			return FALSE;
+		}
+
 		ed->description = format_string(ed->description);
 
 		send_to_char("Extra description formatted.\n\r", ch);
@@ -7208,6 +7275,12 @@ OEDIT(oedit_ed)
 		if (!ed)
 		{
 			send_to_char("OEdit:  Extra description keyword not found.\n\r", ch);
+			return FALSE;
+		}
+
+		if (!ed->description)
+		{
+			send_to_char("OEdit:  Cannot show environmental extra description.\n\r", ch);
 			return FALSE;
 		}
 

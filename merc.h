@@ -281,6 +281,7 @@ typedef struct	quest_data		QUEST_DATA;
 typedef struct	quest_part_data		QUEST_PART_DATA;
 typedef struct	reset_data		RESET_DATA;
 typedef struct	room_index_data		ROOM_INDEX_DATA;
+typedef struct	ship_crew_index_data	SHIP_CREW_INDEX_DATA;
 typedef struct	ship_crew_data		SHIP_CREW_DATA;
 typedef struct	ship_index_data		SHIP_INDEX_DATA;
 typedef struct	ship_data		SHIP_DATA;
@@ -4901,6 +4902,10 @@ struct ship_crew_data
     long vnum;
 };
 
+struct ship_crew_index_data
+{
+};
+
 struct npc_ship_hotspot_type
 {
     int x;
@@ -7273,7 +7278,7 @@ OD *	create_object_noid	args( ( OBJ_INDEX_DATA *pObjIndex, int level, bool affec
 OD *	create_object	args( ( OBJ_INDEX_DATA *pObjIndex, int level, bool affects ) );
 void	clone_object	args( ( OBJ_DATA *parent, OBJ_DATA *clone ) );
 void	clear_char	args( ( CHAR_DATA *ch ) );
-char *	get_extra_descr	args( ( const char *name, EXTRA_DESCR_DATA *ed ) );
+EXTRA_DESCR_DATA *	get_extra_descr	args( ( const char *name, EXTRA_DESCR_DATA *ed ) );
 MID *	get_mob_index	args( ( long vnum ) );
 OID *	get_obj_index	args( ( long vnum ) );
 RID *	get_room_index	args( ( long vnum ) );

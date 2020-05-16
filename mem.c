@@ -317,7 +317,8 @@ void free_extra_descr(EXTRA_DESCR_DATA *ed)
 	return;
 
     free_string(ed->keyword);
-    free_string(ed->description);
+    if( ed->description )
+    	free_string(ed->description);
     INVALIDATE(ed);
 
     ed->next = extra_descr_free;

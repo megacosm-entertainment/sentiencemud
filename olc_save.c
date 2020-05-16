@@ -585,7 +585,10 @@ void save_token(FILE *fp, TOKEN_INDEX_DATA *token)
 
     for (ed = token->ed; ed != NULL; ed = ed->next) {
 		fprintf(fp, "#EXTRA_DESCR %s~\n", ed->keyword);
-		fprintf(fp, "Description %s~\n", fix_string(ed->description));
+		if( ed->description )
+			fprintf(fp, "Description %s~\n", fix_string(ed->description));
+		else
+			fprintf(fp, "Enviromental\n");
 		fprintf(fp, "#-EXTRA_DESCR\n");
     }
 
@@ -682,9 +685,12 @@ void save_room_new(FILE *fp, ROOM_INDEX_DATA *room, int recordtype)
 	fprintf(fp, "Owner %s~\n", room->owner);
 
     for (ed = room->extra_descr; ed != NULL; ed = ed->next) {
-	fprintf(fp, "#EXTRA_DESCR %s~\n", ed->keyword);
-	fprintf(fp, "Description %s~\n", fix_string(ed->description));
-	fprintf(fp, "#-EXTRA_DESCR\n");
+		fprintf(fp, "#EXTRA_DESCR %s~\n", ed->keyword);
+		if( ed->description )
+			fprintf(fp, "Description %s~\n", fix_string(ed->description));
+		else
+			fprintf(fp, "Enviromental\n");
+		fprintf(fp, "#-EXTRA_DESCR\n");
     }
 
     for (cd = room->conditional_descr; cd != NULL; cd = cd->next) {
@@ -950,7 +956,10 @@ void save_object_new(FILE *fp, OBJ_INDEX_DATA *obj)
 
 	for (ed = obj->extra_descr; ed != NULL; ed = ed->next) {
 		fprintf(fp, "#EXTRA_DESCR %s~\n", ed->keyword);
-		fprintf(fp, "Description %s~\n", fix_string(ed->description));
+		if( ed->description )
+			fprintf(fp, "Description %s~\n", fix_string(ed->description));
+		else
+			fprintf(fp, "Enviromental\n");
 		fprintf(fp, "#-EXTRA_DESCR\n");
 	}
 
@@ -3189,27 +3198,40 @@ SCRIPT_DATA *read_script_new(FILE *fp, AREA_DATA *area, int type)
 /* read in an extra descr */
 EXTRA_DESCR_DATA *read_extra_descr_new(FILE *fp)
 {
-    EXTRA_DESCR_DATA *ed;
-    char *word;
+	EXTRA_DESCR_DATA *ed;
+	char *word;
 
-    ed = new_extra_descr();
-    ed->keyword = fread_string(fp);
+	ed = new_extra_descr();
+	ed->keyword = fread_string(fp);
 
-    while (str_cmp((word = fread_word(fp)), "#-EXTRA_DESCR")) {
-	fMatch = FALSE;
-	switch (word[0]) {
-	    case 'D':
-	        KEYS("Description",	ed->description,	fread_string(fp));
-		break;
+	while (str_cmp((word = fread_word(fp)), "#-EXTRA_DESCR"))
+	{
+		fMatch = FALSE;
+		switch (word[0])
+		{
+		case 'D':
+			KEYS("Description",	ed->description,	fread_string(fp));
+			break;
+
+		case 'E':
+			if( !str_cmp(word, "Environmental") )
+			{
+				if( ed->description )
+					free_string(ed->description);
+				ed->description = NULL;
+				fMatch = TRUE;
+				break;
+			}
+			break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "read_extra_descr_new: no match for word %s", word);
+			bug(buf, 0);
+		}
 	}
 
-	if (!fMatch) {
-	    sprintf(buf, "read_extra_descr_new: no match for word %s", word);
-	    bug(buf, 0);
-	}
-    }
-
-    return ed;
+	return ed;
 }
 
 

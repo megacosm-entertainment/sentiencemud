@@ -2947,7 +2947,10 @@ OBJ_DATA *create_object(OBJ_INDEX_DATA *pObjIndex, int level, bool affects)
 		{
 			EXTRA_DESCR_DATA *ed_new	= new_extra_descr();
 			ed_new->keyword				= str_dup(ed->keyword);
-			ed_new->description			= str_dup(ed->description);
+			if( ed->description )
+				ed_new->description			= str_dup(ed->description);
+			else
+				ed_new->description			= NULL;
 			ed_new->next				= obj->extra_descr;
 			obj->extra_descr			= ed_new;
 		}
@@ -3062,12 +3065,12 @@ void clone_object(OBJ_DATA *parent, OBJ_DATA *clone)
 }
 
 
-char *get_extra_descr(const char *name, EXTRA_DESCR_DATA *ed)
+EXTRA_DESCR_DATA *get_extra_descr(const char *name, EXTRA_DESCR_DATA *ed)
 {
     for (; ed != NULL; ed = ed->next)
     {
 	if (is_name((char *) name, ed->keyword))
-	    return ed->description;
+	    return ed;
     }
     return NULL;
 }
@@ -4955,7 +4958,10 @@ ROOM_INDEX_DATA *create_virtual_room_nouid(ROOM_INDEX_DATA *source, bool objects
 	for(ed = source->extra_descr; ed; ed = ed->next) {
 		ed2 = new_extra_descr();
 		ed2->keyword = str_dup(ed->keyword);
-		ed2->description = str_dup(ed->description);
+		if( ed->description )
+			ed2->description = str_dup(ed->description);
+		else
+			ed2->description = NULL;
 
 		ed2->next = vroom->extra_descr;
 		vroom->extra_descr = ed2;
@@ -5736,7 +5742,12 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
 
 	// Extra Descriptions
 	for (ed = obj->extra_descr; ed; ed = ed->next)
-		fprintf(fp, "ExDe %s~ %s~\n", ed->keyword, ed->description);	// **
+	{
+		if( ed->description )
+			fprintf(fp, "ExDe %s~ %s~\n", ed->keyword, ed->description);
+		else
+			fprintf(fp, "ExDeEnv %s~\n", ed->keyword);
+	}
 
 	// Original Mob Owner Information (for corpses so far)
 	if( !IS_NULLSTR(obj->owner_name) )

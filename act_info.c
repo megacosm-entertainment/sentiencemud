@@ -1958,7 +1958,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 	ROOM_INDEX_DATA *look_room = NULL;
 	CHAR_DATA *victim;
 	OBJ_DATA *obj;
-	char *pdesc;
+	EXTRA_DESCR_DATA *pdesc;
 	int door;
 	int number, count;
 	int i;
@@ -2144,11 +2144,12 @@ void do_look(CHAR_DATA * ch, char *argument)
 				perform_lore = TRUE;
 
 			pdesc = get_extra_descr(arg3, obj->extra_descr);
-			if (pdesc != NULL)
+			if (pdesc != NULL && pdesc->description != NULL)
 			{
 				if (++count == number)
 				{
-					send_to_char(pdesc, ch);
+					send_to_char(pdesc->description, ch);
+
 					if (perform_lore)
 					{
 						send_to_char ("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
@@ -2166,7 +2167,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 			}
 
 			pdesc = get_extra_descr(arg3, obj->pIndexData->extra_descr);
-			if (pdesc != NULL)
+			if (pdesc != NULL && pdesc->description != NULL)
 			{
 				if (++count == number)
 				{
@@ -2269,39 +2270,69 @@ void do_look(CHAR_DATA * ch, char *argument)
 			/* Check extra desc first */
 			pdesc = get_extra_descr(arg3, obj->extra_descr);
 			if (pdesc != NULL)
-			if (++count == number)
 			{
-				send_to_char(pdesc, ch);
-				if (perform_lore)
-				{
-					send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-					spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
-				}
-				else
-					send_to_char("\n\r", ch);
+				char *ppdesc = pdesc->description;
 
-				p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
-				check_improve(ch, gsn_lore, TRUE, 10);
-				return;
+				if( !ppdesc )
+				{
+					ROOM_INDEX_DATA *environ = get_environment(ch->in_room);
+
+					if( environ )
+						ppdesc = environ->description;
+				}
+
+				if( ppdesc != NULL )
+				{
+					if (++count == number)
+					{
+						send_to_char(ppdesc, ch);
+						if (perform_lore)
+						{
+							send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
+							spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
+						}
+						else
+							send_to_char("\n\r", ch);
+
+						p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+						check_improve(ch, gsn_lore, TRUE, 10);
+						return;
+					}
+				}
 			}
 
 			pdesc = get_extra_descr(arg3, obj->pIndexData->extra_descr);
 			if (pdesc != NULL)
-				if (++count == number)
-				{
-					send_to_char(pdesc, ch);
-					if (perform_lore)
-					{
-						send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-						spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
-					}
-					else
-						send_to_char("\n\r", ch);
+			{
+				char *ppdesc = pdesc->description;
 
-					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
-					check_improve(ch, gsn_lore, TRUE, 10);
-					return;
+				if( !ppdesc )
+				{
+					ROOM_INDEX_DATA *environ = get_environment(ch->in_room);
+
+					if( environ )
+						ppdesc = environ->description;
 				}
+
+				if( ppdesc != NULL )
+				{
+					if (++count == number)
+					{
+						send_to_char(ppdesc, ch);
+						if (perform_lore)
+						{
+							send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
+							spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
+						}
+						else
+							send_to_char("\n\r", ch);
+
+						p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+						check_improve(ch, gsn_lore, TRUE, 10);
+						return;
+					}
+				}
+			}
 
 			if (is_name(arg3, obj->name))
 				if (++count == number)
@@ -2338,10 +2369,23 @@ void do_look(CHAR_DATA * ch, char *argument)
 	pdesc = get_extra_descr(arg3, ch->in_room->extra_descr);
 	if (pdesc != NULL)
 	{
-		if (++count == number)
+		char *ppdesc = pdesc->description;
+
+		if( !ppdesc )
 		{
-			send_to_char(pdesc, ch);
-			return;
+			ROOM_INDEX_DATA *environ = get_environment(ch->in_room);
+
+			if( environ )
+				ppdesc = environ->description;
+		}
+
+		if( ppdesc != NULL )
+		{
+			if (++count == number)
+			{
+				send_to_char(ppdesc, ch);
+				return;
+			}
 		}
 	}
 
