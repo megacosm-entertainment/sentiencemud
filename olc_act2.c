@@ -1787,8 +1787,8 @@ TEDIT(tedit_ed)
 	ed			=   new_extra_descr();
 	ed->keyword		=   str_dup(keyword);
 	ed->description		= NULL;
-	ed->next		=   token_index->extra_descr;
-	token_index->extra_descr	=   ed;
+	ed->next		=   token_index->ed;
+	token_index->ed	=   ed;
 
 	send_to_char("Enviromental extra description added.\n\r", ch);
 
