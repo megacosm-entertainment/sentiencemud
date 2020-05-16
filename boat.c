@@ -3962,7 +3962,7 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 		}
 		else
 		{
-			map = get_obj_carry(ch, arg, ch);
+			map = get_obj_carry(ch, argument, ch);
 			if( !IS_VALID(map) )
 			{
 				send_to_char("You don't have that.\n\r", ch);
