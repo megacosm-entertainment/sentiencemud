@@ -6230,7 +6230,7 @@ OEDIT(oedit_waypoints)
 		WAYPOINT_DATA *wp = new_waypoint();
 
 		free_string(wp->name);
-		wp->name = str_dup(argument);
+		wp->name = nocolour(argument);
 		wp->w = uid;
 		wp->x = x;
 		wp->y = y;

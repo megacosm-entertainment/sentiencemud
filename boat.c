@@ -747,6 +747,44 @@ WAYPOINT_DATA *get_ship_waypoint(SHIP_DATA *ship, char *argument, WILDS_DATA *wi
 	}
 }
 
+
+SHIP_ROUTE *get_ship_route(SHIP_DATA *ship, char *argument)
+{
+	if( is_number(argument) )
+	{
+		int value = atoi(argument);
+
+		if( value < 1 || value > list_size(ship->routes) )
+			return NULL;
+
+		return (SHIP_ROUTE *)list_nthdata(ship->routes, value);
+	}
+	else
+	{
+		char arg[MIL];
+		int number;
+
+		number = number_argument(argument, arg);
+		if( number < 1 ) return NULL;
+
+		ITERATOR it;
+		SHIP_ROUTE *route;
+
+		iterator_start(&it, ship->routes);
+		while( (route = (SHIP_ROUTE *)iterator_nextdata(&it)) )
+		{
+			if( is_name(arg, route->name) )
+			{
+				if( !--number )
+					break;
+			}
+		}
+		iterator_stop(&it);
+
+		return route;
+	}
+}
+
 void ship_cancel_route(SHIP_DATA *ship)
 {
 	if( list_size(ship->current_route) > 0 )
@@ -1029,6 +1067,47 @@ SPECIAL_KEY_DATA *ship_special_key_load(FILE *fp)
 
 }
 
+SHIP_ROUTE *ship_route_load(FILE *fp, SHIP_DATA *ship)
+{
+	SHIP_ROUTE *route;
+	char *word;
+	bool fMatch;
+
+
+	route = new_ship_route();
+	route->name = fread_string(fp);
+
+	while (str_cmp((word = fread_word(fp)), "#-SHIP"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+		case 'W':
+			if( !str_cmp(word, "Waypoint") )
+			{
+				int index = fread_number(fp);
+
+				WAYPOINT_DATA *wp = list_nthdata(ship->waypoints, index);
+
+				list_appendlink(route->waypoints, wp);
+
+				fMatch = TRUE;
+				break;
+			}
+			break;
+		}
+
+		if (!fMatch) {
+			char buf[MSL];
+			sprintf(buf, "shiship_route_load: no match for word %.50s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return route;
+}
+
 INSTANCE *instance_load(FILE *fp);
 OBJ_DATA *persist_load_object(FILE *fp);
 SHIP_DATA *ship_load(FILE *fp)
@@ -1082,6 +1161,14 @@ SHIP_DATA *ship_load(FILE *fp)
 				SPECIAL_KEY_DATA *sk = ship_special_key_load(fp);
 
 				list_appendlink(ship->special_keys, sk);
+				fMatch = TRUE;
+				break;
+			}
+			if( !str_cmp(word, "#ROUTE") )
+			{
+				SHIP_ROUTE *route = ship_route_load(fp, ship);
+
+				list_appendlink(ship->routes, route);
 				fMatch = TRUE;
 				break;
 			}
@@ -1272,7 +1359,7 @@ void ship_special_key_save(FILE *fp, SPECIAL_KEY_DATA *sk)
 void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple);
 bool ship_save(FILE *fp, SHIP_DATA *ship)
 {
-	ITERATOR it;
+	ITERATOR it, rit;
 	SPECIAL_KEY_DATA *sk;
 
 	fprintf(fp, "#SHIP %ld\n", ship->index->vnum);
@@ -1328,6 +1415,27 @@ bool ship_save(FILE *fp, SHIP_DATA *ship)
 		fprintf(fp, "MapWaypoint %lu %d %d %s~\n", wp->w, wp->x, wp->y, fix_string(wp->name));
 	}
 	iterator_stop(&it);
+
+	// Routes MUST be AFTER Waypoints
+	SHIP_ROUTE *route;
+	iterator_start(&rit, ship->routes);
+	while( (route = (SHIP_ROUTE *)iterator_nextdata(&rit)) )
+	{
+		fprintf(fp, "#ROUTE %s~\n", fix_string(route->name));
+		iterator_start(&it, route->waypoints);
+		while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&it)) )
+		{
+			int index = list_getindex(ship->waypoints, wp);
+
+			if( index > 0 )
+			{
+				fprintf(fp, "Waypoint %d\n", index);
+			}
+		}
+		iterator_stop(&it);
+		fprintf(fp, "#-ROUTE\n");
+	}
+	iterator_stop(&rit);
 
 	if( ship->pk )
 	{
@@ -3818,6 +3926,17 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
+		WAYPOINT_DATA *wp = (WAYPOINT_DATA *)list_nthdata(ship->waypoints, value);
+		ITERATOR rit;
+		SHIP_ROUTE *route;
+		iterator_start(&rit, ship->routes);
+		while( (route = (SHIP_ROUTE *)iterator_nextdata(&rit)) )
+		{
+			// Remove waypoint from route (if it is in there)
+			list_remlink(route->waypoints, wp);
+		}
+		iterator_stop(&rit);
+
 		list_remnthlink(ship->waypoints, value);
 		send_to_char("Waypoint deleted.\n\r", ch);
 		return;
@@ -4134,6 +4253,395 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 	}
 
 	do_ship_waypoints(ch, "");
+}
+
+void do_ship_routes(CHAR_DATA *ch, char *argument)
+{
+	char buf[MSL];
+	char arg[MIL];
+
+	argument = one_argument(argument, arg);
+
+	if( arg[0] == '\0' )
+	{
+		send_to_char("Syntax:  ship routes list\n\r"
+					 "         ship routes create <waypoint1> <waypoint2> ... <waypointN>\n\r"
+					 "         ship routes delete <#>\n\r"
+					 "         ship routes rename <#> <name>\n\r"
+					 "         ship routes add <#> <waypoint>\n\r"
+					 "         ship routes insert <#> <waypoint> <pos#>\n\r"
+					 "         ship routes remove <route#> <waypoint#>\n\r"
+					 "         ship routes move <#from> <#to>\n\r"
+					 "         ship routes move <#from> up\n\r"
+					 "         ship routes move <#from> down\n\r", ch);
+		return;
+	}
+
+	if( !str_prefix(arg, "list") )
+	{
+		if( list_size(ship->routes) > 0 )
+		{
+			int cnt = 0;
+			ITERATOR it, wit;
+			SHIP_ROUTE *route;
+			WAYPOINT_DATA *wp;
+
+			BUFFER *buffer = new_buf();
+
+			add_buf(buffer,"{C                Route Name            Waypoints{x\n\r");
+			add_buf(buffer,"{C======================================================================{x\n\r");
+
+			iterator_start(&it, ship->routes);
+			while( (route = (SHIP_ROUTE *)iterator_nextdata(&it)) )
+			{
+				if( list_size(route->waypoints) > 0 )
+				{
+					int j = 0;
+					int w = 83;
+
+					j = sprintf(buf, "{C%3d)  {Y%-30.30s{x ", ++cnt, route->name);
+
+					iterator_start(&wit, route->waypoints);
+					while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
+					{
+						if(j > w)
+						{
+							buf[j] = '\0';
+							add_buf(buffer, buf);
+							add_buf(buffer,"\n\r");
+
+							j = sprintf(buf, "%-37.37s", " ");
+							w = 77;
+						}
+
+						if( wp->name[0] != '\0' )
+						{
+							j += sprintf(buf + j, " {Y%s{x,", wp->name);
+							w += 4;
+						}
+						else
+						{
+							j += sprintf(buf + j, " {W({C%d{W,{C%d{W){x,", wp->y, wp->x);
+							w += 12;
+						}
+					}
+					iterator_stop(&wit);
+
+					if( j > 0 )
+					{
+						add_buf(buffer, buf);
+						add_buf(buffer,"\n\r");
+					}
+				}
+				else
+				{
+					sprintf(buf, "{C%3d)  {Y%-30.30s{x  {Dempty{x\n\r", ++cnt, route->name);
+					add_buf(buffer, buf);
+				}
+			}
+			iterator_stop(&it);
+
+			add_buf(buffer,"{C======================================================================{x\n\r");
+
+			page_to_char(buffer->string, ch);
+
+			free_buf(buffer);
+		}
+		else
+			send_to_char("No routes to display.\n\r", ch);
+
+		return;
+	}
+
+	if( !str_prefix(arg, "create") )
+	{
+		char arg[MIL];
+		SHIP_ROUTE *route = new_ship_route();
+
+		WAYPOINT_DATA *wp;
+		long uid = 0;
+
+		while(argument[0] != '\0')
+		{
+			argument = one_argument(argument, arg);
+
+			wp = get_ship_waypoint(ship, arg, NULL);
+
+			if( !wp )
+			{
+				free_ship_route(route);
+				sprintf(buf, "No such waypoint '%s'.\n\r", arg);
+				send_to_char(buf, ch);
+				return;
+			}
+
+			if( uid && wp->w != uid )
+			{
+				free_ship_route(route);
+				sprintf(buf, "Invalid waypoint '%s'.  All waypoints in a route must be in the same wilderness.\n\r", arg);
+				send_to_char(buf, ch);
+				return;
+			}
+
+			list_appendlink(route->waypoints, wp);	// NOT a clone
+		}
+
+		list_appendlink(ship->routes, route);
+		send_to_char("Route added.\n\r", ch);
+		return;
+	}
+
+	if( !str_prefix(arg, "delete") )
+	{
+		if( !is_number(argument) )
+		{
+			send_to_char("That is not a number.\n\r", ch);
+			return;
+		}
+
+		int value = atoi(argument);
+		if( value < 1 || value > list_size(ship->routes) )
+		{
+			send_to_char("No such route.\n\r", ch);
+			return;
+		}
+
+		list_remnthlink(ship->routes, value);
+		send_to_char("Route deleted.\n\r", ch);
+		return;
+	}
+
+	if( !str_prefix(arg, "rename") )
+	{
+		char arg2[MIL];
+
+		argument = one_argument(argument, arg2);
+
+		if( !is_number(arg2) )
+		{
+			send_to_char("That is not a number.\n\r", ch);
+			return;
+		}
+
+		int value = atoi(arg2);
+		if( value < 1 || value > list_size(ship->routes) )
+		{
+			send_to_char("No such route.\n\r", ch);
+			return;
+		}
+
+		SHIP_ROUTE *route = (WAYPOINT_DATA *)list_nthdata(ship->routes, value);
+
+		smash_tilde(argument);
+		free_string(route->name);
+		route->name = nocolour(argument);
+
+		send_to_char("Route renamed.\n\r", ch);
+		return;
+	}
+
+	if( !str_prefix(arg, "add") )
+	{
+		char arg2[MIL];
+
+		argument = one_argument(argument, arg2);
+
+		if( !is_number(arg2) )
+		{
+			send_to_char("That is not a number.\n\r", ch);
+			return;
+		}
+
+		int value = atoi(arg2);
+		if( value < 1 || value > list_size(ship->routes) )
+		{
+			send_to_char("No such route.\n\r", ch);
+			return;
+		}
+
+		SHIP_ROUTE *route = (SHIP_ROUTE *)list_nthdata(ship->routes, value);
+
+		WAYPOINT_DATA *first = (WAYPOINT_DATA *)list_nthdata(route->waypoints, 1);
+
+		WAYPOINT_DATA *wp = get_ship_waypoint(ship, argument, NULL);
+
+		if( wp->w != first->w )
+		{
+			sprintf(buf, "Invalid waypoint '%s'.  All waypoints in a route must be in the same wilderness.\n\r", argument);
+			send_to_char(buf, ch);
+			return;
+		}
+
+		list_appendlink(route->waypoints, wp);
+		send_to_char("Waypoint added to Route.\n\r", ch);
+		return;
+	}
+
+
+	if( !str_prefix(arg, "insert") )
+	{
+		char arg2[MIL];
+		char arg3[MIL];
+
+		argument = one_argument(argument, arg2);
+		argument = one_argument(argument, arg3);
+
+		if( !is_number(arg2) || !is_number(argument) )
+		{
+			send_to_char("That is not a number.\n\r", ch);
+			return;
+		}
+
+		int value = atoi(arg2);
+		if( value < 1 || value > list_size(ship->routes) )
+		{
+			send_to_char("No such route.\n\r", ch);
+			return;
+		}
+
+		SHIP_ROUTE *route = (SHIP_ROUTE *)list_nthdata(ship->routes, value);
+
+		int index = atoi(argument);
+		int total = list_size(route->waypoints);
+		if( index < 1 || index > (total + 1) )
+		{
+			send_to_char("Insert position out of range.\n\r", ch);
+			return;
+		}
+
+		WAYPOINT_DATA *wp = get_ship_waypoint(ship, arg3, NULL);
+
+		if( total > 0 )
+		{
+			WAYPOINT_DATA *first = (WAYPOINT_DATA *)list_nthdata(route->waypoints, 1);
+
+			if( wp->w != first->w )
+			{
+				sprintf(buf, "Invalid waypoint '%s'.  All waypoints in a route must be in the same wilderness.\n\r", argument);
+				send_to_char(buf, ch);
+				return;
+			}
+		}
+
+		list_insertlink(route->waypoints, wp, index);
+		send_to_char("Waypoint added to Route.\n\r", ch);
+		return;
+	}
+
+	if( !str_prefix(arg, "remove") )
+	{
+		char arg2[MIL];
+
+		argument = one_argument(argument, arg2);
+
+		if( !is_number(arg2) || !is_number(argument) )
+		{
+			send_to_char("That is not a number.\n\r", ch);
+			return;
+		}
+
+		int rindex = atoi(arg2);
+		if( rindex < 1 || rindex > list_size(ship->routes) )
+		{
+			send_to_char("No such route.\n\r", ch);
+			return;
+		}
+
+		SHIP_ROUTE *route = (SHIP_ROUTE *)list_nthdata(ship->routes, rindex);
+
+		int windex = atoi(argument);
+		if( windex < 1 || windex > list_size(route->waypoints) )
+		{
+			send_to_char("No such waypoint in route.\n\r", ch);
+			return;
+		}
+
+		list_remnthlink(route->waypoints, windex);
+		send_to_char("Waypoint deleted from route.\n\r", ch);
+		return;
+	}
+
+	if( !str_prefix(arg, "move") )
+	{
+		char arg2[MIL];
+
+		argument = one_argument(argument, arg2);
+
+		if( !is_number(arg2) )
+		{
+			send_to_char("That is not a number.\n\r", ch);
+			return;
+		}
+
+		int total = list_size(ship->waypoints);
+
+		int from = atoi(arg2);
+		if( from < 1 || from > total )
+		{
+			send_to_char("Source position out of range.\n\r", ch);
+			return;
+		}
+
+		if( argument[0] == '\0' )
+		{
+			send_to_char("Syntax:  ship routes move <#from> <#to>\n\r", ch);
+			send_to_char("         ship routes move <#from> up\n\r", ch);
+			send_to_char("         ship routes move <#from> down\n\r", ch);
+			return;
+		}
+
+		if( is_number(argument) )
+		{
+			int to = atoi(argument);
+
+			if( to < 1 || to > total )
+			{
+				send_to_char("Target position out of range.\n\r", ch);
+				return;
+			}
+
+			if( to == from )
+			{
+				send_to_char("What would be the point?\n\r", ch);
+				return;
+			}
+
+			list_movelink(ship->routes, from, to);
+			send_to_char("Route moved.\n\r", ch);
+			return;
+		}
+		else if( !str_prefix(argument, "up") )
+		{
+			if( from > 1 )
+			{
+				list_movelink(ship->routes, from, from - 1);
+				send_to_char("Route moved.\n\r", ch);
+			}
+			else
+			{
+				send_to_char("Route is already at the top of the list.\n\r", ch);
+			}
+			return;
+		}
+		else if( !str_prefix(argument, "down") )
+		{
+			if( from < total )
+			{
+				list_movelink(ship->routes, from, from + 1);
+				send_to_char("Route moved.\n\r", ch);
+			}
+			else
+			{
+				send_to_char("Route is already at the bottom of the list.\n\r", ch);
+			}
+			return;
+		}
+
+		do_ship_waypoints(ch, "move");
+		return;
+	}
+
+	do_ship_routes(ch, "");
 }
 
 void do_ship(CHAR_DATA *ch, char *argument)

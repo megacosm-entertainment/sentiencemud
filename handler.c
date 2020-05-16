@@ -8406,6 +8406,25 @@ int list_size(LLIST *lp)
 	return size;
 }
 
+int list_getindex(LLIST *lp, void *ptr)
+{
+	ITERATOR it;
+	void *data;
+	int index = 0;
+
+	iterator_start(&it, lp);
+	while( (data = iterator_nextdata(&it)) )
+	{
+		++index;
+
+		if( data == ptr )
+			break;
+	}
+	iterator_stop(&it);
+
+	return data ? index : 0;
+}
+
 bool list_isvalid(LLIST *lp)
 {
 	return lp && lp->valid;

@@ -180,3 +180,6 @@ void free_special_key(SPECIAL_KEY_DATA *sk);
 
 LLIST *new_waypoints_list();
 WAYPOINT_DATA *clone_waypoint(WAYPOINT_DATA *waypoint);
+
+SHIP_ROUTE *new_ship_route();
+void free_ship_route(SHIP_ROUTE *route);

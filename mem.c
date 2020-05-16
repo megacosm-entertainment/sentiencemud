@@ -129,6 +129,12 @@ LLIST *new_waypoints_list()
 	return list_createx(FALSE,copy_waypoint,delete_waypoint);
 }
 
+static void delete_ship_route(void *ptr)
+{
+	free_ship_route((SHIP_ROUTE *)ptr);
+}
+
+
 OLC_POINT_BOOST *new_olc_point_boost()
 {
 	OLC_POINT_BOOST *boost;
@@ -2244,6 +2250,7 @@ SHIP_DATA *new_ship()
 
 	ship->waypoints = new_waypoints_list();
 	ship->current_route = list_createx(FALSE, NULL, delete_waypoint);
+	ship->routes = list_createx(FALSE, NULL, delete_ship_route);
 
 	VALIDATE(ship);
 	return ship;
@@ -2262,6 +2269,7 @@ void free_ship(SHIP_DATA *ship)
 
 	iterator_stop(&ship->route_it);
 	list_destroy(ship->current_route);
+	list_destroy(ship->routes);
 
 	INVALIDATE(ship);
 	ship->next = ship_free;
@@ -4192,3 +4200,37 @@ void free_lock_state(LOCK_STATE *state)
 	}
 }
 
+SHIP_ROUTE *ship_route_free;
+
+SHIP_ROUTE *new_ship_route()
+{
+	SHIP_ROUTE *route;
+
+	if( ship_route_free )
+	{
+		route = ship_route_free;
+		ship_route_free = ship_route_free->next;
+	}
+	else
+		route = alloc_mem(sizeof(SHIP_ROUTE));
+
+	memset(route, 0, sizeof(SHIP_ROUTE));
+
+	route->name = &str_empty[0];
+	route->waypoints = list_create(FALSE);
+
+	VALIDATE(route);
+	return route;
+}
+
+void free_ship_route(SHIP_ROUTE *route)
+{
+	if( !IS_VALID(route) ) return;
+
+	free_string(route->name);
+	list_destroy(route->waypoints);
+
+	INVALIDATE(route);
+	route->next = ship_route_free;
+	ship_route_free = route;
+}

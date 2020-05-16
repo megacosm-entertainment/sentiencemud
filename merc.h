@@ -293,7 +293,7 @@ typedef struct	storm_data		STORM_DATA;
 typedef struct	trade_item		TRADE_ITEM;
 typedef struct	trade_type		TRADE_TYPE;
 typedef struct	waypoint_data		WAYPOINT_DATA;
-typedef struct waypoint_path_data WAYPOINT_PATH;
+typedef struct	ship_route_data SHIP_ROUTE;
 typedef struct 	buf_type	 	BUFFER;
 typedef struct  ambush_data             AMBUSH_DATA;
 typedef struct  chat_ban_data		CHAT_BAN_DATA;
@@ -4885,19 +4885,14 @@ struct waypoint_data
     int y;
 };
 
-struct waypoint_path_data
+struct ship_route_data
 {
-	WAYPOINT_DATA *from;
-	WAYPOINT_DATA *to;
-};
+	SHIP_ROUTE *next;
+	bool valid;
 
-struct route_segment_data
-{
-};
+	char *name;
 
-struct route_data
-{
-
+	LLIST *waypoints;
 };
 
 struct ship_crew_data
@@ -5081,12 +5076,14 @@ struct ship_data
 	SHIP_DATA			*boarded_by;
 	unsigned long		boarded_by_uid[2];
 
-	// TODO: WAYPOINTS
 	LLIST *waypoints;
 
 	ITERATOR route_it;
 	LLIST *current_route;				// Will be a simple list of waypoints
 	WAYPOINT_DATA *current_waypoint;
+
+	LLIST *routes;
+	SHIP_ROUTE *current_route;
 
 	WILDS_COORD			seek_point;
 
@@ -8436,6 +8433,7 @@ void *list_nthdata(LLIST *lp, int nth);
 void list_remnthlink(LLIST *lp, register int nth);
 bool list_hasdata(LLIST *lp, register void *ptr);
 int list_size(LLIST *lp);
+int list_getindex(LLIST *lp, void *data);
 bool list_movelink(LLIST *lp, int from, int to);
 bool list_insertlink(LLIST *lp, void *data, int to);
 void iterator_start(ITERATOR *it, LLIST *lp);
@@ -8625,6 +8623,7 @@ int ships_player_owned(CHAR_DATA *ch, SHIP_INDEX_DATA *index);
 void get_ship_location(CHAR_DATA *ch, SHIP_DATA *ship, char *buf, size_t len);
 void ship_cancel_route(SHIP_DATA *ship);
 WAYPOINT_DATA *get_ship_waypoint(SHIP_DATA *ship, char *argument, WILDS_DATA *wilds);
+SHIP_ROUTE *get_ship_route(SHIP_DATA *ship, char *argument);
 
 extern LLIST *loaded_special_keys;
 extern LLIST *loaded_waypoints;
