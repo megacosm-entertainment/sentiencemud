@@ -588,7 +588,7 @@ void save_token(FILE *fp, TOKEN_INDEX_DATA *token)
 		if( ed->description )
 			fprintf(fp, "Description %s~\n", fix_string(ed->description));
 		else
-			fprintf(fp, "Enviromental\n");
+			fprintf(fp, "Environmental\n");
 		fprintf(fp, "#-EXTRA_DESCR\n");
     }
 
@@ -689,7 +689,7 @@ void save_room_new(FILE *fp, ROOM_INDEX_DATA *room, int recordtype)
 		if( ed->description )
 			fprintf(fp, "Description %s~\n", fix_string(ed->description));
 		else
-			fprintf(fp, "Enviromental\n");
+			fprintf(fp, "Environmental\n");
 		fprintf(fp, "#-EXTRA_DESCR\n");
     }
 
@@ -959,7 +959,7 @@ void save_object_new(FILE *fp, OBJ_INDEX_DATA *obj)
 		if( ed->description )
 			fprintf(fp, "Description %s~\n", fix_string(ed->description));
 		else
-			fprintf(fp, "Enviromental\n");
+			fprintf(fp, "Environmental\n");
 		fprintf(fp, "#-EXTRA_DESCR\n");
 	}
 
