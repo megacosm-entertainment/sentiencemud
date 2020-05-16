@@ -1077,7 +1077,7 @@ SHIP_ROUTE *ship_route_load(FILE *fp, SHIP_DATA *ship)
 	route = new_ship_route();
 	route->name = fread_string(fp);
 
-	while (str_cmp((word = fread_word(fp)), "#-SHIP"))
+	while (str_cmp((word = fread_word(fp)), "#-ROUTE"))
 	{
 		fMatch = FALSE;
 
