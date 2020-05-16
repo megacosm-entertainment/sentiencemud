@@ -2285,7 +2285,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 						{
 							if( IS_WILDERNESS(environ) )
 							{
-								pTerrain = get_terrain_by_coors(environ->wilds, environ->x, environ->y);
+								WILDS_TERRAIN *pTerrain = get_terrain_by_coors(environ->wilds, environ->x, environ->y);
 
 								if (pTerrain != NULL && !pTerrain->nonroom)
 								{
@@ -2353,7 +2353,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 						{
 							if( IS_WILDERNESS(environ) )
 							{
-								pTerrain = get_terrain_by_coors(environ->wilds, environ->x, environ->y);
+								WILDS_TERRAIN *pTerrain = get_terrain_by_coors(environ->wilds, environ->x, environ->y);
 
 								if (pTerrain != NULL && !pTerrain->nonroom)
 								{
@@ -2453,7 +2453,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 				{
 					if( IS_WILDERNESS(environ) )
 					{
-						pTerrain = get_terrain_by_coors(environ->wilds, environ->x, environ->y);
+						WILDS_TERRAIN *pTerrain = get_terrain_by_coors(environ->wilds, environ->x, environ->y);
 
 						if (pTerrain != NULL && !pTerrain->nonroom)
 						{
