@@ -2813,12 +2813,13 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 			while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&it)) )
 			{
 				char col = (ship->current_waypoint == wp) ? 'C' : 'c';
+				char mark = (ship->current_waypoint == wp) ? '*' : ' ';
 
-				sprintf(buf, "{%c%3d   {G%5d  %5d  {Y%s{x\n\r", col, ++stop, wp->y, wp->x, wp->name);
+				sprintf(buf, "{%c%3d{Y%c  {G%5d  %5d  {Y%s{x\n\r", col, ++stop, mark, wp->y, wp->x, wp->name);
 				send_to_char(buf, ch);
 			}
 			iterator_stop(&it);
-			send_to_char("=====================================\n\r", ch);
+			send_to_char("{C====================================={x\n\r", ch);
 		}
 		else if( ship->seek_point.wilds != NULL )
 		{
