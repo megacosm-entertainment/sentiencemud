@@ -405,6 +405,7 @@ typedef bool CHAR_TEST	(CHAR_DATA *ch, CHAR_DATA *ach, CHAR_DATA *bch);	/* NIB :
 typedef bool VISIT_FUNC (ROOM_INDEX_DATA *room, void *argv[], int argc, int depth, int door);
 typedef void *LISTCOPY_FUNC (void *src);
 typedef void LISTDESTROY_FUNC (void *data);
+typedef int LISTSORT_FUNC(const void *a, const void *b);
 
 typedef struct ifcheck_data IFCHECK_DATA;
 typedef struct script_data SCRIPT_DATA;
@@ -5085,6 +5086,7 @@ struct ship_data
 
 	ITERATOR route_it;
 	LLIST *current_route;				// Will be a simple list of waypoints
+	WAYPOINT_DATA *current_waypoint;
 
 	WILDS_COORD			seek_point;
 
@@ -8434,6 +8436,8 @@ void *list_nthdata(LLIST *lp, int nth);
 void list_remnthlink(LLIST *lp, register int nth);
 bool list_hasdata(LLIST *lp, register void *ptr);
 int list_size(LLIST *lp);
+bool list_movelink(LLIST *lp, int from, int to);
+bool list_insertlink(LLIST *lp, void *data, int to);
 void iterator_start(ITERATOR *it, LLIST *lp);
 void iterator_start_nth(ITERATOR *it, LLIST *lp, int nth);
 LLIST_LINK *iterator_next(ITERATOR *it);

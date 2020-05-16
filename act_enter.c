@@ -352,10 +352,17 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 
 	if(!is_room_unlocked(ch, location) )
 	{
-		if(p_percent2_trigger(location->area, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREENTER, NULL))
-			send_to_char("You cannot enter that place yet.\n\r", ch);
+		int ret = p_percent2_trigger(location->area, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREENTER, NULL);
 
-		return;
+		if( ret < 1 )
+		{
+			send_to_char("You cannot enter that place yet.\n\r", ch);
+			return;
+		}
+		else if( ret == 1 )
+		{
+			return;
+		}
 	}
 
 	if(p_percent_trigger(NULL, NULL, location, NULL, ch, NULL, NULL,portal, NULL,TRIG_PREENTER, "portal"))

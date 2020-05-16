@@ -8153,6 +8153,126 @@ bool list_appendlist(LLIST *lp, LLIST *src)
 	return false;
 }
 
+bool list_movelink(LLIST *lp, int from, int to)
+{
+	LLIST_LINK *ptr, *old, *link, *prev;
+
+	if( from < 0 ) from = lp->size + from;
+	if( to < 0 ) to = lp->size + to;
+
+	if( !from || !to ) return false;
+
+	if( from == to ) return true;	// "Moved" it! :D :D :D :D
+
+	if( to > from ) --to;
+
+	if( lp )
+	{
+		old = NULL;
+		for(link = lp->head; link && from > 0; link = link->next)
+			if(link->data)
+			{
+				--from;
+				if( !from )
+				{
+					old = link;
+					break;
+				}
+			}
+
+		if( !old )
+			return false;
+
+		for(prev = NULL, link = lp->head; link && to > 0; prev = link, link = link->next )
+		{
+			if(link != old)
+			{
+				if( (to == 1) && (!link->data) )
+				{
+					// This is an empty link, reuse it
+					link->data = old->data;
+					old->data = NULL;
+					return true;
+				}
+
+				if( !--to )
+				{
+					link = alloc_mem(sizeof(LLIST_LINK));
+					if( !link )
+						return false;
+
+					link->data = old->data;
+					old->data = NULL;
+
+					if( prev )
+					{
+						link->next = prev->next;
+						prev->next = link;
+					}
+					else
+					{
+						link->next = lp->head;
+						lp->head = link;
+					}
+
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+bool list_insertlink(LLIST *lp, void *data, int to)
+{
+	// First get the FROM link
+	void *data;
+	LLIST_LINK *ptr, *old, *link, *prev;
+
+	if( to < 0 ) to = lp->size + to;
+
+	if( !to ) return false;
+
+	if( lp )
+	{
+		for(prev = NULL, link = lp->head; link && to > 0; prev = link, link = link->next )
+		{
+			if( (to == 1) && (!link->data) )
+			{
+				// This is an empty link, reuse it
+				link->data = data;
+				return true;
+			}
+
+			if( !--to )
+			{
+				link = alloc_mem(sizeof(LLIST_LINK));
+				if( !link )
+					return false;
+
+				link->data = data;
+
+				if( prev )
+				{
+					link->next = prev->next;
+					prev->next = link;
+				}
+				else
+				{
+					link->next = lp->head;
+					lp->head = link;
+				}
+
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+
 // Nulls out any data pointer that matches the supplied pointer
 // It will NOT cull the list
 void list_remlink(LLIST *lp, void *data)

@@ -114,6 +114,7 @@ bool ship_seek_point(SHIP_DATA *ship)
 				ship->seek_point.w = wp->w;
 				ship->seek_point.x = wp->x;
 				ship->seek_point.y = wp->y;
+				ship->current_waypoint = wp;
 			}
 			else
 			{
@@ -753,6 +754,8 @@ void ship_cancel_route(SHIP_DATA *ship)
 		iterator_stop(&ship->route_it);
 		list_clear(ship->current_route);
 	}
+
+	ship->current_waypoint = NULL;
 
 	memset(&ship->seek_point, 0, sizeof(ship->seek_point));
 }
@@ -2765,9 +2768,73 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 
 	if( arg[0] == '\0' )
 	{
-		send_to_char("Syntax:  ship navigate goto <#.named waypoint>\n\r", ch);
+		send_to_char("Syntax:  ship navigate goto <waypoint>\n\r", ch);
 		send_to_char("         ship navigate seek <south> <east>\n\r", ch);
 		send_to_char("         ship navigate plot <waypoint1> <waypoint2> ... <waypointN>\n\r", ch);
+		send_to_char("         ship navigate cancel\n\r", ch);
+		send_to_char("         ship navigate route\n\r", ch);
+
+		return;
+	}
+
+	if( !str_prefix(arg, "cancel") )
+	{
+		if( ship->seek_point.wilds != NULL )
+		{
+			ship_cancel_route(ship);
+			send_to_char("Current route canceled.\n\r", ch);
+		}
+		else
+		{
+			send_to_char("The vessel has no active destination.\n\r", ch);
+		}
+		return;
+	}
+
+	if( !str_prefix(arg, "route") )
+	{
+		if( list_size(ship->current_route) > 0 )
+		{
+			int stop = 0;
+			ITERATOR it;
+			WAYPOINT_DATA *wp;
+
+			if( ship->seek_point.wilds != NULL )
+			{
+				sprintf(buf, "{CCurrent Route in {Y%s{C:{x\n\r", ship->seek_point.wilds->name);
+				send_to_char(buf, ch);
+			}
+			else
+				send_to_char("{CCurrent Route:{x\n\r", ch);
+
+			send_to_char("{C====================================={x\n\r", ch);
+			send_to_char("{CStop  South   East{x\n\r", ch);
+			iterator_start(&it, ship->current_route);
+			while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&it)) )
+			{
+				char col = (ship->current_waypoint == wp) ? 'C' : 'c';
+
+				sprintf(buf, "{%c%3d   {G%5d  %5d  {Y%s{x\n\r", col, ++stop, wp->y, wp->x. wp->name);
+				send_to_char(buf, ch);
+			}
+			iterator_stop(&it);
+			send_to_char("=====================================\n\r", ch);
+		}
+		else if( ship->seek_point.wilds != NULL )
+		{
+			sprintf(buf, "{CCurrent Destination in {Y%s{C:{x\n\r", ship->seek_point.wilds->name);
+			send_to_char(buf, ch);
+
+			send_to_char("{C====================================={x\n\r", ch);
+			send_to_char("{CStop  South   East{x\n\r", ch);
+			sprintf(buf, "{C  1   {G%5d  %5d{x\n\r", ship->seek_point.y, ship->seek_point.x);
+			send_to_char(buf, ch);
+
+		}
+		else
+		{
+			send_to_char("The vessel has no active destination.\n\r", ch);
+		}
 
 		return;
 	}
@@ -2960,6 +3027,7 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 		ship->seek_point.w = wp->w;
 		ship->seek_point.x = wp->x;
 		ship->seek_point.y = wp->y;
+		ship->current_waypoint = wp;
 
 		send_to_char("{WCourse plotted.{x\n\r", ch);
 		return;
@@ -3425,7 +3493,8 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 
 	if( arg[0] == '\0' )
 	{
-		send_to_char("Syntax:  ship waypoints list\n\r"
+		send_to_char("Syntax:  ship waypoints list[ <filter> ... <filter>]\n\r"
+					 "         ship waypoints list filters\n\r"
 					 "         ship waypoints add <south> <east>[ <name>]\n\r"
 					 "         ship waypoints delete <#>\n\r"
 					 "         ship waypoints rename <#> <name>\n\r"
@@ -3437,9 +3506,112 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 
 	if( !str_prefix(arg, "list") )
 	{
+		char name[MIL];
+		char map_name[MIL];
+		int s1, e1;
+		int s2, e2;
+
+		bool has_bb = false;
+		bool has_map = false;
+		bool has_name = false;
+
+		if( argument[0] != '\0' )
+		{
+			if( !str_prefix(argument, "filters") )
+			{
+				send_to_char("Waypoint Filters:\n\r", ch);
+				send_to_char("  {Ycoords {Wsouth1 east1 south2 east2{x - filter by bounding box\n\r", ch);
+				send_to_char("  {Ymap {Wname                        {x - filter by map name\n\r", ch);
+				send_to_char("  {Yname {Wname                       {x - filter by waypoint name\n\r", ch);
+				send_to_char("  {Yname {W-                          {x - only include waypoints with no name\n\r", ch);
+				send_to_char("\n\r{WFilters can be combined.\n\r", ch);
+				return;
+			}
+
+			while( argument[0] != '\0' )
+			{
+				char filter[MIL];
+
+				argument = one_argument(argument, filter);
+
+				if( !str_prefix(filter, "coords") )
+				{
+					char argS1[MIL];
+					char argE1[MIL];
+					char argS2[MIL];
+					char argE2[MIL];
+
+					argument = one_argument(argument, argS1);
+					argument = one_argument(argument, argE1);
+					argument = one_argument(argument, argS2);
+					argument = one_argument(argument, argE2);
+
+					if( !is_number(argS1) || !is_number(argE1) || !is_number(argS2) || !is_number(argE2) )
+					{
+						send_to_char("Coords argument not a number.\n\r");
+						return;
+					}
+
+					s1 = atoi(argS1);
+					e1 = atoi(argE1);
+					s2 = atoi(argS2);
+					e2 = atoi(argE2);
+
+					if( s1 > s2 )
+					{
+						int temp = s1;
+						s1 = s2;
+						s2 = temp;
+					}
+
+					if( e2 > e1 )
+					{
+						int temp = e1;
+						e1 = e2;
+						e2 = temp;
+					}
+
+					has_bb = true;
+				}
+				else if( !str_prefix(filter, "map") )
+				{
+					argument = one_argument(argument, map_name);
+
+					if( map_name[0] == '\0' )
+					{
+						send_to_char("Missing map name.\n\r");
+						return;
+					}
+
+					has_map = true;
+				}
+				else if( !str_prefix(filter, "name") )
+				{
+					argument = one_argument(argument, name);
+
+					if( name[0] == '\0' )
+					{
+						send_to_char("Waypoint name.\n\r");
+						return;
+					}
+
+					if( name[0] == '-' )
+					{
+						name[0] = '\0';
+					}
+
+					has_name = true;
+				}
+
+
+			}
+		}
+
+
 		if (list_size(ship->waypoints) > 0)
 		{
 			int cnt = 0;
+			int shown = 0;
 			ITERATOR wit;
 			WAYPOINT_DATA *wp;
 			WILDS_DATA *wilds;
@@ -3453,27 +3625,57 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 			iterator_start(&wit, ship->waypoints);
 			while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
 			{
+				++cnt;
+
 				wilds = get_wilds_from_uid(NULL, wp->w);
+
+				if( has_bb )
+				{
+					if( wp->y < s1 || wp->y > s2 ) continue;
+					if( wp->x < e1 || wp->x > e2 ) continue;
+				}
+
+				if( has_name )
+				{
+					if( name[0] == '\0' )
+					{
+						if( wp->name[0] != '\0' ) continue;
+					}
+					else if(!is_name(name, wp->name) )
+					{
+						continue;
+					}
+				}
+
+				if( has_map )
+				{
+					if( !wilds || !is_name(map_name, wilds->name) ) continue;
+				}
 
 				char *wname = wilds ? wilds->name : "{D(null){x";
 
 				int wwidth = get_colour_width(wname) + 20;
 
 				sprintf(buf, "{B%3d{b)  {W%-*.*s    {G%5d     %5d    {Y%s{x\n\r",
-					++cnt,
+					cnt,
 					wwidth, wwidth, wname,
 					wp->y, wp->x, wp->name);
 
 				add_buf(buffer, buf);
+				shown++;
 			}
 
 			iterator_stop(&wit);
 
 			add_buf(buffer, "\n\r");
 
-			if( cnt > 0 )
+			if( shown > 0 )
 			{
 				page_to_char(buffer->string, ch);
+			}
+			else if( cnt > 0 )
+			{
+				send_to_char("No waypoints in filter.\n\r", ch);
 			}
 			else
 			{
