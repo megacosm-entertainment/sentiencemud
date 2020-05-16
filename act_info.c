@@ -2271,66 +2271,136 @@ void do_look(CHAR_DATA * ch, char *argument)
 			pdesc = get_extra_descr(arg3, obj->extra_descr);
 			if (pdesc != NULL)
 			{
-				char *ppdesc = pdesc->description;
-
-				if( !ppdesc )
+				if (++count == number)
 				{
-					ROOM_INDEX_DATA *environ = get_environment(ch->in_room);
-
-					if( environ )
-						ppdesc = environ->description;
-				}
-
-				if( ppdesc != NULL )
-				{
-					if (++count == number)
+					if( pdesc->description )
 					{
-						send_to_char(ppdesc, ch);
-						if (perform_lore)
+						send_to_char(pdesc->description, ch);
+					}
+					else
+					{
+						ROOM_INDEX_DATA *environ = get_environment(ch->in_room);
+
+						if( environ )
 						{
-							send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-							spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
+							if( IS_WILDERNESS(environ) )
+							{
+								pTerrain = get_terrain_by_coors(environ->wilds, environ->x, environ->y);
+
+								if (pTerrain != NULL && !pTerrain->nonroom)
+								{
+									int vp_x, vp_y;
+
+									vp_x = get_squares_to_show_x(ch->wildview_bonus_x);
+									vp_y = get_squares_to_show_y(ch->wildview_bonus_y);
+
+									show_vroom_header_to_char(pTerrain, environ->wilds, environ->x, environ->y, ch);
+									show_map_to_char_wyx(environ->wilds, environ->x, environ->y, ch, environ->x, environ->y, vp_x, vp_y, FALSE);
+
+									if (reckoning_timer > 0 && pre_reckoning == 0 && !IS_IMMORTAL(ch))
+										send_to_char("     {MA heavy thick purple mist obscures the view.{x\n\r", ch);
+
+								}
+								else
+								{
+									send_to_char("Nothing special there.\n\r", ch);
+									return;
+								}
+							}
+							else
+							{
+								char_room = ch->in_room;
+								ch->in_room = environ;
+								do_function(ch, &do_look, "auto");
+								ch->in_room = char_room;
+							}
 						}
 						else
-							send_to_char("\n\r", ch);
-
-						p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
-						check_improve(ch, gsn_lore, TRUE, 10);
-						return;
+						{
+							send_to_char("Nothing special there.\n\r", ch);
+							return;
+						}
 					}
+
+					if (perform_lore)
+					{
+						send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
+						spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
+					}
+					else
+						send_to_char("\n\r", ch);
+
+					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+					check_improve(ch, gsn_lore, TRUE, 10);
+					return;
 				}
 			}
 
 			pdesc = get_extra_descr(arg3, obj->pIndexData->extra_descr);
 			if (pdesc != NULL)
 			{
-				char *ppdesc = pdesc->description;
-
-				if( !ppdesc )
+				if (++count == number)
 				{
-					ROOM_INDEX_DATA *environ = get_environment(ch->in_room);
-
-					if( environ )
-						ppdesc = environ->description;
-				}
-
-				if( ppdesc != NULL )
-				{
-					if (++count == number)
+					if( pdesc->description )
 					{
-						send_to_char(ppdesc, ch);
-						if (perform_lore)
+						send_to_char(pdesc->description, ch);
+					}
+					else
+					{
+						ROOM_INDEX_DATA *environ = get_environment(ch->in_room);
+
+						if( environ )
 						{
-							send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
-							spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
+							if( IS_WILDERNESS(environ) )
+							{
+								pTerrain = get_terrain_by_coors(environ->wilds, environ->x, environ->y);
+
+								if (pTerrain != NULL && !pTerrain->nonroom)
+								{
+									int vp_x, vp_y;
+
+									vp_x = get_squares_to_show_x(ch->wildview_bonus_x);
+									vp_y = get_squares_to_show_y(ch->wildview_bonus_y);
+
+									show_vroom_header_to_char(pTerrain, environ->wilds, environ->x, environ->y, ch);
+									show_map_to_char_wyx(environ->wilds, environ->x, environ->y, ch, environ->x, environ->y, vp_x, vp_y, FALSE);
+
+									if (reckoning_timer > 0 && pre_reckoning == 0 && !IS_IMMORTAL(ch))
+										send_to_char("     {MA heavy thick purple mist obscures the view.{x\n\r", ch);
+
+								}
+								else
+								{
+									send_to_char("Nothing special there.\n\r", ch);
+									return;
+								}
+							}
+							else
+							{
+								char_room = ch->in_room;
+								ch->in_room = environ;
+								do_function(ch, &do_look, "auto");
+								ch->in_room = char_room;
+							}
 						}
 						else
-							send_to_char("\n\r", ch);
-
-						p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
-						check_improve(ch, gsn_lore, TRUE, 10);
-						return;
+						{
+							send_to_char("Nothing special there.\n\r", ch);
+							return;
+						}
 					}
+
+					if (perform_lore)
+					{
+						send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
+						spell_identify(gsn_lore, ch->tot_level, ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
+					}
+					else
+						send_to_char("\n\r", ch);
+
+					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+					check_improve(ch, gsn_lore, TRUE, 10);
+					return;
 				}
 			}
 
@@ -2369,23 +2439,55 @@ void do_look(CHAR_DATA * ch, char *argument)
 	pdesc = get_extra_descr(arg3, ch->in_room->extra_descr);
 	if (pdesc != NULL)
 	{
-		char *ppdesc = pdesc->description;
-
-		if( !ppdesc )
+		if (++count == number)
 		{
-			ROOM_INDEX_DATA *environ = get_environment(ch->in_room);
-
-			if( environ )
-				ppdesc = environ->description;
-		}
-
-		if( ppdesc != NULL )
-		{
-			if (++count == number)
+			if( pdesc->description )
 			{
-				send_to_char(ppdesc, ch);
-				return;
+				send_to_char(pdesc->description, ch);
 			}
+			else
+			{
+				ROOM_INDEX_DATA *environ = get_environment(ch->in_room);
+
+				if( environ )
+				{
+					if( IS_WILDERNESS(environ) )
+					{
+						pTerrain = get_terrain_by_coors(environ->wilds, environ->x, environ->y);
+
+						if (pTerrain != NULL && !pTerrain->nonroom)
+						{
+							int vp_x, vp_y;
+
+							vp_x = get_squares_to_show_x(ch->wildview_bonus_x);
+							vp_y = get_squares_to_show_y(ch->wildview_bonus_y);
+
+							show_vroom_header_to_char(pTerrain, environ->wilds, environ->x, environ->y, ch);
+							show_map_to_char_wyx(environ->wilds, environ->x, environ->y, ch, environ->x, environ->y, vp_x, vp_y, FALSE);
+
+							if (reckoning_timer > 0 && pre_reckoning == 0 && !IS_IMMORTAL(ch))
+								send_to_char("     {MA heavy thick purple mist obscures the view.{x\n\r", ch);
+
+						}
+						else
+						{
+							send_to_char("Nothing special there.\n\r", ch);
+						}
+					}
+					else
+					{
+						char_room = ch->in_room;
+						ch->in_room = environ;
+						do_function(ch, &do_look, "auto");
+						ch->in_room = char_room;
+					}
+				}
+				else
+				{
+					send_to_char("Nothing special there.\n\r", ch);
+				}
+			}
+			return;
 		}
 	}
 
