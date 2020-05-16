@@ -4731,6 +4731,12 @@ void do_ship(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
+	if( !str_prefix(arg, "routes") )
+	{
+		do_ship_routes(ch, argument);
+		return;
+	}
+
 	if( !str_prefix(arg, "scuttle") )
 	{
 		do_ship_scuttle(ch, argument);
@@ -4754,7 +4760,6 @@ void do_ship(CHAR_DATA *ch, char *argument)
 		do_ship_waypoints(ch, argument);
 		return;
 	}
-
 
 	do_ship(ch, "");
 }
