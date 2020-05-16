@@ -7357,6 +7357,9 @@ void look_sextant(CHAR_DATA *ch, OBJ_DATA *sextant)
 			{
 				x = x + number_range(-30, 30);
 				y = y + number_range(-30, 30);
+
+				x = URANGE(0, x, ship->ship->in_room->wilds->map_size_x - 1);
+				y = URANGE(0, y, ship->ship->in_room->wilds->map_size_y - 1);
 			}
 
 			if( ship->speed <= SHIP_SPEED_STOPPED && ship_isowner_player(ship, ch) )

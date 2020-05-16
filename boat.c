@@ -3496,6 +3496,7 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 	{
 		send_to_char("Syntax:  ship waypoints list[ <filter> ... <filter>]\n\r"
 					 "         ship waypoints list filters\n\r"
+					 "         ship waypoints add here[ <name>]\n\r"
 					 "         ship waypoints add <south> <east>[ <name>]\n\r"
 					 "         ship waypoints delete <#>\n\r"
 					 "         ship waypoints rename <#> <name>\n\r"
@@ -3698,11 +3699,35 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 	{
 		char arg2[MIL];
 		char arg3[MIL];
+		int x, y;
 
 		argument = one_argument(argument, arg2);
-		argument = one_argument(argument, arg3);
 
-		if( !is_number(arg2) || !is_number(arg3) )
+		if( is_number(arg2) )
+		{
+			argument = one_argument(argument, arg3);
+
+			if( !is_number(arg3) )
+			{
+				send_to_char("That is not a number.\n\r", ch);
+				return;
+			}
+
+			y = atoi(arg2);
+			x = atoi(arg3);
+		}
+		else if( !str_prefix(arg2, "here") )
+		{
+			if( ship->sextant_x < 0 || ship->sextant_y < 0 )
+			{
+				send_to_char("You have no idea where you are.  Please look at a sextant first.\n\r", ch);
+				return;
+			}
+
+			y = ship->sextant_y;
+			x = ship->sextant_x;
+		}
+		else
 		{
 			send_to_char("That is not a number.\n\r", ch);
 			return;
@@ -3715,8 +3740,6 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 		}
 
 		WILDS_DATA *wilds = room->wilds;
-		int y = atoi(arg2);
-		int x = atoi(arg3);
 
 		if( y < 0 || y >= wilds->map_size_y )
 		{
@@ -3755,8 +3778,6 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 		{
 			if( wp->w == wilds->uid && wp->x == x && wp->y == y )
 			{
-				free_string(wp->name);
-				wp->name = nocolour(argument);
 				break;
 			}
 		}
@@ -3777,7 +3798,7 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 		}
 		else
 		{
-			send_to_char("Waypoint updated.\n\r", ch);
+			send_to_char("Location already in waypoint list.\n\r", ch);
 		}
 		return;
 	}
