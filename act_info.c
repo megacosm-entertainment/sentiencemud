@@ -2171,7 +2171,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 			{
 				if (++count == number)
 				{
-					send_to_char(pdesc, ch);
+					send_to_char(pdesc->description, ch);
 					if (perform_lore)
 					{
 						send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
