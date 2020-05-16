@@ -3007,6 +3007,7 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 				ship->current_route = route;
 
 				sprintf(buf, "Route {Y%s{x started.\n\r", route->name);
+				send_to_char(buf, ch);
 				return;
 			}
 
