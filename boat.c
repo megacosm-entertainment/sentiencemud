@@ -4257,8 +4257,21 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 
 void do_ship_routes(CHAR_DATA *ch, char *argument)
 {
+	SHIP_DATA *ship = get_room_ship(ch->in_room);
 	char buf[MSL];
 	char arg[MIL];
+
+	if (!IS_VALID(ship))
+	{
+		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if (!IS_IMMORTAL(ch) && ship_isowner_player(ship, ch))
+	{
+		send_to_char("This isn't your vessel.\n\r", ch);
+		return;
+	}
 
 	argument = one_argument(argument, arg);
 
