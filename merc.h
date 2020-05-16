@@ -5079,7 +5079,7 @@ struct ship_data
 	LLIST *waypoints;
 
 	ITERATOR route_it;
-	LLIST *current_route;				// Will be a simple list of waypoints
+	LLIST *route_waypoints;				// Will be a simple list of waypoints
 	WAYPOINT_DATA *current_waypoint;
 
 	LLIST *routes;

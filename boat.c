@@ -787,10 +787,10 @@ SHIP_ROUTE *get_ship_route(SHIP_DATA *ship, char *argument)
 
 void ship_cancel_route(SHIP_DATA *ship)
 {
-	if( list_size(ship->current_route) > 0 )
+	if( list_size(ship->route_waypoints) > 0 )
 	{
 		iterator_stop(&ship->route_it);
-		list_clear(ship->current_route);
+		list_clear(ship->route_waypoints);
 	}
 
 	ship->current_waypoint = NULL;
@@ -2901,7 +2901,7 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 
 	if( !str_prefix(arg, "route") )
 	{
-		if( list_size(ship->current_route) > 0 )
+		if( list_size(ship->route_waypoints) > 0 )
 		{
 			int stop = 0;
 			ITERATOR it;
@@ -2917,7 +2917,7 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 
 			send_to_char("{C====================================={x\n\r", ch);
 			send_to_char("{CStop  South   East{x\n\r", ch);
-			iterator_start(&it, ship->current_route);
+			iterator_start(&it, ship->route_waypoints);
 			while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&it)) )
 			{
 				char col = (ship->current_waypoint == wp) ? 'C' : 'c';
@@ -3125,10 +3125,10 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 
 			wp = clone_waypoint(wp);
 
-			list_appendlink(ship->current_route, wp);
+			list_appendlink(ship->route_waypoints, wp);
 		}
 
-		iterator_start(&ship->route_it, ship->current_route);
+		iterator_start(&ship->route_it, ship->route_waypoints);
 
 		wp = (WAYPOINT_DATA *)iterator_nextdata(&ship->route_it);
 
