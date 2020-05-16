@@ -2975,7 +2975,7 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 					return;
 				}
 
-				if( list_size(route->waypoints < 1 )
+				if( list_size(route->waypoints) < 1 )
 				{
 					sprintf(buf, "Route '%s' has no waypoints assigned.\n\r", route->name);
 					send_to_char(buf, ch);
