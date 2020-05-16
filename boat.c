@@ -794,6 +794,7 @@ void ship_cancel_route(SHIP_DATA *ship)
 	}
 
 	ship->current_waypoint = NULL;
+	ship->current_route = NULL;
 
 	memset(&ship->seek_point, 0, sizeof(ship->seek_point));
 }
@@ -2881,7 +2882,7 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 		send_to_char("         ship navigate plot <waypoint1> <waypoint2> ... <waypointN>\n\r", ch);
 		send_to_char("         ship navigate cancel\n\r", ch);
 		send_to_char("         ship navigate route\n\r", ch);
-
+		send_to_char("         ship navigate route go <route>\n\r", ch);
 		return;
 	}
 
@@ -2901,48 +2902,116 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 
 	if( !str_prefix(arg, "route") )
 	{
-		if( list_size(ship->route_waypoints) > 0 )
+		if( argument[0] == '\0' )
 		{
-			int stop = 0;
-			ITERATOR it;
-			WAYPOINT_DATA *wp;
-
-			if( ship->seek_point.wilds != NULL )
+			if( list_size(ship->route_waypoints) > 0 )
 			{
-				sprintf(buf, "{CCurrent Route in {Y%s{C:{x\n\r", ship->seek_point.wilds->name);
+				int stop = 0;
+				ITERATOR it;
+				WAYPOINT_DATA *wp;
+
+				if( ship->current_route != NULL )
+				{
+					sprintf(buf, "{CCurrent Route {Y%s{C:{x\n\r", ship->current_route->name);
+					send_to_char(buf, ch);
+				}
+				else if( ship->seek_point.wilds != NULL )
+				{
+					sprintf(buf, "{CCurrent Route in {Y%s{C:{x\n\r", ship->seek_point.wilds->name);
+					send_to_char(buf, ch);
+				}
+				else
+					send_to_char("{CCurrent Route:{x\n\r", ch);
+
+				send_to_char("{C====================================={x\n\r", ch);
+				send_to_char("{CStop  South   East{x\n\r", ch);
+				iterator_start(&it, ship->route_waypoints);
+				while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&it)) )
+				{
+					char col = (ship->current_waypoint == wp) ? 'C' : 'c';
+					char mark = (ship->current_waypoint == wp) ? '*' : ' ';
+
+					sprintf(buf, "{%c%3d{Y%c  {G%5d  %5d  {Y%s{x\n\r", col, ++stop, mark, wp->y, wp->x, wp->name);
+					send_to_char(buf, ch);
+				}
+				iterator_stop(&it);
+				send_to_char("{C====================================={x\n\r", ch);
+			}
+			else if( ship->seek_point.wilds != NULL )
+			{
+				sprintf(buf, "{CCurrent Destination in {Y%s{C:{x\n\r", ship->seek_point.wilds->name);
 				send_to_char(buf, ch);
+
+				send_to_char("{C====================================={x\n\r", ch);
+				send_to_char("{CStop  South   East{x\n\r", ch);
+				sprintf(buf, "{C  1   {G%5d  %5d{x\n\r", ship->seek_point.y, ship->seek_point.x);
+				send_to_char(buf, ch);
+
 			}
 			else
-				send_to_char("{CCurrent Route:{x\n\r", ch);
-
-			send_to_char("{C====================================={x\n\r", ch);
-			send_to_char("{CStop  South   East{x\n\r", ch);
-			iterator_start(&it, ship->route_waypoints);
-			while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&it)) )
 			{
-				char col = (ship->current_waypoint == wp) ? 'C' : 'c';
-				char mark = (ship->current_waypoint == wp) ? '*' : ' ';
-
-				sprintf(buf, "{%c%3d{Y%c  {G%5d  %5d  {Y%s{x\n\r", col, ++stop, mark, wp->y, wp->x, wp->name);
-				send_to_char(buf, ch);
+				send_to_char("The vessel has no active destination.\n\r", ch);
 			}
-			iterator_stop(&it);
-			send_to_char("{C====================================={x\n\r", ch);
-		}
-		else if( ship->seek_point.wilds != NULL )
-		{
-			sprintf(buf, "{CCurrent Destination in {Y%s{C:{x\n\r", ship->seek_point.wilds->name);
-			send_to_char(buf, ch);
-
-			send_to_char("{C====================================={x\n\r", ch);
-			send_to_char("{CStop  South   East{x\n\r", ch);
-			sprintf(buf, "{C  1   {G%5d  %5d{x\n\r", ship->seek_point.y, ship->seek_point.x);
-			send_to_char(buf, ch);
-
 		}
 		else
 		{
-			send_to_char("The vessel has no active destination.\n\r", ch);
+			char arg2[MIL];
+
+			argument = one_argument(argument, arg2);
+
+			if( !str_prefix(arg2, "go") )
+			{
+				SHIP_ROUTE *route = get_ship_route(ship, argument);
+
+				if( !IS_VALID(route) )
+				{
+					send_to_char("No such route.\n\r", ch);
+					return;
+				}
+
+				if( IS_NULLSTR(route->name) )
+				{
+					send_to_char("Please name the route first.\n\r", ch);
+					return;
+				}
+
+				if( list_size(route->waypoints < 1 )
+				{
+					sprintf(buf, "Route '%s' has no waypoints assigned.\n\r", route->name);
+					send_to_char(buf, ch);
+					return;
+				}
+
+				ship_cancel_route(ship);
+
+				ITERATOR it;
+				WAYPOINT_DATA *wp;
+				iterator_start(&it, route->waypoints);
+				while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&it)) )
+				{
+					wp = clone_waypoint(wp);
+
+					list_appendlink(ship->route_waypoints, wp);
+				}
+				iterator_stop(&it);
+
+				iterator_start(&ship->route_it, ship->route_waypoints);
+
+				wp = (WAYPOINT_DATA *)iterator_nextdata(&ship->route_it);
+
+				ship->seek_point.wilds = get_wilds_from_uid(NULL, wp->w);
+				ship->seek_point.w = wp->w;
+				ship->seek_point.x = wp->x;
+				ship->seek_point.y = wp->y;
+				ship->current_waypoint = wp;
+				ship->current_route = route;
+
+				sprintf(buf, "Route {Y%s{x started.\n\r", route->name);
+				return;
+			}
+
+
+
 		}
 
 		return;
