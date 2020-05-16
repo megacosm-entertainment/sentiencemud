@@ -4342,6 +4342,7 @@ void do_ship_routes(CHAR_DATA *ch, char *argument)
 
 					if( j > 0 )
 					{
+						buf[j-1] = '\0';
 						add_buf(buffer, buf);
 						add_buf(buffer,"\n\r");
 					}
