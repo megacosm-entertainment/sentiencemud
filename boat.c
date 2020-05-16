@@ -3499,6 +3499,9 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 					 "         ship waypoints add <south> <east>[ <name>]\n\r"
 					 "         ship waypoints delete <#>\n\r"
 					 "         ship waypoints rename <#> <name>\n\r"
+					 "         ship waypoints move <#from> <#to>\n\r"
+					 "         ship waypoints move <#from> up\n\r"
+					 "         ship waypoints move <#from> down\n\r"
 					 "         ship waypoints load <map>\n\r"
 					 "         ship waypoints save <#>[ <map>]\n\r", ch);
 
@@ -3825,6 +3828,96 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 		wp->name = nocolour(argument);
 
 		send_to_char("Waypoint renamed.\n\r", ch);
+		return;
+	}
+
+	if( !str_prefix(arg, "move") )
+	{
+		char arg2[MIL];
+
+		argument = one_argument(argument, arg2);
+
+		if( !is_number(arg2) )
+		{
+			send_to_char("That is not a number.\n\r", ch);
+			return;
+		}
+
+		int total = list_size(ship->waypoints);
+
+		int from = atoi(arg2);
+		if( from < 1 || from > total )
+		{
+			send_to_char("Source position out of range.\n\r", ch);
+			return;
+		}
+
+		if( argument[0] == '\0' )
+		{
+			send_to_char("Syntax:  ship waypoints move <#from> <#to>\n\r", ch);
+			send_to_char("         ship waypoints move <#from> up\n\r", ch);
+			send_to_char("         ship waypoints move <#from> down\n\r", ch);
+			return;
+		}
+
+		if( is_number(argument) )
+		{
+			int to = atoi(argument);
+
+			if( to < 1 || to > total )
+			{
+				send_to_char("Target position out of range.\n\r", ch);
+				return;
+			}
+
+			if( to == from )
+			{
+				if( number_percent() < 2 )
+				{
+					send_to_char("What would be the {W(way){xpoint?\n\r", ch);
+					send_to_char("\n\r ...Get it?\n\r", ch);
+					send_to_char("   ...You're trying to move a waypoint to the same location?\n\r", ch);
+					send_to_char("\n\r{Y[ sad server noises ]{x\n\r", ch);
+				}
+				else
+				{
+					send_to_char("What would be the point?\n\r", ch);
+				}
+				return;
+			}
+
+			list_movelink(ship->waypoints, from, to);
+			send_to_char("Waypoint moved.\n\r", ch);
+			return;
+		}
+		else if( !str_prefix(argument, "up") )
+		{
+			if( from > 1 )
+			{
+				list_movelink(ship->waypoints, from, from - 1);
+				send_to_char("Waypoint moved.\n\r", ch);
+			}
+			else
+			{
+				send_to_char("Waypoint is already at the top of the list.\n\r", ch);
+			}
+			return;
+		}
+		else if( !str_prefix(argument, "down") )
+		{
+			if( from < total )
+			{
+				list_movelink(ship->waypoints, from, from + 1);
+				send_to_char("Waypoint moved.\n\r", ch);
+			}
+			else
+			{
+				send_to_char("Waypoint is already at the bottom of the list.\n\r", ch);
+			}
+			return;
+		}
+
+		do_ship_waypoints(ch, "move");
 		return;
 	}
 

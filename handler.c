@@ -8164,7 +8164,7 @@ bool list_movelink(LLIST *lp, int from, int to)
 
 	if( from == to ) return true;	// "Moved" it! :D :D :D :D
 
-	if( to > from ) --to;
+	//if( to > from ) --to;
 
 	if( lp )
 	{
@@ -8195,29 +8195,49 @@ bool list_movelink(LLIST *lp, int from, int to)
 					return true;
 				}
 
-				if( !--to )
+				if( link->data )
 				{
-					link = alloc_mem(sizeof(LLIST_LINK));
-					if( !link )
-						return false;
-
-					link->data = old->data;
-					old->data = NULL;
-
-					if( prev )
+					if( !--to )
 					{
-						link->next = prev->next;
-						prev->next = link;
-					}
-					else
-					{
-						link->next = lp->head;
-						lp->head = link;
-					}
+						link = alloc_mem(sizeof(LLIST_LINK));
+						if( !link )
+							return false;
 
-					return true;
+						link->data = old->data;
+						old->data = NULL;
+
+						if( prev )
+						{
+							link->next = prev->next;
+							prev->next = link;
+						}
+						else
+						{
+							link->next = lp->head;
+							lp->head = link;
+						}
+
+						return true;
+					}
 				}
 			}
+		}
+
+		if( to > 0 )
+		{
+			// Needs to append if it's at the end
+			link = alloc_mem(sizeof(LLIST_LINK));
+			if( !link )
+				return false;
+
+			if( !lp->head )
+				lp->head = link;
+			else
+				lp->tail->next = link;
+			lp->tail = link;
+
+			link->data = old->data;
+			old->data = NULL;
 		}
 	}
 
@@ -8240,31 +8260,54 @@ bool list_insertlink(LLIST *lp, void *data, int to)
 			{
 				// This is an empty link, reuse it
 				link->data = data;
+				lp->size++;
 				return true;
 			}
 
-			if( !--to )
+			if( link->data )
 			{
-				link = alloc_mem(sizeof(LLIST_LINK));
-				if( !link )
-					return false;
-
-				link->data = data;
-
-				if( prev )
+				if( !--to )
 				{
-					link->next = prev->next;
-					prev->next = link;
-				}
-				else
-				{
-					link->next = lp->head;
-					lp->head = link;
-				}
+					link = alloc_mem(sizeof(LLIST_LINK));
+					if( !link )
+						return false;
 
-				return true;
+					link->data = data;
+
+					if( prev )
+					{
+						link->next = prev->next;
+						prev->next = link;
+					}
+					else
+					{
+						link->next = lp->head;
+						lp->head = link;
+					}
+
+					lp->size++;
+					return true;
+				}
 			}
 		}
+
+
+		if( to > 0 )
+		{
+			// Needs to append if it's at the end
+			link = alloc_mem(sizeof(LLIST_LINK));
+			if( !link )
+				return false;
+
+			if( !lp->head )
+				lp->head = link;
+			else
+				lp->tail->next = link;
+			lp->tail = link;
+			link->data = data;
+			lp->size++;
+		}
+
 	}
 
 	return false;
