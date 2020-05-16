@@ -1768,6 +1768,7 @@ TEDIT(tedit_ed)
 	send_to_char("Syntax:  ed add [keyword]\n\r", ch);
 	send_to_char("         ed edit [keyword]\n\r", ch);
 	send_to_char("         ed delete [keyword]\n\r", ch);
+	send_to_char("         ed show [keyword]\n\r", ch);
 	send_to_char("         ed format [keyword]\n\r", ch);
 	send_to_char("         ed copy existing_keyword new_keyword\n\r", ch);
 	send_to_char("         ed environment [keyword]\n\r", ch);
@@ -1955,7 +1956,7 @@ TEDIT(tedit_ed)
 			return FALSE;
 		}
 
-		for (ed = token_index->extra_descr; ed; ed = ed->next)
+		for (ed = token_index->ed; ed; ed = ed->next)
 		{
 			if (is_name(keyword, ed->keyword))
 				break;
