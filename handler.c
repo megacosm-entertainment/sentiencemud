@@ -8155,7 +8155,7 @@ bool list_appendlist(LLIST *lp, LLIST *src)
 
 bool list_movelink(LLIST *lp, int from, int to)
 {
-	LLIST_LINK *ptr, *old, *link, *prev;
+	LLIST_LINK *old, *link, *prev;
 
 	if( from < 0 ) from = lp->size + from;
 	if( to < 0 ) to = lp->size + to;
@@ -8226,9 +8226,7 @@ bool list_movelink(LLIST *lp, int from, int to)
 
 bool list_insertlink(LLIST *lp, void *data, int to)
 {
-	// First get the FROM link
-	void *data;
-	LLIST_LINK *ptr, *old, *link, *prev;
+	LLIST_LINK *link, *prev;
 
 	if( to < 0 ) to = lp->size + to;
 
