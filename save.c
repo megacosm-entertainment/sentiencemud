@@ -2468,7 +2468,7 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
 		if( ed->description )
 			fprintf(fp, "ExDe %s~ %s~\n", ed->keyword, ed->description);
 		else
-			fprintf(fp, "ExDeEnv %s~\n", ed->keyword, ed->description);
+			fprintf(fp, "ExDeEnv %s~\n", ed->keyword);
     }
 
     if(obj->progs && obj->progs->vars) {
