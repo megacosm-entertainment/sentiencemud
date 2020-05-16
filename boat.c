@@ -4443,7 +4443,7 @@ void do_ship_routes(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		SHIP_ROUTE *route = (WAYPOINT_DATA *)list_nthdata(ship->routes, value);
+		SHIP_ROUTE *route = (SHIP_ROUTE *)list_nthdata(ship->routes, value);
 
 		smash_tilde(argument);
 		free_string(route->name);
