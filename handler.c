@@ -7738,15 +7738,15 @@ ROOM_INDEX_DATA *get_environment(ROOM_INDEX_DATA *room)
 {
 	if(!room) return NULL;
 
-	// static or floating virtual rooms have no environment
-	if(!IS_SET(room->room2_flags,ROOM_VIRTUAL_ROOM)) return NULL;
-
 	SHIP_DATA *ship = get_room_ship(room);
 
 	if( IS_VALID(ship) )
 	{
 		return ship->ship ? obj_room(ship->ship) : NULL;
 	}
+
+	// static or floating virtual rooms have no environment
+	if(!IS_SET(room->room2_flags,ROOM_VIRTUAL_ROOM)) return NULL;
 
 	switch(room->environ_type) {
 	case ENVIRON_ROOM:	return room->environ.room;

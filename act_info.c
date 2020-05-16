@@ -2287,7 +2287,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 							{
 								WILDS_TERRAIN *pTerrain = get_terrain_by_coors(environ->wilds, environ->x, environ->y);
 
-								if (pTerrain != NULL && !pTerrain->nonroom)
+								if (pTerrain != NULL)
 								{
 									int vp_x, vp_y;
 
@@ -2355,7 +2355,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 							{
 								WILDS_TERRAIN *pTerrain = get_terrain_by_coors(environ->wilds, environ->x, environ->y);
 
-								if (pTerrain != NULL && !pTerrain->nonroom)
+								if (pTerrain != NULL)
 								{
 									int vp_x, vp_y;
 
@@ -2455,7 +2455,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 					{
 						WILDS_TERRAIN *pTerrain = get_terrain_by_coors(environ->wilds, environ->x, environ->y);
 
-						if (pTerrain != NULL && !pTerrain->nonroom)
+						if (pTerrain != NULL)
 						{
 							int vp_x, vp_y;
 
@@ -2564,7 +2564,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 			{
 				pTerrain = get_terrain_by_coors(ch->in_room->wilds, to_x, to_y);
 
-				if (pTerrain != NULL && !pTerrain->nonroom)
+				if (pTerrain != NULL)
 				{
 					int vp_x, vp_y;
 
