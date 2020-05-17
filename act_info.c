@@ -2294,7 +2294,8 @@ void do_look(CHAR_DATA * ch, char *argument)
 									vp_x = get_squares_to_show_x(ch->wildview_bonus_x);
 									vp_y = get_squares_to_show_y(ch->wildview_bonus_y);
 
-									show_vroom_header_to_char(pTerrain, environ->wilds, environ->x, environ->y, ch);
+									if( !pTerrain->nonroom )
+										show_vroom_header_to_char(pTerrain, environ->wilds, environ->x, environ->y, ch);
 									show_map_to_char_wyx(environ->wilds, environ->x, environ->y, ch, environ->x, environ->y, vp_x, vp_y, FALSE);
 
 									if (reckoning_timer > 0 && pre_reckoning == 0 && !IS_IMMORTAL(ch))
@@ -2362,7 +2363,8 @@ void do_look(CHAR_DATA * ch, char *argument)
 									vp_x = get_squares_to_show_x(ch->wildview_bonus_x);
 									vp_y = get_squares_to_show_y(ch->wildview_bonus_y);
 
-									show_vroom_header_to_char(pTerrain, environ->wilds, environ->x, environ->y, ch);
+									if( !pTerrain->nonroom )
+										show_vroom_header_to_char(pTerrain, environ->wilds, environ->x, environ->y, ch);
 									show_map_to_char_wyx(environ->wilds, environ->x, environ->y, ch, environ->x, environ->y, vp_x, vp_y, FALSE);
 
 									if (reckoning_timer > 0 && pre_reckoning == 0 && !IS_IMMORTAL(ch))
@@ -2462,7 +2464,8 @@ void do_look(CHAR_DATA * ch, char *argument)
 							vp_x = get_squares_to_show_x(ch->wildview_bonus_x);
 							vp_y = get_squares_to_show_y(ch->wildview_bonus_y);
 
-							show_vroom_header_to_char(pTerrain, environ->wilds, environ->x, environ->y, ch);
+							if( !pTerrain->nonroom )
+								show_vroom_header_to_char(pTerrain, environ->wilds, environ->x, environ->y, ch);
 							show_map_to_char_wyx(environ->wilds, environ->x, environ->y, ch, environ->x, environ->y, vp_x, vp_y, FALSE);
 
 							if (reckoning_timer > 0 && pre_reckoning == 0 && !IS_IMMORTAL(ch))
@@ -2571,7 +2574,8 @@ void do_look(CHAR_DATA * ch, char *argument)
 					vp_x = get_squares_to_show_x(ch->wildview_bonus_x);
 					vp_y = get_squares_to_show_y(ch->wildview_bonus_y);
 
-					show_vroom_header_to_char(pTerrain, ch->in_room->wilds, to_x, to_y, ch);
+					if( !pTerrain->nonroom )
+						show_vroom_header_to_char(pTerrain, ch->in_room->wilds, to_x, to_y, ch);
 					show_map_to_char_wyx(ch->in_room->wilds, to_x, to_y, ch, ch->in_room->x, ch->in_room->y, vp_x, vp_y, FALSE);
 
 					if (reckoning_timer > 0 && pre_reckoning == 0 && !IS_IMMORTAL(ch))
