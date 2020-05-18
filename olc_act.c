@@ -8214,8 +8214,8 @@ MEDIT(medit_show)
 
 	if ( IS_VALID(pMob->pCrew) )
 	{
-		add_buffer(buffer, "{CShip Crew Data:{x\n\r");
-		add_buffer(buffer, "{C================================{x\n\r");
+		add_buf(buffer, "{CShip Crew Data:{x\n\r");
+		add_buf(buffer, "{C================================{x\n\r");
 
 		sprintf(buf, "{CMinimum Rank{c:      {WNYI{x\n\r");
 		add_buf(buffer, buf);
