@@ -3312,7 +3312,7 @@ struct	mob_index_data
     SPEC_FUN *		spec_fun;
     SHOP_DATA *		pShop;
     QUESTOR_DATA *	pQuestor;
-    SHIP_CREW_INDEX *pCrew;
+    SHIP_CREW_INDEX_DATA *pCrew;
     LLIST **        progs;
     QUEST_LIST *	quests;
     bool	persist;
