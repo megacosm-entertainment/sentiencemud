@@ -2390,20 +2390,24 @@ SHIP_CREW_DATA *new_ship_crew( void )
         ship_crew_free      =  ship_crew_free->next;
     }
 
-    crew->vnum = 0;
+    memset(crew, 0, sizeof(*crew));
 
-    top_ship_crew++;
 
+
+	VALIDATE(crew);
     return crew;
 }
 
 
 void free_ship_crew( SHIP_CREW_DATA *crew )
 {
-    crew->next     =  ship_crew_free;
-    ship_crew_free =   crew;
-    top_ship_crew--;
-    return;
+	if(!IS_VALID(crew)) return;
+
+
+	INVALIDATE(crew);
+	crew->next = ship_crew_free;
+	ship_crew_free = crew;
+	return;
 }
 
 
@@ -4235,3 +4239,34 @@ void free_ship_route(SHIP_ROUTE *route)
 	route->next = ship_route_free;
 	ship_route_free = route;
 }
+
+SHIP_CREW_INDEX_DATA *ship_crew_index_free;
+
+SHIP_CREW_INDEX_DATA *new_ship_crew_index()
+{
+	SHIP_CREW_INDEX_DATA *crew;
+
+	if( ship_crew_index_free )
+	{
+		crew = ship_crew_index_free;
+		ship_crew_index_free = ship_crew_index_free->next;
+	}
+	else
+		crew = alloc_mem(sizeof(*crew));
+
+	memset(crew, 0, sizeof(*crew));
+
+	VALIDATE(crew);
+	return crew;
+}
+
+void free_ship_crew_index(SHIP_CREW_INDEX_DATA *crew)
+{
+	if( !IS_VALID(crew) ) return;
+
+	INVALIDATE(crew);
+	crew->next = ship_crew_index_free;
+	ship_crew_index_free = crew;
+
+}
+

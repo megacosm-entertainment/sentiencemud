@@ -2117,6 +2117,21 @@ void copy_shop(SHOP_DATA *to_shop, SHOP_DATA *from_shop)
 		copy_shop_stock(to_shop, from_shop->stock);
 }
 
+SHIP_CREW_DATA *copy_ship_crew(SHIP_CREW_INDEX_DATA *index)
+{
+	SHIP_CREW_DATA *crew = new_ship_crew();
+	if( crew )
+	{
+		crew->scouting = index->scouting;
+		crew->gunning = index->gunning;
+		crew->oarring = index->oarring;
+		crew->mechanics = index->mechanics;
+		crew->navigation = index->navigation;
+		crew->leadership = index->leadership;
+	}
+	return crew;
+}
+
 
 /* Create a mobile from a mob index template.*/
 CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
@@ -2288,6 +2303,11 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 		{
 			mob->shop = new_shop();
 			copy_shop(mob->shop, pMobIndex->pShop);
+		}
+
+		if(pMobIndex->pCrew != NULL)
+		{
+			mob->crew = copy_ship_crew(pMobIndex->pCrew);
 		}
 
 
@@ -5771,6 +5791,18 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
 	fprintf(fp, "#-OBJECT\n\n");
 }
 
+void save_ship_crew(FILE *fp, SHIP_CREW_DATA *crew)
+{
+	fprintf(fp, "#CREW\n");
+	fprintf(fp, "Scouting %d\n", crew->scouting);
+	fprintf(fp, "Gunning %d\n", crew->gunning);
+	fprintf(fp, "Oarring %d\n", crew->oarring);
+	fprintf(fp, "Mechanics %d\n", crew->mechanics);
+	fprintf(fp, "Navigation %d\n", crew->navigation);
+	fprintf(fp, "Leadership %d\n", crew->leadership);
+	fprintf(fp, "#-CREW\n");
+}
+
 void persist_save_mobile(FILE *fp, CHAR_DATA *ch)
 {
 	AFFECT_DATA *paf;
@@ -6861,6 +6893,48 @@ OBJ_DATA *persist_load_object(FILE *fp)
 	return obj;
 }
 
+SHIP_CREW_DATA *read_ship_crew(FILE *fp)
+{
+	SHIP_CREW_DATA *crew = new_ship_crew();
+	char *word;
+	bool fMatch;
+
+	while (str_cmp((word = fread_word(fp)), "#-CREW"))
+	{
+		fMatch = FALSE;
+		switch (word[0]) {
+		case 'G':
+			KEY("Gunning", crew->gunning, fread_number(fp));
+			break;
+
+		case 'L':
+			KEY("Leadership", crew->leadership, fread_number(fp));
+			break;
+
+		case 'M':
+			KEY("Mechanics", crew->mechanics, fread_number(fp));
+			break;
+
+		case 'N':
+			KEY("Navigation", crew->navigation, fread_number(fp));
+			break;
+
+		case 'O':
+			KEY("Oarring", crew->oarring, fread_number(fp));
+			break;
+
+		case 'S':
+			KEY("Scouting", crew->scouting, fread_number(fp));
+			break;
+		}
+
+		if (!fMatch)
+			fread_to_eol(fp);
+	}
+
+	return crew;
+}
+
 CHAR_DATA *persist_load_mobile(FILE *fp)
 {
 	char buf[MSL];
@@ -6937,6 +7011,17 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 					fMatch = TRUE;
 					if( shop )
 						ch->shop = shop;
+					else
+						good = FALSE;
+
+					break;
+				}
+				if (!str_cmp(word,"#CREW")) {
+					SHIP_CREW_DATA *crew = read_ship_crew(fp);
+
+					fMatch = TRUE;
+					if( crew )
+						ch->crew = crew;
 					else
 						good = FALSE;
 

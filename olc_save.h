@@ -21,6 +21,7 @@ void save_object_new( FILE *fp, OBJ_INDEX_DATA *obj );
 void save_questor_new( FILE *fp, QUESTOR_DATA *questor );
 void save_scripts_new( FILE *fp, AREA_DATA *area );
 void save_shop_new( FILE *fp, SHOP_DATA *shop );
+void save_ship_crew_index_new( FILE *fp, SHIP_CREW_INDEX_DATA *crew );
 void save_spell(FILE *fp, SPELL_DATA *spell);
 void save_tokens(FILE *fp, AREA_DATA *area);
 void save_token(FILE *fp, TOKEN_INDEX_DATA *token);
@@ -38,6 +39,7 @@ RESET_DATA *read_reset_new( FILE *fp );
 AFFECT_DATA *read_obj_affect_new (FILE *fp);
 AFFECT_DATA *read_obj_catalyst_new (FILE *fp);
 SHOP_DATA *read_shop_new( FILE *fp);
+SHIP_CREW_INDEX_DATA *read_ship_crew_index_new( FILE *fp );
 QUESTOR_DATA *read_questor_new( FILE *fp);
 TOKEN_INDEX_DATA *read_token( FILE *fp);
 

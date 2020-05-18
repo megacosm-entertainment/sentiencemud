@@ -382,6 +382,7 @@ DECLARE_OLC_FUN( medit_zombievnum	);
 DECLARE_OLC_FUN( medit_persist  );
 DECLARE_OLC_FUN( medit_questor  );
 DECLARE_OLC_FUN( medit_boss		);
+DECLARE_OLC_FUN( medit_crew		);
 
 /* Any script editor */
 DECLARE_OLC_FUN( scriptedit_show	);

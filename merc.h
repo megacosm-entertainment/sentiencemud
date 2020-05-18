@@ -3312,6 +3312,7 @@ struct	mob_index_data
     SPEC_FUN *		spec_fun;
     SHOP_DATA *		pShop;
     QUESTOR_DATA *	pQuestor;
+    SHIP_CREW_INDEX *pCrew;
     LLIST **        progs;
     QUEST_LIST *	quests;
     bool	persist;
@@ -3751,6 +3752,7 @@ struct	char_data
     WILDS_DATA *was_in_wilds;
 	ROOM_INDEX_DATA *	checkpoint;
 	SHOP_DATA		* shop;
+	SHIP_CREW_DATA  * crew;
 
     /* VIZZWILDS */
     CHAR_DATA *        prev_in_wilds;
@@ -4823,6 +4825,7 @@ struct rep_type
 //#define SHIP_WAR_GALLEON_SHIP		5
 #define SHIP_AIR_SHIP				1
 
+
 #define NPC_SHIP_RATING_UNKNOWN        0
 #define NPC_SHIP_RATING_RECOGNIZED     1
 #define NPC_SHIP_RATING_WELLKNOWN      2
@@ -4896,15 +4899,48 @@ struct ship_route_data
 	LLIST *waypoints;
 };
 
+struct ship_crew_index_data
+{
+	SHIP_CREW_INDEX_DATA *next;
+	bool valid;
+
+	int min_rank;			// Minimum rank required to purchase this crew member
+
+	// Initial Skill Values
+	sh_int scouting;		// Needed to function as a Scout properly
+							//  - Higher ratings mean better chance at spotting things.
+
+	sh_int gunning;			// Needed to operate the ship weaponery
+							//  - Higher ratings mean faster operational speeds (thus able to attack faster)
+
+	sh_int oarring;			// Needed to operate the sailboat's oars.
+							//  - Higher ratings allow for greater stamina and ability to last at higher speeds.
+
+	sh_int mechanics;		// Needed to function as a Mechanic properly
+							//  - Higher ratings means faster repair times
+
+	sh_int navigation;		// Needed to function as a Navigator properly
+							//  - Higher ratings means more accurate navigation
+
+	sh_int leadership;		// Needed to function as a First Mate properly
+							//  - Higher ratings means quicker response times between issuing a command and its execution.
+							//  - Is also needed when having a ship manned by an NPC captain owned that is part of a player's armada
+
+};
+
 struct ship_crew_data
 {
     SHIP_CREW_DATA *next;
-    long vnum;
+	bool valid;
+
+	sh_int scouting;
+	sh_int gunning;
+	sh_int oarring;
+	sh_int mechanics;
+	sh_int navigation;
+	sh_int leadership;
 };
 
-struct ship_crew_index_data
-{
-};
 
 struct npc_ship_hotspot_type
 {

@@ -833,6 +833,18 @@ void save_mobile_new(FILE *fp, MOB_INDEX_DATA *mob)
     if (mob->pShop != NULL)
 		save_shop_new(fp, mob->pShop);
 
+	if (IS_VALID(mob->pCrew))
+	{
+		fprintf(fp, "Crew %d %d %d %d %d %d %d\n",
+			mob->pCrew->min_rank,
+			mob->pCrew->scouting,
+			mob->pCrew->gunning,
+			mob->pCrew->oarring,
+			mob->pCrew->mechanics,
+			mob->pCrew->navigation,
+			mob->pCrew->leadership);
+	}
+
     if(mob->progs) {
 		for(i = 0; i < TRIGSLOT_MAX; i++) if(list_size(mob->progs[i]) > 0) {
 			iterator_start(&it, mob->progs[i]);
@@ -1273,6 +1285,18 @@ void save_shop_new(FILE *fp, SHOP_DATA *shop)
     fprintf(fp, "#-SHOP\n");
 }
 
+void save_ship_crew_index_new(FILE *fp, SHIP_CREW_INDEX_DATA *crew)
+{
+	fprintf(fp, "#CREW\n");
+	fprintf(fp, "MinRank %d\n", crew->min_rank);
+	fprintf(fp, "Scouting %d\n", crew->scouting);
+	fprintf(fp, "Gunning %d\n", crew->gunning);
+	fprintf(fp, "Oarring %d\n", crew->oarring);
+	fprintf(fp, "Mechanics %d\n", crew->mechanics);
+	fprintf(fp, "Navigation %d\n", crew->navigation);
+	fprintf(fp, "Leadership %d\n", crew->leadership);
+	fprintf(fp, "#-CREW\n");
+}
 
 AREA_DATA *read_area_new(FILE *fp)
 {
@@ -2374,6 +2398,16 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 
 	switch(word[0]) {
 	    case '#':
+	        if( !str_cmp(word, "#CREW") )
+	        {
+				if( mob->pCrew )
+					free_ship_crew_index(mob->pCrew);
+
+				mob->pCrew = read_ship_crew_index_new(fp);
+				fMatch = TRUE;
+				break;
+			}
+
 	        if (!str_cmp(word, "#SHOP")) {
 			    fMatch = TRUE;
 			    shop = read_shop_new(fp);
@@ -3620,6 +3654,51 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)
 	stock->discount = URANGE(0, stock->discount, 100);
 
 	return stock;
+}
+
+SHIP_CREW_INDEX_DATA *read_ship_crew_index_new(FILE *fp)
+{
+	SHIP_CREW_INDEX_DATA *crew;
+	char *word;
+
+	crew = new_ship_crew_index();
+    while (str_cmp((word = fread_word(fp)), "#-CREW"))
+    {
+		fMatch = FALSE;
+		switch (word[0]) {
+		case 'G':
+			KEY("Gunning", crew->gunning, fread_number(fp));
+			break;
+
+		case 'L':
+			KEY("Leadership", crew->leadership, fread_number(fp));
+			break;
+
+		case 'M':
+			KEY("Mechanics", crew->mechanics, fread_number(fp));
+			KEY("MinRank", crew->min_rank, fread_number(fp));
+			break;
+
+		case 'N':
+			KEY("Navigation", crew->navigation, fread_number(fp));
+			break;
+
+		case 'O':
+			KEY("Oarring", crew->oarring, fread_number(fp));
+			break;
+
+		case 'S':
+			KEY("Scouting", crew->scouting, fread_number(fp));
+			break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "read_ship_crew_index_new: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return crew;
 }
 
 SHOP_DATA *read_shop_new(FILE *fp)

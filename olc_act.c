@@ -8210,7 +8210,35 @@ MEDIT(medit_show)
 				}
 			}
 		}
+	}
 
+	if ( IS_VALID(pMob->pCrew) )
+	{
+		add_buffer(buffer, "{CShip Crew Data:{x\n\r");
+		add_buffer(buffer, "{C================================{x\n\r");
+
+		sprintf(buf, "{CMinimum Rank{c:      {WNYI{x\n\r");
+		add_buf(buffer, buf);
+
+		sprintf(buf, "{CScouting Rating{c:   {C[{x%d%%{C]{x\n\r", pMob->pCrew->scouting);
+		add_buf(buffer, buf);
+
+		sprintf(buf, "{CGunning Rating{c:    {C[{x%d%%{C]{x\n\r", pMob->pCrew->gunning);
+		add_buf(buffer, buf);
+
+		sprintf(buf, "{COarring Rating{c:    {C[{x%d%%{C]{x\n\r", pMob->pCrew->oarring);
+		add_buf(buffer, buf);
+
+		sprintf(buf, "{CMechanics Rating{c:  {C[{x%d%%{C]{x\n\r", pMob->pCrew->mechanics);
+		add_buf(buffer, buf);
+
+		sprintf(buf, "{CNavigation Rating{c: {C[{x%d%%{C]{x\n\r", pMob->pCrew->navigation);
+		add_buf(buffer, buf);
+
+		sprintf(buf, "{CLeadership Rating{c: {C[{x%d%%{C]{x\n\r", pMob->pCrew->leadership);
+		add_buf(buffer, buf);
+
+		add_buf(buffer, "\n\r");
 	}
 
 	if (pMob->pQuestor)
@@ -12328,3 +12356,219 @@ MEDIT(medit_questor)
 
 }
 
+MEDIT( medit_crew )
+{
+	MOB_INDEX_DATA *pMob;
+	char arg[MIL];
+
+	EDIT_MOB(ch, pMob);
+
+	if(IS_NULLSTR(argument))
+	{
+		send_to_char("Syntax:  crew assign\n\r", ch);
+		send_to_char("         crew remove\n\r", ch);
+		send_to_char("         crew minrank <rank>\n\r", ch);
+		send_to_char("         crew scouting <rating>\n\r", ch);
+		send_to_char("         crew gunning <rating>\n\r", ch);
+		send_to_char("         crew oarring <rating>\n\r", ch);
+		send_to_char("         crew mechanics <rating>\n\r", ch);
+		send_to_char("         crew navigation <rating>\n\r", ch);
+		send_to_char("         crew leadership <rating>\n\r", ch);
+		return FALSE;
+	}
+
+	argument = one_argument(argument, arg);
+
+	if( !str_prefix(arg, "assign") )
+	{
+		if( IS_VALID(pMob->pCrew) )
+		{
+			send_to_char("Mobile already has ship crew data.\n\r", ch);
+			return FALSE;
+		}
+
+		pMob->pCrew = new_ship_crew_index();
+		send_to_char("Ship Crew assigned.\n\r", ch);
+		return TRUE;
+	}
+
+	if( !str_prefix(arg, "remove") )
+	{
+		if( !IS_VALID(pMob->pCrew) )
+		{
+			send_to_char("Mobile has no ship crew data.\n\r", ch);
+			return FALSE;
+		}
+
+		free_ship_crew_index(pMob->pCrew);
+		pMob->pCrew = NULL;
+		send_to_char("Ship Crew removed.\n\r", ch);
+		return TRUE;
+	}
+
+	if( !str_prefix(arg, "minrank") )
+	{
+		send_to_char("Not implemented yet.\n\r", ch);
+		return FALSE;
+	}
+
+	if( !str_prefix(arg, "scouting") )
+	{
+		if( !IS_VALID(pMob->pCrew) )
+		{
+			send_to_char("Mobile is not assigned as a ship crew.\n\r", ch);
+			return FALSE;
+		}
+
+		if( !is_number(argument) )
+		{
+			send_to_char("That is not a number.\n\r", ch);
+			return FALSE;
+		}
+
+		int value = atoi(argument);
+		if( value < 0 || value > 100 )
+		{
+			send_to_char("Rating out of range.  Please specify a value from 0 to 100.\n\r", ch);
+			return FALSE;
+		}
+
+		pMob->pCrew->scouting = value;
+		send_to_char("Scouting Rating changed.\n\r", ch);
+		return FALSE;
+	}
+
+	if( !str_prefix(arg, "gunning") )
+	{
+		if( !IS_VALID(pMob->pCrew) )
+		{
+			send_to_char("Mobile is not assigned as a ship crew.\n\r", ch);
+			return FALSE;
+		}
+
+		if( !is_number(argument) )
+		{
+			send_to_char("That is not a number.\n\r", ch);
+			return FALSE;
+		}
+
+		int value = atoi(argument);
+		if( value < 0 || value > 100 )
+		{
+			send_to_char("Rating out of range.  Please specify a value from 0 to 100.\n\r", ch);
+			return FALSE;
+		}
+
+		pMob->pCrew->gunning = value;
+		send_to_char("Gunning Rating changed.\n\r", ch);
+		return FALSE;
+	}
+
+	if( !str_prefix(arg, "oarring") )
+	{
+		if( !IS_VALID(pMob->pCrew) )
+		{
+			send_to_char("Mobile is not assigned as a ship crew.\n\r", ch);
+			return FALSE;
+		}
+
+		if( !is_number(argument) )
+		{
+			send_to_char("That is not a number.\n\r", ch);
+			return FALSE;
+		}
+
+		int value = atoi(argument);
+		if( value < 0 || value > 100 )
+		{
+			send_to_char("Rating out of range.  Please specify a value from 0 to 100.\n\r", ch);
+			return FALSE;
+		}
+
+		pMob->pCrew->oarring = value;
+		send_to_char("Oarring Rating changed.\n\r", ch);
+		return FALSE;
+	}
+
+	if( !str_prefix(arg, "mechanics") )
+	{
+		if( !IS_VALID(pMob->pCrew) )
+		{
+			send_to_char("Mobile is not assigned as a ship crew.\n\r", ch);
+			return FALSE;
+		}
+
+		if( !is_number(argument) )
+		{
+			send_to_char("That is not a number.\n\r", ch);
+			return FALSE;
+		}
+
+		int value = atoi(argument);
+		if( value < 0 || value > 100 )
+		{
+			send_to_char("Rating out of range.  Please specify a value from 0 to 100.\n\r", ch);
+			return FALSE;
+		}
+
+		pMob->pCrew->mechanics = value;
+		send_to_char("Mechanics Rating changed.\n\r", ch);
+		return FALSE;
+	}
+
+	if( !str_prefix(arg, "navigation") )
+	{
+		if( !IS_VALID(pMob->pCrew) )
+		{
+			send_to_char("Mobile is not assigned as a ship crew.\n\r", ch);
+			return FALSE;
+		}
+
+		if( !is_number(argument) )
+		{
+			send_to_char("That is not a number.\n\r", ch);
+			return FALSE;
+		}
+
+		int value = atoi(argument);
+		if( value < 0 || value > 100 )
+		{
+			send_to_char("Rating out of range.  Please specify a value from 0 to 100.\n\r", ch);
+			return FALSE;
+		}
+
+		pMob->pCrew->navigation = value;
+		send_to_char("Navigation Rating changed.\n\r", ch);
+		return FALSE;
+	}
+
+	if( !str_prefix(arg, "leadership") )
+	{
+		if( !IS_VALID(pMob->pCrew) )
+		{
+			send_to_char("Mobile is not assigned as a ship crew.\n\r", ch);
+			return FALSE;
+		}
+
+		if( !is_number(argument) )
+		{
+			send_to_char("That is not a number.\n\r", ch);
+			return FALSE;
+		}
+
+		int value = atoi(argument);
+		if( value < 0 || value > 100 )
+		{
+			send_to_char("Rating out of range.  Please specify a value from 0 to 100.\n\r", ch);
+			return FALSE;
+		}
+
+		pMob->pCrew->leadership = value;
+		send_to_char("Leadership Rating changed.\n\r", ch);
+		return FALSE;
+	}
+
+
+	medit_crew(ch, "");
+	return FALSE;
+}

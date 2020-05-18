@@ -1875,309 +1875,315 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 
 void do_mstat(CHAR_DATA *ch, char *argument)
 {
-    char buf[MAX_STRING_LENGTH];
-    char arg[MAX_INPUT_LENGTH];
-    AFFECT_DATA *paf;
-    CHAR_DATA *victim;
-    EVENT_DATA *ev;
+	char buf[MAX_STRING_LENGTH];
+	char arg[MAX_INPUT_LENGTH];
+	AFFECT_DATA *paf;
+	CHAR_DATA *victim;
+	EVENT_DATA *ev;
 
-    one_argument(argument, arg);
+	one_argument(argument, arg);
 
-    if (arg[0] == '\0')
-    {
-	send_to_char("Stat whom?\n\r", ch);
-	return;
-    }
+	if (arg[0] == '\0')
+	{
+		send_to_char("Stat whom?\n\r", ch);
+		return;
+	}
 
-    if ((victim = get_char_world(ch, argument)) == NULL)
-    {
-	send_to_char("They aren't here.\n\r", ch);
-	return;
-    }
+	if ((victim = get_char_world(ch, argument)) == NULL)
+	{
+		send_to_char("They aren't here.\n\r", ch);
+		return;
+	}
 
-    sprintf(buf, "{BName:{x %s\n\r", HANDLE(victim));
-    send_to_char(buf, ch);
-
-    if (victim->in_wilds == NULL)
-    {
-        sprintf(buf, "Area uid:{x %ld '%s'\n\r"
-                     "{YIn_room:{x %ld '%s'\n\r",
-                victim->in_room->area->uid,
-                victim->in_room->area->name,
-                victim->in_room->vnum,
-                victim->in_room->name);
-    }
-    else
-    {
-        sprintf(buf, "{YArea uid:{x %ld '%s'\n\r"
-                     "{YIn_wilds:{x %ld '%s', {Yat{x (%d, %d)\n\r",
-	       	victim->in_room->area->uid,
-                victim->in_room->area->name,
-                victim->in_wilds->uid,
-                victim->in_wilds->name,
-		victim->at_wilds_x,
-		victim->at_wilds_y);
-    }
-
-    sprintf(buf,
-	"{BVnum:{x %ld  {BRace:{x %s  {BSex:{x %s  {BRoom:{x %ld\n\r",
-	VNUM(victim),
-	race_table[victim->race].name,
-	sex_table[victim->sex].name,
-	victim->in_room == NULL ? 0 : victim->in_room->vnum);
-    send_to_char(buf, ch);
-
-    sprintf(buf,
-   	"{BStr:{x %d{W({x%d{W){x  {BInt:{x %d{W({x%d{W){x  {BWis:{x %d{W({x%d{W){x  {BDex:{x %d{W({x%d{W){x  {BCon:{x %d{W({x%d{W){x\n\r",
-	victim->perm_stat[STAT_STR],
-	get_curr_stat(victim,STAT_STR),
-	victim->perm_stat[STAT_INT],
-	get_curr_stat(victim,STAT_INT),
-	victim->perm_stat[STAT_WIS],
-	get_curr_stat(victim,STAT_WIS),
-	victim->perm_stat[STAT_DEX],
-	get_curr_stat(victim,STAT_DEX),
-	victim->perm_stat[STAT_CON],
-	get_curr_stat(victim,STAT_CON));
-    send_to_char(buf, ch);
-
-    sprintf(buf, "{BHp: {x%ld/%ld  {BMana: {x%ld/%ld  {BMove:{x %ld/%ld  {BPractices:{x %d {BTrains:{x %d\n\r",
-	victim->hit,         victim->max_hit,
-	victim->mana,        victim->max_mana,
-	victim->move,        victim->max_move,
-	IS_NPC(victim) ? 0 : victim->practice,
-	IS_NPC(victim) ? 0 : victim->train);
-    send_to_char(buf, ch);
-
-    sprintf(buf,
-	"{BLv:{x %d  {BAlign:{x %d  {BGold:{x %ld  {BSilver:{x %ld  {BExp:{x %ld\n\r",
-	victim->tot_level,
-	victim->alignment,
-	victim->gold, victim->silver, victim->exp);
-    send_to_char(buf, ch);
-
-    if (!IS_NPC(ch)) {
-	sprintf(buf, "{BKarma:{x %ld  {BPneuma:{x %ld  {BQuestPoints:{x %d{x\n\r",
-	    victim->deitypoints, victim->pneuma, victim->questpoints);
+	sprintf(buf, "{BName:{x %s\n\r", HANDLE(victim));
 	send_to_char(buf, ch);
-    }
 
-    sprintf(buf,"{BArmour:{x pierce: %d  bash: %d  slash: %d  magic: %d\n\r",
-	    GET_AC(victim,AC_PIERCE), GET_AC(victim,AC_BASH),
-	    GET_AC(victim,AC_SLASH),  GET_AC(victim,AC_EXOTIC));
-    send_to_char(buf,ch);
+	if (victim->in_wilds == NULL)
+	{
+		sprintf(buf, "Area uid:{x %ld '%s'\n\r"
+					 "{YIn_room:{x %ld '%s'\n\r",
+					 victim->in_room->area->uid,
+					 victim->in_room->area->name,
+					 victim->in_room->vnum,
+					 victim->in_room->name);
+	}
+	else
+	{
+		sprintf(buf, "{YArea uid:{x %ld '%s'\n\r"
+					 "{YIn_wilds:{x %ld '%s', {Yat{x (%d, %d)\n\r",
+					 victim->in_room->area->uid,
+					 victim->in_room->area->name,
+					 victim->in_wilds->uid,
+					 victim->in_wilds->name,
+					 victim->at_wilds_x,
+					 victim->at_wilds_y);
+	}
 
-    sprintf(buf,
-	"{BHitroll:{x %d  {BDamroll:{x %f {W[{x%d{W]{x {BSize:{x %s {BPosition:{x %s {BWimpy:{x %d\n\r",
-	GET_HITROLL(victim), 40*log(GET_DAMROLL(victim)), GET_DAMROLL(victim),
-	size_table[victim->size].name, position_table[victim->position].name,
-	victim->wimpy);
-    send_to_char(buf, ch);
+	sprintf(buf, "{BVnum:{x %ld  {BRace:{x %s  {BSex:{x %s  {BRoom:{x %ld\n\r",
+				 VNUM(victim),
+				 race_table[victim->race].name,
+				 sex_table[victim->sex].name,
+				 victim->in_room == NULL ? 0 : victim->in_room->vnum);
+	send_to_char(buf, ch);
 
-    sprintf(buf, "{BIdle:{x %d minutes ", victim->timer);
-    send_to_char(buf, ch);
+	sprintf(buf, "{BStr:{x %d{W({x%d{W){x  {BInt:{x %d{W({x%d{W){x  {BWis:{x %d{W({x%d{W){x  {BDex:{x %d{W({x%d{W){x  {BCon:{x %d{W({x%d{W){x\n\r",
+				 victim->perm_stat[STAT_STR],
+				 get_curr_stat(victim,STAT_STR),
+				 victim->perm_stat[STAT_INT],
+				 get_curr_stat(victim,STAT_INT),
+				 victim->perm_stat[STAT_WIS],
+				 get_curr_stat(victim,STAT_WIS),
+				 victim->perm_stat[STAT_DEX],
+				 get_curr_stat(victim,STAT_DEX),
+				 victim->perm_stat[STAT_CON],
+				 get_curr_stat(victim,STAT_CON));
+	send_to_char(buf, ch);
 
-    if (IS_NPC(victim))
-    {
+	sprintf(buf, "{BHp: {x%ld/%ld  {BMana: {x%ld/%ld  {BMove:{x %ld/%ld  {BPractices:{x %d {BTrains:{x %d\n\r",
+				 victim->hit, victim->max_hit,
+				 victim->mana, victim->max_mana,
+				 victim->move, victim->max_move,
+				 IS_NPC(victim) ? 0 : victim->practice,
+				 IS_NPC(victim) ? 0 : victim->train);
+	send_to_char(buf, ch);
+
+	sprintf(buf, "{BLv:{x %d  {BAlign:{x %d  {BGold:{x %ld  {BSilver:{x %ld  {BExp:{x %ld\n\r",
+				 victim->tot_level,
+				 victim->alignment,
+				 victim->gold, victim->silver, victim->exp);
+	send_to_char(buf, ch);
+
+	if (!IS_NPC(ch))
+	{
+		sprintf(buf, "{BKarma:{x %ld  {BPneuma:{x %ld  {BQuestPoints:{x %d{x\n\r",
+					 victim->deitypoints, victim->pneuma, victim->questpoints);
+		send_to_char(buf, ch);
+	}
+
+	sprintf(buf,"{BArmour:{x pierce: %d  bash: %d  slash: %d  magic: %d\n\r",
+				GET_AC(victim,AC_PIERCE), GET_AC(victim,AC_BASH),
+				GET_AC(victim,AC_SLASH),  GET_AC(victim,AC_EXOTIC));
+	send_to_char(buf,ch);
+
+	sprintf(buf,"{BHitroll:{x %d  {BDamroll:{x %f {W[{x%d{W]{x {BSize:{x %s {BPosition:{x %s {BWimpy:{x %d\n\r",
+				GET_HITROLL(victim),
+				40*log(GET_DAMROLL(victim)),
+				GET_DAMROLL(victim),
+				size_table[victim->size].name, position_table[victim->position].name,
+				victim->wimpy);
+	send_to_char(buf, ch);
+
+	sprintf(buf, "{BIdle:{x %d minutes ", victim->timer);
+	send_to_char(buf, ch);
+
+	if (IS_NPC(victim))
+	{
 		if( victim->damage.bonus > 0 )
 			sprintf(buf, "{BDamage:{x %dd%d+%d  {BMessage:{x  %s\n\r",
-			    victim->damage.number,victim->damage.size,victim->damage.bonus,
-			    attack_table[victim->dam_type].noun);
+						 victim->damage.number,victim->damage.size,victim->damage.bonus,
+						 attack_table[victim->dam_type].noun);
 		else
 			sprintf(buf, "{BDamage:{x %dd%d  {BMessage:{x  %s\n\r",
-			    victim->damage.number,victim->damage.size,
-			    attack_table[victim->dam_type].noun);
-	send_to_char(buf,ch);
-    }
+						 victim->damage.number,victim->damage.size,
+						 attack_table[victim->dam_type].noun);
+		send_to_char(buf,ch);
+	}
 
-    if (IS_NPC(victim) && victim->hunting != NULL)
-    {
-        sprintf(buf, "Hunting victim: %s (%s)\n\r",
-                IS_NPC(victim->hunting) ? victim->hunting->short_descr
-                                        : victim->hunting->name,
-                IS_NPC(victim->hunting) ? "MOB" : "PLAYER");
-	send_to_char(buf, ch);
-    }
-
-    sprintf(buf, "{BFighting:{x %s\n\r",
-	victim->fighting ? victim->fighting->name : "(none)");
-    send_to_char(buf, ch);
-
-    if (!IS_NPC(victim))
-    {
-	sprintf(buf,
-	    "{BThirst:{x %d  {BHunger:{x %d  {BFull:{x %d  {BDrunk:{x %d\n\r",
-	    victim->pcdata->condition[COND_THIRST],
-	    victim->pcdata->condition[COND_HUNGER],
-	    victim->pcdata->condition[COND_FULL],
-	    victim->pcdata->condition[COND_DRUNK]);
-	send_to_char(buf, ch);
-    }
-
-    sprintf(buf, "{BCarry number:{x %d  {BCarry weight:{x %ld\n\r",
-	victim->carry_number, get_carry_weight(victim) / 10);
-    send_to_char(buf, ch);
-
-    if (!IS_NPC(victim))
-    {
-    	sprintf(buf,
-	    "{BAge:{x %d  {BPlayed:{x %d  {BTimer:{x %d  {BCreated:{B %s{x",
-	    get_age(victim),
-	    (int) (victim->played + current_time - victim->logon) / 3600,
-	    victim->timer,
-	    ((char *) ctime((time_t *)&victim->pcdata->creation_date)));	/* @@@NIB : 20070123 : Moved the pc id to the creation date*/
-    	send_to_char(buf, ch);
-    }
-
-    sprintf(buf, "{BAct :{x %s\n\r",act_bit_name((IS_NPC(victim) ? 1 : 3), victim->act));
-    send_to_char(buf,ch);
-    sprintf(buf, "{BAct2:{x %s\n\r",act_bit_name((IS_NPC(victim) ? 2 : 4), victim->act2));
-    send_to_char(buf,ch);
-
-    if (victim->comm)
-    {
-    	sprintf(buf,"{BComm:{x %s\n\r",comm_bit_name(victim->comm));
-    	send_to_char(buf,ch);
-    }
-
-    if (IS_NPC(victim) && victim->off_flags)
-    {
-    	sprintf(buf, "{BOffense:{x %s\n\r",off_bit_name(victim->off_flags));
-	send_to_char(buf,ch);
-    }
-
-    if (victim->imm_flags)
-    {
-	sprintf(buf, "{BImmune:{x %s\n\r",imm_bit_name(victim->imm_flags));
-	send_to_char(buf,ch);
-    }
-
-    if (victim->res_flags)
-    {
-	sprintf(buf, "{BResist:{x %s\n\r", imm_bit_name(victim->res_flags));
-	send_to_char(buf,ch);
-    }
-
-    if (victim->vuln_flags)
-    {
-	sprintf(buf, "{BVulnerable:{x %s\n\r", imm_bit_name(victim->vuln_flags));
-	send_to_char(buf,ch);
-    }
-
-    if (victim->affected_by)
-    {
-	sprintf(buf, "{BAffected by{x %s\n\r",
-	    affect_bit_name(victim->affected_by));
-	send_to_char(buf,ch);
-    }
-
-    if (victim->affected_by2)
-    {
-	sprintf(buf, "{BAffected2 by{x %s\n\r",
-	    affect2_bit_name(victim->affected_by2));
-	send_to_char(buf,ch);
-    }
-
-    sprintf(buf, "{BMaster:{x %s  {BLeader:{x %s  {BPet:{x %s  {B%s:{x %s  {BCart:{x %s\n\r",
-	victim->master      ? victim->master->name   : "(none)",
-	victim->leader      ? victim->leader->name   : "(none)",
-	victim->pet 	    ? victim->pet->name	     : "(none)",
-	(victim->rider?"Rider":"Mount"),
-	(victim->rider?victim->rider->name:(victim->mount?victim->mount->name : "(none)")),
-	victim->pulled_cart ? victim->pulled_cart->short_descr : "(none)");
-
-    send_to_char(buf, ch);
-
-    if (!IS_NPC(victim))
-    {
-	sprintf(buf, "{BSecurity:{x %d.\n\r", victim->pcdata->security);
-	send_to_char(buf, ch);
-    }
-
-    if (IS_NPC(victim)) {
-	sprintf(buf, "{BShort description:{x %s\n\r{BLong description:{x %s",
-		victim->short_descr,
-		victim->long_descr[0] != '\0' ? victim->long_descr : "(none)\n\r");
-	send_to_char(buf, ch);
-    }
-
-    if (!IS_NPC(victim))
-    {
-	sprintf(buf, "{BSubclasses: Mage:{x %s {BCleric:{x %s {BThief:{x %s {BWarrior:{x %s\n\r",
-	    victim->pcdata->sub_class_mage < 0 ? "none" :
-	        sub_class_table[victim->pcdata->sub_class_mage].name[victim->sex],
-	    victim->pcdata->sub_class_cleric < 0 ? "none" :
-	        sub_class_table[victim->pcdata->sub_class_cleric].name[victim->sex],
-	    victim->pcdata->sub_class_thief < 0 ? "none" :
-	        sub_class_table[victim->pcdata->sub_class_thief].name[victim->sex],
-	    victim->pcdata->sub_class_warrior < 0 ? "none" :
-	        sub_class_table[victim->pcdata->sub_class_warrior].name[victim->sex]);
-	send_to_char(buf, ch);
-	if (IS_REMORT(victim))
+	if (IS_NPC(victim) && victim->hunting != NULL)
 	{
-	    sprintf(buf, "{BRemort Subclasses: Mage:{x %s {BCleric:{x %s {BThief:{x %s {BWarrior:{x %s\n\r",
-		    victim->pcdata->second_sub_class_mage < 0 ? "none" :
-		    sub_class_table[victim->pcdata->second_sub_class_mage].name[victim->sex],
-		    victim->pcdata->second_sub_class_cleric < 0 ? "none" :
-		    sub_class_table[victim->pcdata->second_sub_class_cleric].name[victim->sex],
-		    victim->pcdata->second_sub_class_thief < 0 ? "none" :
-		    sub_class_table[victim->pcdata->second_sub_class_thief].name[victim->sex],
-		    victim->pcdata->second_sub_class_warrior < 0 ? "none" :
-		    sub_class_table[victim->pcdata->second_sub_class_warrior].name[victim->sex]);
-	    send_to_char(buf, ch);
-	}
-    }
-
-    for (paf = victim->affected; paf != NULL; paf = paf->next) if(!paf->custom_name)
-    {
-	sprintf(buf,
-	    "{C* {BLevel {W%3d {Baffect {x%-20.20s{B modifies {x%-12s{B by {x%2d{B for {x%2d{B hours with bits {x%s{B on slot {x%s\n\r",
-	    paf->level,
-	    skill_table[(int) paf->type].name,
-	    affect_loc_name(paf->location),
-	    paf->modifier,
-	    paf->duration,
-	    affects_bit_name(paf->bitvector, paf->bitvector2),
-	    flag_string(wear_loc_names, paf->slot));
-	send_to_char(buf, ch);
-    }
-
-    for (paf = victim->affected; paf != NULL; paf = paf->next) if(paf->custom_name)
-    {
-	sprintf(buf,
-	    "{C* {BLevel {W%3d {Baffect {x%-20.20s{B modifies {x%-12s{B by {x%2d{B for {x%2d{B hours with bits {x%s{B on slot {x%s\n\r",
-	    paf->level,
-	    paf->custom_name,
-	    affect_loc_name(paf->location),
-	    paf->modifier,
-	    paf->duration,
-	    affects_bit_name(paf->bitvector, paf->bitvector2),
-	    flag_string(wear_loc_names, paf->slot));
-	send_to_char(buf, ch);
-    }
-
-    if (!IS_NPC(victim) && victim->pcdata->commands != NULL) {
-	COMMAND_DATA *cmd;
-	int i;
-
-	send_to_char("{BGranted commands:{x\n\r", ch);
-
-	i = 0;
-	for (cmd = victim->pcdata->commands; cmd != NULL; cmd = cmd->next) {
-	    i++;
-	    sprintf(buf, "%-15s", cmd->name);
-	    if (i % 4 == 0)
-		strcat(buf, "\n\r");
-
-	    send_to_char(buf, ch);
+		sprintf(buf, "Hunting victim: %s (%s)\n\r",
+					 IS_NPC(victim->hunting) ? victim->hunting->short_descr	: victim->hunting->name,
+					 IS_NPC(victim->hunting) ? "MOB" : "PLAYER");
+		send_to_char(buf, ch);
 	}
 
-    }
-
-    for (ev = victim->events; ev != NULL; ev = ev->next_event) {
-	sprintf(buf, "{M* {BEvent {x%-53.52s {B[{x%7.3f{B seconds{B]{x\n\r", ev->args, (float) ev->delay/2);
+	sprintf(buf, "{BFighting:{x %s\n\r",
+	victim->fighting ? victim->fighting->name : "(none)");
 	send_to_char(buf, ch);
-    }
+
+	if (!IS_NPC(victim))
+	{
+		sprintf(buf, "{BThirst:{x %d  {BHunger:{x %d  {BFull:{x %d  {BDrunk:{x %d\n\r",
+					 victim->pcdata->condition[COND_THIRST],
+					 victim->pcdata->condition[COND_HUNGER],
+					 victim->pcdata->condition[COND_FULL],
+					 victim->pcdata->condition[COND_DRUNK]);
+		send_to_char(buf, ch);
+	}
+
+	sprintf(buf, "{BCarry number:{x %d  {BCarry weight:{x %ld\n\r",
+	victim->carry_number, get_carry_weight(victim) / 10);
+	send_to_char(buf, ch);
+
+	if (!IS_NPC(victim))
+	{
+		sprintf(buf, "{BAge:{x %d  {BPlayed:{x %d  {BTimer:{x %d  {BCreated:{B %s{x",
+					 get_age(victim),
+					 (int) (victim->played + current_time - victim->logon) / 3600,
+					 victim->timer,
+					 ((char *) ctime((time_t *)&victim->pcdata->creation_date)));
+		send_to_char(buf, ch);
+	}
+
+	sprintf(buf, "{BAct :{x %s\n\r",act_bit_name((IS_NPC(victim) ? 1 : 3), victim->act));
+	send_to_char(buf,ch);
+	sprintf(buf, "{BAct2:{x %s\n\r",act_bit_name((IS_NPC(victim) ? 2 : 4), victim->act2));
+	send_to_char(buf,ch);
+
+	if (victim->comm)
+	{
+		sprintf(buf,"{BComm:{x %s\n\r",comm_bit_name(victim->comm));
+		send_to_char(buf,ch);
+	}
+
+	if (IS_NPC(victim) && victim->off_flags)
+	{
+		sprintf(buf, "{BOffense:{x %s\n\r",off_bit_name(victim->off_flags));
+		send_to_char(buf,ch);
+	}
+
+	if (victim->imm_flags)
+	{
+		sprintf(buf, "{BImmune:{x %s\n\r",imm_bit_name(victim->imm_flags));
+		send_to_char(buf,ch);
+	}
+
+	if (victim->res_flags)
+	{
+		sprintf(buf, "{BResist:{x %s\n\r", imm_bit_name(victim->res_flags));
+		send_to_char(buf,ch);
+	}
+
+	if (victim->vuln_flags)
+	{
+		sprintf(buf, "{BVulnerable:{x %s\n\r", imm_bit_name(victim->vuln_flags));
+		send_to_char(buf,ch);
+	}
+
+	if (victim->affected_by)
+	{
+		sprintf(buf, "{BAffected by{x %s\n\r", affect_bit_name(victim->affected_by));
+		send_to_char(buf,ch);
+	}
+
+	if (victim->affected_by2)
+	{
+		sprintf(buf, "{BAffected2 by{x %s\n\r", affect2_bit_name(victim->affected_by2));
+		send_to_char(buf,ch);
+	}
+
+	sprintf(buf, "{BMaster:{x %s  {BLeader:{x %s  {BPet:{x %s  {B%s:{x %s  {BCart:{x %s\n\r",
+				 victim->master ? victim->master->name : "(none)",
+				 victim->leader ? victim->leader->name : "(none)",
+				 victim->pet ? victim->pet->name : "(none)",
+				 (victim->rider?"Rider":"Mount"),
+				 (victim->rider?victim->rider->name:(victim->mount?victim->mount->name : "(none)")),
+				 victim->pulled_cart ? victim->pulled_cart->short_descr : "(none)");
+	send_to_char(buf, ch);
+
+	if (!IS_NPC(victim))
+	{
+		sprintf(buf, "{BSecurity:{x %d.\n\r", victim->pcdata->security);
+		send_to_char(buf, ch);
+	}
+
+	if (IS_NPC(victim))
+	{
+		sprintf(buf, "{BShort description:{x %s\n\r{BLong description:{x %s",
+					 victim->short_descr,
+					 victim->long_descr[0] != '\0' ? victim->long_descr : "(none)\n\r");
+		send_to_char(buf, ch);
+	}
+
+	if (!IS_NPC(victim))
+	{
+		sprintf(buf, "{BSubclasses: Mage:{x %s {BCleric:{x %s {BThief:{x %s {BWarrior:{x %s\n\r",
+					 victim->pcdata->sub_class_mage < 0 ? "none" : sub_class_table[victim->pcdata->sub_class_mage].name[victim->sex],
+					 victim->pcdata->sub_class_cleric < 0 ? "none" : sub_class_table[victim->pcdata->sub_class_cleric].name[victim->sex],
+					 victim->pcdata->sub_class_thief < 0 ? "none" : sub_class_table[victim->pcdata->sub_class_thief].name[victim->sex],
+					 victim->pcdata->sub_class_warrior < 0 ? "none" : sub_class_table[victim->pcdata->sub_class_warrior].name[victim->sex]);
+		send_to_char(buf, ch);
+		if (IS_REMORT(victim))
+		{
+			sprintf(buf, "{BRemort Subclasses: Mage:{x %s {BCleric:{x %s {BThief:{x %s {BWarrior:{x %s\n\r",
+						 victim->pcdata->second_sub_class_mage < 0 ? "none" : sub_class_table[victim->pcdata->second_sub_class_mage].name[victim->sex],
+						 victim->pcdata->second_sub_class_cleric < 0 ? "none" : sub_class_table[victim->pcdata->second_sub_class_cleric].name[victim->sex],
+						 victim->pcdata->second_sub_class_thief < 0 ? "none" : sub_class_table[victim->pcdata->second_sub_class_thief].name[victim->sex],
+						 victim->pcdata->second_sub_class_warrior < 0 ? "none" : sub_class_table[victim->pcdata->second_sub_class_warrior].name[victim->sex]);
+			send_to_char(buf, ch);
+		}
+	}
+
+	for (paf = victim->affected; paf != NULL; paf = paf->next) if(!paf->custom_name)
+	{
+		sprintf(buf, "{C* {BLevel {W%3d {Baffect {x%-20.20s{B modifies {x%-12s{B by {x%2d{B for {x%2d{B hours with bits {x%s{B on slot {x%s\n\r",
+					 paf->level,
+					 skill_table[(int) paf->type].name,
+					 affect_loc_name(paf->location),
+					 paf->modifier,
+					 paf->duration,
+					 affects_bit_name(paf->bitvector, paf->bitvector2),
+					 flag_string(wear_loc_names, paf->slot));
+		send_to_char(buf, ch);
+	}
+
+	for (paf = victim->affected; paf != NULL; paf = paf->next) if(paf->custom_name)
+	{
+		sprintf(buf, "{C* {BLevel {W%3d {Baffect {x%-20.20s{B modifies {x%-12s{B by {x%2d{B for {x%2d{B hours with bits {x%s{B on slot {x%s\n\r",
+					 paf->level,
+					 paf->custom_name,
+					 affect_loc_name(paf->location),
+					 paf->modifier,
+					 paf->duration,
+					 affects_bit_name(paf->bitvector, paf->bitvector2),
+					 flag_string(wear_loc_names, paf->slot));
+		send_to_char(buf, ch);
+	}
+
+	if (!IS_NPC(victim) && victim->pcdata->commands != NULL)
+	{
+		send_to_char("{BGranted commands:{x\n\r", ch);
+
+		int i = 0;
+		for (COMMAND_DATA *cmd = victim->pcdata->commands; cmd != NULL; cmd = cmd->next)
+		{
+			i++;
+			sprintf(buf, "%-15s", cmd->name);
+			if (i % 4 == 0)
+				strcat(buf, "\n\r");
+
+			send_to_char(buf, ch);
+		}
+	}
+
+	if( IS_NPC(victim) && IS_VALID(victim->crew) )
+	{
+		send_to_char("{CCrew Data:{x\n\r", ch);
+
+		sprintf(buf, " {CScouting{c:   {x%d\n\r", victim->crew->scouting);
+		send_to_char(buf, ch);
+
+		sprintf(buf, " {CGunning{c:    {x%d\n\r", victim->crew->gunning);
+		send_to_char(buf, ch);
+
+		sprintf(buf, " {COarring{c:    {x%d\n\r", victim->crew->oarring);
+		send_to_char(buf, ch);
+
+		sprintf(buf, " {CMechanics{c:  {x%d\n\r", victim->crew->mechanics);
+		send_to_char(buf, ch);
+
+		sprintf(buf, " {CNavigation{c: {x%d\n\r", victim->crew->navigation);
+		send_to_char(buf, ch);
+
+		sprintf(buf, " {CLeadership{c: {x%d\n\r", victim->crew->leadership);
+		send_to_char(buf, ch);
+	}
+
+	for (ev = victim->events; ev != NULL; ev = ev->next_event)
+	{
+		sprintf(buf, "{M* {BEvent {x%-53.52s {B[{x%7.3f{B seconds{B]{x\n\r", ev->args, (float) ev->delay/2);
+		send_to_char(buf, ch);
+	}
 }
 
 
