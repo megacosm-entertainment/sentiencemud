@@ -835,14 +835,7 @@ void save_mobile_new(FILE *fp, MOB_INDEX_DATA *mob)
 
 	if (IS_VALID(mob->pCrew))
 	{
-		fprintf(fp, "Crew %d %d %d %d %d %d %d\n",
-			mob->pCrew->min_rank,
-			mob->pCrew->scouting,
-			mob->pCrew->gunning,
-			mob->pCrew->oarring,
-			mob->pCrew->mechanics,
-			mob->pCrew->navigation,
-			mob->pCrew->leadership);
+		save_ship_crew_index_new(fp, mob->pCrew);
 	}
 
     if(mob->progs) {
