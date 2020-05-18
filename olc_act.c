@@ -12435,7 +12435,7 @@ MEDIT( medit_crew )
 
 		pMob->pCrew->scouting = value;
 		send_to_char("Scouting Rating changed.\n\r", ch);
-		return FALSE;
+		return TRUE;
 	}
 
 	if( !str_prefix(arg, "gunning") )
@@ -12461,7 +12461,7 @@ MEDIT( medit_crew )
 
 		pMob->pCrew->gunning = value;
 		send_to_char("Gunning Rating changed.\n\r", ch);
-		return FALSE;
+		return TRUE;
 	}
 
 	if( !str_prefix(arg, "oarring") )
@@ -12487,7 +12487,7 @@ MEDIT( medit_crew )
 
 		pMob->pCrew->oarring = value;
 		send_to_char("Oarring Rating changed.\n\r", ch);
-		return FALSE;
+		return TRUE;
 	}
 
 	if( !str_prefix(arg, "mechanics") )
@@ -12513,7 +12513,7 @@ MEDIT( medit_crew )
 
 		pMob->pCrew->mechanics = value;
 		send_to_char("Mechanics Rating changed.\n\r", ch);
-		return FALSE;
+		return TRUE;
 	}
 
 	if( !str_prefix(arg, "navigation") )
@@ -12539,7 +12539,7 @@ MEDIT( medit_crew )
 
 		pMob->pCrew->navigation = value;
 		send_to_char("Navigation Rating changed.\n\r", ch);
-		return FALSE;
+		return TRUE;
 	}
 
 	if( !str_prefix(arg, "leadership") )
@@ -12565,7 +12565,7 @@ MEDIT( medit_crew )
 
 		pMob->pCrew->leadership = value;
 		send_to_char("Leadership Rating changed.\n\r", ch);
-		return FALSE;
+		return TRUE;
 	}
 
 
