@@ -1485,7 +1485,7 @@ char *expand_entity_string(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 			if( len < padding )
 			{
 				char buf[padding + 1];
-				sprintf(buf, "%-*.*s", padding, padding, arg->d.str
+				sprintf(buf, "%-*.*s", padding, padding, arg->d.str);
 				clear_buf(arg->buffer);
 				add_buf(arg->buffer, buf);
 				arg->d.str = arg->buffer->string;
@@ -1513,7 +1513,7 @@ char *expand_entity_string(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 			if( len < padding )
 			{
 				char buf[padding + 1];
-				sprintf(buf, "%*.*s", padding, padding, arg->d.str
+				sprintf(buf, "%*.*s", padding, padding, arg->d.str);
 				clear_buf(arg->buffer);
 				add_buf(arg->buffer, buf);
 				arg->d.str = arg->buffer->string;
