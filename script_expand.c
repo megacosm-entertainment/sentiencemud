@@ -1413,13 +1413,14 @@ char *expand_entity_number(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_NUM_PADLEFT:
 		{
 			char num[MIL];
-			sprintf(arg, "%d", arg->d.num);
+			sprintf(num, "%d", arg->d.num);
 			int len = strlen(num);
 			int padding = *(++str) - ESCAPE_EXTRA;
 
 			clear_buf(arg->buffer);
 			if( len < padding )
 			{
+				char buf[MIL + padding + 1];
 				sprintf(buf, "%-*.*s", padding, padding, num);
 				add_buf(arg->buffer, buf);
 			}
@@ -1435,13 +1436,14 @@ char *expand_entity_number(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_NUM_PADRIGHT:
 		{
 			char num[MIL];
-			sprintf(arg, "%d", arg->d.num);
+			sprintf(num, "%d", arg->d.num);
 			int len = strlen(num);
 			int padding = *(++str) - ESCAPE_EXTRA;
 
 			clear_buf(arg->buffer);
 			if( len < padding )
 			{
+				char buf[MIL + padding + 1];
 				sprintf(buf, "%*.*s", padding, padding, num);
 				add_buf(arg->buffer, buf);
 			}
