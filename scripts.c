@@ -6329,7 +6329,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 			vch = script_get_char_list(mobs, viewer, TRUE, 0, str);
 
 			if( buffer )
-				free_buf();
+				free_buf(buffer);
 		}
 		variables_set_mobile(vars,name,vch);
 
