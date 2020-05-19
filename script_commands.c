@@ -3095,8 +3095,7 @@ SCRIPT_CMD(scriptcmd_questpartgoto)
 	destination = NULL;
 	switch(arg->type) {
 	case ENT_STRING:
-		int continent = get_continent(arg->d.str);
-		destination = get_random_room(ch, continent);
+		destination = get_random_room(ch, get_continent(arg->d.str));
 		break;
 	case ENT_ROOM:
 		destination = arg->d.room;
