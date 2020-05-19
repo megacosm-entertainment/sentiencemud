@@ -5194,7 +5194,7 @@ void return_from_maze(CHAR_DATA *ch)
     char_from_room(ch);
 
     do
-	pRoom = get_random_room(ch, BOTH_CONTINENTS);
+	pRoom = get_random_room(ch, ANY_CONTINENT);
     while (pRoom == NULL);
 
     char_to_room(ch,pRoom);

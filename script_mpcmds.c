@@ -3527,7 +3527,7 @@ SCRIPT_CMD(do_mpteleport)
 
 	if(!info || !info->mob || PROG_FLAG(info->mob,PROG_AT)) return;
 
-	if ((room = get_random_room(info->mob, BOTH_CONTINENTS))) {
+	if ((room = get_random_room(info->mob, ANY_CONTINENT))) {
 		char_from_room(info->mob);
 		char_to_room(info->mob, room);
 	}

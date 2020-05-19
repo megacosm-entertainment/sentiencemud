@@ -416,12 +416,7 @@ OBJ_DATA *get_random_obj( CHAR_DATA *ch, int continent )
 
 	for (tries = 0; tries < 200; tries++)
 	{
-		switch (continent)
-		{
-		case FIRST_CONTINENT:	area = get_random_area(ch, FIRST_CONTINENT, TRUE); 	break;
-		case SECOND_CONTINENT:	area = get_random_area(ch, SECOND_CONTINENT, TRUE);	break;
-		default:				area = get_random_area(ch, BOTH_CONTINENTS, TRUE);	break;
-		}
+		area = get_random_area(ch, continent, TRUE);
 
 		if ( IS_SET(area->area_flags,AREA_NO_GET_RANDOM) )
 			continue;
@@ -507,12 +502,7 @@ CHAR_DATA *get_random_mob( CHAR_DATA *ch, int continent )
     AREA_DATA *area;
     //char buf[MSL];
 
-    switch (continent)
-    {
-	case FIRST_CONTINENT:	area = get_random_area(ch, FIRST_CONTINENT, TRUE); 	break;
-	case SECOND_CONTINENT:	area = get_random_area(ch, SECOND_CONTINENT, TRUE);	break;
-	default:				area = get_random_area(ch, BOTH_CONTINENTS, TRUE);	break;
-    }
+	area = get_random_area(ch, continent, TRUE);
 
 	return get_random_mob_area(ch, area);
 }
