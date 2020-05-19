@@ -5326,145 +5326,199 @@ bool can_hunt(CHAR_DATA *ch, CHAR_DATA *victim)
     return TRUE;
 }
 
-// get region (roughly) in the wilds
-int get_region(ROOM_INDEX_DATA *room)
+int get_region_wyx(unsigned long wuid, int x, int y)
 {
-	if( !room )
-		return -1;
 
-	if( !IS_WILDERNESS(room) )
+	if( wuid < 1 )
 		return -1;
 
     // Small Wilds
-    if( room->wilds->uid == 6 )
+    if( wuid == 6 )
     {
 		// Handle smallest regions FIRST
-		if( room->x >= 193 && room->x <= 301 &&
-			room->y >= 607 && room->y <= 683 )
+		if( x >= 193 && x <= 301 &&
+			y >= 607 && y <= 683 )
 			return REGION_MORDRAKE_ISLAND;
 
-		if( room->x >= 103 && room->x <= 206 &&
-			room->y >= 1043 && room->y <= 1153 )
+		if( x >= 103 && x <= 206 &&
+			y >= 1043 && y <= 1153 )
 			return REGION_DRAGON_ISLAND;
 
-		if( room->x >= 1277 && room->x <= 1340 &&
-			room->y >= 1132 && room->y <= 1185 )
+		if( x >= 1277 && x <= 1340 &&
+			y >= 1132 && y <= 1185 )
 			return REGION_TEMPLE_ISLAND;
 
-		if( room->x >= 771 && room->x <= 895 &&
-			room->y >= 537 && room->y <= 626 )
+		if( x >= 771 && x <= 895 &&
+			y >= 537 && y <= 626 )
 			return REGION_ARENA_ISLAND;
 
-		if( room->x >= 1277 && room->x <= 1360 &&
-			room->y >= 203 && room->y <= 253 )
+		if( x >= 1277 && x <= 1360 &&
+			y >= 203 && y <= 253 )
 			return REGION_UNDERSEA;
 
 		// Smaller continents
-		if( room->x >= 185 && room->x <= 517 &&
-			room->y >= 335 && room->y <= 542 )
+		if( x >= 185 && x <= 517 &&
+			y >= 335 && y <= 542 )
 			return REGION_FIRST_CONTINENT;
 
-		if( room->x >= 1011 && room->x <= 1488 &&
-			room->y >= 746 && room->y <= 993 )
+		if( x >= 1011 && x <= 1488 &&
+			y >= 746 && y <= 993 )
 			return REGION_SECOND_CONTINENT;
 
-		if( room->x >= 294 && room->x <= 674 &&
-			room->y >= 741 && room->y <= 1078 )
+		if( x >= 294 && x <= 674 &&
+			y >= 741 && y <= 1078 )
 			return REGION_THIRD_CONTINENT;
 
 		// Polar Regions (since parts of the fourth continent overlaps)
-		if( room->x >= 313 && room->x <= 454 &&
-			room->y <= 97 )
+		if( x >= 313 && x <= 454 &&
+			y <= 97 )
 			return REGION_NORTH_POLE;
 
-		if( room->x >= 1419 && room->x <= 1532 &&
-			room->y <= 92 )
+		if( x >= 1419 && x <= 1532 &&
+			y <= 92 )
 			return REGION_NORTH_POLE;
 
-		if( room->y <= 55 )
+		if( y <= 55 )
 			return REGION_NORTH_POLE;
 
-		if( room->x >= 469 && room->x <= 612 &&
-			room->y >= 1125 )
+		if( x >= 469 && x <= 612 &&
+			y >= 1125 )
 			return REGION_SOUTH_POLE;
 
-		if( room->y >= 1175 )
+		if( y >= 1175 )
 			return REGION_SOUTH_POLE;
 
 		// Larger continents
 		// Fourth's shape needs to be broken up into subregions
-		if( room->x >= 717 && room->x <= 1469 &&
-			room->y >= 0 && room->y <= 410 )
+		if( x >= 717 && x <= 1469 &&
+			y >= 0 && y <= 410 )
 			return REGION_FOURTH_CONTINENT;
 
-		if( room->x >= 393 && room->x <= 717 &&
-			room->y >= 0 && room->y <= 247 )
+		if( x >= 393 && x <= 717 &&
+			y >= 0 && y <= 247 )
 			return REGION_FOURTH_CONTINENT;
 
-		if( room->x >= 619 && room->x <= 717 &&
-			room->y >= 248 && room->y <= 337 )
+		if( x >= 619 && x <= 717 &&
+			y >= 248 && y <= 337 )
 			return REGION_FOURTH_CONTINENT;
 
-		if( room->x >= 925 && room->x <= 1133 &&
-			room->y >= 410 && room->y <= 516 )
+		if( x >= 925 && x <= 1133 &&
+			y >= 410 && y <= 516 )
 			return REGION_FOURTH_CONTINENT;
 
 		// Oceans
-		if( room->y <= 363 )
+		if( y <= 363 )
 			return REGION_NORTHERN_OCEAN;
 
-		if( room->y >= 937 )
+		if( y >= 937 )
 			return REGION_SOUTHERN_OCEAN;
 
-		if( room->x <= 371 )
+		if( x <= 371 )
 			return REGION_WESTERN_OCEAN;
 
-		if( room->x >= 1146 )
+		if( x >= 1146 )
 			return REGION_EASTERN_OCEAN;
 
 		return REGION_CENTRAL_OCEAN;
 	}
 
-/*
-
-    if (room->x > 200
-    && room->x < 510
-    && room->y > 110
-    && room->y < 285)
-	return REGION_FIRST_CONTINENT;
-
-    if (room->x > 749
-    && room->x < 1201
-    && room->y > 80
-    && room->y < 230)
-	return REGION_SECOND_CONTINENT;
-
-    if (room->x > 160
-    && room->x < 209
-    && room->y > 270
-    && room->y < 295)
-	return REGION_MORDRAKE_ISLAND;
-
-    if (room->x > 949
-    && room->x < 993
-    && room->y > 346
-    && room->y < 378)
-	return REGION_TEMPLE_ISLAND;
-
-    if (room->x > 1129
-	&& room->x < 1201
-	&& room->y > 14
-	&& room->y < 45)
-	return REGION_UNDERSEA;
-
-    return REGION_OCEAN;
-    */
-
     return REGION_UNKNOWN;
+}
 
+int get_region_area(AREA_DATA *area)
+{
+	int region = REGION_UNKNOWN;
+	if( area->wilds_uid > 0 )
+		region = get_region_wyx(area->wilds_uid, area->x, area->y);
+
+
+	if( region == REGION_UNKNOWN )
+	{
+		switch(area->place_flags)
+		{
+		case PLACE_FIRST_CONTINENT:		region = REGION_FIRST_CONTINENT; break;
+		case PLACE_SECOND_CONTINENT:	region = REGION_SECOND_CONTINENT; break;
+		case PLACE_THIRD_CONTINENT:		region = REGION_THIRD_CONTINENT; break;
+		case PLACE_FOURTH_CONTINENT:	region = REGION_FOURTH_CONTINENT; break;
+		}
+	}
+
+	return region;
+}
+
+// get region (roughly) in the wilds
+int get_region(ROOM_INDEX_DATA *room)
+{
+	if( !room )
+		return REGION_UNKNOWN;
+
+	if( !IS_WILDERNESS(room) )
+		return get_region_area(room->area);
+
+	return get_region_wyx(room->wilds->uid, room->x, room->y);
+}
+
+bool is_same_place_area(AREA_DATA *from, AREA_DATA *to)
+{
+	int region_from = get_region_area(from);
+
+	if( region_from == REGION_UNKNOWN ) return false;
+
+	int region_to = get_region_area(to);
+
+	return region_from == region_to;
+}
+
+bool is_same_place(ROOM_INDEX_DATA *from, ROOM_INDEX_DATA *to)
+{
+	if( IS_WILDERNESS(from) )
+	{
+		int region = get_region(from);
+
+		if( region == REGION_FIRST_CONTINENT )
+			return to->area->place_flags == PLACE_FIRST_CONTINENT;
+
+		if( region == REGION_SECOND_CONTINENT )
+			return to->area->place_flags == PLACE_SECOND_CONTINENT;
+
+		if( region == REGION_THIRD_CONTINENT )
+			return to->area->place_flags == PLACE_THIRD_CONTINENT;
+
+		if( region == REGION_FOURTH_CONTINENT )
+			return to->area->place_flags == PLACE_FOURTH_CONTINENT;
+
+	}
+	else if( from->area->place_flags != PLACE_NOWHERE )
+	{
+		return from->area->place_flags == to->area->place_flags;
+	}
+
+	return false;
 }
 
 
+int get_continent( const char *name )
+{
+	if( IS_NULLSTR(name) ) return -1;
+
+	if( !str_prefix(name, "any") ) return ANY_CONTINENT;
+	if( !str_prefix(name, "athemia") ) return SECOND_CONTINENT;
+	if( !str_prefix(name, "east") ) return EAST_CONTINENTS;
+	if( !str_prefix(name, "first") ) return FIRST_CONTINENT;
+	if( !str_prefix(name, "fourth") ) return FOURTH_CONTINENT;
+	if( !str_prefix(name, "heletane") ) return FOURTH_CONTINENT;
+	if( !str_prefix(name, "naranda") ) return THIRD_CONTINENT;
+	if( !str_prefix(name, "north") ) return NORTH_CONTINENTS;
+	if( !str_prefix(name, "second") ) return SECOND_CONTINENT;
+	if( !str_prefix(name, "seralia") ) return FIRST_CONTINENT;
+	if( !str_prefix(name, "south") ) return SOUTH_CONTINENTS;
+	if( !str_prefix(name, "third") ) return THIRD_CONTINENT;
+	if( !str_prefix(name, "west") ) return WEST_CONTINENTS;
+
+	return ANY_CONTINENT;
+}
+
+/* NONUSED
 bool is_on_second_continent(CHAR_DATA *ch)
 {
     ROOM_INDEX_DATA *room;
@@ -5484,7 +5538,7 @@ bool is_on_second_continent(CHAR_DATA *ch)
 
     return FALSE;
 }
-
+*/
 
 bool check_ice_storm(ROOM_INDEX_DATA *room)
 {

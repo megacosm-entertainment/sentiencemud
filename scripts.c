@@ -5685,14 +5685,13 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 	unsigned long id1/*, id2*/;
 
 	if(!info) return;
-	viewer = info->mob;
 
 	if(info->mob) here = info->mob->in_room;
 	else if(info->obj) here = obj_room(info->obj);
 	else if(info->room) here = info->room;
 	else if(info->token) here = token_room(info->token);
 
-	if(!viewer && !here) return;
+//	if(!viewer && !here) return;
 
 	if(!vars) return;
 
@@ -6097,15 +6096,16 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 		}
 		variables_set_exit(vars,name,ex);
 
-	// Format: MOBILE <ROOM VNUM or ROOM or MOBLIST> <VNUM or NAME>
-	// Format: MOBILE VNUM <VNUM>
-	// Format: MOBILE NAME|WORLD <NAME>
-	// Format: MOBILE HERE <NAME>
+	// Format: MOBILE <ROOM VNUM or ROOM or MOBLIST> <VNUM or NAME>[ <VIEWER>]
+	// Format: MOBILE VNUM <VNUM>[ <VIEWER>]
+	// Format: MOBILE NAME|WORLD <NAME>[ <VIEWER>]
+	// Format: MOBILE HERE <NAME>[ <VIEWER>]
 	// Format: MOBILE <MOBILE>
 	} else if(!str_cmp(buf,"mobile")) {
 		if( arg->type == ENT_BLLIST_MOB )
 		{
 			LLIST *blist = arg->d.blist;
+			BUFFER *buffer = NULL;
 			if(!(rest = expand_argument(info,rest,arg)))
 				return;
 
@@ -6130,9 +6130,30 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 			else
 				return;
 
+			viewer = NULL;
+			if( *rest )
+			{
+				if( str )
+				{
+					buffer = arg->buffer;
+					arg->buffer = new_buf();
+				}
 
-			vch = script_get_char_blist(blist, NULL, FALSE, vnum, str);
+				if(!(rest = expand_argument(info,rest,arg)))
+				{
+					if( buffer )
+						free_buf(buffer);
+					return;
+				}
+
+				if( arg->type == ENT_MOBILE )
+					viewer = arg->d.mob;
+			}
+
+			vch = script_get_char_blist(blist, viewer, FALSE, vnum, str);
 			variables_set_mobile(vars,name,vch);
+			if( buffer )
+				free_buf(buffer);
 			return;
 		}
 
@@ -6180,23 +6201,50 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 		}
 
 		if(mobs) {
-			if(!expand_argument(info,rest,arg))
+			if(!(rest = expand_argument(info,rest,arg)))
 				return;
+
+			BUFFER *buffer = NULL;
 			if(arg->type == ENT_NUMBER)
 				vnum = arg->d.num;
 			else if(arg->type == ENT_STRING) {
 				if(is_number(arg->d.str))
 					vnum = atoi(arg->d.str);
 				else
+				{
 					str = arg->d.str;
+
+				}
 			} else
 				return;
 
-			vch = script_get_char_list(mobs, NULL, FALSE, vnum, str);
+			viewer = NULL;
+			if( *rest )
+			{
+				if( str )
+				{
+					buffer = arg->buffer;
+					arg->buffer = new_buf();
+				}
+
+				if(!(rest = expand_argument(info,rest,arg)))
+				{
+					if( buffer )
+						free_buf(buffer);
+					return;
+				}
+
+				if( arg->type == ENT_MOBILE )
+					viewer = arg->d.mob;
+			}
+
+			vch = script_get_char_list(mobs, viewer, FALSE, vnum, str);
+			if( buffer )
+				free_buf(buffer);
 		}
 		variables_set_mobile(vars,name,vch);
 
-	// Format: PLAYER <ROOM VNUM or ROOM or MOBLIST> <NAME>
+	// Format: PLAYER <ROOM VNUM or ROOM or MOBLIST> <NAME>[ <VIEWER>]
 	// Format: PLAYER <NAME>
 	// Format: PLAYER <PLAYER>
 	} else if(!str_cmp(buf,"player")) {
@@ -6209,7 +6257,26 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 			if( arg->type != ENT_STRING )
 				return;
 
-			vch = script_get_char_blist(blist, NULL, TRUE, 0, arg->d.str);
+			BUFFER *buffer = NULL;
+			str = arg->d.str;
+			viewer = NULL;
+			if( *rest )
+			{
+				buffer = arg->buffer;
+				arg->buffer = new_buf();
+
+				if(!(rest = expand_argument(info,rest,arg)))
+				{
+					if( buffer )
+						free_buf(buffer);
+					return;
+				}
+
+				if( arg->type == ENT_MOBILE )
+					viewer = arg->d.mob;
+			}
+
+			vch = script_get_char_blist(blist, viewer, TRUE, 0, str);
 			variables_set_mobile(vars,name,vch);
 			return;
 		}
@@ -6235,7 +6302,35 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 			break;
 		default: return;
 		}
-		if(mobs) vch = script_get_char_list(mobs, NULL, TRUE, 0, str);
+
+		if(mobs)
+		{
+			BUFFER *buffer = NULL;
+			viewer = NULL;
+			if( *rest )
+			{
+				if( str )
+				{
+					buffer = arg->buffer;
+					arg->buffer = new_buf();
+				}
+
+				if(!(rest = expand_argument(info,rest,arg)))
+				{
+					if( buffer )
+						free_buf(buffer);
+					return;
+				}
+
+				if( arg->type == ENT_MOBILE )
+					viewer = arg->d.mob;
+			}
+
+			vch = script_get_char_list(mobs, viewer, TRUE, 0, str);
+
+			if( buffer )
+				free_buf();
+		}
 		variables_set_mobile(vars,name,vch);
 
 	// Format: OBJECT <ROOM VNUM or ROOM or MOBILE or OBJECT or OBJLIST> <VNUM or NAME>
@@ -6272,8 +6367,32 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 				return;
 
 
-			obj = script_get_obj_blist(blist, NULL, vnum, str);
+			BUFFER *buffer = NULL;
+			viewer = NULL;
+			if( *rest )
+			{
+				if( str )
+				{
+					buffer = arg->buffer;
+					arg->buffer = new_buf();
+				}
+
+				if(!(rest = expand_argument(info,rest,arg)))
+				{
+					if( buffer )
+						free_buf(buffer);
+					return;
+				}
+
+				if( arg->type == ENT_MOBILE )
+					viewer = arg->d.mob;
+			}
+
+			obj = script_get_obj_blist(blist, viewer, vnum, str);
 			variables_set_object(vars,name,obj);
+
+			if( buffer )
+				free_buf(buffer);
 			return;
 		}
 
@@ -6326,7 +6445,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 		}
 
 		if(objs) {
-			if(!expand_argument(info,rest,arg))
+			if(!(rest = expand_argument(info,rest,arg)))
 				return;
 			if(arg->type == ENT_NUMBER)
 				vnum = arg->d.num;
@@ -6337,7 +6456,32 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 					str = arg->d.str;
 			} else
 				return;
-			obj = script_get_obj_list(objs, NULL, 0, vnum, str);
+
+			BUFFER *buffer = NULL;
+			viewer = NULL;
+			if( *rest )
+			{
+				if( str )
+				{
+					buffer = arg->buffer;
+					arg->buffer = new_buf();
+				}
+
+				if(!(rest = expand_argument(info,rest,arg)))
+				{
+					if( buffer )
+						free_buf(buffer);
+					return;
+				}
+
+				if( arg->type == ENT_MOBILE )
+					viewer = arg->d.mob;
+			}
+
+			obj = script_get_obj_list(objs, viewer, 0, vnum, str);
+
+			if( buffer )
+				free_buf(buffer);
 		}
 		variables_set_object(vars,name,obj);
 
@@ -6348,14 +6492,14 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 		switch(arg->type) {
 		case ENT_NUMBER:
 			vnum = arg->d.num;
-			objs = viewer ? viewer->carrying : NULL;
+			objs = info->mob ? info->mob->carrying : NULL;
 			break;
 		case ENT_STRING:
 			if(is_number(arg->d.str))
 				vnum = atoi(arg->d.str);
 			else
 				str = arg->d.str;
-			objs = viewer ? viewer->carrying : NULL;
+			objs = info->mob ? info->mob->carrying : NULL;
 			break;
 		case ENT_MOBILE:
 			objs = arg->d.mob ? arg->d.mob->carrying : NULL;
@@ -6366,21 +6510,50 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 		default: return;
 		}
 
-		if(objs && arg->type != ENT_NUMBER && arg->type != ENT_STRING) {
-			if(!expand_argument(info,rest,arg))
-				return;
-			if(arg->type == ENT_NUMBER)
-				vnum = arg->d.num;
-			else if(arg->type == ENT_STRING) {
-				if(is_number(arg->d.str))
-					vnum = atoi(arg->d.str);
-				else
-					str = arg->d.str;
-			} else
-				return;
+		if(objs)
+		{
+			if(arg->type != ENT_NUMBER && arg->type != ENT_STRING)
+			{
+				if(!(rest = expand_argument(info,rest,arg)))
+					return;
+				if(arg->type == ENT_NUMBER)
+					vnum = arg->d.num;
+				else if(arg->type == ENT_STRING) {
+					if(is_number(arg->d.str))
+						vnum = atoi(arg->d.str);
+					else
+						str = arg->d.str;
+				} else
+					return;
+			}
+
+			BUFFER *buffer = NULL;
+			viewer = NULL;
+			if( *rest )
+			{
+				if( str )
+				{
+					buffer = arg->buffer;
+					arg->buffer = new_buf();
+				}
+
+				if(!(rest = expand_argument(info,rest,arg)))
+				{
+					if( buffer )
+						free_buf(buffer);
+					return;
+				}
+
+				if( arg->type == ENT_MOBILE )
+					viewer = arg->d.mob;
+			}
+
+			obj = script_get_obj_list(objs, viewer, 2, vnum, str);
+
+			if( buffer )
+				free_buf(buffer);
 		}
-		obj = script_get_obj_list(objs, NULL, 2, vnum, str);
-		if(obj) variables_set_object(vars,name,obj);
+		variables_set_object(vars,name,obj);
 
 	// Format: WORN <VNUM or NAME>
 	// Format: WORN <MOBILE or OBJLIST> <VNUM or NAME>
@@ -6388,14 +6561,14 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 		switch(arg->type) {
 		case ENT_NUMBER:
 			vnum = arg->d.num;
-			objs = viewer ? viewer->carrying : NULL;
+			objs = info->mob ? info->mob->carrying : NULL;
 			break;
 		case ENT_STRING:
 			if(is_number(arg->d.str))
 				vnum = atoi(arg->d.str);
 			else
 				str = arg->d.str;
-			objs = viewer ? viewer->carrying : NULL;
+			objs = info->mob ? info->mob->carrying : NULL;
 			break;
 		case ENT_MOBILE:
 			objs = arg->d.mob ? arg->d.mob->carrying : NULL;
@@ -6406,20 +6579,49 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 		default: return;
 		}
 
-		if(objs && arg->type != ENT_NUMBER && arg->type != ENT_STRING) {
-			if(!expand_argument(info,rest,arg))
-				return;
-			if(arg->type == ENT_NUMBER)
-				vnum = arg->d.num;
-			else if(arg->type == ENT_STRING) {
-				if(is_number(arg->d.str))
-					vnum = atoi(arg->d.str);
-				else
-					str = arg->d.str;
-			} else
-				return;
+		if(objs)
+		{
+			if(arg->type != ENT_NUMBER && arg->type != ENT_STRING)
+			{
+				if(!(rest = expand_argument(info,rest,arg)))
+					return;
+				if(arg->type == ENT_NUMBER)
+					vnum = arg->d.num;
+				else if(arg->type == ENT_STRING) {
+					if(is_number(arg->d.str))
+						vnum = atoi(arg->d.str);
+					else
+						str = arg->d.str;
+				} else
+					return;
+			}
+
+			BUFFER *buffer = NULL;
+			viewer = NULL;
+			if( *rest )
+			{
+				if( str )
+				{
+					buffer = arg->buffer;
+					arg->buffer = new_buf();
+				}
+
+				if(!(rest = expand_argument(info,rest,arg)))
+				{
+					if( buffer )
+						free_buf(buffer);
+					return;
+				}
+
+				if( arg->type == ENT_MOBILE )
+					viewer = arg->d.mob;
+			}
+
+			obj = script_get_obj_list(objs, viewer, 1, vnum, str);
+
+			if( buffer )
+				free_buf(buffer);
 		}
-		obj = script_get_obj_list(objs, NULL, 1, vnum, str);
 		variables_set_object(vars,name,obj);
 
 	// Format: CONTENT <OBJECT or OBJLIST> <VNUM or NAME>
@@ -6434,8 +6636,9 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 		default: return;
 		}
 
-		if(objs) {
-			if(!expand_argument(info,rest,arg))
+		if(objs)
+		{
+			if(!(rest = expand_argument(info,rest,arg)))
 				return;
 			if(arg->type == ENT_NUMBER)
 				vnum = arg->d.num;
@@ -6446,8 +6649,34 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 					str = arg->d.str;
 			} else
 				return;
-			obj = script_get_obj_list(objs, NULL, 0, vnum, str);
+
+			BUFFER *buffer = NULL;
+			viewer = NULL;
+			if( *rest )
+			{
+				if( str )
+				{
+					buffer = arg->buffer;
+					arg->buffer = new_buf();
+				}
+
+				if(!(rest = expand_argument(info,rest,arg)))
+				{
+					if( buffer )
+						free_buf(buffer);
+					return;
+				}
+
+				if( arg->type == ENT_MOBILE )
+					viewer = arg->d.mob;
+			}
+
+			obj = script_get_obj_list(objs, viewer, 0, vnum, str);
+
+			if( buffer )
+				free_buf(buffer);
 		}
+
 		variables_set_object(vars,name,obj);
 
 	// Format: TOKEN <MOBILE or OBJECT or ROOM or TOKLIST> <Pattern>
@@ -6727,12 +6956,9 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 
 		if( arg->type == ENT_STRING )
 		{
-			int continent;
-			if( !str_cmp(arg->d.str, "first") )			continent = FIRST_CONTINENT;
-			else if( !str_cmp(arg->d.str, "second") )	continent = SECOND_CONTINENT;
-			else if( !str_cmp(arg->d.str, "both") )		continent = BOTH_CONTINENTS;
-			else
-				return;
+			int continent = get_continent(arg->d.str);
+			if( continent < 0 )
+				continent = ANY_CONTINENT;
 
 			vch = get_random_mob(vch, continent);
 			if( vch != NULL )
@@ -6759,12 +6985,9 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 		if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING)
 			return;
 
-		int continent;
-		if( !str_cmp(arg->d.str, "first") )			continent = FIRST_CONTINENT;
-		else if( !str_cmp(arg->d.str, "second") )	continent = SECOND_CONTINENT;
-		else if( !str_cmp(arg->d.str, "both") )		continent = BOTH_CONTINENTS;
-		else
-			return;
+		int continent = get_continent(arg->d.str);
+		if( continent < 0 )
+			continent = ANY_CONTINENT;
 
 		loc = get_random_room(vch, continent);
 		if( loc != NULL )

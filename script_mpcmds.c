@@ -866,7 +866,7 @@ SCRIPT_CMD(do_mpairshipaddwaypoint)
 		return;
 	}
 
-	if (!SAME_PLACE_AREA(info->mob->in_room->area, pArea)) {
+	if (!is_same_place_area(info->mob->in_room->area, pArea)) {
 		info->mob->progs->lastreturn = 1;	// Too far away
 		return;
 	}

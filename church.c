@@ -886,8 +886,8 @@ void do_chgohall(CHAR_DATA *ch, char *argument)
     if ((ch->in_room->area->place_flags == PLACE_NOWHERE
     || ch->in_room->area->place_flags == PLACE_OTHER_PLANE
     || ch->in_room->area->place_flags == PLACE_ISLAND
-    || !SAME_PLACE(ch->in_room, location))
-    && str_cmp(ch->in_room->area->name, "Wilderness"))
+    || !is_same_place(ch->in_room, location))
+    && !IS_WILDERNESS(ch->in_room))
     {
         if (!IS_SET(ch->church->settings, CHURCH_ALLOW_CROSSZONES)
 	&&  ch->church_member->rank < CHURCH_RANK_D)
@@ -925,10 +925,10 @@ void do_chgohall(CHAR_DATA *ch, char *argument)
 
     if (!str_cmp(ch->in_room->area->name, "Wilderness"))
     {
-	if (((location->area->place_flags == PLACE_FIRST_CONTINENT)
-	&& get_region(ch->in_room) != REGION_FIRST_CONTINENT)
-	|| ((location->area->place_flags == PLACE_SECOND_CONTINENT)
-	&& get_region(ch->in_room) != REGION_SECOND_CONTINENT))
+	if (((location->area->place_flags == PLACE_FIRST_CONTINENT) && get_region(ch->in_room) != REGION_FIRST_CONTINENT) ||
+		((location->area->place_flags == PLACE_SECOND_CONTINENT) && get_region(ch->in_room) != REGION_SECOND_CONTINENT) ||
+		((location->area->place_flags == PLACE_THIRD_CONTINENT) && get_region(ch->in_room) != REGION_THIRD_CONTINENT) ||
+		((location->area->place_flags == PLACE_FOURTH_CONTINENT) && get_region(ch->in_room) != REGION_FOURTH_CONTINENT))
 	{
 	    if (!IS_SET(ch->church->settings, CHURCH_ALLOW_CROSSZONES)
 	    && ch->church_member->rank < CHURCH_RANK_D)

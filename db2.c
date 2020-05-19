@@ -215,15 +215,7 @@ AREA_DATA *get_random_area( CHAR_DATA *ch, int continent, bool no_get_random )
 	int i;
 	AREA_DATA *area;
 
-	switch (continent)
-	{
-		case FIRST_CONTINENT:
-		case SECOND_CONTINENT:
-		case BOTH_CONTINENTS:
-			break;
-
-		default: return NULL;
-	}
+	if( continent < MIN_CONTINENT || continent > MAX_CONTINENT ) return NULL;
 
 	/* get max #areas */
 	i = 0;
@@ -257,9 +249,105 @@ AREA_DATA *get_random_area( CHAR_DATA *ch, int continent, bool no_get_random )
 				!is_area_unlocked(ch, area) ||
 				(no_get_random && IS_SET(area->area_flags, AREA_NO_GET_RANDOM)) ||
 				( area->place_flags != PLACE_SECOND_CONTINENT ) ||
+				!str_infix( "Housing", area->name ) ||
+				!str_infix( "Arena", area->name) ||
 				!str_infix("Temples", area->name) ||
 				!str_infix("Maze", area->name ));
 
+		break;
+
+	case THIRD_CONTINENT:
+		do
+		{
+			area = get_area_data( number_range( 1, i));
+		} while (area == NULL ||
+				!area->open ||
+				!is_area_unlocked(ch, area) ||
+				(no_get_random && IS_SET(area->area_flags, AREA_NO_GET_RANDOM)) ||
+				( area->place_flags != PLACE_THIRD_CONTINENT ) ||
+				!str_infix( "Housing", area->name ) ||
+				!str_infix( "Arena", area->name) ||
+				!str_infix("Temples", area->name) ||
+				!str_infix("Maze", area->name ));
+		break;
+
+	case FOURTH_CONTINENT:
+		do
+		{
+			area = get_area_data( number_range( 1, i));
+		} while (area == NULL ||
+				!area->open ||
+				!is_area_unlocked(ch, area) ||
+				(no_get_random && IS_SET(area->area_flags, AREA_NO_GET_RANDOM)) ||
+				( area->place_flags != PLACE_FOURTH_CONTINENT ) ||
+				!str_infix( "Housing", area->name ) ||
+				!str_infix( "Arena", area->name) ||
+				!str_infix("Temples", area->name) ||
+				!str_infix("Maze", area->name ));
+		break;
+
+	case NORTH_CONTINENTS:
+		do
+		{
+			area = get_area_data( number_range( 1, i));
+		} while ( area == NULL ||
+				!area->open ||
+				!is_area_unlocked(ch, area) ||
+				(no_get_random && IS_SET(area->area_flags, AREA_NO_GET_RANDOM)) ||
+				((area->place_flags != PLACE_FIRST_CONTINENT ) &&
+				 (area->place_flags != PLACE_FOURTH_CONTINENT)) ||
+				!str_infix("Temples", area->name) ||
+				!str_infix("Housing", area->name ) ||
+				!str_infix("Arena", area->name) ||
+				!str_infix("Maze", area->name));
+		break;
+
+	case SOUTH_CONTINENTS:
+		do
+		{
+			area = get_area_data( number_range( 1, i));
+		} while ( area == NULL ||
+				!area->open ||
+				!is_area_unlocked(ch, area) ||
+				(no_get_random && IS_SET(area->area_flags, AREA_NO_GET_RANDOM)) ||
+				((area->place_flags != PLACE_SECOND_CONTINENT) &&
+				 (area->place_flags != PLACE_THIRD_CONTINENT)) ||
+				!str_infix("Temples", area->name) ||
+				!str_infix("Housing", area->name ) ||
+				!str_infix("Arena", area->name) ||
+				!str_infix("Maze", area->name));
+		break;
+
+	case WEST_CONTINENTS:
+		do
+		{
+			area = get_area_data( number_range( 1, i));
+		} while ( area == NULL ||
+				!area->open ||
+				!is_area_unlocked(ch, area) ||
+				(no_get_random && IS_SET(area->area_flags, AREA_NO_GET_RANDOM)) ||
+				((area->place_flags != PLACE_FIRST_CONTINENT ) &&
+				 (area->place_flags != PLACE_THIRD_CONTINENT)) ||
+				!str_infix("Temples", area->name) ||
+				!str_infix("Housing", area->name ) ||
+				!str_infix("Arena", area->name) ||
+				!str_infix("Maze", area->name));
+		break;
+
+	case EAST_CONTINENTS:
+		do
+		{
+			area = get_area_data( number_range( 1, i));
+		} while ( area == NULL ||
+				!area->open ||
+				!is_area_unlocked(ch, area) ||
+				(no_get_random && IS_SET(area->area_flags, AREA_NO_GET_RANDOM)) ||
+				((area->place_flags != PLACE_SECOND_CONTINENT) &&
+				 (area->place_flags != PLACE_FOURTH_CONTINENT)) ||
+				!str_infix("Temples", area->name) ||
+				!str_infix("Housing", area->name ) ||
+				!str_infix("Arena", area->name) ||
+				!str_infix("Maze", area->name));
 		break;
 
 	default:
@@ -270,10 +358,12 @@ AREA_DATA *get_random_area( CHAR_DATA *ch, int continent, bool no_get_random )
 				!area->open ||
 				!is_area_unlocked(ch, area) ||
 				(no_get_random && IS_SET(area->area_flags, AREA_NO_GET_RANDOM)) ||
+				((area->place_flags != PLACE_FIRST_CONTINENT ) &&
+				 (area->place_flags != PLACE_SECOND_CONTINENT) &&
+				 (area->place_flags != PLACE_THIRD_CONTINENT) &&
+				 (area->place_flags != PLACE_FOURTH_CONTINENT)) ||
 				!str_infix("Temples", area->name) ||
 				!str_infix("Housing", area->name ) ||
-				((area->place_flags != PLACE_FIRST_CONTINENT ) &&
-				 (area->place_flags != PLACE_SECOND_CONTINENT)) ||
 				!str_infix("Arena", area->name) ||
 				!str_infix("Maze", area->name));
 		break;

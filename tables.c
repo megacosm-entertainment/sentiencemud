@@ -2032,11 +2032,17 @@ const struct npc_ship_hotspot_type npc_ship_hotspot_table[] =
 
 const struct flag_type      place_flags[]           =
 {
-    { 	"Nowhere",    		PLACE_NOWHERE, 			TRUE	},
-    { 	"First Continent", 	PLACE_FIRST_CONTINENT, 		TRUE	},
+    { 	"Nowhere",    			PLACE_NOWHERE, 				TRUE	},
+    { 	"Wilderness",			PLACE_WILDERNESS,			TRUE	},
+    { 	"First Continent", 		PLACE_FIRST_CONTINENT, 		TRUE	},
     { 	"Second Continent", 	PLACE_SECOND_CONTINENT, 	TRUE	},
-    { 	"Island", 		PLACE_ISLAND, 			TRUE	},
-    { 	"Other Plane",		PLACE_OTHER_PLANE,		TRUE	},
+    { 	"Third Continent",	 	PLACE_THIRD_CONTINENT, 		TRUE	},
+    { 	"Fourth Continent", 	PLACE_FOURTH_CONTINENT, 	TRUE	},
+    { 	"Island", 				PLACE_ISLAND, 				TRUE	},
+    { 	"Other Plane",			PLACE_OTHER_PLANE,			TRUE	},
+    { 	"Abyss",				PLACE_ABYSS,				TRUE	},
+    { 	"Eden",					PLACE_EDEN,					TRUE	},
+    { 	"Netherworld",			PLACE_NETHERWORLD,			TRUE	},
     {  	NULL,			0, 				FALSE 	}
 };
 

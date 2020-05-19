@@ -1418,7 +1418,7 @@ bool can_gate(CHAR_DATA *ch, CHAR_DATA *victim)
 	}
 
 	if (str_cmp(ch->in_room->area->name, "Wilderness") &&
-		!SAME_PLACE(ch->in_room, victim->in_room)) {
+		!is_same_place(ch->in_room, victim->in_room)) {
 		send_to_char("Your destination is too far away.\n\r", ch);
 		return FALSE;
 	}

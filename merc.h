@@ -1199,7 +1199,10 @@ enum {
 	PLACE_OTHER_PLANE,
 	PLACE_ABYSS,
 	PLACE_EDEN,
-	PLACE_NETHERWORLD
+	PLACE_NETHERWORLD,
+	PLACE_WILDERNESS,
+	PLACE_THIRD_CONTINENT,
+	PLACE_FOURTH_CONTINENT,
 };
 
 /* Regions for wilderness */
@@ -1230,9 +1233,19 @@ enum {
 };
 
 /* For random functions - getting random mobs, objs etc */
-#define BOTH_CONTINENTS 	0
-#define FIRST_CONTINENT 	1
-#define SECOND_CONTINENT 	2
+#define MIN_CONTINENT			0
+
+#define ANY_CONTINENT			0
+#define NORTH_CONTINENTS		1	// Seralia and Heletane
+#define SOUTH_CONTINENTS		2	// Naranda and Athemia
+#define WEST_CONTINENTS			3	// Seralia and Naranda
+#define EAST_CONTINENTS			4	// Heletane and Athemia
+#define FIRST_CONTINENT 		5	// Seralia
+#define SECOND_CONTINENT	 	6	// Athemia
+#define THIRD_CONTINENT			7	// Naranda
+#define FOURTH_CONTINENT		8	// Heletane
+
+#define MAX_CONTINENT			8
 
 /* Alignments */
 #define ALIGN_GOOD		1
@@ -1420,6 +1433,7 @@ struct	shop_data
 #define STOCK_MOUNT		3
 #define STOCK_GUARD		4
 #define STOCK_SHIP		5
+#define STOCK_CREW		6
 
 struct shop_stock_data
 {
@@ -6621,13 +6635,16 @@ extern sh_int grn_unique;
 /*
  * Character macros.
  */
-#define SAME_PLACE_AREA(from, to) ( find_area("Wilderness") == from ? ( from->x < (from->map_size_x/2) ? \
- 			to->place_flags == PLACE_FIRST_CONTINENT : to->place_flags == PLACE_SECOND_CONTINENT \
- 			) : from->place_flags == to->place_flags && from->place_flags != PLACE_NOWHERE )
+//#define SAME_PLACE_AREA(from, to) ( find_area("Wilderness") == from ? ( from->x < (from->map_size_x/2) ? \
+// 			to->place_flags == PLACE_FIRST_CONTINENT : to->place_flags == PLACE_SECOND_CONTINENT \
+// 			) : from->place_flags == to->place_flags && from->place_flags != PLACE_NOWHERE )
 
-#define SAME_PLACE(from, to) ( find_area("Wilderness") == from->area ? ( from->x < (from->area->map_size_x/2) ? \
-			to->area->place_flags == PLACE_FIRST_CONTINENT : to->area->place_flags == PLACE_SECOND_CONTINENT \
-			) : from->area->place_flags == to->area->place_flags && from->area->place_flags != PLACE_NOWHERE )
+//#define SAME_PLACE(from, to) ( find_area("Wilderness") == from->area ? ( from->x < (from->area->map_size_x/2) ? \
+//			to->area->place_flags == PLACE_FIRST_CONTINENT : to->area->place_flags == PLACE_SECOND_CONTINENT \
+//			) : from->area->place_flags == to->area->place_flags && from->area->place_flags != PLACE_NOWHERE )
+
+#define SAME_PLACE_AREA(from, to) (is_same_place_area((from),(to)))
+#define SAME_PLACE(from, to) (is_same_place((from),(to)))
 
 #define IS_OUTSIDE(ch)	( (ch)->in_room->wilds || \
 		(!IS_SET((ch)->in_room->room_flags,ROOM_INDOORS) && \
@@ -7789,6 +7806,7 @@ bool can_tell_while_quiet( CHAR_DATA *ch, CHAR_DATA *victim );
 CHAR_DATA *get_char_world_index( CHAR_DATA *ch, MOB_INDEX_DATA *pMobIndex );
 bool can_hunt( CHAR_DATA *ch, CHAR_DATA *victim );
 int get_region( ROOM_INDEX_DATA *room );
+int get_continent( const char *name );
 int get_weight_coins( long silver, long gold );
 bool check_ice_storm( ROOM_INDEX_DATA *room );
 bool player_exists( char *argument );
@@ -8665,6 +8683,10 @@ void get_ship_location(CHAR_DATA *ch, SHIP_DATA *ship, char *buf, size_t len);
 void ship_cancel_route(SHIP_DATA *ship);
 WAYPOINT_DATA *get_ship_waypoint(SHIP_DATA *ship, char *argument, WILDS_DATA *wilds);
 SHIP_ROUTE *get_ship_route(SHIP_DATA *ship, char *argument);
+
+int get_region_wyx(long wuid, int x, int y;
+bool is_same_place_area(AREA_DATA *from, AREA_DATA *to);
+bool is_same_place(ROOM_INDEX_DATA *from, ROOM_INDEX_DATA *to);
 
 extern LLIST *loaded_special_keys;
 extern LLIST *loaded_waypoints;

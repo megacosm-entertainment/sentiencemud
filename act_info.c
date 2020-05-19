@@ -6395,7 +6395,10 @@ void do_scry(CHAR_DATA *ch, char *argument)
 			(!local || ch->in_room->area == victim->in_room->area) &&
 			(	(victim->in_room->area->place_flags == PLACE_FIRST_CONTINENT) ||
 				(victim->in_room->area->place_flags == PLACE_SECOND_CONTINENT) ||
+				(victim->in_room->area->place_flags == PLACE_THIRD_CONTINENT) ||
+				(victim->in_room->area->place_flags == PLACE_FOURTH_CONTINENT) ||
 				(victim->in_room->area->place_flags == PLACE_ISLAND) ||
+				(victim->in_room->area->place_flags == PLACE_WILDERNESS) ||
 				!str_cmp(victim->in_room->area->name, "Wilderness"))) {
 			found = TRUE;
 			count++;

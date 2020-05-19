@@ -384,7 +384,7 @@ void do_gohome(CHAR_DATA *ch, char *argument)
     }
     else
     {
-	if ( !SAME_PLACE(ch->in_room, location) )
+	if ( !is_same_place(ch->in_room, location) )
 	{
 	    send_to_char("Your home is too far away.\n\r", ch );
 	    return;
