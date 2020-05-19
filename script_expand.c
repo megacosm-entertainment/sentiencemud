@@ -941,8 +941,8 @@ char *expand_entity_primary(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	switch(*str) {
 	case ESCAPE_EXPRESSION:
 		arg->type = ENT_NUMBER;
-		str = expand_argument_expression(info,str+1,&arg->d.num);
-		break;
+		return expand_argument_expression(info,str+1,&arg->d.num);
+
 	case ENTITY_ENACTOR:
 		arg->type = ENT_MOBILE;
 		arg->d.mob = info ? info->ch : NULL;
