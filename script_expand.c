@@ -939,6 +939,10 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
 char *expand_entity_primary(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 	switch(*str) {
+	case ESCAPE_EXPRESSION:
+		arg->type = ENT_NUMBER;
+		str = expand_argument_expression(info,str+1,&arg->d.num);
+		break;
 	case ENTITY_ENACTOR:
 		arg->type = ENT_MOBILE;
 		arg->d.mob = info ? info->ch : NULL;
@@ -5121,7 +5125,7 @@ char *expand_entity_bitvector(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 	char *next;
-	arg->type = ENT_NONE;
+	arg->type = ENT_NONE;		// ENT_PRIMARY
 	arg->d.num = 0;
 
 	while(str && *str && *str != ESCAPE_END) {
@@ -5202,7 +5206,7 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		if(next) str = next;
 		else {
 			str = expand_skip(str);
-			arg->type = ENT_NONE;
+			arg->type = ENT_NONE;	// ENT_PRIMARY
 			arg->d.num = 0;
 		}
 	}
@@ -5215,7 +5219,7 @@ char *expand_string_entity(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
 	SCRIPT_PARAM *arg = new_script_param();
 
 	str = expand_argument_entity(info,str,arg);
-	if(!str || arg->type == ENT_NONE) {
+	if(!str || arg->type == ENT_NONE /* ENT_PRIMARY */) {
 		free_script_param(arg);
 		return NULL;
 	}
@@ -5735,7 +5739,7 @@ char *expand_argument(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	char *buf = malloc(strlen(str) + 1);
 
 	str = skip_whitespace(str);
-	arg->type = ENT_NONE;
+	arg->type = ENT_NONE;		// ENT_PRIMARY
 	clear_buf(arg->buffer);
 
 	if(*str == ESCAPE_ENTITY)
