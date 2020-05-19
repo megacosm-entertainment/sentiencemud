@@ -6635,13 +6635,16 @@ extern sh_int grn_unique;
 /*
  * Character macros.
  */
-//#define SAME_PLACE_AREA(from, to) ( find_area("Wilderness") == from ? ( from->x < (from->map_size_x/2) ? \
-// 			to->place_flags == PLACE_FIRST_CONTINENT : to->place_flags == PLACE_SECOND_CONTINENT \
-// 			) : from->place_flags == to->place_flags && from->place_flags != PLACE_NOWHERE )
+/*
+#define SAME_PLACE_AREA(from, to) ( find_area("Wilderness") == from ? ( from->x < (from->map_size_x/2) ? \
+ 			to->place_flags == PLACE_FIRST_CONTINENT : to->place_flags == PLACE_SECOND_CONTINENT \
+ 			) : from->place_flags == to->place_flags && from->place_flags != PLACE_NOWHERE )
 
-//#define SAME_PLACE(from, to) ( find_area("Wilderness") == from->area ? ( from->x < (from->area->map_size_x/2) ? \
-//			to->area->place_flags == PLACE_FIRST_CONTINENT : to->area->place_flags == PLACE_SECOND_CONTINENT \
-//			) : from->area->place_flags == to->area->place_flags && from->area->place_flags != PLACE_NOWHERE )
+#define SAME_PLACE(from, to) ( find_area("Wilderness") == from->area ? ( from->x < (from->area->map_size_x/2) ? \
+			to->area->place_flags == PLACE_FIRST_CONTINENT : to->area->place_flags == PLACE_SECOND_CONTINENT \
+			) : from->area->place_flags == to->area->place_flags && from->area->place_flags != PLACE_NOWHERE )
+
+*/
 
 #define SAME_PLACE_AREA(from, to) (is_same_place_area((from),(to)))
 #define SAME_PLACE(from, to) (is_same_place((from),(to)))
@@ -8684,7 +8687,7 @@ void ship_cancel_route(SHIP_DATA *ship);
 WAYPOINT_DATA *get_ship_waypoint(SHIP_DATA *ship, char *argument, WILDS_DATA *wilds);
 SHIP_ROUTE *get_ship_route(SHIP_DATA *ship, char *argument);
 
-int get_region_wyx(long wuid, int x, int y;
+int get_region_wyx(long wuid, int x, int y);
 bool is_same_place_area(AREA_DATA *from, AREA_DATA *to);
 bool is_same_place(ROOM_INDEX_DATA *from, ROOM_INDEX_DATA *to);
 
