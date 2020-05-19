@@ -433,8 +433,8 @@ char *compile_entity(char *str,int type, char **store)
 				return NULL;
 			}
 
-			*ptr++ = padddir ? ENTITY_STR_PADRIGHT : ENTITY_STR_PADLEFT;
-			*ptr++ = padding + ESCAPE_EXTRA;
+			*p++ = paddir ? ENTITY_STR_PADRIGHT : ENTITY_STR_PADLEFT;
+			*p++ = padding + ESCAPE_EXTRA;
 
 			next_ent = ENT_STRING;
 
