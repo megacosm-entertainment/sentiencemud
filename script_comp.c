@@ -401,6 +401,43 @@ char *compile_entity(char *str,int type, char **store)
 			*p++ = ENTITY_VAR_BOOLEAN;
 			next_ent = ENT_BOOLEAN;
 
+		} else if(ent == ENT_STRING) {
+			bool paddir;		// false = padleft, true = padright
+			if( !str_cmp(field, "padleft") )
+			{
+				paddir = false;
+			}
+			else if(!str_cmp(field, "padright") )
+			{
+				paddir = true;
+			}
+			else
+			{
+				sprintf(buf,"Line %d: '%s:%s' not a valid numerical field for strings.", compile_current_line, field, suffix);
+				compile_error_show(buf);
+				return NULL;
+			}
+
+			if( !is_number(suffix) )
+			{
+				sprintf(buf,"Line %d: '%s' requires a number for the suffix.", compile_current_line, field);
+				compile_error_show(buf);
+				return NULL;
+			}
+
+			int padding = atoi(suffix);
+			if( padding < 1 || padding > 80 )
+			{
+				sprintf(buf,"Line %d: padding out of range for '%s'.  Please limit value to 1 to 80.", compile_current_line, field);
+				compile_error_show(buf);
+				return NULL;
+			}
+
+			*ptr++ = padddir ? ENTITY_STR_PADRIGHT : ENTITY_STR_PADLEFT;
+			*ptr++ = padding + ESCAPE_EXTRA;
+
+			next_ent = ENT_STRING;
+
 		// Is this a variable call?
 		} else if(suffix[0]) {
 			if(script_entity_allow_vars(ent)) {

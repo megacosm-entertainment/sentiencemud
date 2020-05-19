@@ -1474,6 +1474,63 @@ char *expand_entity_string(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		}
 		arg->d.str[0] = UPPER(arg->d.str[0]);
 		break;
+
+	case ENTITY_STR_PADLEFT:
+		if( arg->d.str )
+		{
+			int len = strlen(arg->d.str);
+			int padding = *(++str) - ESCAPE_EXTRA;
+
+			// Replace string
+			if( len < padding )
+			{
+				char buf[padding + 1];
+				sprintf(buf, "%-*.*s", padding, padding, arg->d.str
+				clear_buf(arg->buffer);
+				add_buf(arg->buffer, buf);
+				arg->d.str = arg->buffer->string;
+			}
+
+		}
+		else
+		{
+			int padding = *(++str) - ESCAPE_EXTRA;
+			char buf[padding + 1];
+			sprintf(buf, "%-*.*s", padding, padding, " ");
+			clear_buf(arg->buffer);
+			add_buf(arg->buffer, buf);
+			arg->d.str = arg->buffer->string;
+		}
+		break;
+
+	case ENTITY_STR_PADRIGHT:
+		if( arg->d.str )
+		{
+			int len = strlen(arg->d.str);
+			int padding = *(++str) - ESCAPE_EXTRA;
+
+			// Replace string
+			if( len < padding )
+			{
+				char buf[padding + 1];
+				sprintf(buf, "%*.*s", padding, padding, arg->d.str
+				clear_buf(arg->buffer);
+				add_buf(arg->buffer, buf);
+				arg->d.str = arg->buffer->string;
+			}
+
+		}
+		else
+		{
+			int padding = *(++str) - ESCAPE_EXTRA;
+			char buf[padding + 1];
+			sprintf(buf, "%*.*s", padding, padding, " ");
+			clear_buf(arg->buffer);
+			add_buf(arg->buffer, buf);
+			arg->d.str = arg->buffer->string;
+		}
+		break;
+
 	default: return NULL;
 	}
 
