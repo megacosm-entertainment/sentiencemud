@@ -588,12 +588,8 @@ ROOM_INDEX_DATA *get_random_room( CHAR_DATA *ch, int continent )
 {
     AREA_DATA *area;
 
-    switch (continent)
-    {
-	case FIRST_CONTINENT:	area = get_random_area(ch, FIRST_CONTINENT, TRUE); 	break;
-	case SECOND_CONTINENT:	area = get_random_area(ch, SECOND_CONTINENT, TRUE);	break;
-	default:				area = get_random_area(ch, BOTH_CONTINENTS, TRUE);	break;
-    }
+
+	area = get_random_area(ch, continent, TRUE);
 
     return get_random_room_area_byflags(ch, area,
     	(ROOM_PRIVATE | ROOM_SOLITARY | ROOM_DEATH_TRAP | ROOM_SAFE | ROOM_CPK),
