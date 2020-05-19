@@ -598,7 +598,9 @@ enum entity_prior_enum {
 };
 
 enum entity_number_enum {
-	ENTITY_NUM_ABS = ESCAPE_EXTRA
+	ENTITY_NUM_ABS = ESCAPE_EXTRA,
+	ENTITY_NUM_PADLEFT,
+	ENTITY_NUM_PADRIGHT,
 };
 
 enum entity_string_enum {
