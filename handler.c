@@ -5326,7 +5326,7 @@ bool can_hunt(CHAR_DATA *ch, CHAR_DATA *victim)
     return TRUE;
 }
 
-int get_region_wyx(unsigned long wuid, int x, int y)
+int get_region_wyx(long wuid, int x, int y)
 {
 
 	if( wuid < 1 )
