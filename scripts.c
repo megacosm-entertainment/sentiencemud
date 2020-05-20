@@ -4898,8 +4898,7 @@ int test_number_trigger(int number, int wildcard, MATCH_NUMBER match, int type,
 			}
 			iterator_stop(&pit);
 
-
-			if( ret == PRET_NOSCRIPT && !script_destructed && number != wildcard )
+			if( ret_val == PRET_NOSCRIPT && !script_destructed && number != wildcard )
 			{
 				iterator_start(&pit, token->pIndexData->progs[slot]);
 				// Loop Level 2
@@ -4930,7 +4929,7 @@ int test_number_trigger(int number, int wildcard, MATCH_NUMBER match, int type,
 			}
 			iterator_stop(&pit);
 
-			if( ret == PRET_NOSCRIPT && !script_destructed && number != wildcard )
+			if( ret_val == PRET_NOSCRIPT && !script_destructed && number != wildcard )
 			{
 				iterator_start(&pit, area->progs->progs[slot]);
 				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
@@ -4961,7 +4960,7 @@ int test_number_trigger(int number, int wildcard, MATCH_NUMBER match, int type,
 			}
 			iterator_stop(&pit);
 
-			if( ret == PRET_NOSCRIPT && !script_destructed && number != wildcard )
+			if( ret_val == PRET_NOSCRIPT && !script_destructed && number != wildcard )
 			{
 				iterator_start(&pit, instance->blueprint->progs[slot]);
 				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
@@ -4994,8 +4993,7 @@ int test_number_trigger(int number, int wildcard, MATCH_NUMBER match, int type,
 			}
 			iterator_stop(&pit);
 
-
-			if( ret == PRET_NOSCRIPT && !script_destructed && number != wildcard )
+			if( ret_val == PRET_NOSCRIPT && !script_destructed && number != wildcard )
 			{
 				iterator_start(&pit, dungeon->index->progs[slot]);
 				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
