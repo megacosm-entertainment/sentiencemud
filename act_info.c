@@ -296,7 +296,7 @@ void show_list_to_char
 args((OBJ_DATA * list, CHAR_DATA * ch, bool fShort, bool fShowNothing));
 void show_map_and_description args((CHAR_DATA * ch, ROOM_INDEX_DATA *room));
 void show_char_to_char_0 args((CHAR_DATA * victim, CHAR_DATA * ch));
-void show_char_to_char_1 args((CHAR_DATA * victim, CHAR_DATA * ch));
+void show_char_to_char_1 args((CHAR_DATA * victim, CHAR_DATA * ch, bool examine));
 void create_map args((CHAR_DATA * ch, ROOM_INDEX_DATA *start_room, char *map));
 void show_char_to_char
 args((CHAR_DATA * list, CHAR_DATA * ch, CHAR_DATA * victim));
@@ -1057,7 +1057,7 @@ void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
 
 
 /* MOVED: senses/vision.c */
-void show_char_to_char_1(CHAR_DATA * victim, CHAR_DATA * ch)
+void show_char_to_char_1(CHAR_DATA * victim, CHAR_DATA * ch, bool examine)
 {
     char buf[2*MAX_STRING_LENGTH];
     char buf2[MSL];
@@ -1158,7 +1158,7 @@ void show_char_to_char_1(CHAR_DATA * victim, CHAR_DATA * ch)
 	show_list_to_char(victim->carrying, ch, TRUE, TRUE);
     }
 
-	if( IS_NPC(ch) || !IS_SET(ch->act2, PLR_NOLORE) )
+	if( IS_NPC(ch) || !IS_SET(ch->act2, PLR_NOLORE) || examine )
 	{
     if (IS_NPC(victim) && number_percent() < get_skill(ch, gsn_mob_lore))
     {
@@ -2097,7 +2097,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 
 			act("You don't see anything like that on $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		} else
-			show_char_to_char_1(victim, ch);
+			show_char_to_char_1(victim, ch, false);
 		return;
 	}
 
@@ -2628,58 +2628,108 @@ void do_look(CHAR_DATA * ch, char *argument)
 void do_examine(CHAR_DATA * ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
-    char arg[MAX_INPUT_LENGTH];
+    char arg1[MAX_INPUT_LENGTH];
+    char arg3[MAX_INPUT_LENGTH];
+    CHAR_DATA *victim;
     OBJ_DATA *obj;
+	bool perform_lore = FALSE;
 
-    one_argument(argument, arg);
+    argument = one_argument(argument, arg1);
 
-    if (arg[0] == '\0') {
-	send_to_char("Examine what?\n\r", ch);
-	return;
+    if (arg[0] == '\0')
+    {
+		send_to_char("Examine what?\n\r", ch);
+		return;
     }
 
-    if ((obj = get_obj_here(ch, NULL, arg)) != NULL) {
+	if(!check_vision(ch,ch->in_room,true,true))
+		return;
 
-	if (p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_EXAMINE,NULL)) return;
+	// look <person>[ <worn item>]
+	if ((victim = get_char_room(ch, NULL, arg1)) != NULL)
+	{
+		if(argument[0])
+		{
+			number = number_argument(argument, arg3);
+			count = 0;
+			// look at an object in the inventory
+			for (obj = victim->carrying; obj != NULL; obj = obj->next_content)
+				if (can_see_obj(ch, obj) && obj->wear_loc != WEAR_NONE && wear_params[obj->wear_loc][WEAR_PARAM_SEEN] &&
+					is_name(arg3, obj->name) && (++count == number))
+				{
+					if (p_percent_trigger(NULL, obj, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_EXAMINE,NULL)) return;
 
-	switch (obj->item_type) {
-	default:
-	    break;
+					if (get_skill(ch, gsn_lore) > 0 &&
+						number_percent() <= get_skill(ch, gsn_lore) &&
+						!IS_SET(obj->extra2_flags, ITEM_NO_LORE))
+						perform_lore = TRUE;
 
-	case ITEM_MONEY:
-	    if (obj->value[0] == 0) {
-		if (obj->value[1] == 0)
-		    sprintf(buf,
-			    "Odd...there's no coins in the pile.\n\r");
-		else if (obj->value[1] == 1)
-		    sprintf(buf, "Wow. One gold coin.\n\r");
+					if (ch != victim)
+					{
+
+						if(can_see(victim, ch) && ch->invis_level < LEVEL_IMMORTAL)
+						{
+							act("$n examines $p on you.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_VICT);
+							act("$n examines $p on $N.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_NOTVICT);
+						}
+						act("{MYou examine {W$p{M on {W$N{M.{x", ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+					}
+					send_to_char(obj->full_description, ch);
+					if (perform_lore)
+					{
+						send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
+						spell_identify(gsn_lore, ch->tot_level,ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
+					}
+					else
+						send_to_char("\n\r", ch);
+
+					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+					check_improve(ch, gsn_lore, TRUE, 10);
+					return;
+				}
+
+			if (count > 0 && count != number)
+			{
+				if (count == 1)
+					sprintf(buf, "You only see one %s here.\n\r", arg3);
+				else
+					sprintf(buf, "You only see %d of those here.\n\r", count);
+
+				send_to_char(buf, ch);
+				return;
+			}
+
+			act("You don't see anything like that on $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		}
 		else
-		    sprintf(buf,
-			    "There are %d gold coins in the pile.\n\r",
-			    obj->value[1]);
-	    } else if (obj->value[1] == 0) {
-		if (obj->value[0] == 1)
-		    sprintf(buf, "Wow. One silver coin.\n\r");
-		else
-		    sprintf(buf,
-			    "There are %d silver coins in the pile.\n\r",
-			    obj->value[0]);
-	    } else
-		sprintf(buf,
-			"There are %d gold and %d silver coins in the pile.\n\r",
-			obj->value[1], obj->value[0]);
-	    send_to_char(buf, ch);
-	    break;
+		{
+			if (p_percent_trigger(victim, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_EXAMINE, NULL)) return;
 
-	case ITEM_DRINK_CON:
-	case ITEM_CONTAINER:
-	case ITEM_WEAPON_CONTAINER:
-	case ITEM_CART:
-	case ITEM_CORPSE_NPC:
-	case ITEM_CORPSE_PC:
-	    sprintf(buf, "in %s", argument);
-	    do_function(ch, &do_look, buf);
+			show_char_to_char_1(victim, ch, true);
+		}
+		return;
 	}
+
+    if ((obj = get_obj_here(ch, NULL, arg1)) != NULL)
+    {
+		if (p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_EXAMINE,NULL)) return;
+
+		if (get_skill(ch, gsn_lore) > 0 &&
+			number_percent() <= get_skill(ch, gsn_lore) &&
+			!IS_SET(obj->extra2_flags, ITEM_NO_LORE))
+			perform_lore = TRUE;
+
+		send_to_char(obj->full_description, ch);
+		if (perform_lore)
+		{
+			send_to_char("\n\r{YFrom your studies you can conclude the following information: {X\n\r", ch);
+			spell_identify(gsn_lore, ch->tot_level,ch, (void *) obj, TARGET_OBJ, WEAR_NONE);
+		}
+		else
+			send_to_char("\n\r", ch);
+
+		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+		check_improve(ch, gsn_lore, TRUE, 10);
     }
 
     return;
