@@ -968,10 +968,14 @@ void cast_end(CHAR_DATA *ch)
 			set_pk_timer(ch, victim, PULSE_VIOLENCE * 4);
 
 		// If the victim is valid and using a built-in spell, check for spell cast script
-		if( (victim != NULL) && p_number_trigger(sn, victim, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_SPELLCAST, NULL) )
+		if( (victim != NULL) )
 		{
-			stop_casting(ch, FALSE);
-			return;
+			victim->tempstore[0] = sn;	// JUST the script is used by multiple spells or is a wildcard
+			if( p_number_trigger(sn, 0, victim, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_SPELLCAST, NULL) )
+			{
+				stop_casting(ch, FALSE);
+				return;
+			}
 		}
 
 		if (target == TARGET_CHAR && victim && IS_AFFECTED2(victim, AFF2_SPELL_DEFLECTION)) {

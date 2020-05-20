@@ -10790,21 +10790,35 @@ MEDIT (medit_addmprog)
     slot = trigger_table[tindex].slot;
 
 	if(value == TRIG_SPELLCAST) {
-		int sn = skill_lookup(phrase);
-		if(sn < 0 || skill_table[sn].spell_fun == spell_null) {
-			send_to_char("Invalid spell for trigger.\n\r",ch);
-			return FALSE;
+		if( !str_cmp(phrase, "*") )
+		{
+			strcpy(phrase, "0");
 		}
-		sprintf(phrase,"%d",sn);
+		else
+		{
+			int sn = skill_lookup(phrase);
+			if(sn < 0 || skill_table[sn].spell_fun == spell_null) {
+				send_to_char("Invalid spell for trigger.\n\r",ch);
+				return FALSE;
+			}
+			sprintf(phrase,"%d",sn);
+		}
 	}
-	else if( value == TRIG_EXIT ||
-		value == TRIG_EXALL ) {
-		int door = parse_door(phrase);
-		if( door < 0 ) {
-			send_to_char("Invalid direction for exit/exall trigger.\n\r", ch);
-			return FALSE;
+	else if( value == TRIG_EXIT || value == TRIG_EXALL )
+	{
+		if( !str_cmp(phrase, "*") )
+		{
+			strcpy(phrase, "-1");
 		}
-		sprintf(phrase,"%d",door);
+		else
+		{
+			int door = parse_door(phrase);
+			if( door < 0 ) {
+				send_to_char("Invalid direction for exit/exall trigger.\n\r", ch);
+				return FALSE;
+			}
+			sprintf(phrase,"%d",door);
+		}
 	}
 
     if ((code = get_script_index (atol(num), PRG_MPROG)) == NULL)
@@ -11187,14 +11201,36 @@ OEDIT (oedit_addoprog)
     value = tindex;//trigger_table[tindex].value;
     slot = trigger_table[tindex].slot;
 
-	if( value == TRIG_EXIT ||
-		value == TRIG_EXALL ) {
-		int door = parse_door(phrase);
-		if( door < 0 ) {
-			send_to_char("Invalid direction for exit/exall trigger.\n\r", ch);
-			return FALSE;
+	if(value == TRIG_SPELLCAST) {
+		if( !str_cmp(phrase, "*") )
+		{
+			strcpy(phrase, "0");
 		}
-		sprintf(phrase,"%d",door);
+		else
+		{
+			int sn = skill_lookup(phrase);
+			if(sn < 0 || skill_table[sn].spell_fun == spell_null) {
+				send_to_char("Invalid spell for trigger.\n\r",ch);
+				return FALSE;
+			}
+			sprintf(phrase,"%d",sn);
+		}
+	}
+	else if( value == TRIG_EXIT || value == TRIG_EXALL )
+	{
+		if( !str_cmp(phrase, "*") )
+		{
+			strcpy(phrase, "-1");
+		}
+		else
+		{
+			int door = parse_door(phrase);
+			if( door < 0 ) {
+				send_to_char("Invalid direction for exit/exall trigger.\n\r", ch);
+				return FALSE;
+			}
+			sprintf(phrase,"%d",door);
+		}
 	}
 
 
@@ -11285,20 +11321,42 @@ REDIT (redit_addrprog)
     value = tindex;//trigger_table[tindex].value;
     slot = trigger_table[tindex].slot;
 
-	if( value == TRIG_EXIT ||
-		value == TRIG_EXALL ||
-		value == TRIG_OPEN ||
-		value == TRIG_CLOSE ||
-		value == TRIG_KNOCK ||
-		value == TRIG_KNOCKING ) {
-		int door = parse_door(phrase);
-		if( door < 0 ) {
-			send_to_char("Invalid direction for exit/exall/open/close/knock/knocking trigger.\n\r", ch);
-			return FALSE;
+	if(value == TRIG_SPELLCAST) {
+		if( !str_cmp(phrase, "*") )
+		{
+			strcpy(phrase, "0");
 		}
-		sprintf(phrase,"%d",door);
+		else
+		{
+			int sn = skill_lookup(phrase);
+			if(sn < 0 || skill_table[sn].spell_fun == spell_null) {
+				send_to_char("Invalid spell for trigger.\n\r",ch);
+				return FALSE;
+			}
+			sprintf(phrase,"%d",sn);
+		}
 	}
-
+	else if( value == TRIG_EXIT ||
+			 value == TRIG_EXALL ||
+			 value == TRIG_OPEN ||
+			 value == TRIG_CLOSE ||
+			 value == TRIG_KNOCK ||
+			 value == TRIG_KNOCKING )
+	{
+		if( !str_cmp(phrase, "*") )
+		{
+			strcpy(phrase, "-1");
+		}
+		else
+		{
+			int door = parse_door(phrase);
+			if( door < 0 ) {
+				send_to_char("Invalid direction for exit/exall/open/close/knock/knocking trigger.\n\r", ch);
+				return FALSE;
+			}
+			sprintf(phrase,"%d",door);
+		}
+	}
 
     if ((code = get_script_index (atol(num), PRG_RPROG)) == NULL)
     {
