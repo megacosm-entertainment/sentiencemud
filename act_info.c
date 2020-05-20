@@ -2630,13 +2630,14 @@ void do_examine(CHAR_DATA * ch, char *argument)
     char buf[MAX_STRING_LENGTH];
     char arg1[MAX_INPUT_LENGTH];
     char arg3[MAX_INPUT_LENGTH];
+    int number, count;
     CHAR_DATA *victim;
     OBJ_DATA *obj;
 	bool perform_lore = FALSE;
 
     argument = one_argument(argument, arg1);
 
-    if (arg[0] == '\0')
+    if (arg1[0] == '\0')
     {
 		send_to_char("Examine what?\n\r", ch);
 		return;
