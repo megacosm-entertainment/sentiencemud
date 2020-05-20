@@ -7836,7 +7836,7 @@ bool check_vision(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool blind, bool dark)
 	}
 
 	if ((!IS_NPC(ch) || IS_SWITCHED(ch)) // we are a player
-		&& !IS_SET(ch->act, PLR_HOLYLIGHT)
+		&& (IS_NPC(ch) || !IS_SET(ch->act, PLR_HOLYLIGHT))
 		&& room_is_dark(room)
 		&& !IS_AFFECTED(ch, AFF_INFRARED)) {
 		if(dark) {
