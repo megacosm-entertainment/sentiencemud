@@ -4963,7 +4963,7 @@ int test_number_trigger(int number, int wildcard, MATCH_NUMBER match, int type,
 
 			if( ret == PRET_NOSCRIPT && !script_destructed && number != wildcard )
 			{
-				iterator_start(&pit, instance->blueprint->progs->progs[slot]);
+				iterator_start(&pit, instance->blueprint->progs[slot]);
 				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
 					if (is_trigger_type(prg->trig_type,type)) {
 						if (match_equal(prg->trig_number, wildcard)) {
@@ -4997,7 +4997,7 @@ int test_number_trigger(int number, int wildcard, MATCH_NUMBER match, int type,
 
 			if( ret == PRET_NOSCRIPT && !script_destructed && number != wildcard )
 			{
-				iterator_start(&pit, dungeon->index->progs->progs[slot]);
+				iterator_start(&pit, dungeon->index->progs[slot]);
 				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
 					if (is_trigger_type(prg->trig_type,type)) {
 						if (match_equal(prg->trig_number, wildcard)) {
@@ -6007,7 +6007,7 @@ int p_use_with_trigger(CHAR_DATA *ch, OBJ_DATA *obj, int type, OBJ_DATA *obj1, O
 	if (!obj_room(obj)) return PRET_NOSCRIPT;
 
 	if (type == TRIG_USEWITH)
-		return test_number_trigger(0, match_percent, type, NULL, obj, NULL, NULL, NULL, NULL, NULL, ch, victim, victim2, obj1, obj2, NULL, NULL);
+		return test_number_trigger(0, 0, match_percent, type, NULL, obj, NULL, NULL, NULL, NULL, NULL, ch, victim, victim2, obj1, obj2, NULL, NULL);
 
 	return PRET_NOSCRIPT;
 }
