@@ -4081,6 +4081,15 @@ SCRIPT_CMD(scriptcmd_wildernessmap)
 	if( IS_NULLSTR(marker) )
 		marker = "{RX{x";
 
+	char *plain = nocolour(marker);
+	int len = strlen(plain);
+	free_string(plain);
+
+	// Must be ONE character without color
+	if( len != 1 )
+		return;
+
+
 	if( create_wilderness_map(wilds, x, y, map, offset, marker) )
 		return;
 
