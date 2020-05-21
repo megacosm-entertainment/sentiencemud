@@ -10,6 +10,7 @@
 #include "tables.h"
 #include "scripts.h"
 #include "magic.h"
+#include "wilds.h"
 
 //#define DEBUG_MODULE
 #include "debug.h"
