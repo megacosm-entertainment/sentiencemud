@@ -21,7 +21,7 @@
 #include "olc.h"
 #include "wilds.h"
 
-OBJ_DATA *create_wilderness_map(WILDS_DATA *pWilds, int vx, int vy, OBJ_DATA *scroll, int offset)
+OBJ_DATA *create_wilderness_map(WILDS_DATA *pWilds, int vx, int vy, OBJ_DATA *scroll, int offset, char *marker)
 {
 	int distance;
 	AREA_DATA *bestArea = NULL;
@@ -44,6 +44,9 @@ OBJ_DATA *create_wilderness_map(WILDS_DATA *pWilds, int vx, int vy, OBJ_DATA *sc
 		vy += number_range(-1, 1);
 	}
 
+	if( IS_NULLSTR(marker) )
+		marker = "{RX{x";
+
 	// Get closest area
 	for (closestArea = area_first; closestArea != NULL; closestArea = closestArea->next)
 	{
@@ -65,14 +68,16 @@ OBJ_DATA *create_wilderness_map(WILDS_DATA *pWilds, int vx, int vy, OBJ_DATA *sc
 	{
 		BUFFER *buffer = new_buf();
 
-		get_wilds_mapstring(buffer, pWilds, wx, wy, vx, vy, 0, 0);
+		get_wilds_mapstring(buffer, pWilds, wx, wy, vx, vy, 0, 0, marker);
 
 		if (scroll->full_description != NULL)
 			free_string(scroll->full_description);
 
 		if( bestArea )
 		{
-			add_buf(buffer, "\n\r{RX{x marks the spot! The location is near ");
+			add_buf(buffer, "\n\r");
+			add_buf(buffer, marker);
+			add_buf(buffer, "{x marks the spot! The location is near ");
 			add_buf(buffer, bestArea->name);
 			add_buf(buffer, ".\n\r");
 		}
@@ -95,6 +100,35 @@ OBJ_DATA *create_wilderness_map(WILDS_DATA *pWilds, int vx, int vy, OBJ_DATA *sc
 	return scroll;
 }
 
+bool valid_area_for_treasure(AREA_DATA *pArea)
+{
+	if( !pArea ) return false;
+
+	if( pArea->wilds_uid < 1 ) return false;
+
+	WILDS_DATA *wilds = get_wilds_from_uid(NULL, pArea->wilds_uid);
+	if( !wilds ) return false;
+
+	for( int x = -20; x <= 20; x++ )
+	{
+		for( int y = -20; y <= 20; y++ )
+		{
+			int d = x * x + y * y;
+
+			if( d >= 40000 ) continue;
+
+			WILDS_TERRAIN *pTerrain = get_terrain_by_coors(wilds, pArea->x + x, pArea->y + y);
+
+			if( pTerrain != NULL && !pTerrain->nonroom &&
+				pTerrain->template->sector_type != SECT_WATER_SWIM &&
+				pTerrain->template->sector_type != SECT_WATER_NOSWIM)
+				return true;
+		}
+	}
+
+	return false;
+}
+
 OBJ_DATA *create_treasure_map(WILDS_DATA *pWilds, AREA_DATA *pArea, OBJ_DATA *treasure)
 {
 	ROOM_INDEX_DATA *pRoom = NULL;
@@ -102,6 +136,18 @@ OBJ_DATA *create_treasure_map(WILDS_DATA *pWilds, AREA_DATA *pArea, OBJ_DATA *tr
 	int vx, vy;
 
 	if( !IS_VALID(treasure) ) return NULL;
+
+	if( !pWilds ) return NULL;
+
+	// Not in the same wilderness as the one specified
+	if( pArea )
+	{
+		if( !valid_area_for_treasure(pArea) )
+			return NULL;
+
+		if( pArea->wilds_uid != pWilds->uid )
+			return NULL;
+	}
 
 	pRoom = obj_room(treasure);
 
@@ -158,7 +204,7 @@ OBJ_DATA *create_treasure_map(WILDS_DATA *pWilds, AREA_DATA *pArea, OBJ_DATA *tr
 	// create the scroll
 	scroll = create_object(get_obj_index(OBJ_VNUM_TREASURE_MAP), 0, TRUE);
 
-	return create_wilderness_map(pWilds, vx, vy, scroll, 5);
+	return create_wilderness_map(pWilds, vx, vy, scroll, 5, "{RX{x");
 }
 
 void do_spawntreasuremap(CHAR_DATA *ch, char *argument)

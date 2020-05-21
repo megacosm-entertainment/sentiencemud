@@ -1730,7 +1730,8 @@ void show_map_to_char(CHAR_DATA * ch, CHAR_DATA * to, int bonus_view_x, int bonu
 void get_wilds_mapstring(BUFFER *buffer, WILDS_DATA *pWilds,
 						int wx, int wy,
 						int vx, int vy,
-						int bonus_view_x, int bonus_view_y)
+						int bonus_view_x, int bonus_view_y,
+						char *marker)
 {
     WILDS_TERRAIN *pTerrain;
     WILDS_VLINK *pVLink;
@@ -1759,6 +1760,9 @@ void get_wilds_mapstring(BUFFER *buffer, WILDS_DATA *pWilds,
     vp_starty = wy - squares_to_show_y;
     vp_endy   = wy + squares_to_show_y;
 
+    if( IS_NULLSTR(marker) )
+    	marker = "{RX{x";
+
     for (y = vp_starty;y <= vp_endy;y++)
     {
         for (x = vp_startx;x <= vp_endx;x++)
@@ -1776,7 +1780,7 @@ void get_wilds_mapstring(BUFFER *buffer, WILDS_DATA *pWilds,
 
                 if ((vx == x) && (vy == y))
                 {
-                    sprintf(temp, "{RX{x");
+                    sprintf(temp, marker);
                     found = TRUE;
                 }
 

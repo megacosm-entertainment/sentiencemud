@@ -24,6 +24,7 @@ const struct script_cmd_type area_cmd_table[] = {
 	{ "oload",				scriptcmd_oload,			FALSE,	TRUE	},
 	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
 	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
+	{ "treasuremap",		scriptcmd_treasuremap,		FALSE,	TRUE	},
 	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
 	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
 	{ "varclear",			scriptcmd_varclear,			FALSE,	TRUE	},
@@ -33,6 +34,7 @@ const struct script_cmd_type area_cmd_table[] = {
 	{ "varsaveon",			scriptcmd_varsaveon,		FALSE,	TRUE	},
 	{ "varset",				scriptcmd_varset,			FALSE,	TRUE	},
 	{ "varseton",			scriptcmd_varseton,			FALSE,	TRUE	},
+	{ "wildernessmap",		scriptcmd_wildernessmap,	FALSE,	TRUE	},
 	{ "xcall",				scriptcmd_xcall,			FALSE,	TRUE	},
 	{ NULL,					NULL,						FALSE,	FALSE	}
 };
@@ -48,6 +50,7 @@ const struct script_cmd_type instance_cmd_table[] = {
 	{ "oload",				scriptcmd_oload,			FALSE,	TRUE	},
 	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
 	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
+	{ "treasuremap",		scriptcmd_treasuremap,		FALSE,	TRUE	},
 	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
 	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
 	{ "varclear",			scriptcmd_varclear,			FALSE,	TRUE	},
@@ -57,6 +60,7 @@ const struct script_cmd_type instance_cmd_table[] = {
 	{ "varsaveon",			scriptcmd_varsaveon,		FALSE,	TRUE	},
 	{ "varset",				scriptcmd_varset,			FALSE,	TRUE	},
 	{ "varseton",			scriptcmd_varseton,			FALSE,	TRUE	},
+	{ "wildernessmap",		scriptcmd_wildernessmap,	FALSE,	TRUE	},
 	{ "xcall",				scriptcmd_xcall,			FALSE,	TRUE	},
 	{ NULL,					NULL,						FALSE,	FALSE	}
 };
@@ -72,6 +76,7 @@ const struct script_cmd_type dungeon_cmd_table[] = {
 	{ "oload",				scriptcmd_oload,			FALSE,	TRUE	},
 	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
 	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
+	{ "treasuremap",		scriptcmd_treasuremap,		FALSE,	TRUE	},
 	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
 	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
 	{ "varclear",			scriptcmd_varclear,			FALSE,	TRUE	},
@@ -81,6 +86,7 @@ const struct script_cmd_type dungeon_cmd_table[] = {
 	{ "varsaveon",			scriptcmd_varsaveon,		FALSE,	TRUE	},
 	{ "varset",				scriptcmd_varset,			FALSE,	TRUE	},
 	{ "varseton",			scriptcmd_varseton,			FALSE,	TRUE	},
+	{ "wildernessmap",		scriptcmd_wildernessmap,	FALSE,	TRUE	},
 	{ "xcall",				scriptcmd_xcall,			FALSE,	TRUE	},
 	{ NULL,					NULL,						FALSE,	FALSE	}
 };
@@ -3748,6 +3754,62 @@ SCRIPT_CMD(scriptcmd_stopcombat)
 //////////////////////////////////////
 // T
 
+
+// TREASUREMAP $WUID $AREA|'none' $TREASURE $VARIABLENAME
+// $WUID         - wilderness map uid
+// $AREA         - area to put the object, or supply the string "none" to specify no area
+// $TREASURE     - object to hide on the map
+// $VARIABLENAME - name of variable to old treasure map object
+//
+SCRIPT_CMD(scriptcmd_treasuremap)
+{
+	char *rest;
+	WILDS_DATA *wilds;
+	AREA_DATA *area;
+	OBJ_DATA *treasure;
+
+	if(!info) return;
+
+	info->progs->lastreturn = 0;
+
+	if( !(rest = expand_argument(info, argument, arg)) && arg->type != ENT_NUMBER )
+		return;
+
+	wilds = get_wilds_from_uid(NULL, arg->d.num);
+	if( !wilds ) return;
+
+	if( !(rest = expand_argument(info, rest, arg)) )
+		return;
+
+	area = NULL;
+	if( arg->type == ENT_AREA )
+		area = arg->d.area;
+	else if( arg->type == ENT_STRING )
+	{
+		if( IS_NULLSTR(arg->d.str) || str_prefix(arg->d.str, "none"))
+			return;
+	}
+	else
+		return;
+
+	if( !(rest = expand_argument(info, rest, arg)) && arg->type != ENT_OBJECT )
+		return;
+
+	treasure = arg->d.obj;
+
+	if( rest && *rest )
+	{
+		OBJ_DATA *map = create_treasure_map(wilds, area, treasure);
+
+		if( !map ) return;
+
+		variables_set_object(info->var,rest,map);
+		info->progs->lastreturn = 1;
+	}
+
+}
+
+
 //////////////////////////////////////
 // U
 
@@ -3953,6 +4015,76 @@ SCRIPT_CMD(scriptcmd_varseton)
 
 //////////////////////////////////////
 // W
+
+// WILDERNESSMAP $WUID $X $Y $MAP $OFFSET%[ $MARKER]
+// $WUID         - wilderness map uid
+// $X            - x coordinate
+// $Y            - y coordinate
+// $MAP          - object to place map text on
+// $OFFSET%      - percent chance the X marker is offset +/-1
+// $MARKER       - marker to put on the map.  Defaults to {RX{x
+//
+SCRIPT_CMD(scriptcmd_wildernessmap)
+{
+	char *rest;
+	WILDS_DATA *wilds;
+	OBJ_DATA *map;
+	int x, y, offset;
+	char *marker;
+
+	if(!info) return;
+
+	info->progs->lastreturn = 0;
+
+	if( !(rest = expand_argument(info, argument, arg)) && arg->type != ENT_NUMBER )
+		return;
+
+	wilds = get_wilds_from_uid(NULL, arg->d.num);
+	if( !wilds ) return;
+
+	if( !(rest = expand_argument(info, rest, arg)) && arg->type != ENT_NUMBER )
+		return;
+
+	x = arg->d.num;
+	if( x < 0 || x >= wilds->map_size_x )
+		return;
+
+	if( !(rest = expand_argument(info, rest, arg)) && arg->type != ENT_NUMBER )
+		return;
+
+	y = arg->d.num;
+	if( y < 0 || y >= wilds->map_size_y )
+		return;
+
+	if( !(rest = expand_argument(info, rest, arg)) && arg->type != ENT_OBJECT )
+		return;
+
+	map = arg->d.obj;
+
+	if( !(rest = expand_argument(info, rest, arg)) && arg->type != ENT_NUMBER )
+		return;
+
+	offset = arg->d.num;
+	if( offset < 0 || offset > 100 )
+		return;
+
+	marker = NULL;
+	if( rest && *rest )
+	{
+		if( !(rest = expand_argument(info, rest, arg)) && arg->type != ENT_STRING )
+			return;
+
+		marker = arg->d.str;
+	}
+
+	if( IS_NULLSTR(marker) )
+		marker = "{RX{x";
+
+	if( create_wilderness_map(wilds, x, y, map, offset, marker) )
+		return;
+
+	info->progs->lastreturn = 1;
+}
 
 //////////////////////////////////////
 // X

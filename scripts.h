@@ -2608,6 +2608,9 @@ SCRIPT_CMD(scriptcmd_reckoning);
 SCRIPT_CMD(scriptcmd_lockadd);
 SCRIPT_CMD(scriptcmd_lockremove);
 
+SCRIPT_CMD(scriptcmd_treasuremap);
+SCRIPT_CMD(scriptcmd_wildernessmap);
+
 #include "tables.h"
 
 #endif /* !__SCRIPTS_H__ */
