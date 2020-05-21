@@ -3347,6 +3347,22 @@ void death_cry( CHAR_DATA *ch, bool has_head, bool messages )
 		obj->level = ch->tot_level;
 		obj->timer	= head_time;
 
+		if( obj->item_type == ITEM_BODY_PART )
+		{
+			obj->value[1] = ch->race;
+			if( !IS_NPC(ch) || ch->persist )
+			{
+				obj->value[2] = ch->id[0];
+				obj->value[3] = ch->id[1];
+			}
+			else
+			{
+				// Remove any previously stored ID.
+				obj->value[2] = 0;
+				obj->value[3] = 0;
+			}
+		}
+
 //		obj->pirate_reputation = get_rating( ch->ships_destroyed );
 
 		sprintf(buf, obj->short_descr, name);

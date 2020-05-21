@@ -3929,6 +3929,16 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		}
 	    add_buf(buffer, buf);
 		break;
+
+	case ITEM_BODY_PART:
+		sprintf(buf,
+				"{B[  {Wv0{B]{G Body Parts:{x    %s\n\r"
+				"{B[  {Wv1{B]{G Race:{x          %s\n\r",
+				flag_string(part_flags, obj->value[0]),
+				race_table[obj->value[1]].name);
+
+		add_buf(buffer, buf);
+		break;
     }
 }
 
@@ -5124,6 +5134,29 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			pObj->value[3] = value;
 			send_to_char("Y COORDINATE set.\n\r", ch);
 			break;
+		}
+		break;
+
+	case ITEM_BODY_PART:
+		switch(value_num)
+		{
+		int value;
+		default:
+			do_help(ch, "ITEM_BODY_PART");
+			break;
+
+		case 0:
+			if ((value = flag_value(part_flags, argument)) == NO_FLAG)
+				return FALSE;
+			send_to_char("BODY PARTS TOGGLED.\n\r", ch);
+			pObj->value[0] ^= value;
+			break;
+
+		case 1:
+			send_to_char("RACE SET\n\r", ch);
+			pObj->value[1] = race_lookup(argument);
+			break;
+
 		}
 		break;
 	}
