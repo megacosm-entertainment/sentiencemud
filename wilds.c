@@ -1548,6 +1548,7 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 		{
 			if (x >= 0 && x < pWilds->map_size_x && y >= 0 && y < pWilds->map_size_y)
 			{
+				index = y * pWilds->map_size_x + x;
 				sprintf(j, "%c",pWilds->map[index]);
 				if (!str_cmp(j, last_terrain))
 				{
