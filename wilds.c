@@ -1437,17 +1437,13 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 	int x, y;
 	long index;
 	DESCRIPTOR_DATA * d;
-	bool found = FALSE;
 	bool foundterrain = FALSE;
 	char j[6];
 	char last_terrain[6];
 	char temp[6];
 	int squares_to_show_x;
 	int squares_to_show_y;
-	bool last_char_same;
-	char last_char;
 	char last_colour_char;
-	char edit_mapstring[80];
 	char buf[MSL];
 	char padding1[MIL];
 	char padding2[MIL];
@@ -1455,20 +1451,19 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 	char trcoor[MIL];
 	char blcoor[MIL];
 	char brcoor[MIL];
-	int cString;
 	int vp_startx, vp_starty, vp_endx, vp_endy;
 	int i, pad;
 	ITERATOR it;
 	SHIP_DATA *ship;
 	extern	LLIST *loaded_ships;
 
+
+	BUFFER *output = new_buf();
+	add_buf(output, "\n\r");
+
 	squares_to_show_x = get_squares_to_show_x(bonus_view_x);
 	squares_to_show_y = get_squares_to_show_y(bonus_view_y);
-	last_char_same = FALSE;
-	last_char = ' ';
 	last_colour_char = ' ';
-	edit_mapstring[0] = '\0';
-	send_to_char("\n\r", to);
 
 	vp_startx = wx - squares_to_show_x;
 	vp_endx   = wx + squares_to_show_x;
@@ -1482,26 +1477,24 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 			vp_startx = 0;
 			vp_endx   = (squares_to_show_x * 2);
 		}
-		else
-			if (vp_startx > pWilds->map_size_x)
-			{
-				vp_startx = pWilds->map_size_x - (squares_to_show_x * 2);
-				vp_endx   = pWilds->map_size_x;
-			}
+		else if (vp_startx > pWilds->map_size_x)
+		{
+			vp_startx = pWilds->map_size_x - (squares_to_show_x * 2);
+			vp_endx   = pWilds->map_size_x;
+		}
 
 		if (vp_starty < 0)
 		{
 			vp_starty = 0;
 			vp_endy   = (squares_to_show_y * 2);
 		}
-		else
-			if (vp_startx > pWilds->map_size_x)
-			{
-				vp_startx = pWilds->map_size_x - (squares_to_show_x * 2);
-				vp_endx   = pWilds->map_size_x;
-			}
+		else if (vp_startx > pWilds->map_size_x)
+		{
+			vp_startx = pWilds->map_size_x - (squares_to_show_x * 2);
+			vp_endx   = pWilds->map_size_x;
+		}
 
-		send_to_char("View Window                      Edit Window\n\r", to);
+		add_buf(output, "View Window                      Edit Window\n\r");
 
 		sprintf(tlcoor, "(%d, %d)", vp_startx, vp_starty);
 		sprintf(trcoor, "(%d, %d)", vp_endx, vp_starty);
@@ -1521,9 +1514,8 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 		}
 
 		padding2[i] = 0;
-		sprintf(buf, "%s%s%s%s\n\r",
-				padding1, tlcoor, padding2, trcoor);
-		send_to_char(buf, to);
+		sprintf(buf, "%s%s%s%s\n\r", padding1, tlcoor, padding2, trcoor);
+		add_buf(output, buf);
 	}
 
 	const int cols = 2 * squares_to_show_x + 1;
@@ -1539,7 +1531,7 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 
 	if( olc )
 	{
-		olc_str = malloc(rows, sizeof(char *));
+		olc_str = malloc(rows * sizeof(char *));
 		for( int r = 0; r < rows; r++)
 			olc_str[r] = malloc(cols + 1);
 	}
@@ -1550,12 +1542,10 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 		char *mp = map_str[y - vp_starty];
 		char *op = NULL;
 
-		if( olc ) op = &olc_str[y - vp_starty];
+		if( olc ) op = olc_str[y - vp_starty];
 
 		for (x = vp_startx;x <= vp_endx;x++)
 		{
-			found = FALSE;
-
 			if (x >= 0 && x < pWilds->map_size_x && y >= 0 && y < pWilds->map_size_y)
 			{
 				sprintf(j, "%c",pWilds->map[index]);
@@ -1629,7 +1619,6 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 
 
 	// Vlinks
-	WILDS_VLINK *pVLink;
 	for(pVLink=pWilds->pVLink;pVLink;pVLink = pVLink->next)
 	{
 		int vx = get_wilds_vroom_x_by_dir(pWilds, pVLink->wildsorigin_x, pVLink->wildsorigin_y, pVLink->door);
@@ -1638,7 +1627,7 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 		if( (vx >= vp_startx && vx <= vp_endx) &&
 			(vy >= vp_starty && vy <= vp_endy) )
 		{
-			set_map_tile(map_str, vx - vp_startx, vy - vp_starty, pVlink->maptile[1], pVlink->maptile[2]);
+			set_map_tile(map_str, vx - vp_startx, vy - vp_starty, pVLink->maptile[1], pVLink->maptile[2]);
 		}
 	}
 
@@ -1690,9 +1679,6 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 		set_map_tile(map_str, vx - vp_startx, vy - vp_starty, 'M', '@');
 	}
 
-	BUFFER *output = new_buf();
-
-	last_char = ' ';
 	last_colour_char = ' ';
 	for (y = 0; y < rows; y++)
 	{
