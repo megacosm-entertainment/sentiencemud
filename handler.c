@@ -4150,7 +4150,7 @@ bool can_see(CHAR_DATA *ch, CHAR_DATA *victim)
 		return TRUE;
 
 	// these types of mobs can see everybody.
-	if (IS_NPC(ch) && (IS_SET(ch->act2, ACT2_SEE_ALL) || IS_SET(ch->act, ACT_IS_BANKER) || IS_SET(ch->act, ACT_IS_CHANGER) || IS_SET(ch->act, ACT_QUESTOR)))
+	if (IS_NPC(ch) && (IS_SET(ch->act2, ACT2_SEE_ALL) || IS_SET(ch->act, ACT_IS_BANKER) || IS_SET(ch->act, ACT_IS_CHANGER) || ch->pIndexData->pQuestor != NULL))
 		return TRUE;
 
 	if (IS_AFFECTED(ch, AFF_BLIND))

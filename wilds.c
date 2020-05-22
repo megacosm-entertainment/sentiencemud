@@ -1632,6 +1632,53 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 		}
 	}
 
+	// Objects and Mobiles
+    ROOM_INDEX_DATA *pVroom = NULL;
+	iterator_start(&it, pWilds->loaded_vrooms);
+	while(( pVroom = (ROOM_INDEX_DATA *)iterator_nextdata(&it)))
+	{
+
+        if ((pVroom->x >= vp_startx && pVroom->x <= vp_endx) &&
+        	(pVroom->y >= vp_starty && pVroom->y <= vp_endy))
+        {
+			bool found = false;
+			for(CHAR_DATA *mob = pVroom->people; mob; mob = mob->next_in_room)
+			{
+				if( IS_NPC(mob) && IS_SET(mob->act2, ACT2_SHOW_IN_WILDS) )
+				{
+					found = true;
+					break;
+				}
+			}
+
+			if( found )
+			{
+				set_map_tile(map_str, pVroom->x - vp_startx, pVroom->y - vp_starty, 'Y', '@');
+				continue;
+			}
+
+
+			for(OBJ_DATA *obj = pVroom->contents; obj; obj = obj->next_content)
+			{
+				if( IS_SET(obj->extra3_flags, ITEM_SHOW_IN_WILDS))
+				{
+					found = true;
+					break;
+				}
+			}
+
+			if( found )
+			{
+				set_map_tile(map_str, pVroom->x - vp_startx, pVroom->y - vp_starty, 'Y', '*');
+			}
+
+
+
+
+		}
+	}
+	iterator_stop(&it);
+
 	// Players
 	for (d = descriptor_list; d != NULL;d = d->next)
 	{
