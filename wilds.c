@@ -1627,7 +1627,7 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 		if( (vx >= vp_startx && vx <= vp_endx) &&
 			(vy >= vp_starty && vy <= vp_endy) )
 		{
-			set_map_tile(map_str, vx - vp_startx, vy - vp_starty, pVLink->maptile[1], pVLink->maptile[2]);
+			set_map_tile(map_str, vx - vp_startx, vy - vp_starty, pVLink->map_tile[1], pVLink->map_tile[2]);
 		}
 	}
 
