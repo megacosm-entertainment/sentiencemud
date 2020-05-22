@@ -1627,16 +1627,16 @@ void get_ship_wildsicon(SHIP_DATA *ship, char *buf, size_t len)
 	if( IS_NPC_SHIP(ship) )
 	{
 		if( ship->scuttle_time > 0 )
-			strncpy(buf, "{rO{x", len);
+			strncpy(buf, "{rO", len);
 		else
-			strncpy(buf, "{DO{x", len);
+			strncpy(buf, "{DO", len);
 	}
 	else
 	{
 		if( ship->scuttle_time > 0 )
-			strncpy(buf, "{RO{x", len);
+			strncpy(buf, "{RO", len);
 		else
-			strncpy(buf, "{WO{x", len);
+			strncpy(buf, "{WO", len);
 	}
 
 	buf[len] = '\0';

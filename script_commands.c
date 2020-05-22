@@ -4089,7 +4089,6 @@ SCRIPT_CMD(scriptcmd_wildernessmap)
 	if( len != 1 )
 		return;
 
-
 	if( create_wilderness_map(wilds, x, y, map, offset, marker) )
 		return;
 

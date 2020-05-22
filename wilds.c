@@ -1415,6 +1415,15 @@ bool is_wilds_coords(WILDS_COORD *coord, WILDS_DATA *wilds, int x, int y)
 	return true;
 }
 
+static void set_map_tile(char **map, int x, int y, char color, char tile)
+{
+	// WARNING: NO SANITY CHECKS ARE MADE IN HERE FOR COORDINATES
+	char *mp = &map[y][2 * x];
+
+	mp[0] = color;
+	mp[1] = tile;
+}
+
 void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
                       CHAR_DATA * to,
                       int vx,
@@ -1423,133 +1432,356 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 				      int bonus_view_y,
                       bool olc)
 {
-    WILDS_TERRAIN *pTerrain;
-    WILDS_VLINK *pVLink;
-    int x, y;
-    long index;
-    DESCRIPTOR_DATA * d;
-    bool found = FALSE;
-    bool foundterrain = FALSE;
-    char j[6];
-    char last_terrain[6];
-    char temp[6];
-    int squares_to_show_x;
-    int squares_to_show_y;
-    bool last_char_same;
-    char last_char;
-    char last_colour_char;
-    char edit_mapstring[80];
-    char buf[MSL];
-    char padding1[MIL];
-    char padding2[MIL];
-    char tlcoor[MIL];
-    char trcoor[MIL];
-    char blcoor[MIL];
-    char brcoor[MIL];
-    int cString;
-    int vp_startx, vp_starty, vp_endx, vp_endy;
-    int i, pad;
-    ITERATOR it;
-    SHIP_DATA *ship;
+	WILDS_TERRAIN *pTerrain;
+	WILDS_VLINK *pVLink;
+	int x, y;
+	long index;
+	DESCRIPTOR_DATA * d;
+	bool found = FALSE;
+	bool foundterrain = FALSE;
+	char j[6];
+	char last_terrain[6];
+	char temp[6];
+	int squares_to_show_x;
+	int squares_to_show_y;
+	bool last_char_same;
+	char last_char;
+	char last_colour_char;
+	char edit_mapstring[80];
+	char buf[MSL];
+	char padding1[MIL];
+	char padding2[MIL];
+	char tlcoor[MIL];
+	char trcoor[MIL];
+	char blcoor[MIL];
+	char brcoor[MIL];
+	int cString;
+	int vp_startx, vp_starty, vp_endx, vp_endy;
+	int i, pad;
+	ITERATOR it;
+	SHIP_DATA *ship;
 	extern	LLIST *loaded_ships;
 
-    squares_to_show_x = get_squares_to_show_x(bonus_view_x);
-    squares_to_show_y = get_squares_to_show_y(bonus_view_y);
-    last_char_same = FALSE;
-    last_char = ' ';
-    last_colour_char = ' ';
-    edit_mapstring[0] = '\0';
-    send_to_char("\n\r", to);
+	squares_to_show_x = get_squares_to_show_x(bonus_view_x);
+	squares_to_show_y = get_squares_to_show_y(bonus_view_y);
+	last_char_same = FALSE;
+	last_char = ' ';
+	last_colour_char = ' ';
+	edit_mapstring[0] = '\0';
+	send_to_char("\n\r", to);
 
-    vp_startx = wx - squares_to_show_x;
-    vp_endx   = wx + squares_to_show_x;
-    vp_starty = wy - squares_to_show_y;
-    vp_endy   = wy + squares_to_show_y;
+	vp_startx = wx - squares_to_show_x;
+	vp_endx   = wx + squares_to_show_x;
+	vp_starty = wy - squares_to_show_y;
+	vp_endy   = wy + squares_to_show_y;
 
-    if (olc)
-    {
-        if (vp_startx < 0)
-        {
-            vp_startx = 0;
-            vp_endx   = (squares_to_show_x * 2);
-        }
-        else
-            if (vp_startx > pWilds->map_size_x)
-            {
-                vp_startx = pWilds->map_size_x - (squares_to_show_x * 2);
-                vp_endx   = pWilds->map_size_x;
-            }
+	if (olc)
+	{
+		if (vp_startx < 0)
+		{
+			vp_startx = 0;
+			vp_endx   = (squares_to_show_x * 2);
+		}
+		else
+			if (vp_startx > pWilds->map_size_x)
+			{
+				vp_startx = pWilds->map_size_x - (squares_to_show_x * 2);
+				vp_endx   = pWilds->map_size_x;
+			}
 
-        if (vp_starty < 0)
-        {
-            vp_starty = 0;
-            vp_endy   = (squares_to_show_y * 2);
-        }
-        else
-            if (vp_startx > pWilds->map_size_x)
-            {
-                vp_startx = pWilds->map_size_x - (squares_to_show_x * 2);
-                vp_endx   = pWilds->map_size_x;
-            }
+		if (vp_starty < 0)
+		{
+			vp_starty = 0;
+			vp_endy   = (squares_to_show_y * 2);
+		}
+		else
+			if (vp_startx > pWilds->map_size_x)
+			{
+				vp_startx = pWilds->map_size_x - (squares_to_show_x * 2);
+				vp_endx   = pWilds->map_size_x;
+			}
 
-        send_to_char("View Window                      Edit Window\n\r", to);
+		send_to_char("View Window                      Edit Window\n\r", to);
 
-        sprintf(tlcoor, "(%d, %d)", vp_startx, vp_starty);
-        sprintf(trcoor, "(%d, %d)", vp_endx, vp_starty);
-        pad = squares_to_show_x * 2 + 7;
+		sprintf(tlcoor, "(%d, %d)", vp_startx, vp_starty);
+		sprintf(trcoor, "(%d, %d)", vp_endx, vp_starty);
+		pad = squares_to_show_x * 2 + 7;
 
-        for( i=0; i < pad ; i++ )
-        {
-           padding1[i] = ' ';
-        }
-
-        padding1[i] = 0;
-        pad = ((squares_to_show_x * 2) - strlen(tlcoor)) - strlen(trcoor);
-
-        for( i=0; i < pad ; i++ )
-        {
-           padding2[i] = ' ';
-        }
-
-        padding2[i] = 0;
-        sprintf(buf, "%s%s%s%s\n\r",
-                padding1, tlcoor, padding2, trcoor);
-        send_to_char(buf, to);
-    }
-
-    for (y = vp_starty;y <= vp_endy;y++)
-    {
-        cString = 0;
-        for (x = vp_startx;x <= vp_endx;x++)
-
-        {
-            found = FALSE;
-            index = y * pWilds->map_size_x + x;
-
-            if (x >= 0
-                && x < pWilds->map_size_x
-                && y >= 0
-                && y < pWilds->map_size_y)
-            {
-
-		if((pVLink = find_vlink_to_coord(pWilds,x,y)) && pVLink->map_tile && pVLink->map_tile[0]) {
-			strcpy(temp,pVLink->map_tile);
-			found = TRUE;
+		for( i=0; i < pad ; i++ )
+		{
+		   padding1[i] = ' ';
 		}
 
-                for (d = descriptor_list; d != NULL;d = d->next)
-                {
-                    if (d->connected == CON_PLAYING && d->character != to &&
-                    	can_see(to, d->character) &&
-                    	(d->character->in_room->wilds == pWilds ||
-                    		(d->character->in_room->viewwilds == pWilds && IS_SET(d->character->in_room->room2_flags,ROOM_VISIBLE_ON_MAP))) &&
-                    	d->character->in_room->x == x &&
-                    	d->character->in_room->y == y)
-                    {
-                        sprintf(temp, "{W@{x");
-                        found = TRUE;
-                    }
-                }
+		padding1[i] = 0;
+		pad = ((squares_to_show_x * 2) - strlen(tlcoor)) - strlen(trcoor);
+
+		for( i=0; i < pad ; i++ )
+		{
+		   padding2[i] = ' ';
+		}
+
+		padding2[i] = 0;
+		sprintf(buf, "%s%s%s%s\n\r",
+				padding1, tlcoor, padding2, trcoor);
+		send_to_char(buf, to);
+	}
+
+	const int cols = 2 * squares_to_show_x + 1;
+	const int rows = 2 * squares_to_show_y + 1;
+	const int col_size = 2;	// XY -> X color code, Y tile
+	const int row_size = (col_size * cols);
+
+	char **map_str = malloc(rows * sizeof(char *));
+	for( int r = 0; r < rows; r++)
+		map_str[r] = malloc(row_size);
+
+	char **olc_str = NULL;
+
+	if( olc )
+	{
+		olc_str = malloc(rows, sizeof(char *));
+		for( int r = 0; r < rows; r++)
+			olc_str[r] = malloc(cols + 1);
+	}
+
+	// Create map data
+	for (y = vp_starty;y <= vp_endy;y++)
+	{
+		char *mp = map_str[y - vp_starty];
+		char *op = NULL;
+
+		if( olc ) op = &olc_str[y - vp_starty];
+
+		for (x = vp_startx;x <= vp_endx;x++)
+		{
+			found = FALSE;
+
+			if (x >= 0 && x < pWilds->map_size_x && y >= 0 && y < pWilds->map_size_y)
+			{
+				sprintf(j, "%c",pWilds->map[index]);
+				if (!str_cmp(j, last_terrain))
+				{
+					sprintf(temp, last_terrain);
+				}
+				else
+				{
+					/* Vizz - Search the terrain list linearly for now at least. could index this later for speed */
+					foundterrain = FALSE;
+					for(pTerrain = pWilds->pTerrain;pTerrain;pTerrain = pTerrain->next)
+					{
+						if (pWilds->map[index] == pTerrain->mapchar)
+						{
+							sprintf(temp, pTerrain->showchar);
+							sprintf(last_terrain, temp);
+							foundterrain = TRUE;
+						}
+
+					}
+
+					if (!foundterrain)
+					{
+						/* Vizz - highlight vlink entrances */
+						if (!strcmp(j, "0"))
+							sprintf(temp, "{YO");
+						else
+							/* Vizz - allow for non-terrain defined characters - display verbatim */
+							sprintf(temp, j);
+					}
+				}
+
+				*mp++ = temp[1];
+				*mp++ = temp[2];
+
+				if( olc )
+				{
+					*op++ = j[0];
+				}
+			}
+			else
+			{
+				if (!olc)
+				{
+					*mp++ = 'x';
+					if (x % 5 + y % 6 == 0 && x % 2 + y % 3 == 0)
+					{
+						*mp++ = '.';
+					}
+					else
+					{
+						*mp++ = ' ';
+					}
+				}
+				else
+				{
+					*mp++ = 'x';
+					*mp++ = ' ';
+					*op++ = ' ';
+				}
+			}
+		}
+
+		if( olc )
+			*op = '\0';
+	}
+
+	///////////////////////////////////////
+	// Put various markers
+
+
+	// Vlinks
+	WILDS_VLINK *pVLink;
+	for(pVLink=pWilds->pVLink;pVLink;pVLink = pVLink->next)
+	{
+		int vx = get_wilds_vroom_x_by_dir(pWilds, pVLink->wildsorigin_x, pVLink->wildsorigin_y, pVLink->door);
+		int vy = get_wilds_vroom_y_by_dir(pWilds, pVLink->wildsorigin_x, pVLink->wildsorigin_y, pVLink->door);
+
+		if( (vx >= vp_startx && vx <= vp_endx) &&
+			(vy >= vp_starty && vy <= vp_endy) )
+		{
+			set_map_tile(map_str, vx - vp_startx, vy - vp_starty, pVlink->maptile[1], pVlink->maptile[2]);
+		}
+	}
+
+	// Players
+	for (d = descriptor_list; d != NULL;d = d->next)
+	{
+		if (d->connected == CON_PLAYING && d->character != to &&
+			can_see(to, d->character) &&
+			(d->character->in_room->wilds == pWilds ||
+				(d->character->in_room->viewwilds == pWilds && IS_SET(d->character->in_room->room2_flags,ROOM_VISIBLE_ON_MAP))) &&
+			(d->character->in_room->x >= vp_startx && d->character->in_room->x <= vp_endx) &&
+			(d->character->in_room->y >= vp_starty && d->character->in_room->y <= vp_endy))
+		{
+			set_map_tile(map_str, d->character->in_room->x - vp_startx, d->character->in_room->y - vp_starty, 'W', '@');
+		}
+	}
+
+	// Ships
+	iterator_start(&it, loaded_ships);
+	while( (ship = (SHIP_DATA *)iterator_nextdata(&it)) )
+	{
+		if( ship->ship->in_room->wilds == pWilds &&
+			(ship->ship->in_room->x >= vp_startx && ship->ship->in_room->x <= vp_startx) &&
+			(ship->ship->in_room->y >= vp_starty && ship->ship->in_room->y <= vp_endy) )
+		{
+			get_ship_wildsicon(ship, temp, sizeof(temp) - 1);
+
+			set_map_tile(map_str, ship->ship->in_room->x - vp_startx, ship->ship->in_room->y - vp_starty, temp[1], temp[2]);
+		}
+
+		for( int i = 0; i < 3; i++ )
+		{
+			WILDS_COORD wc = ship->last_coords[i];
+
+			if( wc.wilds == pWilds &&
+				(wc.x >= vp_startx && wc.x <= vp_endx) &&
+				(wc.y >= vp_starty && wc.y <= vp_endy))
+			{
+				set_map_tile(map_str, wc.x - vp_startx, wc.y - vp_starty, 'C', '~');
+			}
+		}
+	}
+	iterator_stop(&it);
+
+	// Viewer
+	if( (vx >= vp_startx && vx <= vp_endx) &&
+		(vy >= vp_starty && vy <= vp_endy) )
+	{
+		set_map_tile(map_str, vx - vp_startx, vy - vp_starty, 'M', '@');
+	}
+
+	BUFFER *output = new_buf();
+
+	last_char = ' ';
+	last_colour_char = ' ';
+	for (y = 0; y < rows; y++)
+	{
+		char *mp = map_str[y];
+
+		for(x = 0; x < cols; x++, mp += col_size)
+		{
+			char color = mp[0];
+			char tile = mp[1];
+
+			if( color != last_colour_char )
+			{
+				temp[0] = '{';
+				temp[1] = color;
+				temp[2] = tile;
+				temp[3] = '\0';
+				last_colour_char = color;
+			}
+			else
+			{
+				temp[0] = tile;
+				temp[1] = '\0';
+			}
+
+			add_buf(output, temp);
+		}
+
+		if(olc)
+		{
+			add_buf(output, "       {x");
+			add_buf(output, olc_str[y]);
+			last_colour_char = ' ';
+		}
+
+		add_buf(output, "\n\r");
+	}
+
+	if (olc)
+	{
+		sprintf(blcoor, "(%d, %d)", vp_startx, vp_endy);
+		sprintf(brcoor, "(%d, %d)", vp_endx, vp_endy);
+
+		pad = squares_to_show_x * 2 + 7;
+		for( i=0; i < pad ; i++ )
+		   padding1[i] = ' ';
+		padding1[i] = 0;
+
+		pad = ((squares_to_show_x * 2) - strlen(blcoor)) - strlen(brcoor);
+		for( i=0; i < pad ; i++ )
+		   padding2[i] = ' ';
+		padding2[i] = 0;
+
+		sprintf(buf, "{x%s%s%s%s\n\r", padding1, blcoor, padding2, brcoor);
+		add_buf(output, buf);
+	}
+
+	add_buf(output, "{x");
+
+	page_to_char(output->string, to);
+
+#if 0
+	for (y = vp_starty;y <= vp_endy;y++)
+	{
+		cString = 0;
+		for (x = vp_startx;x <= vp_endx;x++, mp+=col_size)
+		{
+			found = FALSE;
+
+			if (x >= 0 && x < pWilds->map_size_x && y >= 0 && y < pWilds->map_size_y)
+			{
+				if((pVLink = find_vlink_to_coord(pWilds,x,y)) && pVLink->map_tile && pVLink->map_tile[0])
+				{
+					strcpy(temp,pVLink->map_tile);
+					found = TRUE;
+				}
+
+				for (d = descriptor_list; d != NULL;d = d->next)
+				{
+					if (d->connected == CON_PLAYING && d->character != to &&
+						can_see(to, d->character) &&
+						(d->character->in_room->wilds == pWilds ||
+							(d->character->in_room->viewwilds == pWilds && IS_SET(d->character->in_room->room2_flags,ROOM_VISIBLE_ON_MAP))) &&
+						d->character->in_room->x == x &&
+						d->character->in_room->y == y)
+					{
+						sprintf(temp, "{W@");
+						found = TRUE;
+					}
+				}
 
 				iterator_start(&it, loaded_ships);
 				while( (ship = (SHIP_DATA *)iterator_nextdata(&it)) )
@@ -1565,153 +1797,171 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 						is_wilds_coords(&ship->last_coords[1], pWilds, x, y) ||
 						is_wilds_coords(&ship->last_coords[2], pWilds, x, y) )
 					{
-	                    sprintf(temp, "{C~");
-	                    found = TRUE;
+						sprintf(temp, "{C~");
+						found = TRUE;
 					}
 
 				}
 				iterator_stop(&it);
 
-                if ((vx == x) && (vy == y))
-                {
-                    sprintf(temp, "{M@{x");
-                    found = TRUE;
-                }
+				if ((vx == x) && (vy == y))
+				{
+					sprintf(temp, "{M@");
+					found = TRUE;
+				}
 
 
-/* Vizz - if no PC found in the room, display the terrain char */
-                if (!found)
-                {
-//					if( get_wilds_vroom(pWilds, x, y) ) {
-//						sprintf(temp, "{5{WX{x");
-//
-//					} else {
+				if (!found)
+				{
+					sprintf(j, "%c",pWilds->map[index]);
+					if (!str_cmp(j, last_terrain))
+					{
+						sprintf(temp, last_terrain);
+					}
+					else
+					{
+						/* Vizz - Search the terrain list linearly for now at least. could index this later for speed */
+						foundterrain = FALSE;
+						for(pTerrain = pWilds->pTerrain;pTerrain;pTerrain = pTerrain->next)
+						{
+							if (pWilds->map[index] == pTerrain->mapchar)
+							{
+								sprintf(temp, pTerrain->showchar);
+								sprintf(last_terrain, temp);
+								foundterrain = TRUE;
+							}
 
+						}
 
-                    sprintf(j, "%c",pWilds->map[index]);
-                    if (!str_cmp(j, last_terrain))
-                    {
-                        sprintf(temp, last_terrain);
-                    }
-                    else
-                    {
-/* Vizz - Search the terrain list linearly for now at least. could index this later for speed */
-                        foundterrain = FALSE;
-                        for(pTerrain = pWilds->pTerrain;pTerrain;pTerrain = pTerrain->next)
-                        {
-                            if (pWilds->map[index] == pTerrain->mapchar)
-                            {
-                                sprintf(temp, pTerrain->showchar);
-                                sprintf(last_terrain, temp);
-                                foundterrain = TRUE;
-                            }
+						if (!foundterrain)
+						{
+							/* Vizz - highlight vlink entrances */
+							if (!strcmp(j, "0"))
+								sprintf(temp, "{YO");
+							else
+								/* Vizz - allow for non-terrain defined characters - display verbatim */
+								sprintf(temp, j);
+						}
+					}
+				}
 
-                        }
+				if (last_char_same && (temp[2] != last_char || temp[1] != last_colour_char))
+				{
+					last_char_same = FALSE;
+				}
 
-                        if (!foundterrain)
-                        {
-                            /* Vizz - highlight vlink entrances */
-                            if (!strcmp(j, "0"))
-                                sprintf(temp, "{YO");
-                            else
-                                /* Vizz - allow for non-terrain defined characters - display verbatim */
-                                sprintf(temp, j);
-                        }
-                    }
-//					}
-                }
+				if (temp[2] == last_char && temp[1] == last_colour_char)
+				{
+					 last_char_same = TRUE;
+				}
 
-                if (last_char_same
-                    && (temp[2] != last_char
-                        || temp[1] != last_colour_char))
-                {
-                    last_char_same = FALSE;
-                }
+				if (last_char_same)
+				{
+					 sprintf(temp, "%c", temp[2]);
+				}
 
-                if (temp[2] == last_char && temp[1] == last_colour_char)
-                {
-                     last_char_same = TRUE;
-                }
+				send_to_char(temp, to);
 
-                if (last_char_same)
-                {
-                     sprintf(temp, "%c", temp[2]);
-                }
+				if (olc)
+				{
+					edit_mapstring[cString] = j[0];
+					cString++;
+				}
 
-                send_to_char(temp, to);
-
-                if (olc)
-                {
-                    edit_mapstring[cString] = j[0];
-                    cString++;
-                }
-
-                if (last_char_same)
-                {
-                    last_char = temp[0];
-                }
-                else
-                {
-                    last_char = temp[2];
-                    last_colour_char = temp[1];
-                }
-            }
-            else
-            {
-                /* If we're displaying outside the map bounds, fill in with starfield */
-                if (!olc) {
-                    if (x % 5 + y % 6 == 0 && x % 2 + y % 3 == 0)
-                    {
-                        last_char = '.'; last_colour_char = 'x';
-                        send_to_char("{x.", to);
-                    }
-                    else
-                        send_to_char(" ", to);
-                } else {
-                    send_to_char(" ", to);
+				if (last_char_same)
+				{
+					last_char = temp[0];
+				}
+				else
+				{
+					last_char = temp[2];
+					last_colour_char = temp[1];
+				}
+			}
+			else
+			{
+				/* If we're displaying outside the map bounds, fill in with starfield */
+				if (!olc)
+				{
+					if (x % 5 + y % 6 == 0 && x % 2 + y % 3 == 0)
+					{
+						last_char = '.'; last_colour_char = 'x';
+						send_to_char("{x.", to);
+					}
+					else
+						send_to_char(" ", to);
+				}
+				else
+				{
+					send_to_char(" ", to);
 				}
 				edit_mapstring[cString] = ' ';
 				cString++;
-            }
-        }
+			}
+		}
 
-        if (olc)
-        {
-            edit_mapstring[cString] = '\0';
-            sprintf(buf, "       {x%s{%c", edit_mapstring, last_colour_char);
-            send_to_char(buf, to);
-        }
+		if (olc)
+		{
+			edit_mapstring[cString] = '\0';
+			sprintf(buf, "       {x%s{%c", edit_mapstring, last_colour_char);
+			send_to_char(buf, to);
+		}
+		send_to_char("\n\r", to);
+	}
 
-        send_to_char("\n\r", to);
-    }
+	if (olc)
+	{
+		sprintf(blcoor, "(%d, %d)", vp_startx, vp_endy);
+		sprintf(brcoor, "(%d, %d)", vp_endx, vp_endy);
+		pad = squares_to_show_x * 2 + 7;
 
-    if (olc)
-    {
-        sprintf(blcoor, "(%d, %d)", vp_startx, vp_endy);
-        sprintf(brcoor, "(%d, %d)", vp_endx, vp_endy);
-        pad = squares_to_show_x * 2 + 7;
+		for( i=0; i < pad ; i++ )
+		{
+		   padding1[i] = ' ';
+		}
 
-        for( i=0; i < pad ; i++ )
-        {
-           padding1[i] = ' ';
-        }
+		padding1[i] = 0;
+		pad = ((squares_to_show_x * 2) - strlen(blcoor)) - strlen(brcoor);
 
-        padding1[i] = 0;
-        pad = ((squares_to_show_x * 2) - strlen(blcoor)) - strlen(brcoor);
+		for( i=0; i < pad ; i++ )
+		{
+		   padding2[i] = ' ';
+		}
 
-        for( i=0; i < pad ; i++ )
-        {
-           padding2[i] = ' ';
-        }
+		padding2[i] = 0;
+		sprintf(buf, "{x%s%s%s%s\n\r",
+				padding1, blcoor, padding2, brcoor);
+		send_to_char(buf, to);
+	}
 
-        padding2[i] = 0;
-        sprintf(buf, "{x%s%s%s%s\n\r",
-                padding1, blcoor, padding2, brcoor);
-        send_to_char(buf, to);
-    }
+	send_to_char("{x", to);
+#endif
 
-    send_to_char("{x", to);
-    return;
+	free_buf(output);
+
+	if( map_str )
+	{
+		for( int r = 0; r < rows; r++ )
+		{
+			if( map_str[r] )
+				free(map_str[r]);
+		}
+
+		free(map_str);
+	}
+
+	if( olc_str )
+	{
+		for( int r = 0; r < rows; r++ )
+		{
+			if( olc_str[r] )
+				free(olc_str[r]);
+		}
+
+		free(olc_str);
+	}
+
+	return;
 }
 
 void show_map_to_char(CHAR_DATA * ch, CHAR_DATA * to, int bonus_view_x, int bonus_view_y, bool olc)
