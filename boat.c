@@ -4842,7 +4842,7 @@ void do_ship_keys(CHAR_DATA *ch, char *argument)
 		}
 
 		SPECIAL_KEY_DATA *sk = (SPECIAL_KEY_DATA *)list_nthdata(ship->special_keys, index);
-		OBJ_INDEX_DATA *key_index = sk->key_vnum;
+		OBJ_INDEX_DATA *key_index = get_obj_index(sk->key_vnum);
 
 		if( !key_index || key_index->item_type != ITEM_KEY )
 		{
