@@ -4775,11 +4775,11 @@ void do_ship_keys(CHAR_DATA *ch, char *argument)
 		bool error = false;
 		int lines = 0;
 
-		char *name;
-		if( IS_NULLSTR(ship->ship_name) )
-			name = ship->index->name;
-		else
-			name = ship->ship_name;
+		//char *name;
+		//if( IS_NULLSTR(ship->ship_name) )
+		//	name = ship->index->name;
+		//else
+		//	name = ship->ship_name;
 
 		BUFFER *buffer = new_buf();
 
@@ -4788,14 +4788,14 @@ void do_ship_keys(CHAR_DATA *ch, char *argument)
 		{
 			OBJ_INDEX_DATA *key = get_obj_index(sk->key_vnum);
 
-			if( key && key_index->item_type == ITEM_KEY )
+			if( key && key->item_type == ITEM_KEY )
 				strncpy(arg, key->short_descr, MIL-1);
 			else
 				strcpy(arg, "{D-invalid key-{x");
 
 			int nwidth = get_colour_width(arg) + 30;
 
-			sprintf(buf, "{Y%2d) {x%-*.*s {W%d{x\n\r", ++lines, nwidth, nwidth, arg, list_size(sk->list))
+			sprintf(buf, "{Y%2d) {x%-*.*s {W%d{x\n\r", ++lines, nwidth, nwidth, arg, list_size(sk->list));
 			if( !add_buf(buffer, buf) || (!ch->lines && strlen(buffer->string) > MSL) )
 			{
 				error = true;
@@ -4841,10 +4841,10 @@ void do_ship_keys(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		SPECIAL_KEY_DATA *sk = (SPECIAL_KEY_DATA *)list_nthdata(ship->special_keys);
+		SPECIAL_KEY_DATA *sk = (SPECIAL_KEY_DATA *)list_nthdata(ship->special_keys, index);
 		OBJ_INDEX_DATA *key_index = sk->key_vnum;
 
-		if( !key_index || key_index != ITEM_KEY )
+		if( !key_index || key_index->item_type != ITEM_KEY )
 		{
 			send_to_char("Something is wrong with that key.  Please inform an immortal or file a bug report.\n\r", ch);
 			return;
@@ -4887,7 +4887,7 @@ void do_ship_keys(CHAR_DATA *ch, char *argument)
 			key->name = str_dup(buf);
 			free_string(name);
 
-			sprintf(buf, "%s of '{x%s{x'", obj->short_descr, name);
+			sprintf(buf, "%s of '{x%s{x'", key->short_descr, name);
 			free_string(key->short_descr);
 			key->short_descr = str_dup(buf);
 
@@ -4932,7 +4932,7 @@ void do_ship_keys(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		SPECIAL_KEY_DATA *sk = (SPECIAL_KEY_DATA *)list_nthdata(ship->special_keys);
+		SPECIAL_KEY_DATA *sk = (SPECIAL_KEY_DATA *)list_nthdata(ship->special_keys, index);
 
 		list_clear(sk->list);
 
