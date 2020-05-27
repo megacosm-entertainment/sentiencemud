@@ -1694,7 +1694,7 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 	while( (ship = (SHIP_DATA *)iterator_nextdata(&it)) )
 	{
 		if( ship->ship->in_room->wilds == pWilds &&
-			(ship->ship->in_room->x >= vp_startx && ship->ship->in_room->x <= vp_startx) &&
+			(ship->ship->in_room->x >= vp_startx && ship->ship->in_room->x <= vp_endx) &&
 			(ship->ship->in_room->y >= vp_starty && ship->ship->in_room->y <= vp_endy) )
 		{
 			get_ship_wildsicon(ship, temp, sizeof(temp) - 1);
