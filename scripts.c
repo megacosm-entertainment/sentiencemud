@@ -2560,7 +2560,7 @@ DECL_OPC_FUN(opc_list)
 			//log_stringf("opc_list: variable(%s)", variable ? variable->name : "<END>");
 
 			// Set the variable
-			variables_set_room(block->info.var,block->loops[lp].var_name,ship);
+			variables_set_ship(block->info.var,block->loops[lp].var_name,ship);
 
 			if( !ship ) {
 				iterator_stop(&block->loops[lp].d.l.list.it);
