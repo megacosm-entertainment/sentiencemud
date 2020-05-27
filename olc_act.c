@@ -7410,7 +7410,7 @@ OEDIT(oedit_extra3)
 	    if (has_imp_sig(NULL, pObj))
 		use_imp_sig(NULL, pObj);
 
-	    send_to_char("Extra2 flag toggled.\n\r", ch);
+	    send_to_char("Extra3 flag toggled.\n\r", ch);
 	    return TRUE;
 	}
     }
