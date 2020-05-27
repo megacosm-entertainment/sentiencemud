@@ -3513,7 +3513,7 @@ SCRIPT_CMD(scriptcmd_specialkey)
 	if( arg->type == ENT_SHIP )
 		keys = IS_VALID(arg->d.ship) ? arg->d.ship->special_keys : NULL;
 	else if( arg->type == ENT_DUNGEON )
-		keys = IS_VALID(arg->d.dungeon) ? arg->d.dungeon->special_keys : NULL;
+		keys = NULL;//IS_VALID(arg->d.dungeon) ? arg->d.dungeon->special_keys : NULL; // NYI
 
 	if( !IS_VALID(keys) )
 		return;

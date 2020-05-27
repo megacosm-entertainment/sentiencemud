@@ -149,6 +149,7 @@ ENT_FIELD entity_game[] = {
 	{"maps",			ENTITY_GAME_WILDS,				ENT_BLLIST_WILDS	},
 	{"persist",			ENTITY_GAME_PERSIST,			ENT_PERSIST },
 	{"churches",		ENTITY_GAME_CHURCHES,			ENT_PLLIST_CHURCH },
+	{"ships",			ENTITY_GAME_SHIPS,				ENT_ILLIST_SHIPS },
 	{"relicpower",		ENTITY_GAME_RELIC_POWER,		ENT_OBJECT	},
 	{"damagerelic",		ENTITY_GAME_RELIC_POWER,		ENT_OBJECT	},
 	{"relicknowledge",	ENTITY_GAME_RELIC_KNOWLEDGE,	ENT_OBJECT	},

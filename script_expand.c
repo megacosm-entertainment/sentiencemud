@@ -15,6 +15,10 @@
 //#define DEBUG_MODULE
 #include "debug.h"
 
+extern	LLIST *loaded_instances;
+extern	LLIST *loaded_dungeons;
+extern	LLIST *loaded_ships;
+
 char *expand_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,pVARIABLE *var);
 char *expand_string_expression(SCRIPT_VARINFO *info,char *str,BUFFER *store);
 
@@ -1104,9 +1108,15 @@ char *expand_entity_game(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_BLLIST_WILDS;
 		arg->d.blist = loaded_wilds;
 		break;
+
 	case ENTITY_GAME_CHURCHES:
 		arg->type = ENT_PLLIST_CHURCH;
 		arg->d.blist = list_churches;
+		break;
+
+	case ENTITY_GAME_SHIPS:
+		arg->type = ENT_ILLIST_SHIPS;
+		arg->d.blist = loaded_ships;
 		break;
 
 	case ENTITY_GAME_RELIC_POWER:
