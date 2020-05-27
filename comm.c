@@ -3714,6 +3714,9 @@ void show_string(struct descriptor_data *d, char *input)
 		return;
 	}
 
+	if( *d->showstr_point == '\r' )
+		d->showstr_point++;
+
 	int len = strlen(d->showstr_point);
 	buffer = malloc(len + 1);
 
