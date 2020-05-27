@@ -1633,7 +1633,7 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 	}
 
 	// Objects and Mobiles
-    ROOM_INDEX_DATA *pVroom = NULL;
+    ROOM_INDEX_DATA *pVroom;
 	iterator_start(&it, pWilds->loaded_vrooms);
 	while(( pVroom = (ROOM_INDEX_DATA *)iterator_nextdata(&it)))
 	{
@@ -1671,10 +1671,6 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 			{
 				set_map_tile(map_str, pVroom->x - vp_startx, pVroom->y - vp_starty, 'Y', '*');
 			}
-
-
-
-
 		}
 	}
 	iterator_stop(&it);

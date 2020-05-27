@@ -106,6 +106,7 @@ ENT_FIELD entity_types[] = {
 	{"sect",			ENTITY_VAR_SECTION,		ENT_SECTION	},
 	{"inst",			ENTITY_VAR_INSTANCE,	ENT_INSTANCE	},
 	{"dung",			ENTITY_VAR_DUNGEON,		ENT_DUNGEON	},
+	{"ship",			ENTITY_VAR_SHIP,		ENT_SHIP	},
 	{NULL,				0,						ENT_UNKNOWN	}
 };
 
@@ -325,6 +326,7 @@ ENT_FIELD entity_object[] = {
 	{"extra3",		ENTITY_OBJ_EXTRA3,			ENT_BITVECTOR },
 	{"extra4",		ENTITY_OBJ_EXTRA4,			ENT_BITVECTOR },
 	{"wear",		ENTITY_OBJ_WEAR,			ENT_BITVECTOR },
+	{"ship",		ENTITY_OBJ_SHIP,			ENT_SHIP		},
 	{NULL,			0,			ENT_UNKNOWN	}
 };
 
@@ -362,6 +364,7 @@ ENT_FIELD entity_room[] = {
 	{"section",		ENTITY_ROOM_SECTION,		ENT_SECTION	},
 	{"instance",	ENTITY_ROOM_INSTANCE,		ENT_INSTANCE	},
 	{"dungeon",		ENTITY_ROOM_DUNGEON,		ENT_DUNGEON	},
+	{"ship",		ENTITY_ROOM_SHIP,			ENT_SHIP	},
 	{NULL,			0,							ENT_UNKNOWN	}
 };
 
@@ -585,6 +588,7 @@ ENT_FIELD entity_instance[] = {
 	{"object",			ENTITY_INSTANCE_OBJECT,			ENT_OBJECT			},
 	{"dungeon",			ENTITY_INSTANCE_DUNGEON,		ENT_DUNGEON			},
 //	{"quest",			ENTITY_INSTANCE_QUEST,			ENT_QUEST			},
+	{"ship",			ENTITY_INSTANCE_SHIP,			ENT_SHIP			},
 	{"floor",			ENTITY_INSTANCE_FLOOR,			ENT_NUMBER			},
 	{"entry",			ENTITY_INSTANCE_ENTRY,			ENT_ROOM			},
 	{"exit",			ENTITY_INSTANCE_EXIT,			ENT_ROOM			},
@@ -612,6 +616,12 @@ ENT_FIELD entity_dungeon[] = {
 	{"objects",			ENTITY_DUNGEON_OBJECTS,			ENT_PLLIST_OBJ		},
 	{"bosses",			ENTITY_DUNGEON_BOSSES,			ENT_PLLIST_MOB		},
 	{"specialrooms",	ENTITY_DUNGEON_SPECIAL_ROOMS,	ENT_ILLIST_SPECIALROOMS		},
+	{NULL,				0,								ENT_UNKNOWN			}
+};
+
+ENT_FIELD entity_ship[] = {
+	{"name",			ENTITY_SHIP_NAME,				ENT_STRING			},
+	{"object",			ENTITY_SHIP_OBJECT,				ENT_OBJECT			},
 	{NULL,				0,								ENT_UNKNOWN			}
 };
 

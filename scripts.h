@@ -317,6 +317,7 @@ enum variable_enum {
 	VAR_SECTION,
 	VAR_INSTANCE,
 	VAR_DUNGEON,
+	VAR_SHIP,
 
 	VAR_BLLIST_FIRST,
 	////////////////////////
@@ -477,6 +478,7 @@ enum entity_type_enum {
 	ENT_ILLIST_SECTIONS,
 	ENT_ILLIST_INSTANCES,
 	ENT_ILLIST_SPECIALROOMS,
+	ENT_ILLIST_SHIPS,
 	ENT_ILLIST_MAX,
 	//////////////////////////////
 
@@ -500,6 +502,7 @@ enum entity_type_enum {
 	ENT_SECTION,
 	ENT_INSTANCE,
 	ENT_DUNGEON,
+	ENT_SHIP,
 
 	ENT_QUESTPART,
 	ENT_QUEST,
@@ -555,6 +558,7 @@ enum entity_variable_types_enum {
 	ENTITY_VAR_SECTION,
 	ENTITY_VAR_INSTANCE,
 	ENTITY_VAR_DUNGEON,
+	ENTITY_VAR_SHIP,
 
 	ENTITY_VAR_BLLIST_ROOM,
 	ENTITY_VAR_BLLIST_MOB,
@@ -744,6 +748,7 @@ enum entity_object_enum {
 	ENTITY_OBJ_EXTRA3,
 	ENTITY_OBJ_EXTRA4,
 	ENTITY_OBJ_WEAR,
+	ENTITY_OBJ_SHIP,
 };
 
 enum entity_room_enum {
@@ -777,6 +782,7 @@ enum entity_room_enum {
 	ENTITY_ROOM_SECTION,
 	ENTITY_ROOM_INSTANCE,
 	ENTITY_ROOM_DUNGEON,
+	ENTITY_ROOM_SHIP,
 };
 
 enum entity_exit_enum {
@@ -1004,6 +1010,7 @@ enum entity_instance_enum {
 	ENTITY_INSTANCE_OBJECT,
 	ENTITY_INSTANCE_DUNGEON,
 	ENTITY_INSTANCE_QUEST,
+	ENTITY_INSTANCE_SHIP,
 	ENTITY_INSTANCE_FLOOR,
 	ENTITY_INSTANCE_ENTRY,
 	ENTITY_INSTANCE_EXIT,
@@ -1030,6 +1037,11 @@ enum entity_dungeon_enum {
 	ENTITY_DUNGEON_OBJECTS,
 	ENTITY_DUNGEON_BOSSES,
 	ENTITY_DUNGEON_SPECIAL_ROOMS,
+};
+
+enum entity_ship_enum {
+	ENTITY_SHIP_NAME = ESCAPE_EXTRA,
+	ENTITY_SHIP_OBJECT,
 };
 
 /* Single letter $* codes ($i, $n) */
@@ -1151,6 +1163,7 @@ struct script_var_type {
 		INSTANCE_SECTION *section;
 		INSTANCE *instance;
 		DUNGEON *dungeon;
+		SHIP_DATA *ship;
 		bool boolean;
 		int sn;
 		int song;
@@ -1325,6 +1338,7 @@ struct script_parameter {
 		INSTANCE_SECTION *section;
 		INSTANCE *instance;
 		DUNGEON *dungeon;
+		SHIP_DATA *ship;
 
 		int sn;
 		int song;
@@ -1447,6 +1461,7 @@ extern ENT_FIELD entity_prior[];
 extern ENT_FIELD entity_instance_section[];
 extern ENT_FIELD entity_instance[];
 extern ENT_FIELD entity_dungeon[];
+extern ENT_FIELD entity_ship[];
 extern bool entity_allow_vars[];
 extern bool forced_command;
 extern int trigger_table_size;
@@ -2063,6 +2078,7 @@ bool variables_set_boolean (ppVARIABLE list,char *name,bool boolean);
 bool variables_set_instance_section (ppVARIABLE list,char *name,INSTANCE_SECTION *section);
 bool variables_set_instance (ppVARIABLE list,char *name,INSTANCE *instance);
 bool variables_set_dungeon (ppVARIABLE list,char *name,DUNGEON *dungeon);
+bool variables_set_ship (ppVARIABLE list,char *name,SHIP_DATA *ship);
 bool variables_set_mobile_id (ppVARIABLE list,char *name,unsigned long a, unsigned long b, bool save);
 bool variables_set_object_id (ppVARIABLE list,char *name,unsigned long a, unsigned long b, bool save);
 bool variables_set_token_id (ppVARIABLE list,char *name,unsigned long a, unsigned long b, bool save);
@@ -2096,6 +2112,7 @@ bool variables_setsave_boolean (ppVARIABLE list, char *name,bool boolean, bool s
 bool variables_setsave_instance_section (ppVARIABLE list,char *name,INSTANCE_SECTION *section, bool save);
 bool variables_setsave_instance (ppVARIABLE list,char *name,INSTANCE *instance, bool save);
 bool variables_setsave_dungeon (ppVARIABLE list,char *name,DUNGEON *dungeon, bool save);
+bool variables_setsave_ship (ppVARIABLE list,char *name,SHIP_DATA *ship, bool save);
 int variable_fread_type(char *str);
 pVARIABLE variable_create(ppVARIABLE list,char *name, bool index, bool clear);
 pVARIABLE variable_get(pVARIABLE list,char *name);
@@ -2128,6 +2145,9 @@ void script_end_failure(CHAR_DATA *ch, bool messages);
 void script_end_pulse(CHAR_DATA *ch);
 CHAR_DATA *script_get_char_room(SCRIPT_VARINFO *info, char *name, bool see_all);
 OBJ_DATA *script_get_obj_here(SCRIPT_VARINFO *info, char *name);
+
+CHAR_DATA *script_mload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, bool instanced);
+OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, bool instanced);
 
 /* Commands */
 int mpcmd_lookup(char *command);
@@ -2610,6 +2630,8 @@ SCRIPT_CMD(scriptcmd_lockremove);
 
 SCRIPT_CMD(scriptcmd_treasuremap);
 SCRIPT_CMD(scriptcmd_wildernessmap);
+SCRIPT_CMD(scriptcmd_specialkey);
+SCRIPT_CMD(scriptcmd_loadinstanced);
 
 #include "tables.h"
 

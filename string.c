@@ -105,7 +105,7 @@ char *string_replace_static(char * orig, char * old, char * new)
 
 char *string_replace(char * orig, char * old, char * new)
 {
-    char xbuf[MAX_STRING_LENGTH];
+    char xbuf[MAX_STRING_LENGTH * 2];
     int i;
 
     xbuf[0] = '\0';

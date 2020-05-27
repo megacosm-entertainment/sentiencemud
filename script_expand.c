@@ -859,11 +859,19 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
 		break;
 
 	case ENTITY_VAR_DUNGEON:
-		if(var && var->type == VAR_SECTION && IS_VALID(var->_.dungeon))
+		if(var && var->type == VAR_DUNGEON && IS_VALID(var->_.dungeon))
 			arg->d.dungeon= var->_.dungeon;
 		else return NULL;
 
 		arg->type = ENT_DUNGEON;
+		break;
+
+	case ENTITY_VAR_SHIP:
+		if(var && var->type == VAR_SHIP && IS_VALID(var->_.ship))
+			arg->d.ship = var->_.ship;
+		else return NULL;
+
+		arg->type = ENT_SHIP;
 		break;
 
 	case ENTITY_VAR_SKILLINFO:
@@ -2438,6 +2446,11 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->d.bv.table = wear_flags;
 		break;
 
+	case ENTITY_OBJ_SHIP:
+		arg->type = ENT_SHIP;
+		arg->d.ship = arg->d.obj ? arg->d.obj->ship : NULL;
+		break;
+
 	case ENTITY_OBJ_VARIABLES:
 		arg->type = ENT_ILLIST_VARIABLE;
 		arg->d.variables = (arg->d.obj && arg->d.obj->progs) ? &arg->d.obj->progs->vars : NULL;
@@ -2540,6 +2553,12 @@ char *expand_entity_object_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_BITVECTOR;
 		arg->d.bv.value = 0;
 		arg->d.bv.table = NULL;
+		break;
+
+
+	case ENTITY_OBJ_SHIP:
+		arg->type = ENT_SHIP;
+		arg->d.ship = NULL;
 		break;
 
 	case ENTITY_OBJ_VARIABLES:
@@ -2667,6 +2686,13 @@ char *expand_entity_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->d.section = (arg->d.room && IS_VALID(arg->d.room->instance_section)) ? arg->d.room->instance_section : NULL;
 		arg->d.instance = (arg->d.section && IS_VALID(arg->d.section->instance)) ? arg->d.section->instance : NULL;
 		arg->d.dungeon = (arg->d.instance && IS_VALID(arg->d.instance->dungeon)) ? arg->d.instance->dungeon : NULL;
+		break;
+
+	case ENTITY_ROOM_SHIP:
+		arg->type = ENT_SHIP;
+		arg->d.section = (arg->d.room && IS_VALID(arg->d.room->instance_section)) ? arg->d.room->instance_section : NULL;
+		arg->d.instance = (arg->d.section && IS_VALID(arg->d.section->instance)) ? arg->d.section->instance : NULL;
+		arg->d.ship = (arg->d.instance && IS_VALID(arg->d.instance->ship)) ? arg->d.instance->ship : NULL;
 		break;
 
 	default: return NULL;
@@ -4868,6 +4894,11 @@ char *expand_entity_instance(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		// TODO: Fix QUEST entity
 		return NULL;
 
+	case ENTITY_INSTANCE_SHIP:
+		arg->type = ENT_SHIP;
+		arg->d.ship = IS_VALID(instance->ship) ? instance->ship : NULL;
+		break;
+
 	case ENTITY_INSTANCE_FLOOR:
 		arg->type = ENT_NUMBER;
 		arg->d.num = IS_VALID(instance) ? instance->floor : 0;
@@ -4996,6 +5027,29 @@ char *expand_entity_dungeon(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_DUNGEON_SPECIAL_ROOMS:
 		arg->type = ENT_ILLIST_SPECIALROOMS;
 		arg->d.blist = IS_VALID(dungeon) ? dungeon->special_rooms : NULL;
+		break;
+
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_ship(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	SHIP_DATA *ship = arg->d.ship;
+
+	switch(*str) {
+	case ENTITY_SHIP_NAME:
+		arg->type = ENT_STRING;
+		clear_buf(arg->buffer);
+		add_buf(arg->buffer, IS_VALID(ship) ? ship->ship_name : "");
+		arg->d.str = buf_string(arg->buffer);
+		break;
+
+	case ENTITY_SHIP_OBJECT:
+		arg->type = ENT_OBJECT;
+		arg->d.obj = ship->ship;
 		break;
 
 	default: return NULL;
@@ -5193,6 +5247,8 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case ENT_INSTANCE:		next = expand_entity_instance(info,str,arg); break;
 		case ENT_DUNGEON:		next = expand_entity_dungeon(info,str,arg); break;
 
+		case ENT_SHIP:			next = expand_entity_ship(info,str,arg); break;
+
 		case ENT_BITVECTOR:		next = expand_entity_bitvector(info,str,arg); break;
 		case ENT_NULL:
 			next = str+1;
@@ -5277,11 +5333,15 @@ char *expand_string_entity(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
 		break;
 
 	case ENT_INSTANCE:
-		add_buf(buffer, (arg->d.instance) ? arg->d.instance->blueprint->name : SOMEWHERE);
+		add_buf(buffer, IS_VALID(arg->d.instance) ? arg->d.instance->blueprint->name : SOMEWHERE);
 		break;
 
 	case ENT_DUNGEON:
-		add_buf(buffer, (arg->d.dungeon) ? arg->d.dungeon->index->name : SOMEWHERE);
+		add_buf(buffer, IS_VALID(arg->d.dungeon) ? arg->d.dungeon->index->name : SOMEWHERE);
+		break;
+
+	case ENT_SHIP:
+		add_buf(buffer, IS_VALID(arg->d.ship) ? arg->d.ship->ship_name : SOMETHING);
 		break;
 	}
 

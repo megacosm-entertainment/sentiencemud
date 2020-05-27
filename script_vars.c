@@ -426,6 +426,7 @@ varset(variable,VARIABLE,pVARIABLE,v,variable)
 varset(instance_section,SECTION,INSTANCE_SECTION *,section,section)
 varset(instance,INSTANCE,INSTANCE *,instance,instance)
 varset(dungeon,DUNGEON,DUNGEON *,dungeon,dungeon)
+varset(ship,SHIP,SHIP_DATA *,ship,ship)
 
 
 bool variables_set_dice (ppVARIABLE list,char *name,DICE_DATA *d)
@@ -2038,13 +2039,18 @@ void variable_clearfield(int type, void *ptr)
 			break;
 
 		case VAR_INSTANCE:
-			if(type == VAR_INSTANCE && cur->_.section == ptr)
+			if(type == VAR_INSTANCE && cur->_.instance == ptr)
 				cur->_.instance = NULL;
 			break;
 
 		case VAR_DUNGEON:
-			if(type == VAR_DUNGEON && cur->_.section == ptr)
+			if(type == VAR_DUNGEON && cur->_.dungeon == ptr)
 				cur->_.dungeon = NULL;
+			break;
+
+		case VAR_SHIP:
+			if(type == VAR_SHIP && cur->_.ship == ptr)
+				cur->_.ship = NULL;
 			break;
 
 		default:

@@ -2272,6 +2272,8 @@ void free_ship(SHIP_DATA *ship)
 	list_destroy(ship->route_waypoints);
 	list_destroy(ship->routes);
 
+    variable_clearfield(VAR_SHIP, ship);
+
 	INVALIDATE(ship);
 	ship->next = ship_free;
 	ship_free = ship;

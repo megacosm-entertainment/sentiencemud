@@ -25,6 +25,7 @@ const struct script_cmd_type area_cmd_table[] = {
 	{ "oload",				scriptcmd_oload,			FALSE,	TRUE	},
 	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
 	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
+	{ "specialkey",			scriptcmd_specialkey,		FALSE,	TRUE	},
 	{ "treasuremap",		scriptcmd_treasuremap,		FALSE,	TRUE	},
 	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
 	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
@@ -45,12 +46,14 @@ const struct script_cmd_type instance_cmd_table[] = {
 	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	TRUE,	TRUE	},
 	{ "echoat",				scriptcmd_echoat,			FALSE,	TRUE	},
 	{ "instancecomplete",	scriptcmd_instancecomplete,	TRUE,	TRUE	},
+	{ "loadinstanced",		scriptcmd_loadinstanced,	TRUE,	TRUE	},
 	{ "makeinstanced",		scriptcmd_makeinstanced,	TRUE,	TRUE	},
 	{ "mload",				scriptcmd_mload,			FALSE,	TRUE	},
 	{ "mute",				scriptcmd_mute,				FALSE,	TRUE	},
 	{ "oload",				scriptcmd_oload,			FALSE,	TRUE	},
 	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
 	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
+	{ "specialkey",			scriptcmd_specialkey,		FALSE,	TRUE	},
 	{ "treasuremap",		scriptcmd_treasuremap,		FALSE,	TRUE	},
 	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
 	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
@@ -71,12 +74,14 @@ const struct script_cmd_type dungeon_cmd_table[] = {
 	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	TRUE,	TRUE	},
 	{ "echoat",				scriptcmd_echoat,			FALSE,	TRUE	},
 	{ "instancecomplete",	scriptcmd_instancecomplete,	TRUE,	TRUE	},
+	{ "loadinstanced",		scriptcmd_loadinstanced,	TRUE,	TRUE	},
 	{ "makeinstanced",		scriptcmd_makeinstanced,	TRUE,	TRUE	},
 	{ "mload",				scriptcmd_mload,			FALSE,	TRUE	},
 	{ "mute",				scriptcmd_mute,				FALSE,	TRUE	},
 	{ "oload",				scriptcmd_oload,			FALSE,	TRUE	},
 	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
 	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
+	{ "specialkey",			scriptcmd_specialkey,		FALSE,	TRUE	},
 	{ "treasuremap",		scriptcmd_treasuremap,		FALSE,	TRUE	},
 	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
 	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
@@ -2216,6 +2221,45 @@ SCRIPT_CMD(scriptcmd_instancecomplete)
 //////////////////////////////////////
 // L
 
+// LOADINSTANCED mobile $VNUM|$MOBILE $ROOM[ $VARIABLENAME]
+// LOADINSTANCED object $VNUM|$OBJECT $LEVEL room|here|wear $ENTITY[ $VARIABLE]
+SCRIPT_CMD(scriptcmd_loadinstanced)
+{
+	char *rest;
+
+	if( !info ) return;
+
+	info->progs->lastreturn = 0;
+
+	// Require the calling entity being involved in an instance
+	bool valid = false;
+	if( IS_VALID(info->dungeon) ) valid = true;
+	else if(IS_VALID(info->instance) ) valid = true;
+	else if( info->room && IS_VALID(info->room->instance_section) ) valid = true;
+	else if( info->mob && IS_SET(info->mob->act2, ACT2_INSTANCE_MOB) ) valid = true;
+	else if( info->obj && IS_SET(info->obj->extra3_flags, ITEM_INSTANCE_OBJ) ) valid = true;
+	else if( info->token )
+	{
+		if( info->token->room && IS_VALID(info->token->room->instance_section) ) valid = true;
+		else if( info->token->player && IS_SET(info->token->player->act2, ACT2_INSTANCE_MOB) ) valid = true;
+		else if( info->token->object && IS_SET(info->token->object->extra3_flags, ITEM_INSTANCE_OBJ) ) valid = true;
+	}
+
+	// Not a valid caller
+	if( !valid ) return;
+
+	if( !(rest = expand_argument(info,argument,arg)) || arg->type != ENT_STRING )
+		return;
+
+	if( IS_NULLSTR(arg->d.str) ) return;
+
+	if( !str_prefix(arg->d.str, "mobile") )
+		script_mload(info, rest, arg, true);
+
+	else if( !str_prefix(arg->d.str, "object") )
+		script_oload(info, rest, arg, true);
+}
+
 // LOCKADD $OBJECT
 SCRIPT_CMD(scriptcmd_lockadd)
 {
@@ -2356,72 +2400,7 @@ SCRIPT_CMD(scriptcmd_makeinstanced)
 // MLOAD <vnum>[ <room>][ <variable>]
 SCRIPT_CMD(scriptcmd_mload)
 {
-	char buf[MIL], *rest;
-	long vnum;
-	MOB_INDEX_DATA *pMobIndex;
-	ROOM_INDEX_DATA *room;
-	CHAR_DATA *victim;
-
-	if(!info) return;
-
-	info->progs->lastreturn = 0;
-
-	if(!(rest = expand_argument(info,argument,arg)))
-		return;
-
-	switch(arg->type) {
-	case ENT_NUMBER: vnum = arg->d.num; break;
-	case ENT_STRING: vnum = arg->d.str ? atoi(arg->d.str) : 0; break;
-	case ENT_MOBILE: vnum = arg->d.mob ? arg->d.mob->pIndexData->vnum : 0; break;
-	default: vnum = 0; break;
-	}
-
-	if (vnum < 1 || !(pMobIndex = get_mob_index(vnum))) {
-		sprintf(buf, "Mpmload: bad mob index (%ld) from mob %ld", vnum, VNUM(info->mob));
-		bug(buf, 0);
-		return;
-	}
-
-	room = NULL;
-
-	char *var_name = rest;
-
-	if( rest && *rest )
-	{
-		if(!(rest = expand_argument(info,rest,arg)))
-			return;
-
-		if( arg->type == ENT_ROOM )
-		{
-			room = arg->d.room;
-			var_name = rest;
-		}
-		else if( arg->type == ENT_NUMBER )
-		{
-			room = get_room_index(arg->d.num);
-			var_name = rest;
-		}
-
-	}
-
-	if( !room )
-	{
-		if( info->mob ) room = info->mob->in_room;
-		else if( info->obj ) room = obj_room(info->obj);
-		else if( info->room ) room = info->room;
-		else if( info->token ) room = token_room(info->token);
-	}
-
-	if( !room )
-		return;
-
-
-	victim = create_mobile(pMobIndex, FALSE);
-	char_to_room(victim, room);
-	if(var_name && *var_name) variables_set_mobile(info->var,var_name,victim);
-	p_percent_trigger(victim, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
-
-	info->progs->lastreturn = 1;
+	script_mload(info,argument,arg, false);
 }
 
 // MUTE $PLAYER
@@ -2452,144 +2431,7 @@ SCRIPT_CMD(scriptcmd_mute)
 // OLOAD <vnum> [<level>] [room|wear|$ENTITY][ <variable>]
 SCRIPT_CMD(scriptcmd_oload)
 {
-	char buf[MIL], *rest;
-	long vnum, level;
-	bool fToroom = FALSE, fWear = FALSE;
-	OBJ_INDEX_DATA *pObjIndex;
-	OBJ_DATA *obj;
-	CHAR_DATA *to_mob = info->mob;
-	OBJ_DATA *to_obj = NULL;
-	ROOM_INDEX_DATA *here = NULL;
-	ROOM_INDEX_DATA *to_room = NULL;
-
-	if(!info) return;
-
-	info->progs->lastreturn = 0;
-
-	if(!(rest = expand_argument(info,argument,arg)))
-		return;
-
-	if( info->mob ) here = info->mob->in_room;
-	else if( info->obj ) here = obj_room(info->obj);
-	else if( info->room ) here = info->room;
-	else if( info->token ) here = token_room(info->token);
-
-	switch(arg->type) {
-	case ENT_NUMBER: vnum = arg->d.num; break;
-	case ENT_STRING: vnum = arg->d.str ? atoi(arg->d.str) : 0; break;
-	case ENT_OBJECT: vnum = arg->d.obj ? arg->d.obj->pIndexData->vnum : 0; break;
-	default: vnum = 0; break;
-	}
-
-	if (!vnum || !(pObjIndex = get_obj_index(vnum))) {
-		bug("Mpoload - Bad vnum arg from vnum %d.", VNUM(info->mob));
-		return;
-	}
-
-	if(rest && *rest) {
-		argument = rest;
-		if(!(rest = expand_argument(info,argument,arg)))
-			return;
-
-		switch(arg->type) {
-		case ENT_NUMBER: level = arg->d.num; break;
-		case ENT_STRING: level = arg->d.str ? atoi(arg->d.str) : 0; break;
-		case ENT_MOBILE: level = arg->d.mob ? get_trust(arg->d.mob) : 0; break;
-		case ENT_OBJECT: level = arg->d.obj ? arg->d.obj->pIndexData->level : 0; break;
-		default: level = 0; break;
-		}
-
-		if(level <= 0 || level > get_trust(info->mob))
-			level = get_trust(info->mob);
-
-		if(rest && *rest) {
-			argument = rest;
-			if(!(rest = expand_argument(info,argument,arg)))
-				return;
-
-			/*
-			 * Added 3rd argument
-			 * omitted - load to mobile's inventory
-			 * 'none'  - load to mobile's inventory
-			 * 'room'  - load to room
-			 * 'wear'  - load to mobile and force wear
-			 * MOBILE  - load to target mobile
-			 *         - 'W' automatically wear
-			 * OBJECT  - load to target object
-			 * ROOM    - load to target room
-			 */
-
-			switch(arg->type) {
-			case ENT_STRING:
-				if(!str_cmp(arg->d.str, "room"))
-					fToroom = TRUE;
-				else if(!str_cmp(arg->d.str, "wear"))
-					fWear = TRUE;
-				break;
-
-			case ENT_MOBILE:
-				to_mob = arg->d.mob;
-				if((rest = one_argument(rest,buf))) {
-					if(!str_cmp(buf, "wear"))
-						fWear = TRUE;
-					// use "none" for neither
-				}
-				break;
-
-			case ENT_OBJECT:
-				if( arg->d.obj && IS_SET(pObjIndex->wear_flags, ITEM_TAKE) ) {
-					if(arg->d.obj->item_type == ITEM_CONTAINER ||
-						arg->d.obj->item_type == ITEM_CART)
-						to_obj = arg->d.obj;
-					else if(arg->d.obj->item_type == ITEM_WEAPON_CONTAINER &&
-						pObjIndex->item_type == ITEM_WEAPON &&
-						pObjIndex->value[0] == arg->d.obj->value[1])
-						to_obj = arg->d.obj;
-					else
-						return;	// Trying to put the item into a non-container won't work
-				}
-				break;
-
-			case ENT_ROOM:		to_room = arg->d.room; break;
-			}
-		}
-
-	} else
-		level = get_trust(info->mob);
-
-	obj = create_object(pObjIndex, level, TRUE);
-	if( to_room )
-		obj_to_room(obj, to_room);
-	else if( to_obj )
-		obj_to_obj(obj, to_obj);
-	else if( to_mob && (fWear || !fToroom) && CAN_WEAR(obj, ITEM_TAKE) &&
-		(to_mob->carry_number < can_carry_n (to_mob)) &&
-		(get_carry_weight (to_mob) + get_obj_weight (obj) <= can_carry_w (to_mob))) {
-		obj_to_char(obj, to_mob);
-		if (fWear)
-			wear_obj(to_mob, obj, TRUE);
-	}
-	else if( here )
-		obj_to_room(obj, here);
-	else
-	{
-		// No place to put the object, nuke it
-
-		// This shouldn't be necessary since it was never put anywhere, used anywhere!
-		//extract_obj(obj);
-
-		// This is the minimum actions necessary for a phantom object extraction
-		list_remlink(loaded_objects, obj);
-	    --obj->pIndexData->count;
-	    free_obj(obj);
-	    return;
-	}
-
-
-	if(rest && *rest) variables_set_object(info->var,rest,obj);
-	p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
-
-	info->progs->lastreturn = 1;
+	script_oload(info,argument,arg, false);
 }
 
 
@@ -3650,6 +3492,66 @@ SCRIPT_CMD(scriptcmd_spawndungeon)
 	variables_set_room(info->var,rest,room);
 	info->progs->lastreturn = 1;
 }
+
+
+// SPECIALKEY $SHIP|$DUNGEON $VNUM $VARIABLENAME
+SCRIPT_CMD(scriptcmd_specialkey)
+{
+	char *rest;
+	LLIST *keys;
+	OBJ_INDEX_DATA *index;
+	OBJ_DATA *obj;
+
+	if(!info) return;
+
+	info->progs->lastreturn = 0;
+
+	if(!(rest = expand_argument(info,argument,arg)))
+		return;
+
+	keys = NULL;
+	if( arg->type == ENT_SHIP )
+		keys = IS_VALID(arg->d.ship) ? arg->d.ship->special_keys : NULL;
+	else if( arg->type == ENT_DUNGEON )
+		keys = IS_VALID(arg->d.dungeon) ? arg->d.dungeon->special_keys : NULL;
+
+	if( !IS_VALID(keys) )
+		return;
+
+	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER || !*rest)
+		return;
+
+	SPECIAL_KEY_DATA *sk = get_special_key(keys, (long)arg->d.num);
+
+	if( !sk )
+		return;
+
+	index = get_obj_index(sk->key_vnum);
+
+	if( !index || index->item_type != ITEM_KEY )
+		return;
+
+	LLIST_UID_DATA *luid = new_list_uid_data();
+	if( !luid )
+		return;
+
+	obj = create_object(index, 0, true);
+	if( IS_VALID(obj) )
+	{
+		luid->ptr = obj;
+		luid->id[0] = obj->id[0];
+		luid->id[1] = obj->id[1];
+		list_appendlink(sk->list, luid);
+
+		variables_set_object(info->var,rest,obj);
+		info->progs->lastreturn = 1;
+		return;
+	}
+
+	free_list_uid_data(luid);
+}
+
+
 
 // STARTCOMBAT[ $ATTACKER] $VICTIM
 SCRIPT_CMD(scriptcmd_startcombat)

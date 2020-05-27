@@ -2658,7 +2658,7 @@ void do_examine(CHAR_DATA * ch, char *argument)
 				if (can_see_obj(ch, obj) && obj->wear_loc != WEAR_NONE && wear_params[obj->wear_loc][WEAR_PARAM_SEEN] &&
 					is_name(arg3, obj->name) && (++count == number))
 				{
-					if (p_percent_trigger(NULL, obj, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_EXAMINE,NULL)) return;
+					if (p_percent_trigger(NULL, obj, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_EXAMINE, argument)) return;
 
 					if (get_skill(ch, gsn_lore) > 0 &&
 						number_percent() <= get_skill(ch, gsn_lore) &&
@@ -2704,7 +2704,7 @@ void do_examine(CHAR_DATA * ch, char *argument)
 		}
 		else
 		{
-			if (p_percent_trigger(victim, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_EXAMINE, NULL)) return;
+			if (p_percent_trigger(victim, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_EXAMINE, argument)) return;
 
 			show_char_to_char_1(victim, ch, true);
 		}
@@ -2713,7 +2713,7 @@ void do_examine(CHAR_DATA * ch, char *argument)
 
     if ((obj = get_obj_here(ch, NULL, arg1)) != NULL)
     {
-		if (p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_EXAMINE,NULL)) return;
+		if (p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_EXAMINE,argument)) return;
 
 		if (get_skill(ch, gsn_lore) > 0 &&
 			number_percent() <= get_skill(ch, gsn_lore) &&

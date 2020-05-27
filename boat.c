@@ -2078,8 +2078,6 @@ bool ship_can_issue_command(CHAR_DATA *ch, SHIP_DATA *ship)
 	return true;
 }
 
-
-
 void do_ship_scuttle( CHAR_DATA *ch, char *argument)
 {
 //	ROOM_INDEX_DATA *location;
@@ -3240,11 +3238,19 @@ void do_ship_christen(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
+	char *plaintext = nocolour(argument);
+
+	if( strlen(plaintext) > 30 )
+	{
+		send_to_char("Please limit ship names to atmost 30 characters, minus color codes.\n\r", ch);
+		free_string(plaintext);
+		return;
+	}
+
 	free_string(ship->ship_name);
 	ship->ship_name = str_dup(argument);
 
 	// Install ship_name
-	char *plaintext = nocolour(ship->ship_name);
 	free_string(ship->ship->name);
 	sprintf(buf, ship->ship->pIndexData->name, plaintext);
 	ship->ship->name = str_dup(buf);
@@ -4728,6 +4734,216 @@ void do_ship_routes(CHAR_DATA *ch, char *argument)
 	do_ship_routes(ch, "");
 }
 
+void do_ship_keys(CHAR_DATA *ch, char *argument)
+{
+	SHIP_DATA *ship = get_room_ship(ch->in_room);
+	char buf[MSL];
+	char arg[MIL];
+
+	if (!IS_VALID(ship))
+	{
+		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if (!IS_IMMORTAL(ch) && ship_isowner_player(ship, ch))
+	{
+		send_to_char("This isn't your vessel.\n\r", ch);
+		return;
+	}
+
+	if (list_size(ship->special_keys) < 1 )
+	{
+		send_to_char("The vessel has no special keys.\n\r", ch);
+		return;
+	}
+
+	argument = one_argument(argument, arg);
+
+	if( arg[0] == '\0' )
+	{
+		send_to_char("Syntax:  ship keys list       - list available keys for the ship\n\r"
+					 "         ship keys load <#>   - load a copy of the specified key\n\r"
+					 "         ship keys purge <#>  - clears out the current list of allowed loaded keys\n\r", ch);
+		return;
+	}
+
+	if( !str_prefix(arg, "list") )
+	{
+		ITERATOR it;
+		SPECIAL_KEY_DATA *sk;
+		bool error = false;
+		int lines = 0;
+
+		char *name;
+		if( IS_NULLSTR(ship->ship_name) )
+			name = ship->index->name;
+		else
+			name = ship->ship_name;
+
+		BUFFER *buffer = new_buf();
+
+		iterator_start(&it, ship->special_keys);
+		while( (sk = (SPECIAL_KEY_DATA *)iterator_nextdata(&it)) )
+		{
+			OBJ_INDEX_DATA *key = get_obj_index(sk->key_vnum);
+
+			if( key && key_index->item_type == ITEM_KEY )
+				strncpy(arg, key->short_descr, MIL-1);
+			else
+				strcpy(arg, "{D-invalid key-{x");
+
+			int nwidth = get_colour_width(arg) + 30;
+
+			sprintf(buf, "{Y%2d) {x%-*.*s {W%d{x\n\r", ++lines, nwidth, nwidth, arg, list_size(sk->list))
+			if( !add_buf(buffer, buf) || (!ch->lines && strlen(buffer->string) > MSL) )
+			{
+				error = true;
+				break;
+			}
+		}
+		iterator_stop(&it);
+
+		if( error )
+		{
+			send_to_char("Too many special keys to display.  Please enable scrolling.\n\r", ch);
+		}
+		else if(!lines)
+		{
+			send_to_char("No special keys to display.\n\r", ch);
+		}
+		else
+		{
+			send_to_char("{Y    [          Key Name          ] [ Keys Issued ]{x\n\r", ch);
+			send_to_char("{Y==================================================={x\n\r", ch);
+
+			page_to_char(buffer->string, ch);
+		}
+
+		free_buf(buffer);
+		return;
+	}
+
+	if( !str_prefix(arg, "load") )
+	{
+		int index;
+
+		if( !is_number(argument) )
+		{
+			send_to_char("That is not a number.\n\r", ch);
+			return;
+		}
+
+		index = atoi(argument);
+		if( index < 1 || index > list_size(ship->special_keys))
+		{
+			send_to_char("That is not a valid key.\n\r", ch);
+			return;
+		}
+
+		SPECIAL_KEY_DATA *sk = (SPECIAL_KEY_DATA *)list_nthdata(ship->special_keys);
+		OBJ_INDEX_DATA *key_index = sk->key_vnum;
+
+		if( !key_index || key_index != ITEM_KEY )
+		{
+			send_to_char("Something is wrong with that key.  Please inform an immortal or file a bug report.\n\r", ch);
+			return;
+		}
+
+		// Inventory management checks
+		if( (ch->carry_number + 1) > can_carry_n(ch) )
+		{
+			send_to_char("Your hands are full.\n\r", ch);
+			return;
+		}
+
+		if(get_carry_weight(ch) + key_index->weight > can_carry_w(ch))
+		{
+			send_to_char("You can't carry that much more weight.\n\r", ch);
+			return;
+		}
+
+		LLIST_UID_DATA *luid = new_list_uid_data();
+		if( !luid )
+		{
+			send_to_char("Could not generate the key.  Please inform an immortal or file a bug report.\n\r", ch);
+			return;
+		}
+
+		OBJ_DATA *key = create_object(key_index, 0, TRUE);
+		if( !IS_VALID(key) )
+		{
+			send_to_char("Could not generate the key.  Please inform an immortal or file a bug report.\n\r", ch);
+			free_list_uid_data(luid);
+			return;
+		}
+
+		char *descr;	// str_dup will be called for each
+		if( !IS_NULLSTR(ship->ship_name) )
+		{
+			char *name = nocolour(ship->ship_name);
+			sprintf(buf, "%s %s", key->name, name);
+			free_string(key->name);
+			key->name = str_dup(buf);
+			free_string(name);
+
+			sprintf(buf, "%s of '{x%s{x'", obj->short_descr, name);
+			free_string(key->short_descr);
+			key->short_descr = str_dup(buf);
+
+			sprintf(buf, "with '{x%s{x' etched on the shaft", ship->ship_name);
+			descr = string_replace(key->description, "%NAME%", buf);
+		}
+		else
+		{
+			descr = string_replace(key->description, "%NAME%", "");
+		}
+
+
+		free_string(key->description);
+		key->description = descr;
+
+
+		luid->ptr = key;
+		luid->id[0] = key->id[0];
+		luid->id[1] = key->id[1];
+		list_appendlink(sk->list, luid);
+
+		obj_to_char(key, ch);
+		act("{xA ship deckhand hands you $p{x.", ch, NULL, NULL, key, NULL, NULL, NULL, TO_CHAR);
+		act("{xA ship deckhand hands $n $p{x.", ch, NULL, NULL, key, NULL, NULL, NULL, TO_ROOM);
+		return;
+	}
+
+	if( !str_prefix(arg, "purge") )
+	{
+		int index;
+
+		if( !is_number(argument) )
+		{
+			send_to_char("That is not a number.\n\r", ch);
+			return;
+		}
+
+		index = atoi(argument);
+		if( index < 1 || index > list_size(ship->special_keys))
+		{
+			send_to_char("That is not a valid key.\n\r", ch);
+			return;
+		}
+
+		SPECIAL_KEY_DATA *sk = (SPECIAL_KEY_DATA *)list_nthdata(ship->special_keys);
+
+		list_clear(sk->list);
+
+		send_to_char("{YAll authorized access for this key has been purged.{x\n\r", ch);
+		send_to_char("Previously loaded copies are hereby void and useless.\n\r", ch);
+		return;
+	}
+
+	do_ship_keys(ch, "");
+}
+
 void do_ship(CHAR_DATA *ch, char *argument)
 {
 	char arg[MIL];
@@ -4742,6 +4958,7 @@ void do_ship(CHAR_DATA *ch, char *argument)
 					 "         ship chase <ship>\n\r"
 					 "         ship christen <name>\n\r"
 					 "         ship flag[ <flag>]\n\r"
+					 "         ship keys[ <actions>]\n\r"
 					 "         ship land         (airship only)\n\r"
 					 "         ship launch       (airship only)\n\r"
 					 "         ship list\n\r"
@@ -4775,6 +4992,12 @@ void do_ship(CHAR_DATA *ch, char *argument)
 	if( !str_prefix(arg, "flag") )
 	{
 		do_ship_flag(ch, argument);
+		return;
+	}
+
+	if( !str_prefix(arg, "keys") )
+	{
+		do_ship_keys(ch, argument);
 		return;
 	}
 
