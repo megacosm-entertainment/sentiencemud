@@ -6459,7 +6459,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 		// Special handling to allow "varset <name> appendline" to put a line at the end
 		BUFFER *buffer = new_buf();
 		expand_string(info,argument,buffer);
-		add_buf(buffer,"\n");
+		add_buf(buffer,"\n\r");
 
 		variables_append_string(vars,name,buf_string(buffer));
 		free_buf(buffer);

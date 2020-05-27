@@ -1781,7 +1781,7 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 
 	add_buf(output, "{x");
 
-	page_to_char(output->string, to);
+	send_to_char(output->string, to);
 
 #if 0
 	for (y = vp_starty;y <= vp_endy;y++)
