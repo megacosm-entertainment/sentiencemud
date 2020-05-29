@@ -5938,6 +5938,9 @@ void persist_save_mobile(FILE *fp, CHAR_DATA *ch)
 	if( ch->shop )
 		save_shop_new(fp, ch->shop);
 
+	if( ch->crew )
+		save_ship_crew(fp, ch->crew);
+
 	// Save Variables
 	if( ch->progs )
 		persist_save_scriptdata(fp,ch->progs);

@@ -1412,6 +1412,45 @@ void instance_apply_specialkeys(INSTANCE *instance, LLIST *special_keys)
 	iterator_stop(&sit);
 }
 
+CHAR_DATA *instance_section_find_mobile(INSTANCE_SECTION *section, unsigned long id1, unsigned long id2)
+{
+	ITERATOR it;
+	ROOM_INDEX_DATA *room;
+	CHAR_DATA *mob = NULL, ch;
+
+	iterator_start(&it, section->rooms);
+	while( !IS_VALID(mob) && (room = (ROOM_INDEX_DATA *)iterator_nextdata(&it)) )
+	{
+		for( ch = room->people; ch; ch = ch->next_in_room )
+		{
+			if( ch->id[0] == id1 && ch->id[1] == id2 )
+			{
+				mob = ch;
+				break;
+			}
+		}
+	}
+	iterator_stop(&it);
+
+	return mob;
+}
+
+CHAR_DATA *instance_find_mobile(INSTANCE *instance, unsigned long id1, unsigned long id2)
+{
+	ITERATOR it;
+	INSTANCE_SECTION *section;
+	CHAR_DATA *mob = NULL;
+
+	iterator_start(&it, instance->sections);
+	while( !IS_VALID(mob) && (section = (INSTANCE_SECTION *)iterator_nextdata(&it)) )
+	{
+		mob = instance_section_find_mobile(section, id1, id2);
+	}
+	iterator_stop(&it);
+
+	return mob;
+}
+
 //////////////////////////////////////////////////////////////
 //
 // OLC Editors

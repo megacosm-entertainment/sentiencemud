@@ -2265,7 +2265,6 @@ void free_ship(SHIP_DATA *ship)
 	free_string(ship->ship_name);
 
 	list_destroy(ship->crew);
-
 	list_destroy(ship->waypoints);
 
 	iterator_stop(&ship->route_it);

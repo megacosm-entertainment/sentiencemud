@@ -5100,6 +5100,9 @@ struct ship_data
 	time_t				last_times[3];
 
 	LLIST *crew;
+	CHAR_DATA *first_mate;		// Crew member assigned to First Mate
+	CHAR_DATA *navigator;		// Crew member assigned to Navigator
+	CHAR_DATA *scout;			// Crew member assigned to Scout
 
 	char				*flag;
 

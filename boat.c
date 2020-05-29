@@ -1074,7 +1074,6 @@ SHIP_ROUTE *ship_route_load(FILE *fp, SHIP_DATA *ship)
 	char *word;
 	bool fMatch;
 
-
 	route = new_ship_route();
 	route->name = fread_string(fp);
 
@@ -1101,7 +1100,7 @@ SHIP_ROUTE *ship_route_load(FILE *fp, SHIP_DATA *ship)
 
 		if (!fMatch) {
 			char buf[MSL];
-			sprintf(buf, "shiship_route_load: no match for word %.50s", word);
+			sprintf(buf, "ship_route_load: no match for word %.50s", word);
 			bug(buf, 0);
 		}
 	}
@@ -1109,8 +1108,27 @@ SHIP_ROUTE *ship_route_load(FILE *fp, SHIP_DATA *ship)
 	return route;
 }
 
+CHAR_DATA *ship_load_find_crew(SHIP_DATA *ship, unsigned long id1, unsigned long id2)
+{
+	ITERATOR it;
+	CHAR_DATA *crew;
+
+	iterator_start(&it, ship->crew);
+	while( (crew = (CHAR_DATA *)iterator_nextdata(&it)) )
+	{
+		if( crew->id[0] == id1 && crew->id[1] == id2 )
+			break;
+	}
+	iterator_stop(&it);
+
+	return crew;
+}
+
 INSTANCE *instance_load(FILE *fp);
 OBJ_DATA *persist_load_object(FILE *fp);
+CHAR_DATA *persist_load_mobile(FILE *fp);
+CHAR_DATA *instance_find_mobile(INSTANCE *instance, unsigned long id1, unsigned long id2);
+
 SHIP_DATA *ship_load(FILE *fp)
 {
 	SHIP_DATA *ship;
@@ -1157,19 +1175,19 @@ SHIP_DATA *ship_load(FILE *fp)
 				fMatch = TRUE;
 				break;
 			}
-			if( !str_cmp(word, "#SPECIALKEY") )
-			{
-				SPECIAL_KEY_DATA *sk = ship_special_key_load(fp);
-
-				list_appendlink(ship->special_keys, sk);
-				fMatch = TRUE;
-				break;
-			}
 			if( !str_cmp(word, "#ROUTE") )
 			{
 				SHIP_ROUTE *route = ship_route_load(fp, ship);
 
 				list_appendlink(ship->routes, route);
+				fMatch = TRUE;
+				break;
+			}
+			if( !str_cmp(word, "#SPECIALKEY") )
+			{
+				SPECIAL_KEY_DATA *sk = ship_special_key_load(fp);
+
+				list_appendlink(ship->special_keys, sk);
 				fMatch = TRUE;
 				break;
 			}
@@ -1206,9 +1224,37 @@ SHIP_DATA *ship_load(FILE *fp)
 				fMatch = TRUE;
 				break;
 			}
+			if( !str_cmp(word, "CrewMember") )
+			{
+				unsigned long id1 = fread_number(fp);
+				unsigned long id2 = fread_number(fp);
+
+				if( IS_VALID(ship->instance) )
+				{
+					CHAR_DATA *crew = instance_find_mobile(ship->instance, id1, id2);
+
+					if( IS_VALID(crew) )
+					{
+						list_appendlink(ship->crew, crew);
+					}
+				}
+
+				fMatch = TRUE;
+				break;
+			}
 			break;
 
 		case 'F':
+			if( !str_cmp(word. "FirstMate") )
+			{
+				unsigned long id1 = fread_number(fp);
+				unsigned long id2 = fread_number(fp);
+
+				ship->first_mate = ship_load_find_crew(ship, id1, id2);
+
+				fMatch = TRUE;
+				break;
+			}
 			KEYS("Flag", ship->flag, fread_string(fp));
 			break;
 
@@ -1236,6 +1282,16 @@ SHIP_DATA *ship_load(FILE *fp)
 
 		case 'N':
 			KEYS("Name", ship->ship_name, fread_string(fp));
+			if( !str_cmp(word. "Navigator") )
+			{
+				unsigned long id1 = fread_number(fp);
+				unsigned long id2 = fread_number(fp);
+
+				ship->navigator = ship_load_find_crew(ship, id1, id2);
+
+				fMatch = TRUE;
+				break;
+			}
 			break;
 
 		case 'O':
@@ -1253,6 +1309,16 @@ SHIP_DATA *ship_load(FILE *fp)
 			break;
 
 		case 'S':
+			if( !str_cmp(word. "Scout") )
+			{
+				unsigned long id1 = fread_number(fp);
+				unsigned long id2 = fread_number(fp);
+
+				ship->scout = ship_load_find_crew(ship, id1, id2);
+
+				fMatch = TRUE;
+				break;
+			}
 			KEY("ScuttleTime", ship->scuttle_time, fread_number(fp));
 			if(!str_cmp(word, "SeekPoint") )
 			{
@@ -1362,6 +1428,7 @@ bool ship_save(FILE *fp, SHIP_DATA *ship)
 {
 	ITERATOR it, rit;
 	SPECIAL_KEY_DATA *sk;
+	CHAR_DATA *crew;
 
 	fprintf(fp, "#SHIP %ld\n", ship->index->vnum);
 
@@ -1443,11 +1510,31 @@ bool ship_save(FILE *fp, SHIP_DATA *ship)
 		fprintf(fp, "PK\n");
 	}
 
-	// TODO: Iterate over crew
-
 	persist_save_object(fp, ship->ship, false);
 
 	instance_save(fp, ship->instance);
+
+	iterator_start(&it, ship->crew);
+	while( (crew = (CHAR_DATA *)iterator_nextdata(&it)) )
+	{
+		fprintf(fp, "CrewMember %lu %lu\n", crew->id[0], crew->id[1]);
+	}
+	iterator_stop(&it);
+
+	if( IS_VALID(ship->first_mate) )
+	{
+		fprintf(fp, "FirstMate %lu %lu\n", ship->first_mate->id[0], ship->first_mate->id[1]);
+	}
+
+	if( IS_VALID(ship->navigator) )
+	{
+		fprintf(fp, "Navigator %lu %lu\n", ship->navigator->id[0], ship->navigator->id[1]);
+	}
+
+	if( IS_VALID(ship->scout) )
+	{
+		fprintf(fp, "Scout %lu %lu\n", ship->scout->id[0], ship->scout->id[1]);
+	}
 
 	iterator_start(&it, ship->special_keys);
 	while( (sk = (SPECIAL_KEY_DATA *)iterator_nextdata(&it)) )
@@ -2062,13 +2149,13 @@ void do_ships(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-
 	do_ships(ch, "");
 }
 
 bool ship_can_issue_command(CHAR_DATA *ch, SHIP_DATA *ship)
 {
-	// Search crew for FIRST MATE
+	if( IS_VALID(ship->first_mate) )
+		return true;
 
 	if (!IS_SET(ch->in_room->room_flags, ROOM_SHIP_HELM))
 	{
@@ -2077,6 +2164,8 @@ bool ship_can_issue_command(CHAR_DATA *ch, SHIP_DATA *ship)
 
 	return true;
 }
+
+
 
 void do_ship_scuttle( CHAR_DATA *ch, char *argument)
 {
@@ -2218,6 +2307,11 @@ void do_ship_scuttle( CHAR_DATA *ch, char *argument)
 #endif
 }
 
+
+// CREW SKILL: Navigation
+void dispatch_ship_steer(CHAR_DATA *ch, CHAR_DATA *navigator, SHIP_DATA *ship, char *argument)
+{
+}
 
 void do_ship_steer( CHAR_DATA *ch, char *argument )
 {
@@ -2672,8 +2766,6 @@ void do_ship_speed( CHAR_DATA *ch, char *argument )
 
 void do_ship_aim( CHAR_DATA *ch, char *argument )
 {
-	send_to_char("Not yet implemented.\n\r", ch);
-
 #if 0
 	char arg[MAX_INPUT_LENGTH];
 	char buf[MAX_STRING_LENGTH];
@@ -4944,6 +5036,367 @@ void do_ship_keys(CHAR_DATA *ch, char *argument)
 	do_ship_keys(ch, "");
 }
 
+static void crew_skill_rating(char *field, int rating, char *buf, size_t len)
+{
+	static char *ratings[11] = {
+		"          ",
+		"{b*         ",
+		"{b**        ",
+		"{b***       ",
+		"{b***{B*      ",
+		"{b***{B**     ",
+		"{b***{B***    ",
+		"{b***{B***{C*   ",
+		"{b***{B***{C**  ",
+		"{b***{B***{C*** ",
+		"{b***{B***{C***{W*"
+	};
+
+	int rating10 = rating / 10;
+
+	rating10 = URANGE(0, rating10, 10);
+
+	snprintf(buf, len, "{C%-15.15s: {x[ %s {x] {W%d%%{x\n\r", field, ratings[rating10], rating);
+}
+
+void do_ship_crew(CHAR_DATA *ch, char *argument)
+{
+	SHIP_DATA *ship = get_room_ship(ch->in_room);
+	char buf[MSL];
+	char arg[MIL];
+	char arg2[MIL];
+
+	if (!IS_VALID(ship))
+	{
+		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if (!IS_IMMORTAL(ch) && ship_isowner_player(ship, ch))
+	{
+		send_to_char("This isn't your vessel.\n\r", ch);
+		return;
+	}
+
+	if( argument[0] == '\0' )
+	{
+		send_to_char("Syntax:  ship crew list\n\r"
+					 "         ship crew info <#>\n\r"
+					 "         ship crew remove <#>\n\r"
+					 "         ship crew assign <#> <role>\n\r"
+					 "         ship crew unassign <role>\n\r", ch);
+		return;
+	}
+
+	argument = one_argument(argument, arg);
+
+	if( !str_prefix(arg, "list") )
+	{
+		if( list_size(ship->crew) > 0 )
+		{
+			ITERATOR it;
+			CHAR_DATA *crew;
+			BUFFER *buffer = new_buf();
+			char buf[MSL];
+			int lines = 0;
+			bool error = false;
+
+			add_buf(buffer,"{C    [            Name            ] [ Hiring ] [F] [N] [S]{x\n\r");
+			add_buf(buffer,"{C=========================================================={x\n\r");
+
+			iterator_start(&it, ship->crew);
+			while( (crew = (CHAR_DATA *)iterator_nextdata(&it)) )
+			{
+				int swidth = get_colour_width(crew->short_descr) + 30;
+
+				char hired[MIL];
+
+				if( crew->hired_to > 0 )
+				{
+					int delta = (int) ((crew->hired_to - current_time) / 60);
+
+					if( delta < 1 )
+						strcpy(hired, "<{W1{xh");
+					else if( delta < 24 )
+						sprintf(hired, "{W%d{xh", delta);
+					else
+						sprintf(hired, "{W%d{xd", delta / 24);
+				}
+				else
+					strcpy(hired, "{D--{x");
+
+				int hwidth = get_colour_width(hired) + 10;
+
+				sprintf(buf, "{C%2d){x {Y%-*.*s {x%-*.*s %s %s %s{x\n\r", ++lines,
+					swidth, swidth, crew->short_descr,
+					hwidth, hwidth, hired,
+					(ship->first_mate == crew) ? "{W Y " : "{D N ",
+					(ship->navigator == crew) ? "{W Y " : "{D N ",
+					(ship->scout == crew) ? "{W Y " : "{D N ");
+
+				if( !add_buf(buffer, buf) || (!ch->lines && strlen(buffer->string) > MSL )
+				{
+					error = true;
+					break;
+				}
+
+			}
+			iterator_stop(&it);
+
+			if( error )
+			{
+				send_to_char("Too much crew to display.  Please change enable scrolling.\n\r", ch);
+			}
+			else if( !lines )
+			{
+				send_to_char("No crew to display.\n\r", ch);
+			}
+			else
+			{
+				page_to_char(buffer->string, ch);
+			}
+
+			free_buf(buffer);
+		}
+		else
+		{
+			send_to_char("No crew to display.\n\r", ch);
+		}
+
+		return;
+	}
+
+	if( !str_prefix(arg, "info") )
+	{
+		if( !is_number(argument) )
+		{
+			send_to_char("That is number a number.\n\r", ch);
+			return;
+		}
+
+		int index = atoi(argument);
+
+		if( index < 1 || index > list_size(ship->crew) )
+		{
+			send_to_char("That is not a valid crew member.\n\r", ch);
+			return;
+		}
+
+		CHAR_DATA *crew = (CHAR_DATA *)list_nthdata(ship->crew, index);
+
+		if( !crew->crew )
+		{
+			send_to_char("{WCrew member is missing crew data.  Please report to an immortal.\n\r", ch);
+			return;
+		}
+
+		sprintf(buf, "{CInfo for Crew Member {W%d{x\n\r", index);
+		send_to_char(buf, ch);
+
+		sprintf(buf, "{CName:{x        %s\n\r", crew->short_descr);
+		send_to_char(buf, ch);
+
+		if( crew->hired_to > 0 )
+		{
+		sprintf(buf, "{CHired until:{x %s\n\r", (char *) ctime(&crew->hired_to));
+		send_to_char(buf, ch);
+		}
+
+		send_to_char("{CSkill Ratings:{x\n\r", ch);
+		send_to_char("{C-----------------------------{x\n\r",ch);
+
+		crew_skill_rating("Scouting", crew->crew->scouting, buf, MSL-1);
+		send_to_char(buf, ch);
+
+		crew_skill_rating("Gunning", crew->crew->gunning, buf, MSL-1);
+		send_to_char(buf, ch);
+
+		crew_skill_rating("Oarring", crew->crew->oarring, buf, MSL-1);
+		send_to_char(buf, ch);
+
+		crew_skill_rating("Mechanics", crew->crew->mechanics, buf, MSL-1);
+		send_to_char(buf, ch);
+
+		crew_skill_rating("Navigation", crew->crew->navigation, buf, MSL-1);
+		send_to_char(buf, ch);
+
+		crew_skill_rating("Leadership", crew->crew->leadership, buf, MSL-1);
+		send_to_char(buf, ch);
+
+		send_to_char("{C-----------------------------{x\n\r",ch);
+		send_to_char("\n\r", ch);
+
+		if( ship->first_mate == crew )	send_to_char("{CAssigned as {WFIRST MATE{C.{x\n\r", ch);
+
+		if( ship->navigator == crew )	send_to_char("{CAssigned as {WNAVIGATOR{C.{x\n\r", ch);
+
+		if( ship->scout == crew )		send_to_char("{CAssigned as {WSCOUT{C.{x\n\r", ch);
+
+		return;
+	}
+
+	if( !str_prefix(arg, "remove") )
+	{
+		if( !is_number(argument) )
+		{
+			send_to_char("That is number a number.\n\r", ch);
+			return;
+		}
+
+		int index = atoi(argument);
+
+		if( index < 1 || index > list_size(ship->crew) )
+		{
+			send_to_char("That is not a valid crew member.\n\r", ch);
+			return;
+		}
+
+		CHAR_DATA *crew = (CHAR_DATA *)list_nthdata(ship->crew, index);
+
+		if( ship->first_mate == crew )
+		{
+			ship->first_mate = NULL;
+			send_to_char("{WFirst Mate unassigned due to crew removal.{x\n\r", ch);
+		}
+
+		if( ship->navigator == crew )
+		{
+			ship->navigator = NULL;
+			send_to_char("{WNavigator unassigned due to crew removal.{x\n\r", ch);
+		}
+
+		if( ship->scout == crew )
+		{
+			ship->scout = NULL;
+			send_to_char("{WScout unassigned due to crew removal.{x\n\r", ch);
+		}
+
+		list_remlink(ship->crew, crew);
+		send_to_char("Crew member removed.\n\r", ch);
+		return;
+	}
+
+
+	if( !str_prefix(arg, "assign") )
+	{
+		if( argument[0] == '\0' )
+		{
+			send_to_char("Assign which crew to what role?\n\r", ch);
+			send_to_char("{YValid roles: {Wfirstmate{x, {Wnavigator{x, {Wscout{x\n\r", ch);
+			return;
+		}
+
+		argument = one_argument(argument, arg2);
+
+		if( !is_number(arg2) )
+		{
+			send_to_char("That is number a number.\n\r", ch);
+			return;
+		}
+
+		int index = atoi(arg2);
+
+		if( index < 1 || index > list_size(ship->crew) )
+		{
+			send_to_char("That is not a valid crew member.\n\r", ch);
+			return;
+		}
+
+		CHAR_DATA *crew = (CHAR_DATA *)list_nthdata(ship->crew, index);
+
+		if( !crew->crew )
+		{
+			send_to_char("{WCrew member is missing crew data.  Please report to an immortal.\n\r", ch);
+			return;
+		}
+
+		if( argument[0] == '\0' )
+		{
+			send_to_char("Assign crew member to what role?\n\r", ch);
+			send_to_char("{YValid roles: {Wfirstmate{x, {Wnavigator{x, {Wscout{x\n\r", ch);
+			send_to_char("{YNavigators and scouts are mutually exclusive.\n\r", ch);
+			return;
+		}
+
+		if( !str_prefix(argument, "firstmate") )
+		{
+			ship->first_mate = crew;
+			send_to_char("First Mate assigned.\n\r", ch);
+			return;
+		}
+
+		if( !str_prefix(argument, "navigator") )
+		{
+			if( ship->scout == crew )
+			{
+				send_to_char("That crew member is already assigned as the Scout.\n\r", ch);
+				return;
+			}
+
+			ship->navigator = crew;
+			send_to_char("Navigator assigned.\n\r", ch);
+
+			// Place navigator at the helm?
+			return;
+		}
+
+		if( !str_prefix(argument, "scout") )
+		{
+			if( ship->navigator == crew )
+			{
+				send_to_char("That crew member is already assigned as the Navigator.\n\r", ch);
+				return;
+			}
+
+
+			ship->scout = crew;
+			send_to_char("Scout assigned.\n\r", ch);
+			// Place scout in the bird's nest, if available
+			return;
+		}
+
+
+		do_ship_crew(ch, "assign");
+		return;
+	}
+
+	if( !str_prefix(arg, "unassign") )
+	{
+		if( argument[0] == '\0' )
+		{
+			send_to_char("Remove what role?\n\r", ch);
+			send_to_char("{YValid roles: {Wfirstmate{x, {Wnavigator{x, {Wscout{x\n\r", ch);
+			return;
+		}
+
+		if( !str_prefix(argument, "firstmate") )
+		{
+			ship->first_mate = NULL;
+			send_to_char("First Mate removed.\n\r", ch);
+			return;
+		}
+
+		if( !str_prefix(argument, "navigator") )
+		{
+			ship->navigator = NULL;
+			send_to_char("Navigator removed.\n\r", ch);
+			return;
+		}
+
+		if( !str_prefix(argument, "scout") )
+		{
+			ship->scout = NULL;
+			send_to_char("Scout removed.\n\r", ch);
+			return;
+		}
+
+		do_ship_crew(ch, "unassign");
+		return;
+	}
+
+	do_ship_crew(ch, "");
+}
+
 void do_ship(CHAR_DATA *ch, char *argument)
 {
 	char arg[MIL];
@@ -4957,6 +5410,7 @@ void do_ship(CHAR_DATA *ch, char *argument)
 		send_to_char("Syntax:  ship aim <ship>\n\r"
 					 "         ship chase <ship>\n\r"
 					 "         ship christen <name>\n\r"
+					 "         ship crew[ <actions>]\n\r"
 					 "         ship flag[ <flag>]\n\r"
 					 "         ship keys[ <actions>]\n\r"
 					 "         ship land         (airship only)\n\r"
@@ -4986,6 +5440,12 @@ void do_ship(CHAR_DATA *ch, char *argument)
 	if( !str_prefix(arg, "christen") )
 	{
 		do_ship_christen(ch, argument);
+		return;
+	}
+
+	if( !str_prefix(arg, "crew") )
+	{
+		do_ship_crew(ch, argument);
 		return;
 	}
 
