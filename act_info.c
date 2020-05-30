@@ -7635,7 +7635,11 @@ void look_sextant(CHAR_DATA *ch, OBJ_DATA *sextant)
 			send_to_char(buf, ch);
 		}
 
-		check_improve(ch, gsn, success, 10);
+		if( !IS_NPC(ch) && !ch->pcdata->spam_block_navigation )
+		{
+			check_improve(ch, gsn, success, 10);
+			ch->pcdata->spam_block_navigation = true;
+		}
 	}
 
 }
@@ -7764,9 +7768,10 @@ void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument)
 			show_map_to_char_wyx(wilds, tx, ty, ch, x, y, bvx, bvy, false);
 		}
 
-		if( can_fudge )
+		if( can_fudge && !IS_NPC(ch) && !ch->pcdata->spam_block_navigation )
 		{
 			check_improve(ch, gsn, success, 10);
+			ch->pcdata->spam_block_navigation = true;
 		}
 	}
 
@@ -7867,6 +7872,7 @@ void look_compass(CHAR_DATA *ch, OBJ_DATA *compass)
 		else if(heading >= 360) heading -= 360;
 	}
 
+	bool success;
 	if( number_percent() < skill )
 	{
 		if( IS_IMMORTAL(ch) /* || TODO: add skill */ )
@@ -7925,17 +7931,24 @@ void look_compass(CHAR_DATA *ch, OBJ_DATA *compass)
 
 		sprintf(buf, "{xThe needle on $p{x points %s.", arg);
 		act(buf, ch, NULL, NULL, compass, NULL, NULL, NULL, TO_CHAR);
-		check_improve(ch, gsn, TRUE, 10);
+		success = true;
 	}
 	else
 	{
 		act("{xYou have trouble reading the needle on $p{x.", ch, NULL, NULL, compass, NULL, NULL, NULL, TO_CHAR);
-		check_improve(ch, gsn, FALSE, 10);
+		success = false;
+	}
+
+	if( !IS_NPC(ch) && !ch->pcdata->spam_block_navigation )
+	{
+		check_improve(ch, gsn, success, 10);
+		ch->pcdata->spam_block_navigation = true;
 	}
 }
 
 void look_map(CHAR_DATA *ch, OBJ_DATA *map)
 {
+	bool success;
 	int skill = get_skill(ch, gsn_navigation);
 
 	if( list_size(map->waypoints) > 0 )
@@ -7977,14 +7990,19 @@ void look_map(CHAR_DATA *ch, OBJ_DATA *map)
 			}
 			iterator_stop(&wit);
 
-			check_improve(ch, gsn_navigation, TRUE, 10);
+			success = true;
 		}
 		else
 		{
 			act("{MYou don't understand the numbers written on {x$p{M.{x", ch, NULL, NULL, map, NULL, NULL, NULL, TO_CHAR);
 
-			check_improve(ch, gsn_navigation, FALSE, 10);
+			success = false;
 		}
-		// Set a timer to prevent spamming for skill checks?
+
+		if( !IS_NPC(ch) && !ch->pcdata->spam_block_navigation )
+		{
+			check_improve(ch, gsn_navigation, success, 10);
+			ch->pcdata->spam_block_navigation = true;
+		}
 	}
 }

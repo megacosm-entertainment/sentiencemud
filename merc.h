@@ -4279,6 +4279,8 @@ struct	pc_data
     LLIST *unlocked_areas;
 
     LLIST *ships;
+
+    bool spam_block_navigation;			// Used to prevent spam looking at compasses, sextants and telescopes to get skill improvements.
 };
 
 

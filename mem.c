@@ -840,6 +840,7 @@ PC_DATA *new_pcdata(void)
 
     pcdata->unlocked_areas = list_create(FALSE);
     pcdata->ships = list_create(FALSE);
+    pcdata->spam_block_navigation = false;
 
     VALIDATE(pcdata);
     return pcdata;

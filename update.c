@@ -1583,6 +1583,9 @@ void char_update(void)
 			}
 		}
 
+		if( !IS_NPC(ch) )
+			ch->pcdata->spam_block_navigation = false;
+
 
 		// Kick out people after they idle long enough
 		if (ch->timer > 30)
