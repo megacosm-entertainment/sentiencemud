@@ -667,6 +667,15 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 	    paf->slot);
     }
 
+    ITERATOR sit;
+    SHIP_DATA *ship;
+    iterator_start(&sit, ch->pcdata->ships);
+	while( (ship = (SHIP_DATA *)iterator_nextdata(&sit)) )
+	{
+		fprintf(fp, "Ship %lu %lu\n", ship->id[0], ship->id[1]);
+	}
+    iterator_stop(&sit);
+
     ITERATOR uait;
     AREA_DATA *unlocked_area;
     iterator_start(&uait, ch->pcdata->unlocked_areas);
@@ -1903,6 +1912,22 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 	    KEY("Save",	ch->saving_throw,	fread_number(fp));
 	    KEY("Scro",	ch->lines,		fread_number(fp));
 	    KEY("Sex",		ch->sex,		fread_number(fp));
+	    if( !str_cmp(word, "Ship") )
+	    {
+			unsigned long id1 = fread_number(fp);
+			unsigned long id2 = fread_number(fp);
+
+			SHIP_DATA *ship = find_ship_uid(id1, id2);
+
+			if( IS_VALID(ship) )
+			{
+				list_appendlink(ch->pcdata->ships, ship);
+			}
+
+			fMatch = TRUE;
+			break;
+		}
+
 	    KEY("ShortDescr",	ch->short_descr,	fread_string(fp));
 	    KEY("ShD",		ch->short_descr,	fread_string(fp));
 	    KEY("Sec",         ch->pcdata->security,	fread_number(fp));

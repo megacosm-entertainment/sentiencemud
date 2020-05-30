@@ -1439,10 +1439,7 @@ bool ship_save(FILE *fp, SHIP_DATA *ship)
 	fprintf(fp, "Name %s~\n", fix_string(ship->ship_name));
 	fprintf(fp, "ShipType %d\n", ship->ship_type);
 
-	if( ship->owner_uid[0] > 0 || ship->owner_uid[1] > 0 )
-	{
-		fprintf(fp, "Owner %lu %lu\n", ship->owner_uid[0], ship->owner_uid[1]);
-	}
+	save_ship_uid(fp, "Owner", ship->owner_uid);
 
 	fprintf(fp, "Flag %s~\n", fix_string(ship->flag));
 
@@ -5584,6 +5581,22 @@ void do_ship(CHAR_DATA *ch, char *argument)
 	}
 
 	do_ship(ch, "");
+}
+
+SHIP_DATA *find_ship_uid(unsigned long id1, unsigned long id2)
+{
+	ITERATOR it;
+	SHIP_DATA *ship;
+
+	iterator_start(&it, loaded_ships);
+	while( (ship = (SHIP_DATA *)iterator_nextdata(&it)) )
+	{
+		if( ship->id[0] == id1 && ship->id[1] == id2 )
+			break;
+	}
+	iterator_stop(&it);
+
+	return ship;
 }
 
 SHIP_DATA *get_owned_ship(CHAR_DATA *ch, char *argument)

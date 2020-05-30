@@ -8700,6 +8700,7 @@ void ship_cancel_route(SHIP_DATA *ship);
 WAYPOINT_DATA *get_ship_waypoint(SHIP_DATA *ship, char *argument, WILDS_DATA *wilds);
 SHIP_ROUTE *get_ship_route(SHIP_DATA *ship, char *argument);
 SHIP_DATA *get_owned_ship(CHAR_DATA *ch, char *argument);
+SHIP_DATA *find_ship_uid(unsigned long id1, unsigned long id2);
 
 int get_region_wyx(long wuid, int x, int y);
 bool is_same_place_area(AREA_DATA *from, AREA_DATA *to);
