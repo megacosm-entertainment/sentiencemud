@@ -714,7 +714,10 @@ bool ship_isowner_player(SHIP_DATA *ship, CHAR_DATA *ch)
 
 	if( !IS_VALID(ch) ) return false;
 
-	return ( (ship->owner_uid[0] == ch->id[0]) && (ship->owner_uid[1] == ch->id[1]) );
+	if( ship->owner == ch ) return true;	// If it's already assigned, short circuit
+
+	//return ( (ship->owner_uid[0] == ch->id[0]) && (ship->owner_uid[1] == ch->id[1]) );
+	return false;
 }
 
 WAYPOINT_DATA *get_ship_waypoint(SHIP_DATA *ship, char *argument, WILDS_DATA *wilds)
@@ -2409,7 +2412,7 @@ void do_ship_steer( CHAR_DATA *ch, char *argument )
 	// First Mates can always execute orders on their ship as they were assigned that role
 	if( ch != ship->first_mate )
 	{
-		if (!IS_IMMORTAL(ch) && ship_isowner_player(ship, ch))
+		if (!IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act2, PLR_HOLYAURA)) && ship_isowner_player(ship, ch))
 		{
 			act("This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			return;
