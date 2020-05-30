@@ -103,7 +103,7 @@ int bearing_door[] = {
 
 void crew_skill_improve(CHAR_DATA *ch, int skill)
 {
-	CREW_DATA *crew = ch->crew;
+	SHIP_CREW_DATA *crew = ch->crew;
 	sh_int *ptr;
 
 	switch(skill)
@@ -176,7 +176,7 @@ bool ship_seek_point(SHIP_DATA *ship)
 			{
 				if( IS_VALID(ship->navigator) && ship->navigator->crew && ship->navigator->crew->navigation > 0 )
 				{
-					SHIP_DATA *nav_ship = get_room_ship(ship->navigator)l;
+					SHIP_DATA *nav_ship = get_room_ship(ship->navigator->in_room);
 
 					if( ship == nav_ship )
 					{
@@ -5114,19 +5114,13 @@ void do_ship_routes(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	bool use_navigator = false;
-
 	if( !str_prefix(arg, "create") )
 	{
 		// Is navigator here?
-		if( IS_VALID(ship->navigator) &&
-			ship->navigator->crew &&
-			ship->navigator->crew->navigation > 0 &&
-			ship->navigator->in_room == ch->in_room)
-		{
-			use_navigator = true;
-		}
-		else
+		if( !IS_VALID(ship->navigator) ||
+			!ship->navigator->crew ||
+			ship->navigator->crew->navigation < 1 ||
+			ship->navigator->in_room != ch->in_room)
 		{
 			int skill = get_skill(ch, gsn_navigation);
 
@@ -5176,14 +5170,10 @@ void do_ship_routes(CHAR_DATA *ch, char *argument)
 	if( !str_prefix(arg, "delete") )
 	{
 		// Is navigator here?
-		if( IS_VALID(ship->navigator) &&
-			ship->navigator->crew &&
-			ship->navigator->crew->navigation > 0 &&
-			ship->navigator->in_room == ch->in_room)
-		{
-			use_navigator = true;
-		}
-		else
+		if( !IS_VALID(ship->navigator) ||
+			!ship->navigator->crew ||
+			ship->navigator->crew->navigation < 1 ||
+			ship->navigator->in_room != ch->in_room)
 		{
 			int skill = get_skill(ch, gsn_navigation);
 
@@ -5215,14 +5205,10 @@ void do_ship_routes(CHAR_DATA *ch, char *argument)
 	if( !str_prefix(arg, "rename") )
 	{
 		// Is navigator here?
-		if( IS_VALID(ship->navigator) &&
-			ship->navigator->crew &&
-			ship->navigator->crew->navigation > 0 &&
-			ship->navigator->in_room == ch->in_room)
-		{
-			use_navigator = true;
-		}
-		else
+		if( !IS_VALID(ship->navigator) ||
+			!ship->navigator->crew ||
+			ship->navigator->crew->navigation < 1 ||
+			ship->navigator->in_room != ch->in_room)
 		{
 			int skill = get_skill(ch, gsn_navigation);
 
@@ -5263,14 +5249,10 @@ void do_ship_routes(CHAR_DATA *ch, char *argument)
 	if( !str_prefix(arg, "add") )
 	{
 		// Is navigator here?
-		if( IS_VALID(ship->navigator) &&
-			ship->navigator->crew &&
-			ship->navigator->crew->navigation > 0 &&
-			ship->navigator->in_room == ch->in_room)
-		{
-			use_navigator = true;
-		}
-		else
+		if( !IS_VALID(ship->navigator) ||
+			!ship->navigator->crew ||
+			ship->navigator->crew->navigation < 1 ||
+			ship->navigator->in_room != ch->in_room)
 		{
 			int skill = get_skill(ch, gsn_navigation);
 
@@ -5320,14 +5302,10 @@ void do_ship_routes(CHAR_DATA *ch, char *argument)
 	if( !str_prefix(arg, "insert") )
 	{
 		// Is navigator here?
-		if( IS_VALID(ship->navigator) &&
-			ship->navigator->crew &&
-			ship->navigator->crew->navigation > 0 &&
-			ship->navigator->in_room == ch->in_room)
-		{
-			use_navigator = true;
-		}
-		else
+		if( !IS_VALID(ship->navigator) ||
+			!ship->navigator->crew ||
+			ship->navigator->crew->navigation < 1 ||
+			ship->navigator->in_room != ch->in_room)
 		{
 			int skill = get_skill(ch, gsn_navigation);
 
@@ -5389,14 +5367,10 @@ void do_ship_routes(CHAR_DATA *ch, char *argument)
 	if( !str_prefix(arg, "remove") )
 	{
 		// Is navigator here?
-		if( IS_VALID(ship->navigator) &&
-			ship->navigator->crew &&
-			ship->navigator->crew->navigation > 0 &&
-			ship->navigator->in_room == ch->in_room)
-		{
-			use_navigator = true;
-		}
-		else
+		if( !IS_VALID(ship->navigator) ||
+			!ship->navigator->crew ||
+			ship->navigator->crew->navigation < 1 ||
+			ship->navigator->in_room != ch->in_room)
 		{
 			int skill = get_skill(ch, gsn_navigation);
 
@@ -5441,14 +5415,10 @@ void do_ship_routes(CHAR_DATA *ch, char *argument)
 	if( !str_prefix(arg, "move") )
 	{
 		// Is navigator here?
-		if( IS_VALID(ship->navigator) &&
-			ship->navigator->crew &&
-			ship->navigator->crew->navigation > 0 &&
-			ship->navigator->in_room == ch->in_room)
-		{
-			use_navigator = true;
-		}
-		else
+		if( !IS_VALID(ship->navigator) ||
+			!ship->navigator->crew ||
+			ship->navigator->crew->navigation < 1 ||
+			ship->navigator->in_room != ch->in_room)
 		{
 			int skill = get_skill(ch, gsn_navigation);
 
