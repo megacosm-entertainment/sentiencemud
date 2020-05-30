@@ -2060,6 +2060,7 @@ void copy_shop_stock(SHOP_DATA *to_shop, SHOP_STOCK_DATA *from_stock)
 	case STOCK_PET:
 	case STOCK_MOUNT:
 	case STOCK_GUARD:
+	case STOCK_CREW:
 		if(to_stock->vnum > 0)
 			to_stock->mob = get_mob_index(to_stock->vnum);
 		break;
