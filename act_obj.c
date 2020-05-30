@@ -5092,7 +5092,15 @@ void do_buy(CHAR_DATA *ch, char *argument)
 			return;
 
 		argument = one_argument(argument, arg);
-		argument = one_argument(argument, arg2);
+		if( is_number(arg) )
+		{
+			argument = one_argument(argument, arg2);
+		}
+		else
+		{
+			arg2[0] = '\0';
+		}
+
 
 		bool found;
 
