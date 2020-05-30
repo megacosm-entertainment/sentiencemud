@@ -1176,6 +1176,7 @@ SHIP_DATA *ship_load(FILE *fp)
 				if( IS_VALID(crew) )
 				{
 					list_appendlink(ship->crew, crew);
+					char_to_room(crew, crew->in_room);
 				}
 
 				fMatch = TRUE;
