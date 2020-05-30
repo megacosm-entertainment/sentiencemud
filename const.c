@@ -3850,6 +3850,13 @@ const struct skill_type	skill_table [MAX_SKILL]	=
 		"", "!Music!", "", "",
 		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
 	}, {
+		"navigation",
+		{ 1, 1, 1, 1 }, { 8, 8, 8, 8},
+		spell_null, TAR_IGNORE, POS_STANDING, &gsn_navigation,
+		-1, 0, 12,
+		"", "!Navigation!", "", "",
+		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+	}, {
 		"neurotoxin",
 		{ 31, 31, 31, 31 }, {0,0,0,0},
 		spell_toxin_neurotoxin, TAR_CHAR_OFFENSIVE, POS_STANDING, &gsn_neurotoxin,

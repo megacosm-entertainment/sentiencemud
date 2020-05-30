@@ -68,6 +68,13 @@ LLIST *loaded_ships;
 LLIST *loaded_waypoints;
 LLIST *loaded_waypoint_paths;
 
+#define CREW_SKILL_SCOUTING		0
+#define CREW_SKILL_GUNNING		1
+#define CREW_SKILL_OARRING		2
+#define CREW_SKILL_MECHANICS	3
+#define CREW_SKILL_NAVIGATION	4
+#define CREW_SKILL_LEADERSHIP	5
+
 
 // Measured in 2 * ship->steering.heading / 45
 int bearing_door[] = {
@@ -91,8 +98,68 @@ int bearing_door[] = {
 
 /////////////////////////////////////////////////////////////////
 //
+// Crew
+//
+
+void crew_skill_improve(CHAR_DATA *ch, int skill)
+{
+	CREW_DATA *crew = ch->crew;
+	sh_int *ptr;
+
+	switch(skill)
+	{
+	case CREW_SKILL_SCOUTING:	ptr = &crew->scouting; break;
+	case CREW_SKILL_GUNNING:	ptr = &crew->gunning; break;
+	case CREW_SKILL_OARRING:	ptr = &crew->oarring; break;
+	case CREW_SKILL_MECHANICS:	ptr = &crew->mechanics; break;
+	case CREW_SKILL_NAVIGATION:	ptr = &crew->navigation; break;
+	case CREW_SKILL_LEADERSHIP:	ptr = &crew->leadership; break;
+	default:
+		return;
+	}
+
+	int rating = *ptr;
+
+	if( rating < 1 || rating > 99 ) return;
+
+	// Massage rating for improvement
+
+	rating = URANGE(2, 100 - rating, 25);
+
+	if( number_percent() < rating )
+	{
+		*ptr += 1;
+
+		// add a trigger to the crew member?
+	}
+}
+
+/////////////////////////////////////////////////////////////////
+//
 // Navigation
 //
+
+void set_seek_point(WILDS_COORD *coord, WILDS_DATA *wilds, long w, int x, int y, int skill)
+{
+	if( !wilds ) wilds = get_wilds_from_uid(NULL, w);
+
+	coord->wilds = wilds;
+	coord->w = w;
+	coord->x = x;
+	coord->y = y;
+
+	int delta = number_percent() - skill;
+	if( delta > 0 )
+	{
+		delta = (delta + 9) / 10;		// every 10% off the skill this will add 1 to fudge range.
+
+		coord->x += number_range(-delta,delta);
+		coord->x = URANGE(0, coord->x, coord->wilds->map_size_x - 1);
+
+		coord->y += number_range(-delta,delta);
+		coord->y = URANGE(0, coord->y, coord->wilds->map_size_y - 1);
+	}
+}
 
 bool ship_seek_point(SHIP_DATA *ship)
 {
@@ -104,16 +171,35 @@ bool ship_seek_point(SHIP_DATA *ship)
 		// Within 2.44 block radius of location
 		if( distSq <= 6 )
 		{
+			int skill = 0;
+			if( ship->seek_navigator )
+			{
+				if( IS_VALID(ship->navigator) && ship->navigator->crew && ship->navigator->crew->navigation > 0 )
+				{
+					SHIP_DATA *nav_ship = get_room_ship(ship->navigator)l;
+
+					if( ship == nav_ship )
+					{
+						crew_skill_improve(ship->navigator, CREW_SKILL_NAVIGATION);
+					}
+
+					skill = ship->navigator->crew->navigation;
+				}
+			}
+			else if( IS_VALID(ship->owner) && !IS_NPC(ship->owner) )
+			{
+				check_improve(ship->owner, gsn_navigation, TRUE, 10);
+				skill = get_skill(ship->owner, gsn_navigation);
+			}
+
 			WAYPOINT_DATA *wp = (WAYPOINT_DATA *)iterator_nextdata(&ship->route_it);
 			if( wp )
 			{
 //				char buf[MSL];
 //				sprintf(buf, "{WNext Waypoint:{x {YS{x%d {YE{x%d", wp->y, wp->x);
 //				ship_echo(ship, buf);
-				ship->seek_point.wilds = get_wilds_from_uid(NULL, wp->w);
-				ship->seek_point.w = wp->w;
-				ship->seek_point.x = wp->x;
-				ship->seek_point.y = wp->y;
+				set_seek_point(&ship->seek_point, NULL, wp->w, wp->x, wp->y, skill);
+
 				ship->current_waypoint = wp;
 			}
 			else
@@ -2611,6 +2697,11 @@ void do_ship_steer( CHAR_DATA *ch, char *argument )
 	{
 		ship->ship_move = ship->index->move_delay;
 	}
+
+	if( ch == ship->first_mate )
+	{
+		crew_skill_improve(ch, CREW_SKILL_LEADERSHIP);
+	}
 }
 
 
@@ -2823,6 +2914,11 @@ void do_ship_speed( CHAR_DATA *ch, char *argument )
 			ship->speed = speed;
 			ship_stop(ship);
 			// TODO: Cancel chasing
+
+			if( ch == ship->first_mate )
+			{
+				crew_skill_improve(ch, CREW_SKILL_LEADERSHIP);
+			}
 		}
 		else
 		{
@@ -2842,6 +2938,11 @@ void do_ship_speed( CHAR_DATA *ch, char *argument )
 			ship_set_move_steps(ship);
 
 			ship_echo(ship, "You feel the ship gaining speed.");
+
+			if( ch == ship->first_mate )
+			{
+				crew_skill_improve(ch, CREW_SKILL_LEADERSHIP);
+			}
 		}
 		else
 		{
@@ -2874,6 +2975,11 @@ void do_ship_speed( CHAR_DATA *ch, char *argument )
 	ship_set_move_steps(ship);
 
     ship_autosurvey(ship);
+
+	if( ch == ship->first_mate )
+	{
+		crew_skill_improve(ch, CREW_SKILL_LEADERSHIP);
+	}
 }
 
 void do_ship_aim( CHAR_DATA *ch, char *argument )
@@ -3047,6 +3153,7 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 	char arg[MIL];
 	SHIP_DATA *ship;
 	ROOM_INDEX_DATA *room;
+	int skill = 0;
 
 	argument = one_argument(argument, arg);
 
@@ -3075,8 +3182,6 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	// TODO: Check for navigator or player "navigation" skill
-
 	if( arg[0] == '\0' )
 	{
 		send_to_char("Syntax:  ship navigate goto <waypoint>\n\r", ch);
@@ -3088,8 +3193,28 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
+	bool use_navigator = false;
+
 	if( !str_prefix(arg, "cancel") )
 	{
+		// Is navigator here?
+		if( IS_VALID(ship->navigator) &&
+			ship->navigator->crew &&
+			ship->navigator->crew->navigation > 0 &&
+			ship->navigator->in_room == ch->in_room)
+		{
+			use_navigator = true;
+		}
+		else
+		{
+			skill = get_skill(ch, gsn_navigation);
+			if( skill < 1)
+			{
+				send_to_char("You need a Navigator present or {Wnavigation{x skill to perform navigation.\n\r", ch);
+				return;
+			}
+		}
+
 		if( ship->seek_point.wilds != NULL )
 		{
 			ship_cancel_route(ship);
@@ -3163,6 +3288,26 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 
 			if( !str_prefix(arg2, "go") )
 			{
+				// Is navigator here?
+				if( IS_VALID(ship->navigator) &&
+					ship->navigator->crew &&
+					ship->navigator->crew->navigation > 0 &&
+					ship->navigator->in_room == ch->in_room)
+				{
+					use_navigator = true;
+					skill = ship->navigator->crew->navigation;
+				}
+				else
+				{
+					skill = get_skill(ch, gsn_navigation);
+
+					if( skill < 1)
+					{
+						send_to_char("You need a Navigator present or {Wnavigation{x skill to perform navigation.\n\r", ch);
+						return;
+					}
+				}
+
 				SHIP_ROUTE *route = get_ship_route(ship, argument);
 
 				if( !IS_VALID(route) )
@@ -3201,20 +3346,21 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 
 				wp = (WAYPOINT_DATA *)iterator_nextdata(&ship->route_it);
 
-				ship->seek_point.wilds = get_wilds_from_uid(NULL, wp->w);
-				ship->seek_point.w = wp->w;
-				ship->seek_point.x = wp->x;
-				ship->seek_point.y = wp->y;
+				set_seek_point(&ship->seek_point, NULL, wp->w, wp->x, wp->y, skill);
+				ship->seek_navigator = use_navigator;
 				ship->current_waypoint = wp;
 				ship->current_route = route;
 
 				sprintf(buf, "Route {Y%s{x started.\n\r", route->name);
 				send_to_char(buf, ch);
+
+				if( use_navigator )
+				{
+					crew_skill_improve(ship->navigator, CREW_SKILL_NAVIGATION);
+				}
+
 				return;
 			}
-
-
-
 		}
 
 		return;
@@ -3228,6 +3374,27 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 						 "Syntax: navigate goto <#.named waypoint>\n\r", ch);
 			return;
 		}
+
+		// Is navigator here?
+		if( IS_VALID(ship->navigator) &&
+			ship->navigator->crew &&
+			ship->navigator->crew->navigation > 0 &&
+			ship->navigator->in_room == ch->in_room)
+		{
+			use_navigator = true;
+			skill = ship->navigator->crew->navigation;
+		}
+		else
+		{
+			skill = get_skill(ch, gsn_navigation);
+
+			if( skill < 1)
+			{
+				send_to_char("You need a Navigator present or {Wnavigation{x skill to perform navigation.\n\r", ch);
+				return;
+			}
+		}
+
 
 		WILDS_DATA *wilds = NULL;
 		room = obj_room(ship->ship);
@@ -3251,10 +3418,8 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 
 		ship_cancel_route(ship);
 
-		ship->seek_point.wilds = wilds;
-		ship->seek_point.w = wilds->uid;
-		ship->seek_point.x = wp->x;
-		ship->seek_point.y = wp->y;
+		set_seek_point(&ship->seek_point, wilds, wilds->uid, wp->x, wp->y, skill);
+		ship->seek_navigator = use_navigator;
 
 		/*
 
@@ -3289,6 +3454,26 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 
 	if( !str_prefix(arg, "seek") )
 	{
+		// Is navigator here?
+		if( IS_VALID(ship->navigator) &&
+			ship->navigator->crew &&
+			ship->navigator->crew->navigation > 0 &&
+			ship->navigator->in_room == ch->in_room)
+		{
+			use_navigator = true;
+			skill = ship->navigator->crew->navigation;
+		}
+		else
+		{
+			skill = get_skill(ch, gsn_navigation);
+
+			if( skill < 1)
+			{
+				send_to_char("You need a Navigator present or {Wnavigation{x skill to perform navigation.\n\r", ch);
+				return;
+			}
+		}
+
 		char arg2[MIL];
 
 		if( argument[0] == '\0' )
@@ -3337,10 +3522,8 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 
 		ship_cancel_route(ship);
 
-		ship->seek_point.wilds = wilds;
-		ship->seek_point.w = wilds->uid;
-		ship->seek_point.x = east;
-		ship->seek_point.y = south;
+		set_seek_point(&ship->seek_point, wilds, wilds->uid, east, south, skill);
+		ship->seek_navigator = use_navigator;
 
 		send_to_char("{WSeek point set.{x\n\r", ch);
 		return;
@@ -3349,6 +3532,26 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 	if( !str_prefix(arg, "plot") )
 	{
 		char arg[MIL];
+
+		// Is navigator here?
+		if( IS_VALID(ship->navigator) &&
+			ship->navigator->crew &&
+			ship->navigator->crew->navigation > 0 &&
+			ship->navigator->in_room == ch->in_room)
+		{
+			use_navigator = true;
+			skill = ship->navigator->crew->navigation;
+		}
+		else
+		{
+			skill = get_skill(ch, gsn_navigation);
+
+			if( skill < 1)
+			{
+				send_to_char("You need a Navigator present or {Wnavigation{x skill to perform navigation.\n\r", ch);
+				return;
+			}
+		}
 
 		if( argument[0] == '\0' )
 		{
@@ -3404,10 +3607,8 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 
 		wp = (WAYPOINT_DATA *)iterator_nextdata(&ship->route_it);
 
-		ship->seek_point.wilds = get_wilds_from_uid(NULL, wp->w);
-		ship->seek_point.w = wp->w;
-		ship->seek_point.x = wp->x;
-		ship->seek_point.y = wp->y;
+		set_seek_point(&ship->seek_point, NULL, wp->w, wp->x, wp->y, skill);
+		ship->seek_navigator = use_navigator;
 		ship->current_waypoint = wp;
 
 		send_to_char("{WCourse plotted.{x\n\r", ch);
@@ -3684,6 +3885,10 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 	}
 	room_echo(ship->ship->in_room, buf);
 
+	if( ch == ship->first_mate )
+	{
+		crew_skill_improve(ch, CREW_SKILL_LEADERSHIP);
+	}
 }
 
 void do_ship_launch(CHAR_DATA *ch, char *argument)
@@ -3818,6 +4023,11 @@ void do_ship_launch(CHAR_DATA *ch, char *argument)
 
 	ship->speed = SHIP_SPEED_STOPPED;
 	ship_echo(ship, "{WThe vessel groans a bit before taking flight.{x");
+
+	if( ch == ship->first_mate )
+	{
+		crew_skill_improve(ch, CREW_SKILL_LEADERSHIP);
+	}
 }
 
 void do_ship_chase(CHAR_DATA *ch, char *argument)
@@ -3948,8 +4158,6 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 	}
 
 	ROOM_INDEX_DATA *room = obj_room(ship->ship);
-
-	// Require a Navigator or "navigation" skill
 
 	argument = one_argument(argument, arg);
 
@@ -4156,11 +4364,32 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
+	bool use_navigator = false;
+
 	if( !str_prefix(arg, "add") )
 	{
 		char arg2[MIL];
 		char arg3[MIL];
 		int x, y;
+
+		// Is navigator here?
+		if( IS_VALID(ship->navigator) &&
+			ship->navigator->crew &&
+			ship->navigator->crew->navigation > 0 &&
+			ship->navigator->in_room == ch->in_room)
+		{
+			use_navigator = true;
+		}
+		else
+		{
+			int skill = get_skill(ch, gsn_navigation);
+
+			if( skill < 1)
+			{
+				send_to_char("You need a Navigator present or {Wnavigation{x skill to manage waypoints.\n\r", ch);
+				return;
+			}
+		}
 
 		argument = one_argument(argument, arg2);
 
@@ -4176,17 +4405,58 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 
 			y = atoi(arg2);
 			x = atoi(arg3);
+
+			if( use_navigator )
+			{
+				int skill = ship->navigator->crew->navigation;
+
+				if( IS_WILDERNESS(room) )
+				{
+					// Navigator can screw up the waypoint location
+					if( number_percent() > skill )
+					{
+						y += number_range(-1, 1);
+						y = URANGE(0, y, room->wilds->map_size_y - 1);
+
+						x += number_range(-1, 1);
+						x = URANGE(0, x, room->wilds->map_size_x - 1);
+					}
+				}
+			}
+
 		}
 		else if( !str_prefix(arg2, "here") )
 		{
-			if( ship->sextant_x < 0 || ship->sextant_y < 0 )
+			if( use_navigator )
 			{
-				send_to_char("You have no idea where you are.  Please look at a sextant first.\n\r", ch);
-				return;
-			}
+				int skill = ship->navigator->crew->navigation;
 
-			y = ship->sextant_y;
-			x = ship->sextant_x;
+				if( IS_WILDERNESS(room) )
+				{
+					y = room->y;
+					x = room->x;
+
+					if( number_percent() > skill )
+					{
+						y += number_range(-30, 30);
+						y = URANGE(0, y, room->wilds->map_size_y - 1);
+
+						x += number_range(-30, 30);
+						x = URANGE(0, x, room->wilds->map_size_x - 1);
+					}
+				}
+			}
+			else
+			{
+				if( ship->sextant_x < 0 || ship->sextant_y < 0 )
+				{
+					send_to_char("You have no idea where you are.  Please look at a sextant first.\n\r", ch);
+					return;
+				}
+
+				y = ship->sextant_y;
+				x = ship->sextant_x;
+			}
 		}
 		else
 		{
@@ -4261,11 +4531,36 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 		{
 			send_to_char("Location already in waypoint list.\n\r", ch);
 		}
+
+		if( use_navigator )
+		{
+			// Improve the navigator's navigation skill
+			crew_skill_improve(ship->navigator, CREW_SKILL_NAVIGATION);
+		}
 		return;
 	}
 
 	if( !str_prefix(arg, "delete") )
 	{
+		// Is navigator here?
+		if( IS_VALID(ship->navigator) &&
+			ship->navigator->crew &&
+			ship->navigator->crew->navigation > 0 &&
+			ship->navigator->in_room == ch->in_room)
+		{
+			use_navigator = true;
+		}
+		else
+		{
+			int skill = get_skill(ch, gsn_navigation);
+
+			if( skill < 1)
+			{
+				send_to_char("You need a Navigator present or {Wnavigation{x skill to manage waypoints.\n\r", ch);
+				return;
+			}
+		}
+
 		if( !is_number(argument) )
 		{
 			send_to_char("That is not a number.\n\r", ch);
@@ -4292,12 +4587,37 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 
 		list_remnthlink(ship->waypoints, value);
 		send_to_char("Waypoint deleted.\n\r", ch);
+
+		if( use_navigator )
+		{
+			// Improve the navigator's navigation skill
+			crew_skill_improve(ship->navigator, CREW_SKILL_NAVIGATION);
+		}
 		return;
 	}
 
 	if( !str_prefix(arg, "rename") )
 	{
 		char arg2[MIL];
+
+		// Is navigator here?
+		if( IS_VALID(ship->navigator) &&
+			ship->navigator->crew &&
+			ship->navigator->crew->navigation > 0 &&
+			ship->navigator->in_room == ch->in_room)
+		{
+			use_navigator = true;
+		}
+		else
+		{
+			int skill = get_skill(ch, gsn_navigation);
+
+			if( skill < 1)
+			{
+				send_to_char("You need a Navigator present or {Wnavigation{x skill to manage waypoints.\n\r", ch);
+				return;
+			}
+		}
 
 		argument = one_argument(argument, arg2);
 
@@ -4327,6 +4647,25 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 	if( !str_prefix(arg, "move") )
 	{
 		char arg2[MIL];
+
+		// Is navigator here?
+		if( IS_VALID(ship->navigator) &&
+			ship->navigator->crew &&
+			ship->navigator->crew->navigation > 0 &&
+			ship->navigator->in_room == ch->in_room)
+		{
+			use_navigator = true;
+		}
+		else
+		{
+			int skill = get_skill(ch, gsn_navigation);
+
+			if( skill < 1)
+			{
+				send_to_char("You need a Navigator present or {Wnavigation{x skill to manage waypoints.\n\r", ch);
+				return;
+			}
+		}
 
 		argument = one_argument(argument, arg2);
 
@@ -4416,6 +4755,25 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 
 	if( !str_prefix(arg, "load") )
 	{
+		// Is navigator here?
+		if( IS_VALID(ship->navigator) &&
+			ship->navigator->crew &&
+			ship->navigator->crew->navigation > 0 &&
+			ship->navigator->in_room == ch->in_room)
+		{
+			use_navigator = true;
+		}
+		else
+		{
+			int skill = get_skill(ch, gsn_navigation);
+
+			if( skill < 1)
+			{
+				send_to_char("You need a Navigator present or {Wnavigation{x skill to manage waypoints.\n\r", ch);
+				return;
+			}
+		}
+
 		OBJ_DATA *map = get_obj_carry(ch, argument, ch);
 		if( !IS_VALID(map) )
 		{
@@ -4504,6 +4862,12 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 		}
 
 		send_to_char(buf, ch);
+
+		if( use_navigator )
+		{
+			// Improve the navigator's navigation skill
+			crew_skill_improve(ship->navigator, CREW_SKILL_NAVIGATION);
+		}
 		return;
 	}
 
@@ -4511,6 +4875,25 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 	{
 		char arg2[MIL];
 		OBJ_DATA *map;
+
+		// Is navigator here?
+		if( IS_VALID(ship->navigator) &&
+			ship->navigator->crew &&
+			ship->navigator->crew->navigation > 0 &&
+			ship->navigator->in_room == ch->in_room)
+		{
+			use_navigator = true;
+		}
+		else
+		{
+			int skill = get_skill(ch, gsn_navigation);
+
+			if( skill < 1)
+			{
+				send_to_char("You need a Navigator present or {Wnavigation{x skill to manage waypoints.\n\r", ch);
+				return;
+			}
+		}
 
 		argument = one_argument(argument, arg2);
 
@@ -4600,8 +4983,19 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 
 		list_appendlink(map->waypoints, wp);
 
-	    act("{Y$n jots something down onto $p{Y.{x", ch, NULL, NULL, map, NULL, NULL, NULL, TO_ROOM);
-	    act("{YYou jot down coordinates onto $p{Y.{x", ch, NULL, NULL, map, NULL, NULL, NULL, TO_CHAR);
+		if( use_navigator )
+		{
+		    act("{x$N{Y jots something down onto {x$p{Y and hands it to {x$n{Y.{x", ch, ship->navigator, NULL, map, NULL, NULL, NULL, TO_NOTVICT);
+		    act("{x$N{Y jots something down onto {x$p{Y and hands it to you.{x", ch, ship->navigator, NULL, map, NULL, NULL, NULL, TO_CHAR);
+
+			// Improve the navigator's navigation skill
+			crew_skill_improve(ship->navigator, CREW_SKILL_NAVIGATION);
+		}
+		else
+		{
+		    act("{x$n{Y jots something down onto {x$p{Y.{x", ch, NULL, NULL, map, NULL, NULL, NULL, TO_ROOM);
+		    act("{YYou jot down coordinates onto {x$p{Y.{x", ch, NULL, NULL, map, NULL, NULL, NULL, TO_CHAR);
+		}
 		return;
 	}
 
@@ -4720,8 +5114,29 @@ void do_ship_routes(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
+	bool use_navigator = false;
+
 	if( !str_prefix(arg, "create") )
 	{
+		// Is navigator here?
+		if( IS_VALID(ship->navigator) &&
+			ship->navigator->crew &&
+			ship->navigator->crew->navigation > 0 &&
+			ship->navigator->in_room == ch->in_room)
+		{
+			use_navigator = true;
+		}
+		else
+		{
+			int skill = get_skill(ch, gsn_navigation);
+
+			if( skill < 1)
+			{
+				send_to_char("You need a Navigator present or {Wnavigation{x skill to manage routes.\n\r", ch);
+				return;
+			}
+		}
+
 		char arg[MIL];
 		SHIP_ROUTE *route = new_ship_route();
 
@@ -4760,6 +5175,25 @@ void do_ship_routes(CHAR_DATA *ch, char *argument)
 
 	if( !str_prefix(arg, "delete") )
 	{
+		// Is navigator here?
+		if( IS_VALID(ship->navigator) &&
+			ship->navigator->crew &&
+			ship->navigator->crew->navigation > 0 &&
+			ship->navigator->in_room == ch->in_room)
+		{
+			use_navigator = true;
+		}
+		else
+		{
+			int skill = get_skill(ch, gsn_navigation);
+
+			if( skill < 1)
+			{
+				send_to_char("You need a Navigator present or {Wnavigation{x skill to manage routes.\n\r", ch);
+				return;
+			}
+		}
+
 		if( !is_number(argument) )
 		{
 			send_to_char("That is not a number.\n\r", ch);
@@ -4780,6 +5214,25 @@ void do_ship_routes(CHAR_DATA *ch, char *argument)
 
 	if( !str_prefix(arg, "rename") )
 	{
+		// Is navigator here?
+		if( IS_VALID(ship->navigator) &&
+			ship->navigator->crew &&
+			ship->navigator->crew->navigation > 0 &&
+			ship->navigator->in_room == ch->in_room)
+		{
+			use_navigator = true;
+		}
+		else
+		{
+			int skill = get_skill(ch, gsn_navigation);
+
+			if( skill < 1)
+			{
+				send_to_char("You need a Navigator present or {Wnavigation{x skill to manage routes.\n\r", ch);
+				return;
+			}
+		}
+
 		char arg2[MIL];
 
 		argument = one_argument(argument, arg2);
@@ -4809,6 +5262,25 @@ void do_ship_routes(CHAR_DATA *ch, char *argument)
 
 	if( !str_prefix(arg, "add") )
 	{
+		// Is navigator here?
+		if( IS_VALID(ship->navigator) &&
+			ship->navigator->crew &&
+			ship->navigator->crew->navigation > 0 &&
+			ship->navigator->in_room == ch->in_room)
+		{
+			use_navigator = true;
+		}
+		else
+		{
+			int skill = get_skill(ch, gsn_navigation);
+
+			if( skill < 1)
+			{
+				send_to_char("You need a Navigator present or {Wnavigation{x skill to manage routes.\n\r", ch);
+				return;
+			}
+		}
+
 		char arg2[MIL];
 
 		argument = one_argument(argument, arg2);
@@ -4847,6 +5319,25 @@ void do_ship_routes(CHAR_DATA *ch, char *argument)
 
 	if( !str_prefix(arg, "insert") )
 	{
+		// Is navigator here?
+		if( IS_VALID(ship->navigator) &&
+			ship->navigator->crew &&
+			ship->navigator->crew->navigation > 0 &&
+			ship->navigator->in_room == ch->in_room)
+		{
+			use_navigator = true;
+		}
+		else
+		{
+			int skill = get_skill(ch, gsn_navigation);
+
+			if( skill < 1)
+			{
+				send_to_char("You need a Navigator present or {Wnavigation{x skill to manage routes.\n\r", ch);
+				return;
+			}
+		}
+
 		char arg2[MIL];
 		char arg3[MIL];
 
@@ -4897,6 +5388,25 @@ void do_ship_routes(CHAR_DATA *ch, char *argument)
 
 	if( !str_prefix(arg, "remove") )
 	{
+		// Is navigator here?
+		if( IS_VALID(ship->navigator) &&
+			ship->navigator->crew &&
+			ship->navigator->crew->navigation > 0 &&
+			ship->navigator->in_room == ch->in_room)
+		{
+			use_navigator = true;
+		}
+		else
+		{
+			int skill = get_skill(ch, gsn_navigation);
+
+			if( skill < 1)
+			{
+				send_to_char("You need a Navigator present or {Wnavigation{x skill to manage routes.\n\r", ch);
+				return;
+			}
+		}
+
 		char arg2[MIL];
 
 		argument = one_argument(argument, arg2);
@@ -4930,6 +5440,25 @@ void do_ship_routes(CHAR_DATA *ch, char *argument)
 
 	if( !str_prefix(arg, "move") )
 	{
+		// Is navigator here?
+		if( IS_VALID(ship->navigator) &&
+			ship->navigator->crew &&
+			ship->navigator->crew->navigation > 0 &&
+			ship->navigator->in_room == ch->in_room)
+		{
+			use_navigator = true;
+		}
+		else
+		{
+			int skill = get_skill(ch, gsn_navigation);
+
+			if( skill < 1)
+			{
+				send_to_char("You need a Navigator present or {Wnavigation{x skill to manage routes.\n\r", ch);
+				return;
+			}
+		}
+
 		char arg2[MIL];
 
 		argument = one_argument(argument, arg2);

@@ -7546,6 +7546,10 @@ void look_sextant(CHAR_DATA *ch, OBJ_DATA *sextant)
 		SHIP_DATA *ship = get_room_ship(ch->in_room);
 		long dist = -1;
 
+		int skill;
+		int gsn;
+		bool success = true;
+
 		if (IS_VALID(ship))
 		{
 			if( !ship->ship->in_room || !IS_WILDERNESS(ship->ship->in_room) )
@@ -7557,7 +7561,19 @@ void look_sextant(CHAR_DATA *ch, OBJ_DATA *sextant)
 			x = ship->ship->in_room->x;
 			y = ship->ship->in_room->y;
 
-			if (number_percent() >= sextant->value[0])
+			skill = get_skill(ch, gsn_navigation);
+			if( skill > 0 )
+				gsn = gsn_navigation;
+			else
+			{
+				skill = get_skill(ch, gsn_survey);
+				if( skill < 1 ) return;
+
+				gsn = gsn_survey;
+			}
+
+			success = (number_percent() < skill);
+			if (!success || number_percent() >= sextant->value[0])
 			{
 				x = x + number_range(-30, 30);
 				y = y + number_range(-30, 30);
@@ -7583,13 +7599,29 @@ void look_sextant(CHAR_DATA *ch, OBJ_DATA *sextant)
 		}
 		else
 		{
+			// ch->in_room->wilds is defined
 			x = ch->in_room->x;
 			y = ch->in_room->y;
 
-			if (number_percent() >= sextant->value[0])
+			skill = get_skill(ch, gsn_survey);
+			if( skill > 0 )
+				gsn = gsn_survey;
+			else
+			{
+				skill = get_skill(ch, gsn_navigation);
+				if( skill < 1 ) return;
+
+				gsn = gsn_navigation;
+			}
+
+			success = (number_percent() < skill);
+			if (!success || number_percent() >= sextant->value[0])
 			{
 				x = x + number_range(-30, 30);
 				y = y + number_range(-30, 30);
+
+				x = URANGE(0, x, ch->in_room->wilds->map_size_x - 1);
+				y = URANGE(0, y, ch->in_room->wilds->map_size_y - 1);
 			}
 		}
 
@@ -7602,6 +7634,8 @@ void look_sextant(CHAR_DATA *ch, OBJ_DATA *sextant)
 			sprintf(buf, "{YYour vessel about %ld miles away.{x\n\r", dist);
 			send_to_char(buf, ch);
 		}
+
+		check_improve(ch, gsn, success, 10);
 	}
 
 }
@@ -7620,6 +7654,7 @@ void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument)
 	}
 
 	int heading;
+	bool can_fudge = true;
 	if( argument[0] == '\0' )
 	{
 		if( CAN_WEAR(telescope, ITEM_TAKE) || telescope->value[4] < 0 )
@@ -7629,6 +7664,7 @@ void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument)
 		}
 
 		heading = telescope->value[4];
+		can_fudge = false;
 	}
 	else if( is_number(argument) )
 	{
@@ -7664,6 +7700,10 @@ void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument)
 		SHIP_DATA *ship = get_room_ship(ch->in_room);
 		WILDS_DATA *wilds = NULL;
 
+		int skill;
+		int gsn;
+		bool success;
+
 		if (IS_VALID(ship))
 		{
 			if( ship->ship->in_room && IS_WILDERNESS(ship->ship->in_room) && IS_OUTSIDE(ch) )
@@ -7672,7 +7712,6 @@ void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument)
 				x = ship->ship->in_room->x;
 				y = ship->ship->in_room->y;
 			}
-
 		}
 		else
 		{
@@ -7681,6 +7720,35 @@ void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument)
 			y = ch->in_room->y;
 		}
 
+		if( can_fudge )
+		{
+			int skill1 = get_skill(ch, gsn_survey);
+			int skill2 = get_skill(ch, gsn_navigation);
+
+			if( skill1 >= skill2 )
+			{
+				skill = skill1;
+				gsn = gsn_survey;
+			}
+			else
+			{
+				skill = skill2;
+				gsn = gsn_navigation;
+			}
+
+			int delta = number_percent() - skill;
+
+			if( delta >= 0 )
+			{
+				success = false;
+
+				++delta;
+
+				heading += number_range(-delta, delta);
+				if( heading < 0 ) heading += 360;
+				else if( heading >= 360 ) heading -= 360;
+			}
+		}
 
 		if( wilds )
 		{
@@ -7695,6 +7763,11 @@ void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument)
 			act("{xPeering through $p{x, you see:{x", ch, NULL, NULL, telescope, NULL, NULL, NULL, TO_CHAR);
 			show_map_to_char_wyx(wilds, tx, ty, ch, x, y, bvx, bvy, false);
 		}
+
+		if( can_fudge )
+		{
+			check_improve(ch, gsn, success, 10);
+		}
 	}
 
 	// Stationary telescopes can save their heading
@@ -7708,6 +7781,46 @@ void look_compass(CHAR_DATA *ch, OBJ_DATA *compass)
 	ROOM_INDEX_DATA *here = ch->in_room;
 	SHIP_DATA *ship = get_room_ship(here);
 	int heading = -1;
+	int gsn;
+	int skill;
+
+	if( IS_VALID(ship) )
+	{
+		// When on a ship, favor navigation over survey
+		skill = get_skill(ch, gsn_navigation);
+
+		if( skill > 0 )
+			gsn = gsn_navigation;
+		else
+		{
+			skill = get_skill(ch, gsn_survey);
+
+			if( skill < 1 )
+				return;
+
+			gsn = gsn_survey;
+		}
+	}
+	else
+	{
+		// When not on a ship, favor survey over navigation
+		skill = get_skill(ch, gsn_survey);
+
+		if( skill > 0 )
+			gsn = gsn_survey;
+		else
+		{
+			skill = get_skill(ch, gsn_navigation);
+
+			if( skill < 1 )
+				return;
+
+			gsn = gsn_navigation;
+		}
+	}
+
+	if( skill < 1 )
+		return;
 
 	if( compass->value[1] > 0 )
 	{
@@ -7754,102 +7867,124 @@ void look_compass(CHAR_DATA *ch, OBJ_DATA *compass)
 		else if(heading >= 360) heading -= 360;
 	}
 
-	if( IS_IMMORTAL(ch) /* || TODO: add skill */ )
+	if( number_percent() < skill )
 	{
-		switch(heading)
+		if( IS_IMMORTAL(ch) /* || TODO: add skill */ )
 		{
-		case 0:		strcpy(arg, "to the north"); break;
-		case 45:	strcpy(arg, "to the northeast"); break;
-		case 90:	strcpy(arg, "to the east"); break;
-		case 135:	strcpy(arg, "to the southeast"); break;
-		case 180:	strcpy(arg, "to the south"); break;
-		case 225:	strcpy(arg, "to the southwest"); break;
-		case 270:	strcpy(arg, "to the west"); break;
-		case 315:	strcpy(arg, "to the northwest"); break;
-		default:
-			sprintf(arg, "to {W%d{x degrees", heading);
-			break;
+			switch(heading)
+			{
+			case 0:		strcpy(arg, "to the north"); break;
+			case 45:	strcpy(arg, "to the northeast"); break;
+			case 90:	strcpy(arg, "to the east"); break;
+			case 135:	strcpy(arg, "to the southeast"); break;
+			case 180:	strcpy(arg, "to the south"); break;
+			case 225:	strcpy(arg, "to the southwest"); break;
+			case 270:	strcpy(arg, "to the west"); break;
+			case 315:	strcpy(arg, "to the northwest"); break;
+			default:
+				sprintf(arg, "to {W%d{x degrees", heading);
+				break;
+			}
 		}
+		else
+		{
+			heading += 23;
+			if( heading >= 360 || heading < 45 )
+			{
+				strcpy(arg, "northward");
+			}
+			else if( heading < 90 )
+			{
+				strcpy(arg, "northeastward");
+			}
+			else if( heading < 135 )
+			{
+				strcpy(arg, "eastward");
+			}
+			else if( heading < 180 )
+			{
+				strcpy(arg, "southeastward");
+			}
+			else if( heading < 225 )
+			{
+				strcpy(arg, "southward");
+			}
+			else if( heading < 270 )
+			{
+				strcpy(arg, "southwestward");
+			}
+			else if( heading < 315 )
+			{
+				strcpy(arg, "westward");
+			}
+			else if( heading < 360 )
+			{
+				strcpy(arg, "northwestward");
+			}
+		}
+
+		sprintf(buf, "{xThe needle on $p{x points %s.", arg);
+		act(buf, ch, NULL, NULL, compass, NULL, NULL, NULL, TO_CHAR);
+		check_improve(ch, gsn, TRUE, 10);
 	}
 	else
 	{
-		heading += 23;
-		if( heading >= 360 || heading < 45 )
-		{
-			strcpy(arg, "northward");
-		}
-		else if( heading < 90 )
-		{
-			strcpy(arg, "northeastward");
-		}
-		else if( heading < 135 )
-		{
-			strcpy(arg, "eastward");
-		}
-		else if( heading < 180 )
-		{
-			strcpy(arg, "southeastward");
-		}
-		else if( heading < 225 )
-		{
-			strcpy(arg, "southward");
-		}
-		else if( heading < 270 )
-		{
-			strcpy(arg, "southwestward");
-		}
-		else if( heading < 315 )
-		{
-			strcpy(arg, "westward");
-		}
-		else if( heading < 360 )
-		{
-			strcpy(arg, "northwestward");
-		}
+		act("{xYou have trouble reading the needle on $p{x.", ch, NULL, NULL, compass, NULL, NULL, NULL, TO_CHAR);
+		check_improve(ch, gsn, FALSE, 10);
 	}
-
-	sprintf(buf, "{xThe needle on $p{x points %s.", arg);
-	act(buf, ch, NULL, NULL, compass, NULL, NULL, NULL, TO_CHAR);
 }
 
 void look_map(CHAR_DATA *ch, OBJ_DATA *map)
 {
+	int skill = get_skill(ch, gsn_navigation);
+
 	if( list_size(map->waypoints) > 0 )
 	{
-		int cnt = 0;
-		char buf[MSL];
-		ITERATOR wit;
-		WAYPOINT_DATA *wp;
-
-		iterator_start(&wit, map->waypoints);
-		while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
+		if( number_percent() < skill )
 		{
-			send_to_char("{WCartographer Waypoints:{x\n\r\n\r", ch);
-			send_to_char("{M     [{W     Wilderness     {M] [{W South {M] [{W  East {M] [{W        Name        {M]{x\n\r", ch);
-			send_to_char("{M======================================================================={x\n\r", ch);
+			int cnt = 0;
+			char buf[MSL];
+			ITERATOR wit;
+			WAYPOINT_DATA *wp;
 
 			iterator_start(&wit, map->waypoints);
 			while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
 			{
-				WILDS_DATA *wilds = get_wilds_from_uid(NULL, wp->w);
+				send_to_char("{WCartographer Waypoints:{x\n\r\n\r", ch);
+				send_to_char("{M     [{W     Wilderness     {M] [{W South {M] [{W  East {M] [{W        Name        {M]{x\n\r", ch);
+				send_to_char("{M======================================================================={x\n\r", ch);
 
-				char *wname = wilds ? wilds->name : "{D(null){x";
+				iterator_start(&wit, map->waypoints);
+				while( (wp = (WAYPOINT_DATA *)iterator_nextdata(&wit)) )
+				{
+					WILDS_DATA *wilds = get_wilds_from_uid(NULL, wp->w);
 
-				int wwidth = get_colour_width(wname) + 20;
+					char *wname = wilds ? wilds->name : "{D(null){x";
 
-				sprintf(buf, "{W%3d{Y)  {x%-*.*s    {W%5d     %5d    {Y%s{x\n\r",
-					++cnt,
-					wwidth, wwidth, wname,
-					wp->y, wp->x, wp->name);
+					int wwidth = get_colour_width(wname) + 20;
 
-				send_to_char(buf, ch);
+					sprintf(buf, "{W%3d{Y)  {x%-*.*s    {W%5d     %5d    {Y%s{x\n\r",
+						++cnt,
+						wwidth, wwidth, wname,
+						wp->y, wp->x, wp->name);
+
+					send_to_char(buf, ch);
+				}
+
+				iterator_stop(&wit);
+
+				send_to_char("\n\r", ch);
 			}
-
 			iterator_stop(&wit);
 
-			send_to_char("\n\r", ch);
+			check_improve(ch, gsn_navigation, TRUE, 10);
 		}
-		iterator_stop(&wit);
+		else
+		{
+			act("{MYou don't understand the numbers written on {x$p{M.{x", ch, NULL, NULL, map, NULL, NULL, NULL, TO_CHAR);
 
+			check_improve(ch, gsn_navigation, FALSE, 10);
+		}
+		// Set a timer to prevent spamming for skill checks?
 	}
 }

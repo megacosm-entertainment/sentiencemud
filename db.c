@@ -389,6 +389,7 @@ sh_int	gsn_momentary_darkness;
 sh_int	gsn_morphlock;
 sh_int	gsn_mount_and_weapon_style;
 sh_int	gsn_music;
+sh_int	gsn_navigation;
 sh_int	gsn_neurotoxin;
 sh_int	gsn_nexus;
 sh_int	gsn_offhanded;

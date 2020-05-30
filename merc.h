@@ -5153,6 +5153,7 @@ struct ship_data
 	LLIST *routes;
 	SHIP_ROUTE *current_route;
 
+	bool				seek_navigator;		// Is the seeking the navigator or the owner
 	WILDS_COORD			seek_point;
 
 	int					sextant_x;
@@ -6406,6 +6407,7 @@ extern sh_int	gsn_momentary_darkness;
 extern sh_int	gsn_morphlock;
 extern sh_int	gsn_mount_and_weapon_style;
 extern sh_int	gsn_music;
+extern sh_int	gsn_navigation;
 extern sh_int	gsn_neurotoxin;
 extern sh_int	gsn_nexus;
 extern sh_int	gsn_parry;
