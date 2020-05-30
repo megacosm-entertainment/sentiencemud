@@ -3791,6 +3791,10 @@ void event_update(void)
 			case EVENT_ECHO:
 				room_echo((ROOM_INDEX_DATA *)tmp.entity,tmp.args);
 				break;
+
+			case EVENT_FUNCTION:
+				do_function((CHAR_DATA *)tmp.entity,tmp.function, tmp.args);
+				break;
 			}
 
 			script_call_depth = depth;

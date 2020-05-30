@@ -2378,6 +2378,7 @@ void do_ship_steer( CHAR_DATA *ch, char *argument )
 		{
 			switch(ship->steering.heading)
 			{
+			case -1:	strcpy(arg, "stationary"); break;
 			case 0:		strcpy(arg, "stationary pointing to the north"); break;
 			case 45:	strcpy(arg, "stationary pointing to the northeast"); break;
 			case 90:	strcpy(arg, "stationary pointing to the east"); break;
@@ -2438,7 +2439,7 @@ void do_ship_steer( CHAR_DATA *ch, char *argument )
 
 					if( delay > 0 )
 					{
-						wait_function(ship->first_mate, NULL, EVENT_MOBQUEUE, delay, do_ship_steer, command);
+						wait_function(ship->first_mate, NULL, EVENT_FUNCTION, delay, do_ship_steer, command);
 					}
 					else
 						do_ship_steer(ship->first_mate, command);
@@ -2689,7 +2690,8 @@ void do_ship_speed( CHAR_DATA *ch, char *argument )
 		return;
 	}
 
-	if ( !ship_has_enough_crew( ship ) ) {
+	if ( !ship_has_enough_crew( ship ) )
+	{
 		send_to_char( "There isn't enough crew to order that command!\n\r", ch );
 		return;
 	}
@@ -2703,6 +2705,12 @@ void do_ship_speed( CHAR_DATA *ch, char *argument )
 	if( ship->ship_type == SHIP_AIR_SHIP && ship->speed == SHIP_SPEED_LANDED )
 	{
 		send_to_char( "The vessel needs to be airborne first.\n\r  Try 'ship launch' to go airborne.\n\r", ch );
+		return;
+	}
+
+	if ( ship->steering.heading < 0 )
+	{
+		send_to_char( "The ship needs a heading first.  Please steer the ship into a direction.\n\r", ch);
 		return;
 	}
 

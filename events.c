@@ -107,6 +107,14 @@ void wait_function(void *entity, SCRIPT_VARINFO *info, int event_type, int delay
 			room->events = ev;
 		room->events_tail = ev;
 		break;
+	case EVENT_FUNCTION:
+		ch = entity;
+		if( ch->events_tail )
+			ch->events_tail->next_event = ev;
+		else
+			ch->events = ev;
+		ch->events_tail = ev;
+		break;
 	default:
 		break;
 	}
