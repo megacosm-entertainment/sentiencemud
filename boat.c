@@ -2616,6 +2616,7 @@ void do_ship_steer( CHAR_DATA *ch, char *argument )
 
 void do_ship_speed( CHAR_DATA *ch, char *argument )
 {
+	char buf[MSL];
 	char arg[MAX_INPUT_LENGTH];
 	SHIP_DATA *ship;
 	char cmd[MIL];
@@ -2809,13 +2810,13 @@ void do_ship_speed( CHAR_DATA *ch, char *argument )
 			case SHIP_AIR_SHIP:
 				act("You give the order for the furnace output to be lowered.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 				act("$n gives the order for the furnace output to be lowered.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-				ship_echo("You feel the ship stopping as the furnace output is lowered.");
+				ship_echo(ship, "You feel the ship stopping as the furnace output is lowered.");
 				break;
 
 			default:
 				act("You give the order for the sails to be lowered.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 				act("$n gives the order for the sails to be lowered.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-				ship_echo("You feel the ship stopping as the sails are lowered.");
+				ship_echo(ship, "You feel the ship stopping as the sails are lowered.");
 				break;
 			}
 
@@ -2840,7 +2841,7 @@ void do_ship_speed( CHAR_DATA *ch, char *argument )
 			ship->speed = speed;
 			ship_set_move_steps(ship);
 
-			ship_echo("You feel the ship gaining speed.");
+			ship_echo(ship, "You feel the ship gaining speed.");
 		}
 		else
 		{
@@ -2854,14 +2855,14 @@ void do_ship_speed( CHAR_DATA *ch, char *argument )
 		act("You give the order to reduce speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		act("$n gives the order to reduce speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-		ship_echo("You feel the ship slowing down.");
+		ship_echo(ship, "You feel the ship slowing down.");
 	}
 	else if( ship->speed < speed )
 	{
 		act("You give the order to increase speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		act("$n gives the order to increase speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-		ship_echo("You feel the ship gaining speed.");
+		ship_echo(ship, "You feel the ship gaining speed.");
 	}
 	else
 	{
@@ -3474,6 +3475,7 @@ void do_ship_christen(CHAR_DATA *ch, char *argument)
 
 void do_ship_land(CHAR_DATA *ch, char *argument)
 {
+	char buf[MSL];
 	SHIP_DATA *ship = get_room_ship(ch->in_room);
 
 	if( !IS_VALID(ship) )
@@ -3687,6 +3689,7 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 
 void do_ship_launch(CHAR_DATA *ch, char *argument)
 {
+	char buf[MSL];
 	SHIP_DATA *ship = get_room_ship(ch->in_room);
 
 	if( !IS_VALID(ship) )
