@@ -2405,7 +2405,7 @@ void do_ship_steer( CHAR_DATA *ch, char *argument )
 	{
 		if (!IS_IMMORTAL(ch) && ship_isowner_player(ship, ch))
 		{
-			act("The wheel is magically locked. This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			return;
 		}
 
@@ -2413,25 +2413,34 @@ void do_ship_steer( CHAR_DATA *ch, char *argument )
 		{
 			if( IS_VALID(ship->first_mate) && ship->first_mate->crew && ship->first_mate->crew->leadership > 0 )
 			{
-				int delay = (75 - ship->first_mate->crew->leadership) / 15;
+				SHIP_DATA *fm_ship = get_room_ship(ship->first_mate->in_room);
 
-				act("You give the order to your first mate to 'steer $T'.", ch, NULL, NULL, NULL, NULL, NULL, command, TO_CHAR);
-				act("$n gives the order to the first mate to 'steer $T'.", ch, NULL, NULL, NULL, NULL, NULL, command, TO_CHAR);
-
-				if( IS_IMMORTAL(ch) && IS_SET(ch->act, PLR_HOLYLIGHT) )
+				if( ship != fm_ship )
 				{
-					sprintf(buf, "{MFirst Mate Delay: {W%d{x\n\r", delay);
-					send_to_char(buf, ch);
-				}
-
-				if( delay > 0 )
-				{
-					wait_function(ship->first_mate, NULL, EVENT_MOBQUEUE, delay, do_ship_steer, command);
+					send_to_char("{RYour first mate is not aboard this vessel.{x\n\r", ch);
 				}
 				else
-					do_ship_steer(ship->first_mate, command);
+				{
+					int delay = (75 - ship->first_mate->crew->leadership) / 15;
 
-				return;
+					act("You give the order to your first mate to 'steer $T'.", ch, NULL, NULL, NULL, NULL, NULL, command, TO_CHAR);
+					act("$n gives an order to the first mate.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+
+					if( IS_IMMORTAL(ch) && IS_SET(ch->act, PLR_HOLYLIGHT) )
+					{
+						sprintf(buf, "{MFirst Mate Delay: {W%d{x\n\r", delay);
+						send_to_char(buf, ch);
+					}
+
+					if( delay > 0 )
+					{
+						wait_function(ship->first_mate, NULL, EVENT_MOBQUEUE, delay, do_ship_steer, command);
+					}
+					else
+						do_ship_steer(ship->first_mate, command);
+
+					return;
+				}
 			}
 
 			act("You must be at the helm of the vessel to steer.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);

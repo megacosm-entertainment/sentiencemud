@@ -5678,6 +5678,11 @@ void do_buy(CHAR_DATA *ch, char *argument)
 					char_to_room(crew, target_ship->instance->entrance);
 
 					act("{W$n boards {x$T{W.{x", crew, NULL, NULL, NULL, NULL, NULL, target_ship->ship_name, TO_ROOM);
+
+					mob = crew;
+
+					act("$n hires $N.", ch, crew, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+					sprintf(buf,"You hire $N");
 				}
 				else
 				{
