@@ -8204,7 +8204,7 @@ MEDIT(medit_show)
 					break;
 
 				case STOCK_CREW:
-					strcpy(typ,"{GCREW{x   ");
+					strcpy(typ,"{GCREW{x    ");
 					if( pStock->vnum > 0 ) {
 
 						MOB_INDEX_DATA *mob = get_mob_index(pStock->vnum);
