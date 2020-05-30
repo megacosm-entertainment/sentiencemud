@@ -1222,6 +1222,9 @@ void save_shop_stock_new(FILE *fp, SHOP_STOCK_DATA *stock)
 	case STOCK_GUARD:
 		fprintf(fp, "Guard %ld\n", stock->vnum);
 		break;
+	case STOCK_CREW:
+		fprintf(fp, "Crew %ld\n", stock->vnum);
+		break;
 	case STOCK_SHIP:
 		fprintf(fp, "Ship %ld\n", stock->vnum);
 		break;
@@ -3560,6 +3563,15 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)
     {
 		fMatch = FALSE;
 		switch (word[0]) {
+		case 'C':
+			if(!str_cmp(word, "Crew"))
+			{
+				fMatch = TRUE;
+				stock->vnum = fread_number(fp);
+				stock->type = STOCK_CREW;
+				break;
+			}
+			break;
 		case 'D':
 			KEY("DeityPnts", stock->dp, fread_number(fp));
 			KEYS("Description", stock->custom_descr, fread_string(fp));
