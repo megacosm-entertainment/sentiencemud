@@ -2456,10 +2456,6 @@ void do_ship_steer( CHAR_DATA *ch, char *argument )
 			return;
 		}
 	}
-	else
-	{
-		ship_dispatch_message(ch, ship, "First mate is performing command.", cmd);
-	}
 
     if ( !ship_has_enough_crew( ch->in_room->ship ) )
     {
@@ -2622,7 +2618,11 @@ void do_ship_speed( CHAR_DATA *ch, char *argument )
 {
 	char arg[MAX_INPUT_LENGTH];
 	SHIP_DATA *ship;
+	char cmd[MIL];
 
+	sprintf(cmd, "ship speed %s", argument);
+
+	char *command = argument;
 	argument = one_argument( argument, arg);
 
 	ship = get_room_ship(ch->in_room);
@@ -2686,39 +2686,75 @@ void do_ship_speed( CHAR_DATA *ch, char *argument )
 		return;
 	}
 
-	if( !ship_can_issue_command(ch, ship) )
+	// First Mates can always execute orders on their ship as they were assigned that role
+	if( ch != ship->first_mate )
 	{
-		act("You must be at the helm of the vessel to steer.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		return;
-	}
+		if (!IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act2, PLR_HOLYAURA)) && !ship_isowner_player(ship, ch))
+		{
+			act("This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			return;
+		}
 
-	if (!IS_IMMORTAL(ch) && !ship_isowner_player(ship, ch))
-	{
-		act("The wheel is magically locked. This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		return;
+		if( !ship_can_issue_command(ch, ship) )
+		{
+			if( IS_VALID(ship->first_mate) && ship->first_mate->crew && ship->first_mate->crew->leadership > 0 )
+			{
+				SHIP_DATA *fm_ship = get_room_ship(ship->first_mate->in_room);
+
+				if( ship != fm_ship )
+				{
+					send_to_char("{RYour first mate is not aboard this vessel.{x\n\r", ch);
+				}
+				else
+				{
+					int delay = (75 - ship->first_mate->crew->leadership) / 15;
+
+					act("You give the order to your first mate to 'speed $T'.", ch, NULL, NULL, NULL, NULL, NULL, command, TO_CHAR);
+					act("$n gives an order to the first mate.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+
+					if( IS_IMMORTAL(ch) && IS_SET(ch->act, PLR_HOLYLIGHT) )
+					{
+						sprintf(buf, "{MFirst Mate Delay: {W%d{x\n\r", delay);
+						send_to_char(buf, ch);
+					}
+
+					if( delay > 0 )
+					{
+						wait_function(ship->first_mate, NULL, EVENT_FUNCTION, delay - 1, do_ship_speed, command);
+					}
+					else
+						do_ship_steer(ship->first_mate, command);
+
+					return;
+				}
+			}
+
+			act("You must be at the helm of the vessel to steer.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			return;
+		}
 	}
 
 	if ( !ship_has_enough_crew( ship ) )
 	{
-		send_to_char( "There isn't enough crew to order that command!\n\r", ch );
+		ship_dispatch_message(ch, ship, "There isn't enough crew to order that command!", cmd);
 		return;
 	}
 
 	if ( ship->index->move_steps < 1 )
 	{
-		send_to_char( "The vessel doesn't seem to have enough power to move!\n\r", ch );
+		ship_dispatch_message(ch, ship, "The vessel doesn't seem to have enough power to move!", cmd);
 		return;
 	}
 
 	if( ship->ship_type == SHIP_AIR_SHIP && ship->speed == SHIP_SPEED_LANDED )
 	{
-		send_to_char( "The vessel needs to be airborne first.\n\r  Try 'ship launch' to go airborne.\n\r", ch );
+		ship_dispatch_message(ch, ship, "The vessel needs to be airborne first.\n\r  Try 'ship launch' to go airborne.", cmd);
 		return;
 	}
 
 	if ( ship->steering.heading < 0 )
 	{
-		send_to_char( "The ship needs a heading first.  Please steer the ship into a direction.\n\r", ch);
+		ship_dispatch_message(ch, ship, "The vessel needs a heading first.  Please steer the vessel into a direction.", cmd);
 		return;
 	}
 
@@ -2734,8 +2770,8 @@ void do_ship_speed( CHAR_DATA *ch, char *argument )
 		if( speed < 1 || speed > ship->index->move_steps )
 		{
 			char buf[MSL];
-			sprintf(buf, "Explicit distance values must be from 1 to %d\n\r", ship->index->move_steps);
-			send_to_char(buf, ch);
+			sprintf(buf, "Explicit distance values must be from 1 to %d", ship->index->move_steps);
+			ship_dispatch_message(ch, ship, buf, cmd);
 			return;
 		}
 
@@ -2760,7 +2796,7 @@ void do_ship_speed( CHAR_DATA *ch, char *argument )
 
 	if( speed < 0 || speed > 100 )
 	{
-		send_to_char("You may stop the vessel, or order half, full, some percentage speed or specific distance count.\n\r", ch);
+		ship_dispatch_message(ch, ship, "You may stop the vessel, or order half, full, some percentage speed or specific distance count.", cmd);
 		return;
 	}
 
@@ -2773,20 +2809,23 @@ void do_ship_speed( CHAR_DATA *ch, char *argument )
 			case SHIP_AIR_SHIP:
 				act("You give the order for the furnace output to be lowered.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 				act("$n gives the order for the furnace output to be lowered.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+				ship_echo("You feel the ship stopping as the furnace output is lowered.");
 				break;
 
 			default:
 				act("You give the order for the sails to be lowered.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 				act("$n gives the order for the sails to be lowered.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+				ship_echo("You feel the ship stopping as the sails are lowered.");
 				break;
 			}
+
 			ship->speed = speed;
 			ship_stop(ship);
 			// TODO: Cancel chasing
 		}
 		else
 		{
-			send_to_char("Ship is already stopped.\n\r", ch);
+			ship_dispatch_message(ch, ship, "The vessel is already stopped.", cmd);
 		}
 		return;
 	}
@@ -2800,10 +2839,12 @@ void do_ship_speed( CHAR_DATA *ch, char *argument )
 
 			ship->speed = speed;
 			ship_set_move_steps(ship);
+
+			ship_echo("You feel the ship gaining speed.");
 		}
 		else
 		{
-			send_to_char("Ship is already going at full speed.\n\r", ch);
+			ship_dispatch_message(ch, ship, "The vessel is already going at full speed.", cmd);
 		}
 		return;
 	}
@@ -2812,15 +2853,19 @@ void do_ship_speed( CHAR_DATA *ch, char *argument )
 	{
 		act("You give the order to reduce speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		act("$n gives the order to reduce speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+
+		ship_echo("You feel the ship slowing down.");
 	}
 	else if( ship->speed < speed )
 	{
 		act("You give the order to increase speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		act("$n gives the order to increase speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+
+		ship_echo("You feel the ship gaining speed.");
 	}
 	else
 	{
-		send_to_char("Ship is already going at that speed.\n\r", ch);
+		ship_dispatch_message(ch, ship, "The vessel is already going at that speed.", cmd);
 		return;
 	}
 
@@ -3437,38 +3482,75 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
+	// First Mates can always execute orders on their ship as they were assigned that role
+	if( ch != ship->first_mate )
+	{
+		if (!IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act2, PLR_HOLYAURA)) && !ship_isowner_player(ship, ch))
+		{
+			act("This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			return;
+		}
+
+		if( !ship_can_issue_command(ch, ship) )
+		{
+			if( IS_VALID(ship->first_mate) && ship->first_mate->crew && ship->first_mate->crew->leadership > 0 )
+			{
+				SHIP_DATA *fm_ship = get_room_ship(ship->first_mate->in_room);
+
+				if( ship != fm_ship )
+				{
+					send_to_char("{RYour first mate is not aboard this vessel.{x\n\r", ch);
+				}
+				else
+				{
+					int delay = (75 - ship->first_mate->crew->leadership) / 15;
+
+					act("You give the order to your first mate to 'land'.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+					act("$n gives an order to the first mate.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+
+					if( IS_IMMORTAL(ch) && IS_SET(ch->act, PLR_HOLYLIGHT) )
+					{
+						sprintf(buf, "{MFirst Mate Delay: {W%d{x\n\r", delay);
+						send_to_char(buf, ch);
+					}
+
+					if( delay > 0 )
+					{
+						wait_function(ship->first_mate, NULL, EVENT_FUNCTION, delay - 1, do_ship_land, "");
+					}
+					else
+						do_ship_steer(ship->first_mate, command);
+
+					return;
+				}
+			}
+
+			act("You must be at the helm of the vessel to steer.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			return;
+		}
+	}
+
 	if( ship->ship_type != SHIP_AIR_SHIP )
 	{
-		send_to_char("Land?  The vessel can only be in water.\n\r", ch);
+		ship_dispatch_message(ch, ship, "Land?  The vessel can only be in water.", "ship land");
 		return;
 	}
 
-	if( !ship_can_issue_command(ch, ship) )
+	if ( !ship_has_enough_crew( ship ) )
 	{
-		act("You must be at the helm of the vessel to steer.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		return;
-	}
-
-	if (!IS_IMMORTAL(ch) && !ship_isowner_player(ship, ch))
-	{
-		act("The wheel is magically locked. This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		return;
-	}
-
-	if ( !ship_has_enough_crew( ship ) ) {
-		send_to_char( "There isn't enough crew to order that command!\n\r", ch );
+		ship_dispatch_message(ch, ship, "There isn't enough crew to order that command!", "ship land");
 		return;
 	}
 
 	if( ship->speed > SHIP_SPEED_STOPPED )
 	{
-		send_to_char("Please stop the vessel first, lest you crash.\n\r", ch);
+		ship_dispatch_message(ch, ship, "Please stop the vessel first, lest you crash.", "ship land");
 		return;
 	}
 
 	if( ship->speed == SHIP_SPEED_LANDED )
 	{
-		send_to_char("The vessel has already landed.\n\r", ch);
+		ship_dispatch_message(ch, ship, "The vessel has already landed.", "ship land");
 		return;
 	}
 
@@ -3501,14 +3583,14 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 
 		if( to_area == NULL )
 		{
-			send_to_char("The vessel cannot land here.\n\r", ch);
+			ship_dispatch_message(ch, ship, "The vessel cannot land here.", "ship land");
 			return;
 		}
 
 		to_room = get_room_index(to_area->airship_land_spot);
 		if( !to_room )
 		{
-			send_to_char("There is no safe place to land the ship here.\n\r", ch);
+			ship_dispatch_message(ch, ship, "There is no safe place to land the ship here.", "ship land");
 			return;
 		}
 	}
@@ -3518,7 +3600,7 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 
 		if( !pTerrain )
 		{
-			send_to_char("The vessel cannot land here.\n\r", ch);
+			ship_dispatch_message(ch, ship, "The vessel cannot land here.", "ship land");
 			return;
 		}
 
@@ -3527,7 +3609,7 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 			// Indicative of the terrain being part of some city region on the wilds
 			if( pTerrain->template->sector_type != SECT_CITY )
 			{
-				send_to_char("The vessel cannot land here.\n\r", ch);
+				ship_dispatch_message(ch, ship, "The vessel cannot land here.", "ship land");
 				return;
 			}
 
@@ -3552,14 +3634,14 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 
 			if( to_area == NULL )
 			{
-				send_to_char("The vessel cannot land here.\n\r", ch);
+				ship_dispatch_message(ch, ship, "The vessel cannot land here.", "ship land");
 				return;
 			}
 
 			to_room = get_room_index(to_area->airship_land_spot);
 			if( !to_room )
 			{
-				send_to_char("There is no safe place to land the ship here.\n\r", ch);
+				ship_dispatch_message(ch, ship, "There is no safe place to land the ship here.", "ship land");
 				return;
 			}
 		}
@@ -3613,37 +3695,71 @@ void do_ship_launch(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
+	// First Mates can always execute orders on their ship as they were assigned that role
+	if( ch != ship->first_mate )
+	{
+		if (!IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act2, PLR_HOLYAURA)) && !ship_isowner_player(ship, ch))
+		{
+			act("This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			return;
+		}
+
+		if( !ship_can_issue_command(ch, ship) )
+		{
+			if( IS_VALID(ship->first_mate) && ship->first_mate->crew && ship->first_mate->crew->leadership > 0 )
+			{
+				SHIP_DATA *fm_ship = get_room_ship(ship->first_mate->in_room);
+
+				if( ship != fm_ship )
+				{
+					send_to_char("{RYour first mate is not aboard this vessel.{x\n\r", ch);
+				}
+				else
+				{
+					int delay = (75 - ship->first_mate->crew->leadership) / 15;
+
+					act("You give the order to your first mate to 'land'.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+					act("$n gives an order to the first mate.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+
+					if( IS_IMMORTAL(ch) && IS_SET(ch->act, PLR_HOLYLIGHT) )
+					{
+						sprintf(buf, "{MFirst Mate Delay: {W%d{x\n\r", delay);
+						send_to_char(buf, ch);
+					}
+
+					if( delay > 0 )
+					{
+						wait_function(ship->first_mate, NULL, EVENT_FUNCTION, delay - 1, do_ship_land, "");
+					}
+					else
+						do_ship_steer(ship->first_mate, command);
+
+					return;
+				}
+			}
+
+			act("You must be at the helm of the vessel to steer.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			return;
+		}
+	}
+
 	if( ship->ship_type != SHIP_AIR_SHIP )
 	{
-		send_to_char("The vessel must remain in the water.\n\r", ch);
+		ship_dispatch_message(ch, ship, "The vessel must remain in the water.", "ship launch");
 		return;
 	}
 
-	if( !ship_can_issue_command(ch, ship) )
+	if ( !ship_has_enough_crew( ship ) )
 	{
-		act("You must be at the helm of the vessel to steer.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		return;
-	}
-
-	if (!IS_IMMORTAL(ch) && !ship_isowner_player(ship, ch))
-	{
-		act("The wheel is magically locked. This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		return;
-	}
-
-	if ( !ship_has_enough_crew( ship ) ) {
-		send_to_char( "There isn't enough crew to order that command!\n\r", ch );
+		ship_dispatch_message(ch, ship, "There isn't enough crew to order that command!", "ship launch");
 		return;
 	}
 
 	if( ship->speed >= SHIP_SPEED_STOPPED )
 	{
-		send_to_char("The vessel is already airborne.\n\r", ch);
+		ship_dispatch_message(ch, ship, "The vessel is already airborne.", "ship launch");
 		return;
 	}
-
-	ship->speed = SHIP_SPEED_STOPPED;
-	ship_echo(ship, "{WThe vessel groans a bit before taking flight.{x");
 
 	char buf[MSL];
 	if( !ship->ship->in_room->wilds )
@@ -3654,7 +3770,7 @@ void do_ship_launch(CHAR_DATA *ch, char *argument)
 
 		if( !wilds || area->x < 0 || area->y < 0 )
 		{
-			send_to_char("There is nowhere for the vessel to go.\n\r", ch);
+			ship_dispatch_message(ch, ship, "There is nowhere for the vessel to go.", "ship launch");
 			return;
 		}
 
@@ -3699,6 +3815,8 @@ void do_ship_launch(CHAR_DATA *ch, char *argument)
 		room_echo(ship->ship->in_room, buf);
 	}
 
+	ship->speed = SHIP_SPEED_STOPPED;
+	ship_echo(ship, "{WThe vessel groans a bit before taking flight.{x");
 }
 
 void do_ship_chase(CHAR_DATA *ch, char *argument)
