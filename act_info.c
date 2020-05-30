@@ -7705,7 +7705,7 @@ void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument)
 		WILDS_DATA *wilds = NULL;
 
 		int skill;
-		int gsn;
+		int gsn = 0;
 		bool success;
 
 		if (IS_VALID(ship))
@@ -7768,7 +7768,7 @@ void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument)
 			show_map_to_char_wyx(wilds, tx, ty, ch, x, y, bvx, bvy, false);
 		}
 
-		if( can_fudge && !IS_NPC(ch) && !ch->pcdata->spam_block_navigation )
+		if( can_fudge && gsn > 0 && !IS_NPC(ch) && !ch->pcdata->spam_block_navigation )
 		{
 			check_improve(ch, gsn, success, 10);
 			ch->pcdata->spam_block_navigation = true;
