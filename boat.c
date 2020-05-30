@@ -2430,7 +2430,7 @@ void do_ship_steer( CHAR_DATA *ch, char *argument )
 					int delay = (75 - ship->first_mate->crew->leadership) / 15;
 
 					act("You give the order to your first mate to 'steer $T'.", ch, NULL, NULL, NULL, NULL, NULL, command, TO_CHAR);
-					act("$n gives an order to the first mate.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+					act("$n gives an order to the first mate.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
 					if( IS_IMMORTAL(ch) && IS_SET(ch->act, PLR_HOLYLIGHT) )
 					{
@@ -2452,6 +2452,10 @@ void do_ship_steer( CHAR_DATA *ch, char *argument )
 			act("You must be at the helm of the vessel to steer.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			return;
 		}
+	}
+	else
+	{
+		ship_dispatch_message(ch, ship, "First mate is performing command.", cmd);
 	}
 
     if ( !ship_has_enough_crew( ch->in_room->ship ) )
