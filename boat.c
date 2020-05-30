@@ -2412,7 +2412,7 @@ void do_ship_steer( CHAR_DATA *ch, char *argument )
 	// First Mates can always execute orders on their ship as they were assigned that role
 	if( ch != ship->first_mate )
 	{
-		if (!IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act2, PLR_HOLYAURA)) && ship_isowner_player(ship, ch))
+		if (!IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act2, PLR_HOLYAURA)) && !ship_isowner_player(ship, ch))
 		{
 			act("This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			return;
@@ -2692,7 +2692,7 @@ void do_ship_speed( CHAR_DATA *ch, char *argument )
 		return;
 	}
 
-	if (!IS_IMMORTAL(ch) && ship_isowner_player(ship, ch))
+	if (!IS_IMMORTAL(ch) && !ship_isowner_player(ship, ch))
 	{
 		act("The wheel is magically locked. This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		return;
@@ -3018,7 +3018,7 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (!IS_IMMORTAL(ch) && ship_isowner_player(ship, ch))
+	if (!IS_IMMORTAL(ch) && !ship_isowner_player(ship, ch))
 	{
 		act("The wheel is magically locked. This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		return;
@@ -3384,7 +3384,7 @@ void do_ship_christen(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (!IS_IMMORTAL(ch) && ship_isowner_player(ship, ch))
+	if (!IS_IMMORTAL(ch) && !ship_isowner_player(ship, ch))
 	{
 		send_to_char("This isn't your vessel.\n\r", ch);
 		return;
@@ -3449,7 +3449,7 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (!IS_IMMORTAL(ch) && ship_isowner_player(ship, ch))
+	if (!IS_IMMORTAL(ch) && !ship_isowner_player(ship, ch))
 	{
 		act("The wheel is magically locked. This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		return;
@@ -3625,7 +3625,7 @@ void do_ship_launch(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (!IS_IMMORTAL(ch) && ship_isowner_player(ship, ch))
+	if (!IS_IMMORTAL(ch) && !ship_isowner_player(ship, ch))
 	{
 		act("The wheel is magically locked. This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		return;
@@ -3718,7 +3718,7 @@ void do_ship_flag(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (!IS_IMMORTAL(ch) && ship_isowner_player(ship, ch))
+	if (!IS_IMMORTAL(ch) && !ship_isowner_player(ship, ch))
 	{
 		send_to_char("This isn't your vessel.\n\r", ch);
 		return;
@@ -3822,7 +3822,7 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (!IS_IMMORTAL(ch) && ship_isowner_player(ship, ch))
+	if (!IS_IMMORTAL(ch) && !ship_isowner_player(ship, ch))
 	{
 		send_to_char("This isn't your vessel.\n\r", ch);
 		return;
@@ -4501,7 +4501,7 @@ void do_ship_routes(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (!IS_IMMORTAL(ch) && ship_isowner_player(ship, ch))
+	if (!IS_IMMORTAL(ch) && !ship_isowner_player(ship, ch))
 	{
 		send_to_char("This isn't your vessel.\n\r", ch);
 		return;
@@ -4904,7 +4904,7 @@ void do_ship_keys(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (!IS_IMMORTAL(ch) && ship_isowner_player(ship, ch))
+	if (!IS_IMMORTAL(ch) && !ship_isowner_player(ship, ch))
 	{
 		send_to_char("This isn't your vessel.\n\r", ch);
 		return;
@@ -5138,7 +5138,7 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (!IS_IMMORTAL(ch) && ship_isowner_player(ship, ch))
+	if (!IS_IMMORTAL(ch) && !ship_isowner_player(ship, ch))
 	{
 		send_to_char("This isn't your vessel.\n\r", ch);
 		return;
