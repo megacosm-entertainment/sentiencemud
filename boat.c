@@ -3651,7 +3651,6 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 
 	ship->speed = SHIP_SPEED_LANDED;
 
-	char buf[MSL];
 	if( to_room && to_area )
 	{
 		sprintf(buf, "{WThe vessel descends down to {Y%s{W below.{x", to_area->name);
@@ -3735,7 +3734,7 @@ void do_ship_launch(CHAR_DATA *ch, char *argument)
 						wait_function(ship->first_mate, NULL, EVENT_FUNCTION, delay - 1, do_ship_launch, "");
 					}
 					else
-						do_ship_launch(ship->first_mate, command);
+						do_ship_launch(ship->first_mate, "");
 
 					return;
 				}
@@ -3764,7 +3763,6 @@ void do_ship_launch(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	char buf[MSL];
 	if( !ship->ship->in_room->wilds )
 	{
 		// In a fixed area
