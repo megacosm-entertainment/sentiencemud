@@ -3165,20 +3165,9 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if( !ship_can_issue_command(ch, ship) )
-	{
-		act("You must be at the helm of the vessel to navigate.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		return;
-	}
-
 	if (!IS_IMMORTAL(ch) && !ship_isowner_player(ship, ch))
 	{
-		act("The wheel is magically locked. This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		return;
-	}
-
-	if ( !ship_has_enough_crew( ship ) ) {
-		send_to_char( "There isn't enough crew to order that command!\n\r", ch );
+		act("This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		return;
 	}
 
