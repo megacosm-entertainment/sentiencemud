@@ -678,6 +678,8 @@ SHIP_DATA *create_ship(long vnum)
 	ship->hit = ship_index->hit;
 	ship->ship_flags = ship_index->flags;
 	ship->armor = ship_index->armor;
+	ship->min_crew = ship_index->min_crew;
+	ship->max_crew = ship_index->max_crew;
 
 	// Build cannons
 
@@ -1393,6 +1395,11 @@ SHIP_DATA *ship_load(FILE *fp)
 	}
 
 	ship->ship_name_plain = nocolour(ship->ship_name);
+	if( ship->min_crew <= 0 )
+		ship->min_crew = ship->index->min_crew;
+
+	if( ship->max_crew <= 0 )
+		ship->max_crew = ship->index->max_crew;
 
 	get_ship_id(ship);
 	return ship;

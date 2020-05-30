@@ -2210,6 +2210,8 @@ SHIP_INDEX_DATA *new_ship_index()
 	ship->description = &str_empty[0];
 	ship->hit = 1;
 	ship->turning = 1;
+	ship->min_crew = -1;
+	ship->max_crew = -1;
 
 	ship->special_keys = list_create(FALSE);
 
