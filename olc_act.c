@@ -8202,6 +8202,25 @@ MEDIT(medit_show)
 					else
 						strcpy(item, "-invalid-");
 					break;
+
+				case STOCK_CREW:
+					strcpy(typ,"{GCREW{x   ");
+					if( pStock->vnum > 0 ) {
+
+						MOB_INDEX_DATA *mob = get_mob_index(pStock->vnum);
+
+						if( !mob || !mob->pCrew ) {
+							strcpy(item, "-invalid-");
+						}
+						else
+						{
+							sprintf(item, "%s (%ld)", mob->short_descr, pStock->vnum);
+						}
+					}
+					else
+						strcpy(item, "-invalid-");
+					break;
+
 				case STOCK_SHIP:
 					strcpy(typ,"{GSHIP{x    ");
 					if( pStock->vnum > 0 )
@@ -9464,6 +9483,7 @@ MEDIT(medit_shop)
 			send_to_char("         shop stock add pet [vnum]\n\r", ch);
 			send_to_char("         shop stock add mount [vnum]\n\r", ch);
 			send_to_char("         shop stock add guard [vnum]\n\r", ch);
+			send_to_char("         shop stock add crew [vnum]\n\r", ch);
 			send_to_char("         shop stock add ship [vnum]\n\r", ch);
 			send_to_char("         shop stock add custom [keyword]\n\r", ch);
 			send_to_char("         shop stock [#] discount [0-100]\n\r", ch);
@@ -9485,6 +9505,7 @@ MEDIT(medit_shop)
 				send_to_char("         shop stock add pet [vnum]\n\r", ch);
 				send_to_char("         shop stock add mount [vnum]\n\r", ch);
 				send_to_char("         shop stock add guard [vnum]\n\r", ch);
+				send_to_char("         shop stock add crew [vnum]\n\r", ch);
 				send_to_char("         shop stock add ship [vnum]\n\r", ch);
 				send_to_char("         shop stock add custom [keyword]\n\r", ch);
 				return FALSE;
@@ -9637,6 +9658,48 @@ MEDIT(medit_shop)
 				}
 
 				send_to_char("Syntax:  shop stock add guard [vnum]\n\r", ch);
+				return FALSE;
+			}
+			else if(!str_prefix(arg2, "crew"))
+			{
+				if(is_number(argument))
+				{
+					MOB_INDEX_DATA *mob = get_mob_index(atoi(argument));
+
+					if(!mob)
+					{
+						send_to_char("Mobile does not exist.\n\r", ch);
+						return FALSE;
+					}
+
+					if(!mob->pCrew)
+					{
+						send_to_char("Mobile has no Crew definition.\n\r", ch);
+						return FALSE;
+					}
+
+					stock = new_shop_stock();
+
+					if(!stock)
+					{
+						send_to_char("{RERROR{W: Unable to create stock item.{x\n\r", ch);
+						return FALSE;
+					}
+
+					stock->type = STOCK_CREW;
+					stock->vnum = mob->vnum;
+					stock->silver = 50 * mob->level * mob->level;
+					stock->level = mob->level;
+					stock->discount = pMob->pShop->discount;
+
+					stock->next = pMob->pShop->stock;
+					pMob->pShop->stock = stock;
+
+					send_to_char("Stock item (CREW) added.\n\r", ch);
+					return TRUE;
+				}
+
+				send_to_char("Syntax:  shop stock add crew [vnum]\n\r", ch);
 				return FALSE;
 			}
 			else if(!str_prefix(arg2, "ship"))

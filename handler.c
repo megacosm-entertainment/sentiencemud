@@ -3089,8 +3089,17 @@ void extract_char(CHAR_DATA *ch, bool fPull)
 
     char_from_room(ch);
 
-    if (ch->belongs_to_ship != NULL && ch->belongs_to_ship->owner != NULL)
-	ch->belongs_to_ship->owner = NULL;
+    if( IS_VALID(ch->belongs_to_ship) )
+    {
+		// NPC SHIP: Is this the ship's captain?
+
+		// Remove from ship's crew
+		if( list_hasdata(ch->belongs_to_ship->crew, ch) )
+		{
+			list_remlink(ch->belongs_to_ship->crew, ch);
+			ch->belongs_to_ship = NULL;
+		}
+	}
 
     if (ch->belongs_to_ship != NULL
     && ch->belongs_to_ship->npc_ship != NULL

@@ -5241,6 +5241,8 @@ void do_buy(CHAR_DATA *ch, char *argument)
 		}
 		else
 		{
+			SHIP_DATA *target_ship = NULL;	// Used by STOCK_CREW
+
 			SHOP_STOCK_DATA *stock = request.stock;
 			char pricestr[MIL+1];
 
@@ -5323,6 +5325,85 @@ void do_buy(CHAR_DATA *ch, char *argument)
 					if (ch->num_grouped >= 9)
 					{
 						send_to_char("Your group is full.\n\r", ch);
+						return;
+					}
+				}
+				else if( stock->type == STOCK_CREW )
+				{
+					if( IS_NPC(ch) )
+					{
+						return;
+					}
+
+					// SYNTAX for buying crew: buy <crew> <ship#>         (for personal ships)
+					//                         buy <crew> church <ship#>  (for church ships, if max rank in church)
+
+					int chrank = find_char_position_in_church(ch);
+
+					if( IS_NULLSTR(argument) )
+					{
+						send_to_char("Syntax: buy <crew> <ship#>\n\r", ch);
+						if( chrank == CHURCH_RANK_D )
+							send_to_char("        buy <crew> church <ship#>\n\r", ch);
+
+						return;
+					}
+
+					int index;
+					LLIST *ships;
+
+					if( (chrank == CHURCH_RANK_D) )
+					{
+						char arg5[MIL];
+
+						argument = one_argument(argument, arg5);
+
+						if( str_prefix(arg5, "church") || !is_number(argument) )
+						{
+							send_to_char("That is not a number.\n\r", ch);
+							return;
+						}
+
+						send_to_char("Not yet implemented.\n\r", ch);
+						return;
+					}
+					else
+					{
+						if( !is_number(argument) )
+						{
+							send_to_char("That is not a number.\n\r", ch);
+							return;
+						}
+						else
+						{
+							index = atoi(argument);
+							ships = ch->pcdata->ships;
+						}
+					}
+
+					if( index < 1 || index > list_size(ships) )
+					{
+						send_to_char("That is not a valid ship.\n\r", ch);
+						return;
+					}
+
+					target_ship = (SHIP_DATA *)list_nthdata(ships, index);
+
+					if( !IS_VALID(target_ship) )
+					{
+						send_to_char("That is not a valid ship.\n\r", ch);
+						return;
+					}
+
+					if( list_size(target_ship->crew) >= target_ship->max_crew )
+					{
+						send_to_char("Ship cannot handle anymore crew.\n\r", ch);
+						return;
+					}
+
+					if( !target_ship->instance->entrance )
+					{
+						send_to_char("Cannot find where to place the crew on the ship.\n\r", ch);
 						return;
 					}
 				}
@@ -5566,9 +5647,8 @@ void do_buy(CHAR_DATA *ch, char *argument)
 					act("$n buys $N.", ch, mount, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 					sprintf(buf,"You buy $N");
 				}
-				else
+				else if( stock->type == STOCK_GUARD )
 				{
-					// STOCK_GUARD
 					CHAR_DATA *guard = create_mobile(stock->mob, FALSE);
 
 					char_to_room(guard, ch->in_room);
@@ -5588,6 +5668,23 @@ void do_buy(CHAR_DATA *ch, char *argument)
 					act("$n hires $N.", ch, guard, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 					sprintf(buf,"You hire $N");
 				}
+				else if( stock->type == STOCK_CREW )
+				{
+					CHAR_DATA *crew = create_mobile(stock->mob, FALSE);
+
+					list_appendlink(target_ship->crew, crew);
+					crew->belongs_to_ship = target_ship;
+
+					char_to_room(crew, target_ship->instance->entrance);
+
+					act("{W$n boards {x$T{W.{x", crew, NULL, NULL, NULL, NULL, NULL, target_ship->ship_name, TO_ROOM);
+				}
+				else
+				{
+					// Complain
+					return;
+				}
+
 
 				if( pricestr[0] != '\0' )
 				{

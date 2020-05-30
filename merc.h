@@ -3697,6 +3697,8 @@ struct command_data
 #define EVENT_ROOMQUEUE		2
 #define EVENT_TOKENQUEUE	3
 #define EVENT_ECHO		4
+#define EVENT_INTERPRET	5		// Delayed execution of a command
+#define EVENT_FUNCTION	6		// Delayed execution of a function
 
 struct event_data
 {
@@ -4275,6 +4277,8 @@ struct	pc_data
     #endif
 
     LLIST *unlocked_areas;
+
+    LLIST *ships;
 };
 
 
@@ -5120,6 +5124,7 @@ struct ship_data
 
 	int					cannons;
 
+	char				*ship_name_plain;
 	char				*ship_name;
 
 	sh_int				max_crew;
@@ -8694,6 +8699,7 @@ void get_ship_location(CHAR_DATA *ch, SHIP_DATA *ship, char *buf, size_t len);
 void ship_cancel_route(SHIP_DATA *ship);
 WAYPOINT_DATA *get_ship_waypoint(SHIP_DATA *ship, char *argument, WILDS_DATA *wilds);
 SHIP_ROUTE *get_ship_route(SHIP_DATA *ship, char *argument);
+SHIP_DATA *get_owned_ship(CHAR_DATA *ch, char *argument);
 
 int get_region_wyx(long wuid, int x, int y);
 bool is_same_place_area(AREA_DATA *from, AREA_DATA *to);

@@ -691,6 +691,11 @@ void extract_ship(SHIP_DATA *ship)
 {
 	if( !IS_VALID(ship) ) return;
 
+	if( IS_VALID(ship->owner) && !IS_NPC(ship->owner) )
+	{
+		list_remlink(ship->owner->pcdata->ships, ship);
+	}
+
 	detach_ships_ship(ship);
 
 	list_remlink(loaded_ships, ship);
@@ -1162,6 +1167,18 @@ SHIP_DATA *ship_load(FILE *fp)
 				fMatch = TRUE;
 				break;
 			}
+			if( !str_cmp(word, "#MOBILE") )
+			{
+				CHAR_DATA *crew = persist_load_mobile(fp);
+
+				if( IS_VALID(crew) )
+				{
+					list_appendlink(ship->crew, crew);
+				}
+
+				fMatch = TRUE;
+				break;
+			}
 			if( !str_cmp(word, "#OBJECT") )
 			{
 				OBJ_DATA *obj = persist_load_object(fp);
@@ -1221,24 +1238,6 @@ SHIP_DATA *ship_load(FILE *fp)
 			{
 				ship->min_crew = fread_number(fp);
 				ship->max_crew = fread_number(fp);
-				fMatch = TRUE;
-				break;
-			}
-			if( !str_cmp(word, "CrewMember") )
-			{
-				unsigned long id1 = fread_number(fp);
-				unsigned long id2 = fread_number(fp);
-
-				if( IS_VALID(ship->instance) )
-				{
-					CHAR_DATA *crew = instance_find_mobile(ship->instance, id1, id2);
-
-					if( IS_VALID(crew) )
-					{
-						list_appendlink(ship->crew, crew);
-					}
-				}
-
 				fMatch = TRUE;
 				break;
 			}
@@ -1393,6 +1392,8 @@ SHIP_DATA *ship_load(FILE *fp)
 		return NULL;
 	}
 
+	ship->ship_name_plain = nocolour(ship->ship_name);
+
 	get_ship_id(ship);
 	return ship;
 }
@@ -1424,6 +1425,7 @@ void ship_special_key_save(FILE *fp, SPECIAL_KEY_DATA *sk)
 }
 
 void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple);
+void persist_save_mobile(FILE *fp, CHAR_DATA *ch);
 bool ship_save(FILE *fp, SHIP_DATA *ship)
 {
 	ITERATOR it, rit;
@@ -1517,7 +1519,7 @@ bool ship_save(FILE *fp, SHIP_DATA *ship)
 	iterator_start(&it, ship->crew);
 	while( (crew = (CHAR_DATA *)iterator_nextdata(&it)) )
 	{
-		fprintf(fp, "CrewMember %lu %lu\n", crew->id[0], crew->id[1]);
+		persist_save_mobile(fp, crew);
 	}
 	iterator_stop(&it);
 
@@ -2105,6 +2107,7 @@ void do_ships(CHAR_DATA *ch, char *argument)
 
 			free_string(ship->ship_name);
 			ship->ship_name = str_dup(argument);
+			ship->ship_name_plain = nocolour(ship->ship_name);
 
 			// Install ship_name
 			char *plaintext = nocolour(ship->ship_name);
@@ -2154,9 +2157,6 @@ void do_ships(CHAR_DATA *ch, char *argument)
 
 bool ship_can_issue_command(CHAR_DATA *ch, SHIP_DATA *ship)
 {
-	if( IS_VALID(ship->first_mate) )
-		return true;
-
 	if (!IS_SET(ch->in_room->room_flags, ROOM_SHIP_HELM))
 	{
 		return false;
@@ -2165,6 +2165,17 @@ bool ship_can_issue_command(CHAR_DATA *ch, SHIP_DATA *ship)
 	return true;
 }
 
+void ship_dispatch_message(CHAR_DATA *ch, SHIP_DATA *ship, char *error, char *command)
+{
+	send_to_char(error, ch);
+	send_to_char("\n\r", ch);
+
+	// This command was executed by someone other than the owner, tell the owner of the ship if they are online
+	if( IS_VALID(ship->owner) && ship->owner != ch )
+	{
+		act("{YDispatched '{W$T{Y':{x\n\r$t", ship->owner, NULL, NULL, NULL, NULL, error, command, TO_CHAR);
+	}
+}
 
 
 void do_ship_scuttle( CHAR_DATA *ch, char *argument)
@@ -2308,11 +2319,6 @@ void do_ship_scuttle( CHAR_DATA *ch, char *argument)
 }
 
 
-// CREW SKILL: Navigation
-void dispatch_ship_steer(CHAR_DATA *ch, CHAR_DATA *navigator, SHIP_DATA *ship, char *argument)
-{
-}
-
 void do_ship_steer( CHAR_DATA *ch, char *argument )
 {
 	char buf[MSL];
@@ -2320,7 +2326,11 @@ void do_ship_steer( CHAR_DATA *ch, char *argument )
 	char arg2[MIL];
 	SHIP_DATA *ship;
 	int heading;
+	char cmd[MIL];
 
+	sprintf(cmd, "ship steer %s", argument);
+
+	char *command = argument;
 	argument = one_argument( argument, arg);
 	argument = one_argument( argument, arg2);
 
@@ -2329,18 +2339,6 @@ void do_ship_steer( CHAR_DATA *ch, char *argument )
 	if (!IS_VALID(ship))
 	{
 		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		return;
-	}
-
-	if( !ship_can_issue_command(ch, ship) )
-	{
-		act("You must be at the helm of the vessel to steer.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		return;
-	}
-
-	if (!IS_IMMORTAL(ch) && ship_isowner_player(ship, ch))
-	{
-		act("The wheel is magically locked. This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		return;
 	}
 
@@ -2402,15 +2400,54 @@ void do_ship_steer( CHAR_DATA *ch, char *argument )
 		return;
 	}
 
+	// First Mates can always execute orders on their ship as they were assigned that role
+	if( ch != ship->first_mate )
+	{
+		if (!IS_IMMORTAL(ch) && ship_isowner_player(ship, ch))
+		{
+			act("The wheel is magically locked. This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			return;
+		}
+
+		if( !ship_can_issue_command(ch, ship) )
+		{
+			if( IS_VALID(ship->first_mate) && ship->first_mate->crew && ship->first_mate->crew->leadership > 0 )
+			{
+				int delay = (75 - ship->first_mate->crew->leadership) / 15;
+
+				act("You give the order to your first mate to 'steer $T'.", ch, NULL, NULL, NULL, NULL, NULL, command, TO_CHAR);
+				act("$n gives the order to the first mate to 'steer $T'.", ch, NULL, NULL, NULL, NULL, NULL, command, TO_CHAR);
+
+				if( IS_IMMORTAL(ch) && IS_SET(ch->act, PLR_HOLYLIGHT) )
+				{
+					sprintf(buf, "{MFirst Mate Delay: {W%d{x\n\r", delay);
+					send_to_char(buf, ch);
+				}
+
+				if( delay > 0 )
+				{
+					wait_function(ship->first_mate, NULL, EVENT_MOBQUEUE, delay, do_ship_steer, command);
+				}
+				else
+					do_ship_steer(ship->first_mate, command);
+
+				return;
+			}
+
+			act("You must be at the helm of the vessel to steer.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			return;
+		}
+	}
+
     if ( !ship_has_enough_crew( ch->in_room->ship ) )
     {
-		send_to_char( "There isn't enough crew to order that command!\n\r", ch );
+		ship_dispatch_message(ch, ship, "There isn't enough crew to order that command!", cmd);
 		return;
     }
 
 	if( ship->ship_type == SHIP_AIR_SHIP && ship->speed == SHIP_SPEED_LANDED )
 	{
-		send_to_char( "The vessel needs to be airborne first.\n\r  Try 'ship launch' to go airborne.\n\r", ch );
+		ship_dispatch_message(ch, ship, "The vessel needs to be airborne first.\n\r  Try 'ship launch' to go airborne.", cmd);
 		return;
 	}
 
@@ -2420,7 +2457,7 @@ void do_ship_steer( CHAR_DATA *ch, char *argument )
 
 		if( heading < 0 || heading >= 360 )
 		{
-			send_to_char("That isn't a valid direction.\n\r", ch);
+			ship_dispatch_message(ch, ship, "That isn't a valid direction.", cmd);
 			return;
 		}
 	}
@@ -2442,7 +2479,7 @@ void do_ship_steer( CHAR_DATA *ch, char *argument )
 		}
 		else
 		{
-			send_to_char("The vessel is already turning to port.\n\r", ch);
+			ship_dispatch_message(ch, ship, "The vessel is already turning to port.", cmd);
 		}
 		return;
 	}
@@ -2463,7 +2500,7 @@ void do_ship_steer( CHAR_DATA *ch, char *argument )
 		}
 		else
 		{
-			send_to_char("The vessel is already turning to starboard.\n\r", ch);
+			ship_dispatch_message(ch, ship, "The vessel is already turning to starboard.", cmd);
 		}
 		return;
 	}
@@ -2478,7 +2515,7 @@ void do_ship_steer( CHAR_DATA *ch, char *argument )
 		}
 		else
 		{
-			send_to_char("The vessel is already heading straight ahead.\n\r", ch);
+			ship_dispatch_message(ch, ship, "The vessel is already heading straight ahead.", cmd);
 		}
 		return;
 	}
@@ -2497,7 +2534,7 @@ void do_ship_steer( CHAR_DATA *ch, char *argument )
 		case DIR_WEST:				heading = 270; break;
 		case DIR_NORTHWEST:			heading = 315; break;
 		default:
-			send_to_char("That isn't a valid direction.\n\r", ch);
+			ship_dispatch_message(ch, ship, "That isn't a valid direction.", cmd);
 			return;
 		}
 	}
@@ -2535,7 +2572,7 @@ void do_ship_steer( CHAR_DATA *ch, char *argument )
 		// Going in opposite direction? Need to specify which way to turn
 		if( delta == 180 )	// Delta should never be -180, so only need to check this
 		{
-			send_to_char("Turning direction ambiguous.\n\rPlease specify whether to go 'port' or 'starboard'.\n\r", ch);
+			ship_dispatch_message(ch, ship, "Turning direction ambiguous.\n\rPlease specify whether to go 'port' or 'starboard'.", cmd);
 			return;
 		}
 
@@ -3341,6 +3378,7 @@ void do_ship_christen(CHAR_DATA *ch, char *argument)
 
 	free_string(ship->ship_name);
 	ship->ship_name = str_dup(argument);
+	ship->ship_name_plain = nocolour(ship->ship_name);
 
 	// Install ship_name
 	free_string(ship->ship->name);
@@ -3687,33 +3725,32 @@ void do_ship_list(CHAR_DATA *ch, char *argument)
 	int lines = 0;
 	bool error = false;
 
+	if( IS_NPC(ch) ) return;
+
 	buffer = new_buf();
 
-	iterator_start(&it, loaded_ships);
+	iterator_start(&it, ch->pcdata->ships);
 	while( (ship = (SHIP_DATA *)iterator_nextdata(&it)) )
 	{
-		if( ship_isowner_player(ship, ch) )
+		// Filter by name if specified
+		if( argument[0] && is_name(argument, ship->ship->name) ) continue;
+
+		int twidth = get_colour_width(ship->index->name) + 18;		// Type
+		int nwidth = get_colour_width(ship->ship_name) + 30;		// Name
+		// Location?
+
+		char loc[MIL];
+		get_ship_location(ch, ship, loc, MIL-1);
+
+		sprintf(buf, "{W%3d{C)  {G%-*.*s   {x%-*.*s   {x%s{x\n\r", ++lines,
+			twidth, twidth, ship->index->name,
+			nwidth, nwidth, ship->ship_name,
+			loc);
+
+		if( !add_buf(buffer, buf) || (!ch->lines && strlen(buffer->string) > MSL) )
 		{
-			// Filter by name if specified
-			if( argument[0] && is_name(argument, ship->ship->name) ) continue;
-
-			int twidth = get_colour_width(ship->index->name) + 18;		// Type
-			int nwidth = get_colour_width(ship->ship_name) + 30;		// Name
-			// Location?
-
-			char loc[MIL];
-			get_ship_location(ch, ship, loc, MIL-1);
-
-			sprintf(buf, "{W%3d{C)  {G%-*.*s   {x%-*.*s   {x%s{x\n\r", ++lines,
-				twidth, twidth, ship->index->name,
-				nwidth, nwidth, ship->ship_name,
-				loc);
-
-			if( !add_buf(buffer, buf) || (!ch->lines && strlen(buffer->string) > MSL) )
-			{
-				error = true;
-				break;
-			}
+			error = true;
+			break;
 		}
 	}
 	iterator_stop(&it);
@@ -5217,7 +5254,7 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
 		crew_skill_rating("Mechanics", crew->crew->mechanics, buf, MSL-1);
 		send_to_char(buf, ch);
 
-		crew_skill_rating("Navigation", crew->crew->navigation, buf, MSL-1);
+		crew_skill_rating("Navigating", crew->crew->navigation, buf, MSL-1);
 		send_to_char(buf, ch);
 
 		crew_skill_rating("Leadership", crew->crew->leadership, buf, MSL-1);
@@ -5272,6 +5309,10 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
 		}
 
 		list_remlink(ship->crew, crew);
+		crew->belongs_to_ship = NULL;
+
+		extract_char(crew, TRUE);
+
 		send_to_char("Crew member removed.\n\r", ch);
 		return;
 	}
@@ -5320,6 +5361,12 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
 
 		if( !str_prefix(argument, "firstmate") )
 		{
+			if( crew->crew->leadership < 1 )
+			{
+				send_to_char("That crew member lacks any '{WLeadership{x' ability.\n\r", ch);
+				return;
+			}
+
 			ship->first_mate = crew;
 			send_to_char("First Mate assigned.\n\r", ch);
 			return;
@@ -5327,6 +5374,12 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
 
 		if( !str_prefix(argument, "navigator") )
 		{
+			if( crew->crew->navigator < 1 )
+			{
+				send_to_char("That crew member lacks any '{WNavigation{x' ability.\n\r", ch);
+				return;
+			}
+
 			if( ship->scout == crew )
 			{
 				send_to_char("That crew member is already assigned as the Scout.\n\r", ch);
@@ -5342,6 +5395,12 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
 
 		if( !str_prefix(argument, "scout") )
 		{
+			if( crew->crew->scouting < 1 )
+			{
+				send_to_char("That crew member lacks any '{WScouting{x' ability.\n\r", ch);
+				return;
+			}
+
 			if( ship->navigator == crew )
 			{
 				send_to_char("That crew member is already assigned as the Navigator.\n\r", ch);
@@ -5518,6 +5577,46 @@ void do_ship(CHAR_DATA *ch, char *argument)
 	do_ship(ch, "");
 }
 
+SHIP_DATA *get_owned_ship(CHAR_DATA *ch, char *argument)
+{
+	ITERATOR it;
+	SHIP_DATA *ship = NULL;
+	char arg[MIL];
+	int number;
+
+	if( is_number(argument) )
+	{
+		number = atoi(argument);
+		arg[0] = '\0';
+	}
+	else
+	{
+		number = number_argument(argument, arg);
+	}
+
+	if( number < 1 ) return NULL;
+
+	if( IS_NPC(ch) )
+	{
+		// Handle NPC ships
+	}
+	else
+	{
+		iterator_start(&it, loaded_ships);
+		while( (ship = (SHIP_DATA *)iterator_nextdata(&it)) )
+		{
+			if( is_name(arg, ship->ship_name_plain) )
+			{
+				if( !--number )
+					break;
+			}
+		}
+		iterator_stop(&it);
+	}
+
+	return ship;
+}
+
 
 bool _is_terrain_land(WILDS_DATA *wilds, int x, int y)
 {
@@ -5632,6 +5731,11 @@ SHIP_DATA *purchase_ship(CHAR_DATA *ch, long vnum, SHOP_DATA *shop)
 	ship->owner = ch;
 	ship->owner_uid[0] = ch->id[0];
 	ship->owner_uid[1] = ch->id[1];
+
+	if( !IS_NPC(ch) )
+	{
+		list_appendlink(ch->pcdata->ships, ship);
+	}
 
 	if( ship->ship_type == SHIP_AIR_SHIP )
 		ship->speed = SHIP_SPEED_LANDED;

@@ -839,6 +839,7 @@ PC_DATA *new_pcdata(void)
     pcdata->second_sub_class_warrior = -1;
 
     pcdata->unlocked_areas = list_create(FALSE);
+    pcdata->ships = list_create(FALSE);
 
     VALIDATE(pcdata);
     return pcdata;
@@ -894,6 +895,7 @@ void free_pcdata(PC_DATA *pcdata)
     pcdata->script_prompts = NULL;
 
     list_destroy(pcdata->unlocked_areas);
+    list_destroy(pcdata->ships);
 
     INVALIDATE(pcdata);
     pcdata->next = pcdata_free;
@@ -2243,6 +2245,7 @@ SHIP_DATA *new_ship()
 
 	ship->flag = &str_empty[0];
 	ship->ship_name = &str_empty[0];
+	ship->ship_name_plain = &str_empty[0];
 	ship->steering.heading = -1;
 	ship->sextant_x = -1;
 	ship->sextant_y = -1;

@@ -6069,6 +6069,7 @@ void persist_save_room(FILE *fp, ROOM_INDEX_DATA *room)
 {
 	CHAR_DATA *ch;
 	int i;
+	SHIP_DATA *ship = get_room_ship(room);
 
 	if( room->source ) {
 		fprintf(fp, "#CROOM %ld %ld %ld\n", room->source->vnum, room->id[0], room->id[1]);		// **
@@ -6129,7 +6130,11 @@ void persist_save_room(FILE *fp, ROOM_INDEX_DATA *room)
 	// Save NPCs
 	for( ch = room->people; ch; ch = ch->next_in_room )
 		if( IS_NPC(ch) )
-			persist_save_mobile(fp, ch);
+		{
+			// Exclude crew members of a ship as they will be handled separately
+			if( !IS_VALID(ship) || !list_hasdata(ship->crew, ch) )
+				persist_save_mobile(fp, ch);
+		}
 
 	fprintf(fp, "#-ROOM\n\n");
 }
