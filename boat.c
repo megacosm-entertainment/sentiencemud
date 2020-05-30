@@ -3197,24 +3197,6 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 
 	if( !str_prefix(arg, "cancel") )
 	{
-		// Is navigator here?
-		if( IS_VALID(ship->navigator) &&
-			ship->navigator->crew &&
-			ship->navigator->crew->navigation > 0 &&
-			ship->navigator->in_room == ch->in_room)
-		{
-			use_navigator = true;
-		}
-		else
-		{
-			skill = get_skill(ch, gsn_navigation);
-			if( skill < 1)
-			{
-				send_to_char("You need a Navigator present or {Wnavigation{x skill to perform navigation.\n\r", ch);
-				return;
-			}
-		}
-
 		if( ship->seek_point.wilds != NULL )
 		{
 			ship_cancel_route(ship);
