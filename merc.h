@@ -3691,7 +3691,7 @@ struct command_data
 #define MAX_EVENT_CALL_DEPTH    5
 
 #define EVENT_MINTYPE		0
-#define EVENT_MAXTYPE		4
+#define EVENT_MAXTYPE		6
 #define EVENT_MOBQUEUE		0
 #define EVENT_OBJQUEUE		1
 #define EVENT_ROOMQUEUE		2

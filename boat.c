@@ -2443,7 +2443,7 @@ void do_ship_steer( CHAR_DATA *ch, char *argument )
 
 					if( delay > 0 )
 					{
-						wait_function(ship->first_mate, NULL, EVENT_FUNCTION, delay, do_ship_steer, command);
+						wait_function(ship->first_mate, NULL, EVENT_FUNCTION, delay - 1, do_ship_steer, command);
 					}
 					else
 						do_ship_steer(ship->first_mate, command);
