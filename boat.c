@@ -2724,7 +2724,7 @@ void do_ship_speed( CHAR_DATA *ch, char *argument )
 						wait_function(ship->first_mate, NULL, EVENT_FUNCTION, delay - 1, do_ship_speed, command);
 					}
 					else
-						do_ship_steer(ship->first_mate, command);
+						do_ship_speed(ship->first_mate, command);
 
 					return;
 				}
@@ -3521,7 +3521,7 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 						wait_function(ship->first_mate, NULL, EVENT_FUNCTION, delay - 1, do_ship_land, "");
 					}
 					else
-						do_ship_steer(ship->first_mate, command);
+						do_ship_land(ship->first_mate, "");
 
 					return;
 				}
@@ -3721,7 +3721,7 @@ void do_ship_launch(CHAR_DATA *ch, char *argument)
 				{
 					int delay = (75 - ship->first_mate->crew->leadership) / 15;
 
-					act("You give the order to your first mate to 'land'.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+					act("You give the order to your first mate to 'launch'.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 					act("$n gives an order to the first mate.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
 					if( IS_IMMORTAL(ch) && IS_SET(ch->act, PLR_HOLYLIGHT) )
@@ -3732,10 +3732,10 @@ void do_ship_launch(CHAR_DATA *ch, char *argument)
 
 					if( delay > 0 )
 					{
-						wait_function(ship->first_mate, NULL, EVENT_FUNCTION, delay - 1, do_ship_land, "");
+						wait_function(ship->first_mate, NULL, EVENT_FUNCTION, delay - 1, do_ship_launch, "");
 					}
 					else
-						do_ship_steer(ship->first_mate, command);
+						do_ship_launch(ship->first_mate, command);
 
 					return;
 				}
