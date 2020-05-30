@@ -1416,7 +1416,7 @@ CHAR_DATA *instance_section_find_mobile(INSTANCE_SECTION *section, unsigned long
 {
 	ITERATOR it;
 	ROOM_INDEX_DATA *room;
-	CHAR_DATA *mob = NULL, ch;
+	CHAR_DATA *mob = NULL, *ch;
 
 	iterator_start(&it, section->rooms);
 	while( !IS_VALID(mob) && (room = (ROOM_INDEX_DATA *)iterator_nextdata(&it)) )
