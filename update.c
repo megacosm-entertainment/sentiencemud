@@ -868,6 +868,7 @@ void mobile_update(void)
 			p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RECKONING, NULL);
 		}
 
+/*
 		// get rid of crew when they are past their hired date
 		if (ch->belongs_to_ship != NULL &&
 			!IS_NPC_SHIP(ch->belongs_to_ship) &&
@@ -875,6 +876,7 @@ void mobile_update(void)
 			extract_char(ch, TRUE);
 			continue;
 		}
+*/
 
 		if( IS_NPC(ch) && IS_SET(ch->act2, ACT2_HIRED) )
 		{
