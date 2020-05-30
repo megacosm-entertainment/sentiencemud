@@ -1244,7 +1244,7 @@ SHIP_DATA *ship_load(FILE *fp)
 			break;
 
 		case 'F':
-			if( !str_cmp(word. "FirstMate") )
+			if( !str_cmp(word, "FirstMate") )
 			{
 				unsigned long id1 = fread_number(fp);
 				unsigned long id2 = fread_number(fp);
@@ -1281,7 +1281,7 @@ SHIP_DATA *ship_load(FILE *fp)
 
 		case 'N':
 			KEYS("Name", ship->ship_name, fread_string(fp));
-			if( !str_cmp(word. "Navigator") )
+			if( !str_cmp(word, "Navigator") )
 			{
 				unsigned long id1 = fread_number(fp);
 				unsigned long id2 = fread_number(fp);
@@ -1308,7 +1308,7 @@ SHIP_DATA *ship_load(FILE *fp)
 			break;
 
 		case 'S':
-			if( !str_cmp(word. "Scout") )
+			if( !str_cmp(word, "Scout") )
 			{
 				unsigned long id1 = fread_number(fp);
 				unsigned long id2 = fread_number(fp);
@@ -5180,7 +5180,7 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
 					(ship->navigator == crew) ? "{W Y " : "{D N ",
 					(ship->scout == crew) ? "{W Y " : "{D N ");
 
-				if( !add_buf(buffer, buf) || (!ch->lines && strlen(buffer->string) > MSL )
+				if( !add_buf(buffer, buf) || (!ch->lines && strlen(buffer->string) > MSL) )
 				{
 					error = true;
 					break;
@@ -5383,7 +5383,7 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
 
 		if( !str_prefix(argument, "navigator") )
 		{
-			if( crew->crew->navigator < 1 )
+			if( crew->crew->navigation < 1 )
 			{
 				send_to_char("That crew member lacks any '{WNavigation{x' ability.\n\r", ch);
 				return;
