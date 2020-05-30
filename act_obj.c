@@ -6142,6 +6142,7 @@ void do_list(CHAR_DATA *ch, char *argument)
 			case STOCK_PET:
 			case STOCK_MOUNT:
 			case STOCK_GUARD:
+			case STOCK_CREW:
 				if( stock->vnum > 0 && stock->mob != NULL )
 				{
 					if( arg[0] != '\0' && !is_name(arg, stock->mob->player_name) )
