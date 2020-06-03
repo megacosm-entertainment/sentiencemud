@@ -32,7 +32,7 @@ EVENT_DATA *events_tail;
 int hit_gain	args((CHAR_DATA *ch));
 int mana_gain	args((CHAR_DATA *ch));
 int move_gain	args((CHAR_DATA *ch));
-int toxin_gain(CHAR_DATA *ch);
+int toxin_gain(CHAR_DATA *ch, int toxin);
 void mobile_update	args((void));
 void char_update	args((void));
 void obj_update	args((void));
@@ -398,171 +398,187 @@ void gain_exp(CHAR_DATA *ch, int gain)
 
 int hit_gain(CHAR_DATA *ch)
 {
-    int gain;
-    int number;
-    long amount;
-    char buf[MAX_STRING_LENGTH];
+	int gain;
+	int number;
+	long amount;
+	char buf[MAX_STRING_LENGTH];
 
-    if (ch->in_room == NULL) {
+	if (ch->in_room == NULL)
+	{
 		sprintf(buf, "hit_gain: %s had null in_room!", IS_NPC(ch) ? ch->short_descr : ch->name);
 		bug(buf, 0);
 		return 0;
-    }
+	}
 
-    if (IS_NPC(ch)) {
+	if (IS_NPC(ch))
+	{
 		gain =  5 + ch->level;
 		if (IS_AFFECTED(ch,AFF_REGENERATION))
-		    gain *= 2;
+			gain *= 2;
 
-		switch(ch->position) {
-	    default: 		gain /= 2;		break;
-	    case POS_SLEEPING: 	gain = 3 * gain/2;    	break;
-	    case POS_RESTING:  				break;
-	    case POS_FIGHTING:	gain /= 3;		break;
+		switch(ch->position)
+		{
+		default: 			gain /= 2;			break;
+		case POS_SLEEPING: 	gain = 3 * gain/2;	break;
+		case POS_RESTING:						break;
+		case POS_FIGHTING:	gain /= 3;			break;
 		}
-    } else {
+	}
+	else
+	{
 		gain = UMAX(3,get_curr_stat(ch,STAT_CON) - 3 + ch->tot_level/2);
 		gain += class_table[get_profession(ch, CLASS_CURRENT)].hp_max - 10;
 		number = number_percent();
-		if (number < get_skill(ch,gsn_fast_healing)) {
-		    gain += number * gain / 100;
-		    if (ch->hit < ch->max_hit)
+		if (number < get_skill(ch,gsn_fast_healing))
+		{
+			gain += number * gain / 100;
+			if (ch->hit < ch->max_hit)
 				check_improve(ch,gsn_fast_healing,TRUE,8);
 		}
 
-		switch (ch->position) {
-	    default:	   	gain = 3 * gain / 2;	break;
-	    case POS_SLEEPING: 	gain = 3 * gain;	break;
-	    case POS_RESTING:   gain = gain * 2; 	break;
-	    case POS_FIGHTING: 	gain /= 2;		break;
+		switch (ch->position)
+		{
+		default:	   		gain = 3 * gain / 2;	break;
+		case POS_SLEEPING: 	gain = 3 * gain;		break;
+		case POS_RESTING:   gain = gain * 2; 		break;
+		case POS_FIGHTING: 	gain /= 2;				break;
 		}
 
 		if (ch->pcdata->condition[COND_HUNGER] == 0)
-		    gain /= 2;
+			gain /= 2;
 
 		if (ch->pcdata->condition[COND_THIRST] == 0)
-		    gain /= 2;
-    }
+			gain /= 2;
+	}
 
-    if (ch->in_room->heal_rate > 0)
+	if (ch->in_room->heal_rate > 0)
 		gain = gain * ch->in_room->heal_rate / 100;
 
-    if (ch->on && ch->on->item_type == ITEM_FURNITURE && ch->on->value[3] > 0)
+	if (ch->on &&
+		ch->on->item_type == ITEM_FURNITURE &&
+		ch->on->value[3] > 0)
 		gain = gain * ch->on->value[3] / 100;
 
-    if (IS_AFFECTED(ch, AFF_POISON))
+	if (IS_AFFECTED(ch, AFF_POISON))
 		gain /= 4;
 
-    if (IS_AFFECTED(ch, AFF_PLAGUE))
+	if (IS_AFFECTED(ch, AFF_PLAGUE))
 		gain /= 8;
 
-    if (IS_AFFECTED(ch,AFF_REGENERATION) || (ch->tot_level < 31 && !IS_REMORT(ch)))
+	if (IS_AFFECTED(ch,AFF_REGENERATION) || (ch->tot_level < 31 && !IS_REMORT(ch)))
 		gain *= 2;
 
-    // Druids get 33% more in nature
-    if (get_profession(ch, SUBCLASS_CLERIC) == CLASS_CLERIC_DRUID && is_in_nature(ch))
+	// Druids get 33% more in nature
+	if (get_profession(ch, SUBCLASS_CLERIC) == CLASS_CLERIC_DRUID && is_in_nature(ch))
 		gain += gain/3;
 
 	/* If you have the relic you get 25% more */
 	if (ch->church && vnum_in_treasure_room(ch->church, OBJ_VNUM_RELIC_HP_REGEN))
 		gain += gain / 4;
 
-   amount = UMIN(gain, ch->max_hit - ch->hit);
-   return amount;
+	ch->tempstore[0] = gain;
+	if( p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_HITGAIN, NULL) )
+		return 0;
+	gain = UMAX(0, ch->tempstore[0]);
+
+	amount = UMIN(gain, ch->max_hit - ch->hit);
+	return amount;
 }
 
 
 int mana_gain(CHAR_DATA *ch)
 {
-    int gain;
-    int number;
-    char buf[MSL];
+	int gain;
+	int number;
+	char buf[MSL];
 
-    if (ch->in_room == NULL)
-    {
-        sprintf(buf, "mana_gain: %s had null in_room!",
-	    IS_NPC(ch) ? ch->short_descr : ch->name);
-	    bug(buf, 0);
-	return 0;
-    }
-
-    if (IS_NPC(ch))
-    {
-        gain = 5 + ch->level;
-	switch (ch->position)
+	if (ch->in_room == NULL)
 	{
-	    default:		gain /= 2;		break;
-	    case POS_SLEEPING:	gain = 3 * gain/2;	break;
-	    case POS_RESTING:				break;
-	    case POS_FIGHTING:	gain /= 3;		break;
-	}
-    }
-    else
-    {
-	gain = get_curr_stat(ch,STAT_WIS)
-	      + get_curr_stat(ch,STAT_INT) + ch->tot_level;
-	number = number_percent();
-
-	if (number < get_skill(ch,gsn_meditation))
-	{
-	    gain += number * gain / 100;
-	    if (ch->mana < ch->max_mana)
-		check_improve(ch,gsn_meditation,TRUE,8);
+		sprintf(buf, "mana_gain: %s had null in_room!", IS_NPC(ch) ? ch->short_descr : ch->name);
+		bug(buf, 0);
+		return 0;
 	}
 
-	if (!class_table[get_profession(ch, CLASS_CURRENT)].fMana)
-	    gain /= 2;
-
-	switch (ch->position)
+	if (IS_NPC(ch))
 	{
-	    default:	   	gain = gain;			break;
-	    case POS_SLEEPING: 	gain = 2 * gain;	break;
-	    case POS_RESTING:   gain = 3 * gain/2; 			break;
-	    case POS_FIGHTING: 	gain /= 2;			break;
+		gain = 5 + ch->level;
+		switch (ch->position)
+		{
+		default:			gain /= 2;			break;
+		case POS_SLEEPING:	gain = 3 * gain/2;	break;
+		case POS_RESTING:						break;
+		case POS_FIGHTING:	gain /= 3;			break;
+		}
+	}
+	else
+	{
+		gain = get_curr_stat(ch,STAT_WIS) + get_curr_stat(ch,STAT_INT) + ch->tot_level;
+		number = number_percent();
+
+		if (number < get_skill(ch,gsn_meditation))
+		{
+			gain += number * gain / 100;
+			if (ch->mana < ch->max_mana)
+				check_improve(ch,gsn_meditation,TRUE,8);
+		}
+
+		if (!class_table[get_profession(ch, CLASS_CURRENT)].fMana)
+			gain /= 2;
+
+		switch (ch->position)
+		{
+		default:			gain = gain;		break;
+		case POS_SLEEPING:	gain = 2 * gain;	break;
+		case POS_RESTING:	gain = 3 * gain/2;	break;
+		case POS_FIGHTING:	gain /= 2;			break;
+		}
+
+		if (ch->pcdata->condition[COND_HUNGER]   == 0)
+			gain /= 2;
+
+		if (ch->pcdata->condition[COND_THIRST] == 0)
+			gain /= 2;
 	}
 
-	if (ch->pcdata->condition[COND_HUNGER]   == 0)
-	    gain /= 2;
+	if (ch->in_room->mana_rate > 0)
+		gain = gain * ch->in_room->mana_rate / 100;
 
-	if (ch->pcdata->condition[COND_THIRST] == 0)
-	    gain /= 2;
+	if (ch->on != NULL &&
+		ch->on->item_type == ITEM_FURNITURE &&
+		ch->on->value[4] > 0)
+		gain = gain * ch->on->value[4] / 100;
 
-    }
+	if (IS_AFFECTED(ch, AFF_POISON))
+		gain /= 4;
 
-    if (ch->in_room->mana_rate > 0)
-	gain = gain * ch->in_room->mana_rate / 100;
+	if (IS_AFFECTED(ch, AFF_PLAGUE))
+		gain /= 8;
 
-    if (ch->on != NULL
-    && ch->on->item_type == ITEM_FURNITURE
-    && ch->on->value[4] > 0)
-	gain = gain * ch->on->value[4] / 100;
+	if (IS_AFFECTED(ch,AFF_HASTE) || IS_AFFECTED(ch,AFF_SLOW))
+		gain /= 2;
 
-    if (IS_AFFECTED(ch, AFF_POISON))
-	gain /= 4;
-
-    if (IS_AFFECTED(ch, AFF_PLAGUE))
-	gain /= 8;
-
-    if (IS_AFFECTED(ch,AFF_HASTE) || IS_AFFECTED(ch,AFF_SLOW))
-	gain /= 2;
-
-    // Druids get 33% more in nature
-    if (get_profession(ch, SUBCLASS_CLERIC) == CLASS_CLERIC_DRUID && is_in_nature(ch))
+	// Druids get 33% more in nature
+	if (get_profession(ch, SUBCLASS_CLERIC) == CLASS_CLERIC_DRUID && is_in_nature(ch))
 		gain += gain/3;
 
 	if (ch->church && vnum_in_treasure_room(ch->church, OBJ_VNUM_RELIC_MANA_REGEN))
 		gain += gain / 4;
 
-   if (IS_ELF(ch))
-       gain *= 2;
+	if (IS_ELF(ch))
+		gain *= 2;
 
-   if (!str_cmp(race_table[ch->race].name, "lich"))
-       gain = (gain * 5)/2;
+	if (!str_cmp(race_table[ch->race].name, "lich"))
+		gain = (gain * 5)/2;
 
-   if (ch->tot_level < 31 && !IS_REMORT(ch))
-       gain *= 2;
+	if (ch->tot_level < 31 && !IS_REMORT(ch))
+		gain *= 2;
 
-   return UMIN(gain, ch->max_mana - ch->mana);
+	ch->tempstore[0] = gain;
+	if( p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_MANAGAIN, NULL) )
+		return 0;
+	gain = UMAX(0, ch->tempstore[0]);
+
+	return UMIN(gain, ch->max_mana - ch->mana);
 }
 
 
@@ -574,125 +590,139 @@ int move_gain(CHAR_DATA *ch)
 
     if (ch->in_room == NULL)
     {
-        sprintf(buf, "move_gain: %s had null in_room!",
-	    IS_NPC(ch) ? ch->short_descr : ch->name);
+        sprintf(buf, "move_gain: %s had null in_room!", IS_NPC(ch) ? ch->short_descr : ch->name);
 	    bug(buf, 0);
-	return 0;
+		return 0;
     }
 
     if (IS_NPC(ch))
-	gain = ch->level;
+    {
+		gain = ch->level;
+
+		switch(ch->position)
+		{
+		default: 			gain /= 2;			break;
+		case POS_SLEEPING: 	gain = 3 * gain/2;	break;
+		case POS_RESTING:						break;
+		case POS_FIGHTING:	gain /= 3;			break;
+		}
+	}
     else
     {
-	gain = UMAX(15, ch->level);
+		gain = UMAX(15, ch->level);
 
-	switch (ch->position)
-	{
-	    case POS_SLEEPING:
-	        gain += get_curr_stat(ch,STAT_DEX)*3;
-	        break;
-	    case POS_RESTING:
-	        gain += get_curr_stat(ch,STAT_DEX) / 2 * 3;
-	    	break;
+		switch (ch->position)
+		{
+		case POS_SLEEPING:	gain += get_curr_stat(ch,STAT_DEX)*3;		break;
+		case POS_RESTING:	gain += get_curr_stat(ch,STAT_DEX) / 2 * 3;	break;
+		}
+
+		if (ch->pcdata->condition[COND_HUNGER]   == 0)
+			gain /= 2;
+
+		if (ch->pcdata->condition[COND_THIRST] == 0)
+			gain /= 2;
 	}
 
-	if (ch->pcdata->condition[COND_HUNGER]   == 0)
-	    gain /= 2;
+	if (ch->in_room->move_rate > 0)
+		gain = gain * ch->in_room->move_rate/100;
 
-	if (ch->pcdata->condition[COND_THIRST] == 0)
-	    gain /= 2;
-    }
+	if (ch->on != NULL &&
+		ch->on->item_type == ITEM_FURNITURE &&
+		ch->on->value[5] > 0)
+		gain = gain * ch->on->value[5] / 100;
 
-    if (ch->in_room->move_rate > 0)
-	gain = gain * ch->in_room->move_rate/100;
+	if (IS_AFFECTED(ch, AFF_POISON))
+		gain /= 4;
 
-    if (ch->on != NULL
-    && ch->on->item_type == ITEM_FURNITURE
-    && ch->on->value[5] > 0)
-	gain = gain * ch->on->value[5] / 100;
+	if (IS_AFFECTED(ch, AFF_PLAGUE))
+		gain /= 8;
 
-    if (IS_AFFECTED(ch, AFF_POISON))
-	gain /= 4;
+	if (IS_AFFECTED(ch,AFF_HASTE) || IS_AFFECTED(ch,AFF_SLOW))
+		gain /= 2;
 
-    if (IS_AFFECTED(ch, AFF_PLAGUE))
-	gain /= 8;
+	// Druids get 33% more in nature
+	if (get_profession(ch, SUBCLASS_CLERIC) == CLASS_CLERIC_DRUID && is_in_nature(ch))
+		gain += gain/3;
 
-    if (IS_AFFECTED(ch,AFF_HASTE) || IS_AFFECTED(ch,AFF_SLOW))
-	gain /= 2;
+	if (ch->tot_level < 31 && !IS_REMORT(ch))
+		gain *= 2;
 
-    // Druids get 33% more in nature
-    if (get_profession(ch, SUBCLASS_CLERIC) == CLASS_CLERIC_DRUID
-    &&   is_in_nature(ch))
-	gain += gain/3;
+	ch->tempstore[0] = gain;
+	if( p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_MOVEGAIN, NULL) )
+		return 0;
+	gain = UMAX(0, ch->tempstore[0]);
 
-    if (ch->tot_level < 31 && !IS_REMORT(ch))
-	gain *= 2;
-
-    amount = UMIN(gain, ch->max_move - ch->move);
+	amount = UMIN(gain, ch->max_move - ch->move);
 
     return amount;
 }
 
 
 // Regen sith toxins.
-int toxin_gain(CHAR_DATA *ch)
+int toxin_gain(CHAR_DATA *ch, int toxin)
 {
-    int gain;
-    char buf[MAX_STRING_LENGTH];
+	int gain;
+	char buf[MAX_STRING_LENGTH];
 
-    if (ch->in_room == NULL)
-    {
-        sprintf(buf, "toxin_gain: %s had null in_room!",
-            IS_NPC(ch) ? ch->short_descr : ch->name);
-        bug(buf, 0);
-	return 0;
-    }
+	if (ch->in_room == NULL)
+	{
+		sprintf(buf, "toxin_gain: %s had null in_room!", IS_NPC(ch) ? ch->short_descr : ch->name);
+		bug(buf, 0);
+		return 0;
+	}
 
-    if (IS_NPC(ch))
-    {
-	gain =  5 + ch->level;
+	if (IS_NPC(ch))
+	{
+		gain =  5 + ch->level;
+		if (IS_AFFECTED(ch,AFF_REGENERATION))
+			gain *= 2;
+
+		switch(ch->position)
+		{
+		default:	 		gain /= 2;			break;
+		case POS_SLEEPING: 	gain = 3 * gain/2;	break;
+		case POS_RESTING:						break;
+		case POS_FIGHTING:	gain /= 3;			break;
+		}
+	}
+	else
+	{
+		gain = UMAX(3,get_curr_stat(ch,STAT_CON) - 3);
+
+		switch (ch->position)
+		{
+		default:			gain = 3 * gain / 2;	break;
+		case POS_SLEEPING:	gain = 3 * gain;		break;
+		case POS_RESTING:	gain = gain * 2;		break;
+		case POS_FIGHTING:	gain /= 2;				break;
+		}
+
+		if (ch->pcdata->condition[COND_HUNGER]   == 0)
+			gain /= 2;
+
+		if (ch->pcdata->condition[COND_THIRST] == 0)
+			gain /= 2;
+	}
+
+	if (IS_AFFECTED(ch, AFF_POISON))
+		gain /= 4;
+
+	if (IS_AFFECTED(ch, AFF_PLAGUE))
+		gain /= 8;
+
 	if (IS_AFFECTED(ch,AFF_REGENERATION))
-	    gain *= 2;
+		gain *= 2;
 
-	switch(ch->position)
-	{
-	    default : 		gain /= 2;			break;
-	    case POS_SLEEPING: 	gain = 3 * gain/2;		break;
-	    case POS_RESTING:  					break;
-	    case POS_FIGHTING:	gain /= 3;		 	break;
-	}
-    }
-    else
-    {
-	gain = UMAX(3,get_curr_stat(ch,STAT_CON) - 3);
+	gain += number_range(1,2);
 
-	switch (ch->position)
-	{
-	    default:	   	gain = 3 * gain / 2;			break;
-	    case POS_SLEEPING: 	gain = 3 * gain;	break;
-	    case POS_RESTING:   gain = gain * 2; 			break;
-	    case POS_FIGHTING: 	gain /= 2;			break;
-	}
+	ch->tempstore[0] = gain;
+	ch->tempstore[1] = toxin;
+	if( p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_TOXINGAIN, toxin_table[toxin].name) )
+		return 0;
+	gain = UMAX(0, ch->tempstore[0]);
 
-	if (ch->pcdata->condition[COND_HUNGER]   == 0)
-	    gain /= 2;
-
-	if (ch->pcdata->condition[COND_THIRST] == 0)
-	    gain /= 2;
-    }
-
-    if (IS_AFFECTED(ch, AFF_POISON))
-	gain /= 4;
-
-    if (IS_AFFECTED(ch, AFF_PLAGUE))
-	gain /= 8;
-
-    if (IS_AFFECTED(ch,AFF_REGENERATION))
-	    gain *= 2;
-
-    gain += number_range(1,2);
-
-    return (URANGE(1, gain, 15));
+	return (URANGE(1, gain, 15));
 }
 
 
@@ -1642,7 +1672,10 @@ void char_update(void)
 		{
 		    int i;
 		    for (i = 0; i < MAX_TOXIN; i++)
-				ch->toxin[i] += UMIN(toxin_gain(ch), 100 - ch->toxin[i]);
+		    {
+				int tg = toxin_gain(ch);
+				ch->toxin[i] += UMIN(tg, 100 - ch->toxin[i]);
+			}
 		}
 
         // Decrease challenge delay for people.

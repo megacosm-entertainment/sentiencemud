@@ -5067,6 +5067,7 @@ struct ship_index_data
 	int weight;			// Weight limit before ship sinks (ignores non-takable objects)
 	int capacity;		// How many items can FIT on the ship (ignores non-takable objects)
 	int armor;			// Base protective armor
+	int oars;			// Number of oar positions
 
 	LLIST *special_keys;		// Various key object indexes used by the ship
 
@@ -5109,13 +5110,17 @@ struct ship_data
 	CHAR_DATA *first_mate;		// Crew member assigned to First Mate
 	CHAR_DATA *navigator;		// Crew member assigned to Navigator
 	CHAR_DATA *scout;			// Crew member assigned to Scout
+	LLIST *oarsmen;				// Crew members assigned to Oar duty
 
 	char				*flag;
 
 	STEERING			steering;
 
-	sh_int				speed;
 	int					move_steps;
+
+	int					ship_power;		// How much power is given by the ship (sails, engines, etc)
+	int					oar_power;		// How much power is given by manned oars?
+
 	long				hit;
 	long				armor;
 
@@ -5125,6 +5130,8 @@ struct ship_data
 	INSTANCE			*instance;
 
 	int					cannons;
+	int					oars;
+
 
 	char				*ship_name_plain;
 	char				*ship_name;
@@ -5800,6 +5807,7 @@ enum trigger_index_enum {
 	TRIG_HIDDEN,		// After the mob has hidden (mob and token only)
 	TRIG_HIDE,			// Act of hiding (mob, object and token)
 	TRIG_HIT,
+	TRIG_HITGAIN,
 	TRIG_HPCNT,
 	TRIG_IDENTIFY,
 	TRIG_INSPECT,		// Called when asking a shopkeeper to inspect a custom stock item
@@ -5812,9 +5820,11 @@ enum trigger_index_enum {
 	TRIG_LOGIN,
 	TRIG_LORE,
 	TRIG_LORE_EX,
+	TRIG_MANAGAIN,
 	TRIG_MOON,
 	TRIG_MOUNT,
 	TRIG_MOVE_CHAR,
+	TRIG_MOVEGAIN,
 	TRIG_MULTICLASS,	// Called when a player multiclasses
 	TRIG_OPEN,
 	TRIG_POSTQUEST,			// Called after all quest rewards and messages are given
@@ -5915,6 +5925,7 @@ enum trigger_index_enum {
 	TRIG_TOKEN_GIVEN,
 	TRIG_TOKEN_REMOVED,
 	TRIG_TOUCH,
+	TRIG_TOXINGAIN,
 	TRIG_TURN,
 	TRIG_TURN_ON,		/* NIB : 20070121 */
 	TRIG_UNGROUPED,

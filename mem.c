@@ -2254,6 +2254,7 @@ SHIP_DATA *new_ship()
 	ship->sextant_y = -1;
 
 	ship->crew = list_create(FALSE);
+	ship->oarsmen = list_create(FALSE);
 
 	ship->waypoints = new_waypoints_list();
 	ship->route_waypoints = list_createx(FALSE, NULL, delete_waypoint);
@@ -2271,8 +2272,9 @@ void free_ship(SHIP_DATA *ship)
 	free_string(ship->ship_name);
 
 	list_destroy(ship->crew);
-	list_destroy(ship->waypoints);
+	list_destroy(ship->oarsmen);
 
+	list_destroy(ship->waypoints);
 	iterator_stop(&ship->route_it);
 	list_destroy(ship->route_waypoints);
 	list_destroy(ship->routes);

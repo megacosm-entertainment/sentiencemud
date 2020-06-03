@@ -301,16 +301,27 @@ void steering_set_turning(SHIP_DATA *ship, char direction)
 
 void steering_update(SHIP_DATA *ship)
 {
+	if( ship->ship_power < SHIP_SPEED_STOPPED )
+		return;
+
 	if( ship->steering.turning_dir )
 	{
 		int power = ship->index->turning;
-		if( ship->speed == SHIP_SPEED_STOPPED )
+
+		if( ship->ship_power == SHIP_SPEED_STOPPED )
 		{
-			// Cut the turning power while motionless
-			power /= 2;
+			if( ship->oar_power == SHIP_SPEED_STOPPED )
+			{
+				// Cut the turning power while motionless
+				power /= 2;
+			}
+			else
+			{
+				power = 3 * power / 4;
+			}
+
 			power = UMAX(1, power);
 		}
-
 
 		if( ship->steering.heading_target < 0 )
 		{
@@ -332,7 +343,7 @@ void steering_update(SHIP_DATA *ship)
 
 				// Stationary targeted turning
 				//  Ship has reading its desired heading
-				if( ship->speed == SHIP_SPEED_STOPPED )
+				if( ship->ship_power == SHIP_SPEED_STOPPED )
 				{
 					char buf[MSL];
 					char arg[MIL];
@@ -390,7 +401,7 @@ bool steering_movement(SHIP_DATA *ship, int *x, int *y, int *door)
 	};
 
 	// Allow for steering updates while stopped
-	if( ship->speed <= SHIP_SPEED_STOPPED ) return false;
+	if( ship->ship_power <= SHIP_SPEED_STOPPED ) return false;
 
 	ROOM_INDEX_DATA *room = obj_room(ship->ship);
 
@@ -543,6 +554,7 @@ SHIP_INDEX_DATA *load_ship_index(FILE *fp)
 			break;
 
 		case 'O':
+			KEY("Oars", ship->oars, fread_number(fp));
 			KEY("Object", ship->ship_object, fread_number(fp));
 			break;
 
@@ -627,6 +639,7 @@ void save_ship_index(FILE *fp, SHIP_INDEX_DATA *ship)
 	fprintf(fp, "Hit %d\n", ship->hit);
 	fprintf(fp, "Guns %d\n", ship->guns);
 	fprintf(fp, "Crew %d %d\n", ship->min_crew, ship->max_crew);
+	fprintf(fp, "Oars %d\n", ship->oars);
 	fprintf(fp, "MoveDelay %d\n", ship->move_delay);
 	fprintf(fp, "MoveSteps %d\n", ship->move_steps);
 	fprintf(fp, "Turning %d\n", ship->turning);
@@ -897,7 +910,8 @@ void ship_cancel_route(SHIP_DATA *ship)
 
 void ship_stop(SHIP_DATA *ship)
 {
-	ship->speed = SHIP_SPEED_STOPPED;
+	ship->ship_power = SHIP_SPEED_STOPPED;
+	ship->oar_power = SHIP_SPEED_STOPPED;
 	ship->sextant_x = -1;
 	ship->sextant_y = -1;
 	ship->move_steps = 0;
@@ -998,16 +1012,59 @@ bool move_ship_success(SHIP_DATA *ship)
 	}
 	room_echo(to_room, buf);
 
+	if( ship->oar_power > 0 && list_size(ship->oarsmen) > 0 )
+	{
+		ITERATOR oit;
+		CHAR_DATA *oarsman;
+
+		iterator_start(&oit, ship->oarsmen);
+		while( (oarsman = (CHAR_DATA *)iterator_nextdata(&oit)) )
+		{
+			// Only allow oarsmen that are not exhausted
+			if( oarsman->position == POS_STANDING )
+			{
+				crew_skill_improve(oarsman, CREW_SKILL_OARRING);
+
+				// This will still allow Master oarsmen to get exhausted
+				if( number_range(0, 124) >= oarsmen->crew->oarring )
+				{
+					int nor = 125 - oarsmen->crew->oarring;
+
+					oarsman->move -= nor;
+
+					oarsman->move = UMAX(0, oarsman->move);
+					oarsman->position = POS_RESTING;
+				}
+			}
+		}
+		iterator_stop(&oit);
+	}
+
 	return true;
 }
 
-double ln2_50 = log(2) / 50.0;	// I want 'a' to satisfy exp(a * 50) = 2
-
 void ship_set_move_steps(SHIP_DATA *ship)
 {
-	if( ship->speed > SHIP_SPEED_STOPPED )
+	if( ship->ship_power > SHIP_SPEED_STOPPED || ship->oar_power > SHIP_SPEED_STOPPED )
 	{
-		int speed = ship->speed;
+		int speed = ship->ship_power;
+
+		if( ship->oar_power > 0 && list_size(ship->oarsmen) > 0 )
+		{
+			ITERATOR oit;
+			CHAR_DATA *oarsman;
+
+			iterator_start(&oit, ship->oarsmen);
+			while( (oarsman = (CHAR_DATA *)iterator_nextdata(&oit)) )
+			{
+				if( oarsman->position == POS_STANDING )
+				{
+					// 1-10% for every oarsman not currently exhausted
+					speed += (ship->oar_power + 9) / 10;
+				}
+			}
+			iterator_stop(&oit);
+		}
 
 		// TODO: Add some kind of modifiers for speed
 		// - encumberance (cargo weight)
@@ -1031,7 +1088,7 @@ void ship_set_move_steps(SHIP_DATA *ship)
 
 void ship_move_update(SHIP_DATA *ship)
 {
-	if( ship->speed > SHIP_SPEED_STOPPED )
+	if( ship->ship_power > SHIP_SPEED_STOPPED )
 	{
 		steering_update(ship);
 
@@ -1082,6 +1139,25 @@ void ship_pulse_update(SHIP_DATA *ship)
 
 		}
 	}
+
+	ITERATOR it;
+	CHAR_DATA *oarsman;
+
+	iterator_start(&it, ship->oarsmen);
+	while( (oarsman = (CHAR_DATA *)iterator_nextdata(&it)) )
+	{
+		if( oarsman->max_move > 0 && !IS_FIGHTING(oarsman) && oarsman->position == POS_RESTING )
+		{
+			int percent = 100 * oarsman->move / oarsman->max_move;
+
+			if( percent > 25 )
+			{
+				// Return oarsman back to usable position
+				oarsman->position = POS_STANDING;
+			}
+		}
+	}
+	iterator_stop(&it);
 }
 
 // Called on the pulse
@@ -1386,6 +1462,22 @@ SHIP_DATA *ship_load(FILE *fp)
 			break;
 
 		case 'O':
+			KEY("Oars", ship->oars, fread_number(fp));
+			if( !str_cmp(word, "Oarsman") )
+			{
+				unsigned long id1 = fread_number(fp);
+				unsigned long id2 = fread_number(fp);
+
+				CHAR_DATA *oarsman = ship_load_find_crew(ship, id1, id2);
+
+				if( IS_VALID(oarsman) )
+				{
+					list_appendlink(ship->oarsmen, oarsman);
+				}
+
+				fMatch = TRUE;
+				break;
+			}
 			if( !str_cmp(word, "Owner") )
 			{
 				ship->owner_uid[0] = fread_number(fp);
@@ -1444,7 +1536,7 @@ SHIP_DATA *ship_load(FILE *fp)
 			KEY("ShipFlags", ship->ship_flags, fread_number(fp));
 			KEY("ShipMove", ship->ship_move, fread_number(fp));
 			KEY("ShipType", ship->ship_type, fread_number(fp));
-			KEY("Speed", ship->speed, fread_number(fp));
+			KEY("Speed", ship->ship_power, fread_number(fp));
 			if(!str_cmp(word, "Steering") )
 			{
 				ship->steering.heading = fread_number(fp);
@@ -1527,7 +1619,7 @@ bool ship_save(FILE *fp, SHIP_DATA *ship)
 {
 	ITERATOR it, rit;
 	SPECIAL_KEY_DATA *sk;
-	CHAR_DATA *crew;
+	CHAR_DATA *crew, *oarsman;
 
 	fprintf(fp, "#SHIP %ld\n", ship->index->vnum);
 
@@ -1540,13 +1632,14 @@ bool ship_save(FILE *fp, SHIP_DATA *ship)
 
 	fprintf(fp, "Flag %s~\n", fix_string(ship->flag));
 
-	fprintf(fp, "Speed %d\n", ship->speed);
+	fprintf(fp, "Speed %d\n", ship->ship_power);
 	fprintf(fp, "Hit %ld\n", ship->hit);
 	fprintf(fp, "Armor %ld\n", ship->armor);
 
 	fprintf(fp, "ShipFlags %d\n", ship->ship_flags);
 	fprintf(fp, "Cannons %d\n", ship->cannons);
 	fprintf(fp, "Crew %d %d\n", ship->min_crew, ship->max_crew);
+	fprintf(fp, "Oars %d\n", ship->oars);
 
 	if( ship->ship_move > 0 )
 	{
@@ -1631,6 +1724,13 @@ bool ship_save(FILE *fp, SHIP_DATA *ship)
 	{
 		fprintf(fp, "Scout %lu %lu\n", ship->scout->id[0], ship->scout->id[1]);
 	}
+
+	iterator_start(&it, ship->oarsmen);
+	while( (oarsman = (CHAR_DATA *)iterator_nextdata(&it)) )
+	{
+		fprintf(fp, "Oarsman %lu %lu\n", oarsman->id[0], oarsman->id[1]);
+	}
+	iterator_stop(&it);
 
 	iterator_start(&it, ship->special_keys);
 	while( (sk = (SPECIAL_KEY_DATA *)iterator_nextdata(&it)) )
@@ -2088,7 +2188,7 @@ void do_ships(CHAR_DATA *ch, char *argument)
 					ship->index->vnum,
 					snwidth, snwidth, ship->ship_name,
 					ship->owner ? ship->owner->name : "{DNone",
-					ship->speed, ship->move_steps, ship->ship_move,
+					ship->ship_power, ship->move_steps, ship->ship_move,
 					ship->steering.heading, ship->steering.heading_target, ship->steering.turning_dir,
 					ship->steering.dx, ship->steering.dy, ship->steering.move, dir);
 
@@ -2441,7 +2541,7 @@ void do_ship_steer( CHAR_DATA *ch, char *argument )
 		// For now.. tell the bearing
 		//  - Maybe adding a compass item?
 
-		if( ship->speed > SHIP_SPEED_STOPPED )
+		if( ship->ship_power > SHIP_SPEED_STOPPED )
 		{
 			switch(ship->steering.heading)
 			{
@@ -2549,7 +2649,7 @@ void do_ship_steer( CHAR_DATA *ch, char *argument )
 		return;
     }
 
-	if( ship->ship_type == SHIP_AIR_SHIP && ship->speed == SHIP_SPEED_LANDED )
+	if( ship->ship_type == SHIP_AIR_SHIP && ship->ship_power == SHIP_SPEED_LANDED )
 	{
 		ship_dispatch_message(ch, ship, "The vessel needs to be airborne first.\n\r  Try 'ship launch' to go airborne.", cmd);
 		return;
@@ -2575,7 +2675,7 @@ void do_ship_steer( CHAR_DATA *ch, char *argument )
 			ship_echo(ship, "{WThe vessel is now turning to port.");
 
 			// Allow stationary turning
-			if( ship->speed == SHIP_SPEED_STOPPED && ship->ship_move <= 0)
+			if( ship->ship_power == SHIP_SPEED_STOPPED && ship->ship_move <= 0)
 			{
 				ship->ship_move = ship->index->move_delay;
 			}
@@ -2597,7 +2697,7 @@ void do_ship_steer( CHAR_DATA *ch, char *argument )
 			ship_echo(ship, "{WThe vessel is now turning to starboard.");
 
 			// Allow stationary turning
-			if( ship->speed == SHIP_SPEED_STOPPED && ship->ship_move <= 0)
+			if( ship->ship_power == SHIP_SPEED_STOPPED && ship->ship_move <= 0)
 			{
 				ship->ship_move = ship->index->move_delay;
 			}
@@ -2693,7 +2793,7 @@ void do_ship_steer( CHAR_DATA *ch, char *argument )
 	ship_echo(ship, buf);
 
 	// Allow stationary turning
-	if( ship->speed == SHIP_SPEED_STOPPED && ship->ship_move <= 0)
+	if( ship->ship_power == SHIP_SPEED_STOPPED && ship->ship_move <= 0)
 	{
 		ship->ship_move = ship->index->move_delay;
 	}
@@ -2704,15 +2804,14 @@ void do_ship_steer( CHAR_DATA *ch, char *argument )
 	}
 }
 
-
-void do_ship_speed( CHAR_DATA *ch, char *argument )
+void do_ship_engines( CHAR_DATA *ch, char *argument )
 {
 	char buf[MSL];
 	char arg[MAX_INPUT_LENGTH];
 	SHIP_DATA *ship;
 	char cmd[MIL];
 
-	sprintf(cmd, "ship speed %s", argument);
+	sprintf(cmd, "ship engines %s", argument);
 
 	char *command = argument;
 	argument = one_argument( argument, arg);
@@ -2725,56 +2824,20 @@ void do_ship_speed( CHAR_DATA *ch, char *argument )
 		return;
 	}
 
+	if( ship->ship_type != SHIP_AIR_SHIP )
+	{
+		act("The vessel has no engines.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
 	if( arg[0] == '\0' )
 	{
-		int speed;
-
-		if( ship->index->move_steps > 0 )
-		{
-			speed = 100 * ship->move_steps / ship->index->move_steps;
-			speed = UMAX(0, speed);
-		}
+		if( ship->ship_power > SHIP_SPEED_STOPPED )
+			sprintf(buf, "The vessel is currently running the engines at {W%d%%{x.", ship->ship_power);
 		else
-			speed = -1;
+			sprintf(buf, "The engines are currently idling.");
 
-		if( speed < 0 )
-		{
-			send_to_char("The vessel is unable to move.\n\r", ch);
-		}
-		else if( speed == SHIP_SPEED_STOPPED )
-		{
-			send_to_char("The vessel is stopped.\n\r", ch);
-		}
-		else if( speed > SHIP_SPEED_FULL_SPEED )
-		{
-			send_to_char("The vessel is going beyond its maximum speed.\n\r", ch);
-		}
-		else if( speed == SHIP_SPEED_FULL_SPEED )
-		{
-			send_to_char("The vessel is going at full speed.\n\r", ch);
-		}
-		else if( speed >= 90 )
-		{
-			send_to_char("The vessel is nearly going full speed.\n\r", ch);
-		}
-		else if( speed > 55 )
-		{
-			send_to_char("The vessel is going over half speed.\n\r", ch);
-		}
-		else if( speed >= 45 && ship->speed <= 55 )
-		{
-			send_to_char("The vessel is going about half speed.\n\r", ch);
-		}
-		else if( speed > 10 )
-		{
-			send_to_char("The vessel is going below half speed.\n\r", ch);
-		}
-		else
-		{
-			send_to_char("The vessel is going minimal speed.\n\r", ch);
-		}
-
-
+		act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		return;
 	}
 
@@ -2801,7 +2864,7 @@ void do_ship_speed( CHAR_DATA *ch, char *argument )
 				{
 					int delay = (75 - ship->first_mate->crew->leadership) / 15;
 
-					act("You give the order to your first mate to 'speed $T'.", ch, NULL, NULL, NULL, NULL, NULL, command, TO_CHAR);
+					act("You give the order to your first mate to 'engines $T'.", ch, NULL, NULL, NULL, NULL, NULL, command, TO_CHAR);
 					act("$n gives an order to the first mate.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
 					if( IS_IMMORTAL(ch) && IS_SET(ch->act, PLR_HOLYLIGHT) )
@@ -2812,7 +2875,7 @@ void do_ship_speed( CHAR_DATA *ch, char *argument )
 
 					if( delay > 0 )
 					{
-						wait_function(ship->first_mate, NULL, EVENT_FUNCTION, delay - 1, do_ship_speed, command);
+						wait_function(ship->first_mate, NULL, EVENT_FUNCTION, delay - 1, do_ship_engines, command);
 					}
 					else
 						do_ship_speed(ship->first_mate, command);
@@ -2838,9 +2901,236 @@ void do_ship_speed( CHAR_DATA *ch, char *argument )
 		return;
 	}
 
-	if( ship->ship_type == SHIP_AIR_SHIP && ship->speed == SHIP_SPEED_LANDED )
+	if( ship->ship_power == SHIP_SPEED_LANDED )
 	{
 		ship_dispatch_message(ch, ship, "The vessel needs to be airborne first.\n\r  Try 'ship launch' to go airborne.", cmd);
+		return;
+	}
+
+	int speed = -1;
+	if ( is_percent(arg) )
+	{
+		speed = atoi(arg);
+	}
+	else if ( is_number(arg) )
+	{
+		speed = atoi(arg);
+
+		if( speed < 1 || speed > ship->index->move_steps )
+		{
+			char buf[MSL];
+			sprintf(buf, "Explicit distance values must be from 1 to %d", ship->index->move_steps);
+			ship_dispatch_message(ch, ship, buf, cmd);
+			return;
+		}
+
+		speed = 100 * speed / ship->index->move_steps;
+	}
+	else if(!str_prefix(arg, "stop"))
+	{
+		speed = SHIP_SPEED_STOPPED;
+	}
+	else if(!str_prefix(arg, "minimal"))
+	{
+		speed = 1;
+	}
+	else if(!str_prefix(arg, "half"))
+	{
+		speed = SHIP_SPEED_HALF_SPEED;
+	}
+	else if(!str_prefix(arg, "full"))
+	{
+		speed = SHIP_SPEED_FULL_SPEED;
+	}
+
+	if( speed < 0 || speed > 100 )
+	{
+		ship_dispatch_message(ch, ship, "You may stop the vessel, or order half, full, some percentage speed or specific distance count.", cmd);
+		return;
+	}
+
+	if( speed == SHIP_SPEED_STOPPED )
+	{
+		if( ship->ship_power > SHIP_SPEED_STOPPED )
+		{
+			act("You give the order for the furnace output to be lowered.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("$n gives the order for the furnace output to be lowered.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+
+			ship->ship_power = speed;
+
+			if( ship->oar_power > SHIP_SPEED_STOPPED )
+			{
+				ship_echo(ship, "You feel the vessel slowing down as the furnace output drops to minimal.");
+				ship_set_move_steps(ship);
+			}
+			else
+			{
+				ship_echo(ship, "You feel the vessel stopping as the furnace output drops to minimal.");
+				ship_stop(ship);
+			}
+			// TODO: Cancel chasing
+
+			if( ch == ship->first_mate )
+			{
+				crew_skill_improve(ch, CREW_SKILL_LEADERSHIP);
+			}
+		}
+		else
+		{
+			ship_dispatch_message(ch, ship, "The vessel is already stopped.", cmd);
+		}
+		return;
+	}
+
+	if( speed == SHIP_SPEED_FULL_SPEED )
+	{
+		if( ship->ship_power < SHIP_SPEED_FULL_SPEED )
+		{
+			act("You give the order for full speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("$n gives the order for full speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+
+			ship->ship_power = speed;
+
+			ship_echo(ship, "You feel the vessel gaining speed.");
+			ship_set_move_steps(ship);
+
+			if( ch == ship->first_mate )
+			{
+				crew_skill_improve(ch, CREW_SKILL_LEADERSHIP);
+			}
+		}
+		else
+		{
+			ship_dispatch_message(ch, ship, "The vessel is already going at full speed.", cmd);
+		}
+		return;
+	}
+
+	if( ship->ship_power > speed )
+	{
+		act("You give the order to reduce speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("$n gives the order to reduce speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+
+		ship_echo(ship, "You feel the vessel slowing down.");
+	}
+	else if( ship->ship_power < speed )
+	{
+		act("You give the order to increase speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("$n gives the order to increase speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+
+		ship_echo(ship, "You feel the vessel gaining speed.");
+	}
+	else
+	{
+		ship_dispatch_message(ch, ship, "The vessel is already going at that speed.", cmd);
+		return;
+	}
+
+	ship->ship_power = URANGE(1,speed,100);
+	ship_set_move_steps(ship);
+
+    ship_autosurvey(ship);
+
+	if( ch == ship->first_mate )
+	{
+		crew_skill_improve(ch, CREW_SKILL_LEADERSHIP);
+	}
+}
+
+void do_ship_sails( CHAR_DATA *ch, char *argument )
+{
+	char buf[MSL];
+	char arg[MAX_INPUT_LENGTH];
+	SHIP_DATA *ship;
+	char cmd[MIL];
+
+	sprintf(cmd, "ship speed %s", argument);
+
+	char *command = argument;
+	argument = one_argument( argument, arg);
+
+	ship = get_room_ship(ch->in_room);
+
+	if (!IS_VALID(ship))
+	{
+		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if( ship->ship_type != SHIP_SAILING_BOAT )
+	{
+		act("The vessel has no sails.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if( arg[0] == '\0' )
+	{
+		if( ship->ship_power > SHIP_SPEED_STOPPED )
+			sprintf(buf, "The vessel is currently running sails at {W%d%%{x.", ship->ship_power);
+		else
+			sprintf(buf, "The sails are currently furled.");
+
+		act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	// First Mates can always execute orders on their ship as they were assigned that role
+	if( ch != ship->first_mate )
+	{
+		if (!IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act2, PLR_HOLYAURA)) && !ship_isowner_player(ship, ch))
+		{
+			act("This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			return;
+		}
+
+		if( !ship_can_issue_command(ch, ship) )
+		{
+			if( IS_VALID(ship->first_mate) && ship->first_mate->crew && ship->first_mate->crew->leadership > 0 )
+			{
+				SHIP_DATA *fm_ship = get_room_ship(ship->first_mate->in_room);
+
+				if( ship != fm_ship )
+				{
+					send_to_char("{RYour first mate is not aboard this vessel.{x\n\r", ch);
+				}
+				else
+				{
+					int delay = (75 - ship->first_mate->crew->leadership) / 15;
+
+					act("You give the order to your first mate to 'sails $T'.", ch, NULL, NULL, NULL, NULL, NULL, command, TO_CHAR);
+					act("$n gives an order to the first mate.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+
+					if( IS_IMMORTAL(ch) && IS_SET(ch->act, PLR_HOLYLIGHT) )
+					{
+						sprintf(buf, "{MFirst Mate Delay: {W%d{x\n\r", delay);
+						send_to_char(buf, ch);
+					}
+
+					if( delay > 0 )
+					{
+						wait_function(ship->first_mate, NULL, EVENT_FUNCTION, delay - 1, do_ship_sails, command);
+					}
+					else
+						do_ship_speed(ship->first_mate, command);
+
+					return;
+				}
+			}
+
+			act("You must be at the helm of the vessel to steer.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			return;
+		}
+	}
+
+	if ( !ship_has_enough_crew( ship ) )
+	{
+		ship_dispatch_message(ch, ship, "There isn't enough crew to order that command!", cmd);
+		return;
+	}
+
+	if ( ship->index->move_steps < 1 )
+	{
+		ship_dispatch_message(ch, ship, "The vessel doesn't seem to have enough power to move!", cmd);
 		return;
 	}
 
@@ -2894,25 +3184,25 @@ void do_ship_speed( CHAR_DATA *ch, char *argument )
 
 	if( speed == SHIP_SPEED_STOPPED )
 	{
-		if( ship->speed > SHIP_SPEED_STOPPED )
+		if( ship->ship_power > SHIP_SPEED_STOPPED )
 		{
-			switch(ship->ship_type)
-			{
-			case SHIP_AIR_SHIP:
-				act("You give the order for the furnace output to be lowered.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-				act("$n gives the order for the furnace output to be lowered.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-				ship_echo(ship, "You feel the ship stopping as the furnace output is lowered.");
-				break;
+			act("You give the order for the sails to be lowered.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("$n gives the order for the sails to be lowered.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-			default:
-				act("You give the order for the sails to be lowered.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-				act("$n gives the order for the sails to be lowered.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-				ship_echo(ship, "You feel the ship stopping as the sails are lowered.");
-				break;
+			ship->ship_power = speed;
+
+			if( ship->oar_power > SHIP_SPEED_STOPPED )
+			{
+				ship_echo(ship, "You feel the vessel slowing down as the sails are lowered.");
+				ship_set_move_steps(ship);
+			}
+			else
+			{
+				ship_echo(ship, "You feel the vessel stopping as the sails are lowered.");
+				ship_stop(ship);
 			}
 
-			ship->speed = speed;
-			ship_stop(ship);
+
 			// TODO: Cancel chasing
 
 			if( ch == ship->first_mate )
@@ -2929,15 +3219,15 @@ void do_ship_speed( CHAR_DATA *ch, char *argument )
 
 	if( speed == SHIP_SPEED_FULL_SPEED )
 	{
-		if( ship->speed < SHIP_SPEED_FULL_SPEED )
+		if( ship->ship_power < SHIP_SPEED_FULL_SPEED )
 		{
 			act("You give the order for full speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			act("$n gives the order for full speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-			ship->speed = speed;
-			ship_set_move_steps(ship);
+			ship->ship_power = speed;
 
-			ship_echo(ship, "You feel the ship gaining speed.");
+			ship_echo(ship, "You feel the vessel gaining speed.");
+			ship_set_move_steps(ship);
 
 			if( ch == ship->first_mate )
 			{
@@ -2951,19 +3241,19 @@ void do_ship_speed( CHAR_DATA *ch, char *argument )
 		return;
 	}
 
-	if( ship->speed > speed )
+	if( ship->ship_power > speed )
 	{
 		act("You give the order to reduce speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		act("$n gives the order to reduce speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-		ship_echo(ship, "You feel the ship slowing down.");
+		ship_echo(ship, "You feel the vessel slowing down.");
 	}
-	else if( ship->speed < speed )
+	else if( ship->ship_power < speed )
 	{
 		act("You give the order to increase speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		act("$n gives the order to increase speed.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-		ship_echo(ship, "You feel the ship gaining speed.");
+		ship_echo(ship, "You feel the vessel gaining speed.");
 	}
 	else
 	{
@@ -2971,7 +3261,7 @@ void do_ship_speed( CHAR_DATA *ch, char *argument )
 		return;
 	}
 
-	ship->speed = URANGE(1,speed,100);
+	ship->ship_power = URANGE(1,speed,100);
 	ship_set_move_steps(ship);
 
     ship_autosurvey(ship);
@@ -2980,6 +3270,71 @@ void do_ship_speed( CHAR_DATA *ch, char *argument )
 	{
 		crew_skill_improve(ch, CREW_SKILL_LEADERSHIP);
 	}
+}
+
+void do_ship_speed( CHAR_DATA *ch, char *argument )
+{
+	char buf[MSL];
+	char arg[MAX_INPUT_LENGTH];
+	SHIP_DATA *ship;
+	char cmd[MIL];
+
+	sprintf(cmd, "ship speed %s", argument);
+
+	char *command = argument;
+	argument = one_argument( argument, arg);
+
+	ship = get_room_ship(ch->in_room);
+
+	if (!IS_VALID(ship))
+	{
+		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if( ship->index->move_steps < 1 )
+	{
+		send_to_char("The vessel is unable to move.\n\r", ch);
+		return;
+	}
+
+	int speed = 100 * ship->move_steps / ship->index->move_steps;
+	speed = UMAX(0, speed);
+
+	if( speed == SHIP_SPEED_STOPPED )
+	{
+		send_to_char("The vessel is stopped.\n\r", ch);
+	}
+	else if( speed > SHIP_SPEED_FULL_SPEED )
+	{
+		send_to_char("The vessel is going beyond its maximum speed.\n\r", ch);
+	}
+	else if( speed == SHIP_SPEED_FULL_SPEED )
+	{
+		send_to_char("The vessel is going at full speed.\n\r", ch);
+	}
+	else if( speed >= 90 )
+	{
+		send_to_char("The vessel is nearly going full speed.\n\r", ch);
+	}
+	else if( speed > 55 )
+	{
+		send_to_char("The vessel is going over half speed.\n\r", ch);
+	}
+	else if( speed >= 45 && ship->ship_power <= 55 )
+	{
+		send_to_char("The vessel is going about half speed.\n\r", ch);
+	}
+	else if( speed > 10 )
+	{
+		send_to_char("The vessel is going below half speed.\n\r", ch);
+	}
+	else
+	{
+		send_to_char("The vessel is going minimal speed.\n\r", ch);
+	}
+
+	return;
 }
 
 void do_ship_aim( CHAR_DATA *ch, char *argument )
@@ -3023,7 +3378,7 @@ void do_ship_aim( CHAR_DATA *ch, char *argument )
 	{
 		act("You give the order to cease the attack.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		act("$n gives the order to cease the attack.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-		ch->in_room->ship->speed = SHIP_SPEED_STOPPED;
+		ch->in_room->ship->ship_power = SHIP_SPEED_STOPPED;
 		return;
 	}
 
@@ -3589,6 +3944,226 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 	do_ship_navigate(ch, "");
 }
 
+void do_ship_oars( CHAR_DATA *ch, char *argument )
+{
+	char buf[MSL];
+	char arg[MAX_INPUT_LENGTH];
+	SHIP_DATA *ship;
+	char cmd[MIL];
+
+	sprintf(cmd, "ship oars %s", argument);
+
+	char *command = argument;
+	argument = one_argument( argument, arg);
+
+	ship = get_room_ship(ch->in_room);
+
+	if (!IS_VALID(ship))
+	{
+		act("You aren't even on a vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if( ship->oars < 1 )
+	{
+		act("The vessel has no oars.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if( arg[0] == '\0' )
+	{
+		if( ship->oar_power > SHIP_SPEED_STOPPED )
+			sprintf(buf, "The vessel is currently running at {W%d%%{x oar power.", ship->oar_power);
+		else
+			sprintf(buf, "The vessel is not using oars currently.");
+
+		act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	// First Mates can always execute orders on their ship as they were assigned that role
+	if( ch != ship->first_mate )
+	{
+		if (!IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act2, PLR_HOLYAURA)) && !ship_isowner_player(ship, ch))
+		{
+			act("This isn't your vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			return;
+		}
+
+		if( !ship_can_issue_command(ch, ship) )
+		{
+			if( IS_VALID(ship->first_mate) && ship->first_mate->crew && ship->first_mate->crew->leadership > 0 )
+			{
+				SHIP_DATA *fm_ship = get_room_ship(ship->first_mate->in_room);
+
+				if( ship != fm_ship )
+				{
+					send_to_char("{RYour first mate is not aboard this vessel.{x\n\r", ch);
+				}
+				else
+				{
+					int delay = (75 - ship->first_mate->crew->leadership) / 15;
+
+					act("You give the order to your first mate to 'sails $T'.", ch, NULL, NULL, NULL, NULL, NULL, command, TO_CHAR);
+					act("$n gives an order to the first mate.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+
+					if( IS_IMMORTAL(ch) && IS_SET(ch->act, PLR_HOLYLIGHT) )
+					{
+						sprintf(buf, "{MFirst Mate Delay: {W%d{x\n\r", delay);
+						send_to_char(buf, ch);
+					}
+
+					if( delay > 0 )
+					{
+						wait_function(ship->first_mate, NULL, EVENT_FUNCTION, delay - 1, do_ship_sails, command);
+					}
+					else
+						do_ship_speed(ship->first_mate, command);
+
+					return;
+				}
+			}
+
+			act("You must be at the helm of the vessel to steer.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			return;
+		}
+	}
+
+	if ( !ship_has_enough_crew( ship ) )
+	{
+		ship_dispatch_message(ch, ship, "There isn't enough crew to order that command!", cmd);
+		return;
+	}
+
+	if ( ship->index->move_steps < 1 )
+	{
+		ship_dispatch_message(ch, ship, "The vessel doesn't seem to have enough power to move!", cmd);
+		return;
+	}
+
+	if ( ship->steering.heading < 0 )
+	{
+		ship_dispatch_message(ch, ship, "The vessel needs a heading first.  Please steer the vessel into a direction.", cmd);
+		return;
+	}
+
+	int speed = -1;
+	if ( is_percent(arg) )
+	{
+		speed = atoi(arg);
+	}
+	else if(!str_prefix(arg, "stop"))
+	{
+		speed = SHIP_SPEED_STOPPED;
+	}
+	else if(!str_prefix(arg, "minimal"))
+	{
+		speed = 1;
+	}
+	else if(!str_prefix(arg, "half"))
+	{
+		speed = SHIP_SPEED_HALF_SPEED;
+	}
+	else if(!str_prefix(arg, "full"))
+	{
+		speed = SHIP_SPEED_FULL_SPEED;
+	}
+
+	if( speed < 0 || speed > 100 )
+	{
+		ship_dispatch_message(ch, ship, "You may stop the vessel, or order half, full, some percentage speed.", cmd);
+		return;
+	}
+
+	if( speed == SHIP_SPEED_STOPPED )
+	{
+		if( ship->oar_power > SHIP_SPEED_STOPPED )
+		{
+			act("You give the order for the oarsmen to cease.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("$n gives the order for the oarsmen to cease.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+
+			ship->oar_power = speed;
+
+			if( ship->ship_power > SHIP_SPEED_STOPPED )
+			{
+				ship_echo(ship, "You feel the vessel slowing down as the oarsmen cease their oarring.");
+				ship_set_move_steps(ship);
+			}
+			else
+			{
+				ship_echo(ship, "You feel the vessel stopping as the oarsmen cease their oarring.");
+				ship_stop(ship);
+			}
+			// TODO: Cancel chasing
+
+			if( ch == ship->first_mate )
+			{
+				crew_skill_improve(ch, CREW_SKILL_LEADERSHIP);
+			}
+		}
+		else
+		{
+			ship_dispatch_message(ch, ship, "The oarsmen are already stopped.", cmd);
+		}
+		return;
+	}
+
+	if( speed == SHIP_SPEED_FULL_SPEED )
+	{
+		if( ship->oar_power < SHIP_SPEED_FULL_SPEED )
+		{
+			act("You give the order for full oarring.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("$n gives the order for full oarring.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+
+			ship->oar_power = speed;
+
+			ship_echo(ship, "You feel the vessel gaining speed.");
+			ship_set_move_steps(ship);
+
+			if( ch == ship->first_mate )
+			{
+				crew_skill_improve(ch, CREW_SKILL_LEADERSHIP);
+			}
+		}
+		else
+		{
+			ship_dispatch_message(ch, ship, "The oarsmen are already going at full speed.", cmd);
+		}
+		return;
+	}
+
+	if( ship->oar_power > speed )
+	{
+		act("You give the order to reduce oarring.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("$n gives the order to reduce oarring.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+
+		ship_echo(ship, "You feel the vessel slowing down.");
+	}
+	else if( ship->oar_power < speed )
+	{
+		act("You give the order to increase oarring.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("$n gives the order to increase oarring.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+
+		ship_echo(ship, "You feel the vessel gaining speed.");
+	}
+	else
+	{
+		ship_dispatch_message(ch, ship, "The oarsmen are already going that rate.", cmd);
+		return;
+	}
+
+	ship->oar_power = URANGE(1,speed,100);
+	ship_set_move_steps(ship);
+
+    ship_autosurvey(ship);
+
+	if( ch == ship->first_mate )
+	{
+		crew_skill_improve(ch, CREW_SKILL_LEADERSHIP);
+	}
+}
+
+
 void do_ship_christen(CHAR_DATA *ch, char *argument)
 {
 	char buf[MSL];
@@ -3716,13 +4291,13 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if( ship->speed > SHIP_SPEED_STOPPED )
+	if( ship->ship_power > SHIP_SPEED_STOPPED )
 	{
 		ship_dispatch_message(ch, ship, "Please stop the vessel first, lest you crash.", "ship land");
 		return;
 	}
 
-	if( ship->speed == SHIP_SPEED_LANDED )
+	if( ship->ship_power == SHIP_SPEED_LANDED )
 	{
 		ship_dispatch_message(ch, ship, "The vessel has already landed.", "ship land");
 		return;
@@ -3821,7 +4396,7 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 		}
 	}
 
-	ship->speed = SHIP_SPEED_LANDED;
+	ship->ship_power = SHIP_SPEED_LANDED;
 
 	if( to_room && to_area )
 	{
@@ -3933,7 +4508,7 @@ void do_ship_launch(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if( ship->speed >= SHIP_SPEED_STOPPED )
+	if( ship->ship_power >= SHIP_SPEED_STOPPED )
 	{
 		ship_dispatch_message(ch, ship, "The vessel is already airborne.", "ship launch");
 		return;
@@ -3992,7 +4567,7 @@ void do_ship_launch(CHAR_DATA *ch, char *argument)
 		room_echo(ship->ship->in_room, buf);
 	}
 
-	ship->speed = SHIP_SPEED_STOPPED;
+	ship->ship_power = SHIP_SPEED_STOPPED;
 	ship_echo(ship, "{WThe vessel groans a bit before taking flight.{x");
 
 	if( ch == ship->first_mate )
@@ -5756,8 +6331,8 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
 			int lines = 0;
 			bool error = false;
 
-			add_buf(buffer,"{C    [            Name            ] [ Hiring ] [F] [N] [S]{x\n\r");
-			add_buf(buffer,"{C=========================================================={x\n\r");
+			add_buf(buffer,"{C    [            Name            ] [ Hiring ] [F] [N] [S] [O]{x\n\r");
+			add_buf(buffer,"{C=============================================================={x\n\r");
 
 			iterator_start(&it, ship->crew);
 			while( (crew = (CHAR_DATA *)iterator_nextdata(&it)) )
@@ -5782,19 +6357,19 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
 
 				int hwidth = get_colour_width(hired) + 10;
 
-				sprintf(buf, "{C%2d){x {Y%-*.*s {x%-*.*s %s %s %s{x\n\r", ++lines,
+				sprintf(buf, "{C%2d){x {Y%-*.*s {x%-*.*s %s %s %s %s{x\n\r", ++lines,
 					swidth, swidth, crew->short_descr,
 					hwidth, hwidth, hired,
 					(ship->first_mate == crew) ? "{W Y " : "{D N ",
 					(ship->navigator == crew) ? "{W Y " : "{D N ",
-					(ship->scout == crew) ? "{W Y " : "{D N ");
+					(ship->scout == crew) ? "{W Y " : "{D N ",
+					(list_hasdata(ship->oarsmen, crew)) ? "{W Y " : "{D N ");
 
 				if( !add_buf(buffer, buf) || (!ch->lines && strlen(buffer->string) > MSL) )
 				{
 					error = true;
 					break;
 				}
-
 			}
 			iterator_stop(&it);
 
@@ -5881,11 +6456,17 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
 		send_to_char("{C-----------------------------{x\n\r",ch);
 		send_to_char("\n\r", ch);
 
-		if( ship->first_mate == crew )	send_to_char("{CAssigned as {WFIRST MATE{C.{x\n\r", ch);
+		if( ship->first_mate == crew )
+			send_to_char("{CAssigned as {WFIRST MATE{C.{x\n\r", ch);
 
-		if( ship->navigator == crew )	send_to_char("{CAssigned as {WNAVIGATOR{C.{x\n\r", ch);
+		if( ship->navigator == crew )
+			send_to_char("{CAssigned as {WNAVIGATOR{C.{x\n\r", ch);
 
-		if( ship->scout == crew )		send_to_char("{CAssigned as {WSCOUT{C.{x\n\r", ch);
+		if( ship->scout == crew )
+			send_to_char("{CAssigned as {WSCOUT{C.{x\n\r", ch);
+
+		if( list_hasdata(ship->oarsmen, crew) )
+			send_to_char("{CAssigned as an {WOARSMAN{C.{x\n\r", ch);
 
 		return;
 	}
@@ -5926,6 +6507,12 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
 			send_to_char("{WScout unassigned due to crew removal.{x\n\r", ch);
 		}
 
+		if( list_hasdata(ship->oarsmen, crew) )
+		{
+			list_remlink(ship->oarsmen, crew);
+			send_to_char("{WOarsman unassigned due to crew removal.{x\n\r", ch);
+		}
+
 		list_remlink(ship->crew, crew);
 		crew->belongs_to_ship = NULL;
 
@@ -5941,7 +6528,7 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
 		if( argument[0] == '\0' )
 		{
 			send_to_char("Assign which crew to what role?\n\r", ch);
-			send_to_char("{YValid roles: {Wfirstmate{x, {Wnavigator{x, {Wscout{x\n\r", ch);
+			send_to_char("{YValid roles: {Wfirstmate{x, {Wnavigator{x, {Wscout{x, {Woarsman{x\n\r", ch);
 			return;
 		}
 
@@ -5972,8 +6559,9 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
 		if( argument[0] == '\0' )
 		{
 			send_to_char("Assign crew member to what role?\n\r", ch);
-			send_to_char("{YValid roles: {Wfirstmate{x, {Wnavigator{x, {Wscout{x\n\r", ch);
-			send_to_char("{YNavigators and scouts are mutually exclusive.\n\r", ch);
+			send_to_char("{YValid roles: {Wfirstmate{x, {Wnavigator{x, {Wscout{x, {Woarsman{x\n\r", ch);
+			send_to_char("{YNavigators and scouts are mutually exclusive.{x\n\r", ch);
+			send_to_char("{YOarsmen and all other roles are mutually exclusive.{x\n\r", ch);
 			return;
 		}
 
@@ -5982,6 +6570,12 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
 			if( crew->crew->leadership < 1 )
 			{
 				send_to_char("That crew member lacks any '{WLeadership{x' ability.\n\r", ch);
+				return;
+			}
+
+			if( list_hasdata(ship->oarsmen, crew) )
+			{
+				send_to_char("That crew member is already assigned as an Oarsman.\n\r", ch);
 				return;
 			}
 
@@ -6004,10 +6598,59 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
+			if( list_hasdata(ship->oarsmen, crew) )
+			{
+				send_to_char("That crew member is already assigned as an Oarsman.\n\r", ch);
+				return;
+			}
+
 			ship->navigator = crew;
 			send_to_char("Navigator assigned.\n\r", ch);
 
 			// Place navigator at the helm?
+			return;
+		}
+
+		if( !str_prefix(argument, "oarsman") || !str_prefix(argument, "oarsmen") )
+		{
+			if( crew->crew->oarring < 1 )
+			{
+				send_to_char("That crew member lacks any '{WOarring{x' ability.\n\r", ch);
+				return;
+			}
+
+			if( crew->max_move < 1 )
+			{
+				send_to_char("That crew member lacks the stamina to work the oars.\n\r", ch);
+				return;
+			}
+
+			if( ship->first_mate == crew )
+			{
+				send_to_char("That crew member is already assigned as the First Mate.\n\r", ch);
+				return;
+			}
+
+			if( ship->navigator == crew )
+			{
+				send_to_char("That crew member is already assigned as the Navigator.\n\r", ch);
+				return;
+			}
+
+			if( ship->scout == crew )
+			{
+				send_to_char("That crew member is already assigned as the Scout.\n\r", ch);
+				return;
+			}
+
+			if( list_hasdata(ship->oarsmen, crew) )
+			{
+				send_to_char("That crew member is already assigned as an Oarsman.\n\r", ch);
+				return;
+			}
+
+			list_appendlink(ship->oarsmen, crew);
+			send_to_char("Oarsman assigned.\n\r", ch);
 			return;
 		}
 
@@ -6025,6 +6668,11 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
+			if( list_hasdata(ship->oarsmen, crew) )
+			{
+				send_to_char("That crew member is already assigned as an Oarsman.\n\r", ch);
+				return;
+			}
 
 			ship->scout = crew;
 			send_to_char("Scout assigned.\n\r", ch);
@@ -6042,28 +6690,77 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
 		if( argument[0] == '\0' )
 		{
 			send_to_char("Remove what role?\n\r", ch);
-			send_to_char("{YValid roles: {Wfirstmate{x, {Wnavigator{x, {Wscout{x\n\r", ch);
+			send_to_char("{YValid roles: {Wfirstmate{x, {Wnavigator{x, {Wscout{x, {Woarsman <#>{x\n\r", ch);
 			return;
 		}
 
-		if( !str_prefix(argument, "firstmate") )
+		argument = one_argument(argument, arg2);
+
+		if( !str_prefix(arg2, "firstmate") )
 		{
+			if( !IS_VALID(ship->first_mate) )
+			{
+				send_to_char("No crew has been assigned as First Mate.\n\r", ch);
+				return;
+			}
+
 			ship->first_mate = NULL;
-			send_to_char("First Mate removed.\n\r", ch);
+			send_to_char("First Mate unassigned.\n\r", ch);
 			return;
 		}
 
-		if( !str_prefix(argument, "navigator") )
+		if( !str_prefix(arg2, "navigator") )
 		{
+			if( !IS_VALID(ship->navigator) )
+			{
+				send_to_char("No crew has been assigned as Navigator.\n\r", ch);
+				return;
+			}
+
 			ship->navigator = NULL;
-			send_to_char("Navigator removed.\n\r", ch);
+			send_to_char("Navigator unassigned.\n\r", ch);
 			return;
 		}
 
-		if( !str_prefix(argument, "scout") )
+		if( !str_prefix(arg2, "scout") )
 		{
+			if( !IS_VALID(ship->scout) )
+			{
+				send_to_char("No crew has been assigned as Scout.\n\r", ch);
+				return;
+			}
+
 			ship->scout = NULL;
-			send_to_char("Scout removed.\n\r", ch);
+			send_to_char("Scout unassigned.\n\r", ch);
+			return;
+		}
+
+		if( !str_prefix(arg2, "oarsman") || !str_prefix(arg2, "oarsmen") )
+		{
+			if( !is_number(argument) )
+			{
+				send_to_char("That is number a number.\n\r", ch);
+				return;
+			}
+
+			int index = atoi(argument);
+
+			if( index < 1 || index > list_size(ship->crew) )
+			{
+				send_to_char("That is not a valid crew member.\n\r", ch);
+				return;
+			}
+
+			CHAR_DATA *crew = (CHAR_DATA *)list_nthdata(ship->crew, index);
+
+			if( !list_hasdata(ship->oarsmen, crew) )
+			{
+				send_to_char("That crew member is not an Oarsman.\n\r", ch);
+				return;
+			}
+
+			list_remlink(ship->oarsmen, crew);
+			send_to_char("Oarsman unassigned.\n\r", ch);
 			return;
 		}
 
@@ -6084,18 +6781,21 @@ void do_ship(CHAR_DATA *ch, char *argument)
 
 	if( arg[0] == '\0' )
 	{
-		send_to_char("Syntax:  ship aim <ship>\n\r"
+		send_to_char("{xSyntax:  ship aim <ship>\n\r"
 					 "         ship chase <ship>\n\r"
 					 "         ship christen <name>\n\r"
 					 "         ship crew[ <actions>]\n\r"
+					 "         ship engines[ <level>] {W(airship only){x\n\r"
 					 "         ship flag[ <flag>]\n\r"
 					 "         ship keys[ <actions>]\n\r"
-					 "         ship land         (airship only)\n\r"
-					 "         ship launch       (airship only)\n\r"
+					 "         ship land {W(airship only){x\n\r"
+					 "         ship launch {W(airship only){x\n\r"
 					 "         ship list\n\r"
 					 "         ship navigate[ <action>]\n\r"
+					 "         ship oars[ <oars>]\n\r"
+					 "         ship routes[ <action>]\n\r"
+					 "         ship sails[ <level>] {W(sailboat only){x\n\r"
 					 "         ship scuttle\n\r"
-					 "         ship speed[ <speed>]\n\r"
 					 "         ship steer[ <heading>[ <turn direction>]]\n\r"
 					 "         ship waypoints[ <action>]\n\r", ch);
 
@@ -6123,6 +6823,13 @@ void do_ship(CHAR_DATA *ch, char *argument)
 	if( !str_prefix(arg, "crew") )
 	{
 		do_ship_crew(ch, argument);
+		return;
+	}
+
+	if( !str_prefix(arg, "engines") )
+	{
+		// AIRSHIP only
+		do_ship_engines(ch, argument);
 		return;
 	}
 
@@ -6162,21 +6869,28 @@ void do_ship(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
+	if( !str_prefix(arg, "oars") )
+	{
+		do_ship_oars(ch, argument);
+		return;
+	}
+
 	if( !str_prefix(arg, "routes") )
 	{
 		do_ship_routes(ch, argument);
 		return;
 	}
 
-	if( !str_prefix(arg, "scuttle") )
+	if( !str_prefix(arg, "sails") )
 	{
-		do_ship_scuttle(ch, argument);
+		// SAILBOAT only
+		do_ship_sails(ch, argument);
 		return;
 	}
 
-	if( !str_prefix(arg, "speed") )
+	if( !str_prefix(arg, "scuttle") )
 	{
-		do_ship_speed(ch, argument);
+		do_ship_scuttle(ch, argument);
 		return;
 	}
 
@@ -6372,7 +7086,7 @@ SHIP_DATA *purchase_ship(CHAR_DATA *ch, long vnum, SHOP_DATA *shop)
 	}
 
 	if( ship->ship_type == SHIP_AIR_SHIP )
-		ship->speed = SHIP_SPEED_LANDED;
+		ship->ship_power = SHIP_SPEED_LANDED;
 
 	ROOM_INDEX_DATA *room = get_wilds_vroom(wilds, x, y);
 	if( !room )
@@ -6440,6 +7154,7 @@ const struct olc_cmd_type shedit_table[] =
 	{ "list",				shedit_list			},
 	{ "move",				shedit_move			},
 	{ "name",				shedit_name			},
+	{ "oars",				shedit_oars			},
 	{ "object",				shedit_object		},
 	{ "show",				shedit_show			},
 	{ "turning",			shedit_turning		},
@@ -6691,6 +7406,9 @@ SHEDIT( shedit_show )
 	add_buf(buffer, buf);
 
 	sprintf(buf, "Max Crew:    [%5d]{x\n\r", ship->max_crew);
+	add_buf(buffer, buf);
+
+	sprintf(buf, "Oars:        [%5d]{x\n\r", ship->oars);
 	add_buf(buffer, buf);
 
 	sprintf(buf, "Move Delay:  [%5d]{x\n\r", ship->move_delay);
@@ -7096,7 +7814,6 @@ SHEDIT( shedit_turning )
 	return TRUE;
 }
 
-
 SHEDIT( shedit_guns )
 {
 	SHIP_INDEX_DATA *ship;
@@ -7126,6 +7843,38 @@ SHEDIT( shedit_guns )
 	send_to_char("Ship gun allowance changed.\n\r", ch);
 	return TRUE;
 }
+
+
+SHEDIT( shedit_oars )
+{
+	SHIP_INDEX_DATA *ship;
+
+	EDIT_SHIP(ch, ship);
+
+	if( argument[0] == '\0' )
+	{
+		send_to_char("Syntax:  oars [number]\n\r", ch);
+		return FALSE;
+	}
+
+	if( !is_number(argument) )
+	{
+		send_to_char("That is not a number.\n\r", ch);
+		return FALSE;
+	}
+
+	int value = atoi(argument);
+	if( value < 0 )
+	{
+		send_to_char("Number of Oar positions must be non-negative.\n\r", ch);
+		return FALSE;
+	}
+
+	ship->oars = value;
+	send_to_char("Oar positions changed.\n\r", ch);
+	return TRUE;
+}
+
 
 SHEDIT( shedit_crew )
 {

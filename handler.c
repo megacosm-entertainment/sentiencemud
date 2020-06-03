@@ -3095,16 +3095,29 @@ void extract_char(CHAR_DATA *ch, bool fPull)
 
 		// Remove from ship's crew
 		if( list_hasdata(ch->belongs_to_ship->crew, ch) )
-		{
 			list_remlink(ch->belongs_to_ship->crew, ch);
-			ch->belongs_to_ship = NULL;
-		}
+
+		if( list_hasdata(ch->belongs_to_ship->oarsmen, ch) )
+			list_remlink(ch->belongs_to_ship->oarsmen, ch);
+
+		if( ch->belongs_to_ship->first_mate == ch )
+			ch->belongs_to_ship->first_mate = NULL;
+
+		if( ch->belongs_to_ship->navigator == ch )
+			ch->belongs_to_ship->navigator = NULL;
+
+		if( ch->belongs_to_ship->scout == ch )
+			ch->belongs_to_ship->scout = NULL;
+
+		ch->belongs_to_ship = NULL;
 	}
 
+	/*
     if (ch->belongs_to_ship != NULL
     && ch->belongs_to_ship->npc_ship != NULL
     && ch->belongs_to_ship->npc_ship->captain == ch)
 	ch->belongs_to_ship->npc_ship->captain = NULL;
+	*/
 
     if (IS_NPC(ch) && ch->hunting != NULL)
     	stop_hunt(ch, TRUE);
@@ -8406,6 +8419,8 @@ void list_clear(LLIST *lp)
 		for(link = lp->head; link; link = link->next) {
 			list_remdata(lp, link);
 		}
+
+		lp->size = 0;
 	}
 }
 
@@ -8467,6 +8482,7 @@ int list_size(LLIST *lp)
 
 	if(!lp || !lp->valid) return 0;
 
+#if 0
 	size = 0;
 	iterator_start(&it, lp);
 	while((iterator_nextdata(&it))) ++size;
@@ -8474,6 +8490,9 @@ int list_size(LLIST *lp)
 	iterator_stop(&it);
 
 	return size;
+#else
+	return lp->size;
+#endif
 }
 
 int list_getindex(LLIST *lp, void *ptr)

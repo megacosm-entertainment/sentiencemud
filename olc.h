@@ -430,6 +430,7 @@ DECLARE_OLC_FUN( shedit_flags		);
 DECLARE_OLC_FUN( shedit_armor		);
 DECLARE_OLC_FUN( shedit_keys		);
 DECLARE_OLC_FUN( shedit_turning		);
+DECLARE_OLC_FUN( shedit_oars		);
 
 /* Help Editor */
 DECLARE_OLC_FUN( hedit_show    		);

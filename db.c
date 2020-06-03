@@ -2221,6 +2221,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 	mob->max_mana			= dice_roll(&pMobIndex->mana);
 	mob->mana				= mob->max_mana;
 	mob->move				= pMobIndex->move;
+	mob->max_move			= pMobIndex->move;
 	mob->damage.number		= pMobIndex->damage.number;
 	mob->damage.size		= pMobIndex->damage.size;
 	mob->damage.bonus		= 0;
