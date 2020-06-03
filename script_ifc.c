@@ -65,6 +65,7 @@ extern bool wiznet_script;
 #define ISARG_SECTION(x)	((argv[(x)]->type == ENT_SECTION) && argv[(x)]->d.section)
 #define ISARG_INSTANCE(x)	((argv[(x)]->type == ENT_INSTANCE) && argv[(x)]->d.instance)
 #define ISARG_DUNGEON(x)	((argv[(x)]->type == ENT_DUNGEON) && argv[(x)]->d.dungeon)
+#define ISARG_SHIP(x)		((argv[(x)]->type == ENT_SHIP) && argv[(x)]->d.ship)
 
 #define ARG_NUM(x)	ARG_TYPE(x,num)
 #define ARG_STR(x)	ARG_TYPE(x,str)
@@ -90,6 +91,7 @@ extern bool wiznet_script;
 #define ARG_SECTION(x) ARG_TYPE(x,section)
 #define ARG_INSTANCE(x) ARG_TYPE(x,instance)
 #define ARG_DUNGEON(x) ARG_TYPE(x,dungeon)
+#define ARG_SHIP(x)	ARG_TYPE(x,ship)
 
 #define SHIFT_MOB()	do { if(ISARG_MOB(0)) { mob = ARG_MOB(0); ++argv; --argc; } } while(0)
 #define SHIFT_OBJ()	do { if(ISARG_OBJ(0)) { obj = ARG_OBJ(0); ++argv; --argc; } } while(0)
@@ -2282,6 +2284,8 @@ DECL_IFC_FUN(ifc_vnum)
 	else if(ISARG_OBJ(0)) *ret = ARG_OBJ(0)->pIndexData->vnum;
 	else if(ISARG_ROOM(0)) *ret = ARG_ROOM(0)->vnum;
 	else if(ISARG_TOK(0)) *ret = ARG_TOK(0)->pIndexData->vnum;
+	else if(ISARG_DUNGEON(0)) *ret = ARG_DUNGEON(0)->index->vnum;
+	else if(ISARG_SHIP(0)) *ret = ARG_SHIP(0)->index->vnum;
 	else *ret = 0;
 
 	return TRUE;
@@ -4106,10 +4110,12 @@ DECL_IFC_FUN(ifc_listcontains)
 
 // if ispk $<player>
 // if ispk $<room>[ <boolean=arena>]
+// if ispk $<ship>
 DECL_IFC_FUN(ifc_ispk)
 {
 	if(VALID_PLAYER(0)) *ret = is_pk(ARG_MOB(0));
 	else if(ISARG_ROOM(0)) *ret = is_room_pk(ARG_ROOM(0),ARG_BOOL(1));
+	else if(ISARG_SHIP(0)) *ret = ARG_SHIP(0)->pk;
 	else *ret = FALSE;
 
 	return TRUE;
@@ -4761,3 +4767,23 @@ DECL_IFC_FUN(ifc_isareaunlocked)
 	return TRUE;
 }
 
+DECL_IFC_FUN(ifc_isowner)
+{
+	*ret = FALSE;
+	if( ISARG_SHIP(0) )
+	{
+		if( ISARG_MOB(1) ) *ret = ship_isowner_player(ARG_SHIP(0), ARG_MOB(1));
+	}
+
+	return TRUE;
+}
+
+DECL_IFC_FUN(ifc_shiptype)
+{
+	*ret = FALSE;
+	if( ISARG_SHIP(0) && ISARG_STR(1) )
+	{
+		*ret = ARG_SHIP(0)->ship_type == flag_value_ifcheck(ship_class_types, ARG_STR(1));
+	}
+	return TRUE;
+}

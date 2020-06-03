@@ -6575,7 +6575,7 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
 
 			if( list_hasdata(ship->oarsmen, crew) )
 			{
-				send_to_char("That crew member is already assigned as an Oarsman.\n\r", ch);
+				send_to_char("That crew member is already assigned as an {WOarsman{x.\n\r", ch);
 				return;
 			}
 
@@ -6594,13 +6594,13 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
 
 			if( ship->scout == crew )
 			{
-				send_to_char("That crew member is already assigned as the Scout.\n\r", ch);
+				send_to_char("That crew member is already assigned as the {WScout{x.\n\r", ch);
 				return;
 			}
 
 			if( list_hasdata(ship->oarsmen, crew) )
 			{
-				send_to_char("That crew member is already assigned as an Oarsman.\n\r", ch);
+				send_to_char("That crew member is already assigned as an {WOarsman{x.\n\r", ch);
 				return;
 			}
 
@@ -6627,25 +6627,25 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
 
 			if( ship->first_mate == crew )
 			{
-				send_to_char("That crew member is already assigned as the First Mate.\n\r", ch);
+				send_to_char("That crew member is already assigned as the {WFirst Mate{x.\n\r", ch);
 				return;
 			}
 
 			if( ship->navigator == crew )
 			{
-				send_to_char("That crew member is already assigned as the Navigator.\n\r", ch);
+				send_to_char("That crew member is already assigned as the {WNavigator{x.\n\r", ch);
 				return;
 			}
 
 			if( ship->scout == crew )
 			{
-				send_to_char("That crew member is already assigned as the Scout.\n\r", ch);
+				send_to_char("That crew member is already assigned as the {WScout{x.\n\r", ch);
 				return;
 			}
 
 			if( list_hasdata(ship->oarsmen, crew) )
 			{
-				send_to_char("That crew member is already assigned as an Oarsman.\n\r", ch);
+				send_to_char("That crew member is already assigned as an {WOarsman{x.\n\r", ch);
 				return;
 			}
 
@@ -6664,13 +6664,13 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
 
 			if( ship->navigator == crew )
 			{
-				send_to_char("That crew member is already assigned as the Navigator.\n\r", ch);
+				send_to_char("That crew member is already assigned as the {WNavigator{x.\n\r", ch);
 				return;
 			}
 
 			if( list_hasdata(ship->oarsmen, crew) )
 			{
-				send_to_char("That crew member is already assigned as an Oarsman.\n\r", ch);
+				send_to_char("That crew member is already assigned as an {WOarsman{x.\n\r", ch);
 				return;
 			}
 
