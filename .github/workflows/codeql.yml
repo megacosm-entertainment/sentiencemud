@@ -68,7 +68,7 @@ jobs:
     #   echo "Run, Build Application using script"
     #   ./location_of_script_within_repo/buildscript.sh
     - run: |
-        apt install build-essential zlib1g-dev libmariadb-dev-compat libssl-dev
+        sudo apt install build-essential zlib1g-dev libmariadb-dev-compat libssl-dev
         make
 
     - name: Perform CodeQL Analysis
