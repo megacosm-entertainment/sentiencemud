@@ -1026,9 +1026,9 @@ bool move_ship_success(SHIP_DATA *ship)
 				crew_skill_improve(oarsman, CREW_SKILL_OARRING);
 
 				// This will still allow Master oarsmen to get exhausted
-				if( number_range(0, 124) >= oarsmen->crew->oarring )
+				if( number_range(0, 124) >= oarsman->crew->oarring )
 				{
-					int nor = 125 - oarsmen->crew->oarring;
+					int nor = 125 - oarsman->crew->oarring;
 
 					oarsman->move -= nor;
 
@@ -1146,7 +1146,7 @@ void ship_pulse_update(SHIP_DATA *ship)
 	iterator_start(&it, ship->oarsmen);
 	while( (oarsman = (CHAR_DATA *)iterator_nextdata(&it)) )
 	{
-		if( oarsman->max_move > 0 && !IS_FIGHTING(oarsman) && oarsman->position == POS_RESTING )
+		if( oarsman->max_move > 0 && oarsman->position == POS_RESTING )
 		{
 			int percent = 100 * oarsman->move / oarsman->max_move;
 

@@ -443,12 +443,13 @@ int hit_gain(CHAR_DATA *ch)
 		case POS_RESTING:   gain = gain * 2; 		break;
 		case POS_FIGHTING: 	gain /= 2;				break;
 		}
-
+		/* Removing this for now. Tieryo 2023-03-06
 		if (ch->pcdata->condition[COND_HUNGER] == 0)
 			gain /= 2;
 
 		if (ch->pcdata->condition[COND_THIRST] == 0)
 			gain /= 2;
+		*/
 	}
 
 	if (ch->in_room->heal_rate > 0)
@@ -532,12 +533,13 @@ int mana_gain(CHAR_DATA *ch)
 		case POS_RESTING:	gain = 3 * gain/2;	break;
 		case POS_FIGHTING:	gain /= 2;			break;
 		}
-
+		/* Removing this for now - Tieryo 2023-03-06
 		if (ch->pcdata->condition[COND_HUNGER]   == 0)
 			gain /= 2;
 
 		if (ch->pcdata->condition[COND_THIRST] == 0)
 			gain /= 2;
+		*/
 	}
 
 	if (ch->in_room->mana_rate > 0)
@@ -616,12 +618,13 @@ int move_gain(CHAR_DATA *ch)
 		case POS_SLEEPING:	gain += get_curr_stat(ch,STAT_DEX)*3;		break;
 		case POS_RESTING:	gain += get_curr_stat(ch,STAT_DEX) / 2 * 3;	break;
 		}
-
+		/* Removing this for now - Tieryo 2023-03-06
 		if (ch->pcdata->condition[COND_HUNGER]   == 0)
 			gain /= 2;
 
 		if (ch->pcdata->condition[COND_THIRST] == 0)
 			gain /= 2;
+		*/
 	}
 
 	if (ch->in_room->move_rate > 0)
@@ -697,12 +700,13 @@ int toxin_gain(CHAR_DATA *ch, int toxin)
 		case POS_RESTING:	gain = gain * 2;		break;
 		case POS_FIGHTING:	gain /= 2;				break;
 		}
-
+		/* Removing this for now - Tieryo 2023-03-06
 		if (ch->pcdata->condition[COND_HUNGER]   == 0)
 			gain /= 2;
 
 		if (ch->pcdata->condition[COND_THIRST] == 0)
 			gain /= 2;
+		*/
 	}
 
 	if (IS_AFFECTED(ch, AFF_POISON))
@@ -753,7 +757,7 @@ void gain_condition(CHAR_DATA *ch, int iCond, int value)
 		return;
 
     ch->pcdata->condition[iCond] = URANGE(0, condition + value, 48);
-
+    /* Removing this for now - Tieryo 2023-03-06
     if (ch->pcdata->condition[iCond] == 0)
     {
 	switch (iCond)
@@ -772,6 +776,7 @@ void gain_condition(CHAR_DATA *ch, int iCond, int value)
 	    break;
 	}
     }
+    */
 }
 
 
@@ -1673,7 +1678,7 @@ void char_update(void)
 		    int i;
 		    for (i = 0; i < MAX_TOXIN; i++)
 		    {
-				int tg = toxin_gain(ch);
+				int tg = toxin_gain(ch, i);
 				ch->toxin[i] += UMIN(tg, 100 - ch->toxin[i]);
 			}
 		}
@@ -3408,7 +3413,7 @@ void toxin_update(CHAR_DATA *ch)
     for (i = 0; i < MAX_TOXIN; i++)
     {
 	ch->toxin[i] = URANGE(0, ch->toxin[i], 100);
-	ch->toxin[i] = UMIN(100, ch->toxin[i] + toxin_gain(ch));
+	ch->toxin[i] = UMIN(100, ch->toxin[i] + toxin_gain(ch, i));
     }
 }
 

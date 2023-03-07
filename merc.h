@@ -5120,6 +5120,7 @@ struct ship_data
 
 	int					ship_power;		// How much power is given by the ship (sails, engines, etc)
 	int					oar_power;		// How much power is given by manned oars?
+	int				speed;
 
 	long				hit;
 	long				armor;

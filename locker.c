@@ -101,7 +101,7 @@ void do_locker(CHAR_DATA *ch, char* argument)
 
 		ch->pcdata->bankbalance -= 5000;
 
-		if (ch->locker_rent == 0)
+		if (ch->locker_rent < current_time)
 			ch->locker_rent = current_time;
 
 		rent_time = (struct tm *) localtime(&ch->locker_rent);
