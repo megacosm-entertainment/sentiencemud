@@ -1379,7 +1379,7 @@ void do_rules(CHAR_DATA *ch, char *argument)
 void do_wizlist(CHAR_DATA *ch, char *argument)
 {
 	IMMORTAL_DATA *immortal;
-	char buf[MSL], duties[MSL];
+	char buf[MSL], duties[MSL/10];
 	int years;
 
 	send_to_char("\n\r{b.,-{B-^--,._.,{C[ {WThe Immortals of Sentience {C]{B-.._.,--^-{b-,.{x\n\r", ch);
@@ -1389,7 +1389,8 @@ void do_wizlist(CHAR_DATA *ch, char *argument)
 
 		/* Hack to fix strange bug with duty commas */
 /*		if (duties != 0)*/
-			sprintf(duties, "%s", flag_string_commas(immortal_flags, immortal->duties));
+			snprintf(duties, MSL / 10 - 1, "%s", flag_string_commas(immortal_flags, immortal->duties));
+			duties[MSL / 10 - 1] = '\0';
 
 		sprintf(buf, "{B`` {W%11s {B-{x %s{B({Y%d{B){x\n\r",
 		immortal->name, immortal->duties == 0 ? "None" : duties + 1, years );
@@ -7372,7 +7373,7 @@ char *find_desc_for_room(ROOM_INDEX_DATA *room, CHAR_DATA *viewer)
 			case CONDITION_SCRIPT:
 				script = get_script_index(cd->phrase,PRG_RPROG);
 
-				if (script && execute_script(cd->phrase,script,NULL,NULL,room,NULL,NULL,NULL,NULL,viewer,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0,0,0,0) > 0)
+				if (script && execute_script(cd->phrase,script,NULL,NULL,room,NULL,NULL,NULL,NULL,viewer,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,TRIG_NONE,0,0,0,0,0) > 0)
 					best_cd = cd;
 				break;
 			}

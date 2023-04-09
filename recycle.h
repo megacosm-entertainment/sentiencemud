@@ -145,8 +145,15 @@ void free_static_blueprint_link(STATIC_BLUEPRINT_LINK *bl);
 BLUEPRINT_SPECIAL_ROOM *new_blueprint_special_room();
 void free_blueprint_special_room(BLUEPRINT_SPECIAL_ROOM *special);
 
+BLUEPRINT_EXIT_DATA *new_blueprint_exit_data();
+void free_blueprint_exit_data(BLUEPRINT_EXIT_DATA *ex);
+
 BLUEPRINT *new_blueprint();
 void free_blueprint(BLUEPRINT *bp);
+
+
+NAMED_SPECIAL_EXIT *new_named_special_exit();
+void free_named_special_exit(NAMED_SPECIAL_EXIT *special);
 
 INSTANCE_SECTION *new_instance_section();
 void free_instance_section(INSTANCE_SECTION *section);
@@ -154,11 +161,26 @@ void free_instance_section(INSTANCE_SECTION *section);
 NAMED_SPECIAL_ROOM *new_named_special_room();
 void free_named_special_room(NAMED_SPECIAL_ROOM *special);
 
+NAMED_SPECIAL_EXIT *new_named_special_exit();
+void free_named_special_exit(NAMED_SPECIAL_EXIT *special);
+
 INSTANCE *new_instance();
 void free_instance(INSTANCE *instance);
 
+DUNGEON_INDEX_WEIGHTED_FLOOR_DATA *new_weighted_random_floor();
+void free_weighted_random_floor(DUNGEON_INDEX_WEIGHTED_FLOOR_DATA *weighted);
+
+DUNGEON_INDEX_WEIGHTED_EXIT_DATA *new_weighted_random_exit();
+void free_weighted_random_exit(DUNGEON_INDEX_WEIGHTED_EXIT_DATA *weighted);
+
+DUNGEON_INDEX_LEVEL_DATA *new_dungeon_index_level();
+void free_dungeon_index_level(DUNGEON_INDEX_LEVEL_DATA *dungeon_level);
+
 DUNGEON_INDEX_SPECIAL_ROOM *new_dungeon_index_special_room();
 void free_dungeon_index_special_room(DUNGEON_INDEX_SPECIAL_ROOM *special);
+
+DUNGEON_INDEX_SPECIAL_EXIT *new_dungeon_index_special_exit();
+void free_dungeon_index_special_exit(DUNGEON_INDEX_SPECIAL_EXIT *special);
 
 DUNGEON_INDEX_DATA *new_dungeon_index();
 void free_dungeon_index(DUNGEON_INDEX_DATA *dungeon);

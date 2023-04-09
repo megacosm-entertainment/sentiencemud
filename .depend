@@ -1,0 +1,175 @@
+obj/act_comm.o: act_comm.c merc.h protocol.h sha256.h interp.h recycle.h \
+ tables.h
+obj/act_enter.o: act_enter.c merc.h protocol.h sha256.h interp.h wilds.h
+obj/act_info.o: act_info.c merc.h protocol.h sha256.h interp.h magic.h \
+ recycle.h tables.h db.h wilds.h scripts.h
+obj/act_info2.o: act_info2.c /usr/include/mysql/mysql.h \
+ /usr/include/mysql/mariadb_com.h /usr/include/mysql/mariadb_version.h \
+ /usr/include/mysql/ma_list.h /usr/include/mysql/mariadb_ctype.h \
+ /usr/include/mysql/mariadb_stmt.h merc.h protocol.h sha256.h interp.h \
+ magic.h recycle.h tables.h db.h
+obj/act_move.o: act_move.c merc.h protocol.h sha256.h interp.h olc.h wilds.h
+obj/act_obj.o: act_obj.c merc.h protocol.h sha256.h magic.h interp.h \
+ recycle.h tables.h
+obj/act_obj2.o: act_obj2.c merc.h protocol.h sha256.h interp.h recycle.h \
+ tables.h
+obj/act_wiz.o: act_wiz.c merc.h protocol.h sha256.h olc.h interp.h recycle.h \
+ tables.h olc_save.h wilds.h
+obj/alias.o: alias.c merc.h protocol.h sha256.h
+obj/auction.o: auction.c merc.h protocol.h sha256.h interp.h magic.h
+obj/autowar.o: autowar.c merc.h protocol.h sha256.h interp.h recycle.h db.h \
+ tables.h
+obj/ban.o: ban.c merc.h protocol.h sha256.h recycle.h
+obj/bit.o: bit.c merc.h protocol.h sha256.h tables.h
+obj/blueprint.o: blueprint.c merc.h protocol.h sha256.h recycle.h olc.h \
+ tables.h scripts.h
+obj/boat.o: boat.c merc.h protocol.h sha256.h recycle.h olc.h tables.h \
+ scripts.h wilds.h interp.h
+obj/church.o: church.c merc.h protocol.h sha256.h interp.h magic.h recycle.h \
+ db.h tables.h wilds.h
+obj/comm.o: comm.c merc.h protocol.h sha256.h interp.h recycle.h scripts.h \
+ tables.h wilds.h telnet.h
+obj/const.o: const.c merc.h protocol.h sha256.h magic.h interp.h
+obj/db.o: db.c merc.h protocol.h sha256.h db.h recycle.h tables.h olc_save.h \
+ scripts.h wilds.h
+obj/db2.o: db2.c merc.h protocol.h sha256.h db.h tables.h
+obj/drunk.o: drunk.c merc.h protocol.h sha256.h
+obj/dungeon.o: dungeon.c merc.h protocol.h sha256.h recycle.h olc.h tables.h \
+ scripts.h
+obj/effects.o: effects.c merc.h protocol.h sha256.h recycle.h wilds.h
+obj/events.o: events.c merc.h protocol.h sha256.h recycle.h scripts.h \
+ tables.h
+obj/fight.o: fight.c merc.h protocol.h sha256.h interp.h tables.h magic.h \
+ scripts.h wilds.h
+obj/fight2.o: fight2.c merc.h protocol.h sha256.h interp.h tables.h
+obj/gq.o: gq.c merc.h protocol.h sha256.h interp.h recycle.h tables.h
+obj/handler.o: handler.c merc.h protocol.h sha256.h interp.h magic.h \
+ recycle.h tables.h scripts.h wilds.h
+obj/healer.o: healer.c merc.h protocol.h sha256.h magic.h
+obj/help.o: help.c merc.h protocol.h sha256.h recycle.h
+obj/house.o: house.c merc.h protocol.h sha256.h interp.h olc_save.h
+obj/html.o: html.c merc.h protocol.h sha256.h db.h recycle.h
+obj/hunt.o: hunt.c merc.h protocol.h sha256.h
+obj/interp.o: interp.c merc.h protocol.h sha256.h interp.h scripts.h tables.h
+obj/invasion.o: invasion.c merc.h protocol.h sha256.h interp.h recycle.h \
+ tables.h olc.h
+obj/locker.o: locker.c merc.h protocol.h sha256.h
+obj/lookup.o: lookup.c merc.h protocol.h sha256.h recycle.h tables.h
+obj/magic.o: magic.c merc.h protocol.h sha256.h interp.h magic.h recycle.h \
+ tables.h wilds.h scripts.h
+obj/magic2.o: magic2.c merc.h protocol.h sha256.h recycle.h interp.h magic.h \
+ scripts.h tables.h
+obj/magic_acid.o: magic_acid.c merc.h protocol.h sha256.h interp.h magic.h \
+ recycle.h tables.h wilds.h
+obj/magic_air.o: magic_air.c merc.h protocol.h sha256.h interp.h magic.h \
+ recycle.h tables.h wilds.h
+obj/magic_astral.o: magic_astral.c merc.h protocol.h sha256.h interp.h \
+ magic.h recycle.h tables.h wilds.h
+obj/magic_blood.o: magic_blood.c merc.h protocol.h sha256.h interp.h magic.h \
+ recycle.h tables.h wilds.h
+obj/magic_body.o: magic_body.c merc.h protocol.h sha256.h interp.h magic.h \
+ recycle.h tables.h wilds.h
+obj/magic_chaos.o: magic_chaos.c merc.h protocol.h sha256.h interp.h magic.h \
+ recycle.h tables.h wilds.h
+obj/magic_cold.o: magic_cold.c merc.h protocol.h sha256.h interp.h magic.h \
+ recycle.h tables.h wilds.h
+obj/magic_cosmic.o: magic_cosmic.c merc.h protocol.h sha256.h interp.h \
+ magic.h recycle.h tables.h wilds.h
+obj/magic_dark.o: magic_dark.c merc.h protocol.h sha256.h interp.h magic.h \
+ recycle.h tables.h wilds.h
+obj/magic_death.o: magic_death.c merc.h protocol.h sha256.h interp.h magic.h \
+ recycle.h tables.h wilds.h
+obj/magic_earth.o: magic_earth.c merc.h protocol.h sha256.h interp.h magic.h \
+ recycle.h tables.h wilds.h
+obj/magic_energy.o: magic_energy.c merc.h protocol.h sha256.h interp.h \
+ magic.h recycle.h tables.h wilds.h
+obj/magic_fire.o: magic_fire.c merc.h protocol.h sha256.h interp.h magic.h \
+ recycle.h tables.h wilds.h
+obj/magic_holy.o: magic_holy.c merc.h protocol.h sha256.h interp.h magic.h \
+ recycle.h tables.h wilds.h
+obj/magic_law.o: magic_law.c merc.h protocol.h sha256.h interp.h magic.h \
+ recycle.h tables.h wilds.h
+obj/magic_light.o: magic_light.c merc.h protocol.h sha256.h interp.h magic.h \
+ recycle.h tables.h wilds.h
+obj/magic_mana.o: magic_mana.c merc.h protocol.h sha256.h interp.h magic.h \
+ recycle.h tables.h wilds.h
+obj/magic_metal.o: magic_metal.c merc.h protocol.h sha256.h interp.h magic.h \
+ recycle.h tables.h wilds.h
+obj/magic_mind.o: magic_mind.c merc.h protocol.h sha256.h interp.h magic.h \
+ recycle.h tables.h wilds.h
+obj/magic_nature.o: magic_nature.c merc.h protocol.h sha256.h interp.h \
+ magic.h recycle.h tables.h wilds.h
+obj/magic_shock.o: magic_shock.c merc.h protocol.h sha256.h interp.h magic.h \
+ recycle.h tables.h wilds.h
+obj/magic_soul.o: magic_soul.c merc.h protocol.h sha256.h interp.h magic.h \
+ recycle.h tables.h wilds.h
+obj/magic_sound.o: magic_sound.c merc.h protocol.h sha256.h interp.h magic.h \
+ recycle.h tables.h wilds.h
+obj/magic_toxin.o: magic_toxin.c merc.h protocol.h sha256.h interp.h magic.h \
+ recycle.h tables.h wilds.h
+obj/magic_water.o: magic_water.c merc.h protocol.h sha256.h interp.h magic.h \
+ recycle.h tables.h wilds.h
+obj/mail.o: mail.c merc.h protocol.h sha256.h interp.h recycle.h tables.h
+obj/mccp.o: mccp.c merc.h protocol.h sha256.h telnet.h
+obj/mem.o: mem.c merc.h protocol.h sha256.h recycle.h scripts.h tables.h \
+ debug.h
+obj/mount.o: mount.c merc.h protocol.h sha256.h interp.h
+obj/music.o: music.c merc.h protocol.h sha256.h recycle.h scripts.h tables.h
+obj/note.o: note.c merc.h protocol.h sha256.h recycle.h tables.h
+obj/olc.o: olc.c merc.h protocol.h sha256.h tables.h interp.h olc.h recycle.h \
+ scripts.h wilds.h
+obj/olc_act.o: olc_act.c merc.h protocol.h sha256.h tables.h olc.h recycle.h \
+ interp.h scripts.h wilds.h
+obj/olc_act2.o: olc_act2.c merc.h protocol.h sha256.h tables.h olc.h \
+ recycle.h scripts.h
+obj/olc_mpcode.o: olc_mpcode.c merc.h protocol.h sha256.h tables.h olc.h \
+ recycle.h scripts.h
+obj/olc_save.o: olc_save.c merc.h protocol.h sha256.h recycle.h tables.h \
+ olc.h olc_save.h db.h scripts.h wilds.h
+obj/project.o: project.c merc.h protocol.h sha256.h interp.h tables.h olc.h \
+ recycle.h
+obj/protocol.o: protocol.c protocol.h merc.h sha256.h
+obj/quest.o: quest.c merc.h protocol.h sha256.h recycle.h magic.h tables.h
+obj/save.o: save.c merc.h protocol.h sha256.h recycle.h tables.h db.h olc.h \
+ interp.h olc_save.h scripts.h wilds.h
+obj/scan.o: scan.c merc.h protocol.h sha256.h wilds.h
+obj/script_commands.o: script_commands.c merc.h protocol.h sha256.h db.h \
+ recycle.h tables.h scripts.h magic.h wilds.h debug.h
+obj/script_comp.o: script_comp.c merc.h protocol.h sha256.h db.h recycle.h \
+ tables.h scripts.h debug.h
+obj/script_const.o: script_const.c merc.h protocol.h sha256.h tables.h \
+ scripts.h
+obj/script_expand.o: script_expand.c merc.h protocol.h sha256.h scripts.h \
+ tables.h recycle.h wilds.h debug.h
+obj/script_ifc.o: script_ifc.c merc.h protocol.h sha256.h tables.h scripts.h \
+ wilds.h
+obj/script_mpcmds.o: script_mpcmds.c merc.h protocol.h sha256.h scripts.h \
+ tables.h recycle.h wilds.h debug.h
+obj/script_opcmds.o: script_opcmds.c merc.h protocol.h sha256.h scripts.h \
+ tables.h recycle.h wilds.h
+obj/script_rpcmds.o: script_rpcmds.c merc.h protocol.h sha256.h scripts.h \
+ tables.h recycle.h wilds.h debug.h
+obj/script_tpcmds.o: script_tpcmds.c merc.h protocol.h sha256.h scripts.h \
+ tables.h recycle.h wilds.h debug.h
+obj/script_vars.o: script_vars.c merc.h protocol.h sha256.h db.h scripts.h \
+ tables.h wilds.h
+obj/scripts.o: scripts.c merc.h protocol.h sha256.h tables.h scripts.h \
+ recycle.h wilds.h debug.h
+obj/shoot.o: shoot.c merc.h protocol.h sha256.h interp.h
+obj/skills.o: skills.c merc.h protocol.h sha256.h interp.h magic.h recycle.h \
+ tables.h db.h
+obj/social.o: social.c merc.h protocol.h sha256.h db.h recycle.h
+obj/special.o: special.c merc.h protocol.h sha256.h interp.h magic.h
+obj/staff.o: staff.c merc.h protocol.h sha256.h tables.h olc.h recycle.h \
+ interp.h
+obj/stats.o: stats.c merc.h protocol.h sha256.h db.h recycle.h
+obj/string.o: string.c merc.h protocol.h sha256.h tables.h olc.h scripts.h \
+ interp.h
+obj/tables.o: tables.c merc.h protocol.h sha256.h tables.h scripts.h
+obj/treasuremap.o: treasuremap.c merc.h protocol.h sha256.h interp.h \
+ recycle.h tables.h olc.h wilds.h
+obj/update.o: update.c merc.h protocol.h sha256.h interp.h scripts.h tables.h \
+ wilds.h
+obj/weather.o: weather.c merc.h protocol.h sha256.h interp.h recycle.h \
+ tables.h olc.h
+obj/wilds.o: wilds.c merc.h protocol.h sha256.h recycle.h wilds.h olc_save.h

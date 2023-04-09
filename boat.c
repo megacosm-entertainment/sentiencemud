@@ -58,6 +58,7 @@ SCRIPT_DATA *read_script_new( FILE *fp, AREA_DATA *area, int type);
 void steering_set_heading(SHIP_DATA *ship, int heading);
 void steering_set_turning(SHIP_DATA *ship, char direction);
 void ship_stop(SHIP_DATA *ship);
+void do_ship_speed( CHAR_DATA *ch, char *argument );
 
 extern LLIST *loaded_instances;
 
@@ -1033,7 +1034,8 @@ bool move_ship_success(SHIP_DATA *ship)
 					oarsman->move -= nor;
 
 					oarsman->move = UMAX(0, oarsman->move);
-					oarsman->position = POS_RESTING;
+					if (oarsman->move <= 0)
+						oarsman->position = POS_RESTING;
 				}
 			}
 		}
@@ -3274,14 +3276,14 @@ void do_ship_sails( CHAR_DATA *ch, char *argument )
 
 void do_ship_speed( CHAR_DATA *ch, char *argument )
 {
-	char buf[MSL];
+	//char buf[MSL];
 	char arg[MAX_INPUT_LENGTH];
 	SHIP_DATA *ship;
 	char cmd[MIL];
 
 	sprintf(cmd, "ship speed %s", argument);
 
-	char *command = argument;
+	//char *command = argument;
 	argument = one_argument( argument, arg);
 
 	ship = get_room_ship(ch->in_room);
@@ -6475,7 +6477,7 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
 	{
 		if( !is_number(argument) )
 		{
-			send_to_char("That is number a number.\n\r", ch);
+			send_to_char("That is not a number.\n\r", ch);
 			return;
 		}
 
@@ -7628,7 +7630,7 @@ SHEDIT( shedit_blueprint )
 
 		// Verify the blueprint has certain features
 		// * Has an entry room
-		if( bp->static_entry_section < 1 || bp->static_entry_link < 1)
+		if( list_size(bp->_static.entries))
 		{
 			send_to_char("Blueprint requires an entry point for boarding purposes.\n\r", ch);
 			return FALSE;

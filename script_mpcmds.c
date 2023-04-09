@@ -1263,7 +1263,7 @@ SCRIPT_CMD(do_mpcall)
 	}
 
 	// Do this to account for possible destructions
-	ret = execute_script(script->vnum, script, info->mob, NULL, NULL, NULL, NULL, NULL, NULL, ch, obj1, obj2, vch, NULL,NULL, NULL,info->phrase,info->trigger,0,0,0,0,0);
+	ret = execute_script(script->vnum, script, info->mob, NULL, NULL, NULL, NULL, NULL, NULL, ch, obj1, obj2, vch, NULL,NULL, NULL,info->phrase,info->trigger,info->trigger_type,0,0,0,0,0);
 	if(info->mob) {
 		info->mob->progs->lastreturn = ret;
 		DBG3MSG1("lastreturn = %d\n", info->mob->progs->lastreturn);
@@ -6912,7 +6912,7 @@ SCRIPT_CMD(do_mpxcall)
 	}
 
 	// Do this to account for possible destructions
-	ret = execute_script(script->vnum, script, mob, obj, room, token, NULL, NULL, NULL, ch, obj1, obj2, vch, NULL,NULL, NULL,info->phrase,info->trigger,0,0,0,0,0);
+	ret = execute_script(script->vnum, script, mob, obj, room, token, NULL, NULL, NULL, ch, obj1, obj2, vch, NULL,NULL, NULL,info->phrase,info->trigger,info->trigger_type,0,0,0,0,0);
 	if(info->mob) {
 		info->mob->progs->lastreturn = ret;
 		DBG3MSG1("lastreturn = %d\n", info->mob->progs->lastreturn);

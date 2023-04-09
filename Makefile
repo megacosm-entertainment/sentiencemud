@@ -6,7 +6,7 @@ LIBS = -L/usr/lib64/mysql -lmysqlclient -lpthread -lz -lm -lrt -lssl -lcrypto -l
 #LIBS    = -L/usr/lib/x86_64-linux-gnu -lmysqlclient -lpthread -lz -lm -ldl
 NOCRYPT = -Dlinux
 #C_FLAGS =  $(PROF) $(NOCRYPT) -DOLD_RAND -DMALLOC_STDLIB -I/usr/include/mysql -DBIG_JOINS=1  -fno-strict-aliasing   -g -fabi-version=2 -fno-omit-frame-pointer -fno-strict-aliasing
-C_FLAGS = $(PROF) -DOLD_RAND -DMALLOC_STDLIB -I/usr/include/mysql -fstack-protector  -m64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv -fPIC  -fPIC  -fabi-version=2 -fno-omit-frame-pointer -fno-strict-aliasing
+C_FLAGS = $(PROF) -fcommon -DOLD_RAND -DMALLOC_STDLIB -I/usr/include/mysql -fstack-protector  -m64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv -fPIC  -fPIC  -fabi-version=2 -fno-omit-frame-pointer -fno-strict-aliasing
 L_FLAGS =  $(PROF) $(LIBS)
 EXE	= sent
 BUILD_NUMBER_FILE = build.txt

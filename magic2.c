@@ -268,7 +268,7 @@ bool check_spell_deflection_token(CHAR_DATA *ch, CHAR_DATA *victim, TOKEN_DATA *
 			act("{Y$n's spell bounces off onto $N!{x", ch,  rch, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
 		}
 
-		execute_script(script->vnum, script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, rch, NULL,NULL, NULL,target_name,NULL,0,0,0,0,0);
+		execute_script(script->vnum, script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, rch, NULL,NULL, NULL,target_name,NULL,TRIG_NONE,0,0,0,0,0);
 	} else {
 		if (ch != NULL) {
 			act("{YYour spell bounces around for a while, then dies out.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);

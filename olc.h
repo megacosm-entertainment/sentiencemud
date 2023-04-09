@@ -537,6 +537,7 @@ DECLARE_OLC_FUN( dngedit_description	);
 DECLARE_OLC_FUN( dngedit_comments		);
 DECLARE_OLC_FUN( dngedit_areawho		);
 DECLARE_OLC_FUN( dngedit_floors			);
+DECLARE_OLC_FUN( dngedit_levels         );
 DECLARE_OLC_FUN( dngedit_entry			);
 DECLARE_OLC_FUN( dngedit_exit			);
 DECLARE_OLC_FUN( dngedit_flags			);

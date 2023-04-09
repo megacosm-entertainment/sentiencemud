@@ -3769,6 +3769,27 @@ static void delete_blueprint_special_room(void *data) {
 	free_blueprint_special_room((BLUEPRINT_SPECIAL_ROOM *)data);
 }
 
+BLUEPRINT_EXIT_DATA *new_blueprint_exit_data()
+{
+    BLUEPRINT_EXIT_DATA *ex = alloc_mem(sizeof(BLUEPRINT_EXIT_DATA));
+
+    ex->name = &str_empty[0];
+    ex->section = -1;
+    ex->link = -1;
+
+    return ex;
+}
+
+void free_blueprint_exit_data(BLUEPRINT_EXIT_DATA *ex)
+{
+    free_string(ex->name);
+    free_mem(ex, sizeof(BLUEPRINT_EXIT_DATA));
+}
+
+static void delete_blueprint_exit_data(void *data)
+{
+    free_blueprint_exit_data((BLUEPRINT_EXIT_DATA *)data);
+}
 
 BLUEPRINT *blueprint_free;
 
@@ -3794,13 +3815,10 @@ BLUEPRINT *new_blueprint()
 	bp->sections = list_create(FALSE);
 	bp->special_rooms = list_createx(FALSE, NULL, delete_blueprint_special_room);
 
-	bp->static_layout = NULL;
-	bp->static_recall = -1;
-
-	bp->static_entry_section = -1;
-	bp->static_entry_link = -1;
-	bp->static_exit_section = -1;
-	bp->static_exit_link = -1;
+    bp->_static.layout = NULL;
+    bp->_static.recall = -1;
+    bp->_static.entries = list_createx(FALSE, NULL, delete_blueprint_exit_data);
+    bp->_static.exits = list_createx(FALSE, NULL, delete_blueprint_exit_data);
 
 	VALIDATE(bp);
 	return bp;
@@ -3810,13 +3828,13 @@ void free_static_blueprint_data(BLUEPRINT *bp)
 {
 	STATIC_BLUEPRINT_LINK *cur, *next;
 
-	for(cur = bp->static_layout; cur; cur = next)
+	for(cur = bp->_static.layout; cur; cur = next)
 	{
 		next = cur->next;
 		free_static_blueprint_link(cur);
 	}
 
-	bp->static_layout = NULL;
+	bp->_static.layout = NULL;
 }
 
 void free_blueprint(BLUEPRINT *bp)
@@ -3920,6 +3938,44 @@ static void delete_named_special_room(void *data) {
 	free_named_special_room((NAMED_SPECIAL_ROOM *)data);
 }
 
+NAMED_SPECIAL_EXIT *named_special_exit_free;
+
+NAMED_SPECIAL_EXIT *new_named_special_exit()
+{
+	NAMED_SPECIAL_EXIT *special;
+
+	if( named_special_exit_free )
+	{
+		special = named_special_exit_free;
+		named_special_exit_free = named_special_exit_free->next;
+	}
+	else
+	{
+		special = alloc_perm(sizeof(NAMED_SPECIAL_EXIT));
+	}
+	memset(special, 0, sizeof(NAMED_SPECIAL_EXIT));
+
+	special->name = &str_empty[0];
+
+	VALIDATE(special);
+	return special;
+}
+
+void free_named_special_exit(NAMED_SPECIAL_EXIT *special)
+{
+	if( !IS_VALID(special) ) return;
+
+	free_string(special->name);
+
+	INVALIDATE(special);
+	special->next = named_special_exit_free;
+	named_special_exit_free = special;
+}
+
+static void delete_named_special_exit(void *data) {
+	free_named_special_exit((NAMED_SPECIAL_EXIT *)data);
+}
+
 
 INSTANCE *instance_free;
 
@@ -3954,6 +4010,7 @@ INSTANCE *new_instance()
 	instance->rooms = list_create(FALSE);
 	instance->bosses = list_create(FALSE);
 	instance->special_rooms = list_createx(FALSE, NULL, delete_named_special_room);
+    instance->special_exits = list_createx(FALSE, NULL, delete_named_special_exit);
 	instance->player_owners = list_createx(FALSE, NULL, delete_list_uid_data);
 
 	VALIDATE(instance);
@@ -3980,6 +4037,7 @@ void free_instance(INSTANCE *instance)
 	list_destroy(instance->rooms);
 	list_destroy(instance->bosses);
 	list_destroy(instance->special_rooms);
+    list_destroy(instance->special_exits);
 	list_destroy(instance->player_owners);
 
     variable_clearfield(VAR_INSTANCE, instance);
@@ -3992,7 +4050,6 @@ void free_instance(INSTANCE *instance)
 }
 
 DUNGEON_INDEX_SPECIAL_ROOM *dungeon_index_special_room_free;
-
 DUNGEON_INDEX_SPECIAL_ROOM *new_dungeon_index_special_room()
 {
 	DUNGEON_INDEX_SPECIAL_ROOM *special;
@@ -4025,12 +4082,144 @@ void free_dungeon_index_special_room(DUNGEON_INDEX_SPECIAL_ROOM *special)
 	dungeon_index_special_room_free = special;
 }
 
+
+static void delete_weighted_random_exit_data(void *data)
+{
+    free_weighted_random_exit((DUNGEON_INDEX_WEIGHTED_EXIT_DATA *)data);
+}
+
+
 static void delete_dungeon_index_special_room(void *data) {
 	free_dungeon_index_special_room((DUNGEON_INDEX_SPECIAL_ROOM *)data);
 }
 
-DUNGEON_INDEX_DATA *dungeon_index_free;
+static void delete_dungeon_index_special_exit(void *data)
+{
+    free_dungeon_index_special_exit((DUNGEON_INDEX_SPECIAL_EXIT *)data);
+}
 
+DUNGEON_INDEX_SPECIAL_EXIT *dungeon_index_special_exit_free;
+DUNGEON_INDEX_SPECIAL_EXIT *new_dungeon_index_special_exit()
+{
+	DUNGEON_INDEX_SPECIAL_EXIT *special;
+
+	if( dungeon_index_special_exit_free )
+	{
+		special = dungeon_index_special_exit_free;
+		dungeon_index_special_exit_free = dungeon_index_special_exit_free->next;
+	}
+	else
+	{
+		special = alloc_perm(sizeof(DUNGEON_INDEX_SPECIAL_EXIT));
+	}
+
+	memset(special, 0, sizeof(DUNGEON_INDEX_SPECIAL_EXIT));
+	special->name = &str_empty[0];
+    special->from = list_createx(FALSE, NULL, delete_weighted_random_exit_data);
+    special->to = list_createx(FALSE, NULL, delete_weighted_random_exit_data);
+    special->group = list_createx(FALSE, NULL, delete_dungeon_index_special_exit);
+
+	VALIDATE(special);
+	return special;
+}
+
+void free_dungeon_index_special_exit(DUNGEON_INDEX_SPECIAL_EXIT *special)
+{
+	if( !IS_VALID(special) ) return;
+
+	free_string(special->name);
+
+	INVALIDATE(special);
+	special->next = dungeon_index_special_exit_free;
+	dungeon_index_special_exit_free = special;
+}
+
+
+DUNGEON_INDEX_WEIGHTED_FLOOR_DATA *new_weighted_random_floor()
+{
+    DUNGEON_INDEX_WEIGHTED_FLOOR_DATA *weighted = alloc_mem(sizeof(DUNGEON_INDEX_WEIGHTED_FLOOR_DATA));
+
+    if (weighted)
+    {
+        weighted->weight = 0;
+        weighted->floor = 0;
+    }
+
+    return weighted;
+}
+
+void free_weighted_random_floor(DUNGEON_INDEX_WEIGHTED_FLOOR_DATA *weighted)
+{
+    free_mem(weighted, sizeof(DUNGEON_INDEX_WEIGHTED_FLOOR_DATA));
+}
+
+static void delete_weighted_random_floor_data(void *data)
+{
+    free_weighted_random_floor((DUNGEON_INDEX_WEIGHTED_FLOOR_DATA *)data);
+}
+
+DUNGEON_INDEX_WEIGHTED_EXIT_DATA *new_weighted_random_exit()
+{
+    DUNGEON_INDEX_WEIGHTED_EXIT_DATA *weighted = alloc_mem(sizeof(DUNGEON_INDEX_WEIGHTED_EXIT_DATA));
+
+    if (weighted)
+    {
+        weighted->weight = 0;
+        weighted->door = 0;         // Not to be confused with the exit[door] on ROOM_INDEX_DATA, this is 1-based.
+    }
+
+    return weighted;
+}
+
+void free_weighted_random_exit(DUNGEON_INDEX_WEIGHTED_EXIT_DATA *weighted)
+{
+    free_mem(weighted, sizeof(DUNGEON_INDEX_WEIGHTED_EXIT_DATA));
+}
+
+
+static void delete_dungeon_index_level(void *data) {
+    free_dungeon_index_level((DUNGEON_INDEX_LEVEL_DATA *)data);    
+}
+
+DUNGEON_INDEX_LEVEL_DATA *dungeon_index_level_free;
+DUNGEON_INDEX_LEVEL_DATA *new_dungeon_index_level()
+{
+    DUNGEON_INDEX_LEVEL_DATA *dungeon_level;
+
+    if (dungeon_index_level_free)
+    {
+        dungeon_level = dungeon_index_level_free;
+        dungeon_index_level_free = dungeon_index_level_free->next;
+    }
+    else
+        dungeon_level = alloc_perm(sizeof(DUNGEON_INDEX_LEVEL_DATA));
+
+    memset(dungeon_level, 0, sizeof(DUNGEON_INDEX_LEVEL_DATA));
+
+    dungeon_level->mode = LEVELMODE_STATIC;
+    dungeon_level->floor = 0;
+    dungeon_level->weighted_floors = list_createx(FALSE, NULL, delete_weighted_random_floor_data);
+    dungeon_level->total_weight = 0;
+    dungeon_level->group = list_createx(FALSE, NULL, delete_dungeon_index_level);
+
+    VALIDATE(dungeon_level);
+
+    return dungeon_level;
+}
+
+void free_dungeon_index_level(DUNGEON_INDEX_LEVEL_DATA *dungeon_level)
+{
+    if (!IS_VALID(dungeon_level)) return;
+
+    dungeon_level->next = dungeon_index_level_free;
+    dungeon_index_level_free = dungeon_level;
+
+    list_destroy(dungeon_level->weighted_floors);
+
+    INVALIDATE(dungeon_level);
+}
+
+DUNGEON_INDEX_DATA *dungeon_index_free;
 DUNGEON_INDEX_DATA *new_dungeon_index()
 {
 	DUNGEON_INDEX_DATA *dungeon_index;
@@ -4054,7 +4243,9 @@ DUNGEON_INDEX_DATA *new_dungeon_index()
 	dungeon_index->area_who = AREA_BLANK;
 
 	dungeon_index->floors = list_create(FALSE);
+    dungeon_index->levels = list_createx(FALSE, NULL, delete_dungeon_index_level);
 	dungeon_index->special_rooms = list_createx(FALSE, NULL, delete_dungeon_index_special_room);
+    dungeon_index->special_exits = list_createx(FALSE, NULL, delete_dungeon_index_special_exit);
 	dungeon_index->entry_room = 0;
 	dungeon_index->exit_room = 0;
 
@@ -4095,7 +4286,6 @@ void free_dungeon_index(DUNGEON_INDEX_DATA *dungeon_index)
 
 
 DUNGEON *dungeon_free;
-
 DUNGEON *new_dungeon()
 {
 	DUNGEON *dng;
@@ -4118,6 +4308,7 @@ DUNGEON *new_dungeon()
 	dng->rooms = list_create(FALSE);
 	dng->bosses = list_create(FALSE);
 	dng->special_rooms = list_createx(FALSE, NULL, delete_named_special_room);
+    dng->special_exits = list_createx(FALSE, NULL, delete_named_special_exit);
 	dng->player_owners = list_createx(FALSE, NULL, delete_list_uid_data);
 
 	VALIDATE(dng);
@@ -4144,6 +4335,7 @@ void free_dungeon(DUNGEON *dng)
 	list_destroy(dng->rooms);
 	list_destroy(dng->bosses);
 	list_destroy(dng->special_rooms);
+    list_destroy(dng->special_exits);
 	list_destroy(dng->player_owners);
 
     variable_clearfield(VAR_DUNGEON, dng);

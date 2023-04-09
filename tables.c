@@ -2839,6 +2839,7 @@ const struct flag_type dungeon_flags[] =
 	{ "idle_on_complete",	DUNGEON_IDLE_ON_COMPLETE,	TRUE	},
 	{ "no_idle",			DUNGEON_NO_IDLE,			TRUE	},
 	{ "no_save",			DUNGEON_NO_SAVE,			TRUE	},
+    { "scripted_levels",    DUNGEON_SCRIPTED_LEVELS,    FALSE   },
 	{ NULL,					0,							FALSE	}
 };
 

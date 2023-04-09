@@ -317,28 +317,36 @@ BLUEPRINT *load_blueprint(FILE *fp)
 				break;
 			}
 
-			KEY("StaticRecall", bp->static_recall, fread_number(fp));
+			KEY("StaticRecall", bp->_static.recall, fread_number(fp));
 
 			if( !str_cmp(word, "StaticEntry") )
 			{
+				char *name = fread_string(fp);
 				int section = fread_number(fp);
 				int link = fread_number(fp);
 
-				bp->static_entry_section = section;
-				bp->static_entry_link = link;
+				BLUEPRINT_EXIT_DATA *ex = new_blueprint_exit_data();
+				ex->name = name;
+				ex->section = section;
+				ex->link = link;
 
+				list_appendlink(bp->_static.entries, ex);
 				fMatch = TRUE;
 				break;
 			}
 
 			if( !str_cmp(word, "StaticExit") )
 			{
+				char *name = fread_string(fp);
 				int section = fread_number(fp);
 				int link = fread_number(fp);
 
-				bp->static_exit_section = section;
-				bp->static_exit_link = link;
+				BLUEPRINT_EXIT_DATA *ex = new_blueprint_exit_data();
+				ex->name = name;
+				ex->section = section;
+				ex->link = link;
 
+				list_appendlink(bp->_static.exits, ex);
 				fMatch = TRUE;
 				break;
 			}
@@ -358,8 +366,8 @@ BLUEPRINT *load_blueprint(FILE *fp)
 				sbl->section2 = section2;
 				sbl->link2 = link2;
 
-				sbl->next = bp->static_layout;
-				bp->static_layout = sbl;
+				sbl->next = bp->_static.layout;
+				bp->_static.layout = sbl;
 				fMatch = TRUE;
 				break;
 			}
@@ -563,16 +571,27 @@ void save_blueprint(FILE *fp, BLUEPRINT *bp)
 	{
 		fprintf(fp, "Static\n");
 
-		if( bp->static_recall > 0 )
-			fprintf(fp, "StaticRecall %d\n", bp->static_recall);
+		if( bp->_static.recall > 0 )
+			fprintf(fp, "StaticRecall %d\n", bp->_static.recall);
 
-		if( bp->static_entry_section > 0 && bp->static_entry_link > 0 )
-			fprintf(fp, "StaticEntry %d %d\n", bp->static_entry_section, bp->static_entry_link);
+		ITERATOR xit;
+		BLUEPRINT_EXIT_DATA *ex;
 
-		if( bp->static_exit_section > 0 && bp->static_exit_link > 0 )
-			fprintf(fp, "StaticExit %d %d\n", bp->static_exit_section, bp->static_exit_link);
+		iterator_start(&xit, bp->_static.entries);
+		while( (ex = (BLUEPRINT_EXIT_DATA *)iterator_nextdata(&xit)) )
+		{
+			fprintf(fp, "StaticEntry %s~ %d %d\n", fix_string(ex->name), ex->section, ex->link);
+		}
+		iterator_stop(&xit);
 
-		for(STATIC_BLUEPRINT_LINK *sbl = bp->static_layout; sbl; sbl = sbl->next)
+		iterator_start(&xit, bp->_static.exits);
+		while( (ex = (BLUEPRINT_EXIT_DATA *)iterator_nextdata(&xit)) )
+		{
+			fprintf(fp, "StaticExit %s~ %d %d\n", fix_string(ex->name), ex->section, ex->link);
+		}
+		iterator_stop(&xit);
+
+		for(STATIC_BLUEPRINT_LINK *sbl = bp->_static.layout; sbl; sbl = sbl->next)
 		{
 			if( valid_static_link(sbl) )
 			{
@@ -765,6 +784,30 @@ bool rooms_in_same_section(long vnum1, long vnum2)
 	return s1 && s2 && (s1 == s2);
 }
 
+BLUEPRINT_EXIT_DATA *get_blueprint_entrance(BLUEPRINT *bp, int index)
+{
+	if (bp->mode == BLUEPRINT_MODE_STATIC)
+	{
+		return (BLUEPRINT_EXIT_DATA *)list_nthdata(bp->_static.entries, index);
+	}
+
+	return NULL;
+}
+
+
+BLUEPRINT_EXIT_DATA *get_blueprint_exit(BLUEPRINT *bp, int index)
+{
+	if (bp->mode == BLUEPRINT_MODE_STATIC)
+	{
+		return (BLUEPRINT_EXIT_DATA *)list_nthdata(bp->_static.exits, index);
+	}
+
+	return NULL;
+}
+
+
+
+
 ROOM_INDEX_DATA *instance_section_get_room_byvnum(INSTANCE_SECTION *section, long vnum)
 {
 	if( !IS_VALID(section) ) return NULL;
@@ -947,9 +990,17 @@ INSTANCE_SECTION *clone_blueprint_section(BLUEPRINT_SECTION *parent)
 
 INSTANCE_SECTION *instance_get_section(INSTANCE *instance, int section_no)
 {
+	if (!IS_VALID(instance)) return NULL;
 	if( section_no < 1 ) return NULL;
 
 	return list_nthdata(instance->sections, section_no);
+}
+
+BLUEPRINT_LINK *instance_get_section_link(INSTANCE_SECTION *section, int link_no)
+{
+	if (!IS_VALID(section)) return NULL;
+	
+	return get_section_link(section->section, link_no);
 }
 
 bool generate_static_instance(INSTANCE *instance)
@@ -984,7 +1035,7 @@ bool generate_static_instance(INSTANCE *instance)
 		// Connect all the sections together
 		STATIC_BLUEPRINT_LINK *link;
 
-		for(link = bp->static_layout; link; link = link->next)
+		for(link = bp->_static.layout; link; link = link->next)
 		{
 			INSTANCE_SECTION *section1 = instance_get_section(instance, link->section1);
 			INSTANCE_SECTION *section2 = instance_get_section(instance, link->section2);
@@ -1037,12 +1088,13 @@ bool generate_static_instance(INSTANCE *instance)
 		}
 
 		// Assign the entry exit (PREVFLOOR) if defined
-		if( bp->static_entry_section > 0 && bp->static_entry_link > 0 )
+		BLUEPRINT_EXIT_DATA *bex = list_nthdata(bp->_static.entries, 1);
+		if( bex )
 		{
-			INSTANCE_SECTION *section = instance_get_section(instance, bp->static_entry_section);
+			INSTANCE_SECTION *section = instance_get_section(instance, bex->section);
 			if( section )
 			{
-				BLUEPRINT_LINK *bl = get_section_link(section->section, bp->static_entry_link);
+				BLUEPRINT_LINK *bl = get_section_link(section->section, bex->link);
 
 				if( bl )
 				{
@@ -1072,12 +1124,13 @@ bool generate_static_instance(INSTANCE *instance)
 		}
 
 		// Assign the exit exit (NEXTFLOOR) if defined
-		if( bp->static_exit_section > 0 && bp->static_exit_link > 0 )
+		bex = list_nthdata(bp->_static.exits, 1);
+		if( bex )
 		{
-			INSTANCE_SECTION *section = instance_get_section(instance, bp->static_exit_section);
+			INSTANCE_SECTION *section = instance_get_section(instance, bex->section);
 			if( section )
 			{
-				BLUEPRINT_LINK *bl = get_section_link(section->section, bp->static_exit_link);
+				BLUEPRINT_LINK *bl = get_section_link(section->section, bex->link);
 
 				if( bl )
 				{
@@ -1108,9 +1161,9 @@ bool generate_static_instance(INSTANCE *instance)
 		}
 
 		// Assign the recall point based upon the recall section's recall, if defined
-		if( bp->static_recall > 0 )
+		if( bp->_static.recall > 0 )
 		{
-			INSTANCE_SECTION *recall_section = instance_get_section(instance, bp->static_recall);
+			INSTANCE_SECTION *recall_section = instance_get_section(instance, bp->_static.recall);
 
 			if( recall_section )
 			{
@@ -2771,7 +2824,7 @@ BPEDIT( bpedit_show )
 
 	if( bp->mode == BLUEPRINT_MODE_STATIC )
 	{
-		if( bp->static_layout )
+		if( bp->_static.layout )
 		{
 			int linkno = 0;
 			add_buf(buffer, "{CLinks:{x\n\r");
@@ -2780,7 +2833,7 @@ BPEDIT( bpedit_show )
 			add_buf(buffer, "-------------------------------------------------------\n\r");
 
 			STATIC_BLUEPRINT_LINK *sbl;
-			for(sbl = bp->static_layout; sbl; sbl = sbl->next)
+			for(sbl = bp->_static.layout; sbl; sbl = sbl->next)
 			{
 				sprintf(buf, "{W%4d   {G%9d     {Y%6d     {G%9d     {Y%6d{x\n\r",
 					++linkno, sbl->section1, sbl->link1, sbl->section2, sbl->link2);
@@ -2794,17 +2847,17 @@ BPEDIT( bpedit_show )
 			add_buf(buffer, "{CLinks:{x\n\r   None\n\r\n\r");
 		}
 
-		if( bp->static_recall > 0 )
+		if( bp->_static.recall > 0 )
 		{
-			BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, bp->static_recall);
+			BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, bp->_static.recall);
 
 			if( bs )
 			{
-				sprintf(buf, "{xRecall:     %d [%ld] %-.30s\n\r", bp->static_recall, bs->vnum, bs->name);
+				sprintf(buf, "{xRecall:     %d [%ld] %-.30s\n\r", bp->_static.recall, bs->vnum, bs->name);
 			}
 			else
 			{
-				sprintf(buf, "{xRecall:     %d [---] {Dinvalid{x\n\r", bp->static_recall);
+				sprintf(buf, "{xRecall:     %d [---] {Dinvalid{x\n\r", bp->_static.recall);
 			}
 
 			add_buf(buffer, buf);
@@ -2814,34 +2867,42 @@ BPEDIT( bpedit_show )
 			add_buf(buffer, "{xRecall:     None\n\r");
 		}
 
-		if( bp->static_entry_section > 0 && bp->static_entry_link > 0 )
+		BLUEPRINT_EXIT_DATA *bex;
+		ITERATOR bxit;
+		int bxindex = 1;
+		if (list_size(bp->_static.entries) > 0)
 		{
-			BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, bp->static_entry_section);
-
-			if( bs )
+			iterator_start(&bxit, bp->_static.entries);
+			while( (bex = (BLUEPRINT_EXIT_DATA *)iterator_nextdata(&bxit)) )
 			{
-				BLUEPRINT_LINK *bl = get_section_link(bs, bp->static_entry_link);
+				BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, bex->section);
 
-				char section_name[31];
-
-				strncpy(section_name, bs->name, 30);
-				section_name[30] = '\0';
-
-				if( bl && bl->vnum > 0 && bl->door >= 0 && bl->door < MAX_DIR )
+				if( bs )
 				{
-					sprintf(buf, "{xEntry:      %d [%ld] %s (%ld:%s)\n\r", bp->static_entry_section, bs->vnum, section_name, bl->vnum, dir_name[bl->door]);
+					BLUEPRINT_LINK *bl = get_section_link(bs, bex->link);
+
+					char section_name[31];
+
+					strncpy(section_name, bs->name, 30);
+					section_name[30] = '\0';
+
+					if( bl && bl->vnum > 0 && bl->door >= 0 && bl->door < MAX_DIR )
+					{
+						sprintf(buf, "{xEntry:      [%d] %d [%ld] %s (%ld:%s)\n\r", bxindex++, bex->section, bs->vnum, section_name, bl->vnum, dir_name[bl->door]);
+					}
+					else
+					{
+						sprintf(buf, "{xEntry:      [%d] %d [%ld] %s ({Dinvalid{x)\n\r", bxindex++, bex->section, bs->vnum, section_name);
+					}
 				}
 				else
 				{
-					sprintf(buf, "{xEntry:      %d [%ld] %s ({Dinvalid{x)\n\r", bp->static_entry_section, bs->vnum, section_name);
+					sprintf(buf, "{xEntry:      [%d] %d [---] {Dinvalid{x\n\r", bxindex++, bex->section);
 				}
-			}
-			else
-			{
-				sprintf(buf, "{xEntry:      %d [---] {Dinvalid{x\n\r", bp->static_entry_section);
-			}
 
-			add_buf(buffer, buf);
+				add_buf(buffer, buf);
+			}
+			iterator_stop(&bxit);
 		}
 		else
 		{
@@ -2849,34 +2910,40 @@ BPEDIT( bpedit_show )
 		}
 
 
-		if( bp->static_exit_section > 0 && bp->static_exit_link > 0 )
+		bxindex = 1;
+		if( list_size(bp->_static.exits) > 0 )
 		{
-			BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, bp->static_exit_section);
-
-			if( bs )
+			iterator_start(&bxit, bp->_static.exits);
+			while( (bex = (BLUEPRINT_EXIT_DATA *)iterator_nextdata(&bxit)) )
 			{
-				BLUEPRINT_LINK *bl = get_section_link(bs, bp->static_exit_link);
+				BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, bex->section);
 
-				char section_name[31];
-
-				strncpy(section_name, bs->name, 30);
-				section_name[30] = '\0';
-
-				if( bl && bl->vnum > 0 && bl->door >= 0 && bl->door < MAX_DIR )
+				if( bs )
 				{
-					sprintf(buf, "{xExit:       %d [%ld] %s (%ld:%s)\n\r", bp->static_exit_section, bs->vnum, section_name, bl->vnum, dir_name[bl->door]);
+					BLUEPRINT_LINK *bl = get_section_link(bs, bex->link);
+
+					char section_name[31];
+
+					strncpy(section_name, bs->name, 30);
+					section_name[30] = '\0';
+
+					if( bl && bl->vnum > 0 && bl->door >= 0 && bl->door < MAX_DIR )
+					{
+						sprintf(buf, "{xExit:       [%d] %d [%ld] %s (%ld:%s)\n\r", bxindex++, bex->section, bs->vnum, section_name, bl->vnum, dir_name[bl->door]);
+					}
+					else
+					{
+						sprintf(buf, "{xExit:       [%d] %d [%ld] %s ({Dinvalid{x)\n\r", bxindex++, bex->section, bs->vnum, section_name);
+					}
 				}
 				else
 				{
-					sprintf(buf, "{xExit:       %d [%ld] %s ({Dinvalid{x)\n\r", bp->static_exit_section, bs->vnum, section_name);
+					sprintf(buf, "{xExit:       [%d] %d [---] {Dinvalid{x\n\r", bxindex++, bex->section);
 				}
-			}
-			else
-			{
-				sprintf(buf, "{xExit:       %d [---] {Dinvalid{x\n\r", bp->static_exit_section);
-			}
 
-			add_buf(buffer, buf);
+				add_buf(buffer, buf);
+			}
+			iterator_stop(&bxit);
 		}
 		else
 		{
@@ -3196,12 +3263,10 @@ BPEDIT( bpedit_mode )
 		// Remove non-static data
 
 		// Initialize static data
-		bp->static_layout = NULL;
-		bp->static_recall = -1;
-		bp->static_entry_section = -1;
-		bp->static_entry_link = -1;
-		bp->static_exit_section = -1;
-		bp->static_exit_link = -1;
+		bp->_static.layout = NULL;
+		bp->_static.recall = -1;
+		list_clear(bp->_static.entries);
+		list_clear(bp->_static.exits);
 
 		send_to_char("Blueprint changed to STATIC mode.\n\r", ch);
 		return TRUE;
@@ -3286,7 +3351,7 @@ BPEDIT( bpedit_section )
 			STATIC_BLUEPRINT_LINK *prev, *cur, *next;
 
 			prev = NULL;
-			for(cur = bp->static_layout; cur; cur = next)
+			for(cur = bp->_static.layout; cur; cur = next)
 			{
 				next = cur->next;
 
@@ -3294,7 +3359,7 @@ BPEDIT( bpedit_section )
 				if( cur->section1 == index || cur->section2 == index )
 				{
 					if( !prev )
-						bp->static_layout = next;
+						bp->_static.layout = next;
 					else
 						prev->next = next;
 					free_static_blueprint_link(cur);
@@ -3312,28 +3377,41 @@ BPEDIT( bpedit_section )
 			}
 
 			// Check RECALL
-			if( bp->static_recall == index )
-				bp->static_recall = -1;
-			else if( bp->static_recall > index )
-				bp->static_recall--;
+			if( bp->_static.recall == index )
+				bp->_static.recall = -1;
+			else if( bp->_static.recall > index )
+				bp->_static.recall--;
 
-			// Check ENTRY
-			if( bp->static_entry_section == index )
-			{
-				bp->static_entry_section = -1;
-				bp->static_entry_link = -1;
-			}
-			else if( bp->static_entry_section > index )
-				bp->static_entry_section--;
+			ITERATOR bxit;
+			BLUEPRINT_EXIT_DATA *bex;
 
-			// Check EXIT
-			if( bp->static_exit_section == index )
+			iterator_start(&bxit, bp->_static.entries);
+			while( (bex = (BLUEPRINT_EXIT_DATA *)iterator_nextdata(&bxit)) )
 			{
-				bp->static_exit_section = -1;
-				bp->static_exit_link = -1;
+				if (bex->section == index)
+				{
+					iterator_remcurrent(&bxit);
+				}
+				else if (bex->section > index)
+				{
+					bex->section--;
+				}
 			}
-			else if( bp->static_exit_section > index )
-				bp->static_exit_section--;
+			iterator_stop(&bxit);
+
+			iterator_start(&bxit, bp->_static.exits);
+			while( (bex = (BLUEPRINT_EXIT_DATA *)iterator_nextdata(&bxit)) )
+			{
+				if (bex->section == index)
+				{
+					iterator_remcurrent(&bxit);
+				}
+				else if (bex->section > index)
+				{
+					bex->section--;
+				}
+			}
+			iterator_stop(&bxit);
 		}
 
 		return TRUE;
@@ -3405,10 +3483,10 @@ BPEDIT( bpedit_static )
 		send_to_char("         static link remove #\n\r", ch);
 		send_to_char("         static recall <section#>\n\r", ch);
 		send_to_char("         static recall clear\n\r", ch);
-		send_to_char("         static entry <section#> <link#>\n\r", ch);
-		send_to_char("         static entry clear\n\r", ch);
-		send_to_char("         static exit <section#> <link#>\n\r", ch);
-		send_to_char("         static exit clear\n\r", ch);
+		send_to_char("         static entry add <section#> <link#>\n\r", ch);
+		send_to_char("         static entry remove <#>\n\r", ch);
+		send_to_char("         static exit add <section#> <link#>\n\r", ch);
+		send_to_char("         static exit remove <#>\n\r", ch);
 		send_to_char("         static special add <section#> <room vnum> <name>\n\r", ch);
 		send_to_char("         static special # remove\n\r", ch);
 		send_to_char("         static special # name <name>\n\r", ch);
@@ -3661,8 +3739,8 @@ BPEDIT( bpedit_static )
 			sbl->section2 = section2;
 			sbl->link2 = link2;
 
-			sbl->next = bp->static_layout;
-			bp->static_layout = sbl;
+			sbl->next = bp->_static.layout;
+			bp->_static.layout = sbl;
 
 			send_to_char("Static link added.\n\r", ch);
 			return TRUE;
@@ -3686,14 +3764,14 @@ BPEDIT( bpedit_static )
 			}
 
 			prev = NULL;
-			for(cur = bp->static_layout; cur && index > 0; prev = cur, cur = cur->next)
+			for(cur = bp->_static.layout; cur && index > 0; prev = cur, cur = cur->next)
 			{
 				if( !--index )
 				{
 					if( prev )
 						prev->next = cur->next;
 					else
-						bp->static_layout = cur->next;
+						bp->_static.layout = cur->next;
 
 					free_static_blueprint_link(cur);
 					send_to_char("Link removed.\n\r", ch);
@@ -3728,14 +3806,14 @@ BPEDIT( bpedit_static )
 				return FALSE;
 			}
 
-			bp->static_recall = index;
+			bp->_static.recall = index;
 			send_to_char("Blueprint recall section changed.\n\r", ch);
 			return TRUE;
 		}
 
 		if( !str_prefix(argument, "clear") )
 		{
-			bp->static_recall = -1;
+			bp->_static.recall = -1;
 			send_to_char("Blueprint recall section cleared.\n\r", ch);
 			return TRUE;
 		}
@@ -3747,47 +3825,71 @@ BPEDIT( bpedit_static )
 	if( !str_prefix(arg, "entry") )
 	{
 		char arg2[MIL];
+		char arg3[MIL];
 
 		if( argument[0] == '\0' )
 		{
-			send_to_char("Syntax:  static entry <section#> <link#>\n\r", ch);
-			send_to_char("         static entry clear\n\r", ch);
+			send_to_char("Syntax:  static entry add <section#> <link#>\n\r", ch);
+			send_to_char("         static entry remove <#>\n\r", ch);
 			return FALSE;
 		}
 
 		argument = one_argument(argument, arg2);
 
-		if( is_number(arg2) && is_number(argument) )
+		if (!str_prefix(arg2, "add"))
 		{
-			int section = atoi(arg2);
-			int link = atoi(argument);
+			argument = one_argument(argument, arg3);
 
-			if( section < 1 || section > list_size(bp->sections) )
+			if( is_number(arg3) && is_number(argument) )
 			{
-				send_to_char("Section index out of range.\n\r", ch);
-				return FALSE;
+				int section = atoi(arg3);
+				int link = atoi(argument);
+
+				if( section < 1 || section > list_size(bp->sections) )
+				{
+					send_to_char("Section index out of range.\n\r", ch);
+					return FALSE;
+				}
+
+				BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, section);
+
+				if( !get_section_link(bs, link) )
+				{
+					send_to_char("Link index out of range.\n\r", ch);
+					return FALSE;
+				}
+
+				BLUEPRINT_EXIT_DATA *bex = new_blueprint_exit_data();
+				bex->section = section;
+				bex->link = link;
+				list_appendlink(bp->_static.entries, bex);
+
+				send_to_char("Blueprint entry point added.\n\r", ch);
+				return TRUE;
 			}
 
-			BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, section);
-
-			if( !get_section_link(bs, link) )
-			{
-				send_to_char("Link index out of range.\n\r", ch);
-				return FALSE;
-			}
-
-
-			bp->static_entry_section = section;
-			bp->static_entry_link = link;
-			send_to_char("Blueprint entry point changed.\n\r", ch);
-			return TRUE;
+			send_to_char("Syntax:  static entry add <section#> <link#>\n\r", ch);
+			return FALSE;
 		}
 
-		if( !str_prefix(arg2, "clear") )
+		if( !str_prefix(arg2, "remove") )
 		{
-			bp->static_entry_section = -1;
-			bp->static_entry_link = -1;
-			send_to_char("Blueprint entry point cleared.\n\r", ch);
+			if (!is_number(argument))
+			{
+				send_to_char("Syntax:  static entry remove <#>\n\r", ch);
+				return FALSE;
+			}
+
+			int index = atoi(argument);
+			if (index < 1 || index > list_size(bp->_static.entries))
+			{
+				send_to_char("No such entry point.\n\r", ch);
+				return FALSE;
+			}
+
+			list_remnthlink(bp->_static.entries, index);
+
+			send_to_char("Blueprint entry point removed.\n\r", ch);
 			return TRUE;
 		}
 
@@ -3801,46 +3903,72 @@ BPEDIT( bpedit_static )
 
 		if( argument[0] == '\0' )
 		{
-			send_to_char("Syntax:  static exit <section#> <link#>\n\r", ch);
-			send_to_char("         static exit clear\n\r", ch);
+			send_to_char("Syntax:  static exit add <section#> <link#>\n\r", ch);
+			send_to_char("         static exit remove <#>\n\r", ch);
 			return FALSE;
 		}
 
 		argument = one_argument(argument, arg2);
 
-		if( is_number(arg2) && is_number(argument) )
+		if (!str_prefix(arg2, "add"))
 		{
-			int section = atoi(arg2);
-			int link = atoi(argument);
+			char arg3[MIL];
+			
+			argument = one_argument(argument, arg3);
 
-			if( section < 1 || section > list_size(bp->sections) )
+			if( is_number(arg3) && is_number(argument) )
 			{
-				send_to_char("Section index out of range.\n\r", ch);
+				int section = atoi(arg3);
+				int link = atoi(argument);
+
+				if( section < 1 || section > list_size(bp->sections) )
+				{
+					send_to_char("Section index out of range.\n\r", ch);
+					return FALSE;
+				}
+
+				BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, section);
+
+				if( !get_section_link(bs, link) )
+				{
+					send_to_char("Link index out of range.\n\r", ch);
+					return FALSE;
+				}
+
+				BLUEPRINT_EXIT_DATA *bex = new_blueprint_exit_data();
+				bex->section = section;
+				bex->link = link;
+				list_appendlink(bp->_static.exits, bex);
+
+				send_to_char("Blueprint exit point added.\n\r", ch);
+				return TRUE;
+			}
+
+			send_to_char("Syntax:  static exit add <section#> <link#>\n\r", ch);
+			return FALSE;
+		}
+
+		if( !str_prefix(arg2, "remove") )
+		{
+			if (!is_number(argument))
+			{
+				send_to_char("Syntax:  static exit remove <#>\n\r", ch);
 				return FALSE;
 			}
 
-			BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, section);
-
-			if( !get_section_link(bs, link) )
+			int index = atoi(argument);
+			if (index < 1 || index > list_size(bp->_static.exits))
 			{
-				send_to_char("Link index out of range.\n\r", ch);
+				send_to_char("No such exit point.\n\r", ch);
 				return FALSE;
 			}
 
+			list_remnthlink(bp->_static.exits, index);
 
-			bp->static_exit_section = section;
-			bp->static_exit_link = link;
-			send_to_char("Blueprint exit point changed.\n\r", ch);
+			send_to_char("Blueprint exit point removed.\n\r", ch);
 			return TRUE;
 		}
 
-		if( !str_prefix(arg2, "clear") )
-		{
-			bp->static_exit_section = -1;
-			bp->static_exit_link = -1;
-			send_to_char("Blueprint exit point cleared.\n\r", ch);
-			return TRUE;
-		}
 
 		bpedit_static(ch, "exit");
 		return FALSE;

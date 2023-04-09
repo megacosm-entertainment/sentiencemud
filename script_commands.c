@@ -1168,7 +1168,7 @@ SCRIPT_CMD(scriptcmd_call)
 	}
 
 	// Do this to account for possible destructions
-	ret = execute_script(script->vnum, script, info->mob, info->obj, info->room, info->token, info->area, info->instance, info->dungeon, ch, obj1, obj2, vch, NULL,NULL, NULL,info->phrase,info->trigger,0,0,0,0,0);
+	ret = execute_script(script->vnum, script, info->mob, info->obj, info->room, info->token, info->area, info->instance, info->dungeon, ch, obj1, obj2, vch, NULL,NULL, NULL,info->phrase,info->trigger,info->trigger_type,0,0,0,0,0);
 	if(info->progs) {
 		info->progs->lastreturn = ret;
 	} else
@@ -2587,7 +2587,7 @@ SCRIPT_CMD(scriptcmd_questcancel)
 			return;
 
 		// Don't care about response
-		execute_script(script->vnum, script, info->mob, info->obj, info->room, info->token, NULL, NULL, NULL, mob, NULL, NULL, NULL, NULL,NULL, NULL,NULL,NULL,0,0,0,0,0);
+		execute_script(script->vnum, script, info->mob, info->obj, info->room, info->token, NULL, NULL, NULL, mob, NULL, NULL, NULL, NULL,NULL, NULL,NULL,NULL,TRIG_NONE,0,0,0,0,0);
 	}
 
 	free_quest(mob->quest);
@@ -2797,7 +2797,7 @@ SCRIPT_CMD(scriptcmd_questgenerate)
 
 		tempstores[0] = part->index;
 
-		if( execute_script(script->vnum, script, info->mob, info->obj, info->room, info->token, NULL, NULL, NULL, mob, NULL, NULL, NULL, NULL,NULL, NULL,NULL,NULL,0,0,0,0,0) <= 0 )
+		if( execute_script(script->vnum, script, info->mob, info->obj, info->room, info->token, NULL, NULL, NULL, mob, NULL, NULL, NULL, NULL,NULL, NULL,NULL,NULL,TRIG_NONE,0,0,0,0,0) <= 0 )
 		{
 			success = FALSE;
 			break;
@@ -4155,7 +4155,7 @@ SCRIPT_CMD(scriptcmd_xcall)
 	}
 
 	// Do this to account for possible destructions
-	ret = execute_script(script->vnum, script, mob, obj, room, token, area, instance, dungeon, ch, obj1, obj2, vch, NULL,NULL, NULL,info->phrase,info->trigger,0,0,0,0,0);
+	ret = execute_script(script->vnum, script, mob, obj, room, token, area, instance, dungeon, ch, obj1, obj2, vch, NULL,NULL, NULL,info->phrase,info->trigger,info->trigger_type,0,0,0,0,0);
 	if(info->progs)
 		info->progs->lastreturn = ret;
 	else

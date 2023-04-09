@@ -1222,6 +1222,10 @@ struct script_var_type {
 			int y;
 			int door;
 		} wdoor;
+		struct {
+			AREA_DATA *area;
+			long vnum;
+		} wnum;
 		DICE_DATA dice;
 		LLIST *list;	// Used for HOMOGENOUS lists only
 	} _;
@@ -1392,6 +1396,10 @@ struct script_parameter {
 			long value;
 			const struct flag_type *table;
 		} bv;
+		struct {
+			AREA_DATA *area;
+			long vnum;
+		} wnum;
 		DICE_DATA *dice;
 		VARIABLE **variables;
 		LLIST *blist;
@@ -1946,7 +1954,7 @@ int execute_script(long pvnum, SCRIPT_DATA *script,
 	CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token,
 	AREA_DATA *area, INSTANCE *instance, DUNGEON *dungeon,
 	CHAR_DATA *ch, OBJ_DATA *obj1,OBJ_DATA *obj2,CHAR_DATA *vch,CHAR_DATA *vch2,CHAR_DATA *rch,
-	TOKEN_DATA *tok, char *phrase, char *trigger,
+	TOKEN_DATA *tok, char *phrase, char *trigger, int trigger_type,
 	int number1, int number2, int number3, int number4, int number5);
 void get_level_damage(int level, int *num, int *type, bool fRemort, bool fTwo);
 CHAR_DATA *get_random_char(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token);
@@ -2637,6 +2645,8 @@ SCRIPT_CMD(scriptcmd_treasuremap);
 SCRIPT_CMD(scriptcmd_wildernessmap);
 SCRIPT_CMD(scriptcmd_specialkey);
 SCRIPT_CMD(scriptcmd_loadinstanced);
+
+SCRIPT_CMD(dngpcmd_levels);
 
 #include "tables.h"
 

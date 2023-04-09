@@ -45,6 +45,7 @@ build.txt
 .vscode/c_cpp_properties.json
 .devcontainer/
 .vscode/
+*.code-workspace
 nibtodo.txt
 send/
 nibchanges.txt

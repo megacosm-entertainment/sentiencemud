@@ -8240,8 +8240,8 @@ bool list_movelink(LLIST *lp, int from, int to)
 {
 	LLIST_LINK *old, *link, *prev;
 
-	if( from < 0 ) from = lp->size + from;
-	if( to < 0 ) to = lp->size + to;
+	if( from < 0 ) from = lp->size + from + 1;
+	if( to < 0 ) to = lp->size + to + 1;
 
 	if( !from || !to ) return false;
 
@@ -8331,7 +8331,7 @@ bool list_insertlink(LLIST *lp, void *data, int to)
 {
 	LLIST_LINK *link, *prev;
 
-	if( to < 0 ) to = lp->size + to;
+	if( to < 0 ) to = lp->size + to + 1;
 
 	if( !to ) return false;
 
@@ -8477,13 +8477,12 @@ bool list_hasdata(LLIST *lp, register void *ptr)
 
 int list_size(LLIST *lp)
 {
-	ITERATOR it;
-	int size;
-
 	if(!lp || !lp->valid) return 0;
 
 #if 0
-	size = 0;
+	ITERATOR it;
+	int size = 0;
+
 	iterator_start(&it, lp);
 	while((iterator_nextdata(&it))) ++size;
 

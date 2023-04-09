@@ -1,6 +1,9 @@
 {
-    "image": "sent:v01",
-    "forwardPorts": [9000],
-    "mounts": ["source=${localWorkspaceFolder},target=/sentience/data/newsrc,type=bind"],
-    "runArgs": ["--cap-add=SYS_PTRACE", "--security-opt", "seccomp=unconfined"]
+    "image": "ghcr.io/megacosm-entertainment/sentience-bullseye:latest",
+    "forwardPorts": [9999],
+    "mounts": ["source=${localWorkspaceFolder}/../,target=/sentience/,type=bind"],
+    "runArgs": ["--cap-add=SYS_PTRACE", "--security-opt", "seccomp=unconfined"],
+    "workspaceMount": "source=${localWorkspaceFolder},target=/sentience/src,type=bind",
+    "workspaceFolder": "/sentience/src"
 }
+
