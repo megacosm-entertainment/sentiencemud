@@ -78,7 +78,7 @@ void do_gq(CHAR_DATA *ch, char *argument)
 		if (!str_prefix("obj", arg2))
 			obj = TRUE;
 
-		sprintf(buf, "{Y#  %-6s %-34s %-5s", "Vnum", "Name", "Found{x\n\r");
+		sprintf(buf, "{Y#  %-8s %-34s %-5s", "Widevnum", "Name", "Found{x\n\r");
 		send_to_char(buf, ch);
 
 		line(ch, 60);
@@ -89,11 +89,12 @@ void do_gq(CHAR_DATA *ch, char *argument)
 			for (gq_mob = global_quest.mobs; gq_mob != NULL; gq_mob = gq_mob->next)
 			{
 				i++;
-				mob_index = get_mob_index(gq_mob->vnum);
+				mob_index = get_mob_index_auid(gq_mob->wnum_load.auid, gq_mob->wnum_load.vnum);
 
-				sprintf(buf, "{Y%-2d{x %-6ld %-30.30s %5d/%-5d\n\r",
+				sprintf(buf, "{Y%-2d{x %ld#%ld %-30.30s %5d/%-5d\n\r",
 					i,
-					gq_mob->vnum,
+					gq_mob->wnum_load.auid,
+					gq_mob->wnum_load.vnum,
 					mob_index->short_descr,
 					gq_mob->count,
 					gq_mob->max);
@@ -105,11 +106,12 @@ void do_gq(CHAR_DATA *ch, char *argument)
 			for (gq_obj = global_quest.objects; gq_obj != NULL; gq_obj = gq_obj->next)
 			{
 				i++;
-				obj_index = get_obj_index(gq_obj->vnum);
+				obj_index = get_obj_index_auid(gq_obj->wnum_load.auid, gq_obj->wnum_load.vnum);
 
-				sprintf(buf, "{Y%-2d{x %-6ld %-30.30s %5d/%-5d\n\r",
+				sprintf(buf, "{Y%-2d{x %ld#%ld %-30.30s %5d/%-5d\n\r",
 					i,
-					gq_obj->vnum,
+					gq_obj->wnum_load.auid,
+					gq_obj->wnum_load.vnum,
 					obj_index->short_descr,
 					gq_obj->count,
 					gq_obj->max);
@@ -243,25 +245,25 @@ void do_gq(CHAR_DATA *ch, char *argument)
 
 	if (!str_cmp(arg, "addmob"))
 	{
-	long vnum;
-	long obj_vnum;
+	WNUM wnum;
+	WNUM obj_wnum;
 	long max;
 
 	if (arg2[0] == '\0' || arg3[0] == '\0' || arg4[0] == '\0' || arg5[0] == '\0')
 	{
-		send_to_char("Syntax: gq addmob <mob vnum> <obj vnum> <class 0-4> <max to repop> [group]\n\r", ch);
+		send_to_char("Syntax: gq addmob <mob widevnum> <obj widevnum> <class 0-4> <max to repop> [group]\n\r", ch);
 		return;
 	}
 
-	if (!is_number(arg2))
+	if (!parse_widevnum(arg2, &wnum))
 	{
-		send_to_char("Mob vnum must be numerical.\n\r", ch);
+		send_to_char("Mob must be a widevnum.\n\r", ch);
 		return;
 	}
 
-	if (!is_number(arg3))
+	if (!parse_widevnum(arg3, &obj_wnum))
 	{
-		send_to_char("Obj vnum must be numerical.\n\r", ch);
+		send_to_char("Obj must be widevnum.\n\r", ch);
 		return;
 	}
 
@@ -277,17 +279,15 @@ void do_gq(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	vnum = atol(arg2);
-	obj_vnum = atol(arg3);
 	max = atoi(arg5);
 
-	if (get_mob_index(vnum) == NULL)
+	if (get_mob_index(wnum.pArea, wnum.vnum) == NULL)
 	{
 		send_to_char("That mob doesn't exist.\n\r", ch);
 		return;
 	}
 
-	if (get_obj_index(obj_vnum) == NULL && obj_vnum != 0)
+	if (obj_wnum.pArea && obj_wnum.vnum > 0 && get_obj_index(obj_wnum.pArea, obj_wnum.vnum) == NULL)
 	{
 		send_to_char("That object doesn't exist.\n\r", ch);
 		return;
@@ -307,7 +307,8 @@ void do_gq(CHAR_DATA *ch, char *argument)
 
 	for (gq_mob = global_quest.mobs; gq_mob != NULL; gq_mob = gq_mob->next)
 	{
-		if (gq_mob->vnum == vnum)
+		if (gq_mob->wnum_load.auid == wnum.pArea->uid &&
+			gq_mob->wnum_load.vnum == wnum.vnum)
 		{
 		send_to_char("You only need to add a mob once.\n\r", ch);
 		return;
@@ -315,8 +316,10 @@ void do_gq(CHAR_DATA *ch, char *argument)
 	}
 
 	gq_mob = new_gq_mob();
-	gq_mob->vnum = vnum;
-	gq_mob->obj = obj_vnum;
+	gq_mob->wnum_load.auid = wnum.pArea->uid;
+	gq_mob->wnum_load.vnum = wnum.vnum;
+	gq_mob->obj_load.auid = obj_wnum.pArea->uid;
+	gq_mob->obj_load.vnum = obj_wnum.vnum;
 	gq_mob->class = atoi(arg4);
 	gq_mob->max = max;
 	gq_mob->next = NULL;
@@ -336,11 +339,11 @@ void do_gq(CHAR_DATA *ch, char *argument)
 		global_quest.mobs = gq_mob;
 	}
 
-	sprintf(buf, "Added mob %s (vnum %ld), object %s (vnum %ld), class %d.\n\r",
-		get_mob_index(vnum)->short_descr,
-		vnum,
-		get_obj_index(obj_vnum) == NULL ? "none" : get_obj_index(obj_vnum)->short_descr,
-		obj_vnum,
+	sprintf(buf, "Added mob %s (wnum %ld#%ld), object %s (wnum %ld#%ld), class %d.\n\r",
+		get_mob_index(wnum.pArea, wnum.vnum)->short_descr,
+		wnum.pArea ? wnum.pArea->uid : 0, wnum.vnum,
+		get_obj_index(obj_wnum.pArea, obj_wnum.vnum) == NULL ? "none" : get_obj_index(obj_wnum.pArea, obj_wnum.vnum)->short_descr,
+		obj_wnum.pArea ? obj_wnum.pArea->uid : 0, obj_wnum.vnum,
 		atoi(arg4));
 	send_to_char(buf, ch);
 
@@ -361,23 +364,25 @@ void do_gq(CHAR_DATA *ch, char *argument)
 	buffer = new_buf();
 
 	sprintf(buf, "{Y#  %-20s %-10s %-20s %-10s %s %s{x\n\r",
-		"Mob Name", "Mob Vnum", "Obj Name", "Obj Vnum", "Class", "Group?");
+		"Mob Name", "Mob Wnum", "Obj Name", "Obj Vnum", "Class", "Group?");
 	send_to_char(buf, ch);
 	line(ch, 78);
 
 	i = 1;
 	for (gq_mob = global_quest.mobs; gq_mob != NULL; gq_mob = gq_mob->next)
 	{
-		mob_index = get_mob_index(gq_mob->vnum);
-		obj_index = get_obj_index(gq_mob->obj);
+		mob_index = get_mob_index_auid(gq_mob->wnum_load.auid, gq_mob->wnum_load.vnum);
+		obj_index = get_obj_index_auid(gq_mob->obj_load.auid, gq_mob->obj_load.vnum);
 		if (mob_index != NULL)
 		{
 		sprintf(buf,
-		"{Y%-2d{x %-20.20s %-10ld %-20.20s %-10ld %-5d %s\n\r",
+		"{Y%-2d{x %-20.20s %ld#%ld %-20.20s %ld#%ld %-5d %s\n\r",
 			i,
 			mob_index->short_descr,
+			mob_index->area->uid,
 			mob_index->vnum,
 			obj_index ? obj_index->short_descr : "none",
+			obj_index ? obj_index->area->uid : 0,
 			obj_index ? obj_index->vnum : 0,
 			gq_mob->class,
 			gq_mob->group == TRUE ? "yes" : "no");
@@ -428,9 +433,9 @@ void do_gq(CHAR_DATA *ch, char *argument)
 	else
 		prev_gq_mob->next = gq_mob->next;
 
-	sprintf(buf, "Removed %s (vnum %ld)\n\r",
-		get_mob_index(gq_mob->vnum)->short_descr,
-		gq_mob->vnum);
+	sprintf(buf, "Removed %s (wnum %ld#%ld)\n\r",
+		get_mob_index_auid(gq_mob->wnum_load.auid, gq_mob->wnum_load.vnum)->short_descr,
+		gq_mob->wnum_load.auid, gq_mob->wnum_load.vnum);
 	send_to_char(buf, ch);
 
 		free_gq_mob(gq_mob);
@@ -440,7 +445,7 @@ void do_gq(CHAR_DATA *ch, char *argument)
 	/* set up objects with rewards, etc */
 	if (!str_cmp(arg, "addobj"))
 	{
-	long vnum;
+	WNUM wnum;
 	int qp;
 	int prac;
 	long exp;
@@ -453,12 +458,17 @@ void do_gq(CHAR_DATA *ch, char *argument)
 		|| arg5[0] == '\0' || arg6[0] == '\0' || arg7[0] == '\0')
 	{
 		send_to_char(
-			"Syntax: gq addobj <vnum> <qp> <prac> <exp> <silver> <gold> [repop freq] [max to repop]\n\r", ch);
+			"Syntax: gq addobj <widevnum> <qp> <prac> <exp> <silver> <gold> [repop freq] [max to repop]\n\r", ch);
 		return;
 	}
 
-	if (!is_number(arg2)
-	|| !is_number(arg3)
+	if (!parse_widevnum(arg2, &wnum))
+	{
+		send_to_char("Object must be a widevnum.\n\r", ch);
+		return;
+	}
+
+	if (!is_number(arg3)
 	|| !is_number(arg4)
 	|| !is_number(arg5)
 	|| !is_number(arg6)
@@ -466,12 +476,11 @@ void do_gq(CHAR_DATA *ch, char *argument)
 	|| (arg8[0] != '\0' && !is_number(arg8))
 	|| (arg9[0] != '\0' && !is_number(arg9)))
 	{
-		send_to_char("All arguments must be numerical.\n\r", ch);
+		send_to_char("All arguments after the widevnum must be numerical.\n\r", ch);
 		return;
 	}
 
-	vnum = atol(arg2);
-	if (get_obj_index(vnum) == NULL)
+	if (get_obj_index(wnum.pArea, wnum.vnum) == NULL)
 	{
 		send_to_char("That object doesn't exist.\n\r", ch);
 		return;
@@ -479,7 +488,8 @@ void do_gq(CHAR_DATA *ch, char *argument)
 
 	for (gq_obj = global_quest.objects; gq_obj != NULL; gq_obj = gq_obj->next)
 	{
-		if (gq_obj->vnum == vnum)
+		if (gq_obj->wnum_load.auid == wnum.pArea->uid &&
+			gq_obj->wnum_load.vnum == wnum.vnum)
 		{
 		send_to_char("You only need to add a obj once.\n\r", ch);
 		return;
@@ -541,7 +551,8 @@ void do_gq(CHAR_DATA *ch, char *argument)
 	}
 
 	gq_obj = new_gq_obj();
-	gq_obj->vnum = vnum;
+	gq_obj->wnum_load.auid = wnum.pArea->uid;
+	gq_obj->wnum_load.vnum = wnum.vnum;
 	gq_obj->qp_reward = qp;
 	gq_obj->prac_reward = prac;
 	gq_obj->exp_reward = exp;
@@ -561,9 +572,10 @@ void do_gq(CHAR_DATA *ch, char *argument)
 		global_quest.objects = gq_obj;
 	}
 
-	sprintf(buf, "Added %s (vnum %ld), qp %d, prac %d, exp %ld, silver %d, gold %d, repop of %d%%, max amount %d.\n\r",
-		get_obj_index(vnum)->short_descr,
-		vnum,
+	sprintf(buf, "Added %s (wnum %ld#%ld), qp %d, prac %d, exp %ld, silver %d, gold %d, repop of %d%%, max amount %d.\n\r",
+		get_obj_index(wnum.pArea, wnum.vnum)->short_descr,
+		wnum.pArea->uid,
+		wnum.vnum,
 		qp,
 		prac,
 		exp,
@@ -609,9 +621,10 @@ void do_gq(CHAR_DATA *ch, char *argument)
 	else
 		prev_gq_obj->next = gq_obj->next;
 
-	sprintf(buf, "Removed %s (vnum %ld)\n\r",
-		get_obj_index(gq_obj->vnum)->short_descr,
-		gq_obj->vnum);
+	sprintf(buf, "Removed %s (wnum %ld#%ld)\n\r",
+		get_obj_index_auid(gq_obj->wnum_load.auid, gq_obj->wnum_load.vnum)->short_descr,
+		gq_obj->wnum_load.auid,
+		gq_obj->wnum_load.vnum);
 	send_to_char(buf, ch);
 
 		free_gq_obj(gq_obj);
@@ -634,7 +647,7 @@ void do_gq(CHAR_DATA *ch, char *argument)
 
 	sprintf(buf, "{Y#  %-20s %-10s %-7s %-7s %-10s %-7s %-7s{x\n\r",
 		"Obj Name",
-		"Obj Vnum",
+		"Obj Wnum",
 		"QP",
 		"Pracs",
 		"Exp",
@@ -646,13 +659,14 @@ void do_gq(CHAR_DATA *ch, char *argument)
 	i = 1;
 	for (gq_obj = global_quest.objects; gq_obj != NULL; gq_obj = gq_obj->next)
 	{
-		obj_index = get_obj_index(gq_obj->vnum);
+		obj_index = get_obj_index_auid(gq_obj->wnum_load.auid, gq_obj->wnum_load.vnum);
 		if (obj_index != NULL)
 		{
 		sprintf(buf,
-		"{Y%-2d{x %-20.20s %-10ld %-7d %-7d %-10ld %-7d %-7d\n\r",
+		"{Y%-2d{x %-20.20s %ld#%ld %-7d %-7d %-10ld %-7d %-7d\n\r",
 			i,
 			obj_index->short_descr,
+			obj_index->area->uid,
 			obj_index->vnum,
 			gq_obj->qp_reward,
 			gq_obj->prac_reward,
@@ -679,11 +693,11 @@ void do_gq(CHAR_DATA *ch, char *argument)
 	"    gq on|off|show|save|repop|xpboost|damboost\n\r"
 	"    addmob|delmob|moblist|addobj|delobj|objlist\n\r"
 	"    gq echo <string>\n\r", ch);
-	}
+}
 
 
-	void write_gq(void)
-	{
+void write_gq(void)
+{
 	FILE *fp;
 	GQ_MOB_DATA *gq_mob;
 	GQ_OBJ_DATA *gq_obj;
@@ -706,10 +720,10 @@ void do_gq(CHAR_DATA *ch, char *argument)
 	fprintf(fp, "%d\n", i);
 	for (gq_mob = global_quest.mobs; gq_mob != NULL; gq_mob = gq_mob->next)
 	{
-	fprintf(fp, "%ld\n", gq_mob->vnum);
+	fprintf(fp, "%ld#%ld\n", gq_mob->wnum_load.auid, gq_mob->wnum_load.vnum);
 	fprintf(fp, "%d\n", gq_mob->class);
 	fprintf(fp, "%d\n", gq_mob->group);
-	fprintf(fp, "%ld\n", gq_mob->obj);
+	fprintf(fp, "%ld#%ld\n", gq_mob->obj_load.auid, gq_mob->obj_load.vnum);
 	fprintf(fp, "%d\n", gq_mob->max);
 	}
 
@@ -723,7 +737,7 @@ void do_gq(CHAR_DATA *ch, char *argument)
 	fprintf(fp, "%d\n", i);
 	for (gq_obj = global_quest.objects; gq_obj != NULL; gq_obj = gq_obj->next)
 	{
-	fprintf(fp, "%ld\n", gq_obj->vnum);
+	fprintf(fp, "%ld#%ld\n", gq_obj->wnum_load.auid, gq_obj->wnum_load.vnum);
 	fprintf(fp, "%d\n", gq_obj->qp_reward);
 	fprintf(fp, "%d\n", gq_obj->prac_reward);
 	fprintf(fp, "%ld\n", gq_obj->exp_reward);
@@ -761,10 +775,10 @@ void read_gq(void)
 	if (last_gq_mob != NULL)
 	    last_gq_mob->next = gq_mob;
 
-	gq_mob->vnum = fread_number(fp);
+	gq_mob->wnum_load = fread_widevnum(fp);
 	gq_mob->class = fread_number(fp);
 	gq_mob->group = fread_number(fp);
-	gq_mob->obj = fread_number(fp);
+	gq_mob->obj_load = fread_widevnum(fp);
 	gq_mob->max = fread_number(fp);
 
 	last_gq_mob = gq_mob;
@@ -779,7 +793,7 @@ void read_gq(void)
 	if (last_gq_obj != NULL)
 	    last_gq_obj->next = gq_obj;
 
-	gq_obj->vnum = fread_number(fp);
+	gq_obj->wnum_load = fread_widevnum(fp);
 	gq_obj->qp_reward = fread_number(fp);
 	gq_obj->prac_reward = fread_number(fp);
 	gq_obj->exp_reward = fread_number(fp);

@@ -1202,19 +1202,6 @@ void do_quit(CHAR_DATA *ch, char *argument)
 	if (ch->pulled_cart != NULL)
 	do_function(ch, &do_drop, ch->pulled_cart->name);
 
-	if (auto_war != NULL && ch->in_war)
-	{
-	char_from_team(ch);
-
-	if (ch->in_room != NULL && ch->in_room->vnum == ROOM_VNUM_AUTO_WAR)
-	{
-	char_from_room(ch);
-	char_to_room(ch, get_room_index(ROOM_VNUM_TEMPLE));
-	}
-
-	test_for_end_of_war();
-	}
-
 	if (ch->ambush != NULL)
 	send_to_char("You stop your ambush.\n\r", ch);
 

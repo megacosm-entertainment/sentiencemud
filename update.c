@@ -474,7 +474,7 @@ int hit_gain(CHAR_DATA *ch)
 		gain += gain/3;
 
 	/* If you have the relic you get 25% more */
-	if (ch->church && vnum_in_treasure_room(ch->church, OBJ_VNUM_RELIC_HP_REGEN))
+	if (ch->church && objindex_in_treasure_room(ch->church, obj_index_relic_hp_regen))
 		gain += gain / 4;
 
 	ch->tempstore[0] = gain;
@@ -563,12 +563,13 @@ int mana_gain(CHAR_DATA *ch)
 	if (get_profession(ch, SUBCLASS_CLERIC) == CLASS_CLERIC_DRUID && is_in_nature(ch))
 		gain += gain/3;
 
-	if (ch->church && vnum_in_treasure_room(ch->church, OBJ_VNUM_RELIC_MANA_REGEN))
+	if (ch->church && objindex_in_treasure_room(ch->church, obj_index_relic_mana_regen))
 		gain += gain / 4;
 
 	if (IS_ELF(ch))
 		gain *= 2;
 
+	// TODO: turn this into a trait or add grn's
 	if (!str_cmp(race_table[ch->race].name, "lich"))
 		gain = (gain * 5)/2;
 
@@ -1050,168 +1051,16 @@ void mobile_update(void)
 
 void remove_port(long vnum_boat_dock, int door)
 {
-#if 0
-    ROOM_INDEX_DATA *pWildRoom;
-    char buf[MAX_STRING_LENGTH];
-
-    if ((pWildRoom = get_room_index(vnum_boat_dock)) != NULL)
-    {
-	rp_change_exit(get_room_index(6551), "west delete", DIR_WEST);
-	sprintf(buf, "west %ld", vnum_boat_dock-1);
-	rp_change_exit(pWildRoom, buf, DIR_WEST);
-	sprintf(buf, "north %ld", vnum_boat_dock-348);
-	rp_change_exit(pWildRoom, buf, DIR_NORTH);
-	sprintf(buf, "south %ld", vnum_boat_dock+348);
-	rp_change_exit(pWildRoom, buf, DIR_SOUTH);
-	sprintf(buf, "east %ld", vnum_boat_dock+1);
-	rp_change_exit(pWildRoom, buf, DIR_EAST);
-    }
-#endif
 }
 
 
 void create_port(long vnum_port, long vnum_boat_dock, int door)
 {
-#if 0
-    ROOM_INDEX_DATA *pRoom;
-    ROOM_INDEX_DATA *pWildRoom;
-
-    if ((pWildRoom = get_room_index(vnum_boat_dock)) != NULL &&
-	    (pRoom = get_room_index(vnum_port)) != NULL)
-    {
-	rp_change_exit(pWildRoom, "west delete", DIR_WEST);
-	rp_change_exit(pWildRoom, "east delete", DIR_EAST);
-	rp_change_exit(pWildRoom, "south delete", DIR_SOUTH);
-	rp_change_exit(pWildRoom, "north delete", DIR_NORTH);
-	rp_change_exit(pRoom, "east 6551", DIR_EAST);
-    }
-#endif
 }
 
 // Update the public boat.
 void update_public_boat(int time)
 {
-#if 0
-    ROOM_INDEX_DATA *room;
-    AREA_DATA *ship_area;
-
-    ship_area = find_area("Ship");
-    if (ship_area == NULL)
-    {
-	bug("update_public_boat: ship area was null!", 0);
-	return;
-    }
-
-    if (find_area("Wilderness") == NULL)
-    {
-	log_string("update_public_boat: no wilderness!");
-	return;
-    }
-
-    // Boat arrives in at Plith
-    if (time == 7)
-    {
-	room = get_room_index(744104);
-	rp_change_exit(room, "command delete", DIR_EAST);
-	rp_change_exit(room, "command 6551", DIR_EAST);
-
-	room = get_room_index(6551);
-	rp_change_exit(room, "command 744104", DIR_WEST);
-
-	room_echo(room, "{YCaptain Pinot yells 'The Endeavor has arrived in Plith!'{x\n\r");
-
-	sector_echo(ship_area, "{YCaptain Pinot yells 'The Endeavor has arrived in Plith!'{x", SECT_INSIDE);
-
-	sector_echo(find_area("Plith"), "{YYou hear the large horns of the Endeavor as it enters Plith harbour!{x", SECT_CITY);
-    }
-    else
-    // Boat leaves from Plith
-    if (time == 9)
-    {
-	room = get_room_index(744104);
-	room_echo(room, "{YCaptain Pinot yells 'The Endeavor has left for Achaeus!'{x\n\r");
-
-	rp_change_exit(room, "command delete", DIR_EAST);
-	rp_change_exit(room, "command 744105", DIR_EAST);
-
-	room = get_room_index(6551);
-	rp_change_exit(room, "command delete", DIR_WEST);
-
-	sector_echo(ship_area, "{YCaptain Pinot yells 'The Endeavor has left for Achaeus!'{x", SECT_INSIDE);
-
-	sector_echo(find_area("Plith"), "{YYou hear the large horns of the Endeavor as it leaves Plith harbour!{x", SECT_CITY);
-    }
-    else
-    // Boat arrives in at Achaeus
-    if (time == 16)
-    {
-	room = get_room_index(781122);
-
-	rp_change_exit(room, "command delete", DIR_EAST);
-	rp_change_exit(room, "command 6551", DIR_EAST);
-
-	room = get_room_index(6551);
-	rp_change_exit(room, "command 781122", DIR_WEST);
-
-	room_echo(room, "{YCaptain Pinot yells 'The Endeavor has arrived in Achaeus!'{x\n\r");
-
-	sector_echo(ship_area, "{YCaptain Pinot yells 'The Endeavor has arrived in Achaeus!'{x", SECT_INSIDE);
-
-	sector_echo(find_area("Achaeus"), "{YYou hear the large horns of the Endeavor as it enters Achaeus harbour!{x", SECT_CITY);
-    }
-    else
-    // Boat leaves from Achaeus
-    if (time == 18)
-    {
-	room = get_room_index(781122);
-
-	rp_change_exit(room, "command delete", DIR_EAST);
-	rp_change_exit(room, "command 781123", DIR_EAST);
-
-	room = get_room_index(6551);
-	rp_change_exit(room, "command delete", DIR_WEST);
-
-	room_echo(room, "{YCaptain Pinot yells 'The Endeavor has left for Olaria!'{x\n\r");
-
-	sector_echo(ship_area, "{YCaptain Pinot yells 'The Endeavor has left for Olaria!'{x", SECT_INSIDE);
-
-	sector_echo(find_area("Achaeus"), "{YYou hear the large horns of the Endeavor as it leaves Achaeus harbour!{x", SECT_CITY);
-    }
-    else
-    // Boat arrives in at Olaria
-    if (time == 1)
-    {
-	room = get_room_index(656895);
-	rp_change_exit(room, "command delete", DIR_EAST);
-	rp_change_exit(room, "command 6551", DIR_EAST);
-
-	room = get_room_index(6551);
-	rp_change_exit(room, "command 656895", DIR_WEST);
-
-	room_echo(room, "{YCaptain Pinot yells 'The Endeavor has arrived in Olaria!'{x\n\r");
-
-	sector_echo(ship_area, "{YCaptain Pinot yells 'The Endeavor has arrived in Olaria!'{x", SECT_INSIDE);
-
-	sector_echo(find_area("Olaria"), "{YYou hear the large horns of the Endeavor as it enters Olaria harbour!{x", SECT_CITY);
-    }
-    else
-    // Boat leaves from Olaria
-    if (time == 3)
-    {
-	room = get_room_index(656895);
-	rp_change_exit(room, "command delete", DIR_EAST);
-	rp_change_exit(room, "command 656896", DIR_EAST);
-
-	room = get_room_index(6551);
-	rp_change_exit(room, "command delete", DIR_WEST);
-
-	room_echo(room, "{YCaptain Pinot yells 'The Endeavor has left for Plith!'{x\n\r");
-
-	sector_echo(ship_area, "{YCaptain Pinot yells 'The Endeavor has left for Plith!'{x", SECT_INSIDE);
-
-	sector_echo(find_area("Olaria"), "{YYou hear the large horns of the Endeavor as it leaves Olaria harbour!{x", SECT_CITY);
-    }
-#endif
 }
 
 
@@ -1229,12 +1078,10 @@ void time_update(void)
     // Update public boat.
     switch (time_info.hour)
     {
-	case  1: // Boat arrives in Olaria
-	    //update_public_boat(time_info.hour);
+	case  1:
 	    break;
 
-	case  3: // Boat leaves from Olaria
-	    //update_public_boat(time_info.hour);
+	case  3:
 	    break;
 
 	case  5:
@@ -1247,20 +1094,16 @@ void time_update(void)
 	    strcat(buf, "The sun rises in the east.\n\r");
 	    break;
 
-	case 7: //Boat arrives in plith
-	    //update_public_boat(time_info.hour);
+	case 7:
 	    break;
 
-	case 9: //Boat leaves in plith
-	    //update_public_boat(time_info.hour);
+	case 9:
 	    break;
 
-	case 16: // Boat arrives in achaeus
-	    //update_public_boat(time_info.hour);
+	case 16:
 	    break;
 
-	case 18: // Boat leaves achaeus
-	    //update_public_boat(time_info.hour);
+	case 18:
 	    break;
 
 	case 19:
@@ -1278,40 +1121,6 @@ void time_update(void)
 	    time_info.day++;
 	    break;
     }
-
-#if 0
-    /*
-     * This is for the PLITH Airship. After two hours it must be made to go back home.
-     */
-    if ( plith_airship != NULL )
-    {
-  if ( plith_airship->captain != NULL
-  && plith_airship->captain->ship_arrival_time == time_info.hour
-  && str_cmp( plith_airship->ship->ship->in_room->area->name, "Plith" ) )
-  {
-      AREA_DATA *plith = find_area( "Plith" );
-//sprintf(buf, "Just added plith waypoint %ld %ld ",  plith->x, plith->y );
-//log_string(buf);
-      add_move_waypoint( plith_airship->ship, plith->x, plith->y );
-
-//      sprintf(buf, "{YThe %s rises high into the sky then disappears!{x\n\r", plith_airship->ship->ship_name );
-//      echo_around(plith_airship->ship->ship->in_room, buf);
- //     room_echo(plith_airship->ship->ship->in_room, buf);
-				SHIP_STATE(plith_airship->captain, 8);
-//gecho("moo");
-      //gecho( "ITS GONE TO fly back home!" );
-
-		//plith_airship->captain->ship_depart_time = 80;
-	//	plith_airship->captain->ship_dest_x = plith->x;
-//		plith_airship->captain->ship_dest_y = plith->y;
-  }
-  else
-  {
-      sprintf( buf, "Airship ship_arrival_time=%d. Area name='%s'. Captain exists=%s", plith_airship->captain->ship_arrival_time, plith_airship->ship->ship->in_room->area->name, plith_airship->captain==NULL ? "FALSE" : "TRUE" );
-      log_string( buf );
-  }
-    }
-#endif
 
     buf[0] = '\0';
 
@@ -1458,16 +1267,6 @@ void time_update(void)
  */
 void reset_waypoint( NPC_SHIP_DATA *npc_ship )
 {
-#if 0
-    long index = 0;
-    SHIP_DATA *ship = npc_ship->ship;
-
-    if ( ship->current_waypoint != NULL && !(ship->current_waypoint->x==0 && ship->current_waypoint->y==0))
-    {
-	index = (long)((long)ship->current_waypoint->y * ship->ship->in_room->area->map_size_x + (long)ship->current_waypoint->x + ship->ship->in_room->area->min_vnum + WILDERNESS_VNUM_OFFSET);
-	ship->destination = get_room_index(index);
-    }
-#endif
 }
 
 
@@ -1805,7 +1604,7 @@ void char_update(void)
 						save_char_obj(ch);
 
 					char_from_room(ch);
-					char_to_room(ch, get_room_index(ROOM_VNUM_LIMBO));
+					char_to_room(ch, room_index_limbo);
 				}
 			}
 
@@ -2302,12 +2101,12 @@ void obj_update(void)
 						bug("Seed has 0 vnum.", obj->pIndexData->vnum);
 					else {
 						OBJ_DATA *new_obj;
-						if (get_obj_index(obj->value[1]) == NULL) {
+						if (get_obj_index(obj->pIndexData->area, obj->value[1]) == NULL) {
 							bug("Seed is buggered. Value 1 doesn't match anything:", obj->pIndexData->vnum);
 							continue;
 						}
 
-						new_obj = create_object(get_obj_index(obj->value[1]), obj->level, TRUE);
+						new_obj = create_object(get_obj_index(obj->pIndexData->area, obj->value[1]), obj->level, TRUE);
 						obj_to_room(new_obj, obj->in_room);
 
 						p_percent_trigger(NULL, new_obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
@@ -3077,7 +2876,7 @@ void update_hunting(void)
 		continue;
 	    }
 	    else
-		direction = find_path(mob->in_room->vnum, mob->hunting->in_room->vnum, mob, -600, FALSE);
+		direction = find_path(mob->in_room->area, mob->in_room->vnum, mob->hunting->in_room->area, mob->hunting->in_room->vnum, mob, -600, FALSE);
 
 	    if (direction == -1)
 	    {
@@ -3154,7 +2953,7 @@ void update_hunting_pc(CHAR_DATA *ch)
 	return;
     }
 
-    direction = find_path(ch->in_room->vnum, victim->in_room->vnum, ch, -500, FALSE);
+    direction = find_path(ch->in_room->area, ch->in_room->vnum, victim->in_room->area, victim->in_room->vnum, ch, -500, FALSE);
 
     if (direction == -1)
     {
@@ -3225,6 +3024,7 @@ void update_hunting_pc(CHAR_DATA *ch)
 
 
 // Update the pneuma relic. Add another pneuma to its stash.
+// TODO: Just make this a script on the relic itself
 void pneuma_relic_update(void)
 {
     OBJ_DATA *pneuma;
@@ -3239,7 +3039,7 @@ void pneuma_relic_update(void)
 
         if (chance > 80)
 	{
-	    pneuma = create_object(get_obj_index(OBJ_VNUM_BOTTLED_SOUL), 0, TRUE);
+	    pneuma = create_object(obj_index_bottled_soul, 0, TRUE);
 	    obj_to_room(pneuma, pneuma_relic->in_room);
 
             for (people = pneuma_relic->in_room->people; people != NULL; people = people->next_in_room)

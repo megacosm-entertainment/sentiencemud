@@ -287,6 +287,8 @@ void join_world args ((DESCRIPTOR_DATA * d));
  */
 extern void boat_attack(CHAR_DATA *ch);
 
+extern void save_area_list();
+extern void save_area_new(AREA_DATA *area);
 
 /*
  * Global variables.
@@ -342,6 +344,7 @@ void add_possible_races(CHAR_DATA *ch, char *string);
 char logfile_std[MIL];
 char logfile_err[MIL];
 
+extern bool fBootstrap;
 
 static void RedirectSTDOUT(void)
 {
@@ -592,8 +595,8 @@ int main(int argc, char **argv)
      */
     if ((fpReserve = fopen(NULL_FILE, "r")) == NULL)
     {
-	perror(NULL_FILE);
-	exit(1);
+		perror(NULL_FILE);
+		exit(1);
     }
 
     /*
@@ -1392,36 +1395,33 @@ void read_from_buffer(DESCRIPTOR_DATA *d)
     if (k > 1 || d->incomm[0] == '!')
     {
     	if (d->incomm[0] != '!' && strcmp(d->incomm, d->inlast))
-	{
-	    d->repeat = 0;
-	}
-	else
-	{
-	    if (++d->repeat >= 100
-            && d->character
-	    && d->connected == CON_PLAYING
-	    && !IS_IMMORTAL(d->character))
+		{
+			d->repeat = 0;
+		}
+		else if (++d->repeat >= 100 &&
+			d->character &&
+			d->connected == CON_PLAYING &&
+			!IS_IMMORTAL(d->character))
 	    {
-		sprintf(log_buf, "%s input spamming!", d->host);
-		log_string(log_buf);
+			sprintf(log_buf, "%s input spamming!", d->host);
+			log_string(log_buf);
 
-		wiznet("Spam spam spam $N spam spam spam!",
-		       d->character,NULL,WIZ_SPAM,0,get_trust(d->character));
-		if (d->incomm[0] == '!')
-		    wiznet(d->inlast,d->character,NULL,WIZ_SPAM,0,
-			get_trust(d->character));
-		else
-		    wiznet(d->incomm,d->character,NULL,WIZ_SPAM,0,
-			get_trust(d->character));
+			wiznet("Spam spam spam $N spam spam spam!",
+				d->character,NULL,WIZ_SPAM,0,get_trust(d->character));
+			if (d->incomm[0] == '!')
+				wiznet(d->inlast,d->character,NULL,WIZ_SPAM,0,
+				get_trust(d->character));
+			else
+				wiznet(d->incomm,d->character,NULL,WIZ_SPAM,0,
+				get_trust(d->character));
 
-		d->repeat = 0;
+			d->repeat = 0;
 
-		write_to_descriptor(d,
-		    "\n\r*** PUT A LID ON IT!!! ***\n\r", 0);
-		strcpy(d->incomm, "quit");
+			write_to_descriptor(d,
+				"\n\r*** PUT A LID ON IT!!! ***\n\r", 0);
+			strcpy(d->incomm, "quit");
 
-	    }
-	}
+		}
     }
 
 
@@ -1429,17 +1429,16 @@ void read_from_buffer(DESCRIPTOR_DATA *d)
      * Do '!' substitution.
      */
     if (d->incomm[0] == '!')
-	strcpy(d->incomm, d->inlast);
+		strcpy(d->incomm, d->inlast);
     else
-	strcpy(d->inlast, d->incomm);
+		strcpy(d->inlast, d->incomm);
 
     /*
      * Shift the input buffer.
      */
     while (d->inbuf[i] == '\n' || d->inbuf[i] == '\r')
-	i++;
-    for (j = 0; (d->inbuf[j] = d->inbuf[i+j]) != '\0'; j++)
-	;
+		i++;
+    for (j = 0; (d->inbuf[j] = d->inbuf[i+j]) != '\0'; j++);
     return;
 }
 
@@ -1992,106 +1991,6 @@ void plogf (char *fmt, ...)
     log_string (buf);
 }
 
-/*
-void join_world(DESCRIPTOR_DATA * d)
-{
-    CHAR_DATA *ch;
-    char buf[MSL];
-
-    ch = d->character;
-    plogf ("nanny.c, join_world(): Placing character in game.");
-    if (ch->pcdata == NULL || ch->pcdata->pwd[0] == '\0')
-    {
-        send_to_char ("Warning! Null password!\n\r", ch);
-        send_to_char ("Please report old password with bug.\n\r",
-                      ch);
-        send_to_char ("Type 'password null <new password>' to fix.\n\r",
-                      ch);
-    }
-
-	list_appendlink(loaded_char, ch);
-
-    d->connected = CON_PLAYING;
-    reset_char (ch);
-
-    if (ch->level == 0)
-    {
-        if(global.mud_ansicolour)
-            SET_BIT (ch->act, PLR_COLOUR);
-        if(global.mud_telnetga)
-            SET_BIT (ch->comm, COMM_TELNET_GA);
-
-        ch->perm_stat[class_table[ch->class].attr_prime] += 3;
-
-        ch->level = 1;
-        ch->tot_level = 1;
-        ch->exp = exp_per_level (ch, ch->pcdata->points);
-        ch->hit = ch->max_hit;
-        ch->mana = ch->max_mana;
-        ch->move = ch->max_move;
-        ch->train = 3;
-        ch->practice = 5;
-        sprintf (buf, "the %s", title_table[ch->class][ch->level]
-                 [ch->normal_sex == SEX_FEMALE ? 1 : 0]);
-        set_title (ch, buf);
-
-        obj_to_char (create_object (get_obj_index (OBJ_VNUM_MAP), 0),
-                     ch);
-
-        char_to_room (ch, get_room_index (ROOM_VNUM_SCHOOL));
-        send_to_char ("\n\r", ch);
-        do_function (ch, &do_help, "newbie info");
-    }
-    else
-    {
-        if (ch->in_room != NULL)
-        {
-            plogf("nanny.c, join_world(): Transferring char to Real Room");
-            char_to_room (ch, ch->in_room);
-        }
-        else
-        {
-            if (ch->in_wilds != NULL)
-            {
-                plogf("nanny.c, join_world(): Transferring char to VRoom");
-                char_to_vroom (ch, ch->in_wilds, ch->at_wilds_x, ch->at_wilds_y);
-            }
-            else
-            {
-                if (IS_IMMORTAL (ch))
-                {
-                    char_to_room (ch, get_room_index (ROOM_VNUM_CHAT));
-                }
-                else
-                {
-                    char_to_room (ch, get_room_index (ROOM_VNUM_LIMBO));
-                }
-            }
-        }
-    }
-
-    send_to_char ("\n\r", ch);
-    do_function (ch, &do_last, "");
-    send_to_char(
-                 "12345678901234567890123456789012345678901234567890123456789012345678901234567890\n\r", ch);
-    send_to_char(
-                 "       Make sure you can see the above line (80 chars) all on one line---------^\n\r", ch);
-    act ("$n has entered the game.", ch, NULL, NULL, TO_ROOM);
-    do_function (ch, &do_look, "auto");
-
-    wiznet ("$N has left real life behind.", ch, NULL,
-            WIZ_LOGINS, WIZ_SITES, get_trust (ch));
-
-    if (ch->pet != NULL)
-    {
-        char_to_room (ch->pet, ch->in_room);
-        act ("$n has entered the game.", ch->pet, NULL, NULL,
-             TO_ROOM);
-    }
-
-    return;
-}
-*/
 
 
 /*
@@ -2262,29 +2161,29 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 #if defined(unix)
 		write_to_buffer(d, "\n\r", 2);
 #endif
-		if (ch->pcdata->pwd_vers < 1) {
-		if (strcmp(crypt(argument, ch->pcdata->pwd), ch->pcdata->pwd))
+		if (ch->pcdata->pwd_vers < 1)
 		{
-			if (strcmp(argument, ch->pcdata->pwd))
+			if (strcmp(crypt(argument, ch->pcdata->pwd), ch->pcdata->pwd))
 			{
-				/* Log bad password attempts*/
-				sprintf(log_buf, "Denying access to %s@%s (bad password).",
-				ch->name, d->host);
-				log_string(log_buf);
-				wiznet(log_buf,NULL,NULL,WIZ_LOGINS,0,get_trust(ch));
-				write_to_buffer(d, "Wrong password.\n\r", 0);
-				close_socket(d);
-				return;
+				if (strcmp(argument, ch->pcdata->pwd))
+				{
+					/* Log bad password attempts*/
+					sprintf(log_buf, "Denying access to %s@%s (bad password).",
+					ch->name, d->host);
+					log_string(log_buf);
+					wiznet(log_buf,NULL,NULL,WIZ_LOGINS,0,get_trust(ch));
+					write_to_buffer(d, "Wrong password.\n\r", 0);
+					close_socket(d);
+					return;
+				}
 			}
-		}
 		}
 		else
 		{
 			if (strcmp(sha256_crypt(argument), ch->pcdata->pwd))
 			{
 				/* Log bad password attempts */
-				sprintf(log_buf, "Denying access to %s@%s (bad password).",
-				ch->name, d->host);
+				sprintf(log_buf, "Denying access to %s@%s (bad password).", ch->name, d->host);
 				log_string(log_buf);
 				wiznet(log_buf,NULL,NULL,WIZ_LOGINS,0,get_trust(ch));
 				write_to_buffer(d, "Wrong password.\n\r", 0);
@@ -3033,23 +2932,107 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 			ch->practice = 5;
 			sprintf(buf, "{x");
 			set_title(ch, buf);
-			char_to_room(ch, get_room_index(ROOM_VNUM_SCHOOL));
-			do_function(ch, &do_changes, "catchup");
-			SET_BIT(ch->comm, COMM_NO_OOC);
-			SET_BIT(ch->comm, COMM_NO_FLAMING);
-			send_to_char("\n\r",ch);
-			for (d2 = descriptor_list; d2 != NULL; d2 = d2->next)
+			if (fBootstrap)
 			{
-				if (d2->connected == CON_PLAYING && d2->character != ch &&
-					!IS_SET(d2->character->comm, COMM_NOANNOUNCE))
-				{
-					act("{MThe Town Crier Announces 'All welcome $N, a new adventurer to Sentience!'{x",
-						d2->character,ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-				}
-			}
+				log_string("Bootstrapping game");
+				// Bootstrap the building process and make this player a MAX_LEVEL
+				send_to_char("{WBOOTSTRAPPING SENTIENCE!{x\n\r", ch);
+				sprintf(buf, "Upgrading you to level {Y%d{x.\n\r", MAX_LEVEL);
+				send_to_char(buf, ch);
 
-			ch->level = 1;
-			ch->tot_level = 1;
+				ch->level = MAX_LEVEL;
+				ch->tot_level = MAX_LEVEL;
+				ch->pcdata->security = 9;
+
+				IMMORTAL_DATA *immortal = new_immortal();
+
+				immortal->name = str_dup(ch->name);
+				immortal->imm_flag = str_dup("{R  Immortal  {x");
+				immortal->created = current_time;
+
+				/* start them off as unassigned */
+				immortal->next = immortal_list;
+				immortal_list = immortal;
+
+				ch->pcdata->immortal = immortal;
+				SET_BIT(ch->act, PLR_HOLYLIGHT);
+				SET_BIT(ch->act, PLR_HOLYWARP);
+				SET_BIT(ch->act, PLR_HOLYAURA);
+
+				// Create bootstrap area
+				AREA_DATA *pArea = new_area();
+				pArea->uid = gconfig.next_area_uid++;
+				free_string(pArea->name);
+				pArea->name = str_dup("Bootstrap");
+				free_string(pArea->file_name);
+				pArea->file_name = str_dup("bootstrap.are");
+				area_first = pArea;		// area_first is NULL for fBootstrap to be set TRUE
+				area_last = pArea;
+
+				ROOM_INDEX_DATA *pRoom = new_room_index();
+				pRoom->area = pArea;
+				list_appendlink(pArea->room_list, pRoom);
+				pRoom->vnum	= 1;
+
+				int iHash = pRoom->vnum % MAX_KEY_HASH;
+				pRoom->next	= pArea->room_index_hash[iHash];
+				pArea->room_index_hash[iHash] = pRoom;
+
+				pArea->top_vnum_room = 1;
+
+				// Update the reserved rooms to this location.
+				room_wnum_default.pArea = pArea;
+				room_wnum_default.vnum = 1;
+
+				room_wnum_school = room_wnum_default;
+				room_wnum_death = room_wnum_default;
+				room_wnum_temple = room_wnum_default;
+				room_wnum_chat = room_wnum_default;
+				room_wnum_limbo = room_wnum_default;
+				room_wnum_arena = room_wnum_default;
+				room_wnum_donation = room_wnum_default;
+
+				// Save the bootstrapping
+				gconfig_write();
+				log_string("Saving bootstrapped area");
+				save_area_list();
+
+				for (pArea = area_first; pArea; pArea = pArea->next)
+				{
+					save_area_new(pArea);
+
+					REMOVE_BIT(pArea->area_flags, AREA_CHANGED);
+				}
+
+				char_to_room(ch, pRoom);
+
+				do_function(ch, &do_changes, "catchup");
+				save_char_obj(ch);
+				send_to_char("\n\r",ch);
+				send_to_char("Bootstrapping process complete.\n\r", ch);
+
+				fBootstrap = FALSE;
+			}
+			else
+			{
+				char_to_room(ch, room_index_school);
+				do_function(ch, &do_changes, "catchup");
+				SET_BIT(ch->comm, COMM_NO_OOC);
+				SET_BIT(ch->comm, COMM_NO_FLAMING);
+				send_to_char("\n\r",ch);
+				for (d2 = descriptor_list; d2 != NULL; d2 = d2->next)
+				{
+					if (d2->connected == CON_PLAYING && d2->character != ch &&
+						!IS_SET(d2->character->comm, COMM_NOANNOUNCE))
+					{
+						act("{MThe Town Crier Announces 'All welcome $N, a new adventurer to Sentience!'{x",
+							d2->character,ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+					}
+				}
+
+				ch->level = 1;
+				ch->tot_level = 1;
+			}
 		}
 
 		// Fix variable and dungeon referencs
@@ -3060,7 +3043,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 
 		if (ch->in_room != NULL)
 		{
-			if( ch->in_room->vnum != ROOM_VNUM_SCHOOL )
+			if( !wnum_match_room(room_wnum_school, ch->in_room) )
 				char_to_room(ch, ch->in_room);
 		}
 		else
@@ -3074,11 +3057,11 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 			{
 				if (IS_IMMORTAL (ch))
 				{
-					char_to_room (ch, get_room_index (ROOM_VNUM_CHAT));
+					char_to_room (ch, room_index_chat);
 				}
 				else
 				{
-					char_to_room (ch, get_room_index (ROOM_VNUM_TEMPLE));
+					char_to_room (ch, room_index_temple);
 				}
 			}
 		}
@@ -3228,14 +3211,17 @@ bool check_parse_name(char *name)
 	    return FALSE;
     }
 
+#if 0
    /*
     * Prevent players from naming themselves after mobs.
+	* TODO: ADD A BETTER CHECK FOR THIS
     */
     {
-	extern MOB_INDEX_DATA *mob_index_hash[MAX_KEY_HASH];
+	//extern MOB_INDEX_DATA *mob_index_hash[MAX_KEY_HASH];
 	MOB_INDEX_DATA *pMobIndex;
 	int iHash;
 
+	
 	for (iHash = 0; iHash < MAX_KEY_HASH; iHash++)
 	{
 	    for (pMobIndex  = mob_index_hash[iHash];
@@ -3247,6 +3233,7 @@ bool check_parse_name(char *name)
 	    }
 	}
     }
+#endif
 
     /* Vizz -
      * check names of people playing. Yes, this is necessary for multiple
@@ -3324,7 +3311,7 @@ bool check_reconnect(DESCRIPTOR_DATA *d, char *name, bool fConn)
 				if (d->character->pet) {
 					CHAR_DATA *pet=d->character->pet;
 
-					char_to_room(pet,get_room_index(ROOM_VNUM_LIMBO));
+					char_to_room(pet, room_index_limbo);
 					stop_follower(pet,TRUE);
 					extract_char(pet,TRUE);
                 }
@@ -3401,7 +3388,7 @@ void stop_idling(CHAR_DATA *ch)
 		ch->desc == NULL ||
 		ch->desc->connected != CON_PLAYING ||
 		ch->was_in_room == NULL ||
-		ch->in_room != get_room_index(ROOM_VNUM_LIMBO))
+		ch->in_room != room_index_limbo)
 		return;
 
 	if( ch->was_in_room_id[0] || ch->was_in_room_id[1] )

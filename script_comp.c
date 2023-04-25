@@ -697,6 +697,7 @@ void compile_string_dump(char *str)
 // $*		Normal $-codes
 // 0-9		Numbers
 // string	String
+// also look for widevnum support
 //////
 char *compile_string(char *str, int type, int *length, bool doquotes)
 {
@@ -1823,7 +1824,7 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 
 	// Error happened
 	if(*src || i < lines || !valid) {
-		sprintf(rbuf,"%s(%d) encountered %d error%s.", type_name, script->vnum, errors, ((errors==1)?"":"s"));
+		sprintf(rbuf,"%s(%ld#%ld) encountered %d error%s.", type_name, script->area->uid, script->vnum, errors, ((errors==1)?"":"s"));
 		compile_error(rbuf);
 		free_script_code(code,lines);
 		if(fBootDb) {
@@ -1837,7 +1838,7 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 	if(inspect) {
 		// If no errors have occured, check if the script needs to be disabled.
 		if(disable) {
-			sprintf(rbuf,"%s(%d) disabled due to restricted commands.", type_name, script->vnum);
+			sprintf(rbuf,"%s(%ld#%ld) disabled due to restricted commands.", type_name, script->area->uid, script->vnum);
 			compile_error_show(rbuf);
 			script->flags |= SCRIPT_DISABLED;
 		} else

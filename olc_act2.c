@@ -46,7 +46,8 @@ REDIT(redit_addcdesc)
 	return FALSE;
     }
 
-    if (cd_phrase_lookup(value, phrase) == -1)
+	int phr = cd_phrase_lookup(pRoom, value, phrase);
+    if (phr == -1)
     {
 	send_to_char("Invalid phrase.\n\r", ch);
 	return FALSE;
@@ -54,7 +55,7 @@ REDIT(redit_addcdesc)
 
     for (cd = pRoom->conditional_descr; cd != NULL; cd = cd->next)
     {
-	if (cd->condition == value && cd->phrase == cd_phrase_lookup(value, phrase))
+	if (cd->condition == value && cd->phrase == phr)
 	{
 	    send_to_char("That would be redundant.\n\r", ch);
 	    return FALSE;
@@ -63,7 +64,7 @@ REDIT(redit_addcdesc)
 
     cd = new_conditional_descr();
     cd->condition = value;
-    cd->phrase = cd_phrase_lookup(value, phrase);
+    cd->phrase = phr;
     cd->next = pRoom->conditional_descr;
     pRoom->conditional_descr = cd;
 
@@ -140,7 +141,7 @@ char *condition_phrase_to_name (int type, int phrase)
 }
 
 
-int cd_phrase_lookup(int condition, char *phrase)
+int cd_phrase_lookup(ROOM_INDEX_DATA *room, int condition, char *phrase)
 {
     if (condition == CONDITION_SEASON)
     {
@@ -190,11 +191,12 @@ int cd_phrase_lookup(int condition, char *phrase)
 
     if (condition == CONDITION_SCRIPT)
     {
+
 	int vnum;
 
 	vnum = atoi(phrase);
 
-	if (!get_script_index(vnum,PRG_RPROG))
+	if (!get_script_index(room->area, vnum,PRG_RPROG))
 	    return -1;
 	else
 	    return vnum;
@@ -1474,45 +1476,39 @@ HEDIT(hedit_delete)
 TEDIT(tedit_create)
 {
     TOKEN_INDEX_DATA *token_index;
-    AREA_DATA *pArea;
-    long value;
+	WNUM wnum;
     int iHash;
 
     EDIT_TOKEN(ch, token_index);
 
-    value = atol(argument);
-    if (argument[0] == '\0' || value == '\0')
+    if (argument[0] == '\0' || !parse_widevnum(argument, &wnum))
     {
-	send_to_char("Syntax: tedit create [vnum]\n\r", ch);
+	send_to_char("Syntax: tedit create [widevnum]\n\r", ch);
 	return FALSE;
     }
 
-    pArea = get_vnum_area(value);
-    if (pArea == NULL)
+    if (!IS_BUILDER(ch, wnum.pArea))
     {
-	send_to_char("That vnum is not assigned an area.\n\r", ch);
-	return FALSE;
+		send_to_char("You aren't a builder in that area.\n\r", ch);
+		return FALSE;
     }
 
-    if (!IS_BUILDER(ch, pArea))
+    if (get_token_index(wnum.pArea, wnum.vnum))
     {
-	send_to_char("You aren't a builder in that area.\n\r", ch);
-	return FALSE;
-    }
-
-    if (get_token_index(value))
-    {
-	send_to_char("Token vnum already exists.\n\r", ch);
-	return FALSE;
-    }
+		send_to_char("Token vnum already exists.\n\r", ch);
+		return FALSE;
+	}
 
     token_index = new_token_index();
-    token_index->vnum = value;
-    token_index->area = pArea;
+    token_index->vnum = wnum.vnum;
+    token_index->area = wnum.pArea;
 
-    iHash = value % MAX_KEY_HASH;
-    token_index->next = token_index_hash[iHash];
-    token_index_hash[iHash] = token_index;
+	if (wnum.vnum > wnum.pArea->top_vnum_token)
+		wnum.pArea->top_vnum_token = wnum.vnum;
+
+    iHash = wnum.vnum % MAX_KEY_HASH;
+    token_index->next = wnum.pArea->token_index_hash[iHash];
+    wnum.pArea->token_index_hash[iHash] = token_index;
 
     ch->desc->pEdit = (void *)token_index;
 
@@ -1595,8 +1591,9 @@ TEDIT(tedit_show)
 		for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
 			iterator_start(&it, token_index->progs[slot]);
 			while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-				sprintf(buf, "{C[{W%4d{C]{x %-20ld %-10s %-6s\n\r", cnt,
-					trigger->vnum,trigger_name(trigger->trig_type),
+				sprintf(buf, "{C[{W%4d{C]{x %ld#%ld %-10s %-6s\n\r", cnt,
+					trigger->wnum.pArea ? trigger->wnum.pArea->uid : 0,
+					trigger->wnum.vnum,trigger_name(trigger->trig_type),
 					trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, FALSE, TRUE));
 				send_to_char(buf, ch);
 				cnt++;
@@ -2036,7 +2033,7 @@ TEDIT(tedit_value)
     }
 
     if ((value_num = atoi(arg)) < 0 || value_num >= MAX_TOKEN_VALUES) {
-	sprintf(buf, "Number must be 0-%d\n\r", MAX_TOKEN_VALUES);
+	sprintf(buf, "Number must be 0-%d\n\r", MAX_TOKEN_VALUES - 1);
 	send_to_char(buf, ch);
 	return FALSE;
     }
@@ -2217,7 +2214,7 @@ TEDIT(tedit_valuename)
     }
 
     if ((value_num = atoi(arg)) < 0 || value_num >= MAX_TOKEN_VALUES) {
-	sprintf(buf, "Number must be 0-%d\n\r", MAX_TOKEN_VALUES);
+	sprintf(buf, "Number must be 0-%d\n\r", MAX_TOKEN_VALUES - 1);
 	send_to_char(buf, ch);
 	return FALSE;
     }
@@ -2251,9 +2248,10 @@ TEDIT (tedit_addtprog)
     argument = one_argument(argument, trigger);
     argument = one_argument(argument, phrase);
 
-    if (!is_number(num) || trigger[0] =='\0' || phrase[0] =='\0')
+	WNUM wnum;
+    if (!parse_widevnum(num, &wnum) || trigger[0] =='\0' || phrase[0] =='\0')
     {
-	send_to_char("Syntax:   addtprog [vnum] [trigger] [phrase]\n\r",ch);
+	send_to_char("Syntax:   addtprog [wnum] [trigger] [phrase]\n\r",ch);
 	return FALSE;
     }
 
@@ -2265,6 +2263,7 @@ TEDIT (tedit_addtprog)
 
     value = tindex;//trigger_table[tindex].value;
     slot = trigger_table[tindex].slot;
+	if (!wnum.pArea) wnum.pArea = token_index->area;
 
 	if(value == TRIG_SPELLCAST) {
 		if( !str_cmp(phrase, "*") )
@@ -2314,7 +2313,7 @@ TEDIT (tedit_addtprog)
 	}
 
 
-    if ((code = get_script_index (atol(num), PRG_TPROG)) == NULL)
+    if ((code = get_script_index (wnum.pArea, wnum.vnum, PRG_TPROG)) == NULL)
     {
 	send_to_char("No such TokenProgram.\n\r",ch);
 	return FALSE;
@@ -2329,7 +2328,7 @@ TEDIT (tedit_addtprog)
     }
 
     list                  = new_trigger();
-    list->vnum            = atol(num);
+    list->wnum            = wnum;
     list->trig_type       = tindex;
     list->trig_phrase     = str_dup(phrase);
 	list->trig_number		= atoi(list->trig_phrase);
@@ -2407,12 +2406,17 @@ TEDIT(tedit_varset)
     }
 
     if(!str_cmp(type,"room")) {
-	if(!is_number(argument)) {
-	    send_to_char("Specify a room vnum.\n\r", ch);
+		WNUM wnum;
+	if(!parse_widevnum(argument, &wnum)) {
+	    send_to_char("Specify a room widevnum.\n\r", ch);
 	    return FALSE;
 	}
 
-	variables_setindex_room(&token_index->index_vars,name,atoi(argument),saved);
+		WNUM_LOAD load;
+		load.auid = wnum.pArea ? wnum.pArea->uid : 0;
+		load.vnum = wnum.vnum;
+
+	variables_setindex_room(&token_index->index_vars,name,load,saved);
     } else if(!str_cmp(type,"string"))
 	variables_setindex_string(&token_index->index_vars,name,argument,FALSE,saved);
     else if(!str_cmp(type,"number")) {

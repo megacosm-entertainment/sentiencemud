@@ -51,9 +51,6 @@ void room_update(ROOM_INDEX_DATA *room);
 void save_script_new(FILE *fp, AREA_DATA *area,SCRIPT_DATA *scr,char *type);
 SCRIPT_DATA *read_script_new( FILE *fp, AREA_DATA *area, int type);
 
-bool blueprints_changed = FALSE;
-long top_blueprint_section_vnum = 0;
-long top_blueprint_vnum = 0;
 LLIST *loaded_instances;
 
 void fix_blueprint_section(BLUEPRINT_SECTION *bs)
@@ -65,7 +62,7 @@ void fix_blueprint_section(BLUEPRINT_SECTION *bs)
 
 		if( bl->vnum > 0 && bl->door >= 0 && bl->door < MAX_DIR )
 		{
-			bl->room = get_room_index(bl->vnum);
+			bl->room = get_room_index(bs->area, bl->vnum);
 
 			if( bl->room )
 				bl->ex = bl->room->exit[bl->door];
@@ -73,7 +70,7 @@ void fix_blueprint_section(BLUEPRINT_SECTION *bs)
 	}
 }
 
-BLUEPRINT_LINK *load_blueprint_link(FILE *fp)
+BLUEPRINT_LINK *load_blueprint_link(FILE *fp, AREA_DATA *pArea)
 {
 	BLUEPRINT_LINK *link;
 	char *word;
@@ -109,7 +106,7 @@ BLUEPRINT_LINK *load_blueprint_link(FILE *fp)
 	return link;
 }
 
-BLUEPRINT_SECTION *load_blueprint_section(FILE *fp)
+BLUEPRINT_SECTION *load_blueprint_section(FILE *fp, AREA_DATA *pArea)
 {
 	BLUEPRINT_SECTION *bs;
 	char *word;
@@ -117,9 +114,10 @@ BLUEPRINT_SECTION *load_blueprint_section(FILE *fp)
 
 	bs = new_blueprint_section();
 	bs->vnum = fread_number(fp);
+	bs->area = pArea;
 
-	if( bs->vnum > top_blueprint_section_vnum)
-		top_blueprint_section_vnum = bs->vnum;
+	if( bs->vnum > pArea->top_blueprint_section_vnum)
+		pArea->top_blueprint_section_vnum = bs->vnum;
 
 	while (str_cmp((word = fread_word(fp)), "#-SECTION"))
 	{
@@ -130,7 +128,7 @@ BLUEPRINT_SECTION *load_blueprint_section(FILE *fp)
 		case '#':
 			if( !str_cmp(word, "#LINK") )
 			{
-				BLUEPRINT_LINK *link = load_blueprint_link(fp);
+				BLUEPRINT_LINK *link = load_blueprint_link(fp, pArea);
 
 				// Append to the end
 				link->next = NULL;
@@ -200,7 +198,7 @@ BLUEPRINT_SECTION *load_blueprint_section(FILE *fp)
 	return bs;
 }
 
-BLUEPRINT *load_blueprint(FILE *fp)
+BLUEPRINT *load_blueprint(FILE *fp, AREA_DATA *pArea)
 {
 	BLUEPRINT *bp;
 	char *word;
@@ -209,9 +207,10 @@ BLUEPRINT *load_blueprint(FILE *fp)
 
 	bp = new_blueprint();
 	bp->vnum = fread_number(fp);
+	bp->area = pArea;
 
-	if( bp->vnum > top_blueprint_vnum)
-		top_blueprint_vnum = bp->vnum;
+	if( bp->vnum > pArea->top_blueprint_vnum)
+		pArea->top_blueprint_vnum = bp->vnum;
 
 	while (str_cmp((word = fread_word(fp)), "#-BLUEPRINT"))
 	{
@@ -239,7 +238,7 @@ BLUEPRINT *load_blueprint(FILE *fp)
 				int tindex;
 				char *p;
 
-				long vnum = fread_number(fp);
+				WNUM_LOAD wnum_load = fread_widevnum(fp);
 				p = fread_string(fp);
 
 				tindex = trigger_index(p, PRG_IPROG);
@@ -249,7 +248,7 @@ BLUEPRINT *load_blueprint(FILE *fp)
 				} else {
 					PROG_LIST *ipr = new_trigger();
 
-					ipr->vnum = vnum;
+					ipr->wnum_load = wnum_load;
 					ipr->trig_type = tindex;
 					ipr->trig_phrase = fread_string(fp);
 					if( tindex == TRIG_SPELLCAST ) {
@@ -376,7 +375,7 @@ BLUEPRINT *load_blueprint(FILE *fp)
 			{
 				long section = fread_number(fp);
 
-				BLUEPRINT_SECTION *bs = get_blueprint_section(section);
+				BLUEPRINT_SECTION *bs = get_blueprint_section(pArea, section);
 				if( bs )
 				{
 					list_appendlink(bp->sections, bs);
@@ -417,14 +416,14 @@ BLUEPRINT *load_blueprint(FILE *fp)
 
 			if (!str_cmp(word, "VarRoom")) {
 				char *name;
-				int value;
+				WNUM_LOAD value;
 				bool saved;
 
 				fMatch = TRUE;
 
 				name = fread_string(fp);
 				saved = fread_number(fp);
-				value = fread_number(fp);
+				value = fread_widevnum(fp);
 
 				variables_setindex_room (&bp->index_vars,name,value,saved);
 			}
@@ -446,6 +445,7 @@ BLUEPRINT *load_blueprint(FILE *fp)
 }
 
 
+/*
 // load blueprints
 // CALLED AFTER ALL AREAS ARE LOADED
 void load_blueprints()
@@ -516,6 +516,7 @@ void load_blueprints()
 
 	fclose(fp);
 }
+*/
 
 void save_blueprint_section(FILE *fp, BLUEPRINT_SECTION *bs)
 {
@@ -617,7 +618,7 @@ void save_blueprint(FILE *fp, BLUEPRINT *bp)
 		for(int i = 0; i < TRIGSLOT_MAX; i++) if(list_size(bp->progs[i]) > 0) {
 			iterator_start(&it, bp->progs[i]);
 			while((trigger = (PROG_LIST *)iterator_nextdata(&it)))
-				fprintf(fp, "InstanceProg %ld %s~ %s~\n", trigger->vnum, trigger_name(trigger->trig_type), trigger_phrase(trigger->trig_type,trigger->trig_phrase));
+				fprintf(fp, "InstanceProg %ld#%ld %s~ %s~\n", (trigger->wnum.pArea ? trigger->wnum.pArea->uid : 0), trigger->wnum.vnum, trigger_name(trigger->trig_type), trigger_phrase(trigger->trig_type,trigger->trig_phrase));
 			iterator_stop(&it);
 		}
 	}
@@ -629,7 +630,7 @@ void save_blueprint(FILE *fp, BLUEPRINT *bp)
 			else if(var->type == VAR_STRING || var->type == VAR_STRING_S)
 				fprintf(fp, "VarStr %s~ %d %s~\n", var->name, var->save, var->_.s ? var->_.s : "");
 			else if(var->type == VAR_ROOM && var->_.r && var->_.r->vnum)
-				fprintf(fp, "VarRoom %s~ %d %d\n", var->name, var->save, (int)var->_.r->vnum);
+				fprintf(fp, "VarRoom %s~ %d %s\n", var->name, var->save, widevnum_string(var->_.r->area, var->_.r->vnum));
 
 		}
 	}
@@ -638,20 +639,13 @@ void save_blueprint(FILE *fp, BLUEPRINT *bp)
 }
 
 // save blueprints
-bool save_blueprints()
+void save_blueprints(FILE *fp, AREA_DATA *area)
 {
-	FILE *fp = fopen(BLUEPRINTS_FILE, "w");
-	if (fp == NULL)
-	{
-		bug("Couldn't save blueprints.dat", 0);
-		return FALSE;
-	}
-
 	int iHash;
 
 	for(iHash = 0; iHash < MAX_KEY_HASH; iHash++)
 	{
-		for(BLUEPRINT_SECTION *bs = blueprint_section_hash[iHash]; bs; bs = bs->next)
+		for(BLUEPRINT_SECTION *bs = area->blueprint_section_hash[iHash]; bs; bs = bs->next)
 		{
 			save_blueprint_section(fp, bs);
 		}
@@ -659,23 +653,16 @@ bool save_blueprints()
 
 	for(iHash = 0; iHash < MAX_KEY_HASH; iHash++)
 	{
-		for(BLUEPRINT *bp = blueprint_hash[iHash]; bp; bp = bp->next)
+		for(BLUEPRINT *bp = area->blueprint_hash[iHash]; bp; bp = bp->next)
 		{
 			save_blueprint(fp, bp);
 		}
 	}
 
-	for( SCRIPT_DATA *scr = iprog_list; scr; scr = scr->next)
+	for( SCRIPT_DATA *scr = area->iprog_list; scr; scr = scr->next)
 	{
 		save_script_new(fp,NULL,scr,"INSTANCE");
 	}
-
-	fprintf(fp, "#END\n");
-
-	fclose(fp);
-
-	blueprints_changed = FALSE;
-	return TRUE;
 }
 
 bool valid_section_link(BLUEPRINT_LINK *bl)
@@ -734,11 +721,23 @@ bool valid_static_link(STATIC_BLUEPRINT_LINK *sbl)
 	return TRUE;
 }
 
-BLUEPRINT_SECTION *get_blueprint_section(long vnum)
+BLUEPRINT_SECTION *get_blueprint_section_wnum(WNUM wnum)
+{
+	return get_blueprint_section(wnum.pArea, wnum.vnum);
+}
+
+BLUEPRINT_SECTION *get_blueprint_section_auid(long auid, long vnum)
+{
+	return get_blueprint_section(get_area_from_uid(auid), vnum);
+}
+
+BLUEPRINT_SECTION *get_blueprint_section(AREA_DATA *pArea, long vnum)
 {
 	int iHash = vnum % MAX_KEY_HASH;
 
-	for(BLUEPRINT_SECTION *bs = blueprint_section_hash[iHash]; bs; bs = bs->next)
+	if (!pArea) return NULL;
+
+	for(BLUEPRINT_SECTION *bs = pArea->blueprint_section_hash[iHash]; bs; bs = bs->next)
 	{
 		if( bs->vnum == vnum )
 			return bs;
@@ -747,11 +746,11 @@ BLUEPRINT_SECTION *get_blueprint_section(long vnum)
 	return NULL;
 }
 
-BLUEPRINT_SECTION *get_blueprint_section_byroom(long vnum)
+BLUEPRINT_SECTION *get_blueprint_section_byroom(AREA_DATA *pArea, long vnum)
 {
 	for(int iHash = 0; iHash < MAX_KEY_HASH; iHash++)
 	{
-		for(BLUEPRINT_SECTION *bs = blueprint_section_hash[iHash]; bs; bs = bs->next)
+		for(BLUEPRINT_SECTION *bs = pArea->blueprint_section_hash[iHash]; bs; bs = bs->next)
 		{
 			if( vnum >= bs->lower_vnum && vnum <= bs->upper_vnum )
 				return bs;
@@ -761,11 +760,23 @@ BLUEPRINT_SECTION *get_blueprint_section_byroom(long vnum)
 	return NULL;
 }
 
-BLUEPRINT *get_blueprint(long vnum)
+BLUEPRINT *get_blueprint_wnum(WNUM wnum)
+{
+	return get_blueprint(wnum.pArea, wnum.vnum);
+}
+
+BLUEPRINT *get_blueprint_auid(long auid, long vnum)
+{
+	return get_blueprint(get_area_from_uid(auid), vnum);
+}
+
+BLUEPRINT *get_blueprint(AREA_DATA *pArea, long vnum)
 {
 	int iHash = vnum % MAX_KEY_HASH;
 
-	for(BLUEPRINT *bp = blueprint_hash[iHash]; bp; bp = bp->next)
+	if (!pArea) return NULL;
+
+	for(BLUEPRINT *bp = pArea->blueprint_hash[iHash]; bp; bp = bp->next)
 	{
 		if( bp->vnum == vnum )
 			return bp;
@@ -774,10 +785,10 @@ BLUEPRINT *get_blueprint(long vnum)
 	return NULL;
 }
 
-bool rooms_in_same_section(long vnum1, long vnum2)
+bool rooms_in_same_section(AREA_DATA *pArea1, long vnum1, AREA_DATA *pArea2, long vnum2)
 {
-	BLUEPRINT_SECTION *s1 = get_blueprint_section_byroom(vnum1);
-	BLUEPRINT_SECTION *s2 = get_blueprint_section_byroom(vnum2);
+	BLUEPRINT_SECTION *s1 = get_blueprint_section_byroom(pArea1, vnum1);
+	BLUEPRINT_SECTION *s2 = get_blueprint_section_byroom(pArea2, vnum2);
 
 	if( !s1 && !s2 ) return TRUE;	// If neither are in a blueprint section, they are considered in the same section
 
@@ -804,8 +815,6 @@ BLUEPRINT_EXIT_DATA *get_blueprint_exit(BLUEPRINT *bp, int index)
 
 	return NULL;
 }
-
-
 
 
 ROOM_INDEX_DATA *instance_section_get_room_byvnum(INSTANCE_SECTION *section, long vnum)
@@ -888,7 +897,7 @@ INSTANCE_SECTION *clone_blueprint_section(BLUEPRINT_SECTION *parent)
 	// Clone rooms
 	for(long vnum = parent->lower_vnum; vnum <= parent->upper_vnum; vnum++)
 	{
-		ROOM_INDEX_DATA *source = get_room_index(vnum);
+		ROOM_INDEX_DATA *source = get_room_index(parent->area, vnum);
 
 		if( source )
 		{
@@ -949,35 +958,38 @@ INSTANCE_SECTION *clone_blueprint_section(BLUEPRINT_SECTION *parent)
 			// Make sure portals that lead anywhere within the section uses the correct room id
 			if( obj->item_type == ITEM_PORTAL )
 			{
-				if( !IS_SET(obj->value[2], GATE_DUNGEON) )
+				if ( obj->value[3] == GATETYPE_NORMAL )
 				{
+					long auid = obj->value[5];
+					long vnum = obj->value[6];
 					ROOM_INDEX_DATA *dest;
-					long vnum = obj->value[3];	// Destination vnum
 
-					// Must point to a non-wilderness room
-					if( vnum > 0 && obj->value[5] <= 0 )
+					if ( auid > 0 && vnum > 0 )
 					{
-						if( (dest = instance_section_get_room_byvnum(section, vnum)) )
+						// If the portal is pointing to a room in the blueprint
+						if (room->area->uid == auid && (dest = instance_section_get_room_byvnum(section, vnum)))
 						{
-							obj->value[6] = dest->id[0];
-							obj->value[7] = dest->id[1];
+							obj->value[7] = dest->id[0];
+							obj->value[8] = dest->id[1];
 						}
 						else
 						{
-							dest = get_room_index(vnum);
+							dest = get_room_index_auid(auid, vnum);
 
 							if( !dest ||
 								IS_SET(dest->room2_flags, ROOM_BLUEPRINT) ||
 								IS_SET(dest->area->area_flags, AREA_BLUEPRINT) )
 							{
 								// Nullify destination
-								obj->value[3] = 0;
+								obj->value[5] = 0;
+								obj->value[6] = 0;
 							}
 
 							// Force it to be static
-							obj->value[6] = 0;
 							obj->value[7] = 0;
+							obj->value[8] = 0;
 						}
+
 					}
 				}
 			}
@@ -1395,7 +1407,7 @@ void extract_instance(INSTANCE *instance)
 
 	room = environ;
 	if( !room )
-		room = get_room_index(11001);
+		room = get_room_index_wnum(room_wnum_temple);
 
 	// Dump all mobiles
 	iterator_start(&it, instance->mobiles);
@@ -1409,7 +1421,7 @@ void extract_instance(INSTANCE *instance)
 	// Dump objects
 	room = environ;
 	if( !room )
-		room = get_room_index(ROOM_VNUM_DONATION);
+		room = get_room_index_wnum(room_wnum_donation);
 
 	iterator_start(&it, instance->objects);
 	while( (obj = (OBJ_DATA *)iterator_nextdata(&it)) )
@@ -1448,9 +1460,9 @@ void instance_apply_specialkeys(INSTANCE *instance, LLIST *special_keys)
 			{
 				EXIT_DATA *ex = room->exit[i];
 
-				if( ex && ex->door.lock.key_vnum > 0 )
+				if( ex && ex->door.lock.key_wnum.pArea && ex->door.lock.key_wnum.vnum > 0 )
 				{
-					SPECIAL_KEY_DATA *sk = get_special_key(special_keys, ex->door.lock.key_vnum);
+					SPECIAL_KEY_DATA *sk = get_special_key(special_keys, ex->door.lock.key_wnum);
 
 					if( sk )
 					{
@@ -1551,14 +1563,15 @@ void list_blueprint_sections(CHAR_DATA *ch, char *argument)
 	if(!ch->lines)
 		send_to_char("{RWARNING:{W Having scrolling off may limit how many sections you can see.{x\n\r", ch);
 
+	AREA_DATA *pArea = ch->in_room->area;
 	int lines = 0;
 	bool error = FALSE;
 	BUFFER *buffer = new_buf();
 	char buf[MSL];
 
-	for(long vnum = 1; vnum <= top_blueprint_section_vnum; vnum++)
+	for(long vnum = 1; vnum <= pArea->top_blueprint_section_vnum; vnum++)
 	{
-		BLUEPRINT_SECTION *section = get_blueprint_section(vnum);
+		BLUEPRINT_SECTION *section = get_blueprint_section(pArea, vnum);
 
 		if( section )
 		{
@@ -1609,7 +1622,7 @@ void do_bslist(CHAR_DATA *ch, char *argument)
 void do_bsedit(CHAR_DATA *ch, char *argument)
 {
 	BLUEPRINT_SECTION *bs;
-	long value;
+	WNUM wnum;
 	char arg1[MAX_STRING_LENGTH];
 
 	argument = one_argument(argument, arg1);
@@ -1617,17 +1630,21 @@ void do_bsedit(CHAR_DATA *ch, char *argument)
 	if (IS_NPC(ch))
 		return;
 
-
-	if (!can_edit_blueprints(ch))
+	if (parse_widevnum(arg1, &wnum))
 	{
-		send_to_char("BPEdit:  Insufficient security to edit blueprints.\n\r", ch);
-		return;
-	}
+		if (!wnum.pArea || wnum.vnum < 1)
+		{
+			send_to_char("Widevnum not associated with an area.\n\r", ch);
+			return;
+		}
 
-	if (is_number(arg1))
-	{
-		value = atol(arg1);
-		if (!(bs = get_blueprint_section(value)))
+	    if (!IS_BUILDER(ch, wnum.pArea))
+		{
+			send_to_char("BsEdit:  widevnum in an area you cannot build in.\n\r", ch);
+			return;
+		}
+
+		if (!(bs = get_blueprint_section(wnum.pArea, wnum.vnum)))
 		{
 			send_to_char("BSEdit:  That vnum does not exist.\n\r", ch);
 			return;
@@ -1644,14 +1661,15 @@ void do_bsedit(CHAR_DATA *ch, char *argument)
 		{
 			if (bsedit_create(ch, argument))
 			{
-				blueprints_changed = TRUE;
 				ch->pcdata->immortal->last_olc_command = current_time;
 				ch->desc->editor = ED_BPSECT;
+
+				EDIT_BPSECT(ch, bs);
+				SET_BIT(bs->area->area_flags, AREA_CHANGED);
 			}
 
 			return;
 		}
-
 	}
 
 	send_to_char("Syntax: bsedit <vnum>\n\r"
@@ -1664,17 +1682,15 @@ void bsedit(CHAR_DATA *ch, char *argument)
 	char command[MAX_INPUT_LENGTH];
 	char arg[MAX_INPUT_LENGTH];
 	int  cmd;
+	BLUEPRINT_SECTION *bs;
+	AREA_DATA *pArea;
+
+	EDIT_BPSECT(ch, bs);
+	pArea = bs->area;
 
 	smash_tilde(argument);
 	strcpy(arg, argument);
 	argument = one_argument(argument, command);
-
-	if (!can_edit_blueprints(ch))
-	{
-		send_to_char("BSEdit:  Insufficient security to edit blueprint sections.\n\r", ch);
-		edit_done(ch);
-		return;
-	}
 
 	if (!str_cmp(command, "done"))
 	{
@@ -1696,7 +1712,7 @@ void bsedit(CHAR_DATA *ch, char *argument)
 		{
 			if ((*bsedit_table[cmd].olc_fun) (ch, argument))
 			{
-				blueprints_changed = TRUE;
+				SET_BIT(pArea->area_flags, AREA_CHANGED);
 			}
 
 			return;
@@ -1733,7 +1749,7 @@ BSEDIT( bsedit_show )
 
 	if( bs->recall > 0 )
 	{
-		ROOM_INDEX_DATA *recall_room = get_room_index(bs->recall);
+		ROOM_INDEX_DATA *recall_room = get_room_index(bs->area, bs->recall);
 		sprintf(buf, "Recall:      [%5ld] %s\n\r", bs->recall, recall_room ? recall_room->name : "-invalid-");
 	}
 	else
@@ -1785,22 +1801,21 @@ void do_bsshow(CHAR_DATA *ch, char *argument)
 {
 	BLUEPRINT_SECTION *bs;
 	void *old_edit;
-	long value;
+	WNUM wnum;
 
 	if (argument[0] == '\0')
 	{
-		send_to_char("Syntax:  bsshow <vnum>\n\r", ch);
+		send_to_char("Syntax:  bsshow <widevnum>\n\r", ch);
 		return;
 	}
 
-	if (!is_number(argument))
+	if (!parse_widevnum(argument, &wnum))
 	{
-		send_to_char("Vnum must be a number.\n\r", ch);
+		send_to_char("Please specify a widevnum.\n\r", ch);
 		return;
 	}
 
-	value = atol(argument);
-	if (!(bs = get_blueprint_section(value)))
+	if (!(bs = get_blueprint_section(wnum.pArea, wnum.vnum)))
 	{
 		send_to_char("That blueprint section does not exist.\n\r", ch);
 		return;
@@ -1817,40 +1832,51 @@ void do_bsshow(CHAR_DATA *ch, char *argument)
 
 BSEDIT( bsedit_create )
 {
+	AREA_DATA *pArea = ch->in_room->area;
 	BLUEPRINT_SECTION *bs;
-	long  value;
+	WNUM wnum;
 	int  iHash;
 
-	value = atol(argument);
-	if (argument[0] == '\0' || value == 0)
+	if (argument[0] == '\0' || !parse_widevnum(argument, &wnum) || !wnum.pArea || wnum.vnum < 1)
 	{
 		long last_vnum = 0;
-		value = top_blueprint_section_vnum + 1;
-		for(last_vnum = 1; last_vnum <= top_blueprint_section_vnum; last_vnum++)
+		long value = pArea->top_blueprint_section_vnum + 1;
+		for(last_vnum = 1; last_vnum <= pArea->top_blueprint_section_vnum; last_vnum++)
 		{
-			if( !get_blueprint_section(last_vnum) )
+			if( !get_blueprint_section(pArea, last_vnum) )
 			{
 				value = last_vnum;
 				break;
 			}
 		}
+
+		wnum.pArea = pArea;
+		wnum.vnum = value;
 	}
-	else if( get_blueprint_section(value) )
+
+	if( get_blueprint_section(wnum.pArea, wnum.vnum) )
 	{
 		send_to_char("That vnum already exists.\n\r", ch);
 		return FALSE;
 	}
+	
+    if (!IS_BUILDER(ch, wnum.pArea))
+    {
+		send_to_char("BsEdit:  widevnum in an area you cannot build in.\n\r", ch);
+		return FALSE;
+    }
 
 	bs = new_blueprint_section();
-	bs->vnum = value;
+	bs->vnum = wnum.vnum;
+	bs->area = wnum.pArea;
 
 	iHash							= bs->vnum % MAX_KEY_HASH;
-	bs->next						= blueprint_section_hash[iHash];
-	blueprint_section_hash[iHash]	= bs;
+	bs->next						= wnum.pArea->blueprint_section_hash[iHash];
+	wnum.pArea->blueprint_section_hash[iHash]	= bs;
 	ch->desc->pEdit					= (void *)bs;
 
-	if( bs->vnum > top_blueprint_section_vnum)
-		top_blueprint_section_vnum = bs->vnum;
+	if( bs->vnum > wnum.pArea->top_blueprint_section_vnum)
+		wnum.pArea->top_blueprint_section_vnum = bs->vnum;
 
     return TRUE;
 }
@@ -2014,7 +2040,7 @@ BSEDIT( bsedit_recall )
 		return FALSE;
 	}
 
-	room = get_room_index(vnum);
+	room = get_room_index(bs->area, vnum);
 	if( room == NULL )
 	{
 		send_to_char("That room does not exist.\n\r", ch);
@@ -2041,20 +2067,24 @@ bool validate_vnum_range(CHAR_DATA *ch, BLUEPRINT_SECTION *section, long lower, 
 	// Check that are no overlaps
 	BLUEPRINT_SECTION *bs;
 	int iHash;
-	for(iHash = 0; iHash < MAX_KEY_HASH; iHash++)
+	AREA_DATA *area;
+	for(area = area_first; area; area = area->next)
 	{
-		for(bs = blueprint_section_hash[iHash]; bs; bs = bs->next)
+		for(iHash = 0; iHash < MAX_KEY_HASH; iHash++)
 		{
-			// Only check against other sections
-			if( bs != section )
+			for(bs = area->blueprint_section_hash[iHash]; bs; bs = bs->next)
 			{
-				if( (lower >= bs->lower_vnum && lower <= bs->upper_vnum ) ||
-					(upper >= bs->lower_vnum && upper <= bs->upper_vnum ) ||
-					(bs->lower_vnum >= lower && bs->lower_vnum <= upper ) ||
-					(bs->upper_vnum >= lower && bs->upper_vnum <= upper ) )
+				// Only check against other sections
+				if( bs != section )
 				{
-					send_to_char("Blueprint section vnum ranges cannot overlap.\n\r", ch);
-					return FALSE;
+					if( (lower >= bs->lower_vnum && lower <= bs->upper_vnum ) ||
+						(upper >= bs->lower_vnum && upper <= bs->upper_vnum ) ||
+						(bs->lower_vnum >= lower && bs->lower_vnum <= upper ) ||
+						(bs->upper_vnum >= lower && bs->upper_vnum <= upper ) )
+					{
+						send_to_char("Blueprint section vnum ranges cannot overlap.\n\r", ch);
+						return FALSE;
+					}
 				}
 			}
 		}
@@ -2067,7 +2097,7 @@ bool validate_vnum_range(CHAR_DATA *ch, BLUEPRINT_SECTION *section, long lower, 
 
 	for(long vnum = lower; vnum <= upper; vnum++)
 	{
-		ROOM_INDEX_DATA *room = get_room_index(vnum);
+		ROOM_INDEX_DATA *room = get_room_index(section->area, vnum);
 
 		if( room )
 		{
@@ -2100,6 +2130,12 @@ bool validate_vnum_range(CHAR_DATA *ch, BLUEPRINT_SECTION *section, long lower, 
 					if( IS_SET(ex->exit_info, EX_VLINK) )
 					{
 						sprintf(buf, "{xRoom {W%ld{x has an exit ({W%s{x) leading to wilderness.\n\r", room->vnum, dir_name[i]);
+						add_buf(buffer, buf);
+						valid = FALSE;
+					}
+					else if( ex->u1.to_room->area != ex->from_room->area )
+					{
+						sprintf(buf, "{xRoom {W%ld{x has an exit ({W%s{x) leading outside of the area.\n\r", room->vnum, dir_name[i]);
 						add_buf(buffer, buf);
 						valid = FALSE;
 					}
@@ -2288,7 +2324,7 @@ BSEDIT( bsedit_link )
 			return FALSE;
 		}
 
-		ROOM_INDEX_DATA *room = get_room_index(vnum);
+		ROOM_INDEX_DATA *room = get_room_index(bs->area, vnum);
 		if( !room )
 		{
 			send_to_char("That room does not exist.\n\r", ch);
@@ -2441,7 +2477,7 @@ BSEDIT( bsedit_link )
 			return FALSE;
 		}
 
-		ROOM_INDEX_DATA *room = get_room_index(vnum);
+		ROOM_INDEX_DATA *room = get_room_index(bs->area, vnum);
 		if( !room )
 		{
 			send_to_char("That room does not exist.\n\r", ch);
@@ -2547,11 +2583,7 @@ void list_blueprints(CHAR_DATA *ch, char *argument)
 		"{RProcedural"
 	};
 
-	if( !can_edit_blueprints(ch) )
-	{
-		send_to_char("You do not have access to blueprints.\n\r", ch);
-		return;
-	}
+	AREA_DATA *area = ch->in_room->area;
 
 	if(!ch->lines)
 		send_to_char("{RWARNING:{W Having scrolling off may limit how many blueprints you can see.{x\n\r", ch);
@@ -2561,9 +2593,9 @@ void list_blueprints(CHAR_DATA *ch, char *argument)
 	BUFFER *buffer = new_buf();
 	char buf[MSL];
 
-	for(long vnum = 1; vnum <= top_blueprint_vnum; vnum++)
+	for(long vnum = 1; vnum <= area->top_blueprint_vnum; vnum++)
 	{
-		BLUEPRINT *blueprint= get_blueprint(vnum);
+		BLUEPRINT *blueprint= get_blueprint(area, vnum);
 
 		if( blueprint )
 		{
@@ -2594,11 +2626,12 @@ void list_blueprints(CHAR_DATA *ch, char *argument)
 		else
 		{
 			// Header
+			send_to_char("Blueprints in current area:\n\r", ch);
 			send_to_char("{Y Vnum   [            Name            ] [      Mode      ]{x\n\r", ch);
 			send_to_char("{Y=========================================================={x\n\r", ch);
+			page_to_char(buffer->string, ch);
 		}
 
-		page_to_char(buffer->string, ch);
 	}
 	free_buf(buffer);
 }
@@ -2612,7 +2645,7 @@ void do_bplist(CHAR_DATA *ch, char *argument)
 void do_bpedit(CHAR_DATA *ch, char *argument)
 {
 	BLUEPRINT *bp;
-	long value;
+	WNUM wnum;
 	char arg1[MAX_STRING_LENGTH];
 
 	argument = one_argument(argument, arg1);
@@ -2620,18 +2653,23 @@ void do_bpedit(CHAR_DATA *ch, char *argument)
 	if (IS_NPC(ch))
 		return;
 
-	if (!can_edit_blueprints(ch))
+	if (parse_widevnum(arg1, &wnum))
 	{
-		send_to_char("BPEdit:  Insufficient security to edit blueprints.\n\r", ch);
-		return;
-	}
-
-	if (is_number(arg1))
-	{
-		value = atol(arg1);
-		if (!(bp = get_blueprint(value)))
+		if (!wnum.pArea || wnum.vnum < 1)
 		{
-			send_to_char("BPEdit:  That vnum does not exist.\n\r", ch);
+			send_to_char("Widevnum is not associated with an area.\n\r", ch);
+			return;
+		}
+
+	    if (!IS_BUILDER(ch, wnum.pArea))
+	    {
+			send_to_char("BpEdit:  widevnum in an area you cannot build in.\n\r", ch);
+			return;
+		}
+
+		if (!(bp = get_blueprint(wnum.pArea, wnum.vnum)))
+		{
+			send_to_char("BPEdit:  That widevnum does not exist.\n\r", ch);
 			return;
 		}
 
@@ -2646,16 +2684,18 @@ void do_bpedit(CHAR_DATA *ch, char *argument)
 		{
 			if (bpedit_create(ch, argument))
 			{
-				blueprints_changed = TRUE;
 				ch->pcdata->immortal->last_olc_command = current_time;
 				ch->desc->editor = ED_BLUEPRINT;
+
+				EDIT_BLUEPRINT(ch, bp);
+				SET_BIT(bp->area->area_flags, AREA_CHANGED);
 			}
 
 			return;
 		}
 	}
 
-	send_to_char("Syntax: bpedit <vnum>\n\r"
+	send_to_char("Syntax: bpedit <widevnum>\n\r"
 				 "        bpedit create <vnum>\n\r", ch);
 }
 
@@ -2665,17 +2705,15 @@ void bpedit(CHAR_DATA *ch, char *argument)
 	char command[MAX_INPUT_LENGTH];
 	char arg[MAX_INPUT_LENGTH];
 	int  cmd;
+	BLUEPRINT *bp;
+	AREA_DATA *pArea;
+
+	EDIT_BLUEPRINT(ch, bp);
+	pArea = bp->area;
 
 	smash_tilde(argument);
 	strcpy(arg, argument);
 	argument = one_argument(argument, command);
-
-	if (!can_edit_blueprints(ch))
-	{
-		send_to_char("BPEdit:  Insufficient security to edit blueprints.\n\r", ch);
-		edit_done(ch);
-		return;
-	}
 
 	if (!str_cmp(command, "done"))
 	{
@@ -2697,7 +2735,7 @@ void bpedit(CHAR_DATA *ch, char *argument)
 		{
 			if ((*bpedit_table[cmd].olc_fun) (ch, argument))
 			{
-				blueprints_changed = TRUE;
+				SET_BIT(pArea->area_flags, AREA_CHANGED);
 			}
 
 			return;
@@ -2799,7 +2837,7 @@ BPEDIT( bpedit_show )
 		while( (special = (BLUEPRINT_SPECIAL_ROOM *)iterator_nextdata(&sit)) )
 		{
 			BLUEPRINT_SECTION *section = list_nthdata(bp->sections, special->section);
-			ROOM_INDEX_DATA *room = get_room_index(special->vnum);
+			ROOM_INDEX_DATA *room = get_room_index(bp->area, special->vnum);
 
 			if( !IS_VALID(section) || !room || room->vnum < section->lower_vnum || room->vnum > section->upper_vnum)
 			{
@@ -2970,8 +3008,9 @@ BPEDIT( bpedit_show )
 			for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
 				iterator_start(&it, bp->progs[slot]);
 				while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-					sprintf(buf, "{C[{W%4d{C]{x %-20ld %-10s %-6s\n\r", cnt,
-						trigger->vnum,trigger_name(trigger->trig_type),
+					sprintf(buf, "{C[{W%4d{C]{x %ld#%ld %-10s %-6s\n\r", cnt,
+						trigger->wnum.pArea ? trigger->wnum.pArea->uid : 0,
+						trigger->wnum.vnum,trigger_name(trigger->trig_type),
 						trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, FALSE, FALSE));
 					add_buf(buffer, buf);
 					cnt++;
@@ -3035,22 +3074,21 @@ void do_bpshow(CHAR_DATA *ch, char *argument)
 {
 	BLUEPRINT *bp;
 	void *old_edit;
-	long value;
+	WNUM wnum;
 
 	if (argument[0] == '\0')
 	{
-		send_to_char("Syntax:  bpshow <vnum>\n\r", ch);
+		send_to_char("Syntax:  bpshow <widevnum>\n\r", ch);
 		return;
 	}
 
-	if (!is_number(argument))
+	if (!parse_widevnum(argument, &wnum))
 	{
-		send_to_char("Vnum must be a number.\n\r", ch);
+		send_to_char("Please specify a widevnum.\n\r", ch);
 		return;
 	}
 
-	value = atol(argument);
-	if (!(bp = get_blueprint(value)))
+	if (!(bp = get_blueprint(wnum.pArea, wnum.vnum)))
 	{
 		send_to_char("That blueprint does not exist.\n\r", ch);
 		return;
@@ -3067,41 +3105,51 @@ void do_bpshow(CHAR_DATA *ch, char *argument)
 
 BPEDIT( bpedit_create )
 {
+	AREA_DATA *area = ch->in_room->area;
 	BLUEPRINT *bp;
-
-	long  value;
+	WNUM wnum;
 	int  iHash;
 
-	value = atol(argument);
-	if (argument[0] == '\0' || value == 0)
+	if (argument[0] == '\0' || !parse_widevnum(argument, &wnum) || !wnum.pArea || wnum.vnum < 1)
 	{
 		long last_vnum = 0;
-		value = top_blueprint_vnum + 1;
-		for(last_vnum = 1; last_vnum <= top_blueprint_vnum; last_vnum++)
+		long value = area->top_blueprint_vnum + 1;
+		for(last_vnum = 1; last_vnum <= area->top_blueprint_vnum; last_vnum++)
 		{
-			if( !get_blueprint(last_vnum) )
+			if( !get_blueprint(area, last_vnum) )
 			{
 				value = last_vnum;
 				break;
 			}
 		}
+
+		wnum.pArea = area;
+		wnum.vnum = value;
 	}
-	else if( get_blueprint(value) )
+
+	if( get_blueprint(wnum.pArea, wnum.vnum) )
 	{
 		send_to_char("That vnum already exists.\n\r", ch);
 		return FALSE;
 	}
 
+    if (!IS_BUILDER(ch, wnum.pArea))
+    {
+		send_to_char("BpEdit:  widevnum in an area you cannot build in.\n\r", ch);
+		return FALSE;
+    }
+
 	bp = new_blueprint();
-	bp->vnum = value;
+	bp->vnum = wnum.vnum;
+	bp->area = wnum.pArea;
 
 	iHash							= bp->vnum % MAX_KEY_HASH;
-	bp->next						= blueprint_hash[iHash];
-	blueprint_hash[iHash]			= bp;
+	bp->next						= wnum.pArea->blueprint_hash[iHash];
+	wnum.pArea->blueprint_hash[iHash]			= bp;
 	ch->desc->pEdit					= (void *)bp;
 
-	if( bp->vnum > top_blueprint_vnum)
-		top_blueprint_vnum = bp->vnum;
+	if( bp->vnum > wnum.pArea->top_blueprint_vnum)
+		wnum.pArea->top_blueprint_vnum = bp->vnum;
 
     return TRUE;
 
@@ -3292,7 +3340,7 @@ BPEDIT( bpedit_section )
 
 	if( argument[0] == '\0' )
 	{
-		send_to_char("Syntax:  section add <vnum>\n\r", ch);
+		send_to_char("Syntax:  section add <widevnum>\n\r", ch);
 		send_to_char("         section delete <#>\n\r", ch);
 		send_to_char("         section list\n\r", ch);
 		return FALSE;
@@ -3302,13 +3350,14 @@ BPEDIT( bpedit_section )
 
 	if( !str_prefix(arg, "add") )
 	{
-		if(!is_number(argument))
+		WNUM wnum;
+		if(!parse_widevnum(argument, &wnum))
 		{
-			send_to_char("That is not a number.\n\r", ch);
+			send_to_char("Please specify a widevnum.\n\r", ch);
 			return FALSE;
 		}
 
-		bs = get_blueprint_section(atol(argument));
+		bs = get_blueprint_section(wnum.pArea, wnum.vnum);
 		if( !bs )
 		{
 			send_to_char("That blueprint section does not exist.\n\r", ch);
@@ -3320,7 +3369,6 @@ BPEDIT( bpedit_section )
 			send_to_char("{WError adding blueprint section to blueprint.{x\n\r", ch);
 			return FALSE;
 		}
-
 
 		send_to_char("Blueprint section added.\n\r", ch);
 		return TRUE;
@@ -3585,7 +3633,7 @@ BPEDIT( bpedit_static )
 					return FALSE;
 				}
 
-				if( !get_room_index(vnum) )
+				if( !get_room_index(bs->area, vnum) )
 				{
 					send_to_char("Room does not exist.\n\r", ch);
 					return FALSE;
@@ -3639,7 +3687,7 @@ BPEDIT( bpedit_static )
 				return FALSE;
 			}
 
-			if( !get_room_index(vnum) )
+			if( !get_room_index(bs->area, vnum) )
 			{
 				send_to_char("Room does not exist.\n\r", ch);
 				return FALSE;
@@ -3988,7 +4036,7 @@ BPEDIT (bpedit_addiprog)
     SCRIPT_DATA *code;
     char trigger[MAX_STRING_LENGTH];
     char phrase[MAX_STRING_LENGTH];
-    char num[MAX_STRING_LENGTH];
+    char num[MIL];
 
     EDIT_BLUEPRINT(ch, blueprint);
     argument = one_argument(argument, num);
@@ -3997,29 +4045,39 @@ BPEDIT (bpedit_addiprog)
 
     if (!is_number(num) || trigger[0] =='\0' || phrase[0] =='\0')
     {
-	send_to_char("Syntax:   addiprog [vnum] [trigger] [phrase]\n\r",ch);
-	return FALSE;
+		send_to_char("Syntax:   addiprog [wnum] [trigger] [phrase]\n\r",ch);
+		return FALSE;
     }
 
     if ((tindex = trigger_index(trigger, PRG_IPROG)) < 0) {
-	send_to_char("Valid flags are:\n\r",ch);
-	show_help(ch, "iprog");
-	return FALSE;
+		send_to_char("Valid flags are:\n\r",ch);
+		show_help(ch, "iprog");
+		return FALSE;
     }
 
     slot = trigger_table[tindex].slot;
+	WNUM wnum;
+	if (!parse_widevnum(num, &wnum))
+	{
+		send_to_char("Syntax:   addiprog [wnum] [trigger] [phrase]\n\r",ch);
+		send_to_char("          Invalid widevnum.\n\r", ch);
+		return FALSE;
+	}
 
-    if ((code = get_script_index (atol(num), PRG_IPROG)) == NULL)
+	if (!wnum.pArea)
+		wnum.pArea = blueprint->area;
+
+    if ((code = get_script_index (wnum.pArea, wnum.vnum, PRG_IPROG)) == NULL)
     {
-	send_to_char("No such INSTANCEProgram.\n\r",ch);
-	return FALSE;
+		send_to_char("No such INSTANCEProgram.\n\r",ch);
+		return FALSE;
     }
 
     // Make sure this has a list of progs!
     if(!blueprint->progs) blueprint->progs = new_prog_bank();
 
     list                  = new_trigger();
-    list->vnum            = atol(num);
+    list->wnum            = wnum;
     list->trig_type       = tindex;
     list->trig_phrase     = str_dup(phrase);
 	list->trig_number		= atoi(list->trig_phrase);
@@ -4097,12 +4155,17 @@ BPEDIT(bpedit_varset)
     }
 
     if(!str_cmp(type,"room")) {
-	if(!is_number(argument)) {
-	    send_to_char("Specify a room vnum.\n\r", ch);
+		WNUM wnum;
+	if(!parse_widevnum(argument, &wnum)) {
+	    send_to_char("Specify a room widevnum.\n\r", ch);
 	    return FALSE;
 	}
 
-	variables_setindex_room(&blueprint->index_vars,name,atoi(argument),saved);
+	WNUM_LOAD wnum_load;
+	wnum_load.auid = wnum.pArea ? wnum.pArea->uid : 0;
+	wnum_load.vnum = wnum.vnum;
+
+	variables_setindex_room(&blueprint->index_vars,name,wnum_load,saved);
     } else if(!str_cmp(type,"string"))
 	variables_setindex_string(&blueprint->index_vars,name,argument,FALSE,saved);
     else if(!str_cmp(type,"number")) {
@@ -4353,23 +4416,6 @@ void do_instance(CHAR_DATA *ch, char *argument)
 			extract_instance(instance);
 			send_to_char("Instance unloaded.\n\r", ch);
 		}
-
-		/*
-		list_remlink(loaded_instances, instance);
-
-		if( ch->in_room->instance_section->instance == instance )
-		{
-			// Take them out of the instance
-			ROOM_INDEX_DATA *plith_recall = get_room_index(11001);
-
-			char_from_room(ch);
-			char_to_room(ch, plith_recall);
-		}
-
-		free_instance(instance);
-
-		send_to_char("Instance unloaded.\n\r", ch);
-		*/
 		return;
 	}
 
@@ -4409,7 +4455,7 @@ void instance_save_roominfo(FILE *fp, char *field, ROOM_INDEX_DATA *room)
 
 void instance_save(FILE *fp, INSTANCE *instance)
 {
-	fprintf(fp, "#INSTANCE %ld\n\r", instance->blueprint->vnum);
+	fprintf(fp, "#INSTANCE %ld#%ld\n\r", instance->blueprint->area->uid, instance->blueprint->vnum);
 
 	fprintf(fp, "Floor %d\n\r", instance->floor);
 	fprintf(fp, "Flags %d\n\r", instance->flags);
@@ -4482,9 +4528,9 @@ INSTANCE_SECTION *instance_section_load(FILE *fp)
 	bool fError = FALSE;
 
 	INSTANCE_SECTION *section = new_instance_section();
-	long vnum = fread_number(fp);
+	WNUM_LOAD wnum_load = fread_widevnum(fp);
 
-	section->section = get_blueprint_section(vnum);
+	section->section = get_blueprint_section_auid(wnum_load.auid, wnum_load.vnum);
 
 	while (str_cmp((word = fread_word(fp)), "#-SECTION"))
 	{
@@ -4535,9 +4581,11 @@ INSTANCE *instance_load(FILE *fp)
 	bool fError = FALSE;
 
 	INSTANCE *instance = new_instance();
-	long vnum = fread_number(fp);
+	WNUM_LOAD wnum_load = fread_widevnum(fp);
+	AREA_DATA *area = get_area_from_uid(wnum_load.auid);
+	long vnum = wnum_load.vnum;
 
-	instance->blueprint = get_blueprint(vnum);
+	instance->blueprint = get_blueprint(area, vnum);
 
 	instance->progs			= new_prog_data();
 	instance->progs->progs	= instance->blueprint->progs;
@@ -4579,7 +4627,7 @@ INSTANCE *instance_load(FILE *fp)
 				unsigned long id2 = fread_number(fp);
 
 				//log_string("get_clone_room: instance->entrance");
-				instance->entrance = get_clone_room(get_room_index(room_vnum), id1, id2);
+				instance->entrance = get_clone_room(get_room_index(area, room_vnum), id1, id2);
 
 				fMatch = TRUE;
 				break;
@@ -4592,7 +4640,7 @@ INSTANCE *instance_load(FILE *fp)
 				unsigned long id2 = fread_number(fp);
 
 				//log_string("get_clone_room: instance->exit");
-				instance->exit = get_clone_room(get_room_index(room_vnum), id1, id2);
+				instance->exit = get_clone_room(get_room_index(area, room_vnum), id1, id2);
 
 				fMatch = TRUE;
 				break;
@@ -4638,7 +4686,7 @@ INSTANCE *instance_load(FILE *fp)
 				unsigned long id2 = fread_number(fp);
 
 				//log_string("get_clone_room: instance->recall");
-				instance->recall = get_clone_room(get_room_index(room_vnum), id1, id2);
+				instance->recall = get_clone_room(get_room_index(area, room_vnum), id1, id2);
 
 				fMatch = TRUE;
 				break;

@@ -107,13 +107,13 @@ const long quest_item_token_table[] =
 };
 
 
-OBJ_DATA *generate_quest_scroll(CHAR_DATA *ch, char *questgiver, long vnum,
+OBJ_DATA *generate_quest_scroll(CHAR_DATA *ch, char *questgiver, WNUM wnum,
 	char *header, char *footer, char *prefix, char *suffix, int line_width)
 {
-	OBJ_INDEX_DATA *scroll_index = get_obj_index(vnum);
+	OBJ_INDEX_DATA *scroll_index = get_obj_index(wnum.pArea, wnum.vnum);
 	if( scroll_index == NULL )
 	{
-		scroll_index = get_obj_index(OBJ_VNUM_QUEST_SCROLL);
+		scroll_index = obj_index_quest_scroll;
 	}
 
 	OBJ_DATA *scroll = create_object(scroll_index, 0, TRUE);
@@ -408,9 +408,11 @@ void do_quest(CHAR_DATA *ch, char *argument)
 
 		ch->quest = new_quest();
 		ch->quest->questgiver_type = QUESTOR_MOB;
-		ch->quest->questgiver = mob->pIndexData->vnum;
+		ch->quest->questgiver.pArea = mob->pIndexData->area;
+		ch->quest->questgiver.vnum = mob->pIndexData->vnum;
 		ch->quest->questreceiver_type = QUESTOR_MOB;
-		ch->quest->questreceiver = mob->pIndexData->vnum;
+		ch->quest->questreceiver.pArea = mob->pIndexData->area;
+		ch->quest->questreceiver.vnum = mob->pIndexData->vnum;
 
 		if (generate_quest(ch, mob))
 		{
@@ -478,7 +480,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
 			case QUESTOR_MOB:
 				for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
 				{
-					if (IS_NPC(mob) && mob->pIndexData->vnum == ch->quest->questgiver)
+					if (IS_NPC(mob) && wnum_match_mob(ch->quest->questgiver, mob))
 						break;
 				}
 				break;
@@ -487,14 +489,14 @@ void do_quest(CHAR_DATA *ch, char *argument)
 				// Check inventory first?
 				for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
 				{
-					if (obj->pIndexData->vnum == ch->quest->questgiver)
+					if (wnum_match_obj(ch->quest->questgiver, obj))
 						break;
 				}
 				if( obj == NULL )
 				{
 					for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
 					{
-						if (obj->pIndexData->vnum == ch->quest->questgiver)
+						if (wnum_match_obj(ch->quest->questgiver, obj))
 							break;
 					}
 				}
@@ -502,7 +504,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
 
 			case QUESTOR_ROOM:
 				if( !ch->in_room->wilds && !ch->in_room->source &&
-					ch->in_room->vnum == ch->quest->questgiver )
+					wnum_match_room(ch->quest->questgiver, ch->in_room))
 				{
 					room = ch->in_room;
 					break;
@@ -600,7 +602,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
 		case QUESTOR_MOB:
 			for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
 			{
-				if (IS_NPC(mob) && mob->pIndexData->vnum == ch->quest->questreceiver)
+				if (IS_NPC(mob) && wnum_match_mob(ch->quest->questreceiver, mob))
 				{
 					tempstores = mob->tempstore;
 					break;
@@ -612,7 +614,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
 			// Check inventory first?
 			for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
 			{
-				if (obj->pIndexData->vnum == ch->quest->questreceiver)
+				if (wnum_match_obj(ch->quest->questreceiver, obj))
 				{
 					tempstores = obj->tempstore;
 					break;
@@ -622,7 +624,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
 			{
 				for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
 				{
-					if (obj->pIndexData->vnum == ch->quest->questreceiver)
+					if (wnum_match_obj(ch->quest->questreceiver, obj))
 					{
 						tempstores = obj->tempstore;
 						break;
@@ -633,7 +635,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
 
 		case QUESTOR_ROOM:
 			if( !ch->in_room->wilds && !ch->in_room->source &&
-				ch->in_room->vnum == ch->quest->questreceiver )
+				wnum_match_room(ch->quest->questreceiver, ch->in_room) )
 			{
 				room = ch->in_room;
 				tempstores = room->tempstore;
@@ -709,6 +711,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
 				ch->tot_level*100);
 				pracreward += 1;
 
+				// TODO: turn this into a TRAIT
 				if (ch->pcdata->second_sub_class_warrior == CLASS_WARRIOR_CRUSADER)
 				{
 					pointreward += 5;
@@ -766,6 +769,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
 		tempstores[1] = pointreward;		// QP
 		tempstores[2] = pracreward;			// Practices
 		tempstores[3] = reward;				// Silver
+		// TODO: any other rewards?
 		if(incomplete)
 			p_percent_trigger( mob, obj, room, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_INCOMPLETE, NULL);
 		else
@@ -817,6 +821,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
 			ch->practice += pracreward;
 		}
 
+		// TODO: Change to a test, as we might add a way for players to disable XP gain
 		if(ch->tot_level < 120)
 		{
 			sprintf(buf, "You gain %d experience points!\n\r", expreward);
@@ -880,15 +885,21 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 	// MORE FUN
 	questman->tempstore[0] = parts;				// Number of parts to do (In-Out)
 	questman->tempstore[1] = bFun ? 1 : 0;		// Whether this was a F.U.N. quest (In)
-	questman->tempstore[2] = qd->scroll;		// Default quest scroll item
+	questman->tempstore[2] = qd->scroll.auid;	// Default quest scroll item (AUID)
+	questman->tempstore[3] = qd->scroll.vnum;	// Default quest scroll item (VNUM)
 	if(p_percent_trigger( questman, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_PREQUEST, NULL))
 		return FALSE;
 	parts = questman->tempstore[0];				// Updated number of parts to do
 	if( parts < 1 ) parts = 1;					//    Require at least one part.
 
-	long scroll_vnum = questman->tempstore[2];	// Get value back
-	if( scroll_vnum < 1 )
-		scroll_vnum = qd->scroll;
+	WNUM scroll_wnum;
+	scroll_wnum.pArea = get_area_from_uid(questman->tempstore[2]);
+	scroll_wnum.vnum = questman->tempstore[3];
+	if( !scroll_wnum.pArea || scroll_wnum.vnum < 1 )
+	{
+		scroll_wnum.pArea = get_area_from_uid(qd->scroll.auid);
+		scroll_wnum.vnum = qd->scroll.vnum;
+	}
 
 	for (i = 0; i < parts; i++)
 	{
@@ -904,7 +915,7 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 	}
 
 	// create the scroll
-	scroll = generate_quest_scroll(ch, questman->short_descr, scroll_vnum,
+	scroll = generate_quest_scroll(ch, questman->short_descr, scroll_wnum,
 		qd->header, qd->footer, qd->prefix, qd->suffix, qd->line_width);
 
 	if( scroll == NULL )
@@ -931,6 +942,7 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 /* Set up a quest part. */
 bool generate_quest_part(CHAR_DATA *ch, CHAR_DATA *questman, QUEST_PART_DATA *part, int partno)
 {
+	// There's no automatic stuff...
 	questman->tempstore[0] = partno;							// Which quest part *IS* this?  Needed for the "questcomplete" command
 
 	// The quest part must return a positive value to be valid
@@ -1034,7 +1046,7 @@ void check_quest_rescue_mob(CHAR_DATA *ch, bool show)
 		mob = ch->in_room->people;
 		while (mob != NULL)
 		{
-			if (IS_NPC(mob) && mob->pIndexData->vnum == part->mob_rescue && !part->complete)
+			if (IS_NPC(mob) && mob->pIndexData->area == part->area && mob->pIndexData->vnum == part->mob_rescue && !part->complete)
 		    {
 				if( show ) {
 		        	sprintf(buf, "Thank you for rescuing me, %s!", ch->name);
@@ -1139,7 +1151,7 @@ void check_quest_slay_mob(CHAR_DATA *ch, CHAR_DATA *mob, bool show)
 		if (part->complete == TRUE)
 			continue;
 
-        if (part->mob == mob->pIndexData->vnum && !part->complete)
+        if (IS_NPC(mob) && part->area == mob->pIndexData->area && part->mob == mob->pIndexData->vnum && !part->complete)
 		{
 			if( show ) {
 				char buf[MAX_STRING_LENGTH];
@@ -1182,7 +1194,7 @@ void check_quest_travel_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool show)
 		if (part->complete == TRUE)
 			continue;
 
-		target_room = get_room_index(part->room);
+		target_room = get_room_index(part->area, part->room);
 
 		/* Not going by room vnum to prevent multiple rooms with the same name */
 		if (target_room != NULL && !str_cmp(target_room->name, room->name))
@@ -1260,6 +1272,7 @@ int count_quest_parts(CHAR_DATA *ch)
 }
 
 
+// TODO: widevnum
 bool is_quest_item(OBJ_DATA *obj)
 {
     int i;
@@ -1280,8 +1293,10 @@ bool is_quest_item(OBJ_DATA *obj)
 }
 
 
-QUEST_INDEX_DATA *get_quest_index(long vnum)
+QUEST_INDEX_DATA *get_quest_index(AREA_DATA *area, long vnum)
 {
+	if (!area) return NULL;
+	
 /*    QUEST_INDEX_DATA *quest_index;
 
     for (quest_index = quest_index_list; quest_index != NULL;

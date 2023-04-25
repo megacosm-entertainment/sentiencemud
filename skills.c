@@ -2465,7 +2465,7 @@ void remort_player(CHAR_DATA *ch, int remort_class)
     affect_fix_char(ch);
 
     char_from_room(ch);
-    char_to_room(ch, get_room_index(ROOM_VNUM_SCHOOL));
+    char_to_room(ch, room_index_school);
 
 	ch->pcdata->class_current = class_info->class;
     ch->pcdata->sub_class_current = remort_class;

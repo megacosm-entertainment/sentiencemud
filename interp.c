@@ -380,7 +380,6 @@ const	struct	cmd_type	cmd_table	[] =
     { "autosetname",	do_autosetname,	POS_DEAD,	IM,  LOG_NORMAL, 1, TRUE },
     { "autowar",	do_autowar,	POS_DEAD,	L2,  LOG_ALWAYS, 1, TRUE },
     { "ban",		do_ban,		POS_DEAD,	L2,  LOG_ALWAYS, 1, TRUE },
-    { "besteq",		do_besteq,	POS_DEAD,	ML,  LOG_NORMAL, 1, TRUE },
     { "boost",		do_boost,	POS_DEAD,	L1,  LOG_ALWAYS, 1, TRUE },
     { "botter",		do_botter,	POS_RESTING,	L4,  LOG_ALWAYS, 1, TRUE },
     { "build",		do_build,	POS_RESTING,	IM,  LOG_ALWAYS, 1, TRUE },
@@ -556,6 +555,7 @@ const	struct	cmd_type	cmd_table	[] =
     { "ships",		do_ships,	POS_DEAD,	0,		LOG_NORMAL, 1, TRUE },
 
     { "spawntreasuremap", do_spawntreasuremap, POS_DEAD, L5, LOG_NORMAL, 1, TRUE },
+	{ "reserved",	do_reserved, POS_DEAD, 0,		LOG_ALWAYS, 1, TRUE },
 
     { "",		0,		POS_DEAD,     0,  LOG_NORMAL, 0, FALSE }
 };
@@ -596,7 +596,7 @@ bool check_verbs(CHAR_DATA *ch, char *command, char *argument)
 				log_stringf("check_verbs: ch(%s) token(%ld, %s) trigger(%s, %s)", ch->name, token->pIndexData->vnum, token->name, trigger_name(prg->trig_type), prg->trig_phrase);
 				if (is_trigger_type(prg->trig_type,TRIG_VERBSELF) && !str_prefix(command, prg->trig_phrase)) {
 					log_stringf("check_verbs: ch(%s) token(%ld, %s) trigger(%s, %s) executing", ch->name, token->pIndexData->vnum, token->name, trigger_name(prg->trig_type), prg->trig_phrase);
-					ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,argument,prg->trig_phrase,TRIG_VERBSELF,0,0,0,0,0);
+					ret = execute_script(prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,argument,prg->trig_phrase,TRIG_VERBSELF,0,0,0,0,0);
 					if( ret != PRET_NOSCRIPT) {
 						iterator_stop(&pit);
 
@@ -640,7 +640,7 @@ bool check_verbs(CHAR_DATA *ch, char *command, char *argument)
 				iterator_start(&pit, token->pIndexData->progs[slot]);
 				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
 					if ((is_trigger_type(prg->trig_type,TRIG_VERB) || is_trigger_type(prg->trig_type,TRIG_VERBSELF)) && !str_prefix(command, prg->trig_phrase)) {
-						ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,p,prg->trig_phrase,TRIG_VERB,0,0,0,0,0);
+						ret = execute_script(prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,p,prg->trig_phrase,TRIG_VERB,0,0,0,0,0);
 						if( ret != PRET_NOSCRIPT) {
 							iterator_stop(&tit);
 							iterator_stop(&pit);
@@ -663,9 +663,9 @@ bool check_verbs(CHAR_DATA *ch, char *command, char *argument)
 			iterator_start(&pit, source->progs->progs[slot]);
 			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
 				if (is_trigger_type(prg->trig_type,TRIG_VERB) && !str_prefix(command, prg->trig_phrase)) {
-					ret = execute_script(prg->vnum, prg->script, NULL, NULL, room, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,p,prg->trig_phrase,TRIG_VERB,0,0,0,0,0);
+					ret = execute_script(prg->script, NULL, NULL, room, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,p,prg->trig_phrase,TRIG_VERB,0,0,0,0,0);
 				} else if (is_trigger_type(prg->trig_type,TRIG_VERBSELF) && !str_prefix(command,prg->trig_phrase)) {
-					ret = execute_script(prg->vnum, prg->script, NULL, NULL, room, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL,argument,prg->trig_phrase,TRIG_VERBSELF,0,0,0,0,0);
+					ret = execute_script(prg->script, NULL, NULL, room, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL,argument,prg->trig_phrase,TRIG_VERBSELF,0,0,0,0,0);
 				}
 					if( ret != PRET_NOSCRIPT) {
 						iterator_stop(&pit);
@@ -698,7 +698,7 @@ bool check_verbs(CHAR_DATA *ch, char *command, char *argument)
 				iterator_start(&pit, token->pIndexData->progs[slot]);
 				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
 					if (is_trigger_type(prg->trig_type,TRIG_VERB) && !str_prefix(command, prg->trig_phrase)) {
-						ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,p,prg->trig_phrase,TRIG_VERB,0,0,0,0,0);
+						ret = execute_script(prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,p,prg->trig_phrase,TRIG_VERB,0,0,0,0,0);
 						if( ret != PRET_NOSCRIPT) {
 							iterator_stop(&tit);
 							iterator_stop(&pit);
@@ -721,7 +721,7 @@ bool check_verbs(CHAR_DATA *ch, char *command, char *argument)
 			iterator_start(&pit, mob->pIndexData->progs[slot]);
 			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
 				if (is_trigger_type(prg->trig_type,TRIG_VERB) && !str_prefix(command, prg->trig_phrase)) {
-					ret = execute_script(prg->vnum, prg->script, mob, NULL, NULL, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,p,prg->trig_phrase,TRIG_VERB,0,0,0,0,0);
+					ret = execute_script(prg->script, mob, NULL, NULL, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,p,prg->trig_phrase,TRIG_VERB,0,0,0,0,0);
 					if( ret != PRET_NOSCRIPT) {
 						iterator_stop(&pit);
 
@@ -751,7 +751,7 @@ bool check_verbs(CHAR_DATA *ch, char *command, char *argument)
 				iterator_start(&pit, token->pIndexData->progs[slot]);
 				while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
 					if (is_trigger_type(prg->trig_type,TRIG_VERB) && !str_prefix(command, prg->trig_phrase)) {
-						ret = execute_script(prg->vnum, prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,p,prg->trig_phrase,TRIG_VERB,0,0,0,0,0);
+						ret = execute_script(prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,p,prg->trig_phrase,TRIG_VERB,0,0,0,0,0);
 						if( ret != PRET_NOSCRIPT) {
 							iterator_stop(&tit);
 							iterator_stop(&pit);
@@ -774,7 +774,7 @@ bool check_verbs(CHAR_DATA *ch, char *command, char *argument)
 			iterator_start(&pit, obj->pIndexData->progs[slot]);
 			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
 				if (is_trigger_type(prg->trig_type,TRIG_VERB) && !str_prefix(command, prg->trig_phrase)) {
-					ret = execute_script(prg->vnum, prg->script, NULL, obj, NULL, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,p,prg->trig_phrase,TRIG_VERB,0,0,0,0,0);
+					ret = execute_script(prg->script, NULL, obj, NULL, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,p,prg->trig_phrase,TRIG_VERB,0,0,0,0,0);
 					if( ret != PRET_NOSCRIPT) {
 						iterator_stop(&pit);
 
@@ -830,7 +830,7 @@ void interpret( CHAR_DATA *ch, char *argument )
     }
 
 	// Deal with scripted input
-	if(ch->desc && ch->desc->input && ch->desc->input_script > 0 && ch->desc->inputString == NULL) {
+	if(ch->desc && ch->desc->input && ch->desc->input_script.pArea && ch->desc->input_script.vnum > 0 && ch->desc->inputString == NULL) {
 
 		int ret;
 		SCRIPT_DATA *script = NULL;
@@ -842,23 +842,24 @@ void interpret( CHAR_DATA *ch, char *argument )
 		char *v = ch->desc->input_var;
 
 		if(ch->desc->input_mob) {
-			script = get_script_index(ch->desc->input_script,PRG_MPROG);
+			script = get_script_index_wnum(ch->desc->input_script,PRG_MPROG);
 			var = &ch->desc->input_mob->progs->vars;
 		} else if(ch->desc->input_obj) {
-			script = get_script_index(ch->desc->input_script,PRG_OPROG);
+			script = get_script_index_wnum(ch->desc->input_script,PRG_OPROG);
 			var = &ch->desc->input_obj->progs->vars;
 		} else if(ch->desc->input_room) {
-			script = get_script_index(ch->desc->input_script,PRG_RPROG);
+			script = get_script_index_wnum(ch->desc->input_script,PRG_RPROG);
 			var = &ch->desc->input_room->progs->vars;
 		} else if(ch->desc->input_tok) {
-			script = get_script_index(ch->desc->input_script,PRG_TPROG);
+			script = get_script_index_wnum(ch->desc->input_script,PRG_TPROG);
 			var = &ch->desc->input_tok->progs->vars;
 		}
 
 		// Clear this incase other scripts chain together
 		ch->desc->input = FALSE;
 		ch->desc->input_var = NULL;
-		ch->desc->input_script = 0;
+		ch->desc->input_script.pArea = NULL;
+		ch->desc->input_script.vnum = 0;
 		ch->desc->input_mob = NULL;
 		ch->desc->input_obj = NULL;
 		ch->desc->input_room = NULL;
@@ -875,7 +876,7 @@ void interpret( CHAR_DATA *ch, char *argument )
 				variables_set_string(var,v,argument,FALSE);
 			}
 
-			ret = execute_script(script->vnum, script, mob, obj, room, tok, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL,NULL,TRIG_NONE,0,0,0,0,0);
+			ret = execute_script(script, mob, obj, room, tok, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL,NULL,TRIG_NONE,0,0,0,0,0);
 			if(ret > 0 && !IS_NPC(ch) && ch->pcdata->quit_on_input)
 				do_function(ch, &do_quit, NULL);
 		}
@@ -1218,8 +1219,8 @@ void interpret( CHAR_DATA *ch, char *argument )
 
 			char_from_room(ch);
 			char_from_room(victim);
-			char_to_room(ch, get_room_index(ROOM_VNUM_ARENA));
-			char_to_room(victim, get_room_index(ROOM_VNUM_ARENA));
+			char_to_room(ch, room_index_arena);
+			char_to_room(victim, room_index_arena);
 
 			ch->challenged = NULL;
 			return;

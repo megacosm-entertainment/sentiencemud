@@ -268,14 +268,13 @@ SPELL_FUNC(spell_fire_breath)
 
 SPELL_FUNC(spell_fire_cloud)
 {
-	OBJ_INDEX_DATA *inferno;
 	OBJ_DATA *fire_cloud;
 	OBJ_DATA *obj;
 	ROOM_INDEX_DATA *room;
 	int dir = 0;
 	bool exists = FALSE;
 
-	if (!(inferno = get_obj_index(OBJ_VNUM_INFERNO))) {
+	if (!obj_index_inferno) {
 		bug("spell_fire_cloud: null obj_index!\n", 0);
 		return FALSE;
 	}
@@ -291,7 +290,7 @@ SPELL_FUNC(spell_fire_cloud)
 	}
 
 	if (!exists) {
-		fire_cloud = create_object(inferno, 0, TRUE);
+		fire_cloud = create_object(obj_index_inferno, 0, TRUE);
 		fire_cloud->timer = 4;
 		obj_to_room(fire_cloud, ch->in_room);
 	}
@@ -314,7 +313,7 @@ SPELL_FUNC(spell_fire_cloud)
 		}
 
 		if (!exists) {
-			fire_cloud = create_object(inferno, 0, TRUE);
+			fire_cloud = create_object(obj_index_inferno, 0, TRUE);
 			fire_cloud->timer = 4;
 			obj_to_room(fire_cloud, room);
 		}
@@ -417,7 +416,7 @@ SPELL_FUNC(spell_inferno)
 			return FALSE;
 		}
 
-	inferno = create_object(get_obj_index(OBJ_VNUM_INFERNO), 0, TRUE);
+	inferno = create_object(obj_index_inferno, 0, TRUE);
 	inferno->timer = 4;
 	obj_to_room(inferno, ch->in_room);
 	act("With a whisper, the room is ablaze with the burning fires of Hell!",   ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL);

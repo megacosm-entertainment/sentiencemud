@@ -3265,17 +3265,21 @@ void show_church_info(CHURCH_DATA *church, CHAR_DATA *ch)
     sprintf(buf, "{YAlignment:{x %s\n\r", buf2);
     add_buf(buffer, buf);
 
-    sprintf(buf, "{YRecall Point:{x %ld - %s\n\r",
-        church->recall_point.id[0],
-	get_room_index(church->recall_point.id[0]) == NULL ?
-	    "none" : get_room_index(church->recall_point.id[0])->name);
-    add_buf(buffer, buf);
+	if (church->hall_area)
+	{
+		sprintf(buf, "{YRecall Point:{x %ld - %s\n\r",
+			church->recall_point.id[0],
+			get_room_index(church->hall_area, church->recall_point.id[0]) == NULL ?
+				"none" :
+				get_room_index(church->hall_area, church->recall_point.id[0])->name);
+		add_buf(buffer, buf);
 
-    sprintf(buf, "{YKey:{x %ld - %s\n\r",
-        church->key,
-	get_obj_index(church->key) == NULL ?
-	    "none" : get_obj_index(church->key)->short_descr);
-    add_buf(buffer, buf);
+		sprintf(buf, "{YKey:{x %ld - %s\n\r",
+			church->key,
+		get_obj_index(church->hall_area, church->key) == NULL ?
+			"none" : get_obj_index(church->hall_area, church->key)->short_descr);
+		add_buf(buffer, buf);
+	}
 
     sprintf(buf, "{YPK record:{x %ld wins, %ld losses\n\r",
     	church->pk_wins, church->pk_losses);
@@ -3639,7 +3643,6 @@ void write_church(CHURCH_DATA *church, FILE *fp)
     fprintf(fp, "PKLosses %ld\n", church->pk_losses);
     fprintf(fp, "PKWins %ld\n", church->pk_wins);
     fprintf(fp, "Pneuma %ld\n", church->pneuma);
-    fprintf(fp, "RecallPoint %ld\n", church->recall_point.id[0]);
     fprintf(fp, "Settings %s\n", fwrite_flag(church->settings, buf));
     fprintf(fp, "Size %d\n", church->size);
     fprintf(fp, "ToggledPK %d\n", church->pk);
@@ -3650,16 +3653,21 @@ void write_church(CHURCH_DATA *church, FILE *fp)
     if (church->info != NULL)
 		fprintf(fp, "Info %s~\n", fix_string(church->info));
 
-	iterator_start(&it, church->treasure_rooms);
-	CHURCH_TREASURE_ROOM *treasure;
-	while(( treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it))) {
-		room = treasure->room;
-		if(room->wilds)
-			fprintf(fp, "TreasureVRoomMR %ld %ld %ld %ld %d\n", room->wilds->uid, room->x, room->y, room->z, treasure->min_rank);
-		else
-			fprintf(fp, "TreasureRoomMR %ld %d\n", room->vnum, treasure->min_rank);
+	if (church->hall_area)
+	{
+		fprintf(fp, "Hall %ld %ld\n", church->hall_area->uid, church->vnum_start);
+	    fprintf(fp, "RecallPoint %ld\n", church->recall_point.id[0]);
+		iterator_start(&it, church->treasure_rooms);
+		CHURCH_TREASURE_ROOM *treasure;
+		while(( treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it))) {
+			room = treasure->room;
+			if(room->wilds)
+				fprintf(fp, "TreasureVRoomMR %ld %ld %ld %ld %d\n", room->wilds->uid, room->x, room->y, room->z, treasure->min_rank);
+			else
+				fprintf(fp, "TreasureRoomMR %ld %d\n", room->vnum, treasure->min_rank);
+		}
+		iterator_stop(&it);
 	}
-	iterator_stop(&it);
 
     if (church->people != NULL)
 		write_church_member(church->people, fp);
@@ -3803,6 +3811,16 @@ CHURCH_DATA *read_church(FILE *fp)
 	        KEY("Gold",		church->gold,			fread_number(fp));
 		break;
 
+		case 'H':
+			if (!str_cmp(word, "Hall"))
+			{
+				church->hall_area = get_area_from_uid(fread_number(fp));
+				church->vnum_start = fread_number(fp);
+				fMatch = TRUE;
+				break;
+			}
+			break;
+
             case 'I':
 	        KEYS("Info",		church->info,			fread_string(fp));
 
@@ -3838,7 +3856,7 @@ CHURCH_DATA *read_church(FILE *fp)
 	    case 'T':
 	        KEY("ToggledPK",	church->pk,			fread_number(fp));
 			if( !str_cmp(word, "TreasureRoom") ) {
-				ROOM_INDEX_DATA *room = get_room_index(fread_number(fp));
+				ROOM_INDEX_DATA *room = get_room_index(church->hall_area, fread_number(fp));
 
 				if( room ) {
 					if( !church_add_treasure_room(church, room, CHURCH_RANK_A) ) {
@@ -3851,7 +3869,7 @@ CHURCH_DATA *read_church(FILE *fp)
 				break;
 			}
 			if( !str_cmp(word, "TreasureRoomMR") ) {
-				ROOM_INDEX_DATA *room = get_room_index(fread_number(fp));
+				ROOM_INDEX_DATA *room = get_room_index(church->hall_area, fread_number(fp));
 				int min_rank = fread_number(fp);
 				if( min_rank < CHURCH_RANK_A ) min_rank = CHURCH_RANK_A;
 				if( min_rank > CHURCH_RANK_D ) min_rank = CHURCH_RANK_D;
@@ -4026,7 +4044,7 @@ bool is_in_treasure_room(OBJ_DATA *obj)
 	return is_treasure_room(NULL, room);
 }
 
-bool vnum_in_treasure_room(CHURCH_DATA *church, long vnum)
+bool objindex_in_treasure_room(CHURCH_DATA *church, OBJ_INDEX_DATA *objindex)
 {
 	CHURCH_TREASURE_ROOM *treasure;
 	OBJ_DATA *obj = NULL;
@@ -4036,7 +4054,27 @@ bool vnum_in_treasure_room(CHURCH_DATA *church, long vnum)
 	while( (treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&rit)) && !obj) {
 		iterator_start(&oit, treasure->room->lcontents);
 		while( (obj = (OBJ_DATA *)iterator_nextdata(&oit))) {
-			if( obj->pIndexData->vnum == vnum )
+			if( obj->pIndexData == objindex )
+				break;
+		}
+		iterator_stop(&oit);
+	}
+	iterator_stop(&rit);
+
+    return obj && TRUE;
+}
+
+bool vnum_in_treasure_room(CHURCH_DATA *church, WNUM wnum)
+{
+	CHURCH_TREASURE_ROOM *treasure;
+	OBJ_DATA *obj = NULL;
+	ITERATOR rit, oit;
+
+	iterator_start(&rit, church->treasure_rooms);
+	while( (treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&rit)) && !obj) {
+		iterator_start(&oit, treasure->room->lcontents);
+		while( (obj = (OBJ_DATA *)iterator_nextdata(&oit))) {
+			if( wnum_match_obj(wnum, obj) )
 				break;
 		}
 		iterator_stop(&oit);

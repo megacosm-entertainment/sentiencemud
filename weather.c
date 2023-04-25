@@ -20,6 +20,13 @@
 #include "tables.h"
 #include "olc.h"
 
+/*
+
+ TODO: MASSIVE REWORK NEEDED
+
+*/
+
+#if 0
 /**
  * With storms we only get the most important storm. If a tornado and a rain storm are over a city,
  * then only the tornado will have affect. Simplifies having to worry about different
@@ -914,7 +921,7 @@ void storm_affect_char args((CHAR_DATA *ch, int storm_type)) {
 
             act("{R$n is sucked up into the tornado!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-            if ((pRoom = get_room_index(index)) != NULL) {
+            if ((pRoom = get_room_index(NULL, index)) != NULL) {
                 char_from_room(ch);
                 char_to_room(ch, pRoom);
 	    				  do_function(ch, &do_look, "auto");
@@ -1219,3 +1226,4 @@ void storm_affect_char_background args((CHAR_DATA *ch, int storm_type)) {
 			}
 	}
 }*/
+#endif

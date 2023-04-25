@@ -91,6 +91,9 @@ SPELL_FUNC(spell_call_familiar)
 
 SPELL_FUNC(spell_create_rose)
 {
+#if 0
+	// TODO: Rework all of this spell... if we will keep it?
+	// Disabling until this is reworked... likely need to create a wilderness stock reserved area
 	OBJ_DATA *rose;
 	int chance;
 	long vnum;
@@ -110,6 +113,7 @@ SPELL_FUNC(spell_create_rose)
 		act("$p floats gently to the ground.", ch, NULL, NULL, rose, NULL, NULL, NULL, TO_ALL);
 	} else
 		obj_to_char(rose, ch);
+#endif
 	return TRUE;
 }
 

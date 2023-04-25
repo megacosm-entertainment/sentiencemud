@@ -165,9 +165,16 @@ void do_opdump(CHAR_DATA *ch, char *argument)
 {
 	char buf[ MAX_INPUT_LENGTH ];
 	SCRIPT_DATA *oprg;
+	WNUM wnum;
 
 	one_argument(argument, buf);
-	if (!(oprg = get_script_index(atoi(buf), PRG_OPROG))) {
+	if (!parse_widevnum(buf, &wnum))
+	{
+		send_to_char("Syntax:  opdump <widevnum>\n\r", ch);
+		return;
+	}
+
+	if (!(oprg = get_script_index(wnum.pArea, wnum.vnum, PRG_OPROG))) {
 		send_to_char("No such OBJprogram.\n\r", ch);
 		return;
 	}
@@ -206,7 +213,11 @@ void do_opstat(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	sprintf(arg, "Object #%-6ld [%s] ID [%08X:%08X]\n\r", obj->pIndexData->vnum, obj->short_descr, (int)obj->id[0], (int)obj->id[1]);
+	sprintf(arg, "Object %ld#%-6ld [%s] ID [%08lX:%08lX]\n\r",
+		obj->pIndexData->area->uid,
+		obj->pIndexData->vnum,
+		obj->short_descr,
+		obj->id[0], obj->id[1]);
 	send_to_char(arg, ch);
 
 	if( !IS_NULLSTR(obj->pIndexData->comments) )
@@ -227,9 +238,10 @@ void do_opstat(CHAR_DATA *ch, char *argument)
 	for(i = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
 		iterator_start(&it, obj->pIndexData->progs[slot]);
 		while(( oprg = (PROG_LIST *)iterator_nextdata(&it))) {
-			sprintf(arg, "[%2d] Trigger [%-8s] Program [%4ld] Phrase [%s]\n\r",
+			sprintf(arg, "[%2d] Trigger [%-8s] Program [%4ld#%-4ld] Phrase [%s]\n\r",
 				++i, trigger_name(oprg->trig_type),
-				oprg->vnum,
+				oprg->wnum.pArea->uid,
+				oprg->wnum.vnum,
 				trigger_phrase(oprg->trig_type,oprg->trig_phrase));
 			send_to_char(arg, ch);
 		}
@@ -419,8 +431,11 @@ char *op_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 					room_used_for_wilderness.y = y;
 					*room = &room_used_for_wilderness;
 				}
-			} else
-				*room = get_room_index(x);
+			}
+			break;
+		
+		case ENT_WIDEVNUM:
+			*room = get_room_index_wnum(arg->d.wnum);
 			break;
 
 		case ENT_STRING: // Special named locations
@@ -432,10 +447,11 @@ char *op_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 				*room = obj_room(info->obj);
 			else if(!str_cmp(arg->d.str,"vroom") || !str_cmp(arg->d.str,"clone")) {
 				// Locates a clone room: vroom <vnum> <id1> <id2>
-				int vnum,id1, id2;
-				if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
+				int id1, id2;
+				WNUM wnum;
+				if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_WIDEVNUM) {
 					rest = rest2;
-					vnum = arg->d.num;
+					wnum = arg->d.wnum;
 					if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
 						rest = rest2;
 
@@ -444,7 +460,7 @@ char *op_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 							rest = rest2;
 
 							id2 = arg->d.num;
-							*room = get_clone_room(get_room_index(vnum),id1,id2);
+							*room = get_clone_room(get_room_index(wnum.pArea, wnum.vnum),id1,id2);
 						}
 					}
 				}
@@ -475,8 +491,8 @@ char *op_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 				for (area = area_first; area; area = area->next) {
 					if (!str_infix(arg->d.str, area->name)) {
 						if(!(loc = location_to_room(&area->recall))) {
-							for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++)
-								if ((loc = get_room_index(vnum)))
+							for (vnum = 1; vnum <= area->top_vnum_room; vnum++)
+								if ((loc = get_room_index(area, vnum)))
 									break;
 						}
 
@@ -533,6 +549,9 @@ char *op_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 		case ENT_NONE:
 			*room = obj_room(info->obj);
 			break;
+		case ENT_WIDEVNUM:
+			*room = get_room_index_wnum(arg->d.wnum);
+			break;
 		case ENT_NUMBER:
 			// Can either be a room index or a wilderness room
 			// Room: <vnum>
@@ -559,8 +578,7 @@ char *op_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 					room_used_for_wilderness.y = y;
 					*room = &room_used_for_wilderness;
 				}
-			} else
-				*room = get_room_index(x);
+			}
 			break;
 
 		case ENT_STRING:
@@ -569,10 +587,11 @@ char *op_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 			else if(!str_cmp(arg->d.str,"here"))
 				*room = obj_room(info->obj);
 			else if(!str_cmp(arg->d.str,"vroom")) {
-				int vnum,id1, id2;
-				if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
+				int id1, id2;
+				WNUM wnum;
+				if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_WIDEVNUM) {
 					rest = rest2;
-					vnum = arg->d.num;
+					wnum = arg->d.wnum;
 					if((rest2 = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
 						rest = rest2;
 
@@ -581,7 +600,7 @@ char *op_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 							rest = rest2;
 
 							id2 = arg->d.num;
-							*room = get_clone_room(get_room_index(vnum),id1,id2);
+							*room = get_clone_room(get_room_index(wnum.pArea, wnum.vnum),id1,id2);
 						}
 					}
 				}
@@ -614,8 +633,8 @@ char *op_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 				for (area = area_first; area; area = area->next) {
 					if (!str_infix(arg->d.str, area->name)) {
 						if(!(loc = location_to_room(&area->recall))) {
-							for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++)
-								if ((loc = get_room_index(vnum)))
+							for (vnum = 1; vnum <= area->top_vnum_room; vnum++)
+								if ((loc = get_room_index(area, vnum)))
 									break;
 						}
 
@@ -796,8 +815,8 @@ SCRIPT_CMD(do_opcall)
 	CHAR_DATA *vch,*ch;
 	OBJ_DATA *obj1,*obj2;
 	SCRIPT_DATA *script;
-	int depth, vnum, ret;
-
+	int depth, ret;
+	WNUM wnum;
 
 	if(!info || !info->obj) return;
 
@@ -815,20 +834,16 @@ SCRIPT_CMD(do_opcall)
 		--script_call_depth;
 
 
-	if(!(rest = expand_argument(info,argument,arg))) {
+	if(!(rest = expand_argument(info,argument,arg)) || arg->type != ENT_WIDEVNUM) {
 		bug("OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
 		// Restore the call depth to the previous value
 		script_call_depth = depth;
 		return;
 	}
 
-	switch(arg->type) {
-	case ENT_STRING: vnum = atoi(arg->d.str); break;
-	case ENT_NUMBER: vnum = arg->d.num; break;
-	default: vnum = 0; break;
-	}
+	wnum = arg->d.wnum;
 
-	if (vnum < 1 || !(script = get_script_index(vnum, PRG_OPROG))) {
+	if (!wnum.pArea || wnum.vnum < 1 || !(script = get_script_index(wnum.pArea, wnum.vnum, PRG_OPROG))) {
 		bug("OpCall: invalid prog from vnum %d.", VNUM(info->obj));
 		return;
 	}
@@ -912,7 +927,7 @@ SCRIPT_CMD(do_opcall)
 		}
 	}
 
-	ret = execute_script(script->vnum, script, NULL, info->obj, NULL, NULL, NULL, NULL, NULL, ch, obj1, obj2, vch, NULL,NULL, NULL,info->phrase,info->trigger,info->trigger_type,0,0,0,0,0);
+	ret = execute_script(script, NULL, info->obj, NULL, NULL, NULL, NULL, NULL, ch, obj1, obj2, vch, NULL,NULL, NULL,info->phrase,info->trigger,info->trigger_type,0,0,0,0,0);
 	if(info->obj)
 		info->obj->progs->lastreturn = ret;
 	else
@@ -986,7 +1001,7 @@ SCRIPT_CMD(do_opcast)
 		}
 	}
 
-	proxy = create_mobile(get_mob_index(MOB_VNUM_OBJCASTER), FALSE);
+	proxy = create_mobile(mob_index_objcaster, FALSE);
 	char_to_room(proxy, room);
 
 	proxy->level = info->obj->level;
@@ -996,7 +1011,7 @@ SCRIPT_CMD(do_opcast)
 	proxy->short_descr = str_dup(info->obj->short_descr);
 
 	// Make sure they have a reagent for the powerful spells
-	reagent = create_object(get_obj_index(OBJ_VNUM_SHARD), 1, FALSE);
+	reagent = create_object(obj_index_shard, 1, FALSE);
 	obj_to_char(reagent,proxy);
 
 	switch (skill_table[sn].target) {
@@ -1974,7 +1989,8 @@ SCRIPT_CMD(do_oplink)
 {
 	char *rest;
 	ROOM_INDEX_DATA *room, *dest;
-	int door, vnum;
+	int door;
+	WNUM wnum = wnum_zero;
 	unsigned long id1, id2;
 
 	bool del = FALSE;
@@ -2011,28 +2027,25 @@ SCRIPT_CMD(do_oplink)
 	if(!(rest = expand_argument(info,argument,arg)))
 		return;
 
-	vnum = -1;
 	id1 = id2 = 0;
 	switch(arg->type) {
 	case ENT_STRING:
-		if(is_number(arg->d.str))
-			vnum = atoi(arg->d.str);
+		if(parse_widevnum(arg->d.str, &wnum))
+			;
 		else if(!str_cmp(arg->d.str,"delete") ||
 			!str_cmp(arg->d.str,"remove") ||
 			!str_cmp(arg->d.str,"unlink")) {
-			vnum = 0;
 			del = TRUE;
 		} else if(!str_cmp(arg->d.str,"environment") ||
 			!str_cmp(arg->d.str,"environ") ||
 			!str_cmp(arg->d.str,"extern") ||
 			!str_cmp(arg->d.str,"outside")) {
-			vnum = 0;
 			environ = TRUE;
 		} else if(!str_cmp(arg->d.str,"vroom")) {
 			argument = rest;
-			if(!(rest = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
+			if(!(rest = expand_argument(info,argument,arg)) || arg->type != ENT_WIDEVNUM)
 				return;
-			vnum = arg->d.num;
+			wnum = arg->d.wnum;
 
 			argument = rest;
 			if(!(rest = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
@@ -2045,33 +2058,53 @@ SCRIPT_CMD(do_oplink)
 			id2 = arg->d.num;
 		}
 		break;
-	case ENT_NUMBER:
-		vnum = arg->d.num;
+	case ENT_WIDEVNUM:
+		wnum = arg->d.wnum;
 		break;
 	case ENT_ROOM:
-		vnum = arg->d.room ? arg->d.room->vnum : -1;
+		if (arg->d.room)
+		{
+			wnum.pArea = arg->d.room->area;
+			wnum.vnum = arg->d.room->vnum;
+		}
 		break;
 	case ENT_EXIT:
 		ex = arg->d.door.r ? arg->d.door.r->exit[arg->d.door.door] : NULL;
-		vnum = (ex && ex->u1.to_room) ? ex->u1.to_room->vnum : -1;
+		if (ex && ex->u1.to_room)
+		{
+			wnum.pArea = ex->u1.to_room->area;
+			wnum.vnum = ex->u1.to_room->vnum;
+		}
 		break;
 	case ENT_MOBILE:
-		vnum = (arg->d.mob && arg->d.mob->in_room) ? arg->d.mob->in_room->vnum : -1;
+		if (arg->d.mob && arg->d.mob->in_room)
+		{
+			wnum.pArea = arg->d.mob->in_room->area;
+			wnum.vnum = arg->d.mob->in_room->vnum;
+		}
 		break;
 	case ENT_OBJECT:
-		vnum = (arg->d.obj && obj_room(arg->d.obj)) ? obj_room(arg->d.obj)->vnum : -1;
+		if (arg->d.obj)
+		{
+			ROOM_INDEX_DATA *oroom = obj_room(arg->d.obj);
+			if (oroom)
+			{
+				wnum.pArea = oroom->area;
+				wnum.vnum = oroom->vnum;
+			}
+		}	
 		break;
 	}
 
-	if(vnum < 0) {
+	if(!wnum.pArea || wnum.vnum < 1) {
 		bug("OPlink - invalid argument in room %d.", room->vnum);
 		return;
 	}
 
 	if(id1 > 0 || id2 > 0)
-		dest = get_clone_room(get_room_index(vnum),id1,id2);
-	else if(vnum > 0)
-		dest = get_room_index(vnum);
+		dest = get_clone_room(get_room_index(wnum.pArea, wnum.vnum),id1,id2);
+	else if(wnum.pArea && wnum.vnum > 0)
+		dest = get_room_index(wnum.pArea, wnum.vnum);
 	else if(environ)
 		dest = &room_pointer_environment;
 	else
@@ -2089,7 +2122,7 @@ SCRIPT_CMD(do_oplink)
 SCRIPT_CMD(do_opmload)
 {
 	char buf[MIL], *rest;
-	long vnum;
+	WNUM wnum = wnum_zero;
 	MOB_INDEX_DATA *pMobIndex;
 	CHAR_DATA *victim;
 
@@ -2100,14 +2133,20 @@ SCRIPT_CMD(do_opmload)
 		return;
 
 	switch(arg->type) {
-	case ENT_NUMBER: vnum = arg->d.num; break;
-	case ENT_STRING: vnum = arg->d.str ? atoi(arg->d.str) : 0; break;
-	case ENT_MOBILE: vnum = arg->d.mob ? arg->d.mob->pIndexData->vnum : 0; break;
-	default: vnum = 0; break;
+	case ENT_WIDEVNUM: wnum = arg->d.wnum; break;
+	case ENT_STRING: parse_widevnum(arg->d.str, &wnum); break;
+	case ENT_MOBILE:
+		if (arg->d.mob)
+		{
+			wnum.pArea = arg->d.mob->pIndexData->area;
+			wnum.vnum = arg->d.mob->pIndexData->vnum;
+		}	
+		break;
+	default: break;
 	}
 
-	if (vnum < 1 || !(pMobIndex = get_mob_index(vnum))) {
-		sprintf(buf, "Opmload: bad mob index (%ld) from mob %ld", vnum, VNUM(info->obj));
+	if (!wnum.pArea || wnum.vnum < 1 || !(pMobIndex = get_mob_index(wnum.pArea, wnum.vnum))) {
+		sprintf(buf, "Opmload: bad mob index (%ld#%ld) from mob %ld", wnum.pArea->uid, wnum.vnum, VNUM(info->obj));
 		bug(buf, 0);
 		return;
 	}
@@ -2122,7 +2161,8 @@ SCRIPT_CMD(do_opmload)
 SCRIPT_CMD(do_opoload)
 {
 	char buf[MIL], *rest;
-	long vnum, level;
+	long level;
+	WNUM wnum = wnum_zero;
 	bool fInside = FALSE;
 	bool fWear = FALSE;
 
@@ -2139,13 +2179,19 @@ SCRIPT_CMD(do_opoload)
 		return;
 
 	switch(arg->type) {
-	case ENT_NUMBER: vnum = arg->d.num; break;
-	case ENT_STRING: vnum = arg->d.str ? atoi(arg->d.str) : 0; break;
-	case ENT_OBJECT: vnum = arg->d.obj ? arg->d.obj->pIndexData->vnum : 0; break;
-	default: vnum = 0; break;
+	case ENT_WIDEVNUM: wnum = arg->d.wnum; break;
+	case ENT_STRING: parse_widevnum(arg->d.str, &wnum); break;
+	case ENT_OBJECT:
+		if (arg->d.obj)
+		{
+			wnum.pArea = arg->d.obj->pIndexData->area;
+			wnum.vnum = arg->d.obj->pIndexData->vnum;
+		}
+		break;
+	default: break;
 	}
 
-	if (!vnum || !(pObjIndex = get_obj_index(vnum))) {
+	if (!wnum.pArea || wnum.vnum < 1 || !(pObjIndex = get_obj_index(wnum.pArea, wnum.vnum))) {
 		bug("Opoload - Bad vnum arg from vnum %d.", VNUM(info->obj));
 		return;
 	}
@@ -3233,7 +3279,6 @@ SCRIPT_CMD(do_opalterobj)
 		else if(!str_cmp(field,"extra3"))		{ ptr = (int*)&obj->extra3_flags; flags = extra3_flags; min_sec = 7; }
 		else if(!str_cmp(field,"extra4"))		{ ptr = (int*)&obj->extra4_flags; flags = extra4_flags; min_sec = 7; }
 		else if(!str_cmp(field,"fixes"))		{ ptr = (int*)&obj->times_allowed_fixed; min_sec = 5; }
-		else if(!str_cmp(field,"key"))			{ if( obj->lock ) { ptr = (int*)&obj->lock->key_vnum; } }
 		else if(!str_cmp(field,"level"))		{ ptr = (int*)&obj->level; min_sec = 5; }
 		else if(!str_cmp(field,"lockflags"))	{ if( obj->lock ) { ptr = (int*)&obj->lock->flags; flags = lock_flags; } }
 		else if(!str_cmp(field,"pickchance"))	{ if( obj->lock ) { ptr = (int*)&obj->lock->pick_chance; min = 0; max = 100; hasmin = hasmax = TRUE; } }
@@ -4590,7 +4635,7 @@ SCRIPT_CMD(do_opstripaffectname)
 SCRIPT_CMD(do_opinput)
 {
 	char *rest, *p;
-	int vnum;
+	WNUM wnum;
 	CHAR_DATA *mob = NULL;
 
 
@@ -4622,17 +4667,14 @@ SCRIPT_CMD(do_opinput)
 
 	if( mob->desc->showstr_head != NULL ) return;
 
-	if(!(rest = expand_argument(info,rest,arg))) {
+	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_WIDEVNUM) {
 		bug("OpInput - Error in parsing.",0);
 		return;
 	}
 
-	switch(arg->type) {
-	case ENT_NUMBER: vnum = arg->d.num; break;
-	default: return;
-	}
+	wnum = arg->d.wnum;
 
-	if(vnum < 1 || !get_script_index(vnum, PRG_OPROG)) return;
+	if(!wnum.pArea || wnum.vnum < 1 || !get_script_index(wnum.pArea, wnum.vnum, PRG_OPROG)) return;
 
 	if(!(rest = expand_argument(info,rest,arg))) {
 		bug("OpInput - Error in parsing.",0);
@@ -4652,7 +4694,7 @@ SCRIPT_CMD(do_opinput)
 	mob->desc->input = TRUE;
 	mob->desc->input_var = p ? str_dup(p) : NULL;
 	mob->desc->input_prompt = str_dup(buffer->string[0] ? buffer->string : " >");
-	mob->desc->input_script = vnum;
+	mob->desc->input_script = wnum;
 	mob->desc->input_mob = NULL;
 	mob->desc->input_obj = info->obj;
 	mob->desc->input_room = NULL;
@@ -4837,7 +4879,7 @@ SCRIPT_CMD(do_opalterexit)
 		}
 
 		switch(arg->type) {
-		case ENT_NUMBER:	room = get_room_index(arg->d.num); break;
+		case ENT_WIDEVNUM:	room = get_room_index_wnum(arg->d.wnum); break;
 		case ENT_ROOM:		room = arg->d.room; break;
 		case ENT_MOBILE:	room = arg->d.mob->in_room; break;
 		case ENT_OBJECT:	room = obj_room(arg->d.obj); break;
@@ -4891,8 +4933,6 @@ SCRIPT_CMD(do_opalterexit)
 	else if(!str_cmp(field,"strength"))			sptr = (sh_int*)&ex->door.strength;
 	else if(!str_cmp(field,"lock"))				{ ptr = (int*)&ex->door.lock.flags; flags = lock_flags; }
 	else if(!str_cmp(field,"lockreset"))		{ ptr = (int*)&ex->door.rs_lock.flags; flags = lock_flags; min_sec = 7; }
-	else if(!str_cmp(field,"key"))				ptr = (int*)&ex->door.lock.key_vnum;
-	else if(!str_cmp(field,"keyreset"))			{ ptr = (int*)&ex->door.rs_lock.key_vnum; min_sec = 7; }
 	else if(!str_cmp(field,"pick"))				{ ptr = (int*)&ex->door.lock.pick_chance; min = 0; max = 100; hasmin = hasmax = TRUE; }
 	else if(!str_cmp(field,"pickreset"))		{ ptr = (int*)&ex->door.rs_lock.pick_chance; min_sec = 7; min = 0; max = 100; hasmin = hasmax = TRUE; }
 
@@ -5197,7 +5237,6 @@ SCRIPT_CMD(do_opvarsaveon)
 SCRIPT_CMD(do_opcloneroom)
 {
 	char name[MIL];
-	long vnum;
 	CHAR_DATA *mob;
 	OBJ_DATA *obj;
 	TOKEN_DATA *tok;
@@ -5209,12 +5248,10 @@ SCRIPT_CMD(do_opcloneroom)
 	info->progs->lastreturn = 0;
 
 	// Get vnum
-	if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
+	if(!(argument = expand_argument(info,argument,arg)) || arg->type != ENT_WIDEVNUM)
 		return;
 
-	vnum = arg->d.num;
-
-	source = get_room_index(vnum);
+	source = get_room_index_wnum(arg->d.wnum);
 	if(!source) return;
 
 	if( IS_SET(source->room2_flags, ROOM_NOCLONE) )
@@ -5287,8 +5324,8 @@ SCRIPT_CMD(do_opalterroom)
 	case ENT_ROOM:
 		room = arg->d.room;
 		break;
-	case ENT_NUMBER:
-		room = get_room_index(arg->d.num);
+	case ENT_WIDEVNUM:
+		room = get_room_index_wnum(arg->d.wnum);
 		break;
 	default: room = NULL; break;
 	}
@@ -5554,7 +5591,6 @@ SCRIPT_CMD(do_opalterroom)
 // destroyroom <room>
 SCRIPT_CMD(do_opdestroyroom)
 {
-	long vnum;
 	unsigned long id1, id2;
 	ROOM_INDEX_DATA *room;
 
@@ -5574,11 +5610,9 @@ SCRIPT_CMD(do_opdestroyroom)
 		return;
 	}
 
-	if(arg->type != ENT_NUMBER) return;
+	if(arg->type != ENT_WIDEVNUM) return;
 
-	vnum = arg->d.num;
-
-	room = get_room_index(vnum);
+	room = get_room_index_wnum(arg->d.wnum);
 	if(!room) return;
 
 	// Get id
@@ -5759,11 +5793,14 @@ SCRIPT_CMD(do_opxcall)
 	OBJ_DATA *obj = NULL;
 	ROOM_INDEX_DATA *room = NULL;
 	TOKEN_DATA *token = NULL;
+	AREA_DATA *area = NULL;
+	INSTANCE *instance = NULL;
+	DUNGEON *dungeon = NULL;
 	CHAR_DATA *vch,*ch;
 	OBJ_DATA *obj1,*obj2;
 	SCRIPT_DATA *script;
-	int depth, vnum, ret, space = PRG_MPROG;
-
+	int depth, ret, space = PRG_MPROG;
+	WNUM wnum;
 
 	if(!info || !info->obj) return;
 
@@ -5797,9 +5834,12 @@ SCRIPT_CMD(do_opxcall)
 	case ENT_OBJECT: obj = arg->d.obj; space = PRG_OPROG; break;
 	case ENT_ROOM: room = arg->d.room; space = PRG_RPROG; break;
 	case ENT_TOKEN: token = arg->d.token; space = PRG_TPROG; break;
+	case ENT_AREA: area = arg->d.area; space = PRG_APROG; break;
+	case ENT_INSTANCE: instance = arg->d.instance; space = PRG_IPROG; break;
+	case ENT_DUNGEON: dungeon = arg->d.dungeon; space = PRG_DPROG; break;
 	}
 
-	if(!mob && !obj && !room && !token) {
+	if(!mob && !obj && !room && !token && !area && !instance && !dungeon) {
 		bug("OpCall: No entity target from vnum %ld.", VNUM(info->obj));
 		// Restore the call depth to the previous value
 		script_call_depth = depth;
@@ -5813,20 +5853,15 @@ SCRIPT_CMD(do_opxcall)
 		return;
 	}
 
-	if(!(rest = expand_argument(info,rest,arg))) {
+	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_WIDEVNUM) {
 		bug("OpCall: Error in parsing from vnum %ld.", VNUM(info->obj));
 		// Restore the call depth to the previous value
 		script_call_depth = depth;
 		return;
 	}
 
-	switch(arg->type) {
-	case ENT_STRING: vnum = atoi(arg->d.str); break;
-	case ENT_NUMBER: vnum = arg->d.num; break;
-	default: vnum = 0; break;
-	}
-
-	if (vnum < 1 || !(script = get_script_index(vnum, space))) {
+	wnum = arg->d.wnum;
+	if (!wnum.pArea || wnum.vnum < 1 || !(script = get_script_index(wnum.pArea, wnum.vnum, space))) {
 		bug("OpCall: invalid prog from vnum %d.", VNUM(info->obj));
 		return;
 	}
@@ -5910,7 +5945,7 @@ SCRIPT_CMD(do_opxcall)
 		}
 	}
 
-	ret = execute_script(script->vnum, script, mob, obj, room, token, NULL, NULL, NULL, ch, obj1, obj2, vch, NULL,NULL, NULL,info->phrase,info->trigger,info->trigger_type,0,0,0,0,0);
+	ret = execute_script(script, mob, obj, room, token, area, instance, dungeon, ch, obj1, obj2, vch, NULL,NULL, NULL,info->phrase,info->trigger,info->trigger_type,0,0,0,0,0);
 	if(info->obj)
 		info->obj->progs->lastreturn = ret;
 	else
@@ -6238,7 +6273,7 @@ SCRIPT_CMD(do_oppersist)
 
 	if( room )
 	{
-		if( get_blueprint_section_byroom(room->vnum) ) return;
+		if( get_blueprint_section_byroom(room->area, room->vnum) ) return;
 	}
 
 	if(!(rest = expand_argument(info,rest,arg))) {
@@ -6902,7 +6937,7 @@ SCRIPT_CMD(do_opscriptwait)
 	char *rest;
 	CHAR_DATA *mob = NULL;
 	int wait;
-	long success, failure, pulse;
+	WNUM success, failure, pulse;
 	TOKEN_DATA *actor_token = NULL;
 	CHAR_DATA *actor_mob = NULL;
 	OBJ_DATA *actor_obj = NULL;
@@ -6937,41 +6972,27 @@ SCRIPT_CMD(do_opscriptwait)
 	default: return;
 	}
 
-	//printf_to_char(mob, "script_wait: wait = %d\n\r", wait);
-
 
 	if( !*rest) return;
 
-	if(!(rest = expand_argument(info,rest,arg)))
+	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_WIDEVNUM)
 		return;
 
-	switch(arg->type) {
-	case ENT_STRING: success = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
-	case ENT_NUMBER: success = arg->d.num; break;
-	default: return;
-	}
+	success = arg->d.wnum;
 
 	if( !*rest) return;
 
-	if(!(rest = expand_argument(info,rest,arg)))
+	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_WIDEVNUM)
 		return;
 
-	switch(arg->type) {
-	case ENT_STRING: failure = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
-	case ENT_NUMBER: failure = arg->d.num; break;
-	default: return;
-	}
+	failure = arg->d.wnum;
 
 	if( !*rest) return;
 
-	if(!(rest = expand_argument(info,rest,arg)))
+	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_WIDEVNUM)
 		return;
 
-	switch(arg->type) {
-	case ENT_STRING: pulse = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
-	case ENT_NUMBER: pulse = arg->d.num; break;
-	default: return;
-	}
+	pulse = arg->d.wnum;
 
 	actor_obj = info->obj;
 	prog_type = PRG_OPROG;
@@ -7006,9 +7027,9 @@ SCRIPT_CMD(do_opscriptwait)
 
 	if(!actor_mob && !actor_obj && !actor_token) return;
 
-	if(success < 1 || !get_script_index(success, prog_type)) return;
-	if(failure < 1 || !get_script_index(failure, prog_type)) return;
-	if(pulse > 0 && !get_script_index(pulse, prog_type)) return;
+	if(!success.pArea || success.vnum < 1 || !get_script_index(success.pArea, success.vnum, prog_type)) return;
+	if(!failure.pArea || failure.vnum < 1 || !get_script_index(failure.pArea, failure.vnum, prog_type)) return;
+	if(pulse.pArea && pulse.vnum > 0 && !get_script_index(pulse.pArea, pulse.vnum, prog_type)) return;
 
 	wait = UMAX(wait, 1);
 
@@ -7027,9 +7048,9 @@ SCRIPT_CMD(do_opscriptwait)
 		mob->script_wait_id[0] = actor_token->id[0];
 		mob->script_wait_id[1] = actor_token->id[1];
 	}
-	mob->script_wait_success = get_script_index(success, prog_type);
-	mob->script_wait_failure = get_script_index(failure, prog_type);
-	mob->script_wait_pulse = (pulse > 0) ? get_script_index(pulse, prog_type) : NULL;
+	mob->script_wait_success = get_script_index(success.pArea, success.vnum, prog_type);
+	mob->script_wait_failure = get_script_index(failure.pArea, failure.vnum, prog_type);
+	mob->script_wait_pulse = (pulse.pArea && pulse.vnum > 0) ? get_script_index(pulse.pArea, pulse.vnum, prog_type) : NULL;
 
 	//printf_to_char(mob, "script_wait started: wait = %d\n\r", wait);
 	//printf_to_char(mob, "script_wait started: success = %d\n\r", success);
@@ -7090,9 +7111,9 @@ SCRIPT_CMD(do_opcheckpoint)
 			!str_cmp(arg->d.str, "reset") )
 			mob->checkpoint = NULL;
 		break;
-	case ENT_NUMBER:
-		if( arg->d.num > 0 )
-			mob->checkpoint = get_room_index(arg->d.num);
+	case ENT_WIDEVNUM:
+		if( arg->d.wnum.pArea && arg->d.wnum.vnum > 0 )
+			mob->checkpoint = get_room_index_wnum(arg->d.wnum);
 		break;
 	case ENT_ROOM:
 		if( arg->d.room != NULL )

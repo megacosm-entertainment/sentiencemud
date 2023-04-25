@@ -140,23 +140,24 @@ void string_postprocess(CHAR_DATA *ch, bool execute)
 		char *s = ch->desc->inputString;
 
 		if(ch->desc->input_mob) {
-			script = get_script_index(ch->desc->input_script,PRG_MPROG);
+			script = get_script_index_wnum(ch->desc->input_script,PRG_MPROG);
 			var = &ch->desc->input_mob->progs->vars;
 		} else if(ch->desc->input_obj) {
-			script = get_script_index(ch->desc->input_script,PRG_OPROG);
+			script = get_script_index_wnum(ch->desc->input_script,PRG_OPROG);
 			var = &ch->desc->input_obj->progs->vars;
 		} else if(ch->desc->input_room) {
-			script = get_script_index(ch->desc->input_script,PRG_RPROG);
+			script = get_script_index_wnum(ch->desc->input_script,PRG_RPROG);
 			var = &ch->desc->input_room->progs->vars;
 		} else if(ch->desc->input_tok) {
-			script = get_script_index(ch->desc->input_script,PRG_TPROG);
+			script = get_script_index_wnum(ch->desc->input_script,PRG_TPROG);
 			var = &ch->desc->input_tok->progs->vars;
 		}
 
 		// Clear this incase other scripts chain together
 		ch->desc->input = FALSE;
 		ch->desc->input_var = NULL;
-		ch->desc->input_script = 0;
+		ch->desc->input_script.pArea = NULL;
+		ch->desc->input_script.vnum = 0;
 		ch->desc->input_mob = NULL;
 		ch->desc->input_obj = NULL;
 		ch->desc->input_room = NULL;
@@ -170,7 +171,7 @@ void string_postprocess(CHAR_DATA *ch, bool execute)
 				variables_set_string(var,v,s,FALSE);
 			}
 
-			ret = execute_script(script->vnum, script, mob, obj, room, tok, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL,NULL,TRIG_NONE,0,0,0,0,0);
+			ret = execute_script(script, mob, obj, room, tok, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL,NULL,TRIG_NONE,0,0,0,0,0);
 			if(ret > 0 && !IS_NPC(ch) && ch->pcdata->quit_on_input)
 				do_function(ch, &do_quit, NULL);
 		}

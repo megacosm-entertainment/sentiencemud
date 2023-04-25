@@ -63,7 +63,6 @@ DECLARE_SPELL_FUN(	spell_continual_light	);
 DECLARE_SPELL_FUN(	spell_control_weather	);
 DECLARE_SPELL_FUN(	spell_cosmic_blast	);
 DECLARE_SPELL_FUN(	spell_counter_spell	);
-DECLARE_SPELL_FUN(	spell_create_food	);
 DECLARE_SPELL_FUN(	spell_create_rose	);
 DECLARE_SPELL_FUN(	spell_create_spring	);
 DECLARE_SPELL_FUN(	spell_create_water	);

@@ -102,13 +102,13 @@ SPELL_FUNC(spell_maze)
 	}
 
 	skill = get_skill(ch, gsn_maze);
-	if (!(area = find_area("Geldoff's Maze")) || (number_percent() >= skill)) {
+	if (!(area = area_geldoff_maze) || (number_percent() >= skill)) {
 		send_to_char("Your mind seems to have gotten lost in its own maze...\n\r", ch);
 		ch->daze += 10 - number_range(0, skill/10);
 		return FALSE;
 	}
 
-	while(!(room = get_room_index(number_range(area->min_vnum, area->max_vnum))));
+	while(!(room = get_room_index(area, number_range(1, area->top_room))));
 
 	if (victim->fighting) stop_fighting(victim, TRUE);
 
@@ -168,24 +168,23 @@ SPELL_FUNC(spell_nexus)
 	catalyst = use_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY,distance,1,CATALYST_MAXSTRENGTH,TRUE);
 
 	/* portal one */
-	portal = create_object(get_obj_index(OBJ_VNUM_PORTAL),0, TRUE);
+	portal = create_object(obj_index_portal,0, TRUE);
 	portal->timer = 1 + level / 10;
 
 	if( to_room->wilds && IS_SET(to_room->room2_flags, ROOM_VIRTUAL_ROOM) )
 	{
-		portal->value[3] = 0;
-		portal->value[4] = 0;
+		portal->value[3] = GATETYPE_WILDS;
 		portal->value[5] = to_room->wilds->uid;
 		portal->value[6] = to_room->x;
 		portal->value[7] = to_room->y;
 	}
 	else
 	{
-		portal->value[3] = to_room->vnum;
-		portal->value[4] = 0;
-		portal->value[5] = 0;
-		portal->value[6] = to_room->id[0];	// If this is a clone room, these will be set
-		portal->value[7] = to_room->id[1];	// otherwise, they will be 0,0
+		portal->value[3] = GATETYPE_NORMAL;
+		portal->value[5] = to_room->area->uid;
+		portal->value[6] = to_room->vnum;
+		portal->value[7] = to_room->id[0];	// If this is a clone room, these will be set
+		portal->value[8] = to_room->id[1];	// otherwise, they will be 0,0
 	}
 
 	obj_to_room(portal,from_room);
@@ -196,24 +195,23 @@ SPELL_FUNC(spell_nexus)
 	if (to_room != from_room) {
 
 		/* portal two */
-		portal = create_object(get_obj_index(OBJ_VNUM_PORTAL),0, TRUE);
+		portal = create_object(obj_index_portal,0, TRUE);
 		portal->timer = 1 + level/10;
 
 		if( from_room->wilds && IS_SET(from_room->room2_flags, ROOM_VIRTUAL_ROOM) )
 		{
-			portal->value[3] = 0;
-			portal->value[4] = 0;
+			portal->value[3] = GATETYPE_WILDS;
 			portal->value[5] = from_room->wilds->uid;
 			portal->value[6] = from_room->x;
 			portal->value[7] = from_room->y;
 		}
 		else
 		{
-			portal->value[3] = from_room->vnum;
-			portal->value[4] = 0;
-			portal->value[5] = 0;
-			portal->value[6] = from_room->id[0];
-			portal->value[7] = from_room->id[1];
+			portal->value[3] = GATETYPE_NORMAL;
+			portal->value[5] = from_room->area->uid;
+			portal->value[6] = from_room->vnum;
+			portal->value[7] = from_room->id[0];	// If this is a clone room, these will be set
+			portal->value[8] = from_room->id[1];	// otherwise, they will be 0,0
 		}
 
 		obj_to_room(portal,to_room);
@@ -234,12 +232,12 @@ SPELL_FUNC(spell_reflection)
 	CHAR_DATA *reflection;
 	char buf[MAX_STRING_LENGTH];
 
-	if (!get_mob_index(MOB_VNUM_REFLECTION)) {
+	if (!mob_index_reflection) {
 		bug("spell_reflection: get_mob_index was null!\n\r",0);
 		return FALSE;
 	}
 
-	reflection = create_mobile(get_mob_index(MOB_VNUM_REFLECTION), FALSE);
+	reflection = create_mobile(mob_index_reflection, FALSE);
 
 	free_string(reflection->short_descr);
 	reflection->short_descr = str_dup(buf);
@@ -248,7 +246,7 @@ SPELL_FUNC(spell_reflection)
 	char_to_room(reflection, ch->in_room);
 
 	if (IS_SET(ch->act, PLR_COLOUR))
-	SET_BIT(reflection->act, PLR_COLOUR);
+		SET_BIT(reflection->act, PLR_COLOUR);
 
 	ch->desc->character = reflection;
 	ch->desc->original = ch;

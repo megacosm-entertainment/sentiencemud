@@ -52,6 +52,38 @@ extern void affect_fix_char(CHAR_DATA *ch);
 extern bool newlock;
 extern bool wizlock;
 extern bool is_test_port;
+extern RESERVED_WNUM reserved_room_wnums[];
+extern RESERVED_WNUM reserved_obj_wnums[];
+extern RESERVED_WNUM reserved_mob_wnums[];
+extern RESERVED_WNUM reserved_rprog_wnums[];
+extern RESERVED_AREA reserved_areas[];
+extern GLOBAL_DATA gconfig;
+
+RESERVED_WNUM *search_reserved(RESERVED_WNUM *reserved, char *name)
+{
+	int i;
+
+	for(i = 0; reserved[i].name; i++)
+	{
+		if (reserved[i].wnum && reserved[i].data && !str_cmp(name, reserved[i].name))
+			return &reserved[i];
+	}
+
+	return NULL;
+}
+
+RESERVED_AREA *search_reserved_area(char *name)
+{
+	int i;
+
+	for(i = 0; reserved_areas[i].name; i++)
+	{
+		if (reserved_areas[i].area && !str_cmp(name, reserved_areas[i].name))
+			return &reserved_areas[i];
+	}
+
+	return NULL;
+}
 
 
 int gconfig_read (void)
@@ -60,7 +92,6 @@ int gconfig_read (void)
     bool fMatch;
     char *word;
     char buf[MIL];
-    extern GLOBAL_DATA gconfig;
 
     log_string("Loading configuration settings from gconfig.rc...");
 
@@ -78,6 +109,8 @@ int gconfig_read (void)
     gconfig.next_ship_uid[0] = 1;	gconfig.next_ship_uid[1] = 0;
 
     gconfig.next_church_uid = 1;
+	gconfig.next_church_vnum_start = 1;
+
     gconfig.db_version = VERSION_DB_000;
 
     for(;;)
@@ -91,6 +124,18 @@ int gconfig_read (void)
                 fMatch = TRUE;
                 fread_to_eol (fp);
             break;
+			case 'A':
+				{
+					RESERVED_AREA *ra = search_reserved_area(word);
+
+					if (ra)
+					{
+						ra->auid = fread_number(fp);
+						fMatch = TRUE;
+						break;
+					}
+				}
+				break;
 			case 'D':
 				KEY ("DBVersion", gconfig.db_version, fread_number(fp));
 				break;
@@ -125,6 +170,19 @@ int gconfig_read (void)
 					return(0); /* Success*/
 				}
 	            break;
+
+			case 'M':
+				{
+					RESERVED_WNUM *mwnum = search_reserved(reserved_mob_wnums, word);
+
+					if (mwnum)
+					{
+						mwnum->auid = fread_number(fp);
+						mwnum->vnum = fread_number(fp);
+						fMatch = TRUE;
+					}
+				}
+				break;
 
             case 'N':
             	if(!str_cmp(word,"NextMobUID")) {
@@ -161,6 +219,7 @@ int gconfig_read (void)
                 KEY ("NextWildsUID", gconfig.next_wilds_uid, fread_number(fp));
                 KEY ("NextVlinkUID", gconfig.next_vlink_uid, fread_number(fp));
                 KEY ("NextChurchUID", gconfig.next_church_uid, fread_number(fp));
+				KEY ("NextChurchVnumStart", gconfig.next_church_vnum_start, fread_number(fp));
 
                 if(!str_cmp(word,"Newlock")) {
 					newlock = TRUE;
@@ -168,6 +227,41 @@ int gconfig_read (void)
 					break;
 				}
 	            break;
+			case 'O':
+				{
+					RESERVED_WNUM *ownum = search_reserved(reserved_obj_wnums, word);
+
+					if (ownum)
+					{
+						ownum->auid = fread_number(fp);
+						ownum->vnum = fread_number(fp);
+						fMatch = TRUE;
+					}
+				}
+				break;
+			case 'R':
+				{
+					RESERVED_WNUM *rwnum = search_reserved(reserved_room_wnums, word);
+
+					if (rwnum)
+					{
+						rwnum->auid = fread_number(fp);
+						rwnum->vnum = fread_number(fp);
+						fMatch = TRUE;
+						break;
+					}
+
+					RESERVED_WNUM *rpwnum = search_reserved(reserved_rprog_wnums, word);
+					if (rpwnum)
+					{
+						rpwnum->auid = fread_number(fp);
+						rpwnum->vnum = fread_number(fp);
+						fMatch = TRUE;
+						break;
+					}
+				}
+				break;
+
 			case 'T':
                 if(!str_cmp(word,"Testport")) {
 					is_test_port = TRUE;
@@ -194,11 +288,37 @@ int gconfig_read (void)
     } /* end for */
 }
 
+void write_reserved(FILE *fp, RESERVED_WNUM *reserved)
+{
+	int i;
+
+	for(i = 0; reserved[i].name; i++)
+	{
+		if (reserved[i].wnum)
+		{
+			fprintf(fp, "%s %ld %ld\n", reserved[i].name,
+				(reserved[i].wnum->pArea ? reserved[i].wnum->pArea->uid : 0),
+				reserved[i].wnum->vnum);
+		}
+	}
+}
+
+
+void write_reserved_areas(FILE *fp)
+{
+	for(int i = 0; reserved_areas[i].name; i++)
+	{
+		if (reserved_areas[i].area)
+		{
+			fprintf(fp, "%s %ld\n", reserved_areas[i].name,
+				(*(reserved_areas[i].area) ? (*(reserved_areas[i].area))->uid : 0));
+		}
+	}
+}
 
 int gconfig_write(void)
 {
     FILE *fp;
-    extern GLOBAL_DATA gconfig;
 
     fp = fopen(CONFIG_FILE,"w");
     if (!fp)
@@ -217,9 +337,17 @@ int gconfig_write(void)
     fprintf(fp, "NextWildsUID %ld\n", gconfig.next_wilds_uid);
     fprintf(fp, "NextVlinkUID %ld\n", gconfig.next_vlink_uid);
     fprintf(fp, "NextChurchUID %ld\n", gconfig.next_church_uid);
+	fprintf(fp, "NextChurchVnumStart %ld\n", gconfig.next_church_vnum_start);
     if(newlock) fprintf(fp, "Newlock\n");
     if(wizlock) fprintf(fp, "Wizlock\n");
     if(is_test_port) fprintf(fp, "Testport\n");
+
+	write_reserved(fp, reserved_room_wnums);
+	write_reserved(fp, reserved_mob_wnums);
+	write_reserved(fp, reserved_obj_wnums);
+	// Tokens?
+	write_reserved(fp, reserved_rprog_wnums);
+	write_reserved_areas(fp);
 
     fprintf(fp, "END\n");
     fclose(fp);
@@ -941,83 +1069,10 @@ void do_at(CHAR_DATA *ch, char *argument)
 
 void do_startinvasion(CHAR_DATA *ch, char *argument)
 {
-    AREA_DATA *pArea;
-    char arg1[MIL];
-    char arg2[MIL];
-    char arg3[MIL];
-    char arg4[MIL];
-    int max_level = 0;
-    long leader_vnum = 0;
-    long mob_vnum = 0;
-    INVASION_QUEST *quest;
-
-    argument = one_argument(argument, arg1);
-    argument = one_argument(argument, arg2);
-    argument = one_argument(argument, arg3);
-    argument = one_argument(argument, arg4);
-
-    if (arg1[0] == '\0' || arg2[0] == '\0' || arg3[0] == '\0' || arg4[0] == '\0')
-    {
-	send_to_char("startinvasion AREA leader_vnum mob_vnum max_level\n\r", ch);
+	send_to_char("Currently disabled", ch);
 	return;
-    }
 
-  pArea = find_area(arg1);
-  if (pArea == NULL) {
-    send_to_char("Can't find that area.\n\r", ch);
-    return;
-  }
-
-  leader_vnum = atol(arg2);
-  mob_vnum = atol(arg3);
-  max_level = atoi(arg4);
-
-  if (get_mob_index(leader_vnum) == NULL || get_mob_index(mob_vnum) == NULL) {
-    send_to_char("One or both of your mob vnums are wrong.\n\r", ch);
-    return;
-  }
-
-  quest = create_invasion_quest(pArea, max_level, leader_vnum, mob_vnum);
-  pArea->invasion_quest = quest;
 }
-
-void do_mapgoto(CHAR_DATA *ch, char *argument)
-{
-    ROOM_INDEX_DATA *pRoom;
-    AREA_DATA *pArea;
-    char arg1[MIL];
-    char arg2[MIL];
-    int dx, dy;
-    long index = 0;
-
-    argument = one_argument(argument, arg1);
-    argument = one_argument(argument, arg2);
-
-    if (arg1[0] == '\0' || arg2[0] == '\0')
-    {
-	send_to_char("MapGoto X Y\n\r", ch);
-	return;
-    }
-
-	dx = atoi(arg1);
-	dy = atoi(arg2);
-
-  pArea = find_area("Wilderness");
-
-  index = (long)((long)dy * (long)pArea->map_size_x + dx + pArea->min_vnum + WILDERNESS_VNUM_OFFSET);
-
-        if ((pRoom = get_room_index(index)) == NULL)
-	{
-	    send_to_char("Couldn't find room.\n\r", ch);
-	    return;
-	}
-
-  char_from_room(ch);
-  char_to_room(ch, pRoom);
-
-    do_function(ch, &do_look, "auto");
-}
-
 
 void do_goto(CHAR_DATA *ch, char *argument)
 {
@@ -1027,29 +1082,29 @@ void do_goto(CHAR_DATA *ch, char *argument)
 
     if (argument[0] == '\0')
     {
-	send_to_char("Goto where?\n\r", ch);
-	return;
+		send_to_char("Goto where?\n\r", ch);
+		return;
     }
 
     if ((location = find_location(ch, argument)) == NULL)
     {
-	send_to_char("No such location.\n\r", ch);
-	return;
+		send_to_char("No such location.\n\r", ch);
+		return;
     }
 
     count = 0;
     for (rch = location->people; rch != NULL; rch = rch->next_in_room)
         count++;
 
-    if (!is_room_owner(ch,location) && room_is_private(location, ch)
-    &&  (count > 1 || get_trust(ch) < MAX_LEVEL))
+    if (!is_room_owner(ch,location) && room_is_private(location, ch) &&
+		(count > 1 || get_trust(ch) < MAX_LEVEL))
     {
-	send_to_char("That room is private right now.\n\r", ch);
-	return;
+		send_to_char("That room is private right now.\n\r", ch);
+		return;
     }
 
     if (ch->fighting != NULL)
-	stop_fighting(ch, TRUE);
+		stop_fighting(ch, TRUE);
 
     for (rch = ch->in_room->people; rch != NULL; rch = rch->next_in_room)
     {
@@ -1352,8 +1407,8 @@ void do_astat (CHAR_DATA * ch, char *argument)
     sprintf (buf, "Vnums   : [{W%ld{x-{W%ld{x]\n\r", pArea->min_vnum, pArea->max_vnum);
     add_buf (output, buf);
     sprintf (buf, "Recall  : [{W%6ld{x] {W%s{x\n\r", pArea->recall.id[0],
-             get_room_index (pArea->recall.id[0])
-             ? get_room_index (pArea->recall.id[0])->name : "none");
+             get_room_index (pArea, pArea->recall.id[0])
+             ? get_room_index (pArea, pArea->recall.id[0])->name : "none");
     add_buf (output, buf);
     sprintf (buf, "Security: [{W%d{x]\n\r", pArea->security);
     add_buf (output, buf);
@@ -1495,12 +1550,13 @@ void do_rstat(CHAR_DATA *ch, char *argument)
 			{
 				sprintf(buf,
                         "{x%s {Y[ENVIRONMENT]{x\n\r"
-						"    {YKey: {x%ld  Pick Chance: {x%d%%\n\r"
+						"    {YKey: {x%ld#%ld  Pick Chance: {x%d%%\n\r"
 						"    {YLock Flags: {x%s\n\r"
 						"    {YExit flags: {x%s\n\r"
 						"    {YKeyword:{x '%s'  {YDescription: {x%s",
                         dir_name[door],
-                        pexit->door.lock.key_vnum, pexit->door.lock.pick_chance,
+                        pexit->door.lock.key_wnum.pArea ? pexit->door.lock.key_wnum.pArea->uid : 0,
+						pexit->door.lock.key_wnum.vnum, pexit->door.lock.pick_chance,
 						flag_string(lock_flags, pexit->door.lock.flags),
                         flag_string(exit_flags, pexit->exit_info),
                         pexit->keyword,
@@ -1511,12 +1567,13 @@ void do_rstat(CHAR_DATA *ch, char *argument)
 			{
 				sprintf(buf,
                         "{x%s {Y[PREVIOUS FLOOR]{x\n\r"
-						"    {YKey: {x%ld  Pick Chance: {x%d%%\n\r"
+						"    {YKey: {x%ld#%ld  Pick Chance: {x%d%%\n\r"
 						"    {YLock Flags: {x%s\n\r"
 						"    {YExit flags: {x%s\n\r"
                         "    {YKeyword:{x '%s'  {YDescription: {x%s",
                         dir_name[door],
-                        pexit->door.lock.key_vnum, pexit->door.lock.pick_chance,
+                        pexit->door.lock.key_wnum.pArea ? pexit->door.lock.key_wnum.pArea->uid : 0,
+						pexit->door.lock.key_wnum.vnum, pexit->door.lock.pick_chance,
 						flag_string(lock_flags, pexit->door.lock.flags),
                         flag_string(exit_flags, pexit->exit_info),
                         pexit->keyword,
@@ -1527,12 +1584,13 @@ void do_rstat(CHAR_DATA *ch, char *argument)
 			{
 				sprintf(buf,
 					"{x%s {Y[NEXT FLOOR]{x\n\r"
-					"    {YKey: {x%ld  Pick Chance: {x%d%%\n\r"
+					"    {YKey: {x%ld#%ld  Pick Chance: {x%d%%\n\r"
 					"    {YLock Flags: {x%s\n\r"
 					"    {YExit flags: {x%s\n\r"
 					"    {YKeyword:{x '%s'  {YDescription: {x%s",
 					dir_name[door],
-					pexit->door.lock.key_vnum, pexit->door.lock.pick_chance,
+					pexit->door.lock.key_wnum.pArea ? pexit->door.lock.key_wnum.pArea->uid : 0,
+					pexit->door.lock.key_wnum.vnum, pexit->door.lock.pick_chance,
 					flag_string(lock_flags, pexit->door.lock.flags),
 					flag_string(exit_flags, pexit->exit_info),
 					pexit->keyword,
@@ -1546,7 +1604,7 @@ void do_rstat(CHAR_DATA *ch, char *argument)
 
 				sprintf(buf,
 					"{x%s {Yto vnum {x%ld '%s' {Yin Area uid:{x %ld '%s'\n\r"
-					"    {YKey: {x%ld  Pick Chance: {x%d%%\n\r"
+					"    {YKey: {x%ld#%ld  Pick Chance: {x%d%%\n\r"
 					"    {YLock Flags: {x%s\n\r"
 					"    {YExit flags: {x%s\n\r"
 					"    {YKeyword:{x '%s'  {YDescription: {x%s",
@@ -1555,7 +1613,8 @@ void do_rstat(CHAR_DATA *ch, char *argument)
 					(dest ? dest->name : "(null)"),
 					(dest ? dest->area->uid : -1),
 					(dest ? dest->area->name : "(null)"),
-					pexit->door.lock.key_vnum, pexit->door.lock.pick_chance,
+					pexit->door.lock.key_wnum.pArea ? pexit->door.lock.key_wnum.pArea->uid : 0,
+					pexit->door.lock.key_wnum.vnum, pexit->door.lock.pick_chance,
 					flag_string(lock_flags, pexit->door.lock.flags),
 					flag_string(exit_flags, pexit->exit_info),
 					pexit->keyword,
@@ -1568,7 +1627,7 @@ void do_rstat(CHAR_DATA *ch, char *argument)
                     /* Exit goes to a wilds location from a static one*/
                     sprintf(buf,
                             "{x%s {Yto coors{x(%d, %d) {Yin Wilds uid:{x %ld{Y, Area uid:{x %ld\n\r"
-                            "    {YKey: {x%ld  Pick Chance: {x%d%%\n\r"
+                            "    {YKey: {x%ld#%ld  Pick Chance: {x%d%%\n\r"
 							"    {YLock Flags: {x%s\n\r"
 							"    {YExit flags: {x%s\n\r"
                             "    {YKeyword:{x '%s'  {YDescription: {x%s",
@@ -1577,7 +1636,8 @@ void do_rstat(CHAR_DATA *ch, char *argument)
                             pexit->wilds.y,
                             pexit->wilds.wilds_uid,
                             pexit->wilds.area_uid,
-                            pexit->door.lock.key_vnum, pexit->door.lock.pick_chance,
+							pexit->door.lock.key_wnum.pArea ? pexit->door.lock.key_wnum.pArea->uid : 0,
+							pexit->door.lock.key_wnum.vnum, pexit->door.lock.pick_chance,
 							flag_string(lock_flags, pexit->door.lock.flags),
                             flag_string(exit_flags, pexit->exit_info),
                             pexit->keyword,
@@ -1587,14 +1647,15 @@ void do_rstat(CHAR_DATA *ch, char *argument)
                     /* Exit goes to a wilds location from another wilds one*/
                     sprintf(buf,
                             "{x%s {Yto coors{x (%d, %d)\n\r"
-                            "    {YKey: {x%ld  Pick Chance: {x%d%%\n\r"
+                            "    {YKey: {x%ld#%ld  Pick Chance: {x%d%%\n\r"
 							"    {YLock Flags: {x%s\n\r"
 							"    {YExit flags: {x%s\n\r"
                             "    {YKeyword:{x '%s'  {YDescription: {x%s",
                             dir_name[door],
                             pexit->wilds.x,
                             pexit->wilds.y,
-                            pexit->door.lock.key_vnum, pexit->door.lock.pick_chance,
+							pexit->door.lock.key_wnum.pArea ? pexit->door.lock.key_wnum.pArea->uid : 0,
+							pexit->door.lock.key_wnum.vnum, pexit->door.lock.pick_chance,
 							flag_string(lock_flags, pexit->door.lock.flags),
                             flag_string(exit_flags, pexit->exit_info),
                             pexit->keyword,
@@ -2193,7 +2254,8 @@ void do_tstat(CHAR_DATA *ch, char *argument)
     TOKEN_DATA *token = NULL;
     CHAR_DATA *victim;
     int i;
-    long vnum = 0, count;
+    long count;
+	WNUM wnum = wnum_zero;
 
     BUFFER *buffer;
 
@@ -2201,7 +2263,7 @@ void do_tstat(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, arg2);
 
     if (arg[0] == '\0') {
-	send_to_char("Syntax:  stat token <character> [token vnum]\n\r", ch);
+	send_to_char("Syntax:  stat token <character> [token widevnum]\n\r", ch);
 	return;
     }
 
@@ -2212,14 +2274,19 @@ void do_tstat(CHAR_DATA *ch, char *argument)
 
 	count = number_argument(arg2, arg3);
     if (arg3[0] != '\0') {
-		vnum = atol(arg3);
+		if (!parse_widevnum(arg3, &wnum))
+		{
+			send_to_char("Syntax:  stat token <character> [token widevnum]\n\r", ch);
+			return;
+		}
 
-		if (get_token_index(vnum) == NULL) {
+		TOKEN_INDEX_DATA *pTokenIndex = get_token_index(wnum.pArea, wnum.vnum);
+		if (pTokenIndex == NULL) {
 			send_to_char("That token vnum does not exist.\n\r", ch);
 			return;
 		}
 
-		if ((token = get_token_char(victim, vnum, count)) == NULL) {
+		if ((token = get_token_char(victim, pTokenIndex, count)) == NULL) {
 			act("$N doesn't have that token.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			return;
 		}
@@ -2327,6 +2394,7 @@ void do_mfind(CHAR_DATA *ch, char *argument)
     /* extern long top_mob_index; */
     char buf[MAX_STRING_LENGTH];
     char arg[MAX_INPUT_LENGTH];
+	AREA_DATA *area;
     MOB_INDEX_DATA *pMobIndex;
     /* long vnum; */
     int nMatch, iHash;
@@ -2349,14 +2417,16 @@ void do_mfind(CHAR_DATA *ch, char *argument)
     found	= FALSE;
     nMatch	= 0;
 
-	for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
-		for (pMobIndex = mob_index_hash[iHash]; pMobIndex != NULL; pMobIndex = pMobIndex->next) {
-			nMatch++;
-			if (fAll || is_name(argument, pMobIndex->player_name)) {
-				found = TRUE;
-				sprintf(buf, "[%5ld] %s\n\r",
-					pMobIndex->vnum, pMobIndex->short_descr);
-				send_to_char(buf, ch);
+	for (area = area_first; area; area = area->next) {
+		for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
+			for (pMobIndex = area->mob_index_hash[iHash]; pMobIndex != NULL; pMobIndex = pMobIndex->next) {
+				nMatch++;
+				if (fAll || is_name(argument, pMobIndex->player_name)) {
+					found = TRUE;
+					sprintf(buf, "[%5ld#%-5ld] %s\n\r",
+						area->uid, pMobIndex->vnum, pMobIndex->short_descr);
+					send_to_char(buf, ch);
+				}
 			}
 		}
 	}
@@ -2371,6 +2441,7 @@ void do_ofind(CHAR_DATA *ch, char *argument)
     /* extern long top_obj_index; */
     char buf[MAX_STRING_LENGTH];
     char arg[MAX_INPUT_LENGTH];
+	AREA_DATA *area;
     OBJ_INDEX_DATA *pObjIndex;
     /* long vnum; */
     int nMatch, iHash;
@@ -2388,14 +2459,16 @@ void do_ofind(CHAR_DATA *ch, char *argument)
     found	= FALSE;
     nMatch	= 0;
 
-	for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
-		for (pObjIndex = obj_index_hash[iHash]; pObjIndex != NULL; pObjIndex = pObjIndex->next) {
-			nMatch++;
-			if (fAll || is_name(argument, pObjIndex->name)) {
-				found = TRUE;
-				sprintf(buf, "[%5ld] %s\n\r",
-					pObjIndex->vnum, pObjIndex->short_descr);
-				send_to_char(buf, ch);
+	for (area = area_first; area; area = area->next) {
+		for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
+			for (pObjIndex = area->obj_index_hash[iHash]; pObjIndex != NULL; pObjIndex = pObjIndex->next) {
+				nMatch++;
+				if (fAll || is_name(argument, pObjIndex->name)) {
+					found = TRUE;
+					sprintf(buf, "[%5ld#%-5ld] %s\n\r",
+						area->uid, pObjIndex->vnum, pObjIndex->short_descr);
+					send_to_char(buf, ch);
+				}
 			}
 		}
 	}
@@ -2409,6 +2482,7 @@ void do_rwhere(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_INPUT_LENGTH];
     BUFFER *buffer;
+	AREA_DATA *area;
     ROOM_INDEX_DATA *room;
     bool found;
     int number, max_found;
@@ -2422,32 +2496,33 @@ void do_rwhere(CHAR_DATA *ch, char *argument)
 
     if (argument[0] == '\0')
     {
-	send_to_char("Find what?\n\r",ch);
-	return;
+		send_to_char("Find what?\n\r",ch);
+		return;
     }
 
-    for (hash = 0; hash < MAX_KEY_HASH; hash++)
-    {
-	for (room = room_index_hash[hash]; room != NULL; room = room->next)
+	for (area = area_first; area; area = area->next)
 	{
-	    if (can_see_room(ch, room)
-	    &&  is_name(argument, room->name))
-	    {
-		if (number >= max_found)
-		    break;
+		for (hash = 0; hash < MAX_KEY_HASH; hash++)
+		{
+			for (room = area->room_index_hash[hash]; room != NULL; room = room->next)
+			{
+				if (can_see_room(ch, room) &&
+					is_name(argument, room->name))
+				{
+					if (number >= max_found)
+						break;
 
-		number++;
-		found = TRUE;
-		sprintf(buf, "{Y%3d){x %s (vnum {W%ld{x)\n\r", number,
-		    room->name, room->vnum);
-		buf[0] = UPPER(buf[0]);
-		add_buf(buffer,buf);
-	    }
+					number++;
+					found = TRUE;
+					sprintf(buf, "{Y%3d){x %s (wnum {W%ld{Y#{W%ld{x)\n\r", number, room->name, area->uid, room->vnum);
+					add_buf(buffer,buf);
+				}
+			}
+
+			if (number >= max_found)
+				break;
+		}
 	}
-
-	if (number >= max_found)
-	    break;
-    }
 
     if (!found)
         send_to_char("Nothing like that in heaven or earth.\n\r", ch);
@@ -2494,26 +2569,29 @@ void do_owhere(CHAR_DATA *ch, char *argument)
         if (in_obj->carried_by != NULL &&
         	can_see(ch,in_obj->carried_by) &&
         	in_obj->carried_by->in_room != NULL) {
-            sprintf(buf, "{Y%3d){x %s (vnum %ld) is carried by %s [Room %ld]\n\r",
+            sprintf(buf, "{Y%3d){x %s (wnum %ld#%ld) is carried by %s [Room %ld#%ld]\n\r",
                 number, obj->short_descr,
+				obj->pIndexData->area->uid,
 			obj->pIndexData->vnum,
 			pers(in_obj->carried_by, ch),
+			in_obj->carried_by->in_room->area->uid,
 			in_obj->carried_by->in_room->vnum);
 		} else if (in_obj->in_room != NULL && can_see_room(ch,in_obj->in_room)) {
-            sprintf(buf, "{Y%3d){x %s (vnum %ld) is in %s [Room %ld]\n\r",
+            sprintf(buf, "{Y%3d){x %s (wnum %ld#%ld) is in %s [Room %ld#%ld]\n\r",
                 number, obj->short_descr,
+				obj->pIndexData->area->uid,
 				obj->pIndexData->vnum,
 				in_obj->in_room->name,
+				in_obj->in_room->area->uid,
 				in_obj->in_room->vnum);
 		} else if (in_obj->in_mail != NULL) {
-            sprintf(buf, "{Y%3d){x %s (vnum %ld) is in a mail package\n\r", number,
-			    obj->short_descr, obj->pIndexData->vnum);
+            sprintf(buf, "{Y%3d){x %s (wnum %ld#%ld) is in a mail package\n\r", number,
+			    obj->short_descr, obj->pIndexData->area->uid, obj->pIndexData->vnum);
 		} else {
-            sprintf(buf, "{Y%3d){x %s (vnum %ld) is somewhere\n\r", number,
-			    obj->short_descr, obj->pIndexData->vnum);
+            sprintf(buf, "{Y%3d){x %s (wnum %ld#%ld) is somewhere\n\r", number,
+			    obj->short_descr, obj->pIndexData->area->uid, obj->pIndexData->vnum);
 		}
 
-        buf[0] = UPPER(buf[0]);
         add_buf(buffer,buf);
 
         if (number >= max_found)
@@ -2552,12 +2630,15 @@ void do_mwhere(CHAR_DATA *ch, char *argument)
                     count++;
 
 					if (d->original != NULL)
-						sprintf(buf,"{Y%3d){x %s (in the body of %s) is in %s [%ld]\n\r",
+						sprintf(buf,"{Y%3d){x %s (in the body of %s) is in %s [%ld#%ld]\n\r",
 							count, d->original->name,victim->short_descr,
-							victim->in_room->name,victim->in_room->vnum);
+							victim->in_room->name,
+							victim->in_room->area->uid,
+							victim->in_room->vnum);
 					else
-						sprintf(buf,"{Y%3d){x %s is in %s [%ld]\n\r",
+						sprintf(buf,"{Y%3d){x %s is in %s [%ld#%ld]\n\r",
 							count, victim->name,victim->in_room->name,
+							victim->in_room->area->uid,
 							victim->in_room->vnum);
 					add_buf(buffer,buf);
 			    } else {
@@ -2599,7 +2680,8 @@ void do_mwhere(CHAR_DATA *ch, char *argument)
             if (victim->in_room==NULL) {
                 found = TRUE;
                 count++;
-                sprintf(buf, "{Y%3d){x [%5ld] %-28s %lx\n\r", count,
+                sprintf(buf, "{Y%3d){x [%5ld#%-5ld] %-28s %lx\n\r", count,
+					IS_NPC(victim) ? victim->pIndexData->area->uid : 0,
                     IS_NPC(victim) ? victim->pIndexData->vnum : 0,
                     IS_NPC(victim) ? victim->short_descr : victim->name,
                     (long)victim);
@@ -2627,7 +2709,8 @@ void do_mwhere(CHAR_DATA *ch, char *argument)
 			is_name(argument, victim->name)) {
 			found = TRUE;
 			count++;
-			sprintf(buf, "{Y%3d){x [%5ld] %-28s [%5ld] %s\n\r", count,
+			sprintf(buf, "{Y%3d){x [%5ld#%-5ld] %-28s [%5ld] %s\n\r", count,
+			IS_NPC(victim) ? victim->pIndexData->area->uid : 0,
 			IS_NPC(victim) ? victim->pIndexData->vnum : 0,
 			IS_NPC(victim) ? victim->short_descr : victim->name,
 			victim->in_room->vnum,
@@ -3155,19 +3238,21 @@ void do_mload(CHAR_DATA *ch, char *argument)
     char buf[MAX_STRING_LENGTH];
     MOB_INDEX_DATA *pMobIndex;
     CHAR_DATA *victim;
+	WNUM wnum;
 
     one_argument(argument, arg);
 
-    if (arg[0] == '\0' || !is_number(arg))
+    if (arg[0] == '\0' || !parse_widevnum(arg, &wnum))
     {
-	send_to_char("Syntax: load mob <vnum>.\n\r", ch);
-	return;
+		send_to_char("Syntax: load mob <widevnum>.\n\r", ch);
+		return;
     }
 
-    if ((pMobIndex = get_mob_index(atol(arg))) == NULL)
+
+    if ((pMobIndex = get_mob_index(wnum.pArea, wnum.vnum)) == NULL)
     {
-	send_to_char("No mob has that vnum.\n\r", ch);
-	return;
+		send_to_char("No mob has that widevnum.\n\r", ch);
+		return;
     }
 
     if (!IS_BUILDER(ch, pMobIndex->area))
@@ -3176,8 +3261,9 @@ void do_mload(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    sprintf(buf, "Loaded %s (%ld)",
+    sprintf(buf, "Loaded %s (%ld#%ld)",
         pMobIndex->short_descr,
+		pMobIndex->area->uid,
         pMobIndex->vnum);
     act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
@@ -3202,100 +3288,100 @@ void do_oload(CHAR_DATA *ch, char *argument)
     char buf[MAX_STRING_LENGTH];
     OBJ_INDEX_DATA *pObjIndex;
     OBJ_DATA *obj;
+	WNUM wnum;
     int amt = 1;
     int i;
 
     argument = one_argument(argument, arg1);
     one_argument(argument, arg2);
 
-    if (arg1[0] == '\0' || !is_number(arg1))
+    if (arg1[0] == '\0' || !parse_widevnum(arg2, &wnum))
     {
-	send_to_char("Syntax: load obj <vnum> <amt>.\n\r", ch);
-	return;
+		send_to_char("Syntax: load obj <widevnum> <amt>.\n\r", ch);
+		return;
     }
 
     if (arg2[0] != '\0')
     {
-	if (!is_number(arg2))
-	{
-	    send_to_char("Syntax: oload <vnum> <amt>.\n\r", ch);
-	    return;
-	}
+		if (!is_number(arg2))
+		{
+			send_to_char("Syntax: oload <vnum> <amt>.\n\r", ch);
+			return;
+		}
 
-	amt = atoi(arg2);
+		amt = atoi(arg2);
         if (amt < 1 || amt > 50)
-	{
-	    send_to_char("Range for amount is 1-50.\n\r",ch);
-	    return;
-	}
+		{
+			send_to_char("Range for amount is 1-50.\n\r",ch);
+			return;
+		}
     }
 
-    if ((pObjIndex = get_obj_index(atol(arg1))) == NULL)
+    if ((pObjIndex = get_obj_index(wnum.pArea, wnum.vnum)) == NULL)
     {
-	send_to_char("No object has that vnum.\n\r", ch);
-	return;
+		send_to_char("No object has that widevnum.\n\r", ch);
+		return;
     }
 
     if (!has_access_area(ch, pObjIndex->area))
     {
-	send_to_char("Insufficient security to load object - action logged.\n\r", ch);
-	sprintf(buf, "do_oload: %s tried to load %s (vnum %ld) in area %s without permissions!",
-	    ch->name,
-	    pObjIndex->short_descr,
-	    pObjIndex->vnum,
-	    pObjIndex->area->name);
-	log_string(buf);
-	return;
+		send_to_char("Insufficient security to load object - action logged.\n\r", ch);
+		sprintf(buf, "do_oload: %s tried to load %s (widevnum %ld#%ld) in area %s without permissions!",
+			ch->name,
+			pObjIndex->short_descr,
+			pObjIndex->area->uid,
+			pObjIndex->vnum,
+			pObjIndex->area->name);
+		log_string(buf);
+		return;
     }
 
     if (amt == 1)
     {
-	obj = create_object(pObjIndex, pObjIndex->level, TRUE);
-	if (CAN_WEAR(obj, ITEM_TAKE))
-	    obj_to_char(obj, ch);
-	else
-            if (ch->in_room->wilds == NULL)
-            {
-                plogf("act_wiz.c, do_oload(): Moving object to static room.");
-	        obj_to_room(obj, ch->in_room);
-            }
-            else
-            {
-                plogf("act_wiz.c, do_oload(): Moving object to vroom.");
-                obj_to_vroom(obj, ch->in_room->wilds, ch->at_wilds_x, ch->at_wilds_y);
-            }
+		obj = create_object(pObjIndex, pObjIndex->level, TRUE);
+		if (CAN_WEAR(obj, ITEM_TAKE))
+			obj_to_char(obj, ch);
+		else if (ch->in_room->wilds == NULL)
+		{
+			plogf("act_wiz.c, do_oload(): Moving object to static room.");
+			obj_to_room(obj, ch->in_room);
+		}
+		else
+		{
+			plogf("act_wiz.c, do_oload(): Moving object to vroom.");
+			obj_to_vroom(obj, ch->in_room->wilds, ch->at_wilds_x, ch->at_wilds_y);
+		}
 
-	act("$n has created $p!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-	sprintf(buf, "Loaded $p (%ld)", obj->pIndexData->vnum);
-	act(buf, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-	wiznet("$N loads $p.",ch,obj,WIZ_LOAD,WIZ_SECURE,get_trust(ch));
+		act("$n has created $p!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+		sprintf(buf, "Loaded $p (%ld#%ld)", obj->pIndexData->area->uid, obj->pIndexData->vnum);
+		act(buf, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		wiznet("$N loads $p.",ch,obj,WIZ_LOAD,WIZ_SECURE,get_trust(ch));
 
-	obj->loaded_by = str_dup(ch->name);
+		obj->loaded_by = str_dup(ch->name);
 
-	p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+		p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
     }
     else
     {
-	for (i = 0; i < amt; i++)
-	{
-	    obj = create_object(pObjIndex, pObjIndex->level, TRUE);
-	    if (CAN_WEAR(obj, ITEM_TAKE))
-		obj_to_char(obj, ch);
-	    else
-		obj_to_room(obj, ch->in_room);
-	    obj->loaded_by = str_dup(ch->name);
+		for (i = 0; i < amt; i++)
+		{
+			obj = create_object(pObjIndex, pObjIndex->level, TRUE);
+			if (CAN_WEAR(obj, ITEM_TAKE))
+			obj_to_char(obj, ch);
+			else
+			obj_to_room(obj, ch->in_room);
+			obj->loaded_by = str_dup(ch->name);
 
-	    p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
-	}
+			p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+		}
 
-	sprintf(buf, "{Y({G%d{Y){x $n has created %s!", amt,
-	    pObjIndex->short_descr);
-	act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	sprintf(buf, "{Y({G%d{Y){x Loaded %s (%ld)",
-	    amt, pObjIndex->short_descr, pObjIndex->vnum);
-	act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	sprintf(buf, "{Y({G%d{Y){x $N loads %s.", amt, pObjIndex->short_descr);
-	wiznet(buf, ch, NULL, WIZ_LOAD, WIZ_SECURE, get_trust(ch));
+		sprintf(buf, "{Y({G%d{Y){x $n has created %s!", amt, pObjIndex->short_descr);
+		act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		sprintf(buf, "{Y({G%d{Y){x Loaded %s (%ld#%ld)",
+		    amt, pObjIndex->short_descr, pObjIndex->area->uid, pObjIndex->vnum);
+		act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		sprintf(buf, "{Y({G%d{Y){x $N loads %s.", amt, pObjIndex->short_descr);
+		wiznet(buf, ch, NULL, WIZ_LOAD, WIZ_SECURE, get_trust(ch));
     }
 }
 
@@ -3543,6 +3629,7 @@ void do_advance(CHAR_DATA *ch, char *argument)
 	victim->invis_level = level;
 	do_function(victim, &do_holylight, "");
 	do_function(victim, &do_holywarp, "");
+	do_function(victim, &do_holyaura, "");
 	sprintf(buf, "\n\rYou have been set to wizinvis level {W%d{x.\n\r", victim->invis_level);
 	send_to_char(buf,victim);
 	}
@@ -4047,7 +4134,7 @@ void do_tkset(CHAR_DATA *ch, char *argument)
     char buf[MSL];
     CHAR_DATA *victim;
     TOKEN_DATA *token;
-    long vnum, value, count;
+    long value, count;
     int value_num;
 
     argument = one_argument(argument, arg);
@@ -4067,9 +4154,16 @@ void do_tkset(CHAR_DATA *ch, char *argument)
     }
 
 	count = number_argument(arg2,arg2b);
-    vnum = atol(arg2b);
+	WNUM wnum;
+	if (!parse_widevnum(arg2b, &wnum))
+	{
+		send_to_char("Syntax:\n\r  set token <char name> <token widevnum> <v#|timer> <op> <value>\n\r", ch);
+		return;
+	}
+	TOKEN_INDEX_DATA *pTokenIndex = get_token_index(wnum.pArea, wnum.vnum);
 
-    if ((token = get_token_char(victim, vnum, count)) == NULL) {
+    if ((token = get_token_char(victim, pTokenIndex, count)) == NULL)
+	{
 		send_to_char("Character doesn't have that token vnum.\n\r", ch);
 		return;
     }
@@ -4189,7 +4283,7 @@ void do_tkset(CHAR_DATA *ch, char *argument)
 	send_to_char(buf, ch);
     }
 
-    sprintf(buf, "stat token %s %ld", victim->name, vnum);
+    sprintf(buf, "stat token %s %ld#%ld", victim->name, wnum.pArea->uid, wnum.vnum);
     interpret(ch, buf);
 }
 
@@ -4417,119 +4511,116 @@ void do_chset(CHAR_DATA *ch, char *argument)
 
     if (arg[0] == '\0' || arg2[0] == '\0' || arg3[0] == '\0')
     {
-	send_to_char("Set church <no.> <field> <value>\n\r", ch);
-	send_to_char("Fields: name founder pneuma dp gold\n\r", ch);
-	send_to_char("        max size align recall treasure\n\r", ch);
-	send_to_char("        flag key\n\r", ch);
-	return;
+		send_to_char("Set church <no.> <field> <value>\n\r", ch);
+		send_to_char("Fields: name founder pneuma dp gold\n\r", ch);
+		send_to_char("        max size align recall treasure\n\r", ch);
+		send_to_char("        flag key hall\n\r", ch);
+		return;
     }
 
     if (!is_number(arg))
     {
-	send_to_char("That's not even a number.\n\r", ch);
-	return;
+		send_to_char("That's not even a number.\n\r", ch);
+		return;
     }
 
     if ((church = find_church(atoi(arg))) == NULL)
     {
-	send_to_char("No such church found.\n\r", ch);
-	return;
+		send_to_char("No such church found.\n\r", ch);
+		return;
     }
 
     if (!str_cmp(arg2, "name"))
     {
-	CHURCH_PLAYER_DATA *member;
+		CHURCH_PLAYER_DATA *member;
 
-	sprintf(buf, "%s is now known as %s.\n\r", church->name,
-		arg3);
-	send_to_char(buf, ch);
+		sprintf(buf, "%s is now known as %s.\n\r", church->name, arg3);
+		send_to_char(buf, ch);
 
-	sprintf(buf, "{Y[%s will now be known as %s!]{x\n\r",
-		church->name, arg3);
-	msg_church_members(church, buf);
+		sprintf(buf, "{Y[%s will now be known as %s!]{x\n\r", church->name, arg3);
+		msg_church_members(church, buf);
 
-	free_string(church->name);
-	church->name = str_dup(arg3);
+		free_string(church->name);
+		church->name = str_dup(arg3);
 
-	/* Any players with this church should be modified*/
-	for (member = church->people; member != NULL; member = member->next)
-	{
-	    if (member->ch != NULL)
-	    {
-		free_string(ch->church_name);
-		ch->church_name = str_dup(capitalize(arg3));
-	    }
-	}
-	return;
+		/* Any players with this church should be modified*/
+		for (member = church->people; member != NULL; member = member->next)
+		{
+			if (member->ch != NULL)
+			{
+			free_string(ch->church_name);
+			ch->church_name = str_dup(capitalize(arg3));
+			}
+		}
+		return;
     }
 
     if (!str_cmp(arg2, "flag"))
     {
-	sprintf(buf, "%s's flag is now %s.\n\r", church->name,
-		arg3);
-	send_to_char(buf, ch);
+		sprintf(buf, "%s's flag is now %s.\n\r", church->name, arg3);
+		send_to_char(buf, ch);
 
-	free_string(church->flag);
-	church->flag = str_dup(arg3);
-	return;
+		free_string(church->flag);
+		church->flag = str_dup(arg3);
+		return;
     }
 
     if (!str_cmp(arg2, "founder"))
     {
-	sprintf(buf, "%s is now the founder of %s.\n\r",
-		capitalize(arg3), church->name);
-	send_to_char(buf, ch);
+		sprintf(buf, "%s is now the founder of %s.\n\r",
+			capitalize(arg3), church->name);
+		send_to_char(buf, ch);
 
-	free_string(church->founder);
-	church->founder = str_dup(capitalize(arg3));
-	return;
+		free_string(church->founder);
+		church->founder = str_dup(capitalize(arg3));
+		return;
     }
 
     if (!str_cmp(arg2, "dp"))
     {
-	if (!is_number(arg3))
-	{
-	    send_to_char("Invalid argument.\n\r", ch);
-	    return;
-	}
+		if (!is_number(arg3))
+		{
+			send_to_char("Invalid argument.\n\r", ch);
+			return;
+		}
 
-	sprintf(buf, "%s now has %ld dp.\n\r", church->name, atol(arg3));
-	send_to_char(buf, ch);
+		sprintf(buf, "%s now has %ld dp.\n\r", church->name, atol(arg3));
+		send_to_char(buf, ch);
 
-	church->dp = atol(arg3);
-	return;
+		church->dp = atol(arg3);
+		return;
     }
 
     if (!str_cmp(arg2, "pneuma"))
     {
-	if (!is_number(arg3))
-	{
-	    send_to_char("Invalid argument.\n\r", ch);
-	    return;
-	}
+		if (!is_number(arg3))
+		{
+			send_to_char("Invalid argument.\n\r", ch);
+			return;
+		}
 
-	sprintf(buf, "%s now has %ld pneuma.\n\r", church->name,
-		atol(arg3));
-	send_to_char(buf, ch);
+		sprintf(buf, "%s now has %ld pneuma.\n\r", church->name,
+			atol(arg3));
+		send_to_char(buf, ch);
 
-	church->pneuma = atol(arg3);
-	return;
+		church->pneuma = atol(arg3);
+		return;
     }
 
     if (!str_cmp(arg2, "gold"))
     {
-	if (!is_number(arg3))
-	{
-	    send_to_char("Invalid argument.\n\r", ch);
-	    return;
-	}
+		if (!is_number(arg3))
+		{
+			send_to_char("Invalid argument.\n\r", ch);
+			return;
+		}
 
-	sprintf(buf, "%s now has %ld gold.\n\r", church->name,
-		atol(arg3));
-	send_to_char(buf, ch);
+		sprintf(buf, "%s now has %ld gold.\n\r", church->name,
+			atol(arg3));
+		send_to_char(buf, ch);
 
-	church->gold = atol(arg3);
-	return;
+		church->gold = atol(arg3);
+		return;
     }
 
     if (!str_cmp(arg2, "max"))
@@ -4559,83 +4650,183 @@ void do_chset(CHAR_DATA *ch, char *argument)
 
     if (!str_cmp(arg2, "size"))
     {
-	if (!is_number(arg3))
-	{
-	    send_to_char("Invalid argument.\n\r", ch);
-	    return;
-	}
+		if (!is_number(arg3))
+		{
+			send_to_char("Invalid argument.\n\r", ch);
+			return;
+		}
 
-	if (atoi(arg3) < 1 || atoi(arg3) > 4)
-	{
-	    send_to_char("Invalid argument.\n\r", ch);
-	    return;
-	}
+		if (atoi(arg3) < 1 || atoi(arg3) > 4)
+		{
+			send_to_char("Invalid argument.\n\r", ch);
+			return;
+		}
 
-	church->size = atoi(arg3);
-	sprintf(buf, "Set size of %s to %s.\n\r", church->name,
-		get_chsize_from_number(church->size));
-	send_to_char(buf, ch);
+		church->size = atoi(arg3);
+		sprintf(buf, "Set size of %s to %s.\n\r", church->name,
+			get_chsize_from_number(church->size));
+		send_to_char(buf, ch);
 
-	return;
+		return;
     }
 
     if (!str_prefix(arg2, "alignment"))
     {
-	if (!str_cmp(arg3, "evil"))
-	    church->alignment = CHURCH_EVIL;
-	else if (!str_cmp(arg3, "good"))
-	    church->alignment = CHURCH_GOOD;
-	else if (!str_cmp(arg3, "neutral"))
-	    church->alignment = CHURCH_NEUTRAL;
-	else
-	{
-	    send_to_char("Invalid argument. Choose good, evil, or neutral.\n\r", ch);
-	    return;
-	}
+		if (!str_cmp(arg3, "evil"))
+			church->alignment = CHURCH_EVIL;
+		else if (!str_cmp(arg3, "good"))
+			church->alignment = CHURCH_GOOD;
+		else if (!str_cmp(arg3, "neutral"))
+			church->alignment = CHURCH_NEUTRAL;
+		else
+		{
+			send_to_char("Invalid argument. Choose good, evil, or neutral.\n\r", ch);
+			return;
+		}
 
-	arg3[0] = UPPER(arg3[0]);
+		arg3[0] = UPPER(arg3[0]);
 
-	sprintf(buf, "Set alignment of %s to %s.\n\r", church->name, arg3);
-	send_to_char(buf, ch);
-	return;
+		sprintf(buf, "Set alignment of %s to %s.\n\r", church->name, arg3);
+		send_to_char(buf, ch);
+		return;
     }
+
+	if (!str_cmp(arg2, "hall"))
+	{
+		// Specify the church's hall area and assign its vnum start if necessary
+		if (arg3[0] == '\0' || !is_number(arg3))
+		{
+			send_to_char("That area doesn't exist.\n\r", ch);
+			return;
+		}
+		AREA_DATA *area = get_area_from_uid(atol(arg3));
+		if (!area)
+		{
+			send_to_char("That area doesn't exist.\n\r", ch);
+			return;
+		}
+
+		if (area->area_who != AREA_CHURCH)
+		{
+			send_to_char("That area is not a CHURCH area.  Please set the areawho value to CHURCH.\n\r", ch);
+			return;
+		}
+
+		if (church->hall_area != NULL)
+		{
+			// TODO: Add church hall move
+			send_to_char("Church hall move not implemented yet.\n\r", ch);
+			return;
+		}
+
+		long vnum = gconfig.next_church_vnum_start;
+		ROOM_INDEX_DATA *room = get_room_index(area, vnum);
+		if (room == NULL)
+		{
+			// If the room doesn't exist, create an empty room
+			room = new_room_index();
+			room->vnum = vnum;
+			room->area = area;
+			int iHash = vnum % MAX_KEY_HASH;
+			room->next = area->room_index_hash[iHash];
+			area->room_index_hash[iHash] = room;
+
+			free_string(room->name);
+			sprintf(buf, "Hall of %s", church->name);
+			room->name = str_dup(buf);
+			SET_BIT(area->area_flags, AREA_CHANGED);
+		}
+
+		church->hall_area = area;
+		church->vnum_start = vnum;
+		gconfig.next_church_vnum_start += CHURCH_VNUM_RANGE;
+
+		// Define the church's recall to the new room
+		church->recall_point.area = area;
+		church->recall_point.id[0] = vnum;
+		church->recall_point.id[1] = church->recall_point.id[2] = 0;
+		church->recall_point.wuid = 0;
+
+		sprintf(buf, "Church {Y%s{x hall assigned to {Y%s{x (%ld#%ld).\n\r",
+			church->name,
+			room->name,
+			area->uid,
+			vnum);
+		send_to_char(buf, ch);
+		return;
+	}
 
     if (!str_cmp(arg2, "recall"))
     {
-	if (get_room_index(atol(arg3)) == NULL)
-	{
-	    send_to_char("That room doesn't exist.\n\r", ch);
-	    return;
-	}
+		if (church->hall_area == NULL)
+		{
+			send_to_char("Church does not have a hall.\n\r", ch);
+			return;
+		}
 
-	sprintf(buf,
-	    "You have set %s's temple recall point to %ld - %s.\n\r",
-	    church->name,
-	    atol(arg3),
-	    get_room_index(atol(arg3))->name);
-	send_to_char(buf, ch);
-	church->recall_point.id[0] = atol(arg3);
-	church->recall_point.id[1] = church->recall_point.id[2] = 0;
-	church->recall_point.wuid = 0;
-	return;
+		long vnum = atol(arg3);
+
+		if (vnum < church->vnum_start || vnum >= (church->vnum_start + CHURCH_VNUM_RANGE))
+		{
+			sprintf(buf, "Vnum out of range for church.  Please specify a number from %ld to %ld.\n\r", church->vnum_start, church->vnum_start + CHURCH_VNUM_RANGE - 1);
+			return;
+		}
+
+		ROOM_INDEX_DATA *recall_room;
+
+		recall_room = get_room_index(church->hall_area, vnum);
+
+		if (recall_room == NULL)
+		{
+			send_to_char("That room doesn't exist.\n\r", ch);
+			return;
+		}
+
+		sprintf(buf, "You have set {Y%s{x's recall point to room {W%s{x ({G%ld{x in {G%s{x).\n\r",
+			church->name,
+			recall_room->name,
+			vnum,
+			church->hall_area->name);
+		send_to_char(buf, ch);
+		church->recall_point.area = church->hall_area;
+		church->recall_point.id[0] = vnum;
+		church->recall_point.id[1] = church->recall_point.id[2] = 0;
+		church->recall_point.wuid = 0;
+		return;
     }
 
     if (!str_cmp(arg2, "key"))
     {
-	if (get_obj_index(atol(arg3)) == NULL)
-	{
-	    send_to_char("That object doesn't exist.\n\r", ch);
-	    return;
-	}
+		if (church->hall_area == NULL)
+		{
+			send_to_char("Church does not have a hall.\n\r", ch);
+			return;
+		}
 
-	sprintf(buf,
-	    "You have set %s's key to %ld - %s.\n\r",
-	    church->name,
-	    atol(arg3),
-	    get_obj_index(atol(arg3))->short_descr);
-	send_to_char(buf, ch);
-	church->key = atol(arg3);
-	return;
+		long vnum = atol(arg3);
+
+		if (vnum < church->vnum_start || vnum >= (church->vnum_start + CHURCH_VNUM_RANGE))
+		{
+			sprintf(buf, "Vnum out of range for church.  Please specify a number from %ld to %ld.\n\r", church->vnum_start, church->vnum_start + CHURCH_VNUM_RANGE - 1);
+			return;
+		}
+
+		OBJ_INDEX_DATA *key = get_obj_index(church->hall_area, vnum);
+
+		if (key == NULL)
+		{
+			send_to_char("That object doesn't exist.\n\r", ch);
+			return;
+		}
+
+		sprintf(buf, "You have set {Y%s{x's key to {W%s{x ({G%ld{x in {G%s{x).\n\r",
+			church->name,
+			key->short_descr,
+			vnum,
+			church->hall_area->name);
+		send_to_char(buf, ch);
+		church->key = vnum;
+		return;
     }
 
 	if(!str_cmp(arg2, "treasure"))
@@ -4669,20 +4860,28 @@ void do_chset(CHAR_DATA *ch, char *argument)
 
 		if(!str_cmp(arg3, "add"))
 		{
-			if( argument[0] == '\0' )
+			if (church->hall_area == NULL)
+			{
+				send_to_char("Church does not have a hall.\n\r", ch);
+				return;
+			}
+
+
+			if( argument[0] == '\0' || !is_number(argument))
 			{
 				send_to_char("set church <no> treasure add <vnum>\n\r", ch);
 				return;
 			}
 
-			if(!is_number(argument))
+			long vnum = atol(argument);
+
+			if (vnum < church->vnum_start || vnum >= (church->vnum_start + CHURCH_VNUM_RANGE))
 			{
-				send_to_char("That's not even a number.\n\r", ch);
+				sprintf(buf, "Vnum out of range for church.  Please specify a number from %ld to %ld.\n\r", church->vnum_start, church->vnum_start + CHURCH_VNUM_RANGE - 1);
 				return;
 			}
 
-			long vnum = atol(argument);
-			ROOM_INDEX_DATA *room = get_room_index(vnum);
+			ROOM_INDEX_DATA *room = get_room_index(church->hall_area, vnum);
 
 			if(!room)
 			{
@@ -4708,20 +4907,27 @@ void do_chset(CHAR_DATA *ch, char *argument)
 
 		if(!str_cmp(arg3, "remove"))
 		{
-			if( argument[0] == '\0' )
+			if (church->hall_area == NULL)
+			{
+				send_to_char("Church does not have a hall.\n\r", ch);
+				return;
+			}
+
+			if( argument[0] == '\0' || !is_number(argument))
 			{
 				send_to_char("set church <no> treasure remove <vnum>\n\r", ch);
 				return;
 			}
 
-			if(!is_number(argument))
+			long vnum = atol(argument);
+
+			if (vnum < church->vnum_start || vnum >= (church->vnum_start + CHURCH_VNUM_RANGE))
 			{
-				send_to_char("That's not even a number.\n\r", ch);
+				sprintf(buf, "Vnum out of range for church.  Please specify a number from %ld to %ld.\n\r", church->vnum_start, church->vnum_start + CHURCH_VNUM_RANGE - 1);
 				return;
 			}
 
-			long vnum = atol(argument);
-			ROOM_INDEX_DATA *room = get_room_index(vnum);
+			ROOM_INDEX_DATA *room = get_room_index(church->hall_area, vnum);
 
 			if(!room)
 			{
@@ -4746,23 +4952,6 @@ void do_chset(CHAR_DATA *ch, char *argument)
 		send_to_char("                         remove <vnum>\n\r", ch);
 		return;
 	}
-
-/*
-    if (!str_cmp(arg2, "treasure"))
-    {
-	if (get_room_index(atol(arg3)) == NULL)
-	{
-	    send_to_char("Room number is not valid.\n\r", ch);
-	    return;
-	}
-
-	church->treasure_room = atoi(arg3);
-	sprintf(buf, "%s treasure room set to %ld - %s\n\r",
-	    church->name, church->treasure_room,
-	    get_room_index(church->treasure_room)->name);
-	send_to_char(buf, ch);
-	return;
-    }*/
 }
 
 
@@ -4782,14 +4971,14 @@ void do_mset(CHAR_DATA *ch, char *argument)
 
     if (arg1[0] == '\0' || arg2[0] == '\0' || arg3[0] == '\0')
     {
-	send_to_char("Syntax:\n\r",ch);
-	send_to_char("  set char <name> <field> <value>\n\r",ch);
-	send_to_char("  Field being one of:\n\r",			ch);
-	send_to_char("    str int wis dex con sex\n\r",	ch);
-	send_to_char("    race gold silver hp mana move prac\n\r",ch);
-	send_to_char("    align train thirst hunger drunk\n\r",	ch);
-	send_to_char("    security pneuma dp qp title\n\r", ch);
-	return;
+		send_to_char("Syntax:\n\r",ch);
+		send_to_char("  set char <name> <field> <value>\n\r",ch);
+		send_to_char("  Field being one of:\n\r",			ch);
+		send_to_char("    str int wis dex con sex\n\r",	ch);
+		send_to_char("    race gold silver hp mana move prac\n\r",ch);
+		send_to_char("    align train thirst hunger drunk\n\r",	ch);
+		send_to_char("    security pneuma dp qp title\n\r", ch);
+		return;
     }
 
     if ((victim = get_char_world(ch, arg1)) == NULL)
@@ -6213,232 +6402,6 @@ void do_immortalise(CHAR_DATA *ch, char *argument)
 
 	remort_player(victim, i);
 
-#if 0
-    sprintf(argument, "%s", sub_class_table[i].name[0]);
-
-    i = 0;
-    victim->race = get_remort_race(victim);
-    sprintf(buf2, "%s", pc_race_table[victim->race].name);
-    while (buf2[i] != '\0')
-    {
-	buf2[i] = UPPER(buf2[i]);
-	i++;
-    }
-
-    if (victim->alignment < 0)
-    {
-        sprintf(buf, "{RHoly statues cry tears of blood and the sillhouettes "
-		      "of winged horrors appear in the sky.{X\n\r{RA new %s has been born!{x\n\r", buf2);
-
-	victim->alignment = -1000;
-
-    send_to_char("Your mortal essence crumbles as you embrace your fate.\n\r", victim);
-	send_to_char("You welcome the dark power as it flows through your divine veins.\n\r", victim);
-	send_to_char("A dark influence clouds all that you once knew; your lifeless body\n\r", victim);
-	send_to_char("lies slouched in front of you as part of you is torn into the Abyss.\n\r", victim);
-	send_to_char("You feel complete, and wielding unfathomable power, you know you can\n\r", victim);
-	send_to_char("manipulate it to suit your darkest desires.\n\r", victim);
-    }
-    else if (victim->alignment > 0)
-    {
-	sprintf(buf, "{WBrilliant white light radiates down from the heavens and thunder rolls through the valleys.\n\r"
-	             "{WA new %s has been born!{x\n\r", buf2);
-
-	victim->alignment = 1000;
-
- 	send_to_char("Your mortal essence shines brightly, blinding your eyes.\n\r", victim);
-	send_to_char("Images flash before you: sadness, grief, terror and hatred.\n\r", victim);
-	send_to_char("Your life is played to you, from the beginning to the present.\n\r", victim);
-	send_to_char("Your veins flow with the divine influence as you stand before your\n\r", victim);
-	send_to_char("lifeless mortal vessel. It becomes clear to you that you have been\n\r", victim);
-	send_to_char("reborn a divine power.\n\r", victim);
-    }
-    else
-    {
-	sprintf(buf, "{CThe cosmic energies of the world shift and the clouds speed overhead.{x\n\r"
-				 "{CA new %s has been born!{x\n\r", buf2);
-
-	victim->alignment = 0;
-    }
-
-    gecho(buf);
-
-    /* take off equipment*/
-    for (obj = victim->carrying; obj != NULL; obj = obj->next_content)
-    {
-		if (obj->wear_loc != WEAR_NONE)
-		    unequip_char(victim, obj, FALSE);
-    }
-
-    /* take off remaining affects*/
-    while (victim->affected)
-		affect_remove(victim, victim->affected);
-
-    /* lower their stats significantly*/
-    for (i = 0; i < MAX_STATS; i++) {
-		int val = victim->perm_stat[i] - number_range(4,6);
-		set_perm_stat(victim, i, UMAX(val, 13));
-	}
-
-	victim->affected_by_perm = race_table[victim->race].aff;
-	victim->affected_by2_perm = race_table[victim->race].aff2;
-    victim->imm_flags_perm = race_table[victim->race].imm;
-    victim->res_flags_perm = race_table[victim->race].res;
-    victim->vuln_flags_perm = race_table[victim->race].vuln;
-
-    victim->form        = race_table[victim->race].form;
-    victim->parts       = race_table[victim->race].parts;
-    victim->lostparts	= 0;	// Restore anything lost
-
-    /* add skills for remort race*/
-    for (i = 0; pc_race_table[victim->race].skills[i] != NULL; i++)
-	group_add(victim,pc_race_table[victim->race].skills[i],FALSE);
-
-    victim->pcdata->hit_before  = victim->pcdata->perm_hit;
-    victim->pcdata->mana_before = victim->pcdata->perm_mana;
-    victim->pcdata->move_before = victim->pcdata->perm_move;
-
-    victim->pcdata->perm_hit  = 20;
-    victim->pcdata->perm_mana = 20;
-    victim->pcdata->perm_move = 20;
-
-    victim->max_hit  = 20;
-    victim->max_mana = 20;
-    victim->max_move = 20;
-
-    victim->hit  = 20;
-    victim->mana = 20;
-    victim->move = 20;
-
-    victim->tot_level = 1;
-    victim->level = 1;
-
-	// Reset base affects - will reset affected_by, affected_by2, imm_flags, res_flags and vuln_flags
-    affect_fix_char(victim);
-
-    char_from_room(victim);
-    char_to_room(victim, get_room_index(ROOM_VNUM_SCHOOL));
-
-    /* mages*/
-    if (!str_cmp("archmage", argument)
-    ||  !str_cmp("geomancer", argument)
-    ||  !str_cmp("illusionist", argument))
-    {
-	victim->pcdata->class_current = CLASS_MAGE;
-	victim->pcdata->second_class_mage = CLASS_MAGE;
-
-	if (!str_cmp("archmage", argument))
-	{
-	    victim->pcdata->sub_class_current = CLASS_MAGE_ARCHMAGE;
-	    victim->pcdata->second_sub_class_mage = CLASS_MAGE_ARCHMAGE;
-	}
-
-	if (!str_cmp("geomancer", argument))
-	{
-	    victim->pcdata->sub_class_current = CLASS_MAGE_GEOMANCER;
-	    victim->pcdata->second_sub_class_mage = CLASS_MAGE_GEOMANCER;
-	}
-
-	if (!str_cmp("illusionist", argument))
-	{
-	    victim->pcdata->sub_class_current = CLASS_MAGE_ILLUSIONIST;
-	    victim->pcdata->second_sub_class_mage = CLASS_MAGE_ILLUSIONIST;
-	}
-    }
-
-    /* clerics*/
-    if (!str_cmp("alchemist", argument)
-    ||  !str_cmp("ranger", argument)
-    ||  !str_cmp("adept", argument))
-    {
-	victim->pcdata->class_current = CLASS_CLERIC;
-	victim->pcdata->second_class_cleric = CLASS_CLERIC;
-
-	if (!str_cmp("alchemist", argument))
-	{
-	    victim->pcdata->sub_class_current = CLASS_CLERIC_ALCHEMIST;
-	    victim->pcdata->second_sub_class_cleric = CLASS_CLERIC_ALCHEMIST;
-	}
-
-	if (!str_cmp("ranger", argument))
-	{
-	    victim->pcdata->sub_class_current = CLASS_CLERIC_RANGER;
-	    victim->pcdata->second_sub_class_cleric = CLASS_CLERIC_RANGER;
-	}
-
-	if (!str_cmp("adept", argument))
-	{
-	    victim->pcdata->sub_class_current = CLASS_CLERIC_ADEPT;
-	    victim->pcdata->second_sub_class_cleric = CLASS_CLERIC_ADEPT;
-	}
-    }
-
-    /* thieves*/
-    if (!str_cmp("highwayman", argument)
-    ||  !str_cmp("ninja", argument)
-    ||  !str_cmp("sage", argument))
-    {
-	victim->pcdata->class_current = CLASS_THIEF;
-	victim->pcdata->second_class_thief = CLASS_THIEF;
-
-	if (!str_cmp("highwayman", argument))
-	{
-	    victim->pcdata->sub_class_current = CLASS_THIEF_HIGHWAYMAN;
-	    victim->pcdata->second_sub_class_thief = CLASS_THIEF_HIGHWAYMAN;
-	}
-
-	if (!str_cmp("ninja", argument))
-	{
-	    victim->pcdata->sub_class_current = CLASS_THIEF_NINJA;
-	    victim->pcdata->second_sub_class_thief = CLASS_THIEF_NINJA;
-	}
-
-	if (!str_cmp("sage", argument))
-	{
-	    victim->pcdata->sub_class_current = CLASS_THIEF_SAGE;
-	    victim->pcdata->second_sub_class_thief = CLASS_THIEF_SAGE;
-	}
-    }
-
-    /* warriors*/
-    if (!str_cmp("warlord", argument)
-    || !str_cmp("destroyer", argument)
-    || !str_cmp("crusader", argument))
-    {
-	victim->pcdata->class_current = CLASS_WARRIOR;
-	victim->pcdata->second_class_warrior = CLASS_WARRIOR;
-
-	if (!str_cmp("warlord", argument))
-	{
-	    victim->pcdata->sub_class_current = CLASS_WARRIOR_WARLORD;
-	    victim->pcdata->second_sub_class_warrior = CLASS_WARRIOR_WARLORD;
-	}
-
-	if (!str_cmp("destroyer", argument))
-	{
-	    victim->pcdata->sub_class_current = CLASS_WARRIOR_DESTROYER;
-	    victim->pcdata->second_sub_class_warrior = CLASS_WARRIOR_DESTROYER;
-	}
-
-	if (!str_cmp("crusader", argument))
-	{
-	    victim->pcdata->sub_class_current = CLASS_WARRIOR_CRUSADER;
-	    victim->pcdata->second_sub_class_warrior = CLASS_WARRIOR_CRUSADER;
-	}
-    }
-
-    group_add(victim, class_table[victim->pcdata->class_current].base_group, TRUE);
-    group_add(victim, sub_class_table[victim->pcdata->sub_class_current].default_group, TRUE);
-    victim->exp = 0;
-
-    sprintf(buf2, sub_class_table[victim->pcdata->sub_class_current].name[victim->sex]);
-    buf2[0] = UPPER(buf2[0]);
-    sprintf(buf, "All congratulate %s, who is now a%s %s!",
-        victim->name, (buf2[0] == 'A' || buf2[0] == 'I' || buf2[0] == 'E' || buf2[0] == 'U'
-	    || buf2[0] == 'O') ? "n" : "", buf2);
-    crier_announce(buf);
-    double_xp(victim);
-#endif
 }
 
 
@@ -6453,7 +6416,6 @@ void do_arealinks(CHAR_DATA *ch, char *argument)
     char buf[MAX_STRING_LENGTH];
     char arg1[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
-    long vnum = 0;
     long iHash;
     int door;
     bool found = FALSE;
@@ -6499,7 +6461,7 @@ void do_arealinks(CHAR_DATA *ch, char *argument)
 	    found = FALSE;
 	    for(iHash = 0; iHash < MAX_KEY_HASH; iHash++)
 	    {
-		for(from_room = room_index_hash[iHash];
+		for(from_room = parea->room_index_hash[iHash];
 		     from_room != NULL;
 		     from_room = from_room->next)
 		{
@@ -6507,9 +6469,6 @@ void do_arealinks(CHAR_DATA *ch, char *argument)
 		     * If the room isn't in the current area,
 		     * then skip it, not interested.
 		     */
-		    if (from_room->vnum < parea->min_vnum
-		    ||   from_room->vnum > parea->max_vnum)
-			continue;
 
 		    /* Aha, room is in the area, lets check all directions */
 		    for (door = 0; door < 9; door++)
@@ -6523,14 +6482,12 @@ void do_arealinks(CHAR_DATA *ch, char *argument)
 			     * If the exit links to a different area
 			     * then add it to the buffer/file
 			     */
-			    if(to_room != NULL
-			    &&  (to_room->vnum < parea->min_vnum
-			    ||   to_room->vnum > parea->max_vnum))
+			    if(to_room != NULL && to_room->area != parea)
 			    {
 				found = TRUE;
-				sprintf(buf, "    (%ld) links %s to %s (%ld)\n\r",
-				    from_room->vnum, dir_name[door],
-				    to_room->area->name, to_room->vnum);
+				sprintf(buf, "    (%ld#%ld) links %s to %s (%ld#%ld)\n\r",
+				    from_room->area->uid, from_room->vnum, dir_name[door],
+				    to_room->area->name, to_room->area->uid, to_room->vnum);
 
 				/* Add to either buffer or file */
 				/*if(fp == NULL)*/
@@ -6579,38 +6536,19 @@ void do_arealinks(CHAR_DATA *ch, char *argument)
     /* Room vnum provided, so lets go find the area it belongs to */
     else if(is_number(arg1))
     {
-	vnum = atol(arg1);
+		long uid = atol(arg1);
+		parea = get_area_from_uid(uid);
 
-	/* Hah! No funny vnums! I saw you trying to break it... */
-	if (vnum <= 0 || vnum > 2147483647)
-	{
-	    send_to_char("The vnum must be between 1 and 2147483647.\n\r",ch);
-	    return;
-	}
-
-	/* Search the areas for the appropriate vnum range */
-	for (parea = area_first; parea != NULL; parea = parea->next)
-	{
-	    if(vnum >= parea->min_vnum && vnum <= parea->max_vnum)
-		break;
-	}
-
-	/* Whoops, vnum not contained in any area */
-	if (parea == NULL)
-	{
-	    send_to_char("There is no area containing that vnum.\n\r",ch);
-	    return;
-	}
+		if (parea == NULL)
+		{
+			send_to_char("There is no area with that UID.\n\r",ch);
+			return;
+		}
     }
     /* Non-number argument, must be trying for an area name */
     else
     {
-	/* Loop the areas, compare the name to argument */
-	for(parea = area_first; parea != NULL; parea = parea->next)
-	{
-	    if(!str_prefix(arg1, parea->name))
-		break;
-	}
+		parea = find_area(arg1);
 
 	/* Sorry chum, you picked a goofy name */
 	if (parea == NULL)
@@ -6638,14 +6576,10 @@ void do_arealinks(CHAR_DATA *ch, char *argument)
     /* And we loop the rooms */
     for(iHash = 0; iHash < MAX_KEY_HASH; iHash++)
     {
-	for(from_room = room_index_hash[iHash];
+	for(from_room = parea->room_index_hash[iHash];
 	     from_room != NULL;
 	     from_room = from_room->next)
 	{
-	    /* Gotta make sure the room belongs to the desired area */
-	    if (from_room->vnum < parea->min_vnum
-	    ||   from_room->vnum > parea->max_vnum)
-		continue;
 
 	    /* Room's good, let's check all the directions for exits */
 	    for (door = 0; door < 9; door++)
@@ -6655,14 +6589,12 @@ void do_arealinks(CHAR_DATA *ch, char *argument)
 		    to_room = pexit->u1.to_room;
 
 		    /* Found an exit, does it lead to a different area? */
-		    if(to_room != NULL
-		    &&  (to_room->vnum < parea->min_vnum
-		    ||   to_room->vnum > parea->max_vnum))
+		    if(to_room != NULL && to_room->area != parea)
 		    {
 			found = TRUE;
-			sprintf(buf, "%s (%ld) links %s to %s (%ld)\n\r",
-				    parea->name, from_room->vnum, dir_name[door],
-				    to_room->area->name, to_room->vnum);
+			sprintf(buf, "%s (%ld#%ld) links %s to %s (%ld#%ld)\n\r",
+				    parea->name, from_room->area->uid, from_room->vnum, dir_name[door],
+				    to_room->area->name, to_room->area->uid, to_room->vnum);
 
 			/* File or buffer output? */
 			/*if(fp == NULL)*/
@@ -6692,75 +6624,6 @@ void do_arealinks(CHAR_DATA *ch, char *argument)
 	fpReserve = fopen(NULL_FILE, "r");
     }*/
 
-}
-
-
-void do_sload(CHAR_DATA *ch, char *argument)
-{
-#if 0
-/*
-    char arg1[MAX_INPUT_LENGTH] ,arg2[MAX_INPUT_LENGTH];
-    ROOM_INDEX_DATA *pRoom;
-    NPC_SHIP_INDEX_DATA *pShip;
-    NPC_SHIP_DATA *pNpcShip;
-    long room_vnum;
-    long ship_vnum;
-
-    argument = one_argument(argument, arg1);
-    one_argument(argument, arg2);
-
-    if (arg1[0] == '\0' || !is_number(arg1))
-    {
-	send_to_char("Syntax: load ship <vnum> <room vnum>.\n\r", ch);
-	return;
-    }
-
-    ship_vnum = atol(arg1);
-
-    if (arg2[0] != '\0')
-    {
-	if (!is_number(arg2))
-        {
-	  send_to_char("Syntax: sload <vnum> <room vnum>.\n\r", ch);
-	  return;
-	}
-        room_vnum = atol(arg2);
-        if ((pRoom = get_room_index(room_vnum)) == NULL)
-	{
-	  send_to_char("Could not find room vnum.\n\r",ch);
-  	  return;
-	}
-    }
-    else {
-      send_to_char("Syntax: sload <vnum> <room vnum>.\n\r", ch);
-      return;
-    }
-
-    if ((pShip = get_npc_ship_index(ship_vnum)) == NULL)
-    {
-	send_to_char("No ship has that vnum.\n\r", ch);
-	return;
-    }
-
-    pNpcShip = create_npc_sailing_boat(ship_vnum);
-
-     If the npc airship then set airship
-    if (pShip->npc_type == NPC_SHIP_AIR_SHIP)
-    {
-	    plith_airship = pNpcShip;
-    }
-
-    obj_to_room(pNpcShip->ship->ship, pRoom);
-
-    if (pNpcShip->ship->ship->in_room == NULL)
-    {
-	    gecho("NULL already");
-    }
-
-    send_to_char("Ship created.\n\r", ch);
-    return;
-*/
-#endif
 }
 
 
@@ -6794,8 +6657,8 @@ void do_junk(CHAR_DATA *ch, char *argument)
     && !str_cmp(argument, "all"))
 	    fAll = TRUE;
 
-    if (is_number(arg2)
-    && get_obj_index(atol(arg2)) == NULL)
+	WNUM wnum = wnum_zero;
+    if (parse_widevnum(arg2, &wnum) && get_obj_index(wnum.pArea, wnum.vnum) == NULL)
     {
 	    send_to_char("No such object even exists.\n\r", ch);
 	    return;
@@ -6804,9 +6667,7 @@ void do_junk(CHAR_DATA *ch, char *argument)
     for (obj = victim->carrying; obj != NULL; obj = obj_next)
     {
 	    obj_next = obj->next_content;
-	    if ((is_number(arg2)
- 	         && obj->pIndexData->vnum == atol(arg2))
-	    || (is_name(arg2, obj->name)))
+	    if (wnum_match_obj(wnum, obj) || is_name(arg2, obj->name))
 	    {
 		    act("Extracted $p from $N.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 		    extract_obj(obj);
@@ -7521,7 +7382,7 @@ void do_token(CHAR_DATA *ch, char *argument)
     char arg3[MSL];
     char arg4[MSL], arg4b[MSL];
     char buf[MSL];
-    long vnum, count;
+    long count;
     TOKEN_DATA *token;
     TOKEN_INDEX_DATA *token_index;
 
@@ -7547,7 +7408,17 @@ void do_token(CHAR_DATA *ch, char *argument)
 		}
 
 		count = number_argument(arg4, arg4b);
-	    vnum = atol(arg4b);
+		WNUM wnum;
+		if (!parse_widevnum(arg4b, &wnum))
+		{
+			send_to_char("That token doesn't exist.\n\r", ch);
+			return;
+		}
+
+		if ((token_index = get_token_index(wnum.pArea, wnum.vnum)) == NULL) {
+			send_to_char("That token doesn't exist.\n\r", ch);
+			return;
+		}
 
 		if (!str_cmp(arg, "give")) {
 			if(ch->tot_level < (MAX_LEVEL - 1) && ch != victim && !IS_NPC(victim)) {
@@ -7555,13 +7426,8 @@ void do_token(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			if ((token_index = get_token_index(vnum)) == NULL) {
-				send_to_char("That token doesn't exist.\n\r", ch);
-				return;
-			}
-
 			if (is_singular_token(token_index)) {
-				if ((token = get_token_char(victim, vnum, 1)) != NULL) {
+				if ((token = get_token_char(victim, token_index, 1)) != NULL) {
 					send_to_char("Only one copy of this token can be given.\n\r", ch);
 					return;
 				}
@@ -7596,7 +7462,7 @@ void do_token(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			if ((token = get_token_char(victim, vnum, count)) == NULL) {
+			if ((token = get_token_char(victim, token_index, count)) == NULL) {
 				send_to_char("Token not found on victim.\n\r", ch);
 				return;
 			}
@@ -7632,16 +7498,21 @@ void do_token(CHAR_DATA *ch, char *argument)
 		}
 
 		count = number_argument(arg4, arg4b);
-	    vnum = atol(arg4b);
+		WNUM wnum;
+		if (!parse_widevnum(arg4b, &wnum))
+		{
+			send_to_char("That token doesn't exist.\n\r", ch);
+			return;
+		}
+
+		if ((token_index = get_token_index(wnum.pArea, wnum.vnum)) == NULL) {
+			send_to_char("That token doesn't exist.\n\r", ch);
+			return;
+		}
 
 		if (!str_cmp(arg, "give")) {
-			if ((token_index = get_token_index(vnum)) == NULL) {
-				send_to_char("That token doesn't exist.\n\r", ch);
-				return;
-			}
-
 			if (is_singular_token(token_index)) {
-				if ((token = get_token_obj(obj, vnum, 1)) != NULL) {
+				if ((token = get_token_obj(obj, token_index, 1)) != NULL) {
 					send_to_char("Only one copy of this token can be given.\n\r", ch);
 					return;
 				}
@@ -7654,7 +7525,7 @@ void do_token(CHAR_DATA *ch, char *argument)
 			p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_GIVEN, NULL);
 
 		} else if (!str_cmp(arg, "junk")) {
-			if ((token = get_token_obj(obj, vnum, count)) == NULL) {
+			if ((token = get_token_obj(obj, token_index, count)) == NULL) {
 				send_to_char("Token not found on object.\n\r", ch);
 				return;
 			}
@@ -7671,16 +7542,21 @@ void do_token(CHAR_DATA *ch, char *argument)
 			send_to_char("Syntax:  token <give|junk> obj <object> [#.]<vnum>\n\r", ch);
 	} else if(!str_cmp(arg2, "room") ) {
 		count = number_argument(arg3, arg4b);
-	    vnum = atol(arg4b);
+		WNUM wnum;
+		if (!parse_widevnum(arg4b, &wnum))
+		{
+			send_to_char("That token doesn't exist.\n\r", ch);
+			return;
+		}
+
+		if ((token_index = get_token_index(wnum.pArea, wnum.vnum)) == NULL) {
+			send_to_char("That token doesn't exist.\n\r", ch);
+			return;
+		}
 
 		if (!str_cmp(arg, "give")) {
-			if ((token_index = get_token_index(vnum)) == NULL) {
-				send_to_char("That token doesn't exist.\n\r", ch);
-				return;
-			}
-
 			if (is_singular_token(token_index)) {
-				if ((token = get_token_room(ch->in_room, vnum, 1)) != NULL) {
+				if ((token = get_token_room(ch->in_room, token_index, 1)) != NULL) {
 					send_to_char("Only one copy of this token can be given.\n\r", ch);
 					return;
 				}
@@ -7698,7 +7574,7 @@ void do_token(CHAR_DATA *ch, char *argument)
 			p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_GIVEN, NULL);
 
 		} else if (!str_cmp(arg, "junk")) {
-			if ((token = get_token_room(ch->in_room, vnum, count)) == NULL) {
+			if ((token = get_token_room(ch->in_room, token_index, count)) == NULL) {
 				send_to_char("Token not found on object.\n\r", ch);
 				return;
 			}
@@ -7721,9 +7597,9 @@ void do_token(CHAR_DATA *ch, char *argument)
 	}
 	else
 	{
-		send_to_char("Syntax:  token <give|junk> char <character> [#.]<vnum>\n\r", ch);
-		send_to_char("         token <give|junk> obj <object> [#.]<vnum>\n\r", ch);
-		send_to_char("         token <give|junk> room [#.]<vnum>\n\r", ch);
+		send_to_char("Syntax:  token <give|junk> char <character> [#.]<widevnum>\n\r", ch);
+		send_to_char("         token <give|junk> obj <object> [#.]<widevnum>\n\r", ch);
+		send_to_char("         token <give|junk> room [#.]<widevnum>\n\r", ch);
 	}
 
 }
@@ -7802,3 +7678,566 @@ void do_immflag(CHAR_DATA *ch, char *argument)
     act("Your immortal flag has been set to $T.", ch, NULL, NULL, NULL, NULL, NULL, argument, TO_CHAR);
 }
 
+void do_reserved(CHAR_DATA *ch, char *argument)
+{
+	if (IS_NPC(ch))
+	{
+		bug("NPC tried to view/edit reserved", 0);
+		return;
+	}
+
+	if (IS_NULLSTR(argument))
+	{
+		send_to_char("Syntax:  reserved {Rroom|obj|mob|rprog{x list\n\r", ch);
+		send_to_char("         reserved {Rroom|obj|mob|rprog{x set <name> <widevnum>\n\r", ch);
+		send_to_char("         reserved {Rarea{x list\n\r", ch);
+		send_to_char("         reserved {Rarea{x set <name> <auid>\n\r", ch);
+		return;
+	}
+
+	char arg[MIL];
+	char arg2[MIL];
+	char buf[MSL];
+
+	argument = one_argument(argument, arg);
+
+	if (!str_prefix(arg, "room"))
+	{
+		if (IS_NULLSTR(argument))
+		{
+			send_to_char("Syntax:  reserved room {Rlist{x\n\r", ch);
+			send_to_char("         reserved room {Rset{x <name> <widevnum>\n\r", ch);
+			return;
+		}
+
+		argument = one_argument(argument, arg2);
+		if (!str_prefix(arg2, "list"))
+		{
+			BUFFER *buffer = new_buf();
+
+			add_buf(buffer, "Reserved Room Widevnums:\n\r");
+			add_buf(buffer, "[          Name          ] [ Area - Name           ] [ Room - Name           ]\n\r");
+			add_buf(buffer, "===============================================================================\n\r");
+
+			int i;
+			for(i = 0; reserved_room_wnums[i].name; i++)
+			{
+				// Only show it if there's a registered WNUM
+				if (reserved_room_wnums[i].wnum && reserved_room_wnums[i].data)
+				{
+					WNUM *wnum = reserved_room_wnums[i].wnum;
+					AREA_DATA *pArea = wnum->pArea;
+					ROOM_INDEX_DATA *pRoom = *((ROOM_INDEX_DATA **)reserved_room_wnums[i].data);
+
+					sprintf(buf, " %-24.24s    %4ld - %15.15s    %4ld - %15.15s\n\r",reserved_room_wnums[i].name, 
+						(pArea ? pArea->uid : 0),
+						(pArea ? pArea->name : "-/-"),
+						(pRoom ? pRoom->vnum : 0),
+						(pRoom ? pRoom->name : "-/-"));
+					add_buf(buffer, buf);
+				}
+			}
+
+			add_buf(buffer, "-------------------------------------------------------------------------------\n\r");
+
+			if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+			{
+				send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+			}
+			else
+			{
+				page_to_char(buffer->string, ch);
+			}
+
+			return;
+		}
+
+		if (!str_prefix(arg2, "set"))
+		{
+			char arg3[MIL];
+
+			if (IS_NULLSTR(argument))
+			{
+				send_to_char("Syntax:  reserved room set {R<name>{x <widevnum>\n\r", ch);
+				return;
+			}
+
+			argument = one_argument(argument, arg3);
+			RESERVED_WNUM *reserved = search_reserved(reserved_room_wnums, arg3);
+			if (!reserved)
+			{
+				send_to_char("Syntax:  reserved room set {R<name>{x <widevnum>\n\r", ch);
+				send_to_char("         No such reserved room registered by that name.\n\r", ch);
+				return;
+			}
+
+			WNUM wnum;
+			if (!parse_widevnum(argument, &wnum))
+			{
+				send_to_char("Syntax:  reserved room set <name> {R<widevnum>{x\n\r", ch);
+				send_to_char("         Please specify a widevnum (Format: [Area Name|UID]#VNUM).\n\r", ch);
+				return;
+			}
+
+			// If #VNUM, use area in current room
+			if (wnum.pArea == NULL)
+				wnum.pArea = ch->in_room->area;
+
+			ROOM_INDEX_DATA *pRoom = get_room_index(wnum.pArea, wnum.vnum);
+			if (!pRoom)
+			{
+				send_to_char("Syntax:  reserved room set <name> {R<widevnum>{x\n\r", ch);
+				send_to_char("         No such room found.\n\r", ch);
+				return;
+			}
+
+			reserved->wnum->pArea = wnum.pArea;
+			reserved->wnum->vnum = wnum.vnum;
+			*((ROOM_INDEX_DATA **)reserved->data) = pRoom;
+			gconfig_write();
+
+			sprintf(buf, "Reserved Room widevnum {Y%s{x changed to %s{x {W({g%ld{G#{g%ld{W){x.\n\r",
+				reserved->name,
+				pRoom->name,
+				wnum.pArea->uid,
+				wnum.vnum);
+			send_to_char(buf, ch);
+			return;
+		}
+
+		send_to_char("reserved room {Rlist{x\n\r", ch);
+		send_to_char("reserved room {Rset{x <name> <widevnum>\n\r", ch);
+		return;
+	}	
+
+	if (!str_prefix(arg, "rprog"))
+	{
+		if (IS_NULLSTR(argument))
+		{
+			send_to_char("Syntax:  reserved rprog {Rlist{x\n\r", ch);
+			send_to_char("         reserved rprog {Rset{x <name> <widevnum>\n\r", ch);
+			return;
+		}
+
+		argument = one_argument(argument, arg2);
+		if (!str_prefix(arg2, "list"))
+		{
+			BUFFER *buffer = new_buf();
+
+			add_buf(buffer, "Reserved RoomProg Widevnums:\n\r");
+			add_buf(buffer, "[          Name          ] [ Area - Name           ] [ Vnum - Script         ]\n\r");
+			add_buf(buffer, "===============================================================================\n\r");
+
+			int i;
+			for(i = 0; reserved_rprog_wnums[i].name; i++)
+			{
+				// Only show it if there's a registered WNUM
+				if (reserved_rprog_wnums[i].wnum && reserved_rprog_wnums[i].data)
+				{
+					WNUM *wnum = reserved_rprog_wnums[i].wnum;
+					AREA_DATA *pArea = wnum->pArea;
+					SCRIPT_DATA *script = *((SCRIPT_DATA **)reserved_rprog_wnums[i].data);
+
+					sprintf(buf, " %-24.24s    %4ld - %15.15s    %4ld - %15.15s\n\r",reserved_rprog_wnums[i].name, 
+						(pArea ? pArea->uid : 0),
+						(pArea ? pArea->name : "-/-"),
+						(script ? script->vnum : 0),
+						(script ? script->name : "-/-"));
+					add_buf(buffer, buf);
+				}
+			}
+
+			add_buf(buffer, "-------------------------------------------------------------------------------\n\r");
+
+			if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+			{
+				send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+			}
+			else
+			{
+				page_to_char(buffer->string, ch);
+			}
+
+			return;
+		}
+
+		if (!str_prefix(arg2, "set"))
+		{
+			char arg3[MIL];
+
+			if (IS_NULLSTR(argument))
+			{
+				send_to_char("Syntax:  reserved rprog set {R<name>{x <widevnum>\n\r", ch);
+				return;
+			}
+
+			argument = one_argument(argument, arg3);
+			RESERVED_WNUM *reserved = search_reserved(reserved_rprog_wnums, arg3);
+			if (!reserved)
+			{
+				send_to_char("Syntax:  reserved rprog set {R<name>{x <widevnum>\n\r", ch);
+				send_to_char("         No such reserved roomprog registered by that name.\n\r", ch);
+				return;
+			}
+
+			WNUM wnum;
+			if (!parse_widevnum(argument, &wnum))
+			{
+				send_to_char("Syntax:  reserved rprog set <name> {R<widevnum>{x\n\r", ch);
+				send_to_char("         Please specify a widevnum (Format: [Area Name|UID]#VNUM).\n\r", ch);
+				return;
+			}
+
+			// If #VNUM, use area in current room
+			if (wnum.pArea == NULL)
+				wnum.pArea = ch->in_room->area;
+
+			SCRIPT_DATA *script = get_script_index(wnum.pArea, wnum.vnum, PRG_RPROG);
+			if (!script)
+			{
+				send_to_char("Syntax:  reserved rprog set <name> {R<widevnum>{x\n\r", ch);
+				send_to_char("         No such roomprog found.\n\r", ch);
+				return;
+			}
+
+			reserved->wnum->pArea = wnum.pArea;
+			reserved->wnum->vnum = wnum.vnum;
+			*((SCRIPT_DATA **)reserved->data) = script;
+			gconfig_write();
+
+			sprintf(buf, "Reserved RoomProg widevnum {Y%s{x changed to %s{x {W({g%ld{G#{g%ld{W){x.\n\r",
+				reserved->name,
+				script->name,
+				wnum.pArea->uid,
+				wnum.vnum);
+			send_to_char(buf, ch);
+			return;
+		}
+
+		send_to_char("reserved rprog {Rlist{x\n\r", ch);
+		send_to_char("reserved rprog {Rset{x <name> <widevnum>\n\r", ch);
+		return;
+	}	
+
+	if (!str_prefix(arg, "mob"))
+	{
+		if (IS_NULLSTR(argument))
+		{
+			send_to_char("Syntax:  reserved mob {Rlist{x\n\r", ch);
+			send_to_char("         reserved mob {Rset{x <name> <widevnum>\n\r", ch);
+			return;
+		}
+
+		argument = one_argument(argument, arg2);
+		if (!str_prefix(arg2, "list"))
+		{
+			BUFFER *buffer = new_buf();
+
+			add_buf(buffer, "Reserved Mobile Widevnums:\n\r");
+			add_buf(buffer, "[          Name          ] [ Area - Name           ] [  Mob - Name           ]\n\r");
+			add_buf(buffer, "===============================================================================\n\r");
+
+			int i;
+			for(i = 0; reserved_mob_wnums[i].name; i++)
+			{
+				// Only show it if there's a registered WNUM
+				if (reserved_mob_wnums[i].wnum && reserved_mob_wnums[i].data)
+				{
+					WNUM *wnum = reserved_mob_wnums[i].wnum;
+					AREA_DATA *pArea = wnum->pArea;
+					MOB_INDEX_DATA *pMob = *((MOB_INDEX_DATA **)reserved_mob_wnums[i].data);
+
+					sprintf(buf, " %-24.24s    %4ld - %15.15s    %4ld - %15.15s\n\r",reserved_mob_wnums[i].name, 
+						(pArea ? pArea->uid : 0),
+						(pArea ? pArea->name : "-/-"),
+						(pMob ? pMob->vnum : 0),
+						(pMob ? pMob->short_descr : "-/-"));
+					add_buf(buffer, buf);
+				}
+			}
+
+			add_buf(buffer, "-------------------------------------------------------------------------------\n\r");
+
+			if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+			{
+				send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+			}
+			else
+			{
+				page_to_char(buffer->string, ch);
+			}
+
+			return;
+		}
+
+		if (!str_prefix(arg2, "set"))
+		{
+			char arg3[MIL];
+
+			if (IS_NULLSTR(argument))
+			{
+				send_to_char("Syntax:  reserved mob set {R<name>{x <widevnum>\n\r", ch);
+				return;
+			}
+
+			argument = one_argument(argument, arg3);
+			RESERVED_WNUM *reserved = search_reserved(reserved_mob_wnums, arg3);
+			if (!reserved)
+			{
+				send_to_char("Syntax:  reserved mob set {R<name>{x <widevnum>\n\r", ch);
+				send_to_char("         No such reserved mob registered by that name.\n\r", ch);
+				return;
+			}
+
+			WNUM wnum;
+			if (!parse_widevnum(argument, &wnum))
+			{
+				send_to_char("Syntax:  reserved mob set <name> {R<widevnum>{x\n\r", ch);
+				send_to_char("         Please specify a widevnum (Format: [Area Name|UID]#VNUM).\n\r", ch);
+				return;
+			}
+
+			// If #VNUM, use area in current mob
+			if (wnum.pArea == NULL)
+				wnum.pArea = ch->in_room->area;
+
+			MOB_INDEX_DATA *pMob = get_mob_index(wnum.pArea, wnum.vnum);
+			if (!pMob)
+			{
+				send_to_char("Syntax:  reserved mob set <name> {R<widevnum>{x\n\r", ch);
+				send_to_char("         No such mob found.\n\r", ch);
+				return;
+			}
+
+			reserved->wnum->pArea = wnum.pArea;
+			reserved->wnum->vnum = wnum.vnum;
+			*((MOB_INDEX_DATA **)reserved->data) = pMob;
+			gconfig_write();
+
+			sprintf(buf, "Reserved Mobile widevnum {Y%s{x changed to %s{x {W({g%ld{G#{g%ld{W){x.\n\r",
+				reserved->name,
+				pMob->short_descr,
+				wnum.pArea->uid,
+				wnum.vnum);
+			send_to_char(buf, ch);
+			return;
+		}
+
+		send_to_char("reserved mob {Rlist{x\n\r", ch);
+		send_to_char("reserved mob {Rset{x <name> <widevnum>\n\r", ch);
+		return;
+	}	
+
+	if (!str_prefix(arg, "obj"))
+	{
+		if (IS_NULLSTR(argument))
+		{
+			send_to_char("Syntax:  reserved obj {Rlist{x\n\r", ch);
+			send_to_char("         reserved obj {Rset{x <name> <widevnum>\n\r", ch);
+			return;
+		}
+
+		argument = one_argument(argument, arg2);
+		if (!str_prefix(arg2, "list"))
+		{
+			BUFFER *buffer = new_buf();
+
+			add_buf(buffer, "Reserved Object Widevnums:\n\r");
+			add_buf(buffer, "[          Name          ] [ Area - Name           ] [  Obj - Name           ]\n\r");
+			add_buf(buffer, "===============================================================================\n\r");
+
+			int i;
+			for(i = 0; reserved_obj_wnums[i].name; i++)
+			{
+				// Only show it if there's a registered WNUM
+				if (reserved_obj_wnums[i].wnum && reserved_obj_wnums[i].data)
+				{
+					WNUM *wnum = reserved_obj_wnums[i].wnum;
+					AREA_DATA *pArea = wnum->pArea;
+					OBJ_INDEX_DATA *pObj = *((OBJ_INDEX_DATA **)reserved_obj_wnums[i].data);
+
+					sprintf(buf, " %-24.24s    %4ld - %15.15s    %4ld - %15.15s\n\r",reserved_obj_wnums[i].name, 
+						(pArea ? pArea->uid : 0),
+						(pArea ? pArea->name : "-/-"),
+						(pObj ? pObj->vnum : 0),
+						(pObj ? pObj->short_descr : "-/-"));
+					add_buf(buffer, buf);
+				}
+			}
+
+			add_buf(buffer, "-------------------------------------------------------------------------------\n\r");
+
+			if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+			{
+				send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+			}
+			else
+			{
+				page_to_char(buffer->string, ch);
+			}
+
+			return;
+		}
+
+		if (!str_prefix(arg2, "set"))
+		{
+			char arg3[MIL];
+
+			if (IS_NULLSTR(argument))
+			{
+				send_to_char("Syntax:  reserved obj set {R<name>{x <widevnum>\n\r", ch);
+				return;
+			}
+
+			argument = one_argument(argument, arg3);
+			RESERVED_WNUM *reserved = search_reserved(reserved_obj_wnums, arg3);
+			if (!reserved)
+			{
+				send_to_char("Syntax:  reserved obj set {R<name>{x <widevnum>\n\r", ch);
+				send_to_char("         No such reserved obj registered by that name.\n\r", ch);
+				return;
+			}
+
+			WNUM wnum;
+			if (!parse_widevnum(argument, &wnum))
+			{
+				send_to_char("Syntax:  reserved obj set <name> {R<widevnum>{x\n\r", ch);
+				send_to_char("         Please specify a widevnum (Format: [Area Name|UID]#VNUM).\n\r", ch);
+				return;
+			}
+
+			// If #VNUM, use area in current obj
+			if (wnum.pArea == NULL)
+				wnum.pArea = ch->in_room->area;
+
+			OBJ_INDEX_DATA *pObj = get_obj_index(wnum.pArea, wnum.vnum);
+			if (!pObj)
+			{
+				send_to_char("Syntax:  reserved obj set <name> {R<widevnum>{x\n\r", ch);
+				send_to_char("         No such obj found.\n\r", ch);
+				return;
+			}
+
+			reserved->wnum->pArea = wnum.pArea;
+			reserved->wnum->vnum = wnum.vnum;
+			*((OBJ_INDEX_DATA **)reserved->data) = pObj;
+			gconfig_write();
+
+			sprintf(buf, "Reserved Object widevnum {Y%s{x changed to %s{x {W({g%ld{G#{g%ld{W){x.\n\r",
+				reserved->name,
+				pObj->short_descr,
+				wnum.pArea->uid,
+				wnum.vnum);
+			send_to_char(buf, ch);
+			return;
+		}
+
+		send_to_char("reserved obj {Rlist{x\n\r", ch);
+		send_to_char("reserved obj {Rset{x <name> <widevnum>\n\r", ch);
+		return;
+	}	
+
+
+	if (!str_prefix(arg, "area"))
+	{
+		if (IS_NULLSTR(argument))
+		{
+			send_to_char("Syntax:  reserved area {Rlist{x\n\r", ch);
+			send_to_char("         reserved area {Rset{x <name> <widevnum>\n\r", ch);
+			return;
+		}
+
+		argument = one_argument(argument, arg2);
+		if (!str_prefix(arg2, "list"))
+		{
+			BUFFER *buffer = new_buf();
+
+			add_buf(buffer, "Reserved Areas:\n\r");
+			add_buf(buffer, "[          Name          ] [ Area - Name           ]\n\r");
+			add_buf(buffer, "=====================================================\n\r");
+
+			int i;
+			for(i = 0; reserved_areas[i].name; i++)
+			{
+				// Only show it if there's a registered AREA_DATA
+				if (reserved_areas[i].area)
+				{
+					AREA_DATA **ppArea = reserved_areas[i].area;
+					*ppArea = get_area_from_uid(reserved_areas[i].auid);
+
+					sprintf(buf, " %-24.24s    %4ld - %15.15s\n\r",reserved_areas[i].name, 
+						((*ppArea) ? (*ppArea)->uid : 0),
+						((*ppArea) ? (*ppArea)->name : "-/-"));
+					add_buf(buffer, buf);
+				}
+			}
+
+			add_buf(buffer, "-----------------------------------------------------\n\r");
+
+			if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+			{
+				send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+			}
+			else
+			{
+				page_to_char(buffer->string, ch);
+			}
+
+			return;
+		}
+
+		if (!str_prefix(arg2, "set"))
+		{
+			char arg3[MIL];
+
+			if (IS_NULLSTR(argument))
+			{
+				send_to_char("Syntax:  reserved area set {R<name>{x <auid>\n\r", ch);
+				return;
+			}
+
+			argument = one_argument(argument, arg3);
+			RESERVED_AREA *reserved = search_reserved_area(arg3);
+			if (!reserved)
+			{
+				send_to_char("Syntax:  reserved area set {R<name>{x <auid>\n\r", ch);
+				send_to_char("         No such reserved area registered by that name.\n\r", ch);
+				return;
+			}
+
+			if (!is_number(argument))
+			{
+				send_to_char("Syntax:  reserved area set <name> {R<auid>{x\n\r", ch);
+				send_to_char("         Please specify a widevnum (Format: [Area Name|UID]#VNUM).\n\r", ch);
+				return;
+			}
+
+			long auid = atol(argument);
+
+
+			AREA_DATA *pArea = get_area_from_uid(auid);
+			if (!pArea)
+			{
+				send_to_char("Syntax:  reserved area set <name> {R<auid>{x\n\r", ch);
+				send_to_char("         No such area found.\n\r", ch);
+				return;
+			}
+
+			*(reserved->area) = pArea;
+			gconfig_write();
+
+			sprintf(buf, "Reserved Area {Y%s{x changed to %s{x {W({g%ld{W){x.\n\r",
+				reserved->name,
+				pArea->name,
+				pArea->uid);
+			send_to_char(buf, ch);
+			return;
+		}
+
+		send_to_char("reserved area {Rlist{x\n\r", ch);
+		send_to_char("reserved area {Rset{x <name> <auid>\n\r", ch);
+		return;
+	}	
+
+	do_reserved(ch, "");
+}

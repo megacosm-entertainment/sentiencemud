@@ -183,7 +183,7 @@ enum ifcheck_enum {
 		CHK_ISSAFE,CHK_ISSCRIBING,CHK_ISSHIFTED,CHK_ISSHOOTING,CHK_ISSHOPKEEPER,CHK_ISSPELL,CHK_ISSUBCLASS,CHK_ISSUSTAINED,
 		CHK_ISTARGET,CHK_ISTREASUREROOM,CHK_ISTOKEN,
 		CHK_ISVISIBLE,CHK_ISVISIBLETO,
-		CHK_ISWORN,
+		CHK_ISWNUM,CHK_ISWORN,
 
 	/* L */
 	CHK_LASTRETURN,CHK_LEVEL,CHK_LIQUID,CHK_LISTCONTAINS,CHK_LOADED,CHK_LOSTPARTS,
@@ -207,8 +207,8 @@ enum ifcheck_enum {
 	CHK_OBJCLONES,CHK_OBJCOND,CHK_OBJCORPSE,CHK_OBJCOST,CHK_OBJEXISTS,
 	CHK_OBJEXTRA,CHK_OBJEXTRA2,CHK_OBJEXTRA3,CHK_OBJEXTRA4,CHK_OBJFRAG,CHK_OBJHERE,
 	CHK_OBJMAXWEIGHT,CHK_OBJRANGED,CHK_OBJTIMER,CHK_OBJTYPE,CHK_OBJVAL0,CHK_OBJVAL1,CHK_OBJVAL2,
-	CHK_OBJVAL3,CHK_OBJVAL4,CHK_OBJVAL5,CHK_OBJVAL6,CHK_OBJVAL7,CHK_OBJWEAPON,
-	CHK_OBJWEAPONSTAT,CHK_OBJWEAR,CHK_OBJWEARLOC,CHK_OBJWEIGHT,CHK_OBJWEIGHTLEFT,
+	CHK_OBJVAL3,CHK_OBJVAL4,CHK_OBJVAL5,CHK_OBJVAL6,CHK_OBJVAL7,CHK_OBJVAL8,CHK_OBJVAL9,
+	CHK_OBJWEAPON,CHK_OBJWEAPONSTAT,CHK_OBJWEAR,CHK_OBJWEARLOC,CHK_OBJWEIGHT,CHK_OBJWEIGHTLEFT,
 	CHK_OFF,CHK_ORDER,
 
 
@@ -255,7 +255,7 @@ enum ifcheck_enum {
 
 
 	/* V */
-	CHK_VALUE_AC,CHK_VALUE_ACSTR,CHK_VALUE_DAMAGE,CHK_VALUE_POSITION,CHK_VALUE_RANGED,CHK_VALUE_RELIC,CHK_VALUE_SECTOR,
+	CHK_VALUE_AC,CHK_VALUE_ACSTR,CHK_VALUE_DAMAGE,CHK_VALUE_PORTALTYPE,CHK_VALUE_POSITION,CHK_VALUE_RANGED,CHK_VALUE_RELIC,CHK_VALUE_SECTOR,
 	CHK_VALUE_SIZE,CHK_VALUE_TOXIN,CHK_VALUE_TYPE,CHK_VALUE_WEAPON,CHK_VALUE_WEAR,CHK_VARBOOL,CHK_VARDEFINED,
 	CHK_VAREXIT,CHK_VARNUMBER,CHK_VARSTRING,CHK_VNUM,CHK_VULN,
 
@@ -430,11 +430,13 @@ enum entity_type_enum {
 	ENT_GROUP,
 	ENT_DICE,
 	ENT_BITVECTOR,
+	ENT_WIDEVNUM,
 
 	ENT_MOBINDEX,
 	ENT_OBJINDEX,
 
 	//////////////////////////////
+	// Bucket? lists
 	// ALL lists here are designed to be saved
 	ENT_BLLIST_MIN,
 	ENT_BLLIST_ROOM,
@@ -449,6 +451,7 @@ enum entity_type_enum {
 	//////////////////////////////
 
 	//////////////////////////////
+	// Pointer lists
 	// Only the STRING list is savable due to it being strings
 	ENT_PLLIST_MIN,
 	ENT_PLLIST_STR,
@@ -504,6 +507,7 @@ enum entity_type_enum {
 	ENT_INSTANCE,
 	ENT_DUNGEON,
 	ENT_SHIP,
+	ENT_FLEET,
 
 	ENT_QUESTPART,
 	ENT_QUEST,
@@ -540,6 +544,7 @@ enum entity_primary_enum {
 
 enum entity_variable_types_enum {
 	ENTITY_VAR_NUM = ESCAPE_EXTRA,
+	ENTITY_VAR_WIDEVNUM,
 	ENTITY_VAR_STR,
 	ENTITY_VAR_MOB,
 	ENTITY_VAR_OBJ,
@@ -881,7 +886,6 @@ enum entity_church_enum {
 	ENTITY_CHURCH_ROSTER,
 };
 
-
 enum entity_conn_enum {
 	ENTITY_CONN_PLAYER = ESCAPE_EXTRA,
 	ENTITY_CONN_ORIGINAL,
@@ -998,15 +1002,15 @@ enum entity_objindex_enum {
 	ENTITY_OBJINDEX_INCONTAINER,
 };
 
-
 enum entity_instance_section_enum {
 	ENTITY_SECTION_ROOMS = ESCAPE_EXTRA,
+	// TODO: ENTITY_SECTION_INDEX,
 	ENTITY_SECTION_INSTANCE,
 };
 
-
 enum entity_instance_enum {
 	ENTITY_INSTANCE_NAME = ESCAPE_EXTRA,
+	// TODO: ENTITY_INSTANCE_BLUEPRINT,
 	ENTITY_INSTANCE_SECTIONS,
 	ENTITY_INSTANCE_OWNERS,
 	ENTITY_INSTANCE_OBJECT,
@@ -1024,10 +1028,12 @@ enum entity_instance_enum {
 	ENTITY_INSTANCE_OBJECTS,
 	ENTITY_INSTANCE_BOSSES,
 	ENTITY_INSTANCE_SPECIAL_ROOMS,
+	// TODO: ENTITY_INSTANCE_SPECIAL_EXITS,
 };
 
 enum entity_dungeon_enum {
 	ENTITY_DUNGEON_NAME = ESCAPE_EXTRA,
+	// TODO: ENTITY_DUNGEON_INDEX,
 	ENTITY_DUNGEON_FLOORS,
 	ENTITY_DUNGEON_DESC,
 	ENTITY_DUNGEON_OWNERS,
@@ -1039,12 +1045,37 @@ enum entity_dungeon_enum {
 	ENTITY_DUNGEON_OBJECTS,
 	ENTITY_DUNGEON_BOSSES,
 	ENTITY_DUNGEON_SPECIAL_ROOMS,
+	// TODO: ENTITY_DUNGEON_SPECIAL_EXITS,
 };
 
 enum entity_ship_enum {
 	ENTITY_SHIP_NAME = ESCAPE_EXTRA,
+	// TODO: ENTITY_SHIP_INDEX,
 	ENTITY_SHIP_OBJECT,
+	// TODO: ENTITY_SHIP_FLEET,
+	// TODO: ENTITY_SHIP_HELM,
+	// TODO: ENTITY_SHIP_NEST,
+	// TODO: ENTITY_SHIP_CREW,
+	// TODO: ENTITY_SHIP_OWNER,				// If owned by a player
+	// TODO: ENTITY_SHIP_CHURCH,			// If owned by a church
+	// TODO: ENTITY_SHIP_CAPTAIN,
+	// TODO: ENTITY_SHIP_FIRSTMATE,
+	// TODO: ENTITY_SHIP_NAVIGATOR,
+	// TODO: ENTITY_SHIP_OARSMEN,			// List of mobs
+	// TODO: ENTITY_SHIP_GUNNERS,			// List of mobs
+	// TODO: ENTITY_SHIP_SCOUT,
+	// TODO: ENTITY_SHIP_MECHANIC,
+	// TODO: ENTITY_SHIP_FLAG,
 };
+
+/*
+enum entity_fleet_enum {
+	ENTITY_FLEET_NAME = ESCAPE_EXTRA,
+	ENTITY_FLEET_OWNER,
+	ENTITY_FLEET_CHURCH,
+	ENTITY_FLEET_SHIPS,
+};
+*/
 
 /* Single letter $* codes ($i, $n) */
 #define ESCAPE_UA		0x80
@@ -1222,10 +1253,8 @@ struct script_var_type {
 			int y;
 			int door;
 		} wdoor;
-		struct {
-			AREA_DATA *area;
-			long vnum;
-		} wnum;
+		WNUM wnum;
+		WNUM_LOAD wnum_load;
 		DICE_DATA dice;
 		LLIST *list;	// Used for HOMOGENOUS lists only
 	} _;
@@ -1396,10 +1425,7 @@ struct script_parameter {
 			long value;
 			const struct flag_type *table;
 		} bv;
-		struct {
-			AREA_DATA *area;
-			long vnum;
-		} wnum;
+		WNUM wnum;
 		DICE_DATA *dice;
 		VARIABLE **variables;
 		LLIST *blist;
@@ -1715,6 +1741,8 @@ DECL_IFC_FUN(ifc_objval4);
 DECL_IFC_FUN(ifc_objval5);
 DECL_IFC_FUN(ifc_objval6);
 DECL_IFC_FUN(ifc_objval7);
+DECL_IFC_FUN(ifc_objval8);
+DECL_IFC_FUN(ifc_objval9);
 DECL_IFC_FUN(ifc_objwear);
 DECL_IFC_FUN(ifc_objwearloc);
 DECL_IFC_FUN(ifc_objweight);
@@ -1919,7 +1947,8 @@ DECL_IFC_FUN(ifc_reckoningintensity);
 
 DECL_IFC_FUN(ifc_isowner);
 DECL_IFC_FUN(ifc_shiptype);
-
+DECL_IFC_FUN(ifc_iswnum);
+DECL_IFC_FUN(ifc_value_portaltype);
 
 /* Opcode functions */
 DECL_OPC_FUN(opc_end);
@@ -1950,7 +1979,7 @@ DECL_OPC_FUN(opc_dungeon);
 /* General */
 long script_flag_value( const struct flag_type *flag_table, char *argument);
 char *ifcheck_get_value(SCRIPT_VARINFO *info,IFCHECK_DATA *ifc,char *text,int *ret,bool *valid);
-int execute_script(long pvnum, SCRIPT_DATA *script,
+int execute_script(SCRIPT_DATA *script,
 	CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token,
 	AREA_DATA *area, INSTANCE *instance, DUNGEON *dungeon,
 	CHAR_DATA *ch, OBJ_DATA *obj1,OBJ_DATA *obj2,CHAR_DATA *vch,CHAR_DATA *vch2,CHAR_DATA *rch,
@@ -2104,7 +2133,7 @@ bool variables_set_clone_door (ppVARIABLE list,char *name, ROOM_INDEX_DATA *sour
 bool variables_set_wilds_door (ppVARIABLE list,char *name, unsigned long w, int x, int y, int door, bool save);
 bool variables_set_skillinfo_id (ppVARIABLE list,char *name, unsigned long ma, unsigned long mb, unsigned long ta, unsigned long tb, int sn, bool save);
 bool variables_setindex_integer(ppVARIABLE list,char *name,int num, bool saved);
-bool variables_setindex_room(ppVARIABLE list,char *name,long vnum, bool saved);
+bool variables_setindex_room(ppVARIABLE list,char *name,WNUM_LOAD wnum_load, bool saved);
 bool variables_setindex_string(ppVARIABLE list,char *name,char *str,bool shared, bool saved);
 bool variables_setsave_affect(ppVARIABLE list,char *name,AFFECT_DATA *aff, bool save);
 bool variables_setsave_area (ppVARIABLE list, char *name,AREA_DATA* a, bool save);
@@ -2150,7 +2179,7 @@ void variable_index_fix(void);
 
 
 // Prototype for find_path() in hunt.c
-int find_path( long in_room_vnum, long out_room_vnum, CHAR_DATA *ch, int depth, int in_zone );
+int find_path( AREA_DATA *in_area, long in_room_vnum, AREA_DATA *out_area, long out_room_vnum, CHAR_DATA *ch, int depth, int in_zone );
 void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRIPT_PARAM *arg);
 
 void script_end_success(CHAR_DATA *ch);

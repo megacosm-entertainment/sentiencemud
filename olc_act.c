@@ -552,7 +552,7 @@ AEDIT(aedit_show)
 				pArea->recall.id[0],pArea->recall.id[1],pArea->recall.id[2]);
 		else
 			sprintf(buf, "Recall:      Wilds ??? [%lu]\n\r", pArea->recall.wuid);
-	} else if(pArea->recall.id[0] > 0 && (recall = get_room_index(pArea->recall.id[0]))) {
+	} else if(pArea->recall.id[0] > 0 && (recall = get_room_index(pArea, pArea->recall.id[0]))) {
 		sprintf(buf, "Recall:    Room [%5ld] %s\n\r", pArea->recall.id[0], recall->name);
 	} else
 			sprintf(buf, "Recall:      [%lu] none\n\r", pArea->recall.id[0]);
@@ -611,8 +611,8 @@ AEDIT(aedit_show)
     sprintf(buf, "Land X:Y:    [%d, %d]\n\r", pArea->land_x, pArea->land_y);
     send_to_char(buf, ch);
 
-    sprintf(buf, "AirshipLand: [%s(%ld)]\n\r", get_room_index(pArea->airship_land_spot) == NULL ? "None" :
-        get_room_index(pArea->airship_land_spot)->name, pArea->airship_land_spot);
+    sprintf(buf, "AirshipLand: [%s(%ld)]\n\r", get_room_index(pArea,pArea->airship_land_spot) == NULL ? "None" :
+        get_room_index(pArea,pArea->airship_land_spot)->name, pArea->airship_land_spot);
     send_to_char(buf, ch);
 
     sprintf(buf, "Open:        [%s]\n\r", pArea->open ? "Yes" : "No");
@@ -620,8 +620,8 @@ AEDIT(aedit_show)
 
     // One post office per area
     sprintf(buf, "PostOffice   [%s (%ld)]\n\r",
-        get_room_index(pArea->post_office) == NULL ? "None" :
-	    get_room_index(pArea->post_office)->name, pArea->post_office);
+        get_room_index(pArea,pArea->post_office) == NULL ? "None" :
+	    get_room_index(pArea,pArea->post_office)->name, pArea->post_office);
     send_to_char(buf, ch);
 
 	sprintf(buf, "Description:\n\r%s\n\r", pArea->description);
@@ -640,7 +640,7 @@ AEDIT(aedit_show)
 
         while(temp != NULL)
 	{
-	    sprintf(buf, "%-18s %-10ld %-10ld %-10ld %-10ld %-6ld %ld\n\r", trade_table[temp->trade_type].name, temp->obj_vnum, temp->replenish_time, temp->replenish_amount, temp->max_qty, temp->min_price, temp->max_price);
+	    sprintf(buf, "%-18s %ld#%ld %-10ld %-10ld %-10ld %-6ld %ld\n\r", trade_table[temp->trade_type].name, temp->obj_wnum.auid, temp->obj_wnum.vnum, temp->replenish_time, temp->replenish_amount, temp->max_qty, temp->min_price, temp->max_price);
 	    send_to_char(buf, ch);
             temp = temp->next;
 	}
@@ -789,14 +789,14 @@ AEDIT(aedit_airshipland)
 	return FALSE;
     }
 
-    if (get_room_index(atol(argument)) == NULL) {
+    if (get_room_index(pArea,atol(argument)) == NULL) {
 	send_to_char("That room doesn't exist.\n\r", ch);
 	return FALSE;
     }
 
     pArea->airship_land_spot = atol(argument);
     sprintf(buf, "Set airship land spot of %s to %ld - %s\n\r",
-        pArea->name, atol(argument), get_room_index(atol(argument))->name);
+        pArea->name, atol(argument), get_room_index(pArea,atol(argument))->name);
     send_to_char(buf, ch);
     return TRUE;
 }
@@ -818,7 +818,7 @@ AEDIT( aedit_add_trade )
     long max_qty;
     long min_price;
     long max_price;
-    long obj_vnum;
+	long obj_vnum;
 
     EDIT_AREA(ch, pArea);
 
@@ -843,7 +843,7 @@ AEDIT( aedit_add_trade )
 	min_price = atoi( arg5 );
 	max_price = atoi( arg6 );
 
-	if ( ( pObj = get_obj_index( obj_vnum ) ) == NULL )
+	if ( ( pObj = get_obj_index( pArea, obj_vnum ) ) == NULL )
 	{
 	    send_to_char( "That object does not exist!\n\r", ch );
 	    return FALSE;
@@ -1279,12 +1279,12 @@ AEDIT(aedit_recall)
 		location_clear(&pArea->recall);
 		send_to_char("Recall cleared.\n\r", ch);
 	} else if(!arg2[0]) {
-		if(!get_room_index(vnum)) {
+		if(!get_room_index(pArea,vnum)) {
 			send_to_char("AEdit:  Room vnum does not exist.\n\r", ch);
 			return FALSE;
 		}
 
-		location_set(&pArea->recall,0,vnum,0,0);
+		location_set(&pArea->recall,pArea,0,vnum,0,0);
 		send_to_char("Recall set.\n\r", ch);
 	} else if(!arg3[0] || !arg4[0] || !is_number(arg2) || !is_number(arg3) || !is_number(arg4)) {
 		send_to_char("Syntax:  recall <vnum>\n\r", ch);
@@ -1297,7 +1297,7 @@ AEDIT(aedit_recall)
 		x = atoi(arg2);
 		y = atoi(arg3);
 		z = atoi(arg4);
-		location_set(&pArea->recall,vnum,x,y,z);
+		location_set(&pArea->recall,NULL,vnum,x,y,z);
 		send_to_char("Recall set.\n\r", ch);
 	}
 
@@ -1485,7 +1485,7 @@ AEDIT(aedit_postoffice)
 	return FALSE;
     }
 
-    if ((room = get_room_index(vnum)) == NULL) {
+    if ((room = get_room_index(pArea, vnum)) == NULL) {
 	send_to_char("That room vnum doesn't exist.\n\r", ch);
 	return FALSE;
     }
@@ -1512,9 +1512,11 @@ AEDIT (aedit_addaprog)
     argument = one_argument(argument, trigger);
     argument = one_argument(argument, phrase);
 
-    if (!is_number(num) || trigger[0] =='\0' || phrase[0] =='\0')
+	WNUM wnum;
+
+    if (!parse_widevnum(num, &wnum) || trigger[0] =='\0' || phrase[0] =='\0')
     {
-	send_to_char("Syntax:   addaprog [vnum] [trigger] [phrase]\n\r",ch);
+	send_to_char("Syntax:   addaprog [wnum] [trigger] [phrase]\n\r",ch);
 	return FALSE;
     }
 
@@ -1526,7 +1528,10 @@ AEDIT (aedit_addaprog)
 
     slot = trigger_table[tindex].slot;
 
-    if ((code = get_script_index (atol(num), PRG_APROG)) == NULL)
+	if (!wnum.pArea) wnum.pArea = pArea;
+
+
+    if ((code = get_script_index (wnum.pArea, wnum.vnum, PRG_APROG)) == NULL)
     {
 	send_to_char("No such AREAProgram.\n\r",ch);
 	return FALSE;
@@ -1536,7 +1541,7 @@ AEDIT (aedit_addaprog)
     if(!pArea->progs->progs) pArea->progs->progs = new_prog_bank();
 
     list                  = new_trigger();
-    list->vnum            = atol(num);
+    list->wnum            = wnum;
     list->trig_type       = tindex;
     list->trig_phrase     = str_dup(phrase);
 	list->trig_number		= atoi(list->trig_phrase);
@@ -1616,12 +1621,18 @@ AEDIT(aedit_varset)
     }
 
     if(!str_cmp(type,"room")) {
-	if(!is_number(argument)) {
-	    send_to_char("Specify a room vnum.\n\r", ch);
+		WNUM wnum;
+
+	if(!parse_widevnum(argument, &wnum)) {
+	    send_to_char("Specify a room widevnum.\n\r", ch);
 	    return FALSE;
 	}
 
-	variables_setindex_room(&pArea->index_vars,name,atoi(argument), saved);
+	WNUM_LOAD load;
+	load.auid = wnum.pArea ? wnum.pArea->uid : 0;
+	load.vnum = wnum.vnum;
+
+	variables_setindex_room(&pArea->index_vars,name,load, saved);
     } else if(!str_cmp(type,"string"))
 	variables_setindex_string(&pArea->index_vars,name,argument,FALSE, saved);
     else if(!str_cmp(type,"number")) {
@@ -1873,11 +1884,12 @@ REDIT(redit_show)
 
             if (IS_SET(pexit->rs_flags, EX_ISDOOR))
             {
-                sprintf (buf, "    -Door Material: [{W%s{x] Strength: [{W%d{x]  Lock Flags: [{W%s{x]  Key vnum: [{W%ld{x] Pick chance: [{W%d%%{x]\n\r",
+                sprintf (buf, "    -Door Material: [{W%s{x] Strength: [{W%d{x]  Lock Flags: [{W%s{x]  Key wnum: [{W%ld#%ld{x] Pick chance: [{W%d%%{x]\n\r",
                          pexit->door.material,
                          pexit->door.strength,
                          flag_string(lock_flags, pexit->door.lock.flags),
-                         pexit->door.lock.key_vnum,
+                         pexit->door.lock.key_wnum.pArea ? pexit->door.lock.key_wnum.pArea->uid : 0,
+						 pexit->door.lock.key_wnum.vnum,
                          pexit->door.lock.pick_chance);
                 add_buf(buf1, buf);
             }
@@ -1907,8 +1919,10 @@ REDIT(redit_show)
 		for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
 			iterator_start(&it, pRoom->progs->progs[slot]);
 			while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-				sprintf(buf, "{r[{W%4d{r]{x %-20ld %-10s %-10s\n\r", cnt,
-					trigger->vnum,trigger_name(trigger->trig_type),
+				sprintf(buf, "{r[{W%4d{r]{x %ld#%ld %-10s %-10s\n\r", cnt,
+					trigger->wnum.pArea ? trigger->wnum.pArea->uid : 0,
+					trigger->wnum.vnum,
+					trigger_name(trigger->trig_type),
 					trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, TRUE, FALSE));
 				add_buf(buf1, buf);
 				cnt++;
@@ -1999,7 +2013,7 @@ bool rp_change_exit(ROOM_INDEX_DATA *pRoom, char *argument, int door)
     ROOM_INDEX_DATA *pToRoom;
     char command[MAX_INPUT_LENGTH];
     char arg[MAX_INPUT_LENGTH];
-    int  value;
+
 
     /*
      * Now parse the arguments.
@@ -2045,15 +2059,20 @@ bool rp_change_exit(ROOM_INDEX_DATA *pRoom, char *argument, int door)
 	return TRUE;
     }
 
-    value = atoi(arg);
-
-    if (!get_room_index(value))
+	WNUM wnum;
+	if (!parse_widevnum(arg, &wnum))
     {
        bug("Rprog: A link cannot link non-existant room.\n\r",0);
        return FALSE;
     }
 
-    if (get_room_index(value)->exit[rev_dir[door]])
+    if (!get_room_index(wnum.pArea, wnum.vnum))
+    {
+       bug("Rprog: A link cannot link non-existant room.\n\r",0);
+       return FALSE;
+    }
+
+    if (get_room_index(wnum.pArea, wnum.vnum)->exit[rev_dir[door]])
     {
        bug("Rprog: Reverse-side exit to room already exists.", 0);
        return FALSE;
@@ -2065,7 +2084,7 @@ bool rp_change_exit(ROOM_INDEX_DATA *pRoom, char *argument, int door)
 	pRoom->exit[door]->from_room = pRoom;
     }
 
-    pToRoom = pRoom->exit[door]->u1.to_room = get_room_index(value);
+    pToRoom = pRoom->exit[door]->u1.to_room = get_room_index(wnum.pArea, wnum.vnum);
     pRoom->exit[door]->orig_door = door;
 
     /*	pRoom->exit[door]->vnum = value;                Can't set vnum in ROM */
@@ -2218,16 +2237,15 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 	if (!str_cmp(command, "link"))
 	{
 		EXIT_DATA *pExit;
+		WNUM wnum;
 
-		if (arg[0] == '\0' || !is_number(arg))
+		if (arg[0] == '\0' || !parse_widevnum(arg, &wnum))
 		{
-			send_to_char("Syntax:  [direction] link [vnum]\n\r", ch);
+			send_to_char("Syntax:  [direction] link [wnum]\n\r", ch);
 			return FALSE;
 		}
 
-		value = atol(arg);
-
-		ROOM_INDEX_DATA *pToRoom = get_room_index(value);
+		ROOM_INDEX_DATA *pToRoom = get_room_index(wnum.pArea, wnum.vnum);
 
 		if (!pToRoom)
 		{
@@ -2241,7 +2259,7 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 			return FALSE;
 		}
 
-		if( !rooms_in_same_section(pRoom->vnum, value) )
+		if( !rooms_in_same_section(pRoom->area, pRoom->vnum, pToRoom->area, pToRoom->vnum) )
 		{
 			send_to_char("REdit:  Attempting to link outside of a defined blueprint section.\n\r", ch);
 			return FALSE;
@@ -2284,18 +2302,17 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 
 	if (!str_cmp(command, "dig"))
 	{
-		if (arg[0] == '\0' || !is_number(arg))
+		WNUM wnum;
+		if (arg[0] == '\0' || !parse_widevnum(arg, &wnum))
 		{
-			send_to_char("Syntax:  [direction] dig [vnum]\n\r", ch);
+			send_to_char("Syntax:  [direction] dig [wnum]\n\r", ch);
 			return FALSE;
 		}
 
 		if( IS_SET(ch->in_room->room2_flags, ROOM_BLUEPRINT) ||
 			IS_SET(ch->in_room->area->area_flags, ROOM_BLUEPRINT) )
 		{
-			value = atol(arg);
-
-			if( !rooms_in_same_section(pRoom->vnum, value) )
+			if( !rooms_in_same_section(pRoom->area, pRoom->vnum, wnum.pArea, wnum.vnum) )
 			{
 				send_to_char("REdit:  Attempting to dig outside of a defined blueprint section.\n\r", ch);
 				return FALSE;
@@ -2321,10 +2338,11 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 		ROOM_INDEX_DATA *pToRoom;
 		EXIT_DATA *pExit;
 		sh_int rev;
+		WNUM wnum;
 
-		if (arg[0] == '\0' || !is_number(arg))
+		if (arg[0] == '\0' || !parse_widevnum(arg, &wnum))
 		{
-			send_to_char("Syntax:  [direction] room [vnum]\n\r", ch);
+			send_to_char("Syntax:  [direction] room [wnum]\n\r", ch);
 			return FALSE;
 		}
 
@@ -2342,9 +2360,7 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 
 		}
 
-		value = atol(arg);
-
-		pToRoom = get_room_index(value);
+		pToRoom = get_room_index(wnum.pArea, wnum.vnum);
 
 		if (!pToRoom)
 		{
@@ -2352,7 +2368,7 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 			return FALSE;
 		}
 
-		if( !rooms_in_same_section(pRoom->vnum, value) )
+		if( !rooms_in_same_section(pRoom->area, pRoom->vnum, wnum.pArea, wnum.vnum) )
 		{
 			send_to_char("REdit:  Attempting to link outside of a defined blueprint section.\n\r", ch);
 			return FALSE;
@@ -2437,9 +2453,10 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 
 	if (!str_cmp(command, "key"))
 	{
-		if (arg[0] == '\0' || !is_number(arg))
+		WNUM wnum;
+		if (arg[0] == '\0' || !parse_widevnum(arg, &wnum))
 		{
-			send_to_char("Syntax:  [direction] key [vnum]\n\r", ch);
+			send_to_char("Syntax:  [direction] key [widevnum]\n\r", ch);
 			return FALSE;
 		}
 
@@ -2449,22 +2466,21 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 			return FALSE;
 		}
 
-		value = atoi(arg);
-
-		if (!get_obj_index(value))
+		OBJ_INDEX_DATA *key = get_obj_index(wnum.pArea, wnum.vnum);
+		if (!key)
 		{
 			send_to_char("REdit:  Item doesn't exist.\n\r", ch);
 			return FALSE;
 		}
 
-		if (get_obj_index(atol(argument))->item_type != ITEM_KEY)
+		if (key->item_type != ITEM_KEY)
 		{
 			send_to_char("REdit:  Key doesn't exist.\n\r", ch);
 			return FALSE;
 		}
 
-		pRoom->exit[door]->door.lock.key_vnum =
-		pRoom->exit[door]->door.rs_lock.key_vnum = atol(arg);
+		pRoom->exit[door]->door.lock.key_wnum = wnum;
+		pRoom->exit[door]->door.rs_lock.key_wnum = wnum;
 
 		send_to_char("Exit key set.\n\r", ch);
 		return TRUE;
@@ -2654,12 +2670,16 @@ REDIT(redit_varset)
     }
 
     if(!str_cmp(type,"room")) {
-	if(!is_number(argument)) {
-	    send_to_char("Specify a room vnum.\n\r", ch);
+		WNUM wnum;
+	if(!parse_widevnum(argument, &wnum)) {
+	    send_to_char("Specify a room widevnum.\n\r", ch);
 	    return FALSE;
 	}
 
-	variables_setindex_room(&pRoom->index_vars,name,atoi(argument), saved);
+		WNUM_LOAD load;
+		load.auid = wnum.pArea ? wnum.pArea->uid : 0;
+		load.vnum = wnum.vnum;
+	variables_setindex_room(&pRoom->index_vars,name,load, saved);
     } else if(!str_cmp(type,"string"))
 	variables_setindex_string(&pRoom->index_vars,name,argument,FALSE, saved);
     else if(!str_cmp(type,"number")) {
@@ -2943,64 +2963,41 @@ REDIT(redit_ed)
 
 REDIT(redit_create)
 {
-    AREA_DATA *pArea;
     ROOM_INDEX_DATA *pRoom;
-    int value;
     int iHash;
-    long auto_vnum = 0;
+	WNUM wnum;
 
-    value = atoi(argument);
-
-    if (argument[0] == '\0' || value <= 0)
+    if (argument[0] == '\0' || !parse_widevnum(argument, &wnum))
     {
-	//send_to_char("Syntax:  create [vnum > 0]\n\r", ch);
-	ROOM_INDEX_DATA *temp_room;
+		//send_to_char("Syntax:  create [vnum > 0]\n\r", ch);
+		wnum.pArea = ch->in_room->area;
+		for(wnum.vnum = 1; wnum.vnum > 0 && get_room_index(wnum.pArea, wnum.vnum); wnum.vnum++);
 
-	auto_vnum = ch->in_room->area->min_vnum;
-	temp_room = get_room_index(auto_vnum);
-	if (temp_room != NULL) {
-		while (temp_room != NULL)
-		{
-			temp_room = get_room_index(auto_vnum);
-			if (temp_room == NULL) break;
-			auto_vnum++;
+		// wnum.vnum overflowed.... if it ever reaches this...
+		if (wnum.vnum < 1) {
+			send_to_char("Sorry, this area has no more space left.\n\r", ch);
+			return FALSE;
 		}
-	}
+    }
 
-	if (auto_vnum > ch->in_room->area->max_vnum) {
-		send_to_char("Sorry, this area has no more space left.\n\r",
-				ch);
+    if (!IS_BUILDER(ch, wnum.pArea))
+    {
+		send_to_char("REdit:  widevnum in an area you cannot build in.\n\r", ch);
 		return FALSE;
-	}
     }
 
-    if (auto_vnum != 0) value = auto_vnum;
-
-    pArea = get_vnum_area(value);
-    if (!pArea)
+    if (get_room_index(wnum.pArea, wnum.vnum))
     {
-	send_to_char("REdit:  That vnum is not assigned an area.\n\r", ch);
-	return FALSE;
+		send_to_char("REdit:  Room vnum already exists.\n\r", ch);
+		return FALSE;
     }
 
-    if (!IS_BUILDER(ch, pArea))
-    {
-	send_to_char("REdit:  Vnum in an area you cannot build in.\n\r", ch);
-	return FALSE;
-    }
-
-    if (get_room_index(value))
-    {
-	send_to_char("REdit:  Room vnum already exists.\n\r", ch);
-	return FALSE;
-    }
-
-    pRoom			= new_room_index();
-    pRoom->area			= pArea;
-	list_appendlink(pArea->room_list, pRoom);	// Add to the area room list
-    pRoom->vnum			= value;
-    if (value > top_vnum_room)
-        top_vnum_room = value;
+    pRoom = new_room_index();
+    pRoom->area = wnum.pArea;
+	list_appendlink(wnum.pArea->room_list, pRoom);	// Add to the area room list
+    pRoom->vnum = wnum.vnum;
+    if (wnum.vnum > wnum.pArea->top_vnum_room)
+        wnum.pArea->top_vnum_room = wnum.vnum;
 
 	// Check whether to automatically set the room as blueprint
     if( redit_blueprint_oncreate )
@@ -3009,17 +3006,17 @@ REDIT(redit_create)
 
 		EDIT_ROOM(ch, pPrevRoom);
 		// Only copy if the new room is in the same area as the previous room
-		if( pPrevRoom && pPrevRoom->area == pArea )
+		if( pPrevRoom && pPrevRoom->area == wnum.pArea )
 		{
 			SET_BIT(pRoom->room2_flags, ROOM_BLUEPRINT);
 		}
 		redit_blueprint_oncreate = FALSE;
 	}
 
-    iHash			= value % MAX_KEY_HASH;
-    pRoom->next			= room_index_hash[iHash];
-    room_index_hash[iHash]	= pRoom;
-    ch->desc->pEdit		= (void *)pRoom;
+    iHash = wnum.vnum % MAX_KEY_HASH;
+    pRoom->next = wnum.pArea->room_index_hash[iHash];
+    wnum.pArea->room_index_hash[iHash] = pRoom;
+    ch->desc->pEdit = (void *)pRoom;
 
     SET_BIT(pRoom->area->area_flags, AREA_CHANGED);
     send_to_char("Room created.\n\r", ch);
@@ -3146,39 +3143,35 @@ REDIT(redit_mreset)
 
     RESET_DATA		*pReset;
     char		output [ MAX_STRING_LENGTH ];
+	WNUM 		wnum;
 
     EDIT_ROOM(ch, pRoom);
 
     argument = one_argument(argument, arg);
     argument = one_argument(argument, arg2);
 
-    if (arg[0] == '\0' || !is_number(arg))
+    if (arg[0] == '\0' || !parse_widevnum(arg, &wnum))
     {
-	send_to_char ("Syntax:  mreset <vnum> <max #x> <mix #x>\n\r", ch);
+	send_to_char ("Syntax:  mreset <widevnum> <max #x> <mix #x>\n\r", ch);
 	return FALSE;
     }
 
-    if (!(pMobIndex = get_mob_index(atoi(arg))))
+    if (!(pMobIndex = get_mob_index(wnum.pArea, wnum.vnum)))
     {
-	send_to_char("REdit: No mobile has that vnum.\n\r", ch);
-	return FALSE;
-    }
-
-    if (pMobIndex->area != pRoom->area)
-    {
-	send_to_char("REdit: No such mobile in this area.\n\r", ch);
-	return FALSE;
+		send_to_char("REdit: No mobile has that widevnum.\n\r", ch);
+		return FALSE;
     }
 
     /*
      * Create the mobile reset.
      */
-    pReset              = new_reset_data();
-    pReset->command	= 'M';
-    pReset->arg1	= pMobIndex->vnum;
-    pReset->arg2	= is_number(arg2) ? atoi(arg2) : MAX_MOB;
-    pReset->arg3	= pRoom->vnum;
-    pReset->arg4	= is_number(argument) ? atoi (argument) : 1;
+    pReset						= new_reset_data();
+    pReset->command				= 'M';
+	pReset->arg1.wnum.pArea		= pMobIndex->area;
+	pReset->arg1.wnum.vnum		= pMobIndex->vnum;
+    pReset->arg2				= is_number(arg2) ? atoi(arg2) : MAX_MOB;
+	// arg3 is ignored
+    pReset->arg4				= is_number(argument) ? atoi (argument) : 1;
     add_reset(pRoom, pReset, 0/* Last slot*/);
 
     /*
@@ -3279,31 +3272,26 @@ REDIT(redit_oreset)
 
     RESET_DATA		*pReset;
     char		output [ MAX_STRING_LENGTH ];
+	WNUM wnum;
 
     EDIT_ROOM(ch, pRoom);
 
     argument = one_argument(argument, arg1);
     argument = one_argument(argument, arg2);
 
-    if (arg1[0] == '\0' || !is_number(arg1))
+    if (arg1[0] == '\0' || !parse_widevnum(arg1, &wnum))
     {
-	send_to_char ("Syntax:  oreset <vnum> <args>\n\r", ch);
-	send_to_char ("        -no_args               = into room\n\r", ch);
-	send_to_char ("        -<obj_name>            = into obj\n\r", ch);
-	send_to_char ("        -<mob_name> <wear_loc> = into mob\n\r", ch);
-	return FALSE;
+		send_to_char ("Syntax:  oreset <widevnum> <args>\n\r", ch);
+		send_to_char ("        -no_args               = into room\n\r", ch);
+		send_to_char ("        -<obj_name>            = into obj\n\r", ch);
+		send_to_char ("        -<mob_name> <wear_loc> = into mob\n\r", ch);
+		return FALSE;
     }
 
-    if (!(pObjIndex = get_obj_index(atoi(arg1))))
+    if (!(pObjIndex = get_obj_index(wnum.pArea, wnum.vnum)))
     {
-	send_to_char("REdit: No object has that vnum.\n\r", ch);
-	return FALSE;
-    }
-
-    if (pObjIndex->area != pRoom->area)
-    {
-	send_to_char("REdit: No such object in this area.\n\r", ch);
-	return FALSE;
+		send_to_char("REdit: No object has that widevnum.\n\r", ch);
+		return FALSE;
     }
 
     /*
@@ -3313,9 +3301,9 @@ REDIT(redit_oreset)
     {
 	pReset		= new_reset_data();
 	pReset->command	= 'O';
-	pReset->arg1	= pObjIndex->vnum;
+	pReset->arg1.wnum.pArea	= pObjIndex->area;
+	pReset->arg1.wnum.vnum = pObjIndex->vnum;
 	pReset->arg2	= 0;
-	pReset->arg3	= pRoom->vnum;
 	pReset->arg4	= 0;
 	add_reset(pRoom, pReset, 0/* Last slot*/);
 
@@ -3334,11 +3322,14 @@ REDIT(redit_oreset)
     if (argument[0] == '\0'
     && ((to_obj = get_obj_list(ch, arg2, pRoom->contents)) != NULL))
     {
+		// Need to find this object in the resets and put it AFTER that.
 	pReset		= new_reset_data();
 	pReset->command	= 'P';
-	pReset->arg1	= pObjIndex->vnum;
+	pReset->arg1.wnum.pArea	= pObjIndex->area;
+	pReset->arg1.wnum.vnum = pObjIndex->vnum;
 	pReset->arg2	= 0;
-	pReset->arg3	= to_obj->pIndexData->vnum;
+	pReset->arg3.wnum.pArea	= to_obj->pIndexData->area;
+	pReset->arg3.wnum.vnum = to_obj->pIndexData->vnum;
 	pReset->arg4	= 1;
 	add_reset(pRoom, pReset, 0/* Last slot*/);
 
@@ -3358,7 +3349,7 @@ REDIT(redit_oreset)
     /*
      * Load into mobile's inventory.
      */
-    if ((to_mob = get_char_room(ch, NULL, arg2)) != NULL)
+    if ((to_mob = get_char_room(ch, NULL, arg2)) != NULL && IS_NPC(to_mob))
     {
 	int	wear_loc;
 
@@ -3395,59 +3386,34 @@ REDIT(redit_oreset)
 	}
 
 	pReset		= new_reset_data();
-	pReset->arg1	= pObjIndex->vnum;
+	pReset->arg1.wnum.pArea	= pObjIndex->area;
+	pReset->arg1.wnum.vnum = pObjIndex->vnum;
 	pReset->arg2	= wear_loc;
 	if (pReset->arg2 == WEAR_NONE)
 	    pReset->command = 'G';
 	else
 	    pReset->command = 'E';
-	pReset->arg3	= wear_loc;
+	pReset->arg3.wnum.pArea = to_mob->pIndexData->area;
+	pReset->arg3.wnum.vnum = to_mob->pIndexData->vnum;
+	pReset->arg4	= wear_loc;
 
 	add_reset(pRoom, pReset, 0/* Last slot*/);
 
 	olevel  = URANGE(0, to_mob->level - 2, LEVEL_HERO);
         newobj = create_object(pObjIndex, number_fuzzy(olevel), TRUE);
 
-#if 0
-	if (to_mob->pIndexData->pShop)	/* Shop-keeper? */
-	{
-	    switch (pObjIndex->item_type)
-	    {
-	    default:		olevel = 0;				break;
-	    case ITEM_PILL:	olevel = number_range( 0, 10);	break;
-	    case ITEM_POTION:	olevel = number_range( 0, 10);	break;
-	    case ITEM_SCROLL:	olevel = number_range( 5, 15);	break;
-	    case ITEM_WAND:	olevel = number_range(10, 20);	break;
-	    case ITEM_STAFF:	olevel = number_range(15, 25);	break;
-	    case ITEM_TATTOO:	olevel = number_range( 0, 10);	break;
-	    case ITEM_ARMOUR:	olevel = number_range( 5, 15);	break;
-	    case ITEM_SEED:	olevel = number_range( 5, 15);	break;
-	    case ITEM_RANGED_WEAPON:	olevel = number_range( 5, 15);	break;
-	    case ITEM_WEAPON:	if (pReset->command == 'G')
-	    			    olevel = number_range(5, 15);
-				else
-				    olevel = number_fuzzy(olevel);
-		break;
-	    }
-
-	    newobj = create_object(pObjIndex, olevel, TRUE);
-	    if (pReset->arg2 == WEAR_NONE)
-		SET_BIT(newobj->extra_flags, ITEM_INVENTORY);
-	}
-	else
-#endif
 	    newobj = create_object(pObjIndex, number_fuzzy(olevel), TRUE);
 
 
 	obj_to_char(newobj, to_mob);
 	if (pReset->command == 'E')
-	    equip_char(to_mob, newobj, pReset->arg3);
+	    equip_char(to_mob, newobj, pReset->arg4);
 
 	sprintf(output, "%s (%ld) has been loaded "
 	    "%s of %s (%ld) and added to resets.\n\r",
 	    capitalize(pObjIndex->short_descr),
 	    pObjIndex->vnum,
-	    flag_string(wear_loc_strings, pReset->arg3),
+	    flag_string(wear_loc_strings, pReset->arg4),
 	    to_mob->short_descr,
 	    to_mob->pIndexData->vnum);
 	send_to_char(output, ch);
@@ -3488,6 +3454,166 @@ REDIT(redit_persist)
 	return TRUE;
 }
 
+void print_obj_portal_values(OBJ_INDEX_DATA *portal, BUFFER *buffer)
+{
+	char buf[MSL];
+
+	sprintf(buf,
+		"{B[  {Wv0{B]{G Charges:{x           [%ld]\n\r"
+		"{B[  {Wv1{B]{G Exit Flags:{x        %s\n\r"
+		"{B[  {Wv2{B]{G Portal Flags:{x      %s\n\r"
+		"{B[  {Wv3{B]{G Portal Type:{x       %s\n\r",
+		portal->value[0],
+		flag_string(portal_exit_flags, portal->value[1]),
+		flag_string(portal_flags, portal->value[2]),
+		flag_string(portal_gatetype, portal->value[3]));
+	add_buf(buffer, buf);
+
+	AREA_DATA *area;
+	WILDS_DATA *wilds;
+	ROOM_INDEX_DATA *room;
+	DUNGEON_INDEX_DATA *dungeon;
+	switch(portal->value[3])
+	{
+		case GATETYPE_ENVIRONMENT:
+			// Nothing gets set on environment portals
+			break;
+
+		case GATETYPE_NORMAL:
+			area = get_area_from_uid(portal->value[5]);
+			room = get_room_index(area,portal->value[6]);
+			sprintf(buf,
+				"{B[  {Wv5{B]{G Area:{x              [%ld] %s\n\r"
+				"{B[  {Wv6{B]{G Room:{x              [%ld] %s\n\r",
+				portal->value[5], area ? area->name : "none",
+				portal->value[6], room ? room->name : "none");
+			add_buf(buffer, buf);
+			break;
+
+		case GATETYPE_WILDS:
+			wilds = get_wilds_from_uid(NULL, portal->value[5]);
+			sprintf(buf,
+				"{B[  {Wv5{B]{G Wilds:{x             [%ld] %s\n\r"
+				"{B[  {Wv6{B]{G X Coordinate:{x      [%ld]\n\r"
+				"{B[  {Wv7{B]{G Y Coordinate:{x      [%ld]\n\r",
+				portal->value[5], wilds ? wilds->name : "none",
+				portal->value[6],
+				portal->value[7]);
+			add_buf(buffer, buf);
+			break;
+
+		case GATETYPE_WILDSRANDOM:
+			wilds = get_wilds_from_uid(NULL, portal->value[5]);
+			sprintf(buf,
+				"{B[  {Wv5{B]{G Wilds:{x             [%ld] %s\n\r"
+				"{B[  {Wv6{B]{G Minimum X:{x         [%ld]\n\r"
+				"{B[  {Wv7{B]{G Minimum Y:{x         [%ld]\n\r"
+				"{B[  {Wv8{B]{G Maximum X:{x         [%ld]\n\r"
+				"{B[  {Wv9{B]{G Maximum Y:{x         [%ld]\n\r",
+				portal->value[5], wilds ? wilds->name : "none",
+				portal->value[6],
+				portal->value[7],
+				portal->value[8],
+				portal->value[9]);
+			add_buf(buffer, buf);
+			break;
+
+		case GATETYPE_AREARANDOM:
+			if (portal->value[5] > 0)
+			{
+				area = get_area_from_uid(portal->value[5]);
+				sprintf(buf,
+					"{B[  {Wv5{B]{G Area:{x              [%ld] %s\n\r",
+					portal->value[5],
+					area ? area->name : "none");
+			}
+			else
+			{
+				sprintf(buf,
+					"{B[  {Wv5{B]{G Area:{x              [%ld] {Y-current area or wilderness-{x\n\r",
+					portal->value[5]);
+			}
+			add_buf(buffer, buf);
+			break;
+
+		case GATETYPE_SECTIONRANDOM:
+			// No extra values - target is based upon current location
+			break;
+
+		case GATETYPE_INSTANCERANDOM:
+			// No extra values - target is based upon current location
+			break;
+
+		case GATETYPE_DUNGEONRANDOM:
+			// No extra values - target is based upon current location
+			break;
+
+		case GATETYPE_REGIONRECALL:
+			// No extra values - target is based upon current location
+			break;
+
+		case GATETYPE_AREARECALL:
+			if (portal->value[5] > 0)
+			{
+				area = get_area_from_uid(portal->value[5]);
+				sprintf(buf,
+					"{B[  {Wv5{B]{G Area:{x              [%ld] %s\n\r",
+					portal->value[5],
+					area ? area->name : "none");
+			}
+			else
+			{
+				sprintf(buf,
+					"{B[  {Wv5{B]{G Area:{x              [%ld] {Y-current area-{x\n\r",
+					portal->value[5]);
+			}
+			add_buf(buffer, buf);
+			break;
+
+		case GATETYPE_DUNGEON:
+			dungeon = get_dungeon_index(portal->area, portal->value[5]);
+			sprintf(buf,
+				"{B[  {Wv5{B]{G Dungeon:{x           [%ld] %s\n\r"
+				"{B[  {Wv6{B]{G Floor:{x             [%ld]\n\r"
+				"{B[  {Wv7{B]{G Special Room:{x      [%ld]\n\r",
+				portal->value[5], dungeon ? dungeon->name : "none",
+				portal->value[6],
+				portal->value[7]);
+			add_buf(buffer, buf);
+
+			if (portal->value[6] < 1 && portal->value[7] < 1)
+				add_buf(buffer, "{B[  {W**{B]{C Portal will go to dungeon's default entrance.\n\r");
+			break;
+
+		case GATETYPE_INSTANCE:
+			// TODO: Complete
+			break;
+
+		case GATETYPE_RANDOM:
+			// Nothing
+			break;
+
+		case GATETYPE_DUNGEONFLOOR:
+			dungeon = get_dungeon_index(portal->area, portal->value[5]);
+			if (portal->value[6] > 0)
+			{
+				sprintf(buf,
+					"{B[  {Wv5{B]{G Dungeon:{x           [%ld] %s\n\r"
+					"{B[  {Wv6{B]{G Floor:{x             [%ld]\n\r",
+					portal->value[5], dungeon ? dungeon->name : "none",
+					portal->value[6]);
+			}
+			else
+			{
+				sprintf(buf,
+					"{B[  {Wv5{B]{G Dungeon:{x           [%ld] %s\n\r"
+					"{B[  {Wv6{B]{G Floor:{x             {YUses PREVFLOOR and NEXTFLOOR flags.{x\n\r",
+					portal->value[5], dungeon ? dungeon->name : "none");
+			}
+			add_buf(buffer, buf);
+			break;
+	}
+}
 
 // send obj values to a buffer
 void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
@@ -3523,71 +3649,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 	    break;
 
 	case ITEM_PORTAL:
-		if( IS_SET(obj->value[2], GATE_DUNGEON) )
-		{
-			// DUNGEON portal
-			sprintf(buf,
-				"{B[  {Wv0{B]{G Charges:{x           [%ld]\n\r"
-				"{B[  {Wv1{B]{G Exit Flags:{x        %s\n\r"
-				"{B[  {Wv2{B]{G Portal Flags:{x      %s\n\r"
-				"{B[  {Wv3{B]{G Goes to (dungeon):{x [%ld]\n\r"
-				"{B[  {Wv4{B]{G Key:{x               [%ld] %s\n\r"
-				"{B[  {Wv5{B]{G Goes to (floor):  {x [%ld]\n\r",
-				obj->value[0],
-				flag_string(portal_exit_flags, obj->value[1]),
-				flag_string(portal_flags, obj->value[2]),
-				obj->value[3],
-				obj->value[4], get_obj_index(obj->value[4]) ? get_obj_index(obj->value[4])->short_descr : "none",
-				obj->value[5]);
-		}
-		else if( IS_SET(obj->value[2], GATE_AREARANDOM) || obj->value[3] == -1 )
-		{
-			// AREARANDOM portal
-			sprintf(buf,
-				"{B[  {Wv0{B]{G Charges:{x        [%ld]\n\r"
-				"{B[  {Wv1{B]{G Exit Flags:{x     %s\n\r"
-				"{B[  {Wv2{B]{G Portal Flags:{x   %s\n\r"
-				"{B[  {Wv4{B]{G Key:{x            [%ld] %s\n\r"
-				"{B[  {Wv5{B]{G Goes to (anum):{x [%ld]\n\r",
-				obj->value[0],
-				flag_string(portal_exit_flags, obj->value[1]),
-				flag_string(portal_flags, obj->value[2]),
-				obj->value[4], get_obj_index(obj->value[4]) ? get_obj_index(obj->value[4])->short_descr : "none",
-				obj->value[5]);
-		}
-		else if(obj->value[3] > 0)
-		{
-			// STATIC portal
-			sprintf(buf,
-				"{B[  {Wv0{B]{G Charges:{x        [%ld]\n\r"
-				"{B[  {Wv1{B]{G Exit Flags:{x     %s\n\r"
-				"{B[  {Wv2{B]{G Portal Flags:{x   %s\n\r"
-				"{B[  {Wv3{B]{G Goes to (vnum):{x [%ld]\n\r"
-				"{B[  {Wv4{B]{G Key:{x            [%ld] %s\n\r",
-				obj->value[0],
-				flag_string(portal_exit_flags, obj->value[1]),
-				flag_string(portal_flags, obj->value[2]),
-				obj->value[3],
-				obj->value[4], get_obj_index(obj->value[4]) ? get_obj_index(obj->value[4])->short_descr : "none");
-		}
-		else
-		{
-			// WILDERNESS portal
-			sprintf(buf,
-				"{B[  {Wv0{B]{G Charges:{x        [%ld]\n\r"
-				"{B[  {Wv1{B]{G Exit Flags:{x     %s\n\r"
-				"{B[  {Wv2{B]{G Portal Flags:{x   %s\n\r"
-				"{B[  {Wv4{B]{G Key:{x            [%ld] %s\n\r"
-				"{B[  {Wv5{B]{G Goes to (map):{x  [%ld]\n\r"
-				"{B[  {Wv6{B]{G Goes to (mapx):{x [%ld]\n\r"
-				"{B[  {Wv7{B]{G Goes to (mapy):{x [%ld]\n\r",
-				obj->value[0],
-				flag_string(portal_exit_flags, obj->value[1]),
-				flag_string(portal_flags, obj->value[2]),
-				obj->value[4], get_obj_index(obj->value[4]) ? get_obj_index(obj->value[4])->short_descr : "none",
-				obj->value[5], obj->value[6],obj->value[7]);
-		}
-	    add_buf(buffer, buf);
+		print_obj_portal_values(obj, buffer);
 	    break;
 
 	case ITEM_FURNITURE:
@@ -3762,15 +3824,10 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 	    sprintf(buf,
 		"{B[  {Wv0{B]{G Weight:{x     [%ld kg]\n\r"
 		"{B[  {Wv1{B]{G Flags:{x      [%s]\n\r"
-		"{B[  {Wv2{B]{G Key:{x     %s [%ld]\n\r"
 		"{B[  {Wv3{B]{G Capacity:{x    [%ld]\n\r"
 		"{B[  {Wv4{B]{G Weight Mult:{x [%ld]\n\r",
 		obj->value[0],
 		flag_string(container_flags, obj->value[1]),
-                get_obj_index(obj->value[2])
-                    ? get_obj_index(obj->value[2])->short_descr
-                    : "none",
-                obj->value[2],
                 obj->value[3],
                 obj->value[4]);
 	    add_buf(buffer, buf);
@@ -3868,13 +3925,8 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 
 	case ITEM_BOOK:
 	    sprintf(buf,
-		"{B[  {Wv1{B]{G Flags:{x      [%s]\n\r"
-		"{B[  {Wv2{B]{G Key:{x     %s [%ld]\n\r",
-		flag_string(container_flags, obj->value[1]),
-                get_obj_index(obj->value[2])
-                    ? get_obj_index(obj->value[2])->short_descr
-                    : "none",
-                obj->value[2]);
+		"{B[  {Wv1{B]{G Flags:{x      [%s]\n\r",
+		flag_string(container_flags, obj->value[1]));
 	    add_buf(buffer, buf);
 	    break;
 
@@ -3942,6 +3994,498 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
     }
 }
 
+bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, char *argument)
+{
+	char buf[MSL];
+	WILDS_DATA *wilds;
+	long vnum;
+	switch(portal->value[3])
+	{
+		case GATETYPE_ENVIRONMENT:
+			// Nothing gets set on environment portals
+			break;
+
+		case GATETYPE_NORMAL:
+			switch(value_num)
+			{
+				case 5:		// AUID
+					if (!is_number(argument))
+					{
+						send_to_char("That is not a number.\n\r", ch);
+						return FALSE;
+					}
+
+					vnum = atol(argument);
+					if (vnum < 1)
+					{
+						send_to_char("There is no area with that UID.\n\r", ch);
+						return FALSE;
+					}
+
+					if (!get_area_from_uid(vnum))
+					{
+						send_to_char("There is no area with that UID.\n\r", ch);
+						return FALSE;
+					}
+
+					portal->value[5] = vnum;
+					portal->value[6] = 0;
+					portal->value[7] = 0;
+					portal->value[8] = 0;
+					send_to_char("Area UID set.\n\r", ch);
+					return TRUE;
+
+				case 6:		// VNUM
+					if (!is_number(argument))
+					{
+						send_to_char("That is not a number.\n\r", ch);
+						return FALSE;
+					}
+
+					vnum = atol(argument);
+					if (!get_room_index_auid(portal->value[5], vnum))
+					{
+						send_to_char("There is no such room.\n\r", ch);
+						return FALSE;
+					}
+
+					portal->value[6] = vnum;
+					portal->value[7] = 0;
+					portal->value[8] = 0;
+					send_to_char("Room set.\n\r", ch);
+					return TRUE;
+			}
+			break;
+
+		case GATETYPE_WILDS:
+			switch(value_num)
+			{
+				case 5:		// WUID
+					if (!is_number(argument))
+					{
+						send_to_char("That is not a number.\n\r", ch);
+						return FALSE;
+					}
+
+					vnum = atol(argument);
+					if (!get_wilds_from_uid(NULL, vnum))
+					{
+						send_to_char("There is no WILDS with that UID.\n\r", ch);
+						return FALSE;
+					}
+
+					portal->value[5] = vnum;
+					portal->value[6] = 0;
+					portal->value[7] = 0;
+					send_to_char("WILDS UiD set.\n\r", ch);
+					return TRUE;
+
+				case 6:		// X
+					if (!is_number(argument))
+					{
+						send_to_char("That is not a number.\n\r", ch);
+						return FALSE;
+					}
+
+					wilds = get_wilds_from_uid(NULL, portal->value[5]);
+					if (!wilds)
+					{
+						send_to_char("WILDS UID not set.\n\r", ch);
+						return FALSE;
+					}
+
+					vnum = atol(argument);
+					if (vnum < 0 || vnum >= wilds->map_size_x)
+					{
+						sprintf(buf, "X coordinate out of range (0 - %d)\n\r", wilds->map_size_x - 1);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					portal->value[6] = vnum;
+					send_to_char("X coordinate set.\n\r", ch);
+					return TRUE;
+
+				case 7:		// Y
+					if (!is_number(argument))
+					{
+						send_to_char("That is not a number.\n\r", ch);
+						return FALSE;
+					}
+
+					wilds = get_wilds_from_uid(NULL, portal->value[5]);
+					if (!wilds)
+					{
+						send_to_char("WILDS UID not set.\n\r", ch);
+						return FALSE;
+					}
+
+					vnum = atol(argument);
+					if (vnum < 0 || vnum >= wilds->map_size_y)
+					{
+						sprintf(buf, "Y coordinate out of range (0 - %d)\n\r", wilds->map_size_y - 1);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					portal->value[7] = vnum;
+					send_to_char("Y coordinate set.\n\r", ch);
+					return TRUE;
+			}
+			break;
+
+		case GATETYPE_WILDSRANDOM:
+			switch(value_num)
+			{
+				case 5:		// WUID
+					if (!is_number(argument))
+					{
+						send_to_char("That is not a number.\n\r", ch);
+						return FALSE;
+					}
+
+					vnum = atol(argument);
+					wilds = get_wilds_from_uid(NULL, vnum);
+					if (!wilds)
+					{
+						send_to_char("There is no WILDS with that UID.\n\r", ch);
+						return FALSE;
+					}
+
+					portal->value[5] = vnum;
+					portal->value[6] = 0;
+					portal->value[7] = 0;
+					portal->value[8] = wilds->map_size_x - 1;
+					portal->value[9] = wilds->map_size_y - 1;
+					send_to_char("WILDS UiD set.\n\r", ch);
+					return TRUE;
+
+				case 6:		// Min X
+					if (!is_number(argument))
+					{
+						send_to_char("That is not a number.\n\r", ch);
+						return FALSE;
+					}
+
+					wilds = get_wilds_from_uid(NULL, portal->value[5]);
+					if (!wilds)
+					{
+						send_to_char("WILDS UID not set.\n\r", ch);
+						return FALSE;
+					}
+
+					vnum = atol(argument);
+					if (vnum < 0 || vnum >= wilds->map_size_x)
+					{
+						sprintf(buf, "Minimum X coordinate out of range (0 - %d)\n\r", wilds->map_size_x - 1);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					if (vnum > portal->value[8])
+					{
+						send_to_char("Minimum X coordinate cannot be greater than the Maximum X coordinate.\n\r", ch);
+						return FALSE;
+					}
+
+					portal->value[6] = vnum;
+					send_to_char("Minimum X coordinate set.\n\r", ch);
+					return TRUE;
+
+				case 7:		// Min Y
+					if (!is_number(argument))
+					{
+						send_to_char("That is not a number.\n\r", ch);
+						return FALSE;
+					}
+
+					wilds = get_wilds_from_uid(NULL, portal->value[5]);
+					if (!wilds)
+					{
+						send_to_char("WILDS UID not set.\n\r", ch);
+						return FALSE;
+					}
+
+					vnum = atol(argument);
+					if (vnum < 0 || vnum >= wilds->map_size_y)
+					{
+						sprintf(buf, "Minimum Y coordinate out of range (0 - %d)\n\r", wilds->map_size_y - 1);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					if (vnum > portal->value[9])
+					{
+						send_to_char("Minimum Y coordinate cannot be greater than the Maximum Y coordinate.\n\r", ch);
+						return FALSE;
+					}
+
+					portal->value[7] = vnum;
+					send_to_char("Minimum Y coordinate set.\n\r", ch);
+					return TRUE;
+
+				case 8:		// Max X
+					if (!is_number(argument))
+					{
+						send_to_char("That is not a number.\n\r", ch);
+						return FALSE;
+					}
+
+					wilds = get_wilds_from_uid(NULL, portal->value[5]);
+					if (!wilds)
+					{
+						send_to_char("WILDS UID not set.\n\r", ch);
+						return FALSE;
+					}
+
+					vnum = atol(argument);
+					if (vnum < 0 || vnum >= wilds->map_size_x)
+					{
+						sprintf(buf, "Maximum X coordinate out of range (0 - %d)\n\r", wilds->map_size_x - 1);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					if (vnum < portal->value[6])
+					{
+						send_to_char("Maximum X coordinate cannot be less than the Minimum X coordinate.\n\r", ch);
+						return FALSE;
+					}
+
+					portal->value[8] = vnum;
+					send_to_char("Maximum X coordinate set.\n\r", ch);
+					return TRUE;
+
+				case 9:		// Max Y
+					if (!is_number(argument))
+					{
+						send_to_char("That is not a number.\n\r", ch);
+						return FALSE;
+					}
+
+					wilds = get_wilds_from_uid(NULL, portal->value[5]);
+					if (!wilds)
+					{
+						send_to_char("WILDS UID not set.\n\r", ch);
+						return FALSE;
+					}
+
+					vnum = atol(argument);
+					if (vnum < 0 || vnum >= wilds->map_size_y)
+					{
+						sprintf(buf, "Maximum Y coordinate out of range (0 - %d)\n\r", wilds->map_size_y - 1);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					if (vnum < portal->value[7])
+					{
+						send_to_char("Maximum Y coordinate cannot be less than the Minimum Y coordinate.\n\r", ch);
+						return FALSE;
+					}
+
+					portal->value[9] = vnum;
+					send_to_char("Maximum Y coordinate set.\n\r", ch);
+					return TRUE;
+			}
+			break;
+
+		case GATETYPE_AREARANDOM:
+			switch(value_num)
+			{
+				case 5:		// AUID (0 == current area or wilds)
+					if (!is_number(argument))
+					{
+						send_to_char("That is not a number.\n\r", ch);
+						return FALSE;
+					}
+
+					vnum = atol(argument);
+					if (vnum > 0 && !get_area_from_uid(vnum))
+					{
+						send_to_char("There is no area with that UID.\n\r", ch);
+						return FALSE;
+					}
+
+					portal->value[5] = UMAX(0, vnum);
+					send_to_char("Area UID set.\n\r", ch);
+					return TRUE;
+			}
+			break;
+
+		case GATETYPE_SECTIONRANDOM:
+			// No extra values - target is based upon current location
+			break;
+
+		case GATETYPE_INSTANCERANDOM:
+			// No extra values - target is based upon current location
+			break;
+
+		case GATETYPE_DUNGEONRANDOM:
+			// No extra values - target is based upon current location
+			break;
+
+		case GATETYPE_REGIONRECALL:
+			// No extra values - target is based upon current location
+			break;
+
+		case GATETYPE_AREARECALL:
+			switch(value_num)
+			{
+				case 5:		// AUID
+					if (!is_number(argument))
+					{
+						send_to_char("That is not a number.\n\r", ch);
+						return FALSE;
+					}
+
+					vnum = atol(argument);
+					if (vnum > 0 && !get_area_from_uid(vnum))
+					{
+						send_to_char("There is no area with that UID.\n\r", ch);
+						return FALSE;
+					}
+
+					portal->value[5] = UMAX(0, vnum);
+					send_to_char("Area UID set.\n\r", ch);
+					return TRUE;
+			}
+			break;
+
+		case GATETYPE_DUNGEON:
+			switch(value_num)
+			{
+				case 5:	// Dungeon VNUM.  Dungeon must exist in the same area as the portal
+					if (!is_number(argument))
+					{
+						send_to_char("That is not a number.\n\r", ch);
+						return FALSE;
+					}
+
+					vnum = atol(argument);
+					DUNGEON_INDEX_DATA *dng = get_dungeon_index(portal->area, vnum);
+					if (!dng)
+					{
+						send_to_char("There is no such dungeon.\n\r", ch);
+						return FALSE;
+					}
+
+					portal->value[5] = vnum;
+					portal->value[6] = 0;
+					portal->value[7] = 0;
+					send_to_char("Dungeon Vnum set.  Target location is default entrance.\n\r", ch);
+
+					if (IS_SET(dng->flags, DUNGEON_SCRIPTED_LEVELS))
+					{
+						send_to_char("{RWarning: Dungeon is set to use scripted level design.{x\n\r", ch);
+					}
+					return TRUE;
+
+				case 6:	// Target Floor (priority #1)
+					{
+						DUNGEON_INDEX_DATA *dng = get_dungeon_index(portal->area, portal->value[5]);
+						if (!dng)
+						{
+							send_to_char("Please select Dungeon first.\n\r", ch);
+							return FALSE;
+						}
+
+						if (!is_number(argument))
+						{
+							send_to_char("That is not a number.\n\r", ch);
+							return FALSE;
+						}
+
+						portal->value[6] = atol(argument);
+						send_to_char("Target Floor set.\n\r", ch);
+						return TRUE;
+					}
+
+				case 7: // Target special room (priority #2, v6 must be invalid)
+					{
+						DUNGEON_INDEX_DATA *dng = get_dungeon_index(portal->area, portal->value[5]);
+						if (!dng)
+						{
+							send_to_char("Please select Dungeon first.\n\r", ch);
+							return FALSE;
+						}
+
+						if (!is_number(argument))
+						{
+							send_to_char("That is not a number.\n\r", ch);
+							return FALSE;
+						}
+
+						portal->value[7] = atol(argument);
+						send_to_char("Target Special Room set.\n\r", ch);
+						return TRUE;
+					}
+
+				// If both v6 and v7 are invalid, the destination is the dungeon's default entry room
+			}
+			break;
+
+		case GATETYPE_INSTANCE:
+			// TODO: Complete
+			break;
+
+		case GATETYPE_RANDOM:
+			// Nothing
+			break;
+
+		case GATETYPE_DUNGEONFLOOR:
+			switch(value_num)
+			{
+				case 5:	// Dungeon VNUM.  Dungeon must exist in the same area as the portal
+					if (!is_number(argument))
+					{
+						send_to_char("That is not a number.\n\r", ch);
+						return FALSE;
+					}
+
+					vnum = atol(argument);
+					DUNGEON_INDEX_DATA *dng = get_dungeon_index(portal->area, vnum);
+					if (!dng)
+					{
+						send_to_char("There is no such dungeon.\n\r", ch);
+						return FALSE;
+					}
+
+					portal->value[5] = vnum;
+					portal->value[6] = 0;
+					portal->value[7] = 0;
+					send_to_char("Dungeon Vnum set.  Target location is default entrance.\n\r", ch);
+
+					if (IS_SET(dng->flags, DUNGEON_SCRIPTED_LEVELS))
+					{
+						send_to_char("{RWarning: Dungeon is set to use scripted level design.{x\n\r", ch);
+					}
+					return TRUE;
+
+				case 6:	// Target Floor (0 = use PREVFLOOR and NEXTFLOOR flags)
+					{
+						DUNGEON_INDEX_DATA *dng = get_dungeon_index(portal->area, portal->value[5]);
+						if (!dng)
+						{
+							send_to_char("Please select Dungeon first.\n\r", ch);
+							return FALSE;
+						}
+
+						if (!is_number(argument))
+						{
+							send_to_char("That is not a number.\n\r", ch);
+							return FALSE;
+						}
+
+						portal->value[6] = atol(argument);
+						send_to_char("Target Floor set.\n\r", ch);
+						return TRUE;
+					}
+			}
+			break;
+	}
+	return FALSE;
+}
 
 bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *argument)
 {
@@ -4074,7 +4618,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 		case 1:
 			if (atoi(argument) != 0)
 			{
-				if (!get_obj_index(atoi(argument)))
+				if (!get_obj_index(pObj->area, atoi(argument)))
 				{
 					send_to_char("No such object exists.\n\r\n\r", ch);
 					return FALSE;
@@ -4158,39 +4702,6 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			set_armour(pObj);
 
 			break;
-		case 5:
-			// TODO: UNUSED?
-			if (!str_cmp(pObj->imp_sig, "none") && ch->tot_level < MAX_LEVEL)
-			{
-				send_to_char("You can't do this without an IMP's permission.\n\r", ch);
-				return FALSE;
-			}
-
-			send_to_char("SPELL LEVEL SET.\n\r\n\r", ch);
-			pObj->value[5] = atoi(argument);
-			break;
-		case 6:
-			// TODO: UNUSED?
-			if (!str_cmp(pObj->imp_sig, "none") && ch->tot_level < MAX_LEVEL)
-			{
-				send_to_char("You can't do this without an IMP's permission.\n\r", ch);
-				return FALSE;
-			}
-			send_to_char("SPELL SET.\n\r\n\r", ch);
-			pObj->value[6] = skill_lookup(argument);
-			use_imp_sig(NULL, pObj);
-			break;
-		case 7:
-			// TODO: UNUSED?
-			if (!str_cmp(pObj->imp_sig, "none") && ch->tot_level < MAX_LEVEL)
-			{
-				send_to_char("You can't do this without an IMP's permission.\n\r", ch);
-				return FALSE;
-			}
-			send_to_char("SPELL SET.\n\r\n\r", ch);
-			pObj->value[7] = skill_lookup(argument);
-			use_imp_sig(NULL, pObj);
-			break;
 		}
 		break;
 
@@ -4215,21 +4726,6 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 		case 3:
 			send_to_char("PROJECTILE DISTANCE SET.\n\r\n\r", ch);
 			pObj->value[3] = atoi(argument);
-			break;
-		case 5:
-			// TODO: UNUSED?
-			send_to_char("Spell level set.\n\r\n\r", ch);
-			pObj->value[5] = atoi(argument);
-			break;
-		case 6:
-			// TODO: UNUSED?
-			send_to_char("SPELL SET.\n\r\n\r", ch);
-			pObj->value[6] = skill_lookup(argument);
-			break;
-		case 7:
-			// TODO: UNUSED?
-			send_to_char("SPELL SET.\n\r\n\r", ch);
-			pObj->value[7] = skill_lookup(argument);
 			break;
 		}
 		break;
@@ -4340,38 +4836,6 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			send_to_char("SPECIAL WEAPON TYPE TOGGLED.\n\r\n\r", ch);
 			pObj->value[4] ^= (flag_value(weapon_type2, argument) != NO_FLAG ? flag_value(weapon_type2, argument) : 0);
 			break;
-		case 5:
-			// TODO: UNUSED?
-			if (!str_cmp(pObj->imp_sig, "none") && ch->tot_level < MAX_LEVEL)
-			{
-				send_to_char("You can't do this without an IMP's permission.\n\r", ch);
-				return FALSE;
-			}
-			send_to_char("Spell level set.\n\r\n\r", ch);
-			pObj->value[5] = atoi(argument);
-			break;
-		case 6:
-			// TODO: UNUSED?
-			if (!str_cmp(pObj->imp_sig, "none") && ch->tot_level < MAX_LEVEL)
-			{
-				send_to_char("You can't do this without an IMP's permission.\n\r", ch);
-				return FALSE;
-			}
-			send_to_char("SPELL SET.\n\r\n\r", ch);
-			pObj->value[6] = skill_lookup(argument);
-			use_imp_sig(NULL, pObj);
-			break;
-		case 7:
-			// TODO: UNUSED?
-			if (!str_cmp(pObj->imp_sig, "none") && ch->tot_level < MAX_LEVEL)
-			{
-				send_to_char("You can't do this without an IMP's permission.\n\r", ch);
-				return FALSE;
-			}
-			send_to_char("SPELL SET.\n\r\n\r", ch);
-			pObj->value[7] = skill_lookup(argument);
-			use_imp_sig(NULL, pObj);
-			break;
 		}
 		break;
 
@@ -4397,88 +4861,32 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 				if( flags != NO_FLAG )
 				{
 					pObj->value[2] ^= flags;
-
-					if( IS_SET(pObj->value[2], GATE_DUNGEON) )
-					{
-						REMOVE_BIT(pObj->value[2], GATE_AREARANDOM);
-					}
-
-					if( IS_SET(flags, GATE_DUNGEON) && IS_SET(pObj->value[2], GATE_DUNGEON) )
-					{
-						pObj->value[3] = 0;
-						pObj->value[4] = 0;
-						pObj->value[5] = 0;
-						pObj->value[6] = 0;
-						pObj->value[7] = 0;
-					}
-					else if( IS_SET(flags, GATE_AREARANDOM) && IS_SET(pObj->value[2], GATE_AREARANDOM) )
-					{
-					}
-
 				}
 			}
 			break;
 		case 3:
-			if( IS_SET(pObj->value[2], GATE_DUNGEON) )
 			{
-				if( !get_dungeon_index(atoi(argument)) )
+				int portal_type = flag_value(portal_gatetype, argument);
+
+				if (portal_type == NO_FLAG)
 				{
-					send_to_char("THERE IS NO SUCH DUNGEON.\n\r\n\r", ch);
-					return FALSE;
-				}
-				send_to_char("DUNGEON VNUM SET.\n\r\n\r", ch);
-			}
-			else
-				send_to_char("EXIT VNUM SET.\n\r\n\r", ch);
-			pObj->value[3] = atoi (argument);
-			break;
-		case 4:
-			if (atoi(argument) != 0)
-			{
-				if (!get_obj_index(atoi(argument)))
-				{
-					send_to_char("THERE IS NO SUCH ITEM.\n\r\n\r", ch);
+					send_to_char("? portal_type", ch);
 					return FALSE;
 				}
 
-				if (get_obj_index(atoi(argument))->item_type != ITEM_KEY)
-				{
-					send_to_char("THAT ITEM IS NOT A KEY.\n\r\n\r", ch);
-					return FALSE;
-				}
+				pObj->value[3] = portal_type;
+				pObj->value[4] = 0;
+				pObj->value[5] = 0;
+				pObj->value[6] = 0;
+				pObj->value[7] = 0;
+				pObj->value[8] = 0;
 			}
-			send_to_char("PORTAL KEY SET.\n\r\n\r", ch);
-			pObj->value[4] = atoi(argument);
 			break;
 		case 5:
-			if( IS_SET(pObj->value[2], GATE_DUNGEON) )
-			{
-				send_to_char("DUNGEON FLOOR SET.\n\r\n\r", ch);
-			}
-			else if( IS_SET(pObj->value[2], GATE_AREARANDOM) || pObj->value[3] == -1 )
-			{
-				send_to_char("AREA ANUM SET.\n\r\n\r", ch);
-			}
-			else if( !IS_SET(pObj->value[2], GATE_DUNGEON) )
-			{
-				send_to_char("WILDERNESS MAP UID SET.\n\r\n\r", ch);
-			}
-			pObj->value[5] = atoi (argument);
-			break;
 		case 6:
-			if( !IS_SET(pObj->value[2], GATE_DUNGEON) && !IS_SET(pObj->value[2], GATE_AREARANDOM) && !pObj->value[3] )
-			{
-				send_to_char("WILDERNESS MAP X-COORDINATE SET.\n\r\n\r", ch);
-				pObj->value[6] = atoi (argument);
-			}
-			break;
 		case 7:
-			if( !IS_SET(pObj->value[2], GATE_DUNGEON) && !IS_SET(pObj->value[2], GATE_AREARANDOM) && !pObj->value[3] )
-			{
-				send_to_char("WILDERNESS MAP Y-COORDINATE SET.\n\r\n\r", ch);
-				pObj->value[7] = atoi (argument);
-			}
-			break;
+		case 8:
+			return set_portal_values(ch, pObj, value_num, argument);
 		}
 		break;
 
@@ -4514,55 +4922,6 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			break;
 		}
 		break;
-
-/*	case ITEM_SHIP:
-		switch (value_num)
-		{
-		default:
-			do_help(ch, "ITEM_SHIP");
-			return FALSE;
-		case 0:
-			send_to_char("WEIGHT CAPACITY SET.\n\r\n\r", ch);
-			pObj->value[0] = atoi(argument);
-			break;
-		case 1:
-			send_to_char("MOVE DELAY SET.\n\r\n\r", ch);
-			pObj->value[1] = atoi(argument);
-			break;
-		case 2:
-			send_to_char("MIN CREW SET.\n\r\n\r", ch);
-			pObj->value[2] = atoi(argument);
-			break;
-		case 3:
-			send_to_char("CAPACITY SET.\n\r\n\r", ch);
-			pObj->value[3] = atoi(argument);
-			break;
-		case 4:
-			send_to_char("MAX CREW SET.\n\r\n\r", ch);
-			pObj->value[4] = atoi(argument);
-			break;
-		case 5:
-			if (atoi(argument) != 0)
-			{
-				if (!get_room_index(atoi(argument)))
-				{
-					send_to_char("THERE IS NO SUCH ROOM.\n\r\n\r", ch);
-					return FALSE;
-				}
-			}
-			send_to_char("BOARDING ROOM SET.\n\r\n\r", ch);
-			pObj->value[5] = atoi(argument);
-			break;
-		case 6:
-			send_to_char("HIT POINTS SET.\n\r", ch);
-			pObj->value[6] = atoi(argument);
-			break;
-		case 7:
-			send_to_char("MAX GUNS SET.\n\r\n\r", ch);
-			pObj->value[7] = atoi (argument);
-			break;
-		}
-		break;*/
 
 	case ITEM_CART:
 		switch (value_num)
@@ -4670,24 +5029,6 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 				return FALSE;
 			}
 			send_to_char("CONTAINER TYPE SET.\n\r\n\r", ch);
-			break;
-		case 2:
-			if (atoi(argument) != 0)
-			{
-				if (!get_obj_index(atoi(argument)))
-				{
-					send_to_char("THERE IS NO SUCH ITEM.\n\r\n\r", ch);
-					return FALSE;
-				}
-
-				if (get_obj_index(atoi(argument))->item_type != ITEM_KEY)
-				{
-					send_to_char("THAT ITEM IS NOT A KEY.\n\r\n\r", ch);
-					return FALSE;
-				}
-			}
-			send_to_char("CONTAINER KEY SET.\n\r\n\r", ch);
-			pObj->value[2] = atoi(argument);
 			break;
 		case 3:
 			if (atoi (argument) > 225 && ch->tot_level < MAX_LEVEL)
@@ -4919,24 +5260,6 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 				return FALSE;
 			}
 			send_to_char("BOOK (CONTAINER) FLAGS SET.\n\r\n\r", ch);
-			break;
-		case 2:
-			if (atoi(argument) != 0)
-			{
-				if (!get_obj_index(atoi(argument)))
-				{
-					send_to_char("THERE IS NO SUCH ITEM.\n\r\n\r", ch);
-					return FALSE;
-				}
-
-				if (get_obj_index(atoi(argument))->item_type != ITEM_KEY)
-				{
-					send_to_char("THAT ITEM IS NOT A KEY.\n\r\n\r", ch);
-					return FALSE;
-				}
-			}
-			send_to_char("BOOK KEY SET.\n\r\n\r", ch);
-			pObj->value[2] = atoi(argument);
 			break;
 		}
 		break;
@@ -5271,13 +5594,14 @@ OEDIT(oedit_show)
 
     if( pObj->lock )
     {
-		OBJ_INDEX_DATA *lock_key = (pObj->lock->key_vnum > 0) ? get_obj_index(pObj->lock->key_vnum) : NULL;
+		OBJ_INDEX_DATA *lock_key = get_obj_index(pObj->lock->key_wnum.pArea, pObj->lock->key_wnum.vnum);
 
 	    sprintf(buf,"Lock State:\n\r"
-	    			"  Key:         {B[{x%7ld{B]{x %s\n\r"
+	    			"  Key:         {B[{x%ld#%ld{B]{x %s\n\r"
 	    			"  Flags:       {B[{x%s{B]{x\n\r"
 	    			"  Pick Chance: {B[{x%d%%{B]{x\n\r",
-	    			pObj->lock->key_vnum,
+	    			pObj->lock->key_wnum.pArea ? pObj->lock->key_wnum.pArea->uid : 0,
+					pObj->lock->key_wnum.vnum,
 	    			lock_key ? lock_key->short_descr : "none",
 	    			flag_string(lock_flags, pObj->lock->flags),
 	    			pObj->lock->pick_chance);
@@ -5468,8 +5792,9 @@ OEDIT(oedit_show)
 		for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
 			iterator_start(&it, pObj->progs[slot]);
 			while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-				sprintf(buf, "{B[{W%4d{B]{x %-20ld %-10s %-6s\n\r", cnt,
-					trigger->vnum,trigger_name(trigger->trig_type),
+				sprintf(buf, "{B[{W%4d{B]{x %ld#%ld %-10s %-6s\n\r", cnt,
+					trigger->wnum.pArea ? trigger->wnum.pArea->uid : 0,
+					trigger->wnum.vnum,trigger_name(trigger->trig_type),
 					trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, FALSE, FALSE));
 				add_buf(buffer, buf);
 				cnt++;
@@ -6163,11 +6488,10 @@ OEDIT(oedit_next)
     next_vnum = pObj->vnum;
 
     next_vnum++;
-    while (nextObj == NULL
-    && next_vnum <= pObj->area->max_vnum)
+    while (nextObj == NULL && next_vnum > 0)
     {
-	nextObj = get_obj_index(next_vnum);
-	next_vnum++;
+		nextObj = get_obj_index(pObj->area, next_vnum);
+		next_vnum++;
     }
 
     if (nextObj == NULL)
@@ -6359,7 +6683,7 @@ OEDIT(oedit_lock)
 	{
 		send_to_char("Syntax:  lock add\n\r", ch);
 		send_to_char("         lock remove\n\r", ch);
-		send_to_char("         lock key [vnum]\n\r", ch);
+		send_to_char("         lock key [wnum]\n\r", ch);
 		send_to_char("         lock key clear\n\r", ch);
 		send_to_char("         lock flags [flags]\n\r", ch);
 		send_to_char("         lock pick [0-100]\n\r", ch);
@@ -6429,10 +6753,10 @@ OEDIT(oedit_lock)
 			return FALSE;
 		}
 
-		if( is_number(argument) )
+		WNUM wnum;
+		if( parse_widevnum(argument, &wnum) )
 		{
-			long vnum = atol(argument);
-			OBJ_INDEX_DATA *key = get_obj_index(vnum);
+			OBJ_INDEX_DATA *key = get_obj_index(wnum.pArea, wnum.vnum);
 
 			if( !key )
 			{
@@ -6446,13 +6770,14 @@ OEDIT(oedit_lock)
 				return FALSE;
 			}
 
-			pObj->lock->key_vnum = vnum;
+			// TODO: make a list
+			pObj->lock->key_wnum = wnum;
 			send_to_char("Lock State key set.\n\r", ch);
 			return TRUE;
 		}
 		else if( !str_prefix(argument, "clear") )
 		{
-			pObj->lock->key_vnum = 0;
+			pObj->lock->key_wnum = wnum_zero;
 			send_to_char("Lock State key removed.\n\r", ch);
 			return TRUE;
 		}
@@ -6552,11 +6877,10 @@ OEDIT(oedit_prev)
     prev_vnum = pObj->vnum;
 
     prev_vnum--;
-    while (prevObj == NULL
-    && prev_vnum >= pObj->area->min_vnum)
+    while (prevObj == NULL && prev_vnum > 0)
     {
-	prevObj = get_obj_index(prev_vnum);
-	prev_vnum--;
+		prevObj = get_obj_index(pObj->area, prev_vnum);
+		prev_vnum--;
     }
 
     if (prevObj == NULL)
@@ -6783,12 +7107,16 @@ OEDIT(oedit_varset)
     }
 
     if(!str_cmp(type,"room")) {
-	if(!is_number(argument)) {
-	    send_to_char("Specify a room vnum.\n\r", ch);
+		WNUM wnum;
+	if(!parse_widevnum(argument, &wnum)) {
+	    send_to_char("Specify a room widevnum.\n\r", ch);
 	    return FALSE;
 	}
+		WNUM_LOAD load;
+		load.auid = wnum.pArea ? wnum.pArea->uid : 0;
+		load.vnum = wnum.vnum;
 
-	variables_setindex_room(&pObj->index_vars,name,atoi(argument),saved);
+	variables_setindex_room(&pObj->index_vars,name, load,saved);
     } else if(!str_cmp(type,"string"))
 	variables_setindex_string(&pObj->index_vars,name,argument,FALSE,saved);
     else if(!str_cmp(type,"number")) {
@@ -7029,7 +7357,7 @@ OEDIT(oedit_cost)
 OEDIT(oedit_create)
 {
     OBJ_INDEX_DATA *pObj;
-    AREA_DATA *pArea;
+    AREA_DATA *pArea = ch->in_room->area;
     int  value;
     long auto_vnum = 0;
     int  iHash;
@@ -7037,38 +7365,18 @@ OEDIT(oedit_create)
     value = atoi(argument);
     if (argument[0] == '\0' || value == 0)
     {
-	//send_to_char("Syntax:  oedit create [vnum]\n\r", ch);
-	OBJ_INDEX_DATA *temp_obj;
+		//send_to_char("Syntax:  oedit create [vnum]\n\r", ch);
+		for( auto_vnum = 1; auto_vnum > 0 && get_obj_index(pArea, auto_vnum); auto_vnum++);
 
-	auto_vnum = ch->in_room->area->min_vnum;
-	temp_obj = get_obj_index(auto_vnum);
-	if (temp_obj != NULL)
-	{
-	    while (temp_obj != NULL)
-	    {
-		temp_obj = get_obj_index(auto_vnum);
-		if (temp_obj == NULL) break;
-		auto_vnum++;
-	    }
-	}
-
-	if (auto_vnum > ch->in_room->area->max_vnum)
-	{
-	    send_to_char("Sorry, this area has no more space left.\n\r",
-		    ch);
-	    return FALSE;
-	}
+		if (auto_vnum < 1)
+		{
+			send_to_char("Sorry, this area has no more space left.\n\r", ch);
+			return FALSE;
+		}
     }
 
-    if (auto_vnum != 0)
-	value = auto_vnum;
-
-    pArea = get_vnum_area(value);
-    if (!pArea)
-    {
-	send_to_char("OEdit:  That vnum is not assigned an area.\n\r", ch);
-	return FALSE;
-    }
+    if (auto_vnum > 0)
+		value = auto_vnum;
 
     if (!IS_BUILDER(ch, pArea))
     {
@@ -7076,7 +7384,7 @@ OEDIT(oedit_create)
 	return FALSE;
     }
 
-    if (get_obj_index(value))
+    if (get_obj_index(pArea, value))
     {
 	send_to_char("OEdit:  Object vnum already exists.\n\r", ch);
 	return FALSE;
@@ -7087,12 +7395,12 @@ OEDIT(oedit_create)
     pObj->area	      = pArea;
     pObj->creator_sig = str_dup(ch->name);
 
-    if (value > top_vnum_obj)
-	top_vnum_obj = value;
+    if (value > pArea->top_vnum_obj)
+	pArea->top_vnum_obj = value;
 
     iHash                 = value % MAX_KEY_HASH;
-    pObj->next		  = obj_index_hash[iHash];
-    obj_index_hash[iHash] = pObj;
+    pObj->next		  = pArea->obj_index_hash[iHash];
+    pArea->obj_index_hash[iHash] = pObj;
     ch->desc->pEdit	  = (void *)pObj;
 
     SET_BIT(pObj->area->area_flags, AREA_CHANGED);
@@ -7912,14 +8220,14 @@ MEDIT(medit_show)
 	sprintf(buf, "Corpse Type:  {C[{x%s{C]{x\n\r", flag_string(corpse_types, pMob->corpse_type));
 	add_buf(buffer, buf);
 
-	if (pMob->corpse) {
-		OBJ_INDEX_DATA *obj = get_obj_index(pMob->corpse);
+	if (pMob->corpse.auid > 0 && pMob->corpse.vnum > 0) {
+		OBJ_INDEX_DATA *obj = get_obj_index_auid(pMob->corpse.auid, pMob->corpse.vnum);
 		sprintf(buf, "Corpse Obj:   {C[{x%s{C]{x\n\r",  obj->short_descr);
 		add_buf(buffer, buf);
 	}
 
-	if (pMob->zombie) {
-		OBJ_INDEX_DATA *obj = get_obj_index(pMob->zombie);
+	if (pMob->zombie.auid > 0 && pMob->zombie.vnum > 0) {
+		OBJ_INDEX_DATA *obj = get_obj_index_auid(pMob->zombie.auid, pMob->zombie.vnum);
 		sprintf(buf, "Zombie Obj:   {C[{x%s{C]{x\n\r",  obj->short_descr);
 		add_buf(buffer, buf);
 	}
@@ -8135,16 +8443,16 @@ MEDIT(medit_show)
 				{
 				case STOCK_OBJECT:
 					strcpy(typ,"{GOBJECT{x  ");
-					if( pStock->vnum > 0 ) {
+					if( pStock->wnum.pArea && pStock->wnum.vnum > 0 ) {
 
-						OBJ_INDEX_DATA *obj = get_obj_index(pStock->vnum);
+						OBJ_INDEX_DATA *obj = get_obj_index(pStock->wnum.pArea, pStock->wnum.vnum);
 
 						if( !obj ) {
 							strcpy(item, "-invalid-");
 						}
 						else
 						{
-							sprintf(item, "%s (%ld)", obj->short_descr, pStock->vnum);
+							sprintf(item, "%s (%ld#%ld)", obj->short_descr, pStock->wnum.pArea->uid, pStock->wnum.vnum);
 						}
 					}
 					else
@@ -8153,16 +8461,16 @@ MEDIT(medit_show)
 					break;
 				case STOCK_PET:
 					strcpy(typ,"{GPET{x     ");
-					if( pStock->vnum > 0 ) {
+					if( pStock->wnum.pArea && pStock->wnum.vnum > 0 ) {
 
-						MOB_INDEX_DATA *mob = get_mob_index(pStock->vnum);
+						MOB_INDEX_DATA *mob = get_mob_index(pStock->wnum.pArea, pStock->wnum.vnum);
 
 						if( !mob ) {
 							strcpy(item, "-invalid-");
 						}
 						else
 						{
-							sprintf(item, "%s (%ld)", mob->short_descr, pStock->vnum);
+							sprintf(item, "%s (%ld#%ld)", mob->short_descr, pStock->wnum.pArea->uid, pStock->wnum.vnum);
 						}
 					}
 					else
@@ -8170,16 +8478,16 @@ MEDIT(medit_show)
 					break;
 				case STOCK_MOUNT:
 					strcpy(typ,"{GMOUNT{x   ");
-					if( pStock->vnum > 0 ) {
+					if( pStock->wnum.pArea && pStock->wnum.vnum > 0 ) {
 
-						MOB_INDEX_DATA *mob = get_mob_index(pStock->vnum);
+						MOB_INDEX_DATA *mob = get_mob_index(pStock->wnum.pArea, pStock->wnum.vnum);
 
 						if( !mob ) {
 							strcpy(item, "-invalid-");
 						}
 						else
 						{
-							sprintf(item, "%s (%ld)", mob->short_descr, pStock->vnum);
+							sprintf(item, "%s (%ld#%ld)", mob->short_descr, pStock->wnum.pArea->uid, pStock->wnum.vnum);
 						}
 					}
 					else
@@ -8187,16 +8495,16 @@ MEDIT(medit_show)
 					break;
 				case STOCK_GUARD:
 					strcpy(typ,"{GGUARD{x   ");
-					if( pStock->vnum > 0 ) {
+					if( pStock->wnum.pArea && pStock->wnum.vnum > 0 ) {
 
-						MOB_INDEX_DATA *mob = get_mob_index(pStock->vnum);
+						MOB_INDEX_DATA *mob = get_mob_index(pStock->wnum.pArea, pStock->wnum.vnum);
 
 						if( !mob ) {
 							strcpy(item, "-invalid-");
 						}
 						else
 						{
-							sprintf(item, "%s (%ld)", mob->short_descr, pStock->vnum);
+							sprintf(item, "%s (%ld#%ld)", mob->short_descr, pStock->wnum.pArea->uid, pStock->wnum.vnum);
 						}
 					}
 					else
@@ -8205,16 +8513,16 @@ MEDIT(medit_show)
 
 				case STOCK_CREW:
 					strcpy(typ,"{GCREW{x    ");
-					if( pStock->vnum > 0 ) {
+					if( pStock->wnum.pArea && pStock->wnum.vnum > 0 ) {
 
-						MOB_INDEX_DATA *mob = get_mob_index(pStock->vnum);
+						MOB_INDEX_DATA *mob = get_mob_index(pStock->wnum.pArea, pStock->wnum.vnum);
 
 						if( !mob || !mob->pCrew ) {
 							strcpy(item, "-invalid-");
 						}
 						else
 						{
-							sprintf(item, "%s (%ld)", mob->short_descr, pStock->vnum);
+							sprintf(item, "%s (%ld#%ld)", mob->short_descr, pStock->wnum.pArea->uid, pStock->wnum.vnum);
 						}
 					}
 					else
@@ -8223,16 +8531,16 @@ MEDIT(medit_show)
 
 				case STOCK_SHIP:
 					strcpy(typ,"{GSHIP{x    ");
-					if( pStock->vnum > 0 )
+					if( pStock->wnum.pArea && pStock->wnum.vnum > 0 )
 					{
-						SHIP_INDEX_DATA *ship_index = get_ship_index(pStock->vnum);
+						SHIP_INDEX_DATA *ship_index = get_ship_index(pStock->wnum.pArea, pStock->wnum.vnum);
 
 						if( !ship_index ) {
 							strcpy(item, "-invalid-");
 						}
 						else
 						{
-							sprintf(item, "%s (%ld)", ship_index->name, pStock->vnum);
+							sprintf(item, "%s (%ld#%ld)", ship_index->name, pStock->wnum.pArea->uid, pStock->wnum.vnum);
 						}
 
 					}
@@ -8299,7 +8607,7 @@ MEDIT(medit_show)
 
 		add_buf(buffer, "{YQuestor data:\n\r");
 
-		sprintf(buf, "  {YScroll Vnum: %ld\n\r", questor->scroll);
+		sprintf(buf, "  {YScroll: %ld#%ld\n\r", questor->scroll.auid, questor->scroll.vnum);
 		add_buf(buffer, buf);
 
 		if(IS_NULLSTR(questor->keywords))
@@ -8368,8 +8676,9 @@ MEDIT(medit_show)
 			for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
 				iterator_start(&it, pMob->progs[slot]);
 				while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-					sprintf(buf, "{C[{W%4d{C]{x %-20ld %-10s %-6s\n\r", cnt,
-						trigger->vnum,trigger_name(trigger->trig_type),
+					sprintf(buf, "{C[{W%4d{C]{x %ld#%ld %-10s %-6s\n\r", cnt,
+						trigger->wnum.pArea ? trigger->wnum.pArea->uid : 0,
+						trigger->wnum.vnum,trigger_name(trigger->trig_type),
 						trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, FALSE, FALSE));
 					add_buf(buffer, buf);
 					cnt++;
@@ -8432,10 +8741,9 @@ MEDIT(medit_next)
     next_vnum = pMob->vnum;
 
     next_vnum++;
-    while (nextMob == NULL
-    && next_vnum <= pMob->area->max_vnum)
+    while (nextMob == NULL && next_vnum > 0)
     {
-	nextMob = get_mob_index(next_vnum);
+	nextMob = get_mob_index(pMob->area, next_vnum);
 	next_vnum++;
     }
 
@@ -8517,10 +8825,9 @@ MEDIT(medit_prev)
     prev_vnum = pMob->vnum;
 
     prev_vnum--;
-    while (prevMob == NULL
-    && prev_vnum >= pMob->area->min_vnum)
+    while (prevMob == NULL && prev_vnum > 0)
     {
-	prevMob = get_mob_index(prev_vnum);
+	prevMob = get_mob_index(pMob->area, prev_vnum);
 	prev_vnum--;
     }
 
@@ -8582,7 +8889,7 @@ MEDIT(medit_owner)
 MEDIT(medit_create)
 {
     MOB_INDEX_DATA *pMob;
-    AREA_DATA *pArea;
+    AREA_DATA *pArea = ch->in_room->area;
     long  value;
     int  iHash;
     long auto_vnum = 0;
@@ -8591,21 +8898,9 @@ MEDIT(medit_create)
     if (argument[0] == '\0' || value == 0)
     {
 	//send_to_char("Syntax:  medit create [vnum]\n\r", ch);
-	MOB_INDEX_DATA *temp_mob;
+	for(auto_vnum = 1; auto_vnum > 0 && get_mob_index(pArea, auto_vnum); auto_vnum++);
 
-	auto_vnum = ch->in_room->area->min_vnum;
-	temp_mob = get_mob_index(auto_vnum);
-	if (temp_mob != NULL)
-	{
-	    while (temp_mob != NULL)
-	    {
-		temp_mob = get_mob_index(auto_vnum);
-		if (temp_mob == NULL) break;
-		auto_vnum++;
-	    }
-	}
-
-	if (auto_vnum > ch->in_room->area->max_vnum)
+	if (auto_vnum < 0)
 	{
 	    send_to_char("Sorry, this area has no more space left.\n\r",
 		    ch);
@@ -8615,21 +8910,13 @@ MEDIT(medit_create)
 
     if (auto_vnum != 0) value = auto_vnum;
 
-    pArea = get_vnum_area(value);
-
-    if (!pArea)
-    {
-	send_to_char("MEdit:  That vnum is not assigned an area.\n\r", ch);
-	return FALSE;
-    }
-
     if (!IS_BUILDER(ch, pArea))
     {
 	send_to_char("MEdit:  Vnum in an area you cannot build in.\n\r", ch);
 	return FALSE;
     }
 
-    if (get_mob_index(value))
+    if (get_mob_index(pArea, value))
     {
 	send_to_char("MEdit:  Mobile vnum already exists.\n\r", ch);
 	return FALSE;
@@ -8639,14 +8926,14 @@ MEDIT(medit_create)
     pMob->vnum			= value;
     pMob->area			= pArea;
 
-    if (value > top_vnum_mob)
-	top_vnum_mob = value;
+    if (value > pArea->top_vnum_mob)
+	pArea->top_vnum_mob = value;
 
     pMob->act			= ACT_IS_NPC;
     pMob->act2			= 0;
     iHash			= value % MAX_KEY_HASH;
-    pMob->next			= mob_index_hash[iHash];
-    mob_index_hash[iHash]	= pMob;
+    pMob->next			= pArea->mob_index_hash[iHash];
+    pArea->mob_index_hash[iHash]	= pMob;
     ch->desc->pEdit		= (void *)pMob;
 
 
@@ -8981,12 +9268,17 @@ MEDIT(medit_varset)
     }
 
     if(!str_cmp(type,"room")) {
-	if(!is_number(argument)) {
-	    send_to_char("Specify a room vnum.\n\r", ch);
+		WNUM wnum;
+	if(!parse_widevnum(argument, &wnum)) {
+	    send_to_char("Specify a room widevnum.\n\r", ch);
 	    return FALSE;
 	}
 
-	variables_setindex_room(&pMob->index_vars,name,atoi(argument),saved);
+		WNUM_LOAD load;
+		load.auid = wnum.pArea ? wnum.pArea->uid : 0;
+		load.vnum = wnum.vnum;
+
+	variables_setindex_room(&pMob->index_vars,name,load,saved);
     } else if(!str_cmp(type,"string"))
 	variables_setindex_string(&pMob->index_vars,name,argument,FALSE,saved);
     else if(!str_cmp(type,"number")) {
@@ -9056,66 +9348,79 @@ MEDIT(medit_corpsetype)
     return FALSE;
 }
 
-MEDIT(medit_corpsevnum)
+MEDIT(medit_corpse)
 {
     MOB_INDEX_DATA *pMob;
-    int value;
+    WNUM wnum;
 
-    if (argument[0] != '\0' && is_number(argument))
+    if (argument[0] != '\0' && parse_widevnum(argument, &wnum))
     {
-	EDIT_MOB(ch, pMob);
+		EDIT_MOB(ch, pMob);
 
-	value = atoi(argument);
-
-	if (value > 0) {
-
-		if(!get_obj_index(value)) {
-			send_to_char("Object does not exist.\n\r",ch);
-			return FALSE;
-		} else {
-			send_to_char("Corpse object vnum set.\n\r",ch);
-			pMob->corpse = value;
+		if (!str_prefix(argument, "clear"))
+		{
+			send_to_char("Corpse object cleared.\n\r",ch);
+			pMob->corpse.auid = 0;
+			pMob->corpse.vnum = 0;
 			return TRUE;
 		}
-	} else if(!value) {
-		send_to_char("Corpse object cleared.\n\r",ch);
-		pMob->corpse = value;
-		return TRUE;
+		else if (parse_widevnum(argument, &wnum) && wnum.pArea && wnum.vnum > 0)
+		{
+			if(!get_obj_index(wnum.pArea, wnum.vnum))
+			{
+				send_to_char("Object does not exist.\n\r",ch);
+				return FALSE;
+			}
+			else
+			{
+				send_to_char("Corpse object set.\n\r",ch);
+				pMob->corpse.auid = wnum.pArea->uid;
+				pMob->corpse.vnum = wnum.vnum;
+				return TRUE;
+			}
+		}
 	}
-    }
 
-    send_to_char("Syntax: corpsevnum [vnum >= 0] (0 to clear)\n\r", ch);
+    send_to_char("Syntax: corpse <widevnum>\n\r", ch);
+    send_to_char("        corpse clear\n\r", ch);
     return FALSE;
 }
 
-MEDIT(medit_zombievnum)
+MEDIT(medit_zombie)
 {
     MOB_INDEX_DATA *pMob;
-    int value;
+    WNUM wnum;
 
-    if (argument[0] != '\0' && is_number(argument))
+    if (argument[0] != '\0' && parse_widevnum(argument, &wnum))
     {
-	EDIT_MOB(ch, pMob);
+		EDIT_MOB(ch, pMob);
 
-	value = atoi(argument);
-
-	if (value > 0) {
-		if(!get_obj_index(value)) {
-			send_to_char("Object does not exist.\n\r",ch);
-			return FALSE;
-		} else {
-			send_to_char("Zombie corpse object set.\n\r",ch);
-			pMob->zombie = value;
+		if (!str_prefix(argument, "clear"))
+		{
+			send_to_char("Zombie corpse object cleared.\n\r",ch);
+			pMob->zombie.auid = 0;
+			pMob->zombie.vnum = 0;
 			return TRUE;
 		}
-	} else if(!value) {
-		send_to_char("Zombie corpse object cleared.\n\r",ch);
-		pMob->zombie = value;
-		return TRUE;
+		else if (parse_widevnum(argument, &wnum) && wnum.pArea && wnum.vnum > 0)
+		{
+			if(!get_obj_index(wnum.pArea, wnum.vnum))
+			{
+				send_to_char("Zombie corpse object does not exist.\n\r",ch);
+				return FALSE;
+			}
+			else
+			{
+				send_to_char("Zombie corpse object set.\n\r",ch);
+				pMob->zombie.auid = wnum.pArea->uid;
+				pMob->zombie.vnum = wnum.vnum;
+				return TRUE;
+			}
+		}
 	}
-    }
 
-    send_to_char("Syntax: zombievnum [vnum >= 0] (0 to clear)\n\r", ch);
+    send_to_char("Syntax: zombie <widevnum>\n\r", ch);
+    send_to_char("        zombie clear\n\r", ch);
     return FALSE;
 }
 
@@ -9499,23 +9804,24 @@ MEDIT(medit_shop)
 
 		if(!str_prefix(arg1, "add"))
 		{
+			WNUM wnum;
 			if(arg2[0] == '\0' || argument[0] == '\0')
 			{
-				send_to_char("Syntax:  shop stock add object [vnum]\n\r", ch);
-				send_to_char("         shop stock add pet [vnum]\n\r", ch);
-				send_to_char("         shop stock add mount [vnum]\n\r", ch);
-				send_to_char("         shop stock add guard [vnum]\n\r", ch);
-				send_to_char("         shop stock add crew [vnum]\n\r", ch);
-				send_to_char("         shop stock add ship [vnum]\n\r", ch);
+				send_to_char("Syntax:  shop stock add object [wnum]\n\r", ch);
+				send_to_char("         shop stock add pet [wnum]\n\r", ch);
+				send_to_char("         shop stock add mount [wnum]\n\r", ch);
+				send_to_char("         shop stock add guard [wnum]\n\r", ch);
+				send_to_char("         shop stock add crew [wnum]\n\r", ch);
+				send_to_char("         shop stock add ship [wnum]\n\r", ch);
 				send_to_char("         shop stock add custom [keyword]\n\r", ch);
 				return FALSE;
 			}
 
 			if(!str_prefix(arg2, "object"))
 			{
-				if(is_number(argument))
+				if(parse_widevnum(argument, &wnum))
 				{
-					OBJ_INDEX_DATA *item = get_obj_index(atoi(argument));
+					OBJ_INDEX_DATA *item = get_obj_index(wnum.pArea, wnum.vnum);
 
 					if(!item)
 					{
@@ -9538,7 +9844,7 @@ MEDIT(medit_shop)
 					}
 
 					stock->type = STOCK_OBJECT;
-					stock->vnum = item->vnum;
+					stock->wnum = wnum;
 					stock->silver = item->cost;
 					stock->discount = pMob->pShop->discount;
 
@@ -9549,14 +9855,14 @@ MEDIT(medit_shop)
 					return TRUE;
 				}
 
-				send_to_char("Syntax:  shop stock add object [vnum]\n\r", ch);
+				send_to_char("Syntax:  shop stock add object [wnum]\n\r", ch);
 				return FALSE;
 			}
 			else if(!str_prefix(arg2, "pet"))
 			{
-				if(is_number(argument))
+				if(parse_widevnum(argument, &wnum))
 				{
-					MOB_INDEX_DATA *mob = get_mob_index(atoi(argument));
+					MOB_INDEX_DATA *mob = get_mob_index(wnum.pArea, wnum.vnum);
 
 					if(!mob)
 					{
@@ -9573,7 +9879,7 @@ MEDIT(medit_shop)
 					}
 
 					stock->type = STOCK_PET;
-					stock->vnum = mob->vnum;
+					stock->wnum = wnum;
 					stock->silver = 10 * mob->level * mob->level;
 					stock->level = mob->level;
 					stock->discount = pMob->pShop->discount;
@@ -9585,14 +9891,14 @@ MEDIT(medit_shop)
 					return TRUE;
 				}
 
-				send_to_char("Syntax:  shop stock add pet [vnum]\n\r", ch);
+				send_to_char("Syntax:  shop stock add pet [wnum]\n\r", ch);
 				return FALSE;
 			}
 			else if(!str_prefix(arg2, "mount"))
 			{
-				if(is_number(argument))
+				if(parse_widevnum(argument, &wnum))
 				{
-					MOB_INDEX_DATA *mob = get_mob_index(atoi(argument));
+					MOB_INDEX_DATA *mob = get_mob_index(wnum.pArea, wnum.vnum);
 
 					if(!mob)
 					{
@@ -9609,7 +9915,7 @@ MEDIT(medit_shop)
 					}
 
 					stock->type = STOCK_MOUNT;
-					stock->vnum = mob->vnum;
+					stock->wnum = wnum;
 					stock->silver = 25 * mob->level * mob->level;
 					stock->level = mob->level;
 					stock->discount = pMob->pShop->discount;
@@ -9621,14 +9927,14 @@ MEDIT(medit_shop)
 					return TRUE;
 				}
 
-				send_to_char("Syntax:  shop stock add mount [vnum]\n\r", ch);
+				send_to_char("Syntax:  shop stock add mount [wnum]\n\r", ch);
 				return FALSE;
 			}
 			else if(!str_prefix(arg2, "guard"))
 			{
-				if(is_number(argument))
+				if(parse_widevnum(argument, &wnum))
 				{
-					MOB_INDEX_DATA *mob = get_mob_index(atoi(argument));
+					MOB_INDEX_DATA *mob = get_mob_index(wnum.pArea, wnum.vnum);
 
 					if(!mob)
 					{
@@ -9645,7 +9951,7 @@ MEDIT(medit_shop)
 					}
 
 					stock->type = STOCK_GUARD;
-					stock->vnum = mob->vnum;
+					stock->wnum = wnum;
 					stock->silver = 50 * mob->level * mob->level;
 					stock->level = mob->level;
 					stock->discount = pMob->pShop->discount;
@@ -9657,14 +9963,14 @@ MEDIT(medit_shop)
 					return TRUE;
 				}
 
-				send_to_char("Syntax:  shop stock add guard [vnum]\n\r", ch);
+				send_to_char("Syntax:  shop stock add guard [wnum]\n\r", ch);
 				return FALSE;
 			}
 			else if(!str_prefix(arg2, "crew"))
 			{
-				if(is_number(argument))
+				if(parse_widevnum(argument, &wnum))
 				{
-					MOB_INDEX_DATA *mob = get_mob_index(atoi(argument));
+					MOB_INDEX_DATA *mob = get_mob_index(wnum.pArea, wnum.vnum);
 
 					if(!mob)
 					{
@@ -9687,7 +9993,7 @@ MEDIT(medit_shop)
 					}
 
 					stock->type = STOCK_CREW;
-					stock->vnum = mob->vnum;
+					stock->wnum = wnum;
 					stock->silver = 50 * mob->level * mob->level;
 					stock->level = mob->level;
 					stock->discount = pMob->pShop->discount;
@@ -9699,7 +10005,7 @@ MEDIT(medit_shop)
 					return TRUE;
 				}
 
-				send_to_char("Syntax:  shop stock add crew [vnum]\n\r", ch);
+				send_to_char("Syntax:  shop stock add crew [wnum]\n\r", ch);
 				return FALSE;
 			}
 			else if(!str_prefix(arg2, "ship"))
@@ -9714,18 +10020,17 @@ MEDIT(medit_shop)
 					return FALSE;
 				}
 
-				if( is_number(argument) )
+				if( parse_widevnum(argument, &wnum) )
 				{
-					long vnum = atol(argument);
 					SHIP_INDEX_DATA *ship;
 
-					if( !(ship = get_ship_index(vnum)) )
+					if( !(ship = get_ship_index(wnum.pArea, wnum.vnum)) )
 					{
 						send_to_char("That ship does not exist.\n\r", ch);
 						return FALSE;
 					}
 
-					if( !IS_VALID(ship->blueprint) || !get_obj_index(ship->ship_object) )
+					if( !IS_VALID(ship->blueprint) || !get_obj_index(ship->area, ship->ship_object) )
 					{
 						send_to_char("Ship is incomplete.  Cannot be sold yet.\n\r", ch);
 						return FALSE;
@@ -9740,7 +10045,7 @@ MEDIT(medit_shop)
 					}
 
 					stock->type = STOCK_SHIP;
-					stock->vnum = vnum;
+					stock->wnum = wnum;
 					stock->silver = 100000;	// Default 1000gold
 					stock->level = 1;
 					stock->discount = pMob->pShop->discount;
@@ -9752,7 +10057,7 @@ MEDIT(medit_shop)
 					return TRUE;
 				}
 
-				send_to_char("Syntax:  shop stock add ship [vnum]\n\r", ch);
+				send_to_char("Syntax:  shop stock add ship [wnum]\n\r", ch);
 				return FALSE;
 
 			}
@@ -9799,10 +10104,10 @@ MEDIT(medit_shop)
 				return FALSE;
 			}
 
-			send_to_char("Syntax:  shop stock add object [vnum]\n\r", ch);
-			send_to_char("         shop stock add pet [vnum]\n\r", ch);
-			send_to_char("         shop stock add mount [vnum]\n\r", ch);
-			send_to_char("         shop stock add guard [vnum]\n\r", ch);
+			send_to_char("Syntax:  shop stock add object [wnum]\n\r", ch);
+			send_to_char("         shop stock add pet [wnum]\n\r", ch);
+			send_to_char("         shop stock add mount [wnum]\n\r", ch);
+			send_to_char("         shop stock add guard [wnum]\n\r", ch);
 			send_to_char("         shop stock add custom [keyword]\n\r", ch);
 			return FALSE;
 		}
@@ -10870,9 +11175,11 @@ MEDIT (medit_addmprog)
     argument = one_argument(argument, trigger);
     argument = one_argument(argument, phrase);
 
-    if (!is_number(num) || trigger[0] =='\0' || phrase[0] =='\0')
+	WNUM wnum;
+
+    if (!parse_widevnum(num, &wnum) || trigger[0] =='\0' || phrase[0] =='\0')
     {
-	send_to_char("Syntax:   addmprog [vnum] [trigger] [phrase]\n\r",ch);
+	send_to_char("Syntax:   addmprog [wnum] [trigger] [phrase]\n\r",ch);
 	return FALSE;
     }
 
@@ -10884,6 +11191,7 @@ MEDIT (medit_addmprog)
 
     value = tindex;//trigger_table[tindex].value;
     slot = trigger_table[tindex].slot;
+	if (!wnum.pArea) wnum.pArea = pMob->area;
 
 	if(value == TRIG_SPELLCAST) {
 		if( !str_cmp(phrase, "*") )
@@ -10917,7 +11225,7 @@ MEDIT (medit_addmprog)
 		}
 	}
 
-    if ((code = get_script_index (atol(num), PRG_MPROG)) == NULL)
+    if ((code = get_script_index (wnum.pArea, wnum.vnum, PRG_MPROG)) == NULL)
     {
 	send_to_char("No such MOBProgram.\n\r",ch);
 	return FALSE;
@@ -10927,7 +11235,7 @@ MEDIT (medit_addmprog)
     if(!pMob->progs) pMob->progs = new_prog_bank();
 
     list                  = new_trigger();
-    list->vnum            = atol(num);
+    list->wnum            = wnum;
     list->trig_type       = tindex;
     list->trig_phrase     = str_dup(phrase);
 	list->trig_number		= atoi(list->trig_phrase);
@@ -10976,33 +11284,32 @@ MEDIT (medit_delmprog)
 }
 
 
+// TODO: COMPLETE
 MEDIT(medit_addquest)
 {
     MOB_INDEX_DATA *pMob;
     QUEST_LIST *quest;
     QUEST_INDEX_DATA *pQuestIndex;
-    long value;
+    WNUM wnum;
 
     EDIT_MOB(ch, pMob);
 
-    value = atol(argument);
-
-    if (argument[0] == '\0' || value <= 0)
+    if (argument[0] == '\0' || !parse_widevnum(argument, &wnum) || !wnum.pArea || wnum.vnum < 1)
     {
-	send_to_char("Syntax:  addquest [quest vnum]\n\r", ch);
+	send_to_char("Syntax:  addquest [quest wnum]\n\r", ch);
 	return FALSE;
     }
 
-    pQuestIndex = get_quest_index(value);
+    pQuestIndex = get_quest_index(wnum.pArea, wnum.vnum);
     if (pQuestIndex == NULL)
     {
-	send_to_char("That quest vnum doesn't exist.\n\r", ch);
+	send_to_char("That quest doesn't exist.\n\r", ch);
 	return FALSE;
     }
 
     for (quest = pMob->quests; quest != NULL; quest = quest->next)
     {
-	if (quest->vnum == value)
+	if (quest->wnum.pArea == wnum.pArea && quest->wnum.vnum == wnum.vnum)
 	{
 	    send_to_char("That would be redundant as you've already added that quest.\n\r", ch);
 	    return FALSE;
@@ -11010,7 +11317,8 @@ MEDIT(medit_addquest)
     }
 
     quest = new_quest_list();
-    quest->vnum = pQuestIndex->vnum;
+	quest->wnum.pArea = pQuestIndex->area;
+    quest->wnum.vnum = pQuestIndex->vnum;
 
     quest->next = pMob->quests;
     pMob->quests = quest;
@@ -11132,7 +11440,7 @@ REDIT(redit_room2)
 		}
 
 		// Check if room is already used in a section
-		if( get_blueprint_section_byroom(room->vnum) )
+		if( get_blueprint_section_byroom(room->area, room->vnum) )
 		{
 			send_to_char("Room is currently used in a blueprint.\n\r", ch);
 			// Clear it out, JIC
@@ -11282,9 +11590,10 @@ OEDIT (oedit_addoprog)
   argument=one_argument(argument, trigger);
   argument=one_argument(argument, phrase);
 
-  if (!is_number(num) || trigger[0] =='\0' || phrase[0] =='\0')
+  WNUM wnum;
+  if (!parse_widevnum(num, &wnum) || trigger[0] =='\0' || phrase[0] =='\0')
   {
-        send_to_char("Syntax:   addoprog [vnum] [trigger] [phrase]\n\r",ch);
+        send_to_char("Syntax:   addoprog [wnum] [trigger] [phrase]\n\r",ch);
         return FALSE;
   }
 
@@ -11296,6 +11605,8 @@ OEDIT (oedit_addoprog)
 
     value = tindex;//trigger_table[tindex].value;
     slot = trigger_table[tindex].slot;
+
+	if (!wnum.pArea) wnum.pArea = pObj->area;
 
 	if(value == TRIG_SPELLCAST) {
 		if( !str_cmp(phrase, "*") )
@@ -11330,7 +11641,7 @@ OEDIT (oedit_addoprog)
 	}
 
 
-  if ((code = get_script_index (atol(num), PRG_OPROG)) == NULL)
+  if ((code = get_script_index (wnum.pArea, wnum.vnum, PRG_OPROG)) == NULL)
   {
         send_to_char("No such OBJProgram.\n\r",ch);
         return FALSE;
@@ -11340,7 +11651,7 @@ OEDIT (oedit_addoprog)
     if(!pObj->progs) pObj->progs = new_prog_bank();
 
     list                  = new_trigger();
-    list->vnum            = atol(num);
+    list->wnum            = wnum;
     list->trig_type       = tindex;
     list->trig_phrase     = str_dup(phrase);
 	list->trig_number		= atoi(list->trig_phrase);
@@ -11402,9 +11713,10 @@ REDIT (redit_addrprog)
     argument=one_argument(argument, trigger);
     argument=one_argument(argument, phrase);
 
-    if (!is_number(num) || trigger[0] =='\0' || phrase[0] =='\0')
+	WNUM wnum;
+    if (!parse_widevnum(num, &wnum) || trigger[0] =='\0' || phrase[0] =='\0')
     {
-	send_to_char("Syntax:   addrprog [vnum] [trigger] [phrase]\n\r",ch);
+	send_to_char("Syntax:   addrprog [wnum] [trigger] [phrase]\n\r",ch);
 	return FALSE;
     }
 
@@ -11416,6 +11728,7 @@ REDIT (redit_addrprog)
 
     value = tindex;//trigger_table[tindex].value;
     slot = trigger_table[tindex].slot;
+	if (!wnum.pArea) wnum.pArea = pRoom->area;
 
 	if(value == TRIG_SPELLCAST) {
 		if( !str_cmp(phrase, "*") )
@@ -11454,7 +11767,7 @@ REDIT (redit_addrprog)
 		}
 	}
 
-    if ((code = get_script_index (atol(num), PRG_RPROG)) == NULL)
+    if ((code = get_script_index (wnum.pArea, wnum.vnum, PRG_RPROG)) == NULL)
     {
 	send_to_char("No such ROOMProgram.\n\r",ch);
 	return FALSE;
@@ -11464,7 +11777,7 @@ REDIT (redit_addrprog)
     if(!pRoom->progs->progs) pRoom->progs->progs = new_prog_bank();
 
     list                  = new_trigger();
-    list->vnum            = atol(num);
+    list->wnum            = wnum;
     list->trig_type       = tindex;
     list->trig_phrase     = str_dup(phrase);
 	list->trig_number		= atoi(list->trig_phrase);
@@ -12150,7 +12463,6 @@ WEDIT ( wedit_vlink )
     if (!str_cmp(arg, "destination"))
     {
         int vlnum = 0;
-        int value;
 
         if (!pWilds)
         {
@@ -12167,8 +12479,9 @@ WEDIT ( wedit_vlink )
         pVLink = get_vlink_from_index(pWilds,vlnum);
         if(pVLink) {
 		if(pVLink->current_linkage == VLINK_UNLINKED) {
-			if (is_number(arg3) && (value = atoi(arg3)) > 0) {
-				ROOM_INDEX_DATA *destRoom = get_room_index(value);
+			WNUM wnum;
+			if (parse_widevnum(arg3, &wnum)) {
+				ROOM_INDEX_DATA *destRoom = get_room_index(wnum.pArea, wnum.vnum);
 
 				if( !destRoom )
 				{
@@ -12183,7 +12496,8 @@ WEDIT ( wedit_vlink )
 					return FALSE;
 				}
 
-				pVLink->destvnum = value;
+				pVLink->destwnum.auid = wnum.pArea->uid;
+				pVLink->destwnum.vnum = wnum.vnum;
 				send_to_char("Wedit vlink: Destination set.\n\r", ch);
 				return TRUE;
 			} else
@@ -12195,7 +12509,6 @@ WEDIT ( wedit_vlink )
 
         return FALSE;
     }
-
 
     if (!str_cmp(arg, "location"))
     {
@@ -12287,17 +12600,18 @@ WEDIT ( wedit_vlink )
 
         send_to_char("{x[ {Wwedit vlink{x ]\n\r\n\r", ch);
         send_to_char("[num] [uid]   [x coor] [y coor] [direction] "
-                     "[destvnum] [default] [current] [maptile]\n\r", ch);
+                     "[    dest wnum    ] [default] [current] [maptile]\n\r", ch);
 
         for(vlnum = 0,pVLink=pWilds?pWilds->pVLink:ch->in_room->area->wilds->pVLink;pVLink!=NULL;pVLink = pVLink->next)
         {
-            printf_to_char(ch, "%-5d ({W%6ld{x)  {W%6d   %6d   %-9s   %-8ld   %10s%10s%s{x\n\r",
+            printf_to_char(ch, "%-5d ({W%6ld{x)  {W%6d   %6d   %-9s   %8ld#%-8ld   %10s%10s%s{x\n\r",
             		   vlnum++,
                            pVLink->uid,
                            pVLink->wildsorigin_x,
                            pVLink->wildsorigin_y,
                            dir_name[pVLink->door],
-                           pVLink->destvnum,
+                           pVLink->destwnum.auid,
+						   pVLink->destwnum.vnum,
                            vlinkage_bit_name(pVLink->default_linkage),
                            vlinkage_bit_name(pVLink->current_linkage),
                            pVLink->map_tile);
@@ -12324,7 +12638,7 @@ VLEDIT ( vledit_show )
     printf_to_char(ch, "Wilds vroom y coor: %ld\n\r",   pVLink->wildsorigin_y);
     printf_to_char(ch, "Wilds map tile: %ld\n\r", pVLink->map_tile);
     printf_to_char(ch, "Wilds link direction: %s\n\r",   dir_name[pVLink->door]);
-    printf_to_char(ch, "Destination room vnum: %ld\n\r",   pVLink->destvnum);
+    printf_to_char(ch, "Destination room vnum: %ld#%ld\n\r",   pVLink->destwnum.auid, pVLink->destwnum.vnum);
     printf_to_char(ch, "Default linkage flags: %s\n\r",   vlinkage_bit_name(pVLink->default_linkage));
     printf_to_char(ch, "Current linkage flags: %s\n\r\n\r",   vlinkage_bit_name(pVLink->current_linkage));
     printf_to_char(ch, "Wilds link description: %s\n\r",   pVLink->orig_description);
@@ -12354,7 +12668,7 @@ MEDIT(medit_questor)
 	{
 		send_to_char("QUESTOR ADD                 Adds questor data to mob.\n\r", ch);
 		send_to_char("        REMOVE              Removes questor data from mob.\n\r", ch);
-		send_to_char("        SCROLL [vnum]       Sets the scroll object to the specified vnum.\n\r", ch);
+		send_to_char("        SCROLL [wnum]       Sets the scroll object to the specified widevnum.\n\r", ch);
 		send_to_char("        KEYWORDS [string]   Sets keywords of scroll.\n\r", ch);
 		send_to_char("        SHORT [string]      Sets short description of scroll.\n\r", ch);
 		send_to_char("        LONG [string]       Sets long description of scroll.\n\r", ch);
@@ -12406,20 +12720,21 @@ MEDIT(medit_questor)
 		return TRUE;
 
 	} else if (!str_prefix(arg,"scroll")) {
-		if(!is_number(argument))
+		WNUM wnum;
+		if(!parse_widevnum(argument, &wnum))
 		{
-			send_to_char("That is not a number.\n\r", ch);
+			send_to_char("That is not a widevnum.\n\r", ch);
 			return FALSE;
 		}
 
-		long vnum = atoi(argument);
-		if( !get_obj_index(vnum) )
+		if( !get_obj_index(wnum.pArea, wnum.vnum) )
 		{
 			send_to_char("Object does not exist.\n\r", ch);
 			return FALSE;
 		}
 
-		pMob->pQuestor->scroll = vnum;
+		pMob->pQuestor->scroll.auid = wnum.pArea->uid;
+		pMob->pQuestor->scroll.vnum = wnum.vnum;
 		send_to_char("Questor scroll object changed.\n\r", ch);
 		return TRUE;
 

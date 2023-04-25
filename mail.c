@@ -35,7 +35,7 @@ void do_mail(CHAR_DATA *ch, char *argument)
 
     argument = one_argument(argument, arg);
 
-    if (ch->in_room != get_room_index(ch->in_room->area->post_office)
+    if (ch->in_room != get_room_index(ch->in_room->area, ch->in_room->area->post_office)
     && !IS_SET(ch->in_room->room2_flags, ROOM_POST_OFFICE))
     {
 	send_to_char("You must be at a post office.\n\r", ch);
@@ -850,7 +850,7 @@ void check_new_mail(CHAR_DATA *ch)
 	    OBJ_DATA *parchment;
 	    char buf[MSL];
 
-	    parchment = create_object(get_obj_index(OBJ_VNUM_BLANK_SCROLL), 1, FALSE);
+	    parchment = create_object(obj_index_blank_scroll, 1, FALSE);
 
 	    free_string(parchment->name);
 	    free_string(parchment->short_descr);

@@ -613,7 +613,11 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 	if (!IS_AFFECTED(ch, AFF_SNEAK) && ch->invis_level < LEVEL_HERO) {
 		if( IS_VALID(in_dungeon) && !IS_VALID(to_dungeon) )
 		{
-			OBJ_DATA *portal = get_room_dungeon_portal(to_room, in_dungeon->index->vnum);
+			WNUM wnum;
+			wnum.pArea = in_dungeon->index->area;
+			wnum.vnum = in_dungeon->index->vnum;
+
+			OBJ_DATA *portal = get_room_dungeon_portal(to_room, wnum);
 
 			if( IS_VALID(portal) )
 			{
@@ -1664,7 +1668,7 @@ OBJ_DATA *get_key(CHAR_DATA *ch, int vnum)
 }
 
 
-void use_key(CHAR_DATA *ch, OBJ_DATA *key)
+void use_key(CHAR_DATA *ch, OBJ_DATA *key, LOCK_STATE *lock)
 {
 	CHURCH_DATA *church;
 	char buf[MSL];
@@ -1681,10 +1685,16 @@ void use_key(CHAR_DATA *ch, OBJ_DATA *key)
 		return;
 	}
 
+	if (lock == NULL)
+	{
+		bug("use_key: lock was null", 0);
+		return;
+	}
+
 	/* can only use a church-temple key if you're in that church */
 	for (church = church_list; church != NULL; church = church->next)
 	{
-		if (church->key == key->pIndexData->vnum && ch->church != church)
+		if (church->hall_area == key->pIndexData->area && church->key == key->pIndexData->vnum && ch->church != church)
 		{
 			sprintf(buf, "Rent by the spiritual powers of %s, $p dissipates into nothingness.\n\r", church->name);
 			act(buf, ch, NULL, NULL, key, NULL, NULL, NULL, TO_CHAR);
@@ -1694,28 +1704,30 @@ void use_key(CHAR_DATA *ch, OBJ_DATA *key)
 		}
 	}
 
-	switch (key->fragility)
+	if (key->fragility != OBJ_FRAGILE_SOLID)
 	{
-	case OBJ_FRAGILE_SOLID: break;
-	case OBJ_FRAGILE_STRONG:
-		if (number_percent() < 25)
+		switch (key->fragility)
+		{
+		case OBJ_FRAGILE_STRONG:
+			if (number_percent() < 25)
+				key->condition--;
+			break;
+		case OBJ_FRAGILE_NORMAL:
+			if (number_percent() < 50)
+				key->condition--;
+			break;
+		case OBJ_FRAGILE_WEAK:
 			key->condition--;
-		break;
-	case OBJ_FRAGILE_NORMAL:
-		if (number_percent() < 50)
-			key->condition--;
-		break;
-	case OBJ_FRAGILE_WEAK:
-		key->condition--;
-		break;
-	default:
-		break;
-	}
+			break;
+		default:
+			break;
+		}
 
-	if (key->condition <= 0)
-	{
-		act("$p snaps and breaks.", ch, NULL, NULL, key, NULL, NULL, NULL, TO_ALL);
-		extract_obj(key);
+		if (IS_SET(lock->flags, LOCK_SNAPKEY) || key->condition <= 0)
+		{
+			act("$p snaps and breaks.", ch, NULL, NULL, key, NULL, NULL, NULL, TO_ALL);
+			extract_obj(key);
+		}
 	}
 }
 
@@ -1787,7 +1799,7 @@ void do_lock(CHAR_DATA *ch, char *argument)
 			act("You lock $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
 			act("$n locks $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
 
-			use_key(ch, key);
+			use_key(ch, key, obj->lock);
 			return;
 		}
 
@@ -1834,7 +1846,7 @@ void do_lock(CHAR_DATA *ch, char *argument)
 		act("You lock $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
 		act("$n locks $p.",ch, NULL, NULL,obj, NULL, NULL, NULL, TO_ROOM);
 
-		use_key(ch, key);
+		use_key(ch, key, obj->lock);
 		return;
 	}
 
@@ -1889,7 +1901,7 @@ void do_lock(CHAR_DATA *ch, char *argument)
 			pexit_rev->u1.to_room == ch->in_room)
 			SET_BIT(pexit_rev->door.lock.flags, LOCK_LOCKED);
 
-		use_key(ch, key);
+		use_key(ch, key, &pexit->door.lock);
 	}
 }
 
@@ -1959,7 +1971,7 @@ void do_unlock(CHAR_DATA *ch, char *argument)
 			REMOVE_BIT(obj->lock->flags,LOCK_LOCKED);
 			act("You unlock $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
 			act("$n unlocks $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
-			use_key(ch, key);
+			use_key(ch, key, obj->lock);
 			return;
 		}
 
@@ -2005,18 +2017,7 @@ void do_unlock(CHAR_DATA *ch, char *argument)
 		act("You unlock $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
 		act("$n unlocks $p.",ch, NULL, NULL,obj, NULL, NULL,NULL, TO_ROOM);
 
-		if (key && !is_name("house",key->name))
-		{
-			--key->condition;
-
-			if (IS_SET(obj->lock->flags,LOCK_SNAPKEY) || key->condition <= 0)
-			{
-				act("$p snaps and breaks in the lock.", ch, NULL, NULL, key, NULL, NULL, NULL, TO_CHAR);
-				act("$p snaps and breaks in the lock.", ch, NULL, NULL, key, NULL, NULL, NULL, TO_ROOM);
-
-				extract_obj(key);
-			}
-		}
+		use_key(ch, key, obj->lock);
 		return;
 	}
 
@@ -2071,7 +2072,7 @@ void do_unlock(CHAR_DATA *ch, char *argument)
 			pexit_rev->u1.to_room == ch->in_room)
 			REMOVE_BIT(pexit_rev->door.lock.flags, LOCK_LOCKED);
 
-		use_key(ch, key);
+		use_key(ch, key, &pexit->door.lock);
 	}
 }
 
@@ -3444,70 +3445,6 @@ bool move_success(CHAR_DATA *ch)
 	return TRUE;
 }
 
-/*  Project for remorts - work in progress
-void do_project(CHAR_DATA *ch, char *argument)
-{
-    if (!IS_DEMON(ch) && !IS_ANGEL(ch))
-    {
-	send_to_char("You attempt to project yourself.\n\r", ch);
-	return;
-    }
-
-    if (IS_DEAD(ch) && (IS_ANGEL(ch) || IS_DEMON(ch)))
-    {
-	send_to_char("You lack the energy to project yourself.\n\r", ch);
-	return;
-    }
-
-    if (IS_SET(ch->in_room->room_flags,ROOM_NO_RECALL) ||
-    IS_AFFECTED(ch,AFF_CURSE)
-    || IS_SET(ch->in_room->area->area_flags, AREA_NO_RECALL))
-    {
-	send_to_char("You cannot seem to project yourself.\n\r",ch);
-	return;
-    }
-
-    if (IS_ANGEL(ch))
-    {
-        send_to_char("You focus your mind, and cosmically project yourself to the mortal realm.\n\r", ch);
-        act("{W$n vanishes in a puff of smoke.{x", ch, NULL, NULL, TO_ROOM);
-
-        / Reset affects
-        while (ch->affected)
-            affect_remove(ch, ch->affected);
-        ch->affected_by = race_table[ch->race].aff;
-        ch->affected_by2 = 0;
-
-	char_from_room(ch);
-        char_to_room(ch, get_room_index(11051));
-        act("{W$n mysteriously walks out from behind a pillar.{x", ch, NULL, NULL, TO_ROOM);
-        ch->position = POS_RESTING;
-        ch->hit = ch->max_hit / 2;
-        ch->mana = ch->max_mana / 2;
-        ch->move = ch->max_move / 2;
-    }
-
-    if (IS_DEMON(ch))
-    {
-        send_to_char("You focus your mind, and cosmically project yourself to the mortal realm.\n\r", ch);
-        act("{R$n vanishes in a puff of smoke.{x", ch, NULL, NULL, TO_ROOM);
-
-	/ Reset affects
-        while (ch->affected)
-            affect_remove(ch, ch->affected);
-        ch->affected_by = race_table[ch->race].aff;
-        ch->affected_by2 = 0;
-
-	char_from_room(ch);
-        char_to_room(ch, get_room_index(11022));
-        send_to_char("You emerge from a large crack in the ground which closes up instantly.\n\r", ch);
-	act("{RA large crack in the ground opens up and $n emerges from it's hot depths.{x\n\r", ch, NULL, NULL, TO_ROOM);
-        ch->position = POS_RESTING;
-        ch->hit = ch->max_hit / 2;
-        ch->mana = ch->max_mana / 2;
-        ch->move = ch->max_move / 2;
-    }
-} */
 
 void do_bar(CHAR_DATA *ch, char *argument)
 {

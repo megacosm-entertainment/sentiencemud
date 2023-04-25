@@ -243,7 +243,7 @@ SPELL_FUNC(spell_stinking_cloud)
 		if (obj->item_type == ITEM_STINKING_CLOUD)
 			return FALSE;
 
-	cloud = create_object(get_obj_index(OBJ_VNUM_STINKING_CLOUD), 0, TRUE);
+	cloud = create_object(obj_index_stinking_cloud, 0, TRUE);
 	cloud->timer = 4;
 	cloud->level = ch->tot_level;
 	obj_to_room(cloud, ch->in_room);
@@ -466,14 +466,13 @@ SPELL_FUNC(spell_toxin_venom)
 
 SPELL_FUNC(spell_withering_cloud)
 {
-	OBJ_INDEX_DATA *index;
 	OBJ_DATA *cloud;
 	OBJ_DATA *obj;
 	ROOM_INDEX_DATA *room;
 	int dir = 0;
 	bool exists = FALSE;
 
-	if (!(index = get_obj_index(OBJ_VNUM_WITHERING_CLOUD))) {
+	if (!obj_index_withering_cloud) {
 		bug("spell_withering_cloud: null obj_index!\n", 0);
 		return FALSE;
 	}
@@ -489,7 +488,7 @@ SPELL_FUNC(spell_withering_cloud)
 	}
 
 	if (!exists) {
-		cloud = create_object(index, 0, TRUE);
+		cloud = create_object(obj_index_withering_cloud, 0, TRUE);
 		cloud->timer = 4;
 		obj_to_room(cloud, ch->in_room);
 	}
@@ -508,7 +507,7 @@ SPELL_FUNC(spell_withering_cloud)
 			}
 
 			if (!exists) {
-				cloud = create_object(index, 0, TRUE);
+				cloud = create_object(obj_index_withering_cloud, 0, TRUE);
 				cloud->timer = 4;
 				obj_to_room(cloud, room);
 			}

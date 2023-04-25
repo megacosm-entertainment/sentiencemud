@@ -261,22 +261,6 @@ const struct item_type		item_table	[]	=
 
 
 
-/* List of create food items*/
-const   long    food_table[] =
-{
-    100066,
-    100067,
-    100068,
-    100069,
-    100070,
-    100071,
-    100072,
-    100073,
-    100074,
-    100075,
-    100076,
-    0
-};
 
 
 const   struct  tunneler_place_type  tunneler_place_table[] =
@@ -292,34 +276,34 @@ const   struct  tunneler_place_type  tunneler_place_table[] =
 const	struct	weapon_type	weapon_table	[]	=
 {
 /*  name		vnum				type			gsn*/
-    { "sword",		0,				WEAPON_SWORD,		&gsn_sword		},
-    { "mace",		0,				WEAPON_MACE,		&gsn_mace 		},
-    { "dagger",		0,				WEAPON_DAGGER,		&gsn_dagger		},
-    { "axe",	    	0,				WEAPON_AXE,		&gsn_axe		},
-    { "staff",	    	0,				WEAPON_SPEAR,		&gsn_spear		},
-    { "flail",	    	0,				WEAPON_FLAIL,		&gsn_flail		},
-    { "whip",	    	0,				WEAPON_WHIP,		&gsn_whip		},
-    { "polearm",	0,				WEAPON_POLEARM,		&gsn_polearm		},
-    { "quarterstaff",	0,       			WEAPON_QUARTERSTAFF, 	&gsn_quarterstaff 	},
-    { "stake",		0,				WEAPON_STAKE,		&gsn_stake	 	},
-    { "arrow",		0,	                	WEAPON_ARROW,   	NULL			},
-    { "bolt",		0,              		WEAPON_BOLT,    	NULL			},
-    { "throwable",	0,             			WEAPON_THROWABLE,    	NULL			},
-    { "exotic",		0,				WEAPON_EXOTIC,		&gsn_exotic		},
-    { "dart",		0,	                	WEAPON_DART,	   	NULL			},	/* @@@NIB : 20070126*/
-    { "harpoon",	0,              		WEAPON_HARPOON,    	&gsn_spear		},	/* @@@NIB : 20070126 : instead of the harpoon skill, since it's basically a short spear*/
-    { NULL,		0,				0,			NULL			}
+    { "sword",		0,0,				WEAPON_SWORD,		&gsn_sword		},
+    { "mace",		0,0,				WEAPON_MACE,		&gsn_mace 		},
+    { "dagger",		0,0,				WEAPON_DAGGER,		&gsn_dagger		},
+    { "axe",	    	0,0,				WEAPON_AXE,		&gsn_axe		},
+    { "staff",	    	0,0,				WEAPON_SPEAR,		&gsn_spear		},
+    { "flail",	    	0,0,				WEAPON_FLAIL,		&gsn_flail		},
+    { "whip",	    	0,0,				WEAPON_WHIP,		&gsn_whip		},
+    { "polearm",	0,0,				WEAPON_POLEARM,		&gsn_polearm		},
+    { "quarterstaff",	0,0,       			WEAPON_QUARTERSTAFF, 	&gsn_quarterstaff 	},
+    { "stake",		0,0,				WEAPON_STAKE,		&gsn_stake	 	},
+    { "arrow",		0,0,	                	WEAPON_ARROW,   	NULL			},
+    { "bolt",		0,0,              		WEAPON_BOLT,    	NULL			},
+    { "throwable",	0,0,             			WEAPON_THROWABLE,    	NULL			},
+    { "exotic",		0,0,				WEAPON_EXOTIC,		&gsn_exotic		},
+    { "dart",		0,0,	                	WEAPON_DART,	   	NULL			},	/* @@@NIB : 20070126*/
+    { "harpoon",	0,0,              		WEAPON_HARPOON,    	&gsn_spear		},	/* @@@NIB : 20070126 : instead of the harpoon skill, since it's basically a short spear*/
+    { NULL,		0,0,				0,			NULL			}
 };
 
 
 const	struct	weapon_type	ranged_weapon_table	[]	=
 {
-    { "crossbow",	0,	RANGED_WEAPON_CROSSBOW,	&gsn_crossbow	},
-    { "bow",		0,	RANGED_WEAPON_BOW,	&gsn_bow	},
-    { "exotic",		0,	RANGED_WEAPON_EXOTIC,	&gsn_exotic	},	/* @@@NIB : 20070126*/
-    { "blowgun",	0,	RANGED_WEAPON_BLOWGUN,	&gsn_blowgun	},	/* @@@NIB : 20070126*/
-    { "harpoon",	0,	RANGED_WEAPON_HARPOON,	&gsn_harpooning	},	/* @@@NIB : 20070126*/
-    { NULL,		0,	0,			NULL		}
+    { "crossbow",	0,0,	RANGED_WEAPON_CROSSBOW,	&gsn_crossbow	},
+    { "bow",		0,0,	RANGED_WEAPON_BOW,	&gsn_bow	},
+    { "exotic",		0,0,	RANGED_WEAPON_EXOTIC,	&gsn_exotic	},	/* @@@NIB : 20070126*/
+    { "blowgun",	0,0,	RANGED_WEAPON_BLOWGUN,	&gsn_blowgun	},	/* @@@NIB : 20070126*/
+    { "harpoon",	0,0,	RANGED_WEAPON_HARPOON,	&gsn_harpooning	},	/* @@@NIB : 20070126*/
+    { NULL,		0,0,	0,			NULL		}
 };
 
 const	int	size_weight[] = { 0, 10, 50, 120, 450, 4500 };
@@ -2498,16 +2482,6 @@ const struct  material_type material_table [] =
 };
 
 
-const  struct  newbie_eq_type  newbie_eq_table[] =
-{
-    {	OBJ_VNUM_NEWB_ARMOUR,	WEAR_BODY	},
-    {	OBJ_VNUM_NEWB_CLOAK,	WEAR_ABOUT	},
-    {	OBJ_VNUM_NEWB_LEGGINGS, WEAR_LEGS	},
-    {	OBJ_VNUM_NEWB_BOOTS,	WEAR_FEET	},
-    {	OBJ_VNUM_NEWB_HELM,	WEAR_HEAD	},
-    {	-1,			WEAR_NONE	},
-};
-
 
 const   struct  music_type 	music_table 	[MAX_SONGS] 	=
 {
@@ -2980,13 +2954,6 @@ const struct skill_type	skill_table [MAX_SKILL]	=
 		spell_counter_spell, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_counterspell,
 		-1, 100, 1,
 		"counterspell", "!Counterspell!", "", "",
-		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
-	}, {
-		"create food",
-		{ 31, 5, 31, 5 }, { 1, 3, 2, 2},
-		spell_create_food, TAR_IGNORE, POS_STANDING, &gsn_create_food,
-		-1, 5, 2,
-		"", "!Create Food!", "", "",
 		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
 	}, {
 		"create rose",
@@ -4540,7 +4507,7 @@ const struct group_type group_table [MAX_GROUP] =
 
     {
 	"cleric skills",	{ -1, 0, -1, -1 },
-	{ "mace", "flail", "quarterstaff", "sanctuary", "create food",
+	{ "mace", "flail", "quarterstaff", "sanctuary",
 	  "cure light", "cure serious", "cure critical", "heal",
 	  "refresh", "cure blindness", "cure disease", "cure poison",
 	  "create water", "continual light", "create spring",

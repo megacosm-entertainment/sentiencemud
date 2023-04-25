@@ -200,20 +200,27 @@ ROOM_INDEX_DATA *find_location(CHAR_DATA *ch, char *arg)
 	char arg1[MIL];
 	char arg2[MIL];
 
-	// Goto <area name> ie "goto plith"
-	for (area = area_first; area != NULL; area = area->next) {
-		if (!is_number(arg) && !str_infix(arg, area->name)) {
-			if (!(room = location_to_room(&area->recall))) {
-				for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++) {
-					if ((rm = get_room_index(vnum)))
-						room = rm;
+	// Goto [#.]<area name> ie "goto 2.plith"
+	if (!is_number(arg1))
+	{
+		int count = number_argument(arg, arg1);
+		for (area = area_first; area != NULL; area = area->next) {
+			if (!str_infix(arg1, area->name) && (--count) < 1) {
+				if (!(room = location_to_room(&area->recall))) {
+					for (vnum = 1; vnum <= area->top_room; vnum++) {
+						if ((rm = get_room_index(area, vnum))) {
+							room = rm;
+							break;
+						}
+					}
 				}
+
+				if (room) {
+					return room;
+				}
+
+				break;
 			}
-
-			if (room)
-				return room;
-
-			break;
 		}
 	}
 
@@ -222,21 +229,19 @@ ROOM_INDEX_DATA *find_location(CHAR_DATA *ch, char *arg)
     arg = one_argument(arg,arg2);
 
 	// Done to allow for going to cloned rooms, but only if they exist!
-    if (is_number(arg1)) {
-	room = get_room_index(atol(arg1));
-	if(is_number(arg2) && is_number(arg))
+	WNUM wnum;
+    if (parse_widevnum(arg1, &wnum))
 	{
-		//log_stringf("get_clone_room: find_location(%ld,%lu,%lu)", room->vnum,atol(arg2),atol(arg));
-
-		return get_clone_room(room,atol(arg2),atol(arg));
-	}
-	else
-		return room;
+		room = get_room_index(wnum.pArea, wnum.vnum);
+		if(is_number(arg2) && is_number(arg))
+			return get_clone_room(room,atol(arg2),atol(arg));
+		else
+			return room;
 	}
 
 	arg = save;
     if ((victim = get_char_world(ch, arg)) != NULL)
-	return victim->in_room;
+		return victim->in_room;
 
     if ((obj = get_obj_world(ch, arg)) != NULL)
 		return obj_room(obj);
@@ -1933,14 +1938,14 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
 
     if (pRoomIndex == NULL)
     {
-	ROOM_INDEX_DATA *room;
+		ROOM_INDEX_DATA *room;
 
-	bug("Char_to_room: destination room NULL.", 0);
+		bug("Char_to_room: destination room NULL.", 0);
 
-	if ((room = get_room_index(ROOM_VNUM_TEMPLE)) != NULL)
-	    char_to_room(ch,room);
+		if ((room = room_index_temple) != NULL)
+		    char_to_room(ch,room);
 
-	return;
+		return;
     }
 
     if (MOUNTED(ch) && MOUNTED(ch)->in_room == ch->in_room
@@ -3112,13 +3117,6 @@ void extract_char(CHAR_DATA *ch, bool fPull)
 		ch->belongs_to_ship = NULL;
 	}
 
-	/*
-    if (ch->belongs_to_ship != NULL
-    && ch->belongs_to_ship->npc_ship != NULL
-    && ch->belongs_to_ship->npc_ship->captain == ch)
-	ch->belongs_to_ship->npc_ship->captain = NULL;
-	*/
-
     if (IS_NPC(ch) && ch->hunting != NULL)
     	stop_hunt(ch, TRUE);
 
@@ -3127,30 +3125,8 @@ void extract_char(CHAR_DATA *ch, bool fPull)
 
     if (!fPull)
     {
-        ROOM_INDEX_DATA *death_room;
-
-        death_room = get_room_index(ROOM_VNUM_DEATH);
-        if (IS_DEMON(ch))
-        {
-            int range;
-            range = number_range(0, 7000);
-            death_room = get_room_index(200050 + range);
-            ch->hit = number_range(1, ch->max_hit);
-            ch->mana = number_range(1, ch->max_mana);
-            ch->move = number_range(1, ch->max_move);
-        }
-        else
-	if (IS_ANGEL(ch))
-        {
-            int range;
-            range = number_range(0, 7000);
-            death_room = get_room_index(300050 + range);
-            ch->hit = number_range(1, ch->max_hit);
-            ch->mana = number_range(1, ch->max_mana);
-            ch->move = number_range(1, ch->max_move);
-        }
-	char_to_room(ch, death_room);
-	return;
+		char_to_room(ch, room_index_death);
+		return;
     }
 
 	if(ch->mount) {
@@ -3176,7 +3152,8 @@ void extract_char(CHAR_DATA *ch, bool fPull)
 	/* for NPCs and global quests. */
 	for (gq_mob = global_quest.mobs; gq_mob != NULL; gq_mob = gq_mob->next)
 	{
-	    if (ch->pIndexData->vnum == gq_mob->vnum)
+	    if (ch->pIndexData->area->uid == gq_mob->wnum_load.auid &&
+			ch->pIndexData->vnum == gq_mob->wnum_load.vnum)
 	    {
 		--gq_mob->count;
 	    }
@@ -3895,12 +3872,12 @@ OBJ_DATA *create_money(int gold, int silver)
     }
 
     if (gold == 0 && silver == 1)
-	obj = create_object(get_obj_index(OBJ_VNUM_SILVER_ONE), 0, TRUE);
+	obj = create_object(obj_index_silver_one, 0, TRUE);
     else if (gold == 1 && silver == 0)
-	obj = create_object(get_obj_index(OBJ_VNUM_GOLD_ONE), 0, TRUE);
+	obj = create_object(obj_index_gold_one, 0, TRUE);
     else if (silver == 0)
     {
-        obj = create_object(get_obj_index(OBJ_VNUM_GOLD_SOME), 0, TRUE);
+        obj = create_object(obj_index_gold_some, 0, TRUE);
         sprintf(buf, obj->short_descr, gold);
         free_string(obj->short_descr);
         obj->short_descr        = str_dup(buf);
@@ -3910,7 +3887,7 @@ OBJ_DATA *create_money(int gold, int silver)
     }
     else if (gold == 0)
     {
-        obj = create_object(get_obj_index(OBJ_VNUM_SILVER_SOME), 0, TRUE);
+        obj = create_object(obj_index_silver_some, 0, TRUE);
         sprintf(buf, obj->short_descr, silver);
         free_string(obj->short_descr);
         obj->short_descr        = str_dup(buf);
@@ -3921,7 +3898,7 @@ OBJ_DATA *create_money(int gold, int silver)
 
     else
     {
-	obj = create_object(get_obj_index(OBJ_VNUM_COINS), 0, TRUE);
+	obj = create_object(obj_index_coins, 0, TRUE);
 	sprintf(buf, obj->short_descr, silver, gold);
 	free_string(obj->short_descr);
 	obj->short_descr	= str_dup(buf);
@@ -4669,7 +4646,7 @@ void resurrect_pc(CHAR_DATA *ch)
     char_from_room(ch);
 
     if ((pRoom = location_to_room(&ch->recall)) == NULL)
-	pRoom = get_room_index(ROOM_VNUM_ALTAR);
+		pRoom = room_index_altar;
 
     char_to_room(ch,pRoom);
     location_clear(&ch->recall);
@@ -4734,7 +4711,8 @@ bool is_global_mob(CHAR_DATA *mob)
 
     for (gq_mob = global_quest.mobs; gq_mob != NULL; gq_mob = gq_mob->next)
     {
-	if (mob->pIndexData->vnum == gq_mob->vnum)
+	if (mob->pIndexData->area->uid == gq_mob->wnum_load.auid &&
+		mob->pIndexData->vnum == gq_mob->wnum_load.vnum)
 	    return TRUE;
     }
 
@@ -6805,16 +6783,19 @@ void token_to_char(TOKEN_DATA *token, CHAR_DATA *ch)
 	token_to_char_ex(token, ch, SKILLSRC_SCRIPT, SKILL_AUTOMATIC);
 }
 
-TOKEN_DATA *get_token_list(LLIST *tokens, long vnum, int count)
+TOKEN_DATA *get_token_list(LLIST *tokens, TOKEN_INDEX_DATA *pTokenIndex, int count)
 {
 	TOKEN_DATA *token;
 	ITERATOR it;
+
+	if (!pTokenIndex)
+		return NULL;
 
 	count = UMAX(1,count);
 
 	iterator_start(&it, tokens);
 	while( (token = (TOKEN_DATA*)iterator_nextdata(&it)) ) {
-		if( IS_VALID(token) && token->pIndexData && token->pIndexData->vnum == vnum && !--count )
+		if( IS_VALID(token) && token->pIndexData == pTokenIndex && !--count )
 			break;
 	}
 	iterator_stop(&it);
@@ -6823,9 +6804,9 @@ TOKEN_DATA *get_token_list(LLIST *tokens, long vnum, int count)
 }
 
 /* finds a token on an object given the vnum */
-TOKEN_DATA *get_token_char(CHAR_DATA *ch, long vnum, int count)
+TOKEN_DATA *get_token_char(CHAR_DATA *ch, TOKEN_INDEX_DATA *pTokenIndex, int count)
 {
-	return get_token_list(ch->ltokens, vnum, count);
+	return get_token_list(ch->ltokens, pTokenIndex, count);
 }
 
 void token_from_obj(TOKEN_DATA *token)
@@ -6886,9 +6867,9 @@ void token_to_obj(TOKEN_DATA *token, OBJ_DATA *obj)
 
 
 /* finds a token on a char given the vnum */
-TOKEN_DATA *get_token_obj(OBJ_DATA *obj, long vnum, int count)
+TOKEN_DATA *get_token_obj(OBJ_DATA *obj, TOKEN_INDEX_DATA *pTokenIndex, int count)
 {
-	return get_token_list(obj->ltokens, vnum, count);
+	return get_token_list(obj->ltokens, pTokenIndex, count);
 }
 
 void token_from_room(TOKEN_DATA *token)
@@ -6966,9 +6947,9 @@ void token_to_room(TOKEN_DATA *token, ROOM_INDEX_DATA *room)
 
 
 /* finds a token on a char given the vnum */
-TOKEN_DATA *get_token_room(ROOM_INDEX_DATA *room, long vnum, int count)
+TOKEN_DATA *get_token_room(ROOM_INDEX_DATA *room, TOKEN_INDEX_DATA *pTokenIndex, int count)
 {
-	return get_token_list(room->ltokens, vnum, count);
+	return get_token_list(room->ltokens, pTokenIndex, count);
 }
 
 
@@ -7795,21 +7776,6 @@ void get_random_room_target(ROOM_INDEX_DATA *room, OBJ_DATA **obj, CHAR_DATA **c
 }
 
 
-// @@@REMOVEME: This function is invalid (id1 is used as a vnum and an id part)
-ROOM_INDEX_DATA *idfind_vroom(register unsigned long id1, register unsigned long id2)
-{
-	ROOM_INDEX_DATA *room;
-	room = get_room_index((long)id1);
-
-	if(!room) return NULL;
-
-	for(room = room->clones; room; room = room->next)
-		if(room->id[0] == id1 && room->id[1] == id2)
-			return room;
-
-	return NULL;
-}
-
 ROOM_INDEX_DATA *get_environment(ROOM_INDEX_DATA *room)
 {
 	if(!room) return NULL;
@@ -8598,6 +8564,18 @@ void *iterator_nextdata(ITERATOR *it)
 	return link ? link->data : NULL;
 }
 
+void iterator_setcurrent(ITERATOR *it, void *data)
+{
+	if (it && it->list && it->list->valid && it->current)
+	{
+		// Delete the current data using specific deleter if it is defined
+		if( it->list->deleter )
+			(*it->list->deleter)(it->current->data);
+		
+		it->current->data = data;
+	}
+}
+
 void iterator_remcurrent(ITERATOR *it)
 {
 	if(it && it->list && it->current && it->current->data)
@@ -8699,8 +8677,8 @@ ROOM_INDEX_DATA *location_to_room(LOCATION *loc)
 		WILDS_DATA *wilds = get_wilds_from_uid(NULL,loc->wuid);
 		if(wilds && !(room = get_wilds_vroom(wilds,loc->id[0],loc->id[1])))
 			room = create_wilds_vroom(wilds,loc->id[0],loc->id[1]);
-	} else if(loc->id[0]) {
-		room = get_room_index(loc->id[0]);
+	} else if(loc->area && loc->id[0]) {
+		room = get_room_index(loc->area, loc->id[0]);
 		if(room && (loc->id[1] || loc->id[2]))
 			room = get_clone_room(room,loc->id[1],loc->id[2]);
 	}
@@ -8716,9 +8694,9 @@ void location_from_room(LOCATION *loc, ROOM_INDEX_DATA *room)
 	if(!room)
 		location_clear(loc);
 	else if(room->wilds)
-		location_set(loc,room->wilds->uid,room->x,room->y,room->z);
+		location_set(loc,NULL,room->wilds->uid,room->x,room->y,room->z);
 	else
-		location_set(loc,0,room->vnum,room->id[0],room->id[1]);
+		location_set(loc,room->area,0,room->vnum,room->id[0],room->id[1]);
 }
 
 
@@ -8750,14 +8728,16 @@ ROOM_INDEX_DATA *get_recall_room(CHAR_DATA *ch)
 
 void location_clear(LOCATION *loc)
 {
+	loc->area = NULL;
 	loc->wuid = 0;
 	loc->id[0] = 0;
 	loc->id[1] = 0;
 	loc->id[2] = 0;
 }
 
-void location_set(LOCATION *loc, unsigned long a, unsigned long b, unsigned long c, unsigned long d)
+void location_set(LOCATION *loc, AREA_DATA *area, unsigned long a, unsigned long b, unsigned long c, unsigned long d)
 {
+	loc->area = area;
 	loc->wuid = a;
 	loc->id[0] = b;
 	loc->id[1] = c;
@@ -8912,7 +8892,7 @@ void visit_room_direction(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, int max_de
 			pVLink = vroom_get_to_vlink(dest.wilds, dest.wx, dest.wy, door);
 			if( pVLink != NULL ) {
 				if( !pVLink->pDestRoom )
-					nextdest.room = get_room_index(pVLink->destvnum);
+					nextdest.room = get_room_index_auid(pVLink->destwnum.auid, pVLink->destwnum.vnum);
 				else
 					nextdest.room = pVLink->pDestRoom;
 
@@ -8934,8 +8914,6 @@ void visit_room_direction(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, int max_de
 				nextdest.room = get_wilds_vroom(dest.wilds, to_x, to_y);
 				nextdest.wx = to_x;
 				nextdest.wy = to_y;
-
-
 			}
 		} else
 			break;
@@ -8946,15 +8924,6 @@ void visit_room_direction(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, int max_de
 			if(func)
 				canceled = (*func)(nextdest.room, ch, depth, door, data);
 
-/*
-			else {
-				if( nextdest.room->wilds )
-					printf_to_char(ch, "visit: depth = %d, door = %d, Wilds = <%ld, %d, %d>\n\r", depth, door, nextdest.room->wilds->uid, nextdest.room->x, nextdest.room->y);
-				else
-					printf_to_char(ch, "visit: depth = %d, door = %d, Room = <%ld>\n\r", depth, door, nextdest.room->vnum);
-			}*/
-		} else {
-//			printf_to_char(ch, "visit: depth = %d, door = %d, Unloaded Wilds = <%d, %d>\n\r", depth, door, nextdest.wx, nextdest.wy);
 		}
 
 		dest.room =		nextdest.room;
@@ -8965,87 +8934,6 @@ void visit_room_direction(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, int max_de
 
 	if( end_func && dest.room )
 		(*end_func)(dest.room, ch, depth - 1, door, data, canceled);
-
-
-/*
-
-	for( depth = 1; depth < max_depth; depth++) {
-		last_room = dest.room;
-
-		if( pVLink != NULL ) {
-			// TODO: VLINKS need FROM-WILD side exit flags
-
-			// Hidden exits that haven't been found
-			// Closed exits
-
-			// No room there actually!
-			if( !pVLink->pDestRoom )
-				dest.room = get_room_index(pVLink->destvnum);
-			else
-				dest.room = pVLink->pDestRoom;
-
-			if(!dest.room) {
-
-				break;
-			}
-
-			(*func)(dest.room, ch, depth, door, data);
-
-
-			pVLink = NULL;
-
-		} else if( dest.room ) {
-			// We have an actual room (static, clone or existing wilds)
-			if ((pExit = dest.room->exit[door])) {
-				// Hidden exits that haven't been found
-				if(IS_SET(pExit->exit_info,EX_HIDDEN) && !IS_SET(pExit->exit_info,EX_FOUND))
-					break;
-
-				// Closed exits
-				if(IS_SET(pExit->exit_info, EX_CLOSED))
-					break;
-
-				if(!exit_destination_data(pExit, &dest))
-					break;
-
-				// We have an actual room
-				if(dest.room)
-					(*func)(dest.room, ch, depth, door, data);
-			} else
-				break;
-
-		} else if(dest.wilds) {
-			// We have a wilds location, the room has not been loaded
-
-			pVLink = vroom_get_to_vlink(dest.wilds, dest.wx, dest.wy, door);
-			if( pVLink != NULL ) {
-				continue;
-
-			} else {
-				to_x = get_wilds_vroom_x_by_dir(dest.wilds, dest.wx, dest.wy, door);
-				to_y = get_wilds_vroom_y_by_dir(dest.wilds, dest.wx, dest.wy, door);
-
-				// Nothing here to reach, so stop
-				if( !check_for_bad_room(dest.wilds, to_x, to_y) )
-					break;
-
-				dest.room = get_wilds_vroom(dest.wilds, to_x, to_y);
-				dest.wx = to_x;
-				dest.wy = to_y;
-
-				if(dest.room) {
-					(*func)(dest.room, ch, depth, door, data);
-				}
-
-			}
-		} else
-			break;
-
-	}
-
-	if( end_func && last_room )
-		(*end_func)(last_room, ch, depth, door, data);
-*/
 }
 
 
@@ -9292,7 +9180,7 @@ bool lockstate_functional(LOCK_STATE *lock)
 		return true;
 	}
 
-	if( lock->key_vnum > 0 )
+	if( lock->key_wnum.pArea && lock->key_wnum.vnum > 0 )
 	{
 		return true;
 	}
@@ -9335,14 +9223,14 @@ OBJ_DATA *lockstate_getkey(CHAR_DATA *ch, LOCK_STATE *lock)
 		return obj;
 	}
 
-	if( lock->key_vnum > 0 )
+	if( lock->key_wnum.pArea && lock->key_wnum.vnum > 0 )
 	{
 		OBJ_DATA *obj;
 		OBJ_DATA *key;
 
 		for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
 		{
-			if (obj->pIndexData->vnum == lock->key_vnum)
+			if (wnum_match_obj(lock->key_wnum, obj))
 				return obj;
 		}
 
@@ -9353,7 +9241,7 @@ OBJ_DATA *lockstate_getkey(CHAR_DATA *ch, LOCK_STATE *lock)
 			{
 				for (key = obj->contains; key != NULL; key = key->next_content)
 				{
-					if (key->pIndexData->vnum == lock->key_vnum)
+					if (wnum_match_obj(lock->key_wnum, key))
 						return key;
 				}
 			}
@@ -9365,7 +9253,32 @@ OBJ_DATA *lockstate_getkey(CHAR_DATA *ch, LOCK_STATE *lock)
 	return NULL;
 }
 
-SPECIAL_KEY_DATA *get_special_key(LLIST *list, long vnum)
+bool lockstate_iskey(LOCK_STATE *lock, OBJ_DATA *key)
+{
+	if( !lock || !IS_VALID(key) ) return FALSE;
+
+	if( IS_VALID(lock->keys) )
+	{
+		LLIST_UID_DATA *luid;
+
+		ITERATOR it;
+		iterator_start(&it, lock->keys);
+		while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
+		{
+			if (luid->ptr == key)
+			{
+				return TRUE;
+			}
+		}
+		iterator_stop(&it);
+
+		return FALSE;
+	}
+
+	return wnum_match_obj(lock->key_wnum, key);
+}
+
+SPECIAL_KEY_DATA *get_special_key(LLIST *list, WNUM wnum)
 {
 	ITERATOR it;
 	SPECIAL_KEY_DATA *sk;
@@ -9375,7 +9288,7 @@ SPECIAL_KEY_DATA *get_special_key(LLIST *list, long vnum)
 	iterator_start(&it, list);
 	while( (sk = (SPECIAL_KEY_DATA *)iterator_nextdata(&it)) )
 	{
-		if( sk->key_vnum == vnum)
+		if( sk->key_wnum.pArea == wnum.pArea && sk->key_wnum.vnum == wnum.vnum)
 			break;
 	}
 	iterator_stop(&it);
@@ -9392,7 +9305,7 @@ void extract_special_key(OBJ_DATA *obj)
 	iterator_start(&skit, loaded_special_keys);
 	while( (sk = (SPECIAL_KEY_DATA *)iterator_nextdata(&skit)) )
 	{
-		if( sk->key_vnum == obj->pIndexData->vnum)
+		if( wnum_match_obj(sk->key_wnum, obj) )
 		{
 			iterator_start(&kit, sk->list);
 			while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&kit)) )
@@ -9419,7 +9332,7 @@ void resolve_special_key(OBJ_DATA *obj)
 	iterator_start(&skit, loaded_special_keys);
 	while( (sk = (SPECIAL_KEY_DATA *)iterator_nextdata(&skit)) )
 	{
-		if( sk->key_vnum == obj->pIndexData->vnum)
+		if( wnum_match_obj(sk->key_wnum, obj) )
 		{
 			iterator_start(&kit, sk->list);
 			while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&kit)) )
@@ -9431,7 +9344,6 @@ void resolve_special_key(OBJ_DATA *obj)
 				}
 			}
 			iterator_stop(&kit);
-
 		}
 	}
 	iterator_stop(&skit);
@@ -9451,4 +9363,109 @@ char *get_article(char *text, bool upper)
 
 	return upper ? "A" : "a";
 
+}
+
+// Determines which area the old vnum resides.
+AREA_DATA *convert_vnum_to_widevnum(long vnum)
+{
+	AREA_DATA *pArea;
+
+	for (pArea = area_first; pArea; pArea = pArea->next)
+	{
+		if (vnum >= pArea->min_vnum && vnum <= pArea->max_vnum)
+		{
+			return pArea;
+		}
+	}
+
+	return NULL;
+}
+
+bool parse_widevnum(char *text, WNUM *pWnum)
+{
+	char left[MIL];
+	int ileft = 0;
+	while (*text && *text != '#')
+	{
+		left[ileft++] = *text++;
+	}
+	left[ileft] = '\0';
+
+	if (*text != '#') return FALSE;
+	++text;
+
+	// In case it's [SOMETHING]# and nothing else
+	if (!*text) return FALSE;
+
+	if (!is_number(text)) return FALSE;
+
+	if (is_number(left))
+	{
+		long auid = atol(left);
+		pWnum->pArea = get_area_from_uid(auid);
+		if (!pWnum->pArea) return FALSE;
+	}
+	else if (left[0] == '\0')
+	{
+		pWnum->pArea = NULL;	// Indicates #VNUM
+	}
+	else
+	{
+		pWnum->pArea = find_area(left);
+		if (!pWnum->pArea) return FALSE;
+	}
+
+	pWnum->vnum = atol(text);
+	return TRUE;
+}
+
+bool wnum_match(WNUM wnum, AREA_DATA *area, long vnum)
+{
+	if (!area || vnum < 1) return FALSE;
+
+	return wnum.pArea == area && wnum.vnum == vnum;
+}
+
+bool wnum_match_room(WNUM wnum, ROOM_INDEX_DATA *room)
+{
+	if (!room) return FALSE;
+	if (!room->area || room->vnum < 1) return FALSE;
+	if (room->source) return FALSE;	// Clone rooms will not match, use room->source
+
+	return wnum.pArea == room->area && wnum.vnum == room->vnum;
+}
+
+bool wnum_match_obj(WNUM wnum, OBJ_DATA *obj)
+{
+	if (!IS_VALID(obj)) return FALSE;
+	if (!obj->pIndexData) return FALSE;
+	if (!obj->pIndexData->area || obj->pIndexData->vnum < 1) return FALSE;
+
+	return obj->pIndexData->area == wnum.pArea && obj->pIndexData->vnum == wnum.vnum;
+}
+
+bool wnum_match_mob(WNUM wnum, CHAR_DATA *ch)
+{
+	if (!IS_VALID(ch) || !IS_NPC(ch)) return FALSE;
+	if (!ch->pIndexData) return FALSE;
+	if (!ch->pIndexData->area || ch->pIndexData->vnum < 1) return FALSE;
+
+	return ch->pIndexData->area == wnum.pArea && ch->pIndexData->vnum == wnum.vnum;
+}
+
+void get_room_wnum(ROOM_INDEX_DATA *room, WNUM *wnum)
+{
+	if (wnum) 
+	{
+		if (room)
+		{
+			wnum->pArea = room->area;
+			wnum->vnum = room->vnum;
+		}
+		else
+		{
+			wnum->pArea = NULL;
+			wnum->vnum = 0;
+		}
+	}
 }

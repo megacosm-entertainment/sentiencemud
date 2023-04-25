@@ -633,7 +633,7 @@ SPELL_FUNC(spell_room_shield)
 	else if(catalyst < 0)
 		catalyst = 10;
 
-	roomshield = create_object(get_obj_index(OBJ_VNUM_ROOMSHIELD), 0, TRUE);
+	roomshield = create_object(obj_index_roomshield, 0, TRUE);
 	roomshield->timer = 3 + ((3 * catalyst * catalyst + 1) / 4);
 	roomshield->level = ch->tot_level;
 	roomshield->owner = str_dup(ch->name);

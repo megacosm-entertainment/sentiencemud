@@ -169,16 +169,14 @@ void global_reset( void )
 	{
 	    OBJ_DATA *obj;
 
-	    if ( gq_mob->class == 1
-	    && gq_mob->count + 1 > 50 )
-		continue;
+	    if ( gq_mob->class == 1 && gq_mob->count + 1 > 50 )
+			continue;
 
-	    ch = create_mobile(get_mob_index(gq_mob->vnum), FALSE);
-	    if ( gq_mob->obj != 0 )
+	    ch = create_mobile(get_mob_index_auid(gq_mob->wnum_load.auid, gq_mob->wnum_load.vnum), FALSE);
+	    if ( gq_mob->obj_load.auid > 0 && gq_mob->obj_load.vnum > 0 )
 	    {
-		obj = create_object( get_obj_index( gq_mob->obj ),
-			get_obj_index( gq_mob->obj )->level,
-			FALSE);
+			OBJ_INDEX_DATA *obj_index = get_obj_index_auid( gq_mob->obj_load.auid, gq_mob->obj_load.vnum );
+		obj = create_object( obj_index, obj_index->level, FALSE);
 		obj_to_char(obj, ch);
 	    }
 
@@ -201,7 +199,7 @@ void global_reset( void )
 
 	    if ( number_percent() < gq_obj->repop )
 	    {
-		obj = create_object(get_obj_index(gq_obj->vnum), 1, FALSE);
+		obj = create_object(get_obj_index_auid(gq_obj->wnum_load.auid, gq_obj->wnum_load.vnum), 1, FALSE);
 		obj_to_room( obj, room );
 	    }
 	}
@@ -383,7 +381,7 @@ OBJ_DATA *get_random_obj_area( CHAR_DATA *ch, AREA_DATA *area, ROOM_INDEX_DATA *
 
     for (tries = 0; tries < 200; tries++)
     {
-		oIndex = get_obj_index( number_range( area->min_vnum, area->max_vnum));
+		oIndex = get_obj_index( area, number_range( 1, area->top_vnum_obj));
 		if ( oIndex == NULL )
 			continue;
 
@@ -441,11 +439,12 @@ CHAR_DATA *get_random_mob_area( CHAR_DATA *ch, AREA_DATA *area)
     for (attempts = 0; attempts < 1000; attempts++)
     {
         /* grab a pIndexData first to increase diversity */
-	mIndex = get_mob_index( number_range( area->min_vnum, area->max_vnum));
+	mIndex = get_mob_index( area, number_range(1, area->top_vnum_mob));
+
 	first_vnum = area->min_vnum;
 	do
 	{
-	    first_room = get_room_index( first_vnum++ );
+	    first_room = get_room_index( area, first_vnum++ );
 	}
 	while ( first_room == NULL );
 
@@ -574,7 +573,7 @@ ROOM_INDEX_DATA *get_random_room_area_byflags( CHAR_DATA *ch, AREA_DATA *area, i
 
 	for ( ; ; )
 	{
-		room = get_room_index( number_range( area->min_vnum, area->max_vnum));
+		room = get_room_index(area, number_range(1, area->top_room));
 		if( valid_random_room(ch, room, n_room_flags, n_room2_flags) )
 			break;
 	}
@@ -828,189 +827,6 @@ void fix_short_description( char *short_descr )
     }
 }
 
-#if 0
-void load_npc_ships()
-{
-    FILE *fp;
-    WAYPOINT_DATA *waypoint;
-    MOB_INDEX_DATA *pMob;
-    NPC_SHIP_INDEX_DATA *npc_ship = NULL;
-    char buf[256];
-    char letter;
-
-    log_string("db2.c, Loading npc ships...");
-    if ( ( fp = fopen( NPC_SHIPS_FILE, "r" ) ) == NULL )
-    {
-        exit( 1 );
-    }
-
-    letter                          = fread_letter( fp );
-
-    if ( letter != '#' )
-    {
-        bug( "Load_Npc_Ships: # not found.", 0 );
-        exit( 1 );
-    }
-
-    for ( ; ; )
-    {
-        long vnum;
-        long captain_vnum;
-        char letter2;
-        int iHash;
-
-        vnum                            = fread_number( fp );
-        if ( vnum == 0 )
-            break;
-
-        if ( get_npc_ship_index( vnum ) != NULL )
-        {
-            bug( "Load_Npc_Ships: vnum %ld duplicated.", vnum );
-            exit( 1 );
-        }
-
-	npc_ship        = new_npc_ship_index();
-	npc_ship->vnum  = vnum;
-	captain_vnum 	= fread_number( fp );
-	if (captain_vnum != 0)
-	{
-            npc_ship->captain		= get_mob_index( captain_vnum );
-	}
-	else
-	{
-	    npc_ship->captain		= NULL;
-	}
-
-	npc_ship->name              = fread_string( fp );
-	npc_ship->flag              = fread_string( fp );
-	npc_ship->gold              = fread_number( fp );
-
-	npc_ship->ship_type         = fread_number( fp );
-	npc_ship->npc_type          = fread_number( fp );
-    npc_ship->npc_sub_type      = fread_number( fp );
-	npc_ship->original_x        = fread_number( fp );
-	npc_ship->original_y        = fread_number( fp );
-	npc_ship->area	      	    = fread_string( fp );
-	npc_ship->ships_destroyed   = fread_number( fp );
-	npc_ship->plunder_captured  = fread_number( fp );
-	npc_ship->current_name      = fread_string( fp );
-	//npc_ship->chance_repop      = fread_number( fp );
-	fread_letter(fp);
-	npc_ship->initial_ships_destroyed      = fread_number( fp );
-
-	if (npc_ship->ships_destroyed == 0) {
-	    npc_ship->ships_destroyed = npc_ship->initial_ships_destroyed;
-	}
-
-	for ( ; ; )
-	{
-   	    letter2 = fread_letter( fp );
-
-	    if ( letter2 == '#' )
-	    {
-	        break;
-            }
-
-	    // Load Waypoint
-	    if ( letter2 == 'W' )
-	    {
-	        waypoint = new_waypoint();
-		waypoint->x = fread_number( fp );
-		waypoint->y = fread_number( fp );
-		waypoint->hour = fread_number( fp );
-		waypoint->day = fread_number( fp );
-		waypoint->month = fread_number( fp );
-
-		// Add waypoint
-		if ( npc_ship->waypoint_list == NULL )
-		{
-			npc_ship->waypoint_list = waypoint;
-		}
-		else
-		{
-		    WAYPOINT_DATA *temp;
-		    temp = npc_ship->waypoint_list;
-		    while(temp->next != NULL)
-		    {
-		        temp = temp->next;
-		    }
-		    temp->next = waypoint;
-		}
-		continue;
-	    }
-
-		// Load Cargo
-	    if ( letter2 == 'G' )
-	    {
-		    long obj_vnum;
-			OBJ_DATA *pObj;
-			OBJ_INDEX_DATA *pObjIndex;
-		    obj_vnum = fread_number( fp );
-		    log_string( "loading cargo" );
-
-		    sprintf(buf, "Letter was %c       obj vnum was %ld\n", letter, obj_vnum);
-		    log_string(buf);
-		    if ( (pObjIndex = get_obj_index( obj_vnum) ) == NULL)
-		    {
-			    bug("Couldn't load cargo object for npc_ship because cargo object does not exist.", obj_vnum);
-			    continue;
-		    }
-
-			// Add cargo object to npc ship index.
-			pObj = create_object( pObjIndex, pObjIndex->level, FALSE );
-			pObj->next_content = npc_ship->cargo;
-			npc_ship->cargo = pObj;
-			continue;
-		}
-
-	    // Load Crew
-	    log_string( "about to load crew" );
-	    sprintf( buf, "%c", letter2 );
-	    log_string( buf );
-
-	    if ( letter2 == 'C' )
-	    {
-		    long mob_vnum;
-		    SHIP_CREW_DATA *crew;
-		    mob_vnum = fread_number( fp );
-		    log_string( "loading crew" );
-
-		    sprintf(buf, "Letter was %c         num was %ld\n", letter, mob_vnum);
-		    log_string(buf);
-		    if ( (pMob = get_mob_index( mob_vnum )) == NULL)
-		    {
-			    bug("Couldn't load crew member for npc_ship because mob does not exist.", 0);
-			    continue;
-		    }
-
-		    crew = new_ship_crew();
-		    crew->vnum = pMob->vnum;
-
-		    // Add mob
-		    if ( !npc_ship->crew )
-		    {
-			    npc_ship->crew = crew;
-		    }
-		    else
-		    {
-			    crew->next = npc_ship->crew;
-			    npc_ship->crew = crew;
-		    }
-		    continue;
-	    }
-	}
-
-	if ( vnum > top_vnum_npc_ship )
-		top_vnum_npc_ship = vnum;
-
-	iHash                       = vnum % MAX_KEY_HASH;
-	npc_ship->next              = ship_index_hash[iHash];
-	ship_index_hash[iHash]      = npc_ship;
-    }
-    fclose( fp );
-    return;
-}
-#endif
 
 void do_dump( CHAR_DATA *ch, char *argument )
 {
@@ -1070,8 +886,10 @@ void do_dump( CHAR_DATA *ch, char *argument )
 		    "Mod1	Mod2	Mod3	Mod4	Mod5	Mod6	Mod7	Mod8	Mod9	Mod10"
 		    "\n");
 
+	AREA_DATA *area;
+	for( area = area_first; area; area = area->next )
 	for ( vnum = 0; vnum < MAX_KEY_HASH; vnum++) {
-		for (obj = obj_index_hash[vnum % MAX_KEY_HASH]; obj != NULL; obj = obj->next) {
+		for (obj = area->obj_index_hash[vnum]; obj != NULL; obj = obj->next) {
 			int numAffects = 0;
 
 			if (obj->level > 0 && obj->level <= 120) {
@@ -1136,15 +954,7 @@ void do_dump( CHAR_DATA *ch, char *argument )
 					fprintf(fp, "-1	N/A	N/A	");
 				}
 
-				//Container attributes
-				if (obj->item_type == ITEM_CONTAINER) {
-					OBJ_INDEX_DATA *key = get_obj_index(obj->value[2]);
-					fprintf(fp, "%s[%ld]	%ld	%ld	%s	", key == NULL ? "None" : key->short_descr,
-						key == NULL ? 0 : key->vnum, obj->value[3],
-					obj->value[4], flag_string( container_flags, obj->value[1] ));
-				} else {
-					fprintf(fp, "N/A	N/A	N/A	N/A ");
-				}
+				// TODO: put LOcKSTATE info
 
 				fprintf( fp, "%s	", extra_bit_name(obj->extra_flags));
 				fprintf( fp, "%s	", extra2_bit_name(obj->extra2_flags));
@@ -1344,87 +1154,6 @@ void load_stat( char *filename, int type )
 }
 
 
-// Generate the resets in the Pyramid of the Abyss. This is here
-// so we can edit the areas dynamically just like real areas and the
-// resets will be set up.
-void generate_poa_resets( int level )
-{
-    AREA_DATA *area;
-    ROOM_INDEX_DATA *room;
-    RESET_DATA *reset;
-    int i;
-    long vnum;
-    char buf[MSL];
-
-    if ( level == -1 )
-    {
-	for ( i = 1; i <= MAX_POA_LEVELS; i++ )
-	{
-	    generate_poa_resets( i );
-	}
-
-	return;
-    }
-
-    sprintf( buf, "Maze-Level%d", level );
-
-    if ( ( area = find_area( buf)) == NULL )
-    {
-	bug("generate_poa_resets: couldn't find area for level %d.", level );
-	return;
-    }
-
-    vnum = area->min_vnum;
-    while ( vnum <= area->max_vnum )
-    {
-	int num_resets;
-	int count = 0;
-
-	if ( ( room = get_room_index( vnum)) == NULL )
-	    continue;
-
-	// Decide on # resets per room. Not hugely necesarry now but may be
-	// more when we add more mobs/levels.
-	switch ( level )
-	{
-	    case 1:  num_resets = 2; break;
-	    case 2:  num_resets = 2; break;
-	    case 3:  num_resets = 2; break;
-	    case 4:  num_resets = 2; break;
-	    case 5:  num_resets = 2; break;
-	    default: num_resets = 2; break;
-	}
-
-	while ( count++ < num_resets )
-	{
-	    MOB_INDEX_DATA *mob;
-
-	    do
-		mob = get_random_mob_index( area );
-	    while ( mob == NULL );
-
-	    reset = new_reset_data();
-	    reset->command = 'M';
-	    reset->arg1    = mob->vnum; // Mob vnum
-	    if ( IS_SET( mob->act2, ACT2_RESET_ONCE )
-            || mob->vnum == area->max_vnum )
-		reset->arg2 = 1;
-	    else
-	    switch ( level )
-	    {
-		case 1: reset->arg2 = 15; break;
-		case 2: reset->arg2 = 25; break;
-		case 3: reset->arg2 = 35; break;
-		case 4: reset->arg2 = 45; break;
-		case 5: reset->arg2 = 55; break;
-	    }
-	    reset->arg3    = room->vnum;
-	    reset->arg4    = 1;
-	    add_reset( room, reset, 0 );
-	}
-	vnum++;
-    }
-}
 
 
 // Get random mob_index from an area. Usually for POA and the like.
@@ -1436,7 +1165,7 @@ MOB_INDEX_DATA *get_random_mob_index( AREA_DATA *area )
 
     do
     {
-	mob = get_mob_index( number_range( area->min_vnum, area->max_vnum));
+	mob = get_mob_index( area, number_range( 1, area->top_vnum_mob));
     }
     while ( mob == NULL && i++ < attempts );
 

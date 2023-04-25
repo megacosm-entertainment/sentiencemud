@@ -36,8 +36,8 @@
 extern bool fBootDb;
 extern long		newmobs;
 extern long		newobjs;
-extern MOB_INDEX_DATA 	* mob_index_hash          [MAX_KEY_HASH];
-extern OBJ_INDEX_DATA 	* obj_index_hash          [MAX_KEY_HASH];
+//extern MOB_INDEX_DATA 	* mob_index_hash          [MAX_KEY_HASH];
+//extern OBJ_INDEX_DATA 	* obj_index_hash          [MAX_KEY_HASH];
 extern long		top_mob_index;
 extern long		top_obj_index;
 extern long 		top_affect;

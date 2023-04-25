@@ -208,7 +208,7 @@ void do_chat_enter(CHAR_DATA *ch, char *argument)
     ch->manastore = 0;
 
     char_from_room(ch);
-    char_to_room(ch, get_room_index(ROOM_VNUM_CHAT));
+    char_to_room(ch, room_index_chat);
 
     SET_BIT(ch->comm, COMM_SOCIAL);
 }
@@ -232,7 +232,7 @@ void do_chat_exit(CHAR_DATA *ch, char *argument)
 	sprintf(buf, "do_chat_exit: before_social room was null!");
 	bug(buf, 0);
 
-	room = get_room_index(ROOM_VNUM_TEMPLE);
+	room = room_index_temple;
 
 	REMOVE_BIT(ch->comm, COMM_SOCIAL);
 
@@ -344,7 +344,7 @@ void do_chat_join(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    room = get_room_index(chat->vnum);
+    room = get_room_index(area_chat, chat->vnum);
     if (room == NULL)
     {
 	sprintf(buf, "do_chat_join: %s, %s had null chat->vnum\n\r",
@@ -875,7 +875,7 @@ void do_chat_kick(CHAR_DATA *ch, char *argument)
 		return;
     }
 
-    to_room = get_room_index(ROOM_VNUM_CHAT);
+    to_room = room_index_chat;
     sprintf(buf, "{YYou kick %s out of #%s.{x",
 	    ch == victim ? "yourself" : "$N",
 	    ch->in_room->chat_room->name);
@@ -1272,7 +1272,7 @@ void read_chat_rooms()
 	    }
 	}
 
-	room = get_room_index(chat->vnum);
+	room = get_room_index(area_chat, chat->vnum);
 
 	if (room == NULL)
 	{

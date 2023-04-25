@@ -51,7 +51,7 @@ void do_deposit(CHAR_DATA *ch, char *argument)
 	    for (gq_obj = global_quest.objects; gq_obj != NULL;
 		    gq_obj = gq_obj->next)
 	    {
-		if (obj->pIndexData->vnum == gq_obj->vnum)
+		if (obj->pIndexData->area->uid == gq_obj->wnum_load.auid && obj->pIndexData->vnum == gq_obj->wnum_load.vnum)
 		{
 		    found = TRUE;
 		    qp += gq_obj->qp_reward;
@@ -142,161 +142,6 @@ void do_deposit(CHAR_DATA *ch, char *argument)
 	send_to_char("You don't have any bottled souls to deposit.\n\r", ch);
 }
 
-
-void do_besteq(CHAR_DATA *ch, char *argument)
-{
-    char buf[MAX_STRING_LENGTH];
-    char arg[MAX_INPUT_LENGTH];
-    OBJ_INDEX_DATA *obj;
-    int number2 = 0;
-    int level = 0;
-    OBJ_INDEX_DATA *best_sword = NULL;
-    OBJ_INDEX_DATA *best_dagger = NULL;
-    OBJ_INDEX_DATA *best_polearm = NULL;
-    OBJ_INDEX_DATA *best_axe = NULL;
-    OBJ_INDEX_DATA *best_exotic = NULL;
-
-    argument = one_argument(argument, arg);
-
-    if (!is_number(arg))
-    {
-	send_to_char("What level weapon are you look for?\n\r", ch);
-	return;
-    }
-
-    level = atoi(arg);
-
-    for (number2 = 0; number2 < 100000; number2++)
-    {
-	obj = get_obj_index((long) number2);
-
-	if (obj == NULL)
-	    continue;
-	else
-	{
-	    if (obj->level != level)
-		continue;
-
-	    if (obj->item_type != ITEM_WEAPON)
-		continue;
-
-	    if (obj->value[0] == WEAPON_DAGGER)
-	    {
-		if (best_dagger == NULL)
-		{
-		    best_dagger = obj;
-		    continue;
-		}
-
-		if (((1 + obj->value[2]) * obj->value[1] / 2) > ((1 + best_dagger->value[2]) * best_dagger->value[1] / 2))
-		    best_dagger = obj;
-	    }
-
-	    if (obj->value[0] == WEAPON_AXE)
-	    {
-		if (best_axe == NULL)
-		{
-		    best_axe = obj;
-		    continue;
-		}
-
-		if (((1 + obj->value[2]) * obj->value[1] / 2) > ((1 + best_axe->value[2]) * best_axe->value[1] / 2))
-		{
-		    best_axe = obj;
-		}
-	    }
-
-	    if (obj->value[0] == WEAPON_POLEARM)
-	    {
-		if (best_polearm == NULL)
-		{
-		    best_polearm = obj;
-		    continue;
-		}
-
-		if (((1 + obj->value[2]) * obj->value[1] / 2) > ((1 + best_polearm->value[2]) * best_polearm->value[1] / 2))
-		{
-		    best_polearm = obj;
-		}
-	    }
-
-	    if (obj->value[0] == WEAPON_SWORD)
-	    {
-		if (best_sword == NULL)
-		{
-		    best_sword = obj;
-		    continue;
-		}
-
-		if (((1 + obj->value[2]) * obj->value[1] / 2) > ((1 + best_sword->value[2]) * best_sword->value[1] / 2))
-		{
-		    best_sword = obj;
-		}
-	    }
-
-	    if (obj->value[0] == WEAPON_EXOTIC)
-	    {
-		if (best_exotic == NULL)
-		{
-		    best_exotic = obj;
-		    continue;
-		}
-
-		if (((1 + obj->value[2]) * obj->value[1] / 2) > ((1 + best_exotic->value[2]) * best_exotic->value[1] / 2))
-		{
-		    best_exotic = obj;
-		}
-	    }
-	}
-    }
-
-    send_to_char("{GThe weapons are:{x\n\r", ch);
-
-    if (best_dagger != NULL)
-    {
-	sprintf(buf,"{WDAGGER {xThe weapon {G%s{x (vnum {Y%ld{x) has damage is {G%ld{xd{G%ld {M(average {Y%ld{M).\n\r{x",
-		best_dagger->short_descr, best_dagger->vnum,
-		best_dagger->value[1],best_dagger->value[2],
-		(1 + best_dagger->value[2]) * best_dagger->value[1] / 2);
-	send_to_char(buf, ch);
-    }
-
-    if (best_sword != NULL)
-    {
-	sprintf(buf,"{WSWORD {xThe weapon {G%s{x (vnum {Y%ld{x) has damage is {G%ld{xd{G%ld {M(average {Y%ld{M).\n\r{x",
-		best_sword->short_descr, best_sword->vnum,
-		best_sword->value[1],best_sword->value[2],
-		(1 + best_sword->value[2]) * best_sword->value[1] / 2);
-	send_to_char(buf, ch);
-    }
-
-    if (best_axe != NULL)
-    {
-	sprintf(buf,"{WAXE   {xThe weapon {G%s{x (vnum {Y%ld{x) has damage is {G%ld{xd{G%ld {M(average {Y%ld{M).\n\r{x",
-		best_axe->short_descr, best_axe->vnum,
-		best_axe->value[1],best_axe->value[2],
-		(1 + best_axe->value[2]) * best_axe->value[1] / 2);
-	send_to_char(buf, ch);
-    }
-
-    if (best_polearm != NULL)
-    {
-	sprintf(buf,"{WPOLEARM {xThe weapon {G%s{x (vnum {Y%ld{x) has damage is {G%ld{xd{G%ld {M(average {Y%ld{M).\n\r{x",
-		best_polearm->short_descr, best_polearm->vnum,
-		best_polearm->value[1],best_polearm->value[2],
-		(1 + best_polearm->value[2]) * best_polearm->value[1] / 2);
-	send_to_char(buf, ch);
-    }
-
-    if (best_exotic != NULL)
-    {
-	sprintf(buf,"{WEXOTIC {xThe weapon {G%s{x (vnum {Y%ld{x) has damage is {G%ld{xd{G%ld {M(average {Y%ld{M).\n\r{x",
-		best_exotic->short_descr, best_exotic->vnum,
-		best_exotic->value[1],best_exotic->value[2],
-		(1 + best_exotic->value[2]) * best_exotic->value[1] / 2);
-	send_to_char(buf, ch);
-    }
-}
 
 
 /* could be used for various things in the future, atm just for crystal hammers*/
@@ -492,8 +337,12 @@ void do_lore(CHAR_DATA *ch, char *argument)
 	"I have searched through my studies and books\n\r"
 	"and have found the following items pertaining to your\n\r"
 	"inquiry:\n\r\n\r");
-    for (objIndex = obj_index_hash[iHash]; iHash <= MAX_KEY_HASH;
-          objIndex = obj_index_hash[iHash++])
+
+	// TODO: THIS NEEDS TO BE REDONE ENTIRELY
+	AREA_DATA *pArea;
+	for (pArea = area_first; pArea; pArea = pArea->next)
+    for (objIndex = pArea->obj_index_hash[iHash]; iHash <= MAX_KEY_HASH;
+          objIndex = pArea->obj_index_hash[iHash++])
     {
 	if (i >= 10)
 	    break;
@@ -555,7 +404,7 @@ void do_lore(CHAR_DATA *ch, char *argument)
     sprintf(buf2, "\n\rThank you for your business.\n\r\n\rSigned, {m%s{x.", mob->short_descr);
     strcat(buf, buf2);
 
-    scroll = create_object(get_obj_index(OBJ_VNUM_BLANK_SCROLL), 1, FALSE);
+    scroll = create_object(obj_index_blank_scroll, 1, FALSE);
     free_string(scroll->name);
     free_string(scroll->short_descr);
     free_string(scroll->description);
@@ -1208,7 +1057,7 @@ void ink_end( CHAR_DATA *ch, CHAR_DATA *victim, sh_int loc, sh_int sn, sh_int sn
 
     check_improve(ch, gsn_tattoo, TRUE, 2);
 
-    tattoo = create_object(get_obj_index(OBJ_VNUM_EMPTY_TATTOO), 1, FALSE);
+    tattoo = create_object(obj_index_empty_tattoo, 1, FALSE);
 
     free_string(tattoo->name);
     tattoo->name = str_dup("tattoo");

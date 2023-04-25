@@ -1831,10 +1831,6 @@ const struct flag_type portal_flags[]=
     {   "buggy",			GATE_BUGGY,			TRUE	},
     {   "go_with",			GATE_GOWITH,		TRUE	},
     {   "normal_exit",		GATE_NORMAL_EXIT,	TRUE	},
-    {   "dungeon",			GATE_DUNGEON,	TRUE	},
-    {   "dungeonrandom",	GATE_DUNGEONRANDOM,	TRUE	},
-    {   "instancerandom",	GATE_INSTANCERANDOM,	TRUE	},
-    {   "sectionrandom",	GATE_SECTIONRANDOM,	TRUE	},
     {   NULL,		0,			0	}
 };
 
@@ -2864,3 +2860,22 @@ const struct flag_type ship_flags[] =
 	{ NULL,				0,						FALSE	}
 };
 
+const struct flag_type portal_gatetype[] =
+{
+    { "arearandom",     GATETYPE_AREARANDOM,			TRUE	},
+    { "arearecall",     GATETYPE_AREARECALL,			TRUE	},
+    { "dungeon",        GATETYPE_DUNGEON,   			TRUE	},
+    { "dungeonfloor",   GATETYPE_DUNGEONFLOOR,          TRUE    },
+    { "dungeonrandom",  GATETYPE_DUNGEONRANDOM,			TRUE	},
+    { "environment",    GATETYPE_ENVIRONMENT,			TRUE	},
+    { "instance",       GATETYPE_INSTANCE,      		FALSE	},  // TODO: NYI
+    { "instancerandom", GATETYPE_INSTANCERANDOM,		TRUE	},
+    { "normal",         GATETYPE_NORMAL,		    	TRUE	},
+    { "random",         GATETYPE_RANDOM,                TRUE    },
+    { "regionrandom",   GATETYPE_REGIONRANDOM,          FALSE   },  // TODO: NYI
+    { "regionrecall",   GATETYPE_REGIONRECALL,			FALSE	},  // TODO: NYI
+    { "sectionrandom",  GATETYPE_SECTIONRANDOM,			TRUE	},
+    { "wilds",          GATETYPE_WILDS,		    	    TRUE	},
+    { "wildsrandom",    GATETYPE_WILDSRANDOM,           TRUE    },
+    { NULL,             0,                              FALSE   }
+};

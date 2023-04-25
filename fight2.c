@@ -435,13 +435,13 @@ memset(&af,0,sizeof(af));
 	if (IS_SLAYER(ch))
 	{
 	    ch->shifted = SHIFTED_SLAYER;
-	    pMob = IS_REMORT(ch) ? get_mob_index(MOB_VNUM_CHANGELING) : get_mob_index(MOB_VNUM_SLAYER);
+	    pMob = IS_REMORT(ch) ? mob_index_changeling : mob_index_slayer;
 	    ch->affected_by |= race_table[pMob->race].aff;
 	}
 	else
 	{
             ch->shifted = SHIFTED_WEREWOLF;
-	    pMob = get_mob_index(MOB_VNUM_WEREWOLF);
+	    pMob = mob_index_werewolf;
 	    ch->affected_by |= race_table[pMob->race].aff;
 	}
 

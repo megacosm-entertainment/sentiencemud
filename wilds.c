@@ -791,9 +791,9 @@ WILDS_VLINK *fread_vlink(FILE *fp)
                     pVLink->current_linkage = VLINK_UNLINKED;
                 }
                 else
-                if (!str_cmp(word, "Destvnum"))
-                    pVLink->destvnum = fread_number (fp);
-                else
+                if (!str_cmp(word, "Destvnum")) {
+                    pVLink->destwnum = fread_widevnum (fp);
+                } else
                 if (!str_cmp(word, "Door"))
                 {
                     pVLink->door = fread_number (fp);
@@ -820,7 +820,7 @@ WILDS_VLINK *fread_vlink(FILE *fp)
                 else if (!str_cmp(word, "Orig_rsflags"))
                     pVLink->orig_rs_flags = fread_flag (fp);
                 else if (!str_cmp(word, "Orig_key"))
-                    pVLink->orig_key = fread_number (fp);
+                    pVLink->orig_key = fread_widevnum (fp);
                 else if (!str_cmp(word, "Orig_lock"))
                     pVLink->orig_lock = fread_number (fp);
                 else if (!str_cmp(word, "Orig_pick"))
@@ -879,7 +879,7 @@ void fwrite_vlink (FILE *fp, WILDS_VLINK *pVLink)
     fprintf(fp, "Wildsorigin_x %d\n", pVLink->wildsorigin_x);
     fprintf(fp, "Wildsorigin_y %d\n", pVLink->wildsorigin_y);
     fprintf(fp, "Door %d\n", pVLink->door);
-    fprintf(fp, "Destvnum %ld\n", pVLink->destvnum);
+    fprintf(fp, "Destvnum %ld#%ld\n", pVLink->destwnum.auid, pVLink->destwnum.vnum);
 
     // Vizz - maptile is a raw string, so we deliberately don't use fix_string().
     fprintf(fp, "Map_tile %s\n", pVLink->map_tile);
@@ -889,7 +889,7 @@ void fwrite_vlink (FILE *fp, WILDS_VLINK *pVLink)
     fprintf(fp, "Orig_desc %s~\n", fix_string(pVLink->orig_description));
     fprintf(fp, "Orig_keyword %s~\n", fix_string(pVLink->orig_keyword));
     fprintf(fp, "Orig_rsflags %ld\n", pVLink->orig_rs_flags);
-    fprintf(fp, "Orig_key %ld\n", pVLink->orig_key);
+    fprintf(fp, "Orig_key %ld#%ld\n", pVLink->orig_key.auid, pVLink->orig_key.vnum);
     fprintf(fp, "Orig_lock %d\n", pVLink->orig_lock);
     fprintf(fp, "Orig_pick %d\n", pVLink->orig_pick);
     fprintf(fp, "Rev_desc %s~\n",  fix_string(pVLink->rev_description));
@@ -1041,7 +1041,7 @@ void link_vroom(ROOM_INDEX_DATA *pWildsRoom)
 				!check_for_bad_room(pWildsRoom->wilds,dest_x,dest_y)) continue;
 
 			pexit                   = new_exit();
-			pexit->u1.vnum          = 0;
+			pexit->u1.to_room       = NULL;
 			pexit->orig_door        = door;
 			pexit->from_room	= pWildsRoom;
 			pexit->wilds.x          = dest_x;
@@ -1107,12 +1107,12 @@ bool link_vlink(WILDS_VLINK *pVLink)
 			pExit->keyword = str_dup(pVLink->orig_keyword);
 			pExit->rs_flags = pVLink->orig_rs_flags | EX_VLINK;
 			pExit->exit_info = pExit->rs_flags;
-			pExit->door.rs_lock.key_vnum = pVLink->orig_key;
+			pExit->door.rs_lock.key_wnum.pArea = get_area_from_uid(pVLink->orig_key.auid);
+            pExit->door.rs_lock.key_wnum.vnum = pVLink->orig_key.vnum;
 			pExit->door.rs_lock.flags = pVLink->orig_lock;
 			pExit->door.rs_lock.pick_chance = pVLink->orig_pick;
 			pExit->door.lock = pExit->door.rs_lock;
-			pExit->u1.vnum = pVLink->destvnum;
-			pExit->u1.to_room = get_room_index(pExit->u1.vnum);
+			pExit->u1.to_room = get_room_index_auid(pVLink->destwnum.auid, pVLink->destwnum.vnum);
 			pExit->orig_door = pVLink->door;    /* OLC */
 			pExit->wilds.x = 0;
 			pExit->wilds.y = 0;
@@ -1128,7 +1128,7 @@ bool link_vlink(WILDS_VLINK *pVLink)
     if (IS_SET(pVLink->default_linkage, VLINK_TO_WILDS))
     {
         // if the static room happens to be loaded up
-        if ((pRevRoom=get_room_index(pVLink->destvnum))!=NULL)
+        if ((pRevRoom=get_room_index_auid(pVLink->destwnum.auid, pVLink->destwnum.vnum))!=NULL)
         {
 			if( IS_SET(pRevRoom->room2_flags, ROOM_BLUEPRINT) ||
 				IS_SET(pRevRoom->area->area_flags, AREA_BLUEPRINT) )
@@ -1147,11 +1147,11 @@ bool link_vlink(WILDS_VLINK *pVLink)
 					pExit->keyword = str_dup(pVLink->rev_keyword);
 					pExit->rs_flags = pVLink->rev_rs_flags | EX_VLINK;
 					pExit->exit_info = pExit->rs_flags;
-					pExit->door.rs_lock.key_vnum = pVLink->rev_key;
+        			pExit->door.rs_lock.key_wnum.pArea = get_area_from_uid(pVLink->orig_key.auid);
+                    pExit->door.rs_lock.key_wnum.vnum = pVLink->orig_key.vnum;
 					pExit->door.rs_lock.flags = pVLink->rev_lock;
 					pExit->door.rs_lock.pick_chance = pVLink->rev_pick;
 					pExit->door.lock = pExit->door.rs_lock;
-					pExit->u1.vnum = 0;
 					pExit->u1.to_room = NULL;
 					pExit->wilds.x = pVLink->wildsorigin_x;
 					pExit->wilds.y = pVLink->wildsorigin_y;
@@ -1243,7 +1243,7 @@ pWilds->map[(portal_y * pWilds->map_size_x) + portal_x] =
     if (IS_SET(pVLink->current_linkage, VLINK_TO_WILDS))
     {
         /* Check if reverse-side exit exists */
-        if ((pRevRoom = get_room_index(pVLink->destvnum)) !=NULL)
+        if ((pRevRoom = get_room_index_auid(pVLink->destwnum.auid, pVLink->destwnum.vnum)) !=NULL)
         {
             rev = rev_dir[pVLink->door];
             if ((pExit = pRevRoom->exit[rev]) != NULL)
@@ -2496,15 +2496,16 @@ void do_vlinks(CHAR_DATA *ch, char *argument)
         BUFFER *buffer;
 
         buffer=new_buf();
-        add_buf(buffer, "[   Uid] [x coor] [y coor] [direction] [destvnum] [default state] [current state]{x\n\r");
+        add_buf(buffer, "[   Uid] [x coor] [y coor] [direction] [    dest wnum    ] [default state] [current state]{x\n\r");
         for(pVLink=pWilds->pVLink;pVLink!=NULL;pVLink = pVLink->next)
         {
-            sprintf(buf, "{x({W%6ld{x)  {W%6d   %6d   %9s    %7ld   %7s   %7s{x\n\r",
+            sprintf(buf, "{x({W%6ld{x)  {W%6d   %6d   %9s   %8ld#%-8ld   %7s   %7s{x\n\r",
                            pVLink->uid,
                            pVLink->wildsorigin_x,
                            pVLink->wildsorigin_y,
                            dir_name[pVLink->door],
-                           pVLink->destvnum,
+                           pVLink->destwnum.auid,
+                           pVLink->destwnum.vnum,
                            (IS_SET(pVLink->default_linkage, VLINK_TO_WILDS) &&
 			    IS_SET(pVLink->default_linkage, VLINK_FROM_WILDS)) ? "two-way" :
 			        IS_SET(pVLink->default_linkage, VLINK_TO_WILDS) ? "to wilds" :
@@ -2632,9 +2633,9 @@ void char_to_vroom (CHAR_DATA *ch, WILDS_DATA *pWilds, int x, int y)
         plogf ("wilds.c, char_to_vroom(): pWilds is NULL.");
 
 	// No wilds pointer, so send the char to the default room.
-        if ((room = get_room_index (ROOM_VNUM_DEFAULT)) != NULL)
+        if (room_index_default != NULL)
         {
-            char_to_room (ch, room);
+            char_to_room (ch, room_index_default);
             return;
         }
 
@@ -2936,16 +2937,16 @@ void link_vlinks (WILDS_DATA *pWilds)
 
     for (pVLink = pWilds->pVLink;pVLink;pVLink = pVLink->next)
     {
-        if ((pRevLinkRoomIndex = get_room_index (pVLink->destvnum)) == NULL)
+        if ((pRevLinkRoomIndex = get_room_index_auid (pVLink->destwnum.auid, pVLink->destwnum.vnum)) == NULL)
         {
-            plogf("wilds.c, apply_vlink(): destvnum %ld does not exist.", pVLink->destvnum);
+            plogf("wilds.c, apply_vlink(): destwnum %ld#%ld does not exist.", pVLink->destwnum.auid, pVLink->destwnum.vnum);
             continue;
         }
 
         if (IS_SET(pRevLinkRoomIndex->room2_flags, ROOM_BLUEPRINT) ||
         	IS_SET(pRevLinkRoomIndex->area->area_flags, AREA_BLUEPRINT))
         {
-            plogf("wilds.c, apply_vlink(): destvnum %ld involved in blueprints.", pVLink->destvnum);
+            plogf("wilds.c, apply_vlink(): destwnum %ld#%ld involved in blueprints.", pVLink->destwnum.auid, pVLink->destwnum.vnum);
             continue;
 		}
 
@@ -2956,11 +2957,12 @@ void link_vlinks (WILDS_DATA *pWilds)
                 && pVLink->wildsorigin_y < pWilds->map_size_y)
             {
 				if (link_vlink(pVLink))
-					plogf("link_vlinks(): VLink %s from (%d, %d) to %ld Linked Successfully.",
+					plogf("link_vlinks(): VLink %s from (%d, %d) to %ld#%ld Linked Successfully.",
 						dir_name[pVLink->door],
 						pVLink->wildsorigin_x,
 						pVLink->wildsorigin_y,
-						pVLink->destvnum);
+						pVLink->destwnum.auid,
+                        pVLink->destwnum.vnum);
 				else
 					plogf("wilds.c, link_vlinks(): VLink failed.");
 				continue;
@@ -3153,15 +3155,21 @@ OBJ_DATA *unlink_contents_wilds(WILDS_DATA *pWilds, int x, int y)
 // This will search the rooms
 ROOM_INDEX_DATA *wilds_seek_down(register WILDS_DATA *wilds, register int x, register int y, register int z, bool ground)
 {
+    register AREA_DATA *area;
 	register ROOM_INDEX_DATA *room, *highest = NULL, *vroom;
 	register int i;
 
-	for(i = 0; i < MAX_KEY_HASH; i++)
-		for(room = room_index_hash[i]; room; room = room->next) {
-			if((room->wilds == wilds || room->viewwilds == wilds) && room->x == x && room->y == y && room->z <= z) {
-				if(!highest || (room->z > highest->z)) highest = room;
-			}
-		}
+    for(area = area_first; area; area = area->next)
+    {
+        for(i = 0; i < MAX_KEY_HASH; i++)
+        {
+            for(room = area->room_index_hash[i]; room; room = room->next) {
+                if((room->wilds == wilds || room->viewwilds == wilds) && room->x == x && room->y == y && room->z <= z) {
+                    if(!highest || (room->z > highest->z)) highest = room;
+                }
+            }
+        }
+    }
 
 	// Limit the search to above ground...
 	if(ground) {

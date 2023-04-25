@@ -21,6 +21,8 @@
 /* Vizz - External Globals */
 extern GLOBAL_DATA gconfig;
 
+extern bool fBootDb;
+
 // Globals
 long last_pc_id;
 long last_mob_id;
@@ -97,6 +99,20 @@ OLC_POINT_BOOST *olc_point_boost_free;
 SHIP_INDEX_DATA *ship_index_free;
 SHIP_DATA *ship_free;
 
+WNUM_LOAD *new_list_wnum_load()
+{
+    return alloc_mem(sizeof(WNUM_LOAD));
+}
+
+void free_list_wnum_load(WNUM_LOAD *wnum)
+{
+    free_mem(wnum,sizeof(WNUM_LOAD));
+}
+
+static void delete_list_wnum_load(void *ptr)
+{
+    free_list_wnum_load((WNUM_LOAD *)ptr);
+}
 
 LLIST_UID_DATA *new_list_uid_data()
 {
@@ -1254,7 +1270,8 @@ PROG_LIST *new_trigger(void)
 	}
 
 	*trigger = trig_zero;
-	trigger->vnum = 0;
+	trigger->wnum.pArea = NULL;
+    trigger->wnum.vnum = 0;
 	trigger->trig_type = -1;
 	trigger->script = NULL;
 	VALIDATE(trigger);
@@ -1277,12 +1294,8 @@ RESET_DATA *new_reset_data( void )
         reset_free      =   reset_free->next;
     }
 
-    pReset->next        =   NULL;
-    pReset->command     =   'X';
-    pReset->arg1        =   0;
-    pReset->arg2        =   0;
-    pReset->arg3        =   0;
-    pReset->arg4	=   0;
+    memset(pReset, 0, sizeof(RESET_DATA));
+    pReset->command = 'X';
 
     return pReset;
 }
@@ -1471,9 +1484,9 @@ AREA_DATA *new_area( void )
     pArea->nplayer          =   0;
     //pArea->flags	    =   0;
     pArea->empty            =   TRUE;              /* ROM patch */
+    pArea->anum             =   top_area-1;
     sprintf( buf, "area%ld.are", pArea->anum );
     pArea->file_name        =   str_dup( buf );
-    pArea->anum             =   top_area-1;
     pArea->uid              =   0;  /* Vizz - uid 0 is invalid */
     pArea->open		    =   FALSE;
     pArea->x		    =   -1;
@@ -1545,10 +1558,8 @@ EXIT_DATA *new_exit( void )
     pExit->u1.to_room   =   NULL;
     pExit->next         =   NULL;
     pExit->exit_info    =   0;
-    pExit->door.lock.key_vnum=   0;
     pExit->door.lock.flags	= 0;
     pExit->door.lock.pick_chance	= 100;
-    pExit->door.rs_lock.key_vnum=   0;
     pExit->door.rs_lock.flags	= 0;
     pExit->door.rs_lock.pick_chance	= 100;
     pExit->keyword      =   &str_empty[0];
@@ -1744,7 +1755,8 @@ SHOP_STOCK_DATA *new_shop_stock()
 	pStock->pneuma = 0;
 	pStock->custom_price = &str_empty[0];
 
-	pStock->vnum = 0;
+	pStock->wnum.pArea = NULL;
+    pStock->wnum.vnum = 0;
 	pStock->obj = NULL;
 
 	pStock->quantity = 0;
@@ -2048,7 +2060,8 @@ void new_trade_item( AREA_DATA *area, sh_int type, long replenish_time, long rep
     item->max_qty = max_qty;
     item->min_price = min_price;
     item->max_price = max_price;
-    item->obj_vnum = obj_vnum;
+    item->obj_wnum.auid = area->uid;
+    item->obj_wnum.vnum = obj_vnum;
     item->area   = area->anum;
 
     item->next = area->trade_list;
@@ -2120,9 +2133,9 @@ QUEST_DATA *new_quest( void )
     pQuest->scripted = FALSE;
 
     pQuest->questgiver_type = -1;
-    pQuest->questgiver = -1;
+    pQuest->questgiver = wnum_zero;
     pQuest->questreceiver_type = -1;
-    pQuest->questreceiver = -1;
+    pQuest->questreceiver = wnum_zero;
 
     top_quest++;
 
@@ -2165,6 +2178,7 @@ QUEST_PART_DATA *new_quest_part( void )
 
     pPart->pObj = NULL;
     pPart->next = NULL;
+    pPart->area = NULL;
     pPart->obj = -1;
     pPart->mob = -1;
     pPart->obj_sac = -1;
@@ -2678,7 +2692,7 @@ void free_auto_war( AUTO_WAR *m_auto_war )
 	act( "{D$n disappears in puff of smoke.{x", m_auto_war->team_players, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
 	act( "You have been transported to Plith.", m_auto_war->team_players, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
 	char_from_room( m_auto_war->team_players );
-	char_to_room( m_auto_war->team_players, get_room_index( ROOM_VNUM_TEMPLE ) );
+	char_to_room( m_auto_war->team_players, room_index_temple );
 	do_function( m_auto_war->team_players, &do_look, "auto");
 	char_from_team( m_auto_war->team_players );
     }
@@ -2707,10 +2721,12 @@ GQ_MOB_DATA *new_gq_mob( void )
 	gq_mob_free = gq_mob_free->next;
     }
 
-    gq_mob->vnum = 0;
+    gq_mob->wnum_load.auid = 0;
+    gq_mob->wnum_load.vnum = 0;
     gq_mob->class = 0;
     gq_mob->group = FALSE;
-    gq_mob->obj = 0;
+    gq_mob->obj_load.auid = 0;
+    gq_mob->obj_load.vnum = 0;
     gq_mob->count = 0;
 
     return gq_mob;
@@ -2738,6 +2754,8 @@ GQ_OBJ_DATA *new_gq_obj( void )
 	gq_obj_free = gq_obj_free->next;
     }
 
+    gq_obj->wnum_load.auid = 0;
+    gq_obj->wnum_load.vnum = 0;
     gq_obj->qp_reward = 0;
     gq_obj->prac_reward = 0;
     gq_obj->exp_reward = 0;
@@ -2835,7 +2853,8 @@ QUEST_LIST *new_quest_list( void )
 	quest_list_free = quest_list_free->next;
     }
 
-    quest_list->vnum = 0;
+    quest_list->wnum.pArea = NULL;
+    quest_list->wnum.vnum = 0;
 
     return quest_list;
 }
@@ -3565,7 +3584,8 @@ QUESTOR_DATA *new_questor_data()
 	q->prefix = &str_empty[0];
 	q->suffix = &str_empty[0];
 	q->line_width = 70;
-	q->scroll = OBJ_VNUM_QUEST_SCROLL;
+	q->scroll.auid = obj_wnum_quest_scroll.pArea ? obj_wnum_quest_scroll.pArea->uid : 0;
+    q->scroll.vnum = obj_wnum_quest_scroll.vnum;
 
 	return q;
 }
@@ -4242,7 +4262,11 @@ DUNGEON_INDEX_DATA *new_dungeon_index()
 
 	dungeon_index->area_who = AREA_BLANK;
 
-	dungeon_index->floors = list_create(FALSE);
+    if (fBootDb)
+    	dungeon_index->floors = list_createx(FALSE, NULL, delete_list_wnum_load);
+    else
+    	dungeon_index->floors = list_create(FALSE);
+
     dungeon_index->levels = list_createx(FALSE, NULL, delete_dungeon_index_level);
 	dungeon_index->special_rooms = list_createx(FALSE, NULL, delete_dungeon_index_special_room);
     dungeon_index->special_exits = list_createx(FALSE, NULL, delete_dungeon_index_special_exit);
@@ -4386,14 +4410,20 @@ void free_special_key(SPECIAL_KEY_DATA *sk)
 	special_key_free = sk;
 }
 
+static void delete_lockstate_special_key(void *ptr)
+{
+    free_list_uid_data((LLIST_UID_DATA *)ptr);
+}
+
 LOCK_STATE *new_lock_state()
 {
 	LOCK_STATE *state = alloc_mem(sizeof(LOCK_STATE));
 
-	state->key_vnum		= 0;
+	state->key_wnum.pArea = NULL;
+    state->key_wnum.vnum = 0;
 	state->pick_chance	= 100;
 	state->flags		= 0;
-	state->keys			= NULL;
+	state->keys			= list_createx(FALSE, NULL, delete_lockstate_special_key);
 
 	return state;
 }
@@ -4402,6 +4432,9 @@ void free_lock_state(LOCK_STATE *state)
 {
 	if( state )
 	{
+        if (state->keys)
+            list_destroy(state->keys);
+
 		free_mem(state, sizeof(LOCK_STATE));
 	}
 }

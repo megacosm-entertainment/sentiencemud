@@ -95,6 +95,7 @@ const struct flag_stat_type flag_stat_table[] =
 	{	blueprint_section_types,	TRUE	},
 	{	transfer_modes,				TRUE	},
 	{	ship_class_types,			TRUE	},
+    {   portal_gatetype,            TRUE    },
     {	0,							0		}
 };
 

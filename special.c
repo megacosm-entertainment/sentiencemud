@@ -146,8 +146,10 @@ char *spec_name( SPEC_FUN *function)
 }
 
 
+// TODO: Stiener action.  TURN INTO SCRIPT
 bool spec_protector(CHAR_DATA *ch)
 {
+    /*
     CHAR_DATA *vch,*victim = NULL;
     ITERATOR it;
 
@@ -155,15 +157,15 @@ bool spec_protector(CHAR_DATA *ch)
     	IS_AFFECTED(ch,AFF_CHARM) || ch->fighting != NULL)
         return FALSE;
 
-    /* look for a fight in the room */
+    // look for a fight in the room
     iterator_start(&it, loaded_chars);
     while(( vch = (CHAR_DATA *)iterator_nextdata(&it)))
     {
-		/* No attacking self */
+		// No attacking self
 		if (vch == ch)
 			continue;
 
-		if (vch->fighting != NULL && !IS_IMMORTAL(vch) && !str_cmp(vch->in_room->area->name, "plith") && vch->tot_level > 30 && vch->fighting->tot_level < 30 && IS_NPC(vch->fighting))  /* break it up! */
+		if (vch->fighting != NULL && !IS_IMMORTAL(vch) && !str_cmp(vch->in_room->area->name, "plith") && vch->tot_level > 30 && vch->fighting->tot_level < 30 && IS_NPC(vch->fighting))  // break it up!
 		{
 			victim = vch;
 			act("$n gasps.\n\r{C$n says 'Justice must be upheld!'{x",ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
@@ -184,6 +186,7 @@ bool spec_protector(CHAR_DATA *ch)
 		}
     }
     iterator_stop(&it);
+    */
 
     return TRUE;
 }

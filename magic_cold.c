@@ -403,7 +403,7 @@ SPELL_FUNC(spell_ice_storm)
 		return FALSE;
 	}
 
-	obj = create_object(get_obj_index(OBJ_VNUM_ICE_STORM), 0, TRUE);
+	obj = create_object(obj_index_ice_storm, 0, TRUE);
 	act("{BYou summon a huge ice storm!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 	act("{B$n summons a huge ice storm!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 	obj_to_room(obj, ch->in_room);

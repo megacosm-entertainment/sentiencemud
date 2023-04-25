@@ -849,7 +849,7 @@ bool one_hit(CHAR_DATA *ch, CHAR_DATA *victim, int dt, bool secondary)
 		dam += (IS_NPC(victim)) ? (dam / 4) : (dam / 10);
 
 	// Extra damage relic
-	if (ch->church && vnum_in_treasure_room(ch->church, OBJ_VNUM_RELIC_EXTRA_DAMAGE)) {
+	if (ch->church && objindex_in_treasure_room(ch->church, obj_index_relic_extra_damage)) {
 		dam += (IS_NPC(victim)) ? (dam / 5) : (dam / 10); // 20% extra damage
 	}
 
@@ -2931,7 +2931,7 @@ void set_corpse_data(OBJ_DATA *corpse, int corpse_type)
 	int min,max;
 
 	if(corpse->item_type == ITEM_CORPSE_NPC) {
-		MOB_INDEX_DATA *mob = get_mob_index(corpse->orig_vnum);
+		MOB_INDEX_DATA *mob = get_mob_index_wnum(corpse->orig_wnum);
 
 		// Check if the corpse has owner name/short information
 		if( IS_NULLSTR(corpse->owner_name) )
@@ -3056,14 +3056,15 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messag
 		name = ch->name;
 		short_desc = ch->short_descr;
 
-		obj_index = (ch->corpse_vnum > 0) ? get_obj_index(ch->corpse_vnum) : NULL;
+		obj_index = (ch->corpse_wnum.auid > 0 && ch->corpse_wnum.vnum > 0) ? get_obj_index_auid(ch->corpse_wnum.auid, ch->corpse_wnum.vnum) : NULL;
 
 		if(!obj_index || obj_index->item_type != ITEM_CORPSE_NPC)
-			obj_index = get_obj_index(OBJ_VNUM_CORPSE_NPC);
+			obj_index = obj_index_corpse_npc;
 
 		corpse = create_object(obj_index, 0, TRUE);
 		// [3,6]
-		corpse->orig_vnum = ch->pIndexData->vnum;
+		corpse->orig_wnum.pArea = ch->pIndexData->area;
+		corpse->orig_wnum.vnum = ch->pIndexData->vnum;
 
 		if (!IS_IMMORTAL(ch) && ch->gold > 0)
 		{
@@ -3083,7 +3084,7 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messag
 	} else { // PCs
 		name		= ch->name;
 		short_desc	= ch->name;
-		corpse		= create_object(get_obj_index(OBJ_VNUM_CORPSE_PC), 0, TRUE);
+		corpse		= create_object(obj_index_corpse_pc, 0, TRUE);
 		// [25,40]
 
 		// If the reckoning, put some pneuma in the corpse
@@ -3094,7 +3095,7 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messag
 
 			for (count = 0; count < pneuma_num; count++)
 			{
-			pneuma = create_object(get_obj_index(OBJ_VNUM_BOTTLED_SOUL), 0, TRUE);
+			pneuma = create_object(obj_index_bottled_soul, 0, TRUE);
 			obj_to_obj(pneuma, corpse);
 			}
 		}
@@ -3219,12 +3220,11 @@ void death_cry( CHAR_DATA *ch, bool has_head, bool messages )
 	ROOM_INDEX_DATA *was_in_room;
 	char *msg;
 	int door;
-	long vnum;
-	int head_type;  // Either normal head or pirate head
+	OBJ_INDEX_DATA *body_part = NULL;
+	OBJ_INDEX_DATA *head_type = NULL;  // Either normal head or pirate head
 	long parts;
 	int head_time = number_range(4, 7); // amount of time for a head to last
 
-	vnum = 0;
 	msg = "{RYou hear $n's death cry.{x";
 	parts = ch->parts;
 
@@ -3233,10 +3233,10 @@ void death_cry( CHAR_DATA *ch, bool has_head, bool messages )
 		head_time = 0; // head should last indefinitely
 	} else*/
 	if ( IS_NPC(ch) && IS_INVASION_LEADER(ch)) {
-		head_type = OBJ_VNUM_INVASION_LEADER_HEAD;
+		head_type = obj_index_invasion_leader_head;
 		head_time = 0; // head should last indefinitely
 	} else {
-		head_type = OBJ_VNUM_SEVERED_HEAD;
+		head_type = obj_index_severed_head;
 	}
 
 	if ( !has_head && IS_SET(parts,PART_HEAD)) {
@@ -3252,19 +3252,19 @@ void death_cry( CHAR_DATA *ch, bool has_head, bool messages )
 
 		switch ( number_range(0,3)) {
 		case 0: msg  = "{R$n's headless body hits the ground ... DEAD.{x";
-			vnum = head_type;
+			body_part = head_type;
 			break;
 		case 1:
 			if (!ch->material) {
 				msg  = "{RBlood spurts from $n's neck as $s head drops to the ground.{x";
-				vnum = head_type;
+				body_part = head_type;
 				break;
 			}
 		case 2: msg = "{R$n's head drops to the ground with a loud thud.{x";
-			vnum = head_type;
+			body_part = head_type;
 			break;
 		case 3: msg  = "{R$n's severed head plops on the ground.{x";
-			vnum = head_type;
+			body_part = head_type;
 			break;
 		}
 	} else
@@ -3274,14 +3274,14 @@ void death_cry( CHAR_DATA *ch, bool has_head, bool messages )
 		case 2:
 			if (IS_SET(ch->parts,PART_GUTS)) {
 				msg = "{R$n spills $s guts all over the floor.{x";
-				vnum = OBJ_VNUM_GUTS;
+				body_part = obj_index_guts;
 				REMOVE_BIT(parts,PART_GUTS);
 			}
 			break;
 		case 3:
 			if (IS_SET(ch->parts,PART_HEAD)) {
 				msg  = "{R$n's severed head plops on the ground.{x";
-				vnum = head_type;
+				body_part = head_type;
 				REMOVE_BIT(parts,PART_HEAD);
 				REMOVE_BIT(parts,PART_BRAINS);
 				REMOVE_BIT(parts,PART_EAR);
@@ -3296,26 +3296,26 @@ void death_cry( CHAR_DATA *ch, bool has_head, bool messages )
 		case  4:
 			if (IS_SET(ch->parts,PART_HEART)) {
 				msg  = "{R$n's heart is torn from $s chest.{x";
-				vnum = OBJ_VNUM_TORN_HEART;
+				body_part = obj_index_torn_heart;
 				REMOVE_BIT(parts,PART_HEART);
 			}
 			break;
 		case  5:
 			if (IS_SET(ch->parts,PART_ARMS)) {
 				msg  = "{R$n's arm is sliced from $s dead body.{x";
-				vnum = OBJ_VNUM_SLICED_ARM;
+				body_part = obj_index_sliced_arm;
 			}
 			break;
 		case  6:
 			if (IS_SET(ch->parts,PART_LEGS)) {
 				msg  = "{R$n's leg is sliced from $s dead body.{x";
-				vnum = OBJ_VNUM_SLICED_LEG;
+				body_part = obj_index_sliced_leg;
 			}
 			break;
 		case 7:
 			if (IS_SET(ch->parts,PART_BRAINS)) {
 				msg = "{R$n's head is shattered, and $s brains splash all over you.{x";
-				vnum = OBJ_VNUM_BRAINS;
+				body_part = obj_index_brains;
 				REMOVE_BIT(parts,PART_BRAINS);
 				if(number_percent() < 50) { REMOVE_BIT(parts,PART_EAR); }
 				if(number_percent() < 50) {
@@ -3336,14 +3336,14 @@ void death_cry( CHAR_DATA *ch, bool has_head, bool messages )
 	if(messages) act(msg, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
 	// Make body parts
-	if (vnum) {
+	if (body_part) {
 		char buf[MAX_STRING_LENGTH];
 		char buf2[2*MAX_STRING_LENGTH];
 		OBJ_DATA *obj;
 		char *name;
 
 		name		= IS_NPC(ch) ? ch->short_descr : ch->name;
-		obj		= create_object(get_obj_index(vnum), 0, TRUE);
+		obj		= create_object(body_part, 0, TRUE);
 		obj->level = ch->tot_level;
 		obj->timer	= head_time;
 
@@ -3640,7 +3640,7 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
 			victim->in_room->name, victim->in_room->vnum);
 		bug(buf, 0);
 
-		recall_room = get_room_index(ROOM_VNUM_TEMPLE);
+		recall_room = room_index_temple;
 	}
 	location_from_room(&victim->recall,recall_room);
 	stop_fighting(victim, TRUE);
@@ -3693,7 +3693,7 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
 		send_to_char("You notice that you are safe and healthy once again.\n\r", victim);
 
 		char_from_room(victim);
-		char_to_room(victim,get_room_index(ROOM_VNUM_NDEATH));
+		char_to_room(victim,room_index_newbie_death);
 
 		victim->position = POS_RESTING;
 		victim->dead = FALSE;
@@ -3822,7 +3822,7 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
 	victim->mana = victim->max_mana;
 	victim->move = victim->max_move;
 	char_from_room(victim);
-	char_to_room(victim, get_room_index(ROOM_VNUM_DEATH));
+	char_to_room(victim, room_index_death);
 
 
 	for (obj = victim->carrying; obj != NULL; obj = obj->next_content)
@@ -3888,7 +3888,7 @@ void death_mob_echo(CHAR_DATA *victim)
 	send_to_char("{C'This really is pointless, how many times more am I going to have to take you back?' says Death.{x\n\r", victim);
 	}
 
-	death_mob = create_mobile(get_mob_index(MOB_VNUM_DEATH), FALSE);
+	death_mob = create_mobile(mob_index_death, FALSE);
 	char_to_room(death_mob, victim->in_room);
 
 	act("Death taps $n's corpse three times with his scythe.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
@@ -4055,7 +4055,7 @@ int xp_compute(CHAR_DATA *gch, CHAR_DATA *victim, int total_levels)
 
 	bonus_xp = 0;
 	// Extra xp relic
-	if (gch->church != NULL && vnum_in_treasure_room(gch->church, OBJ_VNUM_RELIC_EXTRA_XP))
+	if (gch->church != NULL && objindex_in_treasure_room(gch->church, obj_index_relic_extra_xp))
 		bonus_xp += 10;
 
 	// Leveling rewards for churches
@@ -7821,17 +7821,3 @@ void player_kill(CHAR_DATA *ch, CHAR_DATA *victim)
 	}
 }
 
-
-/*
-   vnum - the vnum of the mob
-   target - the player the mob will hunt
-*/
-CHAR_DATA* create_player_hunter(long vnum, CHAR_DATA *target)
-{
-	CHAR_DATA *challenger;
-
-	challenger = create_mobile( get_mob_index( vnum ), FALSE );
-		challenger->target_name = target->name;
-
-		return challenger;
-}

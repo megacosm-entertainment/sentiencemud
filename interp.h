@@ -116,7 +116,6 @@ DECLARE_DO_FUN( do_bar		);
 DECLARE_DO_FUN( do_bash		);
 DECLARE_DO_FUN( do_battlespam 	);
 DECLARE_DO_FUN( do_berserk	);
-DECLARE_DO_FUN( do_besteq	);
 DECLARE_DO_FUN( do_bind		);
 DECLARE_DO_FUN( do_bite 	);
 DECLARE_DO_FUN( do_blackjack	);
@@ -588,6 +587,7 @@ DECLARE_DO_FUN( do_expand	);
 DECLARE_DO_FUN( do_collapse	);
 
 DECLARE_DO_FUN( do_spawntreasuremap );
+DECLARE_DO_FUN( do_reserved );
 
 //DECLARE_DO_FUN( do_speed	);
 //DECLARE_DO_FUN( do_steer	);

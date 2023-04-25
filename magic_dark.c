@@ -69,7 +69,6 @@ SPELL_FUNC(spell_dark_shroud)
 
 SPELL_FUNC(spell_momentary_darkness)
 {
-	OBJ_INDEX_DATA *index;
 	OBJ_DATA *darkness;
 	CHAR_DATA *rch;
 	int catalyst;
@@ -89,12 +88,12 @@ SPELL_FUNC(spell_momentary_darkness)
 		}
 	}
 
-	if (!(index = get_obj_index(OBJ_VNUM_ROOM_DARKNESS))) {
+	if (!obj_index_room_darkness) {
 		bug("spell_momentary_darkness: get_obj_index was null!\n\r", 0);
 		return FALSE;
 	}
 
-	darkness = create_object(index, 0, TRUE);
+	darkness = create_object(obj_index_room_darkness, 0, TRUE);
 	darkness->timer = 3 + catalyst;
 	darkness->level = ch->tot_level;
 

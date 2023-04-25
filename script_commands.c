@@ -150,12 +150,17 @@ void do_apdump(CHAR_DATA *ch, char *argument)
 {
 	char buf[ MAX_INPUT_LENGTH ];
 	SCRIPT_DATA *aprg;
-	long vnum;
+	WNUM wnum;
 
 	one_argument(argument, buf);
-	vnum = atoi(buf);
 
-	if (!(aprg = get_script_index(vnum, PRG_APROG))) {
+	if (!parse_widevnum(buf, &wnum))
+	{
+		send_to_char("Syntax:  apdump <widevnum>", ch);
+		return;
+	}
+
+	if (!(aprg = get_script_index(wnum.pArea, wnum.vnum, PRG_APROG))) {
 		send_to_char("No such AREAprogram.\n\r", ch);
 		return;
 	}
@@ -185,17 +190,21 @@ void do_ipdump(CHAR_DATA *ch, char *argument)
 {
 	char buf[ MAX_INPUT_LENGTH ];
 	SCRIPT_DATA *iprg;
-	long vnum;
+	WNUM wnum;
 
 	one_argument(argument, buf);
-	vnum = atoi(buf);
+	if (!parse_widevnum(buf, &wnum))
+	{
+		send_to_char("Syntax:  ipdump <widevnum>", ch);
+		return;
+	}
 
-	if (!(iprg = get_script_index(vnum, PRG_IPROG))) {
+	if (!(iprg = get_script_index(wnum.pArea, wnum.vnum, PRG_IPROG))) {
 		send_to_char("No such INSTANCEprogram.\n\r", ch);
 		return;
 	}
 
-	if (!can_edit_blueprints(ch)) {
+	if (!area_has_read_access(ch,iprg->area)) {
 		send_to_char("You do not have permission to view that script.\n\r", ch);
 		return;
 	}
@@ -219,17 +228,21 @@ void do_dpdump(CHAR_DATA *ch, char *argument)
 {
 	char buf[ MAX_INPUT_LENGTH ];
 	SCRIPT_DATA *dprg;
-	long vnum;
+	WNUM wnum;
 
 	one_argument(argument, buf);
-	vnum = atoi(buf);
+	if (!parse_widevnum(buf, &wnum))
+	{
+		send_to_char("Syntax:  dpdump <widevnum>", ch);
+		return;
+	}
 
-	if (!(dprg = get_script_index(vnum, PRG_DPROG))) {
+	if (!(dprg = get_script_index(wnum.pArea, wnum.vnum, PRG_DPROG))) {
 		send_to_char("No such DUNGEONprogram.\n\r", ch);
 		return;
 	}
 
-	if (!can_edit_dungeons(ch)) {
+	if (!area_has_read_access(ch,dprg->area)) {
 		send_to_char("You do not have permission to view that script.\n\r", ch);
 		return;
 	}
@@ -1048,14 +1061,16 @@ SCRIPT_CMD(scriptcmd_breathe)
 //////////////////////////////////////
 // C
 
+// CALL $WIDEVNUM ....
 SCRIPT_CMD(scriptcmd_call)
 {
 	char *rest; //buf[MSL], *rest;
 	CHAR_DATA *vch = NULL,*ch = NULL;
 	OBJ_DATA *obj1 = NULL,*obj2 = NULL;
 	SCRIPT_DATA *script;
-	int depth, vnum, ret;
+	int depth, ret;
 	int space;
+	WNUM wnum;
 
 	if(!info) return;
 
@@ -1078,9 +1093,8 @@ SCRIPT_CMD(scriptcmd_call)
 	}
 
 	switch(arg->type) {
-	case ENT_STRING: vnum = atoi(arg->d.str); break;
-	case ENT_NUMBER: vnum = arg->d.num; break;
-	default: vnum = 0; break;
+	case ENT_WIDEVNUM: wnum = arg->d.wnum; break;
+	default: return;
 	}
 
 	if (info->mob) space = PRG_MPROG;
@@ -1092,7 +1106,7 @@ SCRIPT_CMD(scriptcmd_call)
 	else if(info->dungeon) space = PRG_DPROG;
 	else return;
 
-	if (vnum < 1 || !(script = get_script_index(vnum, space))) {
+	if (!wnum.pArea || wnum.vnum < 1 || !(script = get_script_index(wnum.pArea, wnum.vnum, space))) {
 		return;
 	}
 
@@ -1168,7 +1182,7 @@ SCRIPT_CMD(scriptcmd_call)
 	}
 
 	// Do this to account for possible destructions
-	ret = execute_script(script->vnum, script, info->mob, info->obj, info->room, info->token, info->area, info->instance, info->dungeon, ch, obj1, obj2, vch, NULL,NULL, NULL,info->phrase,info->trigger,info->trigger_type,0,0,0,0,0);
+	ret = execute_script(script, info->mob, info->obj, info->room, info->token, info->area, info->instance, info->dungeon, ch, obj1, obj2, vch, NULL,NULL, NULL,info->phrase,info->trigger,info->trigger_type,0,0,0,0,0);
 	if(info->progs) {
 		info->progs->lastreturn = ret;
 	} else
@@ -2017,8 +2031,8 @@ SCRIPT_CMD(scriptcmd_grantskill)
 	if( arg->type == ENT_STRING ) {
 		sn = skill_lookup(arg->d.str);
 		if( sn <= 0 ) return;
-	} else if( arg->type == ENT_NUMBER ) {
-		token_index = get_token_index(arg->d.num);
+	} else if( arg->type == ENT_WIDEVNUM ) {
+		token_index = get_token_index(arg->d.wnum.pArea, arg->d.wnum.vnum);
 
 		if( !token_index ) return;
 	}
@@ -2112,17 +2126,17 @@ SCRIPT_CMD(scriptcmd_grantskill)
 //////////////////////////////////////
 // I
 
-// INPUTSTRING $PLAYER script-vnum variable
+// INPUTSTRING $PLAYER script-wnum variable
 //  Invokes the interal string editor, for use in getting multiline strings from players.
 //
 //  $PLAYER - player entity to get string from
-//  script-vnum - script to call after the editor is closed
+//  script-wnum - script to call after the editor is closed
 //  variable - name of variable to use to store the string (as well as supply the initial string)
 
 SCRIPT_CMD(scriptcmd_inputstring)
 {
 	char *rest;
-	int vnum;
+	WNUM wnum;
 	CHAR_DATA *mob = NULL;
 
 	int type;
@@ -2158,20 +2172,19 @@ SCRIPT_CMD(scriptcmd_inputstring)
 		return;
 
 	if(!(rest = expand_argument(info,rest,arg))) {
-		bug("MpInput - Error in parsing.",0);
+		bug("*pInput - Error in parsing.",0);
 		return;
 	}
 
 	switch(arg->type) {
-	case ENT_NUMBER: vnum = arg->d.num; break;
+	case ENT_WIDEVNUM: wnum = arg->d.wnum; break;
 	default: return;
 	}
 
-	if(vnum < 1 || !get_script_index(vnum, type)) return;
+	if(!wnum.pArea || wnum.vnum < 1 || !get_script_index(wnum.pArea, wnum.vnum, type)) return;
 	BUFFER *buffer = new_buf();
 
 	expand_string(info,rest,buffer);
-
 
 	pVARIABLE var = variable_get(*(info->var),buf_string(buffer));
 
@@ -2182,7 +2195,7 @@ SCRIPT_CMD(scriptcmd_inputstring)
 		mob->desc->inputString = &str_empty[0];
 	mob->desc->input_var = str_dup(buf_string(buffer));
 	mob->desc->input_prompt = NULL;
-	mob->desc->input_script = vnum;
+	mob->desc->input_script = wnum;
 	mob->desc->input_mob = info->mob;
 	mob->desc->input_obj = info->obj;
 	mob->desc->input_room = info->room;
@@ -2221,8 +2234,8 @@ SCRIPT_CMD(scriptcmd_instancecomplete)
 //////////////////////////////////////
 // L
 
-// LOADINSTANCED mobile $VNUM|$MOBILE $ROOM[ $VARIABLENAME]
-// LOADINSTANCED object $VNUM|$OBJECT $LEVEL room|here|wear $ENTITY[ $VARIABLE]
+// LOADINSTANCED mobile $WNUM|$MOBILE $ROOM[ $VARIABLENAME]
+// LOADINSTANCED object $WNUM|$OBJECT $LEVEL room|here|wear $ENTITY[ $VARIABLE]
 SCRIPT_CMD(scriptcmd_loadinstanced)
 {
 	char *rest;
@@ -2261,6 +2274,7 @@ SCRIPT_CMD(scriptcmd_loadinstanced)
 }
 
 // LOCKADD $OBJECT
+// TODO: Add to exits
 SCRIPT_CMD(scriptcmd_lockadd)
 {
 	info->progs->lastreturn = 0;
@@ -2292,6 +2306,7 @@ SCRIPT_CMD(scriptcmd_lockadd)
 }
 
 // LOCKREMOVE $OBJECT
+// TODO: Add to exits
 SCRIPT_CMD(scriptcmd_lockremove)
 {
 	info->progs->lastreturn = 0;
@@ -2397,7 +2412,7 @@ SCRIPT_CMD(scriptcmd_makeinstanced)
 	info->progs->lastreturn = 1;
 }
 
-// MLOAD <vnum>[ <room>][ <variable>]
+// MLOAD <wnum>[ <room>][ <variable>]
 SCRIPT_CMD(scriptcmd_mload)
 {
 	script_mload(info,argument,arg, false);
@@ -2428,7 +2443,7 @@ SCRIPT_CMD(scriptcmd_mute)
 //////////////////////////////////////
 // O
 
-// OLOAD <vnum> [<level>] [room|wear|$ENTITY][ <variable>]
+// OLOAD <wnum> [<level>] [room|wear|$ENTITY][ <variable>]
 SCRIPT_CMD(scriptcmd_oload)
 {
 	script_oload(info,argument,arg, false);
@@ -2547,7 +2562,7 @@ SCRIPT_CMD(scriptcmd_questcancel)
 {
 	char *rest;
 	CHAR_DATA *mob;
-	long vnum;
+	WNUM wnum;
 	int type;
 	SCRIPT_DATA *script;
 
@@ -2574,20 +2589,16 @@ SCRIPT_CMD(scriptcmd_questcancel)
 	// Get cleanup script (if there)
 	if( *rest )
 	{
-		if(!(rest = expand_argument(info,rest,arg)))
+		if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_WIDEVNUM)
 			return;
 
-		switch(arg->type) {
-		case ENT_STRING: vnum = atoi(arg->d.str); break;
-		case ENT_NUMBER: vnum = arg->d.num; break;
-		default: vnum = 0; break;
-		}
+		wnum = arg->d.wnum;
 
-		if (vnum < 1 || !(script = get_script_index(vnum, type)))
+		if (!wnum.pArea || wnum.vnum < 1 || !(script = get_script_index(wnum.pArea, wnum.vnum, type)))
 			return;
 
 		// Don't care about response
-		execute_script(script->vnum, script, info->mob, info->obj, info->room, info->token, NULL, NULL, NULL, mob, NULL, NULL, NULL, NULL,NULL, NULL,NULL,NULL,TRIG_NONE,0,0,0,0,0);
+		execute_script(script, info->mob, info->obj, info->room, info->token, NULL, NULL, NULL, mob, NULL, NULL, NULL, NULL,NULL, NULL,NULL,NULL,TRIG_NONE,0,0,0,0,0);
 	}
 
 	free_quest(mob->quest);
@@ -2629,13 +2640,13 @@ SCRIPT_CMD(scriptcmd_questgenerate)
 	char *rest;
 	CHAR_DATA *mob;
 	int qg_type;
-	long qg_vnum;
+	WNUM qg_wnum;
 	CHAR_DATA *qr_mob = NULL;
 	OBJ_DATA *qr_obj = NULL;
 	ROOM_INDEX_DATA *qr_room = NULL;
 	int *tempstores;
 	int type, parts;
-	long vnum;
+	WNUM wnum;
 	SCRIPT_DATA *script;
 
 	info->progs->lastreturn = 0;
@@ -2649,7 +2660,8 @@ SCRIPT_CMD(scriptcmd_questgenerate)
 			return;
 
 		qg_type = QUESTOR_MOB;
-		qg_vnum = info->mob->pIndexData->vnum;
+		qg_wnum.pArea = info->mob->pIndexData->area;
+		qg_wnum.vnum = info->mob->pIndexData->vnum;
 	}
 	else if(info->obj)
 	{
@@ -2657,7 +2669,8 @@ SCRIPT_CMD(scriptcmd_questgenerate)
 		tempstores = info->obj->tempstore;
 
 		qg_type = QUESTOR_OBJ;
-		qg_vnum = info->obj->pIndexData->vnum;
+		qg_wnum.pArea = info->obj->pIndexData->area;
+		qg_wnum.vnum = info->obj->pIndexData->vnum;
 	}
 	else if(info->room)
 	{
@@ -2667,7 +2680,8 @@ SCRIPT_CMD(scriptcmd_questgenerate)
 			return;
 
 		qg_type = QUESTOR_ROOM;
-		qg_vnum = info->room->vnum;
+		qg_wnum.pArea = info->room->area;
+		qg_wnum.vnum = info->room->vnum;
 	}
 	else if(info->token)
 	{
@@ -2681,12 +2695,14 @@ SCRIPT_CMD(scriptcmd_questgenerate)
 				return;
 
 			qg_type = QUESTOR_MOB;
-			qg_vnum = info->token->player->pIndexData->vnum;
+			qg_wnum.pArea = info->token->player->pIndexData->area;
+			qg_wnum.vnum = info->token->player->pIndexData->vnum;
 		}
 		else if( info->token->object )
 		{
 			qg_type = QUESTOR_OBJ;
-			qg_vnum = info->token->object->pIndexData->vnum;
+			qg_wnum.pArea = info->token->object->pIndexData->area;
+			qg_wnum.vnum = info->token->object->pIndexData->vnum;
 		}
 		else if( info->token->room )
 		{
@@ -2694,7 +2710,8 @@ SCRIPT_CMD(scriptcmd_questgenerate)
 				return;
 
 			qg_type = QUESTOR_ROOM;
-			qg_vnum = info->token->room->vnum;
+			qg_wnum.pArea = info->token->room->area;
+			qg_wnum.vnum = info->token->room->vnum;
 		}
 		else
 			return;
@@ -2753,37 +2770,36 @@ SCRIPT_CMD(scriptcmd_questgenerate)
 		return;
 
 	// Get generator script
-	if(!(rest = expand_argument(info,rest,arg)))
+	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_WIDEVNUM)
 		return;
 
-	switch(arg->type) {
-	case ENT_STRING: vnum = atoi(arg->d.str); break;
-	case ENT_NUMBER: vnum = arg->d.num; break;
-	default: vnum = 0; break;
-	}
+	wnum = arg->d.wnum;
 
-	if (vnum < 1 || !(script = get_script_index(vnum, type)))
+	if (!wnum.pArea || wnum.vnum < 1 || !(script = get_script_index(wnum.pArea, wnum.vnum, type)))
 		return;
 
 	mob->quest = new_quest();
 	mob->quest->generating = TRUE;
 	mob->quest->scripted = TRUE;
 	mob->quest->questgiver_type = qg_type;
-	mob->quest->questgiver = qg_vnum;
+	mob->quest->questgiver = qg_wnum;
 	if( qr_mob )
 	{
 		mob->quest->questreceiver_type = QUESTOR_MOB;
-		mob->quest->questreceiver = qr_mob->pIndexData->vnum;
+		mob->quest->questreceiver.pArea = qr_mob->pIndexData->area;
+		mob->quest->questreceiver.vnum = qr_mob->pIndexData->vnum;
 	}
 	else if( qr_obj )
 	{
 		mob->quest->questreceiver_type = QUESTOR_OBJ;
-		mob->quest->questreceiver = qr_obj->pIndexData->vnum;
+		mob->quest->questreceiver.pArea = qr_obj->pIndexData->area;
+		mob->quest->questreceiver.vnum = qr_obj->pIndexData->vnum;
 	}
 	else if( qr_room )
 	{
 		mob->quest->questreceiver_type = QUESTOR_ROOM;
-		mob->quest->questreceiver = qr_room->vnum;
+		mob->quest->questreceiver.pArea = qr_room->area;
+		mob->quest->questreceiver.vnum = qr_room->vnum;
 	}
 
 	bool success = TRUE;
@@ -2797,7 +2813,7 @@ SCRIPT_CMD(scriptcmd_questgenerate)
 
 		tempstores[0] = part->index;
 
-		if( execute_script(script->vnum, script, info->mob, info->obj, info->room, info->token, NULL, NULL, NULL, mob, NULL, NULL, NULL, NULL,NULL, NULL,NULL,NULL,TRIG_NONE,0,0,0,0,0) <= 0 )
+		if( execute_script(script, info->mob, info->obj, info->room, info->token, NULL, NULL, NULL, mob, NULL, NULL, NULL, NULL,NULL, NULL,NULL,NULL,TRIG_QUEST_PART,0,0,0,0,0) <= 0 )
 		{
 			success = FALSE;
 			break;
@@ -2844,7 +2860,6 @@ SCRIPT_CMD(scriptcmd_questpartcustom)
 	QUEST_PART_DATA *part = ch->quest->parts;
 	sprintf(buf, "{xTask {Y%d{x: %s{x.", part->index, arg->d.str);
 
-
 	minutes = number_range(10,20);
 	if(*rest)
 	{
@@ -2853,7 +2868,6 @@ SCRIPT_CMD(scriptcmd_questpartcustom)
 
 		minutes = UMAX(arg->d.num,1);
 	}
-
 
 	part->description = str_dup(buf);
 	part->custom_task = TRUE;
@@ -2911,6 +2925,7 @@ SCRIPT_CMD(scriptcmd_questpartgetitem)
 	free_string(obj->owner);
 	obj->owner = str_dup(ch->name);
 	part->pObj = obj;
+	part->area = obj->pIndexData->area;
 	part->obj = obj->pIndexData->vnum;
 	part->minutes = minutes;
 
@@ -2972,6 +2987,7 @@ SCRIPT_CMD(scriptcmd_questpartgoto)
 		destination->area->name);
 
 	part->description = str_dup(buf);
+	part->area = destination->area;
 	part->room = destination->vnum;
 	part->minutes = minutes;
 
@@ -3023,6 +3039,7 @@ SCRIPT_CMD(scriptcmd_questpartrescue)
 		target->in_room->area->name);
 
 	part->description = str_dup(buf);
+	part->area = target->pIndexData->area;
 	part->mob_rescue = target->pIndexData->vnum;
 	part->minutes = minutes;
 
@@ -3076,6 +3093,7 @@ SCRIPT_CMD(scriptcmd_questpartslay)
 		target->in_room->area->name);
 
 	part->description = str_dup(buf);
+	part->area = target->pIndexData->area;
 	part->mob = target->pIndexData->vnum;
 	part->minutes = minutes;
 
@@ -3127,7 +3145,7 @@ char *__get_questscroll_args(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM 
 	return rest;
 }
 
-// QUESTSCROLL $PLAYER $QUESTGIVER $VNUM $HEADER $FOOTER $WIDTH $PREFIX[ $SUFFIX] $VARIABLENAME
+// QUESTSCROLL $PLAYER $QUESTGIVER $WNUM $HEADER $FOOTER $WIDTH $PREFIX[ $SUFFIX] $VARIABLENAME
 SCRIPT_CMD(scriptcmd_questscroll)
 {
 	char *header, *footer, *prefix, *suffix;
@@ -3135,7 +3153,7 @@ SCRIPT_CMD(scriptcmd_questscroll)
 	char questgiver[MSL];
 	char *rest;
 	CHAR_DATA *ch;
-	long vnum;
+	WNUM wnum;
 
 	info->progs->lastreturn = 0;
 
@@ -3189,13 +3207,12 @@ SCRIPT_CMD(scriptcmd_questscroll)
 		return;
 
 	// Get scroll vnum
-	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER)
+	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_WIDEVNUM)
 		return;
 
-	if( arg->d.num < 1 || !get_obj_index(arg->d.num))
+	wnum = arg->d.wnum;
+	if( !wnum.pArea || wnum.vnum < 1 || !get_obj_index(wnum.pArea, wnum.vnum))
 		return;
-
-	vnum = arg->d.num;
 
 	rest = __get_questscroll_args(info, rest, arg, &header, &footer, &width, &prefix, &suffix);
 	if( rest && *rest )
@@ -3204,7 +3221,7 @@ SCRIPT_CMD(scriptcmd_questscroll)
 
 		if( rest && arg->type == ENT_STRING )
 		{
-			OBJ_DATA *scroll = generate_quest_scroll(ch,questgiver,vnum,header,footer,prefix,suffix,width);
+			OBJ_DATA *scroll = generate_quest_scroll(ch,questgiver,wnum,header,footer,prefix,suffix,width);
 			if( scroll != NULL )
 			{
 				variables_set_object(info->var, arg->d.str, scroll);
@@ -3295,7 +3312,7 @@ SCRIPT_CMD(scriptcmd_reckoning)
 
 
 // REVOKESKILL player name
-// REVOKESKILL player vnum
+// REVOKESKILL player wnum
 SCRIPT_CMD(scriptcmd_revokeskill)
 {
 	char *rest;
@@ -3323,13 +3340,12 @@ SCRIPT_CMD(scriptcmd_revokeskill)
 
 		entry = skill_entry_findsn(mob->sorted_skills, sn);
 
-	} else if( arg->type == ENT_NUMBER ) {
-		token_index = get_token_index(arg->d.num);
+	} else if( arg->type == ENT_WIDEVNUM ) {
+		token_index = get_token_index(arg->d.wnum.pArea, arg->d.wnum.vnum);
 
 		if( !token_index ) return;
 
 		entry = skill_entry_findtokenindex(mob->sorted_skills, token_index);
-
 	}
 	else
 		return;
@@ -3450,8 +3466,8 @@ SCRIPT_CMD(scriptcmd_setsubclass)
 {
 }
 
-
-// SPAWNDUNGEON $PLAYER $DUNGEONID $FLOOR $VARIABLENAME
+// SPAWNDUNGEON $PLAYER $DUNGEONWNUM floor $FLOOR $VARIABLENAME
+// SPAWNDUNGEON $PLAYER $DUNGEONWNUM room $SPECIALROOM $VARIABLENAME
 // This does not automatically send the player to the dungeon
 // That is what the room variable is for.
 //
@@ -3474,17 +3490,42 @@ SCRIPT_CMD(scriptcmd_spawndungeon)
 	if (!ch || IS_NPC(ch))
 		return;
 
-	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER)
+	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_WIDEVNUM)
 		return;
 
-	long vnum = arg->d.num;
-
-	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER || !*rest)
+	WNUM wnum = arg->d.wnum;
+	if (!wnum.pArea || wnum.vnum < 1)
 		return;
 
-	int floor = arg->d.num;
+	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING || !*rest)
+		return;
 
-	ROOM_INDEX_DATA *room = spawn_dungeon_player(ch, vnum, floor);
+	ROOM_INDEX_DATA *room = NULL;
+	if (!str_prefix(arg->d.str, "floor"))
+	{
+		if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER || !*rest)
+			return;
+
+		int floor = arg->d.num;
+
+		room = spawn_dungeon_player_floor(ch, wnum.pArea, wnum.vnum, floor);
+	}
+	else if(!str_prefix(arg->d.str, "room"))
+	{
+		// TODO: allow for string named lookups
+		if(!(rest = expand_argument(info,rest,arg)) || (arg->type != ENT_NUMBER && arg->type != ENT_STRING) || !*rest)
+			return;
+
+		if(arg->type == ENT_NUMBER)
+		{
+			room = spawn_dungeon_player_special_room(ch, wnum.pArea, wnum.vnum, arg->d.num, NULL);
+		}
+		else if (arg->type == ENT_STRING)
+		{
+			room = spawn_dungeon_player_special_room(ch, wnum.pArea, wnum.vnum, 0, arg->d.str);
+		}
+	}
+
 
 	if( !room )
 		return;
@@ -3494,7 +3535,8 @@ SCRIPT_CMD(scriptcmd_spawndungeon)
 }
 
 
-// SPECIALKEY $SHIP|$DUNGEON $VNUM $VARIABLENAME
+// SPECIALKEY $SHIP $WIDEVNUM $VARIABLENAME
+// TODO: Make it possible to do it for dungeons and instances
 SCRIPT_CMD(scriptcmd_specialkey)
 {
 	char *rest;
@@ -3511,22 +3553,22 @@ SCRIPT_CMD(scriptcmd_specialkey)
 
 	keys = NULL;
 	if( arg->type == ENT_SHIP )
+	{
 		keys = IS_VALID(arg->d.ship) ? arg->d.ship->special_keys : NULL;
-	else if( arg->type == ENT_DUNGEON )
-		keys = NULL;//IS_VALID(arg->d.dungeon) ? arg->d.dungeon->special_keys : NULL; // NYI
+	}
 
 	if( !IS_VALID(keys) )
 		return;
 
-	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER || !*rest)
+	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_WIDEVNUM || !*rest)
 		return;
 
-	SPECIAL_KEY_DATA *sk = get_special_key(keys, (long)arg->d.num);
+	SPECIAL_KEY_DATA *sk = get_special_key(keys, arg->d.wnum);
 
 	if( !sk )
 		return;
 
-	index = get_obj_index(sk->key_vnum);
+	index = get_obj_index(sk->key_wnum.pArea, sk->key_wnum.vnum);
 
 	if( !index || index->item_type != ITEM_KEY )
 		return;
@@ -3810,6 +3852,9 @@ SCRIPT_CMD(scriptcmd_varclearon)
 	case ENT_OBJECT: vars = (arg->d.obj && arg->d.obj->progs) ? &arg->d.obj->progs->vars : NULL; break;
 	case ENT_ROOM: vars = (arg->d.room && arg->d.room->progs) ? &arg->d.room->progs->vars : NULL; break;
 	case ENT_TOKEN: vars = (arg->d.token && arg->d.token->progs) ? &arg->d.token->progs->vars : NULL; break;
+	case ENT_AREA: vars = (arg->d.area && arg->d.area->progs) ? &arg->d.area->progs->vars : NULL; break;
+	case ENT_INSTANCE: vars = (arg->d.instance && arg->d.instance->progs) ? &arg->d.instance->progs->vars : NULL; break;
+	case ENT_DUNGEON: vars = (arg->d.dungeon && arg->d.dungeon->progs) ? &arg->d.dungeon->progs->vars : NULL; break;
 	default: vars = NULL; break;
 	}
 
@@ -3870,6 +3915,9 @@ SCRIPT_CMD(scriptcmd_varsaveon)
 	case ENT_OBJECT: vars = (arg->d.obj && arg->d.obj->progs) ? arg->d.obj->progs->vars : NULL; break;
 	case ENT_ROOM: vars = (arg->d.room && arg->d.room->progs) ? arg->d.room->progs->vars : NULL; break;
 	case ENT_TOKEN: vars = (arg->d.token && arg->d.token->progs) ? arg->d.token->progs->vars : NULL; break;
+	case ENT_AREA: vars = (arg->d.area && arg->d.area->progs) ? arg->d.area->progs->vars : NULL; break;
+	case ENT_INSTANCE: vars = (arg->d.instance && arg->d.instance->progs) ? arg->d.instance->progs->vars : NULL; break;
+	case ENT_DUNGEON: vars = (arg->d.dungeon && arg->d.dungeon->progs) ? arg->d.dungeon->progs->vars : NULL; break;
 	default: vars = NULL; break;
 	}
 
@@ -3909,6 +3957,9 @@ SCRIPT_CMD(scriptcmd_varseton)
 	case ENT_OBJECT: vars = (arg->d.obj && arg->d.obj->progs) ? &arg->d.obj->progs->vars : NULL; break;
 	case ENT_ROOM: vars = (arg->d.room && arg->d.room->progs) ? &arg->d.room->progs->vars : NULL; break;
 	case ENT_TOKEN: vars = (arg->d.token && arg->d.token->progs) ? &arg->d.token->progs->vars : NULL; break;
+	case ENT_AREA: vars = (arg->d.area && arg->d.area->progs) ? &arg->d.area->progs->vars : NULL; break;
+	case ENT_INSTANCE: vars = (arg->d.instance && arg->d.instance->progs) ? &arg->d.instance->progs->vars : NULL; break;
+	case ENT_DUNGEON: vars = (arg->d.dungeon && arg->d.dungeon->progs) ? &arg->d.dungeon->progs->vars : NULL; break;
 	default: vars = NULL; break;
 	}
 
@@ -4014,7 +4065,8 @@ SCRIPT_CMD(scriptcmd_xcall)
 	CHAR_DATA *vch = NULL,*ch = NULL;
 	OBJ_DATA *obj1 = NULL,*obj2 = NULL;
 	SCRIPT_DATA *script;
-	int depth, vnum, ret, space = PRG_MPROG;
+	int depth, ret, space = PRG_MPROG;
+	WNUM wnum;
 
 
 	DBG2ENTRY2(PTR,info,PTR,argument);
@@ -4068,19 +4120,15 @@ SCRIPT_CMD(scriptcmd_xcall)
 	}
 
 
-	if(!(rest = expand_argument(info,rest,arg))) {
+	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_WIDEVNUM) {
 		// Restore the call depth to the previous value
 		script_call_depth = depth;
 		return;
 	}
 
-	switch(arg->type) {
-	case ENT_STRING: vnum = atoi(arg->d.str); break;
-	case ENT_NUMBER: vnum = arg->d.num; break;
-	default: vnum = 0; break;
-	}
+	wnum = arg->d.wnum;
 
-	if (vnum < 1 || !(script = get_script_index(vnum, space))) {
+	if (!wnum.pArea || wnum.vnum < 1 || !(script = get_script_index(wnum.pArea, wnum.vnum, space))) {
 		return;
 	}
 
@@ -4155,7 +4203,7 @@ SCRIPT_CMD(scriptcmd_xcall)
 	}
 
 	// Do this to account for possible destructions
-	ret = execute_script(script->vnum, script, mob, obj, room, token, area, instance, dungeon, ch, obj1, obj2, vch, NULL,NULL, NULL,info->phrase,info->trigger,info->trigger_type,0,0,0,0,0);
+	ret = execute_script(script, mob, obj, room, token, area, instance, dungeon, ch, obj1, obj2, vch, NULL,NULL, NULL,info->phrase,info->trigger,info->trigger_type,0,0,0,0,0);
 	if(info->progs)
 		info->progs->lastreturn = ret;
 	else

@@ -26,7 +26,6 @@ SPELL_FUNC(spell_animate_dead)
 	OBJ_DATA *obj;
 	OBJ_DATA *obj_in, *obj_in_next;
 	int i,chance, corpse, catalyst, lvl, percent;
-	long vnum;
 
 	if (target == TARGET_OBJ) {
 		obj = (OBJ_DATA *) vo;
@@ -79,9 +78,19 @@ SPELL_FUNC(spell_animate_dead)
 			return FALSE;
 		}
 
-		vnum = CORPSE_MOBILE(obj) ? CORPSE_MOBILE(obj) : obj->orig_vnum;
+		WNUM wnum;
+		if (CORPSE_MOBILE(obj))
+		{
+			// So far, this will be local vnum only
+			wnum.pArea = obj->pIndexData->area;
+			wnum.vnum = CORPSE_MOBILE(obj);
+		}
+		else
+		{
+			wnum = obj->orig_wnum;
+		}
 
-		index = get_mob_index(vnum);
+		index = get_mob_index(wnum.pArea, wnum.vnum);
 		victim = create_mobile(index, FALSE);
 
 		// Regardless what wealth the normal mob has...
@@ -143,7 +152,7 @@ SPELL_FUNC(spell_animate_dead)
 		SET_BIT(victim->affected_by, AFF_CHARM);
 		SET_BIT(victim->act, ACT_ANIMATED);
 		SET_BIT(victim->act, ACT_UNDEAD);
-		victim->corpse_vnum = index->zombie;
+		victim->corpse_wnum = index->zombie;
 		victim->parts = CORPSE_PARTS(obj);
 		char_to_room(victim, ch->in_room);
 		victim->pIndexData->count--;  // Animated mobs dont add to world count.
@@ -438,7 +447,7 @@ SPELL_FUNC(spell_raise_dead)
 		} else {
 			bool keep_mob = TRUE;
 
-			victim = create_mobile(get_mob_index(obj->orig_vnum), FALSE);
+			victim = create_mobile(get_mob_index_wnum(obj->orig_wnum), FALSE);
 			// Regardless what wealth the normal mob has...
 			victim->gold = 0;
 			victim->silver = 0;

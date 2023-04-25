@@ -20,7 +20,7 @@ void bzero(register char *sp,int len);
 
 struct hash_link
 {
-    int			key;
+    long long	key;
     struct hash_link	*next;
     void		*data;
 };
@@ -29,13 +29,16 @@ struct hash_header
 {
     int			rec_size;
     int			table_size;
-    int			*keylist, klistsize, klistlen; /* this is really lame,
+    long long		*keylist;
+    int     klistsize, klistlen; /* this is really lame,
 							  AMAZINGLY lame */
     struct hash_link	**buckets;
 };
 
+
 #define WORLD_SIZE	30000
-#define	HASH_KEY(ht,key)((((unsigned int)(key))*17)%(ht)->table_size)
+#define MAKEKEY(a, v) (long long)((((long long)(a))<<32) + (long long)(v))
+#define	HASH_KEY(ht,key)((int)((((unsigned long long)(key))*17)%(ht)->table_size))
 
 struct hunting_data
 {
@@ -45,6 +48,7 @@ struct hunting_data
 
 struct room_q
 {
+    AREA_DATA *area_nr;
     int		room_nr;
     struct room_q	*next_q;
 };
@@ -55,7 +59,7 @@ struct nodes
     int	ancestor;
 };
 
-#define IS_DIR		(get_room_index(q_head->room_nr)->exit[i])
+#define IS_DIR		(get_room_index(q_head->area_nr, q_head->room_nr)->exit[i])
 #define GO_OK		(!IS_SET( IS_DIR->exit_info, EX_CLOSED ))
 #define GO_OK_SMARTER	1
 
@@ -78,7 +82,7 @@ void init_hash_table(struct hash_header	*ht,int rec_size,int table_size)
     ht->rec_size	= rec_size;
     ht->table_size= table_size;
     ht->buckets	= (void*)calloc(sizeof(struct hash_link**),table_size);
-    ht->keylist	= (void*)malloc(sizeof(ht->keylist)*(ht->klistsize=128));
+    ht->keylist	= (void*)malloc(sizeof(long long)*(ht->klistsize=128));
     ht->klistlen	= 0;
 }
 
@@ -105,7 +109,7 @@ void destroy_hash_table(struct hash_header *ht,void (*gman)())
     free(ht->keylist);
 }
 
-void _hash_enter(struct hash_header *ht,int key,void *data)
+void _hash_enter(struct hash_header *ht,long long key,void *data)
 {
     /* precondition: there is no entry for <key> yet */
     struct hash_link	*temp;
@@ -118,7 +122,7 @@ void _hash_enter(struct hash_header *ht,int key,void *data)
   ht->buckets[HASH_KEY(ht,key)] = temp;
   if(ht->klistlen>=ht->klistsize)
     {
-      ht->keylist = (void*)realloc(ht->keylist,sizeof(*ht->keylist)*
+      ht->keylist = (void*)realloc(ht->keylist,sizeof(long long)*
 				   (ht->klistsize*=2));
     }
   for(i=ht->klistlen;i>=0;i--)
@@ -138,7 +142,7 @@ ROOM_INDEX_DATA *room_find(ROOM_INDEX_DATA *room_db[],int key)
   return((key<WORLD_SIZE&&key>-1)?room_db[key]:0);
 }
 
-void *hash_find(struct hash_header *ht,int key)
+void *hash_find(struct hash_header *ht,long long key)
 {
   struct hash_link *scan;
 
@@ -161,7 +165,7 @@ int room_enter(ROOM_INDEX_DATA *rb[],int key,ROOM_INDEX_DATA *rm)
   return(1);
 }
 
-int hash_enter(struct hash_header *ht,int key,void *data)
+int hash_enter(struct hash_header *ht,long long key,void *data)
 {
     void *temp;
 
@@ -187,7 +191,7 @@ ROOM_INDEX_DATA *room_find_or_create(ROOM_INDEX_DATA *rb[],int key)
 }
 
 
-void *hash_find_or_create(struct hash_header *ht,int key)
+void *hash_find_or_create(struct hash_header *ht,long long key)
 {
     void *rval;
 
@@ -215,7 +219,7 @@ int room_remove(ROOM_INDEX_DATA *rb[],int key)
 }
 
 
-void *hash_remove(struct hash_header *ht,int key)
+void *hash_remove(struct hash_header *ht,long long key)
 {
   struct hash_link **scan;
 
@@ -241,7 +245,7 @@ void *hash_remove(struct hash_header *ht,int key)
       if(i<ht->klistlen)
 	{
 	  bcopy((char *)ht->keylist+i+1,(char *)ht->keylist+i,(ht->klistlen-i)
-		*sizeof(*ht->keylist));
+		*sizeof(long long));
 	  ht->klistlen--;
 	}
 
@@ -273,7 +277,7 @@ void hash_iterate(struct hash_header *ht,void (*func)(),void *cdata)
     for( i = 0 ; i < ht->klistlen; i++ )
     {
 	void		*temp;
-	register int	key;
+	register long long	key;
 
 	key = ht->keylist[i];
 	temp = hash_find(ht,key);
@@ -298,11 +302,12 @@ void donothing( void )
 }
 
 
-int find_path( long in_room_vnum, long out_room_vnum, CHAR_DATA *ch,
+int find_path( AREA_DATA *in_area, long in_room_vnum, AREA_DATA *out_area, long out_room_vnum, CHAR_DATA *ch,
 	       int depth, int in_zone )
 {
     struct room_q *tmp_q, *q_head, *q_tail;
     struct hash_header	x_room;
+    AREA_DATA *tmp_area;
     int	i, tmp_room, count=0, thru_doors;
     ROOM_INDEX_DATA *herep;
     ROOM_INDEX_DATA *startp;
@@ -318,20 +323,21 @@ int find_path( long in_room_vnum, long out_room_vnum, CHAR_DATA *ch,
 	thru_doors = FALSE;
     }
 
-    startp = get_room_index( in_room_vnum );
+    startp = get_room_index( in_area, in_room_vnum );
 
     init_hash_table( &x_room, sizeof(int), 2048 );
-    hash_enter( &x_room, in_room_vnum, (void *) - 1 );
+    hash_enter( &x_room, MAKEKEY(in_area->uid, in_room_vnum), (void *) - 1 );
 
     /* initialize queue */
     q_head = (struct room_q *) malloc(sizeof(struct room_q));
     q_tail = q_head;
+    q_tail->area_nr = in_area;
     q_tail->room_nr = in_room_vnum;
-    q_tail->next_q = 0;
+    q_tail->next_q = NULL;
 
     while(q_head)
     {
-	herep = get_room_index( q_head->room_nr );
+	herep = get_room_index( q_head->area_nr, q_head->room_nr );
 	/* for each room test all directions */
 	if( herep->area == startp->area || !in_zone )
 	{
@@ -343,8 +349,9 @@ int find_path( long in_room_vnum, long out_room_vnum, CHAR_DATA *ch,
 		if( exit_ok(exitp) && ( thru_doors ? GO_OK_SMARTER : GO_OK ) )
 		{
 		    /* next room */
+            tmp_area = herep->exit[i]->u1.to_room->area;
 		    tmp_room = herep->exit[i]->u1.to_room->vnum;
-		    if( tmp_room != out_room_vnum )
+		    if( tmp_area != out_area || tmp_room != out_room_vnum )
 		    {
 			/* shall we add room to queue ?
 			   count determines total breadth and depth */
@@ -357,6 +364,7 @@ int find_path( long in_room_vnum, long out_room_vnum, CHAR_DATA *ch,
 
 			    tmp_q = (struct room_q *)
 				malloc(sizeof(struct room_q));
+                tmp_q->area_nr = tmp_area;
 			    tmp_q->room_nr = tmp_room;
 			    tmp_q->next_q = 0;
 			    q_tail->next_q = tmp_q;
@@ -364,14 +372,15 @@ int find_path( long in_room_vnum, long out_room_vnum, CHAR_DATA *ch,
 
 			    /* ancestor for first layer is the direction */
 			    hash_enter( &x_room, tmp_room,
-				    (hash_find(&x_room,q_head->room_nr) == (void*)-1) ?
+				    (hash_find(&x_room,MAKEKEY(q_head->area_nr->uid, q_head->room_nr)) == (void*)-1) ?
 				    (void*)(size_t)(i+1) :
-				    hash_find(&x_room,q_head->room_nr));
+				    hash_find(&x_room,MAKEKEY(q_head->area_nr->uid, q_head->room_nr)));
 			}
 		    }
 		    else
 		    {
 			/* have reached our goal so free queue */
+            tmp_area = q_head->area_nr;
 			tmp_room = q_head->room_nr;
 			for(;q_head;q_head = tmp_q)
 			{
@@ -379,7 +388,7 @@ int find_path( long in_room_vnum, long out_room_vnum, CHAR_DATA *ch,
 			    free(q_head);
 			}
 			/* return direction if first layer */
-			if (hash_find(&x_room,tmp_room)==(void *)-1)
+			if (hash_find(&x_room,MAKEKEY(tmp_area->uid, tmp_room))==(void *)-1)
 			{
 			    if (x_room.buckets)
 			    {
@@ -393,7 +402,7 @@ int find_path( long in_room_vnum, long out_room_vnum, CHAR_DATA *ch,
 			    /* else return the ancestor */
 			    int i;
 
-			    i = (int)(size_t)hash_find(&x_room,tmp_room);
+			    i = (int)(size_t)hash_find(&x_room,MAKEKEY(tmp_area->uid, tmp_room));
 			    if (x_room.buckets)
 			    {
 				/* junk left over from a previous track */
@@ -535,7 +544,8 @@ void do_hunt( CHAR_DATA *ch, char *argument )
 
 
     // Max rooms so people can track across areas without megalag
-    direction = find_path( ch->in_room->vnum, victim->in_room->vnum,
+    direction = find_path( ch->in_room->area, ch->in_room->vnum,
+        victim->in_room->area, victim->in_room->vnum,
 	    ch, -1000, FALSE );
 
     if( direction == -1 || (IS_NPC(victim) && IS_SET(victim->act2, ACT2_NO_HUNT)))

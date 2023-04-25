@@ -62,9 +62,6 @@ void do_ship_speed( CHAR_DATA *ch, char *argument );
 
 extern LLIST *loaded_instances;
 
-bool ships_changed = false;
-long top_ship_index_vnum = 0;
-
 LLIST *loaded_ships;
 LLIST *loaded_waypoints;
 LLIST *loaded_waypoint_paths;
@@ -462,7 +459,7 @@ bool steering_movement(SHIP_DATA *ship, int *x, int *y, int *door)
 // Ship Types
 //
 
-SHIP_INDEX_DATA *load_ship_index(FILE *fp)
+SHIP_INDEX_DATA *read_ship_index(FILE *fp, AREA_DATA *area)
 {
 	SHIP_INDEX_DATA *ship;
 	char *word;
@@ -470,9 +467,10 @@ SHIP_INDEX_DATA *load_ship_index(FILE *fp)
 
 	ship = new_ship_index();
 	ship->vnum = fread_number(fp);
+	ship->area = area;
 
-	if( ship->vnum > top_ship_index_vnum)
-		top_ship_index_vnum = ship->vnum;
+	if (ship->vnum > area->top_ship_vnum)
+		area->top_ship_vnum = ship->vnum;
 
 	while (str_cmp((word = fread_word(fp)), "#-SHIP"))
 	{
@@ -487,14 +485,7 @@ SHIP_INDEX_DATA *load_ship_index(FILE *fp)
 		case 'B':
 			if( !str_cmp(word, "Blueprint") )
 			{
-				long vnum = fread_number(fp);
-				BLUEPRINT *bp = get_blueprint(vnum);
-
-				if( bp )
-				{
-					ship->blueprint = bp;
-				}
-
+				ship->blueprint_wnum = fread_widevnum(fp);
 				fMatch = TRUE;
 				break;
 			}
@@ -534,7 +525,8 @@ SHIP_INDEX_DATA *load_ship_index(FILE *fp)
 			{
 				long key_vnum = fread_number(fp);
 
-				OBJ_INDEX_DATA *key = get_obj_index(key_vnum);
+				// Objects in the area should already be loaded
+				OBJ_INDEX_DATA *key = get_obj_index(area, key_vnum);
 				if( key )
 				{
 					list_appendlink(ship->special_keys, key);
@@ -579,44 +571,25 @@ SHIP_INDEX_DATA *load_ship_index(FILE *fp)
 	return ship;
 }
 
-void load_ships()
+void fix_ship_index(SHIP_INDEX_DATA *ship)
 {
-	FILE *fp = fopen(SHIPS_FILE, "r");
-	if (fp == NULL)
+	ship->blueprint = get_blueprint_auid(ship->blueprint_wnum.auid, ship->blueprint_wnum.vnum);
+}
+
+void fix_ship_indexes()
+{
+	AREA_DATA *area;
+	SHIP_INDEX_DATA *ship;
+	int iHash;
+
+	for(area = area_first; area; area = area->next)
 	{
-		bug("Couldn't read ships.dat", 0);
-		return;
-	}
-
-	char *word;
-	bool fMatch;
-
-	top_ship_index_vnum = 0;
-
-	while (str_cmp((word = fread_word(fp)), "#END"))
-	{
-		fMatch = FALSE;
-
-		if( !str_cmp(word, "#SHIP") )
+		for(iHash = 0; iHash < MAX_KEY_HASH; iHash++)
 		{
-			SHIP_INDEX_DATA *ship = load_ship_index(fp);
-			int iHash = ship->vnum % MAX_KEY_HASH;
-
-			ship->next = ship_index_hash[iHash];
-			ship_index_hash[iHash] = ship;
-
-			fMatch = TRUE;
-			continue;
-		}
-
-		if (!fMatch) {
-			char buf[MSL];
-			sprintf(buf, "load_ships: no match for word %.50s", word);
-			bug(buf, 0);
+			for(ship = area->ship_index_hash[iHash]; ship; ship = ship->next)
+				fix_ship_index(ship);
 		}
 	}
-
-	fclose(fp);
 }
 
 void save_ship_index(FILE *fp, SHIP_INDEX_DATA *ship)
@@ -659,37 +632,26 @@ void save_ship_index(FILE *fp, SHIP_INDEX_DATA *ship)
 	fprintf(fp, "#-SHIP\n\n");
 }
 
-bool save_ships()
+void save_ships(FILE *fp, AREA_DATA *area)
 {
-	FILE *fp = fopen(SHIPS_FILE, "w");
-	if (fp == NULL)
-	{
-		bug("Couldn't save ships.dat", 0);
-		return FALSE;
-	}
-
 	int iHash;
 
 	for(iHash = 0; iHash < MAX_KEY_HASH; iHash++)
 	{
-		for(SHIP_INDEX_DATA *ship = ship_index_hash[iHash]; ship; ship = ship->next)
+		for(SHIP_INDEX_DATA *ship = area->ship_index_hash[iHash]; ship; ship = ship->next)
 		{
 			save_ship_index(fp, ship);
 		}
 	}
-
-	fprintf(fp, "#END\n");
-	fclose(fp);
-
-	ships_changed = false;
-	return true;
 }
 
-SHIP_INDEX_DATA *get_ship_index(long vnum)
+SHIP_INDEX_DATA *get_ship_index(AREA_DATA *pArea, long vnum)
 {
+	if(!pArea) return NULL;
+
 	for(int iHash = 0; iHash < MAX_KEY_HASH; iHash++)
 	{
-		for(SHIP_INDEX_DATA *ship = ship_index_hash[iHash]; ship; ship = ship->next)
+		for(SHIP_INDEX_DATA *ship = pArea->ship_index_hash[iHash]; ship; ship = ship->next)
 		{
 			if( ship->vnum == vnum )
 				return ship;
@@ -704,7 +666,7 @@ SHIP_INDEX_DATA *get_ship_index(long vnum)
 // Ships
 //
 
-SHIP_DATA *create_ship(long vnum)
+SHIP_DATA *create_ship(WNUM wnum)
 {
 	OBJ_DATA *obj;						// Physical ship object
 	OBJ_INDEX_DATA *obj_index;			// Ship object index to create
@@ -714,17 +676,17 @@ SHIP_DATA *create_ship(long vnum)
 	ITERATOR it;
 
 	// Verify the ship index exists
-	if( !(ship_index = get_ship_index(vnum)) )
+	if( !(ship_index = get_ship_index(wnum.pArea, wnum.vnum)) )
 		return NULL;
 
 	// Verify the object index exists and is a ship
-	if( !(obj_index = get_obj_index(ship_index->ship_object)) )
+	if( !(obj_index = get_obj_index(ship_index->area, ship_index->ship_object)) )
 		return NULL;
 
 	if( obj_index->item_type != ITEM_SHIP )
 	{
 		char buf[MSL];
-		sprintf(buf, "create_ship: attempting to use object (%ld) that is not a ship object for ship (%ld)", obj_index->vnum, ship_index->vnum);
+		sprintf(buf, "create_ship: attempting to use object (%ld#%ld) that is not a ship object for ship (%ld#%ld)", obj_index->area->uid, obj_index->vnum, ship_index->area->uid, ship_index->vnum);
 		bug(buf, 0);
 		return NULL;
 	}
@@ -762,7 +724,8 @@ SHIP_DATA *create_ship(long vnum)
 		{
 			SPECIAL_KEY_DATA *sk = new_special_key();
 
-			sk->key_vnum = key->vnum;
+			sk->key_wnum.pArea = key->area;
+			sk->key_wnum.vnum = key->vnum;
 			list_appendlink(ship->special_keys, sk);
 		}
 		iterator_stop(&it);
@@ -1211,7 +1174,9 @@ SPECIAL_KEY_DATA *ship_special_key_load(FILE *fp)
 	bool fMatch;
 
 	sk = new_special_key();
-	sk->key_vnum = fread_number(fp);
+	WNUM_LOAD wnum = fread_widevnum(fp);
+	sk->key_wnum.pArea = get_area_from_uid(wnum.auid);
+	sk->key_wnum.vnum = wnum.vnum;
 
 	while (str_cmp((word = fread_word(fp)), "#-SPECIALKEY"))
 	{
@@ -1310,7 +1275,10 @@ SHIP_DATA *ship_load(FILE *fp)
 	char *word;
 	bool fMatch;
 
-	index = get_ship_index(fread_number(fp));
+	WNUM_LOAD wnum = fread_widevnum(fp);
+	AREA_DATA *area = get_area_from_uid(wnum.auid);
+
+	index = get_ship_index(area, wnum.vnum);
 	if( !index ) return NULL;
 
 	ship = new_ship();
@@ -1602,7 +1570,7 @@ void ship_special_key_save(FILE *fp, SPECIAL_KEY_DATA *sk)
 	ITERATOR it;
 	LLIST_UID_DATA *luid;
 
-	fprintf(fp, "#SPECIALKEY %ld\n", sk->key_vnum);
+	fprintf(fp, "#SPECIALKEY %ld#%ld\n", sk->key_wnum.pArea->uid, sk->key_wnum.vnum);
 
 	iterator_start(&it, sk->list);
 	while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
@@ -1623,7 +1591,7 @@ bool ship_save(FILE *fp, SHIP_DATA *ship)
 	SPECIAL_KEY_DATA *sk;
 	CHAR_DATA *crew, *oarsman;
 
-	fprintf(fp, "#SHIP %ld\n", ship->index->vnum);
+	fprintf(fp, "#SHIP %ld#%ld\n", ship->index->area->uid, ship->index->vnum);
 
 	save_ship_uid(fp, "Uid", ship->id);
 
@@ -2229,20 +2197,18 @@ void do_ships(CHAR_DATA *ch, char *argument)
 			char buf[2*MSL];
 			char arg2[MIL];
 			char arg3[MIL];
-			long vnum;
+			WNUM wnum;
 
 			argument = one_argument(argument, arg2);
 			argument = one_argument(argument, arg3);
 
-			if( !is_number(arg2) )
+			if( !parse_widevnum(arg2, &wnum) )
 			{
-				send_to_char("That is not a number.\n\r", ch);
+				send_to_char("Please specify a widevnum.\n\r", ch);
 				return;
 			}
 
-			vnum = atol(arg2);
-
-			SHIP_INDEX_DATA *index = get_ship_index(vnum);
+			SHIP_INDEX_DATA *index = get_ship_index(wnum.pArea, wnum.vnum);
 
 			if( !index )
 			{
@@ -2286,7 +2252,7 @@ void do_ships(CHAR_DATA *ch, char *argument)
 			}
 			send_to_char(buf, ch);
 
-			ship = create_ship(vnum);
+			ship = create_ship(wnum);
 
 			if( !IS_VALID(ship) )
 			{
@@ -4338,7 +4304,7 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		to_room = get_room_index(to_area->airship_land_spot);
+		to_room = get_room_index(to_area, to_area->airship_land_spot);
 		if( !to_room )
 		{
 			ship_dispatch_message(ch, ship, "There is no safe place to land the ship here.", "ship land");
@@ -4389,7 +4355,7 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			to_room = get_room_index(to_area->airship_land_spot);
+			to_room = get_room_index(to_area, to_area->airship_land_spot);
 			if( !to_room )
 			{
 				ship_dispatch_message(ch, ship, "There is no safe place to land the ship here.", "ship land");
@@ -5476,7 +5442,7 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 			}
 
 			extract_obj(map);
-			map = create_object(get_obj_index(OBJ_VNUM_NAVIGATIONAL_CHART), 0, FALSE);
+			map = create_object(obj_index_navigational_chart, 0, FALSE);
 			obj_to_char(map, ch);
 		}
 		else
@@ -5488,11 +5454,11 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			if( map->item_type == ITEM_BLANK_SCROLL || map->pIndexData->vnum == OBJ_VNUM_BLANK_SCROLL )
+			if( map->item_type == ITEM_BLANK_SCROLL || map->pIndexData == obj_index_blank_scroll )
 			{
 				// Replace blank scroll with map object
 				extract_obj(map);
-				map = create_object(get_obj_index(OBJ_VNUM_NAVIGATIONAL_CHART), 0, FALSE);
+				map = create_object(obj_index_navigational_chart, 0, FALSE);
 				obj_to_char(map, ch);
 			}
 			else if( map->item_type != ITEM_MAP )
@@ -6110,7 +6076,7 @@ void do_ship_keys(CHAR_DATA *ch, char *argument)
 		iterator_start(&it, ship->special_keys);
 		while( (sk = (SPECIAL_KEY_DATA *)iterator_nextdata(&it)) )
 		{
-			OBJ_INDEX_DATA *key = get_obj_index(sk->key_vnum);
+			OBJ_INDEX_DATA *key = get_obj_index(sk->key_wnum.pArea, sk->key_wnum.vnum);
 
 			if( key && key->item_type == ITEM_KEY )
 				strncpy(arg, key->short_descr, MIL-1);
@@ -6166,7 +6132,7 @@ void do_ship_keys(CHAR_DATA *ch, char *argument)
 		}
 
 		SPECIAL_KEY_DATA *sk = (SPECIAL_KEY_DATA *)list_nthdata(ship->special_keys, index);
-		OBJ_INDEX_DATA *key_index = get_obj_index(sk->key_vnum);
+		OBJ_INDEX_DATA *key_index = get_obj_index(sk->key_wnum.pArea, sk->key_wnum.vnum);
 
 		if( !key_index || key_index->item_type != ITEM_KEY )
 		{
@@ -7054,7 +7020,7 @@ bool get_shipyard_location(long wuid, int x1, int y1, int x2, int y2, int *x, in
 	}
 }
 
-SHIP_DATA *purchase_ship(CHAR_DATA *ch, long vnum, SHOP_DATA *shop)
+SHIP_DATA *purchase_ship(CHAR_DATA *ch, WNUM wnum, SHOP_DATA *shop)
 {
 	char buf[MSL];
 	WILDS_DATA *wilds = get_wilds_from_uid(NULL, shop->shipyard);
@@ -7071,7 +7037,7 @@ SHIP_DATA *purchase_ship(CHAR_DATA *ch, long vnum, SHOP_DATA *shop)
 		return NULL;
 	}
 
-	SHIP_DATA *ship = create_ship(vnum);
+	SHIP_DATA *ship = create_ship(wnum);
 
 	if( !IS_VALID(ship) )
 	{
@@ -7171,23 +7137,18 @@ bool can_edit_ships(CHAR_DATA *ch)
 
 void list_ship_indexes(CHAR_DATA *ch, char *argument)
 {
-	if( !can_edit_ships(ch) )
-	{
-		send_to_char("You do not have access to ships.\n\r", ch);
-		return;
-	}
-
 	if(!ch->lines)
 		send_to_char("{RWARNING:{W Having scrolling off may limit how many ships you can see.{x\n\r", ch);
 
+	AREA_DATA *area = ch->in_room->area;
 	int lines = 0;
 	bool error = FALSE;
 	BUFFER *buffer = new_buf();
 	char buf[MSL];
 
-	for(long vnum = 1; vnum <= top_ship_index_vnum; vnum++)
+	for(long vnum = 1; vnum <= area->top_ship_vnum; vnum++)
 	{
-		SHIP_INDEX_DATA *ship = get_ship_index(vnum);
+		SHIP_INDEX_DATA *ship = get_ship_index(area, vnum);
 
 		if( ship )
 		{
@@ -7218,6 +7179,7 @@ void list_ship_indexes(CHAR_DATA *ch, char *argument)
 		else
 		{
 			// Header
+			send_to_char("Ship indexes in current area.\n\r", ch);
 			send_to_char("{Y Vnum   [            Name            ] [   Ship Class   ]{x\n\r", ch);
 			send_to_char("{Y=========================================================={x\n\r", ch);
 		}
@@ -7237,17 +7199,15 @@ void shedit(CHAR_DATA *ch, char *argument)
 	char command[MAX_INPUT_LENGTH];
 	char arg[MAX_INPUT_LENGTH];
 	int  cmd;
+	SHIP_INDEX_DATA *ship;
+	AREA_DATA *area;
+
+	EDIT_SHIP(ch, ship);
+	area = ship->area;
 
 	smash_tilde(argument);
 	strcpy(arg, argument);
 	argument = one_argument(argument, command);
-
-	if (!can_edit_ships(ch))
-	{
-		send_to_char("SHEdit:  Insufficient security to edit ships - action logged.\n\r", ch);
-		edit_done(ch);
-		return;
-	}
 
 	if (!str_cmp(command, "done"))
 	{
@@ -7269,7 +7229,7 @@ void shedit(CHAR_DATA *ch, char *argument)
 		{
 			if ((*shedit_table[cmd].olc_fun) (ch, argument))
 			{
-				ships_changed = true;
+				SET_BIT(area->area_flags, AREA_CHANGED);
 			}
 
 			return;
@@ -7282,7 +7242,7 @@ void shedit(CHAR_DATA *ch, char *argument)
 void do_shedit(CHAR_DATA *ch, char *argument)
 {
 	SHIP_INDEX_DATA *ship = NULL;
-	int value;
+	WNUM wnum;
 	char arg[MAX_STRING_LENGTH];
 
 	if (IS_NPC(ch))
@@ -7290,16 +7250,15 @@ void do_shedit(CHAR_DATA *ch, char *argument)
 
 	argument = one_argument(argument,arg);
 
-	if (!can_edit_ships(ch))
+	if (parse_widevnum(arg, &wnum))
 	{
-		send_to_char("SHEdit : Insufficient security to edit ships - action logged.\n\r", ch);
-		return;
-	}
+		if (!IS_BUILDER(ch, wnum.pArea))
+		{
+			send_to_char("ShEdit:  widevnum in an area you cannot build in.\n\r", ch);
+			return;
+		}
 
-	if (is_number(arg))
-	{
-		value = atoi(arg);
-		if ( !(ship = get_ship_index(value)) )
+		if ( !(ship = get_ship_index(wnum.pArea, wnum.vnum)) )
 		{
 			send_to_char("That ship vnum does not exist.\n\r", ch);
 			return;
@@ -7315,8 +7274,10 @@ void do_shedit(CHAR_DATA *ch, char *argument)
 		if( shedit_create(ch, argument) )
 		{
 			ch->pcdata->immortal->last_olc_command = current_time;
-			ships_changed = true;
 			ch->desc->editor = ED_SHIP;
+
+			EDIT_SHIP(ch, ship);
+			SET_BIT(ship->area->area_flags, AREA_CHANGED);
 		}
 		return;
 	}
@@ -7329,22 +7290,21 @@ void do_shshow(CHAR_DATA *ch, char *argument)
 {
 	SHIP_INDEX_DATA *ship;
 	void *old_edit;
-	long value;
+	WNUM wnum;
 
 	if (argument[0] == '\0')
 	{
-		send_to_char("Syntax:  shshow <vnum>\n\r", ch);
+		send_to_char("Syntax:  shshow <widevnum>\n\r", ch);
 		return;
 	}
 
-	if (!is_number(argument))
+	if (!parse_widevnum(argument, &wnum))
 	{
-		send_to_char("Vnum must be a number.\n\r", ch);
+		send_to_char("Please specify a widevnum.\n\r", ch);
 		return;
 	}
 
-	value = atol(argument);
-	if (!(ship = get_ship_index(value)))
+	if (!(ship = get_ship_index(wnum.pArea, wnum.vnum)))
 	{
 		send_to_char("That ship does not exist.\n\r", ch);
 		return;
@@ -7391,7 +7351,7 @@ SHEDIT( shedit_show )
 		sprintf(buf, "Blueprint:   {Dunassigned{x\n\r");
 	add_buf(buffer, buf);
 
-	OBJ_INDEX_DATA *obj = get_obj_index(ship->ship_object);
+	OBJ_INDEX_DATA *obj = get_obj_index(ship->area, ship->ship_object);
 	if( obj )
 		sprintf(buf, "Ship Object: [%5ld] %s{x\n\r", obj->vnum, obj->short_descr);
 	else
@@ -7485,39 +7445,44 @@ SHEDIT( shedit_show )
 SHEDIT( shedit_create )
 {
 	SHIP_INDEX_DATA *ship;
-	long  value;
+	WNUM wnum;
 	int  iHash;
+	AREA_DATA *pArea = ch->in_room->area;
 
-	value = atol(argument);
-	if (argument[0] == '\0' || value == 0)
+	if (argument[0] == '\0' || !parse_widevnum(argument, &wnum) || !wnum.pArea || wnum.vnum < 1)
 	{
 		long last_vnum = 0;
-		value = top_ship_index_vnum + 1;
-		for(last_vnum = 1; last_vnum <= top_ship_index_vnum; last_vnum++)
+		long value = pArea->top_ship_vnum + 1;
+		for(last_vnum = 1; last_vnum <= pArea->top_ship_vnum; last_vnum++)
 		{
-			if( !get_ship_index(last_vnum) )
+			if( !get_ship_index(pArea, last_vnum) )
 			{
 				value = last_vnum;
 				break;
 			}
 		}
+
+		wnum.pArea = pArea;
+		wnum.vnum = value;
 	}
-	else if( get_ship_index(value) )
+
+	if( get_ship_index(wnum.pArea, wnum.vnum) )
 	{
 		send_to_char("That vnum already exists.\n\r", ch);
 		return FALSE;
 	}
 
 	ship = new_ship_index();
-	ship->vnum = value;
+	ship->vnum = wnum.vnum;
+	ship->area = wnum.pArea;
 
 	iHash							= ship->vnum % MAX_KEY_HASH;
-	ship->next						= ship_index_hash[iHash];
-	ship_index_hash[iHash]			= ship;
+	ship->next						= pArea->ship_index_hash[iHash];
+	pArea->ship_index_hash[iHash]			= ship;
 	ch->desc->pEdit					= (void *)ship;
 
-	if( ship->vnum > top_ship_index_vnum)
-		top_ship_index_vnum = ship->vnum;
+	if( ship->vnum > pArea->top_ship_vnum)
+		pArea->top_ship_vnum = ship->vnum;
 
     return TRUE;
 }
@@ -7604,22 +7569,23 @@ SHEDIT( shedit_blueprint )
 {
 	SHIP_INDEX_DATA *ship;
 	BLUEPRINT *bp;
+	WNUM wnum;
 
 	EDIT_SHIP(ch, ship);
 
 	if( argument[0] == '\0' )
 	{
-		send_to_char("Syntax:  blueprint [vnum]\n\r", ch);
+		send_to_char("Syntax:  blueprint [widevnum]\n\r", ch);
 		return FALSE;
 	}
 
-	if( !is_number(argument) )
+	if( !parse_widevnum(argument, &wnum) )
 	{
 		send_to_char("That is not a number.\n\r", ch);
 		return FALSE;
 	}
 
-	if( !(bp = get_blueprint(atol(argument))) )
+	if( !(bp = get_blueprint(wnum.pArea, wnum.vnum)) )
 	{
 		send_to_char("Blueprint does not exist.\n\r", ch);
 		return FALSE;
@@ -7646,7 +7612,7 @@ SHEDIT( shedit_blueprint )
 		iterator_start(&sit, bp->special_rooms);
 		while( (special_room = (BLUEPRINT_SPECIAL_ROOM *)iterator_nextdata(&sit)) )
 		{
-			ROOM_INDEX_DATA *room = get_room_index(special_room->vnum);
+			ROOM_INDEX_DATA *room = get_room_index(bp->area, special_room->vnum);
 
 			if( room )
 			{
@@ -7671,7 +7637,7 @@ SHEDIT( shedit_blueprint )
 			{
 				for( long vnum = section->lower_vnum; vnum <= section->upper_vnum; vnum++)
 				{
-					ROOM_INDEX_DATA *room = get_room_index(vnum);
+					ROOM_INDEX_DATA *room = get_room_index(bp->area, vnum);
 
 					if( room )
 					{
@@ -7738,7 +7704,7 @@ SHEDIT( shedit_object )
 	}
 
 	vnum = atol(argument);
-	obj = get_obj_index(vnum);
+	obj = get_obj_index(ship->area, vnum);
 	if( !obj )
 	{
 		send_to_char("That object does not exist.\n\r", ch);
@@ -8070,7 +8036,7 @@ SHEDIT( shedit_keys )
 	if( argument[0] == '\0' )
 	{
 		send_to_char("Syntax:  keys list\n\r", ch);
-		send_to_char("Syntax:  keys add <vnum>\n\r", ch);
+		send_to_char("Syntax:  keys add <widevnum>\n\r", ch);
 		send_to_char("Syntax:  keys remove <#>\n\r", ch);
 		return FALSE;
 	}
@@ -8130,16 +8096,15 @@ SHEDIT( shedit_keys )
 	if( !str_cmp(arg, "add") )
 	{
 		OBJ_INDEX_DATA *key;
-		long vnum;
+		WNUM wnum;
 
-		if( !is_number(argument) )
+		if( !parse_widevnum(argument, &wnum) )
 		{
-			send_to_char("That is not a number,\n\r", ch);
+			send_to_char("Please specify a widevnum.\n\r", ch);
 			return FALSE;
 		}
 
-		vnum = atol(argument);
-		if( !(key = get_obj_index(vnum)) )
+		if( !(key = get_obj_index(wnum.pArea, wnum.vnum)) )
 		{
 			send_to_char("That object does not exist.\n\r", ch);
 			return FALSE;

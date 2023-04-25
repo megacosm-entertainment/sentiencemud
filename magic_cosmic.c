@@ -22,20 +22,6 @@
 //	draw from any particular element.
 //  Anything dealing with enhancements, such as enchanting
 
-SPELL_FUNC(spell_create_food)
-{
-	OBJ_DATA *food;
-	long i;
-
-	i = number_range(100066, 100076);
-
-	food = create_object(get_obj_index(i), 0, TRUE);
-	food->value[0] = level / 2;
-	food->value[1] = level;
-	obj_to_room(food, ch->in_room);
-	act("$p suddenly appears.", ch, NULL, NULL, food, NULL, NULL, NULL, TO_ALL);
-	return TRUE;
-}
 
 
 // No Catalyst:		normal rules

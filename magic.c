@@ -929,10 +929,10 @@ void cast_end(CHAR_DATA *ch)
 		id[1] = token->id[1];
 		if (target == TARGET_CHAR && victim && IS_AFFECTED2(victim, AFF2_SPELL_DEFLECTION)) {
 			if (check_spell_deflection_token(ch, victim, token, script,ch->cast_target_name)) {
-				execute_script(script->vnum, script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, victim, NULL, NULL, NULL,ch->cast_target_name,NULL,TRIG_NONE,0,0,0,0,0);
+				execute_script(script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, victim, NULL, NULL, NULL,ch->cast_target_name,NULL,TRIG_NONE,0,0,0,0,0);
 			}
 		} else {
-			execute_script(script->vnum, script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, (target == TARGET_OBJ)?obj:NULL, NULL, (target == TARGET_CHAR)?victim:NULL, NULL,NULL, NULL,ch->cast_target_name,NULL,TRIG_NONE,0,0,0,0,0);
+			execute_script(script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, (target == TARGET_OBJ)?obj:NULL, NULL, (target == TARGET_CHAR)?victim:NULL, NULL,NULL, NULL,ch->cast_target_name,NULL,TRIG_NONE,0,0,0,0,0);
 		}
 
 		// Only bother with the token if it is valid and the SAME token as before the casting
@@ -1170,7 +1170,7 @@ void obj_cast(int sn, int level, OBJ_DATA *obj, ROOM_INDEX_DATA *room, char *arg
     int target = TARGET_NONE;
     char buf[MSL];
 
-    ch = create_mobile(get_mob_index(MOB_VNUM_OBJCASTER), FALSE);
+    ch = create_mobile(mob_index_objcaster, FALSE);
     char_to_room(ch, room);
 
     ch->level = obj->level;
@@ -1180,7 +1180,7 @@ void obj_cast(int sn, int level, OBJ_DATA *obj, ROOM_INDEX_DATA *room, char *arg
     ch->short_descr = str_dup(obj->short_descr);
 
     // Make sure they have a reagent for the powerful spells
-    reagent = create_object(get_obj_index(OBJ_VNUM_SHARD), 1, FALSE);
+    reagent = create_object(obj_index_shard, 1, FALSE);
     obj_to_char(reagent,ch);
 
     switch (skill_table[sn].target)

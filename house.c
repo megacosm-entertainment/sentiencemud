@@ -40,7 +40,7 @@ void do_house(CHAR_DATA *ch, char *argument)
 	    return;
 	}
 
-	if (ch->home != 0)
+	if (ch->home.pArea && ch->home.vnum > 0)
 	{
 	    send_to_char("You already have a house.\n\r", ch);
 	    return;
@@ -65,14 +65,15 @@ void do_house(CHAR_DATA *ch, char *argument)
 
 	REMOVE_BIT(ch->in_room->room_flags, ROOM_HOUSE_UNSOLD);
 
-	ch->home = ch->in_room->vnum;
+	ch->home.pArea = ch->in_room->area;
+	ch->home.vnum = ch->in_room->vnum;
 	ch->in_room->home_owner = str_dup( ch->name );
 	save_area_new(ch->in_room->area);
 	return;
     }
     else if (!str_cmp(arg, "name"))
     {
-        if (ch->in_room->vnum != ch->home)
+        if ( !wnum_match_room(ch->home, ch->in_room) )
 	{
 	    send_to_char("You must be in the room to change it's name.\n\r", ch);
 	    return;
@@ -101,7 +102,7 @@ void do_house(CHAR_DATA *ch, char *argument)
     }
     else if (!str_cmp(arg, "description"))
     {
-        if (ch->in_room->vnum != ch->home)
+        if (!wnum_match_room(ch->home, ch->in_room))
  	{
    	    send_to_char("You must be in the room to change it's description.\n\r", ch);
 	    return;
@@ -118,7 +119,7 @@ void do_house(CHAR_DATA *ch, char *argument)
 
 	argument = one_argument( argument, arg2 );
 
-	if (ch->in_room->vnum != ch->home)
+	if (!wnum_match_room(ch->home, ch->in_room))
 	{
 	    send_to_char("You must be in the room to change it's flag.\n\r", ch);
 	    return;
@@ -213,9 +214,10 @@ void do_evict(CHAR_DATA *ch, char *argument)
        {
            d.character->desc = NULL;
 
-	   if ( d.character->home != 0 )
+	   if ( d.character->home.pArea && d.character->home.vnum > 0 )
 	   {
-	       d.character->home = 0;
+	       d.character->home.pArea = NULL;
+		   d.character->home.vnum = 0;
 	       act("You have evicted $N!", ch, d.character, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 	   }
 	   else
@@ -230,9 +232,10 @@ void do_evict(CHAR_DATA *ch, char *argument)
        }
     }
 
-    if (victim->home != 0)
+    if (victim->home.pArea && victim->home.vnum > 0)
     {
-	victim->home = 0;
+	victim->home.pArea = NULL;
+	victim->home.vnum = 0;
 	if ( victim != ch )
 	    act("You have evicted $N!",ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 	else
@@ -261,14 +264,16 @@ void do_housemove(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (arg[0] == '\0' || arg2[0] == '\0')
+	WNUM wnum;
+
+    if (arg[0] == '\0' || !parse_widevnum(arg2, &wnum))
     {
 	send_to_char( "Syntax:\n\r" , ch);
-	send_to_char( "Housemove <person> <room vnum>\n\r", ch);
+	send_to_char( "Housemove <person> <widevnum>\n\r", ch);
 	return;
     }
 
-    if ( ( to_room = get_room_index( atol( arg2 ) ) ) == NULL )
+    if ( ( to_room = get_room_index( wnum.pArea, wnum.vnum ) ) == NULL )
     {
 	send_to_char("The destination room doesn't exist.\n\r", ch );
 	return;
@@ -286,20 +291,20 @@ void do_housemove(CHAR_DATA *ch, char *argument)
 	    d.character->desc = NULL;
 	    victim = d.character;
 
-	    victim->home = to_room->vnum;
-	    sprintf( buf, "$N's home is now %ld (%s).",
-			    to_room->vnum, to_room->name );
+	    victim->home = wnum;
+	    sprintf( buf, "$N's home is now %ld#%ld (%s).",
+			    to_room->area->uid, to_room->vnum, to_room->name );
 	    act( buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
 
-	    char_to_room( victim, get_room_index( 1 ) );
+	    char_to_room( victim, to_room );
 	    do_quit(victim,NULL);
 	    return;
 	}
     }
 
-    victim->home = to_room->vnum;
-    sprintf( buf, "$N's home is now %ld (%s).",
-	to_room->vnum, to_room->name );
+    victim->home = wnum;
+    sprintf( buf, "$N's home is now %ld#%ld (%s).",
+		to_room->area->uid, to_room->vnum, to_room->name );
     act( buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
     save_char_obj( victim );
 }
@@ -315,16 +320,17 @@ void do_gohome(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (ch->home == 0 )
+    if (!ch->home.pArea || ch->home.vnum < 1 )
     {
 	send_to_char("{BYou don't own a home.\n\r{x", ch);
 	return;
     }
 
-    if (ch->home != 0 && (location = get_room_index(ch->home)) == NULL)
+    if (ch->home.pArea && ch->home.vnum > 0 && (location = get_room_index(ch->home.pArea, ch->home.vnum)) == NULL)
     {
 	send_to_char("You don't own a home.{x\n\r", ch );
-	ch->home = 0;
+	ch->home.pArea = NULL;
+	ch->home.vnum = 0;
 	save_char_obj( ch );
 	return;
     }
@@ -356,13 +362,13 @@ void do_gohome(CHAR_DATA *ch, char *argument)
     if ( !can_escape(ch) )
 	return;
 
-    if (is_affected(ch, skill_lookup("silence")))
+    if (is_affected(ch, gsn_silence))
     {
 	send_to_char("You can't go home, you've been silenced!\n\r", ch);
 	return;
     }
 
-    if (is_affected(ch, skill_lookup("web")))
+    if (is_affected(ch, gsn_web))
     {
 	send_to_char("You can't go home, you've been webbed!\n\r", ch);
 	return;

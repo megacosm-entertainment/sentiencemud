@@ -1664,8 +1664,8 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		{
 			if( IS_NPC(arg->d.mob) )
 				arg->d.room = arg->d.mob->home_room;
-			else if( arg->d.mob->home > 0 )
-				arg->d.room = get_room_index(arg->d.mob->home);
+			else if( arg->d.mob->home.pArea && arg->d.mob->home.vnum > 0 )
+				arg->d.room = get_room_index(arg->d.mob->home.pArea, arg->d.mob->home.vnum);
 		}
 		else
 			arg->d.room = NULL;
@@ -2900,7 +2900,7 @@ char *expand_entity_area(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 	case ENTITY_AREA_POSTOFFICE:
 		arg->type = ENT_ROOM;
-		arg->d.room = (arg->d.area && arg->d.area->post_office > 0) ? get_room_index(arg->d.area->post_office) : NULL;
+		arg->d.room = (arg->d.area && arg->d.area->post_office > 0) ? get_room_index(arg->d.area, arg->d.area->post_office) : NULL;
 		break;
 	case ENTITY_AREA_LOWERVNUM:
 		arg->type = ENT_NUMBER;
@@ -5803,6 +5803,16 @@ char *one_argument_escape( char *argument, char *arg_first )
 	return skip_whitespace(argument);
 }
 
+AREA_DATA *get_area_from_scriptinfo(SCRIPT_VARINFO *info)
+{
+	if (!info) return NULL;
+
+	if (!info->block) return NULL;
+
+	if (!info->block->script) return NULL;
+
+	return info->block->script->area;
+}
 
 char *expand_argument(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
@@ -5830,6 +5840,26 @@ char *expand_argument(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		} else if(expand_string(info,buf,arg->buffer)) {
 			arg->type = ENT_STRING;
 			arg->d.str = buf_string(arg->buffer);
+
+			// If this can be parsed as a widevnum...
+			//  AUID#VNUM
+			//  NAME#VNUM 
+			//
+			WNUM wnum;
+			if (parse_widevnum(arg->d.str, &wnum))
+			{
+				arg->type = ENT_WIDEVNUM;
+				arg->d.wnum.pArea = wnum.pArea;
+				if (!arg->d.wnum.pArea)		// This is for the #VNUM format
+					arg->d.wnum.pArea = get_area_from_scriptinfo(info);
+				arg->d.wnum.vnum = wnum.vnum;
+			}
+			else if (is_number(arg->d.str))
+			{
+				int value = atoi(arg->d.str);
+				arg->type = ENT_NUMBER;
+				arg->d.num = value;
+			}
 		}
 	}
 

@@ -20,7 +20,9 @@
 #include "tables.h"
 #include "olc.h"
 
-INVASION_QUEST* create_invasion_quest(AREA_DATA *pArea, int max_level, long p_leader_vnum, long p_mob_vnum) {
+INVASION_QUEST* create_invasion_quest(AREA_DATA *pArea, int max_level, long p_leader_vnum, long p_mob_vnum)
+{
+/*  
     INVASION_QUEST  *quest;
     struct tm *expires;
     CHAR_DATA *leader = NULL;
@@ -94,8 +96,8 @@ INVASION_QUEST* create_invasion_quest(AREA_DATA *pArea, int max_level, long p_le
     quest->leader = leader;
 
     while(TRUE) {
-      vnum = number_range(pArea->min_vnum, pArea->max_vnum);
-      pRoom = get_room_index(vnum);
+      vnum = number_range(1, pArea->top_room);
+      pRoom = get_room_index(pArea, vnum);
 
       if (pRoom != NULL) {
         break;
@@ -115,8 +117,8 @@ INVASION_QUEST* create_invasion_quest(AREA_DATA *pArea, int max_level, long p_le
     	mob = create_mobile(get_mob_index(mob_vnum), FALSE);
 
 			while(TRUE) {
-				vnum = number_range(pArea->min_vnum, pArea->max_vnum);
-				pRoom = get_room_index(vnum);
+				vnum = number_range(1, pArea->top_room);
+				pRoom = get_room_index(pArea, vnum);
 
 				if (pRoom != NULL) {
 					break;
@@ -131,6 +133,8 @@ INVASION_QUEST* create_invasion_quest(AREA_DATA *pArea, int max_level, long p_le
     }
     
     return quest;
+    */
+    return NULL;
 }
 
 void extract_invasion_quest(INVASION_QUEST *quest) {

@@ -73,6 +73,7 @@ static void *deepcopy_room(void *src)
 		data->id[1] = room->id[1];
 		data->id[2] = room->id[2];
 		data->id[3] = room->id[3];
+		data->id[4] = room->id[4];
 	}
 
 	return data;
@@ -1013,19 +1014,22 @@ bool variables_set_list_room (ppVARIABLE list, char *name, ROOM_INDEX_DATA *room
 	data->room = room;
 	if( room->source ) {
 		data->id[0] = 0;
-		data->id[1] = room->source->vnum;
-		data->id[2] = room->id[0];
-		data->id[3] = room->id[1];
+		data->id[1] = room->source->area->uid;
+		data->id[2] = room->source->vnum;
+		data->id[3] = room->id[0];
+		data->id[4] = room->id[1];
 	} else if( room->wilds ) {
 		data->id[0] = room->wilds->uid;
 		data->id[1] = room->x;
 		data->id[2] = room->y;
 		data->id[3] = room->z;
+		data->id[4] = 0;
 	} else {
 		data->id[0] = 0;
-		data->id[1] = room->source->vnum;
-		data->id[2] = 0;
+		data->id[1] = room->area->uid;
+		data->id[2] = room->vnum;
 		data->id[3] = 0;
+		data->id[4] = 0;
 	}
 
 	if( !list_appendlink(var->_.list, data) )
@@ -1046,19 +1050,22 @@ bool variables_append_list_room (ppVARIABLE list, char *name, ROOM_INDEX_DATA *r
 	data->room = room;
 	if( room->source ) {
 		data->id[0] = 0;
-		data->id[1] = room->source->vnum;
-		data->id[2] = room->id[0];
-		data->id[3] = room->id[1];
+		data->id[1] = room->source->area->uid;
+		data->id[2] = room->source->vnum;
+		data->id[3] = room->id[0];
+		data->id[4] = room->id[1];
 	} else if( room->wilds ) {
 		data->id[0] = room->wilds->uid;
 		data->id[1] = room->x;
 		data->id[2] = room->y;
 		data->id[3] = room->z;
+		data->id[4] = 0;
 	} else {
 		data->id[0] = 0;
-		data->id[1] = room->source->vnum;
-		data->id[2] = 0;
+		data->id[1] = room->area->uid;
+		data->id[2] = room->vnum;
 		data->id[3] = 0;
+		data->id[4] = 0;
 	}
 
 	if( !list_appendlink(var->_.list, data) )
@@ -1128,7 +1135,7 @@ static bool variables_append_list_wilds_id(ppVARIABLE list, char *name, long wid
 }
 
 
-static bool variables_append_list_room_id (ppVARIABLE list, char *name, unsigned long a, unsigned long b, unsigned long c, unsigned long d)
+static bool variables_append_list_room_id (ppVARIABLE list, char *name, unsigned long a, unsigned long b, unsigned long c, unsigned long d, unsigned long e)
 {
 	LLIST_ROOM_DATA *data;
 	pVARIABLE var = variable_get(*list, name);
@@ -1142,6 +1149,7 @@ static bool variables_append_list_room_id (ppVARIABLE list, char *name, unsigned
 	data->id[1] = b;
 	data->id[2] = c;
 	data->id[3] = d;
+	data->id[4] = e;
 
 	if( !list_appendlink(var->_.list, data) )
 		free_mem(data,sizeof(LLIST_ROOM_DATA));
@@ -1161,19 +1169,22 @@ bool variables_append_list_door (ppVARIABLE list, char *name, ROOM_INDEX_DATA *r
 	data->room = room;
 	if( room->source ) {
 		data->id[0] = 0;
-		data->id[1] = room->source->vnum;
-		data->id[2] = room->id[0];
-		data->id[3] = room->id[1];
+		data->id[1] = room->source->area->uid;
+		data->id[2] = room->source->vnum;
+		data->id[3] = room->id[0];
+		data->id[4] = room->id[1];
 	} else if( room->wilds ) {
 		data->id[0] = room->wilds->uid;
 		data->id[1] = room->x;
 		data->id[2] = room->y;
 		data->id[3] = room->z;
+		data->id[4] = 0;
 	} else {
 		data->id[0] = 0;
-		data->id[1] = room->source->vnum;
-		data->id[2] = 0;
+		data->id[1] = room->area->uid;
+		data->id[2] = room->vnum;
 		data->id[3] = 0;
+		data->id[4] = 0;
 	}
 	data->door = door;
 
@@ -1183,7 +1194,7 @@ bool variables_append_list_door (ppVARIABLE list, char *name, ROOM_INDEX_DATA *r
 	return TRUE;
 }
 
-static bool variables_append_list_door_id (ppVARIABLE list, char *name, unsigned long a, unsigned long b, unsigned long c, unsigned long d, int door)
+static bool variables_append_list_door_id (ppVARIABLE list, char *name, unsigned long a, unsigned long b, unsigned long c, unsigned long d, unsigned long e, int door)
 {
 	LLIST_EXIT_DATA *data;
 	pVARIABLE var = variable_get(*list, name);
@@ -1197,6 +1208,7 @@ static bool variables_append_list_door_id (ppVARIABLE list, char *name, unsigned
 	data->id[1] = b;
 	data->id[2] = c;
 	data->id[3] = d;
+	data->id[4] = e;
 	data->door = door;
 
 	if( !list_appendlink(var->_.list, data) )
@@ -1295,7 +1307,7 @@ bool variables_setindex_integer (ppVARIABLE list,char *name,int num, bool saved)
 	return TRUE;
 }
 
-bool variables_setindex_room (ppVARIABLE list,char *name,long vnum, bool saved)
+bool variables_setindex_room (ppVARIABLE list,char *name, WNUM_LOAD wnum_load, bool saved)
 {
 	pVARIABLE var = variable_create(list,name,TRUE,TRUE);
 
@@ -1303,9 +1315,9 @@ bool variables_setindex_room (ppVARIABLE list,char *name,long vnum, bool saved)
 
 	var->type = VAR_ROOM;
 	if(fBootDb)
-		var->_.i = vnum;
+		var->_.wnum_load = wnum_load;
 	else
-		var->_.r = get_room_index(vnum);
+		var->_.r = get_room_index_auid(wnum_load.auid, wnum_load.vnum);
 	var->save = saved;
 
 	return TRUE;
@@ -2069,7 +2081,7 @@ void variable_index_fix(void)
 
 	while(cur) {
 		if(cur->type == VAR_ROOM) {
-			if(cur->_.i > 0) cur->_.r = get_room_index(cur->_.i);
+			if(cur->_.wnum_load.auid > 0 && cur->_.wnum_load.vnum > 0) cur->_.r = get_room_index_auid(cur->_.wnum_load.auid, cur->_.wnum_load.vnum);
 		}
 		cur = cur->global_next;
 	}
@@ -2088,8 +2100,8 @@ void variable_fix(pVARIABLE var)
 	LLIST_WILDS_DATA *lwilds;
 
 	if(fBootDb && var->type == VAR_ROOM) {	// Fix room variables on boot...
-		if(var->_.i > 0) {
-			var->_.r = get_room_index(var->_.i);
+		if(var->_.wnum_load.auid > 0 && var->_.wnum_load.vnum) {
+			var->_.r = get_room_index_auid(var->_.wnum_load.auid, var->_.wnum_load.vnum);
 		}
 	} else if(var->type == VAR_CLONE_ROOM) {	// Dynamic
 		if(var->_.cr.r && (room = get_clone_room(var->_.cr.r, var->_.cr.a, var->_.cr.b)) ) {
@@ -2236,12 +2248,12 @@ void variable_fix(pVARIABLE var)
 
 					if( !lroom->room) iterator_remcurrent(&it);
 
-				} else if( lroom->id[2] > 0 || lroom->id[3] > 0) {	// Clone room
-					lroom->room = get_room_index(lroom->id[1]);
+				} else if( lroom->id[3] > 0 || lroom->id[4] > 0) {	// Clone room
+					lroom->room = get_room_index_auid(lroom->id[1], lroom->id[2]);
 
 					if( lroom->room )
-						lroom->room = get_clone_room((ROOM_INDEX_DATA *)(lroom->room), lroom->id[2], lroom->id[3]);
-				} else if( !(lroom->room = get_room_index(lroom->id[1])) )
+						lroom->room = get_clone_room((ROOM_INDEX_DATA *)(lroom->room), lroom->id[3], lroom->id[4]);
+				} else if( !(lroom->room = get_room_index_auid(lroom->id[1], lroom->id[2])) )
 					iterator_remcurrent(&it);
 			}
 
@@ -2262,12 +2274,12 @@ void variable_fix(pVARIABLE var)
 					}
 
 					if( !lexit->room) iterator_remcurrent(&it);
-				} else if( lexit->id[2] > 0 || lexit->id[3] > 0) {	// Clone room, can wait
-					lexit->room = get_room_index(lexit->id[1]);
+				} else if( lexit->id[3] > 0 || lexit->id[4] > 0) {	// Clone room, can wait
+					lexit->room = get_room_index_auid(lexit->id[1], lexit->id[2]);
 
 					if( lexit->room )
-						lexit->room = get_clone_room((ROOM_INDEX_DATA *)(lexit->room), lexit->id[2], lexit->id[3]);
-				} else if( !(lexit->room = get_room_index(lexit->id[1])) )
+						lexit->room = get_clone_room((ROOM_INDEX_DATA *)(lexit->room), lexit->id[3], lexit->id[4]);
+				} else if( !(lexit->room = get_room_index_auid(lexit->id[1], lexit->id[2])) )
 					iterator_remcurrent(&it);
 
 			}
@@ -2613,11 +2625,11 @@ void variable_fwrite(pVARIABLE var, FILE *fp)
 	case VAR_ROOM:
 		if(var->_.r) {
 			if(var->_.r->wilds)
-				fprintf(fp,"VarVRoom %s~ %d %d %d\n", var->name, (int)var->_.r->wilds->uid, (int)var->_.r->x, (int)var->_.r->y);
+				fprintf(fp,"VarVRoom %s~ %ld %ld %ld\n", var->name, var->_.r->wilds->uid, var->_.r->x, var->_.r->y);
 			else if(var->_.r->source)
-				fprintf(fp,"VarCRoom %s~ %d %d %d\n", var->name, (int)var->_.r->source->vnum, (int)var->_.r->id[0], (int)var->_.r->id[1]);
+				fprintf(fp,"VarCRoom %s~ %ld#%ld %ld %ld\n", var->name, var->_.r->source->area->uid, var->_.r->source->vnum, var->_.r->id[0], var->_.r->id[1]);
 			else
-				fprintf(fp,"VarRoom %s~ %d\n", var->name, (int)var->_.r->vnum);
+				fprintf(fp,"VarRoom %s~ %ld#%ld\n", var->name, var->_.r->area->uid, var->_.r->vnum);
 		}
 		break;
 
@@ -2628,7 +2640,7 @@ void variable_fwrite(pVARIABLE var, FILE *fp)
 	// Unresolved CLONE ROOMs
 	case VAR_CLONE_ROOM:
 		if( var->_.cr.r )
-			fprintf(fp,"VarCRoom %s~ %d %d %d\n", var->name, (int)var->_.cr.r->vnum, (int)var->_.cr.a,(int)var->_.cr.b);
+			fprintf(fp,"VarCRoom %s~ %ld#%ld %ld %ld\n", var->name, var->_.cr.r->area->uid, var->_.cr.r->vnum, var->_.cr.a,var->_.cr.b);
 		break;
 
 	case VAR_EXIT:
@@ -2637,9 +2649,9 @@ void variable_fwrite(pVARIABLE var, FILE *fp)
 			if(var->_.door.r->wilds)
 				fprintf(fp,"VarVExit %s~ %d %d %d %d\n", var->name, (int)var->_.door.r->wilds->uid, (int)var->_.door.r->x, (int)var->_.door.r->y, var->_.door.door);
 			else if(var->_.door.r->source)
-				fprintf(fp,"VarCExit %s~ %d %d %d %d\n", var->name, (int)var->_.door.r->source->vnum, (int)var->_.door.r->id[0], (int)var->_.door.r->id[1], var->_.door.door);
+				fprintf(fp,"VarCExit %s~ %ld#%ld %d %d %d\n", var->name, var->_.door.r->source->area->uid, var->_.door.r->source->vnum, (int)var->_.door.r->id[0], (int)var->_.door.r->id[1], var->_.door.door);
 			else
-				fprintf(fp,"VarExit %s~ %d %d\n", var->name, (int)var->_.door.r->vnum, var->_.door.door);
+				fprintf(fp,"VarExit %s~ %ld#%ld %d\n", var->name, var->_.door.r->area->uid, var->_.door.r->vnum, var->_.door.door);
 		}
 		break;
 
@@ -2651,7 +2663,7 @@ void variable_fwrite(pVARIABLE var, FILE *fp)
 	// Unresolved EXITS in CLONE ROOMs
 	case VAR_CLONE_DOOR:
 		if( var->_.cdoor.r )
-			fprintf(fp,"VarCExit %s~ %d %d %d %d\n", var->name, (int)var->_.cdoor.r->vnum, (int)var->_.cdoor.a,(int)var->_.cdoor.b, var->_.cdoor.door);
+			fprintf(fp,"VarCExit %s~ %ld#%ld %d %d %d\n", var->name, var->_.cdoor.r->area->uid, var->_.cdoor.r->vnum, (int)var->_.cdoor.a,(int)var->_.cdoor.b, var->_.cdoor.door);
 		break;
 
 	case VAR_MOBILE:
@@ -2784,9 +2796,9 @@ void variable_fwrite(pVARIABLE var, FILE *fp)
 				if(room->room->wilds)
 					fprintf(fp, "VRoom %ld %ld %ld %ld\n", room->room->wilds->uid, room->room->x, room->room->y, room->room->z);
 				else if(room->room->source)
-					fprintf(fp, "CRoom %ld %ld %ld\n", room->room->source->vnum, room->room->id[0], room->room->id[1]);
+					fprintf(fp, "CRoom %ld#%ld %ld %ld\n", room->room->source->area->uid, room->room->source->vnum, room->room->id[0], room->room->id[1]);
 				else
-					fprintf(fp, "Room %ld\n", room->room->vnum);
+					fprintf(fp, "Room %ld#%ld\n", room->room->area->uid, room->room->vnum);
 			}
 
 			iterator_stop(&it);
@@ -2804,9 +2816,9 @@ void variable_fwrite(pVARIABLE var, FILE *fp)
 				if(room->room->wilds)
 					fprintf(fp, "VRoom %ld %ld %ld %ld %d\n", room->room->wilds->uid, room->room->x, room->room->y, room->room->z, room->door);
 				else if(room->room->source)
-					fprintf(fp, "CRoom %ld %ld %ld %d\n", room->room->source->vnum, room->room->id[0], room->room->id[1], room->door);
+					fprintf(fp, "CRoom %ld#%ld %ld %ld %d\n", room->room->source->area->uid, room->room->source->vnum, room->room->id[0], room->room->id[1], room->door);
 				else
-					fprintf(fp, "Room %ld %d\n", room->room->vnum, room->door);
+					fprintf(fp, "Room %ld#%ld %d\n", room->room->area->uid, room->room->vnum, room->door);
 			}
 
 			iterator_stop(&it);
@@ -2896,17 +2908,17 @@ bool variable_fread_room_list(ppVARIABLE vars, char *name, FILE *fp)
 
 		else if (!str_cmp(word, "VRoom")) {
 
-			if( !variables_append_list_room_id( vars, name, fread_number(fp), fread_number(fp), fread_number(fp), fread_number(fp)) )
+			if( !variables_append_list_room_id( vars, name, fread_number(fp), fread_number(fp), fread_number(fp), fread_number(fp), 0) )
 				return FALSE;
 
 		} else if (!str_cmp(word, "CRoom")) {
 
-			if( !variables_append_list_room_id( vars, name, 0, fread_number(fp), fread_number(fp), fread_number(fp)) )
+			if( !variables_append_list_room_id( vars, name, 0, fread_number(fp), fread_number(fp), fread_number(fp), fread_number(fp)) )
 				return FALSE;
 
 		} else if (!str_cmp(word, "Room")) {
 
-			if( !variables_append_list_room_id( vars, name, 0, fread_number(fp), 0, 0) )
+			if( !variables_append_list_room_id( vars, name, 0, fread_number(fp), fread_number(fp), 0, 0) )
 				return FALSE;
 
 		} else
@@ -2928,17 +2940,17 @@ bool variable_fread_exit_list(ppVARIABLE vars, char *name, FILE *fp)
 
 		else if (!str_cmp(word, "VRoom")) {
 
-			if( !variables_append_list_door_id( vars, name, fread_number(fp), fread_number(fp), fread_number(fp), fread_number(fp), fread_number(fp)) )
+			if( !variables_append_list_door_id( vars, name, fread_number(fp), fread_number(fp), fread_number(fp), fread_number(fp), fread_number(fp), 0) )
 				return FALSE;
 
 		} else if (!str_cmp(word, "CRoom")) {
 
-			if( !variables_append_list_door_id( vars, name, 0, fread_number(fp), fread_number(fp), fread_number(fp), fread_number(fp)) )
+			if( !variables_append_list_door_id( vars, name, 0, fread_number(fp), fread_number(fp), fread_number(fp), fread_number(fp), fread_number(fp)) )
 				return FALSE;
 
 		} else if (!str_cmp(word, "Room")) {
 
-			if( !variables_append_list_door_id( vars, name, 0, fread_number(fp), 0, 0, fread_number(fp)) )
+			if( !variables_append_list_door_id( vars, name, 0, fread_number(fp), fread_number(fp), 0, 0, fread_number(fp)) )
 				return FALSE;
 
 		} else
@@ -3072,13 +3084,15 @@ bool variable_fread(ppVARIABLE vars, int type, FILE *fp)
 
 	case VAR_ROOM:
 		{
-			ROOM_INDEX_DATA *room = get_room_index(fread_number(fp));
+			WNUM_LOAD wnum = fread_widevnum(fp);
+			ROOM_INDEX_DATA *room = get_room_index_auid(wnum.auid, wnum.vnum);
 			return room && variables_setsave_room(vars, name, room, TRUE);
 		}
 
 	case VAR_CLONE_ROOM:
 		{
-			ROOM_INDEX_DATA *room = get_room_index(fread_number(fp));
+			WNUM_LOAD wnum = fread_widevnum(fp);
+			ROOM_INDEX_DATA *room = get_room_index_auid(wnum.auid, wnum.vnum);
 			int x = fread_number(fp);
 			int y = fread_number(fp);
 
@@ -3108,14 +3122,16 @@ bool variable_fread(ppVARIABLE vars, int type, FILE *fp)
 
 	case VAR_DOOR:
 		{
-			ROOM_INDEX_DATA *room = get_room_index(fread_number(fp));
+			WNUM_LOAD wnum = fread_widevnum(fp);
+			ROOM_INDEX_DATA *room = get_room_index_auid(wnum.auid, wnum.vnum);
 
 			return room && variables_set_door(vars, name, room, fread_number(fp), TRUE);
 		}
 
 	case VAR_CLONE_DOOR:
 		{
-			ROOM_INDEX_DATA *room = get_room_index(fread_number(fp));
+			WNUM_LOAD wnum = fread_widevnum(fp);
+			ROOM_INDEX_DATA *room = get_room_index_auid(wnum.auid, wnum.vnum);
 
 			int x = fread_number(fp);
 			int y = fread_number(fp);

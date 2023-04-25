@@ -361,9 +361,13 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 	if(ch->pcdata->room_before_arena.wuid)
 		fprintf(fp, "Room_before_arenaW %lu %lu %lu %lu\n", 	ch->pcdata->room_before_arena.wuid, ch->pcdata->room_before_arena.id[0], ch->pcdata->room_before_arena.id[1], ch->pcdata->room_before_arena.id[2]);
 	else if(ch->pcdata->room_before_arena.id[1] || ch->pcdata->room_before_arena.id[2])
-		fprintf(fp, "Room_before_arenaC %lu %lu %lu\n", 	ch->pcdata->room_before_arena.id[0], ch->pcdata->room_before_arena.id[1], ch->pcdata->room_before_arena.id[2]);
+		fprintf(fp, "Room_before_arenaC %lu#%lu %lu %lu\n",
+			ch->pcdata->room_before_arena.area->uid,
+		 	ch->pcdata->room_before_arena.id[0], ch->pcdata->room_before_arena.id[1], ch->pcdata->room_before_arena.id[2]);
 	else
-		fprintf(fp, "Room_before_arena %ld\n", 	ch->pcdata->room_before_arena.id[0]);
+		fprintf(fp, "Room_before_arena %ld#%ld\n",
+			ch->pcdata->room_before_arena.area->uid,
+		 	ch->pcdata->room_before_arena.id[0]);
     }
 
     fprintf(fp, "Not  %ld %ld %ld %ld %ld\n",
@@ -381,38 +385,38 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 		DUNGEON *dungeon = ch->in_room->instance_section->instance->dungeon;
 
 		if( dungeon->entry_room )
-			fprintf(fp,"Room %ld\n", dungeon->entry_room->vnum);
+			fprintf(fp,"Room %s\n", widevnum_string_room(dungeon->entry_room));
 		else
-			fprintf (fp, "Room %ld\n", (long int)ROOM_VNUM_TEMPLE);
+			fprintf (fp, "Room %s\n", widevnum_string_wnum(room_wnum_temple));
 	}
 	else if( ch->checkpoint ) {
 		if( ch->checkpoint->wilds )
 			fprintf (fp, "Vroom %ld %ld %ld %ld\n",
 				ch->checkpoint->x, ch->checkpoint->y, ch->checkpoint->wilds->pArea->uid, ch->checkpoint->wilds->uid);
 		else if(ch->checkpoint->source)
-			fprintf(fp,"CloneRoom %ld %ld %ld\n",
-				ch->checkpoint->source->vnum, ch->checkpoint->id[0], ch->checkpoint->id[1]);
+			fprintf(fp,"CloneRoom %s %ld %ld\n",
+				widevnum_string_room(ch->checkpoint->source), ch->checkpoint->id[0], ch->checkpoint->id[1]);
 		else
-			fprintf(fp,"Room %ld\n", ch->checkpoint->vnum);
+			fprintf(fp,"Room %s\n", widevnum_string_room(ch->checkpoint));
 	} else if(!ch->in_room)
-		fprintf (fp, "Room %ld\n", (long int)ROOM_VNUM_TEMPLE);
+		fprintf (fp, "Room %s\n", widevnum_string_wnum(room_wnum_temple));
 	else if(ch->in_wilds) {
 		fprintf (fp, "Vroom %ld %ld %ld %ld\n",
 			ch->in_room->x, ch->in_room->y, ch->in_wilds->pArea->uid, ch->in_wilds->uid);
 	} else if(ch->was_in_room) {
 		if(ch->was_in_room->source)
-			fprintf(fp,"CloneRoom %ld %ld %ld\n",
-				ch->was_in_room->source->vnum, ch->was_in_room->id[0], ch->was_in_room->id[1]);
+			fprintf(fp,"CloneRoom %s %ld %ld\n",
+				widevnum_string_room(ch->was_in_room->source), ch->was_in_room->id[0], ch->was_in_room->id[1]);
 		else if( ch->was_in_wilds )
 			fprintf (fp, "Vroom %ld %ld %ld %ld\n",
 				ch->was_in_room->x, ch->was_in_room->y, ch->was_in_wilds->pArea->uid, ch->was_in_wilds->uid);
 		else
-			fprintf(fp,"Room %ld\n", ch->was_in_room->vnum);
+			fprintf(fp,"Room %s\n", widevnum_string_room(ch->was_in_room));
 	} else if(ch->in_room->source) {
-		fprintf(fp,"CloneRoom %ld %ld %ld\n",
-			ch->in_room->source->vnum, ch->in_room->id[0], ch->in_room->id[1]);
+		fprintf(fp,"CloneRoom %s %ld %ld\n",
+			widevnum_string_room(ch->in_room->source), ch->in_room->id[0], ch->in_room->id[1]);
 	} else
-		fprintf(fp,"Room %ld\n", ch->in_room->vnum);
+		fprintf(fp,"Room %s\n", widevnum_string_room(ch->in_room));
 
     if (ch->pcdata->ignoring != NULL)
     {
@@ -450,6 +454,7 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 	}
     }
 
+	// TODO: Add Toxin trait?
     if (IS_SITH(ch))
     {
 	for (i = 0; i < MAX_TOXIN; i++)
@@ -481,15 +486,15 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 	if(ch->before_social.wuid)
 		fprintf(fp, "Before_socialW %lu %lu %lu %lu\n", 	ch->before_social.wuid, ch->before_social.id[0], ch->before_social.id[1], ch->before_social.id[2]);
 	else if(ch->before_social.id[1] || ch->before_social.id[2])
-		fprintf(fp, "Before_socialC %lu %lu %lu\n", 	ch->before_social.id[0], ch->before_social.id[1], ch->before_social.id[2]);
+		fprintf(fp, "Before_socialC %ld#%ld %lu %lu\n", 	ch->before_social.area->uid, ch->before_social.id[0], ch->before_social.id[1], ch->before_social.id[2]);
 	else
-		fprintf(fp, "Before_social %ld\n", 	ch->before_social.id[0]);
+		fprintf(fp, "Before_social %ld#%ld\n", 	ch->before_social.area->uid, ch->before_social.id[0]);
     }
 
     if (ch->pneuma != 0)
 	fprintf(fp, "Pneuma %ld\n", ch->pneuma);
-    if (ch->home != 0)
-	fprintf(fp, "Home %ld\n", ch->home);
+    if (ch->home.pArea && ch->home.vnum > 0)
+	fprintf(fp, "Home %s\n", widevnum_string_wnum(ch->home));
     if (ch->questpoints != 0)
         fprintf(fp, "QuestPnts %d\n",  ch->questpoints);
     if (ch->pcdata->quests_completed != 0)
@@ -504,9 +509,9 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
     if (IS_QUESTING(ch)) {
 		fprintf(fp, "Questing\n");
 		fprintf(fp, "QuestGiverType %d\n", ch->quest->questgiver_type);
-		fprintf(fp, "QuestGiver %ld\n", ch->quest->questgiver);
+		fprintf(fp, "QuestGiver %s\n", widevnum_string_wnum(ch->quest->questgiver));
 		fprintf(fp, "QuestReceiverType %d\n", ch->quest->questreceiver_type);
-		fprintf(fp, "QuestReceiver %ld\n", ch->quest->questreceiver);
+		fprintf(fp, "QuestReceiver %s\n", widevnum_string_wnum(ch->quest->questreceiver));
 
 		fwrite_quest_part(fp, ch->quest->parts);
     }
@@ -1226,15 +1231,15 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 	    //KEY("Bout",	ch->pcdata->immortal->bamfout,	fread_string(fp));
 	    KEY("Bank",	ch->pcdata->bankbalance, fread_number(fp));
             if (!str_cmp(word, "Before_social")) {
-		location_set(&ch->before_social,0,fread_number(fp),0,0);
+		location_set(&ch->before_social,get_area_from_uid(fread_number(fp)),0,fread_number(fp),0,0);
 		fMatch = TRUE;
 	    }
             if (!str_cmp(word, "Before_socialC")) {
-		location_set(&ch->before_social,0,fread_number(fp),fread_number(fp),fread_number(fp));
+		location_set(&ch->before_social,get_area_from_uid(fread_number(fp)),0,fread_number(fp),fread_number(fp),fread_number(fp));
 		fMatch = TRUE;
 	    }
             if (!str_cmp(word, "Before_socialW")) {
-		location_set(&ch->before_social,fread_number(fp),fread_number(fp),fread_number(fp),fread_number(fp));
+		location_set(&ch->before_social,NULL,fread_number(fp),fread_number(fp),fread_number(fp),fread_number(fp));
 		fMatch = TRUE;
 	    }
 		break;
@@ -1312,17 +1317,17 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 	    if (!str_cmp(word, "CloneRoom"))
 	    {
 		    ROOM_INDEX_DATA *room;
-		    long v = fread_number(fp);
+			WNUM_LOAD w = fread_widevnum(fp);
 		    unsigned long id1 = fread_number(fp);
 		    unsigned long id2 = fread_number(fp);
 
-		    room = get_room_index(v);
+		    room = get_room_index_auid(w.auid, w.vnum);
 
 
 		    ch->in_room = get_clone_room(room,id1,id2);
 
 			if (ch->in_room == NULL)
-				ch->in_room = get_room_index(11001);
+				ch->in_room = room_index_temple;
 		fMatch = TRUE;
 		break;
 	    }
@@ -1448,7 +1453,15 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 	case 'H':
 	    KEY("Hitroll",	ch->hitroll,		fread_number(fp));
 	    KEY("Hit",		ch->hitroll,		fread_number(fp));
-	    KEY("Home",	ch->home,		fread_number(fp));
+		if (!str_cmp(word, "Home"))
+		{
+			WNUM_LOAD load = fread_widevnum(fp);
+
+			ch->home.pArea = get_area_from_uid(load.auid);
+			ch->home.vnum = load.vnum;
+			fMatch = TRUE;
+			break;
+		}
 
 	    if (!str_cmp(word, "HBS"))
 	    {
@@ -1595,23 +1608,6 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 	    KEY("Mc2",		 ch->pcdata->class_thief,		fread_number(fp));
 	    KEY("Mc3",		 ch->pcdata->class_warrior,		fread_number(fp));
 	    KEY("MonsterKills", ch->monster_kills,	fread_number(fp));
-
-	    /*
-	    if (!str_cmp(word, "Mount"))
-	    {
-		int vnum;
-		CHAR_DATA *mount;
-
-		vnum = fread_number(fp);
-
-		mount = create_mobile(get_mob_index(vnum), FALSE);
-		ch->mount = mount;
-		mount->rider = ch;
-		ch->riding = TRUE;
-		mount->riding = TRUE;
-		fMatch = TRUE;
-	    }
-	    */
 	    break;
 
 	case 'N':
@@ -1703,7 +1699,11 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 			{
 				ch->quest = (QUEST_DATA *)new_quest();
 			}
-			ch->quest->questgiver = fread_number(fp);
+
+			WNUM_LOAD load = fread_widevnum(fp);
+			ch->quest->questgiver.pArea = get_area_from_uid(load.auid);
+			ch->quest->questgiver.vnum = load.vnum;
+	
 			fMatch = TRUE;
 			break;
 	    }
@@ -1725,7 +1725,11 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 			{
 				ch->quest = (QUEST_DATA *)new_quest();
 			}
-			ch->quest->questreceiver = fread_number(fp);
+
+			WNUM_LOAD load = fread_widevnum(fp);
+			ch->quest->questreceiver.pArea = get_area_from_uid(load.auid);
+			ch->quest->questreceiver.vnum = load.vnum;
+
 			fMatch = TRUE;
 			break;
 	    }
@@ -1737,8 +1741,10 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 		    ch->quest = (QUEST_DATA *)new_quest();
 
 		part = (QUEST_PART_DATA *)new_quest_part();
+		WNUM_LOAD wnum = fread_widevnum(fp);
+		part->area = get_area_from_uid(wnum.auid);
 		part->mob = -1;
-		part->obj = fread_number(fp);
+		part->obj = wnum.vnum;
 
 		part->next = ch->quest->parts;
 		ch->quest->parts = part;
@@ -1753,7 +1759,9 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 		    ch->quest = (QUEST_DATA *)new_quest();
 
 		part = (QUEST_PART_DATA *)new_quest_part();
-		part->obj_sac = fread_number(fp);
+		WNUM_LOAD wnum = fread_widevnum(fp);
+		part->area = get_area_from_uid(wnum.auid);
+		part->obj_sac = wnum.vnum;
 
 		part->next = ch->quest->parts;
 		ch->quest->parts = part;
@@ -1768,7 +1776,9 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 		    ch->quest = (QUEST_DATA *)new_quest();
 
 		part = (QUEST_PART_DATA *)new_quest_part();
-		part->mob_rescue = fread_number(fp);
+		WNUM_LOAD wnum = fread_widevnum(fp);
+		part->area = get_area_from_uid(wnum.auid);
+		part->mob_rescue = wnum.vnum;
 
 		part->next = ch->quest->parts;
 		ch->quest->parts = part;
@@ -1783,7 +1793,9 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 		    ch->quest = (QUEST_DATA *)new_quest();
 
 		part = (QUEST_PART_DATA *)new_quest_part();
-		part->mob = fread_number(fp);
+		WNUM_LOAD wnum = fread_widevnum(fp);
+		part->area = get_area_from_uid(wnum.auid);
+		part->mob = wnum.vnum;
 
 		part->next = ch->quest->parts;
 		ch->quest->parts = part;
@@ -1798,7 +1810,9 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 		    ch->quest = (QUEST_DATA *)new_quest();
 
 		part = (QUEST_PART_DATA *)new_quest_part();
-		part->room = fread_number(fp);
+		WNUM_LOAD wnum = fread_widevnum(fp);
+		part->area = get_area_from_uid(wnum.auid);
+		part->room = wnum.vnum;
 
 		part->next = ch->quest->parts;
 		ch->quest->parts = part;
@@ -1817,27 +1831,27 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 
 	case 'R':
             if (!str_cmp(word, "RepopRoom")) {
-		location_set(&ch->recall,0,fread_number(fp),0,0);
+		location_set(&ch->recall,get_area_from_uid(fread_number(fp)),0,fread_number(fp),0,0);
 		fMatch = TRUE;
 	    }
             if (!str_cmp(word, "RepopRoomC")) {
-		location_set(&ch->recall,0,fread_number(fp),fread_number(fp),fread_number(fp));
+		location_set(&ch->recall,get_area_from_uid(fread_number(fp)),0,fread_number(fp),fread_number(fp),fread_number(fp));
 		fMatch = TRUE;
 	    }
             if (!str_cmp(word, "RepopRoomW")) {
-		location_set(&ch->recall,fread_number(fp),fread_number(fp),fread_number(fp),fread_number(fp));
+		location_set(&ch->recall,NULL,fread_number(fp),fread_number(fp),fread_number(fp),fread_number(fp));
 		fMatch = TRUE;
 	    }
             if (!str_cmp(word, "Room_before_arena")) {
-		location_set(&ch->pcdata->room_before_arena,0,fread_number(fp),0,0);
+		location_set(&ch->pcdata->room_before_arena,get_area_from_uid(fread_number(fp)),0,fread_number(fp),0,0);
 		fMatch = TRUE;
 	    }
             if (!str_cmp(word, "Room_before_arenaC")) {
-		location_set(&ch->pcdata->room_before_arena,0,fread_number(fp),fread_number(fp),fread_number(fp));
+		location_set(&ch->pcdata->room_before_arena,get_area_from_uid(fread_number(fp)),0,fread_number(fp),fread_number(fp),fread_number(fp));
 		fMatch = TRUE;
 	    }
             if (!str_cmp(word, "Room_before_arenaW")) {
-		location_set(&ch->pcdata->room_before_arena,fread_number(fp),fread_number(fp),fread_number(fp),fread_number(fp));
+		location_set(&ch->pcdata->room_before_arena,NULL,fread_number(fp),fread_number(fp),fread_number(fp),fread_number(fp));
 		fMatch = TRUE;
 	    }
 	    KEY("RMc0",		 ch->pcdata->second_class_mage,		fread_number(fp));
@@ -1871,9 +1885,10 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 
 	    if (!str_cmp(word, "Room"))
 	    {
-		ch->in_room = get_room_index(fread_number(fp));
+			WNUM_LOAD w = fread_widevnum(fp);
+		ch->in_room = get_room_index_auid(w.auid, w.vnum);
 		if ((ch->in_room == NULL) /*|| (ch->tot_level < 150 && !ch->in_room->area->open)*/)
-		    ch->in_room = get_room_index(11001);
+		    ch->in_room = room_index_temple;
 		fMatch = TRUE;
 		break;
 	    }
@@ -2138,11 +2153,12 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 
 	    if (!str_cmp(word, "Vnum"))
 	    {
-		ch->pIndexData = get_mob_index(fread_number(fp));
+			WNUM_LOAD wnum_load = fread_widevnum(fp);
 
+			ch->pIndexData = get_mob_index_auid(wnum_load.auid, wnum_load.vnum);
 
-		fMatch = TRUE;
-		break;
+			fMatch = TRUE;
+			break;
 	    }
 /*
 	    if (!str_cmp(word,"VnumOfShip"))
@@ -2191,17 +2207,17 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 	// Make sure questing data from old info is configured properly
     if( ch->quest != NULL )
     {
-		if( ch->quest->questgiver < 0 )
+		if( !ch->quest->questgiver.pArea || ch->quest->questgiver.vnum < 1 )
 		{
 			// No questgiver info
 			free_quest(ch->quest);
 			ch->countdown = 0;
 			ch->quest = NULL;
 		}
-		else if( ch->quest->questgiver > 0 )
+		else
 		{
 			if( ch->quest->questgiver_type < 0 ) ch->quest->questgiver_type = QUESTOR_MOB;
-			if( ch->quest->questreceiver < 0 || ch->quest->questreceiver_type < 0 )
+			if( !ch->quest->questreceiver.pArea || ch->quest->questreceiver.vnum < 1 || ch->quest->questreceiver_type < 0 )
 			{
 				ch->quest->questreceiver = ch->quest->questgiver;
 				ch->quest->questreceiver_type = QUESTOR_MOB;
@@ -2249,7 +2265,7 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
 
     fprintf(fp, "#O\n");
 
-    fprintf(fp, "Vnum %ld\n", obj->pIndexData->vnum);
+    fprintf(fp, "Vnum %ld#%ld\n", obj->pIndexData->area->uid, obj->pIndexData->vnum);
     fprintf(fp, "UId %ld\n", obj->id[0]);
     fprintf(fp, "UId2 %ld\n", obj->id[1]);
     fprintf(fp, "Version %d\n", VERSION_OBJECT);
@@ -2310,8 +2326,26 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
     if (obj->locker == TRUE)
     	fprintf(fp, "Locker %d\n", obj->locker);
 
-    if (obj->lock)
-    	fprintf(fp, "Lock %ld %d %d\n", obj->lock->key_vnum, obj->lock->flags, obj->lock->pick_chance);
+    if (obj->lock) {
+    	fprintf(fp, "Lock %s %d %d", widevnum_string_wnum(obj->lock->key_wnum), obj->lock->flags, obj->lock->pick_chance);
+
+		if (list_size(obj->lock->keys) > 0)
+		{
+			LLIST_UID_DATA *luid;
+
+			ITERATOR skit;
+			iterator_start(&skit, obj->lock->keys);
+			while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&skit)) )
+			{
+				if (luid->id[0] > 0 && luid->id[1] > 0)
+					fprintf(fp, " %lu %lu", luid->id[0], luid->id[1]);
+			}
+
+			iterator_stop(&skit);
+		}
+
+		fprintf(fp, " 0\n");
+	}
 
 	// Permanent flags based
     fprintf(fp, "PermExtra %ld\n",	obj->extra_flags_perm );
@@ -2337,10 +2371,13 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
      ||  obj->value[4] != obj->pIndexData->value[4]
      ||  obj->value[5] != obj->pIndexData->value[5]
      ||  obj->value[6] != obj->pIndexData->value[6]
-     ||  obj->value[7] != obj->pIndexData->value[7])
-    	fprintf(fp, "Val  %d %d %d %d %d %d %d %d\n",
+     ||  obj->value[7] != obj->pIndexData->value[7]
+     ||  obj->value[8] != obj->pIndexData->value[8]
+     ||  obj->value[9] != obj->pIndexData->value[9])
+    	fprintf(fp, "Val  %d %d %d %d %d %d %d %d %d %d\n",
 	    obj->value[0], obj->value[1], obj->value[2], obj->value[3],
-	    obj->value[4], obj->value[5], obj->value[6], obj->value[7] );
+	    obj->value[4], obj->value[5], obj->value[6], obj->value[7],
+		obj->value[8], obj->value[9] );
 
     if (obj->spells != NULL)
 	save_spell(fp, obj->spells);
@@ -2547,14 +2584,12 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 	word   = feof(fp) ? "End" : fread_word(fp);
 	if (!str_cmp(word,"Vnum"))
 	{
-		long vnum;
+		WNUM_LOAD w = fread_widevnum(fp);
 		first = FALSE;  /* fp will be in right place */
 
-		vnum = fread_number(fp);
-		if ( get_obj_index(vnum)  == NULL)
-			bug("Fread_obj: bad vnum %ld.", vnum);
-		else
-			obj = create_object_noid(get_obj_index(vnum),-1, FALSE);
+		OBJ_INDEX_DATA *index = get_obj_index_auid(w.auid, w.vnum);
+		if ( index != NULL)
+			obj = create_object_noid(index,-1, FALSE);
 	}
 
 	if (obj == NULL)  /* either not found or old style */
@@ -2979,7 +3014,8 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 					if (!fVnum)
 					{
 						free_obj(obj);
-						obj = create_object(get_obj_index(OBJ_VNUM_DUMMY), 0 , FALSE);
+						return NULL;
+						//obj = create_object(obj_index_dummy, 0 , FALSE);
 					}
 
 					if (make_new)
@@ -3024,10 +3060,9 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 			{
 				OBJ_DATA *key;
 				OBJ_INDEX_DATA *pIndexData;
-				long vnum;
+				WNUM_LOAD load = fread_widevnum(fp);
 
-				vnum = fread_number(fp);
-				if ((pIndexData = get_obj_index(vnum)) != NULL)
+				if ((pIndexData = get_obj_index_auid(load.auid, load.vnum)) != NULL)
 				{
 					key = create_object(pIndexData, pIndexData->level, FALSE);
 					obj_to_obj(key, obj);
@@ -3048,9 +3083,29 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 					obj->lock = new_lock_state();
 				}
 
-				obj->lock->key_vnum = fread_number(fp);
+				WNUM_LOAD load = fread_widevnum(fp);
+				obj->lock->key_load = load;
+				obj->lock->key_wnum.pArea = get_area_from_uid(load.auid);
+				obj->lock->key_wnum.vnum = load.vnum;
 				obj->lock->flags = fread_number(fp);
 				obj->lock->pick_chance = fread_number(fp);
+
+				unsigned long id0 = fread_number(fp);
+				while( id0 > 0 )
+				{
+					unsigned long id1 = fread_number(fp);
+					
+					LLIST_UID_DATA *luid = new_list_uid_data();
+					luid->ptr = NULL;	// Resolve it later
+					luid->id[0] = id0;
+					luid->id[1] = id1;
+
+					list_appendlink(obj->lock->keys, luid);
+
+					id0 = fread_number(fp);
+				}
+
+				// TODO: special keys
 
 				fMatch = TRUE;
 				break;
@@ -3136,8 +3191,9 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 			if (!str_cmp(word, "Room"))
 			{
 				ROOM_INDEX_DATA *room;
+				WNUM_LOAD w = fread_widevnum(fp);
 
-				room = get_room_index(fread_number(fp));
+				room = get_room_index_auid(w.auid, w.vnum);
 				obj->in_room = room;
 				fMatch = TRUE;
 			}
@@ -3261,11 +3317,11 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 
 			if (!str_cmp(word, "Vnum"))
 			{
-				long vnum;
+				WNUM_LOAD wnum = fread_widevnum(fp);
 
-				vnum = fread_number(fp);
-				if ((obj->pIndexData = get_obj_index(vnum)) == NULL)
-					bug("Fread_obj: bad vnum %ld.", vnum);
+				// TODO: fix bug
+				if ((obj->pIndexData = get_obj_index_auid(wnum.auid, wnum.vnum)) == NULL)
+					bug("Fread_obj: bad vnum %ld.", wnum.vnum);
 				else
 					fVnum = TRUE;
 
@@ -3373,9 +3429,10 @@ void read_permanent_objs()
 				}
 				else
 				{
-				ROOM_INDEX_DATA *to_room = get_room_index(obj->in_room->vnum);
+
+				ROOM_INDEX_DATA *to_room = obj->in_room;
 				obj->in_room = NULL;
-				obj_to_room(obj, to_room == NULL ? get_room_index(1) : to_room);
+				obj_to_room(obj, to_room == NULL ? room_index_default : to_room);
 				}
 			}
 			}
@@ -3413,14 +3470,6 @@ bool update_object(OBJ_DATA *obj)
 // Fix an object. Clean up any mess we have made before.
 void fix_object(OBJ_DATA *obj)
 {
-    char buf[MSL];
-    int i, sn, level;
-    int af_level = 0;
-    int af_hr_mod = 0;
-    int af_dr_mod = 0;
-    AFFECT_DATA *af, *af_next;
-    SPELL_DATA *spell, *spell_new;
-
     if (obj == NULL) {
 		bug("fix_object: obj was null.", 0);
 		return;
@@ -3432,374 +3481,7 @@ void fix_object(OBJ_DATA *obj)
     }
 
     //////////////////////////////////////////////////////////////////////
-    // LEGACY UPDATES
-
-    if (obj->version == 0) {
-		bool fEnchanted = FALSE;
-
-		if (IS_SET(obj->extra2_flags, ITEM_ENCHANTED))
-			fEnchanted = TRUE;
-
-		obj->extra2_flags = obj->pIndexData->extra2_flags | obj->extra2_flags;
-		obj->extra3_flags = obj->pIndexData->extra3_flags | obj->extra3_flags;
-		obj->extra4_flags = obj->pIndexData->extra4_flags | obj->extra4_flags;
-
-		if (fEnchanted)
-			SET_BIT(obj->extra2_flags, ITEM_ENCHANTED);
-
-		if (is_quest_item(obj))
-			obj->cost = obj->pIndexData->cost;
-    }
-
-    if (obj->version == 1)
-    {
-		// remove dup affects - don't do for now
-		// cleanup_affects(obj);
-
-		// Fix skulls
-		if (obj->pIndexData->vnum == OBJ_VNUM_SKULL || obj->pIndexData->vnum == OBJ_VNUM_GOLD_SKULL) {
-			int i;
-			char buf[MSL];
-
-			if (obj->owner == NULL)
-				obj->owner = str_dup("Nobody");
-
-			// Fix name
-			if (str_infix(obj->owner, obj->name))
-			{
-				sprintf(buf, "skull %s", obj->owner);
-
-				for (i = 0; buf[i] != '\0'; i++)
-				{
-				buf[i] = LOWER(buf[i]);
-				}
-
-				free_string(obj->name);
-				obj->name = str_dup(buf);
-			}
-
-			// Fix full desc field
-			free_string(obj->full_description);
-			sprintf(buf, obj->pIndexData->full_description, obj->owner);
-			obj->full_description = str_dup(buf);
-		}
-
-		/* Syn - this is also in fread_obj so let's not do it twice unless there is some reason
-		   I am not seeing.
-		if (update_object(obj))
-		{
-		i = 0;
-		while (i <= 8)
-		{
-			obj->value[i] = obj->pIndexData->value[i];
-			i++;
-		}
-
-		obj->wear_flags = obj->pIndexData->wear_flags;
-		obj->extra_flags = obj->extra_flags | obj->pIndexData->extra_flags;
-		obj->extra2_flags = obj->extra2_flags | obj->pIndexData->extra2_flags;
-		obj->extra3_flags = obj->extra3_flags | obj->pIndexData->extra3_flags;
-		obj->extra4_flags = obj->extra4_flags | obj->pIndexData->extra4_flags;
-		free_string(obj->material);
-		obj->material = str_dup(obj->pIndexData->material);
-		}
-		 */
-		// Fix dual enchant affects
-		if (IS_SET(obj->extra2_flags, ITEM_ENCHANTED))
-		{
-			for (af = obj->affected; af != NULL; af = af_next)
-			{
-				af_next = af->next;
-
-				if (af->type == gsn_enchant_weapon)
-				{
-					af_level = af->level;
-
-					if (af->location == APPLY_DAMROLL)
-						af_dr_mod += af->modifier;
-					else
-						af_hr_mod += af->modifier;
-
-					affect_remove_obj(obj, af);
-				}
-			}
-
-			if (af_level > 0)
-			{
-				// HR mods
-				af = new_affect();
-				af->group = AFFGROUP_ENCHANT;
-				af->level = af_level;
-				af->duration = -1;
-				af->location = APPLY_HITROLL;
-				af->modifier = af_hr_mod;
-				af->type = gsn_enchant_weapon;
-				affect_to_obj(obj, af);
-
-				// DR mods
-				af = new_affect();
-				af->group = AFFGROUP_ENCHANT;
-				af->level = af_level;
-				af->duration = -1;
-				af->location = APPLY_DAMROLL;
-				af->modifier = af_dr_mod;
-				af->type = gsn_enchant_weapon;
-				affect_to_obj(obj, af);
-			}
-		}
-
-		// Update spells to be done the correct way.
-		if (obj->spells == NULL)
-		switch (obj->item_type)
-		{
-		case ITEM_PILL:
-		case ITEM_POTION:
-		case ITEM_SCROLL:
-				if (obj->value[0] > 0)
-			level = obj->value[0];
-				else
-			level = obj->level;
-
-				for (i = 1; i < 4; i++)
-			{
-			if ((sn = obj->value[i]) > 0 && sn < MAX_SKILL
-			&&  skill_table[sn].spell_fun != spell_null)
-			{
-				spell_new = new_spell();
-				spell_new->sn = sn;
-				spell_new->level = level;
-
-				spell_new->next = obj->spells;
-				obj->spells = spell_new;
-			}
-			}
-
-			break;
-		case ITEM_WAND:
-		case ITEM_STAFF:
-				if (obj->value[0] > 0)
-			level = obj->value[0];
-			else
-			level = obj->level;
-
-			if ((sn = obj->value[3]) > 0 && sn < MAX_SKILL
-			&&   skill_table[sn].spell_fun != spell_null)
-			{
-			spell_new = new_spell();
-			spell_new->sn = sn;
-			spell_new->level = level;
-
-			spell_new->next = obj->spells;
-			obj->spells = spell_new;
-			}
-
-			break;
-
-		default:
-			for (spell = obj->pIndexData->spells; spell != NULL; spell = spell->next)
-			{
-			spell_new = new_spell();
-			*spell_new = *spell;
-
-			spell_new->next = obj->spells;
-			obj->spells = spell_new;
-			}
-		}
-
-		obj->version = 2;
-	}
-
-    // Fix magic items that haven't been scribed/brewed
-    if (obj->version == 2) {
-		switch (obj->item_type)
-		{
-			case ITEM_PILL:
-			case ITEM_POTION:
-			case ITEM_SCROLL:
-			case ITEM_WAND:
-			case ITEM_STAFF:
-			if (obj->pIndexData->vnum != ITEM_SCROLL
-			&&  obj->pIndexData->vnum != ITEM_POTION
-			&&  obj->spells == NULL) {
-				for (spell = obj->pIndexData->spells; spell != NULL; spell = spell->next)
-				{
-				spell_new = new_spell();
-				*spell_new = *spell;
-
-				spell_new->next = obj->spells;
-				obj->spells = spell_new;
-				}
-			}
-
-			break;
-			default:
-			break;
-		}
-		obj->version = 3;
-    }
-
-	if( obj->version == 3) {
-		if (IS_SET(obj->extra_flags, ITEM_HIDDEN)) {
-			REMOVE_BIT(obj->extra_flags, ITEM_HIDDEN);
-			sprintf(buf, "fix_object: removing hidden flag from inventory object %s(%ld)",
-				obj->short_descr, obj->pIndexData->vnum);
-			log_string(buf);
-		}
-		obj->version = 4;
-	}
-
-	/////////////////////////////////////////////////
-	// NEW UPDATES
-
-	if( obj->version < VERSION_OBJECT_002)
-	{
-		// Initializes objects to use the perm values for flags manipulated by affects
-
-		AFFECT_DATA *paf;
-		bool is_enchanted = FALSE;
-
-		if (IS_SET(obj->extra2_flags, ITEM_ENCHANTED))
-			is_enchanted = TRUE;
-
-
-		obj->extra_flags = obj->extra_flags_perm = obj->pIndexData->extra_flags;
-		obj->extra2_flags = obj->extra2_flags_perm = obj->pIndexData->extra2_flags;
-		obj->extra3_flags = obj->extra3_flags_perm = obj->pIndexData->extra3_flags;
-		obj->extra4_flags = obj->extra4_flags_perm = obj->pIndexData->extra4_flags;
-
-		if( obj->item_type == ITEM_WEAPON )
-		{
-			obj->value[4] = obj->weapon_flags_perm = obj->pIndexData->value[4];
-		}
-
-		for(paf = obj->affected; paf; paf = paf->next )
-		{
-			if (paf->bitvector)
-			{
-				switch (paf->where)
-				{
-				case TO_OBJECT:
-					SET_BIT(obj->extra_flags,paf->bitvector);
-					break;
-				case TO_OBJECT2:
-					SET_BIT(obj->extra2_flags,paf->bitvector);
-					break;
-				case TO_OBJECT3:
-					SET_BIT(obj->extra3_flags,paf->bitvector);
-					break;
-				case TO_OBJECT4:
-					SET_BIT(obj->extra4_flags,paf->bitvector);
-					break;
-				case TO_WEAPON:
-					if (obj->item_type == ITEM_WEAPON)
-						SET_BIT(obj->value[4],paf->bitvector);
-				break;
-				}
-			}
-		}
-
-		if( is_enchanted )
-			SET_BIT(obj->extra2_flags, ITEM_ENCHANTED);
-
-		obj->version = VERSION_OBJECT_002;
-	}
-
-	if( obj->version < VERSION_OBJECT_003 ) {
-
-
-		obj->version = VERSION_OBJECT_003;
-	}
-
-	if( obj->version < VERSION_OBJECT_004 )
-	{
-		if( !obj->lock )
-		{
-			switch(obj->item_type)
-			{
-			case ITEM_CONTAINER:
-			case ITEM_BOOK:
-				// Value[1] == CONT flags
-				// Value[2] == Key
-
-				if( (obj->value[2] > 0) || IS_SET(obj->value[1], VO_004_CONT_LOCKED) )
-				{
-					obj->lock = new_lock_state();
-					obj->lock->key_vnum = obj->value[2];
-					obj->lock->flags = 0;
-					obj->lock->pick_chance = 100;
-
-					if( IS_SET(obj->value[1], VO_004_CONT_LOCKED) )
-					{
-						SET_BIT(obj->lock->flags, LOCK_LOCKED);
-					}
-
-					if( IS_SET(obj->value[1], VO_004_CONT_PICKPROOF) )
-					{
-						obj->lock->pick_chance = 0;
-					}
-
-					if( IS_SET(obj->value[1], VO_004_CONT_SNAPKEY) )
-					{
-						SET_BIT(obj->lock->flags, LOCK_SNAPKEY);
-					}
-
-					// Remove the old data
-					REMOVE_BIT(obj->value[1], (VO_004_CONT_PICKPROOF|VO_004_CONT_LOCKED|VO_004_CONT_SNAPKEY));
-					obj->value[2] = 0;
-				}
-				break;
-
-			case ITEM_PORTAL:
-				// Value[1] == EXIT flags
-				// Value[4] == Key
-
-				if( (obj->value[4] > 0) || IS_SET(obj->value[1], VO_004_EX_LOCKED) )
-				{
-					obj->lock = new_lock_state();
-					obj->lock->key_vnum = obj->value[4];
-					obj->lock->flags = 0;
-					obj->lock->pick_chance = 100;
-
-					if( IS_SET(obj->value[1], VO_004_EX_LOCKED) )
-					{
-						SET_BIT(obj->lock->flags, LOCK_LOCKED);
-					}
-
-					if( IS_SET(obj->value[1], VO_004_EX_PICKPROOF) )
-					{
-						obj->lock->pick_chance = 0;
-					}
-					else if( IS_SET(obj->value[1], VO_004_EX_INFURIATING) )
-					{
-						obj->lock->pick_chance = 10;
-					}
-					else if( IS_SET(obj->value[1], VO_004_EX_HARD) )
-					{
-						obj->lock->pick_chance = 40;
-					}
-					else if( IS_SET(obj->value[1], VO_004_EX_EASY) )
-					{
-						obj->lock->pick_chance = 80;
-					}
-
-
-					REMOVE_BIT(obj->value[1], (VO_004_EX_LOCKED|VO_004_EX_PICKPROOF|VO_004_EX_INFURIATING|VO_004_EX_HARD|VO_004_EX_EASY));
-					obj->value[4] = 0;
-				}
-				break;
-
-
-//			case ITEM_WEAPON_CONTAINER:
-//			case ITEM_DRINKCONTAINER:
-//				break;
-
-			}
-		}
-
-
-		obj->version = VERSION_OBJECT_004;
-	}
-
+    // UPDATES
 
 	// Just update it
 	obj->version = VERSION_OBJECT;
@@ -3845,6 +3527,29 @@ void cleanup_affects(OBJ_DATA *obj)
 
 
 #define HAS_ALL_BITS(a, b) (((a) & (b)) == (a))
+
+void fix_object_lockstate(OBJ_DATA *obj)
+{
+	if (obj->lock)
+	{
+		LLIST_UID_DATA *luid;
+		ITERATOR skit;
+
+		iterator_start(&skit, obj->lock->keys);
+		while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&skit)) )
+		{
+			luid->ptr = idfind_object(luid->id[0], luid->id[1]);
+		}
+		iterator_stop(&skit);
+	}
+
+	if (obj->contains)
+	{
+		OBJ_DATA *content;
+		for (content = obj->contains; content != NULL; content = content->next_content)
+			fix_object_lockstate(content);
+	}
+}
 
 void fix_character(CHAR_DATA *ch)
 {
@@ -3964,6 +3669,10 @@ void fix_character(CHAR_DATA *ch)
 			}
 		}
 	}
+
+	// Fix all object lockstates
+	for(obj = ch->carrying; obj; obj = obj->next_content)
+		fix_object_lockstate(obj);
 
     ch->form = race_table[ch->race].form;
     ch->parts = race_table[ch->race].parts & ~ch->lostparts;
@@ -4364,16 +4073,16 @@ TOKEN_DATA *fread_token(FILE *fp)
 {
     TOKEN_DATA *token;
     TOKEN_INDEX_DATA *token_index;
-    long vnum;
+    WNUM_LOAD wnum;
     char buf[MSL];
     char *word;
     bool fMatch;
     int vtype;
 
-    vnum = fread_number(fp);
-    if ((token_index = get_token_index(vnum)) == NULL) {
-	sprintf(buf, "fread_token: no token index found for vnum %ld", vnum);
-	bug(buf, 0);
+	wnum = fread_widevnum(fp);
+    if ((token_index = get_token_index_auid(wnum.auid, wnum.vnum)) == NULL) {
+//	sprintf(buf, "fread_token: no token index found for vnum %ld", vnum);
+//	bug(buf, 0);
 	return NULL;
     }
 
@@ -4592,13 +4301,13 @@ void fwrite_quest_part(FILE *fp, QUEST_PART_DATA *part)
 	    fprintf(fp, "OPart %ld %ld\n", part->pObj->pIndexData->vnum, part->pObj->in_room->vnum);
     }
     else if (part->mob != -1)
-	fprintf(fp, "MPart %ld\n", part->mob);
+	fprintf(fp, "MPart %ld#%ld\n", part->area->uid, part->mob);
     else if (part->obj_sac != -1)
-	fprintf(fp, "OSPart %ld\n", part->obj_sac);
+	fprintf(fp, "OSPart %ld#%ld\n", part->area->uid, part->obj_sac);
     else if (part->mob_rescue != -1)
-	fprintf(fp, "MRPart %ld\n", part->mob_rescue);
+	fprintf(fp, "MRPart %ld#%ld\n", part->area->uid, part->mob_rescue);
     else if (part->room != -1)
-	fprintf(fp, "QRoom %ld\n", part->room);
+	fprintf(fp, "QRoom %ld#%ld\n", part->area->uid, part->room);
     else if (part->custom_task)
 		fprintf(fp, "QCustom\n");
 
@@ -4615,7 +4324,7 @@ QUEST_PART_DATA *fread_quest_part(FILE *fp)
     char buf[MSL];
     char *word;
     bool fMatch;
-    int i;
+	WNUM_LOAD wnum;
 
     part = new_quest_part();
 
@@ -4633,15 +4342,17 @@ QUEST_PART_DATA *fread_quest_part(FILE *fp)
 		{
 		    case 'M':
 			if (!str_cmp(word, "MPart")) {
-			    i = fread_number(fp);
-			    part->mob = i;
+				wnum = fread_widevnum(fp);
+				part->area = get_area_from_uid(wnum.auid);
+			    part->mob = wnum.vnum;
 			    fMatch = TRUE;
 			    break;
 			}
 
 			if (!str_cmp(word, "MRPart")) {
-			    i = fread_number(fp);
-			    part->mob_rescue = i;
+				wnum = fread_widevnum(fp);
+				part->area = get_area_from_uid(wnum.auid);
+			    part->mob_rescue = wnum.vnum;
 			    fMatch = TRUE;
 			    break;
 			}
@@ -4653,15 +4364,16 @@ QUEST_PART_DATA *fread_quest_part(FILE *fp)
 			    ROOM_INDEX_DATA *room;
 			    OBJ_DATA *obj;
 			    OBJ_INDEX_DATA *obj_i;
-			    int room_vnum;
+			    WNUM_LOAD room_vnum;
 
-			    i = fread_number(fp);
-			    part->obj = i;
+				wnum = fread_widevnum(fp);
+				part->area = get_area_from_uid(wnum.auid);
+			    part->obj = wnum.vnum;
 
-			    obj_i = get_obj_index(part->obj);
+			    obj_i = get_obj_index(part->area, part->obj);
 
-			    room_vnum = fread_number(fp);
-			    room = get_room_index(room_vnum);
+			    room_vnum = fread_widevnum(fp);
+			    room = get_room_index_auid(room_vnum.auid, room_vnum.vnum);
 
 			    obj = create_object(obj_i, 1, TRUE);
 			    obj_to_room(obj, room);
@@ -4673,8 +4385,9 @@ QUEST_PART_DATA *fread_quest_part(FILE *fp)
 			}
 
 			if (!str_cmp(word, "OSPart")) {
-			    i = fread_number(fp);
-			    part->obj_sac = i;
+				wnum = fread_widevnum(fp);
+				part->area = get_area_from_uid(wnum.auid);
+			    part->obj_sac = wnum.vnum;
 			    fMatch = TRUE;
 			    break;
 			}
@@ -4692,8 +4405,9 @@ QUEST_PART_DATA *fread_quest_part(FILE *fp)
 				break;
 			}
 			if (!str_cmp(word, "QRoom")) {
-			    i = fread_number(fp);
-			    part->room = i;
+				wnum = fread_widevnum(fp);
+				part->area = get_area_from_uid(wnum.auid);
+			    part->room = wnum.vnum;
 			    fMatch = TRUE;
 			    break;
 			}

@@ -202,7 +202,6 @@ void mpedit( CHAR_DATA *ch, char *argument)
     char arg[MAX_INPUT_LENGTH];
     char command[MAX_INPUT_LENGTH];
     int cmd;
-    AREA_DATA *ad;
 
     smash_tilde(argument);
     strcpy(arg, argument);
@@ -212,21 +211,13 @@ void mpedit( CHAR_DATA *ch, char *argument)
 
     if (pMcode)
     {
-	ad = get_vnum_area( pMcode->vnum );
-
-	if ( ad == NULL ) /* ??? */
-	{
-		edit_done(ch);
-		return;
+		if ( !IS_BUILDER(ch, pMcode->area) )
+		{
+			send_to_char("MPEdit: Insufficient security to modify code.\n\r", ch);
+			edit_done(ch);
+			return;
+		}
 	}
-
-	if ( !IS_BUILDER(ch, ad) )
-	{
-		send_to_char("MPEdit: Insufficient security to modify code.\n\r", ch);
-		edit_done(ch);
-		return;
-	}
-    }
 
     if (command[0] == '\0')
     {
@@ -245,8 +236,7 @@ void mpedit( CHAR_DATA *ch, char *argument)
 	if (!str_prefix(command, mpedit_table[cmd].name) )
 	{
 		if ((*mpedit_table[cmd].olc_fun) (ch, argument) && pMcode)
-			if ((ad = get_vnum_area(pMcode->vnum)) != NULL)
-				SET_BIT(ad->area_flags, AREA_CHANGED);
+			SET_BIT(pMcode->area->area_flags, AREA_CHANGED);
 		return;
 	}
     }
@@ -262,7 +252,6 @@ void opedit( CHAR_DATA *ch, char *argument)
     char arg[MAX_INPUT_LENGTH];
     char command[MAX_INPUT_LENGTH];
     int cmd;
-    AREA_DATA *ad;
 
     smash_tilde(argument);
     strcpy(arg, argument);
@@ -272,15 +261,7 @@ void opedit( CHAR_DATA *ch, char *argument)
 
     if (pOcode)
     {
-	ad = get_vnum_area( pOcode->vnum );
-
-	if ( ad == NULL ) /* ??? */
-	{
-		edit_done(ch);
-		return;
-	}
-
-	if ( !IS_BUILDER(ch, ad) )
+	if ( !IS_BUILDER(ch, pOcode->area) )
 	{
 		send_to_char("OPEdit: Insufficient security to modify code.\n\r", ch);
 		edit_done(ch);
@@ -305,8 +286,7 @@ void opedit( CHAR_DATA *ch, char *argument)
 	if (!str_prefix(command, opedit_table[cmd].name) )
 	{
 		if ((*opedit_table[cmd].olc_fun) (ch, argument) && pOcode)
-			if ((ad = get_vnum_area(pOcode->vnum)) != NULL)
-				SET_BIT(ad->area_flags, AREA_CHANGED);
+			SET_BIT(pOcode->area->area_flags, AREA_CHANGED);
 		return;
 	}
     }
@@ -322,7 +302,6 @@ void rpedit( CHAR_DATA *ch, char *argument)
     char arg[MAX_INPUT_LENGTH];
     char command[MAX_INPUT_LENGTH];
     int cmd;
-    AREA_DATA *ad;
 
     smash_tilde(argument);
     strcpy(arg, argument);
@@ -332,15 +311,7 @@ void rpedit( CHAR_DATA *ch, char *argument)
 
     if (pRcode)
     {
-	ad = get_vnum_area( pRcode->vnum );
-
-	if ( ad == NULL ) /* ??? */
-	{
-		edit_done(ch);
-		return;
-	}
-
-	if ( !IS_BUILDER(ch, ad) )
+	if ( !IS_BUILDER(ch, pRcode->area) )
 	{
 		send_to_char("RPEdit: Insufficient security to modify code.\n\r", ch);
 		edit_done(ch);
@@ -365,8 +336,7 @@ void rpedit( CHAR_DATA *ch, char *argument)
 	if (!str_prefix(command, rpedit_table[cmd].name) )
 	{
 		if ((*rpedit_table[cmd].olc_fun) (ch, argument) && pRcode)
-			if ((ad = get_vnum_area(pRcode->vnum)) != NULL)
-				SET_BIT(ad->area_flags, AREA_CHANGED);
+			SET_BIT(pRcode->area->area_flags, AREA_CHANGED);
 		return;
 	}
     }
@@ -382,7 +352,6 @@ void tpedit( CHAR_DATA *ch, char *argument)
     char arg[MAX_INPUT_LENGTH];
     char command[MAX_INPUT_LENGTH];
     int cmd;
-    AREA_DATA *ad;
 
     smash_tilde(argument);
     strcpy(arg, argument);
@@ -392,15 +361,7 @@ void tpedit( CHAR_DATA *ch, char *argument)
 
     if (pTcode)
     {
-	ad = get_vnum_area( pTcode->vnum );
-
-	if ( ad == NULL ) /* ??? */
-	{
-		edit_done(ch);
-		return;
-	}
-
-	if ( !IS_BUILDER(ch, ad) )
+	if ( !IS_BUILDER(ch, pTcode->area) )
 	{
 		send_to_char("TPEdit: Insufficient security to modify code.\n\r", ch);
 		edit_done(ch);
@@ -425,8 +386,7 @@ void tpedit( CHAR_DATA *ch, char *argument)
 	if (!str_prefix(command, tpedit_table[cmd].name) )
 	{
 		if ((*tpedit_table[cmd].olc_fun) (ch, argument) && pTcode)
-			if ((ad = get_vnum_area(pTcode->vnum)) != NULL)
-				SET_BIT(ad->area_flags, AREA_CHANGED);
+			SET_BIT(pTcode->area->area_flags, AREA_CHANGED);
 		return;
 	}
     }
@@ -442,7 +402,6 @@ void apedit( CHAR_DATA *ch, char *argument)
     char arg[MAX_INPUT_LENGTH];
     char command[MAX_INPUT_LENGTH];
     int cmd;
-    AREA_DATA *ad;
 
     smash_tilde(argument);
     strcpy(arg, argument);
@@ -452,15 +411,8 @@ void apedit( CHAR_DATA *ch, char *argument)
 
     if (pAcode)
     {
-	ad = get_vnum_area( pAcode->vnum );
 
-	if ( ad == NULL ) /* ??? */
-	{
-		edit_done(ch);
-		return;
-	}
-
-	if ( !IS_BUILDER(ch, ad) )
+	if ( !IS_BUILDER(ch, pAcode->area) )
 	{
 		send_to_char("APEdit: Insufficient security to modify code.\n\r", ch);
 		edit_done(ch);
@@ -485,8 +437,7 @@ void apedit( CHAR_DATA *ch, char *argument)
 	if (!str_prefix(command, apedit_table[cmd].name) )
 	{
 		if ((*apedit_table[cmd].olc_fun) (ch, argument) && pAcode)
-			if ((ad = get_vnum_area(pAcode->vnum)) != NULL)
-				SET_BIT(ad->area_flags, AREA_CHANGED);
+			SET_BIT(pAcode->area->area_flags, AREA_CHANGED);
 		return;
 	}
     }
@@ -512,13 +463,14 @@ void ipedit( CHAR_DATA *ch, char *argument)
     if (pIcode)
     {
 
-	if ( !can_edit_blueprints(ch) )
+	if ( !IS_BUILDER(ch, pIcode->area) )
 	{
 		send_to_char("IPEdit: Insufficient security to modify code.\n\r", ch);
 		edit_done(ch);
 		return;
 	}
     }
+
 
     if (command[0] == '\0')
     {
@@ -537,7 +489,7 @@ void ipedit( CHAR_DATA *ch, char *argument)
 	if (!str_prefix(command, ipedit_table[cmd].name) )
 	{
 		if ((*ipedit_table[cmd].olc_fun) (ch, argument) && pIcode)
-			blueprints_changed = TRUE;
+			SET_BIT(pIcode->area->area_flags, AREA_CHANGED);
 		return;
 	}
     }
@@ -563,13 +515,15 @@ void dpedit( CHAR_DATA *ch, char *argument)
     if (pDcode)
     {
 
-	if ( !can_edit_dungeons(ch) )
+	if ( !IS_BUILDER(ch, pDcode->area) )
 	{
 		send_to_char("DPEdit: Insufficient security to modify code.\n\r", ch);
 		edit_done(ch);
 		return;
 	}
     }
+
+
 
     if (command[0] == '\0')
     {
@@ -588,7 +542,7 @@ void dpedit( CHAR_DATA *ch, char *argument)
 	if (!str_prefix(command, dpedit_table[cmd].name) )
 	{
 		if ((*dpedit_table[cmd].olc_fun) (ch, argument) && pDcode)
-			dungeons_changed = TRUE;
+			SET_BIT(pDcode->area->area_flags, AREA_CHANGED);
 		return;
 	}
     }
@@ -604,27 +558,18 @@ void do_mpedit(CHAR_DATA *ch, char *argument)
     char command[MAX_INPUT_LENGTH];
 
     argument = one_argument(argument, command);
+	WNUM wnum;
 
-    if( is_number(command) )
+    if( parse_widevnum(command, &wnum) )
     {
-	long vnum = atol(command);
-	AREA_DATA *ad;
 
-	if ( (pMcode = get_script_index(vnum,PRG_MPROG)) == NULL )
+	if ( (pMcode = get_script_index(wnum.pArea, wnum.vnum,PRG_MPROG)) == NULL )
 	{
-		send_to_char("MPEdit : That vnum does not exist.\n\r",ch);
+		send_to_char("MPEdit : That widevnum does not exist.\n\r",ch);
 		return;
 	}
 
-	ad = get_vnum_area(vnum);
-
-	if ( ad == NULL )
-	{
-		send_to_char( "MPEdit : Vnum is not assigned an area.\n\r", ch );
-		return;
-	}
-
-	if ( !IS_BUILDER(ch, ad) )
+	if ( !IS_BUILDER(ch, wnum.pArea) )
 	{
 		send_to_char("MPEdit : Insufficient security to modify area.\n\r", ch );
 		return;
@@ -660,27 +605,18 @@ void do_opedit(CHAR_DATA *ch, char *argument)
     char command[MAX_INPUT_LENGTH];
 
     argument = one_argument(argument, command);
+	WNUM wnum;
 
-    if( is_number(command) )
+    if( parse_widevnum(command, &wnum) )
     {
-	long vnum = atol(command);
-	AREA_DATA *ad;
 
-	if ( (pOcode = get_script_index(vnum,PRG_OPROG)) == NULL )
+	if ( (pOcode = get_script_index(wnum.pArea, wnum.vnum,PRG_OPROG)) == NULL )
 	{
-		send_to_char("OPEdit : That vnum does not exist.\n\r",ch);
+		send_to_char("OPEdit : That widevnum does not exist.\n\r",ch);
 		return;
 	}
 
-	ad = get_vnum_area(vnum);
-
-	if ( ad == NULL )
-	{
-		send_to_char( "OPEdit : Vnum is not assigned an area.\n\r", ch );
-		return;
-	}
-
-	if ( !IS_BUILDER(ch, ad) )
+	if ( !IS_BUILDER(ch, wnum.pArea) )
 	{
 		send_to_char("OPEdit : Insufficient security to modify area.\n\r", ch );
 		return;
@@ -716,27 +652,19 @@ void do_rpedit(CHAR_DATA *ch, char *argument)
     char command[MAX_INPUT_LENGTH];
 
     argument = one_argument(argument, command);
+	WNUM wnum;
 
-    if( is_number(command) )
+    if( parse_widevnum(command, &wnum) )
     {
-	long vnum = atol(command);
-	AREA_DATA *ad;
 
-	if ( (pRcode = get_script_index(vnum,PRG_RPROG)) == NULL )
+	if ( (pRcode = get_script_index(wnum.pArea, wnum.vnum,PRG_RPROG)) == NULL )
 	{
-		send_to_char("RPEdit : That vnum does not exist.\n\r",ch);
+		send_to_char("RPEdit : That widevnum does not exist.\n\r",ch);
 		return;
 	}
 
-	ad = get_vnum_area(vnum);
 
-	if ( ad == NULL )
-	{
-		send_to_char( "RPEdit : Vnum is not assigned an area.\n\r", ch );
-		return;
-	}
-
-	if ( !IS_BUILDER(ch, ad) )
+	if ( !IS_BUILDER(ch, wnum.pArea) )
 	{
 		send_to_char("RPEdit : Insufficient security to modify area.\n\r", ch );
 		return;
@@ -773,27 +701,17 @@ void do_tpedit(CHAR_DATA *ch, char *argument)
     char command[MAX_INPUT_LENGTH];
 
     argument = one_argument(argument, command);
+	WNUM wnum;
 
-    if( is_number(command) )
+    if( parse_widevnum(command, &wnum) )
     {
-	long vnum = atol(command);
-	AREA_DATA *ad;
-
-	if ( (pTcode = get_script_index(vnum,PRG_TPROG)) == NULL )
+	if ( (pTcode = get_script_index(wnum.pArea, wnum.vnum,PRG_TPROG)) == NULL )
 	{
-		send_to_char("TPEdit : That vnum does not exist.\n\r",ch);
+		send_to_char("TPEdit : That widevnum does not exist.\n\r",ch);
 		return;
 	}
 
-	ad = get_vnum_area(vnum);
-
-	if ( ad == NULL )
-	{
-		send_to_char( "TPEdit : Vnum is not assigned an area.\n\r", ch );
-		return;
-	}
-
-	if ( !IS_BUILDER(ch, ad) )
+	if ( !IS_BUILDER(ch, wnum.pArea) )
 	{
 		send_to_char("TPEdit : Insufficient security to modify area.\n\r", ch );
 		return;
@@ -828,27 +746,17 @@ void do_apedit(CHAR_DATA *ch, char *argument)
     char command[MAX_INPUT_LENGTH];
 
     argument = one_argument(argument, command);
+	WNUM wnum;
 
-    if( is_number(command) )
+    if( parse_widevnum(command, &wnum) )
     {
-		long vnum = atol(command);
-		AREA_DATA *ad;
-
-		if ( (pAcode = get_script_index(vnum,PRG_APROG)) == NULL )
+		if ( (pAcode = get_script_index(wnum.pArea, wnum.vnum,PRG_APROG)) == NULL )
 		{
-			send_to_char("APEdit : That vnum does not exist.\n\r",ch);
+			send_to_char("APEdit : That widevnum does not exist.\n\r",ch);
 			return;
 		}
 
-		ad = get_vnum_area(vnum);
-
-		if ( ad == NULL )
-		{
-			send_to_char( "APEdit : Vnum is not assigned an area.\n\r", ch );
-			return;
-		}
-
-		if ( !IS_BUILDER(ch, ad) )
+		if ( !IS_BUILDER(ch, wnum.pArea) )
 		{
 			send_to_char("APEdit : Insufficient security to modify area.\n\r", ch );
 			return;
@@ -877,20 +785,19 @@ void do_ipedit(CHAR_DATA *ch, char *argument)
     char command[MAX_INPUT_LENGTH];
 
     argument = one_argument(argument, command);
+	WNUM wnum;
 
-    if( is_number(command) )
+    if( parse_widevnum(command, &wnum) )
     {
-		long vnum = atol(command);
-
-		if ( (pIcode = get_script_index(vnum,PRG_IPROG)) == NULL )
+		if ( (pIcode = get_script_index(wnum.pArea,wnum.vnum,PRG_IPROG)) == NULL )
 		{
-			send_to_char("IPEdit : That vnum does not exist.\n\r",ch);
+			send_to_char("IPEdit : That widevnum does not exist.\n\r",ch);
 			return;
 		}
 
-		if ( !can_edit_blueprints(ch) )
+		if ( !IS_BUILDER(ch, wnum.pArea) )
 		{
-			send_to_char("IPEdit : Insufficient security to modify blueprints.\n\r", ch );
+			send_to_char("IPEdit : Insufficient security to modify area.\n\r", ch );
 			return;
 		}
 
@@ -916,20 +823,19 @@ void do_dpedit(CHAR_DATA *ch, char *argument)
     char command[MAX_INPUT_LENGTH];
 
     argument = one_argument(argument, command);
+	WNUM wnum;
 
-    if( is_number(command) )
+    if( parse_widevnum(command, &wnum) )
     {
-		long vnum = atol(command);
-
-		if ( (pDcode = get_script_index(vnum,PRG_DPROG)) == NULL )
+		if ( (pDcode = get_script_index(wnum.pArea,wnum.vnum,PRG_DPROG)) == NULL )
 		{
-			send_to_char("DPEdit : That vnum does not exist.\n\r",ch);
+			send_to_char("DPEdit : That widevnum does not exist.\n\r",ch);
 			return;
 		}
 
-		if ( !can_edit_dungeons(ch) )
+		if ( !IS_BUILDER(ch, wnum.pArea) )
 		{
-			send_to_char("DPEdit : Insufficient security to modify dungeons.\n\r", ch );
+			send_to_char("DPEdit : Insufficient security to modify area.\n\r", ch );
 			return;
 		}
 
@@ -953,284 +859,220 @@ void do_dpedit(CHAR_DATA *ch, char *argument)
 MPEDIT (mpedit_create)
 {
     SCRIPT_DATA *pMcode;
-    long value = atol(argument);
-    AREA_DATA *ad;
+	WNUM wnum;
     long auto_vnum = 0;
 
-    if ( argument[0] == '\0' || value < 1 )
+    if ( argument[0] == '\0' || !parse_widevnum(argument, &wnum) )
     {
-	//send_to_char( "Syntax:  medit create [vnum]\n\r", ch );
-	SCRIPT_DATA *temp_prog;
-
-	auto_vnum = ch->in_room->area->min_vnum;
-	temp_prog = get_script_index( auto_vnum, PRG_MPROG );
-	if ( temp_prog != NULL ) {
-		while ( temp_prog != NULL )
+		// The trick for this will be when auto_vnum overflows from positive to negative
+		// That will let the loop know it's run out of room
+		for(auto_vnum = ch->in_room->area->top_mprog_index + 1;auto_vnum > 0; auto_vnum++)
 		{
-			temp_prog = get_script_index( auto_vnum, PRG_MPROG );
-			if ( temp_prog == NULL ) break;
-			auto_vnum++;
+			SCRIPT_DATA *temp_prog = get_script_index(ch->in_room->area, auto_vnum, PRG_MPROG );
+			if (!temp_prog) break;
 		}
-	}
 
-	if ( auto_vnum > ch->in_room->area->max_vnum ) {
-		send_to_char("Sorry, this area has no more space left.\n\r",
-				ch );
-		return FALSE;
-	}
+		if ( auto_vnum <= 0 )
+		{
+			// If you can reach this, you've made too many scripts...
+			send_to_char("Sorry, this area has no more space left.\n\r", ch );
+			return FALSE;
+		}
+
+		wnum.pArea = ch->in_room->area;
+		wnum.vnum = auto_vnum;
     }
 
-    if ( auto_vnum != 0 ) value = auto_vnum;
+	if (!wnum.pArea) wnum.pArea = ch->in_room->area;
 
-    ad = get_vnum_area(value);
-
-    if ( ad == NULL )
-    {
-    	send_to_char( "MPEdit : Vnum is not assigned an area.\n\r", ch );
-    	return FALSE;
-    }
-
-    if ( !IS_BUILDER(ch, ad) )
+    if ( !IS_BUILDER(ch, wnum.pArea) )
     {
         send_to_char("MPEdit : Insufficient security to create MobProgs.\n\r", ch);
         return FALSE;
     }
 
-    if ( get_script_index(value,PRG_MPROG) )
+    if ( get_script_index(wnum.pArea, wnum.vnum,PRG_MPROG) )
     {
-	send_to_char("MPEdit: Code vnum already exists.\n\r",ch);
-	return FALSE;
+		send_to_char("MPEdit: Code vnum already exists.\n\r",ch);
+		return FALSE;
     }
 
-    pMcode			= new_script();
-    pMcode->vnum		= value;
-    pMcode->next		= mprog_list;
-    pMcode->type		= PRG_MPROG;
-    pMcode->area		= ad;
-    mprog_list			= pMcode;
-    ch->desc->pEdit		= (void *)pMcode;
+    pMcode					= new_script();
+    pMcode->vnum			= wnum.vnum;
+    pMcode->next			= wnum.pArea->mprog_list;
+    pMcode->type			= PRG_MPROG;
+    pMcode->area			= wnum.pArea;
+    wnum.pArea->mprog_list	= pMcode;
+    ch->desc->pEdit			= (void *)pMcode;
     ch->desc->editor		= ED_MPCODE;
+	wnum.pArea->top_mprog_index = UMAX(wnum.pArea->top_mprog_index, wnum.vnum);
 
     send_to_char("MobProgram Code Created.\n\r",ch);
-
     return TRUE;
 }
 
 OPEDIT (opedit_create)
 {
     SCRIPT_DATA *pOcode;
-    long value = atol(argument);
-    AREA_DATA *ad;
+	WNUM wnum;
     long auto_vnum = 0;
 
-    if ( argument[0] == '\0' || value < 1 )
+    if ( argument[0] == '\0' || !parse_widevnum(argument, &wnum) )
     {
-	//send_to_char( "Syntax:  medit create [vnum]\n\r", ch );
-	SCRIPT_DATA *temp_prog;
-
-	auto_vnum = ch->in_room->area->min_vnum;
-	temp_prog = get_script_index( auto_vnum, PRG_OPROG );
-	if ( temp_prog != NULL ) {
-		while ( temp_prog != NULL )
+		// The trick for this will be when auto_vnum overflows from positive to negative
+		// That will let the loop know it's run out of room
+		for(auto_vnum = ch->in_room->area->top_oprog_index + 1;auto_vnum > 0; auto_vnum++)
 		{
-			temp_prog = get_script_index( auto_vnum, PRG_OPROG );
-			if ( temp_prog == NULL ) break;
-			auto_vnum++;
+			SCRIPT_DATA *temp_prog = get_script_index(ch->in_room->area, auto_vnum, PRG_OPROG );
+			if (!temp_prog) break;
 		}
-	}
 
-	if ( auto_vnum > ch->in_room->area->max_vnum ) {
-		send_to_char("Sorry, this area has no more space left.\n\r",
-				ch );
-		return FALSE;
-	}
+		if ( auto_vnum <= 0 )
+		{
+			// If you can reach this, you've made too many scripts...
+			send_to_char("Sorry, this area has no more space left.\n\r", ch );
+			return FALSE;
+		}
+
+		wnum.pArea = ch->in_room->area;
+		wnum.vnum = auto_vnum;
     }
 
-    if ( auto_vnum != 0 ) value = auto_vnum;
-/*
-    if (IS_NULLSTR(argument) || value < 1)
-    {
-	send_to_char( "Syntax : opedit create [vnum]\n\r", ch );
-	return FALSE;
-    }*/
+	if (!wnum.pArea) wnum.pArea = ch->in_room->area;
 
-    ad = get_vnum_area(value);
-
-    if ( ad == NULL )
-    {
-    	send_to_char( "OPEdit : Vnum is not assigned an area.\n\r", ch );
-    	return FALSE;
-    }
-
-    if ( !IS_BUILDER(ch, ad) )
+    if ( !IS_BUILDER(ch, wnum.pArea) )
     {
         send_to_char("OPEdit : Insufficient security to create ObjProgs.\n\r", ch);
         return FALSE;
     }
 
-    if ( get_script_index(value,PRG_OPROG) )
+    if ( get_script_index(wnum.pArea, wnum.vnum,PRG_OPROG) )
     {
-	send_to_char("OPEdit: Code vnum already exists.\n\r",ch);
-	return FALSE;
+		send_to_char("OPEdit: Code vnum already exists.\n\r",ch);
+		return FALSE;
     }
 
-    pOcode			= new_script();
-    pOcode->vnum		= value;
-    pOcode->next		= oprog_list;
-    pOcode->area		= ad;
-    oprog_list			= pOcode;
-    pOcode->type		= PRG_OPROG;
-    ch->desc->pEdit		= (void *)pOcode;
+    pOcode					= new_script();
+    pOcode->vnum			= wnum.vnum;
+    pOcode->next			= wnum.pArea->oprog_list;
+    pOcode->type			= PRG_OPROG;
+    pOcode->area			= wnum.pArea;
+    wnum.pArea->oprog_list	= pOcode;
+    ch->desc->pEdit			= (void *)pOcode;
     ch->desc->editor		= ED_OPCODE;
+	wnum.pArea->top_oprog_index = UMAX(wnum.pArea->top_oprog_index, wnum.vnum);
 
     send_to_char("ObjProgram Code Created.\n\r",ch);
-
     return TRUE;
 }
 
 RPEDIT (rpedit_create)
 {
     SCRIPT_DATA *pRcode;
-    long value = atol(argument);
-    AREA_DATA *ad;
+	WNUM wnum;
     long auto_vnum = 0;
 
-    if ( argument[0] == '\0' || value < 1 )
+    if ( argument[0] == '\0' || !parse_widevnum(argument, &wnum) )
     {
-	//send_to_char( "Syntax:  medit create [vnum]\n\r", ch );
-	SCRIPT_DATA *temp_prog;
-
-	auto_vnum = ch->in_room->area->min_vnum;
-	temp_prog = get_script_index( auto_vnum, PRG_RPROG );
-	if ( temp_prog != NULL ) {
-		while ( temp_prog != NULL )
+		// The trick for this will be when auto_vnum overflows from positive to negative
+		// That will let the loop know it's run out of room
+		for(auto_vnum = ch->in_room->area->top_rprog_index + 1;auto_vnum > 0; auto_vnum++)
 		{
-			temp_prog = get_script_index( auto_vnum, PRG_RPROG );
-			if ( temp_prog == NULL ) break;
-			auto_vnum++;
+			SCRIPT_DATA *temp_prog = get_script_index(ch->in_room->area, auto_vnum, PRG_RPROG );
+			if (!temp_prog) break;
 		}
-	}
 
-	if ( auto_vnum > ch->in_room->area->max_vnum ) {
-		send_to_char("Sorry, this area has no more space left.\n\r",
-				ch );
-		return FALSE;
-	}
+		if ( auto_vnum <= 0 )
+		{
+			// If you can reach this, you've made too many scripts...
+			send_to_char("Sorry, this area has no more space left.\n\r", ch );
+			return FALSE;
+		}
+
+		wnum.pArea = ch->in_room->area;
+		wnum.vnum = auto_vnum;
     }
 
-    if ( auto_vnum != 0 ) value = auto_vnum;
+	if (!wnum.pArea) wnum.pArea = ch->in_room->area;
 
-    /*
-    if (IS_NULLSTR(argument) || value < 1)
-    {
-	send_to_char( "Syntax : rpedit create [vnum]\n\r", ch );
-	return FALSE;
-    }
-*/
-    ad = get_vnum_area(value);
-
-    if ( ad == NULL )
-    {
-    	send_to_char( "RPEdit : Vnum is not assigned an area.\n\r", ch );
-    	return FALSE;
-    }
-
-    if ( !IS_BUILDER(ch, ad) )
+    if ( !IS_BUILDER(ch, wnum.pArea) )
     {
         send_to_char("RPEdit : Insufficient security to create RoomProgs.\n\r", ch);
         return FALSE;
     }
 
-    if ( get_script_index(value,PRG_RPROG) )
+    if ( get_script_index(wnum.pArea, wnum.vnum,PRG_RPROG) )
     {
-	send_to_char("RPEdit: Code vnum already exists.\n\r",ch);
-	return FALSE;
+		send_to_char("OPEdit: Code vnum already exists.\n\r",ch);
+		return FALSE;
     }
 
-    pRcode			= new_script();
-    pRcode->vnum		= value;
-    pRcode->next		= rprog_list;
-    pRcode->area		= ad;
-    rprog_list			= pRcode;
-    pRcode->type		= PRG_RPROG;
-    ch->desc->pEdit		= (void *)pRcode;
+    pRcode					= new_script();
+    pRcode->vnum			= wnum.vnum;
+    pRcode->next			= wnum.pArea->rprog_list;
+    pRcode->type			= PRG_RPROG;
+    pRcode->area			= wnum.pArea;
+    wnum.pArea->rprog_list	= pRcode;
+    ch->desc->pEdit			= (void *)pRcode;
     ch->desc->editor		= ED_RPCODE;
+	wnum.pArea->top_rprog_index = UMAX(wnum.pArea->top_rprog_index, wnum.vnum);
 
     send_to_char("RoomProgram Code Created.\n\r",ch);
-
     return TRUE;
 }
 
 TPEDIT (tpedit_create)
 {
     SCRIPT_DATA *pTcode;
-    long value = atol(argument);
-    AREA_DATA *ad;
+	WNUM wnum;
     long auto_vnum = 0;
 
-    if ( argument[0] == '\0' || value < 1 )
+    if ( argument[0] == '\0' || !parse_widevnum(argument, &wnum) )
     {
-	//send_to_char( "Syntax:  tpedit create [vnum]\n\r", ch );
-	SCRIPT_DATA *temp_prog;
-
-	auto_vnum = ch->in_room->area->min_vnum;
-	temp_prog = get_script_index( auto_vnum, PRG_TPROG );
-	if ( temp_prog != NULL ) {
-		while ( temp_prog != NULL )
+		// The trick for this will be when auto_vnum overflows from positive to negative
+		// That will let the loop know it's run out of room
+		for(auto_vnum = ch->in_room->area->top_tprog_index + 1;auto_vnum > 0; auto_vnum++)
 		{
-			temp_prog = get_script_index( auto_vnum, PRG_TPROG );
-			if ( temp_prog == NULL ) break;
-			auto_vnum++;
+			SCRIPT_DATA *temp_prog = get_script_index(ch->in_room->area, auto_vnum, PRG_TPROG );
+			if (!temp_prog) break;
 		}
-	}
 
-	if ( auto_vnum > ch->in_room->area->max_vnum ) {
-		send_to_char("Sorry, this area has no more space left.\n\r",
-				ch );
-		return FALSE;
-	}
+		if ( auto_vnum <= 0 )
+		{
+			// If you can reach this, you've made too many scripts...
+			send_to_char("Sorry, this area has no more space left.\n\r", ch );
+			return FALSE;
+		}
+
+		wnum.pArea = ch->in_room->area;
+		wnum.vnum = auto_vnum;
     }
 
-    if ( auto_vnum != 0 ) value = auto_vnum;
+	if (!wnum.pArea) wnum.pArea = ch->in_room->area;
 
-    /*
-    if (IS_NULLSTR(argument) || value < 1)
-    {
-	send_to_char( "Syntax : rpedit create [vnum]\n\r", ch );
-	return FALSE;
-    }
-*/
-    ad = get_vnum_area(value);
-
-    if ( ad == NULL )
-    {
-    	send_to_char( "TPEdit : Vnum is not assigned an area.\n\r", ch );
-    	return FALSE;
-    }
-
-    if ( !IS_BUILDER(ch, ad) )
+    if ( !IS_BUILDER(ch, wnum.pArea) )
     {
         send_to_char("TPEdit : Insufficient security to create TokenProgs.\n\r", ch);
         return FALSE;
     }
 
-    if ( get_script_index(value,PRG_TPROG) )
+    if ( get_script_index(wnum.pArea, wnum.vnum,PRG_TPROG) )
     {
-	send_to_char("TPEdit: Code vnum already exists.\n\r",ch);
-	return FALSE;
+		send_to_char("TPEdit: Code vnum already exists.\n\r",ch);
+		return FALSE;
     }
 
-    pTcode			= new_script();
-    pTcode->vnum		= value;
-    pTcode->area		= ad;
-    pTcode->next		= tprog_list;
-    tprog_list			= pTcode;
-    pTcode->type		= PRG_TPROG;
-    ch->desc->pEdit		= (void *)pTcode;
+    pTcode					= new_script();
+    pTcode->vnum			= wnum.vnum;
+    pTcode->next			= wnum.pArea->tprog_list;
+    pTcode->type			= PRG_TPROG;
+    pTcode->area			= wnum.pArea;
+    wnum.pArea->tprog_list	= pTcode;
+    ch->desc->pEdit			= (void *)pTcode;
     ch->desc->editor		= ED_TPCODE;
+	wnum.pArea->top_tprog_index = UMAX(wnum.pArea->top_tprog_index, wnum.vnum);
 
     send_to_char("TokenProgram Code Created.\n\r",ch);
-
     return TRUE;
 }
 
@@ -1238,173 +1080,167 @@ TPEDIT (tpedit_create)
 
 APEDIT (apedit_create)
 {
-	SCRIPT_DATA *pAcode;
-	long value = atol(argument);
-	AREA_DATA *ad;
-	long auto_vnum = 0;
+    SCRIPT_DATA *pAcode;
+	WNUM wnum;
+    long auto_vnum = 0;
 
-	if ( argument[0] == '\0' || value < 1 )
-	{
-		//send_to_char( "Syntax:  tpedit create [vnum]\n\r", ch );
-		SCRIPT_DATA *temp_prog;
-
-		auto_vnum = ch->in_room->area->min_vnum;
-		temp_prog = get_script_index( auto_vnum, PRG_APROG );
-		if ( temp_prog != NULL ) {
-			while ( temp_prog != NULL )
-			{
-				temp_prog = get_script_index( auto_vnum, PRG_APROG );
-				if ( temp_prog == NULL ) break;
-				auto_vnum++;
-			}
+    if ( argument[0] == '\0' || !parse_widevnum(argument, &wnum) )
+    {
+		// The trick for this will be when auto_vnum overflows from positive to negative
+		// That will let the loop know it's run out of room
+		for(auto_vnum = ch->in_room->area->top_oprog_index + 1;auto_vnum > 0; auto_vnum++)
+		{
+			SCRIPT_DATA *temp_prog = get_script_index(ch->in_room->area, auto_vnum, PRG_APROG );
+			if (!temp_prog) break;
 		}
 
-		if ( auto_vnum > ch->in_room->area->max_vnum ) {
+		if ( auto_vnum <= 0 )
+		{
+			// If you can reach this, you've made too many scripts...
 			send_to_char("Sorry, this area has no more space left.\n\r", ch );
 			return FALSE;
 		}
-	}
 
-	if ( auto_vnum != 0 ) value = auto_vnum;
+		wnum.pArea = ch->in_room->area;
+		wnum.vnum = auto_vnum;
+    }
 
-	ad = get_vnum_area(value);
+	if (!wnum.pArea) wnum.pArea = ch->in_room->area;
 
-	if ( ad == NULL )
-	{
-		send_to_char( "APEdit : Vnum is not assigned an area.\n\r", ch );
+    if ( !IS_BUILDER(ch, wnum.pArea) )
+    {
+        send_to_char("APEdit : Insufficient security to create AreaProgs.\n\r", ch);
+        return FALSE;
+    }
+
+    if ( get_script_index(wnum.pArea, wnum.vnum,PRG_APROG) )
+    {
+		send_to_char("APEdit: Code vnum already exists.\n\r",ch);
 		return FALSE;
-	}
+    }
 
-	if ( !IS_BUILDER(ch, ad) )
-	{
-	send_to_char("APEdit : Insufficient security to create AreaProgs.\n\r", ch);
-	return FALSE;
-	}
+    pAcode					= new_script();
+    pAcode->vnum			= wnum.vnum;
+    pAcode->next			= wnum.pArea->aprog_list;
+    pAcode->type			= PRG_APROG;
+    pAcode->area			= wnum.pArea;
+    wnum.pArea->aprog_list	= pAcode;
+    ch->desc->pEdit			= (void *)pAcode;
+    ch->desc->editor		= ED_APCODE;
+	wnum.pArea->top_aprog_index = UMAX(wnum.pArea->top_aprog_index, wnum.vnum);
 
-	if ( get_script_index(value,PRG_APROG) )
-	{
-	send_to_char("APEdit: Code vnum already exists.\n\r",ch);
-	return FALSE;
-	}
-
-	pAcode			= new_script();
-	pAcode->vnum		= value;
-	pAcode->area		= ad;
-	pAcode->next		= aprog_list;
-	aprog_list			= pAcode;
-	pAcode->type		= PRG_APROG;
-	ch->desc->pEdit		= (void *)pAcode;
-	ch->desc->editor		= ED_APCODE;
-
-	send_to_char("AreaProgram Code Created.\n\r",ch);
-
-	return TRUE;
+    send_to_char("AreaProgram Code Created.\n\r",ch);
+    return TRUE;
 }
 
 IPEDIT (ipedit_create)
 {
-	SCRIPT_DATA *pIcode;
-	long value = atol(argument);
-	long auto_vnum = 0;
+    SCRIPT_DATA *pIcode;
+	WNUM wnum;
+    long auto_vnum = 0;
 
-	if ( argument[0] == '\0' || value < 1 )
-	{
-		SCRIPT_DATA *temp_prog;
-
-		auto_vnum = 1;
-		temp_prog = get_script_index( auto_vnum, PRG_IPROG );
-		if ( temp_prog != NULL ) {
-			while ( temp_prog != NULL )
-			{
-				temp_prog = get_script_index( auto_vnum, PRG_IPROG );
-				if ( temp_prog == NULL ) break;
-				auto_vnum++;
-			}
+    if ( argument[0] == '\0' || !parse_widevnum(argument, &wnum) )
+    {
+		// The trick for this will be when auto_vnum overflows from positive to negative
+		// That will let the loop know it's run out of room
+		for(auto_vnum = ch->in_room->area->top_iprog_index + 1;auto_vnum > 0; auto_vnum++)
+		{
+			SCRIPT_DATA *temp_prog = get_script_index(ch->in_room->area, auto_vnum, PRG_IPROG );
+			if (!temp_prog) break;
 		}
-	}
 
-	if ( auto_vnum != 0 ) value = auto_vnum;
+		if ( auto_vnum <= 0 )
+		{
+			// If you can reach this, you've made too many scripts...
+			send_to_char("Sorry, this area has no more space left.\n\r", ch );
+			return FALSE;
+		}
 
-	if ( !can_edit_blueprints(ch) )
-	{
-		send_to_char("IPEdit : Insufficient security to create InstanceProgs.\n\r", ch);
-		return FALSE;
-	}
+		wnum.pArea = ch->in_room->area;
+		wnum.vnum = auto_vnum;
+    }
 
-	if ( get_script_index(value,PRG_IPROG) )
-	{
+	if (!wnum.pArea) wnum.pArea = ch->in_room->area;
+
+    if ( !IS_BUILDER(ch, wnum.pArea) )
+    {
+        send_to_char("IPEdit : Insufficient security to create InstanceProgs.\n\r", ch);
+        return FALSE;
+    }
+
+    if ( get_script_index(wnum.pArea, wnum.vnum,PRG_IPROG) )
+    {
 		send_to_char("IPEdit: Code vnum already exists.\n\r",ch);
 		return FALSE;
-	}
+    }
 
-	pIcode			= new_script();
-	pIcode->vnum		= value;
-	pIcode->area		= NULL;
-	pIcode->next		= iprog_list;
-	iprog_list			= pIcode;
-	pIcode->type		= PRG_IPROG;
-	ch->desc->pEdit		= (void *)pIcode;
-	ch->desc->editor		= ED_IPCODE;
+    pIcode					= new_script();
+    pIcode->vnum			= wnum.vnum;
+    pIcode->next			= wnum.pArea->iprog_list;
+    pIcode->type			= PRG_IPROG;
+    pIcode->area			= wnum.pArea;
+    wnum.pArea->iprog_list	= pIcode;
+    ch->desc->pEdit			= (void *)pIcode;
+    ch->desc->editor		= ED_IPCODE;
+	wnum.pArea->top_iprog_index = UMAX(wnum.pArea->top_iprog_index, wnum.vnum);
 
-	if( value > top_iprog_index )
-		top_iprog_index = value;
-
-	send_to_char("InstanceProgram Code Created.\n\r",ch);
-
-	return TRUE;
+    send_to_char("InstanceProgram Code Created.\n\r",ch);
+    return TRUE;
 }
 
 DPEDIT (dpedit_create)
 {
-	SCRIPT_DATA *pDcode;
-	long value = atol(argument);
-	long auto_vnum = 0;
+    SCRIPT_DATA *pDcode;
+	WNUM wnum;
+    long auto_vnum = 0;
 
-	if ( argument[0] == '\0' || value < 1 )
-	{
-		SCRIPT_DATA *temp_prog;
-
-		auto_vnum = 1;
-		temp_prog = get_script_index( auto_vnum, PRG_DPROG );
-		if ( temp_prog != NULL ) {
-			while ( temp_prog != NULL )
-			{
-				temp_prog = get_script_index( auto_vnum, PRG_DPROG );
-				if ( temp_prog == NULL ) break;
-				auto_vnum++;
-			}
+    if ( argument[0] == '\0' || !parse_widevnum(argument, &wnum) )
+    {
+		// The trick for this will be when auto_vnum overflows from positive to negative
+		// That will let the loop know it's run out of room
+		for(auto_vnum = ch->in_room->area->top_dprog_index + 1;auto_vnum > 0; auto_vnum++)
+		{
+			SCRIPT_DATA *temp_prog = get_script_index(ch->in_room->area, auto_vnum, PRG_DPROG );
+			if (!temp_prog) break;
 		}
-	}
 
-	if ( auto_vnum != 0 ) value = auto_vnum;
+		if ( auto_vnum <= 0 )
+		{
+			// If you can reach this, you've made too many scripts...
+			send_to_char("Sorry, this area has no more space left.\n\r", ch );
+			return FALSE;
+		}
 
-	if ( !can_edit_dungeons(ch) )
-	{
-		send_to_char("DPEdit : Insufficient security to create DungeonProgs.\n\r", ch);
-		return FALSE;
-	}
+		wnum.pArea = ch->in_room->area;
+		wnum.vnum = auto_vnum;
+    }
 
-	if ( get_script_index(value,PRG_DPROG) )
-	{
+	if (!wnum.pArea) wnum.pArea = ch->in_room->area;
+
+    if ( !IS_BUILDER(ch, wnum.pArea) )
+    {
+        send_to_char("DPEdit : Insufficient security to create DungeonProgs.\n\r", ch);
+        return FALSE;
+    }
+
+    if ( get_script_index(wnum.pArea, wnum.vnum,PRG_DPROG) )
+    {
 		send_to_char("DPEdit: Code vnum already exists.\n\r",ch);
 		return FALSE;
-	}
+    }
 
-	pDcode			= new_script();
-	pDcode->vnum		= value;
-	pDcode->area		= NULL;
-	pDcode->next		= dprog_list;
-	dprog_list			= pDcode;
-	pDcode->type		= PRG_DPROG;
-	ch->desc->pEdit		= (void *)pDcode;
-	ch->desc->editor		= ED_DPCODE;
+    pDcode					= new_script();
+    pDcode->vnum			= wnum.vnum;
+    pDcode->next			= wnum.pArea->dprog_list;
+    pDcode->type			= PRG_DPROG;
+    pDcode->area			= wnum.pArea;
+    wnum.pArea->dprog_list	= pDcode;
+    ch->desc->pEdit			= (void *)pDcode;
+    ch->desc->editor		= ED_DPCODE;
+	wnum.pArea->top_dprog_index = UMAX(wnum.pArea->top_dprog_index, wnum.vnum);
 
-	if( value > top_dprog_index )
-		top_dprog_index = value;
-
-	send_to_char("DungeonProgram Code Created.\n\r",ch);
-
-	return TRUE;
+    send_to_char("DungeonProgram Code Created.\n\r",ch);
+    return TRUE;
 }
 
 
@@ -1656,10 +1492,7 @@ void show_script_list(CHAR_DATA *ch, char *argument,int type)
     BUFFER *buffer;
     int min,max,tmp;
     bool error;
-    AREA_DATA *area, *ad;
-
-
-    area = ch->in_room->area;
+    AREA_DATA *area = ch->in_room->area;
 
     if(argument[0]) {
 		argument = one_argument(argument,buf);
@@ -1684,40 +1517,18 @@ void show_script_list(CHAR_DATA *ch, char *argument,int type)
 		max = -1;
     }
 
+	
+
     switch(type) {
-    case PRG_MPROG:
-    case PRG_OPROG:
-    case PRG_RPROG:
-    case PRG_TPROG:
-    case PRG_APROG:
-		if( min < 0 )
-		{
-			min = area->min_vnum;
-			max = area->max_vnum;
-		}
-    	break;
-
-    case PRG_IPROG:
-    	prg = iprog_list;
-    	if( min < 0 )
-    	{
-			min = 1;
-			max = top_iprog_index;
-		}
-
-    	break;
-    case PRG_DPROG:
-    	prg = dprog_list;
-    	if( min < 0 )
-    	{
-			min = 1;
-			max = top_dprog_index;
-		}
-    	break;
+    case PRG_MPROG: if (min < 0) { min = 1; max = area->top_mprog_index; } break;
+    case PRG_OPROG: if (min < 0) { min = 1; max = area->top_oprog_index; } break;
+    case PRG_RPROG: if (min < 0) { min = 1; max = area->top_rprog_index; } break;
+    case PRG_TPROG: if (min < 0) { min = 1; max = area->top_tprog_index; } break;
+    case PRG_APROG: if (min < 0) { min = 1; max = area->top_aprog_index; } break;
+    case PRG_IPROG: if (min < 0) { min = 1; max = area->top_iprog_index; } break;
+    case PRG_DPROG: if (min < 0) { min = 1; max = area->top_dprog_index; } break;
     default: return;
     }
-
-
 
     if(!ch->lines)
 		send_to_char("{RWARNING:{W Having scrolling off limits how many scripts you can see.{x\n\r", ch);
@@ -1727,19 +1538,13 @@ void show_script_list(CHAR_DATA *ch, char *argument,int type)
     error = FALSE;
     for( long vnum = min; vnum <= max; vnum++)
     {
-    	prg = get_script_index(vnum, type);
+    	prg = get_script_index(area, vnum, type);
     	if( !prg ) continue;
 
-		ad = get_vnum_area(prg->vnum);
-
 		len = sprintf(buf,"{B[{W%-4d{B]  ",count);
-		if(!ad)
-			len += sprintf(buf+len,"  ");
-		else
-			len += sprintf(buf+len,"{W%-2ld",ad->anum);
-
-		len += sprintf(buf+len,"  {W%c%c{B {G%-8d {W%-5d ",
-			((ad && IS_BUILDER(ch, ad)) ? 'B' : ' '),
+		len += sprintf(buf+len,"{W%-2ld", area->anum);
+		len += sprintf(buf+len,"  {W%c%c{B {G%-8ld {W%-5d ",
+			((area && IS_BUILDER(ch, area)) ? 'B' : ' '),
 			(IS_SET(prg->flags, SCRIPT_WIZNET) ? 'W' : ' '),
 			prg->vnum,(prg->lines > 1)?(prg->lines-1):0);
 
@@ -1780,18 +1585,16 @@ void show_script_list(CHAR_DATA *ch, char *argument,int type)
 	}
 
     if (error) {
-	send_to_char("Too many scripts to list.  Please shorten!\n\r", ch);
+		send_to_char("Too many scripts to list.  Please shorten!\n\r", ch);
     } else {
-	if ( count == 1 ) {
-		add_buf( buffer, "No existing scripts in that range.\n\r" );
-	} else {
-		send_to_char("{BCount  Area BW   Vnum   Lines Depth   Status   Name\n\r", ch);
-		send_to_char("{b-------------------------------------------------------------------------\n\r", ch);
-	}
+		if ( count == 1 ) {
+			add_buf( buffer, "No existing scripts in that range.\n\r" );
+		} else {
+			send_to_char("{BCount  Area BW   Vnum   Lines Depth   Status   Name\n\r", ch);
+			send_to_char("{b-------------------------------------------------------------------------\n\r", ch);
+		}
 
-//	sprintf(buf,"%d\n\r",strlen(buffer->string));
-//	send_to_char(buf,ch);
-	page_to_char(buf_string(buffer), ch);
+		page_to_char(buf_string(buffer), ch);
     }
     free_buf(buffer);
 

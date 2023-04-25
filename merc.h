@@ -188,6 +188,9 @@ struct sound_type {
 #define VERSION_AFFECT_000	0x00FFFFFF
 #define VERSION_SCRIPT_000	0x02000000
 #define VERSION_WILDS_000	0x00FFFFFF
+#define VERSION_BLUEPRINT_000   0x00FFFFFF
+#define VERSION_SHIP_000    0x00FFFFFF
+#define VERSION_DUNGEON_000 0x00FFFFFF
 
 #define VERSION_GAME		"DEV 0.0.1"
 
@@ -247,6 +250,10 @@ struct sound_type {
 #define VERSION_SCRIPT		0x02000000
 #define VERSION_WILDS		0x01000000
 #define VERSION_DATABASE	0x01000000
+#define VERSION_BLUEPRINT   0x01000000
+#define VERSION_SHIP        0x01000000
+#define VERSION_DUNGEON     0x01000000
+
 
 /* Structures */
 typedef struct	affect_data		AFFECT_DATA;
@@ -357,6 +364,17 @@ typedef struct wilds_coord {
 	int y;
 } WILDS_COORD;
 
+typedef struct wide_vnum_type {
+    AREA_DATA *pArea;
+    long vnum;
+} WNUM;
+
+typedef struct wide_vnum_load_type {
+    long auid;
+    long vnum;
+} WNUM_LOAD;
+
+
 typedef struct named_special_room_data NAMED_SPECIAL_ROOM;
 typedef struct special_key_data SPECIAL_KEY_DATA;
 
@@ -381,9 +399,24 @@ struct special_key_data
 	SPECIAL_KEY_DATA *next;
 	bool valid;
 
-	long key_vnum;		// Base key vnum
+	WNUM key_wnum;		// Base key vnum
 	LLIST *list;		// Actual list of keys
 };
+
+
+typedef struct reserved_wnum_type {
+    char *name;
+    long auid;
+    long vnum;
+    WNUM *wnum;
+    void *data;
+} RESERVED_WNUM;
+
+typedef struct reserved_area_type {
+    char *name;
+    long auid;
+    AREA_DATA **area;
+} RESERVED_AREA;
 
 #define MEMTYPE_MOB		'M'
 #define MEMTYPE_OBJ		'O'
@@ -395,6 +428,7 @@ struct special_key_data
 #define SET_MEMTYPE(ptr,typ)	(ptr)->__type = (typ)
 
 #define MAX_TEMPSTORE	4
+#define MAX_OBJVALUES   10
 
 #define uid_match(u1, u2)		(((u1)[0] == (u2)[0]) && ((u1)[1] == (u2)[1]))
 
@@ -423,6 +457,7 @@ typedef struct script_var_type VARIABLE, *pVARIABLE, **ppVARIABLE;
 typedef struct script_boolexp BOOLEXP;
 
 typedef struct location_type {
+    AREA_DATA *area;
 	unsigned long wuid;
 	unsigned long id[3];
 
@@ -460,7 +495,7 @@ struct script_data {
 	AREA_DATA *area;
 	char *name;
 	int type;
-	int vnum;
+	long vnum;
 	char *src;
 	char *edit_src;
 	SCRIPT_CODE *code;
@@ -628,12 +663,12 @@ struct list_link_uid_data {
 
 struct list_link_room_data {
 	ROOM_INDEX_DATA *room;
-	unsigned long id[4];
+	unsigned long id[5];
 };
 
 struct list_link_exit_data {
 	ROOM_INDEX_DATA *room;
-	unsigned long id[4];
+	unsigned long id[5];
 	int door;
 };
 
@@ -1037,6 +1072,7 @@ struct global_data
     unsigned long next_token_uid[4];	/* next read: [0:1], next write: [2:3] */
     unsigned long next_vroom_uid[4];
     long	next_church_uid;
+    long    next_church_vnum_start;
 
     unsigned long next_ship_uid[4];
 
@@ -1111,10 +1147,14 @@ struct church_player_data
 #define CHURCH_PUBLIC_RULES	(D)
 #define CHURCH_PUBLIC_INFO	(E)
 
+#define CHURCH_VNUM_RANGE   200     // Number of vnums alloted to the church
+
 struct church_data
 {
     CHURCH_DATA 	*next;
     CHURCH_PLAYER_DATA 	*people;
+    AREA_DATA *hall_area;
+    long        vnum_start;
 
 	long		uid;
 
@@ -1293,7 +1333,7 @@ struct	descriptor_data
     /* Input function */
     bool		input;
     char *		inputString;		// Temporary holding variable for string editor
-    long		input_script;
+    WNUM		input_script;
     char *		input_var;
     char *		input_prompt;
     CHAR_DATA *		input_mob;
@@ -1463,7 +1503,8 @@ struct shop_stock_data
 	OBJ_INDEX_DATA *obj;
 	SHIP_INDEX_DATA *ship;
 	int type;
-	long vnum;
+	WNUM wnum;
+    WNUM_LOAD wnum_load;
 
 	int duration;				// How long will the stock item last (in-game hours)
 
@@ -1528,7 +1569,7 @@ struct  player_setting_type
 
 struct  newbie_eq_type
 {
-    long 	vnum;
+    WNUM    *wnum;
     int		wear_loc;
 };
 
@@ -1548,7 +1589,8 @@ struct map_exit_type
 struct weapon_type
 {
     char *	name;
-    long	vnum;
+    long    auid;
+    long    vnum;
     sh_int	type;
     sh_int	*gsn;
 };
@@ -2681,10 +2723,23 @@ struct affliction_type {
 #define GATE_TURBULENT		(N)	/* @@@NIB : 20070126 */
 #define GATE_CANDRAGITEMS	(O)
 #define GATE_FORCE_BRIEF	(P)
-#define GATE_DUNGEON		(Q)
-#define GATE_SECTIONRANDOM	(R)
-#define GATE_INSTANCERANDOM (S)
-#define GATE_DUNGEONRANDOM	(T)
+
+
+#define GATETYPE_ENVIRONMENT        -1  // Environment
+#define GATETYPE_NORMAL             0   // Static or clone room
+#define GATETYPE_WILDS              1   // Wilderness room
+#define GATETYPE_AREARANDOM         2   // Random room in specified/current area
+#define GATETYPE_SECTIONRANDOM      3   // Random room in current instanced section
+#define GATETYPE_INSTANCERANDOM     4   // Random room in current instance
+#define GATETYPE_DUNGEONRANDOM      5   // Random room in current dungeon
+#define GATETYPE_REGIONRECALL       6   // Go to the recall room of the current region. Must be in a static room.
+#define GATETYPE_AREARECALL         7   // Go to the recall room of the current area. Must be in a static room.
+#define GATETYPE_DUNGEON            8   // Enter the specified floor/room in the dungeon
+#define GATETYPE_INSTANCE           9   // Enter the specified room in the instance
+#define GATETYPE_RANDOM             10  // Random room
+#define GATETYPE_DUNGEONFLOOR       11  // Go to current dungeon floor's entrance
+#define GATETYPE_WILDSRANDOM        12  // Random wilderness room
+#define GATETYPE_REGIONRANDOM      13
 
 /* furniture flags */
 #define STAND_AT		(A)
@@ -3382,8 +3437,8 @@ struct	mob_index_data
     char *		owner; /* mainly for personal mounts */
     char *		skeywds; /* script keywords */
     pVARIABLE		index_vars;
-    long		corpse;
-    long		zombie;	/* Animated corpse */
+    WNUM_LOAD		corpse;
+    WNUM_LOAD		zombie;	/* Animated corpse */
     int			corpse_type;
     char *      comments;
 
@@ -3437,7 +3492,7 @@ struct questor_data
 	QUESTOR_DATA *next;
 	bool valid;
 
-	long scroll;
+    WNUM_LOAD scroll;
 
 	// Appearance data
 	char *keywords;
@@ -3461,9 +3516,9 @@ struct quest_data
     QUEST_DATA *        next;
     QUEST_PART_DATA *   parts;
     int					questgiver_type;
-    long                questgiver;
+    WNUM                questgiver;
     int					questreceiver_type;
-    long				questreceiver;
+    WNUM				questreceiver;
 
     bool		msg_complete;
     bool		generating;
@@ -3482,6 +3537,7 @@ struct quest_part_data
 
     long		minutes;	// How many minutes is expected to complete this task?
 
+    AREA_DATA *area;
     long 		obj;
     long		mob;
     long		room;
@@ -3539,10 +3595,10 @@ struct quest_list
 {
     QUEST_LIST *next;
 
-    long vnum;
+    WNUM wnum;
 };
 
-#define MAX_TOKEN_VALUES 	8
+#define MAX_TOKEN_VALUES 	10
 
 struct token_index_data
 {
@@ -3994,7 +4050,7 @@ struct	char_data
     int			shifted;
     bool		morphed;
 
-    long        	home;
+    WNUM home;
 
     /* Reverie */
     int			reverie_amount;
@@ -4075,7 +4131,7 @@ struct	char_data
     int			set_death_type;
 
     int			corpse_type;
-    long		corpse_vnum;
+    WNUM_LOAD  	corpse_wnum;
 
     /* @@@NIB */
     int			wildview_bonus_x;
@@ -4347,7 +4403,8 @@ struct  conditional_descr_data
 #define LOCK_CREATED		(Z)		// Lock was created by a script, so allows full alter exit manipulation
 
 typedef struct lock_state_data {
-	long key_vnum;
+    WNUM_LOAD key_load;
+	WNUM key_wnum;          // TODO: make a list
 	int pick_chance;		// 0 = impossible (normally), 100 trivial
 	int flags;
 	LLIST *keys;			// Handled by other entities, not owned by lock state
@@ -4386,7 +4443,7 @@ struct	obj_index_data
     long		cost;
     sh_int 		fragility;
     sh_int		times_allowed_fixed;
-    long		value[8];
+    long		value[MAX_OBJVALUES];
     SPELL_DATA 		*spells;
     char *		imp_sig;
     char *		creator_sig;
@@ -4488,9 +4545,9 @@ struct	obj_data
     int 		fragility;
     int			times_allowed_fixed;
     int			times_fixed;
-    int 		value	[8];
+    int 		value	[MAX_OBJVALUES];
     SPELL_DATA		*spells;
-    long		orig_vnum;
+    WNUM		orig_wnum;
 
     LOCK_STATE		*lock;
 
@@ -4561,7 +4618,7 @@ struct	exit_data
 
 	union {
 		ROOM_INDEX_DATA *to_room;
-		long vnum;
+		WNUM_LOAD wnum;
 	} u1;
 	int exit_info;
 	char *keyword;
@@ -4619,16 +4676,22 @@ struct	reset_data
 {
     RESET_DATA *	next;
     char		command;
-    long		arg1;
+    union {
+        WNUM wnum;
+        WNUM_LOAD load;
+    } arg1;
     long 		arg2;
-    long		arg3;
+    union {
+        WNUM wnum;
+        WNUM_LOAD load;
+    } arg3;
     long		arg4;
 };
 
 /*
  * Area definition.
  */
-struct	area_data {
+struct area_data {
 
 	char __type;
 	AREA_DATA *next;
@@ -4648,8 +4711,8 @@ struct	area_data {
 	sh_int nplayer;
 	sh_int low_range;
 	sh_int high_range;
-	long min_vnum;
-	long max_vnum;
+	long min_vnum;              // Deprecated
+	long max_vnum;              // Deprecated
 	bool empty;
 	char *builders;
 	long anum;
@@ -4689,6 +4752,9 @@ struct	area_data {
 	int version_token;
 	int version_script;
 	int version_wilds;
+    int version_blueprints;
+    int version_ships;
+    int version_dungeons;
 
 	SHIP_DATA *ship_list;
 	TRADE_ITEM *trade_list;
@@ -4706,15 +4772,22 @@ struct	area_data {
 	/* If storm is close, warn that its coming */
 	STORM_DATA *storm_close;
 
-#if 0
+
 	MOB_INDEX_DATA *mob_index_hash[MAX_KEY_HASH];
 	OBJ_INDEX_DATA *obj_index_hash[MAX_KEY_HASH];
 	ROOM_INDEX_DATA *room_index_hash[MAX_KEY_HASH];
 	TOKEN_INDEX_DATA *token_index_hash[MAX_KEY_HASH];
+    BLUEPRINT_SECTION *blueprint_section_hash[MAX_KEY_HASH];
+    BLUEPRINT *blueprint_hash[MAX_KEY_HASH];
+    DUNGEON_INDEX_DATA *dungeon_index_hash[MAX_KEY_HASH];
+    SHIP_INDEX_DATA *ship_index_hash[MAX_KEY_HASH];
 	SCRIPT_DATA *mprog_list;
 	SCRIPT_DATA *oprog_list;
 	SCRIPT_DATA *rprog_list;
 	SCRIPT_DATA *tprog_list;
+    SCRIPT_DATA *aprog_list;
+    SCRIPT_DATA *iprog_list;
+    SCRIPT_DATA *dprog_list;
 
 	long top_mob_index;
 	long top_obj_index;
@@ -4724,12 +4797,19 @@ struct	area_data {
 	long top_oprog_index;
 	long top_rprog_index;
 	long top_tprog_index;
+    long top_aprog_index;
+    long top_iprog_index;
+    long top_dprog_index;
 	long top_vnum_mob;
 	long top_vnum_npc_ship;
 	long top_vnum_obj;
 	long top_vnum_room;
+    long top_vnum_token;
 	long top_vroom;
-#endif
+    long top_blueprint_section_vnum;
+    long top_blueprint_vnum;
+    long top_ship_vnum;
+    long top_dungeon_vnum;
 
 	LLIST *room_list;
 
@@ -4797,7 +4877,7 @@ struct trade_item
     long 	replenish_amount;
     long 	replenish_time;
     int  	replenish_current_time;
-    long 	obj_vnum;
+    WNUM_LOAD 	obj_wnum;
     long 	buy_price;
     long 	sell_price;
     long 	qty;
@@ -4987,7 +5067,7 @@ struct npc_ship_index_data
     MOB_INDEX_DATA *captain;
 		OBJ_DATA *cargo;
 
-    long vnum;
+    long wnum;
 
     char *name;
     char *		 flag;
@@ -5054,6 +5134,7 @@ struct ship_index_data
 	SHIP_INDEX_DATA *next;
 
 	long vnum;
+    AREA_DATA *area;
 
 	char *name;
 	char *description;
@@ -5061,7 +5142,7 @@ struct ship_index_data
 
 	int flags;
 
-	long ship_object;
+	long ship_object;   // Local vnum
 
 	int hit;			// Maximum hit points for the ship
 	int guns;			// How many guns can the ship have?
@@ -5078,6 +5159,7 @@ struct ship_index_data
 	LLIST *special_keys;		// Various key object indexes used by the ship
 
 	BLUEPRINT *blueprint;
+    WNUM_LOAD blueprint_wnum;
 };
 
 typedef struct steering_data {
@@ -5298,7 +5380,7 @@ struct blueprint_link_data {
 
 	char *name;					// Display name of section link
 
-	long vnum;					// Vnum of ROOM
+	long vnum;					// Vnum of ROOM     - partial vnum, the area will be the same as the section
 	int door;					// Exit in ROOM
     
     // TODO: Add exit definitions, such as flags (for doors and whatnot)
@@ -5316,6 +5398,8 @@ struct blueprint_section_data {
 
 	long vnum;
 
+    AREA_DATA *area;
+
 	char *name;
 	char *description;
 	char *comments;
@@ -5323,10 +5407,9 @@ struct blueprint_section_data {
 	int type;
 	int flags;
 
-    AREA_DATA *area;    // Area where all content (rooms, mobs, etc) reside.
 	long recall;		// The recall of the blueprint, must be within range
-	long lower_vnum;
-	long upper_vnum;
+	long lower_vnum;    // Local vnum
+	long upper_vnum;    // Local vnum
 
 	BLUEPRINT_LINK *links;
 };
@@ -5372,6 +5455,7 @@ struct blueprint_data {
 	bool valid;
 
 	long vnum;
+    AREA_DATA *area;
 
 	char *name;
 	char *description;
@@ -5595,6 +5679,7 @@ struct dungeon_index_data
 	bool valid;
 
 	long vnum;
+    AREA_DATA *area;
 
 	char *name;
 	char *description;
@@ -5606,8 +5691,8 @@ struct dungeon_index_data
     LLIST *levels;                  // Levels to be instanced in the generated dungeon, references the FLOORS variable.
 	LLIST *special_rooms;           // 
     LLIST *special_exits;           // Exits that might span multiple floors (as opposed to the standard PREVFLOOR and NEXTFLOOR exits)
-	long entry_room;
-	long exit_room;
+	long entry_room;                // Local room vnum of standard entry room.  Must exist in the dungeon's area
+	long exit_room;                 // Local room vnum of standard exit room.  Must exist in the dungeon's area.
 
 	int repop;
 
@@ -5668,6 +5753,7 @@ struct dungeon_data
 #define CONDITION_SCRIPT	4
 
 /* for the tunneler in plith */
+// Deprecated
 struct  tunneler_place_type
 {
     char *name;
@@ -6127,12 +6213,14 @@ struct prog_list
 	char *		trig_phrase;
 	int			trig_number;	// atoi(trig_phrase)
 	bool		numeric;
-	long		vnum;
+    WNUM_LOAD   wnum_load;
+	WNUM		wnum;
 	SCRIPT_DATA *	script;		/* @@@NIB : 20070123  */
 	PROG_LIST *	next;
 	bool		valid;
 };
 
+// Deprecated
 struct prog_code
 {
     long                vnum;
@@ -6152,7 +6240,7 @@ struct  chat_room_data
     int max_people;	/* limit of people allowed */
     int curr_people;	/* current amt. of people */
     bool permanent;	/* does it save after reboots, etc? */
-    long vnum;		/* room vnum */
+    long vnum;		/* All rooms are local to the chat area */
 };
 
 struct  chat_op_data
@@ -6204,10 +6292,10 @@ struct gq_mob_data
 {
     GQ_MOB_DATA *next;
 
-    long vnum;
+    WNUM_LOAD wnum_load;
     int class; /* 1, 2, 3, 4 */
     bool group; /* group mob? */
-    long obj; /* what obj vnum to repop with? */
+    WNUM_LOAD obj_load; /* what obj vnum to repop with? */
     int count; /* how many in the game? */
     int max; /* max to repop */
 };
@@ -6216,7 +6304,7 @@ struct gq_obj_data
 {
     GQ_OBJ_DATA *next;
 
-    long vnum;
+    WNUM_LOAD wnum_load;
 
     int qp_reward;
     int prac_reward;
@@ -6227,7 +6315,6 @@ struct gq_obj_data
     int max;
     int count;
 };
-
 
 #define AMBUSH_ALL 	0
 #define AMBUSH_PC  	1
@@ -6830,8 +6917,6 @@ extern sh_int grn_unique;
 #define IS_OBJCASTER(ch)        (IS_SET((ch)->act, ACT_IS_NPC) \
 		                 && (ch)->pIndexData->vnum == MOB_VNUM_OBJCASTER)
 
-/* Wilderness macros. */
-#define ROOM(room)		((room)->parent == -1 ? (room) : ((get_room_index((room)->parent))))
 
 /* Race checks! */
 #define IS_DROW(ch)		(ch->race == grn_drow || ch->race == grn_specter)
@@ -6950,7 +7035,7 @@ extern sh_int grn_unique;
 #define CORPSE_ANIMATE(obj)	((obj)->value[2])
 #define CORPSE_PARTS(obj)	((obj)->value[3])
 #define CORPSE_FLAGS(obj)	((obj)->value[4])
-#define CORPSE_MOBILE(obj)	((obj)->value[5])
+#define CORPSE_MOBILE(obj)	((obj)->value[5])       // Local vnum only?
 
 /*
  * Description macros.
@@ -7065,7 +7150,6 @@ extern  const   struct  group_type      group_table	[MAX_GROUP];
 extern          struct social_type      social_table	[MAX_SOCIALS];
 extern	const	struct	rep_type	rating_table	[];
 extern	const	struct	sound_type	sound_table	[];
-extern  const   struct  newbie_eq_type  newbie_eq_table [];
 extern  const   struct  toxin_type      toxin_table     [MAX_TOXIN];
 extern  const   struct  herb_type       herb_table      [MAX_HERB];
 extern  	struct  boost_type	boost_table	[];
@@ -7310,7 +7394,7 @@ int damage_class_lookup (const char *name);	/* @@@NIB */
 int toxin_lookup (const char *name);	/* @@@NIB */
 
 /* hunt.c */
-int find_path( long in_room_vnum, long out_room_vnum, CHAR_DATA *ch, int depth, int in_zone);
+int find_path( AREA_DATA *in_area, long in_room_vnum, AREA_DATA *out_area, long out_room_vnum, CHAR_DATA *ch, int depth, int in_zone);
 CHAR_DATA *get_char_area( CHAR_DATA *ch, char *argument );
 void hunt_victim args( ( CHAR_DATA *ch ) );
 
@@ -7368,7 +7452,7 @@ bool exit_destination_data(EXIT_DATA *pexit, DESTINATION_DATA *pdest);
 void move_char	args( ( CHAR_DATA *ch, int door, bool follow ) );
 void move_char_new( CHAR_DATA *ch, int door );
 OBJ_DATA *get_key( CHAR_DATA *ch, int vnum );
-void use_key( CHAR_DATA *ch, OBJ_DATA *key );
+void use_key( CHAR_DATA *ch, OBJ_DATA *key, LOCK_STATE *lock );
 bool move_success args( ( CHAR_DATA *ch ) );
 bool check_room_flames( CHAR_DATA *ch, bool show );
 bool check_rocks( CHAR_DATA *ch, bool show );
@@ -7456,7 +7540,9 @@ void    auto_war_echo   args( ( char *message ) );
 void 	war_channel( char *msg );
 
 /* db.c */
-TOKEN_INDEX_DATA *get_token_index(long vnum);
+TOKEN_INDEX_DATA *get_token_index_wnum(WNUM wnum);
+TOKEN_INDEX_DATA *get_token_index_auid(long auid, long vnum);
+TOKEN_INDEX_DATA *get_token_index(AREA_DATA *pArea, long vnum);
 bool is_singular_token(TOKEN_INDEX_DATA *index);
 int     get_this_class args( ( CHAR_DATA *ch, int sn ) );
 void	reset_area      args( ( AREA_DATA * pArea ) );
@@ -7473,12 +7559,20 @@ OD *	create_object	args( ( OBJ_INDEX_DATA *pObjIndex, int level, bool affects ) 
 void	clone_object	args( ( OBJ_DATA *parent, OBJ_DATA *clone ) );
 void	clear_char	args( ( CHAR_DATA *ch ) );
 EXTRA_DESCR_DATA *	get_extra_descr	args( ( const char *name, EXTRA_DESCR_DATA *ed ) );
-MID *	get_mob_index	args( ( long vnum ) );
-OID *	get_obj_index	args( ( long vnum ) );
-RID *	get_room_index	args( ( long vnum ) );
+MID *	get_mob_index_wnum	args( ( WNUM wnum ) );
+OID *	get_obj_index_wnum	args( ( WNUM wnum ) );
+RID *	get_room_index_wnum	args( ( WNUM wnum ) );
+MID *	get_mob_index_auid	args( ( long auid, long vnum ) );
+OID *	get_obj_index_auid	args( ( long auid, long vnum ) );
+RID *	get_room_index_auid	args( ( long auid, long vnum ) );
+MID *	get_mob_index	args( ( AREA_DATA *pArea, long vnum ) );
+OID *	get_obj_index	args( ( AREA_DATA *pArea, long vnum ) );
+RID *	get_room_index	args( ( AREA_DATA *pArea, long vnum ) );
 NID *	get_npc_ship_index args( ( long vnum ) );
 PC *	get_prog_index args( ( long vnum, int type ) );
-SCRIPT_DATA *	get_script_index args( ( long vnum, int type ) );
+SCRIPT_DATA *	get_script_index_wnum args( ( WNUM wnum, int type ) );
+SCRIPT_DATA *	get_script_index_auid args( ( long auid, long vnum, int type ) );
+SCRIPT_DATA *	get_script_index args( ( AREA_DATA *pArea, long vnum, int type ) );
 char	fread_letter	args( ( FILE *fp ) );
 long	fread_number	args( ( FILE *fp ) );
 long 	fread_flag	args( ( FILE *fp ) );
@@ -7570,7 +7664,6 @@ void vamp_sun_message( CHAR_DATA *ch, int dam );
 void toxic_fumes_effect( CHAR_DATA *victim, CHAR_DATA *ch );
 
 /* fight.c */
-CHAR_DATA* create_player_hunter(long vnum, CHAR_DATA *target);
 bool check_acro( CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *wield );
 bool check_catch( CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *wield);
 bool check_dodge( CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *wield );
@@ -7765,7 +7858,7 @@ bool generate_quest_part( CHAR_DATA *ch, CHAR_DATA *questman, QUEST_PART_DATA *p
 bool is_quest_item( OBJ_DATA *obj );
 bool is_quest_token( OBJ_DATA *obj );
 int count_quest_parts( CHAR_DATA *ch );
-QUEST_INDEX_DATA *get_quest_index( long vnum );
+QUEST_INDEX_DATA *get_quest_index( AREA_DATA *area, long vnum );
 void check_quest_rescue_mob( CHAR_DATA *ch, bool show );
 void check_quest_retrieve_obj( CHAR_DATA *ch, OBJ_DATA *obj, bool show );
 void check_quest_slay_mob( CHAR_DATA *ch, CHAR_DATA *mob, bool show );
@@ -7979,14 +8072,14 @@ TOKEN_DATA *give_token(TOKEN_INDEX_DATA *token_index, CHAR_DATA *ch, OBJ_DATA *o
 void token_from_char(TOKEN_DATA *token);
 void token_to_char(TOKEN_DATA *token, CHAR_DATA *ch);
 void token_to_char_ex(TOKEN_DATA *token, CHAR_DATA *ch, char source, long flags);
-TOKEN_DATA *get_token_list(LLIST *tokens, long vnum, int count);
-TOKEN_DATA *get_token_char(CHAR_DATA *ch, long vnum, int count);
+TOKEN_DATA *get_token_list(LLIST *tokens, TOKEN_INDEX_DATA *pTokenIndex, int count);
+TOKEN_DATA *get_token_char(CHAR_DATA *ch, TOKEN_INDEX_DATA *pTokenIndex, int count);
 void token_from_obj(TOKEN_DATA *token);
 void token_to_obj(TOKEN_DATA *token, OBJ_DATA *obj);
-TOKEN_DATA *get_token_obj(OBJ_DATA *obj, long vnum, int count);
+TOKEN_DATA *get_token_obj(OBJ_DATA *obj, TOKEN_INDEX_DATA *pTokenIndex, int count);
 void token_from_room(TOKEN_DATA *token);
 void token_to_room(TOKEN_DATA *token, ROOM_INDEX_DATA *room);
-TOKEN_DATA *get_token_room(ROOM_INDEX_DATA *room, long vnum, int count);
+TOKEN_DATA *get_token_room(ROOM_INDEX_DATA *room, TOKEN_INDEX_DATA *pTokenIndex, int count);
 void fix_magic_object_index(OBJ_INDEX_DATA *obj);
 void extract_event(EVENT_DATA *event);
 void extract_project_inquiry(PROJECT_INQUIRY_DATA *pinq);
@@ -8313,7 +8406,8 @@ void append_church_log( CHURCH_DATA *church, char *string );
 CHURCH_DATA *find_church( int number );
 CHURCH_DATA *find_church_name(char *name);
 bool is_in_treasure_room(OBJ_DATA *obj);
-bool vnum_in_treasure_room(CHURCH_DATA *church, long vnum);
+bool objindex_in_treasure_room(CHURCH_DATA *church, OBJ_INDEX_DATA *objindex);
+bool wnum_in_treasure_room(CHURCH_DATA *church, WNUM wnum);
 void update_church_pks(void);
 
 /* house.c */
@@ -8474,10 +8568,10 @@ extern	AREA_DATA *		netherworld_area;
 
 extern	char			str_empty       [1];
 
-extern	MOB_INDEX_DATA *	mob_index_hash  [MAX_KEY_HASH];
-extern	OBJ_INDEX_DATA *	obj_index_hash  [MAX_KEY_HASH];
-extern	ROOM_INDEX_DATA *	room_index_hash [MAX_KEY_HASH];
-extern  TOKEN_INDEX_DATA *	token_index_hash [MAX_KEY_HASH];
+//extern	MOB_INDEX_DATA *	mob_index_hash  [MAX_KEY_HASH];
+//extern	OBJ_INDEX_DATA *	obj_index_hash  [MAX_KEY_HASH];
+//extern	ROOM_INDEX_DATA *	room_index_hash [MAX_KEY_HASH];
+//extern  TOKEN_INDEX_DATA *	token_index_hash [MAX_KEY_HASH];
 
 extern long top_mprog_index;
 extern long top_oprog_index;
@@ -8510,10 +8604,10 @@ extern LLIST *conn_online;
 extern LLIST *loaded_areas;		// LLIST_AREA_DATA format
 extern LLIST *loaded_wilds;
 
-extern BLUEPRINT_SECTION *blueprint_section_hash[MAX_KEY_HASH];
-extern BLUEPRINT *blueprint_hash[MAX_KEY_HASH];
-extern DUNGEON_INDEX_DATA *dungeon_index_hash[MAX_KEY_HASH];
-extern SHIP_INDEX_DATA *ship_index_hash[MAX_KEY_HASH];
+//extern BLUEPRINT_SECTION *blueprint_section_hash[MAX_KEY_HASH];
+//extern BLUEPRINT *blueprint_hash[MAX_KEY_HASH];
+//extern DUNGEON_INDEX_DATA *dungeon_index_hash[MAX_KEY_HASH];
+//extern SHIP_INDEX_DATA *ship_index_hash[MAX_KEY_HASH];
 
 
 void connection_add(DESCRIPTOR_DATA *d);
@@ -8576,7 +8670,7 @@ ROOM_INDEX_DATA *location_to_room(LOCATION *loc);
 void location_from_room(LOCATION *loc,ROOM_INDEX_DATA *room);
 ROOM_INDEX_DATA *get_recall_room(CHAR_DATA *ch);
 void location_clear(LOCATION *loc);
-void location_set(LOCATION *loc, unsigned long a, unsigned long b, unsigned long c, unsigned long d);
+void location_set(LOCATION *loc, AREA_DATA *area, unsigned long a, unsigned long b, unsigned long c, unsigned long d);
 bool location_isset(LOCATION *loc);
 
 void strip_newline(char *buf, bool append);
@@ -8691,22 +8785,27 @@ void show_basic_mob_lore(CHAR_DATA *ch, CHAR_DATA *victim);
 SHOP_STOCK_DATA *get_stockonly_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, char *argument);
 bool is_pullable(OBJ_DATA *obj);
 
-OBJ_DATA *generate_quest_scroll(CHAR_DATA *ch, char *questgiver, long vnum, char *header, char *footer, char *prefix, char *suffix, int width);
+OBJ_DATA *generate_quest_scroll(CHAR_DATA *ch, char *questgiver, WNUM wnum, char *header, char *footer, char *prefix, char *suffix, int width);
 OBJ_DATA *get_obj_world_index(CHAR_DATA *ch, OBJ_INDEX_DATA *pObjIndex, bool all);
 
-void load_blueprints();
-bool save_blueprints();
+BLUEPRINT_SECTION *load_blueprint_section(FILE *fp, AREA_DATA *pArea);
+BLUEPRINT *load_blueprint(FILE *fp, AREA_DATA *pArea);
+void save_blueprints(FILE *fp, AREA_DATA *area);
 bool valid_section_link(BLUEPRINT_LINK *bl);
 BLUEPRINT_LINK *get_section_link(BLUEPRINT_SECTION *bs, int link);
 bool valid_static_link(STATIC_BLUEPRINT_LINK *sbl);
-BLUEPRINT_SECTION *get_blueprint_section(long vnum);
-BLUEPRINT_SECTION *get_blueprint_section_byroom(long vnum);
-BLUEPRINT *get_blueprint(long vnum);
+BLUEPRINT_SECTION *get_blueprint_section_wnum(WNUM wnum);
+BLUEPRINT_SECTION *get_blueprint_section_auid(long auid, long vnum);
+BLUEPRINT_SECTION *get_blueprint_section(AREA_DATA *pArea, long vnum);
+BLUEPRINT_SECTION *get_blueprint_section_byroom(AREA_DATA *pArea, long vnum);
+BLUEPRINT *get_blueprint_wnum(WNUM wnum);
+BLUEPRINT *get_blueprint_auid(long auid, long vnum);
+BLUEPRINT *get_blueprint(AREA_DATA *pArea, long vnum);
 BLUEPRINT_EXIT_DATA *get_blueprint_entrance(BLUEPRINT *bp, int index);
 BLUEPRINT_EXIT_DATA *get_blueprint_exit(BLUEPRINT *bp, int index);
 INSTANCE *create_instance(BLUEPRINT *blueprint);
 bool can_edit_blueprints(CHAR_DATA *ch);
-bool rooms_in_same_section(long vnum1, long vnum2);
+bool rooms_in_same_section(AREA_DATA *pArea1, long vnum1, AREA_DATA *pArea2, long vnum2);
 int instance_section_count_mob(INSTANCE_SECTION *section, MOB_INDEX_DATA *pMobIndex);
 int instance_count_mob(INSTANCE *instance, MOB_INDEX_DATA *pMobIndex);
 void instance_update();
@@ -8733,17 +8832,22 @@ INSTANCE *get_room_instance(ROOM_INDEX_DATA *room);
 void instance_apply_specialkeys(INSTANCE *instance, LLIST *special_keys);
 INSTANCE_SECTION *instance_get_section(INSTANCE *instance, int section_no);
 
-void load_dungeons();
-bool save_dungeons();
+void fix_dungeon_indexes();
+DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp, AREA_DATA *pArea);
+void save_dungeons(FILE *fp, AREA_DATA *area);
 bool can_edit_dungeons(CHAR_DATA *ch);
-DUNGEON_INDEX_DATA *get_dungeon_index(long vnum);
-ROOM_INDEX_DATA *spawn_dungeon_player(CHAR_DATA *ch, long vnum, int floor);
+DUNGEON_INDEX_DATA *get_dungeon_index_wnum(WNUM wnum);
+DUNGEON_INDEX_DATA *get_dungeon_index_auid(long auid, long vnum);
+DUNGEON_INDEX_DATA *get_dungeon_index(AREA_DATA *pArea, long vnum);
+DUNGEON *spawn_dungeon_player(CHAR_DATA *ch, AREA_DATA *pArea, long vnum);
+ROOM_INDEX_DATA *spawn_dungeon_player_floor(CHAR_DATA *ch, AREA_DATA *pArea, long vnum, int floor);
+ROOM_INDEX_DATA *spawn_dungeon_player_special_room(CHAR_DATA *ch, AREA_DATA *pArea, long vnum, int special_room, char *special_room_name);
 void dungeon_save(FILE *fp, DUNGEON *dungeon);
 void dungeon_check_empty(DUNGEON *dungeon);
 void dungeon_echo(DUNGEON *dungeon, char *text);
 ROOM_INDEX_DATA *dungeon_random_room(CHAR_DATA *ch, DUNGEON *dungeon);
 DUNGEON *get_room_dungeon(ROOM_INDEX_DATA *room);
-OBJ_DATA *get_room_dungeon_portal(ROOM_INDEX_DATA *room, long vnum);
+OBJ_DATA *get_room_dungeon_portal(ROOM_INDEX_DATA *room, WNUM wnum);
 ROOM_INDEX_DATA *get_dungeon_special_room(DUNGEON *dungeon, int index);
 ROOM_INDEX_DATA *get_dungeon_special_room_byname(DUNGEON *dungeon, char *name);
 int dungeon_count_mob(DUNGEON *dungeon, MOB_INDEX_DATA *pMobIndex);
@@ -8761,9 +8865,9 @@ bool dungeon_can_idle(DUNGEON *dungeon);
 
 bool can_room_update(ROOM_INDEX_DATA *room);
 
-extern  bool			blueprints_changed;
-extern  bool			dungeons_changed;
-extern  bool			ships_changed;
+//extern  bool			blueprints_changed;
+//extern  bool			dungeons_changed;
+//extern  bool			ships_changed;
 
 void persist_save_room(FILE *fp, ROOM_INDEX_DATA *room);
 ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype);
@@ -8775,22 +8879,25 @@ void resolve_instances_player(CHAR_DATA *ch);
 void detach_dungeons_player(CHAR_DATA *ch);
 void detach_instances_player(CHAR_DATA *ch);
 
-extern long top_iprog_index;
-extern long top_dprog_index;
+//extern long top_iprog_index;
+//extern long top_dprog_index;
 
 bool is_area_unlocked(CHAR_DATA *ch, AREA_DATA *area);
 bool is_room_unlocked(CHAR_DATA *ch, ROOM_INDEX_DATA *room);
 void player_unlock_area(CHAR_DATA *ch, AREA_DATA *area);
 
 
-void load_ships();
-bool save_ships();
-SHIP_INDEX_DATA *get_ship_index(long vnum);
+SHIP_INDEX_DATA *read_ship_index(FILE *fp, AREA_DATA *area);
+void fix_ship_indexes();
+void save_ships(FILE *fp, AREA_DATA *area);
+SHIP_INDEX_DATA *get_ship_index_wnum(WNUM wnum);
+SHIP_INDEX_DATA *get_ship_index_auid(long auid, long vnum);
+SHIP_INDEX_DATA *get_ship_index(AREA_DATA *pArea, long vnum);
 bool can_edit_ships(CHAR_DATA *ch);
 SHIP_DATA *ship_load(FILE *fp);
 bool ship_save(FILE *fp, SHIP_DATA *ship);
 
-SHIP_DATA *create_ship(long vnum);
+SHIP_DATA *create_ship(WNUM wnum);
 void extract_ship(SHIP_DATA *ship);
 bool ship_isowner_player(SHIP_DATA *ship, CHAR_DATA *ch);
 void ships_ticks_update();
@@ -8813,15 +8920,16 @@ void ship_set_move_steps(SHIP_DATA *ship);
 
 bool lockstate_functional(LOCK_STATE *lock);
 OBJ_DATA *lockstate_getkey(CHAR_DATA *ch, LOCK_STATE *lock);
+bool lockstate_iskey(LOCK_STATE *lock, OBJ_DATA *key);
 
-SPECIAL_KEY_DATA *get_special_key(LLIST *list, long vnum);
+SPECIAL_KEY_DATA *get_special_key(LLIST *list, WNUM wnum);
 void extract_special_key(OBJ_DATA *obj);
 void resolve_special_key(OBJ_DATA *obj);
 
 char *get_article(char *text, bool upper);
 bool is_shipyard_valid(long wuid, int x1, int y1, int x2, int y2);
 bool get_shipyard_location(long wuid, int x1, int y1, int x2, int y2, int *x, int *y);
-SHIP_DATA *purchase_ship(CHAR_DATA *ch, long vnum, SHOP_DATA *shop);
+SHIP_DATA *purchase_ship(CHAR_DATA *ch, WNUM wnum, SHOP_DATA *shop);
 int ships_player_owned(CHAR_DATA *ch, SHIP_INDEX_DATA *index);
 void get_ship_location(CHAR_DATA *ch, SHIP_DATA *ship, char *buf, size_t len);
 void ship_cancel_route(SHIP_DATA *ship);
@@ -8838,4 +8946,324 @@ extern LLIST *loaded_special_keys;
 extern LLIST *loaded_waypoints;
 extern LLIST *loaded_waypoint_paths;
 
-#endif /* !def __MERC_H__ */
+bool parse_widevnum(char *text, WNUM *pWnum);
+WNUM_LOAD fread_widevnum(FILE *fp);
+WNUM_LOAD *fread_widevnumptr(FILE *fp);
+const char *widevnum_string(AREA_DATA *pArea, long vnum);
+const char *widevnum_string_wnum(WNUM wnum);
+const char *widevnum_string_mobile(MOB_INDEX_DATA *mob);
+const char *widevnum_string_object(OBJ_INDEX_DATA *obj);
+const char *widevnum_string_room(ROOM_INDEX_DATA *room);
+const char *widevnum_string_token(TOKEN_INDEX_DATA *token);;
+const char *widevnum_string_script(SCRIPT_DATA *script);
+
+
+bool wnum_match(WNUM wnum, AREA_DATA *area, long vnum);
+bool wnum_match_room(WNUM wnum, ROOM_INDEX_DATA *room);
+bool wnum_match_obj(WNUM wnum, OBJ_DATA *obj);
+bool wnum_match_mob(WNUM wnum, CHAR_DATA *ch);
+
+
+
+extern WNUM room_wnum_default;
+extern WNUM room_wnum_limbo;
+extern WNUM room_wnum_chat;
+extern WNUM room_wnum_temple;
+extern WNUM room_wnum_school;
+extern WNUM room_wnum_donation;
+extern WNUM room_wnum_arena;
+extern WNUM room_wnum_death;
+extern WNUM room_wnum_auto_war;
+extern WNUM room_wnum_garbage;
+extern WNUM room_wnum_newbie_death;
+extern WNUM room_wnum_altar;
+
+extern ROOM_INDEX_DATA *room_index_default;
+extern ROOM_INDEX_DATA *room_index_limbo;
+extern ROOM_INDEX_DATA *room_index_chat;
+extern ROOM_INDEX_DATA *room_index_temple;
+extern ROOM_INDEX_DATA *room_index_school;
+extern ROOM_INDEX_DATA *room_index_donation;
+extern ROOM_INDEX_DATA *room_index_arena;
+extern ROOM_INDEX_DATA *room_index_death;
+extern ROOM_INDEX_DATA *room_index_auto_war;
+extern ROOM_INDEX_DATA *room_index_garbage;
+extern ROOM_INDEX_DATA *room_index_newbie_death;
+extern ROOM_INDEX_DATA *room_index_altar;
+
+// Reserved Objects
+extern WNUM obj_wnum_silver_one;
+extern WNUM obj_wnum_gold_one;
+extern WNUM obj_wnum_gold_some;
+extern WNUM obj_wnum_silver_some;
+extern WNUM obj_wnum_coins;
+extern WNUM obj_wnum_corpse_npc;
+extern WNUM obj_wnum_corpse_pc;
+extern WNUM obj_wnum_severed_head;
+extern WNUM obj_wnum_torn_heart;
+extern WNUM obj_wnum_sliced_arm;
+extern WNUM obj_wnum_sliced_leg;
+extern WNUM obj_wnum_guts;
+extern WNUM obj_wnum_brains;
+extern WNUM obj_wnum_mushroom;
+extern WNUM obj_wnum_light_ball;
+extern WNUM obj_wnum_spring;
+extern WNUM obj_wnum_disc;
+extern WNUM obj_wnum_portal;
+extern WNUM obj_wnum_navigational_chart;
+extern WNUM obj_wnum_newb_quarterstaff;
+extern WNUM obj_wnum_newb_dagger;
+extern WNUM obj_wnum_newb_sword;
+extern WNUM obj_wnum_newb_armour;
+extern WNUM obj_wnum_newb_cloak;
+extern WNUM obj_wnum_newb_leggings;
+extern WNUM obj_wnum_newb_boots;
+extern WNUM obj_wnum_newb_helm;
+extern WNUM obj_wnum_newb_harmonica;
+extern WNUM obj_wnum_rose;
+extern WNUM obj_wnum_pit;
+extern WNUM obj_wnum_whistle;
+extern WNUM obj_wnum_healing_locket;
+extern WNUM obj_wnum_starchart;
+extern WNUM obj_wnum_argyle_ring;
+extern WNUM obj_wnum_shield_dragon;
+extern WNUM obj_wnum_sword_mishkal;
+extern WNUM obj_wnum_golden_apple;
+extern WNUM obj_wnum_glass_hammer;
+extern WNUM obj_wnum_pawn_ticket;
+extern WNUM obj_wnum_cursed_orb;
+extern WNUM obj_wnum_gold_whistle;
+extern WNUM obj_wnum_sword_sent;
+extern WNUM obj_wnum_shard;
+extern WNUM obj_wnum_key_abyss;
+extern WNUM obj_wnum_bottled_soul;
+extern WNUM obj_wnum_sailing_boat_mast;
+extern WNUM obj_wnum_sailing_boat;
+extern WNUM obj_wnum_sailing_boat_debris;
+extern WNUM obj_wnum_sailing_boat_cannon;
+extern WNUM obj_wnum_cargo_ship;
+extern WNUM obj_wnum_air_ship;
+extern WNUM obj_wnum_sailing_boat_wheel;
+extern WNUM obj_wnum_sailing_boat_sextant;
+extern WNUM obj_wnum_frigate_ship;
+extern WNUM obj_wnum_trade_cannon;
+extern WNUM obj_wnum_galleon_ship;
+extern WNUM obj_wnum_goblin_whistle;
+extern WNUM obj_wnum_pirate_head;
+extern WNUM obj_wnum_invasion_leader_head;
+extern WNUM obj_wnum_shackles;
+extern WNUM obj_wnum_death_book;
+extern WNUM obj_wnum_inferno;
+extern WNUM obj_wnum_skull;
+extern WNUM obj_wnum_gold_skull;
+extern WNUM obj_wnum_empty_vial;
+extern WNUM obj_wnum_potion;
+extern WNUM obj_wnum_blank_scroll;
+extern WNUM obj_wnum_scroll;
+extern WNUM obj_wnum_leather_jacket;
+extern WNUM obj_wnum_green_tights;
+extern WNUM obj_wnum_sandals;
+extern WNUM obj_wnum_black_cloak;
+extern WNUM obj_wnum_red_cloak;
+extern WNUM obj_wnum_brown_tunic;
+extern WNUM obj_wnum_brown_robe;
+extern WNUM obj_wnum_feathered_robe;
+extern WNUM obj_wnum_feathered_stick;
+extern WNUM obj_wnum_green_robe;
+extern WNUM obj_wnum_quest_scroll;
+extern WNUM obj_wnum_treasure_map;
+extern WNUM obj_wnum_relic_extra_damage;
+extern WNUM obj_wnum_relic_extra_xp;
+extern WNUM obj_wnum_relic_extra_pneuma;
+extern WNUM obj_wnum_relic_hp_regen;
+extern WNUM obj_wnum_relic_mana_regen;
+extern WNUM obj_wnum_room_darkness;
+extern WNUM obj_wnum_roomshield;
+extern WNUM obj_wnum_harmonica;
+extern WNUM obj_wnum_smoke_bomb;
+extern WNUM obj_wnum_stinking_cloud;
+extern WNUM obj_wnum_spell_trap;
+extern WNUM obj_wnum_withering_cloud;
+extern WNUM obj_wnum_ice_storm;
+extern WNUM obj_wnum_empty_tattoo;
+extern WNUM obj_wnum_dark_wraith_eq;
+extern WNUM obj_wnum_abyss_portal;
+
+extern OBJ_INDEX_DATA *obj_index_silver_one;
+extern OBJ_INDEX_DATA *obj_index_gold_one;
+extern OBJ_INDEX_DATA *obj_index_gold_some;
+extern OBJ_INDEX_DATA *obj_index_silver_some;
+extern OBJ_INDEX_DATA *obj_index_coins;
+extern OBJ_INDEX_DATA *obj_index_corpse_npc;
+extern OBJ_INDEX_DATA *obj_index_corpse_pc;
+extern OBJ_INDEX_DATA *obj_index_severed_head;
+extern OBJ_INDEX_DATA *obj_index_torn_heart;
+extern OBJ_INDEX_DATA *obj_index_sliced_arm;
+extern OBJ_INDEX_DATA *obj_index_sliced_leg;
+extern OBJ_INDEX_DATA *obj_index_guts;
+extern OBJ_INDEX_DATA *obj_index_brains;
+extern OBJ_INDEX_DATA *obj_index_mushroom;
+extern OBJ_INDEX_DATA *obj_index_light_ball;
+extern OBJ_INDEX_DATA *obj_index_spring;
+extern OBJ_INDEX_DATA *obj_index_disc;
+extern OBJ_INDEX_DATA *obj_index_portal;
+extern OBJ_INDEX_DATA *obj_index_navigational_chart;
+extern OBJ_INDEX_DATA *obj_index_newb_quarterstaff;
+extern OBJ_INDEX_DATA *obj_index_newb_dagger;
+extern OBJ_INDEX_DATA *obj_index_newb_sword;
+extern OBJ_INDEX_DATA *obj_index_newb_armour;
+extern OBJ_INDEX_DATA *obj_index_newb_cloak;
+extern OBJ_INDEX_DATA *obj_index_newb_leggings;
+extern OBJ_INDEX_DATA *obj_index_newb_boots;
+extern OBJ_INDEX_DATA *obj_index_newb_helm;
+extern OBJ_INDEX_DATA *obj_index_newb_harmonica;
+extern OBJ_INDEX_DATA *obj_index_rose;
+extern OBJ_INDEX_DATA *obj_index_pit;
+extern OBJ_INDEX_DATA *obj_index_whistle;
+extern OBJ_INDEX_DATA *obj_index_healing_locket;
+extern OBJ_INDEX_DATA *obj_index_starchart;
+extern OBJ_INDEX_DATA *obj_index_argyle_ring;
+extern OBJ_INDEX_DATA *obj_index_shield_dragon;
+extern OBJ_INDEX_DATA *obj_index_sword_mishkal;
+extern OBJ_INDEX_DATA *obj_index_golden_apple;
+extern OBJ_INDEX_DATA *obj_index_glass_hammer;
+extern OBJ_INDEX_DATA *obj_index_pawn_ticket;
+extern OBJ_INDEX_DATA *obj_index_cursed_orb;
+extern OBJ_INDEX_DATA *obj_index_gold_whistle;
+extern OBJ_INDEX_DATA *obj_index_sword_sent;
+extern OBJ_INDEX_DATA *obj_index_shard;
+extern OBJ_INDEX_DATA *obj_index_key_abyss;
+extern OBJ_INDEX_DATA *obj_index_bottled_soul;
+extern OBJ_INDEX_DATA *obj_index_sailing_boat_mast;
+extern OBJ_INDEX_DATA *obj_index_sailing_boat;
+extern OBJ_INDEX_DATA *obj_index_sailing_boat_debris;
+extern OBJ_INDEX_DATA *obj_index_sailing_boat_cannon;
+extern OBJ_INDEX_DATA *obj_index_cargo_ship;
+extern OBJ_INDEX_DATA *obj_index_air_ship;
+extern OBJ_INDEX_DATA *obj_index_sailing_boat_wheel;
+extern OBJ_INDEX_DATA *obj_index_sailing_boat_sextant;
+extern OBJ_INDEX_DATA *obj_index_frigate_ship;
+extern OBJ_INDEX_DATA *obj_index_trade_cannon;
+extern OBJ_INDEX_DATA *obj_index_galleon_ship;
+extern OBJ_INDEX_DATA *obj_index_goblin_whistle;
+extern OBJ_INDEX_DATA *obj_index_pirate_head;
+extern OBJ_INDEX_DATA *obj_index_invasion_leader_head;
+extern OBJ_INDEX_DATA *obj_index_shackles;
+extern OBJ_INDEX_DATA *obj_index_death_book;
+extern OBJ_INDEX_DATA *obj_index_inferno;
+extern OBJ_INDEX_DATA *obj_index_skull;
+extern OBJ_INDEX_DATA *obj_index_gold_skull;
+extern OBJ_INDEX_DATA *obj_index_empty_vial;
+extern OBJ_INDEX_DATA *obj_index_potion;
+extern OBJ_INDEX_DATA *obj_index_blank_scroll;
+extern OBJ_INDEX_DATA *obj_index_scroll;
+extern OBJ_INDEX_DATA *obj_index_leather_jacket;
+extern OBJ_INDEX_DATA *obj_index_green_tights;
+extern OBJ_INDEX_DATA *obj_index_sandals;
+extern OBJ_INDEX_DATA *obj_index_black_cloak;
+extern OBJ_INDEX_DATA *obj_index_red_cloak;
+extern OBJ_INDEX_DATA *obj_index_brown_tunic;
+extern OBJ_INDEX_DATA *obj_index_brown_robe;
+extern OBJ_INDEX_DATA *obj_index_feathered_robe;
+extern OBJ_INDEX_DATA *obj_index_feathered_stick;
+extern OBJ_INDEX_DATA *obj_index_green_robe;
+extern OBJ_INDEX_DATA *obj_index_quest_scroll;
+extern OBJ_INDEX_DATA *obj_index_treasure_map;
+extern OBJ_INDEX_DATA *obj_index_relic_extra_damage;
+extern OBJ_INDEX_DATA *obj_index_relic_extra_xp;
+extern OBJ_INDEX_DATA *obj_index_relic_extra_pneuma;
+extern OBJ_INDEX_DATA *obj_index_relic_hp_regen;
+extern OBJ_INDEX_DATA *obj_index_relic_mana_regen;
+extern OBJ_INDEX_DATA *obj_index_room_darkness;
+extern OBJ_INDEX_DATA *obj_index_roomshield;
+extern OBJ_INDEX_DATA *obj_index_harmonica;
+extern OBJ_INDEX_DATA *obj_index_smoke_bomb;
+extern OBJ_INDEX_DATA *obj_index_stinking_cloud;
+extern OBJ_INDEX_DATA *obj_index_spell_trap;
+extern OBJ_INDEX_DATA *obj_index_withering_cloud;
+extern OBJ_INDEX_DATA *obj_index_ice_storm;
+extern OBJ_INDEX_DATA *obj_index_empty_tattoo;
+extern OBJ_INDEX_DATA *obj_index_dark_wraith_eq;
+extern OBJ_INDEX_DATA *obj_index_abyss_portal;
+
+// Reserved mobiles
+extern WNUM mob_wnum_death;
+extern WNUM mob_wnum_objcaster;
+extern WNUM mob_wnum_reflection;
+extern WNUM mob_wnum_slayer;
+extern WNUM mob_wnum_werewolf;
+extern WNUM mob_wnum_mayor_plith;
+extern WNUM mob_wnum_ravage;
+extern WNUM mob_wnum_stiener;
+extern WNUM mob_wnum_changeling;
+extern WNUM mob_wnum_dark_wraith;
+extern WNUM mob_wnum_gatekeeper_abyss;
+extern WNUM mob_wnum_sailor_burly;
+extern WNUM mob_wnum_sailor_dirty;
+extern WNUM mob_wnum_sailor_diseased;
+extern WNUM mob_wnum_sailor_elite;
+extern WNUM mob_wnum_sailor_mercenary;
+extern WNUM mob_wnum_sailor_trained;
+extern WNUM mob_wnum_geldoff;
+extern WNUM mob_wnum_pirate_hunter_1;
+extern WNUM mob_wnum_pirate_hunter_2;
+extern WNUM mob_wnum_pirate_hunter_3;
+extern WNUM mob_wnum_questor_1;             // Deprecated
+extern WNUM mob_wnum_quester_2;             // Deprecated
+extern WNUM mob_wnum_invasion_leader_goblin;
+extern WNUM mob_wnum_invasion_leader_skeleton;
+extern WNUM mob_wnum_invasion_leader_bandit;
+extern WNUM mob_wnum_invasion_leader_pirate;
+extern WNUM mob_wnum_invasion_goblin;
+extern WNUM mob_wnum_invasion_skeleton;
+extern WNUM mob_wnum_invasion_bandit;
+extern WNUM mob_wnum_invasion_pirate;
+
+extern MOB_INDEX_DATA *mob_index_death;
+extern MOB_INDEX_DATA *mob_index_objcaster;
+extern MOB_INDEX_DATA *mob_index_reflection;
+extern MOB_INDEX_DATA *mob_index_slayer;
+extern MOB_INDEX_DATA *mob_index_werewolf;
+extern MOB_INDEX_DATA *mob_index_mayor_plith;
+extern MOB_INDEX_DATA *mob_index_ravage;
+extern MOB_INDEX_DATA *mob_index_stiener;
+extern MOB_INDEX_DATA *mob_index_changeling;
+extern MOB_INDEX_DATA *mob_index_dark_wraith;
+extern MOB_INDEX_DATA *mob_index_gatekeeper_abyss;
+extern MOB_INDEX_DATA *mob_index_sailor_burly;
+extern MOB_INDEX_DATA *mob_index_sailor_dirty;
+extern MOB_INDEX_DATA *mob_index_sailor_diseased;
+extern MOB_INDEX_DATA *mob_index_sailor_elite;
+extern MOB_INDEX_DATA *mob_index_sailor_mercenary;
+extern MOB_INDEX_DATA *mob_index_sailor_trained;
+extern MOB_INDEX_DATA *mob_index_geldoff;
+extern MOB_INDEX_DATA *mob_index_pirate_hunter_1;
+extern MOB_INDEX_DATA *mob_index_pirate_hunter_2;
+extern MOB_INDEX_DATA *mob_index_pirate_hunter_3;
+extern MOB_INDEX_DATA *mob_index_questor_1;             // Deprecated
+extern MOB_INDEX_DATA *mob_index_quester_2;             // Deprecated
+extern MOB_INDEX_DATA *mob_index_invasion_leader_goblin;
+extern MOB_INDEX_DATA *mob_index_invasion_leader_skeleton;
+extern MOB_INDEX_DATA *mob_index_invasion_leader_bandit;
+extern MOB_INDEX_DATA *mob_index_invasion_leader_pirate;
+extern MOB_INDEX_DATA *mob_index_invasion_goblin;
+extern MOB_INDEX_DATA *mob_index_invasion_skeleton;
+extern MOB_INDEX_DATA *mob_index_invasion_bandit;
+extern MOB_INDEX_DATA *mob_index_invasion_pirate;
+
+
+// Reserved rprogs
+extern WNUM rprog_wnum_player_init;
+
+extern SCRIPT_DATA *rprog_index_player_init;
+
+// Reserved areas
+extern AREA_DATA *area_housing;
+extern AREA_DATA *area_geldoff_maze;
+extern AREA_DATA *area_chat;
+
+extern WNUM wnum_zero;
+
+void get_room_wnum(ROOM_INDEX_DATA *room, WNUM *wnum);
+
+#endif /* !def __merc_h__ */

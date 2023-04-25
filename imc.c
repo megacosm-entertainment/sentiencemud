@@ -1,10 +1,10 @@
 /* IMC2 Freedom Client - Developed by Mud Domain.
  *
- * Copyright ©2004-2008 by Roger Libiez ( Samson )
- * Contributions by Johnathan Walker ( Xorith ), Copyright ©2004
- * Additional contributions by Jesse Defer ( Garil ), Copyright ©2004
- * Additional contributions by Rogel, Copyright ©2004
- * Additional contributions by MTFox, multiconnection added Copyright ©2008
+ * Copyright ï¿½2004-2008 by Roger Libiez ( Samson )
+ * Contributions by Johnathan Walker ( Xorith ), Copyright ï¿½2004
+ * Additional contributions by Jesse Defer ( Garil ), Copyright ï¿½2004
+ * Additional contributions by Rogel, Copyright ï¿½2004
+ * Additional contributions by MTFox, multiconnection added Copyright ï¿½2008
  * Additional contributions by Madison Koenig (Pedlar, Syxx), Copyright (C) 2008.
  * Added in Channel Separator for Colour code issues, and customization.
  * Comments and suggestions welcome: http://www.mudbytes.net/imc2-support-forum
@@ -4508,7 +4508,7 @@ void imc_readhelp( IMC_HELP_DATA * help, FILE * fp )
             {
                int num = 0;
 
-               while( ( hbuf[num] = fgetc( fp ) ) != EOF && hbuf[num] != '¢' && num < ( LGST - 2 ) )
+               while( ( hbuf[num] = fgetc( fp ) ) != EOF && hbuf[num] != 'ï¿½' && num < ( LGST - 2 ) )
                   num++;
                hbuf[num] = '\0';
                help->text = IMCSTRALLOC( hbuf );
@@ -5254,49 +5254,49 @@ void imc_load_who_template( void )
 
       if( !strcasecmp( word, "Head:" ) )
       {
-         while( ( hbuf[num] = fgetc( fp ) ) != EOF && hbuf[num] != '¢' && num < ( LGST - 2 ) )
+         while( ( hbuf[num] = fgetc( fp ) ) != EOF && hbuf[num] != 'ï¿½' && num < ( LGST - 2 ) )
             ++num;
          hbuf[num] = '\0';
          whot->head = IMCSTRALLOC( parse_who_header( hbuf ) );
       }
       else if( !strcasecmp( word, "Tail:" ) )
       {
-         while( ( hbuf[num] = fgetc( fp ) ) != EOF && hbuf[num] != '¢' && num < ( LGST - 2 ) )
+         while( ( hbuf[num] = fgetc( fp ) ) != EOF && hbuf[num] != 'ï¿½' && num < ( LGST - 2 ) )
             ++num;
          hbuf[num] = '\0';
          whot->tail = IMCSTRALLOC( parse_who_tail( hbuf ) );
       }
       else if( !strcasecmp( word, "Plrline:" ) )
       {
-         while( ( hbuf[num] = fgetc( fp ) ) != EOF && hbuf[num] != '¢' && num < ( LGST - 2 ) )
+         while( ( hbuf[num] = fgetc( fp ) ) != EOF && hbuf[num] != 'ï¿½' && num < ( LGST - 2 ) )
             ++num;
          hbuf[num] = '\0';
          whot->plrline = IMCSTRALLOC( hbuf );
       }
       else if( !strcasecmp( word, "Immline:" ) )
       {
-         while( ( hbuf[num] = fgetc( fp ) ) != EOF && hbuf[num] != '¢' && num < ( LGST - 2 ) )
+         while( ( hbuf[num] = fgetc( fp ) ) != EOF && hbuf[num] != 'ï¿½' && num < ( LGST - 2 ) )
             ++num;
          hbuf[num] = '\0';
          whot->immline = IMCSTRALLOC( hbuf );
       }
       else if( !strcasecmp( word, "Immheader:" ) )
       {
-         while( ( hbuf[num] = fgetc( fp ) ) != EOF && hbuf[num] != '¢' && num < ( LGST - 2 ) )
+         while( ( hbuf[num] = fgetc( fp ) ) != EOF && hbuf[num] != 'ï¿½' && num < ( LGST - 2 ) )
             ++num;
          hbuf[num] = '\0';
          whot->immheader = IMCSTRALLOC( hbuf );
       }
       else if( !strcasecmp( word, "Plrheader:" ) )
       {
-         while( ( hbuf[num] = fgetc( fp ) ) != EOF && hbuf[num] != '¢' && num < ( LGST - 2 ) )
+         while( ( hbuf[num] = fgetc( fp ) ) != EOF && hbuf[num] != 'ï¿½' && num < ( LGST - 2 ) )
             ++num;
          hbuf[num] = '\0';
          whot->plrheader = IMCSTRALLOC( hbuf );
       }
       else if( !strcasecmp( word, "Master:" ) )
       {
-         while( ( hbuf[num] = fgetc( fp ) ) != EOF && hbuf[num] != '¢' && num < ( LGST - 2 ) )
+         while( ( hbuf[num] = fgetc( fp ) ) != EOF && hbuf[num] != 'ï¿½' && num < ( LGST - 2 ) )
             ++num;
          hbuf[num] = '\0';
          whot->master = IMCSTRALLOC( hbuf );
@@ -8215,7 +8215,7 @@ const char *imc_find_social( CHAR_DATA * ch, const char *sname, const char *pers
    return socname;
 }
 
-/* Revised 10/10/03 by Xorith: Recognize the need to capitalize for a new sentence. */
+/* Revised 10/10/03 by Xorith: Recognize the need to capitalize for a newï¿½sentence. */
 char *imc_act_string( const char *format, CHAR_DATA * ch, CHAR_DATA * vic )
 {
    static const char *const he_she[] = { "it", "he", "she", "shi" };
@@ -8327,7 +8327,7 @@ CHAR_DATA *imc_make_skeleton( const char *name )
 #else
    skeleton->name = IMCSTRALLOC( name );
    skeleton->short_descr = IMCSTRALLOC( name );
-   skeleton->in_room = get_room_index( ROOM_VNUM_LIMBO );
+   skeleton->in_room = room_index_limbo;
 #endif
 
    return skeleton;

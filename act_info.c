@@ -776,7 +776,7 @@ void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
         {
 	    if (part->mob != -1 && !part->complete)
 	    {
-                if (part->mob == victim->pIndexData->vnum)
+                if (part->mob == victim->pIndexData->vnum && part->area == victim->pIndexData->area)
                 {
    	 	    strcat(buf, "{R[X] {G");
 		    break;
@@ -7257,23 +7257,9 @@ void do_where(CHAR_DATA * ch, char *argument)
 		&& victim->position != POS_FEIGN
 		&& can_see(ch, victim))
 		{
-		found = TRUE;
-/*
-		if (victim->in_room->parent != -1)
-		{
-		    sprintf(buf, "%-28s %s\n\r",
-			    pers(victim, ch),
-			    get_room_index(victim->in_room->parent)->name);
-		}
-		else
-		{
-*/
-		    sprintf(buf, "%-28s %s\n\r",
-			    pers(victim, ch), victim->in_room->name);
-/*
-		}
-*/
-		send_to_char(buf, ch);
+			found = TRUE;
+			sprintf(buf, "%-28s %s\n\r", pers(victim, ch), victim->in_room->name);
+			send_to_char(buf, ch);
 	    }
 	}
 	if (!found)
@@ -7371,9 +7357,9 @@ char *find_desc_for_room(ROOM_INDEX_DATA *room, CHAR_DATA *viewer)
 				break;
 
 			case CONDITION_SCRIPT:
-				script = get_script_index(cd->phrase,PRG_RPROG);
+				script = get_script_index(room->area, cd->phrase,PRG_RPROG);
 
-				if (script && execute_script(cd->phrase,script,NULL,NULL,room,NULL,NULL,NULL,NULL,viewer,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,TRIG_NONE,0,0,0,0,0) > 0)
+				if (script && execute_script(script,NULL,NULL,room,NULL,NULL,NULL,NULL,viewer,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,TRIG_NONE,0,0,0,0,0) > 0)
 					best_cd = cd;
 				break;
 			}

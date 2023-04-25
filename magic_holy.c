@@ -195,6 +195,7 @@ SPELL_FUNC(spell_exorcism)
 		act("A large phantasmal pit opens up beneath $n making a loud slurping noise!", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 	}
 
+	// TODO: Rework
 	if (victim->tot_level <= LEVEL_HERO/5) area = find_area("Maze-Level1");
 	else if (victim->tot_level <= LEVEL_HERO/3) area = find_area("Maze-Level2");
 	else if (victim->tot_level <= (2*LEVEL_HERO)/3) area = find_area("Maze-Level3");
@@ -207,7 +208,7 @@ SPELL_FUNC(spell_exorcism)
 	}
 
 	do
-		room = get_room_index(number_range(area->min_vnum, area->max_vnum));
+		room = get_room_index(area, number_range(1, area->top_room));
 	while (!room);
 
 	chance = (ch->tot_level - victim->tot_level) + (catalyst / lvl);

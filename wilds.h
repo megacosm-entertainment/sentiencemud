@@ -159,13 +159,13 @@ struct wilds_vlink
     int             wildsorigin_y;
     int             door;
     char            *map_tile;
-    long            destvnum;
+    WNUM_LOAD       destwnum;
     int             default_linkage;
     int             current_linkage;
     char            *orig_description;
     char            *orig_keyword;
     long            orig_rs_flags;
-    long            orig_key;
+    WNUM_LOAD       orig_key;
     int             orig_lock;
     int             orig_pick;
     char            *rev_description;

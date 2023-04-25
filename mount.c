@@ -156,22 +156,22 @@ void do_dismount(CHAR_DATA *ch, char *argument)
 }
 
 
+// TODO: Rework.. just store it on the PCDATA?
 CHAR_DATA *find_personal_mount(char *name)
 {
     MOB_INDEX_DATA *mIndex;
     CHAR_DATA *mount;
-    AREA_DATA *area;
     int vnum;
 
-    if ((area = find_area("Housing")) == NULL)
+    if (area_housing == NULL)
     {
         bug("find_personal_mount: no housing area", 0);
 	return NULL;
     }
 
-    for (vnum = area->min_vnum; vnum <= area->max_vnum; vnum++)
+    for (vnum = 1; vnum <= area_housing->top_room; vnum++)
     {
-    	if ((mIndex = get_mob_index(vnum)) != NULL)
+    	if ((mIndex = get_mob_index(area_housing, vnum)) != NULL)
 	{
 	    if (!str_cmp(mIndex->owner, name))
 	    {
