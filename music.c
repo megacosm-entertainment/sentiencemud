@@ -350,7 +350,6 @@ void music_end( CHAR_DATA *ch )
 				id[1] = mob->id[1];
 				wasdead = mob->dead;
 
-
 				if( (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead)) && pSong->spell1 )
 				{
 					sn = skill_lookup(pSong->spell1);

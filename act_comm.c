@@ -52,20 +52,17 @@
 		free_string(no_colour); \
 	} while(0)
 
-/* MOVED: */
 void do_clear (CHAR_DATA * ch, char *argument)
 {
 	send_to_char ("\x01B[2J\x01B[H", ch);
 }
 
-/* MOVED: player.c */
 void do_delet(CHAR_DATA *ch, char *argument)
 {
 	send_to_char("You must type the full command to delete yourself.\n\r",ch);
 }
 
 
-/* MOVED: player.c */
 void do_delete(CHAR_DATA *ch, char *argument)
 {
 	char strsave[MAX_INPUT_LENGTH];
@@ -105,8 +102,7 @@ void do_delete(CHAR_DATA *ch, char *argument)
 	wiznet("$N is contemplating deletion.",ch,NULL,0,0,get_trust(ch));
 }
 
-/* MOVED: channels.c
- Lists all channels and their status */
+/*  Lists all channels and their status */
 void do_channels(CHAR_DATA *ch, char *argument)
 {
 	char buf[MAX_STRING_LENGTH];
@@ -215,7 +211,6 @@ void do_channels(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: channels.c */
 void do_quiet(CHAR_DATA *ch, char * argument)
 {
 	if (IS_SET(ch->comm,COMM_QUIET))
@@ -226,7 +221,6 @@ void do_quiet(CHAR_DATA *ch, char * argument)
 }
 
 
-/* MOVED: channels.c */
 void do_afk(CHAR_DATA *ch, char * argument)
 {
 	if (IS_NPC(ch)) return;
@@ -251,7 +245,6 @@ void do_afk(CHAR_DATA *ch, char * argument)
 }
 
 
-/* MOVED: channels.c */
 void do_replay(CHAR_DATA *ch, char *argument)
 {
 	if (IS_NPC(ch)) {
@@ -269,7 +262,6 @@ void do_replay(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: channels.c */
 bool can_speak_channels(CHAR_DATA *ch)
 {
 	if (IS_SET(ch->comm,COMM_QUIET)) {
@@ -290,7 +282,6 @@ bool can_speak_channels(CHAR_DATA *ch)
 	return TRUE;
 }
 
-/* MOVED: channels.c */
 void do_ooc(CHAR_DATA *ch, char *argument)
 {
 	char buf[MAX_STRING_LENGTH], msg[2*MSL];
@@ -338,7 +329,6 @@ void do_ooc(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: church.c */
 void church_echo(CHURCH_DATA *church, char *message)
 {
 	DESCRIPTOR_DATA *d;
@@ -357,7 +347,6 @@ void church_echo(CHURCH_DATA *church, char *message)
 }
 
 
-/* MOVED: channels.c */
 void gecho(char *message)
 {
 	DESCRIPTOR_DATA *d;
@@ -367,7 +356,6 @@ void gecho(char *message)
 }
 
 
-/* MOVED: channels.c */
 void do_gossip(CHAR_DATA *ch, char *argument)
 {
 	char buf[MAX_STRING_LENGTH], msg[2*MSL];
@@ -442,7 +430,6 @@ void do_gossip(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: channels.c */
 void do_flame(CHAR_DATA *ch, char *argument)
 {
 	char buf[MAX_STRING_LENGTH], msg[2*MSL];
@@ -491,7 +478,6 @@ void do_flame(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: channels.c */
 void do_helper(CHAR_DATA *ch, char *argument)
 {
 	char buf[MAX_STRING_LENGTH], msg[2*MSL];
@@ -547,7 +533,6 @@ void do_helper(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: channels.c */
 void do_hints(CHAR_DATA *ch, char *argument)
 {
 	if (!argument[0]) {
@@ -561,7 +546,6 @@ void do_hints(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: channels.c */
 void do_music(CHAR_DATA *ch, char *argument)
 {
 	char buf[MAX_STRING_LENGTH], msg[2*MSL];
@@ -610,7 +594,6 @@ void do_music(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: channels.c */
 void do_immtalk(CHAR_DATA *ch, char *argument)
 {
 	char buf[MAX_STRING_LENGTH];
@@ -636,7 +619,6 @@ void do_immtalk(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: speech.c */
 void do_say(CHAR_DATA *ch, char *argument)
 {
 	char buf[MAX_STRING_LENGTH];
@@ -816,7 +798,6 @@ void do_say(CHAR_DATA *ch, char *argument)
 	}
 }
 
-/* MOVED: channels.c */
 void do_tells(CHAR_DATA *ch, char *argument)
 {
 	if (IS_SET(ch->comm, COMM_NOTELLS))
@@ -834,7 +815,6 @@ void do_tells(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: channels.c */
 void do_tell(CHAR_DATA *ch, char *argument)
 {
 	char arg[MAX_INPUT_LENGTH];
@@ -994,7 +974,6 @@ void do_tell(CHAR_DATA *ch, char *argument)
 
 
 
-/* MOVED: channels.c */
 void do_reply(CHAR_DATA *ch, char *argument)
 {
 	CHAR_DATA *victim;
@@ -1014,7 +993,6 @@ void do_reply(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: channels.c */
 void do_yell(CHAR_DATA *ch, char *argument)
 {
 	char buf[MSL], msg[2*MSL];
@@ -1088,7 +1066,6 @@ void do_yell(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: speech.c */
 void do_emote(CHAR_DATA *ch, char *argument)
 {
 	if (IS_SWITCHED(ch))
@@ -1110,7 +1087,6 @@ void do_emote(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: player.c */
 void do_quit(CHAR_DATA *ch, char *argument)
 {
 	DESCRIPTOR_DATA *d,*d_next;
@@ -1328,7 +1304,6 @@ void do_quit(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: player.c */
 void do_save(CHAR_DATA *ch, char *argument)
 {
 	if (IS_SWITCHED(ch))
@@ -1348,7 +1323,6 @@ void do_save(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: groups.c */
 void do_follow(CHAR_DATA *ch, char *argument)
 {
 	char arg[MAX_INPUT_LENGTH];
@@ -1419,7 +1393,6 @@ void do_follow(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: groups.c */
 void add_follower(CHAR_DATA *ch, CHAR_DATA *master, bool show)
 {
 	if (!IS_VALID(ch))
@@ -1444,7 +1417,6 @@ void add_follower(CHAR_DATA *ch, CHAR_DATA *master, bool show)
 	if(show) act("You now follow $N.",  ch, master, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 }
 
-/* MOVED: groups.c */
 void stop_follower(CHAR_DATA *ch, bool show)
 	{
 	if (!IS_VALID(ch))
@@ -1480,8 +1452,7 @@ void stop_follower(CHAR_DATA *ch, bool show)
 }
 
 
-/* MOVED: groups.c
- Nukes charmed monsters and pets */
+/*  Nukes charmed monsters and pets */
 void nuke_pets(CHAR_DATA *ch)
 {
 	CHAR_DATA *pet;
@@ -1512,7 +1483,6 @@ void nuke_pets(CHAR_DATA *ch)
 }
 
 
-/* MOVED: groups.c */
 void die_follower(CHAR_DATA *ch)
 {
 	CHAR_DATA *fch;
@@ -1539,7 +1509,6 @@ void die_follower(CHAR_DATA *ch)
 }
 
 
-/* MOVED: groups.c */
 void do_order(CHAR_DATA *ch, char *argument)
 {
 	char buf[MAX_STRING_LENGTH];
@@ -1630,7 +1599,6 @@ void do_order(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: groups.c */
 void do_ungroup(CHAR_DATA *ch, char *argument)
 {
 	send_to_char("Ungrouping.\n\r", ch);
@@ -1638,7 +1606,6 @@ void do_ungroup(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: groups.c */
 void do_group(CHAR_DATA *ch, char *argument)
 {
 	char buf[MAX_STRING_LENGTH];
@@ -1663,6 +1630,7 @@ void do_group(CHAR_DATA *ch, char *argument)
 			if (is_same_group(gch, ch) || gch == ch) {
 				char name[MSL];
 
+				// TODO: show relative location
 				sprintf(name, "%s", pers(gch, ch)) ;
 				name[0] = UPPER(name[0]);
 				sprintf(buf,
@@ -1728,7 +1696,6 @@ void do_group(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: groups.c */
 void do_split(CHAR_DATA *ch, char *argument)
 {
 	char buf[MAX_STRING_LENGTH];
@@ -1846,8 +1813,7 @@ void do_split(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: groups.c
-   Group chat */
+/*    Group chat */
 void do_gtell(CHAR_DATA *ch, char *argument)
 {
 	CHAR_DATA *gch;
@@ -1886,7 +1852,6 @@ void do_gtell(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: groups.c */
 bool is_same_group(CHAR_DATA *ach, CHAR_DATA *bch)
 {
 	if (ach == NULL || bch == NULL)
@@ -1909,7 +1874,6 @@ bool is_same_group(CHAR_DATA *ach, CHAR_DATA *bch)
 }
 
 
-/* MOVED: player.c */
 void do_colour(CHAR_DATA *ch, char *argument)
 {
 	char arg[ MAX_STRING_LENGTH ];
@@ -1938,7 +1902,6 @@ void do_colour(CHAR_DATA *ch, char *argument)
 	}
 }
 
-/* MOVED: groups.c */
 bool add_grouped(CHAR_DATA *ch, CHAR_DATA *master, bool show)
 {
 	if (master->num_grouped >= 9)
@@ -1966,7 +1929,6 @@ bool add_grouped(CHAR_DATA *ch, CHAR_DATA *master, bool show)
 }
 
 
-/* MOVED: groups.c */
 void stop_grouped(CHAR_DATA *ch)
 {
 	CHAR_DATA *leader;
@@ -1995,8 +1957,7 @@ void stop_grouped(CHAR_DATA *ch)
 
 
 
-/* MOVED: channels.c
-   Town crier announcement.*/
+/*    Town crier announcement.*/
 void crier_announce(char *argument)
 {
 	char buf[MAX_STRING_LENGTH];
@@ -2017,8 +1978,7 @@ void crier_announce(char *argument)
 }
 
 
-/* MOVED: channels.c
- Toggle crier announcements */
+/*  Toggle crier announcements */
 void do_announcements(CHAR_DATA *ch, char *argument)
 {
 	if (IS_SET(ch->comm,COMM_NOANNOUNCE))
@@ -2034,8 +1994,7 @@ void do_announcements(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: channels.c
- Award double exp in name of a victim. */
+/*  Award double exp in name of a victim. */
 void double_xp(CHAR_DATA *victim)
 {
 	struct tm *exp_time;
@@ -2054,7 +2013,6 @@ void double_xp(CHAR_DATA *victim)
 }
 
 
-/* MOVED: channels.c */
 void do_ignore(CHAR_DATA *ch, char *argument)
 {
 	char arg[MAX_STRING_LENGTH];
@@ -2178,7 +2136,6 @@ void do_ignore(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: channels.c */
 void do_notify(CHAR_DATA *ch, char *argument)
 {
 	if (IS_NPC(ch))
@@ -2197,8 +2154,7 @@ void do_notify(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: groups.c
- Toggle showing formation's HP percentage in combat.*/
+/*  Toggle showing formation's HP percentage in combat.*/
 void do_formstate(CHAR_DATA *ch, char *argument)
 {
 	if (IS_SET(ch->comm, COMM_SHOW_FORM_STATE))
@@ -2216,8 +2172,7 @@ void do_formstate(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED:
- Echos to all rooms in an area with the given sector.*/
+/*  Echos to all rooms in an area with the given sector.*/
 void sector_echo(AREA_DATA *area, char *message, int sector)
 {
 	DESCRIPTOR_DATA *d;
@@ -2266,8 +2221,7 @@ void area_echo(AREA_DATA *area, char *message)
 }
 
 
-/* MOVED: player.c
- Toggle or hide "<empty>" equipment slots.*/
+/*  Toggle or hide "<empty>" equipment slots.*/
 void do_autoeq(CHAR_DATA *ch, char *argument)
 {
 	if (IS_SET(ch->act, PLR_AUTOEQ))
@@ -2285,8 +2239,7 @@ void do_autoeq(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: channels.c
- Quiet list -- allows certain people to tell you while you have quiet on.*/
+/*  Quiet list -- allows certain people to tell you while you have quiet on.*/
 void do_qlist(CHAR_DATA *ch, char *argument)
 {
 	char arg[MSL];
@@ -2419,7 +2372,6 @@ void do_qlist(CHAR_DATA *ch, char *argument)
 	}
 }
 
-/* MOVED: speech.c */
 void do_whisper(CHAR_DATA *ch, char *argument)
 {
 	char arg[MAX_INPUT_LENGTH];
@@ -2463,8 +2415,7 @@ void do_whisper(CHAR_DATA *ch, char *argument)
 	p_act_trigger(argument, victim, NULL, NULL, ch, NULL, NULL, NULL, NULL,TRIG_WHISPER);
 }
 
-/* MOVED: bulletin.c
- Catchup on notes, news and changes*/
+/*  Catchup on notes, news and changes*/
 void do_catchup(CHAR_DATA *ch, char *argument)
 {
 	do_function(ch, &do_note, "catchup");
@@ -2474,8 +2425,7 @@ void do_catchup(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: fight.c
- Set sense-danger range (sith) */
+/*  Set sense-danger range (sith) */
 void do_danger(CHAR_DATA *ch, char *argument)
 {
 	int range;
@@ -2511,7 +2461,6 @@ void do_danger(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: player.c */
 void do_toggle(CHAR_DATA *ch, char *argument)
 {
 	char arg[MSL];
@@ -2649,7 +2598,6 @@ void do_toggle(CHAR_DATA *ch, char *argument)
 	}
 }
 
-/* MOVED: channels.c */
 void do_quote(CHAR_DATA *ch, char *argument)
 {
 	char buf[MAX_STRING_LENGTH], msg[2*MSL];
@@ -2734,7 +2682,6 @@ void do_quote(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: player.c */
 /* Allows people to view and change their set e-mail. */
 void do_email(CHAR_DATA *ch, char *argument)
 {
@@ -2765,7 +2712,6 @@ void do_email(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: player.c */
 void do_flag(CHAR_DATA *ch, char *argument)
 {
 	char arg[MSL];
@@ -2830,8 +2776,7 @@ void do_flag(CHAR_DATA *ch, char *argument)
 	send_to_char(buf, ch);
 }
 
-/* MOVED: speech.c
-   NIB : 20070121 : Targeted speech to mobiles*/
+/*    NIB : 20070121 : Targeted speech to mobiles*/
 void do_sayto(CHAR_DATA *ch, char *argument)
 {
 	char arg[MIL];
@@ -2992,8 +2937,7 @@ void do_sayto(CHAR_DATA *ch, char *argument)
 
 }
 
-/* MOVED: speech.c
- NIB : 20070121 : Targeted speech to objects*/
+/*  NIB : 20070121 : Targeted speech to objects*/
 void do_intone(CHAR_DATA *ch, char *argument)
 {
 	char arg[MIL];

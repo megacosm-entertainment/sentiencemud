@@ -1612,11 +1612,10 @@ void char_update(void)
 			if (pre_reckoning == 0 && reckoning_timer > 0)
 			{
 				int num = number_range(0,5);
-				int sn = skill_lookup("lightning bolt");
+				int sn = gsn_lightning_bolt;
 				//int attack_rand = number_percent();
 				int lbdam;
 				int lbchance = 5;
-
 
 				lbdam = number_range(500,30000) * reckoning_intensity / 100;
 				if ( reckoning_intensity > 100 )

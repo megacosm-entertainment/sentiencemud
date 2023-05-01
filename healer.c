@@ -70,13 +70,14 @@ void do_heal(CHAR_DATA *ch, char *argument)
 	send_to_char("  light: cure light wounds      10 silver\n\r",ch);
 	send_to_char("  serious: cure serious wounds  15 silver\n\r",ch);
 	send_to_char("  critic: cure critical wounds  25 silver\n\r",ch);
-	send_to_char("  heal: healing spell	      50 silver\n\r",ch);
+	send_to_char("  heal: healing spell           50 silver\n\r",ch);
 	send_to_char("  blind: cure blindness         20 silver\n\r",ch);
 	send_to_char("  disease: cure disease         15 silver\n\r",ch);
-	send_to_char("  poison:  cure poison	      25 silver\n\r",ch);
-	send_to_char("  uncurse: remove curse	      50 silver\n\r",ch);
+	send_to_char("  poison: cure poison           25 silver\n\r",ch);
+	send_to_char("  toxic: cure toxic fumes       25 silver\n\r",ch);
+	send_to_char("  uncurse: remove curse         50 silver\n\r",ch);
 	send_to_char("  refresh: restore movement      5 silver\n\r",ch);
-	send_to_char("  mana:  restore mana	      10 silver\n\r",ch);
+	send_to_char("  mana: restore mana            10 silver\n\r",ch);
 	send_to_char(" Type heal <type> to be healed.\n\r",ch);
 	return;
     }
@@ -84,7 +85,7 @@ void do_heal(CHAR_DATA *ch, char *argument)
     if (!str_prefix(arg,"light"))
     {
         spell = spell_cure_light;
-	sn    = skill_lookup("cure light");
+	sn    = gsn_cure_light;
 	words = "judicandus dies";
 	cost  = 10;
     }
@@ -92,7 +93,7 @@ void do_heal(CHAR_DATA *ch, char *argument)
     else if (!str_prefix(arg,"serious"))
     {
 	spell = spell_cure_serious;
-	sn    = skill_lookup("cure serious");
+	sn    = gsn_cure_serious;
 	words = "judicandus gzfuajg";
 	cost  = 15;
     }
@@ -100,7 +101,7 @@ void do_heal(CHAR_DATA *ch, char *argument)
     else if (!str_prefix(arg,"critical"))
     {
 	spell = spell_cure_critical;
-	sn    = skill_lookup("cure critical");
+	sn    = gsn_cure_critical;
 	words = "judicandus qfuhuqar";
 	cost  = 25;
     }
@@ -108,7 +109,7 @@ void do_heal(CHAR_DATA *ch, char *argument)
     else if (!str_prefix(arg,"heal"))
     {
 	spell = spell_heal;
-	sn = skill_lookup("heal");
+	sn = gsn_heal;
 	words = "pzar";
 	cost  = 50;
     }
@@ -116,7 +117,7 @@ void do_heal(CHAR_DATA *ch, char *argument)
     else if (!str_prefix(arg,"blindness"))
     {
 	spell = spell_cure_blindness;
-	sn    = skill_lookup("cure blindness");
+	sn    = gsn_cure_blindness;
       	words = "judicandus noselacri";
         cost  = 20;
     }
@@ -124,7 +125,7 @@ void do_heal(CHAR_DATA *ch, char *argument)
     else if (!str_prefix(arg,"disease"))
     {
 	spell = spell_cure_disease;
-	sn    = skill_lookup("cure disease");
+	sn    = gsn_cure_disease;
 	words = "judicandus eugzagz";
 	cost = 15;
     }
@@ -132,15 +133,23 @@ void do_heal(CHAR_DATA *ch, char *argument)
     else if (!str_prefix(arg,"poison"))
     {
 	spell = spell_cure_poison;
-	sn    = skill_lookup("cure poison");
+	sn    = gsn_cure_poison;
 	words = "judicandus sausabru";
+	cost  = 25;
+    }
+
+    else if (!str_prefix(arg,"toxic"))
+    {
+	spell = spell_cure_toxic;
+	sn    = gsn_cure_toxic;
+	words = "judicandus sithlus";
 	cost  = 25;
     }
 
     else if (!str_prefix(arg,"uncurse") || !str_prefix(arg,"curse"))
     {
 	spell = spell_remove_curse;
-	sn    = skill_lookup("remove curse");
+	sn    = gsn_remove_curse;
 	words = "candussido judifgz";
 	cost  = 50;
     }
@@ -157,7 +166,7 @@ void do_heal(CHAR_DATA *ch, char *argument)
     else if (!str_prefix(arg,"refresh") || !str_prefix(arg,"moves"))
     {
 	spell =  spell_refresh;
-	sn    = skill_lookup("refresh");
+	sn    = gsn_refresh;
 	words = "candusima";
 	cost  = 5;
     }
@@ -180,6 +189,7 @@ void do_heal(CHAR_DATA *ch, char *argument)
     mob->silver += cost;
     act("$n utters the words '$T'.",mob, NULL, NULL, NULL, NULL,NULL,words,TO_ROOM);
 
+    // TODO: make this a spell?  Perhaps "enervate"?  It "transfers" some of your mana to the target
     if (spell == NULL)  /* restore mana trap...kinda hackish */
     {
 	ch->mana += dice(2,8) + mob->level / 3;

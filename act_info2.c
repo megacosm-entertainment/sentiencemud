@@ -23,7 +23,6 @@
 extern long int   __BUILD_DATE;
 extern long int   __BUILD_NUMBER;
 
-/* MOVED: combat/assess.c */
 void do_showdamage(CHAR_DATA *ch, char *argument)
 {
 #ifndef DEBUG_ALLOW_SHOW_DAMAGE
@@ -42,7 +41,6 @@ void do_showdamage(CHAR_DATA *ch, char *argument)
     }
 }
 
-/* MOVED: ship.c */
 void do_autosurvey(CHAR_DATA *ch, char *argument)
 {
     if (IS_NPC(ch))

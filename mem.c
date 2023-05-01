@@ -1033,6 +1033,41 @@ void get_ship_id(SHIP_DATA *ship)
 	}
 }
 
+void get_instance_id(INSTANCE *inst)
+{
+	if(!inst->uid[0] && !inst->uid[1]) {
+		inst->uid[0] = gconfig.next_instance_uid[0];
+		inst->uid[1] = gconfig.next_instance_uid[1];
+		if(!++gconfig.next_instance_uid[0])
+			++gconfig.next_instance_uid[1];
+
+		if(gconfig.next_instance_uid[0] == gconfig.next_instance_uid[2] &&
+			gconfig.next_instance_uid[1] == gconfig.next_instance_uid[3]) {
+			gconfig.next_instance_uid[2] += UID_INC;
+			if(!gconfig.next_instance_uid[2])
+				++gconfig.next_instance_uid[3];
+			gconfig_write();
+		}
+	}
+}
+
+void get_dungeon_id(DUNGEON *dng)
+{
+	if(!dng->uid[0] && !dng->uid[1]) {
+		dng->uid[0] = gconfig.next_dungeon_uid[0];
+		dng->uid[1] = gconfig.next_dungeon_uid[1];
+		if(!++gconfig.next_dungeon_uid[0])
+			++gconfig.next_dungeon_uid[1];
+
+		if(gconfig.next_dungeon_uid[0] == gconfig.next_dungeon_uid[2] &&
+			gconfig.next_dungeon_uid[1] == gconfig.next_dungeon_uid[3]) {
+			gconfig.next_dungeon_uid[2] += UID_INC;
+			if(!gconfig.next_dungeon_uid[2])
+				++gconfig.next_dungeon_uid[3];
+			gconfig_write();
+		}
+	}
+}
 
 /* buffer sizes */
 const int buf_size[MAX_BUF_LIST] =
@@ -1484,7 +1519,7 @@ AREA_DATA *new_area( void )
     pArea->nplayer          =   0;
     //pArea->flags	    =   0;
     pArea->empty            =   TRUE;              /* ROM patch */
-    pArea->anum             =   top_area-1;
+    pArea->anum             =   top_area;
     sprintf( buf, "area%ld.are", pArea->anum );
     pArea->file_name        =   str_dup( buf );
     pArea->uid              =   0;  /* Vizz - uid 0 is invalid */

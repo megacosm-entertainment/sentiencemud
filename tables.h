@@ -278,5 +278,6 @@ extern	const struct flag_type transfer_modes[];
 extern	const struct flag_type ship_class_types[];
 extern	const struct flag_type ship_flags[];
 extern	const struct flag_type portal_gatetype[];
+extern	const struct flag_type wilderness_regions[];
 
 #endif

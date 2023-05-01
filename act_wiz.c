@@ -107,7 +107,12 @@ int gconfig_read (void)
     gconfig.next_token_uid[0] = 1;	gconfig.next_token_uid[1] = 0;
     gconfig.next_vroom_uid[0] = 1;	gconfig.next_vroom_uid[1] = 0;
     gconfig.next_ship_uid[0] = 1;	gconfig.next_ship_uid[1] = 0;
+    gconfig.next_instance_uid[0] = 1;	gconfig.next_instance_uid[1] = 0;
+    gconfig.next_dungeon_uid[0] = 1;	gconfig.next_dungeon_uid[1] = 0;
 
+
+	gconfig.next_area_uid = 1;
+	gconfig.next_wilds_uid = 1;
     gconfig.next_church_uid = 1;
 	gconfig.next_church_vnum_start = 1;
 
@@ -163,6 +168,14 @@ int gconfig_read (void)
 					gconfig.next_ship_uid[2] = gconfig.next_ship_uid[0] + UID_INC - (gconfig.next_ship_uid[0] & UID_MASK);
 					if(!gconfig.next_ship_uid[2]) gconfig.next_ship_uid[3]++;
 
+					gconfig.next_instance_uid[3] = gconfig.next_instance_uid[1];
+					gconfig.next_instance_uid[2] = gconfig.next_instance_uid[0] + UID_INC - (gconfig.next_instance_uid[0] & UID_MASK);
+					if(!gconfig.next_instance_uid[2]) gconfig.next_instance_uid[3]++;
+
+					gconfig.next_dungeon_uid[3] = gconfig.next_dungeon_uid[1];
+					gconfig.next_dungeon_uid[2] = gconfig.next_dungeon_uid[0] + UID_INC - (gconfig.next_dungeon_uid[0] & UID_MASK);
+					if(!gconfig.next_dungeon_uid[2]) gconfig.next_dungeon_uid[3]++;
+
 
 					if(!gconfig.next_church_uid) gconfig.next_church_uid++;
 					fclose(fp);
@@ -212,6 +225,18 @@ int gconfig_read (void)
             	if(!str_cmp(word,"NextShipUID")) {
 					gconfig.next_ship_uid[0] = fread_number(fp);
 					gconfig.next_ship_uid[1] = fread_number(fp);
+					fMatch = TRUE;
+					break;
+				}
+            	if(!str_cmp(word,"NextInstanceUID")) {
+					gconfig.next_instance_uid[0] = fread_number(fp);
+					gconfig.next_instance_uid[1] = fread_number(fp);
+					fMatch = TRUE;
+					break;
+				}
+            	if(!str_cmp(word,"NextDungeonUID")) {
+					gconfig.next_dungeon_uid[0] = fread_number(fp);
+					gconfig.next_dungeon_uid[1] = fread_number(fp);
 					fMatch = TRUE;
 					break;
 				}
@@ -316,6 +341,20 @@ void write_reserved_areas(FILE *fp)
 	}
 }
 
+void gconfig_write_nextuid(FILE *fp, unsigned long uids[4], const char *name)
+{
+	// Is this still the first next uid or it is still at the chunk alignment, use this one
+	if ((uids[0] == 1 && !uids[1]) || !(uids[0] & UID_MASK))
+	{
+		// If the uid hasn't budged, save the current one.
+		fprintf(fp, "%s %lu %lu\n", name, uids[0], uids[1]);
+	}
+	else
+	{
+		fprintf(fp, "%s %lu %lu\n", name, uids[2], uids[3]);
+	}
+}
+
 int gconfig_write(void)
 {
     FILE *fp;
@@ -328,11 +367,13 @@ int gconfig_write(void)
     }
 
 	fprintf(fp, "DBversion %ld\n", (long)VERSION_DB);
-    fprintf(fp, "NextMobUID %ld %ld\n", gconfig.next_mob_uid[2], gconfig.next_mob_uid[3]);
-    fprintf(fp, "NextObjUID %ld %ld\n", gconfig.next_obj_uid[2], gconfig.next_obj_uid[3]);
-    fprintf(fp, "NextTokenUID %ld %ld\n", gconfig.next_token_uid[2], gconfig.next_token_uid[3]);
-    fprintf(fp, "NextVRoomUID %ld %ld\n", gconfig.next_vroom_uid[2], gconfig.next_vroom_uid[3]);
-    fprintf(fp, "NextShipUID %ld %ld\n", gconfig.next_ship_uid[2], gconfig.next_ship_uid[3]);
+	gconfig_write_nextuid(fp, gconfig.next_mob_uid, "NextMobUID");
+	gconfig_write_nextuid(fp, gconfig.next_obj_uid, "NextObjUID");
+	gconfig_write_nextuid(fp, gconfig.next_token_uid, "NextTokenUID");
+	gconfig_write_nextuid(fp, gconfig.next_vroom_uid, "NextVRoomUID");
+	gconfig_write_nextuid(fp, gconfig.next_instance_uid, "NextInstanceUID");
+	gconfig_write_nextuid(fp, gconfig.next_ship_uid, "NextShipUID");
+	gconfig_write_nextuid(fp, gconfig.next_dungeon_uid, "NextDungeonUID");
     fprintf(fp, "NextAreaUID %ld\n", gconfig.next_area_uid);
     fprintf(fp, "NextWildsUID %ld\n", gconfig.next_wilds_uid);
     fprintf(fp, "NextVlinkUID %ld\n", gconfig.next_vlink_uid);
@@ -1775,7 +1816,7 @@ void do_wstat (CHAR_DATA * ch, char *argument)
     add_buf(output, buf);
 
     sprintf(buf, "Defined in area {W%ld{x, '{W%s{x'\n\r",
-                  pArea->anum, pArea->name);
+                  pArea->uid, pArea->name);
     add_buf(output, buf);
 
     sprintf(buf, "Dimensions: {W%d{x x {W%d{x ({W%ld{x vrooms)\n\r",
@@ -2274,7 +2315,7 @@ void do_tstat(CHAR_DATA *ch, char *argument)
 
 	count = number_argument(arg2, arg3);
     if (arg3[0] != '\0') {
-		if (!parse_widevnum(arg3, &wnum))
+		if (!parse_widevnum(arg3, NULL, &wnum))
 		{
 			send_to_char("Syntax:  stat token <character> [token widevnum]\n\r", ch);
 			return;
@@ -3203,8 +3244,8 @@ void do_load(CHAR_DATA *ch, char *argument)
     if (arg[0] == '\0')
     {
 	send_to_char("Syntax:\n\r",ch);
-	send_to_char("  load mob <vnum>\n\r",ch);
-	send_to_char("  load obj <vnum> <amt>\n\r",ch);
+	send_to_char("  load mob <wnum>\n\r",ch);
+	send_to_char("  load obj <wnum> <amt>\n\r",ch);
 	/*send_to_char("  load ship <vnum> <room vnum>\n\r",ch);*/
 	return;
     }
@@ -3242,7 +3283,7 @@ void do_mload(CHAR_DATA *ch, char *argument)
 
     one_argument(argument, arg);
 
-    if (arg[0] == '\0' || !parse_widevnum(arg, &wnum))
+    if (arg[0] == '\0' || !parse_widevnum(arg, ch->in_room->area, &wnum))
     {
 		send_to_char("Syntax: load mob <widevnum>.\n\r", ch);
 		return;
@@ -3295,7 +3336,7 @@ void do_oload(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, arg1);
     one_argument(argument, arg2);
 
-    if (arg1[0] == '\0' || !parse_widevnum(arg2, &wnum))
+    if (arg1[0] == '\0' || !parse_widevnum(arg1, ch->in_room->area, &wnum))
     {
 		send_to_char("Syntax: load obj <widevnum> <amt>.\n\r", ch);
 		return;
@@ -3305,7 +3346,7 @@ void do_oload(CHAR_DATA *ch, char *argument)
     {
 		if (!is_number(arg2))
 		{
-			send_to_char("Syntax: oload <vnum> <amt>.\n\r", ch);
+			send_to_char("Syntax: oload <wnum> <amt>.\n\r", ch);
 			return;
 		}
 
@@ -3987,46 +4028,6 @@ void do_testport(CHAR_DATA *ch, char *argument)
     gconfig_write();
 }
 
-/*
-void do_slookup(CHAR_DATA *ch, char *argument)
-{
-    char buf[MAX_STRING_LENGTH];
-    char arg[MAX_INPUT_LENGTH];
-    int sn;
-
-    one_argument(argument, arg);
-    if (arg[0] == '\0')
-    {
-	send_to_char("Lookup which skill or spell?\n\r", ch);
-	return;
-    }
-
-    if (!str_cmp(arg, "all"))
-    {
-	for (sn = 0; sn < MAX_SKILL; sn++)
-	{
-	    if (skill_table[sn].name == NULL)
-		break;
-	    sprintf(buf, "Sn: %3d  Slot: %3d  Skill/spell: '%s'\n\r",
-		sn, skill_table[sn].slot, skill_table[sn].name);
-	    send_to_char(buf, ch);
-	}
-    }
-    else
-    {
-	if ((sn = skill_lookup(arg)) < 0)
-	{
-	    send_to_char("No such skill or spell.\n\r", ch);
-	    return;
-	}
-
-	sprintf(buf, "Sn: %3d  Slot: %3d  Skill/spell: '%s'\n\r",
-	    sn, skill_table[sn].slot, skill_table[sn].name);
-	send_to_char(buf, ch);
-    }
-}
-*/
-
 void do_set(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -4155,7 +4156,7 @@ void do_tkset(CHAR_DATA *ch, char *argument)
 
 	count = number_argument(arg2,arg2b);
 	WNUM wnum;
-	if (!parse_widevnum(arg2b, &wnum))
+	if (!parse_widevnum(arg2b, ch->in_room->area, &wnum))
 	{
 		send_to_char("Syntax:\n\r  set token <char name> <token widevnum> <v#|timer> <op> <value>\n\r", ch);
 		return;
@@ -6658,7 +6659,7 @@ void do_junk(CHAR_DATA *ch, char *argument)
 	    fAll = TRUE;
 
 	WNUM wnum = wnum_zero;
-    if (parse_widevnum(arg2, &wnum) && get_obj_index(wnum.pArea, wnum.vnum) == NULL)
+    if (parse_widevnum(arg2, ch->in_room->area, &wnum) && get_obj_index(wnum.pArea, wnum.vnum) == NULL)
     {
 	    send_to_char("No such object even exists.\n\r", ch);
 	    return;
@@ -7409,7 +7410,7 @@ void do_token(CHAR_DATA *ch, char *argument)
 
 		count = number_argument(arg4, arg4b);
 		WNUM wnum;
-		if (!parse_widevnum(arg4b, &wnum))
+		if (!parse_widevnum(arg4b, ch->in_room->area, &wnum))
 		{
 			send_to_char("That token doesn't exist.\n\r", ch);
 			return;
@@ -7499,7 +7500,7 @@ void do_token(CHAR_DATA *ch, char *argument)
 
 		count = number_argument(arg4, arg4b);
 		WNUM wnum;
-		if (!parse_widevnum(arg4b, &wnum))
+		if (!parse_widevnum(arg4b, ch->in_room->area, &wnum))
 		{
 			send_to_char("That token doesn't exist.\n\r", ch);
 			return;
@@ -7543,7 +7544,7 @@ void do_token(CHAR_DATA *ch, char *argument)
 	} else if(!str_cmp(arg2, "room") ) {
 		count = number_argument(arg3, arg4b);
 		WNUM wnum;
-		if (!parse_widevnum(arg4b, &wnum))
+		if (!parse_widevnum(arg4b, ch->in_room->area, &wnum))
 		{
 			send_to_char("That token doesn't exist.\n\r", ch);
 			return;
@@ -7772,7 +7773,7 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 			}
 
 			WNUM wnum;
-			if (!parse_widevnum(argument, &wnum))
+			if (!parse_widevnum(argument, ch->in_room->area, &wnum))
 			{
 				send_to_char("Syntax:  reserved room set <name> {R<widevnum>{x\n\r", ch);
 				send_to_char("         Please specify a widevnum (Format: [Area Name|UID]#VNUM).\n\r", ch);
@@ -7881,7 +7882,7 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 			}
 
 			WNUM wnum;
-			if (!parse_widevnum(argument, &wnum))
+			if (!parse_widevnum(argument, ch->in_room->area, &wnum))
 			{
 				send_to_char("Syntax:  reserved rprog set <name> {R<widevnum>{x\n\r", ch);
 				send_to_char("         Please specify a widevnum (Format: [Area Name|UID]#VNUM).\n\r", ch);
@@ -7990,7 +7991,7 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 			}
 
 			WNUM wnum;
-			if (!parse_widevnum(argument, &wnum))
+			if (!parse_widevnum(argument, ch->in_room->area, &wnum))
 			{
 				send_to_char("Syntax:  reserved mob set <name> {R<widevnum>{x\n\r", ch);
 				send_to_char("         Please specify a widevnum (Format: [Area Name|UID]#VNUM).\n\r", ch);
@@ -8099,7 +8100,7 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 			}
 
 			WNUM wnum;
-			if (!parse_widevnum(argument, &wnum))
+			if (!parse_widevnum(argument, ch->in_room->area, &wnum))
 			{
 				send_to_char("Syntax:  reserved obj set <name> {R<widevnum>{x\n\r", ch);
 				send_to_char("         Please specify a widevnum (Format: [Area Name|UID]#VNUM).\n\r", ch);

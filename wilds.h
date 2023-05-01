@@ -48,6 +48,13 @@ WILDS_TERRAIN   *get_terrain_by_token args (( WILDS_DATA *pWilds, char token ));
 bool            add_terrain args (( WILDS_DATA *pWilds, WILDS_TERRAIN *pTerrain ));
 bool            del_terrain args (( WILDS_DATA *pWilds, WILDS_TERRAIN *pTerrain ));
 
+WILDS_REGION   *new_region args (( WILDS_DATA *pWilds ));
+WILDS_REGION   *fread_region args (( FILE *fp, WILDS_DATA *pWilds ));
+void            fwrite_region args ((FILE *fp, WILDS_REGION *pRegion));
+WILDS_REGION   *get_region_by_coors args (( WILDS_DATA *pWilds, int x, int y ));
+bool            add_region args (( WILDS_DATA *pWilds, WILDS_REGION *pRegion ));
+bool            del_region args (( WILDS_DATA *pWilds, WILDS_REGION *pRegion ));
+
 WILDS_VLINK     *new_vlink args(( void ));
 WILDS_VLINK     *fread_vlink args(( FILE *fp ));
 WILDS_VLINK	*get_vlink_from_uid args ((WILDS_DATA *pWilds, long uid));
@@ -127,11 +134,14 @@ struct wilds_data
     int             map_size_y;
     int             startx;
     int             starty;
+    int             defaultRegion;
+    long            defaultPlaceFlags;
     int             sector_size_x;   /* Dynamic wilds sector management */
     int             sector_size_y;   /* These variables dictate the dimensions of a sector */
     char            cDefaultTerrain;
     WILDS_TERRAIN   *pTerrain;
     WILDS_VLINK     *pVLink;
+    WILDS_REGION    *pRegion;
     int             loaded_rooms;    /* Dynamically loaded vroom count for wilds v2 */
     LLIST *loaded_vrooms;
     int             loaded_mobs;
@@ -144,7 +154,22 @@ struct wilds_data
     int             repop;          /* age to repop at */
 };
 
+struct wilds_region
+{
+    WILDS_DATA      *pWilds;
+    WILDS_REGION    *prev;
+    WILDS_REGION    *next;
+    bool            valid;
 
+    int             startx;
+    int             starty;
+
+    int             endx;
+    int             endy;
+
+    int             region;         // actual region
+    long            area_place_flags;       // Map to the AREA_DATA->place_flags type thing
+};
 
 struct wilds_vlink
 {

@@ -379,7 +379,7 @@ bool spec_breath_gas( CHAR_DATA *ch )
     if ( ch->position != POS_FIGHTING )
 	return FALSE;
 
-    if ( ( sn = skill_lookup( "gas breath" ) ) < 0 )
+    if ( ( sn = gsn_gas_breath ) < 0 )
 	return FALSE;
     (*skill_table[sn].spell_fun) ( sn, ch->tot_level, ch, NULL,TARGET_CHAR, WEAR_NONE);
     return TRUE;

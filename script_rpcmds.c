@@ -164,7 +164,7 @@ void do_rpdump(CHAR_DATA *ch, char *argument)
 	WNUM wnum;
 
 	one_argument(argument, buf);
-	if (!parse_widevnum(buf, &wnum))
+	if (!parse_widevnum(buf, ch->in_room->area, &wnum))
 	{
 		send_to_char("Syntax:  rpdump <widevnum>\n\r", ch);
 		return;
@@ -198,7 +198,7 @@ void do_rpstat(CHAR_DATA *ch, char *argument)
 
 	one_argument(argument, arg);
 
-	if (!arg[0] || !parse_widevnum(arg, &wnum)) {
+	if (!arg[0] || !parse_widevnum(arg, ch->in_room->area, &wnum)) {
 		send_to_char("Rpstat where?\n\r", ch);
 		return;
 	}
@@ -1802,7 +1802,7 @@ SCRIPT_CMD(do_rplink)
 	id1 = id2 = 0;
 	switch(arg->type) {
 	case ENT_STRING:
-		if(parse_widevnum(arg->d.str, &wnum))
+		if(parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
 			;
 		else if(!str_cmp(arg->d.str,"delete") ||
 			!str_cmp(arg->d.str,"remove") ||
@@ -1905,7 +1905,7 @@ SCRIPT_CMD(do_rpmload)
 
 	switch(arg->type) {
 	case ENT_WIDEVNUM: wnum = arg->d.wnum; break;
-	case ENT_STRING: parse_widevnum(arg->d.str, &wnum); break;
+	case ENT_STRING: parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum); break;
 	case ENT_MOBILE:
 		if (arg->d.mob)
 		{
@@ -1948,7 +1948,7 @@ SCRIPT_CMD(do_rpoload)
 
 	switch(arg->type) {
 	case ENT_WIDEVNUM: wnum = arg->d.wnum; break;
-	case ENT_STRING: parse_widevnum(arg->d.str, &wnum); break;
+	case ENT_STRING: parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum); break;
 	case ENT_OBJECT:
 		if (arg->d.obj)
 		{

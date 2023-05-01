@@ -3935,7 +3935,7 @@ WNUM_LOAD fread_widevnum(FILE *fp)
 
 	if (!isdigit(c) && c != '#')
 	{
-		bug("Fread_widevnum: bad format (%c).", c);
+		bug("Fread_widevnum: bad format (%c) (expecting a digit or #).", c);
 		exit(1);
 	}
 
@@ -3947,7 +3947,7 @@ WNUM_LOAD fread_widevnum(FILE *fp)
 
 	if (c != '#')
 	{
-		bug("Fread_widevnum: bad format (%c).", c);
+		bug("Fread_widevnum: bad format (%c) (Expecting #).", c);
 		exit(1);
 	}
 
@@ -3957,7 +3957,7 @@ WNUM_LOAD fread_widevnum(FILE *fp)
 
 	if (!isdigit(c))
 	{
-		bug("Fread_widevnum: bad format (%c).", c);
+		bug("Fread_widevnum: bad format (%c) (Expecting digit).", c);
 		exit(1);
 	}
 	number = 0;

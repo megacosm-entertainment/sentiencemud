@@ -357,6 +357,7 @@ typedef struct dice_data DICE_DATA;
 typedef struct    wilds_vlink      WILDS_VLINK;
 typedef struct    wilds_data       WILDS_DATA;
 typedef struct    wilds_terrain    WILDS_TERRAIN;
+typedef struct    wilds_region     WILDS_REGION;
 typedef struct wilds_coord {
 	WILDS_DATA *wilds;
 	int w;
@@ -1075,6 +1076,8 @@ struct global_data
     long    next_church_vnum_start;
 
     unsigned long next_ship_uid[4];
+    unsigned long next_instance_uid[4];
+    unsigned long next_dungeon_uid[4];
 
     long	db_version;
 };
@@ -5533,6 +5536,8 @@ struct instance_data {
 	BLUEPRINT *blueprint;		// Source blueprint
 	LLIST *sections;			// Sections created
 
+    unsigned long uid[2];
+
 	int floor;					// Floor identifier, used in traversing multi-level dungeons
 								// Defaults to 0 when not used
 
@@ -8946,7 +8951,7 @@ extern LLIST *loaded_special_keys;
 extern LLIST *loaded_waypoints;
 extern LLIST *loaded_waypoint_paths;
 
-bool parse_widevnum(char *text, WNUM *pWnum);
+bool parse_widevnum(char *text, AREA_DATA *default_area, WNUM *pWnum);
 WNUM_LOAD fread_widevnum(FILE *fp);
 WNUM_LOAD *fread_widevnumptr(FILE *fp);
 const char *widevnum_string(AREA_DATA *pArea, long vnum);

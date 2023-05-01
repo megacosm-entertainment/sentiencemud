@@ -2202,7 +2202,7 @@ void do_ships(CHAR_DATA *ch, char *argument)
 			argument = one_argument(argument, arg2);
 			argument = one_argument(argument, arg3);
 
-			if( !parse_widevnum(arg2, &wnum) )
+			if( !parse_widevnum(arg2, ch->in_room->area, &wnum) )
 			{
 				send_to_char("Please specify a widevnum.\n\r", ch);
 				return;
@@ -7250,7 +7250,7 @@ void do_shedit(CHAR_DATA *ch, char *argument)
 
 	argument = one_argument(argument,arg);
 
-	if (parse_widevnum(arg, &wnum))
+	if (parse_widevnum(arg, ch->in_room->area, &wnum))
 	{
 		if (!IS_BUILDER(ch, wnum.pArea))
 		{
@@ -7298,7 +7298,7 @@ void do_shshow(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (!parse_widevnum(argument, &wnum))
+	if (!parse_widevnum(argument, ch->in_room->area, &wnum))
 	{
 		send_to_char("Please specify a widevnum.\n\r", ch);
 		return;
@@ -7449,7 +7449,7 @@ SHEDIT( shedit_create )
 	int  iHash;
 	AREA_DATA *pArea = ch->in_room->area;
 
-	if (argument[0] == '\0' || !parse_widevnum(argument, &wnum) || !wnum.pArea || wnum.vnum < 1)
+	if (argument[0] == '\0' || !parse_widevnum(argument, ch->in_room->area, &wnum) || !wnum.pArea || wnum.vnum < 1)
 	{
 		long last_vnum = 0;
 		long value = pArea->top_ship_vnum + 1;
@@ -7579,7 +7579,7 @@ SHEDIT( shedit_blueprint )
 		return FALSE;
 	}
 
-	if( !parse_widevnum(argument, &wnum) )
+	if( !parse_widevnum(argument, ch->in_room->area, &wnum) )
 	{
 		send_to_char("That is not a number.\n\r", ch);
 		return FALSE;
@@ -8098,7 +8098,7 @@ SHEDIT( shedit_keys )
 		OBJ_INDEX_DATA *key;
 		WNUM wnum;
 
-		if( !parse_widevnum(argument, &wnum) )
+		if( !parse_widevnum(argument, ch->in_room->area, &wnum) )
 		{
 			send_to_char("Please specify a widevnum.\n\r", ch);
 			return FALSE;

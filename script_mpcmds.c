@@ -199,7 +199,7 @@ void do_mpdump(CHAR_DATA *ch, char *argument)
 	WNUM wnum;
 
 	one_argument(argument, buf);
-	if (!parse_widevnum(buf, &wnum))
+	if (!parse_widevnum(buf, ch->in_room->area, &wnum))
 	{
 		send_to_char("Syntax:  mpdump <widevnum>\n\r", ch);
 		return;
@@ -2966,7 +2966,7 @@ SCRIPT_CMD(do_mpoload)
 
 	switch(arg->type) {
 	case ENT_WIDEVNUM: wnum = arg->d.wnum; break;
-	case ENT_STRING: parse_widevnum(arg->d.str, &wnum); break;
+	case ENT_STRING: parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum); break;
 	case ENT_OBJECT: 
 		if (IS_VALID(arg->d.obj))
 		{

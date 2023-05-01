@@ -168,7 +168,7 @@ void do_opdump(CHAR_DATA *ch, char *argument)
 	WNUM wnum;
 
 	one_argument(argument, buf);
-	if (!parse_widevnum(buf, &wnum))
+	if (!parse_widevnum(buf, ch->in_room->area, &wnum))
 	{
 		send_to_char("Syntax:  opdump <widevnum>\n\r", ch);
 		return;
@@ -2030,7 +2030,7 @@ SCRIPT_CMD(do_oplink)
 	id1 = id2 = 0;
 	switch(arg->type) {
 	case ENT_STRING:
-		if(parse_widevnum(arg->d.str, &wnum))
+		if(parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
 			;
 		else if(!str_cmp(arg->d.str,"delete") ||
 			!str_cmp(arg->d.str,"remove") ||
@@ -2134,7 +2134,7 @@ SCRIPT_CMD(do_opmload)
 
 	switch(arg->type) {
 	case ENT_WIDEVNUM: wnum = arg->d.wnum; break;
-	case ENT_STRING: parse_widevnum(arg->d.str, &wnum); break;
+	case ENT_STRING: parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum); break;
 	case ENT_MOBILE:
 		if (arg->d.mob)
 		{
@@ -2180,7 +2180,7 @@ SCRIPT_CMD(do_opoload)
 
 	switch(arg->type) {
 	case ENT_WIDEVNUM: wnum = arg->d.wnum; break;
-	case ENT_STRING: parse_widevnum(arg->d.str, &wnum); break;
+	case ENT_STRING: parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum); break;
 	case ENT_OBJECT:
 		if (arg->d.obj)
 		{

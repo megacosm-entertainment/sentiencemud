@@ -57,7 +57,6 @@ void look_compass(CHAR_DATA *ch, OBJ_DATA *compass);
 void look_sextant(CHAR_DATA *ch, OBJ_DATA *sextant);
 void look_map(CHAR_DATA *ch, OBJ_DATA *map);
 
-/* MOVED: equip.c */
 char *const where_name[] = {
     "{Y<used as light>       {x",
     "{B<worn on finger>      {x",
@@ -113,7 +112,6 @@ char *const where_name[] = {
 
 };
 
-/* MOVED: equip.c */
 int wear_params[MAX_WEAR][7] = {
 /*	seen,		autoeq		remove		shifted		affects		uneq_death	always_remove */
 	{ TRUE,		TRUE,		TRUE,		FALSE,		TRUE,		TRUE,		TRUE },  // Light
@@ -171,7 +169,6 @@ int wear_params[MAX_WEAR][7] = {
 
 };
 
-/* MOVED: equip.c */
 int wear_concealed[] = {
 	WEAR_NONE,
 	WEAR_HANDS,
@@ -227,8 +224,7 @@ int wear_concealed[] = {
 
 };
 
-/* MOVED: equip.c
-   Determines the VIEWED order of the wear locations */
+/* Determines the VIEWED order of the wear locations */
 int wear_view_order[] = {
 	WEAR_LIGHT,
 	WEAR_FINGER_L,
@@ -315,7 +311,6 @@ void convert_map_char(char *buf, char ch);
 void show_equipment(CHAR_DATA *ch, CHAR_DATA *victim);
 
 
-/* MOVED: senses/vision.c */
 char *format_obj_to_char(OBJ_DATA * obj, CHAR_DATA * ch, bool fShort)
 {
     static char buf[MAX_STRING_LENGTH];
@@ -559,7 +554,6 @@ char *format_obj_to_char(OBJ_DATA * obj, CHAR_DATA * ch, bool fShort)
 }
 
 
-/* MOVED: senses/vision.c */
 /*
  * ROOM VERSION
  * Show a list to a character.
@@ -721,7 +715,6 @@ void show_list_to_char(OBJ_DATA *list, CHAR_DATA *ch, bool fShort,
 }
 
 
-/* MOVED: senses/vision.c */
 void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
 {
     char buf[MAX_STRING_LENGTH];
@@ -1056,7 +1049,6 @@ void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
 }
 
 
-/* MOVED: senses/vision.c */
 void show_char_to_char_1(CHAR_DATA * victim, CHAR_DATA * ch, bool examine)
 {
     char buf[2*MAX_STRING_LENGTH];
@@ -1179,7 +1171,6 @@ void show_char_to_char_1(CHAR_DATA * victim, CHAR_DATA * ch, bool examine)
     return;
 }
 
-/* MOVED: senses/vision.c */
 void show_char_to_char(CHAR_DATA *list, CHAR_DATA *ch, CHAR_DATA *victim)
 {
     CHAR_DATA *rch;
@@ -1267,7 +1258,6 @@ void show_char_to_char(CHAR_DATA *list, CHAR_DATA *ch, CHAR_DATA *victim)
 }
 
 
-/* MOVED: senses/vision.c */
 bool check_blind(CHAR_DATA * ch)
 {
     if (!IS_NPC(ch) && IS_SET(ch->act, PLR_HOLYLIGHT))
@@ -1280,7 +1270,6 @@ bool check_blind(CHAR_DATA * ch)
 }
 
 
-/* MOVED: */
 void do_scroll(CHAR_DATA * ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -1324,7 +1313,6 @@ void do_scroll(CHAR_DATA * ch, char *argument)
 }
 
 
-/* MOVED: */
 void do_socials(CHAR_DATA * ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -1345,7 +1333,6 @@ void do_socials(CHAR_DATA * ch, char *argument)
 }
 
 
-/* MOVED: bulletin.c */
 void do_motd(CHAR_DATA *ch, char *argument)
 {
     HELP_DATA *help;
@@ -1355,7 +1342,6 @@ void do_motd(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: bulletin.c */
 void do_imotd(CHAR_DATA *ch, char *argument)
 {
     HELP_DATA *help;
@@ -1365,7 +1351,6 @@ void do_imotd(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: bulletin.c */
 void do_rules(CHAR_DATA *ch, char *argument)
 {
     HELP_DATA *help;
@@ -1375,7 +1360,6 @@ void do_rules(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: */
 void do_wizlist(CHAR_DATA *ch, char *argument)
 {
 	IMMORTAL_DATA *immortal;
@@ -1402,7 +1386,6 @@ void do_wizlist(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: player/info.c */
 void do_prompt(CHAR_DATA * ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -1633,24 +1616,58 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 		if (IS_SET(room->room2_flags, ROOM_VIRTUAL_ROOM)) {
 			if(room->wilds) {
 				sprintf (buf, "\n\r{C [ Area: %ld '%s', Wilds uid: %ld '%s', Vroom (%ld, %ld) ]{x",
-					room->area->anum, room->area->name,
+					room->area->uid, room->area->name,
 					room->wilds->uid, room->wilds->name,
 					room->x, room->y);
 			} else if(room->source) {
-				sprintf (buf, "\n\r{C [ Area: %ld '%s', Clone (%ld, %ld, %ld) ]{x",
-					room->area->anum, room->area->name,
-					room->source->vnum,room->id[0],room->id[1]);
+				sprintf (buf, "\n\r{C [ Area: %ld '%s', Clone (%ld#%ld, %ld, %ld) ]{x",
+					room->area->uid, room->area->name,
+					room->source->area->uid, room->source->vnum,room->id[0],room->id[1]);
 			} else {
-				sprintf(buf, "{g[Room %ld]", room->vnum);
+				sprintf(buf, "{g[Room %ld#%ld]", room->area->uid, room->vnum);
 			}
 		} else {
-			sprintf(buf, "{G[Room %ld]", room->vnum);
+			sprintf(buf, "{G[Room %ld#%ld]", room->area->uid, room->vnum);
 		}
 
 		if( room->persist )
 			strcat(buf, " {WPERSIST{x");
 
 		send_to_char(buf, ch);
+
+		if( IS_VALID(room->instance_section) )
+		{
+			if (IS_VALID(room->instance_section->instance))
+			{
+				// in an instance
+				INSTANCE *instance = room->instance_section->instance;
+
+				// What kind of instance?
+				if (IS_VALID(instance->ship))
+				{
+					// On a ship
+					sprintf(buf, " {c[{CShip {W'{x%s{W' %ld{c:{W%ld %ld{c:{W%ld{c]{x", instance->ship->ship_name, instance->ship->id[0], instance->ship->id[1], instance->uid[0], instance->uid[1]);
+				}
+				else if (IS_VALID(instance->dungeon))
+				{
+					// In a dungeon
+					sprintf(buf, " {r[{RDungeon {W'%s{W' %ld{r:{W%ld %ld{r:{W%ld{c]{x", instance->dungeon->index->name, instance->dungeon->uid[0], instance->dungeon->uid[1], instance->uid[0], instance->uid[1]);
+				}
+				// TODO: In a duty
+				else if (IS_VALID(instance->object))
+				{
+					// In an object
+					sprintf(buf, " {y[{YObject {W'%s{W' %ld{y:{W%ld %ld{y:{W%ld{y]{x", instance->object->short_descr, instance->object->id[0], instance->object->id[1], instance->uid[0], instance->uid[1]);
+				}
+				else
+				{
+					// In a plain instance
+					sprintf(buf, " {g[{GInstance {W'%s{W' %ld{g:{W%ld{g]{x", instance->blueprint->name, instance->uid[0], instance->uid[1]);
+				}
+
+				send_to_char(buf, ch);
+			}
+		}
 
 /*
 		if (ON_SHIP(ch)) {
@@ -2140,7 +2157,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 			perform_lore = FALSE;
 			if ((IS_NPC(ch) || !IS_SET(ch->act2, PLR_NOLORE)) &&
 				get_skill(ch, gsn_lore) > 0 &&
-				number_percent() <= get_skill(ch, skill_lookup("lore")) &&
+				number_percent() <= get_skill(ch, gsn_lore) &&
 				!IS_SET(obj->extra2_flags, ITEM_NO_LORE))
 				perform_lore = TRUE;
 
@@ -2222,7 +2239,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 						look_compass(ch, obj);
 					}
 					else if((obj->pIndexData->vnum == OBJ_VNUM_SKULL || obj->pIndexData->vnum == OBJ_VNUM_GOLD_SKULL) &&
-						affect_find(obj->affected, skill_lookup("third eye")) != NULL)
+						affect_find(obj->affected, gsn_third_eye) != NULL)
 					{
 						if ((victim = get_char_world(NULL, obj->owner)) != NULL)
 						{
@@ -2264,7 +2281,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 			perform_lore = FALSE;
 			if ((IS_NPC(ch) || !IS_SET(ch->act2, PLR_NOLORE)) &&
 				get_skill(ch, gsn_lore) > 0 &&
-				number_percent() <= get_skill(ch, skill_lookup("lore")) &&
+				number_percent() <= get_skill(ch, gsn_lore) &&
 				!IS_SET(obj->extra2_flags, ITEM_NO_LORE))
 				perform_lore = TRUE;
 
@@ -2625,7 +2642,6 @@ void do_look(CHAR_DATA * ch, char *argument)
 }
 
 
-/* MOVED: senses/vision.c */
 void do_examine(CHAR_DATA * ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -2738,7 +2754,6 @@ void do_examine(CHAR_DATA * ch, char *argument)
 }
 
 
-/* MOVED: senses/vision.c */
 void do_exits(CHAR_DATA * ch, char *argument)
 {
 	extern char *const dir_name[];
@@ -2898,7 +2913,6 @@ void do_exits(CHAR_DATA * ch, char *argument)
 	return;
 }
 
-/* MOVED: player/info.c */
 void do_worth(CHAR_DATA * ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -2929,7 +2943,6 @@ void do_worth(CHAR_DATA * ch, char *argument)
     return;
 }
 
-/* MOVED: player/info.c */
 void do_score(CHAR_DATA * ch, char *argument)
 {
     char buf[2*MAX_STRING_LENGTH], buf2[MSL];
@@ -3620,7 +3633,6 @@ void do_score(CHAR_DATA * ch, char *argument)
     }
 }
 
-/* MOVED: player/info.c */
 void do_affects(CHAR_DATA * ch, char *argument)
 {
     AFFECT_DATA *paf, *paf_last = NULL;
@@ -3736,21 +3748,18 @@ void do_affects(CHAR_DATA * ch, char *argument)
 }
 
 
-/* MOVED: weather/time.c */
 char *const day_name[] =
 {
     "Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
     "Saturday", "Sunday"
 };
 
-/* MOVED: weather/time.c */
 char *const month_name[] =
 {
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
 };
 
-/* MOVED: weather/moon.c */
 const char *moon_phase_desc[][3] = {
 	/* 0:daytime, 1:nighttime, 2:phasename */
 	{
@@ -3796,7 +3805,6 @@ const char *moon_phase_desc[][3] = {
 };
 
 
-/* MOVED: weather/moon.c */
 char *moon_face[19] = {
 	".----------.",
 	".--':;:o;;::.;;:`--.",
@@ -3819,7 +3827,6 @@ char *moon_face[19] = {
 	"`----------'"
 };
 
-/* MOVED: weather/moon.c */
 char *moon_colours[][19] = {
 	{
 		"xxxxxxxxxxxx",
@@ -3887,7 +3894,6 @@ char *moon_colours_mxp[19] = {
 				 "333333333333"
 };
 
-/* MOVED: weather/moon.c */
 char *moon_shadow[19] = {
 	".----------.",
 	".--'            `--.",
@@ -3915,7 +3921,6 @@ char moon_shadow_colour_mxp = '1';
 
 char *moon_spacing = "                                        ";
 
-/* MOVED: weather/moon.c */
 void draw_moon(CHAR_DATA *ch,int colour)
 {
 	int i,j,k,l,ll,ld;
@@ -4115,7 +4120,6 @@ void draw_moon(CHAR_DATA *ch,int colour)
 }
 
 
-/* MOVED: weather/time.c */
 void do_time(CHAR_DATA * ch, char *argument)
 {
     extern char str_boot_time[];
@@ -4211,8 +4215,7 @@ void do_time(CHAR_DATA * ch, char *argument)
 }
 
 
-/* MOVED: weather/weather.c
-   Uncommenting this function, as Whisp's weather system isn't yet functional -- Areo */
+/*    Uncommenting this function, as Whisp's weather system isn't yet functional -- Areo */
 void do_weather(CHAR_DATA *ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -4279,8 +4282,7 @@ void do_weather(CHAR_DATA *ch, char *argument)
 
 
 
-/* MOVED: game.c
-   Inclusive who-command */
+/*    Inclusive who-command */
 void do_who_new(CHAR_DATA * ch, char *argument)
 {
     char buf[2*MAX_STRING_LENGTH];
@@ -4460,7 +4462,6 @@ void do_who_new(CHAR_DATA * ch, char *argument)
     free_buf(output);
 }
 
-/* MOVED: player/info.c */
 void do_whois(CHAR_DATA * ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -4589,7 +4590,6 @@ void do_whois(CHAR_DATA * ch, char *argument)
 }
 
 
-/* MOVED: unsorted */
 void format_page(sh_int n, char *a, CHAR_DATA * ch)
 {
     sh_int counter;
@@ -4603,7 +4603,6 @@ void format_page(sh_int n, char *a, CHAR_DATA * ch)
 }
 
 
-/* MOVED: unsorted */
 int fstr_len(char *a)
 {
     int counter = 0;
@@ -4618,7 +4617,6 @@ int fstr_len(char *a)
 }
 
 
-/* MOVED: game.c */
 void do_count(CHAR_DATA * ch, char *argument)
 {
     int count;
@@ -4646,7 +4644,6 @@ void do_count(CHAR_DATA * ch, char *argument)
 }
 
 
-/* MOVED: player/inv.c */
 void do_inventory(CHAR_DATA * ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -4667,15 +4664,13 @@ void do_inventory(CHAR_DATA * ch, char *argument)
 }
 
 
-/* MOVED: player/inv.c */
 void do_equipment(CHAR_DATA * ch, char *argument)
 {
     show_equipment(ch, ch);
 }
 
 
-/* MOVED: player/inv.c
-   Show victim's worn equipment to ch. */
+/*    Show victim's worn equipment to ch. */
 void show_equipment(CHAR_DATA *ch, CHAR_DATA *victim)
 {
 	BUFFER *buffer;
@@ -4741,13 +4736,11 @@ void show_equipment(CHAR_DATA *ch, CHAR_DATA *victim)
 	free_buf(buffer);
 }
 
-/* MOVED: bulletin.c */
 void do_credits(CHAR_DATA * ch, char *argument)
 {
     do_function(ch, &do_help, "diku");
 }
 
-/* MOVED: combat/assess.c */
 void do_consider(CHAR_DATA * ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -4795,7 +4788,6 @@ void do_consider(CHAR_DATA * ch, char *argument)
 }
 
 
-/* MOVED: player/info.c */
 void set_title(CHAR_DATA * ch, char *title)
 {
     char buf[MAX_STRING_LENGTH];
@@ -4816,7 +4808,6 @@ void set_title(CHAR_DATA * ch, char *title)
     ch->pcdata->title = str_dup(buf);
 }
 
-/* MOVED: player/info.c */
 void do_title(CHAR_DATA * ch, char *argument)
 {
     if (IS_NPC(ch))
@@ -4836,14 +4827,12 @@ void do_title(CHAR_DATA * ch, char *argument)
 }
 
 
-/* MOVED: player/info.c */
 void do_description(CHAR_DATA * ch, char *argument)
 {
     string_append(ch, &ch->description);
 }
 
 
-/* MOVED: player/info.c */
 void do_report(CHAR_DATA * ch, char *argument)
 {
     char buf[MAX_INPUT_LENGTH];
@@ -4864,7 +4853,6 @@ void do_report(CHAR_DATA * ch, char *argument)
 }
 
 
-/* MOVED: combat/melee.c */
 void do_wimpy(CHAR_DATA * ch, char *argument)
 {
     char buf[MAX_STRING_LENGTH];
@@ -4893,7 +4881,6 @@ void do_wimpy(CHAR_DATA * ch, char *argument)
     send_to_char(buf, ch);
 }
 
-/* MOVED: player/pfile.c */
 void do_password(CHAR_DATA *ch, char *argument)
 {
     char arg1[MAX_INPUT_LENGTH];
@@ -4995,7 +4982,6 @@ void do_password(CHAR_DATA *ch, char *argument)
     send_to_char("Password changed.\n\r", ch);
 }
 
-/* MOVED: player/wealth.c */
 void do_bank(CHAR_DATA * ch, char *argument)
 {
     char arg1[MAX_INPUT_LENGTH];
@@ -5227,7 +5213,6 @@ void do_bank(CHAR_DATA * ch, char *argument)
     send_to_char("Bank wire <amount> <person>\n\r", ch);
 }
 
-/* MOVED: player/punish.c */
 void do_botter(CHAR_DATA* ch, char *argument)
 {
     char arg[MAX_STRING_LENGTH];
@@ -5271,8 +5256,7 @@ void do_botter(CHAR_DATA* ch, char *argument)
 }
 
 
-/* MOVED:
- @@@NIB : 20070126 : Added types */
+/*  @@@NIB : 20070126 : Added types */
 char *get_char_where(CHAR_DATA *ch)
 {
 	if( IS_VALID(ch->in_room->instance_section) && IS_VALID(ch->in_room->instance_section->instance) )
@@ -6397,7 +6381,6 @@ void show_map_to_char(CHAR_DATA *ch, CHAR_DATA *to, int bonus_view_x, int bonus_
 }
 #endif
 
-/* MOVED: player/mental.c */
 void do_scry(CHAR_DATA *ch, char *argument)
 {
 	char arg[MAX_INPUT_LENGTH];
@@ -6473,7 +6456,6 @@ void do_scry(CHAR_DATA *ch, char *argument)
 	free_buf(buffer);
 }
 
-/* MOVED: room/minimap.c */
 void show_map_and_description(CHAR_DATA *ch, ROOM_INDEX_DATA *room)
 {
     char *tmp;
@@ -6558,7 +6540,6 @@ void show_map_and_description(CHAR_DATA *ch, ROOM_INDEX_DATA *room)
     send_to_char(buf, ch);
 }
 
-/* MOVED: room/minimap.c */
 int show_map(CHAR_DATA * ch, char *buf, char *map, int counter, int line)
 {
 	char buf2[4];
@@ -6584,7 +6565,6 @@ int show_map(CHAR_DATA * ch, char *buf, char *map, int counter, int line)
 }
 
 
-/* MOVED: room/minimap.c */
 void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
 {
     ROOM_INDEX_DATA *room;
@@ -7054,7 +7034,6 @@ void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
     }
 }
 
-/* MOVED: room/minimap.c */
 char determine_room_type(ROOM_INDEX_DATA *room)
 {
     CHAR_DATA *ch;
@@ -7098,7 +7077,6 @@ char determine_room_type(ROOM_INDEX_DATA *room)
 }
 
 
-/* MOVED: room/minimap.c */
 void convert_map_char(char *buf, char ch)
 {
     switch(ch) {
@@ -7195,7 +7173,6 @@ void convert_map_char(char *buf, char ch)
     }
 }
 
-/* MOVED: body/sith.c */
 void do_toxins(CHAR_DATA *ch, char *argument)
 {
     char buf[2*MAX_STRING_LENGTH];
@@ -7228,6 +7205,486 @@ void do_toxins(CHAR_DATA *ch, char *argument)
     }
 }
 
+#define LOCALE_SAME_ROOM		0		// They are in the same room
+#define LOCALE_SAME_REGION		10		// Same region, different room
+#define LOCALE_SAME_AREA		20		// Same area, different region
+#define LOCALE_SAME_SECTION		30		// Same instance section, different room
+#define LOCALE_SAME_INSTANCE	40		// Same instance, different section
+#define LOCALE_SAME_DUNGEON		50		// Same dungeon, different instance
+#define LOCALE_SAME_CONTINENT	60		// Same continent, different area (or in wilds)
+#define LOCALE_SAME_WILDS_REGION	63	// Same wilderness region, different room
+#define LOCALE_SAME_WILDS		65		// Same wilderness map, different region
+#define LOCALE_SAME_REALM		70		// Same realm, different continent/wilds
+#define LOCALE_ANYWHERE			100		// Different realm altogether
+#define LOCALE_NOWHERE			-1		// Nowhere to be found
+#define LOCALE_IN_DUNGEON		-2		// They are in a dungeon that you are not in
+#define LOCALE_IN_INSTANCE		-3		// They are in an instance (not dungeon) that you are not in
+#define LOCALE_IN_WILDS			-4		// They are in a wilderness that you are not in
+#define LOCALE_IN_CLONE_ROOM	-5		// In an explicit clone room not in an instance
+
+int relative_locale(CHAR_DATA *ch, CHAR_DATA *victim)
+{
+	if (IS_SET(victim->in_room->room_flags, ROOM_NOWHERE))
+		return LOCALE_NOWHERE;
+
+	if (victim->in_room->area->place_flags == PLACE_NOWHERE)
+		return LOCALE_NOWHERE;
+
+	if (ch->in_room == victim->in_room)
+		return LOCALE_SAME_ROOM;
+	
+	if (ch->in_room->area == victim->in_room->area)
+	{
+		INSTANCE_SECTION *section = ch->in_room->instance_section;
+		INSTANCE_SECTION *section2 = victim->in_room->instance_section;
+
+		if (IS_VALID(section))
+		{
+			// Player is in an instance, so check for SECTION, INSTANCE, DUNGEON
+			if (IS_VALID(section2))
+			{
+				if (section == section2)
+				{
+					// They are in the same instance section, but not in the same room
+					return LOCALE_SAME_SECTION;
+				}
+				else
+				{
+					INSTANCE *instance = section->instance;
+					INSTANCE *instance2 = section2->instance;
+
+					if (instance == instance2)
+					{
+						return LOCALE_SAME_INSTANCE;
+					}
+					else
+					{
+						DUNGEON *dungeon = IS_VALID(instance) ? instance->dungeon : NULL;
+						DUNGEON *dungeon2 = IS_VALID(instance2) ? instance2->dungeon : NULL;
+
+						if (IS_VALID(dungeon))
+						{
+							if (dungeon == dungeon2)
+							{
+								return LOCALE_SAME_DUNGEON;
+							}
+							else
+							{
+								// Not the same dungeon
+								return LOCALE_IN_DUNGEON;
+							}
+						}
+						else
+						{
+							// In a dungeon
+							if (IS_VALID(dungeon2))
+								return LOCALE_IN_DUNGEON;
+
+							// In an instance that isn't a dungeon
+							return LOCALE_IN_INSTANCE;
+						}
+					}
+				}
+			}
+			else
+			{
+				// We are in an instance, they are in wilderness
+				if (IN_WILDERNESS(victim))
+					return LOCALE_IN_WILDS;
+
+
+				// We are in an instance, but they are not, but in the same area
+				return LOCALE_SAME_AREA;
+			}
+		}
+		else
+		{
+			// We are not in an instance of any kind
+			if (IS_VALID(section2))
+			{
+				// They are in an instance
+				if (IS_VALID(section2->instance))
+				{
+
+					if(IS_VALID(section2->instance->dungeon))
+						return LOCALE_IN_DUNGEON;
+				}
+
+				return LOCALE_IN_INSTANCE;
+			}
+
+			if (IN_WILDERNESS(ch))
+			{
+				if (IN_WILDERNESS(victim))
+				{
+					if (ch->in_wilds == victim->in_wilds)
+					{
+						WILDS_REGION *region = get_region_by_coors(ch->in_wilds, ch->in_room->x, ch->in_room->y);
+						WILDS_REGION *region2 = get_region_by_coors(victim->in_wilds, victim->in_room->x, victim->in_room->y);
+
+						if (IS_VALID(region) && IS_VALID(region2) && region == region2)
+						{
+							return LOCALE_SAME_WILDS_REGION;
+						}
+
+						// Both in the default region
+						if (!region && !region2)
+						{
+							return LOCALE_SAME_WILDS_REGION;
+						}
+
+						return LOCALE_SAME_WILDS;
+					}
+					else
+					{
+						return LOCALE_IN_WILDS;
+					}
+				}
+			}
+			else if (IN_WILDERNESS(victim))
+				return LOCALE_IN_WILDS;
+			
+			if (victim->in_room->source)
+				return LOCALE_IN_CLONE_ROOM;
+
+			return LOCALE_SAME_AREA;
+		}
+	}
+	else
+	{
+		// Different areas entirely
+		INSTANCE_SECTION *section2 = victim->in_room->instance_section;
+
+		if (IS_VALID(section2))
+		{
+			// They are in an instance
+			if (IS_VALID(section2->instance))
+			{
+				if(IS_VALID(section2->instance->dungeon))
+					return LOCALE_IN_DUNGEON;
+			}
+
+			return LOCALE_IN_INSTANCE;
+		}
+
+		if (IN_WILDERNESS(ch))
+		{
+			WILDS_REGION *region = get_region_by_coors(ch->in_wilds, ch->in_room->x, ch->in_room->y);
+			long place = IS_VALID(region) ? region->area_place_flags : ch->in_wilds->defaultPlaceFlags;
+
+			// If they are in wilderness, it won't be the same one we are in as we are in different areas
+			if (IN_WILDERNESS(victim))
+			{
+				// Compare place flags
+				WILDS_REGION *region2 = get_region_by_coors(victim->in_wilds, victim->in_room->x, victim->in_room->y);
+
+				long place2 = IS_VALID(region2) ? region2->area_place_flags : victim->in_wilds->defaultPlaceFlags;
+
+				if (place == place2)
+					return LOCALE_SAME_CONTINENT;
+
+				return LOCALE_IN_WILDS;
+			}
+			else
+			{
+				if (victim->in_room->source)
+					return LOCALE_IN_CLONE_ROOM;
+
+				if (place == victim->in_room->area->place_flags)
+					return LOCALE_SAME_CONTINENT;
+			}
+
+			return LOCALE_ANYWHERE;
+		}
+		else
+		{
+			if (IN_WILDERNESS(victim))
+			{
+				// Compare place flags
+				WILDS_REGION *region2 = get_region_by_coors(victim->in_wilds, victim->in_room->x, victim->in_room->y);
+
+				long place2 = IS_VALID(region2) ? region2->area_place_flags : victim->in_wilds->defaultPlaceFlags;
+
+				if (place2 == ch->in_room->area->place_flags)
+					return LOCALE_SAME_CONTINENT;
+
+				return LOCALE_IN_WILDS;
+			}
+			else
+			{
+				if (victim->in_room->source)
+					return LOCALE_IN_CLONE_ROOM;
+
+				if (ch->in_room->area->place_flags == victim->in_room->area->place_flags)
+				{
+					// Same place/continent
+					return LOCALE_SAME_CONTINENT;
+				}
+			}
+		}
+
+		// Need a way to tell if they are in the same realm (Overworld, the Abyss, etc)
+
+		return LOCALE_ANYWHERE;
+	}
+}
+
+void where_locale(char *buf, CHAR_DATA *ch, CHAR_DATA *victim, int locale)
+{
+	if (ch == victim)
+	{
+		sprintf(buf, "%-28s ---\n\r", pers(victim, ch));
+		return;
+	}
+
+	switch(locale)
+	{
+		case LOCALE_IN_CLONE_ROOM:
+			sprintf(buf, "%-28s %s [CLONE_ROOM]\n\r", pers(victim, ch), victim->in_room->name);
+			break;
+
+		case LOCALE_SAME_ROOM:
+			sprintf(buf, "%-28s {WRight here{x [SAME_ROOM]\n\r", pers(victim, ch));
+			break;
+
+		case LOCALE_SAME_REGION:
+			// TODO: Add region support
+			break;
+		
+		case LOCALE_SAME_AREA:
+			sprintf(buf, "%-28s %s [SAME_AREA]\n\r", pers(victim, ch), victim->in_room->name);
+			break;
+
+		case LOCALE_SAME_CONTINENT:
+			// Can be in two static rooms on the same continent, two wilderness rooms with the same area place... or one of each
+			if (IN_WILDERNESS(ch))
+			{
+				if (IN_WILDERNESS(victim))
+				{
+					if (IS_IMMORTAL(ch) && IS_SET(ch->act, PLR_HOLYLIGHT))	// Immortals just see coordinates
+						sprintf(buf, "%-28s %s (%ld, %ld) [SAME_CONTINENT]\n\r", pers(victim, ch), victim->in_room->name, victim->in_room->x, victim->in_room->y);
+					else
+					{
+						// Work out direction
+						int dx = victim->in_room->x - ch->in_room->x;
+						int dy = victim->in_room->y - ch->in_room->y;
+
+						int angle = (int)(180 * atan2(dx, -dy) / 3.14159);
+						if (angle < 0) angle += 360;
+
+						extern int bearing_door[];
+						int dir = bearing_door[2 * angle / 45];
+
+						sprintf(buf, "%-28s %s (%s) [SAME_CONTINENT]\n\r", pers(victim, ch), victim->in_room->name, dir_name[dir]);
+					}
+				}
+				else
+				{
+					sprintf(buf, "%-28s %s [SAME_CONTINENT]\n\r", pers(victim, ch), victim->in_room->area->name);
+				}
+			}
+			else
+			{
+				if (IN_WILDERNESS(victim))
+				{
+					WILDS_REGION *region2 = get_region_by_coors(victim->in_wilds, victim->in_room->x, victim->in_room->y);
+					
+					if (IS_VALID(region2))
+						sprintf(buf, "%-28s %s [SAME_CONTINENT]\n\r", pers(victim, ch), flag_string(wilderness_regions, region2->region));
+					else
+						sprintf(buf, "%-28s %s [SAME_CONTINENT]\n\r", pers(victim, ch), flag_string(wilderness_regions, victim->in_wilds->defaultRegion));
+				}
+				else
+				{
+					sprintf(buf, "%-28s %s [SAME_CONTINENT]\n\r", pers(victim, ch), victim->in_room->area->name);
+				}
+			}
+			break;
+		
+		case LOCALE_SAME_DUNGEON:
+		{
+			INSTANCE_SECTION *section = victim->in_room->instance_section;
+			if (IS_VALID(section) && IS_VALID(section->instance) && IS_VALID(section->instance->dungeon))
+			{
+				sprintf(buf, "%-28s Floor %d - %s [SAME_DUNGEON]\n\r", pers(victim, ch), section->instance->floor, section->instance->blueprint->name);
+			}
+			else
+			{
+				sprintf(buf, "%-28s Floor ??? [SAME_DUNGEON]\n\r", pers(victim, ch));
+			}
+			break;
+		}
+
+		case LOCALE_SAME_INSTANCE:
+		{
+			INSTANCE_SECTION *section = victim->in_room->instance_section;
+			if (IS_VALID(section))
+			{
+				sprintf(buf, "%-28s %s [SAME_INSTANCE]", pers(victim, ch), section->section->name);
+			}
+			else
+			{
+				sprintf(buf, "%-28s ??? [SAME_INSTANCE]", pers(victim, ch));
+			}
+			break;
+		}
+
+		case LOCALE_IN_DUNGEON:
+		{
+			INSTANCE_SECTION *section = victim->in_room->instance_section;
+			if (IS_VALID(section) && IS_VALID(section->instance) && IS_VALID(section->instance->dungeon))
+			{
+				sprintf(buf, "%-28s In Dungeon: %s [IN_DUNGEON]\n\r", pers(victim, ch), section->instance->dungeon->index->name);
+			}
+			else
+			{
+				sprintf(buf, "%-28s In Dungeon: ??? [IN_DUNGEON]\n\r", pers(victim, ch));
+			}
+			break;
+		}
+
+		case LOCALE_IN_INSTANCE:
+		{
+			// In an instance that isn't a dungeon
+			INSTANCE_SECTION *section = victim->in_room->instance_section;
+			if (IS_VALID(section) && IS_VALID(section->instance))
+			{
+				if (IS_VALID(section->instance->ship))
+					sprintf(buf, "%-28s Aboard Ship: %s{x [IN_INSTANCE]\n\r", pers(victim, ch), section->instance->ship->ship_name);
+				// TODO: Duty
+				else
+					sprintf(buf, "%-28s Instance: %s{x [IN_INSTANCE]\n\r", pers(victim, ch), section->instance->blueprint->name);
+			}
+			else
+			{
+				sprintf(buf, "%-28s ??? [IN_INSTANCE]\n\r", pers(victim, ch));
+			}
+			break;
+		}
+
+		case LOCALE_IN_WILDS:
+		{
+			WILDS_DATA *wilds = victim->in_wilds;
+			if (IS_VALID(wilds))
+			{
+				if (IS_IMMORTAL(ch) && IS_SET(ch->act, PLR_HOLYLIGHT))
+					sprintf(buf, "%-28s Map: %s (%ld, %ld) [IN_WILDS]\n\r", pers(victim, ch), wilds->name, victim->in_room->x, victim->in_room->y);
+				else
+					sprintf(buf, "%-28s Map: %s [IN_WILDS]\n\r", pers(victim, ch), wilds->name);
+			}
+			else
+			{
+				sprintf(buf, "%-28s Map: ??? [IN_WILDS]\n\r", pers(victim, ch));
+			}
+
+			break;
+		}
+
+		case LOCALE_SAME_WILDS_REGION:
+		{
+			// Just give the room
+			if (IS_IMMORTAL(ch) && IS_SET(ch->act, PLR_HOLYLIGHT))	// Immortals just see coordinates
+				sprintf(buf, "%-28s %s (%ld, %ld) [SAME_WILDS_REGION]\n\r", pers(victim, ch), victim->in_room->name, victim->in_room->x, victim->in_room->y);
+			else
+			{
+				// Work out direction
+				int dx = victim->in_room->x - ch->in_room->x;
+				int dy = victim->in_room->y - ch->in_room->y;
+
+				int angle = (int)(180 * atan2(dx, -dy) / 3.14159);
+				if (angle < 0) angle += 360;
+
+				extern int bearing_door[];
+				int dir = bearing_door[2 * angle / 45];
+
+				sprintf(buf, "%-28s %s (%s) [SAME_WILDS_REGION]\n\r", pers(victim, ch), victim->in_room->name, dir_name[dir]);
+			}
+			break;
+		}
+
+		case LOCALE_SAME_WILDS:
+		{
+			WILDS_DATA *wilds = victim->in_wilds;
+			if (IS_VALID(wilds))
+			{
+				WILDS_REGION *region = get_region_by_coors(wilds, victim->in_room->x, victim->in_room->y);
+				if (IS_VALID(region))
+				{
+					if (IS_IMMORTAL(ch) && IS_SET(ch->act, PLR_HOLYLIGHT))
+						sprintf(buf, "%-28s Map Region: %s (%ld, %ld) [SAME_WILDS]\n\r", pers(victim, ch), flag_string(wilderness_regions, region->region), victim->in_room->x, victim->in_room->y);
+					else
+						sprintf(buf, "%-28s Map Region: %s [SAME_WILDS]\n\r", pers(victim, ch), flag_string(wilderness_regions, region->region));
+				}
+				else // Use the default region of the wilderness
+				{
+					if (IS_IMMORTAL(ch) && IS_SET(ch->act, PLR_HOLYLIGHT))
+						sprintf(buf, "%-28s Map Region: %s (%ld, %ld) [SAME_WILDS]\n\r", pers(victim, ch), flag_string(wilderness_regions, wilds->defaultRegion), victim->in_room->x, victim->in_room->y);
+					else
+						sprintf(buf, "%-28s Map Region: %s [SAME_WILDS]\n\r", pers(victim, ch), flag_string(wilderness_regions, wilds->defaultRegion));
+				}
+			}
+			break;
+		}
+
+		case LOCALE_ANYWHERE:
+			// At this point, they are not in an instance of any kind
+			if (victim->in_room->area->place_flags != PLACE_NOWHERE)
+				sprintf(buf, "%-28s %s [ANYWHERE]\n\r", pers(victim, ch), flag_string(place_flags, victim->in_room->area->place_flags));
+			else
+				sprintf(buf, "%-28s ??? [ANYWHERE]\n\r", pers(victim, ch));
+			break;
+
+		case LOCALE_NOWHERE:
+			sprintf(buf, "%-28s ??? [NOWHERE]\n\r", pers(victim, ch));
+			break;
+	}
+}
+
+bool in_same_locale(CHAR_DATA *ch, CHAR_DATA *victim)
+{
+	// Already in the same room (clone or not)
+	if (ch->in_room == victim->in_room) return TRUE;
+
+	// One is in a cloned room, the other is not
+	if ((!ch->in_room->source) != (!victim->in_room->source)) return FALSE;
+
+	// Different areas
+	if (ch->in_room->area != victim->in_room->area) return FALSE;
+
+	INSTANCE_SECTION *section = ch->in_room->instance_section;
+	INSTANCE_SECTION *section2 = victim->in_room->instance_section;
+
+	if (IS_VALID(section))
+	{
+		if (IS_VALID(section2))
+		{
+			// Same section already
+			if (section == section2) return TRUE;
+
+			INSTANCE *instance = section->instance;
+			INSTANCE *instance2 = section2->instance;
+
+			if (IS_VALID(instance))
+			{
+				if (IS_VALID(instance2))
+				{
+					// Same instance (either dungeon floor, duty instance, object instance, or ship)
+					if (instance == instance2) return TRUE;
+
+					// Same dungeon
+					if (IS_VALID(instance->dungeon) && IS_VALID(instance2->dungeon) && instance->dungeon == instance2->dungeon) return TRUE;
+
+					// TODO: check for ship fleets in the future
+				}
+			}
+		}
+	}
+	else if (!IS_VALID(section2))
+		// Neither in an instance, so in the same area proper
+		return TRUE;
+
+	return FALSE;
+}
 
 void do_where(CHAR_DATA * ch, char *argument)
 {
@@ -7241,33 +7698,55 @@ void do_where(CHAR_DATA * ch, char *argument)
 
     if (arg[0] == '\0')
     {
-	sprintf(buf, "{YYou check for players in %s:\n\r{x", ch->in_room->area->name);
-	send_to_char(buf, ch);
-	found = FALSE;
-	for (d = descriptor_list; d; d = d->next)
-	{
-	    if (d->connected == CON_PLAYING
-		&& (victim = d->character) != NULL && !IS_NPC(victim)
-		&& !IS_SWITCHED(ch)
-		&& victim->in_room != NULL
-		&& !IS_SET(victim->in_room->room_flags, ROOM_NOWHERE)
-		&& victim->in_room->area == ch->in_room->area
-		&& (!IS_MORPHED(victim) || (IS_MORPHED(victim) && can_see_shift(ch, victim)))
-		&& (!IS_SHIFTED(victim) || (IS_SHIFTED(victim) && can_see_shift(ch, victim)))
-		&& victim->position != POS_FEIGN
-		&& can_see(ch, victim))
+		sprintf(buf, "{YYou check for players in %s:\n\r{x", ch->in_room->area->name);
+		send_to_char(buf, ch);
+		found = FALSE;
+		for (d = descriptor_list; d; d = d->next)
 		{
-			found = TRUE;
-			sprintf(buf, "%-28s %s\n\r", pers(victim, ch), victim->in_room->name);
-			send_to_char(buf, ch);
-	    }
+			if (d->connected == CON_PLAYING
+			&& (victim = d->character) != NULL && !IS_NPC(victim)
+			&& !IS_SWITCHED(ch)
+			&& victim->in_room != NULL
+			&& !IS_SET(victim->in_room->room_flags, ROOM_NOWHERE)
+			&& victim->in_room->area == ch->in_room->area
+			&& in_same_locale(ch, victim)
+			&& (!IS_MORPHED(victim) || (IS_MORPHED(victim) && can_see_shift(ch, victim)))
+			&& (!IS_SHIFTED(victim) || (IS_SHIFTED(victim) && can_see_shift(ch, victim)))
+			&& victim->position != POS_FEIGN
+			&& can_see(ch, victim))
+			{
+				found = TRUE;
+				sprintf(buf, "%-28s %s\n\r", pers(victim, ch), victim->in_room->name);
+				send_to_char(buf, ch);
+			}
+		}
+		if (!found)
+		    send_to_char("None\n\r", ch);
 	}
-	if (!found)
-	    send_to_char("None\n\r", ch);
-    }
+	else if (!str_prefix(arg, "group"))
+	{
+		send_to_char("{CYou check for players in your group:\n\r{x", ch);
+		found = FALSE;
+		for (d = descriptor_list; d; d = d->next)
+		{
+			if (d->connected == CON_PLAYING
+			&& (victim = d->character) != NULL && !IS_NPC(victim)
+			&& !IS_SWITCHED(ch)
+			&& victim->in_room != NULL
+			&&
+			is_same_group(ch, victim))
+			{
+				int locale = relative_locale(ch, victim);
+				found = TRUE;
+				where_locale(buf, ch, victim, locale);
+				send_to_char(buf, ch);
+			}
+		}
+		if (!found)
+		    send_to_char("None\n\r", ch);
+	}
 }
 
-/* MOVED: unsorted */
 void do_dice(CHAR_DATA *ch, char *argument)
 {
     char arg[MSL];
@@ -7313,7 +7792,6 @@ void do_dice(CHAR_DATA *ch, char *argument)
     act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 }
 
-/* MOVED: weather/seasons.c */
 int calc_season(void)
 {
     int season = 0;
@@ -7330,8 +7808,7 @@ int calc_season(void)
     return season;
 }
 
-/* MOVED: room/room.c
-   Figure out which desc to use for a room. */
+/*    Figure out which desc to use for a room. */
 char *find_desc_for_room(ROOM_INDEX_DATA *room, CHAR_DATA *viewer)
 {
 	CONDITIONAL_DESCR_DATA *best_cd = NULL;
@@ -7373,8 +7850,7 @@ char *find_desc_for_room(ROOM_INDEX_DATA *room, CHAR_DATA *viewer)
 		return room->description;
 }
 
-/* MOVED: room/room.c
-   Show a room's description to a char. */
+/*    Show a room's description to a char. */
 void show_room_description(CHAR_DATA *ch, ROOM_INDEX_DATA *room)
 {
 	send_to_char(find_desc_for_room(room,ch),ch);

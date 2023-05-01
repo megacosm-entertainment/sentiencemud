@@ -2914,6 +2914,26 @@ char *expand_entity_area(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_PLLIST_ROOM;
 		arg->d.blist = arg->d.area ? arg->d.area->room_list : NULL;
 		break;
+	case ENTITY_AREA_X:
+		arg->type = ENT_NUMBER;
+		arg->d.num = arg->d.area ? arg->d.area->x : -1;
+		break;
+	case ENTITY_AREA_Y:
+		arg->type = ENT_NUMBER;
+		arg->d.num = arg->d.area ? arg->d.area->y : -1;
+		break;
+	case ENTITY_AREA_LAND_X:
+		arg->type = ENT_NUMBER;
+		arg->d.num = arg->d.area ? arg->d.area->land_x : -1;
+		break;
+	case ENTITY_AREA_LAND_Y:
+		arg->type = ENT_NUMBER;
+		arg->d.num = arg->d.area ? arg->d.area->land_y : -1;
+		break;
+	case ENTITY_AREA_AIRSHIP_ROOM:
+		arg->type = ENT_ROOM;
+		arg->d.room = (arg->d.area && arg->d.area->airship_land_spot > 0) ? get_room_index(arg->d.area, arg->d.area->airship_land_spot) : NULL;
+		break;
 	default: return NULL;
 	}
 
@@ -5846,13 +5866,10 @@ char *expand_argument(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 			//  NAME#VNUM 
 			//
 			WNUM wnum;
-			if (parse_widevnum(arg->d.str, &wnum))
+			if (parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
 			{
 				arg->type = ENT_WIDEVNUM;
-				arg->d.wnum.pArea = wnum.pArea;
-				if (!arg->d.wnum.pArea)		// This is for the #VNUM format
-					arg->d.wnum.pArea = get_area_from_scriptinfo(info);
-				arg->d.wnum.vnum = wnum.vnum;
+				arg->d.wnum = wnum;
 			}
 			else if (is_number(arg->d.str))
 			{

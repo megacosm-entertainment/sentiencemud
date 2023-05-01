@@ -1283,6 +1283,7 @@ void interpret( CHAR_DATA *ch, char *argument )
 		act("$n steps out of the shadows.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
     }
 
+	// TODO: Missing a skill for paralysis
     if (is_affected(ch, skill_lookup("paralysis")) && !allowed)
     {
         send_to_char("You can't move a muscle!\n\r", ch );
@@ -1720,7 +1721,6 @@ int mult_argument(char *argument, char *arg)
     strcpy( arg, argument );
     return 1;
 }
-
 
 // Same as one_argument but doesn't lower case the argument
 char *one_argument_norm( char *argument, char *arg_first )

@@ -154,7 +154,7 @@ void do_apdump(CHAR_DATA *ch, char *argument)
 
 	one_argument(argument, buf);
 
-	if (!parse_widevnum(buf, &wnum))
+	if (!parse_widevnum(buf, ch->in_room->area, &wnum))
 	{
 		send_to_char("Syntax:  apdump <widevnum>", ch);
 		return;
@@ -193,7 +193,7 @@ void do_ipdump(CHAR_DATA *ch, char *argument)
 	WNUM wnum;
 
 	one_argument(argument, buf);
-	if (!parse_widevnum(buf, &wnum))
+	if (!parse_widevnum(buf, ch->in_room->area, &wnum))
 	{
 		send_to_char("Syntax:  ipdump <widevnum>", ch);
 		return;
@@ -231,7 +231,7 @@ void do_dpdump(CHAR_DATA *ch, char *argument)
 	WNUM wnum;
 
 	one_argument(argument, buf);
-	if (!parse_widevnum(buf, &wnum))
+	if (!parse_widevnum(buf, ch->in_room->area, &wnum))
 	{
 		send_to_char("Syntax:  dpdump <widevnum>", ch);
 		return;
@@ -3778,7 +3778,7 @@ SCRIPT_CMD(scriptcmd_unmute)
 }
 
 
-// UNLOCKAREA $PLAYER $AREA|$AREANAME|$ANUM|$ROOM
+// UNLOCKAREA $PLAYER $AREA|$AREANAME|$AUID|$ROOM
 SCRIPT_CMD(scriptcmd_unlockarea)
 {
 	char *rest;
@@ -3800,7 +3800,7 @@ SCRIPT_CMD(scriptcmd_unlockarea)
 	area = NULL;
 	if( arg->type == ENT_NUMBER )
 	{
-		area = get_area_data(arg->d.num);
+		area = get_area_from_uid(arg->d.num);
 	}
 	else if( arg->type == ENT_STRING )
 	{

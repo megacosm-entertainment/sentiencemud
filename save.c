@@ -194,6 +194,8 @@ void save_char_obj(CHAR_DATA *ch)
 #endif
 #endif
 
+	
+
     fclose(fpReserve);
 	sprintf( strsave, "%s%c/%s",PLAYER_DIR,tolower(ch->name[0]),
 			 capitalize( ch->name ) );
@@ -686,7 +688,7 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
     iterator_start(&uait, ch->pcdata->unlocked_areas);
     while( (unlocked_area = (AREA_DATA *)iterator_nextdata(&uait)) )
     {
-		fprintf(fp, "UnlockedArea %ld\n", unlocked_area->anum);
+		fprintf(fp, "UnlockedArea %ld\n", unlocked_area->uid);
 	}
     iterator_stop(&uait);
 
@@ -2117,8 +2119,8 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 	case 'U':
 		if(!str_cmp(word, "UnlockedArea"))
 		{
-			long anum = fread_number(fp);
-			AREA_DATA *unlocked_area = get_area_data(anum);
+			long auid = fread_number(fp);
+			AREA_DATA *unlocked_area = get_area_from_uid(auid);
 
 			if( unlocked_area )
 			{
@@ -2294,7 +2296,7 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
     if (obj->item_type != obj->pIndexData->item_type)
         fprintf(fp, "Ityp %d\n",	obj->item_type		    );
     if (obj->in_room != NULL)
-    	fprintf(fp, "Room %ld\n",	obj->in_room->vnum	    );
+    	fprintf(fp, "Room %s\n",	widevnum_string_room(obj->in_room)	    );
     if (IS_SET(obj->extra2_flags, ITEM_ENCHANTED))
 	fprintf(fp,"Enchanted_times %d\n", obj->num_enchanted);
 

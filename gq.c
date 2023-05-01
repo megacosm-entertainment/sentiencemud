@@ -255,13 +255,13 @@ void do_gq(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (!parse_widevnum(arg2, &wnum))
+	if (!parse_widevnum(arg2, ch->in_room->area, &wnum))
 	{
 		send_to_char("Mob must be a widevnum.\n\r", ch);
 		return;
 	}
 
-	if (!parse_widevnum(arg3, &obj_wnum))
+	if (!parse_widevnum(arg3, ch->in_room->area, &obj_wnum))
 	{
 		send_to_char("Obj must be widevnum.\n\r", ch);
 		return;
@@ -462,7 +462,7 @@ void do_gq(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (!parse_widevnum(arg2, &wnum))
+	if (!parse_widevnum(arg2, ch->in_room->area, &wnum))
 	{
 		send_to_char("Object must be a widevnum.\n\r", ch);
 		return;

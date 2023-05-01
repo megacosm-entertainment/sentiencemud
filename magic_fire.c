@@ -344,7 +344,7 @@ SPELL_FUNC(spell_fireball)
 	/* CAP */
 	dam = UMIN(dam, 2500);
 
-	damage(ch,victim,dam,skill_lookup("fireball"), DAM_FIRE, TRUE);
+	damage(ch,victim,dam,gsn_fireball, DAM_FIRE, TRUE);
 	// fire_effect(victim, level, dam, target);
 	return TRUE;
 }

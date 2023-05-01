@@ -1584,6 +1584,9 @@ AREA_DATA *read_area_new(FILE *fp)
 		KEY("VersToken", area->version_token, fread_number(fp));
 		KEY("VersScript", area->version_script, fread_number(fp));
 		KEY("VersWilds", area->version_wilds, fread_number(fp));
+		KEY("VersBlueprint", area->version_blueprints, fread_number(fp));
+		KEY("VersShip", area->version_ships, fread_number(fp));
+		KEY("VersDungeon", area->version_dungeons, fread_number(fp));
 		if (!str_cmp(word, "VNUMs")) {
 		    area->min_vnum = fread_number(fp);
 		    area->max_vnum = fread_number(fp);

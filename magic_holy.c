@@ -365,11 +365,6 @@ SPELL_FUNC(spell_holy_word)
 	CHAR_DATA *vch;
 	CHAR_DATA *vch_next;
 	int dam;
-	int bless_num, curse_num, frenzy_num;
-
-	bless_num = skill_lookup("bless");
-	curse_num = skill_lookup("curse");
-	frenzy_num = skill_lookup("frenzy");
 
 	act("{W$n utters a word of divine power!{x",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
 	send_to_char("You utter a word of divine power.\n\r",ch);
@@ -381,18 +376,18 @@ SPELL_FUNC(spell_holy_word)
 			(IS_EVIL(ch) && IS_EVIL(vch)) ||
 			(IS_NEUTRAL(ch) && IS_NEUTRAL(vch))) {
 			send_to_char("You feel full of holy power!\n\r",vch);
-			spell_frenzy(frenzy_num,level,ch,(void *) vch,TARGET_CHAR, WEAR_NONE);
-			spell_bless(bless_num,level,ch,(void *) vch,TARGET_CHAR, WEAR_NONE);
+			spell_frenzy(gsn_frenzy,level,ch,(void *) vch,TARGET_CHAR, WEAR_NONE);
+			spell_bless(gsn_bless,level,ch,(void *) vch,TARGET_CHAR, WEAR_NONE);
 		} else if ((IS_GOOD(ch) && IS_EVIL(vch)) || (IS_EVIL(ch) && IS_GOOD(vch))) {
 			if (!is_safe_spell(ch,vch,TRUE)) {
-				spell_curse(curse_num,level,ch,(void *) vch,TARGET_CHAR, WEAR_NONE);
+				spell_curse(gsn_curse,level,ch,(void *) vch,TARGET_CHAR, WEAR_NONE);
 				send_to_char("{YYou are struck down!{x\n\r",vch);
 				dam = dice(level,8);
 				damage(ch,vch,dam,sn,DAM_HOLY,TRUE);
 			}
 		} else if (IS_NEUTRAL(ch)) {
 			if (!is_safe_spell(ch,vch,TRUE)) {
-				spell_curse(curse_num,level/2,ch,(void *) vch,TARGET_CHAR, WEAR_NONE);
+				spell_curse(gsn_curse,level/2,ch,(void *) vch,TARGET_CHAR, WEAR_NONE);
 				send_to_char("{YYou are struck down!{x\n\r",vch);
 				dam = dice(level,5);
 				damage(ch,vch,dam,sn,DAM_MAGIC,TRUE);

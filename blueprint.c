@@ -1273,6 +1273,8 @@ INSTANCE *create_instance(BLUEPRINT *blueprint)
 		iterator_stop(&it);
 
 		reset_instance(instance);
+
+		get_instance_id(instance);
 	}
 
 	return instance;
@@ -1630,7 +1632,7 @@ void do_bsedit(CHAR_DATA *ch, char *argument)
 	if (IS_NPC(ch))
 		return;
 
-	if (parse_widevnum(arg1, &wnum))
+	if (parse_widevnum(arg1, ch->in_room->area, &wnum))
 	{
 		if (!wnum.pArea || wnum.vnum < 1)
 		{
@@ -1809,7 +1811,7 @@ void do_bsshow(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (!parse_widevnum(argument, &wnum))
+	if (!parse_widevnum(argument, ch->in_room->area, &wnum))
 	{
 		send_to_char("Please specify a widevnum.\n\r", ch);
 		return;
@@ -1837,7 +1839,7 @@ BSEDIT( bsedit_create )
 	WNUM wnum;
 	int  iHash;
 
-	if (argument[0] == '\0' || !parse_widevnum(argument, &wnum) || !wnum.pArea || wnum.vnum < 1)
+	if (argument[0] == '\0' || !parse_widevnum(argument, pArea, &wnum) || !wnum.pArea || wnum.vnum < 1)
 	{
 		long last_vnum = 0;
 		long value = pArea->top_blueprint_section_vnum + 1;
@@ -2653,7 +2655,7 @@ void do_bpedit(CHAR_DATA *ch, char *argument)
 	if (IS_NPC(ch))
 		return;
 
-	if (parse_widevnum(arg1, &wnum))
+	if (parse_widevnum(arg1, ch->in_room->area, &wnum))
 	{
 		if (!wnum.pArea || wnum.vnum < 1)
 		{
@@ -3082,7 +3084,7 @@ void do_bpshow(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (!parse_widevnum(argument, &wnum))
+	if (!parse_widevnum(argument, ch->in_room->area, &wnum))
 	{
 		send_to_char("Please specify a widevnum.\n\r", ch);
 		return;
@@ -3110,7 +3112,7 @@ BPEDIT( bpedit_create )
 	WNUM wnum;
 	int  iHash;
 
-	if (argument[0] == '\0' || !parse_widevnum(argument, &wnum) || !wnum.pArea || wnum.vnum < 1)
+	if (argument[0] == '\0' || !parse_widevnum(argument, area, &wnum) || !wnum.pArea || wnum.vnum < 1)
 	{
 		long last_vnum = 0;
 		long value = area->top_blueprint_vnum + 1;
@@ -3351,7 +3353,7 @@ BPEDIT( bpedit_section )
 	if( !str_prefix(arg, "add") )
 	{
 		WNUM wnum;
-		if(!parse_widevnum(argument, &wnum))
+		if(!parse_widevnum(argument, ch->in_room->area, &wnum))
 		{
 			send_to_char("Please specify a widevnum.\n\r", ch);
 			return FALSE;
@@ -4057,7 +4059,7 @@ BPEDIT (bpedit_addiprog)
 
     slot = trigger_table[tindex].slot;
 	WNUM wnum;
-	if (!parse_widevnum(num, &wnum))
+	if (!parse_widevnum(num, ch->in_room->area, &wnum))
 	{
 		send_to_char("Syntax:   addiprog [wnum] [trigger] [phrase]\n\r",ch);
 		send_to_char("          Invalid widevnum.\n\r", ch);
@@ -4156,7 +4158,7 @@ BPEDIT(bpedit_varset)
 
     if(!str_cmp(type,"room")) {
 		WNUM wnum;
-	if(!parse_widevnum(argument, &wnum)) {
+	if(!parse_widevnum(argument, ch->in_room->area, &wnum)) {
 	    send_to_char("Specify a room widevnum.\n\r", ch);
 	    return FALSE;
 	}
@@ -4457,6 +4459,8 @@ void instance_save(FILE *fp, INSTANCE *instance)
 {
 	fprintf(fp, "#INSTANCE %ld#%ld\n\r", instance->blueprint->area->uid, instance->blueprint->vnum);
 
+	fprintf(fp, "Uid %lu %lu\n\r", instance->uid[0], instance->uid[1]);
+
 	fprintf(fp, "Floor %d\n\r", instance->floor);
 	fprintf(fp, "Flags %d\n\r", instance->flags);
 
@@ -4692,6 +4696,15 @@ INSTANCE *instance_load(FILE *fp)
 				break;
 			}
 			break;
+		case 'U':
+			if (!str_cmp(word, "Uid"))
+			{
+				instance->uid[0] = fread_number(fp);
+				instance->uid[1] = fread_number(fp);
+				fMatch = TRUE;
+				break;
+			}
+			break;
 		}
 
 		if (!fMatch) {
@@ -4715,6 +4728,7 @@ INSTANCE *instance_load(FILE *fp)
 			instance->object = obj;
 	}
 
+	get_instance_id(instance);
 	return instance;
 }
 

@@ -340,7 +340,7 @@ SPELL_FUNC(spell_toxin_paralysis)
 	af.slot	= WEAR_NONE;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_BIOLOGICAL;
-	af.type = skill_lookup("paralysis");
+	af.type = skill_lookup("paralysis");	// TODO: gsn_paralysis
 	af.level = victim->bitten_level;
 	af.duration = 0;
 	af.location = APPLY_NONE;

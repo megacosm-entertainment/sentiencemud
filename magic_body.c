@@ -107,7 +107,7 @@ SPELL_FUNC(spell_cure_blindness)
 	CHAR_DATA *victim = (CHAR_DATA *) vo;
 	int chance;
 
-	if (!IS_AFFECTED(victim, AFF_BLIND) && !is_affected(victim, skill_lookup("fire breath"))) {
+	if (!IS_AFFECTED(victim, AFF_BLIND) && !is_affected(victim, gsn_fire_breath)) {
 		if (victim == ch)
 			send_to_char("You aren't blind.\n\r",ch);
 		else
@@ -122,10 +122,10 @@ SPELL_FUNC(spell_cure_blindness)
 		chance = 75;
 
 	if (IS_AFFECTED(victim, AFF_BLIND) && number_percent() < chance) {
-		affect_strip(victim, skill_lookup("blindness"));
-		affect_strip(victim, skill_lookup("fire breath"));
+		affect_strip(victim, gsn_blindness);
+		affect_strip(victim, gsn_fire_breath);
 		REMOVE_BIT(victim->affected_by, AFF_BLIND);
-		send_to_char(skill_table[skill_lookup("blindness")].msg_off, victim);
+		send_to_char(skill_table[gsn_blindness].msg_off, victim);
 		send_to_char("\n\r", victim);
 		act("$n is no longer blinded.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
 	}
@@ -533,15 +533,11 @@ SPELL_FUNC(spell_invis)
 SPELL_FUNC(spell_mass_healing)
 {
 	CHAR_DATA *gch;
-	int heal_num, refresh_num;
-
-	heal_num = skill_lookup("heal");
-	refresh_num = skill_lookup("refresh");
 
 	for (gch = ch->in_room->people; gch; gch = gch->next_in_room) {
 		if (((IS_NPC(ch) && IS_NPC(gch)) || (!IS_NPC(ch) && !IS_NPC(gch))) && can_see(ch, gch)) {
-			spell_heal(heal_num,level,ch,(void *) gch,TARGET_CHAR, WEAR_NONE);
-			spell_refresh(refresh_num,level,ch,(void *) gch,TARGET_CHAR, WEAR_NONE);
+			spell_heal(gsn_heal,level,ch,(void *) gch,TARGET_CHAR, WEAR_NONE);
+			spell_refresh(gsn_refresh,level,ch,(void *) gch,TARGET_CHAR, WEAR_NONE);
 		}
 	}
 	return TRUE;

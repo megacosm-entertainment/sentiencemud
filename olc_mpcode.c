@@ -560,7 +560,7 @@ void do_mpedit(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, command);
 	WNUM wnum;
 
-    if( parse_widevnum(command, &wnum) )
+    if( parse_widevnum(command, ch->in_room->area, &wnum) )
     {
 
 	if ( (pMcode = get_script_index(wnum.pArea, wnum.vnum,PRG_MPROG)) == NULL )
@@ -607,7 +607,7 @@ void do_opedit(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, command);
 	WNUM wnum;
 
-    if( parse_widevnum(command, &wnum) )
+    if( parse_widevnum(command, ch->in_room->area, &wnum) )
     {
 
 	if ( (pOcode = get_script_index(wnum.pArea, wnum.vnum,PRG_OPROG)) == NULL )
@@ -654,7 +654,7 @@ void do_rpedit(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, command);
 	WNUM wnum;
 
-    if( parse_widevnum(command, &wnum) )
+    if( parse_widevnum(command, ch->in_room->area, &wnum) )
     {
 
 	if ( (pRcode = get_script_index(wnum.pArea, wnum.vnum,PRG_RPROG)) == NULL )
@@ -703,7 +703,7 @@ void do_tpedit(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, command);
 	WNUM wnum;
 
-    if( parse_widevnum(command, &wnum) )
+    if( parse_widevnum(command, ch->in_room->area, &wnum) )
     {
 	if ( (pTcode = get_script_index(wnum.pArea, wnum.vnum,PRG_TPROG)) == NULL )
 	{
@@ -748,7 +748,7 @@ void do_apedit(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, command);
 	WNUM wnum;
 
-    if( parse_widevnum(command, &wnum) )
+    if( parse_widevnum(command, ch->in_room->area, &wnum) )
     {
 		if ( (pAcode = get_script_index(wnum.pArea, wnum.vnum,PRG_APROG)) == NULL )
 		{
@@ -787,7 +787,7 @@ void do_ipedit(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, command);
 	WNUM wnum;
 
-    if( parse_widevnum(command, &wnum) )
+    if( parse_widevnum(command, ch->in_room->area, &wnum) )
     {
 		if ( (pIcode = get_script_index(wnum.pArea,wnum.vnum,PRG_IPROG)) == NULL )
 		{
@@ -825,7 +825,7 @@ void do_dpedit(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, command);
 	WNUM wnum;
 
-    if( parse_widevnum(command, &wnum) )
+    if( parse_widevnum(command, ch->in_room->area, &wnum) )
     {
 		if ( (pDcode = get_script_index(wnum.pArea,wnum.vnum,PRG_DPROG)) == NULL )
 		{
@@ -862,7 +862,7 @@ MPEDIT (mpedit_create)
 	WNUM wnum;
     long auto_vnum = 0;
 
-    if ( argument[0] == '\0' || !parse_widevnum(argument, &wnum) )
+    if ( argument[0] == '\0' || !parse_widevnum(argument, ch->in_room->area, &wnum) )
     {
 		// The trick for this will be when auto_vnum overflows from positive to negative
 		// That will let the loop know it's run out of room
@@ -917,7 +917,7 @@ OPEDIT (opedit_create)
 	WNUM wnum;
     long auto_vnum = 0;
 
-    if ( argument[0] == '\0' || !parse_widevnum(argument, &wnum) )
+    if ( argument[0] == '\0' || !parse_widevnum(argument, ch->in_room->area, &wnum) )
     {
 		// The trick for this will be when auto_vnum overflows from positive to negative
 		// That will let the loop know it's run out of room
@@ -972,7 +972,7 @@ RPEDIT (rpedit_create)
 	WNUM wnum;
     long auto_vnum = 0;
 
-    if ( argument[0] == '\0' || !parse_widevnum(argument, &wnum) )
+    if ( argument[0] == '\0' || !parse_widevnum(argument, ch->in_room->area, &wnum) )
     {
 		// The trick for this will be when auto_vnum overflows from positive to negative
 		// That will let the loop know it's run out of room
@@ -1027,7 +1027,7 @@ TPEDIT (tpedit_create)
 	WNUM wnum;
     long auto_vnum = 0;
 
-    if ( argument[0] == '\0' || !parse_widevnum(argument, &wnum) )
+    if ( argument[0] == '\0' || !parse_widevnum(argument, ch->in_room->area, &wnum) )
     {
 		// The trick for this will be when auto_vnum overflows from positive to negative
 		// That will let the loop know it's run out of room
@@ -1084,7 +1084,7 @@ APEDIT (apedit_create)
 	WNUM wnum;
     long auto_vnum = 0;
 
-    if ( argument[0] == '\0' || !parse_widevnum(argument, &wnum) )
+    if ( argument[0] == '\0' || !parse_widevnum(argument, ch->in_room->area, &wnum) )
     {
 		// The trick for this will be when auto_vnum overflows from positive to negative
 		// That will let the loop know it's run out of room
@@ -1139,7 +1139,7 @@ IPEDIT (ipedit_create)
 	WNUM wnum;
     long auto_vnum = 0;
 
-    if ( argument[0] == '\0' || !parse_widevnum(argument, &wnum) )
+    if ( argument[0] == '\0' || !parse_widevnum(argument, ch->in_room->area, &wnum) )
     {
 		// The trick for this will be when auto_vnum overflows from positive to negative
 		// That will let the loop know it's run out of room
@@ -1194,7 +1194,7 @@ DPEDIT (dpedit_create)
 	WNUM wnum;
     long auto_vnum = 0;
 
-    if ( argument[0] == '\0' || !parse_widevnum(argument, &wnum) )
+    if ( argument[0] == '\0' || !parse_widevnum(argument, ch->in_room->area, &wnum) )
     {
 		// The trick for this will be when auto_vnum overflows from positive to negative
 		// That will let the loop know it's run out of room
@@ -1542,7 +1542,7 @@ void show_script_list(CHAR_DATA *ch, char *argument,int type)
     	if( !prg ) continue;
 
 		len = sprintf(buf,"{B[{W%-4d{B]  ",count);
-		len += sprintf(buf+len,"{W%-2ld", area->anum);
+		len += sprintf(buf+len,"{W%-2ld", area->uid);
 		len += sprintf(buf+len,"  {W%c%c{B {G%-8ld {W%-5d ",
 			((area && IS_BUILDER(ch, area)) ? 'B' : ' '),
 			(IS_SET(prg->flags, SCRIPT_WIZNET) ? 'W' : ' '),

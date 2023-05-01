@@ -1360,6 +1360,8 @@ DUNGEON *create_dungeon(AREA_DATA *pArea, long vnum)
 		return NULL;
 	}
 
+	get_dungeon_id(dng);
+
 	list_appendlink(loaded_dungeons, dng);
 	return dng;
 }
@@ -1730,7 +1732,7 @@ void do_dngedit(CHAR_DATA *ch, char *argument)
 	if (IS_NPC(ch))
 		return;
 
-	if (parse_widevnum(arg1, &wnum))
+	if (parse_widevnum(arg1, ch->in_room->area, &wnum))
 	{
 		if (!wnum.pArea || wnum.vnum < 1)
 		{
@@ -2451,7 +2453,7 @@ void do_dngshow(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (!parse_widevnum(argument, &wnum))
+	if (!parse_widevnum(argument, ch->in_room->area, &wnum))
 	{
 		send_to_char("Please specify a widevnum.\n\r", ch);
 		return;
@@ -2478,7 +2480,7 @@ DNGEDIT( dngedit_create )
 	WNUM wnum;
 	int  iHash;
 
-	if (argument[0] == '\0' || !parse_widevnum(argument, &wnum) || !wnum.pArea || wnum.vnum < 1)
+	if (argument[0] == '\0' || !parse_widevnum(argument, ch->in_room->area, &wnum) || !wnum.pArea || wnum.vnum < 1)
 	{
 		long last_vnum = 0;
 		long value = area->top_dungeon_vnum + 1;
@@ -2662,7 +2664,7 @@ DNGEDIT( dngedit_floors )
 	{
 		WNUM wnum;
 
-		if( !parse_widevnum(argument, &wnum) )
+		if( !parse_widevnum(argument, ch->in_room->area, &wnum) )
 		{
 			send_to_char("Please specify a widevnum.\n\r", ch);
 			return FALSE;
@@ -7386,7 +7388,7 @@ DNGEDIT (dngedit_adddprog)
 
 	WNUM wnum;
 
-    if (!parse_widevnum(num, &wnum) || trigger[0] =='\0' || phrase[0] =='\0')
+    if (!parse_widevnum(num, ch->in_room->area, &wnum) || trigger[0] =='\0' || phrase[0] =='\0')
     {
 		send_to_char("Syntax:   adddprog [wnum] [trigger] [phrase]\n\r",ch);
 		return FALSE;
@@ -7490,7 +7492,7 @@ DNGEDIT(dngedit_varset)
 
     if(!str_cmp(type,"room")) {
 		WNUM wnum;
-	if(!parse_widevnum(argument, &wnum)) {
+	if(!parse_widevnum(argument, ch->in_room->area, &wnum)) {
 	    send_to_char("Specify a room widevnum.\n\r", ch);
 	    return FALSE;
 	}
@@ -7922,10 +7924,9 @@ DUNGEON *dungeon_load(FILE *fp)
 		}
 	}
 
+	get_dungeon_id(dungeon);
+
 	log_stringf("dungeon_load: dungeon %ld loaded", dungeon->index->vnum);
-
-
-
 	return dungeon;
 }
 

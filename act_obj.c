@@ -336,9 +336,6 @@ void loot_corpse(CHAR_DATA *ch, OBJ_DATA *corpse)
 }
 
 
-
-
-/* MOVED: object/object.c */
 void do_get(CHAR_DATA *ch, char *argument)
 {
 	char arg1[MAX_INPUT_LENGTH];
@@ -775,7 +772,6 @@ void do_get(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: object/object.c */
 void do_put(CHAR_DATA *ch, char *argument)
 {
     char arg1[MAX_INPUT_LENGTH];
@@ -1139,7 +1135,6 @@ void do_put(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: object/object.c */
 void do_drop(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -1452,7 +1447,6 @@ void do_drop(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: object/object.c */
 void do_give(CHAR_DATA *ch, char *argument)
 {
     char arg1[MAX_INPUT_LENGTH];
@@ -1857,7 +1851,6 @@ void do_give(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: object/shop.c */
 void change_money(CHAR_DATA *ch, CHAR_DATA *changer, long gold, long silver)
 {
     char buf[MSL];
@@ -1885,7 +1878,6 @@ void change_money(CHAR_DATA *ch, CHAR_DATA *changer, long gold, long silver)
     }
 }
 
-/* MOVED: object/donate.c */
 void do_donate(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj;
@@ -1965,7 +1957,6 @@ void do_donate(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: object/actions.c */
 void do_repair(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj;
@@ -2088,7 +2079,6 @@ void do_repair(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: object/desc.c */
 void do_restring(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj;
@@ -2240,7 +2230,6 @@ void do_restring(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: object/desc.c */
 void do_unrestring(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj;
@@ -2324,7 +2313,6 @@ void do_unrestring(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: combat/hidden.c */
 void do_envenom(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj;
@@ -2458,7 +2446,6 @@ memset(&af,0,sizeof(af));
 }
 
 
-/* MOVED: object/actions.c */
 void do_fill(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -2523,7 +2510,6 @@ void do_fill(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: object/actions.c */
 void do_pour(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_STRING_LENGTH],buf[MAX_STRING_LENGTH];
@@ -2643,7 +2629,6 @@ void do_pour(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: object/actions.c */
 void do_drink(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -2777,7 +2762,6 @@ memset(&af,0,sizeof(af));
 }
 
 
-/* MOVED: object/actions.c */
 void do_eat(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -2869,7 +2853,6 @@ void do_eat(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: player/inv.c */
 bool remove_obj(CHAR_DATA *ch, int iWear, bool fReplace)
 {
     OBJ_DATA *obj;
@@ -2978,7 +2961,6 @@ int get_wear_loc(CHAR_DATA *ch, OBJ_DATA *obj)
 }
 
 
-/* MOVED: player/inv.c */
 void wear_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool fReplace)
 {
     char buf[MAX_STRING_LENGTH];
@@ -3400,7 +3382,6 @@ void wear_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool fReplace)
 }
 
 
-/* MOVED: player/inv.c */
 void do_wear(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -3490,7 +3471,6 @@ void do_wear(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: player/inv.c */
 void removeall(CHAR_DATA *ch)
 {
     OBJ_DATA *obj;
@@ -3507,7 +3487,6 @@ void removeall(CHAR_DATA *ch)
 }
 
 
-/* MOVED: player/inv.c */
 void do_remove(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -3732,7 +3711,6 @@ void do_sacrifice(CHAR_DATA *ch, char *argument)
 	}
 }
 
-/* MOVED: object/actions.c */
 void do_quaff(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -3798,7 +3776,6 @@ void do_quaff(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: object/actions.c */
 void do_recite(CHAR_DATA *ch, char *argument)
 {
 	char arg1[MAX_INPUT_LENGTH];
@@ -3890,7 +3867,6 @@ void do_recite(CHAR_DATA *ch, char *argument)
 }
 
 
-/* MOVED: object/actions.c */
 void recite_end(CHAR_DATA *ch)
 {
 	CHAR_DATA *victim;
@@ -3967,7 +3943,6 @@ void recite_end(CHAR_DATA *ch)
 }
 
 
-/* MOVED: object/actions.c */
 void do_brandish(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *vch;
@@ -4157,7 +4132,6 @@ void do_zap(CHAR_DATA *ch, char *argument)
     }
 }
 
-/* MOVED: object/actions.c*/
 void do_steal(CHAR_DATA *ch, char *argument)
 {
     char buf  [MAX_STRING_LENGTH];
@@ -4363,7 +4337,6 @@ void do_steal(CHAR_DATA *ch, char *argument)
     send_to_char("{WGot it!{x\n\r", ch);
 }
 
-/* MOVED: object/shop.c*/
 CHAR_DATA *find_keeper(CHAR_DATA *ch)
 {
     /*char buf[MAX_STRING_LENGTH];*/
@@ -4411,7 +4384,6 @@ CHAR_DATA *find_keeper(CHAR_DATA *ch)
 }
 
 
-/* MOVED: object/shop.c*/
 /* insert an object at the right spot for the keeper */
 void obj_to_keeper(OBJ_DATA *obj, CHAR_DATA *ch)
 {
@@ -4634,7 +4606,6 @@ bool get_stock_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, SHOP_REQUEST_DATA *reque
 }
 
 
-/* MOVED: object/shop.c*/
 /* get an object from a shopkeeper's list */
 // UNUSED
 OBJ_DATA *get_obj_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, char *argument)
@@ -4673,7 +4644,6 @@ OBJ_DATA *get_obj_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, char *argument)
 }
 
 
-/* MOVED: object/shop.c*/
 int get_cost(CHAR_DATA *keeper, OBJ_DATA *obj, bool fBuy)
 {
     SHOP_DATA *pShop;
@@ -4724,7 +4694,6 @@ int get_cost(CHAR_DATA *keeper, OBJ_DATA *obj, bool fBuy)
 }
 
 
-/* MOVED: object/shop.c*/
 void do_buy(CHAR_DATA *ch, char *argument)
 {
 	char buf[MAX_STRING_LENGTH];
@@ -6848,7 +6817,6 @@ void do_plant(CHAR_DATA *ch, char *argument)
 void do_hands(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *victim;
-    int sn;
     int chance;
     char arg[MAX_STRING_LENGTH];
 
@@ -6900,18 +6868,11 @@ void do_hands(CHAR_DATA *ch, char *argument)
     act("{CYour hands glow a brilliant blue.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
     act("{C$n's hands glow a brilliant blue.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-    sn = skill_lookup("cure disease");
-    spell_cure_disease(sn, ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE);
+    spell_cure_disease(gsn_cure_disease, ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE);
+    spell_cure_poison(gsn_cure_poison, ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE);
+    spell_cure_blindness(gsn_cure_blindness, ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE);
+    spell_cure_toxic(gsn_cure_toxic, ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE);
 
-    sn = skill_lookup("cure poison");
-    spell_cure_poison(sn, ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE);
-
-    sn = skill_lookup("cure blindness");
-    spell_cure_blindness(sn, ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE);
-
-    /* @@@NIB : 20070127 : for curing the toxic fumes*/
-    sn = skill_lookup("cure toxic");
-    spell_cure_toxic(sn, ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE);
     check_improve(ch, gsn_healing_hands, TRUE, 1);
 }
 

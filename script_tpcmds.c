@@ -184,7 +184,7 @@ void do_tpdump(CHAR_DATA *ch, char *argument)
 	WNUM wnum;
 
 	one_argument(argument, buf);
-	if (!parse_widevnum(buf, &wnum))
+	if (!parse_widevnum(buf, ch->in_room->area, &wnum))
 	{
 		send_to_char("Syntax:  tpdump <widevnum>\n\r", ch);
 		return;
@@ -249,7 +249,7 @@ void do_tpstat(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (arg3[0] != '\0' && parse_widevnum(arg3, &wnum)) {
+	if (arg3[0] != '\0' && parse_widevnum(arg3, ch->in_room->area, &wnum)) {
 		TOKEN_INDEX_DATA *tindex;
 		
 
@@ -849,7 +849,7 @@ SCRIPT_CMD(do_tpadjust)
 		switch(arg->type) {
 		case ENT_STRING:
 			count = number_argument(arg->d.str, arg2);
-			if (!parse_widevnum(arg2, &wnum))
+			if (!parse_widevnum(arg2, get_area_from_scriptinfo(info), &wnum))
 			{
 				bug("TpAdjust - Error in parsing.",0);
 				return;
@@ -1636,7 +1636,7 @@ SCRIPT_CMD(do_tpjunk)
 		switch(arg->type) {
 		case ENT_STRING:
 			count = number_argument(arg->d.str, arg2);
-			if (!parse_widevnum(arg2, &wnum))
+			if (!parse_widevnum(arg2, get_area_from_scriptinfo(info), &wnum))
 			{
 				bug("TpJunk - Error in parsing.",0);
 				return;
@@ -3253,7 +3253,7 @@ SCRIPT_CMD(do_tplink)
 	id1 = id2 = 0;
 	switch(arg->type) {
 	case ENT_STRING:
-		if(parse_widevnum(arg->d.str, &wnum))
+		if(parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
 			;
 		else if(!str_cmp(arg->d.str,"delete") ||
 			!str_cmp(arg->d.str,"remove") ||
@@ -3358,7 +3358,7 @@ SCRIPT_CMD(do_tpmload)
 
 	switch(arg->type) {
 	case ENT_WIDEVNUM: wnum = arg->d.wnum; break;
-	case ENT_STRING: parse_widevnum(arg->d.str, &wnum); break;
+	case ENT_STRING: parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum); break;
 	case ENT_MOBILE:
 		if (arg->d.mob)
 		{
@@ -3402,7 +3402,7 @@ SCRIPT_CMD(do_tpoload)
 
 	switch(arg->type) {
 	case ENT_WIDEVNUM: wnum = arg->d.wnum; break;
-	case ENT_STRING: parse_widevnum(arg->d.str, &wnum); break;
+	case ENT_STRING: parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum); break;
 	case ENT_OBJECT:
 		if (arg->d.obj)
 		{

@@ -172,4 +172,5 @@ obj/update.o: update.c merc.h protocol.h sha256.h interp.h scripts.h tables.h \
  wilds.h
 obj/weather.o: weather.c merc.h protocol.h sha256.h interp.h recycle.h \
  tables.h olc.h
-obj/wilds.o: wilds.c merc.h protocol.h sha256.h recycle.h wilds.h olc_save.h
+obj/wilds.o: wilds.c merc.h protocol.h sha256.h recycle.h wilds.h olc_save.h \
+ tables.h

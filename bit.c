@@ -96,6 +96,7 @@ const struct flag_stat_type flag_stat_table[] =
 	{	transfer_modes,				TRUE	},
 	{	ship_class_types,			TRUE	},
     {   portal_gatetype,            TRUE    },
+    {   wilderness_regions,         TRUE    },
     {	0,							0		}
 };
 

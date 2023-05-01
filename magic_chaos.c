@@ -36,7 +36,7 @@ SPELL_FUNC(spell_curse)
 		if (IS_OBJ_STAT(obj,ITEM_BLESS)) {
 			AFFECT_DATA *paf;
 
-			paf = affect_find(obj->affected,skill_lookup("bless"));
+			paf = affect_find(obj->affected,gsn_bless);
 			if (!saves_dispel(ch,NULL, paf ? paf->level : obj->level)) {
 				if (paf) affect_remove_obj(obj,paf);
 				act("$p glows with a red aura.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);

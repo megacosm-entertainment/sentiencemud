@@ -3164,8 +3164,8 @@ void do_visible(CHAR_DATA *ch, char *argument)
     affect_strip (ch, gsn_invis			);
     affect_strip (ch, gsn_mass_invis			);
     affect_strip (ch, gsn_sneak			);
-    affect_strip (ch, skill_lookup("improved invisibility"));
-    affect_strip (ch, skill_lookup("cloak of guile"));
+    affect_strip (ch, gsn_improved_invisibility);
+    affect_strip (ch, gsn_cloak_of_guile);
     REMOVE_BIT   (ch->affected_by, AFF_HIDE		);
     REMOVE_BIT   (ch->affected_by, AFF_INVISIBLE	);
     REMOVE_BIT   (ch->affected_by, AFF_SNEAK		);

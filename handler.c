@@ -230,7 +230,7 @@ ROOM_INDEX_DATA *find_location(CHAR_DATA *ch, char *arg)
 
 	// Done to allow for going to cloned rooms, but only if they exist!
 	WNUM wnum;
-    if (parse_widevnum(arg1, &wnum))
+    if (parse_widevnum(arg1, ch->in_room->area, &wnum))
 	{
 		room = get_room_index(wnum.pArea, wnum.vnum);
 		if(is_number(arg2) && is_number(arg))
@@ -5329,9 +5329,17 @@ bool can_hunt(CHAR_DATA *ch, CHAR_DATA *victim)
 int get_region_wyx(long wuid, int x, int y)
 {
 
-	if( wuid < 1 )
+	WILDS_DATA *wilds = get_wilds_from_uid(NULL, wuid);
+	if (!IS_VALID(wilds))
 		return -1;
 
+	WILDS_REGION *region = get_region_by_coors(wilds, x, y);
+	if (!IS_VALID(region))
+		return wilds->defaultRegion;
+
+	return region->region;
+
+/*
     // Small Wilds
     if( wuid == 6 )
     {
@@ -5423,6 +5431,7 @@ int get_region_wyx(long wuid, int x, int y)
 	}
 
     return REGION_UNKNOWN;
+	*/
 }
 
 int get_region_area(AREA_DATA *area)
@@ -9381,7 +9390,7 @@ AREA_DATA *convert_vnum_to_widevnum(long vnum)
 	return NULL;
 }
 
-bool parse_widevnum(char *text, WNUM *pWnum)
+bool parse_widevnum(char *text, AREA_DATA *default_area, WNUM *pWnum)
 {
 	char left[MIL];
 	int ileft = 0;
@@ -9407,7 +9416,7 @@ bool parse_widevnum(char *text, WNUM *pWnum)
 	}
 	else if (left[0] == '\0')
 	{
-		pWnum->pArea = NULL;	// Indicates #VNUM
+		pWnum->pArea = default_area;	// #VNUM format
 	}
 	else
 	{

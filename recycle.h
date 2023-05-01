@@ -105,6 +105,8 @@ void get_token_id(TOKEN_DATA *token);
 void get_obj_id(OBJ_DATA *obj);
 void get_vroom_id(ROOM_INDEX_DATA *vroom);
 void get_ship_id(SHIP_DATA *ship);
+void get_instance_id(INSTANCE *inst);
+void get_dungeon_id(DUNGEON *dng);
 #undef MD
 
 /* buffer procedures */

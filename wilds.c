@@ -23,6 +23,7 @@
 #include "recycle.h"
 #include "wilds.h"
 #include "olc_save.h"
+#include "tables.h"
 
 /* external global variables */
 extern bool fBootDb;
@@ -42,7 +43,7 @@ long top_wilds_vlink;
 WILDS_DATA *wilds_free;
 WILDS_VLINK *wilds_vlink_free;
 WILDS_TERRAIN *wilds_terrain_free;
-
+WILDS_REGION *wilds_region_free;
 
 /* external routines */
 extern EXIT_DATA *new_exit args ((void));
@@ -89,6 +90,12 @@ void            free_terrain args ((WILDS_TERRAIN *pTerrain));
 bool		add_terrain args ((WILDS_DATA *pWilds, WILDS_TERRAIN *pTerrain));
 bool		del_terrain args ((WILDS_DATA *pWilds, WILDS_TERRAIN *pTerrain));
 bool		check_terrain_exists args ((WILDS_DATA *pWilds, char token));
+WILDS_REGION    *new_region args ((WILDS_DATA *pWilds));
+WILDS_REGION    *fread_region args ((FILE *fp, WILDS_DATA *pWilds));
+void            fwrite_region args ((FILE *fp, WILDS_REGION *pRegion));
+void            free_region args ((WILDS_REGION *pRegion));
+bool		add_region args ((WILDS_DATA *pWilds, WILDS_REGION *pRegion));
+bool		del_region args ((WILDS_DATA *pWilds, WILDS_REGION *pRegion));
 
 
 int dir_offsets[MAX_DIR][2] = {
@@ -448,6 +455,7 @@ void load_wilds( FILE *fp, AREA_DATA *pArea )
     WILDS_DATA *pWilds, *pLastWilds;
     WILDS_VLINK *temp_pVLink;
     WILDS_TERRAIN *pTerrain;
+    WILDS_REGION *pRegion;
     long arraysize = 0;
     char      *word;
     int       y,j;
@@ -523,7 +531,7 @@ void load_wilds( FILE *fp, AREA_DATA *pArea )
                     {
                         plogf("wilds.c, load_wilds(): Wilds '%s' has no UID. Assigning next available one.",
                               pWilds->name);
-                        pWilds->uid = ++gconfig.next_wilds_uid;
+                        pWilds->uid = gconfig.next_wilds_uid++;
 			gconfig_write();
                     }
 
@@ -537,12 +545,18 @@ void load_wilds( FILE *fp, AREA_DATA *pArea )
                     return;
                 }
 		else
-		if ( !str_cmp( word, "#TERRAIN" ) )
-		{
-                    pTerrain = fread_terrain( fp, pWilds );
-                    add_terrain (pWilds, pTerrain);
-                }
-		else
+                if ( !str_cmp( word, "#TERRAIN" ) )
+                {
+                            pTerrain = fread_terrain( fp, pWilds );
+                            add_terrain (pWilds, pTerrain);
+                        }
+                else
+                if ( !str_cmp( word, "#REGION" ) )
+                {
+                            pRegion = fread_region( fp, pWilds );
+                            add_region (pWilds, pRegion);
+                        }
+                else
                 if ( !str_cmp( word, "#VLINK" ) )
                 {
                     temp_pVLink = fread_vlink(fp);
@@ -557,6 +571,21 @@ void load_wilds( FILE *fp, AREA_DATA *pArea )
                 {
                     pWilds->cDefaultTerrain = fgetc(fp);
                     plogf("wilds.c, load_wilds(): Default Terrain type is '%c'.", pWilds->cDefaultTerrain);
+                    break;
+                }
+                if ( !str_cmp( word, "DefaultRegion"))
+                {
+                    pWilds->defaultRegion = flag_value(wilderness_regions, fread_word(fp));
+                    if (pWilds->defaultRegion == NO_FLAG)
+                        pWilds->defaultRegion = REGION_UNKNOWN;
+                    break;
+                }
+                if ( !str_cmp( word, "DefaultPlace"))
+                {
+                    pWilds->defaultPlaceFlags = flag_value(place_flags, fread_word(fp));
+                    if (pWilds->defaultPlaceFlags == NO_FLAG)
+                        pWilds->defaultPlaceFlags = PLACE_NOWHERE;
+                    break;
                 }
 
                 break;
@@ -585,6 +614,8 @@ void load_wilds( FILE *fp, AREA_DATA *pArea )
 
         } /* end switch */
     } /* end for */
+
+    // 
 
     return;
 }
@@ -697,6 +728,45 @@ ROOM_INDEX_DATA *create_wilds_vroom(WILDS_DATA *pWilds, int x, int y)
 }
 
 
+// This will find the FIRST region that matches it.. so order matters.
+// Move regions UP/DOWN in the list if you want to change their precedence
+WILDS_REGION *get_region_by_coors (WILDS_DATA *pWilds, int x, int y)
+{
+    WILDS_REGION *pRegion;
+    bool found = FALSE;
+
+    /* Check pointer is valid */
+    if (!pWilds)
+    {
+#ifdef DEBUG
+        plogf("wilds.c, get_region_by_coors(): Invalid pWilds pointer.");
+#endif
+        return(NULL);
+    }
+
+    for(pRegion = pWilds->pRegion;pRegion;pRegion = pRegion->next)
+    {
+        if (x >= pRegion->startx && x <= pRegion->endx &&
+            y >= pRegion->starty && y <= pRegion->endy)
+        {
+            found = TRUE;
+            break;
+        }
+    }
+
+    if (!found)
+    {
+#ifdef DEBUG
+            plogf("wilds.c, get_region_by_coors(): Region type %c not found in list. Returning NULL.", j);
+#endif
+        return (NULL);
+    }
+
+#ifdef DEBUG
+        plogf("wilds.c, get_region_by_coors(): SUCCESS - Region found. Returning pRegion", j);
+#endif
+    return (pRegion);
+}
 
 WILDS_TERRAIN *get_terrain_by_coors (WILDS_DATA *pWilds, int x, int y)
 {
@@ -1024,6 +1094,113 @@ void fwrite_terrain (FILE *fp, WILDS_TERRAIN *pTerrain)
     return;
 }
 
+WILDS_REGION *fread_region (FILE *fp, WILDS_DATA *pWilds)
+{
+    WILDS_REGION *pRegion;
+    char      *word;
+
+/*
+ * Check pointers are valid.
+ */
+    if(!fp)
+    {
+        plogf("wilds.c, fread_region(): Invalid fp");
+        abort();
+    }
+
+    if(!pWilds)
+    {
+        plogf("wilds.c, fread_region(): Invalid pWilds");
+        abort();
+    }
+
+    pRegion = new_region(pWilds);
+
+    for ( ; ; )
+    {
+        word   = feof( fp ) ? "End" : fread_word( fp );
+
+        switch ( UPPER(word[0]) )
+        {
+            case '#':
+                if ( !str_cmp( word, "#-REGION" ) )
+                {
+                    plogf("wilds.c, fread_region(): Finished reading region record.");
+                    return (pRegion);
+                }
+                break;
+
+            case 'E':
+                if ( !str_cmp(word, "End"))
+                {
+                    pRegion->endx = fread_number(fp);
+                    pRegion->endy = fread_number(fp);
+                    break;
+                }
+                break;
+
+            case 'L':
+                if ( !str_cmp(word, "Label"))
+                {
+                    pRegion->region = flag_value(wilderness_regions, fread_word(fp));
+                    if (pRegion->region == NO_FLAG)
+                        pRegion->region = REGION_UNKNOWN;
+                    break;
+                }
+                break;
+
+            case 'P':
+                if (!str_cmp(word, "Place"))
+                {
+                    pRegion->area_place_flags = flag_value(place_flags, fread_word(fp));
+                    if (pRegion->area_place_flags == NO_FLAG)
+                        pRegion->area_place_flags = PLACE_NOWHERE;
+                }
+                break;
+
+            case 'S':
+                if ( !str_cmp(word, "Start"))
+                {
+                    pRegion->startx = fread_number(fp);
+                    pRegion->starty = fread_number(fp);
+                    break;
+                }
+                break;
+
+        } /* End switch */
+
+    } /* End for */
+
+}
+
+
+void fwrite_region (FILE *fp, WILDS_REGION *pRegion)
+{
+    if (!fp)
+    {
+        plogf("wilds.c, fwrite_region(): Invalid fp");
+        return;
+    }
+
+    if (!pRegion)
+    {
+        plogf("wilds.c, fwrite_region(): Invalid pRegion");
+        return;
+    }
+
+    // This is to maintain order
+    if (pRegion->next)
+        fwrite_region(fp, pRegion->next);
+
+    fprintf(fp, "#REGION\n");
+    fprintf(fp, "Start %d %d\n", pRegion->startx, pRegion->starty);
+    fprintf(fp, "End %d %d\n", pRegion->endx, pRegion->endy);
+    fprintf(fp, "Label '%s'\n", flag_string(wilderness_regions, pRegion->region));
+    fprintf(fp, "Place '%s'\n", flag_string(place_flags, pRegion->area_place_flags));
+    fprintf(fp, "#-REGION\n\n");
+    return;
+}
+
 void link_vroom(ROOM_INDEX_DATA *pWildsRoom)
 {
 	EXIT_DATA *pexit;
@@ -1330,7 +1507,7 @@ void show_vroom_header_to_char(WILDS_TERRAIN *pTerrain, WILDS_DATA *pWilds, int 
 
 	if (IS_IMMORTAL(to) && (IS_NPC(to) || IS_SET(to->act, PLR_HOLYLIGHT))) {
 		sprintf (buf, "\n\r{C [ Area: %ld '%s', Wilds uid: %ld '%s', Vroom (%d, %d) ]{x",
-			pWilds->pArea->anum, pWilds->pArea->name,
+			pWilds->pArea->uid, pWilds->pArea->name,
 			pWilds->uid, pWilds->name,
 			wx, wy);
 
@@ -2435,6 +2612,10 @@ void save_wilds (FILE * fp, AREA_DATA * pArea)
         fprintf(fp, "Uid %ld\n", pWilds->uid);
         fprintf(fp, "Name %s~\n", pWilds->name);
         fprintf(fp, "Repop %d~\n", pWilds->repop);
+        if (pWilds->defaultPlaceFlags != PLACE_NOWHERE)
+            fprintf(fp, "DefaultPlace '%s'\n", flag_string(place_flags, pWilds->defaultPlaceFlags));
+        if (pWilds->defaultRegion >= REGION_UNKNOWN)
+            fprintf(fp, "DefaultRegion '%s'\n", flag_string(wilderness_regions, pWilds->defaultRegion));
         fprintf(fp, "#VMAP %d %d\n", pWilds->map_size_x, pWilds->map_size_y);
 
         for (y = 0, j = 0; y < pWilds->map_size_y; y++, j+=pWilds->map_size_x)
@@ -2452,6 +2633,10 @@ void save_wilds (FILE * fp, AREA_DATA * pArea)
 
         for(pTerrain = pWilds->pTerrain;pTerrain;pTerrain = pTerrain->next)
             fwrite_terrain(fp, pTerrain);
+
+        fprintf(fp, "\n");
+
+        fwrite_region(fp, pWilds->pRegion);
 
         fprintf(fp, "\n");
 
@@ -2564,7 +2749,10 @@ WILDS_DATA *new_wilds (void)
     pWilds->starty = 0;
     pWilds->pTerrain = NULL;
     pWilds->cDefaultTerrain = 'S'; // Arbitrary default terrain char
+    pWilds->defaultRegion = REGION_UNKNOWN;
+    pWilds->defaultPlaceFlags = PLACE_NOWHERE;
     pWilds->pVLink = NULL;
+    pWilds->pRegion = NULL;
 //    pWilds->char_matrix = NULL;
 //    pWilds->obj_matrix = NULL;
 	pWilds->loaded_rooms = 0;
@@ -2580,6 +2768,7 @@ void free_wilds (WILDS_DATA * pWilds)
 {
     WILDS_VLINK *pVLink, *pVLink_next;
     WILDS_TERRAIN *pTerrain, *pTerrain_next;
+    WILDS_REGION *pRegion, *pRegion_next;
 
     if (!IS_VALID (pWilds))
         return;
@@ -2609,6 +2798,15 @@ void free_wilds (WILDS_DATA * pWilds)
         {
             pTerrain_next = pTerrain->next;
             free_terrain (pTerrain);
+        }
+    }
+
+    if (pWilds->pRegion)
+    {
+        for(pRegion = pWilds->pRegion;pRegion != NULL;pRegion = pRegion_next)
+        {
+            pRegion_next = pRegion->next;
+            free_region (pRegion);
         }
     }
 
@@ -2916,6 +3114,99 @@ void free_terrain (WILDS_TERRAIN *pTerrain)
     return;
 }
 
+bool add_region (WILDS_DATA *pWilds, WILDS_REGION *pRegion)
+{
+    if (!IS_VALID(pRegion))
+        return FALSE;
+
+    if (pWilds->pRegion != NULL)
+    {
+        /* Point back from the previous to the new list head struct */
+        pWilds->pRegion->prev = pRegion;
+
+        /* Point forward from the new to the previous list head struct */
+        pRegion->next = pWilds->pRegion;
+
+        /* Put new struct in list */
+        pWilds->pRegion = pRegion;
+
+        return TRUE;
+    }
+    else
+    {
+        /* Put new struct in list */
+        pWilds->pRegion = pRegion;
+        return TRUE;
+    }
+}
+
+bool del_region (WILDS_DATA *pWilds, WILDS_REGION *pRegion)
+{
+    WILDS_REGION *prev_pRegion, *next_pRegion;
+
+    if (!IS_VALID(pRegion))
+        return FALSE;
+
+    prev_pRegion = pRegion->prev;
+    next_pRegion = pRegion->next;
+
+    if (prev_pRegion)
+    {
+        prev_pRegion->next = next_pRegion;
+    }
+
+    if (next_pRegion)
+    {
+        next_pRegion->prev = prev_pRegion;
+    }
+
+    if (pWilds->pRegion == pRegion)
+        pWilds->pRegion = next_pRegion;
+
+    free_region(pRegion);
+    return TRUE;
+}
+
+WILDS_REGION *new_region (WILDS_DATA *pWilds)
+{
+    static WILDS_REGION pregion_zero;
+    WILDS_REGION *pRegion;
+
+    if(!wilds_region_free)
+    {
+        pRegion = alloc_perm (sizeof (*pRegion));
+    }
+    else
+    {
+        pRegion = wilds_region_free;
+        wilds_region_free = wilds_region_free->next;
+    }
+
+    *pRegion = pregion_zero;
+
+    pRegion->prev = NULL;
+    pRegion->next = NULL;
+    pRegion->pWilds = pWilds;
+    pRegion->region = REGION_UNKNOWN;
+    pRegion->area_place_flags = PLACE_NOWHERE;
+    VALIDATE (pRegion);
+
+    return pRegion;
+}
+
+void free_region (WILDS_REGION *pRegion)
+{
+    if (!IS_VALID(pRegion))
+        return;
+
+    pRegion->pWilds = NULL;
+    INVALIDATE (pRegion);
+
+    pRegion->prev = NULL;
+    pRegion->next = wilds_region_free;
+    wilds_region_free = pRegion;
+    return;
+}
 
 
 void link_vlinks (WILDS_DATA *pWilds)

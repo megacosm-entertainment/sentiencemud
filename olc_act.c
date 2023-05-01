@@ -542,7 +542,7 @@ AEDIT(aedit_show)
 
     EDIT_AREA(ch, pArea);
 
-    sprintf(buf, "Name:        [%5ld] %s\n\r", pArea->anum, pArea->name);
+    sprintf(buf, "Name:        [%5ld] %s\n\r", pArea->uid, pArea->name);
     send_to_char(buf, ch);
 
 	if(pArea->recall.wuid) {
@@ -1514,7 +1514,7 @@ AEDIT (aedit_addaprog)
 
 	WNUM wnum;
 
-    if (!parse_widevnum(num, &wnum) || trigger[0] =='\0' || phrase[0] =='\0')
+    if (!parse_widevnum(num, ch->in_room->area, &wnum) || trigger[0] =='\0' || phrase[0] =='\0')
     {
 	send_to_char("Syntax:   addaprog [wnum] [trigger] [phrase]\n\r",ch);
 	return FALSE;
@@ -1623,7 +1623,7 @@ AEDIT(aedit_varset)
     if(!str_cmp(type,"room")) {
 		WNUM wnum;
 
-	if(!parse_widevnum(argument, &wnum)) {
+	if(!parse_widevnum(argument, ch->in_room->area, &wnum)) {
 	    send_to_char("Specify a room widevnum.\n\r", ch);
 	    return FALSE;
 	}
@@ -1701,7 +1701,7 @@ REDIT(redit_show)
 
     sprintf(buf, "Name:         {r[{x%s{r]{x\n\r"
                  "Area:         {r[{x%5ld{r]{x %s\n\r",
-	    pRoom->name, pRoom->area->anum, pRoom->area->name);
+	    pRoom->name, pRoom->area->uid, pRoom->area->name);
     add_buf(buf1, buf);
 
     if (IS_SET(pRoom->room2_flags, ROOM_VIRTUAL_ROOM))
@@ -1801,13 +1801,13 @@ REDIT(redit_show)
             if (pRoom->wilds)
             {
                 if (IS_SET(pexit->exit_info, EX_VLINK))
-		{
+				{
                     sprintf (buf, "-{W%-9s{x to {W%6ld{x, Area Uid ({W%ld{x), '{W%s{x'.\n\r",
-                             capitalize (dir_name[door]),
-                             pexit->u1.to_room ? pexit->u1.to_room->vnum : 0,
-			     pexit->u1.to_room ? pexit->u1.to_room->area->uid : 0,
-			     pexit->u1.to_room ? pexit->u1.to_room->area->name : "{RERROR");
-		}
+						capitalize (dir_name[door]),
+						pexit->u1.to_room ? pexit->u1.to_room->vnum : 0,
+						pexit->u1.to_room ? pexit->u1.to_room->area->uid : 0,
+						pexit->u1.to_room ? pexit->u1.to_room->area->name : "{RERROR");
+				}
                 else
                     sprintf (buf, "-{W%-9s{x to ({W%d{x,{W%d{x).\n\r",
                              capitalize (dir_name[door]),
@@ -1816,27 +1816,29 @@ REDIT(redit_show)
             else
             {
                 if (IS_SET(pexit->exit_info, EX_VLINK))
-		{
-		    pArea = get_area_from_uid(pexit->wilds.area_uid);
-		    pWilds = get_wilds_from_uid(pArea, pexit->wilds.wilds_uid);
+				{
+					pArea = get_area_from_uid(pexit->wilds.area_uid);
+					pWilds = get_wilds_from_uid(pArea, pexit->wilds.wilds_uid);
                     sprintf (buf, "-{W%-9s{x to ({W%d{x,{W%d{x), Wilds Uid ({W%ld{x), '{W%s{x'.\n\r",
-                             capitalize (dir_name[door]),
-                             pexit->wilds.x, pexit->wilds.y,
-			     pWilds ? pWilds->uid : 0,
-			     pWilds ? pWilds->name : "(null)");
-	            add_buf(buf1, buf);
+						capitalize (dir_name[door]),
+						pexit->wilds.x, pexit->wilds.y,
+						pWilds ? pWilds->uid : 0,
+						pWilds ? pWilds->name : "(null)");
+					add_buf(buf1, buf);
 
-		    sprintf (buf, "                         Area Uid ({W%ld{x), '{W%s{x'.\n\r",
-			     pArea ? pArea->uid : 0,
-			     pArea ? pArea->name : "(null)");
-		}
+					sprintf (buf, "                         Area Uid ({W%ld{x), '{W%s{x'.\n\r",
+					pArea ? pArea->uid : 0,
+					pArea ? pArea->name : "(null)");
+				}
                 else
-                    sprintf (buf, "-{W%-9s{x to {W%6ld{x\n\r",
+                    sprintf (buf, "-{W%-9s{x to {W%ld#%ld{x %s\n\r",
                              capitalize (dir_name[door]),
-                             pexit->u1.to_room ? pexit->u1.to_room->vnum : 0);
+							 pexit->u1.to_room ? pexit->u1.to_room->area->uid : 0,
+                             pexit->u1.to_room ? pexit->u1.to_room->vnum : 0,
+							 pexit->u1.to_room ? pexit->u1.to_room->name : "(null)");
             }
 
-	    add_buf(buf1, buf);
+		    add_buf(buf1, buf);
 
             /*
              * Format up the exit info.
@@ -2060,7 +2062,7 @@ bool rp_change_exit(ROOM_INDEX_DATA *pRoom, char *argument, int door)
     }
 
 	WNUM wnum;
-	if (!parse_widevnum(arg, &wnum))
+	if (!parse_widevnum(arg, pRoom->area, &wnum))
     {
        bug("Rprog: A link cannot link non-existant room.\n\r",0);
        return FALSE;
@@ -2100,13 +2102,14 @@ bool rp_change_exit(ROOM_INDEX_DATA *pRoom, char *argument, int door)
     return TRUE;
 }
 
-
 /* Local function. */
 bool change_exit(CHAR_DATA *ch, char *argument, int door)
 {
 	ROOM_INDEX_DATA *pRoom;
 	ROOM_INDEX_DATA *to_room;
+	int count;
 	char command[MAX_INPUT_LENGTH];
+	char commandn[MAX_INPUT_LENGTH];
 	char arg[MAX_INPUT_LENGTH];
 	char buf[MSL];
 	long value;
@@ -2177,6 +2180,7 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 	* Now parse the arguments.
 	*/
 	argument = one_argument_norm(argument, command);
+	count = mult_argument(command, commandn);
 	one_argument_norm(argument, arg);
 
 	if (command[0] == '\0' && argument[0] == '\0')	/* Move command. */
@@ -2239,7 +2243,7 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 		EXIT_DATA *pExit;
 		WNUM wnum;
 
-		if (arg[0] == '\0' || !parse_widevnum(arg, &wnum))
+		if (arg[0] == '\0' || !parse_widevnum(arg, ch->in_room->area, &wnum))
 		{
 			send_to_char("Syntax:  [direction] link [wnum]\n\r", ch);
 			return FALSE;
@@ -2303,9 +2307,25 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 	if (!str_cmp(command, "dig"))
 	{
 		WNUM wnum;
-		if (arg[0] == '\0' || !parse_widevnum(arg, &wnum))
+		if (arg[0] == '\0')
+		{
+			wnum.pArea = ch->in_room->area;
+			for(wnum.vnum = ch->in_room->vnum + 1; wnum.vnum > 0 && get_room_index(wnum.pArea, wnum.vnum); wnum.vnum++);
+
+			if (wnum.vnum < 1)
+			{
+				send_to_char("Could not find a widevnum to dig.\n\r", ch);
+				return FALSE;
+			}
+		}
+		else if (!parse_widevnum(arg, ch->in_room->area, &wnum))
 		{
 			send_to_char("Syntax:  [direction] dig [wnum]\n\r", ch);
+			return FALSE;
+		}
+		else if (count > 1)
+		{
+			send_to_char("Cannot use multi-dig mode when specifying a room widevnum.\n\r", ch);
 			return FALSE;
 		}
 
@@ -2340,7 +2360,7 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 		sh_int rev;
 		WNUM wnum;
 
-		if (arg[0] == '\0' || !parse_widevnum(arg, &wnum))
+		if (arg[0] == '\0' || !parse_widevnum(arg, ch->in_room->area, &wnum))
 		{
 			send_to_char("Syntax:  [direction] room [wnum]\n\r", ch);
 			return FALSE;
@@ -2454,7 +2474,7 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 	if (!str_cmp(command, "key"))
 	{
 		WNUM wnum;
-		if (arg[0] == '\0' || !parse_widevnum(arg, &wnum))
+		if (arg[0] == '\0' || !parse_widevnum(arg, ch->in_room->area, &wnum))
 		{
 			send_to_char("Syntax:  [direction] key [widevnum]\n\r", ch);
 			return FALSE;
@@ -2671,7 +2691,7 @@ REDIT(redit_varset)
 
     if(!str_cmp(type,"room")) {
 		WNUM wnum;
-	if(!parse_widevnum(argument, &wnum)) {
+	if(!parse_widevnum(argument, ch->in_room->area, &wnum)) {
 	    send_to_char("Specify a room widevnum.\n\r", ch);
 	    return FALSE;
 	}
@@ -2967,7 +2987,7 @@ REDIT(redit_create)
     int iHash;
 	WNUM wnum;
 
-    if (argument[0] == '\0' || !parse_widevnum(argument, &wnum))
+    if (argument[0] == '\0' || !parse_widevnum(argument, ch->in_room->area, &wnum) || !wnum.pArea || wnum.vnum < 1)
     {
 		//send_to_char("Syntax:  create [vnum > 0]\n\r", ch);
 		wnum.pArea = ch->in_room->area;
@@ -3150,7 +3170,7 @@ REDIT(redit_mreset)
     argument = one_argument(argument, arg);
     argument = one_argument(argument, arg2);
 
-    if (arg[0] == '\0' || !parse_widevnum(arg, &wnum))
+    if (arg[0] == '\0' || !parse_widevnum(arg, ch->in_room->area, &wnum))
     {
 	send_to_char ("Syntax:  mreset <widevnum> <max #x> <mix #x>\n\r", ch);
 	return FALSE;
@@ -3279,7 +3299,7 @@ REDIT(redit_oreset)
     argument = one_argument(argument, arg1);
     argument = one_argument(argument, arg2);
 
-    if (arg1[0] == '\0' || !parse_widevnum(arg1, &wnum))
+    if (arg1[0] == '\0' || !parse_widevnum(arg1, ch->in_room->area, &wnum))
     {
 		send_to_char ("Syntax:  oreset <widevnum> <args>\n\r", ch);
 		send_to_char ("        -no_args               = into room\n\r", ch);
@@ -3483,7 +3503,7 @@ void print_obj_portal_values(OBJ_INDEX_DATA *portal, BUFFER *buffer)
 			area = get_area_from_uid(portal->value[5]);
 			room = get_room_index(area,portal->value[6]);
 			sprintf(buf,
-				"{B[  {Wv5{B]{G Area:{x              [%ld] %s\n\r"
+				"{B[  {Wv5{B]{G Area Uid:{x          [%ld] %s\n\r"
 				"{B[  {Wv6{B]{G Room:{x              [%ld] %s\n\r",
 				portal->value[5], area ? area->name : "none",
 				portal->value[6], room ? room->name : "none");
@@ -4512,14 +4532,6 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			send_to_char("Spell level set.\n\r\n\r", ch);
 			pObj->value[3] = atoi(argument);
 			break;
-		case 4:
-			send_to_char("SPELL SET.\n\r\n\r", ch);
-			pObj->value[4] = skill_lookup(argument);
-			break;
-		case 5:
-			send_to_char("SPELL SET.\n\r\n\r", ch);
-			pObj->value[5] = skill_lookup(argument);
-			break;
 		}
 		break;
 
@@ -4629,47 +4641,6 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			break;
 		}
 		break;
-
-/*	case ITEM_ARTIFACT:
-		switch(value_num)
-		{
-		case 0:
-			// TODO: UNUSED?
-			if (ch->tot_level < MAX_LEVEL && !has_imp_sig(NULL, pObj))
-			{
-				send_to_char("You can't do this without an IMP's permission.\n\r", ch);
-				return FALSE;
-			}
-
-			send_to_char("SPELL LEVEL SET.\n\r\n\r", ch);
-			pObj->value[0] = atoi(argument);
-			break;
-		case 1:
-			// TODO: UNUSED?
-			if (ch->tot_level < MAX_LEVEL && !has_imp_sig(NULL, pObj))
-			{
-				send_to_char("You can't do this without an IMP's permission.\n\r", ch);
-				return FALSE;
-			}
-
-			send_to_char("SPELL SET.\n\r\n\r", ch);
-			pObj->value[1] = skill_lookup(argument);
-			use_imp_sig(NULL, pObj);
-			break;
-		case 2:
-			// TODO: UNUSED?
-			if (ch->tot_level < MAX_LEVEL && !has_imp_sig(NULL, pObj))
-			{
-				send_to_char("You can't do this without an IMP's permission.\n\r", ch);
-				return FALSE;
-			}
-
-			send_to_char("SPELL SET.\n\r\n\r", ch);
-			pObj->value[2] = skill_lookup(argument);
-			use_imp_sig(NULL, pObj);
-			break;
-		}
-		break;*/
 
 	case ITEM_ARMOUR:
 		switch (value_num)
@@ -5510,7 +5481,7 @@ OEDIT(oedit_show)
 
     sprintf(buf, "Name:         {B[{x%s{B]{x\n\rArea:         {B[{x%7ld{B] {x%s\n\r",
 	pObj->name,
-	!pObj->area ? -1        : pObj->area->anum,
+	!pObj->area ? -1        : pObj->area->uid,
 	!pObj->area ? "No Area" : pObj->area->name);
     add_buf(buffer, buf);
 
@@ -6754,7 +6725,7 @@ OEDIT(oedit_lock)
 		}
 
 		WNUM wnum;
-		if( parse_widevnum(argument, &wnum) )
+		if( parse_widevnum(argument, ch->in_room->area, &wnum) )
 		{
 			OBJ_INDEX_DATA *key = get_obj_index(wnum.pArea, wnum.vnum);
 
@@ -7108,7 +7079,7 @@ OEDIT(oedit_varset)
 
     if(!str_cmp(type,"room")) {
 		WNUM wnum;
-	if(!parse_widevnum(argument, &wnum)) {
+	if(!parse_widevnum(argument, ch->in_room->area, &wnum)) {
 	    send_to_char("Specify a room widevnum.\n\r", ch);
 	    return FALSE;
 	}
@@ -7358,12 +7329,11 @@ OEDIT(oedit_create)
 {
     OBJ_INDEX_DATA *pObj;
     AREA_DATA *pArea = ch->in_room->area;
-    int  value;
     long auto_vnum = 0;
     int  iHash;
+	WNUM wnum;
 
-    value = atoi(argument);
-    if (argument[0] == '\0' || value == 0)
+    if (argument[0] == '\0' || !parse_widevnum(argument, ch->in_room->area, &wnum) || !wnum.pArea || wnum.vnum < 1 )
     {
 		//send_to_char("Syntax:  oedit create [vnum]\n\r", ch);
 		for( auto_vnum = 1; auto_vnum > 0 && get_obj_index(pArea, auto_vnum); auto_vnum++);
@@ -7373,34 +7343,34 @@ OEDIT(oedit_create)
 			send_to_char("Sorry, this area has no more space left.\n\r", ch);
 			return FALSE;
 		}
+
+		wnum.pArea = pArea;
+		wnum.vnum = auto_vnum;
     }
 
-    if (auto_vnum > 0)
-		value = auto_vnum;
-
-    if (!IS_BUILDER(ch, pArea))
+    if (!IS_BUILDER(ch, wnum.pArea))
     {
 	send_to_char("OEdit:  Vnum in an area you cannot build in.\n\r", ch);
 	return FALSE;
     }
 
-    if (get_obj_index(pArea, value))
+    if (get_obj_index(wnum.pArea, wnum.vnum))
     {
-	send_to_char("OEdit:  Object vnum already exists.\n\r", ch);
+	send_to_char("OEdit:  Object already exists.\n\r", ch);
 	return FALSE;
     }
 
     pObj              = new_obj_index();
-    pObj->vnum	      = value;
-    pObj->area	      = pArea;
+    pObj->vnum	      = wnum.vnum;
+    pObj->area	      = wnum.pArea;
     pObj->creator_sig = str_dup(ch->name);
 
-    if (value > pArea->top_vnum_obj)
-	pArea->top_vnum_obj = value;
+    if (wnum.vnum > wnum.pArea->top_vnum_obj)
+		wnum.pArea->top_vnum_obj = wnum.vnum;
 
-    iHash                 = value % MAX_KEY_HASH;
-    pObj->next		  = pArea->obj_index_hash[iHash];
-    pArea->obj_index_hash[iHash] = pObj;
+    iHash                 = wnum.vnum % MAX_KEY_HASH;
+    pObj->next		  = wnum.pArea->obj_index_hash[iHash];
+    wnum.pArea->obj_index_hash[iHash] = pObj;
     ch->desc->pEdit	  = (void *)pObj;
 
     SET_BIT(pObj->area->area_flags, AREA_CHANGED);
@@ -8097,7 +8067,7 @@ MEDIT(medit_show)
 
 	sprintf(buf, "Name:         {C[{x%s{C]{x\n\rArea:         {C[{x%5ld{C]{x %s\n\r",
 		pMob->player_name,
-		!pMob->area ? -1        : pMob->area->anum,
+		!pMob->area ? -1        : pMob->area->uid,
 		!pMob->area ? "No Area" : pMob->area->name);
 	add_buf(buffer, buf);
 	sprintf(buf, "Loaded:       {C[{x%d{C]{x\n\r", pMob->count);
@@ -8890,50 +8860,50 @@ MEDIT(medit_create)
 {
     MOB_INDEX_DATA *pMob;
     AREA_DATA *pArea = ch->in_room->area;
-    long  value;
     int  iHash;
     long auto_vnum = 0;
+	WNUM wnum;
 
-    value = atol(argument);
-    if (argument[0] == '\0' || value == 0)
+    if (argument[0] == '\0' || !parse_widevnum(argument, ch->in_room->area, &wnum) || !wnum.pArea || wnum.vnum < 1)
     {
 	//send_to_char("Syntax:  medit create [vnum]\n\r", ch);
 	for(auto_vnum = 1; auto_vnum > 0 && get_mob_index(pArea, auto_vnum); auto_vnum++);
 
-	if (auto_vnum < 0)
+	if (auto_vnum < 1)
 	{
 	    send_to_char("Sorry, this area has no more space left.\n\r",
 		    ch);
 	    return FALSE;
 	}
+
+		wnum.pArea = pArea;
+		wnum.vnum = auto_vnum;
     }
 
-    if (auto_vnum != 0) value = auto_vnum;
-
-    if (!IS_BUILDER(ch, pArea))
+    if (!IS_BUILDER(ch, wnum.pArea))
     {
 	send_to_char("MEdit:  Vnum in an area you cannot build in.\n\r", ch);
 	return FALSE;
     }
 
-    if (get_mob_index(pArea, value))
+    if (get_mob_index(wnum.pArea, wnum.vnum))
     {
-	send_to_char("MEdit:  Mobile vnum already exists.\n\r", ch);
+	send_to_char("MEdit:  Mobile already exists.\n\r", ch);
 	return FALSE;
     }
 
     pMob			= new_mob_index();
-    pMob->vnum			= value;
-    pMob->area			= pArea;
+    pMob->vnum			= wnum.vnum;
+    pMob->area			= wnum.pArea;
 
-    if (value > pArea->top_vnum_mob)
-	pArea->top_vnum_mob = value;
+    if (wnum.vnum > wnum.pArea->top_vnum_mob)
+	wnum.pArea->top_vnum_mob = wnum.vnum;
 
     pMob->act			= ACT_IS_NPC;
     pMob->act2			= 0;
-    iHash			= value % MAX_KEY_HASH;
-    pMob->next			= pArea->mob_index_hash[iHash];
-    pArea->mob_index_hash[iHash]	= pMob;
+    iHash			= wnum.vnum % MAX_KEY_HASH;
+    pMob->next			= wnum.pArea->mob_index_hash[iHash];
+    wnum.pArea->mob_index_hash[iHash]	= pMob;
     ch->desc->pEdit		= (void *)pMob;
 
 
@@ -9269,7 +9239,7 @@ MEDIT(medit_varset)
 
     if(!str_cmp(type,"room")) {
 		WNUM wnum;
-	if(!parse_widevnum(argument, &wnum)) {
+	if(!parse_widevnum(argument, ch->in_room->area, &wnum)) {
 	    send_to_char("Specify a room widevnum.\n\r", ch);
 	    return FALSE;
 	}
@@ -9353,7 +9323,7 @@ MEDIT(medit_corpse)
     MOB_INDEX_DATA *pMob;
     WNUM wnum;
 
-    if (argument[0] != '\0' && parse_widevnum(argument, &wnum))
+    if (argument[0] != '\0' && parse_widevnum(argument, ch->in_room->area, &wnum))
     {
 		EDIT_MOB(ch, pMob);
 
@@ -9364,7 +9334,7 @@ MEDIT(medit_corpse)
 			pMob->corpse.vnum = 0;
 			return TRUE;
 		}
-		else if (parse_widevnum(argument, &wnum) && wnum.pArea && wnum.vnum > 0)
+		else if (parse_widevnum(argument, ch->in_room->area, &wnum) && wnum.pArea && wnum.vnum > 0)
 		{
 			if(!get_obj_index(wnum.pArea, wnum.vnum))
 			{
@@ -9391,7 +9361,7 @@ MEDIT(medit_zombie)
     MOB_INDEX_DATA *pMob;
     WNUM wnum;
 
-    if (argument[0] != '\0' && parse_widevnum(argument, &wnum))
+    if (argument[0] != '\0' && parse_widevnum(argument, ch->in_room->area, &wnum))
     {
 		EDIT_MOB(ch, pMob);
 
@@ -9402,7 +9372,7 @@ MEDIT(medit_zombie)
 			pMob->zombie.vnum = 0;
 			return TRUE;
 		}
-		else if (parse_widevnum(argument, &wnum) && wnum.pArea && wnum.vnum > 0)
+		else if (parse_widevnum(argument, ch->in_room->area, &wnum) && wnum.pArea && wnum.vnum > 0)
 		{
 			if(!get_obj_index(wnum.pArea, wnum.vnum))
 			{
@@ -9819,7 +9789,7 @@ MEDIT(medit_shop)
 
 			if(!str_prefix(arg2, "object"))
 			{
-				if(parse_widevnum(argument, &wnum))
+				if(parse_widevnum(argument, ch->in_room->area, &wnum))
 				{
 					OBJ_INDEX_DATA *item = get_obj_index(wnum.pArea, wnum.vnum);
 
@@ -9860,7 +9830,7 @@ MEDIT(medit_shop)
 			}
 			else if(!str_prefix(arg2, "pet"))
 			{
-				if(parse_widevnum(argument, &wnum))
+				if(parse_widevnum(argument, ch->in_room->area, &wnum))
 				{
 					MOB_INDEX_DATA *mob = get_mob_index(wnum.pArea, wnum.vnum);
 
@@ -9896,7 +9866,7 @@ MEDIT(medit_shop)
 			}
 			else if(!str_prefix(arg2, "mount"))
 			{
-				if(parse_widevnum(argument, &wnum))
+				if(parse_widevnum(argument, ch->in_room->area, &wnum))
 				{
 					MOB_INDEX_DATA *mob = get_mob_index(wnum.pArea, wnum.vnum);
 
@@ -9932,7 +9902,7 @@ MEDIT(medit_shop)
 			}
 			else if(!str_prefix(arg2, "guard"))
 			{
-				if(parse_widevnum(argument, &wnum))
+				if(parse_widevnum(argument, ch->in_room->area, &wnum))
 				{
 					MOB_INDEX_DATA *mob = get_mob_index(wnum.pArea, wnum.vnum);
 
@@ -9968,7 +9938,7 @@ MEDIT(medit_shop)
 			}
 			else if(!str_prefix(arg2, "crew"))
 			{
-				if(parse_widevnum(argument, &wnum))
+				if(parse_widevnum(argument, ch->in_room->area, &wnum))
 				{
 					MOB_INDEX_DATA *mob = get_mob_index(wnum.pArea, wnum.vnum);
 
@@ -10020,7 +9990,7 @@ MEDIT(medit_shop)
 					return FALSE;
 				}
 
-				if( parse_widevnum(argument, &wnum) )
+				if( parse_widevnum(argument, ch->in_room->area, &wnum) )
 				{
 					SHIP_INDEX_DATA *ship;
 
@@ -11177,7 +11147,7 @@ MEDIT (medit_addmprog)
 
 	WNUM wnum;
 
-    if (!parse_widevnum(num, &wnum) || trigger[0] =='\0' || phrase[0] =='\0')
+    if (!parse_widevnum(num, ch->in_room->area, &wnum) || trigger[0] =='\0' || phrase[0] =='\0')
     {
 	send_to_char("Syntax:   addmprog [wnum] [trigger] [phrase]\n\r",ch);
 	return FALSE;
@@ -11294,7 +11264,7 @@ MEDIT(medit_addquest)
 
     EDIT_MOB(ch, pMob);
 
-    if (argument[0] == '\0' || !parse_widevnum(argument, &wnum) || !wnum.pArea || wnum.vnum < 1)
+    if (argument[0] == '\0' || !parse_widevnum(argument, ch->in_room->area, &wnum) || !wnum.pArea || wnum.vnum < 1)
     {
 	send_to_char("Syntax:  addquest [quest wnum]\n\r", ch);
 	return FALSE;
@@ -11591,7 +11561,7 @@ OEDIT (oedit_addoprog)
   argument=one_argument(argument, phrase);
 
   WNUM wnum;
-  if (!parse_widevnum(num, &wnum) || trigger[0] =='\0' || phrase[0] =='\0')
+  if (!parse_widevnum(num, ch->in_room->area, &wnum) || trigger[0] =='\0' || phrase[0] =='\0')
   {
         send_to_char("Syntax:   addoprog [wnum] [trigger] [phrase]\n\r",ch);
         return FALSE;
@@ -11714,7 +11684,7 @@ REDIT (redit_addrprog)
     argument=one_argument(argument, phrase);
 
 	WNUM wnum;
-    if (!parse_widevnum(num, &wnum) || trigger[0] =='\0' || phrase[0] =='\0')
+    if (!parse_widevnum(num, ch->in_room->area, &wnum) || trigger[0] =='\0' || phrase[0] =='\0')
     {
 	send_to_char("Syntax:   addrprog [wnum] [trigger] [phrase]\n\r",ch);
 	return FALSE;
@@ -12030,6 +12000,14 @@ void correct_vrooms(WILDS_DATA *pWilds, WILDS_TERRAIN *pTerrain)
 	}
 
 	iterator_stop(&it);
+}
+
+WEDIT ( wedit_region )
+{
+	WILDS_DATA *pWilds;
+	WILDS_REGION *pRegion;
+
+	return FALSE;
 }
 
 WEDIT ( wedit_terrain )
@@ -12480,7 +12458,7 @@ WEDIT ( wedit_vlink )
         if(pVLink) {
 		if(pVLink->current_linkage == VLINK_UNLINKED) {
 			WNUM wnum;
-			if (parse_widevnum(arg3, &wnum)) {
+			if (parse_widevnum(arg3, ch->in_room->area, &wnum)) {
 				ROOM_INDEX_DATA *destRoom = get_room_index(wnum.pArea, wnum.vnum);
 
 				if( !destRoom )
@@ -12721,7 +12699,7 @@ MEDIT(medit_questor)
 
 	} else if (!str_prefix(arg,"scroll")) {
 		WNUM wnum;
-		if(!parse_widevnum(argument, &wnum))
+		if(!parse_widevnum(argument, ch->in_room->area, &wnum))
 		{
 			send_to_char("That is not a widevnum.\n\r", ch);
 			return FALSE;

@@ -515,19 +515,19 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 	{
 	case ED_AREA:
 		pArea = (AREA_DATA *)ch->desc->pEdit;
-		sprintf(buf, "%ld", pArea ? pArea->anum : 0);
+		sprintf(buf, "%ld", pArea ? pArea->uid : 0);
 		break;
 	case ED_ROOM:
 		pRoom = ch->in_room;
-		sprintf(buf, "%ld", pRoom ? pRoom->vnum : 0);
+		sprintf(buf, "%ld#%ld", pRoom ? pRoom->area->uid : 0, pRoom ? pRoom->vnum : 0);
 		break;
 	case ED_OBJECT:
 		pObj = (OBJ_INDEX_DATA *)ch->desc->pEdit;
-		sprintf(buf, "%ld", pObj ? pObj->vnum : 0);
+		sprintf(buf, "%ld#%ld", pObj ? pObj->area->uid : 0, pObj ? pObj->vnum : 0);
 		break;
 	case ED_MOBILE:
 		pMob = (MOB_INDEX_DATA *)ch->desc->pEdit;
-		sprintf(buf, "%ld", pMob ? pMob->vnum : 0);
+		sprintf(buf, "%ld#%ld", pMob ? pMob->area->uid : 0, pMob ? pMob->vnum : 0);
 		break;
 	case ED_MPCODE:
 	case ED_OPCODE:
@@ -537,7 +537,7 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 	case ED_IPCODE:
 	case ED_DPCODE:
 		prog = (SCRIPT_DATA *)ch->desc->pEdit;
-		sprintf(buf, "%ld", (long int)(prog ? prog->vnum : 0));
+		sprintf(buf, "%ld#%ld", (prog ? prog->area->uid : 0), (prog ? prog->vnum : 0));
 		break;
 	case ED_HELP:
 		{
@@ -589,12 +589,12 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 
 	case ED_SHIP:
 		pShip = (SHIP_INDEX_DATA *)ch->desc->pEdit;
-		sprintf(buf, "%ld", pShip ? pShip->vnum : 0);
+		sprintf(buf, "%ld#%ld", pShip ? pShip->area->uid : 0, pShip ? pShip->vnum : 0);
 		break;
 
 	case ED_TOKEN:
 		pTokenIndex = (TOKEN_INDEX_DATA *) ch->desc->pEdit;
-		sprintf(buf, "%ld", pTokenIndex ? pTokenIndex->vnum : 0);
+		sprintf(buf, "%ld#%ld", pTokenIndex ? pTokenIndex->area->uid : 0, pTokenIndex ? pTokenIndex->vnum : 0);
 		break;
 
 /* VIZZWILDS */
@@ -610,17 +610,17 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 
 	case ED_BPSECT:
 		bpsect = (BLUEPRINT_SECTION *)ch->desc->pEdit;
-		sprintf(buf, "%ld", bpsect ? bpsect->vnum : 0);
+		sprintf(buf, "%ld#%ld", bpsect ? bpsect->area->uid : 0, bpsect ? bpsect->vnum : 0);
 		break;
 
 	case ED_BLUEPRINT:
 		blueprint = (BLUEPRINT *)ch->desc->pEdit;
-		sprintf(buf, "%ld", blueprint ? blueprint->vnum : 0);
+		sprintf(buf, "%ld#%ld", blueprint ? blueprint->area->uid : 0, blueprint ? blueprint->vnum : 0);
 		break;
 
 	case ED_DUNGEON:
 		dungeon = (DUNGEON_INDEX_DATA*)ch->desc->pEdit;
-		sprintf(buf, "%ld", dungeon ? dungeon->vnum : 0);
+		sprintf(buf, "%ld#%ld", dungeon ? dungeon->area->uid : 0, dungeon ? dungeon->vnum : 0);
 		break;
 
 	default:
@@ -1159,7 +1159,7 @@ void do_tedit(CHAR_DATA *ch, char *argument)
 
 	argument = one_argument(argument,arg);
 
-	if (parse_widevnum(arg, &wnum))
+	if (parse_widevnum(arg, ch->in_room->area, &wnum))
 	{
 		if ((token_index = get_token_index(wnum.pArea, wnum.vnum)) == NULL)
 		{
@@ -1209,9 +1209,9 @@ void do_aedit(CHAR_DATA *ch, char *argument)
 	if (is_number(arg))
 	{
 	value = atoi(arg);
-	if (!(pArea = get_area_data(value)))
+	if (!(pArea = get_area_from_uid(value)))
 	{
-		send_to_char("That area vnum does not exist.\n\r", ch);
+		send_to_char("That area uid does not exist.\n\r", ch);
 		return;
 	}
 	}
@@ -1280,7 +1280,7 @@ void do_redit(CHAR_DATA *ch, char *argument)
 
 		return;
 	}
-	else if (parse_widevnum(arg1, &wnum))	/* redit <widevnum> */
+	else if (parse_widevnum(arg1, ch->in_room->area, &wnum))	/* redit <widevnum> */
 	{
 		pRoom = get_room_index(wnum.pArea, wnum.vnum);
 
@@ -1327,7 +1327,7 @@ void do_oedit(CHAR_DATA *ch, char *argument)
 
 	argument = one_argument(argument, arg1);
 
-	if (parse_widevnum(arg1, &wnum))
+	if (parse_widevnum(arg1, ch->in_room->area, &wnum))
 	{
 		if (!(pObj = get_obj_index(wnum.pArea, wnum.vnum)))
 		{
@@ -1367,7 +1367,7 @@ void do_medit(CHAR_DATA *ch, char *argument)
 	if (IS_NPC(ch))
 		return;
 
-	if (parse_widevnum(arg1, &wnum))
+	if (parse_widevnum(arg1, ch->in_room->area, &wnum))
 	{
 		if (!(pMob = get_mob_index(wnum.pArea, wnum.vnum)))
 		{
@@ -2076,8 +2076,8 @@ void do_resets(CHAR_DATA *ch, char *argument)
 	}
 	else
 	/* add a reset */
-	if ((!str_cmp(arg2, "mob") && parse_widevnum(arg3, &wnum3))
-	  || (!str_cmp(arg2, "obj") && parse_widevnum(arg3, &wnum3)))
+	if ((!str_cmp(arg2, "mob") && parse_widevnum(arg3, ch->in_room->area, &wnum3))
+	  || (!str_cmp(arg2, "obj") && parse_widevnum(arg3, ch->in_room->area, &wnum3)))
 	{
 		if (!str_cmp(arg2, "mob"))
 		{
@@ -2105,7 +2105,7 @@ void do_resets(CHAR_DATA *ch, char *argument)
 			{
 				OBJ_INDEX_DATA *temp;
 
-				if (!parse_widevnum(arg5, &wnum5))
+				if (!parse_widevnum(arg5, ch->in_room->area, &wnum5))
 				{
 					send_to_char("Object 2 not found!\n\r", ch);
 					return;	
@@ -2189,7 +2189,7 @@ void do_asearch(CHAR_DATA *ch, char *argument)
 	}
 
 	sprintf(result, "[%3s] [%-27s] [%-10s] %3s [%-9s]\n\r",
-	   "Num", "Area Name", "Filename", "Sec", "Builders");
+	   "UID", "Area Name", "Filename", "Sec", "Builders");
 
 
 	for (pArea = area_first; pArea; pArea = pArea->next)
@@ -2198,7 +2198,7 @@ void do_asearch(CHAR_DATA *ch, char *argument)
 	{
 		sprintf(buf,
 		"[%3ld] %-27.27s %-12.12s [%d] [%-10.10s]\n\r",
-			pArea->anum,
+			pArea->uid,
 		pArea->name,
 		pArea->file_name,
 		pArea->security,
@@ -2349,7 +2349,7 @@ void do_rcopy(CHAR_DATA *ch, char *argument)
 	argument = one_argument(argument, arg);
 	argument = one_argument(argument, arg2);
 
-	if (!parse_widevnum(arg, &old_w) || !parse_widevnum(arg2, &new_w))
+	if (!parse_widevnum(arg, ch->in_room->area, &old_w) || !parse_widevnum(arg2, ch->in_room->area, &new_w))
 	{
 		send_to_char("Syntax: rcopy <old_wnum> <new_wnum>\n\r", ch);
 		return;
@@ -2443,7 +2443,7 @@ void do_mcopy(CHAR_DATA *ch, char *argument)
 	argument = one_argument(argument, arg);
 	argument = one_argument(argument, arg2);
 
-	if (!parse_widevnum(arg, &old_w) || !parse_widevnum(arg2, &new_w))
+	if (!parse_widevnum(arg, ch->in_room->area, &old_w) || !parse_widevnum(arg2, ch->in_room->area, &new_w))
 	{
 		send_to_char("Syntax: mcopy <old_wnum> <new_wnum>\n\r", ch);
 		return;
@@ -2563,7 +2563,7 @@ void do_ocopy(CHAR_DATA *ch, char *argument)
 	argument = one_argument(argument, arg);
 	argument = one_argument(argument, arg2);
 
-	if (!parse_widevnum(arg, &old_w) || !parse_widevnum(arg2, &new_w))
+	if (!parse_widevnum(arg, ch->in_room->area, &old_w) || !parse_widevnum(arg2, ch->in_room->area, &new_w))
 	{
 		send_to_char("Syntax: ocopy <old_wnum> <new_wnum>\n\r", ch);
 		return;
@@ -2698,7 +2698,7 @@ void do_rpcopy(CHAR_DATA *ch, char *argument)
 	argument = one_argument(argument, arg);
 	argument = one_argument(argument, arg2);
 
-	if (!parse_widevnum(arg, &old_w) || !parse_widevnum(arg2, &new_w))
+	if (!parse_widevnum(arg, ch->in_room->area, &old_w) || !parse_widevnum(arg2, ch->in_room->area, &new_w))
 	{
 		send_to_char("Syntax: rpcopy <old_wnum> <new_wnum>\n\r", ch);
 		return;
@@ -2764,7 +2764,7 @@ void do_mpcopy(CHAR_DATA *ch, char *argument)
 	argument = one_argument(argument, arg);
 	argument = one_argument(argument, arg2);
 
-	if (!parse_widevnum(arg, &old_w) || !parse_widevnum(arg2, &new_w))
+	if (!parse_widevnum(arg, ch->in_room->area, &old_w) || !parse_widevnum(arg2, ch->in_room->area, &new_w))
 	{
 		send_to_char("Syntax: mpcopy <old_wnum> <new_wnum>\n\r", ch);
 		return;
@@ -2830,7 +2830,7 @@ void do_opcopy(CHAR_DATA *ch, char *argument)
 	argument = one_argument(argument, arg);
 	argument = one_argument(argument, arg2);
 
-	if (!parse_widevnum(arg, &old_w) || !parse_widevnum(arg2, &new_w))
+	if (!parse_widevnum(arg, ch->in_room->area, &old_w) || !parse_widevnum(arg2, ch->in_room->area, &new_w))
 	{
 		send_to_char("Syntax: opcopy <old_wnum> <new_wnum>\n\r", ch);
 		return;
@@ -3119,7 +3119,7 @@ void do_mshow(CHAR_DATA *ch, char *argument)
 	return;
 	}
 
-	if (!parse_widevnum(argument, &wnum))
+	if (!parse_widevnum(argument, ch->in_room->area, &wnum))
 	{
 	   send_to_char("Please specify a widevnum.\n\r", ch);
 	   return;
@@ -3152,7 +3152,7 @@ void do_oshow(CHAR_DATA *ch, char *argument)
 	return;
 	}
 
-	if (!parse_widevnum(argument, &wnum))
+	if (!parse_widevnum(argument, ch->in_room->area, &wnum))
 	{
 	   send_to_char("Please specify a widevnum.\n\r", ch);
 	   return;
@@ -3183,7 +3183,7 @@ void do_rshow(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (!parse_widevnum(argument, &wnum))
+	if (!parse_widevnum(argument, ch->in_room->area, &wnum))
 	{
 	   send_to_char("Please supply a widevnum.\n\r", ch);
 	   return;
@@ -3475,7 +3475,7 @@ void do_dislink(CHAR_DATA *ch, char *argument)
 	WNUM wnum;
 
 	argument = one_argument(argument, arg);
-	if (arg[0] == '\0' || !parse_widevnum(arg, &wnum))
+	if (arg[0] == '\0' || !parse_widevnum(arg, ch->in_room->area, &wnum))
 	{
 	send_to_char("Syntax: dislink <room widevnum> [junk]\n\r", ch);
 	return;
@@ -3688,7 +3688,7 @@ void do_tshow(CHAR_DATA *ch, char *argument)
 	return;
 	}
 
-	if (!parse_widevnum(argument, &wnum))
+	if (!parse_widevnum(argument, ch->in_room->area, &wnum))
 	{
 	   send_to_char("Please specify a widevnum.\n\r", ch);
 	   return;

@@ -1481,7 +1481,7 @@ TEDIT(tedit_create)
 
     EDIT_TOKEN(ch, token_index);
 
-    if (argument[0] == '\0' || !parse_widevnum(argument, &wnum))
+    if (argument[0] == '\0' || !parse_widevnum(argument, ch->in_room->area, &wnum))
     {
 	send_to_char("Syntax: tedit create [widevnum]\n\r", ch);
 	return FALSE;
@@ -1530,7 +1530,7 @@ TEDIT(tedit_show)
 
     sprintf(buf, "Name:                   {Y[{x%-20s{Y]{x\n\r", token_index->name);
     send_to_char(buf, ch);
-    sprintf(buf, "Area:                   {Y[{x%-20s{Y]{x\n\r", token_index->area->name);
+    sprintf(buf, "Area:                   {Y[{x%-20ld{Y]{x %s\n\r", token_index->area->uid, token_index->area->name);
     send_to_char(buf, ch);
     sprintf(buf, "Vnum:                   {Y[{x%-20ld{Y]{x\n\r", token_index->vnum);
     send_to_char(buf, ch);
@@ -2249,7 +2249,7 @@ TEDIT (tedit_addtprog)
     argument = one_argument(argument, phrase);
 
 	WNUM wnum;
-    if (!parse_widevnum(num, &wnum) || trigger[0] =='\0' || phrase[0] =='\0')
+    if (!parse_widevnum(num, ch->in_room->area, &wnum) || trigger[0] =='\0' || phrase[0] =='\0')
     {
 	send_to_char("Syntax:   addtprog [wnum] [trigger] [phrase]\n\r",ch);
 	return FALSE;
@@ -2407,7 +2407,7 @@ TEDIT(tedit_varset)
 
     if(!str_cmp(type,"room")) {
 		WNUM wnum;
-	if(!parse_widevnum(argument, &wnum)) {
+	if(!parse_widevnum(argument, ch->in_room->area, &wnum)) {
 	    send_to_char("Specify a room widevnum.\n\r", ch);
 	    return FALSE;
 	}

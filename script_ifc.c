@@ -1297,7 +1297,7 @@ DECL_IFC_FUN(ifc_mobexists)
 		return TRUE;
 	} else if(ISARG_STR(0)) {
 		WNUM wnum;
-		if (parse_widevnum(ARG_STR(0), &wnum)) {
+		if (parse_widevnum(ARG_STR(0), get_area_from_scriptinfo(info), &wnum)) {
 			MOB_INDEX_DATA *pMobIndex;
 
 			if (!(pMobIndex = get_mob_index(wnum.pArea, wnum.vnum)))
@@ -4777,7 +4777,7 @@ DECL_IFC_FUN(ifc_sectionflag)
 	return TRUE;
 }
 
-// ISAREAUNLOCKED $PLAYER $AREA|$ROOM|$ANUM
+// ISAREAUNLOCKED $PLAYER $AREA|$ROOM|$AUID
 DECL_IFC_FUN(ifc_isareaunlocked)
 {
 	*ret = FALSE;
@@ -4787,7 +4787,7 @@ DECL_IFC_FUN(ifc_isareaunlocked)
 		else if(ISARG_ROOM(1))	*ret = is_room_unlocked(ARG_MOB(0), ARG_ROOM(1));
 		else if(ISARG_NUM(1))
 		{
-			AREA_DATA *area = get_area_data(ARG_NUM(1));
+			AREA_DATA *area = get_area_from_uid(ARG_NUM(1));
 			*ret = (area && is_area_unlocked(ARG_MOB(0), area));
 		}
 	}

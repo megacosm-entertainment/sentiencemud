@@ -6288,7 +6288,7 @@ bool script_spell_deflection(CHAR_DATA *ch, CHAR_DATA *victim, TOKEN_DATA *token
 
 	// Find spell deflection
 	for (af = victim->affected; af; af = af->next) {
-		if (af->type == skill_lookup("spell deflection"))
+		if (af->type == gsn_spell_deflection)
 		break;
 	}
 
@@ -6919,7 +6919,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 			mobs = here ? here->people : NULL;
 			break;
 		case ENT_STRING:
-			if(parse_widevnum(arg->d.str, &wnum))
+			if(parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
 			{
 				here = get_room_index_wnum(wnum);
 				mobs = here ? here->people : NULL;
@@ -7159,7 +7159,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 			objs = here ? here->contents : NULL;
 			break;
 		case ENT_STRING:
-			if(parse_widevnum(arg->d.str, &wnum))
+			if(parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
 			{
 				here = get_room_index_wnum(wnum);
 				objs = here ? here->contents : NULL;
@@ -8130,7 +8130,7 @@ CHAR_DATA *script_mload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg,
 
 	switch(arg->type) {
 	case ENT_WIDEVNUM: wnum = arg->d.wnum; break;
-	case ENT_STRING: if (!parse_widevnum(arg->d.str, &wnum)) return NULL; break;
+	case ENT_STRING: if (!parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum)) return NULL; break;
 	case ENT_MOBILE: if (IS_VALID(arg->d.mob) && IS_NPC(arg->d.mob) )
 		{
 			wnum.pArea = arg->d.mob->pIndexData->area;
@@ -8228,7 +8228,7 @@ OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, 
 
 	switch(arg->type) {
 	case ENT_WIDEVNUM: wnum = arg->d.wnum; break;
-	case ENT_STRING: if (!parse_widevnum(arg->d.str, &wnum)) return NULL; break;
+	case ENT_STRING: if (!parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum)) return NULL; break;
 	case ENT_OBJECT: if (IS_VALID(arg->d.obj))
 		{
 			wnum.pArea = arg->d.obj->pIndexData->area;

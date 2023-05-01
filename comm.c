@@ -647,11 +647,14 @@ int main(int argc, char **argv)
     /* Vizz - load up our list of UIDs. Without this, we cannot assign unique UIDs to things */
     gconfig = gconfig_zero;
     if (gconfig_read()==1) exit(1);
+	log_string("Global config loaded.");
 
     /*
      * Run the game.
      */
     control = init_socket(port);
+	sprintf(log_buf, "Socket bound to port %d.", port);
+	log_string(log_buf);
     boot_db();
     sprintf(log_buf, "Sentience is up on port %d.", port);
     log_string(log_buf);
@@ -1827,7 +1830,7 @@ void bust_a_prompt(CHAR_DATA *ch)
 				if (ch->in_wilds)
 					sprintf(buf2, "(%ld, %ld)", ch->in_room->x, ch->in_room->y);
 				else
-					sprintf(buf2, "%ld", ch->in_room->vnum);
+					sprintf(buf2, "%ld#%ld", ch->in_room->area->uid, ch->in_room->vnum);
 			} else
 				sprintf(buf2, " ");
 		} else
@@ -2916,6 +2919,8 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		sprintf(buf, "{MThere are currently {W%ld{M players online.{x\n\r", playernum);
 		send_to_char(buf, ch);
 
+		bool moved_to_room = FALSE;
+
 		///////////////////////////////////////////////
 		// New player
 		if (ch->level == 0)
@@ -2943,6 +2948,8 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 				ch->level = MAX_LEVEL;
 				ch->tot_level = MAX_LEVEL;
 				ch->pcdata->security = 9;
+			    free_string(ch->prompt);
+    			ch->prompt = str_dup("{x[%o][%O] %R - %h> %c");
 
 				IMMORTAL_DATA *immortal = new_immortal();
 
@@ -2956,13 +2963,15 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 
 				ch->pcdata->immortal = immortal;
 				SET_BIT(ch->act, PLR_HOLYLIGHT);
-				SET_BIT(ch->act, PLR_HOLYWARP);
-				SET_BIT(ch->act, PLR_HOLYAURA);
+				SET_BIT(ch->act2, PLR_HOLYWARP);
+				SET_BIT(ch->act2, PLR_HOLYAURA);
 
 				// Create bootstrap area
 				AREA_DATA *pArea = new_area();
 				pArea->uid = gconfig.next_area_uid++;
 				free_string(pArea->name);
+				pArea->anum = 1;
+				top_area = 1;
 				pArea->name = str_dup("Bootstrap");
 				free_string(pArea->file_name);
 				pArea->file_name = str_dup("bootstrap.are");
@@ -3004,7 +3013,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 					REMOVE_BIT(pArea->area_flags, AREA_CHANGED);
 				}
 
-				char_to_room(ch, pRoom);
+				ch->in_room = pRoom;
 
 				do_function(ch, &do_changes, "catchup");
 				save_char_obj(ch);
@@ -3015,6 +3024,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 			}
 			else
 			{
+				moved_to_room = TRUE;
 				char_to_room(ch, room_index_school);
 				do_function(ch, &do_changes, "catchup");
 				SET_BIT(ch->comm, COMM_NO_OOC);
@@ -3041,27 +3051,34 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		resolve_instances_player(ch);
 		resolve_ships_player(ch);
 
-		if (ch->in_room != NULL)
+
+		if (!moved_to_room)
 		{
-			if( !wnum_match_room(room_wnum_school, ch->in_room) )
-				char_to_room(ch, ch->in_room);
-		}
-		else
-		{
-			if (ch->in_wilds != NULL)
+			if (ch->in_room != NULL)
 			{
-				plogf("nanny.c, join_world(): Transferring char to VRoom");
-				char_to_vroom (ch, ch->in_wilds, ch->at_wilds_x, ch->at_wilds_y);
+				char login_buf[MSL];
+				sprintf(login_buf, "ROOM: %ld#%ld\n\r", ch->in_room->area->uid, ch->in_room->vnum);
+				send_to_char(login_buf, ch);
+
+				char_to_room(ch, ch->in_room);
 			}
 			else
 			{
-				if (IS_IMMORTAL (ch))
+				if (ch->in_wilds != NULL)
 				{
-					char_to_room (ch, room_index_chat);
+					plogf("nanny.c, join_world(): Transferring char to VRoom");
+					char_to_vroom (ch, ch->in_wilds, ch->at_wilds_x, ch->at_wilds_y);
 				}
 				else
 				{
-					char_to_room (ch, room_index_temple);
+					if (IS_IMMORTAL (ch))
+					{
+						char_to_room (ch, room_index_chat);
+					}
+					else
+					{
+						char_to_room (ch, room_index_temple);
+					}
 				}
 			}
 		}

@@ -266,7 +266,7 @@ void do_housemove(CHAR_DATA *ch, char *argument)
 
 	WNUM wnum;
 
-    if (arg[0] == '\0' || !parse_widevnum(arg2, &wnum))
+    if (arg[0] == '\0' || !parse_widevnum(arg2, ch->in_room->area, &wnum))
     {
 	send_to_char( "Syntax:\n\r" , ch);
 	send_to_char( "Housemove <person> <widevnum>\n\r", ch);

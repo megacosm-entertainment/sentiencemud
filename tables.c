@@ -2879,3 +2879,33 @@ const struct flag_type portal_gatetype[] =
     { "wildsrandom",    GATETYPE_WILDSRANDOM,           TRUE    },
     { NULL,             0,                              FALSE   }
 };
+
+
+const struct flag_type wilderness_regions[] =
+{
+    { "Arena Island",        REGION_ARENA_ISLAND, TRUE },
+    { "Central Ocean",       REGION_CENTRAL_OCEAN, TRUE },
+    { "Dragon Island",       REGION_DRAGON_ISLAND, TRUE },
+    { "Eastern Ocean",       REGION_EASTERN_OCEAN, TRUE },
+    { "First Continent",     REGION_FIRST_CONTINENT, TRUE },
+    { "Fourth Continent",    REGION_FOURTH_CONTINENT, TRUE },
+    { "Mordrake Island",     REGION_MORDRAKE_ISLAND, TRUE },
+    { "North Pole",          REGION_NORTH_POLE, TRUE },
+    { "Northern Ocean",      REGION_NORTHERN_OCEAN, TRUE },
+    { "Second Continent",    REGION_SECOND_CONTINENT, TRUE },
+    { "South Pole",          REGION_SOUTH_POLE, TRUE },
+    { "Southern Ocean",      REGION_SOUTHERN_OCEAN, TRUE },
+    { "Temple Island",       REGION_TEMPLE_ISLAND, TRUE },
+    { "Third Continent",     REGION_THIRD_CONTINENT, TRUE },
+    { "Undersea",            REGION_UNDERSEA, TRUE },
+    { "Western Ocean",       REGION_WESTERN_OCEAN, TRUE },
+    { "Unknown",             REGION_UNKNOWN, FALSE},
+    { NULL,                  REGION_UNKNOWN,             FALSE }
+
+	// Overworld regions
+
+	// Abyss regions
+
+	// Other regions
+
+};

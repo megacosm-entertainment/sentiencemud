@@ -836,6 +836,11 @@ enum entity_area_enum {
 	ENTITY_AREA_LOWERVNUM,
 	ENTITY_AREA_UPPERVNUM,
 	ENTITY_AREA_ROOMS,
+	ENTITY_AREA_X,
+	ENTITY_AREA_Y,
+	ENTITY_AREA_LAND_X,
+	ENTITY_AREA_LAND_Y,
+	ENTITY_AREA_AIRSHIP,
 };
 
 enum entity_wilds_enum {
@@ -2044,6 +2049,7 @@ bool check_varinfo(SCRIPT_VARINFO *info);
 bool expand_string(SCRIPT_VARINFO *info,char *str,BUFFER *store);
 char *expand_argument(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg);
 char *expand_argument_expression(SCRIPT_VARINFO *info,char *str,int *num);
+AREA_DATA *get_area_from_scriptinfo(SCRIPT_VARINFO *info);
 
 /* Compiling */
 void compile_error(char *msg);
