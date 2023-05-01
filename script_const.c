@@ -424,7 +424,7 @@ ENT_FIELD entity_area[] = {
 	{"y",			ENTITY_AREA_Y,		ENT_NUMBER },
 	{"landx",		ENTITY_AREA_LAND_X,		ENT_NUMBER },
 	{"landy",		ENTITY_AREA_LAND_Y,		ENT_NUMBER },
-	{"airship",		ENTITY_AREA_AIRSHIP_ROOM,		ENT_ROOM },
+	{"airship",		ENTITY_AREA_AIRSHIP,		ENT_ROOM },
 	{NULL,		0,			ENT_UNKNOWN	}
 };
 

@@ -2930,7 +2930,7 @@ char *expand_entity_area(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_NUMBER;
 		arg->d.num = arg->d.area ? arg->d.area->land_y : -1;
 		break;
-	case ENTITY_AREA_AIRSHIP_ROOM:
+	case ENTITY_AREA_AIRSHIP:
 		arg->type = ENT_ROOM;
 		arg->d.room = (arg->d.area && arg->d.area->airship_land_spot > 0) ? get_room_index(arg->d.area, arg->d.area->airship_land_spot) : NULL;
 		break;
