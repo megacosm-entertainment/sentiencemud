@@ -2317,6 +2317,9 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 				send_to_char("Could not find a widevnum to dig.\n\r", ch);
 				return FALSE;
 			}
+
+			// Create the argument for the link command
+			sprintf(arg, "%ld#%ld", wnum.pArea->uid, wnum.vnum);
 		}
 		else if (!parse_widevnum(arg, ch->in_room->area, &wnum))
 		{
