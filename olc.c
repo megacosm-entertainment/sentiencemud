@@ -228,6 +228,8 @@ const struct olc_cmd_type wedit_table[] = {
 	{"delete", wedit_delete},
 	{"show", wedit_show},
 	{"name", wedit_name},
+	{"placetype", wedit_placetype},
+	{"region", wedit_region},
 	{"terrain", wedit_terrain},
 	{"vlink", wedit_vlink},
 

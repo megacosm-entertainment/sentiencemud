@@ -73,6 +73,7 @@ ROOM_INDEX_DATA *get_wilds_vroom args ((WILDS_DATA *pWilds, int x, int y));
 int             get_wilds_vroom_x_by_dir args ((WILDS_DATA *pWilds, int x, int y, int door));
 int             get_wilds_vroom_y_by_dir args ((WILDS_DATA *pWilds, int x, int y, int door));
 void            do_vlinks args ((CHAR_DATA *ch, char *argument));
+void            do_regions args ((CHAR_DATA *ch, char *argument));
 WILDS_VLINK     *NEW_Vlink args ((void));
 WILDS_VLINK     *fread_vlink args ((FILE *fp));
 WILDS_VLINK     *get_vlink_from_uid args((WILDS_DATA *pWilds, long uid));
@@ -2651,6 +2652,64 @@ void save_wilds (FILE * fp, AREA_DATA * pArea)
     return;
 }
 
+void do_regions(CHAR_DATA *ch, char *argument)
+{
+    WILDS_REGION *pRegion;
+    char buf[MSL];
+
+    WILDS_DATA *pWilds = ch->in_wilds;
+
+    if( is_number(argument) )
+    {
+		pWilds = get_wilds_from_uid(NULL, atol(argument));
+		if( !pWilds )
+		{
+			send_to_char("Regions: That is not a wilderness map.\n\r", ch);
+			return;
+		}
+	}
+	else if (!ch->in_wilds)
+    {
+        plogf("wilds.c, do_regions(): ch->in_wilds invalid.");
+        send_to_char("Regions: You don't appear to be in a wilderness map.\n\r", ch);
+        return;
+    }
+
+    send_to_char("{w[{WRegions{w]{x\n\r\n\r", ch);
+
+    if (pWilds->pRegion)
+    {
+        BUFFER *buffer = new_buf();
+
+        add_buf(buffer, "     [Start X] [Start Y] [ End X ] [ End Y ] [      Region      ] [     Place     ]\n\r");
+        add_buf(buffer, "====================================================================================\n\r");
+
+        int i = 0;
+        for(pRegion = pWilds->pRegion; pRegion; pRegion = pRegion->next)
+        {
+            sprintf(buf, "%4d  %7d   %7d   %7d   %7d   %-18s   %-15s\n\r", ++i,
+                pRegion->startx, pRegion->starty,
+                pRegion->endx, pRegion->endy,
+                flag_string(wilderness_regions, pRegion->region),
+                flag_string(place_flags, pRegion->area_place_flags));
+            add_buf(buffer, buf);
+        }
+
+        if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+        {
+            send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+        }
+        else
+        {
+            page_to_char(buffer->string, ch);
+        }
+
+        free_buf(buffer);
+    }
+    else
+        send_to_char("    None defined.\n\r", ch);
+}
+
 void do_vlinks(CHAR_DATA *ch, char *argument)
 {
     WILDS_VLINK *pVLink;
@@ -2663,14 +2722,14 @@ void do_vlinks(CHAR_DATA *ch, char *argument)
 		pWilds = get_wilds_from_uid(NULL, atol(argument));
 		if( !pWilds )
 		{
-			send_to_char("Vlinks: That is not a wilds region.\n\r", ch);
+			send_to_char("Vlinks: That is not a wilderness map.\n\r", ch);
 			return;
 		}
 	}
 	else if (!ch->in_wilds)
     {
         plogf("wilds.c, do_vlinks(): ch->in_wilds invalid.");
-        send_to_char("Vlinks: You don't appear to be in a wilds region.\n\r", ch);
+        send_to_char("Vlinks: You don't appear to be in a wilderness map.\n\r", ch);
         return;
     }
 

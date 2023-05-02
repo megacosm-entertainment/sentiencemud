@@ -1385,6 +1385,7 @@ bool can_gate(CHAR_DATA *ch, CHAR_DATA *victim)
 
 	/* take care of the wilderness case */
 	if (IN_WILDERNESS(ch)) {
+		// TODO: Allow catalysts to remove this problem?
 		if (ch->in_room->sector_type == SECT_WATER_NOSWIM) {
 			send_to_char("The deep ocean waters cancel out your magic.\n\r", ch);
 			return FALSE;
@@ -1396,6 +1397,9 @@ bool can_gate(CHAR_DATA *ch, CHAR_DATA *victim)
 		}
 	}
 
+	// TODO: Simplify this so it doesn't require looking at area names
+	// TODO: Add AREA_NOGATE_FROM to prevent gating out of area?
+	// TODO: Add AREA_NOGATE_TO to prevent gating into area?
 	//Added area_no_recall check to go with corresponding area flag - Areo 08-10-2006
 	if (!str_cmp(ch->in_room->area->name, "Netherworld") ||
 		!str_cmp(ch->in_room->area->name, "Eden") ||

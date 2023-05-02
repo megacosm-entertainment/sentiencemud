@@ -51,74 +51,76 @@ struct olc_help_type
 // This table contains help commands and a brief description of each.
 const struct olc_help_type help_table[] =
 {
-    {	"area",		area_flags,	 "Area attributes."		 },
-    {	"room",		room_flags,	 "Room attributes."		 },
-    {   "room2",	room2_flags,	 "Room2 attributes."		 },
-    {	"sector",	sector_flags,	 "Sector types, terrain."	 },
-    {	"exit",		exit_flags,	 "Exit types."			 },
-    {	"portal_exit",		portal_exit_flags,	 "Exit (Portal) types."			 },
-    {	"lock",		lock_flags,	 "Lock state types."			 },
-    {	"type",		type_flags,	 "Types of objects."		 },
-    {	"areawho",	area_who_titles, "Type of area for who."	 },
-    {	"placetype",	place_flags,	 "Where is the town/city etc."	 },
-    {	"extra",	extra_flags,	 "Object attributes."		 },
-    {	"extra2",	extra2_flags,	 "Object attributes 2."		 },
-    {	"extra3",	extra3_flags,	 "Object attributes 3."		 },
-    {	"extra4",	extra4_flags,	 "Object attributes 4."		 },
-    {	"wear",		wear_flags,	 "Where to wear object."	 },
-    {	"spec",		spec_table,	 "Available special programs." 	 },
-    {	"sex",		sex_flags,	 "Sexes."			 },
-    {	"act",		act_flags,	 "Mobile attributes."		 },
-    {	"act2",		act2_flags,	 "Mobile attributes."		 },
-    {	"affect",	affect_flags,	 "Mobile affects."		 },
-    {   "affect2",	affect2_flags,   "Mobile affects."		 },
-    {	"wear-loc",	wear_loc_flags,	 "Where mobile wears object."	 },
-    {	"spells",	skill_table,	 "Names of current spells." 	 },
-    {	"container",	container_flags, "Container status."		 },
-    {	"armour",	ac_type,	 "Ac for different attacks."	 },
-    {   "apply",	apply_flags,	 "Apply flags"			 },
-    {	"form",		form_flags,	 "Mobile body form."	         },
-    {	"part",		part_flags,	 "Mobile body parts."		 },
-    {	"imm",		imm_flags,	 "Mobile immunity."		 },
-    {	"res",		res_flags,	 "Mobile resistance."	         },
-    {	"vuln",		vuln_flags,	 "Mobile vulnerability."	 },
-    {	"off",		off_flags,	 "Mobile offensive behaviour."	 },
-    {	"size",		size_flags,	 "Mobile size."			 },
-    {   "position",     position_flags,  "Mobile positions."             },
-    {   "wclass",       weapon_class,    "Weapon class."                 },
-    {   "wtype",        weapon_type2,    "Special weapon type."          },
-    {	"portal",	portal_flags,	 "Portal types."		 },
-    {	"furniture",	furniture_flags, "Furniture types."		 },
-    {   "liquid",	liq_table,	 "Liquid types."		 },
-    {	"apptype",	apply_types,	 "Apply types."			 },
-    {	"weapon",	attack_table,	 "Weapon types."		 },
-    {   "ranged",       ranged_weapon_table, "Ranged weapon types."      },
-    {   "material",	material_table,  "Object materials."		 },
-    {	"mprog",	trigger_table,	 "MobProgram types."		 },
-    {	"oprog",	trigger_table,	 "ObjProgram types."		 },
-    {	"rprog",	trigger_table,	 "RoomProgram types."		 },
-    {	"tprog",	trigger_table,	 "TokenProgram types."		 },
-    {	"aprog",	trigger_table,	 "AreaProgram types."		 },
-    {	"iprog",	trigger_table,	 "InstanceProgram types."		 },
-    {	"dprog",	trigger_table,	 "DungeonProgram types."		 },
-    {   "condition",    room_condition_flags, "Room Condition types."    },
-    {   "tokenflags",   token_flags,	 "Token flags."			 },
-    {	"projectflags",	project_flags,	 "Project flags."		 },
-    {	"immortalflags",immortal_flags,	 "Immortal duties."		 },
-    {   "scriptflags",  script_flags,	 "Script Flags {D({Wrestricted{D){x."    },
-    {	"corpsetypes",	corpse_types,	 "Corpse types."		},
-    {	"catalyst",	catalyst_types,	 "Catalyst types."		},
-    {	"spell_targets",	spell_target_types,	"Spell Target Types."	},
-    {	"song_targets",	song_target_types,	"Song Target Types."	},
-    {	"instruments",	instrument_types,	"Instrument Types"	},
-    {	"shop",		shop_flags,	 "Shop flags"		 },
-    {	"section_type",		blueprint_section_types,	 "Blueprint Section Types"		 },
-    {	"section_flags",		blueprint_section_flags,	 "Blueprint Section Flags"		 },
-    {	"instance",		instance_flags,	 "Instance Flags"		 },
-    {	"dungeon",		dungeon_flags,	 "Dungeon Flags"		 },
-    {	"ship",			ship_flags,	 "Ship flags"		 },
-    {	"shipclass",		ship_class_types,	 "Ship class types"		 },
-    {	NULL,		NULL,		 NULL				 }
+	{	"act",					act_flags,					"Mobile	attributes."	},
+	{	"act2",					act2_flags,					"Mobile	attributes."	},
+	{	"affect",				affect_flags,				"Mobile	affects."	},
+	{	"affect2",				affect2_flags,				"Mobile affects."	},
+	{	"apply",				apply_flags,				"Apply flags"	},
+	{	"apptype",				apply_types,				"Apply types."	},
+	{	"aprog",				trigger_table,				"AreaProgram types."	},
+	{	"area",					area_flags,					"Area attributes."	},
+	{	"areawho",				area_who_titles,			"Type of area for who."	},
+	{	"armour",				ac_type,					"Ac for different attacks."	},
+	{	"catalyst",				catalyst_types,				"Catalyst types."	},
+	{	"condition",			room_condition_flags,		"Room Condition types."	},
+	{	"container",			container_flags,			"Container status."	},
+	{	"corpsetypes",			corpse_types,				"Corpse types."	},
+	{	"dprog",				trigger_table,				"DungeonProgram types."	},
+	{	"dungeon",				dungeon_flags,				"Dungeon Flags"	},
+	{	"exit",					exit_flags,					"Exit types."	},
+	{	"extra",				extra_flags,				"Object attributes."	},
+	{	"extra2",				extra2_flags,				"Object attributes 2."	},
+	{	"extra3",				extra3_flags,				"Object attributes 3."	},
+	{	"extra4",				extra4_flags,				"Object attributes 4."	},
+	{	"form",					form_flags,					"Mobile body form."	},
+	{	"furniture",			furniture_flags,			"Furniture types."	},
+	{	"imm",					imm_flags,					"Mobile immunity."	},
+	{	"immortalflags",		immortal_flags,				"Immortal duties."	},
+	{	"instance",				instance_flags,				"Instance Flags"	},
+	{	"instruments",			instrument_types,			"Instrument Types"	},
+	{	"iprog",				trigger_table,				"InstanceProgram types."	},
+	{	"liquid",				liq_table,					"Liquid types."	},
+	{	"lock",					lock_flags,					"Lock state types."	},
+	{	"material",				material_table,				"Object materials."	},
+	{	"mprog",				trigger_table,				"MobProgram types."	},
+	{	"off",					off_flags,					"Mobile offensive behaviour."	},
+	{	"oprog",				trigger_table,				"ObjProgram types."	},
+	{	"part",					part_flags,					"Mobile body parts."	},
+	{	"placetype",			place_flags,				"Where is the town/city etc."	},
+	{	"portal",				portal_flags,				"Portal types."	},
+	{	"portal_exit",			portal_exit_flags,			"Exit (Portal) types."	},
+	{	"portal_type",			portal_gatetype,			"Portal gate types"},
+	{	"position",				position_flags,				"Mobile positions."	},
+	{	"projectflags",			project_flags,				"Project flags."	},
+	{	"ranged",				ranged_weapon_table,		"Ranged	weapon types."	},
+	{	"res",					res_flags,					"Mobile resistance."	},
+	{	"room",					room_flags,					"Room attributes."	},
+	{	"room2",				room2_flags,				"Room2 attributes."	},
+	{	"rprog",				trigger_table,				"RoomProgram types."	},
+	{	"scriptflags",			script_flags,				"Script Flags {D({Wrestricted{D){x."	},
+	{	"section_flags",		blueprint_section_flags,	"Blueprint Section Flags"	},
+	{	"section_type",			blueprint_section_types,	"Blueprint Section Types"	},
+	{	"sector",				sector_flags,				"Sector types, terrain."	},
+	{	"sex",					sex_flags,					"Sexes."	},
+	{	"ship",					ship_flags,					"Ship flags"	},
+	{	"shipclass",			ship_class_types,			"Ship class types"	},
+	{	"shop",					shop_flags,					"Shop flags"	},
+	{	"size",					size_flags,					"Mobile size."	},
+	{	"song_targets",			song_target_types,			"Song Target Types."	},
+	{	"spec",					spec_table,					"Available special programs. {D(DEPRECATED){x"	},
+	{	"spell_targets",		spell_target_types,			"Spell Target Types."	},
+	{	"spells",				skill_table,				"Names of current spells."	},
+	{	"tokenflags",			token_flags,				"Token flags."	},
+	{	"tprog",				trigger_table,				"TokenProgram types."	},
+	{	"type",					type_flags,					"Types of objects."	},
+	{	"vuln",					vuln_flags,					"Mobile vulnerability."	},
+	{	"wclass",				weapon_class,				"Weapon class."	},
+	{	"weapon",				attack_table,				"Weapon types."	},
+	{	"wear",					wear_flags,					"Where to wear object."	},
+	{	"wear-loc",				wear_loc_flags,				"Where mobile wears object."	},
+	{	"wilderness_regions",	wilderness_regions,			"wilderness region names"},
+	{	"wtype",				weapon_type2,				"Special weapon type."	},
+	{	NULL,					NULL,						NULL									}
 };
 
 
@@ -11909,6 +11911,10 @@ WEDIT ( wedit_show )
                   pWilds->map_size_x, pWilds->map_size_y,
                   (long)(pWilds->map_size_x * pWilds->map_size_y));
     send_to_char( buf, ch );
+	sprintf(buf, "Default Region: %s\n\r", flag_string(wilderness_regions, pWilds->defaultRegion));
+	send_to_char(buf, ch);
+	sprintf(buf, "Default Place Type: %s\n\r", flag_string(place_flags, pWilds->defaultPlaceFlags));
+	send_to_char(buf, ch);
 
     show_map_to_char(ch, ch, 3, 3, TRUE);
 
@@ -12009,7 +12015,227 @@ WEDIT ( wedit_region )
 {
 	WILDS_DATA *pWilds;
 	WILDS_REGION *pRegion;
+	char buf[MSL];
+	char arg[MIL];
 
+    EDIT_WILDS (ch, pWilds);
+
+	argument = one_argument(argument, arg);
+	if (arg[0] != '\0')
+	{
+		if (!str_prefix(arg, "list"))
+		{
+			BUFFER *buffer = new_buf();
+
+			sprintf(buf, "Default Region:  %s\n\r\n\r", flag_string(wilderness_regions, pWilds->defaultRegion));
+			add_buf(buffer, buf);
+
+			add_buf(buffer, "     [Start X] [Start Y] [ End X ] [ End Y ] [      Region      ] [     Place     ]\n\r");
+			add_buf(buffer, "====================================================================================\n\r");
+
+			int i = 0;
+			for(pRegion = pWilds->pRegion; pRegion; pRegion = pRegion->next)
+			{
+				sprintf(buf, "%4d  %7d   %7d   %7d   %7d   %-18s   %-15s\n\r", ++i,
+					pRegion->startx, pRegion->starty,
+					pRegion->endx, pRegion->endy,
+					flag_string(wilderness_regions, pRegion->region),
+					flag_string(place_flags, pRegion->area_place_flags));
+				add_buf(buffer, buf);
+			}
+
+			if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+			{
+				send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+			}
+			else
+			{
+				page_to_char(buffer->string, ch);
+			}
+
+			free_buf(buffer);
+			return FALSE;
+		}
+
+		if (!str_prefix(arg, "default"))
+		{
+			if (argument[0] != '\0')
+			{
+				if (!str_cmp(argument, "none"))
+				{
+					pWilds->defaultRegion = REGION_UNKNOWN;
+
+					send_to_char("Default region cleared.\n\r", ch);
+					return TRUE;
+				}
+				else
+				{
+					int value = flag_lookup(argument, wilderness_regions);
+					if (value != NO_FLAG)
+					{
+						pWilds->defaultRegion = value;
+						send_to_char("Default region set.\n\r", ch);
+						return TRUE;
+					}
+				}
+			}
+
+			send_to_char("Syntax:  region default {R<region>{x\n\r", ch);
+			send_to_char("Type ? wilderness_regions to get a list of valid region names.\n\r", ch);
+			return FALSE;
+		}
+
+		if (!str_prefix(arg, "add"))
+		{
+			char arg2[MIL];
+			char arg3[MIL];
+			char arg4[MIL];
+			char arg5[MIL];
+			char arg6[MIL];
+
+			argument = one_argument(argument, arg2);
+			argument = one_argument(argument, arg3);
+			argument = one_argument(argument, arg4);
+			argument = one_argument(argument, arg5);
+			argument = one_argument(argument, arg6);
+
+			int startx, starty, endx, endy;
+			if (!is_number(arg2) || (startx = atoi(arg2)) < 0 || startx >= pWilds->map_size_x)
+			{
+				send_to_char("Syntax:  region add {R<startx>{x <starty> <endx> <endy> <region> <placetype>\n\r", ch);
+				sprintf(buf, "         Please specify a number from 0 to %d.\n\r", pWilds->map_size_x - 1);
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			if (!is_number(arg3) || (starty = atoi(arg3)) < 0 || starty >= pWilds->map_size_y)
+			{
+				send_to_char("Syntax:  region add <startx> {R<starty>{x <endx> <endy> <region> <placetype>\n\r", ch);
+				sprintf(buf, "         Please specify a number from 0 to %d.\n\r", pWilds->map_size_y - 1);
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			if (!is_number(arg4) || (endx = atoi(arg4)) < 0 || endx >= pWilds->map_size_x)
+			{
+				send_to_char("Syntax:  region add <startx> <starty> {R<endx>{x <endy> <region> <placetype>\n\r", ch);
+				sprintf(buf, "         Please specify a number from 0 to %d.\n\r", pWilds->map_size_x - 1);
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			if (!is_number(arg5) || (endy = atoi(arg5)) < 0 || endy >= pWilds->map_size_y)
+			{
+				send_to_char("Syntax:  region add <startx> <starty> <endx> {R<endy>{x <region> <placetype>\n\r", ch);
+				sprintf(buf, "         Please specify a number from 0 to %d.\n\r", pWilds->map_size_y - 1);
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			int region = flag_lookup(arg6, wilderness_regions);
+			if (region == NO_FLAG)
+			{
+				send_to_char("Syntax:  region add <startx> <starty> <endx> <endy> {R<region>{x <placetype>\n\r", ch);
+				send_to_char("Type ? wilderness_regions to get a list of valid region names.\n\r", ch);
+				return FALSE;
+			}
+
+			int place = flag_lookup(argument, place_flags);
+			if (place == NO_FLAG)
+			{
+				send_to_char("Syntax:  region add <startx> <starty> <endx> <endy> <region> {R<placetype>{x\n\r", ch);
+				send_to_char("Type '? placetype' for a list of possible values.\n\r", ch);
+				return FALSE;
+			}
+
+			pRegion = new_region(pWilds);
+			pRegion->startx = UMIN(startx, endx);
+			pRegion->starty = UMIN(starty, endy);
+			pRegion->endx = UMAX(startx, endx);
+			pRegion->endy = UMAX(starty, endy);
+			pRegion->region = region;
+			pRegion->area_place_flags = place;
+			add_region(pWilds, pRegion);
+
+			send_to_char("Region added.\n\r", ch);
+			return TRUE;
+		}
+
+		if (!str_prefix(arg, "remove"))
+		{
+			int count, index;
+			for(count = 0, pRegion = pWilds->pRegion; pRegion; count++, pRegion = pRegion->next);
+
+			if (argument[0] == '\0' || !is_number(argument))
+			{
+				send_to_char("Syntax:  region remove {R#{x\n\r", ch);
+				if (count > 0)
+				{
+					sprintf(buf, "         Please specify a number from 1 to %d.\n\r", count);
+					send_to_char(buf, ch);
+				}
+				else
+					send_to_char("No region to remove.\n\r", ch);
+				return FALSE;
+			}
+
+			index = atoi(argument);
+			if (index < 1 || index > count)
+			{
+				send_to_char("No such region to remove.\n\r", ch);
+				if (count > 0)
+				{
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", count);
+					send_to_char(buf, ch);
+				}
+				return FALSE;
+			}
+
+			for(pRegion = pWilds->pRegion; pRegion; pRegion = pRegion->next)
+			{
+				if (!--index) break;
+			}
+
+			del_region(pWilds, pRegion);
+			send_to_char("Region removed.\n\r", ch);
+			return TRUE;
+		}
+	}
+
+	send_to_char("Syntax:  region list\n\r", ch);
+	send_to_char("         region default <region>\n\r", ch);
+	send_to_char("         region add <startx> <starty> <endx> <endy> <region> <placetype>\n\r", ch);
+	send_to_char("         region remove #\n\r", ch);
+	return FALSE;
+}
+
+
+WEDIT (wedit_placetype)
+{
+	WILDS_DATA *pWilds;
+	int value;
+
+    EDIT_WILDS (ch, pWilds);
+
+	if (argument[0] != '\0')
+	{
+		if(!str_cmp(argument, "none"))
+		{
+			pWilds->defaultPlaceFlags = PLACE_NOWHERE;
+			send_to_char("Wilds default place type cleared.\n\r", ch);
+			return TRUE;
+		}
+		else if ((value = flag_value(place_flags, argument)) != NO_FLAG)
+		{
+			pWilds->defaultPlaceFlags = value;
+
+			send_to_char("Wilds default place type set.\n\r", ch);
+			return TRUE;
+		}
+	}
+
+	send_to_char("Syntax:  placetype <placetype>\n\r", ch);
+	send_to_char("Type '? placetype' for a list of possible values.\n\r", ch);
 	return FALSE;
 }
 

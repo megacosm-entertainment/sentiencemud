@@ -492,6 +492,8 @@ DECLARE_OLC_FUN( wedit_show             );
 DECLARE_OLC_FUN( wedit_name             );
 DECLARE_OLC_FUN( wedit_terrain          );
 DECLARE_OLC_FUN( wedit_vlink            );
+DECLARE_OLC_FUN( wedit_region           );
+DECLARE_OLC_FUN( wedit_placetype        );
 
 /* VLink Editor */
 DECLARE_OLC_FUN( vledit_show            );

@@ -382,6 +382,7 @@ void do_gohome(CHAR_DATA *ch, char *argument)
 
     if ( IS_WILDERNESS(ch->in_room) )
     {
+		// TODO: Base it upon their home area's region
 	if ( get_region( ch->in_room ) != REGION_FIRST_CONTINENT )
 	{
 	    send_to_char("Your home is too far away.\n\r", ch );
