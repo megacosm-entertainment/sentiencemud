@@ -281,3 +281,4 @@ extern	const struct flag_type portal_gatetype[];
 extern	const struct flag_type wilderness_regions[];
 
 #endif
+

@@ -2599,6 +2599,7 @@ struct affliction_type {
 #define ITEM_WEAR_ANKLE			(X)
 #define ITEM_CONCEALS			(Y)
 #define ITEM_WEAR_TABARD		(Z)
+#define ITEM_WEAR_TATTOO        (aa)    // Will allow non-tattoo items to be used in the tattoo slot
 
 #define ITEM_NONWEAR			(ITEM_TAKE|ITEM_NO_SAC|ITEM_CONCEALS)
 
@@ -3157,7 +3158,8 @@ enum {
 #define WEAR_TATTOO_SHOULDER_R	48
 #define WEAR_TATTOO_BACK	49
 #define WEAR_TABARD			50
-#define MAX_WEAR		51
+#define WEAR_TATTOO_NECK    51
+#define MAX_WEAR		52
 
 /*
  * Conditions.

@@ -2866,7 +2866,7 @@ bool remove_obj(CHAR_DATA *ch, int iWear, bool fReplace)
 	}
 
 	if( !WEAR_ALWAYSREMOVE(iWear) ) {
-		if (IS_SET(obj->extra_flags, ITEM_NOREMOVE) || !WEAR_REMOVEEQ(iWear)) {
+		if (IS_SET(obj->extra_flags, ITEM_NOREMOVE) || !WEAR_REMOVEEQ(iWear) || obj->item_type == ITEM_TATTOO) {
 			act("You can't remove $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 			return FALSE;
 		}

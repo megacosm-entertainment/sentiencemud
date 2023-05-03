@@ -230,6 +230,7 @@ ENT_FIELD entity_mobile[] = {
 	{"eq_shoulder",		ENTITY_MOB_EQ_SHOULDER,		ENT_OBJECT	},
 	{"eq_tattoo_back",     ENTITY_MOB_EQ_TATTOO_BACK,     ENT_OBJECT      },
 	{"eq_tattoo_head",	ENTITY_MOB_EQ_TATTOO_HEAD,	ENT_OBJECT	},
+	{"eq_tattoo_neck",     ENTITY_MOB_EQ_TATTOO_NECK,     ENT_OBJECT      },
 	{"eq_tattoo_lower_arm1",        ENTITY_MOB_EQ_TATTOO_LOWER_ARM1,      ENT_OBJECT      },
 	{"eq_tattoo_lower_arm2",        ENTITY_MOB_EQ_TATTOO_LOWER_ARM2,      ENT_OBJECT      },
 	{"eq_tattoo_lower_leg1",        ENTITY_MOB_EQ_TATTOO_LOWER_LEG1,      ENT_OBJECT      },

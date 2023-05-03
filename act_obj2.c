@@ -15,6 +15,7 @@
 #include "recycle.h"
 #include "tables.h"
 
+void show_flag_cmds(CHAR_DATA *ch, const struct flag_type *flag_table);
 
 /* Used not only for depositing of pneuma but for the depositing of GQ items*/
 void do_deposit(CHAR_DATA *ch, char *argument)
@@ -857,7 +858,7 @@ void do_ruboff(CHAR_DATA *ch, char *argument)
 
     if (obj->item_type != ITEM_TATTOO)
     {
-	send_to_char("You can touch only tattoos.\n\r", ch);
+	send_to_char("You can only rub off tattoos.\n\r", ch);
 	return;
     }
 
@@ -1113,6 +1114,7 @@ void ink_end( CHAR_DATA *ch, CHAR_DATA *victim, sh_int loc, sh_int sn, sh_int sn
     tattoo->wear_loc = loc;
 }
 
+
 void do_affix(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -1133,8 +1135,8 @@ void do_affix(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (obj->item_type != ITEM_TATTOO) {
-		send_to_char("You can only affix tattoos.\n\r", ch);
+	if (obj->item_type != ITEM_TATTOO && !IS_SET(obj->wear_flags, ITEM_WEAR_TATTOO)) {
+		send_to_char("You can only affix tattoo.\n\r", ch);
 		return;
 	}
 
@@ -1147,6 +1149,7 @@ void do_affix(CHAR_DATA *ch, char *argument)
 
 	if((loc = flag_lookup(arg, tattoo_loc_flags)) == 0) {
 		send_to_char("Affix the tattoo where?\n\r", ch);
+		show_flag_cmds(ch, tattoo_loc_flags);
 		return;
 	}
 

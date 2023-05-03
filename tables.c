@@ -1400,7 +1400,7 @@ const struct flag_type wear_flags[] =
     {	"wield",		ITEM_WIELD,		TRUE	},
     {	"hold",			ITEM_HOLD,		TRUE	},
     {   "nosac",		ITEM_NO_SAC,		TRUE	},
-    {	"wearfloat",		ITEM_WEAR_FLOAT,	TRUE	},
+    {	"float",		ITEM_WEAR_FLOAT,	TRUE	},
     {   "ring_finger",		ITEM_WEAR_RING_FINGER,  TRUE    },
     {   "back",			ITEM_WEAR_BACK,		TRUE    },
     {   "shoulder",		ITEM_WEAR_SHOULDER,	TRUE	},
@@ -1410,6 +1410,7 @@ const struct flag_type wear_flags[] =
     {   "ankle",		ITEM_WEAR_ANKLE,	TRUE	},
     {   "conceals",		ITEM_CONCEALS,		TRUE	},
     {	"tabard",		ITEM_WEAR_TABARD,	TRUE	},
+    {   "tattoo",       ITEM_WEAR_TATTOO,   TRUE    },
     {	NULL,			0,			0	}
 };
 
@@ -1513,6 +1514,7 @@ const struct flag_type wear_loc_names[] =
         { "TATTOO_SHOULDER_L",       WEAR_TATTOO_SHOULDER_L,      TRUE },
         { "TATTOO_SHOULDER_R",       WEAR_TATTOO_SHOULDER_R,      TRUE },
         { "TATTOO_BACK",       WEAR_TATTOO_BACK,      TRUE },
+        { "TATTOO_NECK",       WEAR_TATTOO_NECK,      TRUE },
 
     {	NULL,			0,			0	}
 
@@ -1572,6 +1574,7 @@ const struct flag_type wear_loc_strings[] =
     {   "tattooed on left shoulder",   WEAR_TATTOO_SHOULDER_L,      TRUE    },
     {   "tattooed on right shoulder",  WEAR_TATTOO_SHOULDER_R,      TRUE    },
     {   "tattooed on back",  WEAR_TATTOO_BACK,      TRUE    },
+    {   "tattooed on neck",  WEAR_TATTOO_NECK,      TRUE    },
     {	NULL,			0,			0	}
 };
 
@@ -1629,6 +1632,7 @@ const struct flag_type wear_loc_flags[] =
     {   "tattoolshoulder",   WEAR_TATTOO_SHOULDER_L,      TRUE    },
     {   "tattoorshoulder",   WEAR_TATTOO_SHOULDER_R,      TRUE    },
     {   "tattooback",   WEAR_TATTOO_BACK,       TRUE    },
+    {   "tattooneck",   WEAR_TATTOO_NECK,       TRUE    },
     {	NULL,		0,		0	}
 };
 
@@ -2633,7 +2637,7 @@ const struct flag_type tattoo_loc_flags[] =
     {   "left_shoulder",      WEAR_TATTOO_SHOULDER_L,        TRUE    },
     {   "right_shoulder",       WEAR_TATTOO_SHOULDER_R,        TRUE    },
     {   "back",      WEAR_TATTOO_BACK,        TRUE    },
-
+    {   "neck",      WEAR_TATTOO_NECK,        TRUE    },
     {	NULL,		0,		0	}
 };
 
