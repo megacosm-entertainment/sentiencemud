@@ -8213,12 +8213,12 @@ OBJ_DATA *script_get_obj_here(SCRIPT_VARINFO *info, char *name)
 	return NULL;
 }
 
-// MLOAD $WNUM|$MOBILE $ROOM[ $VARIABLENAME]
+// MLOAD $WNUM|$MOBINDEX|$MOBILE $ROOM[ $VARIABLENAME]
 CHAR_DATA *script_mload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, bool instanced)
 {
 	char *rest;
-	WNUM wnum = wnum_zero;
-	MOB_INDEX_DATA *pMobIndex;
+	WNUM wnum;
+	MOB_INDEX_DATA *pMobIndex = NULL;
 	ROOM_INDEX_DATA *room;
 	CHAR_DATA *victim;
 
@@ -8230,23 +8230,26 @@ CHAR_DATA *script_mload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg,
 		return NULL;
 
 	switch(arg->type) {
-	case ENT_WIDEVNUM: wnum = arg->d.wnum; break;
-	case ENT_STRING: if (!parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum)) return NULL; break;
-	case ENT_MOBILE: if (IS_VALID(arg->d.mob) && IS_NPC(arg->d.mob) )
-		{
-			wnum.pArea = arg->d.mob->pIndexData->area;
-			wnum.vnum = arg->d.mob->pIndexData->vnum;
-		}
-		else
-		{
-			wnum.pArea = NULL;
-			wnum.vnum = 0;
-		}
+	case ENT_WIDEVNUM:
+		pMobIndex = get_mob_index_wnum(arg->d.wnum);
+		break;
+	case ENT_STRING:
+		if (!parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
+			return NULL;
+		
+		pMobIndex = get_mob_index_wnum(wnum);
+		break;
+	case ENT_MOBILE:
+		if (IS_VALID(arg->d.mob) && IS_NPC(arg->d.mob) )
+			pMobIndex = arg->d.mob->pIndexData;
+		break;
+	case ENT_MOBINDEX:
+		pMobIndex = arg->d.mobindex;
 		break;
 	default: break;
 	}
 
-	if (!wnum.pArea || wnum.vnum < 1 || !(pMobIndex = get_mob_index(wnum.pArea, wnum.vnum))) {
+	if (!pMobIndex) {
 //		sprintf(buf, "Mpmload: bad mob index (%ld) from mob %ld", vnum, VNUM(info->mob));
 //		bug(buf, 0);
 		return NULL;
@@ -8301,14 +8304,14 @@ CHAR_DATA *script_mload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg,
 	return victim;
 }
 
-// OLOAD $WNUM|$OBJECT $LEVEL[ none|room|wear|$MOBILE[ wear]|$OBJECT|$ROOM[ $VARIABLENAME]]
+// OLOAD $WNUM|$OBJINDEX|$OBJECT $LEVEL[ none|room|wear|$MOBILE[ wear]|$OBJECT|$ROOM[ $VARIABLENAME]]
 OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, bool instanced)
 {
 	char buf[MIL], *rest;
 	WNUM wnum;
 	long level;
 	bool fToroom = FALSE, fWear = FALSE;
-	OBJ_INDEX_DATA *pObjIndex;
+	OBJ_INDEX_DATA *pObjIndex = NULL;
 	OBJ_DATA *obj;
 	CHAR_DATA *to_mob = info->mob;
 	OBJ_DATA *to_obj = NULL;
@@ -8328,23 +8331,24 @@ OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, 
 	else if( info->token ) here = token_room(info->token);
 
 	switch(arg->type) {
-	case ENT_WIDEVNUM: wnum = arg->d.wnum; break;
-	case ENT_STRING: if (!parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum)) return NULL; break;
-	case ENT_OBJECT: if (IS_VALID(arg->d.obj))
-		{
-			wnum.pArea = arg->d.obj->pIndexData->area;
-			wnum.vnum = arg->d.obj->pIndexData->vnum;
-		}
-		else
-		{
-			wnum.pArea = NULL;
-			wnum.vnum = 0;
-		}
+	case ENT_WIDEVNUM: pObjIndex = get_obj_index_wnum(arg->d.wnum); break;
+	case ENT_STRING:
+		if (!parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
+			return NULL;
+
+		pObjIndex = get_obj_index_wnum(wnum);
+		break;
+	case ENT_OBJECT:
+		if (IS_VALID(arg->d.obj))
+			pObjIndex = arg->d.obj->pIndexData;
+		break;
+	case ENT_OBJINDEX:
+		pObjIndex = arg->d.objindex;
 		break;
 	default: return NULL;
 	}
 
-	if (!wnum.pArea || wnum.vnum < 1 || !(pObjIndex = get_obj_index(wnum.pArea, wnum.vnum))) {
+	if (!pObjIndex) {
 //		bug("*Poload - Bad vnum arg from vnum %d.", VNUM(info->);
 		return NULL;
 	}

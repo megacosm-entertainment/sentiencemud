@@ -1649,6 +1649,58 @@ char *expand_entity_string(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	return str+1;
 }
 
+char *expand_entity_widevnum(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	WNUM wnum = arg->d.wnum;
+
+	switch(*str) {
+	case ENTITY_WNUM_AREA:
+		arg->type = ENT_AREA;
+		arg->d.area = wnum.pArea;
+		break;
+	case ENTITY_WNUM_VNUM:
+		arg->type = ENT_NUMBER;
+		arg->d.num = wnum.vnum;
+		break;
+	case ENTITY_WNUM_MOBINDEX:
+		arg->type = ENT_MOBINDEX;
+		arg->d.mobindex = get_mob_index_wnum(wnum);
+		break;
+	case ENTITY_WNUM_OBJINDEX:
+		arg->type = ENT_OBJINDEX;
+		arg->d.objindex = get_obj_index_wnum(wnum);
+		break;
+	case ENTITY_WNUM_ROOM:
+		arg->type = ENT_ROOM;
+		arg->d.room = get_room_index_wnum(wnum);
+		break;
+	case ENTITY_WNUM_TOKENINDEX:
+		arg->type = ENT_TOKENINDEX;
+		arg->d.tokindex = get_token_index_wnum(wnum);
+		break;
+	case ENTITY_WNUM_BLUEPRINT:
+		arg->type = ENT_BLUEPRINT;
+		arg->d.bp = get_blueprint_wnum(wnum);
+		break;
+	case ENTITY_WNUM_BLUEPRINT_SECTION:
+		arg->type = ENT_BLUEPRINT_SECTION;
+		arg->d.bs = get_blueprint_section_wnum(wnum);
+		break;
+	case ENTITY_WNUM_DUNGEONINDEX:
+		arg->type = ENT_DUNGEONINDEX;
+		arg->d.dngindex = get_dungeon_index_wnum(wnum);
+		break;
+	case ENTITY_WNUM_SHIPINDEX:
+		arg->type = ENT_SHIPINDEX;
+		arg->d.shipindex = get_ship_index_wnum(wnum);
+		break;
+
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
 char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 	CHAR_DATA *self = arg->d.mob;
@@ -2094,8 +2146,14 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 	
 	case ENTITY_MOB_PMOUNT:
-		arg->type = ENT_MOBILE;
-		arg->d.mob = arg->d.mob ? get_personal_mount(arg->d.mob) : NULL;
+		arg->type = ENT_WIDEVNUM;
+		if (IS_VALID(arg->d.mob) && !IS_NPC(arg->d.mob))
+			arg->d.wnum = arg->d.mob->pcdata->personal_mount;
+		else
+		{
+			arg->d.wnum.pArea = NULL;
+			arg->d.wnum.vnum = 0;
+		}
 		break;
 
 	case ENTITY_MOB_INDEX:
@@ -2372,8 +2430,9 @@ char *expand_entity_mobile_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 	
 	case ENTITY_MOB_PMOUNT:
-		arg->type = ENT_MOBILE;
-		arg->d.mob = NULL;	
+		arg->type = ENT_WIDEVNUM;
+		arg->d.wnum.pArea = NULL;
+		arg->d.wnum.vnum = 0;
 		break;
 
 	case ENTITY_MOB_INDEX:
@@ -5395,6 +5454,7 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case ENT_PRIMARY:	next = expand_entity_primary(info,str,arg); break;
 		case ENT_NUMBER:	next = expand_entity_number(info,str,arg); break;
 		case ENT_STRING:	next = expand_entity_string(info,str,arg); break;
+		case ENT_WIDEVNUM:	next = expand_entity_widevnum(info,str,arg); break;
 		case ENT_MOBILE:	next = expand_entity_mobile(info,str,arg); break;
 		case ENT_OBJECT:	next = expand_entity_object(info,str,arg); break;
 		case ENT_ROOM:		next = expand_entity_room(info,str,arg); break;

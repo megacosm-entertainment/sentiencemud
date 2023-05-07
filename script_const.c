@@ -192,6 +192,19 @@ ENT_FIELD entity_string[] = {
 	{NULL,		0,			ENT_UNKNOWN	}
 };
 
+ENT_FIELD entity_widevnum[] = {
+	{"area",			ENTITY_WNUM_AREA,				ENT_AREA				},
+	{"vnum",			ENTITY_WNUM_VNUM,				ENT_NUMBER				},
+	{"mobindex",		ENTITY_WNUM_MOBINDEX,			ENT_MOBINDEX			},
+	{"objindex",		ENTITY_WNUM_OBJINDEX,			ENT_OBJINDEX			},
+	{"tokenindex",		ENTITY_WNUM_TOKENINDEX,			ENT_TOKENINDEX			},
+	{"blueprint",		ENTITY_WNUM_BLUEPRINT,			ENT_BLUEPRINT			},
+	{"bpsection",		ENTITY_WNUM_BLUEPRINT_SECTION,	ENT_BLUEPRINT_SECTION	},
+	{"dungeonindex",	ENTITY_WNUM_DUNGEONINDEX,		ENT_DUNGEONINDEX		},
+	{"shipindex",		ENTITY_WNUM_SHIPINDEX,			ENT_SHIPINDEX			},
+	{NULL,				0,								ENT_UNKNOWN				}
+};
+
 ENT_FIELD entity_mobile[] = {
 	{"affects",					ENTITY_MOB_AFFECTS,			ENT_OLLIST_AFF	},
 	{"area",					ENTITY_MOB_AREA,			ENT_AREA	},
@@ -301,7 +314,7 @@ ENT_FIELD entity_mobile[] = {
 	{"resist",					ENTITY_MOB_RESIST,			ENT_BITVECTOR },
 	{"vuln",					ENTITY_MOB_VULN,			ENT_BITVECTOR },
 	{"tempstring",				ENTITY_MOB_TEMPSTRING,		ENT_STRING },
-	{"pmount",					ENTITY_MOB_PMOUNT,			ENT_MOBILE },
+	{"pmount",					ENTITY_MOB_PMOUNT,			ENT_WIDEVNUM },
 	{NULL,				0,							ENT_UNKNOWN	}
 };
 
@@ -690,6 +703,7 @@ struct _entity_type_info entity_type_info[] = {
 	{ ENT_AREA,			ENT_AREA,			entity_area,				FALSE	},
 	{ ENT_SKILL,		ENT_SKILL,			entity_skill,				FALSE	},
 	{ ENT_SKILLINFO,	ENT_SKILLINFO,		entity_skill_info,			FALSE	},
+	{ ENT_SONG,			ENT_SONG,			entity_song,				FALSE	},
 	{ ENT_CONN,			ENT_CONN,			entity_conn,				FALSE	},
 	{ ENT_AFFECT,		ENT_AFFECT,			entity_affect,				FALSE	},
 	{ ENT_EXTRADESC,	ENT_EXTRADESC,		NULL,						FALSE	},
@@ -723,6 +737,7 @@ struct _entity_type_info entity_type_info[] = {
 	{ ENT_BLUEPRINT_SECTION,		ENT_BLUEPRINT_SECTION,		entity_blueprint_section,	FALSE	},
 	{ ENT_BLUEPRINT,		ENT_BLUEPRINT,		entity_blueprint,			FALSE	},
 	{ ENT_DUNGEONINDEX,		ENT_DUNGEONINDEX,		entity_dungeon_index,				FALSE	},
+	{ ENT_WIDEVNUM,		ENT_WIDEVNUM,		entity_widevnum,			FALSE	},
 	{ ENT_UNKNOWN,		ENT_UNKNOWN,		NULL,						FALSE	},
 };
 
