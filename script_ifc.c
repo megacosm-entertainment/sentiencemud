@@ -1010,17 +1010,31 @@ DECL_IFC_FUN(ifc_ispulling)
 	return TRUE;
 }
 
+// ISPULLINGRELIC
 DECL_IFC_FUN(ifc_ispullingrelic)
 {
-	*ret = (ISARG_MOB(0) && is_pulling_relic(ARG_MOB(0)) &&
-	    	(!ARG_STR(1) || !*ARG_STR(1) ||
-	    	ARG_MOB(0)->pulled_cart->pIndexData->vnum == flag_value( relic_types,ARG_STR(1))));
+	*ret = FALSE;
+	if (ISARG_MOB(0)) {
+		*ret = is_pulling_relic(ARG_MOB(0));
+	}
 	return TRUE;
 }
 
 DECL_IFC_FUN(ifc_isquesting)
 {
 	*ret = VALID_PLAYER(0) && ON_QUEST(ARG_MOB(0));
+	return TRUE;
+}
+
+DECL_IFC_FUN(ifc_objrepairs)
+{
+	*ret = ISARG_OBJ(0) ? ARG_OBJ(0)->times_fixed : 0;
+	return TRUE;
+}
+
+DECL_IFC_FUN(ifc_objmaxrepairs)
+{
+	*ret = ISARG_OBJ(0) ? ARG_OBJ(0)->times_allowed_fixed : 0;
 	return TRUE;
 }
 
@@ -2628,11 +2642,6 @@ DECL_IFC_FUN(ifc_value_ranged)
 	return TRUE;
 }
 
-DECL_IFC_FUN(ifc_value_relic)
-{
-	*ret = ISARG_STR(0) ? flag_value_ifcheck(relic_types,ARG_STR(0)) : 0;
-	return TRUE;
-}
 
 DECL_IFC_FUN(ifc_value_sector)
 {

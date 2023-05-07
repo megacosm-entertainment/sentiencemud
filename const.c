@@ -39,40 +39,6 @@
 #include "magic.h"
 #include "interp.h"
 
-/*
- * VIZZWILDS - Dont need this anymore.
- * map area entrance table
- *
-const struct map_exit_type      map_exit_table[] =
-{
-    {   WILDERNESS_MAIN, 429, 448, 11168 },   PLITHeast
-    {   WILDERNESS_MAIN, 426, 451, 10763 },  PLITHsouth
-    {   WILDERNESS_MAIN, 219, 419, 4000 },   REZA
-    {   WILDERNESS_MAIN, 351, 410, 8000 },   Aethilforge
-    {   WILDERNESS_MAIN, 305, 463, 266328 },   Pyramid
-    {   WILDERNESS_MAIN, 299, 500, 6499 },   Wyvern Keep
-    {   WILDERNESS_MAIN, 432, 498, 201 },   Goblin Fort
-    {   WILDERNESS_MAIN, 446, 440, 3945 },   Kalandor
-    {   WILDERNESS_MAIN, 370, 383, 1600 },   Dungeon Mystica
-    {   WILDERNESS_MAIN, 481, 387, 6951 },   Olaria
-    {   WILDERNESS_MAIN, 238, 649, 152504 },   Mordrakes Tower
-    {   WILDERNESS_MAIN, 1366, 891, 265282 },  Achaues West
-    {   WILDERNESS_MAIN, 1372, 885, 265200 },  Achaeus North
-    {   WILDERNESS_MAIN, 1378, 891, 265229 },  Achaues East
-    {   WILDERNESS_MAIN, 1372, 896, 265501 },  Achaeus South
-    {   WILDERNESS_MAIN, 1398, 833, 32 },  Dwa Vygwa
-    {   WILDERNESS_MAIN, 1306, 810, 151500 },  Lartin Castle
-    {   WILDERNESS_MAIN, 1283, 882, 7317 },  Lestat Mountain
-    {   WILDERNESS_MAIN, 1218, 913, 1400 },  Road House
-    {   WILDERNESS_MAIN, 1305, 1161, 261201 },  Temple
-    {   WILDERNESS_MAIN, 1322, 229, 264201 },  Undersea
-
-    {   WILDERNESS_MAIN, 1183, 810, 264102 }, Bone Mountain
-    {   WILDERNESS_MAIN, 1173, 881, 260201 }, Atmic Caverns
-
-    {   0,				     0, 0, 0  	}
-};
-*/
 
 const struct item_type token_table [] =
 {
@@ -421,7 +387,7 @@ const  struct player_setting_type    pc_set_table[] =
 const 	struct attack_type	attack_table	[MAX_DAMAGE_MESSAGE]	=
 {
 /*	name		noun			damage type*/
-    { 	"none",		"hit",			-1		},
+    { 	"none",		"hit",			-1		},				// 0
     {	"slice",	"slice",		DAM_SLASH	},
     {   "stab",		"stab",			DAM_PIERCE	},
     {	"slash",	"slash",		DAM_SLASH	},
@@ -431,7 +397,7 @@ const 	struct attack_type	attack_table	[MAX_DAMAGE_MESSAGE]	=
     {   "pound",	"pound",		DAM_BASH	},
     {	"crush",	"crush",		DAM_BASH	},
     {   "grep",		"grep",			DAM_SLASH	},
-    {	"bite",		"bite",			DAM_PIERCE	},
+    {	"bite",		"bite",			DAM_PIERCE	},			// 10
     {   "pierce",	"pierce",		DAM_PIERCE	},
     {   "suction",	"suction",		DAM_BASH	},
     {	"beating",	"beating",		DAM_BASH	},
@@ -441,7 +407,7 @@ const 	struct attack_type	attack_table	[MAX_DAMAGE_MESSAGE]	=
     {	"punch",	"punch",		DAM_BASH	},
     {	"wrath",	"wrath",		DAM_ENERGY	},
     {	"magic",	"magic",		DAM_MAGIC	},
-    {   "divine",	"divine power",		DAM_HOLY	},
+    {   "divine",	"divine power",		DAM_HOLY	},		// 20
     {   "holy",  	"holy fire",		DAM_HOLY	},
     {	"cleave",	"cleave",		DAM_SLASH	},
     {	"scratch",	"scratch",		DAM_PIERCE	},
@@ -451,7 +417,7 @@ const 	struct attack_type	attack_table	[MAX_DAMAGE_MESSAGE]	=
     {   "sting",	"sting",		DAM_PIERCE	},
     {   "smash",	"smash",		DAM_BASH	},
     {   "shbite",	"shocking bite",	DAM_LIGHTNING	},
-    {	"flbite",	"flaming bite", 	DAM_FIRE	},
+    {	"flbite",	"flaming bite", 	DAM_FIRE	},		// 30
     {	"frbite",	"freezing bite", 	DAM_COLD	},
     {	"acbite",	"acidic bite", 		DAM_ACID	},
     {	"chomp",	"chomp",		DAM_PIERCE	},
@@ -461,18 +427,17 @@ const 	struct attack_type	attack_table	[MAX_DAMAGE_MESSAGE]	=
     {   "slime",	"slime",		DAM_ACID	},
     {	"shock",	"shock",		DAM_LIGHTNING	},
     {   "thwack",	"thwack",		DAM_BASH	},
-    {   "flame",	"flame",		DAM_FIRE	},
+    {   "flame",	"flame",		DAM_FIRE	},			// 40
     {   "chill",	"chill",		DAM_COLD	},
     {   "vorpal",	"slash",		DAM_VORPAL	},
     {   "purify",	"purifying light",	DAM_HOLY 	},
     {   "crblow",       "crippling blow", 	DAM_NEGATIVE  	},
-/* @@@NIB : 20070123*/
     {	"acrid",	"acrid spray", 		DAM_ACID	},
     {	"blight",	"blighting touch",	DAM_DISEASE	},
     {	"boiling",	"boiling spray",	DAM_WATER	},	/* Fire Too?*/
     {	"corrode",	"corrosion", 		DAM_ACID	},
     {	"discharge",	"discharge",		DAM_LIGHTNING	},
-    {	"flog",		"flog",			DAM_SLASH	},
+    {	"flog",		"flog",			DAM_SLASH	},			// 50
     {	"fumes",	"caustic fumes",	DAM_ACID	},
     {	"lacerate",	"laceration",		DAM_SLASH	},
     {	"lash",		"lash",			DAM_SLASH	},
@@ -482,7 +447,7 @@ const 	struct attack_type	attack_table	[MAX_DAMAGE_MESSAGE]	=
     {	"scorch",	"scorching",		DAM_FIRE	},
     {	"scourge",	"scourge",		DAM_SLASH	},
     {	"scream",	"scream",		DAM_SOUND	},
-    {	"shining",	"shining light",	DAM_LIGHT	},
+    {	"shining",	"shining light",	DAM_LIGHT	},		// 60
     {	"shriek",	"deafening shriek",	DAM_SOUND	},
     {	"spike",	"spike",		DAM_PIERCE	},
     {	"spores",	"spores",		DAM_DISEASE	},
@@ -490,7 +455,7 @@ const 	struct attack_type	attack_table	[MAX_DAMAGE_MESSAGE]	=
     {	"torrent",	"watery torrent",	DAM_WATER	},
     {	"toxblast",	"toxic blast",		DAM_POISON	},
     {	"venom",	"venom",		DAM_POISON	},
-    {	"winbrth",	"wintery breath",	DAM_COLD	},
+    {	"winbrth",	"wintery breath",	DAM_COLD	},		// 68
     {   NULL,		NULL,			0		}
 };
 

@@ -7,6 +7,7 @@
 
 #include "merc.h"
 #include "db.h"
+#include "recycle.h"
 #include "scripts.h"
 #include "wilds.h"
 
@@ -519,6 +520,25 @@ bool variables_setsave_skillinfo (ppVARIABLE list,char *name,CHAR_DATA *owner, i
 	var->_.sk.owner = owner;
 	var->_.sk.token = token;
 	var->_.sk.sn =  (sn > 0 && sn < MAX_SKILL) ? sn : 0;
+
+	return TRUE;
+}
+
+bool variables_set_song (ppVARIABLE list,char *name,int sn)
+{
+	return variables_setsave_song( list, name, sn, TRISTATE );
+}
+
+bool variables_setsave_song (ppVARIABLE list,char *name,int sn, bool save)
+{
+	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
+
+	if(!var) return FALSE;
+
+	var->type = VAR_SONG;
+	if( save != TRISTATE )
+		var->save = save;
+	var->_.sn =  (sn >= 0 && sn < MAX_SONGS) ? sn : -1;
 
 	return TRUE;
 }
@@ -1343,6 +1363,32 @@ bool variables_setindex_string(ppVARIABLE list,char *name,char *str,bool shared,
 	return TRUE;
 }
 
+bool variables_setindex_skill (ppVARIABLE list,char *name,int sn, bool saved)
+{
+	pVARIABLE var = variable_create(list,name,TRUE,TRUE);
+
+	if(!var) return FALSE;
+
+	var->type = VAR_SKILL;
+	var->_.sn = sn;
+	var->save = saved;
+
+	return TRUE;
+}
+
+bool variables_setindex_song (ppVARIABLE list,char *name,int sn, bool saved)
+{
+	pVARIABLE var = variable_create(list,name,TRUE,TRUE);
+
+	if(!var) return FALSE;
+
+	var->type = VAR_SONG;
+	var->_.sn = sn;
+	var->save = saved;
+
+	return TRUE;
+}
+
 
 // Only reason this is seperate is the shared handling
 bool variables_set_string(ppVARIABLE list,char *name,char *str,bool shared)
@@ -1558,6 +1604,7 @@ bool variable_copy(ppVARIABLE list,char *oldname,char *newname)
 	case VAR_AREA:			newv->_.a = oldv->_.a; break;
 	case VAR_SKILL:			newv->_.sn = oldv->_.sn; break;
 	case VAR_SKILLINFO:		newv->_.sk.owner = oldv->_.sk.owner; newv->_.sk.sn = oldv->_.sk.sn; break;
+	case VAR_SONG:			newv->_.sn = oldv->_.sn; break;
 	case VAR_AFFECT:		newv->_.aff = oldv->_.aff; break;
 
 	case VAR_CONNECTION:	newv->_.conn = oldv->_.conn; break;
@@ -1617,6 +1664,7 @@ bool variable_copyto(ppVARIABLE from,ppVARIABLE to,char *oldname,char *newname, 
 	case VAR_AREA:		newv->_.a = oldv->_.a; break;
 	case VAR_SKILL:		newv->_.sn = oldv->_.sn; break;
 	case VAR_SKILLINFO:	newv->_.sk.owner = oldv->_.sk.owner; newv->_.sk.sn = oldv->_.sk.sn; break;
+	case VAR_SONG:		newv->_.sn = oldv->_.sn; break;
 	case VAR_AFFECT:	newv->_.aff = oldv->_.aff; break;
 
 	case VAR_CONNECTION:	newv->_.conn = oldv->_.conn; break;
@@ -1675,6 +1723,7 @@ bool variable_copylist(ppVARIABLE from,ppVARIABLE to,bool index)
 		case VAR_TOKEN:		newv->_.t = oldv->_.t; break;
 		case VAR_SKILL:		newv->_.sn = oldv->_.sn; break;
 		case VAR_SKILLINFO:	newv->_.sk.owner = oldv->_.sk.owner; newv->_.sk.sn = oldv->_.sk.sn; break;
+		case VAR_SONG:		newv->_.sn = oldv->_.sn; break;
 		case VAR_AFFECT:	newv->_.aff = oldv->_.aff; break;
 
 		case VAR_CONNECTION:	newv->_.conn = oldv->_.conn; break;
@@ -1732,6 +1781,7 @@ pVARIABLE variable_copyvar(pVARIABLE oldv)
 	case VAR_AREA:			newv->_.a = oldv->_.a; break;
 	case VAR_SKILL:			newv->_.sn = oldv->_.sn; break;
 	case VAR_SKILLINFO:		newv->_.sk.owner = oldv->_.sk.owner; newv->_.sk.sn = oldv->_.sk.sn; break;
+	case VAR_SONG:			newv->_.sn = oldv->_.sn; break;
 	case VAR_AFFECT:		newv->_.aff = oldv->_.aff; break;
 
 	case VAR_CONNECTION:	newv->_.conn = oldv->_.conn; break;
@@ -2715,6 +2765,10 @@ void variable_fwrite(pVARIABLE var, FILE *fp)
 		fprintf(fp,"VarSkill %s~ '%s'\n", var->name, SKILL_NAME(var->_.sn));
 		break;
 
+	case VAR_SONG:
+		fprintf(fp,"VarSong %s~ '%s'\n", var->name, SONG_NAME(var->_.sn));
+		break;
+
 	case VAR_SKILLINFO:
 		if(var->_.sk.owner) {
 			if( IS_VALID(var->_.sk.token) )
@@ -3060,6 +3114,7 @@ int variable_fread_type(char *str)
 	if( !str_cmp( str, "VarListArea" ) ) return VAR_BLLIST_AREA;
 	if( !str_cmp( str, "VarListWilds" ) ) return VAR_BLLIST_WILDS;
 	if( !str_cmp( str, "VarDice" ) ) return VAR_DICE;
+	if( !str_cmp( str, "VarSong" ) ) return VAR_SONG;
 
 	return VAR_UNKNOWN;
 }
@@ -3084,14 +3139,14 @@ bool variable_fread(ppVARIABLE vars, int type, FILE *fp)
 
 	case VAR_ROOM:
 		{
-			WNUM_LOAD wnum = fread_widevnum(fp);
+			WNUM_LOAD wnum = fread_widevnum(fp, 0);
 			ROOM_INDEX_DATA *room = get_room_index_auid(wnum.auid, wnum.vnum);
 			return room && variables_setsave_room(vars, name, room, TRUE);
 		}
 
 	case VAR_CLONE_ROOM:
 		{
-			WNUM_LOAD wnum = fread_widevnum(fp);
+			WNUM_LOAD wnum = fread_widevnum(fp, 0);
 			ROOM_INDEX_DATA *room = get_room_index_auid(wnum.auid, wnum.vnum);
 			int x = fread_number(fp);
 			int y = fread_number(fp);
@@ -3122,7 +3177,7 @@ bool variable_fread(ppVARIABLE vars, int type, FILE *fp)
 
 	case VAR_DOOR:
 		{
-			WNUM_LOAD wnum = fread_widevnum(fp);
+			WNUM_LOAD wnum = fread_widevnum(fp, 0);
 			ROOM_INDEX_DATA *room = get_room_index_auid(wnum.auid, wnum.vnum);
 
 			return room && variables_set_door(vars, name, room, fread_number(fp), TRUE);
@@ -3130,7 +3185,7 @@ bool variable_fread(ppVARIABLE vars, int type, FILE *fp)
 
 	case VAR_CLONE_DOOR:
 		{
-			WNUM_LOAD wnum = fread_widevnum(fp);
+			WNUM_LOAD wnum = fread_widevnum(fp, 0);
 			ROOM_INDEX_DATA *room = get_room_index_auid(wnum.auid, wnum.vnum);
 
 			int x = fread_number(fp);
@@ -3194,6 +3249,9 @@ bool variable_fread(ppVARIABLE vars, int type, FILE *fp)
 		d = fread_number(fp);
 
 		return variables_set_skillinfo_id (vars, name, a, b, c, d, skill_lookup(fread_word(fp)) , TRUE);
+
+	case VAR_SONG:
+		return variables_setsave_song(vars, name, song_lookup(fread_word(fp)), TRUE);
 
 	case VAR_PLLIST_STR:
 		if( variables_set_list(vars, name, VAR_PLLIST_STR, TRUE) )
@@ -3278,6 +3336,254 @@ void script_varclearon(SCRIPT_VARINFO *info, VARIABLE **vars, char *argument, SC
 }
 
 
+bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument)
+{
+    char name[MIL];
+    char type[MIL];
+    char yesno[MIL];
+    bool saved;
+
+    if (argument[0] == '\0') {
+	send_to_char("Syntax:  varset <name> <number|string|room> <yes|no> <value>\n\r", ch);
+	return FALSE;
+    }
+
+    argument = one_argument(argument, name);
+    argument = one_argument(argument, type);
+    argument = one_argument(argument, yesno);
+
+    if(!variable_validname(name)) {
+	send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
+	return FALSE;
+    }
+
+    saved = !str_cmp(yesno,"yes");
+
+    if(!argument[0]) {
+	send_to_char("Set what on the variable?\n\r", ch);
+	return FALSE;
+    }
+
+    if(!str_cmp(type,"room")) {
+		WNUM wnum;
+
+		if(!parse_widevnum(argument, ch->in_room->area, &wnum)) {
+			send_to_char("Specify a room widevnum.\n\r", ch);
+			return FALSE;
+		}
+
+		WNUM_LOAD wnum_load;
+		wnum_load.auid = wnum.pArea ? wnum.pArea->uid : 0;
+		wnum_load.vnum = wnum.vnum;
+
+		variables_setindex_room(index_vars,name,wnum_load,saved);
+    } else if(!str_cmp(type,"string"))
+		variables_setindex_string(index_vars,name,argument,FALSE,saved);
+    else if(!str_cmp(type,"number"))
+	{
+		if(!is_number(argument)) {
+			send_to_char("Specify an integer.\n\r", ch);
+			return FALSE;
+		}
+
+		variables_setindex_integer(index_vars,name,atoi(argument),saved);
+    }
+	else if(!str_cmp(type,"skill"))
+	{
+		int sn = skill_lookup(argument);
+		if (sn <= 0)
+		{
+			send_to_char("No such skill exists.\n\r", ch);
+			return FALSE;
+		}
+		
+		variables_setindex_skill(index_vars,name,sn,saved);
+	}
+	else if(!str_cmp(type,"song"))
+	{
+		int sn = song_lookup(argument);
+		if (sn <= 0)
+		{
+			send_to_char("No such song exists.\n\r", ch);
+			return FALSE;
+		}
+		
+		variables_setindex_song(index_vars,name,sn,saved);
+	}
+	else
+	{
+		send_to_char("Invalid type of variable.\n\r", ch);
+		return FALSE;
+    }
+    send_to_char("Variable set.\n\r", ch);
+    return TRUE;
+}
+
+bool olc_varclear(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument)
+{
+    if (argument[0] == '\0') {
+		send_to_char("Syntax:  varclear <name>\n\r", ch);
+		return FALSE;
+    }
+
+    if(!variable_validname(argument)) {
+		send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
+		return FALSE;
+    }
+
+    if(!variable_remove(index_vars,argument)) {
+		send_to_char("No such variable defined.\n\r", ch);
+		return FALSE;
+    }
+
+    send_to_char("Variable cleared.\n\r", ch);
+    return TRUE;
+}
+
+void olc_show_index_vars(BUFFER *buffer, pVARIABLE index_vars)
+{
+	char buf[MSL];
+	if (index_vars)
+	{
+		pVARIABLE var;
+		int cnt;
+
+		for (cnt = 0, var = index_vars; var; var = var->next) ++cnt;
+
+		if (cnt > 0) {
+			sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "Name", "Type", "Saved", "Value");
+			add_buf(buffer, buf);
+
+			sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "----", "----", "-----", "-----");
+			add_buf(buffer, buf);
+
+			for (var = index_vars; var; var = var->next) {
+				switch(var->type) {
+				case VAR_INTEGER:
+					sprintf(buf, "{x%-20.20s {GNUMBER     {Y%c   {W%d{x\n\r", var->name,var->save?'Y':'N',var->_.i);
+					break;
+				case VAR_STRING:
+				case VAR_STRING_S:
+					sprintf(buf, "{x%-20.20s {GSTRING     {Y%c   {W%s{x\n\r", var->name,var->save?'Y':'N',var->_.s?var->_.s:"(empty)");
+					break;
+				case VAR_ROOM:
+					if(var->_.r && var->_.r->vnum > 0)
+						sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W%s {R({W%d{R){x\n\r", var->name,var->save?'Y':'N',var->_.r->name,(int)var->_.r->vnum);
+					else
+						sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W-no-where-{x\n\r",var->name,var->save?'Y':'N');
+					break;
+				case VAR_SKILL:
+					if(var->_.sn > 0)
+						sprintf(buf, "{x%-20.20s {GSKILL      {Y%c   {W%s{x\n\r", var->name,var->save?'Y':'N', SKILL_NAME(var->_.sn));
+					else
+						sprintf(buf, "{x%-20.20s {GSKILL      {Y%c   {W-invalid-{x\n\r", var->name,var->save?'Y':'N');
+					break;
+				case VAR_SONG:
+					if(var->_.sn >= 0)
+						sprintf(buf, "{x%-20.20s {GSONG       {Y%c   {W%s{x\n\r", var->name,var->save?'Y':'N', SONG_NAME(var->_.sn));
+					else
+						sprintf(buf, "{x%-20.20s {GSONG       {Y%c   {W-invalid-{x\n\r", var->name,var->save?'Y':'N');
+					break;
+				default:
+					continue;
+				}
+				add_buf(buffer, buf);
+			}
+		}
+	}
+}
+
+void olc_save_index_vars(FILE *fp, pVARIABLE index_vars, AREA_DATA *pRefArea)
+{
+	if(index_vars) {
+		for(pVARIABLE var = index_vars; var; var = var->next) {
+			if(var->type == VAR_INTEGER)
+				fprintf(fp, "VarInt %s~ %d %d\n", var->name, var->save, var->_.i);
+			else if(var->type == VAR_STRING || var->type == VAR_STRING_S)
+				fprintf(fp, "VarStr %s~ %d %s~\n", var->name, var->save, var->_.s ? var->_.s : "");
+			else if(var->type == VAR_ROOM && var->_.r && var->_.r->vnum)
+				fprintf(fp, "VarRoom %s~ %d %s\n", var->name, var->save, widevnum_string(var->_.r->area, var->_.r->vnum, pRefArea));
+			else if(var->type == VAR_SKILL && var->_.sn > 0 )
+				fprintf(fp, "VarSkill %s~ %d '%s'\n", var->name, var->save, SKILL_NAME(var->_.sn));
+			else if(var->type == VAR_SONG && var->_.sn >= 0 )
+				fprintf(fp, "VarSong %s~ %d '%s'\n", var->name, var->save, SONG_NAME(var->_.sn));
+		}
+	}
+}
+
+bool olc_load_index_vars(FILE *fp, char *word, ppVARIABLE index_vars, AREA_DATA *pRefArea)
+{
+	if (!str_cmp(word, "VarInt")) {
+		char *name;
+		int value;
+		bool saved;
+
+		name = fread_string(fp);
+		saved = fread_number(fp);
+		value = fread_number(fp);
+
+		variables_setindex_integer (index_vars,name,value,saved);
+		return TRUE;
+	}
+
+	if (!str_cmp(word, "VarStr")) {
+		char *name;
+		char *str;
+		bool saved;
+
+		name = fread_string(fp);
+		saved = fread_number(fp);
+		str = fread_string(fp);
+
+		variables_setindex_string (index_vars,name,str,FALSE,saved);
+		return TRUE;
+	}
+
+	if (!str_cmp(word, "VarRoom")) {
+		char *name;
+		WNUM_LOAD value;
+		bool saved;
+
+		name = fread_string(fp);
+		saved = fread_number(fp);
+		value = fread_widevnum(fp, 0);
+
+		variables_setindex_room (index_vars,name,value,saved);
+		return TRUE;
+	}
+
+	if (!str_cmp(word, "VarSkill"))
+	{
+		char *name;
+		int sn;
+		bool saved;
+
+		name = fread_string(fp);
+		saved = fread_number(fp);
+		sn = skill_lookup(fread_word(fp));
+
+		if (sn > 0)
+			variables_setindex_skill(index_vars,name,sn,saved);
+		return TRUE;
+	}
+
+	if (!str_cmp(word, "VarSong"))
+	{
+		char *name;
+		int sn;
+		bool saved;
+
+		name = fread_string(fp);
+		saved = fread_number(fp);
+		sn = song_lookup(fread_word(fp));
+
+		if (sn >= 0)
+			variables_setindex_song(index_vars,name,sn,saved);
+		return TRUE;
+	}
+
+	return FALSE;
+}
 
 ////////////////////////////////////////////////
 //

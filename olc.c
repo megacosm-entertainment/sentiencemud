@@ -1835,14 +1835,14 @@ void display_resets(CHAR_DATA *ch)
 			case 'M':
 				if (!(pMobIndex = get_mob_index(pReset->arg1.wnum.pArea, pReset->arg1.wnum.vnum)))
 				{
-					sprintf(buf, "Load Mobile - Bad Mob %s\n\r", widevnum_string_wnum(pReset->arg1.wnum));
+					sprintf(buf, "Load Mobile - Bad Mob %s\n\r", widevnum_string_wnum(pReset->arg1.wnum, pRoom->area));
 					strcat(final, buf);
 					continue;
 				}
 
 				pMob = pMobIndex;
 				sprintf(buf, "M[%s] %-13.13s in room                      %2ld-%2ld %-15.15s\n\r",
-					widevnum_string_wnum(pReset->arg1.wnum), pMob->short_descr,
+					widevnum_string_wnum(pReset->arg1.wnum, pRoom->area), pMob->short_descr,
 					pReset->arg2, pReset->arg4, pRoom->name);
 				strcat(final, buf);
 				break;
@@ -1850,7 +1850,7 @@ void display_resets(CHAR_DATA *ch)
 			case 'O':
 				if (!(pObjIndex = get_obj_index(pReset->arg1.wnum.pArea, pReset->arg1.wnum.vnum)))
 				{
-					sprintf(buf, "Load Object - Bad Object %s\n\r", widevnum_string_wnum(pReset->arg1.wnum));
+					sprintf(buf, "Load Object - Bad Object %s\n\r", widevnum_string_wnum(pReset->arg1.wnum, pRoom->area));
 					strcat(final, buf);
 					continue;
 				}
@@ -1858,7 +1858,7 @@ void display_resets(CHAR_DATA *ch)
 				pObj       = pObjIndex;
 
 				sprintf(buf, "O[%s] %-13.13s in room                            %-15.15s\n\r",
-					widevnum_string_wnum(pReset->arg1.wnum),
+					widevnum_string_wnum(pReset->arg1.wnum, pRoom->area),
 					pObj->short_descr,
 					pRoom->name);
 				strcat(final, buf);
@@ -1867,7 +1867,7 @@ void display_resets(CHAR_DATA *ch)
 			case 'P':
 				if (!(pObjIndex = get_obj_index(pReset->arg1.wnum.pArea, pReset->arg1.wnum.vnum)))
 				{
-					sprintf(buf, "Put Object - Bad Object %s\n\r", widevnum_string_wnum(pReset->arg1.wnum));
+					sprintf(buf, "Put Object - Bad Object %s\n\r", widevnum_string_wnum(pReset->arg1.wnum, pRoom->area));
 					strcat(final, buf);
 					continue;
 				}
@@ -1876,15 +1876,15 @@ void display_resets(CHAR_DATA *ch)
 
 				if (!(pObjToIndex = get_obj_index(pReset->arg3.wnum.pArea, pReset->arg3.wnum.vnum)))
 				{
-					sprintf(buf, "Put Object - Bad To Object %s\n\r", widevnum_string_wnum(pReset->arg3.wnum));
+					sprintf(buf, "Put Object - Bad To Object %s\n\r", widevnum_string_wnum(pReset->arg3.wnum, pRoom->area));
 					strcat(final, buf);
 					continue;
 				}
 
 				sprintf(buf, "O[%s] %-13.13s inside              O[%s] %2ld-%2ld %-15.15s\n\r",
-					widevnum_string_wnum(pReset->arg1.wnum),
+					widevnum_string_wnum(pReset->arg1.wnum, pRoom->area),
 					pObj->short_descr,
-					widevnum_string_wnum(pReset->arg3.wnum),
+					widevnum_string_wnum(pReset->arg3.wnum, pRoom->area),
 					pReset->arg2,
 					pReset->arg4,
 					pObjToIndex->short_descr);
@@ -1895,7 +1895,7 @@ void display_resets(CHAR_DATA *ch)
 			case 'E':
 				if (!(pObjIndex = get_obj_index(pReset->arg1.wnum.pArea, pReset->arg1.wnum.vnum)))
 				{
-					sprintf(buf, "Give/Equip Object - Bad Object %s\n\r", widevnum_string_wnum(pReset->arg1.wnum));
+					sprintf(buf, "Give/Equip Object - Bad Object %s\n\r", widevnum_string_wnum(pReset->arg1.wnum, pRoom->area));
 					strcat(final, buf);
 					continue;
 				}
@@ -1911,18 +1911,18 @@ void display_resets(CHAR_DATA *ch)
 
 				if (pMob->pShop)
 					sprintf(buf, "O[%s] %-13.13s in the inventory of S[%s]       %-15.15s\n\r",
-						widevnum_string_wnum(pReset->arg1.wnum),
+						widevnum_string_wnum(pReset->arg1.wnum, pRoom->area),
 						pObj->short_descr,
-						widevnum_string(pMob->area, pMob->vnum),
+						widevnum_string(pMob->area, pMob->vnum, pRoom->area),
 						pMob->short_descr );
 				else
 					sprintf(buf, "O[%s] %-13.13s %-19.19s M[%s]       %-15.15s\n\r",
-						widevnum_string_wnum(pReset->arg1.wnum),
+						widevnum_string_wnum(pReset->arg1.wnum, pRoom->area),
 						pObj->short_descr,
 						(pReset->command == 'G') ?
 							flag_string(wear_loc_strings, WEAR_NONE) :
 							flag_string(wear_loc_strings, pReset->arg4),
-						widevnum_string(pMob->area, pMob->vnum),
+						widevnum_string(pMob->area, pMob->vnum, pRoom->area),
 						pMob->short_descr);
 				strcat(final, buf);
 				break;

@@ -17,6 +17,22 @@
 
 void deduct_mana(CHAR_DATA *ch,int cost);
 
+int song_lookup(const char *name)
+{
+	int sn;
+	for( sn = 0; sn < MAX_SONGS; sn++)
+	{
+		if (music_table[sn].name == NULL)
+			break;
+		
+		if (!str_prefix(name, music_table[sn].name))
+			return sn;
+	}
+
+	return -1;
+}
+
+
 void do_play(CHAR_DATA *ch, char *argument)
 {
 	SKILL_ENTRY *entry;

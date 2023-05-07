@@ -75,7 +75,7 @@ int             get_wilds_vroom_y_by_dir args ((WILDS_DATA *pWilds, int x, int y
 void            do_vlinks args ((CHAR_DATA *ch, char *argument));
 void            do_regions args ((CHAR_DATA *ch, char *argument));
 WILDS_VLINK     *NEW_Vlink args ((void));
-WILDS_VLINK     *fread_vlink args ((FILE *fp));
+WILDS_VLINK     *fread_vlink args ((FILE *fp, AREA_DATA *area));
 WILDS_VLINK     *get_vlink_from_uid args((WILDS_DATA *pWilds, long uid));
 WILDS_VLINK     *get_vlink_from_index args((WILDS_DATA *pWilds, long index));
 void            free_vlink args ((WILDS_VLINK *pVLink));
@@ -560,7 +560,7 @@ void load_wilds( FILE *fp, AREA_DATA *pArea )
                 else
                 if ( !str_cmp( word, "#VLINK" ) )
                 {
-                    temp_pVLink = fread_vlink(fp);
+                    temp_pVLink = fread_vlink(fp, pArea);
                     add_vlink(pWilds, temp_pVLink);
                 }
 
@@ -822,7 +822,7 @@ WILDS_TERRAIN *get_terrain_by_token (WILDS_DATA *pWilds, char token)
     return NULL;
 }
 
-WILDS_VLINK *fread_vlink(FILE *fp)
+WILDS_VLINK *fread_vlink(FILE *fp, AREA_DATA *area)
 {
     WILDS_VLINK *pVLink;
     char      *word;
@@ -863,7 +863,7 @@ WILDS_VLINK *fread_vlink(FILE *fp)
                 }
                 else
                 if (!str_cmp(word, "Destvnum")) {
-                    pVLink->destwnum = fread_widevnum (fp);
+                    pVLink->destwnum = fread_widevnum (fp, area->uid);
                 } else
                 if (!str_cmp(word, "Door"))
                 {
@@ -891,7 +891,7 @@ WILDS_VLINK *fread_vlink(FILE *fp)
                 else if (!str_cmp(word, "Orig_rsflags"))
                     pVLink->orig_rs_flags = fread_flag (fp);
                 else if (!str_cmp(word, "Orig_key"))
-                    pVLink->orig_key = fread_widevnum (fp);
+                    pVLink->orig_key = fread_widevnum (fp, area->uid);
                 else if (!str_cmp(word, "Orig_lock"))
                     pVLink->orig_lock = fread_number (fp);
                 else if (!str_cmp(word, "Orig_pick"))

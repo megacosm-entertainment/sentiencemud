@@ -348,7 +348,7 @@ void do_auction( CHAR_DATA *ch, char * argument )
 	return;
     }
 
-    if (obj->pIndexData->vnum == OBJ_VNUM_SKULL || obj->pIndexData->vnum == OBJ_VNUM_GOLD_SKULL) {
+    if (obj->pIndexData == obj_index_skull || obj->pIndexData == obj_index_gold_skull) {
 	AFFECT_DATA *af;
 
 	for (af = obj->affected; af != NULL; af = af->next) {

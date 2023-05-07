@@ -356,7 +356,7 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp, AREA_DATA *area)
 				char *p;
 
 
-				WNUM_LOAD wnum = fread_widevnum(fp);
+				WNUM_LOAD wnum = fread_widevnum(fp, area->uid);
 				p = fread_string(fp);
 
 				tindex = trigger_index(p, PRG_DPROG);
@@ -453,46 +453,10 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp, AREA_DATA *area)
 			break;
 
 		case 'V':
-			if (!str_cmp(word, "VarInt")) {
-				char *name;
-				int value;
-				bool saved;
-
+			if (olc_load_index_vars(fp, word, &dng->index_vars, area))
+			{
 				fMatch = TRUE;
-
-				name = fread_string(fp);
-				saved = fread_number(fp);
-				value = fread_number(fp);
-
-				variables_setindex_integer (&dng->index_vars,name,value,saved);
-			}
-
-			if (!str_cmp(word, "VarStr")) {
-				char *name;
-				char *str;
-				bool saved;
-
-				fMatch = TRUE;
-
-				name = fread_string(fp);
-				saved = fread_number(fp);
-				str = fread_string(fp);
-
-				variables_setindex_string (&dng->index_vars,name,str,FALSE,saved);
-			}
-
-			if (!str_cmp(word, "VarRoom")) {
-				char *name;
-				WNUM_LOAD value;
-				bool saved;
-
-				fMatch = TRUE;
-
-				name = fread_string(fp);
-				saved = fread_number(fp);
-				value = fread_widevnum(fp);
-
-				variables_setindex_room (&dng->index_vars,name,value,saved);
+				break;
 			}
 
 			break;
@@ -786,26 +750,14 @@ void save_dungeon_index(FILE *fp, DUNGEON_INDEX_DATA *dng)
 		for(int i = 0; i < TRIGSLOT_MAX; i++) if(list_size(dng->progs[i]) > 0) {
 			iterator_start(&it, dng->progs[i]);
 			while((trigger = (PROG_LIST *)iterator_nextdata(&it)))
-				fprintf(fp, "DungeonProg %ld#%ld %s~ %s~\n",
-					trigger->wnum.pArea ? trigger->wnum.pArea->uid : 0,
-					trigger->wnum.vnum,
+				fprintf(fp, "DungeonProg %s %s~ %s~\n",
+					widevnum_string_wnum(trigger->wnum, dng->area),
 					trigger_name(trigger->trig_type), trigger_phrase(trigger->trig_type,trigger->trig_phrase));
 			iterator_stop(&it);
 		}
 	}
 
-	if(dng->index_vars) {
-		for(pVARIABLE var = dng->index_vars; var; var = var->next) {
-			if(var->type == VAR_INTEGER)
-				fprintf(fp, "VarInt %s~ %d %d\n", var->name, var->save, var->_.i);
-			else if(var->type == VAR_STRING || var->type == VAR_STRING_S)
-				fprintf(fp, "VarStr %s~ %d %s~\n", var->name, var->save, var->_.s ? var->_.s : "");
-			else if(var->type == VAR_ROOM && var->_.r && var->_.r->vnum)
-				fprintf(fp, "VarRoom %s~ %d %s\n", var->name, var->save, widevnum_string(var->_.r->area, var->_.r->vnum));
-
-		}
-	}
-
+	olc_save_index_vars(fp, dng->index_vars, dng->area);
 
 	fprintf(fp, "#-DUNGEON\n\n");
 }
@@ -2392,41 +2344,7 @@ DNGEDIT( dngedit_show )
 		}
 	}
 
-	if (dng->index_vars) {
-		pVARIABLE var;
-		int cnt;
-
-		for (cnt = 0, var = dng->index_vars; var; var = var->next) ++cnt;
-
-		if (cnt > 0) {
-			sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "Name", "Type", "Saved", "Value");
-			add_buf(buffer, buf);
-
-			sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "----", "----", "-----", "-----");
-			add_buf(buffer, buf);
-
-			for (var = dng->index_vars; var; var = var->next) {
-				switch(var->type) {
-				case VAR_INTEGER:
-					sprintf(buf, "{x%-20.20s {GNUMBER     {Y%c   {W%d{x\n\r", var->name,var->save?'Y':'N',var->_.i);
-					break;
-				case VAR_STRING:
-				case VAR_STRING_S:
-					sprintf(buf, "{x%-20.20s {GSTRING     {Y%c   {W%s{x\n\r", var->name,var->save?'Y':'N',var->_.s?var->_.s:"(empty)");
-					break;
-				case VAR_ROOM:
-					if(var->_.r && var->_.r->vnum > 0)
-						sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W%s {R({W%d{R){x\n\r", var->name,var->save?'Y':'N',var->_.r->name,(int)var->_.r->vnum);
-					else
-						sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W-no-where-{x\n\r",var->name,var->save?'Y':'N');
-					break;
-				default:
-					continue;
-				}
-				add_buf(buffer, buf);
-			}
-		}
-	}
+	olc_show_index_vars(buffer, dng->index_vars);
 
 	if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH)
 	{
@@ -7462,60 +7380,9 @@ DNGEDIT(dngedit_varset)
 {
     DUNGEON_INDEX_DATA *dungeon;
 
-    char name[MIL];
-    char type[MIL];
-    char yesno[MIL];
-    bool saved;
-
 	EDIT_DUNGEON(ch, dungeon);
 
-    if (argument[0] == '\0') {
-	send_to_char("Syntax:  varset <name> <number|string|room> <yes|no> <value>\n\r", ch);
-	return FALSE;
-    }
-
-    argument = one_argument(argument, name);
-    argument = one_argument(argument, type);
-    argument = one_argument(argument, yesno);
-
-    if(!variable_validname(name)) {
-	send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
-	return FALSE;
-    }
-
-    saved = !str_cmp(yesno,"yes");
-
-    if(!argument[0]) {
-	send_to_char("Set what on the variable?\n\r", ch);
-	return FALSE;
-    }
-
-    if(!str_cmp(type,"room")) {
-		WNUM wnum;
-	if(!parse_widevnum(argument, ch->in_room->area, &wnum)) {
-	    send_to_char("Specify a room widevnum.\n\r", ch);
-	    return FALSE;
-	}
-
-		WNUM_LOAD wnum_load;
-		wnum_load.auid = wnum.pArea ? wnum.pArea->uid : 0;
-		wnum_load.vnum = wnum.vnum;
-	variables_setindex_room(&dungeon->index_vars,name,wnum_load,saved);
-    } else if(!str_cmp(type,"string"))
-	variables_setindex_string(&dungeon->index_vars,name,argument,FALSE,saved);
-    else if(!str_cmp(type,"number")) {
-	if(!is_number(argument)) {
-	    send_to_char("Specify an integer.\n\r", ch);
-	    return FALSE;
-	}
-
-	variables_setindex_integer(&dungeon->index_vars,name,atoi(argument),saved);
-    } else {
-	send_to_char("Invalid type of variable.\n\r", ch);
-	return FALSE;
-    }
-    send_to_char("Variable set.\n\r", ch);
-    return TRUE;
+	return olc_varset(&dungeon->index_vars, ch, argument);
 }
 
 DNGEDIT(dngedit_varclear)
@@ -7524,23 +7391,7 @@ DNGEDIT(dngedit_varclear)
 
 	EDIT_DUNGEON(ch, dungeon);
 
-    if (argument[0] == '\0') {
-	send_to_char("Syntax:  varclear <name>\n\r", ch);
-	return FALSE;
-    }
-
-    if(!variable_validname(argument)) {
-	send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
-	return FALSE;
-    }
-
-    if(!variable_remove(&dungeon->index_vars,argument)) {
-	send_to_char("No such variable defined.\n\r", ch);
-	return FALSE;
-    }
-
-    send_to_char("Variable cleared.\n\r", ch);
-    return TRUE;
+	return olc_varclear(&dungeon->index_vars, ch, argument);
 }
 
 
@@ -7846,7 +7697,7 @@ DUNGEON *dungeon_load(FILE *fp)
 	bool fMatch;
 
 	DUNGEON *dungeon = new_dungeon();
-	WNUM_LOAD wnum = fread_widevnum(fp);
+	WNUM_LOAD wnum = fread_widevnum(fp, 0);
 
 	dungeon->index = get_dungeon_index_auid(wnum.auid, wnum.vnum);
 

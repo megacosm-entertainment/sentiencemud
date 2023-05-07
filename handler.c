@@ -4905,11 +4905,13 @@ bool one_hand_full(CHAR_DATA *ch)
 /* is an item a relic, any relic */
 bool is_relic(OBJ_INDEX_DATA *obj)
 {
-    if (obj->vnum == OBJ_VNUM_RELIC_EXTRA_DAMAGE
-    ||   obj->vnum == OBJ_VNUM_RELIC_EXTRA_XP
-    ||   obj->vnum == OBJ_VNUM_RELIC_EXTRA_PNEUMA
-    ||   obj->vnum == OBJ_VNUM_RELIC_HP_REGEN
-    ||   obj->vnum == OBJ_VNUM_RELIC_MANA_REGEN)
+	if (!obj) return FALSE;
+
+    if (obj == obj_index_relic_extra_damage
+    ||   obj == obj_index_relic_extra_xp
+    ||   obj == obj_index_relic_extra_pneuma
+    ||   obj == obj_index_relic_hp_regen
+    ||   obj == obj_index_relic_mana_regen)
 	return TRUE;
 
     return FALSE;
@@ -5561,7 +5563,7 @@ bool check_ice_storm(ROOM_INDEX_DATA *room)
 
     for (obj = room->contents; obj != NULL; obj = obj->next_content)
     {
-	if (obj->pIndexData->vnum == OBJ_VNUM_ICE_STORM)
+	if (obj->item_type == ITEM_ICE_STORM)
 	    return TRUE;
     }
 
@@ -5601,15 +5603,15 @@ OBJ_DATA *get_skull(CHAR_DATA *ch, char *owner)
 	    for (objNest = obj->contains; objNest != NULL; objNest = objNest->next_content)
 	    {
 		if (can_see_obj(ch, objNest)
-		&&  (objNest->pIndexData->vnum == OBJ_VNUM_SKULL
-		      || objNest->pIndexData->vnum == OBJ_VNUM_GOLD_SKULL)
+		&&  (objNest->pIndexData == obj_index_skull
+		      || objNest->pIndexData == obj_index_gold_skull)
 		&& !str_cmp(objNest->owner, owner))
 		    return objNest;
 	    }
 
 	if (can_see_obj(ch, obj)
-	&&  (obj->pIndexData->vnum == OBJ_VNUM_SKULL
-	     || obj->pIndexData->vnum == OBJ_VNUM_GOLD_SKULL)
+	&&  (obj->pIndexData == obj_index_skull
+	     || obj->pIndexData == obj_index_gold_skull)
         && !str_cmp(obj->owner, owner))
 	    return obj;
     }
@@ -6402,132 +6404,123 @@ bool can_put_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
 
     if (container)
     {
-	// To put it in a container on the ground you must be able to drop it
-	if (container->carried_by != ch && (!can_drop_obj(ch, obj, silent) || IS_SET(obj->extra2_flags, ITEM_KEPT))) {
-	    if (!silent)
-		send_to_char("You can't let go of it.\n\r", ch);
-	    return FALSE;
-	}
+		// To put it in a container on the ground you must be able to drop it
+		if (container->carried_by != ch && (!can_drop_obj(ch, obj, silent) || IS_SET(obj->extra2_flags, ITEM_KEPT))) {
+			if (!silent)
+			send_to_char("You can't let go of it.\n\r", ch);
+			return FALSE;
+		}
 
-	if (container->item_type != ITEM_CONTAINER
-	&&  container->item_type != ITEM_WEAPON_CONTAINER
-	&&  container->item_type != ITEM_CART
-	&&  container->item_type != ITEM_KEYRING
-	&&  container->pIndexData->vnum != OBJ_VNUM_CURSED_ORB)
-	{
-	    if (!silent)
-		send_to_char("That's not a container or cart.\n\r", ch);
+		if (container->item_type != ITEM_CONTAINER
+		&&  container->item_type != ITEM_WEAPON_CONTAINER
+		&&  container->item_type != ITEM_CART
+		&&  container->item_type != ITEM_KEYRING)
+		{
+			if (!silent)
+			send_to_char("That's not a container or cart.\n\r", ch);
 
-	    return FALSE;
-	}
+			return FALSE;
+		}
 
-	if (container->item_type != ITEM_CART
-	&&  container->item_type != ITEM_WEAPON_CONTAINER
-	&&  IS_SET(container->value[1], CONT_CLOSED))
-	{
-	    if (!silent)
-		act("$p is closed.", ch, NULL, NULL, container, NULL, NULL, NULL, TO_CHAR);
-	    return FALSE;
-	}
+		if (container->item_type != ITEM_CART
+		&&  container->item_type != ITEM_WEAPON_CONTAINER
+		&&  IS_SET(container->value[1], CONT_CLOSED))
+		{
+			if (!silent)
+			act("$p is closed.", ch, NULL, NULL, container, NULL, NULL, NULL, TO_CHAR);
+			return FALSE;
+		}
 
-	if (obj == container)
-	{
-	    if (!silent)
-		send_to_char("You can't fold it into itself.\n\r", ch);
+		if (obj == container)
+		{
+			if (!silent)
+			send_to_char("You can't fold it into itself.\n\r", ch);
 
-	    return FALSE;
-	}
+			return FALSE;
+		}
 
-	if (obj->item_type == ITEM_CONTAINER
-	||  obj->item_type == ITEM_WEAPON_CONTAINER)
-	{
-	    if (!silent)
-		send_to_char("You can't put containers inside another container.\n\r", ch);
+		if (obj->item_type == ITEM_CONTAINER
+		||  obj->item_type == ITEM_WEAPON_CONTAINER)
+		{
+			if (!silent)
+			send_to_char("You can't put containers inside another container.\n\r", ch);
 
-	    return FALSE;
-	}
+			return FALSE;
+		}
 
-	if (IS_SET(obj->extra2_flags, ITEM_NO_CONTAINER) ||
-	    (IS_SET(obj->extra_flags, ITEM_NOUNCURSE) && IS_SET(obj->extra_flags, ITEM_NODROP)))
-	{
-	    if (!silent)
-		act("You can't put $p in $P.", ch, NULL, NULL, obj, container, NULL, NULL, TO_CHAR);
+		if (IS_SET(obj->extra2_flags, ITEM_NO_CONTAINER) ||
+			(IS_SET(obj->extra_flags, ITEM_NOUNCURSE) && IS_SET(obj->extra_flags, ITEM_NODROP)))
+		{
+			if (!silent)
+			act("You can't put $p in $P.", ch, NULL, NULL, obj, container, NULL, NULL, TO_CHAR);
 
-	    return FALSE;
-	}
+			return FALSE;
+		}
 
-	if (WEIGHT_MULT(obj) != 100)
-	    return FALSE;
+		if ((get_obj_weight(obj) + (get_obj_weight_container(container) * WEIGHT_MULT(container))/100) > (container->value[0]) ||
+			(get_obj_number_container(container) >= container->value[3]))
+		{
+			act("$p won't fit in $P.", ch, NULL, NULL, obj, container, NULL, NULL, TO_CHAR);
+			return FALSE;
+		}
 
-        /*
-	if (get_obj_weight(obj) + (get_obj_weight_container(container) * WEIGHT_MULT(container))/100
-		> (container->value[0])
-		||  (get_obj_number_container(container) >= container->value[3]))
-	{
-	    act("$p won't fit in $P.", ch, obj, container, TO_CHAR);
-	    return FALSE;
-	}
-	*/
+		if (container->item_type == ITEM_WEAPON_CONTAINER && container->value[1] != obj->value[0])
+		{
+			if (!silent)
+			{
+			sprintf(buf, "This container will only take %ss.\n\r",
+				weapon_name(container->value[1]));
+			send_to_char(buf, ch);
+			}
 
-	if (container->item_type == ITEM_WEAPON_CONTAINER
-	&&  container->value[1] != obj->value[0])
-	{
-	    if (!silent)
-	    {
-		sprintf(buf, "This container will only take %ss.\n\r",
-			weapon_name(container->value[1]));
-		send_to_char(buf, ch);
-	    }
-
-	    return FALSE;
-	}
+			return FALSE;
+		}
     }
     else
     {
-	if (obj->timer > 0)
-	{
-	    if (!silent)
-		act("You can't send $p through the mail.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		if (obj->timer > 0)
+		{
+			if (!silent)
+			act("You can't send $p through the mail.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 
-	    return FALSE;
-	}
+			return FALSE;
+		}
 
-	if ((obj->pIndexData->vnum == OBJ_VNUM_SKULL || obj->pIndexData->vnum == OBJ_VNUM_GOLD_SKULL)
-	&&   obj->affected != NULL)
-	{
-	    if (!silent)
-		send_to_char("You can't send that enchanted item through the mail.\n\r", ch);
+		if ((obj->pIndexData == obj_index_skull || obj->pIndexData == obj_index_gold_skull) &&
+			obj->affected != NULL)
+		{
+			if (!silent)
+			send_to_char("You can't send that enchanted item through the mail.\n\r", ch);
 
-	    return FALSE;
-	}
+			return FALSE;
+		}
 
-	if (IS_SET(obj->extra_flags, ITEM_NOUNCURSE) && IS_SET(obj->extra_flags, ITEM_NODROP))
-	{
-	    if (!silent)
-		act("You can't let go of $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		if (IS_SET(obj->extra_flags, ITEM_NOUNCURSE) && IS_SET(obj->extra_flags, ITEM_NODROP))
+		{
+			if (!silent)
+			act("You can't let go of $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 
-	    return FALSE;
-	}
+			return FALSE;
+		}
 
-	weight = get_obj_weight(obj);
-	if (weight > MAX_POSTAL_WEIGHT)
-	{
-	    if (!silent)
-		send_to_char("Sorry, that item is far too heavy to send through the mail.\n\r", ch);
+		weight = get_obj_weight(obj);
+		if (weight > MAX_POSTAL_WEIGHT)
+		{
+			if (!silent)
+			send_to_char("Sorry, that item is far too heavy to send through the mail.\n\r", ch);
 
-	    return FALSE;
-	}
+			return FALSE;
+		}
 
-	if (count_weight_mail(mail) + weight > MAX_POSTAL_WEIGHT)
-	    MSG(send_to_char("Postal weight limit has been reached.\n\r", ch))
+		if (count_weight_mail(mail) + weight > MAX_POSTAL_WEIGHT)
+			MSG(send_to_char("Postal weight limit has been reached.\n\r", ch))
 
-	if (count_items_list_nest(mail->objects)
-	    + count_items_list_nest(obj->contains) + 1 > MAX_POSTAL_ITEMS)
-	{
-	    sprintf(buf, "Postal limit of %d items per package has been reached.\n\r", MAX_POSTAL_ITEMS);
-	    MSG(send_to_char(buf, ch))
-	}
-
+		if (count_items_list_nest(mail->objects)
+			+ count_items_list_nest(obj->contains) + 1 > MAX_POSTAL_ITEMS)
+		{
+			sprintf(buf, "Postal limit of %d items per package has been reached.\n\r", MAX_POSTAL_ITEMS);
+			MSG(send_to_char(buf, ch))
+		}
     }
 
     return !p_percent_trigger(NULL,container,NULL,NULL,ch, NULL, NULL,obj,NULL,TRIG_PREPUT,silent?"silent":NULL);

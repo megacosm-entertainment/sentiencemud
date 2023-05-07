@@ -519,6 +519,7 @@ char *expand_argument_variable(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 			} else
 				arg->d.sk.tid[0] = arg->d.sk.tid[1] = 0;
 			break;
+		case VAR_SONG:		arg->type = ENT_SONG; arg->d.song = var->_.sn; break;
 		case VAR_AFFECT:	arg->type = ENT_AFFECT; arg->d.aff = var->_.aff; break;
 
 		case VAR_CONNECTION:	arg->type = ENT_CONN; arg->d.conn = var->_.conn; break;
@@ -844,6 +845,14 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
 		else return NULL;
 
 		arg->type = ENT_SKILL;
+		break;
+
+	case ENTITY_VAR_SONG:
+		if(var && var->type == VAR_SONG)
+			arg->d.song = var->_.sn;
+		else return NULL;
+
+		arg->type = ENT_SONG;
 		break;
 
 	case ENTITY_VAR_SECTION:
@@ -2049,6 +2058,11 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_STRING;
 		arg->d.str = arg->d.mob && arg->d.mob->tempstring ? arg->d.mob->tempstring : &str_empty[0];
 		break;
+	
+	case ENTITY_MOB_PMOUNT:
+		arg->type = ENT_MOBILE;
+		arg->d.mob = arg->d.mob ? get_personal_mount(arg->d.mob) : NULL;
+		break;
 
 	case ENTITY_MOB_INDEX:
 		arg->type = ENT_MOBINDEX;
@@ -2321,6 +2335,11 @@ char *expand_entity_mobile_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_MOB_TEMPSTRING:
 		arg->type = ENT_STRING;
 		arg->d.str = (char*)&str_empty[0];
+		break;
+	
+	case ENTITY_MOB_PMOUNT:
+		arg->type = ENT_MOBILE;
+		arg->d.mob = NULL;	
 		break;
 
 	case ENTITY_MOB_INDEX:

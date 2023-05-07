@@ -238,7 +238,6 @@ extern  const   struct  flag_type	channel_flags[];
 extern  const   struct  flag_type       project_flags[];
 extern  const   struct  flag_type       immortal_flags[];
 extern  const	struct	flag_type	damage_classes[];
-extern  const	struct	flag_type	relic_types[];
 extern	const	struct	flag_type	script_flags[];
 extern	const	struct	flag_type	interrupt_action_types[];
 extern	const struct flag_type corpse_types[];

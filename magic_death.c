@@ -501,25 +501,40 @@ SPELL_FUNC(spell_raise_dead)
 
 			obj_from_obj(in);
 
-			if (in->pIndexData->vnum == OBJ_VNUM_SILVER_ONE) {
+			if (in->item_type == ITEM_MONEY)
+			{
+				victim->silver += in->value[0];
+				victim->gold += in->value[1];
+				extract_obj(in);
+				continue;
+			}
+
+			if (in->pIndexData == obj_index_silver_one) {
 				victim->silver++;
 				extract_obj(in);
 				continue;
 			}
 
-			if (in->pIndexData->vnum == OBJ_VNUM_SILVER_SOME) {
+			if (in->pIndexData == obj_index_silver_some) {
 				victim->silver += in->value[1];
 				extract_obj(in);
 				continue;
 			}
 
-			if (in->pIndexData->vnum == OBJ_VNUM_GOLD_ONE) {
+			if (in->pIndexData == obj_index_gold_one) {
 				victim->gold++;
 				extract_obj(in);
 				continue;
 			}
 
-			if (in->pIndexData->vnum == OBJ_VNUM_GOLD_SOME) {
+			if (in->pIndexData == obj_index_gold_some) {
+				victim->gold += in->value[1];
+				extract_obj(in);
+				continue;
+			}
+
+			if (in->pIndexData == obj_index_coins) {
+				victim->silver += in->value[0];
 				victim->gold += in->value[1];
 				extract_obj(in);
 				continue;

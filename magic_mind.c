@@ -408,7 +408,8 @@ SPELL_FUNC(spell_third_eye)
 	memset(&af,0,sizeof(af));
 
 	skull = (OBJ_DATA *) vo;
-	if (skull->pIndexData->vnum != OBJ_VNUM_SKULL && skull->pIndexData->vnum != OBJ_VNUM_GOLD_SKULL) {
+	if (skull->pIndexData != obj_index_skull && skull->pIndexData != obj_index_gold_skull)
+	{
 		send_to_char("This spell must be cast on a skull.\n\r", ch);
 		return FALSE;
 	}
@@ -425,7 +426,7 @@ SPELL_FUNC(spell_third_eye)
 
 	for (af_old = skull->affected; af_old; af_old = af_old->next) {
 		if (af_old->type == sn) {
-			act("The soul of $T is already bound to $p.", ch, NULL, NULL, skull, NULL, skull->owner, NULL, TO_CHAR);
+			act("The soul of $T is already bound to $p.", ch, NULL, NULL, skull, NULL, NULL, skull->owner, TO_CHAR);
 			return FALSE;
 		}
 	}

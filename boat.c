@@ -485,7 +485,7 @@ SHIP_INDEX_DATA *read_ship_index(FILE *fp, AREA_DATA *area)
 		case 'B':
 			if( !str_cmp(word, "Blueprint") )
 			{
-				ship->blueprint_wnum = fread_widevnum(fp);
+				ship->blueprint_wnum = fread_widevnum(fp, area->uid);
 				fMatch = TRUE;
 				break;
 			}
@@ -1174,7 +1174,7 @@ SPECIAL_KEY_DATA *ship_special_key_load(FILE *fp)
 	bool fMatch;
 
 	sk = new_special_key();
-	WNUM_LOAD wnum = fread_widevnum(fp);
+	WNUM_LOAD wnum = fread_widevnum(fp, 0);
 	sk->key_wnum.pArea = get_area_from_uid(wnum.auid);
 	sk->key_wnum.vnum = wnum.vnum;
 
@@ -1275,7 +1275,7 @@ SHIP_DATA *ship_load(FILE *fp)
 	char *word;
 	bool fMatch;
 
-	WNUM_LOAD wnum = fread_widevnum(fp);
+	WNUM_LOAD wnum = fread_widevnum(fp, 0);
 	AREA_DATA *area = get_area_from_uid(wnum.auid);
 
 	index = get_ship_index(area, wnum.vnum);
@@ -5431,7 +5431,7 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 		{
 			map = NULL;
 			for (map = ch->carrying; map != NULL; map = map->next_content) {
-				if (map->item_type == ITEM_BLANK_SCROLL || map->pIndexData->vnum == OBJ_VNUM_BLANK_SCROLL)
+				if (map->item_type == ITEM_BLANK_SCROLL || map->pIndexData == obj_index_blank_scroll)
 					break;
 			}
 

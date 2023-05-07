@@ -65,7 +65,6 @@ int skill_lookup(const char *name)
     return -1;
 }
 
-
 // finds a spell the character can cast if possible
 int find_spell(CHAR_DATA *ch, const char *name)
 {

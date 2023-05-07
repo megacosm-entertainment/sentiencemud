@@ -103,30 +103,30 @@ void get_obj( CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container )
 
     if ( container != NULL )
     {
-    	if (container->pIndexData->vnum == OBJ_VNUM_PIT
-	&&  get_trust(ch) < obj->level)
-	{
-	    send_to_char("You are not powerful enough to use it.\n\r",ch);
-	    return;
-	}
+		if (container->pIndexData == obj_index_pit)
+		{
+			if (get_trust(ch) < obj->level)
+			{
+				send_to_char("You are not powerful enough to use it.\n\r",ch);
+				return;
+			}
 
-    	if (container->pIndexData->vnum == OBJ_VNUM_PIT
-	&&  !CAN_WEAR(container, ITEM_TAKE)
-	)
-	    obj->timer = 0;
-	act( "You get $p from $P.", ch, NULL, NULL, obj, container, NULL, NULL, TO_CHAR );
-	act( "$n gets $p from $P.", ch, NULL, NULL, obj, container, NULL, NULL, TO_ROOM );
-	obj_from_obj( obj );
+    		if (!CAN_WEAR(container, ITEM_TAKE))
+		    	obj->timer = 0;
+		}
+
+		act( "You get $p from $P.", ch, NULL, NULL, obj, container, NULL, NULL, TO_CHAR );
+		act( "$n gets $p from $P.", ch, NULL, NULL, obj, container, NULL, NULL, TO_ROOM );
+		obj_from_obj( obj );
     }
     else
     {
-	act( "You get $p.", ch, NULL, NULL, obj, container, NULL, NULL, TO_CHAR );
-	act( "$n gets $p.", ch, NULL, NULL, obj, container, NULL, NULL, TO_ROOM );
-	obj_from_room( obj );
+		act( "You get $p.", ch, NULL, NULL, obj, container, NULL, NULL, TO_CHAR );
+		act( "$n gets $p.", ch, NULL, NULL, obj, container, NULL, NULL, TO_ROOM );
+		obj_from_room( obj );
     }
 
-    if ( container == NULL || container->item_type == ITEM_CORPSE_PC
-    || container->item_type == ITEM_CORPSE_NPC )
+    if ( container == NULL || container->item_type == ITEM_CORPSE_PC || container->item_type == ITEM_CORPSE_NPC )
 	reset_obj( obj );
 
     obj_to_char( obj, ch );
@@ -884,7 +884,7 @@ void do_put(CHAR_DATA *ch, char *argument)
 		if (!can_put_obj(ch, obj, container, NULL, FALSE))
 		    return;
 
-        /* Alemnos magic keyring */
+		// Could be moved to "can_put_obj" ?
 		if (container->item_type == ITEM_KEYRING)
 		{
 		    if (obj->item_type != ITEM_KEY)
@@ -934,39 +934,32 @@ void do_put(CHAR_DATA *ch, char *argument)
 		}
 
         /* Orb of Shadows makes 1 item perm cursed */
-		if (container->pIndexData->vnum == OBJ_VNUM_CURSED_ORB)
+		// TODO: Make into scripting (PREPUT)
+		/* KEEP HERE FOR REFERENCE
+		if (container->pIndexData == obj_index_cursed_orb)
 		{
 		    if (obj->item_type == ITEM_CONTAINER)
 		    {
-		        act("You can't seem to get $p into the orb.",
-					ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		        act("You can't seem to get $p into the orb.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 				return;
 		    }
 
-			act("You put $p into the Orb of Shadows.",
-				ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-			act("$n puts $p into the Orb of Shadows.",
-				ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-			act("You hear demonic chants and whispers from the Orb of Shadows.",
-				ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-			act("You hear demonic chants and whispers from $n's Orb of Shadows.",
-				ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-			act("You retrieve $p from the Orb of Shadows.",
-				ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-			act("$n retrieves $p from the Orb of Shadows.",
-				ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+			act("You put $p into the Orb of Shadows.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			act("$n puts $p into the Orb of Shadows.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+			act("You hear demonic chants and whispers from the Orb of Shadows.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("You hear demonic chants and whispers from $n's Orb of Shadows.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			act("You retrieve $p from the Orb of Shadows.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			act("$n retrieves $p from the Orb of Shadows.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 
-			act("The Orb of Shadows dissipates into smoke.",
-				ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-			act("$n's Orb of Shadows dissipates into smoke.",
-				ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			act("The Orb of Shadows dissipates into smoke.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("$n's Orb of Shadows dissipates into smoke.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
 			SET_BIT(obj->extra_flags, ITEM_NODROP);
 			SET_BIT(obj->extra_flags, ITEM_NOUNCURSE);
 			extract_obj(container);
 			return;
 		}
-
+		*/
 
 		if (((get_obj_weight_container(container) + get_obj_weight(obj)) *
 			WEIGHT_MULT(container)/100) > container->value[0])
@@ -1001,7 +994,7 @@ void do_put(CHAR_DATA *ch, char *argument)
     {
 		/* Put all/all.<obj> <container> */
 		if (container->item_type == ITEM_KEYRING ||
-			container->pIndexData->vnum == OBJ_VNUM_CURSED_ORB)
+			(container->item_type == ITEM_CONTAINER && IS_SET(container->value[1], CONT_SINGULAR)))
 		{
 			act("You can only put items in $p one at a time.", ch, NULL, NULL, container, NULL, NULL, NULL, TO_CHAR);
 			return;
@@ -1733,115 +1726,15 @@ void do_give(CHAR_DATA *ch, char *argument)
     act("$n gives you $p.",   ch, victim, NULL, obj, NULL, NULL, NULL, TO_VICT   );
     act("You give $p to $N.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR   );
     MOBtrigger = TRUE;
-/*
-    if (IS_NPC(victim) && IS_SET(victim->act2,ACT2_SHIP_QUESTMASTER)) {
-
-        if (obj->pIndexData->vnum == OBJ_VNUM_INVASION_LEADER_HEAD) {
-          if (obj->level-30 < ch->tot_level - 30) {
-          		sprintf(buf, "{C$n says 'This was a level %d quest $N, if you do this again I will strip you of your rank and make you a fugitive! Get out of this room!'{x", obj->level-30);
-              act(buf, victim, obj, ch, TO_ROOM);
-          }
-          else {
-						int points = 0;
-						long questpoints = 0;
-						act("{C$n says 'Excellent job $N, I will inform the council of your heroic deeds.'{x", victim, obj, ch, TO_ROOM);
-
-            questpoints = number_range(2, 20);
-						sprintf(buf, "You receive %ld quest points!\n\r", questpoints);
-						send_to_char(buf, ch);
-						ch->questpoints += questpoints;
-
-            points = number_range(1, 7);
-						sprintf(buf, "You are awarded %d military quest points!\n\r", points);
-						send_to_char(buf, ch);
-
-						award_ship_quest_points(victim->in_room->area->place_flags, ch, points);
-	      	}
-				}
-      else
-        if (obj->pIndexData->vnum == OBJ_VNUM_PIRATE_HEAD) {
-          int points = 0;
-      		long expreward = 0;
-          int pracs = 0;
-          long questpoints = 0;
-          int reputation_points = 0;
-
-          act("{C$n says 'Excellent job $N, I will inform the council that another pirate has been vanquished.'{x", victim, obj, ch, TO_ROOM);
-
-          if (obj->pirate_reputation < NPC_SHIP_RATING_WELLKNOWN) {
-            points = number_range(5, 10);
-					  expreward += number_range(1000,15000);
-            pracs += number_range(1,5);
-            questpoints += number_range(1, 8);
-          }
-          else
-          if (obj->pirate_reputation < NPC_SHIP_RATING_FAMOUS) {
-            points = number_range(10, 15);
-					  expreward += number_range(5000,25000);
-            pracs += number_range(3,10);
-            questpoints += number_range(5, 15);
-            reputation_points = 1;
-          }
-          else
-          if (obj->pirate_reputation < NPC_SHIP_RATING_NOTORIOUS) {
-            points = 15;
-            points = number_range(20, 35);
-					  expreward += number_range(5000,50000);
-            pracs += number_range(5,15);
-            questpoints += number_range(5, 30);
-            reputation_points = 2;
-          }
-          else
-          if (obj->pirate_reputation < NPC_SHIP_RATING_INFAMOUS) {
-            points = number_range(35, 45);
-					  expreward += number_range(50000,100000);
-            pracs += number_range(10,20);
-            questpoints += number_range(5, 40);
-            reputation_points = 3;
-          }
-	        else {
-            points = number_range(45, 55);
-					  expreward += number_range(50000,200000);
-            pracs += number_range(10,30);
-            questpoints += number_range(5, 60);
-            reputation_points = 4;
-          }
-
-	if(ch->tot_level < 120)
-	{
-	    sprintf(buf, "You gain %ld experience points!\n\r",
-		    expreward);
-	    send_to_char(buf, ch);
-
-	    gain_exp(ch, expreward);
-	}
-
-      sprintf(buf, "You gain %d practices!\n\r", pracs);
-      send_to_char(buf, ch);
-      ch->practice += pracs;
-
-      sprintf(buf, "You receive %ld quest points!\n\r", questpoints);
-      send_to_char(buf, ch);
-      ch->questpoints += questpoints;
-
-            points = 1000; /number_range(1, 7);
-  reputation_points = 100;
-      sprintf(buf, "You are awarded %d military quest points!\n\r", points);
-      send_to_char(buf, ch);
-
-          award_ship_quest_points(victim->in_room->area->place_flags, ch, points);
-          award_reputation_points(victim->in_room->area->place_flags, ch, reputation_points);
-        }
-    }*/
 
     if (IS_IMMORTAL(ch) && !IS_NPC(ch) && !IS_IMMORTAL(victim))
     {
         sprintf(buf, "%s gives %s to %s.",
-            ch->name,
-	    obj->short_descr,
-	    IS_NPC(victim) ? victim->short_descr : victim->name);
-	log_string(buf);
-	wiznet(buf, NULL, NULL, WIZ_IMMLOG, 0, 0);
+			ch->name,
+			obj->short_descr,
+			IS_NPC(victim) ? victim->short_descr : victim->name);
+		log_string(buf);
+		wiznet(buf, NULL, NULL, WIZ_IMMLOG, 0, 0);
     }
 
     /* Give trigger */
@@ -2793,51 +2686,43 @@ void do_eat(CHAR_DATA *ch, char *argument)
     act("$n eats $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
     act("You eat $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 
-    if (obj->pIndexData->vnum == OBJ_VNUM_GOLDEN_APPLE && !IS_IMMORTAL(ch))
-    {
-        long xp;
-
-	xp = exp_per_level(ch, ch->pcdata->points) - ch->exp;
-	gain_exp(ch, xp);
-	extract_obj(obj);
-	return;
-    }
-
     switch (obj->item_type)
     {
 	case ITEM_FOOD:
 	    if (!IS_NPC(ch))
 	    {
-		int condition;
+		//int condition;
 
-		condition = ch->pcdata->condition[COND_HUNGER];
+		//condition = ch->pcdata->condition[COND_HUNGER];
 
 		gain_condition(ch, COND_FULL, obj->value[0]);
 		gain_condition(ch, COND_HUNGER, obj->value[1]);
+		/* Removed message because hunger is being removed
 		if (condition == 0 && ch->pcdata->condition[COND_HUNGER] > 0)
 		    send_to_char("You are no longer hungry.\n\r", ch);
+			*/
 	    }
+		
 
-	    if (obj->value[3] != 0
-	    && check_immune(ch, DAM_POISON) != IS_IMMUNE)
+	    if (obj->value[3] != 0 && check_immune(ch, DAM_POISON) != IS_IMMUNE)
 	    {
-		/* The food was poisoned! */
-		AFFECT_DATA af;
-		memset(&af,0,sizeof(af));
-		act("$n chokes and gags.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-		send_to_char("You choke and gag.\n\r", ch);
+			/* The food was poisoned! */
+			AFFECT_DATA af;
+			memset(&af,0,sizeof(af));
+			act("$n chokes and gags.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			send_to_char("You choke and gag.\n\r", ch);
 
-		af.where	 = TO_AFFECTS;
-		af.group     = AFFGROUP_BIOLOGICAL;
-		af.type      = gsn_poison;
-		af.level 	 = number_fuzzy(obj->value[0]);
-		af.duration  = 2 * obj->value[0];
-		af.location  = APPLY_NONE;
-		af.modifier  = 0;
-		af.bitvector = AFF_POISON;
-		af.bitvector2 = 0;
-		af.slot	= WEAR_NONE;
-		affect_join(ch, &af);
+			af.where	 = TO_AFFECTS;
+			af.group     = AFFGROUP_BIOLOGICAL;
+			af.type      = gsn_poison;
+			af.level 	 = number_fuzzy(obj->value[0]);
+			af.duration  = 2 * obj->value[0];
+			af.location  = APPLY_NONE;
+			af.modifier  = 0;
+			af.bitvector = AFF_POISON;
+			af.bitvector2 = 0;
+			af.slot	= WEAR_NONE;
+			affect_join(ch, &af);
 	    }
 	    break;
 
@@ -3743,7 +3628,7 @@ void do_quaff(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (obj->pIndexData->vnum == OBJ_VNUM_EMPTY_VIAL)
+    if (obj->pIndexData == obj_index_empty_vial)
     {
 	act("$p has nothing in it you can quaff.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 	return;
@@ -5451,34 +5336,37 @@ void do_blow( CHAR_DATA *ch, char *argument )
     act( "$n puts $p to $s lips and blows.",  ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM );
     act( "You put $p to your lips and blow.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR );
 
-    if ( obj->pIndexData->vnum == OBJ_VNUM_GOBLIN_WHISTLE )
-  {
-    act( "The whistle glows vibrantly, then fades.'{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
-    if ( !IN_WILDERNESS(ch) )
-    {
-      act( "{CA quiet voice whispers, 'You must be in the wilderness to be picked up.'{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
-      return;
-    }
+	// TODO: When NPC ships can exist properly and the general airship can be made, revisit this
+	/*
+    if ( obj->pIndexData == obj_index_gold_whistle )
+	{
+		act( "The whistle glows vibrantly, then fades.'{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
+		if ( !IN_WILDERNESS(ch) )
+		{
+			act( "{CA quiet voice whispers, 'You must be in the wilderness to be picked up.'{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
+			return;
+		}
 
-    if ( plith_airship == NULL ||
-    plith_airship->ship == NULL ||
-    plith_airship->ship->ship == NULL ||
-    plith_airship->ship->ship->in_room == NULL ||
-    str_cmp(plith_airship->ship->ship->in_room->area->name, "Plith") ||
-    plith_airship->captain == NULL ||
-        plith_airship->captain->ship_depart_time > 0)
-    {
-      act( "{CA quiet voice whispers, 'The airship is unavailable at the moment. Please try again later.'{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
-    }
-    else
-    {
-      act( "{CA quiet voice whispers, 'The airship is on it's way.'{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
-      plith_airship->captain->ship_depart_time = 80;
-      plith_airship->captain->ship_dest_x = ch->in_room->x;
-      plith_airship->captain->ship_dest_y = ch->in_room->y;
-    }
-    return;
-  }
+		if ( plith_airship == NULL ||
+		plith_airship->ship == NULL ||
+		plith_airship->ship->ship == NULL ||
+		plith_airship->ship->ship->in_room == NULL ||
+		str_cmp(plith_airship->ship->ship->in_room->area->name, "Plith") ||
+		plith_airship->captain == NULL ||
+			plith_airship->captain->ship_depart_time > 0)
+		{
+		act( "{CA quiet voice whispers, 'The airship is unavailable at the moment. Please try again later.'{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
+		}
+		else
+		{
+		act( "{CA quiet voice whispers, 'The airship is on it's way.'{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
+		plith_airship->captain->ship_depart_time = 80;
+		plith_airship->captain->ship_dest_x = ch->in_room->x;
+		plith_airship->captain->ship_dest_y = ch->in_room->y;
+		}
+		return;
+	}
+	*/
 
     p_percent_trigger( NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BLOW , NULL);
 
@@ -6624,7 +6512,7 @@ void do_brew(CHAR_DATA *ch, char *argument)
 
     obj = NULL;
     for (obj = ch->carrying; obj != NULL; obj = obj->next_content) {
-	if (obj->item_type == ITEM_EMPTY_VIAL || obj->pIndexData->vnum == OBJ_VNUM_EMPTY_VIAL)
+	if (obj->item_type == ITEM_EMPTY_VIAL || obj->pIndexData == obj_index_empty_vial)
 	    break;
     }
 
@@ -6906,7 +6794,7 @@ void do_scribe(CHAR_DATA *ch, char *argument)
 
     obj = NULL;
     for (obj = ch->carrying; obj != NULL; obj = obj->next_content) {
-		if (obj->item_type == ITEM_BLANK_SCROLL || obj->pIndexData->vnum == OBJ_VNUM_BLANK_SCROLL)
+		if (obj->item_type == ITEM_BLANK_SCROLL || obj->pIndexData == obj_index_blank_scroll)
 		    break;
     }
 
@@ -7149,59 +7037,39 @@ void scribe_end(CHAR_DATA *ch, sh_int sn, sh_int sn2, sh_int sn3)
     obj_to_char(scroll, ch);
 }
 
+bool is_object_in_room(ROOM_INDEX_DATA *room, OBJ_INDEX_DATA *obj_index)
+{
+	OBJ_DATA *obj;
+    for (obj = room->contents; obj != NULL; obj = obj->next_content)
+    {
+		if (obj->pIndexData == obj_index)
+		{
+			return TRUE;
+		}
+    }
+    return FALSE;
+}
 
 bool is_extra_damage_relic_in_room(ROOM_INDEX_DATA *room)
 {
-    OBJ_DATA *obj;
-    for (obj = room->contents; obj != NULL; obj = obj->next_content)
-    {
-	if (obj->pIndexData->vnum == OBJ_VNUM_RELIC_EXTRA_DAMAGE)
-	{
-	    return TRUE;
- 	}
-    }
-    return FALSE;
+	return is_object_in_room(room, obj_index_relic_extra_damage);
 }
 
 
 bool is_extra_xp_relic_in_room(ROOM_INDEX_DATA *room)
 {
-    OBJ_DATA *obj;
-    for (obj = room->contents; obj != NULL; obj = obj->next_content)
-    {
-	if (obj->pIndexData->vnum == OBJ_VNUM_RELIC_EXTRA_XP)
-	{
-	    return TRUE;
- 	}
-    }
-    return FALSE;
+	return is_object_in_room(room, obj_index_relic_extra_xp);
 }
 
 bool is_hp_regen_relic_in_room(ROOM_INDEX_DATA *room)
 {
-    OBJ_DATA *obj;
-    for (obj = room->contents; obj != NULL; obj = obj->next_content)
-    {
-	if (obj->pIndexData->vnum == OBJ_VNUM_RELIC_HP_REGEN)
-	{
-	    return TRUE;
- 	}
-    }
-    return FALSE;
+	return is_object_in_room(room, obj_index_relic_hp_regen);
 }
 
 
 bool is_mana_regen_relic_in_room(ROOM_INDEX_DATA *room)
 {
-    OBJ_DATA *obj;
-    for (obj = room->contents; obj != NULL; obj = obj->next_content)
-    {
-	if (obj->pIndexData->vnum == OBJ_VNUM_RELIC_MANA_REGEN)
-	{
-	    return TRUE;
- 	}
-    }
-    return FALSE;
+	return is_object_in_room(room, obj_index_relic_mana_regen);
 }
 
 

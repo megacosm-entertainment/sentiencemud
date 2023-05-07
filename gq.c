@@ -775,10 +775,10 @@ void read_gq(void)
 	if (last_gq_mob != NULL)
 	    last_gq_mob->next = gq_mob;
 
-	gq_mob->wnum_load = fread_widevnum(fp);
+	gq_mob->wnum_load = fread_widevnum(fp, 0);
 	gq_mob->class = fread_number(fp);
 	gq_mob->group = fread_number(fp);
-	gq_mob->obj_load = fread_widevnum(fp);
+	gq_mob->obj_load = fread_widevnum(fp, 0);
 	gq_mob->max = fread_number(fp);
 
 	last_gq_mob = gq_mob;
@@ -793,7 +793,7 @@ void read_gq(void)
 	if (last_gq_obj != NULL)
 	    last_gq_obj->next = gq_obj;
 
-	gq_obj->wnum_load = fread_widevnum(fp);
+	gq_obj->wnum_load = fread_widevnum(fp, 0);
 	gq_obj->qp_reward = fread_number(fp);
 	gq_obj->prac_reward = fread_number(fp);
 	gq_obj->exp_reward = fread_number(fp);

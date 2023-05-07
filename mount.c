@@ -155,6 +155,20 @@ void do_dismount(CHAR_DATA *ch, char *argument)
     }
 }
 
+// Must be loaded
+CHAR_DATA *get_personal_mount(CHAR_DATA *ch)
+{
+    if (IS_NPC(ch)) return NULL;
+
+    if (!ch->pcdata->personal_mount.pArea || ch->pcdata->personal_mount.vnum < 1)
+        return NULL;
+
+    MOB_INDEX_DATA *pMobIndex = get_mob_index_wnum(ch->pcdata->personal_mount);
+    if (!pMobIndex)
+        return NULL;
+    
+    return get_char_world_index(NULL, pMobIndex);
+}
 
 // TODO: Rework.. just store it on the PCDATA?
 CHAR_DATA *find_personal_mount(char *name)
@@ -169,7 +183,7 @@ CHAR_DATA *find_personal_mount(char *name)
 	return NULL;
     }
 
-    for (vnum = 1; vnum <= area_housing->top_room; vnum++)
+    for (vnum = 1; vnum <= area_housing->top_mob_index; vnum++)
     {
     	if ((mIndex = get_mob_index(area_housing, vnum)) != NULL)
 	{
@@ -192,7 +206,7 @@ void do_whistle(CHAR_DATA *ch, char *argument)
 
     for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
     {
-	if (obj->pIndexData->vnum == OBJ_VNUM_GOLD_WHISTLE)
+	if (obj->pIndexData == obj_index_gold_whistle)
 	    break;
     }
 

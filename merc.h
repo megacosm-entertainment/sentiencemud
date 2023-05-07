@@ -824,7 +824,7 @@ struct olc_point_area_data {
 
 
 #define SKILL_NAME(sn) (((sn) > 0 && (sn) < MAX_SKILL) ? skill_table[(sn)].name : "")
-
+#define SONG_NAME(sn) (((sn) >= 0 && (sn) < MAX_SONGS) ? music_table[(sn)].name : "")
 /*
  * This is used for fight.c in defences. The game will only look at a max
  * level of MAX_MOB_LEVEL so that players still shield block etc mobs which
@@ -2802,6 +2802,7 @@ struct affliction_type {
 #define CONT_SNAPKEY		(F)	/* @@@NIB : 20070126 */
 #define CONT_PUSHOPEN		(G)	/* @@@NIB : 20070126 */
 #define CONT_CLOSELOCK		(H)	/* @@@NIB : 20070126 */
+#define CONT_SINGULAR       (I) // Only allows one item place into the container at a time.
 
 /* Types of tools */
 enum {
@@ -4348,6 +4349,8 @@ struct	pc_data
     LLIST *ships;
 
     bool spam_block_navigation;			// Used to prevent spam looking at compasses, sextants and telescopes to get skill improvements.
+
+    WNUM personal_mount;
 };
 
 
@@ -6143,6 +6146,7 @@ enum trigger_index_enum {
 	TRIG_WEAR,
 	TRIG_WHISPER,
 	TRIG_WIMPY,
+    TRIG_XPCOMPUTE,
 	TRIG_XPGAIN,
 	TRIG_ZAP
 };
@@ -8175,6 +8179,10 @@ void mail_from_list( MAIL_DATA *mail );
 int count_items_mail(MAIL_DATA *mail);
 int count_weight_mail(MAIL_DATA *mail);
 
+// music.c
+int song_lookup(const char *name);
+
+
 /* scripts.c */
 int	program_flow	args( ( long vnum, char *source, CHAR_DATA *mob,
 				OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token,
@@ -8954,15 +8962,15 @@ extern LLIST *loaded_waypoints;
 extern LLIST *loaded_waypoint_paths;
 
 bool parse_widevnum(char *text, AREA_DATA *default_area, WNUM *pWnum);
-WNUM_LOAD fread_widevnum(FILE *fp);
+WNUM_LOAD fread_widevnum(FILE *fp, long refAuid);
 WNUM_LOAD *fread_widevnumptr(FILE *fp);
-const char *widevnum_string(AREA_DATA *pArea, long vnum);
-const char *widevnum_string_wnum(WNUM wnum);
-const char *widevnum_string_mobile(MOB_INDEX_DATA *mob);
-const char *widevnum_string_object(OBJ_INDEX_DATA *obj);
-const char *widevnum_string_room(ROOM_INDEX_DATA *room);
-const char *widevnum_string_token(TOKEN_INDEX_DATA *token);;
-const char *widevnum_string_script(SCRIPT_DATA *script);
+const char *widevnum_string(AREA_DATA *pArea, long vnum, AREA_DATA *pRefArea);
+const char *widevnum_string_wnum(WNUM wnum, AREA_DATA *pRefArea);
+const char *widevnum_string_mobile(MOB_INDEX_DATA *mob, AREA_DATA *pRefArea);
+const char *widevnum_string_object(OBJ_INDEX_DATA *obj, AREA_DATA *pRefArea);
+const char *widevnum_string_room(ROOM_INDEX_DATA *room, AREA_DATA *pRefArea);
+const char *widevnum_string_token(TOKEN_INDEX_DATA *token, AREA_DATA *pRefArea);
+const char *widevnum_string_script(SCRIPT_DATA *script, AREA_DATA *pRefArea);
 
 
 bool wnum_match(WNUM wnum, AREA_DATA *area, long vnum);
@@ -9035,7 +9043,6 @@ extern WNUM obj_wnum_starchart;
 extern WNUM obj_wnum_argyle_ring;
 extern WNUM obj_wnum_shield_dragon;
 extern WNUM obj_wnum_sword_mishkal;
-extern WNUM obj_wnum_golden_apple;
 extern WNUM obj_wnum_glass_hammer;
 extern WNUM obj_wnum_pawn_ticket;
 extern WNUM obj_wnum_cursed_orb;
@@ -9132,7 +9139,6 @@ extern OBJ_INDEX_DATA *obj_index_starchart;
 extern OBJ_INDEX_DATA *obj_index_argyle_ring;
 extern OBJ_INDEX_DATA *obj_index_shield_dragon;
 extern OBJ_INDEX_DATA *obj_index_sword_mishkal;
-extern OBJ_INDEX_DATA *obj_index_golden_apple;
 extern OBJ_INDEX_DATA *obj_index_glass_hammer;
 extern OBJ_INDEX_DATA *obj_index_pawn_ticket;
 extern OBJ_INDEX_DATA *obj_index_cursed_orb;
@@ -9199,9 +9205,9 @@ extern WNUM mob_wnum_objcaster;
 extern WNUM mob_wnum_reflection;
 extern WNUM mob_wnum_slayer;
 extern WNUM mob_wnum_werewolf;
-extern WNUM mob_wnum_mayor_plith;
-extern WNUM mob_wnum_ravage;
-extern WNUM mob_wnum_stiener;
+extern WNUM mob_wnum_soul_deposit_evil;
+extern WNUM mob_wnum_soul_deposit_good;
+extern WNUM mob_wnum_soul_deposit_neutral;
 extern WNUM mob_wnum_changeling;
 extern WNUM mob_wnum_dark_wraith;
 extern WNUM mob_wnum_gatekeeper_abyss;
@@ -9231,9 +9237,9 @@ extern MOB_INDEX_DATA *mob_index_objcaster;
 extern MOB_INDEX_DATA *mob_index_reflection;
 extern MOB_INDEX_DATA *mob_index_slayer;
 extern MOB_INDEX_DATA *mob_index_werewolf;
-extern MOB_INDEX_DATA *mob_index_mayor_plith;
-extern MOB_INDEX_DATA *mob_index_ravage;
-extern MOB_INDEX_DATA *mob_index_stiener;
+extern MOB_INDEX_DATA *mob_index_soul_deposit_evil;
+extern MOB_INDEX_DATA *mob_index_soul_deposit_good;
+extern MOB_INDEX_DATA *mob_index_soul_deposit_neutral;
 extern MOB_INDEX_DATA *mob_index_changeling;
 extern MOB_INDEX_DATA *mob_index_dark_wraith;
 extern MOB_INDEX_DATA *mob_index_gatekeeper_abyss;
@@ -9272,5 +9278,6 @@ extern AREA_DATA *area_chat;
 extern WNUM wnum_zero;
 
 void get_room_wnum(ROOM_INDEX_DATA *room, WNUM *wnum);
+CHAR_DATA *get_personal_mount(CHAR_DATA *ch);
 
 #endif /* !def __merc_h__ */

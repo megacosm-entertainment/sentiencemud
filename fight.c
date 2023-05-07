@@ -1698,27 +1698,8 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, int
 		if (!IS_NPC(ch) && kill_in_room && (corpse != NULL) &&
 			corpse->item_type == ITEM_CORPSE_NPC && can_see_obj(ch,corpse)) {
 
-			if (IS_SET(ch->act, PLR_AUTOLOOT) && corpse) {
-
-#if 0
-				OBJ_DATA *item;
-				OBJ_DATA *item_next;
-
-				// Used to loot objects while leaving gold to 'autogold'
-				for (item = corpse->contains; item; item = item_next) {
-					item_next = item->next_content;
-
-					if (item->pIndexData->vnum >= OBJ_VNUM_SILVER_ONE && item->pIndexData->vnum <= OBJ_VNUM_COINS) {
-					//if(item->item_type == ITEM_MONEY) {
-						obj_from_obj(item);
-						break;
-					}
-				}
-
-				if (corpse->contains) do_function(ch, &do_get, "all corpse");
-
-				if (item) obj_to_obj(item, corpse);
-#endif
+			if (IS_SET(ch->act, PLR_AUTOLOOT) && corpse)
+			{
 				loot_corpse(ch, corpse);
 			}
 
@@ -3228,10 +3209,6 @@ void death_cry( CHAR_DATA *ch, bool has_head, bool messages )
 	msg = "{RYou hear $n's death cry.{x";
 	parts = ch->parts;
 
-	/*if ( IS_NPC(ch) && IS_PIRATE(ch) ) {
-		head_type = OBJ_VNUM_PIRATE_HEAD;
-		head_time = 0; // head should last indefinitely
-	} else*/
 	if ( IS_NPC(ch) && IS_INVASION_LEADER(ch)) {
 		head_type = obj_index_invasion_leader_head;
 		head_time = 0; // head should last indefinitely
@@ -3893,6 +3870,9 @@ void death_mob_echo(CHAR_DATA *victim)
 
 	act("Death taps $n's corpse three times with his scythe.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 	send_to_char("Death taps your corpse three times with his scythe.\n\r", victim);
+
+	death_mob->tempstore[0] = 1;
+	p_percent_trigger(death_mob, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
 }
 
 
@@ -4037,6 +4017,7 @@ int xp_compute(CHAR_DATA *gch, CHAR_DATA *victim, int total_levels)
 	xp = (int) ((float) xp * (float) ((float) gch_tot_level / (float) total_levels));
 
 	// HACK! stop people from leveling in plith.
+	// TODO: Add area flag to do this
 	if (diff_level > 25 && !str_cmp(gch->in_room->area->name, "Plith"))
 		xp = (int) xp / diff_level;
 
@@ -4076,10 +4057,19 @@ int xp_compute(CHAR_DATA *gch, CHAR_DATA *victim, int total_levels)
 		}
 	}
 
+	gch->tempstore[0] = 0;
+	p_percent_trigger(gch,NULL, NULL, NULL, gch, NULL, NULL, NULL, NULL, TRIG_XPCOMPUTE,NULL);
+	bonus_xp += gch->tempstore[0];
 	for (obj = gch->carrying; obj != NULL; obj = obj->next_content) {
-		if (obj->pIndexData->vnum == OBJ_VNUM_SHIELD_DRAGON && obj->wear_loc != WEAR_NONE)
-			bonus_xp += 10;
+		if( obj->wear_loc != WEAR_NONE ) {
+			obj->tempstore[0] = 0;
+			p_percent_trigger(NULL, obj, NULL, NULL, gch, NULL, NULL, NULL, NULL, TRIG_XPCOMPUTE, NULL);
+			bonus_xp += obj->tempstore[0];
+		}
 	}
+	gch->in_room->tempstore[0] = 0;
+	p_percent_trigger(NULL, NULL, gch->in_room, NULL, gch, NULL, NULL, NULL, NULL, TRIG_XPCOMPUTE, NULL);
+	bonus_xp += gch->in_room->tempstore[0];
 
 	if( xp > 0 && bonus_xp > 0 ) {
 		if(!(IS_IMMORTAL(gch) || gch->tot_level == 120))
@@ -7107,29 +7097,45 @@ void resurrect_end(CHAR_DATA *ch)
 
 		obj_from_obj(in);
 
-		if (in->pIndexData->vnum == OBJ_VNUM_SILVER_ONE)
+		if (in->item_type == ITEM_MONEY)
+		{
+			victim->silver += in->value[0];
+			victim->gold += in->value[1];
+			extract_obj(in);
+			continue;
+		}		
+
+		if (in->pIndexData == obj_index_silver_one)
 		{
 			victim->silver++;
 			extract_obj(in);
 			continue;
 		}
 
-		if (in->pIndexData->vnum == OBJ_VNUM_SILVER_SOME)
+		if (in->pIndexData == obj_index_silver_some)
 		{
 			victim->silver += in->value[1];
 			extract_obj(in);
 			continue;
 		}
 
-		if (in->pIndexData->vnum == OBJ_VNUM_GOLD_ONE)
+		if (in->pIndexData == obj_index_gold_one)
 		{
 			victim->gold++;
 			extract_obj(in);
 			continue;
 		}
 
-		if (in->pIndexData->vnum == OBJ_VNUM_GOLD_SOME)
+		if (in->pIndexData == obj_index_gold_some)
 		{
+			victim->gold += in->value[1];
+			extract_obj(in);
+			continue;
+		}
+
+		if (in->pIndexData == obj_index_coins)
+		{
+			victim->silver += in->value[0];
 			victim->gold += in->value[1];
 			extract_obj(in);
 			continue;

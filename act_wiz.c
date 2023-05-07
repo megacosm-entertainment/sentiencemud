@@ -321,9 +321,8 @@ void write_reserved(FILE *fp, RESERVED_WNUM *reserved)
 	{
 		if (reserved[i].wnum)
 		{
-			fprintf(fp, "%s %ld %ld\n", reserved[i].name,
-				(reserved[i].wnum->pArea ? reserved[i].wnum->pArea->uid : 0),
-				reserved[i].wnum->vnum);
+			// Always store the loaded values, even if it didn't resolve
+			fprintf(fp, "%s %ld %ld\n", reserved[i].name, reserved[i].auid, reserved[i].vnum);
 		}
 	}
 }
@@ -335,8 +334,8 @@ void write_reserved_areas(FILE *fp)
 	{
 		if (reserved_areas[i].area)
 		{
-			fprintf(fp, "%s %ld\n", reserved_areas[i].name,
-				(*(reserved_areas[i].area) ? (*(reserved_areas[i].area))->uid : 0));
+			// Always store the loaded values, even if it didn't resolve
+			fprintf(fp, "%s %ld\n", reserved_areas[i].name, reserved_areas[i].auid);
 		}
 	}
 }
@@ -357,6 +356,12 @@ void gconfig_write_nextuid(FILE *fp, unsigned long uids[4], const char *name)
 
 int gconfig_write(void)
 {
+	extern bool fBootDb;
+
+	// Wait to save all of this until after booting up.
+	if (fBootDb)
+		return 0;
+
     FILE *fp;
 
     fp = fopen(CONFIG_FILE,"w");
@@ -7794,6 +7799,8 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 
 			reserved->wnum->pArea = wnum.pArea;
 			reserved->wnum->vnum = wnum.vnum;
+			reserved->auid = wnum.pArea->uid;
+			reserved->vnum = wnum.vnum;
 			*((ROOM_INDEX_DATA **)reserved->data) = pRoom;
 			gconfig_write();
 
@@ -7903,6 +7910,8 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 
 			reserved->wnum->pArea = wnum.pArea;
 			reserved->wnum->vnum = wnum.vnum;
+			reserved->auid = wnum.pArea->uid;
+			reserved->vnum = wnum.vnum;
 			*((SCRIPT_DATA **)reserved->data) = script;
 			gconfig_write();
 
@@ -8012,6 +8021,8 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 
 			reserved->wnum->pArea = wnum.pArea;
 			reserved->wnum->vnum = wnum.vnum;
+			reserved->auid = wnum.pArea->uid;
+			reserved->vnum = wnum.vnum;
 			*((MOB_INDEX_DATA **)reserved->data) = pMob;
 			gconfig_write();
 
@@ -8121,6 +8132,8 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 
 			reserved->wnum->pArea = wnum.pArea;
 			reserved->wnum->vnum = wnum.vnum;
+			reserved->auid = wnum.pArea->uid;
+			reserved->vnum = wnum.vnum;
 			*((OBJ_INDEX_DATA **)reserved->data) = pObj;
 			gconfig_write();
 
@@ -8225,6 +8238,7 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 			}
 
 			*(reserved->area) = pArea;
+			reserved->auid = pArea->uid;
 			gconfig_write();
 
 			sprintf(buf, "Reserved Area {Y%s{x changed to %s{x {W({g%ld{W){x.\n\r",

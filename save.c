@@ -263,38 +263,12 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 	fprintf(fp, "DeathTimeLeft %d\n", ch->time_left_death);
         fprintf(fp, "Dead\n");
 	if(ch->recall.wuid)
-		fprintf(fp, "RepopRoomW %lu %lu %lu %lu\n", 	ch->recall.wuid, ch->recall.id[0], ch->recall.id[1], ch->recall.id[2]);
+		fprintf(fp, "RepopRoomW %lu %lu %lu %lu\n", ch->recall.wuid, ch->recall.id[0], ch->recall.id[1], ch->recall.id[2]);
 	else if(ch->recall.id[1] || ch->recall.id[2])
-		fprintf(fp, "RepopRoomC %lu %lu %lu\n", 	ch->recall.id[0], ch->recall.id[1], ch->recall.id[2]);
+		fprintf(fp, "RepopRoomC %ld#%lu %lu %lu\n", ch->recall.area->uid, ch->recall.id[0], ch->recall.id[1], ch->recall.id[2]);
 	else
-		fprintf(fp, "RepopRoom %ld\n", 	ch->recall.id[0]);
+		fprintf(fp, "RepopRoom %ld %ld\n", ch->recall.area->uid, ch->recall.id[0]);
     }
-
-/*
-    if (ON_SHIP(ch))
-    {
-	// Make sure IMM didn't just 'goto' a ship and then quit.
-	if (ch->in_room->ship != NULL)
-	{
-	    if (!IS_NPC_SHIP(ch->in_room->ship))
-	    {
-		ch->pcdata->owner_of_boat_before_logoff = ch->in_room->ship->owner_name;
-		fprintf(fp, "OwnerOfShip %s~\n", ch->pcdata->owner_of_boat_before_logoff);
-	    }
-	    else
-	    {
-		ch->pcdata->vnum_of_boat_before_logoff = ch->in_room->ship->npc_ship->pShipData->vnum;
-		fprintf(fp, "VnumOfShip %ld\n", ch->pcdata->vnum_of_boat_before_logoff);
-	    }
-	}
-    }
-*/
-    /*
-    if (ch->short_descr[0] != '\0')
-      	fprintf(fp, "ShD  %s~\n",	ch->short_descr	);
-    if(ch->long_descr[0] != '\0')
-	fprintf(fp, "LnD  %s~\n",	ch->long_descr	);
-    */
     if (ch->description[0] != '\0')
     	fprintf(fp, "Desc %s~\n", fix_string(ch->description));
     if (ch->prompt != NULL
@@ -341,14 +315,7 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 	fprintf(fp, "Flag %s~\n", fix_string(ch->pcdata->flag));
 
     fprintf(fp, "ChannelFlags %ld\n", ch->pcdata->channel_flags);
-     /*
-    for (i = 0; i < 3; i++)
-    {
-	fprintf(fp, "Rank%d  %d\n", i, ch->pcdata->rank[i]);
-	fprintf(fp, "Reputation%d  %d\n", i, ch->pcdata->reputation[i]);
-	fprintf(fp, "ShipQuestPoints%d  %ld\n", i, ch->pcdata->ship_quest_points[i]);
-    }
-*/
+
     if (ch->pcdata->danger_range > 0)
     	fprintf(fp, "DangerRange %d\n", ch->pcdata->danger_range);
 
@@ -363,11 +330,11 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 	if(ch->pcdata->room_before_arena.wuid)
 		fprintf(fp, "Room_before_arenaW %lu %lu %lu %lu\n", 	ch->pcdata->room_before_arena.wuid, ch->pcdata->room_before_arena.id[0], ch->pcdata->room_before_arena.id[1], ch->pcdata->room_before_arena.id[2]);
 	else if(ch->pcdata->room_before_arena.id[1] || ch->pcdata->room_before_arena.id[2])
-		fprintf(fp, "Room_before_arenaC %lu#%lu %lu %lu\n",
+		fprintf(fp, "Room_before_arenaC %lu %lu %lu %lu\n",
 			ch->pcdata->room_before_arena.area->uid,
 		 	ch->pcdata->room_before_arena.id[0], ch->pcdata->room_before_arena.id[1], ch->pcdata->room_before_arena.id[2]);
 	else
-		fprintf(fp, "Room_before_arena %ld#%ld\n",
+		fprintf(fp, "Room_before_arena %ld %ld\n",
 			ch->pcdata->room_before_arena.area->uid,
 		 	ch->pcdata->room_before_arena.id[0]);
     }
@@ -387,9 +354,9 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 		DUNGEON *dungeon = ch->in_room->instance_section->instance->dungeon;
 
 		if( dungeon->entry_room )
-			fprintf(fp,"Room %s\n", widevnum_string_room(dungeon->entry_room));
+			fprintf(fp,"Room %s\n", widevnum_string_room(dungeon->entry_room, NULL));
 		else
-			fprintf (fp, "Room %s\n", widevnum_string_wnum(room_wnum_temple));
+			fprintf (fp, "Room %s\n", widevnum_string_wnum(room_wnum_temple, NULL));
 	}
 	else if( ch->checkpoint ) {
 		if( ch->checkpoint->wilds )
@@ -397,28 +364,28 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 				ch->checkpoint->x, ch->checkpoint->y, ch->checkpoint->wilds->pArea->uid, ch->checkpoint->wilds->uid);
 		else if(ch->checkpoint->source)
 			fprintf(fp,"CloneRoom %s %ld %ld\n",
-				widevnum_string_room(ch->checkpoint->source), ch->checkpoint->id[0], ch->checkpoint->id[1]);
+				widevnum_string_room(ch->checkpoint->source, NULL), ch->checkpoint->id[0], ch->checkpoint->id[1]);
 		else
-			fprintf(fp,"Room %s\n", widevnum_string_room(ch->checkpoint));
+			fprintf(fp,"Room %s\n", widevnum_string_room(ch->checkpoint, NULL));
 	} else if(!ch->in_room)
-		fprintf (fp, "Room %s\n", widevnum_string_wnum(room_wnum_temple));
+		fprintf (fp, "Room %s\n", widevnum_string_wnum(room_wnum_temple, NULL));
 	else if(ch->in_wilds) {
 		fprintf (fp, "Vroom %ld %ld %ld %ld\n",
 			ch->in_room->x, ch->in_room->y, ch->in_wilds->pArea->uid, ch->in_wilds->uid);
 	} else if(ch->was_in_room) {
 		if(ch->was_in_room->source)
 			fprintf(fp,"CloneRoom %s %ld %ld\n",
-				widevnum_string_room(ch->was_in_room->source), ch->was_in_room->id[0], ch->was_in_room->id[1]);
+				widevnum_string_room(ch->was_in_room->source, NULL), ch->was_in_room->id[0], ch->was_in_room->id[1]);
 		else if( ch->was_in_wilds )
 			fprintf (fp, "Vroom %ld %ld %ld %ld\n",
 				ch->was_in_room->x, ch->was_in_room->y, ch->was_in_wilds->pArea->uid, ch->was_in_wilds->uid);
 		else
-			fprintf(fp,"Room %s\n", widevnum_string_room(ch->was_in_room));
+			fprintf(fp,"Room %s\n", widevnum_string_room(ch->was_in_room, NULL));
 	} else if(ch->in_room->source) {
 		fprintf(fp,"CloneRoom %s %ld %ld\n",
-			widevnum_string_room(ch->in_room->source), ch->in_room->id[0], ch->in_room->id[1]);
+			widevnum_string_room(ch->in_room->source, NULL), ch->in_room->id[0], ch->in_room->id[1]);
 	} else
-		fprintf(fp,"Room %s\n", widevnum_string_room(ch->in_room));
+		fprintf(fp,"Room %s\n", widevnum_string_room(ch->in_room, NULL));
 
     if (ch->pcdata->ignoring != NULL)
     {
@@ -494,9 +461,11 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
     }
 
     if (ch->pneuma != 0)
-	fprintf(fp, "Pneuma %ld\n", ch->pneuma);
+		fprintf(fp, "Pneuma %ld\n", ch->pneuma);
     if (ch->home.pArea && ch->home.vnum > 0)
-	fprintf(fp, "Home %s\n", widevnum_string_wnum(ch->home));
+		fprintf(fp, "Home %s\n", widevnum_string_wnum(ch->home, NULL));
+	if (ch->pcdata->personal_mount.pArea && ch->pcdata->personal_mount.vnum > 0)
+		fprintf(fp, "PersonalMount %s\n", widevnum_string_wnum(ch->pcdata->personal_mount, NULL));
     if (ch->questpoints != 0)
         fprintf(fp, "QuestPnts %d\n",  ch->questpoints);
     if (ch->pcdata->quests_completed != 0)
@@ -511,9 +480,9 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
     if (IS_QUESTING(ch)) {
 		fprintf(fp, "Questing\n");
 		fprintf(fp, "QuestGiverType %d\n", ch->quest->questgiver_type);
-		fprintf(fp, "QuestGiver %s\n", widevnum_string_wnum(ch->quest->questgiver));
+		fprintf(fp, "QuestGiver %s\n", widevnum_string_wnum(ch->quest->questgiver, NULL));
 		fprintf(fp, "QuestReceiverType %d\n", ch->quest->questreceiver_type);
-		fprintf(fp, "QuestReceiver %s\n", widevnum_string_wnum(ch->quest->questreceiver));
+		fprintf(fp, "QuestReceiver %s\n", widevnum_string_wnum(ch->quest->questreceiver, NULL));
 
 		fwrite_quest_part(fp, ch->quest->parts);
     }
@@ -955,6 +924,8 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 	word   = feof(fp) ? "End" : fread_word(fp);
 	fMatch = FALSE;
 
+	bug(word, 0);
+
 	switch (UPPER(word[0]))
 	{
 	case '*':
@@ -1319,7 +1290,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 	    if (!str_cmp(word, "CloneRoom"))
 	    {
 		    ROOM_INDEX_DATA *room;
-			WNUM_LOAD w = fread_widevnum(fp);
+			WNUM_LOAD w = fread_widevnum(fp, 0);
 		    unsigned long id1 = fread_number(fp);
 		    unsigned long id2 = fread_number(fp);
 
@@ -1457,7 +1428,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 	    KEY("Hit",		ch->hitroll,		fread_number(fp));
 		if (!str_cmp(word, "Home"))
 		{
-			WNUM_LOAD load = fread_widevnum(fp);
+			WNUM_LOAD load = fread_widevnum(fp, 0);
 
 			ch->home.pArea = get_area_from_uid(load.auid);
 			ch->home.vnum = load.vnum;
@@ -1644,6 +1615,24 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 	    KEY("Password",	ch->pcdata->pwd,	fread_string(fp));
 	    KEY("Pass",	ch->pcdata->pwd,	fread_string(fp));
 		KEY("PassVers", ch->pcdata->pwd_vers,	fread_number(fp))
+		if (!str_cmp(word, "PersonalMount"))
+		{
+			WNUM_LOAD load = fread_widevnum(fp, 0);
+
+			if (get_mob_index_auid(load.auid, load.vnum))
+			{
+				ch->pcdata->personal_mount.pArea = get_area_from_uid(load.auid);
+				ch->pcdata->personal_mount.vnum = load.vnum;
+			}
+			else
+			{
+				ch->pcdata->personal_mount.pArea = NULL;
+				ch->pcdata->personal_mount.vnum = 0;
+			}
+
+			fMatch = TRUE;
+			break;
+		}
 	    KEY("Played",	ch->played,		fread_number(fp));
 	    KEY("Plyd",	ch->played,		fread_number(fp));
 	    KEY("Position",	ch->position,		fread_number(fp));
@@ -1702,7 +1691,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 				ch->quest = (QUEST_DATA *)new_quest();
 			}
 
-			WNUM_LOAD load = fread_widevnum(fp);
+			WNUM_LOAD load = fread_widevnum(fp, 0);
 			ch->quest->questgiver.pArea = get_area_from_uid(load.auid);
 			ch->quest->questgiver.vnum = load.vnum;
 	
@@ -1728,7 +1717,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 				ch->quest = (QUEST_DATA *)new_quest();
 			}
 
-			WNUM_LOAD load = fread_widevnum(fp);
+			WNUM_LOAD load = fread_widevnum(fp, 0);
 			ch->quest->questreceiver.pArea = get_area_from_uid(load.auid);
 			ch->quest->questreceiver.vnum = load.vnum;
 
@@ -1743,7 +1732,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 		    ch->quest = (QUEST_DATA *)new_quest();
 
 		part = (QUEST_PART_DATA *)new_quest_part();
-		WNUM_LOAD wnum = fread_widevnum(fp);
+		WNUM_LOAD wnum = fread_widevnum(fp, 0);
 		part->area = get_area_from_uid(wnum.auid);
 		part->mob = -1;
 		part->obj = wnum.vnum;
@@ -1761,7 +1750,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 		    ch->quest = (QUEST_DATA *)new_quest();
 
 		part = (QUEST_PART_DATA *)new_quest_part();
-		WNUM_LOAD wnum = fread_widevnum(fp);
+		WNUM_LOAD wnum = fread_widevnum(fp, 0);
 		part->area = get_area_from_uid(wnum.auid);
 		part->obj_sac = wnum.vnum;
 
@@ -1778,7 +1767,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 		    ch->quest = (QUEST_DATA *)new_quest();
 
 		part = (QUEST_PART_DATA *)new_quest_part();
-		WNUM_LOAD wnum = fread_widevnum(fp);
+		WNUM_LOAD wnum = fread_widevnum(fp, 0);
 		part->area = get_area_from_uid(wnum.auid);
 		part->mob_rescue = wnum.vnum;
 
@@ -1795,7 +1784,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 		    ch->quest = (QUEST_DATA *)new_quest();
 
 		part = (QUEST_PART_DATA *)new_quest_part();
-		WNUM_LOAD wnum = fread_widevnum(fp);
+		WNUM_LOAD wnum = fread_widevnum(fp, 0);
 		part->area = get_area_from_uid(wnum.auid);
 		part->mob = wnum.vnum;
 
@@ -1812,7 +1801,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 		    ch->quest = (QUEST_DATA *)new_quest();
 
 		part = (QUEST_PART_DATA *)new_quest_part();
-		WNUM_LOAD wnum = fread_widevnum(fp);
+		WNUM_LOAD wnum = fread_widevnum(fp, 0);
 		part->area = get_area_from_uid(wnum.auid);
 		part->room = wnum.vnum;
 
@@ -1833,27 +1822,48 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 
 	case 'R':
             if (!str_cmp(word, "RepopRoom")) {
-		location_set(&ch->recall,get_area_from_uid(fread_number(fp)),0,fread_number(fp),0,0);
+				long auid = fread_number(fp);
+				long vnum = fread_number(fp);
+		location_set(&ch->recall,get_area_from_uid(auid),0,vnum,0,0);
 		fMatch = TRUE;
 	    }
             if (!str_cmp(word, "RepopRoomC")) {
-		location_set(&ch->recall,get_area_from_uid(fread_number(fp)),0,fread_number(fp),fread_number(fp),fread_number(fp));
+				long auid = fread_number(fp);
+				long vnum = fread_number(fp);
+				unsigned long id0 = fread_number(fp);
+				unsigned long id1 = fread_number(fp);
+
+		location_set(&ch->recall,get_area_from_uid(auid),0,vnum,id0,id1);
 		fMatch = TRUE;
 	    }
             if (!str_cmp(word, "RepopRoomW")) {
-		location_set(&ch->recall,NULL,fread_number(fp),fread_number(fp),fread_number(fp),fread_number(fp));
+				long wuid = fread_number(fp);
+				long x = fread_number(fp);
+				long y = fread_number(fp);
+				long z = fread_number(fp);
+		location_set(&ch->recall,NULL,wuid,x,y,z);
 		fMatch = TRUE;
 	    }
             if (!str_cmp(word, "Room_before_arena")) {
-		location_set(&ch->pcdata->room_before_arena,get_area_from_uid(fread_number(fp)),0,fread_number(fp),0,0);
+				long auid = fread_number(fp);
+				long vnum = fread_number(fp);
+		location_set(&ch->pcdata->room_before_arena,get_area_from_uid(auid),0,vnum,0,0);
 		fMatch = TRUE;
 	    }
             if (!str_cmp(word, "Room_before_arenaC")) {
-		location_set(&ch->pcdata->room_before_arena,get_area_from_uid(fread_number(fp)),0,fread_number(fp),fread_number(fp),fread_number(fp));
+				long auid = fread_number(fp);
+				long vnum = fread_number(fp);
+				unsigned long id0 = fread_number(fp);
+				unsigned long id1 = fread_number(fp);
+		location_set(&ch->pcdata->room_before_arena,get_area_from_uid(auid),0,vnum,id0,id1);
 		fMatch = TRUE;
 	    }
             if (!str_cmp(word, "Room_before_arenaW")) {
-		location_set(&ch->pcdata->room_before_arena,NULL,fread_number(fp),fread_number(fp),fread_number(fp),fread_number(fp));
+				long wuid = fread_number(fp);
+				long x = fread_number(fp);
+				long y = fread_number(fp);
+				long z = fread_number(fp);
+		location_set(&ch->pcdata->room_before_arena,NULL,wuid,x,y,z);
 		fMatch = TRUE;
 	    }
 	    KEY("RMc0",		 ch->pcdata->second_class_mage,		fread_number(fp));
@@ -1887,7 +1897,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 
 	    if (!str_cmp(word, "Room"))
 	    {
-			WNUM_LOAD w = fread_widevnum(fp);
+			WNUM_LOAD w = fread_widevnum(fp, 0);
 		ch->in_room = get_room_index_auid(w.auid, w.vnum);
 		if ((ch->in_room == NULL) /*|| (ch->tot_level < 150 && !ch->in_room->area->open)*/)
 		    ch->in_room = room_index_temple;
@@ -2155,7 +2165,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 
 	    if (!str_cmp(word, "Vnum"))
 	    {
-			WNUM_LOAD wnum_load = fread_widevnum(fp);
+			WNUM_LOAD wnum_load = fread_widevnum(fp, 0);
 
 			ch->pIndexData = get_mob_index_auid(wnum_load.auid, wnum_load.vnum);
 
@@ -2296,7 +2306,7 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
     if (obj->item_type != obj->pIndexData->item_type)
         fprintf(fp, "Ityp %d\n",	obj->item_type		    );
     if (obj->in_room != NULL)
-    	fprintf(fp, "Room %s\n",	widevnum_string_room(obj->in_room)	    );
+    	fprintf(fp, "Room %s\n",	widevnum_string_room(obj->in_room, NULL)	    );
     if (IS_SET(obj->extra2_flags, ITEM_ENCHANTED))
 	fprintf(fp,"Enchanted_times %d\n", obj->num_enchanted);
 
@@ -2329,7 +2339,7 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
     	fprintf(fp, "Locker %d\n", obj->locker);
 
     if (obj->lock) {
-    	fprintf(fp, "Lock %s %d %d", widevnum_string_wnum(obj->lock->key_wnum), obj->lock->flags, obj->lock->pick_chance);
+    	fprintf(fp, "Lock %s %d %d", widevnum_string_wnum(obj->lock->key_wnum, NULL), obj->lock->flags, obj->lock->pick_chance);
 
 		if (list_size(obj->lock->keys) > 0)
 		{
@@ -2586,7 +2596,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 	word   = feof(fp) ? "End" : fread_word(fp);
 	if (!str_cmp(word,"Vnum"))
 	{
-		WNUM_LOAD w = fread_widevnum(fp);
+		WNUM_LOAD w = fread_widevnum(fp, 0);
 		first = FALSE;  /* fp will be in right place */
 
 		OBJ_INDEX_DATA *index = get_obj_index_auid(w.auid, w.vnum);
@@ -3062,7 +3072,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 			{
 				OBJ_DATA *key;
 				OBJ_INDEX_DATA *pIndexData;
-				WNUM_LOAD load = fread_widevnum(fp);
+				WNUM_LOAD load = fread_widevnum(fp, 0);
 
 				if ((pIndexData = get_obj_index_auid(load.auid, load.vnum)) != NULL)
 				{
@@ -3085,7 +3095,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 					obj->lock = new_lock_state();
 				}
 
-				WNUM_LOAD load = fread_widevnum(fp);
+				WNUM_LOAD load = fread_widevnum(fp, 0);
 				obj->lock->key_load = load;
 				obj->lock->key_wnum.pArea = get_area_from_uid(load.auid);
 				obj->lock->key_wnum.vnum = load.vnum;
@@ -3193,7 +3203,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 			if (!str_cmp(word, "Room"))
 			{
 				ROOM_INDEX_DATA *room;
-				WNUM_LOAD w = fread_widevnum(fp);
+				WNUM_LOAD w = fread_widevnum(fp, 0);
 
 				room = get_room_index_auid(w.auid, w.vnum);
 				obj->in_room = room;
@@ -3319,7 +3329,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 
 			if (!str_cmp(word, "Vnum"))
 			{
-				WNUM_LOAD wnum = fread_widevnum(fp);
+				WNUM_LOAD wnum = fread_widevnum(fp, 0);
 
 				// TODO: fix bug
 				if ((obj->pIndexData = get_obj_index_auid(wnum.auid, wnum.vnum)) == NULL)
@@ -4081,7 +4091,7 @@ TOKEN_DATA *fread_token(FILE *fp)
     bool fMatch;
     int vtype;
 
-	wnum = fread_widevnum(fp);
+	wnum = fread_widevnum(fp, 0);
     if ((token_index = get_token_index_auid(wnum.auid, wnum.vnum)) == NULL) {
 //	sprintf(buf, "fread_token: no token index found for vnum %ld", vnum);
 //	bug(buf, 0);
@@ -4344,7 +4354,7 @@ QUEST_PART_DATA *fread_quest_part(FILE *fp)
 		{
 		    case 'M':
 			if (!str_cmp(word, "MPart")) {
-				wnum = fread_widevnum(fp);
+				wnum = fread_widevnum(fp, 0);
 				part->area = get_area_from_uid(wnum.auid);
 			    part->mob = wnum.vnum;
 			    fMatch = TRUE;
@@ -4352,7 +4362,7 @@ QUEST_PART_DATA *fread_quest_part(FILE *fp)
 			}
 
 			if (!str_cmp(word, "MRPart")) {
-				wnum = fread_widevnum(fp);
+				wnum = fread_widevnum(fp, 0);
 				part->area = get_area_from_uid(wnum.auid);
 			    part->mob_rescue = wnum.vnum;
 			    fMatch = TRUE;
@@ -4368,13 +4378,13 @@ QUEST_PART_DATA *fread_quest_part(FILE *fp)
 			    OBJ_INDEX_DATA *obj_i;
 			    WNUM_LOAD room_vnum;
 
-				wnum = fread_widevnum(fp);
+				wnum = fread_widevnum(fp, 0);
 				part->area = get_area_from_uid(wnum.auid);
 			    part->obj = wnum.vnum;
 
 			    obj_i = get_obj_index(part->area, part->obj);
 
-			    room_vnum = fread_widevnum(fp);
+			    room_vnum = fread_widevnum(fp, 0);
 			    room = get_room_index_auid(room_vnum.auid, room_vnum.vnum);
 
 			    obj = create_object(obj_i, 1, TRUE);
@@ -4387,7 +4397,7 @@ QUEST_PART_DATA *fread_quest_part(FILE *fp)
 			}
 
 			if (!str_cmp(word, "OSPart")) {
-				wnum = fread_widevnum(fp);
+				wnum = fread_widevnum(fp, 0);
 				part->area = get_area_from_uid(wnum.auid);
 			    part->obj_sac = wnum.vnum;
 			    fMatch = TRUE;
@@ -4407,7 +4417,7 @@ QUEST_PART_DATA *fread_quest_part(FILE *fp)
 				break;
 			}
 			if (!str_cmp(word, "QRoom")) {
-				wnum = fread_widevnum(fp);
+				wnum = fread_widevnum(fp, 0);
 				part->area = get_area_from_uid(wnum.auid);
 			    part->room = wnum.vnum;
 			    fMatch = TRUE;

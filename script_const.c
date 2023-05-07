@@ -83,6 +83,7 @@ ENT_FIELD entity_types[] = {
 	{"area",			ENTITY_VAR_AREA,		ENT_AREA		},
 	{"skill",			ENTITY_VAR_SKILL,		ENT_SKILL		},
 	{"skillinfo",		ENTITY_VAR_SKILLINFO,	ENT_SKILLINFO	},
+	{"song",			ENTITY_VAR_SONG,		ENT_SONG		},
 	{"aff",				ENTITY_VAR_AFFECT,		ENT_AFFECT		},
 	{"conn",			ENTITY_VAR_CONN,		ENT_CONN		},
 	{"church",			ENTITY_VAR_CHURCH,		ENT_CHURCH		},
@@ -294,6 +295,7 @@ ENT_FIELD entity_mobile[] = {
 	{"vuln",			ENTITY_MOB_VULN,			ENT_BITVECTOR },
 
 	{"tempstring",		ENTITY_MOB_TEMPSTRING,		ENT_STRING },
+	{"pmount",			ENTITY_MOB_PMOUNT,			ENT_MOBILE },
 
 	{NULL,				0,							ENT_UNKNOWN	}
 };
@@ -896,6 +898,7 @@ struct trigger_type trigger_table	[] = {
 {	"wear",					NULL,		TRIG_WEAR,				TRIGSLOT_GENERAL,		TRUE,	TRUE,	TRUE,	TRUE,	FALSE,	FALSE,	FALSE	},
 {	"whisper",				NULL,		TRIG_WHISPER,			TRIGSLOT_SPEECH,		TRUE,	FALSE,	FALSE,	TRUE,	FALSE,	FALSE,	FALSE	},
 {	"wimpy",				NULL,		TRIG_WIMPY,				TRIGSLOT_FIGHT,			TRUE,	TRUE,	TRUE,	TRUE,	FALSE,	FALSE,	FALSE	},
+{	"xpcompute",			NULL,		TRIG_XPCOMPUTE,			TRIGSLOT_GENERAL,		TRUE,	TRUE,	TRUE,	TRUE,	FALSE,	FALSE,	FALSE	},
 {	"xpgain",				NULL,		TRIG_XPGAIN,			TRIGSLOT_GENERAL,		TRUE,	TRUE,	TRUE,	TRUE,	FALSE,	FALSE,	FALSE	},
 {	"zap",					NULL,		TRIG_ZAP,				TRIGSLOT_GENERAL,		FALSE,	TRUE,	FALSE,	TRUE,	FALSE,	FALSE,	FALSE	},
 {	NULL,					NULL,		0,						TRIGSLOT_GENERAL,		FALSE,	FALSE,	FALSE,	FALSE,	FALSE,	FALSE,	FALSE	}
@@ -1100,7 +1103,7 @@ IFCHECK_DATA ifcheck_table[] = {
 	{ "ispk",				IFC_ANY,	"E",	FALSE,	ifc_ispk,				"ifcheck ispk" },
 	{ "isprey",				IFC_ANY,	"E",	FALSE,	ifc_isprey,				"ifcheck isprey" },
 	{ "ispulling",			IFC_ANY,	"Ee",	FALSE,	ifc_ispulling,			"ifcheck ispulling" },
-	{ "ispullingrelic",		IFC_ANY,	"Es",	FALSE,	ifc_ispullingrelic,		"ifcheck ispullingrelic" },
+	{ "ispullingrelic",		IFC_ANY,	"E",	FALSE,	ifc_ispullingrelic,		"ifcheck ispullingrelic" },
 	{ "isquesting",			IFC_ANY,	"E",	FALSE,	ifc_isquesting,			"ifcheck isquesting" },
 	{ "isremort",			IFC_ANY,	"E",	FALSE,	ifc_isremort,			"ifcheck isremort" },
 	{ "isrepairable",		IFC_ANY,	"E",	FALSE,	ifc_isrepairable,		"ifcheck isrepairable" },
@@ -1173,8 +1176,10 @@ IFCHECK_DATA ifcheck_table[] = {
 	{ "objextra4",			IFC_ANY,	"ES",	FALSE,	ifc_objextra4,			"ifcheck objextra4" },
 	{ "objfrag",			IFC_ANY,	"E",	FALSE,	ifc_objfrag,			"ifcheck objfrag" },
 	{ "objhere",			IFC_ANY,	"ES",	FALSE,	ifc_objhere,			"ifcheck objhere" },
+	{ "objmaxrepairs",			IFC_ANY,	"E",	TRUE,	ifc_objmaxrepairs,			"ifcheck objmaxrepairs" },
 	{ "objmaxweight",		IFC_ANY,	"E",	TRUE,	ifc_objmaxweight,		"ifcheck objmaxweight" },
 	{ "objranged",			IFC_ANY,	"ES",	FALSE,	ifc_objranged,			"ifcheck objranged" },
+	{ "objrepairs",			IFC_ANY,	"E",	TRUE,	ifc_objrepairs,			"ifcheck objrepairs" },
 	{ "objtimer",			IFC_ANY,	"E",	TRUE,	ifc_objtimer,			"ifcheck objtimer" },
 	{ "objtype",			IFC_ANY,	"E",	FALSE,	ifc_objtype,			"ifcheck objtype" },
 	{ "objval0",			IFC_ANY,	"E",	TRUE,	ifc_objval0,			"ifcheck objval0" },
@@ -1296,7 +1301,6 @@ IFCHECK_DATA ifcheck_table[] = {
 	{ "valueportaltype",	IFC_ANY,	"ES",	TRUE,	ifc_value_portaltype,	"ifcheck valueportaltype" },
 	{ "valueposition",		IFC_ANY,	"",		TRUE,	ifc_value_position,		"ifcheck valueposition" },
 	{ "valueranged",		IFC_ANY,	"",		TRUE,	ifc_value_ranged,		"ifcheck valueranged" },
-	{ "valuerelic",			IFC_ANY,	"",		TRUE,	ifc_value_relic,		"ifcheck valuerelic" },
 	{ "valuesector",		IFC_ANY,	"",		TRUE,	ifc_value_sector,		"ifcheck valuesector" },
 	{ "valuesize",			IFC_ANY,	"",		TRUE,	ifc_value_size,			"ifcheck valuesize" },
 	{ "valuetoxin",			IFC_ANY,	"",		TRUE,	ifc_value_toxin,		"ifcheck valuetoxin" },

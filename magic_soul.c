@@ -41,7 +41,7 @@ SPELL_FUNC(spell_soul_essence)
 	for (obj = ch->carrying, i = 0; obj && (all || i < souls); obj = obj_next) {
 		obj_next = obj->next_content;
 
-		if (obj->pIndexData->vnum == OBJ_VNUM_BOTTLED_SOUL) {
+		if (obj->pIndexData == obj_index_bottled_soul) {
 			found = TRUE;
 			extract_obj(obj);
 			i++;

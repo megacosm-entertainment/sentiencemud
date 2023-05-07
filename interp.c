@@ -253,7 +253,7 @@ const	struct	cmd_type	cmd_table	[] =
     { "scribe",			do_scribe,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
     { "sell",			do_sell,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
     { "skull",			do_skull,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
-    { "strike",			do_strike,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
+//    { "strike",			do_strike,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
     { "take",			do_get,		POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
     { "unrestring",		do_unrestring,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
     { "value",			do_value,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },

@@ -206,7 +206,8 @@ enum ifcheck_enum {
 	/* O */
 	CHK_OBJCLONES,CHK_OBJCOND,CHK_OBJCORPSE,CHK_OBJCOST,CHK_OBJEXISTS,
 	CHK_OBJEXTRA,CHK_OBJEXTRA2,CHK_OBJEXTRA3,CHK_OBJEXTRA4,CHK_OBJFRAG,CHK_OBJHERE,
-	CHK_OBJMAXWEIGHT,CHK_OBJRANGED,CHK_OBJTIMER,CHK_OBJTYPE,CHK_OBJVAL0,CHK_OBJVAL1,CHK_OBJVAL2,
+	CHK_OBJMAXREPAIRS,CHK_OBJMAXWEIGHT,CHK_OBJRANGED,CHK_OBJREPAIRS,
+	CHK_OBJTIMER,CHK_OBJTYPE,CHK_OBJVAL0,CHK_OBJVAL1,CHK_OBJVAL2,
 	CHK_OBJVAL3,CHK_OBJVAL4,CHK_OBJVAL5,CHK_OBJVAL6,CHK_OBJVAL7,CHK_OBJVAL8,CHK_OBJVAL9,
 	CHK_OBJWEAPON,CHK_OBJWEAPONSTAT,CHK_OBJWEAR,CHK_OBJWEARLOC,CHK_OBJWEIGHT,CHK_OBJWEIGHTLEFT,
 	CHK_OFF,CHK_ORDER,
@@ -255,7 +256,7 @@ enum ifcheck_enum {
 
 
 	/* V */
-	CHK_VALUE_AC,CHK_VALUE_ACSTR,CHK_VALUE_DAMAGE,CHK_VALUE_PORTALTYPE,CHK_VALUE_POSITION,CHK_VALUE_RANGED,CHK_VALUE_RELIC,CHK_VALUE_SECTOR,
+	CHK_VALUE_AC,CHK_VALUE_ACSTR,CHK_VALUE_DAMAGE,CHK_VALUE_PORTALTYPE,CHK_VALUE_POSITION,CHK_VALUE_RANGED,CHK_VALUE_SECTOR,
 	CHK_VALUE_SIZE,CHK_VALUE_TOXIN,CHK_VALUE_TYPE,CHK_VALUE_WEAPON,CHK_VALUE_WEAR,CHK_VARBOOL,CHK_VARDEFINED,
 	CHK_VAREXIT,CHK_VARNUMBER,CHK_VARSTRING,CHK_VNUM,CHK_VULN,
 
@@ -319,6 +320,7 @@ enum variable_enum {
 	VAR_INSTANCE,
 	VAR_DUNGEON,
 	VAR_SHIP,
+	VAR_SONG,			// References a bard song
 
 	VAR_BLLIST_FIRST,
 	////////////////////////
@@ -555,6 +557,7 @@ enum entity_variable_types_enum {
 	ENTITY_VAR_WILDS,
 	ENTITY_VAR_SKILL,
 	ENTITY_VAR_SKILLINFO,
+	ENTITY_VAR_SONG,
 	ENTITY_VAR_CONN,
 	ENTITY_VAR_AFFECT,
 	ENTITY_VAR_CHURCH,
@@ -728,6 +731,7 @@ enum entity_mobile_enum {
 	ENTITY_MOB_RESIST,
 	ENTITY_MOB_VULN,
 	ENTITY_MOB_TEMPSTRING,
+	ENTITY_MOB_PMOUNT,
 };
 
 enum entity_object_enum {
@@ -1845,7 +1849,6 @@ DECL_IFC_FUN(ifc_value_acstr);
 DECL_IFC_FUN(ifc_value_damage);
 DECL_IFC_FUN(ifc_value_position);
 DECL_IFC_FUN(ifc_value_ranged);
-DECL_IFC_FUN(ifc_value_relic);
 DECL_IFC_FUN(ifc_value_sector);
 DECL_IFC_FUN(ifc_value_size);
 DECL_IFC_FUN(ifc_value_toxin);
@@ -1955,6 +1958,9 @@ DECL_IFC_FUN(ifc_isowner);
 DECL_IFC_FUN(ifc_shiptype);
 DECL_IFC_FUN(ifc_iswnum);
 DECL_IFC_FUN(ifc_value_portaltype);
+
+DECL_IFC_FUN(ifc_objrepairs);
+DECL_IFC_FUN(ifc_objmaxrepairs);
 
 /* Opcode functions */
 DECL_OPC_FUN(opc_end);
@@ -2118,6 +2124,7 @@ bool variables_set_object(ppVARIABLE list,char *name,OBJ_DATA *o);
 bool variables_set_room(ppVARIABLE list,char *name,ROOM_INDEX_DATA *r);
 bool variables_set_skill(ppVARIABLE list,char *name,int sn);
 bool variables_set_skillinfo(ppVARIABLE list,char *name,CHAR_DATA *owner,int sn, TOKEN_DATA *token);
+bool variables_set_song(ppVARIABLE list,char *name,int sn);
 bool variables_set_string(ppVARIABLE list,char *name,char *str,bool shared);
 bool variables_set_token(ppVARIABLE list,char *name,TOKEN_DATA *t);
 bool variables_set_wilds (ppVARIABLE list,char *name,WILDS_DATA* wilds);
@@ -2142,6 +2149,8 @@ bool variables_set_skillinfo_id (ppVARIABLE list,char *name, unsigned long ma, u
 bool variables_setindex_integer(ppVARIABLE list,char *name,int num, bool saved);
 bool variables_setindex_room(ppVARIABLE list,char *name,WNUM_LOAD wnum_load, bool saved);
 bool variables_setindex_string(ppVARIABLE list,char *name,char *str,bool shared, bool saved);
+bool variables_setindex_skill(ppVARIABLE list,char *name,int sn, bool saved);
+bool variables_setindex_song(ppVARIABLE list,char *name,int sn, bool saved);
 bool variables_setsave_affect(ppVARIABLE list,char *name,AFFECT_DATA *aff, bool save);
 bool variables_setsave_area (ppVARIABLE list, char *name,AREA_DATA* a, bool save);
 bool variables_setsave_church (ppVARIABLE list, char *name,CHURCH_DATA* church, bool save);
@@ -2152,6 +2161,7 @@ bool variables_setsave_object(ppVARIABLE list,char *name,OBJ_DATA *o, bool save)
 bool variables_setsave_room(ppVARIABLE list,char *name,ROOM_INDEX_DATA *r, bool save);
 bool variables_setsave_skill(ppVARIABLE list,char *name,int sn, bool save);
 bool variables_setsave_skillinfo(ppVARIABLE list,char *name,CHAR_DATA *owner,int sn, TOKEN_DATA *token, bool save);
+bool variables_setsave_song(ppVARIABLE list,char *name,int sn, bool save);
 bool variables_setsave_string(ppVARIABLE list,char *name,char *str,bool shared, bool save);
 bool variables_setsave_token(ppVARIABLE list,char *name,TOKEN_DATA *t, bool save);
 bool variables_setsave_wilds (ppVARIABLE list, char *name,WILDS_DATA* wilds, bool save);
@@ -2683,6 +2693,12 @@ SCRIPT_CMD(scriptcmd_specialkey);
 SCRIPT_CMD(scriptcmd_loadinstanced);
 
 SCRIPT_CMD(dngpcmd_levels);
+
+bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument);
+bool olc_varclear(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument);
+void olc_show_index_vars(BUFFER *buffer, pVARIABLE index_vars);
+void olc_save_index_vars(FILE *fp, pVARIABLE index_vars, AREA_DATA *pRefArea);
+bool olc_load_index_vars(FILE *fp, char *word, ppVARIABLE index_vars, AREA_DATA *pRefArea);
 
 #include "tables.h"
 

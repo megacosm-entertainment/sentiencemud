@@ -98,13 +98,13 @@ void do_deposit(CHAR_DATA *ch, char *argument)
 	if (!IS_NPC(mob))
 	    continue;
 
-	if (ch->alignment == 0 && mob->pIndexData->vnum == MOB_VNUM_MAYOR_PLITH)
+	if (ch->alignment > -250 && ch->alignment < 250 && mob->pIndexData == mob_index_soul_deposit_neutral)
 	    break;
 
-	if (ch->alignment < 0 && mob->pIndexData->vnum == MOB_VNUM_RAVAGE)
+	if (ch->alignment <= -250 && mob->pIndexData == mob_index_soul_deposit_evil)
 	    break;
 
-	if (ch->alignment > 0 && mob->pIndexData->vnum == MOB_VNUM_STIENER)
+	if (ch->alignment >= 250 && mob->pIndexData == mob_index_soul_deposit_good)
 	    break;
     }
 
@@ -115,7 +115,7 @@ void do_deposit(CHAR_DATA *ch, char *argument)
     {
 	obj_next = obj->next_content;
 
-	if (obj->pIndexData->vnum == OBJ_VNUM_BOTTLED_SOUL)
+	if (obj->pIndexData == obj_index_bottled_soul)
 	{
 	    found = TRUE;
 	    extract_obj(obj);
@@ -145,6 +145,7 @@ void do_deposit(CHAR_DATA *ch, char *argument)
 
 
 
+// TODO: make VERB trigger on the hammer
 /* could be used for various things in the future, atm just for crystal hammers*/
 void do_strike(CHAR_DATA *ch, char *argument)
 {
@@ -159,7 +160,7 @@ void do_strike(CHAR_DATA *ch, char *argument)
     }
     else
     {
-	if (obj->pIndexData->vnum != OBJ_VNUM_GLASS_HAMMER)
+	if (obj->pIndexData != obj_index_glass_hammer)
 	{
 	    act("You can't accomplish anything with $p.",
 	    	ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);

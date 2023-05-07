@@ -151,8 +151,8 @@ obj/script_rpcmds.o: script_rpcmds.c merc.h protocol.h sha256.h scripts.h \
  tables.h recycle.h wilds.h debug.h
 obj/script_tpcmds.o: script_tpcmds.c merc.h protocol.h sha256.h scripts.h \
  tables.h recycle.h wilds.h debug.h
-obj/script_vars.o: script_vars.c merc.h protocol.h sha256.h db.h scripts.h \
- tables.h wilds.h
+obj/script_vars.o: script_vars.c merc.h protocol.h sha256.h db.h recycle.h \
+ scripts.h tables.h wilds.h
 obj/scripts.o: scripts.c merc.h protocol.h sha256.h tables.h scripts.h \
  recycle.h wilds.h debug.h
 obj/shoot.o: shoot.c merc.h protocol.h sha256.h interp.h

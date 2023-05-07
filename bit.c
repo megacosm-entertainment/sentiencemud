@@ -878,12 +878,10 @@ char *cont_bit_name( int cont_flags)
     buf[0] = '\0';
 
     if (cont_flags & CONT_CLOSEABLE	) strcat(buf, " closable");
-    if (cont_flags & CONT_PICKPROOF	) strcat(buf, " pickproof");
     if (cont_flags & CONT_CLOSED	) strcat(buf, " closed");
-    if (cont_flags & CONT_LOCKED	) strcat(buf, " locked");
     if (cont_flags & CONT_PUSHOPEN	) strcat(buf, " pushopen");
-    if (cont_flags & CONT_SNAPKEY	) strcat(buf, " snapkey");
     if (cont_flags & CONT_CLOSELOCK	) strcat(buf, " closelock");
+    if (cont_flags & CONT_SINGULAR	) strcat(buf, " singular");
 
     return (buf[0] != '\0' ) ? buf+1 : "none";
 }

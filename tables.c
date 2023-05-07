@@ -1639,14 +1639,12 @@ const struct flag_type wear_loc_flags[] =
 
 const struct flag_type container_flags[] =
 {
-    {	"closeable",		CONT_CLOSEABLE,	TRUE	},
-//    {	"pickproof",		CONT_PICKPROOF,	TRUE	},
+    {	"closeable",	CONT_CLOSEABLE,	TRUE	},
     {	"closed",		CONT_CLOSED,	TRUE	},
-//    {	"locked",		CONT_LOCKED,	TRUE	},
     {	"puton",		CONT_PUT_ON,	TRUE	},
-//    {	"snapkey",		CONT_SNAPKEY,	TRUE	},	// @@@NIB : 20070126
     {	"pushopen",		CONT_PUSHOPEN,	TRUE	},	// @@@NIB : 20070126
-    {	"closelock",		CONT_CLOSELOCK,	TRUE	},	// @@@NIB : 20070126
+    {	"closelock",	CONT_CLOSELOCK,	TRUE	},	// @@@NIB : 20070126
+    {   "singular",     CONT_SINGULAR,  TRUE    },
     {	NULL,			0,		0	}
 };
 
@@ -2139,28 +2137,6 @@ const struct flag_type damage_classes[] = {
 	{"sound", DAM_SOUND, TRUE},
 	{"water", DAM_WATER, TRUE},
 	{NULL, 0, 0}
-};
-
-
-// @@@NIB : 20070120 : Added for relic ifchecks
-// Labels the reserved vnum of each relic to their function
-// This includes both the boost name and relic name for interchangability
-//	within scripts, since scripters dealing with relics ought to be able
-//	to use whichever name they wish for identifying the relic.
-const struct flag_type relic_types[] = {
-	// Boost name
-	{"damage",OBJ_VNUM_RELIC_EXTRA_DAMAGE,TRUE},
-	{"xp",OBJ_VNUM_RELIC_EXTRA_XP,TRUE},
-	{"pneuma",OBJ_VNUM_RELIC_EXTRA_PNEUMA,TRUE},
-	{"hp",OBJ_VNUM_RELIC_HP_REGEN,TRUE},
-	{"mana",OBJ_VNUM_RELIC_MANA_REGEN,TRUE},
-	// Relic name
-	{"power",OBJ_VNUM_RELIC_EXTRA_DAMAGE,TRUE},
-	{"knowledge",OBJ_VNUM_RELIC_EXTRA_XP,TRUE},
-	{"soul",OBJ_VNUM_RELIC_EXTRA_PNEUMA,TRUE},
-	{"health",OBJ_VNUM_RELIC_HP_REGEN,TRUE},
-	{"magic",OBJ_VNUM_RELIC_MANA_REGEN,TRUE},
-	{NULL, 0, 0},
 };
 
 const struct flag_type corpse_types[] = {
@@ -2756,6 +2732,7 @@ const struct flag_type variable_types[] = {
 	{"area",			VAR_AREA,				TRUE},
 	{"skill",			VAR_SKILL,				TRUE},
 	{"skillinfo",		VAR_SKILLINFO,			TRUE},
+    {"song",            VAR_SONG,               TRUE},
 	{"connection",		VAR_CONNECTION,			TRUE},
 	{"affect",			VAR_AFFECT,				TRUE},
 	{"wilds",			VAR_WILDS,				TRUE},

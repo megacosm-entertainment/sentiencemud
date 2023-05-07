@@ -782,31 +782,29 @@ void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
     }
 
     /* print name */
-    if (IS_NPC(victim)
-    || ((IS_MORPHED(victim) || IS_SHIFTED(victim)) && !can_see_shift(ch, victim)))
+    if (IS_NPC(victim) ||
+		((IS_MORPHED(victim) || IS_SHIFTED(victim)) && !can_see_shift(ch, victim)))
     {
-        if (victim->position == POS_STANDING
-	&& victim->on == NULL
-	&& !MOUNTED(victim))
-	{
-            sprintf(buf2, "%s", victim->long_descr);
-	    buf2[0] = UPPER(buf2[0]);
-	    strcat(buf, buf2);
-	}
+        if (victim->position == POS_STANDING && victim->on == NULL && !MOUNTED(victim))
+		{
+            sprintf(buf2, "%s\n\r", victim->long_descr);
+			buf2[0] = UPPER(buf2[0]);
+			strcat(buf, buf2);
+		}
         else
-	{
-	    sprintf(buf2, "%s", victim->short_descr);
-	    buf2[0] = UPPER(buf2[0]);
-	    strcat(buf, buf2);
-	}
+		{
+			sprintf(buf2, "%s", victim->short_descr);
+			buf2[0] = UPPER(buf2[0]);
+			strcat(buf, buf2);
+		}
     }
     else if (!IS_NPC(victim))
     {
-	sprintf(buf2, "%s", victim->name);
-	buf2[0] = UPPER(buf2[0]);
+		sprintf(buf2, "%s", victim->name);
+		buf2[0] = UPPER(buf2[0]);
         strcat(buf, buf2);
         if (victim->position == POS_STANDING && victim->on == NULL)
-  	    strcat(buf, victim->pcdata->title);
+	  	    strcat(buf, victim->pcdata->title);
     }
 
     switch (victim->position)
@@ -849,30 +847,30 @@ void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
 		strcat(buf, " is sleeping here.");
 
 	    if (IS_NPC(victim))
-		strcat(buf, "\n\r");
+			strcat(buf, "\n\r");
 
 	    break;
 	case POS_RESTING:
 	    if (victim->on != NULL)
 	    {
-		if (IS_SET(victim->on->value[2], REST_AT))
-		{
-		    sprintf(message, " is resting at %s.",
-			    victim->on->short_descr);
-		    strcat(buf, message);
-		}
-		else if (IS_SET(victim->on->value[2], REST_ON))
-		{
-		    sprintf(message, " is resting on %s.",
-			    victim->on->short_descr);
-		    strcat(buf, message);
-		}
-		else
-		{
-		    sprintf(message, " is resting in %s.",
-			    victim->on->short_descr);
-		    strcat(buf, message);
-		}
+			if (IS_SET(victim->on->value[2], REST_AT))
+			{
+				sprintf(message, " is resting at %s.",
+					victim->on->short_descr);
+				strcat(buf, message);
+			}
+			else if (IS_SET(victim->on->value[2], REST_ON))
+			{
+				sprintf(message, " is resting on %s.",
+					victim->on->short_descr);
+				strcat(buf, message);
+			}
+			else
+			{
+				sprintf(message, " is resting in %s.",
+					victim->on->short_descr);
+				strcat(buf, message);
+			}
 	    }
 	    else
 	    {
@@ -887,24 +885,24 @@ void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
 	case POS_SITTING:
 	    if (victim->on != NULL)
 	    {
-		if (IS_SET(victim->on->value[2], SIT_AT))
-		{
-		    sprintf(message, " is sitting at %s.",
-			    victim->on->short_descr);
-		    strcat(buf, message);
-		}
-		else if (IS_SET(victim->on->value[2], SIT_ON))
-		{
-		    sprintf(message, " is sitting on %s.",
-			    victim->on->short_descr);
-		    strcat(buf, message);
-		}
-		else
-		{
-		    sprintf(message, " is sitting in %s.",
-			    victim->on->short_descr);
-		    strcat(buf, message);
-		}
+			if (IS_SET(victim->on->value[2], SIT_AT))
+			{
+				sprintf(message, " is sitting at %s.",
+					victim->on->short_descr);
+				strcat(buf, message);
+			}
+			else if (IS_SET(victim->on->value[2], SIT_ON))
+			{
+				sprintf(message, " is sitting on %s.",
+					victim->on->short_descr);
+				strcat(buf, message);
+			}
+			else
+			{
+				sprintf(message, " is sitting in %s.",
+					victim->on->short_descr);
+				strcat(buf, message);
+			}
 	    }
 	    else
 	    {
@@ -919,131 +917,130 @@ void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
 	case POS_STANDING:
 	    if (victim->on != NULL)
 	    {
-		if (IS_SET(victim->on->value[2], STAND_AT))
-		{
-		    sprintf(message, " is standing at %s.",
-			    victim->on->short_descr);
-		    strcat(buf, message);
-		}
-		else if (IS_SET(victim->on->value[2], STAND_ON))
-		{
-		    sprintf(message, " is standing on %s.",
-			    victim->on->short_descr);
-		    strcat(buf, message);
-		}
-		else
-		{
-		    sprintf(message, " is standing in %s.",
-			    victim->on->short_descr);
-		    strcat(buf, message);
-		}
+			if (IS_SET(victim->on->value[2], STAND_AT))
+			{
+				sprintf(message, " is standing at %s.",
+					victim->on->short_descr);
+				strcat(buf, message);
+			}
+			else if (IS_SET(victim->on->value[2], STAND_ON))
+			{
+				sprintf(message, " is standing on %s.",
+					victim->on->short_descr);
+				strcat(buf, message);
+			}
+			else
+			{
+				sprintf(message, " is standing in %s.",
+					victim->on->short_descr);
+				strcat(buf, message);
+			}
 	    }
 	    else if (MOUNTED(victim))
 	    {
-		strcat(buf, " {Gis here, riding ");
-		strcat(buf, MOUNTED(victim)->short_descr);
-		strcat(buf, ".");
+			strcat(buf, " {Gis here, riding ");
+			strcat(buf, MOUNTED(victim)->short_descr);
+			strcat(buf, ".");
 	    }
 	    else if (PULLING_CART(victim))
 	    {
-		strcat(buf, " {Gis here, pulling ");
-		strcat(buf, PULLING_CART(victim)->short_descr);
-		strcat(buf, ".");
+			strcat(buf, " {Gis here, pulling ");
+			strcat(buf, PULLING_CART(victim)->short_descr);
+			strcat(buf, ".");
 	    }
 	    else if (!IS_NPC(victim)
 		   && ((!IS_MORPHED(victim) && !IS_SHIFTED(victim))
 			   || can_see_shift(ch, victim)))
 	    {
-		strcat(buf, (IS_DEAD(victim)) ? " {Dis here.{x" : " {Gis here.{x");
+			strcat(buf, (IS_DEAD(victim)) ? " {Dis here.{x" : " {Gis here.{x");
 	    }
 	    break;
 	case POS_FIGHTING:
 	    strcat(buf, " {Gis here, fighting ");
 	    if (victim->fighting == NULL)
 	    {
-		strcat(buf, "thin air??");
+			strcat(buf, "thin air??");
 	    }
 	    else if (victim->fighting == ch)
 	    {
-		strcat(buf, "YOU!");
+			strcat(buf, "YOU!");
 	    }
 	    else if (victim->in_room == victim->fighting->in_room)
 	    {
-		strcat(buf, pers(victim->fighting, ch));
-		strcat(buf, ".");
+			strcat(buf, pers(victim->fighting, ch));
+			strcat(buf, ".");
 	    }
 	    else
 	    {
-		strcat(buf, "someone who left??");
+			strcat(buf, "someone who left??");
 	    }
 	    if (IS_NPC(victim))
 	    {
-		strcat(buf, "\n\r");
+			strcat(buf, "\n\r");
 	    }
 	    break;
     }
 
-    if (!IS_NPC(victim)
-    && ((!IS_MORPHED(victim) && !IS_SHIFTED(victim)) ||
-	(victim->position != POS_STANDING || MOUNTED(victim) || can_see_shift(ch, victim))))
+    if (!IS_NPC(victim) &&
+		((!IS_MORPHED(victim) && !IS_SHIFTED(victim)) ||
+		(victim->position != POS_STANDING || MOUNTED(victim) || can_see_shift(ch, victim))))
     {
         if (victim->alignment == 1000)
         {
      	    sprintf(buf2, "\n\r{W%s is bathed in a holy white aura.{x",
-		pers(victim, ch));
-	    buf2[4] = UPPER(buf2[4]);
-	    strcat(buf, buf2);
-	}
+			pers(victim, ch));
+			buf2[4] = UPPER(buf2[4]);
+			strcat(buf, buf2);
+		}
 
-	if (victim->alignment == -1000)
-	{
-	    sprintf(buf2,
-		"\n\r{R%s is surrounded with the burning fires of hell.{x",
-		pers(victim, ch));
-	    buf2[4] = UPPER(buf2[4]);
-	    strcat(buf, buf2);
-	}
+		if (victim->alignment == -1000)
+		{
+			sprintf(buf2,
+			"\n\r{R%s is surrounded with the burning fires of hell.{x",
+			pers(victim, ch));
+			buf2[4] = UPPER(buf2[4]);
+			strcat(buf, buf2);
+		}
 
-	if (IS_AFFECTED(victim, AFF_SANCTUARY))
-	{
- 	    sprintf(buf2,
-	    "\n\r{W%s is surrounded with an aura of sanctuary.{x",
-	   	    pers(victim, ch));
-	    buf2[4] = UPPER(buf2[4]);
-  	    strcat(buf, buf2);
-	}
+		if (IS_AFFECTED(victim, AFF_SANCTUARY))
+		{
+			sprintf(buf2,
+			"\n\r{W%s is surrounded with an aura of sanctuary.{x",
+				pers(victim, ch));
+			buf2[4] = UPPER(buf2[4]);
+			strcat(buf, buf2);
+		}
     }
     else
     {
         if (victim->alignment == 1000)
-	{
-	    sprintf(buf2, "{W%s is bathed in a holy white aura.{x\n\r",
-		pers(victim, ch));
-	    buf2[2] = UPPER(buf2[2]);
-	    strcat(buf, buf2);
-	}
+		{
+			sprintf(buf2, "{W%s is bathed in a holy white aura.{x\n\r",
+			pers(victim, ch));
+			buf2[2] = UPPER(buf2[2]);
+			strcat(buf, buf2);
+		}
 
-	if (victim->alignment == -1000)
-	{
-	    sprintf(buf2,
-		"{R%s is surrounded with the burning fires of hell.{x\n\r",
-		pers(victim, ch));
-	    buf2[2] = UPPER(buf2[2]);
-	    strcat(buf, buf2);
-	}
+		if (victim->alignment == -1000)
+		{
+			sprintf(buf2,
+			"{R%s is surrounded with the burning fires of hell.{x\n\r",
+			pers(victim, ch));
+			buf2[2] = UPPER(buf2[2]);
+			strcat(buf, buf2);
+		}
 
-	if (IS_AFFECTED(victim, AFF_SANCTUARY))
-	{
-	    sprintf(buf2,
-		"{W%s is surrounded with an aura of sanctuary.{x\n\r",
-		pers(victim, ch));
-	    buf2[2] = UPPER(buf2[2]);
-	    strcat(buf, buf2);
-	}
+		if (IS_AFFECTED(victim, AFF_SANCTUARY))
+		{
+			sprintf(buf2,
+			"{W%s is surrounded with an aura of sanctuary.{x\n\r",
+			pers(victim, ch));
+			buf2[2] = UPPER(buf2[2]);
+			strcat(buf, buf2);
+		}
     }
 
-    if (!IS_NPC(victim)
-    && ((!IS_MORPHED(victim) && !IS_SHIFTED(victim)) ||
+    if (!IS_NPC(victim) && ((!IS_MORPHED(victim) && !IS_SHIFTED(victim)) ||
 	 (victim->position != POS_STANDING || MOUNTED(victim) || can_see_shift(ch, victim))))
     strcat(buf, "\n\r");
 
@@ -1672,22 +1669,8 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 			}
 		}
 
-/*
-		if (ON_SHIP(ch)) {
-			sprintf(buf, "{G[Owner of Ship: %s, Ship Type: %s ]", room->ship->owner_name,
-				boat_table[ room->ship->ship_type ].name);
-			send_to_char(buf, ch);
-		}
-*/
 	}
 
-/*
-	if (IN_SHIP_NEST(ch)) {
-		sprintf(buf, "{G[X: %ld, Y: %ld]", room->ship != NULL ? room->ship->ship->in_room->x : 0,
-			room->ship != NULL ? room->ship->ship->in_room->y : 0);
-		send_to_char(buf, ch);
-	}
-*/
 	linelength = strlen(room->name);
 	linelength = 50 - linelength;
 
@@ -2122,7 +2105,8 @@ void do_look(CHAR_DATA * ch, char *argument)
 		return;
 	}
 
-	// hack for the crystal ball in Mordrakes tower
+	// TODO: hack for the crystal ball in Mordrakes tower
+	/*
 	if (!str_cmp(arg1, "at"))
 	{
 		for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
@@ -2149,6 +2133,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 			}
 		}
 	}
+	*/
 
 	/* look at an object in the inventory */
 	for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
@@ -2241,7 +2226,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 					{
 						look_compass(ch, obj);
 					}
-					else if((obj->pIndexData->vnum == OBJ_VNUM_SKULL || obj->pIndexData->vnum == OBJ_VNUM_GOLD_SKULL) &&
+					else if((obj->pIndexData == obj_index_skull || obj->pIndexData == obj_index_gold_skull) &&
 						affect_find(obj->affected, gsn_third_eye) != NULL)
 					{
 						if ((victim = get_char_world(NULL, obj->owner)) != NULL)

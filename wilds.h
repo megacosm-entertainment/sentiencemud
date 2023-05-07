@@ -56,7 +56,7 @@ bool            add_region args (( WILDS_DATA *pWilds, WILDS_REGION *pRegion ));
 bool            del_region args (( WILDS_DATA *pWilds, WILDS_REGION *pRegion ));
 
 WILDS_VLINK     *new_vlink args(( void ));
-WILDS_VLINK     *fread_vlink args(( FILE *fp ));
+WILDS_VLINK     *fread_vlink args(( FILE *fp, AREA_DATA *area ));
 WILDS_VLINK	*get_vlink_from_uid args ((WILDS_DATA *pWilds, long uid));
 WILDS_VLINK	*get_vlink_from_index args ((WILDS_DATA *pWilds, long index));
 void            add_vlink args (( WILDS_DATA *pWilds, WILDS_VLINK *pVLink ));

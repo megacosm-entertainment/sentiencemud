@@ -750,7 +750,6 @@ WNUM obj_wnum_starchart;
 WNUM obj_wnum_argyle_ring;
 WNUM obj_wnum_shield_dragon;
 WNUM obj_wnum_sword_mishkal;
-WNUM obj_wnum_golden_apple;
 WNUM obj_wnum_glass_hammer;
 WNUM obj_wnum_pawn_ticket;
 WNUM obj_wnum_cursed_orb;
@@ -848,7 +847,6 @@ OBJ_INDEX_DATA *obj_index_starchart = NULL;
 OBJ_INDEX_DATA *obj_index_argyle_ring = NULL;
 OBJ_INDEX_DATA *obj_index_shield_dragon = NULL;
 OBJ_INDEX_DATA *obj_index_sword_mishkal = NULL;
-OBJ_INDEX_DATA *obj_index_golden_apple = NULL;
 OBJ_INDEX_DATA *obj_index_glass_hammer = NULL;
 OBJ_INDEX_DATA *obj_index_pawn_ticket = NULL;
 OBJ_INDEX_DATA *obj_index_cursed_orb = NULL;
@@ -914,9 +912,9 @@ WNUM mob_wnum_objcaster;
 WNUM mob_wnum_reflection;
 WNUM mob_wnum_slayer;
 WNUM mob_wnum_werewolf;
-WNUM mob_wnum_mayor_plith;
-WNUM mob_wnum_ravage;
-WNUM mob_wnum_stiener;
+WNUM mob_wnum_soul_deposit_evil;
+WNUM mob_wnum_soul_deposit_good;
+WNUM mob_wnum_soul_deposit_neutral;
 WNUM mob_wnum_changeling;
 WNUM mob_wnum_dark_wraith;
 WNUM mob_wnum_gatekeeper_abyss;
@@ -944,9 +942,9 @@ MOB_INDEX_DATA *mob_index_objcaster = NULL;
 MOB_INDEX_DATA *mob_index_reflection = NULL;
 MOB_INDEX_DATA *mob_index_slayer = NULL;
 MOB_INDEX_DATA *mob_index_werewolf = NULL;
-MOB_INDEX_DATA *mob_index_mayor_plith = NULL;
-MOB_INDEX_DATA *mob_index_ravage = NULL;
-MOB_INDEX_DATA *mob_index_stiener = NULL;
+MOB_INDEX_DATA *mob_index_soul_deposit_evil = NULL;
+MOB_INDEX_DATA *mob_index_soul_deposit_good = NULL;
+MOB_INDEX_DATA *mob_index_soul_deposit_neutral = NULL;
 MOB_INDEX_DATA *mob_index_changeling = NULL;
 MOB_INDEX_DATA *mob_index_dark_wraith = NULL;
 MOB_INDEX_DATA *mob_index_gatekeeper_abyss = NULL;
@@ -991,7 +989,7 @@ RESERVED_WNUM reserved_room_wnums[] =
 {
 	{ "RoomAltar",				0,		11001,		&room_wnum_altar,		&room_index_altar },
 	{ "RoomArena",				0,		10513,		&room_wnum_arena,		&room_index_arena },
-	{ "RoomAutoWar",			0,		10001,		&room_wnum_auto_war,	&room_index_auto_war },
+//	{ "RoomAutoWar",			0,		10001,		&room_wnum_auto_war,	&room_index_auto_war },
 	{ "RoomChat",				0,		342,		&room_wnum_chat,		&room_index_chat },
 	{ "RoomDeath",				0,		6502,		&room_wnum_death,		&room_index_death },
 	{ "RoomDefault",			0,		1,			&room_wnum_default,		&room_index_default },
@@ -1006,61 +1004,60 @@ RESERVED_WNUM reserved_room_wnums[] =
 
 RESERVED_WNUM reserved_obj_wnums[] =
 {
-	{ "ObjAbyssPortal",			0,		2000001,	&obj_wnum_abyss_portal,			&obj_index_abyss_portal },
-	{ "ObjArgyleRing",			0,		100032,		&obj_wnum_argyle_ring,			&obj_index_argyle_ring },
-	{ "ObjBlackCloak",			0,		6516,		&obj_wnum_black_cloak,			&obj_index_black_cloak },
+//	{ "ObjAbyssPortal",			0,		2000001,	&obj_wnum_abyss_portal,			&obj_index_abyss_portal },
+//	{ "ObjArgyleRing",			0,		100032,		&obj_wnum_argyle_ring,			&obj_index_argyle_ring },
+//	{ "ObjBlackCloak",			0,		6516,		&obj_wnum_black_cloak,			&obj_index_black_cloak },
 	{ "ObjBlankScroll",			0,		6511,		&obj_wnum_blank_scroll,			&obj_index_blank_scroll },
 	{ "ObjBottledSoul",			0,		150002,		&obj_wnum_bottled_soul,			&obj_index_bottled_soul },
 	{ "ObjBrains",				0,		17,			&obj_wnum_brains,				&obj_index_brains },
-	{ "ObjBrownRobe",			0,		6519,		&obj_wnum_brown_robe,			&obj_index_brown_robe },
-	{ "ObjBrownTunic",			0,		6518,		&obj_wnum_brown_tunic,			&obj_index_brown_tunic },
+//	{ "ObjBrownRobe",			0,		6519,		&obj_wnum_brown_robe,			&obj_index_brown_robe },
+//	{ "ObjBrownTunic",			0,		6518,		&obj_wnum_brown_tunic,			&obj_index_brown_tunic },
 	{ "ObjCoins",				0,		5,			&obj_wnum_coins,				&obj_index_coins },
 	{ "ObjCorpseNPC",			0,		10,			&obj_wnum_corpse_npc,			&obj_index_corpse_npc },
 	{ "ObjCorpsePC",			0,		11,			&obj_wnum_corpse_pc,			&obj_index_corpse_pc },
 	{ "ObjCursedOrb",			0,		100059,		&obj_wnum_cursed_orb,			&obj_index_cursed_orb },
-	{ "ObjDarkWraith_eq",		0,		100502,		&obj_wnum_dark_wraith_eq,		&obj_index_dark_wraith_eq },
-	{ "ObjDeathBook",			0,		6505,		&obj_wnum_death_book,			&obj_index_death_book },
-	{ "ObjDisc",				0,		23,			&obj_wnum_disc,					&obj_index_disc },
+//	{ "ObjDarkWraith_eq",		0,		100502,		&obj_wnum_dark_wraith_eq,		&obj_index_dark_wraith_eq },
+//	{ "ObjDeathBook",			0,		6505,		&obj_wnum_death_book,			&obj_index_death_book },
+//	{ "ObjDisc",				0,		23,			&obj_wnum_disc,					&obj_index_disc },
 	{ "ObjEmptyTattoo",			0,		6539,		&obj_wnum_empty_tattoo,			&obj_index_empty_tattoo },
 	{ "ObjEmptyVial",			0,		6509,		&obj_wnum_empty_vial,			&obj_index_empty_vial },
-	{ "ObjFeatheredRobe",		0,		6520,		&obj_wnum_feathered_robe,		&obj_index_feathered_robe },
-	{ "ObjFeatheredStick",		0,		6521,		&obj_wnum_feathered_stick,		&obj_index_feathered_stick },
+//	{ "ObjFeatheredRobe",		0,		6520,		&obj_wnum_feathered_robe,		&obj_index_feathered_robe },
+//	{ "ObjFeatheredStick",		0,		6521,		&obj_wnum_feathered_stick,		&obj_index_feathered_stick },
 	{ "ObjGlassHammer",			0,		100057,		&obj_wnum_glass_hammer,			&obj_index_glass_hammer },
 	{ "ObjGoblinWhistle",		0,		157023,		&obj_wnum_goblin_whistle,		&obj_index_goblin_whistle },
 	{ "ObjGoldOne",				0,		2,			&obj_wnum_gold_one,				&obj_index_gold_one },
 	{ "ObjGoldSkull",			0,		6508,		&obj_wnum_gold_skull,			&obj_index_gold_skull },
 	{ "ObjGoldSome",			0,		3,			&obj_wnum_gold_some,			&obj_index_gold_some },
-	{ "ObjGoldWhistle",			0,		100098,		&obj_wnum_gold_whistle,			&obj_index_gold_whistle },
-	{ "ObjGoldenApple",			0,		100056,		&obj_wnum_golden_apple,			&obj_index_golden_apple },
-	{ "ObjGreenRobe",			0,		6522,		&obj_wnum_green_robe,			&obj_index_green_robe },
-	{ "ObjGreenTights",			0,		6514,		&obj_wnum_green_tights,			&obj_index_green_tights },
+//	{ "ObjGoldWhistle",			0,		100098,		&obj_wnum_gold_whistle,			&obj_index_gold_whistle },
+//	{ "ObjGreenRobe",			0,		6522,		&obj_wnum_green_robe,			&obj_index_green_robe },
+//	{ "ObjGreenTights",			0,		6514,		&obj_wnum_green_tights,			&obj_index_green_tights },
 	{ "ObjGuts",				0,		16,			&obj_wnum_guts,					&obj_index_guts },
-	{ "ObjHarmonica",			0,		6533,		&obj_wnum_harmonica,			&obj_index_harmonica },
-	{ "ObjHealingLocket",		0,		100005,		&obj_wnum_healing_locket,		&obj_index_healing_locket },
+//	{ "ObjHarmonica",			0,		6533,		&obj_wnum_harmonica,			&obj_index_harmonica },
+//	{ "ObjHealingLocket",		0,		100005,		&obj_wnum_healing_locket,		&obj_index_healing_locket },
 	{ "ObjIceStorm",			0,		6538,		&obj_wnum_ice_storm,			&obj_index_ice_storm },
 	{ "ObjInferno",				0,		6506,		&obj_wnum_inferno,				&obj_index_inferno },
-	{ "ObjInvasionLeaderHead",	0,		157025,		&obj_wnum_invasion_leader_head,	&obj_index_invasion_leader_head },
-	{ "ObjKeyAbyss",			0,		102000,		&obj_wnum_key_abyss,			&obj_index_key_abyss },
-	{ "ObjLeatherJacket",		0,		6513,		&obj_wnum_leather_jacket,		&obj_index_leather_jacket },
+//	{ "ObjInvasionLeaderHead",	0,		157025,		&obj_wnum_invasion_leader_head,	&obj_index_invasion_leader_head },
+//	{ "ObjKeyAbyss",			0,		102000,		&obj_wnum_key_abyss,			&obj_index_key_abyss },
+//	{ "ObjLeatherJacket",		0,		6513,		&obj_wnum_leather_jacket,		&obj_index_leather_jacket },
 	{ "ObjLightBall",			0,		21,			&obj_wnum_light_ball,			&obj_index_light_ball },
-	{ "ObjMushroom",			0,		20,			&obj_wnum_mushroom,				&obj_index_mushroom },
+//	{ "ObjMushroom",			0,		20,			&obj_wnum_mushroom,				&obj_index_mushroom },
 	{ "ObjNavigationalChart",	0,		26,			&obj_wnum_navigational_chart,	&obj_index_navigational_chart },
-	{ "ObjNewbArmour",			0,		3747,		&obj_wnum_newb_armour,			&obj_index_newb_armour },
-	{ "ObjNewbBoots",			0,		3750,		&obj_wnum_newb_boots,			&obj_index_newb_boots },
-	{ "ObjNewbCloak",			0,		3748,		&obj_wnum_newb_cloak,			&obj_index_newb_cloak },
-	{ "ObjNewbDagger",			0,		3741,		&obj_wnum_newb_dagger,			&obj_index_newb_dagger },
-	{ "ObjNewbHarmonica",		0,		3752,		&obj_wnum_newb_harmonica,		&obj_index_newb_harmonica },
-	{ "ObjNewbHelm",			0,		3751,		&obj_wnum_newb_helm,			&obj_index_newb_helm },
-	{ "ObjNewbLeggings",		0,		3749,		&obj_wnum_newb_leggings,		&obj_index_newb_leggings },
-	{ "ObjNewbQuarterstaff",	0,		3740,		&obj_wnum_newb_quarterstaff,	&obj_index_newb_quarterstaff },
-	{ "ObjNewbSword",			0,		3742,		&obj_wnum_newb_sword,			&obj_index_newb_sword },
-	{ "ObjPawnTicket",			0,		100058,		&obj_wnum_pawn_ticket,			&obj_index_pawn_ticket },
-	{ "ObjPirateHead",			0,		157024,		&obj_wnum_pirate_head,			&obj_index_pirate_head },
+//	{ "ObjNewbArmour",			0,		3747,		&obj_wnum_newb_armour,			&obj_index_newb_armour },
+//	{ "ObjNewbBoots",			0,		3750,		&obj_wnum_newb_boots,			&obj_index_newb_boots },
+//	{ "ObjNewbCloak",			0,		3748,		&obj_wnum_newb_cloak,			&obj_index_newb_cloak },
+//	{ "ObjNewbDagger",			0,		3741,		&obj_wnum_newb_dagger,			&obj_index_newb_dagger },
+//	{ "ObjNewbHarmonica",		0,		3752,		&obj_wnum_newb_harmonica,		&obj_index_newb_harmonica },
+//	{ "ObjNewbHelm",			0,		3751,		&obj_wnum_newb_helm,			&obj_index_newb_helm },
+//	{ "ObjNewbLeggings",		0,		3749,		&obj_wnum_newb_leggings,		&obj_index_newb_leggings },
+//	{ "ObjNewbQuarterstaff",	0,		3740,		&obj_wnum_newb_quarterstaff,	&obj_index_newb_quarterstaff },
+//	{ "ObjNewbSword",			0,		3742,		&obj_wnum_newb_sword,			&obj_index_newb_sword },
+//	{ "ObjPawnTicket",			0,		100058,		&obj_wnum_pawn_ticket,			&obj_index_pawn_ticket },
+//	{ "ObjPirateHead",			0,		157024,		&obj_wnum_pirate_head,			&obj_index_pirate_head },
 	{ "ObjPit",					0,		100002,		&obj_wnum_pit,					&obj_index_pit },
 	{ "ObjPortal",				0,		25,			&obj_wnum_portal,				&obj_index_portal },
 	{ "ObjPotion",				0,		6510,		&obj_wnum_potion,				&obj_index_potion },
 	{ "ObjQuestScroll",			0,		6524,		&obj_wnum_quest_scroll,			&obj_index_quest_scroll },
-	{ "ObjRedCloak",			0,		6517,		&obj_wnum_red_cloak,			&obj_index_red_cloak },
+//	{ "ObjRedCloak",			0,		6517,		&obj_wnum_red_cloak,			&obj_index_red_cloak },
 	{ "ObjRelicExtraDamage",	0,		6526,		&obj_wnum_relic_extra_damage,	&obj_index_relic_extra_damage },
 	{ "ObjRelicExtraPneuma",	0,		6528,		&obj_wnum_relic_extra_pneuma,	&obj_index_relic_extra_pneuma },
 	{ "ObjRelicExtraXp",		0,		6527,		&obj_wnum_relic_extra_xp,		&obj_index_relic_extra_xp },
@@ -1068,13 +1065,13 @@ RESERVED_WNUM reserved_obj_wnums[] =
 	{ "ObjRelicManaRegen",		0,		6530,		&obj_wnum_relic_mana_regen,		&obj_index_relic_mana_regen },
 	{ "ObjRoomDarkness",		0,		6531,		&obj_wnum_room_darkness,		&obj_index_room_darkness },
 	{ "ObjRoomShield",			0,		6532,		&obj_wnum_roomshield,			&obj_index_roomshield },
-	{ "ObjRose",				0,		100001,		&obj_wnum_rose,					&obj_index_rose },
-	{ "ObjSandals",				0,		6515,		&obj_wnum_sandals,				&obj_index_sandals },
+//	{ "ObjRose",				0,		100001,		&obj_wnum_rose,					&obj_index_rose },
+//	{ "ObjSandals",				0,		6515,		&obj_wnum_sandals,				&obj_index_sandals },
 	{ "ObjScroll",				0,		6512,		&obj_wnum_scroll,				&obj_index_scroll },
 	{ "ObjSeveredHead",			0,		12,			&obj_wnum_severed_head,			&obj_index_severed_head },
-	{ "ObjShackles",			0,		6504,		&obj_wnum_shackles,				&obj_index_shackles },
+//	{ "ObjShackles",			0,		6504,		&obj_wnum_shackles,				&obj_index_shackles },
 	{ "ObjShard",				0,		100109,		&obj_wnum_shard,				&obj_index_shard },
-	{ "ObjShieldDragon",		0,		100050,		&obj_wnum_shield_dragon,		&obj_index_shield_dragon },
+//	{ "ObjShieldDragon",		0,		100050,		&obj_wnum_shield_dragon,		&obj_index_shield_dragon },
 	{ "ObjSilverOne",			0,		1,			&obj_wnum_silver_one,			&obj_index_silver_one },
 	{ "ObjSilverSome",			0,		4,			&obj_wnum_silver_some,			&obj_index_silver_some },
 	{ "ObjSkull",				0,		6507,		&obj_wnum_skull,				&obj_index_skull },
@@ -1083,10 +1080,10 @@ RESERVED_WNUM reserved_obj_wnums[] =
 	{ "ObjSmokeBomb",			0,		6534,		&obj_wnum_smoke_bomb,			&obj_index_smoke_bomb },
 	{ "ObjSpellTrap",			0,		6536,		&obj_wnum_spell_trap,			&obj_index_spell_trap },
 	{ "ObjSpring",				0,		22,			&obj_wnum_spring,				&obj_index_spring },
-	{ "ObjStarchart",			0,		100010,		&obj_wnum_starchart,			&obj_index_starchart },
+//	{ "ObjStarchart",			0,		100010,		&obj_wnum_starchart,			&obj_index_starchart },
 	{ "ObjStinkingCloud",		0,		6535,		&obj_wnum_stinking_cloud,		&obj_index_stinking_cloud },
-	{ "ObjSwordMishkal",		0,		100053,		&obj_wnum_sword_mishkal,		&obj_index_sword_mishkal },
-	{ "ObjSwordSent",			0,		100105,		&obj_wnum_sword_sent,			&obj_index_sword_sent },
+//	{ "ObjSwordMishkal",		0,		100053,		&obj_wnum_sword_mishkal,		&obj_index_sword_mishkal },
+//	{ "ObjSwordSent",			0,		100105,		&obj_wnum_sword_sent,			&obj_index_sword_sent },
 	{ "ObjTornHeart",			0,		13,			&obj_wnum_torn_heart,			&obj_index_torn_heart },
 	{ "ObjTreasureMap",			0,		100602,		&obj_wnum_treasure_map,			&obj_index_treasure_map },
 	{ "ObjWhistle",				0,		100003,		&obj_wnum_whistle,				&obj_index_whistle },
@@ -1098,33 +1095,33 @@ RESERVED_WNUM reserved_obj_wnums[] =
 RESERVED_WNUM reserved_mob_wnums[] =
 {
 	{ "MobChangeling",				0,		100025,		&mob_wnum_changeling,			&mob_index_changeling },
-	{ "MobDarkWraith",				0,		100050,		&mob_wnum_dark_wraith,			&mob_index_dark_wraith },
+//	{ "MobDarkWraith",				0,		100050,		&mob_wnum_dark_wraith,			&mob_index_dark_wraith },
 	{ "MobDeath",					0,		6502,		&mob_wnum_death,			&mob_index_death },
-	{ "MobGatekeeperAbyss",			0,		102000,		&mob_wnum_gatekeeper_abyss,			&mob_index_gatekeeper_abyss },
-	{ "MobGeldoff",					0,		300001,		&mob_wnum_geldoff,			&mob_index_geldoff },
-	{ "MobInvasionBandit",			0,		100217,		&mob_wnum_invasion_bandit,			&mob_index_invasion_bandit },
-	{ "MobInvasionGoblin",			0,		100213,		&mob_wnum_invasion_goblin,			&mob_index_invasion_goblin },
-	{ "MobInvasionLeaderBandit",	0,		100207,		&mob_wnum_invasion_leader_bandit,			&mob_index_invasion_leader_bandit },
-	{ "MobInvasionLeaderGoblin",	0,		100203,		&mob_wnum_invasion_leader_goblin,			&mob_index_invasion_leader_goblin },
-	{ "MobInvasionLeaderPirate",	0,		100205,		&mob_wnum_invasion_leader_pirate,			&mob_index_invasion_leader_pirate },
-	{ "MobInvasionLeaderSkeleton",	0,		100204,		&mob_wnum_invasion_leader_skeleton,			&mob_index_invasion_leader_skeleton },
-	{ "MobInvasionPirate",			0,		100215,		&mob_wnum_invasion_pirate,			&mob_index_invasion_pirate },
-	{ "MobInvasionSkeleton",		0,		100214,		&mob_wnum_invasion_skeleton,			&mob_index_invasion_skeleton },
-	{ "MobMayorPlith",				0,		11000,		&mob_wnum_mayor_plith,			&mob_index_mayor_plith },
+//	{ "MobGatekeeperAbyss",			0,		102000,		&mob_wnum_gatekeeper_abyss,			&mob_index_gatekeeper_abyss },
+//	{ "MobGeldoff",					0,		300001,		&mob_wnum_geldoff,			&mob_index_geldoff },
+//	{ "MobInvasionBandit",			0,		100217,		&mob_wnum_invasion_bandit,			&mob_index_invasion_bandit },
+//	{ "MobInvasionGoblin",			0,		100213,		&mob_wnum_invasion_goblin,			&mob_index_invasion_goblin },
+//	{ "MobInvasionLeaderBandit",	0,		100207,		&mob_wnum_invasion_leader_bandit,			&mob_index_invasion_leader_bandit },
+//	{ "MobInvasionLeaderGoblin",	0,		100203,		&mob_wnum_invasion_leader_goblin,			&mob_index_invasion_leader_goblin },
+//	{ "MobInvasionLeaderPirate",	0,		100205,		&mob_wnum_invasion_leader_pirate,			&mob_index_invasion_leader_pirate },
+//	{ "MobInvasionLeaderSkeleton",	0,		100204,		&mob_wnum_invasion_leader_skeleton,			&mob_index_invasion_leader_skeleton },
+//	{ "MobInvasionPirate",			0,		100215,		&mob_wnum_invasion_pirate,			&mob_index_invasion_pirate },
+//	{ "MobInvasionSkeleton",		0,		100214,		&mob_wnum_invasion_skeleton,			&mob_index_invasion_skeleton },
 	{ "MobObjCaster",				0,		6509,		&mob_wnum_objcaster,			&mob_index_objcaster },
-	{ "MobPirateHunter1",			0,		100200,		&mob_wnum_pirate_hunter_1,			&mob_index_pirate_hunter_1 },
-	{ "MobPirateHunter2",			0,		100201,		&mob_wnum_pirate_hunter_2,			&mob_index_pirate_hunter_2 },
-	{ "MobPirateHunter3",			0,		100202,		&mob_wnum_pirate_hunter_3,			&mob_index_pirate_hunter_3 },
-	{ "MobRavage",					0,		11017,		&mob_wnum_ravage,			&mob_index_ravage },
+//	{ "MobPirateHunter1",			0,		100200,		&mob_wnum_pirate_hunter_1,			&mob_index_pirate_hunter_1 },
+//	{ "MobPirateHunter2",			0,		100201,		&mob_wnum_pirate_hunter_2,			&mob_index_pirate_hunter_2 },
+//	{ "MobPirateHunter3",			0,		100202,		&mob_wnum_pirate_hunter_3,			&mob_index_pirate_hunter_3 },
 	{ "MobReflection",				0,		6530,		&mob_wnum_reflection,			&mob_index_reflection },
-	{ "MobSailorBurly",				0,		157002,		&mob_wnum_sailor_burly,			&mob_index_sailor_burly },
-	{ "MobSailorDirty",				0,		157001,		&mob_wnum_sailor_dirty,			&mob_index_sailor_dirty },
-	{ "MobSailorDiseased",			0,		157000,		&mob_wnum_sailor_diseased,			&mob_index_sailor_diseased },
-	{ "MobSailorElite",				0,		157005,		&mob_wnum_sailor_elite,			&mob_index_sailor_elite },
-	{ "MobSailorMercenary",			0,		157004,		&mob_wnum_sailor_mercenary,			&mob_index_sailor_mercenary },
-	{ "MobSailorTrained",			0,		157003,		&mob_wnum_sailor_trained,			&mob_index_sailor_trained },
+//	{ "MobSailorBurly",				0,		157002,		&mob_wnum_sailor_burly,			&mob_index_sailor_burly },
+//	{ "MobSailorDirty",				0,		157001,		&mob_wnum_sailor_dirty,			&mob_index_sailor_dirty },
+//	{ "MobSailorDiseased",			0,		157000,		&mob_wnum_sailor_diseased,			&mob_index_sailor_diseased },
+//	{ "MobSailorElite",				0,		157005,		&mob_wnum_sailor_elite,			&mob_index_sailor_elite },
+//	{ "MobSailorMercenary",			0,		157004,		&mob_wnum_sailor_mercenary,			&mob_index_sailor_mercenary },
+//	{ "MobSailorTrained",			0,		157003,		&mob_wnum_sailor_trained,			&mob_index_sailor_trained },
 	{ "MobSlayer",					0,		6531,		&mob_wnum_slayer,			&mob_index_slayer },
-	{ "MobStiener",					0,		11500,		&mob_wnum_stiener,			&mob_index_stiener },
+	{ "MobSoulDepositEvil",			0, 		0,			&mob_wnum_soul_deposit_evil,	&mob_index_soul_deposit_evil	},
+	{ "MobSoulDepositGood",			0, 		0,			&mob_wnum_soul_deposit_good,	&mob_index_soul_deposit_good	},
+	{ "MobSoulDepositNeutral",		0, 		0,			&mob_wnum_soul_deposit_neutral,	&mob_index_soul_deposit_neutral	},
 	{ "MobWerewolf",				0,		6532,		&mob_wnum_werewolf,			&mob_index_werewolf },
 	{ NULL,							0,		0,			NULL,		NULL }
 };
@@ -1334,6 +1331,17 @@ void boot_db(void)
 			log_string(log_buf);
 
 			area = read_area_new(fpArea);
+			if (area)
+			{
+				sprintf(log_buf, "Areafile '%s' loaded", strArea);
+				log_string(log_buf);
+			}
+			else
+			{
+				sprintf(log_buf, "Areafile '%s' failed to load", strArea);
+				log_string(log_buf);
+			}
+
 			area->next = NULL;
 
 			if (area_first == NULL)
@@ -1575,9 +1583,12 @@ void new_reset(ROOM_INDEX_DATA *pR, RESET_DATA *pReset)
     top_reset++;
 }
 
-void resolve_wnum_load(WNUM_LOAD *load, WNUM *wnum)
+void resolve_wnum_load(WNUM_LOAD *load, WNUM *wnum, AREA_DATA *pRefArea)
 {
-	wnum->pArea = get_area_from_uid(load->auid);
+	if (load->auid > 0)
+		wnum->pArea = get_area_from_uid(load->auid);
+	else
+		wnum->pArea = pRefArea;
 	wnum->vnum = load->vnum;
 }
 
@@ -1645,13 +1656,13 @@ void fix_rooms(void)
 					long auid = reset->arg1.load.auid;
 					long vnum = reset->arg1.load.vnum;
 
-					reset->arg1.wnum.pArea = get_area_from_uid(auid);
+					reset->arg1.wnum.pArea = auid > 0 ? get_area_from_uid(auid) : area;
 					reset->arg1.wnum.vnum = vnum;
 					
 					auid = reset->arg3.load.auid;
 					vnum = reset->arg3.load.vnum;
 
-					reset->arg3.wnum.pArea = get_area_from_uid(auid);
+					reset->arg3.wnum.pArea = auid > 0 ?get_area_from_uid(auid) : area;
 					reset->arg3.wnum.vnum = vnum;
 				}
 
@@ -1669,6 +1680,7 @@ void fix_mobiles(void)
 	PROG_LIST *trigger;
 	ITERATOR it;
 	int iHash, slot;
+	char buf[MSL];
 
 	for(pArea = area_first; pArea; pArea = pArea->next)
 		for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
@@ -1681,7 +1693,7 @@ void fix_mobiles(void)
 					{
 						if (stock->type != STOCK_CUSTOM)
 						{
-							stock->wnum.pArea = get_area_from_uid(stock->wnum_load.auid);
+							stock->wnum.pArea = stock->wnum_load.auid > 0 ? get_area_from_uid(stock->wnum_load.auid) : pArea;
 							stock->wnum.vnum = stock->wnum_load.vnum;
 						}
 					}
@@ -1691,9 +1703,12 @@ void fix_mobiles(void)
 					for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( mob->progs[slot] ) {
 						iterator_start(&it, mob->progs[slot]);
 						while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-							resolve_wnum_load(&trigger->wnum_load, &trigger->wnum);						
+							resolve_wnum_load(&trigger->wnum_load, &trigger->wnum, pArea);						
 							if (!(trigger->script = get_script_index(trigger->wnum.pArea, trigger->wnum.vnum, PRG_MPROG))) {
 								// TODO: Better widevnum reporting
+								sprintf(buf, "Fix_mobiles: code widevnum %ld#%ld not found on mob %s.", trigger->wnum_load.auid, trigger->wnum_load.vnum, widevnum_string_mobile(mob, NULL));
+								bug(buf, 0);
+
 //							bug("Fix_mobprogs: code wnum %d not found.", trigger->wnum.);
 //							bug("Fix_mobprogs: on mobile %ld", mob->vnum);
 								exit(1);
@@ -1723,9 +1738,9 @@ void fix_objects(void)
 				// Fix lockstate key reference
 				if (obj->lock)
 				{
-					if (obj->lock->key_load.auid > 0 && obj->lock->key_load.vnum > 0)
+					if (obj->lock->key_load.vnum > 0)
 					{
-						obj->lock->key_wnum.pArea = get_area_from_uid(obj->lock->key_load.auid);
+						obj->lock->key_wnum.pArea = obj->lock->key_load.auid > 0 ? get_area_from_uid(obj->lock->key_load.auid) : pArea;
 						obj->lock->key_wnum.vnum = obj->lock->key_load.vnum;
 					}
 				}
@@ -1736,7 +1751,7 @@ void fix_objects(void)
 					for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( obj->progs[slot] ) {
 						iterator_start(&it, obj->progs[slot]);
 						while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-							resolve_wnum_load(&trigger->wnum_load, &trigger->wnum);						
+							resolve_wnum_load(&trigger->wnum_load, &trigger->wnum, pArea);						
 							if (!(trigger->script = get_script_index(trigger->wnum.pArea, trigger->wnum.vnum, PRG_OPROG))) {
 								// TODO: Better widevnum reporting
 //								bug("Fix_objprogs: code vnum %d not found.", trigger->vnum);
@@ -1765,7 +1780,7 @@ void fix_roomprogs(void)
 				for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( room->progs->progs[slot] ) {
 					iterator_start(&it, room->progs->progs[slot]);
 					while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-						resolve_wnum_load(&trigger->wnum_load, &trigger->wnum);						
+						resolve_wnum_load(&trigger->wnum_load, &trigger->wnum, pArea);						
 						if (!(trigger->script = get_script_index(trigger->wnum.pArea, trigger->wnum.vnum, PRG_RPROG))) {
 							// TODO: Better widevnum reporting
 //							bug("Fix_roomprogs: code vnum %d not found.", trigger->vnum);
@@ -1794,7 +1809,7 @@ void fix_tokenprogs(void)
 				for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( token->progs[slot] ) {
 					iterator_start(&it, token->progs[slot]);
 					while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-						resolve_wnum_load(&trigger->wnum_load, &trigger->wnum);						
+						resolve_wnum_load(&trigger->wnum_load, &trigger->wnum, pArea);						
 						if (!(trigger->script = get_script_index(trigger->wnum.pArea, trigger->wnum.vnum, PRG_TPROG))) {
 							// TODO: Better widevnum reporting
 //							bug("Fix_tokenprogs: code vnum %d not found.", trigger->vnum);
@@ -1822,7 +1837,7 @@ void fix_areaprogs(void)
 		for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( pArea->progs->progs[slot] ) {
 			iterator_start(&it, pArea->progs->progs[slot]);
 			while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-				resolve_wnum_load(&trigger->wnum_load, &trigger->wnum);						
+				resolve_wnum_load(&trigger->wnum_load, &trigger->wnum, pArea);						
 				if (!(trigger->script = get_script_index(trigger->wnum.pArea, trigger->wnum.vnum, PRG_APROG))) {
 					// TODO: Better widevnum reporting
 //					bug("fix_areaprogs: code vnum %d not found.", trigger->vnum);
@@ -1849,7 +1864,7 @@ void fix_instanceprogs(void)
 				for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( blueprint->progs[slot] ) {
 					iterator_start(&it, blueprint->progs[slot]);
 					while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-						resolve_wnum_load(&trigger->wnum_load, &trigger->wnum);
+						resolve_wnum_load(&trigger->wnum_load, &trigger->wnum, pArea);
 						if (!(trigger->script = get_script_index(trigger->wnum.pArea, trigger->wnum.vnum, PRG_IPROG))) {
 							// TODO: Better widevnum reporting
 //							bug("Fix_instanceprogs: code vnum %d not found.", trigger->vnum);
@@ -1878,7 +1893,7 @@ void fix_dungeonprogs(void)
 				for (slot = 0; slot < TRIGSLOT_MAX; slot++) if( dungeon_index->progs[slot] ) {
 					iterator_start(&it, dungeon_index->progs[slot]);
 					while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-						resolve_wnum_load(&trigger->wnum_load, &trigger->wnum);						
+						resolve_wnum_load(&trigger->wnum_load, &trigger->wnum, pArea);						
 						if (!(trigger->script = get_script_index(trigger->wnum.pArea, trigger->wnum.vnum, PRG_DPROG))) {
 							// TODO: Better widevnum reporting
 //							bug("Fix_dungeonprogs: code vnum %d not found.", trigger->vnum);
@@ -2537,19 +2552,6 @@ void chance_create_mob(ROOM_INDEX_DATA *pRoom, MOB_INDEX_DATA *pMobIndex, int ch
 {
     CHAR_DATA *pMobile;
     OBJ_DATA *obj = NULL;
-
-    /* don't do for now
-    if (pMobIndex->vnum == MOB_VNUM_GATEKEEPER_ABYSS)
-    {
-       if (pMobIndex->count > 0)
-       return;
-       else
-       {
-       obj = create_object(get_obj_index(OBJ_VNUM_KEY_ABYSS), 30, TRUE);
-       }
-       }
-       else
-    */
 
     if (number_percent() <= chance)
     {
@@ -3456,20 +3458,20 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects)
 
 
     /* If loading a relic for whatever reason, update the pointers here.*/
-    if (pObjIndex->vnum == OBJ_VNUM_RELIC_EXTRA_DAMAGE)
-	damage_relic = obj;
+    if (pObjIndex == obj_index_relic_extra_damage)
+		damage_relic = obj;
 
-    if (pObjIndex->vnum == OBJ_VNUM_RELIC_EXTRA_XP)
-	xp_relic = obj;
+    if (pObjIndex == obj_index_relic_extra_xp)
+		xp_relic = obj;
 
-    if (pObjIndex->vnum == OBJ_VNUM_RELIC_EXTRA_PNEUMA)
-	pneuma_relic = obj;
+    if (pObjIndex == obj_index_relic_extra_pneuma)
+		pneuma_relic = obj;
 
-    if (pObjIndex->vnum == OBJ_VNUM_RELIC_HP_REGEN)
-	hp_regen_relic = obj;
+    if (pObjIndex == obj_index_relic_hp_regen)
+		hp_regen_relic = obj;
 
-    if (pObjIndex->vnum == OBJ_VNUM_RELIC_MANA_REGEN)
-	mana_regen_relic = obj;
+    if (pObjIndex == obj_index_relic_mana_regen)
+		mana_regen_relic = obj;
 
     /* Keep GQ count*/
     for (gq_obj = global_quest.objects; gq_obj != NULL; gq_obj = gq_obj->next)
@@ -3917,7 +3919,7 @@ long fread_number(FILE *fp)
     return number;
 }
 
-WNUM_LOAD fread_widevnum(FILE *fp)
+WNUM_LOAD fread_widevnum(FILE *fp, long refAuid)
 {
 	static int i = 0;
 	static WNUM_LOAD wnums[4];
@@ -3951,7 +3953,7 @@ WNUM_LOAD fread_widevnum(FILE *fp)
 		exit(1);
 	}
 
-	wnums[i].auid = number;
+	wnums[i].auid = number > 0 ? number : refAuid;
 
 	c = getc(fp);
 
@@ -4037,7 +4039,7 @@ WNUM_LOAD *fread_widevnumptr(FILE *fp)
 	return wnum;
 }
 
-const char *widevnum_string(AREA_DATA *pArea, long vnum)
+const char *widevnum_string(AREA_DATA *pArea, long vnum, AREA_DATA *pRefArea)
 {
 	static int i = 0;
 	static char output[4][MSL];
@@ -4046,53 +4048,55 @@ const char *widevnum_string(AREA_DATA *pArea, long vnum)
 
 	if (!pArea)
 		sprintf(output[i], "0#%ld", vnum);
+	else if (pArea == pRefArea)
+		sprintf(output[i], "#%ld", vnum);
 	else
 		sprintf(output[i], "%ld#%ld", pArea->uid, vnum);
 
 	return output[i];
 }
 
-const char *widevnum_string_wnum(WNUM wnum)
+const char *widevnum_string_wnum(WNUM wnum, AREA_DATA *pRefArea)
 {
-	return widevnum_string(wnum.pArea, wnum.vnum);
+	return widevnum_string(wnum.pArea, wnum.vnum, pRefArea);
 }
 
-const char *widevnum_string_mobile(MOB_INDEX_DATA *mob)
+const char *widevnum_string_mobile(MOB_INDEX_DATA *mob, AREA_DATA *pRefArea)
 {
 	if (mob)
-		return widevnum_string(mob->area, mob->vnum);
+		return widevnum_string(mob->area, mob->vnum, pRefArea);
 
 	return "0#0";
 }
 
-const char *widevnum_string_object(OBJ_INDEX_DATA *obj)
+const char *widevnum_string_object(OBJ_INDEX_DATA *obj, AREA_DATA *pRefArea)
 {
 	if (obj)
-		return widevnum_string(obj->area, obj->vnum);
+		return widevnum_string(obj->area, obj->vnum, pRefArea);
 
 	return "0#0";
 }
 
-const char *widevnum_string_room(ROOM_INDEX_DATA *room)
+const char *widevnum_string_room(ROOM_INDEX_DATA *room, AREA_DATA *pRefArea)
 {
 	if (room)
-		return widevnum_string(room->area, room->vnum);
+		return widevnum_string(room->area, room->vnum, pRefArea);
 
 	return "0#0";
 }
 
-const char *widevnum_string_token(TOKEN_INDEX_DATA *token)
+const char *widevnum_string_token(TOKEN_INDEX_DATA *token, AREA_DATA *pRefArea)
 {
 	if (token)
-		return widevnum_string(token->area, token->vnum);
+		return widevnum_string(token->area, token->vnum, pRefArea);
 
 	return "0#0";
 }
 
-const char *widevnum_string_script(SCRIPT_DATA *script)
+const char *widevnum_string_script(SCRIPT_DATA *script, AREA_DATA *pRefArea)
 {
 	if (script)
-		return widevnum_string(script->area, script->vnum);
+		return widevnum_string(script->area, script->vnum, pRefArea);
 
 	return "0#0";
 }
@@ -4442,6 +4446,9 @@ char *fread_string_new(FILE *fp)
 		newStr[i + 1] = '\r';
 
 		i += 2;
+		break;
+
+		case '\r':	// Ignore them
 		break;
 	}
     }
@@ -6245,7 +6252,7 @@ void persist_save_scriptdata(FILE *fp, PROG_DATA *prog)
 
 void persist_save_location(FILE *fp, LOCATION *loc, char *prefix)
 {
-	fprintf(fp, "%s %ld %ld %ld %ld\n", prefix, loc->wuid, loc->id[0], loc->id[1], loc->id[2]);
+	fprintf(fp, "%s %ld %ld %ld %ld %ld\n", prefix, loc->area ? loc->area->uid : 0, loc->wuid, loc->id[0], loc->id[1], loc->id[2]);
 }
 
 void persist_save_token(FILE *fp, TOKEN_DATA *token)
@@ -6256,7 +6263,7 @@ void persist_save_token(FILE *fp, TOKEN_DATA *token)
 	if ( token->next )
 		persist_save_token (fp, token->next);
 
-	fprintf(fp, "#TOKEN %ld\n", token->pIndexData->vnum);
+	fprintf(fp, "#TOKEN %s\n", widevnum_string_token(token->pIndexData, NULL));
 
 	fprintf(fp, "UId %d\n", (int)token->id[0]);
 	fprintf(fp, "UId2 %d\n", (int)token->id[1]);
@@ -6283,7 +6290,7 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
 	log_stringf("persist_save: saving object %08lX:%08lX.", obj->id[0], obj->id[1]);
 
 	// Save all object information, including persistance (in case it is saved elsewhere)
-	fprintf(fp, "#OBJECT %ld\n", obj->pIndexData->vnum);
+	fprintf(fp, "#OBJECT %s\n", widevnum_string_object(obj->pIndexData, NULL));
 	fprintf(fp, "Version %d\n", VERSION_OBJECT);				// **
 	fprintf(fp, "UID %ld\n", obj->id[0]);					// **
 	fprintf(fp, "UID2 %ld\n", obj->id[1]);					// **
@@ -6345,7 +6352,7 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
 	if( obj->lock )
 	{
 		fprintf(fp, "Lock %s '%s' %d",
-			widevnum_string_wnum(obj->lock->key_wnum),
+			widevnum_string_wnum(obj->lock->key_wnum, obj->pIndexData->area),
 			flag_string(lock_flags, obj->lock->flags),
 			obj->lock->pick_chance);
 
@@ -6549,7 +6556,7 @@ void persist_save_mobile(FILE *fp, CHAR_DATA *ch)
 	AFFECT_DATA *paf;
 	int i = 0;
 
-	fprintf(fp, "#MOBILE %ld\n", ch->pIndexData->vnum);
+	fprintf(fp, "#MOBILE %s\n", widevnum_string_mobile(ch->pIndexData, NULL));
 	fprintf(fp, "Version %d\n", VERSION_MOBILE);
 
 	// Save all mobile information, including persistance
@@ -6676,7 +6683,7 @@ void persist_save_mobile(FILE *fp, CHAR_DATA *ch)
 	}
 
 	if( ch->shop )
-		save_shop_new(fp, ch->shop);
+		save_shop_new(fp, ch->shop, ch->pIndexData->area);
 
 	if( ch->crew )
 		save_ship_crew(fp, ch->crew);
@@ -6754,16 +6761,16 @@ void persist_save_room_environment(FILE *fp, ROOM_INDEX_DATA *clone)
 
 			// Normal room
 			else if(!room->source)
-				fprintf(fp, "EnvironROOM %ld\n", room->vnum);
+				fprintf(fp, "EnvironROOM %s\n", widevnum_string_room(room, NULL));
 
 			// Persistent room (by here it *should* be a clone room, but be safe)
 			else if(room->persist) {
 				if(room->wilds)
 					fprintf(fp, "EnvironVROOM %ld %ld %ld %ld\n", room->wilds->uid, room->x, room->y, room->z);
 				else if(room->source)
-					fprintf(fp, "EnvironCROOM %ld %ld %ld\n", room->source->vnum, room->id[0], room->id[1]);
+					fprintf(fp, "EnvironCROOM %s %ld %ld\n", widevnum_string_room(room->source, NULL), room->id[0], room->id[1]);
 				else
-					fprintf(fp, "EnvironROOM %ld\n", room->vnum);
+					fprintf(fp, "EnvironROOM %s\n", widevnum_string_room(room, NULL));
 			}
 		}
 	}
@@ -6790,7 +6797,7 @@ void persist_save_room_environment(FILE *fp, ROOM_INDEX_DATA *clone)
 	}
 
 	else if(clone->environ_type == -ENVIRON_ROOM && clone->environ.clone.source) {
-		fprintf(fp, "EnvironCROOM %ld %ld %ld\n", clone->environ.clone.source->vnum, clone->environ.clone.id[0], clone->environ.clone.id[1]);
+		fprintf(fp, "EnvironCROOM %s %ld %ld\n", widevnum_string_room(clone->environ.clone.source, NULL), clone->environ.clone.id[0], clone->environ.clone.id[1]);
 	}
 
 	else if(clone->environ_type == -ENVIRON_MOBILE) {
@@ -6814,14 +6821,14 @@ void persist_save_room(FILE *fp, ROOM_INDEX_DATA *room)
 	SHIP_DATA *ship = get_room_ship(room);
 
 	if( room->source ) {
-		fprintf(fp, "#CROOM %ld %ld %ld\n", room->source->vnum, room->id[0], room->id[1]);		// **
+		fprintf(fp, "#CROOM %s %ld %ld\n", widevnum_string_room(room->source, NULL), room->id[0], room->id[1]);		// **
 		fprintf(fp, "XYZ %ld %ld %ld\n", room->x, room->y, room->z);					// **
 
 		persist_save_room_environment(fp, room);
 	} else if( room->wilds )
 		fprintf(fp, "#VROOM %ld %ld %ld %ld\n", room->wilds->uid, room->x, room->y, room->z);		// **
 	else {
-		fprintf(fp, "#ROOM %ld\n", room->vnum);								// **
+		fprintf(fp, "#ROOM %s\n", widevnum_string_room(room, NULL));								// **
 		fprintf(fp, "XYZ %ld %ld %ld\n", room->x, room->y, room->z);					// **
 	}
 
@@ -7077,7 +7084,7 @@ TOKEN_DATA *persist_load_token(FILE *fp)
 
 	log_string("persist_load: #TOKEN");
 
-	wnum = fread_widevnum(fp);
+	wnum = fread_widevnum(fp, 0);
 	if ((token_index = get_token_index_auid(wnum.auid, wnum.vnum)) == NULL) {
 		sprintf(buf, "persist_load_token: no token index found for vnum %ld#%ld", wnum.auid, wnum.vnum);
 		bug(buf, 0);
@@ -7165,7 +7172,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 
 	log_string("persist_load: #OBJECT");
 
-	WNUM_LOAD wnum = fread_widevnum(fp);
+	WNUM_LOAD wnum = fread_widevnum(fp, 0);
 	obj_index = get_obj_index_auid(wnum.auid, wnum.vnum);
 	if( !obj_index )
 		return NULL;
@@ -7415,7 +7422,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 
 				if( !str_cmp(word, "CloneRoom") ) {
 					ROOM_INDEX_DATA *src;
-					WNUM_LOAD w = fread_widevnum(fp);
+					WNUM_LOAD w = fread_widevnum(fp, 0);
 					int a = fread_number(fp);
 					int b = fread_number(fp);
 
@@ -7430,7 +7437,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 			case 'D':
 				if( !str_cmp(word, "DeepCloneRoom") ) {
 					ROOM_INDEX_DATA *src;
-					WNUM_LOAD w = fread_widevnum(fp);
+					WNUM_LOAD w = fread_widevnum(fp, 0);
 					int a = fread_number(fp);
 					int b = fread_number(fp);
 
@@ -7440,7 +7447,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					fMatch = TRUE;
 				}
 				if( !str_cmp(word, "DeepRoom") ) {
-					WNUM_LOAD wnum = fread_widevnum(fp);
+					WNUM_LOAD wnum = fread_widevnum(fp, 0);
 					deep_here = get_room_index_auid(wnum.auid, wnum.vnum);
 					fMatch = TRUE;
 				}
@@ -7515,7 +7522,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 						obj->lock = new_lock_state();
 					}
 
-					WNUM_LOAD key_load = fread_widevnum(fp);
+					WNUM_LOAD key_load = fread_widevnum(fp, 0);
 
 					obj->lock->key_wnum.pArea = get_area_from_uid(key_load.auid);
 					obj->lock->key_wnum.vnum = key_load.vnum;
@@ -7588,7 +7595,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 				break;
 			case 'R':
 				if( !str_cmp(word, "Room") ) {
-					WNUM_LOAD wnum = fread_widevnum(fp);
+					WNUM_LOAD wnum = fread_widevnum(fp, 0);
 					here = get_room_index_auid(wnum.auid, wnum.vnum);
 					fMatch = TRUE;
 				}
@@ -7746,7 +7753,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 
 	log_string("persist_load: #MOBILE");
 
-	WNUM_LOAD wnum = fread_widevnum(fp);
+	WNUM_LOAD wnum = fread_widevnum(fp, 0);
 	index = get_mob_index_auid(wnum.auid, wnum.vnum);
 	if( !index )
 		return NULL;
@@ -7803,7 +7810,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 					break;
 				}
 				if (!str_cmp(word,"#SHOP")) {
-					SHOP_DATA *shop = read_shop_new(fp);
+					SHOP_DATA *shop = read_shop_new(fp, index->area);
 
 					fMatch = TRUE;
 					if( shop )
@@ -7930,7 +7937,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 				break;
 			case 'C':
 				if(IS_KEY("CloneRoom")) {
-					WNUM_LOAD wnum = fread_widevnum(fp);
+					WNUM_LOAD wnum = fread_widevnum(fp, 0);
 					unsigned long id1 = fread_number(fp);
 					unsigned long id2 = fread_number(fp);
 
@@ -7942,7 +7949,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 				}
 				KEY("Comm",			ch->comm,			fread_flag(fp));
 				KEY("CorpseType",	ch->corpse_type,	fread_number(fp));
-				KEY("CorpseWnum",	ch->corpse_wnum,	fread_widevnum(fp));
+				KEY("CorpseWnum",	ch->corpse_wnum,	fread_widevnum(fp, 0));
 //				KEY("CorpseZombie",	ch->zombie,		fread_number(fp));
 				break;
 			case 'D':
@@ -7954,7 +7961,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 
 				if( !str_cmp(word, "DeepCloneRoom") ) {
 					ROOM_INDEX_DATA *src;
-					WNUM_LOAD w = fread_widevnum(fp);
+					WNUM_LOAD w = fread_widevnum(fp, 0);
 					int a = fread_number(fp);
 					int b = fread_number(fp);
 
@@ -7964,7 +7971,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 					fMatch = TRUE;
 				}
 				if( !str_cmp(word, "DeepRoom") ) {
-					WNUM_LOAD w = fread_widevnum(fp);
+					WNUM_LOAD w = fread_widevnum(fp, 0);
 					deep_here = get_room_index_auid(w.auid, w.vnum);
 					fMatch = TRUE;
 				}
@@ -8008,7 +8015,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 				KEY("Hit",	ch->hitroll,	fread_number(fp));
 				if (!str_cmp(word, "home"))
 				{
-					WNUM_LOAD home_load = fread_widevnum(fp);
+					WNUM_LOAD home_load = fread_widevnum(fp, 0);
 					ch->home.pArea = get_area_from_uid(home_load.auid);
 					ch->home.vnum = home_load.vnum;
 					fMatch = TRUE;
@@ -8087,7 +8094,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 				KEY("ResistPerm",	ch->res_flags_perm,	fread_flag(fp));
 
 				if(IS_KEY("Room")) {
-					WNUM_LOAD w = fread_widevnum(fp);
+					WNUM_LOAD w = fread_widevnum(fp, 0);
 
 					here = get_room_index_auid(w.auid, w.vnum);
 
@@ -8233,7 +8240,7 @@ EXIT_DATA *persist_load_exit(FILE *fp)
 			case 'D':
 				if( !str_cmp(word, "DestRoom") ) {
 					ROOM_INDEX_DATA *room = NULL, *clone;
-					WNUM_LOAD w = fread_widevnum(fp);
+					WNUM_LOAD w = fread_widevnum(fp, 0);
 					int x = fread_number(fp);
 					int y = fread_number(fp);
 
@@ -8267,7 +8274,7 @@ EXIT_DATA *persist_load_exit(FILE *fp)
 				}
 
 				if( !str_cmp(word, "DoorLockReset") ) {
-					WNUM_LOAD w = fread_widevnum(fp);
+					WNUM_LOAD w = fread_widevnum(fp, 0);
 					ex->door.lock.key_load = w;
 					ex->door.lock.key_wnum.pArea = get_area_from_uid(w.auid);
 					ex->door.lock.key_wnum.vnum = w.vnum;
@@ -8275,7 +8282,7 @@ EXIT_DATA *persist_load_exit(FILE *fp)
 					if( ex->door.lock.flags == NO_FLAG ) ex->door.lock.flags = 0;
 					ex->door.lock.pick_chance = fread_number(fp);
 
-					w = fread_widevnum(fp);
+					w = fread_widevnum(fp, 0);
 					ex->door.rs_lock.key_load = w;
 					ex->door.rs_lock.key_wnum.pArea = get_area_from_uid(w.auid);
 					ex->door.rs_lock.key_wnum.vnum = w.vnum;
@@ -8364,7 +8371,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 
 	if( rtype == 'R' ) {
 		log_string("persist_load: #ROOM");
-		wnum = fread_widevnum(fp);
+		wnum = fread_widevnum(fp, 0);
 
 		room = get_room_index_auid(wnum.auid, wnum.vnum);
 
@@ -8405,7 +8412,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 
 		log_string("persist_load: #CROOM");
 
-		wnum = fread_widevnum(fp);
+		wnum = fread_widevnum(fp, 0);
 
 		source = get_room_index_auid(wnum.auid, wnum.vnum);
 
@@ -8572,7 +8579,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 				if (!str_cmp(word,"EnvironCROOM")) {
 					ROOM_INDEX_DATA *source_room, *environ_room;
 
-					WNUM_LOAD wnum = fread_widevnum(fp);
+					WNUM_LOAD wnum = fread_widevnum(fp, 0);
 					x = fread_number(fp);
 					y = fread_number(fp);
 
@@ -8619,7 +8626,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 					break;
 				}
 				if (!str_cmp(word,"EnvironROOM")) {
-					WNUM_LOAD wnum = fread_widevnum(fp);
+					WNUM_LOAD wnum = fread_widevnum(fp, 0);
 					ROOM_INDEX_DATA *environ_room = get_room_index_auid(wnum.auid, wnum.vnum);
 					if(environ_room)
 						room_to_environment(room, NULL, NULL, environ_room, NULL);
