@@ -2925,7 +2925,7 @@ void do_shutdown(CHAR_DATA *ch, char *argument)
     write_mail();
     write_chat_rooms();
     write_gq();
-    write_permanent_objs();
+    //write_permanent_objs();
     persist_save();
     save_projects();
     save_instances();

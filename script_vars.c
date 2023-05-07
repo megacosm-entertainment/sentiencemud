@@ -2369,25 +2369,25 @@ void variable_fix(pVARIABLE var)
 
 		iterator_stop(&it);
 
-	} else if(var->type == VAR_MOBINDEX ) {
+	} else if(fBootDb && var->type == VAR_MOBINDEX ) {
 		var->_.mindex = get_mob_index_auid(var->_.wnum_load.auid, var->_.wnum_load.vnum);
 
-	} else if(var->type == VAR_OBJINDEX ) {
+	} else if(fBootDb && var->type == VAR_OBJINDEX ) {
 		var->_.oindex = get_obj_index_auid(var->_.wnum_load.auid, var->_.wnum_load.vnum);
 
-	} else if(var->type == VAR_TOKENINDEX ) {
+	} else if(fBootDb && var->type == VAR_TOKENINDEX ) {
 		var->_.tindex = get_token_index_auid(var->_.wnum_load.auid, var->_.wnum_load.vnum);
 
-	} else if(var->type == VAR_BLUEPRINT ) {
+	} else if(fBootDb && var->type == VAR_BLUEPRINT ) {
 		var->_.bp = get_blueprint_auid(var->_.wnum_load.auid, var->_.wnum_load.vnum);
 
-	} else if(var->type == VAR_BLUEPRINT_SECTION ) {
+	} else if(fBootDb && var->type == VAR_BLUEPRINT_SECTION ) {
 		var->_.bs = get_blueprint_section_auid(var->_.wnum_load.auid, var->_.wnum_load.vnum);
 
-	} else if(var->type == VAR_DUNGEONINDEX ) {
+	} else if(fBootDb && var->type == VAR_DUNGEONINDEX ) {
 		var->_.dngindex = get_dungeon_index_auid(var->_.wnum_load.auid, var->_.wnum_load.vnum);
 
-	} else if(var->type == VAR_SHIPINDEX ) {
+	} else if(fBootDb && var->type == VAR_SHIPINDEX ) {
 		var->_.shipindex = get_ship_index_auid(var->_.wnum_load.auid, var->_.wnum_load.vnum);
 
 	}

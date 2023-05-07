@@ -85,7 +85,7 @@ void update_handler(void)
     {
         pulse_area = PULSE_AREA;
 	area_update(FALSE);
-	write_permanent_objs();
+	//write_permanent_objs();
 	persist_save();
 	write_mail();
 	save_projects();

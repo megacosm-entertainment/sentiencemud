@@ -1458,8 +1458,8 @@ void boot_db(void)
     log_string("Doing read_chat_rooms");
     read_chat_rooms();
 
-    log_string("Reading permanent objs");
-    read_permanent_objs();
+    //log_string("Reading permanent objs");
+    //read_permanent_objs();
 
 	log_string("Loading instances");
 	load_instances();
