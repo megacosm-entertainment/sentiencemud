@@ -8977,7 +8977,7 @@ bool wnum_match(WNUM wnum, AREA_DATA *area, long vnum);
 bool wnum_match_room(WNUM wnum, ROOM_INDEX_DATA *room);
 bool wnum_match_obj(WNUM wnum, OBJ_DATA *obj);
 bool wnum_match_mob(WNUM wnum, CHAR_DATA *ch);
-
+bool wnum_match_token(WNUM wnum, TOKEN_DATA *token);
 
 
 extern WNUM room_wnum_default;

@@ -247,11 +247,12 @@ DECL_IFC_FUN(ifc_carriedby)
 DECL_IFC_FUN(ifc_carries)
 {
 	if(ISARG_MOB(0)) {
-		if (ISARG_NUM(1))
-			*ret = (int)has_item(ARG_MOB(0), ARG_NUM(1), -1, FALSE);
+		if (ISARG_WNUM(1))
+			*ret = (int)has_item(ARG_MOB(0), ARG_WNUM(1), -1, FALSE);
 		else if(ISARG_STR(1)) {
-			if (is_number(ARG_STR(1)))
-				*ret = (int)has_item(ARG_MOB(0), atol(ARG_STR(1)), -1, FALSE);
+			WNUM wnum;
+			if (parse_widevnum(ARG_STR(1), get_area_from_scriptinfo(info), &wnum))
+				*ret = (int)has_item(ARG_MOB(0), wnum, -1, FALSE);
 			else
 				*ret = (int)(get_obj_carry(ARG_MOB(0), ARG_STR(1), ARG_MOB(0)) && 1);
 		} else if(ISARG_OBJ(1))
@@ -594,7 +595,7 @@ DECL_IFC_FUN(ifc_grpsize)
 
 DECL_IFC_FUN(ifc_has)
 {
-	*ret = (ISARG_MOB(0) && ISARG_STR(1) && has_item(ARG_MOB(0), -1, item_lookup(ARG_STR(1)), FALSE));
+	*ret = (ISARG_MOB(0) && ISARG_STR(1) && has_item(ARG_MOB(0), wnum_zero, item_lookup(ARG_STR(1)), FALSE));
 	return TRUE;
 }
 
@@ -1327,11 +1328,12 @@ DECL_IFC_FUN(ifc_mobexists)
 
 DECL_IFC_FUN(ifc_mobhere)
 {
-	if(ISARG_NUM(0))
-		*ret = ((bool)(int)(get_mob_vnum_room(mob, obj, room, token, ARG_NUM(0)) && 1));
+	if(ISARG_WNUM(0))
+		*ret = ((bool)(int)(get_mob_wnum_room(mob, obj, room, token, ARG_WNUM(0)) && 1));
 	else if(ISARG_STR(0)) {
-		if(is_number(ARG_STR(0)))
-			*ret = ((bool)(int)(get_mob_vnum_room(mob, obj, room, token, atol(ARG_STR(0))) && 1));
+		WNUM wnum;
+		if(parse_widevnum(ARG_STR(0), get_area_from_scriptinfo(info), &wnum))
+			*ret = ((bool)(int)(get_mob_wnum_room(mob, obj, room, token, wnum) && 1));
 		else
 			*ret = ((bool)(int)(get_char_room(mob, obj ? obj_room(obj) : (token ? token_room(token) : room), ARG_STR(0)) && 1));
 	} else if(ISARG_MOB(0)) {
@@ -1437,11 +1439,12 @@ DECL_IFC_FUN(ifc_objextra4)
 
 DECL_IFC_FUN(ifc_objhere)
 {
-	if(ISARG_NUM(0))
-		*ret = ((bool)(int)(get_obj_vnum_room(mob, obj, room, token, ARG_NUM(0)) && 1));
+	if(ISARG_WNUM(0))
+		*ret = ((bool)(int)(get_obj_wnum_room(mob, obj, room, token, ARG_WNUM(0)) && 1));
 	else if(ISARG_STR(0)) {
-		if(is_number(ARG_STR(0)))
-			*ret = ((bool)(int)(get_obj_vnum_room(mob, obj, room, token, atol(ARG_STR(0))) && 1));
+		WNUM wnum;
+		if(parse_widevnum(ARG_STR(0), get_area_from_scriptinfo(info), &wnum))
+			*ret = ((bool)(int)(get_obj_wnum_room(mob, obj, room, token, wnum) && 1));
 		else
 			*ret = ((bool)(int)(get_obj_here(mob, obj ? obj_room(obj) : (token ? token_room(token) : room), ARG_STR(0)) && 1));
 	} else if(ISARG_OBJ(0)) {
@@ -2180,7 +2183,7 @@ DECL_IFC_FUN(ifc_trains)
 
 DECL_IFC_FUN(ifc_uses)
 {
-	*ret = (ISARG_MOB(0) && ISARG_STR(1) && has_item(ARG_MOB(0), -1, item_lookup(ARG_STR(1)), TRUE));
+	*ret = (ISARG_MOB(0) && ISARG_STR(1) && has_item(ARG_MOB(0), wnum_zero, item_lookup(ARG_STR(1)), TRUE));
 	return TRUE;
 }
 
@@ -2359,11 +2362,12 @@ DECL_IFC_FUN(ifc_weaponskill)
 DECL_IFC_FUN(ifc_wears)
 {
 	if(ISARG_MOB(0)) {
-		if(ISARG_NUM(1)) {
-			*ret = (int)has_item(ARG_MOB(0), ARG_NUM(1), -1, TRUE);
+		if(ISARG_WNUM(1)) {
+			*ret = (int)has_item(ARG_MOB(0), ARG_WNUM(1), -1, TRUE);
 		} else if(ISARG_STR(1)) {
-			if (is_number(ARG_STR(1)))
-				*ret = (int)has_item(ARG_MOB(0), atol(ARG_STR(1)), -1, TRUE);
+			WNUM wnum;
+			if (parse_widevnum(ARG_STR(1), get_area_from_scriptinfo(info), &wnum))
+				*ret = (int)has_item(ARG_MOB(0), wnum, -1, TRUE);
 			else
 				*ret = (int)(get_obj_wear(ARG_MOB(0), ARG_STR(1), TRUE) && 1);
 		} else if(ISARG_OBJ(1)) {
@@ -4864,4 +4868,12 @@ DECL_IFC_FUN(ifc_iswnum)
 	}
 
 	return TRUE;
+}
+
+// WNUMVALID $WIDEVNUM
+// checks that the $WIDEVNUM has a valid area and vnum.
+DECL_IFC_FUN(ifc_wnumvalid)
+{
+	*ret = ISARG_WNUM(0) && ARG_WNUM(0).pArea && ARG_WNUM(0).vnum > 0 && TRUE;
+	return TRUE;	
 }

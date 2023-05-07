@@ -263,7 +263,7 @@ enum ifcheck_enum {
 
 	/* W */
 	CHK_WEAPON,CHK_WEAPONTYPE,CHK_WEAPONSKILL,CHK_WEARS,CHK_WEARUSED,CHK_WEIGHT,CHK_WEIGHTLEFT,
-	CHK_WIMPY,CHK_WORD,CHK_WORNBY,
+	CHK_WIMPY,CHK_WNUMVALID,CHK_WORD,CHK_WORNBY,
 
 	/* X */
 	CHK_XP,
@@ -1940,6 +1940,7 @@ DECL_IFC_FUN(ifc_wearused);
 DECL_IFC_FUN(ifc_weight);
 DECL_IFC_FUN(ifc_weightleft);
 DECL_IFC_FUN(ifc_wimpy);
+DECL_IFC_FUN(ifc_wnumvalid);
 DECL_IFC_FUN(ifc_word);
 DECL_IFC_FUN(ifc_wornby);
 DECL_IFC_FUN(ifc_xp);
@@ -2072,15 +2073,15 @@ void get_level_damage(int level, int *num, int *type, bool fRemort, bool fTwo);
 CHAR_DATA *get_random_char(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token);
 int count_people_room(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, int iFlag);
 int get_order(CHAR_DATA *ch, OBJ_DATA *obj);
-bool has_item(CHAR_DATA *ch, long vnum, sh_int item_type, bool fWear);
-CHAR_DATA *get_mob_vnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, long vnum);
-OBJ_DATA *get_obj_vnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, long vnum);
+bool has_item(CHAR_DATA *ch, WNUM wnum, sh_int item_type, bool fWear);
+CHAR_DATA *get_mob_wnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, WNUM wnum);
+OBJ_DATA *get_obj_wnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, WNUM wnum);
 void do_mob_transfer(CHAR_DATA *ch,ROOM_INDEX_DATA *room,bool quiet,int mode);
 TOKEN_DATA *token_find_match(SCRIPT_VARINFO *info, TOKEN_DATA *tokens,char *argument, SCRIPT_PARAM *arg);
-CHAR_DATA *script_get_char_blist(LLIST *blist, CHAR_DATA *viewer, bool player, int vnum, char *name);
-CHAR_DATA *script_get_char_list(CHAR_DATA *mobs, CHAR_DATA *viewer, bool player, int vnum, char *name);
-OBJ_DATA *script_get_obj_blist(LLIST *blist, CHAR_DATA *viewer, int vnum, char *name);
-OBJ_DATA *script_get_obj_list(OBJ_DATA *objs, CHAR_DATA *viewer, int worn, int vnum, char *name);
+CHAR_DATA *script_get_char_blist(SCRIPT_VARINFO *info, LLIST *blist, CHAR_DATA *viewer, bool player, WNUM wnum, char *name);
+CHAR_DATA *script_get_char_list(SCRIPT_VARINFO *info, CHAR_DATA *mobs, CHAR_DATA *viewer, bool player, WNUM wnum, char *name);
+OBJ_DATA *script_get_obj_blist(SCRIPT_VARINFO *info, LLIST *blist, CHAR_DATA *viewer, WNUM wnum, char *name);
+OBJ_DATA *script_get_obj_list(SCRIPT_VARINFO *info, OBJ_DATA *objs, CHAR_DATA *viewer, int worn, WNUM wnum, char *name);
 void script_interpret(SCRIPT_VARINFO *info, char *command);
 int trigger_index(char *name, int type);
 bool has_trigger(LLIST **bank, int trigger);

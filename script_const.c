@@ -1377,6 +1377,7 @@ IFCHECK_DATA ifcheck_table[] = {
 	{ "weight",				IFC_ANY,	"E",	TRUE,	ifc_weight,				"ifcheck weight" },
 	{ "weightleft",			IFC_ANY,	"E",	TRUE,	ifc_weightleft,			"ifcheck weightleft" },
 	{ "wimpy",				IFC_ANY,	"E",	TRUE,	ifc_wimpy,				"ifcheck wimpy" },
+	{ "wnumvalid",			IFC_ANY,	"E",	FALSE,	ifc_wnumvalid,			"ifcheck wnumvalid" },
 	{ "word",				IFC_ANY,	"E",	FALSE,	ifc_word,				"ifcheck word" },
 	{ "wornby",				IFC_O,		"E",	FALSE,	ifc_wornby,				"ifcheck wornby" },
 	{ "xp",					IFC_ANY,	"",		TRUE,	ifc_xp,					"ifcheck xp" },

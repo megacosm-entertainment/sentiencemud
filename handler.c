@@ -9455,6 +9455,15 @@ bool wnum_match_mob(WNUM wnum, CHAR_DATA *ch)
 	return ch->pIndexData->area == wnum.pArea && ch->pIndexData->vnum == wnum.vnum;
 }
 
+bool wnum_match_token(WNUM wnum, TOKEN_DATA *token)
+{
+	if (!IS_VALID(token)) return FALSE;
+	if (!token->pIndexData) return FALSE;
+	if (!token->pIndexData->area || token->pIndexData->vnum < 1) return FALSE;
+
+	return token->pIndexData->area == wnum.pArea && token->pIndexData->vnum == wnum.vnum;
+}
+
 void get_room_wnum(ROOM_INDEX_DATA *room, WNUM *wnum)
 {
 	if (wnum) 

@@ -3269,7 +3269,7 @@ int get_order(CHAR_DATA *ch, OBJ_DATA *obj)
     return 0;
 }
 
-CHAR_DATA *script_get_char_blist(LLIST *blist, CHAR_DATA *viewer, bool player, int vnum, char *name)
+CHAR_DATA *script_get_char_blist(SCRIPT_VARINFO *info, LLIST *blist, CHAR_DATA *viewer, bool player, WNUM wnum, char *name)
 {
 	int nth = 1, i = 0;
 	char buf[MSL];
@@ -3279,16 +3279,15 @@ CHAR_DATA *script_get_char_blist(LLIST *blist, CHAR_DATA *viewer, bool player, i
 
 	if(!IS_VALID(blist)) return NULL;
 
-	if( player && vnum > 0 ) return NULL;
+	if( player && wnum.pArea && wnum.vnum > 0 ) return NULL;
 
 	if(name) {
 		nth = number_argument(name,buf);
 
-		if(!player && is_number(buf)) {
-			vnum = atol(buf);
+		if(!player && parse_widevnum(buf, get_area_from_scriptinfo(info), &wnum)) {
 			name = NULL;
 		} else {
-			vnum = 0;
+			wnum = wnum_zero;
 			name = buf;
 		}
 	}
@@ -3302,7 +3301,7 @@ CHAR_DATA *script_get_char_blist(LLIST *blist, CHAR_DATA *viewer, bool player, i
 
 		if( player && IS_NPC(ch) ) continue;
 		if( name && !is_name(name,ch->name) ) continue;
-		if( (vnum > 0) && ch->pIndexData->vnum != vnum ) continue;
+		if( (wnum.pArea && wnum.vnum > 0) && !wnum_match_mob(wnum, ch) ) continue;
 		if( viewer && !can_see(viewer,ch) ) continue;
 
 		if( ++i == nth )
@@ -3315,23 +3314,22 @@ CHAR_DATA *script_get_char_blist(LLIST *blist, CHAR_DATA *viewer, bool player, i
 	return NULL;
 }
 
-CHAR_DATA *script_get_char_list(CHAR_DATA *mobs, CHAR_DATA *viewer, bool player, int vnum, char *name)
+CHAR_DATA *script_get_char_list(SCRIPT_VARINFO *info, CHAR_DATA *mobs, CHAR_DATA *viewer, bool player, WNUM wnum, char *name)
 {
 	int nth = 1, i = 0;
 	char buf[MSL];
 	CHAR_DATA *ch;
 	if(!mobs) return NULL;
 
-	if( player && vnum > 0 ) return NULL;
+	if( player && wnum.pArea && wnum.vnum > 0 ) return NULL;
 
 	if(name) {
 		nth = number_argument(name,buf);
 
-		if(!player && is_number(buf)) {
-			vnum = atol(buf);
+		if(!player && parse_widevnum(buf, get_area_from_scriptinfo(info), &wnum)) {
 			name = NULL;
 		} else {
-			vnum = 0;
+			wnum = wnum_zero;
 			name = buf;
 		}
 	}
@@ -3341,9 +3339,9 @@ CHAR_DATA *script_get_char_list(CHAR_DATA *mobs, CHAR_DATA *viewer, bool player,
 			if(!IS_NPC(ch) && is_name(name,ch->name) && (!viewer || can_see(viewer,ch)))
 				if( ++i == nth ) return ch;
 
-	} else if(vnum > 0) {
+	} else if(wnum.pArea && wnum.vnum > 0) {
 		for(ch = mobs; ch; ch = ch->next_in_room)
-			if(IS_NPC(ch) && ch->pIndexData->vnum == vnum && (!viewer || can_see(viewer,ch)))
+			if(IS_NPC(ch) && wnum_match_mob(wnum, ch) && (!viewer || can_see(viewer,ch)))
 				if( ++i == nth ) return ch;
 
 	} else if(name) {
@@ -3356,7 +3354,7 @@ CHAR_DATA *script_get_char_list(CHAR_DATA *mobs, CHAR_DATA *viewer, bool player,
 }
 
 
-OBJ_DATA *script_get_obj_blist(LLIST *blist, CHAR_DATA *viewer, int vnum, char *name)
+OBJ_DATA *script_get_obj_blist(SCRIPT_VARINFO *info, LLIST *blist, CHAR_DATA *viewer, WNUM wnum, char *name)
 {
 	int nth = 1, i = 0;
 	char buf[MSL];
@@ -3369,11 +3367,10 @@ OBJ_DATA *script_get_obj_blist(LLIST *blist, CHAR_DATA *viewer, int vnum, char *
 	if(name) {
 		nth = number_argument(name,buf);
 
-		if(is_number(buf)) {
-			vnum = atol(buf);
+		if(parse_widevnum(buf, get_area_from_scriptinfo(info), &wnum)) {
 			name = NULL;
 		} else {
-			vnum = 0;
+			wnum = wnum_zero;
 			name = buf;
 		}
 	}
@@ -3386,7 +3383,7 @@ OBJ_DATA *script_get_obj_blist(LLIST *blist, CHAR_DATA *viewer, int vnum, char *
 		obj = (OBJ_DATA *)luid->ptr;
 
 		if( name && !is_name(name,obj->name) ) continue;
-		if( (vnum > 0) && obj->pIndexData->vnum != vnum ) continue;
+		if( (wnum.pArea && wnum.vnum > 0) && !wnum_match_obj(wnum, obj) ) continue;
 		if( viewer && !can_see_obj(viewer,obj) ) continue;
 
 		if( ++i == nth )
@@ -3400,7 +3397,7 @@ OBJ_DATA *script_get_obj_blist(LLIST *blist, CHAR_DATA *viewer, int vnum, char *
 }
 
 
-OBJ_DATA *script_get_obj_list(OBJ_DATA *objs, CHAR_DATA *viewer, int worn, int vnum, char *name)
+OBJ_DATA *script_get_obj_list(SCRIPT_VARINFO *info, OBJ_DATA *objs, CHAR_DATA *viewer, int worn, WNUM wnum, char *name)
 {
 	int nth = 1, i = 0;
 	char buf[MSL];
@@ -3410,20 +3407,19 @@ OBJ_DATA *script_get_obj_list(OBJ_DATA *objs, CHAR_DATA *viewer, int worn, int v
 	if(name) {
 		nth = number_argument(name,buf);
 
-		if(is_number(buf)) {
-			vnum = atol(buf);
+		if(parse_widevnum(buf, get_area_from_scriptinfo(info), &wnum)) {
 			name = NULL;
 		} else {
-			vnum = 0;
+			wnum = wnum_zero;
 			name = buf;
 		}
 	}
 
 	switch(worn) {
 	default:
-		if(vnum > 0) {
+		if(wnum.pArea && wnum.vnum > 0) {
 			for(obj = objs; obj; obj = obj->next_content)
-				if(obj->pIndexData->vnum == vnum && (!viewer || can_see_obj(viewer,obj)))
+				if(wnum_match_obj(wnum, obj) && (!viewer || can_see_obj(viewer,obj)))
 					if( ++i == nth ) return obj;
 		} else if(name) {
 			for(obj = objs; obj; obj = obj->next_content)
@@ -3432,9 +3428,9 @@ OBJ_DATA *script_get_obj_list(OBJ_DATA *objs, CHAR_DATA *viewer, int worn, int v
 		}
 		break;
 	case 1:
-		if(vnum > 0) {
+		if(wnum.pArea && wnum.vnum > 0) {
 			for(obj = objs; obj; obj = obj->next_content)
-				if(obj->wear_loc != WEAR_NONE && obj->pIndexData->vnum == vnum && (!viewer || can_see_obj(viewer,obj)))
+				if(obj->wear_loc != WEAR_NONE && wnum_match_obj(wnum, obj) && (!viewer || can_see_obj(viewer,obj)))
 					if( ++i == nth ) return obj;
 		} else if(name) {
 			for(obj = objs; obj; obj = obj->next_content)
@@ -3443,9 +3439,9 @@ OBJ_DATA *script_get_obj_list(OBJ_DATA *objs, CHAR_DATA *viewer, int worn, int v
 		}
 		break;
 	case 2:
-		if(vnum > 0) {
+		if(wnum.pArea && wnum.vnum > 0) {
 			for(obj = objs; obj; obj = obj->next_content)
-				if(obj->wear_loc == WEAR_NONE && obj->pIndexData->vnum == vnum && (!viewer || can_see_obj(viewer,obj)))
+				if(obj->wear_loc == WEAR_NONE && wnum_match_obj(wnum, obj) && (!viewer || can_see_obj(viewer,obj)))
 					if( ++i == nth ) return obj;
 		} else if(name) {
 			for(obj = objs; obj; obj = obj->next_content)
@@ -3461,7 +3457,8 @@ OBJ_DATA *script_get_obj_list(OBJ_DATA *objs, CHAR_DATA *viewer, int worn, int v
 TOKEN_DATA *token_find_match(SCRIPT_VARINFO *info, TOKEN_DATA *tokens,char *argument, SCRIPT_PARAM *arg)
 {
 	char *rest;
-	int i, nth = 1, vnum = 0, matches;
+	int i, nth = 1, matches;
+	WNUM wnum = wnum_zero;
 	int values[MAX_TOKEN_VALUES];
 	bool match[MAX_TOKEN_VALUES];
 	char buf[MSL];
@@ -3469,17 +3466,16 @@ TOKEN_DATA *token_find_match(SCRIPT_VARINFO *info, TOKEN_DATA *tokens,char *argu
 	if(!(rest = expand_argument(info,argument,arg)))
 		return NULL;
 
-	if(arg->type == ENT_NUMBER)
-		vnum = arg->d.num;
+	if(arg->type == ENT_WIDEVNUM)
+		wnum = arg->d.wnum;
 	else if(arg->type == ENT_STRING) {
 		nth = number_argument(arg->d.str,buf);
-		if(nth < 1 || !is_number(buf))
+		if(nth < 1 || !parse_widevnum(buf, get_area_from_scriptinfo(info), &wnum))
 			return NULL;
-		vnum = atoi(buf);
 	}
 
 
-	if(vnum < 1) return NULL;
+	if(!wnum.pArea || wnum.vnum < 1) return NULL;
 
 	for(i=0;*rest && i < MAX_TOKEN_VALUES; i++) {
 		argument = rest;
@@ -3500,7 +3496,7 @@ TOKEN_DATA *token_find_match(SCRIPT_VARINFO *info, TOKEN_DATA *tokens,char *argu
 	for(;i < MAX_TOKEN_VALUES; i++) match[i] = FALSE;
 
 	for(;tokens;tokens = tokens->next) {
-		if(tokens->pIndexData->vnum == vnum) {
+		if(wnum_match_token(wnum, tokens)) {
 			for(matches = 0, i = 0; i < MAX_TOKEN_VALUES; i++)
 				if( !match[i] || tokens->value[i] == values[i] )
 					matches++;
@@ -3519,11 +3515,11 @@ TOKEN_DATA *token_find_match(SCRIPT_VARINFO *info, TOKEN_DATA *tokens,char *argu
  * item_type: item type or -1
  * fWear: TRUE: item must be worn, FALSE: don't care
  */
-bool has_item(CHAR_DATA *ch, long vnum, sh_int item_type, bool fWear)
+bool has_item(CHAR_DATA *ch, WNUM wnum, sh_int item_type, bool fWear)
 {
     OBJ_DATA *obj;
     for (obj = ch->carrying; obj; obj = obj->next_content)
-	if ((vnum < 0 || obj->pIndexData->vnum == vnum)
+	if ((!wnum.pArea || wnum.vnum < 1 || wnum_match_obj(wnum, obj))
 	&&   (item_type < 0 || obj->pIndexData->item_type == item_type)
 	&&   (!fWear || obj->wear_loc != WEAR_NONE))
 	    return TRUE;
@@ -3534,13 +3530,13 @@ bool has_item(CHAR_DATA *ch, long vnum, sh_int item_type, bool fWear)
 /*
  * Check if there's a mob with given vnum in the room
  */
-CHAR_DATA *get_mob_vnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, long vnum)
+CHAR_DATA *get_mob_wnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, WNUM wnum)
 {
     CHAR_DATA *mob;
 
     if ((ch && obj) || (ch && room) || (obj && room) ||
     	(ch && token) || (obj && token) || (room && token)) {
-	bug("get_mob_vnum_room received multiple prog types",0);
+	bug("get_mob_wnum_room received multiple prog types",0);
 	return NULL;
     }
 
@@ -3553,7 +3549,7 @@ CHAR_DATA *get_mob_vnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room
     else mob = room->people;
 
     for (; mob; mob = mob->next_in_room)
-	if (IS_NPC(mob) && mob->pIndexData->vnum == vnum)
+	if (IS_NPC(mob) && wnum_match_mob(wnum, mob))
 	    return mob;
     return NULL;
 }
@@ -3562,13 +3558,13 @@ CHAR_DATA *get_mob_vnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room
 /*
  * Check if there's an object with given vnum in the room
  */
-OBJ_DATA *get_obj_vnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, long vnum)
+OBJ_DATA *get_obj_wnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, WNUM wnum)
 {
     OBJ_DATA *vobj;
 
     if ((ch && obj) || (ch && room) || (obj && room) ||
     	(ch && token) || (obj && token) || (room && token)) {
-	bug("get_obj_vnum_room received multiple prog types",0);
+	bug("get_obj_wnum_room received multiple prog types",0);
 	return NULL;
     }
 
@@ -3582,7 +3578,7 @@ OBJ_DATA *get_obj_vnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room,
 	vobj = room->contents;
 
     for (; vobj; vobj = vobj->next_content)
-	if (vobj->pIndexData->vnum == vnum)
+	if (wnum_match_obj(wnum, vobj))
 	    return vobj;
     return NULL;
 }
@@ -6436,7 +6432,6 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 	EXIT_DATA *ex = NULL;
 	LLIST *blist;
 	ITERATOR it;
-	WNUM wnum;
 	int vnum = 0, i, idx;
 	unsigned long id1/*, id2*/;
 
@@ -6852,12 +6847,14 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 		}
 		variables_set_exit(vars,name,ex);
 
-	// Format: MOBILE <ROOM VNUM or ROOM or MOBLIST> <VNUM or NAME>[ <VIEWER>]
-	// Format: MOBILE VNUM <VNUM>[ <VIEWER>]
+	// Format: MOBILE <ROOM WNUM or ROOM or MOBLIST> <WNUM or NAME>[ <VIEWER>]
+	// Format: MOBILE WNUM <WNUM>[ <VIEWER>]
 	// Format: MOBILE NAME|WORLD <NAME>[ <VIEWER>]
 	// Format: MOBILE HERE <NAME>[ <VIEWER>]
 	// Format: MOBILE <MOBILE>
+	// Format: MOBILE <MOBINDEX>
 	} else if(!str_cmp(buf,"mobile")) {
+		WNUM wnum = wnum_zero;
 		if( arg->type == ENT_BLLIST_MOB )
 		{
 			LLIST *blist = arg->d.blist;
@@ -6865,21 +6862,19 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 			if(!(rest = expand_argument(info,rest,arg)))
 				return;
 
-			if( arg->type == ENT_NUMBER )
+			if( arg->type == ENT_WIDEVNUM )
 			{
-				vnum = arg->d.num;
+				wnum = arg->d.wnum;
 				str = NULL;
 			}
 			else if( arg->type == ENT_STRING )
 			{
-				if(is_number(arg->d.str))
+				if(parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
 				{
-					vnum = atoi(arg->d.str);
 					str = NULL;
 				}
 				else
 				{
-					vnum = 0;
 					str = arg->d.str;
 				}
 			}
@@ -6906,7 +6901,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 					viewer = arg->d.mob;
 			}
 
-			vch = script_get_char_blist(blist, viewer, FALSE, vnum, str);
+			vch = script_get_char_blist(info, blist, viewer, FALSE, wnum, str);
 			variables_set_mobile(vars,name,vch);
 			if( buffer )
 				free_buf(buffer);
@@ -6961,8 +6956,8 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 				return;
 
 			BUFFER *buffer = NULL;
-			if(arg->type == ENT_NUMBER)
-				vnum = arg->d.num;
+			if(arg->type == ENT_WIDEVNUM)
+				wnum = arg->d.wnum;
 			else if(arg->type == ENT_STRING) {
 				if(is_number(arg->d.str))
 					vnum = atoi(arg->d.str);
@@ -6994,13 +6989,13 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 					viewer = arg->d.mob;
 			}
 
-			vch = script_get_char_list(mobs, viewer, FALSE, vnum, str);
+			vch = script_get_char_list(info, mobs, viewer, FALSE, wnum, str);
 			if( buffer )
 				free_buf(buffer);
 		}
 		variables_set_mobile(vars,name,vch);
 
-	// Format: PLAYER <ROOM VNUM or ROOM or MOBLIST> <NAME>[ <VIEWER>]
+	// Format: PLAYER <ROOM WNUM or ROOM or MOBLIST> <NAME>[ <VIEWER>]
 	// Format: PLAYER <NAME>
 	// Format: PLAYER <PLAYER>
 	} else if(!str_cmp(buf,"player")) {
@@ -7032,7 +7027,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 					viewer = arg->d.mob;
 			}
 
-			vch = script_get_char_blist(blist, viewer, TRUE, 0, str);
+			vch = script_get_char_blist(info, blist, viewer, TRUE, wnum_zero, str);
 			variables_set_mobile(vars,name,vch);
 			return;
 		}
@@ -7082,40 +7077,40 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 					viewer = arg->d.mob;
 			}
 
-			vch = script_get_char_list(mobs, viewer, TRUE, 0, str);
+			vch = script_get_char_list(info, mobs, viewer, TRUE, wnum_zero, str);
 
 			if( buffer )
 				free_buf(buffer);
 		}
 		variables_set_mobile(vars,name,vch);
 
-	// Format: OBJECT <ROOM VNUM or ROOM or MOBILE or OBJECT or OBJLIST> <VNUM or NAME>
+	// Format: OBJECT <ROOM WNUM or ROOM or MOBILE or OBJECT or OBJLIST> <WNUM or NAME>
 	// Format: OBJECT HERE <NAME>
 	// Format: OBJECT WORLD <NAME>
-	// Format: OBJECT VNUM <VNUM>
+	// Format: OBJECT WNUM <WNUM>
 	// Format: OBJECT <OBJECT>
 	} else if(!str_cmp(buf,"object")) {
+		WNUM wnum = wnum_zero;
 		if( arg->type == ENT_BLLIST_OBJ)
 		{
 			LLIST *blist = arg->d.blist;
 			if(!(rest = expand_argument(info,rest,arg)))
 				return;
 
-			if( arg->type == ENT_NUMBER )
+			if( arg->type == ENT_WIDEVNUM )
 			{
-				vnum = arg->d.num;
+				wnum = arg->d.wnum;
 				str = NULL;
 			}
 			else if( arg->type == ENT_STRING )
 			{
-				if(is_number(arg->d.str))
+				if(parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
 				{
-					vnum = atoi(arg->d.str);
 					str = NULL;
 				}
 				else
 				{
-					vnum = 0;
+					wnum = wnum_zero;
 					str = arg->d.str;
 				}
 			}
@@ -7144,7 +7139,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 					viewer = arg->d.mob;
 			}
 
-			obj = script_get_obj_blist(blist, viewer, vnum, str);
+			obj = script_get_obj_blist(info, blist, viewer, wnum, str);
 			variables_set_object(vars,name,obj);
 
 			if( buffer )
@@ -7203,12 +7198,10 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 		if(objs) {
 			if(!(rest = expand_argument(info,rest,arg)))
 				return;
-			if(arg->type == ENT_NUMBER)
-				vnum = arg->d.num;
+			if(arg->type == ENT_WIDEVNUM)
+				wnum = arg->d.wnum;
 			else if(arg->type == ENT_STRING) {
-				if(is_number(arg->d.str))
-					vnum = atoi(arg->d.str);
-				else
+				if(!parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
 					str = arg->d.str;
 			} else
 				return;
@@ -7234,26 +7227,25 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 					viewer = arg->d.mob;
 			}
 
-			obj = script_get_obj_list(objs, viewer, 0, vnum, str);
+			obj = script_get_obj_list(info, objs, viewer, 0, wnum, str);
 
 			if( buffer )
 				free_buf(buffer);
 		}
 		variables_set_object(vars,name,obj);
 
-	// Format: CARRY <VNUM or NAME>
-	// Format: CARRY <MOBILE> <VNUM or NAME>
-	// Format: CARRY <OBJLIST> <VNUM or NAME>
+	// Format: CARRY <WNUM or NAME>
+	// Format: CARRY <MOBILE> <WNUM or NAME>
+	// Format: CARRY <OBJLIST> <WNUM or NAME>
 	} else if(!str_cmp(buf,"carry")) {
+		WNUM wnum = wnum_zero;
 		switch(arg->type) {
-		case ENT_NUMBER:
-			vnum = arg->d.num;
+		case ENT_WIDEVNUM:
+			wnum = arg->d.wnum;
 			objs = info->mob ? info->mob->carrying : NULL;
 			break;
 		case ENT_STRING:
-			if(is_number(arg->d.str))
-				vnum = atoi(arg->d.str);
-			else
+			if(!parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
 				str = arg->d.str;
 			objs = info->mob ? info->mob->carrying : NULL;
 			break;
@@ -7268,16 +7260,14 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 
 		if(objs)
 		{
-			if(arg->type != ENT_NUMBER && arg->type != ENT_STRING)
+			if(arg->type != ENT_WIDEVNUM && arg->type != ENT_STRING)
 			{
 				if(!(rest = expand_argument(info,rest,arg)))
 					return;
-				if(arg->type == ENT_NUMBER)
-					vnum = arg->d.num;
+				if(arg->type == ENT_WIDEVNUM)
+					wnum = arg->d.wnum;
 				else if(arg->type == ENT_STRING) {
-					if(is_number(arg->d.str))
-						vnum = atoi(arg->d.str);
-					else
+					if(!parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
 						str = arg->d.str;
 				} else
 					return;
@@ -7304,25 +7294,24 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 					viewer = arg->d.mob;
 			}
 
-			obj = script_get_obj_list(objs, viewer, 2, vnum, str);
+			obj = script_get_obj_list(info, objs, viewer, 2, wnum, str);
 
 			if( buffer )
 				free_buf(buffer);
 		}
 		variables_set_object(vars,name,obj);
 
-	// Format: WORN <VNUM or NAME>
-	// Format: WORN <MOBILE or OBJLIST> <VNUM or NAME>
+	// Format: WORN <WNUM or NAME>
+	// Format: WORN <MOBILE or OBJLIST> <WNUM or NAME>
 	} else if(!str_cmp(buf,"worn")) {
+		WNUM wnum = wnum_zero;
 		switch(arg->type) {
-		case ENT_NUMBER:
-			vnum = arg->d.num;
+		case ENT_WIDEVNUM:
+			wnum = arg->d.wnum;
 			objs = info->mob ? info->mob->carrying : NULL;
 			break;
 		case ENT_STRING:
-			if(is_number(arg->d.str))
-				vnum = atoi(arg->d.str);
-			else
+			if(!parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
 				str = arg->d.str;
 			objs = info->mob ? info->mob->carrying : NULL;
 			break;
@@ -7337,16 +7326,14 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 
 		if(objs)
 		{
-			if(arg->type != ENT_NUMBER && arg->type != ENT_STRING)
+			if(arg->type != ENT_WIDEVNUM && arg->type != ENT_STRING)
 			{
 				if(!(rest = expand_argument(info,rest,arg)))
 					return;
-				if(arg->type == ENT_NUMBER)
-					vnum = arg->d.num;
+				if(arg->type == ENT_WIDEVNUM)
+					wnum = arg->d.wnum;
 				else if(arg->type == ENT_STRING) {
-					if(is_number(arg->d.str))
-						vnum = atoi(arg->d.str);
-					else
+					if(!parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
 						str = arg->d.str;
 				} else
 					return;
@@ -7373,15 +7360,16 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 					viewer = arg->d.mob;
 			}
 
-			obj = script_get_obj_list(objs, viewer, 1, vnum, str);
+			obj = script_get_obj_list(info, objs, viewer, 1, wnum, str);
 
 			if( buffer )
 				free_buf(buffer);
 		}
 		variables_set_object(vars,name,obj);
 
-	// Format: CONTENT <OBJECT or OBJLIST> <VNUM or NAME>
+	// Format: CONTENT <OBJECT or OBJLIST> <WNUM or NAME>
 	} else if(!str_cmp(buf,"content")) {
+		WNUM wnum;
 		switch(arg->type) {
 		case ENT_OLLIST_OBJ:
 			objs = arg->d.list.ptr.obj ? *arg->d.list.ptr.obj : NULL;
@@ -7396,12 +7384,10 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 		{
 			if(!(rest = expand_argument(info,rest,arg)))
 				return;
-			if(arg->type == ENT_NUMBER)
-				vnum = arg->d.num;
+			if(arg->type == ENT_WIDEVNUM)
+				wnum = arg->d.wnum;
 			else if(arg->type == ENT_STRING) {
-				if(is_number(arg->d.str))
-					vnum = atoi(arg->d.str);
-				else
+				if(!parse_widevnum(arg->d.str, get_area_from_scriptinfo(info), &wnum))
 					str = arg->d.str;
 			} else
 				return;
@@ -7427,7 +7413,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 					viewer = arg->d.mob;
 			}
 
-			obj = script_get_obj_list(objs, viewer, 0, vnum, str);
+			obj = script_get_obj_list(info, objs, viewer, 0, wnum, str);
 
 			if( buffer )
 				free_buf(buffer);
