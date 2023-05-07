@@ -645,6 +645,16 @@ void save_ships(FILE *fp, AREA_DATA *area)
 	}
 }
 
+SHIP_INDEX_DATA *get_ship_index_wnum(WNUM wnum)
+{
+	return get_ship_index(wnum.pArea, wnum.vnum);
+}
+
+SHIP_INDEX_DATA *get_ship_index_auid(long auid, long vnum)
+{
+	return get_ship_index(get_area_from_uid(auid), vnum);
+}
+
 SHIP_INDEX_DATA *get_ship_index(AREA_DATA *pArea, long vnum)
 {
 	if(!pArea) return NULL;

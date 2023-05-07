@@ -953,6 +953,40 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
 		arg->type = ENT_VARIABLE;
 		break;
 
+	case ENTITY_VAR_MOBINDEX:
+		arg->d.mobindex = (var && var->type == VAR_MOBINDEX) ? var->_.mindex : NULL;
+		arg->type = ENT_MOBINDEX;
+		break;
+
+	case ENTITY_VAR_OBJINDEX:
+		arg->d.objindex = (var && var->type == VAR_OBJINDEX) ? var->_.oindex : NULL;
+		arg->type = ENT_OBJINDEX;
+		break;
+
+	case ENTITY_VAR_TOKENINDEX:
+		arg->d.tokindex = (var && var->type == VAR_TOKENINDEX) ? var->_.tindex : NULL;
+		arg->type = ENT_TOKENINDEX;
+		break;
+
+	case ENTITY_VAR_BLUEPRINT:
+		arg->d.bp = (var && var->type == VAR_BLUEPRINT) ? var->_.bp : NULL;
+		arg->type = ENT_BLUEPRINT;
+		break;
+
+	case ENTITY_VAR_BLUEPRINT_SECTION:
+		arg->d.bs = (var && var->type == VAR_BLUEPRINT_SECTION) ? var->_.bs : NULL;
+		arg->type = ENT_BLUEPRINT_SECTION;
+		break;
+
+	case ENTITY_VAR_DUNGEONINDEX:
+		arg->d.dngindex = (var && var->type == VAR_DUNGEONINDEX) ? var->_.dngindex : NULL;
+		arg->type = ENT_DUNGEONINDEX;
+		break;
+
+	case ENTITY_VAR_SHIPINDEX:
+		arg->d.shipindex = (var && var->type == VAR_SHIPINDEX) ? var->_.shipindex : NULL;
+		arg->type = ENT_SHIPINDEX;
+		break;
 	}
 	return str;
 }
@@ -2815,6 +2849,10 @@ char *expand_entity_token(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_STRING;
 		arg->d.str = arg->d.token ? arg->d.token->name : &str_empty[0];
 		break;
+	case ENTITY_TOKEN_INDEX:
+		arg->type = ENT_TOKENINDEX;
+		arg->d.tokindex = arg->d.token ? arg->d.token->pIndexData : NULL;
+		break;
 	case ENTITY_TOKEN_OWNER:
 		arg->type = ENT_MOBILE;
 		arg->d.mob = arg->d.token ? arg->d.token->player : NULL;
@@ -2865,6 +2903,10 @@ char *expand_entity_token_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_TOKEN_NAME:
 		arg->type = ENT_STRING;
 		arg->d.str = &str_empty[0];
+		break;
+	case ENTITY_TOKEN_INDEX:
+		arg->type = ENT_TOKENINDEX;
+		arg->d.tokindex = NULL;
 		break;
 	case ENTITY_TOKEN_OWNER:
 		arg->type = ENT_MOBILE;
@@ -4822,15 +4864,17 @@ char *expand_entity_dice(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 char *expand_entity_mobindex(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 	info = arg->d.info;
+	MOB_INDEX_DATA *mobindex = arg->d.mobindex;
 
 	switch(*str) {
-	case ENTITY_MOBINDEX_VNUM:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.mobindex ? arg->d.mobindex->vnum: 0;
+	case ENTITY_MOBINDEX_WNUM:
+		arg->type = ENT_WIDEVNUM;
+		arg->d.wnum.pArea = mobindex ? mobindex->area : NULL;
+		arg->d.wnum.vnum = mobindex ? mobindex->vnum : 0;
 		break;
 	case ENTITY_MOBINDEX_LOADED:
 		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.mobindex ? arg->d.mobindex->count : 0;
+		arg->d.num = mobindex ? mobindex->count : 0;
 		break;
 
 	default: return NULL;
@@ -4842,35 +4886,55 @@ char *expand_entity_mobindex(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 char *expand_entity_objindex(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 	info = arg->d.info;
+	OBJ_INDEX_DATA *objindex = arg->d.objindex;
 
 	switch(*str) {
-	case ENTITY_OBJINDEX_VNUM:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.objindex ? arg->d.objindex->vnum: 0;
+	case ENTITY_OBJINDEX_WNUM:
+		arg->type = ENT_WIDEVNUM;
+		arg->d.wnum.pArea = objindex ? objindex->area : NULL;
+		arg->d.wnum.vnum = objindex ? objindex->vnum : 0;
 		break;
 	case ENTITY_OBJINDEX_LOADED:
 		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.objindex ? arg->d.objindex->count : 0;
+		arg->d.num = objindex ? objindex->count : 0;
 		break;
 	case ENTITY_OBJINDEX_INROOMS:
 		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.objindex ? arg->d.objindex->inrooms : 0;
+		arg->d.num = objindex ? objindex->inrooms : 0;
 		break;
 	case ENTITY_OBJINDEX_INMAIL:
 		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.objindex ? arg->d.objindex->inmail : 0;
+		arg->d.num = objindex ? objindex->inmail : 0;
 		break;
 	case ENTITY_OBJINDEX_CARRIED:
 		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.objindex ? arg->d.objindex->carried : 0;
+		arg->d.num = objindex ? objindex->carried : 0;
 		break;
 	case ENTITY_OBJINDEX_LOCKERED:
 		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.objindex ? arg->d.objindex->lockered : 0;
+		arg->d.num = objindex ? objindex->lockered : 0;
 		break;
 	case ENTITY_OBJINDEX_INCONTAINER:
 		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.objindex ? arg->d.objindex->incontainer : 0;
+		arg->d.num = objindex ? objindex->incontainer : 0;
+		break;
+
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_tokenindex(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	info = arg->d.info;
+	TOKEN_INDEX_DATA *tokenindex = arg->d.tokindex;
+
+	switch(*str) {
+	case ENTITY_TOKENINDEX_WNUM:
+		arg->type = ENT_WIDEVNUM;
+		arg->d.wnum.pArea = tokenindex ? tokenindex->area : NULL;
+		arg->d.wnum.vnum = tokenindex ? tokenindex->vnum : 0;
 		break;
 
 	default: return NULL;
@@ -4886,12 +4950,36 @@ char *expand_entity_instance_section(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM
 	switch(*str) {
 	case ENTITY_SECTION_ROOMS:
 		arg->type = ENT_PLLIST_ROOM;
-		arg->d.blist = (section) ? section->rooms : NULL;
+		arg->d.blist = IS_VALID(section) ? section->rooms : NULL;
 		break;
+
+	case ENTITY_SECTION_INDEX:
+		arg->type = ENT_BLUEPRINT_SECTION;
+		arg->d.bs = IS_VALID(section) ? section->section : NULL;
+		break;
+	
 	case ENTITY_SECTION_INSTANCE:
 		arg->type = ENT_INSTANCE;
-		arg->d.instance = (section && IS_VALID(section->instance)) ? section->instance : NULL;
+		arg->d.instance = (IS_VALID(section) && IS_VALID(section->instance)) ? section->instance : NULL;
 		break;
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+
+char *expand_entity_blueprint_section(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	BLUEPRINT_SECTION *section = arg->d.bs;
+
+	switch(*str) {
+	case ENTITY_BLUEPRINT_SECTION_WNUM:
+		arg->type = ENT_WIDEVNUM;
+		arg->d.wnum.pArea = section ? section->area : NULL;
+		arg->d.wnum.vnum = section ? section->vnum : 0;
+		break;
+
 	default: return NULL;
 	}
 
@@ -4909,6 +4997,12 @@ char *expand_entity_instance(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		add_buf(arg->buffer, IS_VALID(instance) ? instance->blueprint->name : "");
 		arg->d.str = buf_string(arg->buffer);
 		break;
+
+	case ENTITY_INSTANCE_BLUEPRINT:
+		arg->type = ENT_BLUEPRINT;
+		arg->d.bp = IS_VALID(instance) ? instance->blueprint : NULL;
+		break;
+
 	case ENTITY_INSTANCE_SECTIONS:
 		arg->type = ENT_ILLIST_SECTIONS;
 		arg->d.blist = IS_VALID(instance) ? instance->sections : NULL;
@@ -5013,6 +5107,23 @@ char *expand_entity_instance(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	return str+1;
 }
 
+char *expand_entity_blueprint(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	BLUEPRINT *blueprint = arg->d.bp;
+
+	switch(*str) {
+	case ENTITY_BLUEPRINT_WNUM:
+		arg->type = ENT_WIDEVNUM;
+		arg->d.wnum.pArea = blueprint ? blueprint->area : NULL;
+		arg->d.wnum.vnum = blueprint ? blueprint->vnum : 0;
+		break;
+
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
 char *expand_entity_dungeon(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 	DUNGEON *dungeon = arg->d.dungeon;
@@ -5023,6 +5134,11 @@ char *expand_entity_dungeon(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		clear_buf(arg->buffer);
 		add_buf(arg->buffer, IS_VALID(dungeon) ? dungeon->index->name : "");
 		arg->d.str = buf_string(arg->buffer);
+		break;
+
+	case ENTITY_DUNGEON_INDEX:
+		arg->type = ENT_DUNGEONINDEX;
+		arg->d.dngindex = IS_VALID(arg->d.dungeon) ? arg->d.dungeon->index : NULL;
 		break;
 
 	case ENTITY_DUNGEON_FLOORS:
@@ -5088,6 +5204,24 @@ char *expand_entity_dungeon(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	return str+1;
 }
 
+char *expand_entity_dungeonindex(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	DUNGEON_INDEX_DATA *dungeon = arg->d.dngindex;
+
+	switch(*str) {
+	case ENTITY_DUNGEONINDEX_WNUM:
+		arg->type = ENT_WIDEVNUM;
+		arg->d.wnum.pArea = dungeon ? dungeon->area : NULL;
+		arg->d.wnum.vnum = dungeon ? dungeon->vnum : 0;
+		break;
+
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+
 char *expand_entity_ship(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 	SHIP_DATA *ship = arg->d.ship;
@@ -5098,6 +5232,11 @@ char *expand_entity_ship(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		clear_buf(arg->buffer);
 		add_buf(arg->buffer, IS_VALID(ship) ? ship->ship_name : "");
 		arg->d.str = buf_string(arg->buffer);
+		break;
+
+	case ENTITY_SHIP_INDEX:
+		arg->type = ENT_SHIPINDEX;
+		arg->d.shipindex = IS_VALID(arg->d.ship) ? arg->d.ship->index : NULL;
 		break;
 
 	case ENTITY_SHIP_OBJECT:
@@ -5111,6 +5250,22 @@ char *expand_entity_ship(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	return str+1;
 }
 
+char *expand_entity_shipindex(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	SHIP_INDEX_DATA *ship = arg->d.shipindex;
+
+	switch(*str) {
+	case ENTITY_SHIPINDEX_WNUM:
+		arg->type = ENT_WIDEVNUM;
+		arg->d.wnum.pArea = ship ? ship->area : NULL;
+		arg->d.wnum.vnum = ship ? ship->vnum : 0;
+		break;
+
+	default: return NULL;
+	}
+
+	return str+1;
+}
 
 char *expand_entity_extradesc(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
@@ -5295,12 +5450,17 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case ENT_DICE:			next = expand_entity_dice(info,str,arg); break;
 		case ENT_MOBINDEX:		next = expand_entity_mobindex(info,str,arg); break;
 		case ENT_OBJINDEX:		next = expand_entity_objindex(info,str,arg); break;
+		case ENT_TOKENINDEX:	next = expand_entity_tokenindex(info,str,arg); break;
 
 		case ENT_SECTION:		next = expand_entity_instance_section(info,str,arg); break;
 		case ENT_INSTANCE:		next = expand_entity_instance(info,str,arg); break;
 		case ENT_DUNGEON:		next = expand_entity_dungeon(info,str,arg); break;
-
 		case ENT_SHIP:			next = expand_entity_ship(info,str,arg); break;
+
+		case ENT_BLUEPRINT_SECTION:		next = expand_entity_blueprint_section(info,str,arg); break;
+		case ENT_BLUEPRINT:				next = expand_entity_blueprint(info,str,arg); break;
+		case ENT_DUNGEONINDEX:			next = expand_entity_dungeonindex(info,str,arg); break;
+		case ENT_SHIPINDEX:				next = expand_entity_shipindex(info,str,arg); break;
 
 		case ENT_BITVECTOR:		next = expand_entity_bitvector(info,str,arg); break;
 		case ENT_NULL:
@@ -5336,6 +5496,16 @@ char *expand_string_entity(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
 	switch(arg->type) {
 	default:
 		add_buf(buffer, "{D<{x@{W@{x@{D>{x ");
+		break;
+	
+	case ENT_WIDEVNUM:
+		if (arg->d.wnum.pArea && arg->d.wnum.vnum > 0)
+		{
+			sprintf(buf, "%ld#%ld", arg->d.wnum.pArea->uid, arg->d.wnum.vnum);
+			add_buf(buffer, buf);
+		}
+		else
+			add_buf(buffer, "0#0");
 		break;
 
 	case ENT_NUMBER:

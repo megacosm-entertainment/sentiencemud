@@ -429,7 +429,20 @@ varset(instance_section,SECTION,INSTANCE_SECTION *,section,section)
 varset(instance,INSTANCE,INSTANCE *,instance,instance)
 varset(dungeon,DUNGEON,DUNGEON *,dungeon,dungeon)
 varset(ship,SHIP,SHIP_DATA *,ship,ship)
-
+varset(mobindex,MOBINDEX,MOB_INDEX_DATA *,m,mindex)
+varset(objindex,OBJINDEX,OBJ_INDEX_DATA *,o,oindex)
+varset(tokenindex,TOKENINDEX,TOKEN_INDEX_DATA *,t,tindex)
+varset(blueprint_section,BLUEPRINT_SECTION,BLUEPRINT_SECTION *,bs,bs)
+varset(blueprint,BLUEPRINT,BLUEPRINT *,bp,bp)
+varset(dungeonindex,DUNGEONINDEX,DUNGEON_INDEX_DATA *,dng,dngindex)
+varset(shipindex,SHIPINDEX,SHIP_INDEX_DATA *,ship,shipindex)
+varset(mobindex_load,MOBINDEX,WNUM_LOAD,m,wnum_load)
+varset(objindex_load,OBJINDEX,WNUM_LOAD,o,wnum_load)
+varset(tokenindex_load,TOKENINDEX,WNUM_LOAD,t,wnum_load)
+varset(blueprint_section_load,BLUEPRINT_SECTION,WNUM_LOAD,bs,wnum_load)
+varset(blueprint_load,BLUEPRINT,WNUM_LOAD,bp,wnum_load)
+varset(dungeonindex_load,DUNGEONINDEX,WNUM_LOAD,dng,wnum_load)
+varset(shipindex_load,SHIPINDEX,WNUM_LOAD,ship,wnum_load)
 
 bool variables_set_dice (ppVARIABLE list,char *name,DICE_DATA *d)
 {
@@ -2356,6 +2369,27 @@ void variable_fix(pVARIABLE var)
 
 		iterator_stop(&it);
 
+	} else if(var->type == VAR_MOBINDEX ) {
+		var->_.mindex = get_mob_index_auid(var->_.wnum_load.auid, var->_.wnum_load.vnum);
+
+	} else if(var->type == VAR_OBJINDEX ) {
+		var->_.oindex = get_obj_index_auid(var->_.wnum_load.auid, var->_.wnum_load.vnum);
+
+	} else if(var->type == VAR_TOKENINDEX ) {
+		var->_.tindex = get_token_index_auid(var->_.wnum_load.auid, var->_.wnum_load.vnum);
+
+	} else if(var->type == VAR_BLUEPRINT ) {
+		var->_.bp = get_blueprint_auid(var->_.wnum_load.auid, var->_.wnum_load.vnum);
+
+	} else if(var->type == VAR_BLUEPRINT_SECTION ) {
+		var->_.bs = get_blueprint_section_auid(var->_.wnum_load.auid, var->_.wnum_load.vnum);
+
+	} else if(var->type == VAR_DUNGEONINDEX ) {
+		var->_.dngindex = get_dungeon_index_auid(var->_.wnum_load.auid, var->_.wnum_load.vnum);
+
+	} else if(var->type == VAR_SHIPINDEX ) {
+		var->_.shipindex = get_ship_index_auid(var->_.wnum_load.auid, var->_.wnum_load.vnum);
+
 	}
 }
 
@@ -2906,6 +2940,34 @@ void variable_fwrite(pVARIABLE var, FILE *fp)
 			var->_.dice.bonus,
 			var->_.dice.last_roll);
 		break;
+
+	case VAR_MOBINDEX:
+		if (var->_.mindex)
+			fprintf(fp, "VarMobIndex %ld#%ld\n", var->_.mindex->area->uid, var->_.mindex->vnum);
+
+	case VAR_OBJINDEX:
+		if (var->_.oindex)
+			fprintf(fp, "VarObjIndex %ld#%ld\n", var->_.oindex->area->uid, var->_.oindex->vnum);
+
+	case VAR_TOKENINDEX:
+		if (var->_.tindex)
+			fprintf(fp, "VarTokenIndex %ld#%ld\n", var->_.tindex->area->uid, var->_.tindex->vnum);
+
+	case VAR_BLUEPRINT:
+		if (var->_.bp)
+			fprintf(fp, "VarBlueprint %ld#%ld\n", var->_.bp->area->uid, var->_.bp->vnum);
+
+	case VAR_BLUEPRINT_SECTION:
+		if (var->_.bs)
+			fprintf(fp, "VarBlueprintSection %ld#%ld\n", var->_.bs->area->uid, var->_.bs->vnum);
+
+	case VAR_DUNGEONINDEX:
+		if (var->_.dngindex)
+			fprintf(fp, "VarDungeonIndex %ld#%ld\n", var->_.dngindex->area->uid, var->_.dngindex->vnum);
+
+	case VAR_SHIPINDEX:
+		if (var->_.shipindex)
+			fprintf(fp, "VarShipIndex %ld#%ld\n", var->_.shipindex->area->uid, var->_.shipindex->vnum);
 	}
 }
 
@@ -3115,6 +3177,13 @@ int variable_fread_type(char *str)
 	if( !str_cmp( str, "VarListWilds" ) ) return VAR_BLLIST_WILDS;
 	if( !str_cmp( str, "VarDice" ) ) return VAR_DICE;
 	if( !str_cmp( str, "VarSong" ) ) return VAR_SONG;
+	if( !str_cmp( str, "VarMobIndex" ) ) return VAR_MOBINDEX;
+	if( !str_cmp( str, "VarObjIndex" ) ) return VAR_OBJINDEX;
+	if( !str_cmp( str, "VarTokenIndex" ) ) return VAR_TOKENINDEX;
+	if( !str_cmp( str, "VarBlueprint" ) ) return VAR_BLUEPRINT;
+	if( !str_cmp( str, "VarBlueprintSection" ) ) return VAR_BLUEPRINT_SECTION;
+	if( !str_cmp( str, "VarDungeonIndex" ) ) return VAR_DUNGEONINDEX;
+	if( !str_cmp( str, "VarShipIndex" ) ) return VAR_SHIPINDEX;
 
 	return VAR_UNKNOWN;
 }
@@ -3309,6 +3378,22 @@ bool variable_fread(ppVARIABLE vars, int type, FILE *fp)
 		}
 
 		return FALSE;
+	
+	case VAR_MOBINDEX:
+		return variables_setsave_mobindex_load(vars, name, fread_widevnum(fp, 0), TRUE);
+	case VAR_OBJINDEX:
+		return variables_setsave_objindex_load(vars, name, fread_widevnum(fp, 0), TRUE);
+	case VAR_TOKENINDEX:
+		return variables_setsave_tokenindex_load(vars, name, fread_widevnum(fp, 0), TRUE);
+	case VAR_BLUEPRINT:
+		return variables_setsave_blueprint_load(vars, name, fread_widevnum(fp, 0), TRUE);
+	case VAR_BLUEPRINT_SECTION:
+		return variables_setsave_blueprint_section_load(vars, name, fread_widevnum(fp, 0), TRUE);
+	case VAR_DUNGEONINDEX:
+		return variables_setsave_dungeonindex_load(vars, name, fread_widevnum(fp, 0), TRUE);
+	case VAR_SHIPINDEX:
+		return variables_setsave_shipindex_load(vars, name, fread_widevnum(fp, 0), TRUE);
+
 	}
 
 	// Ignore rest

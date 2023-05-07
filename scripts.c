@@ -7562,6 +7562,107 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 		default: return;
 		}
 
+	// Format: SONG <NAME>
+	} else if(!str_cmp(buf,"song")) {
+		switch(arg->type) {
+		case ENT_STRING:
+			variables_set_song(vars,name,song_lookup(arg->d.str));
+			break;
+		default: return;
+		}
+
+	// Format: MOBINDEX <WIDEVNUM>
+	//         MOBINDEX <MOBINDEX>
+	} else if(!str_cmp(buf,"mobindex")) {
+		switch(arg->type) {
+		case ENT_WIDEVNUM:
+			variables_set_mobindex(vars,name,get_mob_index_wnum(arg->d.wnum));
+			break;
+		case ENT_MOBINDEX:
+			variables_set_mobindex(vars,name,arg->d.mobindex);
+			break;
+		default: return;
+		}
+
+	// Format: OBJINDEX <WIDEVNUM>
+	//         OBJINDEX <OBJINDEX>
+	} else if(!str_cmp(buf,"objindex")) {
+		switch(arg->type) {
+		case ENT_WIDEVNUM:
+			variables_set_objindex(vars,name,get_obj_index_wnum(arg->d.wnum));
+			break;
+		case ENT_OBJINDEX:
+			variables_set_objindex(vars,name,arg->d.objindex);
+			break;
+		default: return;
+		}
+
+	// Format: TOKENINDEX <WIDEVNUM>
+	//         TOKENINDEX <TOKENINDEX>
+	} else if(!str_cmp(buf,"tokenindex")) {
+		switch(arg->type) {
+		case ENT_WIDEVNUM:
+			variables_set_tokenindex(vars,name,get_token_index_wnum(arg->d.wnum));
+			break;
+		case ENT_TOKENINDEX:
+			variables_set_tokenindex(vars,name,arg->d.tokindex);
+			break;
+		default: return;
+		}
+
+	// Format: BLUEPRINT <WIDEVNUM>
+	//         BLUEPRINT <BLUEPRINT>
+	} else if(!str_cmp(buf,"blueprint")) {
+		switch(arg->type) {
+		case ENT_WIDEVNUM:
+			variables_set_blueprint(vars,name,get_blueprint_wnum(arg->d.wnum));
+			break;
+		case ENT_BLUEPRINT:
+			variables_set_blueprint(vars,name,arg->d.bp);
+			break;
+		default: return;
+		}
+
+
+	// Format: BPSECTION <WIDEVNUM>
+	//         BPSECTION <BLUEPRINT SECTION>
+	} else if(!str_cmp(buf,"bpsection")) {
+		switch(arg->type) {
+		case ENT_WIDEVNUM:
+			variables_set_blueprint_section(vars,name,get_blueprint_section_wnum(arg->d.wnum));
+			break;
+		case ENT_BLUEPRINT_SECTION:
+			variables_set_blueprint_section(vars,name,arg->d.bs);
+			break;
+		default: return;
+		}
+
+	// Format: DUNGEONINDEX <WIDEVNUM>
+	//         DUNGEONINDEX <DUNGEONINDEX>
+	} else if(!str_cmp(buf,"dungeonindex")) {
+		switch(arg->type) {
+		case ENT_WIDEVNUM:
+			variables_set_dungeonindex(vars,name,get_dungeon_index_wnum(arg->d.wnum));
+			break;
+		case ENT_DUNGEONINDEX:
+			variables_set_dungeonindex(vars,name,arg->d.dngindex);
+			break;
+		default: return;
+		}
+
+	// Format: SHIPINDEX <WIDEVNUM>
+	//         SHIPINDEX <SHIPINDEX>
+	} else if(!str_cmp(buf,"shipindex")) {
+		switch(arg->type) {
+		case ENT_WIDEVNUM:
+			variables_set_shipindex(vars,name,get_ship_index_wnum(arg->d.wnum));
+			break;
+		case ENT_SHIPINDEX:
+			variables_set_shipindex(vars,name,arg->d.shipindex);
+			break;
+		default: return;
+		}
+
 	// Format: FINDPATH <ROOM> <ROOM> <DEPTH> <IN-ZONE> <DOORS> - returns the EXIT entity
 	} else if(!str_cmp(buf,"findpath")) {
 		ROOM_INDEX_DATA *start_room = NULL, *end_room = NULL;

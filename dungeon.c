@@ -784,7 +784,7 @@ bool can_edit_dungeons(CHAR_DATA *ch)
 	return !IS_NPC(ch) && (ch->pcdata->security >= 9) && (ch->tot_level >= MAX_LEVEL);
 }
 
-DUNGEON_INDEX_DATA *get_dungeon_index_wuid(WNUM wuid)
+DUNGEON_INDEX_DATA *get_dungeon_index_wnum(WNUM wuid)
 {
 	return get_dungeon_index(wuid.pArea, wuid.vnum);
 }

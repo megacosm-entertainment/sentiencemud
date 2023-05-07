@@ -108,6 +108,13 @@ ENT_FIELD entity_types[] = {
 	{"inst",			ENTITY_VAR_INSTANCE,	ENT_INSTANCE	},
 	{"dung",			ENTITY_VAR_DUNGEON,		ENT_DUNGEON	},
 	{"ship",			ENTITY_VAR_SHIP,		ENT_SHIP	},
+	{"mobindex",		ENTITY_VAR_MOBINDEX,	ENT_MOBINDEX },
+	{"objindex",		ENTITY_VAR_OBJINDEX,	ENT_OBJINDEX },
+	{"tokindex",		ENTITY_VAR_TOKENINDEX,	ENT_TOKENINDEX },
+	{"blueprint",		ENTITY_VAR_BLUEPRINT,	ENT_BLUEPRINT },
+	{"bpsection",		ENTITY_VAR_BLUEPRINT_SECTION,	ENT_BLUEPRINT_SECTION},
+	{"dngindex",		ENTITY_VAR_DUNGEONINDEX,	ENT_DUNGEONINDEX},
+	{"shipindex",		ENTITY_VAR_SHIPINDEX,		ENT_SHIPINDEX},
 	{NULL,				0,						ENT_UNKNOWN	}
 };
 
@@ -186,117 +193,115 @@ ENT_FIELD entity_string[] = {
 };
 
 ENT_FIELD entity_mobile[] = {
-	{"affects",			ENTITY_MOB_AFFECTS,			ENT_OLLIST_AFF	},
-	{"area",			ENTITY_MOB_AREA,			ENT_AREA	},
-	{"bedroll",			ENTITY_MOB_FURNITURE,		ENT_OBJECT	},
-	{"carrying",		ENTITY_MOB_CARRYING,		ENT_OLLIST_OBJ	},
-	{"cart",			ENTITY_MOB_CART,			ENT_OBJECT	},
-	{"castspell",		ENTITY_MOB_CASTSPELL,		ENT_SKILL	},
-	{"casttarget",		ENTITY_MOB_CASTTARGET,		ENT_STRING	},
-	{"casttoken",		ENTITY_MOB_CASTTOKEN,		ENT_TOKEN	},
-	{"checkpoint",		ENTITY_MOB_CHECKPOINT,		ENT_ROOM	},
-	{"church",			ENTITY_MOB_CHURCH,			ENT_CHURCH	},
-	{"clonerooms",		ENTITY_MOB_CLONEROOMS,		ENT_BLLIST_ROOM	},
-	{"connection",		ENTITY_MOB_CONNECTION,		ENT_CONN	},
-	{"eq_about",		ENTITY_MOB_EQ_ABOUT,		ENT_OBJECT	},
-	{"eq_ankle1",		ENTITY_MOB_EQ_ANKLE1,		ENT_OBJECT	},
-	{"eq_ankle2",		ENTITY_MOB_EQ_ANKLE2,		ENT_OBJECT	},
-	{"eq_arms",			ENTITY_MOB_EQ_ARMS,			ENT_OBJECT	},
-	{"eq_back",			ENTITY_MOB_EQ_BACK,			ENT_OBJECT	},
-	{"eq_body",			ENTITY_MOB_EQ_BODY,			ENT_OBJECT	},
-	{"eq_concealed",	ENTITY_MOB_EQ_CONCEALED,	ENT_OBJECT	},
-	{"eq_ear1",			ENTITY_MOB_EQ_EAR1,			ENT_OBJECT	},
-	{"eq_ear2",			ENTITY_MOB_EQ_EAR2,			ENT_OBJECT	},
-	{"eq_entangled",	ENTITY_MOB_EQ_ENTANGLED,	ENT_OBJECT	},
-	{"eq_eyes",			ENTITY_MOB_EQ_EYES,			ENT_OBJECT	},
-	{"eq_face",			ENTITY_MOB_EQ_FACE,			ENT_OBJECT	},
-	{"eq_feet",			ENTITY_MOB_EQ_FEET,			ENT_OBJECT	},
-	{"eq_finger1",		ENTITY_MOB_EQ_FINGER1,		ENT_OBJECT	},
-	{"eq_finger2",		ENTITY_MOB_EQ_FINGER2,		ENT_OBJECT	},
-	{"eq_hands",		ENTITY_MOB_EQ_HANDS,		ENT_OBJECT	},
-	{"eq_head",			ENTITY_MOB_EQ_HEAD,			ENT_OBJECT	},
-	{"eq_hold",			ENTITY_MOB_EQ_HOLD,			ENT_OBJECT	},
-	{"eq_legs",			ENTITY_MOB_EQ_LEGS,			ENT_OBJECT	},
-	{"eq_light",		ENTITY_MOB_EQ_LIGHT,		ENT_OBJECT	},
-	{"eq_lodged_arm1",	ENTITY_MOB_EQ_LODGED_ARM1,	ENT_OBJECT	},
-	{"eq_lodged_arm2",	ENTITY_MOB_EQ_LODGED_ARM2,	ENT_OBJECT	},
-	{"eq_lodged_head",	ENTITY_MOB_EQ_LODGED_HEAD,	ENT_OBJECT	},
-	{"eq_lodged_leg1",	ENTITY_MOB_EQ_LODGED_LEG1,	ENT_OBJECT	},
-	{"eq_lodged_leg2",	ENTITY_MOB_EQ_LODGED_LEG2,	ENT_OBJECT	},
-	{"eq_lodged_torso",	ENTITY_MOB_EQ_LODGED_TORSO,	ENT_OBJECT	},
-	{"eq_neck1",		ENTITY_MOB_EQ_NECK1,		ENT_OBJECT	},
-	{"eq_neck2",		ENTITY_MOB_EQ_NECK2,		ENT_OBJECT	},
-	{"eq_ring",			ENTITY_MOB_EQ_RING,			ENT_OBJECT	},
-	{"eq_shield",		ENTITY_MOB_EQ_SHIELD,		ENT_OBJECT	},
-	{"eq_shoulder",		ENTITY_MOB_EQ_SHOULDER,		ENT_OBJECT	},
-	{"eq_tattoo_back",     ENTITY_MOB_EQ_TATTOO_BACK,     ENT_OBJECT      },
-	{"eq_tattoo_head",	ENTITY_MOB_EQ_TATTOO_HEAD,	ENT_OBJECT	},
-	{"eq_tattoo_neck",     ENTITY_MOB_EQ_TATTOO_NECK,     ENT_OBJECT      },
-	{"eq_tattoo_lower_arm1",        ENTITY_MOB_EQ_TATTOO_LOWER_ARM1,      ENT_OBJECT      },
-	{"eq_tattoo_lower_arm2",        ENTITY_MOB_EQ_TATTOO_LOWER_ARM2,      ENT_OBJECT      },
-	{"eq_tattoo_lower_leg1",        ENTITY_MOB_EQ_TATTOO_LOWER_LEG1,      ENT_OBJECT      },
-	{"eq_tattoo_lower_leg2",     ENTITY_MOB_EQ_TATTOO_LOWER_LEG2,     ENT_OBJECT      },
-	{"eq_tattoo_shoulder1",      ENTITY_MOB_EQ_TATTOO_SHOULDER1,      ENT_OBJECT      },
-	{"eq_tattoo_shoulder2",        ENTITY_MOB_EQ_TATTOO_SHOULDER2,      ENT_OBJECT      },
-	{"eq_tattoo_torso",	ENTITY_MOB_EQ_TATTOO_TORSO,	ENT_OBJECT	},
+	{"affects",					ENTITY_MOB_AFFECTS,			ENT_OLLIST_AFF	},
+	{"area",					ENTITY_MOB_AREA,			ENT_AREA	},
+	{"bedroll",					ENTITY_MOB_FURNITURE,		ENT_OBJECT	},
+	{"carrying",				ENTITY_MOB_CARRYING,		ENT_OLLIST_OBJ	},
+	{"cart",					ENTITY_MOB_CART,			ENT_OBJECT	},
+	{"castspell",				ENTITY_MOB_CASTSPELL,		ENT_SKILL	},
+	{"casttarget",				ENTITY_MOB_CASTTARGET,		ENT_STRING	},
+	{"casttoken",				ENTITY_MOB_CASTTOKEN,		ENT_TOKEN	},
+	{"checkpoint",				ENTITY_MOB_CHECKPOINT,		ENT_ROOM	},
+	{"church",					ENTITY_MOB_CHURCH,			ENT_CHURCH	},
+	{"clonerooms",				ENTITY_MOB_CLONEROOMS,		ENT_BLLIST_ROOM	},
+	{"connection",				ENTITY_MOB_CONNECTION,		ENT_CONN	},
+	{"eq_about",				ENTITY_MOB_EQ_ABOUT,		ENT_OBJECT	},
+	{"eq_ankle1",				ENTITY_MOB_EQ_ANKLE1,		ENT_OBJECT	},
+	{"eq_ankle2",				ENTITY_MOB_EQ_ANKLE2,		ENT_OBJECT	},
+	{"eq_arms",					ENTITY_MOB_EQ_ARMS,			ENT_OBJECT	},
+	{"eq_back",					ENTITY_MOB_EQ_BACK,			ENT_OBJECT	},
+	{"eq_body",					ENTITY_MOB_EQ_BODY,			ENT_OBJECT	},
+	{"eq_concealed",			ENTITY_MOB_EQ_CONCEALED,	ENT_OBJECT	},
+	{"eq_ear1",					ENTITY_MOB_EQ_EAR1,			ENT_OBJECT	},
+	{"eq_ear2",					ENTITY_MOB_EQ_EAR2,			ENT_OBJECT	},
+	{"eq_entangled",			ENTITY_MOB_EQ_ENTANGLED,	ENT_OBJECT	},
+	{"eq_eyes",					ENTITY_MOB_EQ_EYES,			ENT_OBJECT	},
+	{"eq_face",					ENTITY_MOB_EQ_FACE,			ENT_OBJECT	},
+	{"eq_feet",					ENTITY_MOB_EQ_FEET,			ENT_OBJECT	},
+	{"eq_finger1",				ENTITY_MOB_EQ_FINGER1,		ENT_OBJECT	},
+	{"eq_finger2",				ENTITY_MOB_EQ_FINGER2,		ENT_OBJECT	},
+	{"eq_hands",				ENTITY_MOB_EQ_HANDS,		ENT_OBJECT	},
+	{"eq_head",					ENTITY_MOB_EQ_HEAD,			ENT_OBJECT	},
+	{"eq_hold",					ENTITY_MOB_EQ_HOLD,			ENT_OBJECT	},
+	{"eq_legs",					ENTITY_MOB_EQ_LEGS,			ENT_OBJECT	},
+	{"eq_light",				ENTITY_MOB_EQ_LIGHT,		ENT_OBJECT	},
+	{"eq_lodged_arm1",			ENTITY_MOB_EQ_LODGED_ARM1,	ENT_OBJECT	},
+	{"eq_lodged_arm2",			ENTITY_MOB_EQ_LODGED_ARM2,	ENT_OBJECT	},
+	{"eq_lodged_head",			ENTITY_MOB_EQ_LODGED_HEAD,	ENT_OBJECT	},
+	{"eq_lodged_leg1",			ENTITY_MOB_EQ_LODGED_LEG1,	ENT_OBJECT	},
+	{"eq_lodged_leg2",			ENTITY_MOB_EQ_LODGED_LEG2,	ENT_OBJECT	},
+	{"eq_lodged_torso",			ENTITY_MOB_EQ_LODGED_TORSO,	ENT_OBJECT	},
+	{"eq_neck1",				ENTITY_MOB_EQ_NECK1,		ENT_OBJECT	},
+	{"eq_neck2",				ENTITY_MOB_EQ_NECK2,		ENT_OBJECT	},
+	{"eq_ring",					ENTITY_MOB_EQ_RING,			ENT_OBJECT	},
+	{"eq_shield",				ENTITY_MOB_EQ_SHIELD,		ENT_OBJECT	},
+	{"eq_shoulder",				ENTITY_MOB_EQ_SHOULDER,		ENT_OBJECT	},
+	{"eq_tattoo_back",			ENTITY_MOB_EQ_TATTOO_BACK,     ENT_OBJECT      },
+	{"eq_tattoo_head",			ENTITY_MOB_EQ_TATTOO_HEAD,	ENT_OBJECT	},
+	{"eq_tattoo_neck",			ENTITY_MOB_EQ_TATTOO_NECK,     ENT_OBJECT      },
+	{"eq_tattoo_lower_arm1",	ENTITY_MOB_EQ_TATTOO_LOWER_ARM1,      ENT_OBJECT      },
+	{"eq_tattoo_lower_arm2",	ENTITY_MOB_EQ_TATTOO_LOWER_ARM2,      ENT_OBJECT      },
+	{"eq_tattoo_lower_leg1",	ENTITY_MOB_EQ_TATTOO_LOWER_LEG1,      ENT_OBJECT      },
+	{"eq_tattoo_lower_leg2",	ENTITY_MOB_EQ_TATTOO_LOWER_LEG2,     ENT_OBJECT      },
+	{"eq_tattoo_shoulder1",		ENTITY_MOB_EQ_TATTOO_SHOULDER1,      ENT_OBJECT      },
+	{"eq_tattoo_shoulder2",		ENTITY_MOB_EQ_TATTOO_SHOULDER2,      ENT_OBJECT      },
+	{"eq_tattoo_torso",			ENTITY_MOB_EQ_TATTOO_TORSO,	ENT_OBJECT	},
 	{"eq_tattoo_upper_arm1",	ENTITY_MOB_EQ_TATTOO_UPPER_ARM1,	ENT_OBJECT	},
 	{"eq_tattoo_upper_arm2",	ENTITY_MOB_EQ_TATTOO_UPPER_ARM2,	ENT_OBJECT	},
 	{"eq_tattoo_upper_leg1",	ENTITY_MOB_EQ_TATTOO_UPPER_LEG1,	ENT_OBJECT	},
 	{"eq_tattoo_upper_leg2",	ENTITY_MOB_EQ_TATTOO_UPPER_LEG2,	ENT_OBJECT	},
-	{"eq_waist",		ENTITY_MOB_EQ_WAIST,		ENT_OBJECT	},
-	{"eq_wield1",		ENTITY_MOB_EQ_WIELD1,		ENT_OBJECT	},
-	{"eq_wield2",		ENTITY_MOB_EQ_WIELD2,		ENT_OBJECT	},
-	{"eq_wrist1",		ENTITY_MOB_EQ_WRIST1,		ENT_OBJECT	},
-	{"eq_wrist2",		ENTITY_MOB_EQ_WRIST2,		ENT_OBJECT	},
-	{"fulldesc",		ENTITY_MOB_FULLDESC,		ENT_STRING	},
-	{"gender",			ENTITY_MOB_SEX,				ENT_STRING	},
-	{"group",			ENTITY_MOB_GROUP,			ENT_GROUP },
-	{"he",				ENTITY_MOB_HE,				ENT_STRING	},
-	{"him",				ENTITY_MOB_HIM,				ENT_STRING	},
-	{"himself",			ENTITY_MOB_HIMSELF,			ENT_STRING	},
-	{"his",				ENTITY_MOB_HIS,				ENT_STRING	},
-	{"hisobj",			ENTITY_MOB_HIS_O,			ENT_STRING	},
-	{"home",			ENTITY_MOB_HOUSE,			ENT_ROOM	},
-	{"house",			ENTITY_MOB_HOUSE,			ENT_ROOM	},
-	{"hunting",			ENTITY_MOB_HUNTING,			ENT_MOBILE	},
-	{"instrument",		ENTITY_MOB_INSTRUMENT,		ENT_OBJECT	},
-	{"inv",				ENTITY_MOB_CARRYING,		ENT_OLLIST_OBJ	},
-	{"leader",			ENTITY_MOB_LEADER,			ENT_MOBILE	},
-	{"long",			ENTITY_MOB_LONG,			ENT_STRING	},
-	{"master",			ENTITY_MOB_MASTER,			ENT_MOBILE	},
-	{"mount",			ENTITY_MOB_MOUNT,			ENT_MOBILE	},
-	{"name",			ENTITY_MOB_NAME,			ENT_STRING	},
-	{"next",			ENTITY_MOB_NEXT,			ENT_MOBILE	},
-	{"on",				ENTITY_MOB_FURNITURE,		ENT_OBJECT	},
-	{"opponent",		ENTITY_MOB_OPPONENT,		ENT_MOBILE	},
-	{"owner",			ENTITY_MOB_OWNER,			ENT_MOBILE	},
-	{"prey",			ENTITY_MOB_HUNTING,			ENT_MOBILE	},
-	{"race",			ENTITY_MOB_RACE,			ENT_STRING	},
-	{"recall",			ENTITY_MOB_RECALL,			ENT_ROOM	},
-	{"rider",			ENTITY_MOB_RIDER,			ENT_MOBILE	},
-	{"room",			ENTITY_MOB_ROOM,			ENT_ROOM	},
-	{"sex",				ENTITY_MOB_SEX,				ENT_STRING	},
-	{"short",			ENTITY_MOB_SHORT,			ENT_STRING	},
-	{"song",			ENTITY_MOB_SONG,			ENT_SONG	},
-	{"songtarget",		ENTITY_MOB_SONGTARGET,		ENT_STRING	},
-	{"songtoken",		ENTITY_MOB_SONGTOKEN,		ENT_TOKEN	},
-	{"target",			ENTITY_MOB_TARGET,			ENT_MOBILE	},
-	{"tokens",			ENTITY_MOB_TOKENS,			ENT_OLLIST_TOK	},
-	{"vars",			ENTITY_MOB_VARIABLES,		ENT_ILLIST_VARIABLE	},
-	{"worn",			ENTITY_MOB_WORN,			ENT_PLLIST_OBJ },
-	{"index",			ENTITY_MOB_INDEX,			ENT_MOBINDEX },
-	{"act",				ENTITY_MOB_ACT,				ENT_BITVECTOR },
-	{"act2",			ENTITY_MOB_ACT2,			ENT_BITVECTOR },
-	{"affected",		ENTITY_MOB_AFFECT,			ENT_BITVECTOR },
-	{"affected2",		ENTITY_MOB_AFFECT2,			ENT_BITVECTOR },
-	{"offense",			ENTITY_MOB_OFF,				ENT_BITVECTOR },
-	{"immune",			ENTITY_MOB_IMMUNE,			ENT_BITVECTOR },
-	{"resist",			ENTITY_MOB_RESIST,			ENT_BITVECTOR },
-	{"vuln",			ENTITY_MOB_VULN,			ENT_BITVECTOR },
-
-	{"tempstring",		ENTITY_MOB_TEMPSTRING,		ENT_STRING },
-	{"pmount",			ENTITY_MOB_PMOUNT,			ENT_MOBILE },
-
+	{"eq_waist",				ENTITY_MOB_EQ_WAIST,		ENT_OBJECT	},
+	{"eq_wield1",				ENTITY_MOB_EQ_WIELD1,		ENT_OBJECT	},
+	{"eq_wield2",				ENTITY_MOB_EQ_WIELD2,		ENT_OBJECT	},
+	{"eq_wrist1",				ENTITY_MOB_EQ_WRIST1,		ENT_OBJECT	},
+	{"eq_wrist2",				ENTITY_MOB_EQ_WRIST2,		ENT_OBJECT	},
+	{"fulldesc",				ENTITY_MOB_FULLDESC,		ENT_STRING	},
+	{"gender",					ENTITY_MOB_SEX,				ENT_STRING	},
+	{"group",					ENTITY_MOB_GROUP,			ENT_GROUP },
+	{"he",						ENTITY_MOB_HE,				ENT_STRING	},
+	{"him",						ENTITY_MOB_HIM,				ENT_STRING	},
+	{"himself",					ENTITY_MOB_HIMSELF,			ENT_STRING	},
+	{"his",						ENTITY_MOB_HIS,				ENT_STRING	},
+	{"hisobj",					ENTITY_MOB_HIS_O,			ENT_STRING	},
+	{"home",					ENTITY_MOB_HOUSE,			ENT_ROOM	},
+	{"house",					ENTITY_MOB_HOUSE,			ENT_ROOM	},
+	{"hunting",					ENTITY_MOB_HUNTING,			ENT_MOBILE	},
+	{"instrument",				ENTITY_MOB_INSTRUMENT,		ENT_OBJECT	},
+	{"inv",						ENTITY_MOB_CARRYING,		ENT_OLLIST_OBJ	},
+	{"leader",					ENTITY_MOB_LEADER,			ENT_MOBILE	},
+	{"long",					ENTITY_MOB_LONG,			ENT_STRING	},
+	{"master",					ENTITY_MOB_MASTER,			ENT_MOBILE	},
+	{"mount",					ENTITY_MOB_MOUNT,			ENT_MOBILE	},
+	{"name",					ENTITY_MOB_NAME,			ENT_STRING	},
+	{"next",					ENTITY_MOB_NEXT,			ENT_MOBILE	},
+	{"on",						ENTITY_MOB_FURNITURE,		ENT_OBJECT	},
+	{"opponent",				ENTITY_MOB_OPPONENT,		ENT_MOBILE	},
+	{"owner",					ENTITY_MOB_OWNER,			ENT_MOBILE	},
+	{"prey",					ENTITY_MOB_HUNTING,			ENT_MOBILE	},
+	{"race",					ENTITY_MOB_RACE,			ENT_STRING	},
+	{"recall",					ENTITY_MOB_RECALL,			ENT_ROOM	},
+	{"rider",					ENTITY_MOB_RIDER,			ENT_MOBILE	},
+	{"room",					ENTITY_MOB_ROOM,			ENT_ROOM	},
+	{"sex",						ENTITY_MOB_SEX,				ENT_STRING	},
+	{"short",					ENTITY_MOB_SHORT,			ENT_STRING	},
+	{"song",					ENTITY_MOB_SONG,			ENT_SONG	},
+	{"songtarget",				ENTITY_MOB_SONGTARGET,		ENT_STRING	},
+	{"songtoken",				ENTITY_MOB_SONGTOKEN,		ENT_TOKEN	},
+	{"target",					ENTITY_MOB_TARGET,			ENT_MOBILE	},
+	{"tokens",					ENTITY_MOB_TOKENS,			ENT_OLLIST_TOK	},
+	{"vars",					ENTITY_MOB_VARIABLES,		ENT_ILLIST_VARIABLE	},
+	{"worn",					ENTITY_MOB_WORN,			ENT_PLLIST_OBJ },
+	{"index",					ENTITY_MOB_INDEX,			ENT_MOBINDEX },
+	{"act",						ENTITY_MOB_ACT,				ENT_BITVECTOR },
+	{"act2",					ENTITY_MOB_ACT2,			ENT_BITVECTOR },
+	{"affected",				ENTITY_MOB_AFFECT,			ENT_BITVECTOR },
+	{"affected2",				ENTITY_MOB_AFFECT2,			ENT_BITVECTOR },
+	{"offense",					ENTITY_MOB_OFF,				ENT_BITVECTOR },
+	{"immune",					ENTITY_MOB_IMMUNE,			ENT_BITVECTOR },
+	{"resist",					ENTITY_MOB_RESIST,			ENT_BITVECTOR },
+	{"vuln",					ENTITY_MOB_VULN,			ENT_BITVECTOR },
+	{"tempstring",				ENTITY_MOB_TEMPSTRING,		ENT_STRING },
+	{"pmount",					ENTITY_MOB_PMOUNT,			ENT_MOBILE },
 	{NULL,				0,							ENT_UNKNOWN	}
 };
 
@@ -308,7 +313,7 @@ ENT_FIELD entity_object[] = {
 	{"container",	ENTITY_OBJ_CONTAINER,	ENT_OBJECT	},
 	{"contents",	ENTITY_OBJ_CONTENTS,	ENT_OLLIST_OBJ	},
 	{"ed",			ENTITY_OBJ_EXTRADESC,	ENT_EXTRADESC	},
-	{"fulldesc",		ENTITY_OBJ_FULLDESC,	ENT_STRING	},
+	{"fulldesc",	ENTITY_OBJ_FULLDESC,	ENT_STRING	},
 	{"in",			ENTITY_OBJ_CONTAINER,	ENT_OBJECT	},
 	{"inv",			ENTITY_OBJ_CONTENTS,	ENT_OLLIST_OBJ	},
 	{"items",		ENTITY_OBJ_CONTENTS,	ENT_OLLIST_OBJ	},
@@ -373,32 +378,33 @@ ENT_FIELD entity_room[] = {
 };
 
 ENT_FIELD entity_exit[] = {
-	{"name",	ENTITY_EXIT_NAME,	ENT_STRING	},
-	{"door",	ENTITY_EXIT_DOOR,	ENT_NUMBER	},
-	{"src",		ENTITY_EXIT_SOURCE,	ENT_ROOM	},
-	{"here",	ENTITY_EXIT_SOURCE,	ENT_ROOM	},
-	{"source",	ENTITY_EXIT_SOURCE,	ENT_ROOM	},
-	{"dest",	ENTITY_EXIT_REMOTE,	ENT_ROOM	},
-	{"remote",	ENTITY_EXIT_REMOTE,	ENT_ROOM	},
+	{"name",		ENTITY_EXIT_NAME,	ENT_STRING	},
+	{"door",		ENTITY_EXIT_DOOR,	ENT_NUMBER	},
+	{"src",			ENTITY_EXIT_SOURCE,	ENT_ROOM	},
+	{"here",		ENTITY_EXIT_SOURCE,	ENT_ROOM	},
+	{"source",		ENTITY_EXIT_SOURCE,	ENT_ROOM	},
+	{"dest",		ENTITY_EXIT_REMOTE,	ENT_ROOM	},
+	{"remote",		ENTITY_EXIT_REMOTE,	ENT_ROOM	},
 	{"destination",	ENTITY_EXIT_REMOTE,	ENT_ROOM	},
-	{"state",	ENTITY_EXIT_STATE,	ENT_STRING	},
-	{"mate",	ENTITY_EXIT_MATE,	ENT_EXIT	},
-	{"north",	ENTITY_EXIT_NORTH,	ENT_EXIT	},
-	{"east",	ENTITY_EXIT_EAST,	ENT_EXIT	},
-	{"south",	ENTITY_EXIT_SOUTH,	ENT_EXIT	},
-	{"west",	ENTITY_EXIT_WEST,	ENT_EXIT	},
-	{"up",		ENTITY_EXIT_UP,		ENT_EXIT	},
-	{"down",	ENTITY_EXIT_DOWN,	ENT_EXIT	},
+	{"state",		ENTITY_EXIT_STATE,	ENT_STRING	},
+	{"mate",		ENTITY_EXIT_MATE,	ENT_EXIT	},
+	{"north",		ENTITY_EXIT_NORTH,	ENT_EXIT	},
+	{"east",		ENTITY_EXIT_EAST,	ENT_EXIT	},
+	{"south",		ENTITY_EXIT_SOUTH,	ENT_EXIT	},
+	{"west",		ENTITY_EXIT_WEST,	ENT_EXIT	},
+	{"up",			ENTITY_EXIT_UP,		ENT_EXIT	},
+	{"down",		ENTITY_EXIT_DOWN,	ENT_EXIT	},
 	{"northeast",	ENTITY_EXIT_NORTHEAST,	ENT_EXIT	},
 	{"northwest",	ENTITY_EXIT_NORTHWEST,	ENT_EXIT	},
 	{"southeast",	ENTITY_EXIT_SOUTHEAST,	ENT_EXIT	},
 	{"southwest",	ENTITY_EXIT_SOUTHWEST,	ENT_EXIT	},
-	{"next",	ENTITY_EXIT_NEXT,	ENT_EXIT	},
-	{NULL,		0,			ENT_UNKNOWN	}
+	{"next",		ENTITY_EXIT_NEXT,	ENT_EXIT	},
+	{NULL,			0,			ENT_UNKNOWN	}
 };
 
 ENT_FIELD entity_token[] = {
 	{"name",	ENTITY_TOKEN_NAME,	ENT_STRING	},
+	{"index",	ENTITY_TOKEN_INDEX, ENT_TOKENINDEX },
 	{"owner",	ENTITY_TOKEN_OWNER,	ENT_MOBILE	},
 	{"object",	ENTITY_TOKEN_OBJECT,	ENT_OBJECT	},
 	{"room",	ENTITY_TOKEN_ROOM,	ENT_ROOM	},
@@ -568,12 +574,12 @@ ENT_FIELD entity_dice[] = {
 };
 
 ENT_FIELD entity_mobindex[] = {
-	{"vnum",			ENTITY_MOBINDEX_VNUM,			ENT_NUMBER },
+	{"wnum",			ENTITY_MOBINDEX_WNUM,			ENT_WIDEVNUM },
 	{"loaded",			ENTITY_MOBINDEX_LOADED,			ENT_NUMBER },
 };
 
 ENT_FIELD entity_objindex[] = {
-	{"vnum",			ENTITY_OBJINDEX_VNUM,			ENT_NUMBER },
+	{"wnum",			ENTITY_OBJINDEX_WNUM,			ENT_WIDEVNUM },
 	{"loaded",			ENTITY_OBJINDEX_LOADED,			ENT_NUMBER },
 	{"inrooms",			ENTITY_OBJINDEX_INROOMS,		ENT_NUMBER },
 	{"inmail",			ENTITY_OBJINDEX_INMAIL,			ENT_NUMBER },
@@ -583,15 +589,22 @@ ENT_FIELD entity_objindex[] = {
 	{NULL,				0,								ENT_UNKNOWN	}
 };
 
-ENT_FIELD entity_instance_section[] = {
-	{"rooms",			ENTITY_SECTION_ROOMS,			ENT_PLLIST_ROOM	},
-	{"instance",		ENTITY_SECTION_INSTANCE,		ENT_INSTANCE },
+ENT_FIELD entity_tokenindex[] = {
+	{"wnum",			ENTITY_TOKENINDEX_WNUM,			ENT_WIDEVNUM },
 	{NULL,				0,								ENT_UNKNOWN	}
 };
 
 
+ENT_FIELD entity_instance_section[] = {
+	{"rooms",			ENTITY_SECTION_ROOMS,			ENT_PLLIST_ROOM	},
+	{"blueprint",		ENTITY_SECTION_INDEX,			ENT_BLUEPRINT_SECTION},
+	{"instance",		ENTITY_SECTION_INSTANCE,		ENT_INSTANCE },
+	{NULL,				0,								ENT_UNKNOWN	}
+};
+
 ENT_FIELD entity_instance[] = {
 	{"name",			ENTITY_INSTANCE_NAME,			ENT_STRING			},
+	{"index",			ENTITY_INSTANCE_BLUEPRINT,		ENT_BLUEPRINT		},
 	{"sections",		ENTITY_INSTANCE_SECTIONS,		ENT_ILLIST_SECTIONS	},
 	{"owners",			ENTITY_INSTANCE_OWNERS,			ENT_BLLIST_MOB		},
 	{"object",			ENTITY_INSTANCE_OBJECT,			ENT_OBJECT			},
@@ -612,8 +625,20 @@ ENT_FIELD entity_instance[] = {
 	{NULL,				0,								ENT_UNKNOWN			}
 };
 
+ENT_FIELD entity_blueprint[] = {
+	{"wnum",			ENTITY_BLUEPRINT_WNUM,			ENT_WIDEVNUM },
+	{NULL,				0,								ENT_UNKNOWN			}
+};
+
+ENT_FIELD entity_blueprint_section[] = {
+	{"wnum",			ENTITY_BLUEPRINT_SECTION_WNUM,			ENT_WIDEVNUM },
+	{NULL,				0,								ENT_UNKNOWN			}
+};
+
+
 ENT_FIELD entity_dungeon[] = {
 	{"name",			ENTITY_DUNGEON_NAME,			ENT_STRING			},
+	{"index",			ENTITY_DUNGEON_INDEX,			ENT_DUNGEONINDEX	},
 	{"floors",			ENTITY_DUNGEON_FLOORS,			ENT_ILLIST_INSTANCES},
 	{"desc",			ENTITY_DUNGEON_DESC,			ENT_STRING			},
 	{"owners",			ENTITY_DUNGEON_OWNERS,			ENT_BLLIST_MOB		},
@@ -628,9 +653,20 @@ ENT_FIELD entity_dungeon[] = {
 	{NULL,				0,								ENT_UNKNOWN			}
 };
 
+ENT_FIELD entity_dungeon_index[] = {
+	{"wnum",			ENTITY_DUNGEONINDEX_WNUM,			ENT_WIDEVNUM },
+	{NULL,				0,								ENT_UNKNOWN			}
+};
+
 ENT_FIELD entity_ship[] = {
 	{"name",			ENTITY_SHIP_NAME,				ENT_STRING			},
+	{"index",			ENTITY_SHIP_INDEX,				ENT_SHIPINDEX		},
 	{"object",			ENTITY_SHIP_OBJECT,				ENT_OBJECT			},
+	{NULL,				0,								ENT_UNKNOWN			}
+};
+
+ENT_FIELD entity_ship_index[] = {
+	{"wnum",			ENTITY_SHIPINDEX_WNUM,			ENT_WIDEVNUM },
 	{NULL,				0,								ENT_UNKNOWN			}
 };
 
@@ -680,9 +716,13 @@ struct _entity_type_info entity_type_info[] = {
 	{ ENT_DICE,			ENT_DICE,			entity_dice,				FALSE	},
 	{ ENT_MOBINDEX,		ENT_MOBINDEX,		entity_mobindex,			FALSE	},
 	{ ENT_OBJINDEX,		ENT_OBJINDEX,		entity_objindex,			FALSE	},
+	{ ENT_TOKENINDEX,		ENT_TOKENINDEX,		entity_tokenindex,			FALSE	},
 	{ ENT_SECTION,		ENT_SECTION,		entity_instance_section,	FALSE	},
 	{ ENT_INSTANCE,		ENT_INSTANCE,		entity_instance,			FALSE	},
 	{ ENT_DUNGEON,		ENT_DUNGEON,		entity_dungeon,				FALSE	},
+	{ ENT_BLUEPRINT_SECTION,		ENT_BLUEPRINT_SECTION,		entity_blueprint_section,	FALSE	},
+	{ ENT_BLUEPRINT,		ENT_BLUEPRINT,		entity_blueprint,			FALSE	},
+	{ ENT_DUNGEONINDEX,		ENT_DUNGEONINDEX,		entity_dungeon_index,				FALSE	},
 	{ ENT_UNKNOWN,		ENT_UNKNOWN,		NULL,						FALSE	},
 };
 

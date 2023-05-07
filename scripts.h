@@ -322,6 +322,14 @@ enum variable_enum {
 	VAR_SHIP,
 	VAR_SONG,			// References a bard song
 
+	VAR_MOBINDEX,
+	VAR_OBJINDEX,
+	VAR_TOKENINDEX,
+	VAR_BLUEPRINT,
+	VAR_BLUEPRINT_SECTION,
+	VAR_DUNGEONINDEX,
+	VAR_SHIPINDEX,
+
 	VAR_BLLIST_FIRST,
 	////////////////////////
 
@@ -436,6 +444,7 @@ enum entity_type_enum {
 
 	ENT_MOBINDEX,
 	ENT_OBJINDEX,
+	ENT_TOKENINDEX,
 
 	//////////////////////////////
 	// Bucket? lists
@@ -511,6 +520,11 @@ enum entity_type_enum {
 	ENT_SHIP,
 	ENT_FLEET,
 
+	ENT_BLUEPRINT,
+	ENT_BLUEPRINT_SECTION,
+	ENT_DUNGEONINDEX,
+	ENT_SHIPINDEX,
+
 	ENT_QUESTPART,
 	ENT_QUEST,
 
@@ -568,6 +582,13 @@ enum entity_variable_types_enum {
 	ENTITY_VAR_INSTANCE,
 	ENTITY_VAR_DUNGEON,
 	ENTITY_VAR_SHIP,
+	ENTITY_VAR_MOBINDEX,
+	ENTITY_VAR_OBJINDEX,
+	ENTITY_VAR_TOKENINDEX,
+	ENTITY_VAR_BLUEPRINT,
+	ENTITY_VAR_BLUEPRINT_SECTION,
+	ENTITY_VAR_DUNGEONINDEX,
+	ENTITY_VAR_SHIPINDEX,
 
 	ENTITY_VAR_BLLIST_ROOM,
 	ENTITY_VAR_BLLIST_MOB,
@@ -688,15 +709,15 @@ enum entity_mobile_enum {
 	ENTITY_MOB_EQ_TATTOO_UPPER_ARM2,
 	ENTITY_MOB_EQ_TATTOO_UPPER_LEG1,
 	ENTITY_MOB_EQ_TATTOO_UPPER_LEG2,
-        ENTITY_MOB_EQ_TATTOO_LOWER_ARM1,
-        ENTITY_MOB_EQ_TATTOO_LOWER_ARM2,
-        ENTITY_MOB_EQ_TATTOO_LOWER_LEG1,
-        ENTITY_MOB_EQ_TATTOO_LOWER_LEG2,
-        ENTITY_MOB_EQ_TATTOO_SHOULDER1,
-        ENTITY_MOB_EQ_TATTOO_SHOULDER2,
-        ENTITY_MOB_EQ_TATTOO_BACK,
+	ENTITY_MOB_EQ_TATTOO_LOWER_ARM1,
+	ENTITY_MOB_EQ_TATTOO_LOWER_ARM2,
+	ENTITY_MOB_EQ_TATTOO_LOWER_LEG1,
+	ENTITY_MOB_EQ_TATTOO_LOWER_LEG2,
+	ENTITY_MOB_EQ_TATTOO_SHOULDER1,
+	ENTITY_MOB_EQ_TATTOO_SHOULDER2,
+	ENTITY_MOB_EQ_TATTOO_BACK,
 	ENTITY_MOB_EQ_LODGED_HEAD,
-        ENTITY_MOB_EQ_TATTOO_NECK,
+	ENTITY_MOB_EQ_TATTOO_NECK,
 	ENTITY_MOB_EQ_LODGED_TORSO,
 	ENTITY_MOB_EQ_LODGED_ARM1,
 	ENTITY_MOB_EQ_LODGED_ARM2,
@@ -736,6 +757,7 @@ enum entity_mobile_enum {
 
 enum entity_object_enum {
 	ENTITY_OBJ_NAME = ESCAPE_EXTRA,
+	ENTITY_OBJ_INDEX,
 	ENTITY_OBJ_SHORT,
 	ENTITY_OBJ_LONG,
 	ENTITY_OBJ_FULLDESC,
@@ -753,7 +775,6 @@ enum entity_object_enum {
 	ENTITY_OBJ_NEXT,
 	ENTITY_OBJ_AFFECTS,
 	ENTITY_OBJ_VARIABLES,
-	ENTITY_OBJ_INDEX,
 	ENTITY_OBJ_EXTRA,
 	ENTITY_OBJ_EXTRA2,
 	ENTITY_OBJ_EXTRA3,
@@ -818,6 +839,7 @@ enum entity_exit_enum {
 
 enum entity_token_enum {
 	ENTITY_TOKEN_NAME = ESCAPE_EXTRA,
+	ENTITY_TOKEN_INDEX,
 	ENTITY_TOKEN_OWNER,
 	ENTITY_TOKEN_OBJECT,
 	ENTITY_TOKEN_ROOM,
@@ -854,6 +876,7 @@ enum entity_wilds_enum {
 	ENTITY_WILDS_HEIGHT,				//**
 	ENTITY_WILDS_VROOMS,				//**
 	ENTITY_WILDS_VLINKS,				//**
+	ENTITY_WILDS_REGIONS,
 };
 
 enum entity_game_enum {
@@ -867,6 +890,8 @@ enum entity_game_enum {
 	ENTITY_GAME_WILDS,
 	ENTITY_GAME_CHURCHES,
 	ENTITY_GAME_SHIPS,
+	ENTITY_GAME_INSTANCES,
+	ENTITY_GAME_DUNGEONS,
 	ENTITY_GAME_RELIC_POWER,
 	ENTITY_GAME_RELIC_KNOWLEDGE,
 	ENTITY_GAME_RELIC_LOSTSOULS,
@@ -998,12 +1023,12 @@ enum entity_dice_enum {
 };
 
 enum entity_mobindex_enum {
-	ENTITY_MOBINDEX_VNUM = ESCAPE_EXTRA,
+	ENTITY_MOBINDEX_WNUM = ESCAPE_EXTRA,
 	ENTITY_MOBINDEX_LOADED,
 };
 
 enum entity_objindex_enum {
-	ENTITY_OBJINDEX_VNUM = ESCAPE_EXTRA,
+	ENTITY_OBJINDEX_WNUM = ESCAPE_EXTRA,
 	ENTITY_OBJINDEX_LOADED,
 	ENTITY_OBJINDEX_INROOMS,
 	ENTITY_OBJINDEX_INMAIL,
@@ -1012,15 +1037,23 @@ enum entity_objindex_enum {
 	ENTITY_OBJINDEX_INCONTAINER,
 };
 
+enum entity_tokenindex_enum {
+	ENTITY_TOKENINDEX_WNUM = ESCAPE_EXTRA,
+};
+
 enum entity_instance_section_enum {
 	ENTITY_SECTION_ROOMS = ESCAPE_EXTRA,
-	// TODO: ENTITY_SECTION_INDEX,
+	ENTITY_SECTION_INDEX,
 	ENTITY_SECTION_INSTANCE,
+};
+
+enum entity_blueprint_section_enum {
+	ENTITY_BLUEPRINT_SECTION_WNUM = ESCAPE_EXTRA,
 };
 
 enum entity_instance_enum {
 	ENTITY_INSTANCE_NAME = ESCAPE_EXTRA,
-	// TODO: ENTITY_INSTANCE_BLUEPRINT,
+	ENTITY_INSTANCE_BLUEPRINT,
 	ENTITY_INSTANCE_SECTIONS,
 	ENTITY_INSTANCE_OWNERS,
 	ENTITY_INSTANCE_OBJECT,
@@ -1038,12 +1071,17 @@ enum entity_instance_enum {
 	ENTITY_INSTANCE_OBJECTS,
 	ENTITY_INSTANCE_BOSSES,
 	ENTITY_INSTANCE_SPECIAL_ROOMS,
-	// TODO: ENTITY_INSTANCE_SPECIAL_EXITS,
+	ENTITY_INSTANCE_SPECIAL_EXITS,
 };
+
+enum entity_blueprint_enum {
+	ENTITY_BLUEPRINT_WNUM = ESCAPE_EXTRA,
+};
+
 
 enum entity_dungeon_enum {
 	ENTITY_DUNGEON_NAME = ESCAPE_EXTRA,
-	// TODO: ENTITY_DUNGEON_INDEX,
+	ENTITY_DUNGEON_INDEX,
 	ENTITY_DUNGEON_FLOORS,
 	ENTITY_DUNGEON_DESC,
 	ENTITY_DUNGEON_OWNERS,
@@ -1055,12 +1093,16 @@ enum entity_dungeon_enum {
 	ENTITY_DUNGEON_OBJECTS,
 	ENTITY_DUNGEON_BOSSES,
 	ENTITY_DUNGEON_SPECIAL_ROOMS,
-	// TODO: ENTITY_DUNGEON_SPECIAL_EXITS,
+	ENTITY_DUNGEON_SPECIAL_EXITS,
+};
+
+enum entity_dungeonindex_enum {
+	ENTITY_DUNGEONINDEX_WNUM = ESCAPE_EXTRA,
 };
 
 enum entity_ship_enum {
 	ENTITY_SHIP_NAME = ESCAPE_EXTRA,
-	// TODO: ENTITY_SHIP_INDEX,
+	ENTITY_SHIP_INDEX,
 	ENTITY_SHIP_OBJECT,
 	// TODO: ENTITY_SHIP_FLEET,
 	// TODO: ENTITY_SHIP_HELM,
@@ -1076,6 +1118,10 @@ enum entity_ship_enum {
 	// TODO: ENTITY_SHIP_SCOUT,
 	// TODO: ENTITY_SHIP_MECHANIC,
 	// TODO: ENTITY_SHIP_FLAG,
+};
+
+enum entity_shipindex_enum {
+	ENTITY_SHIPINDEX_WNUM = ESCAPE_EXTRA,
 };
 
 /*
@@ -1207,6 +1253,13 @@ struct script_var_type {
 		INSTANCE *instance;
 		DUNGEON *dungeon;
 		SHIP_DATA *ship;
+		MOB_INDEX_DATA *mindex;
+		OBJ_INDEX_DATA *oindex;
+		TOKEN_INDEX_DATA *tindex;
+		BLUEPRINT *bp;
+		BLUEPRINT_SECTION *bs;
+		DUNGEON_INDEX_DATA *dngindex;
+		SHIP_INDEX_DATA *shipindex;
 		bool boolean;
 		int sn;
 		int song;
@@ -1379,6 +1432,11 @@ struct script_parameter {
 
 		MOB_INDEX_DATA *mobindex;
 		OBJ_INDEX_DATA *objindex;
+		TOKEN_INDEX_DATA *tokindex;
+		BLUEPRINT *bp;
+		BLUEPRINT_SECTION *bs;
+		DUNGEON_INDEX_DATA *dngindex;
+		SHIP_INDEX_DATA *shipindex;
 
 		INSTANCE_SECTION *section;
 		INSTANCE *instance;
@@ -2172,6 +2230,21 @@ bool variables_setsave_instance_section (ppVARIABLE list,char *name,INSTANCE_SEC
 bool variables_setsave_instance (ppVARIABLE list,char *name,INSTANCE *instance, bool save);
 bool variables_setsave_dungeon (ppVARIABLE list,char *name,DUNGEON *dungeon, bool save);
 bool variables_setsave_ship (ppVARIABLE list,char *name,SHIP_DATA *ship, bool save);
+bool variables_set_mobindex(ppVARIABLE list,char *name,MOB_INDEX_DATA *m);
+bool variables_set_objindex(ppVARIABLE list,char *name,OBJ_INDEX_DATA *o);
+bool variables_set_tokenindex(ppVARIABLE list,char *name,TOKEN_INDEX_DATA *t);
+bool variables_set_blueprint_section (ppVARIABLE list,char *name,BLUEPRINT_SECTION *section);
+bool variables_set_blueprint (ppVARIABLE list,char *name,BLUEPRINT *blueprint);
+bool variables_set_dungeonindex (ppVARIABLE list,char *name,DUNGEON_INDEX_DATA *dngindex);
+bool variables_set_shipindex (ppVARIABLE list,char *name,SHIP_INDEX_DATA *shipindex);
+bool variables_setsave_mobindex(ppVARIABLE list,char *name,MOB_INDEX_DATA *m, bool save);
+bool variables_setsave_objindex(ppVARIABLE list,char *name,OBJ_INDEX_DATA *o, bool save);
+bool variables_setsave_tokenindex(ppVARIABLE list,char *name,TOKEN_INDEX_DATA *t, bool save);
+bool variables_setsave_blueprint_section (ppVARIABLE list,char *name,BLUEPRINT_SECTION *section, bool save);
+bool variables_setsave_blueprint (ppVARIABLE list,char *name,BLUEPRINT *blueprint, bool save);
+bool variables_setsave_dungeonindex (ppVARIABLE list,char *name,DUNGEON_INDEX_DATA *dngindex, bool save);
+bool variables_setsave_shipindex (ppVARIABLE list,char *name,SHIP_INDEX_DATA *shipindex, bool save);
+
 int variable_fread_type(char *str);
 pVARIABLE variable_create(ppVARIABLE list,char *name, bool index, bool clear);
 pVARIABLE variable_get(pVARIABLE list,char *name);
