@@ -348,7 +348,7 @@ const	struct	cmd_type	cmd_table	[] =
     { "wake",		do_wake,	POS_SLEEPING,	0,  LOG_NORMAL, 1, FALSE },
     { "warp",		do_warp,	POS_RESTING,	0,  LOG_ALWAYS, 1, FALSE },
     { "where",		do_where,	POS_RESTING,	0,  LOG_NORMAL, 1, TRUE },
-    { "whistle",	do_whistle,	POS_STANDING,	0,  LOG_NORMAL,	1, FALSE },
+    //{ "whistle",	do_whistle,	POS_STANDING,	0,  LOG_NORMAL,	1, FALSE },
 
     // Immortal commands.
     { "addcommand",	do_addcommand,	POS_DEAD,	ML,  LOG_ALWAYS, 1, TRUE },

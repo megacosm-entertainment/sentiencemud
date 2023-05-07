@@ -2274,7 +2274,6 @@ SCRIPT_CMD(scriptcmd_loadinstanced)
 }
 
 // LOCKADD $OBJECT
-// TODO: Add to exits
 SCRIPT_CMD(scriptcmd_lockadd)
 {
 	info->progs->lastreturn = 0;
@@ -2330,6 +2329,296 @@ SCRIPT_CMD(scriptcmd_lockremove)
 	info->progs->lastreturn = 1;
 }
 
+// LOCKSET $LOCKSTATE key $WNUM|$OBJECT
+// LOCKSET $LOCKSTATE pick $NUMBER
+// LOCKSET $LOCKSTATE flag BOP $STRING
+// LOCKSET $LOCKSTATE special add $NUMBER $NUMBER
+// LOCKSET $LOCKSTATE special add $OBJECT
+// LOCKSET $LOCKSTATE special remove $NUMBER $NUMBER
+// LOCKSET $LOCKSTATE special remove $OBJECT
+// LOCKSET $LOCKSTATE finalize
+//
+// $LOCKSTATE can be one of the following
+//  - $OBJECT
+//  - $EXIT $BOOLEAN
+//  - $ROOM $STRING $BOOLEAN
+//
+// BOP = bit operator (|, &, ^, =)
+SCRIPT_CMD(scriptcmd_lockset)
+{
+	if(!info) return;
+
+	char *rest;
+	LOCK_STATE *lock = NULL;
+	info->progs->lastreturn = 0;
+
+	if (!(rest = expand_argument(info,argument,arg)))
+		return;
+
+	switch(arg->type)
+	{
+	case ENT_OBJECT:
+		lock = IS_VALID(arg->d.obj) ? arg->d.obj->lock : NULL;
+		break;
+	
+	case ENT_EXIT: {
+			EXIT_DATA *ex = arg->d.door.r ? arg->d.door.r->exit[arg->d.door.door] : NULL;
+			
+			if (!(rest = expand_argument(info, rest, arg)) || arg->type != ENT_BOOLEAN)
+				return;
+
+			if (arg->d.boolean)
+				lock = ex ? &ex->door.rs_lock : NULL;
+			else
+				lock = ex ? &ex->door.lock : NULL;
+			break;
+		}
+
+	case ENT_ROOM: {
+			ROOM_INDEX_DATA *room = arg->d.room;
+
+			if (!room) return;
+
+			if(!(rest = expand_argument(info, rest, arg)) || arg->type != ENT_STRING)
+				return;
+			
+			int door = get_num_dir(arg->d.str);
+			if (door < 0 || door >= MAX_DIR) return;
+
+			EXIT_DATA *ex = room->exit[door];
+
+			if (!(rest = expand_argument(info, rest, arg)) || arg->type != ENT_BOOLEAN)
+				return;
+
+			if (arg->d.boolean)
+				lock = ex ? &ex->door.rs_lock : NULL;
+			else
+				lock = ex ? &ex->door.lock : NULL;
+			break;
+		}
+	
+	default: return;
+	}
+
+	if (!lock) return;	 // No lock
+
+	// OLC created locks or finalized scripted locks
+	if (!IS_SET(lock->flags, LOCK_CREATED) || IS_SET(lock->flags, LOCK_FINAL))
+	{
+		if (info->trigger_type == TRIG_SPELL)
+		// Check for other trigger types that are from a spell
+		{
+			if (IS_SET(lock->flags, LOCK_NOMAGIC))
+				return;
+		}
+		else
+		{
+			if (IS_SET(lock->flags, LOCK_NOSCRIPT))
+				return;
+		}
+	}
+
+	if (!(rest = expand_argument(info, rest, arg)) || arg->type != ENT_STRING)
+		return;
+
+	if (!str_prefix(arg->d.str, "key"))
+	{
+		// Should this be allowed?
+
+		// KEY $OBJECT|$WNUM|clear|none
+		if (!expand_argument(info, rest, arg))
+			return;
+
+		OBJ_INDEX_DATA *pObjIndex = NULL;
+		bool clear = FALSE;
+		if (arg->type == ENT_WIDEVNUM)
+		{
+			// Verify the key exists
+			if(!(pObjIndex = get_obj_index_wnum(arg->d.wnum)))
+				return;
+		}
+		else if (arg->type == ENT_OBJECT)
+		{
+			pObjIndex = IS_VALID(arg->d.obj) ? arg->d.obj->pIndexData : NULL;
+		}
+		else if (arg->type == ENT_STRING)
+		{
+			if (!str_prefix(arg->d.str, "clear") || !str_prefix(arg->d.str, "none"))
+				clear = TRUE;
+		}
+
+		if (clear)
+		{
+			// Clear the current key definition
+			lock->key_wnum.pArea = NULL;
+			lock->key_wnum.vnum = 0;
+		}
+		else
+		{
+
+			// No item
+			if (!pObjIndex) return;
+
+			// Not a key
+			if (pObjIndex->item_type != ITEM_KEY) return;
+
+			lock->key_wnum.pArea = pObjIndex->area;
+			lock->key_wnum.vnum = pObjIndex->vnum;
+		}
+	}
+	else if(!str_prefix(arg->d.str, "pick"))
+	{
+		if (!expand_argument(info,rest,arg) || arg->type != ENT_NUMBER)
+			return;
+		
+		lock->pick_chance = arg->d.num;
+	}
+	else if (!str_prefix(arg->d.str, "flags"))
+	{
+		char bop[MIL];
+		int value;
+		rest = one_argument(rest, bop);
+
+		if (!expand_argument(info, rest, arg) || arg->type != ENT_STRING)
+			return;
+
+		value = script_flag_value(lock_flags, arg->d.str);
+		if (value == NO_FLAG) value = 0;
+
+		int mask = ~(LOCK_CREATED|LOCK_FINAL);	// Allow all flags except CREATED and FINAL
+
+		// Filter out flags for existing/finalized locks
+		if (!IS_SET(lock->flags, LOCK_CREATED) || IS_SET(lock->flags, LOCK_FINAL))
+		{
+			mask = (LOCK_LOCKED | LOCK_MAGIC | LOCK_SNAPKEY | LOCK_BROKEN | LOCK_JAMMED);
+		}
+
+		// Keep only allowed flags
+		value &= mask;
+
+		// Nothing to change
+		if (!value) return;
+
+		switch(bop[0])
+		{
+			case '|':	// Turn on bits
+				SET_BIT(lock->flags, value);
+				break;
+			
+			case '^':	// Toggle bits
+				TOGGLE_BIT(lock->flags, value);
+				break;
+
+			case '&':	// Mask bits
+				lock->flags &= (value | ~mask);		// Make sure all the disallowed bits are kept
+				break;
+			
+			case '!':	// Turn off bits
+				REMOVE_BIT(lock->flags, value);
+				break;
+
+			case '=':
+				lock->flags = (lock->flags & ~mask) | value;
+				break;
+		}
+	}
+	else if(!str_prefix(arg->d.str, "special"))
+	{
+		// Only allow modifying these on unfinalized scripted locks.
+		if (!IS_SET(lock->flags, LOCK_CREATED) || IS_SET(lock->flags, LOCK_FINAL))
+			return;
+
+		if (!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING)
+			return;
+
+		unsigned long id0 = 0, id1 = 0;
+		if (!str_prefix(arg->d.str, "add"))
+		{
+
+			if (!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_OBJECT)
+				return;
+
+			if (!IS_VALID(arg->d.obj))
+				return;
+
+			bool found = FALSE;
+			LLIST_UID_DATA *luid;
+			ITERATOR sxit;
+			iterator_start(&sxit, lock->keys);
+			while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&sxit)) )
+			{
+				if (luid->ptr == arg->d.obj)
+				{
+					found = TRUE;
+					break;
+				}
+			}
+			iterator_stop(&sxit);
+
+			if (!found)
+			{
+				luid = new_list_uid_data();
+				luid->ptr = arg->d.obj;
+				luid->id[0] = arg->d.obj->id[0];
+				luid->id[1] = arg->d.obj->id[1];
+
+				list_appendlink(lock->keys, luid);
+			}
+		}
+		else if(!str_prefix(arg->d.str, "remove"))
+		{
+			if (!(rest = expand_argument(info,rest,arg)))
+				return;
+
+			if (arg->type == ENT_NUMBER)
+			{
+				id0 = arg->d.num;
+				if (!expand_argument(info, rest, arg) || arg->type != ENT_NUMBER)
+					return;
+				id1 = arg->d.num;
+			}
+			else if (arg->type == ENT_OBJECT)
+			{
+				if (!IS_VALID(arg->d.obj))
+					return;
+				
+				id0 = arg->d.obj->id[0];
+				id1 = arg->d.obj->id[1];
+			}
+
+			if (!id0 && !id1) return;
+
+			LLIST_UID_DATA *luid;
+			ITERATOR sxit;
+			iterator_start(&sxit, lock->keys);
+			while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&sxit)) )
+			{
+				if (luid->id[0] == id0 && luid->id[1] == id1)
+				{
+					iterator_remcurrent(&sxit);
+					break;
+				}
+			}
+			iterator_stop(&sxit);
+
+		}
+		else if (!str_prefix(arg->d.str, "clear"))
+		{
+			list_clear(lock->keys);
+		}
+		else
+			return;
+	}
+	else if(!str_prefix(arg->d.str, "finalize"))
+	{
+		if (IS_SET(lock->flags, LOCK_CREATED))
+			SET_BIT(lock->flags, LOCK_FINAL);
+	}
+	else
+		return;
+
+	info->progs->lastreturn = 1;
+}
 
 //////////////////////////////////////
 // M

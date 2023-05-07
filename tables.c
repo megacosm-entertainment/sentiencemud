@@ -1070,6 +1070,9 @@ const struct flag_type lock_flags[] =
 	{	"broken",		LOCK_BROKEN,		TRUE	},
 	{	"jammed",		LOCK_JAMMED,		TRUE	},
 	{	"nojam",		LOCK_NOJAM,			TRUE	},
+    {   "nomagic",      LOCK_NOMAGIC,       TRUE    },
+    {   "noscript",     LOCK_NOSCRIPT,      TRUE    },
+    {   "final",        LOCK_FINAL,         FALSE   },
 	{	"created",		LOCK_CREATED,		FALSE	},
 	{	NULL,			0,					0		}
 };

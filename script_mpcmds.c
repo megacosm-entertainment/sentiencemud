@@ -88,6 +88,7 @@ const struct script_cmd_type mob_cmd_table[] = {
 	{ "loadinstanced",		scriptcmd_loadinstanced,	TRUE,	TRUE	},
 	{ "lockadd",			scriptcmd_lockadd,			FALSE,	TRUE	},
 	{ "lockremove",			scriptcmd_lockremove,		FALSE,	TRUE	},
+	{ "lockset",			scriptcmd_lockset,			FALSE,	TRUE	},
 	{ "mload",				do_mpmload,					FALSE,	TRUE	},
 	{ "mute",				scriptcmd_mute,				FALSE,	TRUE	},
 	{ "oload",				do_mpoload,					FALSE,	TRUE	},
@@ -4227,8 +4228,6 @@ SCRIPT_CMD(do_mpalterobj)
 		else if(!str_cmp(field,"extra4"))		{ ptr = (int*)&obj->extra4_flags; flags = extra4_flags; min_sec = 7; }
 		else if(!str_cmp(field,"fixes"))		{ ptr = (int*)&obj->times_allowed_fixed; min_sec = 5; }
 		else if(!str_cmp(field,"level"))		{ ptr = (int*)&obj->level; min_sec = 5; }
-		else if(!str_cmp(field,"lockflags"))	{ if( obj->lock ) { ptr = (int*)&obj->lock->flags; flags = lock_flags; } }
-		else if(!str_cmp(field,"pickchance"))	{ if( obj->lock ) { ptr = (int*)&obj->lock->pick_chance; min = 0; max = 100; hasmin = hasmax = TRUE; } }
 		else if(!str_cmp(field,"repairs"))		ptr = (int*)&obj->times_fixed;
 		else if(!str_cmp(field,"tempstore1"))	ptr = (int*)&obj->tempstore[0];
 		else if(!str_cmp(field,"tempstore2"))	ptr = (int*)&obj->tempstore[1];
@@ -4264,23 +4263,6 @@ SCRIPT_CMD(do_mpalterobj)
 				if( buf[0] == '=' || buf[0] == '&' )
 				{
 					value |= (*ptr & (ITEM_INSTANCE_OBJ));
-				}
-			}
-			else if( flags == lock_flags )
-			{
-				int keep = LOCK_CREATED;
-
-				if( !IS_SET(*ptr, LOCK_CREATED) )
-				{
-					SET_BIT(keep, LOCK_NOREMOVE);
-					SET_BIT(keep, LOCK_NOJAM);
-				}
-
-				REMOVE_BIT(value, keep);
-
-				if( buf[0] == '=' || buf[0] == '&' )
-				{
-					value |= (*ptr & keep);
 				}
 			}
 		}
@@ -5910,10 +5892,6 @@ SCRIPT_CMD(do_mpalterexit)
 	if(!str_cmp(field,"flags"))					{ ptr = (int*)&ex->exit_info; flags = exit_flags; }
 	else if(!str_cmp(field,"resets"))			{ ptr = (int*)&ex->rs_flags; flags = exit_flags; min_sec = 7; }
 	else if(!str_cmp(field,"strength"))			sptr = (sh_int*)&ex->door.strength;
-	else if(!str_cmp(field,"lock"))				{ ptr = (int*)&ex->door.lock.flags; flags = lock_flags; }
-	else if(!str_cmp(field,"lockreset"))		{ ptr = (int*)&ex->door.rs_lock.flags; flags = lock_flags; min_sec = 7; }
-	else if(!str_cmp(field,"pick"))				{ ptr = (int*)&ex->door.lock.pick_chance; min = 0; max = 100; hasmin = hasmax = TRUE; }
-	else if(!str_cmp(field,"pickreset"))		{ ptr = (int*)&ex->door.rs_lock.pick_chance; min_sec = 7; min = 0; max = 100; hasmin = hasmax = TRUE; }
 
 	if(!ptr && !sptr) return;
 
@@ -5941,23 +5919,6 @@ SCRIPT_CMD(do_mpalterexit)
 			if( (buf[0] == '=') || (buf[0] == '&') )
 			{
 				value |= (*ptr & (EX_NOUNLINK|EX_PREVFLOOR|EX_NEXTFLOOR));
-			}
-		}
-		else if( flags == lock_flags )
-		{
-			int keep = LOCK_CREATED;
-
-			if( !IS_SET(*ptr, LOCK_CREATED) )
-			{
-				// OLC created locks can lose noremove
-				SET_BIT(value, LOCK_NOREMOVE);
-				SET_BIT(value, LOCK_NOJAM);
-			}
-
-			REMOVE_BIT(value, keep);
-			if( (buf[0] == '=') || (buf[0] == '&') )
-			{
-				value |= (*ptr & keep);
 			}
 		}
 	}

@@ -4408,6 +4408,9 @@ struct  conditional_descr_data
 #define LOCK_JAMMED			(G)		// Locking mechanism has been jammed
 #define LOCK_NOJAM			(H)		// Lock does not allow being jammed
 
+#define LOCK_FINAL          (W)     // Created Lock has been finalized for a purposes of scripting manipulation
+#define LOCK_NOMAGIC        (X)     // Magical based trigger script calls cannot edit the lock
+#define LOCK_NOSCRIPT       (Y)     // Non-magical based trigger script calls cannot edit the lock
 #define LOCK_CREATED		(Z)		// Lock was created by a script, so allows full alter exit manipulation
 
 typedef struct lock_state_data {

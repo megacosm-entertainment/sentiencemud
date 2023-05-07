@@ -9217,7 +9217,6 @@ OBJ_DATA *lockstate_getkey(CHAR_DATA *ch, LOCK_STATE *lock)
 					if( obj->in_obj->carried_by == ch )
 						break;
 				}
-
 			}
 		}
 		iterator_stop(&it);

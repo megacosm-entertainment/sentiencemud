@@ -28,6 +28,7 @@ ROOM_INDEX_DATA room_pointer_environment;
 
 bool opc_skip_block(SCRIPT_CB *block,int level,bool endblock);
 bool is_stat( const struct flag_type *flag_table );
+void delete_list_uid_data(void *ptr);
 
 char *	const	dir_name_phrase	[]		=
 {
@@ -4017,7 +4018,16 @@ bool script_change_exit(ROOM_INDEX_DATA *pRoom, ROOM_INDEX_DATA *pToRoom, int do
 		}
 	}
 
-	if (!pRoom->exit[door]) pRoom->exit[door] = new_exit();
+	if (!pRoom->exit[door])
+	{
+		pRoom->exit[door] = new_exit();
+		// This will allow scripts to modify the locks of GENERATED exits
+		SET_BIT(pRoom->exit[door]->door.lock.flags, LOCK_CREATED);
+		SET_BIT(pRoom->exit[door]->door.rs_lock.flags, LOCK_CREATED);
+		// Create one special keys list, they share it.
+		pRoom->exit[door]->door.rs_lock.keys = list_createx(FALSE, NULL, delete_list_uid_data);
+		pRoom->exit[door]->door.lock.keys = pRoom->exit[door]->door.rs_lock.keys;
+	}
 
 	pRoom->exit[door]->u1.to_room = pToRoom;
 	pRoom->exit[door]->orig_door = door;
@@ -4026,6 +4036,12 @@ bool script_change_exit(ROOM_INDEX_DATA *pRoom, ROOM_INDEX_DATA *pToRoom, int do
 	if(pToRoom != &room_pointer_environment) {
 		door = rev_dir[door];
 		pExit = new_exit();
+		// This will allow scripts to modify the locks of GENERATED exits
+		SET_BIT(pExit->door.lock.flags, LOCK_CREATED);
+		SET_BIT(pExit->door.rs_lock.flags, LOCK_CREATED);
+		// Create one special keys list, they share it.
+		pExit->door.rs_lock.keys = list_createx(FALSE, NULL, delete_list_uid_data);
+		pExit->door.lock.keys = pExit->door.rs_lock.keys;
 		pExit->u1.to_room = pRoom;
 		pExit->orig_door = door;
 		pExit->from_room = pToRoom;
@@ -6939,6 +6955,11 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 				vch = get_char_world_index(NULL, mob_index);
 			}
 			break;
+		case ENT_MOBINDEX:
+			if (!arg->d.mobindex) return;
+
+			vch = get_char_world_index(NULL, arg->d.mobindex);
+			break;
 		case ENT_MOBILE:
 			vch = arg->d.mob;
 			break;
@@ -7089,6 +7110,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 	// Format: OBJECT WORLD <NAME>
 	// Format: OBJECT WNUM <WNUM>
 	// Format: OBJECT <OBJECT>
+	// Format: OBJECT <OBJINDEX>
 	} else if(!str_cmp(buf,"object")) {
 		WNUM wnum = wnum_zero;
 		if( arg->type == ENT_BLLIST_OBJ)
@@ -7179,6 +7201,9 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 
 				obj = get_obj_world_index(NULL, obj_index, FALSE);
 			}
+			break;
+		case ENT_OBJINDEX:
+			obj = get_obj_world_index(NULL, arg->d.objindex, FALSE);
 			break;
 		case ENT_OBJECT:
 			obj = arg->d.obj;

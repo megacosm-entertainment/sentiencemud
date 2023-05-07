@@ -125,7 +125,7 @@ void free_list_uid_data(LLIST_UID_DATA *luid)
 	free_mem(luid,sizeof(LLIST_UID_DATA));
 }
 
-static void delete_list_uid_data(void *ptr)
+void delete_list_uid_data(void *ptr)
 {
 	free_list_uid_data((LLIST_UID_DATA *)ptr);
 }
@@ -1611,6 +1611,12 @@ void free_exit( EXIT_DATA *pExit )
     free_string( pExit->keyword );
     free_string( pExit->short_desc );
     free_string( pExit->long_desc );
+
+    // The exit had been created by scripting, so will need to destroy the special keys lists
+    if (IS_SET(pExit->door.lock.flags, LOCK_CREATED))
+    {
+        list_destroy(pExit->door.rs_lock.keys);
+    }
 
     --top_exit;
 
