@@ -7986,6 +7986,7 @@ LLIST *list_create(bool purge)
 		lp->size = 0;
 		lp->valid = TRUE;
 		lp->purge = purge;
+		lp->copier = NULL;
 		lp->deleter = NULL;
 	}
 

@@ -1179,22 +1179,6 @@ void close_socket(DESCRIPTOR_DATA *dclose)
     if (dclose->outtop > 0)
 	process_output(dclose, FALSE);
 
-    if (dclose->snoop_by != NULL)
-    {
-	write_to_buffer(dclose->snoop_by,
-	    "Your victim has left the game.\n\r", 0);
-    }
-
-    {
-	DESCRIPTOR_DATA *d;
-
-	for (d = descriptor_list; d != NULL; d = d->next)
-	{
-	    if (d->snoop_by == dclose)
-		d->snoop_by = NULL;
-	}
-    }
-
     if ((ch = dclose->character) != NULL)
     {
 	sprintf(log_buf, "Closing link to %s.", ch->name);
@@ -1559,16 +1543,6 @@ bool process_output(DESCRIPTOR_DATA *d, bool fPrompt)
 	if (d->outtop == 0)
 		return TRUE;
 
-    /*
-     * Snoop-o-rama.
-     */
-	if (d->snoop_by != NULL)
-	{
-		if (d->character != NULL)
-			write_to_buffer(d->snoop_by, d->character->name,0);
-		write_to_buffer(d->snoop_by, "> ", 2);
-		write_to_buffer(d->snoop_by, d->outbuf, d->outtop);
-	}
 
     /*
      * OS-dependent output.

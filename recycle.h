@@ -150,9 +150,23 @@ void free_blueprint_special_room(BLUEPRINT_SPECIAL_ROOM *special);
 BLUEPRINT_EXIT_DATA *new_blueprint_exit_data();
 void free_blueprint_exit_data(BLUEPRINT_EXIT_DATA *ex);
 
+BLUEPRINT_WEIGHTED_LINK_DATA *new_weighted_random_link();
+void free_weighted_random_link(BLUEPRINT_WEIGHTED_LINK_DATA *weighted);
+
+BLUEPRINT_LAYOUT_LINK_DATA *new_blueprint_layout_link_data();
+void free_blueprint_layout_link_data(BLUEPRINT_LAYOUT_LINK_DATA *data);
+
+BLUEPRINT_LAYOUT_SECTION_DATA *new_blueprint_layout_section_data();
+void free_blueprint_layout_section_data(BLUEPRINT_LAYOUT_SECTION_DATA *data);
+
+BLUEPRINT_WEIGHTED_SECTION_DATA *new_weighted_random_section();
+void free_weighted_random_section(BLUEPRINT_WEIGHTED_SECTION_DATA *weighted);
+
+MAZE_WEIGHTED_ROOM *new_maze_weighted_room();
+void free_maze_weighted_room(MAZE_WEIGHTED_ROOM *room);
+
 BLUEPRINT *new_blueprint();
 void free_blueprint(BLUEPRINT *bp);
-
 
 NAMED_SPECIAL_EXIT *new_named_special_exit();
 void free_named_special_exit(NAMED_SPECIAL_EXIT *special);

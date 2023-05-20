@@ -7575,6 +7575,8 @@ SHEDIT( shedit_flags)
 	return TRUE;
 }
 
+BLUEPRINT_LAYOUT_SECTION_DATA *blueprint_get_nth_section(BLUEPRINT *bp, int section_no, BLUEPRINT_LAYOUT_SECTION_DATA **in_group);
+
 SHEDIT( shedit_blueprint )
 {
 	SHIP_INDEX_DATA *ship;
@@ -7601,91 +7603,87 @@ SHEDIT( shedit_blueprint )
 		return FALSE;
 	}
 
-	if( bp->mode == BLUEPRINT_MODE_STATIC )
+	// Verify the blueprint has certain features
+	// * Has an entry room
+	if( list_size(bp->entrances))
 	{
+		send_to_char("Blueprint requires an entry point for boarding purposes.\n\r", ch);
+		return FALSE;
+	}
 
-		// Verify the blueprint has certain features
-		// * Has an entry room
-		if( list_size(bp->_static.entries))
+	// Only allow static blueprints
+	if (!is_blueprint_static(bp))
+	{
+		send_to_char("Only static blueprints maybe be used.\n\r", ch);
+		return FALSE;
+	}
+
+	// * Room with HELM
+	// * Room with VIEWWILDS (optional)
+	bool helm = false, viewwilds = false;
+	ITERATOR sit;
+
+	// Check special rooms
+	BLUEPRINT_SPECIAL_ROOM *special_room;
+	iterator_start(&sit, bp->special_rooms);
+	while( (special_room = (BLUEPRINT_SPECIAL_ROOM *)iterator_nextdata(&sit)) )
+	{
+		ROOM_INDEX_DATA *room = blueprint_get_special_room(bp, special_room);
+
+		if( room )
 		{
-			send_to_char("Blueprint requires an entry point for boarding purposes.\n\r", ch);
-			return FALSE;
-		}
-
-		// * Room with HELM
-		// * Room with VIEWWILDS (optional)
-		bool helm = false, viewwilds = false;
-		ITERATOR sit;
-
-		// Check special rooms
-		BLUEPRINT_SPECIAL_ROOM *special_room;
-		iterator_start(&sit, bp->special_rooms);
-		while( (special_room = (BLUEPRINT_SPECIAL_ROOM *)iterator_nextdata(&sit)) )
-		{
-			ROOM_INDEX_DATA *room = get_room_index(bp->area, special_room->vnum);
-
-			if( room )
+			if( IS_SET(room->room_flags, ROOM_SHIP_HELM) )
 			{
-				if( IS_SET(room->room_flags, ROOM_SHIP_HELM) )
-				{
-					helm = true;
-				}
+				helm = true;
+			}
 
-				if( IS_SET(room->room_flags, ROOM_VIEWWILDS) )
+			if( IS_SET(room->room_flags, ROOM_VIEWWILDS) )
+			{
+				viewwilds = true;
+			}
+		}
+	}
+	iterator_stop(&sit);
+
+	if( !helm || !viewwilds )
+	{
+		BLUEPRINT_SECTION *section;
+		iterator_start(&sit, bp->sections);
+		while( (section = (BLUEPRINT_SECTION *)iterator_nextdata(&sit)) )
+		{
+			for( long vnum = section->lower_vnum; vnum <= section->upper_vnum; vnum++)
+			{
+				ROOM_INDEX_DATA *room = get_room_index(bp->area, vnum);
+
+				if( room )
 				{
-					viewwilds = true;
+					if( IS_SET(room->room_flags, ROOM_SHIP_HELM) )
+					{
+						helm = true;
+					}
+
+					if( IS_SET(room->room_flags, ROOM_VIEWWILDS) )
+					{
+						viewwilds = true;
+					}
 				}
 			}
 		}
 		iterator_stop(&sit);
-
-		if( !helm || !viewwilds )
-		{
-			BLUEPRINT_SECTION *section;
-			iterator_start(&sit, bp->sections);
-			while( (section = (BLUEPRINT_SECTION *)iterator_nextdata(&sit)) )
-			{
-				for( long vnum = section->lower_vnum; vnum <= section->upper_vnum; vnum++)
-				{
-					ROOM_INDEX_DATA *room = get_room_index(bp->area, vnum);
-
-					if( room )
-					{
-						if( IS_SET(room->room_flags, ROOM_SHIP_HELM) )
-						{
-							helm = true;
-						}
-
-						if( IS_SET(room->room_flags, ROOM_VIEWWILDS) )
-						{
-							viewwilds = true;
-						}
-					}
-				}
-			}
-			iterator_stop(&sit);
-		}
-
-
-		if( !helm )
-		{
-			send_to_char("Blueprint requires at least one room with the 'helm' flag set, for controlling the ship.\n\r", ch);
-			return FALSE;
-		}
-
-		if( !viewwilds )
-		{
-			// Not a deal breaker, just warn about it being missing
-			send_to_char("{YWARNING: {xBlueprint missing a room with 'viewwilds' to serve as a crow's nest. Might want to add one.\n\r", ch);
-		}
-
 	}
-	else
+
+
+	if( !helm )
 	{
-		send_to_char("Only static blueprints supported.\n\r", ch);
+		send_to_char("Blueprint requires at least one room with the 'helm' flag set, for controlling the ship.\n\r", ch);
 		return FALSE;
 	}
 
+	if( !viewwilds )
+	{
+		// Not a deal breaker, just warn about it being missing
+		send_to_char("{YWARNING: {xBlueprint missing a room with 'viewwilds' to serve as a crow's nest. Might want to add one.\n\r", ch);
+	}
 
 
 	ship->blueprint = bp;

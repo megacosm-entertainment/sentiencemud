@@ -939,7 +939,6 @@ enum entity_conn_enum {
 	ENTITY_CONN_ORIGINAL,
 	ENTITY_CONN_HOST,
 	ENTITY_CONN_CONNECTION,
-	ENTITY_CONN_SNOOPER,
 };
 
 enum entity_list_enum {

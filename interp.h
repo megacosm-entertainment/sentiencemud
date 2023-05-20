@@ -441,7 +441,6 @@ DECLARE_DO_FUN(	do_slookup	);
 DECLARE_DO_FUN( do_smite	);
 DECLARE_DO_FUN( do_smoke	);
 DECLARE_DO_FUN(	do_sneak	);
-DECLARE_DO_FUN(	do_snoop	);
 DECLARE_DO_FUN( do_socials	);
 DECLARE_DO_FUN( do_sockets	);
 DECLARE_DO_FUN(	do_south	);

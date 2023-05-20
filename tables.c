@@ -2792,14 +2792,18 @@ const struct flag_type shop_flags[] =
 
 const struct flag_type blueprint_section_flags[] =
 {
-	{ "no_rotate",		BSFLAG_NO_ROTATE,		TRUE	},
 	{ NULL,				0,						FALSE	}
 };
 
 const struct flag_type blueprint_section_types[] =
 {
-	{ "static",			BSTYPE_STATIC,			TRUE	},
 	{ NULL,				0,						FALSE	}
+};
+
+const struct flag_type blueprint_flags[] =
+{
+    {"scripted_layout", BLUEPRINT_SCRIPTED_LAYOUT, FALSE},
+    {NULL,              0,                         FALSE}
 };
 
 const struct flag_type instance_flags[] =

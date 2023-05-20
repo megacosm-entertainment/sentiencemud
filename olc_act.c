@@ -61,6 +61,7 @@ const struct olc_help_type help_table[] =
 	{	"area",					area_flags,					"Area attributes."	},
 	{	"areawho",				area_who_titles,			"Type of area for who."	},
 	{	"armour",				ac_type,					"Ac for different attacks."	},
+	{	"blueprint",			blueprint_flags,			"Blueprint flags" },
 	{	"catalyst",				catalyst_types,				"Catalyst types."	},
 	{	"condition",			room_condition_flags,		"Room Condition types."	},
 	{	"container",			container_flags,			"Container status."	},

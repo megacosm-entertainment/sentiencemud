@@ -3497,10 +3497,6 @@ char *expand_entity_conn(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_NUMBER;
 		arg->d.num = (arg->d.conn && (script_security >= MAX_SCRIPT_SECURITY)) ? arg->d.conn->connected : -1;
 		break;
-	case ENTITY_CONN_SNOOPER:
-		arg->type = ENT_CONN;
-		arg->d.conn = (arg->d.conn && (script_security >= MAX_SCRIPT_SECURITY)) ? arg->d.conn->snoop_by : NULL;
-		break;
 	default: return NULL;
 	}
 

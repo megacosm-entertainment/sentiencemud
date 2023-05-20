@@ -463,7 +463,6 @@ ENT_FIELD entity_conn[] = {
 	{"original",	ENTITY_CONN_ORIGINAL,		ENT_MOBILE	},
 	{"host",		ENTITY_CONN_HOST,			ENT_STRING	},
 	{"connection",	ENTITY_CONN_CONNECTION,		ENT_NUMBER	},
-	{"snooper",		ENTITY_CONN_SNOOPER,		ENT_CONN	},
 	{NULL,		0,			ENT_UNKNOWN	}
 };
 
@@ -744,7 +743,7 @@ struct _entity_type_info entity_type_info[] = {
 
 // Trigger typoes
 struct trigger_type trigger_table	[] = {
-//	name,					alias, 		type,					slot,			mob?,	obj?,	room?,	token?, area?, instance?, dungeon?
+//	name,					alias, 		type,					slot,					mob?,	obj?,	room?,	token?, area?, instance?, dungeon?
 {	"act",					NULL,		TRIG_ACT,				TRIGSLOT_ACTION,		TRUE,	TRUE,	TRUE,	TRUE,	FALSE,	FALSE,	FALSE	},
 {	"afterdeath",			NULL,		TRIG_AFTERDEATH,		TRIGSLOT_REPOP,			FALSE,	FALSE,	FALSE,	TRUE,	FALSE,	FALSE,	FALSE	},
 {	"afterkill",			NULL,		TRIG_AFTERKILL,			TRIGSLOT_FIGHT,			TRUE,	TRUE,	TRUE,	TRUE,	FALSE,	FALSE,	FALSE	},
@@ -770,6 +769,7 @@ struct trigger_type trigger_table	[] = {
 {	"attack_turn",			NULL,		TRIG_ATTACK_TURN,		TRIGSLOT_ATTACKS,		TRUE,	FALSE,	FALSE,	TRUE,	FALSE,	FALSE,	FALSE	},
 {	"barrier",				NULL,		TRIG_BARRIER,			TRIGSLOT_ATTACKS,		TRUE,	FALSE,	FALSE,	TRUE,	FALSE,	FALSE,	FALSE	},
 {	"blow",					NULL,		TRIG_BLOW,				TRIGSLOT_GENERAL,		FALSE,	TRUE,	FALSE,	FALSE,	FALSE,	FALSE,	FALSE	},
+{	"blueprint_schematic",	NULL,		TRIG_BLUEPRINT_SCHEMATIC, TRIGSLOT_GENERAL,		FALSE,	FALSE,	FALSE,	FALSE,	FALSE,	TRUE,	FALSE	},
 {	"board",				NULL,		TRIG_BOARD,				TRIGSLOT_GENERAL,		TRUE,	TRUE,	TRUE,	TRUE,	FALSE,	FALSE,	FALSE	},
 {	"brandish",				NULL,		TRIG_BRANDISH,			TRIGSLOT_GENERAL,		FALSE,	TRUE,	FALSE,	TRUE,	FALSE,	FALSE,	FALSE	},
 {	"bribe",				NULL,		TRIG_BRIBE,				TRIGSLOT_GENERAL,		TRUE,	FALSE,	FALSE,	TRUE,	FALSE,	FALSE,	FALSE	},

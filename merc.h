@@ -1304,7 +1304,6 @@ enum {
 struct	descriptor_data
 {
     DESCRIPTOR_DATA *	next;
-    DESCRIPTOR_DATA *	snoop_by;
     CHAR_DATA *		character;
     CHAR_DATA *		original;
     bool		valid;
@@ -3270,7 +3269,6 @@ enum {
 #define WIZ_LEVELS		(L)
 #define WIZ_SECURE		(M)
 #define WIZ_SWITCHES		(N)
-#define WIZ_SNOOPS		(O)
 #define WIZ_RESTORE		(P)
 #define WIZ_LOAD		(Q)
 #define WIZ_NEWBIE		(R)
@@ -5378,13 +5376,6 @@ struct	room_index_data
 
 
 
-#define BSFLAG_NO_ROTATE	(A)		// Blueprint Section cannot be rotated
-
-#define BSTYPE_STATIC		1		// Only allowed section type in static blueprints
-
-
-
-
 struct blueprint_link_data {
 	BLUEPRINT_LINK *next;
 	bool valid;
@@ -5402,7 +5393,20 @@ struct blueprint_link_data {
 	bool used;					// Used in generating layouts, indicating whether the link has already been used
 };
 
+typedef struct blueprint_maze_weighted_room MAZE_WEIGHTED_ROOM;
+struct blueprint_maze_weighted_room
+{
+    MAZE_WEIGHTED_ROOM *next;
+    bool valid;
 
+    int weight;
+    long vnum;
+};
+
+#define BSTYPE_STATIC       0
+#define BSTYPE_MAZE         1
+
+// TODO: Add maze support
 struct blueprint_section_data {
 	BLUEPRINT_SECTION *next;
 	bool valid;
@@ -5422,9 +5426,74 @@ struct blueprint_section_data {
 	long lower_vnum;    // Local vnum
 	long upper_vnum;    // Local vnum
 
+    // Maze support
+    long maze_x;
+    long maze_y;
+
+    LLIST *maze_templates;      // MAZE_WEIGHTED_ROOM
+
 	BLUEPRINT_LINK *links;
 };
 
+typedef struct blueprint_weighted_link_data BLUEPRINT_WEIGHTED_LINK_DATA;
+struct blueprint_weighted_link_data {
+    int weight;
+
+    int section;   // 0 = invalid, >0 = positional index, <0 = ordinal index
+    int link;
+};
+
+#define LINKMODE_STATIC         0       // Source: Static,   Destination: Static
+#define LINKMODE_SOURCE         1       // Source: Weighted, Destination: Static
+#define LINKMODE_DESTINATION    2       // Source: Static,   Destination: Weighted
+#define LINKMODE_WEIGHTED       3       // Source: Weighted, Destination: Weighted
+#define LINKMODE_GROUP          4       // Grouped set of links
+
+typedef struct blueprint_layout_link_data BLUEPRINT_LAYOUT_LINK_DATA;
+struct blueprint_layout_link_data {
+    BLUEPRINT_LAYOUT_LINK_DATA *next;
+    bool valid;
+
+    int mode;               // LINKMODE
+    int ordinal;            // Index in the definition list.
+                            // Group definitions do not get an ordinal, only the subdefinitions
+
+    LLIST *from;            // BLUEPRINT_WEIGHTED_LINK_DATA
+    int total_from;
+
+    LLIST *to;            // BLUEPRINT_WEIGHTED_LINK_DATA
+    int total_to;
+
+    LLIST *group;
+};
+
+#define SECTIONMODE_STATIC          0
+#define SECTIONMODE_WEIGHTED        1
+#define SECTIONMODE_GROUP           2
+
+typedef struct blueprint_weighted_section_data BLUEPRINT_WEIGHTED_SECTION_DATA;
+struct blueprint_weighted_section_data {
+    int weight;
+    int section;
+};
+typedef struct blueprint_layout_section_data BLUEPRINT_LAYOUT_SECTION_DATA;
+struct blueprint_layout_section_data {
+    BLUEPRINT_LAYOUT_SECTION_DATA *next;
+    bool valid;
+
+    char mode;                  // 0 = static section
+                                // 1 = weighted random selection
+                                // 2 = group section definition
+
+    int ordinal;                    // Position in the index definition
+    int section;                  // Static section reference
+
+    LLIST *weighted_sections;     // List of weighted section data (see above)
+    int total_weight;
+
+    LLIST *group;               // A list of section definitions to use as a set of sections.
+                                //  Will only allow one nesting
+};
 
 struct static_blueprint_link {
 	STATIC_BLUEPRINT_LINK *next;
@@ -5439,10 +5508,6 @@ struct static_blueprint_link {
 	int link2;
 };
 
-#define BLUEPRINT_MODE_STATIC		0	// Fixed layout, Fixed sections
-#define BLUEPRINT_MODE_DYNAMIC		1	// Fixed layout, Variable sections
-#define BLUEPRINT_MODE_PROCEDURAL	2	// Variable layout, Variable sections
-
 typedef struct blueprint_special_room_data BLUEPRINT_SPECIAL_ROOM;
 struct blueprint_special_room_data {
 	BLUEPRINT_SPECIAL_ROOM *next;
@@ -5450,16 +5515,19 @@ struct blueprint_special_room_data {
 
 	char *name;                 // Must be unique within blueprint
 
-	int section;
-	long vnum;					// Vnum of ROOM (relative to the section's area)
+	int section;                // 0 = Invalid, >0 = Positional index, <0 = Ordinal index
+
+	long offset;					// Vnum of ROOM (relative to the section's area)
 };
 
 typedef struct blueprint_exit_data BLUEPRINT_EXIT_DATA;
 struct blueprint_exit_data {
     char *name;
-    int section;
+    int section;        // 0 = invalid, >0 = positional index, <0 = ordinal index
     int link;
 };
+
+#define BLUEPRINT_SCRIPTED_LAYOUT       (A)
 
 struct blueprint_data {
 	BLUEPRINT *next;
@@ -5478,19 +5546,15 @@ struct blueprint_data {
 
 	int flags;
 
-	int mode;
+	LLIST *sections;						// BLUEPRINT_SECTION *
+	LLIST *special_rooms;                   // These will need to work with the dynamic layout
 
-	LLIST *sections;						// BLUEPRINT_SECTION
-	LLIST *special_rooms;
+    LLIST *layout;                          // Layout of each section (BLUEPRINT_LAYOUT_SECTION_DATA)
+    LLIST *links;                           // How each section actually links together
+    int recall;                             // Layout section that has the blueprint's recall room
 
-	// BLUEPRINT_MODE_STATIC
-    struct {
-        STATIC_BLUEPRINT_LINK *layout;
-        int recall;						// Which section has the recall?
-
-        LLIST *entries;
-        LLIST *exits;
-    } _static;
+    LLIST *entrances;                       // Entrances leading into the blueprint (BLUEPRINT_EXIT_DATA)
+    LLIST *exits;                           // Exits that lead out of the blueprint (BLUEPRINT_EXIT_DATA)
 
     LLIST **        progs;
     pVARIABLE		index_vars;
@@ -5515,6 +5579,8 @@ struct instance_section_data {
 	INSTANCE *instance;
 
 	LLIST *rooms;
+
+    int ordinal;            // What was the ordinal index of the blueprint section in the definition
 };
 
 struct named_special_room_data {
@@ -5546,6 +5612,7 @@ struct instance_data {
 
     unsigned long uid[2];
 
+    int ordinal;                // What was the ordinal value of the blueprint that made this?
 	int floor;					// Floor identifier, used in traversing multi-level dungeons
 								// Defaults to 0 when not used
 
@@ -5623,6 +5690,7 @@ struct dungeon_index_level_data {
                                 // 1 = weighted random selection
                                 // 2 = group level definition
 
+    int ordinal;                // Position in the index definition.  Updated every time there is a change in the number of definitions.
     int floor;                  // Static floor reference
 
     LLIST *weighted_floors;     // List of weighted floor data (see above)
@@ -5966,6 +6034,7 @@ enum trigger_index_enum {
 	TRIG_ATTACK_TURN,
 	TRIG_BARRIER,
 	TRIG_BLOW,
+    TRIG_BLUEPRINT_SCHEMATIC,
 	TRIG_BOARD,
 	TRIG_BRANDISH,
 	TRIG_BRIBE,
@@ -8834,6 +8903,7 @@ void extract_instance(INSTANCE *instance);
 ROOM_INDEX_DATA *section_random_room(CHAR_DATA *ch, INSTANCE_SECTION *section);
 ROOM_INDEX_DATA *instance_random_room(CHAR_DATA *ch, INSTANCE *instance);
 ROOM_INDEX_DATA *instance_section_get_room_byvnum(INSTANCE_SECTION *section, long vnum);
+ROOM_INDEX_DATA *instance_section_get_room_byoffset(INSTANCE_SECTION *section, long offset);
 ROOM_INDEX_DATA *get_instance_special_room(INSTANCE *instance, int index);
 ROOM_INDEX_DATA *get_instance_special_room_byname(INSTANCE *instance, char *name);
 void instance_addowner_player(INSTANCE *instance, CHAR_DATA *ch);
@@ -9282,5 +9352,8 @@ extern WNUM wnum_zero;
 
 void get_room_wnum(ROOM_INDEX_DATA *room, WNUM *wnum);
 CHAR_DATA *get_personal_mount(CHAR_DATA *ch);
+bool is_blueprint_static(BLUEPRINT *bp);
+ROOM_INDEX_DATA *blueprint_get_special_room(BLUEPRINT *bp, BLUEPRINT_SPECIAL_ROOM *special);
+BLUEPRINT_LAYOUT_SECTION_DATA *blueprint_get_nth_section(BLUEPRINT *bp, int section_no, BLUEPRINT_LAYOUT_SECTION_DATA **in_group);
 
 #endif /* !def __merc_h__ */

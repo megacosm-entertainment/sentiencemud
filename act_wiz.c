@@ -2932,84 +2932,6 @@ void do_shutdown(CHAR_DATA *ch, char *argument)
 }
 
 
-void do_snoop(CHAR_DATA *ch, char *argument)
-{
-    char arg[MAX_INPUT_LENGTH];
-    DESCRIPTOR_DATA *d;
-    CHAR_DATA *victim;
-    char buf[MAX_STRING_LENGTH];
-
-    one_argument(argument, arg);
-
-    if (arg[0] == '\0')
-    {
-	send_to_char("Snoop whom?\n\r", ch);
-	return;
-    }
-
-    if ((victim = get_char_world(ch, arg)) == NULL)
-    {
-	send_to_char("They aren't here.\n\r", ch);
-	return;
-    }
-
-    if (victim->desc == NULL)
-    {
-	send_to_char("No descriptor to snoop.\n\r", ch);
-	return;
-    }
-
-    if (victim == ch)
-    {
-	send_to_char("Cancelling all snoops.\n\r", ch);
-	wiznet("$N stops being such a snoop.",
-		ch,NULL,WIZ_SNOOPS,WIZ_SECURE,get_trust(ch));
-	for (d = descriptor_list; d != NULL; d = d->next)
-	{
-	    if (d->snoop_by == ch->desc)
-		d->snoop_by = NULL;
-	}
-	return;
-    }
-
-    if (victim->desc->snoop_by != NULL)
-    {
-	send_to_char("Busy already.\n\r", ch);
-	return;
-    }
-
-    if (!is_room_owner(ch,victim->in_room) && ch->in_room != victim->in_room
-    &&  room_is_private(victim->in_room, ch))
-    {
-        send_to_char("That character is in a private room.\n\r",ch);
-        return;
-    }
-
-    if (get_trust(victim) >= get_trust(ch))
-    {
-	send_to_char("You failed.\n\r", ch);
-	return;
-    }
-
-    if (ch->desc != NULL)
-    {
-	for (d = ch->desc->snoop_by; d != NULL; d = d->snoop_by)
-	{
-	    if (d->character == victim || d->original == victim)
-	    {
-		send_to_char("No snoop loops.\n\r", ch);
-		return;
-	    }
-	}
-    }
-
-    victim->desc->snoop_by = ch->desc;
-    sprintf(buf,"$N starts snooping on %s",
-	(IS_NPC(ch) ? victim->short_descr : victim->name));
-    wiznet(buf,ch,NULL,WIZ_SNOOPS,WIZ_SECURE,get_trust(ch));
-    act("Now snooping $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-}
-
 
 void do_switch(CHAR_DATA *ch, char *argument)
 {
@@ -7755,6 +7677,7 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 				page_to_char(buffer->string, ch);
 			}
 
+			free_buf(buffer);
 			return;
 		}
 
@@ -7866,6 +7789,7 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 				page_to_char(buffer->string, ch);
 			}
 
+			free_buf(buffer);
 			return;
 		}
 
@@ -7977,6 +7901,7 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 				page_to_char(buffer->string, ch);
 			}
 
+			free_buf(buffer);
 			return;
 		}
 
@@ -8088,6 +8013,7 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 				page_to_char(buffer->string, ch);
 			}
 
+			free_buf(buffer);
 			return;
 		}
 
@@ -8197,6 +8123,7 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 				page_to_char(buffer->string, ch);
 			}
 
+			free_buf(buffer);
 			return;
 		}
 

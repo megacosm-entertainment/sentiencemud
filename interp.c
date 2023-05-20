@@ -1398,7 +1398,7 @@ void interpret( CHAR_DATA *ch, char *argument )
 	return;
     }
 
-    // Log and snoop.
+    // Log.
     if ( cmd_table[cmd].log == LOG_NEVER )
 	strcpy( logline, "" );
 
@@ -1427,13 +1427,6 @@ void interpret( CHAR_DATA *ch, char *argument )
 	wiznet( s, ch, NULL, WIZ_SECURE, 0, get_trust(ch));
 	if ( logline[0] != '\0' )
 	    log_string( log_buf );
-    }
-
-    if ( ch->desc != NULL && ch->desc->snoop_by != NULL )
-    {
-	write_to_buffer( ch->desc->snoop_by, "% ",    2 );
-	write_to_buffer( ch->desc->snoop_by, logline, 0 );
-	write_to_buffer( ch->desc->snoop_by, "\n\r",  2 );
     }
 
     // Command not found... try other places.

@@ -3708,6 +3708,40 @@ void free_blueprint_link(BLUEPRINT_LINK *bl)
 	blueprint_link_free = bl;
 }
 
+MAZE_WEIGHTED_ROOM *maze_weighted_room_free;
+MAZE_WEIGHTED_ROOM *new_maze_weighted_room()
+{
+    MAZE_WEIGHTED_ROOM *room;
+
+    if(maze_weighted_room_free)
+    {
+        room = maze_weighted_room_free;
+        maze_weighted_room_free = maze_weighted_room_free->next;
+    }
+    else
+        room = alloc_mem(sizeof(MAZE_WEIGHTED_ROOM));
+
+    memset(room, 0, sizeof(MAZE_WEIGHTED_ROOM));
+    VALIDATE(room);
+    return room;
+}
+
+void free_maze_weighted_room(MAZE_WEIGHTED_ROOM *room)
+{
+    if (IS_VALID(room))
+    {
+        INVALIDATE(room);
+
+        room->next = maze_weighted_room_free;
+        maze_weighted_room_free = room;
+    }
+}
+
+static void delete_maze_weighted_room(void *ptr)
+{
+    free_maze_weighted_room((MAZE_WEIGHTED_ROOM *)ptr);
+}
+
 BLUEPRINT_SECTION *blueprint_section_free;
 
 BLUEPRINT_SECTION *new_blueprint_section()
@@ -3734,6 +3768,10 @@ BLUEPRINT_SECTION *new_blueprint_section()
 	bs->upper_vnum = 0;
 
 	bs->links = NULL;
+
+    bs->maze_x = 0;
+    bs->maze_y = 0;
+    bs->maze_templates = list_createx(FALSE, NULL, delete_maze_weighted_room);
 
 	VALIDATE(bs);
 	return bs;
@@ -3852,8 +3890,136 @@ static void delete_blueprint_exit_data(void *data)
     free_blueprint_exit_data((BLUEPRINT_EXIT_DATA *)data);
 }
 
-BLUEPRINT *blueprint_free;
+BLUEPRINT_WEIGHTED_SECTION_DATA *new_weighted_random_section()
+{
+    BLUEPRINT_WEIGHTED_SECTION_DATA *weighted = alloc_mem(sizeof(BLUEPRINT_WEIGHTED_SECTION_DATA));
 
+    if (weighted)
+    {
+        weighted->weight = 0;
+        weighted->section = 0;
+    }
+
+    return weighted;
+}
+
+void free_weighted_random_section(BLUEPRINT_WEIGHTED_SECTION_DATA *weighted)
+{
+    free_mem(weighted, sizeof(BLUEPRINT_WEIGHTED_SECTION_DATA));
+}
+
+static void delete_weighted_random_section_data(void *data)
+{
+    free_weighted_random_section((BLUEPRINT_WEIGHTED_SECTION_DATA *)data);
+}
+
+BLUEPRINT_WEIGHTED_LINK_DATA *new_weighted_random_link()
+{
+    BLUEPRINT_WEIGHTED_LINK_DATA *weighted = alloc_mem(sizeof(BLUEPRINT_WEIGHTED_LINK_DATA));
+
+    if (weighted)
+    {
+        weighted->weight = 0;
+        weighted->section = 0;
+        weighted->link = 0;
+    }
+
+    return weighted;
+}
+
+void free_weighted_random_link(BLUEPRINT_WEIGHTED_LINK_DATA *weighted)
+{
+    free_mem(weighted, sizeof(BLUEPRINT_WEIGHTED_LINK_DATA));
+}
+
+static void delete_weighted_random_link_data(void *data)
+{
+    free_weighted_random_link((BLUEPRINT_WEIGHTED_LINK_DATA *)data);
+}
+
+
+static void delete_blueprint_layout_section_data(void *data)
+{
+    free_blueprint_layout_section_data((BLUEPRINT_LAYOUT_SECTION_DATA *)data);
+}
+
+BLUEPRINT_LAYOUT_SECTION_DATA *blueprint_layout_section_free;
+BLUEPRINT_LAYOUT_SECTION_DATA *new_blueprint_layout_section_data()
+{
+    BLUEPRINT_LAYOUT_SECTION_DATA *data;
+
+    if (blueprint_layout_section_free)
+    {
+        data = blueprint_layout_section_free;
+        blueprint_layout_section_free = blueprint_layout_section_free->next;
+    }
+    else
+    {
+        data = alloc_mem(sizeof(BLUEPRINT_LAYOUT_SECTION_DATA));
+    }
+    memset(data, 0, sizeof(BLUEPRINT_LAYOUT_SECTION_DATA));
+
+    data->weighted_sections = list_createx(FALSE, NULL, delete_weighted_random_section_data);
+    data->group = list_createx(FALSE, NULL, delete_blueprint_layout_section_data);
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_blueprint_layout_section_data(BLUEPRINT_LAYOUT_SECTION_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    list_destroy(data->weighted_sections);
+    list_destroy(data->group);
+
+    INVALIDATE(data);
+}
+
+
+
+static void delete_blueprint_layout_link_data(void *data)
+{
+    free_blueprint_layout_link_data((BLUEPRINT_LAYOUT_LINK_DATA *)data);
+}
+
+BLUEPRINT_LAYOUT_LINK_DATA *blueprint_layout_link_free;
+BLUEPRINT_LAYOUT_LINK_DATA *new_blueprint_layout_link_data()
+{
+    BLUEPRINT_LAYOUT_LINK_DATA *data;
+
+    if (blueprint_layout_link_free)
+    {
+        data = blueprint_layout_link_free;
+        blueprint_layout_link_free = blueprint_layout_link_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(BLUEPRINT_LAYOUT_LINK_DATA));
+
+    memset(data, 0, sizeof(BLUEPRINT_LAYOUT_LINK_DATA));
+
+    data->from = list_createx(FALSE, NULL, delete_weighted_random_link_data);
+    data->to = list_createx(FALSE, NULL, delete_weighted_random_link_data);
+    data->group = list_createx(FALSE, NULL, delete_blueprint_layout_link_data);
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_blueprint_layout_link_data(BLUEPRINT_LAYOUT_LINK_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    list_destroy(data->from);
+    list_destroy(data->to);
+    list_destroy(data->group);
+
+    data->next = blueprint_layout_link_free;
+    blueprint_layout_link_free = data;
+    INVALIDATE(data);
+}
+
+BLUEPRINT *blueprint_free;
 BLUEPRINT *new_blueprint()
 {
 	BLUEPRINT *bp;
@@ -3871,31 +4037,19 @@ BLUEPRINT *new_blueprint()
 	bp->comments = &str_empty[0];
 
 	bp->area_who = AREA_INSTANCE;
-	bp->mode = BLUEPRINT_MODE_STATIC;
 
 	bp->sections = list_create(FALSE);
 	bp->special_rooms = list_createx(FALSE, NULL, delete_blueprint_special_room);
 
-    bp->_static.layout = NULL;
-    bp->_static.recall = -1;
-    bp->_static.entries = list_createx(FALSE, NULL, delete_blueprint_exit_data);
-    bp->_static.exits = list_createx(FALSE, NULL, delete_blueprint_exit_data);
+    bp->layout = list_createx(FALSE, NULL, delete_blueprint_layout_section_data);
+    bp->links = list_createx(FALSE, NULL, delete_blueprint_layout_link_data);
+    bp->recall = 0;         // 0 = invalid, >0 = positional index, <0 = ordinal index
+
+    bp->entrances = list_createx(FALSE, NULL, delete_blueprint_exit_data);
+    bp->exits = list_createx(FALSE, NULL, delete_blueprint_exit_data);
 
 	VALIDATE(bp);
 	return bp;
-}
-
-void free_static_blueprint_data(BLUEPRINT *bp)
-{
-	STATIC_BLUEPRINT_LINK *cur, *next;
-
-	for(cur = bp->_static.layout; cur; cur = next)
-	{
-		next = cur->next;
-		free_static_blueprint_link(cur);
-	}
-
-	bp->_static.layout = NULL;
 }
 
 void free_blueprint(BLUEPRINT *bp)
@@ -3908,8 +4062,10 @@ void free_blueprint(BLUEPRINT *bp)
 	list_destroy(bp->sections);
 	list_destroy(bp->special_rooms);
 
-	if( bp->mode == BLUEPRINT_MODE_STATIC )
-		free_static_blueprint_data(bp);
+    list_destroy(bp->layout);
+    list_destroy(bp->links);
+    list_destroy(bp->entrances);
+    list_destroy(bp->exits);
 
     free_prog_list(bp->progs);
     variable_freelist(&bp->index_vars);

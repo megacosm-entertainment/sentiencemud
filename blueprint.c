@@ -47,6 +47,8 @@
 #include "tables.h"
 #include "scripts.h"
 
+void blueprint_update_section_ordinals(BLUEPRINT *bp);
+void blueprint_update_link_ordinals(BLUEPRINT *bp);
 void room_update(ROOM_INDEX_DATA *room);
 void save_script_new(FILE *fp, AREA_DATA *area,SCRIPT_DATA *scr,char *type);
 SCRIPT_DATA *read_script_new( FILE *fp, AREA_DATA *area, int type);
@@ -198,6 +200,218 @@ BLUEPRINT_SECTION *load_blueprint_section(FILE *fp, AREA_DATA *pArea)
 	return bs;
 }
 
+
+BLUEPRINT_LAYOUT_SECTION_DATA *load_blueprint_layout_section(FILE *fp, int mode)
+{
+	BLUEPRINT_LAYOUT_SECTION_DATA *layout;
+	char *word;
+	bool fMatch;
+
+	layout = new_blueprint_layout_section_data();
+	layout->mode = mode;
+
+	if (mode == SECTIONMODE_STATIC)
+		layout->section = fread_number(fp);
+	else if (mode == SECTIONMODE_WEIGHTED)
+		layout->total_weight = 0;
+
+	while (str_cmp((word = fread_word(fp)), "#-SECTION"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+		case '#':
+			if (mode == SECTIONMODE_GROUP)
+			{
+				if (!str_cmp(word, "#STATICSECTION"))
+				{
+					BLUEPRINT_LAYOUT_SECTION_DATA *lo = load_blueprint_layout_section(fp, SECTIONMODE_STATIC);
+
+					list_appendlink(layout->group, lo);
+					fMatch = TRUE;
+					break;
+				}
+
+				if (!str_cmp(word, "#WEIGHTEDSECTION"))
+				{
+					BLUEPRINT_LAYOUT_SECTION_DATA *lo = load_blueprint_layout_section(fp, SECTIONMODE_WEIGHTED);
+
+					list_appendlink(layout->group, lo);
+					fMatch = TRUE;
+					break;
+				}
+			}
+			break;
+
+		case 'S':
+			if (!str_cmp(word, "Section"))
+			{
+				if (mode == SECTIONMODE_WEIGHTED)
+				{
+					BLUEPRINT_WEIGHTED_SECTION_DATA *weighted = new_weighted_random_section();
+					weighted->weight = fread_number(fp);
+					weighted->section = fread_number(fp);
+					list_appendlink(layout->weighted_sections, weighted);
+
+					layout->total_weight += weighted->weight;
+				}
+				else
+				{
+					// Complain about getting weighted floor data on a static reference?
+					fread_to_eol(fp);
+				}
+
+				fMatch = TRUE;
+				break;
+			}
+			break;
+		}
+
+		if (!fMatch) {
+			char buf[MSL];
+			sprintf(buf, "load_blueprint_layout_section: no match for word %.50s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return layout;
+}
+
+BLUEPRINT_LAYOUT_LINK_DATA *load_blueprint_layout_link(FILE *fp, int mode)
+{
+	BLUEPRINT_LAYOUT_LINK_DATA *link;
+	char *word;
+	bool fMatch;
+
+	int max_from = 0;
+	int max_to = 0;
+
+	link = new_blueprint_layout_link_data();
+	link->mode = mode;
+
+	if (mode == LINKMODE_STATIC || mode == LINKMODE_DESTINATION)
+		max_from = 1;
+	
+	if (mode == LINKMODE_STATIC || mode == LINKMODE_SOURCE)
+		max_to = 1;
+
+	while (str_cmp((word = fread_word(fp)), "#-LINK"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+		case '#':
+			if (mode == LINKMODE_GROUP)
+			{
+				if (!str_cmp(word, "#STATICLINK"))
+				{
+					BLUEPRINT_LAYOUT_LINK_DATA *data = load_blueprint_layout_link(fp, LINKMODE_STATIC);
+
+					list_appendlink(link->group, data);
+					fMatch = TRUE;
+					break;
+				}
+
+				if (!str_cmp(word, "#SOURCELINK"))
+				{
+					BLUEPRINT_LAYOUT_LINK_DATA *data = load_blueprint_layout_link(fp, LINKMODE_SOURCE);
+
+					list_appendlink(link->group, data);
+					fMatch = TRUE;
+					break;
+				}
+
+				if (!str_cmp(word, "#DESTLINK"))
+				{
+					BLUEPRINT_LAYOUT_LINK_DATA *data = load_blueprint_layout_link(fp, LINKMODE_DESTINATION);
+
+					list_appendlink(link->group, data);
+					fMatch = TRUE;
+					break;
+				}
+
+				if (!str_cmp(word, "#WEIGHTEDLINK"))
+				{
+					BLUEPRINT_LAYOUT_LINK_DATA *data = load_blueprint_layout_link(fp, LINKMODE_WEIGHTED);
+
+					list_appendlink(link->group, data);
+					fMatch = TRUE;
+					break;
+				}
+				break;
+			}
+			break;
+		
+		case 'F':
+			if (!str_cmp(word, "From"))
+			{
+				if (mode == LINKMODE_GROUP)
+				{
+					bug("load_blueprint_layout_link: specifying From entry for group link.", 0);
+					continue;
+				}
+
+				if (max_from > 0 && list_size(link->from) >= max_from)
+				{
+					bug("load_blueprint_layout_link: too many From entries found for link mode.", 0);
+					continue;
+				}
+
+				BLUEPRINT_WEIGHTED_LINK_DATA *weighted = new_weighted_random_link();
+				weighted->weight = fread_number(fp);
+				weighted->section = fread_number(fp);
+				weighted->link = fread_number(fp);
+				list_appendlink(link->from, weighted);
+				link->total_from += weighted->weight;
+				
+				fMatch = TRUE;
+				break;
+			}
+			break;
+
+		case 'T':
+			if (!str_cmp(word, "To"))
+			{
+				if (mode == LINKMODE_GROUP)
+				{
+					bug("load_blueprint_layout_link: specifying To entry for group link.", 0);
+					continue;
+				}
+
+				if (max_to > 0 && list_size(link->to) >= max_to)
+				{
+					bug("load_blueprint_layout_link: too many To entries found for link mode.", 0);
+					continue;
+				}
+
+				BLUEPRINT_WEIGHTED_LINK_DATA *weighted = new_weighted_random_link();
+				weighted->weight = fread_number(fp);
+				weighted->section = fread_number(fp);
+				weighted->link = fread_number(fp);
+				list_appendlink(link->to, weighted);
+				link->total_to += weighted->weight;
+				
+				fMatch = TRUE;
+				break;
+			}
+			break;
+
+		default: break;
+		}
+
+
+		if (!fMatch) {
+			char buf[MSL];
+			sprintf(buf, "load_blueprint_layout_link: no match for word %.50s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return link;
+}
+
 BLUEPRINT *load_blueprint(FILE *fp, AREA_DATA *pArea)
 {
 	BLUEPRINT *bp;
@@ -218,8 +432,83 @@ BLUEPRINT *load_blueprint(FILE *fp, AREA_DATA *pArea)
 
 		switch(word[0])
 		{
+		case '#':
+			if (!str_cmp(word, "#STATICSECTION"))
+			{
+				BLUEPRINT_LAYOUT_SECTION_DATA *layout = load_blueprint_layout_section(fp, SECTIONMODE_STATIC);
+
+				list_appendlink(bp->layout, layout);
+				fMatch = TRUE;
+				break;
+			}
+
+			if (!str_cmp(word, "#WEIGHTEDSECTION"))
+			{
+				BLUEPRINT_LAYOUT_SECTION_DATA *layout = load_blueprint_layout_section(fp, SECTIONMODE_WEIGHTED);
+
+				list_appendlink(bp->layout, layout);
+				fMatch = TRUE;
+				break;
+			}
+
+			if (!str_cmp(word, "#GROUPSECTION"))
+			{
+				BLUEPRINT_LAYOUT_SECTION_DATA *layout = load_blueprint_layout_section(fp, SECTIONMODE_GROUP);
+
+				list_appendlink(bp->layout, layout);
+				fMatch = TRUE;
+				break;
+			}
+
+			if (!str_cmp(word, "#STATICLINK"))
+			{
+				BLUEPRINT_LAYOUT_LINK_DATA *link = load_blueprint_layout_link(fp, LINKMODE_STATIC);
+
+				list_appendlink(bp->links, link);
+				fMatch = TRUE;
+				break;
+			}
+
+			if (!str_cmp(word, "#SOURCELINK"))
+			{
+				BLUEPRINT_LAYOUT_LINK_DATA *link = load_blueprint_layout_link(fp, LINKMODE_SOURCE);
+
+				list_appendlink(bp->links, link);
+				fMatch = TRUE;
+				break;
+			}
+
+			if (!str_cmp(word, "#DESTLINK"))
+			{
+				BLUEPRINT_LAYOUT_LINK_DATA *link = load_blueprint_layout_link(fp, LINKMODE_DESTINATION);
+
+				list_appendlink(bp->links, link);
+				fMatch = TRUE;
+				break;
+			}
+
+			if (!str_cmp(word, "#WEIGHTEDLINK"))
+			{
+				BLUEPRINT_LAYOUT_LINK_DATA *link = load_blueprint_layout_link(fp, LINKMODE_WEIGHTED);
+
+				list_appendlink(bp->links, link);
+				fMatch = TRUE;
+				break;
+			}
+
+			if (!str_cmp(word, "#GROUPLINK"))
+			{
+				BLUEPRINT_LAYOUT_LINK_DATA *link = load_blueprint_layout_link(fp, LINKMODE_GROUP);
+
+				list_appendlink(bp->links, link);
+				fMatch = TRUE;
+				break;
+			}
+			break;
+
 		case 'A':
 			KEY("AreaWho", bp->area_who, fread_number(fp));
+			break;
 
 		case 'C':
 			KEYS("Comments", bp->comments, fread_string(fp));
@@ -227,6 +516,40 @@ BLUEPRINT *load_blueprint(FILE *fp, AREA_DATA *pArea)
 
 		case 'D':
 			KEYS("Description", bp->description, fread_string(fp));
+			break;
+
+		case 'E':
+			if( !str_cmp(word, "Entry") )
+			{
+				char *name = fread_string(fp);
+				int section = fread_number(fp);
+				int link = fread_number(fp);
+
+				BLUEPRINT_EXIT_DATA *ex = new_blueprint_exit_data();
+				ex->name = name;
+				ex->section = section;
+				ex->link = link;
+
+				list_appendlink(bp->entrances, ex);
+				fMatch = TRUE;
+				break;
+			}
+
+			if( !str_cmp(word, "Exit") )
+			{
+				char *name = fread_string(fp);
+				int section = fread_number(fp);
+				int link = fread_number(fp);
+
+				BLUEPRINT_EXIT_DATA *ex = new_blueprint_exit_data();
+				ex->name = name;
+				ex->section = section;
+				ex->link = link;
+
+				list_appendlink(bp->exits, ex);
+				fMatch = TRUE;
+				break;
+			}
 			break;
 
 		case 'F':
@@ -291,23 +614,25 @@ BLUEPRINT *load_blueprint(FILE *fp, AREA_DATA *pArea)
 			break;
 
 		case 'S':
+			// TODO: How to do this
 			if( !str_cmp(word, "SpecialRoom") )
 			{
 				char *name = fread_string(fp);
 				int section = fread_number(fp);
-				long vnum = fread_number(fp);
+				long offset = fread_number(fp);
 
 				BLUEPRINT_SPECIAL_ROOM *special = new_blueprint_special_room();
 
 				special->name = name;
 				special->section = section;
-				special->vnum = vnum;
+				special->offset = offset;
 
 				list_appendlink(bp->special_rooms, special);
 				fMatch = TRUE;
 				break;
 			}
 
+	/*
 			if( !str_cmp(word, "Static") )
 			{
 				bp->mode = BLUEPRINT_MODE_STATIC;
@@ -370,7 +695,7 @@ BLUEPRINT *load_blueprint(FILE *fp, AREA_DATA *pArea)
 				fMatch = TRUE;
 				break;
 			}
-
+	*/
 			if( !str_cmp(word, "Section") )
 			{
 				long section = fread_number(fp);
@@ -403,7 +728,68 @@ BLUEPRINT *load_blueprint(FILE *fp, AREA_DATA *pArea)
 		}
 	}
 
+	blueprint_update_section_ordinals(bp);
+	blueprint_update_link_ordinals(bp);
+
 	return bp;
+}
+
+int blueprint_update_section_group_ordinals(BLUEPRINT_LAYOUT_SECTION_DATA *data, int ordinal)
+{
+	BLUEPRINT_LAYOUT_SECTION_DATA *section;
+	ITERATOR sit;
+	iterator_start(&sit, data->group);
+	while( (section = (BLUEPRINT_LAYOUT_SECTION_DATA *)iterator_nextdata(&sit)) )
+	{
+		section->ordinal = ordinal++;
+	}
+	iterator_stop(&sit);
+	return ordinal;
+}
+
+void blueprint_update_section_ordinals(BLUEPRINT *bp)
+{
+	int ordinal = 1;
+	BLUEPRINT_LAYOUT_SECTION_DATA *section;
+	ITERATOR sit;
+	iterator_start(&sit, bp->layout);
+	while( (section = (BLUEPRINT_LAYOUT_SECTION_DATA *)iterator_nextdata(&sit)) )
+	{
+		if (section->mode == SECTIONMODE_GROUP)
+			ordinal = blueprint_update_section_group_ordinals(section, ordinal);
+		else
+			section->ordinal = ordinal++;
+	}
+	iterator_stop(&sit);
+}
+
+int blueprint_update_link_group_ordinals(BLUEPRINT_LAYOUT_LINK_DATA *data, int ordinal)
+{
+	BLUEPRINT_LAYOUT_LINK_DATA *link;
+	ITERATOR lit;
+	iterator_start(&lit, data->group);
+	while( (link = (BLUEPRINT_LAYOUT_LINK_DATA *)iterator_nextdata(&lit)) )
+	{
+		link->ordinal = ordinal++;
+	}
+	iterator_stop(&lit);
+	return ordinal;
+}
+
+void blueprint_update_link_ordinals(BLUEPRINT *bp)
+{
+	int ordinal = 1;
+	BLUEPRINT_LAYOUT_LINK_DATA *link;
+	ITERATOR lit;
+	iterator_start(&lit, bp->layout);
+	while( (link = (BLUEPRINT_LAYOUT_LINK_DATA *)iterator_nextdata(&lit)) )
+	{
+		if (link->mode == LINKMODE_GROUP)
+			ordinal = blueprint_update_link_group_ordinals(link, ordinal);
+		else
+			link->ordinal = ordinal++;
+	}
+	iterator_stop(&lit);
 }
 
 
@@ -509,6 +895,98 @@ void save_blueprint_section(FILE *fp, BLUEPRINT_SECTION *bs)
 	fprintf(fp, "#-SECTION\n\n");
 }
 
+void save_blueprint_layout_section(FILE *fp, BLUEPRINT_LAYOUT_SECTION_DATA *section)
+{
+	if (section->mode == SECTIONMODE_STATIC)
+	{
+		fprintf(fp, "#STATICSECTION %d\n", section->section);
+		fprintf(fp, "#-SECTION\n\r");
+	}
+	else if (section->mode == SECTIONMODE_WEIGHTED)
+	{
+		fprintf(fp, "#WEIGHTEDSECTION\n");
+		ITERATOR wit;
+		BLUEPRINT_WEIGHTED_SECTION_DATA *weighted;
+		iterator_start(&wit, section->weighted_sections);
+		while( (weighted = (BLUEPRINT_WEIGHTED_SECTION_DATA *)iterator_nextdata(&wit)) )
+		{
+			fprintf(fp, "Section %d %d\n", weighted->weight, weighted->section);
+		}
+		iterator_stop(&wit);
+		fprintf(fp, "#-SECTION\n\r");
+	}
+	else if (section->mode == SECTIONMODE_GROUP)
+	{
+		fprintf(fp, "#GROUPSECTION\n");
+		ITERATOR git;
+		BLUEPRINT_LAYOUT_SECTION_DATA *data;
+		iterator_start(&git, section->group);
+		while( (data = (BLUEPRINT_LAYOUT_SECTION_DATA *)iterator_nextdata(&git)) )
+		{
+			save_blueprint_layout_section(fp, data);
+		}
+		iterator_stop(&git);
+		fprintf(fp, "#-SECTION\n\r");
+	}
+}
+
+void save_blueprint_weighted_link(FILE *fp, LLIST *list, char *field)
+{
+	BLUEPRINT_WEIGHTED_LINK_DATA *weighted;
+
+	ITERATOR it;
+	iterator_start(&it, list);
+	while( (weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)iterator_nextdata(&it)) )
+	{
+		fprintf(fp, "%s %d %d %d\n", field, weighted->weight, weighted->section, weighted->link);
+	}
+	iterator_stop(&it);
+}
+
+void save_blueprint_layout_link(FILE *fp, BLUEPRINT_LAYOUT_LINK_DATA *link)
+{
+	if (link->mode == LINKMODE_STATIC)
+	{
+		fprintf(fp, "#STATICLINK\n");
+		save_blueprint_weighted_link(fp, link->from, "From");
+		save_blueprint_weighted_link(fp, link->to, "To");
+		fprintf(fp, "#-LINK\n");
+	}
+	else if (link->mode == LINKMODE_SOURCE)
+	{
+		fprintf(fp, "#SOURCELINK\n");
+		save_blueprint_weighted_link(fp, link->from, "From");
+		save_blueprint_weighted_link(fp, link->to, "To");
+		fprintf(fp, "#-LINK\n");
+	}
+	else if (link->mode == LINKMODE_DESTINATION)
+	{
+		fprintf(fp, "#DESTLINK\n");
+		save_blueprint_weighted_link(fp, link->from, "From");
+		save_blueprint_weighted_link(fp, link->to, "To");
+		fprintf(fp, "#-LINK\n");
+	}
+	else if (link->mode == LINKMODE_WEIGHTED)
+	{
+		fprintf(fp, "#WEIGHTEDLINK\n");
+		save_blueprint_weighted_link(fp, link->from, "From");
+		save_blueprint_weighted_link(fp, link->to, "To");
+		fprintf(fp, "#-LINK\n");
+	}
+	else if (link->mode == LINKMODE_GROUP)
+	{
+		fprintf(fp, "#GROUPLINK\n");
+		ITERATOR git;
+		BLUEPRINT_LAYOUT_LINK_DATA *data;
+		iterator_start(&git, link->group);
+		while( (data = (BLUEPRINT_LAYOUT_LINK_DATA *)iterator_nextdata(&git)) )
+		{
+			save_blueprint_layout_link(fp, data);
+		}
+		iterator_stop(&git);
+		fprintf(fp, "#-LINK\n");
+	}
+}
 
 void save_blueprint(FILE *fp, BLUEPRINT *bp)
 {
@@ -521,6 +999,7 @@ void save_blueprint(FILE *fp, BLUEPRINT *bp)
 	fprintf(fp, "Repop %d\n", bp->repop);
 	fprintf(fp, "Flags %d\n", bp->flags);
 
+	// Master list of sections
 	ITERATOR sit;
 	BLUEPRINT_SECTION *bs;
 	iterator_start(&sit, bp->sections);
@@ -530,6 +1009,45 @@ void save_blueprint(FILE *fp, BLUEPRINT *bp)
 	}
 	iterator_stop(&sit);
 
+	// Actual layout of the sections
+	ITERATOR lsit;
+	BLUEPRINT_LAYOUT_SECTION_DATA *ls;
+	iterator_start(&lsit, bp->layout);
+	while( (ls = (BLUEPRINT_LAYOUT_SECTION_DATA *)iterator_nextdata(&lsit)) )
+	{
+		save_blueprint_layout_section(fp, ls);
+	}
+	iterator_stop(&lsit);
+
+	// List of links between the layout sections
+	ITERATOR llit;
+	BLUEPRINT_LAYOUT_LINK_DATA *ll;
+	iterator_start(&llit, bp->links);
+	while( (ll = (BLUEPRINT_LAYOUT_LINK_DATA *)iterator_nextdata(&llit)) )
+	{
+		save_blueprint_layout_link(fp, ll);
+	}
+	iterator_stop(&llit);
+
+	fprintf(fp, "Recall %d\n", bp->recall);
+
+	ITERATOR xit;
+	BLUEPRINT_EXIT_DATA *ex;
+	iterator_start(&xit, bp->entrances);
+	while( (ex = (BLUEPRINT_EXIT_DATA *)iterator_nextdata(&xit)) )
+	{
+		fprintf(fp, "Entry %s~ %d %d\n", fix_string(ex->name), ex->section, ex->link);
+	}
+	iterator_stop(&xit);
+
+	iterator_start(&xit, bp->exits);
+	while( (ex = (BLUEPRINT_EXIT_DATA *)iterator_nextdata(&xit)) )
+	{
+		fprintf(fp, "Exit %s~ %d %d\n", fix_string(ex->name), ex->section, ex->link);
+	}
+	iterator_stop(&xit);
+
+	/*
 	if( bp->mode == BLUEPRINT_MODE_STATIC )
 	{
 		fprintf(fp, "Static\n");
@@ -573,6 +1091,7 @@ void save_blueprint(FILE *fp, BLUEPRINT *bp)
 		}
 		iterator_stop(&rit);
 	}
+	*/
 
     if(bp->progs) {
 		ITERATOR it;
@@ -673,6 +1192,75 @@ bool valid_static_link(STATIC_BLUEPRINT_LINK *sbl)
 	return TRUE;
 }
 
+ROOM_INDEX_DATA *blueprint_get_special_room(BLUEPRINT *bp, BLUEPRINT_SPECIAL_ROOM *special)
+{
+	BLUEPRINT_LAYOUT_SECTION_DATA *ls = blueprint_get_nth_section(bp, special->section, NULL);
+	if (!IS_VALID(ls)) return NULL;
+
+	BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, ls->section);
+	if (!IS_VALID(bs)) return NULL;
+
+	if (bs->type == BSTYPE_STATIC)
+	{
+		long vnum = bs->lower_vnum + special->offset;
+		if (vnum < bs->lower_vnum || vnum > bs->upper_vnum)
+			return NULL;
+
+		return get_room_index(bs->area, vnum);
+	}
+
+	// Can only resolve special rooms at this point for static sections
+	return NULL;
+}
+
+bool is_blueprint_static(BLUEPRINT *bp)
+{
+	if (IS_SET(bp->flags, BLUEPRINT_SCRIPTED_LAYOUT))
+		return FALSE;
+
+	bool valid = TRUE;
+	ITERATOR it;
+	BLUEPRINT_LAYOUT_SECTION_DATA *ls;
+	iterator_start(&it, bp->layout);
+	while((ls = (BLUEPRINT_LAYOUT_SECTION_DATA *)iterator_nextdata(&it)))
+	{
+		if (ls->mode != SECTIONMODE_STATIC)
+		{
+			// Only need to check if we have non-static section definitions
+			valid = FALSE;
+			break;
+		}
+
+		BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, ls->section);
+		if (bs->type != BSTYPE_STATIC)
+		{
+			// Only sections with a static layout can be used
+			valid = FALSE;
+			break;
+		}
+	}
+	iterator_stop(&it);
+
+	if (valid)
+	{
+		BLUEPRINT_LAYOUT_LINK_DATA *ll;
+		// Make sure all of the links are static links
+		iterator_start(&it, bp->links);
+		while((ll = (BLUEPRINT_LAYOUT_LINK_DATA *)iterator_nextdata(&it)))
+		{
+			if (ll->mode != LINKMODE_STATIC)
+			{
+				valid = FALSE;
+				break;
+			}
+		}
+		iterator_stop(&it);
+	}
+
+	return valid;
+}
+
+
 BLUEPRINT_SECTION *get_blueprint_section_wnum(WNUM wnum)
 {
 	return get_blueprint_section(wnum.pArea, wnum.vnum);
@@ -749,23 +1337,13 @@ bool rooms_in_same_section(AREA_DATA *pArea1, long vnum1, AREA_DATA *pArea2, lon
 
 BLUEPRINT_EXIT_DATA *get_blueprint_entrance(BLUEPRINT *bp, int index)
 {
-	if (bp->mode == BLUEPRINT_MODE_STATIC)
-	{
-		return (BLUEPRINT_EXIT_DATA *)list_nthdata(bp->_static.entries, index);
-	}
-
-	return NULL;
+	return (BLUEPRINT_EXIT_DATA *)list_nthdata(bp->entrances, index);
 }
 
 
 BLUEPRINT_EXIT_DATA *get_blueprint_exit(BLUEPRINT *bp, int index)
 {
-	if (bp->mode == BLUEPRINT_MODE_STATIC)
-	{
-		return (BLUEPRINT_EXIT_DATA *)list_nthdata(bp->_static.exits, index);
-	}
-
-	return NULL;
+	return (BLUEPRINT_EXIT_DATA *)list_nthdata(bp->exits, index);
 }
 
 
@@ -774,6 +1352,27 @@ ROOM_INDEX_DATA *instance_section_get_room_byvnum(INSTANCE_SECTION *section, lon
 	if( !IS_VALID(section) ) return NULL;
 
 	ROOM_INDEX_DATA *room;
+	ITERATOR rit;
+	iterator_start(&rit, section->rooms);
+	while((room = (ROOM_INDEX_DATA *)iterator_nextdata(&rit)))
+	{
+		if( room->vnum == vnum )
+			break;
+	}
+	iterator_stop(&rit);
+
+	return room;
+
+}
+
+ROOM_INDEX_DATA *instance_section_get_room_byoffset(INSTANCE_SECTION *section, long offset)
+{
+	if( !IS_VALID(section) ) return NULL;
+
+	long vnum = section->section->lower_vnum + offset;
+	if (vnum > section->section->upper_vnum) return NULL;
+
+	ROOM_INDEX_DATA *room = NULL;
 	ITERATOR rit;
 	iterator_start(&rit, section->rooms);
 	while((room = (ROOM_INDEX_DATA *)iterator_nextdata(&rit)))
@@ -954,8 +1553,24 @@ INSTANCE_SECTION *clone_blueprint_section(BLUEPRINT_SECTION *parent)
 
 INSTANCE_SECTION *instance_get_section(INSTANCE *instance, int section_no)
 {
-	if (!IS_VALID(instance)) return NULL;
-	if( section_no < 1 ) return NULL;
+	if (!IS_VALID(instance) || !section_no) return NULL;
+
+	// Get INSTANCE_SECTION by ordinal
+	if (section_no < 0)
+	{
+		int ordinal = -section_no;
+		ITERATOR it;
+		INSTANCE_SECTION *section = NULL;
+		iterator_start(&it, instance->sections);
+		while( (section = (INSTANCE_SECTION *)iterator_nextdata(&it)) )
+		{
+			if (section->ordinal == ordinal)
+				break;
+		}
+		iterator_stop(&it);
+
+		return section;
+	}
 
 	return list_nthdata(instance->sections, section_no);
 }
@@ -967,6 +1582,378 @@ BLUEPRINT_LINK *instance_get_section_link(INSTANCE_SECTION *section, int link_no
 	return get_section_link(section->section, link_no);
 }
 
+static bool add_instance_section(INSTANCE *instance, BLUEPRINT_SECTION *bs, int ordinal)
+{
+	if (!IS_VALID(bs))
+		return TRUE;
+
+	INSTANCE_SECTION *section = clone_blueprint_section(bs);
+	section->ordinal = ordinal;
+	section->blueprint = instance->blueprint;
+	section->instance = instance;
+
+	list_appendlist(instance->rooms, section->rooms);
+	list_appendlink(instance->sections, section);
+	return FALSE;
+}
+
+static bool add_instance_layout(INSTANCE *instance, BLUEPRINT_LAYOUT_SECTION_DATA *ls)
+{
+	BLUEPRINT_SECTION *bs;
+	BLUEPRINT *bp = instance->blueprint;
+	switch(ls->mode)
+	{
+		case SECTIONMODE_STATIC:
+			bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, ls->section);
+			return add_instance_section(instance, bs, ls->ordinal);
+
+		case SECTIONMODE_WEIGHTED:
+		{
+			int w = number_range(1, ls->total_weight);
+			bs = NULL;
+
+			BLUEPRINT_WEIGHTED_SECTION_DATA *weighted;
+			ITERATOR wit;
+			iterator_start(&wit, ls->weighted_sections);
+			while((weighted = (BLUEPRINT_WEIGHTED_SECTION_DATA *)iterator_nextdata(&wit)))
+			{
+				if (w <= weighted->weight)
+				{
+					bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, weighted->section);
+					break;
+				}
+
+				w -= weighted->weight;
+			}
+			iterator_stop(&wit);
+
+			if (!IS_VALID(bs))
+			{
+				return TRUE;
+			}
+
+			return add_instance_section(instance, bs, ls->ordinal);
+		}
+
+		case SECTIONMODE_GROUP:
+		{
+			bool error = FALSE;
+			BLUEPRINT_LAYOUT_SECTION_DATA *data;
+
+			int count = list_size(ls->group);
+
+			int *source = (int *)alloc_mem(sizeof(int) * count);
+			for(int i = 0; i < count; i++)
+				source[i] = i + 1;
+
+			for(int i = count - 1; i >= 0; i--)
+			{
+				int isection = number_range(0, i);
+				int nsection = source[isection];
+				source[isection] = source[i];
+
+				data = (BLUEPRINT_LAYOUT_SECTION_DATA *)list_nthdata(ls->group, nsection);
+
+				if (add_instance_layout(instance, data))
+				{
+					error = TRUE;
+					break;
+				}
+			}
+
+			free_mem(source, sizeof(int) * count);
+			return error;
+		}
+	}
+
+	return TRUE;
+}
+
+BLUEPRINT_WEIGHTED_LINK_DATA *get_weighted_link(LLIST *list, int total)
+{
+	int w = number_range(1, total);
+
+	ITERATOR it;
+	BLUEPRINT_WEIGHTED_LINK_DATA *weighted = NULL;
+	iterator_start(&it, list);
+	while((weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)iterator_nextdata(&it)))
+	{
+		if (w <= weighted->weight)
+			break;
+
+		w -= weighted->weight;
+	}
+	iterator_stop(&it);
+
+	return weighted;
+}
+
+bool add_instance_link_from_to(INSTANCE *instance, BLUEPRINT_LAYOUT_LINK_DATA *link,
+	BLUEPRINT_WEIGHTED_LINK_DATA *from, BLUEPRINT_WEIGHTED_LINK_DATA *to)
+{
+	if (!from || !to) return TRUE;
+
+	INSTANCE_SECTION *fsection = instance_get_section(instance, from->section);
+	if (!IS_VALID(fsection))
+		return TRUE;
+
+	INSTANCE_SECTION *tsection = instance_get_section(instance, to->section);
+	if (!IS_VALID(tsection))
+		return TRUE;
+
+
+
+	BLUEPRINT_LINK *flink = get_section_link(fsection->section, from->link);
+	BLUEPRINT_LINK *tlink = get_section_link(tsection->section, to->link);
+
+	if( tlink && tlink )
+	{
+		// TODO: change vnum to offset
+		ROOM_INDEX_DATA *froom = instance_section_get_room_byvnum(fsection, flink->vnum);
+		ROOM_INDEX_DATA *troom = instance_section_get_room_byvnum(tsection, tlink->vnum);
+
+		if( froom && troom )
+		{
+			EXIT_DATA *fex = froom->exit[flink->door];
+			EXIT_DATA *tex = troom->exit[tlink->door];
+
+			if( !fex )
+			{
+				fex = new_exit();
+				fex->from_room = froom;
+				fex->orig_door = flink->door;
+
+				froom->exit[flink->door] = fex;
+			}
+
+			if( !tex )
+			{
+				tex = new_exit();
+				tex->from_room = troom;
+				tex->orig_door = tlink->door;
+
+				froom->exit[tlink->door] = tex;
+			}
+
+			REMOVE_BIT(fex->rs_flags, EX_ENVIRONMENT);
+			fex->exit_info = fex->rs_flags;
+			fex->door.lock = fex->door.rs_lock;
+			fex->u1.to_room = troom;
+
+			REMOVE_BIT(tex->rs_flags, EX_ENVIRONMENT);
+			tex->exit_info = tex->rs_flags;
+			tex->door.lock = tex->door.rs_lock;
+			tex->u1.to_room = froom;
+		}
+	}
+
+	return FALSE;
+}
+
+bool add_instance_link(INSTANCE *instance, BLUEPRINT_LAYOUT_LINK_DATA *link)
+{
+	bool error = FALSE;
+	BLUEPRINT_WEIGHTED_LINK_DATA *from = NULL;
+	BLUEPRINT_WEIGHTED_LINK_DATA *to = NULL;
+
+	switch(link->mode)
+	{
+		case LINKMODE_STATIC:		//   STATIC - STATIC
+			from = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(link->from, 1);
+			to = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(link->to, 1);
+			break;
+
+		case LINKMODE_SOURCE:		// WEIGHTED - STATIC
+			from = get_weighted_link(link->from, link->total_from);
+			to = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(link->to, 1);
+			break;
+		
+		case LINKMODE_DESTINATION:	//   STATIC - WEIGHTED
+			from = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(link->from, 1);
+			to = get_weighted_link(link->to, link->total_to);
+			break;
+		
+		case LINKMODE_WEIGHTED:		// WEIGHTED - WEIGHTED
+			from = get_weighted_link(link->from, link->total_from);
+			to = get_weighted_link(link->to, link->total_to);
+			break;
+
+		case LINKMODE_GROUP:
+		{
+			int count = list_size(link->group);
+
+			int *dest = (int *)alloc_mem(sizeof(int) * count);
+
+			for(int i = 0; i < count; i++)
+				dest[i] = i + 1;
+
+			for(int i = count - 1; i >= 0; i--)
+			{
+				int ilink = number_range(0, i);
+				int ndest = dest[ilink];
+				dest[ilink] = dest[i];
+
+				BLUEPRINT_LAYOUT_LINK_DATA *flink = (BLUEPRINT_LAYOUT_LINK_DATA *)list_nthdata(link->group, i + 1);
+				BLUEPRINT_LAYOUT_LINK_DATA *tlink = (BLUEPRINT_LAYOUT_LINK_DATA *)list_nthdata(link->group, ndest);
+
+				BLUEPRINT_WEIGHTED_LINK_DATA *from = get_weighted_link(flink->from, flink->total_from);
+				BLUEPRINT_WEIGHTED_LINK_DATA *to = get_weighted_link(tlink->to, tlink->total_to);
+
+				if (add_instance_link_from_to(instance, link, from, to))
+				{
+					error = TRUE;
+					break;
+				}
+			}
+
+			free_mem(dest, sizeof(int) * count);
+			return error;
+		}
+	}
+
+	return add_instance_link_from_to(instance, link, from, to);
+}
+
+bool generate_instance(INSTANCE *instance)
+{
+	ITERATOR lsit;
+	BLUEPRINT *bp = instance->blueprint;
+
+	// Blueprint layout is scripted
+	if (IS_SET(bp->flags, BLUEPRINT_SCRIPTED_LAYOUT))	
+	{
+		// TODO: Add "instance layout" script command - for creating the actual layout
+		// TODO: Add "instance link" script command - for linking the sections together
+		// TODO: Add "instance special" script command - for designating any special rooms
+		list_clear(bp->layout);
+		list_clear(bp->links);
+		list_clear(bp->special_rooms);
+		bp->recall = 0;
+		p_percent2_trigger(NULL, instance, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_BLUEPRINT_SCHEMATIC, NULL);
+	}
+
+	// Generate the sections
+	bool error = FALSE;
+	BLUEPRINT_LAYOUT_SECTION_DATA *ls;
+	iterator_start(&lsit, bp->layout);
+	while((ls = (BLUEPRINT_LAYOUT_SECTION_DATA *)iterator_nextdata(&lsit)))
+	{
+		if (add_instance_layout(instance, ls))
+		{
+			error = TRUE;
+			break;
+		}
+
+	}
+	iterator_stop(&lsit);
+
+	if (!error)
+	{
+		// Link the sections together
+		ITERATOR llit;
+		BLUEPRINT_LAYOUT_LINK_DATA *link;
+		iterator_start(&llit, bp->links);
+		while((link = (BLUEPRINT_LAYOUT_LINK_DATA *)iterator_nextdata(&llit)))
+		{
+			if (add_instance_link(instance, link))
+			{
+				error = TRUE;
+				break;
+			}	
+		}
+		iterator_stop(&llit);
+
+		if (error) return TRUE;
+
+		// Assign the entry exit (PREVFLOOR) if defined
+		BLUEPRINT_EXIT_DATA *bex = list_nthdata(bp->entrances, 1);
+		if( bex )
+		{
+			INSTANCE_SECTION *section = instance_get_section(instance, bex->section);
+			if( section )
+			{
+				BLUEPRINT_LINK *bl = get_section_link(section->section, bex->link);
+
+				if( bl )
+				{
+					ROOM_INDEX_DATA *room = instance_section_get_room_byvnum(section, bl->vnum);
+					if( room )
+					{
+						EXIT_DATA *ex = room->exit[bl->door];
+
+						if( !ex )
+						{
+							ex = new_exit();
+							ex->from_room = room;
+							ex->orig_door = bl->door;
+							room->exit[bl->door] = ex;
+						}
+
+						REMOVE_BIT(ex->rs_flags, EX_ENVIRONMENT);
+						SET_BIT(ex->rs_flags, EX_PREVFLOOR);
+						ex->exit_info = ex->rs_flags;
+						ex->door.lock = ex->door.rs_lock;
+						ex->u1.to_room = NULL;
+
+						instance->entrance = room;
+					}
+				}
+			}
+		}
+
+		// Assign the exit exit (NEXTFLOOR) if defined
+		bex = list_nthdata(bp->exits, 1);
+		if( bex )
+		{
+			INSTANCE_SECTION *section = instance_get_section(instance, bex->section);
+			if( section )
+			{
+				BLUEPRINT_LINK *bl = get_section_link(section->section, bex->link);
+
+				if( bl )
+				{
+					ROOM_INDEX_DATA *room = instance_section_get_room_byvnum(section, bl->vnum);
+					if( room )
+					{
+						EXIT_DATA *ex = room->exit[bl->door];
+
+						if( !ex )
+						{
+							ex = new_exit();
+							ex->from_room = room;
+							ex->orig_door = bl->door;
+							room->exit[bl->door] = ex;
+						}
+
+						REMOVE_BIT(ex->rs_flags, EX_ENVIRONMENT);
+						SET_BIT(ex->rs_flags, EX_NEXTFLOOR);
+						ex->exit_info = ex->rs_flags;
+						ex->door.lock = ex->door.rs_lock;
+						ex->u1.to_room = NULL;
+
+
+						instance->exit = room;
+					}
+				}
+			}
+		}
+
+		// Assign the recall point based upon the recall section's recall, if defined
+		if( bp->recall != 0 )
+		{
+			INSTANCE_SECTION *recall_section = instance_get_section(instance, bp->recall);
+
+			if( recall_section )
+			{
+				instance->recall = instance_section_get_room_byvnum(recall_section, recall_section->section->recall);
+			}
+		}
+	}
+
+	return error;
+}
+
+/*
 bool generate_static_instance(INSTANCE *instance)
 {
 	ITERATOR bsit;
@@ -1138,6 +2125,7 @@ bool generate_static_instance(INSTANCE *instance)
 
 	return valid;
 }
+*/
 
 void instance_section_reset_rooms(INSTANCE_SECTION *section)
 {
@@ -1179,21 +2167,8 @@ INSTANCE *create_instance(BLUEPRINT *blueprint)
 		instance->progs->progs	= blueprint->progs;
 		variable_copylist(&blueprint->index_vars,&instance->progs->vars,FALSE);
 
-		if( blueprint->mode == BLUEPRINT_MODE_STATIC )
+		if (generate_instance(instance))
 		{
-			if( !generate_static_instance(instance) )
-			{
-				free_instance(instance);
-				return NULL;
-			}
-		}
-		else
-		{
-			// Unsupported blueprint mode
-			char buf[MSL];
-			sprintf(buf, "create_instance - unsupported mode %d for blueprint %ld", blueprint->mode, blueprint->vnum);
-			bug(buf, 0);
-
 			free_instance(instance);
 			return NULL;
 		}
@@ -1204,10 +2179,10 @@ INSTANCE *create_instance(BLUEPRINT *blueprint)
 		iterator_start(&it, blueprint->special_rooms);
 		while( (special = (BLUEPRINT_SPECIAL_ROOM *)iterator_nextdata(&it)) )
 		{
-			section = (INSTANCE_SECTION *)list_nthdata(instance->sections, special->section);
+			section = instance_get_section(instance, special->section);
 			if( IS_VALID(section) )
 			{
-				ROOM_INDEX_DATA *room = instance_section_get_room_byvnum(section, special->vnum);
+				ROOM_INDEX_DATA *room = instance_section_get_room_byoffset(section, special->offset);
 
 				if( room )
 				{
@@ -2516,13 +3491,15 @@ const struct olc_cmd_type bpedit_table[] =
 	{ "deliprog",		bpedit_deliprog		},
 	{ "description",	bpedit_description	},
 	{ "flags",			bpedit_flags		},
+	{ "layout",			bpedit_layout		},
+	{ "links",			bpedit_links		},
 	{ "list",			bpedit_list			},
-	{ "mode",			bpedit_mode			},
 	{ "name",			bpedit_name			},
 	{ "repop",			bpedit_repop		},
+	{ "rooms",			bpedit_rooms		},
+	{ "scripted",		bpedit_scripted		},
 	{ "section",		bpedit_section		},
 	{ "show",			bpedit_show			},
-	{ "static",			bpedit_static		},
 	{ "varclear",		bpedit_varclear		},
 	{ "varset",			bpedit_varset		},
 	{ NULL,				NULL				}
@@ -2530,13 +3507,6 @@ const struct olc_cmd_type bpedit_table[] =
 
 void list_blueprints(CHAR_DATA *ch, char *argument)
 {
-	static const char *blueprint_modes[] =
-	{
-		"{GStatic",
-		"{YDynamic",
-		"{RProcedural"
-	};
-
 	AREA_DATA *area = ch->in_room->area;
 
 	if(!ch->lines)
@@ -2553,10 +3523,9 @@ void list_blueprints(CHAR_DATA *ch, char *argument)
 
 		if( blueprint )
 		{
-			sprintf(buf, "{Y[{W%5ld{Y] {x%-30.30s  %-16.16s{x\n\r",
+			sprintf(buf, "{Y[{W%5ld{Y] {x%-30.30s{x\n\r",
 				vnum,
-				blueprint->name,
-				blueprint_modes[URANGE(0,blueprint->mode,2)]);
+				blueprint->name);
 
 			++lines;
 			if( !add_buf(buffer, buf) || (!ch->lines && strlen(buf_string(buffer)) > MAX_STRING_LENGTH) )
@@ -2581,8 +3550,8 @@ void list_blueprints(CHAR_DATA *ch, char *argument)
 		{
 			// Header
 			send_to_char("Blueprints in current area:\n\r", ch);
-			send_to_char("{Y Vnum   [            Name            ] [      Mode      ]{x\n\r", ch);
-			send_to_char("{Y=========================================================={x\n\r", ch);
+			send_to_char("{Y Vnum   [            Name            ]{x\n\r", ch);
+			send_to_char("{Y======================================={x\n\r", ch);
 			page_to_char(buffer->string, ch);
 		}
 
@@ -2650,7 +3619,7 @@ void do_bpedit(CHAR_DATA *ch, char *argument)
 	}
 
 	send_to_char("Syntax: bpedit <widevnum>\n\r"
-				 "        bpedit create <vnum>\n\r", ch);
+				 "        bpedit create[ <widevnum>]\n\r", ch);
 }
 
 
@@ -2705,6 +3674,503 @@ BPEDIT( bpedit_list )
 	return FALSE;
 }
 
+void bpedit_buffer_layout(BUFFER *buffer, BLUEPRINT *bp)
+{
+	char buf[MSL];
+
+	add_buf(buffer, "{yLayout:{x\n\r");
+	if (IS_SET(bp->flags, BLUEPRINT_SCRIPTED_LAYOUT))
+	{
+		add_buf(buffer, "  {WSCRIPTED{x\n\r");
+	}
+	else if(list_size(bp->layout) > 0)
+	{
+		ITERATOR it;
+		BLUEPRINT_LAYOUT_SECTION_DATA *section;
+
+		add_buf(buffer, "{y     [  Mode  ] [ Ordinal ]{x\n\r");
+		add_buf(buffer, "{y===================================================={x\n\r");
+
+		int section_no = 1;
+		iterator_start(&it, bp->layout);
+		while( (section = (BLUEPRINT_LAYOUT_SECTION_DATA *)iterator_nextdata(&it)) )
+		{
+			switch(section->mode)
+			{
+				case SECTIONMODE_STATIC:
+				{
+					BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, section->section);
+					sprintf(buf, "{W%4d  {Y STATIC {x   %7d       %4d - {x%23.23s{x\n\r", section_no++, section->ordinal, section->section, bs->name);
+					add_buf(buffer, buf);
+					break;
+				}
+				
+				case SECTIONMODE_WEIGHTED:
+				{
+					ITERATOR wit;
+					BLUEPRINT_WEIGHTED_SECTION_DATA *weighted;
+					BLUEPRINT_SECTION *bs;
+
+					sprintf(buf, "{W%4d  {CWEIGHTED{x    %7d\n\r", section_no++, section->ordinal);
+					add_buf(buffer, buf);
+					add_buf(buffer, "{c               [ Weight ] [             Section            ]{x\n\r");
+					add_buf(buffer, "{c          ==================================================={x\n\r");
+
+					int weight_no = 1;
+					iterator_start(&wit, section->weighted_sections);
+					while( (weighted = (BLUEPRINT_WEIGHTED_SECTION_DATA *)iterator_nextdata(&wit)) )
+					{
+						bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, weighted->section);
+						sprintf(buf, "          {c%4d   {W%6d     {x%4d - %23.23s{x\n\r", weight_no++, weighted->weight, weighted->section, bs->name);
+						add_buf(buffer, buf);
+					}
+					iterator_stop(&wit);
+					add_buf(buffer, "{c          ----------------------------------------------------{x\n\r");
+					break;
+				}
+
+				case SECTIONMODE_GROUP:
+				{
+					ITERATOR git;
+					BLUEPRINT_LAYOUT_SECTION_DATA *sect;
+
+					sprintf(buf, "{W%4d  {G  GROUP {x\n\r", section_no++);
+					add_buf(buffer, buf);
+					if (list_size(section->group) > 0)
+					{
+
+						add_buf(buffer, "          {y     [  Mode  ] [ Ordinal ]{x\n\r");
+						add_buf(buffer, "          {y===================================================={x\n\r");
+
+						int gsection_no = 1;
+						iterator_start(&git, section->group);
+						while( (sect = (BLUEPRINT_LAYOUT_SECTION_DATA *)iterator_nextdata(&git)) )
+						{
+							if (sect->mode == SECTIONMODE_STATIC)
+							{
+								BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, sect->section);
+								sprintf(buf, "          {W%4d  {Y STATIC {x    %7d     %4d - {x%23.23s{x\n\r", gsection_no++, sect->ordinal, sect->section, bs->name);
+								add_buf(buffer, buf);	
+							}
+							else if(sect->mode == SECTIONMODE_WEIGHTED)
+							{
+								ITERATOR wit;
+								BLUEPRINT_WEIGHTED_SECTION_DATA *weighted;
+								BLUEPRINT_SECTION *bs;
+
+								sprintf(buf, "          {W%4d  {CWEIGHTED{x    %7d\n\r", gsection_no++, sect->ordinal);
+								add_buf(buffer, buf);
+								add_buf(buffer, "{c                         [ Weight ] [              Floor             ]{x\n\r");
+								add_buf(buffer, "{c                    ==================================================={x\n\r");
+
+								int weight_no = 1;
+								iterator_start(&wit, sect->weighted_sections);
+								while( (weighted = (BLUEPRINT_WEIGHTED_SECTION_DATA *)iterator_nextdata(&wit)) )
+								{
+									bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, weighted->section);
+									sprintf(buf, "                    {c%4d   {W%6d     {x%4d - %23.23s{x\n\r", weight_no++, weighted->weight, weighted->section, bs->name);
+									add_buf(buffer, buf);
+								}
+								iterator_stop(&wit);
+								add_buf(buffer, "{c                    ----------------------------------------------------{x\n\r");
+							}
+						}
+						iterator_stop(&git);
+
+					}
+					break;
+				}
+			}
+		}
+		iterator_stop(&it);
+
+		add_buf(buffer, "{y----------------------------------------------------{x\n\r");
+	}
+	else
+	{
+		add_buf(buffer, "  None\n\r");
+	}
+}
+
+void bpedit_buffer_links(BUFFER *buffer, BLUEPRINT *bp)
+{
+	char buf[MSL];
+
+	add_buf(buffer, "{yLinks:{x\n\r");
+	if (IS_SET(bp->flags, BLUEPRINT_SCRIPTED_LAYOUT))
+	{
+		add_buf(buffer, "  {WSCRIPTED{x\n\r");
+	}
+	else if(list_size(bp->links) > 0)
+	{
+		ITERATOR it;
+		BLUEPRINT_LAYOUT_LINK_DATA *link;
+
+		add_buf(buffer, "{x     [    Mode    ]{x\n\r");
+		add_buf(buffer, "{x========================================================{x\n\r");
+
+		int link_no = 1;
+		iterator_start(&it, bp->links);
+		while( (link = (BLUEPRINT_LAYOUT_LINK_DATA *)iterator_nextdata(&it)) )
+		{
+			BLUEPRINT_WEIGHTED_LINK_DATA *from;
+			BLUEPRINT_WEIGHTED_LINK_DATA *to;
+			switch(link->mode)
+			{
+				case LINKMODE_STATIC:
+				{
+					from = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(link->from, 1);
+					to = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(link->to, 1);
+					sprintf(buf, "%4d  {Y   STATIC   {x\n\r", link_no++);
+					sprintf(buf, "          Source:        {%c%4d{x (%d)\n\r", (from->section<0?'G':(from->section>0?'Y':'W')), abs(from->section), from->link);
+					add_buf(buffer, buf);
+					sprintf(buf, "          Destination:   {%c%4d{x (%d)\n\r", (to->section<0?'G':(to->section>0?'Y':'W')), abs(to->section), to->link);
+					add_buf(buffer, buf);
+					break;
+				}
+
+				case LINKMODE_SOURCE:
+				{
+					ITERATOR wit;
+					to = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(link->to, 1);
+					sprintf(buf, "%4d  {C   SOURCE   {x\n\r", link_no++);
+					add_buf(buffer, buf);
+
+					int fromlink_no = 1;
+					add_buf(buffer, "          Source:\n\r");
+					add_buf(buffer, "               [ Weight ] [Section] [ Exit# ]{x\n\r");
+					add_buf(buffer, "          ===================================={x\n\r");
+					iterator_start(&wit, link->from);
+					while ( (from = (BLUEPRINT_WEIGHTED_LINK_DATA *)iterator_nextdata(&wit)) )
+					{
+						sprintf(buf, "          %4d   %6d    {%c%5d{x     %5d\n\r", fromlink_no++, from->weight, (from->section<0?'G':(from->section>0?'Y':'W')), abs(from->section), from->link);
+						add_buf(buffer, buf);
+					}
+					iterator_stop(&wit);
+					add_buf(buffer, "          ----------------------------------------------------{x\n\r");
+
+					sprintf(buf,    "          Destination:   {%c%4d{x (%d)\n\r", (to->section<0?'G':(to->section>0?'Y':'W')), abs(to->section), to->link);
+					add_buf(buffer, buf);
+					break;
+				}
+
+				case LINKMODE_DESTINATION:
+				{
+					ITERATOR wit;
+					from = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(link->from, 1);
+					sprintf(buf, "%4d  {C DESTINATION{x\n\r", link_no++);
+					add_buf(buffer, buf);
+					sprintf(buf,    "          Source:        {%c%4d{x (%d)\n\r", (from->section<0?'G':(from->section>0?'Y':'W')), abs(from->section), from->link);
+					add_buf(buffer, buf);
+
+					int tolink_no = 1;
+					add_buf(buffer, "          Destination:\n\r");
+					add_buf(buffer, "               [ Weight ] [Section] [ Exit# ]{x\n\r");
+					add_buf(buffer, "          ===================================={x\n\r");
+					iterator_start(&wit, link->to);
+					while ( (to = (BLUEPRINT_WEIGHTED_LINK_DATA *)iterator_nextdata(&wit)) )
+					{
+						sprintf(buf, "          %4d   %6d    {%c%5d{x     %5d\n\r", tolink_no++, to->weight, (to->section<0?'G':(to->section>0?'Y':'W')), abs(to->section), to->link);
+						add_buf(buffer, buf);
+					}
+					iterator_stop(&wit);
+					add_buf(buffer, "          ----------------------------------------------------{x\n\r");
+					break;
+				}
+
+				case LINKMODE_WEIGHTED:
+				{
+					ITERATOR wit;
+					sprintf(buf, "%4d  {C  WEIGHTED  {x\n\r", link_no++);
+					add_buf(buffer, buf);
+
+					int fromlink_no = 1;
+					add_buf(buffer, "          Source:\n\r");
+					add_buf(buffer, "               [ Weight ] [Section] [ Exit# ]{x\n\r");
+					add_buf(buffer, "          ===================================={x\n\r");
+					iterator_start(&wit, link->from);
+					while ( (from = (BLUEPRINT_WEIGHTED_LINK_DATA *)iterator_nextdata(&wit)) )
+					{
+						sprintf(buf, "          %4d   %6d    {%c%5d{x     %5d\n\r", fromlink_no++, from->weight, (from->section<0?'G':(from->section>0?'Y':'W')), abs(from->section), from->link);
+						add_buf(buffer, buf);
+					}
+					iterator_stop(&wit);
+					add_buf(buffer, "          ----------------------------------------------------{x\n\r");
+
+					int tolink_no = 1;
+					add_buf(buffer, "          Destination:\n\r");
+					add_buf(buffer, "               [ Weight ] [Section] [ Exit# ]{x\n\r");
+					add_buf(buffer, "          ===================================={x\n\r");
+					iterator_start(&wit, link->to);
+					while ( (to = (BLUEPRINT_WEIGHTED_LINK_DATA *)iterator_nextdata(&wit)) )
+					{
+						sprintf(buf, "          %4d   %6d    {%c%5d{x     %5d\n\r", tolink_no++, to->weight, (to->section<0?'G':(to->section>0?'Y':'W')), abs(to->section), to->link);
+						add_buf(buffer, buf);
+					}
+					iterator_stop(&wit);
+					add_buf(buffer, "          ----------------------------------------------------{x\n\r");
+					break;
+				}
+
+				case LINKMODE_GROUP:
+				{
+					int count = list_size(link->group);
+					sprintf(buf, "%4d  {G    GROUP   {x\n\r", link_no++);
+					add_buf(buffer, buf);
+					if(count > 0)
+					{
+						ITERATOR git;
+						BLUEPRINT_LAYOUT_LINK_DATA *glink;
+
+						add_buf(buffer, "{x               [    Mode    ]{x\n\r");
+						add_buf(buffer, "{x          ========================================================{x\n\r");
+
+						int glink_no = 1;
+						iterator_start(&git, link->group);
+						while( (glink = (BLUEPRINT_LAYOUT_LINK_DATA *)iterator_nextdata(&git)) )
+						{
+							switch(glink->mode)
+							{
+								case LINKMODE_STATIC:
+								{
+									from = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(glink->from, 1);
+									to = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(glink->to, 1);
+									sprintf(buf, "          %4d  {Y   STATIC   {x\n\r", glink_no++);
+									sprintf(buf, "                    Source:        {%c%4d{x (%d)\n\r", (from->section < 0?'G':(from->section>0?'Y':'W')), abs(from->section), from->link);
+									add_buf(buffer, buf);
+									sprintf(buf, "                    Destination:   {%c%4d{x (%d)\n\r", (to->section < 0?'G':(to->section>0?'Y':'W')), abs(to->section), to->link);
+									add_buf(buffer, buf);
+									break;
+								}
+
+								case LINKMODE_SOURCE:
+								{
+									ITERATOR wit;
+									to = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(glink->to, 1);
+									sprintf(buf, "          %4d  {C   SOURCE   {x\n\r", link_no++);
+									add_buf(buffer, buf);
+
+									int fromlink_no = 1;
+									add_buf(buffer, "                    Source:\n\r");
+									add_buf(buffer, "                         [ Weight ] [Section] [ Exit# ]{x\n\r");
+									add_buf(buffer, "                    ===================================={x\n\r");
+									iterator_start(&wit, glink->from);
+									while ( (from = (BLUEPRINT_WEIGHTED_LINK_DATA *)iterator_nextdata(&wit)) )
+									{
+										sprintf(buf, "                    %4d   %6d    {%c%5d{x     %5d\n\r", fromlink_no++, from->weight, (from->section < 0?'G':(from->section>0?'Y':'W')), abs(from->section), from->link);
+										add_buf(buffer, buf);
+									}
+									iterator_stop(&wit);
+									add_buf(buffer, "                    ----------------------------------------------------{x\n\r");
+
+									sprintf(buf, "                    Destination:   {%c%4d{x (%d)\n\r", (to->section < 0?'G':(to->section>0?'Y':'W')), abs(to->section), to->link);
+									add_buf(buffer, buf);
+									break;
+								}
+
+								case LINKMODE_DESTINATION:
+								{
+									ITERATOR wit;
+									from = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(glink->from, 1);
+									sprintf(buf, "          %4d  {C DESTINATION{x\n\r", glink_no++);
+									add_buf(buffer, buf);
+									sprintf(buf, "                    Source:        {%c%4d{x (%d)\n\r", (from->section < 0?'G':(from->section>0?'Y':'W')), abs(from->section), from->link);
+									add_buf(buffer, buf);
+
+									int tolink_no = 1;
+									add_buf(buffer, "                    Destination:\n\r");
+									add_buf(buffer, "                         [ Weight ] [Section] [ Exit# ]{x\n\r");
+									add_buf(buffer, "                    ===================================={x\n\r");
+									iterator_start(&wit, glink->to);
+									while ( (to = (BLUEPRINT_WEIGHTED_LINK_DATA *)iterator_nextdata(&wit)) )
+									{
+										sprintf(buf, "                    %4d   %6d    {%c%5d{x     %5d\n\r", tolink_no++, to->weight, (to->section < 0?'G':(to->section>0?'Y':'W')), abs(to->section), to->link);
+										add_buf(buffer, buf);
+									}
+									iterator_stop(&wit);
+									add_buf(buffer, "                    ----------------------------------------------------{x\n\r");
+									break;
+								}
+
+								case LINKMODE_WEIGHTED:
+								{
+									ITERATOR wit;
+									sprintf(buf, "          %4d  {C  WEIGHTED  {x\n\r", glink_no++);
+									add_buf(buffer, buf);
+
+									int fromlink_no = 1;
+									add_buf(buffer, "                    Source:\n\r");
+									add_buf(buffer, "                         [ Weight ] [Section] [ Exit# ]{x\n\r");
+									add_buf(buffer, "                    ===================================={x\n\r");
+									iterator_start(&wit, glink->from);
+									while ( (from = (BLUEPRINT_WEIGHTED_LINK_DATA *)iterator_nextdata(&wit)) )
+									{
+										sprintf(buf, "                    %4d   %6d    {%c%5d{x     %5d\n\r", fromlink_no++, from->weight, (from->section < 0?'G':(from->section>0?'Y':'W')), abs(from->section), from->link);
+										add_buf(buffer, buf);
+									}
+									iterator_stop(&wit);
+									add_buf(buffer, "                    ----------------------------------------------------{x\n\r");
+
+									int tolink_no = 1;
+									add_buf(buffer, "                    Destination:\n\r");
+									add_buf(buffer, "                         [ Weight ] [Section] [ Exit# ]{x\n\r");
+									add_buf(buffer, "                    ===================================={x\n\r");
+									iterator_start(&wit, glink->to);
+									while ( (to = (BLUEPRINT_WEIGHTED_LINK_DATA *)iterator_nextdata(&wit)) )
+									{
+										sprintf(buf, "                    %4d   %6d    {%c%5d{x     %5d\n\r", tolink_no++, to->weight, (to->section < 0?'G':(to->section>0?'Y':'W')), abs(to->section), to->link);
+										add_buf(buffer, buf);
+									}
+									iterator_stop(&wit);
+									add_buf(buffer, "                    ----------------------------------------------------{x\n\r");
+									break;
+								}
+							}
+						}
+						iterator_stop(&git);
+					}
+					else
+					{
+						add_buf(buffer, "          None\n\r");
+					}
+					break;
+				}
+			}
+		}
+		iterator_stop(&it);
+
+		add_buf(buffer, "{YYELLOW{x - Generated section position index for Source/Destination sections\n\r");
+		add_buf(buffer, "{GGREEN{x  - Ordinal section position index for Source/Destination sections\n\r");
+	}
+	else
+	{
+		add_buf(buffer, "  None\n\r");
+	}
+}
+
+BLUEPRINT_LAYOUT_SECTION_DATA *blueprint_get_nth_section(BLUEPRINT *bp, int section_no, BLUEPRINT_LAYOUT_SECTION_DATA **in_group)
+{
+	if (!IS_VALID(bp) || !section_no) return NULL;
+
+	if (in_group) *in_group = NULL;
+	BLUEPRINT_LAYOUT_SECTION_DATA *section_data = NULL;
+	if (section_no < 0)
+	{
+		int ordinal = -section_no;
+		ITERATOR lsit;
+		BLUEPRINT_LAYOUT_SECTION_DATA *ls;
+
+		iterator_start(&lsit, bp->layout);
+		while((ls = (BLUEPRINT_LAYOUT_SECTION_DATA *)iterator_nextdata(&lsit)))
+		{
+			if (ls->ordinal == ordinal)
+			{
+				section_data = ls;
+				break;
+			}
+			else if (ls->mode == SECTIONMODE_GROUP)
+			{
+				ITERATOR git;
+				BLUEPRINT_LAYOUT_SECTION_DATA *gls;
+
+				iterator_start(&git, ls->group);
+				while((gls = (BLUEPRINT_LAYOUT_SECTION_DATA *)iterator_nextdata(&git)))
+				{
+					if (gls->ordinal == ordinal)
+					{
+						section_data = gls;
+						if (in_group) *in_group = ls;
+						break;
+					}
+				}
+				iterator_stop(&git);
+
+				if (section_data)
+					break;
+			}
+		}
+		iterator_stop(&lsit);
+	}
+	else
+	{
+		ITERATOR lsit;
+		BLUEPRINT_LAYOUT_SECTION_DATA *ls;
+
+		iterator_start(&lsit, bp->layout);
+		while((ls = (BLUEPRINT_LAYOUT_SECTION_DATA *)iterator_nextdata(&lsit)))
+		{
+			if (ls->mode == SECTIONMODE_GROUP)
+			{
+				ITERATOR git;
+				BLUEPRINT_LAYOUT_SECTION_DATA *gls;
+
+				iterator_start(&git, ls->group);
+				while((gls = (BLUEPRINT_LAYOUT_SECTION_DATA *)iterator_nextdata(&git)))
+				{
+					if (section_no == 1)
+					{
+						section_data = gls;
+						if (in_group) *in_group = ls;
+						break;
+					}
+
+					section_no--;
+				}
+				iterator_stop(&git);
+
+				if (section_data)
+					break;
+			}
+			else if (section_no == 1)
+			{
+				section_data = ls;
+				break;
+			}
+			else
+				section_no--;
+		}
+		iterator_stop(&lsit);
+	}
+
+	return section_data;
+}
+
+BLUEPRINT_SECTION *blueprint_get_representative_section(BLUEPRINT *bp, int section_no, bool *exact)
+{
+	BLUEPRINT_LAYOUT_SECTION_DATA *in_group = NULL;
+	BLUEPRINT_LAYOUT_SECTION_DATA *ls = blueprint_get_nth_section(bp, section_no, &in_group);
+
+	if (!IS_VALID(ls) || ls->mode == SECTIONMODE_GROUP) return NULL;
+
+	if (ls->mode == SECTIONMODE_STATIC)
+	{
+		// Can get the exact section
+		if (exact) *exact = !in_group;
+		return (BLUEPRINT_SECTION *)list_nthdata(bp->sections, ls->section);
+	}
+	else
+	{
+		ITERATOR wit;
+		BLUEPRINT_WEIGHTED_SECTION_DATA *weighted;
+		BLUEPRINT_WEIGHTED_SECTION_DATA *most_likely = NULL;
+
+		iterator_start(&wit, ls->weighted_sections);
+		while((weighted = (BLUEPRINT_WEIGHTED_SECTION_DATA *)iterator_nextdata(&wit)))
+		{
+			if(!most_likely || weighted->weight > most_likely->weight)
+			{
+				most_likely = weighted;
+			}
+		}
+		iterator_stop(&wit);
+
+		if (!most_likely) return NULL;
+
+		if (exact) *exact = FALSE;
+		return (BLUEPRINT_SECTION *)list_nthdata(bp->sections, most_likely->section);
+	}
+}
+
 BPEDIT( bpedit_show )
 {
 	BLUEPRINT *bp;
@@ -2738,17 +4204,6 @@ BPEDIT( bpedit_show )
 	add_buf(buffer, bp->comments);
 	add_buf(buffer, "\n\r-----\n\r");
 
-	switch(bp->mode)
-	{
-	case BLUEPRINT_MODE_STATIC:
-		add_buf(buffer, "{xMode:        [{WStatic{x]\n\r");
-		break;
-
-	default:
-		add_buf(buffer, "{xMode:        [Unknown]\n\r");
-		break;
-	}
-
 	if( list_size(bp->sections) > 0 )
 	{
 		int line = 0;
@@ -2774,8 +4229,16 @@ BPEDIT( bpedit_show )
 		add_buf(buffer, "{YSections:{x\n\r   None\n\r\n\r");
 	}
 
+	bpedit_buffer_layout(buffer, bp);
+	
+	bpedit_buffer_links(buffer, bp);
+
 	add_buf(buffer, "Special Rooms:\n\r");
-	if( list_size(bp->special_rooms) > 0 )
+	if (IS_SET(bp->flags, BLUEPRINT_SCRIPTED_LAYOUT))
+	{
+		add_buf(buffer, "   {WSCRIPTED{x\n\r");
+	}
+	else if (list_size(bp->special_rooms) > 0)
 	{
 		BLUEPRINT_SPECIAL_ROOM *special;
 
@@ -2787,24 +4250,40 @@ BPEDIT( bpedit_show )
 		add_buf(buffer, "     [             Name             ] [             Room             ]\n\r");
 		add_buf(buffer, "---------------------------------------------------------------------------------\n\r");
 
+		bool approx_msg = FALSE;
 		iterator_start(&sit, bp->special_rooms);
 		while( (special = (BLUEPRINT_SPECIAL_ROOM *)iterator_nextdata(&sit)) )
 		{
-			BLUEPRINT_SECTION *section = list_nthdata(bp->sections, special->section);
-			ROOM_INDEX_DATA *room = get_room_index(bp->area, special->vnum);
+			bool exact = FALSE;
+			BLUEPRINT_SECTION *bs = blueprint_get_representative_section(bp, special->section, &exact);
 
-			if( !IS_VALID(section) || !room || room->vnum < section->lower_vnum || room->vnum > section->upper_vnum)
+			ROOM_INDEX_DATA *room = NULL;
+			long vnum = 0;
+
+			if(IS_VALID(bs) )
+			{
+				vnum = bs->lower_vnum + special->offset;
+
+				if (vnum >= bs->lower_vnum || vnum <= bs->upper_vnum)
+					room = get_room_index(bs->area, vnum);
+			}
+
+			if( !IS_VALID(bs) || !room || room->vnum < bs->lower_vnum || room->vnum > bs->upper_vnum)
 			{
 				snprintf(buf, MSL-1, "{W%4d  %-30.30s   {D-{Winvalid{D-{x\n\r", ++line, special->name);
 			}
 			else
 			{
-				snprintf(buf, MSL-1, "{W%4d  %-30.30s   (%ld) {Y%s{x in (%ld) {Y%s{x\n\r", ++line, special->name, room->vnum, room->name, section->vnum, section->name);
+				snprintf(buf, MSL-1, "{W%4d  %-30.30s   (%ld#%ld) {Y%s{x in (%ld#%ld) {Y%s{x%s\n\r", ++line, special->name, room->area->uid, room->vnum, room->name, bs->area->uid, bs->vnum, bs->name, exact?"":" {M**{x");
+				if (!exact) approx_msg = TRUE;
 			}
 			add_buf(buffer, buf);
 		}
 		iterator_stop(&sit);
 		add_buf(buffer, "---------------------------------------------------------------------------------\n\r");
+
+		if (approx_msg)
+			add_buf(buffer, "{M**{x - {WLocation is the most likely location due to section entry.{x\n\r");
 	}
 	else
 	{
@@ -2812,137 +4291,112 @@ BPEDIT( bpedit_show )
 	}
 	add_buf(buffer, "\n\r");
 
-
-
-	if( bp->mode == BLUEPRINT_MODE_STATIC )
+	if( IS_SET(bp->flags, BLUEPRINT_SCRIPTED_LAYOUT))
 	{
-		if( bp->_static.layout )
-		{
-			int linkno = 0;
-			add_buf(buffer, "{CLinks:{x\n\r");
-
-			add_buf(buffer, "     [ Section 1 ] [ Link 1 ] [ Section 2 ] [ Link 2 ]\n\r");
-			add_buf(buffer, "-------------------------------------------------------\n\r");
-
-			STATIC_BLUEPRINT_LINK *sbl;
-			for(sbl = bp->_static.layout; sbl; sbl = sbl->next)
-			{
-				sprintf(buf, "{W%4d   {G%9d     {Y%6d     {G%9d     {Y%6d{x\n\r",
-					++linkno, sbl->section1, sbl->link1, sbl->section2, sbl->link2);
-				add_buf(buffer, buf);
-			}
-
-			add_buf(buffer, "-------------------------------------------------------\n\r\n\r");
-		}
-		else
-		{
-			add_buf(buffer, "{CLinks:{x\n\r   None\n\r\n\r");
-		}
-
-		if( bp->_static.recall > 0 )
-		{
-			BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, bp->_static.recall);
-
-			if( bs )
-			{
-				sprintf(buf, "{xRecall:     %d [%ld] %-.30s\n\r", bp->_static.recall, bs->vnum, bs->name);
-			}
-			else
-			{
-				sprintf(buf, "{xRecall:     %d [---] {Dinvalid{x\n\r", bp->_static.recall);
-			}
-
-			add_buf(buffer, buf);
-		}
-		else
-		{
-			add_buf(buffer, "{xRecall:     None\n\r");
-		}
-
-		BLUEPRINT_EXIT_DATA *bex;
-		ITERATOR bxit;
-		int bxindex = 1;
-		if (list_size(bp->_static.entries) > 0)
-		{
-			iterator_start(&bxit, bp->_static.entries);
-			while( (bex = (BLUEPRINT_EXIT_DATA *)iterator_nextdata(&bxit)) )
-			{
-				BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, bex->section);
-
-				if( bs )
-				{
-					BLUEPRINT_LINK *bl = get_section_link(bs, bex->link);
-
-					char section_name[31];
-
-					strncpy(section_name, bs->name, 30);
-					section_name[30] = '\0';
-
-					if( bl && bl->vnum > 0 && bl->door >= 0 && bl->door < MAX_DIR )
-					{
-						sprintf(buf, "{xEntry:      [%d] %d [%ld] %s (%ld:%s)\n\r", bxindex++, bex->section, bs->vnum, section_name, bl->vnum, dir_name[bl->door]);
-					}
-					else
-					{
-						sprintf(buf, "{xEntry:      [%d] %d [%ld] %s ({Dinvalid{x)\n\r", bxindex++, bex->section, bs->vnum, section_name);
-					}
-				}
-				else
-				{
-					sprintf(buf, "{xEntry:      [%d] %d [---] {Dinvalid{x\n\r", bxindex++, bex->section);
-				}
-
-				add_buf(buffer, buf);
-			}
-			iterator_stop(&bxit);
-		}
-		else
-		{
-			add_buf(buffer, "{xEntry:      None\n\r");
-		}
-
-
-		bxindex = 1;
-		if( list_size(bp->_static.exits) > 0 )
-		{
-			iterator_start(&bxit, bp->_static.exits);
-			while( (bex = (BLUEPRINT_EXIT_DATA *)iterator_nextdata(&bxit)) )
-			{
-				BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, bex->section);
-
-				if( bs )
-				{
-					BLUEPRINT_LINK *bl = get_section_link(bs, bex->link);
-
-					char section_name[31];
-
-					strncpy(section_name, bs->name, 30);
-					section_name[30] = '\0';
-
-					if( bl && bl->vnum > 0 && bl->door >= 0 && bl->door < MAX_DIR )
-					{
-						sprintf(buf, "{xExit:       [%d] %d [%ld] %s (%ld:%s)\n\r", bxindex++, bex->section, bs->vnum, section_name, bl->vnum, dir_name[bl->door]);
-					}
-					else
-					{
-						sprintf(buf, "{xExit:       [%d] %d [%ld] %s ({Dinvalid{x)\n\r", bxindex++, bex->section, bs->vnum, section_name);
-					}
-				}
-				else
-				{
-					sprintf(buf, "{xExit:       [%d] %d [---] {Dinvalid{x\n\r", bxindex++, bex->section);
-				}
-
-				add_buf(buffer, buf);
-			}
-			iterator_stop(&bxit);
-		}
-		else
-		{
-			add_buf(buffer, "{xExit:       None\n\r");
-		}
-
+		add_buf(buffer, "{xRecall:     {WScripted{x\n\r");
 	}
+	else if(bp->recall)
+	{
+		bool exact = FALSE;
+		BLUEPRINT_SECTION *bs = blueprint_get_representative_section(bp, bp->recall, &exact);
+
+		// Get the recall room from section
+		ROOM_INDEX_DATA *room = IS_VALID(bs) ? get_room_index(bs->area, bs->recall) : NULL;
+
+		sprintf(buf, "{xRecall:     %s{x (#{W%ld{x) in %s{x ({W%d{x) [{Y%s{x]\n\r",
+			(room ? room->name : "???"),
+			(room ? room->vnum : 0),
+			bs->name, abs(bp->recall), (bp->recall < 0 ? "ORDINAL" : "GENERATED"));
+		add_buf(buffer, buf);
+
+		if(room && !exact)
+			add_buf(buffer, "            {M({WLocation is the most likely location due to section entry.{M}){x\n\r");
+	}
+	else
+	{
+		add_buf(buffer, "{xRecall:     none\n\r");
+	}
+	add_buf(buffer, "\n\r");
+
+	add_buf(buffer, "{xEntrances:\n\r");
+	if(list_size(bp->entrances) > 0)
+	{
+		add_buf(buffer, "      [         Name         ] [ Section ] [               Room               ]\n\r");
+		add_buf(buffer, "================================================================================\n\r");
+		ITERATOR bxit;
+		BLUEPRINT_EXIT_DATA *bex;
+		int bxindex = 1;
+		bool approx_msg = FALSE;
+		iterator_start(&bxit, bp->entrances);
+		while( (bex = (BLUEPRINT_EXIT_DATA *)iterator_nextdata(&bxit)) )
+		{
+			bool exact = FALSE;
+			BLUEPRINT_SECTION *bs = blueprint_get_representative_section(bp, bex->section, &exact);
+
+			BLUEPRINT_LINK *link = get_section_link(bs, bex->link);
+
+			ROOM_INDEX_DATA *room = IS_VALID(bs) && valid_section_link(link) ? get_room_index(bs->area, link->vnum) : NULL;
+
+			if (room)
+				sprintf(buf, "%4d    %-20.20s     {%c%7d{x     (%-4ld) %s (%s) %s\n\r", bxindex++, bex->name, (bex->section<0?'G':(bex->section>0?'Y':'W')), abs(bex->section), room->vnum, room->name, dir_name[link->door], (exact ? "" : "{M**{x"));
+			else
+				sprintf(buf, "%4d    %-20.20s     {%c%7d{x     %s\n\r", bxindex++, bex->name, (bex->section<0?'G':(bex->section>0?'Y':'W')), abs(bex->section), "???");
+			add_buf(buffer, buf);
+
+			if (room && !exact)
+				approx_msg = TRUE;
+		}
+		iterator_stop(&bxit);
+		add_buf(buffer, "--------------------------------------------------------------------------------\n\r");
+
+		if (approx_msg)
+			add_buf(buffer, "{M**{x - {WLocation is the most likely location due to section entry.{x\n\r");
+	}
+	else
+	{
+		add_buf(buffer, "    none\n\r");
+	}
+	add_buf(buffer, "\n\r");
+
+	add_buf(buffer, "{xExits:\n\r");
+	if(list_size(bp->exits) > 0)
+	{
+		add_buf(buffer, "      [         Name         ] [ Section ] [               Room               ]\n\r");
+		add_buf(buffer, "================================================================================\n\r");
+		ITERATOR bxit;
+		BLUEPRINT_EXIT_DATA *bex;
+		int bxindex = 1;
+		bool approx_msg = FALSE;
+		iterator_start(&bxit, bp->exits);
+		while( (bex = (BLUEPRINT_EXIT_DATA *)iterator_nextdata(&bxit)) )
+		{
+			bool exact = FALSE;
+			BLUEPRINT_SECTION *bs = blueprint_get_representative_section(bp, bex->section, &exact);
+
+			BLUEPRINT_LINK *link = get_section_link(bs, bex->link);
+
+			ROOM_INDEX_DATA *room = IS_VALID(bs) && valid_section_link(link) ? get_room_index(bs->area, link->vnum) : NULL;
+
+			if (room)
+				sprintf(buf, "%4d    %-20.20s     {%c%7d{x     (%-4ld) %s (%s) %s\n\r", bxindex++, bex->name, (bex->section<0?'G':(bex->section>0?'Y':'W')), abs(bex->section), room->vnum, room->name, dir_name[link->door], (exact ? "" : "{M**{x"));
+			else
+				sprintf(buf, "%4d    %-20.20s     {%c%7d{x     %s\n\r", bxindex++, bex->name, (bex->section<0?'G':(bex->section>0?'Y':'W')), abs(bex->section), "???");
+			add_buf(buffer, buf);
+
+			if (room && !exact)
+				approx_msg = TRUE;
+		}
+		iterator_stop(&bxit);
+		add_buf(buffer, "--------------------------------------------------------------------------------\n\r");
+
+		if (approx_msg)
+			add_buf(buffer, "{M**{x - {WLocation is the most likely location due to section entry.{x\n\r");
+	}
+	else
+	{
+		add_buf(buffer, "    none\n\r");
+	}
+	add_buf(buffer, "\n\r");
 
 	if (bp->progs) {
 		int cnt, slot;
@@ -3205,50 +4659,6 @@ BPEDIT( bpedit_areawho )
 	return FALSE;
 }
 
-BPEDIT( bpedit_mode )
-{
-	BLUEPRINT *bp;
-
-	EDIT_BLUEPRINT(ch, bp);
-
-	if( argument[0] == '\0' )
-	{
-		send_to_char("Syntax:  mode static|procedural\n\r", ch);
-		return FALSE;
-	}
-
-	if( !str_prefix(argument, "static") )
-	{
-		if( bp->mode == BLUEPRINT_MODE_STATIC )
-		{
-			send_to_char("Blueprint is already in STATIC mode.\n\r", ch);
-			return FALSE;
-		}
-
-
-		bp->mode = BLUEPRINT_MODE_STATIC;
-		// Remove non-static data
-
-		// Initialize static data
-		bp->_static.layout = NULL;
-		bp->_static.recall = -1;
-		list_clear(bp->_static.entries);
-		list_clear(bp->_static.exits);
-
-		send_to_char("Blueprint changed to STATIC mode.\n\r", ch);
-		return TRUE;
-	}
-
-	if( !str_prefix(argument, "procedural") )
-	{
-		send_to_char("Procedural mode is not implemented yet.\n\r", ch);
-		return FALSE;
-	}
-
-	bpedit_mode(ch, "");
-	return FALSE;
-}
-
 BPEDIT( bpedit_section )
 {
 	BLUEPRINT *bp;
@@ -3283,6 +4693,13 @@ BPEDIT( bpedit_section )
 			return FALSE;
 		}
 
+		// Make sure the section is defined
+		if (bs->lower_vnum < 1 || bs->upper_vnum < 1 || bs->lower_vnum >= bs->upper_vnum)
+		{
+			send_to_char("That blueprint section does not have any rooms defined.\n\r", ch);
+			return FALSE;
+		}
+
 		if( !list_appendlink(bp->sections, bs) )
 		{
 			send_to_char("{WError adding blueprint section to blueprint.{x\n\r", ch);
@@ -3312,6 +4729,7 @@ BPEDIT( bpedit_section )
 		list_remnthlink(bp->sections, index);
 
 		send_to_char("Blueprint section removed.\n\r", ch);
+#if 0
 		if( bp->mode == BLUEPRINT_MODE_STATIC )
 		{
 			// Remove any invalid layout definitions since the section has been removed
@@ -3380,7 +4798,7 @@ BPEDIT( bpedit_section )
 			}
 			iterator_stop(&bxit);
 		}
-
+#endif
 		return TRUE;
 	}
 
@@ -3431,518 +4849,5006 @@ BPEDIT( bpedit_section )
 	return FALSE;
 }
 
-BPEDIT( bpedit_static )
+int blueprint_generation_count(BLUEPRINT *bp)
+{
+	int count = 0;
+	ITERATOR it;
+	BLUEPRINT_LAYOUT_SECTION_DATA *ls;
+
+	iterator_start(&it, bp->layout);
+	while((ls = (BLUEPRINT_LAYOUT_SECTION_DATA *)iterator_nextdata(&it)))
+	{
+		if (ls->mode == SECTIONMODE_GROUP)
+			count += list_size(ls->group);
+		else
+			count++;
+	}
+	iterator_stop(&it);
+
+	return count;
+}
+
+int blueprint_section_link_count(BLUEPRINT_SECTION *section)
+{
+	int count = 0;
+
+	if (IS_VALID(section))
+		for(BLUEPRINT_LINK *link = section->links; link; link = link->next)
+			count++;
+
+	return count;
+}
+
+int blueprint_weighted_link_count(BLUEPRINT *bp, BLUEPRINT_WEIGHTED_SECTION_DATA *weighted)
+{
+	if (weighted)
+	{
+		BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, weighted->section);
+
+		return blueprint_section_link_count(bs);
+	}
+
+	return 0;
+}
+
+int blueprint_layout_links_count(BLUEPRINT *bp, BLUEPRINT_LAYOUT_SECTION_DATA *ls, int exclude)
+{
+	if (IS_VALID(ls))
+	{
+		switch(ls->mode)
+		{
+			case SECTIONMODE_STATIC:
+			{
+				BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, ls->section);
+				return blueprint_section_link_count(bs);
+			}
+
+			case SECTIONMODE_WEIGHTED:
+			{
+				int count = 0;
+
+				// Find the first entry that *has* a link count, as most of them can be empty weighted entries.
+				ITERATOR it;
+				BLUEPRINT_WEIGHTED_SECTION_DATA *weighted;
+				int index = 1;
+				iterator_start(&it, ls->weighted_sections);
+				while((weighted = (BLUEPRINT_WEIGHTED_SECTION_DATA *)iterator_nextdata(&it)))
+				{
+					if (index != exclude)
+					{
+						int c = blueprint_weighted_link_count(bp, weighted);
+
+						if (c > 0 && (count < 1 || c < count))
+						{
+							count = c;
+							break;
+						}
+					}
+
+					index++;
+				}
+				iterator_stop(&it);
+
+				return count;
+			}
+
+			case SECTIONMODE_GROUP:
+			{
+				int count = 0;
+
+				// Find the first entry that *has* a link count, as most of them can be empty weighted entries.
+				ITERATOR it;
+				BLUEPRINT_LAYOUT_SECTION_DATA *gls;
+				int index = 1;
+				iterator_start(&it, ls->group);
+				while((gls = (BLUEPRINT_LAYOUT_SECTION_DATA *)iterator_nextdata(&it)))
+				{
+					if (index != exclude)
+					{
+						int c = blueprint_layout_links_count(bp, gls, 0);
+
+						if (c > 0 && (count < 1 || c < count))
+						{
+							count = c;
+						}
+					}
+
+					index++;
+				}
+				iterator_stop(&it);
+
+				return count;
+			}
+		}
+	}
+	return 0;
+}
+
+BPEDIT( bpedit_scripted )
 {
 	BLUEPRINT *bp;
+
+	EDIT_BLUEPRINT(ch, bp);
+
+	if (IS_SET(bp->flags, BLUEPRINT_SCRIPTED_LAYOUT))
+	{
+		REMOVE_BIT(bp->flags, BLUEPRINT_SCRIPTED_LAYOUT);
+		send_to_char("Scripted Layout Mode disabled.\n\r", ch);
+	}
+	else
+	{
+		SET_BIT(bp->flags, BLUEPRINT_SCRIPTED_LAYOUT);
+		// Clear out all data.
+		list_clear(bp->layout);
+		list_clear(bp->links);
+		list_clear(bp->entrances);
+		list_clear(bp->exits);
+		bp->recall = 0;
+		send_to_char("Scripted Layout Mode enabled.\n\r", ch);
+	}
+
+	return FALSE;
+}
+
+BPEDIT( bpedit_layout )
+{
+	BLUEPRINT *bp;
+	char buf[MSL];
 	char arg[MIL];
 
 	EDIT_BLUEPRINT(ch, bp);
 
-	if( bp->mode != BLUEPRINT_MODE_STATIC )
+	if (IS_SET(bp->flags, BLUEPRINT_SCRIPTED_LAYOUT))
 	{
-		send_to_char("Blueprint is not in STATIC mode.\n\r", ch);
+		send_to_char("Blueprint is in Scripted Layout Mode.  Cannot edit blueprint layout in OLC.\n\r", ch);
 		return FALSE;
 	}
 
-	if( argument[0] == '\0' )
+	if (argument[0] != '\0')
 	{
-		send_to_char("Syntax:  static link add <section1#> <link1#> <section2#> <link2#>\n\r", ch);
-		send_to_char("         static link remove #\n\r", ch);
-		send_to_char("         static recall <section#>\n\r", ch);
-		send_to_char("         static recall clear\n\r", ch);
-		send_to_char("         static entry add <section#> <link#>\n\r", ch);
-		send_to_char("         static entry remove <#>\n\r", ch);
-		send_to_char("         static exit add <section#> <link#>\n\r", ch);
-		send_to_char("         static exit remove <#>\n\r", ch);
-		send_to_char("         static special add <section#> <room vnum> <name>\n\r", ch);
-		send_to_char("         static special # remove\n\r", ch);
-		send_to_char("         static special # name <name>\n\r", ch);
-		send_to_char("         static special # room <section#> <room vnum>\n\r", ch);
-		return FALSE;
-	}
+		argument = one_argument(argument, arg);
 
-	argument = one_argument(argument, arg);
-
-	if( !str_prefix(arg, "special") )
-	{
-		char arg2[MIL];
-		char arg3[MIL];
-		char arg4[MIL];
-
-		argument = one_argument(argument, arg2);
-
-		if( argument[0] == '\0' )
+		if (!str_prefix(arg, "list"))
 		{
-			send_to_char("Syntax:  static special add <section#> <room vnum> <name>\n\r", ch);
-			send_to_char("         static special # remove\n\r", ch);
-			send_to_char("         static special # name <name>\n\r", ch);
-			send_to_char("         static special # room <section#> <room vnum>\n\r", ch);
+			BUFFER *buffer = new_buf();
+
+			bpedit_buffer_layout(buffer, bp);
+
+			if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+			{
+				send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+			}
+			else
+			{
+				page_to_char(buffer->string, ch);
+			}
+
+			free_buf(buffer);
 			return FALSE;
 		}
-
-		if( is_number(arg2) )
+		else if (!str_prefix(arg, "clear"))
 		{
+			if (list_size(bp->layout) < 1)
+			{
+				send_to_char("The layout is empty.\n\r", ch);
+				return FALSE;
+			}
+
+			list_clear(bp->layout);
+			send_to_char("Layout cleared.\n\r", ch);
+			return TRUE;
+		}
+		else if (!str_prefix(arg, "add"))
+		{
+			char arg2[MIL];
+
+			argument = one_argument(argument, arg2);
+
+			if (!str_prefix(arg2, "static"))
+			{
+				if (list_size(bp->sections) < 1)
+				{
+					send_to_char("Sections list is empty.  Please use {Ysections add{x command to populate the list.\n\r", ch);
+					return FALSE;
+				}
+
+				if (!is_number(argument))
+				{
+					send_to_char("Syntax:  layout add static {R<section#>{x\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->sections));
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				int section_no = atoi(argument);
+				if (section_no < 1 || section_no > list_size(bp->sections))
+				{
+					send_to_char("Syntax:  layout add static {R<section#>{x\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->sections));
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				BLUEPRINT_SECTION *section = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, section_no);
+
+				BLUEPRINT_LAYOUT_SECTION_DATA *ls = new_blueprint_layout_section_data();
+				ls->mode = SECTIONMODE_STATIC;
+				ls->section = section_no;
+				list_appendlink(bp->layout, ls);
+
+				blueprint_update_section_ordinals(bp);
+
+				sprintf(buf, "Static Section %d (%s - %ld#%ld) added to Layout.\n\r", list_size(bp->layout), section->name, section->area->uid, section->vnum);
+				send_to_char(buf, ch);
+				return TRUE;
+			}
+			else if (!str_prefix(arg2, "weighted"))
+			{
+				BLUEPRINT_LAYOUT_SECTION_DATA *ls = new_blueprint_layout_section_data();
+				ls->mode = SECTIONMODE_WEIGHTED;
+				ls->total_weight = 0;
+				list_appendlink(bp->layout, ls);
+
+				blueprint_update_section_ordinals(bp);
+
+				sprintf(buf, "Weighted Section %d added to Layout.\n\r", list_size(bp->layout));
+				send_to_char(buf, ch);
+			}
+			else if (!str_prefix(arg2, "group"))
+			{
+				BLUEPRINT_LAYOUT_SECTION_DATA *ls = new_blueprint_layout_section_data();
+				ls->mode = SECTIONMODE_GROUP;
+				list_appendlink(bp->layout, ls);
+
+				// No need to update the ordinals
+
+				sprintf(buf, "Group Section %d added to Layout.\n\r", list_size(bp->layout));
+				send_to_char(buf, ch);
+			}
+
+			send_to_char("Syntax:  layout add {Rstatic{x <section#>\n\r", ch);
+			send_to_char("         layout add {Rweighted{x\n\r", ch);
+			send_to_char("         layout add {Rgroup{x\n\r", ch);
+			return FALSE;
+		}
+		else if (!str_prefix(arg, "static"))
+		{
+			if (list_size(bp->sections) < 1)
+			{
+				send_to_char("Sections list is empty.  Please use {Ysections add{x command to populate the list.\n\r", ch);
+				return FALSE;
+			}
+
+			char arg2[MIL];
+
+			argument = one_argument(argument, arg2);
+
+			if (!is_number(arg2))
+			{
+				send_to_char("Syntax:  layout static {R#{x <section#>\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->layout));
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			int index = atoi(argument);
+			if (index < 1 || index > list_size(bp->layout))
+			{
+				send_to_char("Syntax:  layout static {R#{x <section#>\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->layout));
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			if (!is_number(argument))
+			{
+				send_to_char("Syntax:  layout static # {R<section#>{x\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->sections));
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			int section_no = atoi(argument);
+			if (section_no < 1 || section_no > list_size(bp->sections))
+			{
+				send_to_char("Syntax:  layout static # {R<section#>{x\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->sections));
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			BLUEPRINT_SECTION *section = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, section_no);
+
+			BLUEPRINT_LAYOUT_SECTION_DATA *ls = (BLUEPRINT_LAYOUT_SECTION_DATA *)list_nthdata(bp->layout, index);
+			if (ls->mode != SECTIONMODE_STATIC)
+			{
+				send_to_char("Syntax:  layout static # {R<section#>{x\n\r", ch);
+				send_to_char("That section is not a {YSTATIC{x section entry.\n\r", ch);
+				return FALSE;
+			}
+
+			ls->section = section_no;
+
+			sprintf(buf, "Static section %d changed to %s (%ld#%ld)\n\r", index, section->name, section->area->uid, section->vnum);
+			send_to_char(buf, ch);
+			return TRUE;
+		}
+		else if (!str_prefix(arg, "weighted"))
+		{
+			char arg2[MIL];
+			char arg3[MIL];
+
+			argument = one_argument(argument, arg2);
+
+			if (!is_number(arg2))
+			{
+				send_to_char("Syntax:  layout weighted {R#{x list\n\r", ch);
+				send_to_char("         layout weighted {R#{x clear\n\r", ch);
+				send_to_char("         layout weighted {R#{x add <weight> <section#>\n\r", ch);
+				send_to_char("         layout weighted {R#{x set # <weight> <section#>\n\r", ch);
+				send_to_char("         layout weighted {R#{x remove #\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->layout));
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
 			int index = atoi(arg2);
-
-			BLUEPRINT_SPECIAL_ROOM *special = list_nthdata(bp->special_rooms, index);
-
-			if( !IS_VALID(special) )
+			if (index < 1 || index > list_size(bp->layout))
 			{
-				send_to_char("No such special room.\n\r", ch);
+				send_to_char("Syntax:  layout weighted {R#{x list\n\r", ch);
+				send_to_char("         layout weighted {R#{x clear\n\r", ch);
+				send_to_char("         layout weighted {R#{x add <weight> <section#>\n\r", ch);
+				send_to_char("         layout weighted {R#{x set # <weight> <section#>\n\r", ch);
+				send_to_char("         layout weighted {R#{x remove #\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->layout));
+				send_to_char(buf, ch);
 				return FALSE;
 			}
 
-			if( argument[0] == '\0' )
+			BLUEPRINT_LAYOUT_SECTION_DATA *ls = (BLUEPRINT_LAYOUT_SECTION_DATA *)list_nthdata(bp->layout, index);
+			if (ls->mode != SECTIONMODE_WEIGHTED)
 			{
-				send_to_char("Syntax:  static special # remove\n\r", ch);
-				send_to_char("         static special # name <name>\n\r", ch);
-				send_to_char("         static special # room <section#> <room vnum>\n\r", ch);
+				send_to_char("Syntax:  layout weighted {R#{x list\n\r", ch);
+				send_to_char("         layout weighted {R#{x clear\n\r", ch);
+				send_to_char("         layout weighted {R#{x add <weight> <section#>\n\r", ch);
+				send_to_char("         layout weighted {R#{x set # <weight> <section#>\n\r", ch);
+				send_to_char("         layout weighted {R#{x remove #\n\r", ch);
+				send_to_char("That section is not a {YWEIGHTED{x section entry.\n\r", ch);
 				return FALSE;
 			}
-
-			if( !str_prefix(argument, "remove") || !str_prefix(argument, "delete") )
-			{
-				list_remnthlink(bp->special_rooms, index);
-				send_to_char("Special Room removed.\n\r", ch);
-				return TRUE;
-			}
-
 
 			argument = one_argument(argument, arg3);
 
-			if( !str_prefix(arg3, "name") )
+			if (!str_prefix(arg3, "list"))
 			{
-				if( argument[0] == '\0' )
+				ITERATOR it;
+				BLUEPRINT_WEIGHTED_SECTION_DATA *weighted;
+
+				BUFFER *buffer = new_buf();
+
+				sprintf(buf, "Weighted %d Section Table:\n\r", index);
+				add_buf(buffer, buf);
+
+				add_buf(buffer, "      [ Weight ] [           Section           ]\n\r");
+				add_buf(buffer, "=================================================\n\r");
+
+				int weight_no = 0;
+				iterator_start(&it, ls->weighted_sections);
+				while((weighted = (BLUEPRINT_WEIGHTED_SECTION_DATA *)iterator_nextdata(&it)))
 				{
-					send_to_char("Syntax:  static special # name <name>\n\r", ch);
+					BLUEPRINT_SECTION *section = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, weighted->section);
+					sprintf(buf, "%4d    %7d     (%4d) %s (%ld#%ld)\n\r", weight_no++, weighted->weight, weighted->section, section->name, section->area->uid, section->vnum);
+					add_buf(buffer, buf);
+				}
+				iterator_stop(&it);
+
+				add_buf(buffer, "-------------------------------------------------\n\r");
+				sprintf(buf, "Total   %7d\n\r", ls->total_weight);
+				add_buf(buffer, buf);
+
+				if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+				{
+					send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+				}
+				else
+				{
+					page_to_char(buffer->string, ch);
+				}
+
+				free_buf(buffer);
+				return FALSE;
+			}
+			else if (!str_prefix(arg3, "clear"))
+			{
+				if (list_size(ls->weighted_sections) < 1)
+				{
+					sprintf(buf, "Weighted %d Section entry is empty.\n\r", index);
+					send_to_char(buf, ch);
 					return FALSE;
 				}
 
-				free_string(special->name);
-				special->name = str_dup(argument);
-
-				send_to_char("Name changed.\n\r", ch);
+				list_clear(ls->weighted_sections);
+				sprintf(buf, "Weighted %d Section entry cleared.\n\r", index);
+				send_to_char(buf, ch);
 				return TRUE;
 			}
-
-			argument = one_argument(argument, arg4);
-
-			if( !str_prefix(arg3, "room") )
+			else if (!str_prefix(arg3, "add"))
 			{
-				if( !is_number(arg4) || !is_number(argument) )
+				if (list_size(bp->sections) < 1)
 				{
-					send_to_char("That is not a number.\n\r", ch);
+					send_to_char("Sections list is empty.  Please use {Ysections add{x command to populate the list.\n\r", ch);
 					return FALSE;
 				}
 
-				int section = atoi(arg4);
-				long vnum = atol(argument);
+				char arg4[MIL];
 
-				if( section < 1 || section > list_size(bp->sections) )
+				argument = one_argument(argument, arg4);
+				if (!is_number(arg4))
 				{
-					send_to_char("Section number out of range.\n\r", ch);
+					send_to_char("Syntax:  layout weighted # add {R<weight>{x <section#>\n\r", ch);
+					send_to_char("Please specify a positive number.\n\r", ch);
 					return FALSE;
 				}
 
-				BLUEPRINT_SECTION *bs = list_nthdata(bp->sections, section);
-
-				if( vnum < bs->lower_vnum || vnum > bs->upper_vnum )
+				int weight = atoi(arg4);
+				if (weight < 0)
 				{
-					send_to_char("Room vnum not in the section.\n\r", ch);
+					send_to_char("Syntax:  layout weighted # add {R<weight>{x <section#>\n\r", ch);
+					send_to_char("Please specify a positive number.\n\r", ch);
 					return FALSE;
 				}
 
-				if( !get_room_index(bs->area, vnum) )
+				if (!is_number(argument))
 				{
-					send_to_char("Room does not exist.\n\r", ch);
+					send_to_char("Syntax:  layout weighted # add <weight> {R<section#>{x\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->sections));
+					send_to_char(buf, ch);
 					return FALSE;
 				}
 
-				special->section = section;
-				special->vnum = vnum;
+				int section_no = atoi(argument);
+				if (section_no < 1 || section_no > list_size(bp->sections))
+				{
+					send_to_char("Syntax:  layout weighted # add <weight> {R<section#>{x\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->sections));
+					send_to_char(buf, ch);
+					return FALSE;
+				}
 
-				send_to_char("Special room changed.\n\r", ch);
+				BLUEPRINT_SECTION *section = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, section_no);
+
+				if (list_size(ls->weighted_sections) > 0)
+				{
+					int required_count = blueprint_layout_links_count(bp, ls, 0);
+					int link_count = blueprint_section_link_count(section);
+
+					if (required_count > link_count)
+					{
+						send_to_char("Syntax:  layout weighted # add <weight> {R<section#>{x\n\r", ch);
+						sprintf(buf, "You can only add a section with at least %d link%s defined.\n\r", required_count, (required_count == 1?"":"s"));
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+				}
+
+				BLUEPRINT_WEIGHTED_SECTION_DATA *weighted = new_weighted_random_section();
+				weighted->weight = weight;
+				weighted->section = section_no;
+
+				list_appendlink(ls->weighted_sections, weighted);
+				ls->total_weight += weight;
+
+				sprintf(buf, "Added section %s (%ld#%ld) with weight %d to Weighted %d Section Layout entry.\n\r", section->name, section->area->uid, section->vnum, weight, index);
+				send_to_char(buf, ch);
 				return TRUE;
 			}
+			else if (!str_prefix(arg3, "set"))
+			{
+				if (list_size(bp->sections) < 1)
+				{
+					send_to_char("Sections list is empty.  Please use {Ysections add{x command to populate the list.\n\r", ch);
+					return FALSE;
+				}
 
-			send_to_char("Syntax:  static special # remove\n\r", ch);
-			send_to_char("         static special # name <name>\n\r", ch);
-			send_to_char("         static special # room <section#> <room vnum>\n\r", ch);
+				char arg4[MIL];
+				char arg5[MIL];
+
+				argument = one_argument(argument, arg4);
+				if (!is_number(arg4))
+				{
+					send_to_char("Syntax:  layout weighted # set {R#{x <weight> <section#>\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ls->weighted_sections));
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				int windex = atoi(arg4);
+				if (windex < 1 || windex > list_size(ls->weighted_sections))
+				{
+					send_to_char("Syntax:  layout weighted # set {R#{x <weight> <section#>\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ls->weighted_sections));
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				argument = one_argument(argument, arg5);
+				if (!is_number(arg5))
+				{
+					send_to_char("Syntax:  layout weighted # set # {R<weight>{x <section#>\n\r", ch);
+					send_to_char("Please specify a positive number.\n\r", ch);
+					return FALSE;
+				}
+
+				int weight = atoi(arg5);
+				if (weight < 0)
+				{
+					send_to_char("Syntax:  layout weighted # set # {R<weight>{x <section#>\n\r", ch);
+					send_to_char("Please specify a positive number.\n\r", ch);
+					return FALSE;
+				}
+
+				if (!is_number(argument))
+				{
+					send_to_char("Syntax:  layout weighted # set # <weight> {R<section#>{x\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->sections));
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				int section_no = atoi(argument);
+				if (section_no < 1 || section_no > list_size(bp->sections))
+				{
+					send_to_char("Syntax:  layout weighted # set # <weight> {R<section#>{x\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->sections));
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				BLUEPRINT_SECTION *section = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, section_no);
+
+				if (list_size(ls->weighted_sections) > 1)
+				{
+					int required_count = blueprint_layout_links_count(bp, ls, windex);
+					int link_count = blueprint_section_link_count(section);
+
+					if (required_count > link_count)
+					{
+						send_to_char("Syntax:  layout weighted # set # <weight> {R<section#>{x\n\r", ch);
+						sprintf(buf, "You can only use a section with at least %d link%s defined.\n\r", required_count, (required_count == 1?"":"s"));
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+				}
+
+				BLUEPRINT_WEIGHTED_SECTION_DATA *weighted = (BLUEPRINT_WEIGHTED_SECTION_DATA *)list_nthdata(ls->weighted_sections, windex);
+				ls->total_weight -= weighted->weight;
+				weighted->weight = weight;
+				weighted->section = section_no;
+
+				ls->total_weight += weight;
+
+				sprintf(buf, "Updated Weighted %d Section Layout entry to section %s (%ld#%ld) with weight %d.\n\r", index, section->name, section->area->uid, section->vnum, weight);
+				send_to_char(buf, ch);
+				return TRUE;
+			}
+			else if (!str_prefix(arg3, "remove"))
+			{
+				if (!is_number(argument))
+				{
+					send_to_char("Syntax:  layout weighted # remove {R#{x\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ls->weighted_sections));
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				int windex = atoi(argument);
+				if (windex < 1 || windex > list_size(ls->weighted_sections))
+				{
+					send_to_char("Syntax:  layout weighted # remove {R#{x\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ls->weighted_sections));
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				BLUEPRINT_WEIGHTED_SECTION_DATA *weighted = (BLUEPRINT_WEIGHTED_SECTION_DATA *)list_nthdata(ls->weighted_sections, windex);
+
+				ls->total_weight -= weighted->weight;
+
+				list_remnthlink(ls->weighted_sections, windex);
+
+				sprintf(buf, "Removed table entry %d from Weighted %d Section entry.\n\r", windex, index);
+				send_to_char(buf, ch);
+				return TRUE;
+			}
+			
+			send_to_char("Syntax:  layout weighted # {Rlist{x\n\r", ch);
+			send_to_char("         layout weighted # {Rclear{x\n\r", ch);
+			send_to_char("         layout weighted # {Radd{x <weight> <section#>\n\r", ch);
+			send_to_char("         layout weighted # {Rset{x # <weight> <section#>\n\r", ch);
+			send_to_char("         layout weighted # {Rremove{x #\n\r", ch);
 			return FALSE;
 		}
-
-		if( !str_prefix(arg2, "add") )
+		else if (!str_prefix(arg, "group"))
 		{
-			if( argument[0] == '\0' )
+			char argg[MIL];
+
+			argument = one_argument(argument, argg);
+
+			if (!is_number(argg))
 			{
-				send_to_char("Syntax:  static special add <section#> <room vnum> <name>\n\r", ch);
+				send_to_char("Syntax:  layout group {R#{x list\n\r", ch);
+				send_to_char("         layout group {R#{x clear\n\r", ch);
+				send_to_char("         layout group {R#{x add static <section#>\n\r", ch);
+				send_to_char("         layout group {R#{x add weighted\n\r", ch);
+				send_to_char("         layout group {R#{x static # <section#>\n\r", ch);
+				send_to_char("         layout group {R#{x weighted # list\n\r", ch);
+				send_to_char("         layout group {R#{x weighted # clear\n\r", ch);
+				send_to_char("         layout group {R#{x weighted # add <weight> <section#>\n\r", ch);
+				send_to_char("         layout group {R#{x weighted # {Rset{x # <weight> <section#>\n\r", ch);
+				send_to_char("         layout group {R#{x weighted # remove #\n\r", ch);
+				send_to_char("         layout group {R#{x remove #\n\r", ch);
+
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->layout));
+				send_to_char(buf, ch);
 				return FALSE;
 			}
 
-			argument = one_argument(argument, arg3);
-			argument = one_argument(argument, arg4);
-
-
-			if( !is_number(arg3) || !is_number(arg4) )
+			int gindex = atoi(argg);
+			if (gindex < 1 || gindex > list_size(bp->layout))
 			{
-				send_to_char("That is not a number.\n\r", ch);
+				send_to_char("Syntax:  layout group {R#{x list\n\r", ch);
+				send_to_char("         layout group {R#{x clear\n\r", ch);
+				send_to_char("         layout group {R#{x add static <section#>\n\r", ch);
+				send_to_char("         layout group {R#{x add weighted\n\r", ch);
+				send_to_char("         layout group {R#{x static # <section#>\n\r", ch);
+				send_to_char("         layout group {R#{x weighted # list\n\r", ch);
+				send_to_char("         layout group {R#{x weighted # clear\n\r", ch);
+				send_to_char("         layout group {R#{x weighted # add <weight> <section#>\n\r", ch);
+				send_to_char("         layout group {R#{x weighted # {Rset{x # <weight> <section#>\n\r", ch);
+				send_to_char("         layout group {R#{x weighted # remove #\n\r", ch);
+				send_to_char("         layout group {R#{x remove #\n\r", ch);
+
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->layout));
+				send_to_char(buf, ch);
 				return FALSE;
 			}
 
-			int section = atoi(arg3);
-			long vnum = atol(arg4);
-
-			if( section < 1 || section > list_size(bp->sections) )
+			BLUEPRINT_LAYOUT_SECTION_DATA *ls = (BLUEPRINT_LAYOUT_SECTION_DATA *)list_nthdata(bp->layout, gindex);
+			if (ls->mode != SECTIONMODE_GROUP)
 			{
-				send_to_char("Section number out of range.\n\r", ch);
+				send_to_char("Syntax:  layout group {R#{x list\n\r", ch);
+				send_to_char("         layout group {R#{x clear\n\r", ch);
+				send_to_char("         layout group {R#{x add static <section#>\n\r", ch);
+				send_to_char("         layout group {R#{x add weighted\n\r", ch);
+				send_to_char("         layout group {R#{x static # <section#>\n\r", ch);
+				send_to_char("         layout group {R#{x weighted # list\n\r", ch);
+				send_to_char("         layout group {R#{x weighted # clear\n\r", ch);
+				send_to_char("         layout group {R#{x weighted # add <weight> <section#>\n\r", ch);
+				send_to_char("         layout group {R#{x weighted # {Rset{x # <weight> <section#>\n\r", ch);
+				send_to_char("         layout group {R#{x weighted # remove #\n\r", ch);
+				send_to_char("         layout group {R#{x remove #\n\r", ch);
+
+				send_to_char("That section is not a {YGROUP{x section entry.\n\r", ch);
 				return FALSE;
 			}
 
-			BLUEPRINT_SECTION *bs = list_nthdata(bp->sections, section);
-
-			if( vnum < bs->lower_vnum || vnum > bs->upper_vnum )
+			argument = one_argument(argument, arg);
+			if (!str_prefix(arg, "list"))
 			{
-				send_to_char("Room vnum not in the section.\n\r", ch);
-				return FALSE;
-			}
+				BLUEPRINT_LAYOUT_SECTION_DATA *sect;
 
-			if( !get_room_index(bs->area, vnum) )
-			{
-				send_to_char("Room does not exist.\n\r", ch);
-				return FALSE;
-			}
-
-			char name[MIL+1];
-			strncpy(name, argument, MIL);
-			name[MIL] = '\0';
-
-			smash_tilde(name);
-
-			BLUEPRINT_SPECIAL_ROOM *special = new_blueprint_special_room();
-			free_string(special->name);
-			special->name = str_dup(name);
-			special->section = section;
-			special->vnum = vnum;
-
-			list_appendlink(bp->special_rooms, special);
-
-			send_to_char("Special Room added.\n\r", ch);
-			return TRUE;
-		}
-
-		send_to_char("Syntax:  static special add <section#> <room vnum> <name>\n\r", ch);
-		send_to_char("         static special # remove\n\r", ch);
-		send_to_char("         static special # name <name>\n\r", ch);
-		send_to_char("         static special # room <section#> <room vnum>\n\r", ch);
-		return FALSE;
-	}
-
-	if( !str_prefix(arg, "link") )
-	{
-		char arg2[MIL];
-		char arg3[MIL];
-		char arg4[MIL];
-		char arg5[MIL];
-
-		if( argument[0] == '\0' )
-		{
-			send_to_char("Syntax:  static link add <section1#> <link1#> <section2#> <link2#>\n\r", ch);
-			send_to_char("         static link remove #\n\r", ch);
-			return FALSE;
-		}
-
-		argument = one_argument(argument, arg2);
-
-		if( !str_prefix(arg2, "add") )
-		{
-			BLUEPRINT_SECTION *bs;
-
-			argument = one_argument(argument, arg3);
-			argument = one_argument(argument, arg4);
-			argument = one_argument(argument, arg5);
-
-			if( !is_number(arg3) || !is_number(arg4) || !is_number(arg5) || !is_number(argument) )
-			{
-				send_to_char("That is not a number.\n\r", ch);
-				return FALSE;
-			}
-
-			int section1 = atoi(arg3);
-			int link1 = atoi(arg4);
-			int section2 = atoi(arg5);
-			int link2 = atoi(argument);
-
-			if( section1 < 1 || section1 > list_size(bp->sections) )
-			{
-				send_to_char("Index out of range.\n\r", ch);
-				return FALSE;
-			}
-
-			bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, section1);
-			if( !get_section_link(bs, link1) )
-			{
-				send_to_char("Link index out of range.\n\r", ch);
-				return FALSE;
-			}
-
-			if( section2 < 1 || section2 > list_size(bp->sections) )
-			{
-				send_to_char("Index out of range.\n\r", ch);
-				return FALSE;
-			}
-
-			bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, section2);
-			if( !get_section_link(bs, link2) )
-			{
-				send_to_char("Link index out of range.\n\r", ch);
-				return FALSE;
-			}
-
-			STATIC_BLUEPRINT_LINK *sbl = new_static_blueprint_link();
-
-			sbl->blueprint = bp;
-			sbl->section1 = section1;
-			sbl->link1 = link1;
-			sbl->section2 = section2;
-			sbl->link2 = link2;
-
-			sbl->next = bp->_static.layout;
-			bp->_static.layout = sbl;
-
-			send_to_char("Static link added.\n\r", ch);
-			return TRUE;
-		}
-
-		if( !str_prefix(arg2, "remove") )
-		{
-			STATIC_BLUEPRINT_LINK *prev, *cur;
-
-			if( !is_number(arg2) )
-			{
-				send_to_char("That is not a number.\n\r", ch);
-				return FALSE;
-			}
-
-			int index = atoi(arg);
-			if( index < 1 )
-			{
-				send_to_char("Link does not exist.\n\r", ch);
-				return FALSE;
-			}
-
-			prev = NULL;
-			for(cur = bp->_static.layout; cur && index > 0; prev = cur, cur = cur->next)
-			{
-				if( !--index )
+				if (list_size(ls->group) > 0)
 				{
-					if( prev )
-						prev->next = cur->next;
+					BUFFER *buffer = new_buf();
+					ITERATOR git;
+
+					sprintf(buf, "Group %d Section Table:\n\r", gindex);
+					add_buf(buffer, buf);
+
+					add_buf(buffer, "          [  Mode  ]{x\n\r");
+					add_buf(buffer, "===================================================={x\n\r");
+
+					int gsection_no = 1;
+					iterator_start(&git, ls->group);
+					while( (sect = (BLUEPRINT_LAYOUT_SECTION_DATA *)iterator_nextdata(&git)) )
+					{
+						if (sect->mode == SECTIONMODE_STATIC)
+						{
+							BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, sect->section);
+							sprintf(buf, "{W%4d        {YSTATIC{x     %4d - {x%23.23s{x\n\r", gsection_no++, sect->section, bs->name);
+							add_buf(buffer, buf);	
+						}
+						else if(sect->mode == SECTIONMODE_WEIGHTED)
+						{
+							ITERATOR wit;
+							BLUEPRINT_WEIGHTED_SECTION_DATA *weighted;
+							BLUEPRINT_SECTION *bs;
+
+							sprintf(buf, "{W%4d       {CWEIGHTED{x\n\r", gsection_no++);
+							add_buf(buffer, buf);
+							add_buf(buffer, "{c               [ Weight ] [              Floor             ]{x\n\r");
+							add_buf(buffer, "{c          ==================================================={x\n\r");
+
+							int weight_no = 1;
+							iterator_start(&wit, sect->weighted_sections);
+							while( (weighted = (BLUEPRINT_WEIGHTED_SECTION_DATA *)iterator_nextdata(&wit)) )
+							{
+								bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, weighted->section);
+								sprintf(buf, "          {c%4d   {W%6d     {x%4d - %23.23s{x\n\r", weight_no++, weighted->weight, weighted->section, bs->name);
+								add_buf(buffer, buf);
+							}
+							iterator_stop(&wit);
+							add_buf(buffer, "{c          ----------------------------------------------------{x\n\r");
+						}
+					}
+					iterator_stop(&git);
+
+					if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+					{
+						send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+					}
 					else
-						bp->_static.layout = cur->next;
+					{
+						page_to_char(buffer->string, ch);
+					}
 
-					free_static_blueprint_link(cur);
-					send_to_char("Link removed.\n\r", ch);
+					free_buf(buffer);
+				}
+				else
+				{
+					send_to_char("There are no sections defined for this group entry.\n\r", ch);
+				}
+
+				return FALSE;
+			}
+			else if(!str_prefix(arg, "clear"))
+			{
+				if (list_size(ls->group) < 1)
+				{
+					sprintf(buf, "Group %d Section entry has no subdefinitions.\n\r", gindex);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				list_clear(ls->group);
+
+				blueprint_update_section_ordinals(bp);
+				sprintf(buf, "Group %d Section entry cleared.\n\r", gindex);
+				send_to_char(buf, ch);
+				return TRUE;
+			}
+			else if(!str_prefix(arg, "add"))
+			{
+				char arg2[MIL];
+
+				argument = one_argument(argument, arg2);
+
+				if (!str_prefix(arg2, "static"))
+				{
+					if (list_size(bp->sections) < 1)
+					{
+						send_to_char("Sections list is empty.  Please use {Ysections add{x command to populate the list.\n\r", ch);
+						return FALSE;
+					}
+
+					if (!is_number(argument))
+					{
+						send_to_char("Syntax:  layout group # add static {R<section#>{x\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->sections));
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					int section_no = atoi(argument);
+					if (section_no < 1 || section_no > list_size(bp->sections))
+					{
+						send_to_char("Syntax:  layout group # add static {R<section#>{x\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->sections));
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					BLUEPRINT_SECTION *section = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, section_no);
+
+					int required_count = blueprint_layout_links_count(bp, ls, 0);
+					if (required_count > 0)
+					{
+						int link_count = blueprint_section_link_count(section);
+
+						if (required_count > link_count)
+						{
+							send_to_char("Syntax:  layout group # add static {R<section#>{x\n\r", ch);
+							sprintf(buf, "You can only add a section with at least %d link%s defined.\n\r", required_count, (required_count == 1?"":"s"));
+							send_to_char(buf, ch);
+							return FALSE;
+						}
+					}
+
+					BLUEPRINT_LAYOUT_SECTION_DATA *gls = new_blueprint_layout_section_data();
+					gls->mode = SECTIONMODE_STATIC;
+					gls->section = section_no;
+					list_appendlink(ls->group, gls);
+
+					blueprint_update_section_ordinals(bp);
+
+					sprintf(buf, "Static Section %d (%s - %ld#%ld) added to Group %d Section entry.\n\r", list_size(ls->group), section->name, section->area->uid, section->vnum, gindex);
+					send_to_char(buf, ch);
 					return TRUE;
 				}
-			}
+				else if (!str_prefix(arg2, "weighted"))
+				{
+					BLUEPRINT_LAYOUT_SECTION_DATA *gls = new_blueprint_layout_section_data();
+					gls->mode = SECTIONMODE_WEIGHTED;
+					gls->total_weight = 0;
+					list_appendlink(ls->group, gls);
 
+					blueprint_update_section_ordinals(bp);
 
-			send_to_char("Link does not exist.\n\r", ch);
-			return FALSE;
-		}
+					sprintf(buf, "Weighted Section %d added to Group %d Section entry.\n\r", list_size(ls->group), gindex);
+					send_to_char(buf, ch);
+				}
 
-		bpedit_static(ch, "link");
-		return FALSE;
-	}
-
-	if( !str_prefix(arg, "recall") )
-	{
-		if( argument[0] == '\0' )
-		{
-			send_to_char("Syntax:  static recall <section#>\n\r", ch);
-			send_to_char("         static recall clear\n\r", ch);
-			return FALSE;
-		}
-
-		if( is_number(argument) )
-		{
-			int index = atoi(argument);
-			if( index < 1 || index > list_size(bp->sections) )
-			{
-				send_to_char("Index out of range.\n\r", ch);
+				send_to_char("Syntax:  layout group # add {Rstatic{x <section#>\n\r", ch);
+				send_to_char("         layout group # add {Rweighted{x\n\r", ch);
 				return FALSE;
 			}
-
-			bp->_static.recall = index;
-			send_to_char("Blueprint recall section changed.\n\r", ch);
-			return TRUE;
-		}
-
-		if( !str_prefix(argument, "clear") )
-		{
-			bp->_static.recall = -1;
-			send_to_char("Blueprint recall section cleared.\n\r", ch);
-			return TRUE;
-		}
-
-		bpedit_static(ch, "recall");
-		return FALSE;
-	}
-
-	if( !str_prefix(arg, "entry") )
-	{
-		char arg2[MIL];
-		char arg3[MIL];
-
-		if( argument[0] == '\0' )
-		{
-			send_to_char("Syntax:  static entry add <section#> <link#>\n\r", ch);
-			send_to_char("         static entry remove <#>\n\r", ch);
-			return FALSE;
-		}
-
-		argument = one_argument(argument, arg2);
-
-		if (!str_prefix(arg2, "add"))
-		{
-			argument = one_argument(argument, arg3);
-
-			if( is_number(arg3) && is_number(argument) )
+			else if(!str_prefix(arg, "static"))
 			{
-				int section = atoi(arg3);
-				int link = atoi(argument);
-
-				if( section < 1 || section > list_size(bp->sections) )
+				if (list_size(bp->sections) < 1)
 				{
-					send_to_char("Section index out of range.\n\r", ch);
+					send_to_char("Sections list is empty.  Please use {Ysections add{x command to populate the list.\n\r", ch);
 					return FALSE;
 				}
 
-				BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, section);
+				char arg2[MIL];
 
-				if( !get_section_link(bs, link) )
+				argument = one_argument(argument, arg2);
+
+				if (!is_number(arg2))
 				{
-					send_to_char("Link index out of range.\n\r", ch);
+					send_to_char("Syntax:  layout group # static {R#{x <section#>\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ls->group));
+					send_to_char(buf, ch);
 					return FALSE;
 				}
 
-				BLUEPRINT_EXIT_DATA *bex = new_blueprint_exit_data();
-				bex->section = section;
-				bex->link = link;
-				list_appendlink(bp->_static.entries, bex);
+				int index = atoi(argument);
+				if (index < 1 || index > list_size(ls->group))
+				{
+					send_to_char("Syntax:  layout group # static {R#{x <section#>\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ls->group));
+					send_to_char(buf, ch);
+					return FALSE;
+				}
 
-				send_to_char("Blueprint entry point added.\n\r", ch);
+				if (!is_number(argument))
+				{
+					send_to_char("Syntax:  layout group # static # {R<section#>{x\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ls->group));
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				int section_no = atoi(argument);
+				if (section_no < 1 || section_no > list_size(ls->group))
+				{
+					send_to_char("Syntax:  layout group # static # {R<section#>{x\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ls->group));
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				BLUEPRINT_SECTION *section = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, section_no);
+
+				int required_count = blueprint_layout_links_count(bp, ls, index);
+				if (required_count > 0)
+				{
+					int link_count = blueprint_section_link_count(section);
+
+					if (required_count > link_count)
+					{
+						send_to_char("Syntax:  layout group # add static {R<section#>{x\n\r", ch);
+						sprintf(buf, "You can only use a section with at least %d link%s defined.\n\r", required_count, (required_count == 1?"":"s"));
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+				}
+
+				BLUEPRINT_LAYOUT_SECTION_DATA *gls = (BLUEPRINT_LAYOUT_SECTION_DATA *)list_nthdata(ls->group, index);
+				if (gls->mode != SECTIONMODE_STATIC)
+				{
+					send_to_char("Syntax:  layout group # static # {R<section#>{x\n\r", ch);
+					send_to_char("That section is not a {YSTATIC{x section entry.\n\r", ch);
+					return FALSE;
+				}
+
+				gls->section = section_no;
+
+				sprintf(buf, "Static section %d in Group %d Entry changed to %s (%ld#%ld)\n\r", index, gindex, section->name, section->area->uid, section->vnum);
+				send_to_char(buf, ch);
+				return TRUE;
+			}
+			else if(!str_prefix(arg, "weighted"))
+			{
+				char arg2[MIL];
+				char arg3[MIL];
+
+				argument = one_argument(argument, arg2);
+
+				if (!is_number(arg2))
+				{
+					send_to_char("Syntax:  layout group # weighted {R#{x list\n\r", ch);
+					send_to_char("         layout group # weighted {R#{x clear\n\r", ch);
+					send_to_char("         layout group # weighted {R#{x add <weight> <section#>\n\r", ch);
+					send_to_char("         layout group # weighted {R#{x set # <weight> <section#>\n\r", ch);
+					send_to_char("         layout group # weighted {R#{x remove #\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ls->group));
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				int index = atoi(arg2);
+				if (index < 1 || index > list_size(ls->group))
+				{
+					send_to_char("Syntax:  layout group # weighted {R#{x list\n\r", ch);
+					send_to_char("         layout group # weighted {R#{x clear\n\r", ch);
+					send_to_char("         layout group # weighted {R#{x add <weight> <section#>\n\r", ch);
+					send_to_char("         layout group # weighted {R#{x set # <weight> <section#>\n\r", ch);
+					send_to_char("         layout group # weighted {R#{x remove #\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ls->group));
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				BLUEPRINT_LAYOUT_SECTION_DATA *gls = (BLUEPRINT_LAYOUT_SECTION_DATA *)list_nthdata(ls->group, index);
+				if (gls->mode != SECTIONMODE_WEIGHTED)
+				{
+					send_to_char("Syntax:  layout group # weighted {R#{x list\n\r", ch);
+					send_to_char("         layout group # weighted {R#{x clear\n\r", ch);
+					send_to_char("         layout group # weighted {R#{x add <weight> <section#>\n\r", ch);
+					send_to_char("         layout group # weighted {R#{x set # <weight> <section#>\n\r", ch);
+					send_to_char("         layout group # weighted {R#{x remove #\n\r", ch);
+					send_to_char("That section is not a {YWEIGHTED{x section entry.\n\r", ch);
+					return FALSE;
+				}
+
+				argument = one_argument(argument, arg3);
+
+				if (!str_prefix(arg3, "list"))
+				{
+					ITERATOR it;
+					BLUEPRINT_WEIGHTED_SECTION_DATA *weighted;
+
+					BUFFER *buffer = new_buf();
+
+					sprintf(buf, "Weighted %d Section Table:\n\r", index);
+					add_buf(buffer, buf);
+
+					add_buf(buffer, "      [ Weight ] [           Section           ]\n\r");
+					add_buf(buffer, "=================================================\n\r");
+
+					int weight_no = 0;
+					iterator_start(&it, gls->weighted_sections);
+					while((weighted = (BLUEPRINT_WEIGHTED_SECTION_DATA *)iterator_nextdata(&it)))
+					{
+						BLUEPRINT_SECTION *section = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, weighted->section);
+						sprintf(buf, "%4d    %7d     (%4d) %s (%ld#%ld)\n\r", weight_no++, weighted->weight, weighted->section, section->name, section->area->uid, section->vnum);
+						add_buf(buffer, buf);
+					}
+					iterator_stop(&it);
+
+					add_buf(buffer, "-------------------------------------------------\n\r");
+					sprintf(buf, "Total   %7d\n\r", gls->total_weight);
+					add_buf(buffer, buf);
+
+					if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+					{
+						send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+					}
+					else
+					{
+						page_to_char(buffer->string, ch);
+					}
+
+					free_buf(buffer);
+					return FALSE;
+				}
+				else if (!str_prefix(arg3, "clear"))
+				{
+					if (list_size(gls->weighted_sections) < 1)
+					{
+						sprintf(buf, "Weighted %d Section entry is empty.\n\r", index);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					list_clear(gls->weighted_sections);
+					sprintf(buf, "Weighted %d Section entry cleard in Group %d Section.\n\r", index, gindex);
+					send_to_char(buf, ch);
+					return TRUE;
+				}
+				else if (!str_prefix(arg3, "add"))
+				{
+					if (list_size(bp->sections) < 1)
+					{
+						send_to_char("Sections list is empty.  Please use {Ysections add{x command to populate the list.\n\r", ch);
+						return FALSE;
+					}
+
+					char arg4[MIL];
+
+					argument = one_argument(argument, arg4);
+					if (!is_number(arg4))
+					{
+						send_to_char("Syntax:  layout group # weighted # add {R<weight>{x <section#>\n\r", ch);
+						send_to_char("Please specify a positive number.\n\r", ch);
+						return FALSE;
+					}
+
+					int weight = atoi(arg4);
+					if (weight < 0)
+					{
+						send_to_char("Syntax:  layout group # weighted # add {R<weight>{x <section#>\n\r", ch);
+						send_to_char("Please specify a positive number.\n\r", ch);
+						return FALSE;
+					}
+
+					if (!is_number(argument))
+					{
+						send_to_char("Syntax:  layout group # weighted # add <weight> {R<section#>{x\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->sections));
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					int section_no = atoi(argument);
+					if (section_no < 1 || section_no > list_size(bp->sections))
+					{
+						send_to_char("Syntax:  layout group # weighted # add <weight> {R<section#>{x\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->sections));
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					BLUEPRINT_SECTION *section = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, section_no);
+
+					int required_count = blueprint_layout_links_count(bp, ls, 0);
+					if (required_count > 0)
+					{
+						int link_count = blueprint_section_link_count(section);
+
+						if (required_count > link_count)
+						{
+							send_to_char("Syntax:  layout group # weighted # add <weight> {R<section#>{x\n\r", ch);
+							sprintf(buf, "You can only add a section with at least %d link%s defined.\n\r", required_count, (required_count == 1?"":"s"));
+							send_to_char(buf, ch);
+							return FALSE;
+						}
+					}
+
+					BLUEPRINT_WEIGHTED_SECTION_DATA *weighted = new_weighted_random_section();
+					weighted->weight = weight;
+					weighted->section = section_no;
+
+					list_appendlink(gls->weighted_sections, weighted);
+					ls->total_weight += weight;
+
+					sprintf(buf, "Added section %s (%ld#%ld) with weight %d to Weighted %d Section entry in Group %d Section.\n\r", section->name, section->area->uid, section->vnum, weight, index, gindex);
+					send_to_char(buf, ch);
+					return TRUE;
+				}
+				else if (!str_prefix(arg3, "set"))
+				{
+					if (list_size(bp->sections) < 1)
+					{
+						send_to_char("Sections list is empty.  Please use {Ysections add{x command to populate the list.\n\r", ch);
+						return FALSE;
+					}
+
+					char arg4[MIL];
+					char arg5[MIL];
+
+					argument = one_argument(argument, arg4);
+					if (!is_number(arg4))
+					{
+						send_to_char("Syntax:  layout group # weighted # set {R#{x <weight> <section#>\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(gls->weighted_sections));
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					int windex = atoi(arg4);
+					if (windex < 1 || windex > list_size(gls->weighted_sections))
+					{
+						send_to_char("Syntax:  layout group # weighted # set {R#{x <weight> <section#>\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(gls->weighted_sections));
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					argument = one_argument(argument, arg5);
+					if (!is_number(arg5))
+					{
+						send_to_char("Syntax:  layout group # weighted # set # {R<weight>{x <section#>\n\r", ch);
+						send_to_char("Please specify a positive number.\n\r", ch);
+						return FALSE;
+					}
+
+					int weight = atoi(arg5);
+					if (weight < 0)
+					{
+						send_to_char("Syntax:  layout group # weighted # set # {R<weight>{x <section#>\n\r", ch);
+						send_to_char("Please specify a positive number.\n\r", ch);
+						return FALSE;
+					}
+
+					if (!is_number(argument))
+					{
+						send_to_char("Syntax:  layout group # weighted # set # <weight> {R<section#>{x\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->sections));
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					int section_no = atoi(argument);
+					if (section_no < 1 || section_no > list_size(bp->sections))
+					{
+						send_to_char("Syntax:  layout group # weighted # set # <weight> {R<section#>{x\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->sections));
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					BLUEPRINT_SECTION *section = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, section_no);
+					int link_count = blueprint_section_link_count(section);
+
+					// Check everything in the group but this weighted entry
+					int required_count = blueprint_layout_links_count(bp, ls, index);
+					if (required_count > 0)
+					{
+						if (required_count > link_count)
+						{
+							send_to_char("Syntax:  layout group # weighted # set # <weight> {R<section#>{x\n\r", ch);
+							sprintf(buf, "You can only use a section with at least %d link%s defined.\n\r", required_count, (required_count == 1?"":"s"));
+							send_to_char(buf, ch);
+							return FALSE;
+						}
+					}
+
+					int weighted_count = blueprint_layout_links_count(bp, gls, windex);
+					if (weighted_count > 0)
+					{
+						if (weighted_count > link_count)
+						{
+							send_to_char("Syntax:  layout group # weighted # set # <weight> {R<section#>{x\n\r", ch);
+							sprintf(buf, "You can only use a section with at least %d link%s defined.\n\r", weighted_count, (weighted_count == 1?"":"s"));
+							send_to_char(buf, ch);
+							return FALSE;
+						}
+					}
+
+					BLUEPRINT_WEIGHTED_SECTION_DATA *weighted = (BLUEPRINT_WEIGHTED_SECTION_DATA *)list_nthdata(gls->weighted_sections, windex);
+					ls->total_weight -= weighted->weight;
+					weighted->weight = weight;
+					weighted->section = section_no;
+
+					ls->total_weight += weight;
+
+					sprintf(buf, "Updated Weighted %d Section entry in Group %d Section to section %s (%ld#%ld) with weight %d.\n\r", index, gindex, section->name, section->area->uid, section->vnum, weight);
+					send_to_char(buf, ch);
+					return TRUE;
+				}
+				else if (!str_prefix(arg3, "remove"))
+				{
+					if (!is_number(argument))
+					{
+						send_to_char("Syntax:  layout group # weighted # remove {R#{x\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(gls->weighted_sections));
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					int windex = atoi(argument);
+					if (windex < 1 || windex > list_size(gls->weighted_sections))
+					{
+						send_to_char("Syntax:  layout group # weighted # remove {R#{x\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(gls->weighted_sections));
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					BLUEPRINT_WEIGHTED_SECTION_DATA *weighted = (BLUEPRINT_WEIGHTED_SECTION_DATA *)list_nthdata(gls->weighted_sections, windex);
+
+					ls->total_weight -= weighted->weight;
+
+					list_remnthlink(gls->weighted_sections, windex);
+
+					sprintf(buf, "Removed table entry %d from Weighted %d Section entry in Group %d Section.\n\r", windex, index, gindex);
+					send_to_char(buf, ch);
+					return TRUE;
+				}
+				
+				send_to_char("Syntax:  layout group # weighted # {Rlist{x\n\r", ch);
+				send_to_char("         layout group # weighted # {Rclear{x\n\r", ch);
+				send_to_char("         layout group # weighted # {Radd{x <weight> <section#>\n\r", ch);
+				send_to_char("         layout group # weighted # {Rset{x # <weight> <section#>\n\r", ch);
+				send_to_char("         layout group # weighted # {Rremove{x #\n\r", ch);
+				return FALSE;
+			}
+			else if(!str_prefix(arg, "remove"))
+			{
+				if (!is_number(argument))
+				{
+					send_to_char("Syntax:  layout group # remove {R#{x\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ls->group));
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				int index = atoi(argument);
+				if (index < 1 || index > list_size(ls->group))
+				{
+					send_to_char("Syntax:  layout group # remove {R#{x\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ls->group));
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				list_remnthlink(ls->group, index);
+				blueprint_update_section_ordinals(bp);
+
+				sprintf(buf, "Layout %d removed from Group %d Section.\n\r", index, gindex);
+				send_to_char(buf, ch);
 				return TRUE;
 			}
 
-			send_to_char("Syntax:  static entry add <section#> <link#>\n\r", ch);
+			send_to_char("Syntax:  layout group # {Rlist{x\n\r", ch);
+			send_to_char("         layout group # {Rclear{x\n\r", ch);
+			send_to_char("         layout group # {Radd{x static <section#>\n\r", ch);
+			send_to_char("         layout group # {Radd{x weighted\n\r", ch);
+			send_to_char("         layout group # {Rstatic{x # <section#>\n\r", ch);
+			send_to_char("         layout group # {Rweighted{x # list\n\r", ch);
+			send_to_char("         layout group # {Rweighted{x # clear\n\r", ch);
+			send_to_char("         layout group # {Rweighted{x # add <weight> <section#>\n\r", ch);
+			send_to_char("         layout group # {Rweighted{x # {Rset{x # <weight> <section#>\n\r", ch);
+			send_to_char("         layout group # {Rweighted{x # remove #\n\r", ch);
+			send_to_char("         layout group # {Rremove{x #\n\r", ch);
 			return FALSE;
 		}
-
-		if( !str_prefix(arg2, "remove") )
+		else if (!str_prefix(arg, "remove"))
 		{
 			if (!is_number(argument))
 			{
-				send_to_char("Syntax:  static entry remove <#>\n\r", ch);
+				send_to_char("Syntax:  layout remove {R#{x\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->layout));
+				send_to_char(buf, ch);
 				return FALSE;
 			}
 
 			int index = atoi(argument);
-			if (index < 1 || index > list_size(bp->_static.entries))
+			if (index < 1 || index > list_size(bp->layout))
 			{
-				send_to_char("No such entry point.\n\r", ch);
+				send_to_char("Syntax:  layout remove {R#{x\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->layout));
+				send_to_char(buf, ch);
 				return FALSE;
 			}
 
-			list_remnthlink(bp->_static.entries, index);
+			list_remnthlink(bp->layout, index);
+			blueprint_update_section_ordinals(bp);
 
-			send_to_char("Blueprint entry point removed.\n\r", ch);
+			sprintf(buf, "Layout %d removed.\n\r", index);
+			send_to_char(buf, ch);
 			return TRUE;
 		}
+	}
 
-		bpedit_static(ch, "entry");
+	send_to_char("Syntax:  layout {Rlist{x\n\r", ch);
+	send_to_char("         layout {Rclear{x\n\r", ch);
+	send_to_char("         layout {Radd{x static <section#>\n\r", ch);
+	send_to_char("         layout {Radd{x weighted\n\r", ch);
+	send_to_char("         layout {Radd{x group\n\r", ch);
+	send_to_char("         layout {Rstatic{x # <section#>\n\r", ch);
+	send_to_char("         layout {Rweighted{x # list\n\r", ch);
+	send_to_char("         layout {Rweighted{x # clear\n\r", ch);
+	send_to_char("         layout {Rweighted{x # add <weight> <section#>\n\r", ch);
+	send_to_char("         layout {Rweighted{x # remove #\n\r", ch);
+	send_to_char("         layout {Rgroup{x # list\n\r", ch);
+	send_to_char("         layout {Rgroup{x # clear\n\r", ch);
+	send_to_char("         layout {Rgroup{x # add static <section#>\n\r", ch);
+	send_to_char("         layout {Rgroup{x # add weighted\n\r", ch);
+	send_to_char("         layout {Rgroup{x # static # <section#>\n\r", ch);
+	send_to_char("         layout {Rgroup{x # weighted # list\n\r", ch);
+	send_to_char("         layout {Rgroup{x # weighted # clear\n\r", ch);
+	send_to_char("         layout {Rgroup{x # weighted # add <weight> <section#>\n\r", ch);
+	send_to_char("         layout {Rgroup{x # weighted # {Rset{x # <weight> <section#>\n\r", ch);
+	send_to_char("         layout {Rgroup{x # weighted # remove #\n\r", ch);
+	send_to_char("         layout {Rgroup{x # remove #\n\r", ch);
+	send_to_char("         layout {Rremove{x #\n\r", ch);
+	return FALSE;
+}
+
+BPEDIT( bpedit_links )
+{
+	BLUEPRINT *bp;
+	char arg[MIL];
+	char buf[MSL];
+
+	EDIT_BLUEPRINT(ch, bp);
+
+	if (IS_SET(bp->flags, BLUEPRINT_SCRIPTED_LAYOUT))
+	{
+		send_to_char("Blueprint is in Scripted Layout Mode.  Cannot edit blueprint links in OLC.\n\r", ch);
 		return FALSE;
 	}
 
-	if( !str_prefix(arg, "exit") )
+	if (argument[0] != '\0')
 	{
-		char arg2[MIL];
+		argument = one_argument(argument, arg);
 
-		if( argument[0] == '\0' )
+		if (!str_prefix(arg, "list"))
 		{
-			send_to_char("Syntax:  static exit add <section#> <link#>\n\r", ch);
-			send_to_char("         static exit remove <#>\n\r", ch);
+			BUFFER *buffer = new_buf();
+
+			bpedit_buffer_links(buffer, bp);
+
+			if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+			{
+				send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+			}
+			else
+			{
+				page_to_char(buffer->string, ch);
+			}
+
+			free_buf(buffer);
+
 			return FALSE;
 		}
 
-		argument = one_argument(argument, arg2);
-
-		if (!str_prefix(arg2, "add"))
+		if (!str_prefix(arg, "clear"))
 		{
+			if (list_size(bp->links) < 1)
+			{
+				send_to_char("There are no links defined.\n\r", ch);
+				return FALSE;
+			}
+
+			list_clear(bp->links);
+			send_to_char("Links clear.\n\r", ch);
+			return TRUE;
+		}
+
+		if (!str_prefix(arg, "add"))
+		{
+			if (argument[0] == '\0')
+			{
+				send_to_char("Syntax:  links add {Rstatic{x generated|ordinal <from-section> <from-link> generated|ordinal <to-section> <to-link>\n\r", ch);
+				send_to_char("         links add {Rsource{x generated|ordinal <to-section> <to-link>\n\r", ch);
+				send_to_char("         links add {Rdestination{x generated|ordinal <from-section> <from-link>\n\r", ch);
+				send_to_char("         links add {Rweighted{x\n\r", ch);
+				send_to_char("         links add {Rgroup{x\n\r", ch);
+				return FALSE;
+			}
+
+			char arg2[MIL];
+
+			argument = one_argument(argument, arg2);
+			if (!str_prefix(arg2, "static"))
+			{
+				int sections = blueprint_generation_count(bp);
+				char arg3[MIL];
+				char arg4[MIL];
+				char arg5[MIL];
+				char arg6[MIL];
+				char arg7[MIL];
+				bool from_mode = TRISTATE;
+				bool to_mode = TRISTATE;
+
+				argument = one_argument(argument, arg3);
+				if (!str_prefix(arg3, "generated"))
+					from_mode = false;
+				else if(!str_prefix(arg3, "ordinal"))
+					from_mode = true;
+				else
+				{
+					send_to_char("Syntax:  links add static {Rgenerated|ordinal{x <from-section> <from-link> generated|ordinal <to-section> <to-link>\n\r", ch);
+					send_to_char("Please specify either {Ygenerated{x or {Gordinal{x.\n\r", ch);
+					return FALSE;
+				}
+
+				argument = one_argument(argument, arg4);
+				if (!is_number(arg4))
+				{
+					send_to_char("Syntax:  links add static generated|ordinal {R<from-section>{x <from-link> generated|ordinal <to-section> <to-link>\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				int from_section = atoi(arg4);
+				if (from_section < 1 || from_section > sections)
+				{
+					send_to_char("Syntax:  links add static generated|ordinal {R<from-section>{x <from-link> generated|ordinal <to-section> <to-link>\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				BLUEPRINT_LAYOUT_SECTION_DATA *group;
+				BLUEPRINT_LAYOUT_SECTION_DATA *ls = blueprint_get_nth_section(bp, (from_mode ? -from_section : from_section), &group);
+
+				// This is the maximum allowed links based upon the configuration
+				int link_count = blueprint_layout_links_count(bp, group ? group : ls, 0);
+
+				if (link_count < 1)
+				{
+					send_to_char("Syntax:  links add static generated|ordinal {R<from-section>{x <from-link> generated|ordinal <to-section> <to-link>\n\r", ch);
+					send_to_char("No links defined for this section reference.\n\r", ch);
+					return FALSE;
+				}
+
+				argument = one_argument(argument, arg5);
+				if (!is_number(arg5))
+				{
+					send_to_char("Syntax:  links add static generated|ordinal <from-section> {R<from-link>{x generated|ordinal <to-section> <to-link>\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				int from_link_no = atoi(arg5);
+				if (from_link_no < 1 || from_link_no > link_count)
+				{
+					send_to_char("Syntax:  links add static generated|ordinal <from-section> {R<from-link>{x generated|ordinal <to-section> <to-link>\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+				
+				argument = one_argument(argument, arg6);
+				if (!str_prefix(arg6, "generated"))
+					to_mode = FALSE;
+				else if (!str_prefix(arg6, "ordinal"))
+					to_mode = TRUE;
+				else
+				{
+					send_to_char("Syntax:  links add static generated|ordinal <from-section> <from-link> {Rgenerated|ordinal{x <to-section> <to-link>\n\r", ch);
+					send_to_char("Please specify either {Ygenerated{x or {Gordinal{x.\n\r", ch);
+					return FALSE;
+				}
+
+				argument = one_argument(argument, arg7);
+				if (!is_number(arg7))
+				{
+					send_to_char("Syntax:  links add static generated|ordinal <from-section> <from-link> generated|ordinal {R<to-section>{x <to-link>\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				int to_section = atoi(arg7);
+				if (to_section < 1 || to_section > sections)
+				{
+					send_to_char("Syntax:  links add static generated|ordinal <from-section> <from-link> generated|ordinal {R<to-section>{x <to-link>\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				ls = blueprint_get_nth_section(bp, (to_mode ? -to_section : to_section), &group);
+
+				// This is the maximum allowed links based upon the configuration
+				link_count = blueprint_layout_links_count(bp, group ? group : ls, 0);
+				if (link_count < 1)
+				{
+					send_to_char("Syntax:  links add static generated|ordinal <from-section> <from-link> generated|ordinal {R<to-section>{x <to-link>\n\r", ch);
+					send_to_char("No links defined for this section reference.\n\r", ch);
+					return FALSE;
+				}
+
+				if (!is_number(argument))
+				{
+					send_to_char("Syntax:  links add static generated|ordinal <from-section> <from-link> generated|ordinal <to-section> {R<to-link>{x\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				int to_link_no = atoi(argument);
+				if (to_link_no < 1 || to_link_no > link_count)
+				{
+					send_to_char("Syntax:  links add static generated|ordinal <from-section> <from-link> generated|ordinal <to-section> {R<to-link>{x\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				BLUEPRINT_LAYOUT_LINK_DATA *ll = new_blueprint_layout_link_data();
+				ll->mode = LINKMODE_STATIC;
+
+				BLUEPRINT_WEIGHTED_LINK_DATA *from = new_weighted_random_link();
+				from->weight = 1;
+				from->section = from_mode ? -from_section : from_section;
+				from->link = from_link_no;
+				list_appendlink(ll->from, from);
+				ll->total_from = 1;
+
+				BLUEPRINT_WEIGHTED_LINK_DATA *to = new_weighted_random_link();
+				to->weight = 1;
+				to->section = to_mode ? -to_section : to_section;
+				to->link = to_link_no;
+				list_appendlink(ll->to, to);
+				ll->total_to = 1;
+
+				list_appendlink(bp->links, ll);
+				sprintf(buf, "Static Link %d added to Links.\n\r", list_size(bp->links));
+				send_to_char(buf, ch);
+				return TRUE;
+			}
+			if (!str_prefix(arg2, "source"))
+			{
+				int sections = blueprint_generation_count(bp);
+				char arg3[MIL];
+				char arg4[MIL];
+				bool to_mode = TRISTATE;
+
+				argument = one_argument(argument, arg3);
+				if (!str_prefix(arg3, "generated"))
+					to_mode = false;
+				else if(!str_prefix(arg3, "ordinal"))
+					to_mode = true;
+				else
+				{
+					send_to_char("Syntax:  links add source {Rgenerated|ordinal{x <to-section> <to-link>\n\r", ch);
+					send_to_char("Please specify either {Ygenerated{x or {Gordinal{x.\n\r", ch);
+					return FALSE;
+				}
+
+				argument = one_argument(argument, arg4);
+				if (!is_number(arg4))
+				{
+					send_to_char("Syntax:  links add source generated|ordinal {R<to-section>{x <to-link>\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				int to_section = atoi(arg4);
+				if (to_section < 1 || to_section > sections)
+				{
+					send_to_char("Syntax:  links add source generated|ordinal {R<to-section>{x <to-link>\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				BLUEPRINT_LAYOUT_SECTION_DATA *group;
+				BLUEPRINT_LAYOUT_SECTION_DATA *ls = blueprint_get_nth_section(bp, (to_mode ? -to_section : to_section), &group);
+
+				// This is the maximum allowed links based upon the configuration
+				int link_count = blueprint_layout_links_count(bp, group ? group : ls, 0);
+
+				if (link_count < 1)
+				{
+					send_to_char("Syntax:  links add source generated|ordinal {R<to-section>{x <to-link>\n\r", ch);
+					send_to_char("No links defined for this section reference.\n\r", ch);
+					return FALSE;
+				}
+
+				int to_link_no = atoi(argument);
+				if (to_link_no < 1 || to_link_no > link_count)
+				{
+					send_to_char("Syntax:  links add source generated|ordinal <to-section> {R<to-link>{x\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				BLUEPRINT_LAYOUT_LINK_DATA *ll = new_blueprint_layout_link_data();
+				ll->mode = LINKMODE_SOURCE;
+
+				BLUEPRINT_WEIGHTED_LINK_DATA *to = new_weighted_random_link();
+				to->weight = 1;
+				to->section = to_mode ? -to_section : to_section;
+				to->link = to_link_no;
+				list_appendlink(ll->to, to);
+				ll->total_to = 1;
+
+				list_appendlink(bp->links, ll);
+				sprintf(buf, "Source Link %d added to Links.\n\r", list_size(bp->links));
+				send_to_char(buf, ch);
+				return TRUE;
+			}
+			if (!str_prefix(arg2, "destination"))
+			{
+				int sections = blueprint_generation_count(bp);
+				char arg3[MIL];
+				char arg4[MIL];
+				bool from_mode = TRISTATE;
+
+				argument = one_argument(argument, arg3);
+				if (!str_prefix(arg3, "generated"))
+					from_mode = false;
+				else if(!str_prefix(arg3, "ordinal"))
+					from_mode = true;
+				else
+				{
+					send_to_char("Syntax:  links add destination {Rgenerated|ordinal{x <from-section> <from-link>\n\r", ch);
+					send_to_char("Please specify either {Ygenerated{x or {Gordinal{x.\n\r", ch);
+					return FALSE;
+				}
+
+				argument = one_argument(argument, arg4);
+				if (!is_number(arg4))
+				{
+					send_to_char("Syntax:  links add destination generated|ordinal {R<from-section>{x <from-link>\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				int from_section = atoi(arg4);
+				if (from_section < 1 || from_section > sections)
+				{
+					send_to_char("Syntax:  links add destination generated|ordinal {R<from-section>{x <from-link>\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				BLUEPRINT_LAYOUT_SECTION_DATA *group;
+				BLUEPRINT_LAYOUT_SECTION_DATA *ls = blueprint_get_nth_section(bp, (from_mode ? -from_section : from_section), &group);
+
+				// This is the maximum allowed links based upon the configuration
+				int link_count = blueprint_layout_links_count(bp, group ? group : ls, 0);
+
+				if (link_count < 1)
+				{
+					send_to_char("Syntax:  links add destination generated|ordinal {R<from-section>{x <from-link>\n\r", ch);
+					send_to_char("No links defined for this section reference.\n\r", ch);
+					return FALSE;
+				}
+
+				if (!is_number(argument))
+				{
+					send_to_char("Syntax:  links add destination generated|ordinal <from-section> {R<from-link>{x\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				int from_link_no = atoi(argument);
+				if (from_link_no < 1 || from_link_no > link_count)
+				{
+					send_to_char("Syntax:  links add destination generated|ordinal <from-section> {R<from-link>{x\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				BLUEPRINT_LAYOUT_LINK_DATA *ll = new_blueprint_layout_link_data();
+				ll->mode = LINKMODE_DESTINATION;
+
+				BLUEPRINT_WEIGHTED_LINK_DATA *from = new_weighted_random_link();
+				from->weight = 1;
+				from->section = from_mode ? -from_section : from_section;
+				from->link = from_link_no;
+				list_appendlink(ll->from, from);
+				ll->total_from = 1;
+
+				list_appendlink(bp->links, ll);
+				sprintf(buf, "Destination Link %d added to Links.\n\r", list_size(bp->links));
+				send_to_char(buf, ch);
+				return TRUE;
+			}
+			if (!str_prefix(arg2, "weighted"))
+			{
+				BLUEPRINT_LAYOUT_LINK_DATA *link = new_blueprint_layout_link_data();
+				link->mode = LINKMODE_WEIGHTED;
+				link->total_from = 0;
+				link->total_to = 0;
+
+				list_appendlink(bp->links, link);
+				sprintf(buf, "Weighted Link %d added to Links.\n\r", list_size(bp->links));
+				send_to_char(buf, ch);
+				return TRUE;
+			}
+			if (!str_prefix(arg2, "group"))
+			{
+				BLUEPRINT_LAYOUT_LINK_DATA *link = new_blueprint_layout_link_data();
+				link->mode = LINKMODE_GROUP;
+
+				list_appendlink(bp->links, link);
+				sprintf(buf, "Group Link %d added to Links.\n\r", list_size(bp->links));
+				send_to_char(buf, ch);
+				return TRUE;
+			}
+
+			send_to_char("Syntax:  links add {Rstatic{x generated|ordinal <from-section> <from-link> generated|ordinal <to-section> <to-link>\n\r", ch);
+			send_to_char("         links add {Rsource{x generated|ordinal <to-section> <to-link>\n\r", ch);
+			send_to_char("         links add {Rdestination{x generated|ordinal <from-section> <from-link>\n\r", ch);
+			send_to_char("         links add {Rweighted{x\n\r", ch);
+			send_to_char("         links add {Rgroup{x\n\r", ch);
+			return FALSE;
+		}
+	
+		if (!str_prefix(arg, "from"))
+		{
+			char arg2[MIL];
 			char arg3[MIL];
-			
-			argument = one_argument(argument, arg3);
 
-			if( is_number(arg3) && is_number(argument) )
+			argument = one_argument(argument, arg2);
+			if(!is_number(arg2))
 			{
-				int section = atoi(arg3);
-				int link = atoi(argument);
+				send_to_char("Syntax:  links from {R#{x list\n\r", ch);
+				send_to_char("         links from {R#{x add <weight> <from-section> <from-link>\n\r", ch);
+				send_to_char("         links from {R#{x set # <weight> <from-section> <from-link>\n\r", ch);
+				send_to_char("         links from {R#{x remove #\n\r", ch);
 
-				if( section < 1 || section > list_size(bp->sections) )
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->links));
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			int index = atoi(arg2);
+			if(index < 1 || index > list_size(bp->links))
+			{
+				send_to_char("Syntax:  links from {R#{x list\n\r", ch);
+				send_to_char("         links from {R#{x add <weight> <from-section> <from-link>\n\r", ch);
+				send_to_char("         links from {R#{x set # <weight> <from-section> <from-link>\n\r", ch);
+				send_to_char("         links from {R#{x remove #\n\r", ch);
+
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->links));
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			BLUEPRINT_LAYOUT_LINK_DATA *ll = (BLUEPRINT_LAYOUT_LINK_DATA *)list_nthdata(bp->links, index);
+
+			argument = one_argument(argument, arg3);
+			if (!str_prefix(arg3, "list"))
+			{
+				if (list_size(ll->from) > 0)
 				{
-					send_to_char("Section index out of range.\n\r", ch);
+					BUFFER *buffer = new_buf();
+
+					sprintf(buf, "From Table Entries for Link %d:\n\r", index);
+					add_buf(buffer, buf);
+
+					add_buf(buffer, "     [ Weight ] [ Section ] [ Link ]\n\r");
+					add_buf(buffer, "=====================================\n\r");
+
+					int from_no = 1;
+					ITERATOR it;
+					BLUEPRINT_WEIGHTED_LINK_DATA *weighted;
+					iterator_start(&it, ll->from);
+					while((weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)iterator_nextdata(&it)))
+					{
+						sprintf(buf, "%4d   %6d     {%c%7d{x      %4d\n\r", from_no++, weighted->weight,
+							(weighted->section<0?'G':(weighted->section>0?'Y':'W')),
+							abs(weighted->section), weighted->link);
+						add_buf(buffer, buf);
+					}
+					iterator_stop(&it);
+
+					add_buf(buffer, "-------------------------------------\n\r");
+					add_buf(buffer, "{YYELLOW{x - Generated section position index for Source/Destination sections\n\r");
+					add_buf(buffer, "{GGREEN{x  - Ordinal section position index for Source/Destination sections\n\r");
+
+					if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+					{
+						send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+					}
+					else
+					{
+						page_to_char(buffer->string, ch);
+					}
+
+					free_buf(buffer);
+				}
+				else
+				{
+					send_to_char("There are no From table definitions.\n\r", ch);
+				}
+				return FALSE;
+			}
+
+			if (!str_prefix(arg3, "add"))
+			{
+				int sections = blueprint_generation_count(bp);
+				bool from_mode = TRISTATE;
+				char arg4[MIL];
+				char arg5[MIL];
+				char arg6[MIL];
+
+				if (ll->mode != LINKMODE_SOURCE && ll->mode != LINKMODE_WEIGHTED)
+				{
+					send_to_char("Syntax:  links from {R#{x list\n\r", ch);
+					send_to_char("         links from {R#{x add <weight> generated|ordinal <from-section> <from-link>\n\r", ch);
+					send_to_char("         links from {R#{x set # <weight> generated|ordinal <from-section> <from-link>\n\r", ch);
+					send_to_char("         links from {R#{x remove #\n\r", ch);
+
+					send_to_char("Only able to change the From table on {YSOURCE{x or {YWEIGHTED{x Links.\n\r", ch);
 					return FALSE;
 				}
 
-				BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, section);
-
-				if( !get_section_link(bs, link) )
+				argument = one_argument(argument, arg4);
+				if(!is_number(arg4))
 				{
-					send_to_char("Link index out of range.\n\r", ch);
+					send_to_char("Syntax:  links from # add {R<weight>{x generated|ordinal <from-section> <from-link>\n\r", ch);
+					send_to_char("Please specify a positive number.\n\r", ch);
 					return FALSE;
 				}
 
-				BLUEPRINT_EXIT_DATA *bex = new_blueprint_exit_data();
-				bex->section = section;
-				bex->link = link;
-				list_appendlink(bp->_static.exits, bex);
+				int weight = atoi(arg4);
+				if (weight < 1)
+				{
+					send_to_char("Syntax:  links from # add {R<weight>{x generated|ordinal <from-section> <from-link>\n\r", ch);
+					send_to_char("Please specify a positive number.\n\r", ch);
+					return FALSE;
+				}
 
-				send_to_char("Blueprint exit point added.\n\r", ch);
+				argument = one_argument(argument, arg5);
+				if(!str_prefix(arg5, "generated"))
+					from_mode = FALSE;
+				else if(!str_prefix(arg5, "ordinal"))
+					from_mode = TRUE;
+				else
+				{
+					send_to_char("Syntax:  links from # add <weight> {Rgenerated|ordinal{x <from-section> <from-link>\n\r", ch);
+					send_to_char("Please specify either {Ygenerated{x or {Gordinal{x.\n\r", ch);
+					return FALSE;
+				}
+
+				argument = one_argument(argument, arg6);
+				if(!is_number(arg6))
+				{
+					send_to_char("Syntax:  links from # add <weight> generated|ordinal {R<from-section>{x <from-link>\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				int from_section = atoi(arg6);
+				if(from_section < 1 || from_section > sections)
+				{
+					send_to_char("Syntax:  links from # add <weight> generated|ordinal {R<from-section>{x <from-link>\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				BLUEPRINT_LAYOUT_SECTION_DATA *group;
+				BLUEPRINT_LAYOUT_SECTION_DATA *ls = blueprint_get_nth_section(bp, (from_mode ? -from_section : from_section), &group);
+
+				// This is the maximum allowed links based upon the configuration
+				int link_count = blueprint_layout_links_count(bp, group ? group : ls, 0);
+				if (link_count < 1)
+				{
+					send_to_char("Syntax:  links from # add <weight> generated|ordinal <from-section> {R<from-link>{x\n\r", ch);
+					send_to_char("No links defined for this section reference.\n\r", ch);
+					return FALSE;
+				}
+
+				argument = one_argument(argument, arg5);
+				if (!is_number(arg5))
+				{
+					send_to_char("Syntax:  links from # add <weight> generated|ordinal <from-section> {R<from-link>{x\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				int from_link_no = atoi(arg5);
+				if (from_link_no < 1 || from_link_no > link_count)
+				{
+					send_to_char("Syntax:  links from # add <weight> generated|ordinal <from-section> {R<from-link>{x\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				BLUEPRINT_WEIGHTED_LINK_DATA *weighted = new_weighted_random_link();
+				weighted->weight = weight;
+				weighted->section = from_section;
+				weighted->link = from_link_no;
+				list_appendlink(ll->from, weighted);
+				ll->total_from += weight;
+
+				char *mode = "Link";
+				if (ll->mode == LINKMODE_SOURCE)
+					mode = "Source Link";
+				else if (ll->mode == LINKMODE_WEIGHTED)
+					mode = "Weighted Link";
+				sprintf(buf, "Add Entry %d to %s %d.\n\r", list_size(ll->from), mode, index);
+				send_to_char(buf, ch);
 				return TRUE;
 			}
 
-			send_to_char("Syntax:  static exit add <section#> <link#>\n\r", ch);
+			if (!str_prefix(arg3, "set"))
+			{
+				int sections = blueprint_generation_count(bp);
+				bool from_mode = TRISTATE;
+				char argw[MIL];
+				char arg4[MIL];
+				char arg5[MIL];
+				char arg6[MIL];
+
+				argument = one_argument(argument, argw);
+				if(!is_number(argw))
+				{
+					send_to_char("Syntax:  links from # set {R#{x <weight> generated|ordinal <from-section> <from-link>\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ll->from));
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				int windex = atoi(argw);
+				if(windex < 1 || windex > list_size(ll->from))
+				{
+					send_to_char("Syntax:  links from # set {R#{x <weight> generated|ordinal <from-section> <from-link>\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ll->from));
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				argument = one_argument(argument, arg4);
+				if(!is_number(arg4))
+				{
+					send_to_char("Syntax:  links from # set # {R<weight>{x generated|ordinal <from-section> <from-link>\n\r", ch);
+					send_to_char("Please specify a positive number.\n\r", ch);
+					return FALSE;
+				}
+
+				int weight = atoi(arg4);
+				if (weight < 1)
+				{
+					send_to_char("Syntax:  links from # set # {R<weight>{x generated|ordinal <from-section> <from-link>\n\r", ch);
+					send_to_char("Please specify a positive number.\n\r", ch);
+					return FALSE;
+				}
+
+				argument = one_argument(argument, arg5);
+				if(!str_prefix(arg5, "generated"))
+					from_mode = FALSE;
+				else if(!str_prefix(arg5, "ordinal"))
+					from_mode = TRUE;
+				else
+				{
+					send_to_char("Syntax:  links from # set # <weight> {Rgenerated|ordinal{x <from-section> <from-link>\n\r", ch);
+					send_to_char("Please specify either {Ygenerated{x or {Gordinal{x.\n\r", ch);
+					return FALSE;
+				}
+
+				argument = one_argument(argument, arg6);
+				if(!is_number(arg6))
+				{
+					send_to_char("Syntax:  links from # set # <weight> generated|ordinal {R<from-section>{x <from-link>\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				int from_section = atoi(arg6);
+				if(from_section < 1 || from_section > sections)
+				{
+					send_to_char("Syntax:  links from # set # <weight> generated|ordinal {R<from-section>{x <from-link>\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				BLUEPRINT_LAYOUT_SECTION_DATA *group;
+				BLUEPRINT_LAYOUT_SECTION_DATA *ls = blueprint_get_nth_section(bp, (from_mode ? -from_section : from_section), &group);
+
+				// This is the maximum allowed links based upon the configuration
+				int link_count = blueprint_layout_links_count(bp, group ? group : ls, 0);
+				if (link_count < 1)
+				{
+					send_to_char("Syntax:  links from # set # <weight> generated|ordinal <from-section> {R<from-link>{x\n\r", ch);
+					send_to_char("No links defined for this section reference.\n\r", ch);
+					return FALSE;
+				}
+
+				argument = one_argument(argument, arg5);
+				if (!is_number(arg5))
+				{
+					send_to_char("Syntax:  links from # set # <weight> generated|ordinal <from-section> {R<from-link>{x\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				int from_link_no = atoi(arg5);
+				if (from_link_no < 1 || from_link_no > link_count)
+				{
+					send_to_char("Syntax:  links from # set # <weight> generated|ordinal <from-section> {R<from-link>{x\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				BLUEPRINT_WEIGHTED_LINK_DATA *weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(ll->from, windex);
+				ll->total_from -= weighted->weight;
+				weighted->weight = weight;
+				weighted->section = from_section;
+				weighted->link = from_link_no;
+				ll->total_from += weight;
+
+				char *mode = "Link";
+				if (ll->mode == LINKMODE_SOURCE)
+					mode = "Source Link";
+				else if (ll->mode == LINKMODE_WEIGHTED)
+					mode = "Weighted Link";
+				sprintf(buf, "Updated Entry %d to %s %d.\n\r", windex, mode, index);
+				send_to_char(buf, ch);
+				return TRUE;
+			}
+
+			if (!str_prefix(arg3, "remove"))
+			{
+				if (ll->mode != LINKMODE_SOURCE && ll->mode != LINKMODE_WEIGHTED)
+				{
+					send_to_char("Syntax:  links from {R#{x list\n\r", ch);
+					send_to_char("         links from {R#{x add <weight> generated|ordinal <from-section> <from-link>\n\r", ch);
+					send_to_char("         links from {R#{x set # <weight> generated|ordinal <from-section> <from-link>\n\r", ch);
+					send_to_char("         links from {R#{x remove #\n\r", ch);
+
+					send_to_char("Only able to change the From table on {YSOURCE{x or {YWEIGHTED{x Links.\n\r", ch);
+					return FALSE;
+				}
+
+				if (!is_number(argument))
+				{
+					send_to_char("Syntax:  links from # remove {R#{x\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ll->from));
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				int windex = atoi(argument);
+				if (windex < 1 || windex > list_size(ll->from))
+				{
+					send_to_char("Syntax:  links from # remove {R#{x\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ll->from));
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				BLUEPRINT_WEIGHTED_LINK_DATA *weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(ll->from, windex);
+				ll->total_from -= weighted->weight;
+				list_remnthlink(ll->from, windex);
+
+				char *mode = "Link";
+				if (ll->mode == LINKMODE_SOURCE)
+					mode = "Source Link";
+				else if (ll->mode == LINKMODE_WEIGHTED)
+					mode = "Weighted Link";
+				sprintf(buf, "Removed Entry %d from %s %d.\n\r", windex, mode, index);
+				send_to_char(buf, ch);
+				return TRUE;
+			}
+
+			send_to_char("Syntax:  links from # {Rlist{x\n\r", ch);
+			send_to_char("         links from # {Radd{x <weight> generated|ordinal <from-section> <from-link>\n\r", ch);
+			send_to_char("         links from # {Rset{x # <weight> generated|ordinal <from-section> <from-link>\n\r", ch);
+			send_to_char("         links from # {Rremove{x #\n\r", ch);
 			return FALSE;
 		}
 
-		if( !str_prefix(arg2, "remove") )
+		if (!str_prefix(arg, "to"))
 		{
+			char arg2[MIL];
+			char arg3[MIL];
+
+			argument = one_argument(argument, arg2);
+			if(!is_number(arg2))
+			{
+				send_to_char("Syntax:  links to {R#{x list\n\r", ch);
+				send_to_char("         links to {R#{x add <weight> <to-section> <to-link>\n\r", ch);
+				send_to_char("         links to {R#{x set # <weight> <to-section> <to-link>\n\r", ch);
+				send_to_char("         links to {R#{x remove #\n\r", ch);
+
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->links));
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			int index = atoi(arg2);
+			if(index < 1 || index > list_size(bp->links))
+			{
+				send_to_char("Syntax:  links to {R#{x list\n\r", ch);
+				send_to_char("         links to {R#{x add <weight> <to-section> <to-link>\n\r", ch);
+				send_to_char("         links to {R#{x set # <weight> <to-section> <to-link>\n\r", ch);
+				send_to_char("         links to {R#{x remove #\n\r", ch);
+
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->links));
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			BLUEPRINT_LAYOUT_LINK_DATA *ll = (BLUEPRINT_LAYOUT_LINK_DATA *)list_nthdata(bp->links, index);
+
+			argument = one_argument(argument, arg3);
+			if (!str_prefix(arg3, "list"))
+			{
+				if (list_size(ll->to) > 0)
+				{
+					BUFFER *buffer = new_buf();
+
+					sprintf(buf, "To Table Entries for Link %d:\n\r", index);
+					add_buf(buffer, buf);
+
+					add_buf(buffer, "     [ Weight ] [ Section ] [ Link ]\n\r");
+					add_buf(buffer, "=====================================\n\r");
+
+					int to_no = 1;
+					ITERATOR it;
+					BLUEPRINT_WEIGHTED_LINK_DATA *weighted;
+					iterator_start(&it, ll->to);
+					while((weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)iterator_nextdata(&it)))
+					{
+						sprintf(buf, "%4d   %6d     {%c%7d{x      %4d\n\r", to_no++, weighted->weight,
+							(weighted->section<0?'G':(weighted->section>0?'Y':'W')),
+							abs(weighted->section), weighted->link);
+						add_buf(buffer, buf);
+					}
+					iterator_stop(&it);
+
+					add_buf(buffer, "-------------------------------------\n\r");
+					add_buf(buffer, "{YYELLOW{x - Generated section position index for Source/Destination sections\n\r");
+					add_buf(buffer, "{GGREEN{x  - Ordinal section position index for Source/Destination sections\n\r");
+
+					if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+					{
+						send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+					}
+					else
+					{
+						page_to_char(buffer->string, ch);
+					}
+
+					free_buf(buffer);
+				}
+				else
+				{
+					send_to_char("There are no To table definitions.\n\r", ch);
+				}
+				return FALSE;
+			}
+
+			if (!str_prefix(arg3, "add"))
+			{
+				int sections = blueprint_generation_count(bp);
+				bool to_mode = TRISTATE;
+				char arg4[MIL];
+				char arg5[MIL];
+				char arg6[MIL];
+
+				if (ll->mode != LINKMODE_DESTINATION && ll->mode != LINKMODE_WEIGHTED)
+				{
+					send_to_char("Syntax:  links to {R#{x list\n\r", ch);
+					send_to_char("         links to {R#{x add <weight> generated|ordinal <to-section> <to-link>\n\r", ch);
+					send_to_char("         links to {R#{x set # <weight> generated|ordinal <to-section> <to-link>\n\r", ch);
+					send_to_char("         links to {R#{x remove #\n\r", ch);
+
+					send_to_char("Only able to change the To table on {YDESTINATION{x or {YWEIGHTED{x Links.\n\r", ch);
+					return FALSE;
+				}
+
+				argument = one_argument(argument, arg4);
+				if(!is_number(arg4))
+				{
+					send_to_char("Syntax:  links to # add {R<weight>{x generated|ordinal <to-section> <to-link>\n\r", ch);
+					send_to_char("Please specify a positive number.\n\r", ch);
+					return FALSE;
+				}
+
+				int weight = atoi(arg4);
+				if (weight < 1)
+				{
+					send_to_char("Syntax:  links to # add {R<weight>{x generated|ordinal <to-section> <to-link>\n\r", ch);
+					send_to_char("Please specify a positive number.\n\r", ch);
+					return FALSE;
+				}
+
+				argument = one_argument(argument, arg5);
+				if(!str_prefix(arg5, "generated"))
+					to_mode = FALSE;
+				else if(!str_prefix(arg5, "ordinal"))
+					to_mode = TRUE;
+				else
+				{
+					send_to_char("Syntax:  links to # add <weight> {Rgenerated|ordinal{x <to-section> <to-link>\n\r", ch);
+					send_to_char("Please specify either {Ygenerated{x or {Gordinal{x.\n\r", ch);
+					return FALSE;
+				}
+
+				argument = one_argument(argument, arg6);
+				if(!is_number(arg6))
+				{
+					send_to_char("Syntax:  links to # add <weight> generated|ordinal {R<to-section>{x <to-link>\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				int to_section = atoi(arg6);
+				if(to_section < 1 || to_section > sections)
+				{
+					send_to_char("Syntax:  links to # add <weight> generated|ordinal {R<to-section>{x <to-link>\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				BLUEPRINT_LAYOUT_SECTION_DATA *group;
+				BLUEPRINT_LAYOUT_SECTION_DATA *ls = blueprint_get_nth_section(bp, (to_mode ? -to_section : to_section), &group);
+
+				// This is the maximum allowed links based upon the configuration
+				int link_count = blueprint_layout_links_count(bp, group ? group : ls, 0);
+				if (link_count < 1)
+				{
+					send_to_char("Syntax:  links to # add <weight> generated|ordinal <to-section> {R<to-link>{x\n\r", ch);
+					send_to_char("No links defined for this section reference.\n\r", ch);
+					return FALSE;
+				}
+
+				argument = one_argument(argument, arg5);
+				if (!is_number(arg5))
+				{
+					send_to_char("Syntax:  links to # add <weight> generated|ordinal <to-section> {R<to-link>{x\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				int to_link_no = atoi(arg5);
+				if (to_link_no < 1 || to_link_no > link_count)
+				{
+					send_to_char("Syntax:  links to # add <weight> generated|ordinal <to-section> {R<to-link>{x\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				BLUEPRINT_WEIGHTED_LINK_DATA *weighted = new_weighted_random_link();
+				weighted->weight = weight;
+				weighted->section = to_section;
+				weighted->link = to_link_no;
+				list_appendlink(ll->to, weighted);
+				ll->total_to += weight;
+
+				char *mode = "Link";
+				if (ll->mode == LINKMODE_DESTINATION)
+					mode = "Destination Link";
+				else if (ll->mode == LINKMODE_WEIGHTED)
+					mode = "Weighted Link";
+				sprintf(buf, "Added To Entry %d to %s %d.\n\r", list_size(ll->to), mode, index);
+				send_to_char(buf, ch);
+				return TRUE;
+			}
+
+			if (!str_prefix(arg3, "set"))
+			{
+				int sections = blueprint_generation_count(bp);
+				bool to_mode = TRISTATE;
+				char argw[MIL];
+				char arg4[MIL];
+				char arg5[MIL];
+				char arg6[MIL];
+
+				argument = one_argument(argument, argw);
+				if(!is_number(argw))
+				{
+					send_to_char("Syntax:  links to # set {R#{x <weight> generated|ordinal <to-section> <to-link>\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ll->to));
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				int windex = atoi(argw);
+				if(windex < 1 || windex > list_size(ll->to))
+				{
+					send_to_char("Syntax:  links to # set {R#{x <weight> generated|ordinal <to-section> <to-link>\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ll->to));
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				argument = one_argument(argument, arg4);
+				if(!is_number(arg4))
+				{
+					send_to_char("Syntax:  links to # set # {R<weight>{x generated|ordinal <to-section> <to-link>\n\r", ch);
+					send_to_char("Please specify a positive number.\n\r", ch);
+					return FALSE;
+				}
+
+				int weight = atoi(arg4);
+				if (weight < 1)
+				{
+					send_to_char("Syntax:  links to # set # {R<weight>{x generated|ordinal <to-section> <to-link>\n\r", ch);
+					send_to_char("Please specify a positive number.\n\r", ch);
+					return FALSE;
+				}
+
+				argument = one_argument(argument, arg5);
+				if(!str_prefix(arg5, "generated"))
+					to_mode = FALSE;
+				else if(!str_prefix(arg5, "ordinal"))
+					to_mode = TRUE;
+				else
+				{
+					send_to_char("Syntax:  links to # set # <weight> {Rgenerated|ordinal{x <to-section> <to-link>\n\r", ch);
+					send_to_char("Please specify either {Ygenerated{x or {Gordinal{x.\n\r", ch);
+					return FALSE;
+				}
+
+				argument = one_argument(argument, arg6);
+				if(!is_number(arg6))
+				{
+					send_to_char("Syntax:  links to # set # <weight> generated|ordinal {R<to-section>{x <to-link>\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				int to_section = atoi(arg6);
+				if(to_section < 1 || to_section > sections)
+				{
+					send_to_char("Syntax:  links to # set # <weight> generated|ordinal {R<to-section>{x <to-link>\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				BLUEPRINT_LAYOUT_SECTION_DATA *group;
+				BLUEPRINT_LAYOUT_SECTION_DATA *ls = blueprint_get_nth_section(bp, (to_mode ? -to_section : to_section), &group);
+
+				// This is the maximum allowed links based upon the configuration
+				int link_count = blueprint_layout_links_count(bp, group ? group : ls, 0);
+				if (link_count < 1)
+				{
+					send_to_char("Syntax:  links to # set # <weight> generated|ordinal <to-section> {R<to-link>{x\n\r", ch);
+					send_to_char("No links defined for this section reference.\n\r", ch);
+					return FALSE;
+				}
+
+				argument = one_argument(argument, arg5);
+				if (!is_number(arg5))
+				{
+					send_to_char("Syntax:  links to # set # <weight> generated|ordinal <to-section> {R<to-link>{x\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				int to_link_no = atoi(arg5);
+				if (to_link_no < 1 || to_link_no > link_count)
+				{
+					send_to_char("Syntax:  links to # set # <weight> generated|ordinal <to-section> {R<to-link>{x\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				BLUEPRINT_WEIGHTED_LINK_DATA *weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(ll->to, windex);
+				ll->total_to -= weighted->weight;
+				weighted->weight = weight;
+				weighted->section = to_section;
+				weighted->link = to_link_no;
+				ll->total_to += weight;
+
+				char *mode = "Link";
+				if (ll->mode == LINKMODE_SOURCE)
+					mode = "Source Link";
+				else if (ll->mode == LINKMODE_WEIGHTED)
+					mode = "Weighted Link";
+				sprintf(buf, "Updated Entry %d to %s %d.\n\r", windex, mode, index);
+				send_to_char(buf, ch);
+				return TRUE;
+			}
+
+			if (!str_prefix(arg3, "remove"))
+			{
+				if (ll->mode != LINKMODE_DESTINATION && ll->mode != LINKMODE_WEIGHTED)
+				{
+					send_to_char("Syntax:  links to {R#{x list\n\r", ch);
+					send_to_char("         links to {R#{x add <weight> generated|ordinal <to-section> <to-link>\n\r", ch);
+					send_to_char("         links to {R#{x set # <weight> generated|ordinal <to-section> <to-link>\n\r", ch);
+					send_to_char("         links to {R#{x remove #\n\r", ch);
+
+					send_to_char("Only able to change the To table on {YDESTINATION{x or {YWEIGHTED{x Links.\n\r", ch);
+					return FALSE;
+				}
+
+				if (!is_number(argument))
+				{
+					send_to_char("Syntax:  links to # remove {R#{x\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ll->to));
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				int windex = atoi(argument);
+				if (windex < 1 || windex > list_size(ll->to))
+				{
+					send_to_char("Syntax:  links to # remove {R#{x\n\r", ch);
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ll->to));
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				BLUEPRINT_WEIGHTED_LINK_DATA *weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(ll->to, windex);
+				ll->total_to -= weighted->weight;
+				list_remnthlink(ll->to, windex);
+
+				char *mode = "Link";
+				if (ll->mode == LINKMODE_DESTINATION)
+					mode = "Destination Link";
+				else if (ll->mode == LINKMODE_WEIGHTED)
+					mode = "Weighted Link";
+				sprintf(buf, "Removed To Entry %d from %s %d.\n\r", windex, mode, index);
+				send_to_char(buf, ch);
+				return TRUE;
+			}
+
+			send_to_char("Syntax:  links to # {Rlist{x\n\r", ch);
+			send_to_char("         links to # {Radd{x <weight> generated|ordinal <to-section> <to-link>\n\r", ch);
+			send_to_char("         links to # {Rset{x # <weight> generated|ordinal <to-section> <to-link>\n\r", ch);
+			send_to_char("         links to # {Rremove{x #\n\r", ch);
+			return FALSE;
+		}
+
+		if (!str_prefix(arg, "group"))
+		{
+			char argg[MIL];
+
+			argument = one_argument(argument, argg);
+			if(!is_number(argg))
+			{
+				send_to_char("Syntax:  links group {R#{x add static generated|ordinal <from-section> <from-link> generated|ordinal <to-section> <to-link>\n\r", ch);
+				send_to_char("         links group {R#{x add source generated|ordinal <to-section> <to-link>\n\r", ch);
+				send_to_char("         links group {R#{x add destination generated|ordinal <from-section> <from-link>\n\r", ch);
+				send_to_char("         links group {R#{x add weighted\n\r", ch);
+				send_to_char("         links group {R#{x add group\n\r", ch);
+				send_to_char("         links group {R#{x from # list\n\r", ch);
+				send_to_char("         links group {R#{x from # add <weight> generated|ordinal <from-section> <from-link>\n\r", ch);
+				send_to_char("         links group {R#{x from # set # <weight> generated|ordinal <from-section> <from-link>\n\r", ch);
+				send_to_char("         links group {R#{x from # remove #\n\r", ch);
+				send_to_char("         links group {R#{x to # list\n\r", ch);
+				send_to_char("         links group {R#{x to # add <weight> generated|ordinal <to-section> <to-link>\n\r", ch);
+				send_to_char("         links group {R#{x to # set # <weight> generated|ordinal <to-section> <to-link>\n\r", ch);
+				send_to_char("         links group {R#{x to # remove #\n\r", ch);
+				send_to_char("         links group {R#{x remove #\n\r", ch);
+
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->links));
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			int gindex = atoi(argg);
+			if(gindex < 1 || list_size(bp->links))
+			{
+				send_to_char("Syntax:  links group {R#{x add static generated|ordinal <from-section> <from-link> generated|ordinal <to-section> <to-link>\n\r", ch);
+				send_to_char("         links group {R#{x add source generated|ordinal <to-section> <to-link>\n\r", ch);
+				send_to_char("         links group {R#{x add destination generated|ordinal <from-section> <from-link>\n\r", ch);
+				send_to_char("         links group {R#{x add weighted\n\r", ch);
+				send_to_char("         links group {R#{x add group\n\r", ch);
+				send_to_char("         links group {R#{x from # list\n\r", ch);
+				send_to_char("         links group {R#{x from # add <weight> generated|ordinal <from-section> <from-link>\n\r", ch);
+				send_to_char("         links group {R#{x from # set # <weight> generated|ordinal <from-section> <from-link>\n\r", ch);
+				send_to_char("         links group {R#{x from # remove #\n\r", ch);
+				send_to_char("         links group {R#{x to # list\n\r", ch);
+				send_to_char("         links group {R#{x to # add <weight> generated|ordinal <to-section> <to-link>\n\r", ch);
+				send_to_char("         links group {R#{x to # set # <weight> generated|ordinal <to-section> <to-link>\n\r", ch);
+				send_to_char("         links group {R#{x to # remove #\n\r", ch);
+				send_to_char("         links group {R#{x remove #\n\r", ch);
+
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->links));
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			BLUEPRINT_LAYOUT_LINK_DATA *gls = (BLUEPRINT_LAYOUT_LINK_DATA *)list_nthdata(bp->links, gindex);
+			if(gls->mode != LINKMODE_GROUP)
+			{
+				send_to_char("Syntax:  links group {R#{x add static generated|ordinal <from-section> <from-link> generated|ordinal <to-section> <to-link>\n\r", ch);
+				send_to_char("         links group {R#{x add source generated|ordinal <to-section> <to-link>\n\r", ch);
+				send_to_char("         links group {R#{x add destination generated|ordinal <from-section> <from-link>\n\r", ch);
+				send_to_char("         links group {R#{x add weighted\n\r", ch);
+				send_to_char("         links group {R#{x add group\n\r", ch);
+				send_to_char("         links group {R#{x from # list\n\r", ch);
+				send_to_char("         links group {R#{x from # add <weight> generated|ordinal <from-section> <from-link>\n\r", ch);
+				send_to_char("         links group {R#{x from # set # <weight> generated|ordinal <from-section> <from-link>\n\r", ch);
+				send_to_char("         links group {R#{x from # remove #\n\r", ch);
+				send_to_char("         links group {R#{x to # list\n\r", ch);
+				send_to_char("         links group {R#{x to # add <weight> generated|ordinal <to-section> <to-link>\n\r", ch);
+				send_to_char("         links group {R#{x to # set # <weight> generated|ordinal <to-section> <to-link>\n\r", ch);
+				send_to_char("         links group {R#{x to # remove #\n\r", ch);
+				send_to_char("         links group {R#{x remove #\n\r", ch);
+
+				send_to_char("Please select a {YGROUP{x Link entry.\n\r", ch);
+				return FALSE;
+			}
+
+			argument = one_argument(argument, arg);
+			if (!str_prefix(arg, "list"))
+			{
+				int count = list_size(gls->group);
+				if(count > 0)
+				{
+					BUFFER *buffer = new_buf();
+
+					ITERATOR git;
+					BLUEPRINT_LAYOUT_LINK_DATA *glink;
+					BLUEPRINT_WEIGHTED_LINK_DATA *from;
+					BLUEPRINT_WEIGHTED_LINK_DATA *to;
+
+					sprintf(buf, "Group Definitions for Group Entry %d:\n\r", gindex);
+					add_buf(buffer, buf);
+					add_buf(buffer, "{x     [    Mode    ]{x\n\r");
+					add_buf(buffer, "{x========================================================{x\n\r");
+
+					int glink_no = 1;
+					iterator_start(&git, gls->group);
+					while( (glink = (BLUEPRINT_LAYOUT_LINK_DATA *)iterator_nextdata(&git)) )
+					{
+						switch(glink->mode)
+						{
+							case LINKMODE_STATIC:
+							{
+								from = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(glink->from, 1);
+								to = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(glink->to, 1);
+								sprintf(buf, "%4d  {Y   STATIC   {x\n\r", glink_no++);
+								sprintf(buf, "          Source:        {%c%4d{x (%d)\n\r", (from->section < 0?'G':(from->section>0?'Y':'W')), abs(from->section), from->link);
+								add_buf(buffer, buf);
+								sprintf(buf, "          Destination:   {%c%4d{x (%d)\n\r", (to->section < 0?'G':(to->section>0?'Y':'W')), abs(to->section), to->link);
+								add_buf(buffer, buf);
+								break;
+							}
+
+							case LINKMODE_SOURCE:
+							{
+								ITERATOR wit;
+								to = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(glink->to, 1);
+								sprintf(buf, "%4d  {C   SOURCE   {x\n\r", glink_no++);
+								add_buf(buffer, buf);
+
+								int fromlink_no = 1;
+								add_buf(buffer, "          Source:\n\r");
+								add_buf(buffer, "               [ Weight ] [Section] [ Exit# ]{x\n\r");
+								add_buf(buffer, "          ===================================={x\n\r");
+								iterator_start(&wit, glink->from);
+								while ( (from = (BLUEPRINT_WEIGHTED_LINK_DATA *)iterator_nextdata(&wit)) )
+								{
+									sprintf(buf, "          %4d   %6d    {%c%5d{x     %5d\n\r", fromlink_no++, from->weight, (from->section < 0?'G':(from->section>0?'Y':'W')), abs(from->section), from->link);
+									add_buf(buffer, buf);
+								}
+								iterator_stop(&wit);
+								add_buf(buffer, "          ----------------------------------------------------{x\n\r");
+
+								sprintf(buf, "          Destination:   {%c%4d{x (%d)\n\r", (to->section < 0?'G':(to->section>0?'Y':'W')), abs(to->section), to->link);
+								add_buf(buffer, buf);
+								break;
+							}
+
+							case LINKMODE_DESTINATION:
+							{
+								ITERATOR wit;
+								from = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(glink->from, 1);
+								sprintf(buf, "%4d  {C DESTINATION{x\n\r", glink_no++);
+								add_buf(buffer, buf);
+								sprintf(buf, "          Source:        {%c%4d{x (%d)\n\r", (from->section < 0?'G':(from->section>0?'Y':'W')), abs(from->section), from->link);
+								add_buf(buffer, buf);
+
+								int tolink_no = 1;
+								add_buf(buffer, "          Destination:\n\r");
+								add_buf(buffer, "               [ Weight ] [Section] [ Exit# ]{x\n\r");
+								add_buf(buffer, "          ===================================={x\n\r");
+								iterator_start(&wit, glink->to);
+								while ( (to = (BLUEPRINT_WEIGHTED_LINK_DATA *)iterator_nextdata(&wit)) )
+								{
+									sprintf(buf, "          %4d   %6d    {%c%5d{x     %5d\n\r", tolink_no++, to->weight, (to->section < 0?'G':(to->section>0?'Y':'W')), abs(to->section), to->link);
+									add_buf(buffer, buf);
+								}
+								iterator_stop(&wit);
+								add_buf(buffer, "          ----------------------------------------------------{x\n\r");
+								break;
+							}
+
+							case LINKMODE_WEIGHTED:
+							{
+								ITERATOR wit;
+								sprintf(buf, "%4d  {C  WEIGHTED  {x\n\r", glink_no++);
+								add_buf(buffer, buf);
+
+								int fromlink_no = 1;
+								add_buf(buffer, "          Source:\n\r");
+								add_buf(buffer, "               [ Weight ] [Section] [ Exit# ]{x\n\r");
+								add_buf(buffer, "          ===================================={x\n\r");
+								iterator_start(&wit, glink->from);
+								while ( (from = (BLUEPRINT_WEIGHTED_LINK_DATA *)iterator_nextdata(&wit)) )
+								{
+									sprintf(buf, "          %4d   %6d    {%c%5d{x     %5d\n\r", fromlink_no++, from->weight, (from->section < 0?'G':(from->section>0?'Y':'W')), abs(from->section), from->link);
+									add_buf(buffer, buf);
+								}
+								iterator_stop(&wit);
+								add_buf(buffer, "          ----------------------------------------------------{x\n\r");
+
+								int tolink_no = 1;
+								add_buf(buffer, "          Destination:\n\r");
+								add_buf(buffer, "               [ Weight ] [Section] [ Exit# ]{x\n\r");
+								add_buf(buffer, "          ===================================={x\n\r");
+								iterator_start(&wit, glink->to);
+								while ( (to = (BLUEPRINT_WEIGHTED_LINK_DATA *)iterator_nextdata(&wit)) )
+								{
+									sprintf(buf, "          %4d   %6d    {%c%5d{x     %5d\n\r", tolink_no++, to->weight, (to->section < 0?'G':(to->section>0?'Y':'W')), abs(to->section), to->link);
+									add_buf(buffer, buf);
+								}
+								iterator_stop(&wit);
+								add_buf(buffer, "          ----------------------------------------------------{x\n\r");
+								break;
+							}
+						}
+					}
+					iterator_stop(&git);
+
+					if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+					{
+						send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+					}
+					else
+					{
+						page_to_char(buffer->string, ch);
+					}
+
+					free_buf(buffer);
+				}
+				else
+				{
+					sprintf(buf, "There are no group definitions defined for Group Entry %d.\n\r", gindex);
+					send_to_char(buf, ch);
+				}
+				return FALSE;
+			}
+
+			if (!str_prefix(arg, "clear"))
+			{
+				if (list_size(gls->group) < 1)
+				{
+					send_to_char("There are no definitions in the Group Entry.\n\r", ch);
+					return FALSE;
+				}
+
+				list_clear(gls->group);
+				send_to_char("Group definitions clear.\n\r", ch);
+				return TRUE;
+			}
+			
+			if (!str_prefix(arg, "add"))
+			{
+				if (argument[0] == '\0')
+				{
+					send_to_char("Syntax:  links group # add {Rstatic{x generated|ordinal <from-section> <from-link> generated|ordinal <to-section> <to-link>\n\r", ch);
+					send_to_char("         links group # add {Rsource{x generated|ordinal <to-section> <to-link>\n\r", ch);
+					send_to_char("         links group # add {Rdestination{x generated|ordinal <from-section> <from-link>\n\r", ch);
+					send_to_char("         links group # add {Rweighted{x\n\r", ch);
+					return FALSE;
+				}
+
+				char arg2[MIL];
+
+				argument = one_argument(argument, arg2);
+				if (!str_prefix(arg2, "static"))
+				{
+					int sections = blueprint_generation_count(bp);
+					char arg3[MIL];
+					char arg4[MIL];
+					char arg5[MIL];
+					char arg6[MIL];
+					char arg7[MIL];
+					bool from_mode = TRISTATE;
+					bool to_mode = TRISTATE;
+
+					argument = one_argument(argument, arg3);
+					if (!str_prefix(arg3, "generated"))
+						from_mode = false;
+					else if(!str_prefix(arg3, "ordinal"))
+						from_mode = true;
+					else
+					{
+						send_to_char("Syntax:  links group # add static {Rgenerated|ordinal{x <from-section> <from-link> generated|ordinal <to-section> <to-link>\n\r", ch);
+						send_to_char("Please specify either {Ygenerated{x or {Gordinal{x.\n\r", ch);
+						return FALSE;
+					}
+
+					argument = one_argument(argument, arg4);
+					if (!is_number(arg4))
+					{
+						send_to_char("Syntax:  links group # add static generated|ordinal {R<from-section>{x <from-link> generated|ordinal <to-section> <to-link>\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					int from_section = atoi(arg4);
+					if (from_section < 1 || from_section > sections)
+					{
+						send_to_char("Syntax:  links group # add static generated|ordinal {R<from-section>{x <from-link> generated|ordinal <to-section> <to-link>\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					BLUEPRINT_LAYOUT_SECTION_DATA *group;
+					BLUEPRINT_LAYOUT_SECTION_DATA *ls = blueprint_get_nth_section(bp, (from_mode ? -from_section : from_section), &group);
+
+					// This is the maximum allowed links based upon the configuration
+					int link_count = blueprint_layout_links_count(bp, group ? group : ls, 0);
+
+					if (link_count < 1)
+					{
+						send_to_char("Syntax:  links group # add static generated|ordinal {R<from-section>{x <from-link> generated|ordinal <to-section> <to-link>\n\r", ch);
+						send_to_char("No links defined for this section reference.\n\r", ch);
+						return FALSE;
+					}
+
+					argument = one_argument(argument, arg5);
+					if (!is_number(arg5))
+					{
+						send_to_char("Syntax:  links group # add static generated|ordinal <from-section> {R<from-link>{x generated|ordinal <to-section> <to-link>\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					int from_link_no = atoi(arg5);
+					if (from_link_no < 1 || from_link_no > link_count)
+					{
+						send_to_char("Syntax:  links group # add static generated|ordinal <from-section> {R<from-link>{x generated|ordinal <to-section> <to-link>\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+					
+					argument = one_argument(argument, arg6);
+					if (!str_prefix(arg6, "generated"))
+						to_mode = FALSE;
+					else if (!str_prefix(arg6, "ordinal"))
+						to_mode = TRUE;
+					else
+					{
+						send_to_char("Syntax:  links group # add static generated|ordinal <from-section> <from-link> {Rgenerated|ordinal{x <to-section> <to-link>\n\r", ch);
+						send_to_char("Please specify either {Ygenerated{x or {Gordinal{x.\n\r", ch);
+						return FALSE;
+					}
+
+					argument = one_argument(argument, arg7);
+					if (!is_number(arg7))
+					{
+						send_to_char("Syntax:  links group # add static generated|ordinal <from-section> <from-link> generated|ordinal {R<to-section>{x <to-link>\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					int to_section = atoi(arg7);
+					if (to_section < 1 || to_section > sections)
+					{
+						send_to_char("Syntax:  links group # add static generated|ordinal <from-section> <from-link> generated|ordinal {R<to-section>{x <to-link>\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					ls = blueprint_get_nth_section(bp, (to_mode ? -to_section : to_section), &group);
+
+					// This is the maximum allowed links based upon the configuration
+					link_count = blueprint_layout_links_count(bp, group ? group : ls, 0);
+					if (link_count < 1)
+					{
+						send_to_char("Syntax:  links group # add static generated|ordinal <from-section> <from-link> generated|ordinal {R<to-section>{x <to-link>\n\r", ch);
+						send_to_char("No links defined for this section reference.\n\r", ch);
+						return FALSE;
+					}
+
+					if (!is_number(argument))
+					{
+						send_to_char("Syntax:  links group # add static generated|ordinal <from-section> <from-link> generated|ordinal <to-section> {R<to-link>{x\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					int to_link_no = atoi(argument);
+					if (to_link_no < 1 || to_link_no > link_count)
+					{
+						send_to_char("Syntax:  links group # add static generated|ordinal <from-section> <from-link> generated|ordinal <to-section> {R<to-link>{x\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					BLUEPRINT_LAYOUT_LINK_DATA *ll = new_blueprint_layout_link_data();
+					ll->mode = LINKMODE_STATIC;
+
+					BLUEPRINT_WEIGHTED_LINK_DATA *from = new_weighted_random_link();
+					from->weight = 1;
+					from->section = from_mode ? -from_section : from_section;
+					from->link = from_link_no;
+					list_appendlink(ll->from, from);
+					ll->total_from = 1;
+
+					BLUEPRINT_WEIGHTED_LINK_DATA *to = new_weighted_random_link();
+					to->weight = 1;
+					to->section = to_mode ? -to_section : to_section;
+					to->link = to_link_no;
+					list_appendlink(ll->to, to);
+					ll->total_to = 1;
+
+					list_appendlink(gls->group, ll);
+					sprintf(buf, "Static Link %d added to Group Entry %d.\n\r", list_size(bp->links), gindex);
+					send_to_char(buf, ch);
+					return TRUE;
+				}
+				if (!str_prefix(arg2, "source"))
+				{
+					int sections = blueprint_generation_count(bp);
+					char arg3[MIL];
+					char arg4[MIL];
+					bool to_mode = TRISTATE;
+
+					argument = one_argument(argument, arg3);
+					if (!str_prefix(arg3, "generated"))
+						to_mode = false;
+					else if(!str_prefix(arg3, "ordinal"))
+						to_mode = true;
+					else
+					{
+						send_to_char("Syntax:  links group # add source {Rgenerated|ordinal{x <to-section> <to-link>\n\r", ch);
+						send_to_char("Please specify either {Ygenerated{x or {Gordinal{x.\n\r", ch);
+						return FALSE;
+					}
+
+					argument = one_argument(argument, arg4);
+					if (!is_number(arg4))
+					{
+						send_to_char("Syntax:  links group # add source generated|ordinal {R<to-section>{x <to-link>\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					int to_section = atoi(arg4);
+					if (to_section < 1 || to_section > sections)
+					{
+						send_to_char("Syntax:  links group # add source generated|ordinal {R<to-section>{x <to-link>\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					BLUEPRINT_LAYOUT_SECTION_DATA *group;
+					BLUEPRINT_LAYOUT_SECTION_DATA *ls = blueprint_get_nth_section(bp, (to_mode ? -to_section : to_section), &group);
+
+					// This is the maximum allowed links based upon the configuration
+					int link_count = blueprint_layout_links_count(bp, group ? group : ls, 0);
+
+					if (link_count < 1)
+					{
+						send_to_char("Syntax:  links group # add source generated|ordinal {R<to-section>{x <to-link>\n\r", ch);
+						send_to_char("No links defined for this section reference.\n\r", ch);
+						return FALSE;
+					}
+
+					int to_link_no = atoi(argument);
+					if (to_link_no < 1 || to_link_no > link_count)
+					{
+						send_to_char("Syntax:  links group # add source generated|ordinal <to-section> {R<to-link>{x\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					BLUEPRINT_LAYOUT_LINK_DATA *ll = new_blueprint_layout_link_data();
+					ll->mode = LINKMODE_SOURCE;
+
+					BLUEPRINT_WEIGHTED_LINK_DATA *to = new_weighted_random_link();
+					to->weight = 1;
+					to->section = to_mode ? -to_section : to_section;
+					to->link = to_link_no;
+					list_appendlink(ll->to, to);
+					ll->total_to = 1;
+
+					list_appendlink(gls->group, ll);
+					sprintf(buf, "Source Link %d added to Group Entry %d.\n\r", list_size(bp->links), gindex);
+					send_to_char(buf, ch);
+					return TRUE;
+				}
+				if (!str_prefix(arg2, "destination"))
+				{
+					int sections = blueprint_generation_count(bp);
+					char arg3[MIL];
+					char arg4[MIL];
+					bool from_mode = TRISTATE;
+
+					argument = one_argument(argument, arg3);
+					if (!str_prefix(arg3, "generated"))
+						from_mode = FALSE;
+					else if(!str_prefix(arg3, "ordinal"))
+						from_mode = TRUE;
+					else
+					{
+						send_to_char("Syntax:  links group # add destination {Rgenerated|ordinal{x <from-section> <from-link>\n\r", ch);
+						send_to_char("Please specify either {Ygenerated{x or {Gordinal{x.\n\r", ch);
+						return FALSE;
+					}
+
+					argument = one_argument(argument, arg4);
+					if (!is_number(arg4))
+					{
+						send_to_char("Syntax:  links group # add destination generated|ordinal {R<from-section>{x <from-link>\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					int from_section = atoi(arg4);
+					if (from_section < 1 || from_section > sections)
+					{
+						send_to_char("Syntax:  links group # add destination generated|ordinal {R<from-section>{x <from-link>\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					BLUEPRINT_LAYOUT_SECTION_DATA *group;
+					BLUEPRINT_LAYOUT_SECTION_DATA *ls = blueprint_get_nth_section(bp, (from_mode ? -from_section : from_section), &group);
+
+					// This is the maximum allowed links based upon the configuration
+					int link_count = blueprint_layout_links_count(bp, group ? group : ls, 0);
+
+					if (link_count < 1)
+					{
+						send_to_char("Syntax:  links group # add destination generated|ordinal {R<from-section>{x <from-link>\n\r", ch);
+						send_to_char("No links defined for this section reference.\n\r", ch);
+						return FALSE;
+					}
+
+					if (!is_number(argument))
+					{
+						send_to_char("Syntax:  links group # add destination generated|ordinal <from-section> {R<from-link>{x\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					int from_link_no = atoi(argument);
+					if (from_link_no < 1 || from_link_no > link_count)
+					{
+						send_to_char("Syntax:  links group # add destination generated|ordinal <from-section> {R<from-link>{x\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					BLUEPRINT_LAYOUT_LINK_DATA *ll = new_blueprint_layout_link_data();
+					ll->mode = LINKMODE_DESTINATION;
+
+					BLUEPRINT_WEIGHTED_LINK_DATA *from = new_weighted_random_link();
+					from->weight = 1;
+					from->section = from_mode ? -from_section : from_section;
+					from->link = from_link_no;
+					list_appendlink(ll->from, from);
+					ll->total_from = 1;
+
+					list_appendlink(gls->group, ll);
+					sprintf(buf, "Destination Link %d added to Group Entry %d.\n\r", list_size(bp->links), gindex);
+					send_to_char(buf, ch);
+					return TRUE;
+				}
+				if (!str_prefix(arg2, "weighted"))
+				{
+					BLUEPRINT_LAYOUT_LINK_DATA *link = new_blueprint_layout_link_data();
+					link->mode = LINKMODE_WEIGHTED;
+					link->total_from = 0;
+					link->total_to = 0;
+
+					list_appendlink(gls->group, link);
+					sprintf(buf, "Weighted Link %d added to Group Entry %d.\n\r", list_size(bp->links),gindex);
+					send_to_char(buf, ch);
+					return TRUE;
+				}
+
+				send_to_char("Syntax:  links group # add {Rstatic{x generated|ordinal <from-section> <from-link> generated|ordinal <to-section> <to-link>\n\r", ch);
+				send_to_char("         links group # add {Rsource{x generated|ordinal <to-section> <to-link>\n\r", ch);
+				send_to_char("         links group # add {Rdestination{x generated|ordinal <from-section> <from-link>\n\r", ch);
+				send_to_char("         links group # add {Rweighted{x\n\r", ch);
+				return FALSE;
+			}
+			
+			if (!str_prefix(arg, "from"))
+			{
+				char arg2[MIL];
+				char arg3[MIL];
+
+				argument = one_argument(argument, arg2);
+				if(!is_number(arg2))
+				{
+					send_to_char("Syntax:  links group # from {R#{x list\n\r", ch);
+					send_to_char("         links group # from {R#{x add <weight> <from-section> <from-link>\n\r", ch);
+					send_to_char("         links group # from {R#{x set # <weight> <from-section> <from-link>\n\r", ch);
+					send_to_char("         links group # from {R#{x remove #\n\r", ch);
+
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(gls->group));
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				int index = atoi(arg2);
+				if(index < 1 || index > list_size(gls->group))
+				{
+					send_to_char("Syntax:  links group # from {R#{x list\n\r", ch);
+					send_to_char("         links group # from {R#{x add <weight> <from-section> <from-link>\n\r", ch);
+					send_to_char("         links group # from {R#{x set # <weight> <from-section> <from-link>\n\r", ch);
+					send_to_char("         links group # from {R#{x remove #\n\r", ch);
+
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(gls->group));
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				BLUEPRINT_LAYOUT_LINK_DATA *ll = (BLUEPRINT_LAYOUT_LINK_DATA *)list_nthdata(gls->group, index);
+
+				argument = one_argument(argument, arg3);
+				if (!str_prefix(arg3, "list"))
+				{
+					if (list_size(ll->from) > 0)
+					{
+						BUFFER *buffer = new_buf();
+
+						sprintf(buf, "From Table Entries for Sublink %d from Group Link %d:\n\r", index, gindex);
+						add_buf(buffer, buf);
+
+						add_buf(buffer, "     [ Weight ] [ Section ] [ Link ]\n\r");
+						add_buf(buffer, "=====================================\n\r");
+
+						int from_no = 1;
+						ITERATOR it;
+						BLUEPRINT_WEIGHTED_LINK_DATA *weighted;
+						iterator_start(&it, ll->from);
+						while((weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)iterator_nextdata(&it)))
+						{
+							sprintf(buf, "%4d   %6d     {%c%7d{x      %4d\n\r", from_no++, weighted->weight,
+								(weighted->section<0?'G':(weighted->section>0?'Y':'W')),
+								abs(weighted->section), weighted->link);
+							add_buf(buffer, buf);
+						}
+						iterator_stop(&it);
+
+						add_buf(buffer, "-------------------------------------\n\r");
+						add_buf(buffer, "{YYELLOW{x - Generated section position index for Source/Destination sections\n\r");
+						add_buf(buffer, "{GGREEN{x  - Ordinal section position index for Source/Destination sections\n\r");
+
+						if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+						{
+							send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+						}
+						else
+						{
+							page_to_char(buffer->string, ch);
+						}
+
+						free_buf(buffer);
+					}
+					else
+					{
+						send_to_char("There are no From table definitions.\n\r", ch);
+					}
+					return FALSE;
+				}
+
+				if (!str_prefix(arg3, "add"))
+				{
+					int sections = blueprint_generation_count(bp);
+					bool from_mode = TRISTATE;
+					char arg4[MIL];
+					char arg5[MIL];
+					char arg6[MIL];
+
+					if (ll->mode != LINKMODE_SOURCE && ll->mode != LINKMODE_WEIGHTED)
+					{
+						send_to_char("Syntax:  links group # from {R#{x list\n\r", ch);
+						send_to_char("         links group # from {R#{x add <weight> generated|ordinal <from-section> <from-link>\n\r", ch);
+						send_to_char("         links group # from {R#{x set # <weight> generated|ordinal <from-section> <from-link>\n\r", ch);
+						send_to_char("         links group # from {R#{x remove #\n\r", ch);
+
+						send_to_char("Only able to change the From table on {YSOURCE{x or {YWEIGHTED{x Links.\n\r", ch);
+						return FALSE;
+					}
+
+					argument = one_argument(argument, arg4);
+					if(!is_number(arg4))
+					{
+						send_to_char("Syntax:  links group # from # add {R<weight>{x generated|ordinal <from-section> <from-link>\n\r", ch);
+						send_to_char("Please specify a positive number.\n\r", ch);
+						return FALSE;
+					}
+
+					int weight = atoi(arg4);
+					if (weight < 1)
+					{
+						send_to_char("Syntax:  links group # from # add {R<weight>{x generated|ordinal <from-section> <from-link>\n\r", ch);
+						send_to_char("Please specify a positive number.\n\r", ch);
+						return FALSE;
+					}
+
+					argument = one_argument(argument, arg5);
+					if(!str_prefix(arg5, "generated"))
+						from_mode = FALSE;
+					else if(!str_prefix(arg5, "ordinal"))
+						from_mode = TRUE;
+					else
+					{
+						send_to_char("Syntax:  links group # from # add <weight> {Rgenerated|ordinal{x <from-section> <from-link>\n\r", ch);
+						send_to_char("Please specify either {Ygenerated{x or {Gordinal{x.\n\r", ch);
+						return FALSE;
+					}
+
+					argument = one_argument(argument, arg6);
+					if(!is_number(arg6))
+					{
+						send_to_char("Syntax:  links group # from # add <weight> generated|ordinal {R<from-section>{x <from-link>\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					int from_section = atoi(arg6);
+					if(from_section < 1 || from_section > sections)
+					{
+						send_to_char("Syntax:  links group # from # add <weight> generated|ordinal {R<from-section>{x <from-link>\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					BLUEPRINT_LAYOUT_SECTION_DATA *group;
+					BLUEPRINT_LAYOUT_SECTION_DATA *ls = blueprint_get_nth_section(bp, (from_mode ? -from_section : from_section), &group);
+
+					// This is the maximum allowed links based upon the configuration
+					int link_count = blueprint_layout_links_count(bp, group ? group : ls, 0);
+					if (link_count < 1)
+					{
+						send_to_char("Syntax:  links group # from # add <weight> generated|ordinal <from-section> {R<from-link>{x\n\r", ch);
+						send_to_char("No links defined for this section reference.\n\r", ch);
+						return FALSE;
+					}
+
+					argument = one_argument(argument, arg5);
+					if (!is_number(arg5))
+					{
+						send_to_char("Syntax:  links group # from # add <weight> generated|ordinal <from-section> {R<from-link>{x\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					int from_link_no = atoi(arg5);
+					if (from_link_no < 1 || from_link_no > link_count)
+					{
+						send_to_char("Syntax:  links group # from # add <weight> generated|ordinal <from-section> {R<from-link>{x\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					BLUEPRINT_WEIGHTED_LINK_DATA *weighted = new_weighted_random_link();
+					weighted->weight = weight;
+					weighted->section = from_section;
+					weighted->link = from_link_no;
+					list_appendlink(ll->from, weighted);
+					ll->total_from += weight;
+
+					char *mode = "Link";
+					if (ll->mode == LINKMODE_SOURCE)
+						mode = "Source Link";
+					else if (ll->mode == LINKMODE_WEIGHTED)
+						mode = "Weighted Link";
+					sprintf(buf, "Added From Entry %d to %s %d in Group Entry %d.\n\r", list_size(ll->from), mode, index, gindex);
+					send_to_char(buf, ch);
+					return TRUE;
+				}
+
+				if (!str_prefix(arg3, "set"))
+				{
+					int sections = blueprint_generation_count(bp);
+					bool from_mode = TRISTATE;
+					char argw[MIL];
+					char arg4[MIL];
+					char arg5[MIL];
+					char arg6[MIL];
+
+					argument = one_argument(argument, argw);
+					if(!is_number(argw))
+					{
+						send_to_char("Syntax:  links group # from # set {R#{x <weight> generated|ordinal <from-section> <from-link>\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ll->from));
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					int windex = atoi(argw);
+					if(windex < 1 || windex > list_size(ll->from))
+					{
+						send_to_char("Syntax:  links group # from # set {R#{x <weight> generated|ordinal <from-section> <from-link>\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ll->from));
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					argument = one_argument(argument, arg4);
+					if(!is_number(arg4))
+					{
+						send_to_char("Syntax:  links group # from # set # {R<weight>{x generated|ordinal <from-section> <from-link>\n\r", ch);
+						send_to_char("Please specify a positive number.\n\r", ch);
+						return FALSE;
+					}
+
+					int weight = atoi(arg4);
+					if (weight < 1)
+					{
+						send_to_char("Syntax:  links group # from # set # {R<weight>{x generated|ordinal <from-section> <from-link>\n\r", ch);
+						send_to_char("Please specify a positive number.\n\r", ch);
+						return FALSE;
+					}
+
+					argument = one_argument(argument, arg5);
+					if(!str_prefix(arg5, "generated"))
+						from_mode = FALSE;
+					else if(!str_prefix(arg5, "ordinal"))
+						from_mode = TRUE;
+					else
+					{
+						send_to_char("Syntax:  links group # from # set # <weight> {Rgenerated|ordinal{x <from-section> <from-link>\n\r", ch);
+						send_to_char("Please specify either {Ygenerated{x or {Gordinal{x.\n\r", ch);
+						return FALSE;
+					}
+
+					argument = one_argument(argument, arg6);
+					if(!is_number(arg6))
+					{
+						send_to_char("Syntax:  links group # from # set # <weight> generated|ordinal {R<from-section>{x <from-link>\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					int from_section = atoi(arg6);
+					if(from_section < 1 || from_section > sections)
+					{
+						send_to_char("Syntax:  links group # from # set # <weight> generated|ordinal {R<from-section>{x <from-link>\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					BLUEPRINT_LAYOUT_SECTION_DATA *group;
+					BLUEPRINT_LAYOUT_SECTION_DATA *ls = blueprint_get_nth_section(bp, (from_mode ? -from_section : from_section), &group);
+
+					// This is the maximum allowed links based upon the configuration
+					int link_count = blueprint_layout_links_count(bp, group ? group : ls, 0);
+					if (link_count < 1)
+					{
+						send_to_char("Syntax:  links group # from # set # <weight> generated|ordinal <from-section> {R<from-link>{x\n\r", ch);
+						send_to_char("No links defined for this section reference.\n\r", ch);
+						return FALSE;
+					}
+
+					argument = one_argument(argument, arg5);
+					if (!is_number(arg5))
+					{
+						send_to_char("Syntax:  links group # from # set # <weight> generated|ordinal <from-section> {R<from-link>{x\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					int from_link_no = atoi(arg5);
+					if (from_link_no < 1 || from_link_no > link_count)
+					{
+						send_to_char("Syntax:  links group # from # set # <weight> generated|ordinal <from-section> {R<from-link>{x\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					BLUEPRINT_WEIGHTED_LINK_DATA *weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(ll->from, windex);
+					ll->total_from -= weighted->weight;
+					weighted->weight = weight;
+					weighted->section = from_section;
+					weighted->link = from_link_no;
+					ll->total_from += weight;
+
+					char *mode = "Link";
+					if (ll->mode == LINKMODE_SOURCE)
+						mode = "Source Link";
+					else if (ll->mode == LINKMODE_WEIGHTED)
+						mode = "Weighted Link";
+					sprintf(buf, "Updated Entry %d to %s %d.\n\r", windex, mode, index);
+					send_to_char(buf, ch);
+					return TRUE;
+				}
+
+				if (!str_prefix(arg3, "remove"))
+				{
+					if (ll->mode != LINKMODE_SOURCE && ll->mode != LINKMODE_WEIGHTED)
+					{
+						send_to_char("Syntax:  links group # from {R#{x list\n\r", ch);
+						send_to_char("         links group # from {R#{x add <weight> generated|ordinal <from-section> <from-link>\n\r", ch);
+						send_to_char("         links group # from {R#{x set # <weight> generated|ordinal <from-section> <from-link>\n\r", ch);
+						send_to_char("         links group # from {R#{x remove #\n\r", ch);
+
+						send_to_char("Only able to change the From table on {YSOURCE{x or {YWEIGHTED{x Links.\n\r", ch);
+						return FALSE;
+					}
+
+					if (!is_number(argument))
+					{
+						send_to_char("Syntax:  links group # from # remove {R#{x\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ll->from));
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					int windex = atoi(argument);
+					if (windex < 1 || windex > list_size(ll->from))
+					{
+						send_to_char("Syntax:  links group # from # remove {R#{x\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ll->from));
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					BLUEPRINT_WEIGHTED_LINK_DATA *weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(ll->from, windex);
+					ll->total_from -= weighted->weight;
+					list_remnthlink(ll->from, windex);
+
+					char *mode = "Link";
+					if (ll->mode == LINKMODE_SOURCE)
+						mode = "Source Link";
+					else if (ll->mode == LINKMODE_WEIGHTED)
+						mode = "Weighted Link";
+					sprintf(buf, "Removed From Entry %d from %s %d in Group Entry %d.\n\r", windex, mode, index, gindex);
+					send_to_char(buf, ch);
+					return TRUE;
+				}
+
+				send_to_char("Syntax:  links group # from # {Rlist{x\n\r", ch);
+				send_to_char("         links group # from # {Radd{x <weight> generated|ordinal <from-section> <from-link>\n\r", ch);
+				send_to_char("         links group # from # {Rset{x # <weight> generated|ordinal <from-section> <from-link>\n\r", ch);
+				send_to_char("         links group # from # {Rremove{x #\n\r", ch);
+				return FALSE;
+			}
+
+			if (!str_prefix(arg, "to"))
+			{
+				char arg2[MIL];
+				char arg3[MIL];
+
+				argument = one_argument(argument, arg2);
+				if(!is_number(arg2))
+				{
+					send_to_char("Syntax:  links group # to {R#{x list\n\r", ch);
+					send_to_char("         links group # to {R#{x add <weight> <to-section> <to-link>\n\r", ch);
+					send_to_char("         links group # to {R#{x set # <weight> <to-section> <to-link>\n\r", ch);
+					send_to_char("         links group # to {R#{x remove #\n\r", ch);
+
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(gls->group));
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				int index = atoi(arg2);
+				if(index < 1 || index > list_size(gls->group))
+				{
+					send_to_char("Syntax:  links group # to {R#{x list\n\r", ch);
+					send_to_char("         links group # to {R#{x add <weight> <to-section> <to-link>\n\r", ch);
+					send_to_char("         links group # to {R#{x set # <weight> <to-section> <to-link>\n\r", ch);
+					send_to_char("         links group # to {R#{x remove #\n\r", ch);
+
+					sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(gls->group));
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				BLUEPRINT_LAYOUT_LINK_DATA *ll = (BLUEPRINT_LAYOUT_LINK_DATA *)list_nthdata(gls->group, index);
+
+				argument = one_argument(argument, arg3);
+				if (!str_prefix(arg3, "list"))
+				{
+					if (list_size(ll->to) > 0)
+					{
+						BUFFER *buffer = new_buf();
+
+						sprintf(buf, "To Table Entries for Sublink %d in Group Link %d:\n\r", index, gindex);
+						add_buf(buffer, buf);
+
+						add_buf(buffer, "     [ Weight ] [ Section ] [ Link ]\n\r");
+						add_buf(buffer, "=====================================\n\r");
+
+						int to_no = 1;
+						ITERATOR it;
+						BLUEPRINT_WEIGHTED_LINK_DATA *weighted;
+						iterator_start(&it, ll->to);
+						while((weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)iterator_nextdata(&it)))
+						{
+							sprintf(buf, "%4d   %6d     {%c%7d{x      %4d\n\r", to_no++, weighted->weight,
+								(weighted->section<0?'G':(weighted->section>0?'Y':'W')),
+								abs(weighted->section), weighted->link);
+							add_buf(buffer, buf);
+						}
+						iterator_stop(&it);
+
+						add_buf(buffer, "-------------------------------------\n\r");
+						add_buf(buffer, "{YYELLOW{x - Generated section position index for Source/Destination sections\n\r");
+						add_buf(buffer, "{GGREEN{x  - Ordinal section position index for Source/Destination sections\n\r");
+
+						if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+						{
+							send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+						}
+						else
+						{
+							page_to_char(buffer->string, ch);
+						}
+
+						free_buf(buffer);
+					}
+					else
+					{
+						send_to_char("There are no To table definitions.\n\r", ch);
+					}
+					return FALSE;
+				}
+
+				if (!str_prefix(arg3, "add"))
+				{
+					int sections = blueprint_generation_count(bp);
+					bool to_mode = TRISTATE;
+					char arg4[MIL];
+					char arg5[MIL];
+					char arg6[MIL];
+
+					if (ll->mode != LINKMODE_DESTINATION && ll->mode != LINKMODE_WEIGHTED)
+					{
+						send_to_char("Syntax:  links group # to {R#{x list\n\r", ch);
+						send_to_char("         links group # to {R#{x add <weight> generated|ordinal <to-section> <to-link>\n\r", ch);
+						send_to_char("         links group # to {R#{x set # <weight> generated|ordinal <to-section> <to-link>\n\r", ch);
+						send_to_char("         links group # to {R#{x remove #\n\r", ch);
+
+						send_to_char("Only able to change the To table on {YDESTINATION{x or {YWEIGHTED{x Links.\n\r", ch);
+						return FALSE;
+					}
+
+					argument = one_argument(argument, arg4);
+					if(!is_number(arg4))
+					{
+						send_to_char("Syntax:  links group # to # add {R<weight>{x generated|ordinal <to-section> <to-link>\n\r", ch);
+						send_to_char("Please specify a positive number.\n\r", ch);
+						return FALSE;
+					}
+
+					int weight = atoi(arg4);
+					if (weight < 1)
+					{
+						send_to_char("Syntax:  links group # to # add {R<weight>{x generated|ordinal <to-section> <to-link>\n\r", ch);
+						send_to_char("Please specify a positive number.\n\r", ch);
+						return FALSE;
+					}
+
+					argument = one_argument(argument, arg5);
+					if(!str_prefix(arg5, "generated"))
+						to_mode = FALSE;
+					else if(!str_prefix(arg5, "ordinal"))
+						to_mode = TRUE;
+					else
+					{
+						send_to_char("Syntax:  links group # to # add <weight> {Rgenerated|ordinal{x <to-section> <to-link>\n\r", ch);
+						send_to_char("Please specify either {Ygenerated{x or {Gordinal{x.\n\r", ch);
+						return FALSE;
+					}
+
+					argument = one_argument(argument, arg6);
+					if(!is_number(arg6))
+					{
+						send_to_char("Syntax:  links group # to # add <weight> generated|ordinal {R<to-section>{x <to-link>\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					int to_section = atoi(arg6);
+					if(to_section < 1 || to_section > sections)
+					{
+						send_to_char("Syntax:  links group # to # add <weight> generated|ordinal {R<to-section>{x <to-link>\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					BLUEPRINT_LAYOUT_SECTION_DATA *group;
+					BLUEPRINT_LAYOUT_SECTION_DATA *ls = blueprint_get_nth_section(bp, (to_mode ? -to_section : to_section), &group);
+
+					// This is the maximum allowed links based upon the configuration
+					int link_count = blueprint_layout_links_count(bp, group ? group : ls, 0);
+					if (link_count < 1)
+					{
+						send_to_char("Syntax:  links group # to # add <weight> generated|ordinal <to-section> {R<to-link>{x\n\r", ch);
+						send_to_char("No links defined for this section reference.\n\r", ch);
+						return FALSE;
+					}
+
+					argument = one_argument(argument, arg5);
+					if (!is_number(arg5))
+					{
+						send_to_char("Syntax:  links group # to # add <weight> generated|ordinal <to-section> {R<to-link>{x\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					int to_link_no = atoi(arg5);
+					if (to_link_no < 1 || to_link_no > link_count)
+					{
+						send_to_char("Syntax:  links group # to # add <weight> generated|ordinal <to-section> {R<to-link>{x\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					BLUEPRINT_WEIGHTED_LINK_DATA *weighted = new_weighted_random_link();
+					weighted->weight = weight;
+					weighted->section = to_section;
+					weighted->link = to_link_no;
+					list_appendlink(ll->to, weighted);
+					ll->total_to += weight;
+
+					char *mode = "Link";
+					if (ll->mode == LINKMODE_DESTINATION)
+						mode = "Destination Link";
+					else if (ll->mode == LINKMODE_WEIGHTED)
+						mode = "Weighted Link";
+					sprintf(buf, "Added To Entry %d to %s %d in Group Entry %d.\n\r", list_size(ll->to), mode, index, gindex);
+					send_to_char(buf, ch);
+					return TRUE;
+				}
+
+				if (!str_prefix(arg3, "set"))
+				{
+					int sections = blueprint_generation_count(bp);
+					bool to_mode = TRISTATE;
+					char argw[MIL];
+					char arg4[MIL];
+					char arg5[MIL];
+					char arg6[MIL];
+
+					argument = one_argument(argument, argw);
+					if(!is_number(argw))
+					{
+						send_to_char("Syntax:  links group # to # set {R#{x <weight> generated|ordinal <to-section> <to-link>\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ll->to));
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					int windex = atoi(argw);
+					if(windex < 1 || windex > list_size(ll->to))
+					{
+						send_to_char("Syntax:  links group # to # set {R#{x <weight> generated|ordinal <to-section> <to-link>\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ll->to));
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					argument = one_argument(argument, arg4);
+					if(!is_number(arg4))
+					{
+						send_to_char("Syntax:  links group # to # set # {R<weight>{x generated|ordinal <to-section> <to-link>\n\r", ch);
+						send_to_char("Please specify a positive number.\n\r", ch);
+						return FALSE;
+					}
+
+					int weight = atoi(arg4);
+					if (weight < 1)
+					{
+						send_to_char("Syntax:  links group # to # set # {R<weight>{x generated|ordinal <to-section> <to-link>\n\r", ch);
+						send_to_char("Please specify a positive number.\n\r", ch);
+						return FALSE;
+					}
+
+					argument = one_argument(argument, arg5);
+					if(!str_prefix(arg5, "generated"))
+						to_mode = FALSE;
+					else if(!str_prefix(arg5, "ordinal"))
+						to_mode = TRUE;
+					else
+					{
+						send_to_char("Syntax:  links group # to # set # <weight> {Rgenerated|ordinal{x <to-section> <to-link>\n\r", ch);
+						send_to_char("Please specify either {Ygenerated{x or {Gordinal{x.\n\r", ch);
+						return FALSE;
+					}
+
+					argument = one_argument(argument, arg6);
+					if(!is_number(arg6))
+					{
+						send_to_char("Syntax:  links group # to # set # <weight> generated|ordinal {R<to-section>{x <to-link>\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					int to_section = atoi(arg6);
+					if(to_section < 1 || to_section > sections)
+					{
+						send_to_char("Syntax:  links group # to # set # <weight> generated|ordinal {R<to-section>{x <to-link>\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					BLUEPRINT_LAYOUT_SECTION_DATA *group;
+					BLUEPRINT_LAYOUT_SECTION_DATA *ls = blueprint_get_nth_section(bp, (to_mode ? -to_section : to_section), &group);
+
+					// This is the maximum allowed links based upon the configuration
+					int link_count = blueprint_layout_links_count(bp, group ? group : ls, 0);
+					if (link_count < 1)
+					{
+						send_to_char("Syntax:  links group # to # set # <weight> generated|ordinal <to-section> {R<to-link>{x\n\r", ch);
+						send_to_char("No links defined for this section reference.\n\r", ch);
+						return FALSE;
+					}
+
+					argument = one_argument(argument, arg5);
+					if (!is_number(arg5))
+					{
+						send_to_char("Syntax:  links group # to # set # <weight> generated|ordinal <to-section> {R<to-link>{x\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					int to_link_no = atoi(arg5);
+					if (to_link_no < 1 || to_link_no > link_count)
+					{
+						send_to_char("Syntax:  links group # to # set # <weight> generated|ordinal <to-section> {R<to-link>{x\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					BLUEPRINT_WEIGHTED_LINK_DATA *weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(ll->to, windex);
+					ll->total_to -= weighted->weight;
+					weighted->weight = weight;
+					weighted->section = to_section;
+					weighted->link = to_link_no;
+					ll->total_to += weight;
+
+					char *mode = "Link";
+					if (ll->mode == LINKMODE_SOURCE)
+						mode = "Source Link";
+					else if (ll->mode == LINKMODE_WEIGHTED)
+						mode = "Weighted Link";
+					sprintf(buf, "Updated To Entry %d to %s %d in Group Link %d.\n\r", windex, mode, index, gindex);
+					send_to_char(buf, ch);
+					return TRUE;
+				}
+
+				if (!str_prefix(arg3, "remove"))
+				{
+					if (ll->mode != LINKMODE_DESTINATION && ll->mode != LINKMODE_WEIGHTED)
+					{
+						send_to_char("Syntax:  links group # to {R#{x list\n\r", ch);
+						send_to_char("         links group # to {R#{x add <weight> generated|ordinal <to-section> <to-link>\n\r", ch);
+						send_to_char("         links group # to {R#{x set # <weight> generated|ordinal <to-section> <to-link>\n\r", ch);
+						send_to_char("         links group # to {R#{x remove #\n\r", ch);
+
+						send_to_char("Only able to change the To table on {YDESTINATION{x or {YWEIGHTED{x Links.\n\r", ch);
+						return FALSE;
+					}
+
+					if (!is_number(argument))
+					{
+						send_to_char("Syntax:  links group # to # remove {R#{x\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ll->to));
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					int windex = atoi(argument);
+					if (windex < 1 || windex > list_size(ll->to))
+					{
+						send_to_char("Syntax:  links group # to # remove {R#{x\n\r", ch);
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(ll->to));
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					BLUEPRINT_WEIGHTED_LINK_DATA *weighted = (BLUEPRINT_WEIGHTED_LINK_DATA *)list_nthdata(ll->to, windex);
+					ll->total_to -= weighted->weight;
+					list_remnthlink(ll->to, windex);
+
+					char *mode = "Link";
+					if (ll->mode == LINKMODE_DESTINATION)
+						mode = "Destination Link";
+					else if (ll->mode == LINKMODE_WEIGHTED)
+						mode = "Weighted Link";
+					sprintf(buf, "Removed To Entry %d from %s %d in Group Entry %d.\n\r", windex, mode, index, gindex);
+					send_to_char(buf, ch);
+					return TRUE;
+				}
+
+				send_to_char("Syntax:  links group # to # {Rlist{x\n\r", ch);
+				send_to_char("         links group # to # {Radd{x <weight> generated|ordinal <to-section> <to-link>\n\r", ch);
+				send_to_char("         links group # to # {Rset{x # <weight> generated|ordinal <to-section> <to-link>\n\r", ch);
+				send_to_char("         links group # to # {Rremove{x #\n\r", ch);
+				return FALSE;
+			}
+
+
+			send_to_char("         links group # {Radd{x static generated|ordinal <from-section> <from-link> generated|ordinal <to-section> <to-link>\n\r", ch);
+			send_to_char("         links group # {Radd{x source generated|ordinal <to-section> <to-link>\n\r", ch);
+			send_to_char("         links group # {Radd{x destination generated|ordinal <from-section> <from-link>\n\r", ch);
+			send_to_char("         links group # {Radd{x weighted\n\r", ch);
+			send_to_char("         links group # {Rfrom{x # list\n\r", ch);
+			send_to_char("         links group # {Rfrom{x # add <weight> generated|ordinal <from-section> <from-link>\n\r", ch);
+			send_to_char("         links group # {Rfrom{x # set # <weight> generated|ordinal <from-section> <from-link>\n\r", ch);
+			send_to_char("         links group # {Rfrom{x # remove #\n\r", ch);
+			send_to_char("         links group # {Rto{x # list\n\r", ch);
+			send_to_char("         links group # {Rto{x # add <weight> generated|ordinal <to-section> <to-link>\n\r", ch);
+			send_to_char("         links group # {Rto{x # set # <weight> generated|ordinal <to-section> <to-link>\n\r", ch);
+			send_to_char("         links group # {Rto{x # remove #\n\r", ch);
+			send_to_char("         links group # {Rremove{x #\n\r", ch);
+			return FALSE;
+		}
+	}
+
+	send_to_char("Syntax:  links {Rlist{x\n\r", ch);
+	send_to_char("         links {Rclear{x\n\r", ch);
+	send_to_char("         links {Radd{x static generated|ordinal <from-section> <from-link> generated|ordinal <to-section> <to-link>\n\r", ch);
+	send_to_char("         links {Radd{x source generated|ordinal <to-section> <to-link>\n\r", ch);
+	send_to_char("         links {Radd{x destination generated|ordinal <from-section> <from-link>\n\r", ch);
+	send_to_char("         links {Radd{x weighted\n\r", ch);
+	send_to_char("         links {Radd{x group\n\r", ch);
+	send_to_char("         links {Rfrom{x # list\n\r", ch);
+	send_to_char("         links {Rfrom{x # add <weight> generated|ordinal <from-section> <from-link>\n\r", ch);
+	send_to_char("         links {Rfrom{x # set # <weight> generated|ordinal <from-section> <from-link>\n\r", ch);
+	send_to_char("         links {Rfrom{x # remove #\n\r", ch);
+	send_to_char("         links {Rto{x # list\n\r", ch);
+	send_to_char("         links {Rto{x # add <weight> generated|ordinal <to-section> <to-link>\n\r", ch);
+	send_to_char("         links {Rto{x # set # <weight> generated|ordinal <to-section> <to-link>\n\r", ch);
+	send_to_char("         links {Rto{x # remove #\n\r", ch);
+	send_to_char("         links {Rgroup{x # add static generated|ordinal <from-section> <from-link> generated|ordinal <to-section> <to-link>\n\r", ch);
+	send_to_char("         links {Rgroup{x # add source generated|ordinal <to-section> <to-link>\n\r", ch);
+	send_to_char("         links {Rgroup{x # add destination generated|ordinal <from-section> <from-link>\n\r", ch);
+	send_to_char("         links {Rgroup{x # add weighted\n\r", ch);
+	send_to_char("         links {Rgroup{x # add group\n\r", ch);
+	send_to_char("         links {Rgroup{x # from # list\n\r", ch);
+	send_to_char("         links {Rgroup{x # from # add <weight> generated|ordinal <from-section> <from-link>\n\r", ch);
+	send_to_char("         links {Rgroup{x # from # set # <weight> generated|ordinal <from-section> <from-link>\n\r", ch);
+	send_to_char("         links {Rgroup{x # from # remove #\n\r", ch);
+	send_to_char("         links {Rgroup{x # to # list\n\r", ch);
+	send_to_char("         links {Rgroup{x # to # add <weight> generated|ordinal <to-section> <to-link>\n\r", ch);
+	send_to_char("         links {Rgroup{x # to # set # <weight> generated|ordinal <to-section> <to-link>\n\r", ch);
+	send_to_char("         links {Rgroup{x # to # remove #\n\r", ch);
+	send_to_char("         links {Rgroup{x # remove #\n\r", ch);
+	send_to_char("         links {Rremove{x #\n\r", ch);
+	return FALSE;
+}
+
+BPEDIT( bpedit_entrances )
+{
+	BLUEPRINT *bp;
+	char arg[MIL];
+	char buf[MSL];
+
+	EDIT_BLUEPRINT(ch, bp);
+
+	if (IS_SET(bp->flags, BLUEPRINT_SCRIPTED_LAYOUT))
+	{
+		send_to_char("Blueprint is in Scripted Layout Mode.  Cannot edit blueprint entrances in OLC.\n\r", ch);
+		return FALSE;
+	}
+
+	if (argument[0] != '\0')
+	{
+		argument = one_argument(argument, arg);
+
+		if(!str_prefix(arg, "list"))
+		{
+			BUFFER *buffer = new_buf();
+
+			add_buf(buffer, "{xEntrances:\n\r");
+			if(list_size(bp->entrances) > 0)
+			{
+				add_buf(buffer, "      [         Name         ] [ Section ] [               Room               ]\n\r");
+				add_buf(buffer, "================================================================================\n\r");
+				ITERATOR bxit;
+				BLUEPRINT_EXIT_DATA *bex;
+				int bxindex = 1;
+				bool approx_msg = FALSE;
+				iterator_start(&bxit, bp->entrances);
+				while( (bex = (BLUEPRINT_EXIT_DATA *)iterator_nextdata(&bxit)) )
+				{
+					bool exact = FALSE;
+					BLUEPRINT_SECTION *bs = blueprint_get_representative_section(bp, bex->section, &exact);
+
+					BLUEPRINT_LINK *link = get_section_link(bs, bex->link);
+
+					ROOM_INDEX_DATA *room = IS_VALID(bs) && valid_section_link(link) ? get_room_index(bs->area, link->vnum) : NULL;
+
+					if (room)
+						sprintf(buf, "%4d    %-20.20s     {%c%7d{x     (%-4ld) %s (%s) %s\n\r", bxindex++, bex->name, (bex->section<0?'G':(bex->section>0?'Y':'W')), abs(bex->section), room->vnum, room->name, dir_name[link->door], (exact ? "" : "{M**{x"));
+					else
+						sprintf(buf, "%4d    %-20.20s     {%c%7d{x     %s\n\r", bxindex++, bex->name, (bex->section<0?'G':(bex->section>0?'Y':'W')), abs(bex->section), "???");
+					add_buf(buffer, buf);
+
+					if (room && !exact)
+						approx_msg = TRUE;
+				}
+				iterator_stop(&bxit);
+				add_buf(buffer, "--------------------------------------------------------------------------------\n\r");
+
+				if (approx_msg)
+					add_buf(buffer, "{M**{x - {WLocation is the most likely location due to section entry.{x\n\r");
+			}
+			else
+			{
+				add_buf(buffer, "    none\n\r");
+			}
+
+			if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+			{
+				send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+			}
+			else
+			{
+				page_to_char(buffer->string, ch);
+			}
+
+			free_buf(buffer);
+
+			return FALSE;
+		}
+
+		if(!str_prefix(arg, "clear"))
+		{
+			if (list_size(bp->entrances) < 1)
+			{
+				send_to_char("There are no entrances to remove.\n\r", ch);
+				return FALSE;
+			}
+
+			list_clear(bp->entrances);
+			send_to_char("Blueprint entrances cleared.\n\r", ch);
+			return TRUE;
+		}
+
+		if(!str_prefix(arg, "add"))
+		{
+			int sections = blueprint_generation_count(bp);
+			bool mode = TRISTATE;
+			char arg2[MIL];	// name
+			char arg3[MIL]; // mode
+			char arg4[MIL]; // section
+			// argument = link
+
+			argument = one_argument(argument, arg2);
+			if (arg2[0] == '\0')
+			{
+				send_to_char("Syntax:  entrances add {R<name>{x generated|ordinal <section> <link>\n\r", ch);
+				send_to_char("Please provide a name.\n\r", ch);
+				return FALSE;
+			}
+
+			argument = one_argument(argument, arg3);
+			if (!str_prefix(arg3, "generated"))
+				mode = FALSE;
+			else if (!str_prefix(arg3, "ordinal"))
+				mode = TRUE;
+			else
+			{
+				send_to_char("Syntax:  entrances add <name> {Rgenerated|ordinal{x <section> <link>\n\r", ch);
+				send_to_char("Please specify either {Ygenerated{x or {Gordinal{x.\n\r", ch);
+				return FALSE;
+			}
+
+			argument = one_argument(argument, arg4);
+			if (!is_number(arg4))
+			{
+				send_to_char("Syntax:  entrances add <name> generated|ordinal {R<section>{x <link>\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			int section_no = atoi(arg4);
+			if (section_no < 1 || section_no > sections)
+			{
+				send_to_char("Syntax:  entrances add <name> generated|ordinal {R<section>{x <link>\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			BLUEPRINT_LAYOUT_SECTION_DATA *group;
+			BLUEPRINT_LAYOUT_SECTION_DATA *ls = blueprint_get_nth_section(bp, (mode ? -section_no : section_no), &group);
+
+			// This is the maximum allowed links based upon the configuration
+			int link_count = blueprint_layout_links_count(bp, group ? group : ls, 0);
 			if (!is_number(argument))
 			{
-				send_to_char("Syntax:  static exit remove <#>\n\r", ch);
+				send_to_char("Syntax:  entrances add <name> generated|ordinal <section> {R<link>{x\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			int link_no = atoi(argument);
+			if (link_no < 1 || link_no > link_count)
+			{
+				send_to_char("Syntax:  entrances add <name> generated|ordinal <section> {R<link>{x\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			if(mode)
+				section_no = -section_no;
+
+			// Make sure this section-link is not duplicated in the entrances AND exits
+			bool found = FALSE;
+			ITERATOR it;
+			BLUEPRINT_EXIT_DATA *x;
+			iterator_start(&it, bp->entrances);
+			while((x = (BLUEPRINT_EXIT_DATA *)iterator_nextdata(&it)))
+			{
+				if(x->section == section_no && x->link == link_no)
+				{
+					found = TRUE;
+					break;
+				}
+			}
+			iterator_stop(&it);
+			if (!found)
+			{
+				iterator_start(&it, bp->exits);
+				while((x = (BLUEPRINT_EXIT_DATA *)iterator_nextdata(&it)))
+				{
+					if(x->section == section_no && x->link == link_no)
+					{
+						found = TRUE;
+						break;
+					}
+				}
+				iterator_stop(&it);
+			}
+
+			if(found)
+			{
+				send_to_char("Section-Link pair already used as an entrance or an exit.\n\r", ch);
+				return FALSE;
+			}
+
+			BLUEPRINT_EXIT_DATA *bex = new_blueprint_exit_data();
+			free_string(bex->name);
+			bex->name = str_dup(arg2);
+			bex->section = section_no;
+			bex->link = link_no;
+
+			list_appendlink(bp->entrances, bex);
+			sprintf(buf, "Added Entrance %d to Blueprint Entrances.\n\r", list_size(bp->entrances));
+			send_to_char(buf, ch);
+			return TRUE;
+		}
+
+		if (!str_prefix(arg, "set"))
+		{
+			int sections = blueprint_generation_count(bp);
+			bool mode = TRISTATE;
+			char argn[MIL];	// index
+			char arg2[MIL];	// name
+			char arg3[MIL]; // mode
+			char arg4[MIL]; // section
+			// argument = link
+
+			argument = one_argument(argument, argn);
+			if (!is_number(argn))
+			{
+				send_to_char("Syntax:  entrances set {R#{x <name> generated|ordinal <section> <link>\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->entrances));
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			int index = atoi(argn);
+			if (index < 1 || index > list_size(bp->entrances))
+			{
+				send_to_char("Syntax:  entrances set {R#{x <name> generated|ordinal <section> <link>\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->entrances));
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			argument = one_argument(argument, arg2);
+			if (arg2[0] == '\0')
+			{
+				send_to_char("Syntax:  entrances set # {R<name>{x generated|ordinal <section> <link>\n\r", ch);
+				send_to_char("Please provide a name.\n\r", ch);
+				return FALSE;
+			}
+
+			argument = one_argument(argument, arg3);
+			if (!str_prefix(arg3, "generated"))
+				mode = FALSE;
+			else if (!str_prefix(arg3, "ordinal"))
+				mode = TRUE;
+			else
+			{
+				send_to_char("Syntax:  entrances set # <name> {Rgenerated|ordinal{x <section> <link>\n\r", ch);
+				send_to_char("Please specify either {Ygenerated{x or {Gordinal{x.\n\r", ch);
+				return FALSE;
+			}
+
+			argument = one_argument(argument, arg4);
+			if (!is_number(arg4))
+			{
+				send_to_char("Syntax:  entrances set # <name> generated|ordinal {R<section>{x <link>\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			int section_no = atoi(arg4);
+			if (section_no < 1 || section_no > sections)
+			{
+				send_to_char("Syntax:  entrances set # <name> generated|ordinal {R<section>{x <link>\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			BLUEPRINT_LAYOUT_SECTION_DATA *group;
+			BLUEPRINT_LAYOUT_SECTION_DATA *ls = blueprint_get_nth_section(bp, (mode ? -section_no : section_no), &group);
+
+			// This is the maximum allowed links based upon the configuration
+			int link_count = blueprint_layout_links_count(bp, group ? group : ls, 0);
+			if (!is_number(argument))
+			{
+				send_to_char("Syntax:  entrances set # <name> generated|ordinal <section> {R<link>{x\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			int link_no = atoi(argument);
+			if (link_no < 1 || link_no > link_count)
+			{
+				send_to_char("Syntax:  entrances set # <name> generated|ordinal <section> {R<link>{x\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			if(mode)
+				section_no = -section_no;
+
+			// Make sure this section-link is not duplicated in the entrances AND exits
+			bool found = FALSE;
+			int entry_no = 1;
+			ITERATOR it;
+			BLUEPRINT_EXIT_DATA *x;
+			iterator_start(&it, bp->entrances);
+			while((x = (BLUEPRINT_EXIT_DATA *)iterator_nextdata(&it)))
+			{
+				if(entry_no != index && x->section == section_no && x->link == link_no)
+				{
+					found = TRUE;
+					break;
+				}
+
+				entry_no++;
+			}
+			iterator_stop(&it);
+			if (!found)
+			{
+				iterator_start(&it, bp->exits);
+				while((x = (BLUEPRINT_EXIT_DATA *)iterator_nextdata(&it)))
+				{
+					if(x->section == section_no && x->link == link_no)
+					{
+						found = TRUE;
+						break;
+					}
+				}
+				iterator_stop(&it);
+			}
+
+			if(found)
+			{
+				send_to_char("Section-Link pair already used as an entrance or an exit.\n\r", ch);
+				return FALSE;
+			}
+
+			BLUEPRINT_EXIT_DATA *bex = (BLUEPRINT_EXIT_DATA *)list_nthdata(bp->entrances, index);
+			free_string(bex->name);
+			bex->name = str_dup(arg2);
+			bex->section = section_no;
+			bex->link = link_no;
+
+			sprintf(buf, "Updated Entrance %d in Blueprint Entrances.\n\r", index);
+			send_to_char(buf, ch);
+			return TRUE;
+
+			return TRUE;
+		}
+
+		if (!str_prefix(arg, "remove"))
+		{
+			if (list_size(bp->entrances) < 1)
+			{
+				send_to_char("There are no blueprint entrances defined.\n\r", ch);
+				return FALSE;
+			}
+
+			if (!is_number(argument))
+			{
+				send_to_char("Syntax:  entrances remove {R#{x\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->entrances));
+				send_to_char(buf, ch);
 				return FALSE;
 			}
 
 			int index = atoi(argument);
-			if (index < 1 || index > list_size(bp->_static.exits))
+			if (index < 1 || index > list_size(bp->entrances))
 			{
-				send_to_char("No such exit point.\n\r", ch);
+				send_to_char("Syntax:  entrances remove {R#{x\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->entrances));
+				send_to_char(buf, ch);
 				return FALSE;
 			}
 
-			list_remnthlink(bp->_static.exits, index);
-
-			send_to_char("Blueprint exit point removed.\n\r", ch);
+			list_remnthlink(bp->entrances, index);
+			sprintf(buf, "Removed Blueprint Entrance %d.\n\r", index);
+			send_to_char(buf, ch);
 			return TRUE;
 		}
+	}
 
+	send_to_char("Syntax:  entrances {Rlist{x\n\r", ch);
+	send_to_char("         entrances {Rclear{x\n\r", ch);
+	send_to_char("         entrances {Radd{x <name> generated|ordinal <section> <link>\n\r", ch);
+	send_to_char("         entrances {Rset{x # <name> generated|ordinal <section> <link>\n\r", ch);
+	send_to_char("         entrances {Rremove{x #\n\r", ch);
+	return FALSE;
+}
 
-		bpedit_static(ch, "exit");
+BPEDIT( bpedit_exits )
+{
+	BLUEPRINT *bp;
+	char arg[MIL];
+	char buf[MSL];
+
+	EDIT_BLUEPRINT(ch, bp);
+
+	if (IS_SET(bp->flags, BLUEPRINT_SCRIPTED_LAYOUT))
+	{
+		send_to_char("Blueprint is in Scripted Layout Mode.  Cannot edit blueprint exits in OLC.\n\r", ch);
 		return FALSE;
 	}
 
+	if (argument[0] != '\0')
+	{
+		argument = one_argument(argument, arg);
 
-	bpedit_static(ch, "");
+		if(!str_prefix(arg, "list"))
+		{
+			BUFFER *buffer = new_buf();
+
+			add_buf(buffer, "{xExits:\n\r");
+			if(list_size(bp->exits) > 0)
+			{
+				add_buf(buffer, "      [         Name         ] [ Section ] [               Room               ]\n\r");
+				add_buf(buffer, "================================================================================\n\r");
+				ITERATOR bxit;
+				BLUEPRINT_EXIT_DATA *bex;
+				int bxindex = 1;
+				bool approx_msg = FALSE;
+				iterator_start(&bxit, bp->exits);
+				while( (bex = (BLUEPRINT_EXIT_DATA *)iterator_nextdata(&bxit)) )
+				{
+					bool exact = FALSE;
+					BLUEPRINT_SECTION *bs = blueprint_get_representative_section(bp, bex->section, &exact);
+
+					BLUEPRINT_LINK *link = get_section_link(bs, bex->link);
+
+					ROOM_INDEX_DATA *room = IS_VALID(bs) && valid_section_link(link) ? get_room_index(bs->area, link->vnum) : NULL;
+
+					if (room)
+						sprintf(buf, "%4d    %-20.20s     {%c%7d{x     (%-4ld) %s (%s) %s\n\r", bxindex++, bex->name, (bex->section<0?'G':(bex->section>0?'Y':'W')), abs(bex->section), room->vnum, room->name, dir_name[link->door], (exact ? "" : "{M**{x"));
+					else
+						sprintf(buf, "%4d    %-20.20s     {%c%7d{x     %s\n\r", bxindex++, bex->name, (bex->section<0?'G':(bex->section>0?'Y':'W')), abs(bex->section), "???");
+					add_buf(buffer, buf);
+
+					if (room && !exact)
+						approx_msg = TRUE;
+				}
+				iterator_stop(&bxit);
+				add_buf(buffer, "--------------------------------------------------------------------------------\n\r");
+
+				if (approx_msg)
+					add_buf(buffer, "{M**{x - {WLocation is the most likely location due to section entry.{x\n\r");
+			}
+			else
+			{
+				add_buf(buffer, "    none\n\r");
+			}
+
+			if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+			{
+				send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+			}
+			else
+			{
+				page_to_char(buffer->string, ch);
+			}
+
+			free_buf(buffer);
+			return FALSE;
+		}
+
+		if(!str_prefix(arg, "clear"))
+		{
+			if (list_size(bp->exits) < 1)
+			{
+				send_to_char("There are no exits to remove.\n\r", ch);
+				return FALSE;
+			}
+
+			list_clear(bp->exits);
+			send_to_char("Blueprint exits cleared.\n\r", ch);
+			return TRUE;
+		}
+
+		if(!str_prefix(arg, "add"))
+		{
+			int sections = blueprint_generation_count(bp);
+			bool mode = TRISTATE;
+			char arg2[MIL];	// name
+			char arg3[MIL]; // mode
+			char arg4[MIL]; // section
+			// argument = link
+
+			argument = one_argument(argument, arg2);
+			if (arg2[0] == '\0')
+			{
+				send_to_char("Syntax:  exits add {R<name>{x generated|ordinal <section> <link>\n\r", ch);
+				send_to_char("Please provide a name.\n\r", ch);
+				return FALSE;
+			}
+
+			argument = one_argument(argument, arg3);
+			if (!str_prefix(arg3, "generated"))
+				mode = FALSE;
+			else if (!str_prefix(arg3, "ordinal"))
+				mode = TRUE;
+			else
+			{
+				send_to_char("Syntax:  exits add <name> {Rgenerated|ordinal{x <section> <link>\n\r", ch);
+				send_to_char("Please specify either {Ygenerated{x or {Gordinal{x.\n\r", ch);
+				return FALSE;
+			}
+
+			argument = one_argument(argument, arg4);
+			if (!is_number(arg4))
+			{
+				send_to_char("Syntax:  exits add <name> generated|ordinal {R<section>{x <link>\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			int section_no = atoi(arg4);
+			if (section_no < 1 || section_no > sections)
+			{
+				send_to_char("Syntax:  exits add <name> generated|ordinal {R<section>{x <link>\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			BLUEPRINT_LAYOUT_SECTION_DATA *group;
+			BLUEPRINT_LAYOUT_SECTION_DATA *ls = blueprint_get_nth_section(bp, (mode ? -section_no : section_no), &group);
+
+			// This is the maximum allowed links based upon the configuration
+			int link_count = blueprint_layout_links_count(bp, group ? group : ls, 0);
+			if (!is_number(argument))
+			{
+				send_to_char("Syntax:  exits add <name> generated|ordinal <section> {R<link>{x\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			int link_no = atoi(argument);
+			if (link_no < 1 || link_no > link_count)
+			{
+				send_to_char("Syntax:  exits add <name> generated|ordinal <section> {R<link>{x\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			if(mode)
+				section_no = -section_no;
+
+			// Make sure this section-link is not duplicated in the exits AND entrances
+			bool found = FALSE;
+			ITERATOR it;
+			BLUEPRINT_EXIT_DATA *x;
+			iterator_start(&it, bp->exits);
+			while((x = (BLUEPRINT_EXIT_DATA *)iterator_nextdata(&it)))
+			{
+				if(x->section == section_no && x->link == link_no)
+				{
+					found = TRUE;
+					break;
+				}
+			}
+			iterator_stop(&it);
+			if (!found)
+			{
+				iterator_start(&it, bp->entrances);
+				while((x = (BLUEPRINT_EXIT_DATA *)iterator_nextdata(&it)))
+				{
+					if(x->section == section_no && x->link == link_no)
+					{
+						found = TRUE;
+						break;
+					}
+				}
+				iterator_stop(&it);
+			}
+
+			if(found)
+			{
+				send_to_char("Section-Link pair already used as an entrance or an exit.\n\r", ch);
+				return FALSE;
+			}
+
+			BLUEPRINT_EXIT_DATA *bex = new_blueprint_exit_data();
+			free_string(bex->name);
+			bex->name = str_dup(arg2);
+			bex->section = section_no;
+			bex->link = link_no;
+
+			list_appendlink(bp->exits, bex);
+			sprintf(buf, "Added Exit %d to Blueprint Exits.\n\r", list_size(bp->exits));
+			send_to_char(buf, ch);
+			return TRUE;
+		}
+
+		if (!str_prefix(arg, "set"))
+		{
+			int sections = blueprint_generation_count(bp);
+			bool mode = TRISTATE;
+			char argn[MIL];	// index
+			char arg2[MIL];	// name
+			char arg3[MIL]; // mode
+			char arg4[MIL]; // section
+			// argument = link
+
+			argument = one_argument(argument, argn);
+			if (!is_number(argn))
+			{
+				send_to_char("Syntax:  exits set {R#{x <name> generated|ordinal <section> <link>\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->exits));
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			int index = atoi(argn);
+			if (index < 1 || index > list_size(bp->exits))
+			{
+				send_to_char("Syntax:  exits set {R#{x <name> generated|ordinal <section> <link>\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->exits));
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			argument = one_argument(argument, arg2);
+			if (arg2[0] == '\0')
+			{
+				send_to_char("Syntax:  exits set # {R<name>{x generated|ordinal <section> <link>\n\r", ch);
+				send_to_char("Please provide a name.\n\r", ch);
+				return FALSE;
+			}
+
+			argument = one_argument(argument, arg3);
+			if (!str_prefix(arg3, "generated"))
+				mode = FALSE;
+			else if (!str_prefix(arg3, "ordinal"))
+				mode = TRUE;
+			else
+			{
+				send_to_char("Syntax:  exits set # <name> {Rgenerated|ordinal{x <section> <link>\n\r", ch);
+				send_to_char("Please specify either {Ygenerated{x or {Gordinal{x.\n\r", ch);
+				return FALSE;
+			}
+
+			argument = one_argument(argument, arg4);
+			if (!is_number(arg4))
+			{
+				send_to_char("Syntax:  exits set # <name> generated|ordinal {R<section>{x <link>\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			int section_no = atoi(arg4);
+			if (section_no < 1 || section_no > sections)
+			{
+				send_to_char("Syntax:  exits set # <name> generated|ordinal {R<section>{x <link>\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			BLUEPRINT_LAYOUT_SECTION_DATA *group;
+			BLUEPRINT_LAYOUT_SECTION_DATA *ls = blueprint_get_nth_section(bp, (mode ? -section_no : section_no), &group);
+
+			// This is the maximum allowed links based upon the configuration
+			int link_count = blueprint_layout_links_count(bp, group ? group : ls, 0);
+			if (!is_number(argument))
+			{
+				send_to_char("Syntax:  exits set # <name> generated|ordinal <section> {R<link>{x\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			int link_no = atoi(argument);
+			if (link_no < 1 || link_no > link_count)
+			{
+				send_to_char("Syntax:  exits set # <name> generated|ordinal <section> {R<link>{x\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", link_count);
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			if(mode)
+				section_no = -section_no;
+
+			// Make sure this section-link is not duplicated in the exits AND entrances
+			bool found = FALSE;
+			int exit_no = 1;
+			ITERATOR it;
+			BLUEPRINT_EXIT_DATA *x;
+			iterator_start(&it, bp->exits);
+			while((x = (BLUEPRINT_EXIT_DATA *)iterator_nextdata(&it)))
+			{
+				if(exit_no != index && x->section == section_no && x->link == link_no)
+				{
+					found = TRUE;
+					break;
+				}
+
+				exit_no++;
+			}
+			iterator_stop(&it);
+			if (!found)
+			{
+				iterator_start(&it, bp->entrances);
+				while((x = (BLUEPRINT_EXIT_DATA *)iterator_nextdata(&it)))
+				{
+					if(x->section == section_no && x->link == link_no)
+					{
+						found = TRUE;
+						break;
+					}
+				}
+				iterator_stop(&it);
+			}
+
+			if(found)
+			{
+				send_to_char("Section-Link pair already used as an entrance or an exit.\n\r", ch);
+				return FALSE;
+			}
+
+			BLUEPRINT_EXIT_DATA *bex = (BLUEPRINT_EXIT_DATA *)list_nthdata(bp->exits, index);
+			free_string(bex->name);
+			bex->name = str_dup(arg2);
+			bex->section = section_no;
+			bex->link = link_no;
+
+			sprintf(buf, "Updated Exit %d in Blueprint Exits.\n\r", index);
+			send_to_char(buf, ch);
+			return TRUE;
+
+			return TRUE;
+		}
+
+		if (!str_prefix(arg, "remove"))
+		{
+			if (list_size(bp->exits) < 1)
+			{
+				send_to_char("There are no blueprint exits defined.\n\r", ch);
+				return FALSE;
+			}
+
+			if (!is_number(argument))
+			{
+				send_to_char("Syntax:  exits remove {R#{x\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->exits));
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			int index = atoi(argument);
+			if (index < 1 || index > list_size(bp->exits))
+			{
+				send_to_char("Syntax:  exits remove {R#{x\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->exits));
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			list_remnthlink(bp->exits, index);
+			sprintf(buf, "Removed Blueprint Exit %d.\n\r", index);
+			send_to_char(buf, ch);
+			return TRUE;
+		}
+	}
+
+	send_to_char("Syntax:  exits {Rlist{x\n\r", ch);
+	send_to_char("         exits {Rclear{x\n\r", ch);
+	send_to_char("         exits {Radd{x <name> generated|ordinal <section> <link>\n\r", ch);
+	send_to_char("         exits {Rset{x # <name> generated|ordinal <section> <link>\n\r", ch);
+	send_to_char("         exits {Rremove{x #\n\r", ch);
+	return FALSE;
+}
+
+bool blueprint_layout_has_recall(BLUEPRINT *bp, BLUEPRINT_LAYOUT_SECTION_DATA *ls)
+{
+	BLUEPRINT_SECTION *bs;
+	switch(ls->mode)
+	{
+		case SECTIONMODE_STATIC:
+			bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, ls->section);
+
+			return IS_VALID(bs) && (bs->recall > 0);
+
+		case SECTIONMODE_WEIGHTED:
+		{
+			bool valid = TRUE;
+			ITERATOR it;
+			BLUEPRINT_WEIGHTED_SECTION_DATA *weighted;
+			iterator_start(&it, ls->weighted_sections);
+			while((weighted = (BLUEPRINT_WEIGHTED_SECTION_DATA *)iterator_nextdata(&it)))
+			{
+				bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, weighted->section);
+
+				if (!IS_VALID(bs) || bs->recall < 1)
+				{
+					valid = FALSE;
+					break;
+				}
+			}
+			iterator_stop(&it);
+
+			return valid;
+		}
+
+		case SECTIONMODE_GROUP:
+		{
+			bool valid = TRUE;
+			ITERATOR it;
+			BLUEPRINT_LAYOUT_SECTION_DATA *gls;
+			iterator_start(&it, ls->group);
+			while((gls = (BLUEPRINT_LAYOUT_SECTION_DATA *)iterator_nextdata(&it)))
+			{
+				if (!blueprint_layout_has_recall(bp, gls))
+				{
+					valid = FALSE;
+					break;
+				}
+			}
+			iterator_stop(&it);
+
+			return valid;
+		}
+	}
+
+	return FALSE;
+}
+
+BPEDIT( bpedit_recall )
+{
+	BLUEPRINT *bp;
+	char arg[MIL];
+	char buf[MSL];
+
+	EDIT_BLUEPRINT(ch, bp);
+
+	if (IS_SET(bp->flags, BLUEPRINT_SCRIPTED_LAYOUT))
+	{
+		send_to_char("Blueprint is in Scripted Layout Mode.  Cannot edit blueprint recall in OLC.\n\r", ch);
+		return FALSE;
+	}
+
+	if (!str_prefix(argument, "none"))
+	{
+		bp->recall = 0;
+		send_to_char("Blueprint Recall cleared.\n\r", ch);
+	}
+	else
+	{
+		argument = one_argument(argument, arg);
+		bool mode = TRISTATE;
+		if (!str_prefix(arg, "generated"))
+			mode = FALSE;
+		else if (!str_prefix(arg, "ordinal"))
+			mode = TRUE;
+		else
+		{
+			send_to_char("Syntax:  recall {Rgenerated|ordinal{x <section>\n\r", ch);
+			send_to_char("Please specify either {Ygenerated{x or {Gordinal{x.\n\r", ch);
+			return FALSE;
+		}
+
+		int sections = blueprint_generation_count(bp);
+		if (!is_number(argument))
+		{
+			send_to_char("Syntax:  recall generated|ordinal {R<section>{x\n\r", ch);
+			sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+			send_to_char(buf, ch);
+			return FALSE;
+		}
+
+		int section_no = atoi(argument);
+		if (section_no < 1 || section_no > sections)
+		{
+			send_to_char("Syntax:  recall generated|ordinal {R<section>{x\n\r", ch);
+			sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+			send_to_char(buf, ch);
+			return FALSE;
+		}
+
+		// Check that the desired section (or possible sections) have a defined recall.
+		BLUEPRINT_LAYOUT_SECTION_DATA *group;
+		BLUEPRINT_LAYOUT_SECTION_DATA *ls = blueprint_get_nth_section(bp, (mode ? -section_no : section_no), &group);
+		if (mode)
+		{
+			// We are ordinal, so we can check the explicit layout section
+			// Note: GROUP sections will not come back in 'ls'
+			if (!blueprint_layout_has_recall(bp, ls))
+			{
+				if(ls->mode == SECTIONMODE_WEIGHTED)
+				{
+					send_to_char("At least one of the sections in the weighted table does not have a recall defined.\n\r", ch);
+				}
+				else
+					send_to_char("That section definition does not have a recall defined.\n\r", ch);
+
+				return FALSE;
+			}
+		}
+		else if (group)
+		{
+			if (!blueprint_layout_has_recall(bp, group))
+			{
+				send_to_char("At least one of the section definitions in the group section does not have a recall defined.\n\r", ch);
+				return FALSE;
+			}
+		}
+		else if (!blueprint_layout_has_recall(bp, ls))
+		{
+			if(ls->mode == SECTIONMODE_WEIGHTED)
+			{
+				send_to_char("At least one of the sections in the weighted table does not have a recall defined.\n\r", ch);
+			}
+			else
+				send_to_char("That section definition does not have a recall defined.\n\r", ch);
+
+			return FALSE;
+		}
+
+		bp->recall = (mode ? -section_no : section_no);
+		send_to_char("Blueprint Recall set.\n\r", ch);
+	}
+	return TRUE;
+}
+
+int blueprint_layout_room_count(BLUEPRINT *bp, BLUEPRINT_LAYOUT_SECTION_DATA *ls)
+{
+	switch(ls->mode)
+	{
+		case SECTIONMODE_STATIC:
+		{
+			BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, ls->section);
+
+			if (bs->upper_vnum < 1 || bs->lower_vnum < 1) return 0;
+
+			return bs->upper_vnum - bs->lower_vnum + 1;
+		}
+
+		case SECTIONMODE_WEIGHTED:
+		{
+			int min_rooms = -1;
+			ITERATOR it;
+			BLUEPRINT_WEIGHTED_SECTION_DATA *weighted;
+			iterator_start(&it, ls->weighted_sections);
+			while((weighted = (BLUEPRINT_WEIGHTED_SECTION_DATA *)iterator_nextdata(&it)))
+			{
+				BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, weighted->section);
+
+				int rooms = (bs->upper_vnum > 0 && bs->lower_vnum > 0) ? (bs->upper_vnum - bs->lower_vnum + 1) : 0;
+
+				if (min_rooms < 0 || rooms < min_rooms)
+				{
+					min_rooms = rooms;
+				}
+			}
+			iterator_stop(&it);
+
+			return UMAX(min_rooms, 0);
+		}
+
+		case SECTIONMODE_GROUP:
+		{
+			int min_rooms = -1;
+			ITERATOR it;
+			BLUEPRINT_LAYOUT_SECTION_DATA *gls;
+			iterator_start(&it, ls->group);
+			while((gls = (BLUEPRINT_LAYOUT_SECTION_DATA *)iterator_nextdata(&it)))
+			{
+				int rooms = blueprint_layout_room_count(bp, gls);
+
+				if (min_rooms < 0 || rooms < min_rooms)
+				{
+					min_rooms = rooms;
+				}
+			}
+			iterator_stop(&it);
+
+			return UMAX(min_rooms, 0);
+		}
+	}
+
+	return 0;
+}
+
+BPEDIT( bpedit_rooms )
+{
+	BLUEPRINT *bp;
+	char arg[MIL];
+	char buf[MSL];
+
+	EDIT_BLUEPRINT(ch, bp);
+
+	if (IS_SET(bp->flags, BLUEPRINT_SCRIPTED_LAYOUT))
+	{
+		send_to_char("Blueprint is in Scripted Layout Mode.  Cannot edit special rooms in OLC.\n\r", ch);
+		return FALSE;
+	}
+
+	if (argument[0] != '\0')
+	{
+		argument = one_argument(argument, arg);
+		
+		if (!str_prefix(arg, "list"))
+		{
+			BUFFER *buffer = new_buf();
+
+			add_buf(buffer, "Special Rooms:\n\r");
+			if (list_size(bp->special_rooms) > 0)
+			{
+				BLUEPRINT_SPECIAL_ROOM *special;
+
+				char buf[MSL];
+				int line = 0;
+
+				ITERATOR sit;
+
+				add_buf(buffer, "     [             Name             ] [             Room             ]\n\r");
+				add_buf(buffer, "---------------------------------------------------------------------------------\n\r");
+
+				bool approx_msg = FALSE;
+				iterator_start(&sit, bp->special_rooms);
+				while( (special = (BLUEPRINT_SPECIAL_ROOM *)iterator_nextdata(&sit)) )
+				{
+					bool exact = FALSE;
+					BLUEPRINT_SECTION *bs = blueprint_get_representative_section(bp, special->section, &exact);
+
+					ROOM_INDEX_DATA *room = NULL;
+					long vnum = 0;
+
+					if(IS_VALID(bs) )
+					{
+						vnum = bs->lower_vnum + special->offset;
+
+						if (vnum >= bs->lower_vnum || vnum <= bs->upper_vnum)
+							room = get_room_index(bs->area, vnum);
+					}
+
+					if( !IS_VALID(bs) || !room || room->vnum < bs->lower_vnum || room->vnum > bs->upper_vnum)
+					{
+						snprintf(buf, MSL-1, "{W%4d  %-30.30s   {D-{Winvalid{D-{x\n\r", ++line, special->name);
+					}
+					else
+					{
+						snprintf(buf, MSL-1, "{W%4d  %-30.30s   (%ld#%ld) {Y%s{x in (%ld#%ld) {Y%s{x%s\n\r", ++line, special->name, room->area->uid, room->vnum, room->name, bs->area->uid, bs->vnum, bs->name, exact?"":" {M**{x");
+						if (!exact) approx_msg = TRUE;
+					}
+					add_buf(buffer, buf);
+				}
+				iterator_stop(&sit);
+				add_buf(buffer, "---------------------------------------------------------------------------------\n\r");
+
+				if (approx_msg)
+					add_buf(buffer, "{M**{x - {WLocation is the most likely location due to section entry.{x\n\r");
+			}
+			else
+			{
+				add_buf(buffer, "   None\n\r");
+			}
+			add_buf(buffer, "\n\r");
+
+			if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+			{
+				send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+			}
+			else
+			{
+				page_to_char(buffer->string, ch);
+			}
+
+			free_buf(buffer);
+			return FALSE;
+		}
+
+		if (!str_prefix(arg, "clear"))
+		{
+			if (list_size(bp->special_rooms) < 1)
+			{
+				send_to_char("There are no special rooms defined.\n\r", ch);
+				return FALSE;
+			}
+
+			list_clear(bp->special_rooms);
+			send_to_char("Special Rooms cleared.\n\r", ch);
+			return TRUE;
+		}
+
+		if (!str_prefix(arg, "add"))
+		{
+			bool mode = TRISTATE;
+			char arg2[MIL];	// name
+			char arg3[MIL];	// mode
+			char arg4[MIL];	// section
+			// argument = room offset
+
+			argument = one_argument(argument, arg2);
+			if (arg2[0] == '\0')
+			{
+				send_to_char("Syntax:  rooms add {R<name>{x generated|ordinal <section> <room offset>\n\r", ch);
+				send_to_char("Please provide a name.\n\r", ch);
+				return FALSE;
+			}
+
+			argument = one_argument(argument, arg3);
+			if (!str_prefix(arg3, "generated"))
+				mode = FALSE;
+			else if(!str_prefix(arg3, "ordinal"))
+				mode = TRUE;
+			else
+			{
+				send_to_char("Syntax:  rooms add <name> {Rgenerated|ordinal{x <section> <room offset>\n\r", ch);
+				send_to_char("Please specify either {Ygenerated{x or {Gordinal{x.\n\r", ch);
+				return FALSE;
+			}
+
+			int sections = blueprint_generation_count(bp);
+			argument = one_argument(argument, arg4);
+			if (!is_number(arg4))
+			{
+				send_to_char("Syntax:  rooms add <name> generated|ordinal {R<section>{x <room offset>\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			int section_no = atoi(arg4);
+			if (section_no < 1 || section_no > sections)
+			{
+				send_to_char("Syntax:  rooms add <name> generated|ordinal {R<section>{x <room offset>\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", sections);
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			BLUEPRINT_LAYOUT_SECTION_DATA *group;
+			BLUEPRINT_LAYOUT_SECTION_DATA *ls = blueprint_get_nth_section(bp, (mode ? -section_no : section_no), &group);
+			int rooms_count = blueprint_layout_room_count(bp, (group ? group : ls));
+
+			if (!is_number(argument))
+			{
+				send_to_char("Syntax:  rooms add <name> generated|ordinal {R<section>{x <room offset>\n\r", ch);
+				sprintf(buf, "Please specify a number from 0 to %d.\n\r", rooms_count - 1);
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			int offset = atoi(argument);
+			if (offset < 0 || offset >= rooms_count)
+			{
+				send_to_char("Syntax:  rooms add <name> generated|ordinal {R<section>{x <room offset>\n\r", ch);
+				sprintf(buf, "Please specify a number from 0 to %d.\n\r", rooms_count - 1);
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			BLUEPRINT_SPECIAL_ROOM *room = new_blueprint_special_room();
+			free_string(room->name);
+			room->name = str_dup(arg2);
+			room->section = (mode ? -section_no : section_no);
+			room->offset = offset;
+			list_appendlink(bp->special_rooms, room);
+
+			sprintf(buf, "Special Room \"%s\" (%d) added.\n\r", arg2, list_size(bp->special_rooms));
+			send_to_char(buf, ch);
+			return TRUE;
+		}
+
+		if (!str_prefix(arg, "remove"))
+		{
+			if (list_size(bp->special_rooms) < 1)
+			{
+				send_to_char("There are no special rooms defined.\n\r", ch);
+				return FALSE;
+			}
+
+			if (!is_number(argument))
+			{
+				send_to_char("Syntax:  rooms remove {R#{x\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->special_rooms));
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			int index = atoi(argument);
+			if (index < 1 || index > list_size(bp->special_rooms))
+			{
+				send_to_char("Syntax:  rooms remove {R#{x\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bp->special_rooms));
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			list_remnthlink(bp->special_rooms, index);
+			sprintf(buf, "Special Room %d removed.\n\r", index);
+			send_to_char(buf, ch);
+			return TRUE;
+		}
+	}
+
+	send_to_char("Syntax:  rooms {Rlist{x\n\r", ch);
+	send_to_char("         rooms {Rclear{x\n\r", ch);
+	send_to_char("         rooms {Radd{x <name> generated|ordinal <section> <room offset>\n\r", ch);
+	send_to_char("         rooms {Rremove{x #\n\r", ch);
 	return FALSE;
 }
 
