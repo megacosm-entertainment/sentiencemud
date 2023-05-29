@@ -1205,6 +1205,9 @@ enum entity_fleet_enum {
 #define SOMEWHERE "somewhere"
 
 /* RETURN CODE predefines */
+#define PRET_SILENT			(2)	// Indicates the PRE* trigger was denied, but the script handled the messaging
+#define PRET_DENIED			(1)	// Indicates the PRE* trigger was denied, but use the default messaging
+#define PRET_ALLOWED		(0)
 #define PRET_EXECUTED		(1)	/* DEFAULT: Though, you can return any non-zero value */
 #define PRET_NOSCRIPT		(0)
 #define PRET_BADSYNTAX		(-1)	/* Syntax error */

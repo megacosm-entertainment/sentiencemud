@@ -1503,7 +1503,7 @@ void char_update(void)
 			bool run_death_timer = TRUE;
 			OBJ_DATA *corpse = ch->pcdata->corpse;
 			ROOM_INDEX_DATA *corpse_room = obj_room(corpse);
-			// Check here, prevent the timer from counting down if the
+			// Check here, prevent the timer from counting down
 			if( p_percent_trigger(ch, NULL, NULL, NULL, ch, ch, NULL, corpse, NULL, TRIG_DEATH_TIMER, NULL) )
 				run_death_timer = FALSE;
 
@@ -1513,6 +1513,7 @@ void char_update(void)
 			if( run_death_timer && corpse_room && p_percent_trigger(NULL, NULL, corpse_room, NULL, ch, ch, NULL, corpse, NULL, TRIG_DEATH_TIMER, NULL) )
 				run_death_timer = FALSE;
 
+			// TODO: Make a way to keep this while dead
 			// Perform actions while the player is dead regardless of timer running
 			if( ch->manastore > 0) {
 				// Decay manastore while dead

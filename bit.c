@@ -882,6 +882,7 @@ char *cont_bit_name( int cont_flags)
     if (cont_flags & CONT_PUSHOPEN	) strcat(buf, " pushopen");
     if (cont_flags & CONT_CLOSELOCK	) strcat(buf, " closelock");
     if (cont_flags & CONT_SINGULAR	) strcat(buf, " singular");
+    if (cont_flags & CONT_TRANSPARENT	) strcat(buf, " transparent");
 
     return (buf[0] != '\0' ) ? buf+1 : "none";
 }

@@ -56,6 +56,8 @@ void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument);
 void look_compass(CHAR_DATA *ch, OBJ_DATA *compass);
 void look_sextant(CHAR_DATA *ch, OBJ_DATA *sextant);
 void look_map(CHAR_DATA *ch, OBJ_DATA *map);
+void look_portal(CHAR_DATA *ch, OBJ_DATA *portal);
+ROOM_INDEX_DATA *get_portal_destination(CHAR_DATA *ch, OBJ_DATA *portal, bool allow_random);
 
 char *const where_name[] = {
     "{Y<used as light>       {x",
@@ -320,27 +322,28 @@ char *format_obj_to_char(OBJ_DATA * obj, CHAR_DATA * ch, bool fShort)
 
     buf[0] = '\0';
 
-    if ((fShort
-	 && (obj->short_descr == NULL || obj->short_descr[0] == '\0'))
-	|| (obj->description == NULL || obj->description[0] == '\0'))
-	return buf;
+    if ((fShort && (obj->short_descr == NULL || obj->short_descr[0] == '\0'))
+		|| (obj->description == NULL || obj->description[0] == '\0'))
+		return buf;
 
+	if (IS_SET(obj->extra3_flags, ITEM_EXCLUDE_LIST))
+		strcat(buf, "{D(Excluded){x ");
     if (IS_OBJ_STAT(obj, ITEM_INVIS))
-	strcat(buf, "{B(Invis){w ");
+		strcat(buf, "{B(Invis){w ");
     if (IS_AFFECTED(ch, AFF_DETECT_MAGIC) && IS_OBJ_STAT(obj, ITEM_MAGIC))
-	strcat(buf, "{M(Magical){w ");
+		strcat(buf, "{M(Magical){w ");
     if (IS_OBJ_STAT(obj, ITEM_GLOW))
-	strcat(buf, "{W(Glowing){w ");
+		strcat(buf, "{W(Glowing){w ");
     if (IS_OBJ_STAT(obj, ITEM_HUM))
-	strcat(buf, "{C(Humming){w ");
+		strcat(buf, "{C(Humming){w ");
     if ((IS_AFFECTED(ch, AFF_DETECT_GOOD) || (!IS_NPC(ch) && IS_REMORT(ch))) && IS_OBJ_STAT(obj, ITEM_BLESS))
-	strcat(buf, "{y(Gold Aura){w ");
+		strcat(buf, "{y(Gold Aura){w ");
     if ((IS_AFFECTED(ch, AFF_DETECT_EVIL) || (!IS_NPC(ch) && IS_REMORT(ch))) && IS_OBJ_STAT(obj, ITEM_EVIL))
-	strcat(buf, "{R(Red Aura){w ");
+		strcat(buf, "{R(Red Aura){w ");
     if (IS_SET(obj->extra2_flags, ITEM_KEPT))
-	strcat(buf, "{b({BK{b){x ");
+		strcat(buf, "{b({BK{b){x ");
     if (IS_OBJ_STAT(obj, ITEM_PLANTED))
-	strcat(buf, "{R(Planted){w ");
+		strcat(buf, "{R(Planted){w ");
     if (IS_SET(obj->extra2_flags, ITEM_BURIED))
 		strcat(buf, "{y(Buried){w ");
     if (fShort)
@@ -619,6 +622,11 @@ void show_list_to_char(OBJ_DATA *list, CHAR_DATA *ch, bool fShort,
 	if (IS_SET(obj->extra_flags, ITEM_HIDDEN))
 	    continue;
 
+	// Similar to hidden items, but you can still target them and they can never be discovered.
+	//  Immortals with HOLYLIGHT will be able to see this though (for debugging purposes)
+	if (IS_SET(obj->extra3_flags, ITEM_EXCLUDE_LIST) && !IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act, PLR_HOLYLIGHT)))
+		continue;
+
 	/* Mist type blocks random objs from view. */
 	if (mist != NULL && number_percent() < mist->value[0] && obj->item_type != ITEM_MIST)
 	    continue;
@@ -629,11 +637,11 @@ void show_list_to_char(OBJ_DATA *list, CHAR_DATA *ch, bool fShort,
 	    fCombine = FALSE;
 
 	    /*
-	     * Look for duplicates, case sensitive.
+	     * Look for duplicates, case sensitive. (now it is case sensitive)
 	     * Matches tend to be near end so run loop backwards.
 	     */
 	    for (iShow = nShow - 1; iShow >= 0; iShow--) {
-		if (!str_cmp(prgpstrShow[iShow], pstrShow)) {
+		if (!strcmp(prgpstrShow[iShow], pstrShow)) {
 		    prgnShow[iShow]++;
 		    fCombine = TRUE;
 		    break;
@@ -1724,7 +1732,12 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 	if (pexit != NULL && (!IS_SET(pexit->exit_info, EX_HIDDEN) ||
 		IS_SET(pexit->exit_info, EX_FOUND)) && !IS_SET(pexit->exit_info, EX_WALKTHROUGH)) {
 		if (IS_SET(pexit->exit_info, EX_CLOSED))
-			send_to_char("{M#{b     ", ch);
+		{
+			if (IS_SET(pexit->exit_info, EX_TRANSPARENT))
+				send_to_char("{W#{b     ", ch);
+			else
+				send_to_char("{M#{b     ", ch);
+		}
 		else
 			send_to_char("{YNW{b    ", ch);
 	} else
@@ -1735,7 +1748,12 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
 		(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
 		if (IS_SET(pexit->exit_info, EX_CLOSED))
-			send_to_char("{M#{b", ch);
+		{
+			if (IS_SET(pexit->exit_info, EX_TRANSPARENT))
+				send_to_char("{W#{b", ch);
+			else
+				send_to_char("{M#{b", ch);
+		}
 		else
 			send_to_char("{YN{b", ch);
 	} else
@@ -1745,7 +1763,12 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
 		(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
 		if (IS_SET(pexit->exit_info, EX_CLOSED))
-			send_to_char("     {M#{x\n\r", ch);
+		{
+			if (IS_SET(pexit->exit_info, EX_TRANSPARENT))
+				send_to_char("     {W#{x\n\r", ch);
+			else
+				send_to_char("     {M#{x\n\r", ch);
+		}
 		else
 			send_to_char("    {YNE{x\n\r", ch);
 	} else
@@ -1758,7 +1781,12 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
 		(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
 		if (IS_SET(pexit->exit_info, EX_CLOSED))
-			send_to_char("{M#{B<{b-", ch);
+		{
+			if (IS_SET(pexit->exit_info, EX_TRANSPARENT))
+				send_to_char("{W#{B<{b-", ch);
+			else
+				send_to_char("{M#{B<{b-", ch);
+		}
 		else
 			send_to_char("{YW{B<{b-", ch);
 	} else
@@ -1768,7 +1796,12 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
 		(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
 		if (IS_SET(pexit->exit_info, EX_CLOSED))
-			send_to_char("{M#{b-{B({WA{B){b-", ch);
+		{
+			if (IS_SET(pexit->exit_info, EX_TRANSPARENT))
+				send_to_char("{W#{b-{B({WA{B){b-", ch);
+			else
+				send_to_char("{M#{b-{B({WA{B){b-", ch);
+		}
 		else
 			send_to_char("{YU{b-{B({WA{B){b-", ch);
 	} else
@@ -1778,7 +1811,12 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
 		(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
 		if (IS_SET(pexit->exit_info, EX_CLOSED))
-			send_to_char("{M#{b-{B>{b", ch);
+		{
+			if (IS_SET(pexit->exit_info, EX_TRANSPARENT))
+				send_to_char("{W#{b-{B>{b", ch);
+			else
+				send_to_char("{M#{b-{B>{b", ch);
+		}
 		else
 			send_to_char("{YD{b-{B>{b", ch);
 	} else
@@ -1788,7 +1826,12 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
 		(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
 		if (IS_SET(pexit->exit_info, EX_CLOSED))
-			send_to_char("{M#{b\n\r", ch);
+		{
+			if (IS_SET(pexit->exit_info, EX_TRANSPARENT))
+				send_to_char("{W#{x\n\r", ch);
+			else
+				send_to_char("{M#{x\n\r", ch);
+		}
 		else
 			send_to_char("{YE{b\n\r", ch);
 	} else
@@ -1801,7 +1844,12 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
 		(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
 		if (IS_SET(pexit->exit_info, EX_CLOSED))
-			send_to_char("{M#{b     ", ch);
+		{
+			if (IS_SET(pexit->exit_info, EX_TRANSPARENT))
+				send_to_char("{W#{b     ", ch);
+			else
+				send_to_char("{M#{b     ", ch);
+		}
 		else
 			send_to_char("{YSW{b    ", ch);
 	} else
@@ -1811,7 +1859,12 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
 		(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
 		if (IS_SET(pexit->exit_info, EX_CLOSED))
-			send_to_char("{M#{b", ch);
+		{
+			if (IS_SET(pexit->exit_info, EX_TRANSPARENT))
+				send_to_char("{W#{b", ch);
+			else
+				send_to_char("{M#{b", ch);
+		}
 		else
 			send_to_char("{YS{b", ch);
 	} else
@@ -1821,7 +1874,12 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
 		(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
 		if (IS_SET(pexit->exit_info, EX_CLOSED))
-			send_to_char("     {M#{x\n\r", ch);
+		{
+			if (IS_SET(pexit->exit_info, EX_TRANSPARENT))
+				send_to_char("     {W#{x\n\r", ch);
+			else
+				send_to_char("     {M#{x\n\r", ch);
+		}
 		else
 			send_to_char("    {YSE{x\n\r", ch);
 	} else
@@ -2048,7 +2106,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 		case ITEM_CORPSE_NPC:
 		case ITEM_WEAPON_CONTAINER:
 		case ITEM_CORPSE_PC:
-			if (obj->item_type == ITEM_CONTAINER && IS_SET(obj->value[1], CONT_CLOSED))
+			if (obj->item_type == ITEM_CONTAINER && IS_SET(obj->value[1], CONT_CLOSED) && !IS_SET(obj->value[1], CONT_TRANSPARENT))
 			{
 				act("$p is closed.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 				break;
@@ -2064,7 +2122,6 @@ void do_look(CHAR_DATA * ch, char *argument)
 	// look <person>[ <worn item>]
 	if ((victim = get_char_room(ch, NULL, arg1)) != NULL)
 	{
-
 		if(argument[0])
 		{
 			number = number_argument(argument, arg3);
@@ -2225,6 +2282,10 @@ void do_look(CHAR_DATA * ch, char *argument)
 					else if(obj->item_type == ITEM_COMPASS)
 					{
 						look_compass(ch, obj);
+					}
+					else if(obj->item_type == ITEM_PORTAL)
+					{
+						look_portal(ch, obj);
 					}
 					else if((obj->pIndexData == obj_index_skull || obj->pIndexData == obj_index_gold_skull) &&
 						affect_find(obj->affected, gsn_third_eye) != NULL)
@@ -2439,6 +2500,10 @@ void do_look(CHAR_DATA * ch, char *argument)
 					{
 						look_map(ch, obj);
 					}
+					else if(obj->item_type == ITEM_PORTAL)
+					{
+						look_portal(ch, obj);
+					}
 					return;
 				}
 		}
@@ -2606,7 +2671,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 			return;
 		}
 
-		if (IS_SET(pexit->exit_info, EX_CLOSED))
+		if (IS_SET(pexit->exit_info, EX_CLOSED) && !IS_SET(pexit->exit_info, EX_TRANSPARENT))
 		{
 			if (pexit->keyword != NULL && pexit->keyword[0] != '\0' && pexit->keyword[0] != ' ')
 			{
@@ -8455,5 +8520,31 @@ void look_map(CHAR_DATA *ch, OBJ_DATA *map)
 			check_improve(ch, gsn_navigation, success, 10);
 			ch->pcdata->spam_block_navigation = true;
 		}
+	}
+}
+
+void look_portal(CHAR_DATA *ch, OBJ_DATA *portal)
+{
+	if (IS_NPC(ch)) return;
+
+	if (IS_SET(portal->value[1], EX_CLOSED) && !IS_SET(portal->value[1], EX_TRANSPARENT))
+		return;
+
+	ROOM_INDEX_DATA *location = get_portal_destination(ch, portal, FALSE);
+
+	if (location)
+	{
+		send_to_char("{YPeering through, you see:{x\n\r", ch);
+
+		// Check if it's wilderness
+		if (location->wilds && IS_SET(location->room2_flags, ROOM_VIRTUAL_ROOM)) {
+			int vp_x, vp_y;
+
+			vp_x = get_squares_to_show_x(ch->wildview_bonus_x);
+			vp_y = get_squares_to_show_y(ch->wildview_bonus_y);
+			show_map_to_char_wyx(location->wilds, location->x, location->y, ch, location->x, location->y, vp_x, vp_y, FALSE);
+		}
+		else
+			show_room_description(ch, location);
 	}
 }

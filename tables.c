@@ -1057,6 +1057,7 @@ const struct flag_type exit_flags[] =
     {	"nextfloor",		EX_NEXTFLOOR,		FALSE	},
     {	"nosearch",			EX_NOSEARCH,		TRUE	},
     {	"mustsee",			EX_MUSTSEE,			TRUE	},
+    {   "transparent",      EX_TRANSPARENT,     TRUE    },
     {	NULL,			0,			0	}
 };
 
@@ -1102,6 +1103,7 @@ const struct flag_type portal_exit_flags[] =
     {	"nextfloor",		EX_NEXTFLOOR,		TRUE	},
     {	"nosearch",			EX_NOSEARCH,		TRUE	},
     {	"mustsee",			EX_MUSTSEE,			TRUE	},
+    {   "transparent",      EX_TRANSPARENT,     TRUE    },
     {	NULL,			0,			0	}
 };
 
@@ -1648,6 +1650,7 @@ const struct flag_type container_flags[] =
     {	"pushopen",		CONT_PUSHOPEN,	TRUE	},	// @@@NIB : 20070126
     {	"closelock",	CONT_CLOSELOCK,	TRUE	},	// @@@NIB : 20070126
     {   "singular",     CONT_SINGULAR,  TRUE    },
+    {   "transparent",  CONT_TRANSPARENT,   TRUE    },
     {	NULL,			0,		0	}
 };
 

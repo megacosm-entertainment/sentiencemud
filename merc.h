@@ -2802,6 +2802,7 @@ struct affliction_type {
 #define CONT_PUSHOPEN		(G)	/* @@@NIB : 20070126 */
 #define CONT_CLOSELOCK		(H)	/* @@@NIB : 20070126 */
 #define CONT_SINGULAR       (I) // Only allows one item place into the container at a time.
+#define CONT_TRANSPARENT    (J) // Can look inside the container when closed.
 
 /* Types of tools */
 enum {
@@ -2979,6 +2980,7 @@ enum {
 #define EX_NEXTFLOOR			(X)
 #define EX_NOSEARCH				(Y)		// Makes hidden exits unsearchable
 #define EX_MUSTSEE				(Z)		// Requires the exit be visible to use it
+#define EX_TRANSPARENT          (aa)    // Can see through it when closed
 
 /*
  * Area Who Flags
@@ -6093,6 +6095,7 @@ enum trigger_index_enum {
 	TRIG_KNOCKING,
 	TRIG_LAND,
 	TRIG_LEVEL,
+    TRIG_LOCK,
 	TRIG_LOGIN,
 	TRIG_LORE,
 	TRIG_LORE_EX,
@@ -6123,6 +6126,7 @@ enum trigger_index_enum {
 	TRIG_PREHIDE,			// NIB 20140522 - trigger for testing if you can hide yourself or the object in question
 	TRIG_PREHIDE_IN,		// NIB 20140522 - trigger for testing if the container or mob you are trying to hide an object in will allow it
 	TRIG_PREKILL,
+    TRIG_PRELOCK,
 	TRIG_PREMOUNT,
 	TRIG_PREPRACTICE,
 	TRIG_PREPRACTICEOTHER,
@@ -6146,6 +6150,7 @@ enum trigger_index_enum {
 	TRIG_PRESTAND,
 	TRIG_PRETRAIN,
 	TRIG_PRETRAINTOKEN,
+    TRIG_PREUNLOCK,
 	TRIG_PREWAKE,
 	TRIG_PREWEAR,
 	TRIG_PREWIMPY,
@@ -6207,6 +6212,7 @@ enum trigger_index_enum {
 	TRIG_TURN,
 	TRIG_TURN_ON,		/* NIB : 20070121 */
 	TRIG_UNGROUPED,
+    TRIG_UNLOCK,
 	TRIG_USE,
 	TRIG_USEWITH,
 	TRIG_VERB,
@@ -6251,6 +6257,13 @@ enum trigger_index_enum {
 #define PRG_DPROG	6	// Dungeons
 
 #define NEWEST_OBJ_VERSION 1
+
+#define PRESLEEP_NORMAL     0           // "sleep" command
+#define PRESLEEP_MAGIC      1           // "sleep" spell affect
+#define PRESLEEP_KNOCKOUT   2           // knockout like "blackjack"
+#define PRESLEEP_TOXIN      3           // "sleep" toxin
+#define PRESLEEP_DRUG       4           // some kind of pill
+#define PRESLEEP_SCRIPT     5           // scripted
 
 struct trigger_type {
 	char *name;		// Cannonical name

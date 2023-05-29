@@ -729,7 +729,18 @@ DECL_OPC_FUN(opc_end)
 		}
 
 		switch(arg->type) {
-		case ENT_STRING: val = atoi(arg->d.str); break;
+		case ENT_STRING:
+			if (is_number(arg->d.str))
+				val = atoi(arg->d.str);
+			else if(!str_prefix(arg->d.str, "denied"))
+				val = PRET_DENIED;
+			else if(!str_prefix(arg->d.str, "silent"))
+				val = PRET_SILENT;
+			else if(!str_prefix(arg->d.str, "allowed"))
+				val = PRET_ALLOWED;
+			else
+				val = PRET_EXECUTED;
+			break;
 		case ENT_NUMBER: val = arg->d.num; break;
 		default: val = 0; break;
 		}

@@ -2528,6 +2528,7 @@ void do_drink(CHAR_DATA *ch, char *argument)
     OBJ_DATA *obj;
     int amount;
     int liquid;
+	int ret;
 
     one_argument(argument, arg);
 
@@ -2596,6 +2597,37 @@ void do_drink(CHAR_DATA *ch, char *argument)
 	    break;
      }
 
+	// See if the character is blocked from eating
+	if ((ret = p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREEAT, NULL)))
+	{
+		if (ret == 1)
+		{
+			send_to_char("You cannot drink from that.\n\r", ch);
+		}
+		return;
+	}
+
+	// See if the object will let the character eat it.
+	if ((ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREDRINK, NULL)))
+	{
+		if (ret == 1)
+		{
+			send_to_char("You cannot drink from that.\n\r", ch);
+		}
+		return;
+	}
+	
+	// See if the room lets the character eat.
+	if ((ret = p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREDRINK, NULL)))
+	{
+		if (ret == 1)
+		{
+			send_to_char("You cannot drink from that here.\n\r", ch);
+		}
+		return;
+	}
+
+
     act("$n drinks $T from $p.",ch, NULL, NULL, obj, NULL, NULL, liq_table[liquid].liq_name, TO_ROOM);
     act("You drink $T from $p.",ch, NULL, NULL, obj, NULL, NULL, liq_table[liquid].liq_name, TO_CHAR);
 
@@ -2650,6 +2682,7 @@ memset(&af,0,sizeof(af));
 	}
 
 	p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_DRINK, NULL);
+	p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, obj, NULL, TRIG_DRINK, NULL);
 
     return;
 }
@@ -2660,6 +2693,7 @@ void do_eat(CHAR_DATA *ch, char *argument)
     char arg[MAX_INPUT_LENGTH];
     OBJ_DATA *obj;
     SPELL_DATA *spell;
+	int ret;
 
     one_argument(argument, arg);
     if (arg[0] == '\0')
@@ -2676,12 +2710,42 @@ void do_eat(CHAR_DATA *ch, char *argument)
 
     if (!IS_IMMORTAL(ch))
     {
-	if (obj->item_type != ITEM_FOOD && obj->item_type != ITEM_PILL)
-	{
-	    send_to_char("That's not edible.\n\r", ch);
-	    return;
-	}
+		if (obj->item_type != ITEM_FOOD && obj->item_type != ITEM_PILL)
+		{
+			send_to_char("That's not edible.\n\r", ch);
+			return;
+		}
     }
+
+	// See if the character is blocked from eating
+	if ((ret = p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREEAT, NULL)))
+	{
+		if (ret == 1)
+		{
+			send_to_char("You cannot eat that.\n\r", ch);
+		}
+		return;
+	}
+
+	// See if the object will let the character eat it.
+	if ((ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREEAT, NULL)))
+	{
+		if (ret == 1)
+		{
+			send_to_char("You cannot eat that.\n\r", ch);
+		}
+		return;
+	}
+	
+	// See if the room lets the character eat.
+	if ((ret = p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREEAT, NULL)))
+	{
+		if (ret == 1)
+		{
+			send_to_char("You cannot eat that here.\n\r", ch);
+		}
+		return;
+	}
 
     act("$n eats $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
     act("You eat $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
@@ -2733,6 +2797,7 @@ void do_eat(CHAR_DATA *ch, char *argument)
     }
 
 	p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_EAT, NULL);
+	p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, obj, NULL, TRIG_EAT, NULL);
 
     extract_obj(obj);
 }

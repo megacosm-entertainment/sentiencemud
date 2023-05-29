@@ -4016,6 +4016,7 @@ int colour(char type, CHAR_DATA *ch, char *string)
 	case 'i': strcpy(code, "\033[5m"); break;
 	case 'v': strcpy(code, "\033[7m"); break;
 	case '{': strcpy(code, "{"); break;
+	case 'e': strcpy(code, "\033"); break;
 	}
 
 	p = code;
