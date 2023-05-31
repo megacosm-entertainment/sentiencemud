@@ -2782,7 +2782,13 @@ SCRIPT_CMD(scriptcmd_wildernessmap);
 SCRIPT_CMD(scriptcmd_specialkey);
 SCRIPT_CMD(scriptcmd_loadinstanced);
 
-SCRIPT_CMD(dngpcmd_levels);
+SCRIPT_CMD(instancecmd_layout);
+SCRIPT_CMD(instancecmd_links);
+SCRIPT_CMD(instancecmd_specialrooms);
+
+SCRIPT_CMD(dungeoncmd_levels);
+SCRIPT_CMD(dungeoncmd_specialexits);
+SCRIPT_CMD(dungeoncmd_specialrooms);
 
 bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument);
 bool olc_varclear(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument);

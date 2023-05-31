@@ -2523,12 +2523,12 @@ bool can_stand(CHAR_DATA *ch, OBJ_DATA *obj)
 
 	if (ch->on && ch->on != obj)
 	{
-		ret = p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_PRESTAND, NULL);
+		ret = p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_PRESTEPOFF, NULL);
 		if (ret)
 		{
 			if (ret != PRET_SILENT)
 			{
-				act("You are unable to stand up from $p!", ch, NULL, NULL, ch->on, NULL, NULL, NULL, TO_CHAR);
+				act("You are unable to step off from $p!", ch, NULL, NULL, ch->on, NULL, NULL, NULL, TO_CHAR);
 			}
 
 			return FALSE;
@@ -2596,6 +2596,10 @@ void do_stand(CHAR_DATA *ch, char *argument)
 				if (can_stand(ch, obj))
 				{
 					ch->position = POS_STANDING;
+					if(ch->on && ch->on != obj)
+					{
+						p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STEPOFF, NULL);
+					}
 					ch->on = obj;
 
 					if (obj == NULL)
@@ -2633,6 +2637,12 @@ void do_stand(CHAR_DATA *ch, char *argument)
 				ch->position = ch->fighting == NULL ? POS_STANDING : POS_FIGHTING;
 				if (ch->bashed > 0)
 					ch->bashed = 0;
+
+				if(ch->on && ch->on != obj)
+				{
+					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STEPOFF, NULL);
+				}
+
 				ch->on = obj;
 
 				if (obj == NULL)
@@ -2690,6 +2700,7 @@ void do_stand(CHAR_DATA *ch, char *argument)
 						act("You get out of $p.",ch, NULL, NULL,ch->on, NULL, NULL,NULL,TO_CHAR);
 						act("$n gets out of $p.",ch, NULL, NULL,ch->on, NULL, NULL,NULL,TO_ROOM);
 					}
+					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STEPOFF, NULL);
 				}
 
 				ch->on = obj;
@@ -2746,6 +2757,8 @@ void do_stand(CHAR_DATA *ch, char *argument)
 						act("You get out of $p.",ch, NULL, NULL,ch->on, NULL, NULL,NULL,TO_CHAR);
 						act("$n gets out of $p.",ch, NULL, NULL,ch->on, NULL, NULL,NULL,TO_ROOM);
 					}
+
+					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STEPOFF, NULL);
 				}
 
 				ch->on = obj;
@@ -2811,12 +2824,12 @@ bool can_rest(CHAR_DATA *ch, OBJ_DATA *obj)
 
 	if (ch->on && ch->on != obj)
 	{
-		ret = p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_PRESTAND, NULL);
+		ret = p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_PRESTEPOFF, NULL);
 		if (ret)
 		{
 			if (ret != PRET_SILENT)
 			{
-				act("You are unable to stand up from $p!", ch, NULL, NULL, ch->on, NULL, NULL, NULL, TO_CHAR);
+				act("You are unable to step off from $p!", ch, NULL, NULL, ch->on, NULL, NULL, NULL, TO_CHAR);
 			}
 
 			return FALSE;
@@ -2910,6 +2923,11 @@ void do_rest(CHAR_DATA *ch, char *argument)
 				if (can_rest(ch, obj))
 				{
 					ch->position = POS_RESTING;
+					if(ch->on && ch->on != obj)
+					{
+						p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STEPOFF, NULL);
+					}
+
 					ch->on = obj;
 
 					if (obj == NULL)
@@ -2945,6 +2963,10 @@ void do_rest(CHAR_DATA *ch, char *argument)
 			if (can_rest(ch, obj))
 			{
 				ch->position = POS_RESTING;
+				if(ch->on && ch->on != obj)
+				{
+					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STEPOFF, NULL);
+				}
 				ch->on = obj;
 
 				if (obj == NULL)
@@ -2979,6 +3001,10 @@ void do_rest(CHAR_DATA *ch, char *argument)
 			if (can_rest(ch, obj))
 			{
 				ch->position = POS_RESTING;
+				if(ch->on && ch->on != obj)
+				{
+					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STEPOFF, NULL);
+				}
 				ch->on = obj;
 				if (obj == NULL)
 				{
@@ -3040,12 +3066,12 @@ bool can_sit(CHAR_DATA *ch, OBJ_DATA *obj)
 
 	if (ch->on && ch->on != obj)
 	{
-		ret = p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_PRESTAND, NULL);
+		ret = p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_PRESTEPOFF, NULL);
 		if (ret)
 		{
 			if (ret != PRET_SILENT)
 			{
-				act("You are unable to stand up from $p!", ch, NULL, NULL, ch->on, NULL, NULL, NULL, TO_CHAR);
+				act("You are unable to step off from $p!", ch, NULL, NULL, ch->on, NULL, NULL, NULL, TO_CHAR);
 			}
 
 			return FALSE;
@@ -3138,6 +3164,10 @@ void do_sit (CHAR_DATA *ch, char *argument)
 				if (can_sit(ch, obj))
 				{
 					ch->position = POS_SITTING;
+					if(ch->on && ch->on != obj)
+					{
+						p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STEPOFF, NULL);
+					}
 					ch->on = obj;
 
 					if (obj == NULL)
@@ -3173,6 +3203,10 @@ void do_sit (CHAR_DATA *ch, char *argument)
 			if (can_sit(ch, obj))
 			{
 				ch->position = POS_SITTING;
+				if(ch->on && ch->on != obj)
+				{
+					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STEPOFF, NULL);
+				}
 				ch->on = obj;
 
 				if (obj == NULL)
@@ -3206,6 +3240,10 @@ void do_sit (CHAR_DATA *ch, char *argument)
 			if (can_sit(ch, obj))
 			{
 				ch->position = POS_SITTING;
+				if(ch->on && ch->on != obj)
+				{
+					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STEPOFF, NULL);
+				}
 				ch->on = obj;
 				if (obj == NULL)
 				{
@@ -3268,12 +3306,12 @@ bool can_sleep(CHAR_DATA *ch, OBJ_DATA *obj)
 	if (ch->on && ch->on != obj)
 	{
 		ch->on->tempstore[0] = PRESLEEP_NORMAL;
-		ret = p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_PRESTAND, NULL);
+		ret = p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_PRESTEPOFF, NULL);
 		if (ret)
 		{
 			if (ret != PRET_SILENT)
 			{
-				act("You are unable to stand up from $p!", ch, NULL, NULL, ch->on, NULL, NULL, NULL, TO_CHAR);
+				act("You are unable to step off from $p!", ch, NULL, NULL, ch->on, NULL, NULL, NULL, TO_CHAR);
 			}
 
 			return FALSE;
@@ -3353,6 +3391,10 @@ void do_sleep(CHAR_DATA *ch, char *argument)
 
 		if (can_sleep(ch, obj))
 		{
+			if(ch->on && ch->on != obj)
+			{
+				p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STEPOFF, NULL);
+			}
 
 			if(obj == NULL)
 			{
@@ -3376,7 +3418,6 @@ void do_sleep(CHAR_DATA *ch, char *argument)
 			}
 
 			ch->position = POS_SLEEPING;
-
 		
 			p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_SLEEP, NULL);
 			if(ch->on)

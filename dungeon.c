@@ -4200,7 +4200,7 @@ int get_dungeon_index_level_special_exits(DUNGEON_INDEX_DATA *dng, DUNGEON_INDEX
 	return 0;
 }
 
-static void add_dungeon_index_weighted_exit_data(LLIST *list, int weight, int level, int door)
+void add_dungeon_index_weighted_exit_data(LLIST *list, int weight, int level, int door)
 {
 	DUNGEON_INDEX_WEIGHTED_EXIT_DATA *weighted = new_weighted_random_exit();
 
@@ -4484,7 +4484,7 @@ DNGEDIT( dngedit_special )
 
 
 		send_to_char("Syntax:  special {Wroom{x list\n\r", ch);
-		send_to_char("         special {Wroom{x add <level> <special room> <name>\n\r", ch);
+		send_to_char("         special {Wroom{x add generated|ordinal <level> <special room> <name>\n\r", ch);
 		send_to_char("         special {Wroom{x # remove\n\r", ch);
 		send_to_char("         special {Wroom{x # name <name>\n\r", ch);
 		send_to_char("         special {Wroom{x # level <level>\n\r", ch);
@@ -7378,31 +7378,31 @@ DNGEDIT( dngedit_special )
 		}
 
 		send_to_char("Syntax:  special exit {Rlist{x\n\r", ch);
-		send_to_char("         special exit {Radd{x static <from-level> <from-exit> <to-level> <to-entrance>\n\r", ch);
-		send_to_char("         special exit {Radd{x source <to-level> <to-entrance>\n\r", ch);
-		send_to_char("         special exit {Radd{x destination <from-level> <from-exit>\n\r", ch);
+		send_to_char("         special exit {Radd{x static generated|ordinal <from-level> <from-exit> generated|ordinal <to-level> <to-entrance>\n\r", ch);
+		send_to_char("         special exit {Radd{x source generated|ordinal <to-level> <to-entrance>\n\r", ch);
+		send_to_char("         special exit {Radd{x destination generated|ordinal <from-level> <from-exit>\n\r", ch);
 		send_to_char("         special exit {Radd{x weighted\n\r", ch);
 		send_to_char("         special exit {Radd{x group\n\r", ch);
 		send_to_char("         special exit {Rfrom{x # list\n\r", ch);
-		send_to_char("         special exit {Rfrom{x # add <weight> <from-level> <from-exit>\n\r", ch);
-		send_to_char("         special exit {Rfrom{x # set[ #] <weight> <from-level> <from-exit>\n\r", ch);
+		send_to_char("         special exit {Rfrom{x # add <weight> generated|ordinal <from-level> <from-exit>\n\r", ch);
+		send_to_char("         special exit {Rfrom{x # set[ #] <weight> generated|ordinal <from-level> <from-exit>\n\r", ch);
 		send_to_char("         special exit {Rfrom{x # remove #\n\r", ch);
 		send_to_char("         special exit {Rto{x # list\n\r", ch);
-		send_to_char("         special exit {Rto{x # add <weight> <to-level> <to-entrance>\n\r", ch);
+		send_to_char("         special exit {Rto{x # add <weight> generated|ordinal <to-level> <to-entrance>\n\r", ch);
 		send_to_char("         special exit {Rto{x # set[ #] <weight> <to-level> <to-entrance>\n\r", ch);
 		send_to_char("         special exit {Rto{x # remove #\n\r", ch);
-		send_to_char("         special exit {Rgroup{x # add static <from-level> <from-exit> <to-level> <to-entrance>\n\r", ch);
-		send_to_char("         special exit {Rgroup{x # add source <to-level> <to-entrance>\n\r", ch);
-		send_to_char("         special exit {Rgroup{x # add destination <from-level> <from-exit>\n\r", ch);
+		send_to_char("         special exit {Rgroup{x # add static generated|ordinal <from-level> <from-exit> generated|ordinal <to-level> <to-entrance>\n\r", ch);
+		send_to_char("         special exit {Rgroup{x # add source generated|ordinal <to-level> <to-entrance>\n\r", ch);
+		send_to_char("         special exit {Rgroup{x # add destination generated|ordinal <from-level> <from-exit>\n\r", ch);
 		send_to_char("         special exit {Rgroup{x # add weighted\n\r", ch);
 		send_to_char("         special exit {Rgroup{x # add group\n\r", ch);
 		send_to_char("         special exit {Rgroup{x # from # list\n\r", ch);
-		send_to_char("         special exit {Rgroup{x # from # add <weight> <from-level> <from-exit>\n\r", ch);
-		send_to_char("         special exit {Rgroup{x # from # set[ #] <weight> <from-level> <from-exit>\n\r", ch);
+		send_to_char("         special exit {Rgroup{x # from # add <weight> generated|ordinal <from-level> <from-exit>\n\r", ch);
+		send_to_char("         special exit {Rgroup{x # from # set[ #] <weight> generated|ordinal <from-level> <from-exit>\n\r", ch);
 		send_to_char("         special exit {Rgroup{x # from # remove #\n\r", ch);
 		send_to_char("         special exit {Rgroup{x # to # list\n\r", ch);
-		send_to_char("         special exit {Rgroup{x # to # add <weight> <to-level> <to-entrance>\n\r", ch);
-		send_to_char("         special exit {Rgroup{x # to # set[ #] <weight> <to-level> <to-entrance>\n\r", ch);
+		send_to_char("         special exit {Rgroup{x # to # add <weight> generated|ordinal <to-level> <to-entrance>\n\r", ch);
+		send_to_char("         special exit {Rgroup{x # to # set[ #] <weight> generated|ordinal <to-level> <to-entrance>\n\r", ch);
 		send_to_char("         special exit {Rgroup{x # to # remove #\n\r", ch);
 		send_to_char("         special exit {Rgroup{x # remove #\n\r", ch);
 		send_to_char("         special exit {Rremove{x #\n\r", ch);

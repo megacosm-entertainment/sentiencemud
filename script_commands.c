@@ -15,6 +15,26 @@
 //#define DEBUG_MODULE
 #include "debug.h"
 
+int blueprint_generation_count(BLUEPRINT *bp);
+int blueprint_layout_links_count(BLUEPRINT *bp, BLUEPRINT_LAYOUT_SECTION_DATA *ls, int exclude);
+int blueprint_layout_room_count(BLUEPRINT *bp, BLUEPRINT_LAYOUT_SECTION_DATA *ls);
+BLUEPRINT_LAYOUT_SECTION_DATA *blueprint_get_nth_section(BLUEPRINT *bp, int section_no, BLUEPRINT_LAYOUT_SECTION_DATA **group);
+void blueprint_add_weighted_link(LLIST *list, int weight, int section_no, int link_no);
+
+void dungeon_update_level_ordinals(DUNGEON_INDEX_DATA *dng);
+int dungeon_index_generation_count(DUNGEON_INDEX_DATA *dng);
+DUNGEON_INDEX_LEVEL_DATA *dungeon_index_get_nth_level(DUNGEON_INDEX_DATA *dng, int level_no, DUNGEON_INDEX_LEVEL_DATA **group);
+int get_dungeon_index_level_special_exits(DUNGEON_INDEX_DATA *dng, DUNGEON_INDEX_LEVEL_DATA *data);
+int get_dungeon_index_level_special_entrances(DUNGEON_INDEX_DATA *dng, DUNGEON_INDEX_LEVEL_DATA *data);
+void add_dungeon_index_weighted_exit_data(LLIST *list, int weight, int level_no, int exit_no);
+
+#define PARSE_ARG				(rest = expand_argument(info,rest,arg))
+#define PARSE_ARGTYPE(x)		if (!PARSE_ARG || arg->type != ENT_##x) return
+#define SETRETURN(ret)			info->progs->lastreturn = (ret)
+#define IS_TRIGGER(trg)			(info->trigger_type == (trg))
+#define ARG_EQUALS(ss)			(!str_cmp(arg->d.str, (ss)))
+#define ARG_PREFIX(ss)			(!str_prefix(arg->d.str, (ss)))
+
 const struct script_cmd_type area_cmd_table[] = {
 	{ "call",				scriptcmd_call,				FALSE,	TRUE	},
 	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	TRUE,	TRUE	},
@@ -46,6 +66,8 @@ const struct script_cmd_type instance_cmd_table[] = {
 	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	TRUE,	TRUE	},
 	{ "echoat",				scriptcmd_echoat,			FALSE,	TRUE	},
 	{ "instancecomplete",	scriptcmd_instancecomplete,	TRUE,	TRUE	},
+	{ "layout",				instancecmd_layout,			FALSE,	TRUE	},
+	{ "links",				instancecmd_links,			FALSE,	TRUE	},
 	{ "loadinstanced",		scriptcmd_loadinstanced,	TRUE,	TRUE	},
 	{ "makeinstanced",		scriptcmd_makeinstanced,	TRUE,	TRUE	},
 	{ "mload",				scriptcmd_mload,			FALSE,	TRUE	},
@@ -54,6 +76,7 @@ const struct script_cmd_type instance_cmd_table[] = {
 	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
 	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
 	{ "specialkey",			scriptcmd_specialkey,		FALSE,	TRUE	},
+	{ "specialrooms",		instancecmd_specialrooms,	FALSE,	TRUE	},
 	{ "treasuremap",		scriptcmd_treasuremap,		FALSE,	TRUE	},
 	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
 	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
@@ -74,6 +97,7 @@ const struct script_cmd_type dungeon_cmd_table[] = {
 	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	TRUE,	TRUE	},
 	{ "echoat",				scriptcmd_echoat,			FALSE,	TRUE	},
 	{ "instancecomplete",	scriptcmd_instancecomplete,	TRUE,	TRUE	},
+	{ "levels",				dungeoncmd_levels,			FALSE,	TRUE	},
 	{ "loadinstanced",		scriptcmd_loadinstanced,	TRUE,	TRUE	},
 	{ "makeinstanced",		scriptcmd_makeinstanced,	TRUE,	TRUE	},
 	{ "mload",				scriptcmd_mload,			FALSE,	TRUE	},
@@ -81,7 +105,9 @@ const struct script_cmd_type dungeon_cmd_table[] = {
 	{ "oload",				scriptcmd_oload,			FALSE,	TRUE	},
 	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
 	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
+	{ "specialexits",		dungeoncmd_specialexits,	FALSE,	TRUE	},
 	{ "specialkey",			scriptcmd_specialkey,		FALSE,	TRUE	},
+	{ "specialrooms",		dungeoncmd_specialrooms,	FALSE,	TRUE	},
 	{ "treasuremap",		scriptcmd_treasuremap,		FALSE,	TRUE	},
 	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
 	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
@@ -2234,6 +2260,820 @@ SCRIPT_CMD(scriptcmd_instancecomplete)
 //////////////////////////////////////
 // L
 
+// [INSTANCE] LAYOUT <command> <parameters>
+// Commands:
+//  clear
+//  add static <section#>
+//  add weighted
+//  add group
+//  weighted <#> <weight> <section#>
+//  group <#> add static <section#>
+//  group <#> add weighted
+//  group <#> weighted <#> <weight> <section#>
+//
+// Remarks:
+//  Only works in instance scripts and called from the BLUEPRINT_SCHEMATIC trigger.
+//  Only allows adding entries, save for the full clear command.  No other form of editting.
+//
+SCRIPT_CMD(instancecmd_layout)
+{
+	BLUEPRINT *bp;
+	char *rest = argument;
+
+	SETRETURN(0);
+	if (!IS_VALID(info->instance) || !IS_TRIGGER(TRIG_BLUEPRINT_SCHEMATIC))
+		return;
+
+	bp = info->instance->blueprint;
+
+	PARSE_ARGTYPE(STRING);
+	if (ARG_PREFIX("clear"))
+	{
+		list_clear(bp->layout);
+	}
+	else if (ARG_PREFIX("add"))
+	{
+		PARSE_ARGTYPE(STRING);
+
+		if (ARG_PREFIX("static"))
+		{
+			PARSE_ARGTYPE(NUMBER);
+			if (arg->d.num < 1 || arg->d.num > list_size(bp->sections)) return;
+
+			BLUEPRINT_LAYOUT_SECTION_DATA *ls = new_blueprint_layout_section_data();
+			ls->mode = SECTIONMODE_STATIC;
+			ls->section = arg->d.num;
+
+			list_appendlink(bp->layout, ls);
+		}
+		else if (ARG_PREFIX("weighted"))
+		{
+			BLUEPRINT_LAYOUT_SECTION_DATA *ls = new_blueprint_layout_section_data();
+			ls->mode = SECTIONMODE_WEIGHTED;
+			ls->total_weight = 0;
+
+			list_appendlink(bp->layout, ls);
+		}
+		else if (ARG_PREFIX("group"))
+		{
+			BLUEPRINT_LAYOUT_SECTION_DATA *ls = new_blueprint_layout_section_data();
+			ls->mode = SECTIONMODE_GROUP;
+
+			list_appendlink(bp->layout, ls);
+		}
+		else
+			return;
+	}
+	else if (ARG_PREFIX("weighted"))
+	{
+		PARSE_ARGTYPE(NUMBER);
+		if (arg->d.num < 1 || arg->d.num > list_size(bp->layout))
+			return;
+		
+		BLUEPRINT_LAYOUT_SECTION_DATA *ls = (BLUEPRINT_LAYOUT_SECTION_DATA *)list_nthdata(bp->layout, arg->d.num);
+		if (ls->mode != SECTIONMODE_WEIGHTED) return;
+
+		PARSE_ARGTYPE(NUMBER);
+		int weight = arg->d.num;
+		if (weight < 1) return;
+
+		PARSE_ARGTYPE(NUMBER);
+		if (arg->d.num < 1 || arg->d.num > list_size(bp->sections))
+			return;
+		
+		BLUEPRINT_WEIGHTED_SECTION_DATA *weighted = new_weighted_random_section();
+		weighted->weight = weight;
+		weighted->section = arg->d.num;
+		list_appendlink(ls->weighted_sections, ls);
+		ls->total_weight += weight;
+	}
+	else if (ARG_PREFIX("group"))
+	{
+		PARSE_ARGTYPE(NUMBER);
+		if (arg->d.num < 1 || arg->d.num > list_size(bp->layout))
+			return;
+		
+		BLUEPRINT_LAYOUT_SECTION_DATA *gls = (BLUEPRINT_LAYOUT_SECTION_DATA *)list_nthdata(bp->layout, arg->d.num);
+		if (gls->mode != SECTIONMODE_GROUP) return;
+
+		PARSE_ARGTYPE(STRING);
+		if (ARG_PREFIX("add"))
+		{
+			if (ARG_PREFIX("static"))
+			{
+				PARSE_ARGTYPE(NUMBER);
+				if (arg->d.num < 1 || arg->d.num > list_size(bp->sections)) return;
+
+				BLUEPRINT_LAYOUT_SECTION_DATA *ls = new_blueprint_layout_section_data();
+				ls->mode = SECTIONMODE_STATIC;
+				ls->section = arg->d.num;
+
+				list_appendlink(gls->group, ls);
+			}
+			else if (ARG_PREFIX("weighted"))
+			{
+				BLUEPRINT_LAYOUT_SECTION_DATA *ls = new_blueprint_layout_section_data();
+				ls->mode = SECTIONMODE_WEIGHTED;
+				ls->total_weight = 0;
+
+				list_appendlink(gls->group, ls);
+			}
+			else
+				return;
+		}
+		else if (ARG_PREFIX("weighted"))
+		{
+			PARSE_ARGTYPE(NUMBER);
+			if (arg->d.num < 1 || arg->d.num > list_size(gls->group))
+				return;
+			
+			BLUEPRINT_LAYOUT_SECTION_DATA *ls = (BLUEPRINT_LAYOUT_SECTION_DATA *)list_nthdata(gls->group, arg->d.num);
+			if (ls->mode != SECTIONMODE_WEIGHTED) return;
+
+			PARSE_ARGTYPE(NUMBER);
+			int weight = arg->d.num;
+			if (weight < 1) return;
+
+			PARSE_ARGTYPE(NUMBER);
+			if (arg->d.num < 1 || arg->d.num > list_size(bp->sections))
+				return;
+			
+			BLUEPRINT_WEIGHTED_SECTION_DATA *weighted = new_weighted_random_section();
+			weighted->weight = weight;
+			weighted->section = arg->d.num;
+			list_appendlink(ls->weighted_sections, ls);
+			ls->total_weight += weight;
+		}
+		else
+			return;
+	}
+	else
+		return;
+
+	SETRETURN(1);
+}
+
+// [INSTANCE] LINKS <command> <parameters>
+// Commands:
+//  clear
+//  add static <from-mode> <from-section#> <from-exit#> <to-mode> <to-section#> <to-entry#>
+//  add source <to-mode> <to-section#> <to-entry#>
+//  add destination <from-mode> <from-section#> <from-exit#>
+//  add weighted
+//  add group
+//  from <#> <weight> <from-mode> <from-section#> <from-exit#>
+//  to <#> <weight> <to-mode> <to-section#> <to-entry#>
+//  group <#> add static <from-mode> <from-section#> <from-exit#> <to-mode> <to-section#> <to-entry#>
+//  group <#> add source <to-mode> <to-section#> <to-entry#>
+//  group <#> add destination <from-mode> <from-section#> <from-exit#>
+//  group <#> add weighted
+//  group <#> from <#> <weight> <from-mode> <from-section#> <from-exit#>
+//  group <#> to <#> <weight> <to-mode> <to-section#> <to-entry#>
+//
+// Parameters:
+//  from-mode			"generated" or "ordinal"
+//  to-mode				"generated" or "ordinal"
+//
+// Remarks:
+//  Only works in instance scripts and called from the BLUEPRINT_SCHEMATIC trigger.
+//  Only allows adding entries, save for the full clear command.  No other form of editting.
+//
+SCRIPT_CMD(instancecmd_links)
+{
+	BLUEPRINT_LAYOUT_SECTION_DATA *group;
+	BLUEPRINT_LAYOUT_SECTION_DATA *ls;
+	BLUEPRINT *bp;
+	int link_count;
+	char *rest = argument;
+
+	SETRETURN(0);
+	if (!IS_VALID(info->instance) || !IS_TRIGGER(TRIG_BLUEPRINT_SCHEMATIC))
+		return;
+	
+	bp = info->instance->blueprint;
+	int sections = blueprint_generation_count(bp);
+
+	PARSE_ARGTYPE(STRING);
+	if (ARG_PREFIX("clear"))
+	{
+		list_clear(bp->links);
+	}
+	else if (ARG_PREFIX("add"))
+	{
+		PARSE_ARGTYPE(STRING);
+
+		if (ARG_PREFIX("static"))
+		{
+			PARSE_ARGTYPE(STRING);
+			bool from_mode = TRISTATE;
+			if (ARG_PREFIX("generated"))
+				from_mode = FALSE;
+			else if (ARG_PREFIX("ordinal"))
+				from_mode = TRUE;
+			else
+				return;
+
+			PARSE_ARGTYPE(NUMBER);
+			int from_section = arg->d.num;
+			if (from_section < 1 || from_section > sections) return;
+
+			ls = blueprint_get_nth_section(bp, (from_mode ? -from_section : from_section), &group);
+			link_count = blueprint_layout_links_count(bp, group ? group : ls, 0);
+
+			if (link_count < 1) return;
+
+			PARSE_ARGTYPE(NUMBER);
+			int from_link_no = arg->d.num;
+			if (from_link_no < 1 || from_link_no > link_count) return;
+
+			PARSE_ARGTYPE(STRING);
+			bool to_mode = TRISTATE;
+			if (ARG_PREFIX("generated"))
+				to_mode = FALSE;
+			else if (ARG_PREFIX("ordinal"))
+				to_mode = TRUE;
+			else
+				return;
+
+			PARSE_ARGTYPE(NUMBER);
+			int to_section = arg->d.num;
+			if (to_section < 1 || to_section > sections) return;
+
+			ls = blueprint_get_nth_section(bp, (to_mode ? -to_section : to_section), &group);
+			link_count = blueprint_layout_links_count(bp, group ? group : ls, 0);
+
+			if (link_count < 1) return;
+
+			PARSE_ARGTYPE(NUMBER);
+			int to_link_no = arg->d.num;
+			if (to_link_no < 1 || to_link_no > link_count) return;
+
+			BLUEPRINT_LAYOUT_LINK_DATA *ll = new_blueprint_layout_link_data();
+			ll->mode = LINKMODE_STATIC;
+
+			blueprint_add_weighted_link(ll->from, 1, from_mode ? -from_section : from_section, from_link_no);
+			ll->total_from = 1;
+
+			blueprint_add_weighted_link(ll->to, 1, to_mode ? -to_section : to_section, to_link_no);
+			ll->total_to = 1;
+
+			list_appendlink(bp->links, ll);
+		}
+		else if(ARG_PREFIX("source"))
+		{
+			PARSE_ARGTYPE(STRING);
+			bool to_mode = TRISTATE;
+			if (ARG_PREFIX("generated"))
+				to_mode = FALSE;
+			else if (ARG_PREFIX("ordinal"))
+				to_mode = TRUE;
+			else
+				return;
+
+			PARSE_ARGTYPE(NUMBER);
+			int to_section = arg->d.num;
+			if (to_section < 1 || to_section > sections) return;
+
+			ls = blueprint_get_nth_section(bp, (to_mode ? -to_section : to_section), &group);
+			link_count = blueprint_layout_links_count(bp, group ? group : ls, 0);
+
+			if (link_count < 1) return;
+
+			PARSE_ARGTYPE(NUMBER);
+			int to_link_no = arg->d.num;
+			if (to_link_no < 1 || to_link_no > link_count) return;
+
+			BLUEPRINT_LAYOUT_LINK_DATA *ll = new_blueprint_layout_link_data();
+			ll->mode = LINKMODE_SOURCE;
+
+			blueprint_add_weighted_link(ll->to, 1, to_mode ? -to_section : to_section, to_link_no);
+			ll->total_to = 1;
+
+			list_appendlink(bp->links, ll);
+		}
+		else if(ARG_PREFIX("destination"))
+		{
+			PARSE_ARGTYPE(STRING);
+			bool from_mode = TRISTATE;
+			if (ARG_PREFIX("generated"))
+				from_mode = FALSE;
+			else if (ARG_PREFIX("ordinal"))
+				from_mode = TRUE;
+			else
+				return;
+
+			PARSE_ARGTYPE(NUMBER);
+			int from_section = arg->d.num;
+			if (from_section < 1 || from_section > sections) return;
+
+			ls = blueprint_get_nth_section(bp, (from_mode ? -from_section : from_section), &group);
+			link_count = blueprint_layout_links_count(bp, group ? group : ls, 0);
+
+			if (link_count < 1) return;
+
+			PARSE_ARGTYPE(NUMBER);
+			int from_link_no = arg->d.num;
+			if (from_link_no < 1 || from_link_no > link_count) return;
+			
+			BLUEPRINT_LAYOUT_LINK_DATA *ll = new_blueprint_layout_link_data();
+			ll->mode = LINKMODE_DESTINATION;
+
+			blueprint_add_weighted_link(ll->from, 1, from_mode ? -from_section : from_section, from_link_no);
+			ll->total_from = 1;
+
+			list_appendlink(bp->links, ll);
+		}
+		else if(ARG_PREFIX("weighted"))
+		{
+			BLUEPRINT_LAYOUT_LINK_DATA *ll = new_blueprint_layout_link_data();
+			ll->mode = LINKMODE_WEIGHTED;
+
+			list_appendlink(bp->links, ll);
+		}
+		else if(ARG_PREFIX("group"))
+		{
+			BLUEPRINT_LAYOUT_LINK_DATA *ll = new_blueprint_layout_link_data();
+			ll->mode = LINKMODE_GROUP;
+
+			list_appendlink(bp->links, ll);
+		}
+		else
+			return;
+	}
+	else if (ARG_PREFIX("from"))
+	{
+		PARSE_ARGTYPE(NUMBER);
+		if (arg->d.num < 1 || arg->d.num > list_size(bp->links))
+			return;
+
+		BLUEPRINT_LAYOUT_LINK_DATA *ll = (BLUEPRINT_LAYOUT_LINK_DATA *)list_nthdata(bp->links, arg->d.num);
+		if (ll->mode != LINKMODE_WEIGHTED && ll->mode != LINKMODE_SOURCE)
+			return;
+		
+		PARSE_ARGTYPE(NUMBER);
+		int weight = arg->d.num;
+		if (weight < 1) return;
+
+		PARSE_ARGTYPE(STRING);
+		bool from_mode = TRISTATE;
+		if (ARG_PREFIX("generated"))
+			from_mode = FALSE;
+		else if (ARG_PREFIX("ordinal"))
+			from_mode = TRUE;
+		else
+			return;
+
+		PARSE_ARGTYPE(NUMBER);
+		int from_section = arg->d.num;
+		if (from_section < 1 || from_section > sections) return;
+
+		ls = blueprint_get_nth_section(bp, (from_mode ? -from_section : from_section), &group);
+		link_count = blueprint_layout_links_count(bp, group ? group : ls, 0);
+
+		if (link_count < 1) return;
+
+		PARSE_ARGTYPE(NUMBER);
+		int from_link_no = arg->d.num;
+		if (from_link_no < 1 || from_link_no > link_count) return;
+
+		blueprint_add_weighted_link(ll->from, weight, from_mode ? -from_section : from_section, from_link_no);
+		ll->total_from += weight;
+	}
+	else if (ARG_PREFIX("to"))
+	{
+		PARSE_ARGTYPE(NUMBER);
+		if (arg->d.num < 1 || arg->d.num > list_size(bp->links))
+			return;
+
+		BLUEPRINT_LAYOUT_LINK_DATA *ll = (BLUEPRINT_LAYOUT_LINK_DATA *)list_nthdata(bp->links, arg->d.num);
+		if (ll->mode != LINKMODE_WEIGHTED && ll->mode != LINKMODE_DESTINATION)
+			return;
+
+		PARSE_ARGTYPE(NUMBER);
+		int weight = arg->d.num;
+		if (weight < 1) return;
+
+		PARSE_ARGTYPE(STRING);
+		bool to_mode = TRISTATE;
+		if (ARG_PREFIX("generated"))
+			to_mode = FALSE;
+		else if (ARG_PREFIX("ordinal"))
+			to_mode = TRUE;
+		else
+			return;
+
+		PARSE_ARGTYPE(NUMBER);
+		int to_section = arg->d.num;
+		if (to_section < 1 || to_section > sections) return;
+
+		ls = blueprint_get_nth_section(bp, (to_mode ? -to_section : to_section), &group);
+		link_count = blueprint_layout_links_count(bp, group ? group : ls, 0);
+
+		if (link_count < 1) return;
+
+		PARSE_ARGTYPE(NUMBER);
+		int to_link_no = arg->d.num;
+		if (to_link_no < 1 || to_link_no > link_count) return;
+
+		blueprint_add_weighted_link(ll->to, weight, to_mode ? -to_section : to_section, to_link_no);
+		ll->total_to += weight;
+	}
+	else if (ARG_PREFIX("group"))
+	{
+		PARSE_ARGTYPE(NUMBER);
+		if (arg->d.num < 1 || arg->d.num > list_size(bp->links))
+			return;
+		
+		BLUEPRINT_LAYOUT_LINK_DATA *gll = (BLUEPRINT_LAYOUT_LINK_DATA *)list_nthdata(bp->links, arg->d.num);
+		if (gll->mode != LINKMODE_GROUP) return;
+
+		PARSE_ARGTYPE(STRING);
+		if (ARG_PREFIX("add"))
+		{
+			PARSE_ARGTYPE(STRING);
+
+			if (ARG_PREFIX("static"))
+			{
+				PARSE_ARGTYPE(STRING);
+				bool from_mode = TRISTATE;
+				if (ARG_PREFIX("generated"))
+					from_mode = FALSE;
+				else if (ARG_PREFIX("ordinal"))
+					from_mode = TRUE;
+				else
+					return;
+
+				PARSE_ARGTYPE(NUMBER);
+				int from_section = arg->d.num;
+				if (from_section < 1 || from_section > sections) return;
+
+				ls = blueprint_get_nth_section(bp, (from_mode ? -from_section : from_section), &group);
+				link_count = blueprint_layout_links_count(bp, group ? group : ls, 0);
+
+				if (link_count < 1) return;
+
+				PARSE_ARGTYPE(NUMBER);
+				int from_link_no = arg->d.num;
+				if (from_link_no < 1 || from_link_no > link_count) return;
+
+				PARSE_ARGTYPE(STRING);
+				bool to_mode = TRISTATE;
+				if (ARG_PREFIX("generated"))
+					to_mode = FALSE;
+				else if (ARG_PREFIX("ordinal"))
+					to_mode = TRUE;
+				else
+					return;
+
+				PARSE_ARGTYPE(NUMBER);
+				int to_section = arg->d.num;
+				if (to_section < 1 || to_section > sections) return;
+
+				ls = blueprint_get_nth_section(bp, (to_mode ? -to_section : to_section), &group);
+				link_count = blueprint_layout_links_count(bp, group ? group : ls, 0);
+
+				if (link_count < 1) return;
+
+				PARSE_ARGTYPE(NUMBER);
+				int to_link_no = arg->d.num;
+				if (to_link_no < 1 || to_link_no > link_count) return;
+
+				BLUEPRINT_LAYOUT_LINK_DATA *ll = new_blueprint_layout_link_data();
+				ll->mode = LINKMODE_STATIC;
+
+				blueprint_add_weighted_link(ll->from, 1, from_mode ? -from_section : from_section, from_link_no);
+				ll->total_from = 1;
+
+				blueprint_add_weighted_link(ll->to, 1, to_mode ? -to_section : to_section, to_link_no);
+				ll->total_to = 1;
+
+				list_appendlink(gll->group, ll);
+			}
+			else if (ARG_PREFIX("source"))
+			{
+				PARSE_ARGTYPE(STRING);
+				bool to_mode = TRISTATE;
+				if (ARG_PREFIX("generated"))
+					to_mode = FALSE;
+				else if (ARG_PREFIX("ordinal"))
+					to_mode = TRUE;
+				else
+					return;
+
+				PARSE_ARGTYPE(NUMBER);
+				int to_section = arg->d.num;
+				if (to_section < 1 || to_section > sections) return;
+
+				ls = blueprint_get_nth_section(bp, (to_mode ? -to_section : to_section), &group);
+				link_count = blueprint_layout_links_count(bp, group ? group : ls, 0);
+
+				if (link_count < 1) return;
+
+				PARSE_ARGTYPE(NUMBER);
+				int to_link_no = arg->d.num;
+				if (to_link_no < 1 || to_link_no > link_count) return;
+
+				BLUEPRINT_LAYOUT_LINK_DATA *ll = new_blueprint_layout_link_data();
+				ll->mode = LINKMODE_SOURCE;
+
+				blueprint_add_weighted_link(ll->to, 1, to_mode ? -to_section : to_section, to_link_no);
+				ll->total_to = 1;
+
+				list_appendlink(gll->group, ll);
+			}
+			else if (ARG_PREFIX("destination"))
+			{
+				PARSE_ARGTYPE(STRING);
+				bool from_mode = TRISTATE;
+				if (ARG_PREFIX("generated"))
+					from_mode = FALSE;
+				else if (ARG_PREFIX("ordinal"))
+					from_mode = TRUE;
+				else
+					return;
+
+				PARSE_ARGTYPE(NUMBER);
+				int from_section = arg->d.num;
+				if (from_section < 1 || from_section > sections) return;
+
+				ls = blueprint_get_nth_section(bp, (from_mode ? -from_section : from_section), &group);
+				link_count = blueprint_layout_links_count(bp, group ? group : ls, 0);
+
+				if (link_count < 1) return;
+
+				PARSE_ARGTYPE(NUMBER);
+				int from_link_no = arg->d.num;
+				if (from_link_no < 1 || from_link_no > link_count) return;
+				
+				BLUEPRINT_LAYOUT_LINK_DATA *ll = new_blueprint_layout_link_data();
+				ll->mode = LINKMODE_DESTINATION;
+
+				blueprint_add_weighted_link(ll->from, 1, from_mode ? -from_section : from_section, from_link_no);
+				ll->total_from = 1;
+
+				list_appendlink(gll->group, ll);
+			}
+			else if (ARG_PREFIX("weighted"))
+			{
+				BLUEPRINT_LAYOUT_LINK_DATA *ll = new_blueprint_layout_link_data();
+				ll->mode = LINKMODE_WEIGHTED;
+
+				list_appendlink(gll->group, ll);
+			}
+			else
+				return;
+		}
+		else if (ARG_PREFIX("from"))
+		{
+			PARSE_ARGTYPE(NUMBER);
+			if (arg->d.num < 1 || arg->d.num > list_size(gll->group))
+				return;
+
+			BLUEPRINT_LAYOUT_LINK_DATA *ll = (BLUEPRINT_LAYOUT_LINK_DATA *)list_nthdata(gll->group, arg->d.num);
+			if (ll->mode != LINKMODE_WEIGHTED && ll->mode != LINKMODE_SOURCE)
+				return;
+			
+			PARSE_ARGTYPE(NUMBER);
+			int weight = arg->d.num;
+			if (weight < 1) return;
+
+			PARSE_ARGTYPE(STRING);
+			bool from_mode = TRISTATE;
+			if (ARG_PREFIX("generated"))
+				from_mode = FALSE;
+			else if (ARG_PREFIX("ordinal"))
+				from_mode = TRUE;
+			else
+				return;
+
+			PARSE_ARGTYPE(NUMBER);
+			int from_section = arg->d.num;
+			if (from_section < 1 || from_section > sections) return;
+
+			ls = blueprint_get_nth_section(bp, (from_mode ? -from_section : from_section), &group);
+			link_count = blueprint_layout_links_count(bp, group ? group : ls, 0);
+
+			if (link_count < 1) return;
+
+			PARSE_ARGTYPE(NUMBER);
+			int from_link_no = arg->d.num;
+			if (from_link_no < 1 || from_link_no > link_count) return;
+
+			blueprint_add_weighted_link(ll->from, weight, from_mode ? -from_section : from_section, from_link_no);
+			ll->total_from += weight;
+		}
+		else if (ARG_PREFIX("to"))
+		{
+			PARSE_ARGTYPE(NUMBER);
+			if (arg->d.num < 1 || arg->d.num > list_size(gll->group))
+				return;
+
+			BLUEPRINT_LAYOUT_LINK_DATA *ll = (BLUEPRINT_LAYOUT_LINK_DATA *)list_nthdata(gll->group, arg->d.num);
+			if (ll->mode != LINKMODE_WEIGHTED && ll->mode != LINKMODE_DESTINATION)
+				return;
+
+			PARSE_ARGTYPE(NUMBER);
+			int weight = arg->d.num;
+			if (weight < 1) return;
+
+			PARSE_ARGTYPE(STRING);
+			bool to_mode = TRISTATE;
+			if (ARG_PREFIX("generated"))
+				to_mode = FALSE;
+			else if (ARG_PREFIX("ordinal"))
+				to_mode = TRUE;
+			else
+				return;
+
+			PARSE_ARGTYPE(NUMBER);
+			int to_section = arg->d.num;
+			if (to_section < 1 || to_section > sections) return;
+
+			ls = blueprint_get_nth_section(bp, (to_mode ? -to_section : to_section), &group);
+			link_count = blueprint_layout_links_count(bp, group ? group : ls, 0);
+
+			if (link_count < 1) return;
+
+			PARSE_ARGTYPE(NUMBER);
+			int to_link_no = arg->d.num;
+			if (to_link_no < 1 || to_link_no > link_count) return;
+
+			blueprint_add_weighted_link(ll->to, weight, to_mode ? -to_section : to_section, to_link_no);
+			ll->total_to += weight;
+		}
+		else
+			return;
+	}
+	else
+		return;
+
+	SETRETURN(1);
+}
+
+// [DUNGEON] LEVELS <command> <parameters>
+// Commands:
+//  clear
+//  add static <floor#>
+//  add weighted
+//  add grouped
+//  weighted <#> <weight+> <floor#>
+//  group <#> add static <floor#>
+//  group <#> add weighted
+//  group <#> weighted <#> <weight+> <floor#>
+//
+// Remarks:
+//  Only works in dungeon scripts and called from the DUNGEON_SCHEMATIC trigger.
+//  Only allows adding entries, save for the full clear command.  No other form of editting.
+SCRIPT_CMD(dungeoncmd_levels)
+{
+	DUNGEON_INDEX_DATA *dng;
+	char *rest = argument;
+
+	SETRETURN(0);
+
+	// Only work while in a dungeon script and running the DUNGEON_SCHEMATIC trigger
+	if (!IS_VALID(info->dungeon) || !IS_TRIGGER(TRIG_DUNGEON_SCHEMATIC))
+		return;
+
+	dng = info->dungeon->index;
+
+	PARSE_ARGTYPE(STRING);
+
+	if (ARG_PREFIX("clear"))
+	{
+		list_clear(dng->levels);
+	}
+	else if (ARG_PREFIX("add"))
+	{
+		PARSE_ARGTYPE(STRING);
+
+		if (ARG_PREFIX("static"))
+		{
+			PARSE_ARGTYPE(NUMBER);
+
+			if (arg->d.num < 1 || arg->d.num > list_size(dng->floors))
+				return;
+
+			DUNGEON_INDEX_LEVEL_DATA *level = new_dungeon_index_level();
+			level->mode = LEVELMODE_STATIC;
+			level->floor = arg->d.num;
+			list_appendlink(dng->levels, level);
+			dungeon_update_level_ordinals(dng);
+		}
+		else if (ARG_PREFIX("weighted"))
+		{
+			DUNGEON_INDEX_LEVEL_DATA *level = new_dungeon_index_level();
+			level->mode = LEVELMODE_WEIGHTED;
+			level->total_weight = 0;
+			list_appendlink(dng->levels, level);
+			dungeon_update_level_ordinals(dng);
+		}
+		else if (ARG_PREFIX("group"))
+		{
+			DUNGEON_INDEX_LEVEL_DATA *level = new_dungeon_index_level();
+			level->mode = LEVELMODE_GROUP;
+			list_appendlink(dng->levels, level);
+			dungeon_update_level_ordinals(dng);
+		}
+		else
+			return;
+	}
+	else if (ARG_PREFIX("weighted"))
+	{
+		PARSE_ARGTYPE(NUMBER);
+
+		if (arg->d.num < 1 || arg->d.num > list_size(dng->levels))
+			return;
+
+		DUNGEON_INDEX_LEVEL_DATA *level = (DUNGEON_INDEX_LEVEL_DATA *)list_nthdata(dng->levels, arg->d.num);
+		if (!level || level->mode != LEVELMODE_WEIGHTED) return;
+
+		PARSE_ARGTYPE(NUMBER);
+		int weight = arg->d.num;
+		if (weight < 1) return;
+
+		PARSE_ARGTYPE(NUMBER);
+		if (arg->d.num < 1 || arg->d.num > list_size(dng->floors))
+			return;
+
+		DUNGEON_INDEX_WEIGHTED_FLOOR_DATA *weighted = new_weighted_random_floor();
+		weighted->weight = weight;
+		weighted->floor = arg->d.num;
+		list_appendlink(level->weighted_floors, weighted);
+		level->total_weight += weight;
+	}
+	else if(ARG_PREFIX("group"))
+	{
+		PARSE_ARGTYPE(NUMBER);
+
+		if (arg->d.num < 1 || arg->d.num > list_size(dng->levels))
+			return;
+
+		DUNGEON_INDEX_LEVEL_DATA *glevel = (DUNGEON_INDEX_LEVEL_DATA *)list_nthdata(dng->levels, arg->d.num);
+		if (!glevel || glevel->mode != LEVELMODE_GROUP) return;
+
+		PARSE_ARGTYPE(STRING);
+		if (ARG_PREFIX("add"))
+		{
+			PARSE_ARGTYPE(STRING);
+
+			if (ARG_PREFIX("static"))
+			{
+				PARSE_ARGTYPE(NUMBER);
+
+				if (arg->d.num < 1 || arg->d.num > list_size(dng->floors))
+					return;
+
+				DUNGEON_INDEX_LEVEL_DATA *level = new_dungeon_index_level();
+				level->mode = LEVELMODE_STATIC;
+				level->floor = arg->d.num;
+				list_appendlink(glevel->group, level);
+				dungeon_update_level_ordinals(dng);
+			}
+			else if (ARG_PREFIX("weighted"))
+			{
+				DUNGEON_INDEX_LEVEL_DATA *level = new_dungeon_index_level();
+				level->mode = LEVELMODE_WEIGHTED;
+				level->total_weight = 0;
+				list_appendlink(glevel->group, level);
+				dungeon_update_level_ordinals(dng);
+			}
+			else
+				return;
+		}
+		else if (ARG_PREFIX("weighted"))
+		{
+			PARSE_ARGTYPE(NUMBER);
+
+			if (arg->d.num < 1 || arg->d.num > list_size(glevel->group))
+				return;
+
+			DUNGEON_INDEX_LEVEL_DATA *level = (DUNGEON_INDEX_LEVEL_DATA *)list_nthdata(glevel->group, arg->d.num);
+			if (!level || level->mode != LEVELMODE_WEIGHTED) return;
+
+			PARSE_ARGTYPE(NUMBER);
+			int weight = arg->d.num;
+			if (weight < 1) return;
+
+			PARSE_ARGTYPE(NUMBER);
+			if (arg->d.num < 1 || arg->d.num > list_size(dng->floors))
+				return;
+
+			DUNGEON_INDEX_WEIGHTED_FLOOR_DATA *weighted = new_weighted_random_floor();
+			weighted->weight = weight;
+			weighted->floor = arg->d.num;
+			list_appendlink(level->weighted_floors, weighted);
+			level->total_weight += weight;
+		}
+		else
+			return;
+	}
+	else
+		return;
+	
+	SETRETURN(1);
+}
+
 // LOADINSTANCED mobile $WNUM|$MOBILE $ROOM[ $VARIABLENAME]
 // LOADINSTANCED object $WNUM|$OBJECT $LEVEL room|here|wear $ENTITY[ $VARIABLE]
 SCRIPT_CMD(scriptcmd_loadinstanced)
@@ -3823,21 +4663,561 @@ SCRIPT_CMD(scriptcmd_spawndungeon)
 	info->progs->lastreturn = 1;
 }
 
+// [DUNGEON] SPECIALEXITS <command> <parameters>
+// Commands:
+//   clear
+//   add static <from-mode> <from-level#> <from-exit#> <to-mode> <to-level#> <to-entry#>
+//   add source <to-mode> <to-level#> <to-entry#>
+//   add destination <from-mode> <from-level#> <from-exit#>
+//   add weighted
+//   add group
+//   from <#> <weight> <from-mode> <from-level#> <from-exit#>
+//   to <#> <weight> <to-mode> <to-level#> <to-entry#>
+//   group <#> add static <from-mode> <from-level#> <from-exit#> <to-mode> <to-level#> <to-entry#>
+//   group <#> add source <to-mode> <to-level#> <to-entry#>
+//   group <#> add destination <from-mode> <from-level#> <from-exit#>
+//   group <#> add weighted
+//   group <#> from <#> <weight> <from-mode> <from-level#> <from-exit#>
+//   group <#> to <#> <weight> <to-mode> <to-level#> <to-entry#>
+//
+// Parameters:
+//  from-mode		generated or ordinal
+//  to-mode			generated or ordinal
+//
+// Remarks:
+//   Only works in dungeon scripts and runs on DUNGEON_SCHEMATIC triggers.
+//
+SCRIPT_CMD(dungeoncmd_specialexits)
+{
+	DUNGEON_INDEX_DATA *dng;
+	DUNGEON_INDEX_LEVEL_DATA *group;
+	char *rest = argument;
+
+	SETRETURN(0);
+
+	if (!IS_VALID(info->dungeon) || !IS_TRIGGER(TRIG_DUNGEON_SCHEMATIC))
+		return;
+
+	dng = info->dungeon->index;
+	int levels = dungeon_index_generation_count(dng);
+
+	PARSE_ARGTYPE(STRING);
+	if (ARG_PREFIX("clear"))
+	{
+		list_clear(dng->special_exits);
+	}
+	else if (ARG_PREFIX("add"))
+	{
+		PARSE_ARGTYPE(STRING);
+		if (ARG_PREFIX("static"))
+		{
+			// generated|ordinal
+			PARSE_ARGTYPE(STRING);
+			bool from_mode = TRISTATE;
+			if (ARG_PREFIX("generated"))
+				from_mode = FALSE;
+			else if (ARG_PREFIX("ordinal"))
+				from_mode = TRUE;
+			else
+				return;
+
+			// from-level
+			PARSE_ARGTYPE(NUMBER);
+			int from_level = arg->d.num;
+			if (from_level < 1 || from_level > levels)
+				return;
+			
+			// from-exit
+			DUNGEON_INDEX_LEVEL_DATA *from_level_data = dungeon_index_get_nth_level(dng, (from_mode?-from_level:from_level),&group);
+			int from_exits = get_dungeon_index_level_special_exits(dng, group?group:from_level_data);
+
+			PARSE_ARGTYPE(NUMBER);
+			int from_exit = arg->d.num;
+			if (from_exit < 1 || from_exit > from_exits)
+				return;
+
+			// generated|ordinal
+			PARSE_ARGTYPE(STRING);
+			bool to_mode = TRISTATE;
+			if (ARG_PREFIX("generated"))
+				to_mode = FALSE;
+			else if (ARG_PREFIX("ordinal"))
+				to_mode = TRUE;
+			else
+				return;
+
+			// to-level
+			PARSE_ARGTYPE(NUMBER);
+			int to_level = arg->d.num;
+			if (to_level < 1 || to_level > levels)
+				return;
+
+			// to-exit
+			DUNGEON_INDEX_LEVEL_DATA *to_level_data = dungeon_index_get_nth_level(dng, (to_mode?-to_level:to_level),&group);
+			int to_entries = get_dungeon_index_level_special_entrances(dng, group?group:to_level_data);
+
+			PARSE_ARGTYPE(NUMBER);
+			int to_entry = arg->d.num;
+			if (to_entry < 1 || to_entry > to_entries)
+				return;
+
+			if (from_mode == to_mode && from_level == to_level && from_exit == to_entry)
+				return;
+			
+			DUNGEON_INDEX_SPECIAL_EXIT *ex = new_dungeon_index_special_exit();
+			ex->mode = EXITMODE_STATIC;
+			ex->total_from = 1;
+			ex->total_to = 1;
+			
+			add_dungeon_index_weighted_exit_data(ex->from, 1, from_mode?-from_level:from_level, from_exit);
+			add_dungeon_index_weighted_exit_data(ex->to, 1, to_mode?-to_level:to_level, to_entry);
+
+			list_appendlink(dng->special_exits, ex);
+		}
+		else if (ARG_PREFIX("source"))
+		{
+			// generated|ordinal
+			PARSE_ARGTYPE(STRING);
+			bool to_mode = TRISTATE;
+			if (ARG_PREFIX("generated"))
+				to_mode = FALSE;
+			else if (ARG_PREFIX("ordinal"))
+				to_mode = TRUE;
+			else
+				return;
+
+			// to-level
+			PARSE_ARGTYPE(NUMBER);
+			int to_level = arg->d.num;
+			if (to_level < 1 || to_level > levels)
+				return;
+
+			// to-exit
+			DUNGEON_INDEX_LEVEL_DATA *to_level_data = dungeon_index_get_nth_level(dng, (to_mode?-to_level:to_level),&group);
+			int to_entries = get_dungeon_index_level_special_entrances(dng, group?group:to_level_data);
+
+			PARSE_ARGTYPE(NUMBER);
+			int to_entry = arg->d.num;
+			if (to_entry < 1 || to_entry > to_entries)
+				return;
+
+			DUNGEON_INDEX_SPECIAL_EXIT *ex = new_dungeon_index_special_exit();
+			ex->mode = EXITMODE_WEIGHTED_SOURCE;
+			ex->total_to = 1;
+			
+			add_dungeon_index_weighted_exit_data(ex->to, 1, to_mode?-to_level:to_level, to_entry);
+
+			list_appendlink(dng->special_exits, ex);
+		}
+		else if (ARG_PREFIX("destination"))
+		{
+			// generated|ordinal
+			PARSE_ARGTYPE(STRING);
+			bool from_mode = TRISTATE;
+			if (ARG_PREFIX("generated"))
+				from_mode = FALSE;
+			else if (ARG_PREFIX("ordinal"))
+				from_mode = TRUE;
+			else
+				return;
+
+			// from-level
+			PARSE_ARGTYPE(NUMBER);
+			int from_level = arg->d.num;
+			if (from_level < 1 || from_level > levels)
+				return;
+			
+			// from-exit
+			DUNGEON_INDEX_LEVEL_DATA *from_level_data = dungeon_index_get_nth_level(dng, (from_mode?-from_level:from_level),&group);
+			int from_exits = get_dungeon_index_level_special_exits(dng, group?group:from_level_data);
+
+			PARSE_ARGTYPE(NUMBER);
+			int from_exit = arg->d.num;
+			if (from_exit < 1 || from_exit > from_exits)
+				return;
+
+			DUNGEON_INDEX_SPECIAL_EXIT *ex = new_dungeon_index_special_exit();
+			ex->mode = EXITMODE_WEIGHTED_DEST;
+			ex->total_from = 1;
+			
+			add_dungeon_index_weighted_exit_data(ex->from, 1, from_mode?-from_level:from_level, from_exit);
+
+			list_appendlink(dng->special_exits, ex);
+		}
+		else if (ARG_PREFIX("weighted"))
+		{
+			DUNGEON_INDEX_SPECIAL_EXIT *ex = new_dungeon_index_special_exit();
+			ex->mode = EXITMODE_WEIGHTED;
+
+			list_appendlink(dng->special_exits, ex);
+		}
+		else if (ARG_PREFIX("group"))
+		{
+			DUNGEON_INDEX_SPECIAL_EXIT *ex = new_dungeon_index_special_exit();
+			ex->mode = EXITMODE_GROUP;
+
+			list_appendlink(dng->special_exits, ex);			
+		}
+		else
+			return;
+	}
+	else if(ARG_PREFIX("from"))
+	{
+		PARSE_ARGTYPE(NUMBER);
+		if (arg->d.num < 1 || arg->d.num > list_size(dng->special_exits))
+			return;
+
+		DUNGEON_INDEX_SPECIAL_EXIT *ex = (DUNGEON_INDEX_SPECIAL_EXIT *)list_nthdata(dng->special_exits, arg->d.num);
+		if (ex->mode != EXITMODE_WEIGHTED && ex->mode != EXITMODE_WEIGHTED_SOURCE)
+			return;
+
+		// weight
+		PARSE_ARGTYPE(NUMBER);
+		int weight = arg->d.num;
+		if (weight < 1) return;
+
+		// generated|ordinal
+		PARSE_ARGTYPE(STRING);
+		bool from_mode = TRISTATE;
+		if (ARG_PREFIX("generated"))
+			from_mode = FALSE;
+		else if (ARG_PREFIX("ordinal"))
+			from_mode = TRUE;
+		else
+			return;
+
+		// from-level
+		PARSE_ARGTYPE(NUMBER);
+		int from_level = arg->d.num;
+		if (from_level < 1 || from_level > levels)
+			return;
+		
+		// from-exit
+		DUNGEON_INDEX_LEVEL_DATA *from_level_data = dungeon_index_get_nth_level(dng, (from_mode?-from_level:from_level),&group);
+		int from_exits = get_dungeon_index_level_special_exits(dng, group?group:from_level_data);
+
+		PARSE_ARGTYPE(NUMBER);
+		int from_exit = arg->d.num;
+		if (from_exit < 1 || from_exit > from_exits)
+			return;
+
+		add_dungeon_index_weighted_exit_data(ex->from, weight, from_mode?-from_level:from_level, from_exit);
+		ex->total_from += weight;
+	}
+	else if (ARG_PREFIX("to"))
+	{
+		PARSE_ARGTYPE(NUMBER);
+		if (arg->d.num < 1 || arg->d.num > list_size(dng->special_exits))
+			return;
+
+		DUNGEON_INDEX_SPECIAL_EXIT *ex = (DUNGEON_INDEX_SPECIAL_EXIT *)list_nthdata(dng->special_exits, arg->d.num);
+		if (ex->mode != EXITMODE_WEIGHTED && ex->mode != EXITMODE_WEIGHTED_DEST)
+			return;
+
+		// weight
+		PARSE_ARGTYPE(NUMBER);
+		int weight = arg->d.num;
+		if (weight < 1) return;
+
+		// generated|ordinal
+		PARSE_ARGTYPE(STRING);
+		bool to_mode = TRISTATE;
+		if (ARG_PREFIX("generated"))
+			to_mode = FALSE;
+		else if (ARG_PREFIX("ordinal"))
+			to_mode = TRUE;
+		else
+			return;
+
+		// to-level
+		PARSE_ARGTYPE(NUMBER);
+		int to_level = arg->d.num;
+		if (to_level < 1 || to_level > levels)
+			return;
+
+		// to-exit
+		DUNGEON_INDEX_LEVEL_DATA *to_level_data = dungeon_index_get_nth_level(dng, (to_mode?-to_level:to_level),&group);
+		int to_entries = get_dungeon_index_level_special_entrances(dng, group?group:to_level_data);
+
+		PARSE_ARGTYPE(NUMBER);
+		int to_entry = arg->d.num;
+		if (to_entry < 1 || to_entry > to_entries)
+			return;
+
+		add_dungeon_index_weighted_exit_data(ex->to, weight, to_mode?-to_level:to_level, to_entry);
+		ex->total_to += weight;
+	}
+	else if(ARG_PREFIX("group"))
+	{
+		PARSE_ARGTYPE(NUMBER);
+		if (arg->d.num < 1 || arg->d.num > list_size(dng->special_exits))
+			return;
+
+		DUNGEON_INDEX_SPECIAL_EXIT *gex = (DUNGEON_INDEX_SPECIAL_EXIT *)list_nthdata(dng->special_exits, arg->d.num);
+		if (gex->mode != EXITMODE_GROUP)
+			return;
+
+		PARSE_ARGTYPE(STRING);
+		if (ARG_PREFIX("add"))
+		{
+			DUNGEON_INDEX_LEVEL_DATA *group;
+			int levels = dungeon_index_generation_count(dng);
+
+			PARSE_ARGTYPE(STRING);
+			if (ARG_PREFIX("static"))
+			{
+				// generated|ordinal
+				PARSE_ARGTYPE(STRING);
+				bool from_mode = TRISTATE;
+				if (ARG_PREFIX("generated"))
+					from_mode = FALSE;
+				else if (ARG_PREFIX("ordinal"))
+					from_mode = TRUE;
+				else
+					return;
+
+				// from-level
+				PARSE_ARGTYPE(NUMBER);
+				int from_level = arg->d.num;
+				if (from_level < 1 || from_level > levels)
+					return;
+				
+				// from-exit
+				DUNGEON_INDEX_LEVEL_DATA *from_level_data = dungeon_index_get_nth_level(dng, (from_mode?-from_level:from_level),&group);
+				int from_exits = get_dungeon_index_level_special_exits(dng, group?group:from_level_data);
+
+				PARSE_ARGTYPE(NUMBER);
+				int from_exit = arg->d.num;
+				if (from_exit < 1 || from_exit > from_exits)
+					return;
+
+				// generated|ordinal
+				PARSE_ARGTYPE(STRING);
+				bool to_mode = TRISTATE;
+				if (ARG_PREFIX("generated"))
+					to_mode = FALSE;
+				else if (ARG_PREFIX("ordinal"))
+					to_mode = TRUE;
+				else
+					return;
+
+				// to-level
+				PARSE_ARGTYPE(NUMBER);
+				int to_level = arg->d.num;
+				if (to_level < 1 || to_level > levels)
+					return;
+
+				// to-exit
+				DUNGEON_INDEX_LEVEL_DATA *to_level_data = dungeon_index_get_nth_level(dng, (to_mode?-to_level:to_level),&group);
+				int to_entries = get_dungeon_index_level_special_entrances(dng, group?group:to_level_data);
+
+				PARSE_ARGTYPE(NUMBER);
+				int to_entry = arg->d.num;
+				if (to_entry < 1 || to_entry > to_entries)
+					return;
+
+				if (from_mode == to_mode && from_level == to_level && from_exit == to_entry)
+					return;
+				
+				DUNGEON_INDEX_SPECIAL_EXIT *ex = new_dungeon_index_special_exit();
+				ex->mode = EXITMODE_STATIC;
+				ex->total_from = 1;
+				ex->total_to = 1;
+				
+				add_dungeon_index_weighted_exit_data(ex->from, 1, from_mode?-from_level:from_level, from_exit);
+				add_dungeon_index_weighted_exit_data(ex->to, 1, to_mode?-to_level:to_level, to_entry);
+
+				list_appendlink(gex->group, ex);
+			}
+			else if (ARG_PREFIX("source"))
+			{
+				// generated|ordinal
+				PARSE_ARGTYPE(STRING);
+				bool to_mode = TRISTATE;
+				if (ARG_PREFIX("generated"))
+					to_mode = FALSE;
+				else if (ARG_PREFIX("ordinal"))
+					to_mode = TRUE;
+				else
+					return;
+
+				// to-level
+				PARSE_ARGTYPE(NUMBER);
+				int to_level = arg->d.num;
+				if (to_level < 1 || to_level > levels)
+					return;
+
+				// to-exit
+				DUNGEON_INDEX_LEVEL_DATA *to_level_data = dungeon_index_get_nth_level(dng, (to_mode?-to_level:to_level),&group);
+				int to_entries = get_dungeon_index_level_special_entrances(dng, group?group:to_level_data);
+
+				PARSE_ARGTYPE(NUMBER);
+				int to_entry = arg->d.num;
+				if (to_entry < 1 || to_entry > to_entries)
+					return;
+
+				DUNGEON_INDEX_SPECIAL_EXIT *ex = new_dungeon_index_special_exit();
+				ex->mode = EXITMODE_WEIGHTED_SOURCE;
+				ex->total_to = 1;
+				
+				add_dungeon_index_weighted_exit_data(ex->to, 1, to_mode?-to_level:to_level, to_entry);
+
+				list_appendlink(gex->group, ex);
+			}
+			else if (ARG_PREFIX("destination"))
+			{
+				// generated|ordinal
+				PARSE_ARGTYPE(STRING);
+				bool from_mode = TRISTATE;
+				if (ARG_PREFIX("generated"))
+					from_mode = FALSE;
+				else if (ARG_PREFIX("ordinal"))
+					from_mode = TRUE;
+				else
+					return;
+
+				// from-level
+				PARSE_ARGTYPE(NUMBER);
+				int from_level = arg->d.num;
+				if (from_level < 1 || from_level > levels)
+					return;
+				
+				// from-exit
+				DUNGEON_INDEX_LEVEL_DATA *from_level_data = dungeon_index_get_nth_level(dng, (from_mode?-from_level:from_level),&group);
+				int from_exits = get_dungeon_index_level_special_exits(dng, group?group:from_level_data);
+
+				PARSE_ARGTYPE(NUMBER);
+				int from_exit = arg->d.num;
+				if (from_exit < 1 || from_exit > from_exits)
+					return;
+
+				DUNGEON_INDEX_SPECIAL_EXIT *ex = new_dungeon_index_special_exit();
+				ex->mode = EXITMODE_WEIGHTED_DEST;
+				ex->total_from = 1;
+				
+				add_dungeon_index_weighted_exit_data(ex->from, 1, from_mode?-from_level:from_level, from_exit);
+
+				list_appendlink(gex->group, ex);
+			}
+			else if (ARG_PREFIX("weighted"))
+			{
+				DUNGEON_INDEX_SPECIAL_EXIT *ex = new_dungeon_index_special_exit();
+				ex->mode = EXITMODE_WEIGHTED;
+
+				list_appendlink(gex->group, ex);
+			}
+			else
+				return;
+		}
+		else if(ARG_PREFIX("from"))
+		{
+			PARSE_ARGTYPE(NUMBER);
+			if (arg->d.num < 1 || arg->d.num > list_size(gex->group))
+				return;
+
+			DUNGEON_INDEX_SPECIAL_EXIT *ex = (DUNGEON_INDEX_SPECIAL_EXIT *)list_nthdata(gex->group, arg->d.num);
+			if (ex->mode != EXITMODE_WEIGHTED && ex->mode != EXITMODE_WEIGHTED_SOURCE)
+				return;
+
+			// weight
+			PARSE_ARGTYPE(NUMBER);
+			int weight = arg->d.num;
+			if (weight < 1) return;
+
+			// generated|ordinal
+			PARSE_ARGTYPE(STRING);
+			bool from_mode = TRISTATE;
+			if (ARG_PREFIX("generated"))
+				from_mode = FALSE;
+			else if (ARG_PREFIX("ordinal"))
+				from_mode = TRUE;
+			else
+				return;
+
+			// from-level
+			PARSE_ARGTYPE(NUMBER);
+			int from_level = arg->d.num;
+			if (from_level < 1 || from_level > levels)
+				return;
+			
+			// from-exit
+			DUNGEON_INDEX_LEVEL_DATA *from_level_data = dungeon_index_get_nth_level(dng, (from_mode?-from_level:from_level),&group);
+			int from_exits = get_dungeon_index_level_special_exits(dng, group?group:from_level_data);
+
+			PARSE_ARGTYPE(NUMBER);
+			int from_exit = arg->d.num;
+			if (from_exit < 1 || from_exit > from_exits)
+				return;
+
+			add_dungeon_index_weighted_exit_data(gex->from, weight, from_mode?-from_level:from_level, from_exit);
+			gex->total_from += weight;
+		}
+		else if (ARG_PREFIX("to"))
+		{
+			PARSE_ARGTYPE(NUMBER);
+			if (arg->d.num < 1 || arg->d.num > list_size(gex->group))
+				return;
+
+			DUNGEON_INDEX_SPECIAL_EXIT *ex = (DUNGEON_INDEX_SPECIAL_EXIT *)list_nthdata(gex->group, arg->d.num);
+			if (ex->mode != EXITMODE_WEIGHTED && ex->mode != EXITMODE_WEIGHTED_DEST)
+				return;
+
+			// weight
+			PARSE_ARGTYPE(NUMBER);
+			int weight = arg->d.num;
+			if (weight < 1) return;
+
+			// generated|ordinal
+			PARSE_ARGTYPE(STRING);
+			bool to_mode = TRISTATE;
+			if (ARG_PREFIX("generated"))
+				to_mode = FALSE;
+			else if (ARG_PREFIX("ordinal"))
+				to_mode = TRUE;
+			else
+				return;
+
+			// to-level
+			PARSE_ARGTYPE(NUMBER);
+			int to_level = arg->d.num;
+			if (to_level < 1 || to_level > levels)
+				return;
+
+			// to-exit
+			DUNGEON_INDEX_LEVEL_DATA *to_level_data = dungeon_index_get_nth_level(dng, (to_mode?-to_level:to_level),&group);
+			int to_entries = get_dungeon_index_level_special_entrances(dng, group?group:to_level_data);
+
+			PARSE_ARGTYPE(NUMBER);
+			int to_entry = arg->d.num;
+			if (to_entry < 1 || to_entry > to_entries)
+				return;
+
+			add_dungeon_index_weighted_exit_data(gex->to, weight, to_mode?-to_level:to_level, to_entry);
+			gex->total_to += weight;
+		}
+		else
+			return;
+	}
+	else
+		return;
+
+	SETRETURN(1);
+}
 
 // SPECIALKEY $SHIP $WIDEVNUM $VARIABLENAME
 // TODO: Make it possible to do it for dungeons and instances
 SCRIPT_CMD(scriptcmd_specialkey)
 {
-	char *rest;
+	char *rest = argument;
 	LLIST *keys;
 	OBJ_INDEX_DATA *index;
 	OBJ_DATA *obj;
 
 	if(!info) return;
 
-	info->progs->lastreturn = 0;
+	SETRETURN(0);
 
-	if(!(rest = expand_argument(info,argument,arg)))
+	if (!PARSE_ARG)
 		return;
 
 	keys = NULL;
@@ -3849,8 +5229,7 @@ SCRIPT_CMD(scriptcmd_specialkey)
 	if( !IS_VALID(keys) )
 		return;
 
-	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_WIDEVNUM || !*rest)
-		return;
+	PARSE_ARGTYPE(WIDEVNUM);
 
 	SPECIAL_KEY_DATA *sk = get_special_key(keys, arg->d.wnum);
 
@@ -3875,14 +5254,162 @@ SCRIPT_CMD(scriptcmd_specialkey)
 		list_appendlink(sk->list, luid);
 
 		variables_set_object(info->var,rest,obj);
-		info->progs->lastreturn = 1;
+
+		SETRETURN(1);
 		return;
 	}
 
 	free_list_uid_data(luid);
 }
 
+// [DUNGEON] SPECIALROOMS <command> <parameters>
+// Commands:
+//  clear
+//  add generated|ordinal <level> <special room> <name>
+//
+// Remarks:
+//   Only works in dungeon scripts and runs on DUNGEON_SCHEMATIC triggers.
+//
+SCRIPT_CMD(dungeoncmd_specialrooms)
+{
+	DUNGEON_INDEX_DATA *dng;
+	char *rest = argument;
 
+	SETRETURN(0);
+
+	if (!IS_VALID(info->dungeon) || !IS_TRIGGER(TRIG_DUNGEON_SCHEMATIC))
+		return;
+
+	dng = info->dungeon->index;
+
+	PARSE_ARGTYPE(STRING);
+	if (ARG_PREFIX("clear"))
+	{
+		list_clear(dng->special_rooms);
+	}
+	else if (ARG_PREFIX("add"))
+	{
+		int levels = dungeon_index_generation_count(dng);
+		bool mode = TRISTATE;
+
+		PARSE_ARGTYPE(STRING);
+		if (ARG_PREFIX("generated"))
+			mode = FALSE;
+		else if (ARG_PREFIX("ordinal"))
+			mode = TRUE;
+		else
+			return;
+		
+		PARSE_ARGTYPE(NUMBER);
+		int level = arg->d.num;
+		if (level < 1 || level > levels) return;
+
+		PARSE_ARGTYPE(NUMBER);
+		int room_no = arg->d.num;
+		
+		BUFFER *buffer = new_buf();
+		bool valid = TRUE;
+		if(expand_string(info,rest,buffer) && !IS_NULLSTR(buffer->string) )
+		{
+			smash_tilde(buffer->string);
+
+			DUNGEON_INDEX_SPECIAL_ROOM *special = new_dungeon_index_special_room();
+
+			free_string(special->name);
+			special->name = str_dup(buffer->string);
+			special->level = mode ? -level : level;
+			special->room = room_no;
+
+			list_appendlink(dng->special_rooms, special);
+		}
+		else
+			valid = FALSE;
+
+		free_buf(buffer);
+
+		if (!valid) return;
+	}
+	else
+		return;
+
+	SETRETURN(1);
+}
+
+// [INSTANCE] SPECIALROOMS <command> <parameters>
+// Commands:
+//  clear
+//  add generated|ordinal <section#> <room offset> <name...>
+//
+// Remarks:
+//   Only works in instance scripts and runs on BLUEPRINT_SCHEMATIC triggers.
+//
+SCRIPT_CMD(instancecmd_specialrooms)
+{
+	BLUEPRINT *bp;
+	char *rest = argument;
+
+	SETRETURN(0);
+
+	if (!IS_VALID(info->instance) || !IS_TRIGGER(TRIG_BLUEPRINT_SCHEMATIC))
+		return;
+	
+	bp = info->instance->blueprint;
+
+	PARSE_ARGTYPE(STRING);
+	if (ARG_PREFIX("clear"))
+	{
+		list_clear(bp->special_rooms);
+	}
+	else if (ARG_PREFIX("add"))
+	{
+		PARSE_ARGTYPE(STRING);
+		bool mode = TRISTATE;
+		if (ARG_PREFIX("generated"))
+			mode = FALSE;
+		else if (ARG_PREFIX("ordinal"))
+			mode = TRUE;
+		else
+			return;
+
+		PARSE_ARGTYPE(NUMBER);
+		int section_no = arg->d.num;
+		if (section_no < 1 || section_no > blueprint_generation_count(bp))
+			return;
+
+		BLUEPRINT_LAYOUT_SECTION_DATA *group;
+		BLUEPRINT_LAYOUT_SECTION_DATA *ls = blueprint_get_nth_section(bp, (mode ? -section_no : section_no), &group);
+		int rooms_count = blueprint_layout_room_count(bp, (group ? group : ls));
+
+		PARSE_ARGTYPE(NUMBER);
+		int room_offset = arg->d.num;
+		if (room_offset < 0 || room_offset >= rooms_count)
+			return;
+
+		BUFFER *buffer = new_buf();
+		bool valid = TRUE;
+		if (expand_string(info, rest, buffer) && !IS_NULLSTR(buffer->string))
+		{
+			smash_tilde(buffer->string);
+
+			BLUEPRINT_SPECIAL_ROOM *room = new_blueprint_special_room();
+			free_string(room->name);
+			room->name = str_dup(buffer->string);
+			room->section = (mode ? -section_no : section_no);
+			room->offset = room_offset;
+			list_appendlink(bp->special_rooms, room);
+		}
+		else
+			valid = FALSE;
+
+		free_buf(buffer);
+		if (!valid)
+			return;
+	}
+	else
+		return;
+
+	SETRETURN(1);
+}
 
 // STARTCOMBAT[ $ATTACKER] $VICTIM
 SCRIPT_CMD(scriptcmd_startcombat)

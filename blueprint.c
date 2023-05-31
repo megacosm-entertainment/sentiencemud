@@ -6168,6 +6168,15 @@ BPEDIT( bpedit_layout )
 	return FALSE;
 }
 
+void blueprint_add_weighted_link(LLIST *list, int weight, int section_no, int link_no)
+{
+	BLUEPRINT_WEIGHTED_LINK_DATA *wl = new_weighted_random_link();
+	wl->weight = weight;
+	wl->section = section_no;
+	wl->link = link_no;
+	list_appendlink(list, wl);
+}
+
 BPEDIT( bpedit_links )
 {
 	BLUEPRINT *bp;
@@ -6367,18 +6376,10 @@ BPEDIT( bpedit_links )
 				BLUEPRINT_LAYOUT_LINK_DATA *ll = new_blueprint_layout_link_data();
 				ll->mode = LINKMODE_STATIC;
 
-				BLUEPRINT_WEIGHTED_LINK_DATA *from = new_weighted_random_link();
-				from->weight = 1;
-				from->section = from_mode ? -from_section : from_section;
-				from->link = from_link_no;
-				list_appendlink(ll->from, from);
+				blueprint_add_weighted_link(ll->from, 1, from_mode ? -from_section : from_section, from_link_no);
 				ll->total_from = 1;
 
-				BLUEPRINT_WEIGHTED_LINK_DATA *to = new_weighted_random_link();
-				to->weight = 1;
-				to->section = to_mode ? -to_section : to_section;
-				to->link = to_link_no;
-				list_appendlink(ll->to, to);
+				blueprint_add_weighted_link(ll->to, 1, to_mode ? -to_section : to_section, to_link_no);
 				ll->total_to = 1;
 
 				list_appendlink(bp->links, ll);
@@ -6448,11 +6449,7 @@ BPEDIT( bpedit_links )
 				BLUEPRINT_LAYOUT_LINK_DATA *ll = new_blueprint_layout_link_data();
 				ll->mode = LINKMODE_SOURCE;
 
-				BLUEPRINT_WEIGHTED_LINK_DATA *to = new_weighted_random_link();
-				to->weight = 1;
-				to->section = to_mode ? -to_section : to_section;
-				to->link = to_link_no;
-				list_appendlink(ll->to, to);
+				blueprint_add_weighted_link(ll->to, 1, to_mode ? -to_section : to_section, to_link_no);
 				ll->total_to = 1;
 
 				list_appendlink(bp->links, ll);
@@ -6530,11 +6527,7 @@ BPEDIT( bpedit_links )
 				BLUEPRINT_LAYOUT_LINK_DATA *ll = new_blueprint_layout_link_data();
 				ll->mode = LINKMODE_DESTINATION;
 
-				BLUEPRINT_WEIGHTED_LINK_DATA *from = new_weighted_random_link();
-				from->weight = 1;
-				from->section = from_mode ? -from_section : from_section;
-				from->link = from_link_no;
-				list_appendlink(ll->from, from);
+				blueprint_add_weighted_link(ll->from, 1, from_mode ? -from_section : from_section, from_link_no);
 				ll->total_from = 1;
 
 				list_appendlink(bp->links, ll);
@@ -6749,11 +6742,7 @@ BPEDIT( bpedit_links )
 					return FALSE;
 				}
 
-				BLUEPRINT_WEIGHTED_LINK_DATA *weighted = new_weighted_random_link();
-				weighted->weight = weight;
-				weighted->section = from_section;
-				weighted->link = from_link_no;
-				list_appendlink(ll->from, weighted);
+				blueprint_add_weighted_link(ll->from, weight, from_mode ? -from_section : from_section, from_link_no);
 				ll->total_from += weight;
 
 				char *mode = "Link";
@@ -7113,11 +7102,7 @@ BPEDIT( bpedit_links )
 					return FALSE;
 				}
 
-				BLUEPRINT_WEIGHTED_LINK_DATA *weighted = new_weighted_random_link();
-				weighted->weight = weight;
-				weighted->section = to_section;
-				weighted->link = to_link_no;
-				list_appendlink(ll->to, weighted);
+				blueprint_add_weighted_link(ll->to, weight, to_mode ? -to_section : to_section, to_link_no);
 				ll->total_to += weight;
 
 				char *mode = "Link";
