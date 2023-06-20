@@ -1271,6 +1271,70 @@ static bool add_dungeon_special_exit(DUNGEON *dng, DUNGEON_INDEX_SPECIAL_EXIT *d
 	return add_dungeon_special_exit_from_to(dng, dsex, from, to);
 }
 
+inline static void __dungeon_set_portal_room(OBJ_DATA *portal, ROOM_INDEX_DATA *room)
+{
+	portal->value[3] = GATETYPE_NORMAL;
+
+	if (room)
+	{
+		if (room->source)
+		{
+			portal->value[5] = room->source->area->uid;
+			portal->value[6] = room->source->vnum;
+			portal->value[7] = room->id[0];
+			portal->value[8] = room->id[1];
+		}
+		else
+		{
+			portal->value[5] = room->area->uid;
+			portal->value[6] = room->vnum;
+			portal->value[7] = 0;
+			portal->value[8] = 0;
+		}
+	}
+	else
+	{
+		portal->value[5] = 0;
+		portal->value[6] = 0;
+		portal->value[7] = 0;
+		portal->value[8] = 0;
+	}
+}
+
+
+static void __dungeon_correct_portals(DUNGEON *dng)
+{
+	ROOM_INDEX_DATA *room;
+	ITERATOR rit;
+
+	iterator_start(&rit, dng->rooms);
+	while((room = (ROOM_INDEX_DATA *)iterator_nextdata(&rit)))
+	{
+		for(OBJ_DATA *obj = room->contents; obj; obj = obj->next_content)
+		{
+			if (obj->item_type == ITEM_PORTAL)
+			{
+				switch(obj->value[3])
+				{
+					case GATETYPE_DUNGEON_SPECIAL:
+					{
+						ROOM_INDEX_DATA *room = NULL;
+
+						if (obj->value[5] > 0)
+						{
+							room = get_dungeon_special_room(dng, obj->value[5]);
+						}
+
+						__dungeon_set_portal_room(obj, room);
+						break;
+					}
+				}
+			}
+		}
+	}
+	iterator_stop(&rit);
+}
+
 DUNGEON *create_dungeon(AREA_DATA *pArea, long vnum)
 {
 	ITERATOR it;
@@ -1332,13 +1396,15 @@ DUNGEON *create_dungeon(AREA_DATA *pArea, long vnum)
 
 	if (!error)
 	{
+		__dungeon_correct_portals(dng);
+
 		DUNGEON_INDEX_SPECIAL_ROOM *special;
 		iterator_start(&it, index->special_rooms);
 		while( (special = (DUNGEON_INDEX_SPECIAL_ROOM *)iterator_nextdata(&it)) )
 		{
 			// TODO: Allow the ordinal processing
 			// Get the instance for the specified level.
-			instance = (INSTANCE *)list_nthdata(dng->floors, special->level);
+			instance = dungeon_get_instance_level(dng, special->level);
 
 			if( IS_VALID(instance) )
 			{

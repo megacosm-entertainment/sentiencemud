@@ -3338,6 +3338,7 @@ void print_obj_portal_values(OBJ_INDEX_DATA *portal, BUFFER *buffer)
 	WILDS_DATA *wilds;
 	ROOM_INDEX_DATA *room;
 	DUNGEON_INDEX_DATA *dungeon;
+	BLUEPRINT *blueprint;
 	switch(portal->value[3])
 	{
 		case GATETYPE_ENVIRONMENT:
@@ -3402,7 +3403,10 @@ void print_obj_portal_values(OBJ_INDEX_DATA *portal, BUFFER *buffer)
 			break;
 
 		case GATETYPE_SECTIONRANDOM:
-			// No extra values - target is based upon current location
+			sprintf(buf,
+				"{B[  {Wv5{B]{G Section Index:{x     [%d] %s{x\n\r",
+				abs(portal->value[5]), ((portal->value[5] > 0)?"{YGenerated":((portal->value[5] < 0)?"{GOrdinal":"{WCurrent")));
+			add_buf(buffer, buf);
 			break;
 
 		case GATETYPE_INSTANCERANDOM:
@@ -3451,7 +3455,22 @@ void print_obj_portal_values(OBJ_INDEX_DATA *portal, BUFFER *buffer)
 			break;
 
 		case GATETYPE_INSTANCE:
-			// TODO: Complete
+			blueprint = get_blueprint(portal->area, portal->value[5]);
+			sprintf(buf,
+				"{B[  {Wv5{B]{G Instance:{x          [%ld] %s\n\r"
+				"{B[  {Wv6{B]{G UID (upper):{x       [%ld]\n\r"
+				"{B[  {Wv7{B]{G UID (lower):{x       [%ld]\n\r"
+				"{B[  {Wv8{B]{G Special Room:{x      [%ld]\n\r",
+				portal->value[5], blueprint ? blueprint->name : "none",
+				portal->value[6],
+				portal->value[7],
+				portal->value[8]);
+			add_buf(buffer, buf);
+
+			if (portal->value[6] < 1 && portal->value[7] < 1)
+				add_buf(buffer, "{B[  {W**{B]{C Portal will spawn the instance and assign it to the portal upon entering.\n\r");
+			if (portal->value[8] < 1)
+				add_buf(buffer, "{B[  {W**{B]{C Portal will go to instance's default entrance.\n\r");
 			break;
 
 		case GATETYPE_RANDOM:
@@ -3475,6 +3494,47 @@ void print_obj_portal_values(OBJ_INDEX_DATA *portal, BUFFER *buffer)
 					"{B[  {Wv6{B]{G Floor:{x             {YUses PREVFLOOR and NEXTFLOOR flags.{x\n\r",
 					portal->value[5], dungeon ? dungeon->name : "none");
 			}
+			add_buf(buffer, buf);
+			break;
+		
+		case GATETYPE_BLUEPRINT_SECTION_MAZE:
+			sprintf(buf,
+				"{B[  {Wv5{B]{G Section Index:{x     [%d] %s{x\n\r"
+				"{B[  {Wv6{B]{G X-Coordinate:{x      [%ld]\n\r"
+				"{B[  {Wv7{B]{G Y-Coordinate:{x      [%ld]\n\r",
+				abs(portal->value[5]), ((portal->value[5] > 0)?"{YGenerated":((portal->value[5] < 0)?"{GOrdinal":"{WCurrent")),
+				portal->value[6], portal->value[7]);
+			add_buf(buffer, buf);
+			break;
+		
+		case GATETYPE_BLUEPRINT_SPECIAL:
+			sprintf(buf,
+				"{B[  {Wv5{B]{G Special Room:{x      [%ld]\n\r",
+				portal->value[5]);
+			add_buf(buffer, buf);
+			break;
+
+		case GATETYPE_DUNGEON_FLOOR_SPECIAL:
+			sprintf(buf,
+				"{B[  {Wv5{B]{G Floor index:{x       [%d] %s{x\n\r"
+				"{B[  {Wv6{B]{G Special Room:{x      [%ld]\n\r",
+				abs(portal->value[5]), ((portal->value[5] > 0)?"{YGenerated":((portal->value[5] < 0)?"{GOrdinal":"{WCurrent")),
+				portal->value[6]);
+			add_buf(buffer, buf);
+			break;
+
+		case GATETYPE_DUNGEON_SPECIAL:
+			sprintf(buf,
+				"{B[  {Wv5{B]{G Special Room:{x      [%ld]\n\r",
+				portal->value[5]);
+			add_buf(buffer, buf);
+			break;
+
+		case GATETYPE_DUNGEON_RANDOM_FLOOR:
+			sprintf(buf,
+				"{B[  {Wv5{B]{G Minimum Floor:{x     [%ld]\n\r"
+				"{B[  {Wv6{B]{G Maximum Floor:{x     [%ld]\n\r",
+				portal->value[5], portal->value[6]);
 			add_buf(buffer, buf);
 			break;
 	}
@@ -4179,7 +4239,54 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 			break;
 
 		case GATETYPE_SECTIONRANDOM:
-			// No extra values - target is based upon current location
+			switch(value_num)
+			{
+				case 5:
+					if (!str_prefix(argument, "current"))
+					{
+						portal->value[0] = 0;
+						send_to_char("Section index set to {WCURRENT{x.\n\r", ch);
+						return TRUE;
+					}
+					else
+					{
+						char argsr[MIL];
+						bool mode = TRISTATE;
+
+						argument = one_argument(argument, argsr);
+
+						if (!str_prefix(argsr, "generated"))
+							mode = FALSE;
+						else if (!str_prefix(argsr, "ordinal"))
+							mode = TRUE;
+						else
+						{
+							send_to_char("Please specify either {WCURRENT{x, {YGENERATED{x or {GORDINAL{x.\n\r", ch);
+							return FALSE;
+						}
+
+						if (!is_number(argument))
+						{
+							send_to_char("That is not a number.\n\r", ch);
+							return FALSE;
+						}
+
+						int index = atoi(argument);
+						if (index < 1)
+						{
+							send_to_char("Index must be positive.\n\r", ch);
+							return FALSE;
+						}
+
+						portal->value[5] = mode ? -index : index;
+						sprintf(buf, "Section index set to %s %d.\n\r",
+							mode ? "{GOrdinal{x" : "{YGenerated{x",
+							abs(index));
+						send_to_char(buf, ch);
+						return TRUE;
+					}
+					break;
+			}
 			break;
 
 		case GATETYPE_INSTANCERANDOM:
@@ -4346,6 +4453,208 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 						send_to_char("Target Floor set.\n\r", ch);
 						return TRUE;
 					}
+			}
+			break;
+
+		case GATETYPE_BLUEPRINT_SECTION_MAZE:
+			switch(value_num)
+			{
+				case 5:
+					if (!str_prefix(argument, "current"))
+					{
+						portal->value[0] = 0;
+						send_to_char("Section index set to {WCURRENT{x.\n\r", ch);
+						return TRUE;
+					}
+					else
+					{
+						char argsr[MIL];
+						bool mode = TRISTATE;
+
+						argument = one_argument(argument, argsr);
+
+						if (!str_prefix(argsr, "generated"))
+							mode = FALSE;
+						else if (!str_prefix(argsr, "ordinal"))
+							mode = TRUE;
+						else
+						{
+							send_to_char("Please specify either {WCURRENT{x, {YGENERATED{x or {GORDINAL{x.\n\r", ch);
+							return FALSE;
+						}
+
+						if (!is_number(argument))
+						{
+							send_to_char("That is not a number.\n\r", ch);
+							return FALSE;
+						}
+
+						int index = atoi(argument);
+						if (index < 1)
+						{
+							send_to_char("Index must be positive.\n\r", ch);
+							return FALSE;
+						}
+
+						portal->value[5] = mode ? -index : index;
+						sprintf(buf, "Section index set to %s %d.\n\r",
+							mode ? "{GOrdinal{x" : "{YGenerated{x",
+							abs(index));
+						send_to_char(buf, ch);
+						return TRUE;
+					}
+					break;
+
+				case 6:
+					if (!is_number(argument))
+					{
+						send_to_char("That is not a number.\n\r", ch);
+						return FALSE;
+					}
+
+					int x = atoi(argument);
+					if (x < 1)
+					{
+						send_to_char("X-Coordinate must be positive.\n\r", ch);
+						return FALSE;
+					}
+
+					portal->value[6] = x;
+					send_to_char("X-coordinate set.\n\r", ch);
+					return TRUE;
+				
+				case 7:
+					if (!is_number(argument))
+					{
+						send_to_char("That is not a number.\n\r", ch);
+						return FALSE;
+					}
+
+					int y = atoi(argument);
+					if (y < 1)
+					{
+						send_to_char("X-Coordinate must be positive.\n\r", ch);
+						return FALSE;
+					}
+
+					portal->value[7] = y;
+					send_to_char("Y-coordinate set.\n\r", ch);
+					return TRUE;
+			}
+			break;
+
+		case GATETYPE_BLUEPRINT_SPECIAL:
+			switch(value_num)
+			{
+				case 5:
+					if (!is_number(argument))
+					{
+						send_to_char("That is not a number.\n\r", ch);
+						return FALSE;
+					}
+
+					int index = atoi(argument);
+					if (index < 1)
+					{
+						send_to_char("Special Room index must be positive.\n\r", ch);
+						return FALSE;
+					}
+
+					portal->value[5] = index;
+					send_to_char("Special Room index set.\n\r", ch);
+					return TRUE;
+			}
+			break;
+		
+		case GATETYPE_DUNGEON_FLOOR_SPECIAL:
+			switch(value_num)
+			{
+				case 5:
+					if (!str_prefix(argument, "current"))
+					{
+						portal->value[0] = 0;
+						send_to_char("FLoor index set to {WCURRENT{x.\n\r", ch);
+						return TRUE;
+					}
+					else
+					{
+						char argsr[MIL];
+						bool mode = TRISTATE;
+
+						argument = one_argument(argument, argsr);
+
+						if (!str_prefix(argsr, "generated"))
+							mode = FALSE;
+						else if (!str_prefix(argsr, "ordinal"))
+							mode = TRUE;
+						else
+						{
+							send_to_char("Please specify either {WCURRENT{x, {YGENERATED{x or {GORDINAL{x.\n\r", ch);
+							return FALSE;
+						}
+
+						if (!is_number(argument))
+						{
+							send_to_char("That is not a number.\n\r", ch);
+							return FALSE;
+						}
+
+						int index = atoi(argument);
+						if (index < 1)
+						{
+							send_to_char("Index must be positive.\n\r", ch);
+							return FALSE;
+						}
+
+						portal->value[5] = mode ? -index : index;
+						sprintf(buf, "Floor index set to %s %d.\n\r",
+							mode ? "{GOrdinal{x" : "{YGenerated{x",
+							abs(index));
+						send_to_char(buf, ch);
+						return TRUE;
+					}
+					break;
+
+				case 6:
+					if (!is_number(argument))
+					{
+						send_to_char("That is not a number.\n\r", ch);
+						return FALSE;
+					}
+
+					int index = atoi(argument);
+					if (index < 1)
+					{
+						send_to_char("Special Room index must be positive.\n\r", ch);
+						return FALSE;
+					}
+
+					portal->value[6] = index;
+					send_to_char("Special Room index set.\n\r", ch);
+					return TRUE;
+			}
+			break;
+
+		case GATETYPE_DUNGEON_SPECIAL:
+			switch(value_num)
+			{
+				case 5:
+					if (!is_number(argument))
+					{
+						send_to_char("That is not a number.\n\r", ch);
+						return FALSE;
+					}
+
+					int index = atoi(argument);
+					if (index < 1)
+					{
+						send_to_char("Special Room index must be positive.\n\r", ch);
+						return FALSE;
+					}
+
+					portal->value[5] = index;
+					send_to_char("Special Room index set.\n\r", ch);
+					return TRUE;
 			}
 			break;
 	}

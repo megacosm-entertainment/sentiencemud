@@ -2800,6 +2800,8 @@ const struct flag_type blueprint_section_flags[] =
 
 const struct flag_type blueprint_section_types[] =
 {
+    { "static",         BSTYPE_STATIC,          TRUE    },
+    { "maze",           BSTYPE_MAZE,            TRUE    },
 	{ NULL,				0,						FALSE	}
 };
 
@@ -2853,21 +2855,26 @@ const struct flag_type ship_flags[] =
 
 const struct flag_type portal_gatetype[] =
 {
-    { "arearandom",     GATETYPE_AREARANDOM,			TRUE	},
-    { "arearecall",     GATETYPE_AREARECALL,			TRUE	},
-    { "dungeon",        GATETYPE_DUNGEON,   			TRUE	},
-    { "dungeonfloor",   GATETYPE_DUNGEONFLOOR,          TRUE    },
-    { "dungeonrandom",  GATETYPE_DUNGEONRANDOM,			TRUE	},
-    { "environment",    GATETYPE_ENVIRONMENT,			TRUE	},
-    { "instance",       GATETYPE_INSTANCE,      		FALSE	},  // TODO: NYI
-    { "instancerandom", GATETYPE_INSTANCERANDOM,		TRUE	},
-    { "normal",         GATETYPE_NORMAL,		    	TRUE	},
-    { "random",         GATETYPE_RANDOM,                TRUE    },
-    { "regionrandom",   GATETYPE_REGIONRANDOM,          FALSE   },  // TODO: NYI
-    { "regionrecall",   GATETYPE_REGIONRECALL,			FALSE	},  // TODO: NYI
-    { "sectionrandom",  GATETYPE_SECTIONRANDOM,			TRUE	},
-    { "wilds",          GATETYPE_WILDS,		    	    TRUE	},
-    { "wildsrandom",    GATETYPE_WILDSRANDOM,           TRUE    },
+    { "arearandom",             GATETYPE_AREARANDOM,			    TRUE	},
+    { "arearecall",             GATETYPE_AREARECALL,			    TRUE	},
+    { "dungeon",                GATETYPE_DUNGEON,   			    TRUE	},
+    { "dungeonfloor",           GATETYPE_DUNGEONFLOOR,              TRUE    },
+    { "dungeonfloorspecial",    GATETYPE_DUNGEON_FLOOR_SPECIAL,     TRUE    },
+    { "dungeonrandom",          GATETYPE_DUNGEONRANDOM,			    TRUE	},
+    { "dungeonrandomfloor",     GATETYPE_DUNGEON_RANDOM_FLOOR,      TRUE    },
+    { "dungeonspecialroom",     GATETYPE_DUNGEON_SPECIAL,           TRUE    },
+    { "environment",            GATETYPE_ENVIRONMENT,			    TRUE	},
+    { "instance",               GATETYPE_INSTANCE,      		    TRUE	},
+    { "instancerandom",         GATETYPE_INSTANCERANDOM,		    TRUE	},
+    { "instancesectionmaze",    GATETYPE_BLUEPRINT_SECTION_MAZE,    TRUE    },
+    { "instancespecialroom",    GATETYPE_BLUEPRINT_SPECIAL,         TRUE    },
+    { "normal",                 GATETYPE_NORMAL,		    	    TRUE	},
+    { "random",                 GATETYPE_RANDOM,                    TRUE    },
+    { "regionrandom",           GATETYPE_REGIONRANDOM,              FALSE   },  // TODO: NYI
+    { "regionrecall",           GATETYPE_REGIONRECALL,			    FALSE	},  // TODO: NYI
+    { "sectionrandom",          GATETYPE_SECTIONRANDOM,			    TRUE	},
+    { "wilds",                  GATETYPE_WILDS,		    	        TRUE	},
+    { "wildsrandom",            GATETYPE_WILDSRANDOM,               TRUE    },
     { NULL,             0,                              FALSE   }
 };
 

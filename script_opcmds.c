@@ -113,6 +113,7 @@ const struct script_cmd_type obj_cmd_table[] = {
 	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
 	{ "setrecall",			do_opsetrecall,			FALSE,	TRUE	},
 	{ "settimer",			do_opsettimer,			FALSE,	TRUE	},
+	{ "showcommand",		scriptcmd_showcommand,		FALSE,	TRUE	},
 	{ "showroom",			do_opshowroom,			TRUE,	TRUE	},
 	{ "skimprove",			do_opskimprove,			TRUE,	TRUE	},
 	{ "spawndungeon",		scriptcmd_spawndungeon,		TRUE,	TRUE	},

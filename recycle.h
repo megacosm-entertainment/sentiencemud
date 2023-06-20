@@ -165,6 +165,9 @@ void free_weighted_random_section(BLUEPRINT_WEIGHTED_SECTION_DATA *weighted);
 MAZE_WEIGHTED_ROOM *new_maze_weighted_room();
 void free_maze_weighted_room(MAZE_WEIGHTED_ROOM *room);
 
+MAZE_FIXED_ROOM *new_maze_fixed_room();
+void free_maze_fixed_room(MAZE_FIXED_ROOM *room);
+
 BLUEPRINT *new_blueprint();
 void free_blueprint(BLUEPRINT *bp);
 

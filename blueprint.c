@@ -57,17 +57,56 @@ LLIST *loaded_instances;
 
 void fix_blueprint_section(BLUEPRINT_SECTION *bs)
 {
-	for(BLUEPRINT_LINK *bl = bs->links; bl; bl = bl->next)
+	if (bs->type == BSTYPE_STATIC)
 	{
-		if( bl->vnum < bs->lower_vnum || bl->vnum > bs->upper_vnum )
-			continue;
-
-		if( bl->vnum > 0 && bl->door >= 0 && bl->door < MAX_DIR )
+		for(BLUEPRINT_LINK *bl = bs->links; bl; bl = bl->next)
 		{
-			bl->room = get_room_index(bs->area, bl->vnum);
+			if( bl->vnum < bs->lower_vnum || bl->vnum > bs->upper_vnum )
+				continue;
 
-			if( bl->room )
-				bl->ex = bl->room->exit[bl->door];
+			if( bl->vnum > 0 && bl->door >= 0 && bl->door < MAX_DIR )
+			{
+				bl->room = get_room_index(bs->area, bl->vnum);
+
+				if( bl->room )
+					bl->ex = bl->room->exit[bl->door];
+			}
+		}
+	}
+	else if (bs->type == BSTYPE_MAZE)
+	{
+		if (bs->maze_x > 0 && bs->maze_y > 0)
+		{
+			for(BLUEPRINT_LINK *bl = bs->links; bl; bl = bl->next)
+			{
+				int x = (bl->vnum - 1) % bs->maze_x + 1;
+				int y = (bl->vnum - 1) / bs->maze_x + 1;
+
+				if (x < 1 || x > bs->maze_x || y < 1 || y > bs->maze_y)
+					continue;
+				
+				ITERATOR it;
+				long vnum = 0;
+				MAZE_FIXED_ROOM *mfr;
+				iterator_start(&it, bs->maze_fixed_rooms);
+				while((mfr = (MAZE_FIXED_ROOM *)iterator_nextdata(&it)))
+				{
+					if (mfr->x == x && mfr->y == y)
+					{
+						vnum = mfr->vnum;
+						break;
+					}
+				}
+				iterator_stop(&it);
+
+				if (vnum > 0)
+				{
+					bl->room = get_room_index(bs->area, vnum);
+
+					if( bl->room )
+						bl->ex = bl->room->exit[bl->door];
+				}
+			}
 		}
 	}
 }
@@ -169,6 +208,44 @@ BLUEPRINT_SECTION *load_blueprint_section(FILE *fp, AREA_DATA *pArea)
 
 		case 'L':
 			KEY("Lower", bs->lower_vnum, fread_number(fp));
+			break;
+
+		case 'M':
+			if (!str_cmp(word, "MazeFixedRoom"))
+			{
+				int x = fread_number(fp);
+				int y = fread_number(fp);
+				long vnum = fread_number(fp);
+				bool connected = fread_number(fp) && TRUE;
+
+				MAZE_FIXED_ROOM *mfr = new_maze_fixed_room();
+				mfr->x = x;
+				mfr->y = y;
+				mfr->vnum = vnum;
+				mfr->connected = connected;
+
+				list_appendlink(bs->maze_fixed_rooms, mfr);
+
+				fMatch = TRUE;
+				break;
+			}
+			KEY("MazeH", bs->maze_y, fread_number(fp));
+			if (!str_cmp(word, "MazeTemplate"))
+			{
+				int weight = fread_number(fp);
+				long vnum = fread_number(fp);
+
+				MAZE_WEIGHTED_ROOM *mwr = new_maze_weighted_room();
+				mwr->weight = weight;
+				mwr->vnum = vnum;
+
+				list_appendlink(bs->maze_templates, mwr);
+				bs->total_maze_weight += weight;
+
+				fMatch = TRUE;
+				break;
+			}
+			KEY("MazeW", bs->maze_x, fread_number(fp));
 			break;
 
 		case 'N':
@@ -631,71 +708,6 @@ BLUEPRINT *load_blueprint(FILE *fp, AREA_DATA *pArea)
 				fMatch = TRUE;
 				break;
 			}
-
-	/*
-			if( !str_cmp(word, "Static") )
-			{
-				bp->mode = BLUEPRINT_MODE_STATIC;
-
-				fMatch = TRUE;
-				break;
-			}
-
-			KEY("StaticRecall", bp->_static.recall, fread_number(fp));
-
-			if( !str_cmp(word, "StaticEntry") )
-			{
-				char *name = fread_string(fp);
-				int section = fread_number(fp);
-				int link = fread_number(fp);
-
-				BLUEPRINT_EXIT_DATA *ex = new_blueprint_exit_data();
-				ex->name = name;
-				ex->section = section;
-				ex->link = link;
-
-				list_appendlink(bp->_static.entries, ex);
-				fMatch = TRUE;
-				break;
-			}
-
-			if( !str_cmp(word, "StaticExit") )
-			{
-				char *name = fread_string(fp);
-				int section = fread_number(fp);
-				int link = fread_number(fp);
-
-				BLUEPRINT_EXIT_DATA *ex = new_blueprint_exit_data();
-				ex->name = name;
-				ex->section = section;
-				ex->link = link;
-
-				list_appendlink(bp->_static.exits, ex);
-				fMatch = TRUE;
-				break;
-			}
-
-			if( !str_cmp(word, "StaticLink") )
-			{
-				int section1 = fread_number(fp);
-				int link1 = fread_number(fp);
-				int section2 = fread_number(fp);
-				int link2 = fread_number(fp);
-
-				STATIC_BLUEPRINT_LINK *sbl = new_static_blueprint_link();
-
-				sbl->blueprint = bp;
-				sbl->section1 = section1;
-				sbl->link1 = link1;
-				sbl->section2 = section2;
-				sbl->link2 = link2;
-
-				sbl->next = bp->_static.layout;
-				bp->_static.layout = sbl;
-				fMatch = TRUE;
-				break;
-			}
-	*/
 			if( !str_cmp(word, "Section") )
 			{
 				long section = fread_number(fp);
@@ -792,80 +804,6 @@ void blueprint_update_link_ordinals(BLUEPRINT *bp)
 	iterator_stop(&lit);
 }
 
-
-/*
-// load blueprints
-// CALLED AFTER ALL AREAS ARE LOADED
-void load_blueprints()
-{
-	FILE *fp = fopen(BLUEPRINTS_FILE, "r");
-	if (fp == NULL)
-	{
-		bug("Couldn't load blueprints.dat", 0);
-		return;
-	}
-
-	char *word;
-	bool fMatch;
-
-	top_iprog_index = 0;
-
-	while (str_cmp((word = fread_word(fp)), "#END"))
-	{
-		fMatch = FALSE;
-
-		if( !str_cmp(word, "#SECTION") )
-		{
-			BLUEPRINT_SECTION *bs = load_blueprint_section(fp);
-			int iHash = bs->vnum % MAX_KEY_HASH;
-
-			bs->next = blueprint_section_hash[iHash];
-			blueprint_section_hash[iHash] = bs;
-
-			fMatch = TRUE;
-			continue;
-		}
-
-		if( !str_cmp(word, "#BLUEPRINT") )
-		{
-			BLUEPRINT *bp = load_blueprint(fp);
-			int iHash = bp->vnum % MAX_KEY_HASH;
-
-			bp->next = blueprint_hash[iHash];
-			blueprint_hash[iHash] = bp;
-
-			fMatch = TRUE;
-			continue;
-		}
-
-		if (!str_cmp(word, "#INSTANCEPROG"))
-		{
-		    SCRIPT_DATA *pr = read_script_new(fp, NULL, IFC_I);
-		    if(pr) {
-		    	pr->next = iprog_list;
-		    	iprog_list = pr;
-
-		    	if( pr->vnum > top_iprog_index )
-		    		top_iprog_index = pr->vnum;
-		    }
-
-		    fMatch = TRUE;
-			continue;
-		}
-
-
-		if (!fMatch) {
-			char buf[MSL];
-			sprintf(buf, "load_blueprints: no match for word %.50s", word);
-			bug(buf, 0);
-		}
-
-	}
-
-	fclose(fp);
-}
-*/
-
 void save_blueprint_section(FILE *fp, BLUEPRINT_SECTION *bs)
 {
 	fprintf(fp, "#SECTION %ld\n", bs->vnum);
@@ -876,9 +814,35 @@ void save_blueprint_section(FILE *fp, BLUEPRINT_SECTION *bs)
 	fprintf(fp, "Type %d\n", bs->type);
 	fprintf(fp, "Flags %d\n", bs->flags);
 
-	fprintf(fp, "Recall %ld\n", bs->recall);
-	fprintf(fp, "Lower %ld\n", bs->lower_vnum);
-	fprintf(fp, "Upper %ld\n", bs->upper_vnum);
+	if (bs->type == BSTYPE_STATIC)
+	{
+		fprintf(fp, "Recall %ld\n", bs->recall);
+		fprintf(fp, "Lower %ld\n", bs->lower_vnum);
+		fprintf(fp, "Upper %ld\n", bs->upper_vnum);
+	}
+	else if (bs->type == BSTYPE_MAZE)
+	{
+		fprintf(fp, "MazeW %ld\n", bs->maze_x);
+		fprintf(fp, "MazeH %ld\n", bs->maze_y);
+		fprintf(fp, "Recall %ld\n", bs->recall);
+
+		ITERATOR rit;
+		MAZE_WEIGHTED_ROOM *mwr;
+		iterator_start(&rit, bs->maze_templates);
+		while((mwr = (MAZE_WEIGHTED_ROOM *)iterator_nextdata(&rit)))
+		{
+			fprintf(fp, "MazeRoomTemplate %d %ld\n", mwr->weight, mwr->vnum);
+		}
+		iterator_stop(&rit);
+
+		MAZE_FIXED_ROOM *mfr;
+		iterator_start(&rit, bs->maze_fixed_rooms);
+		while((mfr = (MAZE_FIXED_ROOM *)iterator_nextdata(&rit)))
+		{
+			fprintf(fp, "MazeFixedRoom %d %d %ld %d\n", mfr->x, mfr->y, mfr->vnum, mfr->connected?1:0);
+		}
+		iterator_stop(&rit);
+	}
 
 	for(BLUEPRINT_LINK *bl = bs->links; bl; bl = bl->next)
 	{
@@ -990,7 +954,6 @@ void save_blueprint_layout_link(FILE *fp, BLUEPRINT_LAYOUT_LINK_DATA *link)
 
 void save_blueprint(FILE *fp, BLUEPRINT *bp)
 {
-
 	fprintf(fp, "#BLUEPRINT %ld\n", bp->vnum);
 	fprintf(fp, "Name %s~\n", fix_string(bp->name));
 	fprintf(fp, "Description %s~\n", fix_string(bp->description));
@@ -1047,53 +1010,7 @@ void save_blueprint(FILE *fp, BLUEPRINT *bp)
 	}
 	iterator_stop(&xit);
 
-	/*
-	if( bp->mode == BLUEPRINT_MODE_STATIC )
-	{
-		fprintf(fp, "Static\n");
-
-		if( bp->_static.recall > 0 )
-			fprintf(fp, "StaticRecall %d\n", bp->_static.recall);
-
-		ITERATOR xit;
-		BLUEPRINT_EXIT_DATA *ex;
-
-		iterator_start(&xit, bp->_static.entries);
-		while( (ex = (BLUEPRINT_EXIT_DATA *)iterator_nextdata(&xit)) )
-		{
-			fprintf(fp, "StaticEntry %s~ %d %d\n", fix_string(ex->name), ex->section, ex->link);
-		}
-		iterator_stop(&xit);
-
-		iterator_start(&xit, bp->_static.exits);
-		while( (ex = (BLUEPRINT_EXIT_DATA *)iterator_nextdata(&xit)) )
-		{
-			fprintf(fp, "StaticExit %s~ %d %d\n", fix_string(ex->name), ex->section, ex->link);
-		}
-		iterator_stop(&xit);
-
-		for(STATIC_BLUEPRINT_LINK *sbl = bp->_static.layout; sbl; sbl = sbl->next)
-		{
-			if( valid_static_link(sbl) )
-			{
-				fprintf(fp, "StaticLink %d %d %d %d\n",
-					sbl->section1, sbl->link1,
-					sbl->section2, sbl->link2);
-			}
-		}
-
-		ITERATOR rit;
-		BLUEPRINT_SPECIAL_ROOM *special;
-		iterator_start(&rit, bp->special_rooms);
-		while( (special = (BLUEPRINT_SPECIAL_ROOM *)iterator_nextdata(&rit)) )
-		{
-			fprintf(fp, "SpecialRoom %s~ %d %ld\n", fix_string(special->name), special->section, special->vnum);
-		}
-		iterator_stop(&rit);
-	}
-	*/
-
-    if(bp->progs) {
+   if(bp->progs) {
 		ITERATOR it;
 		PROG_LIST *trigger;
 		for(int i = 0; i < TRIGSLOT_MAX; i++) if(list_size(bp->progs[i]) > 0) {
@@ -1134,6 +1051,50 @@ void save_blueprints(FILE *fp, AREA_DATA *area)
 	{
 		save_script_new(fp,NULL,scr,"INSTANCE");
 	}
+}
+
+
+
+
+
+
+ROOM_INDEX_DATA *blueprint_section_get_room_byoffset(BLUEPRINT_SECTION *bs, int offset)
+{
+	long vnum;
+	if (bs->type == BSTYPE_STATIC)
+	{
+		vnum = bs->lower_vnum + offset;
+		if (vnum < bs->lower_vnum || vnum > bs->upper_vnum) return NULL;
+
+		return get_room_index(bs->area, vnum);
+	}
+
+	if (bs->type == BSTYPE_MAZE)
+	{
+		if (bs->maze_x < 1 || bs->maze_y < 1) return NULL;
+		// Convert zero-based offset to coordinate
+		int x = offset % bs->maze_x + 1;
+		int y = offset / bs->maze_x + 1;
+
+		// Out of bounds
+		if (x < 1 || x > bs->maze_x ||
+			y < 1 || y > bs->maze_y)
+			return NULL;
+
+		ITERATOR it;
+		MAZE_FIXED_ROOM *mfr;
+		iterator_start(&it, bs->maze_fixed_rooms);
+		while((mfr = (MAZE_FIXED_ROOM *)iterator_nextdata(&it)))
+		{
+			if (mfr->x == x && mfr->y == y)
+				break;
+		}
+		iterator_stop(&it);
+
+		return mfr ? get_room_index(bs->area, mfr->vnum) : NULL;
+	}
+
+	return NULL;
 }
 
 bool valid_section_link(BLUEPRINT_LINK *bl)
@@ -1207,6 +1168,43 @@ ROOM_INDEX_DATA *blueprint_get_special_room(BLUEPRINT *bp, BLUEPRINT_SPECIAL_ROO
 			return NULL;
 
 		return get_room_index(bs->area, vnum);
+	}
+
+	if (bs->type == BSTYPE_MAZE)
+	{
+		// special->offset is the coordinate encoded as an index
+		if (bs->maze_x < 1 || bs->maze_y < 1)
+			return NULL;
+
+		if (special->offset < 0)
+			return NULL;
+
+		int x = special->offset % bs->maze_x + 1;
+		int y = special->offset / bs->maze_x + 1;
+
+		// Out of bounds
+		if (x < 1 || x > bs->maze_x ||
+			y < 1 || y > bs->maze_y)
+			return NULL;
+
+		ITERATOR it;
+		long vnum = 0;
+		MAZE_FIXED_ROOM *mfr;
+		iterator_start(&it, bs->maze_fixed_rooms);
+		while((mfr = (MAZE_FIXED_ROOM *)iterator_nextdata(&it)))
+		{
+			if (mfr->x == x && mfr->y == y)
+			{
+				vnum = mfr->vnum;
+				break;
+			}
+		}
+		iterator_stop(&it);
+
+		if (vnum > 0)
+			return get_room_index(bs->area, vnum);
+		else
+			return NULL;
 	}
 
 	// Can only resolve special rooms at this point for static sections
@@ -1292,8 +1290,41 @@ BLUEPRINT_SECTION *get_blueprint_section_byroom(AREA_DATA *pArea, long vnum)
 	{
 		for(BLUEPRINT_SECTION *bs = pArea->blueprint_section_hash[iHash]; bs; bs = bs->next)
 		{
-			if( vnum >= bs->lower_vnum && vnum <= bs->upper_vnum )
-				return bs;
+			if (bs->type == BSTYPE_STATIC)
+			{
+				if( vnum >= bs->lower_vnum && vnum <= bs->upper_vnum )
+					return bs;
+			}
+			else if(bs->type == BSTYPE_MAZE)
+			{
+				ITERATOR it;
+
+				// Check the fixed rooms
+				MAZE_FIXED_ROOM *mfr;
+				iterator_start(&it, bs->maze_fixed_rooms);
+				while((mfr = (MAZE_FIXED_ROOM *)iterator_nextdata(&it)))
+				{
+					if (mfr->vnum == vnum)
+						break;
+				}
+				iterator_stop(&it);
+
+				if (mfr)
+					return bs;
+
+				// Check the templates to see if it matches one of those
+				MAZE_WEIGHTED_ROOM *mwr;
+				iterator_start(&it, bs->maze_templates);
+				while((mwr = (MAZE_WEIGHTED_ROOM *)iterator_nextdata(&it)))
+				{
+					if (mwr->vnum == vnum)
+						break;
+				}
+				iterator_stop(&it);
+
+				if (mwr)
+					return bs;
+			}
 		}
 	}
 
@@ -1362,28 +1393,40 @@ ROOM_INDEX_DATA *instance_section_get_room_byvnum(INSTANCE_SECTION *section, lon
 	iterator_stop(&rit);
 
 	return room;
-
 }
 
+// offset is zero-based
 ROOM_INDEX_DATA *instance_section_get_room_byoffset(INSTANCE_SECTION *section, long offset)
 {
 	if( !IS_VALID(section) ) return NULL;
 
-	long vnum = section->section->lower_vnum + offset;
-	if (vnum > section->section->upper_vnum) return NULL;
-
-	ROOM_INDEX_DATA *room = NULL;
-	ITERATOR rit;
-	iterator_start(&rit, section->rooms);
-	while((room = (ROOM_INDEX_DATA *)iterator_nextdata(&rit)))
+	if (section->section->type == BSTYPE_STATIC)
 	{
-		if( room->vnum == vnum )
-			break;
+		long vnum = section->section->lower_vnum + offset;
+		if (vnum < section->section->lower_vnum || vnum > section->section->upper_vnum) return NULL;
+
+		ROOM_INDEX_DATA *room = NULL;
+		ITERATOR rit;
+		iterator_start(&rit, section->rooms);
+		while((room = (ROOM_INDEX_DATA *)iterator_nextdata(&rit)))
+		{
+			if( room->vnum == vnum )
+				break;
+		}
+		iterator_stop(&rit);
+
+		return room;
 	}
-	iterator_stop(&rit);
+	else if (section->section->type == BSTYPE_MAZE)
+	{
+		if (offset < 0 || offset >= (section->section->maze_x * section->section->maze_y))
+			return NULL;
 
-	return room;
+		// Add one since list indexes are one-based rather than zero-based
+		return (ROOM_INDEX_DATA *)list_nthdata(section->rooms, offset + 1);
+	}
 
+	return NULL;
 }
 
 ROOM_INDEX_DATA *instance_section_get_room(INSTANCE_SECTION *section, ROOM_INDEX_DATA *source)
@@ -1432,63 +1475,267 @@ int instance_count_mob(INSTANCE *instance, MOB_INDEX_DATA *pMobIndex)
 }
 
 // create instance
-
-
-
-INSTANCE_SECTION *clone_blueprint_section(BLUEPRINT_SECTION *parent)
+#define MAZE_MAX_DIR	4
+typedef struct __maze_room_cell
 {
+	int x;
+	int y;
+
 	ROOM_INDEX_DATA *room;
 
-	INSTANCE_SECTION *section = new_instance_section();
+	int options[MAZE_MAX_DIR];
+	int total_options;
 
-	if( !section ) return NULL;
+	bool visited;
+} MAZE_CELL;
 
-	section->section = parent;
-
-	// Clone rooms
-	for(long vnum = parent->lower_vnum; vnum <= parent->upper_vnum; vnum++)
+static void __purge_maze_cells(MAZE_CELL *cells, int total)
+{
+	for(int i = 0; i < total; i++)
 	{
-		ROOM_INDEX_DATA *source = get_room_index(parent->area, vnum);
+		ROOM_INDEX_DATA *room = cells[i].room;
+		if (room)
+			extract_clone_room(room->source,room->id[0],room->id[1],true);
+	}
+
+	free_mem(cells, sizeof(MAZE_CELL) * total);
+}
+
+inline static void __maze_link_room(ROOM_INDEX_DATA *room, int door, ROOM_INDEX_DATA *dest)
+{
+	EXIT_DATA *exClone;
+
+	room->exit[door] = exClone = new_exit();
+	exClone->exit_info = 0;
+	exClone->keyword = str_dup("");
+	exClone->short_desc = str_dup("");
+	exClone->long_desc = str_dup("");
+	exClone->rs_flags = 0;
+	exClone->orig_door = door;
+	exClone->door.strength = 0;
+	exClone->door.material = str_dup("");
+	exClone->from_room = room;
+	exClone->u1.to_room = dest;
+
+	door = rev_dir[door];
+	dest->exit[door] = exClone = new_exit();
+	exClone->exit_info = 0;
+	exClone->keyword = str_dup("");
+	exClone->short_desc = str_dup("");
+	exClone->long_desc = str_dup("");
+	exClone->rs_flags = 0;
+	exClone->orig_door = door;
+	exClone->door.strength = 0;
+	exClone->door.material = str_dup("");
+	exClone->from_room = dest;
+	exClone->u1.to_room = room;
+}
+
+inline static void __maze_remove_option(MAZE_CELL *cell, int door)
+{
+	if (door < DIR_NORTH || door >= DIR_UP) return;
+
+	for(int i = 0; i < cell->total_options; i++)
+	{
+		if (cell->options[i] == door)
+		{
+			--(cell->total_options);
+			cell->options[i] = cell->options[cell->total_options];
+			return;
+		}
+	}
+}
+
+inline static bool __maze_has_option(MAZE_CELL *cell, int door)
+{
+	if (door < DIR_NORTH || door >= DIR_UP) return FALSE;
+
+	for(int i = 0; i < cell->total_options; i++)
+	{
+		if (cell->options[i] == door)
+		{
+			return TRUE;
+		}
+	}
+
+	return FALSE;
+}
+
+bool blueprint_section_generate_maze(INSTANCE_SECTION *section, BLUEPRINT_SECTION *bs)
+{
+	static int dir_offsets[MAX_DIR][2] =
+	{
+		{0, -1},	// NORTH
+		{1, 0},		// EAST
+		{0, 1},		// SOUTH
+		{-1, 0},	// WEST
+		{0, 0},		// UP
+		{0, 0},		// DOWN
+		{1, -1},	// NORTHEAST
+		{-1, -1},	// NORTHWEST
+		{1, 1},		// SOUTHEAST
+		{-1, 1}		// SOUTHWEST
+	};
+
+	ITERATOR it;
+	if (bs->maze_x < 1 || bs->maze_y < 1) return FALSE;
+
+	int total = bs->maze_x * bs->maze_y;
+	MAZE_CELL *cells = (MAZE_CELL *)alloc_mem(sizeof(MAZE_CELL) * total);
+	if(!cells) return FALSE;
+
+	for(int i = 0; i < total; i++) {
+		cells[i].visited = FALSE;
+		cells[i].room = NULL;
+		cells[i].options[0] = DIR_NORTH;
+		cells[i].options[1] = DIR_EAST;
+		cells[i].options[2] = DIR_SOUTH;
+		cells[i].options[3] = DIR_WEST;
+		cells[i].total_options = MAZE_MAX_DIR;
+	}
+
+	int idx = 0;
+	for(int _y = 1; _y <= bs->maze_y; _y++)
+		for(int _x = 1; _x <= bs->maze_x; _x++, idx++)
+		{
+			cells[idx].x = _x;
+			cells[idx].y = _y;
+		}
+
+	for(int i = 0; i < bs->maze_x; i++)
+	{
+		__maze_remove_option(&cells[i], DIR_NORTH);
+		__maze_remove_option(&cells[total - i - 1], DIR_SOUTH);
+	}
+	for(int i = 0; i < bs->maze_y; i++)
+	{
+		__maze_remove_option(&cells[i * bs->maze_x], DIR_WEST);
+		__maze_remove_option(&cells[(i+1) * bs->maze_x - 1], DIR_EAST);
+	}
+
+	// Place fixed rooms first
+	MAZE_FIXED_ROOM *mfr;
+	iterator_start(&it, bs->maze_fixed_rooms);
+	while((mfr = (MAZE_FIXED_ROOM *)iterator_nextdata(&it)))
+	{
+		if (mfr->x >= 1 && mfr->x <= bs->maze_x &&
+			mfr->y >= 1 && mfr->y <= bs->maze_y)
+		{
+			int index = (mfr->y - 1) * bs->maze_x + mfr->x;
+
+			if (cells[index].room)
+			{
+				__purge_maze_cells(cells, total);
+				return FALSE;
+			}
+
+			ROOM_INDEX_DATA *source = get_room_index(bs->area, mfr->vnum);
+
+			if( source )
+			{
+				ROOM_INDEX_DATA *room = create_virtual_room_nouid(source,false,false,true);
+
+				if( !room )
+				{
+					__purge_maze_cells(cells, total);
+					return FALSE;
+				}
+
+				get_vroom_id(room);
+
+				cells[index].room = room;
+				if (!mfr->connected)
+				{
+					cells[index].visited = TRUE;
+					cells[index].total_options = 0;
+				}
+			}
+		}
+	}
+	iterator_stop(&it);
+
+	// Generate the rest of the rooms
+	for(int i = 0; i < total; i++)
+	{
+		if (cells[i].room) continue;	// Fixed room already placed
+
+		int w = number_range(1, bs->total_maze_weight);
+
+		MAZE_WEIGHTED_ROOM *mwr;
+		long vnum = 0;
+		iterator_start(&it, bs->maze_templates);
+		while((mwr = (MAZE_WEIGHTED_ROOM *)iterator_nextdata(&it)))
+		{
+			if (w <= mwr->weight)
+			{
+				vnum = mwr->vnum;
+				break;
+			}
+			else
+				w -= mwr->weight;
+		}
+		iterator_stop(&it);
+
+		if (vnum < 1)
+		{
+			__purge_maze_cells(cells, total);
+			return FALSE;
+		}
+
+		ROOM_INDEX_DATA *source = get_room_index(bs->area, vnum);
 
 		if( source )
 		{
-			room = create_virtual_room_nouid(source,false,false,true);
+			ROOM_INDEX_DATA *room = create_virtual_room_nouid(source,false,false,true);
 
 			if( !room )
 			{
-				free_instance_section(section);
-				return NULL;
+				__purge_maze_cells(cells, total);
+				return FALSE;
 			}
 
 			get_vroom_id(room);
 
-			if( !list_appendlink(section->rooms, room) )
-			{
-				extract_clone_room(room->source,room->id[0],room->id[1],true);
-				free_instance_section(section);
-				return NULL;
-			}
-
-			room->instance_section = section;
+			cells[i].room = room;
 		}
 	}
 
-
-	ITERATOR rit;
-	iterator_start(&rit, section->rooms);
-	while((room = (ROOM_INDEX_DATA *)iterator_nextdata(&rit)))
+	// Place all the exits from the fixed rooms first
+	int x = 1;
+	int y = 1;
+	for(int i = 0; i < total; i++)
 	{
-		// Clone the non-environment exits
-		for(int i = 0; i < MAX_DIR; i++)
-		{
-			EXIT_DATA *exParent = room->source->exit[i];
+		ROOM_INDEX_DATA *room = cells[i].room;
+		ROOM_INDEX_DATA *source = room->source;
 
-			if( exParent )
+		for(int j = 0; j < MAX_DIR; j++)
+		{
+			if (room->exit[j]) continue;	// Already made
+
+			int x1 = x + dir_offsets[j][0];
+			int y1 = y + dir_offsets[j][1];
+
+			EXIT_DATA *exParent = source->exit[j];
+			if (exParent)
 			{
+				MAZE_CELL *dest;
+				if (!IS_SET(exParent->exit_info, EX_ENVIRONMENT))
+				{
+					// Out of bounds
+					if (x1 < 1 || x1 > bs->maze_x) continue;
+					if (y1 < 1 || y1 > bs->maze_y) continue;
+
+					// UP/DOWN exits must be environment
+					if (x1 == x && y1 == y) continue;
+					int index1 = (y1 - 1) * bs->maze_x + x1;
+					dest = &cells[index1];
+				}
+				else
+					dest = NULL;
+
 				EXIT_DATA *exClone;
 
 				room->exit[i] = exClone = new_exit();
-				exClone->u1.to_room = instance_section_get_room(section, exParent->u1.to_room);
 				exClone->exit_info = exParent->exit_info;
 				exClone->keyword = str_dup(exParent->keyword);
 				exClone->short_desc = str_dup(exParent->short_desc);
@@ -1500,53 +1747,177 @@ INSTANCE_SECTION *clone_blueprint_section(BLUEPRINT_SECTION *parent)
 				exClone->door.lock = exParent->door.rs_lock;
 				exClone->door.rs_lock = exParent->door.rs_lock;
 				exClone->from_room = room;
+				if (dest != NULL)
+				{
+					exClone->u1.to_room = dest->room;
+
+					// Remove the remote direction's option in the destination room, even if it's a one way exit, so it doesn't make an exit by mistake
+					__maze_remove_option(dest, rev_dir[j]);
+				}
+				else
+					exClone->u1.to_room = NULL;
+
+				// Remove this direction as an option
+				__maze_remove_option(&cells[i], j);
 			}
 		}
 
-		// Correct any portal objects
-		for(OBJ_DATA *obj = room->contents; obj; obj = obj->next_content)
+		x++;
+		if (x > bs->maze_x)
 		{
-			// Make sure portals that lead anywhere within the section uses the correct room id
-			if( obj->item_type == ITEM_PORTAL )
+			y++;
+			x = 1;
+		}
+	}
+
+	// Add exits to the rest of the rooms
+	LLIST *visited = list_create(FALSE);
+	for(int i = 0; i < total; i++)
+	{
+		// This check here accounts for fixed rooms creating pockets or divisions in the entire maze.
+		if (cells[i].visited) continue;
+
+		// Start point
+		MAZE_CELL *current;
+		MAZE_CELL *next;
+		list_addlink(visited, &cells[i]);
+		do
+		{
+			current = (MAZE_CELL *)list_nthdata(visited, 1);
+			current->visited = TRUE;
+
+			if (current->total_options > 0)
 			{
-				if ( obj->value[3] == GATETYPE_NORMAL )
+				int opt = number_range(0, current->total_options - 1);
+				int dir = current->options[opt];
+				// First, remove the option
+				__maze_remove_option(current, dir);
+
+				// Get the destination on the map
+				int nx = current->x + dir_offsets[dir][0];
+				int ny = current->y + dir_offsets[dir][1];
+				int nidx = (ny - 1) * bs->maze_x + nx;
+				next = &cells[nidx];
+
+				// If we have never visited it (disconnected fixed rooms will be flagged visited)
+				//  -and-
+				// Destination has the option to connect
+				if (!next->visited && __maze_has_option(next, rev_dir[dir]))
 				{
-					long auid = obj->value[5];
-					long vnum = obj->value[6];
-					ROOM_INDEX_DATA *dest;
+					__maze_remove_option(next, rev_dir[dir]);
+					__maze_link_room(current->room, dir, next->room);
 
-					if ( auid > 0 && vnum > 0 )
-					{
-						// If the portal is pointing to a room in the blueprint
-						if (room->area->uid == auid && (dest = instance_section_get_room_byvnum(section, vnum)))
-						{
-							obj->value[7] = dest->id[0];
-							obj->value[8] = dest->id[1];
-						}
-						else
-						{
-							dest = get_room_index_auid(auid, vnum);
+					list_addlink(visited, next);
+				}
+			}
+			else
+				list_remnthlink(visited, 1);
+		}
+		while(list_size(visited) > 0);
+	}
+	list_destroy(visited);
 
-							if( !dest ||
-								IS_SET(dest->room2_flags, ROOM_BLUEPRINT) ||
-								IS_SET(dest->area->area_flags, AREA_BLUEPRINT) )
-							{
-								// Nullify destination
-								obj->value[5] = 0;
-								obj->value[6] = 0;
-							}
+	for(int i = 0; i < total; i++)
+	{
+		if (!list_appendlink(section->rooms, cells[i].room))
+		{
+			__purge_maze_cells(cells, total);
+			return FALSE;
+		}
 
-							// Force it to be static
-							obj->value[7] = 0;
-							obj->value[8] = 0;
-						}
+		cells[i].room = NULL;
+	}
 
-					}
+	free_mem(cells, sizeof(MAZE_CELL) * total);
+	return TRUE;
+}
+
+
+INSTANCE_SECTION *clone_blueprint_section(BLUEPRINT_SECTION *parent)
+{
+	ROOM_INDEX_DATA *room;
+	ITERATOR rit;
+
+	INSTANCE_SECTION *section = new_instance_section();
+
+	if( !section ) return NULL;
+
+	section->section = parent;
+
+	if (parent->type == BSTYPE_STATIC)
+	{
+		// Clone rooms
+		for(long vnum = parent->lower_vnum; vnum <= parent->upper_vnum; vnum++)
+		{
+			ROOM_INDEX_DATA *source = get_room_index(parent->area, vnum);
+
+			if( source )
+			{
+				room = create_virtual_room_nouid(source,false,false,true);
+
+				if( !room )
+				{
+					free_instance_section(section);
+					return NULL;
+				}
+
+				get_vroom_id(room);
+
+				if( !list_appendlink(section->rooms, room) )
+				{
+					extract_clone_room(room->source,room->id[0],room->id[1],true);
+					free_instance_section(section);
+					return NULL;
+				}
+
+				room->instance_section = section;
+			}
+		}
+
+		iterator_start(&rit, section->rooms);
+		while((room = (ROOM_INDEX_DATA *)iterator_nextdata(&rit)))
+		{
+			// Clone the exits
+			for(int i = 0; i < MAX_DIR; i++)
+			{
+				EXIT_DATA *exParent = room->source->exit[i];
+
+				if( exParent )
+				{
+					EXIT_DATA *exClone;
+
+					room->exit[i] = exClone = new_exit();
+					exClone->u1.to_room = instance_section_get_room(section, exParent->u1.to_room);
+					exClone->exit_info = exParent->exit_info;
+					exClone->keyword = str_dup(exParent->keyword);
+					exClone->short_desc = str_dup(exParent->short_desc);
+					exClone->long_desc = str_dup(exParent->long_desc);
+					exClone->rs_flags = exParent->rs_flags;
+					exClone->orig_door = exParent->orig_door;
+					exClone->door.strength = exParent->door.strength;
+					exClone->door.material = str_dup(exParent->door.material);
+					exClone->door.lock = exParent->door.rs_lock;
+					exClone->door.rs_lock = exParent->door.rs_lock;
+					exClone->from_room = room;
 				}
 			}
 		}
+		iterator_stop(&rit);
+
 	}
-	iterator_stop(&rit);
+	else if(parent->type == BSTYPE_MAZE)
+	{
+		if (!blueprint_section_generate_maze(section, parent))
+		{
+			free_instance_section(section);
+			return NULL;
+		}
+	}
+	else
+	{
+		free_instance_section(section);
+		return NULL;
+	}
 
 	return section;
 }
@@ -1943,9 +2314,12 @@ bool generate_instance(INSTANCE *instance)
 		{
 			INSTANCE_SECTION *recall_section = instance_get_section(instance, bp->recall);
 
-			if( recall_section )
+			if( recall_section && recall_section->section->recall > 0 )
 			{
-				instance->recall = instance_section_get_room_byvnum(recall_section, recall_section->section->recall);
+				if (recall_section->section->type == BSTYPE_STATIC)
+					instance->recall = instance_section_get_room_byvnum(recall_section, recall_section->section->recall);
+				else if (recall_section->section->type == BSTYPE_MAZE)
+					instance->recall = list_nthdata(recall_section->rooms, recall_section->section->recall);
 			}
 		}
 	}
@@ -2153,6 +2527,127 @@ void reset_instance(INSTANCE *instance)
 	iterator_stop(&it);
 }
 
+inline static void __instance_set_portal_room(OBJ_DATA *portal, ROOM_INDEX_DATA *room)
+{
+	portal->value[3] = GATETYPE_NORMAL;
+
+	if (room)
+	{
+		if (room->source)
+		{
+			portal->value[5] = room->source->area->uid;
+			portal->value[6] = room->source->vnum;
+			portal->value[7] = room->id[0];
+			portal->value[8] = room->id[1];
+		}
+		else
+		{
+			portal->value[5] = room->area->uid;
+			portal->value[6] = room->vnum;
+			portal->value[7] = 0;
+			portal->value[8] = 0;
+		}
+	}
+	else
+	{
+		portal->value[5] = 0;
+		portal->value[6] = 0;
+		portal->value[7] = 0;
+		portal->value[8] = 0;
+	}
+}
+
+static void __instance_correct_portals(INSTANCE *instance)
+{
+	ROOM_INDEX_DATA *room;
+	ITERATOR rit;
+
+	iterator_start(&rit, instance->rooms);
+	while((room = (ROOM_INDEX_DATA *)iterator_nextdata(&rit)))
+	{
+		INSTANCE_SECTION *section = room->instance_section;
+
+		// Correct any portal objects
+		for(OBJ_DATA *obj = room->contents; obj; obj = obj->next_content)
+		{
+			// Make sure portals that lead anywhere within the instance uses the correct room id
+			if( obj->item_type == ITEM_PORTAL )
+			{
+				switch(obj->value[3])
+				{
+					case GATETYPE_NORMAL:
+					{
+						long auid = obj->value[5];
+						long vnum = obj->value[6];
+						ROOM_INDEX_DATA *dest;
+
+						if ( auid > 0 && vnum > 0 )
+						{
+							// If the portal is pointing to a room in the blueprint
+							if (room->area->uid == auid && (dest = instance_section_get_room_byvnum(section, vnum)))
+							{
+								obj->value[7] = dest->id[0];
+								obj->value[8] = dest->id[1];
+							}
+							else
+							{
+								dest = get_room_index_auid(auid, vnum);
+
+								if( !dest ||
+									IS_SET(dest->room2_flags, ROOM_BLUEPRINT) ||
+									IS_SET(dest->area->area_flags, AREA_BLUEPRINT) )
+								{
+									// Nullify destination
+									obj->value[5] = 0;
+									obj->value[6] = 0;
+								}
+
+								// Force it to be static
+								obj->value[7] = 0;
+								obj->value[8] = 0;
+							}
+						}
+						break;
+					}
+
+					case GATETYPE_BLUEPRINT_SECTION_MAZE:
+					{
+						ROOM_INDEX_DATA *room = NULL;
+						if (obj->value[5])
+						{
+							section = instance_get_section(instance, obj->value[5]);
+						}
+
+						// is it a maze section?
+						if (IS_VALID(section) && section->section->type == BSTYPE_MAZE)
+						{
+							if (obj->value[5] > 0 && obj->value[5] <= section->section->maze_x &&
+								obj->value[6] > 0 && obj->value[6] <= section->section->maze_y)
+							{
+								int index = (obj->value[6] - 1) * section->section->maze_x + obj->value[5];
+
+								room = list_nthdata(section->rooms, index);
+							}
+						}
+						
+						__instance_set_portal_room(obj, room);
+						break;
+					}
+
+					case GATETYPE_BLUEPRINT_SPECIAL:
+					{
+						ROOM_INDEX_DATA *room = get_instance_special_room(instance, obj->value[5]);
+
+						__instance_set_portal_room(obj, room);
+						break;
+					}
+				}
+			}
+		}
+	}
+	iterator_stop(&rit);
+
+}
 
 INSTANCE *create_instance(BLUEPRINT *blueprint)
 {
@@ -2202,6 +2697,8 @@ INSTANCE *create_instance(BLUEPRINT *blueprint)
 		reset_instance(instance);
 
 		get_instance_id(instance);
+
+		__instance_correct_portals(instance);
 	}
 
 	return instance;
@@ -2472,6 +2969,7 @@ const struct olc_cmd_type bsedit_table[] =
 	{ "recall",			bsedit_recall		},
 	{ "rooms",			bsedit_rooms		},
 	{ "link",			bsedit_link			},
+	{ "maze",			bsedit_maze			},
 	{ NULL,				NULL				}
 
 };
@@ -2504,13 +3002,41 @@ void list_blueprint_sections(CHAR_DATA *ch, char *argument)
 
 		if( section )
 		{
-			sprintf(buf, "{Y[{W%5ld{Y] {x%-30.30s  {G%-16.16s{x   %11ld   %11ld-%-11ld \n\r",
-				vnum,
-				section->name,
-				flag_string(blueprint_section_types, section->type),
-				section->recall,
-				section->lower_vnum,
-				section->upper_vnum);
+			if (section->type == BSTYPE_STATIC)
+				sprintf(buf, "{Y[{W%5ld{Y] {x%-30.30s  {G%-16.16s{x   %11ld   %11ld-%-11ld \n\r",
+					vnum,
+					section->name,
+					"static",
+					section->recall,
+					section->lower_vnum,
+					section->upper_vnum);
+			else if(section->type == BSTYPE_MAZE)
+			{
+				if (section->recall > 0)
+				{
+					int rx = (section->recall - 1) % section->maze_x + 1;
+					int ry = (section->recall - 1) / section->maze_x + 1;
+					sprintf(buf, "{Y[{W%5ld{Y] {x%-30.30s  {G%-16.16s{x   (%4d %4d)    (%10ld %-10ld) \n\r",
+						vnum,
+						section->name,
+						"maze",
+						rx, ry,
+						section->maze_x,
+						section->maze_y);
+				}
+				else
+					sprintf(buf, "{Y[{W%5ld{Y] {x%-30.30s  {G%-16.16s{x                  (%10ld %-10ld) \n\r",
+						vnum,
+						section->name,
+						"maze",
+						section->maze_x,
+						section->maze_y);
+			}
+			else
+					sprintf(buf, "{Y[{W%5ld{Y] {x%-30.30s  {G%-16.16s{x\n\r",
+						vnum,
+						section->name,
+						"invalid");
 
 			++lines;
 			if( !add_buf(buffer, buf) || (!ch->lines && strlen(buf_string(buffer)) > MAX_STRING_LENGTH) )
@@ -2534,8 +3060,8 @@ void list_blueprint_sections(CHAR_DATA *ch, char *argument)
 		else
 		{
 			// Header
-			send_to_char("{Y Vnum   [            Name            ] [      Type      ] [  Recall   ] [    Room Vnum Range    ]{x\n\r", ch);
-			send_to_char("{Y==========================================================================================={x\n\r", ch);
+			send_to_char("{Y Vnum   [            Name            ] [      Type      ] [  Recall   ] [    Vnum Range/Size    ]{x\n\r", ch);
+			send_to_char("{Y=================================================================================================={x\n\r", ch);
 		}
 
 		page_to_char(buffer->string, ch);
@@ -2676,22 +3202,103 @@ BSEDIT( bsedit_show )
 	sprintf(buf, "Flags:       %s\n\r", flag_string(blueprint_section_flags, bs->flags));
 	add_buf(buffer, buf);
 
-	if( bs->recall > 0 )
+	if (bs->type == BSTYPE_STATIC)
 	{
-		ROOM_INDEX_DATA *recall_room = get_room_index(bs->area, bs->recall);
-		sprintf(buf, "Recall:      [%5ld] %s\n\r", bs->recall, recall_room ? recall_room->name : "-invalid-");
+		if( bs->recall > 0 )
+		{
+			ROOM_INDEX_DATA *recall_room = get_room_index(bs->area, bs->recall);
+			sprintf(buf, "Recall:      [%5ld] %s\n\r", bs->recall, recall_room ? recall_room->name : "-invalid-");
+		}
+		else
+		{
+			sprintf(buf, "Recall:      no recall defined\n\r");
+		}
+		add_buf(buffer, buf);
+
+		sprintf(buf, "Lower Vnum:  %ld\n\r", bs->lower_vnum);
+		add_buf(buffer, buf);
+
+		sprintf(buf, "Upper Vnum:  %ld\n\r", bs->upper_vnum);
+		add_buf(buffer, buf);
+	}
+	else if (bs->type == BSTYPE_MAZE)
+	{
+		sprintf(buf, "Maze Width:  %ld\n\r", bs->maze_x);
+		add_buf(buffer, buf);
+		sprintf(buf, "Maze Height: %ld\n\r", bs->maze_y);
+		add_buf(buffer, buf);
+
+		if (bs->maze_x > 0 && bs->maze_y > 0 && bs->recall > 0)
+		{
+			int y = (bs->recall - 1) / bs->maze_x + 1;
+			int x = (bs->recall - 1) % bs->maze_x + 1;
+
+			if (y >= 1 && y <= bs->maze_y)
+				sprintf(buf, "Maze Recall: (%d, %d)\n\r", x, y);
+			else
+				sprintf(buf, "Maze Recall: {ROut-of-Bounds{x\n\r");
+		}
+		else
+			sprintf(buf, "Maze Recall: {DInvalid{x\n\r");
+		add_buf(buffer, buf);
+
+		add_buf(buffer, "Maze Fixed Rooms:\n\r");
+		if (list_size(bs->maze_fixed_rooms) > 0)
+		{
+			add_buf(buffer, "     [  X  ] [  Y  ] [ ] [               Room               ]\n\r");
+			add_buf(buffer, "==============================================================\n\r");
+
+			int room_no = 1;
+			ITERATOR it;
+			MAZE_FIXED_ROOM *mfr;
+			iterator_start(&it, bs->maze_fixed_rooms);
+			while((mfr = (MAZE_FIXED_ROOM *)iterator_nextdata(&it)))
+			{
+				ROOM_INDEX_DATA *room = get_room_index(bs->area, mfr->vnum);
+				sprintf(buf, "%4d  %5d   %5d   %s    %5ld %s{x\n\r", room_no++,
+					mfr->x, mfr->y,
+					mfr->connected?"{WY{x":"{DN{x",
+					mfr->vnum,
+					(room ? room->name : "{DInvalid{x"));
+				add_buf(buffer, buf);
+			}
+			iterator_stop(&it);
+
+			add_buf(buffer, "--------------------------------------------------------------\n\r");
+		}
+		else
+			add_buf(buffer, "    None\n\r");
+
+		add_buf(buffer, "Maze Room Templates:\n\r");
+		if (list_size(bs->maze_templates) > 0)
+		{
+			add_buf(buffer, "     [ Weight ] [               Room               ]\n\r");
+			add_buf(buffer, "=====================================================\n\r");
+
+			int room_no = 1;
+			ITERATOR it;
+			MAZE_WEIGHTED_ROOM *mwr;
+			iterator_start(&it, bs->maze_templates);
+			while((mwr = (MAZE_WEIGHTED_ROOM *)iterator_nextdata(&it)))
+			{
+				ROOM_INDEX_DATA *room = get_room_index(bs->area, mwr->vnum);
+				sprintf(buf, "%4d   %6d     %5ld %s\n\r", room_no++,
+					mwr->weight,
+					mwr->vnum,
+					(room ? room->name : "{DInvalid{x"));
+				add_buf(buffer, buf);
+			}
+			iterator_stop(&it);
+
+			add_buf(buffer, "-----------------------------------------------------\n\r");
+		}
+		else
+			add_buf(buffer, "    None\n\r");
 	}
 	else
 	{
-		sprintf(buf, "Recall:      no recall defined\n\r");
+		add_buf(buffer, "{WWARNING: {RSection is ill-defined.{x\n\r");
 	}
-	add_buf(buffer, buf);
-
-	sprintf(buf, "Lower Vnum:  %ld\n\r", bs->lower_vnum);
-	add_buf(buffer, buf);
-
-	sprintf(buf, "Upper Vnum:  %ld\n\r", bs->upper_vnum);
-	add_buf(buffer, buf);
 
 	add_buf(buffer, "Description:\n\r");
 	add_buf(buffer, bs->description);
@@ -2882,6 +3489,14 @@ BSEDIT( bsedit_type )
 	}
 
 	bs->type = value;
+	// Reset parameters
+	bs->maze_x = 0;
+	bs->maze_y = 0;
+	bs->total_maze_weight = 0;
+	list_clear(bs->maze_templates);
+	bs->lower_vnum = 0;
+	bs->upper_vnum = 0;
+	bs->recall = 0;
 	send_to_char("Section type changed.\n\r", ch);
 	return TRUE;
 }
@@ -2921,6 +3536,12 @@ BSEDIT( bsedit_recall )
 	char buf[MSL];
 
 	EDIT_BPSECT(ch, bs);
+
+	if (bs->type != BSTYPE_STATIC)
+	{
+		send_to_char("You may only set the static recall on a static section.\n\r", ch);
+		return FALSE;
+	}
 
 	if (argument[0] == '\0')
 	{
@@ -2964,7 +3585,7 @@ BSEDIT( bsedit_recall )
 
 	if( vnum < bs->lower_vnum || vnum > bs->upper_vnum )
 	{
-		sprintf(buf, "Value must be a value from %ld to %ld.\n\r", bs->lower_vnum, bs->upper_vnum);
+		sprintf(buf, "Value must be a number from %ld to %ld.\n\r", bs->lower_vnum, bs->upper_vnum);
 		send_to_char(buf, ch);
 		return FALSE;
 	}
@@ -2986,34 +3607,58 @@ bool validate_vnum_range(CHAR_DATA *ch, BLUEPRINT_SECTION *section, long lower, 
 {
 	char buf[MSL];
 
-	// Check the range spans just one area.
-	if( !check_range(lower, upper) )
-	{
-		send_to_char("Vnums must be in the same area.\n\r", ch);
-		return FALSE;
-	}
-
 	// Check that are no overlaps
 	BLUEPRINT_SECTION *bs;
 	int iHash;
-	AREA_DATA *area;
-	for(area = area_first; area; area = area->next)
+	for(iHash = 0; iHash < MAX_KEY_HASH; iHash++)
 	{
-		for(iHash = 0; iHash < MAX_KEY_HASH; iHash++)
+		for(bs = section->area->blueprint_section_hash[iHash]; bs; bs = bs->next)
 		{
-			for(bs = area->blueprint_section_hash[iHash]; bs; bs = bs->next)
+			// Only check against other sections
+			if (bs == section) continue;
+
+			if( bs->type == BSTYPE_STATIC )
 			{
-				// Only check against other sections
-				if( bs != section )
+				if( (lower >= bs->lower_vnum && lower <= bs->upper_vnum ) ||
+					(upper >= bs->lower_vnum && upper <= bs->upper_vnum ) ||
+					(bs->lower_vnum >= lower && bs->lower_vnum <= upper ) ||
+					(bs->upper_vnum >= lower && bs->upper_vnum <= upper ) )
 				{
-					if( (lower >= bs->lower_vnum && lower <= bs->upper_vnum ) ||
-						(upper >= bs->lower_vnum && upper <= bs->upper_vnum ) ||
-						(bs->lower_vnum >= lower && bs->lower_vnum <= upper ) ||
-						(bs->upper_vnum >= lower && bs->upper_vnum <= upper ) )
-					{
-						send_to_char("Blueprint section vnum ranges cannot overlap.\n\r", ch);
-						return FALSE;
-					}
+					send_to_char("Blueprint section vnum ranges cannot overlap.\n\r", ch);
+					return FALSE;
+				}
+			}
+			else if ( bs->type == BSTYPE_MAZE )
+			{
+				ITERATOR it;
+				MAZE_FIXED_ROOM *mfr;
+				iterator_start(&it, bs->maze_fixed_rooms);
+				while((mfr = (MAZE_FIXED_ROOM *)iterator_nextdata(&it)))
+				{
+					if (mfr->vnum >= lower && mfr->vnum <= upper)
+						break;
+				}
+				iterator_stop(&it);
+
+				if (mfr)
+				{
+					send_to_char("Blueprint section vnum ranges cannot overlap.\n\r", ch);
+					return FALSE;
+				}
+
+				MAZE_WEIGHTED_ROOM *mwr;
+				iterator_start(&it, bs->maze_templates);
+				while((mwr = (MAZE_WEIGHTED_ROOM *)iterator_nextdata(&it)))
+				{
+					if( mwr->vnum >= lower && mwr->vnum <= upper)
+						break;
+				}
+				iterator_stop(&it);
+
+				if (mwr)
+				{
+					send_to_char("Blueprint section vnum ranges cannot overlap.\n\r", ch);
+					return FALSE;
 				}
 			}
 		}
@@ -3102,11 +3747,17 @@ BSEDIT( bsedit_rooms )
 
 	EDIT_BPSECT(ch, bs);
 
+	if (bs->type != BSTYPE_STATIC)
+	{
+		send_to_char("Blueprint section must be a STATIC type.\n\r", ch);
+		return FALSE;
+	}
+
 	argument = one_argument(argument, arg);
 
 	if( arg[0] == '\0' || argument[0] == '\0' )
 	{
-		send_to_char("Syntax:  rooms [lower vnum][upper vnum]\n\r", ch);
+		send_to_char("Syntax:  rooms [lower vnum] [upper vnum]\n\r", ch);
 		send_to_char("{YVnums must be in the same area.{x\n\r", ch);
 		return FALSE;
 	}
@@ -3180,6 +3831,495 @@ BSEDIT( bsedit_rooms )
 	return FALSE;
 }
 
+static bool __verify_exit(ROOM_INDEX_DATA *room, int door, int x, int y, int w, int h)
+{
+	static bool allowed[4][MAX_DIR] = {
+	//		N		E		S		W		U		D		NE		NW		SE		SW
+		{	TRUE,	FALSE,	FALSE,	FALSE,	TRUE,	TRUE,	TRUE,	TRUE,	FALSE,	FALSE	}, // North Wall
+		{   FALSE,	FALSE,	TRUE,	FALSE,	TRUE,	TRUE,	FALSE,	FALSE,	TRUE,	TRUE	}, // South Wall
+		{	FALSE,	TRUE,	FALSE,	FALSE,	TRUE,	TRUE,	TRUE,	FALSE,	TRUE,	FALSE	}, // East Wall
+		{	FALSE,	FALSE,	FALSE,	TRUE,	TRUE,	TRUE,	FALSE,	TRUE,	FALSE,	TRUE	}, // West Wall
+	};
+
+	EXIT_DATA *ex = room->exit[door];
+	if (!ex) return TRUE;		// Nothing there, then it's okay
+
+	if (IS_SET(ex->exit_info, EX_ENVIRONMENT))
+	{
+		// Up/Down environment exits are allowed
+		if (door == DIR_UP || door == DIR_DOWN) return TRUE;
+
+		// Check that the lateral environment exits only lead out of the maze bounds		
+		if (x == 1)
+		{
+			// West wall
+			if (allowed[3][door]) return TRUE;
+		}
+		else if(x == w)
+		{
+			// East wall
+			if (allowed[2][door]) return TRUE;
+		}
+
+		if (y == 1)
+		{
+			// North wall
+			if (allowed[0][door]) return TRUE;
+		}
+		else if (y == h)
+		{
+			// South wall
+			if (allowed[1][door]) return TRUE;
+		}
+		
+		// in the middle, no side exits allowed
+		return FALSE;
+	}
+	else
+	{
+		// Ordinary exit
+
+		if (door == DIR_UP || door == DIR_DOWN) return TRUE;
+
+		// Check that ordinary exits on the walls do not leave the maze bounds
+		if (x == 1)
+		{
+			// West wall
+			if (allowed[3][door]) return FALSE;
+		}
+		else if(x == w)
+		{
+			// East wall
+			if (allowed[2][door]) return FALSE;
+		}
+
+		if (y == 1)
+		{
+			// North wall
+			if (allowed[0][door]) return FALSE;
+		}
+		else if (y == h)
+		{
+			// South wall
+			if (allowed[1][door]) return FALSE;
+		}
+		
+		// in the middle, can point anywhere other than up or down.
+		return TRUE;
+	}
+}
+
+BSEDIT( bsedit_maze )
+{
+	BLUEPRINT_SECTION *bs;
+	char buf[MSL];
+	char arg[MIL];
+
+	EDIT_BPSECT(ch, bs);
+
+	if (bs->type != BSTYPE_MAZE)
+	{
+		send_to_char("Blueprint section must be a MAZE type.\n\r", ch);
+		return FALSE;
+	}
+
+	argument = one_argument(argument, arg);
+	if (!str_prefix(arg, "size"))
+	{
+		char argw[MIL];
+		char argh[MIL];
+
+		argument = one_argument(argument, argw);
+		argument = one_argument(argument, argh);
+
+		if (!is_number(argw) || !is_number(argh))
+		{
+			send_to_char("Syntax:  maze size <width> <height>\n\r", ch);
+			send_to_char("Please specify a number.\n\r", ch);
+			return FALSE;
+		}
+
+		long width = atol(argw);
+		long height = atol(argh);
+
+		if (width < 1 || height < 1)
+		{
+			send_to_char("Syntax:  maze size <width> <height>\n\r", ch);
+			send_to_char("Please specify a positive number.\n\r", ch);
+			return FALSE;
+		}
+
+		bs->maze_x = width;
+		bs->maze_y = height;
+		bs->recall = 0;
+		list_clear(bs->maze_fixed_rooms);
+
+		send_to_char("Maze dimensions set.\n\r", ch);
+		return TRUE;
+	}
+
+	if (!str_prefix(arg, "templates"))
+	{
+		char arg2[MIL];
+
+		argument = one_argument(argument, arg2);
+
+		if (!str_prefix(arg2, "list"))
+		{
+			BUFFER *buffer = new_buf();
+
+			add_buf(buffer, "Maze Room Templates:\n\r");
+			if (list_size(bs->maze_templates) > 0)
+			{
+				add_buf(buffer, "     [ Weight ] [               Room               ]\n\r");
+				add_buf(buffer, "=====================================================\n\r");
+
+				int room_no = 1;
+				ITERATOR it;
+				MAZE_WEIGHTED_ROOM *mwr;
+				iterator_start(&it, bs->maze_templates);
+				while((mwr = (MAZE_WEIGHTED_ROOM *)iterator_nextdata(&it)))
+				{
+					ROOM_INDEX_DATA *room = get_room_index(bs->area, mwr->vnum);
+					sprintf(buf, "%4d   %6d     %5ld %s\n\r", room_no++,
+						mwr->weight,
+						mwr->vnum,
+						(room ? room->name : "{DInvalid{x"));
+					add_buf(buffer, buf);
+				}
+				iterator_stop(&it);
+
+				add_buf(buffer, "-----------------------------------------------------\n\r");
+			}
+			else
+				add_buf(buffer, "    None\n\r");
+
+			if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+			{
+				send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+			}
+			else
+			{
+				page_to_char(buffer->string, ch);
+			}
+
+			free_buf(buffer);
+			return FALSE;
+		}
+		else if (!str_prefix(arg2, "add"))
+		{
+			char argw[MIL];
+
+			argument = one_argument(argument, argw);
+
+			if (!is_number(argw))
+			{
+				send_to_char("Syntax:  maze templates add {R<weight>{x <room vnum>\n\r", ch);
+				send_to_char("Please specify a positive number.\n\r", ch);
+				return FALSE;
+			}
+
+			int weight = atoi(argw);
+			if (weight < 1)
+			{
+				send_to_char("Syntax:  maze templates add {R<weight>{x <room vnum>\n\r", ch);
+				send_to_char("Please specify a positive number.\n\r", ch);
+				return FALSE;
+			}
+
+			if (!is_number(argument))
+			{
+				send_to_char("Syntax:  maze templates add <weight> {R<room vnum>{x\n\r", ch);
+				send_to_char("Please specify a positive number.\n\r", ch);
+				return FALSE;
+			}
+
+			long vnum = atoi(argument);
+			if (vnum < 1)
+			{
+				send_to_char("Syntax:  maze templates add <weight> {R<room vnum>{x\n\r", ch);
+				send_to_char("Please specify a positive number.\n\r", ch);
+				return FALSE;
+			}
+
+			ROOM_INDEX_DATA *room = get_room_index(bs->area, vnum);
+			if (!room)
+			{
+				send_to_char("Syntax:  maze templates add <weight> {R<room vnum>{x\n\r", ch);
+				sprintf(buf, "Room does not exist at vnum %ld.\n\r", vnum);
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			for(int i = 0; i < MAX_DIR; i++)
+			{
+				if (room->exit[i] != NULL)
+				{
+					send_to_char("Syntax:  maze templates add <weight> {R<room vnum>{x\n\r", ch);
+					send_to_char("Only unlinked rooms may be used as a maze room template.\n\r", ch);
+					return FALSE;
+				}
+			}
+
+			SET_BIT(room->room2_flags, ROOM_BLUEPRINT);
+			MAZE_WEIGHTED_ROOM *mwr = new_maze_weighted_room();
+			mwr->weight = weight;
+			mwr->vnum = vnum;
+			list_appendlink(bs->maze_templates, mwr);
+
+			sprintf(buf, "Room %s (%ld) added with weight %d.\n\r", room->name, vnum, weight);
+			send_to_char(buf, ch);
+			return TRUE;
+		}
+		else if (!str_prefix(arg2, "remove"))
+		{
+			if (list_size(bs->maze_templates) < 1)
+			{
+				send_to_char("There are no maze room templates to remove.\n\r", ch);
+				return FALSE;
+			}
+
+			if (!is_number(argument))
+			{
+				send_to_char("Syntax:  maze templates remove {R#{x\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bs->maze_templates));
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			int index = atoi(argument);
+			if (index < 1 || index > list_size(bs->maze_templates))
+			{
+				send_to_char("Syntax:  maze templates remove {R#{x\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bs->maze_templates));
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			list_remnthlink(bs->maze_templates, index);
+			sprintf(buf, "Maze room template %d removed.", index);
+			send_to_char(buf, ch);
+			return TRUE;
+		}
+
+		send_to_char("Syntax:  maze templates {Rlist{x\n\r", ch);
+		send_to_char("         maze templates {Radd{x <weight> <room vnum>\n\r", ch);
+		send_to_char("         maze templates {Rremove{x #\n\r", ch);
+		return FALSE;
+	}
+
+	if (!str_prefix(arg, "fixed"))
+	{
+		char arg2[MIL];
+
+		argument = one_argument(argument, arg2);
+		if (!str_prefix(arg2, "list"))
+		{
+			BUFFER *buffer = new_buf();
+
+			add_buf(buffer, "Maze Fixed Rooms:\n\r");
+			if (list_size(bs->maze_fixed_rooms) > 0)
+			{
+				add_buf(buffer, "     [  X  ] [  Y  ] [ ] [               Room               ]\n\r");
+				add_buf(buffer, "==============================================================\n\r");
+
+				int room_no = 1;
+				ITERATOR it;
+				MAZE_FIXED_ROOM *mfr;
+				iterator_start(&it, bs->maze_fixed_rooms);
+				while((mfr = (MAZE_FIXED_ROOM *)iterator_nextdata(&it)))
+				{
+					ROOM_INDEX_DATA *room = get_room_index(bs->area, mfr->vnum);
+					sprintf(buf, "%4d  %5d   %5d   %s    %5ld %s{x\n\r", room_no++,
+						mfr->x, mfr->y,
+						mfr->connected?"{WY{x":"{DN{x",
+						mfr->vnum,
+						(room ? room->name : "{DInvalid{x"));
+					add_buf(buffer, buf);
+				}
+				iterator_stop(&it);
+
+				add_buf(buffer, "--------------------------------------------------------------\n\r");
+			}
+			else
+				add_buf(buffer, "    None\n\r");
+
+			if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+			{
+				send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+			}
+			else
+			{
+				page_to_char(buffer->string, ch);
+			}
+
+			free_buf(buffer);
+			return FALSE;
+		}
+		
+		if(!str_prefix(arg2, "add"))
+		{
+			char argx[MIL];
+			char argy[MIL];
+			char argr[MIL];
+			long x, y, vnum;
+			bool connected;
+
+			argument = one_argument(argument, argx);
+			argument = one_argument(argument, argy);
+			argument = one_argument(argument, argr);
+
+			if (!is_number(argx) || (x = atol(argx)) < 1 || x > bs->maze_x)
+			{
+				send_to_char("Syntax:  maze fixed add {R<x>{x <y> <room vnum>[ <connected>]\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %ld.\n\r", bs->maze_x);
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			if (!is_number(argy) || (y = atol(argy)) < 1 || y > bs->maze_y)
+			{
+				send_to_char("Syntax:  maze fixed add <x> {R<y>{x <room vnum>[ <connected>]\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %ld.\n\r", bs->maze_y);
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			if (!is_number(argr) || (vnum = atol(argr)) < 1)
+			{
+				send_to_char("Syntax:  maze fixed add <x> <y> {R<room vnum>{[ <connected>]\n\r", ch);
+				send_to_char("Please specify a positive number.\n\r", ch);
+				return FALSE;
+			}
+
+			ROOM_INDEX_DATA *room = get_room_index(bs->area, vnum);
+			if (!room)
+			{
+				send_to_char("Syntax:  maze fixed add <x> <y> {R<room vnum>{x[ <connected>]\n\r", ch);
+				send_to_char("Room does not exist.\n\r", ch);
+				return FALSE;
+			}
+
+			// Verify exits are only ENVIRONMENT and only around the edges for lateral directions
+			for(int i = 0; i < MAX_DIR; i++)
+			{
+				if (!__verify_exit(room, i, x, y, bs->maze_x, bs->maze_y))
+				{
+					send_to_char("Syntax:  maze fixed add <x> <y> {R<room vnum>{x[ <connected>]\n\r", ch);
+					send_to_char("Room contains either an ENVIRONMENT exit going inward or an ordinary exit leaving maze bounds.\n\r", ch);
+					send_to_char("UP/DOWN exits are allowed anywhere in the maze section.\n\r", ch);
+					send_to_char("Lateral exits are only allowed on their respective edges,\n\r",ch);
+					send_to_char("    such as NORTH* exits on the north edge.\n\r",ch);
+					return FALSE;
+				}
+			}
+
+			if (argument[0] == '\0')
+				connected = TRUE;
+			else if (!str_prefix(argument, "yes"))
+				connected = TRUE;
+			else if (!str_prefix(argument, "no"))
+				connected = FALSE;
+			else
+				connected = FALSE;
+
+			MAZE_FIXED_ROOM *mfr = new_maze_fixed_room();
+			mfr->x = x;
+			mfr->y = y;
+			mfr->vnum = vnum;
+			mfr->connected = connected;
+			list_appendlink(bs->maze_fixed_rooms, mfr);
+
+			sprintf(buf, "Fixed room %s (%ld) added to maze section at location (%ld %ld).\n\r", room->name, vnum, x, y);
+			send_to_char(buf, ch);
+			return TRUE;
+		}
+
+		if (!str_prefix(arg2, "remove"))
+		{
+			if (list_size(bs->maze_fixed_rooms) < 1)
+			{
+				send_to_char("There are no fixed maze rooms to remove.\n\r", ch);
+				return FALSE;
+			}
+
+			if (!is_number(argument))
+			{
+				send_to_char("Syntax:  maze fixed remove {R#{x\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bs->maze_fixed_rooms));
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			int index = atoi(argument);
+			if (index < 1 || index > list_size(bs->maze_fixed_rooms))
+			{
+				send_to_char("Syntax:  maze fixed remove {R#{x\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(bs->maze_fixed_rooms));
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			list_remnthlink(bs->maze_fixed_rooms, index);
+			sprintf(buf, "Fixed maze room %d removed.\n\r", index);
+			send_to_char(buf, ch);
+			return TRUE;
+		}
+
+		send_to_char("Syntax:  maze fixed {Rlist{x\n\r", ch);	
+		send_to_char("         maze fixed {Radd{x <x> <y> <room vnum>\n\r", ch);
+		send_to_char("         maze fixed {Rremove{x #\n\r", ch);
+		return FALSE;
+	}
+
+	if (!str_prefix(arg, "recall"))
+	{
+		char arg2[MIL];
+
+		argument = one_argument(argument, arg2);
+		if (!str_prefix(arg2, "clear"))
+		{
+			bs->recall = 0;
+			send_to_char("Section recall cleared.\n\r", ch);
+			return TRUE;
+		}
+
+		if (!is_number(arg2) || !is_number(argument))
+		{
+			send_to_char("Syntax:  maze recall clear\n\r", ch);
+			send_to_char("         maze recall <x> <y>\n\r", ch);
+			return FALSE;
+		}
+
+		long x = atol(arg2);
+		long y = atol(argument);
+
+		if (x < 1 || x > bs->maze_x || y < 1 || y > bs->maze_y)
+		{
+			send_to_char("Syntax:  maze recall <x> <y>\n\r", ch);
+			sprintf(buf, "Please specify coordinate from {Y1 1{x to {Y%ld %ld{x.\n\r", bs->maze_x, bs->maze_y);
+			send_to_char(buf, ch);
+			return FALSE;
+		}
+
+		bs->recall = (y - 1) * bs->maze_x + x;
+		sprintf(buf, "Section recall set to (%ld %ld).\n\r", x, y);
+		send_to_char(buf, ch);
+		return TRUE;
+	}
+
+	send_to_char("Syntax:  maze {Rsize{x <width> <height>\n\r", ch);
+	send_to_char("         maze {Rfixed{x list\n\r", ch);	
+	send_to_char("         maze {Rfixed{x add <x> <y> <room vnum>\n\r", ch);
+	send_to_char("         maze {Rfixed{x remove #\n\r", ch);
+	send_to_char("         maze {Rtemplates{x list\n\r", ch);
+	send_to_char("         maze {Rtemplates{x add <weight> <room vnum>\n\r", ch);
+	send_to_char("         maze {Rtemplates{x remove #\n\r", ch);
+	send_to_char("         maze {Rrecall{x clear\n\r", ch);
+	send_to_char("         maze {Rrecall{x <x> <y>\n\r", ch);
+	return FALSE;
+}
+
 BSEDIT( bsedit_link )
 {
 	BLUEPRINT_SECTION *bs;
@@ -3234,10 +4374,21 @@ BSEDIT( bsedit_link )
 
 	if( !str_cmp(arg, "add") )
 	{
-		if( bs->lower_vnum < 1 || bs->upper_vnum < 1 )
+		if (bs->type == BSTYPE_STATIC)
 		{
-			send_to_char("Vnum range must be set first.\n\r", ch);
-			return FALSE;
+			if( bs->lower_vnum < 1 || bs->upper_vnum < 1 )
+			{
+				send_to_char("Vnum range must be set first.\n\r", ch);
+				return FALSE;
+			}
+		}
+		else if (bs->type == BSTYPE_MAZE)
+		{
+			if( bs->maze_x < 1 || bs->maze_y < 1)
+			{
+				send_to_char("Maze dimensions must be set first.\n\r", ch);
+				return FALSE;
+			}
 		}
 
 		if( !is_number(arg2) )
@@ -3247,9 +4398,35 @@ BSEDIT( bsedit_link )
 		}
 
 		long vnum = atol(arg2);
-		if( vnum < bs->lower_vnum || vnum > bs->upper_vnum )
+		if (bs->type == BSTYPE_STATIC)
 		{
-			send_to_char("Vnum is out of range of blueprint section.\n\r", ch);
+			if( vnum < bs->lower_vnum || vnum > bs->upper_vnum )
+			{
+				send_to_char("Vnum is out of range of blueprint section.\n\r", ch);
+				return FALSE;
+			}
+		}
+		else if(bs->type == BSTYPE_MAZE)
+		{
+			ITERATOR fit;
+			MAZE_FIXED_ROOM *mfr;
+			iterator_start(&fit, bs->maze_fixed_rooms);
+			while((mfr = (MAZE_FIXED_ROOM *)iterator_nextdata(&fit)))
+			{
+				if (mfr->vnum == vnum)
+					break;
+			}
+			iterator_stop(&fit);
+
+			if (!mfr)
+			{
+				send_to_char("Blueprint section does not have a maze fixed room with that vnum.\n\r", ch);
+				return FALSE;
+			}
+		}
+		else
+		{
+			send_to_char("Blueprint section does not have a type defined.\n\r", ch);
 			return FALSE;
 		}
 
@@ -3400,9 +4577,35 @@ BSEDIT( bsedit_link )
 		}
 
 		long vnum = atol(argument);
-		if( vnum < bs->lower_vnum || vnum > bs->upper_vnum )
+		if (bs->type == BSTYPE_STATIC)
 		{
-			send_to_char("Vnum is out of range of blueprint section.\n\r", ch);
+			if( vnum < bs->lower_vnum || vnum > bs->upper_vnum )
+			{
+				send_to_char("Vnum is out of range of blueprint section.\n\r", ch);
+				return FALSE;
+			}
+		}
+		else if(bs->type == BSTYPE_MAZE)
+		{
+			ITERATOR fit;
+			MAZE_FIXED_ROOM *mfr;
+			iterator_start(&fit, bs->maze_fixed_rooms);
+			while((mfr = (MAZE_FIXED_ROOM *)iterator_nextdata(&fit)))
+			{
+				if (mfr->vnum == vnum)
+					break;
+			}
+			iterator_stop(&fit);
+
+			if (!mfr)
+			{
+				send_to_char("Blueprint section does not have a maze fixed room with that vnum.\n\r", ch);
+				return FALSE;
+			}
+		}
+		else
+		{
+			send_to_char("Blueprint section does not have a type defined.\n\r", ch);
 			return FALSE;
 		}
 
@@ -3430,7 +4633,6 @@ BSEDIT( bsedit_link )
 		link->door = -1;
 		link->room = room;
 		link->ex = NULL;
-
 
 		send_to_char("Room changed.\n\r", ch);
 		return TRUE;
@@ -4258,17 +5460,13 @@ BPEDIT( bpedit_show )
 			BLUEPRINT_SECTION *bs = blueprint_get_representative_section(bp, special->section, &exact);
 
 			ROOM_INDEX_DATA *room = NULL;
-			long vnum = 0;
 
 			if(IS_VALID(bs) )
 			{
-				vnum = bs->lower_vnum + special->offset;
-
-				if (vnum >= bs->lower_vnum || vnum <= bs->upper_vnum)
-					room = get_room_index(bs->area, vnum);
+				room = blueprint_section_get_room_byoffset(bs, special->offset);
 			}
 
-			if( !IS_VALID(bs) || !room || room->vnum < bs->lower_vnum || room->vnum > bs->upper_vnum)
+			if( !IS_VALID(bs) || !room)
 			{
 				snprintf(buf, MSL-1, "{W%4d  %-30.30s   {D-{Winvalid{D-{x\n\r", ++line, special->name);
 			}
@@ -4693,10 +5891,26 @@ BPEDIT( bpedit_section )
 			return FALSE;
 		}
 
-		// Make sure the section is defined
-		if (bs->lower_vnum < 1 || bs->upper_vnum < 1 || bs->lower_vnum >= bs->upper_vnum)
+		// Make sure the section is well defined
+		if (bs->type == BSTYPE_STATIC)
 		{
-			send_to_char("That blueprint section does not have any rooms defined.\n\r", ch);
+			if (bs->lower_vnum < 1 || bs->upper_vnum < 1 || bs->lower_vnum > bs->upper_vnum)
+			{
+				send_to_char("That blueprint section does not have any rooms defined.\n\r", ch);
+				return FALSE;
+			}
+		}
+		else if (bs->type == BSTYPE_MAZE)
+		{
+			if (bs->maze_x < 1 || bs->maze_y < 1)
+			{
+				send_to_char("That blueprint section does not have its maze dimensions set.\n\r", ch);
+				return FALSE;
+			}
+		}
+		else
+		{
+			send_to_char("That blueprint section needs a type.\n\r", ch);
 			return FALSE;
 		}
 
@@ -9557,6 +10771,22 @@ BPEDIT( bpedit_recall )
 	return TRUE;
 }
 
+int blueprint_section_room_count(BLUEPRINT_SECTION *bs)
+{
+	if (bs->type == BSTYPE_STATIC)
+	{
+		if (bs->upper_vnum < 1 || bs->lower_vnum < 1) return 0;
+
+		return bs->upper_vnum - bs->lower_vnum + 1;
+	}
+	else if (bs->type == BSTYPE_MAZE)
+	{
+		return bs->maze_x * bs->maze_y;
+	}
+	else
+		return 0;
+}
+
 int blueprint_layout_room_count(BLUEPRINT *bp, BLUEPRINT_LAYOUT_SECTION_DATA *ls)
 {
 	switch(ls->mode)
@@ -9565,9 +10795,7 @@ int blueprint_layout_room_count(BLUEPRINT *bp, BLUEPRINT_LAYOUT_SECTION_DATA *ls
 		{
 			BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, ls->section);
 
-			if (bs->upper_vnum < 1 || bs->lower_vnum < 1) return 0;
-
-			return bs->upper_vnum - bs->lower_vnum + 1;
+			return blueprint_section_room_count(bs);
 		}
 
 		case SECTIONMODE_WEIGHTED:
@@ -9580,7 +10808,7 @@ int blueprint_layout_room_count(BLUEPRINT *bp, BLUEPRINT_LAYOUT_SECTION_DATA *ls
 			{
 				BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, weighted->section);
 
-				int rooms = (bs->upper_vnum > 0 && bs->lower_vnum > 0) ? (bs->upper_vnum - bs->lower_vnum + 1) : 0;
+				int rooms = blueprint_section_room_count(bs);
 
 				if (min_rooms < 0 || rooms < min_rooms)
 				{
@@ -9659,17 +10887,13 @@ BPEDIT( bpedit_rooms )
 					BLUEPRINT_SECTION *bs = blueprint_get_representative_section(bp, special->section, &exact);
 
 					ROOM_INDEX_DATA *room = NULL;
-					long vnum = 0;
 
 					if(IS_VALID(bs) )
 					{
-						vnum = bs->lower_vnum + special->offset;
-
-						if (vnum >= bs->lower_vnum || vnum <= bs->upper_vnum)
-							room = get_room_index(bs->area, vnum);
+						room = blueprint_section_get_room_byoffset(bs, special->offset);
 					}
 
-					if( !IS_VALID(bs) || !room || room->vnum < bs->lower_vnum || room->vnum > bs->upper_vnum)
+					if( !IS_VALID(bs) || !room)
 					{
 						snprintf(buf, MSL-1, "{W%4d  %-30.30s   {D-{Winvalid{D-{x\n\r", ++line, special->name);
 					}
@@ -10472,6 +11696,22 @@ INSTANCE *instance_load(FILE *fp)
 	return instance;
 }
 
+
+INSTANCE *find_instance(unsigned long id0, unsigned long id1)
+{
+	ITERATOR it;
+	INSTANCE *instance = NULL;
+
+	iterator_start(&it, loaded_instances);
+	while( (instance = (INSTANCE *)iterator_nextdata(&it)) )
+	{
+		if( instance->uid[0] == id0 && instance->uid[1] == id1 )
+			break;
+	}
+	iterator_stop(&it);
+	
+	return instance;
+}
 
 
 void resolve_instances()

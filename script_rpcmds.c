@@ -109,6 +109,7 @@ const struct script_cmd_type room_cmd_table[] = {
 	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
 	{ "setrecall",			do_rpsetrecall,			FALSE,	TRUE	},
 	{ "settimer",			do_rpsettimer,			FALSE,	TRUE	},
+	{ "showcommand",		scriptcmd_showcommand,		FALSE,	TRUE	},
 	{ "showroom",			do_rpshowroom,			FALSE,	TRUE	},
 	{ "skimprove",			do_rpskimprove,			TRUE,	TRUE	},
 	{ "spawndungeon",		scriptcmd_spawndungeon,		TRUE,	TRUE	},

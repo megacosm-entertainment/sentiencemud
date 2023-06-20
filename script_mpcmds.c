@@ -125,6 +125,7 @@ const struct script_cmd_type mob_cmd_table[] = {
 	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
 	{ "setrecall",			do_mpsetrecall,				FALSE,	TRUE,	},
 	{ "settimer",			do_mpsettimer,				FALSE,	TRUE	},
+	{ "showcommand",		scriptcmd_showcommand,		FALSE,	TRUE	},
 	{ "showroom",			do_mpshowroom,				TRUE,	TRUE	},
 	{ "skimprove",			do_mpskimprove,				TRUE,	TRUE	},
 	{ "spawndungeon",		scriptcmd_spawndungeon,		TRUE,	TRUE	},

@@ -8429,6 +8429,32 @@ void list_remnthlink(LLIST *lp, register int nth)
 	}
 }
 
+bool list_contains(LLIST *lp, register void *ptr, int (*cmp)(void *a, void *b))
+{
+	ITERATOR it;
+	void *data;
+
+	if(!lp || !lp->valid || !ptr) return FALSE;
+
+	iterator_start(&it, lp);
+	if (cmp != NULL)
+	{
+		while((data = iterator_nextdata(&it)))
+		{
+			if (!cmp(data, ptr))
+				break;
+		}
+	}
+	else
+	{
+		while((data = iterator_nextdata(&it)) && (data != ptr));
+	}
+
+	iterator_stop(&it);
+
+	return data && TRUE;
+}
+
 bool list_hasdata(LLIST *lp, register void *ptr)
 {
 	ITERATOR it;

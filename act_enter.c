@@ -241,7 +241,14 @@ ROOM_INDEX_DATA *get_portal_destination(CHAR_DATA *ch, OBJ_DATA *portal, bool al
 		case GATETYPE_SECTIONRANDOM:
 			if( allow_random && IS_VALID(old_room->instance_section) )
 			{
-				location = section_random_room(ch, old_room->instance_section );
+				INSTANCE_SECTION *section = old_room->instance_section;
+
+				if (portal->value[5] != 0)
+				{
+					section = instance_get_section(section->instance, portal->value[5]);
+				}
+
+				location = section_random_room(ch, section );
 			}
 			break;
 		
@@ -281,7 +288,39 @@ ROOM_INDEX_DATA *get_portal_destination(CHAR_DATA *ch, OBJ_DATA *portal, bool al
 			break;
 
 		case GATETYPE_INSTANCE:
-			// TODO: Complete
+			// Value 5: Vnum (Area is the PORTAL's area)
+			// Value 6: Upper UID
+			// Value 7: Lower UID
+			// Value 8: Special Room (if 0, go to default entrance)
+			if (portal->value[5] > 0)
+			{
+				INSTANCE *instance = NULL;
+				if (portal->value[6] > 0 || portal->value[7] > 0)
+				{
+					instance = find_instance(portal->value[6], portal->value[7]);
+				}
+
+				// Was it not found or undefined?
+				if (!IS_VALID(instance) || instance->blueprint->area != portal->pIndexData->area || instance->blueprint->vnum != portal->value[5])
+				{
+					// [Re]spawn the instance
+					BLUEPRINT *bp = get_blueprint(portal->pIndexData->area, portal->value[5]);
+
+					instance = create_instance(bp);
+				}
+
+				if (!IS_VALID(instance))
+					break;
+
+				portal->value[6] = instance->uid[0];
+				portal->value[7] = instance->uid[7];
+				
+				// Get the special room
+				if (portal->value[8] > 0)
+					location = get_instance_special_room(instance, portal->value[8]);
+				else
+					location = instance->entrance;
+			}
 			break;
 
 		case GATETYPE_DUNGEON:
@@ -295,7 +334,6 @@ ROOM_INDEX_DATA *get_portal_destination(CHAR_DATA *ch, OBJ_DATA *portal, bool al
 					location = spawn_dungeon_player_floor(ch, portal->pIndexData->area, portal->value[5], portal->value[6]);
 				else if (portal->value[7] > 0)
 					location = spawn_dungeon_player_special_room(ch, portal->pIndexData->area, portal->value[5], portal->value[7], NULL);
-				// TODO: else go to the default entrance
 				else // Current default is assumed to be floor 1, but that needs to be changed to get the named special room.
 					location = spawn_dungeon_player_floor(ch, portal->pIndexData->area, portal->value[5], 1);
 			}
@@ -320,6 +358,46 @@ ROOM_INDEX_DATA *get_portal_destination(CHAR_DATA *ch, OBJ_DATA *portal, bool al
 
 				if( floor > 0 )
 				{
+					INSTANCE *instance = (INSTANCE *)list_nthdata(in_dungeon->floors, floor);
+
+					if( IS_VALID(instance) )
+						location = instance->entrance;
+				}
+			}
+			break;
+
+		case GATETYPE_DUNGEON_FLOOR_SPECIAL:
+			// Must be inside a dungeon for it to work
+			// Value 5: Floor (>0:generated index, <0:ordinal index, 0:current)
+			// Value 6: Special room index (<1: invalid)
+			if (IS_VALID(in_dungeon) && portal->value[6] > 0)
+			{
+				INSTANCE *instance = in_instance;
+				if (portal->value[5] != 0)
+				{
+					instance = dungeon_get_instance_level(in_dungeon, portal->value[5]);
+					if (!IS_VALID(instance))
+						break;
+				}
+
+				location = get_instance_special_room(instance, portal->value[6]);
+			}
+			break;
+
+		case GATETYPE_DUNGEON_RANDOM_FLOOR:
+			if (allow_random && IS_VALID(in_dungeon))
+			{
+				int floors = list_size(in_dungeon->floors);
+				int min_f = (portal->value[5] > 0) ? portal->value[5] : 1;
+				int max_f = (portal->value[6] > 0) ? portal->value[6] : floors;
+
+				min_f = UMAX(min_f, 1);
+				max_f = UMIN(max_f, floors);
+
+				if (min_f <= max_f)
+				{
+					int floor = number_range(min_f, max_f);
+
 					INSTANCE *instance = (INSTANCE *)list_nthdata(in_dungeon->floors, floor);
 
 					if( IS_VALID(instance) )

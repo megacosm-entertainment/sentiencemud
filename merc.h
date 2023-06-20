@@ -2728,21 +2728,26 @@ struct affliction_type {
 #define GATE_FORCE_BRIEF	(P)
 
 
-#define GATETYPE_ENVIRONMENT        -1  // Environment
-#define GATETYPE_NORMAL             0   // Static or clone room
-#define GATETYPE_WILDS              1   // Wilderness room
-#define GATETYPE_AREARANDOM         2   // Random room in specified/current area
-#define GATETYPE_SECTIONRANDOM      3   // Random room in current instanced section
-#define GATETYPE_INSTANCERANDOM     4   // Random room in current instance
-#define GATETYPE_DUNGEONRANDOM      5   // Random room in current dungeon
-#define GATETYPE_REGIONRECALL       6   // Go to the recall room of the current region. Must be in a static room.
-#define GATETYPE_AREARECALL         7   // Go to the recall room of the current area. Must be in a static room.
-#define GATETYPE_DUNGEON            8   // Enter the specified floor/room in the dungeon
-#define GATETYPE_INSTANCE           9   // Enter the specified room in the instance
-#define GATETYPE_RANDOM             10  // Random room
-#define GATETYPE_DUNGEONFLOOR       11  // Go to current dungeon floor's entrance
-#define GATETYPE_WILDSRANDOM        12  // Random wilderness room
-#define GATETYPE_REGIONRANDOM      13
+#define GATETYPE_ENVIRONMENT            -1  // Environment
+#define GATETYPE_NORMAL                 0   // Static or clone room
+#define GATETYPE_WILDS                  1   // Wilderness room
+#define GATETYPE_AREARANDOM             2   // Random room in specified/current area
+#define GATETYPE_SECTIONRANDOM          3   // Random room in specified instanced section (>0: generated index, <0: ordinal index, 0: current section)
+#define GATETYPE_INSTANCERANDOM         4   // Random room in specified instance (>0: generated index, <0: ordinal index, 0: current instance)
+#define GATETYPE_DUNGEONRANDOM          5   // Random room in current dungeon
+#define GATETYPE_REGIONRECALL           6   // Go to the recall room of the current region. Must be in a static room.
+#define GATETYPE_AREARECALL             7   // Go to the recall room of the current area. Must be in a static room.
+#define GATETYPE_DUNGEON                8   // Enter the specified floor/room in the dungeon
+#define GATETYPE_INSTANCE               9   // Enter the specified special room in the instance.  If the UID is unset, it will spawn the instance when outside an instance or it will go to the specified room within the current instance.
+#define GATETYPE_RANDOM                 10  // Random room
+#define GATETYPE_DUNGEONFLOOR           11  // Go to current dungeon floor's entrance
+#define GATETYPE_WILDSRANDOM            12  // Random wilderness room
+#define GATETYPE_REGIONRANDOM           13
+#define GATETYPE_BLUEPRINT_SECTION_MAZE     14      // PROXY
+#define GATETYPE_BLUEPRINT_SPECIAL          15      // PROXY
+#define GATETYPE_DUNGEON_FLOOR_SPECIAL      16
+#define GATETYPE_DUNGEON_SPECIAL            17      // PROXY
+#define GATETYPE_DUNGEON_RANDOM_FLOOR       18  // Go to random floor
 
 /* furniture flags */
 #define STAND_AT		(A)
@@ -4351,6 +4356,8 @@ struct	pc_data
     bool spam_block_navigation;			// Used to prevent spam looking at compasses, sextants and telescopes to get skill improvements.
 
     WNUM personal_mount;
+
+    LLIST *extra_commands;
 };
 
 
@@ -5384,7 +5391,9 @@ struct blueprint_link_data {
 
 	char *name;					// Display name of section link
 
-	long vnum;					// Vnum of ROOM     - partial vnum, the area will be the same as the section
+	long vnum;					// Vnum of ROOM
+                                //  - when section is static, is the local vnum of room
+                                //  - when section is maze, is the index of a fixed room
 	int door;					// Exit in ROOM
     
     // TODO: Add exit definitions, such as flags (for doors and whatnot)
@@ -5403,6 +5412,18 @@ struct blueprint_maze_weighted_room
 
     int weight;
     long vnum;
+};
+
+typedef struct blueprint_maze_fixed_room MAZE_FIXED_ROOM;
+struct blueprint_maze_fixed_room
+{
+    MAZE_FIXED_ROOM *next;
+    bool valid;
+
+    int x;
+    int y;
+    long vnum;
+    bool connected;
 };
 
 #define BSTYPE_STATIC       0
@@ -5433,6 +5454,8 @@ struct blueprint_section_data {
     long maze_y;
 
     LLIST *maze_templates;      // MAZE_WEIGHTED_ROOM
+    int total_maze_weight;
+    LLIST *maze_fixed_rooms;    // MAZE_FIXED_ROOM
 
 	BLUEPRINT_LINK *links;
 };
@@ -6186,6 +6209,7 @@ enum trigger_index_enum {
 	TRIG_RESURRECT,
 	TRIG_SAVE,
 	TRIG_SAYTO,		/* NIB : 20070121 */
+    TRIG_SHOWCOMMANDS,
 	TRIG_SIT,
 	TRIG_SKILL_BERSERK,
 	TRIG_SKILL_SNEAK,
@@ -8827,6 +8851,7 @@ bool list_appendlist(LLIST *lp, LLIST *src);
 void list_remlink(LLIST *lp, void *data);
 void *list_nthdata(LLIST *lp, int nth);
 void list_remnthlink(LLIST *lp, register int nth);
+bool list_contains(LLIST *lp, register void *ptr, int (*cmp)(void *a, void *b));
 bool list_hasdata(LLIST *lp, register void *ptr);
 int list_size(LLIST *lp);
 int list_getindex(LLIST *lp, void *data);
@@ -9370,5 +9395,7 @@ CHAR_DATA *get_personal_mount(CHAR_DATA *ch);
 bool is_blueprint_static(BLUEPRINT *bp);
 ROOM_INDEX_DATA *blueprint_get_special_room(BLUEPRINT *bp, BLUEPRINT_SPECIAL_ROOM *special);
 BLUEPRINT_LAYOUT_SECTION_DATA *blueprint_get_nth_section(BLUEPRINT *bp, int section_no, BLUEPRINT_LAYOUT_SECTION_DATA **in_group);
+INSTANCE *find_instance(unsigned long id0, unsigned long id1);
+INSTANCE *dungeon_get_instance_level(DUNGEON *dng, int level_no);
 
 #endif /* !def __merc_h__ */

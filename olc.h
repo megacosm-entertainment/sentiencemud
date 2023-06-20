@@ -511,6 +511,7 @@ DECLARE_OLC_FUN( bsedit_rooms			);
 DECLARE_OLC_FUN( bsedit_link			);
 DECLARE_OLC_FUN( bsedit_flags			);
 DECLARE_OLC_FUN( bsedit_type			);
+DECLARE_OLC_FUN( bsedit_maze            );
 
 // Blueprint Editor
 DECLARE_OLC_FUN( bpedit_list			);

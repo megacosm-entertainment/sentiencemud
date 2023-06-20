@@ -858,6 +858,8 @@ PC_DATA *new_pcdata(void)
     pcdata->ships = list_create(FALSE);
     pcdata->spam_block_navigation = false;
 
+    pcdata->extra_commands = NULL;  // This will only ever be not-null during its execution
+
     VALIDATE(pcdata);
     return pcdata;
 }
@@ -3742,6 +3744,40 @@ static void delete_maze_weighted_room(void *ptr)
     free_maze_weighted_room((MAZE_WEIGHTED_ROOM *)ptr);
 }
 
+MAZE_FIXED_ROOM *maze_fixed_room_free;
+MAZE_FIXED_ROOM *new_maze_fixed_room()
+{
+    MAZE_FIXED_ROOM *room;
+
+    if(maze_fixed_room_free)
+    {
+        room = maze_fixed_room_free;
+        maze_fixed_room_free = maze_fixed_room_free->next;
+    }
+    else
+        room = alloc_mem(sizeof(MAZE_FIXED_ROOM));
+
+    memset(room, 0, sizeof(MAZE_FIXED_ROOM));
+    VALIDATE(room);
+    return room;
+}
+
+void free_maze_fixed_room(MAZE_FIXED_ROOM *room)
+{
+    if (IS_VALID(room))
+    {
+        INVALIDATE(room);
+
+        room->next = maze_fixed_room_free;
+        maze_fixed_room_free = room;
+    }
+}
+
+static void delete_maze_fixed_room(void *ptr)
+{
+    free_maze_fixed_room((MAZE_FIXED_ROOM *)ptr);
+}
+
 BLUEPRINT_SECTION *blueprint_section_free;
 
 BLUEPRINT_SECTION *new_blueprint_section()
@@ -3772,6 +3808,7 @@ BLUEPRINT_SECTION *new_blueprint_section()
     bs->maze_x = 0;
     bs->maze_y = 0;
     bs->maze_templates = list_createx(FALSE, NULL, delete_maze_weighted_room);
+    bs->maze_fixed_rooms = list_createx(FALSE, NULL, delete_maze_fixed_room);
 
 	VALIDATE(bs);
 	return bs;

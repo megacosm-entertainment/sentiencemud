@@ -30,6 +30,7 @@ void add_dungeon_index_weighted_exit_data(LLIST *list, int weight, int level_no,
 
 #define PARSE_ARG				(rest = expand_argument(info,rest,arg))
 #define PARSE_ARGTYPE(x)		if (!PARSE_ARG || arg->type != ENT_##x) return
+#define PARSE_STR(b)			(expand_string(info,rest,(b)))
 #define SETRETURN(ret)			info->progs->lastreturn = (ret)
 #define IS_TRIGGER(trg)			(info->trigger_type == (trg))
 #define ARG_EQUALS(ss)			(!str_cmp(arg->d.str, (ss)))
@@ -4593,6 +4594,43 @@ SCRIPT_CMD(scriptcmd_setrace)
 
 SCRIPT_CMD(scriptcmd_setsubclass)
 {
+}
+
+static int cmd_cmp(void *a, void *b)
+{
+	return str_cmp((char*)a, (char*)b);
+}
+
+// SHOWCOMMAND $PLAYER [STRING]
+//
+// Function: Appends a command string to the list of extra commands for use in the 'commands' command.
+//
+// Remarks: can only be used in the SHOWCOMMANDS trigger
+SCRIPT_CMD(scriptcmd_showcommand)
+{
+	char *rest = argument;
+	CHAR_DATA *ch;
+
+	SETRETURN(0);
+	if (!IS_TRIGGER(TRIG_SHOWCOMMANDS))
+		return;
+
+	PARSE_ARGTYPE(MOBILE);
+	ch = arg->d.mob;
+	
+	// Only allow players
+	if(!IS_VALID(ch) || IS_NPC(ch)) return;
+
+	// Not in the middle of acquiring commands
+	if(!ch->pcdata->extra_commands) return;
+
+	BUFFER *buffer = new_buf();
+	if (PARSE_STR(buffer) && !list_contains(ch->pcdata->extra_commands, buffer->string, cmd_cmp))
+	{
+		list_appendlink(ch->pcdata->extra_commands, str_dup(buffer->string));
+		SETRETURN(1);
+	}
+	free_buf(buffer);
 }
 
 // SPAWNDUNGEON $PLAYER $DUNGEONWNUM floor $FLOOR $VARIABLENAME

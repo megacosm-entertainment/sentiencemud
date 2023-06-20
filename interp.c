@@ -543,6 +543,177 @@ const	struct	cmd_type	cmd_table	[] =
 
 bool forced_command = FALSE;	// 20070511NIB: Used to prevent forces to do any restricted command
 
+static void __collect_verbs_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room)
+{
+	ITERATOR tit, pit;
+	ROOM_INDEX_DATA *source;
+	TOKEN_DATA *token;
+	PROG_LIST *prg;
+	int slot = TRIGSLOT_VERB;
+
+	if(room->source) {
+		source = room->source;
+	} else {
+		source = room;
+	}
+
+	script_room_addref(room);
+
+	// Check for tokens FIRST
+	iterator_start(&tit, room->ltokens);
+	while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
+		if( token->pIndexData->progs ) {
+			script_token_addref(token);
+			script_destructed = FALSE;
+			iterator_start(&pit, token->pIndexData->progs[slot]);
+			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+				if (is_trigger_type(prg->trig_type,TRIG_SHOWCOMMANDS)) {
+					execute_script(prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,NULL,NULL,TRIG_SHOWCOMMANDS,0,0,0,0,0);
+				}
+			}
+			iterator_stop(&pit);
+			script_token_remref(token);
+		}
+	}
+	iterator_stop(&tit);
+
+	if(source->progs->progs) {
+		script_destructed = FALSE;
+		iterator_start(&pit, source->progs->progs[slot]);
+		while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+			if (is_trigger_type(prg->trig_type,TRIG_SHOWCOMMANDS)) {
+				execute_script(prg->script, NULL, NULL, room, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,NULL,NULL,TRIG_SHOWCOMMANDS,0,0,0,0,0);
+			}
+		}
+		iterator_stop(&pit);
+	}
+	script_room_remref(room);
+}
+
+static void __collect_verbs_mob(CHAR_DATA *ch, CHAR_DATA *mob)
+{
+	ITERATOR tit, pit;
+	TOKEN_DATA *token;
+	PROG_LIST *prg;
+	int slot = TRIGSLOT_VERB;
+
+	if (IS_NPC(mob))
+		script_mobile_addref(mob);
+
+	// Check for tokens FIRST
+	iterator_start(&tit, mob->ltokens);
+	while(( token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
+		if(token->pIndexData->progs) {
+			script_token_addref(token);
+			script_destructed = FALSE;
+			iterator_start(&pit, token->pIndexData->progs[slot]);
+			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+				if (is_trigger_type(prg->trig_type,TRIG_SHOWCOMMANDS)) {
+					execute_script(prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,NULL,NULL,TRIG_SHOWCOMMANDS,0,0,0,0,0);
+				}
+			}
+			iterator_stop(&pit);
+			script_token_remref(token);
+		}
+	}
+	iterator_stop(&tit);
+
+	if (ch != mob && IS_NPC(mob))
+	{
+		if(mob->pIndexData->progs) {
+			script_destructed = FALSE;
+			iterator_start(&pit, mob->pIndexData->progs[slot]);
+			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+				if (is_trigger_type(prg->trig_type,TRIG_SHOWCOMMANDS)) {
+					execute_script(prg->script, mob, NULL, NULL, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,NULL,NULL,TRIG_SHOWCOMMANDS,0,0,0,0,0);
+				}
+			}
+			iterator_stop(&pit);
+		}
+	}
+
+	if (IS_NPC(mob))
+		script_mobile_remref(mob);
+}
+
+static void __collect_verbs_obj(CHAR_DATA *ch, OBJ_DATA *obj)
+{
+	ITERATOR tit, pit;
+	TOKEN_DATA *token;
+	PROG_LIST *prg;
+	int slot = TRIGSLOT_VERB;
+
+	script_object_addref(obj);
+
+	// Check for tokens FIRST
+	iterator_start(&tit, obj->ltokens);
+	while((token = (TOKEN_DATA *)iterator_nextdata(&tit))) {
+		if( token->pIndexData->progs ) {
+			script_token_addref(token);
+			script_destructed = FALSE;
+			iterator_start(&pit, token->pIndexData->progs[slot]);
+			while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+				if (is_trigger_type(prg->trig_type,TRIG_SHOWCOMMANDS)) {
+					execute_script(prg->script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,NULL,NULL,TRIG_SHOWCOMMANDS,0,0,0,0,0);
+				}
+			}
+			iterator_stop(&pit);
+			script_token_remref(token);
+		}
+	}
+	iterator_stop(&tit);
+
+	if(obj->pIndexData->progs) {
+		script_destructed = FALSE;
+		iterator_start(&pit, obj->pIndexData->progs[slot]);
+		while((prg = (PROG_LIST *)iterator_nextdata(&pit)) && !script_destructed) {
+			if (is_trigger_type(prg->trig_type,TRIG_SHOWCOMMANDS)) {
+				execute_script(prg->script, NULL, obj, NULL, NULL, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,NULL,NULL,NULL,NULL,TRIG_SHOWCOMMANDS,0,0,0,0,0);
+			}
+		}
+		iterator_stop(&pit);
+	}
+	script_object_remref(obj);
+}
+
+void collect_verbs(CHAR_DATA *ch)
+{
+	ITERATOR it;
+	OBJ_DATA *obj;
+	CHAR_DATA *mob;
+
+	// Self
+	__collect_verbs_mob(ch, ch);
+
+	// Here
+	__collect_verbs_room(ch, ch->in_room);
+
+	// Mobiles
+	iterator_start(&it, ch->in_room->lpeople);
+	while((mob = (CHAR_DATA *)iterator_nextdata(&it)))
+	{
+		if (mob != ch)
+			__collect_verbs_mob(ch, mob);
+	}
+	iterator_stop(&it);
+
+	// Inventory
+	iterator_start(&it, ch->lcarrying);
+	while((obj = (OBJ_DATA *)iterator_nextdata(&it)))
+	{
+		__collect_verbs_obj(ch, obj);
+	}
+	iterator_stop(&it);
+
+	// Room contents
+	iterator_start(&it, ch->in_room->lcontents);
+	while((obj = (OBJ_DATA *)iterator_nextdata(&it)))
+	{
+		__collect_verbs_obj(ch, obj);
+	}
+	iterator_stop(&it);
+}
+
 bool check_verbs(CHAR_DATA *ch, char *command, char *argument)
 {
 	char buf[MIL], *p;
@@ -551,19 +722,12 @@ bool check_verbs(CHAR_DATA *ch, char *command, char *argument)
 	OBJ_DATA *obj;
 	CHAR_DATA *mob;
 	PROG_LIST *prg;
-//	SCRIPT_DATA *script;
-//	unsigned long uid[2];
 	int slot;
 	int ret_val = PRET_NOSCRIPT, ret; // @@@NIB Default for a trigger loop is NO SCRIPT
 
 	log_stringf("check_verbs: ch(%s), command(%s), argument(%s)", ch->name, command, argument);
-//	printf_to_char(ch, "check_verbs: ch(%s), command(%s), argument(%s)", ch->name, command, argument);
 
 	slot = TRIGSLOT_VERB;
-
-	// Save the UID - TODO: this looks incomplete
-//	uid[0] = ch->id[0];
-//	uid[1] = ch->id[1];
 
 	// Check for tokens FIRST
 	iterator_start(&tit, ch->ltokens);
@@ -1794,6 +1958,15 @@ char *one_caseful_argument (char *argument, char *arg_first)
     return argument;
 }
 
+static void delete_extra_commands(void *ptr)
+{
+	free_string((char *)ptr);
+}
+
+static int cmd_cmp(void *a, void *b)
+{
+	return str_cmp((char*)a, (char*)b);
+}
 
 // Output a table of commands.
 void do_commands( CHAR_DATA *ch, char *argument )
@@ -1802,19 +1975,45 @@ void do_commands( CHAR_DATA *ch, char *argument )
     int cmd;
     int col;
 
+	if (IS_NPC(ch)) return;
+
+	ch->pcdata->extra_commands = list_createx(FALSE, NULL, delete_extra_commands);
+
     col = 0;
     for ( cmd = 0; cmd_table[cmd].name[0] != '\0'; cmd++ )
     {
-        if ( cmd_table[cmd].level <  LEVEL_HERO
-        &&   cmd_table[cmd].level <= get_trust( ch )
-	&&   cmd_table[cmd].show )
-	{
-	    sprintf( buf, "%-12s", cmd_table[cmd].name );
-	    send_to_char( buf, ch );
-	    if ( ++col % 6 == 0 )
-		send_to_char( "\n\r", ch );
-	}
+        if ( cmd_table[cmd].level <  LEVEL_HERO &&
+			cmd_table[cmd].level <= get_trust( ch ) &&
+			cmd_table[cmd].show )
+		{
+			if (!list_contains(ch->pcdata->extra_commands, cmd_table[cmd].name, cmd_cmp))
+			{
+				list_appendlink(ch->pcdata->extra_commands, cmd_table[cmd].name);
+			}
+		}
     }
+
+	// Get all the verbs it can find
+	//  There may be duplicate strings in the list, that can't be helped
+	collect_verbs(ch);
+
+	if (list_size(ch->pcdata->extra_commands) > 0)
+	{
+		ITERATOR it;
+		char *cmd_str;
+		iterator_start(&it, ch->pcdata->extra_commands);
+		while((cmd_str = (char *)iterator_nextdata(&it)))
+		{
+			sprintf( buf, "%-12s", cmd_str);
+			send_to_char( buf, ch );
+			if ( ++col % 6 == 0 )
+				send_to_char( "\n\r", ch );
+		}
+		iterator_stop(&it);
+	}
+
+	list_destroy(ch->pcdata->extra_commands);
+	ch->pcdata->extra_commands = NULL;
 
     if ( col % 6 != 0 )
 	send_to_char( "\n\r", ch );

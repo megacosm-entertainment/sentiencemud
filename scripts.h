@@ -2790,6 +2790,8 @@ SCRIPT_CMD(dungeoncmd_levels);
 SCRIPT_CMD(dungeoncmd_specialexits);
 SCRIPT_CMD(dungeoncmd_specialrooms);
 
+SCRIPT_CMD(scriptcmd_showcommand);
+
 bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument);
 bool olc_varclear(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument);
 void olc_show_index_vars(BUFFER *buffer, pVARIABLE index_vars);
