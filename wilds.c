@@ -375,6 +375,12 @@ void destroy_wilds_vroom(ROOM_INDEX_DATA *pRoomIndex)
         return;
     }
 
+    // Already GC'd
+    if (list_hasdata(gc_rooms, pRoomIndex))
+    {
+        return;
+    }
+
 	// A persistant or non-wilderness room
 	if( pRoomIndex->persist || !IS_SET(pRoomIndex->room2_flags, ROOM_VIRTUAL_ROOM)) {
 //		sprintf(buf, "destroy_wilds_vroom: %ld %ld - persist %s, virtual room %s", pRoomIndex->x, pRoomIndex->y, (pRoomIndex->persist ? "YES" : "NO"), (IS_SET(pRoomIndex->room2_flags, ROOM_VIRTUAL_ROOM)?"YES":"NO"));
@@ -418,7 +424,8 @@ void destroy_wilds_vroom(ROOM_INDEX_DATA *pRoomIndex)
 //	sprintf(buf, "destroy_wilds_vroom: %ld %ld %ld - destroying room", pWilds->uid, pRoomIndex->x, pRoomIndex->y);
 //	wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
 
-	free_room_index(pRoomIndex);
+	//free_room_index(pRoomIndex);  Moved to garbage collection
+    list_appendlink(gc_rooms, pRoomIndex);
 
     return;
 }

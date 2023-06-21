@@ -160,6 +160,11 @@ extern  ROOM_INDEX_DATA *room_index_free;
 /*
  * Globals.
  */
+LLIST *gc_mobiles;
+LLIST *gc_objects;
+LLIST *gc_rooms;
+LLIST *gc_tokens;
+
 AREA_DATA *		eden_area;
 AREA_DATA *		netherworld_area;
 AREA_DATA *		wilderness_area;
@@ -5881,6 +5886,9 @@ bool extract_clone_room(ROOM_INDEX_DATA *room, unsigned long id1, unsigned long 
 		return false;
 	}
 
+	if (list_hasdata(gc_rooms, clone))
+		return true;
+
 	/* Prevents infinite loops*/
 	if(clone->progs && PROG_FLAG(clone,PROG_NODESTRUCT)) {
 //		sprintf(buf,"extract_clone_room(%lu, %lu, %lu) clone already being destructed", room->vnum, id1, id2);
@@ -5976,7 +5984,8 @@ bool extract_clone_room(ROOM_INDEX_DATA *room, unsigned long id1, unsigned long 
 
 	/* Remove from its environment*/
 	room_from_environment(clone);
-	free_room_index(clone);
+	//free_room_index(clone);  Moved to garbage collection
+	list_appendlink(gc_rooms, clone);
 
 //	sprintf(buf,"extract_clone_room(%lu, %lu, %lu) clone extracted", room->vnum, id1, id2);
 //	wiznet(buf, NULL, NULL, WIZ_TESTING, 0, 0);

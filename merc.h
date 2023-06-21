@@ -9398,4 +9398,9 @@ BLUEPRINT_LAYOUT_SECTION_DATA *blueprint_get_nth_section(BLUEPRINT *bp, int sect
 INSTANCE *find_instance(unsigned long id0, unsigned long id1);
 INSTANCE *dungeon_get_instance_level(DUNGEON *dng, int level_no);
 
+extern LLIST *gc_mobiles;
+extern LLIST *gc_objects;
+extern LLIST *gc_rooms;
+extern LLIST *gc_tokens;
+
 #endif /* !def __merc_h__ */

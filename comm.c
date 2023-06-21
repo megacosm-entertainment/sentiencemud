@@ -280,6 +280,7 @@ int	write		args((int fd, char *buf, int nbyte));
 void show_form_state(CHAR_DATA *ch);
 /* VIZZWILDS */
 void join_world args ((DESCRIPTOR_DATA * d));
+extern void free_room_index args ((ROOM_INDEX_DATA * pRoomIndex));
 
 
 /*
@@ -515,6 +516,34 @@ int main(int argc, char **argv)
     malloc_debug(2);
 #endif
 
+	gc_mobiles = list_create(FALSE);
+	if(!gc_mobiles)
+	{
+		perror("Could not create 'gc_mobiles'");
+		exit(1);
+	}
+
+	gc_objects  = list_create(FALSE);
+	if(!gc_objects)
+	{
+		perror("Could not create 'gc_objects'");
+		exit(1);
+	}
+
+	gc_rooms = list_create(FALSE);
+	if(!gc_rooms)
+	{
+		perror("Could not create 'gc_rooms'");
+		exit(1);
+	}
+
+	gc_tokens = list_create(FALSE);
+	if(!gc_tokens)
+	{
+		perror("Could not create 'gc_tokens'");
+		exit(1);
+	}
+
 	conn_players = list_create(FALSE);
 	if(!conn_players) {
 		perror("Could not create 'conn_players'");
@@ -672,6 +701,10 @@ int main(int argc, char **argv)
 	list_destroy(persist_mobs);
 	list_destroy(persist_objs);
 	list_destroy(persist_rooms);
+	list_destroy(gc_mobiles);
+	list_destroy(gc_objects);
+	list_destroy(gc_rooms);
+	list_destroy(gc_tokens);
 	iterator_start(&iter, loaded_areas);
 	while((data = iterator_nextdata(&iter)))
 		free_mem(data, sizeof(LLIST_AREA_DATA));
@@ -1051,6 +1084,61 @@ imc_loop();
 		}
 	    }
 	}
+
+	// Garbage collect
+	if (list_size(gc_mobiles) > 0)
+	{
+		ITERATOR it;
+		CHAR_DATA *mob;
+		iterator_start(&it, gc_mobiles);
+		while((mob = (CHAR_DATA *)iterator_nextdata(&it)))
+		{
+			free_char(mob);
+		}
+		iterator_stop(&it);
+		list_clear(gc_mobiles);
+	}
+
+	if (list_size(gc_objects) > 0)
+	{
+		ITERATOR it;
+		OBJ_DATA *obj;
+		iterator_start(&it, gc_objects);
+		while((obj = (OBJ_DATA *)iterator_nextdata(&it)))
+		{
+			free_obj(obj);
+		}
+		iterator_stop(&it);
+		list_clear(gc_objects);
+	}
+
+	if (list_size(gc_rooms) > 0)
+	{
+		ITERATOR it;
+		ROOM_INDEX_DATA *room;
+		iterator_start(&it, gc_rooms);
+		while((room = (ROOM_INDEX_DATA *)iterator_nextdata(&it)))
+		{
+			free_room_index(room);
+		}
+		iterator_stop(&it);
+		list_clear(gc_rooms);
+	}
+
+	if (list_size(gc_tokens) > 0)
+	{
+		ITERATOR it;
+		TOKEN_DATA *token;
+		iterator_start(&it, gc_tokens);
+		while((token = (TOKEN_DATA *)iterator_nextdata(&it)))
+		{
+			free_token(token);
+		}
+		iterator_stop(&it);
+		list_clear(gc_tokens);
+	}
+
+	// Garbate collect
 
 	/* Check to see if the logfiles have overflowed*/
 	check_logfile();

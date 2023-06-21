@@ -3044,7 +3044,8 @@ void extract_obj(OBJ_DATA *obj)
 	extract_special_key(obj);
 
     --obj->pIndexData->count;
-    free_obj(obj);
+    //free_obj(obj);  Moved to garbage collection
+	list_appendlink(gc_objects, obj);
 }
 
 
@@ -3058,6 +3059,9 @@ void extract_char(CHAR_DATA *ch, bool fPull)
     DESCRIPTOR_DATA *d;
     char buf[MAX_STRING_LENGTH];
     ITERATOR it;
+
+	if (list_hasdata(gc_mobiles, ch))
+		return;
 
     if (ch->in_room == NULL)
     {
@@ -3212,12 +3216,16 @@ void extract_char(CHAR_DATA *ch, bool fPull)
     detach_dungeons_player(ch);
     detach_ships_player(ch);
 
-    free_char(ch);
+    //free_char(ch);	Moved to garbage collection
+	list_appendlink(gc_mobiles, ch);
     return;
 }
 
 void extract_token(TOKEN_DATA *token)
 {
+	if (list_hasdata(gc_tokens, token))
+		return;
+
     if(token->progs) {
 	    SET_BIT(token->progs->entity_flags,PROG_NODESTRUCT);
 		if(token->progs->script_ref > 0) {
@@ -3240,7 +3248,8 @@ void extract_token(TOKEN_DATA *token)
     	token_from_room(token);
 	}
 
-	free_token(token);
+	//free_token(token);  Moved to garbage collection
+	list_appendlink(gc_tokens, token);
 	return;
 }
 

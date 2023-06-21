@@ -1988,7 +1988,7 @@ void do_commands( CHAR_DATA *ch, char *argument )
 		{
 			if (!list_contains(ch->pcdata->extra_commands, cmd_table[cmd].name, cmd_cmp))
 			{
-				list_appendlink(ch->pcdata->extra_commands, cmd_table[cmd].name);
+				list_appendlink(ch->pcdata->extra_commands, str_dup(cmd_table[cmd].name));
 			}
 		}
     }
