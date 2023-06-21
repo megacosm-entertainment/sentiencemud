@@ -626,6 +626,7 @@ struct random_string_data {
 
 struct list_link_type {
 	LLIST_LINK *next;
+    LLIST_LINK *prev;
 	void *data;
 };
 
@@ -8864,6 +8865,9 @@ void *iterator_nextdata(ITERATOR *it);
 void iterator_remcurrent(ITERATOR *it);
 void iterator_reset(ITERATOR *it);
 void iterator_stop(ITERATOR *it);
+bool iterator_insert_before(ITERATOR *it, void *data);
+bool iterator_insert_after(ITERATOR *it, void *data);
+bool list_quicksort(LLIST *lp, int (*cmp)(void *a, void *b));
 
 bool list_isvalid(LLIST *lp);
 

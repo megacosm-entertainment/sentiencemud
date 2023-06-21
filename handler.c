@@ -8087,16 +8087,43 @@ void list_destroy(LLIST *lp)
 
 void list_cull(LLIST *lp)
 {
-	register LLIST_LINK **prev, *cur;
+	register LLIST_LINK /* **prev, */ *cur, *next;
 
 	if(lp && lp->ref < 1) {
 		// Cull any null data nodes
+		for(cur = lp->head;cur;)
+		{
+			if (!cur->data)
+			{
+				next = cur->next;
+				if (cur->prev)
+					cur->prev->next = next;
+				else
+					lp->head = next;
+
+				if (cur->next)
+					cur->next->prev = cur->prev;
+				else
+					lp->tail = cur->prev;
+
+				free_mem(cur, sizeof(LLIST_LINK));
+				cur = next;
+			}
+			else
+			{
+				cur = cur->next;
+			}
+		}
+
+/*
 		for(prev = &lp->head, cur = lp->head; cur;) {
 			if(!cur->data) {
 				do {
 					if( lp->tail == cur )
-						lp->tail = NULL;
+						lp->tail = lp->tail->prev;
 					*prev = cur->next;
+
+
 					free_mem(cur,sizeof(LLIST_LINK));
 					cur = *prev;
 				} while(cur && !cur->data);
@@ -8105,13 +8132,19 @@ void list_cull(LLIST *lp)
 				cur = *prev;
 			}
 		}
+*/
 
 		if(!lp->tail && lp->head ) {
 			if( lp->head->next ) {
-				for(cur = lp->head; cur->next; cur = cur->next );
+				for(cur = lp->head; cur->next;cur = cur->next )
+				{
+					cur->next->prev = cur;	// Reset the double linkage
+				}
 				lp->tail = cur;
 			} else
 				lp->tail = lp->head;
+			lp->head->prev = NULL;
+			lp->tail->next = NULL;
 		}
 	}
 }
@@ -8158,7 +8191,10 @@ bool list_addlink(LLIST *lp, void *data)
 		link->next = lp->head;
 		if( !lp->head )
 			lp->tail = link;
+		else
+			lp->head->prev = link;
 		lp->head = link;
+		link->prev = NULL;
 
 		link->data = data;
 		lp->size++;
@@ -8178,6 +8214,7 @@ bool list_appendlink(LLIST *lp, void *data)
 			lp->head = link;
 		else
 			lp->tail->next = link;
+		link->prev = lp->tail;
 		lp->tail = link;
 
 		link->data = data;
@@ -8216,7 +8253,7 @@ bool list_appendlist(LLIST *lp, LLIST *src)
 
 bool list_movelink(LLIST *lp, int from, int to)
 {
-	LLIST_LINK *old, *link, *prev;
+	LLIST_LINK *old, *link, *new_link;
 
 	if( from < 0 ) from = lp->size + from + 1;
 	if( to < 0 ) to = lp->size + to + 1;
@@ -8244,7 +8281,7 @@ bool list_movelink(LLIST *lp, int from, int to)
 		if( !old )
 			return false;
 
-		for(prev = NULL, link = lp->head; link && to > 0; prev = link, link = link->next )
+		for(link = lp->head; link && to > 0; link = link->next )
 		{
 			if(link != old)
 			{
@@ -8260,22 +8297,24 @@ bool list_movelink(LLIST *lp, int from, int to)
 				{
 					if( !--to )
 					{
-						link = alloc_mem(sizeof(LLIST_LINK));
-						if( !link )
+						new_link = alloc_mem(sizeof(LLIST_LINK));
+						if( !new_link )
 							return false;
 
-						link->data = old->data;
+						new_link->data = old->data;
 						old->data = NULL;
 
-						if( prev )
+						if( link->prev )
 						{
-							link->next = prev->next;
-							prev->next = link;
+							new_link->next = link;
+							link->prev->next = new_link;
+							link->prev = new_link;
 						}
 						else
 						{
-							link->next = lp->head;
-							lp->head = link;
+							new_link->next = lp->head;
+							lp->head = new_link;
+							new_link->prev = NULL;
 						}
 
 						return true;
@@ -8295,6 +8334,7 @@ bool list_movelink(LLIST *lp, int from, int to)
 				lp->head = link;
 			else
 				lp->tail->next = link;
+			link->prev = lp->tail;
 			lp->tail = link;
 
 			link->data = old->data;
@@ -8307,7 +8347,7 @@ bool list_movelink(LLIST *lp, int from, int to)
 
 bool list_insertlink(LLIST *lp, void *data, int to)
 {
-	LLIST_LINK *link, *prev;
+	LLIST_LINK *link, *new_link;
 
 	if( to < 0 ) to = lp->size + to + 1;
 
@@ -8315,7 +8355,7 @@ bool list_insertlink(LLIST *lp, void *data, int to)
 
 	if( lp )
 	{
-		for(prev = NULL, link = lp->head; link && to > 0; prev = link, link = link->next )
+		for(link = lp->head; link && to > 0; link = link->next )
 		{
 			if( (to == 1) && (!link->data) )
 			{
@@ -8329,21 +8369,24 @@ bool list_insertlink(LLIST *lp, void *data, int to)
 			{
 				if( !--to )
 				{
-					link = alloc_mem(sizeof(LLIST_LINK));
-					if( !link )
+					new_link = alloc_mem(sizeof(LLIST_LINK));
+					if( !new_link )
 						return false;
 
-					link->data = data;
+					new_link->data = data;
 
-					if( prev )
+					if( link->prev )
 					{
-						link->next = prev->next;
-						prev->next = link;
+						new_link->next = link;
+						link->prev->next = new_link;
+						link->prev = new_link;
+						
 					}
 					else
 					{
-						link->next = lp->head;
+						new_link->next = lp->head;
 						lp->head = link;
+						link->prev = NULL;
 					}
 
 					lp->size++;
@@ -8364,6 +8407,7 @@ bool list_insertlink(LLIST *lp, void *data, int to)
 				lp->head = link;
 			else
 				lp->tail->next = link;
+			link->prev = lp->tail;
 			lp->tail = link;
 			link->data = data;
 			lp->size++;
@@ -8648,6 +8692,155 @@ void iterator_stop(ITERATOR *it)
 	}
 }
 
+bool iterator_insert_before(ITERATOR *it, void *data)
+{
+	if (it && it->list && it->current)
+	{
+		// This spot is already blank
+		if(!it->current->data)
+			it->current->data = data;
+
+		// Previous spot is already blank
+		else if (it->current->prev && !it->current->prev->data)
+			it->current->prev->data = data;
+		else
+		{
+			LLIST_LINK *link = alloc_mem(sizeof(LLIST_LINK));
+			if(!link) return false;
+
+			link->prev = it->current->prev;
+
+			if (it->current->prev)
+				it->current->prev->next = link;
+			else
+				it->list->head = link;
+
+			link->next = it->current;
+			it->current->prev = link;
+
+			link->data = data;
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+bool iterator_insert_after(ITERATOR *it, void *data)
+{
+	if (it && it->list && it->current)
+	{
+		// This spot is already blank
+		if(!it->current->data)
+			it->current->data = data;
+
+		// Next spot is already blank
+		else if (it->current->next && !it->current->next->data)
+			it->current->next->data = data;
+		else
+		{
+			LLIST_LINK *link = alloc_mem(sizeof(LLIST_LINK));
+			if(!link) return false;
+
+			link->next = it->current->next;
+			if (it->current->next)
+				it->current->next->prev = link;
+			else
+				it->list->tail = link;
+
+			link->prev = it->current;
+			it->current->next = link;
+
+			link->data = data;
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+inline static void __list_quicksort_rotate(LLIST_LINK **arr, int start, int end)
+{
+	LLIST_LINK *save = arr[start];
+
+	for(int i = start; i < end; i++)
+		arr[i] = arr[i + 1];
+	
+	arr[end] = save;
+}
+
+static void __list_quicksort_partition(LLIST_LINK **arr, int start, int end, register int (*cmp)(void *a, void *b))
+{
+	if (start == end) return;
+
+	int pivot = end;
+
+	for(int i = start; i < end; i++)
+	{
+		if (arr[i]->data)
+		{
+			// Only move data if the pivot is valid
+			if (arr[pivot]->data)
+			{
+				int c = (*cmp)(arr[pivot]->data, arr[i]->data);
+
+				if (c <= 0)
+				{
+					// Pivot is less than or equal to the selection, move selection to the right side
+					__list_quicksort_rotate(arr, i, end);
+					pivot--;	// Pivot moved to the left
+				}
+			}
+		}
+		else
+		{
+			__list_quicksort_rotate(arr, i, end);
+			pivot--;	// Pivot moved to the left
+		}
+	}
+
+	if (pivot > start)
+		__list_quicksort_partition(arr, start, pivot - 1, cmp);
+	
+	if (pivot < end)
+		__list_quicksort_partition(arr, pivot + 1, end, cmp);
+}
+
+bool list_quicksort(LLIST *lp, int (*cmp)(void *a, void *b))
+{
+	if (!IS_VALID(lp) && cmp)
+	{
+		LLIST_LINK *cur;
+		int count;
+
+		for(count = 0, cur = lp->head; cur; cur = cur->next)
+			count++;
+
+		if (count < 1) return false;			
+
+		LLIST_LINK **arr = alloc_mem(sizeof(LLIST_LINK *) * count);
+		for(count = 0, cur = lp->head; cur; cur = cur->next)
+			arr[count] = cur;
+
+		// Start recursive sorting
+		__list_quicksort_partition(arr, 0, count - 1, cmp);
+
+		// Relink everything
+		for(int i = 0; i < count; i++)
+		{
+			if (i > 0) arr[i]->prev = arr[i-1];
+			if (i < (count - 1)) arr[i]->next = arr[i+1];
+		}
+		lp->head = arr[0];
+		lp->tail = arr[count - 1];
+
+		free_mem(arr, sizeof(LLIST_LINK *) * count);
+	}
+
+	return false;
+}
 
 ///////////////////////////////////////////
 //
