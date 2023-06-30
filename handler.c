@@ -5717,7 +5717,7 @@ int count_exits(ROOM_INDEX_DATA *room)
 bool is_room_pk(ROOM_INDEX_DATA *room, bool arena)
 {
 	if( room != NULL ) {
-		if( IS_SET(room->room_flags, ROOM_PK) || IS_SET(room->room_flags, ROOM_CPK) )
+		if( IS_SET(room->room_flags, ROOM_PK) )
 			return TRUE;
 
 		// Only count ARENA (LPK) if desired
@@ -5850,14 +5850,13 @@ int is_pk_safe_range(ROOM_INDEX_DATA *room, int depth, int reverse_dir)
 
     /*
     if (reverse_dir != -1 && (IS_SET(room->room_flags, ROOM_PK)
-    ||   IS_SET(room->room_flags, ROOM_CPK)))
+    ||   IS_SET(room->room_flags, ROOM_CHAOTIC)))
         return rev_dir[reverse_dir];
      */
 
     if (depth == 0)
     {
-	if (IS_SET(room->room_flags, ROOM_PK)
-	||   IS_SET(room->room_flags, ROOM_CPK))
+	if (IS_SET(room->room_flags, ROOM_PK))
 	    return 10;
 
 	else
@@ -5873,8 +5872,7 @@ int is_pk_safe_range(ROOM_INDEX_DATA *room, int depth, int reverse_dir)
 	    if (is_pk_safe_range(to_room, depth - 1, rev_dir[dir]) > -1)
 	    	return dir;
 
-	    if (IS_SET(to_room->room_flags, ROOM_PK)
-	    ||   IS_SET(to_room->room_flags, ROOM_CPK))
+	    if (IS_SET(to_room->room_flags, ROOM_PK))
 		return dir;
 	}
 

@@ -1139,7 +1139,7 @@ const struct flag_type room_flags[] =
 	{	"solitary",			ROOM_SOLITARY,			TRUE	},
 	{	"arena",			ROOM_ARENA,				TRUE	},
 	{	"bank",				ROOM_BANK,				TRUE	},
-	{	"cpk",				ROOM_CPK,				TRUE	},
+	{	"chaotic",			ROOM_CHAOTIC,			TRUE	},
 	{	"dark_attack",		ROOM_ATTACK_IF_DARK,	TRUE	},
 	{	"death_trap",		ROOM_DEATH_TRAP,		TRUE	},
 	{	"helm",				ROOM_SHIP_HELM,			TRUE	},
@@ -2720,7 +2720,7 @@ const struct flag_type instrument_flags[] = {
 };
 
 const struct flag_type corpse_object_flags[] = {
-	{ "cpk",		CORPSE_CPKDEATH,		TRUE },
+	{ "chaotic",	CORPSE_CHAOTICDEATH,	TRUE },
 	{ "owner_loot",	CORPSE_OWNERLOOT,		TRUE },
 	{ "charred",	CORPSE_CHARRED,			TRUE },
 	{ "frozen",		CORPSE_FROZEN,			TRUE },

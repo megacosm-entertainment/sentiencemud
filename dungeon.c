@@ -8062,7 +8062,7 @@ ROOM_INDEX_DATA *dungeon_random_room(CHAR_DATA *ch, DUNGEON *dungeon)
 	if( !IS_VALID(dungeon) ) return NULL;
 
 	return get_random_room_list_byflags( ch, dungeon->rooms,
-		(ROOM_PRIVATE | ROOM_SOLITARY | ROOM_DEATH_TRAP | ROOM_CPK),
+		(ROOM_PRIVATE | ROOM_SOLITARY | ROOM_DEATH_TRAP | ROOM_CHAOTIC),
 		ROOM_NO_GET_RANDOM );
 }
 

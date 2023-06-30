@@ -2910,7 +2910,7 @@ enum {
 #define ROOM_NOMAP		(S)
 #define ROOM_NOWHERE		(T)
 #define ROOM_PK		        (U)
-#define ROOM_CPK		(V)
+#define ROOM_CHAOTIC		(V)
 #define ROOM_ARENA		(W)
 #define ROOM_UNDERWATER		(X)
 #define ROOM_ROCKS	        (Y)
@@ -3334,7 +3334,7 @@ enum {
 #define RAWKILL_FLAY		(12)	/* Tears the outer layer of flesh off */
 #define RAWKILL_MAX		(13)
 
-#define CORPSE_CPKDEATH		(A)	/* The corpse was killed in CPK */
+#define CORPSE_CHAOTICDEATH		(A)	/* The corpse was killed in CPK */
 #define CORPSE_OWNERLOOT	(B)	/* Only allows the owner of the corpse to loot before full decay */
 #define CORPSE_CHARRED		(C)
 #define CORPSE_FROZEN		(D)
@@ -9461,6 +9461,7 @@ ROOM_INDEX_DATA *get_random_room_region(CHAR_DATA *ch, AREA_REGION *region);
 AREA_REGION *get_area_region_by_uid(AREA_DATA *area, long uid);
 bool is_exit_visible(CHAR_DATA *ch, ROOM_INDEX_DATA *room, int door);
 void get_room_recall(ROOM_INDEX_DATA *room, LOCATION *loc);
+int get_room_savage_level(ROOM_INDEX_DATA *room);
 
 extern LLIST *gc_mobiles;
 extern LLIST *gc_objects;

@@ -4165,7 +4165,7 @@ void do_steal(CHAR_DATA *ch, char *argument)
 	     && number_percent() < get_skill(victim, gsn_deception))
          || (!IS_NPC(ch)
 	      && !IS_NPC(victim)
-	      && !IS_SET(ch->in_room->room_flags, ROOM_CPK)))
+	      && !IS_SET(ch->in_room->room_flags, ROOM_CHAOTIC|ROOM_PK)))	// Require full CPK
     {
 	send_to_char("Oops.\n\r", ch);
 	affect_strip(ch,gsn_sneak);
@@ -4243,9 +4243,9 @@ void do_steal(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (!IS_SET(ch->in_room->room_flags, ROOM_CPK) && !IS_NPC(victim) && !IS_NPC(ch))
+    if (!IS_SET(ch->in_room->room_flags, ROOM_CHAOTIC|ROOM_PK) && !IS_NPC(victim) && !IS_NPC(ch))
     {
-	send_to_char("You can only steal items in a CPK room.\n\r", ch);
+	send_to_char("You can only steal items in a chaotic room.\n\r", ch);
 	return;
     }
 
@@ -6486,7 +6486,7 @@ void do_skull(CHAR_DATA *ch, char *argument)
 	/*			from using CPK rooms to skull goldens.  This will have*/
 	/*			no affect on looting as object placement is done at the*/
 	/*			time of death.*/
-	if (IS_SET(CORPSE_FLAGS(obj), CORPSE_CPKDEATH))
+	if (IS_SET(CORPSE_FLAGS(obj), CORPSE_CHAOTICDEATH))
 	    skull = create_object(obj_index_gold_skull, 0, FALSE);
 	else
 	    skull = create_object(obj_index_skull, 0, FALSE);

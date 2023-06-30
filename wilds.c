@@ -1534,12 +1534,12 @@ void show_vroom_header_to_char(WILDS_TERRAIN *pTerrain, WILDS_DATA *pWilds, int 
 
 	send_to_char(buf, to);
 
-	if (IS_SET(pTerrain->template->room_flags, ROOM_PK) && IS_SET(pTerrain->template->room_flags, ROOM_CPK)) {
-		sprintf(buf, "  {M[CNPK ROOM]");
+	if (IS_SET(pTerrain->template->room_flags, ROOM_PK) && IS_SET(pTerrain->template->room_flags, ROOM_CHAOTIC)) {
+		sprintf(buf, "  {M[CPK ROOM]");
 		send_to_char(buf, to);
 		linelength -= 13;
-	} else if (IS_SET(pTerrain->template->room_flags, ROOM_CPK)) {
-		sprintf(buf, "  {M[CPK ROOM]");
+	} else if (IS_SET(pTerrain->template->room_flags, ROOM_CHAOTIC)) {
+		sprintf(buf, "  {M[CHAOTIC]");
 		send_to_char(buf, to);
 		linelength -= 12;
 	} else if (IS_SET(pTerrain->template->room_flags, ROOM_PK)) {

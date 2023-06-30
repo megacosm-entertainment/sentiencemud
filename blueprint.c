@@ -11809,7 +11809,7 @@ ROOM_INDEX_DATA *section_random_room(CHAR_DATA *ch, INSTANCE_SECTION *section)
 	if( !IS_VALID(section) ) return NULL;
 
 	return get_random_room_list_byflags( ch, section->rooms,
-		(ROOM_PRIVATE | ROOM_SOLITARY | ROOM_DEATH_TRAP | ROOM_CPK),
+		(ROOM_PRIVATE | ROOM_SOLITARY | ROOM_DEATH_TRAP | ROOM_CHAOTIC),
 		ROOM_NO_GET_RANDOM );
 }
 
@@ -11818,7 +11818,7 @@ ROOM_INDEX_DATA *instance_random_room(CHAR_DATA *ch, INSTANCE *instance)
 	if( !IS_VALID(instance) ) return NULL;
 
 	return get_random_room_list_byflags( ch, instance->rooms,
-		(ROOM_PRIVATE | ROOM_SOLITARY | ROOM_DEATH_TRAP | ROOM_CPK),
+		(ROOM_PRIVATE | ROOM_SOLITARY | ROOM_DEATH_TRAP | ROOM_CHAOTIC),
 		ROOM_NO_GET_RANDOM );
 }
 

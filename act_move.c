@@ -882,7 +882,7 @@ bool check_room_flames(CHAR_DATA *ch, bool show)
 		{
 			if (!IS_DEAD(ch) &&
 				(IS_SET(ch->in_room->room_flags, ROOM_PK) ||
-					IS_SET(ch->in_room->room_flags, ROOM_CPK) ||
+					IS_SET(ch->in_room->room_flags, ROOM_CHAOTIC) ||
 					IS_SET(ch->in_room->room_flags, ROOM_ARENA) ||
 					is_pk(ch) || IS_NPC(ch)))
 			{

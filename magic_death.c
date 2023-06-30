@@ -388,12 +388,12 @@ SPELL_FUNC(spell_raise_dead)
 			}
 
 			// Only allow resurrection of CPK corpses in CPK rooms
-			if( IS_SET(ch->in_room->room_flags, ROOM_CPK) && !IS_SET(CORPSE_FLAGS(obj), CORPSE_CPKDEATH) )
+			if( IS_SET(ch->in_room->room_flags, ROOM_CHAOTIC) && !IS_SET(CORPSE_FLAGS(obj), CORPSE_CHAOTICDEATH) )
 			{
 				// Any player, or non-holyaura immortal, attempting to do so will be ZOTTED.
 				if( !IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act2, PLR_HOLYAURA)))
 				{
-					send_to_char("{YAttempting to raise a non-CPK corpse in a CPK room is {RFORBIDDEN{Y!{x\n\r", ch);
+					send_to_char("{YAttempting to raise a non-chaotic corpse in a chaotic room is {RFORBIDDEN{Y!{x\n\r", ch);
 					ch->hit = 1;
 					ch->mana = 1;
 					ch->move = 1;

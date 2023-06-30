@@ -485,7 +485,7 @@ CHAR_DATA *get_random_mob_area( CHAR_DATA *ch, AREA_DATA *area)
         	!IS_SET(mob->in_room->room_flags, ROOM_SOLITARY) &&
         	!IS_SET(mob->in_room->room_flags, ROOM_DEATH_TRAP) &&
         	!IS_SET(mob->in_room->room_flags, ROOM_SAFE) &&
-        	!IS_SET(mob->in_room->room_flags, ROOM_CPK) &&
+        	!IS_SET(mob->in_room->room_flags, ROOM_CHAOTIC) &&
         	!IS_SET(mob->in_room->room2_flags, ROOM_NO_GET_RANDOM) )
 	    break;
     }
@@ -567,7 +567,7 @@ ROOM_INDEX_DATA *get_random_room_region(CHAR_DATA *ch, AREA_REGION *region)
 	if (!IS_VALID(region)) return NULL;
 
 	return get_random_room_list_byflags( ch, region->rooms,
-		(ROOM_PRIVATE | ROOM_SOLITARY | ROOM_DEATH_TRAP | ROOM_SAFE | ROOM_CPK),
+		(ROOM_PRIVATE | ROOM_SOLITARY | ROOM_DEATH_TRAP | ROOM_SAFE | ROOM_CHAOTIC),
 		(ROOM_NO_QUEST | ROOM_NO_GET_RANDOM) );
 }
 
@@ -598,7 +598,7 @@ ROOM_INDEX_DATA *get_random_room( CHAR_DATA *ch, int continent )
 	area = get_random_area(ch, continent, TRUE);
 
     return get_random_room_area_byflags(ch, area,
-    	(ROOM_PRIVATE | ROOM_SOLITARY | ROOM_DEATH_TRAP | ROOM_SAFE | ROOM_CPK),
+    	(ROOM_PRIVATE | ROOM_SOLITARY | ROOM_DEATH_TRAP | ROOM_SAFE | ROOM_CHAOTIC),
     	(ROOM_NO_QUEST | ROOM_NO_GET_RANDOM));
 }
 
@@ -607,7 +607,7 @@ ROOM_INDEX_DATA *get_random_room( CHAR_DATA *ch, int continent )
 ROOM_INDEX_DATA *get_random_room_area( CHAR_DATA *ch, AREA_DATA *area )
 {
     return get_random_room_area_byflags(ch, area,
-    	(ROOM_PRIVATE | ROOM_SOLITARY | ROOM_DEATH_TRAP | ROOM_CPK),
+    	(ROOM_PRIVATE | ROOM_SOLITARY | ROOM_DEATH_TRAP | ROOM_CHAOTIC),
     	ROOM_NO_GET_RANDOM);
 }
 

@@ -86,7 +86,7 @@ SPELL_FUNC(spell_charm_person)
 		saves_spell(level, victim,DAM_CHARM))
 		return FALSE;
 
-	if (!IS_NPC(victim) && !IS_SET(victim->in_room->room_flags, ROOM_CPK)) {
+	if (!IS_NPC(victim) && !IS_SET(victim->in_room->room_flags, ROOM_CHAOTIC|ROOM_PK)) {
 		send_to_char("You can only charm players in a Chaotic Player Killing room.\n\r", ch);
 		return FALSE;
 	}

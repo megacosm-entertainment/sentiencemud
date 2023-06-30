@@ -1987,10 +1987,8 @@ bool is_safe(CHAR_DATA *ch, CHAR_DATA *victim, bool show)
 
 		// PK rooms. Be sure that BOTH players are in a PK room for ranged attacks!
 		if ((IS_SET(ch->in_room->room_flags, ROOM_PK)
-			 || IS_SET(ch->in_room->room_flags, ROOM_CPK)
 			 || IS_SET(ch->in_room->room_flags, ROOM_ARENA))
 		&&  (IS_SET(victim->in_room->room_flags, ROOM_PK)
-			 || IS_SET(victim->in_room->room_flags, ROOM_CPK)
 			 || IS_SET(victim->in_room->room_flags, ROOM_ARENA)))
 		return FALSE;
 
@@ -3093,8 +3091,8 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messag
 		if (IS_IMMORTAL(ch))
 			SET_BIT(CORPSE_FLAGS(corpse), CORPSE_IMMORTAL);
 		else {
-			if(IS_SET(ch->in_room->room_flags, ROOM_CPK))
-				SET_BIT(CORPSE_FLAGS(corpse), CORPSE_CPKDEATH);
+			if(IS_SET(ch->in_room->room_flags, ROOM_CHAOTIC))
+				SET_BIT(CORPSE_FLAGS(corpse), CORPSE_CHAOTICDEATH);
 			if(is_room_pk(ch->in_room, TRUE) || is_pk(ch))
 				SET_BIT(CORPSE_FLAGS(corpse), CORPSE_PKDEATH);
 			if (ch->gold > 1 || ch->silver > 1)
@@ -3143,11 +3141,11 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messag
 			extract_obj(obj);
 	}
 
-	// 20070521 : NIB : If a PC and a CPK Death, mark the corpse as a CPK death
+	// 20070521 : NIB : If a PC and a chaotic Death, mark the corpse as a chaotic death
 	if(!IS_NPC(ch) && !IS_DEAD(ch) && !IS_IMMORTAL(ch))
 	{
- 		if(IS_SET(ch->in_room->room_flags,ROOM_CPK))
-			SET_BIT(CORPSE_FLAGS(corpse),CORPSE_CPKDEATH);
+ 		if(IS_SET(ch->in_room->room_flags,ROOM_CHAOTIC))
+			SET_BIT(CORPSE_FLAGS(corpse),CORPSE_CHAOTICDEATH);
 		if(is_room_pk(ch->in_room,FALSE) || is_pk(ch))
 			SET_BIT(CORPSE_FLAGS(corpse),CORPSE_PKDEATH);
 		if(IS_SET(ch->in_room->room_flags, ROOM_ARENA))
@@ -3157,7 +3155,7 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messag
 	// NPC death and CPK death for PCs
 	// Don't leave no_loot items in player corpses, just like no_uncurse -- Areo
 	if (IS_NPC(ch)
-	|| (!IS_NPC(ch) && !IS_DEAD(ch) && IS_SET(ch->in_room->room_flags,ROOM_CPK)))
+	|| (!IS_NPC(ch) && !IS_DEAD(ch) && IS_SET(ch->in_room->room_flags,ROOM_CHAOTIC)))
 	for (obj = ch->carrying; obj != NULL; obj = obj_next)
 	{
 		obj_next = obj->next_content;
@@ -3426,7 +3424,7 @@ int room_pkness(ROOM_INDEX_DATA)
 	int pk = 1;
 
 	if (IS_SET(victim->in_room->room_flags, ROOM_PK) || IS_SET(victim->in_room->room_flags, ROOM_ARENA)) pk += 1;
-	if (IS_SET(victim->in_room->room_flags, ROOM_CPK)) pk += 2;
+	if (IS_SET(victim->in_room->room_flags, ROOM_CHAOTIC)) pk += 2;
 	if (IS_SET(victim->in_room->room_flags, ROOM_SAFE)) pk = 0;
 
 	return pk;
@@ -6966,12 +6964,12 @@ void do_resurrect(CHAR_DATA *ch, char *argument)
 	}
 
 	// Only allow resurrection of CPK corpses in CPK rooms
-	if( IS_SET(ch->in_room->room_flags, ROOM_CPK) && !IS_SET(CORPSE_FLAGS(obj), CORPSE_CPKDEATH) )
+	if( IS_SET(ch->in_room->room_flags, ROOM_CHAOTIC) && !IS_SET(CORPSE_FLAGS(obj), CORPSE_CHAOTICDEATH) )
 	{
 		// Any player, or non-holyaura immortal, attempting to do so will be ZOTTED.
 		if( !IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act2, PLR_HOLYAURA)))
 		{
-			send_to_char("{YAttempting to resurrect a non-CPK corpse in a CPK room is {RFORBIDDEN{Y!{x\n\r", ch);
+			send_to_char("{YAttempting to resurrect a non-chaotic corpse in a chaotic room is {RFORBIDDEN{Y!{x\n\r", ch);
 			ch->hit = 1;
 			ch->mana = 1;
 			ch->move = 1;
@@ -7798,7 +7796,7 @@ void player_kill(CHAR_DATA *ch, CHAR_DATA *victim)
 		ch->questpoints += quest_points;
 	} else if (ch != victim) { // Regular PK win.
 		// CPK
-		if (IS_SET(ch->in_room->room_flags, ROOM_CPK)) {
+		if (IS_SET(ch->in_room->room_flags, ROOM_CHAOTIC)) {
 			ch->cpk_kills++;
 			victim->cpk_deaths++;
 			if (IN_CHURCH(ch)) {

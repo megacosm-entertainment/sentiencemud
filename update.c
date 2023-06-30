@@ -1839,7 +1839,7 @@ void char_update(void)
 
 			// Fire off deathtraps.
 		    if (IS_SET(ch->in_room->room_flags, ROOM_DEATH_TRAP) &&
-		    	!IS_SET(ch->in_room->room_flags, ROOM_CPK)) {		// no cpk-deathtraps
+		    	!IS_SET(ch->in_room->room_flags, ROOM_CHAOTIC)) {		// no chaotic-deathtraps
 					raw_kill(ch, TRUE, FALSE, RAWKILL_NORMAL);
 		    }
 
@@ -2480,8 +2480,7 @@ void aggr_update(void)
 	&&  number_percent() < 10
 	&&  !is_safe(wch, wch, FALSE)
 	&&  ((IS_NPC(wch) && wch->shop == NULL) ||
-	    (IS_SET(wch->in_room->room_flags, ROOM_PK)
-	     || IS_SET(wch->in_room->room_flags, ROOM_CPK))
+	    (IS_SET(wch->in_room->room_flags, ROOM_PK))
    	     || is_pk(wch)))
 	{
 	    for (obj = wch->in_room->contents; obj != NULL; obj = obj->next_content)

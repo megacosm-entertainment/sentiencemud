@@ -303,7 +303,7 @@ SPELL_FUNC(spell_summon)
 		return FALSE;
 	}
 
-	if (IS_SET(ch->in_room->room_flags, ROOM_PK) || IS_SET(ch->in_room->room_flags, ROOM_CPK) || IS_SET(ch->in_room->room_flags, ROOM_ARENA)) {
+	if (IS_SET(ch->in_room->room_flags, ROOM_PK) || IS_SET(ch->in_room->room_flags, ROOM_CHAOTIC) || IS_SET(ch->in_room->room_flags, ROOM_ARENA)) {
 		send_to_char("You can't summon players into this room.\n\r", ch);
 		return FALSE;
 	}

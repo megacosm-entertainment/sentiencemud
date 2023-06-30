@@ -131,10 +131,10 @@ void do_house(CHAR_DATA *ch, char *argument)
 	    return;
 	}
 
-	if (!str_cmp(arg2, "cpk"))
+	if (!str_cmp(arg2, "chaotic"))
 	{
-	    send_to_char("This room is now CPK!\n\r", ch);
-	    SET_BIT(ch->in_room->room_flags, ROOM_CPK);
+	    send_to_char("This room is now CHAOTIC!\n\r", ch);
+	    SET_BIT(ch->in_room->room_flags, ROOM_CHAOTIC);
 	    ch->gold -= 5000;
 	}
 	else if (!str_cmp(arg2, "pk"))
