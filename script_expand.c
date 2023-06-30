@@ -502,6 +502,7 @@ char *expand_argument_variable(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 			break;
 		case VAR_TOKEN:		arg->type = ENT_TOKEN; arg->d.token = var->_.t; break;
 		case VAR_AREA:		arg->type = ENT_AREA; arg->d.area = var->_.a; break;
+		case VAR_AREA_REGION:	arg->type = ENT_AREA_REGION; arg->d.aregion = var->_.ar; break;
 		case VAR_SKILL:		arg->type = ENT_SKILL; arg->d.sn = var->_.sn; break;
 		case VAR_SKILLINFO:
 			arg->type = ENT_SKILLINFO;
@@ -580,6 +581,11 @@ char *expand_argument_variable(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 			arg->d.aid = var->_.aid;
 			arg->type = ENT_AREA_ID;
 			break;
+		case VAR_AREA_REGION_ID:
+			arg->d.arid.aid = var->_.arid.aid;
+			arg->d.arid.rid = var->_.arid.rid;
+			arg->type = ENT_AREA_REGION_ID;
+			break;
 
 		case VAR_SKILLINFO_ID:
 			arg->d.sk.m = NULL;
@@ -599,6 +605,7 @@ char *expand_argument_variable(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case VAR_BLLIST_EXIT:	arg->d.blist = var->_.list;	arg->type = ENT_BLLIST_EXIT; break;
 		case VAR_BLLIST_SKILL:	arg->d.blist = var->_.list;	arg->type = ENT_BLLIST_SKILL; break;
 		case VAR_BLLIST_AREA:	arg->d.blist = var->_.list;	arg->type = ENT_BLLIST_AREA; break;
+		case VAR_BLLIST_AREA_REGION:	arg->d.blist = var->_.list;	arg->type = ENT_BLLIST_AREA_REGION; break;
 		case VAR_BLLIST_WILDS:	arg->d.blist = var->_.list; arg->type = ENT_BLLIST_WILDS; break;
 
 		case VAR_PLLIST_STR:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_STR; break;
@@ -607,6 +614,8 @@ char *expand_argument_variable(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case VAR_PLLIST_MOB:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_MOB; break;
 		case VAR_PLLIST_OBJ:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_OBJ; break;
 		case VAR_PLLIST_TOK:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_TOK; break;
+		case VAR_PLLIST_AREA:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_AREA; break;
+		case VAR_PLLIST_AREA_REGION:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_AREA_REGION; break;
 		case VAR_PLLIST_CHURCH:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_CHURCH; break;
 
 		}
@@ -810,6 +819,21 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
 		} else
 			return NULL;
 		break;
+	
+	case ENTITY_VAR_AREA_REGION:
+		if (var) {
+			if(var->type == VAR_AREA_REGION && IS_VALID(var->_.ar)) {
+				arg->d.aregion = var->_.ar;
+				arg->type = ENT_AREA_REGION;
+			} else if (var->type == VAR_AREA_REGION_ID) {
+				arg->d.arid.aid = var->_.arid.aid;
+				arg->d.arid.rid = var->_.arid.rid;
+				arg->type = ENT_AREA_REGION_ID;
+			} else
+				return NULL;
+		} else
+			return NULL;
+		break;
 
 	case ENTITY_VAR_WILDS:
 		if(var) {
@@ -926,6 +950,9 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
 	case ENTITY_VAR_PLLIST_OBJ:
 	case ENTITY_VAR_PLLIST_TOK:
 	case ENTITY_VAR_PLLIST_CHURCH:
+	case ENTITY_VAR_PLLIST_AREA:
+	case ENTITY_VAR_PLLIST_AREA_REGION:
+	case ENTITY_VAR_PLLIST_VARIABLE:
 		type = (int)*str + VAR_PLLIST_STR - ENTITY_VAR_PLLIST_STR;
 		if(var && var->type == type && var->_.list)
 			arg->d.blist = var->_.list;
@@ -940,6 +967,7 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
 	case ENTITY_VAR_BLLIST_EXIT:
 	case ENTITY_VAR_BLLIST_SKILL:
 	case ENTITY_VAR_BLLIST_AREA:
+	case ENTITY_VAR_BLLIST_AREA_REGION:
 	case ENTITY_VAR_BLLIST_WILDS:
 		type = (int)*str + VAR_BLLIST_ROOM - ENTITY_VAR_BLLIST_ROOM;
 		if(var && var->type == type && var->_.list)
@@ -2728,6 +2756,10 @@ char *expand_entity_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_AREA;
 		arg->d.area = arg->d.room ? arg->d.room->area : NULL;
 		break;
+	case ENTITY_ROOM_REGION:
+		arg->type = ENT_AREA_REGION;
+		arg->d.aregion = arg->d.room ? get_room_region(arg->d.room) : NULL;
+		break;
 	case ENTITY_ROOM_TARGET:
 		arg->type = ENT_MOBILE;
 		arg->d.mob = (arg->d.room && arg->d.room->progs) ? arg->d.room->progs->target : NULL;
@@ -3018,45 +3050,17 @@ char *expand_entity_area(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_STRING;
 		arg->d.str = arg->d.area ? arg->d.area->name : SOMEWHERE;
 		break;
-	case ENTITY_AREA_RECALL:
-		arg->type = ENT_ROOM;
-		arg->d.room = (arg->d.area && location_isset(&arg->d.area->recall)) ? location_to_room(&arg->d.area->recall) : NULL;
+	case ENTITY_AREA_REGION:
+		arg->type = ENT_AREA_REGION;
+		arg->d.aregion = arg->d.area ? &arg->d.area->region : NULL;
 		break;
-	case ENTITY_AREA_POSTOFFICE:
-		arg->type = ENT_ROOM;
-		arg->d.room = (arg->d.area && arg->d.area->post_office > 0) ? get_room_index(arg->d.area, arg->d.area->post_office) : NULL;
-		break;
-	case ENTITY_AREA_LOWERVNUM:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.area ? arg->d.area->min_vnum : 0;
-		break;
-	case ENTITY_AREA_UPPERVNUM:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.area ? arg->d.area->max_vnum : 0;
+	case ENTITY_AREA_REGIONS:
+		arg->type = ENT_PLLIST_AREA_REGION;
+		arg->d.blist = arg->d.area ? arg->d.area->regions : NULL;
 		break;
 	case ENTITY_AREA_ROOMS:
 		arg->type = ENT_PLLIST_ROOM;
 		arg->d.blist = arg->d.area ? arg->d.area->room_list : NULL;
-		break;
-	case ENTITY_AREA_X:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.area ? arg->d.area->x : -1;
-		break;
-	case ENTITY_AREA_Y:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.area ? arg->d.area->y : -1;
-		break;
-	case ENTITY_AREA_LAND_X:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.area ? arg->d.area->land_x : -1;
-		break;
-	case ENTITY_AREA_LAND_Y:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.area ? arg->d.area->land_y : -1;
-		break;
-	case ENTITY_AREA_AIRSHIP:
-		arg->type = ENT_ROOM;
-		arg->d.room = (arg->d.area && arg->d.area->airship_land_spot > 0) ? get_room_index(arg->d.area, arg->d.area->airship_land_spot) : NULL;
 		break;
 	default: return NULL;
 	}
@@ -3071,25 +3075,131 @@ char *expand_entity_area_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_STRING;
 		arg->d.str = SOMEWHERE;
 		break;
-	case ENTITY_AREA_RECALL:
-		arg->type = ENT_ROOM;
-		arg->d.room = NULL;
+	case ENTITY_AREA_REGION:
+		arg->type = ENT_AREA_REGION;
+		arg->d.aregion = NULL;
 		break;
-	case ENTITY_AREA_POSTOFFICE:
-		arg->type = ENT_ROOM;
-		arg->d.room = NULL;
-		break;
-	case ENTITY_AREA_LOWERVNUM:
-		arg->type = ENT_NUMBER;
-		arg->d.num = 0;
-		break;
-	case ENTITY_AREA_UPPERVNUM:
-		arg->type = ENT_NUMBER;
-		arg->d.num = 0;
+	case ENTITY_AREA_REGIONS:
+		arg->type = ENT_PLLIST_AREA_REGION;
+		arg->d.blist = NULL;
 		break;
 	case ENTITY_AREA_ROOMS:
 		arg->type = ENT_BLLIST_ROOM;
 		arg->d.blist = NULL;
+		break;
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_area_region(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	switch(*str) {
+	case ENTITY_AREA_REGION_NAME:
+		arg->type = ENT_STRING;
+		arg->d.str = IS_VALID(arg->d.aregion) ? arg->d.aregion->name : SOMEWHERE;
+		break;
+	case ENTITY_AREA_REGION_DESCRIPTION:
+		arg->type = ENT_STRING;
+		arg->d.str = IS_VALID(arg->d.aregion) ? arg->d.aregion->description : "";
+		break;
+	case ENTITY_AREA_REGION_COMMENTS:
+		arg->type = ENT_STRING;
+		arg->d.str = IS_VALID(arg->d.aregion) ? arg->d.aregion->name : "";
+		break;
+	case ENTITY_AREA_REGION_AREA:
+		arg->type = ENT_AREA;
+		arg->d.area = IS_VALID(arg->d.aregion) ? arg->d.aregion->area : NULL;
+		break;
+	case ENTITY_AREA_REGION_RECALL:
+		arg->type = ENT_ROOM;
+		arg->d.room = (IS_VALID(arg->d.aregion) && location_isset(&arg->d.aregion->recall)) ? location_to_room(&arg->d.aregion->recall) : NULL;
+		break;
+	case ENTITY_AREA_REGION_POSTOFFICE:
+		arg->type = ENT_ROOM;
+		arg->d.room = (IS_VALID(arg->d.aregion) && arg->d.aregion->post_office > 0) ? get_room_index(arg->d.aregion->area, arg->d.aregion->post_office) : NULL;
+		break;
+	case ENTITY_AREA_REGION_ROOMS:
+		arg->type = ENT_PLLIST_ROOM;
+		arg->d.blist = IS_VALID(arg->d.aregion) ? arg->d.aregion->rooms : NULL;
+		break;
+	case ENTITY_AREA_REGION_X:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(arg->d.aregion) ? arg->d.aregion->x : -1;
+		break;
+	case ENTITY_AREA_REGION_Y:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(arg->d.aregion) ? arg->d.aregion->y : -1;
+		break;
+	case ENTITY_AREA_REGION_LAND_X:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(arg->d.aregion) ? arg->d.aregion->land_x : -1;
+		break;
+	case ENTITY_AREA_REGION_LAND_Y:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(arg->d.aregion) ? arg->d.aregion->land_y : -1;
+		break;
+	case ENTITY_AREA_REGION_AIRSHIP:
+		arg->type = ENT_ROOM;
+		arg->d.room = (IS_VALID(arg->d.aregion) && arg->d.aregion->airship_land_spot > 0) ? get_room_index(arg->d.aregion->area, arg->d.aregion->airship_land_spot) : NULL;
+		break;
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_area_region_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	switch(*str) {
+	case ENTITY_AREA_REGION_NAME:
+		arg->type = ENT_STRING;
+		arg->d.str = SOMEWHERE;
+		break;
+	case ENTITY_AREA_REGION_DESCRIPTION:
+		arg->type = ENT_STRING;
+		arg->d.str = "";
+		break;
+	case ENTITY_AREA_REGION_COMMENTS:
+		arg->type = ENT_STRING;
+		arg->d.str = "";
+		break;
+	case ENTITY_AREA_REGION_AREA:
+		arg->type = ENT_AREA;
+		arg->d.area = NULL;
+		break;
+	case ENTITY_AREA_REGION_RECALL:
+		arg->type = ENT_ROOM;
+		arg->d.room = NULL;
+		break;
+	case ENTITY_AREA_REGION_POSTOFFICE:
+		arg->type = ENT_ROOM;
+		arg->d.room = NULL;
+		break;
+	case ENTITY_AREA_REGION_ROOMS:
+		arg->type = ENT_PLLIST_ROOM;
+		arg->d.blist = NULL;
+		break;
+	case ENTITY_AREA_REGION_X:
+		arg->type = ENT_NUMBER;
+		arg->d.num = -1;
+		break;
+	case ENTITY_AREA_REGION_Y:
+		arg->type = ENT_NUMBER;
+		arg->d.num = -1;
+		break;
+	case ENTITY_AREA_REGION_LAND_X:
+		arg->type = ENT_NUMBER;
+		arg->d.num = -1;
+		break;
+	case ENTITY_AREA_REGION_LAND_Y:
+		arg->type = ENT_NUMBER;
+		arg->d.num = -1;
+		break;
+	case ENTITY_AREA_REGION_AIRSHIP:
+		arg->type = ENT_ROOM;
+		arg->d.room = NULL;
 		break;
 	default: return NULL;
 	}
@@ -3584,6 +3694,10 @@ char *expand_entity_clone_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_AREA;
 		arg->d.area = NULL;
 		break;
+	case ENTITY_ROOM_REGION:
+		arg->type = ENT_AREA_REGION;
+		arg->d.aregion = NULL;
+		break;
 	case ENTITY_ROOM_TARGET:
 		arg->type = ENT_MOBILE;
 		arg->d.mob = NULL;
@@ -3697,6 +3811,10 @@ char *expand_entity_wilds_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_ROOM_AREA:
 		arg->type = ENT_AREA;
 		arg->d.area = NULL;
+		break;
+	case ENTITY_ROOM_REGION:
+		arg->type = ENT_AREA_REGION;
+		arg->d.aregion = NULL;
 		break;
 	case ENTITY_ROOM_TARGET:
 		arg->type = ENT_MOBILE;
@@ -4237,6 +4355,50 @@ char *expand_entity_blist_area(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	return str+1;
 }
 
+char *expand_entity_blist_area_region(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	register LLIST_AREA_REGION_DATA *region = NULL;
+	switch(*str) {
+	case ENTITY_LIST_SIZE:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
+		return str+1;
+
+	case ENTITY_LIST_RANDOM:
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			region = (LLIST_AREA_REGION_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
+
+		break;
+	case ENTITY_LIST_FIRST:
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			region = (LLIST_AREA_REGION_DATA *)list_nthdata(arg->d.blist, 0);
+
+		break;
+	case ENTITY_LIST_LAST:
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			region = (LLIST_AREA_REGION_DATA *)list_nthdata(arg->d.blist, -1);
+
+		break;
+	default: return NULL;
+	}
+
+	if( region ) {
+		if( region->aregion ) {
+			arg->d.aregion = (AREA_REGION *)region->aregion;
+			arg->type = ENT_AREA_REGION;
+		} else {
+			arg->d.arid.aid = region->aid;
+			arg->d.arid.rid = region->rid;
+			arg->type = ENT_AREA_REGION_ID;
+		}
+	} else {
+		arg->d.aregion = NULL;
+		arg->type = ENT_AREA_REGION;
+	}
+
+	return str+1;
+}
+
 char *expand_entity_blist_wilds(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 	register LLIST_WILDS_DATA *uid = NULL;
@@ -4599,6 +4761,76 @@ char *expand_entity_plist_token(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg
 
 		arg->d.token = token;
 		arg->type = ENT_TOKEN;
+		break;
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_plist_area(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	register AREA_DATA *area = NULL;
+	switch(*str) {
+	case ENTITY_LIST_SIZE:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
+		break;
+	case ENTITY_LIST_RANDOM:
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			area = (AREA_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
+
+		arg->d.area = area;
+		arg->type = ENT_AREA;
+		break;
+	case ENTITY_LIST_FIRST:
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			area = (AREA_DATA *)list_nthdata(arg->d.blist, 0);
+
+		arg->d.area = area;
+		arg->type = ENT_AREA;
+		break;
+	case ENTITY_LIST_LAST:
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			area = (AREA_DATA *)list_nthdata(arg->d.blist, -1);
+
+		arg->d.area = area;
+		arg->type = ENT_AREA;
+		break;
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_plist_area_region(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	register AREA_REGION *region = NULL;
+	switch(*str) {
+	case ENTITY_LIST_SIZE:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
+		break;
+	case ENTITY_LIST_RANDOM:
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			region = (AREA_REGION *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
+
+		arg->d.aregion = region;
+		arg->type = ENT_AREA_REGION;
+		break;
+	case ENTITY_LIST_FIRST:
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			region = (AREA_REGION *)list_nthdata(arg->d.blist, 0);
+
+		arg->d.aregion = region;
+		arg->type = ENT_AREA_REGION;
+		break;
+	case ENTITY_LIST_LAST:
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			region = (AREA_REGION *)list_nthdata(arg->d.blist, -1);
+
+		arg->d.aregion = region;
+		arg->type = ENT_AREA_REGION;
 		break;
 	default: return NULL;
 	}
@@ -5457,6 +5689,7 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case ENT_EXIT:		next = expand_entity_exit(info,str,arg); break;
 		case ENT_TOKEN:		next = expand_entity_token(info,str,arg); break;
 		case ENT_AREA:		next = expand_entity_area(info,str,arg); break;
+		case ENT_AREA_REGION:	next = expand_entity_area_region(info,str,arg); break;
 		case ENT_OLLIST_MOB:	next = expand_entity_list_mob(info,str,arg); break;
 		case ENT_OLLIST_OBJ:	next = expand_entity_list_obj(info,str,arg); break;
 		case ENT_OLLIST_TOK:	next = expand_entity_list_token(info,str,arg); break;
@@ -5481,6 +5714,7 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case ENT_BLLIST_EXIT:	next = expand_entity_blist_exit(info,str,arg); break;
 		case ENT_BLLIST_SKILL:	next = expand_entity_blist_skillinfo(info,str,arg); break;
 		case ENT_BLLIST_AREA:	next = expand_entity_blist_area(info,str,arg); break;
+		case ENT_BLLIST_AREA_REGION:	next = expand_entity_blist_area_region(info,str,arg); break;
 		case ENT_BLLIST_WILDS:	next = expand_entity_blist_wilds(info,str,arg); break;
 
 		case ENT_PLLIST_STR:		next = expand_entity_plist_str(info,str,arg); break;
@@ -5489,12 +5723,15 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case ENT_PLLIST_MOB:		next = expand_entity_plist_mob(info,str,arg); break;
 		case ENT_PLLIST_OBJ:		next = expand_entity_plist_obj(info,str,arg); break;
 		case ENT_PLLIST_TOK:		next = expand_entity_plist_token(info,str,arg); break;
+		case ENT_PLLIST_AREA:		next = expand_entity_plist_area(info,str,arg); break;
+		case ENT_PLLIST_AREA_REGION:	next = expand_entity_plist_area_region(info,str,arg); break;
 		case ENT_PLLIST_CHURCH:	next = expand_entity_plist_church(info,str,arg); break;
 
 		case ENT_MOBILE_ID:		next = expand_entity_mobile_id(info,str,arg); break;
 		case ENT_OBJECT_ID:		next = expand_entity_object_id(info,str,arg); break;
 		case ENT_TOKEN_ID:		next = expand_entity_token_id(info,str,arg); break;
 		case ENT_AREA_ID:		next = expand_entity_area_id(info,str,arg); break;
+		case ENT_AREA_REGION_ID:next = expand_entity_area_region_id(info,str,arg); break;
 		case ENT_SKILLINFO_ID:	next = expand_entity_skillinfo_id(info,str,arg); break;
 		case ENT_WILDS_ID:		next = expand_entity_wilds_id(info,str,arg); break;
 		case ENT_CHURCH_ID:		next = expand_entity_church_id(info,str,arg); break;
@@ -5605,6 +5842,10 @@ char *expand_string_entity(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
 
 	case ENT_AREA:
 		add_buf(buffer, arg->d.area ? arg->d.area->name : SOMEWHERE);
+		break;
+
+	case ENT_AREA_REGION:
+		add_buf(buffer, IS_VALID(arg->d.aregion) ? arg->d.aregion->name : SOMEWHERE);
 		break;
 
 	case ENT_CONN:

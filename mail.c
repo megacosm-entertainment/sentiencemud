@@ -35,7 +35,7 @@ void do_mail(CHAR_DATA *ch, char *argument)
 
     argument = one_argument(argument, arg);
 
-    if (ch->in_room != get_room_index(ch->in_room->area, ch->in_room->area->post_office)
+    if (ch->in_room != get_room_index(ch->in_room->area, ch->in_room->area->region.post_office)
     && !IS_SET(ch->in_room->room2_flags, ROOM_POST_OFFICE))
     {
 	send_to_char("You must be at a post office.\n\r", ch);

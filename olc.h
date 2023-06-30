@@ -213,11 +213,11 @@ DECLARE_OLC_FUN( aedit_placetype	);
 DECLARE_OLC_FUN( aedit_recall		);
 DECLARE_OLC_FUN( aedit_remove_trade	);
 DECLARE_OLC_FUN( aedit_repop		);
+DECLARE_OLC_FUN( aedit_savage       );
 DECLARE_OLC_FUN( aedit_security		);
 DECLARE_OLC_FUN( aedit_set_trade	);
 DECLARE_OLC_FUN( aedit_show		);
 DECLARE_OLC_FUN( aedit_view_trade	);
-DECLARE_OLC_FUN( aedit_vnum		);
 DECLARE_OLC_FUN( aedit_x		);
 DECLARE_OLC_FUN( aedit_y		);
 DECLARE_OLC_FUN( aedit_postoffice	);
@@ -226,6 +226,7 @@ DECLARE_OLC_FUN( aedit_varclear	);
 DECLARE_OLC_FUN( aedit_addaprog		);
 DECLARE_OLC_FUN( aedit_delaprog		);
 DECLARE_OLC_FUN( aedit_wilds		);
+DECLARE_OLC_FUN( aedit_regions      );
 
 /*
  * Room Editor Prototypes
@@ -267,6 +268,8 @@ DECLARE_OLC_FUN( redit_west		);
 DECLARE_OLC_FUN( redit_varset	);
 DECLARE_OLC_FUN( redit_varclear	);
 DECLARE_OLC_FUN( redit_persist  );
+DECLARE_OLC_FUN( redit_region   );
+DECLARE_OLC_FUN( redit_savage   );
 
 
 /*

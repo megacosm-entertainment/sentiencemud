@@ -1452,9 +1452,9 @@ void do_astat (CHAR_DATA * ch, char *argument)
     add_buf (output, buf);
     sprintf (buf, "Vnums   : [{W%ld{x-{W%ld{x]\n\r", pArea->min_vnum, pArea->max_vnum);
     add_buf (output, buf);
-    sprintf (buf, "Recall  : [{W%6ld{x] {W%s{x\n\r", pArea->recall.id[0],
-             get_room_index (pArea, pArea->recall.id[0])
-             ? get_room_index (pArea, pArea->recall.id[0])->name : "none");
+    sprintf (buf, "Recall  : [{W%6ld{x] {W%s{x\n\r", pArea->region.recall.id[0],
+             get_room_index (pArea, pArea->region.recall.id[0])
+             ? get_room_index (pArea, pArea->region.recall.id[0])->name : "none");
     add_buf (output, buf);
     sprintf (buf, "Security: [{W%d{x]\n\r", pArea->security);
     add_buf (output, buf);
@@ -4634,7 +4634,7 @@ void do_chset(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		if (area->area_who != AREA_CHURCH)
+		if (area->region.area_who != AREA_CHURCH)
 		{
 			send_to_char("That area is not a CHURCH area.  Please set the areawho value to CHURCH.\n\r", ch);
 			return;

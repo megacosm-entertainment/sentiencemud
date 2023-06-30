@@ -125,6 +125,24 @@ const struct olc_help_type help_table[] =
 };
 
 
+static void __region_add_room(AREA_REGION *region, ROOM_INDEX_DATA *room)
+{
+	if (IS_VALID(region) && room)
+	{
+		list_appendlink(region->rooms, room);
+		room->region = region;
+	}
+}
+
+static void __region_remove_room(ROOM_INDEX_DATA *room)
+{
+	if (IS_VALID(room->region))
+	{
+		list_remlink(room->region->rooms, room);
+	}
+	room->region = NULL;
+}
+
 // Displays settable flags and stats.
 void show_flag_cmds(CHAR_DATA *ch, const struct flag_type *flag_table)
 {
@@ -536,12 +554,69 @@ AREA_DATA *get_vnum_area(long vnum)
     return 0;
 }
 
+static void __aedit_show_region(BUFFER *buffer, AREA_DATA *pArea, AREA_REGION *region)
+{
+    char buf  [MAX_STRING_LENGTH];
+    ROOM_INDEX_DATA *recall;
+
+	if (!IS_NULLSTR(region->description))
+	{
+		sprintf(buf, "  Description:\n\r%s\n\r", region->description);
+		add_buf(buffer, buf);
+	}
+
+	if(region->recall.wuid) {
+		WILDS_DATA *wilds = get_wilds_from_uid(NULL,region->recall.wuid);
+		if(wilds)
+			sprintf(buf, "  Recall:      Wilds %s [%lu] at <%lu,%lu,%lu>\n\r", wilds->name, region->recall.wuid,
+				region->recall.id[0],region->recall.id[1],region->recall.id[2]);
+		else
+			sprintf(buf, "  Recall:      Wilds ??? [%lu]\n\r", region->recall.wuid);
+	} else if(region->recall.id[0] > 0 && (recall = get_room_index(pArea, region->recall.id[0]))) {
+		sprintf(buf, "  Recall:    Room [%5ld] %s\n\r", region->recall.id[0], recall->name);
+	} else
+		sprintf(buf, "  Recall:      [%lu] area default\n\r", region->recall.id[0]);
+	add_buf(buffer, buf);
+
+	sprintf(buf, "  Flags:       [%s]\n\r", flag_string(area_region_flags, region->flags));
+	add_buf(buffer, buf);
+
+    sprintf(buf, "  AreaWho:     [%s] [%s]\n\r", flag_string(area_who_titles, region->area_who), flag_string(area_who_display, region->area_who));
+	add_buf(buffer, buf);
+
+    sprintf(buf, "  Savagery:    [%d]\n\r", region->savage_level);
+	add_buf(buffer, buf);
+
+    sprintf(buf, "  PlaceType:   [%s]\n\r", flag_string(place_flags, region->place_flags));
+	add_buf(buffer, buf);
+
+    sprintf(buf, "  X : Y:       [%d, %d]\n\r", region->x, region->y);
+	add_buf(buffer, buf);
+
+    sprintf(buf, "  Land X:Y:    [%d, %d]\n\r", region->land_x, region->land_y);
+	add_buf(buffer, buf);
+
+    sprintf(buf, "  AirshipLand: [%s (%ld)]\n\r", get_room_index(pArea, region->airship_land_spot) == NULL ? "None" :
+        get_room_index(pArea,region->airship_land_spot)->name, region->airship_land_spot);
+	add_buf(buffer, buf);
+
+	sprintf(buf, "  PostOffice:  [%s (%ld)]\n\r",
+		get_room_index(pArea,region->post_office) == NULL ? "None" :
+		get_room_index(pArea,region->post_office)->name, region->post_office);
+	add_buf(buffer, buf);
+
+	if (!IS_NULLSTR(region->comments))
+	{
+		sprintf(buf,"  -----\n\r  {WBuilders' Comments:{X\n\r  %s{x\n\r  -----\n\r", pArea->comments);
+		add_buf(buffer, buf);
+	}
+
+}
 
 AEDIT(aedit_show)
 {
     AREA_DATA *pArea;
     char buf  [MAX_STRING_LENGTH];
-    ROOM_INDEX_DATA *recall;
 	BUFFER *buffer = new_buf();
 
     EDIT_AREA(ch, pArea);
@@ -549,23 +624,7 @@ AEDIT(aedit_show)
     sprintf(buf, "Name:        [%5ld] %s\n\r", pArea->uid, pArea->name);
 	add_buf(buffer, buf);
 
-	if(pArea->recall.wuid) {
-		WILDS_DATA *wilds = get_wilds_from_uid(NULL,pArea->recall.wuid);
-		if(wilds)
-			sprintf(buf, "Recall:      Wilds %s [%lu] at <%lu,%lu,%lu>\n\r", wilds->name, pArea->recall.wuid,
-				pArea->recall.id[0],pArea->recall.id[1],pArea->recall.id[2]);
-		else
-			sprintf(buf, "Recall:      Wilds ??? [%lu]\n\r", pArea->recall.wuid);
-	} else if(pArea->recall.id[0] > 0 && (recall = get_room_index(pArea, pArea->recall.id[0]))) {
-		sprintf(buf, "Recall:    Room [%5ld] %s\n\r", pArea->recall.id[0], recall->name);
-	} else
-			sprintf(buf, "Recall:      [%lu] none\n\r", pArea->recall.id[0]);
-	add_buf(buffer, buf);
-
     sprintf(buf, "File:        %s\n\r", pArea->file_name);
-	add_buf(buffer, buf);
-
-    sprintf(buf, "Vnums:       [%ld-%ld]\n\r", pArea->min_vnum, pArea->max_vnum);
 	add_buf(buffer, buf);
 
     sprintf(buf, "Age:         [%d]\n\r",	pArea->age);
@@ -577,14 +636,7 @@ AEDIT(aedit_show)
     sprintf(buf, "Players:     [%d]\n\r", pArea->nplayer);
 	add_buf(buffer, buf);
 
-    sprintf(buf, "AreaWho:     [%s] [%s]\n\r", flag_string(area_who_titles, pArea->area_who), flag_string(area_who_display, pArea->area_who));
-	add_buf(buffer, buf);
-
     sprintf(buf, "Security:    [%d]\n\r", pArea->security);
-	add_buf(buffer, buf);
-
-    sprintf(buf, "PlaceType:   [%s]\n\r",
-	    flag_string(place_flags, pArea->place_flags));
 	add_buf(buffer, buf);
 
     sprintf(buf, "Builders:    [%s]\n\r", pArea->builders);
@@ -593,8 +645,7 @@ AEDIT(aedit_show)
     sprintf(buf, "Credits:     [%s]\n\r", pArea->credits);
 	add_buf(buffer, buf);
 
-    sprintf(buf, "Flags:       [%s]\n\r",
-		   flag_string(area_flags, pArea->area_flags));
+    sprintf(buf, "Flags:       [%s]\n\r", flag_string(area_flags, pArea->area_flags));
 	add_buf(buffer, buf);
 
     if( pArea->wilds_uid > 0 )
@@ -609,30 +660,33 @@ AEDIT(aedit_show)
 		add_buf(buffer, buf);
 	}
 
-    sprintf(buf, "X : Y:       [%d, %d]\n\r", pArea->x, pArea->y);
-	add_buf(buffer, buf);
-
-    sprintf(buf, "Land X:Y:    [%d, %d]\n\r", pArea->land_x, pArea->land_y);
-	add_buf(buffer, buf);
-
-    sprintf(buf, "AirshipLand: [%s(%ld)]\n\r", get_room_index(pArea,pArea->airship_land_spot) == NULL ? "None" :
-        get_room_index(pArea,pArea->airship_land_spot)->name, pArea->airship_land_spot);
-	add_buf(buffer, buf);
-
     sprintf(buf, "Open:        [%s]\n\r", pArea->open ? "Yes" : "No");
-	add_buf(buffer, buf);
-
-    // One post office per area
-    sprintf(buf, "PostOffice   [%s (%ld)]\n\r",
-        get_room_index(pArea,pArea->post_office) == NULL ? "None" :
-	    get_room_index(pArea,pArea->post_office)->name, pArea->post_office);
 	add_buf(buffer, buf);
 
 	sprintf(buf, "Description:\n\r%s\n\r", pArea->description);
 	add_buf(buffer, buf);
 
-	sprintf(buf,"\n\r-----\n\r{WBuilders' Comments:{X\n\r%s\n\r-----\n\r", pArea->comments);
-	add_buf(buffer, buf);
+	if (!IS_NULLSTR(pArea->comments))
+	{
+		sprintf(buf,"\n\r-----\n\r{WBuilders' Comments:{X\n\r%s{x\n\r-----\n\r", pArea->comments);
+		add_buf(buffer, buf);
+	}
+
+	add_buf(buffer, "Default Region:\n\r");
+	__aedit_show_region(buffer, pArea, &pArea->region);
+
+	ITERATOR rit;
+	AREA_REGION *region;
+	int region_no = 1;
+	iterator_start(&rit, pArea->regions);
+	while((region = (AREA_REGION *)iterator_nextdata(&rit)))
+	{
+		sprintf(buf, "Region %d: %s\n\r", region_no++, region->name);
+		add_buf(buffer, buf);
+
+		__aedit_show_region(buffer, pArea, region);
+	}
+	iterator_stop(&rit);
 
 	olc_show_index_vars(buffer, pArea->index_vars);
 
@@ -660,7 +714,6 @@ AEDIT(aedit_show)
 	{
 		page_to_char(buffer->string, ch);
 	}
-
 
 	free_buf(buffer);
 
@@ -704,7 +757,7 @@ AEDIT(aedit_x)
 	return FALSE;
     }
 
-    pArea->x = atoi(argument);
+    pArea->region.x = atoi(argument);
     send_to_char("X Coordinate of Area set.\n\r", ch);
 
     return TRUE;
@@ -722,7 +775,7 @@ AEDIT(aedit_y)
 	return FALSE;
     }
 
-    pArea->y = atoi(argument);
+    pArea->region.y = atoi(argument);
     send_to_char("Y Coordinate of Area set.\n\r", ch);
 
     return TRUE;
@@ -741,7 +794,7 @@ AEDIT(aedit_land_x)
 	return FALSE;
     }
 
-    pArea->land_x = atoi(argument);
+    pArea->region.land_x = atoi(argument);
     send_to_char("X Coordinate set.\n\r", ch);
 
     return TRUE;
@@ -760,7 +813,7 @@ AEDIT(aedit_land_y)
 	return FALSE;
     }
 
-    pArea->land_y = atoi(argument);
+    pArea->region.land_y = atoi(argument);
     send_to_char("Y Coordinate set.\n\r", ch);
 
     return TRUE;
@@ -806,12 +859,21 @@ AEDIT(aedit_airshipland)
 	return FALSE;
     }
 
-    if (get_room_index(pArea,atol(argument)) == NULL) {
-	send_to_char("That room doesn't exist.\n\r", ch);
-	return FALSE;
+	long vnum = atol(argument);
+	ROOM_INDEX_DATA *room = get_room_index(pArea, vnum);
+
+    if (!room) {
+		send_to_char("That room doesn't exist.\n\r", ch);
+		return FALSE;
     }
 
-    pArea->airship_land_spot = atol(argument);
+	if (room->region != &pArea->region)
+	{
+		send_to_char("Room is not in the default region.\n\r", ch);
+		return FALSE;
+	}
+
+    pArea->region.airship_land_spot = atol(argument);
     sprintf(buf, "Set airship land spot of %s to %ld - %s\n\r",
         pArea->name, atol(argument), get_room_index(pArea,atol(argument))->name);
     send_to_char(buf, ch);
@@ -1030,6 +1092,830 @@ AEDIT(aedit_create)
     return FALSE;
 }
 
+AEDIT(aedit_regions)
+{
+	AREA_DATA *pArea;
+	char buf[MSL];
+	char arg1[MIL];
+	char arg2[MIL];
+
+	EDIT_AREA(ch, pArea);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  regions add <name>\n\r", ch);
+		send_to_char("         regions remove <#>\n\r", ch);
+		send_to_char("         regions name <#|default> <name>\n\r", ch);
+		send_to_char("         regions description <#|default>\n\r", ch);
+		send_to_char("         regions comments <#|default>\n\r", ch);
+		send_to_char("         regions airship <#> <vnum or none> {Y**{x\n\r", ch);
+		send_to_char("         regions flags <#|default> <flags>\n\r", ch);
+		send_to_char("         regions landing <#> <x> <y>\n\r", ch);
+		send_to_char("         regions landing <#> none\n\r", ch);
+		send_to_char("         regions place <#> <place type>\n\r", ch);
+		send_to_char("         regions postoffice <#> <vnum or none> {Y**{x\n\r", ch);
+		send_to_char("         regions recall <#> <vnum|none|default> {Y**{x\n\r", ch);
+		send_to_char("         regions savage <#> <0-5>\n\r", ch);
+		send_to_char("         regions who <#> <area who>\n\r", ch);
+		send_to_char("         regions xy <#> <x> <y>\n\r", ch);
+		send_to_char("         regions xy <#> none\n\r", ch);
+		send_to_char("\n\r", ch);
+		send_to_char(" {Y**{x - Room vnum must be assigned to the region.\n\r", ch);
+		return FALSE;
+	}
+
+	argument = one_argument(argument, arg1);
+	if (!str_prefix(arg1, "add"))
+	{
+		if (IS_NULLSTR(argument))
+		{
+			send_to_char("Syntax:  regions add <name>\n\r", ch);
+			send_to_char("Please specify a name.\n\r", ch);
+			return FALSE;
+		}
+
+		AREA_REGION *region = new_area_region();
+		region->uid = ++pArea->top_region_uid;
+		free_string(region->name);
+		region->name = str_dup(argument);
+
+		// Copy some settings from the default region
+		region->area_who = pArea->region.area_who;
+		region->place_flags = pArea->region.place_flags;
+		region->x = pArea->region.x;
+		region->y = pArea->region.y;
+		region->land_x = pArea->region.land_x;
+		region->land_y = pArea->region.land_y;
+
+		list_appendlink(pArea->regions, region);
+		sprintf(buf, "Region %d added.\n\r", list_size(pArea->regions));
+		send_to_char(buf, ch);
+		return TRUE;
+	}
+
+	if (!str_prefix(arg1, "remove"))
+	{
+		if (list_size(pArea->regions) < 1)
+		{
+			send_to_char("There are no regions to remove.\n\r", ch);
+			return FALSE;
+		}
+
+		if (!is_number(argument))
+		{
+			send_to_char("Syntax:  regions remove <#>\n\r", ch);
+			sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(pArea->regions));
+			return FALSE;
+		}
+
+		int region_no = atoi(argument);
+		if (region_no < 1 || region_no > list_size(pArea->regions))
+		{
+			send_to_char("Syntax:  regions remove <#>\n\r", ch);
+			sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(pArea->regions));
+			return FALSE;
+		}
+
+		AREA_REGION *remove_me = (AREA_REGION *)list_nthdata(pArea->regions, region_no);
+
+		// Transfer all rooms from this region to the default region.
+		ITERATOR rit;
+		ROOM_INDEX_DATA *room;
+		iterator_start(&rit, remove_me->rooms);
+		while((room = (ROOM_INDEX_DATA *)iterator_nextdata(&rit)))
+		{
+			__region_add_room(&pArea->region, room);
+		}
+		iterator_stop(&rit);
+
+		// Transfer all players from this region to the default region.
+		ITERATOR pit;
+		CHAR_DATA *player;
+		iterator_start(&pit, remove_me->players);
+		while((player = (CHAR_DATA *)iterator_nextdata(&pit)))
+		{
+			list_appendlink(pArea->region.players, player);
+		}
+		iterator_stop(&pit);
+		
+		list_remnthlink(pArea->regions, region_no);
+		sprintf(buf, "Region %d removed.\n\r", region_no);
+		send_to_char(buf, ch);
+		return TRUE;
+	}
+
+	if (!str_prefix(arg1, "name"))
+	{
+		if (list_size(pArea->regions) < 1)
+		{
+			send_to_char("Area has no regions defined.\n\r", ch);
+			return FALSE;
+		}
+
+		argument = one_argument(argument, arg2);
+
+		AREA_REGION *region;
+		if (!str_prefix(arg2, "default"))
+		{
+			region = &pArea->region;
+		}
+		else
+		{
+			if (!is_number(arg2))
+			{
+				send_to_char("Syntax:  regions name <#|default> <name>\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(pArea->regions));
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			int region_no = atoi(arg2);
+			if (region_no < 1 || region_no > list_size(pArea->regions))
+			{
+				send_to_char("Syntax:  regions name <#> <name>\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(pArea->regions));
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			if (IS_NULLSTR(argument))
+			{
+				send_to_char("Syntax:  regions name <#> <name>\n\r", ch);
+				send_to_char("Please specify a name.\n\r", ch);
+				return FALSE;
+			}
+
+			region = (AREA_REGION *)list_nthdata(pArea->regions, region_no);
+		}
+
+		free_string(region->name);
+		region->name = str_dup(argument);
+
+		send_to_char("Region name changed.\n\r", ch);
+		return TRUE;
+	}
+
+	if (!str_prefix(arg1, "description"))
+	{
+		if (list_size(pArea->regions) < 1)
+		{
+			send_to_char("Area has no regions defined.\n\r", ch);
+			return FALSE;
+		}
+
+		argument = one_argument(argument, arg2);
+
+		AREA_REGION *region;
+		if (!str_prefix(arg2, "default"))
+		{
+			region = &pArea->region;
+		}
+		else
+		{
+			if (!is_number(arg2))
+			{
+				send_to_char("Syntax:  regions description <#>\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(pArea->regions));
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			int region_no = atoi(arg2);
+			if (region_no < 1 || region_no > list_size(pArea->regions))
+			{
+				send_to_char("Syntax:  regions description <#>\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(pArea->regions));
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			region = (AREA_REGION *)list_nthdata(pArea->regions, region_no);
+		}
+
+		string_append(ch, &region->description);
+		return TRUE;
+	}
+
+	if (!str_prefix(arg1, "comments"))
+	{
+		if (list_size(pArea->regions) < 1)
+		{
+			send_to_char("Area has no regions defined.\n\r", ch);
+			return FALSE;
+		}
+
+		argument = one_argument(argument, arg2);
+
+		AREA_REGION *region;
+		if (!str_prefix(arg2, "default"))
+		{
+			region = &pArea->region;
+		}
+		else
+		{
+			if (!is_number(arg2))
+			{
+				send_to_char("Syntax:  regions comments <#>\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(pArea->regions));
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			int region_no = atoi(arg2);
+			if (region_no < 1 || region_no > list_size(pArea->regions))
+			{
+				send_to_char("Syntax:  regions comments <#>\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(pArea->regions));
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			region = (AREA_REGION *)list_nthdata(pArea->regions, region_no);
+		}
+		string_append(ch, &region->comments);
+		return TRUE;
+	}
+
+	if (!str_prefix(arg1, "flags"))
+	{
+		if (list_size(pArea->regions) < 1)
+		{
+			send_to_char("Area has no regions defined.\n\r", ch);
+			return FALSE;
+		}
+
+		argument = one_argument(argument, arg2);
+
+		AREA_REGION *region;
+		if (!str_prefix(arg2, "default"))
+		{
+			region = &pArea->region;
+		}
+		else
+		{
+			if (!is_number(arg2))
+			{
+				send_to_char("Syntax:  regions flags <#> <flags>\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(pArea->regions));
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			int region_no = atoi(arg2);
+			if (region_no < 1 || region_no > list_size(pArea->regions))
+			{
+				send_to_char("Syntax:  regions flags <#> <flags>\n\r", ch);
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(pArea->regions));
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			region = (AREA_REGION *)list_nthdata(pArea->regions, region_no);
+		}
+
+		long value;
+		if ((value = flag_lookup(argument, area_region_flags)) == NO_FLAG)
+		{
+			send_to_char("Syntax:  regions flags <#> <flags>\n\r", ch);
+			send_to_char("Please type '? area_region_flags' to see a list of values.\n\r", ch);
+			return FALSE;
+		}
+
+		TOGGLE_BIT(region->flags, value);
+		send_to_char("Region flags toggled.\n\r", ch);
+		return TRUE;
+	}
+
+	if (!str_prefix(arg1, "recall"))
+	{
+		if (list_size(pArea->regions) < 1)
+		{
+			send_to_char("Area has no regions defined.\n\r", ch);
+			return FALSE;
+		}
+
+		argument = one_argument(argument, arg2);
+
+		if (!is_number(arg2))
+		{
+			send_to_char("Syntax:  regions recall <#> <vnum|default>\n\r", ch);
+			sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(pArea->regions));
+			send_to_char(buf, ch);
+			return FALSE;
+		}
+
+		int region_no = atoi(arg2);
+		if (region_no < 1 || region_no > list_size(pArea->regions))
+		{
+			send_to_char("Syntax:  regions recall <#> <vnum|default>\n\r", ch);
+			sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(pArea->regions));
+			send_to_char(buf, ch);
+			return FALSE;
+		}
+
+		AREA_REGION *region = (AREA_REGION *)list_nthdata(pArea->regions, region_no);
+
+		long recall;
+		if (!str_prefix(argument, "default"))
+		{
+			// Use the area's default region's recall
+			recall = 0L;
+		}
+		else if (!is_number(argument))
+		{
+			send_to_char("Syntax:  regions recall <#> <vnum>\n\r", ch);
+			send_to_char("Please specify a positive number.\n\r", ch);
+			return FALSE;
+		}
+		else
+		{
+			recall = atol(argument);
+			if (recall < 1)
+			{
+				send_to_char("Syntax:  regions recall <#> <vnum>\n\r", ch);
+				send_to_char("Please specify a positive number.\n\r", ch);
+				return FALSE;
+			}
+
+			ROOM_INDEX_DATA *room = get_room_index(pArea, recall);
+			if (!room)
+			{
+				send_to_char("That room does not exist.\n\r", ch);
+				return FALSE;
+			}
+
+			if (room->region != region)
+			{
+				send_to_char("That room is not assigned to that region.\n\r", ch);
+				return FALSE;
+			}
+		}
+
+		location_set(&region->recall, pArea, 0, recall, 0, 0);
+		send_to_char("Region Recall point changed.\n\r", ch);
+		return TRUE;
+	}
+
+	if (!str_prefix(arg1, "airship"))
+	{
+		if (list_size(pArea->regions) < 1)
+		{
+			send_to_char("Area has no regions defined.\n\r", ch);
+			return FALSE;
+		}
+
+		argument = one_argument(argument, arg2);
+
+		if (!is_number(arg2))
+		{
+			send_to_char("Syntax:  regions airship <#> <vnum or none>\n\r", ch);
+			sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(pArea->regions));
+			send_to_char(buf, ch);
+			return FALSE;
+		}
+
+		int region_no = atoi(arg2);
+		if (region_no < 1 || region_no > list_size(pArea->regions))
+		{
+			send_to_char("Syntax:  regions airship <#> <vnum or none>\n\r", ch);
+			sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(pArea->regions));
+			send_to_char(buf, ch);
+			return FALSE;
+		}
+
+		AREA_REGION *region = (AREA_REGION *)list_nthdata(pArea->regions, region_no);
+
+		if (!str_prefix(argument, "none"))
+		{
+			region->airship_land_spot = 0;	// Clear it
+		}
+		else if (!is_number(argument))
+		{
+			send_to_char("Syntax:  regions airship <#> <vnum or none>\n\r", ch);
+			send_to_char("Please specify a positive number.\n\r", ch);
+			return FALSE;
+		}
+		else
+		{
+			long vnum = atol(argument);
+			if (vnum < 1)
+			{
+				send_to_char("Syntax:  regions airship <#> <vnum or none>\n\r", ch);
+				send_to_char("Please specify a positive number.\n\r", ch);
+				return FALSE;
+			}
+
+			ROOM_INDEX_DATA *room = get_room_index(pArea, vnum);
+			if (!room)
+			{
+				send_to_char("That room does not exist.\n\r", ch);
+				return FALSE;
+			}
+
+			if (room->region != region)
+			{
+				send_to_char("Room is in a different region.\n\r", ch);
+				return FALSE;
+			}
+
+			region->airship_land_spot = room->vnum;
+		}
+
+		send_to_char("Region Airship landing room changed.\n\r", ch);
+		return TRUE;
+	}
+
+	if (!str_prefix(arg1, "landing"))
+	{
+		if (list_size(pArea->regions) < 1)
+		{
+			send_to_char("Area has no regions defined.\n\r", ch);
+			return FALSE;
+		}
+
+		argument = one_argument(argument, arg2);
+
+		if (!is_number(arg2))
+		{
+			send_to_char("Syntax:  regions landing <#> <x> <y>\n\r", ch);
+			send_to_char("         regions landing <#> none\n\r", ch);
+			sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(pArea->regions));
+			send_to_char(buf, ch);
+			return FALSE;
+		}
+
+		int region_no = atoi(arg2);
+		if (region_no < 1 || region_no > list_size(pArea->regions))
+		{
+			send_to_char("Syntax:  regions landing <#> <x> <y>\n\r", ch);
+			send_to_char("         regions landing <#> none\n\r", ch);
+			sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(pArea->regions));
+			send_to_char(buf, ch);
+			return FALSE;
+		}
+
+		AREA_REGION *region = (AREA_REGION *)list_nthdata(pArea->regions, region_no);
+
+		if (!str_prefix(argument, "none"))
+		{
+			region->land_x = -1;
+			region->land_y = -1;
+		}
+		else
+		{
+			char arg3[MIL];
+			argument = one_argument(argument, arg3);
+
+			if (!is_number(arg3) || !is_number(argument))
+			{
+				send_to_char("Syntax:  regions landing <#> <x> <y>\n\r", ch);
+				send_to_char("Please specify a number.\n\r", ch);
+				return FALSE;
+			}
+
+			int x = atoi(arg3);
+			int y = atoi(argument);
+
+			if (x < 0 || y < 0)
+			{
+				send_to_char("Syntax:  regions landing <#> <x> <y>\n\r", ch);
+				send_to_char("Number cannot be negative.\n\r", ch);
+				return FALSE;
+			}
+
+			region->land_x = x;
+			region->land_y = y;
+		}
+
+		send_to_char("Region landing coordinates changed.\n\r", ch);
+		return TRUE;
+	}
+
+	if (!str_prefix(arg1, "place"))
+	{
+		if (list_size(pArea->regions) < 1)
+		{
+			send_to_char("Area has no regions defined.\n\r", ch);
+			return FALSE;
+		}
+
+		argument = one_argument(argument, arg2);
+
+		if (!is_number(arg2))
+		{
+			send_to_char("Syntax:  regions place <#> <vnum or none>\n\r", ch);
+			sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(pArea->regions));
+			send_to_char(buf, ch);
+			return FALSE;
+		}
+
+		int region_no = atoi(arg2);
+		if (region_no < 1 || region_no > list_size(pArea->regions))
+		{
+			send_to_char("Syntax:  regions place <#> <vnum or none>\n\r", ch);
+			sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(pArea->regions));
+			send_to_char(buf, ch);
+			return FALSE;
+		}
+
+		AREA_REGION *region = (AREA_REGION *)list_nthdata(pArea->regions, region_no);
+		int value;
+
+		if(!str_cmp(argument, "none"))
+		{
+			region->place_flags = PLACE_NOWHERE;
+
+			send_to_char("Region place type cleared.\n\r", ch);
+			return TRUE;
+		}
+		else if ((value = flag_value(place_flags, argument)) != NO_FLAG)
+		{
+			region->place_flags = value;
+
+			send_to_char("Region place type set.\n\r", ch);
+			return TRUE;
+		}
+
+		send_to_char("Syntax:  regions place <#> <flag>\n\r", ch);
+		send_to_char("Type '? placetype' for a list of possible values.\n\r", ch);
+    	return FALSE;
+	}
+
+	if (!str_prefix(arg1, "postoffice"))
+	{
+		if (list_size(pArea->regions) < 1)
+		{
+			send_to_char("Area has no regions defined.\n\r", ch);
+			return FALSE;
+		}
+
+		argument = one_argument(argument, arg2);
+
+		if (!is_number(arg2))
+		{
+			send_to_char("Syntax:  regions postoffice <#> <vnum or none>\n\r", ch);
+			sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(pArea->regions));
+			send_to_char(buf, ch);
+			return FALSE;
+		}
+
+		int region_no = atoi(arg2);
+		if (region_no < 1 || region_no > list_size(pArea->regions))
+		{
+			send_to_char("Syntax:  regions postoffice <#> <vnum or none>\n\r", ch);
+			sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(pArea->regions));
+			send_to_char(buf, ch);
+			return FALSE;
+		}
+
+		AREA_REGION *region = (AREA_REGION *)list_nthdata(pArea->regions, region_no);
+
+		if (!str_prefix(argument, "none"))
+		{
+			region->post_office = 0;	// Clear it
+		}
+		else if (!is_number(argument))
+		{
+			send_to_char("Syntax:  regions postoffice <#> <vnum or none>\n\r", ch);
+			send_to_char("Please specify a positive number.\n\r", ch);
+			return FALSE;
+		}
+		else
+		{
+			long vnum = atol(argument);
+			if (vnum < 1)
+			{
+				send_to_char("Syntax:  regions postoffice <#> <vnum or none>\n\r", ch);
+				send_to_char("Please specify a positive number.\n\r", ch);
+				return FALSE;
+			}
+
+			ROOM_INDEX_DATA *room = get_room_index(pArea, vnum);
+			if (!room)
+			{
+				send_to_char("That room does not exist.\n\r", ch);
+				return FALSE;
+			}
+
+			if (room->region != region)
+			{
+				send_to_char("Room is in a different region.\n\r", ch);
+				return FALSE;
+			}
+
+			region->post_office = room->vnum;
+		}
+
+		send_to_char("Region Post Office changed.\n\r", ch);
+		return TRUE;
+	}
+
+	if (!str_prefix(arg1, "savage"))
+	{
+		if (list_size(pArea->regions) < 1)
+		{
+			send_to_char("Area has no regions defined.\n\r", ch);
+			return FALSE;
+		}
+
+		argument = one_argument(argument, arg2);
+
+		if (!is_number(arg2))
+		{
+			send_to_char("Syntax:  regions savage <#> <0-5>\n\r", ch);
+			sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(pArea->regions));
+			send_to_char(buf, ch);
+			return FALSE;
+		}
+
+		int region_no = atoi(arg2);
+		if (region_no < 1 || region_no > list_size(pArea->regions))
+		{
+			send_to_char("Syntax:  regions savage <#> <0-5>\n\r", ch);
+			sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(pArea->regions));
+			send_to_char(buf, ch);
+			return FALSE;
+		}
+
+		AREA_REGION *region = (AREA_REGION *)list_nthdata(pArea->regions, region_no);
+
+		if (!is_number(argument))
+		{
+			send_to_char("Syntax:  regions savage <#> <0-5>\n\r", ch);
+			send_to_char("Please specify a number from 0 to 5.\n\r", ch);
+			return FALSE;
+		}
+
+		int level = atoi(argument);
+		if (level < 0 || level > 5)
+		{
+			send_to_char("Syntax:  regions savage <#> <0-5>\n\r", ch);
+			send_to_char("Please specify a number from 0 to 5.\n\r", ch);
+			return FALSE;
+		}
+
+		region->savage_level = level;
+
+		send_to_char("Region Savagery changed.\n\r", ch);
+		return TRUE;
+	}
+
+	if (!str_prefix(arg1, "who"))
+	{
+		if (list_size(pArea->regions) < 1)
+		{
+			send_to_char("Area has no regions defined.\n\r", ch);
+			return FALSE;
+		}
+
+		argument = one_argument(argument, arg2);
+
+		if (!is_number(arg2))
+		{
+			send_to_char("Syntax:  regions who <#> <vnum or none>\n\r", ch);
+			sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(pArea->regions));
+			send_to_char(buf, ch);
+			return FALSE;
+		}
+
+		int region_no = atoi(arg2);
+		if (region_no < 1 || region_no > list_size(pArea->regions))
+		{
+			send_to_char("Syntax:  regions who <#> <vnum or none>\n\r", ch);
+			sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(pArea->regions));
+			send_to_char(buf, ch);
+			return FALSE;
+		}
+
+		AREA_REGION *region = (AREA_REGION *)list_nthdata(pArea->regions, region_no);
+		int value;
+
+		if ( !str_prefix(argument, "blank") )
+		{
+			region->area_who = AREA_BLANK;
+
+			send_to_char("Region who title cleared.\n\r", ch);
+			return TRUE;
+		}
+
+		if ((value = flag_value(area_who_titles, argument)) != NO_FLAG)
+		{
+			if( value == AREA_INSTANCE || value == AREA_DUTY )
+			{
+				send_to_char("That who title only allowed in blueprints.\n\r", ch);
+				return FALSE;
+			}
+
+			region->area_who = value;
+
+			send_to_char("Region who title set.\n\r", ch);
+			return TRUE;
+		}
+
+		send_to_char("Syntax:  regions who <#> <flag>\n\r", ch);
+		send_to_char("Type '? areawho' for a list of possible values.\n\r", ch);
+    	return FALSE;
+	}
+
+	if (!str_prefix(arg1, "xy"))
+	{
+		if (list_size(pArea->regions) < 1)
+		{
+			send_to_char("Area has no regions defined.\n\r", ch);
+			return FALSE;
+		}
+
+		argument = one_argument(argument, arg2);
+
+		if (!is_number(arg2))
+		{
+			send_to_char("Syntax:  regions xy <#> <x> <y>\n\r", ch);
+			send_to_char("         regions xy <#> none\n\r", ch);
+			sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(pArea->regions));
+			send_to_char(buf, ch);
+			return FALSE;
+		}
+
+		int region_no = atoi(arg2);
+		if (region_no < 1 || region_no > list_size(pArea->regions))
+		{
+			send_to_char("Syntax:  regions xy <#> <x> <y>\n\r", ch);
+			send_to_char("         regions xy <#> none\n\r", ch);
+			sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(pArea->regions));
+			send_to_char(buf, ch);
+			return FALSE;
+		}
+
+		AREA_REGION *region = (AREA_REGION *)list_nthdata(pArea->regions, region_no);
+
+		if (!str_prefix(argument, "none"))
+		{
+			region->land_x = -1;
+			region->land_y = -1;
+		}
+		else
+		{
+			char arg3[MIL];
+			argument = one_argument(argument, arg3);
+
+			if (!is_number(arg3) || !is_number(argument))
+			{
+				send_to_char("Syntax:  regions xy <#> <x> <y>\n\r", ch);
+				send_to_char("Please specify a number.\n\r", ch);
+				return FALSE;
+			}
+
+			int x = atoi(arg3);
+			int y = atoi(argument);
+
+			if (x < 0 || y < 0)
+			{
+				send_to_char("Syntax:  regions xy <#> <x> <y>\n\r", ch);
+				send_to_char("Number cannot be negative.\n\r", ch);
+				return FALSE;
+			}
+
+			region->land_x = x;
+			region->land_y = y;
+		}
+
+		send_to_char("Region coordinates changed.\n\r", ch);
+		return TRUE;
+	}
+
+	aedit_regions(ch, "");
+	return FALSE;
+}
+
+AEDIT(aedit_savage)
+{
+	AREA_DATA *pArea;
+
+	EDIT_AREA(ch, pArea);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  savage <0-5>\n\r", ch);
+		return FALSE;
+	}
+
+	if (!is_number(argument))
+	{
+		send_to_char("That is not a number.\n\r", ch);
+		return FALSE;
+	}
+
+	int level = atoi(argument);
+	if (level < 0 || level > 5)
+	{
+		send_to_char("Savage level must be from 0 to 5.\n\r", ch);
+		return FALSE;
+	}
+
+	pArea->region.savage_level = level;
+	send_to_char("Savage level set.\n\r", ch);
+	return TRUE;
+}
 
 AEDIT(aedit_name)
 {
@@ -1058,8 +1944,8 @@ AEDIT(aedit_desc)
 
     if (argument[0] == '\0')
     {
-	string_append(ch, &pArea->description);
-	return TRUE;
+		string_append(ch, &pArea->description);
+		return TRUE;
     }
 
     send_to_char("Syntax:  desc\n\r", ch);
@@ -1074,8 +1960,8 @@ AEDIT(aedit_comments)
 
     if (argument[0] == '\0')
     {
-	string_append(ch, &pArea->comments);
-	return TRUE;
+		string_append(ch, &pArea->comments);
+		return TRUE;
     }
 
     send_to_char("Syntax:  comment\n\r", ch);
@@ -1141,29 +2027,29 @@ AEDIT(aedit_areawho)
 
     if (argument[0] != '\0')
     {
-	EDIT_AREA(ch, pArea);
+		EDIT_AREA(ch, pArea);
 
-	if ( !str_prefix(argument, "blank") )
-	{
-	    pArea->area_who = AREA_BLANK;
-
-	    send_to_char("Area who title cleared.\n\r", ch);
-	    return TRUE;
-	}
-
-	if ((value = flag_value(area_who_titles, argument)) != NO_FLAG)
-	{
-		if( value == AREA_INSTANCE || value == AREA_DUTY )
+		if ( !str_prefix(argument, "blank") )
 		{
-			send_to_char("Area who title only allowed in blueprints.\n\r", ch);
-			return FALSE;
+			pArea->region.area_who = AREA_BLANK;
+
+			send_to_char("Area who title cleared.\n\r", ch);
+			return TRUE;
 		}
 
-	    pArea->area_who = value;
+		if ((value = flag_value(area_who_titles, argument)) != NO_FLAG)
+		{
+			if( value == AREA_INSTANCE || value == AREA_DUTY )
+			{
+				send_to_char("Area who title only allowed in blueprints.\n\r", ch);
+				return FALSE;
+			}
 
-	    send_to_char("Area who title set.\n\r", ch);
-	    return TRUE;
-	}
+			pArea->region.area_who = value;
+
+			send_to_char("Area who title set.\n\r", ch);
+			return TRUE;
+		}
     }
 
     send_to_char("Syntax:  areawho [title]\n\r"
@@ -1181,12 +2067,12 @@ AEDIT(aedit_placetype)
 		EDIT_AREA(ch, pArea);
 
 		if(!str_cmp(argument, "none")) {
-			pArea->place_flags = PLACE_NOWHERE;
+			pArea->region.place_flags = PLACE_NOWHERE;
 
 			send_to_char("Area place type cleared.\n\r", ch);
 			return TRUE;
 		} else if ((value = flag_value(place_flags, argument)) != NO_FLAG) {
-			pArea->place_flags = value;
+			pArea->region.place_flags = value;
 
 			send_to_char("Area place type set.\n\r", ch);
 			return TRUE;
@@ -1293,7 +2179,7 @@ AEDIT(aedit_recall)
 	vnum = atoi(arg1);
 
 	if(vnum < 1) {
-		location_clear(&pArea->recall);
+		location_clear(&pArea->region.recall);
 		send_to_char("Recall cleared.\n\r", ch);
 	} else if(!arg2[0]) {
 		if(!get_room_index(pArea,vnum)) {
@@ -1301,7 +2187,7 @@ AEDIT(aedit_recall)
 			return FALSE;
 		}
 
-		location_set(&pArea->recall,pArea,0,vnum,0,0);
+		location_set(&pArea->region.recall,pArea,0,vnum,0,0);
 		send_to_char("Recall set.\n\r", ch);
 	} else if(!arg3[0] || !arg4[0] || !is_number(arg2) || !is_number(arg3) || !is_number(arg4)) {
 		send_to_char("Syntax:  recall <vnum>\n\r", ch);
@@ -1314,7 +2200,7 @@ AEDIT(aedit_recall)
 		x = atoi(arg2);
 		y = atoi(arg3);
 		z = atoi(arg4);
-		location_set(&pArea->recall,NULL,vnum,x,y,z);
+		location_set(&pArea->region.recall,NULL,vnum,x,y,z);
 		send_to_char("Recall set.\n\r", ch);
 	}
 
@@ -1427,62 +2313,6 @@ AEDIT(aedit_builder)
 }
 
 
-AEDIT(aedit_vnum)
-{
-    AREA_DATA *pArea;
-    char lower[MAX_STRING_LENGTH];
-    char upper[MAX_STRING_LENGTH];
-    int  ilower;
-    int  iupper;
-
-    EDIT_AREA(ch, pArea);
-
-    argument = one_argument(argument, lower);
-    one_argument(argument, upper);
-
-    if (!is_number(lower) || lower[0] == '\0'
-    || !is_number(upper) || upper[0] == '\0')
-    {
-	send_to_char("Syntax:  vnum [#xlower] [#xupper]\n\r", ch);
-	return FALSE;
-    }
-
-    if ((ilower = atoi(lower)) > (iupper = atoi(upper)))
-    {
-	send_to_char("AEdit:  Upper must be larger then lower.\n\r", ch);
-	return FALSE;
-    }
-
-    if (!check_range(atoi(lower), atoi(upper)))
-    {
-	send_to_char("AEdit:  Range must include only this area.\n\r", ch);
-	return FALSE;
-    }
-
-    if (get_vnum_area(ilower)
-    && get_vnum_area(ilower) != pArea)
-    {
-	send_to_char("AEdit:  Lower vnum already assigned.\n\r", ch);
-	return FALSE;
-    }
-
-    pArea->min_vnum = ilower;
-    send_to_char("Lower vnum set.\n\r", ch);
-
-    if (get_vnum_area(iupper)
-    && get_vnum_area(iupper) != pArea)
-    {
-	send_to_char("AEdit:  Upper vnum already assigned.\n\r", ch);
-	return TRUE;	/* The lower value has been set. */
-    }
-
-    pArea->max_vnum = iupper;
-    send_to_char("Upper vnum set.\n\r", ch);
-
-    return TRUE;
-}
-
-
 AEDIT(aedit_postoffice)
 {
     AREA_DATA *pArea;
@@ -1497,20 +2327,23 @@ AEDIT(aedit_postoffice)
 	return FALSE;
     }
 
-    if ((vnum = atol(argument)) < pArea->min_vnum || vnum > pArea->max_vnum) {
-	send_to_char("That vnum is not in the area.\n\r", ch);
-	return FALSE;
-    }
+	vnum = atol(argument);
 
     if ((room = get_room_index(pArea, vnum)) == NULL) {
-	send_to_char("That room vnum doesn't exist.\n\r", ch);
-	return FALSE;
+		send_to_char("That room vnum doesn't exist.\n\r", ch);
+		return FALSE;
     }
+
+	if (room->region != &pArea->region)
+	{
+		send_to_char("Room is not in the default region.\n\r", ch);
+		return FALSE;
+	}
 
     sprintf(buf, "Set post office of %s to %s(%ld)\n\r", pArea->name, room->name, vnum);
     send_to_char(buf, ch);
 
-    pArea->post_office = vnum;
+    pArea->region.post_office = vnum;
     return TRUE;
 }
 
@@ -1686,9 +2519,21 @@ REDIT(redit_show)
         add_buf(buf1, buf);
     }
 
-    if (pRoom->locale) {
-	sprintf(buf, "Locale:       {r[{x%ld{r]{x\n\r", pRoom->locale);
+	if (pRoom->savage_level < 0)
+		sprintf(buf, "Savagery:     {r[{Y-area-{r]{x\n\r");
+	else
+		sprintf(buf, "Savagery:     {r[{x%d{r]{x\n\r", pRoom->savage_level);
 	add_buf(buf1, buf);
+
+	if (IS_VALID(pRoom->region))
+	{
+		sprintf(buf, "Region:       {r[{x%s{r]{x\n\r", pRoom->region->name);
+		add_buf(buf1, buf);
+	}
+
+    if (pRoom->locale) {
+		sprintf(buf, "Locale:       {r[{x%ld{r]{x\n\r", pRoom->locale);
+		add_buf(buf1, buf);
     }
 
     if (!IS_NULLSTR(pRoom->owner))
@@ -2878,6 +3723,12 @@ REDIT(redit_create)
 		redit_blueprint_oncreate = FALSE;
 	}
 
+	if (!IS_SET(pRoom->room2_flags, ROOM_BLUEPRINT))
+	{
+		// Only non-blueprint rooms will have this done
+		__region_add_room(&pRoom->area->region, pRoom);
+	}
+
     iHash = wnum.vnum % MAX_KEY_HASH;
     pRoom->next = wnum.pArea->room_index_hash[iHash];
     wnum.pArea->room_index_hash[iHash] = pRoom;
@@ -3401,6 +4252,57 @@ void print_obj_portal_values(OBJ_INDEX_DATA *portal, BUFFER *buffer)
 			}
 			add_buf(buffer, buf);
 			break;
+		
+		case GATETYPE_REGIONRANDOM:
+			if (portal->value[5] > 0)
+			{
+				area = get_area_from_uid(portal->value[5]);
+				sprintf(buf,
+					"{B[  {Wv5{B]{G Area:{x              [%ld] %s\n\r",
+					portal->value[5],
+					area ? area->name : "none");
+			}
+			else
+			{
+				sprintf(buf,
+					"{B[  {Wv5{B]{G Area:{x              [%ld] {Y-current area (not wilderness)-{x\n\r",
+					portal->value[5]);
+			}
+			add_buf(buffer, buf);
+
+			if (portal->value[6] > 0)
+			{
+				if (portal->value[5] > 0)
+				{
+					area = get_area_from_uid(portal->value[5]);
+
+					AREA_REGION *region = NULL;
+
+					if (area)
+					{
+						region = (AREA_REGION *)list_nthdata(area->regions, portal->value[6]);
+					}
+
+					sprintf(buf,
+						"{B[  {Wv6{B]{G Region:{x            [%ld] %s{x\n\r",
+						portal->value[6],
+						region ? region->name : "{D-invalid-");
+				}
+				else
+				{
+					sprintf(buf,
+						"{B[  {Wv6{B]{G Region:{x            [%ld]\n\r",
+						portal->value[6]);
+				}
+			}
+			else
+			{
+				sprintf(buf,
+					"{B[  {Wv6{B]{G Region:{x            [%ld] {Y-default region-{x\n\r",
+					portal->value[6]);
+			}
+			add_buf(buffer, buf);
+			break;
 
 		case GATETYPE_SECTIONRANDOM:
 			sprintf(buf,
@@ -3417,11 +4319,58 @@ void print_obj_portal_values(OBJ_INDEX_DATA *portal, BUFFER *buffer)
 			// No extra values - target is based upon current location
 			break;
 
-		case GATETYPE_REGIONRECALL:
-			// No extra values - target is based upon current location
+		case GATETYPE_AREARECALL:
+			if (portal->value[5] > 0)
+			{
+				area = get_area_from_uid(portal->value[5]);
+				sprintf(buf,
+					"{B[  {Wv5{B]{G Area:{x              [%ld] %s\n\r",
+					portal->value[5],
+					area ? area->name : "none");
+			}
+			else
+			{
+				sprintf(buf,
+					"{B[  {Wv5{B]{G Area:{x              [%ld] {Y-current area-{x\n\r",
+					portal->value[5]);
+			}
+			add_buf(buffer, buf);
+
+			if (portal->value[6] > 0)
+			{
+				if (portal->value[5] > 0)
+				{
+					area = get_area_from_uid(portal->value[5]);
+
+					AREA_REGION *region = NULL;
+
+					if (area)
+					{
+						region = (AREA_REGION *)list_nthdata(area->regions, portal->value[6]);
+					}
+
+					sprintf(buf,
+						"{B[  {Wv6{B]{G Region:{x            [%ld] %s{x\n\r",
+						portal->value[6],
+						region ? region->name : "{D-invalid-");
+				}
+				else
+				{
+					sprintf(buf,
+						"{B[  {Wv6{B]{G Region:{x            [%ld]\n\r",
+						portal->value[6]);
+				}
+			}
+			else
+			{
+				sprintf(buf,
+					"{B[  {Wv6{B]{G Region:{x            [%ld] {Y-default region-{x\n\r",
+					portal->value[6]);
+			}
+			add_buf(buffer, buf);
 			break;
 
-		case GATETYPE_AREARECALL:
+		case GATETYPE_REGIONRECALL:
 			if (portal->value[5] > 0)
 			{
 				area = get_area_from_uid(portal->value[5]);
@@ -4238,6 +5187,61 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 			}
 			break;
 
+		case GATETYPE_REGIONRANDOM:
+			switch(value_num)
+			{
+				case 5:		// AUID (0 == current area)
+					if (!str_prefix(argument, "current"))
+					{
+						portal->value[5] = 0;
+					}
+					else
+					{
+						if (!is_number(argument))
+						{
+							send_to_char("That is not a number.\n\r", ch);
+							return FALSE;
+						}
+
+						vnum = atol(argument);
+						if (vnum < 1 || !get_area_from_uid(vnum))
+						{
+							send_to_char("There is no area with that UID.\n\r", ch);
+							return FALSE;
+						}
+
+						portal->value[5] = vnum;
+					}
+					send_to_char("Area UID set.\n\r", ch);
+					return TRUE;
+
+				case 6:
+					if (!str_prefix(argument, "default"))
+					{
+						portal->value[6] = 0;
+					}
+					else
+					{
+						if (!is_number(argument))
+						{
+							send_to_char("That is not a number.\n\r", ch);
+							return FALSE;
+						}
+
+						vnum = atol(argument);
+						if (vnum < 1)
+						{
+							send_to_char("Region index must be positive.\n\r", ch);
+							return FALSE;
+						}
+
+						portal->value[6] = vnum;
+					}
+					send_to_char("Region Index set.\n\r", ch);
+					return TRUE;
+			}
+			break;
+
 		case GATETYPE_SECTIONRANDOM:
 			switch(value_num)
 			{
@@ -4297,10 +5301,6 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 			// No extra values - target is based upon current location
 			break;
 
-		case GATETYPE_REGIONRECALL:
-			// No extra values - target is based upon current location
-			break;
-
 		case GATETYPE_AREARECALL:
 			switch(value_num)
 			{
@@ -4320,6 +5320,61 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 
 					portal->value[5] = UMAX(0, vnum);
 					send_to_char("Area UID set.\n\r", ch);
+					return TRUE;
+			}
+			break;
+
+		case GATETYPE_REGIONRECALL:
+			switch(value_num)
+			{
+				case 5:		// AUID (0 == current area)
+					if (!str_prefix(argument, "current"))
+					{
+						portal->value[5] = 0;
+					}
+					else
+					{
+						if (!is_number(argument))
+						{
+							send_to_char("That is not a number.\n\r", ch);
+							return FALSE;
+						}
+
+						vnum = atol(argument);
+						if (vnum < 1 || !get_area_from_uid(vnum))
+						{
+							send_to_char("There is no area with that UID.\n\r", ch);
+							return FALSE;
+						}
+
+						portal->value[5] = vnum;
+					}
+					send_to_char("Area UID set.\n\r", ch);
+					return TRUE;
+
+				case 6:
+					if (!str_prefix(argument, "default"))
+					{
+						portal->value[6] = 0;
+					}
+					else
+					{
+						if (!is_number(argument))
+						{
+							send_to_char("That is not a number.\n\r", ch);
+							return FALSE;
+						}
+
+						vnum = atol(argument);
+						if (vnum < 1)
+						{
+							send_to_char("Region index must be positive.\n\r", ch);
+							return FALSE;
+						}
+
+						portal->value[6] = vnum;
+					}
+					send_to_char("Region Index set.\n\r", ch);
 					return TRUE;
 			}
 			break;
@@ -11317,6 +12372,8 @@ REDIT(redit_room2)
     if( IS_SET(value, ROOM_BLUEPRINT) )
     {
 		// Only those that can edit blueprints can toggle this flag
+		/*
+		// TODO: Readd this when the role access system is added
 		if( !can_edit_blueprints(ch) )
 		{
 			value &= ~ROOM_BLUEPRINT;
@@ -11327,7 +12384,7 @@ REDIT(redit_room2)
 				return FALSE;
 			}
 		}
-		else if( !IS_SET(value, ROOM_NOCLONE) && IS_SET(room->room2_flags, ROOM_NOCLONE) )
+		else*/ if( !IS_SET(value, ROOM_NOCLONE) && IS_SET(room->room2_flags, ROOM_NOCLONE) )
 		{
 			send_to_char("No-clone room cannot be used in blueprints.\n\r", ch);
 			return FALSE;
@@ -11363,6 +12420,24 @@ REDIT(redit_room2)
 	}
 
     TOGGLE_BIT(room->room2_flags, value);
+
+	// Now that we've gotten passed the validation:
+	// Check for toggling blueprints on and off
+	if (IS_SET(value, ROOM_BLUEPRINT))
+	{
+		// Turned on
+		if (IS_SET(room->room2_flags, ROOM_BLUEPRINT))
+		{
+			// Blueprint rooms have *no* regions whatsoever
+			__region_remove_room(room);
+		}
+		// Turned off
+		else
+		{
+			// Place room into the area's default region
+			__region_add_room(&room->area->region, room);
+		}
+	}
     send_to_char("Room flags toggled.\n\r", ch);
     return TRUE;
 }
@@ -11482,6 +12557,106 @@ REDIT(redit_locale)
     return TRUE;
 }
 
+REDIT (redit_region)
+{
+    ROOM_INDEX_DATA *room;
+	char buf[MSL];
+
+    EDIT_ROOM(ch, room);
+
+	if (list_size(room->area->regions) < 1)
+	{
+		send_to_char("Room's area does not have any regions to select from.\n\r", ch);
+		return FALSE;
+	}
+
+	if (IS_NULLSTR(argument))
+	{
+		send_to_char("Syntax:  region <# or default>\n\r", ch);
+		return FALSE;
+	}
+
+	AREA_REGION *region = NULL;
+
+	if (!str_prefix(argument, "default"))
+	{
+		region = &room->area->region;
+	}
+	else if (!is_number(argument))
+	{
+		send_to_char("Syntax:  region <# or default>\n\r", ch);
+		sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(room->area->regions));
+		send_to_char(buf, ch);
+		return FALSE;
+	}
+	else
+	{
+		int region_no = atoi(argument);
+		if (region_no < 1 || region_no > list_size(room->area->regions))
+		{
+			send_to_char("Syntax:  region <# or default>\n\r", ch);
+			sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(room->area->regions));
+			send_to_char(buf, ch);
+			return FALSE;
+		}
+
+		region = (AREA_REGION *)list_nthdata(room->area->regions, region_no);
+	}
+
+	if (!IS_VALID(region))
+	{
+		send_to_char("That is not a valid region.\n\r", ch);
+		return FALSE;
+	}
+
+	if (room->region == region)
+	{
+		send_to_char("The room is already in that region.\n\r", ch);
+		return FALSE;
+	}
+	
+	__region_remove_room(room);
+	__region_add_room(region, room);
+	send_to_char("Room region set.\n\r", ch);
+	return TRUE;
+}
+
+REDIT (redit_savage)
+{
+    ROOM_INDEX_DATA *room;
+
+    EDIT_ROOM(ch, room);
+
+    if (IS_NULLSTR(argument))
+	{
+	    send_to_char("savage <#0-5 or auto>\n\r",ch);
+	    return FALSE;
+    }
+
+	if (!str_prefix(argument, "auto"))
+	{
+		room->savage_level = -1;
+	}
+	else if (!is_number(argument))
+	{
+	    send_to_char("savage <#0-5 or auto>\n\r",ch);
+	    return FALSE;
+	}
+	else
+	{
+		int level = atoi(argument);
+		if (level < 0 || level > 5)
+		{
+			send_to_char("Savage level can only be {Yauto{x or {W0{x to {W5{x.\n\r", ch);
+			return FALSE;
+		}
+
+		room->savage_level = level;
+	}
+
+	send_to_char("Savage level set.\n\r", ch);
+	return TRUE;
+}
 
 OEDIT (oedit_addoprog)
 {

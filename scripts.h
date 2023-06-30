@@ -142,6 +142,7 @@ enum ifcheck_enum {
 
 
 	/* G */
+	CHK_GC,
 	CHK_GOLD,CHK_GROUNDWEIGHT,CHK_GROUPCON,CHK_GROUPDEX,CHK_GROUPHIT,CHK_GROUPINT,
 	CHK_GROUPMANA,CHK_GROUPMAXHIT,CHK_GROUPMAXMANA,CHK_GROUPMAXMOVE,CHK_GROUPMOVE,
 	CHK_GROUPSTR,CHK_GROUPWIS,CHK_GRPSIZE,
@@ -201,7 +202,7 @@ enum ifcheck_enum {
 
 
 	/* N */
-	CHK_NAME,CHK_NUMENCHANTS,
+	CHK_NAME,CHK_NUMBER,CHK_NUMENCHANTS,
 
 	/* O */
 	CHK_OBJCLONES,CHK_OBJCOND,CHK_OBJCORPSE,CHK_OBJCOST,CHK_OBJEXISTS,
@@ -234,7 +235,7 @@ enum ifcheck_enum {
 	CHK_ROOMWEIGHT,CHK_ROOMWILDS,CHK_ROOMX,CHK_ROOMY,CHK_ROOMZ,
 
 	/* S */
-	CHK_SAMEGROUP,
+	CHK_SAMEGROUP,CHK_SAVAGE,
 	CHK_SCRIPTSECURITY,CHK_SECTIONFLAG,
 	CHK_SECTOR,CHK_SEX,CHK_SHIPTYPE,
 	CHK_SIGN,CHK_SILVER,CHK_SIN,CHK_SKEYWORD,CHK_SKILL,
@@ -321,6 +322,8 @@ enum variable_enum {
 	VAR_DUNGEON,
 	VAR_SHIP,
 	VAR_SONG,			// References a bard song
+	VAR_AREA_REGION,
+	VAR_AREA_REGION_ID,
 
 	VAR_MOBINDEX,
 	VAR_OBJINDEX,
@@ -340,6 +343,7 @@ enum variable_enum {
 	VAR_BLLIST_EXIT,
 	VAR_BLLIST_SKILL,
 	VAR_BLLIST_AREA,
+	VAR_BLLIST_AREA_REGION,
 	VAR_BLLIST_WILDS,
 
 	////////////////////////
@@ -354,6 +358,8 @@ enum variable_enum {
 	VAR_PLLIST_OBJ,
 	VAR_PLLIST_TOK,
 	VAR_PLLIST_CHURCH,
+	VAR_PLLIST_AREA,
+	VAR_PLLIST_AREA_REGION,
 	VAR_PLLIST_VARIABLE,
 
 	////////////////////////
@@ -441,6 +447,7 @@ enum entity_type_enum {
 	ENT_DICE,
 	ENT_BITVECTOR,
 	ENT_WIDEVNUM,
+	ENT_AREA_REGION,
 
 	ENT_MOBINDEX,
 	ENT_OBJINDEX,
@@ -457,7 +464,9 @@ enum entity_type_enum {
 	ENT_BLLIST_EXIT,
 	ENT_BLLIST_SKILL,
 	ENT_BLLIST_AREA,
+	ENT_BLLIST_AREA_REGION,
 	ENT_BLLIST_WILDS,
+	ENT_BLLIST_REGIONS,
 	ENT_BLLIST_MAX,
 	//////////////////////////////
 
@@ -471,6 +480,8 @@ enum entity_type_enum {
 	ENT_PLLIST_MOB,
 	ENT_PLLIST_OBJ,
 	ENT_PLLIST_TOK,
+	ENT_PLLIST_AREA,
+	ENT_PLLIST_AREA_REGION,
 	ENT_PLLIST_CHURCH,
 	ENT_PLLIST_MAX,
 	//////////////////////////////
@@ -504,6 +515,7 @@ enum entity_type_enum {
 	ENT_CHURCH_ID,
 	ENT_AREA_ID,
 	ENT_WILDS_ID,
+	ENT_AREA_REGION_ID,
 
 	ENT_CLONE_ROOM,		// Will act as ENT_ROOM that does not exist
 	ENT_WILDS_ROOM,
@@ -568,6 +580,7 @@ enum entity_variable_types_enum {
 	ENTITY_VAR_EXIT,
 	ENTITY_VAR_TOKEN,
 	ENTITY_VAR_AREA,
+	ENTITY_VAR_AREA_REGION,
 	ENTITY_VAR_WILDS,
 	ENTITY_VAR_SKILL,
 	ENTITY_VAR_SKILLINFO,
@@ -597,6 +610,7 @@ enum entity_variable_types_enum {
 	ENTITY_VAR_BLLIST_EXIT,
 	ENTITY_VAR_BLLIST_SKILL,
 	ENTITY_VAR_BLLIST_AREA,
+	ENTITY_VAR_BLLIST_AREA_REGION,
 	ENTITY_VAR_BLLIST_WILDS,
 
 	ENTITY_VAR_PLLIST_STR,
@@ -606,6 +620,9 @@ enum entity_variable_types_enum {
 	ENTITY_VAR_PLLIST_OBJ,
 	ENTITY_VAR_PLLIST_TOK,
 	ENTITY_VAR_PLLIST_CHURCH,
+	ENTITY_VAR_PLLIST_AREA,
+	ENTITY_VAR_PLLIST_AREA_REGION,
+	ENTITY_VAR_PLLIST_VARIABLE,
 
 };
 
@@ -802,6 +819,7 @@ enum entity_room_enum {
 	ENTITY_ROOM_OBJECTS,
 	ENTITY_ROOM_TOKENS,
 	ENTITY_ROOM_AREA,
+	ENTITY_ROOM_REGION,
 	ENTITY_ROOM_TARGET,
 	ENTITY_ROOM_NORTH,
 	ENTITY_ROOM_EAST,
@@ -871,16 +889,24 @@ enum entity_token_enum {
 
 enum entity_area_enum {
 	ENTITY_AREA_NAME = ESCAPE_EXTRA,
-	ENTITY_AREA_RECALL,
-	ENTITY_AREA_POSTOFFICE,
-	ENTITY_AREA_LOWERVNUM,
-	ENTITY_AREA_UPPERVNUM,
+	ENTITY_AREA_REGION,		// Default region
+	ENTITY_AREA_REGIONS,	// Additional regions
 	ENTITY_AREA_ROOMS,
-	ENTITY_AREA_X,
-	ENTITY_AREA_Y,
-	ENTITY_AREA_LAND_X,
-	ENTITY_AREA_LAND_Y,
-	ENTITY_AREA_AIRSHIP,
+};
+
+enum entity_area_region_enum {
+	ENTITY_AREA_REGION_NAME = ESCAPE_EXTRA,
+	ENTITY_AREA_REGION_DESCRIPTION,
+	ENTITY_AREA_REGION_COMMENTS,
+	ENTITY_AREA_REGION_AREA,
+	ENTITY_AREA_REGION_RECALL,
+	ENTITY_AREA_REGION_POSTOFFICE,
+	ENTITY_AREA_REGION_ROOMS,
+	ENTITY_AREA_REGION_X,
+	ENTITY_AREA_REGION_Y,
+	ENTITY_AREA_REGION_LAND_X,
+	ENTITY_AREA_REGION_LAND_Y,
+	ENTITY_AREA_REGION_AIRSHIP,
 };
 
 enum entity_wilds_enum {
@@ -1335,6 +1361,11 @@ struct script_var_type {
 		WNUM_LOAD wnum_load;
 		DICE_DATA dice;
 		LLIST *list;	// Used for HOMOGENOUS lists only
+		AREA_REGION *ar;
+		struct {
+			long aid;	// Area UID
+			long rid;	// Region UID
+		} arid;		// Area region id
 	} _;
 };
 
@@ -1457,6 +1488,7 @@ struct script_parameter {
 		INSTANCE *instance;
 		DUNGEON *dungeon;
 		SHIP_DATA *ship;
+		AREA_REGION *aregion;
 
 		int sn;
 		int song;
@@ -1516,6 +1548,10 @@ struct script_parameter {
 		long chid;
 		long wid;
 		unsigned long uid[2];
+		struct {
+			long aid;
+			long rid;
+		} arid;	// AREA_REGION
 		SCRIPT_VARINFO *info;
 	} d;
 	BUFFER *buffer;
@@ -1571,6 +1607,7 @@ extern ENT_FIELD entity_room[];
 extern ENT_FIELD entity_exit[];
 extern ENT_FIELD entity_token[];
 extern ENT_FIELD entity_area[];
+extern ENT_FIELD entity_area_region[];
 extern ENT_FIELD entity_list[];
 extern ENT_FIELD *entity_type_lists[];
 extern ENT_FIELD entity_skill_info[];
@@ -1675,6 +1712,7 @@ DECL_IFC_FUN(ifc_flag_weapon);
 DECL_IFC_FUN(ifc_flag_wear);
 DECL_IFC_FUN(ifc_fullness);
 DECL_IFC_FUN(ifc_furniture);
+DECL_IFC_FUN(ifc_gc);
 DECL_IFC_FUN(ifc_gold);
 DECL_IFC_FUN(ifc_groundweight);
 DECL_IFC_FUN(ifc_groupcon);
@@ -1803,6 +1841,7 @@ DECL_IFC_FUN(ifc_month);
 DECL_IFC_FUN(ifc_moonphase);
 DECL_IFC_FUN(ifc_moveregen);
 DECL_IFC_FUN(ifc_name);
+DECL_IFC_FUN(ifc_number);
 DECL_IFC_FUN(ifc_numenchants);
 DECL_IFC_FUN(ifc_objcond);
 DECL_IFC_FUN(ifc_objcost);
@@ -2035,6 +2074,8 @@ DECL_IFC_FUN(ifc_value_portaltype);
 
 DECL_IFC_FUN(ifc_objrepairs);
 DECL_IFC_FUN(ifc_objmaxrepairs);
+DECL_IFC_FUN(ifc_isexitvisible);
+DECL_IFC_FUN(ifc_savage);
 
 /* Opcode functions */
 DECL_OPC_FUN(opc_end);
@@ -2151,6 +2192,7 @@ pVARIABLE variable_copyvar(pVARIABLE oldv);
 LLIST *variable_copy_tolist(ppVARIABLE vars);
 bool variable_fread(ppVARIABLE vars, int type, FILE *fp);
 bool variable_fread_area_list(ppVARIABLE vars, char *name, FILE *fp);
+bool variable_fread_area_region_list(ppVARIABLE vars, char *name, FILE *fp);
 bool variable_fread_exit_list(ppVARIABLE vars, char *name, FILE *fp);
 bool variable_fread_room_list(ppVARIABLE vars, char *name, FILE *fp);
 bool variable_fread_skill_list(ppVARIABLE vars, char *name, FILE *fp);
@@ -2161,6 +2203,7 @@ bool variable_remove(ppVARIABLE list,char *name);
 bool variable_setsave(pVARIABLE vars,char *name,bool state);
 bool variable_validname(char *str);
 bool variables_set_list_area (ppVARIABLE list, char *name, AREA_DATA *area, bool save);
+bool variables_set_list_area_region (ppVARIABLE list, char *name, AREA_REGION *aregion, bool save);
 bool variables_set_list_connection (ppVARIABLE list, char *name, DESCRIPTOR_DATA *conn, bool save);
 bool variables_set_list_mob (ppVARIABLE list, char *name, CHAR_DATA *mob, bool save);
 bool variables_set_list_obj (ppVARIABLE list, char *name, OBJ_DATA *obj, bool save);
@@ -2169,6 +2212,7 @@ bool variables_set_list_str (ppVARIABLE list, char *name, char *str, bool save);
 bool variables_set_list_token (ppVARIABLE list, char *name, TOKEN_DATA *token, bool save);
 bool variables_set_list_wilds (ppVARIABLE list, char *name, WILDS_DATA *wilds, bool save);
 bool variables_append_list_area (ppVARIABLE list, char *name, AREA_DATA *area);
+bool variables_append_list_area_region (ppVARIABLE list, char *name, AREA_REGION *aregion);
 bool variables_append_list_connection (ppVARIABLE list, char *name, DESCRIPTOR_DATA *conn);
 bool variables_append_list_door (ppVARIABLE list, char *name, ROOM_INDEX_DATA *room, int door);
 bool variables_append_list_exit (ppVARIABLE list, char *name, EXIT_DATA *ex);
@@ -2187,6 +2231,7 @@ bool variables_format_string(ppVARIABLE list,char *name);
 bool variables_format_paragraph(ppVARIABLE list,char *name);
 bool variables_set_affect (ppVARIABLE list,char *name,AFFECT_DATA* aff);
 bool variables_set_area (ppVARIABLE list,char *name,AREA_DATA* a);
+bool variables_set_area_region (ppVARIABLE list,char *name,AREA_REGION* ar);
 bool variables_set_church (ppVARIABLE list,char *name,CHURCH_DATA* church);
 bool variables_set_connection(ppVARIABLE list,char *name, DESCRIPTOR_DATA *conn);
 bool variables_set_door (ppVARIABLE list,char *name, ROOM_INDEX_DATA *room, int door, bool save);
@@ -2213,6 +2258,7 @@ bool variables_set_mobile_id (ppVARIABLE list,char *name,unsigned long a, unsign
 bool variables_set_object_id (ppVARIABLE list,char *name,unsigned long a, unsigned long b, bool save);
 bool variables_set_token_id (ppVARIABLE list,char *name,unsigned long a, unsigned long b, bool save);
 bool variables_set_area_id (ppVARIABLE list,char *name, long aid, bool save);
+bool variables_set_area_region_id (ppVARIABLE list,char *name, long aid, long rid, bool save);
 bool variables_set_wilds_id (ppVARIABLE list,char *name, long wid, bool save);
 bool variables_set_church_id (ppVARIABLE list,char *name, long chid, bool save);
 bool variables_set_clone_room (ppVARIABLE list,char *name, ROOM_INDEX_DATA *source,unsigned long a, unsigned long b, bool save);
@@ -2227,6 +2273,7 @@ bool variables_setindex_skill(ppVARIABLE list,char *name,int sn, bool saved);
 bool variables_setindex_song(ppVARIABLE list,char *name,int sn, bool saved);
 bool variables_setsave_affect(ppVARIABLE list,char *name,AFFECT_DATA *aff, bool save);
 bool variables_setsave_area (ppVARIABLE list, char *name,AREA_DATA* a, bool save);
+bool variables_setsave_area_region (ppVARIABLE list, char *name,AREA_REGION* ar, bool save);
 bool variables_setsave_church (ppVARIABLE list, char *name,CHURCH_DATA* church, bool save);
 bool variables_setsave_exit(ppVARIABLE list,char *name,EXIT_DATA *e, bool save);
 bool variables_setsave_integer(ppVARIABLE list,char *name,int num, bool save);

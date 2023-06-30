@@ -505,7 +505,7 @@ char *rp_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 				loc = NULL;
 				for (area = area_first; area; area = area->next) {
 					if (!str_infix(arg->d.str, area->name)) {
-						if(!(loc = location_to_room(&area->recall))) {
+						if(!(loc = location_to_room(&area->region.recall))) {
 							for (vnum = 1; vnum <= area->top_vnum_room; vnum++)
 								if ((loc = get_room_index(area, vnum)))
 									break;
@@ -643,7 +643,7 @@ char *rp_getolocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **ro
 				loc = NULL;
 				for (area = area_first; area; area = area->next) {
 					if (!str_infix(arg->d.str, area->name)) {
-						if(!(loc = location_to_room(&area->recall))) {
+						if(!(loc = location_to_room(&area->region.recall))) {
 							for (vnum = 1; vnum <= area->top_vnum_room; vnum++)
 								if ((loc = get_room_index(area, vnum)))
 									break;

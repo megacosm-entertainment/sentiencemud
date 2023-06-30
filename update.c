@@ -960,14 +960,16 @@ void mobile_update(void)
 		if (ch->position != POS_STANDING)
 			continue;
 
+		AREA_REGION *region = get_room_region(ch->in_room);
+
 		// Ship Quest masters
 		if (IS_SET(ch->act2, ACT2_SHIP_QUESTMASTER) && number_percent() < 5) {
 			AREA_DATA *pArea = NULL;
 
 			for (pArea = area_first; pArea != NULL; pArea = pArea->next) {
 
-			if (pArea->invasion_quest != NULL && ch->in_room != NULL &&
-				ch->in_room->area->place_flags == pArea->place_flags) {
+			if (pArea->invasion_quest != NULL && ch->in_room != NULL && IS_VALID(region) &&
+				region->place_flags == pArea->region.place_flags) {
 				sprintf(buf, "We are offering a reward to anyone that can restore order in %s.", pArea->name);
 				do_say(ch, buf);
 			}
@@ -1042,8 +1044,11 @@ void mobile_update(void)
 			&&  (!IS_SET(ch->act, ACT_OUTDOORS)
 			 || !IS_SET(pexit->u1.to_room->room_flags,ROOM_INDOORS))
 			&&  (!IS_SET(ch->act, ACT_INDOORS)
-			 || IS_SET(pexit->u1.to_room->room_flags,ROOM_INDOORS)))
-			move_char(ch, door, FALSE);
+			 || IS_SET(pexit->u1.to_room->room_flags,ROOM_INDOORS))) {
+				 AREA_REGION *to_region = get_room_region(pexit->u1.to_room);
+				 if (!IS_SET(ch->act2, ACT2_STAY_REGION) || region == to_region)
+					move_char(ch, door, FALSE);
+			 }
 		}
     }
 }
@@ -1329,7 +1334,7 @@ void update_area_trade( void )
 		    // Look for largest max qty supplier in other areas and base sell price off that
 		    for ( pTempArea = area_first; pTempArea != NULL; pTempArea = pTempArea->next )
 		    {
-			if ( pTempArea == pArea || abs(get_coord_distance(pArea->x, pArea->y, pTempArea->x, pTempArea->y)) > 400)
+			if ( pTempArea == pArea || abs(get_coord_distance(pArea->region.x, pArea->region.y, pTempArea->region.x, pTempArea->region.y)) > 400)
 			{
 			    continue;
 			}
@@ -1462,13 +1467,33 @@ void char_update(void)
 		if (ch->position == POS_STUNNED)
 			update_pos(ch);
 
-        // PCs drown in the water
-		if (!IS_NPC(ch) && !IS_AFFECTED(ch, AFF_SWIM) &&
-			!IS_SET(ch->parts, PART_GILLS) && !IS_SET(ch->imm_flags, IMM_WATER) &&
-			IS_SET(ch->in_room->room_flags, ROOM_UNDERWATER) && !IS_IMMORTAL(ch)) {
-			send_to_char("You choke and gag as your lungs fill with water!\n\r", ch);
-			act("$n thrashes about in the water gasping for air!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-			damage(ch, ch, ch->hit/2, TYPE_UNDEFINED, DAM_DROWNING,FALSE);
+        // Deal with breathing for PCs and Immortals with HOLYAURA off
+		// Those whose form does not breath ignore this.
+		if (!IS_NPC(ch) && !IS_SET(ch->form, FORM_NO_BREATHING) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act2, PLR_HOLYAURA)))
+		{
+			if (IS_SET(ch->in_room->room_flags, ROOM_UNDERWATER))
+			{
+				// Check that they can survive underwater
+				if (!IS_AFFECTED(ch, AFF_SWIM) &&		// doesn't have underwater breathing spell
+					!IS_SET(ch->parts, PART_GILLS) &&	// doesn't have any gills
+					!IS_SET(ch->imm_flags, IMM_DROWNING))	// not immune to drowning
+				{
+					send_to_char("You choke and gag as your lungs fill with water!\n\r", ch);
+					act("$n thrashes about in the water gasping for air!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+					damage(ch, ch, ch->hit/2, TYPE_UNDEFINED, DAM_DROWNING,FALSE);
+				}
+			}
+			else
+			{
+				// Check that they can survive out of water
+				if (!IS_SET(ch->parts, PART_LUNGS) &&			// doesn't have any lungs
+					!IS_SET(ch->imm_flags, IMM_SUFFOCATION))	// not immune to suffocation
+				{
+					send_to_char("You gasp for air but are unable to breathe!\n\r", ch);
+					act("$n thrashes about gasping for air!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+					damage(ch, ch, ch->hit/2, TYPE_UNDEFINED, DAM_SUFFOCATING,FALSE);
+				}
+			}
 		}
 
 		// Toxin regeneration for siths
@@ -1802,7 +1827,8 @@ void char_update(void)
 				act("Completely exhausted, you find little energy to keep swimming.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 				act("Completely exhausted, $n stops swimming from lack of energy.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-				if (!IS_AFFECTED(ch, AFF_SWIM))
+				// Only do it if they have no gills and don't have underwater breathing
+				if (!IS_AFFECTED(ch, AFF_SWIM) && !IS_SET(ch->parts, PART_GILLS))
 				{
 				    act("You cough and splutter as you breath in a lung full of water.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 				    act("$n coughs and splutters as $s breaths in a lung full of water.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
@@ -2002,7 +2028,8 @@ void obj_update(void)
 		// Unmarked objects in the rift will not update.
 		// Principle objects that are normally allowed to tick in the rift: room spell objects
 		ROOM_INDEX_DATA *cur_room = obj_room(obj);
-		if( cur_room != NULL && cur_room->area->area_who == AREA_CHAT && !IS_SET(obj->extra3_flags, ITEM_RIFT_UPDATE))
+		AREA_REGION *region = get_room_region(cur_room);
+		if( cur_room != NULL && IS_VALID(region) && region->area_who == AREA_CHAT && !IS_SET(obj->extra3_flags, ITEM_RIFT_UPDATE))
 			continue;
 
 
@@ -3551,18 +3578,18 @@ void update_invasion_quest()
 	for (pArea = area_first; pArea != NULL; pArea = pArea->next) {
 
 	    // Only towns should be invaded
-	    if (pArea->area_who != AREA_TOWNE) continue;
+	    if (pArea->region.area_who != AREA_TOWNE) continue;
 
 	    // Newbies are in Plith so better not invade Plith
 	    if (!str_cmp(pArea->name, "Plith")) {
 		continue;
 	    }
 
-	    // only seralia or athemia continents should be invaded
-	    if ( (pArea->place_flags == PLACE_FIRST_CONTINENT) ||
-		    (pArea->place_flags == PLACE_SECOND_CONTINENT) ||
-		    (pArea->place_flags == PLACE_THIRD_CONTINENT) ||
-		    (pArea->place_flags == PLACE_FOURTH_CONTINENT)) {
+	    // only main continents should be invaded
+	    if ( (pArea->region.place_flags == PLACE_FIRST_CONTINENT) ||
+		    (pArea->region.place_flags == PLACE_SECOND_CONTINENT) ||
+		    (pArea->region.place_flags == PLACE_THIRD_CONTINENT) ||
+		    (pArea->region.place_flags == PLACE_FOURTH_CONTINENT)) {
 
 		if (number_percent() < 10) {
 		    int level = number_range(0, 3);

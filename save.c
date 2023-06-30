@@ -4060,7 +4060,7 @@ void fwrite_token(TOKEN_DATA *token, FILE *fp)
 {
 	int i;
 
-	fprintf(fp, "#TOKEN %ld\n", token->pIndexData->vnum);
+	fprintf(fp, "#TOKEN %ld#%ld\n", token->pIndexData->area->uid, token->pIndexData->vnum);
 	fprintf(fp, "UId %d\n", (int)token->id[0]);
 	fprintf(fp, "UId2 %d\n", (int)token->id[1]);
 	fprintf(fp, "Timer %d\n", token->timer);

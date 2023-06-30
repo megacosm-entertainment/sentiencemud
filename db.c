@@ -5886,7 +5886,7 @@ bool extract_clone_room(ROOM_INDEX_DATA *room, unsigned long id1, unsigned long 
 		return false;
 	}
 
-	if (list_hasdata(gc_rooms, clone))
+	if (clone->gc || list_hasdata(gc_rooms, clone))
 		return true;
 
 	/* Prevents infinite loops*/
@@ -5986,6 +5986,7 @@ bool extract_clone_room(ROOM_INDEX_DATA *room, unsigned long id1, unsigned long 
 	room_from_environment(clone);
 	//free_room_index(clone);  Moved to garbage collection
 	list_appendlink(gc_rooms, clone);
+	clone->gc = true;
 
 //	sprintf(buf,"extract_clone_room(%lu, %lu, %lu) clone extracted", room->vnum, id1, id2);
 //	wiznet(buf, NULL, NULL, WIZ_TESTING, 0, 0);
@@ -6210,8 +6211,10 @@ void persist_addobject(register OBJ_DATA *obj)
 
 void persist_addroom(register ROOM_INDEX_DATA *room)
 {
+	AREA_REGION *region = get_room_region(room);
+
 	// Chat rooms cannot be made persistant
-	if( room->chat_room || (room->area && room->area->area_who == AREA_CHAT) )
+	if( room->chat_room || (IS_VALID(region) && region->area_who == AREA_CHAT) )
 		return;
 
 	// Clone rooms require the source to be flagged as clone persist

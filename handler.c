@@ -206,7 +206,7 @@ ROOM_INDEX_DATA *find_location(CHAR_DATA *ch, char *arg)
 		int count = number_argument(arg, arg1);
 		for (area = area_first; area != NULL; area = area->next) {
 			if (!str_infix(arg1, area->name) && (--count) < 1) {
-				if (!(room = location_to_room(&area->recall))) {
+				if (!(room = location_to_room(&area->region.recall))) {
 					for (vnum = 1; vnum <= area->top_room; vnum++) {
 						if ((rm = get_room_index(area, vnum))) {
 							room = rm;
@@ -392,6 +392,7 @@ int check_immune(CHAR_DATA *ch, sh_int dam_type)
 	case(DAM_AIR):		bit = IMM_AIR;		break;	// @@@NIB : 20070125
 	case(DAM_EARTH):	bit = IMM_EARTH;	break;	// @@@NIB : 20070125
 	case(DAM_PLANT):	bit = IMM_PLANT;	break;	// @@@NIB : 20070125
+	case(DAM_SUFFOCATING):	bit = IMM_SUFFOCATION;	break;
 	default:		return def;
     }
 
@@ -2961,12 +2962,14 @@ void extract_obj(OBJ_DATA *obj)
     ITERATOR it;
     INSTANCE *instance;
 
-
     if (obj == NULL)
     {
 	bug("Tried to extract null object.", 0);
 	return;
     }
+
+	if (obj->gc || list_hasdata(gc_objects, obj))
+		return;
 
     if(obj->progs) {
 	    SET_BIT(obj->progs->entity_flags,PROG_NODESTRUCT);
@@ -3046,6 +3049,7 @@ void extract_obj(OBJ_DATA *obj)
     --obj->pIndexData->count;
     //free_obj(obj);  Moved to garbage collection
 	list_appendlink(gc_objects, obj);
+	obj->gc = true;
 }
 
 
@@ -3060,7 +3064,7 @@ void extract_char(CHAR_DATA *ch, bool fPull)
     char buf[MAX_STRING_LENGTH];
     ITERATOR it;
 
-	if (list_hasdata(gc_mobiles, ch))
+	if (ch->gc || list_hasdata(gc_mobiles, ch))
 		return;
 
     if (ch->in_room == NULL)
@@ -3218,12 +3222,13 @@ void extract_char(CHAR_DATA *ch, bool fPull)
 
     //free_char(ch);	Moved to garbage collection
 	list_appendlink(gc_mobiles, ch);
+	ch->gc = true;
     return;
 }
 
 void extract_token(TOKEN_DATA *token)
 {
-	if (list_hasdata(gc_tokens, token))
+	if (token->gc || list_hasdata(gc_tokens, token))
 		return;
 
     if(token->progs) {
@@ -3250,6 +3255,7 @@ void extract_token(TOKEN_DATA *token)
 
 	//free_token(token);  Moved to garbage collection
 	list_appendlink(gc_tokens, token);
+	token->gc = true;
 	return;
 }
 
@@ -5075,7 +5081,7 @@ AREA_DATA *find_area_at_land_coords(int x, int y )
 
     for (temp = area_first; temp != NULL; temp = temp->next)
     {
-	if ( temp->land_x == x && temp->land_y == y ) {
+	if ( temp->region.land_x == x && temp->region.land_y == y ) {
 	    break;
   }
     }
@@ -5099,7 +5105,7 @@ AREA_DATA *find_area_at_coords(int x, int y )
 
     for (temp = area_first; temp != NULL; temp = temp->next)
     {
-	if ( temp->x == x && temp->y == y )
+	if ( temp->region.x == x && temp->region.y == y )
 	    break;
     }
 
@@ -5449,12 +5455,12 @@ int get_region_area(AREA_DATA *area)
 {
 	int region = REGION_UNKNOWN;
 	if( area->wilds_uid > 0 )
-		region = get_region_wyx(area->wilds_uid, area->x, area->y);
+		region = get_region_wyx(area->wilds_uid, area->region.x, area->region.y);
 
 
 	if( region == REGION_UNKNOWN )
 	{
-		switch(area->place_flags)
+		switch(area->region.place_flags)
 		{
 		case PLACE_FIRST_CONTINENT:		region = REGION_FIRST_CONTINENT; break;
 		case PLACE_SECOND_CONTINENT:	region = REGION_SECOND_CONTINENT; break;
@@ -5473,7 +5479,28 @@ int get_region(ROOM_INDEX_DATA *room)
 		return REGION_UNKNOWN;
 
 	if( !IS_WILDERNESS(room) )
-		return get_region_area(room->area);
+	{
+		int region = REGION_UNKNOWN;
+		AREA_REGION *area_region = get_room_region(room);
+
+		if (IS_VALID(area_region))
+		{
+			if( room->area->wilds_uid > 0 )
+				region = get_region_wyx(room->area->wilds_uid, area_region->x, area_region->y);
+			
+			if (region == REGION_UNKNOWN)
+			{
+				switch(area_region->place_flags)
+				{
+				case PLACE_FIRST_CONTINENT:		region = REGION_FIRST_CONTINENT; break;
+				case PLACE_SECOND_CONTINENT:	region = REGION_SECOND_CONTINENT; break;
+				case PLACE_THIRD_CONTINENT:		region = REGION_THIRD_CONTINENT; break;
+				case PLACE_FOURTH_CONTINENT:	region = REGION_FOURTH_CONTINENT; break;
+				}
+			}
+	
+		}
+	}
 
 	return get_region_wyx(room->wilds->uid, room->x, room->y);
 }
@@ -5491,26 +5518,69 @@ bool is_same_place_area(AREA_DATA *from, AREA_DATA *to)
 
 bool is_same_place(ROOM_INDEX_DATA *from, ROOM_INDEX_DATA *to)
 {
+	if (IS_VALID(from->instance_section))
+		return FALSE;
+
+	if (IS_VALID(to->instance_section))
+		return FALSE;
+
 	if( IS_WILDERNESS(from) )
 	{
 		int region = get_region(from);
 
-		if( region == REGION_FIRST_CONTINENT )
-			return to->area->place_flags == PLACE_FIRST_CONTINENT;
+		if (IS_WILDERNESS(to))
+		{
+			int to_region = get_region(to);
 
-		if( region == REGION_SECOND_CONTINENT )
-			return to->area->place_flags == PLACE_SECOND_CONTINENT;
+			return region == to_region;
+		}
+		else
+		{
+			AREA_REGION *to_region = get_room_region(to);
 
-		if( region == REGION_THIRD_CONTINENT )
-			return to->area->place_flags == PLACE_THIRD_CONTINENT;
+			if (IS_VALID(to_region))
+			{
+				if( region == REGION_FIRST_CONTINENT )
+					return to_region->place_flags == PLACE_FIRST_CONTINENT;
 
-		if( region == REGION_FOURTH_CONTINENT )
-			return to->area->place_flags == PLACE_FOURTH_CONTINENT;
+				if( region == REGION_SECOND_CONTINENT )
+					return to_region->place_flags == PLACE_SECOND_CONTINENT;
 
+				if( region == REGION_THIRD_CONTINENT )
+					return to_region->place_flags == PLACE_THIRD_CONTINENT;
+
+				if( region == REGION_FOURTH_CONTINENT )
+					return to_region->place_flags == PLACE_FOURTH_CONTINENT;
+			}
+		}
 	}
-	else if( from->area->place_flags != PLACE_NOWHERE )
+	else if (IS_WILDERNESS(to))
 	{
-		return from->area->place_flags == to->area->place_flags;
+		int region = get_region(to);
+
+		AREA_REGION *from_region = get_room_region(from);
+
+		if (IS_VALID(from_region))
+		{
+			if( region == REGION_FIRST_CONTINENT )
+				return from_region->place_flags == PLACE_FIRST_CONTINENT;
+
+			if( region == REGION_SECOND_CONTINENT )
+				return from_region->place_flags == PLACE_SECOND_CONTINENT;
+
+			if( region == REGION_THIRD_CONTINENT )
+				return from_region->place_flags == PLACE_THIRD_CONTINENT;
+
+			if( region == REGION_FOURTH_CONTINENT )
+				return from_region->place_flags == PLACE_FOURTH_CONTINENT;
+		}
+	}
+	else
+	{
+		AREA_REGION *from_region = get_room_region(from);
+		AREA_REGION *to_region = get_room_region(to);
+
+		return IS_VALID(from_region) && IS_VALID(to_region) && from_region->place_flags == to_region->place_flags;
 	}
 
 	return false;
@@ -8951,8 +9021,23 @@ ROOM_INDEX_DATA *get_recall_room(CHAR_DATA *ch)
 	// 2) Room assigned recalls
 	if(!loc) loc = location_to_room(&ch->in_room->recall);
 
-	// 3) Area assigned recalls
-	if(!loc) loc = location_to_room(&ch->in_room->area->recall);
+	// 3) Region assigned recalls
+	if(!loc)
+	{
+		AREA_REGION *region = get_room_region(ch->in_room);
+
+		if (IS_VALID(region))
+		{
+			// No recall for the region
+			if (IS_SET(region->flags, AREA_REGION_NO_RECALL))
+				return NULL;
+
+			loc = location_to_room(&region->recall);
+		}
+	}
+
+	// 4) Area assigned recalls
+	if(!loc) loc = location_to_room(&ch->in_room->area->region.recall);
 
 	return loc;
 }
@@ -9707,4 +9792,96 @@ void get_room_wnum(ROOM_INDEX_DATA *room, WNUM *wnum)
 			wnum->vnum = 0;
 		}
 	}
+}
+
+AREA_REGION *get_room_region(ROOM_INDEX_DATA *room)
+{
+	if (!room) return NULL;
+
+	if (room->source) return NULL;		// Clone rooms do not have regions at all
+
+	if (!room->region) return &room->area->region;
+
+	return room->region;
+}
+
+AREA_REGION *get_area_region_by_uid(AREA_DATA *area, long uid)
+{
+	if (!area) return NULL;
+
+	if (!uid) return &area->region;
+
+	ITERATOR it;
+	AREA_REGION *region;
+	iterator_start(&it, area->regions);
+	while((region = (AREA_REGION *)iterator_nextdata(&it)))
+	{
+		if (region->uid == uid)
+			break;
+	}
+	iterator_stop(&it);
+
+	return region;
+}
+
+bool is_exit_visible(CHAR_DATA *ch, ROOM_INDEX_DATA *room, int door)
+{
+	if(!room) return FALSE;
+
+	if(door < 0 || door >= MAX_DIR) return FALSE;
+
+	EXIT_DATA *ex = room->exit[door];
+	if(!IS_VALID(ex)) return FALSE;
+
+	// Check for hidden && !found
+	if(IS_SET(ex->exit_info, EX_HIDDEN) && !IS_SET(ex->exit_info, EX_FOUND)) return FALSE;
+
+	// Check SHOW_EXIT trigger (allow/deny script)
+	if(p_direction_trigger(ch, room, door, PRG_RPROG, TRIG_SHOWEXIT))
+		return FALSE;
+
+	return TRUE;
+}
+
+void get_room_recall(ROOM_INDEX_DATA *room, LOCATION *loc)
+{
+	location_clear(loc);
+
+	if (room)
+	{
+		if (IS_VALID(room->instance_section))
+		{
+			// TODO: Need to get the recall for the section
+		}
+		else if (!room->source && !room->wilds)
+		{
+			AREA_REGION *region = get_room_region(room);
+
+			if (IS_VALID(region) && !IS_SET(region->flags, AREA_REGION_NO_RECALL))
+			{
+				if (location_isset(&region->recall))
+					*loc = region->recall;
+				else if(region->uid > 0)
+					*loc = room->area->region.recall;
+			}
+		}
+		// Naked clone rooms and wilderness rooms don't have recall points
+	}
+}
+
+int get_room_savage_level(ROOM_INDEX_DATA *room)
+{
+	if (!room) return 0;
+
+	if (room->savage_level < 0)
+	{
+		AREA_REGION *region = get_room_region(room);
+
+		if(IS_VALID(region))
+			return region->savage_level;
+		
+		return 0;
+	}
+
+	return room->savage_level;
 }

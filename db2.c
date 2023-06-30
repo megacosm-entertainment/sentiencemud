@@ -231,7 +231,7 @@ AREA_DATA *get_random_area( CHAR_DATA *ch, int continent, bool no_get_random )
 				!area->open ||
 				!is_area_unlocked(ch, area) ||
 				(no_get_random && IS_SET(area->area_flags, AREA_NO_GET_RANDOM)) ||
-				(area->place_flags != PLACE_FIRST_CONTINENT) ||
+				(area->region.place_flags != PLACE_FIRST_CONTINENT) ||
 				!str_infix( "Housing", area->name ) ||
 				!str_infix( "Arena", area->name) ||
 				!str_infix( "Temples", area->name) ||
@@ -246,7 +246,7 @@ AREA_DATA *get_random_area( CHAR_DATA *ch, int continent, bool no_get_random )
 				!area->open ||
 				!is_area_unlocked(ch, area) ||
 				(no_get_random && IS_SET(area->area_flags, AREA_NO_GET_RANDOM)) ||
-				( area->place_flags != PLACE_SECOND_CONTINENT ) ||
+				( area->region.place_flags != PLACE_SECOND_CONTINENT ) ||
 				!str_infix( "Housing", area->name ) ||
 				!str_infix( "Arena", area->name) ||
 				!str_infix("Temples", area->name) ||
@@ -262,7 +262,7 @@ AREA_DATA *get_random_area( CHAR_DATA *ch, int continent, bool no_get_random )
 				!area->open ||
 				!is_area_unlocked(ch, area) ||
 				(no_get_random && IS_SET(area->area_flags, AREA_NO_GET_RANDOM)) ||
-				( area->place_flags != PLACE_THIRD_CONTINENT ) ||
+				( area->region.place_flags != PLACE_THIRD_CONTINENT ) ||
 				!str_infix( "Housing", area->name ) ||
 				!str_infix( "Arena", area->name) ||
 				!str_infix("Temples", area->name) ||
@@ -277,7 +277,7 @@ AREA_DATA *get_random_area( CHAR_DATA *ch, int continent, bool no_get_random )
 				!area->open ||
 				!is_area_unlocked(ch, area) ||
 				(no_get_random && IS_SET(area->area_flags, AREA_NO_GET_RANDOM)) ||
-				( area->place_flags != PLACE_FOURTH_CONTINENT ) ||
+				( area->region.place_flags != PLACE_FOURTH_CONTINENT ) ||
 				!str_infix( "Housing", area->name ) ||
 				!str_infix( "Arena", area->name) ||
 				!str_infix("Temples", area->name) ||
@@ -292,8 +292,8 @@ AREA_DATA *get_random_area( CHAR_DATA *ch, int continent, bool no_get_random )
 				!area->open ||
 				!is_area_unlocked(ch, area) ||
 				(no_get_random && IS_SET(area->area_flags, AREA_NO_GET_RANDOM)) ||
-				((area->place_flags != PLACE_FIRST_CONTINENT ) &&
-				 (area->place_flags != PLACE_FOURTH_CONTINENT)) ||
+				((area->region.place_flags != PLACE_FIRST_CONTINENT ) &&
+				 (area->region.place_flags != PLACE_FOURTH_CONTINENT)) ||
 				!str_infix("Temples", area->name) ||
 				!str_infix("Housing", area->name ) ||
 				!str_infix("Arena", area->name) ||
@@ -308,8 +308,8 @@ AREA_DATA *get_random_area( CHAR_DATA *ch, int continent, bool no_get_random )
 				!area->open ||
 				!is_area_unlocked(ch, area) ||
 				(no_get_random && IS_SET(area->area_flags, AREA_NO_GET_RANDOM)) ||
-				((area->place_flags != PLACE_SECOND_CONTINENT) &&
-				 (area->place_flags != PLACE_THIRD_CONTINENT)) ||
+				((area->region.place_flags != PLACE_SECOND_CONTINENT) &&
+				 (area->region.place_flags != PLACE_THIRD_CONTINENT)) ||
 				!str_infix("Temples", area->name) ||
 				!str_infix("Housing", area->name ) ||
 				!str_infix("Arena", area->name) ||
@@ -324,8 +324,8 @@ AREA_DATA *get_random_area( CHAR_DATA *ch, int continent, bool no_get_random )
 				!area->open ||
 				!is_area_unlocked(ch, area) ||
 				(no_get_random && IS_SET(area->area_flags, AREA_NO_GET_RANDOM)) ||
-				((area->place_flags != PLACE_FIRST_CONTINENT ) &&
-				 (area->place_flags != PLACE_THIRD_CONTINENT)) ||
+				((area->region.place_flags != PLACE_FIRST_CONTINENT ) &&
+				 (area->region.place_flags != PLACE_THIRD_CONTINENT)) ||
 				!str_infix("Temples", area->name) ||
 				!str_infix("Housing", area->name ) ||
 				!str_infix("Arena", area->name) ||
@@ -340,8 +340,8 @@ AREA_DATA *get_random_area( CHAR_DATA *ch, int continent, bool no_get_random )
 				!area->open ||
 				!is_area_unlocked(ch, area) ||
 				(no_get_random && IS_SET(area->area_flags, AREA_NO_GET_RANDOM)) ||
-				((area->place_flags != PLACE_SECOND_CONTINENT) &&
-				 (area->place_flags != PLACE_FOURTH_CONTINENT)) ||
+				((area->region.place_flags != PLACE_SECOND_CONTINENT) &&
+				 (area->region.place_flags != PLACE_FOURTH_CONTINENT)) ||
 				!str_infix("Temples", area->name) ||
 				!str_infix("Housing", area->name ) ||
 				!str_infix("Arena", area->name) ||
@@ -356,10 +356,10 @@ AREA_DATA *get_random_area( CHAR_DATA *ch, int continent, bool no_get_random )
 				!area->open ||
 				!is_area_unlocked(ch, area) ||
 				(no_get_random && IS_SET(area->area_flags, AREA_NO_GET_RANDOM)) ||
-				((area->place_flags != PLACE_FIRST_CONTINENT ) &&
-				 (area->place_flags != PLACE_SECOND_CONTINENT) &&
-				 (area->place_flags != PLACE_THIRD_CONTINENT) &&
-				 (area->place_flags != PLACE_FOURTH_CONTINENT)) ||
+				((area->region.place_flags != PLACE_FIRST_CONTINENT ) &&
+				 (area->region.place_flags != PLACE_SECOND_CONTINENT) &&
+				 (area->region.place_flags != PLACE_THIRD_CONTINENT) &&
+				 (area->region.place_flags != PLACE_FOURTH_CONTINENT)) ||
 				!str_infix("Temples", area->name) ||
 				!str_infix("Housing", area->name ) ||
 				!str_infix("Arena", area->name) ||
@@ -458,7 +458,6 @@ CHAR_DATA *get_random_mob_area( CHAR_DATA *ch, AREA_DATA *area)
 	    || IS_SET(mIndex->act, ACT_TRAIN)
 	    || IS_SET(mIndex->act, ACT_PRACTICE)
 	    || IS_SET(mIndex->act, ACT_STAY_AREA)
-	    || IS_SET(mIndex->act, ACT_PROTECTED)
 	    || IS_SET(mIndex->act, ACT_BLACKSMITH)
 	    || IS_SET(mIndex->act, ACT_CREW_SELLER)
 	    || IS_SET(mIndex->act, ACT_IS_RESTRINGER)
@@ -467,10 +466,10 @@ CHAR_DATA *get_random_mob_area( CHAR_DATA *ch, AREA_DATA *area)
 	    || IS_SET(mIndex->act, ACT_IS_BANKER)
 	    || IS_SET(mIndex->act2, ACT2_NOQUEST)
 	    || IS_SET(mIndex->act2, ACT2_CHURCHMASTER)
-	    || IS_SET(mIndex->act2, ACT2_PLANE_TUNNELER)
 	    || IS_SET(mIndex->act2, ACT2_AIRSHIP_SELLER)
 	    || IS_SET(mIndex->act2, ACT2_WIZI_MOB)
 	    || IS_SET(mIndex->act2, ACT2_LOREMASTER )
+		|| IS_SET(mIndex->act2, ACT2_STAY_REGION)
 	    || mIndex->pShop != NULL
 	    || mIndex->level > ( ch->tot_level + 20))
 		continue;
@@ -563,6 +562,14 @@ ROOM_INDEX_DATA *get_random_room_list_byflags( CHAR_DATA *ch, LLIST *rooms, int 
 	return room;
 }
 
+ROOM_INDEX_DATA *get_random_room_region(CHAR_DATA *ch, AREA_REGION *region)
+{
+	if (!IS_VALID(region)) return NULL;
+
+	return get_random_room_list_byflags( ch, region->rooms,
+		(ROOM_PRIVATE | ROOM_SOLITARY | ROOM_DEATH_TRAP | ROOM_SAFE | ROOM_CPK),
+		(ROOM_NO_QUEST | ROOM_NO_GET_RANDOM) );
+}
 
 ROOM_INDEX_DATA *get_random_room_area_byflags( CHAR_DATA *ch, AREA_DATA *area, int n_room_flags, int n_room2_flags )
 {

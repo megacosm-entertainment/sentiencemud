@@ -2230,7 +2230,7 @@ int token_skill_rating( TOKEN_DATA *token)
 
 	// Value 0
 	if(token->pIndexData->value[TOKVAL_SPELL_RATING] > 0)
-		percent = token->value[TOKVAL_SPELL_RATING] / token->pIndexData->value[TOKVAL_SPELL_RATING];
+		percent = 100 * token->value[TOKVAL_SPELL_RATING] / token->pIndexData->value[TOKVAL_SPELL_RATING];
 	else
 		percent = token->value[TOKVAL_SPELL_RATING];
 

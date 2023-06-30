@@ -3601,7 +3601,8 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
 		return NULL;
 	}
 
-	recall = victim->in_room->area->recall;
+	get_room_recall(victim->in_room, &recall);
+	//recall = victim->in_room->area->recall;
 
 	if (!IS_NPC(victim) && location_isset(&victim->recall))
 	{
@@ -6709,9 +6710,12 @@ void do_challenge(CHAR_DATA *ch, char *argument)
 	return;
 	}
 
-	if (ch->in_room->area->place_flags == PLACE_NOWHERE
-	|| ch->in_room->area->place_flags == PLACE_OTHER_PLANE
-	|| !str_prefix("Maze-Level", ch->in_room->area->name))
+	AREA_REGION *region = get_room_region(ch->in_room);
+
+	if (!IS_VALID(region) ||
+		region->place_flags == PLACE_NOWHERE ||
+		region->place_flags == PLACE_OTHER_PLANE ||
+		!str_prefix("Maze-Level", ch->in_room->area->name))
 	{
 	send_to_char("You can only challenge from the mortal world.\n\r", ch);
 	return;
@@ -6745,8 +6749,11 @@ void do_challenge(CHAR_DATA *ch, char *argument)
 	return;
 	}
 
-	if (victim->in_room->area->place_flags == PLACE_NOWHERE
-	|| victim->in_room->area->place_flags == PLACE_OTHER_PLANE)
+	region = get_room_region(victim->in_room);
+
+	if (!IS_VALID(region) ||
+		region->place_flags == PLACE_NOWHERE ||
+		region->place_flags == PLACE_OTHER_PLANE)
 	{
 	act("$N is in a magically-protected area.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 	return;

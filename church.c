@@ -882,53 +882,54 @@ void do_chgohall(CHAR_DATA *ch, char *argument)
     pneuma_cost = 500;
     dp_cost = 50000;
 
+	AREA_REGION *region = get_room_region(ch->in_room);
+
     /* within areas (non-wilderness) */
-    if ((ch->in_room->area->place_flags == PLACE_NOWHERE
-    || ch->in_room->area->place_flags == PLACE_OTHER_PLANE
-    || ch->in_room->area->place_flags == PLACE_ISLAND
-    || !is_same_place(ch->in_room, location))
-    && !IS_WILDERNESS(ch->in_room))
+    if ((region->place_flags == PLACE_NOWHERE ||
+		region->place_flags == PLACE_OTHER_PLANE ||
+		region->place_flags == PLACE_ISLAND ||
+		!is_same_place(ch->in_room, location)) &&
+		!IS_WILDERNESS(ch->in_room))
     {
-        if (!IS_SET(ch->church->settings, CHURCH_ALLOW_CROSSZONES)
-	&&  ch->church_member->rank < CHURCH_RANK_D)
-	{
-	    send_to_char("Your church leader has forsaken members from gohalling cross-zone.\n\r", ch);
-	    return;
-	}
+        if (!IS_SET(ch->church->settings, CHURCH_ALLOW_CROSSZONES) &&
+			ch->church_member->rank < CHURCH_RANK_D)
+		{
+			send_to_char("Your church leader has forsaken members from gohalling cross-zone.\n\r", ch);
+			return;
+		}
 
-	if (ch->church_member->rank < CHURCH_RANK_C
-	&& !is_trusted(ch->church_member, "gohall"))
-	{
-            send_to_char("You aren't of high enough rank to recall that far.\n\r", ch);
-	    return;
-	}
+		if (ch->church_member->rank < CHURCH_RANK_C	&&
+			!is_trusted(ch->church_member, "gohall"))
+		{
+			send_to_char("You aren't of high enough rank to recall that far.\n\r", ch);
+			return;
+		}
 
-	if (ch->church->pneuma < pneuma_cost
-	|| ch->church->dp < dp_cost)
-	{
-            sprintf(buf,
-	    "It costs %ld pneuma and %ld dp to recall that far.\n\r"
-	    "Your church doesn't have enough.\n\r", pneuma_cost, dp_cost);
-	    send_to_char(buf, ch);
-	    return;
-	}
+		if (ch->church->pneuma < pneuma_cost || ch->church->dp < dp_cost)
+		{
+			sprintf(buf,
+				"It costs %ld pneuma and %ld dp to recall that far.\n\r"
+				"Your church doesn't have enough.\n\r", pneuma_cost, dp_cost);
+			send_to_char(buf, ch);
+			return;
+		}
 
-	sprintf(buf,
-	"{RWARNING:{x you are about to recall cross-zone.\n\rThis will cost your church %ld pneuma and %ld karma.\n\r", pneuma_cost, dp_cost);
-	send_to_char(buf, ch);
+		sprintf(buf, "{RWARNING:{x you are about to recall cross-zone.\n\rThis will cost your church %ld pneuma and %ld karma.\n\r", pneuma_cost, dp_cost);
+		send_to_char(buf, ch);
 
-	send_to_char("Are you sure you want to do this? (yes/no)\n\r", ch);
+		send_to_char("Are you sure you want to do this? (yes/no)\n\r", ch);
 
-	ch->cross_zone_question = TRUE;
-	return;
+		ch->cross_zone_question = TRUE;
+		return;
     }
 
     if (!str_cmp(ch->in_room->area->name, "Wilderness"))
     {
-	if (((location->area->place_flags == PLACE_FIRST_CONTINENT) && get_region(ch->in_room) != REGION_FIRST_CONTINENT) ||
-		((location->area->place_flags == PLACE_SECOND_CONTINENT) && get_region(ch->in_room) != REGION_SECOND_CONTINENT) ||
-		((location->area->place_flags == PLACE_THIRD_CONTINENT) && get_region(ch->in_room) != REGION_THIRD_CONTINENT) ||
-		((location->area->place_flags == PLACE_FOURTH_CONTINENT) && get_region(ch->in_room) != REGION_FOURTH_CONTINENT))
+		AREA_REGION *region_loc = get_room_region(location);
+	if (((region_loc->place_flags == PLACE_FIRST_CONTINENT) && get_region(ch->in_room) != REGION_FIRST_CONTINENT) ||
+		((region_loc->place_flags == PLACE_SECOND_CONTINENT) && get_region(ch->in_room) != REGION_SECOND_CONTINENT) ||
+		((region_loc->place_flags == PLACE_THIRD_CONTINENT) && get_region(ch->in_room) != REGION_THIRD_CONTINENT) ||
+		((region_loc->place_flags == PLACE_FOURTH_CONTINENT) && get_region(ch->in_room) != REGION_FOURTH_CONTINENT))
 	{
 	    if (!IS_SET(ch->church->settings, CHURCH_ALLOW_CROSSZONES)
 	    && ch->church_member->rank < CHURCH_RANK_D)

@@ -1939,8 +1939,8 @@ void get_ship_location(CHAR_DATA *ch, SHIP_DATA *ship, char *buf, size_t len)
 				if( area->wilds_uid == wilds->uid )
 				{
 					int distanceSq =
-						(area->x - room->x) * (area->x - room->x) +
-						(area->y - room->y) * (area->y - room->y);
+						(area->region.x - room->x) * (area->region.x - room->x) +
+						(area->region.y - room->y) * (area->region.y - room->y);
 
 					if( distanceSq < closestDistanceSq )
 					{
@@ -4297,9 +4297,9 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 		{
 			if( str_infix(argument, area->name) ) continue;
 
-			if( area->wilds_uid != uid || area->airship_land_spot < 1 ) continue;
+			if( area->wilds_uid != uid || area->region.airship_land_spot < 1 ) continue;
 
-			int distanceSq = ( x - area->x ) * ( x - area->x ) + ( y - area->y ) * ( y - area->y );
+			int distanceSq = ( x - area->region.x ) * ( x - area->region.x ) + ( y - area->region.y ) * ( y - area->region.y );
 
 			if( distanceSq < bestDistanceSq )
 			{
@@ -4314,7 +4314,7 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		to_room = get_room_index(to_area, to_area->airship_land_spot);
+		to_room = get_room_index(to_area, to_area->region.airship_land_spot);
 		if( !to_room )
 		{
 			ship_dispatch_message(ch, ship, "There is no safe place to land the ship here.", "ship land");
@@ -4348,9 +4348,9 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 
 			for( AREA_DATA *area = area_first; area; area = area->next )
 			{
-				if( area->wilds_uid != uid || area->airship_land_spot < 1 ) continue;
+				if( area->wilds_uid != uid || area->region.airship_land_spot < 1 ) continue;
 
-				int distanceSq = ( x - area->x ) * ( x - area->x ) + ( y - area->y ) * ( y - area->y );
+				int distanceSq = ( x - area->region.x ) * ( x - area->region.x ) + ( y - area->region.y ) * ( y - area->region.y );
 
 				if( distanceSq < bestDistanceSq )
 				{
@@ -4365,7 +4365,7 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			to_room = get_room_index(to_area, to_area->airship_land_spot);
+			to_room = get_room_index(to_area, to_area->region.airship_land_spot);
 			if( !to_room )
 			{
 				ship_dispatch_message(ch, ship, "There is no safe place to land the ship here.", "ship land");
@@ -4498,15 +4498,15 @@ void do_ship_launch(CHAR_DATA *ch, char *argument)
 		AREA_DATA *area = ship->ship->in_room->area;
 		WILDS_DATA *wilds = get_wilds_from_uid(NULL, area->wilds_uid);
 
-		if( !wilds || area->x < 0 || area->y < 0 )
+		if( !wilds || area->region.x < 0 || area->region.y < 0 )
 		{
 			ship_dispatch_message(ch, ship, "There is nowhere for the vessel to go.", "ship launch");
 			return;
 		}
 
-		ROOM_INDEX_DATA *room = get_wilds_vroom(wilds, area->x, area->y);
+		ROOM_INDEX_DATA *room = get_wilds_vroom(wilds, area->region.x, area->region.y);
 		if( !room )
-			room = create_wilds_vroom(wilds, area->x, area->y);
+			room = create_wilds_vroom(wilds, area->region.x, area->region.y);
 
 
 		if( IS_NULLSTR(ship->ship_name) )

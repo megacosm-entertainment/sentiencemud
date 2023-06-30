@@ -89,10 +89,10 @@ SPELL_FUNC(spell_earth_walk)
 		!str_cmp(victim->in_room->area->name, "Arena") ||
 		!str_prefix("Church Temples", ch->in_room->area->name) ||
 		!str_prefix("Church Temples", victim->in_room->area->name) ||
-		(ch->in_room->area->place_flags == PLACE_NOWHERE) ||
-		(victim->in_room->area->place_flags == PLACE_NOWHERE) ||
-		(ch->in_room->area->place_flags == PLACE_OTHER_PLANE) ||
-		(victim->in_room->area->place_flags == PLACE_OTHER_PLANE) ||
+		(ch->in_room->area->region.place_flags == PLACE_NOWHERE) ||
+		(victim->in_room->area->region.place_flags == PLACE_NOWHERE) ||
+		(ch->in_room->area->region.place_flags == PLACE_OTHER_PLANE) ||
+		(victim->in_room->area->region.place_flags == PLACE_OTHER_PLANE) ||
 		IS_SET(victim->in_room->area->area_flags, AREA_NO_RECALL)) {
 		send_to_char("Outside interference stops your earth walk.\n\r", ch);
 		return FALSE;

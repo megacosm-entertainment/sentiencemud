@@ -553,7 +553,6 @@ char *act_bit_name( int act_type, long act_flags )
 	case 2:		// NPC->act2
 		if (act_flags & ACT2_CHURCHMASTER) strcat(buf, " churchmaster");
 	    if (act_flags & ACT2_NOQUEST ) strcat( buf, " noquest" );
-	    if (act_flags & ACT2_PLANE_TUNNELER ) strcat( buf, " plane_tunneler" );
  	    if (act_flags & ACT2_NO_HUNT ) strcat( buf, " no_hunt" );
  	    if (act_flags & ACT2_WIZI_MOB ) strcat( buf, " wizi_mob" );
  	    if (act_flags & ACT2_AIRSHIP_SELLER ) strcat( buf, " airship_seller" );
@@ -569,6 +568,7 @@ char *act_bit_name( int act_type, long act_flags )
 	    if (act_flags & ACT2_SEE_WIZI) strcat( buf, " see_wizi");
 	    if (act_flags & ACT2_SOUL_DEPOSIT) strcat( buf, " soul_deposit");
 		if (act_flags & ACT2_HIRED) strcat(buf, " hired");
+        if (act_flags & ACT2_STAY_REGION) strcat(buf, " stay_region");
 		break;
 	case 3:		// PC->act
 		strcat(buf," player");
@@ -784,6 +784,7 @@ char *form_bit_name(long form_flags)
     if (form_flags & FORM_MAGICAL	) strcat(buf, " magical");
     if (form_flags & FORM_INSTANT_DECAY	) strcat(buf, " instant_rot");
     if (form_flags & FORM_OTHER		) strcat(buf, " other");
+    if (form_flags & FORM_NO_BREATHING  )   strcat(buf, " no_breathing");
     if (form_flags & FORM_ANIMAL	) strcat(buf, " animal");
     if (form_flags & FORM_SENTIENT	) strcat(buf, " sentient");
     if (form_flags & FORM_UNDEAD	) strcat(buf, " undead");
@@ -797,6 +798,7 @@ char *form_bit_name(long form_flags)
     if (form_flags & FORM_CRUSTACEAN	) strcat(buf, " crustacean");
     if (form_flags & FORM_WORM		) strcat(buf, " worm");
     if (form_flags & FORM_BLOB		) strcat(buf, " blob");
+    if (form_flags & FORM_PLANT     ) strcat(buf, " plant");
     if (form_flags & FORM_MAMMAL	) strcat(buf, " mammal");
     if (form_flags & FORM_BIRD		) strcat(buf, " bird");
     if (form_flags & FORM_REPTILE	) strcat(buf, " reptile");
@@ -837,6 +839,7 @@ char *part_bit_name(int part_flags)
     if (part_flags & PART_HORNS		) strcat(buf, " horns");
     if (part_flags & PART_SCALES	) strcat(buf, " scales");
     if (part_flags & PART_GILLS)		strcat(buf, " gills");
+    if (part_flags & PART_LUNGS)        strcat(buf, " lungs");
 
     return ( buf[0] != '\0' ) ? buf+1 : "none";
 }

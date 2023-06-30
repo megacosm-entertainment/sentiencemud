@@ -272,6 +272,35 @@ void save_area_list()
     log_string("save_area_list: finished");
 }
 
+void save_area_region(FILE *fp, AREA_DATA *area, AREA_REGION *region)
+{
+	fprintf(fp, "#REGION %ld\n", region->uid);
+
+	fprintf(fp, "Name %s~\n", fix_string(region->name));
+	fprintf(fp, "Description %s~\n", fix_string(region->description));
+	fprintf(fp, "Comments %s~\n", fix_string(region->comments));
+
+	fprintf(fp, "Flags %ld\n", region->flags);
+	fprintf(fp, "Who %d\n", region->area_who);
+	fprintf(fp, "Place %d\n", region->place_flags);
+	fprintf(fp, "Savage %d\n", region->savage_level);
+	fprintf(fp, "PostOffice %ld\n", region->post_office);
+
+    fprintf(fp, "XCoord %d\n", region->x);
+    fprintf(fp, "YCoord %d\n", region->y);
+    fprintf(fp, "XLand %d\n", region->land_x);
+    fprintf(fp, "YLand %d\n", region->land_y);
+
+    fprintf(fp, "AirshipLand %ld\n", 	region->airship_land_spot);
+
+    if(region->recall.wuid)
+		fprintf(fp, "RecallW %lu %lu %lu %lu\n", 	region->recall.wuid, region->recall.id[0], region->recall.id[1], region->recall.id[2]);
+    else
+		fprintf(fp, "Recall %ld\n", 	region->recall.id[0]);
+
+
+	fprintf(fp, "#-REGION\n");
+}
 
 /* save an area to <area>.are */
 void save_area_new(AREA_DATA *area)
@@ -317,28 +346,26 @@ void save_area_new(AREA_DATA *area)
     fprintf(fp, "#AREA %s~\n", 		area->name);
     fprintf(fp, "FileName %s~\n",	area->file_name);
     fprintf(fp, "Uid %ld\n",		area->uid);
-    fprintf(fp, "AreaWho %d\n", 	area->area_who);
-    fprintf(fp, "PlaceType %ld\n", 	area->place_flags);
     fprintf(fp, "AreaFlags %ld\n", 	area->area_flags);
     fprintf(fp, "Builders %s~\n",      	fix_string(area->builders));
     fprintf(fp, "WildsVnum %ld\n",	area->wilds_uid);
-    fprintf(fp, "XCoord %d\n", 		area->x);
-    fprintf(fp, "YCoord %d\n", 		area->y);
-    fprintf(fp, "XLand %d\n",	 	area->land_x);
-    fprintf(fp, "YLand %d\n", 		area->land_y);
     fprintf(fp, "Credits %s~\n",	area->credits);
     fprintf(fp, "Security %d\n",       	area->security);
-    if(area->recall.wuid)
-	fprintf(fp, "RecallW %lu %lu %lu %lu\n", 	area->recall.wuid, area->recall.id[0], area->recall.id[1], area->recall.id[2]);
-    else
-	fprintf(fp, "Recall %ld\n", 	area->recall.id[0]);
     fprintf(fp, "Open %d\n", 	  	area->open);
     fprintf(fp, "Repop %d\n",		area->repop);
-    fprintf(fp, "PostOffice %ld\n",	area->post_office);
-    fprintf(fp, "AirshipLand %ld\n", 	area->airship_land_spot);
 	fprintf(fp, "Description %s~\n", fix_string(area->description));
-	if(area->comments)
+	if(!IS_NULLSTR(area->comments))
 		fprintf(fp, "Comments %s~\n", fix_string(area->comments));
+
+	save_area_region(fp, area, &area->region);
+	ITERATOR rit;
+	AREA_REGION *region;
+	iterator_start(&rit, area->regions);
+	while((region = (AREA_REGION *)iterator_nextdata(&rit)))
+	{
+		save_area_region(fp, area, region);
+	}
+	iterator_stop(&rit);
 
     // Save the current versions of everything
     fprintf(fp, "VersArea %d\n",			VERSION_AREA);
@@ -351,6 +378,7 @@ void save_area_new(AREA_DATA *area)
 	fprintf(fp, "VersBlueprint %d\n",		VERSION_BLUEPRINT);
 	fprintf(fp, "VersShip %d\n",			VERSION_SHIP);
 	fprintf(fp, "VersDungeon %d\n",			VERSION_DUNGEON);
+	fprintf(fp, "TopRegionUID %ld\n",		area->top_region_uid);
 
 	for(boost = area->points; boost; boost = boost->next)
 		fprintf(fp, "OlcPointBoost %d %d %d %d\n",
@@ -555,6 +583,12 @@ void save_room_new(FILE *fp, ROOM_INDEX_DATA *room, int recordtype)
 	else if(IS_SET(room->room2_flags, ROOM_BLUEPRINT))
 	{
 		fprintf(fp,"Blueprint %1u %1u %1u\n", (unsigned)room->x, (unsigned)room->y, (unsigned)room->z);
+	}
+
+
+	if (room->region != NULL)
+	{
+		fprintf(fp, "Region %ld\n", room->region->uid);
 	}
 
     fprintf(fp, "Room_flags %ld\n", room->room_flags);
@@ -1183,6 +1217,111 @@ void save_ship_crew_index_new(FILE *fp, SHIP_CREW_INDEX_DATA *crew)
 	fprintf(fp, "#-CREW\n");
 }
 
+void read_area_region(FILE *fp, AREA_DATA *area)
+{
+	AREA_REGION *region;
+	long uid;
+ 	char buf[MSL];
+
+	uid = fread_number(fp);
+
+	if (!uid)	// Default region
+		region = &area->region;
+	else
+	{
+		region = new_area_region();
+		region->uid = uid;
+	}
+
+	while (str_cmp((word = fread_word(fp)), "#-REGION"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+			case 'A':
+				KEY("AirshipLand",		region->airship_land_spot,	fread_number(fp));
+				break;
+
+			case 'C':
+				KEYS("Comments",		region->comments,			fread_string(fp));
+				break;
+			
+			case 'D':
+				KEYS("Description",		region->description,		fread_string(fp));
+				break;
+
+			case 'F':
+				KEY("Flags",			region->flags,				fread_number(fp));
+				break;
+
+			case 'N':
+				KEYS("Name",			region->name,				fread_string(fp));
+				break;
+
+			case 'P':
+				KEY("Place",			region->place_flags,		fread_number(fp));
+				KEY("PostOffice",		region->post_office,		fread_number(fp));
+				break;
+
+			case 'R':
+				if(!str_cmp(word, "Recall"))
+				{
+					location_clear(&region->recall);
+
+					region->recall.id[0] = fread_number(fp);
+
+					fMatch = TRUE;
+					break;
+				}
+				if (!str_cmp(word, "RecallW"))
+				{
+					location_clear(&region->recall);
+
+					region->recall.wuid = fread_number(fp);
+					region->recall.id[0] = fread_number(fp);
+					region->recall.id[1] = fread_number(fp);
+					region->recall.id[2] = fread_number(fp);
+
+					fMatch = TRUE;
+					break;
+				}
+				break;
+			
+			case 'S':
+				KEY("Savage",			region->savage_level,		fread_number(fp));
+				break;
+
+			case 'W':
+				KEY("Who",				region->area_who,			fread_number(fp));
+				break;
+
+			case 'X':
+				KEY("XCoord",			region->x,					fread_number(fp));
+				KEY("XLand",			region->land_x,				fread_number(fp));
+				break;
+			
+			case 'Y':
+				KEY("YCoord",			region->y,					fread_number(fp));
+				KEY("YLand",			region->land_y,				fread_number(fp));
+				break;
+		}
+
+		if (!fMatch)
+		{
+			sprintf(buf, "read_area_region: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	if (uid > 0)
+	{
+		list_appendlink(area->regions, region);
+		if(uid > area->top_region_uid)
+			area->top_region_uid = uid;
+	}
+}
+
 AREA_DATA *read_area_new(FILE *fp)
 {
     AREA_DATA *area = NULL;
@@ -1228,7 +1367,11 @@ AREA_DATA *read_area_new(FILE *fp)
 	switch (word[0])
 	{
 	    case '#':
-		if (!str_cmp(word, "#ROOM"))
+		if (!str_cmp(word, "#REGION"))
+		{
+			read_area_region(fp, area);
+		}
+		else if (!str_cmp(word, "#ROOM"))
 		{
 		    room = read_room_new(fp, area, ROOMTYPE_NORMAL);
 		    vnum = room->vnum;
@@ -1442,8 +1585,8 @@ AREA_DATA *read_area_new(FILE *fp)
 
 		KEY("AreaWhoFlags",	dummy,	fread_number(fp));
 		KEY("AreaWhoFlags2",	dummy,	fread_number(fp));
-		KEY("AreaWho",		area->area_who,	fread_number(fp));
-		KEY("AirshipLand",	area->airship_land_spot, fread_number(fp));
+		KEY("AreaWho",		area->region.area_who,	fread_number(fp));
+		KEY("AirshipLand",	area->region.airship_land_spot, fread_number(fp));
 		break;
 
 	    case 'B':
@@ -1468,17 +1611,17 @@ AREA_DATA *read_area_new(FILE *fp)
 		break;
 
 	    case 'P':
-	        KEY("PostOffice",	area->post_office,	fread_number(fp));
-		KEY("PlaceType",	area->place_flags,	fread_number(fp));
+	        KEY("PostOffice",	area->region.post_office,	fread_number(fp));
+		KEY("PlaceType",	area->region.place_flags,	fread_number(fp));
 		break;
 
 	    case 'R':
 		if (!str_cmp(word, "Recall")) {
-			location_set(&area->recall,area,0,fread_number(fp),0,0);
+			location_set(&area->region.recall,area,0,fread_number(fp),0,0);
 			fMatch = TRUE;
 		}
 		if (!str_cmp(word, "RecallW")) {
-			location_set(&area->recall,NULL,fread_number(fp),fread_number(fp),fread_number(fp),fread_number(fp));
+			location_set(&area->region.recall,NULL,fread_number(fp),fread_number(fp),fread_number(fp),fread_number(fp));
 			fMatch = TRUE;
 		}
 		KEY("Repop",		area->repop,		fread_number(fp));
@@ -1488,6 +1631,9 @@ AREA_DATA *read_area_new(FILE *fp)
 		KEY("Security",	area->security,		fread_number(fp));
 		break;
 
+		case 'T':
+			KEY("TopRegionUID", area->top_region_uid, fread_number(fp));
+			break;
 /* VIZZWILDS */
             case 'U':
                 KEY ("UID", area->uid, fread_number (fp));
@@ -1520,14 +1666,14 @@ AREA_DATA *read_area_new(FILE *fp)
 		KEY("WildsVnum",	area->wilds_uid, fread_number(fp));
 
 	    case 'X':
-		KEY("XCoord",		area->x,		fread_number(fp));
-		KEY("XLand",		area->land_x,		fread_number(fp));
+		KEY("XCoord",		area->region.x,		fread_number(fp));
+		KEY("XLand",		area->region.land_x,		fread_number(fp));
 
 		break;
 
 	    case 'Y':
-		KEY("YCoord",		area->y,		fread_number(fp));
-		KEY("YLand",		area->land_y,		fread_number(fp));
+		KEY("YCoord",		area->region.y,		fread_number(fp));
+		KEY("YLand",		area->region.land_y,		fread_number(fp));
 		break;
 	}
 
@@ -1551,10 +1697,11 @@ AREA_DATA *read_area_new(FILE *fp)
 		// Handled after all areas are loaded, since there can be cross area handling
 	}
 
+	/*
 	if (!area->wilds_uid && area->airship_land_spot > 0)
 	{
 		area->wilds_uid = 6;	// The overworld wilderness
-	}
+	}*/
 
     if (area->uid == 0)
     {
@@ -1678,10 +1825,27 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 				room->persist = TRUE;
 
 				fMatch = TRUE;
+				break;
 			}
 			break;
 
 	    case 'R':
+			if(!str_cmp(word, "Region"))
+			{
+				long uid = fread_number(fp);
+
+				if (IS_VALID(room->region))
+					list_remlink(room->region->rooms, room);
+
+				room->region = get_area_region_by_uid(area, uid);
+
+				if (IS_VALID(room->region))
+					list_appendlink(room->region->rooms, room);
+
+
+				fMatch = TRUE;
+				break;
+			}
 		KEY("Room_flags", 	room->room_flags, 	fread_number(fp));
 		KEY("Room2_flags", 	room->room2_flags, 	fread_number(fp));
 
@@ -1764,6 +1928,17 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 	    bug(buf, 0);
 	}
     }
+
+	if (recordtype == ROOMTYPE_NORMAL)
+	{
+		if (!IS_VALID(room->region))
+		{
+			// No region defined yet, place in the default region
+			room->region = &area->region;
+			list_appendlink(area->region.rooms, room);
+		}
+	}
+
 
 	if (recordtype != ROOMTYPE_TERRAIN)
 		variable_copylist(&room->index_vars,&room->progs->vars,FALSE);

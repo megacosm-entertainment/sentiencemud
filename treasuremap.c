@@ -54,8 +54,8 @@ OBJ_DATA *create_wilderness_map(WILDS_DATA *pWilds, int vx, int vy, OBJ_DATA *sc
 			continue;
 
 		distance = (int) sqrt(
-				( closestArea->x - vx ) * ( closestArea->x - vx ) +
-				( closestArea->y - vy ) * ( closestArea->y - vy ) );
+				( closestArea->region.x - vx ) * ( closestArea->region.x - vx ) +
+				( closestArea->region.y - vy ) * ( closestArea->region.y - vy ) );
 
 		if (distance < bestDistance)
 		{
@@ -117,7 +117,7 @@ bool valid_area_for_treasure(AREA_DATA *pArea)
 
 			if( d >= 40000 ) continue;
 
-			WILDS_TERRAIN *pTerrain = get_terrain_by_coors(wilds, pArea->x + x, pArea->y + y);
+			WILDS_TERRAIN *pTerrain = get_terrain_by_coors(wilds, pArea->region.x + x, pArea->region.y + y);
 
 			if( pTerrain != NULL && !pTerrain->nonroom &&
 				pTerrain->template->sector_type != SECT_WATER_SWIM &&
@@ -170,8 +170,8 @@ OBJ_DATA *create_treasure_map(WILDS_DATA *pWilds, AREA_DATA *pArea, OBJ_DATA *tr
 				if( (vx * vx + vy * vy) >= 40000 )
 					continue;
 
-				vx += pArea->x;
-				vy += pArea->y;
+				vx += pArea->region.x;
+				vy += pArea->region.y;
 			}
 			else
 			{

@@ -1012,6 +1012,7 @@ DECL_OPC_FUN(opc_list)
 	LLIST_EXIT_DATA *led;
 	LLIST_SKILL_DATA *lsk;
 	LLIST_AREA_DATA *lar;
+	LLIST_AREA_REGION_DATA *lareg;
 	LLIST_WILDS_DATA *lwd;
 	DESCRIPTOR_DATA *conn;
 	CHAR_DATA *ch;
@@ -1026,6 +1027,8 @@ DECL_OPC_FUN(opc_list)
 	INSTANCE *instance;
 	NAMED_SPECIAL_ROOM *special_room;
 	SHIP_DATA *ship;
+	AREA_DATA *area;
+	AREA_REGION *aregion;
 
 	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
 		return opc_skip_block(block,block->cur_line->level-1,FALSE);
@@ -1531,6 +1534,39 @@ DECL_OPC_FUN(opc_list)
 
 			break;
 
+		case ENT_BLLIST_AREA_REGION:
+			//log_stringf("opc_list: list type ENT_BLLIST_AREA_REGION");
+			if(!arg->d.blist || !arg->d.blist->valid)
+			{
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			block->loops[lp].d.l.type = ENT_BLLIST_AREA_REGION;
+			block->loops[lp].d.l.list.lp = arg->d.blist;
+			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
+			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+			do {
+				lareg = (LLIST_AREA_REGION_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+				if( !lareg ) {
+					//log_stringf("opc_list: area(<END>)");
+					iterator_stop(&block->loops[lp].d.l.list.it);
+					free_script_param(arg);
+					return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+				}
+
+				// Set the variable
+				if( lareg->aregion )
+					variables_setsave_area_region(block->info.var,block->loops[lp].var_name, lareg->aregion, FALSE);
+
+			} while( !lareg->aregion );
+
+			//log_stringf("opc_list: area region(%ld,%s)", lareg->area->uid, lar->area->name);
+
+			break;
+
 		case ENT_BLLIST_WILDS:
 			//log_stringf("opc_list: list type ENT_BLLIST_WILDS");
 			if(!arg->d.blist || !arg->d.blist->valid)
@@ -1737,6 +1773,74 @@ DECL_OPC_FUN(opc_list)
 
 			// Set the variable
 			variables_set_token(block->info.var,block->loops[lp].var_name,tok);
+			break;
+
+
+		case ENT_PLLIST_AREA:
+			//log_stringf("opc_list: list type ENT_PLLIST_AREA");
+			if(!arg->d.blist || !arg->d.blist->valid)
+			{
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			block->loops[lp].d.l.type = ENT_PLLIST_AREA;
+			block->loops[lp].d.l.list.lp = arg->d.blist;
+			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
+			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+			area = (AREA_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+			/*
+			if(tok)
+				log_stringf("opc_list: token(%ld,%ld,%ld)", tok->pIndexData->vnum, tok->id[0], tok->id[1]);
+			else
+				log_stringf("opc_list: token(<END>)");
+				*/
+
+			if( !area ) {
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			// Set the variable
+			variables_set_area(block->info.var,block->loops[lp].var_name,area);
+			break;
+
+
+		case ENT_PLLIST_AREA_REGION:
+			//log_stringf("opc_list: list type ENT_PLLIST_AREA_REGION");
+			if(!arg->d.blist || !arg->d.blist->valid)
+			{
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			block->loops[lp].d.l.type = ENT_PLLIST_AREA_REGION;
+			block->loops[lp].d.l.list.lp = arg->d.blist;
+			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
+			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+			aregion = (AREA_REGION *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+			/*
+			if(tok)
+				log_stringf("opc_list: token(%ld,%ld,%ld)", tok->pIndexData->vnum, tok->id[0], tok->id[1]);
+			else
+				log_stringf("opc_list: token(<END>)");
+				*/
+
+			if( !aregion ) {
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			// Set the variable
+			variables_set_area_region(block->info.var,block->loops[lp].var_name,aregion);
 			break;
 
 		case ENT_PLLIST_CHURCH:

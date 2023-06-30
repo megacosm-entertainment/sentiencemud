@@ -100,15 +100,16 @@ const struct olc_cmd_type aedit_table[] =
 	{	"placetype",    aedit_placetype		},
 	{	"postoffice",   aedit_postoffice	},
 	{	"recall",		aedit_recall		},
+	{	"regions",		aedit_regions		},
 	{	"removetrade",  aedit_remove_trade	},
 	{	"repop",		aedit_repop			},
+	{	"savage",		aedit_savage		},
 	{	"security",		aedit_security		},
 	{	"settrade",		aedit_set_trade		},
 	{	"show",			aedit_show			},
 	{	"varclear",		aedit_varclear		},
 	{	"varset",		aedit_varset		},
 	{	"viewtrade",	aedit_view_trade	},
-	{	"vnum",			aedit_vnum			},
 	{	"wilds",		aedit_wilds			},
 	{	"x",			aedit_x				},
 	{	"y",			aedit_y				},
@@ -145,8 +146,10 @@ const struct olc_cmd_type redit_table[] =
 	{	"oreset",	redit_oreset					},
 	{   "owner",	redit_owner					},
 	{	"persist",	redit_persist					},
+	{	"region",	redit_region				},
 	{	"room",		redit_room					},
 	{	"room2",	redit_room2					},
+	{	"savage",	redit_savage				},
 	{	"sector",	redit_sector					},
 	{	"show",		redit_show					},
 	{   "south",	redit_south					},
@@ -2235,7 +2238,7 @@ void do_alist(CHAR_DATA *ch, char *argument)
 
 	for (pArea = area_first; pArea; pArea = pArea->next)
 	{
-		if (place_type == 0 || (pArea->place_flags == place_type))
+		if (place_type == 0 || (pArea->region.place_flags == place_type))
 		{
 			sprintf(buf, "{D[{x%7ld{D]{x {D[{x%7ld{D]{x %s%-26.26s{x %-12.12s {D[{x{B%d{x{D]{x {D[{x%-10.10s{D]{x \n\r",
 				pArea->anum,

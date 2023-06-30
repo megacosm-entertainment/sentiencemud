@@ -258,6 +258,7 @@ struct sound_type {
 /* Structures */
 typedef struct	affect_data		AFFECT_DATA;
 typedef struct	area_data		AREA_DATA;
+typedef struct  area_region_data    AREA_REGION;
 typedef struct	auction_data		AUCTION_DATA;
 typedef struct	auto_war		AUTO_WAR;
 typedef struct	ban_data		BAN_DATA;
@@ -338,6 +339,7 @@ typedef struct mob_skill_data MOB_SKILL_DATA;
 typedef struct list_type LLIST;
 typedef struct list_link_type LLIST_LINK;
 typedef struct list_link_area_data LLIST_AREA_DATA;
+typedef struct list_link_area_region_data LLIST_AREA_REGION_DATA;
 typedef struct list_link_wilds_data LLIST_WILDS_DATA;
 typedef struct list_link_uid_data LLIST_UID_DATA;
 typedef struct list_link_room_data LLIST_ROOM_DATA;
@@ -651,6 +653,12 @@ struct iterator_type {
 struct list_link_area_data {
 	AREA_DATA *area;
 	long uid;
+};
+
+struct list_link_area_region_data {
+    AREA_REGION *aregion;
+    long aid;
+    long rid;
 };
 
 struct list_link_wilds_data {
@@ -1919,7 +1927,7 @@ struct affliction_type {
 /* Act2 flags */
 #define ACT2_CHURCHMASTER       (A)
 #define ACT2_NOQUEST			(B)
-#define ACT2_PLANE_TUNNELER		(C)
+#define ACT2_STAY_REGION		(C)
 #define ACT2_NO_HUNT			(D)
 #define ACT2_AIRSHIP_SELLER     (E)
 #define ACT2_WIZI_MOB			(F)
@@ -1983,7 +1991,8 @@ struct affliction_type {
 #define DAM_EARTH		25	/* @@@NIB : 20070124 */
 #define DAM_PLANT		26	/* @@@NIB : 20070124 */
 #define DAM_AIR			27	/* @@@NIB : 20070124 */
-#define DAM_MAX			28
+#define DAM_SUFFOCATING 28
+#define DAM_MAX			29
 
 /* OFF bits for mobiles */
 #define OFF_AREA_ATTACK         (A)
@@ -2048,6 +2057,7 @@ struct affliction_type {
 #define IMM_EARTH		(dd)	/* @@@NIB : 20070125 */
 #define IMM_PLANT		(ee)	/* @@@NIB : 20070125 */
 #define IMM_AIR			(U)	/* @@@NIB : 20070125 */
+#define IMM_SUFFOCATION (V)
 
 /* RES bits for mobs */
 #define RES_SUMMON		(A)
@@ -2079,6 +2089,7 @@ struct affliction_type {
 #define RES_EARTH		(dd)	/* @@@NIB : 20070125 */
 #define RES_PLANT		(ee)	/* @@@NIB : 20070125 */
 #define RES_AIR			(U)	/* @@@NIB : 20070125 */
+#define RES_SUFFOCATION (V)
 
 /* VULN bits for mobs */
 #define VULN_SUMMON		(A)
@@ -2110,6 +2121,7 @@ struct affliction_type {
 #define VULN_EARTH		(dd)	/* @@@NIB : 20070125 */
 #define VULN_PLANT		(ee)	/* @@@NIB : 20070125 */
 #define VULN_AIR		(U)	/* @@@NIB : 20070125 */
+#define VULN_SUFFOCATION    (V)
 
 /* body form */
 #define FORM_EDIBLE             (A)
@@ -2117,6 +2129,7 @@ struct affliction_type {
 #define FORM_MAGICAL            (C)
 #define FORM_INSTANT_DECAY      (D)
 #define FORM_OTHER              (E)
+#define FORM_NO_BREATHING       (F)
 /* actual form */
 #define FORM_ANIMAL             (G)
 #define FORM_SENTIENT           (H)
@@ -2130,7 +2143,9 @@ struct affliction_type {
 #define FORM_SPIDER             (P)
 #define FORM_CRUSTACEAN         (Q)
 #define FORM_WORM               (R)
-#define FORM_BLOB		(S)
+#define FORM_BLOB       		(S)
+#define FORM_PLANT              (T)
+// U
 #define FORM_MAMMAL             (V)
 #define FORM_BIRD               (W)
 #define FORM_REPTILE            (X)
@@ -2167,6 +2182,7 @@ struct affliction_type {
 #define PART_SCALES             (X)
 #define PART_TUSKS		(Y)
 #define PART_HIDE		(Z)
+#define PART_LUNGS      (aa)
 
 /*
  * Bits for 'affected_by'.
@@ -3667,6 +3683,8 @@ struct token_index_data
 struct token_data
 {
 	char __type;
+    bool            gc;
+
 	TOKEN_INDEX_DATA	*pIndexData;
 	TOKEN_DATA		*global_next;
 	TOKEN_DATA 		*next;
@@ -3814,6 +3832,8 @@ struct limb_data {
 struct	char_data
 {
 	char __type;
+    bool            gc;
+
     CHAR_DATA *		next;
     CHAR_DATA *		next_persist;
     CHAR_DATA *		next_in_room;
@@ -4507,6 +4527,8 @@ struct spell_data
 struct	obj_data
 {
 	char __type;
+    bool            gc;
+
     OBJ_DATA *		next;		/* for the world list */
     OBJ_DATA *		next_persist;	// Next object in the persistance list
     OBJ_DATA *		next_content;
@@ -4707,6 +4729,45 @@ struct	reset_data
     long		arg4;
 };
 
+struct area_region_data {
+    AREA_REGION *next;
+    bool valid;
+
+    AREA_DATA *area;
+
+    long uid;
+
+    char *name;
+    char *description;
+    char *comments;
+
+    int savage_level;       // 0-5
+
+    int area_who;
+    int place_flags;
+    
+    long post_office;
+
+    long flags;
+
+	LOCATION recall;
+
+	int x;
+	int y;
+
+	/* Areas have a landing coord in the wilds. This will be useful if we want flying
+	 creatures that travel around. */
+	int land_x;
+	int land_y;
+	long airship_land_spot;
+
+    LLIST *players;
+
+    LLIST *rooms;   // Will not include rooms flagged for blueprints
+};
+
+#define AREA_REGION_NO_RECALL       (A) // Cannot recall in the region
+
 /*
  * Area definition.
  */
@@ -4735,20 +4796,11 @@ struct area_data {
 	bool empty;
 	char *builders;
 	long anum;
-	long area_flags;
 	int security;
 	bool open;
+	long area_flags;
 
 	long wilds_uid;	// What wilderness are the coordinates even in?
-
-	int x;
-	int y;
-
-	/* Areas have a landing coord in the wilds. This will be useful if we want flying
-	 creatures that travel around. */
-	int land_x;
-	int land_y;
-	long airship_land_spot;
 
 	char *map;
 	int map_size_x;
@@ -4757,12 +4809,7 @@ struct area_data {
 	int starty;
 	int endx;
 	int endy;
-	LOCATION recall;
 	bool reset_once;
-	int area_who;
-/*	long area_who_flags;
-	long area_who2_flags; */
-	long place_flags;
 	int repop; /* repop time in minutes */
 	int version_area;
 	int version_mobile;
@@ -4778,7 +4825,8 @@ struct area_data {
 	SHIP_DATA *ship_list;
 	TRADE_ITEM *trade_list;
 
-	long post_office;
+    AREA_REGION region;
+    LLIST *regions;
 
 	INVASION_QUEST *invasion_quest;
 
@@ -4829,6 +4877,8 @@ struct area_data {
     long top_blueprint_vnum;
     long top_ship_vnum;
     long top_dungeon_vnum;
+
+    long top_region_uid;
 
 	LLIST *room_list;
 
@@ -5227,7 +5277,6 @@ struct ship_data
 
 	int					ship_power;		// How much power is given by the ship (sails, engines, etc)
 	int					oar_power;		// How much power is given by manned oars?
-	int				speed;
 
 	long				hit;
 	long				armor;
@@ -5303,6 +5352,8 @@ struct struckdrunk
 struct	room_index_data
 {
 	char __type;
+    bool            gc;
+
     ROOM_INDEX_DATA *	next;
     ROOM_INDEX_DATA *	next_persist;
     ROOM_INDEX_DATA *	next_clone;	/* next clone in the chain for its environment */
@@ -5317,6 +5368,7 @@ struct	room_index_data
     CONDITIONAL_DESCR_DATA *conditional_descr;
     AREA_DATA *		area;
     ROOM_INDEX_DATA *	source;
+    AREA_REGION *region;
     INSTANCE_SECTION		*instance_section;
     bool		persist;
     int version;
@@ -5340,6 +5392,7 @@ struct	room_index_data
     int			heal_rate;
     int 		mana_rate;
     int			move_rate;
+    int         savage_level;
 
     WILDS_TERRAIN *	parent_template;
     WILDS_DATA *        viewwilds;
@@ -6211,6 +6264,7 @@ enum trigger_index_enum {
 	TRIG_SAVE,
 	TRIG_SAYTO,		/* NIB : 20070121 */
     TRIG_SHOWCOMMANDS,
+    TRIG_SHOWEXIT,
 	TRIG_SIT,
 	TRIG_SKILL_BERSERK,
 	TRIG_SKILL_SNEAK,
@@ -9401,6 +9455,12 @@ ROOM_INDEX_DATA *blueprint_get_special_room(BLUEPRINT *bp, BLUEPRINT_SPECIAL_ROO
 BLUEPRINT_LAYOUT_SECTION_DATA *blueprint_get_nth_section(BLUEPRINT *bp, int section_no, BLUEPRINT_LAYOUT_SECTION_DATA **in_group);
 INSTANCE *find_instance(unsigned long id0, unsigned long id1);
 INSTANCE *dungeon_get_instance_level(DUNGEON *dng, int level_no);
+
+AREA_REGION *get_room_region(ROOM_INDEX_DATA *room);
+ROOM_INDEX_DATA *get_random_room_region(CHAR_DATA *ch, AREA_REGION *region);
+AREA_REGION *get_area_region_by_uid(AREA_DATA *area, long uid);
+bool is_exit_visible(CHAR_DATA *ch, ROOM_INDEX_DATA *room, int door);
+void get_room_recall(ROOM_INDEX_DATA *room, LOCATION *loc);
 
 extern LLIST *gc_mobiles;
 extern LLIST *gc_objects;

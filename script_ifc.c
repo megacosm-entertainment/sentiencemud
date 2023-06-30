@@ -31,6 +31,7 @@ extern bool wiznet_script;
 #define ISARG_EXIT(x)	(argv[(x)]->type == ENT_EXIT)
 #define ISARG_TOK(x)	ISARG_TYPE(x,ENT_TOKEN,token)
 #define ISARG_AREA(x)	ISARG_TYPE(x,ENT_AREA,area)
+#define ISARG_AREGION(x)	ISARG_TYPE(x,ENT_AREA_REGION,aregion)
 #define ISARG_SKILL(x)	(argv[(x)]->type == ENT_SKILL)
 #define ISARG_SKINFO(x)	(argv[(x)]->type == ENT_SKILLINFO)
 #define ISARG_CONN(x)	ISARG_TYPE(x,ENT_CONN,conn)
@@ -42,6 +43,7 @@ extern bool wiznet_script;
 #define ISARG_TUID(x)	(argv[(x)]->type == ENT_TOKEN_ID)
 #define ISARG_SKID(x)	(argv[(x)]->type == ENT_SKILLINFO_ID)
 #define ISARG_AID(x)	(argv[(x)]->type == ENT_AREA_ID)
+#define ISARG_ARID(x)	(argv[(x)]->type == ENT_AREA_REGION_ID)
 #define ISARG_WID(x)	(argv[(x)]->type == ENT_WILDS_ID)
 #define ISARG_CHID(x)	(argv[(x)]->type == ENT_CHURCH_ID)
 #define ISARG_BLIST(x,t)	((argv[(x)]->type == (t)) && IS_VALID(argv[(x)]->d.blist))
@@ -49,6 +51,8 @@ extern bool wiznet_script;
 #define ISARG_BLLIST_MOB(x)	ISARG_BLIST(x,ENT_BLLIST_MOB)
 #define ISARG_BLLIST_OBJ(x)	ISARG_BLIST(x,ENT_BLLIST_OBJ)
 #define ISARG_BLLIST_TOK(x)	ISARG_BLIST(x,ENT_BLLIST_TOK)
+#define ISARG_BLLIST_AREA(x)	ISARG_BLIST(x,ENT_BLLIST_AREA)
+#define ISARG_BLLIST_AREA_REGION(x)	ISARG_BLIST(x,ENT_BLLIST_AREA_REGION)
 #define ISARG_BLLIST_EXIT(x)	ISARG_BLIST(x,ENT_BLLIST_EXIT)
 #define ISARG_BLLIST_SKILL(x)	ISARG_BLIST(x,ENT_BLLIST_SKILL)
 #define ISARG_BLLIST_AREA(x)		ISARG_BLIST(x,ENT_BLLIST_AREA)
@@ -60,6 +64,8 @@ extern bool wiznet_script;
 #define ISARG_PLLIST_MOB(x)	ISARG_BLIST(x,ENT_PLLIST_MOB)
 #define ISARG_PLLIST_OBJ(x)	ISARG_BLIST(x,ENT_PLLIST_OBJ)
 #define ISARG_PLLIST_TOK(x)	ISARG_BLIST(x,ENT_PLLIST_TOK)
+#define ISARG_PLLIST_AREA(x)	ISARG_BLIST(x,ENT_PLLIST_AREA)
+#define ISARG_PLLIST_AREA_REGION(x)	ISARG_BLIST(x,ENT_PLLIST_AREA_REGION)
 #define ISARG_PLLIST_CHURCH(x)	ISARG_BLIST(x,ENT_PLLIST_CHURCH)
 
 #define ISARG_DICE(x)	((argv[(x)]->type == ENT_DICE) && argv[(x)]->d.dice)
@@ -76,6 +82,7 @@ extern bool wiznet_script;
 #define ARG_EXIT(x)	ARG_TYPE(x,door)
 #define ARG_TOK(x)	ARG_TYPE(x,token)
 #define ARG_AREA(x)	ARG_TYPE(x,area)
+#define ARG_AREGION(x)	ARG_TYPE(x,aregion)
 #define ARG_SKILL(x)	ARG_TYPE(x,sn)
 #define ARG_SKINFO(x)	ARG_TYPE(x,sk)
 #define ARG_CONN(x)	ARG_TYPE(x,conn)
@@ -86,6 +93,7 @@ extern bool wiznet_script;
 #define ARG_UID(x)	ARG_TYPE(x,uid)
 #define ARG_UID2(x,y)	(argv[(x)]->d.uid[(y)])
 #define ARG_AID(x)	ARG_TYPE(x,aid)
+#define ARG_ARID(x)	ARG_TYPE(x,arid)
 #define ARG_WID(x)	ARG_TYPE(x,wid)
 #define ARG_CHID(x)	ARG_TYPE(x,chid)
 #define ARG_DICE(x) ARG_TYPE(x,dice)
@@ -111,6 +119,17 @@ long flag_value_ifcheck(const struct flag_type *flag_table, char *argument)
 	long flag = flag_value(flag_table, argument);
 
 	return (flag != NO_FLAG) ? flag : 0;
+}
+
+// IF NUMBER $NUMBER == $NUMBER
+// Allows for direct comparison of numbers, especially those from variables and entity expansions
+DECL_IFC_FUN(ifc_number)
+{
+	if (ISARG_NUM(0)) *ret = ARG_NUM(0);
+	else if(ISARG_STR(0) && is_number(ARG_STR(0))) *ret = atoi(ARG_STR(0));
+	else return FALSE;	// Not a number
+
+	return TRUE;
 }
 
 
@@ -683,6 +702,7 @@ DECL_IFC_FUN(ifc_id)
 	else if(ISARG_OUID(0)) *ret = (int)ARG_UID2(0,0);
 	else if(ISARG_TUID(0)) *ret = (int)ARG_UID2(0,0);
 	else if(ISARG_AREA(0)) *ret = ARG_AREA(0)->uid;
+	else if(ISARG_AREGION(0)) *ret = ARG_AREGION(0)->uid;
 	else if(ISARG_AID(0)) *ret = (int)ARG_AID(0);
 	else if(ISARG_WILDS(0)) *ret = ARG_WILDS(0)->uid;
 	else if(ISARG_WID(0)) *ret = (int)ARG_WID(0);
@@ -2967,6 +2987,18 @@ DECL_IFC_FUN(ifc_inwilds)
 
 DECL_IFC_FUN(ifc_areaid)
 {
+	if (ISARG_AREA(0))
+	{
+		*ret = ARG_AREA(0) ? ARG_AREA(0)->uid : -1;
+		return TRUE;
+	}
+
+	if (ISARG_AREGION(0))
+	{
+		*ret = IS_VALID(ARG_AREGION(0)) ? ARG_AREGION(0)->area->uid : -1;
+		return TRUE;
+	}
+
 	if(ISARG_MOB(0)) room = ARG_MOB(0)->in_room;
 	else if(ISARG_OBJ(0)) room = obj_room(ARG_OBJ(0));
 	else if(ISARG_ROOM(0)) room = ARG_ROOM(0);
@@ -2977,6 +3009,31 @@ DECL_IFC_FUN(ifc_areaid)
 	return TRUE;
 }
 
+DECL_IFC_FUN(ifc_aregionid)
+{
+	if (ISARG_AREGION(0))
+	{
+		*ret = IS_VALID(ARG_AREGION(0)) ? ARG_AREGION(0)->uid : -1;
+		return TRUE;
+	}
+
+	if (ISARG_AREA(0))
+	{
+		*ret = 0;	// UID of default region
+		return TRUE;
+	}
+
+	if(ISARG_MOB(0)) room = ARG_MOB(0)->in_room;
+	else if(ISARG_OBJ(0)) room = obj_room(ARG_OBJ(0));
+	else if(ISARG_ROOM(0)) room = ARG_ROOM(0);
+	else if(ISARG_TOK(0)) room = token_room(ARG_TOK(0));
+	else return FALSE;
+
+	AREA_REGION *region = get_room_region(room);
+
+	*ret = IS_VALID(region) ? region->uid : -1;
+	return TRUE;
+}
 
 DECL_IFC_FUN(ifc_mapid)
 {
@@ -3025,7 +3082,7 @@ DECL_IFC_FUN(ifc_areahasland)
 	else if(ISARG_TOK(0)) room = token_room(ARG_TOK(0));
 	else return FALSE;
 
-	*ret = room && room->area->land_x >= 0 && room->area->land_y >= 0;
+	*ret = room && room->area->region.land_x >= 0 && room->area->region.land_y >= 0;
 	return TRUE;
 }
 
@@ -3037,7 +3094,7 @@ DECL_IFC_FUN(ifc_areahasxy)
 	else if(ISARG_TOK(0)) room = token_room(ARG_TOK(0));
 	else return FALSE;
 
-	*ret = room && room->area->x >= 0 && room->area->y >= 0;
+	*ret = room && room->area->region.x >= 0 && room->area->region.y >= 0;
 	return TRUE;
 }
 
@@ -3050,7 +3107,7 @@ DECL_IFC_FUN(ifc_arealandx)
 	else if(ISARG_TOK(0)) room = token_room(ARG_TOK(0));
 	else return FALSE;
 
-	*ret = room ? room->area->land_x : -1;
+	*ret = room ? room->area->region.land_x : -1;
 	return TRUE;
 }
 
@@ -3063,7 +3120,7 @@ DECL_IFC_FUN(ifc_arealandy)
 	else if(ISARG_TOK(0)) room = token_room(ARG_TOK(0));
 	else return FALSE;
 
-	*ret = room ? room->area->land_y : -1;
+	*ret = room ? room->area->region.land_y : -1;
 	return TRUE;
 }
 
@@ -3075,7 +3132,7 @@ DECL_IFC_FUN(ifc_areax)
 	else if(ISARG_TOK(0)) room = token_room(ARG_TOK(0));
 	else return FALSE;
 
-	*ret = room ? room->area->x : -1;
+	*ret = room ? room->area->region.x : -1;
 	return TRUE;
 }
 
@@ -3088,7 +3145,7 @@ DECL_IFC_FUN(ifc_areay)
 	else if(ISARG_TOK(0)) room = token_room(ARG_TOK(0));
 	else return FALSE;
 
-	*ret = room ? room->area->y : -1;
+	*ret = room ? room->area->region.y : -1;
 	return TRUE;
 }
 
@@ -3741,13 +3798,27 @@ DECL_IFC_FUN(ifc_areaflag)
 
 DECL_IFC_FUN(ifc_areawho)
 {
-	*ret = ISARG_AREA(0) && ISARG_STR(1) && (ARG_AREA(0)->area_who == flag_value(area_who_titles,ARG_STR(1)));
+	if (ISARG_AREA(0))
+	{
+		*ret = ISARG_STR(1) && (ARG_AREA(0)->region.area_who == flag_value(area_who_titles,ARG_STR(1)));
+	}
+	else if (ISARG_AREGION(0))
+	{
+		*ret = ISARG_STR(1) && (ARG_AREGION(0)->area_who == flag_value(area_who_titles,ARG_STR(1)));
+	}
 	return TRUE;
 }
 
 DECL_IFC_FUN(ifc_areaplace)
 {
-	*ret = ISARG_AREA(0) && ISARG_STR(1) && (ARG_AREA(0)->area_who == flag_value(area_who_titles,ARG_STR(1)));
+	if (ISARG_AREA(0))
+	{
+		*ret = ISARG_STR(1) && (ARG_AREA(0)->region.place_flags == flag_value(place_flags,ARG_STR(1)));
+	}
+	else if (ISARG_AREGION(0))
+	{
+		*ret = ISARG_STR(1) && (ARG_AREGION(0)->place_flags == flag_value(place_flags,ARG_STR(1)));
+	}
 	return TRUE;
 }
 
@@ -4876,4 +4947,58 @@ DECL_IFC_FUN(ifc_wnumvalid)
 {
 	*ret = ISARG_WNUM(0) && ARG_WNUM(0).pArea && ARG_WNUM(0).vnum > 0 && TRUE;
 	return TRUE;	
+}
+
+
+// GC $MOBILE|$OBJECT|$ROOM|$TOKEN
+// checks whether the entity has been garbage collected
+// This does not necessarily mean the entity is gone forever, in the case of it originally being a player.
+// It just means the reference is no longer in existence for the current game loop.
+DECL_IFC_FUN(ifc_gc)
+{
+	*ret = FALSE;
+	if (ISARG_MOB(0)) *ret = ARG_MOB(0)->gc && TRUE;
+	else if(ISARG_OBJ(0)) *ret = ARG_OBJ(0)->gc && TRUE;
+	else if(ISARG_ROOM(0)) *ret = ARG_ROOM(0)->gc && TRUE;
+	else if(ISARG_TOK(0)) *ret = ARG_TOK(0)->gc && TRUE;
+
+	return TRUE;
+}
+
+// ISEXITVISIBLE $MOBILE $ROOM $DOOR
+// checks whether the door in the specified room is visible to the mob
+// returns a boolean
+// This will call the SHOWEXIT trigger in the process.
+DECL_IFC_FUN(ifc_isexitvisible)
+{
+	*ret = FALSE;
+
+	if (ISARG_MOB(0) && ISARG_ROOM(1) && ISARG_STR(2))
+	{
+		int door = get_num_dir(ARG_STR(2));
+
+		if (door >= 0 && door < MAX_DIR)
+		{
+			*ret = is_exit_visible(ARG_MOB(0), ARG_ROOM(1), door);
+			return TRUE;
+		}
+	}
+
+	return FALSE;
+}
+
+DECL_IFC_FUN(ifc_savage)
+{
+	if (ISARG_ROOM(0)) *ret = get_room_savage_level(ARG_ROOM(0));
+	else if (ISARG_AREGION(0))
+	{
+		if (ARG_AREGION(0)->uid > 0 && ARG_AREGION(0)->savage_level < 0)
+			*ret = ARG_AREGION(0)->area->region.savage_level;
+		else
+			*ret = ARG_AREGION(0)->savage_level;
+	}
+	else if (ISARG_AREA(0)) *ret = ARG_AREA(0)->region.savage_level;
+	else return FALSE;
+
+	return TRUE;
 }

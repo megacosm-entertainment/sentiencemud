@@ -580,7 +580,7 @@ const struct flag_type act2_flags[]=
 {
     {   "churchmaster",			ACT2_CHURCHMASTER,		TRUE	},
     {   "noquest",				ACT2_NOQUEST,			TRUE    },
-    {   "plane_tunneler",		ACT2_PLANE_TUNNELER,	TRUE    },
+    {   "stay_region",  		ACT2_STAY_REGION,   	TRUE    },
     {	"no_hunt",				ACT2_NO_HUNT,			TRUE	},
     {   "airship_seller",		ACT2_AIRSHIP_SELLER,	TRUE    },
     {   "wizi_mob",				ACT2_WIZI_MOB,			TRUE    },
@@ -796,6 +796,7 @@ const struct flag_type imm_flags[] =
     {	"air",		IMM_AIR,		TRUE	},	// @@@NIB : 20070125
     {	"earth",	IMM_EARTH,		TRUE	},	// @@@NIB : 20070125
     {	"plant",	IMM_PLANT,		TRUE	},	// @@@NIB : 20070125
+    {   "suffocation",  IMM_SUFFOCATION,    TRUE    },
     {	NULL,			0,	0	}
 };
 
@@ -807,6 +808,7 @@ const struct flag_type form_flags[] =
     {	"magical",		FORM_MAGICAL,		TRUE	},
     {	"instant_decay",	FORM_INSTANT_DECAY,	TRUE	},
     {	"other",		FORM_OTHER,		TRUE	},
+    {   "no_breathing", FORM_NO_BREATHING,  TRUE    },
     {	"animal",		FORM_ANIMAL,		TRUE	},
     {	"sentient",		FORM_SENTIENT,		TRUE	},
     {	"undead",		FORM_UNDEAD,		TRUE	},
@@ -820,6 +822,7 @@ const struct flag_type form_flags[] =
     {	"crustacean",		FORM_CRUSTACEAN,	TRUE	},
     {	"worm",			FORM_WORM,		TRUE	},
     {	"blob",			FORM_BLOB,		TRUE	},
+    {   "plant",        FORM_PLANT,     TRUE    },
     {	"mammal",		FORM_MAMMAL,		TRUE	},
     {	"bird",			FORM_BIRD,		TRUE	},
     {	"reptile",		FORM_REPTILE,		TRUE	},
@@ -854,6 +857,7 @@ const struct flag_type part_flags[] =
     {	"horns",		PART_HORNS,			TRUE	},
     {	"legs",			PART_LEGS,			TRUE	},
     {	"long_tongue",	PART_LONG_TONGUE,	TRUE	},
+    {   "lungs",        PART_LUNGS,         TRUE    },
     {	"scales",		PART_SCALES,		TRUE	},
     {	"tail",			PART_TAIL,			TRUE	},
     {	"tentacles",	PART_TENTACLES,		TRUE	},
@@ -1765,6 +1769,7 @@ const struct flag_type res_flags[] =
     {	"air",		RES_AIR,		TRUE	},	// @@@NIB : 20070125
     {	"earth",	RES_EARTH,		TRUE	},	// @@@NIB : 20070125
     {	"plant",	RES_PLANT,		TRUE	},	// @@@NIB : 20070125
+    {   "suffocation",  RES_SUFFOCATION,    TRUE    },
     {   NULL,          	0,            		0    	}
 };
 
@@ -1799,6 +1804,7 @@ const struct flag_type vuln_flags[] =
     {	"air",		VULN_AIR,		TRUE	},	// @@@NIB : 20070125
     {	"earth",	VULN_EARTH,		TRUE	},	// @@@NIB : 20070125
     {	"plant",	VULN_PLANT,		TRUE	},	// @@@NIB : 20070125
+    {   "suffocation",  VULN_SUFFOCATION,   TRUE    },
     {   NULL,           0,                    	0       }
 };
 
@@ -2142,6 +2148,7 @@ const struct flag_type damage_classes[] = {
 	{"slash", DAM_SLASH, TRUE},
 	{"sound", DAM_SOUND, TRUE},
 	{"water", DAM_WATER, TRUE},
+    {"suffocating", DAM_SUFFOCATING, TRUE},
 	{NULL, 0, 0}
 };
 
@@ -2577,6 +2584,7 @@ const int dam_to_corpse[DAM_MAX][11] = {
 	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_EARTH
 	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_PLANT
 	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_AIR
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // DAM_SUFFOCATING
 };
 
 // When this becomes a linked list..... yeah
@@ -2736,6 +2744,7 @@ const struct flag_type variable_types[] = {
 	{"object",			VAR_OBJECT,				TRUE},
 	{"token",			VAR_TOKEN,				TRUE},
 	{"area",			VAR_AREA,				TRUE},
+    {"aregion",         VAR_AREA_REGION,        TRUE},
 	{"skill",			VAR_SKILL,				TRUE},
 	{"skillinfo",		VAR_SKILLINFO,			TRUE},
     {"song",            VAR_SONG,               TRUE},
@@ -2753,6 +2762,7 @@ const struct flag_type variable_types[] = {
 	{"token_id",		VAR_TOKEN_ID,			TRUE},
 	{"skillinfo_id",	VAR_SKILLINFO_ID,		TRUE},
 	{"area_id",			VAR_AREA_ID,			TRUE},
+    {"aregion_id",      VAR_AREA_REGION_ID,     TRUE},
 	{"wilds_id",		VAR_WILDS_ID,			TRUE},
 	{"church_id",		VAR_CHURCH_ID,			TRUE},
 	{"variable",		VAR_VARIABLE,			TRUE},
@@ -2763,6 +2773,7 @@ const struct flag_type variable_types[] = {
 	{"bllist_exit",		VAR_BLLIST_EXIT,		TRUE},
 	{"bllist_skill",	VAR_BLLIST_SKILL,		TRUE},
 	{"bllist_area",		VAR_BLLIST_AREA,		TRUE},
+    {"bllist_aregion",  VAR_BLLIST_AREA_REGION, TRUE},
 	{"bllist_wilds",	VAR_BLLIST_WILDS,		TRUE},
 	{"pllist_str",		VAR_PLLIST_STR,			TRUE},
 	{"pllist_conn",		VAR_PLLIST_CONN,		TRUE},
@@ -2770,6 +2781,8 @@ const struct flag_type variable_types[] = {
 	{"pllist_mob",		VAR_PLLIST_MOB,			TRUE},
 	{"pllist_obj",		VAR_PLLIST_OBJ,			TRUE},
 	{"pllist_tok",		VAR_PLLIST_TOK,			TRUE},
+    {"pllist_area",     VAR_PLLIST_AREA,        TRUE},
+    {"pllist_aregion",  VAR_PLLIST_AREA_REGION, TRUE},
 	{"pllist_church",	VAR_PLLIST_CHURCH,		TRUE},
 	{"pllist_variable",	VAR_PLLIST_VARIABLE,	TRUE},
 	{ NULL,				VAR_UNKNOWN,			FALSE }
@@ -2870,8 +2883,8 @@ const struct flag_type portal_gatetype[] =
     { "instancespecialroom",    GATETYPE_BLUEPRINT_SPECIAL,         TRUE    },
     { "normal",                 GATETYPE_NORMAL,		    	    TRUE	},
     { "random",                 GATETYPE_RANDOM,                    TRUE    },
-    { "regionrandom",           GATETYPE_REGIONRANDOM,              FALSE   },  // TODO: NYI
-    { "regionrecall",           GATETYPE_REGIONRECALL,			    FALSE	},  // TODO: NYI
+    { "regionrandom",           GATETYPE_REGIONRANDOM,              TRUE    },
+    { "regionrecall",           GATETYPE_REGIONRECALL,			    TRUE	},
     { "sectionrandom",          GATETYPE_SECTIONRANDOM,			    TRUE	},
     { "wilds",                  GATETYPE_WILDS,		    	        TRUE	},
     { "wildsrandom",            GATETYPE_WILDSRANDOM,               TRUE    },
@@ -2906,4 +2919,10 @@ const struct flag_type wilderness_regions[] =
 
 	// Other regions
 
+};
+
+const struct flag_type area_region_flags[] =
+{
+    { "no_recall",      AREA_REGION_NO_RECALL,      TRUE    },
+    { NULL,             0,             FALSE }
 };

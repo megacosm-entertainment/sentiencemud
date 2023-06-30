@@ -1491,6 +1491,10 @@ void free_church_player( CHURCH_PLAYER_DATA *pMember )
     return;
 }
 
+static void delete_area_region(void *ptr)
+{
+    free_area_region((AREA_REGION *)ptr);
+}
 
 AREA_DATA *new_area( void )
 {
@@ -1526,10 +1530,6 @@ AREA_DATA *new_area( void )
     pArea->file_name        =   str_dup( buf );
     pArea->uid              =   0;  /* Vizz - uid 0 is invalid */
     pArea->open		    =   FALSE;
-    pArea->x		    =   -1;
-    pArea->y		    =   -1;
-    pArea->land_x	    =   -1;
-    pArea->land_y	    =   -1;
     pArea->room_list = list_create(FALSE);
     pArea->comments =   &str_empty[0];
     pArea->description  =   &str_empty[0];
@@ -1541,6 +1541,20 @@ AREA_DATA *new_area( void )
     pArea->progs->vars      =	NULL;
     pArea->index_vars       =	NULL;
 
+    pArea->regions = list_createx(FALSE, NULL, delete_area_region);
+    pArea->region.area = pArea;
+    pArea->region.uid = 0;  // This is the only one in the area that has this.
+    pArea->region.name = str_dup("default region");
+    pArea->region.description = str_dup("");
+    pArea->region.comments = str_dup("");
+    pArea->region.x		    =   -1;
+    pArea->region.y		    =   -1;
+    pArea->region.land_x	    =   -1;
+    pArea->region.land_y	    =   -1;
+    pArea->region.rooms = list_create(FALSE);
+    pArea->region.players = list_create(FALSE);
+    pArea->region.valid = TRUE;
+    pArea->top_region_uid = 0;  // Pre-incremented before use
 
     return pArea;
 }
@@ -1558,6 +1572,14 @@ void free_area( AREA_DATA *pArea )
     free_string( pArea->comments);
     free_string( pArea->description);
 	list_destroy(pArea->room_list);
+    list_destroy(pArea->regions);
+
+    free_string(pArea->region.name);
+    free_string(pArea->region.description);
+    free_string(pArea->region.comments);
+    list_destroy(pArea->region.players);
+    list_destroy(pArea->region.rooms);
+    pArea->region.valid = FALSE;
 
 	for(boost = pArea->points; boost; boost = boost_next) {
 		boost_next = boost->next;
@@ -1568,11 +1590,53 @@ void free_area( AREA_DATA *pArea )
     if(pArea->progs && pArea->progs->progs) free_prog_list(pArea->progs->progs);
     free_prog_data(pArea->progs);
     variable_clearfield(VAR_AREA, pArea);
+    variable_clearfield(VAR_AREA_REGION, &pArea->region);
     variable_freelist(&pArea->index_vars);
 
 
     pArea->next         =   area_free->next;
     area_free           =   pArea;
+}
+
+AREA_REGION *area_region_free;
+
+AREA_REGION *new_area_region()
+{
+    AREA_REGION *region;
+
+    if(area_region_free)
+    {
+        region = area_region_free;
+        area_region_free = area_region_free->next;
+    }
+    else
+        region = alloc_mem(sizeof(AREA_REGION));
+
+    memset(region, 0, sizeof(AREA_REGION));
+
+    region->name = str_dup("");
+    region->description = str_dup("");
+    region->comments = str_dup("");
+    region->players = list_create(FALSE);
+    region->rooms = list_create(FALSE);
+
+    VALIDATE(region);
+    return region;
+}
+
+void free_area_region(AREA_REGION *region)
+{
+    if (!IS_VALID(region)) return;
+
+    free_string(region->name);
+    free_string(region->description);
+    free_string(region->comments);
+    list_destroy(region->players);
+    list_destroy(region->rooms);
+
+    variable_clearfield(VAR_AREA_REGION, region);
+
+    INVALIDATE(region);
 }
 
 
@@ -1604,12 +1668,15 @@ EXIT_DATA *new_exit( void )
     pExit->long_desc	=	&str_empty[0];
     pExit->rs_flags     =   0;
 
+    VALIDATE(pExit);
     return pExit;
 }
 
 
 void free_exit( EXIT_DATA *pExit )
 {
+    if (!IS_VALID(pExit)) return;
+
     free_string( pExit->keyword );
     free_string( pExit->short_desc );
     free_string( pExit->long_desc );
@@ -1624,6 +1691,8 @@ void free_exit( EXIT_DATA *pExit )
 
     pExit->next         =   exit_free;
     exit_free           =   pExit;
+
+    INVALIDATE(pExit);
     return;
 }
 

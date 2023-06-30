@@ -62,15 +62,15 @@ void do_disembark( CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-    if ( ship->ship_type == SHIP_AIR_SHIP && !mobile_is_flying(ch) )
+    if ( ship->ship_type == SHIP_AIR_SHIP )
     {
-		if ( ship->speed > SHIP_SPEED_STOPPED )
+		if ( ship->ship_power > SHIP_SPEED_STOPPED )
 		{
 			act( "The doors of the airship are locked!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
 			return;
 		}
 
-		if ( ship->speed == SHIP_SPEED_STOPPED )
+		if ( ship->ship_power == SHIP_SPEED_STOPPED && !mobile_is_flying(ch) )
 		{
 			act( "You need to be flying to disembark a flying airship.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
 			return;
@@ -206,39 +206,103 @@ ROOM_INDEX_DATA *get_portal_destination(CHAR_DATA *ch, OBJ_DATA *portal, bool al
 			break;
 
 		case GATETYPE_REGIONRECALL:
-			// TODO: Complete
+			// Value 5: AUID (0 = area of current room, does not work in wilds)
+			// Value 6: Region index (0 = default region)
+			{
+				AREA_DATA *area = NULL;
+				ROOM_INDEX_DATA *here;
+
+				// Get the area
+				if (portal->value[5] > 0)
+				{
+					area = get_area_from_uid(portal->value[5]);
+				}
+				else
+				{
+					// Current area if not in wilderness
+					here = obj_room(portal);
+
+					if (here && !here->wilds)
+						area = here->area;
+				}
+
+				if (area)
+				{
+					AREA_REGION *region;
+					if (portal->value[6] > 0)
+					{
+						region = (AREA_REGION *)list_nthdata(area->regions, portal->value[6]);
+					}
+					else
+					{
+						// Default region
+						region = &area->region;
+					}
+
+					if (IS_VALID(region))
+					{
+						location = location_to_room(&region->recall);
+					}
+				}
+			}
 			break;
 
 		case GATETYPE_AREARECALL:
 			// Value 5: AUID (0 = area of current room, does not work in wilds)
 			{
-				ROOM_INDEX_DATA *here;
+				AREA_DATA *area = NULL;
 
-				here = obj_room(portal);
+				if (portal->value[5] > 0)
+					area = get_area_from_uid(portal->value[5]);
+				else
+				{
+					ROOM_INDEX_DATA *here = obj_room(portal);
 
-				if(here && !here->wilds) {
-					AREA_DATA *area;
-
-					if (portal->value[5] > 0)
-						area = get_area_from_uid(portal->value[5]);
-					else
+					if (here && !here->wilds)
 						area = here->area;
-					
-					if (area)
-						location = location_to_room(&area->recall);
 				}
+					
+				if (area)
+					location = location_to_room(&area->region.recall);
 			}
 			break;
 
 		case GATETYPE_REGIONRANDOM:
 			// TODO: Complete
+			// Value 5: AUID (0 = current area, does not work in wilds)
+			// Value 6: Region Index
 			if (allow_random)
 			{
+				AREA_DATA *area = NULL;
 
+				if (portal->value[5] > 0)
+					area = get_area_from_uid(portal->value[5]);
+				else
+				{
+					ROOM_INDEX_DATA *here = obj_room(portal);
+
+					if (here && !here->wilds)
+						area = here->area;
+				}
+
+				if (area)
+				{
+					AREA_REGION *region = NULL;
+					if (portal->value[6] > 0)
+						region = (AREA_REGION *)list_nthdata(area->regions, portal->value[6]);
+					else
+						region = &area->region;
+
+					if (IS_VALID(region))
+					{
+						location = get_random_room_region(ch, region);
+					}
+				}
 			}
 			break;
 		
 		case GATETYPE_SECTIONRANDOM:
+			// Value 5: Section index (0 = current section, <0 = ordinal index, >0 = generated index)
 			if( allow_random && IS_VALID(old_room->instance_section) )
 			{
 				INSTANCE_SECTION *section = old_room->instance_section;
@@ -466,14 +530,14 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 
 	    if( portal->ship->ship_type == SHIP_AIR_SHIP )
 	    {
-	    	if( !mobile_is_flying(ch) && portal->ship->speed != SHIP_SPEED_LANDED )
+	    	if( !mobile_is_flying(ch) && portal->ship->ship_power != SHIP_SPEED_LANDED )
 	    	{
 				act("You need to be flying to board a flying airship.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 				return;
 			}
 		}
 
-		if (portal->ship->speed > SHIP_SPEED_STOPPED)
+		if (portal->ship->ship_power > SHIP_SPEED_STOPPED)
 		{
 			act("You can't board a moving vessel.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			return;

@@ -397,7 +397,7 @@ char *format_obj_to_char(OBJ_DATA * obj, CHAR_DATA * ch, bool fShort)
 
 		    if( IS_NULLSTR(ship->ship_name) )
 		    {
-				if (obj->ship->speed > SHIP_SPEED_STOPPED)
+				if (obj->ship->ship_power > SHIP_SPEED_STOPPED)
 				{
 					if (obj->ship->ship_type == SHIP_AIR_SHIP)
 					{
@@ -429,7 +429,7 @@ char *format_obj_to_char(OBJ_DATA * obj, CHAR_DATA * ch, bool fShort)
 				{
 					if (obj->ship->ship_type == SHIP_AIR_SHIP)
 					{
-						if( ship->speed == SHIP_SPEED_LANDED )
+						if( ship->ship_power == SHIP_SPEED_LANDED )
 						{
 							if( IS_NULLSTR(ship->flag) )
 							{
@@ -475,7 +475,7 @@ char *format_obj_to_char(OBJ_DATA * obj, CHAR_DATA * ch, bool fShort)
 			}
 			else
 			{
-				if (obj->ship->speed > SHIP_SPEED_STOPPED)
+				if (obj->ship->ship_power > SHIP_SPEED_STOPPED)
 				{
 					if (obj->ship->ship_type == SHIP_AIR_SHIP)
 					{
@@ -505,7 +505,7 @@ char *format_obj_to_char(OBJ_DATA * obj, CHAR_DATA * ch, bool fShort)
 				{
 					if (obj->ship->ship_type == SHIP_AIR_SHIP)
 					{
-						if( ship->speed == SHIP_SPEED_LANDED )
+						if( ship->ship_power == SHIP_SPEED_LANDED )
 						{
 							if( IS_NULLSTR(ship->flag) )
 							{
@@ -1728,9 +1728,9 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 	for (count = 0; count < linelength; count++)
 	send_to_char(" ", ch);
 
-	pexit = room->exit[7];
-	if (pexit != NULL && (!IS_SET(pexit->exit_info, EX_HIDDEN) ||
-		IS_SET(pexit->exit_info, EX_FOUND)) && !IS_SET(pexit->exit_info, EX_WALKTHROUGH)) {
+	pexit = room->exit[DIR_NORTHWEST];
+	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) && is_exit_visible(ch, room, DIR_NORTHWEST))
+	{
 		if (IS_SET(pexit->exit_info, EX_CLOSED))
 		{
 			if (IS_SET(pexit->exit_info, EX_TRANSPARENT))
@@ -1744,9 +1744,9 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 		send_to_char("{b-     ", ch);
 
 
-	pexit = room->exit[0];
-	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
-		(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
+	pexit = room->exit[DIR_NORTH];
+	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) && is_exit_visible(ch, room, DIR_NORTH))
+	{
 		if (IS_SET(pexit->exit_info, EX_CLOSED))
 		{
 			if (IS_SET(pexit->exit_info, EX_TRANSPARENT))
@@ -1759,9 +1759,9 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 	} else
 		send_to_char("{b-", ch);
 
-	pexit = room->exit[6];
-	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
-		(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
+	pexit = room->exit[DIR_NORTHEAST];
+	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) && is_exit_visible(ch, room, DIR_NORTHEAST))
+	{
 		if (IS_SET(pexit->exit_info, EX_CLOSED))
 		{
 			if (IS_SET(pexit->exit_info, EX_TRANSPARENT))
@@ -1777,9 +1777,9 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 
 	send_to_char ("{B({b-----------------------------------------------{B){b  ", ch);
 
-	pexit = room->exit[3];
-	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
-		(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
+	pexit = room->exit[DIR_WEST];
+	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) && is_exit_visible(ch, room, DIR_WEST))
+	{
 		if (IS_SET(pexit->exit_info, EX_CLOSED))
 		{
 			if (IS_SET(pexit->exit_info, EX_TRANSPARENT))
@@ -1792,9 +1792,9 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 	} else
 		send_to_char("-{B<{b-", ch);
 
-	pexit = room->exit[4];
-	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
-		(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
+	pexit = room->exit[DIR_UP];
+	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) && is_exit_visible(ch, room, DIR_UP))
+	{
 		if (IS_SET(pexit->exit_info, EX_CLOSED))
 		{
 			if (IS_SET(pexit->exit_info, EX_TRANSPARENT))
@@ -1807,9 +1807,9 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 	} else
 		send_to_char("--{B({WA{B){b-", ch);
 
-	pexit = room->exit[5];
-	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
-		(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
+	pexit = room->exit[DIR_DOWN];
+	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) && is_exit_visible(ch, room, DIR_DOWN))
+	{
 		if (IS_SET(pexit->exit_info, EX_CLOSED))
 		{
 			if (IS_SET(pexit->exit_info, EX_TRANSPARENT))
@@ -1822,9 +1822,9 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 	} else
 		send_to_char("--{B>{b", ch);
 
-	pexit = room->exit[1];
-	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
-		(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
+	pexit = room->exit[DIR_EAST];
+	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) && is_exit_visible(ch, room, DIR_EAST))
+	{
 		if (IS_SET(pexit->exit_info, EX_CLOSED))
 		{
 			if (IS_SET(pexit->exit_info, EX_TRANSPARENT))
@@ -1840,9 +1840,9 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 	for (count = 0; count < 51; count++)
 		send_to_char(" ", ch);
 
-	pexit = room->exit[9];
-	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
-		(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
+	pexit = room->exit[DIR_SOUTHWEST];
+	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) && is_exit_visible(ch, room, DIR_SOUTHWEST))
+	{
 		if (IS_SET(pexit->exit_info, EX_CLOSED))
 		{
 			if (IS_SET(pexit->exit_info, EX_TRANSPARENT))
@@ -1855,9 +1855,9 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 	} else
 		send_to_char("-     ", ch);
 
-	pexit = room->exit[2];
-	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
-		(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
+	pexit = room->exit[DIR_SOUTH];
+	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) && is_exit_visible(ch, room, DIR_SOUTH))
+	{
 		if (IS_SET(pexit->exit_info, EX_CLOSED))
 		{
 			if (IS_SET(pexit->exit_info, EX_TRANSPARENT))
@@ -1870,9 +1870,9 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 	} else
 		send_to_char("-{b", ch);
 
-	pexit = room->exit[8];
-	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
-		(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
+	pexit = room->exit[DIR_SOUTHEAST];
+	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) && is_exit_visible(ch, room, DIR_SOUTHEAST))
+	{
 		if (IS_SET(pexit->exit_info, EX_CLOSED))
 		{
 			if (IS_SET(pexit->exit_info, EX_TRANSPARENT))
@@ -2934,6 +2934,8 @@ void do_exits(CHAR_DATA * ch, char *argument)
 
 			if(!can_see_room (ch, to_room))
 				continue;
+
+			if(!is_exit_visible(ch, ch->in_room, door)) continue;
 
 			found = TRUE;
 
@@ -5350,10 +5352,12 @@ char *get_char_where(CHAR_DATA *ch)
 
 	}
 
-	if(ch->in_room->area->area_who <= AREA_BLANK || ch->in_room->area->area_who >= AREA_WHO_MAX)
+	AREA_REGION *region = get_room_region(ch->in_room);
+
+	if (!IS_VALID(region) || region->area_who <= AREA_BLANK || region->area_who >= AREA_WHO_MAX)
 		return str_dup("      ");
 
-	return str_dup(flag_string(area_who_display,ch->in_room->area->area_who));
+	return str_dup(flag_string(area_who_display,region->area_who));
 }
 
 #if 0
@@ -6475,18 +6479,22 @@ void do_scry(CHAR_DATA *ch, char *argument)
 	check_improve(ch,gsn_scry,TRUE,5);
 	buffer = new_buf();
 	count = 0;
+	int skill = get_skill(ch, gsn_scry);
 	iterator_start(&vit, loaded_chars);
 	while(( victim = (CHAR_DATA *)iterator_nextdata(&vit)))
 	{
-		if (victim->in_room && victim->in_room->area->open && is_name(arg, victim->name) && can_see(ch, victim) &&
-			IS_NPC(victim) && number_percent() < get_skill(ch, gsn_scry) &&
+		AREA_REGION *region = get_room_region(victim->in_room);
+
+		if (IS_VALID(region) && victim->in_room->area->open && is_name(arg, victim->name) && can_see(ch, victim) &&
+			!IS_VALID(victim->in_room->instance_section) &&
+			IS_NPC(victim) && number_percent() < skill &&
 			(!local || ch->in_room->area == victim->in_room->area) &&
-			(	(victim->in_room->area->place_flags == PLACE_FIRST_CONTINENT) ||
-				(victim->in_room->area->place_flags == PLACE_SECOND_CONTINENT) ||
-				(victim->in_room->area->place_flags == PLACE_THIRD_CONTINENT) ||
-				(victim->in_room->area->place_flags == PLACE_FOURTH_CONTINENT) ||
-				(victim->in_room->area->place_flags == PLACE_ISLAND) ||
-				(victim->in_room->area->place_flags == PLACE_WILDERNESS) ||
+			(	(region->place_flags == PLACE_FIRST_CONTINENT) ||
+				(region->place_flags == PLACE_SECOND_CONTINENT) ||
+				(region->place_flags == PLACE_THIRD_CONTINENT) ||
+				(region->place_flags == PLACE_FOURTH_CONTINENT) ||
+				(region->place_flags == PLACE_ISLAND) ||
+				(region->place_flags == PLACE_WILDERNESS) ||
 				!str_cmp(victim->in_room->area->name, "Wilderness"))) {
 			found = TRUE;
 			count++;
@@ -6649,7 +6657,7 @@ void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
 /* Check north */
     while(last_room->exit[ DIR_NORTH ] != NULL
           && y > 1
-          && !IS_SET(last_room->exit[ DIR_NORTH ]->exit_info, EX_HIDDEN))
+          && is_exit_visible(ch, last_room, DIR_NORTH))
     {
         y--;
 
@@ -6680,7 +6688,7 @@ void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
         y2 = y;
 
         while(temp->exit[ DIR_EAST ] != NULL && x2 < 8
-              && !IS_SET(temp->exit[ DIR_EAST ]->exit_info, EX_HIDDEN))
+              && is_exit_visible(ch, temp, DIR_EAST))
         {
             *(map + 10 * y2 + x2 + 1) = '-';
 
@@ -6704,7 +6712,7 @@ void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
             x2++;
 
             if (temp->exit[ DIR_SOUTH ] != NULL
-                && !IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_HIDDEN))
+                && is_exit_visible(ch, temp, DIR_SOUTH))
             {
 
                 *(map + 10 * (y2+1) + x2) = '|';
@@ -6735,7 +6743,7 @@ void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
 
         while(temp->exit[ DIR_WEST ] != NULL
               && x2 > 1
-              && !IS_SET(temp->exit[ DIR_WEST ]->exit_info, EX_HIDDEN))
+              && is_exit_visible(ch, temp, DIR_WEST))
         {
             *(map + 10 * y2 + x2 - 1) = '-';
 
@@ -6760,7 +6768,7 @@ void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
             x2--;
 
             if (temp->exit[ DIR_SOUTH ] != NULL
-                && !IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_HIDDEN))
+                && is_exit_visible(ch, temp, DIR_SOUTH))
             {
                 *(map + 10 * (y2+1) + x2) = '|';
 
@@ -6792,7 +6800,7 @@ void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
 
     while(last_room->exit[ DIR_SOUTH ] != NULL
           && y < 5
-          && !IS_SET(last_room->exit[ DIR_SOUTH ]->exit_info, EX_HIDDEN))
+          && is_exit_visible(ch, last_room, DIR_SOUTH))
     {
         y++;
 
@@ -6825,7 +6833,7 @@ void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
 
         while(temp->exit[ DIR_EAST ] != NULL
               && x2 < 8
-              && !IS_SET(temp->exit[ DIR_EAST ]->exit_info, EX_HIDDEN))
+              && is_exit_visible(ch, temp, DIR_EAST))
         {
             *(map + 10 * y2 + x2 + 1) = '-';
 
@@ -6849,7 +6857,7 @@ void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
             x2++;
 
             if (temp->exit[ DIR_NORTH ] != NULL
-                && !IS_SET(temp->exit[ DIR_NORTH ]->exit_info, EX_HIDDEN))
+                && is_exit_visible(ch, temp, DIR_NORTH))
             {
                 *(map + 10 * (y2-1) + x2) = '|';
 
@@ -6878,7 +6886,7 @@ void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
 
         while(temp->exit[ DIR_WEST ] != NULL
               && x2 > 1
-              && !IS_SET(temp->exit[ DIR_WEST ]->exit_info, EX_HIDDEN))
+              && is_exit_visible(ch, temp, DIR_WEST))
         {
             *(map + 10 * y2 + x2 - 1) = '-';
 
@@ -6902,7 +6910,7 @@ void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
             x2--;
 
             if (temp->exit[ DIR_NORTH ] != NULL
-                && !IS_SET(temp->exit[ DIR_NORTH ]->exit_info, EX_HIDDEN))
+                && is_exit_visible(ch, temp, DIR_NORTH))
             {
                 *(map + 10 * (y2-1) + x2) = '|';
 
@@ -6935,7 +6943,7 @@ void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
 
     while(temp->exit[ DIR_EAST ] != NULL
           && x2 < 8
-          && !IS_SET(temp->exit[ DIR_EAST ]->exit_info, EX_HIDDEN))
+          && is_exit_visible(ch, temp, DIR_EAST))
     {
         *(map + 10 * y2 + x2 + 1) = '-';
 
@@ -6959,7 +6967,7 @@ void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
         x2++;
 
         if (temp->exit[ DIR_SOUTH ] != NULL
-            && !IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_HIDDEN))
+            && is_exit_visible(ch, temp, DIR_SOUTH))
         {
             *(map + 10 * (y2+1) + x2) = '|';
 
@@ -6982,7 +6990,7 @@ void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
         }
 
         if (temp->exit[ DIR_NORTH ] != NULL
-            && !IS_SET(temp->exit[ DIR_NORTH ]->exit_info, EX_HIDDEN))
+            && is_exit_visible(ch, temp, DIR_NORTH))
         {
             *(map + 10 * (y2-1) + x2) = '|';
 
@@ -7015,7 +7023,7 @@ void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
 
     while(temp->exit[ DIR_WEST ] != NULL
           && x2 > 1
-          && !IS_SET(temp->exit[ DIR_WEST ]->exit_info, EX_HIDDEN))
+          && is_exit_visible(ch, temp, DIR_WEST))
     {
         *(map + 10 * y2 + x2 - 1) = '-';
 
@@ -7040,7 +7048,7 @@ void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
         x2--;
 
         if (temp->exit[ DIR_SOUTH ] != NULL
-            && !IS_SET(temp->exit[ DIR_SOUTH ]->exit_info, EX_HIDDEN))
+            && is_exit_visible(ch, temp, DIR_SOUTH))
         {
             *(map + 10 * (y2+1) + x2) = '|';
 
@@ -7063,7 +7071,7 @@ void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
         }
 
         if (temp->exit[ DIR_NORTH ] != NULL
-            && !IS_SET(temp->exit[ DIR_NORTH ]->exit_info, EX_HIDDEN))
+            && is_exit_visible(ch, temp, DIR_NORTH))
         {
             *(map + 10 * (y2-1) + x2) = '|';
 
@@ -7280,7 +7288,10 @@ int relative_locale(CHAR_DATA *ch, CHAR_DATA *victim)
 	if (IS_SET(victim->in_room->room_flags, ROOM_NOWHERE))
 		return LOCALE_NOWHERE;
 
-	if (victim->in_room->area->place_flags == PLACE_NOWHERE)
+	AREA_REGION *region_v = get_room_region(victim->in_room);
+	AREA_REGION *region_c = get_room_region(ch->in_room);
+
+	if (IS_VALID(region_v) && region_v->place_flags == PLACE_NOWHERE)
 		return LOCALE_NOWHERE;
 
 	if (ch->in_room == victim->in_room)
@@ -7345,7 +7356,6 @@ int relative_locale(CHAR_DATA *ch, CHAR_DATA *victim)
 				if (IN_WILDERNESS(victim))
 					return LOCALE_IN_WILDS;
 
-
 				// We are in an instance, but they are not, but in the same area
 				return LOCALE_SAME_AREA;
 			}
@@ -7400,6 +7410,10 @@ int relative_locale(CHAR_DATA *ch, CHAR_DATA *victim)
 			if (victim->in_room->source)
 				return LOCALE_IN_CLONE_ROOM;
 
+			// Check they are in the same region, but not the default region (that cascades down to the same area)
+			if (IS_VALID(region_v) && IS_VALID(region_c) && region_v == region_c && region_c->uid > 0)
+				return LOCALE_SAME_REGION;
+
 			return LOCALE_SAME_AREA;
 		}
 	}
@@ -7443,7 +7457,7 @@ int relative_locale(CHAR_DATA *ch, CHAR_DATA *victim)
 				if (victim->in_room->source)
 					return LOCALE_IN_CLONE_ROOM;
 
-				if (place == victim->in_room->area->place_flags)
+				if (IS_VALID(region_v) && place == region_v->place_flags)
 					return LOCALE_SAME_CONTINENT;
 			}
 
@@ -7458,7 +7472,7 @@ int relative_locale(CHAR_DATA *ch, CHAR_DATA *victim)
 
 				long place2 = IS_VALID(region2) ? region2->area_place_flags : victim->in_wilds->defaultPlaceFlags;
 
-				if (place2 == ch->in_room->area->place_flags)
+				if (IS_VALID(region_c) && place2 == region_c->place_flags)
 					return LOCALE_SAME_CONTINENT;
 
 				return LOCALE_IN_WILDS;
@@ -7468,7 +7482,7 @@ int relative_locale(CHAR_DATA *ch, CHAR_DATA *victim)
 				if (victim->in_room->source)
 					return LOCALE_IN_CLONE_ROOM;
 
-				if (ch->in_room->area->place_flags == victim->in_room->area->place_flags)
+				if (IS_VALID(region_c) && IS_VALID(region_v) && region_c->place_flags == region_v->place_flags)
 				{
 					// Same place/continent
 					return LOCALE_SAME_CONTINENT;
@@ -7501,12 +7515,15 @@ void where_locale(char *buf, CHAR_DATA *ch, CHAR_DATA *victim, int locale)
 			break;
 
 		case LOCALE_SAME_REGION:
-			// TODO: Add region support
+			sprintf(buf, "%-28s %s [SAME_REGION]\n\r", pers(victim, ch), victim->in_room->name);
 			break;
 		
 		case LOCALE_SAME_AREA:
-			sprintf(buf, "%-28s %s [SAME_AREA]\n\r", pers(victim, ch), victim->in_room->name);
+		{
+			AREA_REGION *region = get_room_region(victim->in_room);
+			sprintf(buf, "%-28s %s [SAME AREA]\n\r", pers(victim, ch), region->name);
 			break;
+		}
 
 		case LOCALE_SAME_CONTINENT:
 			// Can be in two static rooms on the same continent, two wilderness rooms with the same area place... or one of each
@@ -7680,12 +7697,16 @@ void where_locale(char *buf, CHAR_DATA *ch, CHAR_DATA *victim, int locale)
 		}
 
 		case LOCALE_ANYWHERE:
+		{
+			AREA_REGION *region = get_room_region(victim->in_room);
+
 			// At this point, they are not in an instance of any kind
-			if (victim->in_room->area->place_flags != PLACE_NOWHERE)
-				sprintf(buf, "%-28s %s [ANYWHERE]\n\r", pers(victim, ch), flag_string(place_flags, victim->in_room->area->place_flags));
+			if (region->place_flags != PLACE_NOWHERE)
+				sprintf(buf, "%-28s %s [ANYWHERE]\n\r", pers(victim, ch), flag_string(place_flags, region->place_flags));
 			else
 				sprintf(buf, "%-28s ??? [ANYWHERE]\n\r", pers(victim, ch));
 			break;
+		}
 
 		case LOCALE_NOWHERE:
 			sprintf(buf, "%-28s ??? [NOWHERE]\n\r", pers(victim, ch));
@@ -7733,8 +7754,12 @@ bool in_same_locale(CHAR_DATA *ch, CHAR_DATA *victim)
 		}
 	}
 	else if (!IS_VALID(section2))
-		// Neither in an instance, so in the same area proper
-		return TRUE;
+	{
+		AREA_REGION *region = get_room_region(ch->in_room);
+		AREA_REGION *region2 = get_room_region(victim->in_room);
+
+		return IS_VALID(region) && IS_VALID(region2) && region == region2;
+	}
 
 	return FALSE;
 }
@@ -8098,7 +8123,7 @@ void look_sextant(CHAR_DATA *ch, OBJ_DATA *sextant)
 				y = URANGE(0, y, ship->ship->in_room->wilds->map_size_y - 1);
 			}
 
-			if( ship->speed <= SHIP_SPEED_STOPPED && ship_isowner_player(ship, ch) )
+			if( ship->ship_power <= SHIP_SPEED_STOPPED && ship_isowner_player(ship, ch) )
 			{
 				ship->sextant_x = x;
 				ship->sextant_y = y;
