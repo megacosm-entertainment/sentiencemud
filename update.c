@@ -1623,7 +1623,7 @@ void char_update(void)
 
 
 		// Kick out people after they idle long enough
-		if (ch->timer > 30)
+		if (ch->timer > disconnect_timeout)
 			ch_quit = ch;
 
 		if (ch->position >= POS_STUNNED) {
@@ -1759,7 +1759,7 @@ void char_update(void)
 			if (IS_IMMORTAL(ch))
 				ch->timer = 0;
 
-			if (++ch->timer >= 12)
+			if (++ch->timer >= limbo_timeout)
 			{
 				/* remove any PURGE_IDLE tokens on the character */
 				for (token = ch->tokens; token != NULL; token = token_next)

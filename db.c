@@ -156,6 +156,9 @@ extern  MOB_INDEX_DATA	*mob_index_free;
 extern  OBJ_INDEX_DATA	*obj_index_free;
 extern  ROOM_INDEX_DATA *room_index_free;
 
+int disconnect_timeout = 30;
+int limbo_timeout = 12;
+
 /*
  * Globals.
  */

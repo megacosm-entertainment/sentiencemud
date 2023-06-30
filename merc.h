@@ -8726,4 +8726,7 @@ extern LLIST *loaded_special_keys;
 extern LLIST *loaded_waypoints;
 extern LLIST *loaded_waypoint_paths;
 
+extern int disconnect_timeout;
+extern int limbo_timeout;
+
 #endif /* !def __MERC_H__ */

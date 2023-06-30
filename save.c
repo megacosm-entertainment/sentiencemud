@@ -399,13 +399,13 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 	else if(ch->in_wilds) {
 		fprintf (fp, "Vroom %ld %ld %ld %ld\n",
 			ch->in_room->x, ch->in_room->y, ch->in_wilds->pArea->uid, ch->in_wilds->uid);
+	} else if(ch->was_in_wilds) {
+		fprintf (fp, "Vroom %d %d %ld %ld\n",
+		ch->was_at_wilds_x, ch->was_at_wilds_y, ch->was_in_wilds->pArea->uid, ch->was_in_wilds->uid);
 	} else if(ch->was_in_room) {
 		if(ch->was_in_room->source)
 			fprintf(fp,"CloneRoom %ld %ld %ld\n",
 				ch->was_in_room->source->vnum, ch->was_in_room->id[0], ch->was_in_room->id[1]);
-		else if( ch->was_in_wilds )
-			fprintf (fp, "Vroom %ld %ld %ld %ld\n",
-				ch->was_in_room->x, ch->was_in_room->y, ch->was_in_wilds->pArea->uid, ch->was_in_wilds->uid);
 		else
 			fprintf(fp,"Room %ld\n", ch->was_in_room->vnum);
 	} else if(ch->in_room->source) {
