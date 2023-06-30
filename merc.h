@@ -5832,6 +5832,11 @@ struct dungeon_index_special_exit_data
     bool connect_if_twoway;    // Only connect FROM to destination if the return exit can be established (either by connecting an unlinked exit or creating the exit)
 };
 
+#define DEATH_RELEASE_NORMAL        0   // You go to the death plane like normal
+#define DEATH_RELEASE_TO_START      1   // You stay behind with your corpse, but if you release, you go to the dungeon start
+#define DEATH_RELEASE_TO_FLOOR      2   // You stay behind with your corpse, but if you release, you go to the current floor start
+#define DEATH_RELEASE_TO_CHECKPOINT 3   // You stay behind with your corpse, but if you release, you go to the last checkpoint
+
 
 struct dungeon_index_data
 {
@@ -5861,6 +5866,15 @@ struct dungeon_index_data
 	char *zone_out;
 	char *zone_out_portal;			// Zoneout if there is a dungeon portal defined
 	char *zone_out_mount;			// Zoneout when riding a mount
+
+    int min_group;                  // Minimum number needed in your group (excluding pets and mounts)
+    int max_group;                  // Maximum number allowed in your group (excluding pets and mounts)
+
+    int max_players;                // Maximum number of players that can enter.
+                                    // Duties will just be single player dungeons.
+
+    int death_release;              // How to handle deaths in the dungeon.    
+
 
     LLIST **        progs;
     pVARIABLE		index_vars;
@@ -9467,5 +9481,7 @@ extern LLIST *gc_mobiles;
 extern LLIST *gc_objects;
 extern LLIST *gc_rooms;
 extern LLIST *gc_tokens;
+extern int disconnect_timeout;
+extern int limbo_timeout;
 
 #endif /* !def __merc_h__ */

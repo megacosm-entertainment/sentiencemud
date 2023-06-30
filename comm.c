@@ -3128,8 +3128,19 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 			{
 				if (ch->in_wilds != NULL)
 				{
-					plogf("nanny.c, join_world(): Transferring char to VRoom");
-					char_to_vroom (ch, ch->in_wilds, ch->at_wilds_x, ch->at_wilds_y);
+					if (check_for_bad_room(ch->in_wilds, ch->at_wilds_x, ch->at_wilds_y) )
+					{
+						plogf("nanny.c, join_world(): Transferring char to VRoom");
+						char_to_vroom (ch, ch->in_wilds, ch->at_wilds_x, ch->at_wilds_y);
+					}
+					else
+					{
+						plogf("nanny.c, join_world(): Previous VRoom invalid.  Relocating to Temple");
+						ch->in_wilds = NULL;
+						ch->at_wilds_x = -1;
+						ch->at_wilds_y = -1;
+						char_to_room (ch, room_index_temple);
+					}
 				}
 				else
 				{

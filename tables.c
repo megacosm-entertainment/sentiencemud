@@ -2926,3 +2926,11 @@ const struct flag_type area_region_flags[] =
     { "no_recall",      AREA_REGION_NO_RECALL,      TRUE    },
     { NULL,             0,             FALSE }
 };
+
+const struct flag_type death_release_modes[] =
+{
+    { "release_to_start",       DEATH_RELEASE_TO_START,      TRUE    },
+    { "release_to_floor",       DEATH_RELEASE_TO_FLOOR,      TRUE    },
+    { "release_to_checkpoint",  DEATH_RELEASE_TO_CHECKPOINT, TRUE    },
+    { NULL,                     0,                           FALSE   }
+};

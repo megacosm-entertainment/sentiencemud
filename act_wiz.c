@@ -118,6 +118,9 @@ int gconfig_read (void)
 
     gconfig.db_version = VERSION_DB_000;
 
+	disconnect_timeout = 30;
+	limbo_timeout = 12;
+
     for(;;)
     {
         word = feof (fp) ? "END" : fread_word(fp);
@@ -143,6 +146,7 @@ int gconfig_read (void)
 				break;
 			case 'D':
 				KEY ("DBVersion", gconfig.db_version, fread_number(fp));
+				KEY ("DisconnectTimeout", disconnect_timeout, fread_number(fp));
 				break;
 
            case 'E':
@@ -178,11 +182,25 @@ int gconfig_read (void)
 
 
 					if(!gconfig.next_church_uid) gconfig.next_church_uid++;
+
+					if (disconnect_timeout <= 0)
+						disconnect_timeout = 30;
+					
+					if (limbo_timeout <= 0)
+						limbo_timeout = 12;
+
+					if (disconnect_timeout <= limbo_timeout)
+						disconnect_timeout = limbo_timeout + 5;
+
 					fclose(fp);
 					gconfig_write();
 					return(0); /* Success*/
 				}
 	            break;
+
+			case 'L':
+				KEY("LimboTimeout", limbo_timeout, fread_number(fp));
+				break;
 
 			case 'M':
 				{
@@ -311,6 +329,8 @@ int gconfig_read (void)
             fread_to_eol(fp);
         }
     } /* end for */
+
+
 }
 
 void write_reserved(FILE *fp, RESERVED_WNUM *reserved)
@@ -387,6 +407,8 @@ int gconfig_write(void)
     if(newlock) fprintf(fp, "Newlock\n");
     if(wizlock) fprintf(fp, "Wizlock\n");
     if(is_test_port) fprintf(fp, "Testport\n");
+	fprintf(fp, "DisconnectTimeout %d\n", disconnect_timeout);
+	fprintf(fp, "LimboTimeout %d\n", limbo_timeout);
 
 	write_reserved(fp, reserved_room_wnums);
 	write_reserved(fp, reserved_mob_wnums);
