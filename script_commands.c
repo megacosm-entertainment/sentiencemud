@@ -2281,7 +2281,7 @@ SCRIPT_CMD(scriptcmd_instancefailure)
 		{
 			p_percent2_trigger(NULL, arg->d.instance, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_FAILED,NULL);
 
-			SET_BIT(arg->d.instance->flags, INSTANCE_FAILURE);
+			SET_BIT(arg->d.instance->flags, INSTANCE_FAILED);
 		}
 	}
 }
