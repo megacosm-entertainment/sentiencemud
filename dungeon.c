@@ -1636,7 +1636,8 @@ bool dungeon_can_idle(DUNGEON *dungeon)
 	return IS_SET(dungeon->flags, DUNGEON_DESTROY) ||
 			(!IS_SET(dungeon->flags, DUNGEON_NO_IDLE) &&
 				(!IS_SET(dungeon->flags, DUNGEON_IDLE_ON_COMPLETE) ||
-				IS_SET(dungeon->flags, DUNGEON_COMPLETED)));
+				IS_SET(dungeon->flags, DUNGEON_COMPLETED) ||
+				IS_SET(dungeon->flags, DUNGEON_FAILED)));
 }
 
 void dungeon_check_empty(DUNGEON *dungeon)
@@ -1683,7 +1684,7 @@ void dungeon_update()
 		}
 		iterator_stop(&iit);
 
-		if( IS_SET(dungeon->flags, DUNGEON_DESTROY) || !IS_SET(dungeon->flags, DUNGEON_IDLE_ON_COMPLETE) || IS_SET(dungeon->flags, DUNGEON_COMPLETED) )
+		if( IS_SET(dungeon->flags, DUNGEON_DESTROY) || !IS_SET(dungeon->flags, DUNGEON_IDLE_ON_COMPLETE) || IS_SET(dungeon->flags, DUNGEON_COMPLETED) || IS_SET(dungeon->flags, DUNGEON_FAILED) )
 		{
 			if( dungeon->idle_timer > 0 )
 			{
@@ -1739,6 +1740,7 @@ const struct olc_cmd_type dngedit_table[] =
 	{ "list",			dngedit_list		},
 	{ "mountout",		dngedit_mountout	},
 	{ "name",			dngedit_name		},
+	{ "release",		dngedit_release		},
 	{ "portalout",		dngedit_portalout	},
 	{ "scripted",		dngedit_scripted	},
 	{ "show",			dngedit_show		},
@@ -2460,6 +2462,34 @@ void dngedit_buffer_special_exits(BUFFER *buffer, DUNGEON_INDEX_DATA *dng)
 
 }
 
+DNGEDIT( dngedit_release )
+{
+	DUNGEON_INDEX_DATA *dng;
+
+	EDIT_DUNGEON(ch, dng);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  release <death release mode>\n\r", ch);
+		send_to_char("Please enter '? death_release' to see a list of modes.\n\r",ch);
+		return FALSE;
+	}
+
+	int value;
+	if ((value = flag_lookup(argument, death_release_modes)) == NO_FLAG)
+	{
+		send_to_char("Syntax:  release <death release mode>\n\r", ch);
+		send_to_char("Please enter '? death_release' to see a list of modes.\n\r",ch);
+		return FALSE;
+	}
+
+	dng->death_release = value;
+	send_to_char("Death release changed.\n\r", ch);
+	return TRUE;	
+}
+
+
+
 DNGEDIT( dngedit_scripted )
 {
 	DUNGEON_INDEX_DATA *dng;
@@ -2507,6 +2537,9 @@ DNGEDIT( dngedit_show )
 		sprintf(buf, "Repop:       %d minutes\n\r", dng->repop);
 	else
 		sprintf(buf, "Repop:       {Dnever{X\n\r");
+	add_buf(buffer, buf);
+
+	sprintf(buf,     "Death Release: %s\n\r", flag_string(death_release_modes, dng->death_release));
 	add_buf(buffer, buf);
 
 	room = get_room_index(dng->area, dng->entry_room);
@@ -7585,10 +7618,9 @@ DNGEDIT(dngedit_varclear)
 }
 
 
-
 //////////////////////////////////////////////////////////////
 //
-// Immortal Commands
+// Commands
 //
 void do_dungeon(CHAR_DATA *ch, char *argument)
 {
@@ -7599,6 +7631,8 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
 	if( argument[0] == '\0' )
 	{
 		send_to_char("Syntax:  dungeon leave\n\r", ch);
+		if (IS_DEAD(ch))
+			send_to_char("         dungeon release\n\r", ch);
 		if( ch->tot_level >= MAX_LEVEL )
 		{
 			send_to_char("         dungeon list\n\r", ch);
@@ -7657,10 +7691,19 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		ROOM_INDEX_DATA *room = dungeon->entry_room;
+		ROOM_INDEX_DATA *room = NULL;
 
-		if( !room )
-			room = room_index_temple;
+		if (location_isset(&ch->before_dungeon))
+		{
+			room = location_to_room(&ch->before_dungeon);
+			location_clear(&ch->before_dungeon);
+		}
+
+		// No previous room, so exit the dungeon
+		if (!room) room = dungeon->entry_room;
+
+		// No room, get the TEMPLE
+		if( !room ) room = room_index_temple;
 
 		// Should deal with their mount and pet if they have one
 		char_from_room(ch);
@@ -7675,6 +7718,102 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
 		act("{Y$n leaves $T.{x", ch, NULL, NULL, NULL, NULL, NULL, dungeon->index->name, TO_ROOM);
 		act("{YYou leave $T.{x", ch, NULL, NULL, NULL, NULL, NULL, dungeon->index->name, TO_CHAR);
 		do_function(ch, &do_look, "auto");
+		return;
+	}
+
+	if (!str_prefix(arg1, "release"))
+	{
+		INSTANCE *floor;
+
+		if (!IS_DEAD(ch))
+		{
+			send_to_char("Huh?\n\r", ch);
+			return;
+		}
+
+		if (!ch->can_release)
+		{
+			send_to_char("You cannot release at this time.\n\r", ch);
+			return;
+		}
+
+		DUNGEON *dungeon = get_room_dungeon(ch->in_room);
+		if (!IS_VALID(dungeon))
+		{
+			send_to_char("You are not in a dungeon.\n\r", ch);
+			return;
+		}
+
+		switch(dungeon->index->death_release)
+		{
+			// Standard death.  Either respawn as a newbie or go to the death plane
+			case DEATH_RELEASE_NORMAL:
+
+				// Newbie death release
+				if ((ch->tot_level < 10) && !IS_REMORT(ch))
+				{
+					// Set the recall point
+					location_from_room(&ch->recall,room_index_newbie_death);
+					// Resurrect to take care of any aftermath of being dead
+					resurrect_pc(ch);
+
+					send_to_char("\n\r{yYou wake up in a dazed state... maybe you weren't dead after all.\n\r{x", ch);
+					send_to_char("You notice that you are safe and healthy once again.\n\r", ch);
+
+					ch->position = POS_RESTING;
+					ch->hit  = ch->max_hit;
+					ch->mana = ch->max_mana;
+					ch->move = ch->max_move;
+				}
+				else
+				{
+					// Standard death timer
+					ch->time_left_death = MINS_PER_DEATH + 1;
+
+					ch->hit = ch->max_hit;
+					ch->mana = ch->max_mana;
+					ch->move = ch->max_move;
+					char_from_room(ch);
+					char_to_room(ch, room_index_death);
+					
+					send_to_char("You release your spirit to the plane of death.\n\r", ch);
+				}
+				return;
+			
+			case DEATH_RELEASE_TO_START:
+				floor = (INSTANCE *)list_nthdata(dungeon->floors, 1);
+
+				location_from_room(&ch->recall, floor->entrance);
+				break;
+
+			case DEATH_RELEASE_TO_FLOOR:
+				// This has to be valid for the "dungeon" to be valid
+				floor = ch->in_room->instance_section->instance;
+
+				location_from_room(&ch->recall, floor->entrance);
+				break;
+			
+			// If there is no checkpoint, go to the start
+			case DEATH_RELEASE_TO_CHECKPOINT:
+				if (ch->checkpoint)
+				{
+					location_from_room(&ch->recall, ch->checkpoint);
+				}
+				else
+				{
+					floor = (INSTANCE *)list_nthdata(dungeon->floors, 1);
+
+					location_from_room(&ch->recall, floor->entrance);
+				}
+				break;
+		}
+
+		// Restore the player
+		resurrect_pc(ch);
+
+		// Auto look
+		do_function(ch, &do_look, "auto");
+
 		return;
 	}
 
@@ -7732,6 +7871,8 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
 				char color = 'G';
 
 				if( IS_SET(dungeon->flags, DUNGEON_DESTROY) )
+					color = 'D';
+				else if( IS_SET(dungeon->flags, DUNGEON_FAILED) )
 					color = 'R';
 				else if( IS_SET(dungeon->flags, DUNGEON_COMPLETED) )
 					color = 'W';
@@ -8277,4 +8418,9 @@ bool dungeon_isorphaned(DUNGEON *dungeon)
 	// Any other owners?
 
 	return true;
+}
+
+void dungeon_check_failure(DUNGEON *dungeon)
+{
+
 }

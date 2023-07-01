@@ -65,8 +65,10 @@ const struct script_cmd_type area_cmd_table[] = {
 const struct script_cmd_type instance_cmd_table[] = {
 	{ "call",				scriptcmd_call,				FALSE,	TRUE	},
 	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	TRUE,	TRUE	},
+	{ "dungeonfailure",		scriptcmd_dungeonfailure,	TRUE,	TRUE	},
 	{ "echoat",				scriptcmd_echoat,			FALSE,	TRUE	},
 	{ "instancecomplete",	scriptcmd_instancecomplete,	TRUE,	TRUE	},
+	{ "instancefailure",	scriptcmd_instancefailure,	TRUE,	TRUE	},
 	{ "layout",				instancecmd_layout,			FALSE,	TRUE	},
 	{ "links",				instancecmd_links,			FALSE,	TRUE	},
 	{ "loadinstanced",		scriptcmd_loadinstanced,	TRUE,	TRUE	},
@@ -1596,7 +1598,7 @@ SCRIPT_CMD(scriptcmd_dungeoncomplete)
 		return;
 
 	if( arg->type == ENT_DUNGEON ) {
-		if( !IS_SET(arg->d.dungeon->flags, DUNGEON_COMPLETED) )
+		if( !IS_SET(arg->d.dungeon->flags, (DUNGEON_COMPLETED|DUNGEON_FAILED)) )
 		{
 			p_percent2_trigger(NULL, NULL, arg->d.dungeon, NULL, NULL, NULL, NULL, NULL, TRIG_COMPLETED,NULL);
 
@@ -1605,6 +1607,21 @@ SCRIPT_CMD(scriptcmd_dungeoncomplete)
 	}
 }
 
+// DUNGEONFAILURE $DUNGEON
+SCRIPT_CMD(scriptcmd_dungeonfailure)
+{
+	if(!expand_argument(info,argument,arg))
+		return;
+
+	if( arg->type == ENT_DUNGEON ) {
+		if( !IS_SET(arg->d.dungeon->flags, (DUNGEON_COMPLETED|DUNGEON_FAILED)) )
+		{
+			p_percent2_trigger(NULL, NULL, arg->d.dungeon, NULL, NULL, NULL, NULL, NULL, TRIG_FAILED,NULL);
+
+			SET_BIT(arg->d.dungeon->flags, DUNGEON_FAILED);
+		}
+	}
+}
 
 //////////////////////////////////////
 // E
@@ -2242,11 +2259,29 @@ SCRIPT_CMD(scriptcmd_instancecomplete)
 
 	if( arg->type == ENT_INSTANCE )
 	{
-		if( !IS_SET(arg->d.instance->flags, INSTANCE_COMPLETED) )
+		if( !IS_SET(arg->d.instance->flags, (INSTANCE_COMPLETED|INSTANCE_FAILED)) )
 		{
 			p_percent2_trigger(NULL, arg->d.instance, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_COMPLETED,NULL);
 
 			SET_BIT(arg->d.instance->flags, INSTANCE_COMPLETED);
+		}
+	}
+}
+
+
+// INSTANCEFAILURE $INSTANCE
+SCRIPT_CMD(scriptcmd_instancefailure)
+{
+	if(!expand_argument(info,argument,arg))
+		return;
+
+	if( arg->type == ENT_INSTANCE )
+	{
+		if( !IS_SET(arg->d.instance->flags, (INSTANCE_COMPLETED|INSTANCE_FAILED)) )
+		{
+			p_percent2_trigger(NULL, arg->d.instance, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_FAILED,NULL);
+
+			SET_BIT(arg->d.instance->flags, INSTANCE_FAILURE);
 		}
 	}
 }

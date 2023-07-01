@@ -4657,6 +4657,7 @@ void resurrect_pc(CHAR_DATA *ch)
     }
 
     ch->time_left_death = 0;
+	ch->can_release = FALSE;
 
     char_from_room(ch);
 
@@ -5070,53 +5071,6 @@ char *pirate_name_generator(void)
 
 	return (char *) str_dup(buf);
 }
-
-/*
- * This looks at the landing coords.
- * Currently used if airship lands outside in Wilds.
- */
-AREA_DATA *find_area_at_land_coords(int x, int y )
-{
-    AREA_DATA *temp;
-
-    for (temp = area_first; temp != NULL; temp = temp->next)
-    {
-	if ( temp->region.land_x == x && temp->region.land_y == y ) {
-	    break;
-  }
-    }
-
-    if ( temp == NULL )
-    {
-	bug("Couldn't find area.", 0);
-    }
-
-    return temp;
-}
-
-
-/*
- * This looks at city coords.
- * Currently used if airship lands in city.
- */
-AREA_DATA *find_area_at_coords(int x, int y )
-{
-    AREA_DATA *temp;
-
-    for (temp = area_first; temp != NULL; temp = temp->next)
-    {
-	if ( temp->region.x == x && temp->region.y == y )
-	    break;
-    }
-
-    if ( temp == NULL )
-    {
-	bug("Couldn't find area.", 0);
-    }
-
-    return temp;
-}
-
 
 /* get remort race of a character based on their player race */
 // NIB20090323 - simplified this by adding race pointers to the pc_race table that points to the race number for the remort
@@ -9849,7 +9803,7 @@ void get_room_recall(ROOM_INDEX_DATA *room, LOCATION *loc)
 	{
 		if (IS_VALID(room->instance_section))
 		{
-			// TODO: Need to get the recall for the section
+			// TODO: Need to get the recall for the section/instance
 		}
 		else if (!room->source && !room->wilds)
 		{
@@ -9882,4 +9836,52 @@ int get_room_savage_level(ROOM_INDEX_DATA *room)
 	}
 
 	return room->savage_level;
+}
+
+
+int get_region_distanceSQ(AREA_REGION *region, register int x, register int y)
+{
+	if (!IS_VALID(region)) return -1;	// Invalid
+	if (region->x < -1 || region->y < -1) return -1;
+
+	int dx = region->x - x;
+	int dy = region->y - y;
+
+	return dx * dx + dy * dy;
+}
+
+AREA_REGION *get_closest_area_region(AREA_DATA *area, register int x, register int y, int *closestDistSq, bool airship)
+{
+	int closestDistanceSq;
+	AREA_REGION *closest;
+
+	if (!airship || area->region.airship_land_spot > 0)
+	{
+		closestDistanceSq = get_region_distanceSQ(&area->region, x, y);
+		closest = &area->region;
+	}
+	else
+	{
+		closestDistanceSq = -1;
+		closest = NULL;
+	}
+
+	ITERATOR it;
+	AREA_REGION *region;
+	iterator_start(&it, area->regions);
+	while((region = (AREA_REGION *)iterator_nextdata(&it)))
+	{
+		if (airship && region->airship_land_spot < 1) continue;
+
+		int distSq = get_region_distanceSQ(region, x, y);
+		if (distSq >= 0 && (closestDistanceSq < 0 || distSq < closestDistanceSq))
+		{
+			closestDistanceSq = distSq;
+			closest = region;
+		}
+	}
+	iterator_stop(&it);
+
+	if (closestDistSq) *closestDistSq = closestDistanceSq;
+	return closest;
 }

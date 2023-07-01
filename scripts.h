@@ -2807,7 +2807,9 @@ SCRIPT_CMD(scriptcmd_varseton);
 
 SCRIPT_CMD(scriptcmd_echoat);
 SCRIPT_CMD(scriptcmd_dungeoncomplete);
+SCRIPT_CMD(scriptcmd_dungeonfailure);
 SCRIPT_CMD(scriptcmd_instancecomplete);
+SCRIPT_CMD(scriptcmd_instancefailure);
 
 SCRIPT_CMD(scriptcmd_makeinstanced);
 SCRIPT_CMD(scriptcmd_mload);

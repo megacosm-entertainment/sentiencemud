@@ -2735,7 +2735,8 @@ bool instance_can_idle(INSTANCE *instance)
 	return IS_SET(instance->flags, INSTANCE_DESTROY) ||
 			(!IS_SET(instance->flags, INSTANCE_NO_IDLE) &&
 				(!IS_SET(instance->flags, INSTANCE_IDLE_ON_COMPLETE) ||
-				IS_SET(instance->flags, INSTANCE_COMPLETED)));
+				IS_SET(instance->flags, INSTANCE_COMPLETED) ||
+				IS_SET(instance->flags, INSTANCE_FAILED)));
 }
 
 void instance_check_empty(INSTANCE *instance)
@@ -11218,6 +11219,8 @@ void do_instance(CHAR_DATA *ch, char *argument)
 			char color = 'G';
 
 			if( IS_SET(instance->flags, INSTANCE_DESTROY) )
+				color = 'D';
+			else if( IS_SET(instance->flags, INSTANCE_FAILED) )
 				color = 'R';
 			else if( IS_SET(instance->flags, INSTANCE_COMPLETED) )
 				color = 'W';

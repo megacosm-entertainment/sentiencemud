@@ -588,7 +588,6 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 	DUNGEON *in_dungeon = get_room_dungeon(old_room);
 	INSTANCE *in_instance = get_room_instance(old_room);
 
-
 	location = get_portal_destination(ch, portal, TRUE);
 
   	if (!location || location == old_room || !can_see_room(ch,location) ||
@@ -638,6 +637,13 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 
 	char_from_room(ch);
 	char_to_room(ch, location);
+
+	// Entering a dungeon
+	if (IS_VALID(to_dungeon) && !IS_VALID(in_dungeon))
+	{
+		// Save location
+		location_from_room(&ch->before_dungeon, old_room);
+	}
 
         /* Let portals cast spells */
 	{

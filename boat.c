@@ -1933,38 +1933,36 @@ void get_ship_location(CHAR_DATA *ch, SHIP_DATA *ship, char *buf, size_t len)
 			WILDS_TERRAIN *terrain = get_terrain_by_coors(wilds, room->x, room->y);
 
 			int closestDistanceSq = 401;	// 20 distance radius
-			AREA_DATA *closestArea = NULL;
+			AREA_REGION *closestRegion = NULL;
 			for( AREA_DATA *area = area_first; area; area = area->next )
 			{
 				if( area->wilds_uid == wilds->uid )
 				{
-					int distanceSq =
-						(area->region.x - room->x) * (area->region.x - room->x) +
-						(area->region.y - room->y) * (area->region.y - room->y);
+					int distanceSq;
+					AREA_REGION *region = get_closest_area_region(area, room->x, room->y, &distanceSq, FALSE);
 
 					if( distanceSq < closestDistanceSq )
 					{
 						closestDistanceSq = distanceSq;
-						closestArea = area;
+						closestRegion = region;
 					}
 				}
 			}
 
-			if( closestArea != NULL )
+			if( closestRegion != NULL )
 			{
 				if( ship_isowner_player(ship, ch) && ship->sextant_x >= 0 && ship->sextant_y >= 0 )
 				{
-					snprintf(buf, len, "Anchored at {YSouth {W%d{x by {YEast {W%d{x near {Y%s{x", ship->sextant_y, ship->sextant_x, closestArea->name);
+					snprintf(buf, len, "Anchored at {YSouth {W%d{x by {YEast {W%d{x near {Y%s{x in {Y%s{x", ship->sextant_y, ship->sextant_x, closestRegion->name, closestRegion->area->name);
 				}
 				else
 				{
-					snprintf(buf, len, "{Y%s{x near {Y%s{x", terrain->template->name, closestArea->name);
+					snprintf(buf, len, "{Y%s{x near {Y%s{x in {Y%s{x", terrain->template->name, closestRegion->name, closestRegion->area->name);
 				}
 			}
 			else
 			{
 				int region = get_region(room);
-
 
 				if( ship_isowner_player(ship, ch) && ship->sextant_x >= 0 && ship->sextant_y >= 0 )
 				{
@@ -4282,7 +4280,8 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 	}
 
 	ROOM_INDEX_DATA *to_room = NULL;
-	AREA_DATA *to_area = NULL;
+	AREA_REGION *to_region = NULL;
+	//AREA_DATA *to_area = NULL;
 
 	if( argument[0] != '\0' )
 	{
@@ -4297,24 +4296,25 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 		{
 			if( str_infix(argument, area->name) ) continue;
 
-			if( area->wilds_uid != uid || area->region.airship_land_spot < 1 ) continue;
+			if( area->wilds_uid != uid ) continue;
 
-			int distanceSq = ( x - area->region.x ) * ( x - area->region.x ) + ( y - area->region.y ) * ( y - area->region.y );
+			int distanceSq;
+			AREA_REGION *region = get_closest_area_region(area, x, y, &distanceSq, TRUE);
 
-			if( distanceSq < bestDistanceSq )
+			if( distanceSq >= 0 && distanceSq < bestDistanceSq )
 			{
 				bestDistanceSq = distanceSq;
-				to_area = area;
+				to_region = region;
 			}
 		}
 
-		if( to_area == NULL )
+		if( to_region == NULL )
 		{
 			ship_dispatch_message(ch, ship, "The vessel cannot land here.", "ship land");
 			return;
 		}
 
-		to_room = get_room_index(to_area, to_area->region.airship_land_spot);
+		to_room = get_room_index(to_region->area, to_region->airship_land_spot);
 		if( !to_room )
 		{
 			ship_dispatch_message(ch, ship, "There is no safe place to land the ship here.", "ship land");
@@ -4348,24 +4348,25 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 
 			for( AREA_DATA *area = area_first; area; area = area->next )
 			{
-				if( area->wilds_uid != uid || area->region.airship_land_spot < 1 ) continue;
+				if( area->wilds_uid != uid ) continue;
 
-				int distanceSq = ( x - area->region.x ) * ( x - area->region.x ) + ( y - area->region.y ) * ( y - area->region.y );
+				int distanceSq;
+				AREA_REGION *region = get_closest_area_region(area, x, y, &distanceSq, TRUE);
 
-				if( distanceSq < bestDistanceSq )
+				if( distanceSq >= 0 && distanceSq < bestDistanceSq )
 				{
 					bestDistanceSq = distanceSq;
-					to_area = area;
+					to_region = region;
 				}
 			}
 
-			if( to_area == NULL )
+			if( to_region == NULL )
 			{
 				ship_dispatch_message(ch, ship, "The vessel cannot land here.", "ship land");
 				return;
 			}
 
-			to_room = get_room_index(to_area, to_area->region.airship_land_spot);
+			to_room = get_room_index(to_region->area, to_region->airship_land_spot);
 			if( !to_room )
 			{
 				ship_dispatch_message(ch, ship, "There is no safe place to land the ship here.", "ship land");
@@ -4376,18 +4377,18 @@ void do_ship_land(CHAR_DATA *ch, char *argument)
 
 	ship->ship_power = SHIP_SPEED_LANDED;
 
-	if( to_room && to_area )
+	if( to_room && IS_VALID(to_region) )
 	{
-		sprintf(buf, "{WThe vessel descends down to {Y%s{W below.{x", to_area->name);
+		sprintf(buf, "{WThe vessel descends down to {Y%s{W in {Y%s{W below.{x", to_region->name, to_region->area->name);
 		ship_echo(ship, buf);
 
 		if( IS_NULLSTR(ship->ship_name) )
 		{
-			sprintf(buf, "{W%s %s descends from above to land in {Y%s{W.{x", get_article(ship->index->name, true), ship->index->name, to_area->name);
+			sprintf(buf, "{W%s %s descends from above to land in {Y%s{W in {Y%s{W.{x", get_article(ship->index->name, true), ship->index->name, to_region->name, to_region->area->name);
 		}
 		else
 		{
-			sprintf(buf, "{WThe %s '{x%s{W' descends from above to land in {Y%s{W.{x", ship->index->name, ship->ship_name, to_area->name);
+			sprintf(buf, "{WThe %s '{x%s{W' descends from above to land in {Y%s{W in {Y%s{W.{x", ship->index->name, ship->ship_name, to_region->name, to_region->area->name);
 		}
 		room_echo(ship->ship->in_room, buf);
 
@@ -4496,17 +4497,18 @@ void do_ship_launch(CHAR_DATA *ch, char *argument)
 	{
 		// In a fixed area
 		AREA_DATA *area = ship->ship->in_room->area;
+		AREA_REGION *aregion = get_room_region(ship->ship->in_room);
 		WILDS_DATA *wilds = get_wilds_from_uid(NULL, area->wilds_uid);
 
-		if( !wilds || area->region.x < 0 || area->region.y < 0 )
+		if( !wilds || !IS_VALID(aregion) || aregion->x < 0 || aregion->y < 0 )
 		{
 			ship_dispatch_message(ch, ship, "There is nowhere for the vessel to go.", "ship launch");
 			return;
 		}
 
-		ROOM_INDEX_DATA *room = get_wilds_vroom(wilds, area->region.x, area->region.y);
+		ROOM_INDEX_DATA *room = get_wilds_vroom(wilds, aregion->x, aregion->y);
 		if( !room )
-			room = create_wilds_vroom(wilds, area->region.x, area->region.y);
+			room = create_wilds_vroom(wilds, aregion->x, aregion->y);
 
 
 		if( IS_NULLSTR(ship->ship_name) )

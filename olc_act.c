@@ -67,6 +67,7 @@ const struct olc_help_type help_table[] =
 	{	"container",			container_flags,			"Container status."	},
 	{	"corpsetypes",			corpse_types,				"Corpse types."	},
 	{	"dprog",				trigger_table,				"DungeonProgram types."	},
+	{	"death_release",		death_release_modes,		"Dungeon Death Release mobes."},
 	{	"dungeon",				dungeon_flags,				"Dungeon Flags"	},
 	{	"exit",					exit_flags,					"Exit types."	},
 	{	"extra",				extra_flags,				"Object attributes."	},

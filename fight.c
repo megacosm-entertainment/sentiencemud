@@ -3598,27 +3598,6 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
 		extract_char(victim, FALSE);
 		return NULL;
 	}
-
-	get_room_recall(victim->in_room, &recall);
-	//recall = victim->in_room->area->recall;
-
-	if (!IS_NPC(victim) && location_isset(&victim->recall))
-	{
-		recall = victim->recall;
-		location_clear(&victim->recall);
-	}
-
-	// Just in case...
-	if (!(recall_room = location_to_room(&recall)))
-	{
-		sprintf(buf, "raw_kill: recall room for %s(%ld) in_room %s(%ld) was NULL.",
-			HANDLE(victim), IS_NPC(victim) ? victim->pIndexData->vnum : 0,
-			victim->in_room->name, victim->in_room->vnum);
-		bug(buf, 0);
-
-		recall_room = room_index_temple;
-	}
-	location_from_room(&victim->recall,recall_room);
 	stop_fighting(victim, TRUE);
 	stop_casting(victim, FALSE);
 	script_end_failure(victim, FALSE);
@@ -3662,22 +3641,59 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
 	if (IS_SHIFTED(victim))
 		do_function(victim, &do_shift, "");
 
-	/* quick repop for n00bs. */
-	if ((victim->tot_level < 10) && !IS_REMORT(victim) && (!IS_NPC(victim)))
+
+	// Check to see if they are in a dungeon
+	DUNGEON *dungeon = get_room_dungeon(victim->in_room);
+	if (!IS_NPC(victim) && IS_VALID(dungeon) && dungeon->index->death_release != DEATH_RELEASE_NORMAL)
 	{
-		send_to_char("\n\r{yYou wake up in a dazed state... maybe you weren't dead after all.\n\r{x", victim);
-		send_to_char("You notice that you are safe and healthy once again.\n\r", victim);
+		// Dungeons treat death differently for players
+		victim->can_release = TRUE;
+		arena = FALSE;		// Cancel out the arena
+		recall_room = NULL;
+	}
+	else
+	{
+		// Standard death
+		get_room_recall(victim->in_room, &recall);
+		//recall = victim->in_room->area->recall;
 
-		char_from_room(victim);
-		char_to_room(victim,room_index_newbie_death);
+		if (!IS_NPC(victim) && location_isset(&victim->recall))
+		{
+			recall = victim->recall;
+			location_clear(&victim->recall);
+		}
 
-		victim->position = POS_RESTING;
-		victim->dead = FALSE;
+		// Just in case...
+		if (!(recall_room = location_to_room(&recall)))
+		{
+			sprintf(buf, "raw_kill: recall room for %s(%ld) in_room %s(%ld) was NULL.",
+				HANDLE(victim), IS_NPC(victim) ? victim->pIndexData->vnum : 0,
+				victim->in_room->name, victim->in_room->vnum);
+			bug(buf, 0);
 
-		victim->hit  = victim->max_hit;
-		victim->mana = victim->max_mana;
-		victim->move = victim->max_move;
-		return NULL;
+			recall_room = room_index_temple;
+		}
+		location_from_room(&victim->recall,recall_room);
+
+		/* quick repop for n00bs. */
+		// TODO: Change this to an area flag?
+		if ((victim->tot_level < 10) && !IS_REMORT(victim) && (!IS_NPC(victim)))
+		{
+			send_to_char("\n\r{yYou wake up in a dazed state... maybe you weren't dead after all.\n\r{x", victim);
+			send_to_char("You notice that you are safe and healthy once again.\n\r", victim);
+
+			char_from_room(victim);
+			char_to_room(victim,room_index_newbie_death);
+
+			victim->position = POS_RESTING;
+			victim->dead = FALSE;
+
+			victim->hit  = victim->max_hit;
+			victim->mana = victim->max_mana;
+			victim->move = victim->max_move;
+			return NULL;
+		}
+
 	}
 
 	if (!victim->has_head)
@@ -3776,29 +3792,30 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
 		return corpse;
 	}
 
-	victim->hit = 1;
-	victim->mana = 1;
-	victim->move = 1;
-
 	if(victim->manastore > 0)
 		victim->manastore = victim->manastore / 2;	// They automatically lose half of it just from dying
 	else
 		victim->manastore = 0;
 
+	// When a player is flagged where they can release, they are dead but will not go to the death plane.
+	// As they can only release if they are
+	if (!victim->can_release)
+	{
+		if (IS_DEAD(victim))
+			victim->time_left_death += MINS_PER_DEATH + 1;
+		else
+			victim->time_left_death = MINS_PER_DEATH + 1;
+
+		victim->hit = victim->max_hit;
+		victim->mana = victim->max_mana;
+		victim->move = victim->max_move;
+		char_from_room(victim);
+		char_to_room(victim, room_index_death);
+	}
+
 	victim->dead = TRUE;
-
-	if (IS_DEAD(victim))
-		victim->time_left_death += MINS_PER_DEATH + 1;
-	else
-		victim->time_left_death = MINS_PER_DEATH + 1;
-
 	victim->deaths++;
 
-	victim->hit = victim->max_hit;
-	victim->mana = victim->max_mana;
-	victim->move = victim->max_move;
-	char_from_room(victim);
-	char_to_room(victim, room_index_death);
 
 
 	for (obj = victim->carrying; obj != NULL; obj = obj->next_content)

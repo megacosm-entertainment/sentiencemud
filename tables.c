@@ -2827,6 +2827,7 @@ const struct flag_type blueprint_flags[] =
 const struct flag_type instance_flags[] =
 {
 	{ "completed",			INSTANCE_COMPLETED,			FALSE	},
+	{ "failed", 			INSTANCE_FAILED,			FALSE	},
 	{ "destroy",			INSTANCE_DESTROY,			FALSE	},
 	{ "idle_on_complete",	INSTANCE_IDLE_ON_COMPLETE,	TRUE	},
 	{ "no_idle",			INSTANCE_NO_IDLE,			TRUE	},
@@ -2837,6 +2838,7 @@ const struct flag_type instance_flags[] =
 const struct flag_type dungeon_flags[] =
 {
 	{ "completed",			DUNGEON_COMPLETED,			FALSE	},
+	{ "failed", 			DUNGEON_FAILED, 			FALSE	},
 	{ "destroy",			DUNGEON_DESTROY,			FALSE	},
 	{ "idle_on_complete",	DUNGEON_IDLE_ON_COMPLETE,	TRUE	},
 	{ "no_idle",			DUNGEON_NO_IDLE,			TRUE	},
@@ -2929,8 +2931,10 @@ const struct flag_type area_region_flags[] =
 
 const struct flag_type death_release_modes[] =
 {
+    { "normal",                 DEATH_RELEASE_NORMAL,        TRUE    },
     { "release_to_start",       DEATH_RELEASE_TO_START,      TRUE    },
     { "release_to_floor",       DEATH_RELEASE_TO_FLOOR,      TRUE    },
     { "release_to_checkpoint",  DEATH_RELEASE_TO_CHECKPOINT, TRUE    },
+    { "release_failure",        DEATH_RELEASE_FAILURE,       TRUE    },
     { NULL,                     0,                           FALSE   }
 };

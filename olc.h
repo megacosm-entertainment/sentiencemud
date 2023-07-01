@@ -561,7 +561,7 @@ DECLARE_OLC_FUN( dngedit_varclear		);
 DECLARE_OLC_FUN( dngedit_adddprog		);
 DECLARE_OLC_FUN( dngedit_deldprog		);
 DECLARE_OLC_FUN( dngedit_repop			);
-
+DECLARE_OLC_FUN( dngedit_release        );
 
 DECLARE_OLC_FUN( apedit_list		);
 DECLARE_OLC_FUN( apedit_create		);

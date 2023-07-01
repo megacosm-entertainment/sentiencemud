@@ -1551,8 +1551,10 @@ void do_rstat(CHAR_DATA *ch, char *argument)
     add_buf (output, "{x\n\r[ {Wstat room{x ]\n\r");
     add_buf(output, "\n\r{C*Stats*{x\n\r");
     sprintf(buf, "{YName:{x %s\n\r"
+				 "{YPersistence: %s{x\n\r"
                  "{YArea uid:{x %ld '%s'\n\r",
             location->name,
+			location->persist ? "{WON" : "{Doff",
             location->area->uid,
             location->area->name);
     add_buf(output, buf);
@@ -1905,6 +1907,10 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 	obj->short_descr, obj->name);
     send_to_char(buf, ch);
 
+
+	sprintf(buf, "{BPersistance: %s{x\n\r", obj->persist ? "{WON" : "{Doff");
+	send_to_char(buf, ch);
+
     sprintf(buf, "{BVnum:{x %ld {BArea: {x%s {BType:{x %s\n\r",
 	obj->pIndexData->vnum, obj->pIndexData->area->name,
 	item_name(obj->item_type));
@@ -2025,6 +2031,9 @@ void do_mstat(CHAR_DATA *ch, char *argument)
 	}
 
 	sprintf(buf, "{BName:{x %s\n\r", HANDLE(victim));
+	send_to_char(buf, ch);
+
+	sprintf(buf, "{BPersistance: %s{x\n\r", victim->persist ? "{WON" : "{Doff");
 	send_to_char(buf, ch);
 
 	if (victim->in_wilds == NULL)

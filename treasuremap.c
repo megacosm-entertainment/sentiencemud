@@ -24,7 +24,7 @@
 OBJ_DATA *create_wilderness_map(WILDS_DATA *pWilds, int vx, int vy, OBJ_DATA *scroll, int offset, char *marker)
 {
 	int distance;
-	AREA_DATA *bestArea = NULL;
+	AREA_REGION *bestRegion = NULL;
 	AREA_DATA *closestArea;
 	int bestDistance = 200;
 
@@ -53,15 +53,19 @@ OBJ_DATA *create_wilderness_map(WILDS_DATA *pWilds, int vx, int vy, OBJ_DATA *sc
 		if( !closestArea->open )
 			continue;
 
-		distance = (int) sqrt(
-				( closestArea->region.x - vx ) * ( closestArea->region.x - vx ) +
-				( closestArea->region.y - vy ) * ( closestArea->region.y - vy ) );
+		int distanceSq;
+		AREA_REGION *region = get_closest_area_region(closestArea, vx, vy, &distanceSq, FALSE);
 
-		if (distance < bestDistance)
+		if (distanceSq >= 0)
 		{
-			bestDistance = distance;
-			bestArea = closestArea;
+			distance = (int)sqrt(distanceSq);
+			if (distance < bestDistance)
+			{
+				bestDistance = distance;
+				bestRegion = region;
+			}
 		}
+
 	}
 
 	if (scroll != NULL)
@@ -73,13 +77,15 @@ OBJ_DATA *create_wilderness_map(WILDS_DATA *pWilds, int vx, int vy, OBJ_DATA *sc
 		if (scroll->full_description != NULL)
 			free_string(scroll->full_description);
 
-		if( bestArea )
+		if( IS_VALID(bestRegion) )
 		{
 			add_buf(buffer, "\n\r");
 			add_buf(buffer, marker);
-			add_buf(buffer, "{x marks the spot! The location is near ");
-			add_buf(buffer, bestArea->name);
-			add_buf(buffer, ".\n\r");
+			add_buf(buffer, "{x marks the spot! The location is near {Y");
+			add_buf(buffer, bestRegion->name);
+			add_buf(buffer, "{x in {Y");
+			add_buf(buffer, bestRegion->area->name);
+			add_buf(buffer, "{x.\n\r");
 		}
 		else
 		{
@@ -100,14 +106,9 @@ OBJ_DATA *create_wilderness_map(WILDS_DATA *pWilds, int vx, int vy, OBJ_DATA *sc
 	return scroll;
 }
 
-bool valid_area_for_treasure(AREA_DATA *pArea)
+inline static bool __treasure_area_region_valid(AREA_REGION *region, WILDS_DATA *wilds)
 {
-	if( !pArea ) return false;
-
-	if( pArea->wilds_uid < 1 ) return false;
-
-	WILDS_DATA *wilds = get_wilds_from_uid(NULL, pArea->wilds_uid);
-	if( !wilds ) return false;
+	if (region->x < 0 || region->y < 0) return false;
 
 	for( int x = -20; x <= 20; x++ )
 	{
@@ -117,7 +118,7 @@ bool valid_area_for_treasure(AREA_DATA *pArea)
 
 			if( d >= 40000 ) continue;
 
-			WILDS_TERRAIN *pTerrain = get_terrain_by_coors(wilds, pArea->region.x + x, pArea->region.y + y);
+			WILDS_TERRAIN *pTerrain = get_terrain_by_coors(wilds, region->x + x, region->x + y);
 
 			if( pTerrain != NULL && !pTerrain->nonroom &&
 				pTerrain->template->sector_type != SECT_WATER_SWIM &&
@@ -127,6 +128,32 @@ bool valid_area_for_treasure(AREA_DATA *pArea)
 	}
 
 	return false;
+}
+
+bool valid_area_for_treasure(AREA_DATA *pArea)
+{
+	if( !pArea ) return false;
+
+	if( pArea->wilds_uid < 1 ) return false;
+
+	WILDS_DATA *wilds = get_wilds_from_uid(NULL, pArea->wilds_uid);
+	if( !wilds ) return false;
+
+	if (__treasure_area_region_valid(&pArea->region, wilds))
+		return true;
+
+	ITERATOR it;
+	AREA_REGION *region;
+	iterator_start(&it, pArea->regions);
+	while((region = (AREA_REGION *)iterator_nextdata(&it)))
+	{
+		if (__treasure_area_region_valid(region, wilds))
+			break;
+	}
+	iterator_stop(&it);
+
+
+	return region != NULL;
 }
 
 OBJ_DATA *create_treasure_map(WILDS_DATA *pWilds, AREA_DATA *pArea, OBJ_DATA *treasure)
@@ -164,14 +191,22 @@ OBJ_DATA *create_treasure_map(WILDS_DATA *pWilds, AREA_DATA *pArea, OBJ_DATA *tr
 		while(TRUE) {
 			if( pArea && pArea->open )
 			{
+				int r = number_range(0, list_size(pArea->regions));
+				AREA_REGION *region;
+
+				if (r > 0)
+					region = (AREA_REGION *)list_nthdata(pArea->regions, r);
+				else
+					region = &pArea->region;
+
 				vx = number_range(-50, 50);
 				vy = number_range(-50, 50);
 
 				if( (vx * vx + vy * vy) >= 40000 )
 					continue;
 
-				vx += pArea->region.x;
-				vy += pArea->region.y;
+				vx += region->x;
+				vy += region->y;
 			}
 			else
 			{
