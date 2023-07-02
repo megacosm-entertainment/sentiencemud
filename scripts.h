@@ -9,13 +9,13 @@
 #define __SCRIPTS_H__
 
 #define IFC_NONE	0
-#define	IFC_M	(A)	/* Allowed in mprogs */
-#define	IFC_O	(B)	/* Allowed in oprogs */
-#define	IFC_R	(C)	/* Allowed in rprogs */
-#define	IFC_T	(D)	/* Allowed in tprogs */
-#define	IFC_A	(E)	/* Allowed in aprogs */
-#define IFC_I	(F)	// Allowed in iprogs
-#define IFC_D	(G)	// Allowed in dprogs
+#define	IFC_M	(PRG_MPROG)	/* Allowed in mprogs */
+#define	IFC_O	(PRG_OPROG)	/* Allowed in oprogs */
+#define	IFC_R	(PRG_RPROG)	/* Allowed in rprogs */
+#define	IFC_T	(PRG_TPROG)	/* Allowed in tprogs */
+#define	IFC_A	(PRG_APROG)	/* Allowed in aprogs */
+#define IFC_I	(PRG_IPROG)	// Allowed in iprogs
+#define IFC_D	(PRG_DPROG)	// Allowed in dprogs
 
 #define IFC_MO	(IFC_M|IFC_O)
 #define	IFC_ANY	(IFC_M|IFC_O|IFC_R|IFC_T|IFC_A|IFC_I|IFC_D)	/* Any prog type */
@@ -2842,6 +2842,25 @@ SCRIPT_CMD(dungeoncmd_specialrooms);
 
 SCRIPT_CMD(scriptcmd_showcommand);
 
+SCRIPT_CMD(scriptcmd_acttrigger);
+SCRIPT_CMD(scriptcmd_bribetrigger);
+SCRIPT_CMD(scriptcmd_directiontrigger);
+SCRIPT_CMD(scriptcmd_emoteattrigger);
+SCRIPT_CMD(scriptcmd_emotetrigger);
+SCRIPT_CMD(scriptcmd_exacttrigger);
+SCRIPT_CMD(scriptcmd_exittrigger);
+SCRIPT_CMD(scriptcmd_givetrigger);
+SCRIPT_CMD(scriptcmd_greettrigger);
+SCRIPT_CMD(scriptcmd_hprcttrigger);
+SCRIPT_CMD(scriptcmd_nametrigger);
+SCRIPT_CMD(scriptcmd_numbertrigger);
+SCRIPT_CMD(scriptcmd_percenttrigger);
+SCRIPT_CMD(scriptcmd_percenttokentrigger);
+SCRIPT_CMD(scriptcmd_usetrigger);
+SCRIPT_CMD(scriptcmd_useontrigger);
+SCRIPT_CMD(scriptcmd_usewithtrigger);
+
+
 bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument);
 bool olc_varclear(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument);
 void olc_show_index_vars(BUFFER *buffer, pVARIABLE index_vars);
@@ -2850,6 +2869,8 @@ bool olc_load_index_vars(FILE *fp, char *word, ppVARIABLE index_vars, AREA_DATA 
 
 bool load_triggers();
 void save_triggers();
+void trigger_type_add_use(struct trigger_type *tt);
+void trigger_type_delete_use(struct trigger_type *tt);
 
 #include "tables.h"
 

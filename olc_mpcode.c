@@ -169,6 +169,7 @@ const struct olc_cmd_type dpedit_table[] =
 	{	NULL,		0		}
 };
 
+/*
 static int olc_script_typeifc[] = {
 	IFC_M,
 	IFC_O,
@@ -178,6 +179,7 @@ static int olc_script_typeifc[] = {
 	IFC_I,
 	IFC_D,
 };
+*/
 
 // Testports have reduced security checks
 bool script_security_check(CHAR_DATA *ch)
@@ -1341,7 +1343,7 @@ SCRIPTEDIT(scriptedit_compile)
 			return FALSE;
 		}
 
-		if(compile_script(buffer,pCode,pCode->edit_src,olc_script_typeifc[pCode->type]))
+		if(compile_script(buffer,pCode,pCode->edit_src,pCode->type))
 			add_buf(buffer,"Script saved...\n\r");
 
 		page_to_char(buf_string(buffer), ch);
@@ -1516,8 +1518,6 @@ void show_script_list(CHAR_DATA *ch, char *argument,int type)
 		min = -1;
 		max = -1;
     }
-
-	
 
     switch(type) {
     case PRG_MPROG: if (min < 0) { min = 1; max = area->top_mprog_index; } break;

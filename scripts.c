@@ -10,6 +10,7 @@
 #include "scripts.h"
 #include "recycle.h"
 #include "wilds.h"
+#include "olc.h"
 //#define DEBUG_MODULE
 #include "debug.h"
 
@@ -8850,6 +8851,7 @@ bool load_triggers()
 	log_string("Triggers loaded.");
 
 
+#if 0
 	ITERATOR it;
 	struct trigger_type *tt;
 
@@ -8859,6 +8861,7 @@ bool load_triggers()
 		log_stringf("load_triggers: trigger '%s'.", tt->name);
 	}
 	iterator_stop(&it);
+#endif
 	log_stringf("load_triggers: total triggers = %d", list_size(trigger_list));
 #endif
 	return TRUE;
@@ -8896,6 +8899,21 @@ const char *get_trigger_type_name(int type)
 	return str;
 }
 
+struct trigger_type *get_trigger_type_byname(char *name)
+{
+	ITERATOR it;
+	struct trigger_type *tt;
+	iterator_start(&it, trigger_list);
+	while((tt = (struct trigger_type *)iterator_nextdata(&it)))
+	{
+		if (!str_cmp(tt->name, name))
+			break;
+	}
+	iterator_stop(&it);
+
+	return tt;
+}
+
 void do_triggers(CHAR_DATA *ch, char *argument)
 {
 	char buf[MSL];
@@ -8904,6 +8922,9 @@ void do_triggers(CHAR_DATA *ch, char *argument)
 	if (argument[0] == '\0')
 	{
 		send_to_char("Syntax:  triggers list\n\r", ch);
+		send_to_char("         triggers add <name>[ <slot>[ <space>]]\n\r", ch);
+		send_to_char("         triggers space <name> <space>\n\r", ch);
+		send_to_char("         triggers remove <name>\n\r", ch);
 		return;
 	}
 
@@ -8912,27 +8933,41 @@ void do_triggers(CHAR_DATA *ch, char *argument)
 	if (!str_prefix(arg1, "list"))
 	{
 		BUFFER *buffer = new_buf();
+
+		add_buf(buffer, "                                                                        {B  {Y  {RR {W  {GA {CI {MD{x\n\r");
+		add_buf(buffer, "                                                                        {BM {YO {Ro {WT {Gr {Cn {Mu{x\n\r");
+		add_buf(buffer, "                                                                        {Bo {Yb {Ro {Wo {Ge {Cs {Mn{x\n\r");
+		add_buf(buffer, "                                                                        {Bb {Yj {Rm {Wk {Ga {Ct {Mg{x\n\r");
+		add_buf(buffer, "      [        Name        ] [    Trigger Type    ] [      Slot      ] [    Space    ] [ Count ]\n\r");
+		add_buf(buffer, "=================================================================================================\n\r");
+
 		int trigger_no = 1;
 		ITERATOR it;
 		struct trigger_type *tt;
 		iterator_start(&it, trigger_list);
 		while((tt = (struct trigger_type *)iterator_nextdata(&it)))
 		{
-			sprintf(buf, "%-4d  %-20s %-20s %-15s %s%s%s%s%s%s%s{x\n\r", trigger_no++,
+			sprintf(buf, "%-4d   %-20s   %-20s   %-16s   %s %s %s %s %s %s %s{x    %5d\n\r", trigger_no++,
 				tt->name,
 				get_trigger_type_name(tt->type),
 				flag_string(trigger_slots, tt->slot),
-				(IS_SET(tt->progs, PRG_MPROG) ? "{WY" : "{Dn"),
-				(IS_SET(tt->progs, PRG_OPROG) ? "{WY" : "{Dn"),
-				(IS_SET(tt->progs, PRG_RPROG) ? "{WY" : "{Dn"),
-				(IS_SET(tt->progs, PRG_TPROG) ? "{WY" : "{Dn"),
-				(IS_SET(tt->progs, PRG_APROG) ? "{WY" : "{Dn"),
-				(IS_SET(tt->progs, PRG_IPROG) ? "{WY" : "{Dn"),
-				(IS_SET(tt->progs, PRG_DPROG) ? "{WY" : "{Dn"));
+				(IS_SET(tt->progs, PRG_MPROG) ? "{B#" : "{b-"),
+				(IS_SET(tt->progs, PRG_OPROG) ? "{Y#" : "{y-"),
+				(IS_SET(tt->progs, PRG_RPROG) ? "{R#" : "{r-"),
+				(IS_SET(tt->progs, PRG_TPROG) ? "{W#" : "{w-"),
+				(IS_SET(tt->progs, PRG_APROG) ? "{G#" : "{g-"),
+				(IS_SET(tt->progs, PRG_IPROG) ? "{C#" : "{c-"),
+				(IS_SET(tt->progs, PRG_DPROG) ? "{M#" : "{m-"),
+				tt->usage);
 
 			add_buf(buffer, buf);
 		}
 		iterator_stop(&it);
+
+		add_buf(buffer, "-------------------------------------------------------------------------------------------------\n\r");
+
+		sprintf(buf, "Total Triggers: %d\n\r", list_size(trigger_list));
+		add_buf(buffer, buf);
 
 		if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
 		{
@@ -8947,5 +8982,158 @@ void do_triggers(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
+	if (!str_prefix(arg1, "add"))
+	{
+		char arg2[MIL];	// Name
+		char arg3[MIL]; // slot
+
+		argument = one_argument(argument, arg2);
+		argument = one_argument(argument, arg3);
+
+		if (IS_NULLSTR(arg2))
+		{
+			send_to_char("Name must not be empty.\n\r", ch);
+			return;
+		}
+
+		// Verify the name isn't used
+		if (get_trigger_type_byname(arg2))
+		{
+			send_to_char("Name already in use.  Please pick another name.\n\r", ch);
+			return;
+		}
+
+		int slot = TRIGSLOT_GENERAL;
+		int space = 0;
+		if (arg3[0] != '\0')
+		{
+			if ((slot = stat_lookup(arg3, trigger_slots, NO_FLAG)) == NO_FLAG)
+			{
+				send_to_char("Invalid slot.\n\r", ch);
+				show_help(ch, "trigger slots");
+				return;
+			}
+
+			if (argument[0] != '\0')
+			{
+				if ((space = flag_lookup(argument, script_spaces)) == NO_FLAG)
+				{
+					send_to_char("Invalid script space.\n\r", ch);
+					show_help(ch, "script_spaces");
+					return;
+				}
+			}
+		}
+
+		struct trigger_type *tt = new_trigger_type();
+
+		free_string(tt->name);
+		tt->name = str_dup(arg2);
+		tt->type = ++top_trigger_type;
+		tt->slot = slot;
+		tt->progs = space;
+		
+		insert_trigger_type(tt);
+		send_to_char("Trigger type added.\n\r", ch);
+		save_triggers();
+		return;
+	}
+
+	if (!str_prefix(arg1, "space"))
+	{
+		char arg2[MIL];
+
+		argument = one_argument(argument, arg2);
+
+		if (arg2[0] == '\0')
+		{
+			send_to_char("Syntax:  triggers space <name> <space>\n\r", ch);
+			send_to_char("Please specify a name.\n\r", ch);
+			return;
+		}
+
+		struct trigger_type *tt = get_trigger_type_byname(arg2);
+		if (!tt)
+		{
+			send_to_char("Syntax:  triggers space <name> <space>\n\r", ch);
+			send_to_char("No such trigger by that name exists.\n\r", ch);
+			return;
+		}
+
+		if (tt->type < TRIG__MAX)
+		{
+			send_to_char("Syntax:  triggers space <name> <space>\n\r", ch);
+			send_to_char("You may only modify custom triggers.\n\r", ch);
+			return;
+		}
+
+		int value;
+		if ((value = flag_value(script_spaces, argument)) == NO_FLAG)
+		{
+			send_to_char("Syntax:  triggers space <name> <space>\n\r", ch);
+			send_to_char("Invalid script space.\n\r", ch);
+			show_help(ch, "script_spaces");
+			return;
+		}
+
+		TOGGLE_BIT(tt->progs, value);
+		save_triggers();
+		send_to_char("Trigger Script Space changed.\n\r", ch);
+		return;
+	}
+
+	if (!str_prefix(arg1, "remove"))
+	{
+		if (argument[0] == '\0')
+		{
+			send_to_char("Syntax:  triggers remove <name>\n\r", ch);
+			send_to_char("Please specify a name.\n\r", ch);
+			return;
+		}
+
+		struct trigger_type *tt = get_trigger_type_byname(argument);
+		if (!tt)
+		{
+			send_to_char("Syntax:  triggers remove <name>\n\r", ch);
+			send_to_char("No such trigger by that name exists.\n\r", ch);
+			return;
+		}
+
+		if (tt->type < TRIG__MAX)
+		{
+			send_to_char("Syntax:  triggers remove <name>\n\r", ch);
+			send_to_char("You may only remove unused custom triggers.\n\r", ch);
+			return;
+		}
+
+		if (tt->usage > 0)
+		{
+			send_to_char("You may only remove unused custom triggers.\n\r", ch);
+			return;
+		}
+
+		// This will delete the trigger
+		list_remlink(trigger_list, tt);
+		save_triggers();
+		send_to_char("Custom trigger removed.\n\r", ch);
+		return;
+	}
+
 	do_triggers(ch, "");
+}
+
+void trigger_type_add_use(struct trigger_type *tt)
+{
+	if (tt)
+	{
+		++tt->usage;
+	}
+}
+
+void trigger_type_delete_use(struct trigger_type *tt)
+{
+	if (tt && tt->usage > 0)
+	{
+		--tt->usage;
+	}
 }

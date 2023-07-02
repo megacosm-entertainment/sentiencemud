@@ -3184,3 +3184,15 @@ const struct flag_type builtin_trigger_types[] =
     { "zap",		        TRIG_ZAP,	TRUE },
     { NULL,                 -1,         FALSE }
 };
+
+const struct flag_type script_spaces[] =
+{
+    { "mobile",     PRG_MPROG, TRUE },
+    { "object",     PRG_OPROG, TRUE },
+    { "room",       PRG_RPROG, TRUE },
+    { "token",      PRG_TPROG, TRUE },
+    { "area",       PRG_APROG, TRUE },
+    { "instance",   PRG_IPROG, TRUE },
+    { "dungeon",    PRG_DPROG, TRUE },
+    { NULL, 0, FALSE }
+};

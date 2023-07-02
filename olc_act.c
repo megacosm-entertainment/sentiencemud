@@ -102,6 +102,7 @@ const struct olc_help_type help_table[] =
 	{	"room2",				room2_flags,				"Room2 attributes."	},
 	{	"rprog",				dummy_triggers,				"RoomProgram types."	},
 	{	"scriptflags",			script_flags,				"Script Flags {D({Wrestricted{D){x."	},
+	{   "script_spaces",		script_spaces,				"Script spaces"	},
 	{	"section_flags",		blueprint_section_flags,	"Blueprint Section Flags"	},
 	{	"section_type",			blueprint_section_types,	"Blueprint Section Types"	},
 	{	"sector",				sector_flags,				"Sector types, terrain."	},
@@ -116,6 +117,7 @@ const struct olc_help_type help_table[] =
 	{	"spells",				skill_table,				"Names of current spells."	},
 	{	"tokenflags",			token_flags,				"Token flags."	},
 	{	"tprog",				dummy_triggers,				"TokenProgram types."	},
+	{	"trigger_slots",		trigger_slots,				"Trigger slots."},
 	{	"type",					type_flags,					"Types of objects."	},
 	{	"vuln",					vuln_flags,					"Mobile vulnerability."	},
 	{	"wclass",				weapon_class,				"Weapon class."	},
@@ -445,6 +447,9 @@ bool edit_deltrigger(LLIST **list, int index)
 			iterator_stop(&it);
 
 			if(trigger) {
+				struct trigger_type *tt = get_trigger_type_bytype(trigger->trig_type);
+				trigger_type_delete_use(tt);
+
 				free_trigger(trigger);
 				return TRUE;
 			}
@@ -2317,6 +2322,7 @@ AEDIT (aedit_addaprog)
     //SET_BIT(pMob->mprog_flags,value);
 
     list_appendlink(pArea->progs->progs[slot], list);
+	trigger_type_add_use(tt);
 
     send_to_char("Aprog Added.\n\r",ch);
     return TRUE;
@@ -12125,6 +12131,7 @@ MEDIT (medit_addmprog)
     //SET_BIT(pMob->mprog_flags,value);
 
     list_appendlink(pMob->progs[slot], list);
+	trigger_type_add_use(tt);
 
     send_to_char("Mprog Added.\n\r",ch);
     return TRUE;
@@ -12661,6 +12668,7 @@ OEDIT (oedit_addoprog)
     //SET_BIT(pMob->mprog_flags,value);
 
     list_appendlink(pObj->progs[slot], list);
+	trigger_type_add_use(tt);
 
   send_to_char("Oprog Added.\n\r",ch);
   return TRUE;
@@ -12787,6 +12795,7 @@ REDIT (redit_addrprog)
     list->script          = code;
     //SET_BIT(pMob->mprog_flags,value);
     list_appendlink(pRoom->progs->progs[slot], list);
+	trigger_type_add_use(tt);
 
     send_to_char("Rprog Added.\n\r",ch);
     return TRUE;

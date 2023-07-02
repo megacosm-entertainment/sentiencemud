@@ -414,6 +414,7 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp, AREA_DATA *area)
 					if(!dng->progs) dng->progs = new_prog_bank();
 
 					list_appendlink(dng->progs[tt->slot], dpr);
+					trigger_type_add_use(tt);
 				}
 				fMatch = TRUE;
 			}
@@ -7562,6 +7563,7 @@ DNGEDIT (dngedit_adddprog)
     list->script          = code;
 
     list_appendlink(dungeon->progs[slot], list);
+	trigger_type_add_use(tt);
 
     send_to_char("Dprog Added.\n\r",ch);
     return TRUE;

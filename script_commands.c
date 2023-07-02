@@ -37,19 +37,36 @@ void add_dungeon_index_weighted_exit_data(LLIST *list, int weight, int level_no,
 #define ARG_PREFIX(ss)			(!str_prefix(arg->d.str, (ss)))
 
 const struct script_cmd_type area_cmd_table[] = {
+	{ "acttrigger",				scriptcmd_acttrigger,	TRUE,	FALSE	},
+	{ "bribetrigger",			scriptcmd_bribetrigger,	TRUE,	FALSE	},
 	{ "call",				scriptcmd_call,				FALSE,	TRUE	},
+	{ "directiontrigger",		scriptcmd_directiontrigger,	TRUE,	FALSE	},
 	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	TRUE,	TRUE	},
 	{ "echoat",				scriptcmd_echoat,			FALSE,	TRUE	},
+	{ "emoteattrigger",			scriptcmd_emoteattrigger,	TRUE,	FALSE	},
+	{ "emotetrigger",			scriptcmd_emotetrigger,	TRUE,	FALSE	},
+	{ "exacttrigger",			scriptcmd_exacttrigger,	TRUE,	FALSE	},
+	{ "exittrigger",			scriptcmd_exittrigger,	TRUE,	FALSE	},
+	{ "givetrigger",			scriptcmd_givetrigger,	TRUE,	FALSE	},
+	{ "greettrigger",			scriptcmd_greettrigger,	TRUE,	FALSE	},
+	{ "hprcttrigger",			scriptcmd_hprcttrigger,	TRUE,	FALSE	},
 	{ "instancecomplete",	scriptcmd_instancecomplete,	TRUE,	TRUE	},
 	{ "mload",				scriptcmd_mload,			FALSE,	TRUE	},
 	{ "mute",				scriptcmd_mute,				FALSE,	TRUE	},
+	{ "nametrigger",			scriptcmd_nametrigger,	TRUE,	FALSE	},
+	{ "numbertrigger",			scriptcmd_numbertrigger,	TRUE,	FALSE	},
 	{ "oload",				scriptcmd_oload,			FALSE,	TRUE	},
+	{ "percenttokentrigger",	scriptcmd_percenttokentrigger,	TRUE,	FALSE	},
+	{ "percenttrigger",			scriptcmd_percenttrigger,	TRUE,	FALSE	},
 	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
 	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
 	{ "specialkey",			scriptcmd_specialkey,		FALSE,	TRUE	},
 	{ "treasuremap",		scriptcmd_treasuremap,		FALSE,	TRUE	},
 	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
 	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
+	{ "useontrigger",			scriptcmd_useontrigger,	TRUE,	FALSE	},
+	{ "usetrigger",				scriptcmd_usetrigger,	TRUE,	FALSE	},
+	{ "usewithtrigger",			scriptcmd_usewithtrigger,	TRUE,	FALSE	},
 	{ "varclear",			scriptcmd_varclear,			FALSE,	TRUE	},
 	{ "varclearon",			scriptcmd_varclearon,		FALSE,	TRUE	},
 	{ "varcopy",			scriptcmd_varcopy,			FALSE,	TRUE	},
@@ -63,10 +80,20 @@ const struct script_cmd_type area_cmd_table[] = {
 };
 
 const struct script_cmd_type instance_cmd_table[] = {
+	{ "acttrigger",				scriptcmd_acttrigger,	TRUE,	FALSE	},
+	{ "bribetrigger",			scriptcmd_bribetrigger,	TRUE,	FALSE	},
 	{ "call",				scriptcmd_call,				FALSE,	TRUE	},
+	{ "directiontrigger",		scriptcmd_directiontrigger,	TRUE,	FALSE	},
 	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	TRUE,	TRUE	},
 	{ "dungeonfailure",		scriptcmd_dungeonfailure,	TRUE,	TRUE	},
 	{ "echoat",				scriptcmd_echoat,			FALSE,	TRUE	},
+	{ "emoteattrigger",			scriptcmd_emoteattrigger,	TRUE,	FALSE	},
+	{ "emotetrigger",			scriptcmd_emotetrigger,	TRUE,	FALSE	},
+	{ "exacttrigger",			scriptcmd_exacttrigger,	TRUE,	FALSE	},
+	{ "exittrigger",			scriptcmd_exittrigger,	TRUE,	FALSE	},
+	{ "givetrigger",			scriptcmd_givetrigger,	TRUE,	FALSE	},
+	{ "greettrigger",			scriptcmd_greettrigger,	TRUE,	FALSE	},
+	{ "hprcttrigger",			scriptcmd_hprcttrigger,	TRUE,	FALSE	},
 	{ "instancecomplete",	scriptcmd_instancecomplete,	TRUE,	TRUE	},
 	{ "instancefailure",	scriptcmd_instancefailure,	TRUE,	TRUE	},
 	{ "layout",				instancecmd_layout,			FALSE,	TRUE	},
@@ -75,7 +102,11 @@ const struct script_cmd_type instance_cmd_table[] = {
 	{ "makeinstanced",		scriptcmd_makeinstanced,	TRUE,	TRUE	},
 	{ "mload",				scriptcmd_mload,			FALSE,	TRUE	},
 	{ "mute",				scriptcmd_mute,				FALSE,	TRUE	},
+	{ "nametrigger",			scriptcmd_nametrigger,	TRUE,	FALSE	},
+	{ "numbertrigger",			scriptcmd_numbertrigger,	TRUE,	FALSE	},
 	{ "oload",				scriptcmd_oload,			FALSE,	TRUE	},
+	{ "percenttokentrigger",	scriptcmd_percenttokentrigger,	TRUE,	FALSE	},
+	{ "percenttrigger",			scriptcmd_percenttrigger,	TRUE,	FALSE	},
 	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
 	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
 	{ "specialkey",			scriptcmd_specialkey,		FALSE,	TRUE	},
@@ -83,6 +114,9 @@ const struct script_cmd_type instance_cmd_table[] = {
 	{ "treasuremap",		scriptcmd_treasuremap,		FALSE,	TRUE	},
 	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
 	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
+	{ "useontrigger",			scriptcmd_useontrigger,	TRUE,	FALSE	},
+	{ "usetrigger",				scriptcmd_usetrigger,	TRUE,	FALSE	},
+	{ "usewithtrigger",			scriptcmd_usewithtrigger,	TRUE,	FALSE	},
 	{ "varclear",			scriptcmd_varclear,			FALSE,	TRUE	},
 	{ "varclearon",			scriptcmd_varclearon,		FALSE,	TRUE	},
 	{ "varcopy",			scriptcmd_varcopy,			FALSE,	TRUE	},
@@ -96,16 +130,30 @@ const struct script_cmd_type instance_cmd_table[] = {
 };
 
 const struct script_cmd_type dungeon_cmd_table[] = {
+	{ "acttrigger",				scriptcmd_acttrigger,	TRUE,	FALSE	},
+	{ "bribetrigger",			scriptcmd_bribetrigger,	TRUE,	FALSE	},
 	{ "call",				scriptcmd_call,				FALSE,	TRUE	},
+	{ "directiontrigger",		scriptcmd_directiontrigger,	TRUE,	FALSE	},
 	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	TRUE,	TRUE	},
 	{ "echoat",				scriptcmd_echoat,			FALSE,	TRUE	},
+	{ "emoteattrigger",			scriptcmd_emoteattrigger,	TRUE,	FALSE	},
+	{ "emotetrigger",			scriptcmd_emotetrigger,	TRUE,	FALSE	},
+	{ "exacttrigger",			scriptcmd_exacttrigger,	TRUE,	FALSE	},
+	{ "exittrigger",			scriptcmd_exittrigger,	TRUE,	FALSE	},
+	{ "givetrigger",			scriptcmd_givetrigger,	TRUE,	FALSE	},
+	{ "greettrigger",			scriptcmd_greettrigger,	TRUE,	FALSE	},
+	{ "hprcttrigger",			scriptcmd_hprcttrigger,	TRUE,	FALSE	},
 	{ "instancecomplete",	scriptcmd_instancecomplete,	TRUE,	TRUE	},
 	{ "levels",				dungeoncmd_levels,			FALSE,	TRUE	},
 	{ "loadinstanced",		scriptcmd_loadinstanced,	TRUE,	TRUE	},
 	{ "makeinstanced",		scriptcmd_makeinstanced,	TRUE,	TRUE	},
 	{ "mload",				scriptcmd_mload,			FALSE,	TRUE	},
 	{ "mute",				scriptcmd_mute,				FALSE,	TRUE	},
+	{ "nametrigger",			scriptcmd_nametrigger,	TRUE,	FALSE	},
+	{ "numbertrigger",			scriptcmd_numbertrigger,	TRUE,	FALSE	},
 	{ "oload",				scriptcmd_oload,			FALSE,	TRUE	},
+	{ "percenttokentrigger",	scriptcmd_percenttokentrigger,	TRUE,	FALSE	},
+	{ "percenttrigger",			scriptcmd_percenttrigger,	TRUE,	FALSE	},
 	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
 	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
 	{ "specialexits",		dungeoncmd_specialexits,	FALSE,	TRUE	},
@@ -114,6 +162,9 @@ const struct script_cmd_type dungeon_cmd_table[] = {
 	{ "treasuremap",		scriptcmd_treasuremap,		FALSE,	TRUE	},
 	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
 	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
+	{ "useontrigger",			scriptcmd_useontrigger,	TRUE,	FALSE	},
+	{ "usetrigger",				scriptcmd_usetrigger,	TRUE,	FALSE	},
+	{ "usewithtrigger",			scriptcmd_usewithtrigger,	TRUE,	FALSE	},
 	{ "varclear",			scriptcmd_varclear,			FALSE,	TRUE	},
 	{ "varclearon",			scriptcmd_varclearon,		FALSE,	TRUE	},
 	{ "varcopy",			scriptcmd_varcopy,			FALSE,	TRUE	},
@@ -6108,6 +6159,1145 @@ SCRIPT_CMD(scriptcmd_xcall)
 
 //////////////////////////////////////
 // Z
+
+
+
+
+// ACTTRIGGER $ACTOR $ENACTOR $VICTIM1 $VICTIM2 $OBJ1 $OBJ2 $TRIGGER $ACTION...
+// $ENACTOR can be MOBILE, OBJECT or ROOM
+//
+// Returns anything negative if there was anything wrong with it as 0 is a valid return value
+//  Check LASTRETURN for this value
+SCRIPT_CMD(scriptcmd_acttrigger)
+{
+	char *rest = argument;
+	int actor_space = 0;
+	CHAR_DATA *actor_m = NULL;
+	OBJ_DATA *actor_o = NULL;
+	ROOM_INDEX_DATA *actor_r = NULL;
+	CHAR_DATA *ch = NULL;
+	CHAR_DATA *vch1 = NULL;
+	CHAR_DATA *vch2 = NULL;
+	OBJ_DATA *obj1 = NULL;
+	OBJ_DATA *obj2 = NULL;
+	BUFFER *action_buffer = NULL;
+	char *action = NULL;
+	int trigger = TRIG_NONE;
+	int ret;
+
+	SETRETURN(PRET_BADSYNTAX);	// If it doesn't get to the end, something happened
+
+	// Get the ACTOR:
+	if (!PARSE_ARG) return;
+
+	switch(arg->type) {
+	case ENT_MOBILE:	actor_m = arg->d.mob;		actor_space = PRG_MPROG; break;
+	case ENT_OBJECT:	actor_o = arg->d.obj;		actor_space = PRG_OPROG; break;
+	case ENT_ROOM:		actor_r = arg->d.room;		actor_space = PRG_RPROG; break;
+	}
+
+	// Check that there is valid actor
+	if (!actor_space || (!IS_VALID(actor_m) && !IS_VALID(actor_o) && !actor_r))
+		return;
+	
+	// Get the ENACTOR:
+	if (!PARSE_ARG) return;
+	if (arg->type == ENT_STRING && ARG_EQUALS("none"))
+		ch = NULL;
+	else if (arg->type == ENT_MOBILE)
+		ch = arg->d.mob;
+	else
+		return;
+	
+	// Get the VCH1:
+	if (!PARSE_ARG) return;
+	if (arg->type == ENT_STRING && ARG_EQUALS("none"))
+		vch1 = NULL;
+	else if (arg->type == ENT_MOBILE)
+		vch1 = arg->d.mob;
+	else
+		return;
+	
+	// Get the VCH2:
+	if (!PARSE_ARG) return;
+	if (arg->type == ENT_STRING && ARG_EQUALS("none"))
+		vch2 = NULL;
+	else if (arg->type == ENT_MOBILE)
+		vch2 = arg->d.mob;
+	else
+		return;
+
+	// Get the OBJ1:
+	if (!PARSE_ARG) return;
+	if (arg->type == ENT_STRING && ARG_EQUALS("none"))
+		obj1 = NULL;
+	else if (arg->type == ENT_OBJECT)
+		obj1 = arg->d.obj;
+	else
+		return;
+
+	// Get the OBJ2:
+	if (!PARSE_ARG) return;
+	if (arg->type == ENT_STRING && ARG_EQUALS("none"))
+		obj2 = NULL;
+	else if (arg->type == ENT_OBJECT)
+		obj2 = arg->d.obj;
+	else
+		return;
+
+	// Get the TRIGGER:
+	PARSE_ARGTYPE(STRING);
+	struct trigger_type *tt = get_trigger_type(arg->d.str, actor_space);
+	if (!tt)
+		return;
+	trigger = tt->type;
+
+	// Get the ACTION:
+	if (!IS_NULLSTR(rest))
+	{
+		action_buffer = new_buf();
+		if (!PARSE_STR(action_buffer))
+		{
+			free_buf(action_buffer);
+			return;
+		}
+		action = action_buffer->string;
+	}
+
+	ret = p_act_trigger(action, actor_m, actor_o, actor_r, ch, vch1, vch2, obj1, obj2, trigger);
+
+	if (action_buffer) free_buf(action_buffer);
+
+	SETRETURN(ret);
+}
+
+// BRIBETRIGGER $ACTOR $ENACTOR $AMOUNT
+// $ENACTOR can be MOBILE
+//
+// Returns anything negative if there was anything wrong with it as 0 is a valid return value
+//  Check LASTRETURN for this value
+SCRIPT_CMD(scriptcmd_bribetrigger)
+{
+	char *rest = argument;
+	CHAR_DATA *actor = NULL;
+	CHAR_DATA *ch = NULL;
+	int amount;
+	int ret;
+
+	SETRETURN(PRET_BADSYNTAX);	// If it doesn't get to the end, something happened
+
+	// Get the ACTOR:
+	PARSE_ARGTYPE(MOBILE);
+	actor = arg->d.mob;
+
+	// Check that there is valid actor
+	if (!IS_VALID(actor))
+		return;
+	
+	// Get the ENACTOR (not optional):
+	PARSE_ARGTYPE(MOBILE);
+	ch = arg->d.mob;
+
+	// Get the AMOUNT (not optional):
+	PARSE_ARGTYPE(NUMBER);
+	amount = arg->d.num;
+
+	ret = p_bribe_trigger(actor, ch, amount);
+
+	SETRETURN(ret);
+}
+
+// DIRECTIONTRIGGER $MOBILE $ROOM $TRIGGER
+//
+// Returns anything negative if there was anything wrong with it as 0 is a valid return value
+//  Check LASTRETURN for this value
+SCRIPT_CMD(scriptcmd_directiontrigger)
+{
+	char *rest = argument;
+	CHAR_DATA *ch = NULL;
+	ROOM_INDEX_DATA *here = NULL;
+	int door;
+	int trigger = TRIG_NONE;
+	int ret;
+
+	SETRETURN(PRET_BADSYNTAX);	// If it doesn't get to the end, something happened
+
+	// Get the MOBILE:
+	PARSE_ARGTYPE(MOBILE);
+	ch = arg->d.mob;
+	
+	// Get the HERE:
+	PARSE_ARGTYPE(ROOM);
+	here = arg->d.room;
+	
+	// Get the DOOR:
+	PARSE_ARGTYPE(STRING);
+	door = parse_door(arg->d.str);
+	if (door < 0 || door >= MAX_DIR) return;
+
+	// Get the TRIGGER:
+	PARSE_ARGTYPE(STRING);
+	struct trigger_type *tt = get_trigger_type(arg->d.str, PRG_RPROG);
+	if (!tt)
+		return;
+	trigger = tt->type;
+
+	ret = p_direction_trigger(ch, here, door, PRG_RPROG, trigger);
+
+	SETRETURN(ret);
+}
+
+// EMOTEATTRIGGER $MOBILE $ENACTOR $EMOTE
+//
+// Returns anything negative if there was anything wrong with it as 0 is a valid return value
+//  Check LASTRETURN for this value
+SCRIPT_CMD(scriptcmd_emoteattrigger)
+{
+	char *rest = argument;
+	CHAR_DATA *mob = NULL;
+	CHAR_DATA *ch = NULL;
+	BUFFER *emote_buffer = NULL;
+	char *emote = NULL;
+	int ret;
+
+	SETRETURN(PRET_BADSYNTAX);	// If it doesn't get to the end, something happened
+
+	// Get the MOBILE
+	PARSE_ARGTYPE(MOBILE);
+	mob = arg->d.mob;
+
+	// Get the ENACTOR
+	PARSE_ARGTYPE(MOBILE);
+	ch = arg->d.mob;
+	
+	emote_buffer = new_buf();
+	if (!PARSE_STR(emote_buffer))
+	{
+		free_buf(emote_buffer);
+		return;
+	}
+	emote = emote_buffer->string;
+
+	ret = p_emoteat_trigger(mob, ch, emote);
+
+	free_buf(emote_buffer);
+
+	SETRETURN(ret);
+}
+
+// EMOTETRIGGER $MOBILE $EMOTE
+//
+// Returns anything negative if there was anything wrong with it as 0 is a valid return value
+//  Check LASTRETURN for this value
+SCRIPT_CMD(scriptcmd_emotetrigger)
+{
+	char *rest = argument;
+	CHAR_DATA *ch = NULL;
+	BUFFER *emote_buffer = NULL;
+	char *emote = NULL;
+	int ret;
+
+	SETRETURN(PRET_BADSYNTAX);	// If it doesn't get to the end, something happened
+
+	// Get the MOBILE
+	PARSE_ARGTYPE(MOBILE);
+	ch = arg->d.mob;
+	
+	emote_buffer = new_buf();
+	if (!PARSE_STR(emote_buffer))
+	{
+		free_buf(emote_buffer);
+		return;
+	}
+	emote = emote_buffer->string;
+
+	ret = p_emote_trigger(ch, emote);
+
+	free_buf(emote_buffer);
+
+	SETRETURN(ret);
+}
+
+// EXACTTRIGGER $ACTOR $ENACTOR $VICTIM1 $VICTIM2 $OBJ1 $OBJ2 $TRIGGER $PHRASE...
+// $ENACTOR can be MOBILE, OBJECT or ROOM
+//
+// Returns anything negative if there was anything wrong with it as 0 is a valid return value
+//  Check LASTRETURN for this value
+SCRIPT_CMD(scriptcmd_exacttrigger)
+{
+	char *rest = argument;
+	int actor_space = 0;
+	CHAR_DATA *actor_m = NULL;
+	OBJ_DATA *actor_o = NULL;
+	ROOM_INDEX_DATA *actor_r = NULL;
+	CHAR_DATA *ch = NULL;
+	CHAR_DATA *vch1 = NULL;
+	CHAR_DATA *vch2 = NULL;
+	OBJ_DATA *obj1 = NULL;
+	OBJ_DATA *obj2 = NULL;
+	BUFFER *phrase_buffer = NULL;
+	char *phrase = NULL;
+	int trigger = TRIG_NONE;
+	int ret;
+
+	SETRETURN(PRET_BADSYNTAX);	// If it doesn't get to the end, something happened
+
+	// Get the ACTOR:
+	if (!PARSE_ARG) return;
+
+	switch(arg->type) {
+	case ENT_MOBILE:	actor_m = arg->d.mob;		actor_space = PRG_MPROG; break;
+	case ENT_OBJECT:	actor_o = arg->d.obj;		actor_space = PRG_OPROG; break;
+	case ENT_ROOM:		actor_r = arg->d.room;		actor_space = PRG_RPROG; break;
+	}
+
+	// Check that there is valid actor
+	if (!actor_space || (!IS_VALID(actor_m) && !IS_VALID(actor_o) && !actor_r))
+		return;
+	
+	// Get the ENACTOR:
+	if (!PARSE_ARG) return;
+	if (arg->type == ENT_STRING && ARG_EQUALS("none"))
+		ch = NULL;
+	else if (arg->type == ENT_MOBILE)
+		ch = arg->d.mob;
+	else
+		return;
+	
+	// Get the VCH1:
+	if (!PARSE_ARG) return;
+	if (arg->type == ENT_STRING && ARG_EQUALS("none"))
+		vch1 = NULL;
+	else if (arg->type == ENT_MOBILE)
+		vch1 = arg->d.mob;
+	else
+		return;
+	
+	// Get the VCH2:
+	if (!PARSE_ARG) return;
+	if (arg->type == ENT_STRING && ARG_EQUALS("none"))
+		vch2 = NULL;
+	else if (arg->type == ENT_MOBILE)
+		vch2 = arg->d.mob;
+	else
+		return;
+
+	// Get the OBJ1:
+	if (!PARSE_ARG) return;
+	if (arg->type == ENT_STRING && ARG_EQUALS("none"))
+		obj1 = NULL;
+	else if (arg->type == ENT_OBJECT)
+		obj1 = arg->d.obj;
+	else
+		return;
+
+	// Get the OBJ2:
+	if (!PARSE_ARG) return;
+	if (arg->type == ENT_STRING && ARG_EQUALS("none"))
+		obj2 = NULL;
+	else if (arg->type == ENT_OBJECT)
+		obj2 = arg->d.obj;
+	else
+		return;
+
+	// Get the TRIGGER:
+	PARSE_ARGTYPE(STRING);
+	struct trigger_type *tt = get_trigger_type(arg->d.str, actor_space);
+	if (!tt)
+		return;
+	trigger = tt->type;
+
+	// Get the PHRASE:
+	if (!IS_NULLSTR(rest))
+	{
+		phrase_buffer = new_buf();
+		if (!PARSE_STR(phrase_buffer))
+		{
+			free_buf(phrase_buffer);
+			return;
+		}
+		phrase = phrase_buffer->string;
+	}
+
+	ret = p_exact_trigger(phrase, actor_m, actor_o, actor_r, ch, vch1, vch2, obj1, obj2, trigger);
+
+	if (phrase_buffer) free_buf(phrase_buffer);
+
+	SETRETURN(ret);
+}
+
+// EXITTRIGGER $MOBILE $DOOR $TRIGGER
+//
+// Returns anything negative if there was anything wrong with it as 0 is a valid return value
+//  Check LASTRETURN for this value
+SCRIPT_CMD(scriptcmd_exittrigger)
+{
+	char *rest = argument;
+	CHAR_DATA *ch = NULL;
+	int dir;
+	int trigger = TRIG_NONE;
+	int ret;
+
+	SETRETURN(PRET_BADSYNTAX);	// If it doesn't get to the end, something happened
+
+	// Get the MOBILE:
+	PARSE_ARGTYPE(MOBILE);
+	ch = arg->d.mob;
+
+	// Get the DOOR
+	PARSE_ARGTYPE(STRING);
+	dir = parse_door(arg->d.str);
+	if (dir < 0 || dir >= MAX_DIR) return;
+
+	// Get the TRIGGER:
+	PARSE_ARGTYPE(STRING);
+	struct trigger_type *tt = get_trigger_type(arg->d.str, PRG_RPROG);
+	if (!tt)
+		return;
+	trigger = tt->type;
+
+	ret = p_exit_trigger(ch, dir, trigger);
+
+	SETRETURN(ret);
+}
+
+
+// GIVETRIGGER $ACTOR $ENACTOR $OBJECT $TRIGGER
+// $ENACTOR can be MOBILE, OBJECT, ROOM
+//
+// Returns anything negative if there was anything wrong with it as 0 is a valid return value
+//  Check LASTRETURN for this value
+SCRIPT_CMD(scriptcmd_givetrigger)
+{
+	char *rest = argument;
+	int actor_space = 0;
+	CHAR_DATA *actor_m = NULL;
+	OBJ_DATA *actor_o = NULL;
+	ROOM_INDEX_DATA *actor_r = NULL;
+	CHAR_DATA *ch = NULL;
+	OBJ_DATA *obj = NULL;
+	int trigger = TRIG_NONE;
+	int ret;
+
+	SETRETURN(PRET_BADSYNTAX);	// If it doesn't get to the end, something happened
+
+	// Get the ACTOR:
+	if (!PARSE_ARG) return;
+
+	switch(arg->type) {
+	case ENT_MOBILE:	actor_m = arg->d.mob;		actor_space = PRG_MPROG; break;
+	case ENT_OBJECT:	actor_o = arg->d.obj;		actor_space = PRG_OPROG; break;
+	case ENT_ROOM:		actor_r = arg->d.room;		actor_space = PRG_RPROG; break;
+	}
+
+	// Check that there is valid actor
+	if (!actor_space || (!IS_VALID(actor_m) && !IS_VALID(actor_o) && !actor_r))
+		return;
+	
+	// Get the ENACTOR:
+	PARSE_ARGTYPE(MOBILE);
+	ch = arg->d.mob;
+	
+	// Get the OBJECT:
+	PARSE_ARGTYPE(OBJECT);
+	obj = arg->d.obj;
+
+	// Get the TRIGGER:
+	PARSE_ARGTYPE(STRING);
+	struct trigger_type *tt = get_trigger_type(arg->d.str, actor_space);
+	if (!tt)
+		return;
+	trigger = tt->type;
+
+	ret = p_give_trigger(actor_m, actor_o, actor_r, ch, obj, trigger);
+
+	SETRETURN(ret);
+}
+
+// GREETTRIGGER $MOBILE $SPACE
+// $SPACE can be MOBILE, OBJECT, ROOM
+//
+// Returns anything negative if there was anything wrong with it as 0 is a valid return value
+//  Check LASTRETURN for this value
+SCRIPT_CMD(scriptcmd_greettrigger)
+{
+	char *rest = argument;
+	CHAR_DATA *ch = NULL;
+	int space = 0;
+	int ret;
+
+	SETRETURN(PRET_BADSYNTAX);	// If it doesn't get to the end, something happened
+
+	// Get the MOBILE
+	PARSE_ARGTYPE(MOBILE);
+	ch = arg->d.mob;
+
+	// Get the SPACE:
+	PARSE_ARGTYPE(STRING);
+	if ((space = flag_value(script_spaces,arg->d.str)) == NO_FLAG)
+		return;
+
+	ret = p_greet_trigger(ch, space);
+
+	SETRETURN(ret);
+}
+
+// HPRCTTRIGGER $MOBILE $ENACTOR
+//
+// Returns anything negative if there was anything wrong with it as 0 is a valid return value
+//  Check LASTRETURN for this value
+SCRIPT_CMD(scriptcmd_hprcttrigger)
+{
+	char *rest = argument;
+	CHAR_DATA *mob = NULL;
+	CHAR_DATA *ch = NULL;
+	int ret;
+
+	SETRETURN(PRET_BADSYNTAX);	// If it doesn't get to the end, something happened
+
+	// Get the MOBILE
+	PARSE_ARGTYPE(MOBILE);
+	mob = arg->d.mob;
+
+	// Get the ENACTOR
+	PARSE_ARGTYPE(MOBILE);
+	ch = arg->d.mob;
+
+	ret = p_hprct_trigger(mob, ch);
+
+	SETRETURN(ret);
+}
+
+// NAMETRIGGER $ACTOR $ENACTOR $VICTIM1 $VICTIM2 $OBJ1 $OBJ2 $TRIGGER $NAME...
+// $ENACTOR can be MOBILE, OBJECT or ROOM
+//
+// Returns anything negative if there was anything wrong with it as 0 is a valid return value
+//  Check LASTRETURN for this value
+SCRIPT_CMD(scriptcmd_nametrigger)
+{
+	char *rest = argument;
+	int actor_space = 0;
+	CHAR_DATA *actor_m = NULL;
+	OBJ_DATA *actor_o = NULL;
+	ROOM_INDEX_DATA *actor_r = NULL;
+	CHAR_DATA *ch = NULL;
+	CHAR_DATA *vch1 = NULL;
+	CHAR_DATA *vch2 = NULL;
+	OBJ_DATA *obj1 = NULL;
+	OBJ_DATA *obj2 = NULL;
+	BUFFER *name_buffer = NULL;
+	char *name = NULL;
+	int trigger = TRIG_NONE;
+	int ret;
+
+	SETRETURN(PRET_BADSYNTAX);	// If it doesn't get to the end, something happened
+
+	// Get the ACTOR:
+	if (!PARSE_ARG) return;
+
+	switch(arg->type) {
+	case ENT_MOBILE:	actor_m = arg->d.mob;		actor_space = PRG_MPROG; break;
+	case ENT_OBJECT:	actor_o = arg->d.obj;		actor_space = PRG_OPROG; break;
+	case ENT_ROOM:		actor_r = arg->d.room;		actor_space = PRG_RPROG; break;
+	}
+
+	// Check that there is valid actor
+	if (!actor_space || (!IS_VALID(actor_m) && !IS_VALID(actor_o) && !actor_r))
+		return;
+	
+	// Get the ENACTOR:
+	if (!PARSE_ARG) return;
+	if (arg->type == ENT_STRING && ARG_EQUALS("none"))
+		ch = NULL;
+	else if (arg->type == ENT_MOBILE)
+		ch = arg->d.mob;
+	else
+		return;
+	
+	// Get the VCH1:
+	if (!PARSE_ARG) return;
+	if (arg->type == ENT_STRING && ARG_EQUALS("none"))
+		vch1 = NULL;
+	else if (arg->type == ENT_MOBILE)
+		vch1 = arg->d.mob;
+	else
+		return;
+	
+	// Get the VCH2:
+	if (!PARSE_ARG) return;
+	if (arg->type == ENT_STRING && ARG_EQUALS("none"))
+		vch2 = NULL;
+	else if (arg->type == ENT_MOBILE)
+		vch2 = arg->d.mob;
+	else
+		return;
+
+	// Get the OBJ1:
+	if (!PARSE_ARG) return;
+	if (arg->type == ENT_STRING && ARG_EQUALS("none"))
+		obj1 = NULL;
+	else if (arg->type == ENT_OBJECT)
+		obj1 = arg->d.obj;
+	else
+		return;
+
+	// Get the OBJ2:
+	if (!PARSE_ARG) return;
+	if (arg->type == ENT_STRING && ARG_EQUALS("none"))
+		obj2 = NULL;
+	else if (arg->type == ENT_OBJECT)
+		obj2 = arg->d.obj;
+	else
+		return;
+
+	// Get the TRIGGER:
+	PARSE_ARGTYPE(STRING);
+	struct trigger_type *tt = get_trigger_type(arg->d.str, actor_space);
+	if (!tt)
+		return;
+	trigger = tt->type;
+
+	// Get the NAME:
+	if (!IS_NULLSTR(rest))
+	{
+		name_buffer = new_buf();
+		if (!PARSE_STR(name_buffer))
+		{
+			free_buf(name_buffer);
+			return;
+		}
+
+		name = name_buffer->string;
+	}
+
+	ret = p_name_trigger(name, actor_m, actor_o, actor_r, ch, vch1, vch2, obj1, obj2, trigger);
+
+	if (name_buffer) free_buf(name_buffer);
+
+	SETRETURN(ret);
+}
+
+// NUMBERTRIGGER $ACTOR $ENACTOR $VICTIM1 $VICTIM2 $OBJ1 $OBJ2 $NUMBER $WILDCARD $TRIGGER[ $PHRASE...]
+// $ENACTOR can be MOBILE, OBJECT, ROOM, TOKEN
+//
+// Returns anything negative if there was anything wrong with it as 0 is a valid return value
+//  Check LASTRETURN for this value
+SCRIPT_CMD(scriptcmd_numbertrigger)
+{
+	char *rest = argument;
+	int actor_space = 0;
+	CHAR_DATA *actor_m = NULL;
+	OBJ_DATA *actor_o = NULL;
+	ROOM_INDEX_DATA *actor_r = NULL;
+	TOKEN_DATA *actor_t = NULL;
+	CHAR_DATA *ch = NULL;
+	CHAR_DATA *vch1 = NULL;
+	CHAR_DATA *vch2 = NULL;
+	OBJ_DATA *obj1 = NULL;
+	OBJ_DATA *obj2 = NULL;
+	int number, wildcard;
+	BUFFER *phrase_buffer = NULL;
+	char *phrase = NULL;
+	int trigger = TRIG_NONE;
+	int ret;
+
+	SETRETURN(PRET_BADSYNTAX);	// If it doesn't get to the end, something happened
+
+	// Get the ACTOR:
+	if (!PARSE_ARG) return;
+
+	switch(arg->type) {
+	case ENT_MOBILE:	actor_m = arg->d.mob;		actor_space = PRG_MPROG; break;
+	case ENT_OBJECT:	actor_o = arg->d.obj;		actor_space = PRG_OPROG; break;
+	case ENT_ROOM:		actor_r = arg->d.room;		actor_space = PRG_RPROG; break;
+	case ENT_TOKEN:		actor_t = arg->d.token;		actor_space = PRG_TPROG; break;
+	}
+
+	// Check that there is valid actor
+	if (!actor_space || (!IS_VALID(actor_m) && !IS_VALID(actor_o) && !actor_r && !IS_VALID(actor_t)))
+		return;
+	
+	// Get the ENACTOR:
+	if (!PARSE_ARG) return;
+	if (arg->type == ENT_STRING && ARG_EQUALS("none"))
+		ch = NULL;
+	else if (arg->type == ENT_MOBILE)
+		ch = arg->d.mob;
+	else
+		return;
+	
+	// Get the VCH1:
+	if (!PARSE_ARG) return;
+	if (arg->type == ENT_STRING && ARG_EQUALS("none"))
+		vch1 = NULL;
+	else if (arg->type == ENT_MOBILE)
+		vch1 = arg->d.mob;
+	else
+		return;
+	
+	// Get the VCH2:
+	if (!PARSE_ARG) return;
+	if (arg->type == ENT_STRING && ARG_EQUALS("none"))
+		vch2 = NULL;
+	else if (arg->type == ENT_MOBILE)
+		vch2 = arg->d.mob;
+	else
+		return;
+
+	// Get the OBJ1:
+	if (!PARSE_ARG) return;
+	if (arg->type == ENT_STRING && ARG_EQUALS("none"))
+		obj1 = NULL;
+	else if (arg->type == ENT_OBJECT)
+		obj1 = arg->d.obj;
+	else
+		return;
+
+	// Get the OBJ2:
+	if (!PARSE_ARG) return;
+	if (arg->type == ENT_STRING && ARG_EQUALS("none"))
+		obj2 = NULL;
+	else if (arg->type == ENT_OBJECT)
+		obj2 = arg->d.obj;
+	else
+		return;
+
+	// Get the NUMBER (not optional):
+	PARSE_ARGTYPE(NUMBER);
+	number = arg->d.num;
+
+	// Get the WILDCARD (not optional);
+	PARSE_ARGTYPE(NUMBER);
+	wildcard = arg->d.num;
+
+	// Get the TRIGGER:
+	PARSE_ARGTYPE(STRING);
+	struct trigger_type *tt = get_trigger_type(arg->d.str, actor_space);
+	if (!tt)
+		return;
+	trigger = tt->type;
+
+	// Get the PHRASE:
+	if (!IS_NULLSTR(rest))
+	{
+		phrase_buffer = new_buf();
+		if (!PARSE_STR(phrase_buffer))
+		{
+			free_buf(phrase_buffer);
+			return;
+		}
+
+		phrase = phrase_buffer->string;
+	}
+
+	ret = p_number_trigger(number, wildcard, actor_m, actor_o, actor_r, actor_t, ch, vch1, vch2, obj1, obj2, trigger, phrase);
+
+	if (phrase_buffer) free_buf(phrase_buffer);
+
+	SETRETURN(ret);
+}
+
+// PERCENTTRIGGER $ACTOR $ENACTOR $VICTIM1 $VICTIM2 $OBJ1 $OBJ2 $TRIGGER[ $PHRASE...]
+// $ENACTOR can be MOBILE, OBJECT, ROOM, TOKEN, AREA, INSTANCE or DUNGEON
+//
+// Returns anything negative if there was anything wrong with it as 0 is a valid return value
+//  Check LASTRETURN for this value
+SCRIPT_CMD(scriptcmd_percenttrigger)
+{
+	char *rest = argument;
+	int actor_space = 0;
+	CHAR_DATA *actor_m = NULL;
+	OBJ_DATA *actor_o = NULL;
+	ROOM_INDEX_DATA *actor_r = NULL;
+	TOKEN_DATA *actor_t = NULL;
+	AREA_DATA *actor_a = NULL;
+	INSTANCE *actor_i = NULL;
+	DUNGEON *actor_d = NULL;
+	CHAR_DATA *ch = NULL;
+	CHAR_DATA *vch1 = NULL;
+	CHAR_DATA *vch2 = NULL;
+	OBJ_DATA *obj1 = NULL;
+	OBJ_DATA *obj2 = NULL;
+	BUFFER *phrase_buffer = NULL;
+	char *phrase = NULL;
+	int trigger = TRIG_NONE;
+	int ret;
+
+	SETRETURN(PRET_BADSYNTAX);	// If it doesn't get to the end, something happened
+
+	// Get the ACTOR:
+	if (!PARSE_ARG) return;
+
+	switch(arg->type) {
+	case ENT_MOBILE:	actor_m = arg->d.mob;		actor_space = PRG_MPROG; break;
+	case ENT_OBJECT:	actor_o = arg->d.obj;		actor_space = PRG_OPROG; break;
+	case ENT_ROOM:		actor_r = arg->d.room;		actor_space = PRG_RPROG; break;
+	case ENT_TOKEN:		actor_t = arg->d.token;		actor_space = PRG_TPROG; break;
+	case ENT_AREA:		actor_a = arg->d.area;		actor_space = PRG_APROG; break;
+	case ENT_INSTANCE:	actor_i = arg->d.instance;	actor_space = PRG_IPROG; break;
+	case ENT_DUNGEON:	actor_d = arg->d.dungeon;	actor_space = PRG_DPROG; break;
+	}
+
+	// Check that there is valid actor
+	if (!actor_space || (!IS_VALID(actor_m) && !IS_VALID(actor_o) && !actor_r && !IS_VALID(actor_t) &&
+		!actor_a && !IS_VALID(actor_i) && !IS_VALID(actor_d)))
+		return;
+	
+	// Get the ENACTOR:
+	if (!PARSE_ARG) return;
+	if (arg->type == ENT_STRING && ARG_EQUALS("none"))
+		ch = NULL;
+	else if (arg->type == ENT_MOBILE)
+		ch = arg->d.mob;
+	else
+		return;
+	
+	// Get the VCH1:
+	if (!PARSE_ARG) return;
+	if (arg->type == ENT_STRING && ARG_EQUALS("none"))
+		vch1 = NULL;
+	else if (arg->type == ENT_MOBILE)
+		vch1 = arg->d.mob;
+	else
+		return;
+	
+	// Get the VCH2:
+	if (!PARSE_ARG) return;
+	if (arg->type == ENT_STRING && ARG_EQUALS("none"))
+		vch2 = NULL;
+	else if (arg->type == ENT_MOBILE)
+		vch2 = arg->d.mob;
+	else
+		return;
+
+	// Get the OBJ1:
+	if (!PARSE_ARG) return;
+	if (arg->type == ENT_STRING && ARG_EQUALS("none"))
+		obj1 = NULL;
+	else if (arg->type == ENT_OBJECT)
+		obj1 = arg->d.obj;
+	else
+		return;
+
+	// Get the OBJ2:
+	if (!PARSE_ARG) return;
+	if (arg->type == ENT_STRING && ARG_EQUALS("none"))
+		obj2 = NULL;
+	else if (arg->type == ENT_OBJECT)
+		obj2 = arg->d.obj;
+	else
+		return;
+
+	// Get the TRIGGER:
+	PARSE_ARGTYPE(STRING);
+	struct trigger_type *tt = get_trigger_type(arg->d.str, actor_space);
+	if (!tt)
+		return;
+	trigger = tt->type;
+
+	// Get the PHRASE:
+	if (!IS_NULLSTR(rest))
+	{
+		phrase_buffer = new_buf();
+		if (!PARSE_STR(phrase_buffer))
+		{
+			free_buf(phrase_buffer);
+			return;
+		}
+
+		phrase = phrase_buffer->string;
+	}
+
+	if (actor_a || actor_i || actor_d)
+		ret = p_percent2_trigger(actor_a, actor_i, actor_d, ch, vch1, vch2, obj1, obj2, trigger, phrase);
+	else
+		ret = p_percent_trigger(actor_m, actor_o, actor_r, actor_t, ch, vch1, vch2, obj1, obj2, trigger, phrase);
+
+	if (phrase_buffer) free_buf(phrase_buffer);
+
+	SETRETURN(ret);
+}
+
+
+// PERCENTTOKENTRIGGER $ACTOR $ENACTOR $VICTIM1 $VICTIM2 $OBJ1 $OBJ2 $TOKEN $TRIGGER[ $PHRASE...]
+// $ENACTOR can be MOBILE, OBJECT, ROOM, TOKEN
+//
+// Returns anything negative if there was anything wrong with it as 0 is a valid return value
+//  Check LASTRETURN for this value
+SCRIPT_CMD(scriptcmd_percenttokentrigger)
+{
+	char *rest = argument;
+	int actor_space = 0;
+	CHAR_DATA *actor_m = NULL;
+	OBJ_DATA *actor_o = NULL;
+	ROOM_INDEX_DATA *actor_r = NULL;
+	TOKEN_DATA *actor_t = NULL;
+	AREA_DATA *actor_a = NULL;
+	INSTANCE *actor_i = NULL;
+	DUNGEON *actor_d = NULL;
+	CHAR_DATA *ch = NULL;
+	CHAR_DATA *vch1 = NULL;
+	CHAR_DATA *vch2 = NULL;
+	OBJ_DATA *obj1 = NULL;
+	OBJ_DATA *obj2 = NULL;
+	TOKEN_DATA *token = NULL;
+	BUFFER *phrase_buffer = NULL;
+	char *phrase = NULL;
+	int trigger = TRIG_NONE;
+	int ret;
+
+	SETRETURN(PRET_BADSYNTAX);	// If it doesn't get to the end, something happened
+
+	// Get the ACTOR:
+	if (!PARSE_ARG) return;
+
+	switch(arg->type) {
+	case ENT_MOBILE:	actor_m = arg->d.mob;		actor_space = PRG_MPROG; break;
+	case ENT_OBJECT:	actor_o = arg->d.obj;		actor_space = PRG_OPROG; break;
+	case ENT_ROOM:		actor_r = arg->d.room;		actor_space = PRG_RPROG; break;
+	case ENT_TOKEN:		actor_t = arg->d.token;		actor_space = PRG_TPROG; break;
+	}
+
+	// Check that there is valid actor
+	if (!actor_space || (!IS_VALID(actor_m) && !IS_VALID(actor_o) && !actor_r && !IS_VALID(actor_t) &&
+		!actor_a && !IS_VALID(actor_i) && !IS_VALID(actor_d)))
+		return;
+	
+	// Get the ENACTOR:
+	if (!PARSE_ARG) return;
+	if (arg->type == ENT_STRING && ARG_EQUALS("none"))
+		ch = NULL;
+	else if (arg->type == ENT_MOBILE)
+		ch = arg->d.mob;
+	else
+		return;
+	
+	// Get the VCH1:
+	if (!PARSE_ARG) return;
+	if (arg->type == ENT_STRING && ARG_EQUALS("none"))
+		vch1 = NULL;
+	else if (arg->type == ENT_MOBILE)
+		vch1 = arg->d.mob;
+	else
+		return;
+	
+	// Get the VCH2:
+	if (!PARSE_ARG) return;
+	if (arg->type == ENT_STRING && ARG_EQUALS("none"))
+		vch2 = NULL;
+	else if (arg->type == ENT_MOBILE)
+		vch2 = arg->d.mob;
+	else
+		return;
+
+	// Get the OBJ1:
+	if (!PARSE_ARG) return;
+	if (arg->type == ENT_STRING && ARG_EQUALS("none"))
+		obj1 = NULL;
+	else if (arg->type == ENT_OBJECT)
+		obj1 = arg->d.obj;
+	else
+		return;
+
+	// Get the OBJ2:
+	if (!PARSE_ARG) return;
+	if (arg->type == ENT_STRING && ARG_EQUALS("none"))
+		obj2 = NULL;
+	else if (arg->type == ENT_OBJECT)
+		obj2 = arg->d.obj;
+	else
+		return;
+
+	// Get the TOKEN (not optional):
+	PARSE_ARGTYPE(TOKEN);
+	token = arg->d.token;
+
+	// Get the TRIGGER:
+	PARSE_ARGTYPE(STRING);
+	struct trigger_type *tt = get_trigger_type(arg->d.str, actor_space);
+	if (!tt)
+		return;
+	trigger = tt->type;
+
+	// Get the PHRASE:
+	if (!IS_NULLSTR(rest))
+	{
+		phrase_buffer = new_buf();
+		if (!PARSE_STR(phrase_buffer))
+		{
+			free_buf(phrase_buffer);
+			return;
+		}
+
+		phrase = phrase_buffer->string;
+	}
+
+	ret = p_percent_token_trigger(actor_m, actor_o, actor_r, actor_t, ch, vch1, vch2, obj1, obj2, token, trigger, phrase);
+
+	if (phrase_buffer) free_buf(phrase_buffer);
+
+	SETRETURN(ret);
+}
+
+
+// USETRIGGER $MOBILE $OBJECT $TRIGGER
+//
+// Returns anything negative if there was anything wrong with it as 0 is a valid return value
+//  Check LASTRETURN for this value
+SCRIPT_CMD(scriptcmd_usetrigger)
+{
+	char *rest = argument;
+	CHAR_DATA *ch = NULL;
+	OBJ_DATA *obj = NULL;
+	int trigger = TRIG_NONE;
+	int ret;
+
+	SETRETURN(PRET_BADSYNTAX);	// If it doesn't get to the end, something happened
+
+	// Get the MOBILE:
+	PARSE_ARGTYPE(MOBILE);
+	ch = arg->d.mob;
+
+	// Get the OBJECT:
+	PARSE_ARGTYPE(OBJECT);
+	obj = arg->d.obj;
+
+	// Get the TRIGGER:
+	PARSE_ARGTYPE(STRING);
+	struct trigger_type *tt = get_trigger_type(arg->d.str, PRG_OPROG);
+	if (!tt)
+		return;
+	trigger = tt->type;
+
+	ret = p_use_trigger(ch, obj, trigger);
+
+	SETRETURN(ret);
+}
+
+
+// USEONTRIGGER $MOBILE $OBJECT $TRIGGER $TARGET
+//
+// Returns anything negative if there was anything wrong with it as 0 is a valid return value
+//  Check LASTRETURN for this value
+SCRIPT_CMD(scriptcmd_useontrigger)
+{
+	char *rest = argument;
+	CHAR_DATA *ch = NULL;
+	OBJ_DATA *obj = NULL;
+	BUFFER *target_buffer = NULL;
+	char *target = NULL;
+	int trigger = TRIG_NONE;
+	int ret;
+
+	SETRETURN(PRET_BADSYNTAX);	// If it doesn't get to the end, something happened
+
+	// Get the MOBILE:
+	PARSE_ARGTYPE(MOBILE);
+	ch = arg->d.mob;
+
+	// Get the OBJECT:
+	PARSE_ARGTYPE(OBJECT);
+	obj = arg->d.obj;
+
+	// Get the TRIGGER:
+	PARSE_ARGTYPE(STRING);
+	struct trigger_type *tt = get_trigger_type(arg->d.str, PRG_OPROG);
+	if (!tt)
+		return;
+	trigger = tt->type;
+
+	if (!IS_NULLSTR(rest))
+	{
+		target_buffer = new_buf();
+		if (!PARSE_STR(target_buffer))
+		{
+			free_buf(target_buffer);
+			return;
+		}
+
+		target = target_buffer->string;
+	}
+
+	ret = p_use_on_trigger(ch, obj, trigger, target);
+
+	if (target_buffer) free_buf(target_buffer);
+
+	SETRETURN(ret);
+}
+
+// USEWITHTRIGGER $MOBILE $OBJECT $VICTIM1 $VICTIM2 $OBJ1 $OBJ2 $TRIGGER
+//
+// Returns anything negative if there was anything wrong with it as 0 is a valid return value
+//  Check LASTRETURN for this value
+SCRIPT_CMD(scriptcmd_usewithtrigger)
+{
+	char *rest = argument;
+	CHAR_DATA *ch = NULL;
+	OBJ_DATA *obj = NULL;
+	CHAR_DATA *vch1 = NULL;
+	CHAR_DATA *vch2 = NULL;
+	OBJ_DATA *obj1 = NULL;
+	OBJ_DATA *obj2 = NULL;
+	int trigger = TRIG_NONE;
+	int ret;
+
+	SETRETURN(PRET_BADSYNTAX);	// If it doesn't get to the end, something happened
+
+	// Get the MOBILE
+	PARSE_ARGTYPE(MOBILE);
+	ch = arg->d.mob;
+
+	// Get the OBJECT
+	PARSE_ARGTYPE(OBJECT);
+	obj = arg->d.obj;
+	
+	// Get the VCH1:
+	if (!PARSE_ARG) return;
+	if (arg->type == ENT_STRING && ARG_EQUALS("none"))
+		vch1 = NULL;
+	else if (arg->type == ENT_MOBILE)
+		vch1 = arg->d.mob;
+	else
+		return;
+	
+	// Get the VCH2:
+	if (!PARSE_ARG) return;
+	if (arg->type == ENT_STRING && ARG_EQUALS("none"))
+		vch2 = NULL;
+	else if (arg->type == ENT_MOBILE)
+		vch2 = arg->d.mob;
+	else
+		return;
+
+	// Get the OBJ1:
+	if (!PARSE_ARG) return;
+	if (arg->type == ENT_STRING && ARG_EQUALS("none"))
+		obj1 = NULL;
+	else if (arg->type == ENT_OBJECT)
+		obj1 = arg->d.obj;
+	else
+		return;
+
+	// Get the OBJ2:
+	if (!PARSE_ARG) return;
+	if (arg->type == ENT_STRING && ARG_EQUALS("none"))
+		obj2 = NULL;
+	else if (arg->type == ENT_OBJECT)
+		obj2 = arg->d.obj;
+	else
+		return;
+
+	// Get the TRIGGER:
+	PARSE_ARGTYPE(STRING);
+	struct trigger_type *tt = get_trigger_type(arg->d.str, PRG_OPROG);
+	if (!tt)
+		return;
+	trigger = tt->type;
+
+	ret = p_use_with_trigger(ch, obj, trigger, obj1, obj2, vch1, vch2);
+
+	SETRETURN(ret);
+}
 
 
 

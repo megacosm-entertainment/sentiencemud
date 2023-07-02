@@ -14,6 +14,7 @@
 
 // Commands used by token scripts
 const struct script_cmd_type token_cmd_table[] = {
+	{ "acttrigger",				scriptcmd_acttrigger,	TRUE,	FALSE	},
 	{ "addaffect",			scriptcmd_addaffect,		TRUE,	TRUE	},
 	{ "addaffectname",		scriptcmd_addaffectname,	TRUE,	TRUE	},
 	{ "addspell",			do_tpaddspell,				TRUE,	TRUE	},
@@ -28,6 +29,7 @@ const struct script_cmd_type token_cmd_table[] = {
 	{ "attach",				scriptcmd_attach,			TRUE,	TRUE	},
 	{ "award",				scriptcmd_award,			TRUE,	TRUE	},
 	{ "breathe",			scriptcmd_breathe,		FALSE,	TRUE	},
+	{ "bribetrigger",			scriptcmd_bribetrigger,	TRUE,	FALSE	},
 	{ "call",				do_tpcall,					FALSE,	TRUE	},
 	{ "castfailure",		do_tpcastfailure,			FALSE,	TRUE	},
 	{ "castrecover",		do_tpcastrecover,			FALSE,	TRUE	},
@@ -41,6 +43,7 @@ const struct script_cmd_type token_cmd_table[] = {
 	{ "dequeue",			do_tpdequeue,				FALSE,	FALSE	},
 	{ "destroyroom",		do_tpdestroyroom,			TRUE,	TRUE	},
 	{ "detach",				scriptcmd_detach,			TRUE,	TRUE	},
+	{ "directiontrigger",		scriptcmd_directiontrigger,	TRUE,	FALSE	},
 	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	TRUE,	TRUE	},
 	{ "echo",				do_tpecho,					FALSE,	TRUE	},
 	{ "echoaround",			do_tpechoaround,			FALSE,	TRUE	},
@@ -54,7 +57,11 @@ const struct script_cmd_type token_cmd_table[] = {
 	{ "echonotvict",		do_tpechonotvict,			FALSE,	TRUE	},
 	{ "echoroom",			do_tpechoroom,				FALSE,	TRUE	},
 	{ "ed",					scriptcmd_ed,				FALSE,	TRUE	},
+	{ "emoteattrigger",			scriptcmd_emoteattrigger,	TRUE,	FALSE	},
+	{ "emotetrigger",			scriptcmd_emotetrigger,	TRUE,	FALSE	},
 	{ "entercombat",		scriptcmd_entercombat,		FALSE,	TRUE	},
+	{ "exacttrigger",			scriptcmd_exacttrigger,	TRUE,	FALSE	},
+	{ "exittrigger",			scriptcmd_exittrigger,	TRUE,	FALSE	},
 	{ "fade",				scriptcmd_fade,				TRUE,	TRUE	},
 	{ "fixaffects",			do_tpfixaffects,			FALSE,	TRUE	},
 	{ "flee",				scriptcmd_flee,				FALSE,	TRUE	},
@@ -64,10 +71,13 @@ const struct script_cmd_type token_cmd_table[] = {
 	{ "gecho",      	 	do_tpgecho,					FALSE,	TRUE	},
 	{ "gforce",				do_tpgforce,				FALSE,	TRUE	},
 	{ "give",				do_tpgive,					FALSE,	TRUE	},
+	{ "givetrigger",			scriptcmd_givetrigger,	TRUE,	FALSE	},
 	{ "goto",				do_tpgoto,					FALSE,	TRUE	},
 	{ "grantskill",			scriptcmd_grantskill,		FALSE,	TRUE	},
+	{ "greettrigger",			scriptcmd_greettrigger,	TRUE,	FALSE	},
 	{ "group",				do_tpgroup,					FALSE,	TRUE	},
 	{ "gtransfer",			do_tpgtransfer,				FALSE,	TRUE	},
+	{ "hprcttrigger",			scriptcmd_hprcttrigger,	TRUE,	FALSE	},
 	{ "input",				do_tpinput,					FALSE,	TRUE	},
 	{ "inputstring",		scriptcmd_inputstring,		FALSE,	TRUE	},
 	{ "instancecomplete",	scriptcmd_instancecomplete,	TRUE,	TRUE	},
@@ -80,10 +90,14 @@ const struct script_cmd_type token_cmd_table[] = {
 	{ "lockset",			scriptcmd_lockset,			FALSE,	TRUE	},
 	{ "mload",				do_tpmload,					FALSE,	TRUE	},
 	{ "mute",				scriptcmd_mute,				FALSE,	TRUE	},
+	{ "nametrigger",			scriptcmd_nametrigger,	TRUE,	FALSE	},
+	{ "numbertrigger",			scriptcmd_numbertrigger,	TRUE,	FALSE	},
 	{ "oload",				do_tpoload,					FALSE,	TRUE	},
 	{ "otransfer",			do_tpotransfer,				FALSE,	TRUE	},
 	{ "pageat",				scriptcmd_pageat,			FALSE,	TRUE	},
 	{ "peace",				do_tppeace,					FALSE,	FALSE	},
+	{ "percenttokentrigger",	scriptcmd_percenttokentrigger,	TRUE,	FALSE	},
+	{ "percenttrigger",			scriptcmd_percenttrigger,	TRUE,	FALSE	},
 	{ "persist",			do_tppersist,				FALSE,	TRUE	},
 	{ "prompt",				do_tpprompt,				FALSE,	TRUE	},
 	{ "purge",				do_tppurge,					FALSE,	FALSE	},
@@ -130,6 +144,9 @@ const struct script_cmd_type token_cmd_table[] = {
 	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
 	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
 	{ "usecatalyst",		do_tpusecatalyst,			FALSE,	TRUE	},
+	{ "useontrigger",			scriptcmd_useontrigger,	TRUE,	FALSE	},
+	{ "usetrigger",				scriptcmd_usetrigger,	TRUE,	FALSE	},
+	{ "usewithtrigger",			scriptcmd_usewithtrigger,	TRUE,	FALSE	},
 	{ "varclear",			do_tpvarclear,				FALSE,	TRUE	},
 	{ "varclearon",			do_tpvarclearon,			FALSE,	TRUE	},
 	{ "varcopy",			do_tpvarcopy,				FALSE,	TRUE	},
@@ -225,7 +242,7 @@ void do_tpstat(CHAR_DATA *ch, char *argument)
 	argument = one_argument(argument, arg2);
 
 	if (arg[0] == '\0') {
-		send_to_char("Syntax:  tpstat <mobile name|object name|room> [<count>.]<token widevnum>\n\r", ch);
+		send_to_char("Syntax:  tpstat <mob name|obj name|room> [<count>.]<token widevnum>\n\r", ch);
 		return;
 	}
 

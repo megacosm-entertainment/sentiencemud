@@ -1466,56 +1466,77 @@ AREA_DATA *read_area_new(FILE *fp)
 		{
 		    rpr = read_script_new(fp, area, IFC_R);
 		    if(rpr) {
-			rpr->next = area->rprog_list;
-			area->rprog_list = rpr;
+				rpr->next = area->rprog_list;
+				area->rprog_list = rpr;
+
+				if (rpr->vnum > area->top_rprog_index)
+					area->top_rprog_index = rpr->vnum;
 		    }
 		}
 		else if (!str_cmp(word, "#MOBPROG"))
 		{
 		    mpr = read_script_new(fp, area, IFC_M);
 		    if(mpr) {
-		    mpr->next = area->mprog_list;
-		    area->mprog_list = mpr;
+			    mpr->next = area->mprog_list;
+			    area->mprog_list = mpr;
+
+				if (mpr->vnum > area->top_mprog_index)
+					area->top_mprog_index = mpr->vnum;
 		    }
 		}
 		else if (!str_cmp(word, "#OBJPROG"))
 		{
 		    opr = read_script_new(fp, area, IFC_O);
 		    if(opr) {
-			opr->next = area->oprog_list;
-			area->oprog_list = opr;
+				opr->next = area->oprog_list;
+				area->oprog_list = opr;
+
+				if (opr->vnum > area->top_oprog_index)
+					area->top_oprog_index = opr->vnum;
 		    }
 		}
 		else if (!str_cmp(word, "#TOKENPROG"))
 		{
 		    tpr = read_script_new(fp, area, IFC_T);
 		    if(tpr) {
-			tpr->next = area->tprog_list;
-			area->tprog_list = tpr;
+				tpr->next = area->tprog_list;
+				area->tprog_list = tpr;
+
+				if (tpr->vnum > area->top_tprog_index)
+					area->top_tprog_index = tpr->vnum;
 		    }
 		}
 		else if (!str_cmp(word, "#AREAPROG"))
 		{
 		    apr = read_script_new(fp, area, IFC_A);
 		    if(apr) {
-			apr->next = area->aprog_list;
-			area->aprog_list = apr;
+				apr->next = area->aprog_list;
+				area->aprog_list = apr;
+
+				if (apr->vnum > area->top_aprog_index)
+					area->top_aprog_index = apr->vnum;
 		    }
 		}
 		else if (!str_cmp(word, "#DUNGEONPROG"))
 		{
 		    dpr = read_script_new(fp, area, IFC_D);
 		    if(dpr) {
-			dpr->next = area->dprog_list;
-			area->dprog_list = dpr;
+				dpr->next = area->dprog_list;
+				area->dprog_list = dpr;
+
+				if (dpr->vnum > area->top_dprog_index)
+					area->top_dprog_index = dpr->vnum;
 		    }
 		}
 		else if (!str_cmp(word, "#INSTANCEPROG"))
 		{
 		    ipr = read_script_new(fp, area, IFC_I);
 		    if(ipr) {
-			ipr->next = area->iprog_list;
-			area->iprog_list = ipr;
+				ipr->next = area->iprog_list;
+				area->iprog_list = ipr;
+
+				if (ipr->vnum > area->top_iprog_index)
+					area->top_iprog_index = ipr->vnum;
 		    }
 		}
 		/* VIZZWILDS */
@@ -1577,6 +1598,7 @@ AREA_DATA *read_area_new(FILE *fp)
 			    if(!area->progs->progs) area->progs->progs = new_prog_bank();
 
 				list_appendlink(area->progs->progs[tt->slot], apr);
+				trigger_type_add_use(tt);
 		    }
 		    fMatch = TRUE;
 		}
@@ -1891,6 +1913,7 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 			    if(!room->progs->progs) room->progs->progs = new_prog_bank();
 
 				list_appendlink(room->progs->progs[tt->slot], rpr);
+				trigger_type_add_use(tt);
 		    }
 		    fMatch = TRUE;
 		}
@@ -2160,6 +2183,7 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 			    if(!mob->progs) mob->progs = new_prog_bank();
 
 				list_appendlink(mob->progs[tt->slot], mpr);
+				trigger_type_add_use(tt);
 		    }
 		    fMatch = TRUE;
 		}
@@ -2445,6 +2469,7 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 			    if(!obj->progs) obj->progs = new_prog_bank();
 
 				list_appendlink(obj->progs[tt->slot], opr);
+				trigger_type_add_use(tt);
 		    }
 		    fMatch = TRUE;
 		}
@@ -3351,6 +3376,7 @@ TOKEN_INDEX_DATA *read_token(FILE *fp, AREA_DATA *area)
 			    if(!token->progs) token->progs = new_prog_bank();
 
 				list_appendlink(token->progs[tt->slot], tpr);
+				trigger_type_add_use(tt);
 		    }
 		    fMatch = TRUE;
 		}

@@ -2371,7 +2371,7 @@ void do_tstat(CHAR_DATA *ch, char *argument)
 
     buffer = new_buf();
 
-    sprintf(buf, "{Y%-9s %-20s %-6s ", "Vnum", "Token Name", "Timer");
+    sprintf(buf, "{Y%-9s %-20s %-6s ", "Wnum", "Token Name", "Timer");
     add_buf(buffer, buf);
 
     for (i = 0; i < MAX_TOKEN_VALUES; i++) {
@@ -2389,8 +2389,8 @@ void do_tstat(CHAR_DATA *ch, char *argument)
 	{
 	    for (token = victim->tokens; token != NULL; token = token->next) {
 		buf[0] = '\0';
-		sprintf(buf2, "{Y[{x%7ld{Y]{x %-20.20s %-6d ",
-			token->pIndexData->vnum, token->name, token->timer);
+		sprintf(buf2, "{Y[{x%7s{Y]{x %-20.20s %-6d ",
+			widevnum_string_token(token->pIndexData, NULL), token->name, token->timer);
 
 		strcat(buf, buf2);
 		for (i = 0; i < MAX_TOKEN_VALUES; i++) {

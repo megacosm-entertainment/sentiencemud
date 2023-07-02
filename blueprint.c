@@ -676,6 +676,8 @@ BLUEPRINT *load_blueprint(FILE *fp, AREA_DATA *pArea)
 					if(!bp->progs) bp->progs = new_prog_bank();
 
 					list_appendlink(bp->progs[tt->slot], ipr);
+
+					trigger_type_add_use(tt);
 				}
 				fMatch = TRUE;
 			}
@@ -11120,6 +11122,7 @@ BPEDIT (bpedit_addiprog)
     list->script          = code;
 
     list_appendlink(blueprint->progs[slot], list);
+	trigger_type_add_use(tt);
 
     send_to_char("Iprog Added.\n\r",ch);
     return TRUE;

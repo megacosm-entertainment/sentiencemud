@@ -2316,6 +2316,7 @@ TEDIT (tedit_addtprog)
     list->script          = code;
     //SET_BIT(token_index->mprog_flags,value);
     list_appendlink(token_index->progs[slot], list);
+	trigger_type_add_use(tt);
 
     send_to_char("Tprog Added.\n\r",ch);
     return TRUE;

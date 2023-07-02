@@ -100,6 +100,7 @@ const struct flag_stat_type flag_stat_table[] =
     {   death_release_modes,        TRUE    },
     {   trigger_slots,              TRUE    },
     {   builtin_trigger_types,      TRUE    },
+    {   script_spaces,              FALSE   },
     {	0,							0		}
 };
 

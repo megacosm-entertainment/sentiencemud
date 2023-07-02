@@ -6371,6 +6371,7 @@ struct trigger_type {
 	int type;		// Trigger type
 	int slot;		// Trigger slot for grouping similar triggers together
     int progs;
+    int usage;      // How many times is this being used?
 };
 
 #define PROG_NODESTRUCT		(A)		/* Used to indicate the item is already destructing and should not fire any destructions */

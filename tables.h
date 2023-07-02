@@ -283,6 +283,7 @@ extern	const struct flag_type area_region_flags[];
 extern	const struct flag_type death_release_modes[];
 extern	const struct flag_type trigger_slots[];
 extern	const struct flag_type builtin_trigger_types[];
+extern	const struct flag_type script_spaces[];
 
 #endif
 
