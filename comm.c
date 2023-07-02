@@ -290,6 +290,7 @@ extern void boat_attack(CHAR_DATA *ch);
 
 extern void save_area_list();
 extern void save_area_new(AREA_DATA *area);
+extern void init_string_space();
 
 /*
  * Global variables.
@@ -610,6 +611,7 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
+	init_string_space();
 
 
     /*
@@ -678,6 +680,9 @@ int main(int argc, char **argv)
     if (gconfig_read()==1) exit(1);
 	log_string("Global config loaded.");
 
+	if (!init_scripting()) exit(1);
+	log_string("scripting initialized.");
+
     /*
      * Run the game.
      */
@@ -723,6 +728,8 @@ int main(int argc, char **argv)
 	for( server = first_server; server; server = server->next )
 	imc_shutdown(FALSE, server);
 	#endif
+
+	terminate_scripting();
 
     if (gconfig_write()==1)
     {

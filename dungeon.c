@@ -372,24 +372,23 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp, AREA_DATA *area)
 		case 'D':
 			KEYS("Description", dng->description, fread_string(fp));
 			if (!str_cmp(word, "DungeonProg")) {
-				int tindex;
 				char *p;
 
 
 				WNUM_LOAD wnum = fread_widevnum(fp, area->uid);
 				p = fread_string(fp);
 
-				tindex = trigger_index(p, PRG_DPROG);
-				if(tindex < 0) {
+				struct trigger_type *tt = get_trigger_type(p, PRG_DPROG);
+				if(!tt) {
 					sprintf(buf, "load_dungeon_index: invalid trigger type %s", p);
 					bug(buf, 0);
 				} else {
 					PROG_LIST *dpr = new_trigger();
 
 					dpr->wnum_load = wnum;
-					dpr->trig_type = tindex;
+					dpr->trig_type = tt->type;
 					dpr->trig_phrase = fread_string(fp);
-					if( tindex == TRIG_SPELLCAST ) {
+					if( tt->type == TRIG_SPELLCAST ) {
 						char buf[MIL];
 						int tsn = skill_lookup(dpr->trig_phrase);
 
@@ -414,7 +413,7 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp, AREA_DATA *area)
 
 					if(!dng->progs) dng->progs = new_prog_bank();
 
-					list_appendlink(dng->progs[trigger_table[tindex].slot], dpr);
+					list_appendlink(dng->progs[tt->slot], dpr);
 				}
 				fMatch = TRUE;
 			}
@@ -7514,7 +7513,8 @@ DNGEDIT( dngedit_special )
 
 DNGEDIT (dngedit_adddprog)
 {
-    int tindex, slot;
+	struct trigger_type *tt;
+    int slot;
 	DUNGEON_INDEX_DATA *dungeon;
     PROG_LIST *list;
     SCRIPT_DATA *code;
@@ -7535,13 +7535,13 @@ DNGEDIT (dngedit_adddprog)
 		return FALSE;
     }
 
-    if ((tindex = trigger_index(trigger, PRG_DPROG)) < 0) {
+    if (!(tt = get_trigger_type(trigger, PRG_DPROG))) {
 	send_to_char("Valid flags are:\n\r",ch);
 	show_help(ch, "dprog");
 	return FALSE;
     }
 
-    slot = trigger_table[tindex].slot;
+    slot = tt->slot;
 	if(!wnum.pArea) wnum.pArea = dungeon->area;
 
     if ((code = get_script_index (wnum.pArea, wnum.vnum, PRG_DPROG)) == NULL)
@@ -7555,7 +7555,7 @@ DNGEDIT (dngedit_adddprog)
 
     list                  = new_trigger();
     list->wnum            = wnum;
-    list->trig_type       = tindex;
+    list->trig_type       = tt->type;
     list->trig_phrase     = str_dup(phrase);
 	list->trig_number		= atoi(list->trig_phrase);
     list->numeric		= is_number(list->trig_phrase);

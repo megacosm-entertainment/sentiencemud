@@ -8743,6 +8743,7 @@ bool iterator_insert_before(ITERATOR *it, void *data)
 			link->data = data;
 		}
 
+		it->list->size++;
 		return true;
 	}
 
@@ -8777,6 +8778,7 @@ bool iterator_insert_after(ITERATOR *it, void *data)
 			link->data = data;
 		}
 
+		it->list->size++;
 		return true;
 	}
 

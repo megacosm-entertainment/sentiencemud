@@ -281,6 +281,8 @@ extern	const struct flag_type portal_gatetype[];
 extern	const struct flag_type wilderness_regions[];
 extern	const struct flag_type area_region_flags[];
 extern	const struct flag_type death_release_modes[];
+extern	const struct flag_type trigger_slots[];
+extern	const struct flag_type builtin_trigger_types[];
 
 #endif
 

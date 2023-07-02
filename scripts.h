@@ -1574,8 +1574,8 @@ struct _entity_type_info {
 /* Externs */
 extern char *ifcheck_param_type_names[IFCP_MAX];
 extern char *opcode_names[OP_LASTCODE];
+extern LLIST *trigger_list;
 extern struct trigger_type trigger_table[];
-extern int trigger_slots[];
 extern IFCHECK_DATA ifcheck_table[];
 extern OPCODE_FUNC opcode_table[OP_LASTCODE];
 extern char *script_operators[];
@@ -2126,7 +2126,8 @@ CHAR_DATA *script_get_char_list(SCRIPT_VARINFO *info, CHAR_DATA *mobs, CHAR_DATA
 OBJ_DATA *script_get_obj_blist(SCRIPT_VARINFO *info, LLIST *blist, CHAR_DATA *viewer, WNUM wnum, char *name);
 OBJ_DATA *script_get_obj_list(SCRIPT_VARINFO *info, OBJ_DATA *objs, CHAR_DATA *viewer, int worn, WNUM wnum, char *name);
 void script_interpret(SCRIPT_VARINFO *info, char *command);
-int trigger_index(char *name, int type);
+struct trigger_type *get_trigger_type(char *name, int progs);
+struct trigger_type *get_trigger_type_bytype(int type);
 bool has_trigger(LLIST **bank, int trigger);
 bool mp_same_group(CHAR_DATA *ch,CHAR_DATA *vch,CHAR_DATA *to);
 bool rop_same_group(CHAR_DATA *ch,CHAR_DATA *vch,CHAR_DATA *to);
@@ -2846,6 +2847,9 @@ bool olc_varclear(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument);
 void olc_show_index_vars(BUFFER *buffer, pVARIABLE index_vars);
 void olc_save_index_vars(FILE *fp, pVARIABLE index_vars, AREA_DATA *pRefArea);
 bool olc_load_index_vars(FILE *fp, char *word, ppVARIABLE index_vars, AREA_DATA *pRefArea);
+
+bool load_triggers();
+void save_triggers();
 
 #include "tables.h"
 

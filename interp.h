@@ -588,6 +588,7 @@ DECLARE_DO_FUN( do_collapse	);
 
 DECLARE_DO_FUN( do_spawntreasuremap );
 DECLARE_DO_FUN( do_reserved );
+DECLARE_DO_FUN( do_triggers );
 
 //DECLARE_DO_FUN( do_speed	);
 //DECLARE_DO_FUN( do_steer	);

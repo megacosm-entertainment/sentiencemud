@@ -536,7 +536,8 @@ const	struct	cmd_type	cmd_table	[] =
     { "ships",		do_ships,	POS_DEAD,	0,		LOG_NORMAL, 1, TRUE },
 
     { "spawntreasuremap", do_spawntreasuremap, POS_DEAD, L5, LOG_NORMAL, 1, TRUE },
-	{ "reserved",	do_reserved, POS_DEAD, 0,		LOG_ALWAYS, 1, TRUE },
+	{ "reserved",	do_reserved, POS_DEAD, L5,		LOG_ALWAYS, 1, TRUE },
+	{ "triggers",	do_triggers, POS_DEAD, L5,		LOG_ALWAYS, 1, TRUE },
 
     { "",		0,		POS_DEAD,     0,  LOG_NORMAL, 0, FALSE }
 };

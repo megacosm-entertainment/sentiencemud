@@ -6325,7 +6325,8 @@ enum trigger_index_enum {
 	TRIG_WIMPY,
     TRIG_XPCOMPUTE,
 	TRIG_XPGAIN,
-	TRIG_ZAP
+	TRIG_ZAP,
+    TRIG__MAX
 };
 
 /* NIB : 20070124 : Trigger slot types */
@@ -6347,13 +6348,13 @@ enum trigger_index_enum {
 #define TRIGSLOT_MAX			15
 
 /* program types */
-#define PRG_MPROG	0	// Mobiles
-#define PRG_OPROG	1	// Objects
-#define PRG_RPROG	2	// Rooms
-#define PRG_TPROG	3	// Tokens
-#define PRG_APROG	4	// Area
-#define PRG_IPROG	5	// Instances
-#define PRG_DPROG	6	// Dungeons
+#define PRG_MPROG	(A)	// Mobiles
+#define PRG_OPROG	(B)	// Objects
+#define PRG_RPROG	(C)	// Rooms
+#define PRG_TPROG	(D)	// Tokens
+#define PRG_APROG	(E)	// Area
+#define PRG_IPROG	(F)	// Instances
+#define PRG_DPROG	(G)	// Dungeons
 
 #define NEWEST_OBJ_VERSION 1
 
@@ -6369,13 +6370,7 @@ struct trigger_type {
 	char *alias;	// Aliases for the trigger
 	int type;		// Trigger type
 	int slot;		// Trigger slot for grouping similar triggers together
-	bool mob;
-	bool obj;
-	bool room;
-	bool token;
-	bool area;
-	bool instance;
-	bool dungeon;
+    int progs;
 };
 
 #define PROG_NODESTRUCT		(A)		/* Used to indicate the item is already destructing and should not fire any destructions */
@@ -7274,6 +7269,13 @@ extern		OBJ_DATA	*	rgObjNest[MAX_NEST];
 				    break;				\
 				}
 
+#define KEYF( literal, field, value )       \
+                if ( !str_cmp( word, literal ) ) \
+                { \
+                    field |= value; \
+                    fMatch = TRUE; \
+                    break; \
+                }
 /*
  * Structure for a social in the socials table.
  */
@@ -7504,6 +7506,7 @@ char *	crypt		args( ( const char *key, const char *salt ) );
 #define CHAT_FILE		SYSTEM_DIR "chat_rooms.dat"
 #define MAIL_FILE		SYSTEM_DIR "mail.dat"
 #define CONFIG_FILE		SYSTEM_DIR "gconfig.rc"
+#define TRIGGERS_FILE       SYSTEM_DIR "triggers.dat"
 /*Notes of all kinds */
 #define NOTE_FILE       NOTE_DIR "notes.not"		/* For 'notes'*/
 /*#define PENALTY_FILE	NOTE_DIR "penal.not"		Unused */
@@ -7584,6 +7587,7 @@ int	position_lookup	(const char *name);
 int 	sex_lookup	(const char *name);
 int 	size_lookup	(const char *name);
 int flag_lookup (const char *name, const struct flag_type *flag_table);
+int stat_lookup (const char *name, const struct flag_type *flag_table, int invalid);
 char *flag_name(const struct flag_type *flag_table, int bit);
 int damage_class_lookup (const char *name);	/* @@@NIB */
 int toxin_lookup (const char *name);	/* @@@NIB */
@@ -9481,11 +9485,15 @@ int get_room_savage_level(ROOM_INDEX_DATA *room);
 int get_region_distanceSQ(AREA_REGION *region, int x, int y);
 AREA_REGION *get_closest_area_region(AREA_DATA *area, register int x, register int y, int *closestDistSq, bool airship);
 
+bool init_scripting();
+void terminate_scripting();
+
 extern LLIST *gc_mobiles;
 extern LLIST *gc_objects;
 extern LLIST *gc_rooms;
 extern LLIST *gc_tokens;
 extern int disconnect_timeout;
 extern int limbo_timeout;
+extern int top_trigger_type;
 
 #endif /* !def __merc_h__ */

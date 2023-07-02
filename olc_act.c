@@ -47,6 +47,8 @@ struct olc_help_type
     char *desc;
 };
 
+struct trigger_type dummy_triggers[1];
+
 
 // This table contains help commands and a brief description of each.
 const struct olc_help_type help_table[] =
@@ -57,7 +59,7 @@ const struct olc_help_type help_table[] =
 	{	"affect2",				affect2_flags,				"Mobile affects."	},
 	{	"apply",				apply_flags,				"Apply flags"	},
 	{	"apptype",				apply_types,				"Apply types."	},
-	{	"aprog",				trigger_table,				"AreaProgram types."	},
+	{	"aprog",				dummy_triggers,				"AreaProgram types."	},
 	{	"area",					area_flags,					"Area attributes."	},
 	{	"areawho",				area_who_titles,			"Type of area for who."	},
 	{	"armour",				ac_type,					"Ac for different attacks."	},
@@ -66,7 +68,7 @@ const struct olc_help_type help_table[] =
 	{	"condition",			room_condition_flags,		"Room Condition types."	},
 	{	"container",			container_flags,			"Container status."	},
 	{	"corpsetypes",			corpse_types,				"Corpse types."	},
-	{	"dprog",				trigger_table,				"DungeonProgram types."	},
+	{	"dprog",				dummy_triggers,				"DungeonProgram types."	},
 	{	"death_release",		death_release_modes,		"Dungeon Death Release mobes."},
 	{	"dungeon",				dungeon_flags,				"Dungeon Flags"	},
 	{	"exit",					exit_flags,					"Exit types."	},
@@ -80,13 +82,13 @@ const struct olc_help_type help_table[] =
 	{	"immortalflags",		immortal_flags,				"Immortal duties."	},
 	{	"instance",				instance_flags,				"Instance Flags"	},
 	{	"instruments",			instrument_types,			"Instrument Types"	},
-	{	"iprog",				trigger_table,				"InstanceProgram types."	},
+	{	"iprog",				dummy_triggers,				"InstanceProgram types."	},
 	{	"liquid",				liq_table,					"Liquid types."	},
 	{	"lock",					lock_flags,					"Lock state types."	},
 	{	"material",				material_table,				"Object materials."	},
-	{	"mprog",				trigger_table,				"MobProgram types."	},
+	{	"mprog",				dummy_triggers,				"MobProgram types."	},
 	{	"off",					off_flags,					"Mobile offensive behaviour."	},
-	{	"oprog",				trigger_table,				"ObjProgram types."	},
+	{	"oprog",				dummy_triggers,				"ObjProgram types."	},
 	{	"part",					part_flags,					"Mobile body parts."	},
 	{	"placetype",			place_flags,				"Where is the town/city etc."	},
 	{	"portal",				portal_flags,				"Portal types."	},
@@ -98,7 +100,7 @@ const struct olc_help_type help_table[] =
 	{	"res",					res_flags,					"Mobile resistance."	},
 	{	"room",					room_flags,					"Room attributes."	},
 	{	"room2",				room2_flags,				"Room2 attributes."	},
-	{	"rprog",				trigger_table,				"RoomProgram types."	},
+	{	"rprog",				dummy_triggers,				"RoomProgram types."	},
 	{	"scriptflags",			script_flags,				"Script Flags {D({Wrestricted{D){x."	},
 	{	"section_flags",		blueprint_section_flags,	"Blueprint Section Flags"	},
 	{	"section_type",			blueprint_section_types,	"Blueprint Section Types"	},
@@ -113,7 +115,7 @@ const struct olc_help_type help_table[] =
 	{	"spell_targets",		spell_target_types,			"Spell Target Types."	},
 	{	"spells",				skill_table,				"Names of current spells."	},
 	{	"tokenflags",			token_flags,				"Token flags."	},
-	{	"tprog",				trigger_table,				"TokenProgram types."	},
+	{	"tprog",				dummy_triggers,				"TokenProgram types."	},
 	{	"type",					type_flags,					"Types of objects."	},
 	{	"vuln",					vuln_flags,					"Mobile vulnerability."	},
 	{	"wclass",				weapon_class,				"Weapon class."	},
@@ -236,6 +238,33 @@ void show_spec_cmds(CHAR_DATA *ch)
 }
 
 
+void show_trigger_types(CHAR_DATA *ch, char *header, int prog)
+{
+	char buf[MIL];
+	int n = 0;
+	ITERATOR it;
+	struct trigger_type *tt;
+
+	send_to_char(header, ch);
+
+	iterator_start(&it, trigger_list);
+	while((tt = (struct trigger_type *)iterator_nextdata(&it)))
+	{
+		if (IS_SET(tt->progs, prog))
+		{
+			n++;
+			sprintf(buf, "%-20s", tt->name);
+			send_to_char(buf, ch);
+			if (!(n % 4))
+			send_to_char("\n\r", ch);
+		}
+	}
+	iterator_stop(&it);
+
+	if (n % 4)
+		send_to_char("\n\r", ch);
+}
+
 // Displays help for many tables used in OLC.
 bool show_help(CHAR_DATA *ch, char *argument)
 {
@@ -320,137 +349,22 @@ bool show_help(CHAR_DATA *ch, char *argument)
 		return FALSE;
 	    }
 	    else
-	    if (help_table[cnt].structure == trigger_table)
+	    if (help_table[cnt].structure == dummy_triggers)
 	    {
-			int i, n;
-
 			if (!str_prefix(arg, "mprog"))
-			{
-				send_to_char("MobProgram Triggers:\n\r", ch);
-				for (i = 0, n = 0; trigger_table[i].name != NULL; i++)
-				{
-				if (trigger_table[i].mob)
-				{
-					n++;
-					sprintf(buf, "%-20s", trigger_table[i].name);
-					send_to_char(buf, ch);
-					if (!(n % 4))
-					send_to_char("\n\r", ch);
-				}
-				}
-
-				if (n % 4)
-				send_to_char("\n\r", ch);
-			}
+				show_trigger_types(ch, "MobProgram Triggers:\n\r", PRG_MPROG);
 			else if (!str_prefix(arg, "oprog"))
-			{
-				send_to_char("ObjProgram Triggers:\n\r", ch);
-				for (i = 0, n = 0; trigger_table[i].name != NULL; i++)
-				{
-				if (trigger_table[i].obj)
-				{
-					n++;
-					sprintf(buf, "%-20s", trigger_table[i].name);
-					send_to_char(buf, ch);
-					if (!(n % 4))
-					send_to_char("\n\r", ch);
-				}
-				}
-
-				if (n % 4)
-				send_to_char("\n\r", ch);
-			}
+				show_trigger_types(ch, "ObjProgram Triggers:\n\r", PRG_OPROG);
 			else if (!str_prefix(arg, "rprog"))
-			{
-				send_to_char("RoomProgram Triggers:\n\r", ch);
-				for (i = 0, n = 0; trigger_table[i].name != NULL; i++)
-				{
-				if (trigger_table[i].room)
-				{
-					n++;
-					sprintf(buf, "%-20s", trigger_table[i].name);
-					send_to_char(buf, ch);
-					if (!(n % 4))
-					send_to_char("\n\r", ch);
-				}
-				}
-
-				if (n % 4)
-				send_to_char("\n\r", ch);
-			}
+				show_trigger_types(ch, "RoomProgram Triggers:\n\r", PRG_RPROG);
 			else if (!str_prefix(arg, "tprog"))
-			{
-				send_to_char("TokenProgram Triggers:\n\r", ch);
-				for (i = 0, n = 0; trigger_table[i].name != NULL; i++)
-				{
-					if (trigger_table[i].token)
-					{
-						n++;
-						sprintf(buf, "%-20s", trigger_table[i].name);
-						send_to_char(buf, ch);
-						if (!(n % 4))
-							send_to_char("\n\r", ch);
-					}
-				}
-
-				if (n % 4)
-					send_to_char("\n\r", ch);
-			}
+				show_trigger_types(ch, "TokenProgram Triggers:\n\r", PRG_TPROG);
 			else if (!str_prefix(arg, "aprog"))
-			{
-				send_to_char("AreaProgram Triggers:\n\r", ch);
-				for (i = 0, n = 0; trigger_table[i].name != NULL; i++)
-				{
-					if (trigger_table[i].area)
-					{
-						n++;
-						sprintf(buf, "%-20s", trigger_table[i].name);
-						send_to_char(buf, ch);
-						if (!(n % 4))
-							send_to_char("\n\r", ch);
-					}
-				}
-
-				if (n % 4)
-					send_to_char("\n\r", ch);
-			}
+				show_trigger_types(ch, "AreaProgram Triggers:\n\r", PRG_APROG);
 			else if (!str_prefix(arg, "iprog"))
-			{
-				send_to_char("InstanceProgram Triggers:\n\r", ch);
-				for (i = 0, n = 0; trigger_table[i].name != NULL; i++)
-				{
-					if (trigger_table[i].instance)
-					{
-						n++;
-						sprintf(buf, "%-20s", trigger_table[i].name);
-						send_to_char(buf, ch);
-						if (!(n % 4))
-							send_to_char("\n\r", ch);
-					}
-				}
-
-				if (n % 4)
-					send_to_char("\n\r", ch);
-			}
+				show_trigger_types(ch, "InstanceProgram Triggers:\n\r", PRG_IPROG);
 			else if (!str_prefix(arg, "dprog"))
-			{
-				send_to_char("DungeonProgram Triggers:\n\r", ch);
-				for (i = 0, n = 0; trigger_table[i].name != NULL; i++)
-				{
-					if (trigger_table[i].dungeon)
-					{
-						n++;
-						sprintf(buf, "%-20s", trigger_table[i].name);
-						send_to_char(buf, ch);
-						if (!(n % 4))
-							send_to_char("\n\r", ch);
-					}
-				}
-
-				if (n % 4)
-					send_to_char("\n\r", ch);
-			}
-
+				show_trigger_types(ch, "DungeonProgram Triggers:\n\r", PRG_DPROG);
 			return FALSE;
 	    }
 	    else
@@ -2350,7 +2264,8 @@ AEDIT(aedit_postoffice)
 
 AEDIT (aedit_addaprog)
 {
-    int tindex, slot;
+	struct trigger_type *tt;
+    int slot;
     AREA_DATA *pArea;
     PROG_LIST *list;
     SCRIPT_DATA *code;
@@ -2371,13 +2286,13 @@ AEDIT (aedit_addaprog)
 	return FALSE;
     }
 
-    if ((tindex = trigger_index(trigger, PRG_APROG)) < 0) {
+    if (!(tt = get_trigger_type(trigger, PRG_APROG))) {
 	send_to_char("Valid flags are:\n\r",ch);
 	show_help(ch, "aprog");
 	return FALSE;
     }
 
-    slot = trigger_table[tindex].slot;
+    slot = tt->slot;
 
 	if (!wnum.pArea) wnum.pArea = pArea;
 
@@ -2393,7 +2308,7 @@ AEDIT (aedit_addaprog)
 
     list                  = new_trigger();
     list->wnum            = wnum;
-    list->trig_type       = tindex;
+    list->trig_type       = tt->type;
     list->trig_phrase     = str_dup(phrase);
 	list->trig_number		= atoi(list->trig_phrase);
     list->numeric		= is_number(list->trig_phrase);
@@ -12126,7 +12041,8 @@ REDIT(redit_owner)
 
 MEDIT (medit_addmprog)
 {
-    int tindex, value, slot;
+	struct trigger_type *tt;
+    int value, slot;
     MOB_INDEX_DATA *pMob;
     PROG_LIST *list;
     SCRIPT_DATA *code;
@@ -12147,14 +12063,14 @@ MEDIT (medit_addmprog)
 	return FALSE;
     }
 
-    if ((tindex = trigger_index(trigger, PRG_MPROG)) < 0) {
+    if (!(tt = get_trigger_type(trigger, PRG_MPROG))) {
 	send_to_char("Valid flags are:\n\r",ch);
 	show_help(ch, "mprog");
 	return FALSE;
     }
 
-    value = tindex;//trigger_table[tindex].value;
-    slot = trigger_table[tindex].slot;
+    value = tt->type;
+    slot = tt->slot;
 	if (!wnum.pArea) wnum.pArea = pMob->area;
 
 	if(value == TRIG_SPELLCAST) {
@@ -12200,7 +12116,7 @@ MEDIT (medit_addmprog)
 
     list                  = new_trigger();
     list->wnum            = wnum;
-    list->trig_type       = tindex;
+    list->trig_type       = tt->type;
     list->trig_phrase     = str_dup(phrase);
 	list->trig_number		= atoi(list->trig_phrase);
     list->numeric		= is_number(list->trig_phrase);
@@ -12661,7 +12577,8 @@ REDIT (redit_savage)
 
 OEDIT (oedit_addoprog)
 {
-    int tindex, value, slot;
+	struct trigger_type *tt;
+    int value, slot;
     PROG_LIST *list;
     SCRIPT_DATA *code;
   OBJ_INDEX_DATA *pObj;
@@ -12681,14 +12598,14 @@ OEDIT (oedit_addoprog)
         return FALSE;
   }
 
-    if ((tindex = trigger_index(trigger, PRG_OPROG)) < 0) {
+    if (!(tt = get_trigger_type(trigger, PRG_OPROG))) {
 	send_to_char("Valid flags are:\n\r",ch);
 	show_help(ch, "oprog");
 	return FALSE;
     }
 
-    value = tindex;//trigger_table[tindex].value;
-    slot = trigger_table[tindex].slot;
+    value = tt->type;
+    slot = tt->slot;
 
 	if (!wnum.pArea) wnum.pArea = pObj->area;
 
@@ -12736,7 +12653,7 @@ OEDIT (oedit_addoprog)
 
     list                  = new_trigger();
     list->wnum            = wnum;
-    list->trig_type       = tindex;
+    list->trig_type       = tt->type;
     list->trig_phrase     = str_dup(phrase);
 	list->trig_number		= atoi(list->trig_phrase);
     list->numeric		= is_number(list->trig_phrase);
@@ -12784,7 +12701,8 @@ OEDIT (oedit_deloprog)
 
 REDIT (redit_addrprog)
 {
-    int tindex, value, slot;
+	struct trigger_type *tt;
+    int value, slot;
     PROG_LIST *list;
     SCRIPT_DATA *code;
     ROOM_INDEX_DATA *pRoom;
@@ -12804,14 +12722,14 @@ REDIT (redit_addrprog)
 	return FALSE;
     }
 
-    if ((tindex = trigger_index(trigger, PRG_RPROG)) < 0) {
+    if (!(tt = get_trigger_type(trigger, PRG_RPROG))) {
 	send_to_char("Valid flags are:\n\r",ch);
 	show_help(ch, "rprog");
 	return FALSE;
     }
 
-    value = tindex;//trigger_table[tindex].value;
-    slot = trigger_table[tindex].slot;
+    value = tt->type;
+    slot = tt->slot;
 	if (!wnum.pArea) wnum.pArea = pRoom->area;
 
 	if(value == TRIG_SPELLCAST) {
@@ -12862,7 +12780,7 @@ REDIT (redit_addrprog)
 
     list                  = new_trigger();
     list->wnum            = wnum;
-    list->trig_type       = tindex;
+    list->trig_type       = tt->type;
     list->trig_phrase     = str_dup(phrase);
 	list->trig_number		= atoi(list->trig_phrase);
     list->numeric		= is_number(list->trig_phrase);

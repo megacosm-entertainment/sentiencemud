@@ -98,6 +98,8 @@ const struct flag_stat_type flag_stat_table[] =
     {   portal_gatetype,            TRUE    },
     {   wilderness_regions,         TRUE    },
     {   death_release_modes,        TRUE    },
+    {   trigger_slots,              TRUE    },
+    {   builtin_trigger_types,      TRUE    },
     {	0,							0		}
 };
 
@@ -140,10 +142,7 @@ long flag_value( const struct flag_type *flag_table, char *argument)
     {
 	one_argument( argument, word );
 
-	if ( ( bit = flag_lookup( word, flag_table ) ) != 0 )
-	    return bit;
-	else
-	    return NO_FLAG;
+    return stat_lookup( word, flag_table, NO_FLAG );
     }
 
     /*

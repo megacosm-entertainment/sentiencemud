@@ -635,23 +635,22 @@ BLUEPRINT *load_blueprint(FILE *fp, AREA_DATA *pArea)
 
 		case 'I':
 			if (!str_cmp(word, "InstanceProg")) {
-				int tindex;
 				char *p;
 
 				WNUM_LOAD wnum_load = fread_widevnum(fp, pArea->uid);
 				p = fread_string(fp);
 
-				tindex = trigger_index(p, PRG_IPROG);
-				if(tindex < 0) {
+				struct trigger_type *tt = get_trigger_type(p, PRG_IPROG);
+				if(!tt) {
 					sprintf(buf, "load_blueprint: invalid trigger type %s", p);
 					bug(buf, 0);
 				} else {
 					PROG_LIST *ipr = new_trigger();
 
 					ipr->wnum_load = wnum_load;
-					ipr->trig_type = tindex;
+					ipr->trig_type = tt->type;
 					ipr->trig_phrase = fread_string(fp);
-					if( tindex == TRIG_SPELLCAST ) {
+					if( tt->type == TRIG_SPELLCAST ) {
 						char buf[MIL];
 						int tsn = skill_lookup(ipr->trig_phrase);
 
@@ -676,7 +675,7 @@ BLUEPRINT *load_blueprint(FILE *fp, AREA_DATA *pArea)
 
 					if(!bp->progs) bp->progs = new_prog_bank();
 
-					list_appendlink(bp->progs[trigger_table[tindex].slot], ipr);
+					list_appendlink(bp->progs[tt->slot], ipr);
 				}
 				fMatch = TRUE;
 			}
@@ -11065,7 +11064,8 @@ BPEDIT( bpedit_rooms )
 
 BPEDIT (bpedit_addiprog)
 {
-    int tindex, slot;
+	struct trigger_type *tt;
+    int slot;
 	BLUEPRINT *blueprint;
     PROG_LIST *list;
     SCRIPT_DATA *code;
@@ -11084,13 +11084,13 @@ BPEDIT (bpedit_addiprog)
 		return FALSE;
     }
 
-    if ((tindex = trigger_index(trigger, PRG_IPROG)) < 0) {
+    if (!(tt = get_trigger_type(trigger, PRG_IPROG))) {
 		send_to_char("Valid flags are:\n\r",ch);
 		show_help(ch, "iprog");
 		return FALSE;
     }
 
-    slot = trigger_table[tindex].slot;
+    slot = tt->slot;
 	WNUM wnum;
 	if (!parse_widevnum(num, ch->in_room->area, &wnum))
 	{
@@ -11113,7 +11113,7 @@ BPEDIT (bpedit_addiprog)
 
     list                  = new_trigger();
     list->wnum            = wnum;
-    list->trig_type       = tindex;
+    list->trig_type       = tt->type;
     list->trig_phrase     = str_dup(phrase);
 	list->trig_number		= atoi(list->trig_phrase);
     list->numeric		= is_number(list->trig_phrase);

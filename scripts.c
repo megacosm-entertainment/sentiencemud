@@ -13,6 +13,10 @@
 //#define DEBUG_MODULE
 #include "debug.h"
 
+
+LLIST *trigger_list = NULL;
+int top_trigger_type = TRIG__MAX;
+
 int script_security = INIT_SCRIPT_SECURITY;
 int script_call_depth = 0;
 int script_lastreturn = PRET_EXECUTED;
@@ -3962,11 +3966,9 @@ bool has_trigger(LLIST **bank, int trigger)
 	PROG_LIST *trig;
 	ITERATOR it;
 
-//	DBG2ENTRY2(PTR,bank,NUM,trigger);
+	struct trigger_type *tt = get_trigger_type_bytype(trigger);
 
-//	DBG3MSG3("trigger = %d, name = '%s', slot = %d\n",trigger, trigger_table[trigger].name,trigger_slots[trigger]);
-
-	slot = trigger_table[trigger].slot;
+	slot = tt ? tt->slot : TRIGSLOT_GENERAL;
 
 	if(bank) {
 		iterator_start(&it, bank[slot]);
@@ -3984,48 +3986,49 @@ bool has_trigger(LLIST **bank, int trigger)
 	return FALSE;
 }
 
-int trigger_index(char *name, int type)
+struct trigger_type *get_trigger_type(char *name, int progs)
 {
-	register int i;
-
-	// Check Cannonical names first, so aliases don't override
-	for (i = 0; trigger_table[i].name; i++) {
-		if (!str_cmp(trigger_table[i].name, name))
-			switch (type) {
-			case PRG_MPROG: if (trigger_table[i].mob) return i;
-			case PRG_OPROG: if (trigger_table[i].obj) return i;
-			case PRG_RPROG: if (trigger_table[i].room) return i;
-			case PRG_TPROG: if (trigger_table[i].token) return i;
-			case PRG_APROG: if (trigger_table[i].area) return i;
-			case PRG_IPROG: if (trigger_table[i].instance) return i;
-			case PRG_DPROG: if (trigger_table[i].dungeon) return i;
-			}
+	ITERATOR it;
+	struct trigger_type *tt;
+	iterator_start(&it, trigger_list);
+	while((tt = (struct trigger_type *)iterator_nextdata(&it)))
+	{
+		if (!str_cmp(name, tt->name) && IS_SET(tt->progs, progs))
+			break;
 	}
+	iterator_stop(&it);
 
-	// Check Aliases
-	for (i = 0; trigger_table[i].name; i++) {
-		if (trigger_table[i].alias && is_exact_name(trigger_table[i].alias, name))
-			switch (type) {
-			case PRG_MPROG: if (trigger_table[i].mob) return i;
-			case PRG_OPROG: if (trigger_table[i].obj) return i;
-			case PRG_RPROG: if (trigger_table[i].room) return i;
-			case PRG_TPROG: if (trigger_table[i].token) return i;
-			case PRG_APROG: if (trigger_table[i].area) return i;
-			case PRG_IPROG: if (trigger_table[i].instance) return i;
-			case PRG_DPROG: if (trigger_table[i].dungeon) return i;
-			}
+	if (tt) return tt;
+
+	iterator_start(&it, trigger_list);
+	while((tt = (struct trigger_type *)iterator_nextdata(&it)))
+	{
+		if (tt->alias && is_exact_name(tt->alias, name) && IS_SET(tt->progs, progs))
+			break;
 	}
+	iterator_stop(&it);
 
-	return -1;
+	return tt;
+}
+
+struct trigger_type *get_trigger_type_bytype(int type)
+{
+	ITERATOR it;
+	struct trigger_type *tt;
+	iterator_start(&it, trigger_list);
+	while((tt = (struct trigger_type *)iterator_nextdata(&it)))
+	{
+		if (tt->type == type)
+			break;
+	}
+	iterator_stop(&it);
+
+	return tt;
 }
 
 bool is_trigger_type(int tindex, int type)
 {
-	if(tindex < 0) return FALSE;
-
-//	log_stringf("is_trigger_type: %d, %s, %d", tindex, trigger_table[tindex].name, type);
-
-	return (trigger_table[tindex].type == type);
+	return tindex == type;
 }
 
 bool mp_same_group(CHAR_DATA *ch,CHAR_DATA *vch,CHAR_DATA *to)
@@ -4174,21 +4177,18 @@ bool script_change_exit(ROOM_INDEX_DATA *pRoom, ROOM_INDEX_DATA *pToRoom, int do
 
 char *trigger_name(int type)
 {
-	if(type >= 0 && type < trigger_table_size && trigger_table[type].name)
-		return trigger_table[type].name;
+	struct trigger_type *tt = get_trigger_type_bytype(type);
 
-	return "INVALID";
+	return tt ? tt->name : "INVALID";
 }
 
 char *trigger_phrase(int type, char *phrase)
 {
 	int sn;
-	if(type >= 0 && type < trigger_table_size && trigger_table[type].name) {
-		if(type == TRIG_SPELLCAST) {
-			sn = atoi(phrase);
-			if(sn < 0) return "reserved";
-			return skill_table[sn].name;
-		}
+	if(type == TRIG_SPELLCAST) {
+		sn = atoi(phrase);
+		if(sn < 0) return "reserved";
+		return skill_table[sn].name;
 	}
 
 	return phrase;
@@ -4197,40 +4197,35 @@ char *trigger_phrase(int type, char *phrase)
 char *trigger_phrase_olcshow(int type, char *phrase, bool is_rprog, bool is_tprog)
 {
 	int sn;
-	if(type >= 0 && type < trigger_table_size && trigger_table[type].name) {
-		if(type == TRIG_SPELLCAST) {
-			sn = atoi(phrase);
-			if(sn < 0) return "reserved";
-			return skill_table[sn].name;
-		}
+	if(type == TRIG_SPELLCAST) {
+		sn = atoi(phrase);
+		if(sn < 0) return "reserved";
+		return skill_table[sn].name;
+	}
 
-		if(	type == TRIG_EXIT ||
-			type == TRIG_EXALL ||
-			type == TRIG_KNOCK ||
-			type == TRIG_KNOCKING) {
-			sn = atoi(phrase);
+	if(	type == TRIG_EXIT ||
+		type == TRIG_EXALL ||
+		type == TRIG_KNOCK ||
+		type == TRIG_KNOCKING) {
+		sn = atoi(phrase);
 
+		if( sn < 0 || sn >= MAX_DIR) return "nowhere";
+
+		return dir_name[sn];
+	}
+
+	// Only care if is_rprog/is_tprog is set
+	if((is_rprog || is_tprog) && (type == TRIG_OPEN || type == TRIG_CLOSE)) {
+		sn = atoi(phrase);
+
+		if( is_rprog ) {
 			if( sn < 0 || sn >= MAX_DIR) return "nowhere";
 
 			return dir_name[sn];
-		}
+		} else {
+			if( sn < 0 || sn >= MAX_DIR) return phrase;
 
-		// Only care if is_rprog/is_tprog is set
-		if((is_rprog || is_tprog) && (type == TRIG_OPEN || type == TRIG_CLOSE)) {
-			sn = atoi(phrase);
-
-			if( is_rprog ) {
-				if( sn < 0 || sn >= MAX_DIR) return "nowhere";
-
-				return dir_name[sn];
-			} else {
-				if( sn < 0 || sn >= MAX_DIR) return phrase;
-
-				return dir_name_phrase[sn];
-			}
-
-
-
+			return dir_name_phrase[sn];
 		}
 	}
 
@@ -4384,7 +4379,9 @@ int test_string_trigger(char *string, char *wildcard, MATCH_STRING match, int ty
 		PRETURN;
 	}
 
-	slot = trigger_table[type].slot;
+	struct trigger_type *tt = get_trigger_type_bytype(type);
+
+	slot = tt ? tt->slot : TRIGSLOT_GENERAL;
 
 
 	if (mob) {
@@ -4798,7 +4795,9 @@ int test_number_trigger(int number, int wildcard, MATCH_NUMBER match, int type,
 		PRETURN;
 	}
 
-	slot = trigger_table[type].slot;
+	struct trigger_type *tt = get_trigger_type_bytype(type);
+
+	slot = tt ? tt->slot : TRIGSLOT_GENERAL;
 
 
 	if (mob) {
@@ -5248,14 +5247,17 @@ int test_number_sight_trigger(int number, int wildcard, MATCH_NUMBER match, int 
 		PRETURN;
 	}
 
+	struct trigger_type *tt = get_trigger_type_bytype(type);
+	struct trigger_type *ttall = get_trigger_type_bytype(typeall);
+
 	// They must be in the same slot
-	if( trigger_table[type].slot != trigger_table[typeall].slot )
+	if( !tt || !ttall || tt->slot != ttall->slot )
 	{
 		bug("test_number_sight_trigger: slot mismatch for sighted trigger %d.", type);
 		PRETURN;
 	}
 
-	slot = trigger_table[typeall].slot;
+	slot = ttall->slot;
 
 	if (mob) {
 		script_mobile_addref(mob);
@@ -5768,7 +5770,9 @@ int test_vnumname_trigger(char *name, int vnum, int type,
 		PRETURN;
 	}
 
-	slot = trigger_table[type].slot;
+	struct trigger_type *tt = get_trigger_type_bytype(type);
+
+	slot = tt ? tt->slot : TRIGSLOT_GENERAL;
 
 
 	if (mob) {
@@ -6265,7 +6269,9 @@ int script_login(CHAR_DATA *ch) // @@@NIB
 	}
 
 	// Run the TRIG_LOGIN
-	slot = trigger_table[TRIG_LOGIN].slot;
+	struct trigger_type *tt = get_trigger_type_bytype(TRIG_LOGIN);
+
+	slot = tt ? tt->slot : TRIGSLOT_GENERAL;
 
 	// Save the UID
 	uid[0] = ch->id[0];
@@ -8591,4 +8597,355 @@ OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, 
 	info->progs->lastreturn = 1;
 
 	return obj;
+}
+
+
+
+
+void save_trigger(FILE *fp, struct trigger_type *tt)
+{
+	fprintf(fp, "#TRIGGER %s~\n", fix_string(tt->name));
+	if (!IS_NULLSTR(tt->alias))
+		fprintf(fp, "Alias %s\n", tt->alias);
+	
+	if (tt->type < TRIG__MAX)
+	{
+		fprintf(fp, "BuiltinType %s~\n", flag_string(builtin_trigger_types, tt->type));
+	}
+
+	fprintf(fp, "Slot %s~\n", flag_string(trigger_slots, tt->slot));
+
+	if (IS_SET(tt->progs, PRG_MPROG)) fprintf(fp, "Mob\n");
+	if (IS_SET(tt->progs, PRG_OPROG)) fprintf(fp, "Obj\n");
+	if (IS_SET(tt->progs, PRG_RPROG)) fprintf(fp, "Room\n");
+	if (IS_SET(tt->progs, PRG_TPROG)) fprintf(fp, "Token\n");
+	if (IS_SET(tt->progs, PRG_APROG)) fprintf(fp, "Area\n");
+	if (IS_SET(tt->progs, PRG_IPROG)) fprintf(fp, "Instance\n");
+	if (IS_SET(tt->progs, PRG_DPROG)) fprintf(fp, "Dungeon\n");
+
+	fprintf(fp, "#-TRIGGER\n");
+}
+
+
+
+void save_triggers()
+{
+	FILE *fp;
+
+	log_string("save_triggers: saving " TRIGGERS_FILE);
+	if ((fp = fopen(TRIGGERS_FILE, "w")) == NULL)
+	{
+		bug("save_triggers: fopen", 0);
+		perror(TRIGGERS_FILE);
+	}
+	else
+	{
+#if 0
+		for(int i = 0; trigger_table[i].name; i++)
+		{
+			log_stringf("%s => %08X", trigger_table[i].name, trigger_table[i].progs);
+			save_trigger(fp, &trigger_table[i]);
+		}
+#else
+		ITERATOR it;
+		struct trigger_type *trigger;
+		iterator_start(&it, trigger_list);
+		while((trigger = (struct trigger_type *)iterator_nextdata(&it)))
+		{
+			save_trigger(fp, trigger);
+		}
+		iterator_stop(&it);
+#endif
+
+		fprintf(fp, "End\n");
+		fclose(fp);
+	}
+}
+
+struct trigger_type *new_trigger_type()
+{
+	struct trigger_type *tt = alloc_mem(sizeof(struct trigger_type));
+	
+	memset(tt, 0, sizeof(*tt));
+
+	tt->name = str_dup("");
+	tt->alias = str_dup("");
+	tt->type = TRIG__MAX;		// Flag it as being unassigned
+
+	return tt;
+}
+
+void free_trigger_type(struct trigger_type *tt)
+{
+	free_string(tt->name);
+	free_string(tt->alias);
+
+	free_mem(tt, sizeof(struct trigger_type));
+}
+
+static void delete_trigger_type(void *ptr)
+{
+	free_trigger_type((struct trigger_type *)ptr);
+}
+
+int compare_trigger_types(void *a, void *b)
+{
+	return str_cmp(((struct trigger_type *)a)->name,((struct trigger_type *)b)->name);
+}
+
+struct trigger_type *load_trigger(FILE *fp)
+{
+	char buf[MSL];
+	char *word;
+	bool fMatch;
+	struct trigger_type *tt = new_trigger_type();
+
+	free_string(tt->name);
+	tt->name = fread_string(fp);
+	
+    while (str_cmp((word = fread_word(fp)), "#-TRIGGER"))
+	{
+		switch(word[0])
+		{
+			case 'A':
+				KEYS("Alias", tt->alias, fread_string(fp));
+				KEYF("Area", tt->progs, PRG_APROG);
+				break;
+			
+			case 'B':
+				if (!str_cmp(word, "BuiltinType"))
+				{
+					int type = stat_lookup(fread_string(fp), builtin_trigger_types, TRIG__MAX);
+
+					if (type != TRIG__MAX)
+					{
+						tt->type = type;
+					}
+
+					fMatch = TRUE;
+					break;
+				}
+				break;
+
+			case 'D':
+				KEYF("Dungeon", tt->progs, PRG_DPROG);
+				break;
+
+			case 'I':
+				KEYF("Instance", tt->progs, PRG_IPROG);
+				break;
+
+			case 'M':
+				KEYF("Mob", tt->progs, PRG_MPROG);
+				break;
+
+			case 'O':
+				KEYF("Obj", tt->progs, PRG_OPROG);
+				break;
+
+			case 'R':
+				KEYF("Room", tt->progs, PRG_RPROG);
+				break;
+
+			case 'S':
+				if (!str_cmp(word, "Slot"))
+				{
+					tt->slot = stat_lookup(fread_string(fp), trigger_slots, NO_FLAG);
+					if (tt->slot == NO_FLAG)
+						tt->slot = TRIGSLOT_GENERAL;
+					fMatch = TRUE;
+					break;
+				}
+				break;
+
+			case 'T':
+				KEYF("Token", tt->progs, PRG_TPROG);
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "load_trigger: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	if (tt->type == TRIG__MAX)
+		tt->type = ++top_trigger_type;
+
+	return tt;
+}
+
+void insert_trigger_type(struct trigger_type *new_tt)
+{
+	ITERATOR it;
+	struct trigger_type *tt;
+	iterator_start(&it, trigger_list);
+	while((tt = (struct trigger_type *)iterator_nextdata(&it)))
+	{
+		int cmp = str_cmp(new_tt->name, tt->name);
+		if(cmp < 0)
+		{
+			iterator_insert_before(&it, new_tt);
+			break;
+		}
+	}
+	iterator_stop(&it);
+
+	if (!tt)
+	{
+		list_appendlink(trigger_list, new_tt);
+	}
+}
+
+bool load_triggers()
+{
+	FILE *fp;
+	char buf[MSL];
+	char *word;
+	bool fMatch;
+	top_trigger_type = TRIG__MAX;
+
+	log_string("load_triggers: creating trigger_list");
+	trigger_list = list_createx(FALSE, NULL, delete_trigger_type);
+	if (!IS_VALID(trigger_list))
+	{
+		log_string("trigger_list was not created.");
+		return FALSE;
+	}
+
+#if 1
+	log_string("load_triggers: loading " TRIGGERS_FILE);
+	if ((fp = fopen(TRIGGERS_FILE, "r")) == NULL)
+	{
+		bug("load_triggers: fopen", 0);
+		perror(TRIGGERS_FILE);
+		return FALSE;
+	}
+
+	while (str_cmp((word = fread_word(fp)), "End"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+			case '#':
+				if (!str_cmp(word, "#TRIGGER"))
+				{
+					struct trigger_type *trigger = load_trigger(fp);
+					if (trigger)
+						insert_trigger_type(trigger);
+					else
+						log_string("Failed to load a trigger.");
+					fMatch = TRUE;
+					break;
+				}
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "load_triggers: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+	log_string("Triggers loaded.");
+
+
+	ITERATOR it;
+	struct trigger_type *tt;
+
+	iterator_start(&it, trigger_list);
+	while((tt = (struct trigger_type *)iterator_nextdata(&it)))
+	{
+		log_stringf("load_triggers: trigger '%s'.", tt->name);
+	}
+	iterator_stop(&it);
+	log_stringf("load_triggers: total triggers = %d", list_size(trigger_list));
+#endif
+	return TRUE;
+}
+
+bool init_scripting()
+{
+	return load_triggers();
+}
+
+void terminate_scripting()
+{
+	if (IS_VALID(trigger_list))
+		save_triggers();
+
+	list_destroy(trigger_list);
+}
+
+const char *get_trigger_type_name(int type)
+{
+	static int i = 0;
+	static char buf[4][MIL];
+
+	char *str = &buf[i][0];
+	i = (i + 1) & 3;
+
+	if (type < TRIG__MAX)
+	{
+		snprintf(str, MIL - 1, "%s", flag_string(builtin_trigger_types, type));
+	}
+	else
+	{
+		snprintf(str, MIL - 1, "Custom Trigger #%d", type - TRIG__MAX);
+	}
+	return str;
+}
+
+void do_triggers(CHAR_DATA *ch, char *argument)
+{
+	char buf[MSL];
+	char arg1[MIL];
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  triggers list\n\r", ch);
+		return;
+	}
+
+	argument = one_argument(argument, arg1);
+
+	if (!str_prefix(arg1, "list"))
+	{
+		BUFFER *buffer = new_buf();
+		int trigger_no = 1;
+		ITERATOR it;
+		struct trigger_type *tt;
+		iterator_start(&it, trigger_list);
+		while((tt = (struct trigger_type *)iterator_nextdata(&it)))
+		{
+			sprintf(buf, "%-4d  %-20s %-20s %-15s %s%s%s%s%s%s%s{x\n\r", trigger_no++,
+				tt->name,
+				get_trigger_type_name(tt->type),
+				flag_string(trigger_slots, tt->slot),
+				(IS_SET(tt->progs, PRG_MPROG) ? "{WY" : "{Dn"),
+				(IS_SET(tt->progs, PRG_OPROG) ? "{WY" : "{Dn"),
+				(IS_SET(tt->progs, PRG_RPROG) ? "{WY" : "{Dn"),
+				(IS_SET(tt->progs, PRG_TPROG) ? "{WY" : "{Dn"),
+				(IS_SET(tt->progs, PRG_APROG) ? "{WY" : "{Dn"),
+				(IS_SET(tt->progs, PRG_IPROG) ? "{WY" : "{Dn"),
+				(IS_SET(tt->progs, PRG_DPROG) ? "{WY" : "{Dn"));
+
+			add_buf(buffer, buf);
+		}
+		iterator_stop(&it);
+
+		if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+		{
+			send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+		}
+		else
+		{
+			page_to_char(buffer->string, ch);
+		}
+
+		free_buf(buffer);
+		return;
+	}
+
+	do_triggers(ch, "");
 }
