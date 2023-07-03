@@ -1558,7 +1558,11 @@ char *expand_entity_number(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 char *expand_entity_string(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
+//	char buf[MSL];
 	char *a;
+
+//	sprintf(buf,"expand_entity_string: '%s', %d", arg->d.str ? arg->d.str : "(null)", *str);
+//	wiznet(buf, NULL, NULL, WIZ_TESTING, 0, 0);
 
 	switch(*str) {
 	case ENTITY_STR_LEN:
@@ -1598,6 +1602,9 @@ char *expand_entity_string(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		}
 		break;
 	case ENTITY_STR_CAPITAL:
+//		sprintf(buf,"ENTITY_STR_CAPITAL: before '%s'", arg->d.str);
+//		wiznet(buf, NULL, NULL, WIZ_TESTING, 0, 0);
+
 		if( arg->d.str == buf_string(arg->buffer) )
 		{
 			// Already in the buffer
@@ -1613,6 +1620,9 @@ char *expand_entity_string(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 			arg->d.str = buf_string(arg->buffer);
 		}
 		arg->d.str[0] = UPPER(arg->d.str[0]);
+
+//		sprintf(buf,"ENTITY_STR_CAPITAL: after '%s'", arg->d.str);
+//		wiznet(buf, NULL, NULL, WIZ_TESTING, 0, 0);
 		break;
 
 	case ENTITY_STR_PADLEFT:
@@ -5673,11 +5683,15 @@ char *expand_entity_bitvector(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
+//	char buf[MSL];
 	char *next;
 	arg->type = ENT_NONE;		// ENT_PRIMARY
 	arg->d.num = 0;
 
 	while(str && *str && *str != ESCAPE_END) {
+//		sprintf(buf,"expand_argument_entity: %d", arg->type);
+//		wiznet(buf, NULL, NULL, WIZ_TESTING, 0, 0);
+
 		switch(arg->type) {
 		case ENT_PRIMARY:	next = expand_entity_primary(info,str,arg); break;
 		case ENT_NUMBER:	next = expand_entity_number(info,str,arg); break;
@@ -5789,6 +5803,10 @@ char *expand_string_entity(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
 	switch(arg->type) {
 	default:
 		add_buf(buffer, "{D<{x@{W@{x@{D>{x ");
+		break;
+
+	case ENT_BOOLEAN:
+		add_buf(buffer, arg->d.boolean ? "true" : "false");
 		break;
 	
 	case ENT_WIDEVNUM:
