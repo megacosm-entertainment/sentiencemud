@@ -8919,10 +8919,17 @@ void do_triggers(CHAR_DATA *ch, char *argument)
 	char buf[MSL];
 	char arg1[MIL];
 
+	if (IS_NPC(ch) || ch->pcdata->security < 9)
+	{
+		send_to_char("Huh?\n\r", ch);
+		return;
+	}
+
 	if (argument[0] == '\0')
 	{
 		send_to_char("Syntax:  triggers list\n\r", ch);
 		send_to_char("         triggers add <name>[ <slot>[ <space>]]\n\r", ch);
+		send_to_char("         triggers install <name> <trigger> <slot> <space>\n\r", ch);
 		send_to_char("         triggers space <name> <space>\n\r", ch);
 		send_to_char("         triggers remove <name>\n\r", ch);
 		return;
@@ -9039,6 +9046,75 @@ void do_triggers(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
+	if (!str_prefix(arg1, "install"))
+	{
+		char arg2[MIL];	// Name
+		char arg3[MIL];	// built-in trigger
+		char arg4[MIL];	// slot
+		// argument = space
+
+		argument = one_argument(argument, arg2);
+		argument = one_argument(argument, arg3);
+		argument = one_argument(argument, arg4);
+
+		if (IS_NULLSTR(arg2))
+		{
+			send_to_char("Name must not be empty.\n\r", ch);
+			return;
+		}
+
+		// Verify the name isn't used
+		if (get_trigger_type_byname(arg2))
+		{
+			send_to_char("Name already in use.  Please pick another name.\n\r", ch);
+			return;
+		}
+
+		int type;
+		if ((type = stat_lookup(arg3, builtin_trigger_types, TRIG_NONE)) == TRIG_NONE)
+		{
+			send_to_char("Please specify one of the builtin trigger types:\n\r", ch);
+			show_help(ch, "trigger_types");
+			return;
+		}
+
+		if (get_trigger_type_bytype(type))
+		{
+			send_to_char("That trigger type is already registered.\n\r", ch);
+			return;
+		}
+
+		int slot;
+		if ((slot = stat_lookup(arg4, trigger_slots, NO_FLAG)) == NO_FLAG)
+		{
+			send_to_char("Please specify one of the trigger slots:\n\r", ch);
+			show_help(ch, "trigger_slots");
+			return;
+		}
+		
+		int space;
+		if ((space = flag_lookup(argument, script_spaces)) == NO_FLAG)
+		{
+			send_to_char("Please select from the following script spaces:\n\r", ch);
+			show_help(ch, "script_spaces");
+			return;
+		}
+
+
+		struct trigger_type *tt = new_trigger_type();
+
+		free_string(tt->name);
+		tt->name = str_dup(arg2);
+		tt->type = type;
+		tt->slot = slot;
+		tt->progs = space;
+		
+		insert_trigger_type(tt);
+		send_to_char("Trigger type installed.\n\r", ch);
+		save_triggers();
+		return;
+	}
+
 	if (!str_prefix(arg1, "space"))
 	{
 		char arg2[MIL];
@@ -9060,7 +9136,8 @@ void do_triggers(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		if (tt->type < TRIG__MAX)
+		// This is potentially super dangerous, so it should be extremely restrictive
+		if (tt->type < TRIG__MAX && tt->usage > 0 && ch->pcdata->security < 10)
 		{
 			send_to_char("Syntax:  triggers space <name> <space>\n\r", ch);
 			send_to_char("You may only modify custom triggers.\n\r", ch);

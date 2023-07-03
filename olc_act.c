@@ -118,6 +118,7 @@ const struct olc_help_type help_table[] =
 	{	"tokenflags",			token_flags,				"Token flags."	},
 	{	"tprog",				dummy_triggers,				"TokenProgram types."	},
 	{	"trigger_slots",		trigger_slots,				"Trigger slots."},
+	{	"trigger_types",		builtin_trigger_types,		"Built-in trigger types."},
 	{	"type",					type_flags,					"Types of objects."	},
 	{	"vuln",					vuln_flags,					"Mobile vulnerability."	},
 	{	"wclass",				weapon_class,				"Weapon class."	},
