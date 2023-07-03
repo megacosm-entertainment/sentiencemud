@@ -5525,7 +5525,8 @@ void persist_save_scriptdata(FILE *fp, PROG_DATA *prog)
 		if(var->save)
 			variable_fwrite( var, fp );
 	}
-	log_stringf("%s: Saving variables... Done.", __FUNCTION__);
+	// Removing persist_save and persist_save_scriptdata log lines as they're flooding the logs
+	// log_stringf("%s: Saving variables... Done.", __FUNCTION__);
 }
 
 void persist_save_location(FILE *fp, LOCATION *loc, char *prefix)
