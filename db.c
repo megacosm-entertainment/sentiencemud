@@ -5566,7 +5566,8 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
 	if (multiple && obj->next_content)
 		persist_save_object(fp, obj->next_content, multiple);
 
-	log_stringf("persist_save: saving object %08lX:%08lX.", obj->id[0], obj->id[1]);
+	// Removing persist_save and persist_save_scriptdata log lines as they're flooding the logs
+	// log_stringf("persist_save: saving object %08lX:%08lX.", obj->id[0], obj->id[1]);
 
 	// Save all object information, including persistance (in case it is saved elsewhere)
 	fprintf(fp, "#OBJECT %ld\n", obj->pIndexData->vnum);
