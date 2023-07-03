@@ -5517,9 +5517,11 @@ void persist_save_scriptdata(FILE *fp, PROG_DATA *prog)
 {
 	pVARIABLE var;
 
-	log_stringf("%s: Saving variables...", __FUNCTION__);
+	// Removing persist_save and persist_save_scriptdata log lines as they're flooding the logs
+	// log_stringf("%s: Saving variables...", __FUNCTION__);
 	for( var = prog->vars; var; var = var->next) {
-		log_stringf("%s: Variable %s%s", __FUNCTION__, var->name, (var->save ? " - Saving...":""));
+		// Removing persist_save and persist_save_scriptdata log lines as they're flooding the logs
+		// log_stringf("%s: Variable %s%s", __FUNCTION__, var->name, (var->save ? " - Saving...":""));
 		if(var->save)
 			variable_fwrite( var, fp );
 	}
@@ -6189,7 +6191,8 @@ void persist_save(void)
 	register ROOM_INDEX_DATA *room;
 	ITERATOR it;
 
-	log_stringf("persist_save: Saving persistance...");
+//  Removing persist_save and persist_save_scriptdata log lines as they're flooding the logs
+//	log_stringf("persist_save: Saving persistance...");
 
 	if (!(fp = fopen(PERSIST_FILE, "w"))) {
 		bug("persist.save: Couldn't open file.",0);
@@ -6197,7 +6200,8 @@ void persist_save(void)
 		// Save objects
 		iterator_start(&it, persist_objs);
 		while(( obj = (OBJ_DATA *)iterator_nextdata(&it) )) {
-			log_stringf("persist_save: checking to save persistant object %08lX:%08lX.", obj->id[0], obj->id[1]);
+			// Removing persist_save and persist_save_scriptdata log lines as they're flooding the logs
+			// log_stringf("persist_save: checking to save persistant object %08lX:%08lX.", obj->id[0], obj->id[1]);
 			if( !check_persist_environment( NULL, obj, NULL) ) {
 				persist_save_object(fp, obj, false);
 			}
@@ -6224,8 +6228,8 @@ void persist_save(void)
 		fprintf(fp, "#END\n");
 		fclose(fp);
 	}
-
-	log_stringf("persist_save: done.");
+	// Removing persist_save and persist_save_scriptdata log lines as they're flooding the logs
+	// log_stringf("persist_save: done.");
 }
 
 void persist_fix_environment_room(ROOM_INDEX_DATA *clone)
