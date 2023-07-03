@@ -370,6 +370,13 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp, AREA_DATA *area)
 			break;
 
 		case 'D':
+			if (!str_cmp(word, "DeathRelease"))
+			{
+				dng->death_release = stat_lookup(fread_string(fp), death_release_modes, DEATH_RELEASE_NORMAL);
+
+				fMatch = TRUE;
+				break;
+			}
 			KEYS("Description", dng->description, fread_string(fp));
 			if (!str_cmp(word, "DungeonProg")) {
 				char *p;
@@ -725,6 +732,8 @@ void save_dungeon_index(FILE *fp, DUNGEON_INDEX_DATA *dng)
 	fprintf(fp, "ZoneOut %s~\n", fix_string(dng->zone_out));
 	fprintf(fp, "PortalOut %s~\n", fix_string(dng->zone_out_portal));
 	fprintf(fp, "MountOut %s~\n", fix_string(dng->zone_out_mount));
+
+	fprintf(fp, "DeathRelease %s~\n", flag_string(death_release_modes, dng->death_release));
 
 	BLUEPRINT *bp;
 	iterator_start(&it, dng->floors);
