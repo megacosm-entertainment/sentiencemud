@@ -1496,6 +1496,30 @@ char *expand_entity_variable(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	return str+1;
 }
 
+char *expand_entity_boolean(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	switch(*str) {
+	case ENTITY_BOOLEAN_TRUE_FALSE:
+		arg->type = ENT_STRING;
+		arg->d.str = arg->d.boolean ? "true" : "false";
+		break;
+
+	case ENTITY_BOOLEAN_YES_NO:
+		arg->type = ENT_STRING;
+		arg->d.str = arg->d.boolean ? "yes" : "no";
+		break;
+
+	case ENTITY_BOOLEAN_ON_OFF:
+		arg->type = ENT_STRING;
+		arg->d.str = arg->d.boolean ? "on" : "off";
+		break;
+
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
 char *expand_entity_number(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 	switch(*str) {
@@ -5694,6 +5718,7 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 		switch(arg->type) {
 		case ENT_PRIMARY:	next = expand_entity_primary(info,str,arg); break;
+		case ENT_BOOLEAN:	next = expand_entity_boolean(info,str,arg); break;
 		case ENT_NUMBER:	next = expand_entity_number(info,str,arg); break;
 		case ENT_STRING:	next = expand_entity_string(info,str,arg); break;
 		case ENT_WIDEVNUM:	next = expand_entity_widevnum(info,str,arg); break;

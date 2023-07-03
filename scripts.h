@@ -648,6 +648,12 @@ enum entity_prior_enum {
 	ENTITY_PRIOR_PRIOR
 };
 
+enum entity_boolean_enum {
+	ENTITY_BOOLEAN_TRUE_FALSE = ESCAPE_EXTRA,
+	ENTITY_BOOLEAN_YES_NO,
+	ENTITY_BOOLEAN_ON_OFF
+};
+
 enum entity_number_enum {
 	ENTITY_NUM_ABS = ESCAPE_EXTRA,
 	ENTITY_NUM_PADLEFT,
