@@ -593,7 +593,8 @@ AEDIT(aedit_show)
 		add_buf(buffer, buf);
 	}
 
-	add_buf(buffer, "Default Region:\n\r");
+	sprintf(buf, "Default Region: %s\n\r", pArea->region.name);
+	add_buf(buffer, buf);
 	__aedit_show_region(buffer, pArea, &pArea->region);
 
 	ITERATOR rit;
@@ -1134,6 +1135,12 @@ AEDIT(aedit_regions)
 		}
 
 		argument = one_argument(argument, arg2);
+
+		if (IS_NULLSTR(argument))
+		{
+			send_to_char("Name must not be empty.\n\r", ch);
+			return FALSE;
+		}
 
 		AREA_REGION *region;
 		if (!str_prefix(arg2, "default"))

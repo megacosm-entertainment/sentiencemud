@@ -4909,9 +4909,9 @@ DECL_IFC_FUN(ifc_iswnum)
 	else if (ISARG_OBJ(0)) { pArea = ARG_OBJ(0)->pIndexData->area; vnum = ARG_OBJ(0)->pIndexData->vnum; }
 	else if (ISARG_ROOM(0)) { pArea = ARG_ROOM(0)->area; vnum = ARG_ROOM(0)->vnum; }
 	else if (ISARG_TOK(0)) { pArea = ARG_TOK(0)->pIndexData->area; vnum = ARG_TOK(0)->pIndexData->vnum; }
-	// TODO: else if (ISARG_SHIP(0)) { }
-	// TODO: else if (ISARG_INSTANCE(0)) { }
-	// TODO: else if (ISARG_DUNGEON(0)) { }
+	else if (ISARG_SHIP(0)) { pArea = ARG_SHIP(0)->index->area; vnum = ARG_SHIP(0)->index->vnum; }
+	else if (ISARG_INSTANCE(0)) { pArea = ARG_INSTANCE(0)->blueprint->area; vnum = ARG_INSTANCE(0)->blueprint->vnum; }
+	else if (ISARG_DUNGEON(0)) { pArea = ARG_DUNGEON(0)->index->area; vnum = ARG_DUNGEON(0)->index->vnum; }
 
 	if (pArea && vnum > 0)
 	{
@@ -5002,3 +5002,4 @@ DECL_IFC_FUN(ifc_savage)
 
 	return TRUE;
 }
+
