@@ -2573,10 +2573,25 @@ void do_drink(CHAR_DATA *ch, char *argument)
 		bug("Do_drink: bad liquid number %d.", liquid);
 		liquid = obj->value[2] = 0;
 	    }
+		
 	    if (IS_VAMPIRE(ch))
 	       amount = 20;
 	    else
 	       amount = liq_table[liquid].liq_affect[COND_FULL] * 10;
+
+		// If the fountain is empty
+	    if (obj->value[0] >= 0 && obj->value[1] < 1)
+	    {
+			send_to_char("It is already empty.\n\r", ch);
+			return;
+	    }
+
+		// Cap the amount available
+		if (obj->value[1] > 0 && amount > obj->value[1])
+		{
+			amount = obj->value[1];
+		}
+
 	    break;
 
 	case ITEM_DRINK_CON:
@@ -2597,8 +2612,8 @@ void do_drink(CHAR_DATA *ch, char *argument)
 	    break;
      }
 
-	// See if the character is blocked from eating
-	if ((ret = p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREEAT, NULL)))
+	// See if the character is blocked from drinking
+	if ((ret = p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREDRINK, NULL)))
 	{
 		if (ret == 1)
 		{

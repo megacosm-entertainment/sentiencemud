@@ -1341,6 +1341,9 @@ struct	descriptor_data
     char **             pString;	/* OLC */
     int			editor;		/* OLC */
 
+    AREA_REGION *last_area_region;      // Last area region assigned to a room.  If NULL, it will not do anything.
+                                        // Will NULL when you change to start editting a room that is not in the same area.
+
     /* Input function */
     bool		input;
     char *		inputString;		// Temporary holding variable for string editor
@@ -3052,6 +3055,11 @@ enum {
 	AREA_WILDER,
 	AREA_INSTANCE,
 	AREA_DUTY,
+    AREA_CITY,
+    AREA_PARK,
+    AREA_CITADEL,
+    AREA_SKY,
+    AREA_HILLS,
 	AREA_WHO_MAX
 };
 

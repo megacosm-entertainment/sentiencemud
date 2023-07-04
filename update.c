@@ -3576,8 +3576,10 @@ void update_invasion_quest()
     {
 	for (pArea = area_first; pArea != NULL; pArea = pArea->next) {
 
-	    // Only towns should be invaded
-	    if (pArea->region.area_who != AREA_TOWNE) continue;
+	    // Only cities, towns and villages should be invaded
+	    if (pArea->region.area_who != AREA_TOWNE &&
+			pArea->region.area_who != AREA_CITY &&
+			pArea->region.area_who != AREA_VILLAGE) continue;
 
 	    // Newbies are in Plith so better not invade Plith
 	    if (!str_cmp(pArea->name, "Plith")) {

@@ -3627,6 +3627,7 @@ REDIT(redit_create)
 
     pRoom = new_room_index();
     pRoom->area = wnum.pArea;
+
 	list_appendlink(wnum.pArea->room_list, pRoom);	// Add to the area room list
     pRoom->vnum = wnum.vnum;
     if (wnum.vnum > wnum.pArea->top_vnum_room)
@@ -3648,8 +3649,29 @@ REDIT(redit_create)
 
 	if (!IS_SET(pRoom->room2_flags, ROOM_BLUEPRINT))
 	{
+		char buf[MSL];
+		AREA_REGION *region = &pRoom->area->region;
+
+		// Check if we are in the same area as the last used region
+		if (ch->desc->last_area_region)
+		{
+			if (ch->desc->last_area_region->area != pRoom->area)
+			{
+				sprintf(buf, "Region '%s' not in same area\n\r", ch->desc->last_area_region->name);
+				send_to_char(buf, ch);
+
+				ch->desc->last_area_region = NULL;
+			}	
+		}
+
+		// If we have a last region, use that
+		if (ch->desc->last_area_region)
+			region = ch->desc->last_area_region;
+
 		// Only non-blueprint rooms will have this done
-		__region_add_room(&pRoom->area->region, pRoom);
+		sprintf(buf, "Assigning Region: %s\n\r", region->name);
+		send_to_char(buf, ch);
+		__region_add_room(region, pRoom);
 	}
 
     iHash = wnum.vnum % MAX_KEY_HASH;
@@ -12542,6 +12564,8 @@ REDIT (redit_region)
 	
 	__region_remove_room(room);
 	__region_add_room(region, room);
+
+	ch->desc->last_area_region = region;	// Save for faster building
 	send_to_char("Room region set.\n\r", ch);
 	return TRUE;
 }

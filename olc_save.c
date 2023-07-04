@@ -1233,6 +1233,8 @@ void read_area_region(FILE *fp, AREA_DATA *area)
 		region->uid = uid;
 	}
 
+	region->area = area;
+
 	while (str_cmp((word = fread_word(fp)), "#-REGION"))
 	{
 		fMatch = FALSE;

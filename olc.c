@@ -1303,6 +1303,12 @@ void do_redit(CHAR_DATA *ch, char *argument)
 
 		char_from_room(ch);
 		char_to_room(ch, pRoom);
+
+		if (ch->desc->last_area_region)
+		{
+			if (ch->desc->last_area_region->area != pRoom->area)
+				ch->desc->last_area_region = NULL;
+		}
 	}
 	else if(pRoom && IS_SET(pRoom->room2_flags,ROOM_VIRTUAL_ROOM))
 	{
