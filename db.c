@@ -6364,7 +6364,7 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
 	fprintf(fp, "Timer %d\n", obj->timer);					// **
 	fprintf(fp, "Cost %ld\n", obj->cost);					// **
 
-	for(i = 0; i < 8; i++) {
+	for(i = 0; i < MAX_OBJVALUES; i++) {
 		fprintf(fp, "Value %d %d\n", i, obj->value[i]);			// **
 	}
 
