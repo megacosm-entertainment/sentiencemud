@@ -231,3 +231,5 @@ void free_ship_route(SHIP_ROUTE *route);
 SHIP_CREW_INDEX_DATA *new_ship_crew_index();
 void free_ship_crew_index(SHIP_CREW_INDEX_DATA *crew);
 
+AURA_DATA *new_aura_data();
+void free_aura_data(AURA_DATA *aura);

@@ -9887,3 +9887,56 @@ AREA_REGION *get_closest_area_region(AREA_DATA *area, register int x, register i
 	if (closestDistSq) *closestDistSq = closestDistanceSq;
 	return closest;
 }
+
+AURA_DATA *find_aura_char(CHAR_DATA *ch, char *name)
+{
+	ITERATOR it;
+	AURA_DATA *aura;
+
+	iterator_start(&it, ch->auras);
+	while((aura = (AURA_DATA *)iterator_nextdata(&it)))
+	{
+		if (!str_cmp(aura->name, name))
+			break;
+	}
+	iterator_stop(&it);
+
+	return aura;
+}
+
+void add_aura_to_char(CHAR_DATA *ch, char *name, char *long_descr)
+{
+	if (!IS_VALID(ch) || IS_NULLSTR(name) || IS_NULLSTR(long_descr)) return;
+
+	AURA_DATA *aura = find_aura_char(ch, name);
+
+	if (!IS_VALID(aura))
+	{
+		aura = new_aura_data();
+		list_appendlink(ch->auras, aura);
+
+		free_string(aura->name);
+		aura->name = str_dup(name);
+	}
+
+	free_string(aura->long_descr);
+	aura->long_descr = str_dup(long_descr);
+}
+
+void remove_aura_from_char(CHAR_DATA *ch, char *name)
+{
+	if (!IS_VALID(ch) || IS_NULLSTR(name)) return;
+	ITERATOR it;
+	AURA_DATA *aura;
+
+	iterator_start(&it, ch->auras);
+	while((aura = (AURA_DATA *)iterator_nextdata(&it)))
+	{
+		if (!str_cmp(aura->name, name))
+		{
+			iterator_remcurrent(&it);
+			break;
+		}
+	}
+	iterator_stop(&it);
+}

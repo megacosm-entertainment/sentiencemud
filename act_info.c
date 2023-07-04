@@ -1046,9 +1046,36 @@ void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
 		}
     }
 
+	// Aura stuff
+	ITERATOR aurait;
+	AURA_DATA *aura;
+	
+	iterator_start(&aurait, victim->auras);
+	while((aura = (AURA_DATA *)iterator_nextdata(&aurait)))
+	{
+		if (str_suffix("\n\r", buf))
+			strcat(buf, "\n\r");
+
+		if (IS_IMMORTAL(ch) && IS_SET(ch->act, PLR_HOLYLIGHT))
+		{
+			strcat(buf, "(");
+			strcat(buf, aura->name);
+			strcat(buf, ") ");
+		}
+
+		sprintf(buf2, aura->long_descr, pers(victim, ch));
+		strcat(buf, buf2);
+	}
+	iterator_stop(&aurait);
+
+
     if (!IS_NPC(victim) && ((!IS_MORPHED(victim) && !IS_SHIFTED(victim)) ||
 	 (victim->position != POS_STANDING || MOUNTED(victim) || can_see_shift(ch, victim))))
     strcat(buf, "\n\r");
+
+	if (str_suffix("\n\r", buf))
+		strcat(buf, "\n\r");
+
 
     buf[0] = UPPER(buf[0]);
     send_to_char(buf, ch);

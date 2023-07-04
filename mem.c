@@ -542,6 +542,11 @@ void free_obj(OBJ_DATA *obj)
 }
 
 
+static void delete_aura_data(void *ptr)
+{
+    free_aura_data((AURA_DATA *)ptr);
+}
+
 CHAR_DATA *new_char( void )
 {
     CHAR_DATA *ch;
@@ -662,6 +667,7 @@ CHAR_DATA *new_char( void )
     ch->ltokens			= list_create(FALSE);
     ch->lclonerooms		= list_create(FALSE);
     ch->lgroup			= list_create(FALSE);
+    ch->auras           = list_createx(FALSE, NULL, delete_aura_data);
 
     ch->deathsight_vision = 0;
     ch->in_damage_function = FALSE;
@@ -4807,3 +4813,36 @@ void free_ship_crew_index(SHIP_CREW_INDEX_DATA *crew)
 
 }
 
+AURA_DATA *aura_data_free;
+
+AURA_DATA *new_aura_data()
+{
+    AURA_DATA *aura;
+
+    if (aura_data_free)
+    {
+        aura = aura_data_free;
+        aura_data_free = aura_data_free->next;
+    }
+    else
+        aura = alloc_mem(sizeof(AURA_DATA));
+
+    aura->next = NULL;
+    aura->name = str_dup("");
+    aura->long_descr = str_dup("");
+
+    VALIDATE(aura);
+    return aura;
+}
+
+void free_aura_data(AURA_DATA *aura)
+{
+    if (!IS_VALID(aura)) return;
+
+    free_string(aura->name);
+    free_string(aura->long_descr);
+
+    aura->next = aura_data_free;
+    aura_data_free = aura;
+    INVALIDATE(aura);
+}

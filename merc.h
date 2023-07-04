@@ -260,6 +260,7 @@ typedef struct	affect_data		AFFECT_DATA;
 typedef struct	area_data		AREA_DATA;
 typedef struct  area_region_data    AREA_REGION;
 typedef struct	auction_data		AUCTION_DATA;
+typedef struct  aura_data       AURA_DATA;
 typedef struct	auto_war		AUTO_WAR;
 typedef struct	ban_data		BAN_DATA;
 typedef struct	bounty_data		BOUNTY_DATA;
@@ -1791,6 +1792,15 @@ struct	affect_data
 /* reverie types */
 #define HIT_TO_MANA 	0
 #define MANA_TO_HIT 	1
+
+struct aura_data {
+    AURA_DATA *next;
+    bool valid;
+
+    char *name;             // Name of the aura.  Must be unique.  It will replace any existing entry.
+    char *long_descr;       // Long description to show in the room.  Must be compatible with the act_new() function.
+};
+
 
 
 typedef struct affliction_data AFFLICTION_DATA;
@@ -4055,6 +4065,8 @@ struct	char_data
     int			damroll;
     int			armour[4];
     int			wimpy;
+
+    LLIST       *auras;
 
     /* stats */
     int			perm_stat[MAX_STATS];
@@ -9493,6 +9505,10 @@ void get_room_recall(ROOM_INDEX_DATA *room, LOCATION *loc);
 int get_room_savage_level(ROOM_INDEX_DATA *room);
 int get_region_distanceSQ(AREA_REGION *region, int x, int y);
 AREA_REGION *get_closest_area_region(AREA_DATA *area, register int x, register int y, int *closestDistSq, bool airship);
+
+AURA_DATA *find_aura_char(CHAR_DATA *ch, char *name);
+void add_aura_to_char(CHAR_DATA *ch, char *name, char *long_descr);
+void remove_aura_from_char(CHAR_DATA *ch, char *name);
 
 bool init_scripting();
 void terminate_scripting();

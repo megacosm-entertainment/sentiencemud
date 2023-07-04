@@ -583,6 +583,16 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 	    ch->pcdata->condition[2],
 	    ch->pcdata->condition[3]);
 
+	ITERATOR aurait;
+	AURA_DATA *aura;
+
+	iterator_start(&aurait, ch->auras);
+	while((aura = (AURA_DATA *)iterator_nextdata(&aurait)))
+	{
+		fprintf(fp, "Aura %s~ %s~\n", aura->name, aura->long_descr);
+	}
+	iterator_stop(&aurait);
+
 	/* write alias */
         for (pos = 0; pos < MAX_ALIAS; pos++)
 	{
@@ -1195,6 +1205,17 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 		fMatch = TRUE;
 		break;
 	    }
+
+		if (!str_cmp(word, "Aura"))
+		{
+			char *name = fread_string(fp);
+			char *long_descr = fread_string(fp);
+
+			add_aura_to_char(ch, name, long_descr);
+			
+			fMatch = TRUE;
+			break;
+		}
 	    break;
 
 	case 'B':

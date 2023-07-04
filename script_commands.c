@@ -38,6 +38,7 @@ void add_dungeon_index_weighted_exit_data(LLIST *list, int weight, int level_no,
 
 const struct script_cmd_type area_cmd_table[] = {
 	{ "acttrigger",				scriptcmd_acttrigger,	TRUE,	FALSE	},
+	{ "addaura",			scriptcmd_addaura,			TRUE,	TRUE	},
 	{ "bribetrigger",			scriptcmd_bribetrigger,	TRUE,	FALSE	},
 	{ "call",				scriptcmd_call,				FALSE,	TRUE	},
 	{ "directiontrigger",		scriptcmd_directiontrigger,	TRUE,	FALSE	},
@@ -59,6 +60,7 @@ const struct script_cmd_type area_cmd_table[] = {
 	{ "percenttokentrigger",	scriptcmd_percenttokentrigger,	TRUE,	FALSE	},
 	{ "percenttrigger",			scriptcmd_percenttrigger,	TRUE,	FALSE	},
 	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
+	{ "remaura",			scriptcmd_remaura,			TRUE,	TRUE	},
 	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
 	{ "specialkey",			scriptcmd_specialkey,		FALSE,	TRUE	},
 	{ "treasuremap",		scriptcmd_treasuremap,		FALSE,	TRUE	},
@@ -81,6 +83,7 @@ const struct script_cmd_type area_cmd_table[] = {
 
 const struct script_cmd_type instance_cmd_table[] = {
 	{ "acttrigger",				scriptcmd_acttrigger,	TRUE,	FALSE	},
+	{ "addaura",			scriptcmd_addaura,			TRUE,	TRUE	},
 	{ "bribetrigger",			scriptcmd_bribetrigger,	TRUE,	FALSE	},
 	{ "call",				scriptcmd_call,				FALSE,	TRUE	},
 	{ "directiontrigger",		scriptcmd_directiontrigger,	TRUE,	FALSE	},
@@ -108,6 +111,7 @@ const struct script_cmd_type instance_cmd_table[] = {
 	{ "percenttokentrigger",	scriptcmd_percenttokentrigger,	TRUE,	FALSE	},
 	{ "percenttrigger",			scriptcmd_percenttrigger,	TRUE,	FALSE	},
 	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
+	{ "remaura",			scriptcmd_remaura,			TRUE,	TRUE	},
 	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
 	{ "specialkey",			scriptcmd_specialkey,		FALSE,	TRUE	},
 	{ "specialrooms",		instancecmd_specialrooms,	FALSE,	TRUE	},
@@ -131,6 +135,7 @@ const struct script_cmd_type instance_cmd_table[] = {
 
 const struct script_cmd_type dungeon_cmd_table[] = {
 	{ "acttrigger",				scriptcmd_acttrigger,	TRUE,	FALSE	},
+	{ "addaura",			scriptcmd_addaura,			TRUE,	TRUE	},
 	{ "bribetrigger",			scriptcmd_bribetrigger,	TRUE,	FALSE	},
 	{ "call",				scriptcmd_call,				FALSE,	TRUE	},
 	{ "directiontrigger",		scriptcmd_directiontrigger,	TRUE,	FALSE	},
@@ -155,6 +160,7 @@ const struct script_cmd_type dungeon_cmd_table[] = {
 	{ "percenttokentrigger",	scriptcmd_percenttokentrigger,	TRUE,	FALSE	},
 	{ "percenttrigger",			scriptcmd_percenttrigger,	TRUE,	FALSE	},
 	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
+	{ "remaura",			scriptcmd_remaura,			TRUE,	TRUE	},
 	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
 	{ "specialexits",		dungeoncmd_specialexits,	FALSE,	TRUE	},
 	{ "specialkey",			scriptcmd_specialkey,		FALSE,	TRUE	},
@@ -7301,3 +7307,66 @@ SCRIPT_CMD(scriptcmd_usewithtrigger)
 
 
 
+
+// ADDAURA $MOBILE $NAME $%DESCRIPTION...
+
+// $%DESCRIPTION must use %s in place of the name, as it will get substituted
+SCRIPT_CMD(scriptcmd_addaura)
+{
+	char *rest = argument;
+	CHAR_DATA *ch;
+	BUFFER *name = NULL;
+	BUFFER *desc = NULL;
+
+	SETRETURN(0);
+
+	PARSE_ARGTYPE(MOBILE);
+	ch = arg->d.mob;
+
+	PARSE_ARGTYPE(STRING);
+	name = new_buf();
+	if (!name) return;
+	if (!add_buf(name, arg->d.str))
+	{
+		free_buf(name);
+		return;
+	}
+
+	desc = new_buf();
+	if (!desc)
+	{
+		free_buf(name);
+		return;
+	}
+	if (!PARSE_STR(desc))
+	{
+		free_buf(name);
+		free_buf(desc);
+		return;
+	}
+
+	add_aura_to_char(ch, name->string, desc->string);
+
+	free_buf(name);
+	free_buf(desc);
+
+	SETRETURN(1);
+}
+
+// REMAURA $MOBILE $NAME
+SCRIPT_CMD(scriptcmd_remaura)
+{
+	char *rest = argument;
+	CHAR_DATA *ch;
+
+	SETRETURN(0);
+
+	PARSE_ARGTYPE(MOBILE);
+	ch = arg->d.mob;
+
+	PARSE_ARGTYPE(STRING);
+
+	remove_aura_from_char(ch, arg->d.str);
+
+	SETRETURN(1);
+}
