@@ -168,6 +168,14 @@ ENT_FIELD entity_persist[] = {
 	{"mobiles",		ENTITY_PERSIST_MOBS,		ENT_PLLIST_MOB	},
 	{"objects",		ENTITY_PERSIST_OBJS,		ENT_PLLIST_OBJ	},
 	{"rooms",		ENTITY_PERSIST_ROOMS,		ENT_PLLIST_ROOM	},
+	{NULL,			0,							ENT_UNKNOWN}
+};
+
+ENT_FIELD entity_boolean[] = {
+	{"true",		ENTITY_BOOLEAN_TRUE_FALSE,	ENT_STRING},
+	{"yes",			ENTITY_BOOLEAN_YES_NO,		ENT_STRING},
+	{"on",			ENTITY_BOOLEAN_ON_OFF,		ENT_STRING},
+	{NULL,			0,							ENT_UNKNOWN}
 };
 
 ENT_FIELD entity_number[] = {
@@ -636,6 +644,7 @@ ENT_FIELD entity_quest[] = {
 
 struct _entity_type_info entity_type_info[] = {
 	{ ENT_PRIMARY,		ENT_PRIMARY,		entity_primary,				TRUE	},
+	{ ENT_BOOLEAN,		ENT_BOOLEAN,		entity_boolean,				FALSE	},
 	{ ENT_NUMBER,		ENT_NUMBER,			entity_number,				FALSE	},
 	{ ENT_STRING,		ENT_STRING,			entity_string,				FALSE	},
 	{ ENT_MOBILE,		ENT_MOBILE,			entity_mobile,				TRUE	},
