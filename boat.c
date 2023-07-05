@@ -58,6 +58,7 @@ SCRIPT_DATA *read_script_new( FILE *fp, AREA_DATA *area, int type);
 void steering_set_heading(SHIP_DATA *ship, int heading);
 void steering_set_turning(SHIP_DATA *ship, char direction);
 void ship_stop(SHIP_DATA *ship);
+void do_ship_speed( CHAR_DATA *ch, char *argument );
 
 extern LLIST *loaded_instances;
 
@@ -3274,14 +3275,14 @@ void do_ship_sails( CHAR_DATA *ch, char *argument )
 
 void do_ship_speed( CHAR_DATA *ch, char *argument )
 {
-	char buf[MSL];
+	//char buf[MSL];
 	char arg[MAX_INPUT_LENGTH];
 	SHIP_DATA *ship;
 	char cmd[MIL];
 
 	sprintf(cmd, "ship speed %s", argument);
 
-	char *command = argument;
+//	char *command = argument;
 	argument = one_argument( argument, arg);
 
 	ship = get_room_ship(ch->in_room);
