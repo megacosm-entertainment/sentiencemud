@@ -6161,19 +6161,19 @@ bool check_persist_environment( CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *r
 	} else if (obj) {
 		if( obj->locker )
 			return TRUE;	// They are in some player's locker, thus on a player, which is a persistant environment
-		else if( obj->in_room ) {
-			if( obj->in_room->persist) return TRUE;
+		else if( obj->in_obj ) {
+			if( obj->in_obj->persist) return TRUE;
 
-			return check_persist_environment( NULL, NULL, obj->in_room );
+			return check_persist_environment( NULL, obj->in_obj, NULL );
 		} else if( obj->carried_by ) {
 			if( !IS_NPC(obj->carried_by ) ) return TRUE;	// Players are a special kind of persistance
 			if( obj->carried_by->persist) return TRUE;
 
 			return check_persist_environment( obj->carried_by, NULL, NULL );
-		} else if( obj->in_obj ) {
-			if( obj->in_obj->persist) return TRUE;
+		} else if( obj->in_room ) {
+			if( obj->in_room->persist) return TRUE;
 
-			return check_persist_environment( NULL, obj->in_obj, NULL );
+			return check_persist_environment( NULL, NULL, obj->in_room );
 		}
 	}
 
