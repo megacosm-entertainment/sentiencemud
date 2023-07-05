@@ -283,6 +283,12 @@ DESCRIPTOR_DATA *new_descriptor(void)
     *d = d_zero;
     VALIDATE(d);
 
+    d->last_area = NULL;
+    d->last_area_region = NULL;
+    d->last_room_sector = SECT_NONE;
+    d->last_room_flags = 0;
+    d->last_room2_flags = 0;
+
     top_descriptor++;
 
     return d;

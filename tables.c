@@ -641,6 +641,7 @@ const struct flag_type plr_flags[] =
     {	"autoloot",		PLR_AUTOLOOT,		FALSE	},
     {	"autosac",		PLR_AUTOSAC,		FALSE	},
     {	"autogold",		PLR_AUTOGOLD,		FALSE	},
+    {   "autoolc",      PLR_AUTOOLC,        FALSE   },
     {	"autosplit",		PLR_AUTOSPLIT,		FALSE	},
     {   "autosetname",		PLR_AUTOSETNAME,	FALSE   },
     {	"holylight",		PLR_HOLYLIGHT,		FALSE	},

@@ -3654,31 +3654,52 @@ REDIT(redit_create)
 		redit_blueprint_oncreate = FALSE;
 	}
 
+	if (IS_SET(ch->act, PLR_AUTOOLC))
+	{
+		// Have we changed areas?
+		if (ch->desc->last_area != pRoom->area)
+		{
+			ch->desc->last_area = pRoom->area;
+			ch->desc->last_area_region = NULL;
+			ch->desc->last_room_sector = SECT_NONE;
+			ch->desc->last_room_flags = 0;
+			ch->desc->last_room2_flags = 0;
+		}
+	}
+
 	if (!IS_SET(pRoom->room2_flags, ROOM_BLUEPRINT))
 	{
-		char buf[MSL];
 		AREA_REGION *region = &pRoom->area->region;
 
-		// Check if we are in the same area as the last used region
-		if (ch->desc->last_area_region)
+		if (IS_SET(ch->act, PLR_AUTOOLC))
 		{
-			if (ch->desc->last_area_region->area != pRoom->area)
+			// Check if we are in the same area as the last used region
+			if (ch->desc->last_area_region)
 			{
-				sprintf(buf, "Region '%s' not in same area\n\r", ch->desc->last_area_region->name);
-				send_to_char(buf, ch);
+				if (ch->desc->last_area_region->area != pRoom->area)
+				{
+					ch->desc->last_area_region = NULL;
+				}	
+			}
 
-				ch->desc->last_area_region = NULL;
-			}	
+			// If we have a last region, use that
+			if (ch->desc->last_area_region)
+				region = ch->desc->last_area_region;
 		}
 
-		// If we have a last region, use that
-		if (ch->desc->last_area_region)
-			region = ch->desc->last_area_region;
-
 		// Only non-blueprint rooms will have this done
-		sprintf(buf, "Assigning Region: %s\n\r", region->name);
-		send_to_char(buf, ch);
 		__region_add_room(region, pRoom);
+	}
+
+	if (IS_SET(ch->act, PLR_AUTOOLC))
+	{
+		if (ch->desc->last_room_sector != SECT_NONE)
+		{
+			pRoom->sector_type = ch->desc->last_room_sector;
+		}
+
+		pRoom->room_flags = ch->desc->last_room_flags;
+		pRoom->room2_flags = ch->desc->last_room2_flags;
 	}
 
     iHash = wnum.vnum % MAX_KEY_HASH;
@@ -12305,6 +12326,13 @@ REDIT(redit_room)
     }
 
     TOGGLE_BIT(room->room_flags, value);
+
+	if (IS_SET(ch->act, PLR_AUTOOLC))
+	{
+		ch->desc->last_room_flags = room->room_flags;
+	}
+
+
     send_to_char("Room flags toggled.\n\r", ch);
     return TRUE;
 }
@@ -12392,6 +12420,11 @@ REDIT(redit_room2)
 			__region_add_room(&room->area->region, room);
 		}
 	}
+
+	if (IS_SET(ch->act, PLR_AUTOOLC))
+	{
+		ch->desc->last_room2_flags = room->room2_flags;
+	}
     send_to_char("Room flags toggled.\n\r", ch);
     return TRUE;
 }
@@ -12415,6 +12448,12 @@ REDIT(redit_sector)
     }
 
     room->sector_type = value;
+
+	if (IS_SET(ch->act, PLR_AUTOOLC))
+	{
+		ch->desc->last_room_sector = room->sector_type;
+	}
+
     send_to_char("Sector type set.\n\r", ch);
 
     return TRUE;
@@ -12572,7 +12611,10 @@ REDIT (redit_region)
 	__region_remove_room(room);
 	__region_add_room(region, room);
 
-	ch->desc->last_area_region = region;	// Save for faster building
+	if (IS_SET(ch->act, PLR_AUTOOLC))
+	{
+		ch->desc->last_area_region = region;	// Save for faster building
+	}
 	send_to_char("Room region set.\n\r", ch);
 	return TRUE;
 }

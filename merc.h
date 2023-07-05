@@ -1342,8 +1342,13 @@ struct	descriptor_data
     char **             pString;	/* OLC */
     int			editor;		/* OLC */
 
+    // OLC Auto Generations
+    AREA_DATA *last_area;
     AREA_REGION *last_area_region;      // Last area region assigned to a room.  If NULL, it will not do anything.
                                         // Will NULL when you change to start editting a room that is not in the same area.
+    int last_room_sector;               
+    long last_room_flags;
+    long last_room2_flags;
 
     /* Input function */
     bool		input;
@@ -3103,6 +3108,7 @@ enum {
  * Sector types.
  * Used in #ROOMS.
  */
+#define SECT_NONE               -1      // Only used internally
 #define SECT_INSIDE		      0
 #define SECT_CITY		      1
 #define SECT_FIELD		      2
@@ -3227,29 +3233,34 @@ enum {
 #define POS_FEIGN		      9
 #define POS_HELDUP		      10
 
-#define PLR_IS_NPC		(A)
+#define PLR_IS_NPC			(A)
 #define PLR_EXCOMMUNICATED	(B)
-#define PLR_PK			(C)
+#define PLR_PK				(C)
 #define PLR_AUTOEXIT		(D)
 #define PLR_AUTOLOOT		(E)
-#define PLR_AUTOSAC             (F)
+#define PLR_AUTOSAC			(F)
 #define PLR_AUTOGOLD		(G)
 #define PLR_AUTOSPLIT		(H)
-#define PLR_AUTOSPELL	        (I)
+#define PLR_AUTOOLC         (I)
 #define PLR_AUTOSETNAME		(J)
+// K
+// L
+// M
 #define PLR_HOLYLIGHT		(N)
-#define PLR_SHOWDAMAGE          (O)
+#define PLR_SHOWDAMAGE      (O)
 #define PLR_AUTOEQ	        (P)
 #define PLR_NOSUMMON		(Q)
 #define PLR_NOFOLLOW		(R)
-#define PLR_COLOUR		(T)
-#define PLR_NOTIFY		(U)
-#define PLR_LOG			(W)
-#define PLR_DENY		(X)
-#define PLR_FREEZE		(Y)
+// S
+#define PLR_COLOUR          (T)
+#define PLR_NOTIFY			(U)
+// V
+#define PLR_LOG				(W)
+#define PLR_DENY			(X)
+#define PLR_FREEZE			(Y)
 #define PLR_BUILDING		(Z)
-#define PLR_HELPER		(aa)
-#define PLR_BOTTER		(bb)
+#define PLR_HELPER			(aa)
+#define PLR_BOTTER			(bb)
 #define PLR_NO_CHALLENGE	(cc)
 #define PLR_NO_RESURRECT	(dd)
 #define PLR_PURSUIT 		(ee)
@@ -3257,7 +3268,7 @@ enum {
 /* Plr2 flags */
 #define PLR_AUTOSURVEY		(A)
 #define PLR_SACRIFICE_ALL	(B)
-#define PLR_NO_WAKE		(C)
+#define PLR_NO_WAKE			(C)
 #define PLR_HOLYAURA		(D)
 #define PLR_MOBILE			(E)
 #define PLR_FAVSKILLS		(F)
@@ -3272,27 +3283,28 @@ enum {
 #define COMM_NOGOSSIP           (E)
 #define COMM_NOANNOUNCE         (F)
 #define COMM_NOHELPER           (G)
-#define COMM_NOCT		(H)
-#define COMM_SOCIAL		(I)
-#define COMM_NOTIFY		(J)
-#define COMM_NOHINTS		(K)
-#define COMM_COMPACT		(L)
-#define COMM_BRIEF		(M)
-#define COMM_PROMPT		(N)
-#define COMM_FLAGS		(O)
-#define COMM_TELNET_GA		(P)
+#define COMM_NOCT				(H)
+#define COMM_SOCIAL				(I)
+#define COMM_NOTIFY				(J)
+#define COMM_NOHINTS			(K)
+#define COMM_COMPACT			(L)
+#define COMM_BRIEF				(M)
+#define COMM_PROMPT				(N)
+#define COMM_FLAGS				(O)
+#define COMM_TELNET_GA			(P)
 #define COMM_NO_FLAMING         (Q)
-#define COMM_NOGQ		(R)
-#define COMM_NO_OOC		(S)
+#define COMM_NOGQ				(R)
+#define COMM_NO_OOC				(S)
 #define COMM_NOYELL             (T)
-#define COMM_NOAUTOWAR   	(U)
-#define COMM_NOTELL		(V)
-#define COMM_NOCHANNELS		(W)
-#define COMM_NOQUOTE		(Y)
-#define COMM_AFK		(Z)
-#define COMM_NOBATTLESPAM	(aa)
-#define COMM_NOMAP		(cc)
-#define COMM_NOTELLS		(dd)
+#define COMM_NOAUTOWAR			(U)
+#define COMM_NOTELL				(V)
+#define COMM_NOCHANNELS			(W)
+#define COMM_NOQUOTE			(Y)
+#define COMM_AFK				(Z)
+#define COMM_NOBATTLESPAM		(aa)
+// bb
+#define COMM_NOMAP				(cc)
+#define COMM_NOTELLS			(dd)
 #define COMM_SHOW_FORM_STATE    (ee)
 
 

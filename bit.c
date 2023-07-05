@@ -579,6 +579,7 @@ char *act_bit_name( int act_type, long act_flags )
 		if (act_flags & PLR_AUTOSAC		) strcat(buf, " autosac");
 		if (act_flags & PLR_AUTOGOLD	) strcat(buf, " autogold");
 		if (act_flags & PLR_AUTOSPLIT	) strcat(buf, " autosplit");
+		if (act_flags & PLR_AUTOOLC		) strcat(buf, " autoolc");
 		if (act_flags & PLR_HOLYLIGHT	) strcat(buf, " holy_light");
 		if (act_flags & PLR_SHOWDAMAGE	) strcat(buf, " show_damage");
 		if (act_flags & PLR_AUTOEQ    	) strcat(buf, " autoeq");

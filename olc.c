@@ -1250,6 +1250,7 @@ void do_aedit(CHAR_DATA *ch, char *argument)
 
 void do_redit(CHAR_DATA *ch, char *argument)
 {
+//	char buf[MSL];
 	ROOM_INDEX_DATA *pRoom;
 	char arg1[MAX_STRING_LENGTH];
 	WNUM wnum;
@@ -1304,10 +1305,21 @@ void do_redit(CHAR_DATA *ch, char *argument)
 		char_from_room(ch);
 		char_to_room(ch, pRoom);
 
-		if (ch->desc->last_area_region)
+		// Set the last OLC stuff to the current room you are editting when you explicitly do "redit <widevnum>"
+		if (IS_SET(ch->act, PLR_AUTOOLC))
 		{
-			if (ch->desc->last_area_region->area != pRoom->area)
-				ch->desc->last_area_region = NULL;
+//			sprintf(buf, "AUTOOLC: saving area (%s), region (%s), sector (%s), room (%s), room2 (%s)\n\r",
+//				pRoom->area->name,
+//				pRoom->region ? pRoom->region->name : "(null)",
+//				flag_string(sector_flags, pRoom->sector_type),
+//				flag_string(room_flags, pRoom->room_flags),
+//				flag_string(room2_flags, pRoom->room2_flags));
+//			send_to_char(buf, ch);
+			ch->desc->last_area = pRoom->area;
+			ch->desc->last_area_region = pRoom->region;
+			ch->desc->last_room_sector = pRoom->sector_type;
+			ch->desc->last_room_flags = pRoom->room_flags;
+			ch->desc->last_room2_flags = pRoom->room2_flags;
 		}
 	}
 	else if(pRoom && IS_SET(pRoom->room2_flags,ROOM_VIRTUAL_ROOM))
@@ -1319,6 +1331,25 @@ void do_redit(CHAR_DATA *ch, char *argument)
 	{
 		send_to_char("REdit : Insuficient security to edit room - action logged.\n\r", ch);
 		return;
+	}
+	else
+	{
+		// Set the last OLC stuff to the current room you are editting when you explicitly do "redit <widevnum>"
+		if (IS_SET(ch->act, PLR_AUTOOLC))
+		{
+//			sprintf(buf, "AUTOOLC: saving area (%s), region (%s), sector (%s), room (%s), room2 (%s)\n\r",
+//				pRoom->area->name,
+//				pRoom->region ? pRoom->region->name : "(null)",
+//				flag_string(sector_flags, pRoom->sector_type),
+//				flag_string(room_flags, pRoom->room_flags),
+//				flag_string(room2_flags, pRoom->room2_flags));
+//			send_to_char(buf, ch);
+			ch->desc->last_area = pRoom->area;
+			ch->desc->last_area_region = pRoom->region;
+			ch->desc->last_room_sector = pRoom->sector_type;
+			ch->desc->last_room_flags = pRoom->room_flags;
+			ch->desc->last_room2_flags = pRoom->room2_flags;
+		}
 	}
 
 	ch->pcdata->immortal->last_olc_command = current_time;
