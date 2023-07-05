@@ -2301,6 +2301,7 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
     fprintf(fp, "UId %ld\n", obj->id[0]);
     fprintf(fp, "UId2 %ld\n", obj->id[1]);
     fprintf(fp, "Version %d\n", VERSION_OBJECT);
+	fprintf(fp, "Persist %d\n", obj->persist);
 
     fprintf(fp, "Nest %d\n", iNest);
 
@@ -3066,6 +3067,9 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 
 					obj->times_allowed_fixed = obj->pIndexData->times_allowed_fixed;
 					fix_object(obj);
+
+					if (obj->persist)
+						persist_addobject(obj);
 					return obj;
 				}
 			}
@@ -3219,6 +3223,15 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 
 			break;
 
+		case 'P':
+			KEY("PermExtra",		obj->extra_flags_perm,	fread_number(fp));
+			KEY("PermExtra2",		obj->extra2_flags_perm,	fread_number(fp));
+			KEY("PermExtra3",		obj->extra3_flags_perm,	fread_number(fp));
+			KEY("PermExtra4",		obj->extra4_flags_perm,	fread_number(fp));
+			KEY("PermWeapon",		obj->weapon_flags_perm,	fread_number(fp));
+			KEY("Persist", obj->persist, fread_number(fp));
+			break;
+
 		case 'R':
 			if (!str_cmp(word, "Room"))
 			{
@@ -3229,14 +3242,6 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				obj->in_room = room;
 				fMatch = TRUE;
 			}
-			break;
-
-		case 'P':
-			KEY("PermExtra",		obj->extra_flags_perm,	fread_number(fp));
-			KEY("PermExtra2",		obj->extra2_flags_perm,	fread_number(fp));
-			KEY("PermExtra3",		obj->extra3_flags_perm,	fread_number(fp));
-			KEY("PermExtra4",		obj->extra4_flags_perm,	fread_number(fp));
-			KEY("PermWeapon",		obj->weapon_flags_perm,	fread_number(fp));
 			break;
 
 		case 'S':
