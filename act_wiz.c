@@ -5117,6 +5117,12 @@ void do_mset(CHAR_DATA *ch, char *argument)
 	    return;
 	}
 
+	if (str_infix("$n", arg3))
+	{
+		send_to_char("Please include {Y$n{x to indicate where the player's name will go.\n\r", ch);
+		return;
+	}
+
 	free_string(victim->pcdata->title);
 	victim->pcdata->title = str_dup(arg3);
 	send_to_char("Title set.\n\r", ch);

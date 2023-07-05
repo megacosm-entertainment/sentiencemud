@@ -2436,6 +2436,7 @@ char *imc_assemble_who( void )
          else
             imcstrlcpy( flags, "---", SMST );
 
+         // TODO: Update to deal with new title formatting
          imcstrlcpy( name, CH_IMCNAME( person ), SMST );
          imcstrlcpy( title, colour_mtoi( CH_IMCTITLE( person ) ), SMST );
          imcstrlcpy( plrline, process_plrline( rank, flags, name, title ), SMST );

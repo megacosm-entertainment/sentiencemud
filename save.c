@@ -569,7 +569,7 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 	    fprintf(fp, "Bin  %s~\n",	ch->pcdata->immortal->bamfin);
 	if (ch->pcdata->immortal->bamfout[0] != '\0')
 		fprintf(fp, "Bout %s~\n",	ch->pcdata->immortal->bamfout); */
-	fprintf(fp, "Titl %s~\n",	ch->pcdata->title	);
+	fprintf(fp, "Titl %s~\n",	fix_string(ch->pcdata->title)	);
 	if (ch->church != NULL)
         	fprintf(fp, "Church %s~\n",	ch->church->name	);
 	fprintf(fp, "TSex %d\n",	ch->pcdata->true_sex	);
@@ -1212,7 +1212,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 			char *long_descr = fread_string(fp);
 
 			add_aura_to_char(ch, name, long_descr);
-			
+
 			fMatch = TRUE;
 			break;
 		}
@@ -2133,16 +2133,15 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 
 	    if (!str_cmp(word, "Title")  || !str_cmp(word, "Titl"))
 	    {
-		ch->pcdata->title = fread_string(fp);
-    		if (ch->pcdata->title[0] != '.' && ch->pcdata->title[0] != ','
-		&&  ch->pcdata->title[0] != '!' && ch->pcdata->title[0] != '?')
-		{
-		    sprintf(buf, " %s", ch->pcdata->title);
-		    free_string(ch->pcdata->title);
-		    ch->pcdata->title = str_dup(buf);
-		}
-		fMatch = TRUE;
-		break;
+			ch->pcdata->title = fread_string(fp);
+
+			if (str_infix("$n", ch->pcdata->title))
+			{
+				free_string(ch->pcdata->title);
+				ch->pcdata->title = str_dup("");	// No title
+			}
+			fMatch = TRUE;
+			break;
 	    }
 
 	    break;

@@ -2869,6 +2869,8 @@ SCRIPT_CMD(scriptcmd_usewithtrigger);
 SCRIPT_CMD(scriptcmd_addaura);
 SCRIPT_CMD(scriptcmd_remaura);
 
+SCRIPT_CMD(scriptcmd_settitle);
+
 bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument);
 bool olc_varclear(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument);
 void olc_show_index_vars(BUFFER *buffer, pVARIABLE index_vars);

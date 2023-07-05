@@ -3004,8 +3004,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 			ch->move	= ch->max_move;
 			ch->train	 = 3;
 			ch->practice = 5;
-			sprintf(buf, "{x");
-			set_title(ch, buf);
+			set_title(ch, "");	// No title
 			if (fBootstrap)
 			{
 				log_string("Bootstrapping game");

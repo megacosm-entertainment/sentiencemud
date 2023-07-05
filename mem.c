@@ -828,6 +828,7 @@ PC_DATA *new_pcdata(void)
 	pcdata->quit_on_input = FALSE;
     pcdata->email = NULL;
     pcdata->afk_message = NULL;
+    pcdata->title = str_dup("");
     //pcdata->imm_title = NULL;
     pcdata->ignoring = NULL;
     pcdata->vis_to_people = NULL;

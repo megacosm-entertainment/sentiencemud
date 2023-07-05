@@ -806,11 +806,16 @@ void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
     }
     else if (!IS_NPC(victim))
     {
-		sprintf(buf2, "%s", victim->name);
-		buf2[0] = UPPER(buf2[0]);
-        strcat(buf, buf2);
-        if (victim->position == POS_STANDING && victim->on == NULL)
-	  	    strcat(buf, victim->pcdata->title);
+        if (victim->position == POS_STANDING && victim->on == NULL && victim->pcdata->title[0])
+		{
+			char title[MIL];
+			sprintf(title, string_replace_static(victim->pcdata->title, "$n", "{+%s"), victim->name);
+			strcat(buf, title);
+		}
+		else {
+			strcat(buf, "{+");
+			strcat(buf, victim->name);
+		}
     }
 
     switch (victim->position)
@@ -3026,7 +3031,7 @@ void do_worth(CHAR_DATA * ch, char *argument)
 void do_score(CHAR_DATA * ch, char *argument)
 {
     char buf[2*MAX_STRING_LENGTH], buf2[MSL];
-    char subclass[MSL];
+    char subclass[MIL];
     int i;
     char tbuf[MAX_STRING_LENGTH];
     int pierce_s;
@@ -3054,10 +3059,19 @@ void do_score(CHAR_DATA * ch, char *argument)
 
     sprintf(subclass, "%s", sub_class_table[ch->pcdata->sub_class_current].name[ch->sex]);
     subclass[0] = LOWER(subclass[0]);
+
+	if (!IS_NPC(ch) && ch->pcdata->title[0])
+	{
+		sprintf(buf2, string_replace_static(ch->pcdata->title, "$n", "{+%s"), ch->name);
+	}
+	else
+	{
+		strcpy(buf2, ch->name);
+	}
+
     /* LINE 2 *** */
-    sprintf(buf, "| {G%s%s {B[{x%s{B] [{x%s{B] [{x%s{B] [{x%s{B]{x",
-	    ch->name,
-	    IS_NPC(ch) ? "" : ch->pcdata->title,
+    sprintf(buf, "| {G%s {B[{x%s{B] [{x%s{B] [{x%s{B] [{x%s{B]{x",
+	    buf2,
 	    ch->sex == 0 ? "sexless" : ch->sex == 1 ? "male" : "female",
 	    race_table[ch->race].name,
 	    IS_NPC(ch) ? "mobile" : class_table[get_profession(ch, CLASS_CURRENT)].name,
@@ -4870,40 +4884,89 @@ void do_consider(CHAR_DATA * ch, char *argument)
 
 void set_title(CHAR_DATA * ch, char *title)
 {
-    char buf[MAX_STRING_LENGTH];
-
     if (IS_NPC(ch)) {
-	bug("Set_title: NPC.", 0);
-	return;
+		bug("Set_title: NPC.", 0);
+		return;
     }
 
-    if (title[0] != '\0' && title[0] != '.' && title[0] != ',' && title[0] != '!' && title[0] != '?')
-    {
-		buf[0] = ' ';
-		strcpy(buf + 1, title);
-    } else
-		strcpy(buf, title);
-
     free_string(ch->pcdata->title);
-    ch->pcdata->title = str_dup(buf);
+    ch->pcdata->title = str_dup(title);
 }
 
 void do_title(CHAR_DATA * ch, char *argument)
 {
+	char arg[MIL];
     if (IS_NPC(ch))
-	return;
+		return;
 
-    if (argument[0] == '\0') {
-	send_to_char("Change your title to what?\n\r", ch);
-	return;
+    if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  title set <title...>\n\r", ch);
+		send_to_char("         title clear\n\r", ch);
+		send_to_char("\n\r", ch);
+		send_to_char("Note: Title must include {Y$n{x to indicate where your name will go.\n\r", ch);
+
+		send_to_char("Example: {Wtitle set $n of Bacon{x\n\r", ch);
+
+		char buf[MSL];
+		sprintf(buf, "Result:  {+%s of Bacon\n\r", ch->name);
+		send_to_char(buf, ch);
+		return;
     }
 
-    if (strlen(argument) > 45)
-	argument[45] = '\0';
+	argument = one_argument(argument, arg);
 
-    smash_tilde(argument);
-    set_title(ch, argument);
-    send_to_char("Title set.\n\r", ch);
+	if (!str_prefix(arg, "set"))
+	{
+		if (argument[0] == '\0')
+		{
+			send_to_char("Set your title to what?\n\r", ch);
+			return;
+		}
+
+		if (strlen(argument) > 45)
+			argument[45] = '\0';
+
+		smash_tilde(argument);
+
+		if (IS_IMMORTAL(ch))
+		{
+			if (str_infix("$n", argument))
+			{
+				send_to_char("Please include a {Y$n{x somewhere in your title for your name.\n\r", ch);
+				return;
+			}
+		}
+		else
+		{
+			char *plain = nocolour(argument);
+			bool valid = !str_prefix(plain, "$n");
+			free_string(plain);
+			if (!valid)
+			{
+				send_to_char("Your title must begin with {Y$n{x for your name.\n\r", ch);
+				return;
+			}
+		}
+
+		set_title(ch, argument);
+
+		char buf[MSL * 2];
+		char title[MSL];
+		sprintf(title, string_replace_static(ch->pcdata->title, "$n", "{+%s"), ch->name);
+		sprintf(buf, "Title set to '%s{x'.\n\r", title);
+		send_to_char(buf, ch);
+		return;
+	}
+	
+	if (!str_prefix(arg, "clear"))
+	{
+		set_title(ch, "");
+		send_to_char("Title cleared.\n\r", ch);
+		return;
+	}
+
+	do_title(ch, "");	
 }
 
 

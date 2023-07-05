@@ -62,6 +62,7 @@ const struct script_cmd_type area_cmd_table[] = {
 	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
 	{ "remaura",			scriptcmd_remaura,			TRUE,	TRUE	},
 	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
+	{ "settitle",			scriptcmd_settitle,			TRUE,	TRUE	},
 	{ "specialkey",			scriptcmd_specialkey,		FALSE,	TRUE	},
 	{ "treasuremap",		scriptcmd_treasuremap,		FALSE,	TRUE	},
 	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
@@ -113,6 +114,7 @@ const struct script_cmd_type instance_cmd_table[] = {
 	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
 	{ "remaura",			scriptcmd_remaura,			TRUE,	TRUE	},
 	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
+	{ "settitle",			scriptcmd_settitle,			TRUE,	TRUE	},
 	{ "specialkey",			scriptcmd_specialkey,		FALSE,	TRUE	},
 	{ "specialrooms",		instancecmd_specialrooms,	FALSE,	TRUE	},
 	{ "treasuremap",		scriptcmd_treasuremap,		FALSE,	TRUE	},
@@ -162,6 +164,7 @@ const struct script_cmd_type dungeon_cmd_table[] = {
 	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
 	{ "remaura",			scriptcmd_remaura,			TRUE,	TRUE	},
 	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
+	{ "settitle",			scriptcmd_settitle,			TRUE,	TRUE	},
 	{ "specialexits",		dungeoncmd_specialexits,	FALSE,	TRUE	},
 	{ "specialkey",			scriptcmd_specialkey,		FALSE,	TRUE	},
 	{ "specialrooms",		dungeoncmd_specialrooms,	FALSE,	TRUE	},
@@ -7368,5 +7371,45 @@ SCRIPT_CMD(scriptcmd_remaura)
 
 	remove_aura_from_char(ch, arg->d.str);
 
+	SETRETURN(1);
+}
+
+// SETTITLE $PLAYER $$TITLE...
+
+// $$TITLE must include $$n to indicate where the name will go.
+//  The $$n is because the $$ will be reduced to $ after the PARSE_STR macro is complete
+SCRIPT_CMD(scriptcmd_settitle)
+{
+	char *rest = argument;
+	CHAR_DATA *ch;
+	BUFFER *title;
+
+	SETRETURN(0);
+
+	PARSE_ARGTYPE(MOBILE);
+	if(IS_NPC(arg->d.mob)) return;
+	ch = arg->d.mob;
+
+	title = new_buf();
+	if (!PARSE_STR(title))
+	{
+		free_buf(title);
+		return;
+	}
+
+	if (strlen(title->string) > 45)
+	{
+		title->string[45] = '\0';
+	}
+
+	if (str_infix("$n", title->string))
+	{
+		free_buf(title);
+		return;
+	}
+
+	set_title(ch, title->string);
+
+	free_buf(title);
 	SETRETURN(1);
 }
