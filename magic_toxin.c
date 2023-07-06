@@ -151,12 +151,23 @@ SPELL_FUNC(spell_poison)
 	if (target == TARGET_OBJ) {
 		obj = (OBJ_DATA *) vo;
 
-		if (obj->item_type == ITEM_FOOD || obj->item_type == ITEM_DRINK_CON) {
+		if (obj->item_type == ITEM_FOOD || obj->item_type == ITEM_DRINK_CON || obj->item_type == ITEM_FOUNTAIN) {
 			if (IS_OBJ_STAT(obj,ITEM_BLESS) || IS_OBJ_STAT(obj,ITEM_BURN_PROOF)) {
 				act("Your spell fails to corrupt $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
 				return FALSE;
 			}
-			obj->value[3] = 1;
+
+			int poison = URANGE(1, level / 3, 99);		// Never allow this kind of applied poison to be permanent.
+			
+			if (obj->value[3] > poison)
+			{
+				act("$p is already sufficiently poisoned.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
+				return FALSE;
+			}
+
+			obj->value[3] = poison;
+			if (obj->value[3] < 1)
+				obj->value[3] = 1;
 			act("$p is infused with poisonous vapors.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
 			return TRUE;
 		}

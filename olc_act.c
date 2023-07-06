@@ -4710,10 +4710,16 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 	    sprintf(buf,
 	        "{B[  {Wv0{B]{G Liquid Total:{x [%ld]\n\r"
 	        "{B[  {Wv1{B]{G Liquid Left:{x  [%ld]\n\r"
-	        "{B[  {Wv2{B]{G Liquid:{x     %s\n\r",
+	        "{B[  {Wv2{B]{G Liquid:{x       %s\n\r"
+	        "{B[  {Wv3{B]{G Poisoned:{x     %s\n\r"
+			"{B[  {Wv4{B]{G Fill Rate:{x    [%ld]\n\r"
+			"{B[  {Wv5{B]{G Poison Rate:{x  [%ld]\n\r",
 	        obj->value[0],
 	        obj->value[1],
-	        liq_table[obj->value[2]].liq_name);
+	        liq_table[obj->value[2]].liq_name,
+	        obj->value[3] != 0 ? "Yes" : "No",
+			obj->value[4],
+			obj->value[5]);
 	    add_buf(buffer, buf);
 	    break;
 
@@ -6257,6 +6263,18 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 		case 2:
 			send_to_char("LIQUID TYPE SET.\n\r\n\r", ch);
 			pObj->value[2] = (liq_lookup(argument) != -1 ? liq_lookup(argument) : 0);
+			break;
+		case 3:
+			send_to_char("POISON VALUE TOGGLED.\n\r\n\r", ch);
+			pObj->value[3] = (pObj->value[3] == 0) ? 1 : 0;
+			break;
+		case 4:
+			send_to_char("FILL RATE SET.\n\r\n\r", ch);
+			pObj->value[4] = atoi(argument);
+			break;
+		case 5:
+			send_to_char("POISON RATE SET.\n\r\n\r", ch);
+			pObj->value[5] = atoi(argument);
 			break;
 		}
 		break;

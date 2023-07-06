@@ -2167,6 +2167,50 @@ void obj_update(void)
 			cold_effect(obj->in_room, 1, dice(4,8), TARGET_ROOM);
 		}
 
+		// Check fountains that are out the locker and have capacity to fill.
+		// Fountains with a timer will not refill
+		if (obj->item_type == ITEM_FOUNTAIN && obj->timer <= 0 && !obj->locker)
+		{
+			if(obj->value[4] > 0 && obj->value[0] > 0 && obj->value[1] < obj->value[0])
+			{
+				obj->value[1] += obj->value[4];
+				obj->value[1] = UMIN(obj->value[0], obj->value[1]);
+
+				if (obj->value[3] > 0 && obj->value[3] < 100 && number_percent() >= obj->value[3])
+				{
+					if (number_percent() >= obj->value[3])
+						obj->value[3] = 0;
+					else
+						obj->value[3]--;
+				}
+
+				// Are at capacity?
+				if (obj->value[1] == obj->value[0])
+				{
+					p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_FILLED, NULL);
+				}
+			}
+
+			// The cap for applied poison will always be 99%.
+			// Permanently poisoned fountains will have to be explicitly made.
+			if (obj->value[5] > 0 && obj->value[3] < 99)
+			{
+				obj->value[3] += obj->value[5];
+				obj->value[3] = UMIN(obj->value[5], 99);
+			}
+		}
+
+		if ((obj->item_type == ITEM_FOOD || obj->item_type == ITEM_DRINK_CON) && obj->timer <= 0 && !obj->locker)
+		{
+			if (obj->value[3] > 0 && obj->value[3] < 100 && number_percent() >= obj->value[3])
+			{
+				if (number_percent() >= obj->value[3])
+					obj->value[3] = 0;
+				else
+					obj->value[3]--;
+			}
+		}
+
 		// Handle timers for decaying objs, etc
 		if ((obj->timer <= 0 || --obj->timer > 0))
 			continue;

@@ -9093,13 +9093,12 @@ void do_triggers(CHAR_DATA *ch, char *argument)
 		}
 		
 		int space;
-		if ((space = flag_lookup(argument, script_spaces)) == NO_FLAG)
+		if ((space = flag_value(script_spaces, argument)) == NO_FLAG)
 		{
 			send_to_char("Please select from the following script spaces:\n\r", ch);
 			show_help(ch, "script_spaces");
 			return;
 		}
-
 
 		struct trigger_type *tt = new_trigger_type();
 

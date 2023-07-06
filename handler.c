@@ -6491,6 +6491,7 @@ bool can_put_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
 		if ((get_obj_weight(obj) + (get_obj_weight_container(container) * WEIGHT_MULT(container))/100) > (container->value[0]) ||
 			(get_obj_number_container(container) >= container->value[3]))
 		{
+			if (!silent)
 			act("$p won't fit in $P.", ch, NULL, NULL, obj, container, NULL, NULL, TO_CHAR);
 			return FALSE;
 		}

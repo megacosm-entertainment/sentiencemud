@@ -305,9 +305,12 @@ SPELL_FUNC(spell_identify)
 		break;
 
 	case ITEM_DRINK_CON:
-		sprintf(buf,"{MIt holds %s-coloured {x%s{M.\n\r{x",
-			liq_table[obj->value[2]].liq_colour,
-			liq_table[obj->value[2]].liq_name);
+		if (obj->value[0] != 0 && obj->value[1] != 0)
+			sprintf(buf,"{MIt holds %s-coloured {x%s{M.\n\r{x",
+				liq_table[obj->value[2]].liq_colour,
+				liq_table[obj->value[2]].liq_name);
+		else
+			sprintf(buf,"{MIt is empty.{x\n\r");
 		add_buf(buffer,buf);
 		break;
 
@@ -338,6 +341,7 @@ SPELL_FUNC(spell_identify)
 
 	case ITEM_WEAPON:
 		add_buf(buffer, "{MWeapon type is {x");
+		// Now... why is this like this?
 		switch (obj->value[0]) {
 		case(WEAPON_EXOTIC): 		add_buf(buffer, "exotic{M");		break;
 		case(WEAPON_SWORD): 		add_buf(buffer, "sword{M");		break;

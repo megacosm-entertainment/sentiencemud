@@ -6193,6 +6193,7 @@ enum trigger_index_enum {
 	TRIG_EMOTE,			// NIB : 20140508 : untargeted emote
 	TRIG_EMOTEAT,		// NIB : 20140508 : targeted emote
 	TRIG_EMOTESELF,		// NIB : 20140508 : self-targeted emote
+    TRIG_EMPTIED,
 	TRIG_ENTRY,
 	TRIG_EXALL,
 	TRIG_EXAMINE,
@@ -6201,6 +6202,8 @@ enum trigger_index_enum {
 	TRIG_EXTRACT,
     TRIG_FAILED,
 	TRIG_FIGHT,
+    TRIG_FILL,
+    TRIG_FILLED,
 	TRIG_FLEE,
 	TRIG_FORCEDISMOUNT,
 	TRIG_GET,
@@ -6234,6 +6237,7 @@ enum trigger_index_enum {
 	TRIG_MULTICLASS,	// Called when a player multiclasses
 	TRIG_OPEN,
 	TRIG_POSTQUEST,			// Called after all quest rewards and messages are given
+    TRIG_POUR,
 	TRIG_PRACTICE,
 	TRIG_PRACTICETOKEN,
 	TRIG_PREANIMATE,

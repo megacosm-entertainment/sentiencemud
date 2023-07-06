@@ -1955,10 +1955,13 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 
     send_to_char(buf, ch);
 
-    sprintf(buf, "{BValues:{x %d %d %d %d %d %d %d %d\n\r",
-	obj->value[0], obj->value[1], obj->value[2], obj->value[3],
-	obj->value[4], obj->value[5], obj->value[6], obj->value[7]);
-    send_to_char(buf, ch);
+	send_to_char("{BValues:{x",ch);
+	for(int i = 0; i < MAX_OBJVALUES; i++)
+	{
+		sprintf(buf, " %d", obj->value[i]);
+		send_to_char(buf, ch);
+	}
+	send_to_char("\n\r", ch);
 
     if (obj->extra_descr != NULL || obj->pIndexData->extra_descr != NULL)
     {

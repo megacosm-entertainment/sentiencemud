@@ -640,8 +640,16 @@ void do_get(CHAR_DATA *ch, char *argument)
 		obj_from_obj(obj);
 		obj_to_char(obj, ch);
 
+		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, container, NULL, TRIG_GET, NULL);
+		p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_GET, NULL);
+
+		if (!container->contains)
+		{
+			p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_EMPTIED, NULL);
+		}
+
 		// If the container is in the current room
-		if( container->in_room != NULL )
+		if( !container->carried_by && !container->in_obj && container->in_room != NULL )
 		{
 			// Ignore player corpses
 			if( container->item_type == ITEM_CORPSE_PC ) return;
@@ -731,6 +739,9 @@ void do_get(CHAR_DATA *ch, char *argument)
 
 							if (container->item_type == ITEM_CORPSE_PC || container->item_type == ITEM_CORPSE_NPC)
 								reset_obj(obj);
+
+							p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, container, NULL, TRIG_GET, NULL);
+							p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_GET, NULL);
 						}
 
 						gotten = TRUE;
@@ -758,15 +769,23 @@ void do_get(CHAR_DATA *ch, char *argument)
 					}
 
 			// If the container is in the current room and something was taken
-			if( gotten && container->in_room != NULL ) {
-				// Ignore player corpses
-				if( container->item_type == ITEM_CORPSE_PC ) return;
+			if( gotten ) {
+				if (!container->contains)
+				{
+					p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_EMPTIED, NULL);
+				}
 
-				// Ignore mob corpses that have a timer
-				//  - static mob corpses can exist, but they won't have a timer on them
-				if( container->item_type == ITEM_CORPSE_NPC && container->timer > 0 ) return;
+				if (!container->carried_by && !container->in_obj && container->in_room != NULL ) {
 
-				church_announce_theft(ch, NULL);
+					// Ignore player corpses
+					if( container->item_type == ITEM_CORPSE_PC ) return;
+
+					// Ignore mob corpses that have a timer
+					//  - static mob corpses can exist, but they won't have a timer on them
+					if( container->item_type == ITEM_CORPSE_NPC && container->timer > 0 ) return;
+
+					church_announce_theft(ch, NULL);
+				}
 			}
 	}
 }
@@ -929,6 +948,15 @@ void do_put(CHAR_DATA *ch, char *argument)
 
 				obj_from_char(obj);
 				obj_to_obj(obj, container);
+
+				p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, container, NULL, TRIG_PUT, NULL);
+				p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_PUT, NULL);
+
+				i++;
+				if (i >= 50)
+				{
+					p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_FILLED, NULL);
+				}
 				return;
 		    }
 		}
@@ -988,7 +1016,14 @@ void do_put(CHAR_DATA *ch, char *argument)
 		    act("You put $p in $P.", ch, NULL, NULL, obj, container, NULL, NULL, TO_CHAR);
 		}
 
-		p_percent_trigger(NULL,container,NULL,NULL,ch, NULL, NULL,obj,NULL,TRIG_PUT, NULL);
+		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, container, NULL, TRIG_PUT, NULL);
+		p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_PUT, NULL);
+
+		if (((get_obj_weight_container(container) + get_obj_weight(obj)) * WEIGHT_MULT(container)/100) > container->value[0] ||
+			(get_obj_number_container(container) + get_obj_number(obj)) > container->value[3])
+		{
+			p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_FILLED, NULL);
+		}
     }
     else
     {
@@ -1028,7 +1063,7 @@ void do_put(CHAR_DATA *ch, char *argument)
 				    obj_next = obj->next_content;
 
 				    if (str_cmp(obj->short_descr, short_descr) ||
-				    	!can_put_obj(ch, obj, container, NULL, TRUE))
+				    	!can_put_obj(ch, obj, container, NULL, FALSE))
 						continue;
 
 				    if (((get_obj_weight_container(container) + get_obj_weight(obj)) *
@@ -1115,8 +1150,15 @@ void do_put(CHAR_DATA *ch, char *argument)
 
 			/* Too many to do individually, just let it handle all of them. */
 			p_percent_trigger(NULL,container,NULL,NULL,ch, NULL, NULL,NULL,NULL,TRIG_PUT, NULL);
+
+			if (((get_obj_weight_container(container)) * WEIGHT_MULT(container)/100) >= container->value[0] ||
+				(get_obj_number_container(container)) >= container->value[3])
+			{
+				p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_FILLED, NULL);
+			}
 	    }
-	    else if (!any)
+
+	    if (!any)
 	    {
 			if (arg1[3] == '\0')
 			    act("You have nothing you can put in $p.", ch, NULL, NULL, container, NULL, NULL, NULL, TO_CHAR);
@@ -2384,6 +2426,15 @@ void do_fill(CHAR_DATA *ch, char *argument)
 	return;
     }
 
+	if ((fountain->value[0] > 0 && fountain->value[1] < 1) || fountain->value[2] < 0)
+	{
+		send_to_char("That fountain is empty.\n\r", ch);
+		return;
+	}
+
+	if (obj->value[0] >= 0 && obj->value[1] < 0)
+		obj->value[1] = 0;	// Fix bad object values
+
     if (obj->value[1] != 0 && obj->value[2] != fountain->value[2])
     {
 	send_to_char("There is already another liquid in it.\n\r", ch);
@@ -2398,8 +2449,70 @@ void do_fill(CHAR_DATA *ch, char *argument)
 
     act("You fill $p with $t from $P.", ch, NULL, NULL, obj,fountain, liq_table[fountain->value[2]].liq_name, NULL, TO_CHAR);
     act("$n fills $p with $t from $P.", ch, NULL, NULL, obj,fountain, liq_table[fountain->value[2]].liq_name, NULL, TO_ROOM);
-    obj->value[2] = fountain->value[2];
-    obj->value[1] = obj->value[0];
+    obj->value[2] = fountain->value[2];	// Copy the liquid type
+	if (fountain->value[3] > 0)
+	{
+		if (obj->value[3] < 100)
+		{
+			obj->value[3] = UMAX(obj->value[3], fountain->value[3]);	// Combine the poison
+			obj->value[3] = UMIN(obj->value[3], 99);
+		}
+
+		// Weaken the poison
+		if (fountain->value[3] < 100)
+			fountain->value[3]--;
+	}
+	// If the drink is empty, has poison, there is a chance it gets "washed" out
+	else if (obj->value[1] < 1 && obj->value[3] > 0 && number_percent() >= obj->value[3])
+	{
+		obj->value[3] = 0;
+	}
+
+	int amount;
+	if (fountain->value[0] > 0)
+	{
+		amount = obj->value[0] - obj->value[1];
+		if (amount >= fountain->value[1])
+		{
+			// Container more capacity than the fountain
+			obj->value[1] += fountain->value[1];
+			fountain->value[1] = 0;
+		}
+		else
+		{
+			obj->value[1] = obj->value[0];
+			fountain->value[1] -= amount;
+		}
+	}
+	else
+	{
+		// Fountain has infinite capacity
+		amount = obj->value[0] - obj->value[1];
+		obj->value[1] = obj->value[0];	// Filled to the brim.
+	}
+
+	// if $(obj1) is valid, then $(obj) is the container
+	// if $(obj2) is valid, then $(obj) is the fountain
+	// tempstore1 == amount
+
+	obj->tempstore[0] = amount;
+	p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, fountain, NULL, TRIG_FILL, NULL);
+
+	fountain->tempstore[0] = amount;
+	p_percent_trigger(NULL, fountain, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_FILL, NULL);
+
+	ch->in_room->tempstore[0] = amount;
+	p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, fountain, obj, TRIG_FILL, NULL);
+
+	if (obj->value[1] == obj->value[0])
+	{
+		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, fountain, NULL, TRIG_FILLED, NULL);
+	}
+
+	if (fountain->value[0] > 0 && fountain->value[1] < 1)
+	{
+		p_percent_trigger(NULL, fountain, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_EMPTIED, NULL);
+	}
 }
 
 
@@ -2432,63 +2545,72 @@ void do_pour(CHAR_DATA *ch, char *argument)
 
     if (!str_cmp(argument,"out"))
     {
-	if (out->value[1] == 0)
-	{
-	    send_to_char("It's already empty.\n\r",ch);
-	    return;
-	}
+		if (out->value[2] < 0 || out->value[1] == 0)
+		{
+			send_to_char("It's already empty.\n\r",ch);
+			return;
+		}
 
-	out->value[1] = 0;
-	out->value[3] = 0;
-	sprintf(buf,"You invert $p, spilling %s all over the ground.", liq_table[out->value[2]].liq_name);
-	act(buf,ch, NULL, NULL,out, NULL, NULL,NULL,TO_CHAR);
+		out->value[1] = 0;
 
-	sprintf(buf,"$n inverts $p, spilling %s all over the ground.", liq_table[out->value[2]].liq_name);
-	act(buf,ch, NULL, NULL,out, NULL, NULL,NULL,TO_ROOM);
-	return;
+		if (out->value[3] > 0 && out->value[3] < 100)
+		{
+			if (number_percent() >= out->value[3])
+				out->value[3] = 0;
+			else
+				out->value[3]--;
+		}
+		
+
+		sprintf(buf,"You invert $p, spilling %s all over the ground.", liq_table[out->value[2]].liq_name);
+		act(buf,ch, NULL, NULL,out, NULL, NULL,NULL,TO_CHAR);
+
+		sprintf(buf,"$n inverts $p, spilling %s all over the ground.", liq_table[out->value[2]].liq_name);
+		act(buf,ch, NULL, NULL,out, NULL, NULL,NULL,TO_ROOM);
+		return;
     }
 
     if ((in = get_obj_here(ch, NULL, argument)) == NULL)
     {
-	vch = get_char_room(ch,NULL, argument);
+		vch = get_char_room(ch,NULL, argument);
 
-	if (vch == NULL)
-	{
-	    send_to_char("Pour into what?\n\r",ch);
-	    return;
-	}
+		if (vch == NULL)
+		{
+			send_to_char("Pour into what?\n\r",ch);
+			return;
+		}
 
-	in = get_eq_char(vch,WEAR_HOLD);
+		in = get_eq_char(vch,WEAR_HOLD);
 
-	if (in == NULL)
-	{
-	    send_to_char("They aren't holding anything.",ch);
- 	    return;
-	}
+		if (in == NULL)
+		{
+			send_to_char("They aren't holding anything.",ch);
+			return;
+		}
     }
 
-    if (in->item_type != ITEM_DRINK_CON)
+    if (in->item_type != ITEM_DRINK_CON && in->item_type != ITEM_FOUNTAIN)
     {
-	send_to_char("You can only pour into other drink containers.\n\r",ch);
-	return;
+		send_to_char("You can only pour into other drink containers.\n\r",ch);
+		return;
     }
 
     if (in == out)
     {
-	send_to_char("You cannot change the laws of physics!\n\r",ch);
-	return;
+		send_to_char("You cannot change the laws of physics!\n\r",ch);
+		return;
+    }
+
+    if (out->value[2] < 0 || out->value[1] == 0)
+    {
+		act("There's nothing in $p to pour.",ch, NULL, NULL,out, NULL, NULL,NULL,TO_CHAR);
+		return;
     }
 
     if (in->value[1] != 0 && in->value[2] != out->value[2])
     {
-	send_to_char("They don't hold the same liquid.\n\r",ch);
-	return;
-    }
-
-    if (out->value[1] == 0)
-    {
-	act("There's nothing in $p to pour.",ch, NULL, NULL,out, NULL, NULL,NULL,TO_CHAR);
-	return;
+		send_to_char("They don't hold the same liquid.\n\r",ch);
+		return;
     }
 
     if (in->value[1] >= in->value[0])
@@ -2502,6 +2624,24 @@ void do_pour(CHAR_DATA *ch, char *argument)
     in->value[1] += amount;
     out->value[1] -= amount;
     in->value[2] = out->value[2];
+	if (out->value[3] > 0)
+	{
+		if (in->value[3] < 100)
+		{
+			in->value[3] = UMAX(in->value[3], out->value[3]);	// Combine the poison
+			in->value[3] = UMIN(in->value[3], 99);				// Cap for applied poisons
+		}
+
+		// Weaken the poison if not permanent
+		if (out->value[3] < 100)
+			out->value[3]--;
+	}
+	// If the drink is empty, has poison, there is a chance it gets "washed" out
+	else if (in->value[1] < 1 && in->value[3] > 0 && number_percent() >= in->value[3])
+	{
+		in->value[3] = 0;
+	}
+
 
     if (vch == NULL)
     {
@@ -2519,6 +2659,25 @@ void do_pour(CHAR_DATA *ch, char *argument)
 		sprintf(buf,"$n pours some %s for $N.", liq_table[out->value[2]].liq_name);
 		act(buf,ch,vch, NULL, NULL, NULL, NULL, NULL,TO_NOTVICT);
     }
+
+	// $obj1 vs $obj2 will make the distinction here...
+	// $obj1 is the OUT, $obj2 is the IN
+	out->tempstore[0] = amount;
+	p_percent_trigger(NULL, out, NULL, NULL, ch, vch, NULL, NULL, in, TRIG_POUR, NULL);
+	in->tempstore[0] = amount;
+	p_percent_trigger(NULL, in, NULL, NULL, ch, vch, NULL, out, NULL, TRIG_POUR, NULL);
+	ch->in_room->tempstore[0] = amount;
+	p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, vch, NULL, out, in, TRIG_POUR, NULL);
+	
+	if (out->value[0] > 0 && out->value[1] <= 0)
+	{
+		p_percent_trigger(NULL, out, NULL, NULL, ch, vch, NULL, NULL, in, TRIG_EMPTIED, NULL);
+	}
+
+	if (in->value[0] > 0 && in->value[1] >= in->value[0])
+	{
+		p_percent_trigger(NULL, in, NULL, NULL, ch, vch, NULL, NULL, out, TRIG_FILLED, NULL);
+	}
 }
 
 
@@ -2570,8 +2729,10 @@ void do_drink(CHAR_DATA *ch, char *argument)
 	case ITEM_FOUNTAIN:
 	    if ((liquid = obj->value[2])  < 0)
 	    {
-		bug("Do_drink: bad liquid number %d.", liquid);
-		liquid = obj->value[2] = 0;
+			send_to_char("There is nothing to drink.\n\r", ch);
+			return;
+//		bug("Do_drink: bad liquid number %d.", liquid);
+//		liquid = obj->value[2] = 0;
 	    }
 		
 	    if (IS_VAMPIRE(ch))
@@ -2595,16 +2756,18 @@ void do_drink(CHAR_DATA *ch, char *argument)
 	    break;
 
 	case ITEM_DRINK_CON:
+	    if ((liquid = obj->value[2])  < 0)
+	    {
+			send_to_char("There is nothing to drink.\n\r", ch);
+			return;
+//		bug("Do_drink: bad liquid number %d.", liquid);
+//		liquid = obj->value[2] = 0;
+	    }
+
 	    if (obj->value[1] <= 0)
 	    {
 		send_to_char("It is already empty.\n\r", ch);
 		return;
-	    }
-
-	    if ((liquid = obj->value[2])  < 0)
-	    {
-		bug("Do_drink: bad liquid number %d.", liquid);
-		liquid = obj->value[2] = 0;
 	    }
 
 	    amount = liq_table[liquid].liq_affect[4];
@@ -2671,8 +2834,7 @@ void do_drink(CHAR_DATA *ch, char *argument)
     if (!IS_NPC(ch) && ch->pcdata->condition[COND_THIRST] > 40)
 	send_to_char("Your thirst is quenched.\n\r", ch);
 
-    if (obj->value[3] != 0
-    && check_immune(ch, DAM_POISON) != IS_IMMUNE)
+    if (obj->value[3] > 0 && check_immune(ch, DAM_POISON) != IS_IMMUNE)
     {
 	/* The drink was poisoned ! */
 	AFFECT_DATA af;
@@ -2683,7 +2845,7 @@ memset(&af,0,sizeof(af));
 	af.group     = AFFGROUP_BIOLOGICAL;
 	af.type      = gsn_poison;
 	af.level	 = number_fuzzy(amount);
-	af.duration  = 3 * amount;
+	af.duration  = 3 * obj->value[3] * amount / 100;
 	af.location  = APPLY_NONE;
 	af.modifier  = 0;
 	af.bitvector = AFF_POISON;
@@ -2698,6 +2860,12 @@ memset(&af,0,sizeof(af));
 
 	p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_DRINK, NULL);
 	p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, obj, NULL, TRIG_DRINK, NULL);
+
+	if (obj->value[0] > 0 && obj->value[1] < 1)
+	{
+		obj->value[3] = 0;	// Remove the poisoning
+		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_EMPTIED, NULL);
+	}
 
     return;
 }
@@ -2783,7 +2951,7 @@ void do_eat(CHAR_DATA *ch, char *argument)
 	    }
 		
 
-	    if (obj->value[3] != 0 && check_immune(ch, DAM_POISON) != IS_IMMUNE)
+	    if (obj->value[3] > 0 && check_immune(ch, DAM_POISON) != IS_IMMUNE)
 	    {
 			/* The food was poisoned! */
 			AFFECT_DATA af;
@@ -2795,7 +2963,7 @@ void do_eat(CHAR_DATA *ch, char *argument)
 			af.group     = AFFGROUP_BIOLOGICAL;
 			af.type      = gsn_poison;
 			af.level 	 = number_fuzzy(obj->value[0]);
-			af.duration  = 2 * obj->value[0];
+			af.duration  = obj->value[3] * obj->value[0] / 50;	// is really 2 * poison% * hours / 100
 			af.location  = APPLY_NONE;
 			af.modifier  = 0;
 			af.bitvector = AFF_POISON;
