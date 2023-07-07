@@ -3124,10 +3124,9 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		{
 			if (ch->in_room != NULL)
 			{
-				char login_buf[MSL];
-				sprintf(login_buf, "ROOM: %ld#%ld\n\r", ch->in_room->area->uid, ch->in_room->vnum);
-				send_to_char(login_buf, ch);
-
+//				char login_buf[MSL];
+//				sprintf(login_buf, "ROOM: %ld#%ld\n\r", ch->in_room->area->uid, ch->in_room->vnum);
+//				send_to_char(login_buf, ch);
 				char_to_room(ch, ch->in_room);
 			}
 			else

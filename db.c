@@ -3990,7 +3990,7 @@ WNUM_LOAD fread_widevnum(FILE *fp, long refAuid)
 	return wnums[i];
 }
 
-WNUM_LOAD *fread_widevnumptr(FILE *fp)
+WNUM_LOAD *fread_widevnumptr(FILE *fp, long refAuid)
 {
     long auid = 0;
 	long vnum = 0;
@@ -4045,6 +4045,8 @@ WNUM_LOAD *fread_widevnumptr(FILE *fp)
 		bug("Fread_widevnumptr: memory failure.", 0);
 		exit(1);
 	}
+
+	if(auid <= 0) auid = refAuid;
 
 	wnum->auid = auid;
 	wnum->vnum = vnum;
@@ -6338,8 +6340,8 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
 	// Save location
 	if (obj->in_room) {	// **
 		if(obj->in_room->wilds)		fprintf(fp, "Vroom %ld %ld %ld\n", obj->in_room->wilds->uid, obj->in_room->x, obj->in_room->y);
-		else if(obj->in_room->source)	fprintf(fp, "CloneRoom %ld %ld %ld\n", obj->in_room->source->vnum, obj->in_room->id[0], obj->in_room->id[1]);
-		else				fprintf(fp, "Room %ld\n", obj->in_room->vnum);
+		else if(obj->in_room->source)	fprintf(fp, "CloneRoom %s %ld %ld\n", widevnum_string_room(obj->in_room->source, NULL), obj->in_room->id[0], obj->in_room->id[1]);
+		else				fprintf(fp, "Room %s\n", widevnum_string_room(obj->in_room, NULL));
 	}
 
 	fprintf(fp, "Enchanted %d\n", obj->num_enchanted);	// **
@@ -6737,7 +6739,7 @@ void persist_save_exit(FILE *fp, EXIT_DATA *ex)
 		if( location_isset( &loc ) )
 			persist_save_location(fp, &loc, "DestRoom");
 	} else if(ex->wilds.wilds_uid > 0) {
-		fprintf(fp, "DestRoom %ld %d %d 0\n", ex->wilds.wilds_uid, ex->wilds.x, ex->wilds.y);
+		fprintf(fp, "DestRoom 0 %ld %d %d 0\n", ex->wilds.wilds_uid, ex->wilds.x, ex->wilds.y);
 	}
 
 	fprintf(fp, "Keyword %s~\n", ex->keyword);
@@ -8259,32 +8261,34 @@ EXIT_DATA *persist_load_exit(FILE *fp)
 			case 'D':
 				if( !str_cmp(word, "DestRoom") ) {
 					ROOM_INDEX_DATA *room = NULL, *clone;
-					WNUM_LOAD w = fread_widevnum(fp, 0);
-					int x = fread_number(fp);
-					int y = fread_number(fp);
+					long auid = fread_number(fp);
+					long wuid = fread_number(fp);
+					long x = fread_number(fp);
+					long y = fread_number(fp);
+					long z = fread_number(fp);
 
-					if( w.auid == 0 ) {	// By this point, ALL wilds should be loaded
-						ex->wilds.wilds_uid = w.vnum;
+					if( auid == 0 ) {	// By this point, ALL wilds should be loaded
+						ex->wilds.wilds_uid = wuid;
 						ex->wilds.x = x;
 						ex->wilds.y = y;
 					} else {
-						if( x > 0 || y > 0 ) {		// Not guaranteed that the clone room has been created
+						if( y > 0 || z > 0 ) {		// Not guaranteed that the clone room has been created
 
-							room = get_room_index_auid( w.auid, w.vnum );
+							room = get_room_index_auid( auid, x );
 
 							if( room ) {
 								//log_string("get_clone_room: persist_load_exit");
-								if( !(clone = get_clone_room( room, x, y )) ) {
+								if( !(clone = get_clone_room( room, y, z )) ) {
 									// Create the room
 									if( (clone = create_virtual_room_nouid(room, FALSE, FALSE, FALSE)) ) {
-										clone->id[0] = x;
-										clone->id[1] = y;
+										clone->id[0] = y;
+										clone->id[1] = z;
 									}
 								}
 								room = clone;
 							}
 						} else
-							room = get_room_index_auid( w.auid, w.vnum );
+							room = get_room_index_auid( auid, x );
 						ex->u1.to_room = room;
 					}
 
@@ -8689,6 +8693,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 				FVDKEY("RoomFlags", room->room_flags, fread_string(fp), room_flags, NO_FLAG, 0);
 				FVDKEY("RoomFlags2", room->room2_flags, fread_string(fp), room2_flags, NO_FLAG, 0);
 				if( !str_cmp(word, "RoomRecall") ) {
+					room->recall.area = get_area_from_uid(fread_number(fp));
 					room->recall.wuid = fread_number(fp);
 					room->recall.id[0] = fread_number(fp);
 					room->recall.id[1] = fread_number(fp);

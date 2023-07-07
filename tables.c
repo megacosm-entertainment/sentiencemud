@@ -2848,6 +2848,7 @@ const struct flag_type instance_flags[] =
 
 const struct flag_type dungeon_flags[] =
 {
+    { "commenced",          DUNGEON_COMMENCED,          FALSE   },
 	{ "completed",			DUNGEON_COMPLETED,			FALSE	},
 	{ "failed", 			DUNGEON_FAILED, 			FALSE	},
 	{ "destroy",			DUNGEON_DESTROY,			FALSE	},

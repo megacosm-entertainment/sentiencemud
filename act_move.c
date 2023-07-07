@@ -413,6 +413,16 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 	/* Ok, take a copy of the char's location pointers */
 	in_room = ch->in_room;
 
+	DUNGEON *in_dungeon = get_room_dungeon(in_room);
+	INSTANCE *in_instance = get_room_instance(in_room);
+
+	// Check whether they are in a dun
+	if (IS_VALID(in_dungeon) && !IS_SET(in_dungeon->flags, DUNGEON_COMMENCED))
+	{
+		send_to_char("The dungeon hasn't commenced yet.  Please wait to move.\n\r", ch);
+		return;
+	}
+
 	if (!(pexit = in_room->exit[door])) {
 		send_to_char("Alas, you cannot move that way.\n\r", ch);
 /*		wiznet("move_char()-> NULL pexit",NULL,NULL,WIZ_TESTING,0,0); */
@@ -604,10 +614,8 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 	else
 		char_to_room(ch, to_room);
 
-	DUNGEON *in_dungeon = get_room_dungeon(in_room);
 	DUNGEON *to_dungeon = get_room_dungeon(to_room);
 
-	INSTANCE *in_instance = get_room_instance(in_room);
 	INSTANCE *to_instance = get_room_instance(to_room);
 
 	if (!IS_AFFECTED(ch, AFF_SNEAK) && ch->invis_level < LEVEL_HERO) {
@@ -999,7 +1007,9 @@ bool can_move_room(CHAR_DATA *ch, int door, ROOM_INDEX_DATA *room)
 	}
 
 	/* Syn - why the hell wasn't this ever here in the first place? */
-	if (IS_NPC(ch) && IS_SET(room->room_flags, ROOM_NO_MOB))
+	// Changed to so that mobs that aren't following anyone will obey no_mob.
+	// Those that are following others will be allowed through.
+	if (IS_NPC(ch) && (!IS_VALID(ch->master) || ch->master == ch) && IS_SET(room->room_flags, ROOM_NO_MOB))
 		return FALSE;
 
 	if (IS_AFFECTED(ch, AFF_WEB)) {

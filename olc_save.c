@@ -1366,12 +1366,15 @@ AREA_DATA *read_area_new(FILE *fp)
     {
 	fMatch = FALSE;
 
+	//log_string(word);
+
 	switch (word[0])
 	{
 	    case '#':
 		if (!str_cmp(word, "#REGION"))
 		{
 			read_area_region(fp, area);
+			fMatch = TRUE;
 		}
 		else if (!str_cmp(word, "#ROOM"))
 		{
@@ -1384,6 +1387,7 @@ AREA_DATA *read_area_new(FILE *fp)
 		    area->room_index_hash[iHash]  = room;
 		    area->top_room++;
 		    area->top_vnum_room = UMAX(area->top_vnum_room, vnum); /* OLC */
+			fMatch = TRUE;
 		}
 		else if (!str_cmp(word, "#MOBILE"))
 		{
@@ -1395,6 +1399,7 @@ AREA_DATA *read_area_new(FILE *fp)
 		    mob->area = area;
 		    area->top_mob_index++;
 		    area->top_vnum_mob = UMAX(area->top_vnum_mob, vnum);
+			fMatch = TRUE;
 		}
 		else if (!str_cmp( word, "#TRADE"	) ) {
 			load_area_trade( area, fp );
@@ -1410,6 +1415,7 @@ AREA_DATA *read_area_new(FILE *fp)
 		    obj->area = area;
 		    area->top_obj_index++;
 		    area->top_vnum_obj = UMAX(area->top_vnum_obj, vnum);
+			fMatch = TRUE;
 		}
 		else if (!str_cmp(word, "#TOKEN"))
 		{
@@ -1419,6 +1425,7 @@ AREA_DATA *read_area_new(FILE *fp)
 		    token->next = area->token_index_hash[iHash];
 		    area->token_index_hash[iHash] = token;
 		    token->area = area;
+			fMatch = TRUE;
 		}
 		else if (!str_cmp(word, "#SECTION"))
 		{
@@ -1430,6 +1437,7 @@ AREA_DATA *read_area_new(FILE *fp)
 
 			bs->area = area;
 			area->top_blueprint_section_vnum = UMAX(area->top_blueprint_section_vnum, bs->vnum);
+			fMatch = TRUE;
 		}
 		else if( !str_cmp(word, "#BLUEPRINT") )
 		{
@@ -1441,6 +1449,7 @@ AREA_DATA *read_area_new(FILE *fp)
 
 			bp->area = area;
 			area->top_blueprint_vnum = UMAX(area->top_blueprint_vnum, bp->vnum);
+			fMatch = TRUE;
 		}
 		else if( !str_cmp(word, "#SHIP") )
 		{
@@ -1452,6 +1461,7 @@ AREA_DATA *read_area_new(FILE *fp)
 
 			ship->area = area;
 			area->top_ship_vnum = UMAX(area->top_ship_vnum, ship->vnum);
+			fMatch = TRUE;
 		}
 		else if( !str_cmp(word, "#DUNGEON") )
 		{
@@ -1463,6 +1473,7 @@ AREA_DATA *read_area_new(FILE *fp)
 
 			dng->area = area;
 			area->top_dungeon_vnum = UMAX(area->top_dungeon_vnum, dng->vnum);
+			fMatch = TRUE;
 		}
 		else if (!str_cmp(word, "#ROOMPROG"))
 		{
@@ -1474,6 +1485,7 @@ AREA_DATA *read_area_new(FILE *fp)
 				if (rpr->vnum > area->top_rprog_index)
 					area->top_rprog_index = rpr->vnum;
 		    }
+			fMatch = TRUE;
 		}
 		else if (!str_cmp(word, "#MOBPROG"))
 		{
@@ -1485,6 +1497,7 @@ AREA_DATA *read_area_new(FILE *fp)
 				if (mpr->vnum > area->top_mprog_index)
 					area->top_mprog_index = mpr->vnum;
 		    }
+			fMatch = TRUE;
 		}
 		else if (!str_cmp(word, "#OBJPROG"))
 		{
@@ -1496,6 +1509,7 @@ AREA_DATA *read_area_new(FILE *fp)
 				if (opr->vnum > area->top_oprog_index)
 					area->top_oprog_index = opr->vnum;
 		    }
+			fMatch = TRUE;
 		}
 		else if (!str_cmp(word, "#TOKENPROG"))
 		{
@@ -1507,6 +1521,7 @@ AREA_DATA *read_area_new(FILE *fp)
 				if (tpr->vnum > area->top_tprog_index)
 					area->top_tprog_index = tpr->vnum;
 		    }
+			fMatch = TRUE;
 		}
 		else if (!str_cmp(word, "#AREAPROG"))
 		{
@@ -1518,6 +1533,7 @@ AREA_DATA *read_area_new(FILE *fp)
 				if (apr->vnum > area->top_aprog_index)
 					area->top_aprog_index = apr->vnum;
 		    }
+			fMatch = TRUE;
 		}
 		else if (!str_cmp(word, "#DUNGEONPROG"))
 		{
@@ -1529,6 +1545,7 @@ AREA_DATA *read_area_new(FILE *fp)
 				if (dpr->vnum > area->top_dprog_index)
 					area->top_dprog_index = dpr->vnum;
 		    }
+			fMatch = TRUE;
 		}
 		else if (!str_cmp(word, "#INSTANCEPROG"))
 		{
@@ -1540,6 +1557,7 @@ AREA_DATA *read_area_new(FILE *fp)
 				if (ipr->vnum > area->top_iprog_index)
 					area->top_iprog_index = ipr->vnum;
 		    }
+			fMatch = TRUE;
 		}
 		/* VIZZWILDS */
 		else if (!str_cmp(word, "#WILDS"))
@@ -2258,11 +2276,11 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
     }
 
 	// TODO: Temporary
-	{
-		char buf[MSL];
-		sprintf(buf, "Mob %ld#%ld Longdesc: '%s'", area->uid, mob->vnum, mob->long_descr ? mob->long_descr : "(no long description)");
-		bug(buf, 0);
-	}
+//	{
+//		char buf[MSL];
+//		sprintf(buf, "Mob %ld#%ld Longdesc: '%s'", area->uid, mob->vnum, mob->long_descr ? mob->long_descr : "(no long description)");
+//		bug(buf, 0);
+//	}
 
 	// Remove this bit, JIC
 	REMOVE_BIT(mob->act, ACT_ANIMATED);

@@ -83,6 +83,8 @@ DUNGEON_INDEX_LEVEL_DATA *load_dungeon_index_level(FILE *fp, int mode)
 	{
 		fMatch = FALSE;
 
+		//log_stringf("LEVEL: %s", word);
+
 		switch(word[0])
 		{
 		case '#':
@@ -163,6 +165,8 @@ DUNGEON_INDEX_SPECIAL_EXIT *load_dungeon_index_special_exit(FILE *fp, int mode)
 	while (str_cmp((word = fread_word(fp)), "#-EXIT"))
 	{
 		fMatch = FALSE;
+
+		//log_stringf("EXIT: %s", word);
 
 		switch(word[0])
 		{
@@ -284,6 +288,8 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp, AREA_DATA *area)
 	while (str_cmp((word = fread_word(fp)), "#-DUNGEON"))
 	{
 		fMatch = FALSE;
+
+		//log_stringf("DUNGEON: %s", word);
 
 		switch(word[0])
 		{
@@ -436,7 +442,7 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp, AREA_DATA *area)
 			KEY("Flags", dng->flags, fread_number(fp));
 			if( !str_cmp(word, "Floor") )
 			{
-				WNUM_LOAD *wnum = fread_widevnumptr(fp);
+				WNUM_LOAD *wnum = fread_widevnumptr(fp, area->uid);
 				
 				if( wnum )
 				{
@@ -500,6 +506,18 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp, AREA_DATA *area)
 		}
 	}
 
+	/*
+	ITERATOR fit;
+	BLUEPRINT *bp;
+	iterator_start(&fit, dng->floors);
+	while((bp = (BLUEPRINT *)iterator_nextdata(&fit)))
+	{
+		sprintf(buf, "load_dungeon_index: floor - %s", bp->name);
+		bug(buf, 0);
+	}
+	iterator_stop(&fit);
+	*/
+
 	return dng;
 
 }
@@ -514,10 +532,14 @@ void fix_dungeon_index(DUNGEON_INDEX_DATA *dng)
 	iterator_start(&it, dng->floors);
 	while( (wnum = (WNUM_LOAD *)iterator_nextdata(&it)) )
 	{
+		//log_stringf("fix_dungeon_index: WNUM: %ld#%ld", wnum->auid, wnum->vnum);
 		BLUEPRINT *bp = get_blueprint_auid(wnum->auid, wnum->vnum);
 
 		if (bp)
+		{
+			//log_stringf("fix_dungeon_index: Floor - %s", bp->name);
 			list_appendlink(floors, bp);
+		}
 	}
 	iterator_stop(&it);
 
@@ -739,7 +761,7 @@ void save_dungeon_index(FILE *fp, DUNGEON_INDEX_DATA *dng)
 	iterator_start(&it, dng->floors);
 	while((bp = (BLUEPRINT *)iterator_nextdata(&it)))
 	{
-		fprintf(fp, "Floor %ld\n", bp->vnum);
+		fprintf(fp, "Floor %s\n", widevnum_string(bp->area, bp->vnum, dng->area));
 	}
 	iterator_stop(&it);
 
@@ -841,6 +863,12 @@ DUNGEON_INDEX_DATA *get_dungeon_index(AREA_DATA *pArea, long vnum)
 
 static bool add_dungeon_instance(DUNGEON *dng, BLUEPRINT *bp)
 {
+//	char buf[MSL];
+
+//	sprintf(buf, "add_dungeon_instance: blueprint %s", 
+//		(bp) ? (bp->valid ? widevnum_string(bp->area, bp->vnum, NULL) : "invalid") : "null"); 
+//	wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
+
 	// Complain
 	if (!IS_VALID(bp))
 		return TRUE;
@@ -848,27 +876,36 @@ static bool add_dungeon_instance(DUNGEON *dng, BLUEPRINT *bp)
 	INSTANCE *instance = create_instance(bp);
 
 	if( !instance )
+	{
+//		wiznet("add_dungeon_instance: failed to create instance",NULL,NULL,WIZ_TESTING,0,0);
 		return TRUE;
+	}
 
 	instance->dungeon = dng;
 	list_appendlink(dng->floors, instance);
 	instance->floor = list_size(dng->floors);
 	list_appendlist(dng->rooms, instance->rooms);
 	list_appendlink(loaded_instances, instance);
+//	wiznet("add_dungeon_instance: instance created",NULL,NULL,WIZ_TESTING,0,0);
 	return FALSE;
 }
 
 static bool add_dungeon_level(DUNGEON *dng, DUNGEON_INDEX_LEVEL_DATA *level)
 {
+//	char buf[MSL];
 	BLUEPRINT *bp;
 	switch(level->mode)
 	{
 		case LEVELMODE_STATIC:
-			bp = (BLUEPRINT *)list_nthdata(dng->floors, level->floor);
+//			sprintf(buf, "add_dungeon_level: adding static floor %d", level->floor);
+//			wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
+
+			bp = (BLUEPRINT *)list_nthdata(dng->index->floors, level->floor);
 			return add_dungeon_instance(dng, bp);
 
 		case LEVELMODE_WEIGHTED:
 		{
+//			wiznet("add_dungeon_level: adding weighted level",NULL,NULL,WIZ_TESTING,0,0);
 			int w = number_range(1, level->total_weight);
 			bp = NULL;	// Should NEVER get this!
 
@@ -879,7 +916,7 @@ static bool add_dungeon_level(DUNGEON *dng, DUNGEON_INDEX_LEVEL_DATA *level)
 			{
 				if (w <= weighted->weight)
 				{
-					bp = (BLUEPRINT *)list_nthdata(dng->floors, weighted->floor);
+					bp = (BLUEPRINT *)list_nthdata(dng->index->floors, weighted->floor);
 					break;
 				}
 
@@ -898,6 +935,7 @@ static bool add_dungeon_level(DUNGEON *dng, DUNGEON_INDEX_LEVEL_DATA *level)
 
 		case LEVELMODE_GROUP:
 		{
+//			wiznet("add_dungeon_level: adding group level",NULL,NULL,WIZ_TESTING,0,0);
 			bool error = FALSE;
 			DUNGEON_INDEX_LEVEL_DATA *lvl;
 
@@ -1346,6 +1384,7 @@ static void __dungeon_correct_portals(DUNGEON *dng)
 
 DUNGEON *create_dungeon(AREA_DATA *pArea, long vnum)
 {
+	//char buf[MSL];
 	ITERATOR it;
 
 	DUNGEON_INDEX_DATA *index = get_dungeon_index(pArea, vnum);
@@ -1355,13 +1394,31 @@ DUNGEON *create_dungeon(AREA_DATA *pArea, long vnum)
 		return NULL;
 	}
 
+	//wiznet("create_dungeon: new_dungeon",NULL,NULL,WIZ_TESTING,0,0);
+
 	DUNGEON *dng = new_dungeon();
 	dng->index = index;
 	dng->flags = index->flags;
 
+	//wiznet("create_dungeon: variables",NULL,NULL,WIZ_TESTING,0,0);
+
+	/*
+	ITERATOR fit;
+	BLUEPRINT *bp;
+	iterator_start(&fit, index->floors);
+	while((bp = (BLUEPRINT *)iterator_nextdata(&fit)))
+	{
+		sprintf(buf, "create_dungeon: floor - %s", bp->name);
+		wiznet(buf, NULL, NULL, WIZ_TESTING, 0, 0);
+	}
+	iterator_stop(&fit);
+	*/
+
 	dng->progs			= new_prog_data();
 	dng->progs->progs	= index->progs;
 	variable_copylist(&index->index_vars,&dng->progs->vars,FALSE);
+
+	//wiznet("create_dungeon: get entry room",NULL,NULL,WIZ_TESTING,0,0);
 
 	dng->entry_room = get_room_index(index->area, index->entry_room);
 	if( !dng->entry_room )
@@ -1369,6 +1426,8 @@ DUNGEON *create_dungeon(AREA_DATA *pArea, long vnum)
 		free_dungeon(dng);
 		return NULL;
 	}
+
+	//wiznet("create_dungeon: get exit room",NULL,NULL,WIZ_TESTING,0,0);
 
 	dng->exit_room = get_room_index(index->area, index->exit_room);
 	if( !dng->exit_room )
@@ -1382,21 +1441,27 @@ DUNGEON *create_dungeon(AREA_DATA *pArea, long vnum)
 	// Allow a script to create the level definitions, provided it's set to do that.
 	if (IS_SET(dng->flags, DUNGEON_SCRIPTED_LEVELS))
 	{
+		//wiznet("create_dungeon: dungeon schematic",NULL,NULL,WIZ_TESTING,0,0);
 		list_clear(index->levels);
 		list_clear(index->special_rooms);
 		list_clear(index->special_exits);
 		p_percent2_trigger(NULL, NULL, dng, NULL, NULL, NULL, NULL, NULL, TRIG_DUNGEON_SCHEMATIC, NULL);
 	}
 
+	//wiznet("create_dungeon: iterate over levels",NULL,NULL,WIZ_TESTING,0,0);
 	bool error = FALSE;
 	DUNGEON_INDEX_LEVEL_DATA *level;
 	//BLUEPRINT *bp;
+	//int level_no = 1;
 	INSTANCE *instance;
 	iterator_start(&it, index->levels);
 	while( (level = (DUNGEON_INDEX_LEVEL_DATA *)iterator_nextdata(&it)) )
 	{
+		//sprintf(buf, "create_dungeon: adding level %d", level_no++);
+		//wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
 		if (add_dungeon_level(dng, level))
 		{
+			//wiznet("create_dungeon: failed to add level",NULL,NULL,WIZ_TESTING,0,0);
 			error = TRUE;
 			break;
 		}
@@ -1405,13 +1470,14 @@ DUNGEON *create_dungeon(AREA_DATA *pArea, long vnum)
 
 	if (!error)
 	{
+		//wiznet("create_dungeon: correcting portals",NULL,NULL,WIZ_TESTING,0,0);
 		__dungeon_correct_portals(dng);
 
+		//wiznet("create_dungeon: resolve special rooms",NULL,NULL,WIZ_TESTING,0,0);
 		DUNGEON_INDEX_SPECIAL_ROOM *special;
 		iterator_start(&it, index->special_rooms);
 		while( (special = (DUNGEON_INDEX_SPECIAL_ROOM *)iterator_nextdata(&it)) )
 		{
-			// TODO: Allow the ordinal processing
 			// Get the instance for the specified level.
 			instance = dungeon_get_instance_level(dng, special->level);
 
@@ -1435,6 +1501,7 @@ DUNGEON *create_dungeon(AREA_DATA *pArea, long vnum)
 		}
 		iterator_stop(&it);
 
+		//wiznet("create_dungeon: resolve special exits",NULL,NULL,WIZ_TESTING,0,0);
 		DUNGEON_INDEX_SPECIAL_EXIT *dsex;
 		iterator_start(&it, index->special_exits);
 		while( (dsex = (DUNGEON_INDEX_SPECIAL_EXIT *)iterator_nextdata(&it)) )
@@ -1455,9 +1522,13 @@ DUNGEON *create_dungeon(AREA_DATA *pArea, long vnum)
 		return NULL;
 	}
 
+	//wiznet("create_dungeon: getting id",NULL,NULL,WIZ_TESTING,0,0);
+
 	get_dungeon_id(dng);
 
 	list_appendlink(loaded_dungeons, dng);
+
+	//wiznet("create_dungeon: complete",NULL,NULL,WIZ_TESTING,0,0);
 	return dng;
 }
 
@@ -1556,6 +1627,7 @@ CHAR_DATA *get_player_leader(CHAR_DATA *ch)
 
 DUNGEON *spawn_dungeon_player(CHAR_DATA *ch, AREA_DATA *pArea, long vnum)
 {
+//	char buf[MSL];
 	CHAR_DATA *leader = get_player_leader(ch);
 
 	DUNGEON *leader_dng = find_dungeon_byplayer(leader, pArea, vnum);
@@ -1580,15 +1652,22 @@ DUNGEON *spawn_dungeon_player(CHAR_DATA *ch, AREA_DATA *pArea, long vnum)
 
 	if( !IS_VALID(leader_dng) )
 	{
+		//wiznet("spawn_dungeon_player: dungeon not spawned",NULL,NULL,WIZ_TESTING,0,0);
+
 		if( IS_NPC(leader) )
 		{
 			return NULL;
 		}
 
+		//wiznet("spawn_dungeon_player: creating dungeon",NULL,NULL,WIZ_TESTING,0,0);
 		leader_dng = create_dungeon(pArea, vnum);
 
 		if( !leader_dng )
+		{
+			//wiznet("spawn_dungeon_player: failed to create dungeon",NULL,NULL,WIZ_TESTING,0,0);
 			return NULL;
+		}
+		//wiznet("spawn_dungeon_player: dungeon created",NULL,NULL,WIZ_TESTING,0,0);
 
 		dungeon_addowner_player(leader_dng, leader);
 
@@ -7849,8 +7928,8 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
 			iterator_start(&it, loaded_dungeons);
 			while((dungeon = (DUNGEON *)iterator_nextdata(&it)))
 			{
-				sprintf(buf, "dungeon list: %ld, %s", dungeon->index->vnum, dungeon->index->name);
-				wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
+				//sprintf(buf, "dungeon list: %ld, %s", dungeon->index->vnum, dungeon->index->name);
+				//wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
 
 				char plr_str[21];
 				char idle_str[21];
@@ -7868,7 +7947,7 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
 					strcpy(plr_str, "{Dempty");
 				}
 
-				if( (IS_SET(dungeon->flags, DUNGEON_DESTROY) || !IS_SET(dungeon->flags, DUNGEON_IDLE_ON_COMPLETE) || IS_SET(dungeon->flags, DUNGEON_COMPLETED)) &&
+				if( (IS_SET(dungeon->flags, DUNGEON_DESTROY) || !IS_SET(dungeon->flags, DUNGEON_IDLE_ON_COMPLETE) || IS_SET(dungeon->flags, DUNGEON_COMPLETED|DUNGEON_FAILED)) &&
 					dungeon->idle_timer > 0 )
 				{
 					snprintf(idle_str, 20, "{G%d", dungeon->idle_timer);
@@ -8119,7 +8198,7 @@ DUNGEON *dungeon_load(FILE *fp)
 
 	get_dungeon_id(dungeon);
 
-	log_stringf("dungeon_load: dungeon %ld loaded", dungeon->index->vnum);
+	//log_stringf("dungeon_load: dungeon %ld loaded", dungeon->index->vnum);
 	return dungeon;
 }
 

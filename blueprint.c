@@ -164,6 +164,8 @@ BLUEPRINT_SECTION *load_blueprint_section(FILE *fp, AREA_DATA *pArea)
 	{
 		fMatch = FALSE;
 
+		//log_stringf("SECTION: %s", word);
+
 		switch(word[0])
 		{
 		case '#':
@@ -296,6 +298,8 @@ BLUEPRINT_LAYOUT_SECTION_DATA *load_blueprint_layout_section(FILE *fp, int mode)
 	{
 		fMatch = FALSE;
 
+		//log_stringf("LAYOUT: %s", word);
+
 		switch(word[0])
 		{
 		case '#':
@@ -376,6 +380,8 @@ BLUEPRINT_LAYOUT_LINK_DATA *load_blueprint_layout_link(FILE *fp, int mode)
 	while (str_cmp((word = fread_word(fp)), "#-LINK"))
 	{
 		fMatch = FALSE;
+
+		//log_stringf("LINK: %s", word);
 
 		switch(word[0])
 		{
@@ -506,6 +512,8 @@ BLUEPRINT *load_blueprint(FILE *fp, AREA_DATA *pArea)
 	while (str_cmp((word = fread_word(fp)), "#-BLUEPRINT"))
 	{
 		fMatch = FALSE;
+
+		//log_stringf("BLUEPRINT: %s", word);
 
 		switch(word[0])
 		{
@@ -688,6 +696,7 @@ BLUEPRINT *load_blueprint(FILE *fp, AREA_DATA *pArea)
 			break;
 
 		case 'R':
+			KEY("Recall", bp->recall, fread_number(fp));
 			KEY("Repop", bp->repop, fread_number(fp));
 			break;
 
@@ -2663,12 +2672,15 @@ INSTANCE *create_instance(BLUEPRINT *blueprint)
 		instance->progs->progs	= blueprint->progs;
 		variable_copylist(&blueprint->index_vars,&instance->progs->vars,FALSE);
 
+		//wiznet("create_instance: generating instance...",NULL,NULL,WIZ_TESTING,0,0);
 		if (generate_instance(instance))
 		{
+			//wiznet("create_instance: generation failed",NULL,NULL,WIZ_TESTING,0,0);
 			free_instance(instance);
 			return NULL;
 		}
 
+		//wiznet("create_instance: special rooms",NULL,NULL,WIZ_TESTING,0,0);
 		ITERATOR it;
 		INSTANCE_SECTION *section;
 		BLUEPRINT_SPECIAL_ROOM *special;
@@ -2695,11 +2707,15 @@ INSTANCE *create_instance(BLUEPRINT *blueprint)
 		}
 		iterator_stop(&it);
 
+		//wiznet("create_instance: reseting instance",NULL,NULL,WIZ_TESTING,0,0);
 		reset_instance(instance);
 
 		get_instance_id(instance);
 
+		//wiznet("create_instance: correcting portals",NULL,NULL,WIZ_TESTING,0,0);
 		__instance_correct_portals(instance);
+
+		//wiznet("create_instance: instance created",NULL,NULL,WIZ_TESTING,0,0);
 	}
 
 	return instance;
@@ -4694,6 +4710,8 @@ const struct olc_cmd_type bpedit_table[] =
 	{ "create",			bpedit_create		},
 	{ "deliprog",		bpedit_deliprog		},
 	{ "description",	bpedit_description	},
+	{ "entrances",		bpedit_entrances	},
+	{ "exits",			bpedit_exits		},
 	{ "flags",			bpedit_flags		},
 	{ "layout",			bpedit_layout		},
 	{ "links",			bpedit_links		},
@@ -11402,7 +11420,7 @@ void do_instance(CHAR_DATA *ch, char *argument)
 
 void instance_section_save(FILE *fp, INSTANCE_SECTION *section)
 {
-	fprintf(fp, "#SECTION %ld\n\r", section->section->vnum);
+	fprintf(fp, "#SECTION %ld#%ld\n\r", section->section->area->uid, section->section->vnum);
 
 	ITERATOR it;
 	ROOM_INDEX_DATA *room;
