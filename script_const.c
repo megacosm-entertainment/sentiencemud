@@ -1520,5 +1520,7 @@ const struct flag_type interrupt_action_types[] = {
 	{	"script",	INTERRUPT_SCRIPT,	TRUE },
 	{	"trance",	INTERRUPT_TRANCE,	TRUE },
 	{	"silent",	INTERRUPT_SILENT,	TRUE },
+	{	"ink", INTERRUPT_INK, TRUE },
+	{	"imbue", INTERRUPT_IMBUE, TRUE },
 	{	NULL,		0,			FALSE }
 };

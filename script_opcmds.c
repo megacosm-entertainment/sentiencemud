@@ -18,7 +18,7 @@ const struct script_cmd_type obj_cmd_table[] = {
 	{ "addaffect",			scriptcmd_addaffect,	TRUE,	TRUE	},
 	{ "addaffectname",		scriptcmd_addaffectname,TRUE,	TRUE	},
 	{ "addaura",			scriptcmd_addaura,			TRUE,	TRUE	},
-	{ "addspell",			do_opaddspell,			TRUE,	TRUE	},
+	{ "addspell",			scriptcmd_addspell,			TRUE,	TRUE	},
 	{ "alteraffect",		do_opalteraffect,		TRUE,	TRUE	},
 	{ "alterexit",			do_opalterexit,			FALSE,	TRUE	},
 	{ "altermob",			do_opaltermob,			TRUE,	TRUE	},
@@ -119,7 +119,7 @@ const struct script_cmd_type obj_cmd_table[] = {
 	{ "remember",			do_opremember,			FALSE,	TRUE	},
 	{ "remort",				do_opremort,			TRUE,	TRUE	},
 	{ "remove",				do_opremove,			FALSE,	TRUE	},
-	{ "remspell",			do_opremspell,			TRUE,	TRUE	},
+	{ "remspell",			scriptcmd_remspell,			TRUE,	TRUE	},
 	{ "resetdice",			do_opresetdice,			TRUE,	TRUE	},
 	{ "restore",			do_oprestore,			TRUE,	TRUE	},
 	{ "revokeskill",		scriptcmd_revokeskill,	FALSE,	TRUE	},
@@ -3057,7 +3057,7 @@ SCRIPT_CMD(do_opinterrupt)
 
 	if (IS_SET(stop,INTERRUPT_BREW) && victim->brew > 0) {
 		victim->brew = 0;
-		victim->brew_sn = 0;
+		victim->brew_info = NULL;
 		SET_BIT(ret,INTERRUPT_BREW);
 	}
 
@@ -3113,12 +3113,21 @@ SCRIPT_CMD(do_opinterrupt)
 		SET_BIT(ret,INTERRUPT_TRANCE);
 	}
 
+
 	if (IS_SET(stop,INTERRUPT_SCRIBE) && victim->scribe > 0) {
 		victim->scribe = 0;
-		victim->scribe_sn = 0;
-		victim->scribe_sn2 = 0;
-		victim->scribe_sn3 = 0;
+		victim->scribe_info[0] = NULL;
+		victim->scribe_info[1] = NULL;
+		victim->scribe_info[2] = NULL;
 		SET_BIT(ret,INTERRUPT_SCRIBE);
+	}
+
+	if (IS_SET(stop,INTERRUPT_INK) && victim->inking > 0) {
+		victim->inking = 0;
+		victim->ink_info[0] = NULL;
+		victim->ink_info[1] = NULL;
+		victim->ink_info[2] = NULL;
+		SET_BIT(ret,INTERRUPT_INK);
 	}
 
 	if (IS_SET(stop,INTERRUPT_RANGED) && victim->ranged > 0) {
@@ -6501,6 +6510,8 @@ SCRIPT_CMD(do_opcondition)
 
 
 // addspell $OBJECT STRING[ NUMBER]
+// addspell $OBJECT TOKEN[ NUMBER]
+// addspell $OBJECT WIDEVNUM[ NUMBER]
 SCRIPT_CMD(do_opaddspell)
 {
 

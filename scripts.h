@@ -54,6 +54,8 @@
 #define INTERRUPT_RANGED	(L)
 #define INTERRUPT_RESURRECT	(M)
 #define INTERRUPT_FADE		(N)
+#define INTERRUPT_INK		(O)
+#define INTERRUPT_IMBUE		(P)
 #define INTERRUPT_SCRIPT	(dd)	/* Used to interrupt whatever script action is going, that is up to the individual scripts to determine that! */
 #define INTERRUPT_SILENT	(ee)	/* Used to make the interrupt SILENT */
 
@@ -2870,6 +2872,9 @@ SCRIPT_CMD(scriptcmd_addaura);
 SCRIPT_CMD(scriptcmd_remaura);
 
 SCRIPT_CMD(scriptcmd_settitle);
+
+SCRIPT_CMD(scriptcmd_addspell);
+SCRIPT_CMD(scriptcmd_remspell);
 
 bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument);
 bool olc_varclear(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument);

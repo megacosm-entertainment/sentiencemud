@@ -20,7 +20,7 @@ const struct script_cmd_type room_cmd_table[] = {
 	{ "addaffect",			scriptcmd_addaffect,	TRUE,	TRUE	},
 	{ "addaffectname",		scriptcmd_addaffectname,TRUE,	TRUE	},
 	{ "addaura",			scriptcmd_addaura,			TRUE,	TRUE	},
-	{ "addspell",			do_rpaddspell,			TRUE,	TRUE	},
+	{ "addspell",			scriptcmd_addspell,			TRUE,	TRUE	},
 	{ "alteraffect",		do_rpalteraffect,		TRUE,	TRUE	},
 	{ "alterexit",			do_rpalterexit,			FALSE,	TRUE	},
 	{ "altermob",			do_rpaltermob,			TRUE,	TRUE	},
@@ -117,7 +117,7 @@ const struct script_cmd_type room_cmd_table[] = {
 	{ "remember",			do_rpremember,			FALSE,	TRUE	},
 	{ "remort",				do_rpremort,			TRUE,	TRUE	},
 	{ "remove",				do_rpremove,			FALSE,	TRUE	},
-	{ "remspell",			do_rpremspell,			TRUE,	TRUE	},
+	{ "remspell",			scriptcmd_remspell,			TRUE,	TRUE	},
 	{ "resetdice",			do_rpresetdice,			TRUE,	TRUE	},
 	{ "restore",			do_rprestore,			TRUE,	TRUE	},
 	{ "revokeskill",		scriptcmd_revokeskill,	FALSE,	TRUE	},
@@ -2734,7 +2734,7 @@ SCRIPT_CMD(do_rpinterrupt)
 
 	if (IS_SET(stop,INTERRUPT_BREW) && victim->brew > 0) {
 		victim->brew = 0;
-		victim->brew_sn = 0;
+		victim->brew_info = NULL;
 		SET_BIT(ret,INTERRUPT_BREW);
 	}
 
@@ -2790,12 +2790,21 @@ SCRIPT_CMD(do_rpinterrupt)
 		SET_BIT(ret,INTERRUPT_TRANCE);
 	}
 
+
 	if (IS_SET(stop,INTERRUPT_SCRIBE) && victim->scribe > 0) {
 		victim->scribe = 0;
-		victim->scribe_sn = 0;
-		victim->scribe_sn2 = 0;
-		victim->scribe_sn3 = 0;
+		victim->scribe_info[0] = NULL;
+		victim->scribe_info[1] = NULL;
+		victim->scribe_info[2] = NULL;
 		SET_BIT(ret,INTERRUPT_SCRIBE);
+	}
+
+	if (IS_SET(stop,INTERRUPT_INK) && victim->inking > 0) {
+		victim->inking = 0;
+		victim->ink_info[0] = NULL;
+		victim->ink_info[1] = NULL;
+		victim->ink_info[2] = NULL;
+		SET_BIT(ret,INTERRUPT_INK);
 	}
 
 	if (IS_SET(stop,INTERRUPT_RANGED) && victim->ranged > 0) {

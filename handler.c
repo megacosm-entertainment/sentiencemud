@@ -1533,6 +1533,19 @@ void affect_strip(CHAR_DATA *ch, int sn)
     }
 }
 
+void affect_strip_token(CHAR_DATA *ch, TOKEN_INDEX_DATA *token)
+{
+    AFFECT_DATA *paf;
+    AFFECT_DATA *paf_next;
+
+    for (paf = ch->affected; paf != NULL; paf = paf_next)
+    {
+	paf_next = paf->next;
+	if (paf->token == token)
+	    affect_remove(ch, paf);
+    }
+}
+
 /*
  * Strip all affects of a given sn.
  */

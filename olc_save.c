@@ -917,6 +917,7 @@ void save_object_new(FILE *fp, OBJ_INDEX_DATA *obj)
 	if (obj->spells != NULL)
 		save_spell(fp, obj->spells);
 
+/*
 	// Save objects with old spell format here.
 	if (obj->spells == NULL)
 		switch (obj->item_type) {
@@ -1026,17 +1027,19 @@ void save_object_new(FILE *fp, OBJ_INDEX_DATA *obj)
 		case ITEM_PORTAL:
 			break;
 	}
-
+*/
 	fprintf(fp, "#-OBJECT\n");
 }
 
 void save_spell(FILE *fp, SPELL_DATA *spell)
 {
     if (spell->next != NULL)
-	save_spell(fp, spell->next);
+		save_spell(fp, spell->next);
 
-    fprintf(fp, "SpellNew %s~ %d %d\n",
-	skill_table[spell->sn].name, spell->level, spell->repop);
+	if (spell->token)
+		fprintf(fp, "SpellToken %s %d %d\n", widevnum_string(spell->token->area, spell->token->vnum, NULL), spell->level, spell->repop);
+	else if (spell->sn > 0)
+	    fprintf(fp, "SpellNew %s~ %d %d\n", skill_table[spell->sn].name, spell->level, spell->repop);
 }
 
 void save_script_new(FILE *fp, AREA_DATA *area,SCRIPT_DATA *scr,char *type)
@@ -2520,6 +2523,7 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 		    {
 			    spell = new_spell();
 			    spell->sn = sn;
+				spell->token = NULL;
 			    spell->level = fread_number(fp);
 			    spell->repop = fread_number(fp);
 
@@ -2542,7 +2546,31 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 			sprintf(buf, "Bad spell name for %s (%ld).", obj->short_descr, obj->vnum);
 			bug(buf,0);
 		    }
+			
 		}
+
+			if (!str_cmp(word, "SpellToken"))
+			{
+				WNUM_LOAD wnum = fread_widevnum(fp, 0);
+
+				fMatch = TRUE;
+				if (wnum.auid > 0 && wnum.vnum > 0)
+				{
+					spell = new_spell();
+					spell->sn = 0;
+					spell->token_load = wnum;
+					spell->level = fread_number(fp);
+					spell->repop = fread_number(fp);
+
+					spell->next = obj->spells;
+					obj->spells = spell;
+				}
+				else
+				{
+					sprintf(buf, "Bad spell token for %s (%ld#%ld).", obj->short_descr, obj->area->uid, obj->vnum);
+					bug(buf, 0);
+				}
+			}
 
                 if (!str_cmp(word, "SpellLevel"))
 		{
@@ -2651,6 +2679,7 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 	log_string(buf);
     }
 */
+/*
     if (obj->item_type == ITEM_SCROLL ||
     	obj->item_type == ITEM_POTION ||
     	obj->item_type == ITEM_PILL ||
@@ -2659,6 +2688,7 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
     {
 		fix_magic_object_index(obj);
 	}
+	*/
 
     return obj;
 }

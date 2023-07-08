@@ -49,6 +49,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <ctype.h>
 #include <time.h>
 #include <sys/types.h>
@@ -1761,6 +1762,7 @@ struct	affect_data
     sh_int		group;
     sh_int		where;
     sh_int		type;
+    TOKEN_INDEX_DATA *token;
     sh_int		level;
     sh_int		duration;
     sh_int		location;
@@ -4008,10 +4010,11 @@ struct	char_data
     int			ship_arrival_time;
     int			ship_depart_time;
 
-    int			brew_sn;
-    int			scribe_sn;
-    int			scribe_sn2;
-    int			scribe_sn3;
+    SKILL_ENTRY *brew_info;
+    SKILL_ENTRY *scribe_info[3];
+    SKILL_ENTRY *ink_info[3];
+    int			ink_loc;
+    CHAR_DATA		*ink_target;
 
     int			projectile_dir;
     OBJ_DATA *		projectile_weapon;
@@ -4201,13 +4204,6 @@ struct	char_data
     /* @@@NIB */
     int			wildview_bonus_x;
     int			wildview_bonus_y;
-
-    /* @@@NIB */
-    int			ink_sn;
-    int			ink_sn2;
-    int			ink_sn3;
-    int			ink_loc;
-    CHAR_DATA		*ink_target;
 
     /* @@@NIB -  Set and used with HIT triggers only.  Any other time, these will be cleared
     		These allow for the mob to CONTROL what injures it, as well as allow for tokens
@@ -4549,6 +4545,8 @@ struct spell_data
     SPELL_DATA 		*next;
 
     int 		sn;
+    TOKEN_INDEX_DATA *token;
+    WNUM_LOAD   token_load;
     int 		level;
     int			repop;
 };
@@ -6142,6 +6140,7 @@ enum trigger_index_enum {
 	TRIG_AFTERDEATH,	/* Fired just after you die */
 	TRIG_AFTERKILL,		/* Called after someome kills a target.  TODO: Damage will become forbidden in this trigger. */
 	TRIG_ANIMATE,
+    TRIG_APPLY_AFFECT,
 	TRIG_ASSIST,
 	TRIG_ATTACK_BACKSTAB,
 	TRIG_ATTACK_BASH,
@@ -6244,6 +6243,7 @@ enum trigger_index_enum {
 	TRIG_PREANIMATE,
 	TRIG_PREASSIST,
 	TRIG_PREBITE,
+    TRIG_PREBRANDISH,
 	TRIG_PREBUY,
 	TRIG_PREBUY_OBJ,
 	TRIG_PRECAST,
@@ -6287,6 +6287,7 @@ enum trigger_index_enum {
 	TRIG_PREWAKE,
 	TRIG_PREWEAR,
 	TRIG_PREWIMPY,
+    TRIG_PREZAP,
 	TRIG_PULL,
 	TRIG_PULL_ON,		/* NIB : 20070121 */
     TRIG_PULSE,
@@ -6341,8 +6342,22 @@ enum trigger_index_enum {
 	TRIG_TAKEOFF,
 	TRIG_THROW,
     TRIG_TICK,
+    TRIG_TOKEN_BRANDISH,
+    TRIG_TOKEN_BREW,
 	TRIG_TOKEN_GIVEN,
+    TRIG_TOKEN_IMBUE,
+    TRIG_TOKEN_INK,
+    TRIG_TOKEN_INK_CATALYST,
+    TRIG_TOKEN_PREBREW,
+    TRIG_TOKEN_PREIMBUE,
+    TRIG_TOKEN_PREINK,
+    TRIG_TOKEN_PRESCRIBE,
+    TRIG_TOKEN_QUAFF,
+    TRIG_TOKEN_RECITE,
 	TRIG_TOKEN_REMOVED,
+    TRIG_TOKEN_SCRIBE,
+    TRIG_TOKEN_TOUCH,
+    TRIG_TOKEN_ZAP,
 	TRIG_TOUCH,
 	TRIG_TOXINGAIN,
 	TRIG_TURN,
@@ -6358,6 +6373,7 @@ enum trigger_index_enum {
 	TRIG_WEAPON_CAUGHT,
 	TRIG_WEAPON_PARRIED,
 	TRIG_WEAR,
+    TRIG_WEAROFF_AFFECT,
 	TRIG_WHISPER,
 	TRIG_WIMPY,
     TRIG_XPCOMPUTE,
@@ -7719,15 +7735,15 @@ long adjust_keeper_price(CHAR_DATA *keeper, long price, bool fBuy);
 bool get_stock_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, SHOP_REQUEST_DATA *request, char *argument);
 OBJ_DATA *get_obj_keeper( CHAR_DATA *ch, CHAR_DATA *keeper, char *argument );
 void bomb_end( CHAR_DATA *ch);
-void brew_end( CHAR_DATA *ch, sh_int sn );
+void brew_end( CHAR_DATA *ch);
 void do_restring( CHAR_DATA *ch, char *argument );
 void obj_to_keeper( OBJ_DATA *obj, CHAR_DATA *ch );
 void recite_end( CHAR_DATA *ch);
 void removeall(CHAR_DATA *ch);
 void repair_end( CHAR_DATA *ch );
 void save_last_wear( CHAR_DATA *ch );
-void scribe_end( CHAR_DATA *ch, sh_int sn, sh_int sn2, sh_int sn3 );
-void ink_end( CHAR_DATA *ch, CHAR_DATA *victim, sh_int loc, sh_int sn, sh_int sn2, sh_int sn3 );
+void scribe_end( CHAR_DATA *ch );
+void ink_end( CHAR_DATA *ch );
 int get_wear_loc(CHAR_DATA *ch, OBJ_DATA *obj);
 void wear_obj( CHAR_DATA *ch, OBJ_DATA *obj, bool fReplace);
 void change_money(CHAR_DATA *ch, CHAR_DATA *changer, long gold, long silver);
@@ -8171,6 +8187,7 @@ void	affect_remove	args( ( CHAR_DATA *ch, AFFECT_DATA *paf ) );
 bool	affect_removeall_obj	args( ( OBJ_DATA *obj ) );
 bool	affect_remove_obj args( (OBJ_DATA *obj, AFFECT_DATA *paf ) );
 void	affect_strip	args( ( CHAR_DATA *ch, int sn ) );
+void    affect_strip_token  args( (CHAR_DATA *ch, TOKEN_INDEX_DATA *token) );
 void	affect_strip_obj	args( ( OBJ_DATA *obj, int sn ) );
 void	affect_strip_name	args( ( CHAR_DATA *ch, char *name ) );
 void	affect_strip_name_obj	args( ( OBJ_DATA *obj, char *name ) );
@@ -8431,6 +8448,8 @@ int p_greet_trigger(CHAR_DATA *ch, int type);
 int	p_hprct_trigger(CHAR_DATA *mob, CHAR_DATA *ch);
 int p_emoteat_trigger(CHAR_DATA *mob, CHAR_DATA *ch, char *emote);
 int p_emote_trigger(CHAR_DATA *ch, char *emote);
+
+int p_token_index_percent_trigger(TOKEN_INDEX_DATA *tindex, CHAR_DATA *ch, CHAR_DATA *victim1, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int trigger, char *phrase, int ts0, int ts1, int ts2, int ts3, int ts4);
 
 
 int	script_login(CHAR_DATA *ch);
@@ -8937,6 +8956,7 @@ int skill_entry_mod(CHAR_DATA *ch, SKILL_ENTRY *entry);
 int skill_entry_level (CHAR_DATA *ch, SKILL_ENTRY *entry);
 int skill_entry_mana (CHAR_DATA *ch, SKILL_ENTRY *entry);
 int skill_entry_learn (CHAR_DATA *ch, SKILL_ENTRY *entry);
+int skill_entry_target(CHAR_DATA *ch, SKILL_ENTRY *entry);
 char *skill_entry_name (SKILL_ENTRY *entry);
 void remort_player(CHAR_DATA *ch, int remort_class);
 
@@ -9527,8 +9547,13 @@ AURA_DATA *find_aura_char(CHAR_DATA *ch, char *name);
 void add_aura_to_char(CHAR_DATA *ch, char *name, char *long_descr);
 void remove_aura_from_char(CHAR_DATA *ch, char *name);
 
+void obj_apply_spells(CHAR_DATA *ch, OBJ_DATA *obj, CHAR_DATA *victim, OBJ_DATA *thing, int trigger);
+
 bool init_scripting();
 void terminate_scripting();
+
+SCRIPT_DATA *get_script_token(TOKEN_DATA *token, int trigger, int slot);
+
 
 extern LLIST *gc_mobiles;
 extern LLIST *gc_objects;

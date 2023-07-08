@@ -4427,8 +4427,8 @@ void update_pc_timers(CHAR_DATA *ch)
     {
 	--ch->brew;
 	if (ch->brew <= 0) {
-	    brew_end(ch, ch->brew_sn);
-	    ch->brew_sn = 0;  /* NIB : 20070121 : Reset this for the ifchecks*/
+	    brew_end(ch);
+		ch->brew_info = NULL;
 	}
     }
 
@@ -4528,8 +4528,8 @@ void update_pc_timers(CHAR_DATA *ch)
     {
 	--ch->scribe;
 	if (ch->scribe <= 0) {
-	    scribe_end(ch, ch->scribe_sn, ch->scribe_sn2, ch->scribe_sn3);
-	    ch->scribe_sn = 0;  /* NIB : 20070121 : Reset this for the ifchecks*/
+	    scribe_end(ch);
+		ch->scribe_info[0] = ch->scribe_info[1] = ch->scribe_info[2] = NULL;
 	}
     }
 
@@ -4537,8 +4537,8 @@ void update_pc_timers(CHAR_DATA *ch)
     {
 	--ch->inking;
 	if (ch->inking <= 0) {
-	    ink_end(ch, ch->ink_target, ch->ink_loc, ch->ink_sn, ch->ink_sn2, ch->ink_sn3);
-	    ch->ink_sn = 0;
+	    ink_end(ch);
+		ch->ink_info[0] = ch->ink_info[1] = ch->ink_info[2] = NULL;
 	}
     }
 

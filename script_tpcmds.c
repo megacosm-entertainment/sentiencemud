@@ -18,7 +18,7 @@ const struct script_cmd_type token_cmd_table[] = {
 	{ "addaffect",			scriptcmd_addaffect,		TRUE,	TRUE	},
 	{ "addaffectname",		scriptcmd_addaffectname,	TRUE,	TRUE	},
 	{ "addaura",			scriptcmd_addaura,			TRUE,	TRUE	},
-	{ "addspell",			do_tpaddspell,				TRUE,	TRUE	},
+	{ "addspell",			scriptcmd_addspell,				TRUE,	TRUE	},
 	{ "adjust",				do_tpadjust,				FALSE,	TRUE	},
 	{ "alteraffect",		do_tpalteraffect,			TRUE,	TRUE	},
 	{ "alterexit",			do_tpalterexit,				FALSE,	TRUE	},
@@ -120,7 +120,7 @@ const struct script_cmd_type token_cmd_table[] = {
 	{ "remember",			do_tpremember,				FALSE,	TRUE	},
 	{ "remort",				do_tpremort,				TRUE,	TRUE	},
 	{ "remove",				do_tpremove,				FALSE,	TRUE	},
-	{ "remspell",			do_tpremspell,				TRUE,	TRUE	},
+	{ "remspell",			scriptcmd_remspell,				TRUE,	TRUE	},
 	{ "resetdice",			do_tpresetdice,				TRUE,	TRUE	},
 	{ "restore",			do_tprestore,				TRUE,	TRUE	},
 	{ "revokeskill",		scriptcmd_revokeskill,		FALSE,	TRUE	},
@@ -1926,7 +1926,7 @@ SCRIPT_CMD(do_tpinterrupt)
 
 	if (IS_SET(stop,INTERRUPT_BREW) && victim->brew > 0) {
 		victim->brew = 0;
-		victim->brew_sn = 0;
+		victim->brew_info = NULL;
 		SET_BIT(ret,INTERRUPT_BREW);
 	}
 
@@ -1982,12 +1982,21 @@ SCRIPT_CMD(do_tpinterrupt)
 		SET_BIT(ret,INTERRUPT_TRANCE);
 	}
 
+
 	if (IS_SET(stop,INTERRUPT_SCRIBE) && victim->scribe > 0) {
 		victim->scribe = 0;
-		victim->scribe_sn = 0;
-		victim->scribe_sn2 = 0;
-		victim->scribe_sn3 = 0;
+		victim->scribe_info[0] = NULL;
+		victim->scribe_info[1] = NULL;
+		victim->scribe_info[2] = NULL;
 		SET_BIT(ret,INTERRUPT_SCRIBE);
+	}
+
+	if (IS_SET(stop,INTERRUPT_INK) && victim->inking > 0) {
+		victim->inking = 0;
+		victim->ink_info[0] = NULL;
+		victim->ink_info[1] = NULL;
+		victim->ink_info[2] = NULL;
+		SET_BIT(ret,INTERRUPT_INK);
 	}
 
 	if (IS_SET(stop,INTERRUPT_RANGED) && victim->ranged > 0) {
@@ -6917,12 +6926,15 @@ SCRIPT_CMD(do_tpcastrecover)
 }
 
 // addspell $OBJECT STRING[ NUMBER]
+// addspell $OBJECT TOKEN[ NUMBER]
+// addspell $OBJECT WIDEVNUM[ NUMBER]
 SCRIPT_CMD(do_tpaddspell)
 {
 
 	char *rest;
 	SPELL_DATA *spell, *spell_new;
 	OBJ_DATA *target;
+	TOKEN_INDEX_DATA *token;
 	int level;
 	int sn;
 	AFFECT_DATA *paf;
@@ -6940,13 +6952,39 @@ SCRIPT_CMD(do_tpaddspell)
 	if(!(rest = expand_argument(info,rest,arg)))
 		return;
 
-	if(arg->type != ENT_STRING || IS_NULLSTR(arg->d.str)) return;
+	if (arg->type == ENT_WIDEVNUM)
+	{
+		sn = 0;
 
-	sn = skill_lookup(arg->d.str);
-	if( sn <= 0 ) return;
+		token = get_token_index_wnum(arg->d.wnum);
 
-	// Add security check for the spell function
-	if(skill_table[sn].spell_fun == spell_null) return;
+		if (!token || token->type != TOKEN_SPELL) return;
+	}
+	else if (arg->type == ENT_TOKEN)
+	{
+		if (!IS_VALID(arg->d.token)) return;
+
+		sn = 0;
+
+		token = arg->d.token->pIndexData;
+
+		if (!token || token->type != TOKEN_SPELL) return;
+	}
+	else if (arg->type == ENT_STRING)
+	{
+		if (IS_NULLSTR(arg->d.str)) return;
+
+		token = NULL;
+
+		sn = skill_lookup(arg->d.str);
+		if( sn <= 0 ) return;
+
+		// Add security check for the spell function
+		if(skill_table[sn].spell_fun == spell_null) return;
+	}
+	else
+		return;
+
 
 	if( rest && *rest ) {
 		if(!(rest = expand_argument(info,rest,arg)))
@@ -6959,43 +6997,83 @@ SCRIPT_CMD(do_tpaddspell)
 
 	}
 
-	// Check if the spell already exists on the object
-	for(spell = target->spells; spell != NULL; spell = spell->next)
+	if (sn > 0)
 	{
-		if( spell->sn == sn ) {
-			spell->level = level;
+		// Check if the spell already exists on the object
+		for(spell = target->spells; spell != NULL; spell = spell->next)
+		{
+			if( spell->sn == sn ) {
+				spell->level = level;
 
-			// If the object is currently worn and shares affects, update the affect
-			if( target->carried_by != NULL && target->wear_loc != WEAR_NONE ) {
-				if (target->item_type != ITEM_WAND &&
-					target->item_type != ITEM_STAFF &&
-					target->item_type != ITEM_SCROLL &&
-					target->item_type != ITEM_POTION &&
-					target->item_type != ITEM_TATTOO &&
-					target->item_type != ITEM_PILL) {
+				// If the object is currently worn and shares affects, update the affect
+				if( target->carried_by != NULL && target->wear_loc != WEAR_NONE ) {
+					if (target->item_type != ITEM_WAND &&
+						target->item_type != ITEM_STAFF &&
+						target->item_type != ITEM_SCROLL &&
+						target->item_type != ITEM_POTION &&
+						target->item_type != ITEM_TATTOO &&
+						target->item_type != ITEM_PILL) {
 
 
-					for( paf = target->carried_by->affected; paf != NULL; paf = paf->next ) {
-						if( paf->type == sn && paf->slot == target->wear_loc ) {
+						for( paf = target->carried_by->affected; paf != NULL; paf = paf->next ) {
+							if( paf->type > 0 && paf->type == sn && paf->slot == target->wear_loc ) {
 
-							// Update the level if affect's level is higher
-							if( paf->level > level )
-								paf->level = level;
+								// Update the level if affect's level is higher
+								if( paf->level > level )
+									paf->level = level;
 
-							// Add security aspect to allow raising the level?
+								// Add security aspect to allow raising the level?
 
-							break;
+								break;
+							}
 						}
 					}
 				}
+				return;
 			}
-			return;
+		}
+	}
+	else if (token)
+	{
+		// Check if the spell already exists on the object
+		for(spell = target->spells; spell != NULL; spell = spell->next)
+		{
+			if( spell->token == token ) {
+				spell->level = level;
+
+				// If the object is currently worn and shares affects, update the affect
+				if( target->carried_by != NULL && target->wear_loc != WEAR_NONE ) {
+					if (target->item_type != ITEM_WAND &&
+						target->item_type != ITEM_STAFF &&
+						target->item_type != ITEM_SCROLL &&
+						target->item_type != ITEM_POTION &&
+						target->item_type != ITEM_TATTOO &&
+						target->item_type != ITEM_PILL) {
+
+
+						for( paf = target->carried_by->affected; paf != NULL; paf = paf->next ) {
+							if( paf->token == token && paf->slot == target->wear_loc ) {
+
+								// Update the level if affect's level is higher
+								if( paf->level > level )
+									paf->level = level;
+
+								// Add security aspect to allow raising the level?
+
+								break;
+							}
+						}
+					}
+				}
+				return;
+			}
 		}
 	}
 
 	// Spell is new to the object, so add it
 	spell_new = new_spell();
 	spell_new->sn = sn;
+	spell_new->token = token;
 	spell_new->level = level;
 
 	spell_new->next = target->spells;
@@ -7010,16 +7088,32 @@ SCRIPT_CMD(do_tpaddspell)
 			target->item_type != ITEM_POTION &&
 			target->item_type != ITEM_TATTOO &&
 			target->item_type != ITEM_PILL) {
-
-			for (paf = target->carried_by->affected; paf != NULL; paf = paf->next)
+			
+			if (sn > 0)
 			{
-				if (paf->type == sn)
-					break;
-			}
+				for (paf = target->carried_by->affected; paf != NULL; paf = paf->next)
+				{
+					if (paf->type > 0 && paf->type == sn)
+						break;
+				}
 
-			if (paf == NULL || paf->level < level) {
-				affect_strip(target->carried_by, sn);
-				obj_cast_spell(sn, level + MAGIC_WEAR_SPELL, target->carried_by, target->carried_by, target);
+				if (paf == NULL || paf->level < level) {
+					affect_strip(target->carried_by, sn);
+					obj_cast_spell(sn, level + MAGIC_WEAR_SPELL, target->carried_by, target->carried_by, target);
+				}
+			}
+			else if (token)
+			{
+				for (paf = target->carried_by->affected; paf != NULL; paf = paf->next)
+				{
+					if (paf->token && paf->token == token)
+						break;
+				}
+
+				if (paf == NULL || paf->level < level) {
+					affect_strip_token(target->carried_by, token);
+					p_token_index_percent_trigger(token, target->carried_by, NULL, NULL, target, NULL, TRIG_APPLY_AFFECT, NULL, level, 0, 0, 0, 0);
+				}
 			}
 		}
 	}

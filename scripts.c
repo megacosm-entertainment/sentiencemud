@@ -9213,3 +9213,43 @@ void trigger_type_delete_use(struct trigger_type *tt)
 		--tt->usage;
 	}
 }
+
+// Allows token indices that do percent triggers to fire.
+int p_token_index_percent_trigger(TOKEN_INDEX_DATA *tindex, CHAR_DATA *ch, CHAR_DATA *victim1, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int trigger, char *phrase, int ts0, int ts1, int ts2, int ts3, int ts4)
+{
+	TOKEN_DATA *token = create_token(tindex);
+
+	if (!IS_VALID(token)) return PRET_NOSCRIPT;
+
+	token->tempstore[0] = ts0;
+	token->tempstore[1] = ts1;
+	token->tempstore[2] = ts2;
+	token->tempstore[3] = ts3;
+	token->tempstore[4] = ts4;
+	int ret = p_percent_trigger(NULL, NULL, NULL, token, ch, victim1, victim2, obj1, obj2, trigger, phrase);
+
+	extract_token(token);
+
+	return ret;
+}
+
+SCRIPT_DATA *get_script_token(TOKEN_DATA *token, int trigger, int slot)
+{
+	ITERATOR it;
+	PROG_LIST *prg;
+	SCRIPT_DATA *script = NULL;
+
+	if( token->pIndexData->progs )
+	{
+		iterator_start(&it, token->pIndexData->progs[slot]);
+		while(( prg = (PROG_LIST *)iterator_nextdata(&it))) {
+			if(is_trigger_type(prg->trig_type,trigger)) {
+				script = prg->script;
+				break;
+			}
+		}
+		iterator_stop(&it);
+	}
+
+	return script;
+}

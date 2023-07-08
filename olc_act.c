@@ -40,6 +40,8 @@ AREA_DATA *get_area_from_uid args ((long uid));
 
 bool redit_blueprint_oncreate = FALSE;
 
+char *get_spell_data_name(SPELL_DATA *spell);
+
 struct olc_help_type
 {
     char *command;
@@ -4538,6 +4540,14 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 	    add_buf(buffer, buf);
 	    break;
 
+	case ITEM_BLANK_SCROLL:
+		sprintf(buf,
+				"{B[  {Wv0{B]{G Maximum Mana:{x           [{%c%ld{x]\n\r",
+				((obj->value[0] > 0) ? 'x' : 'Y'),
+				((obj->value[0] > 0) ? obj->value[0] : 200));
+		add_buf(buffer, buf);
+		break;
+
 	case ITEM_SCROLL:
 	case ITEM_POTION:
 	case ITEM_PILL:
@@ -5706,6 +5716,28 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 	default:
 		break;
 
+	case ITEM_BLANK_SCROLL:
+		switch(value_num)
+		{
+		default:
+			do_help(ch, "ITEM_BLANK_SCROLL");
+			return FALSE;
+		case 0:
+			{
+				int mana = atoi(argument);
+				if (mana < 0 || mana > 1000)
+				{
+					send_to_char("Maximum mana must be between 0 and 1000.\n\r", ch);
+					return FALSE;
+				}
+
+				send_to_char("MAXIMUM MANA SET.\n\r\n\r", ch);
+				pObj->value[0] = mana;
+			}
+			break;
+		}
+		break;
+
 	case ITEM_LIGHT:
 		switch (value_num)
 		{
@@ -6868,22 +6900,32 @@ OEDIT(oedit_show)
 
     if (pObj->spells)
     {
-	cnt = 0;
+		cnt = 0;
 
-	sprintf(buf, "{g%-6s %-20s %-10s %-6s{x\n\r", "Number", "Spell", "Level", "Random");
-	add_buf(buffer, buf);
+		sprintf(buf, "{g%-6s %-20s %-10s %-6s{x\n\r", "Number", "Spell", "Level", "Random");
+		add_buf(buffer, buf);
 
-	sprintf(buf, "{g%-6s %-20s %-10s %-6s{x\n\r", "------", "-----", "-----", "------");
-	add_buf(buffer, buf);
+		sprintf(buf, "{g%-6s %-20s %-10s %-6s{x\n\r", "------", "-----", "-----", "------");
+		add_buf(buffer, buf);
 
-	for (spell = pObj->spells; spell != NULL; spell = spell->next, cnt++)
-	{
-	    sprintf(buf, "{B[{W%4d{B]{x %-20s %-10d %d%%\n\r",
-	        cnt,
-	        skill_table[spell->sn].name, spell->level, spell->repop);
-	    buf[0] = UPPER(buf[0]);
-	    add_buf(buffer, buf);
-	}
+		for (spell = pObj->spells; spell != NULL; spell = spell->next, cnt++)
+		{
+			char name[MIL];
+			if (spell->token)
+			{
+				sprintf(name, "%s (%ld#%ld)", spell->token->name, spell->token->area->uid, spell->token->vnum);
+			}
+			else
+			{
+				strcpy(name, skill_table[spell->sn].name);
+			}
+
+			sprintf(buf, "{B[{W%4d{B]{x %-20s %-10d %d%%\n\r",
+				cnt,
+				name, spell->level, spell->repop);
+			buf[0] = UPPER(buf[0]);
+			add_buf(buffer, buf);
+		}
     }
 
     if (pObj->catalyst)
@@ -7252,7 +7294,9 @@ OEDIT(oedit_addspell)
     char level[MSL];
     char rand[MSL];
     SPELL_DATA *spell, *spell_tmp;
-    int sn, i;
+    int sn = 0, i;
+	WNUM wnum;
+	TOKEN_INDEX_DATA *token = NULL;
     bool restricted = TRUE;
     bool spell_restricted = TRUE;
 
@@ -7284,11 +7328,29 @@ OEDIT(oedit_addspell)
     if (name[0] == '\0' || level[0] == '\0' || rand[0] == '\0'
     ||  !is_number(level) || !is_number(rand))
     {
-	send_to_char("Syntax: addspell [spell name] [spell level] [random]\n\r", ch);
+	send_to_char("Syntax: addspell [spell name/token widevnum] [spell level] [random]\n\r", ch);
 	return FALSE;
     }
 
-    if ((sn = skill_lookup(name)) == -1 || (spell_restricted && (skill_table[sn].spell_fun == spell_null)))
+	if (parse_widevnum(name, NULL, &wnum))
+	{
+		sn = 0;
+
+		token = get_token_index_wnum(wnum);
+
+		if( !token )
+		{
+			send_to_char("No such token exists.\n\r", ch);
+			return FALSE;
+		}
+
+		if (token->type != TOKEN_SPELL)
+		{
+			send_to_char("That token is not a SPELL token.\n\r", ch);
+			return FALSE;
+		}
+	}
+	else if ((sn = skill_lookup(name)) == -1 || (spell_restricted && (skill_table[sn].spell_fun == spell_null)))
     {
 		send_to_char("That's not a spell.\n\r", ch);
 		return FALSE;
@@ -7303,10 +7365,10 @@ OEDIT(oedit_addspell)
     {
 	for (spell_tmp = pObj->spells; spell_tmp != NULL; spell_tmp = spell_tmp->next)
 	{
-	    if (spell_tmp->sn == sn)
+		if ((token && spell_tmp->token == token) || (sn > 0 && spell_tmp->sn == sn))
 	    {
-		send_to_char("That spell is already on the object.\n\r", ch);
-		return FALSE;
+			send_to_char("That spell is already on the object.\n\r", ch);
+			return FALSE;
 	    }
 	}
     }
@@ -7326,6 +7388,7 @@ OEDIT(oedit_addspell)
 
     spell 		= new_spell();
     spell->sn		= sn;
+	spell->token	= token;
     spell->level	= atoi(level);
     spell->repop	= atoi(rand);
     spell->next = NULL;
@@ -7342,7 +7405,7 @@ OEDIT(oedit_addspell)
     }
 
     sprintf(buf, "Added spell %s, level %d, random %d.\n\r",
-        skill_table[sn].name, spell->level, spell->repop);
+        get_spell_data_name(spell), spell->level, spell->repop);
     send_to_char(buf, ch);
     return TRUE;
 }

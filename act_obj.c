@@ -42,7 +42,42 @@
 #include "magic.h"
 #include "interp.h"
 #include "recycle.h"
+#include "scripts.h"
 #include "tables.h"
+
+bool __isspell_valid(CHAR_DATA *ch, OBJ_DATA *obj, SKILL_ENTRY *spell, int pretrigger, int trigger, char *token_message)
+{
+	if (!spell || !spell->isspell)
+	{
+		send_to_char("You don't know any spells by that name.\n\r", ch);
+		return FALSE;
+	}
+
+	if (IS_VALID(spell->token))
+	{
+		int ret = p_percent_trigger(NULL, NULL, NULL, spell->token, ch, NULL, NULL, obj, NULL, pretrigger, NULL);
+		if (ret)
+		{
+			if (ret != PRET_SILENT)
+			{
+				act_new(token_message, ch,NULL,NULL,obj,NULL,spell->token->name,NULL,TO_CHAR,POS_DEAD,NULL);
+				//sprintf(buf, token_message, spell->token->name, obj->short_descr);
+				//send_to_char(buf, ch);
+			}
+			return FALSE;
+		}
+
+		SCRIPT_DATA *script = get_script_token(spell->token, trigger, TRIGSLOT_SPELL);
+		if(!script) {
+			act_new(token_message, ch,NULL,NULL,obj,NULL,spell->token->name,NULL,TO_CHAR,POS_DEAD,NULL);
+			//sprintf(buf, token_message, spell->token->name, obj->short_descr);
+			//send_to_char(buf, ch);
+			return FALSE;
+		}
+	}
+
+	return TRUE;
+}
 
 bool obj_has_money(CHAR_DATA *ch, OBJ_DATA *container)
 {
@@ -2875,7 +2910,7 @@ void do_eat(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
     OBJ_DATA *obj;
-    SPELL_DATA *spell;
+    //SPELL_DATA *spell;
 	int ret;
 
     one_argument(argument, arg);
@@ -2974,10 +3009,14 @@ void do_eat(CHAR_DATA *ch, char *argument)
 	    break;
 
 	case ITEM_PILL:
-	    for (spell = obj->spells; spell != NULL; spell = spell->next)
-		obj_cast_spell(spell->sn, obj->value[0], ch, ch, NULL);
+		obj_apply_spells(ch, obj, ch, NULL, TRIG_APPLY_AFFECT);
+
+	    //for (spell = obj->spells; spell != NULL; spell = spell->next)
+		//obj_cast_spell(spell->sn, obj->value[0], ch, ch, NULL);
 	    break;
     }
+
+
 
 	p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_EAT, NULL);
 	p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, obj, NULL, TRIG_EAT, NULL);
@@ -3848,7 +3887,7 @@ void do_quaff(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
     OBJ_DATA *obj;
-    SPELL_DATA *spell;
+    //SPELL_DATA *spell;
 
     one_argument(argument, arg);
 
@@ -3899,8 +3938,9 @@ void do_quaff(CHAR_DATA *ch, char *argument)
         act("You quaff $p.", ch, NULL, NULL, obj, NULL, NULL, NULL ,TO_CHAR);
     }
 
-    for (spell = obj->spells; spell != NULL; spell = spell->next)
-	obj_cast_spell(spell->sn, spell->level, ch, ch, NULL);
+    //for (spell = obj->spells; spell != NULL; spell = spell->next)
+	//obj_cast_spell(spell->sn, spell->level, ch, ch, NULL);
+	obj_apply_spells(ch, obj, ch, NULL, TRIG_TOKEN_QUAFF);
 
     if (obj->value[5] <= 0)
 	extract_obj(obj);
@@ -3967,6 +4007,11 @@ void do_recite(CHAR_DATA *ch, char *argument)
 	else
 		beats = 18;
 
+	// TODO: Fix these so they utilize the return value
+	// 0: allow
+	// 1: denied - give standard message
+	// 2: denied - silent (script should give a reason)
+
 	// Both scripts MUST provide a reason.
 	// Does the scroll forbid it?
 	scroll->tempstore[0] = beats;
@@ -4005,8 +4050,8 @@ void recite_end(CHAR_DATA *ch)
 	CHAR_DATA *victim;
 	OBJ_DATA *scroll;
 	OBJ_DATA *obj;
-	int kill;
-	SPELL_DATA *spell;
+	//int kill;
+	//SPELL_DATA *spell;
 	char buf[MSL];
 
 	scroll = ch->recite_scroll;
@@ -4045,6 +4090,8 @@ void recite_end(CHAR_DATA *ch)
 		return;
 	}
 
+	
+#if 0
 	kill = find_spell(ch, "kill");
 	for (spell = scroll->spells; spell != NULL; spell = spell->next)
 	{
@@ -4054,6 +4101,7 @@ void recite_end(CHAR_DATA *ch)
 			return;
 		}
 	}
+#endif
 
 	if( p_percent_trigger( NULL, scroll, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_RECITE, NULL) <= 0 )
 	{
@@ -4066,8 +4114,10 @@ void recite_end(CHAR_DATA *ch)
 		}
 		else
 		{
-			for (spell = scroll->spells; spell != NULL; spell = spell->next)
-				obj_cast_spell(spell->sn, spell->level, ch, victim, obj);
+			
+			obj_apply_spells(ch, scroll, victim, obj, TRIG_TOKEN_RECITE);
+			//for (spell = scroll->spells; spell != NULL; spell = spell->next)
+			//	obj_cast_spell(spell->sn, spell->level, ch, victim, obj);
 			check_improve(ch,gsn_scrolls,TRUE,2);
 		}
 
@@ -4078,6 +4128,7 @@ void recite_end(CHAR_DATA *ch)
 
 void do_brandish(CHAR_DATA *ch, char *argument)
 {
+	char buf[MSL];
     CHAR_DATA *vch;
     CHAR_DATA *vch_next;
     OBJ_DATA *staff;
@@ -4090,84 +4141,127 @@ void do_brandish(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if(p_percent_trigger(NULL, staff, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BRANDISH, argument))
+	// TODO: Utilize return code
+	// 
+    if(p_percent_trigger(NULL, staff, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREBRANDISH, argument))
     	return;
 
     if (staff->item_type != ITEM_STAFF)
     {
-	send_to_char("You can brandish only with a staff.\n\r", ch);
-	return;
+		send_to_char("You can brandish only with a staff.\n\r", ch);
+		return;
     }
 
     if (!staff->spells)
     {
-	bug("Do_brandish: no spells %d.", staff->pIndexData->vnum);
-	return;
+		bug("Do_brandish: no spells %d.", staff->pIndexData->vnum);
+		return;
     }
 
     WAIT_STATE(ch, 2 * PULSE_VIOLENCE);
 
     if (staff->value[2] > 0)
     {
-	act("$n brandishes $p.", ch, NULL, NULL, staff, NULL, NULL, NULL, TO_ROOM);
-	act("You brandish $p.",  ch, NULL, NULL, staff, NULL, NULL, NULL, TO_CHAR);
-	if (ch->tot_level < staff->level
-	||   number_percent() >= 20 + get_skill(ch,gsn_staves) * 4/5)
- 	{
-	    act ("You fail to invoke $p.",ch, NULL, NULL,staff, NULL, NULL,NULL,TO_CHAR);
-	    act ("...and nothing happens.",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
-	    check_improve(ch,gsn_staves,FALSE,2);
-	}
-	else
-	{
-	    for (vch = ch->in_room->people; vch; vch = vch_next)
-	    {
-		vch_next	= vch->next_in_room;
+		act("$n brandishes $p.", ch, NULL, NULL, staff, NULL, NULL, NULL, TO_ROOM);
+		act("You brandish $p.",  ch, NULL, NULL, staff, NULL, NULL, NULL, TO_CHAR);
+		if (ch->tot_level < staff->level || number_percent() >= (20 + 4 * get_skill(ch,gsn_staves) / 5))
+		{
+			act ("You fail to invoke $p.",ch, NULL, NULL,staff, NULL, NULL,NULL,TO_CHAR);
+			act ("...and nothing happens.",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+			check_improve(ch,gsn_staves,FALSE,2);
+		}
+		else
+		{
+		    for (vch = ch->in_room->people; vch; vch = vch_next)
+		    {
+				vch_next	= vch->next_in_room;
 
                 for (spell = staff->spells; spell != NULL; spell = spell->next)
-		{
-		    sn = spell->sn;
-		    switch (skill_table[sn].target)
-		    {
-		    default:
-			bug("Do_brandish: bad target for sn %d.", sn);
-			return;
+				{
+					if (spell->sn > 0)
+					{
+						sn = spell->sn;
+						switch (skill_table[sn].target)
+						{
+							default:
+								bug("Do_brandish: bad target for sn %d.", sn);
+								return;
 
-		    case TAR_IGNORE:
-			if (vch != ch)
-			    continue;
-			break;
+							case TAR_IGNORE:
+								if (vch != ch)
+									continue;
+								break;
 
-		    case TAR_CHAR_OFFENSIVE:
-			if (IS_NPC(ch) ? IS_NPC(vch) : !IS_NPC(vch))
-			    continue;
-			break;
+							case TAR_CHAR_OFFENSIVE:
+								if (IS_NPC(ch) == IS_NPC(vch))
+									continue;
+								break;
 
-		    case TAR_CHAR_DEFENSIVE:
-			if (IS_NPC(ch) ? !IS_NPC(vch) : IS_NPC(vch))
-			    continue;
-			break;
+							case TAR_CHAR_DEFENSIVE:
+								if (IS_NPC(ch) != IS_NPC(vch))
+									continue;
+								break;
 
-		    case TAR_CHAR_SELF:
-			if (vch != ch)
-			    continue;
-			break;
-		    }
+							case TAR_CHAR_SELF:
+								if (vch != ch)
+									continue;
+								break;
+						}
 
-		    obj_cast_spell(sn, spell->level, ch, vch, NULL);
+						obj_cast_spell(sn, spell->level, ch, vch, NULL);
+					}
+					else if (spell->token)
+					{
+						switch(spell->token->value[TOKVAL_SPELL_TARGET])
+						{
+							default:
+								sprintf(buf, "Bad target for token %s (%s)", spell->token->name, widevnum_string(spell->token->area, spell->token->vnum, NULL));
+								bug(buf, 0);
+								continue;
+
+							case TAR_IGNORE:
+								if (vch != ch)
+									continue;
+								break;
+
+							case TAR_CHAR_OFFENSIVE:
+								if (IS_NPC(ch) == IS_NPC(vch))
+									continue;
+								break;
+
+							case TAR_CHAR_DEFENSIVE:
+								if (IS_NPC(ch) != IS_NPC(vch))
+									continue;
+								break;
+
+							case TAR_CHAR_SELF:
+								if (vch != ch)
+									continue;
+								break;
+						}
+
+						p_token_index_percent_trigger(spell->token, ch, vch, NULL, staff, NULL, TRIG_TOKEN_BRANDISH, NULL, spell->level, 0, 0, 0, 0);
+					}
+
+				}
+
+				// Let it do something even if there were no spells
+			    p_percent_trigger(NULL, staff, NULL, NULL, ch, vch, NULL, NULL, NULL, TRIG_BRANDISH, argument);
+
+				check_improve(ch,gsn_staves,TRUE,2);
+			}
 		}
-
-		check_improve(ch,gsn_staves,TRUE,2);
-	    }
-	}
     }
+
+	// When $(victim) isn't defined, it's the aftermath
+	p_percent_trigger(NULL, staff, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BRANDISH, argument);
 
     if (--staff->value[2] <= 0)
     {
-	act("$n's $p blazes bright and is gone.", ch, NULL, NULL, staff, NULL, NULL, NULL, TO_ROOM);
-	act("Your $p blazes bright and is gone.", ch, NULL, NULL, staff, NULL, NULL, NULL, TO_CHAR);
-	log_string("It disappeared in a blaze");
-	extract_obj(staff);
+		act("$n's $p blazes bright and is gone.", ch, NULL, NULL, staff, NULL, NULL, NULL, TO_ROOM);
+		act("Your $p blazes bright and is gone.", ch, NULL, NULL, staff, NULL, NULL, NULL, TO_CHAR);
+		log_string("It disappeared in a blaze");
+		extract_obj(staff);
     }
 }
 
@@ -4179,28 +4273,29 @@ void do_zap(CHAR_DATA *ch, char *argument)
     CHAR_DATA *victim;
     OBJ_DATA *wand;
     OBJ_DATA *obj;
-    SPELL_DATA *spell;
+    //SPELL_DATA *spell;
 
     one_argument(argument, arg);
     if (arg[0] == '\0' && ch->fighting == NULL)
     {
-	send_to_char("Zap whom or what?\n\r", ch);
-	return;
+		send_to_char("Zap whom or what?\n\r", ch);
+		return;
     }
 
     if ((wand = get_eq_char(ch, WEAR_HOLD)) == NULL)
     {
-	send_to_char("You hold nothing in your hand.\n\r", ch);
-	return;
+		send_to_char("You hold nothing in your hand.\n\r", ch);
+		return;
     }
 
-    if(p_percent_trigger(NULL, wand, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ZAP, arg))
+	// TODO: Utilize return code
+    if(p_percent_trigger(NULL, wand, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREZAP, arg))
     	return;
 
     if (wand->item_type != ITEM_WAND)
     {
-	send_to_char("You can zap only with a wand.\n\r", ch);
-	return;
+		send_to_char("You can zap only with a wand.\n\r", ch);
+		return;
     }
 
     obj = NULL;
@@ -4228,32 +4323,36 @@ void do_zap(CHAR_DATA *ch, char *argument)
 
     if (wand->value[2] > 0)
     {
-	if (victim != NULL)
-	{
-	    act("$n zaps $N with $p.", ch, victim, NULL, wand, NULL, NULL, NULL, TO_NOTVICT);
-	    act("You zap $N with $p.", ch, victim, NULL, wand, NULL, NULL, NULL, TO_CHAR);
-	    act("$n zaps you with $p.",ch, victim, NULL, wand, NULL, NULL, NULL, TO_VICT);
-	}
-	else
-	{
-	    act("$n zaps $P with $p.", ch, NULL, NULL, wand, obj, NULL, NULL, TO_ROOM);
-	    act("You zap $P with $p.", ch, NULL, NULL, wand, obj, NULL, NULL, TO_CHAR);
-	}
+		if (victim != NULL)
+		{
+			act("$n zaps $N with $p.", ch, victim, NULL, wand, NULL, NULL, NULL, TO_NOTVICT);
+			act("You zap $N with $p.", ch, victim, NULL, wand, NULL, NULL, NULL, TO_CHAR);
+			act("$n zaps you with $p.",ch, victim, NULL, wand, NULL, NULL, NULL, TO_VICT);
+		}
+		else
+		{
+			act("$n zaps $P with $p.", ch, NULL, NULL, wand, obj, NULL, NULL, TO_ROOM);
+			act("You zap $P with $p.", ch, NULL, NULL, wand, obj, NULL, NULL, TO_CHAR);
+		}
 
- 	if (ch->tot_level < wand->level
-	||  number_percent() >= 20 + get_skill(ch,gsn_wands) * 4/5)
-	{
-	    act("Your efforts with $p produce only smoke and sparks.", ch, NULL, NULL,wand, NULL, NULL,NULL,TO_CHAR);
-	    act("$n's efforts with $p produce only smoke and sparks.", ch, NULL, NULL,wand, NULL, NULL,NULL,TO_ROOM);
-	    check_improve(ch,gsn_wands,FALSE,2);
-	}
-	else
-	{
-	    for (spell = wand->spells; spell != NULL; spell = spell->next)
-		obj_cast_spell(spell->sn, spell->level, ch, victim, obj);
+		bool success;
+		if (ch->tot_level < wand->level || number_percent() >= (20 + 4 * get_skill(ch,gsn_wands) / 5))
+		{
+			act("Your efforts with $p produce only smoke and sparks.", ch, NULL, NULL,wand, NULL, NULL,NULL,TO_CHAR);
+			act("$n's efforts with $p produce only smoke and sparks.", ch, NULL, NULL,wand, NULL, NULL,NULL,TO_ROOM);
+			success = FALSE;
+		}
+		else
+		{
+			obj_apply_spells(ch, wand, victim, obj, TRIG_TOKEN_ZAP);
+			//for (spell = wand->spells; spell != NULL; spell = spell->next)
+			//obj_cast_spell(spell->sn, spell->level, ch, victim, obj);
+			success = TRUE;
+		}
 
-	    check_improve(ch,gsn_wands,TRUE,2);
-	}
+		wand->tempstore[0] = success;
+		p_percent_trigger(NULL, wand, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_ZAP, arg);
+		check_improve(ch,gsn_wands,success,2);
     }
 
     if (--wand->value[2] <= 0)
@@ -6733,106 +6832,90 @@ void do_skull(CHAR_DATA *ch, char *argument)
 void do_brew(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj;
-    int sn;
-//    int this_class;
-    int spell;
+    //int sn;
+	//TOKEN_DATA *token;
     int chance;
     int mana;
     char arg[MAX_STRING_LENGTH];
+	//char buf[MSL];
 
     argument = one_argument(argument, arg);
 
     if (IS_DEAD(ch))
     {
-	send_to_char("You are can't do that. You are dead.\n\r", ch);
-	return;
+		send_to_char("You are can't do that. You are dead.\n\r", ch);
+		return;
     }
 
-    if ((chance = get_skill(ch,gsn_brew)) == 0
-    /*||  ch->level < skill_table[gsn_brew].skill_level[this_class]
-
-     Syn - this bit is encapsulated PROPERLY in get_skill so there's no need to do it here
-     unless I screwed up. */)
+    if ((chance = get_skill(ch,gsn_brew)) == 0)
     {
-	send_to_char("Brew? What's that?\n\r",ch);
-	return;
+		send_to_char("Brew? What's that?\n\r",ch);
+		return;
     }
 
     obj = NULL;
     for (obj = ch->carrying; obj != NULL; obj = obj->next_content) {
-	if (obj->item_type == ITEM_EMPTY_VIAL || obj->pIndexData == obj_index_empty_vial)
-	    break;
+		if (obj->item_type == ITEM_EMPTY_VIAL || obj->pIndexData == obj_index_empty_vial)
+	    	break;
     }
 
     if (obj == NULL)
     {
-	send_to_char("You do not have an empty vial to fill.\n\r", ch);
-	return;
+		send_to_char("You do not have an empty vial to fill.\n\r", ch);
+		return;
     }
-
-    sn = 0;
 
     if (arg[0] == '\0')
     {
-	send_to_char("What potion do you want to create?\n\r", ch);
-	return;
+		send_to_char("What potion do you want to create?\n\r", ch);
+		return;
     }
 
-    sn = find_spell(ch, arg);
+	SKILL_ENTRY *spell = skill_entry_findname(ch->sorted_skills, arg);
+	if(!__isspell_valid(ch, obj, spell, TRIG_TOKEN_PREBREW, TRIG_TOKEN_QUAFF, "You cannot brew $t in $p."))
+		return;
 
-    if ((sn) < 1
-    || skill_table[sn].spell_fun == spell_null
-    || get_skill(ch, sn) == 0)
-    {
-	send_to_char("You don't know any spells of that name.\n\r", ch);
-	return;
-    }
-
-    mana = 0;
-    if (sn > 0)
-    {
-	mana += skill_table[sn].min_mana;
-	mana = mana * 2 / 3;
-    }
+	mana = 2 * skill_entry_mana(ch, spell) / 3;
 
     if (ch->mana < mana)
     {
-	send_to_char("You don't have enough mana to brew that potion.\n\r", ch);
-	return;
+		send_to_char("You don't have enough mana to brew that potion.\n\r", ch);
+		return;
     }
 
     ch->mana -= mana;
 
     /* Mass healing must not be one of the spells*/
-    spell = find_spell(ch, "mass healing");
-    if (spell == sn)
+	if (spell->sn > 0 && spell->sn == gsn_mass_healing)
     {
-	send_to_char("The vial explodes into dust!\n\r", ch);
-	act("$n's empty vial explodes into dust!\n\r", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	return;
+		send_to_char("The vial explodes into dust!\n\r", ch);
+		act("$n's empty vial explodes into dust!\n\r", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		return;
     }
 
-    if (skill_table[sn].target != TAR_CHAR_DEFENSIVE
-    &&   skill_table[sn].target != TAR_CHAR_SELF
-    &&   skill_table[sn].target != TAR_OBJ_CHAR_DEF
-    &&   skill_table[sn].target != TAR_CHAR_OFFENSIVE
-    &&   skill_table[sn].target != TAR_OBJ_CHAR_OFF)
+	int target = skill_entry_target(ch, spell);
+	if (target != TAR_CHAR_DEFENSIVE &&
+		target != TAR_CHAR_SELF &&
+		target != TAR_OBJ_CHAR_DEF &&
+		target != TAR_CHAR_OFFENSIVE &&
+		target != TAR_OBJ_CHAR_OFF)
     {
-	send_to_char("You may only brew potions of spells which you can cast on people.\n\r", ch);
-        return;
+		send_to_char("You may only brew potions of spells which you can cast on people.\n\r", ch);
+		return;
     }
 
     extract_obj(obj);
 
     act("{Y$n begins to brew a potion...{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
     act("{YYou begin to brew a potion...{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-    ch->brew_sn = sn;
+
+	ch->brew_info = spell;
 
     BREW_STATE(ch, 12);
 }
 
 
-void brew_end(CHAR_DATA *ch, sh_int sn)
+void brew_end(CHAR_DATA *ch )
 {
     char buf[2*MAX_STRING_LENGTH];
     OBJ_DATA *potion;
@@ -6840,9 +6923,9 @@ void brew_end(CHAR_DATA *ch, sh_int sn)
     char potion_name[MAX_STRING_LENGTH];
     SPELL_DATA *spell;
 
-    chance = (get_skill(ch, gsn_brew) * 2)/3 +
-        get_skill(ch, sn)/3 - 10 +
-        (get_curr_stat(ch, STAT_CON))/4;
+    chance = 2 * get_skill(ch, gsn_brew) /3 +
+			(get_curr_stat(ch, STAT_CON) / 4) +
+			skill_entry_rating(ch, ch->brew_info) - 10;
 
     if (IS_SET(ch->in_room->room2_flags, ROOM_ALCHEMY))
         chance = (chance * 3)/2;
@@ -6850,17 +6933,18 @@ void brew_end(CHAR_DATA *ch, sh_int sn)
     chance = URANGE(1, chance, 98);
 
     if (IS_IMMORTAL(ch))
-	chance = 100;
+		chance = 100;
 
     if (number_percent() >= chance)
     {
-	act("{Y$n's attempt to brew a potion fails miserably.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	act("{YYou fail to contain the magic within the vial, shattering the vial completely.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	check_improve(ch, gsn_brew, FALSE, 2);
-	return;
+		act("{Y$n's attempt to brew a potion fails miserably.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		act("{YYou fail to contain the magic within the vial, shattering the vial completely.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		check_improve(ch, gsn_brew, FALSE, 2);
+		return;
     }
 
-    sprintf(potion_name, "%s", skill_table[sn].name);
+
+    sprintf(potion_name, "%s", skill_entry_name(ch->brew_info));
 
     sprintf(buf, "You brew a potion of %s.", potion_name);
     act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -6885,7 +6969,8 @@ void brew_end(CHAR_DATA *ch, sh_int sn)
     potion->full_description = str_dup(buf);
 
     spell = new_spell();
-    spell->sn = sn;
+    spell->sn = ch->brew_info->sn;
+	spell->token = IS_VALID(ch->brew_info->token) ? ch->brew_info->token->pIndexData : NULL;
     spell->level = ch->tot_level;
     spell->next = potion->spells;
     potion->spells = spell;
@@ -7012,21 +7097,15 @@ void do_hands(CHAR_DATA *ch, char *argument)
     check_improve(ch, gsn_healing_hands, TRUE, 1);
 }
 
-
 void do_scribe(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj;
-    int sn1, sn2, sn3;/*, sn4;*/
+	SKILL_ENTRY *spells[3];
     int mana;
     int chance;
-    int kill;
-    char arg1[MAX_STRING_LENGTH];
-    char arg2[MAX_STRING_LENGTH];
-    char arg3[MAX_STRING_LENGTH];
-
-    argument = one_argument(argument, arg1);
-    argument = one_argument(argument, arg2);
-    argument = one_argument(argument, arg3);
+    //int kill;
+    char arg[MIL];
+	//char buf[MSL];
 
     if (IS_DEAD(ch))
     {
@@ -7052,60 +7131,50 @@ void do_scribe(CHAR_DATA *ch, char *argument)
 		return;
     }
 
-    sn1 = 0;
-    sn2 = 0;
-    sn3 = 0;
-
-    if (arg1[0] == '\0')
+    if (argument[0] == '\0')
     {
 		send_to_char("What do you wish to scribe?\n\r", ch);
 		return;
     }
 
-    sn1 = find_spell(ch, arg1);
+	spells[0] = NULL;
+	spells[1] = NULL;
+	spells[2] = NULL;
 
-    if ((sn1) < 1 || skill_table[sn1].spell_fun == spell_null ||
-    	get_skill(ch, sn1) == 0)
-    {
-		send_to_char("You don't know any spells of that name.\n\r", ch);
+	argument = one_argument(argument, arg);
+	spells[0] = skill_entry_findname(ch->sorted_skills, arg);
+	if (!__isspell_valid(ch, obj, spells[0], TRIG_TOKEN_PRESCRIBE, TRIG_TOKEN_RECITE, "You cannot scribe $t onto $p."))
 		return;
-    }
 
-    if (arg2[0] != '\0')
-    {
-		sn2 = find_spell(ch, arg2);
-
-		if ((sn2) < 1 || skill_table[sn2].spell_fun == spell_null ||
-			get_skill(ch, sn2) == 0)
-		{
-			send_to_char("You don't know any spells of that name.\n\r", ch);
+	if (argument[0] != '\0')
+	{
+		argument = one_argument(argument, arg);
+		spells[1] = skill_entry_findname(ch->sorted_skills, arg);
+		if (!__isspell_valid(ch, obj, spells[1], TRIG_TOKEN_PRESCRIBE, TRIG_TOKEN_RECITE, "You cannot scribe $t onto $p."))
 			return;
-		}
-    }
 
-    if (arg3[0] != '\0')
-    {
-		sn3 = find_spell(ch, arg3);
-
-		if ((sn3) < 1 || skill_table[sn3].spell_fun == spell_null ||
-			get_skill(ch, sn3) == 0)
+		if (argument[0] != '\0')
 		{
-			send_to_char("You don't know any spells of that name.\n\r", ch);
-			return;
+			argument = one_argument(argument, arg);
+			spells[2] = skill_entry_findname(ch->sorted_skills, arg);
+			if (!__isspell_valid(ch, obj, spells[2], TRIG_TOKEN_PRESCRIBE, TRIG_TOKEN_RECITE, "You cannot scribe $t onto $p."))
+				return;
 		}
-    }
+	}
 
     mana = 0;
-    if (sn1 > 0) mana += skill_table[sn1].min_mana;
-    if (sn2 > 0) mana += skill_table[sn2].min_mana;
-    if (sn3 > 0) mana += skill_table[sn3].min_mana;
+	for(int i = 0; i < 3; i++)
+		if (spells[i])
+			mana += skill_entry_mana(ch, spells[i]);
 
-    if (mana > 200)
+	int max_mana = (obj->value[0] > 0) ? obj->value[0] : 200;
+    if (mana > max_mana)
     {
 		send_to_char("The scroll can't hold that much magic.\n\r", ch);
 		return;
     }
 
+	// Get actual cost
     mana = 2 * mana / 3;
     if (ch->mana < mana)
     {
@@ -7118,12 +7187,24 @@ void do_scribe(CHAR_DATA *ch, char *argument)
 
     act("{Y$n begins to write onto $p...{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
     act("{YYou begin to write onto $p...{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-    ch->scribe_sn = sn1;
-    ch->scribe_sn2 = sn2;
-    ch->scribe_sn3 = sn3;
+	int beats = 0;
+	for(int i = 0; i < 3; i++)
+	{
+		ch->scribe_info[i] = spells[i];
+
+		if(spells[i]) beats += 12;
+	}
+
+	// At this point, beats is greater than zero as we are doing at least one spell
+
+	// Give speed increase for those with scribe over 75%
+	if (chance > 75)
+		beats = (125 - chance) * beats / 50;	// 75% = 100% time, 100% = 50% time
 
     extract_obj(obj);
 
+#if 0
+	// TODO: Revisit
     /* Kill must not be one of the spells*/
     kill = find_spell(ch, "kill");
     if (kill == sn1 || kill == sn2 || kill == sn3)
@@ -7149,39 +7230,30 @@ void do_scribe(CHAR_DATA *ch, char *argument)
 		act("$n's blank scroll explodes into dust!\n\r", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 		return;
     }
+#endif
 
-    if (sn2 == 0)
-		SCRIBE_STATE(ch, 12);
-    else
-    {
-		if (sn3 == 0)
-			SCRIBE_STATE(ch, 24);
-		else
-			SCRIBE_STATE(ch, 36);
-    }
+	SCRIBE_STATE(ch, beats);
 }
 
 
-void scribe_end(CHAR_DATA *ch, sh_int sn, sh_int sn2, sh_int sn3)
+void scribe_end(CHAR_DATA *ch)
 {
     char buf[2*MAX_STRING_LENGTH];
     OBJ_DATA *scroll;
+	SPELL_DATA *spell;
     int chance;
     char scroll_name[MAX_STRING_LENGTH];
-    SPELL_DATA *spell;
 
-    if (sn2 == 0)
-        chance = get_skill(ch, gsn_scribe);
-    else
-    if (sn3 == 0)
-        chance = get_skill(ch, gsn_scribe) / 2 + get_skill(ch, gsn_scribe) / 3 + get_skill(ch, gsn_scribe)/7;
-    else
-        chance = get_skill(ch, gsn_scribe) / 2 + get_skill(ch, gsn_scribe) / 3;
+	chance = get_skill(ch, gsn_scribe);
+	if (ch->scribe_info[2])
+		chance = 5 * chance / 6;	// 1/2 + 1/3 = 5/6
+	else if (ch->scribe_info[1])
+		chance = 41 * chance / 42;	// 1/2 + 1/3 + 1/7 = 41/42
 
     if (IS_SET(ch->in_room->room2_flags, ROOM_ALCHEMY))
-        chance = (chance * 3)/2;
+        chance = 3 * chance / 2;
 
-    chance = URANGE(1, chance, 98);
+    chance = URANGE(1, chance, 99);
 
     if (IS_IMMORTAL(ch))
         chance = 100;
@@ -7194,20 +7266,15 @@ void scribe_end(CHAR_DATA *ch, sh_int sn, sh_int sn2, sh_int sn3)
         return;
     }
 
-    if (sn2 == 0)
-	sprintf(scroll_name, "%s", skill_table[sn].name);
-    else
-    {
-        if (sn3 == 0)
-            sprintf(scroll_name, "%s, %s", skill_table[sn].name, skill_table[sn2].name);
-        else
-            sprintf(scroll_name, "%s, %s, %s", skill_table[sn].name, skill_table[sn2].name, skill_table[sn3].name);
-    }
+	if (ch->scribe_info[2])
+		sprintf(scroll_name, "%s, %s, %s", skill_entry_name(ch->scribe_info[0]), skill_entry_name(ch->scribe_info[1]), skill_entry_name(ch->scribe_info[2]));
+	else if (ch->scribe_info[1])
+		sprintf(scroll_name, "%s, %s", skill_entry_name(ch->scribe_info[0]), skill_entry_name(ch->scribe_info[1]));
+	else
+		strcpy(scroll_name, skill_entry_name(ch->scribe_info[0]));
 
-    sprintf(buf, "You create a scroll of %s.", scroll_name);
-    act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-    sprintf(buf, "$n creates a scroll of %s.", scroll_name);
-    act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    act("You create a scroll of $t.", ch, NULL, NULL, NULL, NULL, scroll_name, NULL, TO_CHAR);
+    act("$n creates a scroll of $t.", ch, NULL, NULL, NULL, NULL, scroll_name, NULL, TO_ROOM);
 
     check_improve(ch, gsn_scribe, TRUE, 3);
 
@@ -7226,58 +7293,28 @@ void scribe_end(CHAR_DATA *ch, sh_int sn, sh_int sn2, sh_int sn3)
     free_string(scroll->full_description);
     scroll->full_description = str_dup(buf);
 
-    if (sn2 == 0)
-    {
-	spell = new_spell();
-	spell->sn = sn;
-	spell->level = ch->tot_level;
-        spell->next = scroll->spells;
-	scroll->spells = spell;
-    }
-    else if (sn3 == 0)
-    {
-	spell = new_spell();
-	spell->sn = sn;
-	spell->level = ch->tot_level/2;
-	if (ch->pcdata->second_sub_class_cleric == CLASS_CLERIC_ALCHEMIST)
-	    spell->level += ch->tot_level/3;
-        spell->next = scroll->spells;
-	scroll->spells = spell;
+	int count = 0;
+	for(int i = 0; i < 3; i++)
+		if (ch->scribe_info[i]) count++;
 
-	spell = new_spell();
-	spell->sn = sn2;
-	spell->level = ch->tot_level/2;
-	if (ch->pcdata->second_sub_class_cleric == CLASS_CLERIC_ALCHEMIST)
-	    spell->level += ch->tot_level/3;
-        spell->next = scroll->spells;
-	scroll->spells = spell;
-    }
-    else
-    {
-	spell = new_spell();
-	spell->sn = sn;
-	spell->level = ch->tot_level/3;
-	if (ch->pcdata->second_sub_class_cleric == CLASS_CLERIC_ALCHEMIST)
-	    spell->level += ch->tot_level/4;
-        spell->next = scroll->spells;
-	scroll->spells = spell;
+	// TODO: change when classes are redone
+	// TODO: Maybe change to a perk?
+	bool alchemist = (ch->pcdata->second_sub_class_cleric == CLASS_CLERIC_ALCHEMIST);
 
-	spell = new_spell();
-	spell->sn = sn2;
-	spell->level = ch->tot_level/3;
-	if (ch->pcdata->second_sub_class_cleric == CLASS_CLERIC_ALCHEMIST)
-	    spell->level += ch->tot_level/4;
-        spell->next = scroll->spells;
-	scroll->spells = spell;
-
-	spell = new_spell();
-	spell->sn = sn3;
-	spell->level = ch->tot_level/3;
-	if (ch->pcdata->second_sub_class_cleric == CLASS_CLERIC_ALCHEMIST)
-	    spell->level += ch->tot_level/4;
-        spell->next = scroll->spells;
-	scroll->spells = spell;
-    }
+	for(int i = 0; i < 3; i++)
+	{
+		if (ch->scribe_info[i])
+		{
+			spell = new_spell();
+			spell->sn = ch->scribe_info[i]->sn;
+			spell->token = IS_VALID(ch->scribe_info[i]->token) ? ch->scribe_info[i]->token->pIndexData : NULL;
+			spell->level = ch->tot_level / count;
+			if (count > 1 && alchemist)
+				spell->level += ch->tot_level / (count + 1);
+			spell->next = scroll->spells;
+			scroll->spells = spell;
+		}
+	}
 
     free_string(scroll->name);
     scroll->name = short_to_name(scroll_name);

@@ -3258,6 +3258,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				{
 					spell = new_spell();
 					spell->sn = sn;
+					spell->token = NULL;
 					spell->level = fread_number(fp);
 					spell->repop = fread_number(fp);
 
@@ -3266,38 +3267,35 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				}
 				else
 				{
-					sprintf(buf, "Bad spell name for %s (%ld).", obj->short_descr, obj->pIndexData->vnum);
+					sprintf(buf, "Bad spell name for %s (%ld#%ld).", obj->short_descr, obj->pIndexData->area->uid, obj->pIndexData->vnum);
 					bug(buf,0);
 				}
 			}
 
-			if (!str_cmp(word, "Spell"))
+			if (!str_cmp(word, "SpellToken"))
 			{
-				int iValue;
-				int sn;
+				WNUM_LOAD wnum = fread_widevnum(fp, 0);
 
-				iValue = fread_number(fp);
-				sn = skill_lookup(fread_word(fp));
-				if (iValue < 0 || iValue > 7)
-					bug("Fread_obj: bad iValue %d.", iValue);
-				else if (sn < 0)
-					bug("Fread_obj: unknown skill.", 0);
+				TOKEN_INDEX_DATA *token = get_token_index_auid(wnum.auid, wnum.vnum);
+
+				fMatch = TRUE;
+				if (token)
+				{
+					SPELL_DATA *spell = new_spell();
+					spell->sn = 0;
+					spell->token = token;
+					spell->level = fread_number(fp);
+					spell->repop = fread_number(fp);
+
+					spell->next = obj->spells;
+					obj->spells = spell;
+				}
 				else
 				{
-					if (obj->item_type == ITEM_WEAPON || obj->item_type == ITEM_ARMOUR)
-					{
-						if (iValue == 1)
-							obj->value[6] = sn;
-						else
-							obj->value[7] = sn;
-					}
-					else
-						obj->value[iValue] = sn;
+					sprintf(buf, "Bad spell token for %s (%ld#%ld).", obj->short_descr, obj->pIndexData->area->uid, obj->pIndexData->vnum);
+					bug(buf, 0);
 				}
-				fMatch = TRUE;
-				break;
 			}
-
 			break;
 
 		case 'T':
@@ -3317,33 +3315,9 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 			{
 				fMatch		= TRUE;
 
-				obj->value[0]	= fread_number(fp);
-				obj->value[1]	= fread_number(fp);
-				obj->value[2]	= fread_number(fp);
-				obj->value[3]	= fread_number(fp);
-				obj->value[4]	= fread_number(fp);
-				if (obj->version > 0)
-				{
-					obj->value[5] = fread_number(fp);
-					obj->value[6] = fread_number(fp);
-					obj->value[7] = fread_number(fp);
-				}
+				for(int i = 0; i < MAX_OBJVALUES; i++)
+					obj->value[i] = fread_number(fp);
 
-				if (obj->item_type == ITEM_WEAPON && obj->value[0] == 0)
-					obj->value[0] = obj->pIndexData->value[0];
-
-				break;
-			}
-
-			if ((!str_cmp(word, "Val")) && obj->item_type != ITEM_WEAPON && obj->item_type != ITEM_ARMOUR)
-			{
-				obj->value[0] 	= fread_number(fp);
-				obj->value[1]	= fread_number(fp);
-				obj->value[2] 	= fread_number(fp);
-				obj->value[3]	= fread_number(fp);
-				obj->value[4]	= fread_number(fp);
-				obj->value[5]	= fread_number(fp);
-				fMatch = TRUE;
 				break;
 			}
 

@@ -17,6 +17,15 @@
 #include "tables.h"
 #include "wilds.h"
 
+char *get_affect_name(AFFECT_DATA *paf);
+
+char *get_spell_data_name(SPELL_DATA *spell)
+{
+	if (spell->token)
+		return spell->token->name;
+	
+	return skill_table[spell->sn].name;
+}
 
 SPELL_FUNC(spell_armour)
 {
@@ -430,7 +439,7 @@ SPELL_FUNC(spell_identify)
 
 	for (spell = obj->spells; spell; spell = spell->next) {
 		sprintf(buf, "{MLevel {W%d {Mspell of {W%s{M.{x\n\r",
-			spell->level, skill_table[spell->sn].name);
+			spell->level, get_spell_data_name(spell));
 		add_buf(buffer, buf);
 	}
 

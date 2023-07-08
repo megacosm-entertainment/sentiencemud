@@ -646,12 +646,15 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 	}
 
         /* Let portals cast spells */
+	obj_apply_spells(ch, portal, ch, NULL, TRIG_APPLY_AFFECT);
+		/*
 	{
 		SPELL_DATA *spell;
 
 		for (spell = portal->spells; spell; spell = spell->next)
 			obj_cast_spell(spell->sn, spell->level, ch, ch, NULL);
 	}
+	*/
 
 	if (IS_SET(portal->value[2],GATE_GOWITH)) /* take the gate along */
 	{

@@ -7413,3 +7413,358 @@ SCRIPT_CMD(scriptcmd_settitle)
 	free_buf(title);
 	SETRETURN(1);
 }
+
+
+// addspell $OBJECT STRING[ NUMBER]
+// addspell $OBJECT TOKEN[ NUMBER]
+// addspell $OBJECT WIDEVNUM[ NUMBER]
+SCRIPT_CMD(scriptcmd_addspell)
+{
+	char *rest = argument;
+	SPELL_DATA *spell, *spell_new;
+	OBJ_DATA *target;
+	TOKEN_INDEX_DATA *token;
+	int level;
+	int sn;
+	AFFECT_DATA *paf;
+
+	if(!info || IS_NULLSTR(rest)) return;
+
+	SETRETURN(0);
+
+	PARSE_ARGTYPE(OBJECT);
+	if (!IS_VALID(arg->d.obj)) return;
+
+	target = arg->d.obj;
+	level = target->level;
+
+	if (!PARSE_ARG) return;
+
+	if (arg->type == ENT_WIDEVNUM)
+	{
+		sn = 0;
+
+		token = get_token_index_wnum(arg->d.wnum);
+
+		if (!token || token->type != TOKEN_SPELL) return;
+	}
+	else if (arg->type == ENT_TOKEN)
+	{
+		if (!IS_VALID(arg->d.token)) return;
+
+		sn = 0;
+
+		token = arg->d.token->pIndexData;
+
+		if (!token || token->type != TOKEN_SPELL) return;
+	}
+	else if (arg->type == ENT_STRING)
+	{
+		if (IS_NULLSTR(arg->d.str)) return;
+
+		token = NULL;
+
+		sn = skill_lookup(arg->d.str);
+		if( sn <= 0 ) return;
+
+		// Add security check for the spell function
+		if(skill_table[sn].spell_fun == spell_null) return;
+	}
+	else
+		return;
+
+
+	if( rest && *rest ) {
+		PARSE_ARGTYPE(NUMBER);
+
+		// Must be a number, positive and no greater than the object's level
+		if(arg->d.num < 1 || arg->d.num > target->level) return;
+
+		level = arg->d.num;
+	}
+
+	if (sn > 0)
+	{
+		// Check if the spell already exists on the object
+		for(spell = target->spells; spell != NULL; spell = spell->next)
+		{
+			if( spell->sn == sn ) {
+				spell->level = level;
+
+				// If the object is currently worn and shares affects, update the affect
+				if( target->carried_by != NULL && target->wear_loc != WEAR_NONE ) {
+					if (target->item_type != ITEM_WAND &&
+						target->item_type != ITEM_STAFF &&
+						target->item_type != ITEM_SCROLL &&
+						target->item_type != ITEM_POTION &&
+						target->item_type != ITEM_TATTOO &&
+						target->item_type != ITEM_PILL) {
+
+
+						for( paf = target->carried_by->affected; paf != NULL; paf = paf->next ) {
+							if( paf->type > 0 && paf->type == sn && paf->slot == target->wear_loc ) {
+
+								// Update the level if affect's level is higher
+								if( paf->level > level )
+									paf->level = level;
+
+								// Add security aspect to allow raising the level?
+
+								break;
+							}
+						}
+					}
+				}
+
+				SETRETURN(1);
+				return;
+			}
+		}
+	}
+	else if (token)
+	{
+		// Check if the spell already exists on the object
+		for(spell = target->spells; spell != NULL; spell = spell->next)
+		{
+			if( spell->token == token ) {
+				spell->level = level;
+
+				// If the object is currently worn and shares affects, update the affect
+				if( target->carried_by != NULL && target->wear_loc != WEAR_NONE ) {
+					if (target->item_type != ITEM_WAND &&
+						target->item_type != ITEM_STAFF &&
+						target->item_type != ITEM_SCROLL &&
+						target->item_type != ITEM_POTION &&
+						target->item_type != ITEM_TATTOO &&
+						target->item_type != ITEM_PILL) {
+
+
+						for( paf = target->carried_by->affected; paf != NULL; paf = paf->next ) {
+							if( paf->token == token && paf->slot == target->wear_loc ) {
+
+								// Update the level if affect's level is higher
+								if( paf->level > level )
+									paf->level = level;
+
+								// Add security aspect to allow raising the level?
+
+								break;
+							}
+						}
+					}
+				}
+
+				SETRETURN(1);
+				return;
+			}
+		}
+	}
+
+	// Spell is new to the object, so add it
+	spell_new = new_spell();
+	spell_new->sn = sn;
+	spell_new->token = token;
+	spell_new->level = level;
+
+	spell_new->next = target->spells;
+	target->spells = spell_new;
+
+
+	// If the target is currently being worn and shares affects, add it to the wearer
+	if( target->carried_by != NULL && target->wear_loc != WEAR_NONE ) {
+		if (target->item_type != ITEM_WAND &&
+			target->item_type != ITEM_STAFF &&
+			target->item_type != ITEM_SCROLL &&
+			target->item_type != ITEM_POTION &&
+			target->item_type != ITEM_TATTOO &&
+			target->item_type != ITEM_PILL) {
+			
+			if (sn > 0)
+			{
+				for (paf = target->carried_by->affected; paf != NULL; paf = paf->next)
+				{
+					if (paf->type > 0 && paf->type == sn)
+						break;
+				}
+
+				if (paf == NULL || paf->level < level) {
+					affect_strip(target->carried_by, sn);
+					obj_cast_spell(sn, level + MAGIC_WEAR_SPELL, target->carried_by, target->carried_by, target);
+				}
+			}
+			else if (token)
+			{
+				for (paf = target->carried_by->affected; paf != NULL; paf = paf->next)
+				{
+					if (paf->token && paf->token == token)
+						break;
+				}
+
+				if (paf == NULL || paf->level < level) {
+					affect_strip_token(target->carried_by, token);
+					p_token_index_percent_trigger(token, target->carried_by, NULL, NULL, target, NULL, TRIG_APPLY_AFFECT, NULL, level, 0, 0, 0, 0);
+				}
+			}
+		}
+	}
+
+	SETRETURN(1);
+}
+
+// remspell $OBJECT STRING[ silent]
+// remspell $OBJECT TOKEN[ silent]
+// remspell $OBJECT WIDEVNUM[ silent]
+SCRIPT_CMD(scriptcmd_remspell)
+{
+
+	char *rest = argument;
+	SPELL_DATA *spell, *spell_prev;
+	OBJ_DATA *target;
+	int level;
+	int sn;
+	TOKEN_INDEX_DATA *token;
+	bool found = FALSE, show = TRUE;
+	AFFECT_DATA *paf;
+
+	if(!info || IS_NULLSTR(argument)) return;
+
+	SETRETURN(0);
+
+	PARSE_ARGTYPE(OBJECT);
+	if (!IS_VALID(arg->d.obj)) return;
+
+	target = arg->d.obj;
+
+	if (!PARSE_ARG) return;
+
+	if (arg->type == ENT_WIDEVNUM)
+	{
+		sn = 0;
+
+		token = get_token_index_wnum(arg->d.wnum);
+
+		if (!token || token->type != TOKEN_SPELL) return;
+	}
+	else if(arg->type == ENT_TOKEN)
+	{
+		sn = 0;
+
+		token = arg->d.token->pIndexData;
+
+		if (!token || token->type != TOKEN_SPELL) return;
+	}
+	else if(arg->type == ENT_STRING)
+	{
+		if (IS_NULLSTR(arg->d.str)) return;
+
+		token = NULL;
+
+		sn = skill_lookup(arg->d.str);
+		if( sn <= 0 ) return;
+
+		// Add security check for the spell function
+		if(skill_table[sn].spell_fun == spell_null) return;
+	}
+	else
+		return;
+
+
+	if( rest && *rest ) {
+		PARSE_ARGTYPE(STRING);
+
+		if(IS_NULLSTR(arg->d.str)) return;
+
+		if( !str_cmp(arg->d.str, "silent") )
+			show = FALSE;
+	}
+
+
+	found = FALSE;
+
+	spell_prev = NULL;
+	for(spell = target->spells; spell; spell_prev = spell, spell = spell->next) {
+		if( (sn > 0 && spell->sn == sn) || (token && spell->token == token) ) {
+			if( spell_prev != NULL )
+				spell_prev->next = spell->next;
+			else
+				target->spells = spell->next;
+
+			level = spell->level;
+
+			free_spell(spell);
+
+			found = TRUE;
+			break;
+		}
+	}
+
+	if( found && target->carried_by != NULL && target->wear_loc != WEAR_NONE) {
+		if (target->item_type != ITEM_WAND &&
+			target->item_type != ITEM_STAFF &&
+			target->item_type != ITEM_SCROLL &&
+			target->item_type != ITEM_POTION &&
+			target->item_type != ITEM_TATTOO &&
+			target->item_type != ITEM_PILL) {
+
+			OBJ_DATA *obj_tmp;
+			//int spell_level = level;
+			//int found_loc = WEAR_NONE;
+
+			// Find the first affect that matches this spell and is derived from the object
+			for (paf = target->carried_by->affected; paf != NULL; paf = paf->next)
+			{
+				if (((sn > 0 && paf->type == sn) ||
+					 (token && paf->token == token)) &&
+					paf->slot == target->wear_loc)
+					break;
+			}
+
+			if( !paf ) {
+				// This spell was not applied by this object
+				return;
+			}
+
+			found = FALSE;
+			level = 0;
+
+
+			// If there's another obj with the same spell put that one on
+			for (obj_tmp = target->carried_by->carrying; obj_tmp; obj_tmp = obj_tmp->next_content)
+			{
+				if( obj_tmp->wear_loc != WEAR_NONE && target != obj_tmp ) {
+					for (spell = obj_tmp->spells; spell != NULL; spell = spell ->next) {
+						if (((sn > 0 && spell->sn == sn) || (token && spell->token == token)) &&
+							spell->level > level ) {
+							//level = spell->level;	// Keep the maximum
+							//found_loc = obj_tmp->wear_loc;
+							found = TRUE;
+						}
+					}
+				}
+			}
+
+			if(!found) {
+				// No other worn object had this spell available
+
+				if (sn > 0)
+				{
+					if( show ) {
+						if (skill_table[sn].msg_off) {
+							send_to_char(skill_table[sn].msg_off, target->carried_by);
+							send_to_char("\n\r", target->carried_by);
+						}
+					}
+	
+					affect_strip(target->carried_by, sn);
+				}
+				else if (token)
+				{
+					p_token_index_percent_trigger(token, target->carried_by, NULL, NULL, target, NULL, TRIG_WEAROFF_AFFECT, (show ? "" : "silent"), 0, 0, 0, 0, 0);
+
+					affect_strip_token(target->carried_by, token);
+				}
+			}
+		}
+	}
+}
+

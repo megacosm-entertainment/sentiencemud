@@ -3142,6 +3142,8 @@ SPELL_DATA *new_spell(void)
 	spell_free = spell_free->next;
     }
 
+    memset(spell, 0, sizeof(*spell));
+
     return spell;
 }
 

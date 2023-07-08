@@ -77,7 +77,7 @@ void do_help(CHAR_DATA *ch, char *argument)
 		i = 1;
 		for (hcatnest = hcat->inside_cats; hcatnest != NULL; hcatnest = hcatnest->next) {
 			if (get_trust(ch) >= hcatnest->min_level) {
-				sprintf(buf, "%s", hcatnest->name);
+				sprintf(buf2, "%s", hcatnest->name);
 
 
 				p = buf2;

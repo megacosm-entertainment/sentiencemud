@@ -2229,8 +2229,10 @@ int token_skill_rating( TOKEN_DATA *token)
 		return 0;
 
 	// Value 0
+	// RATING is the UNIT rating (how much is 1%)
+	// So, if the rating is 50, you need 5000 to have 100%
 	if(token->pIndexData->value[TOKVAL_SPELL_RATING] > 0)
-		percent = 100 * token->value[TOKVAL_SPELL_RATING] / token->pIndexData->value[TOKVAL_SPELL_RATING];
+		percent = token->value[TOKVAL_SPELL_RATING] / token->pIndexData->value[TOKVAL_SPELL_RATING];
 	else
 		percent = token->value[TOKVAL_SPELL_RATING];
 
@@ -2337,8 +2339,17 @@ int skill_entry_learn (CHAR_DATA *ch, SKILL_ENTRY *entry)
 		return 0;
 }
 
+int skill_entry_target(CHAR_DATA *ch, SKILL_ENTRY *entry)
+{
+	if (IS_VALID(entry->token))
+		return entry->token->value[TOKVAL_SPELL_TARGET];
+	else if (entry->sn >= 0)
+		return skill_table[entry->sn].target;
+	else if (entry->song >= 0)
+		return music_table[entry->song].target;
 
-
+	return TARGET_NONE;
+}
 
 
 void remort_player(CHAR_DATA *ch, int remort_class)

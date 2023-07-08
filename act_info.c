@@ -3727,6 +3727,35 @@ void do_score(CHAR_DATA * ch, char *argument)
     }
 }
 
+bool are_affects_same_type(AFFECT_DATA *a, AFFECT_DATA *b)
+{
+	if (a->token)
+	{
+		if (!b->token) return FALSE;
+
+		return a->token == b->token;
+	}
+	else
+	{
+		if (b->token) return FALSE;
+
+		return a->type == b->type;
+	}
+}
+
+char *get_affect_name(AFFECT_DATA *paf)
+{
+	if (!paf) return "";	
+
+	if (paf->custom_name) return paf->custom_name;
+
+	if (paf->token) return paf->token->name;
+
+	if (paf->type == gsn_improved_invisibility) return "improved invis";
+
+	return skill_table[paf->type].name;
+}
+
 void do_affects(CHAR_DATA * ch, char *argument)
 {
     AFFECT_DATA *paf, *paf_last = NULL;
@@ -3792,7 +3821,7 @@ void do_affects(CHAR_DATA * ch, char *argument)
 			if (paf_last != NULL && paf->custom_name == paf_last->custom_name)
 				sprintf(buf, "                           ");
 			else
-				sprintf(buf, "{BSpell: {G%-20s{x", paf->custom_name);
+				sprintf(buf, "{BSpell: {G%-20s{x", get_affect_name(paf));
 			send_to_char(buf, ch);
 
 			sprintf(buf, "{G: {Blevel {W%3d{B, modifies {W%s {Bby {W%d {x", paf->level, affect_loc_name(paf->location), paf->modifier);
@@ -3814,11 +3843,10 @@ void do_affects(CHAR_DATA * ch, char *argument)
 				sprintf(buf, "{YGroup: {W%s{x\n\r", affgroup_mobile_flags[i].name);
 				send_to_char(buf, ch);
 			}
-			if (paf_last != NULL && paf->type == paf_last->type)
+			if (paf_last != NULL && are_affects_same_type(paf, paf_last))
 				sprintf(buf, "                           ");
 			else
-				sprintf(buf, "{BSpell: {G%-20s{x",
-			paf->type == gsn_improved_invisibility ? "improved invis" : skill_table[paf->type].name);
+				sprintf(buf, "{BSpell: {G%-20s{x", get_affect_name(paf));
 
 			send_to_char(buf, ch);
 

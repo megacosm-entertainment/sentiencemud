@@ -1757,6 +1757,23 @@ void fix_objects(void)
 					}
 				}
 
+				if (obj->spells)
+				{
+					for(SPELL_DATA *spell = obj->spells; spell; spell = spell->next)
+					{
+//						log_stringf("obj %s - spell %d, %ld#%ld",
+//							widevnum_string(obj->area, obj->vnum, NULL),
+//							spell->sn,
+//							spell->token_load.auid,
+//							spell->token_load.vnum);
+
+						if (spell->token_load.auid > 0 && spell->token_load.vnum > 0)
+							spell->token = get_token_index_auid(spell->token_load.auid, spell->token_load.vnum);
+						else
+							spell->token = NULL;
+					}
+				}
+
 				// Fix objprogs
 				if(obj->progs)
 				{
@@ -3332,14 +3349,8 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects)
     obj->extra3_flags   = pObjIndex->extra3_flags & ~(ITEM_FORCE_LOOT | ITEM_NO_ANIMATE );
     obj->extra4_flags   = pObjIndex->extra4_flags;
     obj->wear_flags	= pObjIndex->wear_flags;
-    obj->value[0]	= pObjIndex->value[0];
-    obj->value[1]	= pObjIndex->value[1];
-    obj->value[2]	= pObjIndex->value[2];
-    obj->value[3]	= pObjIndex->value[3];
-    obj->value[4]	= pObjIndex->value[4];
-    obj->value[5]	= pObjIndex->value[5];
-    obj->value[6]	= pObjIndex->value[6];
-    obj->value[7]	= pObjIndex->value[7];
+	for(int i = 0; i < MAX_OBJVALUES; i++)
+		obj->value[i] = pObjIndex->value[i];
     obj->weight		= pObjIndex->weight;
     obj->cost           = pObjIndex->cost;
     obj->timer		= pObjIndex->timer;
@@ -3445,6 +3456,7 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects)
 	    {
 		spell_new = new_spell();
 		spell_new->sn = spell->sn;
+		spell_new->token = spell->token;
 		spell_new->level = spell->level;
 
 		spell_new->next = obj->spells;

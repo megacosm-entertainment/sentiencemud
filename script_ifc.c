@@ -775,12 +775,12 @@ DECL_IFC_FUN(ifc_isangel)
 
 DECL_IFC_FUN(ifc_isbrewing)
 {
-	int sn;
+	SKILL_ENTRY *entry;
 
-	*ret = ISARG_MOB(0) && ARG_MOB(0)->brew_sn > 0 &&
+	*ret = ISARG_MOB(0) && ARG_MOB(0)->brew_info &&
 		(!ISARG_STR(1) || !*ARG_STR(1) ||
-			((sn = skill_lookup(ARG_STR(1))) > 0 &&
-				ARG_MOB(0)->brew_sn == sn));
+			((entry = skill_entry_findname(ARG_MOB(0)->sorted_skills, ARG_STR(1))) &&
+				(ARG_MOB(0)->brew_info == entry)));
 	return TRUE;
 }
 
@@ -1121,14 +1121,14 @@ DECL_IFC_FUN(ifc_isroomdark)
 
 DECL_IFC_FUN(ifc_isscribing)
 {
-	int sn;
+	SKILL_ENTRY *entry;
 
-	*ret = ISARG_MOB(0) && ARG_MOB(0)->scribe_sn > 0 &&
+	*ret = ISARG_MOB(0) && ARG_MOB(0)->scribe_info[0] &&
 		(!ISARG_STR(1) || !*ARG_STR(1) ||
-			((sn = skill_lookup(ARG_STR(1))) > 0 &&
-			(	ARG_MOB(0)->scribe_sn == sn ||
-				ARG_MOB(0)->scribe_sn2 == sn ||
-				ARG_MOB(0)->scribe_sn3 == sn )));
+			((entry = skill_entry_findname(ARG_MOB(0)->sorted_skills, ARG_STR(1))) &&
+			(ARG_MOB(0)->scribe_info[0] == entry ||
+			 ARG_MOB(0)->scribe_info[1] == entry ||
+			 ARG_MOB(0)->scribe_info[2] == entry)));
 	return TRUE;
 }
 
@@ -1172,14 +1172,14 @@ DECL_IFC_FUN(ifc_istarget)
 
 DECL_IFC_FUN(ifc_istattooing)
 {
-	int sn;
+	SKILL_ENTRY *entry;
 
-	*ret = ISARG_MOB(0) && ARG_MOB(0)->ink_sn > 0 &&
+	*ret = ISARG_MOB(0) && ARG_MOB(0)->ink_info[0] &&
 		(!ISARG_STR(1) || !*ARG_STR(1) ||
-			((sn = skill_lookup(ARG_STR(1))) > 0 &&
-			(	ARG_MOB(0)->ink_sn == sn ||
-				ARG_MOB(0)->ink_sn2 == sn ||
-				ARG_MOB(0)->ink_sn3 == sn )));
+			((entry = skill_entry_findname(ARG_MOB(0)->sorted_skills, ARG_STR(1))) && 
+			(ARG_MOB(0)->ink_info[0] == entry ||
+			 ARG_MOB(0)->ink_info[1] == entry ||
+			 ARG_MOB(0)->ink_info[2] == entry)));
 	return TRUE;
 }
 

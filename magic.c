@@ -517,8 +517,8 @@ void do_cast(CHAR_DATA *ch, char *argument)
 	CHAR_DATA *victim;
 	OBJ_DATA *obj;
 	SCRIPT_DATA *script = NULL;
-	ITERATOR it;
-	PROG_LIST *prg;
+	//ITERATOR it;
+	//PROG_LIST *prg;
 	int beats;
 	int mana;
 	int target;
@@ -567,17 +567,7 @@ void do_cast(CHAR_DATA *ch, char *argument)
 
 	if ( IS_VALID(spell->token) ) {
 		// Check thst the token is a valid token spell
-		script = NULL;
-		if( spell->token->pIndexData->progs ) {
-			iterator_start(&it, spell->token->pIndexData->progs[TRIGSLOT_SPELL]);
-			while(( prg = (PROG_LIST *)iterator_nextdata(&it))) {
-				if(is_trigger_type(prg->trig_type,TRIG_SPELL)) {
-					script = prg->script;
-					break;
-				}
-			}
-			iterator_stop(&it);
-		}
+		script = get_script_token(spell->token, TRIG_SPELL, TRIGSLOT_SPELL);
 
 		if(!script) {
 			// Give some indication that the spell token is broken
@@ -1638,34 +1628,16 @@ void reverie_end(CHAR_DATA *ch, int amount)
     check_improve(ch, gsn_reverie, TRUE, 1);
 }
 
+void obj_apply_spells(CHAR_DATA *ch, OBJ_DATA *obj, CHAR_DATA *victim, OBJ_DATA *thing, int trigger)
+{
+	SPELL_DATA *spell;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+	for(spell = obj->spells; spell; spell = spell->next)
+	{
+		if (spell->token)
+			p_token_index_percent_trigger(spell->token, ch, victim, NULL, obj, thing, trigger, NULL, spell->level, 0, 0, 0, 0);
+		else if (spell->sn > 0)
+			obj_cast_spell(spell->sn, spell->level, ch, victim, thing);
+	}
+}
 
