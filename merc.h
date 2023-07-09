@@ -432,7 +432,7 @@ typedef struct reserved_area_type {
 #define IS_MEMTYPE(ptr,typ)		(ptr ? (*((char *)((void *)(ptr))) == (typ)) : FALSE)
 #define SET_MEMTYPE(ptr,typ)	(ptr)->__type = (typ)
 
-#define MAX_TEMPSTORE	4
+#define MAX_TEMPSTORE	5
 #define MAX_OBJVALUES   10
 
 #define uid_match(u1, u2)		(((u1)[0] == (u2)[0]) && ((u1)[1] == (u2)[1]))

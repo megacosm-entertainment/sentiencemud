@@ -1365,6 +1365,7 @@ IFCHECK_DATA ifcheck_table[] = {
 	{ "tempstore2",			IFC_ANY,	"E",	TRUE,	ifc_tempstore2,			"ifcheck tempstore2" },
 	{ "tempstore3",			IFC_ANY,	"E",	TRUE,	ifc_tempstore3,			"ifcheck tempstore3" },
 	{ "tempstore4",			IFC_ANY,	"E",	TRUE,	ifc_tempstore4,			"ifcheck tempstore4" },
+	{ "tempstore5",			IFC_ANY,	"E",	TRUE,	ifc_tempstore5,			"ifcheck tempstore5" },
 	{ "tempstring",			IFC_ANY,	"ES",	FALSE,	ifc_tempstring,			"ifcheck tempstring" },
 	{ "testhardmagic",		IFC_ANY,	"ES",	FALSE,	ifc_testhardmagic,		"ifcheck testhardmagic" },
 	{ "testskill",			IFC_ANY,	"ES",	FALSE,	ifc_testskill,			"ifcheck testskill" },

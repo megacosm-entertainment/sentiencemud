@@ -3357,6 +3357,17 @@ DECL_IFC_FUN(ifc_tempstore4)
 	return TRUE;
 }
 
+DECL_IFC_FUN(ifc_tempstore5)
+{
+	     if( ISARG_MOB(0)  )	*ret = ARG_MOB(0)->tempstore[4];
+	else if( ISARG_OBJ(0)  )	*ret = ARG_OBJ(0)->tempstore[4];
+	else if( ISARG_ROOM(0) )	*ret = ARG_ROOM(0)->tempstore[4];
+	else if( ISARG_TOK(0)  )	*ret = ARG_TOK(0)->tempstore[4];
+	else						*ret = 0;
+
+	return TRUE;
+}
+
 DECL_IFC_FUN(ifc_tempstring)
 {
 	if(ISARG_MOB(0))

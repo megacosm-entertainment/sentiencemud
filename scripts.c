@@ -9217,7 +9217,11 @@ void trigger_type_delete_use(struct trigger_type *tt)
 // Allows token indices that do percent triggers to fire.
 int p_token_index_percent_trigger(TOKEN_INDEX_DATA *tindex, CHAR_DATA *ch, CHAR_DATA *victim1, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int trigger, char *phrase, int ts0, int ts1, int ts2, int ts3, int ts4)
 {
+	log_stringf("%s: tindex = %08X", __FUNCTION__, tindex);
+
 	TOKEN_DATA *token = create_token(tindex);
+
+	log_stringf("%s: token = %08X, %s", __FUNCTION__, token, (token && token->valid) ? "valid" : "invalid");
 
 	if (!IS_VALID(token)) return PRET_NOSCRIPT;
 
@@ -9228,7 +9232,8 @@ int p_token_index_percent_trigger(TOKEN_INDEX_DATA *tindex, CHAR_DATA *ch, CHAR_
 	token->tempstore[4] = ts4;
 	int ret = p_percent_trigger(NULL, NULL, NULL, token, ch, victim1, victim2, obj1, obj2, trigger, phrase);
 
-	extract_token(token);
+	// I do not need to extract this thing
+	free_token(token);
 
 	return ret;
 }

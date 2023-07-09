@@ -5395,7 +5395,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 				}
 
 				// Account for the fact that the value will not change if no script is called
-				//  - to activate, do altermob $(self) tempstore4 = -1
+				//  - to activate, do altermob $(self) tempstore5 = -1
 				haggled = (keeper->tempstore[4] < 0);
 
 				// Script should specify the price string.

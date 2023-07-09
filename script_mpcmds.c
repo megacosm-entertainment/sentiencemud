@@ -4139,7 +4139,7 @@ SCRIPT_CMD(do_mpalterobj)
 	char buf[2*MIL],field[MIL],*rest;
 	int value, num, min_sec = MIN_SCRIPT_SECURITY;
 	OBJ_DATA *obj = NULL;
-	int min, max;
+	int min = 0, max = 0;
 	bool hasmin = FALSE, hasmax = FALSE;
 	bool allowarith = TRUE;
 	const struct flag_type *flags = NULL;
@@ -4263,6 +4263,7 @@ SCRIPT_CMD(do_mpalterobj)
 		else if(!str_cmp(field,"tempstore2"))	ptr = (int*)&obj->tempstore[1];
 		else if(!str_cmp(field,"tempstore3"))	ptr = (int*)&obj->tempstore[2];
 		else if(!str_cmp(field,"tempstore4"))	ptr = (int*)&obj->tempstore[3];
+		else if(!str_cmp(field,"tempstore5"))	ptr = (int*)&obj->tempstore[4];
 		else if(!str_cmp(field,"timer"))		ptr = (int*)&obj->timer;
 		else if(!str_cmp(field,"type"))			{ ptr = (int*)&obj->item_type; flags = type_flags; min_sec = 7; }
 		else if(!str_cmp(field,"wear"))			{ ptr = (int*)&obj->wear_flags; flags = wear_flags; }
@@ -4695,6 +4696,7 @@ SCRIPT_CMD(do_mpaltermob)
 	else if(!str_cmp(field,"tempstore2"))	ptr = (int*)&mob->tempstore[1];
 	else if(!str_cmp(field,"tempstore3"))	ptr = (int*)&mob->tempstore[2];
 	else if(!str_cmp(field,"tempstore4"))	ptr = (int*)&mob->tempstore[3];
+	else if(!str_cmp(field,"tempstore5"))	ptr = (int*)&mob->tempstore[4];
 	else if(!str_cmp(field,"thirst"))	{ ptr = IS_NPC(mob)?NULL:(int*)&mob->pcdata->condition[COND_THIRST]; allowpc = TRUE; }
 	else if(!str_cmp(field,"toxinneuro"))	ptr = (int*)&mob->toxin[TOXIN_NEURO];
 	else if(!str_cmp(field,"toxinpara"))	ptr = (int*)&mob->toxin[TOXIN_PARALYZE];
@@ -5811,7 +5813,7 @@ SCRIPT_CMD(do_mpalterexit)
 	int *ptr = NULL;
 	sh_int *sptr = NULL;
 	char **str;
-	int min, max;
+	int min = 0, max = 0;
 	bool hasmin = FALSE, hasmax = FALSE;
 	bool allowarith = TRUE;
 	const struct flag_type *flags = NULL;
@@ -6424,6 +6426,7 @@ SCRIPT_CMD(do_mpalterroom)
 	else if(!str_cmp(field,"tempstore2"))	ptr = (int*)&room->tempstore[1];
 	else if(!str_cmp(field,"tempstore3"))	ptr = (int*)&room->tempstore[2];
 	else if(!str_cmp(field,"tempstore4"))	ptr = (int*)&room->tempstore[3];
+	else if(!str_cmp(field,"tempstore5"))	ptr = (int*)&room->tempstore[5];
 
 	if(!ptr && !sptr) return;
 
