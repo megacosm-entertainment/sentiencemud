@@ -1056,11 +1056,6 @@ void save_blueprints(FILE *fp, AREA_DATA *area)
 			save_blueprint(fp, bp);
 		}
 	}
-
-	for( SCRIPT_DATA *scr = area->iprog_list; scr; scr = scr->next)
-	{
-		save_script_new(fp,NULL,scr,"INSTANCE");
-	}
 }
 
 

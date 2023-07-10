@@ -8614,6 +8614,7 @@ void save_trigger(FILE *fp, struct trigger_type *tt)
 		fprintf(fp, "BuiltinType %s~\n", flag_string(builtin_trigger_types, tt->type));
 	}
 
+	fprintf(fp, "Scriptable %d\n", (tt->scriptable ? 1 : 0));
 	fprintf(fp, "Slot %s~\n", flag_string(trigger_slots, tt->slot));
 
 	if (IS_SET(tt->progs, PRG_MPROG)) fprintf(fp, "Mob\n");
@@ -8672,6 +8673,7 @@ struct trigger_type *new_trigger_type()
 	tt->name = str_dup("");
 	tt->alias = str_dup("");
 	tt->type = TRIG__MAX;		// Flag it as being unassigned
+	tt->scriptable = true;
 
 	return tt;
 }
@@ -8749,6 +8751,7 @@ struct trigger_type *load_trigger(FILE *fp)
 				break;
 
 			case 'S':
+				KEY("Scriptable", tt->scriptable, fread_number(fp));
 				if (!str_cmp(word, "Slot"))
 				{
 					tt->slot = stat_lookup(fread_string(fp), trigger_slots, NO_FLAG);
@@ -8918,20 +8921,19 @@ void do_triggers(CHAR_DATA *ch, char *argument)
 {
 	char buf[MSL];
 	char arg1[MIL];
-
-	if (IS_NPC(ch) || ch->pcdata->security < 9)
-	{
-		send_to_char("Huh?\n\r", ch);
-		return;
-	}
+	bool authorized = IS_IMPLEMENTOR(ch) && IS_SECURITY(ch, 9);
 
 	if (argument[0] == '\0')
 	{
 		send_to_char("Syntax:  triggers list\n\r", ch);
-		send_to_char("         triggers add <name>[ <slot>[ <space>]]\n\r", ch);
-		send_to_char("         triggers install <name> <trigger> <slot> <space>\n\r", ch);
-		send_to_char("         triggers space <name> <space>\n\r", ch);
-		send_to_char("         triggers remove <name>\n\r", ch);
+		if (authorized)
+		{
+			send_to_char("         triggers add <name>[ <slot>[ <space>]]\n\r", ch);
+			send_to_char("         triggers install <name> <trigger> <slot> <scriptable> <space>\n\r", ch);
+			send_to_char("         triggers scriptable <name> <yes|no>\n\r", ch);
+			send_to_char("         triggers space <name> <space>\n\r", ch);
+			send_to_char("         triggers remove <name>\n\r", ch);
+		}
 		return;
 	}
 
@@ -8941,11 +8943,11 @@ void do_triggers(CHAR_DATA *ch, char *argument)
 	{
 		BUFFER *buffer = new_buf();
 
-		add_buf(buffer, "                                                                        {B  {Y  {RR {W  {GA {CI {MD{x\n\r");
-		add_buf(buffer, "                                                                        {BM {YO {Ro {WT {Gr {Cn {Mu{x\n\r");
-		add_buf(buffer, "                                                                        {Bo {Yb {Ro {Wo {Ge {Cs {Mn{x\n\r");
-		add_buf(buffer, "                                                                        {Bb {Yj {Rm {Wk {Ga {Ct {Mg{x\n\r");
-		add_buf(buffer, "      [        Name        ] [    Trigger Type    ] [      Slot      ] [    Space    ] [ Count ]\n\r");
+		add_buf(buffer, "                                                                            {B  {Y  {RR {W  {GA {CI {MD{x\n\r");
+		add_buf(buffer, "                                                                            {BM {YO {Ro {WT {Gr {Cn {Mu{x\n\r");
+		add_buf(buffer, "                                                                            {Bo {Yb {Ro {Wo {Ge {Cs {Mn{x\n\r");
+		add_buf(buffer, "                                                                            {Bb {Yj {Rm {Wk {Ga {Ct {Mg{x\n\r");
+		add_buf(buffer, "      [        Name        ] [    Trigger Type    ] [      Slot      ] [S] [    Space    ] [ Count ]\n\r");
 		add_buf(buffer, "=================================================================================================\n\r");
 
 		int trigger_no = 1;
@@ -8954,10 +8956,11 @@ void do_triggers(CHAR_DATA *ch, char *argument)
 		iterator_start(&it, trigger_list);
 		while((tt = (struct trigger_type *)iterator_nextdata(&it)))
 		{
-			sprintf(buf, "%-4d   %-20s   %-20s   %-16s   %s %s %s %s %s %s %s{x    %5d\n\r", trigger_no++,
+			sprintf(buf, "%-4d   %-20s   %-20s   %-16s   %s   %s %s %s %s %s %s %s{x    %5d\n\r", trigger_no++,
 				tt->name,
 				get_trigger_type_name(tt->type),
 				flag_string(trigger_slots, tt->slot),
+				(tt->scriptable ? "{GY" : "{RN"),
 				(IS_SET(tt->progs, PRG_MPROG) ? "{B#" : "{b-"),
 				(IS_SET(tt->progs, PRG_OPROG) ? "{Y#" : "{y-"),
 				(IS_SET(tt->progs, PRG_RPROG) ? "{R#" : "{r-"),
@@ -8989,210 +8992,273 @@ void do_triggers(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (!str_prefix(arg1, "add"))
+	if (authorized)
 	{
-		char arg2[MIL];	// Name
-		char arg3[MIL]; // slot
-
-		argument = one_argument(argument, arg2);
-		argument = one_argument(argument, arg3);
-
-		if (IS_NULLSTR(arg2))
+		if (!str_prefix(arg1, "add"))
 		{
-			send_to_char("Name must not be empty.\n\r", ch);
-			return;
-		}
+			char arg2[MIL];	// Name
+			char arg3[MIL]; // slot
 
-		// Verify the name isn't used
-		if (get_trigger_type_byname(arg2))
-		{
-			send_to_char("Name already in use.  Please pick another name.\n\r", ch);
-			return;
-		}
+			argument = one_argument(argument, arg2);
+			argument = one_argument(argument, arg3);
 
-		int slot = TRIGSLOT_GENERAL;
-		int space = 0;
-		if (arg3[0] != '\0')
-		{
-			if ((slot = stat_lookup(arg3, trigger_slots, NO_FLAG)) == NO_FLAG)
+			if (IS_NULLSTR(arg2))
 			{
-				send_to_char("Invalid slot.\n\r", ch);
-				show_help(ch, "trigger slots");
+				send_to_char("Name must not be empty.\n\r", ch);
 				return;
 			}
 
-			if (argument[0] != '\0')
+			// Verify the name isn't used
+			if (get_trigger_type_byname(arg2))
 			{
-				if ((space = flag_lookup(argument, script_spaces)) == NO_FLAG)
+				send_to_char("Name already in use.  Please pick another name.\n\r", ch);
+				return;
+			}
+
+			int slot = TRIGSLOT_GENERAL;
+			int space = 0;
+			if (arg3[0] != '\0')
+			{
+				if ((slot = stat_lookup(arg3, trigger_slots, NO_FLAG)) == NO_FLAG)
 				{
-					send_to_char("Invalid script space.\n\r", ch);
-					show_help(ch, "script_spaces");
+					send_to_char("Invalid slot.\n\r", ch);
+					show_help(ch, "trigger slots");
 					return;
 				}
+
+				if (argument[0] != '\0')
+				{
+					if ((space = flag_lookup(argument, script_spaces)) == NO_FLAG)
+					{
+						send_to_char("Invalid script space.\n\r", ch);
+						show_help(ch, "script_spaces");
+						return;
+					}
+				}
 			}
-		}
 
-		struct trigger_type *tt = new_trigger_type();
+			struct trigger_type *tt = new_trigger_type();
 
-		free_string(tt->name);
-		tt->name = str_dup(arg2);
-		tt->type = ++top_trigger_type;
-		tt->slot = slot;
-		tt->progs = space;
-		
-		insert_trigger_type(tt);
-		send_to_char("Trigger type added.\n\r", ch);
-		save_triggers();
-		return;
-	}
-
-	if (!str_prefix(arg1, "install"))
-	{
-		char arg2[MIL];	// Name
-		char arg3[MIL];	// built-in trigger
-		char arg4[MIL];	// slot
-		// argument = space
-
-		argument = one_argument(argument, arg2);
-		argument = one_argument(argument, arg3);
-		argument = one_argument(argument, arg4);
-
-		if (IS_NULLSTR(arg2))
-		{
-			send_to_char("Name must not be empty.\n\r", ch);
+			free_string(tt->name);
+			tt->name = str_dup(arg2);
+			tt->type = ++top_trigger_type;
+			tt->slot = slot;
+			tt->progs = space;
+			
+			insert_trigger_type(tt);
+			send_to_char("Trigger type added.\n\r", ch);
+			save_triggers();
 			return;
 		}
 
-		// Verify the name isn't used
-		if (get_trigger_type_byname(arg2))
+		if (!str_prefix(arg1, "install"))
 		{
-			send_to_char("Name already in use.  Please pick another name.\n\r", ch);
+			char arg2[MIL];	// Name
+			char arg3[MIL];	// built-in trigger
+			char arg4[MIL];	// slot
+			char arg5[MIL];
+			// argument = space
+
+			argument = one_argument(argument, arg2);
+			argument = one_argument(argument, arg3);
+			argument = one_argument(argument, arg4);
+			argument = one_argument(argument, arg5);
+
+			if (IS_NULLSTR(arg2))
+			{
+				send_to_char("Name must not be empty.\n\r", ch);
+				return;
+			}
+
+			// Verify the name isn't used
+			if (get_trigger_type_byname(arg2))
+			{
+				send_to_char("Name already in use.  Please pick another name.\n\r", ch);
+				return;
+			}
+
+			int type;
+			if ((type = stat_lookup(arg3, builtin_trigger_types, TRIG_NONE)) == TRIG_NONE)
+			{
+				send_to_char("Please specify one of the builtin trigger types:\n\r", ch);
+				show_help(ch, "trigger_types");
+				return;
+			}
+
+			if (get_trigger_type_bytype(type))
+			{
+				send_to_char("That trigger type is already registered.\n\r", ch);
+				return;
+			}
+
+			int slot;
+			if ((slot = stat_lookup(arg4, trigger_slots, NO_FLAG)) == NO_FLAG)
+			{
+				send_to_char("Please specify one of the trigger slots:\n\r", ch);
+				show_help(ch, "trigger_slots");
+				return;
+			}
+
+			bool scriptable = TRISTATE;
+			if (!str_prefix(arg5, "yes"))
+				scriptable = TRUE;
+			else if (!str_prefix(arg5, "no"))
+				scriptable = FALSE;
+			else
+			{
+				send_to_char("Please specify {GYES{x or {RNO{x for scriptability.\n\r",ch);
+				return;
+			}
+			
+			int space;
+			if ((space = flag_value(script_spaces, argument)) == NO_FLAG)
+			{
+				send_to_char("Please select from the following script spaces:\n\r", ch);
+				show_help(ch, "script_spaces");
+				return;
+			}
+
+			struct trigger_type *tt = new_trigger_type();
+
+			free_string(tt->name);
+			tt->name = str_dup(arg2);
+			tt->type = type;
+			tt->slot = slot;
+			tt->scriptable = scriptable;
+			tt->progs = space;
+			
+			insert_trigger_type(tt);
+			send_to_char("Trigger type installed.\n\r", ch);
+			save_triggers();
 			return;
 		}
 
-		int type;
-		if ((type = stat_lookup(arg3, builtin_trigger_types, TRIG_NONE)) == TRIG_NONE)
+
+		if (!str_prefix(arg1, "scriptable"))
 		{
-			send_to_char("Please specify one of the builtin trigger types:\n\r", ch);
-			show_help(ch, "trigger_types");
+			char arg2[MIL];
+
+			argument = one_argument(argument, arg2);
+
+			if (arg2[0] == '\0')
+			{
+				send_to_char("Syntax:  triggers scriptable <name> <yes|no>\n\r", ch);
+				send_to_char("Please specify a name.\n\r", ch);
+				return;
+			}
+
+			struct trigger_type *tt = get_trigger_type_byname(arg2);
+			if (!tt)
+			{
+				send_to_char("Syntax:  triggers scriptable <name> <yes|no>\n\r", ch);
+				send_to_char("No such trigger by that name exists.\n\r", ch);
+				return;
+			}
+
+			if (tt->type >= TRIG__MAX)
+			{
+				send_to_char("Custom triggers are inherently scriptable.  That may not be changed.\n\r", ch);
+				return;
+			}
+
+			bool value = TRISTATE;
+			if (!str_prefix(argument, "yes"))
+				value = TRUE;
+			else if (!str_prefix(argument, "no"))
+				value = FALSE;
+			else
+			{
+				send_to_char("Syntax:  triggers scriptable <name> <yes|no>\n\r", ch);
+				send_to_char("Please specify {GYES{x or {RNO{x.\n\r", ch);
+				return;
+			}
+
+			tt->scriptable = value;
+			save_triggers();
+			send_to_char("Trigger Scriptability changed.\n\r", ch);
 			return;
 		}
 
-		if (get_trigger_type_bytype(type))
+		if (!str_prefix(arg1, "space"))
 		{
-			send_to_char("That trigger type is already registered.\n\r", ch);
+			char arg2[MIL];
+
+			argument = one_argument(argument, arg2);
+
+			if (arg2[0] == '\0')
+			{
+				send_to_char("Syntax:  triggers space <name> <space>\n\r", ch);
+				send_to_char("Please specify a name.\n\r", ch);
+				return;
+			}
+
+			struct trigger_type *tt = get_trigger_type_byname(arg2);
+			if (!tt)
+			{
+				send_to_char("Syntax:  triggers space <name> <space>\n\r", ch);
+				send_to_char("No such trigger by that name exists.\n\r", ch);
+				return;
+			}
+
+			// This is potentially super dangerous, so it should be extremely restrictive
+			if (tt->type < TRIG__MAX && tt->usage > 0 && ch->pcdata->security < 10)
+			{
+				send_to_char("Syntax:  triggers space <name> <space>\n\r", ch);
+				send_to_char("You may only modify custom triggers.\n\r", ch);
+				return;
+			}
+
+			int value;
+			if ((value = flag_value(script_spaces, argument)) == NO_FLAG)
+			{
+				send_to_char("Syntax:  triggers space <name> <space>\n\r", ch);
+				send_to_char("Invalid script space.\n\r", ch);
+				show_help(ch, "script_spaces");
+				return;
+			}
+
+			TOGGLE_BIT(tt->progs, value);
+			save_triggers();
+			send_to_char("Trigger Script Space changed.\n\r", ch);
 			return;
 		}
 
-		int slot;
-		if ((slot = stat_lookup(arg4, trigger_slots, NO_FLAG)) == NO_FLAG)
+		if (!str_prefix(arg1, "remove"))
 		{
-			send_to_char("Please specify one of the trigger slots:\n\r", ch);
-			show_help(ch, "trigger_slots");
+			if (argument[0] == '\0')
+			{
+				send_to_char("Syntax:  triggers remove <name>\n\r", ch);
+				send_to_char("Please specify a name.\n\r", ch);
+				return;
+			}
+
+			struct trigger_type *tt = get_trigger_type_byname(argument);
+			if (!tt)
+			{
+				send_to_char("Syntax:  triggers remove <name>\n\r", ch);
+				send_to_char("No such trigger by that name exists.\n\r", ch);
+				return;
+			}
+
+			if (tt->type < TRIG__MAX)
+			{
+				send_to_char("Syntax:  triggers remove <name>\n\r", ch);
+				send_to_char("You may only remove unused custom triggers.\n\r", ch);
+				return;
+			}
+
+			if (tt->usage > 0)
+			{
+				send_to_char("You may only remove unused custom triggers.\n\r", ch);
+				return;
+			}
+
+			// This will delete the trigger
+			list_remlink(trigger_list, tt);
+			save_triggers();
+			send_to_char("Custom trigger removed.\n\r", ch);
 			return;
 		}
-		
-		int space;
-		if ((space = flag_value(script_spaces, argument)) == NO_FLAG)
-		{
-			send_to_char("Please select from the following script spaces:\n\r", ch);
-			show_help(ch, "script_spaces");
-			return;
-		}
-
-		struct trigger_type *tt = new_trigger_type();
-
-		free_string(tt->name);
-		tt->name = str_dup(arg2);
-		tt->type = type;
-		tt->slot = slot;
-		tt->progs = space;
-		
-		insert_trigger_type(tt);
-		send_to_char("Trigger type installed.\n\r", ch);
-		save_triggers();
-		return;
-	}
-
-	if (!str_prefix(arg1, "space"))
-	{
-		char arg2[MIL];
-
-		argument = one_argument(argument, arg2);
-
-		if (arg2[0] == '\0')
-		{
-			send_to_char("Syntax:  triggers space <name> <space>\n\r", ch);
-			send_to_char("Please specify a name.\n\r", ch);
-			return;
-		}
-
-		struct trigger_type *tt = get_trigger_type_byname(arg2);
-		if (!tt)
-		{
-			send_to_char("Syntax:  triggers space <name> <space>\n\r", ch);
-			send_to_char("No such trigger by that name exists.\n\r", ch);
-			return;
-		}
-
-		// This is potentially super dangerous, so it should be extremely restrictive
-		if (tt->type < TRIG__MAX && tt->usage > 0 && ch->pcdata->security < 10)
-		{
-			send_to_char("Syntax:  triggers space <name> <space>\n\r", ch);
-			send_to_char("You may only modify custom triggers.\n\r", ch);
-			return;
-		}
-
-		int value;
-		if ((value = flag_value(script_spaces, argument)) == NO_FLAG)
-		{
-			send_to_char("Syntax:  triggers space <name> <space>\n\r", ch);
-			send_to_char("Invalid script space.\n\r", ch);
-			show_help(ch, "script_spaces");
-			return;
-		}
-
-		TOGGLE_BIT(tt->progs, value);
-		save_triggers();
-		send_to_char("Trigger Script Space changed.\n\r", ch);
-		return;
-	}
-
-	if (!str_prefix(arg1, "remove"))
-	{
-		if (argument[0] == '\0')
-		{
-			send_to_char("Syntax:  triggers remove <name>\n\r", ch);
-			send_to_char("Please specify a name.\n\r", ch);
-			return;
-		}
-
-		struct trigger_type *tt = get_trigger_type_byname(argument);
-		if (!tt)
-		{
-			send_to_char("Syntax:  triggers remove <name>\n\r", ch);
-			send_to_char("No such trigger by that name exists.\n\r", ch);
-			return;
-		}
-
-		if (tt->type < TRIG__MAX)
-		{
-			send_to_char("Syntax:  triggers remove <name>\n\r", ch);
-			send_to_char("You may only remove unused custom triggers.\n\r", ch);
-			return;
-		}
-
-		if (tt->usage > 0)
-		{
-			send_to_char("You may only remove unused custom triggers.\n\r", ch);
-			return;
-		}
-
-		// This will delete the trigger
-		list_remlink(trigger_list, tt);
-		save_triggers();
-		send_to_char("Custom trigger removed.\n\r", ch);
-		return;
 	}
 
 	do_triggers(ch, "");

@@ -47,11 +47,16 @@
 #include "tables.h"
 #include "scripts.h"
 
+#define DEFAULT_READY_CHECK		300			// 5 minutes
+
 INSTANCE *instance_load(FILE *fp);
 void update_instance(INSTANCE *instance);
 void reset_instance(INSTANCE *instance);
 void save_script_new(FILE *fp, AREA_DATA *area,SCRIPT_DATA *scr,char *type);
 SCRIPT_DATA *read_script_new( FILE *fp, AREA_DATA *area, int type);
+CHAR_DATA *get_player_leader(CHAR_DATA *ch);
+int get_groupsize_in_dungeon(DUNGEON *dng, CHAR_DATA *leader);
+
 
 extern LLIST *loaded_instances;
 
@@ -823,11 +828,6 @@ void save_dungeons(FILE *fp, AREA_DATA *area)
 			save_dungeon_index(fp, dng);
 		}
 	}
-
-	for( SCRIPT_DATA *scr = area->dprog_list; scr; scr = scr->next)
-	{
-		save_script_new(fp,NULL,scr,"DUNGEON");
-	}
 }
 
 bool can_edit_dungeons(CHAR_DATA *ch)
@@ -860,6 +860,63 @@ DUNGEON_INDEX_DATA *get_dungeon_index(AREA_DATA *pArea, long vnum)
 
 	return NULL;
 }
+
+int dungeon_commence(DUNGEON *dng)
+{
+	if (!IS_VALID(dng)) return PRET_NOSCRIPT;
+	if (IS_SET(dng->flags, DUNGEON_COMMENCED)) return PRET_NOSCRIPT;
+
+	// LALI-HO!
+	SET_BIT(dng->flags, DUNGEON_COMMENCED);
+
+	return p_percent2_trigger(NULL, NULL, dng, NULL, NULL, NULL, NULL, NULL, TRIG_DUNGEON_COMMENCED, NULL);
+}
+
+int dungeon_completed(DUNGEON *dng)
+{
+	if (!IS_VALID(dng)) return PRET_NOSCRIPT;
+	if (IS_SET(dng->flags, (DUNGEON_COMPLETED|DUNGEON_FAILED))) return PRET_NOSCRIPT;
+
+	SET_BIT(dng->flags, DUNGEON_COMPLETED);
+
+	return p_percent2_trigger(NULL, NULL, dng, NULL, NULL, NULL, NULL, NULL, TRIG_COMPLETED, NULL);
+}
+
+int dungeon_failed(DUNGEON *dng)
+{
+	if (!IS_VALID(dng)) return PRET_NOSCRIPT;
+	if (IS_SET(dng->flags, (DUNGEON_COMPLETED|DUNGEON_FAILED))) return PRET_NOSCRIPT;
+
+	SET_BIT(dng->flags, DUNGEON_FAILED);
+
+	return p_percent2_trigger(NULL, NULL, dng, NULL, NULL, NULL, NULL, NULL, TRIG_FAILED, NULL);
+}
+
+void dungeon_check_commence(DUNGEON *dng, CHAR_DATA *ch)
+{
+	//char buf[MSL];
+	if (!IS_VALID(dng)) return;
+	if (IS_SET(dng->flags, DUNGEON_COMMENCED)) return;
+
+	if (IS_SET(dng->flags, DUNGEON_GROUP_COMMENCE))
+	{
+		CHAR_DATA *leader = get_player_leader(ch);
+		
+		int size = get_groupsize_in_dungeon(dng, leader);
+
+		//sprintf(buf, "dungeon_check_commence: %d ?= %d\n\r", size, dng->index->min_group);
+		//send_to_char(buf, ch);
+
+		if (size >= dng->index->min_group)
+		{
+			/*int ret = */dungeon_commence(dng);
+
+			//sprintf(buf, "dungeon_commence -> ret = %d\n\r", ret);
+			//send_to_char(buf, ch);
+		}
+	}
+}
+
 
 static bool add_dungeon_instance(DUNGEON *dng, BLUEPRINT *bp)
 {
@@ -1394,6 +1451,15 @@ DUNGEON *create_dungeon(AREA_DATA *pArea, long vnum)
 		return NULL;
 	}
 
+	// Dungeon is SHARED and already loaded, cannot create it again
+	if (IS_SET(index->flags, DUNGEON_SHARED) && list_size(index->loaded) > 0)
+	{
+		// Get the existing dungeon?
+		return (DUNGEON *)list_nthdata(index->loaded, 1);
+
+		// Or should this return NULL?
+	}
+
 	//wiznet("create_dungeon: new_dungeon",NULL,NULL,WIZ_TESTING,0,0);
 
 	DUNGEON *dng = new_dungeon();
@@ -1527,6 +1593,12 @@ DUNGEON *create_dungeon(AREA_DATA *pArea, long vnum)
 	get_dungeon_id(dng);
 
 	list_appendlink(loaded_dungeons, dng);
+	list_appendlink(index->loaded, dng);
+
+	if (IS_SET(dng->flags, DUNGEON_SHARED))
+	{
+
+	}
 
 	//wiznet("create_dungeon: complete",NULL,NULL,WIZ_TESTING,0,0);
 	return dng;
@@ -1594,7 +1666,6 @@ void extract_dungeon(DUNGEON *dungeon)
 	free_dungeon(dungeon);
 }
 
-// TODO: WIDEVNUM
 DUNGEON *find_dungeon_byplayer(CHAR_DATA *ch, AREA_DATA *pArea, long vnum)
 {
 	ITERATOR dit;
@@ -1605,7 +1676,7 @@ DUNGEON *find_dungeon_byplayer(CHAR_DATA *ch, AREA_DATA *pArea, long vnum)
 	iterator_start(&dit, loaded_dungeons);
 	while( (dng = (DUNGEON *)iterator_nextdata(&dit)) )
 	{
-		if( dng->index->area == pArea && dng->index->vnum == vnum && dungeon_isowner_player(dng, ch) )
+		if( dng->index->area == pArea && dng->index->vnum == vnum && (IS_SET(dng->flags, DUNGEON_SHARED) || dungeon_isowner_player(dng, ch)) )
 			break;
 	}
 	iterator_stop(&dit);
@@ -1617,12 +1688,36 @@ CHAR_DATA *get_player_leader(CHAR_DATA *ch)
 {
 	CHAR_DATA *leader = ch;
 
-	while( (leader->leader != NULL) && !IS_NPC(leader->leader) )
+	while( (leader->leader != NULL) && (leader->leader != leader) && !IS_NPC(leader->leader) )
 	{
 		leader = leader->leader;
 	}
 
 	return leader;
+}
+
+// This may or may not be the same as "leader->num_grouped"
+int get_groupsize_in_dungeon(DUNGEON *dng, CHAR_DATA *leader)
+{
+	if (!IS_VALID(dng)) return 0;
+	if (!IS_VALID(leader)) return 0;
+
+	int count = 0;
+
+	ITERATOR it;
+	CHAR_DATA *mob;
+	iterator_start(&it, dng->mobiles);
+	while((mob = (CHAR_DATA *)iterator_nextdata(&it)))
+	{
+		if (RIDDEN(mob)) continue;	// Skip mounts
+		if (mob->master != NULL && mob->master->pet == mob) continue;	// Skip pets
+
+		if (leader == mob || is_same_group(leader, mob))
+			count++;
+	}
+	iterator_stop(&it);
+
+	return count;
 }
 
 DUNGEON *spawn_dungeon_player(CHAR_DATA *ch, AREA_DATA *pArea, long vnum)
@@ -1669,6 +1764,7 @@ DUNGEON *spawn_dungeon_player(CHAR_DATA *ch, AREA_DATA *pArea, long vnum)
 		}
 		//wiznet("spawn_dungeon_player: dungeon created",NULL,NULL,WIZ_TESTING,0,0);
 
+		// 
 		dungeon_addowner_player(leader_dng, leader);
 
 		p_percent2_trigger(NULL, NULL, leader_dng, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
@@ -1680,6 +1776,26 @@ DUNGEON *spawn_dungeon_player(CHAR_DATA *ch, AREA_DATA *pArea, long vnum)
 			p_percent2_trigger(NULL, instance, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
 		}
 		iterator_stop(&it);
+	}
+	else
+	{
+		// Check whether the player can enter the dungeon
+		if (!IS_SET(leader_dng->flags, DUNGEON_SHARED))
+		{
+			if (list_size(leader_dng->players) >= leader_dng->index->max_players)
+			{
+				send_to_char("The dungeon is at capacity.\n\r", ch);
+				return NULL;
+			}
+
+			int size = get_groupsize_in_dungeon(leader_dng, leader);
+
+			if (size > leader_dng->index->max_group)
+			{
+				send_to_char("The dungeon is at capacity.\n\r", ch);
+				return NULL;
+			}
+		}
 	}
 
 	dungeon_addowner_player(leader_dng, ch);
@@ -1824,8 +1940,10 @@ const struct olc_cmd_type dngedit_table[] =
 	{ "exit",			dngedit_exit		},
 	{ "flags",			dngedit_flags		},
 	{ "floors",			dngedit_floors		},
+	{ "groupsize",		dngedit_groupsize	},
 	{ "levels",			dngedit_levels		},
 	{ "list",			dngedit_list		},
+	{ "maxplayers",		dngedit_maxplayers	},
 	{ "mountout",		dngedit_mountout	},
 	{ "name",			dngedit_name		},
 	{ "release",		dngedit_release		},
@@ -2576,6 +2694,80 @@ DNGEDIT( dngedit_release )
 	return TRUE;	
 }
 
+DNGEDIT( dngedit_groupsize )
+{
+	DUNGEON_INDEX_DATA *dng;
+	char arg[MIL];
+
+	EDIT_DUNGEON(ch, dng);
+
+	argument = one_argument(argument, arg);
+
+	if (!is_number(arg))
+	{
+		send_to_char("Syntax:  groupsize <min players> <max players>\n\r", ch);
+		send_to_char("         groupsize <fixed size>\n\r", ch);
+		return FALSE;
+	}
+
+	int min = atoi(arg);
+	if (min < 1)
+	{
+		send_to_char("Syntax:  groupsize <min players> <max players>\n\r", ch);
+		send_to_char("         groupsize <fixed size>\n\r", ch);
+		send_to_char("Please specify a positive number.\n\r", ch);
+		return FALSE;
+	}
+
+	int max = min;
+	if (argument[0] != '\0')
+	{
+		if (!is_number(argument))
+		{
+			send_to_char("Syntax:  groupsize <min players> <max players>\n\r", ch);
+			send_to_char("Please specify a positive number.\n\r", ch);
+			return FALSE;
+		}
+
+		max = atoi(argument);
+		if (max < min)
+		{
+			send_to_char("Syntax:  groupsize <min players> <max players>\n\r", ch);
+			send_to_char("The maximum player count must not be smaller than the minimum.\n\r", ch);
+			return FALSE;
+		}
+	}
+
+	dng->min_group = min;
+	dng->max_group = max;
+	send_to_char("Dungeon Group Size set.\n\r", ch);
+	return TRUE;
+}
+
+DNGEDIT( dngedit_maxplayers )
+{
+	DUNGEON_INDEX_DATA *dng;
+
+	EDIT_DUNGEON(ch, dng);
+
+	if (!is_number(argument))
+	{
+		send_to_char("Syntax:  maxplayers <#players>\n\r", ch);
+		return FALSE;
+	}
+
+	int max = atoi(argument);
+	if (max < 1)
+	{
+		send_to_char("Syntax:  maxplayers <#players>\n\r", ch);
+		send_to_char("Please specify a positive number.\n\r", ch);
+		return FALSE;
+	}
+
+	dng->max_players = max;
+	send_to_char("Max players set.\n\r", ch);
+	return TRUE;
+}
 
 
 DNGEDIT( dngedit_scripted )
@@ -2619,6 +2811,15 @@ DNGEDIT( dngedit_show )
 	add_buf(buffer, buf);
 
 	sprintf(buf, "AreaWho:     %s\n\r", flag_string(area_who_titles, dng->area_who));
+	add_buf(buffer, buf);
+
+	if (dng->max_group > dng->min_group)
+		sprintf(buf, "Group Size:  %d to %d member%s (excluding pets and mounts)\n\r", dng->min_group, dng->max_group, (dng->max_group == 1) ? "" : "s");
+	else
+		sprintf(buf, "Group Size:  %d member%s (excluding pets and mounts)\n\r", dng->min_group, (dng->min_group == 1) ? "" : "s");
+	add_buf(buffer, buf);
+
+	sprintf(buf, "Max Players: %d\n\r", dng->max_players);
 	add_buf(buffer, buf);
 
 	if( dng->repop > 0)
@@ -4185,6 +4386,12 @@ DNGEDIT( dngedit_flags )
 
 	if( (value = flag_value(dungeon_flags, argument)) != NO_FLAG )
 	{
+		if (IS_SET(value, DUNGEON_SHARED) && list_size(dng->loaded) > 0)
+		{
+			send_to_char("Cannot toggle {YSHARED{x at this time.  The dungeon is currently loaded.\n\r", ch);
+			return FALSE;
+		}
+
 		dng->flags ^= value;
 		send_to_char("Dungeon flags changed.\n\r", ch);
 		return TRUE;
@@ -7743,6 +7950,13 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
+		CHAR_DATA *leader = get_player_leader(ch);
+		if (leader->pcdata->last_ready_check > 0)
+		{
+			send_to_char("You may not leave yet until the ready check is finished.\n\r", ch);
+			return;
+		}
+
 		// Prevent them from just up and leaving the dungeon mid... anything
 		if( ch->position != POS_STANDING )
 		{
@@ -8512,5 +8726,363 @@ bool dungeon_isorphaned(DUNGEON *dungeon)
 
 void dungeon_check_failure(DUNGEON *dungeon)
 {
+	if (!IS_VALID(dungeon)) return;
 
+	// Already "done"
+	if (IS_SET(dungeon->flags, (DUNGEON_COMPLETED|DUNGEON_FAILED))) return;
+
+	if (list_size(dungeon->players) < 1)
+	{
+		if (IS_SET(dungeon->flags, DUNGEON_FAILURE_ON_EMPTY))
+			dungeon_failed(dungeon);
+
+		return;
+	}
+
+	if (IS_SET(dungeon->flags, DUNGEON_FAILURE_ON_WIPE))
+	{
+		bool all = TRUE;
+		ITERATOR it;
+		CHAR_DATA *ch;
+
+		iterator_start(&it, dungeon->players);
+		while((ch = (CHAR_DATA *)iterator_nextdata(&it)))
+		{
+			if (!IS_DEAD(ch))
+			{
+				all = FALSE;
+				break;
+			}
+		}
+		iterator_stop(&it);
+
+		if (all)
+			dungeon_failed(dungeon);
+	}
 }
+
+// Called after a successful ready check, or you are in there without players.
+void readycheck_henchmen(DUNGEON *dungeon, CHAR_DATA *leader)
+{
+	ITERATOR it;
+	CHAR_DATA *vch;
+
+	iterator_start(&it, dungeon->mobiles);
+	while((vch = (CHAR_DATA *)iterator_nextdata(&it)))
+	{
+		bool check = FALSE;		
+		if(vch == leader) continue;
+		if (vch->master != NULL && vch->master->pet == vch && is_same_group(vch->master, leader)) check = TRUE;	// Pets
+		if (vch->rider != NULL && is_same_group(vch->rider, leader)) check = TRUE;								// Mounts
+		if(is_same_group(vch, leader)) check = TRUE;															// General Henchmen
+
+		if (check)
+			p_percent_trigger(vch, NULL, NULL, NULL, leader, NULL, NULL, NULL, NULL, TRIG_READYCHECK, NULL);
+	}
+	iterator_stop(&it);
+}
+
+bool is_readycheck_complete(CHAR_DATA *ch)
+{
+	bool ready = TRUE;
+	CHAR_DATA *leader = get_player_leader(ch);
+
+	ITERATOR it;
+	CHAR_DATA *vch;
+	iterator_start(&it, leader->lgroup);
+	while((vch = (CHAR_DATA *)iterator_nextdata(&it)))
+	{
+		if (vch == leader) continue;
+		if (IS_NPC(vch)) continue;
+
+		if (vch->pcdata->readycheck_answer != TRUE)
+		{
+			ready = FALSE;
+		}
+	}
+	iterator_stop(&it);
+
+	return ready;
+}
+
+void do_readycheck(CHAR_DATA *ch, char *argument)
+{
+	CHAR_DATA *leader;
+	//char buf[MIL];
+	char arg[MIL];
+
+	if (IS_NPC(ch))
+		return;
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  readycheck info    - show current state of ready check\n\r", ch);
+		send_to_char("         readycheck start   - initiate a ready check on group\n\r", ch);
+		send_to_char("         readycheck yes     - confirm you are ready\n\r", ch);
+		send_to_char("         readycheck no      - confirm you are not ready\n\r", ch);
+		return;
+	}
+
+	DUNGEON *dungeon = get_room_dungeon(ch->in_room);
+	leader = get_player_leader(ch);
+
+	if (!IS_VALID(dungeon))
+	{
+		send_to_char("You are not in a dungeon.\n\r", ch);
+		return;
+	}
+
+	argument = one_argument(argument, arg);
+
+	if (!str_prefix(arg, "info"))
+	{
+		char buf[MSL];
+		bool active = FALSE;
+
+		bool complete = is_readycheck_complete(leader);
+
+		if(complete)
+		{
+			send_to_char("Ready Check Results:\n\r", ch);
+		}
+		else if(leader->pcdata->last_ready_check > current_time)
+		{
+			int seconds = leader->pcdata->last_ready_check - current_time;
+			char *unit = "second";
+			if (seconds >= 120)
+			{
+				seconds /= 60;
+				unit = "minute";
+			}
+
+			sprintf(buf, "Current Ready Check: %d %s%s remaining\n\r", seconds, unit, (seconds == 1)?"":"s");
+			send_to_char(buf, ch);
+
+			active = TRUE;
+		}
+		else if(leader->pcdata->last_ready_check > 0)
+		{
+			send_to_char("Ready Check Results:\n\r", ch);
+		}
+		else
+		{
+			send_to_char("No readycheck has been started.\n\r", ch);
+			return;
+		}
+
+		send_to_char("    [      PLAYER      ] [READY]\n\r", ch);
+		send_to_char("=================================\n\r", ch);
+
+		int plr_no = 1;
+
+		sprintf(buf, "{W%2d{x) {Y%-20s  %s{x\n\r", plr_no++, leader->name,
+			((leader->pcdata->readycheck_answer == TRUE) ? "{G YES " :
+			((leader->pcdata->readycheck_answer == FALSE) ? "{R NO  " :
+			(active ? "{x ??? " : "{D-{xA{WF{xK{D-"))));
+		send_to_char(buf, ch);
+
+		int yes = 1;
+		int no = 0;
+		int afk = 0;
+
+		ITERATOR it;
+		CHAR_DATA *vch;
+		iterator_start(&it, leader->lgroup);
+		while((vch = (CHAR_DATA *)iterator_nextdata(&it)))
+		{
+			if(vch == leader) continue;
+			if(IS_NPC(vch)) continue;
+
+			sprintf(buf, "{W%2d{x) %-20s  %s{x\n\r", plr_no++, vch->name,
+				((vch->pcdata->readycheck_answer == TRUE) ? "{G YES " :
+				((vch->pcdata->readycheck_answer == FALSE) ? "{R NO  " :
+				(active ? "{x ??? " : "{D-{xA{WF{xK{D-"))));
+			send_to_char(buf, ch);
+
+			if (vch->pcdata->readycheck_answer == TRUE)
+				yes++;
+			else if (vch->pcdata->readycheck_answer == FALSE)
+				no++;
+			else
+				afk++;
+		}
+		iterator_stop(&it);
+		send_to_char("---------------------------------\n\r", ch);
+
+		sprintf(buf, "Yes: %s%d\n\rNo:  %s%d\n\r%s %d\n\r",
+			(active?"    ":""),yes, 
+			(active?"    ":""),no, 
+			(active?"Unknown:":"AFK:"), afk);
+		send_to_char(buf, ch);
+		return;
+	}
+
+	if (!str_prefix(arg, "start"))
+	{
+		CHAR_DATA *leader = get_player_leader(ch);
+
+		if (ch != leader)
+		{
+			send_to_char("Only the group leader may initiate a readycheck.\n\r", ch);
+			return;
+		}
+
+		if (ch->pcdata->last_ready_check > 0)
+		{
+			send_to_char("You have already started a readycheck.\n\r", ch);
+			send_to_char("Use {Yreadycheck info{x for current status.\n\r", ch);
+			return;
+		}
+
+		bool all = TRUE;
+		bool found = FALSE;
+		ITERATOR it;
+		CHAR_DATA *vch;
+
+		iterator_start(&it, ch->lgroup);
+		while((vch = (CHAR_DATA *)iterator_nextdata(&it)))
+		{
+			if (vch == ch) continue;	// Ignore you
+			if (IS_NPC(ch)) continue;
+
+			found = TRUE;
+			DUNGEON *vch_dungeon = get_room_dungeon(vch->in_room);
+			if (!IS_VALID(vch_dungeon) || vch_dungeon != dungeon)
+			{
+				act("$N is not in the dungeon.", ch, vch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				all = FALSE;
+			}
+		}
+		iterator_stop(&it);
+
+		if (!found)
+		{
+			send_to_char("You readycheck your party.\n\r", ch);
+			readycheck_henchmen(dungeon, ch);
+			return;
+		}
+
+		if (all)
+		{
+			iterator_start(&it, ch->lgroup);
+			while((vch = (CHAR_DATA *)iterator_nextdata(&it)))
+			{
+				if (vch == ch) continue;
+				if (IS_NPC(ch)) continue;
+
+				DUNGEON *vch_dungeon = get_room_dungeon(vch->in_room);
+				if (IS_VALID(vch_dungeon) && vch_dungeon == dungeon)
+				{
+					vch->pcdata->last_ready_check = current_time + DEFAULT_READY_CHECK;
+					vch->pcdata->readycheck_answer = TRISTATE;
+					act("$n has initiated a readycheck.", ch, vch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+					send_to_char("Please answer with either {Yreadycheck yes{x or {Yreadycheck no{x.\n\r", vch);
+				}
+			}
+			iterator_stop(&it);
+
+			send_to_char("You have initiated a readycheck.\n\r", ch);
+			ch->pcdata->last_ready_check = current_time + DEFAULT_READY_CHECK;
+			ch->pcdata->readycheck_answer = TRUE;	// Auto confirm yes
+		}
+
+		return;
+	}
+
+	if (!str_prefix(arg, "yes"))
+	{
+		if (ch->pcdata->readycheck_answer != TRISTATE)
+		{
+			send_to_char("You've already given your ready state.\n\r", ch);
+			return;
+		}
+		ch->pcdata->readycheck_answer = TRUE;
+		ch->pcdata->last_ready_check = 0;
+		send_to_char("You confirmed your READY CHECK - {GYES{x.\n\r", ch);
+		return;
+	}
+	
+	if (!str_prefix(arg, "no"))
+	{
+		if (ch->pcdata->readycheck_answer != TRISTATE)
+		{
+			send_to_char("You've already given your ready state.\n\r", ch);
+			return;
+		}
+		ch->pcdata->readycheck_answer = FALSE;
+		ch->pcdata->last_ready_check = 0;
+		send_to_char("You confirmed your READY CHECK - {RNO{x.\n\r", ch);
+		return;
+	}
+
+	do_readycheck(ch, "");
+}
+
+
+void readycheck_update(CHAR_DATA *ch)
+{
+	CHAR_DATA *leader = get_player_leader(ch);
+
+	//send_to_char("readycheck_update: called", ch);
+	//if (leader) send_to_char("readycheck_update: you are the leader", leader);
+
+	if (leader != ch) return;	// Only run on a leader player
+	if (list_size(ch->lgroup) < 1) return;	// No one else in group
+
+	if (leader->pcdata->last_ready_check <= 0) return;
+
+	bool show = TRUE;
+	bool complete = TRUE;
+	if (leader->pcdata->last_ready_check >= current_time)
+	{
+		ITERATOR it;
+		CHAR_DATA *vch;
+		iterator_start(&it, leader->lgroup);
+		while((vch = (CHAR_DATA *)iterator_nextdata(&it)))
+		{
+			if (vch == leader) continue;
+			if (IS_NPC(vch)) continue;
+
+			// Someone voted NO
+			if (vch->pcdata->readycheck_answer == FALSE)
+				complete = FALSE;
+
+			// Someone hasn't voted yet
+			if (vch->pcdata->readycheck_answer == TRISTATE)
+			{
+				complete = FALSE;
+				show = FALSE;
+				break;
+			}
+		}
+		iterator_stop(&it);
+	}
+
+	// Either it has expired or all the votes are in
+	if (show)
+	{
+		do_readycheck(leader, "info");
+		ITERATOR it;
+		CHAR_DATA *vch;
+		iterator_start(&it, leader->lgroup);
+		while((vch = (CHAR_DATA *)iterator_nextdata(&it)))
+		{
+			if (vch == leader) continue;
+			if (IS_NPC(vch)) continue;
+
+			vch->pcdata->last_ready_check = 0;			
+			do_readycheck(vch, "info");
+		}
+		iterator_stop(&it);
+
+		leader->pcdata->last_ready_check = 0;
+	}
+
+	if (complete)
+	{
+		DUNGEON *dungeon = get_room_dungeon(leader->in_room);
+
+		readycheck_henchmen(dungeon, leader);
+	}
+}
+

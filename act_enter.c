@@ -41,6 +41,7 @@
 #include "interp.h"
 #include "wilds.h"
 
+void dungeon_check_commence(DUNGEON *dng, CHAR_DATA *ch);
 
 void do_disembark( CHAR_DATA *ch, char *argument)
 {
@@ -747,6 +748,12 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 			REMOVE_BIT(ch->comm, COMM_BRIEF);
 	} else {
 		do_function(ch, &do_look, "auto");
+	}
+
+
+	if (IS_VALID(to_dungeon))
+	{
+		dungeon_check_commence(to_dungeon, ch);
 	}
 
 

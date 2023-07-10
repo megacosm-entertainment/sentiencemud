@@ -518,6 +518,7 @@ const	struct	cmd_type	cmd_table	[] =
     { "dngshow",		do_dngshow,	POS_DEAD,    ML,  LOG_NORMAL, 1, TRUE },
 
     { "dungeon",		do_dungeon,	POS_DEAD,	0,  LOG_NORMAL, 1, TRUE },
+	{ "readycheck",		do_readycheck, POS_DEAD,0,	LOG_NORMAL, 1, TRUE },
 
     { "apdump",		do_apdump,	POS_DEAD,    L5,  LOG_NEVER,  1, TRUE },
     { "apedit",		do_apedit,	POS_DEAD,    L5,  LOG_NORMAL, 1, TRUE },
@@ -536,7 +537,7 @@ const	struct	cmd_type	cmd_table	[] =
     { "ships",		do_ships,	POS_DEAD,	0,		LOG_NORMAL, 1, TRUE },
 
     { "spawntreasuremap", do_spawntreasuremap, POS_DEAD, L5, LOG_NORMAL, 1, TRUE },
-	{ "reserved",	do_reserved, POS_DEAD, L5,		LOG_ALWAYS, 1, TRUE },
+	{ "reserved",	do_reserved, POS_DEAD, ML,		LOG_ALWAYS, 1, TRUE },
 	{ "triggers",	do_triggers, POS_DEAD, L5,		LOG_ALWAYS, 1, TRUE },
 
     { "",		0,		POS_DEAD,     0,  LOG_NORMAL, 0, FALSE }

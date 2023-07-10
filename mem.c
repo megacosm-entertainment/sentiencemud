@@ -4578,7 +4578,10 @@ DUNGEON_INDEX_DATA *new_dungeon_index()
 	dungeon_index->description = &str_empty[0];
 	dungeon_index->comments = &str_empty[0];
 
-	dungeon_index->area_who = AREA_BLANK;
+	dungeon_index->area_who = AREA_DUNGEON;
+    dungeon_index->min_group = 1;
+    dungeon_index->max_group = 1;
+    dungeon_index->max_players = 1;
 
     if (fBootDb)
     	dungeon_index->floors = list_createx(FALSE, NULL, delete_list_wnum_load);
@@ -4597,6 +4600,7 @@ DUNGEON_INDEX_DATA *new_dungeon_index()
 	dungeon_index->zone_out_portal = &str_empty[0];
 	dungeon_index->zone_out_mount = &str_empty[0];
 
+    dungeon_index->loaded = list_create(FALSE); // Will contain (DUNGEON *)
 
 	VALIDATE(dungeon_index);
 	return dungeon_index;
@@ -4617,6 +4621,8 @@ void free_dungeon_index(DUNGEON_INDEX_DATA *dungeon_index)
 	free_string(dungeon_index->zone_out);
 	free_string(dungeon_index->zone_out_portal);
 	free_string(dungeon_index->zone_out_mount);
+
+    list_destroy(dungeon_index->loaded);
 
     free_prog_list(dungeon_index->progs);
     variable_freelist(&dungeon_index->index_vars);
@@ -4683,6 +4689,10 @@ void free_dungeon(DUNGEON *dng)
     variable_clearfield(VAR_DUNGEON, dng);
     script_clear_dungeon(dng);
     free_prog_data(dng->progs);
+
+    // Automatically remove it from the list
+    if (dng->index)
+        list_remlink(dng->index->loaded, dng);
 
 	INVALIDATE(dng);
 	dng->next = dungeon_free;

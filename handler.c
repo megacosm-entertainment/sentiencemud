@@ -53,7 +53,6 @@ extern LLIST *loaded_instances;
 void show_char_to_char args((CHAR_DATA * list, CHAR_DATA * ch, CHAR_DATA * victim));
 bool check_blind args((CHAR_DATA * ch));
 
-
 /* returns number of people on an object */
 int count_users(OBJ_DATA *obj)
 {
@@ -2008,23 +2007,24 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
     && IS_SOCIAL(ch))
 	REMOVE_BIT(ch->comm, COMM_SOCIAL);
 
+	DUNGEON *dungeon = NULL;
 	if( IS_VALID(pRoomIndex->instance_section) && IS_VALID(pRoomIndex->instance_section->instance) )
 	{
 		INSTANCE *instance = pRoomIndex->instance_section->instance;
-		DUNGEON *dungeon = instance->dungeon;
+		dungeon = instance->dungeon;
 
 		if( !IS_NPC(ch) || !IS_SET(ch->act2, ACT2_INSTANCE_MOB) )
 		{
+			if( !IS_NPC(ch) )
+				list_appendlink(instance->players, ch);
+			list_appendlink(instance->mobiles, ch);
+
 			if( IS_VALID(dungeon) )
 			{
 				if( !IS_NPC(ch) )
 					list_appendlink(dungeon->players, ch);
 				list_appendlink(dungeon->mobiles, ch);
 			}
-
-			if( !IS_NPC(ch) )
-				list_appendlink(instance->players, ch);
-			list_appendlink(instance->mobiles, ch);
 		}
 		else if( IS_BOSS(ch) )
 		{
@@ -2118,7 +2118,7 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
     }
 
     if (ch->quest != NULL)
-	check_quest_travel_room(ch, pRoomIndex, true);
+		check_quest_travel_room(ch, pRoomIndex, true);
 
     return;
 }

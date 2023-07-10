@@ -27,6 +27,9 @@ DUNGEON_INDEX_LEVEL_DATA *dungeon_index_get_nth_level(DUNGEON_INDEX_DATA *dng, i
 int get_dungeon_index_level_special_exits(DUNGEON_INDEX_DATA *dng, DUNGEON_INDEX_LEVEL_DATA *data);
 int get_dungeon_index_level_special_entrances(DUNGEON_INDEX_DATA *dng, DUNGEON_INDEX_LEVEL_DATA *data);
 void add_dungeon_index_weighted_exit_data(LLIST *list, int weight, int level_no, int exit_no);
+int dungeon_commence(DUNGEON *dng);
+int dungeon_completed(DUNGEON *dng);
+int dungeon_failed(DUNGEON *dng);
 
 #define PARSE_ARG				(rest = expand_argument(info,rest,arg))
 #define PARSE_ARGTYPE(x)		if (!PARSE_ARG || arg->type != ENT_##x) return
@@ -42,7 +45,9 @@ const struct script_cmd_type area_cmd_table[] = {
 	{ "bribetrigger",			scriptcmd_bribetrigger,	TRUE,	FALSE	},
 	{ "call",				scriptcmd_call,				FALSE,	TRUE	},
 	{ "directiontrigger",		scriptcmd_directiontrigger,	TRUE,	FALSE	},
+	{ "dungeoncommence",	scriptcmd_dungeoncommence,	TRUE,	TRUE	},
 	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	TRUE,	TRUE	},
+	{ "dungeonfailure",		scriptcmd_dungeonfailure,	TRUE,	TRUE	},
 	{ "echoat",				scriptcmd_echoat,			FALSE,	TRUE	},
 	{ "emoteattrigger",			scriptcmd_emoteattrigger,	TRUE,	FALSE	},
 	{ "emotetrigger",			scriptcmd_emotetrigger,	TRUE,	FALSE	},
@@ -88,6 +93,7 @@ const struct script_cmd_type instance_cmd_table[] = {
 	{ "bribetrigger",			scriptcmd_bribetrigger,	TRUE,	FALSE	},
 	{ "call",				scriptcmd_call,				FALSE,	TRUE	},
 	{ "directiontrigger",		scriptcmd_directiontrigger,	TRUE,	FALSE	},
+	{ "dungeoncommence",	scriptcmd_dungeoncommence,	TRUE,	TRUE	},
 	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	TRUE,	TRUE	},
 	{ "dungeonfailure",		scriptcmd_dungeonfailure,	TRUE,	TRUE	},
 	{ "echoat",				scriptcmd_echoat,			FALSE,	TRUE	},
@@ -141,7 +147,9 @@ const struct script_cmd_type dungeon_cmd_table[] = {
 	{ "bribetrigger",			scriptcmd_bribetrigger,	TRUE,	FALSE	},
 	{ "call",				scriptcmd_call,				FALSE,	TRUE	},
 	{ "directiontrigger",		scriptcmd_directiontrigger,	TRUE,	FALSE	},
+	{ "dungeoncommence",	scriptcmd_dungeoncommence,	TRUE,	TRUE	},
 	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	TRUE,	TRUE	},
+	{ "dungeonfailure",		scriptcmd_dungeonfailure,	TRUE,	TRUE	},
 	{ "echoat",				scriptcmd_echoat,			FALSE,	TRUE	},
 	{ "emoteattrigger",			scriptcmd_emoteattrigger,	TRUE,	FALSE	},
 	{ "emotetrigger",			scriptcmd_emotetrigger,	TRUE,	FALSE	},
@@ -1651,35 +1659,48 @@ SCRIPT_CMD(scriptcmd_detach)
 	info->progs->lastreturn = 1;
 }
 
-// DUNGEONCOMPLETE $DUNGEON
-SCRIPT_CMD(scriptcmd_dungeoncomplete)
+// DUNGEONCOMMENCE $DUNGEON
+SCRIPT_CMD(scriptcmd_dungeoncommence)
 {
+	SETRETURN(PRET_BADSYNTAX);
+
 	if(!expand_argument(info,argument,arg))
 		return;
 
 	if( arg->type == ENT_DUNGEON ) {
-		if( !IS_SET(arg->d.dungeon->flags, (DUNGEON_COMPLETED|DUNGEON_FAILED)) )
-		{
-			p_percent2_trigger(NULL, NULL, arg->d.dungeon, NULL, NULL, NULL, NULL, NULL, TRIG_COMPLETED,NULL);
+		int ret = dungeon_commence(arg->d.dungeon);
 
-			SET_BIT(arg->d.dungeon->flags, DUNGEON_COMPLETED);
-		}
+		SETRETURN(ret);
+	}
+}
+
+// DUNGEONCOMPLETE $DUNGEON
+SCRIPT_CMD(scriptcmd_dungeoncomplete)
+{
+	SETRETURN(PRET_BADSYNTAX);
+
+	if(!expand_argument(info,argument,arg))
+		return;
+
+	if( arg->type == ENT_DUNGEON ) {
+		int ret = dungeon_completed(arg->d.dungeon);
+
+		SETRETURN(ret);
 	}
 }
 
 // DUNGEONFAILURE $DUNGEON
 SCRIPT_CMD(scriptcmd_dungeonfailure)
 {
+	SETRETURN(PRET_BADSYNTAX);
+
 	if(!expand_argument(info,argument,arg))
 		return;
 
 	if( arg->type == ENT_DUNGEON ) {
-		if( !IS_SET(arg->d.dungeon->flags, (DUNGEON_COMPLETED|DUNGEON_FAILED)) )
-		{
-			p_percent2_trigger(NULL, NULL, arg->d.dungeon, NULL, NULL, NULL, NULL, NULL, TRIG_FAILED,NULL);
+		int ret = dungeon_failed(arg->d.dungeon);
 
-			SET_BIT(arg->d.dungeon->flags, DUNGEON_FAILED);
-		}
+		SETRETURN(ret);
 	}
 }
 
@@ -6259,6 +6280,12 @@ SCRIPT_CMD(scriptcmd_acttrigger)
 	struct trigger_type *tt = get_trigger_type(arg->d.str, actor_space);
 	if (!tt)
 		return;
+
+	if (!tt->scriptable)
+	{
+		SETRETURN(0);
+		return;
+	}
 	trigger = tt->type;
 
 	// Get the ACTION:
@@ -6349,6 +6376,12 @@ SCRIPT_CMD(scriptcmd_directiontrigger)
 	struct trigger_type *tt = get_trigger_type(arg->d.str, PRG_RPROG);
 	if (!tt)
 		return;
+
+	if (!tt->scriptable)
+	{
+		SETRETURN(0);
+		return;
+	}
 	trigger = tt->type;
 
 	ret = p_direction_trigger(ch, here, door, PRG_RPROG, trigger);
@@ -6514,6 +6547,12 @@ SCRIPT_CMD(scriptcmd_exacttrigger)
 	struct trigger_type *tt = get_trigger_type(arg->d.str, actor_space);
 	if (!tt)
 		return;
+
+	if (!tt->scriptable)
+	{
+		SETRETURN(0);
+		return;
+	}
 	trigger = tt->type;
 
 	// Get the PHRASE:
@@ -6563,6 +6602,12 @@ SCRIPT_CMD(scriptcmd_exittrigger)
 	struct trigger_type *tt = get_trigger_type(arg->d.str, PRG_RPROG);
 	if (!tt)
 		return;
+
+	if (!tt->scriptable)
+	{
+		SETRETURN(0);
+		return;
+	}
 	trigger = tt->type;
 
 	ret = p_exit_trigger(ch, dir, trigger);
@@ -6616,6 +6661,12 @@ SCRIPT_CMD(scriptcmd_givetrigger)
 	struct trigger_type *tt = get_trigger_type(arg->d.str, actor_space);
 	if (!tt)
 		return;
+
+	if (!tt->scriptable)
+	{
+		SETRETURN(0);
+		return;
+	}
 	trigger = tt->type;
 
 	ret = p_give_trigger(actor_m, actor_o, actor_r, ch, obj, trigger);
@@ -6764,6 +6815,12 @@ SCRIPT_CMD(scriptcmd_nametrigger)
 	struct trigger_type *tt = get_trigger_type(arg->d.str, actor_space);
 	if (!tt)
 		return;
+
+	if (!tt->scriptable)
+	{
+		SETRETURN(0);
+		return;
+	}
 	trigger = tt->type;
 
 	// Get the NAME:
@@ -6884,6 +6941,12 @@ SCRIPT_CMD(scriptcmd_numbertrigger)
 	struct trigger_type *tt = get_trigger_type(arg->d.str, actor_space);
 	if (!tt)
 		return;
+
+	if (!tt->scriptable)
+	{
+		SETRETURN(0);
+		return;
+	}
 	trigger = tt->type;
 
 	// Get the PHRASE:
@@ -7002,6 +7065,12 @@ SCRIPT_CMD(scriptcmd_percenttrigger)
 	struct trigger_type *tt = get_trigger_type(arg->d.str, actor_space);
 	if (!tt)
 		return;
+
+	if (!tt->scriptable)
+	{
+		SETRETURN(0);
+		return;
+	}
 	trigger = tt->type;
 
 	// Get the PHRASE:
@@ -7126,6 +7195,12 @@ SCRIPT_CMD(scriptcmd_percenttokentrigger)
 	struct trigger_type *tt = get_trigger_type(arg->d.str, actor_space);
 	if (!tt)
 		return;
+
+	if (!tt->scriptable)
+	{
+		SETRETURN(0);
+		return;
+	}
 	trigger = tt->type;
 
 	// Get the PHRASE:
@@ -7176,6 +7251,12 @@ SCRIPT_CMD(scriptcmd_usetrigger)
 	struct trigger_type *tt = get_trigger_type(arg->d.str, PRG_OPROG);
 	if (!tt)
 		return;
+
+	if (!tt->scriptable)
+	{
+		SETRETURN(0);
+		return;
+	}
 	trigger = tt->type;
 
 	ret = p_use_trigger(ch, obj, trigger);
@@ -7213,6 +7294,12 @@ SCRIPT_CMD(scriptcmd_useontrigger)
 	struct trigger_type *tt = get_trigger_type(arg->d.str, PRG_OPROG);
 	if (!tt)
 		return;
+
+	if (!tt->scriptable)
+	{
+		SETRETURN(0);
+		return;
+	}
 	trigger = tt->type;
 
 	if (!IS_NULLSTR(rest))
@@ -7301,6 +7388,12 @@ SCRIPT_CMD(scriptcmd_usewithtrigger)
 	struct trigger_type *tt = get_trigger_type(arg->d.str, PRG_OPROG);
 	if (!tt)
 		return;
+
+	if (!tt->scriptable)
+	{
+		SETRETURN(0);
+		return;
+	}
 	trigger = tt->type;
 
 	ret = p_use_with_trigger(ch, obj, trigger, obj1, obj2, vch1, vch2);

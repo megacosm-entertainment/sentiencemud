@@ -6607,9 +6607,9 @@ void persist_save_mobile(FILE *fp, CHAR_DATA *ch)
 		if(ch->recall.wuid)
 			fprintf(fp, "RepopRoomW %lu %lu %lu %lu\n", 	ch->recall.wuid, ch->recall.id[0], ch->recall.id[1], ch->recall.id[2]);
 		else if(ch->recall.id[1] || ch->recall.id[2])
-			fprintf(fp, "RepopRoomC %lu %lu %lu\n", 	ch->recall.id[0], ch->recall.id[1], ch->recall.id[2]);
+			fprintf(fp, "RepopRoomC %ld %lu %lu %lu\n", 	ch->recall.area->uid, ch->recall.id[0], ch->recall.id[1], ch->recall.id[2]);
 		else
-			fprintf(fp, "RepopRoom %ld\n", 	ch->recall.id[0]);
+			fprintf(fp, "RepopRoom %ld %ld\n", ch->recall.area->uid, ch->recall.id[0]);
 	}
 
 	fprintf(fp, "Owner %s~\n", ch->owner);
@@ -6625,8 +6625,8 @@ void persist_save_mobile(FILE *fp, CHAR_DATA *ch)
 	// Save location
 	if (ch->in_room) {	// **
 		if(ch->in_room->wilds)		fprintf(fp, "Vroom %ld %ld %ld\n", ch->in_room->wilds->uid, ch->in_room->x, ch->in_room->y);
-		else if(ch->in_room->source)	fprintf(fp, "CloneRoom %ld %ld %ld\n", ch->in_room->source->vnum, ch->in_room->id[0], ch->in_room->id[1]);
-		else				fprintf(fp, "Room %ld\n", ch->in_room->vnum);
+		else if(ch->in_room->source)	fprintf(fp, "CloneRoom %ld#%ld %ld %ld\n", ch->in_room->source->area->uid, ch->in_room->source->vnum, ch->in_room->id[0], ch->in_room->id[1]);
+		else				fprintf(fp, "Room %ld#%ld\n", ch->in_room->area->uid, ch->in_room->vnum);
 	} else
 		fprintf(fp, "Room %d\n", ROOM_VNUM_DEFAULT);
 
@@ -8100,26 +8100,27 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 				}
 
 				if(IS_KEY("RepopRoom")) {
-					ch->recall.id[0] = fread_number(fp);
-					ch->recall.id[1] =
-					ch->recall.id[2] =
-					ch->recall.id[3] = 0;
+					long auid = fread_number(fp);
+					long vnum = fread_number(fp);
+					location_set(&ch->recall,get_area_from_uid(auid),0,vnum,0,0);
 					fMatch = TRUE;
 				}
 
 				if(IS_KEY("RepopRoomC")) {
-					ch->recall.id[0] = fread_number(fp);
-					ch->recall.id[1] = fread_number(fp);
-					ch->recall.id[2] = fread_number(fp);
-					ch->recall.id[3] = 0;
+					long auid = fread_number(fp);
+					long vnum = fread_number(fp);
+					unsigned long id0 = fread_number(fp);
+					unsigned long id1 = fread_number(fp);
+					location_set(&ch->recall,get_area_from_uid(auid),0,vnum,id0,id1);
 					fMatch = TRUE;
 				}
 
 				if(IS_KEY("RepopRoomW")) {
-					ch->recall.id[0] = fread_number(fp);
-					ch->recall.id[1] = fread_number(fp);
-					ch->recall.id[2] = fread_number(fp);
-					ch->recall.id[3] = fread_number(fp);
+					long wuid = fread_number(fp);
+					long x = fread_number(fp);
+					long y = fread_number(fp);
+					long z = fread_number(fp);
+					location_set(&ch->recall,NULL,wuid,x,y,z);
 					fMatch = TRUE;
 				}
 

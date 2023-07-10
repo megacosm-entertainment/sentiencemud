@@ -44,6 +44,8 @@
 #include "wilds.h"
 #include "scripts.h"
 
+void dungeon_check_commence(DUNGEON *dng, CHAR_DATA *ch);
+
 char *	const	dir_name	[]		=
 {
     "north", "east", "south", "west", "up", "down", "northeast",  "northwest", "southeast", "southwest"
@@ -683,6 +685,11 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 
 	if (!IS_WILDERNESS(ch->in_room))
 		check_traps(ch, true);
+
+	if (IS_VALID(to_dungeon))
+	{
+		dungeon_check_commence(to_dungeon, ch);
+	}
 
 	if (in_room == to_room) /* no circular following */
 		return;

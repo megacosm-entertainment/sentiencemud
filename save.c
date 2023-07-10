@@ -265,7 +265,7 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 	if(ch->recall.wuid)
 		fprintf(fp, "RepopRoomW %lu %lu %lu %lu\n", ch->recall.wuid, ch->recall.id[0], ch->recall.id[1], ch->recall.id[2]);
 	else if(ch->recall.id[1] || ch->recall.id[2])
-		fprintf(fp, "RepopRoomC %ld#%lu %lu %lu\n", ch->recall.area->uid, ch->recall.id[0], ch->recall.id[1], ch->recall.id[2]);
+		fprintf(fp, "RepopRoomC %ld %lu %lu %lu\n", ch->recall.area->uid, ch->recall.id[0], ch->recall.id[1], ch->recall.id[2]);
 	else
 		fprintf(fp, "RepopRoom %ld %ld\n", ch->recall.area->uid, ch->recall.id[0]);
     }

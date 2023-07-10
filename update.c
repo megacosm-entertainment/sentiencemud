@@ -18,6 +18,7 @@
 #include "wilds.h"
 
 extern void persist_save(void);
+extern void readycheck_update(CHAR_DATA *ch);
 
 // Global variables
 int save_number = 0;
@@ -2330,6 +2331,11 @@ void aggr_update(void)
     iterator_start(&it, loaded_chars);
     while(( wch = (CHAR_DATA *)iterator_nextdata(&it)))
     {
+
+		if (!IS_NPC(wch) && list_size(wch->lgroup) > 0 && wch->pcdata->last_ready_check > 0)
+		{
+			readycheck_update(wch);
+		}
 
 	// if NPC then this is a good place to update casting as aggr_update runs frequently
 	if (IS_NPC(wch))

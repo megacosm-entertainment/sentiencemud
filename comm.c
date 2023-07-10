@@ -1693,46 +1693,49 @@ void bust_a_prompt(CHAR_DATA *ch)
 	}
 
     if (ch->pnote != NULL)
-	send_to_char("{Y[WRITING NOTE]{x", ch);
+		send_to_char("{Y[WRITING NOTE]{x", ch);
+
+	// Add ready check alert
+	if (!IS_NPC(ch) && ch->pcdata->last_ready_check > current_time)
+		send_to_char("{R[{YREADY{R]{x",ch);
 
     if (has_mail(ch))
-	send_to_char("{R[MAIL]{x", ch);
+		send_to_char("{R[MAIL]{x", ch);
 
     if (count_note(ch, NOTE_NOTE))
-	send_to_char("{G[NOTE]{x", ch);
+		send_to_char("{G[NOTE]{x", ch);
 
     if (count_note(ch, NOTE_NEWS))
-	send_to_char("{Y[NEWS]{x", ch);
+		send_to_char("{Y[NEWS]{x", ch);
 
     if (count_note(ch, NOTE_CHANGES))
-	send_to_char("{R[CHANGES]{x", ch);
+		send_to_char("{R[CHANGES]{x", ch);
 
     if (ch->mail != NULL)
         send_to_char("{R[UNSENT MAIL]{x", ch);
 
     if (ch->ambush != NULL)
-	send_to_char("{Y[Ambushing]{x", ch);
+		send_to_char("{Y[Ambushing]{x", ch);
 
     if (ch->hunting != NULL)
-	send_to_char("{G[Hunting]{x", ch);
+		send_to_char("{G[Hunting]{x", ch);
 
-    if (IS_SET(ch->affected_by, AFF_INVISIBLE)
-    || IS_SET(ch->affected_by2, AFF2_IMPROVED_INVIS))
-	send_to_char("{B[*]{x", ch);
+    if (IS_SET(ch->affected_by, AFF_INVISIBLE) || IS_SET(ch->affected_by2, AFF2_IMPROVED_INVIS))
+		send_to_char("{B[*]{x", ch);
 
     if (IS_MORPHED(ch) && IS_VAMPIRE(ch))
-	send_to_char("{G[{YSHAPED{G]{x ", ch);
+		send_to_char("{G[{YSHAPED{G]{x ", ch);
 
     if (IS_SHIFTED(ch))
-	send_to_char("{G[{YSHIFTED{G]{x ", ch);
+		send_to_char("{G[{YSHIFTED{G]{x ", ch);
 
     if (IS_IMMORTAL(ch) && count_project_inquiries(ch) > 0)
-	send_to_char("{g[{GINQUIRY{g]{x ", ch);
+		send_to_char("{g[{GINQUIRY{g]{x ", ch);
 
     if (MOUNTED(ch))
     {
-	sprintf(buf, "{Y<%ldmv>{x", ch->mount->move);
-	send_to_char(buf, ch);
+		sprintf(buf, "{Y<%ldmv>{x", ch->mount->move);
+		send_to_char(buf, ch);
     }
 
     point = buf;
@@ -2880,6 +2883,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		ch->pcdata->last_penalty = current_time;
 		ch->pcdata->last_news = current_time;
 		ch->pcdata->last_changes = current_time;
+		ch->pcdata->last_ready_check = 0;
 
 		send_to_char("\n\r{YPress ENTER to begin your journey, adventurer!{W\n\r", ch);
 		buf[0] = '\0';

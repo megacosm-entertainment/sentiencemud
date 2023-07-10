@@ -2850,12 +2850,16 @@ const struct flag_type dungeon_flags[] =
 {
     { "commenced",          DUNGEON_COMMENCED,          FALSE   },
 	{ "completed",			DUNGEON_COMPLETED,			FALSE	},
-	{ "failed", 			DUNGEON_FAILED, 			FALSE	},
 	{ "destroy",			DUNGEON_DESTROY,			FALSE	},
+	{ "failed", 			DUNGEON_FAILED, 			FALSE	},
+    { "failure_on_empty",   DUNGEON_FAILURE_ON_EMPTY,   TRUE    },
+    { "failure_on_wipe",    DUNGEON_FAILURE_ON_WIPE,    TRUE    },
+    { "group_commence",     DUNGEON_GROUP_COMMENCE,     TRUE    },
 	{ "idle_on_complete",	DUNGEON_IDLE_ON_COMPLETE,	TRUE	},
 	{ "no_idle",			DUNGEON_NO_IDLE,			TRUE	},
 	{ "no_save",			DUNGEON_NO_SAVE,			TRUE	},
     { "scripted_levels",    DUNGEON_SCRIPTED_LEVELS,    FALSE   },
+    { "shared",             DUNGEON_SHARED,             TRUE    },
 	{ NULL,					0,							FALSE	}
 };
 
@@ -3024,6 +3028,7 @@ const struct flag_type builtin_trigger_types[] =
     { "delay",		        TRIG_DELAY,	TRUE },
     { "drink",		        TRIG_DRINK,	TRUE },
     { "drop",		        TRIG_DROP,	TRUE },
+    { "dungeon_commenced",  TRIG_DUNGEON_COMMENCED, TRUE },
     { "dungeon_schematic",	TRIG_DUNGEON_SCHEMATIC,	TRUE },
     { "eat",		        TRIG_EAT,	TRUE },
     { "emote",		        TRIG_EMOTE,	TRUE },
@@ -3136,6 +3141,7 @@ const struct flag_type builtin_trigger_types[] =
     { "quest_part",		    TRIG_QUEST_PART,	TRUE },
     { "quit",		        TRIG_QUIT,	TRUE },
     { "random",		        TRIG_RANDOM,	TRUE },
+    { "readycheck",         TRIG_READYCHECK,    TRUE },
     { "recall",		        TRIG_RECALL,	TRUE },
     { "recite",		        TRIG_RECITE,	TRUE },
     { "reckoning",		    TRIG_RECKONING,	TRUE },

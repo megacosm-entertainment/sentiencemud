@@ -1921,8 +1921,6 @@ bool add_grouped(CHAR_DATA *ch, CHAR_DATA *master, bool show)
 
 	ch->leader = master;
 
-
-
 	p_percent_trigger( ch, NULL, NULL, NULL, master, NULL, NULL, NULL, NULL, TRIG_GROUPED, NULL);
 
 	return TRUE;
@@ -1938,18 +1936,22 @@ void stop_grouped(CHAR_DATA *ch)
 	return;
 	}
 
-
 	if (ch->leader != ch)
 		if (ch->leader != NULL) {
 			ch->leader->num_grouped--;
 			if( list_hasdata(ch->leader->lgroup, ch))
-				list_appendlink(ch->leader->lgroup, ch);
-
+				list_remlink(ch->leader->lgroup, ch);
 		}
 
 	leader = ch->leader;
 
 	ch->leader = NULL;
+	
+	if (!IS_NPC(ch))
+	{
+		ch->pcdata->last_ready_check = 0;
+		ch->pcdata->readycheck_answer = FALSE;
+	}
 
 	p_percent_trigger( ch, NULL, NULL, NULL, leader, NULL, NULL, NULL, NULL, TRIG_UNGROUPED, NULL);
 
