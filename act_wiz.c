@@ -8223,3 +8223,19 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 
 	do_reserved(ch, "");
 }
+
+void do_settings(CHAR_DATA *ch, char *argument)
+{
+	//char buf[MSL];
+	//char arg[MIL];
+
+	if (!IS_IMPLEMENTOR(ch) || !IS_SECURITY(ch, 9))
+	{
+		send_to_char("Huh?\n\r", ch);
+		return;
+	}
+
+	send_to_char("NYI\n\r", ch);
+}
+
+
