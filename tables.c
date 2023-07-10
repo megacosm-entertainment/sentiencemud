@@ -41,7 +41,7 @@
 
 const struct hint_type hintsTable[] =
 {
-    {"The map shows you a small map of the surrounding area. To turn it off type 'map'.\n\r"},
+    {"The map shows you a small map of the surrounding area. To turn it off type 'toggle map'.\n\r"},
     {"Players with an {W[H]{M by their name are designated helpers. Feel free to ask them for help or advice.\n\r"},
     {"If you need any help try asking over the 'helper' channel to page a helper or immortal.\n\r"},
     {"If you are lost you can type 'recall' at any time to return to a familiar place.\n\r"},

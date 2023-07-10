@@ -9762,7 +9762,7 @@ MEDIT(medit_shop)
 				{
 					for(stock = pMob->pShop->stock; stock; stock = stock->next)
 					{
-						if( (stock->type == STOCK_CUSTOM) ||
+						if( /*(stock->type == STOCK_CUSTOM) ||*/
 							!str_cmp(argument, stock->custom_keyword) )
 						{
 							break;
