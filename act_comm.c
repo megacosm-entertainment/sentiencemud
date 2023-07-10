@@ -552,7 +552,7 @@ void do_hints(CHAR_DATA *ch, char *argument)
 {
 	if (!argument[0]) {
 		if (IS_SET(ch->comm,COMM_NOHINTS))
-			REMOVE_BIT(ch->comm,COMM_NOHINTS);
+			send_to_char("Hints channel is now ON.\n\r", ch);
 		else
 			send_to_char("Hints channel is now OFF.\n\r",ch);
 		TOGGLE_BIT(ch->comm,COMM_NOHINTS);
