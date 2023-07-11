@@ -9910,7 +9910,7 @@ MEDIT(medit_shop)
 
 				if(!str_prefix(arg3, "custom"))
 				{
-					if(argument[0] != '\0')
+					if(argument[0] == '\0')
 					{
 						send_to_char("Please specify a custom price string.\n\r", ch);
 						send_to_char("Syntax:  shop stock [#] price custom [value]\n\r\n\r", ch);
