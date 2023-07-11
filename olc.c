@@ -405,6 +405,9 @@ const struct olc_cmd_type pedit_table[] =
 /* Executed from comm.c.  Minimizes compiling when changes are made. */
 bool run_olc_editor(DESCRIPTOR_DATA *d)
 {
+    // No command should have a space, so no need for quoting.
+    // No OLC command should start with ' or ".
+    if (d->incomm[0] == '\'' || d->incomm[0] == '"') return FALSE;
     switch (d->editor)
     {
 	case ED_AREA:
