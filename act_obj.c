@@ -4730,13 +4730,13 @@ void do_buy(CHAR_DATA *ch, char *argument)
 	long cost;
 	int roll;
 	CHAR_DATA *mob;
-    CHAR_DATA *plane_tunneler;
+//    CHAR_DATA *plane_tunneler;
     CHAR_DATA *trader;
     char arg[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
     bool haggled = FALSE;
 
-    plane_tunneler = NULL;
+ //   plane_tunneler = NULL;
     trader = NULL;
 
     if (argument[0] == '\0')
@@ -4744,7 +4744,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 		send_to_char("Buy what?\n\r", ch);
 		return;
     }
-
+/*
     for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
     {
 		if (IS_SET(mob->act2, ACT2_PLANE_TUNNELER) && IS_NPC(mob))
@@ -4753,7 +4753,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 			break;
 		}
     }
-
+*/
     for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
     {
 		if (IS_SET(mob->act2, ACT2_TRADER) && IS_NPC(mob))
@@ -4905,8 +4905,9 @@ void do_buy(CHAR_DATA *ch, char *argument)
 	//////////////////////////////////////////
 	//
 	// PLANE TUNNELER - TODO: REWORK
-	//
+	// REWORKED WITH THE POWER OF... SCRIPTING!
 	//////////////////////////////////////////
+/*
     if (plane_tunneler != NULL)
     {
 		int i;
@@ -4963,7 +4964,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
         do_function(ch, &do_look, "auto");
 		return;
     }
-
+*/
 
 	//////////////////////////////////////////
 	//
