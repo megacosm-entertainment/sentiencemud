@@ -92,7 +92,7 @@ const struct olc_help_type help_table[] =
     {   "liquid",	liq_table,	 "Liquid types."		 },
     {	"apptype",	apply_types,	 "Apply types."			 },
     {	"weapon",	attack_table,	 "Weapon types."		 },
-    {   "ranged",       ranged_weapon_table, "Ranged weapon types."      },
+    {   "ranged",       ranged_weapon_class, "Ranged weapon types."      },
     {   "material",	material_table,  "Object materials."		 },
     {	"mprog",	trigger_table,	 "MobProgram types."		 },
     {	"oprog",	trigger_table,	 "ObjProgram types."		 },
