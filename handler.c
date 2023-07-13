@@ -3906,7 +3906,7 @@ OBJ_DATA *create_money(int gold, int silver)
         obj->short_descr        = str_dup(buf);
         obj->value[1]           = gold;
         obj->cost               = gold;
-	obj->weight		= gold/5;
+	obj->weight		= get_weight_coins(silver, gold);
     }
     else if (gold == 0)
     {
@@ -3916,7 +3916,7 @@ OBJ_DATA *create_money(int gold, int silver)
         obj->short_descr        = str_dup(buf);
         obj->value[0]           = silver;
         obj->cost               = silver;
-	obj->weight		= silver/20;
+	obj->weight		= get_weight_coins(silver, gold);
     }
 
     else
@@ -3928,7 +3928,7 @@ OBJ_DATA *create_money(int gold, int silver)
 	obj->value[0]		= silver;
 	obj->value[1]		= gold;
 	obj->cost		= 100 * gold + silver;
-	obj->weight		= gold / 5 + silver / 20;
+	obj->weight		= get_weight_coins(silver, gold);
     }
 
     return obj;
