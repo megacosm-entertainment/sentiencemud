@@ -367,7 +367,6 @@ memset(&af,0,sizeof(af));
         while (ch->affected)
             affect_remove(ch, ch->affected);
 
-	REMOVE_BIT(ch->affected_by, AFF_INFRARED);
         ch->affected_by = race_table[ch->race].aff;
 
 	if (!silent) {
@@ -466,6 +465,17 @@ memset(&af,0,sizeof(af));
 	affect_to_char(ch, &af);
 
 	af.where     = TO_AFFECTS;
+	af.group     = AFFGROUP_METARACIAL;
+	af.type      = gsn_infravision;
+	af.level     = ch->tot_level * 2;
+	af.duration = -1;
+	af.location  = APPLY_NONE;
+	af.modifier  = 0;
+	af.bitvector = AFF_INFRARED;
+	af.bitvector2 = 0;
+	affect_to_char(ch, &af);
+
+	af.where     = TO_AFFECTS;
 	af.type      = gsn_haste;
 	af.level     = ch->tot_level * 2;
 	af.duration = -1;
@@ -507,8 +517,6 @@ memset(&af,0,sizeof(af));
 	af.location = APPLY_DAMROLL;
 	af.modifier = 10 + num_classes;
         affect_to_char(ch, &af);
-
-        SET_BIT(ch->affected_by, AFF_INFRARED);
 
 	if (pMob == NULL)
 	{
