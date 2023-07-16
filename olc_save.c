@@ -722,7 +722,7 @@ void save_room_new(FILE *fp, ROOM_INDEX_DATA *room, int recordtype)
 			sprintf(kwd, ex->keyword);
 
 			fprintf(fp, "Key %ld To_room %ld Rs_flags %d Keyword %s~\n",
-				ex->door.lock.key_vnum, (ex->u1.to_room ? ex->u1.to_room->vnum : -1), ex->rs_flags, kwd);
+				ex->door.rs_lock.key_vnum, (ex->u1.to_room ? ex->u1.to_room->vnum : -1), ex->rs_flags, kwd);
 			fprintf(fp, "LockFlags %d\n", ex->door.rs_lock.flags);
 			fprintf(fp, "PickChance %d\n", ex->door.rs_lock.pick_chance);
 			fprintf(fp, "Description %s~\n", fix_string(ex->short_desc));
@@ -3321,7 +3321,7 @@ EXIT_DATA *read_exit_new(FILE *fp)
 		break;
 
 	    case 'K':
-	        KEY("Key",		ex->door.lock.key_vnum,	fread_number(fp));
+	        KEY("Key",		ex->door.rs_lock.key_vnum,	fread_number(fp));
 
 		if (!str_cmp(word, "Keyword")) {
 		    int i;
