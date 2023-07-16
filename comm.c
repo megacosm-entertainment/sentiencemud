@@ -2141,15 +2141,6 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 			return;
 		}
 
-		/* Ban old names -- Gairun - 20111219 */
-		sprintf(strsave, "%s%c/%s", OLD_PLAYER_DIR, tolower(argument[0]), capitalize(argument));
-		if ((fp = fopen(strsave, "r")) != NULL)
-		{
-			fclose(fp);
-			write_to_buffer(d, "Old names are not allowed.\n\rName: ", 0);
-			return;
-		}
-
 		// Temporarily disabling for reconnect crash.
 		// Check if the player is already playing
 		/*
