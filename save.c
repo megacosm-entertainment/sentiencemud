@@ -1681,14 +1681,17 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 
 	    if (!str_cmp(word, "Questing"))
 	    {
-			ch->quest = (QUEST_DATA *)new_quest();
+			if (ch->quest == NULL)
+			{
+				ch->quest = (QUEST_DATA *)new_quest();
+			}
 			fMatch = TRUE;
 			break;
 		}
 
 	    if (!str_cmp(word, "QuestGiverType"))
 	    {
-			if( ch->quest != NULL )
+			if( ch->quest == NULL )
 			{
 				ch->quest = (QUEST_DATA *)new_quest();
 			}
@@ -1699,7 +1702,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 
 	    if (!str_cmp(word, "QuestGiver"))
 	    {
-			if( ch->quest != NULL )
+			if( ch->quest == NULL )
 			{
 				ch->quest = (QUEST_DATA *)new_quest();
 			}
@@ -1710,7 +1713,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 
 	    if (!str_cmp(word, "QuestReceiverType"))
 	    {
-			if( ch->quest != NULL )
+			if( ch->quest == NULL )
 			{
 				ch->quest = (QUEST_DATA *)new_quest();
 			}
@@ -1721,7 +1724,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 
 	    if (!str_cmp(word, "QuestReceiver"))
 	    {
-			if( ch->quest != NULL )
+			if( ch->quest == NULL )
 			{
 				ch->quest = (QUEST_DATA *)new_quest();
 			}
