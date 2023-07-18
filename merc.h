@@ -1899,7 +1899,7 @@ struct affliction_type {
 #define ACT2_NO_XP				(bb)
 #define ACT2_HIRED				(cc)
 #define ACT2_RENEWER			(dd)			// Allows the mob to handle the "renew" command
-//								(ee)
+#define ACT2_ADVANCED_TRAINER   (ee)
 
 
 /* Has_done flags - this is for commands which only are allowed */

@@ -608,6 +608,7 @@ const struct flag_type act2_flags[]=
     {   "renewer",				ACT2_RENEWER,			TRUE	},
 	{	"show_in_wilds",		ACT2_SHOW_IN_WILDS,		TRUE	},
     {   "instance_mob",			ACT2_INSTANCE_MOB,		FALSE	},
+    {   "advanced_trainer",     ACT2_ADVANCED_TRAINER,  TRUE    },
     {   NULL,					0,						FALSE	}
 };
 

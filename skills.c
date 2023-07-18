@@ -601,8 +601,7 @@ void do_train(CHAR_DATA *ch, char *argument)
 	 if(!str_cmp(arg, "skill")) {
 		for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
 		{
-			if (IS_NPC(mob) && (mob->pIndexData->vnum == VNUM_QUESTOR_1
-				||  mob->pIndexData->vnum == VNUM_QUESTOR_2))
+			if (IS_NPC(mob) && IS_SET(mob->act2, ACT2_ADVANCED_TRAINER))
 			break;
 		}
 
@@ -658,7 +657,7 @@ void do_train(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		cost = 3 * rating / 20;
+		cost = 3 * rating / 30;
 		if (cost <= ch->train)
 		{
 			ch->train -= cost;
