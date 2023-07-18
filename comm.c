@@ -2112,8 +2112,6 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 	long playernum;
 	HELP_DATA *help;
 	long vector, *field;
-    char strsave[MAX_INPUT_LENGTH];
-    FILE *fp;
 
 	iClass = -1;
 

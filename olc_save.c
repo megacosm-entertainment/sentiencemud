@@ -379,6 +379,7 @@ void save_area_new(AREA_DATA *area)
     fprintf(fp, "AreaFlags %ld\n", 	area->area_flags);
     fprintf(fp, "Builders %s~\n",      	fix_string(area->builders));
     fprintf(fp, "VNUMs %ld %ld\n",     	area->min_vnum, area->max_vnum);
+	fprintf(fp, "Levels %d %d\n", area->min_level, area->max_level);
     fprintf(fp, "WildsVnum %ld\n",	area->wilds_uid);
     fprintf(fp, "XCoord %d\n", 		area->x);
     fprintf(fp, "YCoord %d\n", 		area->y);
@@ -397,7 +398,8 @@ void save_area_new(AREA_DATA *area)
 	fprintf(fp, "Description %s~\n", fix_string(area->description));
 	if(area->comments)
 		fprintf(fp, "Comments %s~\n", fix_string(area->comments));
-
+	if(area->notes)
+		fprintf(fp, "Notes %s~\n", fix_string(area->notes));
     // Save the current versions of everything
     fprintf(fp, "VersArea %d\n",	VERSION_AREA);
     fprintf(fp, "VersMobile %d\n",	VERSION_MOBILE);
@@ -1509,6 +1511,18 @@ AREA_DATA *read_area_new(FILE *fp)
 
 	    case 'F':
 	        KEYS("FileName",	area->file_name,	fread_string(fp));
+		break;
+
+		case 'L':
+			if (!str_cmp(word, "Levels")) {
+		    	area->min_level = fread_number(fp);
+		    	area->max_level = fread_number(fp);
+		    	fMatch = TRUE;
+			}
+		break;
+
+		case 'N':
+		KEYS("Notes", area->notes, fread_string(fp));
 		break;
 
 	    case 'O':

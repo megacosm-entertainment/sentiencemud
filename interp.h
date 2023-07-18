@@ -83,6 +83,8 @@ DECLARE_DO_FUN( do_afk		);
 DECLARE_DO_FUN( do_aim		);
 DECLARE_DO_FUN( do_alias	);
 DECLARE_DO_FUN( do_alist	);
+DECLARE_DO_FUN( do_area     );
+DECLARE_DO_FUN( do_areas    );
 DECLARE_DO_FUN(	do_allow	);
 DECLARE_DO_FUN( do_ambush	);
 DECLARE_DO_FUN( do_announcements);

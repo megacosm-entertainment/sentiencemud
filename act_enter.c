@@ -322,7 +322,7 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 			}
 			else if(portal->value[5] > 0)
 			{
-				location = get_random_room_area(ch, get_area_data(portal->value[5]));
+				location = get_random_room_area(ch, get_area_from_uid(portal->value[5]));
 			}
 			else
 				location = get_random_room_area(ch, here->area);

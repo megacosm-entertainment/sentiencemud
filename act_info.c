@@ -1618,6 +1618,159 @@ void do_survey(CHAR_DATA *ch, char *argument)
     act("You aren't on a boat.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 }
 
+void do_areas(CHAR_DATA *ch, char *argument)
+{
+{
+    char buf[MAX_STRING_LENGTH];
+    AREA_DATA *pArea;
+    BUFFER *buffer;
+    int place_type = 0;
+	int areas_found = 0;
+
+    buffer = new_buf();
+
+    sprintf(buf, "[%-26.26s] (%7s)  [%-8s]\n\r",
+       "Area Name", "Level Range", "Locked?");
+    add_buf(buffer, buf);
+
+    if (argument[0] != '\0'
+    && (place_type = flag_value(place_flags, argument)) == NO_FLAG)
+    {
+	send_to_char("Syntax: areas\n\r"
+	             "        areas [first|second|third|fourth|island|other|abyss|eden]\n\r", ch);
+	return;
+    }
+
+    for (pArea = area_first; pArea; pArea = pArea->next)
+    {
+	if (place_type == 0 || (pArea->place_flags == place_type))
+	{
+		if (pArea->open && pArea->place_flags != PLACE_NOWHERE)
+		{
+			sprintf(buf, "{X%-26.26s%s  {D ({x%-5d{D-{x%5d{D){X %s{x \n\r",
+	     	pArea->name,
+	     	"{x",
+	     	pArea->min_level,
+	     	pArea->max_level,
+			is_area_unlocked(ch, pArea) ? "{G Unlocked": "{R LOCKED");
+			add_buf(buffer, buf);
+			areas_found++;
+		}
+	}
+    }
+
+	if (areas_found > 0)
+	{
+		sprintf(buf, "%d areas found for this location.\n\r", areas_found);
+		add_buf(buffer, buf);
+	}
+	else
+	{
+		sprintf(buf, "No open areas found for this location.\n\r");
+		add_buf(buffer, buf);
+	}
+
+    page_to_char(buf_string(buffer), ch);
+    free_buf(buffer);
+}
+}
+
+void do_area(CHAR_DATA *ch, char *argument)
+{
+	AREA_DATA *pArea;
+    char arg[MAX_STRING_LENGTH];
+	char buf[MAX_STRING_LENGTH];
+	ROOM_INDEX_DATA *recall;
+
+	pArea = ch->in_room->area;
+
+	argument	= one_argument(argument,arg);
+    if (!str_cmp(arg, ""))
+    {
+        send_to_char("Syntax: area <area name>\n\r", ch);
+		return;
+    }
+	if (arg[0] != '\0' && (pArea = find_area_kwd(arg)) == NULL)
+    {
+	send_to_char("Area not found.\n\r", ch);
+	return;
+    }
+	if (!pArea->open || pArea->place_flags == PLACE_NOWHERE)
+	{
+		send_to_char("Area data not accessible.\n\r", ch);
+		return;
+	}
+	else
+	{
+		sprintf(buf, "===== %s =====\n\r\n\r", pArea->name);
+		send_to_char(buf, ch);
+
+		sprintf(buf, "{WImm Credits:{X             %s\n\r", pArea->credits);
+		send_to_char(buf, ch);
+
+		sprintf(buf, "{WRecommended Level Range: {X%d {W-{X %d\n\r", pArea->min_level, pArea->max_level);
+		send_to_char(buf, ch);
+
+		sprintf(buf, "{WRepops every %d minutes.{X\n\r", pArea->repop);
+		send_to_char(buf,ch);
+
+
+
+		sprintf(buf, "\n\r{WLocation Info:{X\n\r");
+		send_to_char(buf, ch);
+
+		sprintf(buf, "{WArea Location:{X           %s\n\r", flag_string(place_flags, pArea->place_flags));
+		send_to_char(buf, ch);
+	
+		if( pArea->wilds_uid > 0 )
+    	{
+			WILDS_DATA *pWilds = get_wilds_from_uid(NULL, pArea->wilds_uid);
+    		sprintf(buf, "{WMap:     {X                %s\n\r", pWilds?pWilds->name:"(null)");
+	   	 	send_to_char(buf, ch);
+
+			sprintf(buf, "{WCoordinates (X,Y):       [{X%d, %d{W]{X\n\r", pArea->x, pArea->y);
+    		send_to_char(buf, ch);
+		}
+
+		if(pArea->recall.wuid) 
+		{
+			WILDS_DATA *wilds = get_wilds_from_uid(NULL,pArea->recall.wuid);
+			if(wilds)
+				sprintf(buf, "{WRecall:                  Wilds {X%s at <%lu,%lu,%lu>{X\n\r", wilds->name,
+				pArea->recall.id[0],pArea->recall.id[1],pArea->recall.id[2]);
+			else
+				sprintf(buf, "{WRecall:                  Wilds {X%lu at ???{X\n\r", pArea->recall.wuid);
+		} 
+		else if(pArea->recall.id[0] > 0 && (recall = get_room_index(pArea->recall.id[0]))) 
+		{
+			sprintf(buf, "{WRecall:                  {X%s\n\r", recall->name);
+		} 
+		else
+			sprintf(buf, "{WRecall:                  {Xnone\n\r");
+	
+		send_to_char(buf, ch);
+
+    // One post office per area
+    	sprintf(buf, "{WPost Office              {X%s\n\r",
+        	get_room_index(pArea->post_office) == NULL ? "None" :
+	    	get_room_index(pArea->post_office)->name);
+    		send_to_char(buf, ch);
+
+
+
+
+		sprintf(buf, "\n\r{WDescription:{X\n\r%s\n\r", pArea->description);
+		send_to_char(buf,ch);
+
+		if(pArea->notes)
+		{
+			sprintf(buf, "\n\r{WSpecial Notes:{X\n\r%s\n\r", pArea->notes);
+			send_to_char(buf,ch);
+		}
+
+	}
+}
+
 void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, bool automatic)
 {
 	char buf[MAX_STRING_LENGTH];

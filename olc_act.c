@@ -541,100 +541,122 @@ AEDIT(aedit_show)
     ROOM_INDEX_DATA *recall;
 
     EDIT_AREA(ch, pArea);
+	sprintf(buf, "{X======== {W%s{X ========\n\r", pArea->name);
+	send_to_char(buf, ch);
 
-    sprintf(buf, "Name:        [%5ld] %s\n\r", pArea->anum, pArea->name);
+	sprintf(buf, "{WArea: {R[{X%5ld{R]{X %s {R({WID: {X%ld{R){X\n\r", pArea->anum, pArea->name, pArea->uid);
+	send_to_char(buf,ch);
+
+//    sprintf(buf, "Name:        [%5ld] %s\n\r", pArea->anum, pArea->name);
+//    send_to_char(buf, ch);
+
+	sprintf(buf, "\n\r{WSystem Infomation:{X\n\r");
+	send_to_char(buf, ch);
+
+    sprintf(buf, "{WFile:        {R[{X%s{R]{X\n\r", pArea->file_name);
     send_to_char(buf, ch);
+
+    sprintf(buf, "{WAge:         {R[{X%d{R]{X\n\r",	pArea->age);
+    send_to_char(buf, ch);
+
+    sprintf(buf, "{WRepop:       {R[{X%d minutes{R]{X\n\r", pArea->repop);
+    send_to_char(buf, ch);
+
+    sprintf(buf, "{WPlayers:     {R[{X%d{R]{X\n\r", pArea->nplayer);
+    send_to_char(buf, ch);
+
+	sprintf(buf, "{WCredits:     {R[{X%s{R]{X\n\r", pArea->credits);
+    send_to_char(buf, ch);
+
+    sprintf(buf, "{WFlags:       {R[{X%s{R]{X\n\r",
+		   flag_string(area_flags, pArea->area_flags));
+    send_to_char(buf, ch);
+
+    sprintf(buf, "{WOpen:        {R[{X%s{R]{X\n\r", pArea->open ? "Yes" : "No");
+    send_to_char(buf, ch);
+
+//
+// OLC Data
+//
+
+	sprintf(buf, "\n\r{WOLC Info:{X\n\r");
+	send_to_char(buf,ch);
+
+    sprintf(buf, "{WVnums:       {R[{X%ld-%ld{R]{X\n\r", pArea->min_vnum, pArea->max_vnum);
+    send_to_char(buf, ch);
+
+	sprintf(buf, "{WRepop:       {R[{X%d minutes{R]{X\n\r", pArea->repop);
+    send_to_char(buf, ch);
+
+	sprintf(buf, "{WSecurity:    {R[{X%d{R]{X\n\r", pArea->security);
+    send_to_char(buf, ch);
+
+	sprintf(buf, "{WBuilders:    {R[{X%s{R]{X\n\r", pArea->builders);
+    send_to_char(buf, ch);
+
+	sprintf(buf, "{WSuggested Levels:  {R[{X%d-%d{R]{X\n\r", pArea->min_level, pArea->max_level);
+	send_to_char(buf, ch);
+
+//
+// Room Data
+//
+
+	sprintf(buf, "\n\r{WLocation Information:{X\n\r");
+	send_to_char(buf, ch);
 
 	if(pArea->recall.wuid) {
 		WILDS_DATA *wilds = get_wilds_from_uid(NULL,pArea->recall.wuid);
 		if(wilds)
-			sprintf(buf, "Recall:      Wilds %s [%lu] at <%lu,%lu,%lu>\n\r", wilds->name, pArea->recall.wuid,
+			sprintf(buf, "{WRecall:      Wilds {X%s {R[{X%lu{R]{X} at {R<{X%lu,%lu,%lu{R>{X\n\r", wilds->name, pArea->recall.wuid,
 				pArea->recall.id[0],pArea->recall.id[1],pArea->recall.id[2]);
 		else
-			sprintf(buf, "Recall:      Wilds ??? [%lu]\n\r", pArea->recall.wuid);
+			sprintf(buf, "{WRecall:      Wilds {X??? {R[{X%lu{R]{X\n\r", pArea->recall.wuid);
 	} else if(pArea->recall.id[0] > 0 && (recall = get_room_index(pArea->recall.id[0]))) {
-		sprintf(buf, "Recall:    Room [%5ld] %s\n\r", pArea->recall.id[0], recall->name);
+			sprintf(buf, "{WRecall:      Room {R[{X%5ld{R]{X {X%s\n\r", pArea->recall.id[0], recall->name);
 	} else
-			sprintf(buf, "Recall:      [%lu] none\n\r", pArea->recall.id[0]);
+			sprintf(buf, "{WRecall:      {R[{X%lu{R]{X none\n\r", pArea->recall.id[0]);
 	send_to_char(buf, ch);
 
-    sprintf(buf, "File:        %s\n\r", pArea->file_name);
+    sprintf(buf, "{WAreaWho:     {R[{X%s{R] [{X%s{R]{X\n\r", flag_string(area_who_titles, pArea->area_who), flag_string(area_who_display, pArea->area_who));
     send_to_char(buf, ch);
 
-    sprintf(buf, "Vnums:       [%ld-%ld]\n\r", pArea->min_vnum, pArea->max_vnum);
-    send_to_char(buf, ch);
-
-    sprintf(buf, "Age:         [%d]\n\r",	pArea->age);
-    send_to_char(buf, ch);
-
-    sprintf(buf, "Repop:       [%d minutes]\n\r", pArea->repop);
-    send_to_char(buf, ch);
-
-    sprintf(buf, "Players:     [%d]\n\r", pArea->nplayer);
-    send_to_char(buf, ch);
-
-    sprintf(buf, "AreaWho:     [%s] [%s]\n\r", flag_string(area_who_titles, pArea->area_who), flag_string(area_who_display, pArea->area_who));
-    send_to_char(buf, ch);
-
-    sprintf(buf, "Security:    [%d]\n\r", pArea->security);
-    send_to_char(buf, ch);
-
-    sprintf(buf, "PlaceType:   [%s]\n\r",
+    sprintf(buf, "{WPlaceType:   {R[{X%s{R]{X\n\r",
 	    flag_string(place_flags, pArea->place_flags));
     send_to_char(buf, ch);
 
-    sprintf(buf, "Builders:    [%s]\n\r", pArea->builders);
+    sprintf(buf, "{WAirshipLand: {R[{X%s{R({X%ld{R)]{X\n\r", get_room_index(pArea->airship_land_spot) == NULL ? "{XNone" :
+        get_room_index(pArea->airship_land_spot)->name, pArea->airship_land_spot);
     send_to_char(buf, ch);
 
-    sprintf(buf, "Credits:     [%s]\n\r", pArea->credits);
-    send_to_char(buf, ch);
 
-    sprintf(buf, "Flags:       [%s]\n\r",
-		   flag_string(area_flags, pArea->area_flags));
-    send_to_char(buf, ch);
+
+	sprintf(buf, "\n\r{WWilderness Map Locations:{X\n\r");
+	send_to_char(buf,ch);
 
     if( pArea->wilds_uid > 0 )
     {
 		WILDS_DATA *pWilds = get_wilds_from_uid(NULL, pArea->wilds_uid);
-    	sprintf(buf, "Wilderness:  [%ld] %s\n\r", pArea->wilds_uid, pWilds?pWilds->name:"(null)");
+    	sprintf(buf, "{WWilderness:     {R[{X%ld{R]{X %s\n\r", pArea->wilds_uid, pWilds?pWilds->name:"(null)");
 	    send_to_char(buf, ch);
 	}
 	else
 	{
-    	sprintf(buf, "Wilderness:  none\n\r");
+    	sprintf(buf, "{WWilderness:     {Xnone\n\r");
 	    send_to_char(buf, ch);
 	}
 
-    sprintf(buf, "X : Y:       [%d, %d]\n\r", pArea->x, pArea->y);
+    sprintf(buf, "{WX,Y:            {R[{X%d, %d{R]{X\n\r", pArea->x, pArea->y);
     send_to_char(buf, ch);
 
-    sprintf(buf, "Land X:Y:    [%d, %d]\n\r", pArea->land_x, pArea->land_y);
+    sprintf(buf, "{WLandX,LandY:    {R[{X%d, %d{R]{X\n\r", pArea->land_x, pArea->land_y);
     send_to_char(buf, ch);
 
-    sprintf(buf, "AirshipLand: [%s(%ld)]\n\r", get_room_index(pArea->airship_land_spot) == NULL ? "None" :
-        get_room_index(pArea->airship_land_spot)->name, pArea->airship_land_spot);
-    send_to_char(buf, ch);
-
-    sprintf(buf, "Open:        [%s]\n\r", pArea->open ? "Yes" : "No");
-    send_to_char(buf, ch);
-
-    // One post office per area
-    sprintf(buf, "PostOffice   [%s (%ld)]\n\r",
-        get_room_index(pArea->post_office) == NULL ? "None" :
-	    get_room_index(pArea->post_office)->name, pArea->post_office);
-    send_to_char(buf, ch);
-
-	sprintf(buf, "Description:\n\r%s\n\r", pArea->description);
-	send_to_char(buf,ch);
-
-	sprintf(buf,"\n\r-----\n\r{WBuilders' Comments:{X\n\r%s\n\r-----\n\r", pArea->comments);
-	send_to_char(buf,ch);
 
     // Trade stuff. One trade center per area at most
     if (pArea->trade_list != NULL)
     {
         TRADE_ITEM *temp;
-        send_to_char("Trade Items available within this area:\n\r", ch);
+        send_to_char("{WTrade Items available within this area:{X\n\r", ch);
 	 	send_to_char("{MName               Obj_Vnum Rep.Time Rep.Amount  Max_Qty Min_Price Max_Price{x\n\r", ch);
         temp = pArea->trade_list;
 
@@ -646,6 +668,16 @@ AEDIT(aedit_show)
 	}
 
     }
+
+
+	sprintf(buf, "\n\r{WDescription:{X\n\r%s\n\r", pArea->description);
+	send_to_char(buf,ch);
+
+	sprintf(buf, "\n\r{WPlayer Notes:{X\n\r%s\n\r", pArea->notes);
+	send_to_char(buf,ch);
+
+	sprintf(buf,"\n\r-----\n\r{WBuilders' Comments:{X\n\r%s\n\r-----\n\r", pArea->comments);
+	send_to_char(buf,ch);
 
     return FALSE;
 }
@@ -1065,6 +1097,22 @@ AEDIT(aedit_comments)
     return FALSE;
 }
 
+AEDIT(aedit_notes)
+{
+    AREA_DATA *pArea;
+
+    EDIT_AREA(ch, pArea);
+
+    if (argument[0] == '\0')
+    {
+	string_append(ch, &pArea->notes);
+	return TRUE;
+    }
+
+    send_to_char("Syntax:  notes\n\r", ch);
+    return FALSE;
+}
+
 
 AEDIT(aedit_repop)
 {
@@ -1461,6 +1509,47 @@ AEDIT(aedit_vnum)
 
     pArea->max_vnum = iupper;
     send_to_char("Upper vnum set.\n\r", ch);
+
+    return TRUE;
+}
+
+AEDIT(aedit_levels)
+{
+    AREA_DATA *pArea;
+    char lower[MAX_STRING_LENGTH];
+    char upper[MAX_STRING_LENGTH];
+    int  ilower;
+    int  iupper;
+
+    EDIT_AREA(ch, pArea);
+
+    argument = one_argument(argument, lower);
+    one_argument(argument, upper);
+
+    if (!is_number(lower) || lower[0] == '\0'
+    || !is_number(upper) || upper[0] == '\0')
+    {
+	send_to_char("Syntax:  levels [#xlower] [#xupper]\n\r", ch);
+	return FALSE;
+    }
+
+    if ((ilower = atoi(lower)) > (iupper = atoi(upper)))
+    {
+	send_to_char("AEdit:  Upper must be larger then lower.\n\r", ch);
+	return FALSE;
+    }
+
+    if ((ilower = atoi(lower)) > 120 || (iupper = atoi(upper)) < 1)
+    {
+	send_to_char("AEdit:  Range must be between 1 and 120.\n\r", ch);
+	return FALSE;
+    }
+
+    pArea->min_level = ilower;
+    send_to_char("Lower level set.\n\r", ch);
+
+    pArea->max_level = iupper;
+    send_to_char("Upper level set.\n\r", ch);
 
     return TRUE;
 }
@@ -3548,7 +3637,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 				"{B[  {Wv1{B]{G Exit Flags:{x     %s\n\r"
 				"{B[  {Wv2{B]{G Portal Flags:{x   %s\n\r"
 				"{B[  {Wv4{B]{G Key:{x            [%ld] %s\n\r"
-				"{B[  {Wv5{B]{G Goes to (anum):{x [%ld]\n\r",
+				"{B[  {Wv5{B]{G Goes to (area id):{x [%ld]\n\r",
 				obj->value[0],
 				flag_string(portal_exit_flags, obj->value[1]),
 				flag_string(portal_flags, obj->value[2]),
@@ -4457,7 +4546,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			}
 			else if( IS_SET(pObj->value[2], GATE_AREARANDOM) || pObj->value[3] == -1 )
 			{
-				send_to_char("AREA ANUM SET.\n\r\n\r", ch);
+				send_to_char("AREA ID SET.\n\r\n\r", ch);
 			}
 			else if( !IS_SET(pObj->value[2], GATE_DUNGEON) )
 			{

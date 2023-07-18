@@ -1271,7 +1271,7 @@ void fix_areaprogs(void)
 			while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
 				if (!(trigger->script = get_script_index(trigger->vnum, PRG_APROG))) {
 					bug("fix_areaprogs: code vnum %d not found.", trigger->vnum);
-					bug("fix_areaprogs: on area %ld", pArea->anum);
+					bug("fix_areaprogs: on area %ld", pArea->uid);
 					exit(1);
 				}
 			}

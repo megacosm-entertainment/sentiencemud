@@ -3758,7 +3758,7 @@ SCRIPT_CMD(scriptcmd_unlockarea)
 	area = NULL;
 	if( arg->type == ENT_NUMBER )
 	{
-		area = get_area_data(arg->d.num);
+		area = get_area_from_uid(arg->d.num);
 	}
 	else if( arg->type == ENT_STRING )
 	{

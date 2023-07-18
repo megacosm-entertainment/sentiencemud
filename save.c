@@ -681,7 +681,7 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
     iterator_start(&uait, ch->pcdata->unlocked_areas);
     while( (unlocked_area = (AREA_DATA *)iterator_nextdata(&uait)) )
     {
-		fprintf(fp, "UnlockedArea %ld\n", unlocked_area->anum);
+		fprintf(fp, "UnlockedArea %ld\n", unlocked_area->uid);
 	}
     iterator_stop(&uait);
 
@@ -2105,8 +2105,8 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 	case 'U':
 		if(!str_cmp(word, "UnlockedArea"))
 		{
-			long anum = fread_number(fp);
-			AREA_DATA *unlocked_area = get_area_data(anum);
+			long uid = fread_number(fp);
+			AREA_DATA *unlocked_area = get_area_from_uid(uid);
 
 			if( unlocked_area )
 			{

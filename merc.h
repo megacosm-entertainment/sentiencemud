@@ -4638,10 +4638,13 @@ struct	area_data {
 	char *credits;
     char *  description;
     char *  comments;
+    char *  notes;
 	sh_int age;
 	sh_int nplayer;
 	sh_int low_range;
 	sh_int high_range;
+    sh_int min_level;
+    sh_int max_level;
 	long min_vnum;
 	long max_vnum;
 	bool empty;

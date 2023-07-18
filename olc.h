@@ -208,6 +208,7 @@ DECLARE_OLC_FUN( aedit_flags		);
 DECLARE_OLC_FUN( aedit_land_x		);
 DECLARE_OLC_FUN( aedit_land_y		);
 DECLARE_OLC_FUN( aedit_name		);
+DECLARE_OLC_FUN( aedit_notes    );
 DECLARE_OLC_FUN( aedit_open		);
 DECLARE_OLC_FUN( aedit_placetype	);
 DECLARE_OLC_FUN( aedit_recall		);
@@ -226,6 +227,7 @@ DECLARE_OLC_FUN( aedit_varclear	);
 DECLARE_OLC_FUN( aedit_addaprog		);
 DECLARE_OLC_FUN( aedit_delaprog		);
 DECLARE_OLC_FUN( aedit_wilds		);
+DECLARE_OLC_FUN( aedit_levels       );
 
 /*
  * Room Editor Prototypes
