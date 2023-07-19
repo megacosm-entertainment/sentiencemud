@@ -3564,7 +3564,7 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
 		(has_head?"HEAD":"HEADLESS"),
 		(messages?"MESSAGES":"SILENT"),
 		corpse_type);
-	wiznet(buf,NULL,NULL,WIZ_DEATHS,0,MAX_LEVEL);
+	wiznet(buf,NULL,NULL,(IS_NPC(victim))?WIZ_MOBDEATHS:WIZ_DEATHS,0,MAX_LEVEL);
 
 	/* If someone has died then unbanish them */
 	victim->maze_time_left = 0;
