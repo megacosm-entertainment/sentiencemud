@@ -1928,7 +1928,7 @@ SCRIPT_CMD(do_mpechoaround)
 
 	// Expand the message
 	BUFFER *buffer = new_buf();
-	expand_string(info,argument,buffer);
+	expand_string(info,rest,buffer);
 
 	if(buf_string(buffer)[0] != '\0')
 		act(buf_string(buffer), victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
