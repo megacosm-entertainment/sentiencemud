@@ -3840,7 +3840,7 @@ void do_pk(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *mob = NULL;
 
-    for (mob = ch->in_room->people; mob != NULL; mob = mob->next)
+    for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
     {
 	if (IS_SET(mob->act, ACT_PRACTICE))
 	    break;

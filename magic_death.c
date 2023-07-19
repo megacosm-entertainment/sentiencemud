@@ -314,8 +314,22 @@ SPELL_FUNC(spell_kill)
 	act("{R$n keels over and dies as $s heart stops instantly.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 	act("{RYou keel over and die as your heart stops instantly.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
+
+
+				// Check if slain victim was part of a quest. Checks if your horse got the kill, too.
+		if (!IS_NPC(ch)) {
+			check_quest_slay_mob(ch, victim, true);
+			check_invasion_quest_slay_mob(ch, victim);
+		}
+
 	victim->set_death_type = DEATHTYPE_ALIVE;
 	victim->death_type = DEATHTYPE_KILLSPELL;
+
+	        if (ch != victim) {
+            group_gain(ch, victim);
+            if( ch->fighting == victim )
+                stop_fighting(ch, FALSE);
+        }
 
 	here = victim->in_room;
 	victim->position = POS_STANDING;

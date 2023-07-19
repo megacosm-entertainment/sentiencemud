@@ -3904,6 +3904,7 @@ void group_gain(CHAR_DATA *ch, CHAR_DATA *victim)
 	int xp;
 	int members;
 	int group_levels;
+	int skill_reduction;
 
 	/* Don't give experience to NPCs. */
 	if (IS_NPC(ch))
@@ -3950,6 +3951,45 @@ void group_gain(CHAR_DATA *ch, CHAR_DATA *victim)
 			continue;
 
 		xp = xp_compute(gch, victim, group_levels);	// This is computed so that objects can get experience
+		if (victim->death_type == DEATHTYPE_SLIT)
+		{
+			skill_reduction = get_skill(ch, gsn_slit_throat);
+			// Under 75 gets nothing, up to 50% at 95% or better learned. Mastery awards 75% - This is really ugly and should be replaced by a formula.
+			if (skill_reduction < 75)
+				xp = 0;
+			else if (skill_reduction < 80)
+				xp *= 0.25;
+			else if (skill_reduction < 85)
+				xp *= 0.3;
+			else if (skill_reduction < 90)
+				xp *= 0.35;
+			else if (skill_reduction < 95)
+				xp *= 0.4;
+			else if (skill_reduction < 100)
+				xp *= 0.5;
+			else
+				xp *= 0.75;
+		}
+		if (victim->death_type == DEATHTYPE_KILLSPELL)
+		{
+			skill_reduction = get_skill(ch, gsn_kill);
+			// Under 75 gets nothing, up to 50% at 95% or better learned. Mastery awards 75% - This is really ugly and should be replaced by a formula.
+			if (skill_reduction < 75)
+				xp = 0;
+			else if (skill_reduction < 80)
+				xp *= 0.25;
+			else if (skill_reduction < 85)
+				xp *= 0.3;
+			else if (skill_reduction < 90)
+				xp *= 0.35;
+			else if (skill_reduction < 95)
+				xp *= 0.4;
+			else if (skill_reduction < 100)
+				xp *= 0.5;
+			else
+				xp *= 0.75;
+
+		}
 		if (!(IS_IMMORTAL(gch) || gch->tot_level == 120))
 		{
 			int pc_xp = xp;
@@ -5859,10 +5899,21 @@ void do_slit(CHAR_DATA *ch, char *argument)
 		act("{RYou slit $N's throat in cold blood!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		act("{RSomeone slit your throat!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 
+				// Check if slain victim was part of a quest. Checks if your horse got the kill, too.
+		if (!IS_NPC(ch)) {
+			check_quest_slay_mob(ch, victim, true);
+			check_invasion_quest_slay_mob(ch, victim);
+		}
 
 		victim->set_death_type = DEATHTYPE_ALIVE;
 		victim->death_type = DEATHTYPE_SLIT;
 		// Make sure to toggle the death trigger as we are using raw_kill, not damage
+		if (ch != victim) {
+            group_gain(ch, victim);
+        	if( ch->fighting == victim )
+                stop_fighting(ch, FALSE);
+        }
+
 		{
 			ROOM_INDEX_DATA *here = victim->in_room;
 			victim->position = POS_STANDING;
