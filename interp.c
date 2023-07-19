@@ -1847,31 +1847,38 @@ void do_commands( CHAR_DATA *ch, char *argument )
 	send_to_char( "\n\r", ch );
 }
 
-
 // Output a table of imm-only commands.
 void do_wizhelp( CHAR_DATA *ch, char *argument )
 {
     char buf[MAX_STRING_LENGTH];
     int cmd;
     int col;
+	int lvl;
 
     col = 0;
+	lvl = 0;
+
+	for ( lvl = 150; lvl <= MAX_LEVEL; lvl++ )
+	{
+		sprintf( buf, "\n\r===== Commands for Level %d =====\n\r", lvl);
+		send_to_char( buf, ch );
     for ( cmd = 0; cmd_table[cmd].name[0] != '\0'; cmd++ )
     {
-        if ( cmd_table[cmd].level >= LEVEL_HERO
-        &&   cmd_table[cmd].level <= get_trust( ch )
-	&&   cmd_table[cmd].show)
+        if ( cmd_table[cmd].level == lvl 
+			&&   cmd_table[cmd].show)
 	{
-            sprintf( buf, "%-12s", cmd_table[cmd].name );
+            sprintf( buf, "%s%-12s{X", (cmd_table[cmd].level <= get_trust(ch) || is_granted_command(ch, cmd_table[cmd].name)) ? "{W" : "{D" , cmd_table[cmd].name );
             send_to_char( buf, ch );
 
 	    if ( ++col % 6 == 0 )
 		send_to_char( "\n\r", ch );
 	}
     }
+	
 
     if ( col % 6 != 0 )
 	send_to_char( "\n\r", ch );
+	}
 }
 
 
@@ -1883,7 +1890,10 @@ bool is_allowed( char *command )
     || !str_cmp( command, "whois")
     || !str_cmp( command, "equipment")
     || !str_cmp( command, "inventory")
-    || !str_cmp( command, "score") )
+    || !str_cmp( command, "score") 
+	|| !str_cmp( command, "who" ) 
+	|| !str_cmp( command, "area" ) 
+	|| !str_cmp( command, "areas") )
         return TRUE;
 
     return FALSE;
