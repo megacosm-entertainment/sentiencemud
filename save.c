@@ -712,6 +712,7 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
     int stat;
     TOKEN_DATA *token;
     pVARIABLE last_var = variable_tail;
+	//char old_scroll_vial[MAX_STRING_LENGTH];
 
     ch = new_char();
     ch->pcdata = new_pcdata();
@@ -803,6 +804,20 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 
 				if (obj == NULL)
 					continue;
+
+				if (obj->pIndexData->vnum == OBJ_VNUM_SCROLL)
+					if (!strcmp(obj->name, "scroll"))
+					 {	
+						free_string(obj->name);
+    					obj->name = short_to_name(obj->short_descr);
+					 }
+
+				if (obj->pIndexData->vnum == OBJ_VNUM_POTION)
+					if(!strcmp(obj->name, "potion"))
+					{
+						free_string(obj->name);
+						obj->name = short_to_name(obj->short_descr);
+					}
 
 				resolve_special_key(obj);
 
