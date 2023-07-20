@@ -7726,7 +7726,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 
 		vch = arg->d.mob;
 
-		if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING || arg->type != ENT_AREA)
+		if(!(rest = expand_argument(info,rest,arg)) || (arg->type != ENT_STRING || arg->type != ENT_AREA))
 			return;
 
 		if( arg->type == ENT_STRING )
