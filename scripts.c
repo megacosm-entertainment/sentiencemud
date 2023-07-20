@@ -7721,12 +7721,19 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 	} else if(!str_cmp(buf,"randroom")) {
 		ROOM_INDEX_DATA *loc;
 
+		if (arg->type == ENT_AREA)
+		{
+			loc = get_random_room_area(vch, arg->d.area);
+			if( loc != NULL)
+			variables_set_room(vars,name,loc);
+		}
+		else
 		if( arg->type != ENT_MOBILE || !IS_VALID(arg->d.mob) || IS_NPC(arg->d.mob) )
 			return;
 
 		vch = arg->d.mob;
 
-		if(!(rest = expand_argument(info,rest,arg)) || (arg->type != ENT_STRING || arg->type != ENT_AREA))
+		if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING)
 			return;
 
 		if( arg->type == ENT_STRING )
@@ -7739,12 +7746,13 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 		if( loc != NULL )
 			variables_set_room(vars,name,loc);
 		}
+		/*
 		else if( arg->type == ENT_AREA )
 		{
 			loc = get_random_room_area(vch, arg->d.area);
 			if( loc != NULL )
 				variables_set_room(vars,name,loc);
-		}
+		}*/
 
 	// DUNGEONRAND $(SECTION|INSTANCE|DUNGEON)
 	} else if(!str_cmp(buf,"dungeonrand")) {
