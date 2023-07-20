@@ -3095,6 +3095,7 @@ TOKEN_DATA *new_token()
 	token = token_free;
 	token_free = token_free->next;
     }
+    memset(token, 0, sizeof(TOKEN_DATA));
 
     token->progs = NULL;
     SET_MEMTYPE(token,MEMTYPE_TOKEN);

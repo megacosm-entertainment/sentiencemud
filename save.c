@@ -805,20 +805,22 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 				if (obj == NULL)
 					continue;
 
-				if (obj->pIndexData->vnum == OBJ_VNUM_SCROLL)
-					if (!strcmp(obj->name, "scroll"))
-					 {	
-						free_string(obj->name);
-    					obj->name = short_to_name(obj->short_descr);
-					 }
+				if (ch->version < VERSION_PLAYER_006 )
+				{
+					if (obj->pIndexData->vnum == OBJ_VNUM_SCROLL)
+						if (!strcmp(obj->name, "scroll"))
+						 {	
+							free_string(obj->name);
+    						obj->name = short_to_name(obj->short_descr);
+						 }
 
-				if (obj->pIndexData->vnum == OBJ_VNUM_POTION)
-					if(!strcmp(obj->name, "potion"))
-					{
-						free_string(obj->name);
-						obj->name = short_to_name(obj->short_descr);
-					}
-
+					if (obj->pIndexData->vnum == OBJ_VNUM_POTION)
+						if(!strcmp(obj->name, "potion"))
+						{
+							free_string(obj->name);
+							obj->name = short_to_name(obj->short_descr);
+						}
+				}
 				resolve_special_key(obj);
 
 				objNestList[obj->nest] = obj;

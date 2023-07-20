@@ -1838,6 +1838,8 @@ void update_skills( CHAR_DATA *ch )
     int sn;
     int reward = 0;
 
+
+
     for (sn = 0; sn < MAX_SKILL && skill_table[sn].name; sn++)
     {
 	if (ch->pcdata->learned[sn] > 0 && !should_have_skill(ch, sn)
@@ -1936,6 +1938,7 @@ bool has_class_skill( int class, int sn )
 // Used for old players having skills they shouldn't.
 bool should_have_skill( CHAR_DATA *ch, int sn )
 {
+	SKILL_ENTRY *entry;
     if (ch == NULL)
     {
     	bug("should_have_skill: null ch", 0 );
@@ -1952,6 +1955,11 @@ bool should_have_skill( CHAR_DATA *ch, int sn )
     	return TRUE;
 
     if (is_global_skill(sn))
+		return TRUE;
+	
+	entry = skill_entry_findsn(ch->sorted_skills, sn);
+
+	if (entry->source != SKILLSRC_NORMAL)
 		return TRUE;
 
     if (has_class_skill( get_profession(ch, CLASS_MAGE), sn )
