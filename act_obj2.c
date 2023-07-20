@@ -1260,7 +1260,12 @@ void ink_end( CHAR_DATA *ch, CHAR_DATA *victim, sh_int loc, sh_int sn, sh_int sn
 		tattoo->spells = spell;
     }
 
+
+    free_string(tattoo->name);
+	strcat(tattoo_name, " tattoo");
+    tattoo->name = short_to_name(tattoo_name);
     obj_to_char(tattoo, victim);
+
     tattoo->wear_loc = loc;
 }
 

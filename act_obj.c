@@ -7442,8 +7442,8 @@ void brew_end(CHAR_DATA *ch, sh_int sn)
     }
 
     free_string(potion->name);
+	strcat(potion_name, " potion");
     potion->name = short_to_name(potion_name);
-    strcat(potion->name, " potion");
     obj_to_char(potion, ch);
 }
 
@@ -7829,8 +7829,8 @@ void scribe_end(CHAR_DATA *ch, sh_int sn, sh_int sn2, sh_int sn3)
     }
 
     free_string(scroll->name);
+	strcat(scroll_name, " scroll");
     scroll->name = short_to_name(scroll_name);
-    strcat(scroll->name, " scroll");
     obj_to_char(scroll, ch);
 }
 
