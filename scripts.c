@@ -7729,6 +7729,8 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 		if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING)
 			return;
 
+		if( arg->type == ENT_STRING )
+		{
 		int continent = get_continent(arg->d.str);
 		if( continent < 0 )
 			continent = ANY_CONTINENT;
@@ -7736,6 +7738,13 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 		loc = get_random_room(vch, continent);
 		if( loc != NULL )
 			variables_set_room(vars,name,loc);
+		}
+		else if( arg->type == ENT_AREA )
+		{
+			loc = get_random_room_area(vch, arg->d.area);
+			if( loc != NULL )
+				variables_set_room(vars,name,loc);
+		}
 
 	// DUNGEONRAND $(SECTION|INSTANCE|DUNGEON)
 	} else if(!str_cmp(buf,"dungeonrand")) {
