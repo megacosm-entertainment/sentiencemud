@@ -1197,7 +1197,7 @@ void close_socket(DESCRIPTOR_DATA *dclose)
 	if (dclose->connected == CON_PLAYING && !merc_down)
 	{
 	    if (ch->invis_level < LEVEL_IMMORTAL)
-		act("$n has lost $s link.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			act("$n has lost $s link.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 		wiznet("$N has lost $S link.",ch,NULL,WIZ_LINKS,0,0);
 
 	    ch->desc = NULL;

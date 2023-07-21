@@ -1983,11 +1983,11 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
 
     if (!str_cmp(ch->in_room->area->name, "Elysium")
     && !IS_SOCIAL(ch))
-	SET_BIT(ch->comm, COMM_SOCIAL);
+		SET_BIT(ch->comm, COMM_SOCIAL);
 
     if (str_cmp(ch->in_room->area->name, "Elysium")
     && IS_SOCIAL(ch))
-	REMOVE_BIT(ch->comm, COMM_SOCIAL);
+		REMOVE_BIT(ch->comm, COMM_SOCIAL);
 
 	if( IS_VALID(pRoomIndex->instance_section) && IS_VALID(pRoomIndex->instance_section->instance) )
 	{
