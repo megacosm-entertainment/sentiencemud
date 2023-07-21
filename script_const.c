@@ -652,7 +652,7 @@ struct _entity_type_info entity_type_info[] = {
 	{ ENT_ROOM,			ENT_ROOM,			entity_room,				TRUE	},
 	{ ENT_EXIT,			ENT_EXIT,			entity_exit,				FALSE	},
 	{ ENT_TOKEN,		ENT_TOKEN,			entity_token,				TRUE	},
-	{ ENT_AREA,			ENT_AREA,			entity_area,				FALSE	},
+	{ ENT_AREA,			ENT_AREA,			entity_area,				TRUE	},
 	{ ENT_SKILL,		ENT_SKILL,			entity_skill,				FALSE	},
 	{ ENT_SKILLINFO,	ENT_SKILLINFO,		entity_skill_info,			FALSE	},
 	{ ENT_CONN,			ENT_CONN,			entity_conn,				FALSE	},
