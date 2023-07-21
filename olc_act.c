@@ -539,70 +539,74 @@ AEDIT(aedit_show)
     AREA_DATA *pArea;
     char buf  [MAX_STRING_LENGTH];
     ROOM_INDEX_DATA *recall;
+	ITERATOR it;
+	PROG_LIST *trigger;
+	BUFFER *buffer;
+	buffer = new_buf();
 
     EDIT_AREA(ch, pArea);
 	sprintf(buf, "{X======== {W%s{X ========\n\r", pArea->name);
-	send_to_char(buf, ch);
+	add_buf(buffer, buf);
 
 	sprintf(buf, "{WArea: {R[{X%5ld{R]{X %s {R({WID: {X%ld{R){X\n\r", pArea->anum, pArea->name, pArea->uid);
-	send_to_char(buf,ch);
+	add_buf(buffer, buf);
 
 //    sprintf(buf, "Name:        [%5ld] %s\n\r", pArea->anum, pArea->name);
 //    send_to_char(buf, ch);
 
 	sprintf(buf, "\n\r{WSystem Infomation:{X\n\r");
-	send_to_char(buf, ch);
+	add_buf(buffer, buf);
 
     sprintf(buf, "{WFile:        {R[{X%s{R]{X\n\r", pArea->file_name);
-    send_to_char(buf, ch);
+    add_buf(buffer, buf);
 
     sprintf(buf, "{WAge:         {R[{X%d{R]{X\n\r",	pArea->age);
-    send_to_char(buf, ch);
+    add_buf(buffer, buf);
 
     sprintf(buf, "{WRepop:       {R[{X%d minutes{R]{X\n\r", pArea->repop);
-    send_to_char(buf, ch);
+    add_buf(buffer, buf);
 
     sprintf(buf, "{WPlayers:     {R[{X%d{R]{X\n\r", pArea->nplayer);
-    send_to_char(buf, ch);
+    add_buf(buffer, buf);
 
 	sprintf(buf, "{WCredits:     {R[{X%s{R]{X\n\r", pArea->credits);
-    send_to_char(buf, ch);
+    add_buf(buffer, buf);
 
     sprintf(buf, "{WFlags:       {R[{X%s{R]{X\n\r",
 		   flag_string(area_flags, pArea->area_flags));
-    send_to_char(buf, ch);
+    add_buf(buffer, buf);
 
     sprintf(buf, "{WOpen:        {R[{X%s{R]{X\n\r", pArea->open ? "Yes" : "No");
-    send_to_char(buf, ch);
+    add_buf(buffer, buf);
 
 //
 // OLC Data
 //
 
 	sprintf(buf, "\n\r{WOLC Info:{X\n\r");
-	send_to_char(buf,ch);
+	add_buf(buffer, buf);
 
     sprintf(buf, "{WVnums:       {R[{X%ld-%ld{R]{X\n\r", pArea->min_vnum, pArea->max_vnum);
-    send_to_char(buf, ch);
+    add_buf(buffer, buf);
 
 	sprintf(buf, "{WRepop:       {R[{X%d minutes{R]{X\n\r", pArea->repop);
-    send_to_char(buf, ch);
+    add_buf(buffer, buf);
 
 	sprintf(buf, "{WSecurity:    {R[{X%d{R]{X\n\r", pArea->security);
-    send_to_char(buf, ch);
+    add_buf(buffer, buf);
 
 	sprintf(buf, "{WBuilders:    {R[{X%s{R]{X\n\r", pArea->builders);
-    send_to_char(buf, ch);
+    add_buf(buffer, buf);
 
 	sprintf(buf, "{WSuggested Levels:  {R[{X%d-%d{R]{X\n\r", pArea->min_level, pArea->max_level);
-	send_to_char(buf, ch);
+	add_buf(buffer, buf);
 
 //
 // Room Data
 //
 
 	sprintf(buf, "\n\r{WLocation Information:{X\n\r");
-	send_to_char(buf, ch);
+	add_buf(buffer, buf);
 
 	if(pArea->recall.wuid) {
 		WILDS_DATA *wilds = get_wilds_from_uid(NULL,pArea->recall.wuid);
@@ -615,55 +619,57 @@ AEDIT(aedit_show)
 			sprintf(buf, "{WRecall:      Room {R[{X%5ld{R]{X {X%s\n\r", pArea->recall.id[0], recall->name);
 	} else
 			sprintf(buf, "{WRecall:      {R[{X%lu{R]{X none\n\r", pArea->recall.id[0]);
-	send_to_char(buf, ch);
+	add_buf(buffer, buf);
 
     sprintf(buf, "{WAreaWho:     {R[{X%s{R] [{X%s{R]{X\n\r", flag_string(area_who_titles, pArea->area_who), flag_string(area_who_display, pArea->area_who));
-    send_to_char(buf, ch);
+    add_buf(buffer, buf);
 
     sprintf(buf, "{WPlaceType:   {R[{X%s{R]{X\n\r",
 	    flag_string(place_flags, pArea->place_flags));
-    send_to_char(buf, ch);
+    add_buf(buffer, buf);
 
     sprintf(buf, "{WAirshipLand: {R[{X%s{R({X%ld{R)]{X\n\r", get_room_index(pArea->airship_land_spot) == NULL ? "{XNone" :
         get_room_index(pArea->airship_land_spot)->name, pArea->airship_land_spot);
-    send_to_char(buf, ch);
+    add_buf(buffer, buf);
 
 
 
 	sprintf(buf, "\n\r{WWilderness Map Locations:{X\n\r");
-	send_to_char(buf,ch);
+	add_buf(buffer, buf);
 
     if( pArea->wilds_uid > 0 )
     {
 		WILDS_DATA *pWilds = get_wilds_from_uid(NULL, pArea->wilds_uid);
     	sprintf(buf, "{WWilderness:     {R[{X%ld{R]{X %s\n\r", pArea->wilds_uid, pWilds?pWilds->name:"(null)");
-	    send_to_char(buf, ch);
+	    add_buf(buffer, buf);
 	}
 	else
 	{
     	sprintf(buf, "{WWilderness:     {Xnone\n\r");
-	    send_to_char(buf, ch);
+	    add_buf(buffer, buf);
 	}
 
     sprintf(buf, "{WX,Y:            {R[{X%d, %d{R]{X\n\r", pArea->x, pArea->y);
-    send_to_char(buf, ch);
+    add_buf(buffer, buf);
 
     sprintf(buf, "{WLandX,LandY:    {R[{X%d, %d{R]{X\n\r", pArea->land_x, pArea->land_y);
-    send_to_char(buf, ch);
+    add_buf(buffer, buf);
 
 
     // Trade stuff. One trade center per area at most
     if (pArea->trade_list != NULL)
     {
         TRADE_ITEM *temp;
-        send_to_char("{WTrade Items available within this area:{X\n\r", ch);
-	 	send_to_char("{MName               Obj_Vnum Rep.Time Rep.Amount  Max_Qty Min_Price Max_Price{x\n\r", ch);
+        sprintf(buf, "{WTrade Items available within this area:{X\n\r");
+		add_buf(buffer, buf);
+	 	sprintf(buf,"{MName               Obj_Vnum Rep.Time Rep.Amount  Max_Qty Min_Price Max_Price{x\n\r");
+		add_buf(buffer,buf);
         temp = pArea->trade_list;
 
         while(temp != NULL)
 	{
 	    sprintf(buf, "%-18s %-10ld %-10ld %-10ld %-10ld %-6ld %ld\n\r", trade_table[temp->trade_type].name, temp->obj_vnum, temp->replenish_time, temp->replenish_amount, temp->max_qty, temp->min_price, temp->max_price);
-	    send_to_char(buf, ch);
+	    add_buf(buffer, buf);
             temp = temp->next;
 	}
 
@@ -671,13 +677,79 @@ AEDIT(aedit_show)
 
 
 	sprintf(buf, "\n\r{WDescription:{X\n\r%s\n\r", pArea->description);
-	send_to_char(buf,ch);
+	add_buf(buffer, buf);
 
 	sprintf(buf, "\n\r{WPlayer Notes:{X\n\r%s\n\r", pArea->notes);
-	send_to_char(buf,ch);
+	add_buf(buffer, buf);
 
 	sprintf(buf,"\n\r-----\n\r{WBuilders' Comments:{X\n\r%s\n\r-----\n\r", pArea->comments);
-	send_to_char(buf,ch);
+	add_buf(buffer, buf);
+
+
+    if (pArea->progs->progs) {
+	int cnt, slot;
+
+	for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++)
+		if(list_size(pArea->progs->progs[slot]) > 0) ++cnt;
+
+	if (cnt > 0) {
+		sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "Number", "AreaProg Vnum", "Trigger", "Phrase");
+		add_buf(buffer, buf);
+
+		sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "------", "-------------", "-------", "------");
+		add_buf(buffer, buf);
+
+		for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
+			iterator_start(&it, pArea->progs->progs[slot]);
+			while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
+				sprintf(buf, "{r[{W%4d{r]{x %-20ld %-10s %-10s\n\r", cnt,
+					trigger->vnum,trigger_name(trigger->trig_type),
+					trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, TRUE, FALSE));
+				add_buf(buffer, buf);
+				cnt++;
+			}
+			iterator_stop(&it);
+		}
+	}
+    }
+
+    if (pArea->index_vars) {
+	pVARIABLE var;
+	int cnt;
+
+	for (cnt = 0, var = pArea->index_vars; var; var = var->next) ++cnt;
+
+	if (cnt > 0) {
+		sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "Name", "Type", "Saved", "Value");
+		add_buf(buffer, buf);
+
+		sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "----", "----", "-----", "-----");
+		add_buf(buffer, buf);
+
+		for (var = pArea->index_vars; var; var = var->next) {
+			switch(var->type) {
+			case VAR_INTEGER:
+				sprintf(buf, "{x%-20.20s {GNUMBER     {Y%c   {W%d{x\n\r", var->name,var->save?'Y':'N',var->_.i);
+				break;
+			case VAR_STRING:
+			case VAR_STRING_S:
+				sprintf(buf, "{x%-20.20s {GSTRING     {Y%c   {W%s{x\n\r", var->name,var->save?'Y':'N',var->_.s?var->_.s:"(empty)");
+				break;
+			case VAR_ROOM:
+				if(var->_.r && var->_.r->vnum > 0)
+					sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W%s {R({W%d{R){x\n\r", var->name,var->save?'Y':'N',var->_.r->name,(int)var->_.r->vnum);
+				else
+					sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W-no-where-{x\n\r",var->name,var->save?'Y':'N');
+				break;
+			default:
+				continue;
+			}
+			add_buf(buffer, buf);
+		}
+	}
+    }
+	page_to_char(buf_string(buffer), ch);
+	free_buf(buffer);
 
     return FALSE;
 }
