@@ -1632,6 +1632,8 @@ AREA_DATA *read_area_new(FILE *fp)
 	}
     }
 
+	variable_copylist(&area->index_vars,&area->progs->vars,FALSE);
+
     if (IS_SET(area->area_flags, AREA_CHANGED))
 		REMOVE_BIT(area->area_flags, AREA_CHANGED);
 
