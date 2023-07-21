@@ -47,6 +47,7 @@ const struct hint_type hintsTable[] =
     {"If you are lost you can type 'recall' at any time to return to a familiar place.\n\r"},
     {"You can recover mana or hit points by sleeping or resting. To do this, type 'sleep' or 'rest'. Type 'wake' or 'stand' once you have finished.\n\r"},
     {"You can type \"hints\" at any time to remove these messages.\n\r"},
+    {"There is a guide available for new players at https://playerguide.sentiencemud.net.\n\r"},
     {"When you feel able, the mayor in Olaria offers quests. Quests give\n\ryour money, experience, pracs and quest points that can be used to buy magical\n\requipment.\n\r"},
     {"You can turn off channels by typing the name of the channel without anything\n\rafter. You can find the names of all channels by typing 'channels'.\n\r"},
     {"Type 'help auction' for information on how to use the auction channel.\n\r"},
