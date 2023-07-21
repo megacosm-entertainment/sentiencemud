@@ -293,6 +293,7 @@ extern void boat_attack(CHAR_DATA *ch);
  */
 bool			is_test_port;
 int 		    port;
+int				port_tls;
 GLOBAL_DATA         gconfig;		/* Vizz - UID Tracking, and any other persistent global config info */
 LLIST *conn_players;
 LLIST *conn_immortals;
@@ -600,6 +601,7 @@ int main(int argc, char **argv)
      * Get the port number.
      */
     port = 9000;
+	port_tls = 9001;
     is_test_port = FALSE;
     newlock = FALSE;
     wizlock = FALSE;
