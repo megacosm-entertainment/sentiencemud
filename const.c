@@ -426,7 +426,7 @@ const  struct player_setting_type    pc_set_table[] =
     {	"pursuit",	PLR_PURSUIT,	 0,		0,		FALSE,	0,	SETTING_OFF	},
     {	"quiet",	0,		 0,		COMM_QUIET,	FALSE,	0,	SETTING_OFF	},
     {	"sacrifice_all",	0,	 PLR_SACRIFICE_ALL,0,		FALSE,  0,      SETTING_OFF	},
-    {	"showdamage",	PLR_SHOWDAMAGE,	 0,		0,		FALSE,	IM,	SETTING_OFF	},
+    {	"showdamage",	PLR_SHOWDAMAGE,	 0,		0,		FALSE,	0,	SETTING_OFF	},
     {	"mobile",	PLR_MOBILE,	0,	0, FALSE,	0, SETTING_OFF },
     {	"favskills",	0,	PLR_FAVSKILLS,	0, FALSE,	0, SETTING_OFF },
 /*    {	"building",     PLR_BUILDING,	 0,		0,		FALSE,  IM,	SETTING_OFF	},*/

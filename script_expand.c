@@ -1551,6 +1551,13 @@ char *expand_entity_string(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		}
 		break;
 	case ENTITY_STR_CAPITAL:
+        if (arg->d.str != buf_string(arg->buffer))
+        {
+            clear_buf(arg->buffer);
+            add_buf(arg->buffer, arg->d.str);
+            arg->d.str = buf_string(arg->buffer);
+        }
+		/*
 		if( arg->d.str == buf_string(arg->buffer) )
 		{
 			// Already in the buffer
@@ -1565,6 +1572,7 @@ char *expand_entity_string(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 			arg->d.str = buf_string(arg->buffer);
 		}
+		*/
 		arg->d.str[0] = UPPER(arg->d.str[0]);
 		break;
 
