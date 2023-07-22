@@ -4180,7 +4180,7 @@ const struct skill_type	skill_table [MAX_SKILL]	=
 		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
 	}, {
 		"soul essence",
-		{ 30, 31, 31, 31 }, { 12, 12, 12, 12},
+		{ 1, 1, 1, 1 }, { 12, 12, 12, 12},
 		spell_soul_essence, TAR_IGNORE, POS_STANDING, &gsn_soul_essence,
 		-1, 1000, 20,
 		"", "", "", "",
