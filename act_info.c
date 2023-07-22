@@ -3665,11 +3665,12 @@ void do_score(CHAR_DATA * ch, char *argument)
 
     if (!IS_NPC(ch) && ch->pcdata->condition[COND_DRUNK] > 10)
 	send_to_char("You are drunk.\n\r", ch);
+	/*
     if (!IS_NPC(ch) && ch->pcdata->condition[COND_THIRST] == 0)
 	send_to_char("You are thirsty.\n\r", ch);
     if (!IS_NPC(ch) && ch->pcdata->condition[COND_HUNGER] == 0)
 	send_to_char("You are hungry.\n\r", ch);
-
+	*/
     switch (ch->position)
     {
     case POS_DEAD:
