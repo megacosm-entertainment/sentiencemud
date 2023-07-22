@@ -1657,12 +1657,19 @@ bool is_racial_skill(int race, int sn)
 // This monster determines if a person can practice a skill
 bool can_practice( CHAR_DATA *ch, int sn )
 {
+	SKILL_ENTRY *entry;
     int this_class;
+	
 
     if (sn < 0)
         return FALSE;
 
+	entry = skill_entry_findsn(ch->sorted_skills, sn);
     this_class = get_this_class(ch, sn);
+
+	// If we can't practice the skill, bail early.
+	if(!IS_SET(entry->flags, SKILL_PRACTICE)) 
+		return FALSE;
 
     // Is it a racial skill ?
     if (!IS_NPC(ch))
@@ -1674,11 +1681,14 @@ bool can_practice( CHAR_DATA *ch, int sn )
 
     // Does *everyone* get the skill? (such as hand to hand)
     if (is_global_skill(sn))
-	return TRUE;
+		return TRUE;
 
     // Have they had the skill in a previous subclass or class?
     if (had_skill(ch,sn))
-	return TRUE;
+		return TRUE;
+	
+	if ((entry->source != SKILLSRC_NORMAL) && (IS_SET(entry->flags, SKILL_PRACTICE)))
+		return TRUE;
 
     // Is the skill in the person's *current* class and the person
     // is of high enough level for it?

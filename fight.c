@@ -7006,7 +7006,7 @@ void do_resurrect(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	victim = get_char_world(ch, obj->owner);
+	victim = get_char_world(NULL, obj->owner);
 	if (victim == NULL)
 	{
 		act("The soul of $t is no longer within this world.", ch, NULL, NULL, NULL, NULL, obj->owner, NULL, TO_CHAR);

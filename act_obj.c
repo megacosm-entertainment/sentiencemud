@@ -7023,10 +7023,8 @@ void do_pull(CHAR_DATA *ch, char *argument)
 	{
 	    if (ch->church == NULL)
 	    {
-	        act("{YA huge arc of lightning leaps out from $p striking you!{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-	        act("{YA huge arc of lightning leaps out from $p striking $n!{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-	        damage(ch, ch, 30000, TYPE_UNDEFINED, DAM_NONE, FALSE);
-		return;
+	        act("Relics are only usable by players in churches.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			return;
 	    }
 	    else
 			church_announce_theft(ch, obj);
