@@ -1659,9 +1659,19 @@ bool is_racial_skill(int race, int sn)
 bool can_practice( CHAR_DATA *ch, int sn )
 {
     int this_class;
+	SKILL_ENTRY *entry;
 
     if (sn < 0)
+	{
         return FALSE;
+	}
+
+	entry = skill_entry_findsn(ch->sorted_skills, sn);
+	if (!entry) return FALSE;
+
+	if (!IS_SET(entry->flags, SKILL_PRACTICE)) return FALSE;
+
+	if (entry->source != SKILLSRC_NORMAL) return TRUE;
 
     this_class = get_this_class(ch, sn);
 

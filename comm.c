@@ -3203,7 +3203,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 			if (!has_correct_classes(d->character))
 				fix_broken_classes(d->character);
 
-			update_skills(d->character);
+			//update_skills(d->character);
 		}
 
 		// Add connection to appropriate lists

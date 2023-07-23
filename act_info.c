@@ -1157,21 +1157,21 @@ void show_char_to_char_1(CHAR_DATA * victim, CHAR_DATA * ch, bool examine)
 
 	if( IS_NPC(ch) || !IS_SET(ch->act2, PLR_NOLORE) || examine )
 	{
-    if (IS_NPC(victim) && number_percent() < get_skill(ch, gsn_mob_lore))
-    {
-        if (IS_SET(victim->act, ACT_NO_LORE))
-	    act("\n\r{R$N is too powerful for you to lore.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	else
-	{
-	    send_to_char("\n\r{YYou recognize the following things about this creature:{x\n\r", ch);
-	    show_basic_mob_lore(ch, victim);
-	    check_improve(ch, gsn_mob_lore, TRUE, 7);
-	}
-	}
+		if (IS_NPC(victim) && number_percent() < get_skill(ch, gsn_mob_lore))
+		{
+			if (IS_SET(victim->act, ACT_NO_LORE) && ch->tot_level <= victim->tot_level)
+				act("\n\r{R$N is too powerful for you to lore.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			else
+			{
+				send_to_char("\n\r{YYou recognize the following things about this creature:{x\n\r", ch);
+				show_basic_mob_lore(ch, victim);
+				check_improve(ch, gsn_mob_lore, TRUE, 7);
+			}
+		}
     }
 
-    if (IS_NPC(victim) && !IS_SET(victim->act, ACT_NO_LORE))
-	p_percent_trigger(victim, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL,0,0,0,0,0);
+    if (IS_NPC(victim) && (!IS_SET(victim->act, ACT_NO_LORE) || ch->tot_level > victim->tot_level))
+		p_percent_trigger(victim, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL,0,0,0,0,0);
 
     return;
 }
@@ -2215,7 +2215,11 @@ void do_look(CHAR_DATA * ch, char *argument)
 			if ((IS_NPC(ch) || !IS_SET(ch->act2, PLR_NOLORE)) &&
 				get_skill(ch, gsn_lore) > 0 &&
 				number_percent() <= get_skill(ch, gsn_lore) &&
-				!IS_SET(obj->extra2_flags, ITEM_NO_LORE))
+				((!IS_NPC(ch) && IS_SET(ch->act, PLR_HOLYLIGHT)) ||													// Immortal HOLYLIGHT
+				!IS_SET(obj->extra2_flags, ITEM_NO_LORE) || 														// NO_LORE not set
+				(IS_SET(obj->extra2_flags, ITEM_ALL_REMORT) && IS_REMORT(ch)) ||									// ALL_REMORT and this is a remort
+				(IS_SET(obj->extra2_flags, ITEM_REMORT_ONLY) && IS_REMORT(ch) && ch->tot_level > obj->level) ||		// REMORT_ONLY and this is a remort, check level
+				(!IS_SET(obj->extra2_flags, ITEM_REMORT_ONLY) && ch->tot_level > obj->level)))						// !REMORT_ONLY, check level
 				perform_lore = TRUE;
 
 			pdesc = get_extra_descr(arg3, obj->extra_descr);
@@ -2343,7 +2347,12 @@ void do_look(CHAR_DATA * ch, char *argument)
 			if ((IS_NPC(ch) || !IS_SET(ch->act2, PLR_NOLORE)) &&
 				get_skill(ch, gsn_lore) > 0 &&
 				number_percent() <= get_skill(ch, gsn_lore) &&
-				!IS_SET(obj->extra2_flags, ITEM_NO_LORE))
+				((!IS_NPC(ch) && IS_SET(ch->act, PLR_HOLYLIGHT)) ||													// Immortal HOLYLIGHT
+				!IS_SET(obj->extra2_flags, ITEM_NO_LORE) || 														// NO_LORE not set
+				(IS_SET(obj->extra2_flags, ITEM_ALL_REMORT) && IS_REMORT(ch)) ||									// ALL_REMORT and this is a remort
+				(IS_SET(obj->extra2_flags, ITEM_REMORT_ONLY) && IS_REMORT(ch) && ch->tot_level > obj->level) ||		// REMORT_ONLY and this is a remort, check level
+				(!IS_SET(obj->extra2_flags, ITEM_REMORT_ONLY) && ch->tot_level > obj->level)))						// !REMORT_ONLY, check level
+
 				perform_lore = TRUE;
 
 			/* Check extra desc first */
@@ -2744,7 +2753,11 @@ void do_examine(CHAR_DATA * ch, char *argument)
 
 					if (get_skill(ch, gsn_lore) > 0 &&
 						number_percent() <= get_skill(ch, gsn_lore) &&
-						!IS_SET(obj->extra2_flags, ITEM_NO_LORE))
+						((!IS_NPC(ch) && IS_SET(ch->act, PLR_HOLYLIGHT)) ||													// Immortal HOLYLIGHT
+						!IS_SET(obj->extra2_flags, ITEM_NO_LORE) || 														// NO_LORE not set
+						(IS_SET(obj->extra2_flags, ITEM_ALL_REMORT) && IS_REMORT(ch)) ||									// ALL_REMORT and this is a remort
+						(IS_SET(obj->extra2_flags, ITEM_REMORT_ONLY) && IS_REMORT(ch) && ch->tot_level > obj->level) ||		// REMORT_ONLY and this is a remort, check level
+						(!IS_SET(obj->extra2_flags, ITEM_REMORT_ONLY) && ch->tot_level > obj->level)))						// !REMORT_ONLY, check level
 						perform_lore = TRUE;
 
 					if (ch != victim)
@@ -2799,7 +2812,11 @@ void do_examine(CHAR_DATA * ch, char *argument)
 
 		if (get_skill(ch, gsn_lore) > 0 &&
 			number_percent() <= get_skill(ch, gsn_lore) &&
-			!IS_SET(obj->extra2_flags, ITEM_NO_LORE))
+			((!IS_NPC(ch) && IS_SET(ch->act, PLR_HOLYLIGHT)) ||													// Immortal HOLYLIGHT
+			!IS_SET(obj->extra2_flags, ITEM_NO_LORE) || 														// NO_LORE not set
+			(IS_SET(obj->extra2_flags, ITEM_ALL_REMORT) && IS_REMORT(ch)) ||									// ALL_REMORT and this is a remort
+			(IS_SET(obj->extra2_flags, ITEM_REMORT_ONLY) && IS_REMORT(ch) && ch->tot_level > obj->level) ||		// REMORT_ONLY and this is a remort, check level
+			(!IS_SET(obj->extra2_flags, ITEM_REMORT_ONLY) && ch->tot_level > obj->level)))						// !REMORT_ONLY, check level
 			perform_lore = TRUE;
 
 		send_to_char(obj->full_description, ch);
