@@ -567,9 +567,8 @@ void do_chat_topic(CHAR_DATA *ch, char *argument)
     if (chat->topic != NULL)
 	free_string(chat->topic);
 
+    strcat(argument, "{x");
     chat->topic = str_dup(argument);
-
-    strcat(chat->topic, "{x");
 
     sprintf(buf, "Topic changed to \"%s\".\n\r", argument);
     send_to_char(buf, ch);
