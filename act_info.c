@@ -1984,7 +1984,7 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 			if (room->chat_room != NULL) {
 				send_to_char("  {YTopic:{x ", ch);
 
-				sprintf(buf, "%s", room->chat_room->topic);
+				sprintf(buf, "%s{x", room->chat_room->topic);
 				send_to_char(buf, ch);
 
 				send_to_char("\n\r\n\r", ch);

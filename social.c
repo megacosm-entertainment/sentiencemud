@@ -294,7 +294,7 @@ void do_chat_list(CHAR_DATA *ch, char *argument)
 		chat->created_by,
 		buf2);
 	send_to_char(buf, ch) ;
-	sprintf(buf, "    Topic: %s\n\r", chat->topic);
+	sprintf(buf, "    Topic: %s{x\n\r", chat->topic);
 	send_to_char(buf, ch);
     }
 
@@ -560,19 +560,21 @@ void do_chat_topic(CHAR_DATA *ch, char *argument)
     }
 
     if (strlen(argument) > 150)
-	argument[150] = '\0';
+	{
+        send_to_char("Chat topic must be under 150 characters.\n\r", ch);
+        return;
+    }
 
     smash_tilde(argument);
 
     if (chat->topic != NULL)
 	free_string(chat->topic);
 
-    strcat(argument, "{x");
     chat->topic = str_dup(argument);
 
-    sprintf(buf, "Topic changed to \"%s\".\n\r", argument);
+    sprintf(buf, "Topic changed to \"%s{x\".\n\r", argument);
     send_to_char(buf, ch);
-    sprintf(buf, "$n has changed the topic to \"%s\".", argument);
+    sprintf(buf, "$n has changed the topic to \"%s{x\".", argument);
     act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
     write_chat_rooms();
