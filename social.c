@@ -559,7 +559,7 @@ void do_chat_topic(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (strlen(argument) > 150)
+    if (strlen_no_colours(argument) > 150)
 	{
         send_to_char("Chat topic must be under 150 characters.\n\r", ch);
         return;
