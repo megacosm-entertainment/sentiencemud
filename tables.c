@@ -1088,6 +1088,7 @@ const struct flag_type exit_flags[] =
     {   "broken",		EX_BROKEN,		TRUE	},
     {   "nobash",		EX_NOBASH,		TRUE    },
     {   "walkthrough",		EX_WALKTHROUGH,		TRUE    },
+    {   "barred",       EX_BARRED,      TRUE    },
     {   "nobar",		EX_NOBAR,		TRUE    },
     {   "vlink",		EX_VLINK,		FALSE	},
     {   "aerial",		EX_AERIAL,		TRUE	},
