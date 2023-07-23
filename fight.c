@@ -3916,7 +3916,8 @@ void group_gain(CHAR_DATA *ch, CHAR_DATA *victim, int percent)
 	// If is an NPC that can't level, verify this mob is grouped with a player in the room.
 	if (IS_NPC(ch) && !IS_SET(ch->act2, ACT2_CANLEVEL))
 	{
-		for(CHAR_DATA *pch = ch->in_room->people; pch; pch = pch->next_in_room)
+		CHAR_DATA *pch;
+		for(pch = ch->in_room->people; pch; pch = pch->next_in_room)
 		{
 			if (!IS_NPC(pch) && is_same_group(ch, pch))
 				break;
