@@ -3906,9 +3906,18 @@ void group_gain(CHAR_DATA *ch, CHAR_DATA *victim)
 	int group_levels;
 	int skill_reduction;
 
-	/* Don't give experience to NPCs. */
-	if (IS_NPC(ch))
-		return;
+	// If is an NPC that can't level, verify this mob is grouped with a player in the room.
+	if (IS_NPC(ch) && !IS_SET(ch->act2, ACT2_CANLEVEL))
+	{
+		CHAR_DATA *pch;
+		for(pch = ch->in_room->people; pch; pch = pch->next_in_room)
+		{
+			if (!IS_NPC(pch) && is_same_group(ch, pch))
+				break;
+		}
+
+		if (!pch) return;
+	}
 
 	// No experience on npc victims if disabled.
 	if( IS_NPC(victim) && IS_SET(victim->act2, ACT2_NO_XP))
