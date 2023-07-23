@@ -214,7 +214,7 @@ SPELL_FUNC(spell_dispel_magic)
 
 	old = victim->tempstore[3];
 	victim->tempstore[3] = found ? 1 : 0;
-	if(!p_percent_trigger(victim,NULL,NULL,NULL,ch,NULL,NULL, NULL, NULL,TRIG_SPELL_DISPEL, NULL) && !number_affects) {
+	if(!p_percent_trigger(victim,NULL,NULL,NULL,ch,NULL,NULL, NULL, NULL,TRIG_SPELL_DISPEL, NULL,0,0,0,0,0) && !number_affects) {
 		act("$N has no magic affecting $M.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		return FALSE;
 	}
@@ -267,7 +267,7 @@ SPELL_FUNC(spell_dispel_room)
 		else if(IS_SET(obj->extra3_flags, ITEM_CAN_DISPEL)) {
 			if(!saves_dispel(ch, NULL, obj->level))
 			{
-				if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SPELL_DISPEL, NULL))
+				if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SPELL_DISPEL, NULL,0,0,0,0,0))
 				{
 					obj_from_room(obj);
 					extract_obj(obj);
@@ -310,7 +310,7 @@ SPELL_FUNC(spell_dispel_room)
 				else if(IS_SET(obj->extra3_flags, ITEM_CAN_DISPEL)) {
 					if(!saves_dispel(ch, NULL, obj->level))
 					{
-						if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SPELL_DISPEL, dir_name[ index ]))
+						if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SPELL_DISPEL, dir_name[ index ],0,0,0,0,0))
 						{
 							obj_from_room(obj);
 							extract_obj(obj);

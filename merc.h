@@ -234,6 +234,28 @@ struct sound_type {
 #define VERSION_OBJECT_004	0x01000003
 //	Change #1: lock states
 
+#define VERSION_OBJECT_005  0x01000004
+//  Change #1: start of adding item multi-typing
+//    MONEY
+
+#define VERSION_OBJECT_006  0x01000005
+//  Change #1: start of adding item multi-typing
+//    FOOD
+
+#define VERSION_OBJECT_007  0x01000006
+//  Change #1: start of adding item multi-typing
+//    CONTAINER
+//    KEYRING
+//    WEAPON_CONTAINER
+
+#define VERSION_OBJECT_008  0x01000007
+//  Change #1: start of adding item multi-typing
+//    LIGHT
+
+#define VERSION_OBJECT_009  0x01000008
+//  Change #1: start of adding item multi-typing
+//    FURNITURE
+
 #define VERSION_ROOM_001	0x01000001
 //  Change #1: lock states
 
@@ -243,7 +265,7 @@ struct sound_type {
 #define VERSION_DB			VERSION_DB_001
 #define VERSION_AREA		VERSION_AREA_003
 #define VERSION_MOBILE		0x01000000
-#define VERSION_OBJECT		VERSION_OBJECT_004
+#define VERSION_OBJECT		VERSION_OBJECT_009
 #define VERSION_ROOM		VERSION_ROOM_002
 #define VERSION_PLAYER		VERSION_PLAYER_005
 #define VERSION_TOKEN		0x01000000
@@ -348,6 +370,15 @@ typedef struct list_link_room_data LLIST_ROOM_DATA;
 typedef struct list_link_exit_data LLIST_EXIT_DATA;
 typedef struct list_link_skill_data LLIST_SKILL_DATA;
 typedef struct iterator_type ITERATOR;
+
+typedef struct container_filter_data CONTAINER_FILTER;
+typedef struct obj_container_data CONTAINER_DATA;
+typedef struct food_buff_data FOOD_BUFF_DATA;
+typedef struct obj_food_data FOOD_DATA;
+typedef struct furniture_compartment_data FURNITURE_COMPARTMENT;
+typedef struct obj_furniture_data FURNITURE_DATA;
+typedef struct obj_light_data LIGHT_DATA;
+typedef struct obj_money_data MONEY_DATA;
 
 typedef struct olc_point_category_type POINT_CATEGORY;
 typedef struct olc_point_data OLC_POINT_DATA;
@@ -1800,6 +1831,8 @@ struct	affect_data
 #define HIT_TO_MANA 	0
 #define MANA_TO_HIT 	1
 
+#define MAX_AURAS_SHOWN     5
+
 struct aura_data {
     AURA_DATA *next;
     bool valid;
@@ -2484,41 +2517,35 @@ struct affliction_type {
 #define ITEM_SMOKE_BOMB		     48
 #define ITEM_STINKING_CLOUD	     49
 #define ITEM_HERB  		     50
-/*
-#define ITEM_HERB_2		     51
-#define ITEM_HERB_3		     52
-#define ITEM_HERB_4		     53
-#define ITEM_HERB_5		     54
-#define ITEM_HERB_6		     55
-*/
-#define ITEM_SPELL_TRAP		     56
-#define ITEM_WITHERING_CLOUD         57
-#define ITEM_BANK		     59
-#define ITEM_KEYRING	             60
-#define ITEM_TRADE_TYPE 	     61
-#define ITEM_ICE_STORM		     62
-#define ITEM_FLOWER		     63
-#define ITEM_EMPTY_VIAL		     64
-#define ITEM_BLANK_SCROLL	     65
-#define ITEM_MIST		     66
-#define ITEM_SHRINE		     67
-#define ITEM_WHISTLE                 68
-#define ITEM_SHOVEL 	     	     69
-#define ITEM_TOOL		     70
-#define ITEM_PIPE		     71
-#define ITEM_TATTOO			72
-#define ITEM_INK			73
-#define ITEM_PART		     74
-#define ITEM_COMMODITY			75
-#define ITEM_TELESCOPE			76
-#define ITEM_COMPASS			77
-#define ITEM_WHETSTONE			78		// Sharpening weapons
-#define ITEM_CHISEL				79 		// Carving gems
-#define ITEM_PICK				80		// Picking locks
-#define ITEM_TINDERBOX			81		// Light fires or pipes
-#define ITEM_DRYING_CLOTH		82		// Used to dry plants for smoking!
-#define ITEM_NEEDLE				83		// Used to sew things
-#define ITEM_BODY_PART			84
+#define ITEM_SPELL_TRAP		     51
+#define ITEM_WITHERING_CLOUD         52
+#define ITEM_BANK		     53
+#define ITEM_KEYRING	             54
+#define ITEM_TRADE_TYPE 	     55
+#define ITEM_ICE_STORM		     56
+#define ITEM_FLOWER		     57
+#define ITEM_EMPTY_VIAL		     58
+#define ITEM_BLANK_SCROLL	     59
+#define ITEM_MIST		     60
+#define ITEM_SHRINE		     61
+#define ITEM_WHISTLE                 62
+#define ITEM_SHOVEL 	     	     63
+#define ITEM_TOOL		     64
+#define ITEM_PIPE		     65
+#define ITEM_TATTOO			66
+#define ITEM_INK			67
+#define ITEM_PART		     68
+#define ITEM_COMMODITY			69
+#define ITEM_TELESCOPE			70
+#define ITEM_COMPASS			71
+#define ITEM_WHETSTONE			72		// Sharpening weapons
+#define ITEM_CHISEL				73 		// Carving gems
+#define ITEM_PICK				74		// Picking locks
+#define ITEM_TINDERBOX			75		// Light fires or pipes
+#define ITEM_DRYING_CLOTH		76		// Used to dry plants for smoking!
+#define ITEM_NEEDLE				77		// Used to sew things
+#define ITEM_BODY_PART			78
+#define ITEM__MAX               79
 
 /*
  * Extra flags.
@@ -2825,6 +2852,7 @@ struct affliction_type {
 #define APPLY_CONDITION			21		/* Objects */
 #define APPLY_WEIGHT			22		/* Objects */
 #define APPLY_AGGRESSION		23		/* Mobiles */
+#define APPLY_XPBOOST           24      // Mobiles
 #define APPLY_SPELL_AFFECT		50
 
 #define APPLY_SKILL			100
@@ -2845,6 +2873,7 @@ struct affliction_type {
 #define CONT_CLOSELOCK		(H)	/* @@@NIB : 20070126 */
 #define CONT_SINGULAR       (I) // Only allows one item place into the container at a time.
 #define CONT_TRANSPARENT    (J) // Can look inside the container when closed.
+#define CONT_NO_DUPLICATES  (K) // Only one copy of an object can be in the container at a time.
 
 /* Types of tools */
 enum {
@@ -3893,7 +3922,8 @@ struct	char_data
     ROOM_INDEX_DATA *	home_room; /* for mobs to wander back home */
     ROOM_INDEX_DATA *	clone_rooms;
     time_t 		locker_rent;
-    OBJ_DATA *		on;
+    OBJ_DATA            *on;
+    FURNITURE_COMPARTMENT *on_compartment;
     ROOM_INDEX_DATA *	in_room;
     ROOM_INDEX_DATA *	was_in_room;
     WILDS_DATA *was_in_wilds;
@@ -4080,6 +4110,7 @@ struct	char_data
     int			damroll;
     int			armour[4];
     int			wimpy;
+    int         xpboost;
 
     LLIST       *auras;
 
@@ -4488,6 +4519,147 @@ typedef struct lock_state_data {
 } LOCK_STATE;
 
 
+////////////////////////////
+// ITEM TYPE DATA
+
+// =========[ CONTAINER ]==========
+#define CONTAINER(obj)          ((obj)->_container)
+#define IS_CONTAINER(obj)       IS_VALID(CONTAINER(obj))
+
+struct container_filter_data {
+    int item_type;
+    int sub_type;
+};
+
+struct obj_container_data {
+    CONTAINER_DATA *next;
+    bool valid;
+
+    char *name;             // Name of container, for use when object is multi-typed with various things where OPEN/CLOSE/LOCK/UNLOCK needs to know what to target.
+
+    long flags;
+    int max_weight;
+    int weight_multiplier;
+    int max_volume;
+
+    LLIST *whitelist;       // Whitelist for what can go into it, uses the primary item_type field
+    LLIST *blacklist;       // Blacklist for what can't go into it.
+};
+
+// ============[ FOOD ]============
+#define FOOD(obj)           ((obj)->_food)
+#define IS_FOOD(obj)        IS_VALID(FOOD(obj))
+
+#define WELL_FED_GROUP      AFFGROUP_PHYSICAL
+
+// Contains most of what is in AFFECT_DATA
+//  Group = PHYSICAL
+//  Type = WELL FED (gsn_well_fed)
+struct food_buff_data {
+    FOOD_BUFF_DATA *next;
+    bool		valid;
+
+    sh_int		where;
+    sh_int		location;
+    sh_int		modifier;
+    long		bitvector;
+    long		bitvector2;
+    sh_int      level;
+    sh_int      duration;
+};
+
+struct obj_food_data {
+    FOOD_DATA *next;
+    bool valid;
+
+    int hunger;         // How much hunger is restored.  Only used in Savage locations.
+    int full;           // How much fullness is restored.  Only used in Savage locations.
+    int poison;         // Poison intensity.  Represents a percent chance of it staying.
+                        //  Range: 0 (no poison) - 100 (permanent poison). 
+
+    // List of buffs to apply under the WELL FED affect
+    LLIST *buffs;       // Contains FOOD_BUFF_DATA *
+};
+
+// =========[ FURNITURE ]==========
+#define FURNITURE(obj)          ((obj)->_furniture)
+#define IS_FURNITURE(obj)       IS_VALID(FURNITURE(obj))
+
+#define COMPARTMENT_INSIDE      (A)     // Compartment is considered inside when using it
+#define COMPARTMENT_CLOSEABLE   (B)     // Compartment can use the "open/close" commands
+#define COMPARTMENT_CLOSED      (C)     // Compartment is closed
+#define COMPARTMENT_TRANSPARENT (D)     // Compartment can show the outside or be seen into regardless if the compartment is closed
+
+#define FURNITURE_ON            (A)
+#define FURNITURE_IN            (B)
+#define FURNITURE_AT            (C)
+#define FURNITURE_ABOVE         (D)
+#define FURNITURE_UNDER         (E)
+
+struct furniture_compartment_data {
+    FURNITURE_COMPARTMENT *next;
+    bool valid;
+
+    int ordinal;        // Index in the list
+
+    char *name;
+    char *short_descr;
+    char *description;
+
+    long flags;
+    int max_weight;
+    int max_occupants;
+
+    // Uses the FURNITURE_ON/IN/AT/ABOVE/UNDER
+    long standing;
+    long hanging;
+    long sitting;
+    long resting;
+    long sleeping;
+
+    int health_regen;
+    int mana_regen;
+    int move_regen;
+};
+
+struct obj_furniture_data {
+    FURNITURE_DATA *next;
+    bool valid;
+
+    LLIST *compartments;
+    int main_compartment;
+};
+
+// ===========[ LIGHT ]============
+#define LIGHT(obj)      ((obj)->_light)
+#define IS_LIGHT(obj)   IS_VALID(LIGHT(obj))
+
+#define LIGHT_IS_ACTIVE             (A)     // The light is turned on
+#define LIGHT_REMOVE_ON_EXTINGUISH  (B)     // Remove the light data when the light extinguishes
+#define LIGHT_NO_EXTINGUISH         (C)     // Light cannot be extinguished manually
+
+struct obj_light_data {
+    LIGHT_DATA *next;
+    bool valid;
+
+    long flags;
+    int duration;       // Ticks remaining.  Negative is infinite
+};
+
+// ===========[ MONEY ]============
+#define MONEY(obj)          ((obj)->_money)
+#define IS_MONEY(obj)       IS_VALID(MONEY(obj))
+
+struct obj_money_data {
+    MONEY_DATA *next;
+    bool valid;
+
+    int silver;
+    int gold;
+};
+
+
+
 /*
  * Prototype for an object.
  */
@@ -4496,6 +4668,7 @@ struct	obj_index_data
     OBJ_INDEX_DATA *	next;
     EXTRA_DESCR_DATA *	extra_descr;
     AFFECT_DATA *	affected;
+    AFFECT_DATA *   on_use_affects;
     AFFECT_DATA *	catalyst;
     AREA_DATA *		area;
     bool	persist;
@@ -4545,6 +4718,12 @@ struct	obj_index_data
 	LOCK_STATE *lock;
 
 	LLIST *waypoints;
+
+    CONTAINER_DATA *_container;
+    FOOD_DATA *_food;
+    FURNITURE_DATA *_furniture;
+    LIGHT_DATA *_light;
+    MONEY_DATA *_money;
 };
 
 
@@ -4585,6 +4764,7 @@ struct	obj_data
     CHAR_DATA *		pulled_by;
     EXTRA_DESCR_DATA *	extra_descr;
     AFFECT_DATA *	affected;
+    AFFECT_DATA *   on_use_affects;
     AFFECT_DATA *	catalyst;
     OBJ_INDEX_DATA *	pIndexData;
     ROOM_INDEX_DATA *	in_room;
@@ -4631,6 +4811,12 @@ struct	obj_data
     WNUM		orig_wnum;
 
     LOCK_STATE		*lock;
+
+    CONTAINER_DATA *_container;
+    FOOD_DATA *_food;
+    FURNITURE_DATA *_furniture;
+    LIGHT_DATA *_light;
+    MONEY_DATA *_money;
 
     SHIP_DATA		*ship;
     LLIST			*waypoints;
@@ -6968,6 +7154,7 @@ extern sh_int	gsn_water_spells;
 extern sh_int	gsn_weaken;
 extern sh_int	gsn_weaving;
 extern sh_int	gsn_web;
+extern sh_int   gsn_well_fed;
 extern sh_int	gsn_whip;
 extern sh_int	gsn_wilderness_spear_style;
 extern sh_int	gsn_wind_of_confusion;
@@ -7727,7 +7914,6 @@ ROOM_INDEX_DATA *exit_destination(EXIT_DATA *pexit);
 bool exit_destination_data(EXIT_DATA *pexit, DESTINATION_DATA *pdest);
 void move_char	args( ( CHAR_DATA *ch, int door, bool follow ) );
 void move_char_new( CHAR_DATA *ch, int door );
-OBJ_DATA *get_key( CHAR_DATA *ch, int vnum );
 void use_key( CHAR_DATA *ch, OBJ_DATA *key, LOCK_STATE *lock );
 bool move_success args( ( CHAR_DATA *ch ) );
 bool check_room_flames( CHAR_DATA *ch, bool show );
@@ -7830,7 +8016,7 @@ void    check_objects   args( ( void ) );
 void    check_mobs      args( ( void ) );
 CD *	create_mobile	args( ( MOB_INDEX_DATA *pMobIndex, bool persistLoad ) );
 CD *	clone_mobile	args( ( CHAR_DATA *parent ) );
-OD *	create_object_noid	args( ( OBJ_INDEX_DATA *pObjIndex, int level, bool affects ) );
+OD *	create_object_noid	args( ( OBJ_INDEX_DATA *pObjIndex, int level, bool affects, bool multitypes ) );
 OD *	create_object	args( ( OBJ_INDEX_DATA *pObjIndex, int level, bool affects ) );
 void	clone_object	args( ( OBJ_DATA *parent, OBJ_DATA *clone ) );
 void	clear_char	args( ( CHAR_DATA *ch ) );
@@ -7960,7 +8146,7 @@ void dam_message( CHAR_DATA *ch, CHAR_DATA *victim, int dam, int dt, bool immune
 void death_cry( CHAR_DATA *ch, bool has_head, bool messages );
 void death_mob_echo( CHAR_DATA *victim );
 OBJ_DATA *disarm( CHAR_DATA *ch, CHAR_DATA *victim );
-void group_gain( CHAR_DATA *ch, CHAR_DATA *victim );
+void group_gain( CHAR_DATA *ch, CHAR_DATA *victim, int percent );
 void set_corpse_data(OBJ_DATA *corpse, int corpse_type);
 int blend_corpsetypes (int t1, int t2);
 OBJ_DATA *make_corpse( CHAR_DATA *ch, bool has_head, int corpse_type, bool messages );
@@ -8453,26 +8639,26 @@ int	program_flow	args( ( long vnum, char *source, CHAR_DATA *mob,
 				CHAR_DATA *ch, const void *arg1,
 				const void *arg2 ) );
 
-int p_act_trigger(char *argument, CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type);
-int p_exact_trigger(char *argument, CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type);
-int p_name_trigger(char *argument, CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type);
-int p_percent_trigger(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, char *phrase);
-int p_percent_token_trigger(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, TOKEN_DATA *tok, int type, char *phrase);
-int p_percent2_trigger(AREA_DATA *area, INSTANCE *instance, DUNGEON *dungeon, CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, char *phrase);
-int p_number_trigger(int number, int wildcard, CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, char *phrase);
-int p_bribe_trigger(CHAR_DATA *mob, CHAR_DATA *ch, int amount);
-int p_exit_trigger(CHAR_DATA *ch, int dir, int type);
-int p_direction_trigger(CHAR_DATA *ch, ROOM_INDEX_DATA *here, int dir, int type, int trigger);
-int p_give_trigger(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, CHAR_DATA *ch, OBJ_DATA *dropped, int type);
-int p_use_trigger(CHAR_DATA *ch, OBJ_DATA *obj, int type);
-int p_use_on_trigger(CHAR_DATA *ch, OBJ_DATA *obj, int type, char *argument);
-int p_use_with_trigger(CHAR_DATA *ch, OBJ_DATA *obj, int type, OBJ_DATA *obj1, OBJ_DATA *obj2, CHAR_DATA *victim, CHAR_DATA *victim2);
-int p_greet_trigger(CHAR_DATA *ch, int type);
-int	p_hprct_trigger(CHAR_DATA *mob, CHAR_DATA *ch);
-int p_emoteat_trigger(CHAR_DATA *mob, CHAR_DATA *ch, char *emote);
-int p_emote_trigger(CHAR_DATA *ch, char *emote);
+int p_act_trigger(char *argument, CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, int register1, int register2, int register3, int register4, int register5);
+int p_exact_trigger(char *argument, CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, int register1, int register2, int register3, int register4, int register5);
+int p_name_trigger(char *argument, CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, int register1, int register2, int register3, int register4, int register5);
+int p_percent_trigger(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, char *phrase, int register1, int register2, int register3, int register4, int register5);
+int p_percent_token_trigger(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, TOKEN_DATA *tok, int type, char *phrase, int register1, int register2, int register3, int register4, int register5);
+int p_percent2_trigger(AREA_DATA *area, INSTANCE *instance, DUNGEON *dungeon, CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, char *phrase, int register1, int register2, int register3, int register4, int register5);
+int p_number_trigger(int number, int wildcard, CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int type, char *phrase, int register1, int register2, int register3, int register4, int register5);
+int p_bribe_trigger(CHAR_DATA *mob, CHAR_DATA *ch, int amount, int register1, int register2, int register3, int register4, int register5);
+int p_exit_trigger(CHAR_DATA *ch, int dir, int type, int register1, int register2, int register3, int register4, int register5);
+int p_direction_trigger(CHAR_DATA *ch, ROOM_INDEX_DATA *here, int dir, int type, int trigger, int register1, int register2, int register3, int register4, int register5);
+int p_give_trigger(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, CHAR_DATA *ch, OBJ_DATA *dropped, int type, int register1, int register2, int register3, int register4, int register5);
+int p_use_trigger(CHAR_DATA *ch, OBJ_DATA *obj, int type, int register1, int register2, int register3, int register4, int register5);
+int p_use_on_trigger(CHAR_DATA *ch, OBJ_DATA *obj, int type, char *argument, int register1, int register2, int register3, int register4, int register5);
+int p_use_with_trigger(CHAR_DATA *ch, OBJ_DATA *obj, int type, OBJ_DATA *obj1, OBJ_DATA *obj2, CHAR_DATA *victim, CHAR_DATA *victim2, int register1, int register2, int register3, int register4, int register5);
+int p_greet_trigger(CHAR_DATA *ch, int type, int register1, int register2, int register3, int register4, int register5);
+int	p_hprct_trigger(CHAR_DATA *mob, CHAR_DATA *ch, int register1, int register2, int register3, int register4, int register5);
+int p_emoteat_trigger(CHAR_DATA *mob, CHAR_DATA *ch, char *emote, int register1, int register2, int register3, int register4, int register5);
+int p_emote_trigger(CHAR_DATA *ch, char *emote, int register1, int register2, int register3, int register4, int register5);
 
-int p_token_index_percent_trigger(TOKEN_INDEX_DATA *tindex, CHAR_DATA *ch, CHAR_DATA *victim1, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int trigger, char *phrase, int ts0, int ts1, int ts2, int ts3, int ts4);
+int p_token_index_percent_trigger(TOKEN_INDEX_DATA *tindex, CHAR_DATA *ch, CHAR_DATA *victim1, CHAR_DATA *victim2, OBJ_DATA *obj1, OBJ_DATA *obj2, int trigger, char *phrase, int ts0, int ts1, int ts2, int ts3, int ts4, int register1, int register2, int register3, int register4, int register5);
 
 
 int	script_login(CHAR_DATA *ch);
@@ -9577,6 +9763,30 @@ void terminate_scripting();
 
 SCRIPT_DATA *get_script_token(TOKEN_DATA *token, int trigger, int slot);
 
+// Item MUlti-Typing
+int objindex_get_subtype(OBJ_INDEX_DATA *pObjIndex);
+bool obj_index_can_add_item_type(OBJ_INDEX_DATA *pObjIndex, int item_type);
+bool container_is_valid_item_type(OBJ_DATA *container, int item_type, int subtype);
+bool container_is_valid_item(OBJ_DATA *container, OBJ_DATA *obj);
+int container_get_content_weight(OBJ_DATA *container, OBJ_DATA *obj);
+bool container_can_fit_weight(OBJ_DATA *container, OBJ_DATA *obj);
+int container_get_content_volume(OBJ_DATA *container, OBJ_DATA *obj);
+bool container_can_fit_volume(OBJ_DATA *container, OBJ_DATA *obj);
+bool container_check_duplicate(OBJ_DATA *container, OBJ_DATA *obj);
+bool food_has_buffs(OBJ_DATA *obj);
+bool food_apply_buffs(CHAR_DATA *ch, OBJ_DATA *obj, int level, int duration);
+char *furniture_get_positional(long field);
+char *furniture_get_short_description(OBJ_DATA *obj, FURNITURE_COMPARTMENT *compartment);
+FURNITURE_COMPARTMENT *furniture_get_compartment(OBJ_DATA *obj, int *index, char *name);
+FURNITURE_COMPARTMENT *furniture_find_compartment(CHAR_DATA *ch, OBJ_DATA *obj, char *argument, char *verb);
+int furniture_count_users(OBJ_DATA *obj, FURNITURE_COMPARTMENT *compartment);
+bool compartment_is_inside(FURNITURE_COMPARTMENT *compartment);
+bool compartment_is_closed(FURNITURE_COMPARTMENT *compartment);
+bool light_char_has_light(CHAR_DATA *ch);
+
+bool bitvector_lookup(char *argument, int nbanks, long *banks, ...);
+char *bitvector_string(int nbanks, ...);
+char *flagbank_string(const struct flag_type **bank, ...);
 
 extern LLIST *gc_mobiles;
 extern LLIST *gc_objects;

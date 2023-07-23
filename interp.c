@@ -267,6 +267,8 @@ const	struct	cmd_type	cmd_table	[] =
     { "land",			do_land,	POS_STANDING,	 0,  LOG_NORMAL, 1, FALSE },
     { "expand",			do_expand,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
     { "collapse",		do_collapse,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
+	{ "ignite",			do_ignite,	POS_RESTING,	0,	LOG_NORMAL,	1, FALSE },
+	{ "extinguish",		do_extinguish,	POS_RESTING,	0,	LOG_NORMAL,	1, FALSE },
 
     // Race specific commands.
     { "bite",			do_bite, 	POS_FIGHTING,	 0,  LOG_NORMAL, 1, FALSE },
@@ -1770,9 +1772,9 @@ bool check_social( CHAR_DATA *ch, char *command, char *argument )
     // 20140508NIB - Adding EMOTE triggering
 
     if( victim != NULL )
-		p_emoteat_trigger(victim, ch, social_table[cmd].name);
+		p_emoteat_trigger(victim, ch, social_table[cmd].name,0,0,0,0,0);
 	else
-		p_emote_trigger(ch, social_table[cmd].name);
+		p_emote_trigger(ch, social_table[cmd].name,0,0,0,0,0);
 
     return TRUE;
 }
@@ -1851,7 +1853,10 @@ int mult_argument(char *argument, char *arg)
         if ( *pdot == '*' )
         {
             *pdot = '\0';
-            number = atoi( argument );
+			if (is_number(argument))
+	            number = atoi( argument );
+			else
+				number = 0;		// Indicates the part before the * was *not* a number.
             *pdot = '*';
             strcpy( arg, pdot+1 );
             return number;
@@ -2070,7 +2075,7 @@ void stop_music( CHAR_DATA *ch, bool messages )
 	// Allow for custom messages as well as handling interrupted songs
 	if(ch->song_token) {
 		ch->tempstore[0] = messages?1:0;	// Tell the script whether to show messages or not
-		if( p_percent_trigger(NULL,NULL,NULL,ch->song_token,ch, NULL, NULL,NULL,NULL,TRIG_SPELLINTER, NULL) )
+		if(p_percent_trigger(NULL,NULL,NULL,ch->song_token,ch, NULL, NULL,NULL,NULL,TRIG_SPELLINTER, NULL,0,0,0,0,0))
 			messages = FALSE;
 	}
     free_string( ch->music_target_name );
@@ -2094,7 +2099,7 @@ void stop_casting( CHAR_DATA *ch, bool messages )
 	// Allow for custom messages as well as handling interrupted spells
 	if(ch->cast_token) {
 		ch->tempstore[0] = messages?1:0;	// Tell the script whether to show messages or not
-		if( p_percent_trigger(NULL,NULL,NULL,ch->cast_token,ch, NULL, NULL,NULL,NULL,TRIG_SPELLINTER, NULL) )
+		if(p_percent_trigger(NULL,NULL,NULL,ch->cast_token,ch, NULL, NULL,NULL,NULL,TRIG_SPELLINTER, NULL,0,0,0,0,0))
 			messages = FALSE;
 	}
 	free_string(ch->casting_failure_message);

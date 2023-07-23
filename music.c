@@ -151,7 +151,7 @@ void do_play(CHAR_DATA *ch, char *argument)
 		ch->tempstore[0] = 0;
 
 		// Precheck for the song token - set the music beats in here!
-		if(p_percent_trigger(NULL,NULL,NULL,entry->token,ch,NULL,NULL, obj, NULL, TRIG_PRESPELL, NULL))
+		if(p_percent_trigger(NULL,NULL,NULL,entry->token,ch,NULL,NULL, obj, NULL, TRIG_PRESPELL, NULL,0,0,0,0,0))
 			return;
 
 		beats = ch->tempstore[0];

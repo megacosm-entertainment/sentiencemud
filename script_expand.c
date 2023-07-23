@@ -522,6 +522,7 @@ char *expand_argument_variable(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 			break;
 		case VAR_SONG:		arg->type = ENT_SONG; arg->d.song = var->_.sn; break;
 		case VAR_AFFECT:	arg->type = ENT_AFFECT; arg->d.aff = var->_.aff; break;
+		case VAR_FOOD_BUFF:	arg->type = ENT_FOOD_BUFF; arg->d.food_buff = var->_.food_buff; break;
 
 		case VAR_CONNECTION:	arg->type = ENT_CONN; arg->d.conn = var->_.conn; break;
 
@@ -617,6 +618,7 @@ char *expand_argument_variable(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case VAR_PLLIST_AREA:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_AREA; break;
 		case VAR_PLLIST_AREA_REGION:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_AREA_REGION; break;
 		case VAR_PLLIST_CHURCH:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_CHURCH; break;
+		case VAR_PLLIST_FOOD_BUFF: arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_FOOD_BUFF; break;
 
 		}
 	}
@@ -798,6 +800,14 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
 		arg->type = ENT_AFFECT;
 		break;
 
+	case ENTITY_VAR_FOOD_BUFF:
+		if(var && var->type == VAR_FOOD_BUFF && var->_.food_buff)
+			arg->d.food_buff = var->_.food_buff;
+		else return NULL;
+
+		arg->type = ENT_AFFECT;
+		break;
+
 	case ENTITY_VAR_CONN:
 		if(var && var->type == VAR_CONNECTION && var->_.conn)
 			arg->d.conn = var->_.conn;
@@ -949,9 +959,10 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
 	case ENTITY_VAR_PLLIST_MOB:
 	case ENTITY_VAR_PLLIST_OBJ:
 	case ENTITY_VAR_PLLIST_TOK:
-	case ENTITY_VAR_PLLIST_CHURCH:
 	case ENTITY_VAR_PLLIST_AREA:
 	case ENTITY_VAR_PLLIST_AREA_REGION:
+	case ENTITY_VAR_PLLIST_CHURCH:
+	case ENTITY_VAR_PLLIST_FOOD_BUFF:
 	case ENTITY_VAR_PLLIST_VARIABLE:
 		type = (int)*str + VAR_PLLIST_STR - ENTITY_VAR_PLLIST_STR;
 		if(var && var->type == type && var->_.list)
@@ -1052,6 +1063,8 @@ char *expand_entity_primary(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 	case ENTITY_RANDOM:
 		arg->type = ENT_MOBILE;
+		// Check that the random character is defined, if not.. pick one
+		if (!info->rch) info->rch = get_random_char(info->mob, info->obj, info->room, info->token);
 		arg->d.mob = info ? info->rch : NULL;
 		break;
 	case ENTITY_HERE:
@@ -1629,6 +1642,13 @@ char *expand_entity_string(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 //		sprintf(buf,"ENTITY_STR_CAPITAL: before '%s'", arg->d.str);
 //		wiznet(buf, NULL, NULL, WIZ_TESTING, 0, 0);
 
+		if (arg->d.str != buf_string(arg->buffer))
+		{
+			clear_buf(arg->buffer);
+			add_buf(arg->buffer, arg->d.str);
+			arg->d.str = buf_string(arg->buffer);
+		}
+		/*
 		if( arg->d.str == buf_string(arg->buffer) )
 		{
 			// Already in the buffer
@@ -1643,6 +1663,7 @@ char *expand_entity_string(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 			arg->d.str = buf_string(arg->buffer);
 		}
+		*/
 		arg->d.str[0] = UPPER(arg->d.str[0]);
 
 //		sprintf(buf,"ENTITY_STR_CAPITAL: after '%s'", arg->d.str);
@@ -2644,6 +2665,27 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->d.variables = (arg->d.obj && arg->d.obj->progs) ? &arg->d.obj->progs->vars : NULL;
 		break;
 
+	// Multi-typing
+	case ENTITY_OBJ_TYPE_CONTAINER:
+		arg->type = ENT_OBJECT_CONTAINER;
+		// Uses arg->d.obj
+		break;
+
+	case ENTITY_OBJ_TYPE_FOOD:
+		arg->type = ENT_OBJECT_FOOD;
+		// Uses arg->d.obj
+		break;
+
+	case ENTITY_OBJ_TYPE_LIGHT:
+		arg->type = ENT_OBJECT_LIGHT;
+		// Uses arg->d.obj
+		break;
+
+	case ENTITY_OBJ_TYPE_MONEY:
+		arg->type = ENT_OBJECT_MONEY;
+		// Uses arg->d.obj
+		break;
+
 	// SPELLS?
 	default: return NULL;
 	}
@@ -2752,6 +2794,27 @@ char *expand_entity_object_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_OBJ_VARIABLES:
 		arg->type = ENT_ILLIST_VARIABLE;
 		arg->d.variables = NULL;
+		break;
+
+	// Multi-typing
+	case ENTITY_OBJ_TYPE_CONTAINER:
+		arg->type = ENT_OBJECT_CONTAINER;
+		// Uses arg->d.obj
+		break;
+
+	case ENTITY_OBJ_TYPE_FOOD:
+		arg->type = ENT_OBJECT_FOOD;
+		// Uses arg->d.obj
+		break;
+
+	case ENTITY_OBJ_TYPE_LIGHT:
+		arg->type = ENT_OBJECT_LIGHT;
+		// Uses arg->d.obj
+		break;
+
+	case ENTITY_OBJ_TYPE_MONEY:
+		arg->type = ENT_OBJECT_MONEY;
+		// Uses arg->d.obj
 		break;
 
 	default: return NULL;
@@ -3096,6 +3159,11 @@ char *expand_entity_area(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_PLLIST_ROOM;
 		arg->d.blist = arg->d.area ? arg->d.area->room_list : NULL;
 		break;
+	case ESCAPE_VARIABLE:
+		str = expand_escape_variable(info,arg->d.area?arg->d.area->progs->vars:NULL,str+1,arg);
+		if(!str) return NULL;
+		break;
+
 	default: return NULL;
 	}
 
@@ -3673,6 +3741,11 @@ char *expand_entity_affect(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->d.num = arg->d.aff ? arg->d.aff->type : 0;
 		break;
 
+	case ENTITY_AFFECT_WHERE:
+		arg->type = ENT_NUMBER;
+		arg->d.num = arg->d.aff ? arg->d.aff->where : -1;
+		break;
+
 	case ENTITY_AFFECT_LOCATION:
 		arg->type = ENT_NUMBER;
 		arg->d.num = arg->d.aff ? arg->d.aff->location : -1;
@@ -3681,6 +3754,18 @@ char *expand_entity_affect(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_AFFECT_MOD:
 		arg->type = ENT_NUMBER;
 		arg->d.num = arg->d.aff ? arg->d.aff->modifier : 0;
+		break;
+
+	case ENTITY_AFFECT_BITS:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = arg->d.aff ? arg->d.aff->bitvector : 0;
+		arg->d.bv.table = arg->d.aff ? affect_flags : NULL;
+		break;
+
+	case ENTITY_AFFECT_BITS2:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = arg->d.aff ? arg->d.aff->bitvector2 : 0;
+		arg->d.bv.table = arg->d.aff ? affect2_flags : NULL;
 		break;
 
 	case ENTITY_AFFECT_LEVEL:
@@ -3698,6 +3783,44 @@ char *expand_entity_affect(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 	return str+1;
 }
+
+char *expand_entity_food_buff(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	//printf("expand_entity_food_buff() called\n\r");
+	switch(*str) {
+	case ENTITY_AFFECT_WHERE:
+		arg->type = ENT_NUMBER;
+		arg->d.num = arg->d.aff ? arg->d.aff->where : -1;
+		break;
+
+	case ENTITY_AFFECT_LOCATION:
+		arg->type = ENT_NUMBER;
+		arg->d.num = arg->d.aff ? arg->d.aff->location : -1;
+		break;
+
+	case ENTITY_AFFECT_MOD:
+		arg->type = ENT_NUMBER;
+		arg->d.num = arg->d.aff ? arg->d.aff->modifier : 0;
+		break;
+
+	case ENTITY_AFFECT_BITS:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = arg->d.aff ? arg->d.aff->bitvector : 0;
+		arg->d.bv.table = arg->d.aff ? affect_flags : NULL;
+		break;
+
+	case ENTITY_AFFECT_BITS2:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = arg->d.aff ? arg->d.aff->bitvector2 : 0;
+		arg->d.bv.table = arg->d.aff ? affect2_flags : NULL;
+		break;
+
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
 
 char *expand_entity_clone_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
@@ -4655,6 +4778,41 @@ char *expand_entity_plist_church(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *ar
 
 		arg->d.church = church;
 		arg->type = ENT_CHURCH;
+		break;
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_plist_food_buff(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	register FOOD_BUFF_DATA *food_buff = NULL;
+	switch(*str) {
+	case ENTITY_LIST_SIZE:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
+		break;
+	case ENTITY_LIST_RANDOM:
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			food_buff = (FOOD_BUFF_DATA *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
+
+		arg->d.food_buff = food_buff;
+		arg->type = ENT_FOOD_BUFF;
+		break;
+	case ENTITY_LIST_FIRST:
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			food_buff = (FOOD_BUFF_DATA *)list_nthdata(arg->d.blist, 0);
+
+		arg->d.food_buff = food_buff;
+		arg->type = ENT_FOOD_BUFF;
+		break;
+	case ENTITY_LIST_LAST:
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			food_buff = (FOOD_BUFF_DATA *)list_nthdata(arg->d.blist, -1);
+
+		arg->d.food_buff = food_buff;
+		arg->type = ENT_FOOD_BUFF;
 		break;
 	default: return NULL;
 	}
@@ -5704,6 +5862,118 @@ char *expand_entity_bitvector(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	return str+1;
 }
 
+char *expand_entity_object_container(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	CONTAINER_DATA *container = IS_VALID(arg->d.obj) && IS_CONTAINER(arg->d.obj) ? CONTAINER(arg->d.obj) : NULL;
+
+	switch(*str) {
+	case ENTITY_OBJ_CONTAINER_FLAGS:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = IS_VALID(container) ? container->flags : 0;
+		arg->d.bv.table = IS_VALID(container) ? container_flags : NULL;
+		break;
+
+	case ENTITY_OBJ_CONTAINER_MAX_WEIGHT:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(container) ? container->max_weight : -1;
+		break;
+
+	case ENTITY_OBJ_CONTAINER_WEIGHT_MULTIPLIER:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(container) ? container->weight_multiplier : -1;
+		break;
+		
+	case ENTITY_OBJ_CONTAINER_MAX_VOLUME:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(container) ? container->max_volume : -1;
+		break;
+
+	case ENTITY_OBJ_CONTAINER_WHITELIST:
+		// Need a way to look for this
+		return NULL;
+
+	case ENTITY_OBJ_CONTAINER_BLACKLIST:
+		return NULL;
+		
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_object_food(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	FOOD_DATA *food = IS_VALID(arg->d.obj) && IS_FOOD(arg->d.obj) ? FOOD(arg->d.obj) : NULL;
+
+	switch(*str) {
+	case ENTITY_OBJ_FOOD_HUNGER:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(food) ? food->hunger : -1;
+		break;
+		
+	case ENTITY_OBJ_FOOD_FULL:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(food) ? food->full : -1;
+		break;
+		
+	case ENTITY_OBJ_FOOD_POISON:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(food) ? food->poison : -1;
+		break;
+
+	case ENTITY_OBJ_FOOD_BUFFS:
+		arg->type = ENT_PLLIST_FOOD_BUFF;
+		arg->d.blist = IS_VALID(food) ? food->buffs : NULL;
+		break;
+
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_object_light(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	LIGHT_DATA *light = IS_VALID(arg->d.obj) && IS_LIGHT(arg->d.obj) ? LIGHT(arg->d.obj) : NULL;
+
+	switch(*str) {
+	case ENTITY_OBJ_LIGHT_FLAGS:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = IS_VALID(light) ? light->flags : 0;
+		arg->d.bv.table = IS_VALID(light) ? light_flags : NULL;
+		break;
+	
+	case ENTITY_OBJ_LIGHT_DURATION:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(light) ? light->duration : 0;
+		break;
+
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_object_money(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	MONEY_DATA *money = IS_VALID(arg->d.obj) && IS_MONEY(arg->d.obj) ? MONEY(arg->d.obj) : NULL;
+
+	switch(*str) {
+	case ENTITY_OBJ_MONEY_SILVER:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(money) ? money->silver : -1;
+		break;
+
+	case ENTITY_OBJ_MONEY_GOLD:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(money) ? money->gold : -1;
+		break;
+
+	default: return NULL;
+	}
+
+	return str+1;
+}
 
 char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
@@ -5740,6 +6010,7 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case ENT_CHURCH:	next = expand_entity_church(info,str,arg); break;
 		case ENT_EXTRADESC:	next = expand_entity_extradesc(info,str,arg); break;
 		case ENT_AFFECT:	next = expand_entity_affect(info,str,arg); break;
+		case ENT_FOOD_BUFF:	next = expand_entity_food_buff(info,str,arg); break;
 		case ENT_SONG:		next = expand_entity_song(info,str,arg); break;
 		case ENT_CLONE_ROOM:	next = expand_entity_clone_room(info,str,arg); break;
 		case ENT_WILDS_ROOM:	next = expand_entity_wilds_room(info,str,arg); break;
@@ -5765,6 +6036,7 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case ENT_PLLIST_AREA:		next = expand_entity_plist_area(info,str,arg); break;
 		case ENT_PLLIST_AREA_REGION:	next = expand_entity_plist_area_region(info,str,arg); break;
 		case ENT_PLLIST_CHURCH:	next = expand_entity_plist_church(info,str,arg); break;
+		case ENT_PLLIST_FOOD_BUFF:	next = expand_entity_plist_food_buff(info,str,arg); break;
 
 		case ENT_MOBILE_ID:		next = expand_entity_mobile_id(info,str,arg); break;
 		case ENT_OBJECT_ID:		next = expand_entity_object_id(info,str,arg); break;
@@ -5793,6 +6065,12 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case ENT_BLUEPRINT:				next = expand_entity_blueprint(info,str,arg); break;
 		case ENT_DUNGEONINDEX:			next = expand_entity_dungeonindex(info,str,arg); break;
 		case ENT_SHIPINDEX:				next = expand_entity_shipindex(info,str,arg); break;
+
+		// Multi-typing
+		case ENT_OBJECT_CONTAINER:		next = expand_entity_object_container(info,str,arg); break;
+		case ENT_OBJECT_FOOD:			next = expand_entity_object_food(info,str,arg); break;
+		case ENT_OBJECT_LIGHT:			next = expand_entity_object_light(info,str,arg); break;
+		case ENT_OBJECT_MONEY:			next = expand_entity_object_money(info,str,arg); break;
 
 		case ENT_BITVECTOR:		next = expand_entity_bitvector(info,str,arg); break;
 		case ENT_NULL:

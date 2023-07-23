@@ -13,6 +13,7 @@
 #include <math.h>
 #include "merc.h"
 #include "interp.h"
+#include "recycle.h"
 #include "scripts.h"
 #include "tables.h"
 #include "wilds.h"
@@ -334,7 +335,7 @@ void gain_exp(CHAR_DATA *ch, int gain)
 
 	// Allow scripts to affect gaining experience, as well as blocking the use of the xp
 	ch->tempstore[0] = gain;
-	if(p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_XPGAIN, NULL))
+	if(p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_XPGAIN, NULL,0,0,0,0,0))
 		return;
 
 	// Only update gain IF the value is less than what was originally put in, don't allow scripts to boost the XP at this point.
@@ -348,7 +349,7 @@ void gain_exp(CHAR_DATA *ch, int gain)
 		ch->exp += gain;
 
 		if(ch->exp >= ch->maxexp) {
-			if( !p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,TRIG_LEVEL, NULL) ) {
+			if( !p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,TRIG_LEVEL, NULL,0,0,0,0,0) ) {
 				ch->exp = 0;
 
 				ch->level += 1;
@@ -389,7 +390,7 @@ void gain_exp(CHAR_DATA *ch, int gain)
 			wiznet(buf,ch,NULL,WIZ_LEVELS,0,0);
 			advance_level(ch,FALSE);
 
-			p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,TRIG_LEVEL, NULL);
+			p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL,TRIG_LEVEL, NULL,0,0,0,0,0);
 
 			save_char_obj(ch);
 		}
@@ -456,10 +457,8 @@ int hit_gain(CHAR_DATA *ch)
 	if (ch->in_room->heal_rate > 0)
 		gain = gain * ch->in_room->heal_rate / 100;
 
-	if (ch->on &&
-		ch->on->item_type == ITEM_FURNITURE &&
-		ch->on->value[3] > 0)
-		gain = gain * ch->on->value[3] / 100;
+	if (ch->on && IS_VALID(ch->on_compartment) && ch->on_compartment->health_regen > 0)
+		gain = gain * ch->on_compartment->health_regen / 100;
 
 	if (IS_AFFECTED(ch, AFF_POISON))
 		gain /= 4;
@@ -479,7 +478,7 @@ int hit_gain(CHAR_DATA *ch)
 		gain += gain / 4;
 
 	ch->tempstore[0] = gain;
-	if( p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_HITGAIN, NULL) )
+	if(p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_HITGAIN, NULL,0,0,0,0,0))
 		return 0;
 	gain = UMAX(0, ch->tempstore[0]);
 
@@ -546,10 +545,8 @@ int mana_gain(CHAR_DATA *ch)
 	if (ch->in_room->mana_rate > 0)
 		gain = gain * ch->in_room->mana_rate / 100;
 
-	if (ch->on != NULL &&
-		ch->on->item_type == ITEM_FURNITURE &&
-		ch->on->value[4] > 0)
-		gain = gain * ch->on->value[4] / 100;
+	if (ch->on != NULL && IS_VALID(ch->on_compartment) && ch->on_compartment->mana_regen > 0)
+		gain = gain * ch->on_compartment->mana_regen / 100;
 
 	if (IS_AFFECTED(ch, AFF_POISON))
 		gain /= 4;
@@ -578,7 +575,7 @@ int mana_gain(CHAR_DATA *ch)
 		gain *= 2;
 
 	ch->tempstore[0] = gain;
-	if( p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_MANAGAIN, NULL) )
+	if(p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_MANAGAIN, NULL,0,0,0,0,0))
 		return 0;
 	gain = UMAX(0, ch->tempstore[0]);
 
@@ -654,7 +651,7 @@ int move_gain(CHAR_DATA *ch)
 		gain *= 2;
 
 	ch->tempstore[0] = gain;
-	if( p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_MOVEGAIN, NULL) )
+	if(p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_MOVEGAIN, NULL,0,0,0,0,0))
 		return 0;
 	gain = UMAX(0, ch->tempstore[0]);
 
@@ -724,7 +721,7 @@ int toxin_gain(CHAR_DATA *ch, int toxin)
 
 	ch->tempstore[0] = gain;
 	ch->tempstore[1] = toxin;
-	if( p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_TOXINGAIN, toxin_table[toxin].name) )
+	if(p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_TOXINGAIN, toxin_table[toxin].name,0,0,0,0,0))
 		return 0;
 	gain = UMAX(0, ch->tempstore[0]);
 
@@ -804,15 +801,15 @@ void mobile_update(void)
 		if (!IS_NPC(ch)) {
 		    if(ch->tokens) {
 
-			p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RANDOM, NULL);
+			p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RANDOM, NULL,0,0,0,0,0);
 
 			// Prereckoning
 			if (pre_reckoning > 0 && reckoning_timer > 0)
-			    p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECKONING, NULL);
+			    p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECKONING, NULL,0,0,0,0,0);
 
 			// Reckoning
 			if (!pre_reckoning && reckoning_timer > 0)
-			    p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RECKONING, NULL);
+			    p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RECKONING, NULL,0,0,0,0,0);
 		    }
 		    continue;
 		}
@@ -873,7 +870,7 @@ void mobile_update(void)
 					}
 
 					if( restocked )
-						p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RESTOCKED, NULL);
+						p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RESTOCKED, NULL,0,0,0,0,0);
 
 					ch->shop->next_restock = current_time + ch->shop->restock_interval * 60;
 				}
@@ -887,22 +884,22 @@ void mobile_update(void)
 		{
 			if (--ch->progs->delay <= 0)
 			{
-			p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_DELAY, NULL);
+			p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_DELAY, NULL,0,0,0,0,0);
 			continue;
 			}
 		}
 
         // Random
-		p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RANDOM, NULL);
+		p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RANDOM, NULL,0,0,0,0,0);
 
 		// Prereckoning
 		if (pre_reckoning > 0 && reckoning_timer > 0) {
-			p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECKONING, NULL);
+			p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECKONING, NULL,0,0,0,0,0);
 		}
 
 		// Reckoning
 		if (pre_reckoning == 0 && reckoning_timer > 0) {
-			p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RECKONING, NULL);
+			p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RECKONING, NULL,0,0,0,0,0);
 		}
 
 /*
@@ -923,7 +920,7 @@ void mobile_update(void)
 				// CONTRACT_COMPLETE can allow the mob to remain in existence
 				// - when a script gets executed, you need to return a zero to extract the mob
 				// - when no script gets executed, extraction will be performed
-				if(p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_CONTRACT_COMPLETE, NULL) <= 0)
+				if(p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_CONTRACT_COMPLETE, NULL,0,0,0,0,0) <= 0)
 				{
 					extract_char(ch, TRUE);
 					continue;
@@ -1416,7 +1413,7 @@ void char_update(void)
 					sprintf(buf, "char update: token %s(%ld) char %s(%ld) was extracted because of timer",
 						token->name, token->pIndexData->vnum, HANDLE(ch), IS_NPC(ch) ? ch->pIndexData->vnum : 0);
 					log_string(buf);
-					p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_EXPIRE, NULL);
+					p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_EXPIRE, NULL,0,0,0,0,0);
 					token_from_char(token);
 					free_token(token);
 				}
@@ -1530,13 +1527,13 @@ void char_update(void)
 			OBJ_DATA *corpse = ch->pcdata->corpse;
 			ROOM_INDEX_DATA *corpse_room = obj_room(corpse);
 			// Check here, prevent the timer from counting down
-			if( p_percent_trigger(ch, NULL, NULL, NULL, ch, ch, NULL, corpse, NULL, TRIG_DEATH_TIMER, NULL) )
+			if(p_percent_trigger(ch, NULL, NULL, NULL, ch, ch, NULL, corpse, NULL, TRIG_DEATH_TIMER, NULL,0,0,0,0,0))
 				run_death_timer = FALSE;
 
-			if( run_death_timer && IS_VALID(corpse) && p_percent_trigger(NULL, corpse, NULL, NULL, ch, ch, NULL, corpse, NULL, TRIG_DEATH_TIMER, NULL) )
+			if( run_death_timer && IS_VALID(corpse) && p_percent_trigger(NULL, corpse, NULL, NULL, ch, ch, NULL, corpse, NULL, TRIG_DEATH_TIMER, NULL,0,0,0,0,0) )
 				run_death_timer = FALSE;
 
-			if( run_death_timer && corpse_room && p_percent_trigger(NULL, NULL, corpse_room, NULL, ch, ch, NULL, corpse, NULL, TRIG_DEATH_TIMER, NULL) )
+			if( run_death_timer && corpse_room && p_percent_trigger(NULL, NULL, corpse_room, NULL, ch, ch, NULL, corpse, NULL, TRIG_DEATH_TIMER, NULL,0,0,0,0,0) )
 				run_death_timer = FALSE;
 
 			// TODO: Make a way to keep this while dead
@@ -1562,23 +1559,39 @@ void char_update(void)
 		// Updates for NON-IMM players who aren't dead.
 		if (!IS_NPC(ch) && ch->tot_level < LEVEL_IMMORTAL && !IS_DEAD(ch))
 		{
-		    OBJ_DATA *obj;
+		    OBJ_DATA *obj, *obj_next;
 
-			// Decrease light
-			if ((obj = get_eq_char(ch, WEAR_LIGHT)) != NULL &&
-				obj->item_type == ITEM_LIGHT &&
-				obj->value[2] > 0)
+			// Decrease lights
+			for(obj = ch->carrying; obj; obj = obj_next)
 			{
-				if (--obj->value[2] <= 0 && ch->in_room != NULL)
+				obj_next = obj->next_content;
+				if (IS_LIGHT(obj) && IS_SET(LIGHT(obj)->flags, LIGHT_IS_ACTIVE) && LIGHT(obj)->duration > 0)
 				{
-					--ch->in_room->light;
-					act("$p goes out.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-					act("$p flickers and goes out.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-					log_string("it went out");
-					extract_obj(obj);
+					bool was_lit = light_char_has_light(ch);
+					if (--LIGHT(obj)->duration <= 0 && ch->in_room != NULL)
+					{
+						if (IS_SET(LIGHT(obj)->flags, LIGHT_REMOVE_ON_EXTINGUISH))
+						{
+							free_light_data(LIGHT(obj));
+							LIGHT(obj) = NULL;
+						}
+						else
+							REMOVE_BIT(LIGHT(obj)->flags, LIGHT_IS_ACTIVE);		// Turn it off
+
+						// If the character no longer has any light
+						if (was_lit && !light_char_has_light(ch))
+							ch->in_room->light--;
+
+						act("$p goes out.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+						act("$p flickers and goes out.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+
+						// Primary lights that have extinguished are to be destroyed.
+						if (obj->item_type == ITEM_LIGHT && !IS_LIGHT(obj))				
+							extract_obj(obj);
+					}
+					else if (LIGHT(obj)->duration <= 5 && ch->in_room != NULL)
+						act("$p flickers.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
 				}
-				else if (obj->value[2] <= 5 && ch->in_room != NULL)
-					act("$p flickers.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
 			}
 
 			// Limbo timer (doesn't apply to imms)
@@ -1593,7 +1606,7 @@ void char_update(void)
 					token_next = token->next;
 					if (IS_SET(token->flags, TOKEN_PURGE_IDLE))
 					{
-						p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_REMOVED, NULL);
+						p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_REMOVED, NULL,0,0,0,0,0);
 						sprintf(buf, "char update: token %s(%ld) char %s(%ld) was purged on idle",
 							token->name, token->pIndexData->vnum, HANDLE(ch), IS_NPC(ch) ? ch->pIndexData->vnum : 0);
 						log_string(buf);
@@ -1753,9 +1766,6 @@ void char_update(void)
 
 			// No magical flying over the ocean.  Physical flight is ok
 			if (ch->in_room->sector_type == SECT_WATER_NOSWIM &&
-				ch->in_room->vnum != ROOM_VNUM_SEA_PLITH_HARBOUR &&
-				ch->in_room->vnum != ROOM_VNUM_SEA_NORTHERN_HARBOUR &&
-				ch->in_room->vnum != ROOM_VNUM_SEA_SOUTHERN_HARBOUR &&
 				!IS_NPC(ch) && is_affected(ch, gsn_fly))
 			{
 				act("{MThe air sparks as the ocean's magical shield dispels your ability to fly.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -2070,7 +2080,7 @@ void obj_update(void)
 		if (obj_room(obj) != NULL) {
 			if (obj->progs->delay > 0) {
 				if (--obj->progs->delay <= 0)
-					p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_DELAY, NULL);
+					p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_DELAY, NULL,0,0,0,0,0);
 
 				// Make sure the object is still there before proceeding
 				if(!obj->valid || obj->id[0] != uid[0] || obj->id[1] != uid[1])
@@ -2080,15 +2090,15 @@ void obj_update(void)
 			if (!obj->locker)
 			{
 
-				p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RANDOM, NULL);
+				p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RANDOM, NULL,0,0,0,0,0);
 
 				// Prereckoning
 				if (pre_reckoning > 0 && reckoning_timer > 0)
-					p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECKONING, NULL);
+					p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECKONING, NULL,0,0,0,0,0);
 
 				// Reckoning
 				if (!pre_reckoning && reckoning_timer > 0)
-					p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RECKONING, NULL);
+					p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RECKONING, NULL,0,0,0,0,0);
 			}
 		}
 
@@ -2107,7 +2117,7 @@ void obj_update(void)
 					sprintf(buf, "obj update: token %s(%ld) obj %s(%ld) was extracted because of timer",
 							token->name, token->pIndexData->vnum, obj->short_descr, obj->pIndexData->vnum);
 					log_string(buf);
-					p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_EXPIRE, NULL);
+					p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_EXPIRE, NULL,0,0,0,0,0);
 					token_from_obj(token);
 					free_token(token);
 				}
@@ -2123,7 +2133,7 @@ void obj_update(void)
 				// Force this object to prevent its own destruction as it will be destroyed by default
 				SET_BIT(obj->progs->entity_flags,PROG_NODESTRUCT);
 
-				if( !p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_GROW, NULL) )
+				if( !p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_GROW, NULL,0,0,0,0,0) )
 				{
 					if (obj->value[1] == 0)
 						bug("Seed has 0 vnum.", obj->pIndexData->vnum);
@@ -2137,7 +2147,7 @@ void obj_update(void)
 						new_obj = create_object(get_obj_index(obj->pIndexData->area, obj->value[1]), obj->level, TRUE);
 						obj_to_room(new_obj, obj->in_room);
 
-						p_percent_trigger(NULL, new_obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+						p_percent_trigger(NULL, new_obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL,0,0,0,0,0);
 					}
 				}
 				extract_obj(obj);
@@ -2168,15 +2178,54 @@ void obj_update(void)
 			cold_effect(obj->in_room, 1, dice(4,8), TARGET_ROOM);
 		}
 
-		// Check fountains that are out the locker and have capacity to fill.
-		// Fountains with a timer will not refill
-		if (obj->item_type == ITEM_FOUNTAIN && obj->timer <= 0 && !obj->locker)
+		if (obj->timer <= 0 && !obj->locker)
 		{
-			if(obj->value[4] > 0 && obj->value[0] > 0 && obj->value[1] < obj->value[0])
+			// Check fountains that are out the locker and have capacity to fill.
+			// Fountains with a timer will not refill
+			if (obj->item_type == ITEM_FOUNTAIN)
 			{
-				obj->value[1] += obj->value[4];
-				obj->value[1] = UMIN(obj->value[0], obj->value[1]);
+				if(obj->value[4] > 0 && obj->value[0] > 0 && obj->value[1] < obj->value[0])
+				{
+					obj->value[1] += obj->value[4];
+					obj->value[1] = UMIN(obj->value[0], obj->value[1]);
 
+					if (obj->value[3] > 0 && obj->value[3] < 100 && number_percent() >= obj->value[3])
+					{
+						if (number_percent() >= obj->value[3])
+							obj->value[3] = 0;
+						else
+							obj->value[3]--;
+					}
+
+					// Are at capacity?
+					if (obj->value[1] == obj->value[0])
+					{
+						p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_FILLED, NULL,0,0,0,0,0);
+					}
+				}
+
+				// The cap for applied poison will always be 99%.
+				// Permanently poisoned fountains will have to be explicitly made.
+				if (obj->value[5] > 0 && obj->value[3] < 99)
+				{
+					obj->value[3] += obj->value[5];
+					obj->value[3] = UMIN(obj->value[5], 99);
+				}
+			}
+
+			if (IS_FOOD(obj))
+			{
+				if (FOOD(obj)->poison > 0 && FOOD(obj)->poison < 100 && number_percent() >= FOOD(obj)->poison)
+				{
+					if (number_percent() >= FOOD(obj)->poison)
+						FOOD(obj)->poison = 0;
+					else
+						FOOD(obj)->poison--;
+				}
+			}
+
+			if (obj->item_type == ITEM_DRINK_CON)
+			{
 				if (obj->value[3] > 0 && obj->value[3] < 100 && number_percent() >= obj->value[3])
 				{
 					if (number_percent() >= obj->value[3])
@@ -2184,31 +2233,33 @@ void obj_update(void)
 					else
 						obj->value[3]--;
 				}
+			}
 
-				// Are at capacity?
-				if (obj->value[1] == obj->value[0])
+			// When a light is on the ground
+			if (obj->carried_by == NULL && obj->in_obj == NULL && obj->in_room != NULL &&
+				IS_LIGHT(obj) && IS_SET(LIGHT(obj)->flags, LIGHT_IS_ACTIVE) && LIGHT(obj)->duration > 0)
+			{
+				if (--LIGHT(obj)->duration <= 0)
 				{
-					p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_FILLED, NULL);
+					if (IS_SET(LIGHT(obj)->flags, LIGHT_REMOVE_ON_EXTINGUISH))
+					{
+						free_light_data(LIGHT(obj));
+						LIGHT(obj) = NULL;
+					}
+					else
+						REMOVE_BIT(LIGHT(obj)->flags, LIGHT_IS_ACTIVE);		// Turn it off
+
+					obj->in_room->light--;
+
+					if (obj->in_room->people)
+					{
+						act("$p goes out.", obj->in_room->people, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+					}
+
+					// Primary lights that have extinguished are to be destroyed.
+					if (obj->item_type == ITEM_LIGHT && !IS_LIGHT(obj))				
+						extract_obj(obj);
 				}
-			}
-
-			// The cap for applied poison will always be 99%.
-			// Permanently poisoned fountains will have to be explicitly made.
-			if (obj->value[5] > 0 && obj->value[3] < 99)
-			{
-				obj->value[3] += obj->value[5];
-				obj->value[3] = UMIN(obj->value[5], 99);
-			}
-		}
-
-		if ((obj->item_type == ITEM_FOOD || obj->item_type == ITEM_DRINK_CON) && obj->timer <= 0 && !obj->locker)
-		{
-			if (obj->value[3] > 0 && obj->value[3] < 100 && number_percent() >= obj->value[3])
-			{
-				if (number_percent() >= obj->value[3])
-					obj->value[3] = 0;
-				else
-					obj->value[3]--;
 			}
 		}
 
@@ -2257,8 +2308,10 @@ void obj_update(void)
 
 		case ITEM_CONTAINER:
 			if (CAN_WEAR(obj,ITEM_WEAR_FLOAT)) {
-				if (obj->contains)
+				if (obj->contains) {
+					spill_contents = 100;
 					message = "$p flickers and vanishes, spilling its contents on the floor.";
+				}
 				else
 					message = "$p flickers and vanishes.";
 			} else
@@ -2274,8 +2327,8 @@ void obj_update(void)
 				act(message, obj->in_room->people, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL);
 		}
 
-		// Send the contents of decaying corpses somewhere, depending on where the corpse is.
-		if (spill_contents > 0 && (obj->item_type == ITEM_CORPSE_PC || obj->item_type == ITEM_CORPSE_NPC) && obj->contains) {
+		// Spill contents if there is any
+		if (spill_contents > 0 /* && (obj->item_type == ITEM_CORPSE_PC || obj->item_type == ITEM_CORPSE_NPC)*/ && obj->contains) {
 			OBJ_DATA *t_obj, *next_obj;
 
 			for (t_obj = obj->contains; t_obj != NULL; t_obj = next_obj) {
@@ -2348,7 +2401,7 @@ void aggr_update(void)
 			    wch->cast = 0;
 			    cast_end(wch);
 			} else if(wch->cast_token && IS_SET(wch->cast_token->pIndexData->flags, TOKEN_SPELLBEATS))
- 				p_percent_trigger(NULL, NULL, NULL, wch->cast_token, wch, NULL, NULL, NULL, NULL, TRIG_SPELLBEAT, NULL);
+ 				p_percent_trigger(NULL, NULL, NULL, wch->cast_token, wch, NULL, NULL, NULL, NULL, TRIG_SPELLBEAT, NULL,0,0,0,0,0);
 
 	    }
 

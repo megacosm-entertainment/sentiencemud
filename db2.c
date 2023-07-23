@@ -938,28 +938,6 @@ void do_dump( CHAR_DATA *ch, char *argument )
 					fprintf( fp, "N/A	-1	-1	N/A	N/A	");
 				}
 
-				//Spells
-				if (obj->item_type == ITEM_WEAPON || obj->item_type == ITEM_ARMOUR || obj->item_type == ITEM_ARTIFACT
-					|| obj->item_type == ITEM_LIGHT) {
-					switch(obj->item_type) {
-					case ITEM_WEAPON:
-					case ITEM_ARMOUR:
-						fprintf(fp, "%ld	%s	%s	", obj->value[5], obj->value[6] > 0 ? skill_table[obj->value[6]].name :
-							"none", obj->value[7] > 0 ? skill_table[obj->value[7]].name : "none");
-						break;
-					case ITEM_ARTIFACT:
-						fprintf(fp, "%ld	%s	%s	", obj->value[0], obj->value[1] > 0 ? skill_table[obj->value[1]].name :
-							"none", obj->value[2] > 0 ? skill_table[obj->value[2]].name : "none");
-						break;
-
-					case ITEM_LIGHT:
-						fprintf(fp, "%ld	%s	%s	", obj->value[3], obj->value[4] > 0 ? skill_table[obj->value[4]].name :
-							"none", obj->value[5] > 0 ? skill_table[obj->value[5]].name : "none");
-						break;
-					}
-				} else {
-					fprintf(fp, "-1	N/A	N/A	");
-				}
 
 				// TODO: put LOcKSTATE info
 

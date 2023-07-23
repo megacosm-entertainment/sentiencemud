@@ -18,11 +18,15 @@ const struct script_cmd_type obj_cmd_table[] = {
 	{ "addaffect",			scriptcmd_addaffect,	TRUE,	TRUE	},
 	{ "addaffectname",		scriptcmd_addaffectname,TRUE,	TRUE	},
 	{ "addaura",			scriptcmd_addaura,			TRUE,	TRUE	},
-	{ "addspell",			scriptcmd_addspell,			TRUE,	TRUE	},
+	{ "addblacklist",		scriptcmd_addblacklist,			TRUE, TRUE },
+	{ "addfoodbuff",		scriptcmd_addfoodbuff,		TRUE, TRUE },
+	{ "addspell",			scriptcmd_addspell,				TRUE,	TRUE	},
+	{ "addtype",			scriptcmd_addtype,			TRUE, TRUE },
+	{ "addwhitelist",		scriptcmd_addwhitelist,			TRUE, TRUE },
 	{ "alteraffect",		do_opalteraffect,		TRUE,	TRUE	},
 	{ "alterexit",			do_opalterexit,			FALSE,	TRUE	},
 	{ "altermob",			do_opaltermob,			TRUE,	TRUE	},
-	{ "alterobj",			do_opalterobj,			TRUE,	TRUE	},
+	{ "alterobj",			scriptcmd_alterobj,			TRUE,	TRUE	},
 	{ "alterroom",			do_opalterroom,			TRUE,	TRUE	},
 	{ "applytoxin",			scriptcmd_applytoxin,	FALSE,	TRUE	},
 	{ "asound",				do_opasound,			FALSE,	TRUE	},
@@ -118,10 +122,13 @@ const struct script_cmd_type obj_cmd_table[] = {
 	{ "rawkill",			do_oprawkill,			FALSE,	TRUE	},
 	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
 	{ "remaura",			scriptcmd_remaura,			TRUE,	TRUE	},
+	{ "remblacklist",		scriptcmd_remblacklist,		TRUE,	TRUE	},
 	{ "remember",			do_opremember,			FALSE,	TRUE	},
 	{ "remort",				do_opremort,			TRUE,	TRUE	},
 	{ "remove",				do_opremove,			FALSE,	TRUE	},
 	{ "remspell",			scriptcmd_remspell,			TRUE,	TRUE	},
+	{ "remtype",			scriptcmd_remtype,			TRUE,	TRUE	},
+	{ "remwhitelist",		scriptcmd_remwhitelist,		TRUE,	TRUE	},
 	{ "resetdice",			do_opresetdice,			TRUE,	TRUE	},
 	{ "restore",			do_oprestore,			TRUE,	TRUE	},
 	{ "revokeskill",		scriptcmd_revokeskill,	FALSE,	TRUE	},
@@ -2178,7 +2185,7 @@ SCRIPT_CMD(do_opmload)
 	victim = create_mobile(pMobIndex, FALSE);
 	char_to_room(victim, obj_room(info->obj));
 	if(rest && *rest) variables_set_mobile(info->var,rest,victim);
-	p_percent_trigger(victim, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+	p_percent_trigger(victim, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL,0,0,0,0,0);
 }
 
 // do_opoload
@@ -2254,14 +2261,12 @@ SCRIPT_CMD(do_opoload)
 			case ENT_STRING:
 				if (!str_cmp(arg->d.str, "inside") &&
 					IS_SET(pObjIndex->wear_flags, ITEM_TAKE)) {
-					if( info->obj->item_type == ITEM_CONTAINER ||
-						info->obj->item_type == ITEM_CART)
-						fInside = TRUE;
-
-					else if( info->obj->item_type == ITEM_WEAPON_CONTAINER &&
-						info->obj->value[1] == pObjIndex->value[0] )
-						fInside = TRUE;
-
+					if (IS_CONTAINER(info->obj))
+					{
+						int subtype = objindex_get_subtype(pObjIndex);
+						if (container_is_valid_item_type(info->obj, pObjIndex->item_type, subtype))
+							fInside = TRUE;
+					}
 				}
 				break;
 
@@ -2276,12 +2281,13 @@ SCRIPT_CMD(do_opoload)
 
 			case ENT_OBJECT:
 				if( arg->d.obj && IS_SET(pObjIndex->wear_flags, ITEM_TAKE) ) {
-					if(arg->d.obj->item_type == ITEM_CONTAINER ||
-						arg->d.obj->item_type == ITEM_CART)
-						to_obj = arg->d.obj;
-					else if(arg->d.obj->item_type == ITEM_WEAPON_CONTAINER &&
-						pObjIndex->item_type == ITEM_WEAPON &&
-						pObjIndex->value[0] == arg->d.obj->value[1])
+					if(IS_CONTAINER(arg->d.obj))
+					{
+						int subtype = objindex_get_subtype(pObjIndex);
+						if (container_is_valid_item_type(arg->d.obj, pObjIndex->item_type, subtype))
+							to_obj = arg->d.obj;
+					}
+					else if(arg->d.obj->item_type == ITEM_CORPSE_NPC || arg->d.obj->item_type == ITEM_CORPSE_PC)
 						to_obj = arg->d.obj;
 					else
 						return;	// Trying to put the item into a non-container won't work
@@ -2311,7 +2317,7 @@ SCRIPT_CMD(do_opoload)
 		obj_to_room(obj, obj_room(info->obj));
 
 	if(rest && *rest) variables_set_object(info->var,rest,obj);
-	p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+	p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL,0,0,0,0,0);
 }
 
 // do_opotransfer
@@ -3265,10 +3271,6 @@ SCRIPT_CMD(do_opalterobj)
 		default: return;
 		}
 
-		if(obj->item_type == ITEM_CONTAINER) {
-			if(num == 3 || num == 4) min_sec = 5;
-		}
-
 		if(script_security < min_sec) {
 			sprintf(buf,"OpAlterObj - Attempting to alter value%d with security %d.\n\r", num, script_security);
 			bug(buf, 0);
@@ -4194,8 +4196,8 @@ SCRIPT_CMD(do_oprawkill)
 	{
 		ROOM_INDEX_DATA *here = mob->in_room;
 		mob->position = POS_STANDING;
-		if(!p_percent_trigger(mob, NULL, NULL, NULL, mob, mob, NULL, NULL, NULL, TRIG_DEATH, NULL))
-			p_percent_trigger(NULL, NULL, here, NULL, mob, mob, NULL, NULL, NULL, TRIG_DEATH, NULL);
+		if(!p_percent_trigger(mob, NULL, NULL, NULL, mob, mob, NULL, NULL, NULL, TRIG_DEATH, NULL,0,0,0,0,0))
+			p_percent_trigger(NULL, NULL, here, NULL, mob, mob, NULL, NULL, NULL, TRIG_DEATH, NULL,0,0,0,0,0);
 	}
 
 	raw_kill(mob, has_head, show_msg, type);

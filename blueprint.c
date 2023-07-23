@@ -2205,7 +2205,7 @@ bool generate_instance(INSTANCE *instance)
 		list_clear(bp->links);
 		list_clear(bp->special_rooms);
 		bp->recall = 0;
-		p_percent2_trigger(NULL, instance, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_BLUEPRINT_SCHEMATIC, NULL);
+		p_percent2_trigger(NULL, instance, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_BLUEPRINT_SCHEMATIC, NULL,0,0,0,0,0);
 	}
 
 	// Generate the sections
@@ -2730,7 +2730,7 @@ void update_instance_section(INSTANCE_SECTION *section)
 
 void update_instance(INSTANCE *instance)
 {
-	p_percent2_trigger(NULL, instance, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RANDOM, NULL);
+	p_percent2_trigger(NULL, instance, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RANDOM, NULL,0,0,0,0,0);
 
 	ITERATOR sit;
 	INSTANCE_SECTION *section;
@@ -2809,7 +2809,7 @@ void instance_update()
 		instance->age++;
 		if( instance->blueprint->repop > 0 && (instance->age >= instance->blueprint->repop) )
 		{
-			p_percent2_trigger(NULL, instance, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RESET, NULL);
+			p_percent2_trigger(NULL, instance, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RESET, NULL,0,0,0,0,0);
 
 			reset_instance(instance);
 

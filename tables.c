@@ -611,6 +611,13 @@ const struct flag_type act2_flags[]=
     {   NULL,					0,						FALSE	}
 };
 
+const struct flag_type *act_flagbank[] =
+{
+    act_flags,
+    act2_flags,
+    NULL
+};
+
 
 const struct string_type fragile_table[] =
 {
@@ -670,8 +677,20 @@ const struct flag_type plr2_flags[] =
     {	"holyaura",		PLR_HOLYAURA,		FALSE	},
     {	"mobile",		PLR_MOBILE,		FALSE	},
     {	"favskills",	PLR_FAVSKILLS,	FALSE	},
+    {   "holywarp",     PLR_HOLYWARP,   FALSE   },
+    {   "no_reckoning",     PLR_NORECKONING,   FALSE   },
+    {   "no_lore",     PLR_NOLORE,   FALSE   },
     {	NULL,			0,	0			}
 };
+
+const struct flag_type *plr_flagbank[] =
+{
+    plr_flags,
+    plr2_flags,
+    NULL
+};
+
+
 
 const struct flag_type affect_flags[] =
 {
@@ -736,6 +755,13 @@ const struct flag_type affect2_flags[] =
     {	"immobile",		AFF2_IMMOBILE,	TRUE	},
     {	"protected",		AFF2_PROTECTED,	TRUE	},
     {   NULL,           	0,      0       }
+};
+
+const struct flag_type *affect_flagbank[] =
+{
+    affect_flags,
+    affect2_flags,
+    NULL
 };
 
 
@@ -1198,6 +1224,14 @@ const struct flag_type room2_flags[] =
 
 };
 
+const struct flag_type *room_flagbank[] =
+{
+    room_flags,
+    room2_flags,
+    NULL
+};
+
+
 
 const struct flag_type sector_flags[] =
 {
@@ -1271,7 +1305,7 @@ const struct flag_type type_flags[] =
     {   "room_darkness_object",	ITEM_ROOM_DARKNESS,	TRUE	},
     {   "ranged_weapon",	ITEM_RANGED_WEAPON,	TRUE	},
     {   "sextant",		ITEM_SEXTANT,		TRUE	},
-    {   "weapon_container",	ITEM_WEAPON_CONTAINER,	TRUE	},
+    {   "weapon_container",	ITEM_WEAPON_CONTAINER,	FALSE	},
     {   "room_roomshield_object",	ITEM_ROOM_ROOMSHIELD,	TRUE	},
     {	"book",			ITEM_BOOK,		TRUE	},
     {   "stinking_cloud",	ITEM_STINKING_CLOUD,	TRUE	},
@@ -1288,7 +1322,7 @@ const struct flag_type type_flags[] =
     {   "spell_trap",       	ITEM_SPELL_TRAP,	TRUE	},
     {   "withering_cloud",  	ITEM_WITHERING_CLOUD,	TRUE	},
     {   "bank",			ITEM_BANK,		TRUE 	},
-    {   "keyring",		ITEM_KEYRING,		TRUE 	},
+    {   "keyring",		ITEM_KEYRING,		FALSE 	},
     {	"ice_storm",		ITEM_ICE_STORM,		TRUE	},
     {	"flower",		ITEM_FLOWER,		TRUE	},
     {   "trade_type",		ITEM_TRADE_TYPE,	TRUE	},
@@ -1313,7 +1347,6 @@ const struct flag_type type_flags[] =
 	{	"body_part",	ITEM_BODY_PART,		TRUE	},
     {	NULL,			0,			0	}
 };
-
 
 const struct flag_type extra_flags[] =
 {
@@ -1402,6 +1435,15 @@ const struct flag_type extra4_flags[] =
     {   NULL,			0,			0	}
 };
 
+const struct flag_type *extra_flagbank[] =
+{
+    extra_flags,
+    extra2_flags,
+    extra3_flags,
+    extra4_flags,
+    NULL
+};
+
 const struct flag_type wear_flags[] =
 {
     {	"take",			ITEM_TAKE,		TRUE	},
@@ -1456,6 +1498,7 @@ const struct flag_type apply_flags[] =
     {	"hitroll",		APPLY_HITROLL,		TRUE	},
     {	"damroll",		APPLY_DAMROLL,		TRUE	},
     {	"skill",		APPLY_SKILL,		FALSE	},
+    {   "xpboost",      APPLY_XPBOOST,      TRUE    },
     {	"spellaffect",		APPLY_SPELL_AFFECT,	FALSE	},
     {	NULL,			0,			0	}
 };
@@ -1477,6 +1520,7 @@ const struct flag_type apply_flags_full[] =
     {	"hitroll",		APPLY_HITROLL,		TRUE	},
     {	"damroll",		APPLY_DAMROLL,		TRUE	},
     {	"skill",		APPLY_SKILL,		TRUE	},
+    {   "xpboost",      APPLY_XPBOOST,      TRUE    },
     {	"spellaffect",		APPLY_SPELL_AFFECT,	TRUE	},
     {	NULL,			0,			0	}
 };
@@ -1661,9 +1705,10 @@ const struct flag_type container_flags[] =
 {
     {	"closeable",	CONT_CLOSEABLE,	TRUE	},
     {	"closed",		CONT_CLOSED,	TRUE	},
-    {	"puton",		CONT_PUT_ON,	TRUE	},
-    {	"pushopen",		CONT_PUSHOPEN,	TRUE	},	// @@@NIB : 20070126
     {	"closelock",	CONT_CLOSELOCK,	TRUE	},	// @@@NIB : 20070126
+    {   "no_duplicates",CONT_NO_DUPLICATES, TRUE    },
+    {	"pushopen",		CONT_PUSHOPEN,	TRUE	},	// @@@NIB : 20070126
+    {	"puton",		CONT_PUT_ON,	TRUE	},
     {   "singular",     CONT_SINGULAR,  TRUE    },
     {   "transparent",  CONT_TRANSPARENT,   TRUE    },
     {	NULL,			0,		0	}
@@ -1862,22 +1907,11 @@ const struct flag_type portal_flags[]=
 
 const struct flag_type furniture_flags[]=
 {
-    {   "stand_at",	STAND_AT,	TRUE	},
-    {	"stand_on",	STAND_ON,	TRUE	},
-    {	"stand_in",	STAND_IN,	TRUE	},
-    {	"sit_at",	SIT_AT,		TRUE	},
-    {	"sit_on",	SIT_ON,		TRUE	},
-    {	"sit_in",	SIT_IN,		TRUE	},
-    {	"rest_at",	REST_AT,	TRUE	},
-    {	"rest_on",	REST_ON,	TRUE	},
-    {	"rest_in",	REST_IN,	TRUE	},
-    {	"sleep_at",	SLEEP_AT,	TRUE	},
-    {	"sleep_on",	SLEEP_ON,	TRUE	},
-    {	"sleep_in",	SLEEP_IN,	TRUE	},
-    {	"put_at",	PUT_AT,		TRUE	},
-    {	"put_on",	PUT_ON,		TRUE	},
-    {	"put_in",	PUT_IN,		TRUE	},
-    {	"put_inside",	PUT_INSIDE,	TRUE	},
+    {   "above",    FURNITURE_ABOVE, TRUE },
+    {   "at",       FURNITURE_AT, TRUE },
+    {   "in",       FURNITURE_IN, TRUE },
+    {   "on",       FURNITURE_ON, TRUE },
+    {   "under",    FURNITURE_UNDER, TRUE },
     {	NULL,		0,		0	}
 };
 
@@ -1893,6 +1927,15 @@ const	struct	flag_type	apply_types	[]	=
     {	"resist",	TO_RESIST,	TRUE	},
     {	"vuln",		TO_VULN,	TRUE	},
     {	"weapon",	TO_WEAPON,	TRUE	},
+    {	NULL,		0,		TRUE	}
+};
+
+const	struct	flag_type	food_buff_types	[]	=
+{
+    {	"affects",	TO_AFFECTS,	TRUE	},
+    {	"immune",	TO_IMMUNE,	TRUE	},
+    {	"resist",	TO_RESIST,	TRUE	},
+    {	"vuln",		TO_VULN,	TRUE	},
     {	NULL,		0,		TRUE	}
 };
 
@@ -3232,5 +3275,22 @@ const struct flag_type script_spaces[] =
     { "area",       PRG_APROG, TRUE },
     { "instance",   PRG_IPROG, TRUE },
     { "dungeon",    PRG_DPROG, TRUE },
+    { NULL, 0, FALSE }
+};
+
+const struct flag_type light_flags[] =
+{
+    { "active",                 LIGHT_IS_ACTIVE,            TRUE },
+    { "no_extinguish",          LIGHT_NO_EXTINGUISH,        TRUE },
+    { "remove_on_extinguish",   LIGHT_REMOVE_ON_EXTINGUISH, TRUE },
+    { NULL, 0, FALSE }
+};
+
+const struct flag_type compartment_flags[] =
+{
+    { "inside",         COMPARTMENT_INSIDE,         TRUE },
+    { "closeable",      COMPARTMENT_CLOSEABLE,      TRUE },
+    { "closed",         COMPARTMENT_CLOSED,         TRUE },
+    { "transparent",    COMPARTMENT_TRANSPARENT,    TRUE },
     { NULL, 0, FALSE }
 };

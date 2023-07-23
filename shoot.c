@@ -848,8 +848,8 @@ void do_throw( CHAR_DATA *ch, char *argument )
 	send_to_char("You fumble your throw.\n\r", ch );
 	act("$n attempts to throw $p, but fumbles.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 
-            p_give_trigger( NULL, obj, NULL, ch, obj, TRIG_THROW );
-            p_give_trigger( NULL, NULL, ch->in_room, ch, obj, TRIG_THROW );
+            p_give_trigger( NULL, obj, NULL, ch, obj, TRIG_THROW ,0,0,0,0,0);
+            p_give_trigger( NULL, NULL, ch->in_room, ch, obj, TRIG_THROW ,0,0,0,0,0);
 
 	obj_from_char( obj );
 	obj_to_room( obj, ch->in_room );
@@ -878,8 +878,8 @@ void do_throw( CHAR_DATA *ch, char *argument )
 	    if ( victim->fighting == ch )
 		stop_fighting( victim, FALSE );
 	}
-            p_give_trigger( NULL, obj, NULL, victim, obj, TRIG_THROW );
-            p_give_trigger( NULL, NULL, ch->in_room, victim, obj, TRIG_THROW );
+            p_give_trigger( NULL, obj, NULL, victim, obj, TRIG_THROW ,0,0,0,0,0);
+            p_give_trigger( NULL, NULL, ch->in_room, victim, obj, TRIG_THROW ,0,0,0,0,0);
 
 
 	return;
@@ -913,8 +913,8 @@ void do_throw( CHAR_DATA *ch, char *argument )
 		obj_from_char( obj );
 		obj_to_room( obj, target_room );
 
-		    p_give_trigger( NULL, obj, NULL, ch, obj, TRIG_THROW );
-		    p_give_trigger( NULL, NULL, in_room, ch, obj, TRIG_THROW );
+		    p_give_trigger( NULL, obj, NULL, ch, obj, TRIG_THROW ,0,0,0,0,0);
+		    p_give_trigger( NULL, NULL, in_room, ch, obj, TRIG_THROW ,0,0,0,0,0);
 
 		return;
 	    }
@@ -967,8 +967,8 @@ void do_throw( CHAR_DATA *ch, char *argument )
 	    if ( victim->fighting == ch )
 			stop_fighting( victim, FALSE );
 
-		p_give_trigger( NULL, obj, NULL, ch, obj, TRIG_THROW );
-		p_give_trigger( NULL, NULL, in_room, ch, obj, TRIG_THROW );
+		p_give_trigger( NULL, obj, NULL, ch, obj, TRIG_THROW ,0,0,0,0,0);
+		p_give_trigger( NULL, NULL, in_room, ch, obj, TRIG_THROW ,0,0,0,0,0);
 
 	    check_improve( ch, gsn_throw, FALSE, 1 );
 	    return;
@@ -998,8 +998,8 @@ void do_throw( CHAR_DATA *ch, char *argument )
 	}
 
         if ( victim )
-        	p_give_trigger( NULL, obj, NULL, victim, obj, TRIG_THROW );
-	p_give_trigger( NULL, NULL, in_room, ch, obj, TRIG_THROW );
+        	p_give_trigger( NULL, obj, NULL, victim, obj, TRIG_THROW ,0,0,0,0,0);
+	p_give_trigger( NULL, NULL, in_room, ch, obj, TRIG_THROW ,0,0,0,0,0);
 
 	check_improve( ch, gsn_throw, TRUE, 1 );
     }

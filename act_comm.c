@@ -781,20 +781,20 @@ void do_say(CHAR_DATA *ch, char *argument)
 	for (mob = ch->in_room->people; mob != NULL; mob = mob_next) {
 		mob_next = mob->next_in_room;
 		if (!IS_NPC(mob) || mob->position == mob->pIndexData->default_pos)
-			p_act_trigger(msg, mob, NULL, NULL, ch, NULL, NULL,NULL, NULL,TRIG_SPEECH  );
+			p_act_trigger(msg, mob, NULL, NULL, ch, NULL, NULL,NULL, NULL,TRIG_SPEECH  ,0,0,0,0,0);
 
 		for (obj = mob->carrying; obj; obj = obj_next) {
 			obj_next = obj->next_content;
-			p_act_trigger(msg, NULL, obj, NULL, ch, NULL, NULL,NULL, NULL, TRIG_SPEECH);
+			p_act_trigger(msg, NULL, obj, NULL, ch, NULL, NULL,NULL, NULL, TRIG_SPEECH,0,0,0,0,0);
 		}
 	}
 
 	for (obj = ch->in_room->contents; obj; obj = obj_next) {
 	obj_next = obj->next_content;
-	p_act_trigger(msg, NULL, obj, NULL, ch, NULL, NULL,NULL, NULL, TRIG_SPEECH);
+	p_act_trigger(msg, NULL, obj, NULL, ch, NULL, NULL,NULL, NULL, TRIG_SPEECH,0,0,0,0,0);
 	}
 
-	p_act_trigger(msg, NULL, NULL, ch->in_room, ch, NULL, NULL,NULL, NULL, TRIG_SPEECH);
+	p_act_trigger(msg, NULL, NULL, ch->in_room, ch, NULL, NULL,NULL, NULL, TRIG_SPEECH,0,0,0,0,0);
 	}
 }
 
@@ -969,7 +969,7 @@ void do_tell(CHAR_DATA *ch, char *argument)
 	ch->reply     = victim;
 
 	if (!IS_NPC(ch))
-		p_act_trigger(argument, victim, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_SPEECH);
+		p_act_trigger(argument, victim, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_SPEECH,0,0,0,0,0);
 }
 
 
@@ -1159,7 +1159,7 @@ void do_quit(CHAR_DATA *ch, char *argument)
 		}
 */
 		if(argument) {
-			p_percent_trigger( ch, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUIT, NULL);
+			p_percent_trigger( ch, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUIT, NULL,0,0,0,0,0);
 			// This requested input, pause and wait for input before quiting)
 			if(ch->desc && ch->desc->input) {
 				ch->pcdata->quit_on_input = true;
@@ -1186,7 +1186,7 @@ void do_quit(CHAR_DATA *ch, char *argument)
 	token_next = token->next;
 
 	if (IS_SET(token->flags, TOKEN_PURGE_QUIT)) {
-		p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_REMOVED, NULL);
+		p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_REMOVED, NULL,0,0,0,0,0);
 
 		sprintf(buf, "char update: token %s(%ld) char %s(%ld) was purged on quit",
 		token->name, token->pIndexData->vnum, HANDLE(ch), IS_NPC(ch) ? ch->pIndexData->vnum : 0);
@@ -1921,7 +1921,7 @@ bool add_grouped(CHAR_DATA *ch, CHAR_DATA *master, bool show)
 
 	ch->leader = master;
 
-	p_percent_trigger( ch, NULL, NULL, NULL, master, NULL, NULL, NULL, NULL, TRIG_GROUPED, NULL);
+	p_percent_trigger( ch, NULL, NULL, NULL, master, NULL, NULL, NULL, NULL, TRIG_GROUPED, NULL,0,0,0,0,0);
 
 	return TRUE;
 }
@@ -1953,7 +1953,7 @@ void stop_grouped(CHAR_DATA *ch)
 		ch->pcdata->readycheck_answer = FALSE;
 	}
 
-	p_percent_trigger( ch, NULL, NULL, NULL, leader, NULL, NULL, NULL, NULL, TRIG_UNGROUPED, NULL);
+	p_percent_trigger( ch, NULL, NULL, NULL, leader, NULL, NULL, NULL, NULL, TRIG_UNGROUPED, NULL,0,0,0,0,0);
 
 }
 
@@ -2411,10 +2411,10 @@ void do_whisper(CHAR_DATA *ch, char *argument)
 
 	/* This should only do whisper trigger?
 	    if (!IS_NPC(ch))
-		p_act_trigger(argument, victim, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_SPEECH); */
+		p_act_trigger(argument, victim, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_SPEECH,0,0,0,0,0); */
 
 	if (!IS_NPC(ch))
-	p_act_trigger(argument, victim, NULL, NULL, ch, NULL, NULL, NULL, NULL,TRIG_WHISPER);
+	p_act_trigger(argument, victim, NULL, NULL, ch, NULL, NULL, NULL, NULL,TRIG_WHISPER,0,0,0,0,0);
 }
 
 /*  Catchup on notes, news and changes*/
@@ -2935,7 +2935,7 @@ void do_sayto(CHAR_DATA *ch, char *argument)
 
 	if ((!IS_NPC(ch) || IS_SWITCHED(ch)) &&
 	(!IS_NPC(victim) || victim->position == victim->pIndexData->default_pos))
-	p_act_trigger(msg, victim, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_SAYTO);
+	p_act_trigger(msg, victim, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_SAYTO,0,0,0,0,0);
 
 }
 
@@ -2978,5 +2978,5 @@ void do_intone(CHAR_DATA *ch, char *argument)
 	act("{CYou intone to $p '$t'{x", ch, NULL, NULL, obj, NULL, msg, NULL, TO_CHAR);
 
 	if ((!IS_NPC(ch) || IS_SWITCHED(ch)))
-	p_act_trigger(msg, NULL, obj, NULL, ch, NULL, NULL, NULL, NULL,TRIG_SAYTO);
+	p_act_trigger(msg, NULL, obj, NULL, ch, NULL, NULL, NULL, NULL,TRIG_SAYTO,0,0,0,0,0);
 }

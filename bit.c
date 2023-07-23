@@ -25,6 +25,7 @@
  **************************************************************************/
 
 #include <sys/types.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -77,6 +78,8 @@ const struct flag_stat_type flag_stat_table[] =
     {	weapon_class,				TRUE	},
     {	weapon_type2,				FALSE	},
     {	apply_types,				TRUE	},
+    {   damage_classes,             TRUE    },
+    {	food_buff_types,			TRUE	},
     {	ranged_weapon_class,		TRUE	},
     {	script_flags,				FALSE	},
     {	catalyst_types,				TRUE	},
@@ -101,6 +104,7 @@ const struct flag_stat_type flag_stat_table[] =
     {   trigger_slots,              TRUE    },
     {   builtin_trigger_types,      TRUE    },
     {   script_spaces,              FALSE   },
+    {   light_flags,                FALSE   },
     {	0,							0		}
 };
 
@@ -267,6 +271,7 @@ char *affect_loc_name( int location )
 	case APPLY_HITROLL:		return "hit roll";
 	case APPLY_DAMROLL:		return "damage roll";
 	case APPLY_SPELL_AFFECT:	return "none";
+    case APPLY_XPBOOST:     return "XP %boost";
 	default:
 		if(location >= APPLY_SKILL && location < APPLY_SKILL_MAX && skill_table[location - APPLY_SKILL].name) {
 			sprintf(buf[i], "%s %%rating", skill_table[location - APPLY_SKILL].name);
@@ -946,3 +951,121 @@ char *channel_flag_bit_name(int channel_flags)
     return ( buf[0] != '\0' ) ? buf+1 : "none";
 }
 
+bool bitvector_lookup(char *argument, int nbanks, long *banks, ...)
+{
+    char word[MIL];
+    bool valid = TRUE;
+    va_list args;
+
+    for(int i = 0; i < nbanks; i++)
+        banks[i] = 0;
+
+    while(valid)
+    {
+        argument = one_argument(argument, word);
+
+        if (word[0] == '\0')
+            break;
+
+        long value = 0;
+        int nth = -1;
+        va_start (args, banks);
+        for(int i = 0; i < nbanks; i++)
+        {
+            const struct flag_type *flag_table = va_arg(args, const struct flag_type *);
+
+            value = flag_lookup(word, flag_table);
+
+            if (value != 0)
+            {
+                nth = i;
+                break;
+            }
+        }
+        va_end (args);
+
+        if (value != 0)
+        {
+            SET_BIT(banks[nth], value);
+        }
+        else
+        {
+            valid = FALSE;
+        }
+    }
+
+    return valid;
+}
+
+// These will assume *ONLY* flags
+// Use flag_string for stats
+/*
+Example:
+
+long bit = AFF_SANCTUARY;
+long bit2 = AFF_ELECTRICAL_BARRIER;
+
+char *text = bitvector_string(2, bit, affect_flags, bit2, affect2_flags);
+
+*/
+char *bitvector_string(int nbanks, ...)
+{
+    static char buf[4][512];
+    static int cnt = 0;
+    va_list args;
+
+    if ( ++cnt > 3 )
+    	cnt = 0;
+
+    buf[cnt][0] = '\0';
+
+    va_start(args, nbanks);
+    for(int i = 0; i < nbanks; i++)
+    {
+        long bits = va_arg(args, long);
+        const struct flag_type *flag_table = va_arg(args, const struct flag_type *);
+
+        for(int f = 0; flag_table[f].name; f++)
+        {
+            if (IS_SET(bits, flag_table[f].bit))
+            {
+                strcat(buf[cnt], " ");
+                strcat(buf[cnt], flag_table[f].name);
+            }
+        }
+    }
+    va_end(args);
+
+    return buf[cnt][0] ? (buf[cnt] + 1) : "none";
+}
+
+char *flagbank_string(const struct flag_type **bank, ...)
+{
+    static char buf[4][512];
+    static int cnt = 0;
+    va_list args;
+
+    if ( ++cnt > 3 )
+    	cnt = 0;
+
+    buf[cnt][0] = '\0';
+
+    va_start(args, bank);
+    for(int i = 0; bank[i]; i++)
+    {
+        long bits = va_arg(args, long);
+        const struct flag_type *flag_table = bank[i];
+
+        for(int f = 0; flag_table[f].name; f++)
+        {
+            if (IS_SET(bits, flag_table[f].bit))
+            {
+                strcat(buf[cnt], " ");
+                strcat(buf[cnt], flag_table[f].name);
+            }
+        }
+    }
+    va_end(args);
+
+    return buf[cnt][0] ? (buf[cnt] + 1) : "none";
+}

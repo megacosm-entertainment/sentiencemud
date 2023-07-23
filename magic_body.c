@@ -39,7 +39,7 @@ SPELL_FUNC(spell_blindness)
 	af.duration = 1 + level/6;
 	af.bitvector = AFF_BLIND;
 	af.bitvector2 = 0;
-	af.slot	= WEAR_NONE;
+	af.slot	= obj_wear_loc;
 	affect_to_char(victim, &af);
 	send_to_char("You are blinded!\n\r", victim);
 	act("$n appears to be blinded.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);

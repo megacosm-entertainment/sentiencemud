@@ -324,7 +324,7 @@ void do_auction( CHAR_DATA *ch, char * argument )
 	return;
     }
 
-    if ( obj->item_type == ITEM_CONTAINER && obj->contains )
+    if ( /*obj->item_type == ITEM_CONTAINER &&*/ obj->contains )
     {
 	send_to_char("You can't auction bags or containers unless they are empty.\n\r", ch);
 	return;

@@ -591,6 +591,8 @@ DECLARE_DO_FUN( do_reserved );
 DECLARE_DO_FUN( do_triggers );
 
 DECLARE_DO_FUN( do_readycheck );
+DECLARE_DO_FUN( do_ignite );
+DECLARE_DO_FUN( do_extinguish );
 
 //DECLARE_DO_FUN( do_speed	);
 //DECLARE_DO_FUN( do_steer	);

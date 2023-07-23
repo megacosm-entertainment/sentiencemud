@@ -600,7 +600,7 @@ void do_cast(CHAR_DATA *ch, char *argument)
 		ch->tempstore[0] = 0;
 
 		// Precheck for the spell token - set the cast beats in here!
-		if(p_percent_trigger(NULL,NULL,NULL,spell->token,ch,NULL,NULL, NULL, NULL, TRIG_PRESPELL, NULL))
+		if(p_percent_trigger(NULL,NULL,NULL,spell->token,ch,NULL,NULL, NULL, NULL, TRIG_PRESPELL, NULL,0,0,0,0,0))
 			return;
 
 		ch->cast_successful = MAGICCAST_SUCCESS;
@@ -652,7 +652,7 @@ void do_cast(CHAR_DATA *ch, char *argument)
 		if(!validate_spell_target(ch,skill_table[spell->sn].target,arg2,&target,&victim,&obj))
 			return;
 
-		if(p_percent_trigger(NULL,NULL,ch->in_room,NULL,ch,NULL,NULL, NULL, NULL, TRIG_PRECAST,"check"))
+		if(p_percent_trigger(NULL,NULL,ch->in_room,NULL,ch,NULL,NULL, NULL, NULL, TRIG_PRECAST,"check",0,0,0,0,0))
 			return;
 
 
@@ -697,7 +697,7 @@ void do_cast(CHAR_DATA *ch, char *argument)
 	//	sector:cursed_sanctum adds 0.5-1x
 	if(!IS_NPC(ch)) {
 		ch->tempstore[0] = 1000;
-		p_percent_trigger(NULL,NULL,ch->in_room,NULL,ch,NULL,NULL, NULL, NULL, TRIG_PRECAST,"beats");
+		p_percent_trigger(NULL,NULL,ch->in_room,NULL,ch,NULL,NULL, NULL, NULL, TRIG_PRECAST,"beats",0,0,0,0,0);
 		i = ch->tempstore[0];
 		if(IS_SET(ch->in_room->room2_flags,ROOM_SLOW_MAGIC)) i += number_range(500,1000);
 		if(ch->in_room->sector_type == SECT_CURSED_SANCTUM) i += number_range(500,1000);
@@ -960,7 +960,7 @@ void cast_end(CHAR_DATA *ch)
 		if( (victim != NULL) )
 		{
 			victim->tempstore[0] = sn;	// JUST the script is used by multiple spells or is a wildcard
-			if( p_number_trigger(sn, 0, victim, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_SPELLCAST, NULL) )
+			if(p_number_trigger(sn, 0, victim, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_SPELLCAST, NULL,0,0,0,0,0))
 			{
 				stop_casting(ch, FALSE);
 				return;
@@ -1635,7 +1635,7 @@ void obj_apply_spells(CHAR_DATA *ch, OBJ_DATA *obj, CHAR_DATA *victim, OBJ_DATA 
 	for(spell = obj->spells; spell; spell = spell->next)
 	{
 		if (spell->token)
-			p_token_index_percent_trigger(spell->token, ch, victim, NULL, obj, thing, trigger, NULL, spell->level, 0, 0, 0, 0);
+			p_token_index_percent_trigger(spell->token, ch, victim, NULL, obj, thing, trigger, NULL, spell->level, 0, 0, 0, 0,0,0,0,0,0);
 		else if (spell->sn > 0)
 			obj_cast_spell(spell->sn, spell->level, ch, victim, thing);
 	}

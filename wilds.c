@@ -414,7 +414,7 @@ void destroy_wilds_vroom(ROOM_INDEX_DATA *pRoomIndex)
 
     for(clone = pRoomIndex->clone_rooms; clone; clone = next_clone) {
 	    next_clone = clone->next_clone;
-	    p_percent_trigger(NULL, NULL, clone, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_CLONE_EXTRACT, NULL);
+	    p_percent_trigger(NULL, NULL, clone, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_CLONE_EXTRACT, NULL,0,0,0,0,0);
 	    room_from_environment(clone);
     }
 

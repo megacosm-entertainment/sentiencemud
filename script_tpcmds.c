@@ -18,12 +18,16 @@ const struct script_cmd_type token_cmd_table[] = {
 	{ "addaffect",			scriptcmd_addaffect,		TRUE,	TRUE	},
 	{ "addaffectname",		scriptcmd_addaffectname,	TRUE,	TRUE	},
 	{ "addaura",			scriptcmd_addaura,			TRUE,	TRUE	},
+	{ "addblacklist",		scriptcmd_addblacklist,			TRUE, TRUE },
+	{ "addfoodbuff",		scriptcmd_addfoodbuff,		TRUE, TRUE },
 	{ "addspell",			scriptcmd_addspell,				TRUE,	TRUE	},
+	{ "addtype",			scriptcmd_addtype,			TRUE, TRUE },
+	{ "addwhitelist",		scriptcmd_addwhitelist,			TRUE, TRUE },
 	{ "adjust",				do_tpadjust,				FALSE,	TRUE	},
 	{ "alteraffect",		do_tpalteraffect,			TRUE,	TRUE	},
 	{ "alterexit",			do_tpalterexit,				FALSE,	TRUE	},
 	{ "altermob",			do_tpaltermob,				TRUE,	TRUE	},
-	{ "alterobj",			do_tpalterobj,				TRUE,	TRUE	},
+	{ "alterobj",			scriptcmd_alterobj,				TRUE,	TRUE	},
 	{ "alterroom",			do_tpalterroom,				TRUE,	TRUE	},
 	{ "applytoxin",			scriptcmd_applytoxin,		FALSE,	TRUE	},
 	{ "asound",				do_tpasound,				FALSE,	TRUE	},
@@ -119,10 +123,13 @@ const struct script_cmd_type token_cmd_table[] = {
 	{ "rawkill",			do_tprawkill,				FALSE,	TRUE	},
 	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
 	{ "remaura",			scriptcmd_remaura,			TRUE,	TRUE	},
+	{ "remblacklist",		scriptcmd_remblacklist,		TRUE,	TRUE	},
 	{ "remember",			do_tpremember,				FALSE,	TRUE	},
 	{ "remort",				do_tpremort,				TRUE,	TRUE	},
 	{ "remove",				do_tpremove,				FALSE,	TRUE	},
-	{ "remspell",			scriptcmd_remspell,				TRUE,	TRUE	},
+	{ "remspell",			scriptcmd_remspell,			TRUE,	TRUE	},
+	{ "remtype",			scriptcmd_remtype,			TRUE,	TRUE	},
+	{ "remwhitelist",		scriptcmd_remwhitelist,		TRUE,	TRUE	},
 	{ "resetdice",			do_tpresetdice,				TRUE,	TRUE	},
 	{ "restore",			do_tprestore,				TRUE,	TRUE	},
 	{ "revokeskill",		scriptcmd_revokeskill,		FALSE,	TRUE	},
@@ -1597,7 +1604,7 @@ SCRIPT_CMD(do_tpgive)
 	if( token ) {
 		if( rest && *rest ) variables_set_token(info->var,rest,token);
 
-		p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_GIVEN, NULL);
+		p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_GIVEN, NULL,0,0,0,0,0);
 	}
 }
 
@@ -1694,7 +1701,7 @@ SCRIPT_CMD(do_tpjunk)
 		return;
 	}
 
-	p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_REMOVED, NULL);
+	p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_REMOVED, NULL,0,0,0,0,0);
 
 	if(info->token && token == info->token) {
 		arg->type = ENT_NONE;
@@ -2129,10 +2136,6 @@ SCRIPT_CMD(do_tpalterobj)
 		case ENT_STRING: value = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
 		case ENT_NUMBER: value = arg->d.num; break;
 		default: return;
-		}
-
-		if(obj->item_type == ITEM_CONTAINER) {
-			if(num == 3 || num == 4) min_sec = 5;
 		}
 
 		if(script_security < min_sec) {
@@ -3394,7 +3397,7 @@ SCRIPT_CMD(do_tpmload)
 	victim = create_mobile(pMobIndex, FALSE);
 	char_to_room(victim, token_room(info->token));
 	if(rest && *rest) variables_set_mobile(info->var,rest,victim);
-	p_percent_trigger(victim, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+	p_percent_trigger(victim, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL,0,0,0,0,0);
 }
 
 SCRIPT_CMD(do_tpoload)
@@ -3476,12 +3479,13 @@ SCRIPT_CMD(do_tpoload)
 
 			case ENT_OBJECT:
 				if( arg->d.obj && IS_SET(pObjIndex->wear_flags, ITEM_TAKE) ) {
-					if(arg->d.obj->item_type == ITEM_CONTAINER ||
-						arg->d.obj->item_type == ITEM_CART)
-						to_obj = arg->d.obj;
-					else if(arg->d.obj->item_type == ITEM_WEAPON_CONTAINER &&
-						pObjIndex->item_type == ITEM_WEAPON &&
-						pObjIndex->value[0] == arg->d.obj->value[1])
+					if(IS_CONTAINER(arg->d.obj))
+					{
+						int subtype = objindex_get_subtype(pObjIndex);
+						if (container_is_valid_item_type(arg->d.obj, pObjIndex->item_type, subtype))
+							to_obj = arg->d.obj;
+					}
+					else if(arg->d.obj->item_type == ITEM_CORPSE_NPC || arg->d.obj->item_type == ITEM_CORPSE_PC)
 						to_obj = arg->d.obj;
 					else
 						return;	// Trying to put the item into a non-container won't work
@@ -3509,7 +3513,7 @@ SCRIPT_CMD(do_tpoload)
 		obj_to_room(obj, token_room(info->token));
 
 	if(rest && *rest) variables_set_object(info->var,rest,obj);
-	p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+	p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL,0,0,0,0,0);
 }
 
 SCRIPT_CMD(do_tpforce)
@@ -4337,8 +4341,8 @@ SCRIPT_CMD(do_tprawkill)
 	{
 		ROOM_INDEX_DATA *here = mob->in_room;
 		mob->position = POS_STANDING;
-		if(!p_percent_trigger(mob, NULL, NULL, NULL, mob, mob, NULL, NULL, NULL, TRIG_DEATH, NULL))
-			p_percent_trigger(NULL, NULL, here, NULL, mob, mob, NULL, NULL, NULL, TRIG_DEATH, NULL);
+		if(!p_percent_trigger(mob, NULL, NULL, NULL, mob, mob, NULL, NULL, NULL, TRIG_DEATH, NULL,0,0,0,0,0))
+			p_percent_trigger(NULL, NULL, here, NULL, mob, mob, NULL, NULL, NULL, TRIG_DEATH, NULL,0,0,0,0,0);
 	}
 
 	raw_kill(mob, has_head, show_msg, type);
@@ -7118,7 +7122,7 @@ SCRIPT_CMD(do_tpaddspell)
 
 				if (paf == NULL || paf->level < level) {
 					affect_strip_token(target->carried_by, token);
-					p_token_index_percent_trigger(token, target->carried_by, NULL, NULL, target, NULL, TRIG_APPLY_AFFECT, NULL, level, 0, 0, 0, 0);
+					p_token_index_percent_trigger(token, target->carried_by, NULL, NULL, target, NULL, TRIG_APPLY_AFFECT, NULL, level, 0, 0, 0, 0,0,0,0,0,0);
 				}
 			}
 		}

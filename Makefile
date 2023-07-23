@@ -55,6 +55,7 @@ C_FILES = \
 	hunt.c \
 	interp.c \
 	invasion.c \
+	item_types.c \
 	locker.c \
 	lookup.c \
 	magic.c \
@@ -160,6 +161,7 @@ O_FILES = \
 	$(OBJDIR)/hunt.o \
 	$(OBJDIR)/interp.o \
 	$(OBJDIR)/invasion.o \
+	$(OBJDIR)/item_types.o \
 	$(OBJDIR)/locker.o \
 	$(OBJDIR)/lookup.o \
 	$(OBJDIR)/magic.o \

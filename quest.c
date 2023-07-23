@@ -529,7 +529,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
 				ch->countdown = 0;
 
 				mob->tempstore[0] = 10;
-				p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_CANCEL, NULL);
+				p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_CANCEL, NULL,0,0,0,0,0);
 
 				ch->nextquest = mob->tempstore[0];
 				if(ch->nextquest < 1) ch->nextquest = 1;
@@ -543,7 +543,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
 				ch->countdown = 0;
 
 				obj->tempstore[0] = 10;
-				p_percent_trigger( NULL, obj, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_CANCEL, NULL);
+				p_percent_trigger( NULL, obj, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_CANCEL, NULL,0,0,0,0,0);
 
 				ch->nextquest = obj->tempstore[0];
 				if(ch->nextquest < 1) ch->nextquest = 1;
@@ -555,7 +555,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
 				ch->countdown = 0;
 
 				room->tempstore[0] = 10;
-				p_percent_trigger( NULL, NULL, room, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_CANCEL, NULL);
+				p_percent_trigger( NULL, NULL, room, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_CANCEL, NULL,0,0,0,0,0);
 
 				ch->nextquest = room->tempstore[0];
 				if(ch->nextquest < 1) ch->nextquest = 1;
@@ -675,14 +675,14 @@ void do_quest(CHAR_DATA *ch, char *argument)
 				do_say(mob, buf);
 			}
 
-			p_percent_trigger( mob, obj, room, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_INCOMPLETE, NULL);
+			p_percent_trigger( mob, obj, room, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_INCOMPLETE, NULL,0,0,0,0,0);
 
 			free_quest(ch->quest);
 			ch->quest = NULL;
 			ch->countdown = 0;
 
 			tempstores[0] = 10;
-			p_percent_trigger( mob, obj, room, NULL, ch, NULL, NULL,NULL, NULL, TRIG_POSTQUEST, NULL);
+			p_percent_trigger( mob, obj, room, NULL, ch, NULL, NULL,NULL, NULL, TRIG_POSTQUEST, NULL,0,0,0,0,0);
 
 			ch->nextquest = tempstores[0];
 			if(ch->nextquest < 1) ch->nextquest = 1;
@@ -771,9 +771,9 @@ void do_quest(CHAR_DATA *ch, char *argument)
 		tempstores[3] = reward;				// Silver
 		// TODO: any other rewards?
 		if(incomplete)
-			p_percent_trigger( mob, obj, room, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_INCOMPLETE, NULL);
+			p_percent_trigger( mob, obj, room, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_INCOMPLETE, NULL,0,0,0,0,0);
 		else
-			p_percent_trigger( mob, obj, room, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_COMPLETE, NULL);
+			p_percent_trigger( mob, obj, room, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_COMPLETE, NULL,0,0,0,0,0);
 		expreward = tempstores[0];
 		pointreward = tempstores[1];
 		pracreward = tempstores[2];
@@ -835,7 +835,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
 */
 
 		tempstores[0] = 10;
-		p_percent_trigger( mob, obj, room, NULL, ch, NULL, NULL,NULL, NULL, TRIG_POSTQUEST, NULL);
+		p_percent_trigger( mob, obj, room, NULL, ch, NULL, NULL,NULL, NULL, TRIG_POSTQUEST, NULL,0,0,0,0,0);
 
 		ch->nextquest = tempstores[0];
 		if(ch->nextquest < 1) ch->nextquest = 1;
@@ -887,7 +887,7 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 	questman->tempstore[1] = bFun ? 1 : 0;		// Whether this was a F.U.N. quest (In)
 	questman->tempstore[2] = qd->scroll.auid;	// Default quest scroll item (AUID)
 	questman->tempstore[3] = qd->scroll.vnum;	// Default quest scroll item (VNUM)
-	if(p_percent_trigger( questman, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_PREQUEST, NULL))
+	if(p_percent_trigger( questman, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_PREQUEST, NULL,0,0,0,0,0))
 		return FALSE;
 	parts = questman->tempstore[0];				// Updated number of parts to do
 	if( parts < 1 ) parts = 1;					//    Require at least one part.
@@ -948,7 +948,7 @@ bool generate_quest_part(CHAR_DATA *ch, CHAR_DATA *questman, QUEST_PART_DATA *pa
 	// The quest part must return a positive value to be valid
 	//  returning a zero due to "end 0" or not having the QUEST_PART trigger will be considered invalid
 	//  errors in script execution will be negative, so will be considered invalid.
-    return p_percent_trigger( questman, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_PART, NULL) > 0;
+    return p_percent_trigger( questman, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_QUEST_PART, NULL,0,0,0,0,0) > 0;
 }
 
 
@@ -1088,7 +1088,7 @@ void check_quest_retrieve_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool show)
     QUEST_PART_DATA *part;
     int i;
 
-    if (obj == NULL || obj->item_type == ITEM_MONEY)
+    if (obj == NULL || IS_MONEY(obj))
     {
 		bug("check_quest_retrieve_obj: bad obj!", 0);
 		return;
@@ -1401,7 +1401,7 @@ void do_renew(CHAR_DATA *ch, char *argument)
 			cost = ch->pet->tot_level * ch->pet->tot_level;
 			mob->tempstore[0] = UMAX(cost, 1);
 			mob->tempstore[1] = STOCK_PET;
-			if(p_percent_trigger( mob, NULL, NULL, NULL, ch, ch->pet, NULL, NULL, NULL, TRIG_PRERENEW, NULL) <= 0)
+			if(p_percent_trigger( mob, NULL, NULL, NULL, ch, ch->pet, NULL, NULL, NULL, TRIG_PRERENEW, NULL,0,0,0,0,0) <= 0)
 				return;
 
 			// Check QUESTPOINTS
@@ -1422,7 +1422,7 @@ void do_renew(CHAR_DATA *ch, char *argument)
 
 			mob->tempstore[0] = cost;
 			mob->tempstore[1] = STOCK_PET;
-			p_percent_trigger( mob, NULL, NULL, NULL, ch, ch->pet, NULL, NULL, NULL, TRIG_RENEW, NULL);
+			p_percent_trigger( mob, NULL, NULL, NULL, ch, ch->pet, NULL, NULL, NULL, TRIG_RENEW, NULL,0,0,0,0,0);
 
 			sprintf(buf, "{YYou renew $n with $N for %d quest points.{x", cost);
 			act(buf, ch->pet, mob, ch, NULL, NULL, NULL, NULL, TO_THIRD);
@@ -1459,7 +1459,7 @@ void do_renew(CHAR_DATA *ch, char *argument)
 			cost = 25 * ch->mount->tot_level * ch->mount->tot_level / 10;
 			mob->tempstore[0] = UMAX(cost, 1);
 			mob->tempstore[1] = STOCK_MOUNT;
-			if(p_percent_trigger( mob, NULL, NULL, NULL, ch, ch->mount, NULL, NULL, NULL, TRIG_PRERENEW, NULL) <= 0)
+			if(p_percent_trigger( mob, NULL, NULL, NULL, ch, ch->mount, NULL, NULL, NULL, TRIG_PRERENEW, NULL,0,0,0,0,0) <= 0)
 				return;
 
 			// Check QUESTPOINTS
@@ -1480,7 +1480,7 @@ void do_renew(CHAR_DATA *ch, char *argument)
 
 			mob->tempstore[0] = cost;
 			mob->tempstore[1] = STOCK_MOUNT;
-			p_percent_trigger( mob, NULL, NULL, NULL, ch, ch->mount, NULL, NULL, NULL, TRIG_RENEW, NULL);
+			p_percent_trigger( mob, NULL, NULL, NULL, ch, ch->mount, NULL, NULL, NULL, TRIG_RENEW, NULL,0,0,0,0,0);
 
 			sprintf(buf, "{YYou renew $n with $N for %d quest points.{x", cost);
 			act(buf, ch->mount, mob, ch, NULL, NULL, NULL, NULL, TO_THIRD);
@@ -1518,7 +1518,7 @@ void do_renew(CHAR_DATA *ch, char *argument)
 			cost = 5 * guard->tot_level * guard->tot_level;
 			mob->tempstore[0] = UMAX(cost, 1);
 			mob->tempstore[1] = STOCK_GUARD;
-			if(p_percent_trigger( mob, NULL, NULL, NULL, ch, guard, NULL, NULL, NULL, TRIG_PRERENEW, NULL) <= 0)
+			if(p_percent_trigger( mob, NULL, NULL, NULL, ch, guard, NULL, NULL, NULL, TRIG_PRERENEW, NULL,0,0,0,0,0) <= 0)
 				return;
 
 			// Check QUESTPOINTS
@@ -1539,7 +1539,7 @@ void do_renew(CHAR_DATA *ch, char *argument)
 
 			mob->tempstore[0] = cost;
 			mob->tempstore[1] = STOCK_GUARD;
-			p_percent_trigger( mob, NULL, NULL, NULL, ch, guard, NULL, NULL, NULL, TRIG_RENEW, NULL);
+			p_percent_trigger( mob, NULL, NULL, NULL, ch, guard, NULL, NULL, NULL, TRIG_RENEW, NULL,0,0,0,0,0);
 
 			sprintf(buf, "{YYou renew $n with $N for %d quest points.{x", cost);
 			act(buf, guard, mob, ch, NULL, NULL, NULL, NULL, TO_THIRD);
@@ -1569,7 +1569,7 @@ void do_renew(CHAR_DATA *ch, char *argument)
 		cost = obj->cost/10;
 		mob->tempstore[0] = UMAX(cost, 1);
 		mob->tempstore[1] = STOCK_OBJECT;
-		if(p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PRERENEW, NULL) <= 0)
+		if(p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PRERENEW, NULL,0,0,0,0,0) <= 0)
 			return;
 
 		cost = mob->tempstore[0];
@@ -1590,7 +1590,7 @@ void do_renew(CHAR_DATA *ch, char *argument)
 
 		mob->tempstore[0] = cost;
 		mob->tempstore[1] = STOCK_OBJECT;
-		p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_RENEW, NULL);
+		p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_RENEW, NULL,0,0,0,0,0);
 
 		sprintf(buf, "{YYou renew $p with $N for %d quest points.{x", cost);
 		act(buf, ch, mob, NULL, obj, NULL, NULL, NULL, TO_CHAR);
@@ -1606,7 +1606,7 @@ void do_renew(CHAR_DATA *ch, char *argument)
 
 		mob->tempstore[0] = 0;	// Customs REQUIRE the script to specify the cost
 		mob->tempstore[1] = STOCK_CUSTOM;
-		if(p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PRERENEW, arg2) <= 0)
+		if(p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PRERENEW, arg2,0,0,0,0,0) <= 0)
 			return;
 
 		cost = mob->tempstore[0];
@@ -1629,7 +1629,7 @@ void do_renew(CHAR_DATA *ch, char *argument)
 		mob->tempstore[1] = STOCK_CUSTOM;
 		free_string(mob->tempstring);
 		mob->tempstring = &str_empty[0];
-		p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_RENEW, arg2);
+		p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_RENEW, arg2,0,0,0,0,0);
 
 		if(!IS_NULLSTR(mob->tempstring))
 		{
@@ -1653,7 +1653,7 @@ void do_renew(CHAR_DATA *ch, char *argument)
 
 		act("{YYou ask $N for a list of things $E can renew.{x", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		act("$n asks $N for a list of things $E can renew.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-		if(p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_RENEW_LIST, NULL))
+		if(p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_RENEW_LIST, NULL,0,0,0,0,0))
 			return;
 
 		sprintf(buf, "I don't really do anything special here.");
@@ -1798,7 +1798,7 @@ void do_renew(CHAR_DATA *ch, char *argument)
 		act("$n shows $p to $N.", ch, mob, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 		act("$N chants a mantra over $p, then hands it back to $n.", ch, mob, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 
-		p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL,obj, NULL, TRIG_RENEW, NULL);
+		p_percent_trigger( mob, NULL, NULL, NULL, ch, NULL, NULL,obj, NULL, TRIG_RENEW, NULL,0,0,0,0,0);
 
 		ch->questpoints -= cost;
 	}

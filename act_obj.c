@@ -45,6 +45,8 @@
 #include "scripts.h"
 #include "tables.h"
 
+void update_money(OBJ_DATA *money);
+
 bool __isspell_valid(CHAR_DATA *ch, OBJ_DATA *obj, SKILL_ENTRY *spell, int pretrigger, int trigger, char *token_message)
 {
 	if (!spell || !spell->isspell)
@@ -55,7 +57,7 @@ bool __isspell_valid(CHAR_DATA *ch, OBJ_DATA *obj, SKILL_ENTRY *spell, int pretr
 
 	if (IS_VALID(spell->token))
 	{
-		int ret = p_percent_trigger(NULL, NULL, NULL, spell->token, ch, NULL, NULL, obj, NULL, pretrigger, NULL);
+		int ret = p_percent_trigger(NULL, NULL, NULL, spell->token, ch, NULL, NULL, obj, NULL, pretrigger, NULL,0,0,0,0,0);
 		if (ret)
 		{
 			if (ret != PRET_SILENT)
@@ -166,8 +168,8 @@ void get_obj( CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container )
 
     obj_to_char( obj, ch );
 
-    p_give_trigger( NULL, obj, NULL, ch, obj, TRIG_GET );
-    p_give_trigger( NULL, NULL, ch->in_room, ch, obj, TRIG_GET );
+    p_give_trigger( NULL, obj, NULL, ch, obj, TRIG_GET ,0,0,0,0,0);
+    p_give_trigger( NULL, NULL, ch->in_room, ch, obj, TRIG_GET ,0,0,0,0,0);
 
     return;
 }
@@ -232,13 +234,13 @@ void get_money_from_obj(CHAR_DATA *ch, OBJ_DATA *container)
 
 	for(obj = container->contains; obj; obj = obj->next_content)
 	{
-		if( can_see_obj(ch, container) && obj->item_type == ITEM_MONEY )
+		if( can_see_obj(ch, container) && obj->item_type == ITEM_MONEY && IS_MONEY(obj) )
 		{
 			if (!can_get_obj(ch, obj, container, NULL, FALSE))
 				continue;
 
-			silver += obj->value[0];
-			gold += obj->value[1];
+			silver += MONEY(obj)->silver;
+			gold += MONEY(obj)->gold;
 
 			extract_obj(obj);
 		}
@@ -351,7 +353,7 @@ void loot_corpse(CHAR_DATA *ch, OBJ_DATA *corpse)
 					obj_from_obj(obj);
 					obj_to_char(obj, ch);
 
-					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_GET, NULL);
+					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_GET, NULL,0,0,0,0,0);
 				}
 				iterator_stop(&it);
 			}
@@ -381,7 +383,7 @@ void do_get(CHAR_DATA *ch, char *argument)
 	OBJ_DATA *obj, *obj_next = NULL;
 	OBJ_DATA *container;
 	OBJ_DATA *match_obj;
-	int i = 0, amount;
+	int i = 0;
 	bool found = TRUE;
 	OBJ_DATA *any = NULL;
 
@@ -402,71 +404,85 @@ void do_get(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	/* Get coins off the ground. */
-	if (is_number(arg1) && (!str_cmp(arg2, "silver") || !str_cmp(arg2, "gold"))) {
-		int gold, w;
+	// Get <#> gold|silver <container>
+	if (is_number(arg1) && (!str_prefix(arg2, "silver") || !str_prefix(arg2, "gold")))
+	{
+		int amount = atoi(arg1);
 
-		gold = !str_cmp(arg2, "gold");
+		if(amount < 1) {
+			send_to_char("Take how much?\n\r",ch);
+			return;
+		}
 
-		if(!arg3[0]) {
+		bool gold = !str_prefix(arg2, "gold");
+
+		if(!arg3[0])
+		{
 			send_to_char(gold?"Get gold from what?\n\r":"Get silver from what?\n\r",ch);
 			return;
 		}
 
 		/* This section handles getting objects out of containers. */
-		if ((container = get_obj_here(ch, NULL, arg3)) == NULL) {
+		if ((container = get_obj_here(ch, NULL, arg3)) == NULL)
+		{
 			act("I see no $T here.", ch, NULL, NULL, NULL, NULL, NULL, arg3, TO_CHAR);
 			return;
 		}
 
-		if (!can_get_obj(ch, container, NULL, NULL, FALSE)) {
-			send_to_char(gold?"Can't take gold from that.\n\r":"Can't take silver from that.\n\r",ch);
-			return;
-		}
-
-		if (container->item_type == ITEM_MONEY) {
-			char buffer[MIL];
-			int ret;
-			if (!str_prefix("all.", arg1))
-				amount = container->value[gold];
-			else
-				amount = atol(arg1);
-
-			if(amount < 1) {
-				send_to_char("Take how much?\n\r",ch);
+		if (IS_MONEY(container))
+		{
+			if (!can_get_obj(ch, container, NULL, NULL, FALSE)) {
+				send_to_char(gold?"Can't take gold from that.\n\r":"Can't take silver from that.\n\r",ch);
 				return;
 			}
 
-			if(!container->value[gold]) {
-				act("There is no $T in $p.", ch, NULL, NULL, NULL, NULL, container, gold?"gold":"silver", TO_CHAR);
+			if ((gold && MONEY(container)->gold < amount) || (!gold && MONEY(container)->silver < amount))
+			{
+				send_to_char(gold?"There isn't that much gold to pick up.\n\r":"There isn't that much silver to pick up.\n\r", ch);
 				return;
 			}
 
-			if(amount > container->value[gold]) {
-				act("There isn't that much $T in $p.", ch, NULL, NULL, container, NULL, NULL, gold?"gold":"silver", TO_CHAR);
-				return;
-			}
+			int g = ch->gold;
+			int s = ch->silver;
+			int new_g = gold ? (g + amount) : g;
+			int new_s = gold ? s : (s + amount);
 
-			w = get_weight_coins(gold?0:amount,gold?amount:0);
+			ch->gold = 0;
+			ch->silver = 0;
 
-			if ((get_carry_weight(ch) + w) > can_carry_w(ch)) {
+			int w = get_weight_coins(new_g, new_s);
+			if ((get_carry_weight(ch) + w) > can_carry_w(ch))
+			{
+				ch->gold = g;
+				ch->silver = s;
+
 				act("$p: You can't carry that much weight.", ch, NULL, NULL, container, NULL, NULL, NULL, TO_CHAR);
 				return;
 			}
 
-			if(gold) ch->gold += amount;
-			else ch->silver += amount;
+			if (gold)
+			{
+				MONEY(container)->gold -= amount;
+			}
+			else
+			{
+				MONEY(container)->silver -= amount;
+			}
 
-			container->value[gold] -= amount;
+			ch->gold = new_g;
+			ch->silver = new_s;
 
-			sprintf(buffer,"%d %s coin%s", amount, gold?"gold":"silver", (amount==1)?"":"s");
+			sprintf(buf,"%d %s coin%s", amount, gold?"gold":"silver", (amount==1)?"":"s");
 
-			act("You take $T from $p.", ch, NULL, NULL, container, NULL, NULL, buffer, TO_CHAR);
-			act("$n takes $T from $p.", ch, NULL, NULL, container, NULL, NULL, buffer, TO_ROOM);
+			act("You take $T from $p.", ch, NULL, NULL, container, NULL, NULL, buf, TO_CHAR);
+			act("$n takes $T from $p.", ch, NULL, NULL, container, NULL, NULL, buf, TO_ROOM);
 
-			ret = p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_GET, NULL);
+			// Let the script know how much was taken
+			container->tempstore[0] = gold ? amount : 0;
+			container->tempstore[1] = gold ? 0 : amount;
+			int ret = p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_GET, NULL,0,0,0,0,0);
 
-			if(!container->value[0] && !container->value[1])
+			if(!MONEY(container)->silver && !MONEY(container)->gold)
 				extract_obj(container);
 
 			if(ret) return;
@@ -482,17 +498,118 @@ void do_get(CHAR_DATA *ch, char *argument)
 				}
 
 				if (members > 1 && amount > 1) {
-					sprintf(buffer,"%d %d",gold?0:amount,gold?amount:0);
-					do_function(ch, &do_split, buffer);
+					sprintf(buf,"%d %d",gold?0:amount,gold?amount:0);
+					do_function(ch, &do_split, buf);
 				}
 			}
 
 			church_announce_theft(ch, NULL);
-
-		} else {
-			send_to_char("That isn't money.\n\r", ch);
+			return;
 		}
 
+		if (IS_CONTAINER(container))
+		{
+			// Look for a money object in the container
+			OBJ_DATA *money;
+
+			for(money = container->contains; money; money = money->next)
+			{
+				if (IS_MONEY(money))
+					break;
+			}
+			
+			if (IS_VALID(money))
+			{
+				if (!can_get_obj(ch, money, container, NULL, FALSE)) {
+					send_to_char(gold?"Can't take gold from that.\n\r":"Can't take silver from that.\n\r",ch);
+					return;
+				}
+			}
+			else
+			{
+				if (IS_SET(CONTAINER(container)->flags, CONT_PUT_ON))
+					act("There is money on $p.", ch, NULL, NULL, container, NULL, NULL, NULL, TO_CHAR);
+				else
+					act("There is money in $p.", ch, NULL, NULL, container, NULL, NULL, NULL, TO_CHAR);
+				return;
+			}
+
+			if ((gold && MONEY(money)->gold < amount) || (!gold && MONEY(money)->silver < amount))
+			{
+				char *coin = gold ? "gold" : "silver";
+				if (IS_SET(CONTAINER(container)->flags, CONT_PUT_ON))
+					act("There isn't that much $T on $p.", ch, NULL, NULL, container, NULL, NULL, coin, TO_CHAR);
+				else
+					act("There isn't that much $T in $p.", ch, NULL, NULL, container, NULL, NULL, coin, TO_CHAR);
+				return;
+			}
+
+			int g = ch->gold;
+			int s = ch->silver;
+			int new_g = gold ? (g + amount) : g;
+			int new_s = gold ? s : (s + amount);
+
+			ch->gold = 0;
+			ch->silver = 0;
+
+			int w = get_weight_coins(new_g, new_s);
+			if ((get_carry_weight(ch) + w) > can_carry_w(ch))
+			{
+				ch->gold = g;
+				ch->silver = s;
+
+				act("$p: You can't carry that much weight.", ch, NULL, NULL, money, NULL, NULL, NULL, TO_CHAR);
+				return;
+			}
+
+			if (gold)
+			{
+				MONEY(money)->gold -= amount;
+			}
+			else
+			{
+				MONEY(money)->silver -= amount;
+			}
+			ch->gold = new_g;
+			ch->silver = new_s;
+			update_money(money);
+
+			sprintf(buf,"%d %s coin%s", amount, gold?"gold":"silver", (amount==1)?"":"s");
+
+			act("You take $T from $p.", ch, NULL, NULL, container, NULL, NULL, buf, TO_CHAR);
+			act("$n takes $T from $p.", ch, NULL, NULL, container, NULL, NULL, buf, TO_ROOM);
+
+			// Let the script know how much was taken
+			container->tempstore[0] = gold ? amount : 0;
+			container->tempstore[1] = gold ? 0 : amount;
+			int ret = p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_GET, NULL,0,0,0,0,0);
+
+			if(!MONEY(money)->silver && !MONEY(money)->gold)
+				extract_obj(money);
+
+			if(ret) return;
+
+			if (IS_SET(ch->act,PLR_AUTOSPLIT)) {
+				int members;
+				CHAR_DATA *gch;
+
+				members = 0;
+				for (gch = ch->in_room->people; gch != NULL; gch = gch->next_in_room) {
+					if (gch->pcdata != NULL && is_same_group(gch, ch))
+						members++;
+				}
+
+				if (members > 1 && amount > 1) {
+					sprintf(buf,"%d %d",gold?0:amount,gold?amount:0);
+					do_function(ch, &do_split, buf);
+				}
+			}
+
+			church_announce_theft(ch, NULL);
+			return;
+		}
+
+		send_to_char("That is not money.\n\r", ch);
 		return;
 	}
 
@@ -513,8 +630,6 @@ void do_get(CHAR_DATA *ch, char *argument)
 			act("You get $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 			act("$n gets $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 			reset_obj(obj);
-			obj_from_room(obj);
-			obj_to_char(obj, ch);
 
 			if (IS_SET(obj->extra2_flags, ITEM_TRAPPED)) {
 				act("{RYou pick up $p, but recoil in pain and drop it!{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
@@ -524,7 +639,10 @@ void do_get(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_GET, NULL);
+			obj_from_room(obj);
+			obj_to_char(obj, ch);
+
+			p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_GET, NULL,0,0,0,0,0);
 
 			church_announce_theft(ch, NULL);
 
@@ -595,9 +713,9 @@ void do_get(CHAR_DATA *ch, char *argument)
 
 							obj_from_room(obj);
 
-							if( obj->item_type == ITEM_MONEY ) {
-								new_silver += obj->value[0];
-								new_gold += obj->value[1];
+							if( IS_MONEY(obj) ) {
+								new_silver += MONEY(obj)->silver;
+								new_gold += MONEY(obj)->gold;
 
 								// Keep money until the very end
 								extract_obj(obj);
@@ -613,7 +731,7 @@ void do_get(CHAR_DATA *ch, char *argument)
 						}
 
 						if (!found && match_obj != NULL) {
-							p_percent_trigger(NULL, match_obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_GET, NULL);
+							p_percent_trigger(NULL, match_obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_GET, NULL,0,0,0,0,0);
 
 							return;
 						}
@@ -626,7 +744,7 @@ void do_get(CHAR_DATA *ch, char *argument)
 						sprintf(buf, "{Y({G%2d{Y) {xYou get $p.", i);
 						act(buf, ch, NULL, NULL, match_obj, NULL, NULL, NULL, TO_CHAR);
 
-						p_percent_trigger(NULL, match_obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_GET, NULL);
+						p_percent_trigger(NULL, match_obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_GET, NULL,0,0,0,0,0);
 
 
 					} else if (!any) {
@@ -675,12 +793,12 @@ void do_get(CHAR_DATA *ch, char *argument)
 		obj_from_obj(obj);
 		obj_to_char(obj, ch);
 
-		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, container, NULL, TRIG_GET, NULL);
-		p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_GET, NULL);
+		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, container, NULL, TRIG_GET, NULL,0,0,0,0,0);
+		p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_GET, NULL,0,0,0,0,0);
 
 		if (!container->contains)
 		{
-			p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_EMPTIED, NULL);
+			p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_EMPTIED, NULL,0,0,0,0,0);
 		}
 
 		// If the container is in the current room
@@ -760,9 +878,9 @@ void do_get(CHAR_DATA *ch, char *argument)
 
 						obj_from_obj(obj);
 
-						if( obj->item_type == ITEM_MONEY ) {
-							new_silver += obj->value[0];
-							new_gold += obj->value[1];
+						if( IS_MONEY(obj) ) {
+							new_silver += MONEY(obj)->silver;
+							new_gold += MONEY(obj)->gold;
 
 							// Keep money until the very end
 							extract_obj(obj);
@@ -775,8 +893,8 @@ void do_get(CHAR_DATA *ch, char *argument)
 							if (container->item_type == ITEM_CORPSE_PC || container->item_type == ITEM_CORPSE_NPC)
 								reset_obj(obj);
 
-							p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, container, NULL, TRIG_GET, NULL);
-							p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_GET, NULL);
+							p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, container, NULL, TRIG_GET, NULL,0,0,0,0,0);
+							p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_GET, NULL,0,0,0,0,0);
 						}
 
 						gotten = TRUE;
@@ -807,7 +925,7 @@ void do_get(CHAR_DATA *ch, char *argument)
 			if( gotten ) {
 				if (!container->contains)
 				{
-					p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_EMPTIED, NULL);
+					p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_EMPTIED, NULL,0,0,0,0,0);
 				}
 
 				if (!container->carried_by && !container->in_obj && container->in_room != NULL ) {
@@ -861,6 +979,7 @@ void do_put(CHAR_DATA *ch, char *argument)
 		return;
     }
 
+	// Check if we are doing all.gold or all.silver
     if (!str_prefix("all.", arg1) && (!str_cmp(arg1 + 4, "gold") || !str_cmp(arg1 + 4, "silver")))
     {
 		gold = !str_cmp(arg1 + 4, "gold");
@@ -884,47 +1003,353 @@ void do_put(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		if (container->item_type != ITEM_BANK)
+		// Putting money into a bank
+		if (container->item_type == ITEM_BANK)
 		{
-			send_to_char("You can't do that.\n\r", ch);
+			sprintf(buf, "You put %ld %s coins in $p.", amount, gold ? "gold" : "silver");
+			act(buf, ch, NULL, NULL, container, NULL, NULL, NULL, TO_CHAR);
+			act("$n puts some coins in $p.", ch, NULL, NULL, container, NULL, NULL, NULL, TO_ROOM);
+
+			act("You hear the sound of jingling coins from $p.",
+				ch, NULL, NULL, container, NULL, NULL, NULL, TO_CHAR);
+			act("You hear the sound of jingling coins from $p.",
+				ch, NULL, NULL, container, NULL, NULL, NULL, TO_ROOM);
+
+			if (gold)
+			{
+				ch->gold = 0;
+				amount = 95 * amount;
+				ch->silver += amount;
+			}
+			else
+			{
+				ch->silver = 0;
+				amount = (amount * 95)/10000;
+				ch->gold += amount;
+			}
+
+			sprintf(buf, "You get %ld %s coins from $p.", amount, gold ? "silver" : "gold");
+			act(buf, ch, NULL, NULL, container, NULL, NULL, NULL, TO_CHAR);
+
+			act("$n gets some coins from $p.", ch, NULL, NULL, container, NULL, NULL, NULL, TO_ROOM);
 			return;
 		}
 
-		sprintf(buf, "You put %ld %s coins in $p.", amount, gold ? "gold" : "silver");
-		act(buf, ch, NULL, NULL, container, NULL, NULL, NULL, TO_CHAR);
-		act("$n puts some coins in $p.", ch, NULL, NULL, container, NULL, NULL, NULL, TO_ROOM);
-
-		act("You hear the sound of jingling coins from $p.",
-			ch, NULL, NULL, container, NULL, NULL, NULL, TO_CHAR);
-		act("You hear the sound of jingling coins from $p.",
-			ch, NULL, NULL, container, NULL, NULL, NULL, TO_ROOM);
-
-		if (gold)
+		// Putting money into an existing pile of money
+		if (IS_MONEY(container))
 		{
-			ch->gold = 0;
-			amount = 95 * amount;
-			ch->silver += amount;
+			if (gold)
+			{
+				ch->gold = 0;
+				MONEY(container)->gold += amount;
+			}
+			else
+			{
+				ch->silver = 0;
+				MONEY(container)->silver += amount;
+			}
+
+
+			act("$n puts some coins on $P.",ch, NULL, NULL,NULL,container, NULL, NULL, TO_ROOM);
+			sprintf(buf, "You put %ld %s coins on $P.", amount, gold ? "silver" : "gold");
+			act(buf,ch, NULL, NULL,NULL,container, NULL, NULL, TO_CHAR);
+
+			update_money(container);
+			return;
 		}
-		else
+
+		// Putting money into a container
+		//  Look for existing money and glom onto that
+		//  If no money in container, add a money object
+		if (IS_CONTAINER(container))
 		{
-			ch->silver = 0;
-			amount = (amount * 95)/10000;
-			ch->gold += amount;
+			OBJ_DATA *money;
+
+			for(money = container->contains; money; money = money->next)
+			{
+				if (IS_MONEY(money))
+					break;
+			}
+
+			// Found a pile of money
+			if (IS_VALID(money))
+			{
+				int g = MONEY(money)->gold;
+				int s = MONEY(money)->silver;
+
+				int new_g = gold ? (g + amount) : g;
+				int new_s = gold ? s : (s + amount);
+
+				// Temporarily zero out the money
+				MONEY(money)->gold = 0;
+				MONEY(money)->silver = 0;
+
+				int w = container_get_content_weight(container, NULL);	// Weight without the money
+				int new_w = w + get_weight_coins(new_s, new_g);		// Weight of the new money
+
+				if ((w + new_w) > CONTAINER(container)->max_weight)
+				{
+					// Can't fit, reset the money object back to what it was.
+					MONEY(money)->gold = g;
+					MONEY(money)->silver = s;
+
+					act("$P cannot hold that much weight.",ch, NULL, NULL,NULL,container, NULL, NULL, TO_CHAR);
+					return;
+				}
+
+				// Don't need to check the volume because money doesn't contribute to volume usage
+
+				MONEY(money)->gold = new_g;
+				MONEY(money)->silver = new_s;
+
+				update_money(money);
+			}
+			else
+			{
+				// No money object exists
+				int new_g = gold ? amount : 0;
+				int new_s = gold ? 0 : amount;
+
+				int w = container_get_content_weight(container, NULL);	// Weight without the money
+				int new_w = w + get_weight_coins(new_s, new_g);		// Weight of the new money
+
+				if ((w + new_w) > CONTAINER(container)->max_weight)
+				{
+					act("$P cannot hold that much weight.",ch, NULL, NULL,NULL,container, NULL, NULL, TO_CHAR);
+					return;
+				}
+
+				// Don't need to check the volume because money doesn't contribute to volume usage
+
+				money = create_money(new_g, new_s);
+				obj_to_obj(money, container);
+			}
+
+			if (gold)
+				ch->gold = 0;
+			else
+				ch->silver = 0;
+
+			if (IS_SET(CONTAINER(container)->flags, CONT_PUT_ON))
+			{
+				act("$n puts some coins on $P.",ch, NULL, NULL,NULL,container, NULL, NULL, TO_ROOM);
+				sprintf(buf, "You put %ld %s coins on $P.", amount, gold ? "silver" : "gold");
+				act(buf,ch, NULL, NULL,NULL,container, NULL, NULL, TO_CHAR);
+			}
+			else
+			{
+				act("$n puts some coins in $P.",ch, NULL, NULL,NULL,container, NULL, NULL, TO_ROOM);
+				sprintf(buf, "You put %ld %s coins in $P.", amount, gold ? "silver" : "gold");
+				act(buf,ch, NULL, NULL,NULL,container, NULL, NULL, TO_CHAR);
+			}
+
+			return;
 		}
 
-		sprintf(buf, "You get %ld %s coins from $p.", amount, gold ? "silver" : "gold");
-		act(buf, ch, NULL, NULL, container, NULL, NULL, NULL, TO_CHAR);
-
-		act("$n gets some coins from $p.", ch, NULL, NULL,
-			container, NULL, NULL, NULL, TO_ROOM);
+		send_to_char("You can't do that.\n\r", ch);
 		return;
     }
+
+	// put # gold|silver <container>
+	if (is_number(arg1))
+	{
+		int amount = atoi(arg1);
+
+		if (amount < 1)
+		{
+			send_to_char("How much did you want to put?\n\r", ch);
+			return;
+		}
+
+		bool gold;
+
+		if (!str_prefix(arg2, "gold"))
+			gold = TRUE;
+		else if (!str_prefix(arg2, "silver"))
+			gold = FALSE;
+		else
+		{
+			send_to_char("Put what coins where?\n\r", ch);
+			return;
+		}
+
+		if ((gold && ch->gold < amount) || (!gold && ch->silver < amount))
+		{
+			sprintf(buf, "You don't have any %s.\n\r", gold ? "gold" : "silver");
+			send_to_char(buf, ch);
+			return;
+		}
+
+		if (arg3[0] == '\0')
+		{
+			send_to_char("Put it in what?\n\r", ch);
+			return;
+		}
+
+		if ((container = get_obj_here(ch, NULL, arg3)) == NULL)
+		{
+			act("You can't find a $T to put it in.", ch, NULL, NULL, NULL, NULL, NULL, arg3, TO_CHAR);
+			return;
+		}
+
+		// Putting money into a bank
+		if (container->item_type == ITEM_BANK)
+		{
+			sprintf(buf, "You put %d %s coins in $p.", amount, gold ? "gold" : "silver");
+			act(buf, ch, NULL, NULL, container, NULL, NULL, NULL, TO_CHAR);
+			act("$n puts some coins in $p.", ch, NULL, NULL, container, NULL, NULL, NULL, TO_ROOM);
+
+			act("You hear the sound of jingling coins from $p.",
+				ch, NULL, NULL, container, NULL, NULL, NULL, TO_CHAR);
+			act("You hear the sound of jingling coins from $p.",
+				ch, NULL, NULL, container, NULL, NULL, NULL, TO_ROOM);
+
+			if (gold)
+			{
+				ch->gold -= amount;
+				amount = 95 * amount;
+				ch->silver += amount;
+			}
+			else
+			{
+				ch->silver -= amount;
+				amount = (amount * 95)/10000;
+				ch->gold += amount;
+			}
+
+			sprintf(buf, "You get %d %s coins from $p.", amount, gold ? "silver" : "gold");
+			act(buf, ch, NULL, NULL, container, NULL, NULL, NULL, TO_CHAR);
+
+			act("$n gets some coins from $p.", ch, NULL, NULL, container, NULL, NULL, NULL, TO_ROOM);
+			return;
+		}
+
+		// Putting money into an existing pile of money
+		if (IS_MONEY(container))
+		{
+			if (gold)
+			{
+				ch->gold -= amount;
+				MONEY(container)->gold += amount;
+			}
+			else
+			{
+				ch->silver -= amount;
+				MONEY(container)->silver += amount;
+			}
+
+
+			act("$n puts some coins on $P.",ch, NULL, NULL,NULL,container, NULL, NULL, TO_ROOM);
+			sprintf(buf, "You put %d %s coins on $P.", amount, gold ? "silver" : "gold");
+			act(buf,ch, NULL, NULL,NULL,container, NULL, NULL, TO_CHAR);
+
+			update_money(container);
+			return;
+		}
+
+		// Putting money into a container
+		//  Look for existing money and glom onto that
+		//  If no money in container, add a money object
+		if (IS_CONTAINER(container))
+		{
+			OBJ_DATA *money;
+
+			for(money = container->contains; money; money = money->next)
+			{
+				if (IS_MONEY(money))
+					break;
+			}
+
+			// Found a pile of money
+			if (IS_VALID(money))
+			{
+				int g = MONEY(money)->gold;
+				int s = MONEY(money)->silver;
+
+				int new_g = gold ? (g + amount) : g;
+				int new_s = gold ? s : (s + amount);
+
+				// Temporarily zero out the money
+				MONEY(money)->gold = 0;
+				MONEY(money)->silver = 0;
+
+				int w = container_get_content_weight(container, NULL);	// Weight without the money
+				int new_w = w + get_weight_coins(new_s, new_g);		// Weight of the new money
+
+				if ((w + new_w) > CONTAINER(container)->max_weight)
+				{
+					// Can't fit, reset the money object back to what it was.
+					MONEY(money)->gold = g;
+					MONEY(money)->silver = s;
+
+					act("$P cannot hold that much weight.",ch, NULL, NULL,NULL,container, NULL, NULL, TO_CHAR);
+					return;
+				}
+
+				// Don't need to check the volume because money doesn't contribute to volume usage
+
+				MONEY(money)->gold = new_g;
+				MONEY(money)->silver = new_s;
+
+				update_money(money);
+			}
+			else
+			{
+				// No money object exists
+				int new_g = gold ? amount : 0;
+				int new_s = gold ? 0 : amount;
+
+				int w = container_get_content_weight(container, NULL);	// Weight without the money
+				int new_w = w + get_weight_coins(new_s, new_g);		// Weight of the new money
+
+				if ((w + new_w) > CONTAINER(container)->max_weight)
+				{
+					act("$P cannot hold that much weight.",ch, NULL, NULL,NULL,container, NULL, NULL, TO_CHAR);
+					return;
+				}
+
+				// Don't need to check the volume because money doesn't contribute to volume usage
+
+				money = create_money(new_g, new_s);
+				obj_to_obj(money, container);
+			}
+
+			if (gold)
+				ch->gold -= amount;
+			else
+				ch->silver -= amount;
+
+			if (IS_SET(CONTAINER(container)->flags, CONT_PUT_ON))
+			{
+				act("$n puts some coins on $P.",ch, NULL, NULL,NULL,container, NULL, NULL, TO_ROOM);
+				sprintf(buf, "You put %d %s coins on $P.", amount, gold ? "gold" : "silver");
+				act(buf,ch, NULL, NULL,NULL,container, NULL, NULL, TO_CHAR);
+			}
+			else
+			{
+				act("$n puts some coins in $P.",ch, NULL, NULL,NULL,container, NULL, NULL, TO_ROOM);
+				sprintf(buf, "You put %d %s coins in $P.", amount, gold ? "gold" : "silver");
+				act(buf,ch, NULL, NULL,NULL,container, NULL, NULL, TO_CHAR);
+			}
+
+			return;
+		}
+
+		send_to_char("You can't do that.\n\r", ch);
+		return;
+	}
 
     if ((container = get_obj_inv(ch, arg2, FALSE)) == NULL)
     {
 		act("I see no $T here.", ch, NULL, NULL, NULL, NULL, NULL, arg2, TO_CHAR);
 		return;
     }
+
+	if (!IS_CONTAINER(container))
+	{
+		send_to_char("That is not a container.\n\r", ch);
+		return;
+	}
 
     /* 'put obj container' */
     if (str_cmp(arg1, "all") && str_prefix("all.", arg1))
@@ -938,7 +1363,22 @@ void do_put(CHAR_DATA *ch, char *argument)
 		if (!can_put_obj(ch, obj, container, NULL, FALSE))
 		    return;
 
-		// Could be moved to "can_put_obj" ?
+		if (!container_can_fit_weight(container, obj))
+		{
+			act("$P cannot hold that much weight.",ch, NULL, NULL,obj,container, NULL, NULL, TO_CHAR);
+			return;
+		}
+
+		if (!container_can_fit_volume(container, obj))
+		{
+			act("$P is too full to hold $p.",ch, NULL, NULL,obj,container, NULL, NULL, TO_CHAR);
+			return;
+		}
+
+
+#if 0
+		// TODO: Could be moved to "can_put_obj" ?
+		// TODO: I think this has been completed?
 		if (container->item_type == ITEM_KEYRING)
 		{
 		    if (obj->item_type != ITEM_KEY)
@@ -951,6 +1391,8 @@ void do_put(CHAR_DATA *ch, char *argument)
 				OBJ_DATA *key;
 				int i;
 
+				// TODO: Moved
+				// TODO: Just say you can't put it on there.
 				if (IS_SET(obj->extra_flags, ITEM_NOKEYRING))
 				{
 					act("You try to attach $p to the keyring, but it recoils with a shock of energy.",
@@ -960,6 +1402,9 @@ void do_put(CHAR_DATA *ch, char *argument)
 					return;
 				}
 
+				// TODO: done
+				// TODO: widevnum
+				// TODO: add "no_duplicate" flag
 				i = 0;
 				for (key = container->contains; key != NULL; key = key->next_content)
 				{
@@ -971,6 +1416,7 @@ void do_put(CHAR_DATA *ch, char *argument)
 				    i++;
 				}
 
+				// TODO: Just use the max volume
 				if (i >= 50)
 				{
 				    act("$p is already rather full of keys!",
@@ -984,17 +1430,18 @@ void do_put(CHAR_DATA *ch, char *argument)
 				obj_from_char(obj);
 				obj_to_obj(obj, container);
 
-				p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, container, NULL, TRIG_PUT, NULL);
-				p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_PUT, NULL);
+				p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, container, NULL, TRIG_PUT, NULL,0,0,0,0,0);
+				p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_PUT, NULL,0,0,0,0,0);
 
 				i++;
 				if (i >= 50)
 				{
-					p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_FILLED, NULL);
+					p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_FILLED, NULL,0,0,0,0,0);
 				}
 				return;
 		    }
 		}
+#endif
 
         /* Orb of Shadows makes 1 item perm cursed */
 		// TODO: Make into scripting (PREPUT)
@@ -1024,14 +1471,14 @@ void do_put(CHAR_DATA *ch, char *argument)
 		}
 		*/
 
-		if (((get_obj_weight_container(container) + get_obj_weight(obj)) *
-			WEIGHT_MULT(container)/100) > container->value[0])
+		
+		if (!container_can_fit_weight(container, obj))
 		{
 			act("$P cannot hold that much weight.",ch, NULL, NULL,obj,container, NULL, NULL, TO_CHAR);
 			return;
 		}
 
-		if ((get_obj_number_container(container) + get_obj_number(obj)) > container->value[3])
+		if (!container_can_fit_volume(container, obj))
 		{
 			act("$P is too full to hold $p.",ch, NULL, NULL,obj,container, NULL, NULL, TO_CHAR);
 			return;
@@ -1040,7 +1487,7 @@ void do_put(CHAR_DATA *ch, char *argument)
 		obj_from_char(obj);
 		obj_to_obj(obj, container);
 
-		if (IS_SET(container->value[1],CONT_PUT_ON))
+		if (IS_SET(CONTAINER(container)->flags,CONT_PUT_ON))
 		{
 		    act("$n puts $p on $P.",ch, NULL, NULL,obj,container, NULL, NULL, TO_ROOM);
 		    act("You put $p on $P.",ch, NULL, NULL,obj,container, NULL, NULL, TO_CHAR);
@@ -1051,20 +1498,19 @@ void do_put(CHAR_DATA *ch, char *argument)
 		    act("You put $p in $P.", ch, NULL, NULL, obj, container, NULL, NULL, TO_CHAR);
 		}
 
-		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, container, NULL, TRIG_PUT, NULL);
-		p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_PUT, NULL);
+		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, container, NULL, TRIG_PUT, NULL,0,0,0,0,0);
+		p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_PUT, NULL,0,0,0,0,0);
 
-		if (((get_obj_weight_container(container) + get_obj_weight(obj)) * WEIGHT_MULT(container)/100) > container->value[0] ||
-			(get_obj_number_container(container) + get_obj_number(obj)) > container->value[3])
+		if (!container_can_fit_weight(container, NULL) || !container_can_fit_volume(container, NULL))
 		{
-			p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_FILLED, NULL);
+			p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_FILLED, NULL,0,0,0,0,0);
 		}
     }
     else
     {
 		/* Put all/all.<obj> <container> */
-		if (container->item_type == ITEM_KEYRING ||
-			(container->item_type == ITEM_CONTAINER && IS_SET(container->value[1], CONT_SINGULAR)))
+
+		if (IS_SET(CONTAINER(container)->flags, CONT_SINGULAR))
 		{
 			act("You can only put items in $p one at a time.", ch, NULL, NULL, container, NULL, NULL, NULL, TO_CHAR);
 			return;
@@ -1101,12 +1547,11 @@ void do_put(CHAR_DATA *ch, char *argument)
 				    	!can_put_obj(ch, obj, container, NULL, FALSE))
 						continue;
 
-				    if (((get_obj_weight_container(container) + get_obj_weight(obj)) *
-				    	WEIGHT_MULT(container)/100) > container->value[0])
+					if (!container_can_fit_weight(container, obj))
 				    {
 						if (i > 0 && match_obj != NULL)
 						{
-						    if (IS_SET(container->value[1],CONT_PUT_ON))
+						    if (IS_SET(CONTAINER(container)->flags,CONT_PUT_ON))
 						    {
 								sprintf(buf, "{Y({G%2d{Y) {x$n puts $p on $P.", i);
 								act(buf, ch, NULL, NULL, match_obj, container, NULL, NULL, TO_ROOM);
@@ -1128,12 +1573,11 @@ void do_put(CHAR_DATA *ch, char *argument)
 					return;
 			    }
 
-			    if ((get_obj_number_container(container) + get_obj_number(obj)) > container->value[3])
+				if (!container_can_fit_volume(container, obj))
 			    {
 					if (i > 0 && match_obj != NULL)
 					{
-					    if (container->item_type == ITEM_CONTAINER &&
-					    	IS_SET(container->value[1],CONT_PUT_ON))
+					    if (IS_SET(CONTAINER(container)->flags,CONT_PUT_ON))
 					    {
 							sprintf(buf, "{Y({G%2d{Y) {x$n puts $p on $P.", i);
 							act(buf, ch, NULL, NULL, match_obj, container, NULL, NULL, TO_ROOM);
@@ -1165,7 +1609,7 @@ void do_put(CHAR_DATA *ch, char *argument)
 
 			if (i > 0 && match_obj != NULL)
 			{
-				if (IS_SET(container->value[1],CONT_PUT_ON))
+				if (IS_SET(CONTAINER(container)->flags,CONT_PUT_ON))
 				{
 					sprintf(buf, "{Y({G%2d{Y) {x$n puts $p on $P.", i);
 					act(buf, ch, NULL, NULL, match_obj, container, NULL, NULL, TO_ROOM);
@@ -1184,12 +1628,11 @@ void do_put(CHAR_DATA *ch, char *argument)
 			}
 
 			/* Too many to do individually, just let it handle all of them. */
-			p_percent_trigger(NULL,container,NULL,NULL,ch, NULL, NULL,NULL,NULL,TRIG_PUT, NULL);
+			p_percent_trigger(NULL,container,NULL,NULL,ch, NULL, NULL,NULL,NULL,TRIG_PUT, NULL,0,0,0,0,0);
 
-			if (((get_obj_weight_container(container)) * WEIGHT_MULT(container)/100) >= container->value[0] ||
-				(get_obj_number_container(container)) >= container->value[3])
+			if (!container_can_fit_weight(container, NULL) || !container_can_fit_volume(container, NULL))
 			{
-				p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_FILLED, NULL);
+				p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_FILLED, NULL,0,0,0,0,0);
 			}
 	    }
 
@@ -1295,7 +1738,7 @@ void do_drop(CHAR_DATA *ch, char *argument)
 	/* Drop a cart */
 	if (ch->pulled_cart != NULL && is_name(arg, ch->pulled_cart->name))
 	{
-	    if(p_percent_trigger(NULL, ch->pulled_cart, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREDROP, NULL))
+	    if(p_percent_trigger(NULL, ch->pulled_cart, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREDROP, NULL,0,0,0,0,0))
 		return;
 
 
@@ -1343,8 +1786,8 @@ void do_drop(CHAR_DATA *ch, char *argument)
 	}
 
 
-		p_percent_trigger(NULL, cart, NULL, NULL, ch, NULL, NULL, cart, NULL, TRIG_DROP, NULL);
-		p_give_trigger(NULL, NULL, ch->in_room, ch, cart, TRIG_DROP);
+		p_percent_trigger(NULL, cart, NULL, NULL, ch, NULL, NULL, cart, NULL, TRIG_DROP, NULL,0,0,0,0,0);
+		p_give_trigger(NULL, NULL, ch->in_room, ch, cart, TRIG_DROP,0,0,0,0,0);
 
 	    return;
 	}
@@ -1374,7 +1817,7 @@ void do_drop(CHAR_DATA *ch, char *argument)
 	    return;
 	}
 
-	if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREDROP, NULL))
+	if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREDROP, NULL,0,0,0,0,0))
 		return;
 
 	obj_from_char(obj);
@@ -1388,8 +1831,8 @@ void do_drop(CHAR_DATA *ch, char *argument)
 	    wiznet(buf, NULL, NULL, WIZ_IMMLOG, 0, 0);
 	}
 
-		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_DROP, NULL);
-	    p_give_trigger(NULL, NULL, ch->in_room, ch, obj, TRIG_DROP);
+		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_DROP, NULL,0,0,0,0,0);
+	    p_give_trigger(NULL, NULL, ch->in_room, ch, obj, TRIG_DROP,0,0,0,0,0);
 
 	if (obj && IS_OBJ_STAT(obj,ITEM_MELT_DROP))
 	{
@@ -1435,7 +1878,7 @@ void do_drop(CHAR_DATA *ch, char *argument)
 		    any = obj;
 
 		if (any == obj && can_drop_obj(ch, obj, TRUE) && !IS_SET(obj->extra2_flags, ITEM_KEPT) &&
-			!p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREDROP, "silent"))
+			!p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREDROP, "silent",0,0,0,0,0))
 		{
 		    sprintf(short_descr, "%s", obj->short_descr);
 		    found = TRUE;
@@ -1453,7 +1896,7 @@ void do_drop(CHAR_DATA *ch, char *argument)
 		    ||  !can_drop_obj(ch, obj, TRUE) || IS_SET(obj->extra2_flags, ITEM_KEPT))
 			continue;
 
-		if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREDROP, NULL))
+		if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREDROP, NULL,0,0,0,0,0))
 			continue;
 
 		    if (match_obj == NULL && obj != NULL)
@@ -1469,8 +1912,8 @@ void do_drop(CHAR_DATA *ch, char *argument)
 			    wiznet(buf, NULL, NULL, WIZ_IMMLOG, 0, 0);
 			}
 
-			p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_DROP, NULL);
-		    p_give_trigger(NULL, NULL, ch->in_room, ch, obj, TRIG_DROP);
+			p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_DROP, NULL,0,0,0,0,0);
+		    p_give_trigger(NULL, NULL, ch->in_room, ch, obj, TRIG_DROP,0,0,0,0,0);
 
 
 		    if (IS_SET(obj->extra_flags, ITEM_MELT_DROP))
@@ -1627,7 +2070,7 @@ void do_give(CHAR_DATA *ch, char *argument)
 	act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
 	/* Bribe trigger */
-	p_bribe_trigger(victim, ch, !gold ? amount : amount * 100);
+	p_bribe_trigger(victim, ch, !gold ? amount : amount * 100,0,0,0,0,0);
 
         if (IS_NPC(victim) && IS_SET(victim->act,ACT_IS_CHANGER))
 	    change_money(ch, victim, gold ? amount : 0, !gold ? amount : 0);
@@ -1743,9 +2186,9 @@ void do_give(CHAR_DATA *ch, char *argument)
 		    obj_to_char(obj, victim);
 		    i++;
 
-			p_give_trigger(NULL, obj, NULL, ch, obj, TRIG_GIVE);
-			p_give_trigger(NULL, NULL, ch->in_room, ch, obj, TRIG_GIVE);
-			p_give_trigger(victim, NULL, NULL, ch, obj, TRIG_GIVE);
+			p_give_trigger(NULL, obj, NULL, ch, obj, TRIG_GIVE,0,0,0,0,0);
+			p_give_trigger(NULL, NULL, ch->in_room, ch, obj, TRIG_GIVE,0,0,0,0,0);
+			p_give_trigger(victim, NULL, NULL, ch, obj, TRIG_GIVE,0,0,0,0,0);
 
 	            if (!found)
 			return;
@@ -1762,9 +2205,9 @@ void do_give(CHAR_DATA *ch, char *argument)
 		    sprintf(buf, "{Y({G%2d{Y) {xYou give $p to $N.", i);
 		    act(buf, ch, victim, NULL, match_obj, NULL, NULL, NULL, TO_CHAR);
 
-			//p_give_trigger(NULL, match_obj, NULL, ch, match_obj, TRIG_GIVE);
-			//p_give_trigger(NULL, NULL, ch->in_room, ch, match_obj, TRIG_GIVE);
-			//p_give_trigger(victim, NULL, NULL, ch, match_obj, TRIG_GIVE);
+			//p_give_trigger(NULL, match_obj, NULL, ch, match_obj, TRIG_GIVE,0,0,0,0,0);
+			//p_give_trigger(NULL, NULL, ch->in_room, ch, match_obj, TRIG_GIVE,0,0,0,0,0);
+			//p_give_trigger(victim, NULL, NULL, ch, match_obj, TRIG_GIVE,0,0,0,0,0);
 		}
 	    }
 	    else if (!any)
@@ -1815,9 +2258,9 @@ void do_give(CHAR_DATA *ch, char *argument)
     }
 
     /* Give trigger */
-	p_give_trigger(NULL, obj, NULL, ch, obj, TRIG_GIVE);
-	p_give_trigger(NULL, NULL, ch->in_room, ch, obj, TRIG_GIVE);
-	p_give_trigger(victim, NULL, NULL, ch, obj, TRIG_GIVE);
+	p_give_trigger(NULL, obj, NULL, ch, obj, TRIG_GIVE,0,0,0,0,0);
+	p_give_trigger(NULL, NULL, ch->in_room, ch, obj, TRIG_GIVE,0,0,0,0,0);
+	p_give_trigger(victim, NULL, NULL, ch, obj, TRIG_GIVE,0,0,0,0,0);
 }
 
 
@@ -2315,7 +2758,7 @@ void do_envenom(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (obj->item_type == ITEM_FOOD || obj->item_type == ITEM_DRINK_CON)
+    if (IS_FOOD(obj) || obj->item_type == ITEM_DRINK_CON)
     {
 	if (IS_OBJ_STAT(obj,ITEM_BLESS) || IS_OBJ_STAT(obj,ITEM_BURN_PROOF))
 	{
@@ -2328,13 +2771,42 @@ void do_envenom(CHAR_DATA *ch, char *argument)
 		/* The better you get, the less likely people SEE it
 		  	But, even mastered, there is a slight chance of people seeing */
 	    if(number_range(0,100) > skill)
-		act("$n treats $p with deadly poison.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
+		{
+			act("$n treats $p with deadly poison.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
+		}
+
 	    act("You treat $p with deadly poison.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-	    if (!obj->value[3])
-	    {
-		obj->value[3] = 1;
-		check_improve(ch,gsn_envenom,TRUE,4);
-	    }
+
+
+		int poison = URANGE(1, skill / 3, 99);		// Never allow this kind of applied poison to be permanent.
+		bool applied = FALSE;
+		if (IS_FOOD(obj))
+		{
+			if (FOOD(obj)->poison > poison)
+			{
+				act("$p is already sufficiently poisoned.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
+				return;
+			}
+
+			applied = !FOOD(obj)->poison;
+			FOOD(obj)->poison = poison;
+		}
+		else
+		{
+			if (obj->value[3] > poison)
+			{
+				act("$p is already sufficiently poisoned.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
+				return;
+			}
+
+			applied = !obj->value[3];
+			obj->value[3] = poison;
+		}
+
+		act("$p is infused with poisonous vapors.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
+
+	    if (applied)
+			check_improve(ch,gsn_envenom,TRUE,4);
 	    WAIT_STATE(ch,skill_table[gsn_envenom].beats);
 	    return;
 	}
@@ -2531,22 +3003,22 @@ void do_fill(CHAR_DATA *ch, char *argument)
 	// tempstore1 == amount
 
 	obj->tempstore[0] = amount;
-	p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, fountain, NULL, TRIG_FILL, NULL);
+	p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, fountain, NULL, TRIG_FILL, NULL,0,0,0,0,0);
 
 	fountain->tempstore[0] = amount;
-	p_percent_trigger(NULL, fountain, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_FILL, NULL);
+	p_percent_trigger(NULL, fountain, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_FILL, NULL,0,0,0,0,0);
 
 	ch->in_room->tempstore[0] = amount;
-	p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, fountain, obj, TRIG_FILL, NULL);
+	p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, fountain, obj, TRIG_FILL, NULL,0,0,0,0,0);
 
 	if (obj->value[1] == obj->value[0])
 	{
-		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, fountain, NULL, TRIG_FILLED, NULL);
+		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, fountain, NULL, TRIG_FILLED, NULL,0,0,0,0,0);
 	}
 
 	if (fountain->value[0] > 0 && fountain->value[1] < 1)
 	{
-		p_percent_trigger(NULL, fountain, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_EMPTIED, NULL);
+		p_percent_trigger(NULL, fountain, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_EMPTIED, NULL,0,0,0,0,0);
 	}
 }
 
@@ -2698,20 +3170,20 @@ void do_pour(CHAR_DATA *ch, char *argument)
 	// $obj1 vs $obj2 will make the distinction here...
 	// $obj1 is the OUT, $obj2 is the IN
 	out->tempstore[0] = amount;
-	p_percent_trigger(NULL, out, NULL, NULL, ch, vch, NULL, NULL, in, TRIG_POUR, NULL);
+	p_percent_trigger(NULL, out, NULL, NULL, ch, vch, NULL, NULL, in, TRIG_POUR, NULL,0,0,0,0,0);
 	in->tempstore[0] = amount;
-	p_percent_trigger(NULL, in, NULL, NULL, ch, vch, NULL, out, NULL, TRIG_POUR, NULL);
+	p_percent_trigger(NULL, in, NULL, NULL, ch, vch, NULL, out, NULL, TRIG_POUR, NULL,0,0,0,0,0);
 	ch->in_room->tempstore[0] = amount;
-	p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, vch, NULL, out, in, TRIG_POUR, NULL);
+	p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, vch, NULL, out, in, TRIG_POUR, NULL,0,0,0,0,0);
 	
 	if (out->value[0] > 0 && out->value[1] <= 0)
 	{
-		p_percent_trigger(NULL, out, NULL, NULL, ch, vch, NULL, NULL, in, TRIG_EMPTIED, NULL);
+		p_percent_trigger(NULL, out, NULL, NULL, ch, vch, NULL, NULL, in, TRIG_EMPTIED, NULL,0,0,0,0,0);
 	}
 
 	if (in->value[0] > 0 && in->value[1] >= in->value[0])
 	{
-		p_percent_trigger(NULL, in, NULL, NULL, ch, vch, NULL, NULL, out, TRIG_FILLED, NULL);
+		p_percent_trigger(NULL, in, NULL, NULL, ch, vch, NULL, NULL, out, TRIG_FILLED, NULL,0,0,0,0,0);
 	}
 }
 
@@ -2811,7 +3283,7 @@ void do_drink(CHAR_DATA *ch, char *argument)
      }
 
 	// See if the character is blocked from drinking
-	if ((ret = p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREDRINK, NULL)))
+	if ((ret = p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREDRINK, NULL,0,0,0,0,0)))
 	{
 		if (ret == 1)
 		{
@@ -2821,7 +3293,7 @@ void do_drink(CHAR_DATA *ch, char *argument)
 	}
 
 	// See if the object will let the character eat it.
-	if ((ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREDRINK, NULL)))
+	if ((ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREDRINK, NULL,0,0,0,0,0)))
 	{
 		if (ret == 1)
 		{
@@ -2831,7 +3303,7 @@ void do_drink(CHAR_DATA *ch, char *argument)
 	}
 	
 	// See if the room lets the character eat.
-	if ((ret = p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREDRINK, NULL)))
+	if ((ret = p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREDRINK, NULL,0,0,0,0,0)))
 	{
 		if (ret == 1)
 		{
@@ -2893,13 +3365,13 @@ memset(&af,0,sizeof(af));
         obj->value[1] -= amount;
 	}
 
-	p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_DRINK, NULL);
-	p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, obj, NULL, TRIG_DRINK, NULL);
+	p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_DRINK, NULL,0,0,0,0,0);
+	p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, obj, NULL, TRIG_DRINK, NULL,0,0,0,0,0);
 
 	if (obj->value[0] > 0 && obj->value[1] < 1)
 	{
 		obj->value[3] = 0;	// Remove the poisoning
-		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_EMPTIED, NULL);
+		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_EMPTIED, NULL,0,0,0,0,0);
 	}
 
     return;
@@ -2936,7 +3408,7 @@ void do_eat(CHAR_DATA *ch, char *argument)
     }
 
 	// See if the character is blocked from eating
-	if ((ret = p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREEAT, NULL)))
+	if ((ret = p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREEAT, NULL,0,0,0,0,0)))
 	{
 		if (ret == 1)
 		{
@@ -2946,7 +3418,7 @@ void do_eat(CHAR_DATA *ch, char *argument)
 	}
 
 	// See if the object will let the character eat it.
-	if ((ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREEAT, NULL)))
+	if ((ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREEAT, NULL,0,0,0,0,0)))
 	{
 		if (ret == 1)
 		{
@@ -2956,7 +3428,7 @@ void do_eat(CHAR_DATA *ch, char *argument)
 	}
 	
 	// See if the room lets the character eat.
-	if ((ret = p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREEAT, NULL)))
+	if ((ret = p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREEAT, NULL,0,0,0,0,0)))
 	{
 		if (ret == 1)
 		{
@@ -2968,25 +3440,15 @@ void do_eat(CHAR_DATA *ch, char *argument)
     act("$n eats $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
     act("You eat $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 
-    switch (obj->item_type)
-    {
-	case ITEM_FOOD:
+	if (IS_FOOD(obj))
+	{
 	    if (!IS_NPC(ch))
 	    {
-		//int condition;
+			gain_condition(ch, COND_FULL, FOOD(obj)->full);
+			gain_condition(ch, COND_HUNGER, FOOD(obj)->hunger);
+		}
 
-		//condition = ch->pcdata->condition[COND_HUNGER];
-
-		gain_condition(ch, COND_FULL, obj->value[0]);
-		gain_condition(ch, COND_HUNGER, obj->value[1]);
-		/* Removed message because hunger is being removed
-		if (condition == 0 && ch->pcdata->condition[COND_HUNGER] > 0)
-		    send_to_char("You are no longer hungry.\n\r", ch);
-			*/
-	    }
-		
-
-	    if (obj->value[3] > 0 && check_immune(ch, DAM_POISON) != IS_IMMUNE)
+	    if (FOOD(obj)->poison > 0 && check_immune(ch, DAM_POISON) != IS_IMMUNE)
 	    {
 			/* The food was poisoned! */
 			AFFECT_DATA af;
@@ -2997,8 +3459,8 @@ void do_eat(CHAR_DATA *ch, char *argument)
 			af.where	 = TO_AFFECTS;
 			af.group     = AFFGROUP_BIOLOGICAL;
 			af.type      = gsn_poison;
-			af.level 	 = number_fuzzy(obj->value[0]);
-			af.duration  = obj->value[3] * obj->value[0] / 50;	// is really 2 * poison% * hours / 100
+			af.level 	 = number_fuzzy(FOOD(obj)->full);
+			af.duration  = FOOD(obj)->poison * FOOD(obj)->full / 50;	// is really 2 * poison% * hours / 100
 			af.location  = APPLY_NONE;
 			af.modifier  = 0;
 			af.bitvector = AFF_POISON;
@@ -3006,20 +3468,17 @@ void do_eat(CHAR_DATA *ch, char *argument)
 			af.slot	= WEAR_NONE;
 			affect_join(ch, &af);
 	    }
-	    break;
 
-	case ITEM_PILL:
+		food_apply_buffs(ch, obj, obj->level, FOOD(obj)->full);
+	}
+	else if (obj->item_type == ITEM_PILL)
+	{
 		obj_apply_spells(ch, obj, ch, NULL, TRIG_APPLY_AFFECT);
-
-	    //for (spell = obj->spells; spell != NULL; spell = spell->next)
-		//obj_cast_spell(spell->sn, obj->value[0], ch, ch, NULL);
-	    break;
-    }
+	}
 
 
-
-	p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_EAT, NULL);
-	p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, obj, NULL, TRIG_EAT, NULL);
+	p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_EAT, NULL,0,0,0,0,0);
+	p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, obj, NULL, TRIG_EAT, NULL,0,0,0,0,0);
 
     extract_obj(obj);
 }
@@ -3043,7 +3502,7 @@ bool remove_obj(CHAR_DATA *ch, int iWear, bool fReplace)
 			return FALSE;
 		}
 
-		if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREREMOVE, NULL))
+		if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREREMOVE, NULL,0,0,0,0,0))
 			return FALSE;
 	}
 
@@ -3059,7 +3518,7 @@ bool remove_obj(CHAR_DATA *ch, int iWear, bool fReplace)
 // When there is a pair, it will return either the first or left version
 int get_wear_loc(CHAR_DATA *ch, OBJ_DATA *obj)
 {
-	if (obj->item_type == ITEM_LIGHT)
+	if (obj->item_type == ITEM_LIGHT)	// Primary LIGHT objects are always this slot
 		return WEAR_LIGHT;
 
     if (CAN_WEAR(obj, ITEM_WEAR_FINGER))
@@ -3165,8 +3624,17 @@ void wear_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool fReplace)
 		if (!remove_obj(ch, WEAR_LIGHT, fReplace))
 			return;
 
-		act("$n lights $p and holds it.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-		act("You light $p and hold it.",  ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		if (IS_SET(LIGHT(obj)->flags, LIGHT_IS_ACTIVE))
+		{
+			act("$n holds $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+			act("You holds $p.",  ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		}
+		else
+		{
+			SET_BIT(LIGHT(obj)->flags, LIGHT_IS_ACTIVE);
+			act("$n lights $p and holds it.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+			act("You light $p and hold it.",  ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		}
 		equip_char(ch, obj, WEAR_LIGHT);
 		return;
 	}
@@ -3602,7 +4070,7 @@ void do_wear(CHAR_DATA *ch, char *argument)
 				 || CAN_WEAR(obj, ITEM_WIELD)))
 				continue;
 
-			if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREWEAR, NULL))
+			if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREWEAR, NULL,0,0,0,0,0))
 				continue;
 
 			equip_char(ch, obj, obj->last_wear_loc);
@@ -3618,7 +4086,7 @@ void do_wear(CHAR_DATA *ch, char *argument)
 			&& is_wearable(obj))
 			{
 
-			if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREWEAR, NULL))
+			if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREWEAR, NULL,0,0,0,0,0))
 				continue;
 
 			wear_obj(ch, obj, FALSE);
@@ -3635,7 +4103,7 @@ void do_wear(CHAR_DATA *ch, char *argument)
 		    return;
 		}
 
-		if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREWEAR, NULL))
+		if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREWEAR, NULL,0,0,0,0,0))
 			return;
 
 		wear_obj(ch, obj, TRUE);
@@ -3697,7 +4165,7 @@ void do_remove(CHAR_DATA *ch, char *argument)
 	    &&   wear_params[obj->wear_loc][2])
 	    {
 
-		if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREREMOVE, NULL))
+		if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREREMOVE, NULL,0,0,0,0,0))
 			continue;
 
 		unequip_char(ch, obj, FALSE);
@@ -4015,17 +4483,17 @@ void do_recite(CHAR_DATA *ch, char *argument)
 	// Both scripts MUST provide a reason.
 	// Does the scroll forbid it?
 	scroll->tempstore[0] = beats;
-	if( p_percent_trigger( NULL, scroll, NULL, NULL, ch, victim, NULL,obj, NULL, TRIG_PRERECITE, NULL) )
+	if(p_percent_trigger( NULL, scroll, NULL, NULL, ch, victim, NULL,obj, NULL, TRIG_PRERECITE, NULL,0,0,0,0,0))
 		return;
 
 	// Does the ROOM forbid it?
 	ch->in_room->tempstore[0] = scroll->tempstore[0];
-	if( p_percent_trigger( NULL, NULL, ch->in_room, NULL, ch, victim, NULL, obj, scroll, TRIG_PRERECITE, NULL) )
+	if(p_percent_trigger( NULL, NULL, ch->in_room, NULL, ch, victim, NULL, obj, scroll, TRIG_PRERECITE, NULL,0,0,0,0,0))
 		return;
 
 	// Does the PLAYER (TOKENS) forbid it?
 	ch->tempstore[0] = ch->in_room->tempstore[0];
-	if( p_percent_trigger( ch, NULL, NULL, NULL, ch, victim, NULL, obj, scroll, TRIG_PRERECITE, NULL) )
+	if(p_percent_trigger( ch, NULL, NULL, NULL, ch, victim, NULL, obj, scroll, TRIG_PRERECITE, NULL,0,0,0,0,0))
 		return;
 
 	beats = ch->tempstore[0];
@@ -4103,7 +4571,7 @@ void recite_end(CHAR_DATA *ch)
 	}
 #endif
 
-	if( p_percent_trigger( NULL, scroll, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_RECITE, NULL) <= 0 )
+	if( p_percent_trigger( NULL, scroll, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_RECITE, NULL,0,0,0,0,0) <= 0 )
 	{
 		act("$p flares brightly then disappears!", ch, NULL, NULL, scroll, NULL, NULL, NULL, TO_ALL);
 
@@ -4143,7 +4611,7 @@ void do_brandish(CHAR_DATA *ch, char *argument)
 
 	// TODO: Utilize return code
 	// 
-    if(p_percent_trigger(NULL, staff, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREBRANDISH, argument))
+    if(p_percent_trigger(NULL, staff, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREBRANDISH, argument,0,0,0,0,0))
     	return;
 
     if (staff->item_type != ITEM_STAFF)
@@ -4240,13 +4708,13 @@ void do_brandish(CHAR_DATA *ch, char *argument)
 								break;
 						}
 
-						p_token_index_percent_trigger(spell->token, ch, vch, NULL, staff, NULL, TRIG_TOKEN_BRANDISH, NULL, spell->level, 0, 0, 0, 0);
+						p_token_index_percent_trigger(spell->token, ch, vch, NULL, staff, NULL, TRIG_TOKEN_BRANDISH, NULL, spell->level, 0, 0, 0, 0,0,0,0,0,0);
 					}
 
 				}
 
 				// Let it do something even if there were no spells
-			    p_percent_trigger(NULL, staff, NULL, NULL, ch, vch, NULL, NULL, NULL, TRIG_BRANDISH, argument);
+			    p_percent_trigger(NULL, staff, NULL, NULL, ch, vch, NULL, NULL, NULL, TRIG_BRANDISH, argument,0,0,0,0,0);
 
 				check_improve(ch,gsn_staves,TRUE,2);
 			}
@@ -4254,7 +4722,7 @@ void do_brandish(CHAR_DATA *ch, char *argument)
     }
 
 	// When $(victim) isn't defined, it's the aftermath
-	p_percent_trigger(NULL, staff, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BRANDISH, argument);
+	p_percent_trigger(NULL, staff, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BRANDISH, argument,0,0,0,0,0);
 
     if (--staff->value[2] <= 0)
     {
@@ -4289,7 +4757,7 @@ void do_zap(CHAR_DATA *ch, char *argument)
     }
 
 	// TODO: Utilize return code
-    if(p_percent_trigger(NULL, wand, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREZAP, arg))
+    if(p_percent_trigger(NULL, wand, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREZAP, arg,0,0,0,0,0))
     	return;
 
     if (wand->item_type != ITEM_WAND)
@@ -4351,7 +4819,7 @@ void do_zap(CHAR_DATA *ch, char *argument)
 		}
 
 		wand->tempstore[0] = success;
-		p_percent_trigger(NULL, wand, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_ZAP, arg);
+		p_percent_trigger(NULL, wand, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_ZAP, arg,0,0,0,0,0);
 		check_improve(ch,gsn_wands,success,2);
     }
 
@@ -5004,7 +5472,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 			obj = request.obj;
 
 			keeper->tempstore[0] = number;
-			int ret = p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREBUY_OBJ, NULL);
+			int ret = p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREBUY_OBJ, NULL,0,0,0,0,0);
 			if( ret > 0 ) return;	// Messages should be done in the script
 			if( ret < 0 )
 			{
@@ -5125,7 +5593,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 			keeper->tempstore[1] = stock->type;
 			keeper->tempstore[2] = stock->wnum.pArea ? stock->wnum.pArea->uid : 0;
 			keeper->tempstore[3] = stock->wnum.vnum;
-			int ret = p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREBUY, stock->custom_keyword);
+			int ret = p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREBUY, stock->custom_keyword,0,0,0,0,0);
 			if( ret > 0 ) return;	// Messages should be done in the script
 			if( ret < 0 )
 			{
@@ -5298,7 +5766,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 			{
 				// Check for non-standard objects
 				keeper->tempstore[0] = number;
-				int ret = p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CHECK_BUYER, stock->custom_keyword);
+				int ret = p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CHECK_BUYER, stock->custom_keyword,0,0,0,0,0);
 
 				if( ret == 1 )
 				{
@@ -5382,7 +5850,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 				keeper->tempstore[4] = UMAX(chance, 0);
 				free_string(keeper->tempstring);
 				keeper->tempstring = &str_empty[0];
-				int ret = p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CUSTOM_PRICE, stock->custom_keyword);
+				int ret = p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CUSTOM_PRICE, stock->custom_keyword,0,0,0,0,0);
 				if( ret > 0 ) return;	// Messages should be done in the script
 				if( ret < 0 )
 				{
@@ -5466,7 +5934,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 						t_obj->cost = new_value;
 
 					// Handles what happens AFTER you've bought the item.  Called for EVERY item
-					p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, t_obj, NULL, TRIG_BUY, NULL);
+					p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, t_obj, NULL, TRIG_BUY, NULL,0,0,0,0,0);
 
 				}
 			}
@@ -5581,8 +6049,8 @@ void do_buy(CHAR_DATA *ch, char *argument)
 					mob->hired_to = current_time + stock->duration * 60;
 				}
 
-				p_percent_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
-				p_percent_trigger(keeper, NULL, NULL, NULL, ch, mob, NULL, NULL, NULL, TRIG_BUY, NULL);
+				p_percent_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL,0,0,0,0,0);
+				p_percent_trigger(keeper, NULL, NULL, NULL, ch, mob, NULL, NULL, NULL, TRIG_BUY, NULL,0,0,0,0,0);
 			}
 			else if( stock->ship != NULL )
 			{
@@ -5615,7 +6083,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 
 				act("{xTo board your ship, use '{Yenter $T{x' until you give it a name.{x", ch, NULL, NULL, NULL, NULL, NULL, ch->name, TO_CHAR);
 
-				p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, ship->ship, NULL, TRIG_BUY, NULL);
+				p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, ship->ship, NULL, TRIG_BUY, NULL,0,0,0,0,0);
 			}
 			else
 			{
@@ -5644,7 +6112,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 				keeper->tempstore[1] = UMAX(stock->duration, 0);	// Duration of product / service.
 				// Just do the giving of items
 				// All cost transactions have taken place, along with their messages
-				p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BUY, stock->custom_keyword);
+				p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BUY, stock->custom_keyword,0,0,0,0,0);
 			}
 
 			// Reduce the available stock when it is limited
@@ -5715,7 +6183,7 @@ void do_blow( CHAR_DATA *ch, char *argument )
 	}
 	*/
 
-    p_percent_trigger( NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BLOW , NULL);
+    p_percent_trigger( NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BLOW , NULL,0,0,0,0,0);
 
     return;
 }
@@ -6012,7 +6480,7 @@ void do_inspect(CHAR_DATA *ch, char *argument)
 		}
 		else if( !IS_NULLSTR(request.stock->custom_keyword) )
 		{
-	    	if(!p_exact_trigger(request.stock->custom_keyword, keeper, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_INSPECT))
+	    	if(!p_exact_trigger(request.stock->custom_keyword, keeper, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_INSPECT,0,0,0,0,0))
 	    	{
 				act("{R$N tells you 'Sorry, I do not have any information about $T.'{x", ch, keeper, NULL, NULL, NULL, NULL, request.stock->custom_descr, TO_CHAR);
 				ch->reply = keeper;
@@ -6058,7 +6526,7 @@ void do_sell(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if(p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PRESELL, NULL))
+	if(p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PRESELL, NULL,0,0,0,0,0))
 		return;
 
 	if (!can_drop_obj(ch, obj, TRUE) || IS_SET(obj->extra2_flags, ITEM_KEPT))
@@ -6443,9 +6911,9 @@ void do_push(CHAR_DATA *ch, char *argument)
 
     /* @@@NIB : 20070121 : Added for the new trigger type*/
     if (argument[0]) {
-        if(p_use_on_trigger(ch, obj, TRIG_PUSH_ON, argument)) return;
+        if(p_use_on_trigger(ch, obj, TRIG_PUSH_ON, argument,0,0,0,0,0)) return;
     } else {
-        if(p_use_trigger(ch, obj, TRIG_PUSH)) return;
+        if(p_use_trigger(ch, obj, TRIG_PUSH,0,0,0,0,0)) return;
     }
 
     /* @@@NIB : 20070126 : for pushopen containers*/
@@ -6459,7 +6927,7 @@ void do_push(CHAR_DATA *ch, char *argument)
  	    REMOVE_BIT(obj->value[1], CONT_CLOSED);
  	    act("You open $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
  	    act("$n opens $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
- 	    p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_OPEN, NULL);
+ 	    p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_OPEN, NULL,0,0,0,0,0);
  	    return;
  	}
     }
@@ -6499,9 +6967,9 @@ void do_pull(CHAR_DATA *ch, char *argument)
     /* @@@NIB : 20070121 : Added for the new trigger type*/
     /*	Also allows for PULL/PULL_ON scripts to drop to the CART code*/
     if (argument[0]) {
-	    if(p_act_trigger(argument, mob, obj, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PULL_ON)) return;
+	    if(p_act_trigger(argument, mob, obj, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PULL_ON,0,0,0,0,0)) return;
     } else {
-	    if(p_percent_trigger(mob, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PULL, NULL)) return;
+	    if(p_percent_trigger(mob, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PULL, NULL,0,0,0,0,0)) return;
     }
 
 	if(obj) {
@@ -6620,8 +7088,8 @@ void do_turn(CHAR_DATA *ch, char *argument)
 	if ((vch = get_char_room(ch, NULL, arg)) && (skill = get_skill(ch, gsn_turn_undead)) > 0) {
 		int chance;
 
-		if(p_percent_trigger(vch,NULL, NULL, NULL, ch, vch, NULL, NULL, NULL, TRIG_ATTACK_TURN,"pretest") ||
-			p_percent_trigger(ch,NULL, NULL, NULL, ch, vch, NULL, NULL, NULL, TRIG_ATTACK_TURN,"pretest"))
+		if(p_percent_trigger(vch,NULL, NULL, NULL, ch, vch, NULL, NULL, NULL, TRIG_ATTACK_TURN,"pretest",0,0,0,0,0) ||
+			p_percent_trigger(ch,NULL, NULL, NULL, ch, vch, NULL, NULL, NULL, TRIG_ATTACK_TURN,"pretest",0,0,0,0,0))
 			return;
 
 		act("{YYou release your divine will over $N!{x", ch, vch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -6664,9 +7132,9 @@ void do_turn(CHAR_DATA *ch, char *argument)
 
 	/* @@@NIB : 20070121 : Added for the new trigger type*/
 	if (argument[0]) {
-	if(p_use_on_trigger(ch, obj, TRIG_TURN_ON, argument)) return;
+	if(p_use_on_trigger(ch, obj, TRIG_TURN_ON, argument,0,0,0,0,0)) return;
 	} else {
-	if(p_use_trigger(ch, obj, TRIG_TURN)) return;
+	if(p_use_trigger(ch, obj, TRIG_TURN,0,0,0,0,0)) return;
 	}
 
 	send_to_char("You can't turn that.\n\r", ch);
@@ -6986,8 +7454,8 @@ void brew_end(CHAR_DATA *ch )
     }
 
     free_string(potion->name);
+	strcat(potion_name, " potion");
     potion->name = short_to_name(potion_name);
-    strcat(potion->name, " potion");
     obj_to_char(potion, ch);
 }
 
@@ -7317,8 +7785,8 @@ void scribe_end(CHAR_DATA *ch)
 	}
 
     free_string(scroll->name);
+    strcat(scroll_name, " scroll");
     scroll->name = short_to_name(scroll_name);
-    strcat(scroll->name, " scroll");
     obj_to_char(scroll, ch);
 }
 
@@ -7638,14 +8106,14 @@ void do_use(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		if(p_use_with_trigger(ch, obj, TRIG_USEWITH, tobj, NULL, vch, NULL)) return;
-		if(tobj && p_use_with_trigger(ch, tobj, TRIG_USEWITH, obj, NULL, vch, NULL)) return;
+		if(p_use_with_trigger(ch, obj, TRIG_USEWITH, tobj, NULL, vch, NULL,0,0,0,0,0)) return;
+		if(tobj && p_use_with_trigger(ch, tobj, TRIG_USEWITH, obj, NULL, vch, NULL,0,0,0,0,0)) return;
 
 		send_to_char("Nothing happens.\n\r", ch);
 		return;
 	}
 
-	if(p_use_trigger(ch, obj, TRIG_USE)) return;
+	if(p_use_trigger(ch, obj, TRIG_USE,0,0,0,0,0)) return;
 
 	send_to_char("Nothing happens.\n\r", ch);
 }
@@ -7689,7 +8157,7 @@ void do_conceal(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREWEAR, NULL))
+	if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREWEAR, NULL,0,0,0,0,0))
 		return;
 
 	act("You conceal $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
@@ -7718,7 +8186,7 @@ void do_conceal(CHAR_DATA *ch, char *argument)
 	}
 
 	obj->wear_loc = WEAR_CONCEALED;
-	p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_WEAR, NULL);
+	p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_WEAR, NULL,0,0,0,0,0);
 }
 
 
@@ -7774,4 +8242,112 @@ char *get_stock_description(SHOP_STOCK_DATA *stock)
 		return stock->mob->short_descr;
 
 	return "something";
+}
+
+void do_ignite(CHAR_DATA *ch, char *argument)
+{
+	OBJ_DATA *obj;
+	char arg[MIL];
+
+	argument = one_argument(argument, arg);
+
+	if (!arg[0]) {
+		send_to_char("Ignite what?\n\r", ch);
+		return;
+	}
+
+	if (!(obj = get_obj_here(ch, NULL, arg))) {
+		send_to_char("You do not have that item.\n\r", ch);
+		return;
+	}
+
+	if (!IS_LIGHT(obj))
+	{
+		send_to_char("You cannot ignite that.\n\r", ch);
+		return;
+	}
+
+	if (IS_SET(LIGHT(obj)->flags, LIGHT_IS_ACTIVE))
+	{
+		act("$p is already lit.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	// TODO: Add ignition mode onto LIGHT data
+
+	// PREIGNITE trigger?
+
+	// Apply light to the room
+	if (obj->carried_by == ch && !light_char_has_light(ch))
+		ch->in_room->light++;
+	else if (!obj->in_obj && obj->in_room != NULL)
+		obj->in_room->light++;
+
+	act("You ignite $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+	act("$n ignites $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+	SET_BIT(LIGHT(obj)->flags, LIGHT_IS_ACTIVE);
+
+	// IGNITE trigger
+}
+
+void do_extinguish(CHAR_DATA *ch, char *argument)
+{
+	OBJ_DATA *obj;
+	char arg[MIL];
+
+	argument = one_argument(argument, arg);
+
+	if (!arg[0]) {
+		send_to_char("Ignite what?\n\r", ch);
+		return;
+	}
+
+	if (!(obj = get_obj_here(ch, NULL, arg))) {
+		send_to_char("You do not have that item.\n\r", ch);
+		return;
+	}
+
+	if (!IS_LIGHT(obj))
+	{
+		send_to_char("You cannot extinguish that.\n\r", ch);
+		return;
+	}
+
+	if (!IS_SET(LIGHT(obj)->flags, LIGHT_IS_ACTIVE))
+	{
+		act("$p is not lit.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if (IS_SET(LIGHT(obj)->flags, LIGHT_NO_EXTINGUISH))
+	{
+		act("$p cannot be put out.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	// PREEXTINGUISH trigger?
+
+	REMOVE_BIT(LIGHT(obj)->flags, LIGHT_IS_ACTIVE);
+
+	act("You extinguish $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+	act("$n extinguishes $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+
+	// Remove light to the room
+	if (obj->carried_by == ch && !light_char_has_light(ch))
+		ch->in_room->light--;
+	else if (!obj->in_obj && obj->in_room != NULL)
+		obj->in_room->light--;
+
+	// EXTINGUISH trigger
+
+	if (IS_SET(LIGHT(obj)->flags, LIGHT_REMOVE_ON_EXTINGUISH))
+	{
+		free_light_data(LIGHT(obj));
+		LIGHT(obj) = NULL;
+
+		if (obj->item_type == ITEM_LIGHT)
+		{
+			extract_obj(obj);
+		}
+	}
 }

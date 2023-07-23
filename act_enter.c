@@ -599,7 +599,7 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 
 	if(!is_room_unlocked(ch, location) )
 	{
-		int ret = p_percent2_trigger(location->area, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREENTER, NULL);
+		int ret = p_percent2_trigger(location->area, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREENTER, NULL,0,0,0,0,0);
 
 		if( ret < 1 )
 		{
@@ -612,10 +612,10 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 		}
 	}
 
-	if(p_percent_trigger(NULL, NULL, location, NULL, ch, NULL, NULL,portal, NULL,TRIG_PREENTER, "portal"))
+	if(p_percent_trigger(NULL, NULL, location, NULL, ch, NULL, NULL,portal, NULL,TRIG_PREENTER, "portal",0,0,0,0,0))
 		return;
 
-	if(p_percent_trigger(NULL, portal, NULL, NULL, ch, NULL, NULL,NULL, NULL,TRIG_PREENTER, NULL))
+	if(p_percent_trigger(NULL, portal, NULL, NULL, ch, NULL, NULL,NULL, NULL,TRIG_PREENTER, NULL,0,0,0,0,0))
 		return;
 
  	/* @@@NIB : 20070126 : added the check */
@@ -765,7 +765,7 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 		portal->value[0] = -1;
 	}
 
-	if(p_percent_trigger(NULL, portal, NULL, NULL, ch, NULL, NULL,NULL, NULL,TRIG_ENTRY, NULL))
+	if(p_percent_trigger(NULL, portal, NULL, NULL, ch, NULL, NULL,NULL, NULL,TRIG_ENTRY, NULL,0,0,0,0,0))
 		return;
 
 	/* protect against circular follows */
@@ -813,20 +813,20 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 
 	if( IS_VALID(to_dungeon) && (in_dungeon != to_dungeon) )
 	{
-		p_percent2_trigger(NULL, NULL, to_dungeon, ch, NULL, NULL, NULL, NULL, TRIG_ENTRY, NULL);
+		p_percent2_trigger(NULL, NULL, to_dungeon, ch, NULL, NULL, NULL, NULL, TRIG_ENTRY, NULL,0,0,0,0,0);
 	}
 
 	if( to_instance != in_instance )
 	{
-		p_percent2_trigger(NULL, to_instance, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ENTRY, NULL);
+		p_percent2_trigger(NULL, to_instance, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ENTRY, NULL,0,0,0,0,0);
 	}
 
-	p_percent_trigger( ch, NULL, NULL, NULL,NULL, NULL, NULL, NULL, NULL, TRIG_ENTRY , NULL);
+	p_percent_trigger( ch, NULL, NULL, NULL,NULL, NULL, NULL, NULL, NULL, TRIG_ENTRY , NULL,0,0,0,0,0);
 
 	if ( !IS_NPC( ch ) ) {
-	    p_greet_trigger( ch, PRG_MPROG );
-	    p_greet_trigger( ch, PRG_OPROG );
-	    p_greet_trigger( ch, PRG_RPROG );
+	    p_greet_trigger( ch, PRG_MPROG ,0,0,0,0,0);
+	    p_greet_trigger( ch, PRG_OPROG ,0,0,0,0,0);
+	    p_greet_trigger( ch, PRG_RPROG ,0,0,0,0,0);
 	}
 	return;
     }

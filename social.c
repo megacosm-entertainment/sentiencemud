@@ -194,7 +194,7 @@ void do_chat_enter(CHAR_DATA *ch, char *argument)
 	token_next = token->next;
 
 	if (IS_SET(token->flags, TOKEN_PURGE_RIFT)) {
-		p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_REMOVED, NULL);
+		p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_REMOVED, NULL,0,0,0,0,0);
 	    sprintf(buf, "char update: token %s(%ld) char %s(%ld) was purged because of rift",
 		    token->name, token->pIndexData->vnum, HANDLE(ch), IS_NPC(ch) ? ch->pIndexData->vnum :
 		    0);

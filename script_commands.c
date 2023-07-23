@@ -2342,7 +2342,7 @@ SCRIPT_CMD(scriptcmd_instancecomplete)
 	{
 		if( !IS_SET(arg->d.instance->flags, (INSTANCE_COMPLETED|INSTANCE_FAILED)) )
 		{
-			p_percent2_trigger(NULL, arg->d.instance, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_COMPLETED,NULL);
+			p_percent2_trigger(NULL, arg->d.instance, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_COMPLETED,NULL,0,0,0,0,0);
 
 			SET_BIT(arg->d.instance->flags, INSTANCE_COMPLETED);
 		}
@@ -2360,7 +2360,7 @@ SCRIPT_CMD(scriptcmd_instancefailure)
 	{
 		if( !IS_SET(arg->d.instance->flags, (INSTANCE_COMPLETED|INSTANCE_FAILED)) )
 		{
-			p_percent2_trigger(NULL, arg->d.instance, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_FAILED,NULL);
+			p_percent2_trigger(NULL, arg->d.instance, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_FAILED,NULL,0,0,0,0,0);
 
 			SET_BIT(arg->d.instance->flags, INSTANCE_FAILED);
 		}
@@ -3241,16 +3241,19 @@ SCRIPT_CMD(scriptcmd_lockadd)
 	if( arg->d.obj->lock )
 		return;
 
-	switch(arg->d.obj->item_type)
+	if (!IS_CONTAINER(arg->d.obj))
 	{
-	case ITEM_CONTAINER:
-	case ITEM_BOOK:
-	case ITEM_PORTAL:
-//	case ITEM_WEAPON_CONTAINER:
-//	case ITEM_DRINKCONTAINER:
-		break;
-	default:
-		return;
+		switch(arg->d.obj->item_type)
+		{
+		case ITEM_CONTAINER:
+		case ITEM_BOOK:
+		case ITEM_PORTAL:
+//		case ITEM_WEAPON_CONTAINER:
+//		case ITEM_DRINKCONTAINER:
+			break;
+		default:
+			return;
+		}
 	}
 
 	LOCK_STATE *lock = new_lock_state();
@@ -6300,7 +6303,7 @@ SCRIPT_CMD(scriptcmd_acttrigger)
 		action = action_buffer->string;
 	}
 
-	ret = p_act_trigger(action, actor_m, actor_o, actor_r, ch, vch1, vch2, obj1, obj2, trigger);
+	ret = p_act_trigger(action, actor_m, actor_o, actor_r, ch, vch1, vch2, obj1, obj2, trigger,0,0,0,0,0);
 
 	if (action_buffer) free_buf(action_buffer);
 
@@ -6338,7 +6341,7 @@ SCRIPT_CMD(scriptcmd_bribetrigger)
 	PARSE_ARGTYPE(NUMBER);
 	amount = arg->d.num;
 
-	ret = p_bribe_trigger(actor, ch, amount);
+	ret = p_bribe_trigger(actor, ch, amount,0,0,0,0,0);
 
 	SETRETURN(ret);
 }
@@ -6384,7 +6387,7 @@ SCRIPT_CMD(scriptcmd_directiontrigger)
 	}
 	trigger = tt->type;
 
-	ret = p_direction_trigger(ch, here, door, PRG_RPROG, trigger);
+	ret = p_direction_trigger(ch, here, door, PRG_RPROG, trigger,0,0,0,0,0);
 
 	SETRETURN(ret);
 }
@@ -6420,7 +6423,7 @@ SCRIPT_CMD(scriptcmd_emoteattrigger)
 	}
 	emote = emote_buffer->string;
 
-	ret = p_emoteat_trigger(mob, ch, emote);
+	ret = p_emoteat_trigger(mob, ch, emote,0,0,0,0,0);
 
 	free_buf(emote_buffer);
 
@@ -6453,7 +6456,7 @@ SCRIPT_CMD(scriptcmd_emotetrigger)
 	}
 	emote = emote_buffer->string;
 
-	ret = p_emote_trigger(ch, emote);
+	ret = p_emote_trigger(ch, emote,0,0,0,0,0);
 
 	free_buf(emote_buffer);
 
@@ -6567,7 +6570,7 @@ SCRIPT_CMD(scriptcmd_exacttrigger)
 		phrase = phrase_buffer->string;
 	}
 
-	ret = p_exact_trigger(phrase, actor_m, actor_o, actor_r, ch, vch1, vch2, obj1, obj2, trigger);
+	ret = p_exact_trigger(phrase, actor_m, actor_o, actor_r, ch, vch1, vch2, obj1, obj2, trigger,0,0,0,0,0);
 
 	if (phrase_buffer) free_buf(phrase_buffer);
 
@@ -6610,7 +6613,7 @@ SCRIPT_CMD(scriptcmd_exittrigger)
 	}
 	trigger = tt->type;
 
-	ret = p_exit_trigger(ch, dir, trigger);
+	ret = p_exit_trigger(ch, dir, trigger,0,0,0,0,0);
 
 	SETRETURN(ret);
 }
@@ -6669,7 +6672,7 @@ SCRIPT_CMD(scriptcmd_givetrigger)
 	}
 	trigger = tt->type;
 
-	ret = p_give_trigger(actor_m, actor_o, actor_r, ch, obj, trigger);
+	ret = p_give_trigger(actor_m, actor_o, actor_r, ch, obj, trigger,0,0,0,0,0);
 
 	SETRETURN(ret);
 }
@@ -6697,7 +6700,7 @@ SCRIPT_CMD(scriptcmd_greettrigger)
 	if ((space = flag_value(script_spaces,arg->d.str)) == NO_FLAG)
 		return;
 
-	ret = p_greet_trigger(ch, space);
+	ret = p_greet_trigger(ch, space,0,0,0,0,0);
 
 	SETRETURN(ret);
 }
@@ -6723,7 +6726,7 @@ SCRIPT_CMD(scriptcmd_hprcttrigger)
 	PARSE_ARGTYPE(MOBILE);
 	ch = arg->d.mob;
 
-	ret = p_hprct_trigger(mob, ch);
+	ret = p_hprct_trigger(mob, ch,0,0,0,0,0);
 
 	SETRETURN(ret);
 }
@@ -6836,7 +6839,7 @@ SCRIPT_CMD(scriptcmd_nametrigger)
 		name = name_buffer->string;
 	}
 
-	ret = p_name_trigger(name, actor_m, actor_o, actor_r, ch, vch1, vch2, obj1, obj2, trigger);
+	ret = p_name_trigger(name, actor_m, actor_o, actor_r, ch, vch1, vch2, obj1, obj2, trigger,0,0,0,0,0);
 
 	if (name_buffer) free_buf(name_buffer);
 
@@ -6962,7 +6965,7 @@ SCRIPT_CMD(scriptcmd_numbertrigger)
 		phrase = phrase_buffer->string;
 	}
 
-	ret = p_number_trigger(number, wildcard, actor_m, actor_o, actor_r, actor_t, ch, vch1, vch2, obj1, obj2, trigger, phrase);
+	ret = p_number_trigger(number, wildcard, actor_m, actor_o, actor_r, actor_t, ch, vch1, vch2, obj1, obj2, trigger, phrase,0,0,0,0,0);
 
 	if (phrase_buffer) free_buf(phrase_buffer);
 
@@ -7087,9 +7090,9 @@ SCRIPT_CMD(scriptcmd_percenttrigger)
 	}
 
 	if (actor_a || actor_i || actor_d)
-		ret = p_percent2_trigger(actor_a, actor_i, actor_d, ch, vch1, vch2, obj1, obj2, trigger, phrase);
+		ret = p_percent2_trigger(actor_a, actor_i, actor_d, ch, vch1, vch2, obj1, obj2, trigger, phrase,0,0,0,0,0);
 	else
-		ret = p_percent_trigger(actor_m, actor_o, actor_r, actor_t, ch, vch1, vch2, obj1, obj2, trigger, phrase);
+		ret = p_percent_trigger(actor_m, actor_o, actor_r, actor_t, ch, vch1, vch2, obj1, obj2, trigger, phrase,0,0,0,0,0);
 
 	if (phrase_buffer) free_buf(phrase_buffer);
 
@@ -7216,7 +7219,7 @@ SCRIPT_CMD(scriptcmd_percenttokentrigger)
 		phrase = phrase_buffer->string;
 	}
 
-	ret = p_percent_token_trigger(actor_m, actor_o, actor_r, actor_t, ch, vch1, vch2, obj1, obj2, token, trigger, phrase);
+	ret = p_percent_token_trigger(actor_m, actor_o, actor_r, actor_t, ch, vch1, vch2, obj1, obj2, token, trigger, phrase,0,0,0,0,0);
 
 	if (phrase_buffer) free_buf(phrase_buffer);
 
@@ -7259,7 +7262,7 @@ SCRIPT_CMD(scriptcmd_usetrigger)
 	}
 	trigger = tt->type;
 
-	ret = p_use_trigger(ch, obj, trigger);
+	ret = p_use_trigger(ch, obj, trigger,0,0,0,0,0);
 
 	SETRETURN(ret);
 }
@@ -7314,7 +7317,7 @@ SCRIPT_CMD(scriptcmd_useontrigger)
 		target = target_buffer->string;
 	}
 
-	ret = p_use_on_trigger(ch, obj, trigger, target);
+	ret = p_use_on_trigger(ch, obj, trigger, target,0,0,0,0,0);
 
 	if (target_buffer) free_buf(target_buffer);
 
@@ -7396,7 +7399,7 @@ SCRIPT_CMD(scriptcmd_usewithtrigger)
 	}
 	trigger = tt->type;
 
-	ret = p_use_with_trigger(ch, obj, trigger, obj1, obj2, vch1, vch2);
+	ret = p_use_with_trigger(ch, obj, trigger, obj1, obj2, vch1, vch2,0,0,0,0,0);
 
 	SETRETURN(ret);
 }
@@ -7695,7 +7698,7 @@ SCRIPT_CMD(scriptcmd_addspell)
 
 				if (paf == NULL || paf->level < level) {
 					affect_strip_token(target->carried_by, token);
-					p_token_index_percent_trigger(token, target->carried_by, NULL, NULL, target, NULL, TRIG_APPLY_AFFECT, NULL, level, 0, 0, 0, 0);
+					p_token_index_percent_trigger(token, target->carried_by, NULL, NULL, target, NULL, TRIG_APPLY_AFFECT, NULL, level, 0, 0, 0, 0,0,0,0,0,0);
 				}
 			}
 		}
@@ -7852,7 +7855,7 @@ SCRIPT_CMD(scriptcmd_remspell)
 				}
 				else if (token)
 				{
-					p_token_index_percent_trigger(token, target->carried_by, NULL, NULL, target, NULL, TRIG_WEAROFF_AFFECT, (show ? "" : "silent"), 0, 0, 0, 0, 0);
+					p_token_index_percent_trigger(token, target->carried_by, NULL, NULL, target, NULL, TRIG_WEAROFF_AFFECT, (show ? "" : "silent"), 0, 0, 0, 0, 0,0,0,0,0,0);
 
 					affect_strip_token(target->carried_by, token);
 				}
@@ -7861,3 +7864,610 @@ SCRIPT_CMD(scriptcmd_remspell)
 	}
 }
 
+
+
+SCRIPT_CMD(scriptcmd_alterobj)
+{
+	char buf[2*MIL],field[MIL],*rest;
+	int value, num, min_sec = MIN_SCRIPT_SECURITY;
+	OBJ_DATA *obj = NULL;
+	int min = 0, max = 0;
+	bool hasmin = FALSE, hasmax = FALSE;
+	bool allowarith = TRUE;
+	const struct flag_type *flags = NULL;
+
+	if(!info) return;
+
+	SETRETURN(0);
+
+	if(!(rest = expand_argument(info,argument,arg))) {
+		bug("AlterObj - Error in parsing.",0);
+		return;
+	}
+
+	switch(arg->type) {
+	case ENT_STRING: obj = script_get_obj_here(info, arg->d.str); break;
+	case ENT_OBJECT: obj = arg->d.obj; break;
+	default: break;
+	}
+
+	if(!obj) {
+		bug("AlterObj - NULL object.", 0);
+		return;
+	}
+
+	if(!*rest) {
+		bug("AlterObj - Missing field type.",0);
+		return;
+	}
+
+	if(!(rest = expand_argument(info,rest,arg))) {
+		bug("AlterObj - Error in parsing.",0);
+		return;
+	}
+
+	field[0] = 0;
+	num = -1;
+
+	switch(arg->type) {
+	case ENT_STRING:
+		if(is_number(arg->d.str)) {
+			num = atoi(arg->d.str);
+			if(num < 0 || num >= MAX_OBJVALUES) return;
+		} else
+			strncpy(field,arg->d.str,MIL-1);
+		break;
+	case ENT_NUMBER:
+		num = arg->d.num;
+		if(num < 0 || num >= MAX_OBJVALUES) return;
+		break;
+	default: return;
+	}
+
+	if(num < 0 && !field[0]) return;
+
+	argument = one_argument(rest,buf);
+
+	if(!(rest = expand_argument(info,argument,arg))) {
+		bug("AlterObj - Error in parsing.",0);
+		return;
+	}
+
+	if(num >= 0) {
+		switch(arg->type) {
+		case ENT_STRING: value = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
+		case ENT_NUMBER: value = arg->d.num; break;
+		default: return;
+		}
+
+		if(script_security < min_sec) {
+			sprintf(buf,"AlterObj - Attempting to alter value%d with security %d.\n\r", num, script_security);
+			bug(buf, 0);
+			return;
+		}
+
+		switch (buf[0]) {
+		case '+': obj->value[num] += value; break;
+		case '-': obj->value[num] -= value; break;
+		case '*': obj->value[num] *= value; break;
+		case '/':
+			if (!value) {
+				bug("AlterObj - adjust called with operator / and value 0", 0);
+				return;
+			}
+			obj->value[num] /= value;
+			break;
+		case '%':
+			if (!value) {
+				bug("AlterObj - adjust called with operator % and value 0", 0);
+				return;
+			}
+			obj->value[num] %= value;
+			break;
+
+		case '=': obj->value[num] = value; break;
+		case '&': obj->value[num] &= value; break;
+		case '|': obj->value[num] |= value; break;
+		case '!': obj->value[num] &= ~value; break;
+		case '^': obj->value[num] ^= value; break;
+		default:
+			return;
+		}
+	} else {
+		int *ptr = NULL;
+
+		if(!str_cmp(field,"cond"))				ptr = (int*)&obj->condition;
+		else if(!str_cmp(field,"container.flags"))	{ ptr = (int *)(IS_CONTAINER(obj)?&CONTAINER(obj)->flags:NULL); flags = container_flags; }
+		else if(!str_cmp(field,"container.weight"))	{ ptr = (int *)(IS_CONTAINER(obj)?&CONTAINER(obj)->max_weight:NULL); hasmin = TRUE; min = 0; }
+		else if(!str_cmp(field,"container.weight%"))	{ ptr = (int *)(IS_CONTAINER(obj)?&CONTAINER(obj)->weight_multiplier:NULL); hasmin = TRUE; min = 0; hasmax = TRUE; max = 100; }
+		else if(!str_cmp(field,"container.volume"))	{ ptr = (int *)(IS_CONTAINER(obj)?&CONTAINER(obj)->max_volume:NULL); hasmin = TRUE; min = 0; }
+		else if(!str_cmp(field,"cost"))			{ ptr = (int*)&obj->cost; min_sec = 5; }
+		else if(!str_cmp(field,"extra"))		{ ptr = (int*)&obj->extra_flags; flags = extra_flags; }
+		else if(!str_cmp(field,"extra2"))		{ ptr = (int*)&obj->extra2_flags; flags = extra2_flags; min_sec = 7; }
+		else if(!str_cmp(field,"extra3"))		{ ptr = (int*)&obj->extra3_flags; flags = extra3_flags; min_sec = 7; }
+		else if(!str_cmp(field,"extra4"))		{ ptr = (int*)&obj->extra4_flags; flags = extra4_flags; min_sec = 7; }
+		else if(!str_cmp(field,"fixes"))		{ ptr = (int*)&obj->times_allowed_fixed; min_sec = 5; }
+		else if(!str_cmp(field,"food.hunger"))	{ ptr = (int *)(IS_FOOD(obj)?&FOOD(obj)->hunger:NULL); hasmin = TRUE; min = 0; }
+		else if(!str_cmp(field,"food.full"))	{ ptr = (int *)(IS_FOOD(obj)?&FOOD(obj)->full:NULL); hasmin = TRUE; min = 0; }
+		else if(!str_cmp(field,"food.poison"))	{ ptr = (int *)(IS_FOOD(obj)?&FOOD(obj)->poison:NULL); hasmin = TRUE; min = 0; hasmax = TRUE; max = 100; }
+		else if(!str_cmp(field,"level"))		{ ptr = (int*)&obj->level; min_sec = 5; }
+		else if(!str_cmp(field,"light.flags"))	{ ptr = (int *)(IS_LIGHT(obj)?&LIGHT(obj)->flags:NULL); flags = light_flags; }
+		else if(!str_cmp(field,"light.duration"))	{ ptr = (int *)(IS_LIGHT(obj)?&LIGHT(obj)->duration:NULL); }
+		else if(!str_cmp(field,"repairs"))		ptr = (int*)&obj->times_fixed;
+		else if(!str_cmp(field,"tempstore1"))	ptr = (int*)&obj->tempstore[0];
+		else if(!str_cmp(field,"tempstore2"))	ptr = (int*)&obj->tempstore[1];
+		else if(!str_cmp(field,"tempstore3"))	ptr = (int*)&obj->tempstore[2];
+		else if(!str_cmp(field,"tempstore4"))	ptr = (int*)&obj->tempstore[3];
+		else if(!str_cmp(field,"tempstore5"))	ptr = (int*)&obj->tempstore[4];
+		else if(!str_cmp(field,"timer"))		ptr = (int*)&obj->timer;
+		else if(!str_cmp(field,"type"))			{ ptr = (int*)&obj->item_type; flags = type_flags; min_sec = 7; }
+		else if(!str_cmp(field,"wear"))			{ ptr = (int*)&obj->wear_flags; flags = wear_flags; }
+		else if(!str_cmp(field,"wearloc"))		{ ptr = (int*)&obj->wear_loc; flags = wear_loc_flags; }
+		else if(!str_cmp(field,"weight"))		ptr = (int*)&obj->weight;
+
+		if(!ptr) return;
+
+		if(script_security < min_sec) {
+			sprintf(buf,"AlterObj - Attempting to alter '%s' with security %d.\n\r", field, script_security);
+			bug(buf, 0);
+			return;
+		}
+
+		if( flags != NULL )
+		{
+			if( arg->type != ENT_STRING ) return;
+
+			allowarith = FALSE;	// This is a bit vector, no arithmetic operators.
+			value = script_flag_value(flags, arg->d.str);
+
+			if( value == NO_FLAG ) value = 0;
+
+			if( flags == extra3_flags )
+			{
+				REMOVE_BIT(value, ITEM_INSTANCE_OBJ);
+
+				if( buf[0] == '=' || buf[0] == '&' )
+				{
+					value |= (*ptr & (ITEM_INSTANCE_OBJ));
+				}
+			}
+		}
+		else
+		{
+			switch(arg->type) {
+			case ENT_STRING:
+				if( is_number(arg->d.str) )
+					value = atoi(arg->d.str);
+				else
+					return;
+
+				break;
+			case ENT_NUMBER: value = arg->d.num; break;
+			default: return;
+			}
+		}
+
+		switch (buf[0]) {
+		case '+':
+			if( !allowarith ) {
+				bug("AlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
+				return;
+			}
+
+			*ptr += value;
+			break;
+
+		case '-':
+			if( !allowarith ) {
+				bug("AlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
+				return;
+			}
+
+			*ptr -= value;
+			break;
+
+		case '*':
+			if( !allowarith ) {
+				bug("AlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
+				return;
+			}
+
+			*ptr *= value;
+			break;
+
+		case '/':
+			if( !allowarith ) {
+				bug("AlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
+				return;
+			}
+
+			if (!value) {
+				bug("AlterObj - adjust called with operator / and value 0", 0);
+				return;
+			}
+			*ptr /= value;
+			break;
+		case '%':
+			if( !allowarith ) {
+				bug("AlterObj - alterobj called with arithmetic operator on a bitonly field.", 0);
+				return;
+			}
+
+			if (!value) {
+				bug("AlterObj - adjust called with operator % and value 0", 0);
+				return;
+			}
+			*ptr %= value;
+			break;
+
+		case '=': *ptr = value; break;
+		case '&': *ptr &= value; break;
+		case '|': *ptr |= value; break;
+		case '!': *ptr &= ~value; break;
+		case '^': *ptr ^= value; break;
+		default:
+			return;
+		}
+
+		if( ptr )
+		{
+			if(hasmin && *ptr < min)
+				*ptr = min;
+
+			if(hasmax && *ptr > max)
+				*ptr = max;
+		}
+	}
+
+	SETRETURN(1);
+}
+
+// ADDTYPE $OBJECT $STRING
+// LASTRETURN == 0 for failure
+SCRIPT_CMD(scriptcmd_addtype)
+{
+	char *rest = argument;
+	OBJ_DATA *obj;
+	int type;
+
+	SETRETURN(0);
+
+	if (script_security < 7) return;
+
+	PARSE_ARGTYPE(OBJECT);
+	if (!IS_VALID(arg->d.obj)) return;
+	obj = arg->d.obj;
+
+	PARSE_ARGTYPE(STRING);
+	type = stat_lookup(arg->d.str, type_flags, NO_FLAG);
+	if (type == NO_FLAG) return;
+
+	if (obj->pIndexData->item_type == type) return;
+
+	if (!obj_index_can_add_item_type(obj->pIndexData, type))
+		return;
+
+	switch(type)
+	{
+		case ITEM_CONTAINER:
+			if (IS_CONTAINER(obj)) return;
+
+			CONTAINER(obj) = new_container_data();
+			break;
+
+		case ITEM_LIGHT:
+			if (IS_LIGHT(obj)) return;
+
+			LIGHT(obj) = new_light_data();
+			break;
+
+		default:
+			return;	// Can't install these types
+	}
+
+	SETRETURN(1);
+}
+
+// REMTYPE $OBJECT $STRING
+SCRIPT_CMD(scriptcmd_remtype)
+{
+		char *rest = argument;
+	OBJ_DATA *obj;
+	int type;
+
+	SETRETURN(0);
+
+	if (script_security < 7) return;
+
+	PARSE_ARGTYPE(OBJECT);
+	if (!IS_VALID(arg->d.obj)) return;
+	obj = arg->d.obj;
+
+	PARSE_ARGTYPE(STRING);
+	type = stat_lookup(arg->d.str, type_flags, NO_FLAG);
+	if (type == NO_FLAG) return;
+
+	if (obj->pIndexData->item_type == type) return;
+
+	switch(type)
+	{
+		case ITEM_CONTAINER:
+			if (!IS_CONTAINER(obj)) return;
+
+			free_container_data(CONTAINER(obj));
+			CONTAINER(obj) = NULL;
+			break;
+
+		case ITEM_LIGHT:
+			if (!IS_LIGHT(obj)) return;
+
+			free_light_data(LIGHT(obj));
+			LIGHT(obj) = NULL;
+			break;
+
+		default:
+			return;	// Can't install these types
+	}
+
+	SETRETURN(1);
+}
+
+// ADDWHITELIST $CONTAINER $TYPE[ $SUBTYPE]
+SCRIPT_CMD(scriptcmd_addwhitelist)
+{
+	char *rest = argument;
+	OBJ_DATA *container;
+
+	SETRETURN(0);
+
+	PARSE_ARGTYPE(OBJECT);
+	if (!IS_VALID(arg->d.obj)) return;
+	container = arg->d.obj;
+
+	if (!IS_CONTAINER(container)) return;
+
+	PARSE_ARGTYPE(STRING);
+	int type = stat_lookup(arg->d.str, type_flags, NO_FLAG);
+	if( type == NO_FLAG) return;
+
+	int subtype = -1;
+	if (type == ITEM_WEAPON)
+	{
+		// Get subtype
+
+		PARSE_ARGTYPE(STRING);
+		subtype = stat_lookup(arg->d.str, weapon_class, NO_FLAG);
+		if (subtype == NO_FLAG) return;
+	}
+
+	ITERATOR it;
+	CONTAINER_FILTER *filter;
+	iterator_start(&it, CONTAINER(container)->whitelist);
+	while((filter = (CONTAINER_FILTER *)iterator_nextdata(&it)))
+	{
+		if (filter->item_type == type && filter->sub_type == subtype)
+		{
+			break;
+		}
+	}
+	iterator_stop(&it);
+
+	if(filter) return;
+
+	filter = new_container_filter();
+	filter->item_type = type;
+	filter->sub_type = subtype;
+	list_appendlink(CONTAINER(container)->whitelist, filter);
+
+	SETRETURN(1);
+}
+
+// REMWHITELIST $CONTAINER $TYPE[ $SUBTYPE]
+SCRIPT_CMD(scriptcmd_remwhitelist)
+{
+	char *rest = argument;
+	OBJ_DATA *container;
+
+	SETRETURN(0);
+
+	PARSE_ARGTYPE(OBJECT);
+	if (!IS_VALID(arg->d.obj)) return;
+	container = arg->d.obj;
+
+	if (!IS_CONTAINER(container)) return;
+
+	PARSE_ARGTYPE(STRING);
+	int type = stat_lookup(arg->d.str, type_flags, NO_FLAG);
+	if( type == NO_FLAG) return;
+
+	int subtype = -1;
+	if (type == ITEM_WEAPON)
+	{
+		// Get subtype
+
+		PARSE_ARGTYPE(STRING);
+		subtype = stat_lookup(arg->d.str, weapon_class, NO_FLAG);
+		if (subtype == NO_FLAG) return;
+	}
+
+	ITERATOR it;
+	CONTAINER_FILTER *filter;
+	iterator_start(&it, CONTAINER(container)->whitelist);
+	while((filter = (CONTAINER_FILTER *)iterator_nextdata(&it)))
+	{
+		if (filter->item_type == type && filter->sub_type == subtype)
+		{
+			iterator_remcurrent(&it);
+			break;
+		}
+	}
+	iterator_stop(&it);
+
+	if (filter) SETRETURN(1);
+}
+
+// ADDBLACKLIST $CONTAINER $TYPE[ $SUBTYPE]
+SCRIPT_CMD(scriptcmd_addblacklist)
+{
+	char *rest = argument;
+	OBJ_DATA *container;
+
+	SETRETURN(0);
+
+	PARSE_ARGTYPE(OBJECT);
+	if (!IS_VALID(arg->d.obj)) return;
+	container = arg->d.obj;
+
+	if (!IS_CONTAINER(container)) return;
+
+	PARSE_ARGTYPE(STRING);
+	int type = stat_lookup(arg->d.str, type_flags, NO_FLAG);
+	if( type == NO_FLAG) return;
+
+	int subtype = -1;
+	if (type == ITEM_WEAPON)
+	{
+		// Get subtype
+
+		PARSE_ARGTYPE(STRING);
+		subtype = stat_lookup(arg->d.str, weapon_class, NO_FLAG);
+		if (subtype == NO_FLAG) return;
+	}
+
+	ITERATOR it;
+	CONTAINER_FILTER *filter;
+	iterator_start(&it, CONTAINER(container)->blacklist);
+	while((filter = (CONTAINER_FILTER *)iterator_nextdata(&it)))
+	{
+		if (filter->item_type == type && filter->sub_type == subtype)
+		{
+			break;
+		}
+	}
+	iterator_stop(&it);
+
+	if(filter) return;
+
+	filter = new_container_filter();
+	filter->item_type = type;
+	filter->sub_type = subtype;
+	list_appendlink(CONTAINER(container)->blacklist, filter);
+
+	SETRETURN(1);
+}
+
+// REMBLACKLIST $CONTAINER $TYPE[ $SUBTYPE]
+SCRIPT_CMD(scriptcmd_remblacklist)
+{
+	char *rest = argument;
+	OBJ_DATA *container;
+
+	SETRETURN(0);
+
+	PARSE_ARGTYPE(OBJECT);
+	if (!IS_VALID(arg->d.obj)) return;
+	container = arg->d.obj;
+
+	if (!IS_CONTAINER(container)) return;
+
+	PARSE_ARGTYPE(STRING);
+	int type = stat_lookup(arg->d.str, type_flags, NO_FLAG);
+	if( type == NO_FLAG) return;
+
+	int subtype = -1;
+	if (type == ITEM_WEAPON)
+	{
+		// Get subtype
+
+		PARSE_ARGTYPE(STRING);
+		subtype = stat_lookup(arg->d.str, weapon_class, NO_FLAG);
+		if (subtype == NO_FLAG) return;
+	}
+
+	ITERATOR it;
+	CONTAINER_FILTER *filter;
+	iterator_start(&it, CONTAINER(container)->blacklist);
+	while((filter = (CONTAINER_FILTER *)iterator_nextdata(&it)))
+	{
+		if (filter->item_type == type && filter->sub_type == subtype)
+		{
+			iterator_remcurrent(&it);
+			break;
+		}
+	}
+	iterator_stop(&it);
+
+	if (filter) SETRETURN(1);
+}
+
+
+// ADDFOODBUFF $FOOD apply-type(string) level(number|auto) location(string) modifier(number) duration(number|auto) bitvector(string) bitvector2(string)
+SCRIPT_CMD(scriptcmd_addfoodbuff)
+{
+	char *rest = argument;
+	OBJ_DATA *food;
+
+	SETRETURN(0);
+
+	PARSE_ARGTYPE(OBJECT);
+	if (!IS_VALID(arg->d.obj)) return;
+	food = arg->d.obj;
+
+	if (!IS_FOOD(food)) return;
+
+	PARSE_ARGTYPE(STRING);
+	int type = stat_lookup(arg->d.str, food_buff_types, NO_FLAG);
+	if (type == NO_FLAG) return;
+
+	int level;
+	if (!PARSE_ARG) return;
+	if (arg->type == ENT_NUMBER)
+	{
+		level = UMAX(1, arg->d.num);
+	}
+	else if (!str_prefix(arg->d.str, "auto"))
+	{
+		level = 0;
+	}
+	else
+		return;
+
+	PARSE_ARGTYPE(STRING);
+	int location = stat_lookup(arg->d.str, apply_flags, NO_FLAG);
+	if (location == NO_FLAG) return;
+
+	PARSE_ARGTYPE(NUMBER);
+	int modifier = arg->d.num;
+
+	int duration;
+	if (!PARSE_ARG) return;
+	if (arg->type == ENT_NUMBER)
+	{
+		duration = UMAX(1, arg->d.num);
+	}
+	else if (!str_prefix(arg->d.str, "auto"))
+	{
+		duration = 0;
+	}
+	else
+		return;
+
+	long bitvectors[2];
+
+	PARSE_ARGTYPE(STRING);
+
+	if (!bitvector_lookup(arg->d.str, 2, bitvectors, affect_flags, affect2_flags)) return;
+
+	FOOD_BUFF_DATA *buff = new_food_buff_data();
+	buff->where = type;
+	buff->level = level;
+	buff->location = location;
+	buff->modifier = modifier;
+	buff->duration = duration;
+	buff->bitvector = bitvectors[0];
+	buff->bitvector2 = bitvectors[1];
+
+	list_appendlink(FOOD(food)->buffs, buff);
+
+	SETRETURN(1);
+}

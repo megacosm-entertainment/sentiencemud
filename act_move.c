@@ -391,19 +391,18 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 
 	// Allow scripting to screw with the direction of travel
 	ch->tempstore[0] = door;
-	if( p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_MOVE_CHAR, dir_name[ch->tempstore[0]]) )
+	if(p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_MOVE_CHAR, dir_name[ch->tempstore[0]],0,0,0,0,0))
 		return;
 
 	ch->in_room->tempstore[0] = URANGE(0,ch->tempstore[0],(MAX_DIR-1));;
-	if( p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, NULL, NULL, TRIG_MOVE_CHAR, dir_name[ch->in_room->tempstore[0]]) )
+	if(p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, NULL, NULL, TRIG_MOVE_CHAR, dir_name[ch->in_room->tempstore[0]],0,0,0,0,0))
 		return;
 
 	door = URANGE(0,ch->in_room->tempstore[0],(MAX_DIR-1));
 
-
 	/* Exit trigger, if activated, bail out. Only PCs are triggered. */
-	if (!IS_NPC(ch) && (p_exit_trigger(ch, door, PRG_MPROG) ||
-			p_exit_trigger(ch, door, PRG_OPROG) || p_exit_trigger(ch, door, PRG_RPROG)))
+	if (!IS_NPC(ch) && (p_exit_trigger(ch, door, PRG_MPROG,0,0,0,0,0) ||
+			p_exit_trigger(ch, door, PRG_OPROG,0,0,0,0,0) || p_exit_trigger(ch, door, PRG_RPROG,0,0,0,0,0)))
 		return;
 
 	/* Check if char is "on" something. preventing movement */
@@ -708,24 +707,24 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 
 	if( IS_VALID(to_dungeon) && (in_dungeon != to_dungeon) )
 	{
-		p_percent2_trigger(NULL, NULL, to_dungeon, ch, NULL, NULL, NULL, NULL, TRIG_ENTRY, NULL);
+		p_percent2_trigger(NULL, NULL, to_dungeon, ch, NULL, NULL, NULL, NULL, TRIG_ENTRY, NULL,0,0,0,0,0);
 	}
 
 	if( IS_VALID(to_instance) && to_instance != in_instance )
 	{
-		p_percent2_trigger(NULL, to_instance, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ENTRY, NULL);
+		p_percent2_trigger(NULL, to_instance, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ENTRY, NULL,0,0,0,0,0);
 	}
 
 	/*
 	* If someone is following the char, these triggers get activated
 	* for the followers before the char, but it's safer this way...
 	*/
-	p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_ENTRY, NULL);
+	p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_ENTRY, NULL,0,0,0,0,0);
 
 	if (!IS_NPC(ch)) {
-		p_greet_trigger(ch, PRG_MPROG);
-		p_greet_trigger(ch, PRG_OPROG);
-		p_greet_trigger(ch, PRG_RPROG);
+		p_greet_trigger(ch, PRG_MPROG,0,0,0,0,0);
+		p_greet_trigger(ch, PRG_OPROG,0,0,0,0,0);
+		p_greet_trigger(ch, PRG_RPROG,0,0,0,0,0);
 	}
 
 	if (!IS_DEAD(ch)) check_rocks(ch, true);
@@ -1047,14 +1046,14 @@ bool can_move_room(CHAR_DATA *ch, int door, ROOM_INDEX_DATA *room)
 
 	if(!is_room_unlocked(ch, room) )
 	{
-		if(p_percent2_trigger(room->area, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREENTER, dir_name[door]))
+		if(p_percent2_trigger(room->area, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREENTER, dir_name[door],0,0,0,0,0))
 			send_to_char("You cannot enter that place yet.\n\r", ch);
 
 		return FALSE;
 	}
 
 
-	if(p_percent_trigger(NULL, NULL, room, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREENTER, dir_name[door]))
+	if(p_percent_trigger(NULL, NULL, room, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREENTER, dir_name[door],0,0,0,0,0))
 		return FALSE;
 
 	if (MOUNTED(ch) && (MOUNTED(ch)->position < POS_FIGHTING)) {
@@ -1436,24 +1435,30 @@ void do_open(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		if (obj->item_type != ITEM_CONTAINER && obj->item_type != ITEM_BOOK)
+		long flags;
+
+		if (IS_CONTAINER(obj))
+			flags = CONTAINER(obj)->flags;
+		else if (obj->item_type == ITEM_BOOK)
+			flags = obj->value[1];
+		else
 		{
 			send_to_char("You can't do that.\n\r", ch);
 			return;
 		}
 
-		if (!IS_SET(obj->value[1], CONT_CLOSED))
+		if (!IS_SET(flags, CONT_CLOSED))
 		{
 			send_to_char("It's already open.\n\r", ch);
 			return;
 		}
-		if (!IS_SET(obj->value[1], CONT_CLOSEABLE))
+		if (!IS_SET(flags, CONT_CLOSEABLE))
 		{
 			send_to_char("You can't do that.\n\r", ch);
 			return;
 		}
 		/* @@@NIB : 20070126 */
-		if (IS_SET(obj->value[1], CONT_PUSHOPEN))
+		if (IS_SET(flags, CONT_PUSHOPEN))
 		{
 			send_to_char("You need to push it open.\n\r", ch);
 			return;
@@ -1474,10 +1479,14 @@ void do_open(CHAR_DATA *ch, char *argument)
 			}
 		}
 
-		REMOVE_BIT(obj->value[1], CONT_CLOSED);
+		if (IS_CONTAINER(obj))
+			REMOVE_BIT(CONTAINER(obj)->flags, CONT_CLOSED);
+		else if (obj->item_type == ITEM_BOOK)
+			REMOVE_BIT(obj->value[1], CONT_CLOSED);
+
 		act("You open $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
 		act("$n opens $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-		p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, ch, NULL, NULL, TRIG_OPEN, NULL);
+		p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, ch, NULL, NULL, TRIG_OPEN, NULL,0,0,0,0,0);
 
 		return;
 	}
@@ -1518,7 +1527,7 @@ void do_open(CHAR_DATA *ch, char *argument)
 		REMOVE_BIT(pexit->exit_info, EX_CLOSED);
 		act("$n opens $T.", ch, NULL, NULL, NULL, NULL, NULL, exit, TO_ROOM);
 		act("You open $T.", ch, NULL, NULL, NULL, NULL, NULL, exit, TO_CHAR);
-		p_direction_trigger(ch, ch->in_room, door, PRG_RPROG, TRIG_OPEN);
+		p_direction_trigger(ch, ch->in_room, door, PRG_RPROG, TRIG_OPEN,0,0,0,0,0);
 
 		if ((to_room   = pexit->u1.to_room) != NULL &&
 			(pexit_rev = to_room->exit[rev_dir[door]]) != NULL &&
@@ -1581,32 +1590,43 @@ void do_close(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		/* 'close object' */
-		if (obj->item_type != ITEM_CONTAINER && obj->item_type != ITEM_BOOK)
-		{
-			send_to_char("You can't do that.\n\r", ch);
-			return;
-		}
-		if (IS_SET(obj->value[1], CONT_CLOSED))
-		{
-			send_to_char("It's already closed.\n\r", ch);
-			return;
-		}
-		if (!IS_SET(obj->value[1], CONT_CLOSEABLE))
+		long flags;
+		if (IS_CONTAINER(obj))
+			flags = CONTAINER(obj)->flags;
+		else if (obj->item_type == ITEM_BOOK)
+			flags = obj->value[1];
+		else
 		{
 			send_to_char("You can't do that.\n\r", ch);
 			return;
 		}
 
-		SET_BIT(obj->value[1], CONT_CLOSED);
+		if (IS_SET(flags, CONT_CLOSED))
+		{
+			send_to_char("It's already closed.\n\r", ch);
+			return;
+		}
+		if (!IS_SET(flags, CONT_CLOSEABLE))
+		{
+			send_to_char("You can't do that.\n\r", ch);
+			return;
+		}
+
+
+		if (IS_CONTAINER(obj))
+			SET_BIT(CONTAINER(obj)->flags, CONT_CLOSED);
+		else if (obj->item_type == ITEM_BOOK)
+			SET_BIT(obj->value[1], CONT_CLOSED);
+
 		act("You close $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
 		act("$n closes $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-		if (obj->lock && IS_SET(obj->value[1], CONT_CLOSELOCK))
+
+		if (obj->lock && IS_SET(flags, CONT_CLOSELOCK))
 		{
 			act("$p locks once closed.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL);
 			SET_BIT(obj->lock->flags, LOCK_LOCKED);
 		}
-		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CLOSE, NULL);
+		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CLOSE, NULL,0,0,0,0,0);
 		return;
 	}
 
@@ -1634,7 +1654,7 @@ void do_close(CHAR_DATA *ch, char *argument)
 		SET_BIT(pexit->exit_info, EX_CLOSED);
 		act("$n closes $T.", ch, NULL, NULL, NULL, NULL, NULL, exit, TO_ROOM);
 		act("You close $T.", ch, NULL, NULL, NULL, NULL, NULL, exit, TO_CHAR);
-		p_direction_trigger(ch, ch->in_room, door, PRG_RPROG, TRIG_CLOSE);
+		p_direction_trigger(ch, ch->in_room, door, PRG_RPROG, TRIG_CLOSE,0,0,0,0,0);
 
 		/* close the other side */
 		if ((to_room   = pexit->u1.to_room) != NULL &&
@@ -1652,36 +1672,6 @@ void do_close(CHAR_DATA *ch, char *argument)
 	}
 
 	return;
-}
-
-
-OBJ_DATA *get_key(CHAR_DATA *ch, int vnum)
-{
-	OBJ_DATA *obj;
-	OBJ_DATA *key;
-
-	if( vnum < 1 ) return NULL;
-
-	for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
-	{
-		if (obj->pIndexData->vnum == vnum)
-			return obj;
-	}
-
-	/* Keyring */
-	for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
-	{
-		if (obj->pIndexData->item_type == ITEM_KEYRING)
-		{
-			for (key = obj->contains; key != NULL; key = key->next_content)
-			{
-				if (key->pIndexData->vnum == vnum)
-					return key;
-			}
-		}
-	}
-
-	return NULL;
 }
 
 
@@ -1815,7 +1805,7 @@ void do_lock(CHAR_DATA *ch, char *argument)
 			}
 
 			// If $(obj1) is defined, $(obj) is the KEY
-			if ((ret = p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PRELOCK, NULL)))
+			if ((ret = p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PRELOCK, NULL,0,0,0,0,0)))
 			{
 				if (ret != PRET_SILENT)
 				{
@@ -1825,7 +1815,7 @@ void do_lock(CHAR_DATA *ch, char *argument)
 			}
 
 			// If $(obj2) is defined, $(obj) is the PORTAL
-			if ((ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, key, TRIG_PRELOCK, NULL)))
+			if ((ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, key, TRIG_PRELOCK, NULL,0,0,0,0,0)))
 			{
 				if (ret != PRET_SILENT)
 				{
@@ -1839,36 +1829,44 @@ void do_lock(CHAR_DATA *ch, char *argument)
 			act("$n locks $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
 
 			uk = TRUE;
-			if (p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_LOCK, NULL))
+			if (p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_LOCK, NULL,0,0,0,0,0))
 				uk = FALSE;
-			if (p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, key, TRIG_LOCK, NULL))
+			if (p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, key, TRIG_LOCK, NULL,0,0,0,0,0))
 				uk = FALSE;
 			if (uk)
 				use_key(ch, key, obj->lock);
 			return;
 		}
 
-		/* 'lock object' */
-		if (obj->item_type != ITEM_CONTAINER && obj->item_type != ITEM_BOOK)
+		if (IS_CONTAINER(obj))
 		{
-			send_to_char("You can't do that.\n\r", ch);
-			return;
+			if (!IS_SET(CONTAINER(obj)->flags, CONT_CLOSED))
+			{
+				send_to_char("It's not closed.\n\r", ch);
+				return;
+			}
 		}
-		if (!IS_SET(obj->value[1], CONT_CLOSED))
+		else if (obj->item_type == ITEM_BOOK)
 		{
-			send_to_char("It's not closed.\n\r", ch);
-			return;
+			if (!IS_SET(obj->value[1], CONT_CLOSED))
+			{
+				send_to_char("It's not closed.\n\r", ch);
+				return;
+			}
 		}
+
 		if (!lockstate_functional(obj->lock))
 		{
 			send_to_char("It can't be locked.\n\r",ch);
 			return;
 		}
+
 		if ((key = lockstate_getkey(ch,obj->lock)) == NULL)
 		{
 			send_to_char("You lack the key.\n\r",ch);
 			return;
 		}
+
 		if (IS_SET(obj->lock->flags,LOCK_BROKEN))
 		{
 			send_to_char("The lock is broken.\n\r",ch);
@@ -1888,7 +1886,7 @@ void do_lock(CHAR_DATA *ch, char *argument)
 		}
 
 		// If $(obj1) is defined, $(obj) is the KEY
-		if ((ret = p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PRELOCK, NULL)))
+		if ((ret = p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PRELOCK, NULL,0,0,0,0,0)))
 		{
 			if (ret != PRET_SILENT)
 			{
@@ -1898,7 +1896,7 @@ void do_lock(CHAR_DATA *ch, char *argument)
 		}
 
 		// If $(obj2) is defined, $(obj) is the OBJECT
-		if ((ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, key, TRIG_PRELOCK, NULL)))
+		if ((ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, key, TRIG_PRELOCK, NULL,0,0,0,0,0)))
 		{
 			if (ret != PRET_SILENT)
 			{
@@ -1912,9 +1910,9 @@ void do_lock(CHAR_DATA *ch, char *argument)
 		act("$n locks $p.",ch, NULL, NULL,obj, NULL, NULL, NULL, TO_ROOM);
 
 		uk = TRUE;
-		if (p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_LOCK, NULL))
+		if (p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_LOCK, NULL,0,0,0,0,0))
 			uk = FALSE;
-		if (p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, key, TRIG_LOCK, NULL))
+		if (p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, key, TRIG_LOCK, NULL,0,0,0,0,0))
 			uk = FALSE;
 		if (uk)
 			use_key(ch, key, obj->lock);
@@ -1962,7 +1960,7 @@ void do_lock(CHAR_DATA *ch, char *argument)
 
 		// If neither $(obj1) nor $(obj2) are defined, it is a KEY targeting a room
 		key->tempstore[0] = door;
-		if ((ret = p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PRELOCK, NULL)))
+		if ((ret = p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PRELOCK, NULL,0,0,0,0,0)))
 		{
 			if (ret != PRET_SILENT)
 			{
@@ -1987,9 +1985,9 @@ void do_lock(CHAR_DATA *ch, char *argument)
 
 		key->tempstore[0] = door;
 		uk = TRUE;
-		if(p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LOCK, NULL))
+		if(p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LOCK, NULL,0,0,0,0,0))
 			uk = FALSE;
-		if(p_direction_trigger(ch, ch->in_room, door, PRG_RPROG, TRIG_LOCK))
+		if(p_direction_trigger(ch, ch->in_room, door, PRG_RPROG, TRIG_LOCK,0,0,0,0,0))
 			uk = FALSE;
 		if (uk)
 			use_key(ch, key, &pexit->door.lock);
@@ -2062,7 +2060,7 @@ void do_unlock(CHAR_DATA *ch, char *argument)
 			}
 
 			// If $(obj1) is defined, $(obj) is the KEY
-			if ((ret = p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREUNLOCK, NULL)))
+			if ((ret = p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREUNLOCK, NULL,0,0,0,0,0)))
 			{
 				if (ret != PRET_SILENT)
 				{
@@ -2072,7 +2070,7 @@ void do_unlock(CHAR_DATA *ch, char *argument)
 			}
 
 			// If $(obj2) is defined, $(obj) is the PORTAL
-			if ((ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, key, TRIG_PREUNLOCK, NULL)))
+			if ((ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, key, TRIG_PREUNLOCK, NULL,0,0,0,0,0)))
 			{
 				if (ret != PRET_SILENT)
 				{
@@ -2086,26 +2084,32 @@ void do_unlock(CHAR_DATA *ch, char *argument)
 			act("$n unlocks $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
 
 			uk = TRUE;
-			if (p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_UNLOCK, NULL))
+			if (p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_UNLOCK, NULL,0,0,0,0,0))
 				uk = FALSE;
-			if (p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, key, TRIG_UNLOCK, NULL))
+			if (p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, key, TRIG_UNLOCK, NULL,0,0,0,0,0))
 				uk = FALSE;
 			if (uk)
 				use_key(ch, key, obj->lock);
 			return;
 		}
 
-		/* 'unlock object' */
-		if (obj->item_type != ITEM_CONTAINER && obj->item_type != ITEM_BOOK)
+		if (IS_CONTAINER(obj))
 		{
-			send_to_char("You can't do that.\n\r", ch);
-			return;
+			if (!IS_SET(CONTAINER(obj)->flags, CONT_CLOSED))
+			{
+				send_to_char("It's not closed.\n\r", ch);
+				return;
+			}
 		}
-		if (!IS_SET(obj->value[1], CONT_CLOSED))
+		else if (obj->item_type == ITEM_BOOK)
 		{
-			send_to_char("It's not closed.\n\r", ch);
-			return;
+			if (!IS_SET(obj->value[1], CONT_CLOSED))
+			{
+				send_to_char("It's not closed.\n\r", ch);
+				return;
+			}
 		}
+
 		if (!lockstate_functional(obj->lock))
 		{
 			send_to_char("It can't be locked.\n\r",ch);
@@ -2134,7 +2138,7 @@ void do_unlock(CHAR_DATA *ch, char *argument)
 		}
 
 		// If $(obj1) is defined, $(obj) is the KEY
-		if ((ret = p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREUNLOCK, NULL)))
+		if ((ret = p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREUNLOCK, NULL,0,0,0,0,0)))
 		{
 			if (ret != PRET_SILENT)
 			{
@@ -2144,7 +2148,7 @@ void do_unlock(CHAR_DATA *ch, char *argument)
 		}
 
 		// If $(obj2) is defined, $(obj) is the OBJECT
-		if ((ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, key, TRIG_PREUNLOCK, NULL)))
+		if ((ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, key, TRIG_PREUNLOCK, NULL,0,0,0,0,0)))
 		{
 			if (ret != PRET_SILENT)
 			{
@@ -2158,9 +2162,9 @@ void do_unlock(CHAR_DATA *ch, char *argument)
 		act("$n unlocks $p.",ch, NULL, NULL,obj, NULL, NULL,NULL, TO_ROOM);
 
 		uk = TRUE;
-		if (p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_UNLOCK, NULL))
+		if (p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_UNLOCK, NULL,0,0,0,0,0))
 			uk = FALSE;
-		if (p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, key, TRIG_UNLOCK, NULL))
+		if (p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, key, TRIG_UNLOCK, NULL,0,0,0,0,0))
 			uk = FALSE;
 		if (uk)
 			use_key(ch, key, obj->lock);
@@ -2208,7 +2212,7 @@ void do_unlock(CHAR_DATA *ch, char *argument)
 
 		// If neither $(obj1) nor $(obj2) are defined, it is a KEY targeting a room
 		key->tempstore[0] = door;
-		if ((ret = p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PRELOCK, NULL)))
+		if ((ret = p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PRELOCK, NULL,0,0,0,0,0)))
 		{
 			if (ret != PRET_SILENT)
 			{
@@ -2233,9 +2237,9 @@ void do_unlock(CHAR_DATA *ch, char *argument)
 
 		key->tempstore[0] = door;
 		uk = TRUE;
-		if(p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_UNLOCK, NULL))
+		if(p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_UNLOCK, NULL,0,0,0,0,0))
 			uk = FALSE;
-		if(p_direction_trigger(ch, ch->in_room, door, PRG_RPROG, TRIG_UNLOCK))
+		if(p_direction_trigger(ch, ch->in_room, door, PRG_RPROG, TRIG_UNLOCK,0,0,0,0,0))
 			uk = FALSE;
 		if(uk)
 			use_key(ch, key, &pexit->door.lock);
@@ -2334,32 +2338,41 @@ void do_pick(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		/* 'pick object' */
-		if (obj->item_type != ITEM_CONTAINER && obj->item_type != ITEM_BOOK)
+		if (IS_CONTAINER(obj))
 		{
-			send_to_char("That's not a container.\n\r", ch);
-			return;
+			if (!IS_SET(CONTAINER(obj)->flags, CONT_CLOSED))
+			{
+				send_to_char("It's not closed.\n\r", ch);
+				return;
+			}
 		}
-		if (!IS_SET(obj->value[1], CONT_CLOSED))
+		else if (obj->item_type == ITEM_BOOK)
 		{
-			send_to_char("It's not closed.\n\r", ch);
-			return;
+			if (!IS_SET(obj->value[1], CONT_CLOSED))
+			{
+				send_to_char("It's not closed.\n\r", ch);
+				return;
+			}
 		}
+
 		if (!lockstate_functional(obj->lock))
 		{
 			send_to_char("It can't be unlocked.\n\r",ch);
 			return;
 		}
+
 		if (IS_SET(obj->lock->flags,LOCK_BROKEN))
 		{
 			send_to_char("The lock is broken.\n\r",ch);
 			return;
 		}
+
 		if (IS_SET(obj->lock->flags,LOCK_JAMMED))
 		{
 			send_to_char("The lock has been jammed.\n\r",ch);
 			return;
 		}
+
 		if (!IS_SET(obj->lock->flags, LOCK_LOCKED) )
 		{
 			send_to_char("It's already unlocked.\n\r", ch);
@@ -2462,7 +2475,7 @@ bool can_wake_up(CHAR_DATA *ch, CHAR_DATA *waker)
 		return FALSE;
 	}
 
-	ret = p_percent_trigger(ch, NULL, NULL, NULL, waker, NULL, NULL, ch->on, NULL, TRIG_PREWAKE, NULL);
+	ret = p_percent_trigger(ch, NULL, NULL, NULL, waker, NULL, NULL, ch->on, NULL, TRIG_PREWAKE, NULL,0,0,0,0,0);
 	if (ret)
 	{
 		if (ret != PRET_SILENT)
@@ -2478,7 +2491,7 @@ bool can_wake_up(CHAR_DATA *ch, CHAR_DATA *waker)
 
 	if (ch->on)
 	{
-		ret = p_percent_trigger(NULL, ch->on, NULL, NULL, waker, ch, NULL, NULL, NULL, TRIG_PREWAKE, NULL);
+		ret = p_percent_trigger(NULL, ch->on, NULL, NULL, waker, ch, NULL, NULL, NULL, TRIG_PREWAKE, NULL,0,0,0,0,0);
 		if (ret)
 		{
 			if (ret != PRET_SILENT)
@@ -2493,7 +2506,7 @@ bool can_wake_up(CHAR_DATA *ch, CHAR_DATA *waker)
 		}
 	}
 
-	ret = p_percent_trigger(NULL, NULL, ch->in_room, NULL, waker, ch, NULL, ch->on, NULL, TRIG_PREWAKE, NULL);
+	ret = p_percent_trigger(NULL, NULL, ch->in_room, NULL, waker, ch, NULL, ch->on, NULL, TRIG_PREWAKE, NULL,0,0,0,0,0);
 	if (ret)
 	{
 		if (ret != PRET_SILENT)
@@ -2510,24 +2523,18 @@ bool can_wake_up(CHAR_DATA *ch, CHAR_DATA *waker)
 	return TRUE;
 }
 
-bool can_stand(CHAR_DATA *ch, OBJ_DATA *obj)
+// This is *ONLY* called when checking standing on a furniture compartment
+bool can_stand(CHAR_DATA *ch, OBJ_DATA *obj, FURNITURE_COMPARTMENT *compartment)
 {
 	int ret;
 	
-	if (obj->item_type != ITEM_FURNITURE ||
-		!IS_SET(obj->value[2],(STAND_AT|STAND_ON|STAND_IN)))
+	if (IS_VALID(obj) && (!IS_FURNITURE(obj) || (IS_VALID(compartment) && !compartment->standing)))
 	{
 		send_to_char("You can't seem to find a place to stand.\n\r",ch);
 		return FALSE;
 	}
 
-	if (ch->on != obj && count_users(obj) >= obj->value[0])
-	{
-		act_new("There's no room to stand on $p.", ch,NULL,NULL,obj,NULL,NULL,NULL,TO_CHAR,POS_DEAD,NULL);
-		return FALSE;
-	}
-
-	ret = p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, obj, TRIG_PRESTAND, NULL);
+	ret = p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, obj, TRIG_PRESTAND, NULL,(ch->on_compartment?ch->on_compartment->ordinal:0),(compartment?compartment->ordinal:0),0,0,0);
 	if (ret)
 	{
 		if (ret != PRET_SILENT)
@@ -2538,9 +2545,15 @@ bool can_stand(CHAR_DATA *ch, OBJ_DATA *obj)
 		return FALSE;
 	}
 
-	if (ch->on && ch->on != obj)
+	if (ch->on_compartment && ch->on_compartment != compartment)
 	{
-		ret = p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_PRESTEPOFF, NULL);
+		if (compartment_is_closed(ch->on_compartment))
+		{
+			act_new("You need to open the compartment first before you can leave.", ch,NULL,NULL,NULL,NULL,NULL,NULL,TO_CHAR,POS_DEAD,NULL);
+			return FALSE;
+		}
+
+		ret = p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_PRESTEPOFF, NULL,(ch->on_compartment?ch->on_compartment->ordinal:0),(compartment?compartment->ordinal:0),0,0,0);
 		if (ret)
 		{
 			if (ret != PRET_SILENT)
@@ -2552,26 +2565,36 @@ bool can_stand(CHAR_DATA *ch, OBJ_DATA *obj)
 		}
 	}
 
-	if (obj)
+	if (obj && compartment)
 	{
-		ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_PRESTAND, NULL);
+		if (compartment->max_occupants >= 0 && furniture_count_users(obj, compartment) >= compartment->max_occupants)
+		{
+			act_new("There's no room to stand on $p.", ch,NULL,NULL,obj,NULL,NULL,NULL,TO_CHAR,POS_DEAD,NULL);
+			return FALSE;
+		}
+
+		if (compartment_is_closed(compartment))
+		{
+			act_new("That compartment is closed.", ch,NULL,NULL,obj,NULL,NULL,NULL,TO_CHAR,POS_DEAD,NULL);
+			return FALSE;
+		}
+
+		ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_PRESTAND, NULL,(ch->on_compartment?ch->on_compartment->ordinal:0),(compartment?compartment->ordinal:0),0,0,0);
 		if (ret)
 		{
 			if (ret != PRET_SILENT)
 			{
-				if (IS_SET(obj->value[2], STAND_AT))
-					act("You are unable to stand at $p!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-				else if (IS_SET(obj->value[2], STAND_ON))
-					act("You are unable to stand on $p!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-				else
-					act("You are unable to stand in $p!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+				char *positional = furniture_get_positional(compartment->standing);
+				char *short_descr = furniture_get_short_description(obj, compartment);
+
+				act("You are unable to stand $t $T!", ch, NULL, NULL, obj, NULL, positional, short_descr, TO_CHAR);
 			}
 
 			return FALSE;
 		}
 	}
 
-	ret = p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, ch->on, obj, TRIG_PRESTAND, NULL);
+	ret = p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, ch->on, obj, TRIG_PRESTAND, NULL,(ch->on_compartment?ch->on_compartment->ordinal:0),(compartment?compartment->ordinal:0),0,0,0);
 	if (ret)
 	{
 		if (ret != PRET_SILENT)
@@ -2588,247 +2611,260 @@ bool can_stand(CHAR_DATA *ch, OBJ_DATA *obj)
 void do_stand(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj = NULL;
+	FURNITURE_COMPARTMENT *compartment = NULL;
+	int old_ordinal = ch->on_compartment ? ch->on_compartment->ordinal : 0;
+	int new_ordinal = 0;
 
 	// Stand <furniture>
 	if (argument[0] != '\0')
 	{
+		char arg[MIL];
 
-		if ((obj = get_obj_list(ch, argument, ch->in_room->contents)) == NULL)
+		argument = one_argument(argument, arg);
+
+		if ((obj = get_obj_list(ch, arg, ch->in_room->contents)) == NULL)
 		{
 			send_to_char("You don't see that here.\n\r",ch);
 			return;
 		}
+
+		if (!IS_FURNITURE(obj))
+		{
+			send_to_char("You cannot possibly stand on that.\n\r", ch);
+			return;
+		}
+
+		compartment = furniture_find_compartment(ch, obj, argument, "stand");
+		if (!IS_VALID(compartment)) return;
+
+		if (!compartment->standing)
+		{
+			send_to_char("There is no where to stand on that.\n\r", ch);
+			return;
+		}
+
+		new_ordinal = compartment->ordinal;
 	}
 
 	switch(ch->position)
 	{
+		// TODO: POS_HANGING
+
 		case POS_SLEEPING:
 			if (can_wake_up(ch, ch))
 			{
-				p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_WAKE, NULL);
+				p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_WAKE, NULL,old_ordinal,0,0,0,0);
 				if (ch->on)
-					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_WAKE, NULL);
-				p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_WAKE, NULL);
+					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_WAKE, NULL,old_ordinal,0,0,0,0);
+				p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_WAKE, NULL,old_ordinal,0,0,0,0);
 
-				if (can_stand(ch, obj))
+				if (can_stand(ch, obj, compartment))
 				{
 					ch->position = POS_STANDING;
-					if(ch->on && ch->on != obj)
+					if(ch->on_compartment && ch->on_compartment != compartment)
 					{
-						p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STEPOFF, NULL);
+						p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STEPOFF, NULL,old_ordinal,0,0,0,0);
 					}
 					ch->on = obj;
+					ch->on_compartment = compartment;
 
 					if (obj == NULL)
 					{
 						act("You wake and stand.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 						act("$n wakes and stands.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 					}
-					else if (IS_SET(obj->value[2],STAND_AT))
-					{
-						act("You wake and stand at $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-						act("$n wakes and stands at $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-					}
-					else if (IS_SET(obj->value[2],STAND_ON))
-					{
-						act("You wake and stand on $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-						act("$n wakes and stands on $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-					}
 					else
 					{
-						act("You wake and stand in $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-						act("$n wakes and stands in $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+						char *positional = furniture_get_positional(compartment->standing);
+						char *short_descr = furniture_get_short_description(obj, compartment);
+
+						act("You wake and stand $t $T.", ch, NULL, NULL, obj, NULL, positional, short_descr, TO_CHAR);
+						act("$n wakes and stands $t $T.", ch, NULL, NULL, obj, NULL, positional, short_descr, TO_ROOM);
 					}
 
-					p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_STAND, NULL);
-					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STAND, NULL);
-					p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_STAND, NULL);
+					p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_STAND, NULL,new_ordinal,0,0,0,0);
+					if (ch->on)
+						p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STAND, NULL,new_ordinal,0,0,0,0);
+					p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_STAND, NULL,new_ordinal,0,0,0,0);
 				}
 			}
 			break;
 
 		case POS_SITTING:
 		case POS_RESTING:
-			if (can_stand(ch, obj))
+			if (can_stand(ch, obj, compartment))
 			{
 				ch->position = ch->fighting == NULL ? POS_STANDING : POS_FIGHTING;
 				if (ch->bashed > 0)
 					ch->bashed = 0;
 
-				if(ch->on && ch->on != obj)
+				if(ch->on_compartment && ch->on_compartment != compartment)
 				{
-					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STEPOFF, NULL);
+					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STEPOFF, NULL,old_ordinal,0,0,0,0);
 				}
 
 				ch->on = obj;
+				ch->on_compartment = compartment;
 
 				if (obj == NULL)
 				{
 					act("You stand.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 					act("$n stands.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 				}
-				else if (IS_SET(obj->value[2],STAND_AT))
-				{
-					act("You stand at $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-					act("$n stands at $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-				}
-				else if (IS_SET(obj->value[2],STAND_ON))
-				{
-					act("You stand on $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-					act("$n stands on $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-				}
 				else
 				{
-					act("You stand in $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-					act("$n stands in $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+					char *positional = furniture_get_positional(compartment->standing);
+					char *short_descr = furniture_get_short_description(obj, compartment);
+
+					act("You stand $t $T.", ch, NULL, NULL, obj, NULL, positional, short_descr, TO_CHAR);
+					act("$n stands $t $T.", ch, NULL, NULL, obj, NULL, positional, short_descr, TO_ROOM);
 				}
 
-
-				p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_STAND, NULL);
+				p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_STAND, NULL,new_ordinal,0,0,0,0);
 				if(ch->on)
-					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STAND, NULL);
-				p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_STAND, NULL);
+					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STAND, NULL,new_ordinal,0,0,0,0);
+				p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_STAND, NULL,new_ordinal,0,0,0,0);
 			}
 			break;
 
 		case POS_STANDING:
-			if (ch->on == obj)
+			if (ch->on_compartment == compartment)
 			{
 				send_to_char("You are already standing.\n\r", ch);
 			}
-			else if (can_stand(ch, obj))
+			else if (can_stand(ch, obj, compartment))
 			{
 				ch->position = POS_STANDING;
 
 				if (ch->on)
 				{
-					if (IS_SET(ch->on->value[2],STAND_AT))
+					char *short_descr = furniture_get_short_description(ch->on, ch->on_compartment);
+
+					if (IS_SET(ch->on_compartment->standing, FURNITURE_AT))
 					{
-						act("You get off of $p.",ch, NULL, NULL,ch->on, NULL, NULL,NULL,TO_CHAR);
-						act("$n gets off of $p.",ch, NULL, NULL,ch->on, NULL, NULL,NULL,TO_ROOM);
+						act("You get off of $t.",ch, NULL, NULL,ch->on, NULL, short_descr, NULL,TO_CHAR);
+						act("$n gets off of $t.",ch, NULL, NULL,ch->on, NULL, short_descr, NULL,TO_ROOM);
 					}
-					else if (IS_SET(ch->on->value[2],STAND_ON))
+					else if (IS_SET(ch->on_compartment->standing, FURNITURE_ON))
 					{
-						act("You get off of $p.",ch, NULL, NULL,ch->on, NULL, NULL,NULL,TO_CHAR);
-						act("$n gets off of $p.",ch, NULL, NULL,ch->on, NULL, NULL,NULL,TO_ROOM);
+						act("You get off of $t.",ch, NULL, NULL,ch->on, NULL, short_descr, NULL,TO_CHAR);
+						act("$n gets off of $t.",ch, NULL, NULL,ch->on, NULL, short_descr, NULL,TO_ROOM);
 					}
-					else
+					else if (IS_SET(ch->on_compartment->standing, FURNITURE_IN))
 					{
-						act("You get out of $p.",ch, NULL, NULL,ch->on, NULL, NULL,NULL,TO_CHAR);
-						act("$n gets out of $p.",ch, NULL, NULL,ch->on, NULL, NULL,NULL,TO_ROOM);
+						act("You get out of $t.",ch, NULL, NULL,ch->on, NULL, short_descr, NULL,TO_CHAR);
+						act("$n gets out of $t.",ch, NULL, NULL,ch->on, NULL, short_descr, NULL,TO_ROOM);
 					}
-					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STEPOFF, NULL);
+					else if (IS_SET(ch->on_compartment->standing, FURNITURE_ABOVE))
+					{
+						act("You get down from $t.",ch, NULL, NULL,ch->on, NULL, short_descr, NULL,TO_CHAR);
+						act("$n gets down from $t.",ch, NULL, NULL,ch->on, NULL, short_descr, NULL,TO_ROOM);
+					}
+					else if (IS_SET(ch->on_compartment->standing, FURNITURE_UNDER))
+					{
+						act("You get out from under $t.",ch, NULL, NULL,ch->on, NULL, short_descr, NULL,TO_CHAR);
+						act("$n gets out from under $t.",ch, NULL, NULL,ch->on, NULL, short_descr, NULL,TO_ROOM);
+					}
+					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STEPOFF, NULL,0,0,0,0,0);
 				}
 
 				ch->on = obj;
+				ch->on_compartment = compartment;
 
 				if (obj)
 				{
-					if (IS_SET(obj->value[2],STAND_AT))
-					{
-						act("You stand at $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-						act("$n stands at $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-					}
-					else if (IS_SET(obj->value[2],STAND_ON))
-					{
-						act("You stand on $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-						act("$n stands on $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-					}
-					else
-					{
-						act("You stand in $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-						act("$n stands in $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-					}
+					char *positional = furniture_get_positional(compartment->standing);
+					char *short_descr = furniture_get_short_description(obj, compartment);
+
+					act("You stand $t $T.", ch, NULL, NULL, obj, NULL, positional, short_descr, TO_CHAR);
+					act("$n stands $t $T.", ch, NULL, NULL, obj, NULL, positional, short_descr, TO_ROOM);
 				}
 
-				p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_STAND, NULL);
+				p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_STAND, NULL,new_ordinal,0,0,0,0);
 				if(ch->on)
-					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STAND, NULL);
-				p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_STAND, NULL);
+					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STAND, NULL,new_ordinal,0,0,0,0);
+				p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_STAND, NULL,new_ordinal,0,0,0,0);
 			}
 			break;
 
 		case POS_FIGHTING:
 			// Difference between this and STANDING is that this will maintain the FIGHTING state
 			// This will allow mechanics where you are fighting and need to stand on something mid-fight
-			if (ch->on == obj)
+			if (ch->on_compartment == compartment)
 			{
 				send_to_char("You are already standing.\n\r", ch);
 			}
-			else if (can_stand(ch, obj))
+			else if (can_stand(ch, obj, compartment))
 			{
 				if (ch->on)
 				{
-					if (IS_SET(ch->on->value[2],STAND_AT))
+					char *short_descr = furniture_get_short_description(ch->on, ch->on_compartment);
+
+					if (IS_SET(ch->on_compartment->standing, FURNITURE_AT))
 					{
-						act("You get off of $p.",ch, NULL, NULL,ch->on, NULL, NULL,NULL,TO_CHAR);
-						act("$n gets off of $p.",ch, NULL, NULL,ch->on, NULL, NULL,NULL,TO_ROOM);
+						act("You get off of $t.",ch, NULL, NULL,ch->on, NULL, short_descr, NULL,TO_CHAR);
+						act("$n gets off of $t.",ch, NULL, NULL,ch->on, NULL, short_descr, NULL,TO_ROOM);
 					}
-					else if (IS_SET(ch->on->value[2],STAND_ON))
+					else if (IS_SET(ch->on_compartment->standing, FURNITURE_ON))
 					{
-						act("You get off of $p.",ch, NULL, NULL,ch->on, NULL, NULL,NULL,TO_CHAR);
-						act("$n gets off of $p.",ch, NULL, NULL,ch->on, NULL, NULL,NULL,TO_ROOM);
+						act("You get off of $t.",ch, NULL, NULL,ch->on, NULL, short_descr, NULL,TO_CHAR);
+						act("$n gets off of $t.",ch, NULL, NULL,ch->on, NULL, short_descr, NULL,TO_ROOM);
 					}
-					else
+					else if (IS_SET(ch->on_compartment->standing, FURNITURE_IN))
 					{
-						act("You get out of $p.",ch, NULL, NULL,ch->on, NULL, NULL,NULL,TO_CHAR);
-						act("$n gets out of $p.",ch, NULL, NULL,ch->on, NULL, NULL,NULL,TO_ROOM);
+						act("You get out of $t.",ch, NULL, NULL,ch->on, NULL, short_descr, NULL,TO_CHAR);
+						act("$n gets out of $t.",ch, NULL, NULL,ch->on, NULL, short_descr, NULL,TO_ROOM);
+					}
+					else if (IS_SET(ch->on_compartment->standing, FURNITURE_ABOVE))
+					{
+						act("You get down from $t.",ch, NULL, NULL,ch->on, NULL, short_descr, NULL,TO_CHAR);
+						act("$n gets down from $t.",ch, NULL, NULL,ch->on, NULL, short_descr, NULL,TO_ROOM);
+					}
+					else if (IS_SET(ch->on_compartment->standing, FURNITURE_UNDER))
+					{
+						act("You get out from under $t.",ch, NULL, NULL,ch->on, NULL, short_descr, NULL,TO_CHAR);
+						act("$n gets out from under $t.",ch, NULL, NULL,ch->on, NULL, short_descr, NULL,TO_ROOM);
 					}
 
-					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STEPOFF, NULL);
+					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STEPOFF, NULL,0,0,0,0,0);
 				}
 
 				ch->on = obj;
+				ch->on_compartment = compartment;
 
 				if (obj)
 				{
-					if (IS_SET(obj->value[2],STAND_AT))
-					{
-						act("You stand at $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-						act("$n stands at $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-					}
-					else if (IS_SET(obj->value[2],STAND_ON))
-					{
-						act("You stand on $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-						act("$n stands on $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-					}
-					else
-					{
-						act("You stand in $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-						act("$n stands in $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-					}
+					char *positional = furniture_get_positional(compartment->standing);
+					char *short_descr = furniture_get_short_description(obj, compartment);
+
+					act("You stand $t $T.", ch, NULL, NULL, obj, NULL, positional, short_descr, TO_CHAR);
+					act("$n stands $t $T.", ch, NULL, NULL, obj, NULL, positional, short_descr, TO_ROOM);
 				}
 
 				// Still fire off the STAND triggers, even while fighting
-				p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_STAND, NULL);
+				p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_STAND, NULL,new_ordinal,0,0,0,0);
 				if(ch->on)
-					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STAND, NULL);
-				p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_STAND, NULL);
+					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STAND, NULL,new_ordinal,0,0,0,0);
+				p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_STAND, NULL,new_ordinal,0,0,0,0);
 			}
 			break;
 		
 	}
 }
 
-bool can_rest(CHAR_DATA *ch, OBJ_DATA *obj)
+bool can_rest(CHAR_DATA *ch, OBJ_DATA *obj, FURNITURE_COMPARTMENT *compartment)
 {
 	int ret;
+
 	// Are there monsters nearby? >.>
 
-	if (obj->item_type != ITEM_FURNITURE ||
-		!IS_SET(obj->value[2],(REST_AT|REST_ON|REST_IN)))
+	if (IS_VALID(obj) && (!IS_FURNITURE(obj) || (IS_VALID(compartment) && !compartment->resting)))
 	{
 		send_to_char("You can't seem to find a place to rest.\n\r",ch);
 		return FALSE;
 	}
 
-	if (ch->on != obj && count_users(obj) >= obj->value[0])
-	{
-		act_new("There's no room to rest on $p.", ch,NULL,NULL,obj,NULL,NULL,NULL,TO_CHAR,POS_DEAD,NULL);
-		return FALSE;
-	}
-
-	ret = p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, obj, TRIG_PREREST, NULL);
+	ret = p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, obj, TRIG_PREREST, NULL,(ch->on_compartment?ch->on_compartment->ordinal:0),(compartment?compartment->ordinal:0),0,0,0);
 	if (ret)
 	{
 		if (ret != PRET_SILENT)
@@ -2839,9 +2875,15 @@ bool can_rest(CHAR_DATA *ch, OBJ_DATA *obj)
 		return FALSE;
 	}
 
-	if (ch->on && ch->on != obj)
+	if (ch->on_compartment && ch->on_compartment != compartment)
 	{
-		ret = p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_PRESTEPOFF, NULL);
+		if (compartment_is_closed(ch->on_compartment))
+		{
+			act_new("You need to open the compartment first before you can leave.", ch,NULL,NULL,NULL,NULL,NULL,NULL,TO_CHAR,POS_DEAD,NULL);
+			return FALSE;
+		}
+
+		ret = p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_PRESTEPOFF, NULL,(ch->on_compartment?ch->on_compartment->ordinal:0),(compartment?compartment->ordinal:0),0,0,0);
 		if (ret)
 		{
 			if (ret != PRET_SILENT)
@@ -2853,26 +2895,36 @@ bool can_rest(CHAR_DATA *ch, OBJ_DATA *obj)
 		}
 	}
 
-	if (obj && ch->on != obj)
+	if (compartment && ch->on_compartment != compartment)
 	{
-		ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREREST, NULL);
+		if (compartment->max_occupants >= 0 && furniture_count_users(obj, compartment) >= compartment->max_occupants)
+		{
+			act_new("There's no room to rest on $p.", ch,NULL,NULL,obj,NULL,NULL,NULL,TO_CHAR,POS_DEAD,NULL);
+			return FALSE;
+		}
+
+		if (compartment_is_closed(compartment))
+		{
+			act_new("That compartment is closed.", ch,NULL,NULL,obj,NULL,NULL,NULL,TO_CHAR,POS_DEAD,NULL);
+			return FALSE;
+		}
+
+		ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREREST, NULL,0,0,0,0,0);
 		if (ret)
 		{
 			if (ret != PRET_SILENT)
 			{
-				if (IS_SET(obj->value[2], REST_AT))
-					act("You are unable to rest at $p!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-				else if (IS_SET(obj->value[2], REST_ON))
-					act("You are unable to rest on $p!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-				else
-					act("You are unable to rest in $p!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+				char *positional = furniture_get_positional(compartment->resting);
+				char *short_descr = furniture_get_short_description(obj, compartment);
+
+				act("You are unable to rest $t $T!", ch, NULL, NULL, obj, NULL, positional, short_descr, TO_CHAR);
 			}
 
 			return FALSE;
 		}
 	}
 
-	ret = p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, ch->on, obj, TRIG_PREREST, NULL);
+	ret = p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, ch->on, obj, TRIG_PREREST, NULL,(ch->on_compartment?ch->on_compartment->ordinal:0),(compartment?compartment->ordinal:0),0,0,0);
 	if (ret)
 	{
 		if (ret != PRET_SILENT)
@@ -2890,6 +2942,10 @@ bool can_rest(CHAR_DATA *ch, OBJ_DATA *obj)
 void do_rest(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj = NULL;
+	FURNITURE_COMPARTMENT *compartment = NULL;
+	int old_ordinal = ch->on_compartment ? ch->on_compartment->ordinal : 0;
+	int new_ordinal = 0;
+
     if (MOUNTED(ch))
     {
         send_to_char("You can't rest while mounted.\n\r", ch);
@@ -2917,160 +2973,160 @@ void do_rest(CHAR_DATA *ch, char *argument)
     /* okay, now that we know we can rest, find an object to rest on */
     if (argument[0] != '\0')
     {
-		obj = get_obj_list(ch,argument,ch->in_room->contents);
-		if (obj == NULL)
+		char arg[MIL];
+
+		argument = one_argument(argument, arg);
+
+		if ((obj = get_obj_list(ch, arg, ch->in_room->contents)) == NULL)
 		{
-		    send_to_char("You don't see that here.\n\r",ch);
-		    return;
+			send_to_char("You don't see that here.\n\r",ch);
+			return;
 		}
+
+		if (!IS_FURNITURE(obj))
+		{
+			send_to_char("You cannot possibly stand on that.\n\r", ch);
+			return;
+		}
+
+		compartment = furniture_find_compartment(ch, obj, argument, "rest");
+		if (!IS_VALID(compartment)) return;
+
+		if (!compartment->resting)
+		{
+			send_to_char("There is no where to rest on that.\n\r", ch);
+			return;
+		}
+
+		new_ordinal = compartment->ordinal;
     }
     else
+	{
 		obj = ch->on;
+		compartment = ch->on_compartment;
+		new_ordinal = (compartment ? compartment->ordinal : 0);
+	}
 
 	switch(ch->position)
 	{
 		case POS_SLEEPING:
 			if (can_wake_up(ch, ch))
 			{
-				p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_WAKE, NULL);
+				p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_WAKE, NULL,old_ordinal,0,0,0,0);
 				if (ch->on)
-					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_WAKE, NULL);
-				p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_WAKE, NULL);
+					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_WAKE, NULL,old_ordinal,0,0,0,0);
+				p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_WAKE, NULL,old_ordinal,0,0,0,0);
 
-				if (can_rest(ch, obj))
+				if (can_rest(ch, obj, compartment))
 				{
 					ch->position = POS_RESTING;
-					if(ch->on && ch->on != obj)
+					if(ch->on_compartment && ch->on_compartment != compartment)
 					{
-						p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STEPOFF, NULL);
+						p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STEPOFF, NULL,old_ordinal,0,0,0,0);
 					}
 
 					ch->on = obj;
+					ch->on_compartment = compartment;
 
 					if (obj == NULL)
 					{
 						act("You wake and rest.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 						act("$n wakes and rests.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 					}
-					else if (IS_SET(obj->value[2],REST_AT))
-					{
-						act("You wake and rest at $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-						act("$n wakes and rests at $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-					}
-					else if (IS_SET(obj->value[2],REST_ON))
-					{
-						act("You wake and rest on $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-						act("$n wakes and rests on $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-					}
 					else
 					{
-						act("You wake and rest in $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-						act("$n wakes and rests in $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+						char *positional = furniture_get_positional(compartment->resting);
+						char *short_descr = furniture_get_short_description(obj, compartment);
+
+						act("You wake and rest $t $T.", ch, NULL, NULL, obj, NULL, positional, short_descr, TO_CHAR);
+						act("$n wakes and rests $t $T.", ch, NULL, NULL, obj, NULL, positional, short_descr, TO_ROOM);
 					}
 
-					p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_REST, NULL);
+					p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_REST, NULL,new_ordinal,0,0,0,0);
 					if(ch->on)
-						p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_REST, NULL);
-					p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_REST, NULL);
+						p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_REST, NULL,new_ordinal,0,0,0,0);
+					p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_REST, NULL,new_ordinal,0,0,0,0);
 				}
 			}
 			break;
 
 		case POS_SITTING:
-			if (can_rest(ch, obj))
+			if (can_rest(ch, obj, compartment))
 			{
 				ch->position = POS_RESTING;
-				if(ch->on && ch->on != obj)
+				if(ch->on_compartment && ch->on_compartment != compartment)
 				{
-					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STEPOFF, NULL);
+					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STEPOFF, NULL,old_ordinal,0,0,0,0);
 				}
 				ch->on = obj;
+				ch->on_compartment = compartment;
 
 				if (obj == NULL)
 				{
 					act("You rest.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 					act("$n rests.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 				}
-				else if (IS_SET(obj->value[2],REST_AT))
-				{
-					act("You rest at $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-					act("$n rests at $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-				}
-				else if (IS_SET(obj->value[2],REST_ON))
-				{
-					act("You rest on $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-					act("$n rests on $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-				}
 				else
 				{
-					act("You rest in $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-					act("$n rests in $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+					char *positional = furniture_get_positional(compartment->standing);
+					char *short_descr = furniture_get_short_description(obj, compartment);
+
+					act("You rest $t $T.", ch, NULL, NULL, obj, NULL, positional, short_descr, TO_CHAR);
+					act("$n rests $t $T.", ch, NULL, NULL, obj, NULL, positional, short_descr, TO_ROOM);
 				}
 
-				p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_REST, NULL);
+				p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_REST, NULL,new_ordinal,0,0,0,0);
 				if(ch->on)
-					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_REST, NULL);
-				p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_REST, NULL);
+					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_REST, NULL,new_ordinal,0,0,0,0);
+				p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_REST, NULL,new_ordinal,0,0,0,0);
 			}
 			break;
 
 		case POS_STANDING:
-			if (can_rest(ch, obj))
+			if (can_rest(ch, obj, compartment))
 			{
 				ch->position = POS_RESTING;
-				if(ch->on && ch->on != obj)
+				if(ch->on_compartment && ch->on_compartment != compartment)
 				{
-					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STEPOFF, NULL);
+					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STEPOFF, NULL,old_ordinal,0,0,0,0);
 				}
 				ch->on = obj;
+				ch->on_compartment = compartment;
+
 				if (obj == NULL)
 				{
 					send_to_char("You rest.\n\r", ch);
 					act("$n sits down and rests.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 				}
-				else if (IS_SET(obj->value[2],REST_AT))
-				{
-					act("You sit down at $p and rest.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-					act("$n sits down at $p and rests.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
-				}
-				else if (IS_SET(obj->value[2],REST_ON))
-				{
-					act("You sit on $p and rest.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-					act("$n sits on $p and rests.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
-				}
 				else
 				{
-					act("You rest in $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-					act("$n rests in $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
+					char *positional = furniture_get_positional(compartment->standing);
+					char *short_descr = furniture_get_short_description(obj, compartment);
+
+					act("You sit down $t $T and rest.", ch, NULL, NULL, obj, NULL, positional, short_descr, TO_CHAR);
+					act("$n sits down $t $T and rests.", ch, NULL, NULL, obj, NULL, positional, short_descr, TO_ROOM);
 				}
 
-				p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_REST, NULL);
+				p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_REST, NULL,new_ordinal,0,0,0,0);
 				if(ch->on)
-					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_REST, NULL);
-				p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_REST, NULL);
+					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_REST, NULL,new_ordinal,0,0,0,0);
+				p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_REST, NULL,new_ordinal,0,0,0,0);
 			}
 	}
 
 }
 
-bool can_sit(CHAR_DATA *ch, OBJ_DATA *obj)
+bool can_sit(CHAR_DATA *ch, OBJ_DATA *obj, FURNITURE_COMPARTMENT *compartment)
 {
 	int ret;
 
-	if (obj->item_type != ITEM_FURNITURE ||
-		!IS_SET(obj->value[2],(SIT_AT|SIT_ON|SIT_IN)))
+	if (IS_VALID(obj) && (!IS_FURNITURE(obj) || (IS_VALID(compartment) && !compartment->sitting)))
 	{
 		send_to_char("You can't seem to find a place to sit.\n\r",ch);
 		return FALSE;
 	}
 
-	if (ch->on != obj && count_users(obj) >= obj->value[0])
-	{
-		act_new("There's no room to sit on $p.", ch,NULL,NULL,obj,NULL,NULL,NULL,TO_CHAR,POS_DEAD,NULL);
-		return FALSE;
-	}
-
-	ret = p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, obj, TRIG_PRESIT, NULL);
+	ret = p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, obj, TRIG_PRESIT, NULL,(ch->on_compartment?ch->on_compartment->ordinal:0),(compartment?compartment->ordinal:0),0,0,0);
 	if (ret)
 	{
 		if (ret != PRET_SILENT)
@@ -3081,9 +3137,15 @@ bool can_sit(CHAR_DATA *ch, OBJ_DATA *obj)
 		return FALSE;
 	}
 
-	if (ch->on && ch->on != obj)
+	if (ch->on_compartment && ch->on_compartment != compartment)
 	{
-		ret = p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_PRESTEPOFF, NULL);
+		if (compartment_is_closed(ch->on_compartment))
+		{
+			act_new("You need to open the compartment first before you can leave.", ch,NULL,NULL,NULL,NULL,NULL,NULL,TO_CHAR,POS_DEAD,NULL);
+			return FALSE;
+		}
+
+		ret = p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_PRESTEPOFF, NULL,0,0,0,0,0);
 		if (ret)
 		{
 			if (ret != PRET_SILENT)
@@ -3095,26 +3157,36 @@ bool can_sit(CHAR_DATA *ch, OBJ_DATA *obj)
 		}
 	}
 
-	if (obj && ch->on != obj)
+	if (compartment && ch->on_compartment != compartment)
 	{
-		ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PRESIT, NULL);
+		if (compartment->max_occupants >= 0 && furniture_count_users(obj, compartment) >= compartment->max_occupants)
+		{
+			act_new("There's no room to rest on $p.", ch,NULL,NULL,obj,NULL,NULL,NULL,TO_CHAR,POS_DEAD,NULL);
+			return FALSE;
+		}
+
+		if (compartment_is_closed(compartment))
+		{
+			act_new("That compartment is closed.", ch,NULL,NULL,obj,NULL,NULL,NULL,TO_CHAR,POS_DEAD,NULL);
+			return FALSE;
+		}
+
+		ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PRESIT, NULL,(ch->on_compartment?ch->on_compartment->ordinal:0),(compartment?compartment->ordinal:0),0,0,0);
 		if (ret)
 		{
 			if (ret != PRET_SILENT)
 			{
-				if (IS_SET(obj->value[2], SIT_AT))
-					act("You are unable to sit at $p!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-				else if (IS_SET(obj->value[2], SIT_ON))
-					act("You are unable to sit on $p!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-				else
-					act("You are unable to sit in $p!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+				char *positional = furniture_get_positional(compartment->sitting);
+				char *short_descr = furniture_get_short_description(obj, compartment);
+
+				act("You are unable to sit $t $T!", ch, NULL, NULL, obj, NULL, positional, short_descr, TO_CHAR);
 			}
 
 			return FALSE;
 		}
 	}
 
-	ret = p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, ch->on, obj, TRIG_PRESIT, NULL);
+	ret = p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, ch->on, obj, TRIG_PRESIT, NULL,(ch->on_compartment?ch->on_compartment->ordinal:0),(compartment?compartment->ordinal:0),0,0,0);
 	if (ret)
 	{
 		if (ret != PRET_SILENT)
@@ -3131,6 +3203,9 @@ bool can_sit(CHAR_DATA *ch, OBJ_DATA *obj)
 void do_sit (CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj = NULL;
+	FURNITURE_COMPARTMENT *compartment = NULL;
+	int old_ordinal = ch->on_compartment ? ch->on_compartment->ordinal : 0;
+	int new_ordinal = 0;
 
     if (MOUNTED(ch))
     {
@@ -3159,157 +3234,157 @@ void do_sit (CHAR_DATA *ch, char *argument)
     /* okay, now that we know we can sit, find an object to sit on */
 	if (argument[0] != '\0')
 	{
-		if ((obj = get_obj_list(ch,argument,ch->in_room->contents)) == NULL)
+		char arg[MIL];
+
+		argument = one_argument(argument, arg);
+
+		if ((obj = get_obj_list(ch, arg, ch->in_room->contents)) == NULL)
 		{
 			send_to_char("You don't see that here.\n\r",ch);
 			return;
 		}
+
+		if (!IS_FURNITURE(obj))
+		{
+			send_to_char("You cannot possibly stand on that.\n\r", ch);
+			return;
+		}
+
+		compartment = furniture_find_compartment(ch, obj, argument, "sit");
+		if (!IS_VALID(compartment)) return;
+
+		if (!compartment->sitting)
+		{
+			send_to_char("There is no where to sit on that.\n\r", ch);
+			return;
+		}
+
+		new_ordinal = compartment->ordinal;
 	}
-	else
+    else
+	{
 		obj = ch->on;
+		compartment = ch->on_compartment;
+		new_ordinal = (compartment ? compartment->ordinal : 0);
+	}
 
 	switch(ch->position)
 	{
 		case POS_SLEEPING:
 			if (can_wake_up(ch, ch))
 			{
-				p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_WAKE, NULL);
+				p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_WAKE, NULL,old_ordinal,0,0,0,0);
 				if (ch->on)
-					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_WAKE, NULL);
-				p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_WAKE, NULL);
+					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_WAKE, NULL,old_ordinal,0,0,0,0);
+				p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_WAKE, NULL,old_ordinal,0,0,0,0);
 
-				if (can_sit(ch, obj))
+				if (can_sit(ch, obj, compartment))
 				{
 					ch->position = POS_SITTING;
-					if(ch->on && ch->on != obj)
+					if(ch->on_compartment && ch->on_compartment != compartment)
 					{
-						p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STEPOFF, NULL);
+						p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STEPOFF, NULL,old_ordinal,0,0,0,0);
 					}
 					ch->on = obj;
+					ch->on_compartment = compartment;
 
 					if (obj == NULL)
 					{
 						act("You wake and sit.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 						act("$n wakes and sits.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 					}
-					else if (IS_SET(obj->value[2],SIT_AT))
-					{
-						act("You wake and sit at $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-						act("$n wakes and sits at $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-					}
-					else if (IS_SET(obj->value[2],SIT_ON))
-					{
-						act("You wake and sit on $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-						act("$n wakes and sits on $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-					}
 					else
 					{
-						act("You wake and sit in $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-						act("$n wakes and sits in $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+						char *positional = furniture_get_positional(compartment->sitting);
+						char *short_descr = furniture_get_short_description(obj, compartment);
+
+						act("You wake and sit $t $T.", ch, NULL, NULL, obj, NULL, positional, short_descr, TO_CHAR);
+						act("$n wakes and sits $t $T.", ch, NULL, NULL, obj, NULL, positional, short_descr, TO_ROOM);
 					}
 
-					p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_SIT, NULL);
+					p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_SIT, NULL,new_ordinal,0,0,0,0);
 					if(ch->on)
-						p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SIT, NULL);
-					p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_SIT, NULL);
+						p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SIT, NULL,new_ordinal,0,0,0,0);
+					p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_SIT, NULL,new_ordinal,0,0,0,0);
 				}
 			}
 			break;
 
 		case POS_RESTING:
-			if (can_sit(ch, obj))
+			if (can_sit(ch, obj, compartment))
 			{
 				ch->position = POS_SITTING;
-				if(ch->on && ch->on != obj)
+				if(ch->on_compartment && ch->on_compartment != compartment)
 				{
-					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STEPOFF, NULL);
+					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STEPOFF, NULL,old_ordinal,0,0,0,0);
 				}
 				ch->on = obj;
+				ch->on_compartment = compartment;
 
 				if (obj == NULL)
 				{
 					send_to_char("You stop resting.\n\r", ch);
 				}
-				else if (IS_SET(obj->value[2],SIT_AT))
-				{
-					act("You sit at $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-					act("$n sits at $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-				}
-				else if (IS_SET(obj->value[2],SIT_ON))
-				{
-					act("You sit on $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-					act("$n sits on $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-				}
 				else
 				{
-					act("You sit in $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-					act("$n sits in $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+					char *positional = furniture_get_positional(compartment->sitting);
+					char *short_descr = furniture_get_short_description(obj, compartment);
+
+					act("You sit $t $T.", ch, NULL, NULL, obj, NULL, positional, short_descr, TO_CHAR);
+					act("$n sits $t $T.", ch, NULL, NULL, obj, NULL, positional, short_descr, TO_ROOM);
 				}
 
-				p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_SIT, NULL);
+				p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_SIT, NULL,new_ordinal,0,0,0,0);
 				if(ch->on)
-					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SIT, NULL);
-				p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_SIT, NULL);
+					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SIT, NULL,new_ordinal,0,0,0,0);
+				p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_SIT, NULL,new_ordinal,0,0,0,0);
 			}
 			break;
 
 		case POS_STANDING:
-			if (can_sit(ch, obj))
+			if (can_sit(ch, obj, compartment))
 			{
 				ch->position = POS_SITTING;
-				if(ch->on && ch->on != obj)
+				if(ch->on_compartment && ch->on_compartment != compartment)
 				{
-					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STEPOFF, NULL);
+					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STEPOFF, NULL,old_ordinal,0,0,0,0);
 				}
 				ch->on = obj;
+				ch->on_compartment = compartment;
+
 				if (obj == NULL)
 				{
 					send_to_char("You sit.\n\r", ch);
 					act("$n sits down.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 				}
-				else if (IS_SET(obj->value[2],SIT_AT))
-				{
-					act("You sit down at $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-					act("$n sits down at $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
-				}
-				else if (IS_SET(obj->value[2],SIT_ON))
-				{
-					act("You sit on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-					act("$n sits on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
-				}
 				else
 				{
-					act("You sit in $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-					act("$n sits in $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
+					char *positional = furniture_get_positional(compartment->sitting);
+					char *short_descr = furniture_get_short_description(obj, compartment);
+
+					act("You sit down $t $T.", ch, NULL, NULL, obj, NULL, positional, short_descr, TO_CHAR);
+					act("$n sits down $t $T.", ch, NULL, NULL, obj, NULL, positional, short_descr, TO_ROOM);
 				}
 
-				p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_SIT, NULL);
+				p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_SIT, NULL,new_ordinal,0,0,0,0);
 				if(ch->on)
-					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SIT, NULL);
-				p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_SIT, NULL);
+					p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SIT, NULL,new_ordinal,0,0,0,0);
+				p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_SIT, NULL,new_ordinal,0,0,0,0);
 			}
 	}
 }
 
-bool can_sleep(CHAR_DATA *ch, OBJ_DATA *obj)
+bool can_sleep(CHAR_DATA *ch, OBJ_DATA *obj, FURNITURE_COMPARTMENT *compartment)
 {
 	int ret;
 
-	if (obj->item_type != ITEM_FURNITURE ||
-		!IS_SET(obj->value[2],(SLEEP_AT|SLEEP_ON|SLEEP_IN)))
+	if (IS_VALID(obj) && (!IS_FURNITURE(obj) || (IS_VALID(compartment) && !compartment->sleeping)))
 	{
 		send_to_char("You can't seem to find a place to sleep.\n\r",ch);
 		return FALSE;
 	}
 
-	if (ch->on != obj && count_users(obj) >= obj->value[0])
-	{
-		act_new("There's no room to sleep on $p.", ch,NULL,NULL,obj,NULL,NULL,NULL,TO_CHAR,POS_DEAD,NULL);
-		return FALSE;
-	}
-
-	ch->tempstore[0] = PRESLEEP_NORMAL;
-	ret = p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, obj, TRIG_PRESLEEP, NULL);
+	ret = p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, obj, TRIG_PRESLEEP, NULL,(ch->on_compartment?ch->on_compartment->ordinal:0),(compartment?compartment->ordinal:0),0,0,PRESLEEP_NORMAL);
 	if (ret)
 	{
 		if (ret != PRET_SILENT)
@@ -3320,10 +3395,15 @@ bool can_sleep(CHAR_DATA *ch, OBJ_DATA *obj)
 		return FALSE;
 	}
 
-	if (ch->on && ch->on != obj)
+	if (ch->on_compartment && ch->on_compartment != compartment)
 	{
-		ch->on->tempstore[0] = PRESLEEP_NORMAL;
-		ret = p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_PRESTEPOFF, NULL);
+		if (compartment_is_closed(ch->on_compartment))
+		{
+			act_new("You need to open the compartment first before you can leave.", ch,NULL,NULL,NULL,NULL,NULL,NULL,TO_CHAR,POS_DEAD,NULL);
+			return FALSE;
+		}
+
+		ret = p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_PRESTEPOFF, NULL,(ch->on_compartment?ch->on_compartment->ordinal:0),(compartment?compartment->ordinal:0),0,0,PRESLEEP_NORMAL);
 		if (ret)
 		{
 			if (ret != PRET_SILENT)
@@ -3335,28 +3415,36 @@ bool can_sleep(CHAR_DATA *ch, OBJ_DATA *obj)
 		}
 	}
 
-	if (obj && ch->on != obj)
+	if (compartment && ch->on_compartment != compartment)
 	{
-		obj->tempstore[0] = PRESLEEP_NORMAL;
-		ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PRESLEEP, NULL);
+		if (compartment->max_occupants >= 0 && furniture_count_users(obj, compartment) >= compartment->max_occupants)
+		{
+			act_new("There's no room to rest on $p.", ch,NULL,NULL,obj,NULL,NULL,NULL,TO_CHAR,POS_DEAD,NULL);
+			return FALSE;
+		}
+
+		if (compartment_is_closed(compartment))
+		{
+			act_new("That compartment is closed.", ch,NULL,NULL,obj,NULL,NULL,NULL,TO_CHAR,POS_DEAD,NULL);
+			return FALSE;
+		}
+
+		ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PRESLEEP, NULL,(ch->on_compartment?ch->on_compartment->ordinal:0),(compartment?compartment->ordinal:0),0,0,PRESLEEP_NORMAL);
 		if (ret)
 		{
 			if (ret != PRET_SILENT)
 			{
-				if (IS_SET(obj->value[2], SLEEP_AT))
-					act("You are unable to sleep at $p!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-				else if (IS_SET(obj->value[2], SLEEP_ON))
-					act("You are unable to sleep on $p!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-				else
-					act("You are unable to sleep in $p!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+				char *positional = furniture_get_positional(compartment->sleeping);
+				char *short_descr = furniture_get_short_description(obj, compartment);
+
+				act("You are unable to sleep $t $T!", ch, NULL, NULL, obj, NULL, positional, short_descr, TO_CHAR);
 			}
 
 			return FALSE;
 		}
 	}
 
-	ch->in_room->tempstore[0] = PRESLEEP_NORMAL;
-	ret = p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, ch->on, obj, TRIG_PRESLEEP, NULL);
+	ret = p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, ch->on, obj, TRIG_PRESLEEP, NULL,(ch->on_compartment?ch->on_compartment->ordinal:0),(compartment?compartment->ordinal:0),0,0,PRESLEEP_NORMAL);
 	if (ret)
 	{
 		if (ret != PRET_SILENT)
@@ -3373,6 +3461,9 @@ bool can_sleep(CHAR_DATA *ch, OBJ_DATA *obj)
 void do_sleep(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj = NULL;
+	FURNITURE_COMPARTMENT *compartment = NULL;
+	int old_ordinal = ch->on_compartment ? ch->on_compartment->ordinal : 0;
+	int new_ordinal = 0;
 
     if (MOUNTED(ch))
     {
@@ -3386,65 +3477,89 @@ void do_sleep(CHAR_DATA *ch, char *argument)
         return;
     }
 
+	if (ch->position == POS_SLEEPING)
+	{
+	    send_to_char("You are already sleeping.\n\r", ch);
+		return;
+	}
+
+    if (ch->position == POS_FIGHTING)
+    {
+		send_to_char("Maybe you should finish this fight first?\n\r",ch);
+		return;
+    }
+
     switch (ch->position)
     {
-	case POS_SLEEPING:
-	    send_to_char("You are already sleeping.\n\r", ch);
-	    break;
-
 	case POS_RESTING:
 	case POS_SITTING:
 	case POS_STANDING:
 		if (argument[0] != '\0')
 		{
-			if ((obj = get_obj_list(ch,argument,ch->in_room->contents)) == NULL)
+			char arg[MIL];
+
+			argument = one_argument(argument, arg);
+
+			if ((obj = get_obj_list(ch, arg, ch->in_room->contents)) == NULL)
 			{
 				send_to_char("You don't see that here.\n\r",ch);
 				return;
 			}
+
+			if (!IS_FURNITURE(obj))
+			{
+				send_to_char("You cannot possibly stand on that.\n\r", ch);
+				return;
+			}
+
+			compartment = furniture_find_compartment(ch, obj, argument, "sleep");
+			if (!IS_VALID(compartment)) return;
+
+			if (!compartment->sleeping)
+			{
+				send_to_char("There is no where to sleep on that.\n\r", ch);
+				return;
+			}
+
+			new_ordinal = compartment->ordinal;
 		}
 		else
-			obj = ch->on;
-
-		if (can_sleep(ch, obj))
 		{
-			if(ch->on && ch->on != obj)
+			obj = ch->on;
+			compartment = ch->on_compartment;
+			new_ordinal = (compartment ? compartment->ordinal : 0);
+		}
+
+		if (can_sleep(ch, obj, compartment))
+		{
+			if(ch->on_compartment && ch->on_compartment != compartment)
 			{
-				p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STEPOFF, NULL);
+				p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_STEPOFF, NULL,old_ordinal,0,0,0,0);
 			}
+			ch->on = obj;
+			ch->on_compartment = compartment;
 
 			if(obj == NULL)
 			{
 				send_to_char("You go to sleep.\n\r", ch);
 				act("$n goes to sleep.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 			}
-			else if (IS_SET(obj->value[2],SLEEP_AT))
-			{
-				act("You go to sleep at $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-				act("$n goes to sleep at $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
-			}
-			else if (IS_SET(obj->value[2],SLEEP_ON))
-			{
-				act("You go to sleep on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-				act("$n goes to sleep on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
-			}
 			else
 			{
-				act("You go to sleep in $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-				act("$n goes to sleep in $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
+				char *positional = furniture_get_positional(compartment->sleeping);
+				char *short_descr = furniture_get_short_description(obj, compartment);
+
+				act("You go to sleep $t $T.", ch, NULL, NULL, obj, NULL, positional, short_descr, TO_CHAR);
+				act("$n goes to sleep $t $T.", ch, NULL, NULL, obj, NULL, positional, short_descr, TO_ROOM);
 			}
 
 			ch->position = POS_SLEEPING;
 		
-			p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_SLEEP, NULL);
+			p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_SLEEP, NULL,new_ordinal,0,0,0,0);
 			if(ch->on)
-				p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SLEEP, NULL);
-			p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_SLEEP, NULL);
+				p_percent_trigger(NULL, ch->on, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SLEEP, NULL,new_ordinal,0,0,0,0);
+			p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, ch->on, NULL, TRIG_SLEEP, NULL,new_ordinal,0,0,0,0);
 		}
-	    break;
-
-	case POS_FIGHTING:
-	    send_to_char("You are already fighting!\n\r", ch);
 	    break;
     }
 }
@@ -3487,7 +3602,6 @@ void do_wake(CHAR_DATA *ch, char *argument)
 
 		do_stand(victim, "");
 	}
-
 }
 
 
@@ -3582,7 +3696,7 @@ void do_hide(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			if( p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREHIDE, NULL) )
+			if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREHIDE, NULL,0,0,0,0,0))
 				return;
 
 			if( !str_cmp(arg2, "in") )
@@ -3605,13 +3719,13 @@ void do_hide(CHAR_DATA *ch, char *argument)
 				if (!can_put_obj(ch, obj, container, NULL, FALSE))
 					return;
 
-				if( p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREHIDE_IN, NULL) )
+				if(p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREHIDE_IN, NULL,0,0,0,0,0))
 					return;
 
 				obj_from_char(obj);
 				obj_to_obj(obj, container);
 
-				p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, container, NULL, TRIG_HIDE, NULL);
+				p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, container, NULL, TRIG_HIDE, NULL,0,0,0,0,0);
 			}
 			else if( !str_cmp(arg2, "on") )
 			{
@@ -3650,7 +3764,7 @@ void do_hide(CHAR_DATA *ch, char *argument)
 					return;
 				}
 
-				if( p_percent_trigger(victim, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREHIDE_IN, NULL) )
+				if(p_percent_trigger(victim, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREHIDE_IN, NULL,0,0,0,0,0))
 					return;
 
 				act("You deftly hide $p on $N.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR);
@@ -3677,7 +3791,7 @@ void do_hide(CHAR_DATA *ch, char *argument)
 				obj_from_char(obj);
 				obj_to_char(obj,victim);
 
-				p_percent_trigger(NULL, obj, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_HIDE, NULL);
+				p_percent_trigger(NULL, obj, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_HIDE, NULL,0,0,0,0,0);
 			}
 			else
 			{
@@ -3775,7 +3889,7 @@ void do_hide(CHAR_DATA *ch, char *argument)
 				obj_from_char(obj);
 				obj_to_room(obj, ch->in_room);
 
-				p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_HIDE, NULL);
+				p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_HIDE, NULL,0,0,0,0,0);
 			}
 			SET_BIT(obj->extra_flags, ITEM_HIDDEN);
 			return;
@@ -3806,7 +3920,7 @@ void do_hide(CHAR_DATA *ch, char *argument)
 		return;
     }
 
-	if( p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREHIDE, NULL) )
+	if(p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREHIDE, NULL,0,0,0,0,0))
 		return;
 
     send_to_char("You attempt to hide.\n\r", ch);
@@ -3839,7 +3953,7 @@ void hide_end(CHAR_DATA *ch)
 		check_improve(ch,gsn_hide,TRUE,3);
 
 		// Allow for other fun stuff to occur when you are fully hidden
-		p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_HIDDEN, NULL);
+		p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_HIDDEN, NULL,0,0,0,0,0);
     }
     else
     {
@@ -3885,8 +3999,8 @@ void do_recall(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if(p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECALL,NULL) ||
-	p_percent_trigger(NULL, NULL, ch->in_room, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECALL,NULL))
+    if(p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECALL,NULL,0,0,0,0,0) ||
+	p_percent_trigger(NULL, NULL, ch->in_room, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECALL,NULL,0,0,0,0,0))
 	return;
 
 
@@ -4096,7 +4210,7 @@ bool move_success(CHAR_DATA *ch)
 		return FALSE;
 	}
 
-	if (!IS_NPC(ch) && (p_exit_trigger(ch, door, PRG_MPROG) || p_exit_trigger(ch, door, PRG_OPROG) || p_exit_trigger(ch, door, PRG_RPROG)))
+	if (!IS_NPC(ch) && (p_exit_trigger(ch, door, PRG_MPROG,0,0,0,0,0) || p_exit_trigger(ch, door, PRG_OPROG,0,0,0,0,0) || p_exit_trigger(ch, door, PRG_RPROG,0,0,0,0,0)))
 		return FALSE;
 
 	if (!(pexit = in_room->exit[door])) {
@@ -4466,10 +4580,10 @@ void do_pk(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *mob = NULL;
 
-    for (mob = ch->in_room->people; mob != NULL; mob = mob->next)
+    for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
     {
-	if (IS_SET(mob->act, ACT_PRACTICE))
-	    break;
+		if (IS_SET(mob->act, ACT_PRACTICE))
+		    break;
     }
 
     if (mob == NULL)
@@ -4537,7 +4651,7 @@ void do_knock(CHAR_DATA *ch, char *argument)
 
 	act("$n knocks on $T.", ch, NULL, NULL, NULL, NULL, NULL, exit, TO_ROOM);
 	act("You knock on $T.", ch, NULL, NULL, NULL, NULL, NULL, exit, TO_CHAR);
-	p_direction_trigger(ch, ch->in_room, door, PRG_RPROG, TRIG_KNOCK);
+	p_direction_trigger(ch, ch->in_room, door, PRG_RPROG, TRIG_KNOCK,0,0,0,0,0);
 
 	if ((to_room = pexit->u1.to_room) != NULL
 	&& (pexit_rev = to_room->exit[rev_dir[door]]) != NULL
@@ -4546,7 +4660,7 @@ void do_knock(CHAR_DATA *ch, char *argument)
 			exit_name(to_room, rev_dir[door], exit);
 			act("Knocking comes from $T.", to_room->people, NULL, NULL, NULL, NULL, NULL, exit, TO_ROOM);
 		}
-		p_direction_trigger(ch, to_room, rev_dir[door], PRG_RPROG, TRIG_KNOCKING);
+		p_direction_trigger(ch, to_room, rev_dir[door], PRG_RPROG, TRIG_KNOCKING,0,0,0,0,0);
 	}
     }
 }
@@ -4563,7 +4677,7 @@ void do_takeoff(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		if(!p_percent_trigger(MOUNTED(ch), NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_TAKEOFF,NULL)) {
+		if(!p_percent_trigger(MOUNTED(ch), NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_TAKEOFF,NULL,0,0,0,0,0)) {
 			if(!IS_SET(MOUNTED(ch)->parts,PART_WINGS)) {
 				act("$N doesn't seem to be able to fly.", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 				return;
@@ -4605,7 +4719,7 @@ void do_takeoff(CHAR_DATA *ch, char *argument)
 		}
 
 		/* Trigger is responsible for messages! */
-		if(!p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_TAKEOFF,NULL)) {
+		if(!p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_TAKEOFF,NULL,0,0,0,0,0)) {
 			chance = get_skill(ch,gsn_flight);
 
 			if(!chance) {
@@ -4668,7 +4782,7 @@ void do_land(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		if(!p_percent_trigger(MOUNTED(ch), NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LAND,NULL)) {
+		if(!p_percent_trigger(MOUNTED(ch), NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LAND,NULL,0,0,0,0,0)) {
 			if(is_affected(ch,gsn_flight)) {
 				if(	ch->in_room->sector_type == SECT_WATER_NOSWIM ||
 					ch->in_room->sector_type == SECT_WATER_SWIM ||
@@ -4702,7 +4816,7 @@ void do_land(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		if(!p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LAND,NULL)) {
+		if(!p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LAND,NULL,0,0,0,0,0)) {
 			if(is_affected(ch,gsn_flight)) {
 				if(	ch->in_room->sector_type == SECT_WATER_NOSWIM ||
 					ch->in_room->sector_type == SECT_WATER_SWIM ||

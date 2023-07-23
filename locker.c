@@ -171,7 +171,7 @@ void do_locker(CHAR_DATA *ch, char* argument)
 			return;
 		}
 
-		if ((obj->item_type == ITEM_CONTAINER || obj->item_type == ITEM_WEAPON_CONTAINER) && obj->contains)
+		if (obj->item_type == ITEM_CONTAINER && obj->contains)
 		{
 			send_to_char("You can't put containers in your locker unless they are empty.\n\r", ch);
 			return;

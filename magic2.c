@@ -136,7 +136,7 @@ bool check_spell_deflection(CHAR_DATA *ch, CHAR_DATA *victim, int sn)
 	lev = URANGE(15, lev, 90);
 
 	if (number_percent() > lev ||
-		!p_percent_trigger(victim,NULL,NULL,NULL,ch, NULL, NULL,NULL,NULL,TRIG_SPELLREFLECT, NULL) )
+		!p_percent_trigger(victim,NULL,NULL,NULL,ch, NULL, NULL,NULL,NULL,TRIG_SPELLREFLECT, NULL,0,0,0,0,0) )
 	{
 		if (ch != NULL)	{
 			if (ch == victim)
@@ -221,8 +221,8 @@ bool check_spell_deflection_token(CHAR_DATA *ch, CHAR_DATA *victim, TOKEN_DATA *
 	lev = URANGE(15, lev, 90);
 
 	if (number_percent() > lev ||
-		!p_percent_trigger(victim,NULL,NULL,NULL,ch, NULL, NULL,NULL,NULL,TRIG_SPELLREFLECT, NULL) ||
-		p_percent_trigger(NULL,NULL,NULL,token,ch, victim, NULL,NULL,NULL,TRIG_SPELLPENETRATE, NULL) )
+		!p_percent_trigger(victim,NULL,NULL,NULL,ch, NULL, NULL,NULL,NULL,TRIG_SPELLREFLECT, NULL,0,0,0,0,0) ||
+		p_percent_trigger(NULL,NULL,NULL,token,ch, victim, NULL,NULL,NULL,TRIG_SPELLPENETRATE, NULL,0,0,0,0,0) )
 	{
 		if (ch != NULL)	{
 			if (ch == victim)

@@ -137,7 +137,7 @@ SPELL_FUNC(spell_faerie_fire)
 	if (IS_AFFECTED(victim, AFF_FAERIE_FIRE))
 		return FALSE;
 
-	af.slot	= WEAR_NONE;
+	af.slot = obj_wear_loc;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
 	af.type = sn;
@@ -155,6 +155,46 @@ SPELL_FUNC(spell_faerie_fire)
 	return TRUE;
 }
 
+void _spell_identify_show_item_data(BUFFER *buffer, CHAR_DATA *ch, OBJ_DATA *obj)
+{
+	char buf[MSL];
+	ITERATOR it;
+	if (IS_FOOD(obj))
+	{
+		// Show food buffs
+		FOOD_BUFF_DATA *buff;
+		iterator_start(&it, FOOD(obj)->buffs);
+		while((buff = (FOOD_BUFF_DATA *)iterator_nextdata(&it)))
+		{
+			if (buff->location != APPLY_NONE && buff->modifier)
+			{
+				sprintf(buf, "{MAffects {x%s {Mby {x%d{M for {x%d {Mhours.{x\n\r", affect_loc_name(buff->location), buff->modifier, (buff->duration > 0 ? buff->duration : FOOD(obj)->full));
+				add_buf(buffer,buf);
+				if (buff->bitvector || (buff->bitvector2 && buff->where == TO_AFFECTS)) {
+					switch(buff->where) {
+					case TO_AFFECTS:
+						sprintf(buf,"{M  Adds {x%s {Maffect.{x\n", affects_bit_name(buff->bitvector, buff->bitvector2));
+						add_buf(buffer,buf);
+						break;
+					case TO_IMMUNE:
+						sprintf(buf,"{M  Adds immunity to {x%s{M.{x\n", imm_bit_name(buff->bitvector));
+						add_buf(buffer,buf);
+						break;
+					case TO_RESIST:
+						sprintf(buf,"{M  Adds resistance to {x%s{M.\n\r{x", imm_bit_name(buff->bitvector));
+						add_buf(buffer,buf);
+						break;
+					case TO_VULN:
+						sprintf(buf,"{M  Adds vulnerability to {x%s{M.\n\r{x", imm_bit_name(buff->bitvector));
+						add_buf(buffer,buf);
+						break;
+					}
+				}
+			}
+		}
+		iterator_stop(&it);
+	}
+}
 
 SPELL_FUNC(spell_identify)
 {
@@ -164,8 +204,8 @@ SPELL_FUNC(spell_identify)
 	char buf2[MAX_STRING_LENGTH];
 	char extra_flags[MSL];
 	AFFECT_DATA *af;
-	OBJ_DATA *key;
-	int i = 0;
+//	OBJ_DATA *key;
+//	int i = 0;
 	SPELL_DATA *spell;
 
 	if (IS_SET(obj->extra2_flags, ITEM_NO_LORE)) {
@@ -254,6 +294,8 @@ SPELL_FUNC(spell_identify)
 		add_buf(buffer, buf);
 		break;
 
+	// TODO: update for display the keys when the container whitelists keys
+	/*
 	case ITEM_KEYRING:
 		sprintf(buf, "{MContains the following keys with a total weight of {x%d{M:{x\n\r", get_obj_weight_container(obj));
 		add_buf(buffer, buf);
@@ -269,6 +311,7 @@ SPELL_FUNC(spell_identify)
 			add_buf(buffer, buf);
 		}
 		break;
+		*/
 
 	case ITEM_POTION:
 		if (obj->value[5] > 0) {
@@ -390,6 +433,8 @@ SPELL_FUNC(spell_identify)
 		break;
 	}
 
+	_spell_identify_show_item_data(buffer, ch, obj);
+
 	for (af = obj->affected; af; af = af->next) {
 		if (af->location != APPLY_NONE && af->modifier && !af->custom_name && !(af->type > 0 && af->type < MAX_SKILL)) {
 			sprintf(buf, "{MAffects {x%s {Mby {x%d", affect_loc_name(af->location), af->modifier);
@@ -489,9 +534,9 @@ SPELL_FUNC(spell_identify)
 	free_buf(buffer);
 
 	if(sn == gsn_lore)
-		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE, NULL);
+		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE, NULL,0,0,0,0,0);
 	else if(sn == gsn_identify)
-		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_IDENTIFY, NULL);
+		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_IDENTIFY, NULL,0,0,0,0,0);
 
 	return TRUE;
 }
@@ -672,8 +717,8 @@ SPELL_FUNC(spell_word_of_recall)
 	if (IS_NPC(victim))
 		return FALSE;
 
-	if(p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECALL, NULL) ||
-		p_percent_trigger(NULL, NULL, ch->in_room, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECALL, NULL))
+	if(p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECALL, NULL,0,0,0,0,0) ||
+		p_percent_trigger(NULL, NULL, ch->in_room, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECALL, NULL,0,0,0,0,0))
 		return FALSE;
 
 	location = get_recall_room(ch);

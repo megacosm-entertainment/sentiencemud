@@ -869,7 +869,7 @@ int dungeon_commence(DUNGEON *dng)
 	// LALI-HO!
 	SET_BIT(dng->flags, DUNGEON_COMMENCED);
 
-	return p_percent2_trigger(NULL, NULL, dng, NULL, NULL, NULL, NULL, NULL, TRIG_DUNGEON_COMMENCED, NULL);
+	return p_percent2_trigger(NULL, NULL, dng, NULL, NULL, NULL, NULL, NULL, TRIG_DUNGEON_COMMENCED, NULL,0,0,0,0,0);
 }
 
 int dungeon_completed(DUNGEON *dng)
@@ -879,7 +879,7 @@ int dungeon_completed(DUNGEON *dng)
 
 	SET_BIT(dng->flags, DUNGEON_COMPLETED);
 
-	return p_percent2_trigger(NULL, NULL, dng, NULL, NULL, NULL, NULL, NULL, TRIG_COMPLETED, NULL);
+	return p_percent2_trigger(NULL, NULL, dng, NULL, NULL, NULL, NULL, NULL, TRIG_COMPLETED, NULL,0,0,0,0,0);
 }
 
 int dungeon_failed(DUNGEON *dng)
@@ -889,7 +889,7 @@ int dungeon_failed(DUNGEON *dng)
 
 	SET_BIT(dng->flags, DUNGEON_FAILED);
 
-	return p_percent2_trigger(NULL, NULL, dng, NULL, NULL, NULL, NULL, NULL, TRIG_FAILED, NULL);
+	return p_percent2_trigger(NULL, NULL, dng, NULL, NULL, NULL, NULL, NULL, TRIG_FAILED, NULL,0,0,0,0,0);
 }
 
 void dungeon_check_commence(DUNGEON *dng, CHAR_DATA *ch)
@@ -1511,7 +1511,7 @@ DUNGEON *create_dungeon(AREA_DATA *pArea, long vnum)
 		list_clear(index->levels);
 		list_clear(index->special_rooms);
 		list_clear(index->special_exits);
-		p_percent2_trigger(NULL, NULL, dng, NULL, NULL, NULL, NULL, NULL, TRIG_DUNGEON_SCHEMATIC, NULL);
+		p_percent2_trigger(NULL, NULL, dng, NULL, NULL, NULL, NULL, NULL, TRIG_DUNGEON_SCHEMATIC, NULL,0,0,0,0,0);
 	}
 
 	//wiznet("create_dungeon: iterate over levels",NULL,NULL,WIZ_TESTING,0,0);
@@ -1767,13 +1767,13 @@ DUNGEON *spawn_dungeon_player(CHAR_DATA *ch, AREA_DATA *pArea, long vnum)
 		// 
 		dungeon_addowner_player(leader_dng, leader);
 
-		p_percent2_trigger(NULL, NULL, leader_dng, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+		p_percent2_trigger(NULL, NULL, leader_dng, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL,0,0,0,0,0);
 		ITERATOR it;
 		INSTANCE *instance;
 		iterator_start(&it, leader_dng->floors);
 		while( (instance = (INSTANCE *)iterator_nextdata(&it)) )
 		{
-			p_percent2_trigger(NULL, instance, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+			p_percent2_trigger(NULL, instance, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL,0,0,0,0,0);
 		}
 		iterator_stop(&it);
 	}
@@ -1879,7 +1879,7 @@ void dungeon_update()
 			continue;
 		}
 
-		p_percent2_trigger(NULL, NULL, dungeon, NULL, NULL, NULL, NULL, NULL, TRIG_RANDOM, NULL);
+		p_percent2_trigger(NULL, NULL, dungeon, NULL, NULL, NULL, NULL, NULL, TRIG_RANDOM, NULL,0,0,0,0,0);
 
 		iterator_start(&iit, dungeon->floors);
 		while( (instance = (INSTANCE *)iterator_nextdata(&iit)) )
@@ -1905,7 +1905,7 @@ void dungeon_update()
 		dungeon->age++;
 		if (dungeon->index->repop > 0 && (dungeon->age >= dungeon->index->repop) )
 		{
-			p_percent2_trigger(NULL, NULL, dungeon, NULL, NULL, NULL, NULL, NULL, TRIG_RESET, NULL);
+			p_percent2_trigger(NULL, NULL, dungeon, NULL, NULL, NULL, NULL, NULL, TRIG_RESET, NULL,0,0,0,0,0);
 
 			iterator_start(&iit, dungeon->floors);
 			while( (instance = (INSTANCE *)iterator_nextdata(&iit)) )
@@ -8777,7 +8777,7 @@ void readycheck_henchmen(DUNGEON *dungeon, CHAR_DATA *leader)
 		if(is_same_group(vch, leader)) check = TRUE;															// General Henchmen
 
 		if (check)
-			p_percent_trigger(vch, NULL, NULL, NULL, leader, NULL, NULL, NULL, NULL, TRIG_READYCHECK, NULL);
+			p_percent_trigger(vch, NULL, NULL, NULL, leader, NULL, NULL, NULL, NULL, TRIG_READYCHECK, NULL,0,0,0,0,0);
 	}
 	iterator_stop(&it);
 }

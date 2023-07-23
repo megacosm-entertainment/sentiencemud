@@ -233,3 +233,41 @@ void free_ship_crew_index(SHIP_CREW_INDEX_DATA *crew);
 
 AURA_DATA *new_aura_data();
 void free_aura_data(AURA_DATA *aura);
+
+
+// Item Multi-typing
+
+// Container
+CONTAINER_FILTER *new_container_filter();
+void free_container_filter(CONTAINER_FILTER *filter);
+
+CONTAINER_DATA *new_container_data();
+CONTAINER_DATA *copy_container_data(CONTAINER_DATA *src);
+void free_container_data(CONTAINER_DATA *data);
+
+// Food
+FOOD_BUFF_DATA *new_food_buff_data();
+void free_food_buff_data(FOOD_BUFF_DATA *data);
+
+FOOD_DATA *new_food_data();
+FOOD_DATA *copy_food_data(FOOD_DATA *src);
+void free_food_data(FOOD_DATA *data);
+
+// Furniture
+FURNITURE_COMPARTMENT *new_furniture_compartment();
+void free_furniture_compartment(FURNITURE_COMPARTMENT *data);
+
+FURNITURE_DATA *new_furniture_data();
+FURNITURE_DATA *copy_furniture_data(FURNITURE_DATA *src);
+void free_furniture_data(FURNITURE_DATA *data);
+
+// Light
+LIGHT_DATA *new_light_data();
+LIGHT_DATA *copy_light_data(LIGHT_DATA *src);
+void free_light_data(LIGHT_DATA *data);
+
+// Money
+MONEY_DATA *new_money_data();
+MONEY_DATA *copy_money_data(MONEY_DATA *src);
+void free_money_data(MONEY_DATA *data);
+

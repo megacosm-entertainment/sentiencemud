@@ -86,6 +86,7 @@ ENT_FIELD entity_types[] = {
 	{"skillinfo",		ENTITY_VAR_SKILLINFO,	ENT_SKILLINFO	},
 	{"song",			ENTITY_VAR_SONG,		ENT_SONG		},
 	{"aff",				ENTITY_VAR_AFFECT,		ENT_AFFECT		},
+	{"food_buff",		ENTITY_VAR_FOOD_BUFF,	ENT_FOOD_BUFF	},
 	{"conn",			ENTITY_VAR_CONN,		ENT_CONN		},
 	{"church",			ENTITY_VAR_CHURCH,		ENT_CHURCH		},
 	{"var",				ENTITY_VAR_VARIABLE,	ENT_VARIABLE	},
@@ -107,6 +108,7 @@ ENT_FIELD entity_types[] = {
 	{"list_area",		ENTITY_VAR_PLLIST_AREA,	ENT_PLLIST_AREA	},
 	{"list_aregion",	ENTITY_VAR_PLLIST_AREA_REGION,	ENT_PLLIST_AREA_REGION	},
 	{"list_church",		ENTITY_VAR_PLLIST_CHURCH,	ENT_PLLIST_CHURCH	},
+	{"list_food_buff",	ENTITY_VAR_PLLIST_FOOD_BUFF,	ENT_PLLIST_FOOD_BUFF},
 	{"dice",			ENTITY_VAR_DICE,		ENT_DICE	},
 	{"sect",			ENTITY_VAR_SECTION,		ENT_SECTION	},
 	{"inst",			ENTITY_VAR_INSTANCE,	ENT_INSTANCE	},
@@ -361,6 +363,38 @@ ENT_FIELD entity_object[] = {
 	{"extra4",		ENTITY_OBJ_EXTRA4,			ENT_BITVECTOR },
 	{"wear",		ENTITY_OBJ_WEAR,			ENT_BITVECTOR },
 	{"ship",		ENTITY_OBJ_SHIP,			ENT_SHIP		},
+	{"container_data",	ENTITY_OBJ_TYPE_CONTAINER, ENT_OBJECT_CONTAINER},
+	{"food_data",	ENTITY_OBJ_TYPE_FOOD, ENT_OBJECT_FOOD},
+	{"light_data",	ENTITY_OBJ_TYPE_LIGHT, ENT_OBJECT_LIGHT},
+	{"money_data",	ENTITY_OBJ_TYPE_MONEY, ENT_OBJECT_MONEY},
+	{NULL,			0,			ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_object_container[] = {
+	{"flags",				ENTITY_OBJ_CONTAINER_FLAGS,	ENT_BITVECTOR },
+	{"max_weight",			ENTITY_OBJ_CONTAINER_MAX_WEIGHT,	ENT_NUMBER },
+	{"weight_multiplier",	ENTITY_OBJ_CONTAINER_WEIGHT_MULTIPLIER,	ENT_NUMBER },
+	{"max_volume",			ENTITY_OBJ_CONTAINER_MAX_VOLUME,	ENT_NUMBER },
+	{NULL,			0,			ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_object_food[] = {
+	{"hunger",		ENTITY_OBJ_FOOD_HUNGER,	ENT_NUMBER },
+	{"full",		ENTITY_OBJ_FOOD_FULL,	ENT_NUMBER },
+	{"poison",		ENTITY_OBJ_FOOD_POISON,	ENT_NUMBER },
+	{"buffs",		ENTITY_OBJ_FOOD_BUFFS,	ENT_PLLIST_FOOD_BUFF },
+	{NULL,			0,			ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_object_light[] = {
+	{"duration",	ENTITY_OBJ_LIGHT_DURATION,	ENT_NUMBER },
+	{"flags",		ENTITY_OBJ_LIGHT_FLAGS,		ENT_BITVECTOR },
+	{NULL,			0,			ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_object_money[] = {
+	{"silver",		ENTITY_OBJ_MONEY_SILVER,	ENT_NUMBER },
+	{"gold",		ENTITY_OBJ_MONEY_GOLD,	ENT_NUMBER },
 	{NULL,			0,			ENT_UNKNOWN	}
 };
 
@@ -551,15 +585,27 @@ ENT_FIELD entity_skill_info[] = {
 };
 
 ENT_FIELD entity_affect[] = {
-	{"name",	ENTITY_AFFECT_NAME,	ENT_STRING	},
-	{"group",	ENTITY_AFFECT_GROUP,	ENT_NUMBER	},
-	{"skill",	ENTITY_AFFECT_SKILL,	ENT_NUMBER	},
+	{"name",		ENTITY_AFFECT_NAME,		ENT_STRING	},
+	{"group",		ENTITY_AFFECT_GROUP,	ENT_NUMBER	},
+	{"skill",		ENTITY_AFFECT_SKILL,	ENT_NUMBER	},
+	{"where",		ENTITY_AFFECT_WHERE,	ENT_NUMBER	},
 	{"location",	ENTITY_AFFECT_LOCATION,	ENT_NUMBER	},
-	{"mod",		ENTITY_AFFECT_MOD,	ENT_NUMBER	},
+	{"mod",			ENTITY_AFFECT_MOD,		ENT_NUMBER	},
+	{"bits",		ENTITY_AFFECT_BITS,		ENT_BITVECTOR	},
+	{"bits2",		ENTITY_AFFECT_BITS2,	ENT_BITVECTOR	},
 	{"duration",	ENTITY_AFFECT_TIMER,	ENT_NUMBER	},
-	{"timer",	ENTITY_AFFECT_TIMER,	ENT_NUMBER	},
-	{"level",	ENTITY_AFFECT_LEVEL,	ENT_NUMBER	},
-	{NULL,		0,			ENT_UNKNOWN	}
+	{"timer",		ENTITY_AFFECT_TIMER,	ENT_NUMBER	},
+	{"level",		ENTITY_AFFECT_LEVEL,	ENT_NUMBER	},
+	{NULL,			0,			ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_food_buff[] = {
+	{"where",		ENTITY_FOOD_BUFF_WHERE,	ENT_NUMBER	},
+	{"location",	ENTITY_FOOD_BUFF_LOCATION,	ENT_NUMBER	},
+	{"mod",			ENTITY_FOOD_BUFF_MOD,		ENT_NUMBER	},
+	{"bits",		ENTITY_FOOD_BUFF_BITS,		ENT_BITVECTOR	},
+	{"bits2",		ENTITY_FOOD_BUFF_BITS2,	ENT_BITVECTOR	},
+	{NULL,			0,			ENT_UNKNOWN	}
 };
 
 ENT_FIELD entity_song[] = {
@@ -624,7 +670,6 @@ ENT_FIELD entity_tokenindex[] = {
 	{"wnum",			ENTITY_TOKENINDEX_WNUM,			ENT_WIDEVNUM },
 	{NULL,				0,								ENT_UNKNOWN	}
 };
-
 
 ENT_FIELD entity_instance_section[] = {
 	{"rooms",			ENTITY_SECTION_ROOMS,			ENT_PLLIST_ROOM	},
@@ -719,12 +764,13 @@ struct _entity_type_info entity_type_info[] = {
 	{ ENT_ROOM,			ENT_ROOM,			entity_room,				TRUE	},
 	{ ENT_EXIT,			ENT_EXIT,			entity_exit,				FALSE	},
 	{ ENT_TOKEN,		ENT_TOKEN,			entity_token,				TRUE	},
-	{ ENT_AREA,			ENT_AREA,			entity_area,				FALSE	},
+	{ ENT_AREA,			ENT_AREA,			entity_area,				TRUE	},
 	{ ENT_SKILL,		ENT_SKILL,			entity_skill,				FALSE	},
 	{ ENT_SKILLINFO,	ENT_SKILLINFO,		entity_skill_info,			FALSE	},
 	{ ENT_SONG,			ENT_SONG,			entity_song,				FALSE	},
 	{ ENT_CONN,			ENT_CONN,			entity_conn,				FALSE	},
 	{ ENT_AFFECT,		ENT_AFFECT,			entity_affect,				FALSE	},
+	{ ENT_FOOD_BUFF,	ENT_FOOD_BUFF,		entity_food_buff,			FALSE	},
 	{ ENT_EXTRADESC,	ENT_EXTRADESC,		NULL,						FALSE	},
 	{ ENT_HELP,			ENT_HELP,			NULL,						FALSE	},
 	{ ENT_PRIOR,		ENT_PRIOR,			entity_prior,				FALSE	},
@@ -751,12 +797,16 @@ struct _entity_type_info entity_type_info[] = {
 	{ ENT_OBJINDEX,		ENT_OBJINDEX,		entity_objindex,			FALSE	},
 	{ ENT_TOKENINDEX,		ENT_TOKENINDEX,		entity_tokenindex,			FALSE	},
 	{ ENT_SECTION,		ENT_SECTION,		entity_instance_section,	FALSE	},
-	{ ENT_INSTANCE,		ENT_INSTANCE,		entity_instance,			FALSE	},
-	{ ENT_DUNGEON,		ENT_DUNGEON,		entity_dungeon,				FALSE	},
+	{ ENT_INSTANCE,		ENT_INSTANCE,		entity_instance,			TRUE	},
+	{ ENT_DUNGEON,		ENT_DUNGEON,		entity_dungeon,				TRUE	},
 	{ ENT_BLUEPRINT_SECTION,		ENT_BLUEPRINT_SECTION,		entity_blueprint_section,	FALSE	},
 	{ ENT_BLUEPRINT,		ENT_BLUEPRINT,		entity_blueprint,			FALSE	},
 	{ ENT_DUNGEONINDEX,		ENT_DUNGEONINDEX,		entity_dungeon_index,				FALSE	},
 	{ ENT_WIDEVNUM,		ENT_WIDEVNUM,		entity_widevnum,			FALSE	},
+	{ ENT_OBJECT_CONTAINER, ENT_OBJECT_CONTAINER, entity_object_container, FALSE},
+	{ ENT_OBJECT_FOOD, ENT_OBJECT_FOOD, entity_object_food, FALSE},
+	{ ENT_OBJECT_LIGHT, ENT_OBJECT_LIGHT, entity_object_light, FALSE},
+	{ ENT_OBJECT_MONEY, ENT_OBJECT_MONEY, entity_object_money, FALSE},
 	{ ENT_UNKNOWN,		ENT_UNKNOWN,		NULL,						FALSE	},
 };
 
@@ -1164,6 +1214,7 @@ IFCHECK_DATA ifcheck_table[] = {
 	{ "ischurchexcom",		IFC_ANY,	"E",	FALSE,	ifc_ischurchexcom,		"ifcheck ischurchexcom" },
 	{ "ischurchpk",			IFC_ANY,	"E",	FALSE,	ifc_ischurchpk,			"ifcheck ischurchpk" },
 	{ "iscloneroom",		IFC_ANY,	"E",	FALSE,	ifc_iscloneroom,		"ifcheck iscloneroom" },
+	{ "iscontainer",		IFC_ANY,	"E",	FALSE,	ifc_iscontainer,		"ifcheck iscontainer" },
 	{ "iscpkproof",			IFC_ANY,	"E",	FALSE,	ifc_iscpkproof,			"ifcheck iscpkproof" },
 	{ "iscrosszone",		IFC_ANY,	"E",	FALSE,	ifc_iscrosszone,		"ifcheck iscrosszone" },
 	{ "isdead",				IFC_ANY,	"E",	FALSE,	ifc_isdead,				"ifcheck dead" },
@@ -1175,13 +1226,16 @@ IFCHECK_DATA ifcheck_table[] = {
 	{ "isfighting",			IFC_ANY,	"Ee",	FALSE,	ifc_isfighting,			"ifcheck isfighting" },
 	{ "isflying",			IFC_ANY,	"E",	FALSE,	ifc_isflying,			"ifcheck isflying" },
 	{ "isfollow",			IFC_ANY,	"E",	FALSE,	ifc_isfollow,			"ifcheck isfollow" },
+	{ "isfood",				IFC_ANY,	"E",	FALSE,	ifc_isfood,				"ifcheck isfood" },
 	{ "isgood",				IFC_ANY,	"E",	FALSE,	ifc_isgood,				"ifcheck isgood" },
 	{ "ishired",			IFC_ANY,	"E",	FALSE,	ifc_ishired,			"ifcheck ishired" },
 	{ "ishunting",			IFC_ANY,	"E",	FALSE,	ifc_ishunting,			"ifcheck ishunting" },
 	{ "isimmort",			IFC_ANY,	"E",	FALSE,	ifc_isimmort,			"ifcheck isimmort" },
 	{ "iskey",				IFC_ANY,	"E",	FALSE,	ifc_iskey,				"ifcheck iskey" },
 	{ "isleader",			IFC_ANY,	"E",	FALSE,	ifc_isleader,			"ifcheck isleader" },
+	{ "islight",			IFC_ANY,	"E",	FALSE,	ifc_islight,			"ifcheck islight" },
 	{ "ismobile",			IFC_ANY,	"E",	FALSE,	ifc_ismobile,			"ifcheck ismobile" },
+	{ "ismoney",			IFC_ANY,	"E",	FALSE,	ifc_ismoney,			"ifcheck ismoney" },
 	{ "ismoonup",			IFC_ANY,	"",		FALSE,	ifc_ismoonup,			"ifcheck ismoonup" },
 	{ "ismorphed",			IFC_ANY,	"E",	FALSE,	ifc_ismorphed,			"ifcheck ismorphed" },
 	{ "ismystic",			IFC_ANY,	"E",	FALSE,	ifc_ismystic,			"ifcheck ismystic" },

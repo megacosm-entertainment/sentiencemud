@@ -59,6 +59,8 @@ extern RESERVED_WNUM reserved_rprog_wnums[];
 extern RESERVED_AREA reserved_areas[];
 extern GLOBAL_DATA gconfig;
 
+char *string_indent(const char *src, int indent);
+
 RESERVED_WNUM *search_reserved(RESERVED_WNUM *reserved, char *name)
 {
 	int i;
@@ -1882,132 +1884,259 @@ void do_wstat (CHAR_DATA * ch, char *argument)
 
 void do_ostat(CHAR_DATA *ch, char *argument)
 {
+	BUFFER *buffer;
     char buf[MAX_STRING_LENGTH];
     char arg[MAX_INPUT_LENGTH];
     AFFECT_DATA *paf;
     OBJ_DATA *obj;
     EVENT_DATA *ev;
     ROOM_INDEX_DATA *room;
+	ITERATOR it;
 
     one_argument(argument, arg);
 
     if (arg[0] == '\0')
     {
-	send_to_char("Stat what?\n\r", ch);
-	return;
+		send_to_char("Stat what?\n\r", ch);
+		return;
     }
 
     if ((obj = get_obj_world(ch, argument)) == NULL)
     {
-	send_to_char("Object not found.\n\r", ch);
-	return;
+		send_to_char("Object not found.\n\r", ch);
+		return;
     }
 
-    sprintf(buf, "{BShort desc: {x%s {BName(s):{x %s\n\r",
-	obj->short_descr, obj->name);
-    send_to_char(buf, ch);
+	buffer = new_buf();
 
+    sprintf(buf, "{BShort desc: {x%s {BName(s):{x %s\n\r", obj->short_descr, obj->name);
+    add_buf(buffer, buf);
 
 	sprintf(buf, "{BPersistance: %s{x\n\r", obj->persist ? "{WON" : "{Doff");
-	send_to_char(buf, ch);
+    add_buf(buffer, buf);
 
     sprintf(buf, "{BVnum:{x %ld {BArea: {x%s {BType:{x %s\n\r",
-	obj->pIndexData->vnum, obj->pIndexData->area->name,
-	item_name(obj->item_type));
-    send_to_char(buf, ch);
+		obj->pIndexData->vnum, obj->pIndexData->area->name,
+		item_name(obj->item_type));
+    add_buf(buffer, buf);
 
     if (obj->loaded_by != NULL && ch->tot_level >= LEVEL_IMMORTAL)
     {
-	sprintf(buf, "{BItem loaded by {x%s\n\r", obj->loaded_by);
-	send_to_char(buf, ch);
+		sprintf(buf, "{BItem loaded by {x%s\n\r", obj->loaded_by);
+	    add_buf(buffer, buf);
     }
 
-    sprintf(buf, "{BLong description:{x %s\n\r{BFull description:\n\r {x%s",
-	obj->description, obj->full_description);
-    send_to_char(buf, ch);
+    sprintf(buf, "{BLong description:{x %s\n\r{BFull description:\n\r {x%s", obj->description, string_indent(obj->full_description,3));
+	if (str_suffix("\n\r", buf))
+		strcat(buf, "\n\r");
+    add_buf(buffer, buf);
 
-    sprintf(buf, "{BWear bits: {x%s\n\r{BExtra bits:{x %s\n\r{BExtra2 bits:{x %s\n\r",
-	wear_bit_name(obj->wear_flags), extra_bit_name(obj->extra_flags),
-	extra2_bit_name(obj->extra2_flags));
-    send_to_char(buf, ch);
+    sprintf(buf, "{BWear bits: {x%s\n\r{BExtra bits:{x %s\n\r",
+		flag_string(wear_flags, obj->wear_flags),
+		flagbank_string(extra_flagbank, obj->extra_flags, obj->extra2_flags, obj->extra3_flags, obj->extra4_flags));
+    add_buf(buffer, buf);
 
-    sprintf(buf, "{BNumber:{x %d/%d {BWeight:{x %d\n\r",
-	1,           get_obj_number(obj),
-	get_obj_weight(obj));
-    send_to_char(buf, ch);
+    sprintf(buf, "{BNumber:{x %d/%d {BWeight:{x %d\n\r", 1, get_obj_number(obj), get_obj_weight(obj));
+    add_buf(buffer, buf);
 
     sprintf(buf, "{BLevel:{x %d {BCost:{x %ld {BCondition:{x %d {BTimer:{x %d {BOwner:{x %s\n\r",
-	obj->level, obj->cost, obj->condition, obj->timer, obj->owner);
-    send_to_char(buf, ch);
+		obj->level, obj->cost, obj->condition, obj->timer, obj->owner);
+    add_buf(buffer, buf);
 
     if (obj->in_wilds == NULL)
-    sprintf(buf,
-	"{BIn room:{x %ld {BIn object:{x %s {BCarried by:{x %s {BIn mail:{x %s {BWear_loc:{x %d\n\r",
-	obj->carried_by == NULL && obj->in_room != NULL ? obj->in_room->vnum : 0,
-	obj->in_obj     == NULL ? "(none)" : obj->in_obj->short_descr,
-	obj->carried_by == NULL ? "(none)" : obj->carried_by->name,
-	obj->in_mail == NULL ? "No" : "Yes",
-	obj->wear_loc);
+	    sprintf(buf, "{BIn room:{x %ld {BIn object:{x %s {BCarried by:{x %s {BIn mail:{x %s {BWear_loc:{x %d\n\r",
+			obj->carried_by == NULL && obj->in_room != NULL ? obj->in_room->vnum : 0,
+			obj->in_obj     == NULL ? "(none)" : obj->in_obj->short_descr,
+			obj->carried_by == NULL ? "(none)" : obj->carried_by->name,
+			obj->in_mail == NULL ? "No" : "Yes",
+			obj->wear_loc);
     else
         sprintf(buf,
                 "In wilds: %ld - '%s', at (%d, %d).\n\r",
                 obj->in_wilds->uid, obj->in_wilds->name, obj->x, obj->y);
-
-    send_to_char(buf, ch);
+    add_buf(buffer, buf);
 
 	send_to_char("{BValues:{x",ch);
 	for(int i = 0; i < MAX_OBJVALUES; i++)
 	{
 		sprintf(buf, " %d", obj->value[i]);
-		send_to_char(buf, ch);
+	    add_buf(buffer, buf);
 	}
-	send_to_char("\n\r", ch);
+	add_buf(buffer, "\n\r");
+
+	if (IS_CONTAINER(obj))
+	{
+		sprintf(buf, "{CContainer: {BMax Weight:{x %d {BWeight Multiplier:{x %d {BMax Volume:{x %d {BTotal Weight:{x %d {BTotal Volume:{x %d\n\r",
+			CONTAINER(obj)->max_weight,
+			CONTAINER(obj)->weight_multiplier,
+			CONTAINER(obj)->max_volume,
+			container_get_content_weight(obj, NULL),
+			container_get_content_volume(obj, NULL));
+	    add_buf(buffer, buf);
+	}
+
+	if (IS_FOOD(obj))
+	{
+		sprintf(buf, "{CFood: {BHunger:{x %d {BFullness:{x %d {BPoison:{x %d%%\n\r",
+			FOOD(obj)->hunger, FOOD(obj)->full, FOOD(obj)->poison);
+	    add_buf(buffer, buf);
+
+		FOOD_BUFF_DATA *buff;
+		iterator_start(&it, FOOD(obj)->buffs);
+		while((buff = (FOOD_BUFF_DATA *)iterator_nextdata(&it)))
+		{
+			char level[MIL];
+			char duration[MIL];
+
+			if (buff->level < 1)
+				strcpy(level, "auto");
+			else
+				sprintf(level, "%d", buff->level);
+			
+			if (buff->duration < 0)
+				strcpy(duration, "permanent");
+			else if (buff->duration > 0)
+				sprintf(duration, "%d hours", buff->duration);
+			else
+				strcpy(duration, "auto");
+
+			if (buff->where == TO_AFFECTS)
+				sprintf(buf, " {CBuff:{B Where:{x %s {BLocation:{x %s {BModifier:{x %d {BLevel:{x %s {BDuration:{x %s {BBits:{x %s\n\r",
+					flag_string(food_buff_types, buff->where),
+					flag_string(apply_flags, buff->location),
+					buff->modifier,
+					level, duration,
+					bitvector_string(2, buff->bitvector, affect_flags, buff->bitvector2, affect2_flags));
+			else
+				sprintf(buf, " {CBuff:{B Where:{x %s {BLocation:{x %s {BModifier:{x %d {BLevel:{x %s {BDuration:{x %s {BBits:{x %s\n\r",
+					flag_string(food_buff_types, buff->where),
+					flag_string(apply_flags, buff->location),
+					buff->modifier,
+					level, duration,
+					imm_bit_name(buff->bitvector));
+		    add_buf(buffer, buf);
+		}
+		iterator_stop(&it);
+	}
+
+	if (IS_FURNITURE(obj))
+	{
+		if (FURNITURE(obj)->main_compartment > 0)
+			sprintf(buf, "{CFurniture: {BMain Compartment:{x %d\n\r", FURNITURE(obj)->main_compartment);
+		else
+			sprintf(buf, "{CFurniture: {BMain Compartment:{x (none)\n\r");
+	    add_buf(buffer, buf);
+
+		int cnt = 1;
+		FURNITURE_COMPARTMENT *compartment;
+		iterator_start(&it, FURNITURE(obj)->compartments);
+		while((compartment = (FURNITURE_COMPARTMENT *)iterator_nextdata(&it)))
+		{
+			if (cnt == FURNITURE(obj)->main_compartment)
+				sprintf(buf, " {CCompartment {x%d{C** {BName:{x %s {BShort:{x %s\n\r", cnt++, compartment->name, compartment->short_descr);
+			else
+				sprintf(buf, " {CCompartment {x%d {BName:{x %s {BShort:{x %s\n\r", cnt++, compartment->name, compartment->short_descr);
+			add_buf(buffer, buf);
+
+			sprintf(buf, "   {BDescription:{x\n\r%s\n\r", string_indent(compartment->description, 5));
+			add_buf(buffer, buf);
+
+			sprintf(buf, "   {BFlags:{x %s", flag_string(compartment_flags,compartment->flags));
+			add_buf(buffer, buf);
+			if (compartment->max_occupants < 0)
+				sprintf(buf, " {BMax Occupants:{x Unlimited");
+			else
+				sprintf(buf, " {BMax Occupants:{x %d", compartment->max_occupants);
+			add_buf(buffer, buf);
+			if (compartment->max_weight < 0)
+				sprintf(buf, " {BMax Weight:{x Unlimited\n\r");
+			else
+				sprintf(buf, " {BMax Weight:{x %d\n\r", compartment->max_weight);
+			add_buf(buffer, buf);
+
+			sprintf(buf, "   {BStanding:{x %s", flag_string(furniture_flags, compartment->standing));
+			add_buf(buffer, buf);
+			sprintf(buf, " {BHanging:{x %s", flag_string(furniture_flags, compartment->hanging));
+			add_buf(buffer, buf);
+			sprintf(buf, " {BSitting:{x %s", flag_string(furniture_flags, compartment->sitting));
+			add_buf(buffer, buf);
+			sprintf(buf, " {BResting:{x %s", flag_string(furniture_flags, compartment->resting));
+			add_buf(buffer, buf);
+			sprintf(buf, " {BSleeping:{x %s\n\r", flag_string(furniture_flags, compartment->sleeping));
+			add_buf(buffer, buf);
+
+			sprintf(buf, "   {BHealth Regen:{x %d", compartment->health_regen);
+			add_buf(buffer, buf);
+			sprintf(buf, " {BMana Regen:{x %d", compartment->mana_regen);
+			add_buf(buffer, buf);
+			sprintf(buf, " {BMove Regen:{x %d\n\r", compartment->move_regen);
+			add_buf(buffer, buf);
+		}
+		iterator_stop(&it);
+	}
+
+	if (IS_MONEY(obj))
+	{
+		sprintf(buf, "{CMoney: {Y%dg {W%ds{x\n\r", MONEY(obj)->gold, MONEY(obj)->silver);
+	    add_buf(buffer, buf);
+	}
 
     if (obj->extra_descr != NULL || obj->pIndexData->extra_descr != NULL)
     {
-	EXTRA_DESCR_DATA *ed;
+		EXTRA_DESCR_DATA *ed;
 
-	send_to_char("{BExtra description keywords: {x", ch);
+	    add_buf(buffer, "{BExtra description keywords: {x");
 
-	for (ed = obj->extra_descr; ed != NULL; ed = ed->next)
-	{
-	    send_to_char(ed->keyword, ch);
-	    if (ed->next != NULL)
-	    	send_to_char(" ", ch);
-	}
+		for (ed = obj->extra_descr; ed != NULL; ed = ed->next)
+		{
+		    add_buf(buffer, ed->keyword);
+			if (ed->next != NULL)
+			    add_buf(buffer, " ");
+		}
 
-	for (ed = obj->pIndexData->extra_descr; ed != NULL; ed = ed->next)
-	{
-	    send_to_char(ed->keyword, ch);
-	    if (ed->next != NULL)
-		send_to_char(" ", ch);
-	}
+		for (ed = obj->pIndexData->extra_descr; ed != NULL; ed = ed->next)
+		{
+		    add_buf(buffer, ed->keyword);
+			if (ed->next != NULL)
+			    add_buf(buffer, " ");
+		}
 
-	send_to_char("\n\r", ch);
+	    add_buf(buffer, "\n\r");
     }
 
     for (paf = obj->affected; paf != NULL; paf = paf->next)
     {
-	sprintf(buf, "{BAffects{x %-12s {Bby{x %3d{B, level{x %3d",
-	    affect_loc_name(paf->location), paf->modifier,paf->level);
-	send_to_char(buf,ch);
-	if (paf->duration > -1)
-	    sprintf(buf,", %d {Bhours.{x\n\r",paf->duration);
-	else
-	    sprintf(buf,"{B.{x\n\r");
-	send_to_char(buf, ch);
+		sprintf(buf, "{BAffects{x %-12s {Bby{x %3d{B, level{x %3d",
+			affect_loc_name(paf->location), paf->modifier,paf->level);
+	    add_buf(buffer, buf);
+		if (paf->duration > -1)
+			sprintf(buf,", %d {Bhours.{x\n\r",paf->duration);
+		else
+			sprintf(buf,"{B.{x\n\r");
+	    add_buf(buffer, buf);
     }
 
     for (ev = obj->events; ev != NULL; ev = ev->next_event) {
-	sprintf(buf, "{M* {BEvent {x%-53.52s {B[{x%7.3f{B seconds{B]{x\n\r", ev->args, (float) ev->delay/2);
-	send_to_char(buf, ch);
+		sprintf(buf, "{M* {BEvent {x%-53.52s {B[{x%7.3f{B seconds{B]{x\n\r", ev->args, (float) ev->delay/2);
+	    add_buf(buffer, buf);
     }
 
 
     for (room = obj->clone_rooms; room; room = room->next_clone) {
-	sprintf(buf, "{M* {CClone {W%ld {C[{W%lu{C:{W%lu{C]{x\n\r", room->source->vnum, room->id[0], room->id[1]);
-	send_to_char(buf, ch);
+		sprintf(buf, "{M* {CClone {W%ld {C[{W%lu{C:{W%lu{C]{x\n\r", room->source->vnum, room->id[0], room->id[1]);
+	    add_buf(buffer, buf);
     }
+
+	if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+	{
+		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+	}
+	else
+	{
+		page_to_char(buffer->string, ch);
+	}
+
+	free_buf(buffer);
 }
 
 
@@ -2920,7 +3049,7 @@ void do_shutdown(CHAR_DATA *ch, char *argument)
 		while(( token = (TOKEN_DATA *)iterator_nextdata(&tit)))
 		{
 			if (IS_SET(token->flags, TOKEN_PURGE_REBOOT)) {
-				p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_REMOVED, NULL);
+				p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_REMOVED, NULL,0,0,0,0,0);
 
 				sprintf(buf, "char update: token %s(%ld) char %s(%ld) was purged because of reboot",
 					token->name, token->pIndexData->vnum, HANDLE(tch), IS_NPC(tch) ? tch->pIndexData->vnum : 0);
@@ -3275,7 +3404,7 @@ void do_mload(CHAR_DATA *ch, char *argument)
         char_to_room(victim, ch->in_room);
     else
         char_to_vroom(victim, ch->in_wilds, ch->at_wilds_x, ch->at_wilds_y);
-    p_percent_trigger(victim, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+    p_percent_trigger(victim, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL,0,0,0,0,0);
 
     act("$n has created $N!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
     sprintf(buf,"$N loads %s.",victim->short_descr);
@@ -3361,7 +3490,7 @@ void do_oload(CHAR_DATA *ch, char *argument)
 
 		obj->loaded_by = str_dup(ch->name);
 
-		p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+		p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL,0,0,0,0,0);
     }
     else
     {
@@ -3374,7 +3503,7 @@ void do_oload(CHAR_DATA *ch, char *argument)
 			obj_to_room(obj, ch->in_room);
 			obj->loaded_by = str_dup(ch->name);
 
-			p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+			p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL,0,0,0,0,0);
 		}
 
 		sprintf(buf, "{Y({G%d{Y){x $n has created %s!", amt, pObjIndex->short_descr);
@@ -5978,8 +6107,11 @@ void do_force(CHAR_DATA *ch, char *argument)
 	}
 
 	act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+
+	char name[MIL];
+	strncpy(name, victim->name, MIL-1);
 	interpret(victim, argument);
-	act("Forced $N to \"$t\".", ch, victim, NULL, NULL, NULL, argument, NULL, TO_CHAR);
+	act("Forced $T to \"$t\".", ch, NULL, NULL, NULL, NULL, argument, name, TO_CHAR);
     }
 
     return;
@@ -7422,7 +7554,7 @@ void do_token(CHAR_DATA *ch, char *argument)
 				send_to_char("{YWARNING:{R Token is {WPERMANENT{R.  It may only be removed by a system script or pfile editting.{x\n\r", ch);
 			}
 
-			p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_GIVEN, NULL);
+			p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_GIVEN, NULL,0,0,0,0,0);
 
 		} else if (!str_cmp(arg, "junk")) {
 			if(ch->tot_level < (MAX_LEVEL - 1) && ch != victim && !IS_NPC(victim)) {
@@ -7446,7 +7578,7 @@ void do_token(CHAR_DATA *ch, char *argument)
 				}
 			}
 
-			p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_REMOVED, NULL);
+			p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_REMOVED, NULL,0,0,0,0,0);
 
 			sprintf(buf, "Removed token %s(%ld.%ld) from character %s\n\r",
 				token->name, count, token->pIndexData->vnum, HANDLE(victim));
@@ -7490,7 +7622,7 @@ void do_token(CHAR_DATA *ch, char *argument)
 			sprintf(buf, "Gave token %s(%ld) to object %s\n\r", token_index->name, token_index->vnum, obj->short_descr);
 			send_to_char(buf, ch);
 
-			p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_GIVEN, NULL);
+			p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_GIVEN, NULL,0,0,0,0,0);
 
 		} else if (!str_cmp(arg, "junk")) {
 			if ((token = get_token_obj(obj, token_index, count)) == NULL) {
@@ -7498,7 +7630,7 @@ void do_token(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_REMOVED, NULL);
+			p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_REMOVED, NULL,0,0,0,0,0);
 
 			sprintf(buf, "Removed token %s(%ld.%ld) from object %s\n\r",
 				token->name, count, token->pIndexData->vnum, obj->short_descr);
@@ -7539,7 +7671,7 @@ void do_token(CHAR_DATA *ch, char *argument)
 				sprintf(buf, "Gave token %s(%ld) to room %ld\n\r", token_index->name, token_index->vnum, ch->in_room->vnum);
 			send_to_char(buf, ch);
 
-			p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_GIVEN, NULL);
+			p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_GIVEN, NULL,0,0,0,0,0);
 
 		} else if (!str_cmp(arg, "junk")) {
 			if ((token = get_token_room(ch->in_room, token_index, count)) == NULL) {
@@ -7547,7 +7679,7 @@ void do_token(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
-			p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_REMOVED, NULL);
+			p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_REMOVED, NULL,0,0,0,0,0);
 
 			if( ch->in_room->wilds && IS_SET(ch->in_room->room2_flags, ROOM_VIRTUAL_ROOM))
 				sprintf(buf, "Removed token %s(%ld.%ld) from wilds room %ld @ (%ld, %ld)\n\r", token->name, count, token->pIndexData->vnum, ch->in_room->wilds->uid, ch->in_room->x, ch->in_room->y);

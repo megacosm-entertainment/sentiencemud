@@ -216,6 +216,7 @@ void do_strike(CHAR_DATA *ch, char *argument)
 }
 
 
+// TODO: REWORK THIS ENTIRE THING
 void do_lore(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *mob;
@@ -813,7 +814,7 @@ void do_touch(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-	if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_TOUCH, argument))
+	if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_TOUCH, argument,0,0,0,0,0))
 		return;
 
     if (!obj->value[0])
@@ -828,7 +829,7 @@ void do_touch(CHAR_DATA *ch, char *argument)
 		for (spell = obj->spells; spell != NULL; spell = spell->next)
 		{
 			if (spell->token)
-				p_token_index_percent_trigger(spell->token, ch, ch, NULL, obj, NULL, TRIG_TOKEN_TOUCH, NULL, spell->level, 0, 0, 0, 0);
+				p_token_index_percent_trigger(spell->token, ch, ch, NULL, obj, NULL, TRIG_TOKEN_TOUCH, NULL, spell->level, 0, 0, 0, 0,0,0,0,0,0);
 			else
 				obj_cast_spell(spell->sn, spell->level, ch, ch, NULL);
 		}
@@ -875,10 +876,10 @@ void do_ruboff(CHAR_DATA *ch, char *argument)
 		return;
     }
 
-	if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREREMOVE, NULL))
+	if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREREMOVE, NULL,0,0,0,0,0))
 		return;
 
-	if(!p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_REMOVE, NULL))
+	if(!p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_REMOVE, NULL,0,0,0,0,0))
 	{
 		act("$n rubs $p vigorously until it fades away..", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 		act("You rub $p vigorously until it fades away.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
@@ -982,7 +983,7 @@ void do_ink(CHAR_DATA *ch, char *argument)
 				spells[i]->token->tempstore[0] = j;
 
 				// tempstore1 is the index
-				p_percent_trigger(NULL, NULL, NULL, spells[i]->token, ch, NULL, NULL, NULL, NULL, TRIG_TOKEN_INK_CATALYST, NULL);
+				p_percent_trigger(NULL, NULL, NULL, spells[i]->token, ch, NULL, NULL, NULL, NULL, TRIG_TOKEN_INK_CATALYST, NULL,0,0,0,0,0);
 				// tempstore2 is catalyst type
 				// tempstore3 is catalyst amount
 
@@ -1101,9 +1102,6 @@ void ink_end( CHAR_DATA *ch )
 
     tattoo = create_object(obj_index_empty_tattoo, 1, FALSE);
 
-    free_string(tattoo->name);
-    tattoo->name = str_dup("tattoo");
-
     sprintf(buf, tattoo->short_descr, tattoo_name);
 
     free_string(tattoo->short_descr);
@@ -1116,6 +1114,11 @@ void ink_end( CHAR_DATA *ch )
 
     free_string(tattoo->full_description);
     tattoo->full_description = str_dup(buf);
+
+    free_string(tattoo->name);
+	strcat(tattoo_name, " tattoo");
+    tattoo->name = short_to_name(tattoo_name);
+
 
 	tattoo->value[0] = number_range(1,UMAX(2,(ch->tot_level / 20)));
 	if(chance < 50)
@@ -1207,7 +1210,7 @@ void do_affix(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if(p_percent_trigger(NULL, obj, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_PREWEAR, NULL))
+	if(p_percent_trigger(NULL, obj, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_PREWEAR, NULL,0,0,0,0,0))
 		return;
 
 	if(victim != ch) {
@@ -1226,6 +1229,6 @@ void do_affix(CHAR_DATA *ch, char *argument)
 			act("$n affixes $p to $s skin.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 			act("You affix $p to your skin.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 		}
-		p_percent_trigger(NULL, obj, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_WEAR, NULL);
+		p_percent_trigger(NULL, obj, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_WEAR, NULL,0,0,0,0,0);
 	}
 }

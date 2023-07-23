@@ -83,7 +83,7 @@ SPELL_FUNC(spell_curse)
 		af.modifier = -1 * (level / 8);
 		af.bitvector = AFF_CURSE;
 		af.bitvector2 = 0;
-		af.slot	= WEAR_NONE;
+		af.slot	= obj_wear_loc;
 		affect_to_char(victim, &af);
 
 		send_to_char("You feel unclean.\n\r", victim);
@@ -201,7 +201,7 @@ SPELL_FUNC(spell_slow)
 	af.modifier = -1 - (level >= 18) - (level >= 25) - (level >= 32);
 	af.bitvector = AFF_SLOW;
 	af.bitvector2 = 0;
-	af.slot	= WEAR_NONE;
+	af.slot	= obj_wear_loc;
 	affect_to_char(victim, &af);
 	send_to_char("You feel yourself slow i n g  d  o   w    n...\n\r", victim);
 	act("$n starts to move in slow motion.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
@@ -226,7 +226,7 @@ SPELL_FUNC(spell_weaken)
 	af.modifier  = -1 * (level / 13);
 	af.bitvector = AFF_WEAKEN;
 	af.bitvector2 = 0;
-	af.slot	= WEAR_NONE;
+	af.slot	= obj_wear_loc;
 	affect_to_char(victim, &af);
 	send_to_char("You feel your strength slip away.\n\r", victim);
 	act("$n looks tired and weak.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);

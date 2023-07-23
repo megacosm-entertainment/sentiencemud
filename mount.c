@@ -93,7 +93,7 @@ void do_mount(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if(p_percent_trigger(mount, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREMOUNT, NULL))
+    if(p_percent_trigger(mount, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREMOUNT, NULL,0,0,0,0,0))
     	return;
 
     act("You hop on $N's back.", ch, mount, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -105,7 +105,7 @@ void do_mount(CHAR_DATA *ch, char *argument)
     mount->rider = ch;
     mount->riding = TRUE;
 
-    p_percent_trigger(mount, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_MOUNT, NULL);
+    p_percent_trigger(mount, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_MOUNT, NULL,0,0,0,0,0);
 
     affect_strip(ch, gsn_sneak);
     REMOVE_BIT(ch->affected_by, AFF_SNEAK);
@@ -125,7 +125,7 @@ void do_dismount(CHAR_DATA *ch, char *argument)
     {
 	mount = MOUNTED(ch);
 
-	if(p_percent_trigger(mount, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREDISMOUNT, NULL))
+	if(p_percent_trigger(mount, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREDISMOUNT, NULL,0,0,0,0,0))
 		return;
 
 	act("You dismount from $N.",  ch, mount, NULL, NULL, NULL, NULL, NULL, TO_CHAR);

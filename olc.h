@@ -297,9 +297,6 @@ DECLARE_OLC_FUN( oedit_delspell		);
 DECLARE_OLC_FUN( oedit_desc		);
 DECLARE_OLC_FUN( oedit_ed		);
 DECLARE_OLC_FUN( oedit_extra            );
-DECLARE_OLC_FUN( oedit_extra2           );
-DECLARE_OLC_FUN( oedit_extra3           );
-DECLARE_OLC_FUN( oedit_extra4           );
 DECLARE_OLC_FUN( oedit_fragility	);
 DECLARE_OLC_FUN( oedit_level            );
 DECLARE_OLC_FUN( oedit_long		);
@@ -329,6 +326,12 @@ DECLARE_OLC_FUN( oedit_varclear	);
 DECLARE_OLC_FUN( oedit_persist  );
 DECLARE_OLC_FUN( oedit_lock		);
 DECLARE_OLC_FUN( oedit_waypoints	);
+
+DECLARE_OLC_FUN( oedit_type_container );
+DECLARE_OLC_FUN( oedit_type_food );
+DECLARE_OLC_FUN( oedit_type_furniture );
+DECLARE_OLC_FUN( oedit_type_light );
+DECLARE_OLC_FUN( oedit_type_money );
 
 /*
  * Mobile Editor Prototypes

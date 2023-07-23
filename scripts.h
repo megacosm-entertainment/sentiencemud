@@ -168,16 +168,16 @@ enum ifcheck_enum {
 		CHK_ISAMBUSHING,CHK_ISANGEL,CHK_ISAREAUNLOCKED,
 		CHK_ISBOSS,CHK_ISBREWING,CHK_ISBUSY,
 		CHK_ISCASTFAILURE,CHK_ISCASTING,CHK_ISCASTRECOVERED,CHK_ISCASTROOMBLOCKED,CHK_ISCASTSUCCESS,
-		CHK_ISCHARM,CHK_ISCHURCHEXCOM,CHK_ISCHURCHPK,CHK_ISCLONEROOM,CHK_ISCPKPROOF,CHK_ISCROSSZONE,
+		CHK_ISCHARM,CHK_ISCHURCHEXCOM,CHK_ISCHURCHPK,CHK_ISCLONEROOM,CHK_ISCONTAINER,CHK_ISCPKPROOF,CHK_ISCROSSZONE,
 		CHK_ISDEAD,CHK_ISDELAY,CHK_ISDEMON,
 		CHK_ISEVIL,
-		CHK_ISFADING,CHK_ISFIGHTING,CHK_ISFLYING,CHK_ISFOLLOW,
+		CHK_ISFADING,CHK_ISFIGHTING,CHK_ISFLYING,CHK_ISFOLLOW,CHK_ISFOOD,
 		CHK_ISGOOD,
 		CHK_ISHIRED, CHK_ISHUNTING,
 		CHK_ISIMMORT,
 		CHK_ISKEY,
-		CHK_ISLEADER,
-		CHK_ISMOBILE,CHK_ISMOONUP,CHK_ISMORPHED,CHK_ISMYSTIC,
+		CHK_ISLEADER,CHK_ISLIGHT,
+		CHK_ISMOBILE,CHK_ISMONEY,CHK_ISMOONUP,CHK_ISMORPHED,CHK_ISMYSTIC,
 		CHK_ISNEUTRAL,CHK_ISNPC,
 		CHK_ISOBJECT,CHK_ISON,CHK_ISOWNER,
 		CHK_ISPC,CHK_ISPERSIST,CHK_ISPK,CHK_ISPREY,CHK_ISPULLING,CHK_ISPULLINGRELIC,
@@ -334,6 +334,8 @@ enum variable_enum {
 	VAR_BLUEPRINT_SECTION,
 	VAR_DUNGEONINDEX,
 	VAR_SHIPINDEX,
+	
+	VAR_FOOD_BUFF,
 
 	VAR_BLLIST_FIRST,
 	////////////////////////
@@ -359,9 +361,10 @@ enum variable_enum {
 	VAR_PLLIST_MOB,
 	VAR_PLLIST_OBJ,
 	VAR_PLLIST_TOK,
-	VAR_PLLIST_CHURCH,
 	VAR_PLLIST_AREA,
 	VAR_PLLIST_AREA_REGION,
+	VAR_PLLIST_CHURCH,
+	VAR_PLLIST_FOOD_BUFF,
 	VAR_PLLIST_VARIABLE,
 
 	////////////////////////
@@ -485,6 +488,7 @@ enum entity_type_enum {
 	ENT_PLLIST_AREA,
 	ENT_PLLIST_AREA_REGION,
 	ENT_PLLIST_CHURCH,
+	ENT_PLLIST_FOOD_BUFF,
 	ENT_PLLIST_MAX,
 	//////////////////////////////
 
@@ -542,6 +546,14 @@ enum entity_type_enum {
 	ENT_QUESTPART,
 	ENT_QUEST,
 
+	ENT_FOOD_BUFF,
+	
+	// Multi-typing
+	ENT_OBJECT_CONTAINER,
+	ENT_OBJECT_FOOD,
+	ENT_OBJECT_LIGHT,
+	ENT_OBJECT_MONEY,
+
 	ENT_MAX,
 	ENT_UNKNOWN = ENT_MAX+1,
 	ENT_PRIMARY = ENT_NONE
@@ -589,6 +601,7 @@ enum entity_variable_types_enum {
 	ENTITY_VAR_SONG,
 	ENTITY_VAR_CONN,
 	ENTITY_VAR_AFFECT,
+	ENTITY_VAR_FOOD_BUFF,
 	ENTITY_VAR_CHURCH,
 	ENTITY_VAR_VARIABLE,
 	ENTITY_VAR_DICE,
@@ -621,9 +634,10 @@ enum entity_variable_types_enum {
 	ENTITY_VAR_PLLIST_MOB,
 	ENTITY_VAR_PLLIST_OBJ,
 	ENTITY_VAR_PLLIST_TOK,
-	ENTITY_VAR_PLLIST_CHURCH,
 	ENTITY_VAR_PLLIST_AREA,
 	ENTITY_VAR_PLLIST_AREA_REGION,
+	ENTITY_VAR_PLLIST_CHURCH,
+	ENTITY_VAR_PLLIST_FOOD_BUFF,
 	ENTITY_VAR_PLLIST_VARIABLE,
 
 };
@@ -819,6 +833,39 @@ enum entity_object_enum {
 	ENTITY_OBJ_EXTRA4,
 	ENTITY_OBJ_WEAR,
 	ENTITY_OBJ_SHIP,
+	ENTITY_OBJ_TYPE_CONTAINER,
+	ENTITY_OBJ_TYPE_FOOD,
+	ENTITY_OBJ_TYPE_LIGHT,
+	ENTITY_OBJ_TYPE_MONEY,
+};
+
+
+// Multi-typing
+enum entity_object_container_enum
+{
+	ENTITY_OBJ_CONTAINER_FLAGS = ESCAPE_EXTRA,
+	ENTITY_OBJ_CONTAINER_MAX_WEIGHT,
+	ENTITY_OBJ_CONTAINER_WEIGHT_MULTIPLIER,
+	ENTITY_OBJ_CONTAINER_MAX_VOLUME,
+	ENTITY_OBJ_CONTAINER_WHITELIST,
+	ENTITY_OBJ_CONTAINER_BLACKLIST,
+};
+
+enum entity_object_food_enum {
+	ENTITY_OBJ_FOOD_HUNGER = ESCAPE_EXTRA,
+	ENTITY_OBJ_FOOD_FULL,
+	ENTITY_OBJ_FOOD_POISON,
+	ENTITY_OBJ_FOOD_BUFFS,
+};
+
+enum entity_object_light_enum {
+	ENTITY_OBJ_LIGHT_DURATION = ESCAPE_EXTRA,
+	ENTITY_OBJ_LIGHT_FLAGS,
+};
+
+enum entity_object_money_enum {
+	ENTITY_OBJ_MONEY_SILVER = ESCAPE_EXTRA,
+	ENTITY_OBJ_MONEY_GOLD,
 };
 
 enum entity_room_enum {
@@ -1027,11 +1074,23 @@ enum entity_affect_enum {
 	ENTITY_AFFECT_NAME = ESCAPE_EXTRA,
 	ENTITY_AFFECT_GROUP,
 	ENTITY_AFFECT_SKILL,
+	ENTITY_AFFECT_WHERE,
 	ENTITY_AFFECT_LOCATION,
 	ENTITY_AFFECT_MOD,
+	ENTITY_AFFECT_BITS,
+	ENTITY_AFFECT_BITS2,
 	ENTITY_AFFECT_TIMER,
 	ENTITY_AFFECT_LEVEL
 };
+
+enum entity_food_buff_enum {
+	ENTITY_FOOD_BUFF_WHERE = ESCAPE_EXTRA,
+	ENTITY_FOOD_BUFF_LOCATION,
+	ENTITY_FOOD_BUFF_MOD,
+	ENTITY_FOOD_BUFF_BITS,
+	ENTITY_FOOD_BUFF_BITS2,
+};
+
 
 enum entity_song_enum {
 	ENTITY_SONG_NUMBER = ESCAPE_EXTRA,
@@ -1293,6 +1352,7 @@ struct script_var_type {
 		TOKEN_DATA *t;
 		AREA_DATA *a;
 		AFFECT_DATA *aff;
+		FOOD_BUFF_DATA *food_buff;
 		DESCRIPTOR_DATA *conn;
 		CHURCH_DATA *church;
 		WILDS_DATA *wilds;
@@ -1478,6 +1538,7 @@ struct script_parameter {
 		AREA_DATA *area;
 		TOKEN_DATA *token;
 		AFFECT_DATA *aff;
+		FOOD_BUFF_DATA *food_buff;
 		DESCRIPTOR_DATA *conn;
 		WILDS_DATA *wilds;
 		CHURCH_DATA *church;
@@ -2086,6 +2147,13 @@ DECL_IFC_FUN(ifc_objmaxrepairs);
 DECL_IFC_FUN(ifc_isexitvisible);
 DECL_IFC_FUN(ifc_savage);
 
+
+DECL_IFC_FUN(ifc_iscontainer);
+DECL_IFC_FUN(ifc_isfood);
+DECL_IFC_FUN(ifc_islight);
+DECL_IFC_FUN(ifc_ismoney);
+
+
 /* Opcode functions */
 DECL_OPC_FUN(opc_end);
 DECL_OPC_FUN(opc_if);
@@ -2240,6 +2308,7 @@ bool variables_argremove_string_phrase(ppVARIABLE list,char *name,char *phrase);
 bool variables_format_string(ppVARIABLE list,char *name);
 bool variables_format_paragraph(ppVARIABLE list,char *name);
 bool variables_set_affect (ppVARIABLE list,char *name,AFFECT_DATA* aff);
+bool variables_set_food_buff (ppVARIABLE list,char *name,FOOD_BUFF_DATA* food_buff);
 bool variables_set_area (ppVARIABLE list,char *name,AREA_DATA* a);
 bool variables_set_area_region (ppVARIABLE list,char *name,AREA_REGION* ar);
 bool variables_set_church (ppVARIABLE list,char *name,CHURCH_DATA* church);
@@ -2281,6 +2350,7 @@ bool variables_setindex_room(ppVARIABLE list,char *name,WNUM_LOAD wnum_load, boo
 bool variables_setindex_string(ppVARIABLE list,char *name,char *str,bool shared, bool saved);
 bool variables_setindex_skill(ppVARIABLE list,char *name,int sn, bool saved);
 bool variables_setindex_song(ppVARIABLE list,char *name,int sn, bool saved);
+bool variables_setsave_food_buff (ppVARIABLE list,char *name,FOOD_BUFF_DATA* food_buff, bool save);
 bool variables_setsave_affect(ppVARIABLE list,char *name,AFFECT_DATA *aff, bool save);
 bool variables_setsave_area (ppVARIABLE list, char *name,AREA_DATA* a, bool save);
 bool variables_setsave_area_region (ppVARIABLE list, char *name,AREA_REGION* ar, bool save);
@@ -2878,6 +2948,16 @@ SCRIPT_CMD(scriptcmd_addspell);
 SCRIPT_CMD(scriptcmd_remspell);
 
 SCRIPT_CMD(scriptcmd_dungeoncommence);
+
+SCRIPT_CMD(scriptcmd_alterobj);
+SCRIPT_CMD(scriptcmd_addtype);
+SCRIPT_CMD(scriptcmd_remtype);
+SCRIPT_CMD(scriptcmd_addwhitelist);
+SCRIPT_CMD(scriptcmd_remwhitelist);
+SCRIPT_CMD(scriptcmd_addblacklist);
+SCRIPT_CMD(scriptcmd_remblacklist);
+
+SCRIPT_CMD(scriptcmd_addfoodbuff);
 
 bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument);
 bool olc_varclear(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument);

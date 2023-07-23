@@ -445,7 +445,6 @@ OBJ_DATA *new_obj(void)
 	obj->lock = NULL;
 	obj->waypoints = NULL;
 
-
     VALIDATE(obj);
     return obj;
 }
@@ -540,6 +539,11 @@ void free_obj(OBJ_DATA *obj)
 		list_destroy(obj->waypoints);
 		obj->waypoints = NULL;
 	}
+
+    free_container_data(CONTAINER(obj));
+    free_food_data(FOOD(obj));
+    free_light_data(LIGHT(obj));
+    free_money_data(MONEY(obj));
 
     INVALIDATE(obj);
 
@@ -2047,6 +2051,12 @@ void free_obj_index( OBJ_INDEX_DATA *pObj )
 		pObj->waypoints = NULL;
 	}
 
+    // Item Multi-typing data
+    free_container_data(CONTAINER(pObj));
+    free_food_data(FOOD(pObj));
+    free_light_data(LIGHT(pObj));
+    free_money_data(MONEY(pObj));
+
     pObj->next              = obj_index_free;
     obj_index_free          = pObj;
     return;
@@ -3166,6 +3176,8 @@ COMMAND_DATA *new_command()
 	command_free = command_free->next;
     }
 
+    memset(cmd, 0, sizeof(*cmd));
+
     return cmd;
 }
 
@@ -3191,6 +3203,8 @@ TOKEN_INDEX_DATA *new_token_index()
 	token_index = token_index_free;
 	token_index_free = token_index_free->next;
     }
+
+    memset(token_index, 0, sizeof(*token_index));
 
     token_index->name = str_dup("(no name)");
     token_index->description = &str_empty[0];
@@ -3238,6 +3252,8 @@ TOKEN_DATA *new_token()
 	token = token_free;
 	token_free = token_free->next;
     }
+
+    memset(token, 0, sizeof(*token));
 
     token->progs = NULL;
     SET_MEMTYPE(token,MEMTYPE_TOKEN);
@@ -4865,3 +4881,433 @@ void free_aura_data(AURA_DATA *aura)
     aura_data_free = aura;
     INVALIDATE(aura);
 }
+
+
+// Item Multi-Typing
+
+// =========[ CONTAINER ]==========
+CONTAINER_FILTER *new_container_filter()
+{
+    CONTAINER_FILTER *filter = alloc_mem(sizeof(CONTAINER_FILTER));
+
+    memset(filter, 0, sizeof(*filter));
+
+    return filter;
+}
+
+void free_container_filter(CONTAINER_FILTER *filter)
+{
+    free_mem(filter, sizeof(*filter));
+}
+
+static void *copy_container_filter(void *ptr)
+{
+    CONTAINER_FILTER *src = (CONTAINER_FILTER *)ptr;
+    CONTAINER_FILTER *cpy = new_container_filter();
+
+    if (cpy)
+    {
+        cpy->item_type = src->item_type;
+        cpy->sub_type = src->sub_type;
+    }
+
+    return cpy;
+}
+
+static void delete_container_filter(void *ptr)
+{
+    free_container_filter((CONTAINER_FILTER *)ptr);
+}
+
+CONTAINER_DATA *container_data_free;
+
+CONTAINER_DATA *new_container_data()
+{
+    CONTAINER_DATA *data;
+    if (container_data_free)
+    {
+        data = container_data_free;
+        container_data_free = container_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(CONTAINER_DATA));
+
+    memset(data, 0, sizeof(*data));
+
+    data->name = str_dup("");
+    data->whitelist = list_createx(FALSE, copy_container_filter, delete_container_filter);   // Filled with positive INTs
+    data->blacklist = list_createx(FALSE, copy_container_filter, delete_container_filter);   // Filled with positive INTs
+
+    VALIDATE(data);
+    return data;
+}
+
+CONTAINER_DATA *copy_container_data(CONTAINER_DATA *src)
+{
+    if (!IS_VALID(src)) return NULL;
+
+    CONTAINER_DATA *data;
+    if (container_data_free)
+    {
+        data = container_data_free;
+        container_data_free = container_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(CONTAINER_DATA));
+
+    data->name = str_dup(src->name);
+    data->flags = src->flags;
+    data->max_weight = src->max_weight;
+    data->weight_multiplier = src->weight_multiplier;
+    data->max_volume = src->max_volume;
+
+    data->whitelist = list_copy(src->whitelist);
+    data->blacklist = list_copy(src->blacklist);
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_container_data(CONTAINER_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    free_string(data->name);
+    list_destroy(data->whitelist);
+    list_destroy(data->blacklist);
+
+    INVALIDATE(data);
+    data->next = container_data_free;
+    container_data_free = data;
+}
+
+
+
+// ============[ FOOD ]============
+FOOD_BUFF_DATA *food_buff_data_free;
+
+FOOD_BUFF_DATA *new_food_buff_data()
+{
+    FOOD_BUFF_DATA *data;
+    if(food_buff_data_free)
+    {
+        data = food_buff_data_free;
+        food_buff_data_free = food_buff_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(FOOD_BUFF_DATA));
+    
+    memset(data, 0, sizeof(*data));
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_food_buff_data(FOOD_BUFF_DATA *data)
+{
+    if(!IS_VALID(data)) return;
+
+    variable_clearfield(VAR_FOOD_BUFF, data);
+
+    INVALIDATE(data);
+    data->next = food_buff_data_free;
+    food_buff_data_free = data;
+}
+
+static void *copy_food_buff_data(void *src)
+{
+    FOOD_BUFF_DATA *a = (FOOD_BUFF_DATA *)src;
+    FOOD_BUFF_DATA *b = new_food_buff_data();
+
+    if (IS_VALID(b))
+    {
+        b->where = a->where;
+        b->level = a->level;
+        b->location = a->location;
+        b->modifier = a->modifier;
+        b->bitvector = a->bitvector;
+        b->bitvector2 = a->bitvector2;
+        b->duration = a->duration;
+    }
+
+    return b;
+}
+
+static void delete_food_buff_data(void *ptr)
+{
+    free_food_buff_data((FOOD_BUFF_DATA *)ptr);
+}
+
+FOOD_DATA *food_data_free;
+
+FOOD_DATA *new_food_data()
+{
+    FOOD_DATA *data;
+    if (food_data_free)
+    {
+        data = food_data_free;
+        food_data_free = food_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(FOOD_DATA));
+    
+    memset(data, 0, sizeof(*data));
+
+    data->buffs = list_createx(FALSE, copy_food_buff_data, delete_food_buff_data);
+
+    VALIDATE(data);
+    return data;
+}
+
+FOOD_DATA *copy_food_data(FOOD_DATA *src)
+{
+    if (!IS_VALID(src)) return NULL;
+
+    FOOD_DATA *data;
+    if (food_data_free)
+    {
+        data = food_data_free;
+        food_data_free = food_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(FOOD_DATA));
+    
+    data->hunger = src->hunger;
+    data->full = src->full;
+    data->poison = src->poison;
+
+    data->buffs = list_copy(src->buffs);
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_food_data(FOOD_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    list_destroy(data->buffs);
+
+    INVALIDATE(data);
+    data->next = food_data_free;
+    food_data_free = data;
+}
+
+// =========[ FURNITURE ]==========
+FURNITURE_COMPARTMENT *furniture_compartment_Free;
+
+FURNITURE_COMPARTMENT *new_furniture_compartment()
+{
+    FURNITURE_COMPARTMENT *data;
+    if (furniture_compartment_Free)
+    {
+        data = furniture_compartment_Free;
+        furniture_compartment_Free = furniture_compartment_Free->next;
+    }
+    else
+        data = alloc_mem(sizeof(FURNITURE_COMPARTMENT));
+    
+    memset(data, 0, sizeof(*data));
+
+    data->name = str_dup("");
+    data->short_descr = str_dup("");
+    data->description = str_dup("");
+
+    data->max_occupants = -1;
+    data->max_weight = -1;
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_furniture_compartment(FURNITURE_COMPARTMENT *data)
+{
+    if (!IS_VALID(data)) return;
+
+    free_string(data->name);
+    free_string(data->short_descr);
+    free_string(data->description);
+
+    INVALIDATE(data);
+    data->next = furniture_compartment_Free;
+    furniture_compartment_Free = data;
+}
+
+static void *copy_furniture_compartment(void *ptr)
+{
+    FURNITURE_COMPARTMENT *src = (FURNITURE_COMPARTMENT *)ptr;
+    FURNITURE_COMPARTMENT *data;
+    if (furniture_compartment_Free)
+    {
+        data = furniture_compartment_Free;
+        furniture_compartment_Free = furniture_compartment_Free->next;
+    }
+    else
+        data = alloc_mem(sizeof(FURNITURE_COMPARTMENT));
+    
+    memset(data, 0, sizeof(*data));
+
+    data->name = str_dup(src->name);
+    data->short_descr = str_dup(src->short_descr);
+    data->description = str_dup(src->description);
+
+    data->flags = src->flags;
+    data->max_weight = src->max_weight;
+    data->max_occupants = src->max_occupants;
+
+    data->standing = src->standing;
+    data->hanging = src->hanging;
+    data->sitting = src->sitting;
+    data->resting = src->resting;
+    data->sleeping = src->sleeping;
+
+    data->health_regen = src->health_regen;
+    data->mana_regen = src->mana_regen;
+    data->move_regen = src->move_regen;
+
+    VALIDATE(data);
+    return data;
+}
+
+static void delete_furniture_compartment(void *ptr)
+{
+    free_furniture_compartment((FURNITURE_COMPARTMENT *)ptr);
+}
+
+FURNITURE_DATA *furniture_data_free;
+
+FURNITURE_DATA *new_furniture_data()
+{
+    FURNITURE_DATA *data;
+    if (furniture_data_free)
+    {
+        data = furniture_data_free;
+        furniture_data_free = furniture_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(FURNITURE_DATA));
+
+    memset(data, 0, sizeof(*data));
+
+    data->compartments = list_createx(FALSE, copy_furniture_compartment, delete_furniture_compartment);
+    data->main_compartment = 0;
+
+    VALIDATE(data);
+    return data;
+}
+
+FURNITURE_DATA *copy_furniture_data(FURNITURE_DATA *src)
+{
+    if (!IS_VALID(src)) return NULL;
+
+    FURNITURE_DATA *data;
+
+    if (furniture_data_free)
+    {
+        data = furniture_data_free;
+        furniture_data_free = furniture_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(FURNITURE_DATA));
+
+    // No need to memset here as all data fields are initialized
+    data->compartments = list_copy(src->compartments);
+    data->main_compartment = src->main_compartment;
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_furniture_data(FURNITURE_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    list_destroy(data->compartments);
+
+    INVALIDATE(data);
+    data->next = furniture_data_free;
+    furniture_data_free = data;
+}
+
+
+// ===========[ LIGHT ]============
+LIGHT_DATA *light_data_free;
+
+LIGHT_DATA *new_light_data()
+{
+    LIGHT_DATA *data;
+    if (light_data_free)
+    {
+        data = light_data_free;
+        light_data_free = light_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(LIGHT_DATA));
+
+    memset(data, 0, sizeof(*data));
+
+    VALIDATE(data);
+    return data;
+}
+
+LIGHT_DATA *copy_light_data(LIGHT_DATA *src)
+{
+    if (!IS_VALID(src)) return NULL;
+
+    LIGHT_DATA *data = new_light_data();
+
+    data->duration = src->duration;
+
+    return data;
+}
+
+void free_light_data(LIGHT_DATA *data)
+{
+    if(!IS_VALID(data)) return;
+
+    INVALIDATE(data);
+    data->next = light_data_free;
+    light_data_free = data;
+}
+
+// ===========[ MONEY ]============
+MONEY_DATA *money_data_free;
+
+MONEY_DATA *new_money_data()
+{
+    MONEY_DATA *data;
+    if (money_data_free)
+    {
+        data = money_data_free;
+        money_data_free = money_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(MONEY_DATA));
+
+    memset(data, 0, sizeof(*data));
+
+    VALIDATE(data);
+    return data;
+}
+
+MONEY_DATA *copy_money_data(MONEY_DATA *src)
+{
+    if (!IS_VALID(src)) return NULL;
+
+    MONEY_DATA *data = new_money_data();
+
+    data->silver = src->silver;
+    data->gold = src->gold;
+
+    return data;
+}
+
+void free_money_data(MONEY_DATA *data)
+{
+    if(!IS_VALID(data)) return;
+
+    INVALIDATE(data);
+    data->next = money_data_free;
+    money_data_free = data;
+}
+

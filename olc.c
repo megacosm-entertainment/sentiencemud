@@ -148,7 +148,6 @@ const struct olc_cmd_type redit_table[] =
 	{	"persist",	redit_persist					},
 	{	"region",	redit_region				},
 	{	"room",		redit_room					},
-	{	"room2",	redit_room2					},
 	{	"savage",	redit_savage				},
 	{	"sector",	redit_sector					},
 	{	"show",		redit_show					},
@@ -176,6 +175,7 @@ const struct olc_cmd_type oedit_table[] =
 	{ "commands",		show_commands			},
 	{ "comments",		oedit_comments			},
 	{ "condition",		oedit_condition			},
+	{ "container",		oedit_type_container	},
 	{ "cost",			oedit_cost				},
 	{ "create",			oedit_create			},
 	{ "delaffect",		oedit_delaffect			},
@@ -186,14 +186,15 @@ const struct olc_cmd_type oedit_table[] =
 	{ "description",	oedit_desc				},
 	{ "ed",				oedit_ed				},
 	{ "extra",			oedit_extra				},
-	{ "extra2",			oedit_extra2			},
-	{ "extra3",			oedit_extra3			},
-	{ "extra4",			oedit_extra4			},
+	{ "food",			oedit_type_food			},
 	{ "fragility",		oedit_fragility			},
+	{ "furniture",		oedit_type_furniture	},
 	{ "level",			oedit_level				},
+	{ "light",			oedit_type_light		},
 	{ "lock",			oedit_lock				},
 	{ "long",			oedit_long				},
 	{ "material",		oedit_material			},
+	{ "money",			oedit_type_money		},
 	{ "name",			oedit_name				},
 	{ "next",			oedit_next				},
 	{ "oupdate",		oedit_update			},
@@ -258,10 +259,8 @@ const struct olc_cmd_type medit_table[] =
 {
 	{   "?",		show_help	},
 	{   "act",          medit_act       },
-	{   "act2",         medit_act2      },
 	{   "addmprog",	medit_addmprog  },
 	{   "affect",       medit_affect    },
-	{   "affect2",	medit_affect2   },
 	{   "alignment",	medit_align	},
 	{   "armour",        medit_ac        },
 	{   "attacks",	medit_attacks   },
@@ -410,6 +409,10 @@ const struct olc_cmd_type pedit_table[] =
 /* Executed from comm.c.  Minimizes compiling when changes are made. */
 bool run_olc_editor(DESCRIPTOR_DATA *d)
 {
+	// No command should have a space, so no need for quoting.
+	// No OLC command should start with ' or ".
+	if (d->incomm[0] == '\'' || d->incomm[0] == '"') return FALSE;
+
 	switch (d->editor)
 	{
 	case ED_AREA:
@@ -2161,7 +2164,7 @@ void do_resets(CHAR_DATA *ch, char *argument)
 				}
 
 				// TODO: Add other container types, like weapon container and keyring
-				if ((temp->item_type != ITEM_CONTAINER) &&
+				if ((!IS_CONTAINER(temp)) &&
 					(temp->item_type != ITEM_CORPSE_NPC))
 				{
 					send_to_char("Object 2 isn't a container.\n\r", ch);
@@ -2180,17 +2183,14 @@ void do_resets(CHAR_DATA *ch, char *argument)
 			}
 			else
 			{
-				if (flag_value(wear_loc_flags, arg4) == NO_FLAG)
+				long value;
+				if ((value = stat_lookup(arg4, wear_loc_flags, NO_FLAG)) == NO_FLAG)
 				{
-					// Hack because WEAR_LIGHT is same value as NO_FLAG
-					if (str_cmp(arg4, "light"))
-					{
-						send_to_char("Resets: '? wear-loc'\n\r", ch);
-						return;
-					}
+					send_to_char("Resets: '? wear-loc'\n\r", ch);
+					return;
 				}
 
-				pReset->arg4 = (!str_cmp(arg4, "light")) ? WEAR_LIGHT : flag_value(wear_loc_flags, arg4);
+				pReset->arg4 = value;
 
 				if (pReset->arg4 == WEAR_NONE)
 					pReset->command = 'G';
@@ -3813,4 +3813,26 @@ SHOP_STOCK_DATA *get_shop_stock_bypos(SHOP_DATA *shop, int nth)
 
 }
 
-/* Used for handling projects. */
+
+void obj_index_reset_multitype(OBJ_INDEX_DATA *pObjIndex)
+{
+	free_container_data(CONTAINER(pObjIndex));		CONTAINER(pObjIndex) = NULL;
+	free_food_data(FOOD(pObjIndex));				FOOD(pObjIndex) = NULL;
+	free_light_data(LIGHT(pObjIndex));				LIGHT(pObjIndex) = NULL;
+	free_money_data(MONEY(pObjIndex));				MONEY(pObjIndex) = NULL;
+}
+
+void obj_index_set_primarytype(OBJ_INDEX_DATA *pObjIndex, int item_type)
+{
+	obj_index_reset_multitype(pObjIndex);
+
+	pObjIndex->item_type = item_type;
+	switch(item_type)
+	{
+		case ITEM_CONTAINER:	CONTAINER(pObjIndex) = new_container_data(); break;
+		case ITEM_FOOD:			FOOD(pObjIndex) = new_food_data(); break;
+		case ITEM_FURNITURE:	FURNITURE(pObjIndex) = new_furniture_data(); break;
+		case ITEM_LIGHT:		LIGHT(pObjIndex) = new_light_data(); break;
+		case ITEM_MONEY:		MONEY(pObjIndex) = new_money_data(); break;
+	}
+}

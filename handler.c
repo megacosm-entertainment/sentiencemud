@@ -1144,6 +1144,7 @@ void affect_modify(CHAR_DATA *ch, AFFECT_DATA *paf, bool fAdd)
 	    break;
 	case APPLY_HITROLL:       ch->hitroll			+= mod;	break;
 	case APPLY_DAMROLL:       ch->damroll			+= mod;	break;
+	case APPLY_XPBOOST:       ch->xpboost			+= mod; break;
 	case APPLY_SPELL_AFFECT:  					break;
 	default:
 		if(!IS_NPC(ch) && paf->location >= APPLY_SKILL && paf->location < APPLY_SKILL_MAX) {
@@ -1876,17 +1877,19 @@ void char_from_room(CHAR_DATA *ch)
 
 
     if (ch->in_room->chat_room != NULL)
-	ch->in_room->chat_room->curr_people--;
+	{
+		ch->in_room->chat_room->curr_people--;
+	}
 
-    if (MOUNTED(ch) && MOUNTED(ch)->in_room == ch->in_room
-    && MOUNTED(ch)->in_room != NULL)
+    if (MOUNTED(ch) && MOUNTED(ch)->in_room == ch->in_room && MOUNTED(ch)->in_room != NULL)
+	{
         char_from_room(MOUNTED(ch));
+	}
 
-    if ((obj = get_eq_char(ch, WEAR_LIGHT)) != NULL
-    &&   obj->item_type == ITEM_LIGHT
-    &&   obj->value[2] != 0
-    &&   ch->in_room->light > 0)
-	--ch->in_room->light;
+	if (light_char_has_light(ch) && ch->in_room->light > 0)
+	{
+		--ch->in_room->light;
+	}
 
     if (ch == ch->in_room->people)
 	ch->in_room->people = ch->next_in_room;
@@ -1947,8 +1950,6 @@ void char_from_room(CHAR_DATA *ch)
  */
 void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
 {
-    OBJ_DATA *obj;
-
     if (pRoomIndex == NULL)
     {
 		ROOM_INDEX_DATA *room;
@@ -2060,10 +2061,8 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
 		}
     }
 
-    if ((obj = get_eq_char(ch, WEAR_LIGHT)) != NULL
-    &&   obj->item_type == ITEM_LIGHT
-    &&   obj->value[2] != 0)
-	++ch->in_room->light;
+	if (light_char_has_light(ch))
+		ch->in_room->light++;
 
     // Spread plague
     if (IS_AFFECTED(ch,AFF_PLAGUE))
@@ -2160,34 +2159,37 @@ void obj_to_char(OBJ_DATA *obj, CHAR_DATA *ch)
         REMOVE_BIT(obj->extra_flags, ITEM_HIDDEN);
 
     // convert money obj into gold/silver
-    if (obj->item_type == ITEM_MONEY)
+    if (IS_MONEY(obj))
     {
-	ch->silver += obj->value[0];
-	ch->gold += obj->value[1];
+		int silver = MONEY(obj)->silver;
+		int gold = MONEY(obj)->gold;
 
-	// AUTOSPLIT
-	if (IS_SET(ch->act,PLR_AUTOSPLIT))
-	{
-	    int members;
-	    CHAR_DATA *gch;
-	    char buffer[MAX_STRING_LENGTH];
+		ch->silver += silver;
+		ch->gold += gold;
 
-	    members = 0;
-	    for (gch = ch->in_room->people; gch != NULL; gch = gch->next_in_room)
-	    {
-		if (gch->pcdata != NULL && is_same_group(gch, ch))
-		    members++;
-	    }
+		// AUTOSPLIT
+		if (IS_SET(ch->act,PLR_AUTOSPLIT))
+		{
+			int members;
+			CHAR_DATA *gch;
+			char buffer[MAX_STRING_LENGTH];
 
-	    if (members > 1 && (obj->value[0] > 1 || obj->value[1]))
-	    {
-		sprintf(buffer,"%d %d",obj->value[0],obj->value[1]);
-		do_function(ch, &do_split, buffer);
-	    }
-	}
+			members = 0;
+			for (gch = ch->in_room->people; gch != NULL; gch = gch->next_in_room)
+			{
+			if (gch->pcdata != NULL && is_same_group(gch, ch))
+				members++;
+			}
 
-	extract_obj(obj);
-	return;
+			if (members > 1 && (silver > 1 || gold > 0))
+			{
+				sprintf(buffer,"%d %d", silver, gold);
+				do_function(ch, &do_split, buffer);
+			}
+		}
+
+		extract_obj(obj);
+		return;
     }
 
     list_addlink(ch->lcarrying, obj);
@@ -2199,7 +2201,7 @@ void obj_to_char(OBJ_DATA *obj, CHAR_DATA *ch)
 
     if (objRepop == TRUE)
     {
-	p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+	p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL,0,0,0,0,0);
 	objRepop = FALSE;
     }
 }
@@ -2416,11 +2418,13 @@ void equip_char(CHAR_DATA *ch, OBJ_DATA *obj, int iWear)
 	return;
     }
 
+	bool was_lit = light_char_has_light(ch);
+
     obj->wear_loc	 = iWear;
     list_addlink(ch->lworn, obj);
 
     /* Wear trigger */
-    p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_WEAR, NULL);
+    p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_WEAR, NULL,0,0,0,0,0);
 
 	// Concealed items do nothing to the wearer's stats and affects.
 	if(wear_params[iWear][WEAR_PARAM_AFFECTS]) {
@@ -2436,16 +2440,10 @@ void equip_char(CHAR_DATA *ch, OBJ_DATA *obj, int iWear)
 		}
 
 	    /* set light in room if it's a light */
-	    if (obj->item_type == ITEM_LIGHT
-	    &&   ch->in_room != NULL)
-	    {
-		// hack to fix current lights with 0 light remaining
-		if (obj->value[2] == 0)
-		    obj->value[2] = 10;
-
-		++ch->in_room->light;
-	    }
-
+		if (!was_lit && light_char_has_light(ch) && ch->in_room != NULL)
+			++ch->in_room->light;
+		
+		// TODO: Require it be *specific types of items
 	    if (obj->item_type != ITEM_WAND
 	    &&  obj->item_type != ITEM_STAFF
 	    &&  obj->item_type != ITEM_SCROLL
@@ -2491,6 +2489,8 @@ int unequip_char(CHAR_DATA *ch, OBJ_DATA *obj, bool show)
 	return FALSE;	// @@@NIB : 20070128
     }
 
+	bool was_lit = light_char_has_light(ch);
+
     obj->wear_loc = WEAR_NONE;
     list_remlink(ch->lworn, obj);
 
@@ -2505,9 +2505,8 @@ int unequip_char(CHAR_DATA *ch, OBJ_DATA *obj, bool show)
 //			affect_check(ch, paf->where, paf->bitvector, paf->bitvector2);
 	    }
 
-	    if (obj->item_type == ITEM_LIGHT &&
-	    	obj->value[2] != 0 && ch->in_room != NULL &&
-	    	ch->in_room->light > 0)
+		// Was lit, but now, with the light unequipped, there is no other active light source
+		if (was_lit && !light_char_has_light(ch) && ch->in_room != NULL && ch->in_room->light > 0)
 			--ch->in_room->light;
 
 	    // Remove spells
@@ -2583,8 +2582,14 @@ int unequip_char(CHAR_DATA *ch, OBJ_DATA *obj, bool show)
 
     }
 
+	// It was in the standard light location, turn it off automagically
+	if (obj->item_type == ITEM_LIGHT && loc == WEAR_LIGHT)
+	{
+		REMOVE_BIT(LIGHT(obj)->flags, LIGHT_IS_ACTIVE);
+	}
+
     /* Remove trigger */
-    return (p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_REMOVE, NULL));
+    return (p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_REMOVE, NULL,0,0,0,0,0));
 }
 
 
@@ -2628,6 +2633,13 @@ void obj_from_room(OBJ_DATA *obj)
 
 	list_remlink(in_room->lcontents, obj);
 	list_remlink(in_room->lentity, obj);
+
+
+	if (IS_LIGHT(obj) && IS_SET(LIGHT(obj)->flags, LIGHT_IS_ACTIVE))
+	{
+		obj->in_room->light--;
+	}
+
 
 	if (obj == in_room->contents)
 		in_room->contents = obj->next_content;
@@ -2721,9 +2733,14 @@ void obj_to_room(OBJ_DATA *obj, ROOM_INDEX_DATA *pRoomIndex)
 
     if (objRepop == TRUE)
     {
-		p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+		p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL,0,0,0,0,0);
 		objRepop = FALSE;
     }
+
+	if (IS_LIGHT(obj) && IS_SET(LIGHT(obj)->flags, LIGHT_IS_ACTIVE))
+	{
+		obj->in_room->light++;
+	}
 }
 
 void obj_to_vroom(OBJ_DATA *obj, WILDS_DATA *pWilds, int x, int y)
@@ -2772,9 +2789,14 @@ void obj_to_vroom(OBJ_DATA *obj, WILDS_DATA *pWilds, int x, int y)
 
     if (objRepop == TRUE)
     {
-	p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+	p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL,0,0,0,0,0);
 	objRepop = FALSE;
     }
+
+	if (IS_LIGHT(obj) && IS_SET(LIGHT(obj)->flags, LIGHT_IS_ACTIVE))
+	{
+		obj->in_room->light++;
+	}
 }
 
 
@@ -2786,11 +2808,11 @@ void obj_to_obj(OBJ_DATA *obj, OBJ_DATA *obj_to)
     if (obj_to->carried_by != NULL)
 		obj_to->carried_by->carry_weight -= get_obj_weight(obj_to);
 
-    obj->next_content		= obj_to->contains;
-    obj_to->contains		= obj;
-    obj->in_obj			= obj_to;
-    obj->in_room		= obj_to->in_room;
-    obj->carried_by		= NULL;
+	obj->next_content		= obj_to->contains;
+	obj_to->contains		= obj;
+	obj->in_obj			= obj_to;
+	obj->in_room		= obj_to->in_room;
+	obj->carried_by		= NULL;
 
     if (obj_to->carried_by != NULL)
 		obj_to->carried_by->carry_weight += get_obj_weight(obj_to);
@@ -2799,7 +2821,6 @@ void obj_to_obj(OBJ_DATA *obj, OBJ_DATA *obj_to)
 		obj_set_nest_clones(obj_to,true);
 
     obj->pIndexData->incontainer++;
-
 }
 
 
@@ -2990,13 +3011,13 @@ void extract_obj(OBJ_DATA *obj)
 			obj->progs->extract_when_done = TRUE;
 			return;
 		}
-	    p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_EXTRACT, NULL);
+	    p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_EXTRACT, NULL,0,0,0,0,0);
     }
 
     // Deal with all clone rooms here while the object's location still exists
     for(clone = obj->clone_rooms; clone; clone = next_clone) {
 	    next_clone = clone->next_clone;
-	    p_percent_trigger(NULL, NULL, clone, NULL, NULL, NULL, NULL, obj, NULL, TRIG_CLONE_EXTRACT, NULL);
+	    p_percent_trigger(NULL, NULL, clone, NULL, NULL, NULL, NULL, obj, NULL, TRIG_CLONE_EXTRACT, NULL,0,0,0,0,0);
 	    room_from_environment(clone);
     }
 
@@ -3094,7 +3115,7 @@ void extract_char(CHAR_DATA *ch, bool fPull)
 			ch->progs->extract_fPull = ch->progs->extract_fPull || fPull;
 			return;
 		}
-	    p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_EXTRACT, NULL);
+	    p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_EXTRACT, NULL,0,0,0,0,0);
     }
 
     nuke_pets(ch);
@@ -3109,7 +3130,7 @@ void extract_char(CHAR_DATA *ch, bool fPull)
     // Deal with all clone rooms here while the object's location still exists
     for(clone = ch->clone_rooms; clone; clone = next_clone) {
 	    next_clone = clone->next_clone;
-	    p_percent_trigger(NULL, NULL, clone, NULL, NULL, ch, NULL, NULL, NULL, TRIG_CLONE_EXTRACT, NULL);
+	    p_percent_trigger(NULL, NULL, clone, NULL, NULL, ch, NULL, NULL, NULL, TRIG_CLONE_EXTRACT, NULL,0,0,0,0,0);
 	    room_from_environment(clone);
     }
 
@@ -3250,7 +3271,7 @@ void extract_token(TOKEN_DATA *token)
 			token->progs->extract_when_done = TRUE;
 			return;
 		}
-	    p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_EXTRACT, NULL);
+	    p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_EXTRACT, NULL,0,0,0,0,0);
     }
 
     if(token->player)
@@ -3883,6 +3904,82 @@ void deduct_cost(CHAR_DATA *ch, int cost)
     }
 }
 
+void update_money(OBJ_DATA *money)
+{
+	if (IS_MONEY(money) && (MONEY(money)->gold > 0 || MONEY(money)->silver > 0))
+	{
+		char buf[MSL];
+		int gold = UMAX(0, MONEY(money)->gold);
+		int silver = UMAX(0, MONEY(money)->silver);
+
+		money->weight = get_weight_coins(silver, gold);
+		money->cost = 100 * gold + silver;
+
+		free_string(money->name);
+		free_string(money->short_descr);
+		free_string(money->description);
+		free_string(money->full_description);
+
+		if (gold == 0 && silver == 1)
+		{
+			money->name = str_dup(obj_index_silver_one->name);
+			money->short_descr = str_dup(obj_index_silver_one->short_descr);
+			money->description = str_dup(obj_index_silver_one->description);
+			if (!IS_NULLSTR(obj_index_silver_one->full_description))
+				money->full_description = str_dup(obj_index_silver_one->full_description);
+			else
+				money->full_description = str_dup(obj_index_silver_one->description);
+			money->pIndexData = obj_index_silver_one;
+		}
+		else if (gold == 1 && silver == 0)
+		{
+			money->name = str_dup(obj_index_gold_one->name);
+			money->short_descr = str_dup(obj_index_gold_one->short_descr);
+			money->description = str_dup(obj_index_gold_one->description);
+			if (!IS_NULLSTR(obj_index_gold_one->full_description))
+				money->full_description = str_dup(obj_index_gold_one->full_description);
+			else
+				money->full_description = str_dup(obj_index_gold_one->description);
+			money->pIndexData = obj_index_gold_one;
+		}
+		else if (silver > 0 && gold == 0)
+		{
+			money->name = str_dup(obj_index_silver_some->name);
+			sprintf(buf, obj_index_silver_some->short_descr, silver);
+			money->short_descr = str_dup(buf);
+			sprintf(buf, obj_index_silver_some->description, silver);
+			money->description = str_dup(buf);
+			if (!IS_NULLSTR(obj_index_silver_some->full_description))
+				sprintf(buf, obj_index_silver_some->full_description, silver);
+			money->full_description = str_dup(buf);
+			money->pIndexData = obj_index_silver_some;
+		}
+		else if (gold > 0 && silver == 0)
+		{
+			money->name = str_dup(obj_index_gold_some->name);
+			sprintf(buf, obj_index_gold_some->short_descr, gold);
+			money->short_descr = str_dup(buf);
+			sprintf(buf, obj_index_gold_some->description, gold);
+			money->description = str_dup(buf);
+			if (!IS_NULLSTR(obj_index_gold_some->full_description))
+				sprintf(buf, obj_index_gold_some->full_description, gold);
+			money->full_description = str_dup(buf);
+			money->pIndexData = obj_index_gold_some;
+		}
+		else
+		{
+			money->name = str_dup(obj_index_coins->name);
+			sprintf(buf, obj_index_coins->short_descr, silver, gold);
+			money->short_descr = str_dup(buf);
+			sprintf(buf, obj_index_coins->description, silver, gold);
+			money->description = str_dup(buf);
+			if (!IS_NULLSTR(obj_index_coins->full_description))
+				sprintf(buf, obj_index_coins->full_description, silver, gold);
+			money->full_description = str_dup(buf);
+			money->pIndexData = obj_index_coins;
+		}
+	}
+}
 
 /*
  * Create a 'money' obj.
@@ -3894,24 +3991,21 @@ OBJ_DATA *create_money(int gold, int silver)
 
     if (gold < 0 || silver < 0 || (gold == 0 && silver == 0))
     {
-	bug("Create_money: zero or negative money.",UMIN(gold,silver));
-	gold = UMAX(0,gold);
-	silver = UMAX(1,silver);
+		bug("Create_money: zero or negative money.",UMIN(gold,silver));
+		gold = UMAX(0,gold);
+		silver = UMAX(1,silver);
     }
 
     if (gold == 0 && silver == 1)
-	obj = create_object(obj_index_silver_one, 0, TRUE);
+		obj = create_object(obj_index_silver_one, 0, TRUE);
     else if (gold == 1 && silver == 0)
-	obj = create_object(obj_index_gold_one, 0, TRUE);
+		obj = create_object(obj_index_gold_one, 0, TRUE);
     else if (silver == 0)
     {
         obj = create_object(obj_index_gold_some, 0, TRUE);
         sprintf(buf, obj->short_descr, gold);
         free_string(obj->short_descr);
         obj->short_descr        = str_dup(buf);
-        obj->value[1]           = gold;
-        obj->cost               = gold;
-	obj->weight		= gold/5;
     }
     else if (gold == 0)
     {
@@ -3919,22 +4013,23 @@ OBJ_DATA *create_money(int gold, int silver)
         sprintf(buf, obj->short_descr, silver);
         free_string(obj->short_descr);
         obj->short_descr        = str_dup(buf);
-        obj->value[0]           = silver;
-        obj->cost               = silver;
-	obj->weight		= silver/20;
     }
-
     else
     {
-	obj = create_object(obj_index_coins, 0, TRUE);
-	sprintf(buf, obj->short_descr, silver, gold);
-	free_string(obj->short_descr);
-	obj->short_descr	= str_dup(buf);
-	obj->value[0]		= silver;
-	obj->value[1]		= gold;
-	obj->cost		= 100 * gold + silver;
-	obj->weight		= gold / 5 + silver / 20;
+		obj = create_object(obj_index_coins, 0, TRUE);
+		sprintf(buf, obj->short_descr, silver, gold);
+		free_string(obj->short_descr);
+		obj->short_descr	= str_dup(buf);
     }
+
+	if (IS_MONEY(obj))
+	{
+		MONEY(obj)->silver = silver;
+		MONEY(obj)->gold = gold;
+
+		obj->cost = 100 * gold + silver;
+		obj->weight = get_weight_coins(silver, gold);
+	}
 
     return obj;
 }
@@ -3974,6 +4069,7 @@ int get_obj_number_container(OBJ_DATA *obj)
  */
 int get_obj_weight(OBJ_DATA *obj)
 {
+	/*
     int weight;
 
     if (obj->item_type == ITEM_MONEY)
@@ -3983,6 +4079,29 @@ int get_obj_weight(OBJ_DATA *obj)
 
     // This is for containers. Calculate weight of contents and factor in weight reduction
     weight += (get_obj_weight_container(obj)* WEIGHT_MULT(obj))/100;
+
+    return weight;
+	*/
+
+    int weight;
+
+    if (IS_MONEY(obj))
+	{
+		// TODO: replace with currency data
+        return get_weight_coins(MONEY(obj)->silver, MONEY(obj)->gold);
+	}
+
+    weight = obj->weight;
+
+    // This is for containers. Calculate weight of contents and factor in weight reduction
+	if (IS_CONTAINER(obj))
+	{
+		int contents = container_get_content_weight(obj, NULL);
+		if (contents > 0)
+		{
+			weight += CONTAINER(obj)->weight_multiplier * contents / 100;
+		}
+	}
 
     return weight;
 }
@@ -4045,13 +4164,14 @@ bool room_is_dark(ROOM_INDEX_DATA *pRoomIndex)
 
 	if (!to_room || !to_room->people) continue;
 
+	// TODO: Retire EMITS_LIGHT
 	for (ch = to_room->people; ch; ch = ch->next_in_room) {
 	    for (obj = ch->carrying; obj; obj = obj->next_content) {
-		if (IS_SET(obj->extra2_flags, ITEM_EMITS_LIGHT)
-			&& obj->wear_loc != WEAR_NONE)
-		    return FALSE;
-	    }
-	}
+			if (IS_SET(obj->extra2_flags, ITEM_EMITS_LIGHT)
+				&& obj->wear_loc != WEAR_NONE)
+				return FALSE;
+			}
+		}
     }
 
     if (pRoomIndex->light > 0)
@@ -4204,6 +4324,16 @@ bool can_see(CHAR_DATA *ch, CHAR_DATA *victim)
 		if ((IS_AFFECTED(victim, AFF_INVISIBLE) || IS_AFFECTED2(victim, AFF2_IMPROVED_INVIS)) && !IS_AFFECTED(ch, AFF_DETECT_INVIS))
 			return FALSE;
 	}
+
+	// Check furniture rules
+	// They are using different compartments
+	if (IS_VALID(victim->on_compartment) && ch->on_compartment != victim->on_compartment)
+	{
+		// The compartment is "inside", "closed" and *NOT* transparent
+		if (compartment_is_closed(victim->on_compartment) && !IS_SET(victim->on_compartment->flags, COMPARTMENT_TRANSPARENT))
+			return FALSE;
+	}
+
 
 	if (IS_AFFECTED(victim, AFF_HIDE) && !IS_AFFECTED(ch, AFF_DETECT_HIDDEN) && !IS_SAGE(ch) && victim->fighting == NULL)
 		return FALSE;
@@ -4722,8 +4852,8 @@ void resurrect_pc(CHAR_DATA *ch)
     update_pos(ch);
 
 	// Used to handle any post resurrection actions
-    p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->pcdata->corpse, NULL, TRIG_RESURRECT, NULL);
-    p_percent_trigger(NULL, ch->pcdata->corpse, NULL, NULL, ch, ch, NULL, NULL, NULL, TRIG_RESURRECT, NULL);
+    p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, ch->pcdata->corpse, NULL, TRIG_RESURRECT, NULL,0,0,0,0,0);
+    p_percent_trigger(NULL, ch->pcdata->corpse, NULL, NULL, ch, ch, NULL, NULL, NULL, TRIG_RESURRECT, NULL,0,0,0,0,0);
 }
 
 
@@ -5259,10 +5389,10 @@ long get_dp_value(OBJ_DATA *obj)
     && obj->item_type != ITEM_CORPSE_PC)
 	deitypoints = UMIN(deitypoints,obj->cost);
 
-    if (obj->item_type == ITEM_MONEY)
+    if (IS_MONEY(obj))
     {
-	deitypoints = obj->value[0] / 100;
-	deitypoints += obj->value[1];
+		deitypoints = MONEY(obj)->silver / 100;
+		deitypoints += MONEY(obj)->gold;
     }
 
     for (objnest = obj->contains; objnest != NULL; objnest = objnest->next_content)
@@ -6310,6 +6440,7 @@ bool can_get_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
     if (get_carry_weight(ch) + get_obj_weight(obj) > can_carry_w(ch))
 	MSG(act("$p: you can't carry that much weight.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR))
 
+	// FIX .. look for index
     if (IS_SET(obj->extra2_flags, ITEM_SINGULAR)
     &&  get_obj_vnum_carry(ch, obj->pIndexData->vnum, ch) != NULL)
     {
@@ -6321,91 +6452,109 @@ bool can_get_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
 
     if (container)
     {
-	switch (container->item_type)
-	{
-	    default:
-	        if (!silent)
-		    send_to_char("That's not a container.\n\r", ch);
 
-		return FALSE;
+		if (!IS_CONTAINER(container))
+		{
+			if (!silent)
+				send_to_char("That's not a container.\n\r", ch);
 
-	    case ITEM_CART:
-	    case ITEM_CONTAINER:
-	    case ITEM_WEAPON_CONTAINER:
-	    case ITEM_CORPSE_NPC:
-	    case ITEM_CORPSE_PC:
-	    case ITEM_KEYRING:
-		break;
-	}
+			return FALSE;
+		}
 
-	if (container->item_type == ITEM_CART && get_cart_pulled(container) != ch)
-	{
-	    if (!silent)
-	    {
-		act("You can't take items from $N's cart.", ch, get_cart_pulled(container), NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	    }
+		/*
+		else
+		{
+			switch (container->item_type)
+			{
+				default:
+					if (!silent)
+					send_to_char("That's not a container.\n\r", ch);
 
-	    return FALSE;
-	}
+				return FALSE;
 
-	if (container->item_type == ITEM_CONTAINER
-	&&  IS_SET(container->value[1], CONT_CLOSED))
-	{
-	    if (!silent)
-		act("The $d is closed.", ch, NULL, NULL, NULL, NULL, NULL, container->name, TO_CHAR);
+				case ITEM_CART:
+				case ITEM_CONTAINER:
+				case ITEM_WEAPON_CONTAINER:
+				case ITEM_CORPSE_NPC:
+				case ITEM_CORPSE_PC:
+				case ITEM_KEYRING:
+				break;
+			}
+		}
+		*/
 
-	    return FALSE;
-	}
+		if (container->item_type == ITEM_CART && get_cart_pulled(container) != ch)
+		{
+			if (!silent)
+			{
+				act("You can't take items from $N's cart.", ch, get_cart_pulled(container), NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			}
 
-	if(p_percent_trigger(NULL,container,NULL,NULL,ch, NULL, NULL,obj,NULL,TRIG_PREGET,silent?"silent":NULL))
-		return FALSE;
+			return FALSE;
+		}
+
+		if (IS_CONTAINER(container) && IS_SET(CONTAINER(container)->flags, CONT_CLOSED))
+		{
+			if (!silent)
+				act("The $d is closed.", ch, NULL, NULL, NULL, NULL, NULL, container->name, TO_CHAR);
+
+			return FALSE;
+		}
+
+		if(p_percent_trigger(NULL,container,NULL,NULL,ch, NULL, NULL,obj,NULL,TRIG_PREGET,silent?"silent":NULL,0,0,0,0,0))
+			return FALSE;
 
     }
 
     if (mail)
     {
-	if (get_carry_weight(ch) + get_obj_weight(obj) > can_carry_w(ch))
-	    MSG(act("$p: you can't carry that much weight.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR))
-    }
-
-    // Get an item from the ground or from a container on the ground
-    if (!container || container->carried_by != ch)
-    {
-	if (!IS_SET(obj->wear_flags, ITEM_TAKE) || obj->item_type == ITEM_CORPSE_PC)
-	{
-	    if (!silent)
-		send_to_char("You can't take that.\n\r", ch);
-
-	    return FALSE;
-	}
-
-	if (get_carry_weight(ch) + get_obj_weight(obj) > can_carry_w(ch))
-	    MSG(act("$p: you can't carry that much weight.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR))
-
-	if (obj_room(obj))
-	{
-	    for (gch = obj_room(obj)->people; gch != NULL; gch = gch->next_in_room)
-	    {
-		if (gch->on == obj)
-		{
-		    if (!silent)
-			act("$N appears to be using $p.", ch, gch, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-
-		    return FALSE;
+		if (get_carry_weight(ch) + get_obj_weight(obj) > can_carry_w(ch))
+			MSG(act("$p: you can't carry that much weight.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR))
 		}
-	    }
-	}
 
-	if (obj->item_type == ITEM_CART)
-	{
-	    if (!silent)
-		act("$p is far too heavy.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		// Get an item from the ground or from a container on the ground
+		if (!container || container->carried_by != ch)
+		{
+		if (!IS_SET(obj->wear_flags, ITEM_TAKE) || obj->item_type == ITEM_CORPSE_PC)
+		{
+			if (!IS_SET(obj->wear_flags, ITEM_TAKE))
+			{
+				act("$p cannot be taken.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			}
 
-	    return FALSE;
-	}
+			if (!silent)
+			send_to_char("You can't take that.\n\r", ch);
+
+			return FALSE;
+		}
+
+		if (get_carry_weight(ch) + get_obj_weight(obj) > can_carry_w(ch))
+		    MSG(act("$p: you can't carry that much weight.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR))
+
+		if (obj_room(obj))
+		{
+		    for (gch = obj_room(obj)->people; gch != NULL; gch = gch->next_in_room)
+		    {
+				if (gch->on == obj)
+				{
+					if (!silent)
+					act("$N appears to be using $p.", ch, gch, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+
+					return FALSE;
+				}
+			}
+		}
+
+		if (obj->item_type == ITEM_CART)
+		{
+			if (!silent)
+				act("$p is far too heavy.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+
+			return FALSE;
+		}
     }
 
-	return !p_percent_trigger(NULL,obj,NULL,NULL,ch, NULL, NULL,container,NULL,TRIG_PREGET,silent?"silent":NULL);
+	return !p_percent_trigger(NULL,obj,NULL,NULL,ch, NULL, NULL,container,NULL,TRIG_PREGET,silent?"silent":NULL,0,0,0,0,0);
 }
 
 
@@ -6455,36 +6604,31 @@ bool can_put_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
 			return FALSE;
 		}
 
-		if (container->item_type != ITEM_CONTAINER
-		&&  container->item_type != ITEM_WEAPON_CONTAINER
-		&&  container->item_type != ITEM_CART
-		&&  container->item_type != ITEM_KEYRING)
+		if (!IS_CONTAINER(container))
 		{
 			if (!silent)
-			send_to_char("That's not a container or cart.\n\r", ch);
+				send_to_char("That's not a container.\n\r", ch);
 
 			return FALSE;
 		}
 
-		if (container->item_type != ITEM_CART
-		&&  container->item_type != ITEM_WEAPON_CONTAINER
-		&&  IS_SET(container->value[1], CONT_CLOSED))
+		if (IS_CONTAINER(container) && IS_SET(CONTAINER(container)->flags, CONT_CLOSED))
 		{
 			if (!silent)
-			act("$p is closed.", ch, NULL, NULL, container, NULL, NULL, NULL, TO_CHAR);
+				act("$p is closed.", ch, NULL, NULL, container, NULL, NULL, NULL, TO_CHAR);
 			return FALSE;
 		}
 
 		if (obj == container)
 		{
 			if (!silent)
-			send_to_char("You can't fold it into itself.\n\r", ch);
+				send_to_char("You can't fold it into itself.\n\r", ch);
 
 			return FALSE;
 		}
 
-		if (obj->item_type == ITEM_CONTAINER
-		||  obj->item_type == ITEM_WEAPON_CONTAINER)
+		// Primary container cannot go into containers
+		if (obj->item_type == ITEM_CONTAINER)
 		{
 			if (!silent)
 			send_to_char("You can't put containers inside another container.\n\r", ch);
@@ -6496,11 +6640,19 @@ bool can_put_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
 			(IS_SET(obj->extra_flags, ITEM_NOUNCURSE) && IS_SET(obj->extra_flags, ITEM_NODROP)))
 		{
 			if (!silent)
-			act("You can't put $p in $P.", ch, NULL, NULL, obj, container, NULL, NULL, TO_CHAR);
+				act("You can't put $p in $P.", ch, NULL, NULL, obj, container, NULL, NULL, TO_CHAR);
 
 			return FALSE;
 		}
 
+		if(!container_can_fit_volume(container, obj) || !container_can_fit_weight(container, obj))
+		{
+			if (!silent)
+				act("$p won't fit in $P.", ch, NULL, NULL, obj, container, NULL, NULL, TO_CHAR);
+			return FALSE;
+		}
+
+		/*
 		if ((get_obj_weight(obj) + (get_obj_weight_container(container) * WEIGHT_MULT(container))/100) > (container->value[0]) ||
 			(get_obj_number_container(container) >= container->value[3]))
 		{
@@ -6508,7 +6660,46 @@ bool can_put_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
 			act("$p won't fit in $P.", ch, NULL, NULL, obj, container, NULL, NULL, TO_CHAR);
 			return FALSE;
 		}
+		*/
 
+		if (!container_is_valid_item(container, obj))
+		{
+			if (!silent)
+			{
+				if (IS_CONTAINER(container) && IS_SET(CONTAINER(container)->flags, CONT_PUT_ON))
+					act("You can't put $p on $P.", ch, NULL, NULL, obj, container, NULL, NULL, TO_CHAR);
+				else
+					act("You can't put $p in $P.", ch, NULL, NULL, obj, container, NULL, NULL, TO_CHAR);
+			}
+			return FALSE;
+		}
+
+		// Special handling for keyrings
+		if (obj->item_type == ITEM_KEY && container_is_valid_item_type(container, ITEM_KEY, -1))
+		{
+			if (IS_SET(obj->extra_flags, ITEM_NOKEYRING))
+			{
+				if (IS_CONTAINER(container) && IS_SET(CONTAINER(container)->flags, CONT_PUT_ON))
+					act("You can't put $p on $P.", ch, NULL, NULL, obj, container, NULL, NULL, TO_CHAR);
+				else
+					act("You can't put $p in $P.", ch, NULL, NULL, obj, container, NULL, NULL, TO_CHAR);
+			}
+		}
+
+		if (IS_CONTAINER(container) && IS_SET(CONTAINER(container)->flags, CONT_NO_DUPLICATES))
+		{
+			if (!container_check_duplicate(container, obj))
+			{
+				if (IS_SET(CONTAINER(container)->flags, CONT_PUT_ON))
+					act("$p is already on $P.", ch, NULL, NULL, obj, container, NULL, NULL, TO_CHAR);
+				else
+					act("$p is already in $P.", ch, NULL, NULL, obj, container, NULL, NULL, TO_CHAR);
+				return FALSE;
+			}
+		}
+
+		/*
+		// TODO: Changed to looking at subtypes
 		if (container->item_type == ITEM_WEAPON_CONTAINER && container->value[1] != obj->value[0])
 		{
 			if (!silent)
@@ -6520,6 +6711,7 @@ bool can_put_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
 
 			return FALSE;
 		}
+		*/
     }
     else
     {
@@ -6568,7 +6760,7 @@ bool can_put_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
 		}
     }
 
-    return !p_percent_trigger(NULL,container,NULL,NULL,ch, NULL, NULL,obj,NULL,TRIG_PREPUT,silent?"silent":NULL);
+    return !p_percent_trigger(NULL,container,NULL,NULL,ch, NULL, NULL,obj,NULL,TRIG_PREPUT,silent?"silent":NULL,0,0,0,0,0);
 }
 
 
@@ -7456,7 +7648,7 @@ int use_catalyst_obj(CHAR_DATA *ch,ROOM_INDEX_DATA *room,OBJ_DATA *obj,int type,
 			if( active && (aff->where != TO_CATALYST_ACTIVE) ) continue;
 
 			if(aff->duration < 0) {
-				if(show && !p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CATALYST_SOURCE, NULL))
+				if(show && !p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CATALYST_SOURCE, NULL,0,0,0,0,0))
 					act("$p pulsates brightly.",room->people, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
 				return -1;
 			}
@@ -7469,7 +7661,7 @@ int use_catalyst_obj(CHAR_DATA *ch,ROOM_INDEX_DATA *room,OBJ_DATA *obj,int type,
 				free_affect(aff);
 
 				if(!obj->catalyst) {	// All catalyst affects have been exhausted
-					if(show && !p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CATALYST_FULL, NULL) && ch)
+					if(show && !p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CATALYST_FULL, NULL,0,0,0,0,0) && ch)
 						act("$p flares brightly and vanishes!",room->people, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
 					extract_obj(obj);
 					return total;
@@ -7483,7 +7675,7 @@ int use_catalyst_obj(CHAR_DATA *ch,ROOM_INDEX_DATA *room,OBJ_DATA *obj,int type,
 		}
 	}
 
-	if(show && used && !p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CATALYST, NULL)) {
+	if(show && used && !p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CATALYST, NULL,0,0,0,0,0)) {
 		act("$p shimmers brightly, but only dims back to normal.",room->people, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
 	}
 	return total;
@@ -8980,8 +9172,8 @@ ROOM_INDEX_DATA *get_recall_room(CHAR_DATA *ch)
 	// Do not reset the recall point here, as it may have been set by other means.
 	// Simply call the recall triggers to see if they MODIFY it.
 
-	if(!p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RECALL, NULL))
-		p_percent_trigger(NULL, NULL, ch->in_room, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RECALL, NULL);
+	if(!p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RECALL, NULL,0,0,0,0,0))
+		p_percent_trigger(NULL, NULL, ch->in_room, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RECALL, NULL,0,0,0,0,0);
 
 	loc = location_to_room(&ch->recall);
 	memset(&ch->recall,0,sizeof(LOCATION));
@@ -9127,7 +9319,7 @@ void restore_char(CHAR_DATA *ch, CHAR_DATA *whom, int percent)
 	if(whom)
 		act("$n has restored you.",whom, ch, NULL, NULL, NULL, NULL, NULL,TO_VICT);
 
-	p_percent_trigger( ch, NULL, NULL, NULL, ch, whom, NULL,NULL, NULL, TRIG_RESTORE, NULL);
+	p_percent_trigger( ch, NULL, NULL, NULL, ch, whom, NULL,NULL, NULL, TRIG_RESTORE, NULL,0,0,0,0,0);
 
 }
 
@@ -9805,7 +9997,7 @@ bool is_exit_visible(CHAR_DATA *ch, ROOM_INDEX_DATA *room, int door)
 	if(IS_SET(ex->exit_info, EX_HIDDEN) && !IS_SET(ex->exit_info, EX_FOUND)) return FALSE;
 
 	// Check SHOW_EXIT trigger (allow/deny script)
-	if(p_direction_trigger(ch, room, door, PRG_RPROG, TRIG_SHOWEXIT))
+	if(p_direction_trigger(ch, room, door, PRG_RPROG, TRIG_SHOWEXIT,0,0,0,0,0))
 		return FALSE;
 
 	return TRUE;

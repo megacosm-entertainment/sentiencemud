@@ -37,6 +37,9 @@ extern GLOBAL_DATA         gconfig;
 AREA_DATA *get_area_data args ((long anum));
 AREA_DATA *get_area_from_uid args ((long uid));
 
+void obj_index_reset_multitype(OBJ_INDEX_DATA *pObjIndex);
+void obj_index_set_primarytype(OBJ_INDEX_DATA *pObjIndex, int item_type);
+
 
 bool redit_blueprint_oncreate = FALSE;
 
@@ -45,9 +48,19 @@ char *get_spell_data_name(SPELL_DATA *spell);
 struct olc_help_type
 {
     char *command;
+	int structure_type;
     const void *structure;
     char *desc;
 };
+
+#define STRUCT_FLAGS	0
+#define STRUCT_FLAGBANK	1
+#define STRUCT_TRIGGERS	2
+#define STRUCT_SPEC		3
+#define STRUCT_LIQUID	4
+#define STRUCT_ATTACK	5
+#define STRUCT_MATERIAL	6
+#define STRUCT_SKILL	7
 
 struct trigger_type dummy_triggers[1];
 
@@ -55,81 +68,79 @@ struct trigger_type dummy_triggers[1];
 // This table contains help commands and a brief description of each.
 const struct olc_help_type help_table[] =
 {
-	{	"act",					act_flags,					"Mobile	attributes."	},
-	{	"act2",					act2_flags,					"Mobile	attributes."	},
-	{	"affect",				affect_flags,				"Mobile	affects."	},
-	{	"affect2",				affect2_flags,				"Mobile affects."	},
-	{	"apply",				apply_flags,				"Apply flags"	},
-	{	"apptype",				apply_types,				"Apply types."	},
-	{	"aprog",				dummy_triggers,				"AreaProgram types."	},
-	{	"area",					area_flags,					"Area attributes."	},
-	{	"areawho",				area_who_titles,			"Type of area for who."	},
-	{	"armour",				ac_type,					"Ac for different attacks."	},
-	{	"blueprint",			blueprint_flags,			"Blueprint flags" },
-	{	"catalyst",				catalyst_types,				"Catalyst types."	},
-	{	"condition",			room_condition_flags,		"Room Condition types."	},
-	{	"container",			container_flags,			"Container status."	},
-	{	"corpsetypes",			corpse_types,				"Corpse types."	},
-	{	"dprog",				dummy_triggers,				"DungeonProgram types."	},
-	{	"death_release",		death_release_modes,		"Dungeon Death Release mobes."},
-	{	"dungeon",				dungeon_flags,				"Dungeon Flags"	},
-	{	"exit",					exit_flags,					"Exit types."	},
-	{	"extra",				extra_flags,				"Object attributes."	},
-	{	"extra2",				extra2_flags,				"Object attributes 2."	},
-	{	"extra3",				extra3_flags,				"Object attributes 3."	},
-	{	"extra4",				extra4_flags,				"Object attributes 4."	},
-	{	"form",					form_flags,					"Mobile body form."	},
-	{	"furniture",			furniture_flags,			"Furniture types."	},
-	{	"imm",					imm_flags,					"Mobile immunity."	},
-	{	"immortalflags",		immortal_flags,				"Immortal duties."	},
-	{	"instance",				instance_flags,				"Instance Flags"	},
-	{	"instruments",			instrument_types,			"Instrument Types"	},
-	{	"iprog",				dummy_triggers,				"InstanceProgram types."	},
-	{	"liquid",				liq_table,					"Liquid types."	},
-	{	"lock",					lock_flags,					"Lock state types."	},
-	{	"material",				material_table,				"Object materials."	},
-	{	"mprog",				dummy_triggers,				"MobProgram types."	},
-	{	"off",					off_flags,					"Mobile offensive behaviour."	},
-	{	"oprog",				dummy_triggers,				"ObjProgram types."	},
-	{	"part",					part_flags,					"Mobile body parts."	},
-	{	"placetype",			place_flags,				"Where is the town/city etc."	},
-	{	"portal",				portal_flags,				"Portal types."	},
-	{	"portal_exit",			portal_exit_flags,			"Exit (Portal) types."	},
-	{	"portal_type",			portal_gatetype,			"Portal gate types"},
-	{	"position",				position_flags,				"Mobile positions."	},
-	{	"projectflags",			project_flags,				"Project flags."	},
-	{	"ranged",				ranged_weapon_table,		"Ranged	weapon types."	},
-	{	"res",					res_flags,					"Mobile resistance."	},
-	{	"room",					room_flags,					"Room attributes."	},
-	{	"room2",				room2_flags,				"Room2 attributes."	},
-	{	"rprog",				dummy_triggers,				"RoomProgram types."	},
-	{	"scriptflags",			script_flags,				"Script Flags {D({Wrestricted{D){x."	},
-	{   "script_spaces",		script_spaces,				"Script spaces"	},
-	{	"section_flags",		blueprint_section_flags,	"Blueprint Section Flags"	},
-	{	"section_type",			blueprint_section_types,	"Blueprint Section Types"	},
-	{	"sector",				sector_flags,				"Sector types, terrain."	},
-	{	"sex",					sex_flags,					"Sexes."	},
-	{	"ship",					ship_flags,					"Ship flags"	},
-	{	"shipclass",			ship_class_types,			"Ship class types"	},
-	{	"shop",					shop_flags,					"Shop flags"	},
-	{	"size",					size_flags,					"Mobile size."	},
-	{	"song_targets",			song_target_types,			"Song Target Types."	},
-	{	"spec",					spec_table,					"Available special programs. {D(DEPRECATED){x"	},
-	{	"spell_targets",		spell_target_types,			"Spell Target Types."	},
-	{	"spells",				skill_table,				"Names of current spells."	},
-	{	"tokenflags",			token_flags,				"Token flags."	},
-	{	"tprog",				dummy_triggers,				"TokenProgram types."	},
-	{	"trigger_slots",		trigger_slots,				"Trigger slots."},
-	{	"trigger_types",		builtin_trigger_types,		"Built-in trigger types."},
-	{	"type",					type_flags,					"Types of objects."	},
-	{	"vuln",					vuln_flags,					"Mobile vulnerability."	},
-	{	"wclass",				weapon_class,				"Weapon class."	},
-	{	"weapon",				attack_table,				"Weapon types."	},
-	{	"wear",					wear_flags,					"Where to wear object."	},
-	{	"wear-loc",				wear_loc_flags,				"Where mobile wears object."	},
-	{	"wilderness_regions",	wilderness_regions,			"wilderness region names"},
-	{	"wtype",				weapon_type2,				"Special weapon type."	},
-	{	NULL,					NULL,						NULL									}
+	{	"act",					STRUCT_FLAGBANK,	act_flagbank,				"Mobile	attributes."	},
+	{	"affect",				STRUCT_FLAGBANK,	affect_flagbank,			"Mobile	affects."	},
+	{	"apply",				STRUCT_FLAGS,		apply_flags,				"Apply flags"	},
+	{	"apptype",				STRUCT_FLAGS,		apply_types,				"Apply types."	},
+	{	"aprog",				STRUCT_TRIGGERS,	dummy_triggers,				"AreaProgram types."	},
+	{	"area",					STRUCT_FLAGS,		area_flags,					"Area attributes."	},
+	{	"areawho",				STRUCT_FLAGS,		area_who_titles,			"Type of area for who."	},
+	{	"armour",				STRUCT_FLAGS,		ac_type,					"Ac for different attacks."	},
+	{	"blueprint",			STRUCT_FLAGS,		blueprint_flags,			"Blueprint flags" },
+	{	"catalyst",				STRUCT_FLAGS,		catalyst_types,				"Catalyst types."	},
+	{ 	"compartment",			STRUCT_FLAGS,		compartment_flags,			"Compartment Flags."},
+	{	"condition",			STRUCT_FLAGS,		room_condition_flags,		"Room Condition types."	},
+	{	"container",			STRUCT_FLAGS,		container_flags,			"Container status."	},
+	{	"corpsetypes",			STRUCT_FLAGS,		corpse_types,				"Corpse types."	},
+	{	"damageclass",			STRUCT_FLAGS,		damage_classes,				"Types of damages."},
+	{	"dprog",				STRUCT_TRIGGERS,	dummy_triggers,				"DungeonProgram types."	},
+	{	"death_release",		STRUCT_FLAGS,		death_release_modes,		"Dungeon Death Release mobes."},
+	{	"dungeon",				STRUCT_FLAGS,		dungeon_flags,				"Dungeon Flags"	},
+	{	"exit",					STRUCT_FLAGS,		exit_flags,					"Exit types."	},
+	{	"extra",				STRUCT_FLAGBANK,	extra_flagbank,				"Object attributes."	},
+	{   "foodbuffs",			STRUCT_FLAGS,		food_buff_types,			"Food Buff types" },
+	{	"form",					STRUCT_FLAGS,		form_flags,					"Mobile body form."	},
+	{	"furniture",			STRUCT_FLAGS,		furniture_flags,			"Furniture types."	},
+	{	"imm",					STRUCT_FLAGS,		imm_flags,					"Mobile immunity."	},
+	{	"immortalflags",		STRUCT_FLAGS,		immortal_flags,				"Immortal duties."	},
+	{	"instance",				STRUCT_FLAGS,		instance_flags,				"Instance Flags"	},
+	{	"instruments",			STRUCT_FLAGS,		instrument_types,			"Instrument Types"	},
+	{	"iprog",				STRUCT_TRIGGERS,	dummy_triggers,				"InstanceProgram types."	},
+	{	"light",				STRUCT_FLAGS,		light_flags,				"Light flags."	},
+	{	"liquid",				STRUCT_LIQUID,		liq_table,					"Liquid types."	},
+	{	"lock",					STRUCT_FLAGS,		lock_flags,					"Lock state types."	},
+	{	"material",				STRUCT_MATERIAL,	material_table,				"Object materials."	},
+	{	"mprog",				STRUCT_TRIGGERS,	dummy_triggers,				"MobProgram types."	},
+	{	"off",					STRUCT_FLAGS,		off_flags,					"Mobile offensive behaviour."	},
+	{	"oprog",				STRUCT_TRIGGERS,	dummy_triggers,				"ObjProgram types."	},
+	{	"part",					STRUCT_FLAGS,		part_flags,					"Mobile body parts."	},
+	{	"placetype",			STRUCT_FLAGS,		place_flags,				"Where is the town/city etc."	},
+	{	"portal",				STRUCT_FLAGS,		portal_flags,				"Portal types."	},
+	{	"portal_exit",			STRUCT_FLAGS,		portal_exit_flags,			"Exit (Portal) types."	},
+	{	"portal_type",			STRUCT_FLAGS,		portal_gatetype,			"Portal gate types"},
+	{	"position",				STRUCT_FLAGS,		position_flags,				"Mobile positions."	},
+	{	"projectflags",			STRUCT_FLAGS,		project_flags,				"Project flags."	},
+	{	"ranged",				STRUCT_FLAGS,		ranged_weapon_class,		"Ranged	weapon types."	},
+	{	"res",					STRUCT_FLAGS,		res_flags,					"Mobile resistance."	},
+	{	"room",					STRUCT_FLAGBANK,	room_flagbank,				"Room attributes."	},
+	{	"rprog",				STRUCT_TRIGGERS,	dummy_triggers,				"RoomProgram types."	},
+	{	"scriptflags",			STRUCT_FLAGS,		script_flags,				"Script Flags {D({Wrestricted{D){x."	},
+	{   "script_spaces",		STRUCT_FLAGS,		script_spaces,				"Script spaces"	},
+	{	"section_flags",		STRUCT_FLAGS,		blueprint_section_flags,	"Blueprint Section Flags"	},
+	{	"section_type",			STRUCT_FLAGS,		blueprint_section_types,	"Blueprint Section Types"	},
+	{	"sector",				STRUCT_FLAGS,		sector_flags,				"Sector types, terrain."	},
+	{	"sex",					STRUCT_FLAGS,		sex_flags,					"Sexes."	},
+	{	"ship",					STRUCT_FLAGS,		ship_flags,					"Ship flags"	},
+	{	"shipclass",			STRUCT_FLAGS,		ship_class_types,			"Ship class types"	},
+	{	"shop",					STRUCT_FLAGS,		shop_flags,					"Shop flags"	},
+	{	"size",					STRUCT_FLAGS,		size_flags,					"Mobile size."	},
+	{	"song_targets",			STRUCT_FLAGS,		song_target_types,			"Song Target Types."	},
+	{	"spec",					STRUCT_SPEC,		spec_table,					"Available special programs. {D(DEPRECATED){x"	},
+	{	"spell_targets",		STRUCT_FLAGS,		spell_target_types,			"Spell Target Types."	},
+	{	"spells",				STRUCT_SKILL,		skill_table,				"Names of current spells."	},
+	{	"tokenflags",			STRUCT_FLAGS,		token_flags,				"Token flags."	},
+	{	"tprog",				STRUCT_TRIGGERS,	dummy_triggers,				"TokenProgram types."	},
+	{	"trigger_slots",		STRUCT_FLAGS,		trigger_slots,				"Trigger slots."},
+	{	"trigger_types",		STRUCT_FLAGS,		builtin_trigger_types,		"Built-in trigger types."},
+	{	"type",					STRUCT_FLAGS,		type_flags,					"Types of objects."	},
+	{	"vuln",					STRUCT_FLAGS,		vuln_flags,					"Mobile vulnerability."	},
+	{	"wclass",				STRUCT_FLAGS,		weapon_class,				"Weapon class."	},
+	{	"weapon",				STRUCT_ATTACK,		attack_table,				"Weapon types."	},
+	{	"wear",					STRUCT_FLAGS,		wear_flags,					"Where to wear object."	},
+	{	"wear-loc",				STRUCT_FLAGS,		wear_loc_flags,				"Where mobile wears object."	},
+	{	"wilderness_regions",	STRUCT_FLAGS,		wilderness_regions,			"wilderness region names"},
+	{	"wtype",				STRUCT_FLAGS,		weapon_type2,				"Special weapon type."	},
+	{	NULL,					STRUCT_FLAGS,		NULL,						NULL									}
 };
 
 
@@ -174,6 +185,35 @@ void show_flag_cmds(CHAR_DATA *ch, const struct flag_type *flag_table)
 
     if (col % 4 != 0)
 	strcat(buf1, "\n\r");
+
+    send_to_char(buf1, ch);
+    return;
+}
+
+void show_flagbank_cmds(CHAR_DATA *ch, const struct flag_type **flag_bank)
+{
+    char buf  [ MAX_STRING_LENGTH ];
+    char buf1 [ MAX_STRING_LENGTH ];
+    int  col;
+
+    buf1[0] = '\0';
+    col = 0;
+	for(int b = 0; flag_bank[b]; b++)
+	{
+		for (int f = 0; flag_bank[b][f].name != NULL; f++)
+		{
+			if (flag_bank[b][f].settable)
+			{
+				sprintf(buf, "%-19.18s", flag_bank[b][f].name);
+				strcat(buf1, buf);
+				if (++col % 4 == 0)
+					strcat(buf1, "\n\r");
+			}
+		}
+	}
+
+    if (col % 4 != 0)
+		strcat(buf1, "\n\r");
 
     send_to_char(buf1, ch);
     return;
@@ -301,83 +341,59 @@ bool show_help(CHAR_DATA *ch, char *argument)
     {
         if ( arg[0] == help_table[cnt].command[0]
           && !str_prefix(arg, help_table[cnt].command))
-	{
-	    if (help_table[cnt].structure == spec_table)
-	    {
-		show_spec_cmds(ch);
-		return FALSE;
-	    }
-	    else
-	    if (help_table[cnt].structure == liq_table)
-	    {
-	        show_liqlist(ch);
-	        return FALSE;
-	    }
-	    else
-	    if (help_table[cnt].structure == attack_table)
-	    {
-	        show_damlist(ch);
-	        return FALSE;
-	    }
-	    else
-	    if (help_table[cnt].structure == material_table)
-	    {
-		show_material_list(ch);
-		return FALSE;
-	    }
-	    else
-	    if (help_table[cnt].structure == skill_table)
-	    {
-		if (spell[0] == '\0')
 		{
-		    send_to_char("Syntax:  ? spells "
-		        "[ignore/attack/defend/self/object/all]\n\r", ch);
-		    return FALSE;
-		}
+			switch(help_table[cnt].structure_type)
+			{
+				case STRUCT_SPEC:
+					show_spec_cmds(ch);
+					break;
 
-		if (!str_prefix(spell, "all"))
-		    show_skill_cmds(ch, -1);
-		else if (!str_prefix(spell, "ignore"))
-		    show_skill_cmds(ch, TAR_IGNORE);
-		else if (!str_prefix(spell, "attack"))
-		    show_skill_cmds(ch, TAR_CHAR_OFFENSIVE);
-		else if (!str_prefix(spell, "defend"))
-		    show_skill_cmds(ch, TAR_CHAR_DEFENSIVE);
-		else if (!str_prefix(spell, "self"))
-		    show_skill_cmds(ch, TAR_CHAR_SELF);
-		else if (!str_prefix(spell, "object"))
-		    show_skill_cmds(ch, TAR_OBJ_INV);
-		else
-		    send_to_char("Syntax:  ? spell "
-		        "[ignore/attack/defend/self/object/all]\n\r", ch);
+				case STRUCT_LIQUID:
+					show_liqlist(ch);
+					break;
 
-		return FALSE;
-	    }
-	    else
-	    if (help_table[cnt].structure == dummy_triggers)
-	    {
-			if (!str_prefix(arg, "mprog"))
-				show_trigger_types(ch, "MobProgram Triggers:\n\r", PRG_MPROG);
-			else if (!str_prefix(arg, "oprog"))
-				show_trigger_types(ch, "ObjProgram Triggers:\n\r", PRG_OPROG);
-			else if (!str_prefix(arg, "rprog"))
-				show_trigger_types(ch, "RoomProgram Triggers:\n\r", PRG_RPROG);
-			else if (!str_prefix(arg, "tprog"))
-				show_trigger_types(ch, "TokenProgram Triggers:\n\r", PRG_TPROG);
-			else if (!str_prefix(arg, "aprog"))
-				show_trigger_types(ch, "AreaProgram Triggers:\n\r", PRG_APROG);
-			else if (!str_prefix(arg, "iprog"))
-				show_trigger_types(ch, "InstanceProgram Triggers:\n\r", PRG_IPROG);
-			else if (!str_prefix(arg, "dprog"))
-				show_trigger_types(ch, "DungeonProgram Triggers:\n\r", PRG_DPROG);
+				case STRUCT_ATTACK:
+					show_damlist(ch);
+					break;
+
+				case STRUCT_MATERIAL:
+					show_material_list(ch);
+					return FALSE;
+				
+				case STRUCT_SKILL:
+					if (spell[0] == '\0')
+					{
+						send_to_char("Syntax:  ? spells [ignore/attack/defend/self/object/all]\n\r", ch);
+						return FALSE;
+					}
+
+					if (!str_prefix(spell, "all"))
+						show_skill_cmds(ch, -1);
+					else if (!str_prefix(spell, "ignore"))
+						show_skill_cmds(ch, TAR_IGNORE);
+					else if (!str_prefix(spell, "attack"))
+						show_skill_cmds(ch, TAR_CHAR_OFFENSIVE);
+					else if (!str_prefix(spell, "defend"))
+						show_skill_cmds(ch, TAR_CHAR_DEFENSIVE);
+					else if (!str_prefix(spell, "self"))
+						show_skill_cmds(ch, TAR_CHAR_SELF);
+					else if (!str_prefix(spell, "object"))
+						show_skill_cmds(ch, TAR_OBJ_INV);
+					else
+						send_to_char("Syntax:  ? spell [ignore/attack/defend/self/object/all]\n\r", ch);
+
+					break;
+
+				case STRUCT_FLAGS:
+					show_flag_cmds(ch, help_table[cnt].structure);
+					break;
+
+				case STRUCT_FLAGBANK:
+					show_flagbank_cmds(ch, (const struct flag_type **)help_table[cnt].structure);
+					break;
+			}
 			return FALSE;
-	    }
-	    else
-	    {
-		show_flag_cmds(ch, help_table[cnt].structure);
-		return FALSE;
-	    }
-	}
+		}
     }
 
     show_help(ch, "");
@@ -2434,11 +2450,7 @@ REDIT(redit_show)
     add_buf(buf1, buf);
 
     sprintf(buf, "Room flags:   {r[{x%s{r]{x\n\r",
-	    flag_string(room_flags, pRoom->room_flags));
-    add_buf(buf1, buf);
-
-    sprintf(buf, "Room2 flags:  {r[{x%s{r]{x\n\r",
-	    flag_string(room2_flags, pRoom->room2_flags));
+		bitvector_string(2, pRoom->room_flags, room_flags, pRoom->room2_flags, room2_flags));
     add_buf(buf1, buf);
 
     if (pRoom->heal_rate != 100 || pRoom->mana_rate != 100 || pRoom->heal_rate != 100)
@@ -3871,7 +3883,7 @@ REDIT(redit_mreset)
     newmob = create_mobile(pMobIndex, FALSE);
     char_to_room(newmob, pRoom);
 //    if (HAS_TRIGGER_MOB(newmob, TRIG_REPOP))
-	p_percent_trigger(newmob, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+	p_percent_trigger(newmob, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL,0,0,0,0,0);
     sprintf(output, "%s (%ld) has been loaded and added to resets.\n\r"
 	"There will be a maximum of %ld loaded to this room.\n\r",
 	capitalize(pMobIndex->short_descr),
@@ -4468,21 +4480,247 @@ void print_obj_portal_values(OBJ_INDEX_DATA *portal, BUFFER *buffer)
 void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 {
     char buf[MAX_STRING_LENGTH];
+	ITERATOR it;
+
+    add_buf(buffer, "\n\r");
+
+	// MULTI-TYPING
+	if (IS_CONTAINER(obj))
+	{
+		add_buf(buffer, "\n\r{GContainer:{x\n\r");
+		sprintf(buf, "{B[{WName             {B]:  {x%s\n\r", CONTAINER(obj)->name);
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{WFlags            {B]:  {x%s\n\r", flag_string(container_flags, CONTAINER(obj)->flags));
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{WMax Weight       {B]:  {x%d\n\r", CONTAINER(obj)->max_weight);
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{WWeight Multiplier{B]:  {x%d\n\r", CONTAINER(obj)->weight_multiplier);
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{WMax Volume       {B]:  {x%d\n\r", CONTAINER(obj)->max_volume);
+		add_buf(buffer, buf);
+
+		if (list_size(CONTAINER(obj)->whitelist) > 0)
+		{
+			add_buf(buffer, " {x[{WItem Type Whitelist:{x]\n\r");
+			CONTAINER_FILTER *filter;
+
+			sprintf(buf, "   {x%-6s %-15s %-15s\n\r", "Number", "Item Type", "Sub Type");
+			add_buf(buffer, buf);
+			sprintf(buf, "   {x%-6s %-15s %-15s\n\r", "------", "---------", "--------");
+			add_buf(buffer, buf);
+
+			int cnt = 0;
+			iterator_start(&it, CONTAINER(obj)->whitelist);
+			while((filter = (CONTAINER_FILTER *)iterator_nextdata(&it)))
+			{
+				char *subtype = "none";
+				if (filter->item_type == ITEM_WEAPON && filter->sub_type >= 0)
+				{
+					subtype = flag_string(weapon_class, filter->sub_type);
+				}
+
+				sprintf(buf, "   {W%-6d %-15s %-15s{x\n\r", ++cnt,
+					flag_string(type_flags, filter->item_type),
+					subtype);
+				add_buf(buffer, buf);
+			}
+			iterator_stop(&it);
+		}
+
+		if (list_size(CONTAINER(obj)->blacklist) > 0)
+		{
+			add_buf(buffer, " {x[{DItem Type Blacklist:{x]\n\r");
+			CONTAINER_FILTER *filter;
+
+			sprintf(buf, "   {x%-6s %-15s %-15s\n\r", "Number", "Item Type", "Sub Type");
+			add_buf(buffer, buf);
+			sprintf(buf, "   {x%-6s %-15s %-15s\n\r", "------", "---------", "--------");
+			add_buf(buffer, buf);
+
+			int cnt = 0;
+			iterator_start(&it, CONTAINER(obj)->blacklist);
+			while((filter = (CONTAINER_FILTER *)iterator_nextdata(&it)))
+			{
+				char *subtype = "none";
+				if (filter->item_type == ITEM_WEAPON && filter->sub_type >= 0)
+				{
+					subtype = flag_string(weapon_class, filter->sub_type);
+				}
+
+				sprintf(buf, "   {D%-6d %-15s %-15s{x\n\r", ++cnt,
+					flag_string(type_flags, filter->item_type),
+					subtype);
+				add_buf(buffer, buf);
+			}
+			iterator_stop(&it);
+		}
+
+	}
+
+	if (IS_FOOD(obj))
+	{
+		add_buf(buffer, "\n\r{GFood:{x\n\r");
+		sprintf(buf, "{B[{WHunger  {B]:  {x%d\n\r", FOOD(obj)->hunger);
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{WFullness{B]:  {x%d\n\r", FOOD(obj)->full);
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{WPoisoned{B]:  {x%d%%\n\r", FOOD(obj)->poison);
+		add_buf(buffer, buf);
+
+		if (list_size(FOOD(obj)->buffs) > 0)
+		{
+			int cnt = 1;
+			FOOD_BUFF_DATA *buff;
+
+			add_buf(buffer, " {c[{CFood Buffs:{c]{x\n\r");
+
+			sprintf(buf, "  {C%-6s %-5s %-15s %-15s %-15s %-10s %s{x\n\r", "Number", "Level", "Where", "Adds", "Modifier", "Duration", "Bits");
+			add_buf(buffer, buf);
+
+			sprintf(buf, "  {c%-6s %-5s %-15s %-15s %-15s %-10s %s{x\n\r", "------", "-----", "-------", "-------", "--------", "----------", "--------------------");
+			add_buf(buffer, buf);
+
+			iterator_start(&it, FOOD(obj)->buffs);
+			while((buff = (FOOD_BUFF_DATA *)iterator_nextdata(&it)))
+			{
+				char level[MIL];
+				char duration[MIL];
+
+				if (buff->level > 0)
+					sprintf(level, "%d", buff->level);
+				else
+					strcpy(level, "auto");
+
+				if (buff->duration > 0)
+					sprintf(duration, "%d", buff->duration);
+				else
+					strcpy(duration, "auto");
+
+				if (buff->where == TO_AFFECTS)
+				{
+					sprintf(buf, "  {C%-6d %-5s %-15s %-15s %-15d %-10s %s{x\n\r", cnt++,
+						level,
+						flag_string(food_buff_types, buff->where),
+						flag_string(apply_flags, buff->location),
+						buff->modifier,
+						duration,
+						bitvector_string(2, buff->bitvector, affect_flags, buff->bitvector2, affect2_flags));
+				}
+				else
+				{
+					sprintf(buf, "  {C%-6d %-5s %-15s %-15s %-15d %-10s %s{x\n\r", cnt++,
+						level,
+						flag_string(food_buff_types, buff->where),
+						flag_string(apply_flags, buff->location),
+						buff->modifier,
+						duration,
+						imm_bit_name(buff->bitvector));
+				}
+				add_buf(buffer, buf);
+			}
+			iterator_stop(&it);	
+		}
+	}
+
+	if (IS_FURNITURE(obj))
+	{
+		add_buf(buffer, "\n\r{GFurniture:{x\n\r");
+		if (FURNITURE(obj)->main_compartment > 0)
+		{
+			FURNITURE_COMPARTMENT *cmpt = (FURNITURE_COMPARTMENT *)list_nthdata(FURNITURE(obj)->compartments, FURNITURE(obj)->main_compartment);
+
+			sprintf(buf, "{B[{WMain Compartment{B]:  {x%d ({W%s{x)\n\r", FURNITURE(obj)->main_compartment, cmpt->short_descr);
+		}
+		else
+			sprintf(buf, "{B[{WMain Compartment{B]:  {xinvalid\n\r");
+		add_buf(buffer, buf);
+	
+		add_buf(buffer, " {CCompartments:{x\n\r");
+		if (list_size(FURNITURE(obj)->compartments) > 0)
+		{
+			FURNITURE_COMPARTMENT *compartment;
+			int cnt = 1;
+
+			iterator_start(&it, FURNITURE(obj)->compartments);
+			while((compartment = (FURNITURE_COMPARTMENT *)iterator_nextdata(&it)))
+			{
+				if (cnt == FURNITURE(obj)->main_compartment)
+					sprintf(buf, " {c[{C%4d{c] {x%s {G[MAIN COMPARTMENT]{x\n\r", cnt, fix_string(compartment->name));
+				else
+					sprintf(buf, " {c[{C%4d{c] {x%s\n\r", cnt, fix_string(compartment->name));
+				add_buf(buffer, buf);
+				sprintf(buf, "    {C[{WShort Desc  {C]:  {x%s\n\r", fix_string(compartment->short_descr));
+				add_buf(buffer, buf);
+				sprintf(buf, "    {C[{WDescription {C]:{x\n\r%s\n\r", compartment->description);
+				add_buf(buffer, buf);
+
+				sprintf(buf, "    {C[{WFlags       {C]:  {x%s\n\r", flag_string(compartment_flags, compartment->flags));
+				add_buf(buffer, buf);
+				if (compartment->max_occupants < 0)
+					sprintf(buf, "    {C[{WOccupants   {C]:  {xUnlimited\n\r");
+				else
+					sprintf(buf, "    {C[{WOccupants   {C]:  {x%d maximum\n\r", compartment->max_occupants);
+				add_buf(buffer, buf);
+				if (compartment->max_weight < 0)
+					sprintf(buf, "    {C[{WWeight      {C]:  {xUnlimited\n\r");
+				else
+					sprintf(buf, "    {C[{WWeight      {C]:  {x%dkg maximum\n\r", compartment->max_weight);
+				add_buf(buffer, buf);
+
+				sprintf(buf, "    {C[{WStanding    {C]:  {x%s\n\r", flag_string(furniture_flags, compartment->standing));
+				add_buf(buffer, buf);
+				sprintf(buf, "    {C[{WHanging     {C]:  {x%s\n\r", flag_string(furniture_flags, compartment->hanging));
+				add_buf(buffer, buf);
+				sprintf(buf, "    {C[{WSitting     {C]:  {x%s\n\r", flag_string(furniture_flags, compartment->sitting));
+				add_buf(buffer, buf);
+				sprintf(buf, "    {C[{WResting     {C]:  {x%s\n\r", flag_string(furniture_flags, compartment->resting));
+				add_buf(buffer, buf);
+				sprintf(buf, "    {C[{WSleeping    {C]:  {x%s\n\r", flag_string(furniture_flags, compartment->sleeping));
+				add_buf(buffer, buf);
+
+				sprintf(buf, "    {C[{WHealth Regen{C]:  {x%d\n\r", compartment->health_regen);
+				add_buf(buffer, buf);
+				sprintf(buf, "    {C[{WMana Regen  {C]:  {x%d\n\r", compartment->mana_regen);
+				add_buf(buffer, buf);
+				sprintf(buf, "    {C[{WMove Regen  {C]:  {x%d\n\r", compartment->move_regen);
+				add_buf(buffer, buf);
+
+				cnt++;
+			}
+			iterator_stop(&it);
+		}
+		else
+		{
+			add_buf(buffer, "    {Cnone{x\n\r");
+		}
+	}
+
+	if (IS_LIGHT(obj))
+	{
+		add_buf(buffer, "\n\r{GLight:{x\n\r");
+		sprintf(buf, "{B[{WFlags   {B]:  {x%s\n\r", flag_string(light_flags, LIGHT(obj)->flags));
+		add_buf(buffer, buf);
+		if (LIGHT(obj)->duration < 0)
+			sprintf(buf, "{B[{WDuration{B]:  {WInfinite{x\n\r");
+		else
+			sprintf(buf, "{B[{WDuration{B]:  {x%d\n\r", LIGHT(obj)->duration);
+		add_buf(buffer, buf);
+	}
+
+	if (IS_MONEY(obj))
+	{
+		add_buf(buffer, "\n\r{GMoney:{x\n\r");
+		sprintf(buf, "{B[{WSilver  {B]:  {x%d\n\r", MONEY(obj)->silver);
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{WGold    {B]:  {x%d\n\r", MONEY(obj)->gold);
+		add_buf(buffer, buf);
+	}
 
     add_buf(buffer, "\n\r");
 
     switch(obj->item_type)
     {
 	default:	// No values
-	    break;
-	case ITEM_LIGHT:
-
-            if (obj->value[2] == -1)
-		sprintf(buf, "{B[  {Wv2{B]{G Light:{x  Infinite[-1]\n\r");
-            else
-		sprintf(buf, "{B[  {Wv2{B]{G Light:{x  [%ld]\n\r", obj->value[2]);
-
-	    add_buf(buffer, buf);
 	    break;
 
 	case ITEM_WAND:
@@ -4501,6 +4739,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		print_obj_portal_values(obj, buffer);
 	    break;
 
+	/*
 	case ITEM_FURNITURE:
 	    sprintf(buf,
 	        "{B[  {Wv0{B]{G Max people:{x      [%ld]\n\r"
@@ -4517,6 +4756,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		obj->value[5]);
 	    add_buf(buffer, buf);
 	    break;
+		*/
 
 	case ITEM_HERB:
 	    sprintf(buf,
@@ -4677,6 +4917,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 	    add_buf(buffer, buf);
 	    break;
 
+	/*
 	case ITEM_CONTAINER:
 	    sprintf(buf,
 		"{B[  {Wv0{B]{G Weight:{x     [%ld kg]\n\r"
@@ -4702,6 +4943,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
                 obj->value[4]);
 	    add_buf(buffer, buf);
 	    break;
+	*/
 
 	case ITEM_DRINK_CON:
 	    sprintf(buf,
@@ -4733,27 +4975,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 	    add_buf(buffer, buf);
 	    break;
 
-	case ITEM_FOOD:
-	    sprintf(buf,
-		"{B[  {Wv0{B]{G Food hours:{x [%ld]\n\r"
-		"{B[  {Wv1{B]{G Full hours:{x [%ld]\n\r"
-		"{B[  {Wv3{B]{G Poisoned  :{x  %s\n\r"
-		"{B[  {Wv4{B]{G Timer     :{x [%ld]\n\r",
-		obj->value[0],
-		obj->value[1],
-		obj->value[3] != 0 ? "Yes" : "No",
-		obj->value[4]);
-	    add_buf(buffer, buf);
-	    break;
-
-	case ITEM_MONEY:
-            sprintf(buf, "{B[  {Wv0{B]{G Silver:{x [%ld]\n\r", obj->value[0]);
-	    add_buf(buffer, buf);
-	    sprintf(buf, "{B[  {Wv1{B]{G Gold:{x   [%ld]\n\r", obj->value[1]);
-	    add_buf(buffer, buf);
-	    break;
-
-        case ITEM_MIST:
+	case ITEM_MIST:
 	    sprintf(buf, "{B[  {Wv0{B]{G %%HideObjects:{x    [%ld]\n\r", obj->value[0]);
 	    add_buf(buffer, buf);
 	    sprintf(buf, "{B[  {Wv1{B]{G %%HideCharacters:{x [%ld]\n\r", obj->value[1]);
@@ -5738,23 +5960,6 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 		}
 		break;
 
-	case ITEM_LIGHT:
-		switch (value_num)
-		{
-		default:
-			do_help(ch, "ITEM_LIGHT");
-			return FALSE;
-		case 2:
-			send_to_char("HOURS OF LIGHT SET.\n\r\n\r", ch);
-			pObj->value[2] = atoi(argument);
-			break;
-		case 3:
-			send_to_char("Spell level set.\n\r\n\r", ch);
-			pObj->value[3] = atoi(argument);
-			break;
-		}
-		break;
-
 	case ITEM_WAND:
 	case ITEM_STAFF:
 		switch (value_num)
@@ -6174,6 +6379,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 		}
 		break;
 
+	/*
 	case ITEM_WEAPON_CONTAINER:
 		switch (value_num)
 		{
@@ -6198,7 +6404,9 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			break;
 		}
 		break;
+	*/
 
+	/*
 	case ITEM_CONTAINER:
 		switch (value_num)
 		{
@@ -6252,6 +6460,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			break;
 		}
 		break;
+	*/
 
 	case ITEM_DRINK_CON:
 		switch (value_num)
@@ -6307,48 +6516,6 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 		case 5:
 			send_to_char("POISON RATE SET.\n\r\n\r", ch);
 			pObj->value[5] = atoi(argument);
-			break;
-		}
-		break;
-
-	case ITEM_FOOD:
-		switch (value_num)
-		{
-		default:
-			do_help(ch, "ITEM_FOOD");
-			return FALSE;
-		case 0:
-			send_to_char("HOURS OF FOOD SET.\n\r\n\r", ch);
-			pObj->value[0] = atoi(argument);
-			break;
-		case 1:
-			send_to_char("HOURS OF FULL SET.\n\r\n\r", ch);
-			pObj->value[1] = atoi(argument);
-			break;
-		case 3:
-			send_to_char("POISON VALUE TOGGLED.\n\r\n\r", ch);
-			pObj->value[3] = (pObj->value[3] == 0) ? 1 : 0;
-			break;
-		case 4:
-			send_to_char("TIMER TO DISAPPEAR SET.\n\r\n\r", ch);
-			pObj->value[4] = atoi(argument);
-			break;
-		}
-		break;
-
-	case ITEM_MONEY:
-		switch (value_num)
-		{
-		default:
-			do_help(ch, "ITEM_MONEY");
-			return FALSE;
-		case 0:
-			send_to_char("SILVER AMOUNT SET.\n\r\n\r", ch);
-			pObj->value[0] = atoi(argument);
-			break;
-		case 1:
-			send_to_char("GOLD AMOUNT SET.\n\r\n\r", ch);
-			pObj->value[1] = atoi(argument);
 			break;
 		}
 		break;
@@ -6745,6 +6912,14 @@ OEDIT(oedit_show)
     		pObj->skeywds);
     add_buf(buffer, buf);
 
+	sprintf(buf, "Extra flags:  {B[{x%s{B]{x\n\r", bitvector_string(4,
+		pObj->extra_flags, extra_flags,
+		pObj->extra2_flags, extra2_flags,
+		pObj->extra3_flags, extra3_flags,
+		pObj->extra4_flags, extra4_flags));
+	add_buf(buffer, buf);
+
+	/*
     sprintf(buf, "Extra flags:  {B[{x%s{B]{x\n\r",
 	flag_string(extra_flags, pObj->extra_flags));
     add_buf(buffer, buf);
@@ -6760,6 +6935,7 @@ OEDIT(oedit_show)
     sprintf(buf, "Extra4 flags: {B[{x%s{B]{x\n\r",
 		    flag_string(extra4_flags, pObj->extra4_flags));
     add_buf(buffer, buf);
+	*/
 
     sprintf(buf, "OUpdate:      {B[{x%s{B]{x\n\r",
     	pObj->update == TRUE ? "Yes" : "No");
@@ -7106,6 +7282,11 @@ OEDIT(oedit_addaffect)
 		if (pMod == 0) pMod = 1;
 		if (atoi(mod) < 0) pAdd = TRUE;
 		break;
+	case APPLY_XPBOOST:
+		pMod = atoi(mod);
+		if (pMod == 0) pMod = 1;
+		if (atoi(mod) < 0) pAdd = TRUE;
+		break;
 	default:
 		pMod = 1;
 		pAdd = FALSE;
@@ -7121,7 +7302,7 @@ OEDIT(oedit_addaffect)
         if (atoi(randm) < 10) pMod = 0;
         else if (atoi(randm) < 25) pMod = (int) pMod/4;
         else if (atoi(randm) < 50) pMod = (int) pMod/2;
-        else if (atoi(randm) < 80) pMod = (int) pMod*4/5;
+        else if (atoi(randm) < 80) pMod = (int) 4*pMod/5;
     }
 
     pMod = abs(pMod);
@@ -8771,125 +8952,31 @@ OEDIT(oedit_ed)
 OEDIT(oedit_extra)
 {
     OBJ_INDEX_DATA *pObj;
-    int value;
 
     if (argument[0] != '\0')
     {
-	EDIT_OBJ(ch, pObj);
+		EDIT_OBJ(ch, pObj);
+		
+		long extra[4];
 
-	if ((value = flag_value(extra_flags, argument)) != NO_FLAG)
-	{
-	    if (value == ITEM_PERMANENT || value == ITEM_HIDDEN) {
-		send_to_char("This flag is a utility flag and can't be toggled by immortals.\n\r", ch);
-		return FALSE;
-	    }
+		if (!bitvector_lookup(argument, 4, extra, extra_flags, extra2_flags, extra3_flags, extra4_flags))
+		{
+			send_to_char("Invalid extra flag.\n\r", ch);
+			send_to_char("Type '? extra' for a list of flags.\n\r", ch);
+			return FALSE;
+		}
 
-	    TOGGLE_BIT(pObj->extra_flags, value);
+		TOGGLE_BIT(pObj->extra_flags, extra[0]);
+		TOGGLE_BIT(pObj->extra2_flags, extra[1]);
+		TOGGLE_BIT(pObj->extra3_flags, extra[2]);
+		TOGGLE_BIT(pObj->extra4_flags, extra[3]);
 
 	    send_to_char("Extra flag toggled.\n\r", ch);
 	    return TRUE;
-	}
     }
 
     send_to_char("Syntax:  extra [flag]\n\r"
 		  "Type '? extra' for a list of flags.\n\r", ch);
-    return FALSE;
-}
-
-
-OEDIT(oedit_extra2)
-{
-    OBJ_INDEX_DATA *pObj;
-    int value;
-
-    if (argument[0] != '\0')
-    {
-	EDIT_OBJ(ch, pObj);
-
-	if (!has_imp_sig(NULL, pObj) && ch->tot_level < MAX_LEVEL)
-	{
-	    send_to_char("You can't do this without an IMP's permission.\n\r", ch);
-	    return FALSE;
-	}
-
-	if ((value = flag_value(extra2_flags, argument)) != NO_FLAG)
-	{
-	    TOGGLE_BIT(pObj->extra2_flags, value);
-
-	    if (has_imp_sig(NULL, pObj))
-		use_imp_sig(NULL, pObj);
-
-	    send_to_char("Extra2 flag toggled.\n\r", ch);
-	    return TRUE;
-	}
-    }
-
-    send_to_char("Syntax:  extra2 [flag]\n\r"
-		  "Type '? extra2' for a list of flags.\n\r", ch);
-    return FALSE;
-}
-
-OEDIT(oedit_extra3)
-{
-    OBJ_INDEX_DATA *pObj;
-    int value;
-
-    if (argument[0] != '\0')
-    {
-	EDIT_OBJ(ch, pObj);
-
-	if (!has_imp_sig(NULL, pObj) && ch->tot_level < MAX_LEVEL)
-	{
-	    send_to_char("You can't do this without an IMP's permission.\n\r", ch);
-	    return FALSE;
-	}
-
-	if ((value = flag_value(extra3_flags, argument)) != NO_FLAG)
-	{
-	    TOGGLE_BIT(pObj->extra3_flags, value);
-
-	    if (has_imp_sig(NULL, pObj))
-		use_imp_sig(NULL, pObj);
-
-	    send_to_char("Extra3 flag toggled.\n\r", ch);
-	    return TRUE;
-	}
-    }
-
-    send_to_char("Syntax:  extra3 [flag]\n\r"
-		  "Type '? extra3' for a list of flags.\n\r", ch);
-    return FALSE;
-}
-
-OEDIT(oedit_extra4)
-{
-    OBJ_INDEX_DATA *pObj;
-    int value;
-
-    if (argument[0] != '\0')
-    {
-	EDIT_OBJ(ch, pObj);
-
-	if (!has_imp_sig(NULL, pObj) && ch->tot_level < MAX_LEVEL)
-	{
-	    send_to_char("You can't do this without an IMP's permission.\n\r", ch);
-	    return FALSE;
-	}
-
-	if ((value = flag_value(extra4_flags, argument)) != NO_FLAG)
-	{
-	    TOGGLE_BIT(pObj->extra4_flags, value);
-
-	    if (has_imp_sig(NULL, pObj))
-		use_imp_sig(NULL, pObj);
-
-	    send_to_char("Extra4 flag toggled.\n\r", ch);
-	    return TRUE;
-	}
-    }
-
-    send_to_char("Syntax:  extra4 [flag]\n\r"
-		  "Type '? extra4' for a list of flags.\n\r", ch);
     return FALSE;
 }
 
@@ -8953,6 +9040,7 @@ OEDIT(oedit_type)
 
 		if ((value = flag_value(type_flags, argument)) != NO_FLAG)
 		{
+
 			if ((value == ITEM_KEYRING ||
 				 value == ITEM_BANK ||
 				 value == ITEM_SHARECERT ||
@@ -8963,7 +9051,6 @@ OEDIT(oedit_type)
 				 value == ITEM_WITHERING_CLOUD ||
 				 value == ITEM_ROOM_ROOMSHIELD ||
 				 value == ITEM_CATALYST ||
-				 value == ITEM_SHIP ||
 				 value == ITEM_SHRINE) &&
 				ch->tot_level < MAX_LEVEL)
 			{
@@ -8971,12 +9058,10 @@ OEDIT(oedit_type)
 				return FALSE;
 			}
 
-			pObj->item_type = value;
-
-			send_to_char("Type set.\n\r", ch);
+			obj_index_set_primarytype(pObj, value);
 
 			// Clear the values.
-			for (i = 0; i < 8; i++)
+			for (i = 0; i < MAX_OBJVALUES; i++)
 			{
 				pObj->value[i] = 0;
 			}
@@ -8999,12 +9084,1334 @@ OEDIT(oedit_type)
 				pObj->waypoints = NULL;
 			}
 
+			send_to_char("Primary type set.\n\r", ch);
 			return TRUE;
 		}
 	}
 
 	send_to_char("Syntax:  type [flag]\n\r"
 				"Type '? type' for a list of flags.\n\r", ch);
+	return FALSE;
+}
+
+void oedit_type_container_showlist(CHAR_DATA *ch, LLIST *list, char *name, char color)
+{
+	if (list_size(list) > 0)
+	{
+		char buf[MSL];
+		CONTAINER_FILTER *filter;
+		ITERATOR it;
+		BUFFER *buffer = new_buf();
+
+		sprintf(buf, "{x[{%cItem Type %s:{x]\n\r", color, name);
+		add_buf(buffer, buf);
+
+		sprintf(buf, " {x%-6s %-15s %-15s\n\r", "Number", "Item Type", "Sub Type");
+		add_buf(buffer, buf);
+		sprintf(buf, " {x%-6s %-15s %-15s\n\r", "------", "---------", "--------");
+		add_buf(buffer, buf);
+
+		int cnt = 0;
+		iterator_start(&it, list);
+		while((filter = (CONTAINER_FILTER *)iterator_nextdata(&it)))
+		{
+			char *subtype = "none";
+			if (filter->item_type == ITEM_WEAPON && filter->sub_type >= 0)
+			{
+				subtype = flag_string(weapon_class, filter->sub_type);
+			}
+
+			sprintf(buf, " {%c%-6d %-15s %-15s{x\n\r", color, ++cnt,
+				flag_string(type_flags, filter->item_type),
+				subtype);
+			add_buf(buffer, buf);
+		}
+		iterator_stop(&it);
+		
+		if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+		{
+			send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+		}
+		else
+		{
+			page_to_char(buffer->string, ch);
+		}
+
+		free_buf(buffer);
+	}
+}
+
+bool __container_is_listed(LLIST *list, int item_type, int sub_type);
+OEDIT(oedit_type_container)
+{
+	OBJ_INDEX_DATA *pObj;
+	EDIT_OBJ(ch, pObj);
+
+	if (argument[0] == '\0')
+	{
+		if (IS_CONTAINER(pObj))
+		{
+			send_to_char("Syntax:  container name <name>\n\r", ch);
+			send_to_char("         container flags <flags>\n\r", ch);
+			send_to_char("         container weight <#max|unlimited>[ <%multiplier>]\n\r", ch);
+			send_to_char("         container volume <#max|unlimited>\n\r", ch);
+			send_to_char("         container whitelist list\n\r", ch);
+			send_to_char("         container whitelist clear\n\r", ch);
+			send_to_char("         container whitelist add <type>[ <subtype>]\n\r", ch);
+			send_to_char("         container whitelist remove <#>\n\r", ch);
+			send_to_char("         container blacklist list\n\r", ch);
+			send_to_char("         container blacklist clear\n\r", ch);
+			send_to_char("         container blacklist add <type>[ <subtype>]\n\r", ch);
+			send_to_char("         container blacklist remove <#>\n\r", ch);
+
+			if (pObj->item_type != ITEM_CONTAINER)
+				send_to_char("         container remove\n\r", ch);
+		}
+		else
+			send_to_char("Syntax:  container add\n\r", ch);
+		return FALSE;
+	}
+
+	char buf[MSL];
+	char arg[MIL];
+
+	argument = one_argument(argument, arg);
+
+	if (IS_CONTAINER(pObj))
+	{
+		if (!str_prefix(arg, "name"))
+		{
+			if (IS_NULLSTR(argument))
+			{
+				send_to_char("Please specify a name.\n\r", ch);
+				return FALSE;
+			}
+
+			smash_tilde(argument);
+			free_string(CONTAINER(pObj)->name);
+			CONTAINER(pObj)->name = str_dup(argument);
+			send_to_char("CONTAINER Name changed.\n\r", ch);
+			return TRUE;
+		}
+
+		if (!str_prefix(arg, "flags"))
+		{
+			long value;
+			if ((value = flag_value(container_flags, argument)) == NO_FLAG)
+			{
+				send_to_char("Invalid container flag.\n\r", ch);
+				send_to_char("Please use one of the following: ({Y? container{x)\n\r", ch);
+				show_help(ch, "container");
+				return FALSE;
+			}
+
+			TOGGLE_BIT(CONTAINER(pObj)->flags, value);
+			send_to_char("CONTAINER flags toggled.\n\r", ch);
+			return TRUE;
+		}
+
+		if (!str_prefix(arg, "weight"))
+		{
+			char arg2[MIL];
+
+			argument = one_argument(argument, arg2);
+
+			int max_weight;
+			if (!str_prefix(arg2, "unlimited"))
+				max_weight = -1;
+			else if (!is_number(arg2) || (max_weight = atoi(arg2)) < 1)
+			{
+				send_to_char("Please provide a positive number.\n\r", ch);
+				return FALSE;
+			}
+
+			int weight_multiplier = 100;
+			if (argument[0] != '\0')
+			{
+				if (!is_number(argument) || (weight_multiplier = atoi(argument)) < 1 || weight_multiplier > 100)
+				{
+					send_to_char("Please provide a number from 1 to 100.\n\r", ch);
+					return FALSE;
+				}
+			}
+
+			CONTAINER(pObj)->max_weight = max_weight;
+			CONTAINER(pObj)->weight_multiplier = weight_multiplier;
+			send_to_char("CONTAINER Weight settinsg changed.\n\r", ch);
+			return TRUE;
+		}
+
+		if (!str_prefix(arg, "volume"))
+		{
+			int max_volume;
+			if (!str_prefix(argument, "unlimited"))
+				max_volume = -1;
+			else if(!is_number(argument) || (max_volume = atoi(argument)) < 1)
+			{
+				send_to_char("Please provide a positive number.\n\r", ch);
+				return FALSE;
+			}
+
+			CONTAINER(pObj)->max_volume = max_volume;
+			send_to_char("CONTAINER Volume setting changed.\n\r", ch);
+			return TRUE;
+		}
+
+		if (!str_prefix(arg, "whitelist"))
+		{
+			if (!str_prefix(argument, "list"))
+			{
+				oedit_type_container_showlist(ch, CONTAINER(pObj)->whitelist, "Whitelist", 'W');
+				return FALSE;
+			}
+
+			if (!str_prefix(argument, "clear"))
+			{
+				if (list_size(CONTAINER(pObj)->whitelist) < 1)
+				{
+					send_to_char("The whitelist is empty.\n\r", ch);
+					return FALSE;
+				}
+
+				list_clear(CONTAINER(pObj)->whitelist);
+				send_to_char("CONTAINER Whitelist cleared.\n\r", ch);
+				return TRUE;
+			}
+
+			char arg2[MIL];
+			argument = one_argument(argument, arg2);
+
+			if (!str_prefix(arg2, "add"))
+			{
+				char arg3[MIL];
+
+				argument = one_argument(argument, arg3);
+
+				int type;
+				if ((type = stat_lookup(arg3, type_flags, -1)) < 0)
+				{
+					send_to_char("Invalid item type.\n\r", ch);
+					send_to_char("Please use one of the following: ({Y? type{x)\n\r", ch);
+					show_help(ch, "type");
+					return FALSE;
+				}
+
+				int subtype = -1;
+				if (type == ITEM_WEAPON)
+				{
+					if ((subtype = stat_lookup(argument, weapon_class, -1)) < 0)
+					{
+						send_to_char("Invalid weapon class.\n\r", ch);
+						send_to_char("Please use one of the following: ({Y? wclass{x)\n\r", ch);
+						show_help(ch, "wclass");
+						return FALSE;
+					}
+				}
+
+				if (__container_is_listed(CONTAINER(pObj)->whitelist, type, subtype))
+				{
+					send_to_char("That is already in the whitelist.\n\r", ch);
+					return FALSE;
+				}
+
+				if (__container_is_listed(CONTAINER(pObj)->blacklist, type, subtype))
+				{
+					send_to_char("That is already in the blacklist.\n\r", ch);
+					return FALSE;
+				}
+
+				CONTAINER_FILTER *filter = new_container_filter();
+				filter->item_type = type;
+				filter->sub_type = subtype;
+				
+				list_appendlink(CONTAINER(pObj)->whitelist, filter);
+				send_to_char("CONTAINER Whitelist changed.\n\r", ch);
+				return TRUE;
+			}
+
+			if (!str_prefix(arg2, "remove"))
+			{
+				if (list_size(CONTAINER(pObj)->whitelist) < 1)
+				{
+					send_to_char("Whitelist is empty.\n\r", ch);
+					return FALSE;
+				}
+
+				int filter_no;
+				if (!is_number(argument) || (filter_no = atoi(argument)) < 1 || filter_no > list_size(CONTAINER(pObj)->whitelist))
+				{
+					sprintf(buf, "Please select a number from 1 to %d.\n\r", list_size(CONTAINER(pObj)->whitelist));
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				list_remnthlink(CONTAINER(pObj)->whitelist, filter_no);
+				sprintf(buf, "CONTAINER Whitelist #%d removed.\n\r", filter_no);
+				send_to_char(buf, ch);
+				return TRUE;
+			}
+		}
+
+		if (!str_prefix(arg, "blacklist"))
+		{
+			if (!str_prefix(argument, "list"))
+			{
+				oedit_type_container_showlist(ch, CONTAINER(pObj)->blacklist, "Blacklist", 'D');
+				return FALSE;
+			}
+
+			if (!str_prefix(argument, "clear"))
+			{
+				if (list_size(CONTAINER(pObj)->blacklist) < 1)
+				{
+					send_to_char("The blacklist is empty.\n\r", ch);
+					return FALSE;
+				}
+
+				list_clear(CONTAINER(pObj)->blacklist);
+				send_to_char("CONTAINER Blacklist cleared.\n\r", ch);
+				return TRUE;
+			}
+
+			char arg2[MIL];
+			argument = one_argument(argument, arg2);
+
+			if (!str_prefix(arg2, "add"))
+			{
+				char arg3[MIL];
+
+				argument = one_argument(argument, arg3);
+
+				int type;
+				if ((type = stat_lookup(arg3, type_flags, -1)) < 0)
+				{
+					send_to_char("Invalid item type.\n\r", ch);
+					send_to_char("Please use one of the following: ({Y? type{x)\n\r", ch);
+					show_help(ch, "type");
+					return FALSE;
+				}
+
+				int subtype = -1;
+				if (type == ITEM_WEAPON)
+				{
+					if ((subtype = stat_lookup(argument, weapon_class, -1)) < 0)
+					{
+						send_to_char("Invalid weapon class.\n\r", ch);
+						send_to_char("Please use one of the following: ({Y? wclass{x)\n\r", ch);
+						show_help(ch, "wclass");
+						return FALSE;
+					}
+				}
+
+				if (__container_is_listed(CONTAINER(pObj)->whitelist, type, subtype))
+				{
+					send_to_char("That is already in the whitelist.\n\r", ch);
+					return FALSE;
+				}
+
+				if (__container_is_listed(CONTAINER(pObj)->blacklist, type, subtype))
+				{
+					send_to_char("That is already in the blacklist.\n\r", ch);
+					return FALSE;
+				}
+
+				CONTAINER_FILTER *filter = new_container_filter();
+				filter->item_type = type;
+				filter->sub_type = subtype;
+				
+				list_appendlink(CONTAINER(pObj)->whitelist, filter);
+				send_to_char("CONTAINER Blacklist changed.\n\r", ch);
+				return TRUE;
+			}
+
+			if (!str_prefix(arg2, "remove"))
+			{
+				if (list_size(CONTAINER(pObj)->blacklist) < 1)
+				{
+					send_to_char("Blacklist is empty.\n\r", ch);
+					return FALSE;
+				}
+
+				int filter_no;
+				if (!is_number(argument) || (filter_no = atoi(argument)) < 1 || filter_no > list_size(CONTAINER(pObj)->blacklist))
+				{
+					sprintf(buf, "Please select a number from 1 to %d.\n\r", list_size(CONTAINER(pObj)->blacklist));
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				list_remnthlink(CONTAINER(pObj)->blacklist, filter_no);
+				sprintf(buf, "CONTAINER Blacklist #%d removed.\n\r", filter_no);
+				send_to_char(buf, ch);
+				return TRUE;
+			}
+		}
+
+		if (pObj->item_type != ITEM_CONTAINER)
+		{
+			if (!str_prefix(arg, "remove"))
+			{
+				free_container_data(CONTAINER(pObj));
+				CONTAINER(pObj) = NULL;
+
+				send_to_char("CONTAINER data removed.\n\r", ch);
+				return TRUE;
+			}
+		}
+	}
+	else
+	{
+		if (!str_prefix(arg, "add"))
+		{
+			if (!obj_index_can_add_item_type(pObj, ITEM_CONTAINER))
+			{
+				send_to_char("You cannot add this item type to this object.\n\r", ch);
+				return FALSE;
+			}
+
+			CONTAINER(pObj) = new_container_data();
+			send_to_char("CONTAINER data added to object.\n\r\n\r", ch);
+			return TRUE;
+		}
+	}
+
+	oedit_type_container(ch, "");
+	return FALSE;
+}
+
+OEDIT(oedit_type_food)
+{
+	OBJ_INDEX_DATA *pObj;
+	EDIT_OBJ(ch, pObj);
+
+	if (pObj->item_type != ITEM_FOOD || !IS_FOOD(pObj))
+	{
+		send_to_char("Object's primary type must be FOOD.\n\r", ch);
+		return FALSE;
+	}
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  food hunger <hours>\n\r", ch);
+		send_to_char("         food fullness <hours>\n\r", ch);
+		send_to_char("         food poison <0-100>\n\r", ch);
+		send_to_char("         food buff clear\n\r", ch);
+		send_to_char("         food buff list\n\r", ch);
+		send_to_char("         food buff add <type> <level|auto> <location> <modifier> <duration|auto> <affect bits>\n\r", ch);
+		send_to_char("         food buff remove <#>\n\r", ch);
+		return FALSE;
+	}
+
+	char buf[MSL];
+	char arg[MIL];
+
+	argument = one_argument(argument, arg);
+
+	if (!str_prefix(arg, "hunger"))
+	{
+		int value;
+		if (!is_number(argument) || (value = atoi(argument)) < 0)
+		{
+			send_to_char("Please specify a non-negative number.\n\r", ch);
+			return FALSE;
+		}
+
+		FOOD(pObj)->hunger = value;
+		send_to_char("FOOD Hunger set.\n\r", ch);
+		return TRUE;
+	}
+	else if (!str_prefix(arg, "fullness"))
+	{
+		int value;
+		if (!is_number(argument) || (value = atoi(argument)) < 0)
+		{
+			send_to_char("Please specify a non-negative number.\n\r", ch);
+			return FALSE;
+		}
+
+		FOOD(pObj)->full = value;
+		send_to_char("FOOD Fullness set.\n\r", ch);
+		return TRUE;
+	}
+	else if (!str_prefix(arg, "poison"))
+	{
+		int value;
+		if (!is_number(argument) || (value = atoi(argument)) < 0 || value > 100)
+		{
+			send_to_char("Please specify a number from 0 to 100.\n\r", ch);
+			return FALSE;
+		}
+
+		FOOD(pObj)->poison = value;
+		send_to_char("FOOD Poison set.\n\r", ch);
+		return TRUE;
+	}
+	else if (!str_prefix(arg, "buff"))
+	{
+		char arg2[MIL];
+
+		argument = one_argument(argument, arg2);
+
+		if (arg2[0] == '\0')
+		{
+			oedit_type_food(ch, "");
+			return FALSE;
+		}
+
+		if (!str_prefix(arg2, "list"))
+		{
+			if (list_size(FOOD(pObj)->buffs) > 0)
+			{
+				int cnt = 1;
+				ITERATOR it;
+				FOOD_BUFF_DATA *buff;
+
+				BUFFER *buffer = new_buf();
+
+				sprintf(buf, "{C%-6s %-5s %-15s %-15s %-15s %-10s %s{x\n\r", "Number", "Level", "Where", "Adds", "Modifier", "Duration", "Bits");
+				add_buf(buffer, buf);
+
+				sprintf(buf, "{C%-6s %-5s %-15s %-15s %-15s %-10s %s{x\n\r", "------", "-----", "-------", "-------", "--------", "----------", "--------------------");
+				add_buf(buffer, buf);
+
+				iterator_start(&it, FOOD(pObj)->buffs);
+				while((buff = (FOOD_BUFF_DATA *)iterator_nextdata(&it)))
+				{
+					char level[MIL];
+					char duration[MIL];
+
+					if (buff->level > 0)
+						sprintf(level, "%d", buff->level);
+					else
+						strcpy(level, "auto");
+
+					if (buff->duration > 0)
+						sprintf(duration, "%d", buff->duration);
+					else
+						strcpy(duration, "auto");
+
+					if (buff->where == TO_AFFECTS)
+					{
+						sprintf(buf, "{C%-6d %-5s %-15s %-15s %-15d %-10s %s{x\n\r", cnt++,
+							level,
+							flag_string(food_buff_types, buff->where),
+							flag_string(apply_flags, buff->location),
+							buff->modifier,
+							duration,
+							bitvector_string(2, buff->bitvector, affect_flags, buff->bitvector2, affect2_flags));
+					}
+					else
+					{
+						sprintf(buf, "{C%-6d %-5s %-15s %-15s %-15d %-10s %s{x\n\r", cnt++,
+							level,
+							flag_string(food_buff_types, buff->where),
+							flag_string(apply_flags, buff->location),
+							buff->modifier,
+							duration,
+							imm_bit_name(buff->bitvector));
+					}
+					add_buf(buffer, buf);
+				}
+				iterator_stop(&it);
+
+				if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+				{
+					send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+				}
+				else
+				{
+					page_to_char(buffer->string, ch);
+				}
+
+				free_buf(buffer);
+			}
+			else
+				send_to_char("There are no food buffs to list.\n\r", ch);
+
+			return FALSE;
+		}
+
+		if (!str_prefix(arg2, "remove"))
+		{
+			if (list_size(FOOD(pObj)->buffs) < 1)
+			{
+				send_to_char("There are no food buffs to remove.\n\r", ch);
+				return FALSE;
+			}
+
+			if (!is_number(argument))
+			{
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(FOOD(pObj)->buffs));
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			int buff_no = atoi(argument);
+			if (buff_no < 1 || buff_no > list_size(FOOD(pObj)->buffs))
+			{
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(FOOD(pObj)->buffs));
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			list_remnthlink(FOOD(pObj)->buffs, buff_no);
+
+			sprintf(buf, "Food Buff %d removed.\n\r", buff_no);
+			send_to_char(buf, ch);
+			return TRUE;
+		}
+
+		if (!str_prefix(arg2, "clear"))
+		{
+			if (list_size(FOOD(pObj)->buffs) < 1)
+			{
+				send_to_char("Food buffs list is empty.\n\r", ch);
+				return FALSE;
+			}
+
+			list_clear(FOOD(pObj)->buffs);
+			send_to_char("Food Buff list cleared.\n\r", ch);
+			return TRUE;
+		}
+
+		if (!str_prefix(arg2, "add"))
+		{
+			char arg3[MIL];	// type
+			char arg4[MIL]; // level
+			char arg5[MIL]; // location
+			char arg6[MIL]; // modifier
+			char arg7[MIL]; // duration
+			//char arg8[MIL]; // bitvector2
+			// argument = bitvector
+
+			argument = one_argument(argument, arg3);
+			argument = one_argument(argument, arg4);
+			argument = one_argument(argument, arg5);
+			argument = one_argument(argument, arg6);
+			argument = one_argument(argument, arg7);
+			
+			int type;
+			if ((type = stat_lookup(arg3, food_buff_types, NO_FLAG)) == NO_FLAG)
+			{
+				send_to_char("Invalid buff type.\n\r", ch);
+				send_to_char("'? food_buff for valid food buff types.\n\r", ch);
+				return FALSE;
+			}
+
+			int level;
+			if (!str_prefix(arg4, "auto"))
+				level = 0;
+			else if (!is_number(arg4))
+			{
+				send_to_char("That is not a number.\n\r", ch);
+				return FALSE;
+			}
+			else
+				level = atoi(arg4);
+
+			int loc;
+			if ((loc = stat_lookup(arg5, apply_flags, NO_FLAG)) == NO_FLAG)
+			{
+				send_to_char("Invalid buff location.\n\r", ch);
+				return FALSE;
+			}
+
+			if (!is_number(arg6))
+			{
+				send_to_char("Please specify a number.\n\r", ch);
+				return FALSE;
+			}
+
+			int mod = atoi(arg6);
+
+			/*
+			int bit, bit2;			
+			if (type == TO_AFFECTS)
+			{
+				if (!str_prefix(arg7, "none"))
+					bit = 0;
+				else if ((bit = flag_value(affect_flags, arg7)) == NO_FLAG)
+				{
+					send_to_char("Invalid affect flag.\n\r", ch);
+					return FALSE;
+				}
+				
+				argument = one_argument(argument, arg8);
+				if (!str_prefix(arg8, "none"))
+					bit2 = 0;
+				else if ((bit2 = flag_value(affect2_flags, arg8)) == NO_FLAG)
+				{
+					send_to_char("Invalid affect2 flag.\n\r", ch);
+					return FALSE;
+				}
+			}
+			else	// Immune, Resist, Vuln
+			{
+				if (!str_prefix(arg7, "none"))
+					bit = 0;
+
+				else if ((bit = flag_value(imm_flags, arg7)) == NO_FLAG)
+				{
+					send_to_char("Invalid immune flag.\n\r", ch);
+					return FALSE;
+				}
+
+				bit2 = 0;
+			}
+
+			int duration = 0;
+			if (!str_prefix(argument, "auto"))
+				duration = 0;
+			else if (!is_number(argument))
+			{
+				send_to_char("That is not a number.\n\r", ch);
+				return FALSE;
+			}
+			else
+				duration = atoi(argument);
+			*/
+
+			int duration = 0;
+			if (!str_prefix(arg7, "auto"))
+				duration = 0;
+			else if (!is_number(arg7))
+			{
+				send_to_char("That is not a number.\n\r", ch);
+				return FALSE;
+			}
+			else
+				duration = atoi(arg7);
+
+			long bits[2];
+			if (!bitvector_lookup(argument, 2, bits, affect_flags, affect2_flags))
+			{
+				send_to_char("Invalid affect flags.\n\r", ch);
+				return FALSE;
+			}
+
+			FOOD_BUFF_DATA *buff = new_food_buff_data();
+
+			buff->where = type;
+			buff->level = level;
+			buff->location = loc;
+			buff->modifier = mod;
+			buff->duration = duration;
+			buff->bitvector = bits[0];
+			buff->bitvector2 = bits[1];
+
+			list_appendlink(FOOD(pObj)->buffs, buff);
+			send_to_char("Food Buff added.\n\r", ch);
+			return TRUE;
+		}
+	}
+
+	oedit_type_food(ch, "");
+	return FALSE;	
+}
+
+OEDIT(oedit_type_furniture)
+{
+	OBJ_INDEX_DATA *pObj;
+	EDIT_OBJ(ch, pObj);
+
+	if (argument[0] == '\0')
+	{
+		if (IS_FURNITURE(pObj))
+		{
+			send_to_char("Syntax:  furniture main <compartment#|none>\n\r", ch);
+			send_to_char("         furniture compartment list\n\r", ch);
+			send_to_char("         furniture compartment clear\n\r", ch);
+			send_to_char("         furniture compartment add <name>\n\r", ch);
+			send_to_char("         furniture compartment <#> remove\n\r", ch);
+
+			send_to_char("         furniture compartment <#> name <name>\n\r", ch);
+			send_to_char("         furniture compartment <#> short <short>\n\r", ch);
+			send_to_char("         furniture compartment <#> desc (opens string editor)\n\r", ch);
+
+			send_to_char("         furniture compartment <#> flags <flags>\n\r", ch);
+			send_to_char("         furniture compartment <#> maxoccupants <count>\n\r", ch);
+			send_to_char("         furniture compartment <#> maxweight <weight>\n\r", ch);
+
+			send_to_char("         furniture compartment <#> standing <flags>\n\r", ch);
+			send_to_char("         furniture compartment <#> hanging <flags>\n\r", ch);
+			send_to_char("         furniture compartment <#> sitting <flags>\n\r", ch);
+			send_to_char("         furniture compartment <#> resting <flags>\n\r", ch);
+			send_to_char("         furniture compartment <#> sleeping <flags>\n\r", ch);
+
+			send_to_char("         furniture compartment <#> health <regen rate>\n\r", ch);
+			send_to_char("         furniture compartment <#> mana <regen rate>\n\r", ch);
+			send_to_char("         furniture compartment <#> move <regen rate>\n\r", ch);
+
+			if (pObj->item_type != ITEM_FURNITURE)
+				send_to_char("         furniture remove\n\r", ch);
+		}
+		else
+		{
+			send_to_char("Syntax:  furniture add\n\r", ch);
+		}
+		return FALSE;
+	}
+
+	char buf[MSL];
+	char arg[MIL];
+
+	argument = one_argument(argument, arg);
+	if (IS_FURNITURE(pObj))
+	{
+		if (!str_prefix(arg, "main"))
+		{
+			if (argument[0] != '\0')
+			{
+				int mc;
+				if (is_number(argument))
+				{
+					if (list_size(FURNITURE(pObj)->compartments) < 1)
+					{
+						send_to_char("There are no compartments defined.\n\r", ch);
+						return FALSE;
+					}
+
+					mc = atoi(argument);
+					if (mc < 1 || mc > list_size(FURNITURE(pObj)->compartments))
+					{
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(FURNITURE(pObj)->compartments));
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+				}
+				else if (!str_prefix(argument, "none"))
+				{
+					mc = 0;
+				}
+
+				FURNITURE(pObj)->main_compartment = mc;
+				send_to_char("FURNITURE Main Compartment changed.\n\r", ch);
+				return TRUE;
+			}
+			
+		}
+
+		if (!str_prefix(arg, "compartment"))
+		{
+			if (argument[0] != '\0')
+			{
+				char arg2[MIL];
+
+				argument = one_argument(argument, arg2);
+				if(!str_prefix(arg2, "list"))
+				{
+					if (list_size(FURNITURE(pObj)->compartments) > 0)
+					{
+						BUFFER *buffer = new_buf();
+
+						add_buf(buffer, "Compartments:\n\r");
+						add_buf(buffer, "======================\n\r");
+
+						int cnt = 1;
+						ITERATOR it;
+						FURNITURE_COMPARTMENT *compartment;
+						iterator_start(&it, FURNITURE(pObj)->compartments);
+						while((compartment = (FURNITURE_COMPARTMENT *)iterator_nextdata(&it)))
+						{
+							if (cnt == FURNITURE(pObj)->main_compartment)
+								sprintf(buf, " {YCompartment {W%d{Y: {G[MAIN COMPARTMENT]{x\n\r", cnt++);
+							else
+								sprintf(buf, " {YCompartment {W%d{Y:{x\n\r", cnt++);
+							add_buf(buffer, buf);
+
+							sprintf(buf, "   Name: %s\n\r", compartment->name);
+							add_buf(buffer, buf);
+							sprintf(buf, "   Short Description: %s\n\r", compartment->short_descr);
+							add_buf(buffer, buf);
+							sprintf(buf, "   Description:\n\r%s\n\r", compartment->description);
+							add_buf(buffer, buf);
+
+							sprintf(buf, "   Flags: %s\n\r", flag_string(compartment_flags,compartment->flags));
+							add_buf(buffer, buf);
+							if (compartment->max_occupants < 0)
+								sprintf(buf, "   Max Occupants: Unlimited\n\r");
+							else
+								sprintf(buf, "   Max Occupants: %d\n\r", compartment->max_occupants);
+							add_buf(buffer, buf);
+							if (compartment->max_weight < 0)
+								sprintf(buf, "   Max Weight: Unlimited\n\r");
+							else
+								sprintf(buf, "   Max Weight: %d\n\r", compartment->max_weight);
+							add_buf(buffer, buf);
+
+							sprintf(buf, "   Standing: %s\n\r", flag_string(furniture_flags, compartment->standing));
+							add_buf(buffer, buf);
+							sprintf(buf, "   Hanging:  %s\n\r", flag_string(furniture_flags, compartment->hanging));
+							add_buf(buffer, buf);
+							sprintf(buf, "   Sitting:  %s\n\r", flag_string(furniture_flags, compartment->sitting));
+							add_buf(buffer, buf);
+							sprintf(buf, "   Resting:  %s\n\r", flag_string(furniture_flags, compartment->resting));
+							add_buf(buffer, buf);
+							sprintf(buf, "   Sleeping: %s\n\r", flag_string(furniture_flags, compartment->sleeping));
+							add_buf(buffer, buf);
+
+							sprintf(buf, "   Health Regen: %d\n\r", compartment->health_regen);
+							add_buf(buffer, buf);
+							sprintf(buf, "   Mana Regen:   %d\n\r", compartment->mana_regen);
+							add_buf(buffer, buf);
+							sprintf(buf, "   Move Regen:   %d\n\r", compartment->move_regen);
+							add_buf(buffer, buf);
+						}
+						iterator_stop(&it);
+
+						if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+						{
+							send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+						}
+						else
+						{
+							page_to_char(buffer->string, ch);
+						}
+
+						free_buf(buffer);
+					}
+					else
+						send_to_char("There are no compartments defined.\n\r", ch);
+					return FALSE;
+				}
+
+				if(!str_prefix(arg2, "clear"))
+				{
+					if (list_size(FURNITURE(pObj)->compartments) < 1)
+					{
+						send_to_char("There are no compartments.\n\r", ch);
+						return FALSE;
+					}
+
+					list_clear(FURNITURE(pObj)->compartments);
+					send_to_char("FURNITURE COmpartment list cleared.\n\r", ch);
+					return TRUE;
+				}
+
+				if(!str_prefix(arg2, "add"))
+				{
+					if (argument[0] == '\0')
+					{
+						send_to_char("Please specify a name.\n\r", ch);
+						return FALSE;
+					}
+
+					FURNITURE_COMPARTMENT *compartment = new_furniture_compartment();
+
+					free_string(compartment->name);
+					compartment->name = str_dup(argument);
+					free_string(compartment->short_descr);
+					compartment->short_descr = str_dup(argument);
+
+					list_appendlink(FURNITURE(pObj)->compartments, compartment);
+					send_to_char("FURNITURE Compartment added.\n\r", ch);
+					return TRUE;
+				}
+
+				if (is_number(arg2))
+				{
+					int index = atoi(arg2);
+					if (index < 1 || index > list_size(FURNITURE(pObj)->compartments))
+					{
+						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(FURNITURE(pObj)->compartments));
+						send_to_char(buf, ch);
+						return FALSE;
+					}
+
+					char arg3[MIL];
+					argument = one_argument(argument, arg3);
+
+					if (!str_prefix(arg3, "remove"))
+					{
+						if (FURNITURE(pObj)->main_compartment == index)
+						{
+							FURNITURE(pObj)->main_compartment = 0;
+						}
+
+						list_remnthlink(FURNITURE(pObj)->compartments, index);
+						send_to_char("FURNITURE Compartment removed.\n\r", ch);
+						return TRUE;
+					}
+
+					FURNITURE_COMPARTMENT *compartment = (FURNITURE_COMPARTMENT *)list_nthdata(FURNITURE(pObj)->compartments, index);
+
+					if (!str_prefix(arg3, "name"))
+					{
+						if (argument[0] == '\0')
+						{
+							send_to_char("Please specify a name.\n\r", ch);
+							return FALSE;
+						}
+
+						free_string(compartment->name);
+						compartment->name = str_dup(argument);
+						send_to_char("FURNITURE Compartment Name set.\n\r", ch);
+						return TRUE;
+					}
+
+					if (!str_prefix(arg3, "short"))
+					{
+						if (argument[0] == '\0')
+						{
+							send_to_char("Please specify a short description.\n\r", ch);
+							return FALSE;
+						}
+
+						free_string(compartment->short_descr);
+						compartment->short_descr = str_dup(argument);
+						send_to_char("FURNITURE Compartment Short Description set.\n\r", ch);
+						return TRUE;
+					}
+
+					if (!str_prefix(arg3, "description"))
+					{
+						string_append(ch, &compartment->description);
+						return TRUE;
+					}
+
+					if (!str_prefix(arg3, "flags"))
+					{
+						long value;
+						if ((value = flag_value(compartment_flags, argument)) == NO_FLAG)
+						{
+							send_to_char("Invalid compartment flags.\n\r", ch);
+							send_to_char("Type '? compartment' to see list of flags.\n\r", ch);
+							return FALSE;
+						}
+
+						TOGGLE_BIT(compartment->flags, value);
+						send_to_char("FURNITURE Compartment Flags toggled.\n\r", ch);
+						return TRUE;
+					}
+
+					if (!str_prefix(arg3, "maxoccupants"))
+					{
+						int max_occupants;
+						if (is_number(argument))
+						{
+							max_occupants = atoi(argument);
+							if (max_occupants < 1)
+							{
+								send_to_char("Please specify a positive number.\n\r", ch);
+								return FALSE;
+							}
+						}
+						else if (!str_prefix(argument, "unlimited"))
+						{
+							max_occupants = -1;
+						}
+
+						compartment->max_occupants = max_occupants;
+						send_to_char("FURNITURE Compartment Max Occupants set.\n\r", ch);
+						return TRUE;
+					}
+
+					if (!str_prefix(arg3, "maxweight"))
+					{
+						int max_weight;
+						if (is_number(argument))
+						{
+							max_weight = atoi(argument);
+							if (max_weight < 1)
+							{
+								send_to_char("Please specify a positive number.\n\r", ch);
+								return FALSE;
+							}
+						}
+						else if (!str_prefix(argument, "unlimited"))
+						{
+							max_weight = -1;
+						}
+
+						compartment->max_weight = max_weight;
+						send_to_char("FURNITURE Compartment Max Weight set.\n\r", ch);
+						return TRUE;
+					}
+
+					if (!str_prefix(arg3, "standing"))
+					{
+						long value;
+						if ((value = flag_value(furniture_flags, argument)) == NO_FLAG)
+						{
+							send_to_char("Invalid standing flags.\n\r", ch);
+							send_to_char("Type '? furniture' to see list of flags.\n\r", ch);
+							return FALSE;
+						}
+
+						TOGGLE_BIT(compartment->standing, value);
+						send_to_char("FURNITURE Compartment Standing Flags toggled.\n\r", ch);
+						return TRUE;
+					}
+
+					if (!str_prefix(arg3, "hanging"))
+					{
+						long value;
+						if ((value = flag_value(furniture_flags, argument)) == NO_FLAG)
+						{
+							send_to_char("Invalid hanging flags.\n\r", ch);
+							send_to_char("Type '? furniture' to see list of flags.\n\r", ch);
+							return FALSE;
+						}
+
+						TOGGLE_BIT(compartment->hanging, value);
+						send_to_char("FURNITURE Compartment Hanging Flags toggled.\n\r", ch);
+						return TRUE;
+					}
+
+					if (!str_prefix(arg3, "sitting"))
+					{
+						long value;
+						if ((value = flag_value(furniture_flags, argument)) == NO_FLAG)
+						{
+							send_to_char("Invalid sitting flags.\n\r", ch);
+							send_to_char("Type '? furniture' to see list of flags.\n\r", ch);
+							return FALSE;
+						}
+
+						TOGGLE_BIT(compartment->sitting, value);
+						send_to_char("FURNITURE Compartment Sitting Flags toggled.\n\r", ch);
+						return TRUE;
+					}
+
+					if (!str_prefix(arg3, "resting"))
+					{
+						long value;
+						if ((value = flag_value(furniture_flags, argument)) == NO_FLAG)
+						{
+							send_to_char("Invalid resting flags.\n\r", ch);
+							send_to_char("Type '? furniture' to see list of flags.\n\r", ch);
+							return FALSE;
+						}
+
+						TOGGLE_BIT(compartment->resting, value);
+						send_to_char("FURNITURE Compartment Resting Flags toggled.\n\r", ch);
+						return TRUE;
+					}
+
+					if (!str_prefix(arg3, "sleeping"))
+					{
+						long value;
+						if ((value = flag_value(furniture_flags, argument)) == NO_FLAG)
+						{
+							send_to_char("Invalid sleeping flags.\n\r", ch);
+							send_to_char("Type '? furniture' to see list of flags.\n\r", ch);
+							return FALSE;
+						}
+
+						TOGGLE_BIT(compartment->sleeping, value);
+						send_to_char("FURNITURE Compartment Sleeping Flags toggled.\n\r", ch);
+						return TRUE;
+					}
+
+					if (!str_prefix(arg3, "health"))
+					{
+						int value;
+						if (!is_number(argument) || (value = atoi(argument)) < 0)
+						{
+							send_to_char("Please specify a non-negative number.\n\r", ch);
+							return FALSE;
+						}
+
+						compartment->health_regen = value;
+						send_to_char("FURNITURE Compartment Health Regen set.\n\r", ch);
+						return TRUE;
+					}
+
+					if (!str_prefix(arg3, "mana"))
+					{
+						int value;
+						if (!is_number(argument) || (value = atoi(argument)) < 0)
+						{
+							send_to_char("Please specify a non-negative number.\n\r", ch);
+							return FALSE;
+						}
+
+						compartment->mana_regen = value;
+						send_to_char("FURNITURE Compartment Mana Regen set.\n\r", ch);
+						return TRUE;
+					}
+
+					if (!str_prefix(arg3, "Move"))
+					{
+						int value;
+						if (!is_number(argument) || (value = atoi(argument)) < 0)
+						{
+							send_to_char("Please specify a non-negative number.\n\r", ch);
+							return FALSE;
+						}
+
+						compartment->health_regen = value;
+						send_to_char("FURNITURE Compartment Move Regen set.\n\r", ch);
+						return TRUE;
+					}
+				}
+			}
+		}
+
+		if (pObj->item_type != ITEM_FURNITURE)
+		{
+			if (!str_prefix(arg, "remove"))
+			{
+				free_furniture_data(FURNITURE(pObj));
+				FURNITURE(pObj) = NULL;
+
+				send_to_char("FURNITURE removed.\n\r", ch);
+				return TRUE;
+			}
+		}
+	}
+	else
+	{
+		if (!str_prefix(arg, "add"))
+		{
+			if (!obj_index_can_add_item_type(pObj, ITEM_FURNITURE))
+			{
+				send_to_char("You cannot add this item type to this object.\n\r", ch);
+				return FALSE;
+			}
+
+			FURNITURE(pObj) = new_furniture_data();
+			send_to_char("FURNITURE data added to object.\n\r\n\r", ch);
+			return TRUE;
+		}
+	}
+
+	oedit_type_furniture(ch, "");
+	return FALSE;
+}
+
+OEDIT(oedit_type_light)
+{
+	OBJ_INDEX_DATA *pObj;
+	EDIT_OBJ(ch, pObj);
+
+	if (argument[0] == '\0')
+	{
+		if (IS_LIGHT(pObj))
+		{
+			send_to_char("Syntax:  light flags <flags>\n\r", ch);
+			send_to_char("         light duration <duration|infinite>\n\r", ch);
+			
+			if (pObj->item_type != ITEM_LIGHT)
+				send_to_char("         light remove\n\r", ch);
+		}
+		else
+			send_to_char("Syntax:  light add\n\r", ch);
+		return FALSE;
+	}
+
+	if (IS_LIGHT(pObj))
+	{
+		char arg[MIL];
+
+		argument = one_argument(argument, arg);
+
+		if (!str_prefix(arg, "duration"))
+		{
+			int duration;
+
+			if (!str_prefix(argument, "infinite"))
+				duration = -1;
+			else if (!is_number(argument) || (duration = atoi(argument)) < 1)
+			{
+				send_to_char("Please specify a positive number.\n\r", ch);
+				return FALSE;
+			}
+
+			LIGHT(pObj)->duration = duration;
+			send_to_char("LIGHT duraiton changed.\n\r", ch);
+			return TRUE;
+		}
+
+		if (!str_prefix(arg, "flags"))
+		{
+			long value;
+
+			if ((value = flag_value(light_flags, argument)) == NO_FLAG)
+			{
+				send_to_char("Invalid light flags.\n\r", ch);
+				show_help(ch, "light");
+				return FALSE;
+			}
+
+			TOGGLE_BIT(LIGHT(pObj)->flags, value);
+			send_to_char("LIGHT flags changed.\n\r", ch);
+			return TRUE;
+		}
+
+		if (pObj->item_type != ITEM_LIGHT)
+		{
+			if (!str_prefix(argument, "remove"))
+			{
+				free_light_data(LIGHT(pObj));
+				LIGHT(pObj) = NULL;
+
+				send_to_char("LIGHT settings removed.\n\r", ch);
+				return TRUE;
+			}
+		}
+	}
+	else
+	{
+		if (!str_prefix(argument, "add"))
+		{
+			if (!obj_index_can_add_item_type(pObj, ITEM_LIGHT))
+			{
+				send_to_char("You cannot add this item type to this object.\n\r", ch);
+				return FALSE;
+			}
+			
+			LIGHT(pObj) = new_light_data();
+			send_to_char("LIGHT type added.\n\r\n\r", ch);
+			return TRUE;
+		}
+	}
+
+	oedit_type_light(ch, "");
+	return FALSE;
+}
+
+OEDIT(oedit_type_money)
+{
+	OBJ_INDEX_DATA *pObj;
+
+	if (argument[0] != '\0')
+	{
+		EDIT_OBJ(ch, pObj);
+
+		if (pObj->item_type != ITEM_MONEY || !IS_MONEY(pObj))
+		{
+			send_to_char("Object's primary type must be MONEY.\n\r", ch);
+			return FALSE;
+		}
+
+		char arg[MIL];
+
+		argument = one_argument(argument, arg);
+
+		if (is_number(arg) && is_number(argument))
+		{
+			int silver = atoi(arg);
+			int gold = atoi(argument);
+
+			if (silver < 0 || gold < 0)
+			{
+				send_to_char("Values may not be negative.\n\r", ch);
+				return FALSE;
+			}
+
+			MONEY(pObj)->silver = silver;
+			MONEY(pObj)->gold = gold;
+
+			send_to_char("MONEY settings set.\n\r", ch);
+			return TRUE;
+		}
+
+		send_to_char("That is not a number.\n\r", ch);
+		return FALSE;
+	}
+
+	send_to_char("Syntax:  money <silver> <gold>\n\r", ch);
 	return FALSE;
 }
 
@@ -9241,11 +10648,7 @@ MEDIT(medit_show)
 	add_buf(buffer, buf);
 
 	sprintf(buf, "Act:          {C[{x%s{C]{x\n\r",
-		flag_string(act_flags, pMob->act));
-	add_buf(buffer, buf);
-
-	sprintf(buf, "Act2:         {C[{x%s{C]{x\n\r",
-		flag_string(act2_flags, pMob->act2));
+		bitvector_string(2, pMob->act, act_flags, pMob->act2, act2_flags));
 	add_buf(buffer, buf);
 
 	sprintf(buf, "Vnum:         {C[{x%6ld{C]{x  Sex: {C[{x%7s{C]{x  Race: {C[{x%s{C]{x\n\r",
@@ -9256,7 +10659,7 @@ MEDIT(medit_show)
 		race_table[pMob->race].name);
 	add_buf(buffer, buf);
 
-    sprintf(buf, "Boss:         {C[%s{C]{x\n\r", (pMob->persist ? "{RYES" : "{gno"));
+    sprintf(buf, "Boss:         {C[%s{C]{x\n\r", (pMob->boss ? "{RYES" : "{gno"));
     add_buf(buffer, buf);
 
     sprintf(buf, "Persist:      {C[%s{C]{x\n\r", (pMob->persist ? "{WON" : "{Doff"));
@@ -9300,11 +10703,7 @@ MEDIT(medit_show)
 	add_buf(buffer, buf);
 
 	sprintf(buf, "Affected by:  {C[{x%s{C]{x\n\r",
-		flag_string(affect_flags, pMob->affected_by));
-	add_buf(buffer, buf);
-
-	sprintf(buf, "Affected by2: {C[{x%s{C]{x\n\r",
-		flag_string(affect2_flags, pMob->affected_by2));
+		bitvector_string(2, pMob->affected_by, affect_flags, pMob->affected_by2, affect2_flags));
 	add_buf(buffer, buf);
 
 	sprintf(buf, "Armour:        {C[{xpierce: %d  bash: %d  slash: %d  magic: %d{C]{x\n\r",
@@ -10846,7 +12245,7 @@ MEDIT(medit_shop)
 						return FALSE;
 					}
 
-					if(item->item_type == ITEM_MONEY)
+					if(IS_MONEY(item))
 					{
 						send_to_char("You cannot sell money.\n\r", ch);
 						return FALSE;
@@ -11232,7 +12631,7 @@ MEDIT(medit_shop)
 
 				if(!str_prefix(arg3, "custom"))
 				{
-					if(argument[0] != '\0')
+					if(argument[0] == '\0')
 					{
 						send_to_char("Please specify a custom price string.\n\r", ch);
 						send_to_char("Syntax:  shop stock [#] price custom [value]\n\r\n\r", ch);
@@ -11447,19 +12846,21 @@ MEDIT(medit_sex)
 MEDIT(medit_act)
 {
     MOB_INDEX_DATA *pMob;
-    long value;
 
     if (argument[0] != '\0')
     {
-	EDIT_MOB(ch, pMob);
+		EDIT_MOB(ch, pMob);
 
-	if ((value = flag_value(act_flags, argument)) != NO_FLAG)
-	{
-	    pMob->act ^= value;
+		long bits[2];
+		if (bitvector_lookup(argument, 2, bits, act_flags, act2_flags))
+		{
+			TOGGLE_BIT(pMob->act, bits[0]);
+			TOGGLE_BIT(pMob->act2, bits[1]);
+			SET_BIT(pMob->act, ACT_IS_NPC);	// Force on, all the time
 
-	    send_to_char("Act flag toggled.\n\r", ch);
-	    return TRUE;
-	}
+			send_to_char("Act flag toggled.\n\r", ch);
+			return TRUE;
+		}
     }
 
     send_to_char("Syntax: act [flag]\n\r"
@@ -11468,78 +12869,29 @@ MEDIT(medit_act)
 }
 
 
-MEDIT(medit_act2)
-{
-    MOB_INDEX_DATA *pMob;
-    long value;
-
-    if (argument[0] != '\0')
-    {
-	EDIT_MOB(ch, pMob);
-
-	if ((value = flag_value(act2_flags, argument)) != NO_FLAG)
-	{
-	    pMob->act2 ^= value;
-	    SET_BIT(pMob->act, ACT_IS_NPC);
-
-	    send_to_char("Act2 flag toggled.\n\r", ch);
-	    return TRUE;
-	}
-    }
-
-    send_to_char("Syntax: act2 [flag]\n\r"
-		  "Type '? act2' for a list of flags.\n\r", ch);
-    return FALSE;
-}
-
-
 MEDIT(medit_affect)
 {
     MOB_INDEX_DATA *pMob;
-    int value;
 
     if (argument[0] != '\0')
     {
-	EDIT_MOB(ch, pMob);
+		EDIT_MOB(ch, pMob);
+		long bits[2];
 
-	if ((value = flag_value(affect_flags, argument)) != NO_FLAG)
-	{
-	    pMob->affected_by ^= value;
+		if (bitvector_lookup(argument, 2, bits, affect_flags, affect2_flags))
+		{
+			TOGGLE_BIT(pMob->affected_by, bits[0]);
+			TOGGLE_BIT(pMob->affected_by2, bits[1]);
 
-	    send_to_char("Affect flag toggled.\n\r", ch);
-	    return TRUE;
-	}
+			send_to_char("Affect flag toggled.\n\r", ch);
+			return TRUE;
+		}
     }
 
     send_to_char("Syntax: affect [flag]\n\r"
 		  "Type '? affect' for a list of flags.\n\r", ch);
     return FALSE;
 }
-
-
-MEDIT(medit_affect2)
-{
-    MOB_INDEX_DATA *pMob;
-    int value;
-
-    if (argument[0] != '\0')
-    {
-	EDIT_MOB(ch, pMob);
-
-	if ((value = flag_value(affect2_flags, argument)) != NO_FLAG)
-	{
-	    pMob->affected_by2 ^= value;
-
-	    send_to_char("Affect2 flag toggled.\n\r", ch);
-	    return TRUE;
-	}
-    }
-
-    send_to_char("Syntax: affect2 [flag]\n\r"
-		  "Type '? affect2' for a list of flags.\n\r", ch);
-    return FALSE;
-}
-
 
 MEDIT(medit_ac)
 {
@@ -12396,43 +13748,19 @@ MEDIT(medit_delquest)
 REDIT(redit_room)
 {
     ROOM_INDEX_DATA *room;
-    int value;
 
     EDIT_ROOM(ch, room);
 
-    if ((value = flag_value(room_flags, argument)) == NO_FLAG)
-    {
-	send_to_char("Syntax: room [flags]\n\r", ch);
-	return FALSE;
-    }
-
-    TOGGLE_BIT(room->room_flags, value);
-
-	if (IS_SET(ch->act, PLR_AUTOOLC))
+	long bits[2];
+	if (!bitvector_lookup(argument, 2, bits, room_flags, room2_flags))
 	{
-		ch->desc->last_room_flags = room->room_flags;
+		send_to_char("Syntax:  room <flags>\n\r", ch);
+		send_to_char("Type '? room' for list of flags.\n\r", ch);
+		return FALSE;
 	}
 
 
-    send_to_char("Room flags toggled.\n\r", ch);
-    return TRUE;
-}
-
-
-REDIT(redit_room2)
-{
-    ROOM_INDEX_DATA *room;
-    int value;
-
-    EDIT_ROOM(ch, room);
-
-    if ((value = flag_value(room2_flags, argument)) == NO_FLAG)
-    {
-		send_to_char("Syntax: room2 [flags]\n\r", ch);
-		return FALSE;
-    }
-
-    if( IS_SET(value, ROOM_BLUEPRINT) )
+    if( IS_SET(bits[1], ROOM_BLUEPRINT) )
     {
 		// Only those that can edit blueprints can toggle this flag
 		/*
@@ -12447,21 +13775,21 @@ REDIT(redit_room2)
 				return FALSE;
 			}
 		}
-		else*/ if( !IS_SET(value, ROOM_NOCLONE) && IS_SET(room->room2_flags, ROOM_NOCLONE) )
+		else*/ if( !IS_SET(bits[1], ROOM_NOCLONE) && IS_SET(room->room2_flags, ROOM_NOCLONE) )
 		{
 			send_to_char("No-clone room cannot be used in blueprints.\n\r", ch);
 			return FALSE;
 		}
-		else if( IS_SET(value, ROOM_NOCLONE) && !IS_SET(room->room2_flags, ROOM_NOCLONE) )
+		else if( IS_SET(bits[1], ROOM_NOCLONE) && !IS_SET(room->room2_flags, ROOM_NOCLONE) )
 		{
 			send_to_char("BLUEPRINT and NO_CLONE cannot mix.\n\r", ch);
 			return FALSE;
 		}
 	}
 
-	if( IS_SET(value, ROOM_NOCLONE) )
+	if( IS_SET(bits[1], ROOM_NOCLONE) )
 	{
-		if( !IS_SET(value, ROOM_BLUEPRINT) && IS_SET(room->room2_flags, ROOM_BLUEPRINT) )
+		if( !IS_SET(bits[1], ROOM_BLUEPRINT) && IS_SET(room->room2_flags, ROOM_BLUEPRINT) )
 		{
 			send_to_char("Blueprint rooms cannot be no-clone.\n\r", ch);
 			return FALSE;
@@ -12482,11 +13810,13 @@ REDIT(redit_room2)
 		}
 	}
 
-    TOGGLE_BIT(room->room2_flags, value);
+
+    TOGGLE_BIT(room->room_flags, bits[0]);
+    TOGGLE_BIT(room->room2_flags, bits[1]);
 
 	// Now that we've gotten passed the validation:
 	// Check for toggling blueprints on and off
-	if (IS_SET(value, ROOM_BLUEPRINT))
+	if (IS_SET(bits[1], ROOM_BLUEPRINT))
 	{
 		// Turned on
 		if (IS_SET(room->room2_flags, ROOM_BLUEPRINT))
@@ -12504,8 +13834,10 @@ REDIT(redit_room2)
 
 	if (IS_SET(ch->act, PLR_AUTOOLC))
 	{
+		ch->desc->last_room_flags = room->room_flags;
 		ch->desc->last_room2_flags = room->room2_flags;
 	}
+
     send_to_char("Room flags toggled.\n\r", ch);
     return TRUE;
 }
@@ -14434,7 +15766,6 @@ MEDIT( medit_crew )
 		send_to_char("Leadership Rating changed.\n\r", ch);
 		return TRUE;
 	}
-
 
 	medit_crew(ch, "");
 	return FALSE;

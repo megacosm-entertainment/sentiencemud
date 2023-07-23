@@ -4113,7 +4113,7 @@ const struct skill_type	skill_table [MAX_SKILL]	=
 		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
 	}, {
 		"soul essence",
-		{ 30, 31, 31, 31 }, { 12, 12, 12, 12},
+		{ 1, 1, 1, 1 }, { 12, 12, 12, 12},
 		spell_soul_essence, TAR_IGNORE, POS_STANDING, &gsn_soul_essence,
 		-1, 1000, 20,
 		"", "", "", "",
@@ -4390,6 +4390,13 @@ const struct skill_type	skill_table [MAX_SKILL]	=
 		spell_web, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_web,
 		-1, 50, 12,
 		"", "The webs holding you in place disappear.", "", "The webs around $n disappear.",
+		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
+	}, {
+		"well fed",
+		{ 31, 31, 31, 31 }, { 8, 8, 8, 8},
+		spell_null, TAR_CHAR_SELF, POS_SLEEPING, &gsn_well_fed,
+		-1, 0, 0,
+		"", "", "", "",
 		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }
 	}, {
 		"whip",

@@ -485,6 +485,7 @@ sh_int	gsn_water_spells;
 sh_int	gsn_weaken;
 sh_int	gsn_weaving;
 sh_int	gsn_web;
+sh_int	gsn_well_fed;
 sh_int	gsn_whip;
 sh_int	gsn_wilderness_spear_style;
 sh_int	gsn_wind_of_confusion;
@@ -2084,7 +2085,7 @@ void reset_area(AREA_DATA *pArea)
     if (global)
 		global_reset();
 
-    p_percent2_trigger(pArea, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RESET, NULL);
+    p_percent2_trigger(pArea, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RESET, NULL,0,0,0,0,0);
 
 	for(int iHash = 0; iHash < MAX_KEY_HASH; iHash++)
 	{
@@ -2102,17 +2103,17 @@ void room_update(ROOM_INDEX_DATA *room)
 	TOKEN_DATA *token;
 	ITERATOR it;
 	if (room->progs->delay > 0 && --room->progs->delay <= 0)
-		p_percent_trigger(NULL, NULL, room, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_DELAY, NULL);
+		p_percent_trigger(NULL, NULL, room, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_DELAY, NULL,0,0,0,0,0);
 
-	p_percent_trigger(NULL, NULL, room, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RANDOM, NULL);
+	p_percent_trigger(NULL, NULL, room, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RANDOM, NULL,0,0,0,0,0);
 
 	// Prereckoning
 	if (pre_reckoning > 0 && reckoning_timer > 0)
-		p_percent_trigger(NULL, NULL, room, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECKONING, NULL);
+		p_percent_trigger(NULL, NULL, room, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECKONING, NULL,0,0,0,0,0);
 
 	// Reckoning
 	if (!pre_reckoning && reckoning_timer > 0)
-		p_percent_trigger(NULL, NULL, room, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RECKONING, NULL);
+		p_percent_trigger(NULL, NULL, room, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_RECKONING, NULL,0,0,0,0,0);
 
 	// Update tokens on room. Remove the one for which the timer has run out.
 	iterator_start(&it, room->ltokens);
@@ -2136,7 +2137,7 @@ void room_update(ROOM_INDEX_DATA *room)
 					sprintf(buf, "room update: token %s(%ld) room %s(%ld) was extracted because of timer",
 						token->name, token->pIndexData->vnum, room->name, room->vnum);
 				log_string(buf);
-				p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_EXPIRE, NULL);
+				p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_EXPIRE, NULL,0,0,0,0,0);
 				token_from_room(token);
 				free_token(token);
 			}
@@ -2418,7 +2419,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 			level  = URANGE(0, pMob->level - 2, LEVEL_HERO - 1); /* -1 ROM */
 			last = TRUE;
 			objRepop = TRUE;
-			p_percent_trigger(pMob, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+			p_percent_trigger(pMob, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL,0,0,0,0,0);
 			break;
 
 		case 'O':	// Place Object into Room
@@ -2573,7 +2574,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 		}
 	}
 
-	p_percent_trigger(NULL, NULL, pRoom, NULL, NULL, NULL, NULL,NULL, NULL, TRIG_RESET, NULL);
+	p_percent_trigger(NULL, NULL, pRoom, NULL, NULL, NULL, NULL,NULL, NULL, TRIG_RESET, NULL,0,0,0,0,0);
 }
 
 
@@ -3302,7 +3303,7 @@ CHAR_DATA *clone_mobile(CHAR_DATA *parent)
 }
 
 
-OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects)
+OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects, bool multitypes)
 {
     AFFECT_DATA *paf;
     SPELL_DATA *spell, *spell_new;
@@ -3363,6 +3364,17 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects)
 		obj->lock->pick_chance = pObjIndex->lock->pick_chance;
 	}
 
+	// Item Multi-typing
+	if (multitypes)
+	{
+		CONTAINER(obj) = copy_container_data(CONTAINER(pObjIndex));
+		FOOD(obj) = copy_food_data(FOOD(pObjIndex));
+		FURNITURE(obj) = copy_furniture_data(FURNITURE(pObjIndex));
+		LIGHT(obj) = copy_light_data(LIGHT(pObjIndex));
+		MONEY(obj) = copy_money_data(MONEY(pObjIndex));
+	}
+
+#if 0
     /*
      * Mess with object properties.
      */
@@ -3440,6 +3452,7 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects)
 
 	    break;
     }
+#endif
 
     /* Random affects on objs*/
     if (affects)
@@ -3517,7 +3530,7 @@ OBJ_DATA *create_object(OBJ_INDEX_DATA *pObjIndex, int level, bool affects)
 {
     OBJ_DATA *obj;
 
-    obj = create_object_noid(pObjIndex,level,affects);
+    obj = create_object_noid(pObjIndex,level,affects,TRUE);
 
 	if( obj )
 	{
@@ -5922,7 +5935,7 @@ bool extract_clone_room(ROOM_INDEX_DATA *room, unsigned long id1, unsigned long 
 //		sprintf(buf,"extract_clone_room(%lu, %lu, %lu) calling EXTRACT trigger", room->vnum, id1, id2);
 //		wiznet(buf, NULL, NULL, WIZ_TESTING, 0, 0);
 		SET_BIT(clone->progs->entity_flags,PROG_NODESTRUCT);
-		p_percent_trigger(NULL, NULL, clone, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_EXTRACT, NULL);
+		p_percent_trigger(NULL, NULL, clone, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_EXTRACT, NULL,0,0,0,0,0);
 	}
 
 	/* Destroy all exits*/
@@ -6311,6 +6324,8 @@ void persist_save_token(FILE *fp, TOKEN_DATA *token)
 
 }
 
+void fwrite_obj_multityping(FILE *fp, OBJ_DATA *obj);
+
 void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
 {
 	EXTRA_DESCR_DATA *ed;
@@ -6381,6 +6396,8 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
 	for(i = 0; i < MAX_OBJVALUES; i++) {
 		fprintf(fp, "Value %d %d\n", i, obj->value[i]);			// **
 	}
+
+	fwrite_obj_multityping(fp, obj);
 
 	if( obj->lock )
 	{
@@ -7192,6 +7209,13 @@ TOKEN_DATA *persist_load_token(FILE *fp)
 	return token;
 }
 
+CONTAINER_DATA *fread_obj_container_data(FILE *fp);
+FOOD_DATA *fread_obj_food_data(FILE *fp);
+FURNITURE_DATA *fread_obj_furniture_data(FILE *fp);
+LIGHT_DATA *fread_obj_light_data(FILE *fp);
+MONEY_DATA *fread_obj_money_data(FILE *fp);
+
+void fread_obj_check_version(OBJ_DATA *obj, long values[MAX_OBJVALUES]);
 
 OBJ_DATA *persist_load_object(FILE *fp)
 {
@@ -7202,6 +7226,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 	char *word;
 	int vtype;
 	bool good = TRUE, fMatch;
+	long values[MAX_OBJVALUES];
 
 	log_string("persist_load: #OBJECT");
 
@@ -7210,7 +7235,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 	if( !obj_index )
 		return NULL;
 
-	obj = create_object_noid(obj_index, -1, FALSE);
+	obj = create_object_noid(obj_index, -1, FALSE, FALSE);
 	if( !obj )
 		return NULL;
 	obj->version = VERSION_OBJECT_000;
@@ -7244,6 +7269,47 @@ OBJ_DATA *persist_load_object(FILE *fp)
 
 					break;
 				}
+				if (!str_cmp(word, "#TYPECONTAINER"))
+				{
+					if (IS_CONTAINER(obj)) free_container_data(CONTAINER(obj));
+
+					CONTAINER(obj) = fread_obj_container_data(fp);
+					fMatch = TRUE;
+					break;
+				}
+				if (!str_cmp(word, "#TYPEFOOD"))
+				{
+					if (IS_FOOD(obj)) free_food_data(FOOD(obj));
+
+					FOOD(obj) = fread_obj_food_data(fp);
+					fMatch = TRUE;
+					break;
+				}
+				if (!str_cmp(word, "#TYPEFURNITURE"))
+				{
+					if (IS_FURNITURE(obj)) free_furniture_data(FURNITURE(obj));
+
+					FURNITURE(obj) = fread_obj_furniture_data(fp);
+					fMatch = TRUE;
+					break;
+				}
+				if (!str_cmp(word, "#TYPELIGHT"))
+				{
+					if (IS_LIGHT(obj)) free_light_data(LIGHT(obj));
+
+					LIGHT(obj) = fread_obj_light_data(fp);
+					fMatch = TRUE;
+					break;
+				}
+				if (!str_cmp(word, "#TYPEMONEY"))
+				{
+					if (IS_MONEY(obj)) free_money_data(MONEY(obj));
+
+					MONEY(obj) = fread_obj_money_data(fp);
+					fMatch = TRUE;
+					break;
+				}
+
 				if (!str_cmp(word,"#TOKEN")) {
 					TOKEN_DATA *token = persist_load_token(fp);
 
@@ -7668,8 +7734,8 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					int idx = fread_number(fp);
 					int val = fread_number(fp);
 
-					if( idx >= 0 && idx < 8 )
-						obj->value[idx] = val;
+					if( idx >= 0 && idx < MAX_OBJVALUES )
+						values[idx] = val;
 
 					fMatch = TRUE;
 				}
@@ -7713,6 +7779,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 			fread_to_eol(fp);
 	}
 
+	fread_obj_check_version(obj, values);
 
 	get_obj_id(obj);
 	fix_object(obj);

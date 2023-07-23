@@ -835,27 +835,13 @@ void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
 	case POS_SLEEPING:
 	    if (victim->on != NULL)
 	    {
-		if (IS_SET(victim->on->value[2], SLEEP_AT))
-		{
-		    sprintf(message, " is sleeping at %s.",
-			    victim->on->short_descr);
-		    strcat(buf, message);
-		}
-		else if (IS_SET(victim->on->value[2], SLEEP_ON))
-		{
-		    sprintf(message, " is sleeping on %s.",
-			    victim->on->short_descr);
-		    strcat(buf, message);
+			sprintf(message, " is sleeping %s %s.",
+				furniture_get_positional(victim->on_compartment->sleeping),
+				furniture_get_short_description(victim->on, victim->on_compartment));
+			strcat(buf, message);
 		}
 		else
-		{
-		    sprintf(message, " is sleeping in %s.",
-			    victim->on->short_descr);
-		    strcat(buf, message);
-		}
-	    }
-	    else
-		strcat(buf, " is sleeping here.");
+			strcat(buf, " is sleeping here.");
 
 	    if (IS_NPC(victim))
 			strcat(buf, "\n\r");
@@ -864,89 +850,41 @@ void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
 	case POS_RESTING:
 	    if (victim->on != NULL)
 	    {
-			if (IS_SET(victim->on->value[2], REST_AT))
-			{
-				sprintf(message, " is resting at %s.",
-					victim->on->short_descr);
-				strcat(buf, message);
-			}
-			else if (IS_SET(victim->on->value[2], REST_ON))
-			{
-				sprintf(message, " is resting on %s.",
-					victim->on->short_descr);
-				strcat(buf, message);
-			}
-			else
-			{
-				sprintf(message, " is resting in %s.",
-					victim->on->short_descr);
-				strcat(buf, message);
-			}
-	    }
-	    else
-	    {
-		strcat(buf, " is resting here.");
-	    }
+			sprintf(message, " is resting %s %s.",
+				furniture_get_positional(victim->on_compartment->resting),
+				furniture_get_short_description(victim->on, victim->on_compartment));
+			strcat(buf, message);
+		}
+		else
+			strcat(buf, " is resting here.");
 
 	    if (IS_NPC(victim))
-	    {
-		strcat(buf , "\n\r");
-	    }
+			strcat(buf, "\n\r");
+
 	    break;
 	case POS_SITTING:
 	    if (victim->on != NULL)
 	    {
-			if (IS_SET(victim->on->value[2], SIT_AT))
-			{
-				sprintf(message, " is sitting at %s.",
-					victim->on->short_descr);
-				strcat(buf, message);
-			}
-			else if (IS_SET(victim->on->value[2], SIT_ON))
-			{
-				sprintf(message, " is sitting on %s.",
-					victim->on->short_descr);
-				strcat(buf, message);
-			}
-			else
-			{
-				sprintf(message, " is sitting in %s.",
-					victim->on->short_descr);
-				strcat(buf, message);
-			}
-	    }
-	    else
-	    {
-		strcat(buf, " is sitting here.");
-	    }
+			sprintf(message, " is sitting %s %s.",
+				furniture_get_positional(victim->on_compartment->sitting),
+				furniture_get_short_description(victim->on, victim->on_compartment));
+			strcat(buf, message);
+		}
+		else
+			strcat(buf, " is sitting here.");
 
 	    if (IS_NPC(victim))
-	    {
-		strcat(buf, "\n\r");
-	    }
+			strcat(buf, "\n\r");
+
 	    break;
 	case POS_STANDING:
 	    if (victim->on != NULL)
 	    {
-			if (IS_SET(victim->on->value[2], STAND_AT))
-			{
-				sprintf(message, " is standing at %s.",
-					victim->on->short_descr);
-				strcat(buf, message);
-			}
-			else if (IS_SET(victim->on->value[2], STAND_ON))
-			{
-				sprintf(message, " is standing on %s.",
-					victim->on->short_descr);
-				strcat(buf, message);
-			}
-			else
-			{
-				sprintf(message, " is standing in %s.",
-					victim->on->short_descr);
-				strcat(buf, message);
-			}
-	    }
+			sprintf(message, " is standing %s %s.",
+				furniture_get_positional(victim->on_compartment->standing),
+				furniture_get_short_description(victim->on, victim->on_compartment));
+			strcat(buf, message);
+		}
 	    else if (MOUNTED(victim))
 	    {
 			strcat(buf, " {Gis here, riding ");
@@ -965,6 +903,7 @@ void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
 	    {
 			strcat(buf, (IS_DEAD(victim)) ? " {Dis here.{x" : " {Gis here.{x");
 	    }
+
 	    break;
 	case POS_FIGHTING:
 	    strcat(buf, " {Gis here, fighting ");
@@ -992,62 +931,84 @@ void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
 	    break;
     }
 
+	int auras = 0;
+
     if (!IS_NPC(victim) &&
 		((!IS_MORPHED(victim) && !IS_SHIFTED(victim)) ||
 		(victim->position != POS_STANDING || MOUNTED(victim) || can_see_shift(ch, victim))))
     {
         if (victim->alignment == 1000)
         {
-     	    sprintf(buf2, "\n\r{W%s is bathed in a holy white aura.{x",
-			pers(victim, ch));
-			buf2[4] = UPPER(buf2[4]);
-			strcat(buf, buf2);
+			if (auras < MAX_AURAS_SHOWN)
+			{
+				sprintf(buf2, "\n\r{W%s is bathed in a holy white aura.{x", pers(victim, ch));
+				buf2[4] = UPPER(buf2[4]);
+				strcat(buf, buf2);
+
+				auras++;
+			}
 		}
 
 		if (victim->alignment == -1000)
 		{
-			sprintf(buf2,
-			"\n\r{R%s is surrounded with the burning fires of hell.{x",
-			pers(victim, ch));
-			buf2[4] = UPPER(buf2[4]);
-			strcat(buf, buf2);
+			if (auras < MAX_AURAS_SHOWN)
+			{
+				sprintf(buf2, "\n\r{R%s is surrounded with the burning fires of hell.{x", pers(victim, ch));
+				buf2[4] = UPPER(buf2[4]);
+				strcat(buf, buf2);
+
+				auras++;
+			}
 		}
 
 		if (IS_AFFECTED(victim, AFF_SANCTUARY))
 		{
-			sprintf(buf2,
-			"\n\r{W%s is surrounded with an aura of sanctuary.{x",
-				pers(victim, ch));
-			buf2[4] = UPPER(buf2[4]);
-			strcat(buf, buf2);
+			if (auras < MAX_AURAS_SHOWN)
+			{
+				sprintf(buf2, "\n\r{W%s is surrounded with an aura of sanctuary.{x", pers(victim, ch));
+				buf2[4] = UPPER(buf2[4]);
+				strcat(buf, buf2);
+
+				auras++;
+			}
 		}
     }
     else
     {
         if (victim->alignment == 1000)
 		{
-			sprintf(buf2, "{W%s is bathed in a holy white aura.{x\n\r",
-			pers(victim, ch));
-			buf2[2] = UPPER(buf2[2]);
-			strcat(buf, buf2);
+			if (auras < MAX_AURAS_SHOWN)
+			{
+				sprintf(buf2, "{W%s is bathed in a holy white aura.{x\n\r", pers(victim, ch));
+				buf2[2] = UPPER(buf2[2]);
+				strcat(buf, buf2);
+
+				auras++;
+			}
 		}
 
 		if (victim->alignment == -1000)
 		{
-			sprintf(buf2,
-			"{R%s is surrounded with the burning fires of hell.{x\n\r",
-			pers(victim, ch));
-			buf2[2] = UPPER(buf2[2]);
-			strcat(buf, buf2);
+			if (auras < MAX_AURAS_SHOWN)
+			{
+				sprintf(buf2, "{R%s is surrounded with the burning fires of hell.{x\n\r", pers(victim, ch));
+				buf2[2] = UPPER(buf2[2]);
+				strcat(buf, buf2);
+
+				auras++;
+			}
 		}
 
 		if (IS_AFFECTED(victim, AFF_SANCTUARY))
 		{
-			sprintf(buf2,
-			"{W%s is surrounded with an aura of sanctuary.{x\n\r",
-			pers(victim, ch));
-			buf2[2] = UPPER(buf2[2]);
-			strcat(buf, buf2);
+			if (auras < MAX_AURAS_SHOWN)
+			{
+				sprintf(buf2, "{W%s is surrounded with an aura of sanctuary.{x\n\r", pers(victim, ch));
+				buf2[2] = UPPER(buf2[2]);
+				strcat(buf, buf2);
+
+				auras++;
+			}
 		}
     }
 
@@ -1070,17 +1031,23 @@ void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
 
 		sprintf(buf2, aura->long_descr, pers(victim, ch));
 		strcat(buf, buf2);
+
+		// Reached the aura cap
+		if (++auras >= MAX_AURAS_SHOWN) break;
 	}
 	iterator_stop(&aurait);
 
-
     if (!IS_NPC(victim) && ((!IS_MORPHED(victim) && !IS_SHIFTED(victim)) ||
-	 (victim->position != POS_STANDING || MOUNTED(victim) || can_see_shift(ch, victim))))
-    strcat(buf, "\n\r");
+		(victim->position != POS_STANDING || MOUNTED(victim) || can_see_shift(ch, victim))))
+	{
+    	strcat(buf, "\n\r");
+	}
 
+	// Does it have an EOL?
 	if (str_suffix("\n\r", buf))
+	{
 		strcat(buf, "\n\r");
-
+	}
 
     buf[0] = UPPER(buf[0]);
     send_to_char(buf, ch);
@@ -1204,7 +1171,7 @@ void show_char_to_char_1(CHAR_DATA * victim, CHAR_DATA * ch, bool examine)
     }
 
     if (IS_NPC(victim) && !IS_SET(victim->act, ACT_NO_LORE))
-	p_percent_trigger(victim, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+	p_percent_trigger(victim, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL,0,0,0,0,0);
 
     return;
 }
@@ -2111,40 +2078,55 @@ void do_look(CHAR_DATA * ch, char *argument)
 			return;
 		}
 
-		switch (obj->item_type)
+		if (IS_CONTAINER(obj))
 		{
-		default:
-			send_to_char("That is not a container.\n\r", ch);
-			break;
-
-		case ITEM_DRINK_CON:
-			if (obj->value[1] <= 0)
-			{
-				send_to_char("It is empty.\n\r", ch);
-				break;
-			}
-
-			sprintf(buf, "It's %sfilled with a %s liquid.\n\r",
-				obj->value[1] < obj->value[0] / 4 ? "less than half-" :
-					obj->value[1] < 3 * obj->value[0] / 4 ? "about half-" : "more than half-",
-				liq_table[obj->value[2]].liq_colour);
-			send_to_char(buf, ch);
-			break;
-
-		case ITEM_CONTAINER:
-		case ITEM_CART:
-		case ITEM_CORPSE_NPC:
-		case ITEM_WEAPON_CONTAINER:
-		case ITEM_CORPSE_PC:
-			if (obj->item_type == ITEM_CONTAINER && IS_SET(obj->value[1], CONT_CLOSED) && !IS_SET(obj->value[1], CONT_TRANSPARENT))
+			if (IS_SET(CONTAINER(obj)->flags, CONT_CLOSED) && !IS_SET(CONTAINER(obj)->flags, CONT_TRANSPARENT))
 			{
 				act("$p is closed.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			}
+			else
+			{
+				act("$p holds:", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+				show_list_to_char(obj->contains, ch, TRUE, TRUE);
+			}
+		}
+		else
+		{
+			switch (obj->item_type)
+			{
+			default:
+				send_to_char("That is not a container.\n\r", ch);
+				break;
+
+			case ITEM_DRINK_CON:
+				if (obj->value[1] <= 0)
+				{
+					send_to_char("It is empty.\n\r", ch);
+					break;
+				}
+
+				sprintf(buf, "It's %sfilled with a %s liquid.\n\r",
+					obj->value[1] < obj->value[0] / 4 ? "less than half-" :
+						obj->value[1] < 3 * obj->value[0] / 4 ? "about half-" : "more than half-",
+					liq_table[obj->value[2]].liq_colour);
+				send_to_char(buf, ch);
+				break;
+
+			case ITEM_CONTAINER:
+			case ITEM_CART:
+			case ITEM_CORPSE_NPC:
+			case ITEM_WEAPON_CONTAINER:
+			case ITEM_CORPSE_PC:
+				if (obj->item_type == ITEM_CONTAINER && IS_SET(obj->value[1], CONT_CLOSED) && !IS_SET(obj->value[1], CONT_TRANSPARENT))
+				{
+					act("$p is closed.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+					break;
+				}
+
+				act("$p holds:", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+				show_list_to_char(obj->contains, ch, TRUE, TRUE);
 				break;
 			}
-
-			act("$p holds:", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-			show_list_to_char(obj->contains, ch, TRUE, TRUE);
-			break;
 		}
 		return;
 	}
@@ -2251,7 +2233,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 					else
 						send_to_char("\n\r", ch);
 
-					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL,0,0,0,0,0);
 					check_improve(ch, gsn_lore, TRUE, 10);
 					return;
 				}
@@ -2273,7 +2255,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 					else
 						send_to_char("\n\r", ch);
 
-					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL,0,0,0,0,0);
 					check_improve(ch, gsn_lore, TRUE, 10);
 					return;
 				}
@@ -2294,7 +2276,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 					else
 						send_to_char("\n\r", ch);
 
-					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL,0,0,0,0,0);
 					check_improve(ch, gsn_lore, TRUE, 10);
 
 					if( obj->item_type == ITEM_SEXTANT )
@@ -2428,7 +2410,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 					else
 						send_to_char("\n\r", ch);
 
-					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL,0,0,0,0,0);
 					check_improve(ch, gsn_lore, TRUE, 10);
 					return;
 				}
@@ -2497,7 +2479,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 					else
 						send_to_char("\n\r", ch);
 
-					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL,0,0,0,0,0);
 					check_improve(ch, gsn_lore, TRUE, 10);
 					return;
 				}
@@ -2515,7 +2497,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 					else
 						send_to_char("\n\r", ch);
 
-					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL,0,0,0,0,0);
 					check_improve(ch, gsn_lore, TRUE, 10);
 
 					if( obj->item_type == ITEM_TELESCOPE )
@@ -2758,7 +2740,7 @@ void do_examine(CHAR_DATA * ch, char *argument)
 				if (can_see_obj(ch, obj) && obj->wear_loc != WEAR_NONE && wear_params[obj->wear_loc][WEAR_PARAM_SEEN] &&
 					is_name(arg3, obj->name) && (++count == number))
 				{
-					if (p_percent_trigger(NULL, obj, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_EXAMINE, argument)) return;
+					if (p_percent_trigger(NULL, obj, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_EXAMINE, argument,0,0,0,0,0)) return;
 
 					if (get_skill(ch, gsn_lore) > 0 &&
 						number_percent() <= get_skill(ch, gsn_lore) &&
@@ -2784,7 +2766,7 @@ void do_examine(CHAR_DATA * ch, char *argument)
 					else
 						send_to_char("\n\r", ch);
 
-					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL,0,0,0,0,0);
 					check_improve(ch, gsn_lore, TRUE, 10);
 					return;
 				}
@@ -2804,7 +2786,7 @@ void do_examine(CHAR_DATA * ch, char *argument)
 		}
 		else
 		{
-			if (p_percent_trigger(victim, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_EXAMINE, argument)) return;
+			if (p_percent_trigger(victim, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_EXAMINE, argument,0,0,0,0,0)) return;
 
 			show_char_to_char_1(victim, ch, true);
 		}
@@ -2813,7 +2795,7 @@ void do_examine(CHAR_DATA * ch, char *argument)
 
     if ((obj = get_obj_here(ch, NULL, arg1)) != NULL)
     {
-		if (p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_EXAMINE,argument)) return;
+		if (p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_EXAMINE,argument,0,0,0,0,0)) return;
 
 		if (get_skill(ch, gsn_lore) > 0 &&
 			number_percent() <= get_skill(ch, gsn_lore) &&
@@ -2829,7 +2811,7 @@ void do_examine(CHAR_DATA * ch, char *argument)
 		else
 			send_to_char("\n\r", ch);
 
-		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
+		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL,0,0,0,0,0);
 		check_improve(ch, gsn_lore, TRUE, 10);
     }
 
@@ -4333,7 +4315,7 @@ void do_time(CHAR_DATA * ch, char *argument)
 	}
 
 	if(!IS_NPC(ch) && lunar)
-		p_percent_trigger(ch,NULL,NULL,NULL,ch, NULL, NULL,NULL,NULL,TRIG_MOON, NULL);
+		p_percent_trigger(ch,NULL,NULL,NULL,ch, NULL, NULL,NULL,NULL,TRIG_MOON, NULL,0,0,0,0,0);
 }
 
 
@@ -5285,41 +5267,46 @@ void do_bank(CHAR_DATA * ch, char *argument)
 
     if (str_cmp(arg1, "WITHDRAW") == 0)
     {
-	if (arg2[0] == '\0' || (!is_number(arg2) && str_cmp(arg2, "all")))
-	{
-	    send_to_char("You need to withdraw an amount or 'all'.\n\r",ch);
-	    return;
-	}
+		if (arg2[0] == '\0' || (!is_number(arg2) && str_cmp(arg2, "all")))
+		{
+			send_to_char("You need to withdraw an amount or 'all'.\n\r",ch);
+			return;
+		}
 
-	if (str_cmp(arg2, "all"))
-	    amount = atol(arg2);
-	else
-	    amount = ch->pcdata->bankbalance;
+		if (str_cmp(arg2, "all"))
+			amount = atol(arg2);
+		else
+			amount = ch->pcdata->bankbalance;
 
-	if (amount == 0)
-	{
-	    send_to_char("Invalid amount.\n\r", ch);
-	    return;
-	}
+		if (amount == 0)
+		{
+			send_to_char("Invalid amount.\n\r", ch);
+			return;
+		}
 
-	if (amount > ch->pcdata->bankbalance)
-	{
-	    send_to_char("You don't have that much in the bank.\n\r", ch);
-	    return;
-	}
+		// Immortals can withdraw money out of thin air...
+		if (!IS_IMMORTAL(ch) && amount > ch->pcdata->bankbalance)
+		{
+			send_to_char("You don't have that much in the bank.\n\r", ch);
+			return;
+		}
 
-	if (amount < 0)
-	{
-	    send_to_char("You can't withdraw a negative amount.\n\r", ch);
-	    return;
-	}
-	ch->pcdata->bankbalance -= amount;
-	ch->gold += amount;
-	sprintf(temp, "You just withdrew {Y%ld{X gold coins from your account.\n\r", amount);
-	send_to_char(temp, ch);
-	sprintf(temp, "Your new balance is {Y%ld{X gold coins.\n\r", ch->pcdata->bankbalance);
-	send_to_char(temp, ch);
-	return;
+		if (amount < 0)
+		{
+			send_to_char("You can't withdraw a negative amount.\n\r", ch);
+			return;
+		}
+
+		ch->pcdata->bankbalance -= amount;
+		if (ch->pcdata->bankbalance < 0)
+			ch->pcdata->bankbalance = 0;
+
+		ch->gold += amount;
+		sprintf(temp, "You just withdrew {Y%ld{X gold coins from your account.\n\r", amount);
+		send_to_char(temp, ch);
+		sprintf(temp, "Your new balance is {Y%ld{X gold coins.\n\r", ch->pcdata->bankbalance);
+		send_to_char(temp, ch);
+		return;
     }
 
     if (str_cmp(arg1, "WIRE") == 0)
@@ -8079,7 +8066,7 @@ void show_basic_mob_lore(CHAR_DATA *ch, CHAR_DATA *victim)
 			avg);
 	send_to_char(buf, ch);
 
-	p_percent_trigger(victim, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE, NULL);
+	p_percent_trigger(victim, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE, NULL,0,0,0,0,0);
 }
 
 

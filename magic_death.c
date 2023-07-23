@@ -98,20 +98,20 @@ SPELL_FUNC(spell_animate_dead)
 		victim->silver = 0;
 
 		// Do the animate trigger now so that information that might be needed for PREANIMATE is available.
-		if( p_percent_trigger( victim, NULL, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_ANIMATE, NULL) )
+		if(p_percent_trigger( victim, NULL, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_ANIMATE, NULL,0,0,0,0,0))
 			restring_mob = FALSE;
 
 		keep_mob = TRUE;
 		// Check the victim if it can be resurrected directly
-		if (p_percent_trigger( victim, NULL, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_PREANIMATE, NULL) )
+		if (p_percent_trigger( victim, NULL, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_PREANIMATE, NULL,0,0,0,0,0) )
 			keep_mob = FALSE;
 
 		// Check the corpse for anything blocking the resurrection
-		if (keep_mob && p_percent_trigger( NULL, obj, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_PREANIMATE, NULL) )
+		if (keep_mob && p_percent_trigger( NULL, obj, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_PREANIMATE, NULL,0,0,0,0,0) )
 			keep_mob = FALSE;
 
 		// Check the ROOM the corpse is in for anything blocking resurrection
-		if (keep_mob && p_percent_trigger( NULL, NULL, ch->in_room, NULL, ch, victim, NULL, obj, NULL, TRIG_PREANIMATE, NULL) )
+		if (keep_mob && p_percent_trigger( NULL, NULL, ch->in_room, NULL, ch, victim, NULL, obj, NULL, TRIG_PREANIMATE, NULL,0,0,0,0,0) )
 			keep_mob = FALSE;
 
 		if( !keep_mob )
@@ -326,10 +326,23 @@ SPELL_FUNC(spell_kill)
 	victim->set_death_type = DEATHTYPE_ALIVE;
 	victim->death_type = DEATHTYPE_KILLSPELL;
 
+	if (ch != victim) {
+		int skill = get_skill(ch, gsn_kill);
+		group_gain(ch, victim, 25 + (skill / 2));
+		if( ch->fighting == victim )
+			stop_fighting(ch, FALSE);
+	}
+
+	// If invasion mob then check if quest point is earned
+	if (!IS_NPC(ch) && IS_NPC(victim) && IS_SET(victim->act2, ACT2_INVASION_MOB) && number_percent() < 5) {
+		send_to_char("{WYou have been awarded a quest point!{x\n\r", ch);
+		ch->questpoints++;
+	}
+
 	here = victim->in_room;
 	victim->position = POS_STANDING;
-	if(!p_percent_trigger(victim, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_DEATH,NULL))
-		p_percent_trigger(NULL, NULL, here, NULL, ch, victim, NULL, NULL, NULL, TRIG_DEATH,NULL);
+	if(!p_percent_trigger(victim, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_DEATH,NULL,0,0,0,0,0))
+		p_percent_trigger(NULL, NULL, here, NULL, ch, victim, NULL, NULL, NULL, TRIG_DEATH,NULL,0,0,0,0,0);
 
 	if (!IS_NPC(ch) && !IS_NPC(victim))
 		player_kill(ch, victim);
@@ -337,6 +350,16 @@ SPELL_FUNC(spell_kill)
 		ch->monster_kills++;
 
 	raw_kill(victim, TRUE, TRUE, RAWKILL_NORMAL); /* 1= has head, 0= no head */
+
+	// Check if slain victim was part of a quest. Checks if your horse got the kill, too.
+	if (!IS_NPC(ch)) {
+		check_quest_slay_mob(ch, victim, true);
+		check_invasion_quest_slay_mob(ch, victim);
+	}
+
+	// Hahahaha
+	if (RIDDEN(ch)) check_quest_slay_mob(RIDDEN(ch), victim, true);
+
 	return TRUE;
 }
 
@@ -374,7 +397,7 @@ SPELL_FUNC(spell_raise_dead)
 
 
 		if (obj->item_type == ITEM_CORPSE_PC) {
-			victim = get_char_world(ch,obj->owner);
+			victim = get_char_world(NULL,obj->owner);
 			if (!victim) {
 				sprintf(buf, "The soul of %s is no longer within this world.", obj->owner);
 				act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -415,15 +438,15 @@ SPELL_FUNC(spell_raise_dead)
 			}
 
 			// Check the victim if it can be resurrected directly
-			if (p_percent_trigger( victim, NULL, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_PRERESURRECT, NULL) )
+			if (p_percent_trigger( victim, NULL, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_PRERESURRECT, NULL,0,0,0,0,0) )
 				return FALSE;
 
 			// Check the corpse for anything blocking the resurrection
-			if (p_percent_trigger( NULL, obj, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_PRERESURRECT, NULL) )
+			if (p_percent_trigger( NULL, obj, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_PRERESURRECT, NULL,0,0,0,0,0) )
 				return FALSE;
 
 			// Check the ROOM the corpse is in for anything blocking resurrection
-			if (p_percent_trigger( NULL, NULL, ch->in_room, NULL, ch, victim, NULL, obj, NULL, TRIG_PRERESURRECT, NULL) )
+			if (p_percent_trigger( NULL, NULL, ch->in_room, NULL, ch, victim, NULL, obj, NULL, TRIG_PRERESURRECT, NULL,0,0,0,0,0) )
 				return FALSE;
 
 
@@ -459,19 +482,19 @@ SPELL_FUNC(spell_raise_dead)
 			}
 
 			// Restore information about the victim, then check to see if they can be resurrected
-			p_percent_trigger(victim, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_RESURRECT, NULL);
-			p_percent_trigger(NULL, obj, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_RESURRECT, NULL);
+			p_percent_trigger(victim, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_RESURRECT, NULL,0,0,0,0,0);
+			p_percent_trigger(NULL, obj, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_RESURRECT, NULL,0,0,0,0,0);
 
 			// Check the corpse for anything blocking the resurrection
-			if (p_percent_trigger( victim, NULL, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_PRERESURRECT, NULL) )
+			if (p_percent_trigger( victim, NULL, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_PRERESURRECT, NULL,0,0,0,0,0) )
 				keep_mob = FALSE;
 
 			// Check the corpse for anything blocking the resurrection
-			if (keep_mob && p_percent_trigger( NULL, obj, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_PRERESURRECT, NULL) )
+			if (keep_mob && p_percent_trigger( NULL, obj, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_PRERESURRECT, NULL,0,0,0,0,0) )
 				keep_mob = FALSE;
 
 			// Check the ROOM the corpse is in for anything blocking resurrection
-			if (keep_mob && p_percent_trigger( NULL, NULL, ch->in_room, NULL, ch, victim, NULL, obj, NULL, TRIG_PRERESURRECT, NULL) )
+			if (keep_mob && p_percent_trigger( NULL, NULL, ch->in_room, NULL, ch, victim, NULL, obj, NULL, TRIG_PRERESURRECT, NULL,0,0,0,0,0) )
 				keep_mob = FALSE;
 
 			if( !keep_mob )
@@ -501,41 +524,10 @@ SPELL_FUNC(spell_raise_dead)
 
 			obj_from_obj(in);
 
-			if (in->item_type == ITEM_MONEY)
+			if (IS_MONEY(in))
 			{
-				victim->silver += in->value[0];
-				victim->gold += in->value[1];
-				extract_obj(in);
-				continue;
-			}
-
-			if (in->pIndexData == obj_index_silver_one) {
-				victim->silver++;
-				extract_obj(in);
-				continue;
-			}
-
-			if (in->pIndexData == obj_index_silver_some) {
-				victim->silver += in->value[1];
-				extract_obj(in);
-				continue;
-			}
-
-			if (in->pIndexData == obj_index_gold_one) {
-				victim->gold++;
-				extract_obj(in);
-				continue;
-			}
-
-			if (in->pIndexData == obj_index_gold_some) {
-				victim->gold += in->value[1];
-				extract_obj(in);
-				continue;
-			}
-
-			if (in->pIndexData == obj_index_coins) {
-				victim->silver += in->value[0];
-				victim->gold += in->value[1];
+				victim->silver += MONEY(in)->silver;
+				victim->gold += MONEY(in)->gold;
 				extract_obj(in);
 				continue;
 			}

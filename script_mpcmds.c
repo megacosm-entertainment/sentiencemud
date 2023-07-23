@@ -23,11 +23,15 @@ const struct script_cmd_type mob_cmd_table[] = {
 	{ "addaffect",			scriptcmd_addaffect,		TRUE,	TRUE	},
 	{ "addaffectname",		scriptcmd_addaffectname,	TRUE,	TRUE	},
 	{ "addaura",			scriptcmd_addaura,			TRUE,	TRUE	},
+	{ "addblacklist",		scriptcmd_addblacklist,			TRUE, TRUE },
+	{ "addfoodbuff",		scriptcmd_addfoodbuff,		TRUE, TRUE },
 	{ "addspell",			scriptcmd_addspell,				TRUE,	TRUE	},
+	{ "addtype",			scriptcmd_addtype,			TRUE, TRUE },
+	{ "addwhitelist",		scriptcmd_addwhitelist,			TRUE, TRUE },
 	{ "alteraffect",		do_mpalteraffect,			TRUE,	TRUE	},
 	{ "alterexit",			do_mpalterexit,				FALSE,	TRUE	},
 	{ "altermob",			do_mpaltermob,				TRUE,	TRUE	},
-	{ "alterobj",			do_mpalterobj,				TRUE,	TRUE	},
+	{ "alterobj",			scriptcmd_alterobj,				TRUE,	TRUE	},
 	{ "alterroom",			do_mpalterroom,				TRUE,	TRUE	},
 	{ "appear",				do_mpvis,					FALSE,	FALSE	},
 	{ "applytoxin",			scriptcmd_applytoxin,		FALSE,	TRUE	},
@@ -130,10 +134,13 @@ const struct script_cmd_type mob_cmd_table[] = {
 	{ "rawkill",			do_mprawkill,				FALSE,	TRUE	},
 	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
 	{ "remaura",			scriptcmd_remaura,			TRUE,	TRUE	},
+	{ "remblacklist",		scriptcmd_remblacklist,		TRUE,	TRUE	},
 	{ "remember",			do_mpremember,				FALSE,	TRUE	},
 	{ "remort",				do_mpremort,				TRUE,	TRUE	},
 	{ "remove",				do_mpremove,				FALSE,	TRUE	},
 	{ "remspell",			scriptcmd_remspell,				TRUE,	TRUE	},
+	{ "remtype",			scriptcmd_remtype,			TRUE,	TRUE	},
+	{ "remwhitelist",		scriptcmd_remwhitelist,		TRUE,	TRUE	},
 	{ "resetdice",			do_mpresetdice,				TRUE,	TRUE	},
 	{ "restore",			do_mprestore,				TRUE,	TRUE	},
 	{ "revokeskill",		scriptcmd_revokeskill,		FALSE,	TRUE	},
@@ -1960,7 +1967,7 @@ SCRIPT_CMD(do_mpechoaround)
 
 	// Expand the message
 	BUFFER *buffer = new_buf();
-	expand_string(info,argument,buffer);
+	expand_string(info,rest,buffer);
 
 	if(buf_string(buffer)[0] != '\0')
 		act(buf_string(buffer), victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
@@ -2965,7 +2972,7 @@ SCRIPT_CMD(do_mpmload)
 	victim = create_mobile(pMobIndex, FALSE);
 	char_to_room(victim, info->mob->in_room);
 	if(rest && *rest) variables_set_mobile(info->var,rest,victim);
-	p_percent_trigger(victim, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+	p_percent_trigger(victim, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL,0,0,0,0,0);
 }
 
 // do_mpoload
@@ -3058,12 +3065,13 @@ SCRIPT_CMD(do_mpoload)
 
 			case ENT_OBJECT:
 				if( arg->d.obj && IS_SET(pObjIndex->wear_flags, ITEM_TAKE) ) {
-					if(arg->d.obj->item_type == ITEM_CONTAINER ||
-						arg->d.obj->item_type == ITEM_CART)
-						to_obj = arg->d.obj;
-					else if(arg->d.obj->item_type == ITEM_WEAPON_CONTAINER &&
-						pObjIndex->item_type == ITEM_WEAPON &&
-						pObjIndex->value[0] == arg->d.obj->value[1])
+					if(IS_CONTAINER(arg->d.obj))
+					{
+						int subtype = objindex_get_subtype(pObjIndex);
+						if (container_is_valid_item_type(arg->d.obj, pObjIndex->item_type, subtype))
+							to_obj = arg->d.obj;
+					}
+					else if(arg->d.obj->item_type == ITEM_CORPSE_NPC || arg->d.obj->item_type == ITEM_CORPSE_PC)
 						to_obj = arg->d.obj;
 					else
 						return;	// Trying to put the item into a non-container won't work
@@ -3093,7 +3101,7 @@ SCRIPT_CMD(do_mpoload)
 		obj_to_room(obj, info->mob->in_room);
 
 	if(rest && *rest) variables_set_object(info->var,rest,obj);
-	p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+	p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL,0,0,0,0,0);
 }
 
 // do_mpotransfer
@@ -4185,13 +4193,13 @@ SCRIPT_CMD(do_mpalterobj)
 	case ENT_STRING:
 		if(is_number(arg->d.str)) {
 			num = atoi(arg->d.str);
-			if(num < 0 || num >= 8) return;
+			if(num < 0 || num >= MAX_OBJVALUES) return;
 		} else
 			strncpy(field,arg->d.str,MIL-1);
 		break;
 	case ENT_NUMBER:
 		num = arg->d.num;
-		if(num < 0 || num >= 8) return;
+		if(num < 0 || num >= MAX_OBJVALUES) return;
 		break;
 	default: return;
 	}
@@ -4210,10 +4218,6 @@ SCRIPT_CMD(do_mpalterobj)
 		case ENT_STRING: value = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
 		case ENT_NUMBER: value = arg->d.num; break;
 		default: return;
-		}
-
-		if(obj->item_type == ITEM_CONTAINER) {
-			if(num == 3 || num == 4) min_sec = 5;
 		}
 
 		if(script_security < min_sec) {
@@ -5217,8 +5221,8 @@ SCRIPT_CMD(do_mprawkill)
 	{
 		ROOM_INDEX_DATA *here = mob->in_room;
 		mob->position = POS_STANDING;
-		if(!p_percent_trigger(mob, NULL, NULL, NULL, mob, mob, NULL, NULL, NULL, TRIG_DEATH, NULL))
-			p_percent_trigger(NULL, NULL, here, NULL, mob, mob, NULL, NULL, NULL, TRIG_DEATH, NULL);
+		if(!p_percent_trigger(mob, NULL, NULL, NULL, mob, mob, NULL, NULL, NULL, TRIG_DEATH, NULL,0,0,0,0,0))
+			p_percent_trigger(NULL, NULL, here, NULL, mob, mob, NULL, NULL, NULL, TRIG_DEATH, NULL,0,0,0,0,0);
 	}
 
 	raw_kill(mob, has_head, show_msg, type);

@@ -20,11 +20,15 @@ const struct script_cmd_type room_cmd_table[] = {
 	{ "addaffect",			scriptcmd_addaffect,	TRUE,	TRUE	},
 	{ "addaffectname",		scriptcmd_addaffectname,TRUE,	TRUE	},
 	{ "addaura",			scriptcmd_addaura,			TRUE,	TRUE	},
-	{ "addspell",			scriptcmd_addspell,			TRUE,	TRUE	},
+	{ "addblacklist",		scriptcmd_addblacklist,			TRUE, TRUE },
+	{ "addfoodbuff",		scriptcmd_addfoodbuff,		TRUE, TRUE },
+	{ "addspell",			scriptcmd_addspell,				TRUE,	TRUE	},
+	{ "addtype",			scriptcmd_addtype,			TRUE, TRUE },
+	{ "addwhitelist",		scriptcmd_addwhitelist,			TRUE, TRUE },
 	{ "alteraffect",		do_rpalteraffect,		TRUE,	TRUE	},
 	{ "alterexit",			do_rpalterexit,			FALSE,	TRUE	},
 	{ "altermob",			do_rpaltermob,			TRUE,	TRUE	},
-	{ "alterobj",			do_rpalterobj,			TRUE,	TRUE	},
+	{ "alterobj",			scriptcmd_alterobj,			TRUE,	TRUE	},
 	{ "alterroom",			do_rpalterroom,			TRUE,	TRUE	},
 	{ "applytoxin",			scriptcmd_applytoxin,	FALSE,	TRUE	},
 	{ "asound",				do_rpasound,			FALSE,	TRUE	},
@@ -116,10 +120,13 @@ const struct script_cmd_type room_cmd_table[] = {
 	{ "rawkill",			do_rprawkill,			FALSE,	TRUE	},
 	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
 	{ "remaura",			scriptcmd_remaura,			TRUE,	TRUE	},
+	{ "remblacklist",		scriptcmd_remblacklist,		TRUE,	TRUE	},
 	{ "remember",			do_rpremember,			FALSE,	TRUE	},
 	{ "remort",				do_rpremort,			TRUE,	TRUE	},
 	{ "remove",				do_rpremove,			FALSE,	TRUE	},
 	{ "remspell",			scriptcmd_remspell,			TRUE,	TRUE	},
+	{ "remtype",			scriptcmd_remtype,			TRUE,	TRUE	},
+	{ "remwhitelist",		scriptcmd_remwhitelist,		TRUE,	TRUE	},
 	{ "resetdice",			do_rpresetdice,			TRUE,	TRUE	},
 	{ "restore",			do_rprestore,			TRUE,	TRUE	},
 	{ "revokeskill",		scriptcmd_revokeskill,	FALSE,	TRUE	},
@@ -1949,7 +1956,7 @@ SCRIPT_CMD(do_rpmload)
 	victim = create_mobile(pMobIndex, FALSE);
 	char_to_room(victim, info->room);
 	if(rest && *rest) variables_set_mobile(info->var,rest,victim);
-	p_percent_trigger(victim, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+	p_percent_trigger(victim, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL,0,0,0,0,0);
 }
 
 SCRIPT_CMD(do_rpoload)
@@ -2029,12 +2036,13 @@ SCRIPT_CMD(do_rpoload)
 
 			case ENT_OBJECT:
 				if( arg->d.obj && IS_SET(pObjIndex->wear_flags, ITEM_TAKE) ) {
-					if(arg->d.obj->item_type == ITEM_CONTAINER ||
-						arg->d.obj->item_type == ITEM_CART)
-						to_obj = arg->d.obj;
-					else if(arg->d.obj->item_type == ITEM_WEAPON_CONTAINER &&
-						pObjIndex->item_type == ITEM_WEAPON &&
-						pObjIndex->value[0] == arg->d.obj->value[1])
+					if(IS_CONTAINER(arg->d.obj))
+					{
+						int subtype = objindex_get_subtype(pObjIndex);
+						if (container_is_valid_item_type(arg->d.obj, pObjIndex->item_type, subtype))
+							to_obj = arg->d.obj;
+					}
+					else if(arg->d.obj->item_type == ITEM_CORPSE_NPC || arg->d.obj->item_type == ITEM_CORPSE_PC)
 						to_obj = arg->d.obj;
 					else
 						return;	// Trying to put the item into a non-container won't work
@@ -2064,7 +2072,7 @@ SCRIPT_CMD(do_rpoload)
 		obj_to_room(obj, info->room);
 
 	if(rest && *rest) variables_set_object(info->var,rest,obj);
-	p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+	p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL,0,0,0,0,0);
 }
 
 SCRIPT_CMD(do_rpotransfer)
@@ -2937,10 +2945,6 @@ SCRIPT_CMD(do_rpalterobj)
 		case ENT_STRING: value = is_number(arg->d.str) ? atoi(arg->d.str) : 0; break;
 		case ENT_NUMBER: value = arg->d.num; break;
 		default: return;
-		}
-
-		if(obj->item_type == ITEM_CONTAINER) {
-			if(num == 3 || num == 4) min_sec = 5;
 		}
 
 		if(script_security < min_sec) {
@@ -3864,8 +3868,8 @@ SCRIPT_CMD(do_rprawkill)
 	{
 		ROOM_INDEX_DATA *here = mob->in_room;
 		mob->position = POS_STANDING;
-		if(!p_percent_trigger(mob, NULL, NULL, NULL, mob, mob, NULL, NULL, NULL, TRIG_DEATH, NULL))
-			p_percent_trigger(NULL, NULL, here, NULL, mob, mob, NULL, NULL, NULL, TRIG_DEATH, NULL);
+		if(!p_percent_trigger(mob, NULL, NULL, NULL, mob, mob, NULL, NULL, NULL, TRIG_DEATH, NULL,0,0,0,0,0))
+			p_percent_trigger(NULL, NULL, here, NULL, mob, mob, NULL, NULL, NULL, TRIG_DEATH, NULL,0,0,0,0,0);
 	}
 
 	raw_kill(mob, has_head, show_msg, type);

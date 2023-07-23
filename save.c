@@ -207,7 +207,7 @@ void save_char_obj(CHAR_DATA *ch)
     else
     {
 	    // Used to do SAVE checks
-		p_percent_trigger( ch,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SAVE, NULL );
+		p_percent_trigger( ch,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SAVE, NULL ,0,0,0,0,0);
 
 		fwrite_char(ch, fp);
 
@@ -808,9 +808,7 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 				} else {
 					OBJ_DATA *container = objNestList[obj->nest - 1];
 
-					if (container->item_type == ITEM_CONTAINER ||
-						container->item_type == ITEM_KEYRING ||
-						container->item_type == ITEM_WEAPON_CONTAINER)
+					if (IS_CONTAINER(container))
 						obj_to_obj(obj,objNestList[obj->nest - 1]);
 					else {
 						sprintf(buf, "load_char_obj: found obj %s(%ld) in item %s(%ld) which is not a container",
@@ -1696,7 +1694,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 
 	    if (!str_cmp(word, "QuestGiverType"))
 	    {
-			if( ch->quest != NULL )
+			if( ch->quest == NULL )
 			{
 				ch->quest = (QUEST_DATA *)new_quest();
 			}
@@ -1707,7 +1705,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 
 	    if (!str_cmp(word, "QuestGiver"))
 	    {
-			if( ch->quest != NULL )
+			if( ch->quest == NULL )
 			{
 				ch->quest = (QUEST_DATA *)new_quest();
 			}
@@ -1722,7 +1720,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 
 	    if (!str_cmp(word, "QuestReceiverType"))
 	    {
-			if( ch->quest != NULL )
+			if( ch->quest == NULL )
 			{
 				ch->quest = (QUEST_DATA *)new_quest();
 			}
@@ -1733,7 +1731,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 
 	    if (!str_cmp(word, "QuestReceiver"))
 	    {
-			if( ch->quest != NULL )
+			if( ch->quest == NULL )
 			{
 				ch->quest = (QUEST_DATA *)new_quest();
 			}
@@ -1835,7 +1833,8 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 
 	    if (!str_cmp(word, "QComplete"))
 	    {
-		ch->quest->parts->complete = TRUE;
+			if (ch->quest != NULL)
+				ch->quest->parts->complete = TRUE;
 		fMatch = TRUE;
 	    }
 
@@ -2258,6 +2257,147 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 	}
 }
 
+void fwrite_obj_multityping(FILE *fp, OBJ_DATA *obj)
+{
+	ITERATOR it;
+
+	if (IS_CONTAINER(obj))
+	{
+		CONTAINER_FILTER *filter;
+
+		fprintf(fp, "#TYPECONTAINER\n");
+		fprintf(fp, "Name %s\n", fix_string(CONTAINER(obj)->name));
+		fprintf(fp, "Flags %s\n", print_flags(CONTAINER(obj)->flags));
+		fprintf(fp, "MaxWeight %d\n", CONTAINER(obj)->max_weight);
+		fprintf(fp, "WeightMultiplier %d\n", CONTAINER(obj)->weight_multiplier);
+		fprintf(fp, "MaxVolume %d\n", CONTAINER(obj)->max_volume);
+
+		iterator_start(&it, CONTAINER(obj)->whitelist);
+		while((filter = (CONTAINER_FILTER *)iterator_nextdata(&it)))
+		{
+			char *subtype = "";
+			if (filter->item_type == ITEM_WEAPON && filter->sub_type >= 0)
+			{
+				subtype = flag_string(weapon_class, filter->sub_type);
+			}
+
+			if (IS_NULLSTR(subtype))
+				fprintf(fp, "Whitelist %s~\n",
+					flag_string(type_flags, filter->item_type));
+			else
+				fprintf(fp, "Whitelist %s~ %s~\n",
+					flag_string(type_flags, filter->item_type),
+					subtype);
+		}
+		iterator_stop(&it);
+
+		iterator_start(&it, CONTAINER(obj)->blacklist);
+		while((filter = (CONTAINER_FILTER *)iterator_nextdata(&it)))
+		{
+			char *subtype = "";
+			if (filter->item_type == ITEM_WEAPON && filter->sub_type >= 0)
+			{
+				subtype = flag_string(weapon_class, filter->sub_type);
+			}
+
+			if (IS_NULLSTR(subtype))
+				fprintf(fp, "Blacklist %s~\n",
+					flag_string(type_flags, filter->item_type));
+			else
+				fprintf(fp, "Blacklist %s~ %s~\n",
+					flag_string(type_flags, filter->item_type),
+					subtype);
+		}
+		iterator_stop(&it);
+
+		fprintf(fp, "#-TYPECONTAINER\n");
+	}
+
+
+	if (IS_FOOD(obj))
+	{
+		FOOD_BUFF_DATA *buff;
+
+		fprintf(fp, "#TYPEFOOD\n");
+		fprintf(fp, "Hunger %d\n", FOOD(obj)->hunger);
+		fprintf(fp, "Fullness %d\n", FOOD(obj)->full);
+		fprintf(fp, "Poison %d\n", FOOD(obj)->poison);
+
+		iterator_start(&it, FOOD(obj)->buffs);
+		while((buff = (FOOD_BUFF_DATA *)iterator_nextdata(&it)))
+		{
+			fprintf(fp, "#FOODBUFF %d\n", buff->where);
+
+			fprintf(fp, "Location %d\n", buff->location);
+			fprintf(fp, "Modifier %d\n", buff->modifier);
+			fprintf(fp, "Level %d\n", UMAX(0, buff->level));
+			fprintf(fp, "Duration %d\n", UMAX(0, buff->duration));
+
+			if (buff->bitvector != 0)		fprintf(fp, "BitVector %s\n", print_flags(buff->bitvector));
+			if (buff->bitvector2 != 0)	fprintf(fp, "BitVector2 %s\n", print_flags(buff->bitvector2));
+
+			fprintf(fp, "#-FOODBUFF\n");
+		}
+		iterator_stop(&it);
+		
+		fprintf(fp, "#-TYPEFOOD\n");
+	}
+
+	if (IS_FURNITURE(obj))
+	{
+		FURNITURE_COMPARTMENT *compartment;
+
+		fprintf(fp, "#TYPEFURNITURE\n");
+		fprintf(fp, "MainCompartment %d\n", FURNITURE(obj)->main_compartment);
+
+		iterator_start(&it, FURNITURE(obj)->compartments);
+		while((compartment = (FURNITURE_COMPARTMENT *)iterator_nextdata(&it)))
+		{
+			fprintf(fp, "#COMPARTMENT\n");
+			
+			fprintf(fp, "Name %s~\n", fix_string(compartment->name));
+			fprintf(fp, "ShortDesc %s~\n", fix_string(compartment->short_descr));
+			fprintf(fp, "Description %s~\n", fix_string(compartment->description));
+
+			fprintf(fp, "Flags %s\n", print_flags(compartment->flags));
+			fprintf(fp, "MaxWeight %d\n", compartment->max_weight);
+			fprintf(fp, "MaxOccupants %d\n", compartment->max_occupants);
+
+			fprintf(fp, "Standing %s\n", print_flags(compartment->standing));
+			fprintf(fp, "Hanging %s\n", print_flags(compartment->hanging));
+			fprintf(fp, "Sitting %s\n", print_flags(compartment->sitting));
+			fprintf(fp, "Resting %s\n", print_flags(compartment->resting));
+			fprintf(fp, "Sleeping %s\n", print_flags(compartment->sleeping));
+
+			fprintf(fp, "HealthRegen %d\n", compartment->health_regen);
+			fprintf(fp, "ManaRegen %d\n", compartment->mana_regen);
+			fprintf(fp, "MoveRegen %d\n", compartment->move_regen);
+			
+			fprintf(fp, "#-COMPARTMENT\n");
+		}
+		iterator_stop(&it);
+
+		fprintf(fp, "#-TYPEFURNITURE\n");
+	}
+
+	if (IS_LIGHT(obj))
+	{
+		fprintf(fp, "#TYPELIGHT\n");
+		fprintf(fp, "Flags %s\n", print_flags(LIGHT(obj)->flags));
+		fprintf(fp, "Duration %d\n", LIGHT(obj)->duration);
+		fprintf(fp, "#-TYPELIGHT\n");
+	}
+
+	if (IS_MONEY(obj))
+	{
+		fprintf(fp, "#TYPEMONEY\n");
+		fprintf(fp, "Silver %d\n", MONEY(obj)->silver);
+		fprintf(fp, "Gold %d\n", MONEY(obj)->gold);
+		fprintf(fp, "#-TYPEMONEY\n");
+	}
+}
+
+
 
 /*
  * Write an object and its contents.
@@ -2397,7 +2537,7 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
         fprintf(fp, "Time %d\n",	obj->timer	    );
     fprintf(fp, "Cost %ld\n",	obj->cost		    );
 
-     if (obj->value[0] != obj->pIndexData->value[0]
+    if (obj->value[0] != obj->pIndexData->value[0]
      ||  obj->value[1] != obj->pIndexData->value[1]
      ||  obj->value[2] != obj->pIndexData->value[2]
      ||  obj->value[3] != obj->pIndexData->value[3]
@@ -2407,13 +2547,17 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
      ||  obj->value[7] != obj->pIndexData->value[7]
      ||  obj->value[8] != obj->pIndexData->value[8]
      ||  obj->value[9] != obj->pIndexData->value[9])
+	{
     	fprintf(fp, "Val  %d %d %d %d %d %d %d %d %d %d\n",
 	    obj->value[0], obj->value[1], obj->value[2], obj->value[3],
 	    obj->value[4], obj->value[5], obj->value[6], obj->value[7],
 		obj->value[8], obj->value[9] );
+	}
 
-    if (obj->spells != NULL)
-	save_spell(fp, obj->spells);
+	if (obj->spells != NULL)
+		save_spell(fp, obj->spells);
+
+	fwrite_obj_multityping(fp, obj);
 
     // This is for spells on the objects.
     for (paf = obj->affected; paf != NULL; paf = paf->next)
@@ -2596,6 +2740,501 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
 }
 
 
+CONTAINER_DATA *fread_obj_container_data(FILE *fp)
+{
+	CONTAINER_DATA *data = NULL;
+	char buf[MSL];
+    char *word;
+	bool fMatch = FALSE;
+
+	data = new_container_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPECONTAINER"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+			case 'B':
+				if (!str_cmp(word, "Blacklist"))
+				{
+					int item_type = stat_lookup(fread_string(fp), type_flags, NO_FLAG);
+					int sub_type = -1;
+
+					if (item_type != NO_FLAG)
+					{
+						if (item_type == ITEM_WEAPON)
+						{
+							sub_type = stat_lookup(fread_string(fp), weapon_class, -1);
+						}
+
+						CONTAINER_FILTER *filter = new_container_filter();
+						filter->item_type = item_type;
+						filter->sub_type = sub_type;
+
+						list_appendlink(data->blacklist, filter);
+					}
+
+					fMatch = TRUE;
+					break;
+				}
+				break;
+
+			case 'F':
+				KEY("Flags", data->flags, fread_flag(fp));
+				break;
+
+			case 'M':
+				KEY("MaxWeight", data->max_weight, fread_number(fp));
+				KEY("MaxVolume", data->max_volume, fread_number(fp));
+				break;
+			
+			case 'N':
+				KEYS("Name", data->name, fread_string(fp));
+				break;
+
+			case 'W':
+				KEY("WeightMultiplier", data->weight_multiplier, fread_number(fp));
+				if (!str_cmp(word, "Whitelist"))
+				{
+					int item_type = stat_lookup(fread_string(fp), type_flags, NO_FLAG);
+					int sub_type = -1;
+
+					if (item_type != NO_FLAG)
+					{
+						if (item_type == ITEM_WEAPON)
+						{
+							sub_type = stat_lookup(fread_string(fp), weapon_class, -1);
+						}
+
+						CONTAINER_FILTER *filter = new_container_filter();
+						filter->item_type = item_type;
+						filter->sub_type = sub_type;
+
+						list_appendlink(data->whitelist, filter);
+					}
+
+					fMatch = TRUE;
+					break;
+				}
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "fread_container_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
+
+
+FOOD_BUFF_DATA *fread_food_buff(FILE *fp)
+{
+	FOOD_BUFF_DATA *data = NULL;
+	char buf[MSL];
+    char *word;
+	bool fMatch;
+
+	data = new_food_buff_data();
+
+	data->where = fread_number(fp);
+
+    while (str_cmp((word = fread_word(fp)), "#-FOODBUFF"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+			case 'B':
+				KEY("Bitvector", data->bitvector, fread_flag(fp));
+				KEY("Bitvector2", data->bitvector2, fread_flag(fp));
+				break;
+
+			case 'D':
+				KEY("Duration", data->duration, fread_number(fp));
+				break;
+
+			case 'L':
+				KEY("Level", data->level, fread_number(fp));
+				KEY("Location", data->location, fread_number(fp));
+				break;
+
+			case 'M':
+				KEY("Modifier", data->modifier, fread_number(fp));
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "read_food_buff: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	// Correct for possible file edits
+	data->level = UMAX(0, data->level);
+	data->duration = UMAX(0, data->duration);
+
+	return data;
+}
+
+FOOD_DATA *fread_obj_food_data(FILE *fp)
+{
+	FOOD_DATA *data = NULL;
+	char buf[MSL];
+    char *word;
+	bool fMatch;
+
+	data = new_food_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPEFOOD"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+			case '#':
+				if (!str_cmp(word, "#FOODBUFF"))
+				{
+					FOOD_BUFF_DATA *buff = fread_food_buff(fp);
+
+					list_appendlink(data->buffs, buff);
+
+					fMatch = TRUE;
+				}
+				break;
+
+			case 'F':
+				KEY("Fullness", data->full, fread_number(fp));
+				break;
+
+			case 'H':
+				KEY("Hunger", data->hunger, fread_number(fp));
+				break;
+
+			case 'P':
+				KEY("Poison", data->poison, fread_number(fp));
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "read_object_food_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
+
+FURNITURE_COMPARTMENT *fread_furniture_compartment(FILE *fp)
+{
+	FURNITURE_COMPARTMENT *data = NULL;
+
+	char buf[MSL];
+    char *word;
+
+	data = new_furniture_compartment();
+
+    while (str_cmp((word = fread_word(fp)), "#-COMPARTMENT"))
+	{
+		bool fMatch = FALSE;
+		switch(word[0])
+		{
+			case 'D':
+				KEYS("Description", data->description, fread_string(fp));
+				break;
+
+			case 'F':
+				KEY("Flags", data->flags, fread_flag(fp));
+				break;
+
+			case 'H':
+				KEY("Hanging", data->hanging, fread_flag(fp));
+				KEY("HealthRegen", data->health_regen, fread_number(fp));
+				break;
+
+			case 'M':
+				KEY("ManaRegen", data->mana_regen, fread_number(fp));
+				KEY("MaxOccupants", data->max_occupants, fread_number(fp));
+				KEY("MaxWeight", data->max_weight, fread_number(fp));
+				KEY("MoveRegen", data->move_regen, fread_number(fp));
+				break;
+
+			case 'N':
+				KEYS("Name", data->name, fread_string(fp));
+				break;
+
+			case 'R':
+				KEY("Resting", data->resting, fread_flag(fp));
+				break;
+			
+			case 'S':
+				KEYS("ShortDesc", data->short_descr, fread_string(fp));
+				KEY("Sitting", data->sitting, fread_flag(fp));
+				KEY("Sleeping", data->sleeping, fread_flag(fp));
+				KEY("Standing", data->standing, fread_flag(fp));
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "read_furniture_compartment: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
+
+FURNITURE_DATA *fread_obj_furniture_data(FILE *fp)
+{
+	FURNITURE_DATA *data = NULL;
+
+	char buf[MSL];
+    char *word;
+
+	data = new_furniture_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPEFURNITURE"))
+	{
+		bool fMatch = FALSE;
+		switch(word[0])
+		{
+			case '#':
+				if (!str_cmp(word, "#COMPARTMENT"))
+				{
+					FURNITURE_COMPARTMENT *compartment = fread_furniture_compartment(fp);
+					list_appendlink(data->compartments, compartment);
+
+					compartment->ordinal = list_size(data->compartments);
+
+					fMatch = TRUE;
+					break;
+				}
+				break;
+
+			case 'M':
+				KEY("MainCompartment", data->main_compartment, fread_number(fp));
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "read_object_furniture_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
+
+
+LIGHT_DATA *fread_obj_light_data(FILE *fp)
+{
+	LIGHT_DATA *data = NULL;
+	char buf[MSL];
+    char *word;
+	bool fMatch;
+
+	data = new_light_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPELIGHT"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+			case 'D':
+				KEY("Duration", data->duration, fread_number(fp));
+				break;
+			
+			case 'F':
+				KEY("Flags", data->flags, fread_flag(fp));
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "read_object_light_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
+
+MONEY_DATA *fread_obj_money_data(FILE *fp)
+{
+	MONEY_DATA *data = NULL;
+	char buf[MSL];
+    char *word;
+	bool fMatch;
+
+	data = new_money_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPEMONEY"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+			case 'G':
+				KEY("Gold", data->gold, fread_number(fp));
+				break;
+
+			case 'S':
+				KEY("Silver", data->silver, fread_number(fp));
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "read_object_money_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
+
+void fread_obj_reset_multityping(OBJ_DATA *obj)
+{
+	free_container_data(CONTAINER(obj));	CONTAINER(obj) = NULL;
+	free_food_data(FOOD(obj));				FOOD(obj) = NULL;
+	free_furniture_data(FURNITURE(obj));	FURNITURE(obj) = NULL;
+	free_light_data(LIGHT(obj));			LIGHT(obj) = NULL;
+	free_money_data(MONEY(obj));			MONEY(obj) = NULL;
+}
+
+void fread_obj_check_version(OBJ_DATA *obj, long values[MAX_OBJVALUES])
+{
+	if (obj->version < VERSION_OBJECT_005)
+	{
+		if (obj->item_type == ITEM_MONEY)
+		{
+			if (!IS_MONEY(obj)) MONEY(obj) = new_money_data();
+
+			MONEY(obj)->silver = values[0];
+			MONEY(obj)->gold = values[1];
+		}
+	}
+
+	if (obj->version < VERSION_OBJECT_006)
+	{
+		if (obj->item_type == ITEM_FOOD)
+		{
+			if (!IS_FOOD(obj)) FOOD(obj) = new_food_data();
+
+			FOOD(obj)->full = values[0];
+			FOOD(obj)->hunger = values[1];
+			FOOD(obj)->poison = values[3];
+
+			// No food buffs
+		}
+	}
+
+	if (obj->version < VERSION_OBJECT_007)
+	{
+		if (obj->item_type == ITEM_CONTAINER)
+		{
+			if (!IS_CONTAINER(obj)) CONTAINER(obj) = new_container_data();
+
+			CONTAINER(obj)->max_weight = values[0];
+			CONTAINER(obj)->flags = values[1];
+			CONTAINER(obj)->max_volume = values[3];
+			CONTAINER(obj)->weight_multiplier = values[4];
+		}
+		else if (obj->item_type == ITEM_WEAPON_CONTAINER)
+		{
+			obj->item_type = ITEM_CONTAINER;
+			if (!IS_CONTAINER(obj)) CONTAINER(obj) = new_container_data();
+
+			CONTAINER(obj)->max_weight = values[0];
+			CONTAINER(obj)->flags = 0;
+			CONTAINER(obj)->max_volume = values[3];
+			CONTAINER(obj)->weight_multiplier = values[4];
+
+			CONTAINER_FILTER *filter = new_container_filter();
+			filter->item_type = ITEM_WEAPON;
+			filter->sub_type = values[1];
+			list_appendlink(CONTAINER(obj)->whitelist, filter);
+		}
+		else if (obj->item_type == ITEM_KEYRING)
+		{
+			obj->item_type = ITEM_CONTAINER;
+			if (!IS_CONTAINER(obj)) CONTAINER(obj) = new_container_data();
+
+			CONTAINER(obj)->max_weight = -1;	// No weight limit
+			CONTAINER(obj)->flags = CONT_SINGULAR | CONT_NO_DUPLICATES;
+			CONTAINER(obj)->max_volume = 50;
+			CONTAINER(obj)->weight_multiplier = 100;
+
+			CONTAINER_FILTER *filter = new_container_filter();
+			filter->item_type = ITEM_KEY;
+			filter->sub_type = -1;
+			list_appendlink(CONTAINER(obj)->whitelist, filter);
+		}
+	}
+
+	if (obj->version < VERSION_OBJECT_008)
+	{
+		if (obj->item_type == ITEM_LIGHT)
+		{
+			if (!IS_LIGHT(obj)) LIGHT(obj) = new_light_data();
+
+			if (values[2] > 0)
+			{
+				LIGHT(obj)->flags = LIGHT_REMOVE_ON_EXTINGUISH;
+				LIGHT(obj)->duration = values[2];
+			}
+			else if(values[2] < 0)
+				LIGHT(obj)->duration = -1;
+		}
+	}
+
+	if (obj->version < VERSION_OBJECT_009)
+	{
+		if (obj->item_type == ITEM_FURNITURE)
+		{
+			if (!IS_FURNITURE(obj)) FURNITURE(obj) = new_furniture_data();
+
+			FURNITURE_COMPARTMENT *compartment = new_furniture_compartment();
+
+			// Compartment copies the string data of the object itself.
+			free_string(compartment->name);
+			compartment->name = str_dup(obj->name);
+			free_string(compartment->short_descr);
+			compartment->short_descr = str_dup(obj->short_descr);
+			free_string(compartment->description);
+			compartment->description = str_dup(obj->full_description);
+
+			compartment->max_occupants = values[0];
+			compartment->max_weight = values[1];
+
+			if (IS_SET(values[2], STAND_AT)) SET_BIT(compartment->standing, FURNITURE_AT);
+			if (IS_SET(values[2], STAND_ON)) SET_BIT(compartment->standing, FURNITURE_ON);
+			if (IS_SET(values[2], STAND_IN)) SET_BIT(compartment->standing, FURNITURE_IN);
+			if (IS_SET(values[2], SIT_AT)) SET_BIT(compartment->sitting, FURNITURE_AT);
+			if (IS_SET(values[2], SIT_ON)) SET_BIT(compartment->sitting, FURNITURE_ON);
+			if (IS_SET(values[2], SIT_IN)) SET_BIT(compartment->sitting, FURNITURE_IN);
+			if (IS_SET(values[2], REST_AT)) SET_BIT(compartment->resting, FURNITURE_AT);
+			if (IS_SET(values[2], REST_ON)) SET_BIT(compartment->resting, FURNITURE_ON);
+			if (IS_SET(values[2], REST_IN)) SET_BIT(compartment->resting, FURNITURE_IN);
+			if (IS_SET(values[2], SLEEP_AT)) SET_BIT(compartment->sleeping, FURNITURE_AT);
+			if (IS_SET(values[2], SLEEP_ON)) SET_BIT(compartment->sleeping, FURNITURE_ON);
+			if (IS_SET(values[2], SLEEP_IN)) SET_BIT(compartment->sleeping, FURNITURE_IN);
+
+			compartment->health_regen = values[3];
+			compartment->mana_regen = values[4];
+			compartment->move_regen = values[5];
+
+			list_appendlink(FURNITURE(obj)->compartments, compartment);
+			FURNITURE(obj)->main_compartment = 1;
+		}
+	}
+
+	for(int i = 0; i < MAX_OBJVALUES; i++)
+		obj->value[i] = values[i];
+
+}
+
 // Read an object and its contents
 OBJ_DATA *fread_obj_new(FILE *fp)
 {
@@ -2608,6 +3247,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 	bool make_new;
 	char buf[MSL];
 	//ROOM_INDEX_DATA *room = NULL;
+	long values[MAX_OBJVALUES];
 
 	fVnum = FALSE;
 	obj = NULL;
@@ -2622,7 +3262,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 
 		OBJ_INDEX_DATA *index = get_obj_index_auid(w.auid, w.vnum);
 		if ( index != NULL)
-			obj = create_object_noid(index,-1, FALSE);
+			obj = create_object_noid(index,-1, FALSE, FALSE);
 	}
 
 	if (obj == NULL)  /* either not found or old style */
@@ -2666,6 +3306,47 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				TOKEN_DATA *token = fread_token(fp);
 				token_to_obj(token, obj);
 				fMatch		= TRUE;
+				break;
+			}
+			if (!str_cmp(word, "#TYPECONTAINER"))
+			{
+				if (IS_CONTAINER(obj)) free_container_data(CONTAINER(obj));
+
+				CONTAINER(obj) = fread_obj_container_data(fp);
+				fMatch = TRUE;
+				break;
+			}
+			if (!str_cmp(word, "#TYPEFOOD"))
+			{
+				if (IS_FOOD(obj)) free_food_data(FOOD(obj));
+
+				FOOD(obj) = fread_obj_food_data(fp);
+				fMatch = TRUE;
+				break;
+			}
+			if (!str_cmp(word, "#TYPEFURNITURE"))
+			{
+				if (IS_FURNITURE(obj)) free_furniture_data(FURNITURE(obj));
+
+				FURNITURE(obj) = fread_obj_furniture_data(fp);
+
+				fMatch = TRUE;
+				break;
+			}
+			if (!str_cmp(word, "#TYPELIGHT"))
+			{
+				if (IS_LIGHT(obj)) free_light_data(LIGHT(obj));
+
+				LIGHT(obj) = fread_obj_light_data(fp);
+				fMatch = TRUE;
+				break;
+			}
+			if (!str_cmp(word, "#TYPEMONEY"))
+			{
+				if (IS_MONEY(obj)) free_money_data(MONEY(obj));
+
+				MONEY(obj) = fread_obj_money_data(fp);
+				fMatch = TRUE;
 				break;
 			}
 			break;
@@ -3051,6 +3732,8 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 						//obj = create_object(obj_index_dummy, 0 , FALSE);
 					}
 
+					fread_obj_check_version(obj, values);
+
 					if (make_new)
 					{
 						int wear;
@@ -3152,6 +3835,8 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 			{
 				obj->level = fread_number(fp);
 
+				/*
+				TODO: some special armor that updates with level
 				if (obj->pIndexData != NULL && obj->pIndexData->vnum == 100035)
 				{
 					int armour;
@@ -3165,6 +3850,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 					obj->value[2] = armour;
 					obj->value[3] = armour_exotic;
 				}
+				*/
 
 				fMatch = TRUE;
 			}
@@ -3316,7 +4002,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				fMatch		= TRUE;
 
 				for(int i = 0; i < MAX_OBJVALUES; i++)
-					obj->value[i] = fread_number(fp);
+					values[i] = fread_number(fp);
 
 				break;
 			}

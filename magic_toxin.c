@@ -27,7 +27,7 @@ SPELL_FUNC(spell_fatigue)
 	if (is_affected(victim, sn) || saves_spell(level, victim,DAM_OTHER))
 		return FALSE;
 
-	af.slot	= WEAR_NONE;
+	af.slot	= obj_wear_loc;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
 	af.type = sn;
@@ -94,7 +94,7 @@ SPELL_FUNC(spell_paralysis)
 		return FALSE;
 	}
 
-	af.slot	= WEAR_NONE;
+	af.slot	= obj_wear_loc;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
 	af.type = sn;
@@ -123,7 +123,7 @@ SPELL_FUNC(spell_plague)
 		return FALSE;
 	}
 
-	af.slot	= WEAR_NONE;
+	af.slot	= obj_wear_loc;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
 	af.type = sn;
@@ -151,7 +151,7 @@ SPELL_FUNC(spell_poison)
 	if (target == TARGET_OBJ) {
 		obj = (OBJ_DATA *) vo;
 
-		if (obj->item_type == ITEM_FOOD || obj->item_type == ITEM_DRINK_CON || obj->item_type == ITEM_FOUNTAIN) {
+		if (IS_FOOD(obj) || obj->item_type == ITEM_DRINK_CON || obj->item_type == ITEM_FOUNTAIN) {
 			if (IS_OBJ_STAT(obj,ITEM_BLESS) || IS_OBJ_STAT(obj,ITEM_BURN_PROOF)) {
 				act("Your spell fails to corrupt $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
 				return FALSE;
@@ -159,15 +159,27 @@ SPELL_FUNC(spell_poison)
 
 			int poison = URANGE(1, level / 3, 99);		// Never allow this kind of applied poison to be permanent.
 			
-			if (obj->value[3] > poison)
+			if (IS_FOOD(obj))
 			{
-				act("$p is already sufficiently poisoned.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
-				return FALSE;
+				if (FOOD(obj)->poison > poison)
+				{
+					act("$p is already sufficiently poisoned.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
+					return FALSE;
+				}
+
+				FOOD(obj)->poison = poison;
+			}
+			else
+			{
+				if (obj->value[3] > poison)
+				{
+					act("$p is already sufficiently poisoned.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
+					return FALSE;
+				}
+
+				obj->value[3] = poison;
 			}
 
-			obj->value[3] = poison;
-			if (obj->value[3] < 1)
-				obj->value[3] = 1;
 			act("$p is infused with poisonous vapors.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
 			return TRUE;
 		}
@@ -227,7 +239,7 @@ SPELL_FUNC(spell_poison)
 		return FALSE;
 	}
 
-	af.slot	= WEAR_NONE;
+	af.slot	= obj_wear_loc;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
 	af.type = sn;

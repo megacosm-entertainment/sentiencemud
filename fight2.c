@@ -77,9 +77,9 @@ void do_smite(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if(p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, wield, NULL, TRIG_ATTACK_SMITE,"pretest") ||
-		p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, wield, NULL, TRIG_ATTACK_SMITE,"pretest") ||
-		p_percent_trigger(NULL, wield, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_SMITE,"pretest"))
+	if(p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, wield, NULL, TRIG_ATTACK_SMITE,"pretest",0,0,0,0,0) ||
+		p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, wield, NULL, TRIG_ATTACK_SMITE,"pretest",0,0,0,0,0) ||
+		p_percent_trigger(NULL, wield, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_SMITE,"pretest",0,0,0,0,0))
 		return;
 
 	if (IS_AFFECTED(ch, AFF_FRENZY))
@@ -177,8 +177,8 @@ void do_stake(CHAR_DATA *ch, char *argument)
 	{
 		ROOM_INDEX_DATA *here = victim->in_room;
 		victim->position = POS_STANDING;
-		if(!p_percent_trigger(victim, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_DEATH, NULL))
-			p_percent_trigger(NULL, NULL, here, NULL, ch, victim, NULL, NULL, NULL, TRIG_DEATH, NULL);
+		if(!p_percent_trigger(victim, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_DEATH, NULL,0,0,0,0,0))
+			p_percent_trigger(NULL, NULL, here, NULL, ch, victim, NULL, NULL, NULL, TRIG_DEATH, NULL,0,0,0,0,0);
 	}
 
 	raw_kill(victim, FALSE, TRUE, RAWKILL_INCINERATE);
@@ -238,9 +238,9 @@ void do_trample(CHAR_DATA *ch, char *argument)
 	mount = MOUNTED(ch);
 
 	// Check all three...
-	if(p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TRAMPLE,"pretest") ||
-		p_percent_trigger(mount,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TRAMPLE,"premount") ||
-		p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TRAMPLE,"prerider"))
+	if(p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TRAMPLE,"pretest",0,0,0,0,0) ||
+		p_percent_trigger(mount,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TRAMPLE,"premount",0,0,0,0,0) ||
+		p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TRAMPLE,"prerider",0,0,0,0,0))
 		return;
 
 	chance = skill;
@@ -257,7 +257,7 @@ void do_trample(CHAR_DATA *ch, char *argument)
 	dam = URANGE(1, dam, 4500);
 
 	if (number_percent() < chance) {
-		if(!p_percent_trigger(mount,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TRAMPLE,"message_pass")) {
+		if(!p_percent_trigger(mount,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TRAMPLE,"message_pass",0,0,0,0,0)) {
 			sprintf(buf, "{RYou charge full-speed on %s into $N!{x", pers(mount, ch));
 			act(buf, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			sprintf(buf, "{RRiding %s, $n charges into you full-speed!{x", pers(mount, victim));
@@ -268,8 +268,8 @@ void do_trample(CHAR_DATA *ch, char *argument)
 
 		victim->hit_damage = dam;
 		victim->hit_class = DAM_BASH;
-		if(!p_percent_trigger(mount,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TRAMPLE,"damage_mount") &&
-			!p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TRAMPLE,"damage") && victim->hit_damage > 0) {
+		if(!p_percent_trigger(mount,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TRAMPLE,"damage_mount",0,0,0,0,0) &&
+			!p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TRAMPLE,"damage",0,0,0,0,0) && victim->hit_damage > 0) {
 			dam = victim->hit_damage;
 			damclass = victim->hit_class;
 			victim->hit_damage = 0;
@@ -287,10 +287,10 @@ void do_trample(CHAR_DATA *ch, char *argument)
 		WAIT_STATE(ch, skill_table[gsn_trample].beats);
 		WAIT_STATE(victim, skill_table[gsn_trample].beats);
 
-		if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TRAMPLE,"attack_pass"))
+		if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TRAMPLE,"attack_pass",0,0,0,0,0))
 			multi_hit(ch, victim, TYPE_UNDEFINED);
 	} else {
-		if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TRAMPLE,"message_fail")) {
+		if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TRAMPLE,"message_fail",0,0,0,0,0)) {
 			act("{RYou charge towards $N but $E scrambles out of the way!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			act("{R$n charges towards you but you scramble out of the way!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 			act("{R$n charges towards $N at full speed but $E scrambles out of the way!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
@@ -299,11 +299,11 @@ void do_trample(CHAR_DATA *ch, char *argument)
 		check_improve(ch, gsn_trample, FALSE, 1);
 		check_improve(ch, gsn_riding, FALSE, 10);
 
-		if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TRAMPLE,"attack_fail"))
+		if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TRAMPLE,"attack_fail",0,0,0,0,0))
 			multi_hit(victim, ch, TYPE_UNDEFINED);
 	}
-	p_percent_trigger(mount,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TRAMPLE,"postmount");
-	p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TRAMPLE,"postrider");
+	p_percent_trigger(mount,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TRAMPLE,"postmount",0,0,0,0,0);
+	p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TRAMPLE,"postrider",0,0,0,0,0);
 }
 
 
@@ -486,6 +486,16 @@ memset(&af,0,sizeof(af));
 	af.bitvector2 = 0;
 	affect_to_char(ch, &af);
 
+        af.where = TO_AFFECTS;
+	af.type = gsn_infravision;
+	af.level = ch->tot_level;
+	af.duration = -1;
+	af.location  = APPLY_NONE;
+	af.modifier  = 0;
+	af.bitvector = AFF_INFRARED;
+	af.bitvector2 = 0;
+	affect_to_char(ch, &af);
+
 	af.where       = TO_AFFECTS;
 	af.type	 = gsn_shift;
 	af.level  = ch->tot_level;
@@ -507,8 +517,6 @@ memset(&af,0,sizeof(af));
 	af.location = APPLY_DAMROLL;
 	af.modifier = 10 + num_classes;
         affect_to_char(ch, &af);
-
-        SET_BIT(ch->affected_by, AFF_INFRARED);
 
 	if (pMob == NULL)
 	{
@@ -678,9 +686,9 @@ void do_behead(CHAR_DATA *ch, char *argument)
 	}
 
 
-	if(p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, wield, NULL, TRIG_ATTACK_BEHEAD,"pretest") ||
-		p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, wield, NULL, TRIG_ATTACK_BEHEAD,"pretest") ||
-		p_percent_trigger(NULL, wield, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BEHEAD,"pretest"))
+	if(p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, wield, NULL, TRIG_ATTACK_BEHEAD,"pretest",0,0,0,0,0) ||
+		p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, wield, NULL, TRIG_ATTACK_BEHEAD,"pretest",0,0,0,0,0) ||
+		p_percent_trigger(NULL, wield, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BEHEAD,"pretest",0,0,0,0,0))
 		return;
 
 	chance = skill - get_curr_stat(victim, STAT_DEX) + get_curr_stat(ch, STAT_STR) + 2;
@@ -701,8 +709,8 @@ void do_behead(CHAR_DATA *ch, char *argument)
 			victim->set_death_type = DEATHTYPE_BEHEAD;
 
 			victim->hit_damage = 30000;
-			p_percent_trigger(NULL,wield, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BEHEAD,"damage");
-			p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, wield, NULL, TRIG_ATTACK_BEHEAD,"damage");
+			p_percent_trigger(NULL,wield, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BEHEAD,"damage",0,0,0,0,0);
+			p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, wield, NULL, TRIG_ATTACK_BEHEAD,"damage",0,0,0,0,0);
 
 			hit = victim->hit_damage;
 			victim->hit_damage = 0;
@@ -710,8 +718,8 @@ void do_behead(CHAR_DATA *ch, char *argument)
 			if(hit > 0) {
 				damage(ch, victim, hit, gsn_behead, DAM_SLASH, FALSE);
 			} else {
-				p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, wield, NULL, TRIG_ATTACK_BEHEAD,"failvict");
-				p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, wield, NULL, TRIG_ATTACK_BEHEAD,"failatt");
+				p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, wield, NULL, TRIG_ATTACK_BEHEAD,"failvict",0,0,0,0,0);
+				p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, wield, NULL, TRIG_ATTACK_BEHEAD,"failatt",0,0,0,0,0);
 			}
 
 			check_improve(ch, gsn_behead, TRUE, 6);

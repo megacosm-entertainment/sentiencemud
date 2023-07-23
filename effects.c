@@ -72,6 +72,7 @@ void acid_effect(void *vo, int level, int dam, int target)
 
 	chance -= obj->level * 2;
 
+	// TODO: Should this be a trigger
 	switch (obj->item_type)
 	{
 	    default:
@@ -526,7 +527,16 @@ memset(&af,0,sizeof(af));
 	if (number_percent() > chance)
 	    return;
 
-	obj->value[3] = 1;
+	int poison = URANGE(1,level/3,99);
+	if (IS_FOOD(obj))
+	{
+		if (poison > FOOD(obj)->poison)
+			FOOD(obj)->poison = poison;
+	}
+	else
+	{
+		obj->value[3] = poison;
+	}
 	return;
     }
 }

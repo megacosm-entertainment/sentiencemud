@@ -11,7 +11,7 @@ obj/act_info2.o: act_info2.c /usr/include/mysql/mysql.h \
 obj/act_move.o: act_move.c merc.h protocol.h sha256.h interp.h olc.h wilds.h \
  scripts.h tables.h
 obj/act_obj.o: act_obj.c merc.h protocol.h sha256.h magic.h interp.h \
- recycle.h tables.h
+ recycle.h scripts.h tables.h
 obj/act_obj2.o: act_obj2.c merc.h protocol.h sha256.h interp.h recycle.h \
  tables.h
 obj/act_wiz.o: act_wiz.c merc.h protocol.h sha256.h olc.h interp.h recycle.h \
@@ -41,7 +41,7 @@ obj/effects.o: effects.c merc.h protocol.h sha256.h recycle.h wilds.h
 obj/events.o: events.c merc.h protocol.h sha256.h recycle.h scripts.h \
  tables.h
 obj/fight.o: fight.c merc.h protocol.h sha256.h interp.h tables.h magic.h \
- scripts.h wilds.h
+ recycle.h scripts.h wilds.h
 obj/fight2.o: fight2.c merc.h protocol.h sha256.h interp.h tables.h
 obj/gq.o: gq.c merc.h protocol.h sha256.h interp.h recycle.h tables.h
 obj/handler.o: handler.c merc.h protocol.h sha256.h interp.h magic.h \
@@ -54,6 +54,7 @@ obj/hunt.o: hunt.c merc.h protocol.h sha256.h
 obj/interp.o: interp.c merc.h protocol.h sha256.h interp.h scripts.h tables.h
 obj/invasion.o: invasion.c merc.h protocol.h sha256.h interp.h recycle.h \
  tables.h olc.h
+obj/item_types.o: item_types.c merc.h protocol.h sha256.h recycle.h tables.h
 obj/locker.o: locker.c merc.h protocol.h sha256.h
 obj/lookup.o: lookup.c merc.h protocol.h sha256.h recycle.h tables.h
 obj/magic.o: magic.c merc.h protocol.h sha256.h interp.h magic.h recycle.h \
@@ -169,8 +170,8 @@ obj/string.o: string.c merc.h protocol.h sha256.h tables.h olc.h scripts.h \
 obj/tables.o: tables.c merc.h protocol.h sha256.h tables.h scripts.h
 obj/treasuremap.o: treasuremap.c merc.h protocol.h sha256.h interp.h \
  recycle.h tables.h olc.h wilds.h
-obj/update.o: update.c merc.h protocol.h sha256.h interp.h scripts.h tables.h \
- wilds.h
+obj/update.o: update.c merc.h protocol.h sha256.h interp.h recycle.h \
+ scripts.h tables.h wilds.h
 obj/weather.o: weather.c merc.h protocol.h sha256.h interp.h recycle.h \
  tables.h olc.h
 obj/wilds.o: wilds.c merc.h protocol.h sha256.h recycle.h wilds.h olc_save.h \

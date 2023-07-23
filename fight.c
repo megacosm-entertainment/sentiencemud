@@ -42,6 +42,7 @@
 #include "interp.h"
 #include "tables.h"
 #include "magic.h"
+#include "recycle.h"
 #include "scripts.h"
 #include "wilds.h"
 
@@ -89,7 +90,7 @@ void violence_update(void)
 		if (!IS_AWAKE(ch) || ch->in_room != victim->in_room)
 			continue;
 
-		p_percent_trigger(ch, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_PREROUND, NULL);
+		p_percent_trigger(ch, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_PREROUND, NULL,0,0,0,0,0);
 	}
 	iterator_stop(&ait);
 
@@ -173,18 +174,18 @@ void violence_update(void)
 
 		check_assist(ch,victim);
 
-		p_percent_trigger(ch, NULL, NULL, NULL, victim, NULL, NULL, NULL, NULL, TRIG_FIGHT, NULL);
-		p_hprct_trigger(ch, victim);
+		p_percent_trigger(ch, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_FIGHT, NULL,0,0,0,0,0);
+		p_hprct_trigger(ch, victim,0,0,0,0,0);
 
 		for (obj = ch->carrying; obj; obj = obj_next)
 		{
 			obj_next = obj->next_content;
 
 			if (obj->wear_loc != WEAR_NONE)
-			p_percent_trigger(NULL, obj, NULL, NULL, victim, NULL, NULL, NULL, NULL, TRIG_FIGHT, NULL);
+			p_percent_trigger(NULL, obj, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_FIGHT, NULL,0,0,0,0,0);
 		}
 
-		p_percent_trigger(NULL, NULL, ch->in_room, NULL, victim, NULL, NULL, NULL, NULL, TRIG_FIGHT, NULL);
+		p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, victim, NULL, NULL, NULL, TRIG_FIGHT, NULL,0,0,0,0,0);
 	}
 	iterator_stop(&ait);
 
@@ -500,12 +501,12 @@ void multi_hit(CHAR_DATA *ch, CHAR_DATA *victim, int dt)
 	// rending
 	rend = get_skill(ch,gsn_rending);
 	if (rend > 0 && !get_eq_char(ch, WEAR_WIELD) && victim->position >= POS_FIGHTING &&
-		!p_percent_trigger(victim, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_REND,"pretest") &&
-		!p_percent_trigger(ch, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_REND,"pretest")) {
+		!p_percent_trigger(victim, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_REND,"pretest",0,0,0,0,0) &&
+		!p_percent_trigger(ch, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_REND,"pretest",0,0,0,0,0)) {
 		int dam;
 
 		if (number_percent() <= rend/4) {
-			if(!p_percent_trigger(victim, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_REND,"message_pass")) {
+			if(!p_percent_trigger(victim, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_REND,"message_pass",0,0,0,0,0)) {
 				switch(number_range(1,3)) {
 				case 1:
 					act("{GYour sharp claws dig into $N's flesh and $E shrieks in pain!{X", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -524,7 +525,7 @@ void multi_hit(CHAR_DATA *ch, CHAR_DATA *victim, int dt)
 
 			victim->hit_damage = URANGE(10, dice(ch->tot_level/2, 8), ch->tot_level);
 
-			if(!p_percent_trigger(victim, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_REND,"damage")) {
+			if(!p_percent_trigger(victim, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_REND,"damage",0,0,0,0,0)) {
 				dam = victim->hit_damage;
 				victim->hit_damage = 0;
 
@@ -711,7 +712,7 @@ bool one_hit(CHAR_DATA *ch, CHAR_DATA *victim, int dt, bool secondary)
 
 	// Do combat styles
 	ch->tempstore[0] = style_num;
-	if( p_percent_trigger(ch, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_COMBAT_STYLE, NULL) )
+	if(p_percent_trigger(ch, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_COMBAT_STYLE, NULL,0,0,0,0,0))
 		style_num = ch->tempstore[0];
 
 	skill = style_num + (5 * get_weapon_skill(ch,sn))/6;
@@ -914,7 +915,7 @@ bool one_hit(CHAR_DATA *ch, CHAR_DATA *victim, int dt, bool secondary)
 	victim->hit_damage = dam;
 	victim->hit_type = dam_type;
 
-	if(p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, wield, NULL, TRIG_HIT, NULL)) {
+	if(p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, wield, NULL, TRIG_HIT, NULL,0,0,0,0,0)) {
 		tail_chain();
 		return TRUE;
 	}
@@ -986,7 +987,7 @@ bool one_hit(CHAR_DATA *ch, CHAR_DATA *victim, int dt, bool secondary)
 
 			case 7:
 				//send_to_char("Custom\n\r", victim);
-				if( p_percent_trigger( victim, NULL, NULL, NULL, ch, NULL, NULL, wield, NULL, TRIG_DEFENSE, NULL) ) return FALSE;
+				if(p_percent_trigger( victim, NULL, NULL, NULL, ch, NULL, NULL, wield, NULL, TRIG_DEFENSE, NULL,0,0,0,0,0)) return FALSE;
 				break;
 			}
 
@@ -999,8 +1000,8 @@ bool one_hit(CHAR_DATA *ch, CHAR_DATA *victim, int dt, bool secondary)
 	result = damage_new(ch, victim, wield, dam, dt, dam_type, TRUE);
 	// Lich crippling touch skill
 	if ((style_chance = get_skill(ch,gsn_crippling_touch)) > 0 && wield == NULL && dam > 0 &&
-		!p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_CRIPPLE,"pretest") &&
-		!p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_CRIPPLE,"pretest")) {
+		!p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_CRIPPLE,"pretest",0,0,0,0,0) &&
+		!p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_CRIPPLE,"pretest",0,0,0,0,0)) {
 		diceroll = number_percent();
 		if (diceroll <= (style_chance/10)) {
 			int number_taken;
@@ -1009,7 +1010,7 @@ bool one_hit(CHAR_DATA *ch, CHAR_DATA *victim, int dt, bool secondary)
 
 			victim->hit_damage = number_taken;
 
-			if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ATTACK_CRIPPLE,"damage") && victim->hit_damage > 0) {
+			if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ATTACK_CRIPPLE,"damage",0,0,0,0,0) && victim->hit_damage > 0) {
 				number_taken = victim->hit_damage;
 
 				ch->hit += number_taken;
@@ -1023,7 +1024,7 @@ bool one_hit(CHAR_DATA *ch, CHAR_DATA *victim, int dt, bool secondary)
 				if (victim->hit < 1) victim->hit = 1;
 				if (victim->mana < 1) victim->mana = 1;
 
-				if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ATTACK_CRIPPLE,"message_pass")) {
+				if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ATTACK_CRIPPLE,"message_pass",0,0,0,0,0)) {
 					act("{gYour crippling touch sucks life energy from $N.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 					act("{R$n's crippling touch sucks life energy from you.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 					act("{R$n's crippling touch sucks life energy from $N.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
@@ -1032,7 +1033,7 @@ bool one_hit(CHAR_DATA *ch, CHAR_DATA *victim, int dt, bool secondary)
 			}
 			victim->hit_damage = 0;
 		} else {
-			p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ATTACK_CRIPPLE,"message_fail");
+			p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ATTACK_CRIPPLE,"message_fail",0,0,0,0,0);
 			check_improve(ch,gsn_crippling_touch, FALSE, 1);
 		}
 	}
@@ -1334,7 +1335,7 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, int
 			if (victim->position > POS_STUNNED) {
 				if (!victim->fighting) {
 					set_fighting(victim, ch);
-					p_percent_trigger(victim, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_KILL, NULL);
+					p_percent_trigger(victim, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_KILL, NULL,0,0,0,0,0);
 				}
 
 				if (victim->timer <= 4 && !IS_OBJCASTER(victim) && !IS_OBJCASTER(ch))
@@ -1358,9 +1359,9 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, int
 
 	// Damage modifiers
 
-	// Sanctuary
-	if (dam > 1 && IS_AFFECTED(victim, AFF_SANCTUARY))
-		dam /= 2;
+	// Sanctuary = NOPE
+	//if (dam > 1 && IS_AFFECTED(victim, AFF_SANCTUARY))
+	//	dam /= 2;
 
 	// Energy field reduces damage from energy/lightning by 10%
 	if (dam > 1 && (dam_type == DAM_LIGHTNING || dam_type == DAM_ENERGY) &&
@@ -1435,7 +1436,7 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, int
 		victim->hit_class = dam_type;
 
 		// If the trigger returns non-zero, it will silence default messages, but not further processing of damage.
-		if(p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, weapon, NULL, TRIG_DAMAGE, show?"visible":"hidden"))
+		if(p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, weapon, NULL, TRIG_DAMAGE, show?"visible":"hidden",0,0,0,0,0))
 			show = FALSE;
 
 		// Only allow reduction in damage
@@ -1449,7 +1450,7 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, int
 	victim->hit_damage = dam;
 	victim->hit_type = dt;
 	victim->hit_class = dam_type;
-	p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, weapon, NULL, TRIG_CHECK_DAMAGE, show?"visible":"hidden");
+	p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, weapon, NULL, TRIG_CHECK_DAMAGE, show?"visible":"hidden",0,0,0,0,0);
 
 	// Reset the damage down to zero if immune
 	if( immune ) dam = 0;
@@ -1481,16 +1482,16 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, int
 			else
 				level = ch->tot_level;
 
-			if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BARRIER,"electrical test")) {
+			if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BARRIER,"electrical test",0,0,0,0,0)) {
 
-				if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BARRIER,"electrical message")) {
+				if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BARRIER,"electrical message",0,0,0,0,0)) {
 					act("{CElectricity arcs off $N and strikes you!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 					act("{CElectricity arcs off you and strikes $n!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 					act("{CElectricity arcs off $N and strikes $n!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
 				}
 
 				victim->hit_damage = dam/5 + level/2;
-				if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BARRIER,"electrical damage") && victim->hit_damage > 0) {
+				if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BARRIER,"electrical damage",0,0,0,0,0) && victim->hit_damage > 0) {
 					bdam = victim->hit_damage;
 					victim->hit_damage = 0;
 					damage(victim, ch, bdam,gsn_electrical_barrier,DAM_LIGHTNING, TRUE);
@@ -1498,7 +1499,7 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, int
 					victim->hit_damage = 0;
 
 				if(is_combatant_valid(victim, vid[0], vid[1]) && is_combatant_valid(ch, cid[0], cid[1]))
-					p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BARRIER,"electrical post");
+					p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BARRIER,"electrical post",0,0,0,0,0);
 			}
 		}
 
@@ -1511,16 +1512,16 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, int
 			else
 				level = ch->tot_level;
 
-			if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BARRIER,"fire test")) {
+			if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BARRIER,"fire test",0,0,0,0,0)) {
 
-				if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BARRIER,"fire message")) {
+				if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BARRIER,"fire message",0,0,0,0,0)) {
 					act("{RFlames bounce off the barrier surrounding $N and strike you!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 					act("{RFlames bounce off the barrier surrounding you and strike $n!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 					act("{RFlames bounce off the barrier surrounding $N and strike $n!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
 				}
 
 				victim->hit_damage = dam/5 + level/2;
-				if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BARRIER,"fire damage") && victim->hit_damage > 0) {
+				if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BARRIER,"fire damage",0,0,0,0,0) && victim->hit_damage > 0) {
 					bdam = victim->hit_damage;
 					victim->hit_damage = 0;
 					damage(victim, ch, bdam,gsn_fire_barrier,DAM_FIRE, TRUE);
@@ -1528,7 +1529,7 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, int
 					victim->hit_damage = 0;
 
 				if(is_combatant_valid(victim, vid[0], vid[1]) && is_combatant_valid(ch, cid[0], cid[1]))
-					p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BARRIER,"fire post");
+					p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BARRIER,"fire post",0,0,0,0,0);
 			}
 		}
 
@@ -1541,16 +1542,16 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, int
 			else
 				level = ch->tot_level;
 
-			if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BARRIER,"frost test")) {
+			if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BARRIER,"frost test",0,0,0,0,0)) {
 
-				if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BARRIER,"frost message")) {
+				if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BARRIER,"frost message",0,0,0,0,0)) {
 					act("{BA wave of frost bounces off the barrier around $N and strikes you!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 					act("{BA wave of frost bounces off the barrier around you and strikes $n!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 					act("{BA wave of frost bounces off the barrier around $N and strikes $n!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
 				}
 
 				victim->hit_damage = dam/5 + level/2;
-				if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BARRIER,"frost damage") && victim->hit_damage > 0) {
+				if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BARRIER,"frost damage",0,0,0,0,0) && victim->hit_damage > 0) {
 					bdam = victim->hit_damage;
 					victim->hit_damage = 0;
 					damage(victim, ch, bdam,gsn_frost_barrier,DAM_COLD, TRUE);
@@ -1558,7 +1559,7 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, int
 					victim->hit_damage = 0;
 
 				if(is_combatant_valid(victim, vid[0], vid[1]) && is_combatant_valid(ch, cid[0], cid[1]))
-					p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BARRIER,"frost post");
+					p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BARRIER,"frost post",0,0,0,0,0);
 			}
 		}
 	}
@@ -1575,9 +1576,9 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, int
 	// Reckonings disable ALL death protections
 	if(victim->hit < 1 && (pre_reckoning > 0 || reckoning_timer == 0)) {
 
-		if (p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_DEATH_PROTECTION, NULL)) {
+		if (p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_DEATH_PROTECTION, NULL,0,0,0,0,0)) {
 			if( victim->hit < 1) victim->hit = 1;	// Allows for the script to heal
-		} else if (p_percent_trigger(NULL, NULL, victim->in_room, NULL, ch, NULL, NULL, NULL, NULL, TRIG_DEATH_PROTECTION, NULL)) {
+		} else if (p_percent_trigger(NULL, NULL, victim->in_room, NULL, ch, NULL, NULL, NULL, NULL, TRIG_DEATH_PROTECTION, NULL,0,0,0,0,0)) {
 			if( victim->hit < 1) victim->hit = 1;
 
 		// Protect imms
@@ -1620,8 +1621,13 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, int
 
 	// Gain experience if victim is killed.
 	if (victim->position == POS_DEAD) {
+		victim->death_type = victim->set_death_type;
+		if(victim->death_type == DEATHTYPE_ALIVE)
+			victim->death_type = DEATHTYPE_ATTACK;
+		victim->set_death_type = DEATHTYPE_ALIVE;
+
 		if (ch != victim) {
-			group_gain(ch, victim);
+			group_gain(ch, victim, 100);	// Full experience
 			if( ch->fighting == victim )
 				stop_fighting(ch, FALSE);
 		}
@@ -1656,17 +1662,12 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, int
 
 		wiznet(log_buf,NULL,NULL,(IS_NPC(victim))?WIZ_MOBDEATHS:WIZ_DEATHS,0,0);
 
-		victim->death_type = victim->set_death_type;
-		if(victim->death_type == DEATHTYPE_ALIVE)
-			victim->death_type = DEATHTYPE_ATTACK;
-		victim->set_death_type = DEATHTYPE_ALIVE;
-
 		// Death trigger for mobs
 		{
 			ROOM_INDEX_DATA *here = victim->in_room;
 			victim->position = POS_STANDING;
-			if(!p_percent_trigger(victim, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_DEATH, NULL))
-				p_percent_trigger(NULL, NULL, here, NULL, ch, victim, NULL, NULL, NULL, TRIG_DEATH, NULL);
+			if(!p_percent_trigger(victim, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_DEATH, NULL,0,0,0,0,0))
+				p_percent_trigger(NULL, NULL, here, NULL, ch, victim, NULL, NULL, NULL, TRIG_DEATH, NULL,0,0,0,0,0);
 		}
 
 		// Count up PKs/monster kills/arena wins
@@ -1730,7 +1731,7 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, int
 				}
 			}
 
-			if(!found) p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_AFTERKILL, NULL);
+			if(!found) p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_AFTERKILL, NULL,0,0,0,0,0);
 		}
 		victim->in_damage_function = FALSE;
 		return TRUE;
@@ -1844,10 +1845,10 @@ bool is_safe(CHAR_DATA *ch, CHAR_DATA *victim, bool show)
 	return TRUE;
 	}
 
-	if(p_percent_trigger(victim, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_PREKILL, NULL))
+	if(p_percent_trigger(victim, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_PREKILL, NULL,0,0,0,0,0))
 		return TRUE;
 
-	if(p_percent_trigger(ch, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_PREKILL, NULL))
+	if(p_percent_trigger(ch, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_PREKILL, NULL,0,0,0,0,0))
 		return TRUE;
 
 	// NPC victim
@@ -2224,10 +2225,10 @@ bool check_catch(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *wield)
 	if ((result = number_percent()) >= chance + UMIN(UMIN(victim->tot_level, MAX_MOB_LEVEL) - UMIN(ch->tot_level, MAX_MOB_LEVEL), 15))
 		return FALSE;
 
-	if(p_percent_trigger(NULL, wield, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_WEAPON_CAUGHT,"pretest"))
+	if(p_percent_trigger(NULL, wield, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_WEAPON_CAUGHT,"pretest",0,0,0,0,0))
 		return FALSE;
 
-	if(!p_percent_trigger(NULL, wield, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_WEAPON_CAUGHT,"message")) {
+	if(!p_percent_trigger(NULL, wield, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_WEAPON_CAUGHT,"message",0,0,0,0,0)) {
 		act("{GYou catch $n's attack.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 		act("{Y$N catches your attack.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
@@ -2331,7 +2332,7 @@ bool check_parry(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *wield)
 		chance = (chance * 3)/2;
 
 	ch->skill_chance = chance;
-	if(p_percent_trigger(NULL, wield, NULL, NULL, ch, victim, NULL, weapon, NULL, TRIG_WEAPON_PARRIED,"pretest"))
+	if(p_percent_trigger(NULL, wield, NULL, NULL, ch, victim, NULL, weapon, NULL, TRIG_WEAPON_PARRIED,"pretest",0,0,0,0,0))
 		return FALSE;
 	chance = ch->skill_chance;
 
@@ -2341,7 +2342,7 @@ bool check_parry(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *wield)
 	if (number_percent() >= (chance + UMIN(UMIN(victim->tot_level,MAX_MOB_LEVEL) - UMIN(ch->tot_level, MAX_MOB_LEVEL), 15)))
 		return FALSE;
 
-	if(!p_percent_trigger(NULL, wield, NULL, NULL, ch, victim, NULL, weapon, NULL, TRIG_WEAPON_PARRIED,"message")) {
+	if(!p_percent_trigger(NULL, wield, NULL, NULL, ch, victim, NULL, weapon, NULL, TRIG_WEAPON_PARRIED,"message",0,0,0,0,0)) {
 
 		act("{GYou parry $n's attack.{x",  ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 		act("{Y$N parries your attack.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -2476,7 +2477,7 @@ bool check_shield_block(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *wield)
 		chance = (chance * 4)/3;
 
 	ch->skill_chance = chance;
-	if(p_percent_trigger(NULL, wield, NULL, NULL, ch, victim, NULL, shield, NULL, TRIG_WEAPON_BLOCKED,"pretest"))
+	if(p_percent_trigger(NULL, wield, NULL, NULL, ch, victim, NULL, shield, NULL, TRIG_WEAPON_BLOCKED,"pretest",0,0,0,0,0))
 		return FALSE;
 	chance = ch->skill_chance;
 
@@ -2488,7 +2489,7 @@ bool check_shield_block(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *wield)
 		return FALSE;
 
 
-	if(!p_percent_trigger(NULL, wield, NULL, NULL, ch, victim, NULL, shield, NULL, TRIG_WEAPON_BLOCKED,"message")) {
+	if(!p_percent_trigger(NULL, wield, NULL, NULL, ch, victim, NULL, shield, NULL, TRIG_WEAPON_BLOCKED,"message",0,0,0,0,0)) {
 
 		act("{GYou block $n's attack with your shield.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 		act("{Y$N blocks your attack with $S shield.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -2500,11 +2501,11 @@ bool check_shield_block(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *wield)
 		}
 	}
 
-	if(!p_percent_trigger(victim, NULL, NULL, NULL, ch, victim, NULL, wield, NULL, TRIG_ATTACK_COUNTER,"pretest") &&
-		!p_percent_trigger(ch, NULL, NULL, NULL, ch, victim, NULL, wield, NULL, TRIG_ATTACK_COUNTER,"pretest") &&
+	if(!p_percent_trigger(victim, NULL, NULL, NULL, ch, victim, NULL, wield, NULL, TRIG_ATTACK_COUNTER,"pretest",0,0,0,0,0) &&
+		!p_percent_trigger(ch, NULL, NULL, NULL, ch, victim, NULL, wield, NULL, TRIG_ATTACK_COUNTER,"pretest",0,0,0,0,0) &&
 		number_percent() < chance/2) {
 
-		if(!p_percent_trigger(victim, NULL, NULL, NULL, ch, victim, NULL, wield, NULL, TRIG_ATTACK_COUNTER,"message")) {
+		if(!p_percent_trigger(victim, NULL, NULL, NULL, ch, victim, NULL, wield, NULL, TRIG_ATTACK_COUNTER,"message",0,0,0,0,0)) {
 			act("{GYou take advantage and counterattack!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 			act("{Y$N counters your blocked attack!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
@@ -2863,8 +2864,8 @@ bool set_fighting(CHAR_DATA *ch, CHAR_DATA *victim)
 	if( victim->fighting == NULL )
 		enter_combat(victim, ch, FALSE);
 
-	p_percent_trigger(victim, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_START_COMBAT, NULL);
-	p_percent_trigger(ch, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_START_COMBAT, NULL);
+	p_percent_trigger(victim, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_START_COMBAT, NULL,0,0,0,0,0);
+	p_percent_trigger(ch, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_START_COMBAT, NULL,0,0,0,0,0);
 
 	return TRUE;
 }
@@ -3361,11 +3362,17 @@ void death_cry( CHAR_DATA *ch, bool has_head, bool messages )
 		free_string(obj->description);
 		obj->description = str_dup(buf2);
 
-		if (obj->item_type == ITEM_FOOD) {
+		if (IS_FOOD(obj)) {
 			if (IS_SET(ch->form,FORM_POISON))
-				obj->value[3] = 1;
+			{
+				FOOD(obj)->poison = URANGE(1, ch->tot_level / 3, 99);
+			}
 			else if (!IS_SET(ch->form, FORM_EDIBLE))
-			obj->item_type = ITEM_TRASH;
+			{
+				obj->item_type = ITEM_TRASH;
+				free_food_data(FOOD(obj));
+				FOOD(obj) = NULL;
+			}
 		}
 
 		obj_to_room(obj, ch->in_room);
@@ -3559,7 +3566,7 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
 	if (MOUNTED(victim)) {
 		CHAR_DATA *mount = MOUNTED(victim);
 
-		p_percent_trigger(mount, NULL, NULL, NULL, victim, NULL, NULL, NULL, NULL, TRIG_FORCEDISMOUNT, NULL);
+		p_percent_trigger(mount, NULL, NULL, NULL, victim, NULL, NULL, NULL, NULL, TRIG_FORCEDISMOUNT, NULL,0,0,0,0,0);
 
 		if(messages) {
 			act("Your lifeless corpse falls off $N.", victim, mount, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -3580,7 +3587,7 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
 		token_next = token->next;
 
 		if (IS_SET(token->flags, TOKEN_PURGE_DEATH)) {
-			p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_REMOVED, NULL);
+			p_percent_trigger(NULL, NULL, NULL, token, NULL, NULL, NULL, NULL, NULL, TRIG_TOKEN_REMOVED, NULL,0,0,0,0,0);
 
 			sprintf(buf, "char update: token %s(%ld) char %s(%ld) was purged on death",
 				token->name, token->pIndexData->vnum, HANDLE(victim), IS_NPC(victim) ? victim->pIndexData->vnum :
@@ -3728,7 +3735,7 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
 	while (victim->affected)
 		affect_remove(victim, victim->affected);
 
-	p_percent_trigger(victim, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_STRIPAFFECT, NULL);
+	p_percent_trigger(victim, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_STRIPAFFECT, NULL,0,0,0,0,0);
 
 	victim->affected_by	= race_table[victim->race].aff;
 	victim->affected_by2 = 0;
@@ -3747,7 +3754,7 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
 		victim->pIndexData->killed++;
 
 		// Has a different use for npcs than for players
-		p_percent_trigger(victim, NULL, NULL, NULL, NULL, NULL, NULL, corpse, NULL, TRIG_AFTERDEATH, NULL);
+		p_percent_trigger(victim, NULL, NULL, NULL, NULL, NULL, NULL, corpse, NULL, TRIG_AFTERDEATH, NULL,0,0,0,0,0);
 
 		extract_char(victim, TRUE);
 		return corpse;
@@ -3839,7 +3846,7 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
 	spell_infravision(gsn_infravision, victim->tot_level, victim, victim, TARGET_CHAR, WEAR_NONE);
 
 	// Do anything that might be required AFTER you truly die, such as expire any affects
-	p_percent_trigger(victim, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_AFTERDEATH, NULL);
+	p_percent_trigger(victim, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_AFTERDEATH, NULL,0,0,0,0,0);
 
 	return corpse;
 }
@@ -3893,12 +3900,12 @@ void death_mob_echo(CHAR_DATA *victim)
 	send_to_char("Death taps your corpse three times with his scythe.\n\r", victim);
 
 	death_mob->tempstore[0] = 1;
-	p_percent_trigger(death_mob, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
+	p_percent_trigger(death_mob, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL,0,0,0,0,0);
 }
 
 
 // Gain exp from a victim, splits amongst group
-void group_gain(CHAR_DATA *ch, CHAR_DATA *victim)
+void group_gain(CHAR_DATA *ch, CHAR_DATA *victim, int percent)
 {
 	char buf[MAX_STRING_LENGTH];
 	CHAR_DATA *gch;
@@ -3951,6 +3958,9 @@ void group_gain(CHAR_DATA *ch, CHAR_DATA *victim)
 			continue;
 
 		xp = xp_compute(gch, victim, group_levels);	// This is computed so that objects can get experience
+
+		xp = percent * xp / 100;
+
 		if (!(IS_IMMORTAL(gch) || gch->tot_level == 120))
 		{
 			int pc_xp = xp;
@@ -3974,7 +3984,12 @@ void group_gain(CHAR_DATA *ch, CHAR_DATA *victim)
 			}
 
 			if (ch->leader != NULL && get_skill(ch->leader, gsn_leadership) < number_percent()) {
-				pc_xp *= 1.05;
+				pc_xp = 105 * pc_xp / 100;
+			}
+
+			if (ch->xpboost > 0)
+			{
+				pc_xp = (100 + ch->xpboost) * pc_xp / 100;
 			}
 			sprintf(buf, "{BYou receive {C%d {Bexperience points.\n\r{x", pc_xp);
 			send_to_char(buf, gch);
@@ -3989,7 +4004,7 @@ void group_gain(CHAR_DATA *ch, CHAR_DATA *victim)
 
 			obj->tempstore[0] = xp;
 			obj->tempstore[1] = OBJ_XPGAIN_GROUP;	// 1
-			p_percent_trigger(NULL, obj, NULL, NULL, gch, NULL, NULL, NULL, NULL, TRIG_XPGAIN, NULL);
+			p_percent_trigger(NULL, obj, NULL, NULL, gch, NULL, NULL, NULL, NULL, TRIG_XPGAIN, NULL,0,0,0,0,0);
 
 
 			if ((IS_OBJ_STAT(obj, ITEM_ANTI_EVIL)    && IS_EVIL(gch)   )
@@ -4079,17 +4094,17 @@ int xp_compute(CHAR_DATA *gch, CHAR_DATA *victim, int total_levels)
 	}
 
 	gch->tempstore[0] = 0;
-	p_percent_trigger(gch,NULL, NULL, NULL, gch, NULL, NULL, NULL, NULL, TRIG_XPCOMPUTE,NULL);
+	p_percent_trigger(gch,NULL, NULL, NULL, gch, NULL, NULL, NULL, NULL, TRIG_XPCOMPUTE,NULL,0,0,0,0,0);
 	bonus_xp += gch->tempstore[0];
 	for (obj = gch->carrying; obj != NULL; obj = obj->next_content) {
 		if( obj->wear_loc != WEAR_NONE ) {
 			obj->tempstore[0] = 0;
-			p_percent_trigger(NULL, obj, NULL, NULL, gch, NULL, NULL, NULL, NULL, TRIG_XPCOMPUTE, NULL);
+			p_percent_trigger(NULL, obj, NULL, NULL, gch, NULL, NULL, NULL, NULL, TRIG_XPCOMPUTE, NULL,0,0,0,0,0);
 			bonus_xp += obj->tempstore[0];
 		}
 	}
 	gch->in_room->tempstore[0] = 0;
-	p_percent_trigger(NULL, NULL, gch->in_room, NULL, gch, NULL, NULL, NULL, NULL, TRIG_XPCOMPUTE, NULL);
+	p_percent_trigger(NULL, NULL, gch->in_room, NULL, gch, NULL, NULL, NULL, NULL, TRIG_XPCOMPUTE, NULL,0,0,0,0,0);
 	bonus_xp += gch->in_room->tempstore[0];
 
 	if( xp > 0 && bonus_xp > 0 ) {
@@ -4376,8 +4391,8 @@ void do_circle(CHAR_DATA *ch, char *argument)
 		}
 	}
 
-	if(p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_CIRCLE,"pretest") ||
-		p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_CIRCLE,"pretest"))
+	if(p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_CIRCLE,"pretest",0,0,0,0,0) ||
+		p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_CIRCLE,"pretest",0,0,0,0,0))
 		return;
 
 	WAIT_STATE(ch, skill_table[gsn_circle].beats);
@@ -4390,10 +4405,10 @@ void do_circle(CHAR_DATA *ch, char *argument)
 		act("{YYou circle around $N.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		act("{Y$n circles around behind $N.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
 		one_hit(ch, victim, gsn_circle, FALSE);
-		p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ATTACK_CIRCLE,"message_pass");
+		p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ATTACK_CIRCLE,"message_pass",0,0,0,0,0);
 		check_improve(ch,gsn_circle,TRUE,1);
 	} else {
-		if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ATTACK_CIRCLE,"message_fail")) {
+		if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ATTACK_CIRCLE,"message_fail",0,0,0,0,0)) {
 			act("{Y$n tries to circle around you.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 			act("{Y$N circles with you.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			act("{Y$n tries to circle around $N.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
@@ -4431,7 +4446,7 @@ void do_berserk(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if(p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SKILL_BERSERK,"pretest"))
+	if(p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SKILL_BERSERK,"pretest",0,0,0,0,0))
 		return;
 
 	// Modifiers
@@ -4439,7 +4454,7 @@ void do_berserk(CHAR_DATA *ch, char *argument)
 		chance += 10;
 
 	ch->skill_chance = chance;
-	p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SKILL_BERSERK,"chance");
+	p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SKILL_BERSERK,"chance",0,0,0,0,0);
 	chance = ch->skill_chance;
 
 	if (number_percent() < chance) {
@@ -4453,7 +4468,7 @@ void do_berserk(CHAR_DATA *ch, char *argument)
 		ch->hit += ch->tot_level * 2;
 		ch->hit = UMIN(ch->hit,ch->max_hit);
 
-		if(!p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SKILL_BERSERK,"message_pass")) {
+		if(!p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SKILL_BERSERK,"message_pass",0,0,0,0,0)) {
 			send_to_char("{RYour pulse races as you are consumed by rage!{x\n\r",ch);
 			act("{R$n gets a wild look in $s eyes.{x",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
 		}
@@ -4487,7 +4502,7 @@ void do_berserk(CHAR_DATA *ch, char *argument)
 		ch->mana -= 25;
 		ch->move -= UMAX(ch->move/5, 1);
 
-		if(!p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SKILL_BERSERK,"message_fail"))
+		if(!p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SKILL_BERSERK,"message_fail",0,0,0,0,0))
 			send_to_char("Your pulse speeds up, but nothing happens.\n\r",ch);
 		check_improve(ch,gsn_berserk,FALSE,2);
 	}
@@ -4591,8 +4606,8 @@ void do_intimidate(CHAR_DATA *ch, char *argument)
 	if (is_safe(ch,victim, TRUE))
 		return;
 
-	if(p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_INTIMIDATE, "pretest") ||
-		p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_INTIMIDATE, "pretest"))
+	if(p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_INTIMIDATE, "pretest",0,0,0,0,0) ||
+		p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_INTIMIDATE, "pretest",0,0,0,0,0))
 		return;
 
 	//chance /= 3;
@@ -4607,7 +4622,7 @@ void do_intimidate(CHAR_DATA *ch, char *argument)
 	act("$n looms over $N!",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
 
 	if (number_percent() > chance) {
-		if (!p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_INTIMIDATE, "attack_fail") && IS_NPC(victim)) {
+		if (!p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_INTIMIDATE, "attack_fail",0,0,0,0,0) && IS_NPC(victim)) {
 			act("$N laughs at you mercilessly.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			act("$N laughs at $n mercilessly.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_NOTVICT);
 		}
@@ -4616,7 +4631,7 @@ void do_intimidate(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_INTIMIDATE, "attack_pass")) {
+	if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_INTIMIDATE, "attack_pass",0,0,0,0,0)) {
 		act("{R$n cowers with fear and attempts to flee!{x", victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
 		act("{RYou are overcome with fear and panic!{x", victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_CHAR);
 	}
@@ -4859,8 +4874,8 @@ void do_bash(CHAR_DATA *ch, char *argument)
 	if (is_safe(ch, victim, TRUE))
 		return;
 
-	if(p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BASH, "pretest") ||
-		p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BASH, "pretest"))
+	if(p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BASH, "pretest",0,0,0,0,0) ||
+		p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BASH, "pretest",0,0,0,0,0))
 		return;
 
 	chance += (get_curr_stat(ch, STAT_STR)) / 4;
@@ -4883,7 +4898,7 @@ void do_bash(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		if(p_percent_trigger(mount,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BASH, "premount")) return;
+		if(p_percent_trigger(mount,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BASH, "premount",0,0,0,0,0)) return;
 
 		WAIT_STATE(ch, skill_table[gsn_bash].beats);
 		act("You dig your heels into $N's flanks and charge!", ch, mount, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -4918,13 +4933,13 @@ void do_bash(CHAR_DATA *ch, char *argument)
 			dam = UMAX(dam, 1);
 
 			victim->hit_damage = dam;
-			p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ATTACK_BASH, "damage");
+			p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ATTACK_BASH, "damage",0,0,0,0,0);
 			dam = victim->hit_damage;
 			victim->hit_damage = 0;
 
 			if(dam > 0) damage(ch, victim, dam, gsn_bash, DAM_BASH, TRUE);
 
-			ret = p_percent_trigger(mount,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BASH, "message_pass_mount");
+			ret = p_percent_trigger(mount,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BASH, "message_pass_mount",0,0,0,0,0);
 			if(ret < 0) ret = 0;
 			if(!(ret & 2)) {
 				victim->position = POS_RESTING;
@@ -4933,7 +4948,7 @@ void do_bash(CHAR_DATA *ch, char *argument)
 			check_improve(ch, gsn_riding, TRUE, 1);
 			check_improve(ch, gsn_bash, TRUE, 5);
 		} else {
-			ret = p_percent_trigger(mount,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BASH, "message_fail_mount");
+			ret = p_percent_trigger(mount,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BASH, "message_fail_mount",0,0,0,0,0);
 			if(ret < 0) ret = 0;
 			if(!(ret & 1)) {
 				act("$N falls flat on $S face!", ch, mount, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -4995,13 +5010,13 @@ void do_bash(CHAR_DATA *ch, char *argument)
 		dam = UMAX(dam, 1);
 
 		victim->hit_damage = dam;
-		p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ATTACK_BASH, "damage");
+		p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ATTACK_BASH, "damage",0,0,0,0,0);
 		dam = victim->hit_damage;
 		victim->hit_damage = 0;
 
 		if(dam > 0) damage(ch, victim, dam, gsn_bash, DAM_BASH, TRUE);
 
-		ret = p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ATTACK_BASH, "message_pass");
+		ret = p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ATTACK_BASH, "message_pass",0,0,0,0,0);
 		if (ret < 0) ret = 0;
 		if (!(ret & 1)) {
 			act("You send $N sprawling!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -5014,7 +5029,7 @@ void do_bash(CHAR_DATA *ch, char *argument)
 		}
 		check_improve(ch, gsn_bash, TRUE, 5);
 	} else { // Failed
-		ret = p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ATTACK_BASH, "message_fail");
+		ret = p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ATTACK_BASH, "message_fail",0,0,0,0,0);
 		if (ret < 0) ret = 0;
 		if (!(ret & 1)) {
 			act("You fall flat on your face!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -5087,8 +5102,8 @@ void do_bite(CHAR_DATA *ch, char *argument)
 
 	// Add in ability to modify chances?
 
-	if(p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BITE,"pretest") ||
-		p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BITE,"pretest"))
+	if(p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BITE,"pretest",0,0,0,0,0) ||
+		p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BITE,"pretest",0,0,0,0,0))
 		return;
 
 	// stats
@@ -5125,7 +5140,7 @@ void do_bite(CHAR_DATA *ch, char *argument)
 
 			victim->hit_damage = dam = dice(ch->tot_level, 12);
 
-			if(p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ATTACK_BITE,"damage vampire"))
+			if(p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ATTACK_BITE,"damage vampire",0,0,0,0,0))
 				return;
 
 			dam = victim->hit_damage;
@@ -5180,7 +5195,7 @@ void do_bite(CHAR_DATA *ch, char *argument)
 
 				victim->hit_damage = dam = dice(ch->tot_level, 12);
 				sprintf(arg,"damage '%s'", toxin_table[i].name);
-				if(p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ATTACK_BITE,arg)) return;
+				if(p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ATTACK_BITE,arg,0,0,0,0,0)) return;
 				dam = victim->hit_damage;
 				victim->hit_damage = 0;
 
@@ -5215,7 +5230,7 @@ void do_bite(CHAR_DATA *ch, char *argument)
 				}
 			} else {
 				victim->hit_damage = dice(ch->tot_level, 12);
-				if(p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ATTACK_BITE,"damage poison")) return;
+				if(p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ATTACK_BITE,"damage poison",0,0,0,0,0)) return;
 				dam = victim->hit_damage;
 				victim->hit_damage = 0;
 
@@ -5248,7 +5263,7 @@ void do_bite(CHAR_DATA *ch, char *argument)
 			if(dam > 0) damage(ch,victim,dam,gsn_bite,DAM_BITE,FALSE);
 		} else {
 			victim->hit_damage = number_range(2,2 + 2 * ch->size + chance/20);
-			if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ATTACK_BITE,"damage unknown")) {
+			if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ATTACK_BITE,"damage unknown",0,0,0,0,0)) {
 				dam = victim->hit_damage;
 				victim->hit_damage = 0;
 				// All other bites (i'm sure there'll be more);
@@ -5340,8 +5355,8 @@ void do_dirt(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if(p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_DIRTKICK,"pretest") ||
-		p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_DIRTKICK,"pretest"))
+	if(p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_DIRTKICK,"pretest",0,0,0,0,0) ||
+		p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_DIRTKICK,"pretest",0,0,0,0,0))
 		return;
 
 	// dex
@@ -5419,7 +5434,7 @@ void do_dirt(CHAR_DATA *ch, char *argument)
 
 		affect_to_char(victim,&af);
 
-		p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_DIRTKICK,"attack_pass");
+		p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_DIRTKICK,"attack_pass",0,0,0,0,0);
 	} else {
 		long cid[2], vid[2];
 
@@ -5457,7 +5472,7 @@ void do_dirt(CHAR_DATA *ch, char *argument)
 			WAIT_STATE(ch,skill_table[gsn_dirt].beats);
 
 			if( is_char_stillvalid(victim, vid) )
-				p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_DIRTKICK,"attack_fail");
+				p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_DIRTKICK,"attack_fail",0,0,0,0,0);
 		}
 	}
 }
@@ -5671,8 +5686,8 @@ void do_backstab(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if(p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BACKSTAB,"pretest") ||
-		p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BACKSTAB,"pretest"))
+	if(p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BACKSTAB,"pretest",0,0,0,0,0) ||
+		p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BACKSTAB,"pretest",0,0,0,0,0))
 		return;
 
 	WAIT_STATE(ch, skill_table[gsn_backstab].beats);
@@ -5693,7 +5708,7 @@ void do_backstab(CHAR_DATA *ch, char *argument)
 
 		victim->hit_damage = dam;
 
-		failed = p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, wield, NULL, TRIG_ATTACK_BACKSTAB, "damage first");
+		failed = p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, wield, NULL, TRIG_ATTACK_BACKSTAB, "damage first",0,0,0,0,0);
 
 		dam = victim->hit_damage;
 		victim->hit_damage = 0;
@@ -5725,7 +5740,7 @@ void do_backstab(CHAR_DATA *ch, char *argument)
 
 			victim->hit_damage = dam;
 
-			failed = p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, wield2, NULL, TRIG_ATTACK_BACKSTAB, "damage second");
+			failed = p_percent_trigger(victim,NULL, NULL, NULL, ch, NULL, NULL, wield2, NULL, TRIG_ATTACK_BACKSTAB, "damage second",0,0,0,0,0);
 
 			dam = victim->hit_damage;
 			victim->hit_damage = 0;
@@ -5819,11 +5834,12 @@ void do_slit(CHAR_DATA *ch, char *argument)
 	if (is_safe(ch, victim, TRUE))
 		return;
 
-	if(p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_SLIT,"pretest") ||
-		p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_SLIT,"pretest"))
+	if(p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_SLIT,"pretest",0,0,0,0,0) ||
+		p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_SLIT,"pretest",0,0,0,0,0))
 		return;
 
-	chance = get_skill(ch, gsn_slit_throat);
+	int skill = get_skill(ch, gsn_slit_throat);
+	chance = skill;
 	chance += (ch->tot_level - victim->tot_level);
 	if (get_profession(ch, SECOND_SUBCLASS_THIEF) == CLASS_THIEF_NINJA &&
 		get_profession(ch, SUBCLASS_THIEF) == CLASS_THIEF_ASSASSIN)
@@ -5851,7 +5867,7 @@ void do_slit(CHAR_DATA *ch, char *argument)
 		affect_strip(victim, gsn_sleep);
 		do_function(victim, &do_wake, "");
 		check_improve(ch,gsn_slit_throat,FALSE,5);
-		p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_SLIT,"wakeup");
+		p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_SLIT,"wakeup",0,0,0,0,0);
 	} else if (chance < 25) {
 		act("$N notices you and wakes up startled!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		act("You wake up in time to see $n attempting to slit your throat!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
@@ -5863,22 +5879,34 @@ void do_slit(CHAR_DATA *ch, char *argument)
 
 		check_improve(ch,gsn_slit_throat,FALSE,5);
 
-		if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_SLIT,"wakeup"))
+		if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_SLIT,"wakeup",0,0,0,0,0))
 			multi_hit(ch, victim, TYPE_UNDEFINED);
 	} else { // perfect hit
 		act("{R$n slits $N's throat in cold blood!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 		act("{RYou slit $N's throat in cold blood!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		act("{RSomeone slit your throat!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 
-
 		victim->set_death_type = DEATHTYPE_ALIVE;
 		victim->death_type = DEATHTYPE_SLIT;
+
+		if (ch != victim) {
+			group_gain(ch, victim, 25 + (skill / 2));
+			if( ch->fighting == victim )
+				stop_fighting(ch, FALSE);
+		}
+
+		// If invasion mob then check if quest point is earned
+		if (!IS_NPC(ch) && IS_NPC(victim) && IS_SET(victim->act2, ACT2_INVASION_MOB) && number_percent() < 5) {
+			send_to_char("{WYou have been awarded a quest point!{x\n\r", ch);
+			ch->questpoints++;
+		}
+
 		// Make sure to toggle the death trigger as we are using raw_kill, not damage
 		{
 			ROOM_INDEX_DATA *here = victim->in_room;
 			victim->position = POS_STANDING;
-			if(!p_percent_trigger(victim, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_DEATH, NULL))
-				p_percent_trigger(NULL, NULL, here, NULL, ch, victim, NULL, NULL, NULL, TRIG_DEATH, NULL);
+			if(!p_percent_trigger(victim, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_DEATH, NULL,0,0,0,0,0))
+				p_percent_trigger(NULL, NULL, here, NULL, ch, victim, NULL, NULL, NULL, TRIG_DEATH, NULL,0,0,0,0,0);
 		}
 
 		raw_kill(victim, TRUE, TRUE, RAWKILL_NORMAL);
@@ -5888,6 +5916,15 @@ void do_slit(CHAR_DATA *ch, char *argument)
 			player_kill(ch, victim);
 		else if (!IS_NPC(ch) && IS_NPC(victim))
 			ch->monster_kills++;
+
+		// Check if slain victim was part of a quest. Checks if your horse got the kill, too.
+		if (!IS_NPC(ch)) {
+			check_quest_slay_mob(ch, victim, true);
+			check_invasion_quest_slay_mob(ch, victim);
+		}
+
+		// Hahahaha
+		if (RIDDEN(ch)) check_quest_slay_mob(RIDDEN(ch), victim, true);
 	}
 }
 
@@ -6010,8 +6047,8 @@ void do_blackjack(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if(p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BLACKJACK,"pretest") ||
-		p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BLACKJACK,"pretest"))
+	if(p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BLACKJACK,"pretest",0,0,0,0,0) ||
+		p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BLACKJACK,"pretest",0,0,0,0,0))
 		return;
 
 	check_improve(ch,gsn_blackjack,TRUE,5);
@@ -6029,7 +6066,7 @@ void do_blackjack(CHAR_DATA *ch, char *argument)
 		weapon = NULL;
 
 	if (number_percent() < chance) {
-		if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BLACKJACK,"attack_pass")) {
+		if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BLACKJACK,"attack_pass",0,0,0,0,0)) {
 			AFFECT_DATA af;
 			memset(&af,0,sizeof(af));
 			act("{YYou hit $N in the back of the head and knock $M out cold!{X", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -6056,12 +6093,12 @@ void do_blackjack(CHAR_DATA *ch, char *argument)
 			victim->position = POS_SLEEPING;
 		}
 	} else {
-		if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BLACKJACK,"attack_fail")) {
+		if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BLACKJACK,"attack_fail",0,0,0,0,0)) {
 			act("{Y$n senses $N's attack and strikes first!{x", victim, ch, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
 			act("{YYou sense $n sneaking up behind you and attack first!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 			act("{Y$N senses your attack and is ready for you!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			victim->hit_damage = number_range(1, victim->max_hit/4);
-			if (number_percent() < 20 && !p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BLACKJACK,"quick_hit")) {
+			if (number_percent() < 20 && !p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_BLACKJACK,"quick_hit",0,0,0,0,0)) {
 				act("You give $N a quick whack across the head!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 				act("$n whacks you across the head!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 				act("$n slips in a quick whack across $N's head!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
@@ -6110,8 +6147,8 @@ int do_flee_full(CHAR_DATA *ch, char *argument, bool conceal, bool pursue)
 	if (ch->fighting != NULL && !IS_NPC(ch->fighting))
 		flee_lag = TRUE;
 
-	if (p_percent_trigger(ch,NULL,NULL,NULL,ch,ch->fighting,NULL, NULL, NULL,argument?TRIG_PREFLEE:TRIG_PREWIMPY,argument) ||
-		p_percent_trigger(ch->fighting,NULL,NULL,NULL,ch,NULL,NULL, NULL, NULL,argument?TRIG_PREFLEE:TRIG_PREWIMPY,argument))
+	if (p_percent_trigger(ch,NULL,NULL,NULL,ch,ch->fighting,NULL, NULL, NULL,argument?TRIG_PREFLEE:TRIG_PREWIMPY,argument,0,0,0,0,0) ||
+		p_percent_trigger(ch->fighting,NULL,NULL,NULL,ch,NULL,NULL, NULL, NULL,argument?TRIG_PREFLEE:TRIG_PREWIMPY,argument,0,0,0,0,0))
 		return MAX_DIR;
 
 	if (IS_AFFECTED(ch,AFF_BLIND))
@@ -6226,8 +6263,8 @@ int do_flee_full(CHAR_DATA *ch, char *argument, bool conceal, bool pursue)
 	sprintf(buf, "{RYou flee to the %s!{x\n\r", dir_name[door]);
 	send_to_char(buf, ch);
 
-	p_percent_trigger(ch->fighting,NULL,NULL,NULL,ch,NULL,NULL, NULL, NULL,argument?TRIG_FLEE:TRIG_WIMPY,argument);
-	p_percent_trigger(ch,NULL,NULL,NULL,ch,ch->fighting,NULL, NULL, NULL,argument?TRIG_FLEE:TRIG_WIMPY,argument);
+	p_percent_trigger(ch->fighting,NULL,NULL,NULL,ch,NULL,NULL, NULL, NULL,argument?TRIG_FLEE:TRIG_WIMPY,argument,0,0,0,0,0);
+	p_percent_trigger(ch,NULL,NULL,NULL,ch,ch->fighting,NULL, NULL, NULL,argument?TRIG_FLEE:TRIG_WIMPY,argument,0,0,0,0,0);
 
 	stop_fighting(ch, TRUE);
 
@@ -6419,8 +6456,8 @@ void do_tail_kick(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if(p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TAILKICK,"pretest") ||
-		p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TAILKICK,"pretest"))
+	if(p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TAILKICK,"pretest",0,0,0,0,0) ||
+		p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TAILKICK,"pretest",0,0,0,0,0))
 		return;
 
 	WAIT_STATE(ch, skill_table[gsn_tail_kick].beats);
@@ -6429,7 +6466,7 @@ void do_tail_kick(CHAR_DATA *ch, char *argument)
 
 	if (chance > number_percent()) {
 		victim->hit_damage = number_range(ch->tot_level/2, ch->tot_level)*3;
-		p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TAILKICK,"damage");
+		p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TAILKICK,"damage",0,0,0,0,0);
 		dam = victim->hit_damage;
 		victim->hit_damage = 0;
 		damage(ch,victim, dam, gsn_tail_kick,DAM_BASH,TRUE);
@@ -6437,8 +6474,8 @@ void do_tail_kick(CHAR_DATA *ch, char *argument)
 			check_improve(ch,gsn_tail_kick,TRUE,1);
 
 			if(is_char_stillvalid(victim, vid)) {
-				p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TAILKICK,"attack_pass");
-				p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TAILKICK,"attack_pass");
+				p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TAILKICK,"attack_pass",0,0,0,0,0);
+				p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TAILKICK,"attack_pass",0,0,0,0,0);
 			}
 		}
 	} else {
@@ -6446,8 +6483,8 @@ void do_tail_kick(CHAR_DATA *ch, char *argument)
 		if(is_char_stillvalid(ch, cid)) {
 			check_improve(ch,gsn_tail_kick,FALSE,1);
 			if(is_char_stillvalid(victim, vid)) {
-				p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TAILKICK,"attack_fail");
-				p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TAILKICK,"attack_fail");
+				p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TAILKICK,"attack_fail",0,0,0,0,0);
+				p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TAILKICK,"attack_fail",0,0,0,0,0);
 			}
 		}
 	}
@@ -6487,8 +6524,8 @@ void do_kick(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if(p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_KICK,"pretest") ||
-		p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_KICK,"pretest"))
+	if(p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_KICK,"pretest",0,0,0,0,0) ||
+		p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_KICK,"pretest",0,0,0,0,0))
 		return;
 
 	char_id(ch, cid);
@@ -6507,7 +6544,7 @@ void do_kick(CHAR_DATA *ch, char *argument)
 		}
 
 		victim->hit_damage = dam;
-		p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_KICK,"damage");
+		p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_KICK,"damage",0,0,0,0,0);
 		dam = victim->hit_damage;
 		victim->hit_damage = 0;
 
@@ -6517,15 +6554,15 @@ void do_kick(CHAR_DATA *ch, char *argument)
 			check_improve(ch,gsn_kick,TRUE,1);
 
 			if(is_char_stillvalid(victim, vid)) {
-				p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_KICK,"attack_pass");
-				p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_KICK,"attack_pass");
+				p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_KICK,"attack_pass",0,0,0,0,0);
+				p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_KICK,"attack_pass",0,0,0,0,0);
 			}
 		}
 	} else {
 		damage(ch, victim, 0, gsn_kick,DAM_BASH,TRUE);
 		check_improve(ch,gsn_kick,FALSE,1);
-		p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_KICK,"attack_fail");
-		p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_KICK,"attack_fail");
+		p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_KICK,"attack_fail",0,0,0,0,0);
+		p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_KICK,"attack_fail",0,0,0,0,0);
 	}
 }
 
@@ -6589,24 +6626,24 @@ void do_disarm(CHAR_DATA *ch, char *argument)
 	/* level */
 	chance += (ch->tot_level - victim->tot_level) * 2;
 
-	if(p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_ATTACK_DISARM,"pretest") ||
-		p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_ATTACK_DISARM,"pretest") ||
-		p_percent_trigger(NULL, obj, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_DISARM,"pretest"))
+	if(p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_ATTACK_DISARM,"pretest",0,0,0,0,0) ||
+		p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_ATTACK_DISARM,"pretest",0,0,0,0,0) ||
+		p_percent_trigger(NULL, obj, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_DISARM,"pretest",0,0,0,0,0))
 		return;
 
 	/* and now the attack */
 	if (number_percent() < chance && number_percent() > (3 * get_skill(victim, gsn_deception) / 4)) {
 		WAIT_STATE(ch, skill_table[gsn_disarm].beats);
 		obj = disarm(ch, victim);
-		if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_ATTACK_DISARM,"message_pass") &&
-			!p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_ATTACK_DISARM,"message_pass") && obj)
-			p_percent_trigger(NULL, obj, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_ATTACK_DISARM,"message_pass");
+		if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_ATTACK_DISARM,"message_pass",0,0,0,0,0) &&
+			!p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_ATTACK_DISARM,"message_pass",0,0,0,0,0) && obj)
+			p_percent_trigger(NULL, obj, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_ATTACK_DISARM,"message_pass",0,0,0,0,0);
 		check_improve(ch,gsn_disarm,TRUE,1);
 	} else {
 		WAIT_STATE(ch,skill_table[gsn_disarm].beats);
-		if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_DISARM,"message_fail") &&
-			!p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_ATTACK_DISARM,"message_fail") &&
-			!p_percent_trigger(NULL, obj, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_DISARM,"message_fail")) {
+		if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_DISARM,"message_fail",0,0,0,0,0) &&
+			!p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_ATTACK_DISARM,"message_fail",0,0,0,0,0) &&
+			!p_percent_trigger(NULL, obj, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_DISARM,"message_fail",0,0,0,0,0)) {
 			act("You fail to disarm $N.",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			act("$n tries to disarm you, but fails.",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 			act("$n tries to disarm $N, but fails.",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
@@ -6972,7 +7009,7 @@ void do_resurrect(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	victim = get_char_world(ch, obj->owner);
+	victim = get_char_world(NULL, obj->owner);
 	if (victim == NULL)
 	{
 		act("The soul of $t is no longer within this world.", ch, NULL, NULL, NULL, NULL, obj->owner, NULL, TO_CHAR);
@@ -7013,15 +7050,15 @@ void do_resurrect(CHAR_DATA *ch, char *argument)
 	}
 
 	// Check the victim if it can be resurrected directly
-	if (p_percent_trigger( victim, NULL, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_PRERESURRECT, NULL) )
+	if (p_percent_trigger( victim, NULL, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_PRERESURRECT, NULL,0,0,0,0,0) )
 		return;
 
 	// Check the corpse for anything blocking the resurrection
-	if (p_percent_trigger( NULL, obj, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_PRERESURRECT, NULL) )
+	if (p_percent_trigger( NULL, obj, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_PRERESURRECT, NULL,0,0,0,0,0) )
 		return;
 
 	// Check the ROOM the corpse is in for anything blocking resurrection
-	if (p_percent_trigger( NULL, NULL, ch->in_room, NULL, ch, victim, NULL, obj, NULL, TRIG_PRERESURRECT, NULL) )
+	if (p_percent_trigger( NULL, NULL, ch->in_room, NULL, ch, victim, NULL, obj, NULL, TRIG_PRERESURRECT, NULL,0,0,0,0,0) )
 		return;
 
 	/*
@@ -7124,49 +7161,13 @@ void resurrect_end(CHAR_DATA *ch)
 
 		obj_from_obj(in);
 
-		if (in->item_type == ITEM_MONEY)
+		if (IS_MONEY(in))
 		{
-			victim->silver += in->value[0];
-			victim->gold += in->value[1];
+			victim->silver += MONEY(obj)->silver;
+			victim->gold += MONEY(obj)->gold;
 			extract_obj(in);
 			continue;
 		}		
-
-		if (in->pIndexData == obj_index_silver_one)
-		{
-			victim->silver++;
-			extract_obj(in);
-			continue;
-		}
-
-		if (in->pIndexData == obj_index_silver_some)
-		{
-			victim->silver += in->value[1];
-			extract_obj(in);
-			continue;
-		}
-
-		if (in->pIndexData == obj_index_gold_one)
-		{
-			victim->gold++;
-			extract_obj(in);
-			continue;
-		}
-
-		if (in->pIndexData == obj_index_gold_some)
-		{
-			victim->gold += in->value[1];
-			extract_obj(in);
-			continue;
-		}
-
-		if (in->pIndexData == obj_index_coins)
-		{
-			victim->silver += in->value[0];
-			victim->gold += in->value[1];
-			extract_obj(in);
-			continue;
-		}
 
 		obj_to_char(in, victim);
 	}
@@ -7717,10 +7718,10 @@ void do_warcry(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if(p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SKILL_WARCRY,"pretest"))
+	if(p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SKILL_WARCRY,"pretest",0,0,0,0,0))
 		return;
 
-	if(!p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SKILL_WARCRY,"message")) {
+	if(!p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SKILL_WARCRY,"message",0,0,0,0,0)) {
 		send_to_char("{RYou let out a powerful war cry!{x\n\r", ch);
 		act("{R$n lets out a powerful war cry!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
@@ -7746,7 +7747,7 @@ void do_warcry(CHAR_DATA *ch, char *argument)
 
 	for (victim = ch->in_room->people; victim != NULL; victim = victim->next_in_room) {
 		if ((victim->leader == ch || victim == ch) && !IS_AFFECTED2(victim, AFF2_WARCRY) && number_percent() < chance) {
-			if (victim != ch && !p_percent_trigger(victim, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_SKILL_WARCRY,"group")) {
+			if (victim != ch && !p_percent_trigger(victim, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_SKILL_WARCRY,"group",0,0,0,0,0)) {
 				act("{RYour adrenaline rushes and your heart pounds as you hear $N's powerful warcry!{x", victim, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 				act("$N enters into a battle rage!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			}
@@ -7754,7 +7755,7 @@ void do_warcry(CHAR_DATA *ch, char *argument)
 		}
 	}
 
-	p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SKILL_WARCRY,"post");
+	p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_SKILL_WARCRY,"post",0,0,0,0,0);
 
 	check_improve(ch, gsn_warcry, TRUE, 1);
 }

@@ -378,7 +378,7 @@ SPELL_FUNC(spell_sleep)
 		(level + 2) < victim->tot_level || saves_spell(level-4, victim,DAM_CHARM))
 		return FALSE;
 
-	af.slot	= WEAR_NONE;
+	af.slot	= obj_wear_loc;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
 	af.type = sn;

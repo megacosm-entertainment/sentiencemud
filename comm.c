@@ -3430,7 +3430,7 @@ bool check_reconnect(DESCRIPTOR_DATA *d, char *name, bool fConn)
 				d->connected = CON_PLAYING;
 				MXPSendTag(d,"<VERSION>");
 
-				if (get_eq_char(ch, WEAR_LIGHT) != NULL)
+				if (light_char_has_light(ch))
 					ch->in_room->light++;
 
 				/* resync char with his church_member both ways on reconnect */
@@ -4045,7 +4045,7 @@ void act_new(char *format, CHAR_DATA *ch,
 
 	else
 	if (MOBtrigger)
-	    p_act_trigger(buf, to, NULL, NULL, ch, vch, vch2, obj1, obj2, TRIG_ACT);
+	    p_act_trigger(buf, to, NULL, NULL, ch, vch, vch2, obj1, obj2, TRIG_ACT,0,0,0,0,0);
     }
 
     if (MOBtrigger && (type == TO_ROOM || type == TO_NOTVICT))
@@ -4064,7 +4064,7 @@ void act_new(char *format, CHAR_DATA *ch,
 	for(obj = ch->in_room->contents; obj; obj = obj_next)
 	{
 	    obj_next = obj->next_content;
-	    p_act_trigger(buf, NULL, obj, NULL, ch, vch, vch2, obj1, obj2, TRIG_ACT);
+	    p_act_trigger(buf, NULL, obj, NULL, ch, vch, vch2, obj1, obj2, TRIG_ACT,0,0,0,0,0);
 	}
 
 	for(tch = ch; tch; tch = tch_next)
@@ -4074,11 +4074,11 @@ void act_new(char *format, CHAR_DATA *ch,
 	    for (obj = tch->carrying; obj; obj = obj_next)
 	    {
 		obj_next = obj->next_content;
-		p_act_trigger(buf, NULL, obj, NULL, ch, vch, vch2, obj1, obj2, TRIG_ACT);
+		p_act_trigger(buf, NULL, obj, NULL, ch, vch, vch2, obj1, obj2, TRIG_ACT,0,0,0,0,0);
 	    }
 	}
 
-	p_act_trigger(buf, NULL, NULL, ch->in_room, ch, vch, vch2, obj1, obj2, TRIG_ACT);
+	p_act_trigger(buf, NULL, NULL, ch->in_room, ch, vch, vch2, obj1, obj2, TRIG_ACT,0,0,0,0,0);
     }
 }
 
@@ -4385,7 +4385,7 @@ void update_pc_timers(CHAR_DATA *ch)
 	if (ch->cast <= 0)
 	    cast_end(ch);
  	else if(ch->cast_token && IS_SET(ch->cast_token->pIndexData->flags, TOKEN_SPELLBEATS))
- 		p_percent_trigger(NULL, NULL, NULL, ch->cast_token, ch, NULL, NULL, NULL, NULL, TRIG_SPELLBEAT, NULL);
+ 		p_percent_trigger(NULL, NULL, NULL, ch->cast_token, ch, NULL, NULL, NULL, NULL, TRIG_SPELLBEAT, NULL,0,0,0,0,0);
     }
 
     /* Decrease delay on characters binding */

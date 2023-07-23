@@ -359,7 +359,7 @@ void do_multi(CHAR_DATA *ch, char *argument)
     crier_announce(buf);
     double_xp(ch);
 
-	p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_MULTICLASS, NULL);
+	p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_MULTICLASS, NULL,0,0,0,0,0);
 }
 
 
@@ -629,7 +629,7 @@ void do_train(CHAR_DATA *ch, char *argument)
 
 		if( entry->token )
 		{
-		    if(p_percent_trigger(NULL, NULL, NULL, entry->token, ch, mob, NULL, NULL, NULL, TRIG_PRETRAINTOKEN, NULL))
+		    if(p_percent_trigger(NULL, NULL, NULL, entry->token, ch, mob, NULL, NULL, NULL, TRIG_PRETRAINTOKEN, NULL,0,0,0,0,0))
 		    {
 				send_to_char("There is nobody here to help you do that.\n\r", ch);
 				return;
@@ -692,7 +692,7 @@ void do_train(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-	    if(p_percent_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PRETRAIN, arg))
+	    if(p_percent_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PRETRAIN, arg,0,0,0,0,0))
 			return;
 
 		cost = 1;
@@ -1420,13 +1420,13 @@ void do_practice( CHAR_DATA *ch, char *argument )
 		// Token ability
 
 		// $VICTIM: allows you to check who is teaching.. are they allowed to teach it?
-		if(p_percent_trigger(NULL, NULL, NULL, entry->token, ch, mob, NULL, NULL, NULL, TRIG_PREPRACTICETOKEN, NULL))
+		if(p_percent_trigger(NULL, NULL, NULL, entry->token, ch, mob, NULL, NULL, NULL, TRIG_PREPRACTICETOKEN, NULL,0,0,0,0,0))
 		{
 			send_to_char("You can't practice that.\n\r", ch);
 			return;
 		}
 
-		if(p_percent_token_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, entry->token, TRIG_PREPRACTICE, NULL))
+		if(p_percent_token_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, entry->token, TRIG_PREPRACTICE, NULL,0,0,0,0,0))
 		{
 			send_to_char("You can't practice that.\n\r", ch);
 			return;
@@ -1442,7 +1442,7 @@ void do_practice( CHAR_DATA *ch, char *argument )
 		{
 			--ch->practice;
 			ch->tempstore[0] = learn;
-			p_percent_trigger(NULL, NULL, NULL, entry->token, ch, mob, NULL, NULL, NULL, TRIG_PRACTICETOKEN, NULL);
+			p_percent_trigger(NULL, NULL, NULL, entry->token, ch, mob, NULL, NULL, NULL, TRIG_PRACTICETOKEN, NULL,0,0,0,0,0);
 			learn = ch->tempstore[0];
 			if( learn < 1 ) learn = 1;	// At this point, it should be a minimum of 1 skill rating
 
@@ -1474,7 +1474,7 @@ void do_practice( CHAR_DATA *ch, char *argument )
 			return;
 		}
 
-		if(p_percent_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREPRACTICE, skill_table[sn].name))
+		if(p_percent_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREPRACTICE, skill_table[sn].name,0,0,0,0,0))
 		{
 			send_to_char("You can't practice that.\n\r", ch);
 			return;
@@ -1486,7 +1486,7 @@ void do_practice( CHAR_DATA *ch, char *argument )
 		} else {
 			--ch->practice;
 			ch->tempstore[0] = learn;
-			p_percent_trigger(ch, NULL, NULL, NULL, ch, mob, NULL, NULL, NULL, TRIG_PRACTICE, skill_table[sn].name);
+			p_percent_trigger(ch, NULL, NULL, NULL, ch, mob, NULL, NULL, NULL, TRIG_PRACTICE, skill_table[sn].name,0,0,0,0,0);
 			learn = ch->tempstore[0];
 			if( learn < 1 ) learn = 1;	// At this point, it should be a minimum of 1 skill rating
 
@@ -1508,14 +1508,14 @@ void do_practice( CHAR_DATA *ch, char *argument )
 	sn = find_spell(ch, arg);
 
 	if (sn <= 0 || !can_practice( ch, sn )) {
-		if(!p_percent_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREPRACTICEOTHER,arg))
+		if(!p_percent_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREPRACTICEOTHER,arg,0,0,0,0,0))
 			send_to_char("You can't practice that.\n\r", ch);
 		return;
 	}
 
 	// If it makes it this far, it is a standard spell
 
-	if(p_percent_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREPRACTICE, skill_table[sn].name))
+	if(p_percent_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREPRACTICE, skill_table[sn].name,0,0,0,0,0))
 		return;
 
 	if (ch->practice <= 0) {
@@ -1623,7 +1623,7 @@ void do_rehearse( CHAR_DATA *ch, char *argument )
 		return;
 	}
 
-	if(p_percent_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREREHEARSE, music_table[sn].name))
+	if(p_percent_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREREHEARSE, music_table[sn].name,0,0,0,0,0))
 		return;
 
 	if (ch->practice < 3) {
@@ -2518,12 +2518,12 @@ void remort_player(CHAR_DATA *ch, int remort_class)
 	// Reset here since an immortal can still remort a player while they still have this question up
 	ch->remort_question = FALSE;
 
-	p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_REMORT, NULL);
+	p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_REMORT, NULL,0,0,0,0,0);
 
     for (obj = ch->carrying; obj != NULL;)
     {
 		OBJ_DATA *obj_next = obj->next_content;
-		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_REMORT, NULL);
+		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_REMORT, NULL,0,0,0,0,0);
 		obj = obj_next;
     }
 

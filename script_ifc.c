@@ -116,7 +116,7 @@ extern bool wiznet_script;
 
 long flag_value_ifcheck(const struct flag_type *flag_table, char *argument)
 {
-	long flag = flag_value(flag_table, argument);
+	long flag = script_flag_value(flag_table, argument);
 
 	return (flag != NO_FLAG) ? flag : 0;
 }
@@ -287,10 +287,10 @@ DECL_IFC_FUN(ifc_carries)
 DECL_IFC_FUN(ifc_carryleft)
 {
 	if (ISARG_OBJ(0) && (obj = ARG_OBJ(0))) {
-		if(obj->item_type == ITEM_CART || obj->item_type == ITEM_CONTAINER)
-			*ret = obj->value[3] - get_obj_number_container(obj);
-		else if(obj->item_type == ITEM_WEAPON_CONTAINER)
-			*ret = obj->value[2] - get_obj_number_container(obj);
+		if(IS_CONTAINER(obj))
+			*ret = CONTAINER(obj)->max_volume - get_obj_number_container(obj);
+//		else if(obj->item_type == ITEM_WEAPON_CONTAINER)
+//			*ret = obj->value[2] - get_obj_number_container(obj);
 		else
 			*ret = 0;
 	} else if(ISARG_MOB(0) && (mob = ARG_MOB(0)))
@@ -369,8 +369,8 @@ DECL_IFC_FUN(ifc_clones)
 
 DECL_IFC_FUN(ifc_container)
 {
-	*ret = ISARG_OBJ(0) && ARG_OBJ(0)->item_type == ITEM_CONTAINER &&
-		IS_SET(ARG_OBJ(0)->value[1], flag_value_ifcheck(container_flags,ARG_STR(1)));
+	*ret = ISARG_OBJ(0) && IS_CONTAINER(ARG_OBJ(0)) &&
+		IS_SET(CONTAINER(ARG_OBJ(0))->flags, flag_value_ifcheck(container_flags,ARG_STR(1)));
 	return TRUE;
 }
 
@@ -1269,10 +1269,10 @@ DECL_IFC_FUN(ifc_maxcarry)
 {
 	if (ISARG_OBJ(0)) {
 		obj = ARG_OBJ(0);
-		if(obj->item_type == ITEM_CART || obj->item_type == ITEM_CONTAINER)
-			*ret = obj->value[3];
-		else if(obj->item_type == ITEM_WEAPON_CONTAINER)
-			*ret = obj->value[2];
+		if(IS_CONTAINER(obj))
+			*ret = CONTAINER(obj)->max_volume;
+//		else if(obj->item_type == ITEM_WEAPON_CONTAINER)
+//			*ret = obj->value[2];
 		else
 			return FALSE;
 	} else if(ISARG_MOB(0))
@@ -1306,10 +1306,9 @@ DECL_IFC_FUN(ifc_maxweight)
 {
 	if (ISARG_OBJ(0)) {
 		obj = ARG_OBJ(0);
-		if(obj->item_type == ITEM_CART ||
-			obj->item_type == ITEM_CONTAINER ||
-			obj->item_type == ITEM_WEAPON_CONTAINER) {
-			*ret = obj->value[0];
+		if(IS_CONTAINER(obj))
+		{
+			*ret = CONTAINER(obj)->max_weight;
 			return TRUE;
 		}
 	} else if(ARG_MOB(0)) {
@@ -1484,14 +1483,10 @@ DECL_IFC_FUN(ifc_objmaxweight)
 	int val;
 	if (ISARG_OBJ(0)) {
 		obj = ARG_OBJ(0);
-		if(obj->item_type == ITEM_CART || obj->item_type == ITEM_CONTAINER)
-			val = obj->value[4];
-		else if(obj->item_type == ITEM_WEAPON_CONTAINER)
-			val = obj->value[3];
-		else
-			return FALSE;
+		if (!IS_CONTAINER(obj)) return FALSE;
+		val = CONTAINER(obj)->weight_multiplier;
 		if(val < 1) val = 100;
-		*ret = obj->value[0] * 100 / val;
+		*ret = (CONTAINER(obj)->max_weight) * 100 / val;
 		return TRUE;
 	}
 	return TRUE;
@@ -1592,14 +1587,10 @@ DECL_IFC_FUN(ifc_objweightleft)
 	int val;
 	if (ISARG_OBJ(0)) {
 		obj = ARG_OBJ(0);
-		if(obj->item_type == ITEM_CART || obj->item_type == ITEM_CONTAINER)
-			val = obj->value[4];
-		else if(obj->item_type == ITEM_WEAPON_CONTAINER)
-			val = obj->value[3];
-		else
-			return FALSE;
+		if (!IS_CONTAINER(obj)) return FALSE;
+		val = CONTAINER(obj)->weight_multiplier;
 		if(val < 1) val = 100;
-		*ret = (obj->value[0] * 100 / val) - get_obj_weight_container(obj);
+		*ret = (CONTAINER(obj)->max_weight * 100 / val) - get_obj_weight_container(obj);
 		return TRUE;
 	}
 	return FALSE;
@@ -1787,7 +1778,7 @@ DECL_IFC_FUN(ifc_race)
 // Random number check
 // Forms:
 //	rand <num>		TRUE: [0:99] < num
-//	rand <num1> <num2>	TRUE: [0:num2] < num1
+//	rand <num1> <num2>	TRUE: [0:num2-1] < num1
 DECL_IFC_FUN(ifc_rand)
 {
 	if(ISARG_NUM(1))
@@ -2424,11 +2415,9 @@ DECL_IFC_FUN(ifc_weightleft)
 {
 	if (ISARG_OBJ(0)) {
 		obj = ARG_OBJ(0);
-		if(obj->item_type == ITEM_CART ||
-			obj->item_type == ITEM_CONTAINER ||
-			obj->item_type == ITEM_WEAPON_CONTAINER) {
-			*ret = obj->value[0] - get_obj_weight_container(obj);
-		} else
+		if(IS_CONTAINER(obj))
+			*ret = CONTAINER(obj)->max_weight - get_obj_weight_container(obj);
+		else
 			*ret = 0;
 		return TRUE;
 	} else if(ISARG_MOB(0)) {
@@ -4385,15 +4374,12 @@ DECL_IFC_FUN(ifc_flag_corpse)
 }
 
 // if objweapon $WEAPON TYPE (eg 'sword')
-// if objweapon $WEAPONCONTAINER TYPE (eg 'sword')
 DECL_IFC_FUN(ifc_objweapon)
 {
 	*ret = FALSE;
 	if(ISARG_OBJ(0) && ISARG_STR(1)) {
 		if(ARG_OBJ(0)->item_type == ITEM_WEAPON)
 			*ret = ARG_OBJ(0)->value[0] == flag_value(weapon_class,ARG_STR(1));
-		else if(ARG_OBJ(0)->item_type == ITEM_WEAPON_CONTAINER)
-			*ret = ARG_OBJ(0)->value[1] == flag_value(weapon_class,ARG_STR(1));
 	}
 
 	return TRUE;
@@ -5014,3 +5000,40 @@ DECL_IFC_FUN(ifc_savage)
 	return TRUE;
 }
 
+DECL_IFC_FUN(ifc_iscontainer)
+{
+	*ret = ISARG_OBJ(0) && IS_CONTAINER(ARG_OBJ(0));
+	return TRUE;
+}
+
+// Only checks against white and black lists
+// This does not take into account other aspects of whether it can be put into the container
+//
+// ISVALIDITEM $CONTAINER $OBJECT
+DECL_IFC_FUN(ifc_isvaliditem)
+{
+	if (ISARG_OBJ(0) && ISARG_OBJ(1) && IS_CONTAINER(ARG_OBJ(0)))
+	{
+		*ret = container_is_valid_item(ARG_OBJ(0), ARG_OBJ(1)) && TRUE;
+		return TRUE;
+	}
+	return FALSE;
+}
+
+DECL_IFC_FUN(ifc_isfood)
+{
+	*ret = ISARG_OBJ(0) && IS_FOOD(ARG_OBJ(0));
+	return TRUE;
+}
+
+DECL_IFC_FUN(ifc_islight)
+{
+	*ret = ISARG_OBJ(0) && IS_LIGHT(ARG_OBJ(0));
+	return TRUE;
+}
+
+DECL_IFC_FUN(ifc_ismoney)
+{
+	*ret = ISARG_OBJ(0) && IS_MONEY(ARG_OBJ(0));
+	return TRUE;
+}
