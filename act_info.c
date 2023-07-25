@@ -3194,7 +3194,7 @@ void do_score(CHAR_DATA * ch, char *argument)
 	strcat(buf, " ");
     send_to_char(buf, ch);
 
-    sprintf(buf, "{BLevel: {x%d", ch->level);
+    sprintf(buf, "{BLevel: {x%d (%d)", ch->level, ch->tot_level);
     for (i = fstr_len(buf); i < 25; i++)
 	strcat(buf, " ");
     send_to_char(buf, ch);

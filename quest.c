@@ -1544,7 +1544,7 @@ void do_renew(CHAR_DATA *ch, char *argument)
 		if( mob == NULL )
 			return;
 
-		if ((obj = get_obj_carry(ch, arg1, ch)) == NULL)
+		if ((obj = get_obj_carry(ch, arg2, ch)) == NULL)
 		{
 			sprintf(buf, "You don't have that item, %s.", pers(ch, mob));
 			do_say(mob, buf);

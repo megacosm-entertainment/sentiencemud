@@ -1680,7 +1680,7 @@ void do_group(CHAR_DATA *ch, char *argument)
 				name[0] = UPPER(name[0]);
 				sprintf(buf,
 					"{B[{G%3d {Y%-6.6s{B] {G%-15.15s {w%6ld{B/{w%ld {Bhp {w%6ld{B/{w%ld {Bmana {w%6ld{B/{w%ld {Bmv{x\n\r",
-					gch->level,
+					gch->tot_level,
 					IS_NPC(gch) ? " NPC  " : pc_race_table[gch->race].who_name,
 					name,
 					gch->hit,   gch->max_hit,
