@@ -9,14 +9,14 @@
 # the `language` matrix defined below to confirm you have the correct set of
 # supported CodeQL languages.
 #
-name: "CodeQL"
+name: "Basic Checks"
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "master", "legacy_server", "olc_blueprints" ]
   pull_request:
     # The branches below must be a subset of the branches above
-    branches: [ "master" ]
+    branches: [ "legacy_server", "olc_blueprints" ]
   schedule:
     - cron: '32 15 * * 4'
 
