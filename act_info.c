@@ -324,19 +324,20 @@ char *format_obj_to_char(OBJ_DATA * obj, CHAR_DATA * ch, bool fShort)
 		|| (obj->description == NULL || obj->description[0] == '\0'))
 		return buf;
 
+	// How would you be seeing this?
 	if (IS_SET(obj->extra3_flags, ITEM_EXCLUDE_LIST))
 		strcat(buf, "{D(Excluded){x ");
     if (IS_OBJ_STAT(obj, ITEM_INVIS))
 		strcat(buf, "{B(Invis){w ");
-    if (IS_AFFECTED(ch, AFF_DETECT_MAGIC) && IS_OBJ_STAT(obj, ITEM_MAGIC))
+    if (((!IS_NPC(ch) && IS_SET(ch->act, PLR_HOLYLIGHT)) || IS_AFFECTED(ch, AFF_DETECT_MAGIC)) && IS_OBJ_STAT(obj, ITEM_MAGIC))
 		strcat(buf, "{M(Magical){w ");
     if (IS_OBJ_STAT(obj, ITEM_GLOW))
 		strcat(buf, "{W(Glowing){w ");
     if (IS_OBJ_STAT(obj, ITEM_HUM))
 		strcat(buf, "{C(Humming){w ");
-    if ((IS_AFFECTED(ch, AFF_DETECT_GOOD) || (!IS_NPC(ch) && IS_REMORT(ch))) && IS_OBJ_STAT(obj, ITEM_BLESS))
+    if (IS_OBJ_STAT(obj, ITEM_BLESS) && ((!IS_NPC(ch) && IS_SET(ch->act, PLR_HOLYLIGHT)) || IS_AFFECTED(ch, AFF_DETECT_GOOD) || (!IS_NPC(ch) && IS_REMORT(ch))))
 		strcat(buf, "{y(Gold Aura){w ");
-    if ((IS_AFFECTED(ch, AFF_DETECT_EVIL) || (!IS_NPC(ch) && IS_REMORT(ch))) && IS_OBJ_STAT(obj, ITEM_EVIL))
+    if (IS_OBJ_STAT(obj, ITEM_EVIL) && ((!IS_NPC(ch) && IS_SET(ch->act, PLR_HOLYLIGHT)) || IS_AFFECTED(ch, AFF_DETECT_EVIL) || (!IS_NPC(ch) && IS_REMORT(ch))))
 		strcat(buf, "{R(Red Aura){w ");
     if (IS_SET(obj->extra2_flags, ITEM_KEPT))
 		strcat(buf, "{b({BK{b){x ");
@@ -2052,7 +2053,8 @@ void do_look(CHAR_DATA * ch, char *argument)
 		return;
 	}
 
-	if (!str_cmp(arg1, "auto")) {
+	if (!str_cmp(arg1, "auto"))
+	{
 		show_room(ch,ch->in_room,false,false,true);
 		return;
 	}

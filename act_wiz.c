@@ -2725,7 +2725,7 @@ void do_tfind(CHAR_DATA *ch, char *argument)
 
 	for (area = area_first; area; area = area->next) {
 		for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
-			for (pMobIpTokIndexndex = area->token_index_hash[iHash]; pTokIndex != NULL; pTokIndex = pTokIndex->next) {
+			for (pTokIndex = area->token_index_hash[iHash]; pTokIndex != NULL; pTokIndex = pTokIndex->next) {
 				nMatch++;
 				if (fAll || is_name(argument, pTokIndex->name)) {
 					found = TRUE;
