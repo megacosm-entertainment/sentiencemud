@@ -469,6 +469,7 @@ DECLARE_DO_FUN(	do_tell		);
 DECLARE_DO_FUN( do_tells	);
 DECLARE_DO_FUN( do_test		);
 DECLARE_DO_FUN( do_testport	);
+DECLARE_DO_FUN(	do_tfind	);
 DECLARE_DO_FUN(	do_throw	);
 DECLARE_DO_FUN(	do_time		);
 DECLARE_DO_FUN(	do_title	);

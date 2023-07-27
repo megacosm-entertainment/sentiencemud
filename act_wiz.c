@@ -1966,7 +1966,8 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 
 	if (IS_CONTAINER(obj))
 	{
-		sprintf(buf, "{CContainer: {BMax Weight:{x %d {BWeight Multiplier:{x %d {BMax Volume:{x %d {BTotal Weight:{x %d {BTotal Volume:{x %d\n\r",
+		sprintf(buf, "{CContainer[%s / %s]: {BMax Weight:{x %d {BWeight Multiplier:{x %d {BMax Volume:{x %d {BTotal Weight:{x %d {BTotal Volume:{x %d\n\r",
+			CONTAINER(obj)->name, CONTAINER(obj)->short_descr,
 			CONTAINER(obj)->max_weight,
 			CONTAINER(obj)->weight_multiplier,
 			CONTAINER(obj)->max_volume,
@@ -2569,6 +2570,7 @@ void do_vnum(CHAR_DATA *ch, char *argument)
 	send_to_char("Syntax:\n\r",ch);
 	send_to_char("  vnum obj <name>\n\r",ch);
 	send_to_char("  vnum mob <name>\n\r",ch);
+	send_to_char("  vnum token <name>\n\r", ch);
 	send_to_char("  vnum skill <skill or spell>\n\r",ch);
 	return;
     }
@@ -2585,6 +2587,12 @@ void do_vnum(CHAR_DATA *ch, char *argument)
 	return;
     }
 
+	if (!str_cmp(arg, "token"))
+	{
+	do_function(ch, &do_tfind, string);
+	return;
+	}
+
     /*
     if (!str_cmp(arg,"skill") || !str_cmp(arg,"spell"))
     {
@@ -2595,6 +2603,7 @@ void do_vnum(CHAR_DATA *ch, char *argument)
     /* do both */
     do_function(ch, &do_mfind, argument);
     do_function(ch, &do_ofind, argument);
+	do_function(ch, &do_tfind, argument);
 }
 
 
@@ -2684,6 +2693,52 @@ void do_ofind(CHAR_DATA *ch, char *argument)
 
     if (!found)
 	send_to_char("No objects by that name.\n\r", ch);
+}
+
+void do_tfind(CHAR_DATA *ch, char *argument)
+{
+    /* extern long top_mob_index; */
+    char buf[MAX_STRING_LENGTH];
+    char arg[MAX_INPUT_LENGTH];
+	AREA_DATA *area;
+    TOKEN_INDEX_DATA *pTokIndex;
+    /* long vnum; */
+    int nMatch, iHash;
+    bool fAll;
+    bool found;
+
+    one_argument(argument, arg);
+    if (arg[0] == '\0')
+    {
+	send_to_char("Find what?\n\r", ch);
+	return;
+    }
+
+    if (strlen(arg) < 2) {
+	send_to_char("Your search must be at least 2 characters long.\n\r", ch);
+	return;
+    }
+
+    fAll	= FALSE; /* !str_cmp(arg, "all"); */
+    found	= FALSE;
+    nMatch	= 0;
+
+	for (area = area_first; area; area = area->next) {
+		for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
+			for (pMobIpTokIndexndex = area->token_index_hash[iHash]; pTokIndex != NULL; pTokIndex = pTokIndex->next) {
+				nMatch++;
+				if (fAll || is_name(argument, pTokIndex->name)) {
+					found = TRUE;
+					sprintf(buf, "[%5ld#%-5ld] %s\n\r",
+						area->uid, pTokIndex->vnum, pTokIndex->name);
+					send_to_char(buf, ch);
+				}
+			}
+		}
+	}
+
+    if (!found)
+	send_to_char("No tokens by that name.\n\r", ch);
 }
 
 
