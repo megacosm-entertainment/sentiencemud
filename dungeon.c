@@ -1251,7 +1251,7 @@ static bool add_dungeon_special_exit_from_to(DUNGEON *dng, DUNGEON_INDEX_SPECIAL
 								toClone->rs_flags = from_exit->rs_flags;
 								toClone->door.rs_lock.flags = from_exit->door.rs_lock.flags;
 								toClone->door.rs_lock.key_wnum = from_exit->door.rs_lock.key_wnum;
-								toClone->door.rs_lock.keys = from_exit->door.rs_lock.keys;	// This will not be destroyed when the exit is freed
+								toClone->door.rs_lock.special_keys = from_exit->door.rs_lock.special_keys;	// This will not be destroyed when the exit is freed
 								toClone->door.rs_lock.pick_chance = from_exit->door.rs_lock.pick_chance;
 							}
 							else
@@ -1260,7 +1260,7 @@ static bool add_dungeon_special_exit_from_to(DUNGEON *dng, DUNGEON_INDEX_SPECIAL
 								toClone->door.rs_lock.flags = 0;
 								toClone->door.rs_lock.key_wnum.pArea = NULL;
 								toClone->door.rs_lock.key_wnum.vnum = 0;
-								toClone->door.rs_lock.keys = NULL;
+								toClone->door.rs_lock.special_keys = NULL;
 								toClone->door.rs_lock.pick_chance = 0;
 							}
 						}
@@ -1284,7 +1284,7 @@ static bool add_dungeon_special_exit_from_to(DUNGEON *dng, DUNGEON_INDEX_SPECIAL
 					fromClone->rs_flags = to_exit->rs_flags;
 					fromClone->door.rs_lock.flags = to_exit->door.rs_lock.flags;
 					fromClone->door.rs_lock.key_wnum = to_exit->door.rs_lock.key_wnum;
-					fromClone->door.rs_lock.keys = to_exit->door.rs_lock.keys;
+					fromClone->door.rs_lock.special_keys = to_exit->door.rs_lock.special_keys;
 					fromClone->door.rs_lock.pick_chance = to_exit->door.rs_lock.pick_chance;
 				}
 			}

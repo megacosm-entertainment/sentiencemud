@@ -444,6 +444,7 @@ varset(wilds,WILDS,WILDS_DATA*,wilds,wilds)
 varset(church,CHURCH,CHURCH_DATA*,church,church)
 varset(affect,AFFECT,AFFECT_DATA*,aff,aff)
 varset(food_buff,FOOD_BUFF,FOOD_BUFF_DATA*,food_buff,food_buff)
+varset(compartment,COMPARTMENT,FURNITURE_COMPARTMENT*,compartment,compartment)
 varset(variable,VARIABLE,pVARIABLE,v,variable)
 varset(instance_section,SECTION,INSTANCE_SECTION *,section,section)
 varset(instance,INSTANCE,INSTANCE *,instance,instance)
@@ -1718,6 +1719,7 @@ bool variable_copy(ppVARIABLE list,char *oldname,char *newname)
 	case VAR_SONG:			newv->_.sn = oldv->_.sn; break;
 	case VAR_AFFECT:		newv->_.aff = oldv->_.aff; break;
 	case VAR_FOOD_BUFF:		newv->_.food_buff = oldv->_.food_buff; break;
+	case VAR_COMPARTMENT:	newv->_.compartment = oldv->_.compartment; break;
 
 	case VAR_CONNECTION:	newv->_.conn = oldv->_.conn; break;
 	case VAR_WILDS:			newv->_.wilds = oldv->_.wilds; break;
@@ -1732,6 +1734,7 @@ bool variable_copy(ppVARIABLE list,char *oldname,char *newname)
 	case VAR_PLLIST_TOK:
 	case VAR_PLLIST_CHURCH:
 	case VAR_PLLIST_FOOD_BUFF:
+	case VAR_PLLIST_COMPARTMENT:
 	case VAR_PLLIST_VARIABLE:
 	case VAR_PLLIST_AREA:
 	case VAR_PLLIST_AREA_REGION:
@@ -1784,6 +1787,7 @@ bool variable_copyto(ppVARIABLE from,ppVARIABLE to,char *oldname,char *newname, 
 	case VAR_SONG:		newv->_.sn = oldv->_.sn; break;
 	case VAR_AFFECT:	newv->_.aff = oldv->_.aff; break;
 	case VAR_FOOD_BUFF:	newv->_.food_buff = oldv->_.food_buff; break;
+	case VAR_COMPARTMENT:	newv->_.compartment = oldv->_.compartment; break;
 
 	case VAR_CONNECTION:	newv->_.conn = oldv->_.conn; break;
 	case VAR_WILDS:			newv->_.wilds = oldv->_.wilds; break;
@@ -1799,6 +1803,7 @@ bool variable_copyto(ppVARIABLE from,ppVARIABLE to,char *oldname,char *newname, 
 	case VAR_PLLIST_TOK:
 	case VAR_PLLIST_CHURCH:
 	case VAR_PLLIST_FOOD_BUFF:
+	case VAR_PLLIST_COMPARTMENT:
 	case VAR_PLLIST_VARIABLE:
 	case VAR_PLLIST_AREA:
 	case VAR_PLLIST_AREA_REGION:
@@ -1848,6 +1853,7 @@ bool variable_copylist(ppVARIABLE from,ppVARIABLE to,bool index)
 		case VAR_SONG:		newv->_.sn = oldv->_.sn; break;
 		case VAR_AFFECT:	newv->_.aff = oldv->_.aff; break;
 		case VAR_FOOD_BUFF:	newv->_.food_buff = oldv->_.food_buff; break;
+		case VAR_COMPARTMENT:	newv->_.compartment = oldv->_.compartment; break;
 
 		case VAR_CONNECTION:	newv->_.conn = oldv->_.conn; break;
 		case VAR_WILDS:			newv->_.wilds = oldv->_.wilds; break;
@@ -1863,6 +1869,7 @@ bool variable_copylist(ppVARIABLE from,ppVARIABLE to,bool index)
 		case VAR_PLLIST_TOK:
 		case VAR_PLLIST_CHURCH:
 		case VAR_PLLIST_FOOD_BUFF:
+		case VAR_PLLIST_COMPARTMENT:
 		case VAR_PLLIST_VARIABLE:
 		case VAR_PLLIST_AREA:
 		case VAR_PLLIST_AREA_REGION:
@@ -1912,6 +1919,7 @@ pVARIABLE variable_copyvar(pVARIABLE oldv)
 	case VAR_SONG:			newv->_.sn = oldv->_.sn; break;
 	case VAR_AFFECT:		newv->_.aff = oldv->_.aff; break;
 	case VAR_FOOD_BUFF:		newv->_.food_buff = oldv->_.food_buff; break;
+	case VAR_COMPARTMENT:	newv->_.compartment = oldv->_.compartment; break;
 
 	case VAR_CONNECTION:	newv->_.conn = oldv->_.conn; break;
 	case VAR_WILDS:			newv->_.wilds = oldv->_.wilds; break;
@@ -1927,6 +1935,7 @@ pVARIABLE variable_copyvar(pVARIABLE oldv)
 	case VAR_PLLIST_TOK:
 	case VAR_PLLIST_CHURCH:
 	case VAR_PLLIST_FOOD_BUFF:
+	case VAR_PLLIST_COMPARTMENT:
 	case VAR_PLLIST_VARIABLE:
 	case VAR_PLLIST_AREA:
 	case VAR_PLLIST_AREA_REGION:
@@ -2006,6 +2015,12 @@ void variable_clearfield(int type, void *ptr)
 			if (cur->_.food_buff == ptr)
 			{
 				cur->_.food_buff = NULL;
+			}
+			break;
+		case VAR_COMPARTMENT:
+			if (cur->_.compartment == ptr)
+			{
+				cur->_.compartment = NULL;
 			}
 			break;
 		case VAR_SKILLINFO:
@@ -2276,6 +2291,12 @@ void variable_clearfield(int type, void *ptr)
 
 		case VAR_PLLIST_FOOD_BUFF:
 			if( type == VAR_FOOD_BUFF && ptr && list_isvalid(cur->_.list)) {
+				list_remlink(cur->_.list, ptr);
+			}
+			break;
+
+		case VAR_PLLIST_COMPARTMENT:
+			if( type == VAR_COMPARTMENT && ptr && list_isvalid(cur->_.list)) {
 				list_remlink(cur->_.list, ptr);
 			}
 			break;

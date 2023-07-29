@@ -3233,50 +3233,56 @@ SCRIPT_CMD(scriptcmd_loadinstanced)
 		script_oload(info, rest, arg, true);
 }
 
-// LOCKADD $OBJECT
+// LOCKADD $OBJECT <context>
 SCRIPT_CMD(scriptcmd_lockadd)
 {
-	info->progs->lastreturn = 0;
+	char *rest = argument;
+	OBJ_DATA *obj;
+	OCLU_CONTEXT context;
 
-	if( !expand_argument(info,argument,arg) || arg->type != ENT_OBJECT || !IS_VALID(arg->d.obj) )
+	SETRETURN(0);
+
+	PARSE_ARGTYPE(OBJECT);
+	if (!IS_VALID(arg->d.obj))
 		return;
 
-	if( arg->d.obj->lock )
+	obj = arg->d.obj;
+
+	PARSE_ARGTYPE(STRING);
+
+	if (!oclu_get_context(&context, obj, arg->d.str))
 		return;
 
-	if (!IS_CONTAINER(arg->d.obj))
-	{
-		switch(arg->d.obj->item_type)
-		{
-		case ITEM_CONTAINER:
-		case ITEM_BOOK:
-		case ITEM_PORTAL:
-//		case ITEM_WEAPON_CONTAINER:
-//		case ITEM_DRINKCONTAINER:
-			break;
-		default:
-			return;
-		}
-	}
+	if (!context.lock)
+		return;
 
 	LOCK_STATE *lock = new_lock_state();
 	SET_BIT(lock->flags, LOCK_CREATED);
 
-	arg->d.obj->lock = lock;
+	*(context.lock) = lock;	// Set the lock on the context
 
-	info->progs->lastreturn = 1;
+	SETRETURN(1);
 }
 
-// LOCKREMOVE $OBJECT
-// TODO: Add to exits
+// LOCKREMOVE $OBJECT <context>
 SCRIPT_CMD(scriptcmd_lockremove)
 {
-	info->progs->lastreturn = 0;
+	char *rest = argument;
+	OBJ_DATA *obj;
+	OCLU_CONTEXT context;
 
-	if( !expand_argument(info,argument,arg) || arg->type != ENT_OBJECT || !IS_VALID(arg->d.obj) )
+	SETRETURN(0);
+
+	PARSE_ARGTYPE(OBJECT);
+	if (!IS_VALID(arg->d.obj))
+		return;
+	obj = arg->d.obj;
+
+	PARSE_ARGTYPE(STRING);
+	if (!oclu_get_context(&context, obj, arg->d.str))
 		return;
 
-	LOCK_STATE *lock = arg->d.obj->lock;
+	LOCK_STATE *lock = *(context.lock);
 
 	if( !lock )
 		return;
@@ -3287,9 +3293,9 @@ SCRIPT_CMD(scriptcmd_lockremove)
 
 	free_lock_state(lock);
 
-	arg->d.obj->lock = NULL;
+	*(context.lock) = NULL;
 
-	info->progs->lastreturn = 1;
+	SETRETURN(1);
 }
 
 // LOCKSET $LOCKSTATE key $WNUM|$OBJECT
@@ -3302,7 +3308,7 @@ SCRIPT_CMD(scriptcmd_lockremove)
 // LOCKSET $LOCKSTATE finalize
 //
 // $LOCKSTATE can be one of the following
-//  - $OBJECT
+//  - $OBJECT <context>
 //  - $EXIT $BOOLEAN
 //  - $ROOM $STRING $BOOLEAN
 //
@@ -3321,7 +3327,17 @@ SCRIPT_CMD(scriptcmd_lockset)
 	switch(arg->type)
 	{
 	case ENT_OBJECT:
-		lock = IS_VALID(arg->d.obj) ? arg->d.obj->lock : NULL;
+		if (IS_VALID(arg->d.obj))
+		{
+			OBJ_DATA *obj = arg->d.obj;
+			OCLU_CONTEXT context;
+
+			PARSE_ARGTYPE(STRING);
+			if (!oclu_get_context(&context, obj, arg->d.str))
+				return;
+
+			lock = *(context.lock);
+		}
 		break;
 	
 	case ENT_EXIT: {
@@ -3497,7 +3513,6 @@ SCRIPT_CMD(scriptcmd_lockset)
 		unsigned long id0 = 0, id1 = 0;
 		if (!str_prefix(arg->d.str, "add"))
 		{
-
 			if (!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_OBJECT)
 				return;
 
@@ -3507,7 +3522,7 @@ SCRIPT_CMD(scriptcmd_lockset)
 			bool found = FALSE;
 			LLIST_UID_DATA *luid;
 			ITERATOR sxit;
-			iterator_start(&sxit, lock->keys);
+			iterator_start(&sxit, lock->special_keys);
 			while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&sxit)) )
 			{
 				if (luid->ptr == arg->d.obj)
@@ -3525,7 +3540,7 @@ SCRIPT_CMD(scriptcmd_lockset)
 				luid->id[0] = arg->d.obj->id[0];
 				luid->id[1] = arg->d.obj->id[1];
 
-				list_appendlink(lock->keys, luid);
+				list_appendlink(lock->special_keys, luid);
 			}
 		}
 		else if(!str_prefix(arg->d.str, "remove"))
@@ -3553,7 +3568,7 @@ SCRIPT_CMD(scriptcmd_lockset)
 
 			LLIST_UID_DATA *luid;
 			ITERATOR sxit;
-			iterator_start(&sxit, lock->keys);
+			iterator_start(&sxit, lock->special_keys);
 			while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&sxit)) )
 			{
 				if (luid->id[0] == id0 && luid->id[1] == id1)
@@ -3567,7 +3582,7 @@ SCRIPT_CMD(scriptcmd_lockset)
 		}
 		else if (!str_prefix(arg->d.str, "clear"))
 		{
-			list_clear(lock->keys);
+			list_clear(lock->special_keys);
 		}
 		else
 			return;

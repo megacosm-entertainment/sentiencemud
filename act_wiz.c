@@ -1523,6 +1523,45 @@ void do_astat (CHAR_DATA * ch, char *argument)
     return;
 }
 
+char *lockstate_keylist(LOCK_STATE *lock)
+{
+	static char buf[4][MSL];
+	static int cnt = 0;
+
+	if (++cnt == 4) cnt = 0;
+
+	char *p = buf[cnt];
+	*p = '\0';
+
+	/*
+	ITERATOR it;
+	LOCK_STATE_KEY *key;
+	iterator_start(&it, lock->keys);
+	while((key = (LOCK_STATE_KEY *)iterator_nextdata(&it)))
+	{
+		char buf2[MIL];
+		sprintf(buf2, "%ld#%ld",
+			key->wnum.pArea ? key->wnum.pArea->uid : 0,
+			key->wnum.vnum);
+		
+		if (*p) strcat(p, ", ");
+		strcat(p, buf2);
+	}
+	iterator_stop(&it);
+	if (!*p) strcat(p, "none");
+
+	*/
+	if (lock->key_wnum.pArea && lock->key_wnum.vnum > 0)
+	{
+		sprintf(p, "%ld#%ld", lock->key_wnum.pArea->uid, lock->key_wnum.vnum);
+	}
+	else
+	{
+		strcat(p, "none");
+	}
+
+	return p;
+}
 
 void do_rstat(CHAR_DATA *ch, char *argument)
 {
@@ -1622,13 +1661,12 @@ void do_rstat(CHAR_DATA *ch, char *argument)
 			{
 				sprintf(buf,
                         "{x%s {Y[ENVIRONMENT]{x\n\r"
-						"    {YKey: {x%ld#%ld  Pick Chance: {x%d%%\n\r"
+						"    {YKey: {x%s  Pick Chance: {x%d%%\n\r"
 						"    {YLock Flags: {x%s\n\r"
 						"    {YExit flags: {x%s\n\r"
 						"    {YKeyword:{x '%s'  {YDescription: {x%s",
                         dir_name[door],
-                        pexit->door.lock.key_wnum.pArea ? pexit->door.lock.key_wnum.pArea->uid : 0,
-						pexit->door.lock.key_wnum.vnum, pexit->door.lock.pick_chance,
+						lockstate_keylist(&pexit->door.lock), pexit->door.lock.pick_chance,
 						flag_string(lock_flags, pexit->door.lock.flags),
                         flag_string(exit_flags, pexit->exit_info),
                         pexit->keyword,
@@ -1639,13 +1677,12 @@ void do_rstat(CHAR_DATA *ch, char *argument)
 			{
 				sprintf(buf,
                         "{x%s {Y[PREVIOUS FLOOR]{x\n\r"
-						"    {YKey: {x%ld#%ld  Pick Chance: {x%d%%\n\r"
+						"    {YKey: {x%s  Pick Chance: {x%d%%\n\r"
 						"    {YLock Flags: {x%s\n\r"
 						"    {YExit flags: {x%s\n\r"
                         "    {YKeyword:{x '%s'  {YDescription: {x%s",
                         dir_name[door],
-                        pexit->door.lock.key_wnum.pArea ? pexit->door.lock.key_wnum.pArea->uid : 0,
-						pexit->door.lock.key_wnum.vnum, pexit->door.lock.pick_chance,
+                        lockstate_keylist(&pexit->door.lock), pexit->door.lock.pick_chance,
 						flag_string(lock_flags, pexit->door.lock.flags),
                         flag_string(exit_flags, pexit->exit_info),
                         pexit->keyword,
@@ -1656,13 +1693,12 @@ void do_rstat(CHAR_DATA *ch, char *argument)
 			{
 				sprintf(buf,
 					"{x%s {Y[NEXT FLOOR]{x\n\r"
-					"    {YKey: {x%ld#%ld  Pick Chance: {x%d%%\n\r"
+					"    {YKey: {x%s  Pick Chance: {x%d%%\n\r"
 					"    {YLock Flags: {x%s\n\r"
 					"    {YExit flags: {x%s\n\r"
 					"    {YKeyword:{x '%s'  {YDescription: {x%s",
 					dir_name[door],
-					pexit->door.lock.key_wnum.pArea ? pexit->door.lock.key_wnum.pArea->uid : 0,
-					pexit->door.lock.key_wnum.vnum, pexit->door.lock.pick_chance,
+					lockstate_keylist(&pexit->door.lock), pexit->door.lock.pick_chance,
 					flag_string(lock_flags, pexit->door.lock.flags),
 					flag_string(exit_flags, pexit->exit_info),
 					pexit->keyword,
@@ -1676,7 +1712,7 @@ void do_rstat(CHAR_DATA *ch, char *argument)
 
 				sprintf(buf,
 					"{x%s {Yto vnum {x%ld '%s' {Yin Area uid:{x %ld '%s'\n\r"
-					"    {YKey: {x%ld#%ld  Pick Chance: {x%d%%\n\r"
+					"    {YKey: {x%s  Pick Chance: {x%d%%\n\r"
 					"    {YLock Flags: {x%s\n\r"
 					"    {YExit flags: {x%s\n\r"
 					"    {YKeyword:{x '%s'  {YDescription: {x%s",
@@ -1685,8 +1721,7 @@ void do_rstat(CHAR_DATA *ch, char *argument)
 					(dest ? dest->name : "(null)"),
 					(dest ? dest->area->uid : -1),
 					(dest ? dest->area->name : "(null)"),
-					pexit->door.lock.key_wnum.pArea ? pexit->door.lock.key_wnum.pArea->uid : 0,
-					pexit->door.lock.key_wnum.vnum, pexit->door.lock.pick_chance,
+					lockstate_keylist(&pexit->door.lock), pexit->door.lock.pick_chance,
 					flag_string(lock_flags, pexit->door.lock.flags),
 					flag_string(exit_flags, pexit->exit_info),
 					pexit->keyword,
@@ -1699,7 +1734,7 @@ void do_rstat(CHAR_DATA *ch, char *argument)
                     /* Exit goes to a wilds location from a static one*/
                     sprintf(buf,
                             "{x%s {Yto coors{x(%d, %d) {Yin Wilds uid:{x %ld{Y, Area uid:{x %ld\n\r"
-                            "    {YKey: {x%ld#%ld  Pick Chance: {x%d%%\n\r"
+                            "    {YKey: {x%s  Pick Chance: {x%d%%\n\r"
 							"    {YLock Flags: {x%s\n\r"
 							"    {YExit flags: {x%s\n\r"
                             "    {YKeyword:{x '%s'  {YDescription: {x%s",
@@ -1708,8 +1743,7 @@ void do_rstat(CHAR_DATA *ch, char *argument)
                             pexit->wilds.y,
                             pexit->wilds.wilds_uid,
                             pexit->wilds.area_uid,
-							pexit->door.lock.key_wnum.pArea ? pexit->door.lock.key_wnum.pArea->uid : 0,
-							pexit->door.lock.key_wnum.vnum, pexit->door.lock.pick_chance,
+							lockstate_keylist(&pexit->door.lock), pexit->door.lock.pick_chance,
 							flag_string(lock_flags, pexit->door.lock.flags),
                             flag_string(exit_flags, pexit->exit_info),
                             pexit->keyword,
@@ -1719,15 +1753,14 @@ void do_rstat(CHAR_DATA *ch, char *argument)
                     /* Exit goes to a wilds location from another wilds one*/
                     sprintf(buf,
                             "{x%s {Yto coors{x (%d, %d)\n\r"
-                            "    {YKey: {x%ld#%ld  Pick Chance: {x%d%%\n\r"
+                            "    {YKey: {x%s  Pick Chance: {x%d%%\n\r"
 							"    {YLock Flags: {x%s\n\r"
 							"    {YExit flags: {x%s\n\r"
                             "    {YKeyword:{x '%s'  {YDescription: {x%s",
                             dir_name[door],
                             pexit->wilds.x,
                             pexit->wilds.y,
-							pexit->door.lock.key_wnum.pArea ? pexit->door.lock.key_wnum.pArea->uid : 0,
-							pexit->door.lock.key_wnum.vnum, pexit->door.lock.pick_chance,
+							lockstate_keylist(&pexit->door.lock), pexit->door.lock.pick_chance,
 							flag_string(lock_flags, pexit->door.lock.flags),
                             flag_string(exit_flags, pexit->exit_info),
                             pexit->keyword,
@@ -1974,6 +2007,15 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 			container_get_content_weight(obj, NULL),
 			container_get_content_volume(obj, NULL));
 	    add_buf(buffer, buf);
+
+		if (CONTAINER(obj)->lock)
+		{
+			sprintf(buf,"   {CLock State:  Key:{x %s Flags:{x %s {CPick Chance:{x %d%%\r",
+						lockstate_keylist(CONTAINER(obj)->lock), 
+						flag_string(lock_flags, CONTAINER(obj)->lock->flags),
+						CONTAINER(obj)->lock->pick_chance);
+			add_buf(buffer, buf);
+		}
 	}
 
 	if (IS_FOOD(obj))
@@ -2072,6 +2114,16 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 			add_buf(buffer, buf);
 			sprintf(buf, " {BMove Regen:{x %d\n\r", compartment->move_regen);
 			add_buf(buffer, buf);
+
+			if (compartment->lock)
+			{
+				sprintf(buf,"   {BLock State:  Key:{x %s {BFlags:{x %s {BPick Chance:{x %d%%\r",
+							lockstate_keylist(compartment->lock), 
+							flag_string(lock_flags, compartment->lock->flags),
+							compartment->lock->pick_chance);
+				add_buf(buffer, buf);
+			}
+
 		}
 		iterator_stop(&it);
 	}

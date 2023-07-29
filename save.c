@@ -2257,6 +2257,31 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 	}
 }
 
+void fwrite_lock_state(FILE *fp, LOCK_STATE *lock)
+{
+	fprintf(fp, "#LOCK\n");
+	fprintf(fp, "Key %s\n", widevnum_string_wnum(lock->key_wnum, NULL));
+	fprintf(fp, "Flags %s\n", print_flags(lock->flags));
+	fprintf(fp, "PickChance %d\n", lock->pick_chance);
+				
+	if (list_size(lock->special_keys) > 0)
+	{
+		LLIST_UID_DATA *luid;
+
+		ITERATOR skit;
+		iterator_start(&skit, lock->special_keys);
+		while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&skit)) )
+		{
+			if (luid->id[0] > 0 && luid->id[1] > 0)
+				fprintf(fp, "SpecialKey %lu %lu\n", luid->id[0], luid->id[1]);
+		}
+
+		iterator_stop(&skit);
+	}
+
+	fprintf(fp, "#-LOCK\n");
+}
+
 void fwrite_obj_multityping(FILE *fp, OBJ_DATA *obj)
 {
 	ITERATOR it;
@@ -2267,6 +2292,7 @@ void fwrite_obj_multityping(FILE *fp, OBJ_DATA *obj)
 
 		fprintf(fp, "#TYPECONTAINER\n");
 		fprintf(fp, "Name %s\n", fix_string(CONTAINER(obj)->name));
+		fprintf(fp, "Short %s\n", fix_string(CONTAINER(obj)->short_descr));
 		fprintf(fp, "Flags %s\n", print_flags(CONTAINER(obj)->flags));
 		fprintf(fp, "MaxWeight %d\n", CONTAINER(obj)->max_weight);
 		fprintf(fp, "WeightMultiplier %d\n", CONTAINER(obj)->weight_multiplier);
@@ -2310,9 +2336,11 @@ void fwrite_obj_multityping(FILE *fp, OBJ_DATA *obj)
 		}
 		iterator_stop(&it);
 
+		if (CONTAINER(obj)->lock)
+			fwrite_lock_state(fp, CONTAINER(obj)->lock);
+
 		fprintf(fp, "#-TYPECONTAINER\n");
 	}
-
 
 	if (IS_FOOD(obj))
 	{
@@ -2372,6 +2400,9 @@ void fwrite_obj_multityping(FILE *fp, OBJ_DATA *obj)
 			fprintf(fp, "HealthRegen %d\n", compartment->health_regen);
 			fprintf(fp, "ManaRegen %d\n", compartment->mana_regen);
 			fprintf(fp, "MoveRegen %d\n", compartment->move_regen);
+			
+			if (compartment->lock)
+				fwrite_lock_state(fp, compartment->lock);
 			
 			fprintf(fp, "#-COMPARTMENT\n");
 		}
@@ -2499,6 +2530,7 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
     if (obj->locker == TRUE)
     	fprintf(fp, "Locker %d\n", obj->locker);
 
+	/*
     if (obj->lock) {
     	fprintf(fp, "Lock %s %d %d", widevnum_string_wnum(obj->lock->key_wnum, NULL), obj->lock->flags, obj->lock->pick_chance);
 
@@ -2519,6 +2551,7 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
 
 		fprintf(fp, " 0\n");
 	}
+	*/
 
 	// Permanent flags based
     fprintf(fp, "PermExtra %ld\n",	obj->extra_flags_perm );
@@ -2739,6 +2772,69 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
 	fwrite_obj_new(ch, obj->contains, fp, iNest + 1);
 }
 
+LOCK_STATE *fread_lock_state(FILE *fp)
+{
+	LOCK_STATE *lock;
+	char buf[MSL];
+    char *word;
+	bool fMatch = FALSE;
+
+	lock = new_lock_state();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPECONTAINER"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+			case 'F':
+				KEY("Flags", lock->flags, fread_flag(fp));
+				break;
+
+			case 'K':
+				if (!str_cmp(word, "Key"))
+				{
+					WNUM_LOAD key_load = fread_widevnum(fp, 0);
+
+					WNUM wnum;
+					wnum.pArea = get_area_from_uid(key_load.auid);
+					wnum.vnum = key_load.vnum;
+					
+					lock->key_wnum = wnum;
+				}
+				break;
+
+			case 'P':
+				KEY("PickChance", lock->pick_chance, fread_flag(fp));
+				break;
+
+			case 'S':
+				if (!str_cmp(word, "SpecialKey"))
+				{
+					unsigned long id0 = fread_number(fp);
+					unsigned long id1 = fread_number(fp);
+
+					LLIST_UID_DATA *luid = new_list_uid_data();
+					luid->ptr = NULL;	// Resolve it later
+					luid->id[0] = id0;
+					luid->id[1] = id1;
+
+					list_appendlink(lock->special_keys, luid);
+					fMatch = TRUE;
+					break;
+				}
+				break;
+		}
+
+
+		if (!fMatch) {
+			sprintf(buf, "fread_lock_state: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return lock;
+}
 
 CONTAINER_DATA *fread_obj_container_data(FILE *fp)
 {
@@ -2755,6 +2851,17 @@ CONTAINER_DATA *fread_obj_container_data(FILE *fp)
 
 		switch(word[0])
 		{
+			case '#':
+				if (!str_cmp(word, "#LOCK"))
+				{
+					if (data->lock) free_lock_state(data->lock);
+
+					data->lock = fread_lock_state(fp);
+					fMatch = TRUE;
+					break;
+				}
+				break;
+
 			case 'B':
 				if (!str_cmp(word, "Blacklist"))
 				{
@@ -2791,6 +2898,10 @@ CONTAINER_DATA *fread_obj_container_data(FILE *fp)
 			
 			case 'N':
 				KEYS("Name", data->name, fread_string(fp));
+				break;
+			
+			case 'S':
+				KEYS("Short", data->short_descr, fread_string(fp));
 				break;
 
 			case 'W':
@@ -2941,6 +3052,17 @@ FURNITURE_COMPARTMENT *fread_furniture_compartment(FILE *fp)
 		bool fMatch = FALSE;
 		switch(word[0])
 		{
+			case '#':
+				if (!str_cmp(word, "#LOCK"))
+				{
+					if (data->lock) free_lock_state(data->lock);
+
+					data->lock = fread_lock_state(fp);
+					fMatch = TRUE;
+					break;
+				}
+				break;
+
 			case 'D':
 				KEYS("Description", data->description, fread_string(fp));
 				break;
@@ -2953,6 +3075,7 @@ FURNITURE_COMPARTMENT *fread_furniture_compartment(FILE *fp)
 				KEY("Hanging", data->hanging, fread_flag(fp));
 				KEY("HealthRegen", data->health_regen, fread_number(fp));
 				break;
+
 
 			case 'M':
 				KEY("ManaRegen", data->mana_regen, fread_number(fp));
@@ -3795,6 +3918,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 			KEY("LastWear",	obj->last_wear_loc,	fread_number(fp));
 			KEY("Locker",	obj->locker,		fread_number(fp));
 
+			/*
 			if( !str_cmp(word,"Lock") )
 			{
 				if( !obj->lock )
@@ -3824,12 +3948,10 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 					id0 = fread_number(fp);
 				}
 
-				// TODO: special keys
-
 				fMatch = TRUE;
 				break;
 			}
-
+			*/
 
 			if (!str_cmp(word, "Level") || !str_cmp(word, "Lev"))
 			{
@@ -4225,20 +4347,46 @@ void cleanup_affects(OBJ_DATA *obj)
 
 #define HAS_ALL_BITS(a, b) (((a) & (b)) == (a))
 
-void fix_object_lockstate(OBJ_DATA *obj)
+
+// Resolve all special keys
+void fix_lockstate(LOCK_STATE *state)
 {
-	if (obj->lock)
+	if (state)
 	{
 		LLIST_UID_DATA *luid;
 		ITERATOR skit;
 
-		iterator_start(&skit, obj->lock->keys);
+		iterator_start(&skit, state->special_keys);
 		while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&skit)) )
 		{
 			luid->ptr = idfind_object(luid->id[0], luid->id[1]);
 		}
 		iterator_stop(&skit);
+	}	
+}
+
+void fix_object_lockstate(OBJ_DATA *obj)
+{
+	// IS_BOOK
+
+	if (IS_CONTAINER(obj) && CONTAINER(obj)->lock)
+		fix_lockstate(CONTAINER(obj)->lock);
+	
+	if (IS_FURNITURE(obj))
+	{
+		ITERATOR it;
+		FURNITURE_COMPARTMENT *compartment;
+		iterator_start(&it, FURNITURE(obj)->compartments);
+		while((compartment = (FURNITURE_COMPARTMENT *)iterator_nextdata(&it)))
+		{
+			if (compartment->lock)
+				fix_lockstate(compartment->lock);
+		}
+		iterator_stop(&it);
 	}
+
+	// IS_PORTAL
+
 
 	if (obj->contains)
 	{

@@ -702,6 +702,7 @@ void script_loop_cleanup(SCRIPT_CB *block, int level)
 			case ENT_PLLIST_TOK:
 			case ENT_PLLIST_CHURCH:
 			case ENT_PLLIST_FOOD_BUFF:
+			case ENT_PLLIST_COMPARTMENT:
 			case ENT_ILLIST_VARIABLE:
 				iterator_stop(&block->loops[i].d.l.list.it);
 				break;
@@ -1036,6 +1037,7 @@ DECL_OPC_FUN(opc_list)
 	AREA_DATA *area;
 	AREA_REGION *aregion;
 	FOOD_BUFF_DATA *food_buff;
+	FURNITURE_COMPARTMENT *compartment;
 
 	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
 		return opc_skip_block(block,block->cur_line->level-1,FALSE);
@@ -1905,6 +1907,35 @@ DECL_OPC_FUN(opc_list)
 			// Set the variable
 			variables_set_food_buff(block->info.var,block->loops[lp].var_name,food_buff);
 			break;
+
+		case ENT_PLLIST_COMPARTMENT:
+			//log_stringf("opc_list: list type ENT_PLLIST_COMPARTMENT");
+			if(!arg->d.blist || !arg->d.blist->valid)
+			{
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			block->loops[lp].d.l.type = ENT_PLLIST_COMPARTMENT;
+			block->loops[lp].d.l.list.lp = arg->d.blist;
+			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
+			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+			compartment = (FURNITURE_COMPARTMENT *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+			//log_stringf("opc_list: church(%s)", church ? church->name : "<END>");
+
+			if( !compartment ) {
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			// Set the variable
+			variables_set_compartment(block->info.var,block->loops[lp].var_name,compartment);
+			break;
+
 		case ENT_ILLIST_MOB_GROUP:
 			//log_stringf("opc_list: list type ENT_ILLIST_MOB_GROUP");
 			if(!arg->d.group_owner || !arg->d.group_owner->in_room)
@@ -2625,6 +2656,21 @@ DECL_OPC_FUN(opc_list)
 			variables_set_food_buff(block->info.var,block->loops[lp].var_name,food_buff);
 
 			if( !food_buff ) {
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				skip = TRUE;
+				break;
+			}
+
+			break;
+
+		case ENT_PLLIST_COMPARTMENT:
+			//log_stringf("opc_list: list type ENT_PLLIST_COMPARTMENT");
+			compartment = (FURNITURE_COMPARTMENT *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+			// Set the variable
+			variables_set_compartment(block->info.var,block->loops[lp].var_name,compartment);
+
+			if( !compartment ) {
 				iterator_stop(&block->loops[lp].d.l.list.it);
 				skip = TRUE;
 				break;
@@ -4189,8 +4235,8 @@ bool script_change_exit(ROOM_INDEX_DATA *pRoom, ROOM_INDEX_DATA *pToRoom, int do
 		SET_BIT(pRoom->exit[door]->door.lock.flags, LOCK_CREATED);
 		SET_BIT(pRoom->exit[door]->door.rs_lock.flags, LOCK_CREATED);
 		// Create one special keys list, they share it.
-		pRoom->exit[door]->door.rs_lock.keys = list_createx(FALSE, NULL, delete_list_uid_data);
-		pRoom->exit[door]->door.lock.keys = pRoom->exit[door]->door.rs_lock.keys;
+		pRoom->exit[door]->door.rs_lock.special_keys = list_createx(FALSE, NULL, delete_list_uid_data);
+		pRoom->exit[door]->door.lock.special_keys = pRoom->exit[door]->door.rs_lock.special_keys;
 	}
 
 	pRoom->exit[door]->u1.to_room = pToRoom;
@@ -4204,8 +4250,8 @@ bool script_change_exit(ROOM_INDEX_DATA *pRoom, ROOM_INDEX_DATA *pToRoom, int do
 		SET_BIT(pExit->door.lock.flags, LOCK_CREATED);
 		SET_BIT(pExit->door.rs_lock.flags, LOCK_CREATED);
 		// Create one special keys list, they share it.
-		pExit->door.rs_lock.keys = list_createx(FALSE, NULL, delete_list_uid_data);
-		pExit->door.lock.keys = pExit->door.rs_lock.keys;
+		pExit->door.rs_lock.special_keys = list_createx(FALSE, NULL, delete_list_uid_data);
+		pExit->door.lock.special_keys = pExit->door.rs_lock.special_keys;
 		pExit->u1.to_room = pRoom;
 		pExit->orig_door = door;
 		pExit->from_room = pToRoom;
@@ -4217,8 +4263,6 @@ bool script_change_exit(ROOM_INDEX_DATA *pRoom, ROOM_INDEX_DATA *pToRoom, int do
 
 	return TRUE;
 }
-
-
 
 
 char *trigger_name(int type)

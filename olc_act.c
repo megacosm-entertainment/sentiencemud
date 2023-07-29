@@ -4490,6 +4490,8 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		add_buf(buffer, "\n\r{GContainer:{x\n\r");
 		sprintf(buf, "{B[{WName             {B]:  {x%s\n\r", CONTAINER(obj)->name);
 		add_buf(buffer, buf);
+		sprintf(buf, "{B[{WShort Description{B]:  {x%s\n\r", CONTAINER(obj)->short_descr);
+		add_buf(buffer, buf);
 		sprintf(buf, "{B[{WFlags            {B]:  {x%s\n\r", flag_string(container_flags, CONTAINER(obj)->flags));
 		add_buf(buffer, buf);
 		sprintf(buf, "{B[{WMax Weight       {B]:  {x%d\n\r", CONTAINER(obj)->max_weight);
@@ -4555,6 +4557,21 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 			iterator_stop(&it);
 		}
 
+		if( CONTAINER(obj)->lock )
+		{
+			OBJ_INDEX_DATA *lock_key = get_obj_index(CONTAINER(obj)->lock->key_wnum.pArea, CONTAINER(obj)->lock->key_wnum.vnum);
+
+			sprintf(buf," {x[{YLock State:{x]\n\r"
+						"   Key:         {B[{x%ld#%ld{B]{x %s\n\r"
+						"   Flags:       {B[{x%s{B]{x\n\r"
+						"   Pick Chance: {B[{x%d%%{B]{x\n\r",
+						CONTAINER(obj)->lock->key_wnum.pArea ? CONTAINER(obj)->lock->key_wnum.pArea->uid : 0,
+						CONTAINER(obj)->lock->key_wnum.vnum,
+						lock_key ? lock_key->short_descr : "none",
+						flag_string(lock_flags, CONTAINER(obj)->lock->flags),
+						CONTAINER(obj)->lock->pick_chance);
+			add_buf(buffer, buf);
+		}
 	}
 
 	if (IS_FOOD(obj))
@@ -4684,6 +4701,22 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 				add_buf(buffer, buf);
 				sprintf(buf, "    {C[{WMove Regen  {C]:  {x%d\n\r", compartment->move_regen);
 				add_buf(buffer, buf);
+
+				if( compartment->lock )
+				{
+					OBJ_INDEX_DATA *lock_key = get_obj_index(compartment->lock->key_wnum.pArea, compartment->lock->key_wnum.vnum);
+
+					sprintf(buf,"    {C[{WLock State   {C]\n\r"
+								"      Key:         {C[{x%ld#%ld{C]{x %s\n\r"
+								"      Flags:       {C[{x%s{C]{x\n\r"
+								"      Pick Chance: {C[{x%d%%{C]{x\n\r",
+								compartment->lock->key_wnum.pArea ? compartment->lock->key_wnum.pArea->uid : 0,
+								compartment->lock->key_wnum.vnum,
+								lock_key ? lock_key->short_descr : "none",
+								flag_string(lock_flags, compartment->lock->flags),
+								compartment->lock->pick_chance);
+					add_buf(buffer, buf);
+				}
 
 				cnt++;
 			}
@@ -9152,9 +9185,16 @@ OEDIT(oedit_type_container)
 		if (IS_CONTAINER(pObj))
 		{
 			send_to_char("Syntax:  container name <name>\n\r", ch);
+			send_to_char("         container short <short description>\n\r", ch);
 			send_to_char("         container flags <flags>\n\r", ch);
 			send_to_char("         container weight <#max|unlimited>[ <%multiplier>]\n\r", ch);
 			send_to_char("         container volume <#max|unlimited>\n\r", ch);
+			send_to_char("         container lock add\n\r", ch);
+			send_to_char("         container lock remove\n\r", ch);
+			send_to_char("         container lock key <widevnum>\n\r", ch);
+			send_to_char("         container lock key clear\n\r", ch);
+			send_to_char("         container lock flags [flags]\n\r", ch);
+			send_to_char("         container lock pick [0-100]\n\r", ch);
 			send_to_char("         container whitelist list\n\r", ch);
 			send_to_char("         container whitelist clear\n\r", ch);
 			send_to_char("         container whitelist add <type>[ <subtype>]\n\r", ch);
@@ -9194,6 +9234,21 @@ OEDIT(oedit_type_container)
 			return TRUE;
 		}
 
+		if (!str_prefix(arg, "short"))
+		{
+			if (IS_NULLSTR(argument))
+			{
+				send_to_char("Please specify a short description.\n\r", ch);
+				return FALSE;
+			}
+
+			smash_tilde(argument);
+			free_string(CONTAINER(pObj)->short_descr);
+			CONTAINER(pObj)->short_descr = str_dup(argument);
+			send_to_char("CONTAINER Short Description changed.\n\r", ch);
+			return TRUE;
+		}
+
 		if (!str_prefix(arg, "flags"))
 		{
 			long value;
@@ -9208,6 +9263,140 @@ OEDIT(oedit_type_container)
 			TOGGLE_BIT(CONTAINER(pObj)->flags, value);
 			send_to_char("CONTAINER flags toggled.\n\r", ch);
 			return TRUE;
+		}
+
+		if (!str_prefix(arg, "lock"))
+		{
+			argument = one_argument(argument, arg);
+
+			if( !str_prefix(arg, "add") )
+			{
+				if( CONTAINER(pObj)->lock )
+				{
+					send_to_char("CONTAINER already has a lock state.\n\r", ch);
+					return FALSE;
+				}
+
+				CONTAINER(pObj)->lock = new_lock_state();
+				send_to_char("Lock State added.\n\r", ch);
+				return TRUE;
+			}
+
+			if( !str_prefix(arg, "remove") )
+			{
+				if( !CONTAINER(pObj)->lock )
+				{
+					send_to_char("CONTAINER does not have a lock state.\n\r", ch);
+					return FALSE;
+				}
+
+
+				free_lock_state(CONTAINER(pObj)->lock);
+				CONTAINER(pObj)->lock = NULL;
+
+				send_to_char("Lock State removed.\n\r", ch);
+				return TRUE;
+			}
+
+			if( !str_prefix(arg, "key") )
+			{
+				if( !CONTAINER(pObj)->lock )
+				{
+					send_to_char("CONTAINER does not have a lock state.\n\r", ch);
+					return FALSE;
+				}
+
+				if( argument[0] == '\0' )
+				{
+					send_to_char("Syntax:  container lock key <widevnum>\n\r", ch);
+					send_to_char("         container lock key clear\n\r", ch);
+					return FALSE;
+				}
+
+				WNUM wnum;
+				if( parse_widevnum(argument, pObj->area, &wnum) )
+				{
+					OBJ_INDEX_DATA *key = get_obj_index(wnum.pArea, wnum.vnum);
+
+					if( !key )
+					{
+						send_to_char("That object does not exist.\n\r", ch);
+						return FALSE;
+					}
+
+					if( key->item_type != ITEM_KEY )
+					{
+						send_to_char("That object is not a key.\n\r", ch);
+						return FALSE;
+					}
+
+					// TODO: make a list
+					CONTAINER(pObj)->lock->key_wnum = wnum;
+					send_to_char("Lock State key set.\n\r", ch);
+					return TRUE;
+				}
+				else if( !str_prefix(argument, "clear") )
+				{
+					CONTAINER(pObj)->lock->key_wnum = wnum_zero;
+					send_to_char("Lock State key removed.\n\r", ch);
+					return TRUE;
+				}
+
+				oedit_type_container(ch, "lock key");
+				return FALSE;
+			}
+
+			if( !str_prefix(arg, "flags") )
+			{
+				if( !CONTAINER(pObj)->lock )
+				{
+					send_to_char("CONTAINER does not have a lock state.\n\r", ch);
+					return FALSE;
+				}
+
+				int value = flag_value(lock_flags, argument);
+
+				if( value == NO_FLAG )
+				{
+					send_to_char("Syntax:  container lock flags [flags]\n\r", ch);
+					send_to_char("See \"? lock\" for list of flags\n\r\n\r", ch);
+					show_help(ch, "lock");
+					return FALSE;
+				}
+
+				CONTAINER(pObj)->lock->flags ^= value;
+				send_to_char("Lock State flags changed.\n\r", ch);
+				return TRUE;
+			}
+
+			if( !str_prefix(arg, "pick") )
+			{
+				if( !CONTAINER(pObj)->lock )
+				{
+					send_to_char("CONTAINER does not have a lock state.\n\r", ch);
+					return FALSE;
+				}
+
+				if( !is_number(argument) )
+				{
+					send_to_char("That is not a number.\n\r", ch);
+					return FALSE;
+				}
+
+				int value = atoi(argument);
+				if( value < 0 || value > 100 )
+				{
+					send_to_char("Pick chance must be from 0 to 100.\n\r", ch);
+					return FALSE;
+				}
+
+				CONTAINER(pObj)->lock->pick_chance = value;
+				send_to_char("Lock State pick chance set.\n\r", ch);
+				return TRUE;
+			}
+
+			oedit_type_container(ch, "");
+			return FALSE;
 		}
 
 		if (!str_prefix(arg, "weight"))
@@ -9842,6 +10031,13 @@ OEDIT(oedit_type_furniture)
 			send_to_char("         furniture compartment <#> mana <regen rate>\n\r", ch);
 			send_to_char("         furniture compartment <#> move <regen rate>\n\r", ch);
 
+			send_to_char("         furniture compartment <#> lock add\n\r", ch);
+			send_to_char("         furniture compartment <#> lock remove\n\r", ch);
+			send_to_char("         furniture compartment <#> lock key <widevnum>\n\r", ch);
+			send_to_char("         furniture compartment <#> lock key clear\n\r", ch);
+			send_to_char("         furniture compartment <#> lock flags [flags]\n\r", ch);
+			send_to_char("         furniture compartment <#> lock pick [0-100]\n\r", ch);
+
 			if (pObj->item_type != ITEM_FURNITURE)
 				send_to_char("         furniture remove\n\r", ch);
 		}
@@ -9956,6 +10152,22 @@ OEDIT(oedit_type_furniture)
 							add_buf(buffer, buf);
 							sprintf(buf, "   Move Regen:   %d\n\r", compartment->move_regen);
 							add_buf(buffer, buf);
+
+							if (compartment->lock)
+							{
+								OBJ_INDEX_DATA *lock_key = get_obj_index(compartment->lock->key_wnum.pArea, compartment->lock->key_wnum.vnum);
+
+								sprintf(buf,"   Lock State:\n\r"
+											"    Key:         %s (%ld#%ld)\n\r"
+											"    Flags:       %s\n\r"
+											"    Pick Chance: %d%%\r",
+											lock_key ? lock_key->short_descr : "none",
+											compartment->lock->key_wnum.pArea ? compartment->lock->key_wnum.pArea->uid : 0,
+											compartment->lock->key_wnum.vnum,
+											flag_string(lock_flags, compartment->lock->flags),
+											compartment->lock->pick_chance);
+								add_buf(buffer, buf);
+							}
 						}
 						iterator_stop(&it);
 
@@ -10082,6 +10294,139 @@ OEDIT(oedit_type_furniture)
 						TOGGLE_BIT(compartment->flags, value);
 						send_to_char("FURNITURE Compartment Flags toggled.\n\r", ch);
 						return TRUE;
+					}
+
+					if (!str_prefix(arg, "lock"))
+					{
+						argument = one_argument(argument, arg);
+
+						if( !str_prefix(arg, "add") )
+						{
+							if( compartment->lock )
+							{
+								send_to_char("Compartment already has a lock state.\n\r", ch);
+								return FALSE;
+							}
+
+							compartment->lock = new_lock_state();
+							send_to_char("Lock State added.\n\r", ch);
+							return TRUE;
+						}
+
+						if( !str_prefix(arg, "remove") )
+						{
+							if( !compartment->lock )
+							{
+								send_to_char("Compartment does not have a lock state.\n\r", ch);
+								return FALSE;
+							}
+
+							free_lock_state(compartment->lock);
+							compartment->lock = NULL;
+
+							send_to_char("Lock State removed.\n\r", ch);
+							return TRUE;
+						}
+
+						if( !str_prefix(arg, "key") )
+						{
+							if( !compartment->lock )
+							{
+								send_to_char("Compartment does not have a lock state.\n\r", ch);
+								return FALSE;
+							}
+
+							if( argument[0] == '\0' )
+							{
+								send_to_char("Syntax:  furniture compartment <#> lock key <widevnum>\n\r", ch);
+								send_to_char("         furniture compartment <#> lock key clear\n\r", ch);
+								return FALSE;
+							}
+
+							WNUM wnum;
+							if( parse_widevnum(argument, pObj->area, &wnum) )
+							{
+								OBJ_INDEX_DATA *key = get_obj_index(wnum.pArea, wnum.vnum);
+
+								if( !key )
+								{
+									send_to_char("That object does not exist.\n\r", ch);
+									return FALSE;
+								}
+
+								if( key->item_type != ITEM_KEY )
+								{
+									send_to_char("That object is not a key.\n\r", ch);
+									return FALSE;
+								}
+
+								// TODO: make a list
+								compartment->lock->key_wnum = wnum;
+								send_to_char("Lock State key set.\n\r", ch);
+								return TRUE;
+							}
+							else if( !str_prefix(argument, "clear") )
+							{
+								compartment->lock->key_wnum = wnum_zero;
+								send_to_char("Lock State key removed.\n\r", ch);
+								return TRUE;
+							}
+
+							oedit_type_furniture(ch, "");
+							return FALSE;
+						}
+
+						if( !str_prefix(arg, "flags") )
+						{
+							if( !compartment->lock )
+							{
+								send_to_char("Compartment does not have a lock state.\n\r", ch);
+								return FALSE;
+							}
+
+							int value = flag_value(lock_flags, argument);
+
+							if( value == NO_FLAG )
+							{
+								send_to_char("Syntax:  container lock flags [flags]\n\r", ch);
+								send_to_char("See \"? lock\" for list of flags\n\r\n\r", ch);
+								show_help(ch, "lock");
+								return FALSE;
+							}
+
+							compartment->lock->flags ^= value;
+							send_to_char("Lock State flags changed.\n\r", ch);
+							return TRUE;
+						}
+
+						if( !str_prefix(arg, "pick") )
+						{
+							if( !compartment->lock )
+							{
+								send_to_char("Compartment does not have a lock state.\n\r", ch);
+								return FALSE;
+							}
+
+							if( !is_number(argument) )
+							{
+								send_to_char("That is not a number.\n\r", ch);
+								return FALSE;
+							}
+
+							int value = atoi(argument);
+							if( value < 0 || value > 100 )
+							{
+								send_to_char("Pick chance must be from 0 to 100.\n\r", ch);
+								return FALSE;
+							}
+
+							compartment->lock->pick_chance = value;
+							send_to_char("Lock State pick chance set.\n\r", ch);
+							return TRUE;
+						}
+
+						oedit_type_furniture(ch, "");
+						return FALSE;
 					}
 
 					if (!str_prefix(arg3, "maxoccupants"))

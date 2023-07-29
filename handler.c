@@ -4296,6 +4296,18 @@ bool can_see(CHAR_DATA *ch, CHAR_DATA *victim)
 	if (!IS_NPC(ch) && IS_SET(ch->act, PLR_HOLYLIGHT) && victim->invis_level <= get_trust(ch))
 		return TRUE;
 
+	// Different compartments
+	if (victim->on_compartment != ch->on_compartment)
+	{
+		// In a compartment that you cannot see into
+		if (victim->on_compartment && compartment_is_closed(victim->on_compartment) && !IS_SET(victim->on_compartment->flags, COMPARTMENT_TRANSPARENT))
+			return FALSE;
+
+		// In a compartment that you cannot see out of
+		if (ch->on_compartment && compartment_is_closed(ch->on_compartment) && !IS_SET(ch->on_compartment->flags, COMPARTMENT_TRANSPARENT))
+			return FALSE;
+	}
+
 	// these types of mobs can see everybody.
 	if (IS_NPC(ch) && (IS_SET(ch->act2, ACT2_SEE_ALL) || IS_SET(ch->act, ACT_IS_BANKER) || IS_SET(ch->act, ACT_IS_CHANGER) || ch->pIndexData->pQuestor != NULL))
 		return TRUE;
@@ -7306,6 +7318,9 @@ void extract_event(EVENT_DATA *ev)
 	ROOM_INDEX_DATA *room = NULL;
 	TOKEN_DATA *token = NULL;
 
+	if (!IS_VALID(ev))
+		return;
+
 	/* Remove from global list */
 
 	/* Find it in the list first
@@ -7318,17 +7333,20 @@ void extract_event(EVENT_DATA *ev)
 		ev_last = ev_temp;
 	}
 
-	if (ev_last != NULL)
-		ev_last->next = ev_temp->next;
-	else
-		events = ev_temp->next;
-
-	if( events_tail == ev_temp )
+	if (ev_temp)
 	{
-		if( ev_last )
-			events_tail = ev_last;
+		if (ev_last != NULL)
+			ev_last->next = ev_temp->next;
 		else
-			events_tail = NULL;
+			events = ev_temp->next;
+
+		if( events_tail == ev_temp )
+		{
+			if( ev_last )
+				events_tail = ev_last;
+			else
+				events_tail = NULL;
+		}
 	}
 
 	/* Remove from entity list */
@@ -7375,16 +7393,18 @@ void extract_event(EVENT_DATA *ev)
 			ev_entity_last = ev_entity_temp;
 		}
 
-		if (ev_entity_last)
-			ev_entity_last->next_event = ev_entity_temp->next_event;
-		else
-			*ev_head = ev_entity_temp->next_event;
+		if (ev_entity_temp)
+		{
+			if (ev_entity_last)
+				ev_entity_last->next_event = ev_entity_temp->next_event;
+			else
+				*ev_head = ev_entity_temp->next_event;
 
-		if( *ev_tail == ev_entity_temp )
-			*ev_tail = ev_entity_last;
-		else
-			*ev_tail = NULL;
-
+			if( *ev_tail == ev_entity_temp )
+				*ev_tail = ev_entity_last;
+			else
+				*ev_tail = NULL;
+		}
 	}
 
 	free_event(ev);
@@ -9651,7 +9671,7 @@ bool lockstate_functional(LOCK_STATE *lock)
 {
 	if( !lock ) return false;
 
-	if( list_size(lock->keys) > 0 )
+	if( list_size(lock->special_keys) > 0 )
 	{
 		return true;
 	}
@@ -9668,13 +9688,13 @@ OBJ_DATA *lockstate_getkey(CHAR_DATA *ch, LOCK_STATE *lock)
 {
 	if( !lock ) return NULL;
 
-	if( IS_VALID(lock->keys) )
+	if( IS_VALID(lock->special_keys) )
 	{
 		LLIST_UID_DATA *luid;
 		OBJ_DATA *obj = NULL;
 
 		ITERATOR it;
-		iterator_start(&it, lock->keys);
+		iterator_start(&it, lock->special_keys);
 		while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
 		{
 			if( luid->ptr )
@@ -9695,7 +9715,9 @@ OBJ_DATA *lockstate_getkey(CHAR_DATA *ch, LOCK_STATE *lock)
 		}
 		iterator_stop(&it);
 
-		return obj;
+		// Allow for situations where you have special keys *and* general keys
+		if(obj || !IS_SET(lock->flags, LOCK_CHECK_BOTH))
+			return obj;
 	}
 
 	if( lock->key_wnum.pArea && lock->key_wnum.vnum > 0 )
@@ -9732,12 +9754,12 @@ bool lockstate_iskey(LOCK_STATE *lock, OBJ_DATA *key)
 {
 	if( !lock || !IS_VALID(key) ) return FALSE;
 
-	if( IS_VALID(lock->keys) )
+	if( IS_VALID(lock->special_keys) )
 	{
 		LLIST_UID_DATA *luid;
 
 		ITERATOR it;
-		iterator_start(&it, lock->keys);
+		iterator_start(&it, lock->special_keys);
 		while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&it)) )
 		{
 			if (luid->ptr == key)
@@ -9747,7 +9769,8 @@ bool lockstate_iskey(LOCK_STATE *lock, OBJ_DATA *key)
 		}
 		iterator_stop(&it);
 
-		return FALSE;
+		if (!IS_SET(lock->flags, LOCK_CHECK_BOTH))
+			return FALSE;
 	}
 
 	return wnum_match_obj(lock->key_wnum, key);

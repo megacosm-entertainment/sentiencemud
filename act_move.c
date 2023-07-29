@@ -406,7 +406,7 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 		return;
 
 	/* Check if char is "on" something. preventing movement */
-	if (ch->on) {
+	if (ch->on && ch->on_compartment && !IS_SET(ch->on_compartment->flags, COMPARTMENT_ALLOW_MOVE)) {
 		act("You must get off $p first.", ch, NULL, NULL, ch->on, NULL, NULL, NULL, TO_CHAR);
 		return;
 	}
@@ -606,6 +606,9 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 		act("$n stops reciting.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 		ch->recite = 0;
 	}
+
+	ch->on = NULL;
+	ch->on_compartment = NULL;
 
 	char_from_room(ch);
 
@@ -1388,12 +1391,13 @@ int find_door(CHAR_DATA *ch, char *arg, bool show)
 
 void do_open(CHAR_DATA *ch, char *argument)
 {
+	char *start = argument;
 	char arg[MAX_INPUT_LENGTH];
 	char exit[MSL];
 	OBJ_DATA *obj, *key = NULL;
 	int door;
 
-	one_argument(argument, arg);
+	argument = one_argument(argument, arg);
 
 	if (arg[0] == '\0')
 	{
@@ -1404,8 +1408,23 @@ void do_open(CHAR_DATA *ch, char *argument)
 	/* Open object */
 	if ((obj = get_obj_here(ch, NULL, arg)) != NULL)
 	{
-		/* portal stuff */
-		if (obj->item_type == ITEM_PORTAL)
+		// Ok, need determine if we can target things unambiguously
+		if (obj_oclu_ambiguous(obj) && argument[0] == '\0')
+		{
+			act("Open what on $p?", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			obj_oclu_show_parts(ch, obj);
+			return;
+		}
+
+		OCLU_CONTEXT context;
+		if (!oclu_get_context(&context, obj, argument))
+		{
+			act("You do not see that on $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			return;
+		}
+
+		// portal stuff, has different flags, as they are treated more like exits
+		if (context.item_type == ITEM_PORTAL)
 		{
 			if (!IS_SET(obj->value[1],EX_CLOSED))
 			{
@@ -1419,8 +1438,8 @@ void do_open(CHAR_DATA *ch, char *argument)
 				{
 					if ((key = lockstate_getkey(ch,obj->lock)) != NULL)
 					{
-						do_function(ch, &do_unlock, obj->name);
-						do_function(ch, &do_open, obj->name);
+						do_function(ch, &do_unlock, start);
+						do_function(ch, &do_open, start);
 						return;
 					}
 
@@ -1430,47 +1449,45 @@ void do_open(CHAR_DATA *ch, char *argument)
 			}
 
 			REMOVE_BIT(obj->value[1],EX_CLOSED);
-			act("You open $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-			act("$n opens $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
+			if (context.is_default)
+			{
+				act("You open $p.",ch, NULL, NULL,obj, NULL, NULL, NULL,TO_CHAR);
+				act("$n opens $p.",ch, NULL, NULL,obj, NULL, NULL, NULL,TO_ROOM);
+			}
+			else
+			{
+				act("You open $t on $p.",ch, NULL, NULL,obj, NULL, context.label, NULL,TO_CHAR);
+				act("$n opens $t on $p.",ch, NULL, NULL,obj, NULL, context.label, NULL,TO_ROOM);
+			}
+			p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, ch, NULL, NULL, TRIG_OPEN, NULL,context.which,context.is_default,0,0,0);
 			return;
 		}
 
-		long flags;
-
-		if (IS_CONTAINER(obj))
-			flags = CONTAINER(obj)->flags;
-		else if (obj->item_type == ITEM_BOOK)
-			flags = obj->value[1];
-		else
-		{
-			send_to_char("You can't do that.\n\r", ch);
-			return;
-		}
-
-		if (!IS_SET(flags, CONT_CLOSED))
+		if (!IS_SET(*context.flags, CONT_CLOSED))
 		{
 			send_to_char("It's already open.\n\r", ch);
 			return;
 		}
-		if (!IS_SET(flags, CONT_CLOSEABLE))
+		if (!IS_SET(*context.flags, CONT_CLOSEABLE))
 		{
 			send_to_char("You can't do that.\n\r", ch);
 			return;
 		}
-		/* @@@NIB : 20070126 */
-		if (IS_SET(flags, CONT_PUSHOPEN))
+
+		if (IS_SET(*context.flags, CONT_PUSHOPEN))
 		{
 			send_to_char("You need to push it open.\n\r", ch);
 			return;
 		}
-		if( obj->lock )
+
+		if( *context.lock )
 		{
-			if (IS_SET(obj->lock->flags, LOCK_LOCKED))
+			if (IS_SET((*context.lock)->flags, LOCK_LOCKED))
 			{
-				if ((key = lockstate_getkey(ch, obj->lock)) != NULL)
+				if ((key = lockstate_getkey(ch, *context.lock)) != NULL)
 				{
-					do_function(ch, &do_unlock, obj->name);
-					do_function(ch, &do_open, obj->name);
+					do_function(ch, &do_unlock, start);
+					do_function(ch, &do_open, start);
 					return;
 				}
 
@@ -1479,15 +1496,18 @@ void do_open(CHAR_DATA *ch, char *argument)
 			}
 		}
 
-		if (IS_CONTAINER(obj))
-			REMOVE_BIT(CONTAINER(obj)->flags, CONT_CLOSED);
-		else if (obj->item_type == ITEM_BOOK)
-			REMOVE_BIT(obj->value[1], CONT_CLOSED);
-
-		act("You open $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-		act("$n opens $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-		p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, ch, NULL, NULL, TRIG_OPEN, NULL,0,0,0,0,0);
-
+		REMOVE_BIT((*context.flags), CONT_CLOSED);
+		if (context.is_default)
+		{
+			act("You open $p.",ch, NULL, NULL,obj, NULL, NULL, NULL,TO_CHAR);
+			act("$n opens $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+		}
+		else
+		{
+			act("You open $t on $p.",ch, NULL, NULL,obj, NULL, context.label, NULL,TO_CHAR);
+			act("$n opens $t on $p.", ch, NULL, NULL, obj, NULL, context.label, NULL, TO_ROOM);
+		}
+		p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, ch, NULL, NULL, TRIG_OPEN, NULL,context.which,context.is_default,0,0,0);
 		return;
 	}
 
@@ -1552,7 +1572,7 @@ void do_close(CHAR_DATA *ch, char *argument)
 	OBJ_DATA *obj;
 	int door;
 
-	one_argument(argument, arg);
+	argument = one_argument(argument, arg);
 
 	if (arg[0] == '\0')
 	{
@@ -1562,8 +1582,23 @@ void do_close(CHAR_DATA *ch, char *argument)
 
 	if ((obj = get_obj_here(ch, NULL, arg)) != NULL)
 	{
+		// Ok, need determine if we can target things unambiguously
+		if (obj_oclu_ambiguous(obj) && argument[0] == '\0')
+		{
+			act("Close what on $p?", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			obj_oclu_show_parts(ch, obj);
+			return;
+		}
+
+		OCLU_CONTEXT context;
+		if (!oclu_get_context(&context, obj, argument))
+		{
+			act("You do not see that on $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			return;
+		}
+
 		/* portal stuff */
-		if (obj->item_type == ITEM_PORTAL)
+		if (context.item_type == ITEM_PORTAL)
 		{
 			if (!IS_SET(obj->value[1],EX_ISDOOR) ||
 				IS_SET(obj->value[1],EX_NOCLOSE))
@@ -1585,48 +1620,50 @@ void do_close(CHAR_DATA *ch, char *argument)
 			}
 
 			SET_BIT(obj->value[1],EX_CLOSED);
-			act("You close $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-			act("$n closes $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
+			if (context.is_default)
+			{
+				act("You close $p.",ch, NULL, NULL,obj, NULL, NULL, NULL,TO_CHAR);
+				act("$n closes $p.",ch, NULL, NULL,obj, NULL, NULL, NULL,TO_ROOM);
+			}
+			else
+			{
+				act("You close $t on $p.",ch, NULL, NULL,obj, NULL, context.label, NULL,TO_CHAR);
+				act("$n closes $t on $p.",ch, NULL, NULL,obj, NULL, context.label, NULL,TO_ROOM);
+			}
+			p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CLOSE, NULL,context.which,context.is_default,0,0,0);
 			return;
 		}
 
-		long flags;
-		if (IS_CONTAINER(obj))
-			flags = CONTAINER(obj)->flags;
-		else if (obj->item_type == ITEM_BOOK)
-			flags = obj->value[1];
-		else
-		{
-			send_to_char("You can't do that.\n\r", ch);
-			return;
-		}
-
-		if (IS_SET(flags, CONT_CLOSED))
+		if (IS_SET(*context.flags, CONT_CLOSED))
 		{
 			send_to_char("It's already closed.\n\r", ch);
 			return;
 		}
-		if (!IS_SET(flags, CONT_CLOSEABLE))
+		if (!IS_SET(*context.flags, CONT_CLOSEABLE))
 		{
 			send_to_char("You can't do that.\n\r", ch);
 			return;
 		}
 
+		if (context.is_default)
+		{
+			act("You close $p.",ch, NULL, NULL,obj, NULL, NULL, NULL,TO_CHAR);
+			act("$n closes $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+		}
+		else
+		{
+			act("You close $t on $p.",ch, NULL, NULL,obj, NULL, context.label, NULL,TO_CHAR);
+			act("$n closes $t on $p.", ch, NULL, NULL, obj, NULL, context.label, NULL, TO_ROOM);
+		}
 
-		if (IS_CONTAINER(obj))
-			SET_BIT(CONTAINER(obj)->flags, CONT_CLOSED);
-		else if (obj->item_type == ITEM_BOOK)
-			SET_BIT(obj->value[1], CONT_CLOSED);
+		SET_BIT(*context.flags, CONT_CLOSED);
 
-		act("You close $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-		act("$n closes $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-
-		if (obj->lock && IS_SET(flags, CONT_CLOSELOCK))
+		if (*context.lock && IS_SET(*context.flags, CONT_CLOSELOCK))
 		{
 			act("$p locks once closed.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL);
-			SET_BIT(obj->lock->flags, LOCK_LOCKED);
+			SET_BIT((*context.lock)->flags, LOCK_LOCKED);
 		}
-		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CLOSE, NULL,0,0,0,0,0);
+		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CLOSE, NULL,context.which,context.is_default,0,0,0);
 		return;
 	}
 
@@ -1748,7 +1785,7 @@ void do_lock(CHAR_DATA *ch, char *argument)
 	int ret;
 	bool uk;
 
-	one_argument(argument, arg);
+	argument = one_argument(argument, arg);
 
 	if (arg[0] == '\0')
 	{
@@ -1758,8 +1795,23 @@ void do_lock(CHAR_DATA *ch, char *argument)
 
 	if ((obj = get_obj_here(ch, NULL, arg)) != NULL)
 	{
+		// Ok, need determine if we can target things unambiguously
+		if (obj_oclu_ambiguous(obj) && argument[0] == '\0')
+		{
+			act("Lock what on $p?", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			obj_oclu_show_parts(ch, obj);
+			return;
+		}
+
+		OCLU_CONTEXT context;
+		if (!oclu_get_context(&context, obj, argument))
+		{
+			act("You do not see that on $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			return;
+		}
+
 		/* portal stuff */
-		if (obj->item_type == ITEM_PORTAL)
+		if (context.item_type == ITEM_PORTAL)
 		{
 			if (!IS_SET(obj->value[1],EX_ISDOOR) ||
 				IS_SET(obj->value[1],EX_NOCLOSE))
@@ -1815,7 +1867,7 @@ void do_lock(CHAR_DATA *ch, char *argument)
 			}
 
 			// If $(obj2) is defined, $(obj) is the PORTAL
-			if ((ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, key, TRIG_PRELOCK, NULL,0,0,0,0,0)))
+			if ((ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, key, TRIG_PRELOCK, NULL,context.which,0,0,0,0)))
 			{
 				if (ret != PRET_SILENT)
 				{
@@ -1824,98 +1876,111 @@ void do_lock(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
+			if (context.is_default)
+			{
+				act("You lock $p.",ch, NULL, NULL,obj, NULL, NULL, NULL,TO_CHAR);
+				act("$n locks $p.",ch, NULL, NULL,obj, NULL, NULL, NULL,TO_ROOM);
+			}
+			else
+			{
+				act("You lock $t on $p.",ch, NULL, NULL,obj, NULL, context.label, NULL,TO_CHAR);
+				act("$n locks $t on $p.",ch, NULL, NULL,obj, NULL, context.label, NULL,TO_ROOM);
+			}
+
 			SET_BIT(obj->lock->flags,LOCK_LOCKED);
-			act("You lock $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-			act("$n locks $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
 
 			uk = TRUE;
-			if (p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_LOCK, NULL,0,0,0,0,0))
+			if (p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_LOCK, NULL,context.which,context.is_default,0,0,0))
 				uk = FALSE;
-			if (p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, key, TRIG_LOCK, NULL,0,0,0,0,0))
+			if (p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, key, TRIG_LOCK, NULL,context.which,context.is_default,0,0,0))
 				uk = FALSE;
 			if (uk)
 				use_key(ch, key, obj->lock);
 			return;
 		}
 
-		if (IS_CONTAINER(obj))
+		if (!IS_SET(*context.flags, CONT_CLOSED))
 		{
-			if (!IS_SET(CONTAINER(obj)->flags, CONT_CLOSED))
-			{
-				send_to_char("It's not closed.\n\r", ch);
-				return;
-			}
-		}
-		else if (obj->item_type == ITEM_BOOK)
-		{
-			if (!IS_SET(obj->value[1], CONT_CLOSED))
-			{
-				send_to_char("It's not closed.\n\r", ch);
-				return;
-			}
+			send_to_char("It's not closed.\n\r", ch);
+			return;
 		}
 
-		if (!lockstate_functional(obj->lock))
+		if (!lockstate_functional(*context.lock))
 		{
 			send_to_char("It can't be locked.\n\r",ch);
 			return;
 		}
 
-		if ((key = lockstate_getkey(ch,obj->lock)) == NULL)
+		if ((key = lockstate_getkey(ch,*context.lock)) == NULL)
 		{
 			send_to_char("You lack the key.\n\r",ch);
 			return;
 		}
 
-		if (IS_SET(obj->lock->flags,LOCK_BROKEN))
+		if (IS_SET((*context.lock)->flags,LOCK_BROKEN))
 		{
 			send_to_char("The lock is broken.\n\r",ch);
 			return;
 		}
 
-		if (IS_SET(obj->lock->flags,LOCK_JAMMED))
+		if (IS_SET((*context.lock)->flags,LOCK_JAMMED))
 		{
 			send_to_char("The lock has been jammed.\n\r",ch);
 			return;
 		}
 
-		if (IS_SET(obj->lock->flags, LOCK_LOCKED))
+		if (IS_SET((*context.lock)->flags, LOCK_LOCKED))
 		{
 			send_to_char("It's already locked.\n\r", ch);
 			return;
 		}
 
 		// If $(obj1) is defined, $(obj) is the KEY
-		if ((ret = p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PRELOCK, NULL,0,0,0,0,0)))
+		if ((ret = p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PRELOCK, NULL,context.which,context.is_default,0,0,0)))
 		{
 			if (ret != PRET_SILENT)
 			{
-				act("You can't lock $p with that.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
+				if (context.is_default)
+					act("You can't lock $p with that.",ch, NULL, NULL,obj, NULL, NULL, NULL,TO_CHAR);
+				else
+					act("You can't lock $t on $p with that.",ch, NULL, NULL,obj, NULL, context.label, NULL,TO_CHAR);
 			}
 			return;
 		}
 
 		// If $(obj2) is defined, $(obj) is the OBJECT
-		if ((ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, key, TRIG_PRELOCK, NULL,0,0,0,0,0)))
+		if ((ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, key, TRIG_PRELOCK, NULL,context.which,context.is_default,0,0,0)))
 		{
 			if (ret != PRET_SILENT)
 			{
-				act("You can't lock $p with that.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
+				if (context.is_default)
+					act("You can't lock $p with that.",ch, NULL, NULL,obj, NULL, NULL, NULL,TO_CHAR);
+				else
+					act("You can't lock $t on $p with that.",ch, NULL, NULL,obj, NULL, context.label, NULL,TO_CHAR);
 			}
 			return;
 		}
 
-		SET_BIT(obj->lock->flags, LOCK_LOCKED);
-		act("You lock $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-		act("$n locks $p.",ch, NULL, NULL,obj, NULL, NULL, NULL, TO_ROOM);
+		if (context.is_default)
+		{
+			act("You lock $p.",ch, NULL, NULL,obj, NULL, NULL, NULL,TO_CHAR);
+			act("$n locks $p.",ch, NULL, NULL,obj, NULL, NULL, NULL, TO_ROOM);
+		}
+		else
+		{
+			act("You lock $t on $p.",ch, NULL, NULL,obj, NULL, context.label, NULL,TO_CHAR);
+			act("$n locks $t on $p.",ch, NULL, NULL,obj, NULL, context.label, NULL, TO_ROOM);
+		}
+
+		SET_BIT((*context.lock)->flags, LOCK_LOCKED);
 
 		uk = TRUE;
-		if (p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_LOCK, NULL,0,0,0,0,0))
+		if (p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_LOCK, NULL,context.which,context.is_default,0,0,0))
 			uk = FALSE;
-		if (p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, key, TRIG_LOCK, NULL,0,0,0,0,0))
+		if (p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, key, TRIG_LOCK, NULL,context.which,context.is_default,0,0,0))
 			uk = FALSE;
 		if (uk)
-			use_key(ch, key, obj->lock);
+			use_key(ch, key, *context.lock);
 		return;
 	}
 
@@ -2015,7 +2080,22 @@ void do_unlock(CHAR_DATA *ch, char *argument)
 
 	if ((obj = get_obj_here(ch, NULL, arg)) != NULL)
 	{
-		if (obj->item_type == ITEM_PORTAL)
+		// Ok, need determine if we can target things unambiguously
+		if (obj_oclu_ambiguous(obj) && argument[0] == '\0')
+		{
+			act("Unlock what on $p?", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			obj_oclu_show_parts(ch, obj);
+			return;
+		}
+
+		OCLU_CONTEXT context;
+		if (!oclu_get_context(&context, obj, argument))
+		{
+			act("You do not see that on $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			return;
+		}
+
+		if (context.item_type == ITEM_PORTAL)
 		{
 			if (!IS_SET(obj->value[1],EX_ISDOOR))
 			{
@@ -2060,114 +2140,134 @@ void do_unlock(CHAR_DATA *ch, char *argument)
 			}
 
 			// If $(obj1) is defined, $(obj) is the KEY
-			if ((ret = p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREUNLOCK, NULL,0,0,0,0,0)))
+			if ((ret = p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREUNLOCK, NULL,context.which,context.is_default,0,0,0)))
 			{
 				if (ret != PRET_SILENT)
 				{
-					act("You can't unlock $p with that.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
+					if (context.is_default)
+						act("You can't unlock $p with that.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
+					else
+						act("You can't unlock $t on $p with that.",ch, NULL, NULL,obj, NULL, context.label, NULL,TO_CHAR);
 				}
 				return;
 			}
 
 			// If $(obj2) is defined, $(obj) is the PORTAL
-			if ((ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, key, TRIG_PREUNLOCK, NULL,0,0,0,0,0)))
+			if ((ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, key, TRIG_PREUNLOCK, NULL,context.which,context.is_default,0,0,0)))
 			{
 				if (ret != PRET_SILENT)
 				{
-					act("You can't unlock $p with that.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
+					if (context.is_default)
+						act("You can't unlock $p with that.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
+					else
+						act("You can't unlock $t on $p with that.",ch, NULL, NULL,obj, NULL, context.label, NULL,TO_CHAR);
 				}
 				return;
 			}
 
+			if (context.is_default)
+			{
+				act("You unlock $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
+				act("$n unlocks $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
+			}
+			else
+			{
+				act("You unlock $t on $p.",ch, NULL, NULL,obj, NULL, context.label, NULL,TO_CHAR);
+				act("$n unlocks $t on $p.",ch, NULL, NULL,obj, NULL, context.label, NULL,TO_ROOM);
+			}
+
 			REMOVE_BIT(obj->lock->flags,LOCK_LOCKED);
-			act("You unlock $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-			act("$n unlocks $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
 
 			uk = TRUE;
-			if (p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_UNLOCK, NULL,0,0,0,0,0))
+			if (p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_UNLOCK, NULL,context.which,context.is_default,0,0,0))
 				uk = FALSE;
-			if (p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, key, TRIG_UNLOCK, NULL,0,0,0,0,0))
+			if (p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, key, TRIG_UNLOCK, NULL,context.which,context.is_default,0,0,0))
 				uk = FALSE;
 			if (uk)
 				use_key(ch, key, obj->lock);
 			return;
 		}
 
-		if (IS_CONTAINER(obj))
+		
+		if (!IS_SET(*(context.flags), CONT_CLOSED))
 		{
-			if (!IS_SET(CONTAINER(obj)->flags, CONT_CLOSED))
-			{
-				send_to_char("It's not closed.\n\r", ch);
-				return;
-			}
-		}
-		else if (obj->item_type == ITEM_BOOK)
-		{
-			if (!IS_SET(obj->value[1], CONT_CLOSED))
-			{
-				send_to_char("It's not closed.\n\r", ch);
-				return;
-			}
+			send_to_char("It's not closed.\n\r", ch);
+			return;
 		}
 
-		if (!lockstate_functional(obj->lock))
+		if (!lockstate_functional(*context.lock))
 		{
 			send_to_char("It can't be locked.\n\r",ch);
 			return;
 		}
 
-		if ((key = lockstate_getkey(ch,obj->lock)) == NULL)
+		if ((key = lockstate_getkey(ch,*context.lock)) == NULL)
 		{
 			send_to_char("You lack the key.\n\r",ch);
 			return;
 		}
-		if (IS_SET(obj->lock->flags,LOCK_BROKEN))
+		if (IS_SET((*context.lock)->flags,LOCK_BROKEN))
 		{
 			send_to_char("The lock is broken.\n\r",ch);
 			return;
 		}
-		if (IS_SET(obj->lock->flags,LOCK_JAMMED))
+		if (IS_SET((*context.lock)->flags,LOCK_JAMMED))
 		{
 			send_to_char("The lock has been jammed.\n\r",ch);
 			return;
 		}
-		if (!IS_SET(obj->lock->flags,LOCK_LOCKED))
+		if (!IS_SET((*context.lock)->flags,LOCK_LOCKED))
 		{
 			send_to_char("It's already unlocked.\n\r",ch);
 			return;
 		}
 
 		// If $(obj1) is defined, $(obj) is the KEY
-		if ((ret = p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREUNLOCK, NULL,0,0,0,0,0)))
+		if ((ret = p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREUNLOCK, NULL,context.which,0,0,0,0)))
 		{
 			if (ret != PRET_SILENT)
 			{
-				act("You can't unlock $p with that.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
+				if (context.is_default)
+					act("You can't unlock $p with that.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
+				else
+					act("You can't unlock $t on $p with that.",ch, NULL, NULL,obj, NULL, context.label,NULL,TO_CHAR);
 			}
 			return;
 		}
 
 		// If $(obj2) is defined, $(obj) is the OBJECT
-		if ((ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, key, TRIG_PREUNLOCK, NULL,0,0,0,0,0)))
+		if ((ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, key, TRIG_PREUNLOCK, NULL,context.which,0,0,0,0)))
 		{
 			if (ret != PRET_SILENT)
 			{
-				act("You can't unlock $p with that.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
+				if (context.is_default)
+					act("You can't unlock $p with that.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
+				else
+					act("You can't unlock $t on $p with that.",ch, NULL, NULL,obj, NULL, context.label,NULL,TO_CHAR);
 			}
 			return;
 		}
 
-		REMOVE_BIT(obj->lock->flags,LOCK_LOCKED);
-		act("You unlock $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-		act("$n unlocks $p.",ch, NULL, NULL,obj, NULL, NULL,NULL, TO_ROOM);
+		if (context.is_default)
+		{
+			act("You unlock $p.",ch, NULL, NULL,obj, NULL, NULL, NULL,TO_CHAR);
+			act("$n unlocks $p.",ch, NULL, NULL,obj, NULL, NULL, NULL, TO_ROOM);
+		}
+		else
+		{
+			act("You unlock $t on $p.",ch, NULL, NULL,obj, NULL, context.label, NULL,TO_CHAR);
+			act("$n unlocks $t on $p.",ch, NULL, NULL,obj, NULL, context.label, NULL, TO_ROOM);
+		}
+
+		REMOVE_BIT((*context.lock)->flags,LOCK_LOCKED);
 
 		uk = TRUE;
-		if (p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_UNLOCK, NULL,0,0,0,0,0))
+		if (p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_UNLOCK, NULL,context.which,context.is_default,0,0,0))
 			uk = FALSE;
-		if (p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, key, TRIG_UNLOCK, NULL,0,0,0,0,0))
+		if (p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, key, TRIG_UNLOCK, NULL,context.which,context.is_default,0,0,0))
 			uk = FALSE;
 		if (uk)
-			use_key(ch, key, obj->lock);
+			use_key(ch, key, *context.lock);
 		return;
 	}
 

@@ -794,6 +794,16 @@ void save_mobile_new(FILE *fp, MOB_INDEX_DATA *mob)
     fprintf(fp, "#-MOBILE\n");
 }
 
+void save_object_lockstate(FILE *fp, LOCK_STATE *lock)
+{
+	fprintf(fp, "#LOCK\n");
+	// TOOD: Make it a list
+	fprintf(fp, "Key %s\n", widevnum_string_wnum(lock->key_wnum, NULL));
+	fprintf(fp, "Flags %s\n", print_flags(lock->flags));
+	fprintf(fp, "PickChance %d\n", lock->pick_chance);
+	fprintf(fp, "#-LOCK\n");
+}
+
 void save_object_multityping(FILE *fp, OBJ_INDEX_DATA *obj)
 {
 	ITERATOR it;
@@ -803,6 +813,7 @@ void save_object_multityping(FILE *fp, OBJ_INDEX_DATA *obj)
 
 		fprintf(fp, "#TYPECONTAINER\n");
 		fprintf(fp, "Name %s~\n", fix_string(CONTAINER(obj)->name));
+		fprintf(fp, "Short %s~\n", fix_string(CONTAINER(obj)->short_descr));
 		fprintf(fp, "Flags %s\n", print_flags(CONTAINER(obj)->flags));
 		fprintf(fp, "MaxWeight %d\n", CONTAINER(obj)->max_weight);
 		fprintf(fp, "WeightMultiplier %d\n", CONTAINER(obj)->weight_multiplier);
@@ -845,6 +856,9 @@ void save_object_multityping(FILE *fp, OBJ_INDEX_DATA *obj)
 					subtype);
 		}
 		iterator_stop(&it);
+
+		if (CONTAINER(obj)->lock)
+			save_object_lockstate(fp, CONTAINER(obj)->lock);
 
 		fprintf(fp, "#-TYPECONTAINER\n");
 	}
@@ -908,6 +922,9 @@ void save_object_multityping(FILE *fp, OBJ_INDEX_DATA *obj)
 			fprintf(fp, "ManaRegen %d\n", compartment->mana_regen);
 			fprintf(fp, "MoveRegen %d\n", compartment->move_regen);
 			
+			if (compartment->lock)
+				save_object_lockstate(fp, compartment->lock);
+
 			fprintf(fp, "#-COMPARTMENT\n");
 		}
 		iterator_stop(&it);
@@ -2465,6 +2482,46 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
     return mob;
 }
 
+LOCK_STATE *read_object_lockstate(FILE *fp)
+{
+	LOCK_STATE *lock = new_lock_state();
+	char buf[MSL];
+    char *word;
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPECONTAINER"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+			case 'F':
+				KEY("Flags", lock->flags, fread_flag(fp));
+				break;
+
+			case 'K':
+				if (!str_cmp(word, "Key"))
+				{
+					lock->key_load = fread_widevnum(fp, 0);
+
+					fMatch = TRUE;
+					break;
+				}
+				break;
+
+			case 'P':
+				KEY("PickChance", lock->pick_chance, fread_number(fp));
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "read_object_lockstate: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return lock;
+}
+
 CONTAINER_DATA *read_object_container_data(FILE *fp)
 {
 	CONTAINER_DATA *data = NULL;
@@ -2479,6 +2536,17 @@ CONTAINER_DATA *read_object_container_data(FILE *fp)
 
 		switch(word[0])
 		{
+			case '#':
+				if (!str_cmp(word, "#LOCK"))
+				{
+					if (data->lock) free_lock_state(data->lock);
+
+					data->lock = read_object_lockstate(fp);
+					fMatch = TRUE;
+					break;
+				}
+				break;
+
 			case 'B':
 				if (!str_cmp(word, "Blacklist"))
 				{
@@ -2515,6 +2583,10 @@ CONTAINER_DATA *read_object_container_data(FILE *fp)
 
 			case 'N':
 				KEYS("Name", data->name, fread_string(fp));
+				break;
+
+			case 'S':
+				KEYS("Short", data->short_descr, fread_string(fp));
 				break;
 
 			case 'W':
@@ -2662,6 +2734,17 @@ FURNITURE_COMPARTMENT *read_furniture_compartment(FILE *fp)
 		bool fMatch = FALSE;
 		switch(word[0])
 		{
+			case '#':
+				if (!str_cmp(word, "#LOCK"))
+				{
+					if (data->lock) free_lock_state(data->lock);
+
+					data->lock = read_object_lockstate(fp);
+					fMatch = TRUE;
+					break;
+				}
+				break;
+
 			case 'D':
 				KEYS("Description", data->description, fread_string(fp));
 				break;

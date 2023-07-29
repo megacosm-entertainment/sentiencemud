@@ -272,6 +272,150 @@ int objindex_get_subtype(OBJ_INDEX_DATA *pObjIndex)
 	return -1;
 }
 
+// Open Close Lock Unlock
+bool obj_oclu_ambiguous(OBJ_DATA *obj)
+{
+	int types = 0;
+
+	if (IS_CONTAINER(obj)) types++;
+	if (IS_FURNITURE(obj))
+	{
+		// Can target it without a "context" if this is *only* furniture out of this list
+		if (FURNITURE(obj)->main_compartment > 0)
+			types++;
+		else
+			types+=list_size(FURNITURE(obj)->compartments);
+	}
+
+	// if (IS_PORTAL(obj)) types++;
+	// if (IS_BOOK(obj)) types++;
+
+	return types > 1;
+}
+
+void obj_oclu_show_parts(CHAR_DATA *ch, OBJ_DATA *obj)
+{
+	int i = 0;
+
+	// IS_BOOK
+
+	if (IS_CONTAINER(obj))
+	{
+		if (i > 0) send_to_char(", ", ch);
+		send_to_char(CONTAINER(obj)->short_descr, ch);
+		i++;
+	}
+
+	if (IS_FURNITURE(obj))
+	{
+		ITERATOR it;
+		FURNITURE_COMPARTMENT *compartment;
+		iterator_start(&it, FURNITURE(obj)->compartments);
+		while((compartment = (FURNITURE_COMPARTMENT *)iterator_nextdata(&it)))
+		{
+			if (i > 0) send_to_char(", ", ch);
+			send_to_char(compartment->short_descr, ch);
+			i++;
+		}
+		iterator_stop(&it);
+	}
+
+	// IS_PORTAL
+
+
+	if (i == 0)
+		send_to_char("  none", ch);
+
+	send_to_char("\n\r", ch);
+}
+
+bool oclu_get_context(OCLU_CONTEXT *context, OBJ_DATA *obj, char *argument)
+{
+	if (argument[0] != '\0')
+	{
+		char arg[MIL];
+		int count = number_argument(argument, arg);
+
+		context->is_default = FALSE;
+
+		// IS_BOOK
+
+		if (IS_CONTAINER(obj))
+		{
+			if (is_name(arg, CONTAINER(obj)->name) && (count-- == 1))
+			{
+				context->item_type = ITEM_CONTAINER;
+				context->which = CONTEXT_CONTAINER;
+				context->flags = &(CONTAINER(obj)->flags);
+				context->label = CONTAINER(obj)->short_descr;
+				context->lock = &(CONTAINER(obj)->lock);
+				return TRUE;
+			}
+		}
+
+		if (IS_FURNITURE(obj))
+		{
+			int which = 0;
+			ITERATOR it;
+			FURNITURE_COMPARTMENT *compartment;
+			iterator_start(&it, FURNITURE(obj)->compartments);
+			while((compartment = (FURNITURE_COMPARTMENT *)iterator_nextdata(&it)))
+			{
+				++which;
+				if (is_name(arg, compartment->name) && (count-- == 1))
+				{
+					context->item_type = ITEM_FURNITURE;
+					context->which = which;
+					context->flags = &compartment->flags;
+					context->label = compartment->short_descr;
+					context->lock = &compartment->lock;
+					break;
+				}
+
+			}
+			iterator_stop(&it);
+
+			if (compartment) return TRUE;
+		}
+
+		// IS_PORTAL
+	}
+	// Not dealing with an ambiguous object
+	else if (!obj_oclu_ambiguous(obj))
+	{
+		context->is_default = TRUE;
+		// IS_BOOK
+
+		if (IS_CONTAINER(obj))
+		{
+			context->item_type = ITEM_CONTAINER;
+			context->which = CONTEXT_CONTAINER;
+			context->flags = &(CONTAINER(obj)->flags);
+			context->label = CONTAINER(obj)->short_descr;
+			context->lock = &(CONTAINER(obj)->lock);
+			return TRUE;
+		}
+
+		if (IS_FURNITURE(obj))
+		{
+			if (FURNITURE(obj)->main_compartment > 0)
+			{
+				FURNITURE_COMPARTMENT *compartment = (FURNITURE_COMPARTMENT *)list_nthdata(FURNITURE(obj)->compartments, FURNITURE(obj)->main_compartment);
+				context->item_type = ITEM_FURNITURE;
+				context->which = FURNITURE(obj)->main_compartment;
+				context->flags = &compartment->flags;
+				context->label = compartment->short_descr;
+				context->lock = &compartment->lock;
+				return TRUE;
+			}
+		}
+
+		// IS_PORTAL
+	}
+
+	return FALSE;
+}
+
 ////////////////////
 // CONTAINER
 
@@ -449,7 +593,7 @@ char *furniture_get_positional(long field)
 	else if (IS_SET(field, FURNITURE_ON))
 		return "on";
 	else if (IS_SET(field, FURNITURE_IN))
-		return "on";
+		return "in";
 	else if (IS_SET(field, FURNITURE_ABOVE))
 		return "above";
 	else if (IS_SET(field, FURNITURE_UNDER))

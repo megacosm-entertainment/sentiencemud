@@ -171,7 +171,7 @@ enum ifcheck_enum {
 		CHK_ISCHARM,CHK_ISCHURCHEXCOM,CHK_ISCHURCHPK,CHK_ISCLONEROOM,CHK_ISCONTAINER,CHK_ISCPKPROOF,CHK_ISCROSSZONE,
 		CHK_ISDEAD,CHK_ISDELAY,CHK_ISDEMON,
 		CHK_ISEVIL,
-		CHK_ISFADING,CHK_ISFIGHTING,CHK_ISFLYING,CHK_ISFOLLOW,CHK_ISFOOD,
+		CHK_ISFADING,CHK_ISFIGHTING,CHK_ISFLYING,CHK_ISFOLLOW,CHK_ISFOOD,CHK_ISFURNITURE,
 		CHK_ISGOOD,
 		CHK_ISHIRED, CHK_ISHUNTING,
 		CHK_ISIMMORT,
@@ -336,6 +336,7 @@ enum variable_enum {
 	VAR_SHIPINDEX,
 	
 	VAR_FOOD_BUFF,
+	VAR_COMPARTMENT,
 
 	VAR_BLLIST_FIRST,
 	////////////////////////
@@ -365,6 +366,7 @@ enum variable_enum {
 	VAR_PLLIST_AREA_REGION,
 	VAR_PLLIST_CHURCH,
 	VAR_PLLIST_FOOD_BUFF,
+	VAR_PLLIST_COMPARTMENT,
 	VAR_PLLIST_VARIABLE,
 
 	////////////////////////
@@ -489,6 +491,7 @@ enum entity_type_enum {
 	ENT_PLLIST_AREA_REGION,
 	ENT_PLLIST_CHURCH,
 	ENT_PLLIST_FOOD_BUFF,
+	ENT_PLLIST_COMPARTMENT,
 	ENT_PLLIST_MAX,
 	//////////////////////////////
 
@@ -547,10 +550,12 @@ enum entity_type_enum {
 	ENT_QUEST,
 
 	ENT_FOOD_BUFF,
+	ENT_COMPARTMENT,
 	
 	// Multi-typing
 	ENT_OBJECT_CONTAINER,
 	ENT_OBJECT_FOOD,
+	ENT_OBJECT_FURNITURE,
 	ENT_OBJECT_LIGHT,
 	ENT_OBJECT_MONEY,
 
@@ -602,6 +607,7 @@ enum entity_variable_types_enum {
 	ENTITY_VAR_CONN,
 	ENTITY_VAR_AFFECT,
 	ENTITY_VAR_FOOD_BUFF,
+	ENTITY_VAR_COMPARTMENT,
 	ENTITY_VAR_CHURCH,
 	ENTITY_VAR_VARIABLE,
 	ENTITY_VAR_DICE,
@@ -638,6 +644,7 @@ enum entity_variable_types_enum {
 	ENTITY_VAR_PLLIST_AREA_REGION,
 	ENTITY_VAR_PLLIST_CHURCH,
 	ENTITY_VAR_PLLIST_FOOD_BUFF,
+	ENTITY_VAR_PLLIST_COMPARTMENT,
 	ENTITY_VAR_PLLIST_VARIABLE,
 
 };
@@ -835,6 +842,7 @@ enum entity_object_enum {
 	ENTITY_OBJ_SHIP,
 	ENTITY_OBJ_TYPE_CONTAINER,
 	ENTITY_OBJ_TYPE_FOOD,
+	ENTITY_OBJ_TYPE_FURNITURE,
 	ENTITY_OBJ_TYPE_LIGHT,
 	ENTITY_OBJ_TYPE_MONEY,
 };
@@ -843,12 +851,15 @@ enum entity_object_enum {
 // Multi-typing
 enum entity_object_container_enum
 {
-	ENTITY_OBJ_CONTAINER_FLAGS = ESCAPE_EXTRA,
+	ENTITY_OBJ_CONTAINER_NAME = ESCAPE_EXTRA,
+	ENTITY_OBJ_CONTAINER_SHORT,
+	ENTITY_OBJ_CONTAINER_FLAGS,
 	ENTITY_OBJ_CONTAINER_MAX_WEIGHT,
 	ENTITY_OBJ_CONTAINER_WEIGHT_MULTIPLIER,
 	ENTITY_OBJ_CONTAINER_MAX_VOLUME,
 	ENTITY_OBJ_CONTAINER_WHITELIST,
 	ENTITY_OBJ_CONTAINER_BLACKLIST,
+	ENTITY_OBJ_CONTAINER_LOCK,
 };
 
 enum entity_object_food_enum {
@@ -856,6 +867,11 @@ enum entity_object_food_enum {
 	ENTITY_OBJ_FOOD_FULL,
 	ENTITY_OBJ_FOOD_POISON,
 	ENTITY_OBJ_FOOD_BUFFS,
+};
+
+enum entity_object_furniture_enum {
+	ENTITY_OBJ_FURNITURE_MAIN_COMPARTMENT = ESCAPE_EXTRA,
+	ENTITY_OBJ_FURNITURE_COMPARTMENTS,
 };
 
 enum entity_object_light_enum {
@@ -1091,6 +1107,23 @@ enum entity_food_buff_enum {
 	ENTITY_FOOD_BUFF_BITS2,
 };
 
+enum entity_compartment_enum {
+	ENTITY_COMPARTMENT_NAME = ESCAPE_EXTRA,
+	ENTITY_COMPARTMENT_SHORT,
+	ENTITY_COMPARTMENT_DESC,
+	ENTITY_COMPARTMENT_FLAGS,
+	ENTITY_COMPARTMENT_MAX_OCCUPANTS,
+	ENTITY_COMPARTMENT_MAX_WEIGHT,
+	ENTITY_COMPARTMENT_STANDING,
+	ENTITY_COMPARTMENT_HANGING,
+	ENTITY_COMPARTMENT_SITTING,
+	ENTITY_COMPARTMENT_RESTING,
+	ENTITY_COMPARTMENT_SLEEPING,
+	ENTITY_COMPARTMENT_HEALTH,
+	ENTITY_COMPARTMENT_MANA,
+	ENTITY_COMPARTMENT_MOVE,
+	ENTITY_COMPARTMENT_LOCK,
+};
 
 enum entity_song_enum {
 	ENTITY_SONG_NUMBER = ESCAPE_EXTRA,
@@ -1353,6 +1386,7 @@ struct script_var_type {
 		AREA_DATA *a;
 		AFFECT_DATA *aff;
 		FOOD_BUFF_DATA *food_buff;
+		FURNITURE_COMPARTMENT *compartment;
 		DESCRIPTOR_DATA *conn;
 		CHURCH_DATA *church;
 		WILDS_DATA *wilds;
@@ -1539,6 +1573,7 @@ struct script_parameter {
 		TOKEN_DATA *token;
 		AFFECT_DATA *aff;
 		FOOD_BUFF_DATA *food_buff;
+		FURNITURE_COMPARTMENT *compartment;
 		DESCRIPTOR_DATA *conn;
 		WILDS_DATA *wilds;
 		CHURCH_DATA *church;
@@ -2150,6 +2185,7 @@ DECL_IFC_FUN(ifc_savage);
 
 DECL_IFC_FUN(ifc_iscontainer);
 DECL_IFC_FUN(ifc_isfood);
+DECL_IFC_FUN(ifc_isfurniture);
 DECL_IFC_FUN(ifc_islight);
 DECL_IFC_FUN(ifc_ismoney);
 
@@ -2309,6 +2345,7 @@ bool variables_format_string(ppVARIABLE list,char *name);
 bool variables_format_paragraph(ppVARIABLE list,char *name);
 bool variables_set_affect (ppVARIABLE list,char *name,AFFECT_DATA* aff);
 bool variables_set_food_buff (ppVARIABLE list,char *name,FOOD_BUFF_DATA* food_buff);
+bool variables_set_compartment (ppVARIABLE list,char *name,FURNITURE_COMPARTMENT* compartment);
 bool variables_set_area (ppVARIABLE list,char *name,AREA_DATA* a);
 bool variables_set_area_region (ppVARIABLE list,char *name,AREA_REGION* ar);
 bool variables_set_church (ppVARIABLE list,char *name,CHURCH_DATA* church);
@@ -2351,6 +2388,7 @@ bool variables_setindex_string(ppVARIABLE list,char *name,char *str,bool shared,
 bool variables_setindex_skill(ppVARIABLE list,char *name,int sn, bool saved);
 bool variables_setindex_song(ppVARIABLE list,char *name,int sn, bool saved);
 bool variables_setsave_food_buff (ppVARIABLE list,char *name,FOOD_BUFF_DATA* food_buff, bool save);
+bool variables_setsave_compartment (ppVARIABLE list,char *name,FURNITURE_COMPARTMENT* compartment, bool save);
 bool variables_setsave_affect(ppVARIABLE list,char *name,AFFECT_DATA *aff, bool save);
 bool variables_setsave_area (ppVARIABLE list, char *name,AREA_DATA* a, bool save);
 bool variables_setsave_area_region (ppVARIABLE list, char *name,AREA_REGION* ar, bool save);

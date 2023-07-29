@@ -87,6 +87,7 @@ ENT_FIELD entity_types[] = {
 	{"song",			ENTITY_VAR_SONG,		ENT_SONG		},
 	{"aff",				ENTITY_VAR_AFFECT,		ENT_AFFECT		},
 	{"food_buff",		ENTITY_VAR_FOOD_BUFF,	ENT_FOOD_BUFF	},
+	{"compartment",		ENTITY_VAR_COMPARTMENT,	ENT_COMPARTMENT },
 	{"conn",			ENTITY_VAR_CONN,		ENT_CONN		},
 	{"church",			ENTITY_VAR_CHURCH,		ENT_CHURCH		},
 	{"var",				ENTITY_VAR_VARIABLE,	ENT_VARIABLE	},
@@ -109,6 +110,7 @@ ENT_FIELD entity_types[] = {
 	{"list_aregion",	ENTITY_VAR_PLLIST_AREA_REGION,	ENT_PLLIST_AREA_REGION	},
 	{"list_church",		ENTITY_VAR_PLLIST_CHURCH,	ENT_PLLIST_CHURCH	},
 	{"list_food_buff",	ENTITY_VAR_PLLIST_FOOD_BUFF,	ENT_PLLIST_FOOD_BUFF},
+	{"list_compartment",ENTITY_VAR_PLLIST_COMPARTMENT,	ENT_PLLIST_COMPARTMENT},
 	{"dice",			ENTITY_VAR_DICE,		ENT_DICE	},
 	{"sect",			ENTITY_VAR_SECTION,		ENT_SECTION	},
 	{"inst",			ENTITY_VAR_INSTANCE,	ENT_INSTANCE	},
@@ -365,16 +367,21 @@ ENT_FIELD entity_object[] = {
 	{"ship",		ENTITY_OBJ_SHIP,			ENT_SHIP		},
 	{"container_data",	ENTITY_OBJ_TYPE_CONTAINER, ENT_OBJECT_CONTAINER},
 	{"food_data",	ENTITY_OBJ_TYPE_FOOD, ENT_OBJECT_FOOD},
+	{"furniture_data",	ENTITY_OBJ_TYPE_FURNITURE, ENT_OBJECT_FURNITURE},
 	{"light_data",	ENTITY_OBJ_TYPE_LIGHT, ENT_OBJECT_LIGHT},
 	{"money_data",	ENTITY_OBJ_TYPE_MONEY, ENT_OBJECT_MONEY},
 	{NULL,			0,			ENT_UNKNOWN	}
 };
 
 ENT_FIELD entity_object_container[] = {
+	{"name",				ENTITY_OBJ_CONTAINER_NAME, ENT_STRING },
+	{"short",				ENTITY_OBJ_CONTAINER_SHORT,	ENT_STRING },
 	{"flags",				ENTITY_OBJ_CONTAINER_FLAGS,	ENT_BITVECTOR },
 	{"max_weight",			ENTITY_OBJ_CONTAINER_MAX_WEIGHT,	ENT_NUMBER },
 	{"weight_multiplier",	ENTITY_OBJ_CONTAINER_WEIGHT_MULTIPLIER,	ENT_NUMBER },
 	{"max_volume",			ENTITY_OBJ_CONTAINER_MAX_VOLUME,	ENT_NUMBER },
+	// TODO: LOCK
+	//{"lock",				ENTITY_OBJ_CONTAINER_LOCK,		ENT_LOCK_STATE},
 	{NULL,			0,			ENT_UNKNOWN	}
 };
 
@@ -384,6 +391,12 @@ ENT_FIELD entity_object_food[] = {
 	{"poison",		ENTITY_OBJ_FOOD_POISON,	ENT_NUMBER },
 	{"buffs",		ENTITY_OBJ_FOOD_BUFFS,	ENT_PLLIST_FOOD_BUFF },
 	{NULL,			0,			ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_object_furniture[] = {
+	{"main",		ENTITY_OBJ_FURNITURE_MAIN_COMPARTMENT,	ENT_COMPARTMENT },
+	{"compartments",ENTITY_OBJ_FURNITURE_COMPARTMENTS,		ENT_PLLIST_COMPARTMENT },
+	{NULL,			0,			ENT_UNKNOWN },
 };
 
 ENT_FIELD entity_object_light[] = {
@@ -608,6 +621,27 @@ ENT_FIELD entity_food_buff[] = {
 	{NULL,			0,			ENT_UNKNOWN	}
 };
 
+
+ENT_FIELD entity_compartment[] = {
+	{"name",		ENTITY_COMPARTMENT_NAME,	ENT_STRING},
+	{"short",		ENTITY_COMPARTMENT_SHORT,	ENT_STRING},
+	{"description", ENTITY_COMPARTMENT_DESC,	ENT_STRING},
+	{"flags",		ENTITY_COMPARTMENT_FLAGS,	ENT_BITVECTOR},
+	{"max_occupants", ENTITY_COMPARTMENT_MAX_OCCUPANTS, ENT_NUMBER},
+	{"max_weight",	ENTITY_COMPARTMENT_MAX_WEIGHT,	ENT_NUMBER},
+	{"standing",	ENTITY_COMPARTMENT_STANDING,	ENT_BITVECTOR},
+	{"hanging",		ENTITY_COMPARTMENT_HANGING,		ENT_BITVECTOR},
+	{"sitting",		ENTITY_COMPARTMENT_SITTING,		ENT_BITVECTOR},
+	{"resting",		ENTITY_COMPARTMENT_RESTING,		ENT_BITVECTOR},
+	{"sleeping",	ENTITY_COMPARTMENT_SLEEPING,	ENT_BITVECTOR},
+	{"health",		ENTITY_COMPARTMENT_HEALTH,		ENT_NUMBER},
+	{"mana",		ENTITY_COMPARTMENT_MANA,		ENT_NUMBER},
+	{"move",		ENTITY_COMPARTMENT_MOVE,		ENT_NUMBER},
+	// TODO: LOCK
+	//{"lock",		ENTITY_COMPARTMENT_LOCK,		ENT_LOCK_STATE},
+	{NULL,			0,			ENT_UNKNOWN },
+};
+
 ENT_FIELD entity_song[] = {
 	{"number",	ENTITY_SONG_NUMBER,	ENT_NUMBER	},
 	{"name",	ENTITY_SONG_NAME,	ENT_STRING	},
@@ -771,6 +805,7 @@ struct _entity_type_info entity_type_info[] = {
 	{ ENT_CONN,			ENT_CONN,			entity_conn,				FALSE	},
 	{ ENT_AFFECT,		ENT_AFFECT,			entity_affect,				FALSE	},
 	{ ENT_FOOD_BUFF,	ENT_FOOD_BUFF,		entity_food_buff,			FALSE	},
+	{ ENT_COMPARTMENT,	ENT_COMPARTMENT,	entity_compartment,			FALSE	},
 	{ ENT_EXTRADESC,	ENT_EXTRADESC,		NULL,						FALSE	},
 	{ ENT_HELP,			ENT_HELP,			NULL,						FALSE	},
 	{ ENT_PRIOR,		ENT_PRIOR,			entity_prior,				FALSE	},
@@ -805,6 +840,7 @@ struct _entity_type_info entity_type_info[] = {
 	{ ENT_WIDEVNUM,		ENT_WIDEVNUM,		entity_widevnum,			FALSE	},
 	{ ENT_OBJECT_CONTAINER, ENT_OBJECT_CONTAINER, entity_object_container, FALSE},
 	{ ENT_OBJECT_FOOD, ENT_OBJECT_FOOD, entity_object_food, FALSE},
+	{ ENT_OBJECT_FURNITURE, ENT_OBJECT_FURNITURE, entity_object_furniture, FALSE},
 	{ ENT_OBJECT_LIGHT, ENT_OBJECT_LIGHT, entity_object_light, FALSE},
 	{ ENT_OBJECT_MONEY, ENT_OBJECT_MONEY, entity_object_money, FALSE},
 	{ ENT_UNKNOWN,		ENT_UNKNOWN,		NULL,						FALSE	},
@@ -1227,6 +1263,7 @@ IFCHECK_DATA ifcheck_table[] = {
 	{ "isflying",			IFC_ANY,	"E",	FALSE,	ifc_isflying,			"ifcheck isflying" },
 	{ "isfollow",			IFC_ANY,	"E",	FALSE,	ifc_isfollow,			"ifcheck isfollow" },
 	{ "isfood",				IFC_ANY,	"E",	FALSE,	ifc_isfood,				"ifcheck isfood" },
+	{ "isfurniture",		IFC_ANY,	"E",	FALSE,	ifc_isfurniture,		"ifcheck isfurniture" },
 	{ "isgood",				IFC_ANY,	"E",	FALSE,	ifc_isgood,				"ifcheck isgood" },
 	{ "ishired",			IFC_ANY,	"E",	FALSE,	ifc_ishired,			"ifcheck ishired" },
 	{ "ishunting",			IFC_ANY,	"E",	FALSE,	ifc_ishunting,			"ifcheck ishunting" },

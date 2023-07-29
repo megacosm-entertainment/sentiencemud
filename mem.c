@@ -99,6 +99,32 @@ OLC_POINT_BOOST *olc_point_boost_free;
 SHIP_INDEX_DATA *ship_index_free;
 SHIP_DATA *ship_free;
 
+WNUM *new_wnum_data()
+{
+    return alloc_mem(sizeof(WNUM));
+}
+
+void *copy_wnum_data(void *ptr)
+{
+    WNUM *src = (WNUM *)ptr;
+    WNUM *data = alloc_mem(sizeof(WNUM));
+
+    data->pArea = src->pArea;
+    data->vnum = src->vnum;
+
+    return data;
+}
+
+void free_wnum_data(WNUM *data)
+{
+    free_mem(data, sizeof(WNUM));
+}
+
+void delete_wnum_data(void *ptr)
+{
+    free_wnum_data((WNUM *)ptr);
+}
+
 WNUM_LOAD *new_list_wnum_load()
 {
     return alloc_mem(sizeof(WNUM_LOAD));
@@ -123,6 +149,18 @@ LLIST_UID_DATA *new_list_uid_data()
 void free_list_uid_data(LLIST_UID_DATA *luid)
 {
 	free_mem(luid,sizeof(LLIST_UID_DATA));
+}
+
+void *copy_list_uid_data(void *ptr)
+{
+    LLIST_UID_DATA *src = (LLIST_UID_DATA *)ptr;
+    LLIST_UID_DATA *data = alloc_mem(sizeof(LLIST_UID_DATA));
+
+    data->ptr = src->ptr;
+    data->id[0] = src->id[0];
+    data->id[1] = src->id[1];
+
+    return data;
 }
 
 void delete_list_uid_data(void *ptr)
@@ -1699,9 +1737,11 @@ void free_exit( EXIT_DATA *pExit )
     free_string( pExit->long_desc );
 
     // The exit had been created by scripting, so will need to destroy the special keys lists
-    if (IS_SET(pExit->door.lock.flags, LOCK_CREATED))
+    // Or exit's special keys are a combined list that needs to be freed
+    if (IS_SET(pExit->door.lock.flags, LOCK_CREATED) ||
+        IS_SET(pExit->door.lock.flags, LOCK_FREE_KEYS))
     {
-        list_destroy(pExit->door.rs_lock.keys);
+        list_destroy(pExit->door.rs_lock.special_keys);
     }
 
     --top_exit;
@@ -4754,6 +4794,45 @@ void free_special_key(SPECIAL_KEY_DATA *sk)
 	special_key_free = sk;
 }
 
+LOCK_STATE_KEY *new_lock_state_key()
+{
+    LOCK_STATE_KEY *data = alloc_mem(sizeof(LOCK_STATE_KEY));
+
+    memset(data, 0, sizeof(*data));
+
+    return data;
+}
+
+/*
+static void *copy_lock_state_key(void *ptr)
+{
+    LOCK_STATE_KEY *src = (LOCK_STATE_KEY *)ptr;
+    LOCK_STATE_KEY *data = alloc_mem(sizeof(LOCK_STATE_KEY));
+
+    data->load = src->load;
+    data->wnum = src->wnum;
+
+    return data;
+}
+*/
+
+void free_lock_state_key(LOCK_STATE_KEY *data)
+{
+    free_mem(data, sizeof(LOCK_STATE_KEY));
+}
+
+/*
+static void delete_lock_state_key(void *ptr)
+{
+    free_lock_state_key((LOCK_STATE_KEY *)ptr);
+}
+*/
+
+static void *copy_lockstate_special_key(void *ptr)
+{
+    return copy_list_uid_data(ptr);
+}
+
 static void delete_lockstate_special_key(void *ptr)
 {
     free_list_uid_data((LLIST_UID_DATA *)ptr);
@@ -4763,21 +4842,40 @@ LOCK_STATE *new_lock_state()
 {
 	LOCK_STATE *state = alloc_mem(sizeof(LOCK_STATE));
 
-	state->key_wnum.pArea = NULL;
-    state->key_wnum.vnum = 0;
+    memset(state, 0, sizeof(LOCK_STATE));
+
+    //state->keys = list_createx(FALSE, copy_lock_state_key, delete_lock_state_key);
 	state->pick_chance	= 100;
 	state->flags		= 0;
-	state->keys			= list_createx(FALSE, NULL, delete_lockstate_special_key);
+	state->special_keys	= list_createx(FALSE, copy_lockstate_special_key, delete_lockstate_special_key);
 
 	return state;
+}
+
+LOCK_STATE *copy_lock_state(LOCK_STATE *src)
+{
+    if (!src) return NULL;
+    
+    LOCK_STATE *state = alloc_mem(sizeof(LOCK_STATE));
+
+    //state->keys = list_copy(src->keys);
+    state->key_load = src->key_load;
+    state->key_wnum = src->key_wnum;
+    state->pick_chance = src->pick_chance;
+    state->flags = src->flags;
+    state->special_keys = list_copy(src->special_keys);
+
+    return state;
 }
 
 void free_lock_state(LOCK_STATE *state)
 {
 	if( state )
 	{
-        if (state->keys)
-            list_destroy(state->keys);
+        //list_destroy(state->keys);
+
+        if (state->special_keys)
+            list_destroy(state->special_keys);
 
 		free_mem(state, sizeof(LOCK_STATE));
 	}
@@ -4935,6 +5033,7 @@ CONTAINER_DATA *new_container_data()
     memset(data, 0, sizeof(*data));
 
     data->name = str_dup("");
+    data->short_descr = str_dup("");
     data->whitelist = list_createx(FALSE, copy_container_filter, delete_container_filter);   // Filled with positive INTs
     data->blacklist = list_createx(FALSE, copy_container_filter, delete_container_filter);   // Filled with positive INTs
 
@@ -4956,6 +5055,7 @@ CONTAINER_DATA *copy_container_data(CONTAINER_DATA *src)
         data = alloc_mem(sizeof(CONTAINER_DATA));
 
     data->name = str_dup(src->name);
+    data->short_descr = str_dup(src->short_descr);
     data->flags = src->flags;
     data->max_weight = src->max_weight;
     data->weight_multiplier = src->weight_multiplier;
@@ -4963,6 +5063,8 @@ CONTAINER_DATA *copy_container_data(CONTAINER_DATA *src)
 
     data->whitelist = list_copy(src->whitelist);
     data->blacklist = list_copy(src->blacklist);
+
+    data->lock = copy_lock_state(src->lock);
 
     VALIDATE(data);
     return data;
@@ -4973,14 +5075,15 @@ void free_container_data(CONTAINER_DATA *data)
     if (!IS_VALID(data)) return;
 
     free_string(data->name);
+    free_string(data->short_descr);
     list_destroy(data->whitelist);
     list_destroy(data->blacklist);
+    free_lock_state(data->lock);
 
     INVALIDATE(data);
     data->next = container_data_free;
     container_data_free = data;
 }
-
 
 
 // ============[ FOOD ]============
@@ -5124,9 +5227,12 @@ void free_furniture_compartment(FURNITURE_COMPARTMENT *data)
 {
     if (!IS_VALID(data)) return;
 
+    variable_clearfield(VAR_COMPARTMENT, data);
+
     free_string(data->name);
     free_string(data->short_descr);
     free_string(data->description);
+    free_lock_state(data->lock);
 
     INVALIDATE(data);
     data->next = furniture_compartment_Free;
@@ -5164,6 +5270,8 @@ static void *copy_furniture_compartment(void *ptr)
     data->health_regen = src->health_regen;
     data->mana_regen = src->mana_regen;
     data->move_regen = src->move_regen;
+
+    data->lock = copy_lock_state(src->lock);
 
     VALIDATE(data);
     return data;

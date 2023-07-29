@@ -5026,6 +5026,12 @@ DECL_IFC_FUN(ifc_isfood)
 	return TRUE;
 }
 
+DECL_IFC_FUN(ifc_isfurniture)
+{
+	*ret = ISARG_OBJ(0) && IS_FURNITURE(ARG_OBJ(0));
+	return TRUE;
+}
+
 DECL_IFC_FUN(ifc_islight)
 {
 	*ret = ISARG_OBJ(0) && IS_LIGHT(ARG_OBJ(0));

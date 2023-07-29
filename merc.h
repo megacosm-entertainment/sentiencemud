@@ -4505,22 +4505,47 @@ struct  conditional_descr_data
 #define LOCK_JAMMED			(G)		// Locking mechanism has been jammed
 #define LOCK_NOJAM			(H)		// Lock does not allow being jammed
 
+#define LOCK_FREE_KEYS      (U)     // Used by exits only to indicate that they need to be freed (internal only)
+#define LOCK_CHECK_BOTH     (V)     // Checks both the widevnum list and the special keys
 #define LOCK_FINAL          (W)     // Created Lock has been finalized for a purposes of scripting manipulation
 #define LOCK_NOMAGIC        (X)     // Magical based trigger script calls cannot edit the lock
 #define LOCK_NOSCRIPT       (Y)     // Non-magical based trigger script calls cannot edit the lock
 #define LOCK_CREATED		(Z)		// Lock was created by a script, so allows full alter exit manipulation
 
-typedef struct lock_state_data {
+typedef struct lock_state_key_data LOCK_STATE_KEY;
+struct lock_state_key_data
+{
+    WNUM_LOAD load;
+	WNUM wnum;
+};
+
+typedef struct lock_state_data
+{
     WNUM_LOAD key_load;
 	WNUM key_wnum;          // TODO: make a list
 	int pick_chance;		// 0 = impossible (normally), 100 trivial
 	int flags;
-	LLIST *keys;			// Handled by other entities, not owned by lock state
+	LLIST *special_keys;	// Handled by other entities, not owned by lock state
 } LOCK_STATE;
 
 
 ////////////////////////////
 // ITEM TYPE DATA
+
+#define CONTEXT_CONTAINER       -1
+#define CONTEXT_PORTAL          -2
+#define CONTEXT_BOOK            -3
+
+typedef struct oclu_context_data OCLU_CONTEXT;
+struct oclu_context_data
+{
+    int item_type;      // Type of context
+    int which;
+    bool is_default;
+    long *flags;
+    char *label;
+    LOCK_STATE **lock;
+};
 
 // =========[ CONTAINER ]==========
 #define CONTAINER(obj)          ((obj)->_container)
@@ -4535,7 +4560,8 @@ struct obj_container_data {
     CONTAINER_DATA *next;
     bool valid;
 
-    char *name;             // Name of container, for use when object is multi-typed with various things where OPEN/CLOSE/LOCK/UNLOCK needs to know what to target.
+    char *name;             // Name of container part, for use when object is multi-typed with various things where OPEN/CLOSE/LOCK/UNLOCK needs to know what to target.
+    char *short_descr;      // Display name of the container part
 
     long flags;
     int max_weight;
@@ -4544,6 +4570,8 @@ struct obj_container_data {
 
     LLIST *whitelist;       // Whitelist for what can go into it, uses the primary item_type field
     LLIST *blacklist;       // Blacklist for what can't go into it.
+
+    LOCK_STATE *lock;
 };
 
 // ============[ FOOD ]============
@@ -4585,10 +4613,14 @@ struct obj_food_data {
 #define FURNITURE(obj)          ((obj)->_furniture)
 #define IS_FURNITURE(obj)       IS_VALID(FURNITURE(obj))
 
-#define COMPARTMENT_INSIDE      (A)     // Compartment is considered inside when using it
-#define COMPARTMENT_CLOSEABLE   (B)     // Compartment can use the "open/close" commands
+// A, C, G and H are mimics from container flags for open/close/lock/unlock functionality
+#define COMPARTMENT_CLOSEABLE   (A)     // Compartment can use the "open/close" commands
 #define COMPARTMENT_CLOSED      (C)     // Compartment is closed
-#define COMPARTMENT_TRANSPARENT (D)     // Compartment can show the outside or be seen into regardless if the compartment is closed
+#define COMPARTMENT_PUSHOPEN    (G)     // Need to push the compartment to open it
+#define COMPARTMENT_CLOSELOCK   (H)     // When you close the compartment, it locks automatically
+#define COMPARTMENT_TRANSPARENT (X)     // Compartment can show the outside or be seen into regardless if the compartment is closed
+#define COMPARTMENT_ALLOW_MOVE  (Y)     // Compartment lets you move while on it.  Will automatically take you off the furniture.
+#define COMPARTMENT_INSIDE      (Z)     // Compartment is considered inside when using it
 
 #define FURNITURE_ON            (A)
 #define FURNITURE_IN            (B)
@@ -4620,6 +4652,10 @@ struct furniture_compartment_data {
     int health_regen;
     int mana_regen;
     int move_regen;
+
+    LOCK_STATE *lock;
+
+    // WXYZ
 };
 
 struct obj_furniture_data {
@@ -9787,6 +9823,10 @@ bool light_char_has_light(CHAR_DATA *ch);
 bool bitvector_lookup(char *argument, int nbanks, long *banks, ...);
 char *bitvector_string(int nbanks, ...);
 char *flagbank_string(const struct flag_type **bank, ...);
+
+bool obj_oclu_ambiguous(OBJ_DATA *obj);
+void obj_oclu_show_parts(CHAR_DATA *ch, OBJ_DATA *obj);
+bool oclu_get_context(OCLU_CONTEXT *context, OBJ_DATA *obj, char *argument);
 
 extern LLIST *gc_mobiles;
 extern LLIST *gc_objects;

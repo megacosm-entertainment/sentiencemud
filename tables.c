@@ -3289,9 +3289,12 @@ const struct flag_type light_flags[] =
 
 const struct flag_type compartment_flags[] =
 {
-    { "inside",         COMPARTMENT_INSIDE,         TRUE },
+    { "allow_move",     COMPARTMENT_ALLOW_MOVE,     TRUE },
     { "closeable",      COMPARTMENT_CLOSEABLE,      TRUE },
     { "closed",         COMPARTMENT_CLOSED,         TRUE },
+    { "closelock",      COMPARTMENT_CLOSELOCK,      TRUE },
+    { "inside",         COMPARTMENT_INSIDE,         TRUE },
+    { "pushopen",       COMPARTMENT_PUSHOPEN,       TRUE },
     { "transparent",    COMPARTMENT_TRANSPARENT,    TRUE },
     { NULL, 0, FALSE }
 };

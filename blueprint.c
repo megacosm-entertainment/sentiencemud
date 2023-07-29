@@ -2905,8 +2905,8 @@ void instance_apply_specialkeys(INSTANCE *instance, LLIST *special_keys)
 
 					if( sk )
 					{
-						ex->door.lock.keys = sk->list;
-						ex->door.rs_lock.keys = sk->list;
+						ex->door.lock.special_keys = sk->list;
+						ex->door.rs_lock.special_keys = sk->list;
 					}
 				}
 			}

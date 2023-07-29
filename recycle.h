@@ -210,7 +210,11 @@ void free_dungeon_index(DUNGEON_INDEX_DATA *dungeon);
 DUNGEON *new_dungeon();
 void free_dungeon(DUNGEON *dungeon);
 
+LOCK_STATE_KEY *new_lock_state_key();
+void free_lock_state_key(LOCK_STATE_KEY *data);
+
 LOCK_STATE *new_lock_state();
+LOCK_STATE *copy_lock_state(LOCK_STATE *src);
 void free_lock_state(LOCK_STATE *state);
 
 SHIP_INDEX_DATA *new_ship_index();

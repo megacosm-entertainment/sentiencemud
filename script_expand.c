@@ -523,6 +523,7 @@ char *expand_argument_variable(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case VAR_SONG:		arg->type = ENT_SONG; arg->d.song = var->_.sn; break;
 		case VAR_AFFECT:	arg->type = ENT_AFFECT; arg->d.aff = var->_.aff; break;
 		case VAR_FOOD_BUFF:	arg->type = ENT_FOOD_BUFF; arg->d.food_buff = var->_.food_buff; break;
+		case VAR_COMPARTMENT:	arg->type = ENT_COMPARTMENT; arg->d.compartment = var->_.compartment; break;
 
 		case VAR_CONNECTION:	arg->type = ENT_CONN; arg->d.conn = var->_.conn; break;
 
@@ -619,6 +620,7 @@ char *expand_argument_variable(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case VAR_PLLIST_AREA_REGION:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_AREA_REGION; break;
 		case VAR_PLLIST_CHURCH:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_CHURCH; break;
 		case VAR_PLLIST_FOOD_BUFF: arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_FOOD_BUFF; break;
+		case VAR_PLLIST_COMPARTMENT: arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_COMPARTMENT; break;
 
 		}
 	}
@@ -805,7 +807,15 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
 			arg->d.food_buff = var->_.food_buff;
 		else return NULL;
 
-		arg->type = ENT_AFFECT;
+		arg->type = ENT_FOOD_BUFF;
+		break;
+
+	case ENTITY_VAR_COMPARTMENT:
+		if(var && var->type == VAR_COMPARTMENT && var->_.compartment)
+			arg->d.compartment = var->_.compartment;
+		else return NULL;
+
+		arg->type = ENT_COMPARTMENT;
 		break;
 
 	case ENTITY_VAR_CONN:
@@ -963,6 +973,7 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
 	case ENTITY_VAR_PLLIST_AREA_REGION:
 	case ENTITY_VAR_PLLIST_CHURCH:
 	case ENTITY_VAR_PLLIST_FOOD_BUFF:
+	case ENTITY_VAR_PLLIST_COMPARTMENT:
 	case ENTITY_VAR_PLLIST_VARIABLE:
 		type = (int)*str + VAR_PLLIST_STR - ENTITY_VAR_PLLIST_STR;
 		if(var && var->type == type && var->_.list)
@@ -3788,31 +3799,31 @@ char *expand_entity_food_buff(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 	//printf("expand_entity_food_buff() called\n\r");
 	switch(*str) {
-	case ENTITY_AFFECT_WHERE:
+	case ENTITY_FOOD_BUFF_WHERE:
 		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.aff ? arg->d.aff->where : -1;
+		arg->d.num = arg->d.food_buff ? arg->d.food_buff->where : -1;
 		break;
 
-	case ENTITY_AFFECT_LOCATION:
+	case ENTITY_FOOD_BUFF_LOCATION:
 		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.aff ? arg->d.aff->location : -1;
+		arg->d.num = arg->d.food_buff ? arg->d.food_buff->location : -1;
 		break;
 
-	case ENTITY_AFFECT_MOD:
+	case ENTITY_FOOD_BUFF_MOD:
 		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.aff ? arg->d.aff->modifier : 0;
+		arg->d.num = arg->d.food_buff ? arg->d.food_buff->modifier : 0;
 		break;
 
-	case ENTITY_AFFECT_BITS:
+	case ENTITY_FOOD_BUFF_BITS:
 		arg->type = ENT_BITVECTOR;
-		arg->d.bv.value = arg->d.aff ? arg->d.aff->bitvector : 0;
-		arg->d.bv.table = arg->d.aff ? affect_flags : NULL;
+		arg->d.bv.value = arg->d.food_buff ? arg->d.food_buff->bitvector : 0;
+		arg->d.bv.table = arg->d.food_buff ? affect_flags : NULL;
 		break;
 
-	case ENTITY_AFFECT_BITS2:
+	case ENTITY_FOOD_BUFF_BITS2:
 		arg->type = ENT_BITVECTOR;
-		arg->d.bv.value = arg->d.aff ? arg->d.aff->bitvector2 : 0;
-		arg->d.bv.table = arg->d.aff ? affect2_flags : NULL;
+		arg->d.bv.value = arg->d.food_buff ? arg->d.food_buff->bitvector2 : 0;
+		arg->d.bv.table = arg->d.food_buff ? affect2_flags : NULL;
 		break;
 
 	default: return NULL;
@@ -3821,6 +3832,94 @@ char *expand_entity_food_buff(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	return str+1;
 }
 
+char *expand_entity_compartment(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	switch(*str) {
+	case ENTITY_COMPARTMENT_NAME:
+		arg->type = ENT_STRING;
+		arg->d.str = IS_VALID(arg->d.compartment) ? arg->d.compartment->name : "";
+		break;
+	
+	case ENTITY_COMPARTMENT_SHORT:
+		arg->type = ENT_STRING;
+		arg->d.str = IS_VALID(arg->d.compartment) ? arg->d.compartment->short_descr : "";
+		break;
+	
+	case ENTITY_COMPARTMENT_DESC:
+		arg->type = ENT_STRING;
+		arg->d.str = IS_VALID(arg->d.compartment) ? arg->d.compartment->description : "";
+		break;
+
+	case ENTITY_COMPARTMENT_FLAGS:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = IS_VALID(arg->d.compartment) ? arg->d.compartment->flags : 0;
+		arg->d.bv.table = IS_VALID(arg->d.compartment) ? compartment_flags : NULL;
+		break;
+	
+	case ENTITY_COMPARTMENT_MAX_OCCUPANTS:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(arg->d.compartment) ? arg->d.compartment->max_occupants : 0;
+		break;
+	
+	case ENTITY_COMPARTMENT_MAX_WEIGHT:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(arg->d.compartment) ? arg->d.compartment->max_weight : 0;
+		break;
+
+	case ENTITY_COMPARTMENT_STANDING:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = IS_VALID(arg->d.compartment) ? arg->d.compartment->standing : 0;
+		arg->d.bv.table = IS_VALID(arg->d.compartment) ? furniture_flags : NULL;
+		break;
+
+	case ENTITY_COMPARTMENT_HANGING:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = IS_VALID(arg->d.compartment) ? arg->d.compartment->hanging : 0;
+		arg->d.bv.table = IS_VALID(arg->d.compartment) ? furniture_flags : NULL;
+		break;
+
+	case ENTITY_COMPARTMENT_SITTING:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = IS_VALID(arg->d.compartment) ? arg->d.compartment->sitting : 0;
+		arg->d.bv.table = IS_VALID(arg->d.compartment) ? furniture_flags : NULL;
+		break;
+
+	case ENTITY_COMPARTMENT_RESTING:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = IS_VALID(arg->d.compartment) ? arg->d.compartment->resting : 0;
+		arg->d.bv.table = IS_VALID(arg->d.compartment) ? furniture_flags : NULL;
+		break;
+
+	case ENTITY_COMPARTMENT_SLEEPING:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = IS_VALID(arg->d.compartment) ? arg->d.compartment->sleeping : 0;
+		arg->d.bv.table = IS_VALID(arg->d.compartment) ? furniture_flags : NULL;
+		break;
+	
+	case ENTITY_COMPARTMENT_HEALTH:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(arg->d.compartment) ? arg->d.compartment->health_regen : 0;
+		break;
+	
+	case ENTITY_COMPARTMENT_MANA:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(arg->d.compartment) ? arg->d.compartment->mana_regen : 0;
+		break;
+	
+	case ENTITY_COMPARTMENT_MOVE:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(arg->d.compartment) ? arg->d.compartment->move_regen : 0;
+		break;
+	
+	// TODO: Lock state
+	case ENTITY_COMPARTMENT_LOCK:
+		return NULL;
+	
+	default: return NULL;
+	}
+
+	return str+1;
+}
 
 char *expand_entity_clone_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
@@ -4813,6 +4912,41 @@ char *expand_entity_plist_food_buff(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM 
 
 		arg->d.food_buff = food_buff;
 		arg->type = ENT_FOOD_BUFF;
+		break;
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_plist_compartment(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	register FURNITURE_COMPARTMENT *compartment = NULL;
+	switch(*str) {
+	case ENTITY_LIST_SIZE:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
+		break;
+	case ENTITY_LIST_RANDOM:
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			compartment = (FURNITURE_COMPARTMENT *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
+
+		arg->d.compartment = compartment;
+		arg->type = ENT_COMPARTMENT;
+		break;
+	case ENTITY_LIST_FIRST:
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			compartment = (FURNITURE_COMPARTMENT *)list_nthdata(arg->d.blist, 0);
+
+		arg->d.compartment = compartment;
+		arg->type = ENT_COMPARTMENT;
+		break;
+	case ENTITY_LIST_LAST:
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			compartment = (FURNITURE_COMPARTMENT *)list_nthdata(arg->d.blist, -1);
+
+		arg->d.compartment = compartment;
+		arg->type = ENT_COMPARTMENT;
 		break;
 	default: return NULL;
 	}
@@ -5867,6 +6001,16 @@ char *expand_entity_object_container(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM
 	CONTAINER_DATA *container = IS_VALID(arg->d.obj) && IS_CONTAINER(arg->d.obj) ? CONTAINER(arg->d.obj) : NULL;
 
 	switch(*str) {
+	case ENTITY_OBJ_CONTAINER_NAME:
+		arg->type = ENT_STRING;
+		arg->d.str = IS_VALID(container) ? container->name : "";
+		break;
+	
+	case ENTITY_OBJ_CONTAINER_SHORT:
+		arg->type = ENT_STRING;
+		arg->d.str = IS_VALID(container) ? container->short_descr : "";
+		break;
+
 	case ENTITY_OBJ_CONTAINER_FLAGS:
 		arg->type = ENT_BITVECTOR;
 		arg->d.bv.value = IS_VALID(container) ? container->flags : 0;
@@ -5893,6 +6037,10 @@ char *expand_entity_object_container(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM
 		return NULL;
 
 	case ENTITY_OBJ_CONTAINER_BLACKLIST:
+		return NULL;
+
+	// TODO: LOCK STATE Entity
+	case ENTITY_OBJ_CONTAINER_LOCK:
 		return NULL;
 		
 	default: return NULL;
@@ -5925,6 +6073,29 @@ char *expand_entity_object_food(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg
 		arg->type = ENT_PLLIST_FOOD_BUFF;
 		arg->d.blist = IS_VALID(food) ? food->buffs : NULL;
 		break;
+
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_object_furniture(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	FURNITURE_DATA *furniture = IS_VALID(arg->d.obj) && IS_FURNITURE(arg->d.obj) ? FURNITURE(arg->d.obj) : NULL;
+	
+
+	switch(*str) {
+	case ENTITY_OBJ_FURNITURE_MAIN_COMPARTMENT:
+	{
+		if (IS_VALID(furniture) && furniture->main_compartment > 0)
+			arg->d.compartment = (FURNITURE_COMPARTMENT *)list_nthdata(furniture->compartments, furniture->main_compartment);
+		else
+			arg->d.compartment = NULL;
+		
+		arg->type = ENT_COMPARTMENT;
+		break;
+	}
 
 	default: return NULL;
 	}
@@ -6011,6 +6182,7 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case ENT_EXTRADESC:	next = expand_entity_extradesc(info,str,arg); break;
 		case ENT_AFFECT:	next = expand_entity_affect(info,str,arg); break;
 		case ENT_FOOD_BUFF:	next = expand_entity_food_buff(info,str,arg); break;
+		case ENT_COMPARTMENT:	next = expand_entity_compartment(info,str,arg); break;
 		case ENT_SONG:		next = expand_entity_song(info,str,arg); break;
 		case ENT_CLONE_ROOM:	next = expand_entity_clone_room(info,str,arg); break;
 		case ENT_WILDS_ROOM:	next = expand_entity_wilds_room(info,str,arg); break;
@@ -6037,6 +6209,7 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case ENT_PLLIST_AREA_REGION:	next = expand_entity_plist_area_region(info,str,arg); break;
 		case ENT_PLLIST_CHURCH:	next = expand_entity_plist_church(info,str,arg); break;
 		case ENT_PLLIST_FOOD_BUFF:	next = expand_entity_plist_food_buff(info,str,arg); break;
+		case ENT_PLLIST_COMPARTMENT:	next = expand_entity_plist_compartment(info,str,arg); break;
 
 		case ENT_MOBILE_ID:		next = expand_entity_mobile_id(info,str,arg); break;
 		case ENT_OBJECT_ID:		next = expand_entity_object_id(info,str,arg); break;
@@ -6069,6 +6242,7 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		// Multi-typing
 		case ENT_OBJECT_CONTAINER:		next = expand_entity_object_container(info,str,arg); break;
 		case ENT_OBJECT_FOOD:			next = expand_entity_object_food(info,str,arg); break;
+		case ENT_OBJECT_FURNITURE:		next = expand_entity_object_furniture(info,str,arg); break;
 		case ENT_OBJECT_LIGHT:			next = expand_entity_object_light(info,str,arg); break;
 		case ENT_OBJECT_MONEY:			next = expand_entity_object_money(info,str,arg); break;
 

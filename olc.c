@@ -2701,14 +2701,23 @@ void do_ocopy(CHAR_DATA *ch, char *argument)
 	for (i = 0; i < MAX_OBJVALUES; i++)
 		new_obj->value[i] = old_obj->value[i];
 
+	/*
 	if (old_obj->lock)
 	{
 		new_obj->lock = new_lock_state();
 		new_obj->lock->key_wnum = old_obj->lock->key_wnum;
 		new_obj->lock->pick_chance = old_obj->lock->pick_chance;
 		new_obj->lock->flags = old_obj->lock->flags;
+
 		new_obj->lock->keys = old_obj->lock->keys;		// Do I really need to do this?
 	}
+	*/
+
+	CONTAINER(new_obj) = copy_container_data(CONTAINER(old_obj));
+	FOOD(new_obj) = copy_food_data(FOOD(old_obj));
+	FURNITURE(new_obj) = copy_furniture_data(FURNITURE(old_obj));
+	LIGHT(new_obj) = copy_light_data(LIGHT(old_obj));
+	MONEY(new_obj) = copy_money_data(MONEY(old_obj));
 
 	// Only copy impsig if imp (to block cheaters)
 	if (get_trust(ch) == MAX_LEVEL)

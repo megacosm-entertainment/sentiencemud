@@ -1758,6 +1758,38 @@ void fix_objects(void)
 					}
 				}
 
+				// IS_BOOK
+
+				if (IS_CONTAINER(obj) && CONTAINER(obj)->lock)
+				{
+					if (CONTAINER(obj)->lock->key_load.vnum > 0)
+					{
+						CONTAINER(obj)->lock->key_wnum.pArea = CONTAINER(obj)->lock->key_load.auid > 0 ? get_area_from_uid(CONTAINER(obj)->lock->key_load.auid) : pArea;
+						CONTAINER(obj)->lock->key_wnum.vnum = CONTAINER(obj)->lock->key_load.vnum;
+					}
+				}
+
+				if (IS_FURNITURE(obj))
+				{
+					ITERATOR cit;
+					FURNITURE_COMPARTMENT *compartment;
+					iterator_start(&cit, FURNITURE(obj)->compartments);
+					while((compartment = (FURNITURE_COMPARTMENT *)iterator_nextdata(&cit)))
+					{
+						if (compartment->lock)
+						{
+							if (compartment->lock->key_load.vnum > 0)
+							{
+								compartment->lock->key_wnum.pArea = compartment->lock->key_load.auid > 0 ? get_area_from_uid(compartment->lock->key_load.auid) : pArea;
+								compartment->lock->key_wnum.vnum = compartment->lock->key_load.vnum;
+							}
+						}
+					}
+					iterator_stop(&cit);
+				}
+
+				// IS_PORTAL
+
 				if (obj->spells)
 				{
 					for(SPELL_DATA *spell = obj->spells; spell; spell = spell->next)
@@ -6399,6 +6431,7 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
 
 	fwrite_obj_multityping(fp, obj);
 
+	/*
 	if( obj->lock )
 	{
 		fprintf(fp, "Lock %s '%s' %d",
@@ -6423,6 +6456,7 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
 
 		fprintf(fp, " 0\n");
 	}
+	*/
 
 	if( obj->waypoints )
 	{
@@ -7090,29 +7124,37 @@ void persist_fix_environment_token(TOKEN_DATA *token)
 	iterator_stop(&it);
 }
 
-// Resolve all special keys
-void persist_fix_lockstate(LOCK_STATE *state)
-{
-	if (state)
-	{
-		LLIST_UID_DATA *luid;
-		ITERATOR skit;
 
-		iterator_start(&skit, state->keys);
-		while( (luid = (LLIST_UID_DATA *)iterator_nextdata(&skit)) )
-		{
-			luid->ptr = idfind_object(luid->id[0], luid->id[1]);
-		}
-		iterator_stop(&skit);
-	}	
-}
+void fix_lockstate(LOCK_STATE *state);
 
 void persist_fix_object_lockstate(OBJ_DATA *obj)
 {
+	/*
 	if (obj->lock)
 	{
 		persist_fix_lockstate(obj->lock);
 	}
+	*/
+
+	// IS_BOOK
+
+	if (IS_CONTAINER(obj) && CONTAINER(obj)->lock)
+		fix_lockstate(CONTAINER(obj)->lock);
+	
+	if (IS_FURNITURE(obj))
+	{
+		ITERATOR it;
+		FURNITURE_COMPARTMENT *compartment;
+		iterator_start(&it, FURNITURE(obj)->compartments);
+		while((compartment = (FURNITURE_COMPARTMENT *)iterator_nextdata(&it)))
+		{
+			if (compartment->lock)
+				fix_lockstate(compartment->lock);
+		}
+		iterator_stop(&it);
+	}
+
+	// IS_PORTAL
 
 	if (obj->contains)
 	{
@@ -7614,6 +7656,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 				KEY("LastWearLoc",	obj->last_wear_loc,	fread_number(fp));
 				KEY("Level",		obj->level,		fread_number(fp));
 				KEY("LoadedBy",		obj->loaded_by,		fread_string(fp));
+				/*
 				if( !str_cmp(word,"Lock") )
 				{
 					if( !obj->lock )
@@ -7646,6 +7689,7 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					fMatch = TRUE;
 					break;
 				}
+				*/
 				FKEY("Locker",		obj->locker);
 				KEY("LongDesc",		obj->description,	fread_string(fp));
 				break;
