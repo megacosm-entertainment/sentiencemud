@@ -2878,6 +2878,7 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects)
 	case ITEM_WHISTLE:
 	case ITEM_SHOVEL:
 	case ITEM_SHRINE:
+	case ITEM_INK:
 	    break;
 
 	case ITEM_FOOD:
