@@ -401,6 +401,7 @@ char *op_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 		case ENT_NONE: *room = obj_room(info->obj); break;
 		case ENT_NUMBER:
 			x = arg->d.num;
+			rest2 = rest;
 			if((rest = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
 				y = arg->d.num;
 				if((rest = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
@@ -420,7 +421,10 @@ char *op_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 					*room = &room_used_for_wilderness;
 				}
 			} else
+			{
 				*room = get_room_index(x);
+				rest = rest2;
+			}
 			break;
 
 		case ENT_STRING: // Special named locations

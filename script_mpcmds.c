@@ -533,6 +533,7 @@ char *mp_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 		case ENT_NONE: *room = info->mob->in_room; break;
 		case ENT_NUMBER:
 			x = arg->d.num;
+			rest2 = rest;
 			if((rest = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
 				y = arg->d.num;
 				if((rest = expand_argument(info,rest,arg)) && arg->type == ENT_NUMBER) {
@@ -552,7 +553,10 @@ char *mp_getlocation(SCRIPT_VARINFO *info, char *argument, ROOM_INDEX_DATA **roo
 					*room = &room_used_for_wilderness;
 				}
 			} else
-				*room = get_room_index(x);
+			{
+					*room = get_room_index(x);
+					rest = rest2;
+			}
 			break;
 
 		case ENT_STRING: // Special named locations

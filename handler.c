@@ -7088,6 +7088,9 @@ void extract_event(EVENT_DATA *ev)
 
 	/* Remove from global list */
 
+if (!IS_VALID(ev))
+  return;
+
 	/* Find it in the list first
 	"*_next = *->next saving is not required here since we're not modifying structures within the for-loop */
 	ev_last = NULL;
@@ -7154,7 +7157,8 @@ void extract_event(EVENT_DATA *ev)
 
 			ev_entity_last = ev_entity_temp;
 		}
-
+		if (ev_entity_temp)
+		{
 		if (ev_entity_last)
 			ev_entity_last->next_event = ev_entity_temp->next_event;
 		else
@@ -7164,7 +7168,7 @@ void extract_event(EVENT_DATA *ev)
 			*ev_tail = ev_entity_last;
 		else
 			*ev_tail = NULL;
-
+		}
 	}
 
 	free_event(ev);
