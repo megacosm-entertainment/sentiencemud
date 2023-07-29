@@ -3645,6 +3645,7 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
 	location_from_room(&victim->recall,recall_room);
 	stop_fighting(victim, TRUE);
 	stop_casting(victim, FALSE);
+	stop_music(victim, FALSE);
 	script_end_failure(victim, FALSE);
 	interrupt_script(victim, TRUE);
 
