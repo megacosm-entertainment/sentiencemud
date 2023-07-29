@@ -4589,6 +4589,28 @@ void fread_skill(FILE *fp, CHAR_DATA *ch)
 			}
 
 			break;
+		
+
+		case 'T':
+			if(IS_KEY("TypeAffect"))
+			{
+				source = SKILLSRC_AFFECT;
+				fMatch = TRUE;
+				break;
+			}
+			if(IS_KEY("TypeScript"))
+			{
+				source = SKILLSRC_SCRIPT;
+				fMatch = TRUE;
+				break;
+			}
+			if(IS_KEY("TypeScriptPerm"))
+			{
+				source = SKILLSRC_SCRIPT_PERM;
+				fMatch = TRUE;
+				break;
+			}
+			break;
 		}
 
 	    if (!fMatch) {

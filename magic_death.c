@@ -379,7 +379,7 @@ SPELL_FUNC(spell_raise_dead)
 
 
 		if (obj->item_type == ITEM_CORPSE_PC) {
-			victim = get_char_world(ch,obj->owner);
+			victim = get_char_world(NULL,obj->owner);
 			if (!victim) {
 				sprintf(buf, "The soul of %s is no longer within this world.", obj->owner);
 				act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);

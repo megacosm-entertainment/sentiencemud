@@ -690,7 +690,7 @@ void do_get(CHAR_DATA *ch, char *argument)
 						!can_get_obj(ch, obj, container, NULL, TRUE))
 						continue;
 
-					if (ch->carry_number + get_obj_number(obj) == can_carry_n(ch)) {
+					if (ch->carry_number + get_obj_number(obj) > can_carry_n(ch)) {
 						if (i > 0 && match_obj != NULL) {
 							sprintf(buf, "{Y({G%2d{Y) {x$n gets $p from $P.", i);
 							act(buf, ch, NULL, NULL, match_obj, container, NULL, NULL, TO_ROOM);
@@ -770,6 +770,11 @@ void do_get(CHAR_DATA *ch, char *argument)
 				if( container->item_type == ITEM_CORPSE_NPC && container->timer > 0 ) return;
 
 				church_announce_theft(ch, NULL);
+			}
+			if (!gotten)
+			{
+				sprintf(buf, "You were unable to take anything from %s.\n\r", container->short_descr);
+				send_to_char(buf, ch);
 			}
 	}
 }
@@ -7023,10 +7028,8 @@ void do_pull(CHAR_DATA *ch, char *argument)
 	{
 	    if (ch->church == NULL)
 	    {
-	        act("{YA huge arc of lightning leaps out from $p striking you!{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-	        act("{YA huge arc of lightning leaps out from $p striking $n!{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-	        damage(ch, ch, 30000, TYPE_UNDEFINED, DAM_NONE, FALSE);
-		return;
+	        act("Relics are only usable by players in churches.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			return;
 	    }
 	    else
 			church_announce_theft(ch, obj);

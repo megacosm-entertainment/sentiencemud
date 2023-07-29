@@ -3645,6 +3645,7 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
 	location_from_room(&victim->recall,recall_room);
 	stop_fighting(victim, TRUE);
 	stop_casting(victim, FALSE);
+	stop_music(victim, FALSE);
 	script_end_failure(victim, FALSE);
 	interrupt_script(victim, TRUE);
 
@@ -3906,9 +3907,18 @@ void group_gain(CHAR_DATA *ch, CHAR_DATA *victim)
 	int group_levels;
 	int skill_reduction;
 
-	/* Don't give experience to NPCs. */
-	if (IS_NPC(ch))
-		return;
+	// If is an NPC that can't level, verify this mob is grouped with a player in the room.
+	if (IS_NPC(ch) && !IS_SET(ch->act2, ACT2_CANLEVEL))
+	{
+		CHAR_DATA *pch;
+		for(pch = ch->in_room->people; pch; pch = pch->next_in_room)
+		{
+			if (!IS_NPC(pch) && is_same_group(ch, pch))
+				break;
+		}
+
+		if (!pch) return;
+	}
 
 	// No experience on npc victims if disabled.
 	if( IS_NPC(victim) && IS_SET(victim->act2, ACT2_NO_XP))
@@ -7006,7 +7016,7 @@ void do_resurrect(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	victim = get_char_world(ch, obj->owner);
+	victim = get_char_world(NULL, obj->owner);
 	if (victim == NULL)
 	{
 		act("The soul of $t is no longer within this world.", ch, NULL, NULL, NULL, NULL, obj->owner, NULL, TO_CHAR);

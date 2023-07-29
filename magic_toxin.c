@@ -123,7 +123,7 @@ SPELL_FUNC(spell_plague)
 		return FALSE;
 	}
 
-	af.slot	= WEAR_NONE;
+	af.slot	= obj_wear_loc;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
 	af.type = sn;
@@ -216,7 +216,7 @@ SPELL_FUNC(spell_poison)
 		return FALSE;
 	}
 
-	af.slot	= WEAR_NONE;
+	af.slot	= obj_wear_loc;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
 	af.type = sn;

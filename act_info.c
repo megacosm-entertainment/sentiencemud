@@ -1984,7 +1984,7 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 			if (room->chat_room != NULL) {
 				send_to_char("  {YTopic:{x ", ch);
 
-				sprintf(buf, "%s", room->chat_room->topic);
+				sprintf(buf, "%s{x", room->chat_room->topic);
 				send_to_char(buf, ch);
 
 				send_to_char("\n\r\n\r", ch);
@@ -3194,7 +3194,7 @@ void do_score(CHAR_DATA * ch, char *argument)
 	strcat(buf, " ");
     send_to_char(buf, ch);
 
-    sprintf(buf, "{BLevel: {x%d", ch->level);
+    sprintf(buf, "{BLevel: {x%d (%d)", ch->level, ch->tot_level);
     for (i = fstr_len(buf); i < 25; i++)
 	strcat(buf, " ");
     send_to_char(buf, ch);
@@ -3665,11 +3665,12 @@ void do_score(CHAR_DATA * ch, char *argument)
 
     if (!IS_NPC(ch) && ch->pcdata->condition[COND_DRUNK] > 10)
 	send_to_char("You are drunk.\n\r", ch);
+	/*
     if (!IS_NPC(ch) && ch->pcdata->condition[COND_THIRST] == 0)
 	send_to_char("You are thirsty.\n\r", ch);
     if (!IS_NPC(ch) && ch->pcdata->condition[COND_HUNGER] == 0)
 	send_to_char("You are hungry.\n\r", ch);
-
+	*/
     switch (ch->position)
     {
     case POS_DEAD:

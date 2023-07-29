@@ -2942,10 +2942,22 @@ char *expand_entity_area(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_NUMBER;
 		arg->d.num = arg->d.area ? arg->d.area->max_vnum : 0;
 		break;
+	case ENTITY_AREA_MINLEVEL:
+		arg->type = ENT_NUMBER;
+		arg->d.num = arg->d.area ? arg->d.area->min_level : 0;
+		break;
+	case ENTITY_AREA_MAXLEVEL:
+		arg->type = ENT_NUMBER;
+		arg->d.num = arg->d.area ? arg->d.area->max_level : 0;
+		break;
 	case ENTITY_AREA_ROOMS:
 		arg->type = ENT_PLLIST_ROOM;
 		arg->d.blist = arg->d.area ? arg->d.area->room_list : NULL;
 		break;
+	case ESCAPE_VARIABLE:
+        str = expand_escape_variable(info,arg->d.area?arg->d.area->progs->vars:NULL,str+1,arg);
+        if(!str) return NULL;
+        break;
 	default: return NULL;
 	}
 
@@ -2972,6 +2984,14 @@ char *expand_entity_area_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->d.num = 0;
 		break;
 	case ENTITY_AREA_UPPERVNUM:
+		arg->type = ENT_NUMBER;
+		arg->d.num = 0;
+		break;
+	case ENTITY_AREA_MINLEVEL:
+		arg->type = ENT_NUMBER;
+		arg->d.num = 0;
+		break;
+	case ENTITY_AREA_MAXLEVEL:
 		arg->type = ENT_NUMBER;
 		arg->d.num = 0;
 		break;

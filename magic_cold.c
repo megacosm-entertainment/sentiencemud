@@ -37,7 +37,7 @@ SPELL_FUNC(spell_chill_touch)
 		af.modifier = -1;
 		af.bitvector = 0;
 		af.bitvector2 = 0;
-		af.slot	= WEAR_NONE;
+		af.slot	= obj_wear_loc;
 		affect_join(victim, &af);
 	} else
 		dam /= 2;
