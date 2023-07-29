@@ -141,6 +141,7 @@ const struct script_cmd_type room_cmd_table[] = {
 	{ "spawndungeon",		scriptcmd_spawndungeon,		TRUE,	TRUE	},
 	{ "specialkey",			scriptcmd_specialkey,		FALSE,	TRUE	},
 	{ "startcombat",		scriptcmd_startcombat,	FALSE,	TRUE	},
+	{ "startreckoning",		scriptcmd_startreckoning,	TRUE,	TRUE	},
 	{ "stopcombat",			scriptcmd_stopcombat,	FALSE,	TRUE	},
 	{ "stringmob",			do_rpstringmob,			TRUE,	TRUE	},
 	{ "stringobj",			do_rpstringobj,			TRUE,	TRUE	},
@@ -421,6 +422,9 @@ void room_interpret(SCRIPT_VARINFO *info, char *argument)
 	int cmd;
 
 	if(!info->room) return;
+
+	if (!str_prefix("room ", argument))
+		argument = skip_whitespace(argument+4);
 
 	argument = one_argument(argument, command);
 

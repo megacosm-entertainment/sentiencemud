@@ -6558,6 +6558,7 @@ void token_skill_improve( CHAR_DATA *ch, TOKEN_DATA *token, bool success, int mu
 	rating = token->value[TOKVAL_SPELL_RATING];
 	max_rating = token->pIndexData->value[TOKVAL_SPELL_RATING] * 100;
 	diff = token->pIndexData->value[TOKVAL_SPELL_DIFFICULTY];
+	if (diff < 1) diff = 1;
 
 	if(!max_rating) max_rating = 100;
 

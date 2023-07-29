@@ -2958,6 +2958,7 @@ SCRIPT_CMD(scriptcmd_addblacklist);
 SCRIPT_CMD(scriptcmd_remblacklist);
 
 SCRIPT_CMD(scriptcmd_addfoodbuff);
+SCRIPT_CMD(scriptcmd_startreckoning);
 
 bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument);
 bool olc_varclear(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument);

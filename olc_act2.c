@@ -1567,15 +1567,94 @@ TEDIT(tedit_show)
 	send_to_char(buf, ch);
     } */
 
-
     add_buf(buffer, "{YDefault values:{x\n\r");
-    for (i = 0; i < MAX_TOKEN_VALUES; i++) {
-    	sprintf(buf,
-		"Value {Y[{x%d{Y]:{x %-20s {Y[{x%ld{Y]{x\n\r",
-		i, token_index_getvaluename(token_index, i), token_index->value[i]);
+	if (token_index->type == TOKEN_SPELL)
+	{
+		for (i = 0; i < MAX_TOKEN_VALUES; i++)
+		{
+			char value[MIL];
+			switch(i)
+			{
+			case TOKVAL_SPELL_RATING:
+				if (token_index->value[i] > 0)
+					sprintf(value, "%ld / 1%%", token_index->value[i]);
+				else
+					strcpy(value, "Standard");
+				break;
 
-		add_buf(buffer, buf);
-    }
+			case TOKVAL_SPELL_POSITION:
+				strcpy(value, flag_string(position_flags, token_index->value[i]));
+				break;
+
+			case TOKVAL_SPELL_TARGET:
+				strcpy(value, flag_string(spell_target_types, token_index->value[i]));
+				break;
+			
+			default:
+				sprintf(value, "%ld", token_index->value[i]);
+				break;
+			}
+
+			sprintf(buf, "Value {Y[{x%d{Y]:{x %-20s {Y[{x%s{Y]{x\n\r", i,
+				token_index_getvaluename(token_index, i), value);
+			add_buf(buffer, buf);
+		}
+	}
+	else if (token_index->type == TOKEN_SKILL)
+	{
+		for (i = 0; i < MAX_TOKEN_VALUES; i++)
+		{
+			char value[MIL];
+			switch(i)
+			{
+			case TOKVAL_SPELL_RATING:
+				if (token_index->value[i] > 0)
+					sprintf(value, "%ld / 1%%", token_index->value[i]);
+				else
+					strcpy(value, "Standard");
+				break;
+			
+			default:
+				sprintf(value, "%ld", token_index->value[i]);
+				break;
+			}
+
+			sprintf(buf, "Value {Y[{x%d{Y]:{x %-20s {Y[{x%s{Y]{x\n\r", i,
+				token_index_getvaluename(token_index, i), value);
+			add_buf(buffer, buf);
+		}
+	}
+	else if (token_index->type == TOKEN_SONG)
+	{
+		for (i = 0; i < MAX_TOKEN_VALUES; i++)
+		{
+			char value[MIL];
+			switch(i)
+			{
+			case TOKVAL_SPELL_TARGET:
+				strcpy(value, flag_string(spell_target_types, token_index->value[i]));
+				break;
+			
+			default:
+				sprintf(value, "%ld", token_index->value[i]);
+				break;
+			}
+
+			sprintf(buf, "Value {Y[{x%d{Y]:{x %-20s {Y[{x%s{Y]{x\n\r", i,
+				token_index_getvaluename(token_index, i), value);
+			add_buf(buffer, buf);
+		}
+	}
+	else
+	{
+		for (i = 0; i < MAX_TOKEN_VALUES; i++)
+		{
+			sprintf(buf, "Value {Y[{x%d{Y]:{x %-20s {Y[{x%ld{Y]{x\n\r", i,
+				token_index_getvaluename(token_index, i), token_index->value[i]);
+
+			add_buf(buffer, buf);
+		}
+	}
     if (token_index->progs) {
 	int cnt, slot;
 

@@ -3157,17 +3157,6 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 	}
     }
 
-    /*
-     * Syn - Fix object indexes here.
-     */
-
-    if (IS_SET(obj->extra_flags, ITEM_PERMANENT) && !is_relic(obj)) {
-	REMOVE_BIT(obj->extra_flags, ITEM_PERMANENT);
-	sprintf(buf, "read_object_new: removed permanent flag for item %s(%ld)",
-	    obj->short_descr, obj->vnum);
-	log_string(buf);
-    }
-
     if (obj->item_type == ITEM_WEAPON && !has_imp_sig(NULL, obj)
     &&  (obj->value[0] == WEAPON_ARROW || obj->value[0] == WEAPON_BOLT))
 	set_weapon_dice(obj);

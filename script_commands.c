@@ -69,6 +69,7 @@ const struct script_cmd_type area_cmd_table[] = {
 	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
 	{ "settitle",			scriptcmd_settitle,			TRUE,	TRUE	},
 	{ "specialkey",			scriptcmd_specialkey,		FALSE,	TRUE	},
+	{ "startreckoning",		scriptcmd_startreckoning,	TRUE,	TRUE	},
 	{ "treasuremap",		scriptcmd_treasuremap,		FALSE,	TRUE	},
 	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
 	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
@@ -123,6 +124,7 @@ const struct script_cmd_type instance_cmd_table[] = {
 	{ "settitle",			scriptcmd_settitle,			TRUE,	TRUE	},
 	{ "specialkey",			scriptcmd_specialkey,		FALSE,	TRUE	},
 	{ "specialrooms",		instancecmd_specialrooms,	FALSE,	TRUE	},
+	{ "startreckoning",		scriptcmd_startreckoning,	TRUE,	TRUE	},
 	{ "treasuremap",		scriptcmd_treasuremap,		FALSE,	TRUE	},
 	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
 	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
@@ -176,6 +178,7 @@ const struct script_cmd_type dungeon_cmd_table[] = {
 	{ "specialexits",		dungeoncmd_specialexits,	FALSE,	TRUE	},
 	{ "specialkey",			scriptcmd_specialkey,		FALSE,	TRUE	},
 	{ "specialrooms",		dungeoncmd_specialrooms,	FALSE,	TRUE	},
+	{ "startreckoning",		scriptcmd_startreckoning,	TRUE,	TRUE	},
 	{ "treasuremap",		scriptcmd_treasuremap,		FALSE,	TRUE	},
 	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
 	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
@@ -5629,6 +5632,47 @@ SCRIPT_CMD(scriptcmd_startcombat)
 		info->progs->lastreturn = 1;
 }
 
+// STARTRECKONING[ $DURATION=30[ $SKIP=false]]
+SCRIPT_CMD(scriptcmd_startreckoning)
+{
+	char *rest = argument;
+	int duration = 30;
+	bool skip = FALSE;
+
+	info->progs->lastreturn = 0;
+
+	if (script_security < 9)
+		return;
+
+	if (rest && *rest)
+	{
+		if (!(rest = expand_argument(info, rest, arg)) || arg->type != ENT_NUMBER)
+			return;
+
+		duration = URANGE(15, arg->d.num, 60);
+
+		if (rest && *rest)
+		{
+			if (!(rest = expand_argument(info, rest, arg)) || arg->type != ENT_STRING)
+				return;
+
+			if (!str_prefix(arg->d.str, "true") || !str_prefix(arg->d.str, "yes"))
+				skip = TRUE;
+		}
+	}
+
+	if (reckoning_timer > 0)
+		return;
+
+	reckoning_duration = duration;
+	struct tm *reck_time = (struct tm *) localtime(&current_time);
+	reck_time->tm_min += reckoning_duration;
+	reckoning_timer = (time_t) mktime(reck_time);
+	reckoning_cooldown_timer = 0;
+	pre_reckoning = skip?5:1;
+	
+	info->progs->lastreturn = duration;
+}
 
 // STOPCOMBAT $MOBILE[ bool(BOTH)]
 // Silently stops combat.
