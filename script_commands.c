@@ -305,7 +305,8 @@ SCRIPT_CMD(scriptcmd_addaffect)
 
 	switch(arg->type) {
 	case ENT_STRING:
-		if(where == TO_OBJECT || where == TO_WEAPON)
+		if(where == TO_OBJECT || where == TO_OBJECT2 || where == TO_OBJECT3 || 
+			where == TO_OBJECT4 || where == TO_WEAPON)
 			group = flag_lookup(arg->d.str,affgroup_object_flags);
 		else
 			group = flag_lookup(arg->d.str,affgroup_mobile_flags);
@@ -385,36 +386,138 @@ SCRIPT_CMD(scriptcmd_addaffect)
 	default: return;
 	}
 
+	bv = 0;
+	bv2 = 0;
+	switch(where)
+	{
+		case TO_AFFECTS:
+			//
+			// Get BITVECTOR
+			if(!(rest = expand_argument(info,rest,arg))) {
+				bug("Addaffect - Error in parsing.",0);
+				return;
+			}
 
-	//
-	// Get BITVECTOR
-	if(!(rest = expand_argument(info,rest,arg))) {
-		bug("Addaffect - Error in parsing.",0);
-		return;
+
+			switch(arg->type) {
+			case ENT_STRING: bv = flag_value(affect_flags,arg->d.str); break;
+			default: return;
+			}
+
+			if(bv == NO_FLAG) bv = 0;
+
+			//
+			// Get BITVECTOR2
+			if(!(rest = expand_argument(info,rest,arg))) {
+				bug("Addaffect - Error in parsing.",0);
+				return;
+			}
+			switch(arg->type) {
+			case ENT_STRING: bv2 = flag_value(affect2_flags,arg->d.str); break;
+			default: return;
+			}
+
+			if(bv2 == NO_FLAG) bv2 = 0;
+			break;
+
+		case TO_OBJECT:
+			//
+			// Get BITVECTOR
+			if(!(rest = expand_argument(info,rest,arg))) {
+				bug("Addaffect - Error in parsing.",0);
+				return;
+			}
+
+			switch(arg->type) {
+			case ENT_STRING: bv = flag_value(extra_flags,arg->d.str); break;
+			default: return;
+			}
+
+			if(bv == NO_FLAG) bv = 0;
+			break;
+
+		case TO_OBJECT2:
+			//
+			// Get BITVECTOR
+			if(!(rest = expand_argument(info,rest,arg))) {
+				bug("Addaffect - Error in parsing.",0);
+				return;
+			}
+
+			switch(arg->type) {
+			case ENT_STRING: bv = flag_value(extra2_flags,arg->d.str); break;
+			default: return;
+			}
+
+			if(bv == NO_FLAG) bv = 0;
+			break;
+
+		case TO_OBJECT3:
+			//
+			// Get BITVECTOR
+			if(!(rest = expand_argument(info,rest,arg))) {
+				bug("Addaffect - Error in parsing.",0);
+				return;
+			}
+
+			switch(arg->type) {
+			case ENT_STRING: bv = flag_value(extra3_flags,arg->d.str); break;
+			default: return;
+			}
+
+			if(bv == NO_FLAG) bv = 0;
+			break;
+
+		case TO_OBJECT4:
+			//
+			// Get BITVECTOR
+			if(!(rest = expand_argument(info,rest,arg))) {
+				bug("Addaffect - Error in parsing.",0);
+				return;
+			}
+
+			switch(arg->type) {
+			case ENT_STRING: bv = flag_value(extra4_flags,arg->d.str); break;
+			default: return;
+			}
+
+			if(bv == NO_FLAG) bv = 0;
+			break;
+
+		case TO_IMMUNE:
+		case TO_RESIST:
+		case TO_VULN:
+			//
+			// Get BITVECTOR
+			if(!(rest = expand_argument(info,rest,arg))) {
+				bug("Addaffect - Error in parsing.",0);
+				return;
+			}
+
+			switch(arg->type) {
+			case ENT_STRING: bv = flag_value(imm_flags,arg->d.str); break;
+			default: return;
+			}
+
+			if(bv == NO_FLAG) bv = 0;
+			break;
+
+		case TO_WEAPON:
+			//
+			// Get BITVECTOR
+			if(!(rest = expand_argument(info,rest,arg))) {
+				bug("Addaffect - Error in parsing.",0);
+				return;
+			}
+
+			switch(arg->type) {
+			case ENT_STRING: bv = flag_value(weapon_type2,arg->d.str); break;
+			default: return;
+			}
+
+			if(bv2 == NO_FLAG) bv2 = 0;
+			break;
 	}
-
-	switch(arg->type) {
-	case ENT_STRING: bv = flag_value(affect_flags,arg->d.str); break;
-	default: return;
-	}
-
-	if(bv == NO_FLAG) bv = 0;
-
-
-	//
-	// Get BITVECTOR2
-	if(!(rest = expand_argument(info,rest,arg))) {
-		bug("Addaffect - Error in parsing.",0);
-		return;
-	}
-
-	switch(arg->type) {
-	case ENT_STRING: bv2 = flag_value(affect2_flags,arg->d.str); break;
-	default: return;
-	}
-
-	if(bv2 == NO_FLAG) bv2 = 0;
-
 
 	//
 	// Get WEAR-LOCATION of object
@@ -507,7 +610,8 @@ SCRIPT_CMD(scriptcmd_addaffectname)
 
 	switch(arg->type) {
 	case ENT_STRING:
-		if(where == TO_OBJECT || where == TO_WEAPON)
+		if(where == TO_OBJECT || where == TO_OBJECT2 || where == TO_OBJECT3 || 
+			where == TO_OBJECT4 || where == TO_WEAPON)
 			group = flag_lookup(arg->d.str,affgroup_object_flags);
 		else
 			group = flag_lookup(arg->d.str,affgroup_mobile_flags);
@@ -592,35 +696,133 @@ SCRIPT_CMD(scriptcmd_addaffectname)
 	default: return;
 	}
 
+	bv = 0;
+	bv2 = 0;
+	switch(where)
+	{
+		case TO_AFFECTS:
+			//
+			// Get BITVECTOR
+			if(!(rest = expand_argument(info,rest,arg))) {
+				bug("Addaffect - Error in parsing.",0);
+				return;
+			}
+			switch(arg->type) {
+			case ENT_STRING: bv = flag_value(affect_flags,arg->d.str); break;
+			default: return;
+			}
 
-	//
-	// Get BITVECTOR
-	if(!(rest = expand_argument(info,rest,arg))) {
-		bug("AddAffectName - Error in parsing.",0);
-		return;
+			if(bv == NO_FLAG) bv = 0;
+			//
+			// Get BITVECTOR2
+			if(!(rest = expand_argument(info,rest,arg))) {
+				bug("Addaffect - Error in parsing.",0);
+				return;
+			}
+			switch(arg->type) {
+			case ENT_STRING: bv2 = flag_value(affect2_flags,arg->d.str); break;
+			default: return;
+			}
+			if(bv2 == NO_FLAG) bv2 = 0;
+			break;
+		
+		case TO_OBJECT:
+			//
+			// Get BITVECTOR
+			if(!(rest = expand_argument(info,rest,arg))) {
+				bug("Addaffect - Error in parsing.",0);
+				return;
+			}
+						switch(arg->type) {
+			case ENT_STRING: bv = flag_value(extra_flags,arg->d.str); break;
+			default: return;
+			}
+
+			if(bv == NO_FLAG) bv = 0;
+			break;
+
+		case TO_OBJECT2:
+			//
+			// Get BITVECTOR
+			if(!(rest = expand_argument(info,rest,arg))) {
+				bug("Addaffect - Error in parsing.",0);
+				return;
+			}
+
+			switch(arg->type) {
+			case ENT_STRING: bv = flag_value(extra2_flags,arg->d.str); break;
+			default: return;
+			}
+
+			if(bv == NO_FLAG) bv = 0;
+			break;
+
+		case TO_OBJECT3:
+			//
+			// Get BITVECTOR
+			if(!(rest = expand_argument(info,rest,arg))) {
+				bug("Addaffect - Error in parsing.",0);
+				return;
+			}
+
+			switch(arg->type) {
+			case ENT_STRING: bv = flag_value(extra3_flags,arg->d.str); break;
+			default: return;
+			}
+
+			if(bv == NO_FLAG) bv = 0;
+			break;
+
+		case TO_OBJECT4:
+			//
+			// Get BITVECTOR
+			if(!(rest = expand_argument(info,rest,arg))) {
+				bug("Addaffect - Error in parsing.",0);
+				return;
+			}
+
+			switch(arg->type) {
+			case ENT_STRING: bv = flag_value(extra4_flags,arg->d.str); break;
+			default: return;
+			}
+
+			if(bv == NO_FLAG) bv = 0;
+			break;
+
+		case TO_IMMUNE:
+		case TO_RESIST:
+		case TO_VULN:
+			//
+			// Get BITVECTOR
+			if(!(rest = expand_argument(info,rest,arg))) {
+				bug("Addaffect - Error in parsing.",0);
+				return;
+			}
+
+			switch(arg->type) {
+			case ENT_STRING: bv = flag_value(imm_flags,arg->d.str); break;
+			default: return;
+			}
+
+			if(bv == NO_FLAG) bv = 0;
+			break;
+
+		case TO_WEAPON:
+			//
+			// Get BITVECTOR
+			if(!(rest = expand_argument(info,rest,arg))) {
+				bug("Addaffect - Error in parsing.",0);
+				return;
+			}
+
+			switch(arg->type) {
+			case ENT_STRING: bv = flag_value(weapon_type2,arg->d.str); break;
+			default: return;
+			}
+
+			if(bv == NO_FLAG) bv = 0;
+			break;
 	}
-
-	switch(arg->type) {
-	case ENT_STRING: bv = flag_value(affect_flags,arg->d.str); break;
-	default: return;
-	}
-
-	if(bv == NO_FLAG) bv = 0;
-
-
-	//
-	// Get BITVECTOR2
-	if(!(rest = expand_argument(info,rest,arg))) {
-		bug("AddAffectName - Error in parsing.",0);
-		return;
-	}
-
-	switch(arg->type) {
-	case ENT_STRING: bv2 = flag_value(affect2_flags,arg->d.str); break;
-	default: return;
-	}
-
-	if(bv2 == NO_FLAG) bv2 = 0;
 
 
 	//
