@@ -877,6 +877,36 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
             case 'V': /* light violet */
                pCopyFrom = ColourRGB(apDescriptor, "F205");
                break;
+            case '0':
+               pCopyFrom = C_BK_BLACK;
+               break;
+            case '1':
+               pCopyFrom = C_BK_BLUE;
+               break;
+            case '2':
+               pCopyFrom = C_BK_CYAN;
+               break;
+            case '3':
+               pCopyFrom = C_BK_GREEN;
+               break;
+            case '4':
+               pCopyFrom = C_BK_MAGENTA;
+               break;
+            case '5':
+               pCopyFrom = C_BK_RED;
+               break;
+            case '6':
+               pCopyFrom = C_BK_WHITE;
+               break;
+            case '7':
+               pCopyFrom = C_BK_YELLOW;
+               break;
+            case 'i':
+               pCopyFrom = "\033[5m";
+               break;
+            case 'f':
+               pCopyFrom = "\033[7m";
+               break;
             case '\0':
                bTerminate = true;
                break;
