@@ -4128,7 +4128,7 @@ void draw_moon(CHAR_DATA *ch,int colour)
 				{
 					char ms = moon_shadow[i][k];
 
-					if( ms == '{' || ms == COLOUR_CHAR)
+					if( ms == COLOUR_CHAR)
 						buf[j++] = ms;
 
 					buf[j++] = ms;
@@ -4166,7 +4166,7 @@ void draw_moon(CHAR_DATA *ch,int colour)
 
 				char mf = moon_face[i][k+ld];
 
-				if( mf == '{' || mf == COLOUR_CHAR )
+				if( mf == COLOUR_CHAR )
 				{
 					// Double up escaping codes
 					buf[j++] = mf;
@@ -4214,7 +4214,7 @@ void draw_moon(CHAR_DATA *ch,int colour)
 
 				char mf = moon_face[i][k];
 
-				if( mf == '{' || mf == COLOUR_CHAR )
+				if( mf == COLOUR_CHAR )
 				{
 					// Double up escaping codes
 					buf[j++] = mf;

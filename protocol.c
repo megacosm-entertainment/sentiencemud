@@ -54,7 +54,10 @@ static void ReportBug( const char *apText )
 
 static void InfoMessage( descriptor_t *apDescriptor, const char *apData )
 {
+   if (IS_SET(apDescriptor->character->act, PLR_COLOUR))
    Write( apDescriptor, "\t[F210][\toINFO\t[F210]]\tn " );
+   else
+   Write (apDescriptor, "[INFO]");
    Write( apDescriptor, apData );
 }
 
@@ -565,9 +568,13 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
    const char MXPStop[] = ">\033[7z";
    const char LinkStart[] = "\033[1z<send>\033[7z";
    const char LinkStop[] = "\033[1z</send>\033[7z";
-   bool_t bTerminate = false, bUseMXP = false, bUseMSP = false;
+   bool_t bTerminate = false, bUseMXP = false, bUseMSP = false, bColourOn = false;
 #ifdef COLOUR_CHAR
-   bool_t bColourOn = COLOUR_ON_BY_DEFAULT;
+   if (apDescriptor->character && IS_SET(apDescriptor->character->act, PLR_COLOUR))
+      bColourOn = true;
+   else
+      bColourOn = false;
+
 #endif /* COLOUR_CHAR */
    int i = 0, j = 0; /* Index values */
 
@@ -590,93 +597,6 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
          {
             case '\t': /* Two tabs in a row will display an actual tab */
                pCopyFrom = Tab;
-               break;
-            case 'n':
-               pCopyFrom = s_Clean;
-               break;
-            case 'r': /* dark red */
-               pCopyFrom = ColourRGB(apDescriptor, "F200");
-               break;
-            case 'R': /* light red */
-               pCopyFrom = ColourRGB(apDescriptor, "F500");
-               break;
-            case 'g': /* dark green */
-               pCopyFrom = ColourRGB(apDescriptor, "F020");
-               break;
-            case 'G': /* light green */
-               pCopyFrom = ColourRGB(apDescriptor, "F050");
-               break;
-            case 'y': /* dark yellow */
-               pCopyFrom = ColourRGB(apDescriptor, "F220");
-               break;
-            case 'Y': /* light yellow */
-               pCopyFrom = ColourRGB(apDescriptor, "F550");
-               break;
-            case 'b': /* dark blue */
-               pCopyFrom = ColourRGB(apDescriptor, "F002");
-               break;
-            case 'B': /* light blue */
-               pCopyFrom = ColourRGB(apDescriptor, "F005");
-               break;
-            case 'm': /* dark magenta */
-               pCopyFrom = ColourRGB(apDescriptor, "F202");
-               break;
-            case 'M': /* light magenta */
-               pCopyFrom = ColourRGB(apDescriptor, "F505");
-               break;
-            case 'c': /* dark cyan */
-               pCopyFrom = ColourRGB(apDescriptor, "F022");
-               break;
-            case 'C': /* light cyan */
-               pCopyFrom = ColourRGB(apDescriptor, "F055");
-               break;
-            case 'w': /* dark white */
-               pCopyFrom = ColourRGB(apDescriptor, "F222");
-               break;
-            case 'W': /* light white */
-               pCopyFrom = ColourRGB(apDescriptor, "F555");
-               break;
-            case 'a': /* dark azure */
-               pCopyFrom = ColourRGB(apDescriptor, "F014");
-               break;
-            case 'A': /* light azure */
-               pCopyFrom = ColourRGB(apDescriptor, "F025");
-               break;
-            case 'j': /* dark jade */
-               pCopyFrom = ColourRGB(apDescriptor, "F031");
-               break;
-            case 'J': /* light jade */
-               pCopyFrom = ColourRGB(apDescriptor, "F052");
-               break;
-            case 'l': /* dark lime */
-               pCopyFrom = ColourRGB(apDescriptor, "F140");
-               break;
-            case 'L': /* light lime */
-               pCopyFrom = ColourRGB(apDescriptor, "F250");
-               break;
-            case 'o': /* dark orange */
-               pCopyFrom = ColourRGB(apDescriptor, "F520");
-               break;
-            case 'O': /* light orange */
-               pCopyFrom = ColourRGB(apDescriptor, "F530");
-               break;
-            case 'p': /* dark pink */
-               pCopyFrom = ColourRGB(apDescriptor, "F301");
-               break;
-            case 'P': /* light pink */
-               pCopyFrom = ColourRGB(apDescriptor, "F502");
-               break;
-            case 't': /* dark tan */
-               pCopyFrom = ColourRGB(apDescriptor, "F210");
-               break;
-            case 'T': /* light tan */
-               pCopyFrom = ColourRGB(apDescriptor, "F321");
-               break;
-            case 'v': /* dark violet */
-               pCopyFrom = ColourRGB(apDescriptor, "F104");
-               break;
-            case 'V': /* light violet */
-               pCopyFrom = ColourRGB(apDescriptor, "F205");
                break;
             case '(': /* MXP link */
                if ( !pProtocol->bBlockMXP && pProtocol->pVariables[eMSDP_MXP]->ValueInt )
@@ -837,14 +757,14 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
             case '!': /* Used for in-band MSP sound triggers */
                pCopyFrom = MSP;
                break;
-#ifdef COLOUR_CHAR
             case '+':
-               bColourOn = true;
+               if (isalpha (apData[j++]))
+                  toupper(apData[j++]);
                break;
             case '-':
-               bColourOn = false;
+               if (isalpha (apData[j++]))
+                  tolower(apData[j++]);
                break;
-#endif /* COLOUR_CHAR */
             case '\0':
                bTerminate = true;
                break;
@@ -870,7 +790,7 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
             case COLOUR_CHAR: /* Two in a row display the actual character */
                pCopyFrom = ColourChar;
                break;
-            case 'n':
+            case 'x':
                pCopyFrom = s_Clean;
                break;
             case 'r': /* dark red */
@@ -959,6 +879,14 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
                break;
             case '\0':
                bTerminate = true;
+               break;
+            case '+':
+               if (isalpha (apData[j++]))
+                  toupper(apData[j++]);
+               break;
+            case '-':
+               if (isalpha (apData[j++]))
+                  tolower(apData[j++]);
                break;
 #ifdef EXTENDED_COLOUR
             case '[':
@@ -1665,7 +1593,7 @@ void SoundSend( descriptor_t *apDescriptor, const char *apTrigger )
       }
    }
 }
-
+ 
 /******************************************************************************
  Colour global functions.
  ******************************************************************************/
