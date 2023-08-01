@@ -1153,6 +1153,13 @@ SCRIPT_CMD(scriptcmd_attach)
 				add_follower(entity_mob, target_mob, show);
 				add_grouped(entity_mob, target_mob, show);	// Checks are already done
 			}
+			else if(!str_prefix(field, "reply"))
+			{
+				if (IS_NPC(entity_mob))
+					return;
+
+				entity_mob->reply = target_mob;
+			}
 		}
 	}
 	else	// entity_obj != NULL
@@ -1763,6 +1770,7 @@ SCRIPT_CMD(scriptcmd_deduct)
 // * LEADER/GROUP: MOBILE
 // * CART: MOBILE
 // * ON: MOBILE/OBJECT
+// * REPLY: MOBILE
 //
 // $SILENT is a boolean to indicate whether the action is silent
 //
@@ -1857,6 +1865,10 @@ SCRIPT_CMD(scriptcmd_detach)
 		else if( !str_prefix(field, "on") )
 		{
 			mob->on = NULL;
+		}
+		else if( !str_prefix(field, "reply") )
+		{
+			mob->reply = NULL;
 		}
 	}
 	else	// obj != NULL
