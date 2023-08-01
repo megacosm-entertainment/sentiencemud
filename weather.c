@@ -153,7 +153,7 @@ void remove_storm(AREA_DATA *pArea, STORM_DATA *storm) {
 
     // iterate through all areas, if they are in the wilderness show warning of storm
     for (pArea2 = area_first; pArea2 != NULL; pArea2 = pArea2->next) {
-      pArea2->affected_by_storm = NULL;
+      pArea2->affected_by[0]_storm = NULL;
       pArea2->storm_close = NULL;
 
       if (pArea2->x > 0 && pArea2->y > 0) {
@@ -166,14 +166,14 @@ void remove_storm(AREA_DATA *pArea, STORM_DATA *storm) {
 									( storm->y - pArea2->y ) );
 
          if (distance < storm->radius) {
-             if ((storm->storm_type == WEATHER_TORNADO && pArea2->affected_by_storm != NULL && pArea2->affected_by_storm->storm_type == WEATHER_HURRICANE) ||
-              (storm->storm_type == WEATHER_HURRICANE && pArea2->affected_by_storm != NULL && pArea2->affected_by_storm->storm_type == WEATHER_SNOW_STORM) ||
-              (storm->storm_type == WEATHER_SNOW_STORM && pArea2->affected_by_storm != NULL && pArea2->affected_by_storm->storm_type == WEATHER_LIGHTNING_STORM) ||
-              (storm->storm_type == WEATHER_LIGHTNING_STORM && pArea2->affected_by_storm != NULL && pArea2->affected_by_storm->storm_type == WEATHER_RAIN_STORM)) {
-               pArea2->affected_by_storm = storm;
+             if ((storm->storm_type == WEATHER_TORNADO && pArea2->affected_by[0]_storm != NULL && pArea2->affected_by[0]_storm->storm_type == WEATHER_HURRICANE) ||
+              (storm->storm_type == WEATHER_HURRICANE && pArea2->affected_by[0]_storm != NULL && pArea2->affected_by[0]_storm->storm_type == WEATHER_SNOW_STORM) ||
+              (storm->storm_type == WEATHER_SNOW_STORM && pArea2->affected_by[0]_storm != NULL && pArea2->affected_by[0]_storm->storm_type == WEATHER_LIGHTNING_STORM) ||
+              (storm->storm_type == WEATHER_LIGHTNING_STORM && pArea2->affected_by[0]_storm != NULL && pArea2->affected_by[0]_storm->storm_type == WEATHER_RAIN_STORM)) {
+               pArea2->affected_by[0]_storm = storm;
 						 }
              else {
-               pArea2->affected_by_storm = storm;
+               pArea2->affected_by[0]_storm = storm;
              }
          }
          else
@@ -191,9 +191,9 @@ void remove_storm(AREA_DATA *pArea, STORM_DATA *storm) {
            }
          }
 
-         if (pArea2->affected_by_storm != NULL) {
+         if (pArea2->affected_by[0]_storm != NULL) {
          sprintf(buf, "%s's is affected by type %d at %d, %d",
-              pArea2->name, pArea2->affected_by_storm->storm_type, pArea2->affected_by_storm->x, pArea2->affected_by_storm->y);
+              pArea2->name, pArea2->affected_by[0]_storm->storm_type, pArea2->affected_by[0]_storm->x, pArea2->affected_by[0]_storm->y);
          log_string(buf);
 				 }
 
@@ -428,8 +428,8 @@ int get_storm_for_room(ROOM_INDEX_DATA *pRoom)
     // Check if room is in an area affected by a storm
     if (pWilderness != NULL && str_cmp(pArea->name, pWilderness->name)) {
 
-	    if (pRoom->area->affected_by_storm != NULL) {
-		    storm_type = pRoom->area->affected_by_storm->storm_type;
+	    if (pRoom->area->affected_by[0]_storm != NULL) {
+		    storm_type = pRoom->area->affected_by[0]_storm->storm_type;
 	    }
 	    // Close storms
 	    else
@@ -1096,7 +1096,7 @@ void storm_affect_char_background args((CHAR_DATA *ch, int storm_type)) {
 					}
 
 					// Handle affects on player from storm
-					if (ch->in_room->area->affected_by_storm != NULL) {
+					if (ch->in_room->area->affected_by[0]_storm != NULL) {
 						storm_affect_char(ch, storm->storm_type);
 					}
 

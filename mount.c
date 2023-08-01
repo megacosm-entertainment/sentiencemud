@@ -42,7 +42,7 @@ void do_mount(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (!IS_SET(mount->act, ACT_MOUNT))
+    if (!IS_SET(mount->act[0], ACT_MOUNT))
     {
 	sprintf(buf,"You can't ride that.\n\r");
 	send_to_char(buf, ch);
@@ -108,9 +108,9 @@ void do_mount(CHAR_DATA *ch, char *argument)
     p_percent_trigger(mount, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_MOUNT, NULL,0,0,0,0,0);
 
     affect_strip(ch, gsn_sneak);
-    REMOVE_BIT(ch->affected_by, AFF_SNEAK);
+    REMOVE_BIT(ch->affected_by[0], AFF_SNEAK);
     affect_strip(ch, gsn_hide);
-    REMOVE_BIT(ch->affected_by, AFF_HIDE);
+    REMOVE_BIT(ch->affected_by[0], AFF_HIDE);
 
     if (get_skill(ch, gsn_riding) > 0)
 	add_grouped(mount, ch, TRUE);

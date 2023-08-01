@@ -725,7 +725,8 @@ SCRIPT_CMD(scriptcmd_addaffectname)
 
 	switch(arg->type) {
 	case ENT_STRING:
-		if(where == TO_OBJECT || where == TO_WEAPON)
+		if(where == TO_OBJECT || where == TO_OBJECT2 || where == TO_OBJECT3 ||
+			where == TO_OBJECT4 || where == TO_WEAPON)
 			group = flag_lookup(arg->d.str,affgroup_object_flags);
 		else
 			group = flag_lookup(arg->d.str,affgroup_mobile_flags);
@@ -1016,7 +1017,7 @@ SCRIPT_CMD(scriptcmd_applytoxin)
 	victim->bitten = UMAX(500/level, 30);
 	victim->bitten_level = level;
 
-	if (!IS_SET(victim->affected_by2, AFF2_TOXIN)) {
+	if (!IS_SET(victim->affected_by[1], AFF2_TOXIN)) {
 		AFFECT_DATA af;
 		af.where = TO_AFFECTS;
 		af.group     = AFFGROUP_BIOLOGICAL;
@@ -1043,6 +1044,7 @@ SCRIPT_CMD(scriptcmd_applytoxin)
 // * LEADER/GROUP: MOBILE, MOBILE
 // * CART/PULL: OBJECT (Pullable), MOBILE
 // * ON: FURNITURE, MOBILE/OBJECT
+// * REPLY: PLAYER, MOBILE
 //
 // $SILENT is a boolean to indicate whether the action is silent
 //
@@ -1118,8 +1120,8 @@ SCRIPT_CMD(scriptcmd_attach)
 				add_grouped(entity_mob, target_mob, show);	// Checks are already done
 
 				target_mob->pet = entity_mob;
-				SET_BIT(entity_mob->act, ACT_PET);
-				SET_BIT(entity_mob->affected_by, AFF_CHARM);
+				SET_BIT(entity_mob->act[0], ACT_PET);
+				SET_BIT(entity_mob->affected_by[0], AFF_CHARM);
 				entity_mob->comm = COMM_NOTELL|COMM_NOCHANNELS;
 
 			}
@@ -1819,11 +1821,11 @@ SCRIPT_CMD(scriptcmd_detach)
 		{
 			if( mob->pet == NULL ) return;
 
-			if( !IS_SET(mob->pet->pIndexData->act, ACT_PET) )
-				REMOVE_BIT(mob->pet->act, ACT_PET);
+			if( !IS_SET(mob->pet->pIndexData->act[0], ACT_PET) )
+				REMOVE_BIT(mob->pet->act[0], ACT_PET);
 
-			if( !IS_SET(mob->pet->pIndexData->affected_by, AFF_CHARM) )
-				REMOVE_BIT(mob->pet->affected_by, AFF_CHARM);
+			if( !IS_SET(mob->pet->pIndexData->affected_by[0], AFF_CHARM) )
+				REMOVE_BIT(mob->pet->affected_by[0], AFF_CHARM);
 
 			// This will not ungroup/unfollow
 			mob->pet->comm &= ~(COMM_NOTELL|COMM_NOCHANNELS);
@@ -1835,11 +1837,11 @@ SCRIPT_CMD(scriptcmd_detach)
 
 			if( mob->master->pet == mob )
 			{
-				if( !IS_SET(mob->pet->pIndexData->act, ACT_PET) )
-					REMOVE_BIT(mob->pet->act, ACT_PET);
+				if( !IS_SET(mob->pet->pIndexData->act[0], ACT_PET) )
+					REMOVE_BIT(mob->pet->act[0], ACT_PET);
 
-				if( !IS_SET(mob->pet->pIndexData->affected_by, AFF_CHARM) )
-					REMOVE_BIT(mob->pet->affected_by, AFF_CHARM);
+				if( !IS_SET(mob->pet->pIndexData->affected_by[0], AFF_CHARM) )
+					REMOVE_BIT(mob->pet->affected_by[0], AFF_CHARM);
 
 				// This will not ungroup/unfollow
 				mob->pet->comm &= ~(COMM_NOTELL|COMM_NOCHANNELS);
@@ -3429,13 +3431,13 @@ SCRIPT_CMD(scriptcmd_loadinstanced)
 	if( IS_VALID(info->dungeon) ) valid = true;
 	else if(IS_VALID(info->instance) ) valid = true;
 	else if( info->room && IS_VALID(info->room->instance_section) ) valid = true;
-	else if( info->mob && IS_SET(info->mob->act2, ACT2_INSTANCE_MOB) ) valid = true;
-	else if( info->obj && IS_SET(info->obj->extra3_flags, ITEM_INSTANCE_OBJ) ) valid = true;
+	else if( info->mob && IS_SET(info->mob->act[1], ACT2_INSTANCE_MOB) ) valid = true;
+	else if( info->obj && IS_SET(info->obj->extra[2], ITEM_INSTANCE_OBJ) ) valid = true;
 	else if( info->token )
 	{
 		if( info->token->room && IS_VALID(info->token->room->instance_section) ) valid = true;
-		else if( info->token->player && IS_SET(info->token->player->act2, ACT2_INSTANCE_MOB) ) valid = true;
-		else if( info->token->object && IS_SET(info->token->object->extra3_flags, ITEM_INSTANCE_OBJ) ) valid = true;
+		else if( info->token->player && IS_SET(info->token->player->act[1], ACT2_INSTANCE_MOB) ) valid = true;
+		else if( info->token->object && IS_SET(info->token->object->extra[2], ITEM_INSTANCE_OBJ) ) valid = true;
 	}
 
 	// Not a valid caller
@@ -3853,9 +3855,9 @@ SCRIPT_CMD(scriptcmd_makeinstanced)
 		if( info->dungeon && (info->dungeon != instance->dungeon || !IS_VALID(instance->dungeon)) )
 			return;
 
-		if( !IS_SET(arg->d.mob->act2, ACT2_INSTANCE_MOB) )
+		if( !IS_SET(arg->d.mob->act[1], ACT2_INSTANCE_MOB) )
 		{
-			SET_BIT(arg->d.mob->act2, ACT2_INSTANCE_MOB);
+			SET_BIT(arg->d.mob->act[1], ACT2_INSTANCE_MOB);
 
 
 			list_remlink(instance->mobiles, arg->d.mob);
@@ -3882,9 +3884,9 @@ SCRIPT_CMD(scriptcmd_makeinstanced)
 		if( info->dungeon && (info->dungeon != instance->dungeon || !IS_VALID(instance->dungeon)) )
 			return;
 
-		if( !IS_SET(arg->d.obj->extra3_flags, ITEM_INSTANCE_OBJ) )
+		if( !IS_SET(arg->d.obj->extra[2], ITEM_INSTANCE_OBJ) )
 		{
-			SET_BIT(arg->d.obj->extra3_flags, ITEM_INSTANCE_OBJ);
+			SET_BIT(arg->d.obj->extra[2], ITEM_INSTANCE_OBJ);
 
 			list_remlink(instance->objects, arg->d.obj);
 			if( IS_VALID(instance->dungeon) )
@@ -4907,7 +4909,7 @@ SCRIPT_CMD(scriptcmd_sendfloor)
 		for (vch = ch->in_room->people; vch; vch = next) {
 			next = vch->next_in_room;
 			if (PROG_FLAG(vch,PROG_AT)) continue;
-			if ((!IS_NPC(vch) || !IS_SET(vch->act2,ACT2_INSTANCE_MOB)) &&
+			if ((!IS_NPC(vch) || !IS_SET(vch->act[1],ACT2_INSTANCE_MOB)) &&
 				is_same_group(ch,vch)) {
 				if (vch->position != POS_STANDING) continue;
 				if (room_is_private(instance->entrance, info->mob)) break;
@@ -4920,7 +4922,7 @@ SCRIPT_CMD(scriptcmd_sendfloor)
 		for (vch = ch->in_room->people; vch; vch = next) {
 			next = vch->next_in_room;
 			if (PROG_FLAG(vch,PROG_AT)) continue;
-			if (!IS_NPC(vch) || !IS_SET(vch->act2,ACT2_INSTANCE_MOB)) {
+			if (!IS_NPC(vch) || !IS_SET(vch->act[1],ACT2_INSTANCE_MOB)) {
 				if (vch->position != POS_STANDING) continue;
 				if (room_is_private(instance->entrance, info->mob)) break;
 				do_mob_transfer(vch,instance->entrance,false,mode);
@@ -8154,6 +8156,8 @@ SCRIPT_CMD(scriptcmd_alterobj)
 	bool hasmin = FALSE, hasmax = FALSE;
 	bool allowarith = TRUE;
 	const struct flag_type *flags = NULL;
+	const struct flag_type **bank = NULL;
+	long temp_flags[4];
 
 	if(!info) return;
 
@@ -8261,10 +8265,10 @@ SCRIPT_CMD(scriptcmd_alterobj)
 		else if(!str_cmp(field,"container.weight%"))	{ ptr = (int *)(IS_CONTAINER(obj)?&CONTAINER(obj)->weight_multiplier:NULL); hasmin = TRUE; min = 0; hasmax = TRUE; max = 100; }
 		else if(!str_cmp(field,"container.volume"))	{ ptr = (int *)(IS_CONTAINER(obj)?&CONTAINER(obj)->max_volume:NULL); hasmin = TRUE; min = 0; }
 		else if(!str_cmp(field,"cost"))			{ ptr = (int*)&obj->cost; min_sec = 5; }
-		else if(!str_cmp(field,"extra"))		{ ptr = (int*)&obj->extra_flags; flags = extra_flags; }
-		else if(!str_cmp(field,"extra2"))		{ ptr = (int*)&obj->extra2_flags; flags = extra2_flags; min_sec = 7; }
-		else if(!str_cmp(field,"extra3"))		{ ptr = (int*)&obj->extra3_flags; flags = extra3_flags; min_sec = 7; }
-		else if(!str_cmp(field,"extra4"))		{ ptr = (int*)&obj->extra4_flags; flags = extra4_flags; min_sec = 7; }
+		else if(!str_cmp(field,"extra"))		{ ptr = (int*)&obj->extra[0]; flags = extra_flags; }
+		else if(!str_cmp(field,"extra2"))		{ ptr = (int*)&obj->extra[1]; flags = extra2_flags; min_sec = 7; }
+		else if(!str_cmp(field,"extra3"))		{ ptr = (int*)&obj->extra[2]; flags = extra3_flags; min_sec = 7; }
+		else if(!str_cmp(field,"extra4"))		{ ptr = (int*)&obj->extra[3]; flags = extra4_flags; min_sec = 7; }
 		else if(!str_cmp(field,"fixes"))		{ ptr = (int*)&obj->times_allowed_fixed; min_sec = 5; }
 		else if(!str_cmp(field,"food.hunger"))	{ ptr = (int *)(IS_FOOD(obj)?&FOOD(obj)->hunger:NULL); hasmin = TRUE; min = 0; }
 		else if(!str_cmp(field,"food.full"))	{ ptr = (int *)(IS_FOOD(obj)?&FOOD(obj)->full:NULL); hasmin = TRUE; min = 0; }
@@ -8292,7 +8296,25 @@ SCRIPT_CMD(scriptcmd_alterobj)
 			return;
 		}
 
-		if( flags != NULL )
+		if( bank != NULL )
+		{
+			if( arg->type != ENT_STRING ) return;
+
+			allowarith = FALSE;	// This is a bit vector, no arithmetic operators.
+			if (!script_bitmatrix_lookup(arg->d.str, bank, temp_flags))
+				return;
+
+			if (bank == extra_flagbank)
+			{
+				REMOVE_BIT(temp_flags[2], ITEM_INSTANCE_OBJ);
+
+				if( buf[0] == '=' || buf[0] == '&' )
+				{
+					if( IS_SET(ptr[2], ITEM_INSTANCE_OBJ) ) SET_BIT(temp_flags[2], ITEM_INSTANCE_OBJ);
+				}
+			}		
+		}
+		else if( flags != NULL )
 		{
 			if( arg->type != ENT_STRING ) return;
 
@@ -8379,11 +8401,53 @@ SCRIPT_CMD(scriptcmd_alterobj)
 			*ptr %= value;
 			break;
 
-		case '=': *ptr = value; break;
-		case '&': *ptr &= value; break;
-		case '|': *ptr |= value; break;
-		case '!': *ptr &= ~value; break;
-		case '^': *ptr ^= value; break;
+		case '=':
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] = temp_flags[i];
+			}
+			else
+				*ptr = value;
+			break;
+
+		case '&':
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] &= temp_flags[i];
+			}
+			else
+				*ptr &= value;
+			break;
+		case '|':
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] |= temp_flags[i];
+			}
+			else
+				*ptr |= value;
+			break;
+		case '!':
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] &= ~temp_flags[i];
+			}
+			else
+				*ptr &= ~value;
+			break;
+		case '^':
+			if (bank != NULL)
+			{
+				for(int i = 0; bank[i]; i++)
+					ptr[i] ^= temp_flags[i];
+			}
+			else
+				*ptr ^= value;
+
+			break;
 		default:
 			return;
 		}
@@ -8750,3 +8814,12 @@ SCRIPT_CMD(scriptcmd_addfoodbuff)
 
 	SETRETURN(1);
 }
+
+// SETPOSITION $MOBILE $POSITION[ $FORCE(boolean)=false]
+// Attempts to set the position of the mob to the target.
+// Force is required to explicitly put it in the position without firing any triggers
+SCRIPT_CMD(scriptcmd_setposition)
+{
+
+}
+

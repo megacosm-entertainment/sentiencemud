@@ -43,7 +43,7 @@ SPELL_FUNC(spell_animate_dead)
 			return FALSE;
 		}
 
-		if (IS_SET(obj->extra3_flags, ITEM_NO_ANIMATE)) {
+		if (IS_SET(obj->extra[2], ITEM_NO_ANIMATE)) {
 			act("$p seems to be immune to your necromantic magic.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 			return FALSE;
 		}
@@ -149,9 +149,9 @@ SPELL_FUNC(spell_animate_dead)
 		}
 
 		victim->comm = COMM_NOTELL|COMM_NOCHANNELS;
-		SET_BIT(victim->affected_by, AFF_CHARM);
-		SET_BIT(victim->act, ACT_ANIMATED);
-		SET_BIT(victim->act, ACT_UNDEAD);
+		SET_BIT(victim->affected_by[0], AFF_CHARM);
+		SET_BIT(victim->act[0], ACT_ANIMATED);
+		SET_BIT(victim->act[0], ACT_UNDEAD);
 		victim->corpse_wnum = index->zombie;
 		victim->parts = CORPSE_PARTS(obj);
 		char_to_room(victim, ch->in_room);
@@ -159,7 +159,7 @@ SPELL_FUNC(spell_animate_dead)
 		act("$p twitches then thrashes violently before rising to its feet!", victim, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 
 		add_follower(victim, ch, TRUE);
-		REMOVE_BIT(victim->act, ACT_PET);
+		REMOVE_BIT(victim->act[0], ACT_PET);
 		if (!add_grouped(victim, ch, TRUE)) {
 			act("$n falls back to the ground.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 			char_from_room(victim);
@@ -334,7 +334,7 @@ SPELL_FUNC(spell_kill)
 	}
 
 	// If invasion mob then check if quest point is earned
-	if (!IS_NPC(ch) && IS_NPC(victim) && IS_SET(victim->act2, ACT2_INVASION_MOB) && number_percent() < 5) {
+	if (!IS_NPC(ch) && IS_NPC(victim) && IS_SET(victim->act[1], ACT2_INVASION_MOB) && number_percent() < 5) {
 		send_to_char("{WYou have been awarded a quest point!{x\n\r", ch);
 		ch->questpoints++;
 	}
@@ -380,7 +380,7 @@ SPELL_FUNC(spell_raise_dead)
 			return FALSE;
 		}
 
-		if (IS_SET(obj->extra2_flags, ITEM_NO_RESURRECT)) {
+		if (IS_SET(obj->extra[1], ITEM_NO_RESURRECT)) {
 			act("$p seems to be immune to your necromantic magic.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 			return FALSE;
 		}
@@ -414,7 +414,7 @@ SPELL_FUNC(spell_raise_dead)
 			if( IS_SET(ch->in_room->room_flags, ROOM_CHAOTIC) && !IS_SET(CORPSE_FLAGS(obj), CORPSE_CHAOTICDEATH) )
 			{
 				// Any player, or non-holyaura immortal, attempting to do so will be ZOTTED.
-				if( !IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act2, PLR_HOLYAURA)))
+				if( !IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act[1], PLR_HOLYAURA)))
 				{
 					send_to_char("{YAttempting to raise a non-chaotic corpse in a chaotic room is {RFORBIDDEN{Y!{x\n\r", ch);
 					ch->hit = 1;

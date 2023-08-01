@@ -237,7 +237,7 @@ void do_chadd(CHAR_DATA *ch, char *argument)
 	 temp_char = temp_char->next_in_room)
     {
 	if (IS_NPC(temp_char)
-	&& IS_SET(temp_char->act2, ACT2_CHURCHMASTER))
+	&& IS_SET(temp_char->act[1], ACT2_CHURCHMASTER))
             found = TRUE;
     }
 
@@ -994,7 +994,7 @@ void do_chflag(CHAR_DATA *ch, char *argument)
     for (temp_char = ch->in_room->people; temp_char != NULL;
 	 temp_char = temp_char->next_in_room)
     {
-	if (IS_NPC(temp_char) && IS_SET(temp_char->act2, ACT2_CHURCHMASTER))
+	if (IS_NPC(temp_char) && IS_SET(temp_char->act[1], ACT2_CHURCHMASTER))
 	{
 	    found = TRUE;
 	    break;
@@ -1055,7 +1055,7 @@ void do_chdeposit(CHAR_DATA * ch, char *argument)
     for (temp_char = ch->in_room->people; temp_char != NULL;
 	 temp_char = temp_char->next_in_room)
     {
-	if (IS_NPC(temp_char) && IS_SET(temp_char->act2, ACT2_CHURCHMASTER))
+	if (IS_NPC(temp_char) && IS_SET(temp_char->act[1], ACT2_CHURCHMASTER))
 	    found = TRUE;
     }
 
@@ -1174,7 +1174,7 @@ void do_chbalance(CHAR_DATA * ch, char *argument)
     for (temp_char = ch->in_room->people; temp_char != NULL;
 	 temp_char = temp_char->next_in_room)
     {
-	if (IS_NPC(temp_char) && IS_SET(temp_char->act2, ACT2_CHURCHMASTER))
+	if (IS_NPC(temp_char) && IS_SET(temp_char->act[1], ACT2_CHURCHMASTER))
 	    found = TRUE;
     }
 
@@ -1218,7 +1218,7 @@ void do_chcreate(CHAR_DATA *ch, char *argument)
 	 temp_char = temp_char->next_in_room)
     {
         log_string(temp_char->name);
-	if (IS_NPC(temp_char) && IS_SET(temp_char->act2, ACT2_CHURCHMASTER))
+	if (IS_NPC(temp_char) && IS_SET(temp_char->act[1], ACT2_CHURCHMASTER))
 	    found = TRUE;
     }
 
@@ -2257,7 +2257,7 @@ void do_chtransfer(CHAR_DATA *ch, char *argument)
           temp_char = temp_char->next_in_room)
     {
         if (IS_NPC(temp_char)
-        && IS_SET(temp_char->act2, ACT2_CHURCHMASTER))
+        && IS_SET(temp_char->act[1], ACT2_CHURCHMASTER))
 	{
 	    found_admin = TRUE;
 	    break;
@@ -2393,7 +2393,7 @@ void do_chwithdraw(CHAR_DATA *ch, char *argument)
 
     for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
     {
-	if (IS_NPC(mob) && IS_SET(mob->act2, ACT2_CHURCHMASTER))
+	if (IS_NPC(mob) && IS_SET(mob->act[1], ACT2_CHURCHMASTER))
 	{
 	    found = TRUE;
 	    break;
@@ -2794,7 +2794,7 @@ void do_chtoggle(CHAR_DATA * ch, char *argument)
     for (temp_char = ch->in_room->people; temp_char != NULL;
 	 temp_char = temp_char->next_in_room) {
 	if (IS_NPC(temp_char) &&
-			IS_SET(temp_char->act2, ACT2_CHURCHMASTER))
+			IS_SET(temp_char->act[1], ACT2_CHURCHMASTER))
 	    found = TRUE;
     }
 
@@ -3528,13 +3528,13 @@ void do_chdonate(CHAR_DATA *ch, char *argument)
 		return;
     }
 
-    if (obj->timer > 0 || IS_SET(obj->extra2_flags, ITEM_NO_DONATE))
+    if (obj->timer > 0 || IS_SET(obj->extra[1], ITEM_NO_DONATE))
     {
 		act("You cannot donate $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 		return;
     }
 
-    if (!can_drop_obj(ch, obj, TRUE) || IS_SET(obj->extra2_flags, ITEM_KEPT))
+    if (!can_drop_obj(ch, obj, TRUE) || IS_SET(obj->extra[1], ITEM_KEPT))
     {
 		send_to_char("It's stuck to you.\n\r", ch);
 		return;
@@ -3578,13 +3578,13 @@ void do_chdonate(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (obj->timer > 0 || IS_SET(obj->extra2_flags, ITEM_NO_DONATE))
+    if (obj->timer > 0 || IS_SET(obj->extra[1], ITEM_NO_DONATE))
     {
     	act("You cannot donate $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 	return;
     }
 
-    if (!can_drop_obj(ch, obj, TRUE) || IS_SET(obj->extra2_flags, ITEM_KEPT))
+    if (!can_drop_obj(ch, obj, TRUE) || IS_SET(obj->extra[1], ITEM_KEPT))
     {
     	send_to_char("It's stuck to you.\n\r", ch);
 	return;
@@ -4316,7 +4316,7 @@ void do_chtreasure(CHAR_DATA *ch, char *argument)
 		found = FALSE;
 		for (temp_char = ch->in_room->people; temp_char != NULL; temp_char = temp_char->next_in_room)
 		{
-			if (IS_NPC(temp_char) && IS_SET(temp_char->act2, ACT2_CHURCHMASTER))
+			if (IS_NPC(temp_char) && IS_SET(temp_char->act[1], ACT2_CHURCHMASTER))
 				found = TRUE;
 		}
 

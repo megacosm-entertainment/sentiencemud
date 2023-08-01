@@ -294,6 +294,8 @@ extern	const struct flag_type light_flags[];
 extern	const	struct	flag_type	food_buff_types[];
 extern	const	struct	flag_type	compartment_flags[];
 
+extern	const	struct	flag_type	stock_types[];
+extern const struct flag_type prog_entity_flags[];
 
 #endif
 

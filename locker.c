@@ -73,7 +73,7 @@ void do_locker(CHAR_DATA *ch, char* argument)
 	}
 
 	for (obj = ch->carrying; obj != NULL; obj = obj->next_content) {
-		if (IS_SET(obj->extra2_flags, ITEM_LOCKER)) {
+		if (IS_SET(obj->extra[1], ITEM_LOCKER)) {
 			item = TRUE;
 			break;
 		}
@@ -183,7 +183,7 @@ void do_locker(CHAR_DATA *ch, char* argument)
 			return;
 		}
 
-		if (IS_SET(obj->extra2_flags, ITEM_NOLOCKER) || obj_nest_clones(obj) > 0) {
+		if (IS_SET(obj->extra[1], ITEM_NOLOCKER) || obj_nest_clones(obj) > 0) {
 			send_to_char("You can't put that item in your locker.\n\r", ch);
 			return;
 		}

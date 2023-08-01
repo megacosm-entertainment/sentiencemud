@@ -47,7 +47,7 @@ SPELL_FUNC(spell_enchant_armour)
 		return FALSE;
 	}
 
-	if (IS_SET(obj->extra2_flags, ITEM_NO_ENCHANT)) {
+	if (IS_SET(obj->extra[1], ITEM_NO_ENCHANT)) {
 		act("$p is beyond your power to enchant.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 		return FALSE;
 	}
@@ -61,7 +61,7 @@ SPELL_FUNC(spell_enchant_armour)
 	result = number_percent();
 
 	obj->num_enchanted += 1;
-	SET_BIT(obj->extra2_flags, ITEM_ENCHANTED);
+	SET_BIT(obj->extra[1], ITEM_ENCHANTED);
 
  	/* item destroyed */
 	if (result < (fail / 4)) {
@@ -86,7 +86,7 @@ SPELL_FUNC(spell_enchant_armour)
 	}
 
 	act("$p shimmers with a gold aura.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
-	SET_BIT(obj->extra_flags, ITEM_MAGIC);
+	SET_BIT(obj->extra[0], ITEM_MAGIC);
 
 	if (obj->affected) {
 		for (paf = obj->affected; paf; paf = paf->next) {
@@ -129,7 +129,7 @@ SPELL_FUNC(spell_enchant_armour)
 		obj->affected = paf;
 	}
 
-	SET_BIT(obj->extra2_flags, ITEM_ENCHANTED);
+	SET_BIT(obj->extra[1], ITEM_ENCHANTED);
 	return TRUE;
 }
 
@@ -152,7 +152,7 @@ SPELL_FUNC(spell_enchant_object)
 		return FALSE;
 	}
 
-	if (IS_SET(obj->extra2_flags, ITEM_NO_ENCHANT)) {
+	if (IS_SET(obj->extra[1], ITEM_NO_ENCHANT)) {
 		act("$p is beyond your power to enchant.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 		return FALSE;
 	}
@@ -164,7 +164,7 @@ SPELL_FUNC(spell_enchant_object)
 	fail = URANGE(5,fail,85);
 
 	obj->num_enchanted += 1;
-	SET_BIT(obj->extra2_flags, ITEM_ENCHANTED);
+	SET_BIT(obj->extra[1], ITEM_ENCHANTED);
 	return TRUE;
 }
 
@@ -193,7 +193,7 @@ SPELL_FUNC(spell_enchant_weapon)
 		return FALSE;
 	}
 
-	if (IS_SET(obj->extra2_flags, ITEM_NO_ENCHANT)) {
+	if (IS_SET(obj->extra[1], ITEM_NO_ENCHANT)) {
 		act("$p is beyond your power to enchant.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 		return FALSE;
 	}
@@ -226,7 +226,7 @@ SPELL_FUNC(spell_enchant_weapon)
 
 	result = number_percent();
 
-	SET_BIT(obj->extra2_flags, ITEM_ENCHANTED);
+	SET_BIT(obj->extra[1], ITEM_ENCHANTED);
 	obj->num_enchanted++;
 
 	/* item destroyed */
@@ -252,13 +252,13 @@ SPELL_FUNC(spell_enchant_weapon)
 	}
 
 	act("$p glows blue.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
-	SET_BIT(obj->extra_flags, ITEM_MAGIC);
+	SET_BIT(obj->extra[0], ITEM_MAGIC);
 
 	if (paf_dam) {
 		paf_dam->modifier+=dam_bonus;
 		paf_dam->level = level;
 		if (paf_dam->modifier > 4)
-			SET_BIT(obj->extra_flags,ITEM_HUM);
+			SET_BIT(obj->extra[0],ITEM_HUM);
 	} else {
 		paf = new_affect();
 
@@ -279,7 +279,7 @@ SPELL_FUNC(spell_enchant_weapon)
 		paf_hit->modifier+=hit_bonus;
 		paf_hit->level = level;
 		if (paf_hit->modifier > 4)
-			SET_BIT(obj->extra_flags,ITEM_HUM);
+			SET_BIT(obj->extra[0],ITEM_HUM);
 	} else {
 		paf = new_affect();
 
@@ -296,6 +296,6 @@ SPELL_FUNC(spell_enchant_weapon)
 		obj->affected = paf;
 	}
 
-	SET_BIT(obj->extra2_flags, ITEM_ENCHANTED);
+	SET_BIT(obj->extra[1], ITEM_ENCHANTED);
 	return TRUE;
 }

@@ -129,12 +129,12 @@ void get_obj( CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container )
 	    }
     }
 
-    if ( IS_SET( obj->extra2_flags, ITEM_TRAPPED ) )
+    if ( IS_SET( obj->extra[1], ITEM_TRAPPED ) )
     {
         act("{RYou pick up $p, but recoil in pain and drop it!{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR );
 	act("{R$n picks up $p, but recoils in pain and drops it!{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM );
 	damage( ch, ch, obj->trap_dam, 0, DAM_ENERGY, FALSE );
-	REMOVE_BIT( obj->extra_flags, ITEM_TRAPPED );
+	REMOVE_BIT( obj->extra[0], ITEM_TRAPPED );
 	return;
     }
 
@@ -487,7 +487,7 @@ void do_get(CHAR_DATA *ch, char *argument)
 
 			if(ret) return;
 
-			if (IS_SET(ch->act,PLR_AUTOSPLIT)) {
+			if (IS_SET(ch->act[0],PLR_AUTOSPLIT)) {
 				int members;
 				CHAR_DATA *gch;
 
@@ -589,7 +589,7 @@ void do_get(CHAR_DATA *ch, char *argument)
 
 			if(ret) return;
 
-			if (IS_SET(ch->act,PLR_AUTOSPLIT)) {
+			if (IS_SET(ch->act[0],PLR_AUTOSPLIT)) {
 				int members;
 				CHAR_DATA *gch;
 
@@ -631,11 +631,11 @@ void do_get(CHAR_DATA *ch, char *argument)
 			act("$n gets $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 			reset_obj(obj);
 
-			if (IS_SET(obj->extra2_flags, ITEM_TRAPPED)) {
+			if (IS_SET(obj->extra[1], ITEM_TRAPPED)) {
 				act("{RYou pick up $p, but recoil in pain and drop it!{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 				act("{R$n picks up $p, but recoils in pain and drops it!{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 				damage(ch, ch, obj->trap_dam, 0, DAM_ENERGY, FALSE);
-				REMOVE_BIT(obj->extra_flags, ITEM_TRAPPED);
+				REMOVE_BIT(obj->extra[0], ITEM_TRAPPED);
 				return;
 			}
 
@@ -1393,7 +1393,7 @@ void do_put(CHAR_DATA *ch, char *argument)
 
 				// TODO: Moved
 				// TODO: Just say you can't put it on there.
-				if (IS_SET(obj->extra_flags, ITEM_NOKEYRING))
+				if (IS_SET(obj->extra[0], ITEM_NOKEYRING))
 				{
 					act("You try to attach $p to the keyring, but it recoils with a shock of energy.",
 						ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
@@ -1464,8 +1464,8 @@ void do_put(CHAR_DATA *ch, char *argument)
 			act("The Orb of Shadows dissipates into smoke.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			act("$n's Orb of Shadows dissipates into smoke.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-			SET_BIT(obj->extra_flags, ITEM_NODROP);
-			SET_BIT(obj->extra_flags, ITEM_NOUNCURSE);
+			SET_BIT(obj->extra[0], ITEM_NODROP);
+			SET_BIT(obj->extra[0], ITEM_NOUNCURSE);
 			extract_obj(container);
 			return;
 		}
@@ -1812,7 +1812,7 @@ void do_drop(CHAR_DATA *ch, char *argument)
 	    return;
 	}
 
-	if (!can_drop_obj(ch, obj, FALSE) || IS_SET(obj->extra2_flags, ITEM_KEPT)) {
+	if (!can_drop_obj(ch, obj, FALSE) || IS_SET(obj->extra[1], ITEM_KEPT)) {
 	    send_to_char("You can't let go of it.\n\r", ch);
 	    return;
 	}
@@ -1877,7 +1877,7 @@ void do_drop(CHAR_DATA *ch, char *argument)
 		if (arg[3] == '\0' || is_name(&arg[4], obj->name))
 		    any = obj;
 
-		if (any == obj && can_drop_obj(ch, obj, TRUE) && !IS_SET(obj->extra2_flags, ITEM_KEPT) &&
+		if (any == obj && can_drop_obj(ch, obj, TRUE) && !IS_SET(obj->extra[1], ITEM_KEPT) &&
 			!p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREDROP, "silent",0,0,0,0,0))
 		{
 		    sprintf(short_descr, "%s", obj->short_descr);
@@ -1893,7 +1893,7 @@ void do_drop(CHAR_DATA *ch, char *argument)
 		    obj_next = obj->next_content;
 
 		    if (str_cmp(obj->short_descr, short_descr)
-		    ||  !can_drop_obj(ch, obj, TRUE) || IS_SET(obj->extra2_flags, ITEM_KEPT))
+		    ||  !can_drop_obj(ch, obj, TRUE) || IS_SET(obj->extra[1], ITEM_KEPT))
 			continue;
 
 		if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREDROP, NULL,0,0,0,0,0))
@@ -1916,7 +1916,7 @@ void do_drop(CHAR_DATA *ch, char *argument)
 		    p_give_trigger(NULL, NULL, ch->in_room, ch, obj, TRIG_DROP,0,0,0,0,0);
 
 
-		    if (IS_SET(obj->extra_flags, ITEM_MELT_DROP))
+		    if (IS_SET(obj->extra[0], ITEM_MELT_DROP))
 			extract_obj(obj);
 
 		    else if (ch->in_room->sector_type == SECT_ENCHANTED_FOREST)
@@ -1931,7 +1931,7 @@ void do_drop(CHAR_DATA *ch, char *argument)
 		    sprintf(buf, "{Y({G%2d{Y) {xYou drop $p.", i);
 		    act(buf, ch, NULL, NULL, match_obj, NULL, NULL, NULL, TO_CHAR);
 
-		    if (IS_SET(match_obj->extra_flags, ITEM_MELT_DROP))
+		    if (IS_SET(match_obj->extra[0], ITEM_MELT_DROP))
 		    {
 			short_descr[0] = UPPER(short_descr[0]);
 			sprintf(buf, "{Y({G%2d{Y) {x%s vanishes in a puff of smoke.", i, short_descr);
@@ -2044,8 +2044,8 @@ void do_give(CHAR_DATA *ch, char *argument)
    	    obj = create_money(0, amount);
 
 	if (get_carry_weight(victim) + get_obj_weight(obj) > can_carry_w(victim)
-	&& !(IS_NPC(victim) && (IS_SET(victim->act,ACT_IS_CHANGER)
-			    || IS_SET(victim->act,ACT_IS_BANKER))))
+	&& !(IS_NPC(victim) && (IS_SET(victim->act[0],ACT_IS_CHANGER)
+			    || IS_SET(victim->act[0],ACT_IS_BANKER))))
 	{
 	    act("$p: $N can't carry that much weight.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 	    extract_obj(obj);
@@ -2072,7 +2072,7 @@ void do_give(CHAR_DATA *ch, char *argument)
 	/* Bribe trigger */
 	p_bribe_trigger(victim, ch, !gold ? amount : amount * 100,0,0,0,0,0);
 
-        if (IS_NPC(victim) && IS_SET(victim->act,ACT_IS_CHANGER))
+        if (IS_NPC(victim) && IS_SET(victim->act[0],ACT_IS_CHANGER))
 	    change_money(ch, victim, gold ? amount : 0, !gold ? amount : 0);
 
 	if (IS_IMMORTAL(ch) && !IS_NPC(ch) && !IS_IMMORTAL(victim))
@@ -2318,19 +2318,19 @@ void do_donate(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (!can_drop_obj(ch, obj, TRUE) || IS_SET(obj->extra2_flags, ITEM_KEPT))
+    if (!can_drop_obj(ch, obj, TRUE) || IS_SET(obj->extra[1], ITEM_KEPT))
     {
 	send_to_char("You can't let go of it.\n\r",ch);
 	return;
     }
 
-    if (IS_SET(obj->extra2_flags, ITEM_NO_DONATE))
+    if (IS_SET(obj->extra[1], ITEM_NO_DONATE))
     {
 	act("You can't donate $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 	return;
     }
 
-    if (IS_SET(obj->extra2_flags, ITEM_KEPT)) {
+    if (IS_SET(obj->extra[1], ITEM_KEPT)) {
 	send_to_char("You can't donate kept items.\n\r", ch);
 	return;
     }
@@ -2429,7 +2429,7 @@ void do_repair(CHAR_DATA *ch, char *argument)
           pMob != NULL;
 	  pMob = pMob->next_in_room)
     {
-        if (IS_SET(pMob->act, ACT_BLACKSMITH))
+        if (IS_SET(pMob->act[0], ACT_BLACKSMITH))
             break;
     }
 
@@ -2507,7 +2507,7 @@ void do_restring(CHAR_DATA *ch, char *argument)
 
     for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
     {
-        if (IS_SET(mob->act, ACT_IS_RESTRINGER))
+        if (IS_SET(mob->act[0], ACT_IS_RESTRINGER))
             break;
     }
 
@@ -2537,7 +2537,7 @@ void do_restring(CHAR_DATA *ch, char *argument)
 		return;
     }
 
-    if (IS_SET(obj->extra_flags, ITEM_NORESTRING) || CAN_WEAR(obj, ITEM_WEAR_TABARD))
+    if (IS_SET(obj->extra[0], ITEM_NORESTRING) || CAN_WEAR(obj, ITEM_WEAR_TABARD))
     {
 		// Allow color changes to SHORTS on NORESTRING.
 		if( str_cmp(arg2, "short") || str_cmp_nocolour(obj->short_descr, argument)) {
@@ -2654,7 +2654,7 @@ void do_unrestring(CHAR_DATA *ch, char *argument)
 
     for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
     {
-        if (IS_SET(mob->act, ACT_IS_RESTRINGER))
+        if (IS_SET(mob->act[0], ACT_IS_RESTRINGER))
             break;
     }
 
@@ -3497,7 +3497,7 @@ bool remove_obj(CHAR_DATA *ch, int iWear, bool fReplace)
 	}
 
 	if( !WEAR_ALWAYSREMOVE(iWear) ) {
-		if (IS_SET(obj->extra_flags, ITEM_NOREMOVE) || !WEAR_REMOVEEQ(iWear) || obj->item_type == ITEM_TATTOO) {
+		if (IS_SET(obj->extra[0], ITEM_NOREMOVE) || !WEAR_REMOVEEQ(iWear) || obj->item_type == ITEM_TATTOO) {
 			act("You can't remove $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 			return FALSE;
 		}
@@ -3606,7 +3606,7 @@ void wear_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool fReplace)
 		/* If the object is not a mortal object
 		   -or- is higher object level and the item is not flagged all_remort or the char is not remort */
 		if ((obj->level > LEVEL_HERO) ||
-			((ch->tot_level < obj->level) && !(IS_SET(obj->extra2_flags, ITEM_ALL_REMORT) && IS_REMORT(ch)))) {
+			((ch->tot_level < obj->level) && !(IS_SET(obj->extra[1], ITEM_ALL_REMORT) && IS_REMORT(ch)))) {
 			sprintf(buf, "You must be level %d to use this object.\n\r", obj->level);
 			send_to_char(buf, ch);
 			act("$n tries to use $p, but is too inexperienced.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
@@ -3614,7 +3614,7 @@ void wear_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool fReplace)
 		}
 	}
 
-	if (IS_SET(obj->extra2_flags, ITEM_REMORT_ONLY) && !IS_REMORT(ch) && !IS_NPC(ch)) {
+	if (IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && !IS_REMORT(ch) && !IS_NPC(ch)) {
 		send_to_char("You cannot use this object without remorting.\n\r", ch);
 		act("$n tries to use $p, but is too inexperienced.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 		return;
@@ -4161,7 +4161,7 @@ void do_remove(CHAR_DATA *ch, char *argument)
   	    if (obj->wear_loc != WEAR_NONE
   	    &&   obj->item_type != ITEM_TATTOO
 	    &&   can_see_obj(ch, obj)
-	    &&   (WEAR_ALWAYSREMOVE(obj->wear_loc) || !IS_SET(obj->extra_flags, ITEM_NOREMOVE))
+	    &&   (WEAR_ALWAYSREMOVE(obj->wear_loc) || !IS_SET(obj->extra[0], ITEM_NOREMOVE))
 	    &&   wear_params[obj->wear_loc][2])
 	    {
 
@@ -4919,7 +4919,7 @@ void do_steal(CHAR_DATA *ch, char *argument)
     {
 	send_to_char("Oops.\n\r", ch);
 	affect_strip(ch,gsn_sneak);
-	REMOVE_BIT(ch->affected_by,AFF_SNEAK);
+	REMOVE_BIT(ch->affected_by[0],AFF_SNEAK);
 
 	act("$n tried to steal from you.\n\r", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT   );
 	act("$n tried to steal from $N.\n\r",  ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
@@ -5009,7 +5009,7 @@ void do_steal(CHAR_DATA *ch, char *argument)
 	TODO: Allow highway man to steal stuff from shopkeepers
     if (
          ch->pcdata->second_sub_class_thief != CLASS_THIEF_HIGHWAYMAN
-         && (IS_SET(obj->extra_flags, ITEM_INVENTORY)
+         && (IS_SET(obj->extra[0], ITEM_INVENTORY)
          ||   obj->level > ch->tot_level + 30))
     {
 	send_to_char("You can't pry it away.\n\r", ch);
@@ -5031,7 +5031,7 @@ void do_steal(CHAR_DATA *ch, char *argument)
 
     obj_from_char(obj);
     obj_to_char(obj, ch);
-	REMOVE_BIT(obj->extra2_flags, ITEM_KEPT);
+	REMOVE_BIT(obj->extra[1], ITEM_KEPT);
     act("You pocket $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
     check_improve(ch,gsn_steal,TRUE,2);
     send_to_char("{WGot it!{x\n\r", ch);
@@ -5114,10 +5114,10 @@ void obj_to_keeper(OBJ_DATA *obj, CHAR_DATA *ch)
     }
 
 
-	if(!IS_SET(obj->extra2_flags, ITEM_SELL_ONCE))
+	if(!IS_SET(obj->extra[1], ITEM_SELL_ONCE))
 	{
 		// If the item can be sold again, mark it as inventory
-		SET_BIT(obj->extra_flags, ITEM_INVENTORY);
+		SET_BIT(obj->extra[0], ITEM_INVENTORY);
 	}
     obj->carried_by      = ch;
     obj->in_room         = NULL;
@@ -5497,7 +5497,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 					break;
 			}
 
-			if (count < number || IS_SET(obj->extra2_flags, ITEM_SELL_ONCE))
+			if (count < number || IS_SET(obj->extra[1], ITEM_SELL_ONCE))
 			{
 				act("{R$n tells you 'I don't have that many in stock.{x",
 					keeper,ch, NULL, NULL, NULL, NULL, NULL,TO_VICT);
@@ -5945,8 +5945,8 @@ void do_buy(CHAR_DATA *ch, char *argument)
 				{
 					char arg_name[MIL];
 					CHAR_DATA *pet = create_mobile(stock->mob, FALSE);
-					SET_BIT(pet->act, ACT_PET);
-					SET_BIT(pet->affected_by, AFF_CHARM);
+					SET_BIT(pet->act[0], ACT_PET);
+					SET_BIT(pet->affected_by[0], AFF_CHARM);
 					pet->comm = COMM_NOTELL|COMM_NOCHANNELS;
 
 					one_argument(argument, arg_name);
@@ -6045,7 +6045,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 				if( stock->duration > 0 )
 				{
 					// They are only here for a limited time
-					SET_BIT(mob->act2, ACT2_HIRED);
+					SET_BIT(mob->act[1], ACT2_HIRED);
 					mob->hired_to = current_time + stock->duration * 60;
 				}
 
@@ -6413,7 +6413,7 @@ void do_inspect(CHAR_DATA *ch, char *argument)
 
 	if( request.obj != NULL )
 	{
-		if( IS_SET(request.obj->extra2_flags, ITEM_NO_LORE) )
+		if( IS_SET(request.obj->extra[1], ITEM_NO_LORE) )
 		{
 			act("{R$N tells you 'Sorry, I do not have any information about $p.'{x", ch, keeper, NULL, request.obj, NULL, NULL, NULL, TO_CHAR);
 			ch->reply = keeper;
@@ -6422,7 +6422,7 @@ void do_inspect(CHAR_DATA *ch, char *argument)
 
 		act("You ask $N for some information about $p.", ch, keeper, NULL, request.obj, NULL, NULL, NULL, TO_CHAR);
 		act("$n asks $N for some information about $p.", ch, keeper, NULL, request.obj, NULL, NULL, NULL, TO_ROOM);
-		spell_identify(0, ch->tot_level, ch, request.obj, TARGET_OBJ, WEAR_NONE);
+		spell_identify(gsn__inspect, ch->tot_level, ch, request.obj, TARGET_OBJ, WEAR_NONE);
 	}
 	else if( request.stock != NULL )
 	{
@@ -6430,7 +6430,7 @@ void do_inspect(CHAR_DATA *ch, char *argument)
 		{
 		    OBJ_DATA *obj = create_object(request.stock->obj, 0, TRUE);
 
-			if( IS_SET(obj->extra2_flags, ITEM_NO_LORE) )
+			if( IS_SET(obj->extra[1], ITEM_NO_LORE) )
 			{
 				act("{R$N tells you 'Sorry, I do not have any information about $p.'{x", ch, keeper, NULL, request.obj, NULL, NULL, NULL, TO_CHAR);
 				ch->reply = keeper;
@@ -6440,7 +6440,7 @@ void do_inspect(CHAR_DATA *ch, char *argument)
 				act("You ask $N for some information about $p.", ch, keeper, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 				act("$n asks $N for some information about $p.", ch, keeper, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 				obj_to_char(obj, ch);
-				spell_identify(0, ch->tot_level, ch, obj, TARGET_OBJ, WEAR_NONE);
+				spell_identify(gsn__inspect, ch->tot_level, ch, obj, TARGET_OBJ, WEAR_NONE);
 			}
 			extract_obj(obj);
 			return;
@@ -6450,7 +6450,7 @@ void do_inspect(CHAR_DATA *ch, char *argument)
 			CHAR_DATA *mob = create_mobile(request.stock->mob, FALSE);
 			char_to_room(mob, ch->in_room);
 
-			if( IS_SET(mob->act, ACT_NO_LORE) )
+			if( IS_SET(mob->act[0], ACT_NO_LORE) )
 			{
 				act("{R$n tells you 'Sorry, I do not have any information about $N.'{x", keeper, mob, ch, NULL, NULL, NULL, NULL, TO_THIRD);
 				ch->reply = keeper;
@@ -6480,7 +6480,7 @@ void do_inspect(CHAR_DATA *ch, char *argument)
 		}
 		else if( !IS_NULLSTR(request.stock->custom_keyword) )
 		{
-	    	if(!p_exact_trigger(request.stock->custom_keyword, keeper, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_INSPECT,0,0,0,0,0))
+	    	if(!p_exact_trigger(request.stock->custom_keyword, keeper, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_INSPECT_CUSTOM,0,0,0,0,0))
 	    	{
 				act("{R$N tells you 'Sorry, I do not have any information about $T.'{x", ch, keeper, NULL, NULL, NULL, NULL, request.stock->custom_descr, TO_CHAR);
 				ch->reply = keeper;
@@ -6529,7 +6529,7 @@ void do_sell(CHAR_DATA *ch, char *argument)
 	if(p_percent_trigger(keeper, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PRESELL, NULL,0,0,0,0,0))
 		return;
 
-	if (!can_drop_obj(ch, obj, TRUE) || IS_SET(obj->extra2_flags, ITEM_KEPT))
+	if (!can_drop_obj(ch, obj, TRUE) || IS_SET(obj->extra[1], ITEM_KEPT))
 	{
 		send_to_char("You can't let go of it.\n\r", ch);
 		return;
@@ -6761,7 +6761,7 @@ void do_value(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if (!can_drop_obj(ch, obj, TRUE) || IS_SET(obj->extra2_flags, ITEM_KEPT))
+    if (!can_drop_obj(ch, obj, TRUE) || IS_SET(obj->extra[1], ITEM_KEPT))
     {
 	send_to_char("You can't let go of it.\n\r", ch);
 	return;
@@ -6868,7 +6868,7 @@ void do_secondary(CHAR_DATA *ch, char *argument)
 	}
     }
 
-    if (IS_SET(obj->extra2_flags, ITEM_REMORT_ONLY)
+    if (IS_SET(obj->extra[1], ITEM_REMORT_ONLY)
     && !IS_REMORT(ch) && !IS_NPC(ch))
     {
 	send_to_char("You cannot use this object without remorting.\n\r", ch);
@@ -6980,7 +6980,7 @@ void do_pull(CHAR_DATA *ch, char *argument)
 		obj->wear_loc == WEAR_LODGED_ARM_R ||
 		obj->wear_loc == WEAR_LODGED_LEG_L ||
 		obj->wear_loc == WEAR_LODGED_LEG_R)) {
-	if(IS_SET(obj->extra_flags, ITEM_NOREMOVE))
+	if(IS_SET(obj->extra[0], ITEM_NOREMOVE))
 		act("You can't dislodge $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 	else if(!unequip_char(ch,obj,TRUE)) {
 		act("$n dislodges $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
@@ -7205,7 +7205,7 @@ void do_skull(CHAR_DATA *ch, char *argument)
 	    act(corpse_info_table[corpse].skull_fail, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 	    act(corpse_info_table[corpse].skull_fail_other, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 	    check_improve(ch, gsn_skull, FALSE, 1);
-//	    SET_BIT(obj->extra_flags, ITEM_NOSKULL);
+//	    SET_BIT(obj->extra[0], ITEM_NOSKULL);
 	    REMOVE_BIT(CORPSE_PARTS(obj),PART_HEAD);
 	    REMOVE_BIT(CORPSE_PARTS(obj),PART_BRAINS);
 	    REMOVE_BIT(CORPSE_PARTS(obj),PART_EAR);
@@ -7241,7 +7241,7 @@ void do_skull(CHAR_DATA *ch, char *argument)
 	else
 	    skull = create_object(obj_index_skull, 0, FALSE);
 
-//	SET_BIT(obj->extra_flags, ITEM_NOSKULL);
+//	SET_BIT(obj->extra[0], ITEM_NOSKULL);
 	REMOVE_BIT(CORPSE_PARTS(obj),PART_HEAD);
 	REMOVE_BIT(CORPSE_PARTS(obj),PART_BRAINS);
 	REMOVE_BIT(CORPSE_PARTS(obj),PART_EAR);
@@ -7497,7 +7497,7 @@ void do_plant(CHAR_DATA *ch, char *argument)
     act("$n plants $p in the ground.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
     act("You plant $p in the ground.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 
-    SET_BIT(obj->extra_flags, ITEM_PLANTED);
+    SET_BIT(obj->extra[0], ITEM_PLANTED);
     obj_from_char(obj);
     obj_to_room(obj, ch->in_room);
 }
@@ -8067,8 +8067,8 @@ void do_dig(CHAR_DATA *ch, char *argument) {
 
     for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
     {
-       if (IS_SET(obj->extra2_flags, ITEM_BURIED)) {
-          REMOVE_BIT(obj->extra2_flags, ITEM_BURIED);
+       if (IS_SET(obj->extra[1], ITEM_BURIED)) {
+          REMOVE_BIT(obj->extra[1], ITEM_BURIED);
           act("You have discovered $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
           found = TRUE;
        }
@@ -8178,7 +8178,7 @@ void do_conceal(CHAR_DATA *ch, char *argument)
 		act("You are zapped by $p and drop it.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 		act("$n is zapped by $p and drops it.",  ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 
-		REMOVE_BIT(obj->extra2_flags, ITEM_KEPT);
+		REMOVE_BIT(obj->extra[1], ITEM_KEPT);
 
 		obj_from_char(obj);
 		obj_to_room(obj, ch->in_room);

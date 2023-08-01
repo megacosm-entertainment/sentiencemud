@@ -667,7 +667,7 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 			Right now, it does not mix with "sneak". */
 	if(IS_SET(portal->value[2],GATE_NOSNEAK)) {
 		affect_strip(ch, gsn_sneak);
-		REMOVE_BIT(ch->affected_by, AFF_SNEAK);
+		REMOVE_BIT(ch->affected_by[0], AFF_SNEAK);
 
 	/* @@@NIB : 20070127 : if portal is sneak, attempt autosneak IF they can do it!
 			Maybe in the future if permitted, this can do it regardless of

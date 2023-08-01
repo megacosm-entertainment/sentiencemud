@@ -105,6 +105,7 @@ const struct flag_stat_type flag_stat_table[] =
     {   builtin_trigger_types,      TRUE    },
     {   script_spaces,              FALSE   },
     {   light_flags,                FALSE   },
+    {   stock_types,                TRUE    },
     {	0,							0		}
 };
 
@@ -185,6 +186,8 @@ char *flag_string( const struct flag_type *flag_table, long bits )
     static int cnt = 0;
     int  flag;
 
+    if (!flag_table) return "none";
+
     if ( ++cnt > 3 )
     	cnt = 0;
 
@@ -216,6 +219,8 @@ char *flag_string_commas( const struct flag_type *flag_table, long bits )
     static char buf[2][512];
     static int cnt = 0;
     int  flag;
+
+    if (!flag_table) return "none";
 
     if ( ++cnt > 1 )
     	cnt = 0;
@@ -556,7 +561,7 @@ char *act_bit_name( int act_type, long act_flags )
 		if (act_flags & ACT_QUESTOR) strcat(buf," questor");
 		if (act_flags & ACT_STAY_LOCALE) strcat(buf, " stay_locale");
 		break;
-	case 2:		// NPC->act2
+	case 2:		// NPC->act[1]
 		if (act_flags & ACT2_CHURCHMASTER) strcat(buf, " churchmaster");
 	    if (act_flags & ACT2_NOQUEST ) strcat( buf, " noquest" );
  	    if (act_flags & ACT2_NO_HUNT ) strcat( buf, " no_hunt" );
@@ -595,7 +600,7 @@ char *act_bit_name( int act_type, long act_flags )
 		if (act_flags & PLR_PURSUIT		) strcat(buf, " pursuit");
 		if (act_flags & PLR_BUILDING	) strcat(buf, " building");
 		break;
-	case 4:		// PC->act2
+	case 4:		// PC->act[1]
 		if (act_flags & PLR_AUTOSURVEY	) strcat(buf, " autosurvey");
 		if (act_flags & PLR_SACRIFICE_ALL	) strcat(buf, " sacrifice_all");
 		if (act_flags & PLR_NO_WAKE		) strcat(buf, " no_wake");
@@ -997,6 +1002,89 @@ bool bitvector_lookup(char *argument, int nbanks, long *banks, ...)
     return valid;
 }
 
+bool bitmatrix_lookup(char *argument, const struct flag_type **bank, long *flags)
+{
+    char word[MIL];
+    bool valid = TRUE;
+
+    if (!bank || !flags) return FALSE;
+
+    for(int i = 0; bank[i]; i++)
+        flags[i] = 0;
+
+    while(valid)
+    {
+        argument = one_argument(argument, word);
+
+        if (word[0] == '\0')
+            break;
+
+        long value = 0;
+        int nth = -1;
+        for(int i = 0; bank[i]; i++)
+        {
+            value = flag_lookup(word, bank[i]);
+            if (value != 0)
+            {
+                nth = i;
+                break;
+            }
+        }
+
+        if (value != 0)
+        {
+            SET_BIT(flags[nth], value);
+        }
+        else
+        {
+            valid = FALSE;
+        }
+    }
+
+    return valid;
+}
+
+bool bitmatrix_isset(char *argument, const struct flag_type **bank, long *flags)
+{
+    char word[MIL];
+    bool valid = TRUE;
+
+    if (!bank || !flags) return FALSE;
+
+    while(valid)
+    {
+        argument = one_argument(argument, word);
+
+        if (word[0] == '\0')
+            break;
+
+        long value = 0;
+        int nth = -1;
+        for(int i = 0; bank[i]; i++)
+        {
+            value = flag_find(word, bank[i]);
+            if (value != 0)
+            {
+                nth = i;
+                break;
+            }
+        }
+
+        if (value != 0)
+        {
+            if ((flags[nth] & value) != value)
+                valid = FALSE;
+        }
+        else
+        {
+            valid = FALSE;
+        }
+    }
+
+    return valid;
+}
+
+
 // These will assume *ONLY* flags
 // Use flag_string for stats
 /*
@@ -1039,6 +1127,40 @@ char *bitvector_string(int nbanks, ...)
     return buf[cnt][0] ? (buf[cnt] + 1) : "none";
 }
 
+char *bitmatrix_string(const struct flag_type **bank, const long *flags)
+{
+    static char buf[4][512];
+    static int cnt = 0;
+
+    if (!bank || !flags) return "none";
+
+    if ( ++cnt > 3 )
+    	cnt = 0;
+
+    buf[cnt][0] = '\0';
+
+    if (bank && flags)
+    {
+        for(int i = 0; bank[i]; i++)
+        {
+            long bits = flags[i];
+            const struct flag_type *flag_table = bank[i];
+
+            for(int f = 0; flag_table[f].name; f++)
+            {
+                if (IS_SET(bits, flag_table[f].bit))
+                {
+                    strcat(buf[cnt], " ");
+                    strcat(buf[cnt], flag_table[f].name);
+                }
+            }
+        }
+    }
+
+    return buf[cnt][0] ? (buf[cnt] + 1) : "none";
+}
+
+
 char *flagbank_string(const struct flag_type **bank, ...)
 {
     static char buf[4][512];
@@ -1069,3 +1191,4 @@ char *flagbank_string(const struct flag_type **bank, ...)
 
     return buf[cnt][0] ? (buf[cnt] + 1) : "none";
 }
+

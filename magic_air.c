@@ -44,9 +44,9 @@ SPELL_FUNC(spell_faerie_fog)
 		affect_strip(ich, gsn_mass_invis);
 		affect_strip(ich, gsn_sneak);
 
-		REMOVE_BIT(ich->affected_by, AFF_HIDE);
-		REMOVE_BIT(ich->affected_by, AFF_INVISIBLE);
-		REMOVE_BIT(ich->affected_by, AFF_SNEAK);
+		REMOVE_BIT(ich->affected_by[0], AFF_HIDE);
+		REMOVE_BIT(ich->affected_by[0], AFF_INVISIBLE);
+		REMOVE_BIT(ich->affected_by[0], AFF_SNEAK);
 
 		act("$n is revealed!", ich, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 		send_to_char("You are revealed!\n\r", ich);

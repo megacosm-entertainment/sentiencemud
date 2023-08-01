@@ -1513,7 +1513,7 @@ void show_vroom_header_to_char(WILDS_TERRAIN *pTerrain, WILDS_DATA *pWilds, int 
 	int linelength = 0;
 	int count;
 
-	if (IS_IMMORTAL(to) && (IS_NPC(to) || IS_SET(to->act, PLR_HOLYLIGHT))) {
+	if (IS_IMMORTAL(to) && (IS_NPC(to) || IS_SET(to->act[0], PLR_HOLYLIGHT))) {
 		sprintf (buf, "\n\r{C [ Area: %ld '%s', Wilds uid: %ld '%s', Vroom (%d, %d) ]{x",
 			pWilds->pArea->uid, pWilds->pArea->name,
 			pWilds->uid, pWilds->name,
@@ -1829,7 +1829,7 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 			bool found = false;
 			for(CHAR_DATA *mob = pVroom->people; mob; mob = mob->next_in_room)
 			{
-				if( IS_NPC(mob) && IS_SET(mob->act2, ACT2_SHOW_IN_WILDS) )
+				if( IS_NPC(mob) && IS_SET(mob->act[1], ACT2_SHOW_IN_WILDS) )
 				{
 					found = true;
 					break;
@@ -1845,7 +1845,7 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 
 			for(OBJ_DATA *obj = pVroom->contents; obj; obj = obj->next_content)
 			{
-				if( IS_SET(obj->extra3_flags, ITEM_SHOW_IN_WILDS))
+				if( IS_SET(obj->extra[2], ITEM_SHOW_IN_WILDS))
 				{
 					found = true;
 					break;
@@ -2973,7 +2973,7 @@ void char_to_vroom (CHAR_DATA *ch, WILDS_DATA *pWilds, int x, int y)
 
         if (af == NULL)
         {
-            REMOVE_BIT (ch->affected_by, AFF_PLAGUE);
+            REMOVE_BIT (ch->affected_by[0], AFF_PLAGUE);
             return;
         }
 

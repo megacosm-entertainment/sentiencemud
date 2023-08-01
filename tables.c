@@ -3298,3 +3298,25 @@ const struct flag_type compartment_flags[] =
     { "transparent",    COMPARTMENT_TRANSPARENT,    TRUE },
     { NULL, 0, FALSE }
 };
+
+const struct flag_type stock_types[] =
+{
+    { "crew",           STOCK_CREW,                 TRUE },
+    { "custom",         STOCK_CUSTOM,               TRUE },
+    { "guard",          STOCK_GUARD,                TRUE },
+    { "mount",          STOCK_MOUNT,                TRUE },
+    { "object",         STOCK_OBJECT,               TRUE },
+    { "pet",            STOCK_PET,                  TRUE },
+    { "ship",           STOCK_SHIP,                 TRUE },
+    { NULL, 0, FALSE }
+};
+
+const struct flag_type prog_entity_flags[] =
+{
+    { "at",             PROG_AT,                    TRUE },
+    { "nodamage",       PROG_NODAMAGE,              TRUE },
+    { "nodestruct",     PROG_NODESTRUCT,            TRUE },
+    { "norawkill",      PROG_NORAWKILL,             TRUE },
+    { "silent",         PROG_SILENT,                TRUE },
+    { NULL, 0, FALSE }
+};

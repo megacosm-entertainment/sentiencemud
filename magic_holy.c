@@ -85,7 +85,7 @@ SPELL_FUNC(spell_bless)
 			if (!saves_dispel(ch, NULL, paf ? paf->level : obj->level)) {
 				if (paf) affect_remove_obj(obj,paf);
 				act("$p glows a pale blue.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
-				REMOVE_BIT(obj->extra_flags,ITEM_EVIL);
+				REMOVE_BIT(obj->extra[0],ITEM_EVIL);
 				return TRUE;
 			} else {
 				act("The evil of $p is too powerful for you to overcome.", ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
@@ -456,13 +456,13 @@ SPELL_FUNC(spell_remove_curse)
 			if (!IS_OBJ_STAT(obj,ITEM_NOUNCURSE) && !saves_dispel(ch, NULL, obj->level)) {
 				AFFECT_DATA *paf;
 
-				REMOVE_BIT(obj->extra_flags,ITEM_NODROP);
-				REMOVE_BIT(obj->extra_flags,ITEM_NOREMOVE);
+				REMOVE_BIT(obj->extra[0],ITEM_NODROP);
+				REMOVE_BIT(obj->extra[0],ITEM_NOREMOVE);
 
 				paf = affect_find(obj->affected,gsn_curse);
 				if (!saves_dispel(ch, NULL, paf ? paf->level : obj->level)) {
 					if (paf) affect_remove_obj(obj,paf);
-					REMOVE_BIT(obj->extra_flags,ITEM_EVIL);
+					REMOVE_BIT(obj->extra[0],ITEM_EVIL);
 				}
 
 				act("$p glows blue.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
@@ -488,8 +488,8 @@ SPELL_FUNC(spell_remove_curse)
 			/* attempt to remove curse */
 			if (!saves_dispel(ch,NULL,obj->level)) {
 				found = TRUE;
-				REMOVE_BIT(obj->extra_flags,ITEM_NODROP);
-				REMOVE_BIT(obj->extra_flags,ITEM_NOREMOVE);
+				REMOVE_BIT(obj->extra[0],ITEM_NODROP);
+				REMOVE_BIT(obj->extra[0],ITEM_NOREMOVE);
 				act("Your $p glows blue.",victim, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
 				act("$n's $p glows blue.",victim, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
 			}

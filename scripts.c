@@ -8371,6 +8371,47 @@ int script_flag_lookup (const char *name, const struct flag_type *flag_table)
     return 0;
 }
 
+bool script_bitmatrix_lookup(char *argument, const struct flag_type **bank, long *flags)
+{
+    char word[MIL];
+    bool valid = TRUE;
+
+    if (!bank || !flags) return FALSE;
+
+    for(int i = 0; bank[i]; i++)
+        flags[i] = 0;
+
+    while(valid)
+    {
+        argument = one_argument(argument, word);
+
+        if (word[0] == '\0')
+            break;
+
+        long value = 0;
+        int nth = -1;
+        for(int i = 0; bank[i]; i++)
+        {
+            value = flag_find(word, bank[i]);
+            if (value != 0)
+            {
+                nth = i;
+                break;
+            }
+        }
+
+        if (value != 0)
+        {
+            SET_BIT(flags[nth], value);
+        }
+        else
+        {
+            valid = FALSE;
+        }
+    }
+
+    return valid;
+}
 
 long script_flag_value( const struct flag_type *flag_table, char *argument)
 {
@@ -8529,7 +8570,7 @@ CHAR_DATA *script_mload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg,
 		return NULL;
 
 	if( instanced )
-		SET_BIT(victim->act2, ACT2_INSTANCE_MOB);
+		SET_BIT(victim->act[1], ACT2_INSTANCE_MOB);
 
 	char_to_room(victim, room);
 	if(var_name && *var_name) variables_set_mobile(info->var,var_name,victim);
@@ -8666,7 +8707,7 @@ OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, 
 		return NULL;
 
 	if( instanced )
-		SET_BIT(obj->extra3_flags, ITEM_INSTANCE_OBJ);
+		SET_BIT(obj->extra[2], ITEM_INSTANCE_OBJ);
 
 	if( to_room )
 		obj_to_room(obj, to_room);

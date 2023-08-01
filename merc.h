@@ -1522,13 +1522,13 @@ struct	shop_data
     SHOP_STOCK_DATA *stock;
 };
 
-#define STOCK_CUSTOM	0
-#define STOCK_OBJECT	1
-#define STOCK_PET		2
-#define STOCK_MOUNT		3
-#define STOCK_GUARD		4
-#define STOCK_SHIP		5
-#define STOCK_CREW		6
+#define STOCK_CUSTOM	1
+#define STOCK_OBJECT	2
+#define STOCK_PET		3
+#define STOCK_MOUNT		4
+#define STOCK_GUARD		5
+#define STOCK_SHIP		6
+#define STOCK_CREW		7
 
 struct shop_stock_data
 {
@@ -3493,10 +3493,8 @@ struct	mob_index_data
     char *		description;
     char *              sig;
     char *		creator_sig;
-    long		act;
-    long		act2;
-    long		affected_by;
-    long		affected_by2;
+    long		act[2];
+    long		affected_by[2];
     sh_int		alignment;
     sh_int		level;
     sh_int		hitroll;
@@ -4081,8 +4079,7 @@ struct	char_data
     long		exp;
     long		maxexp;
 
-    long		act;
-    long		act2;
+    long		act[2];
 
     long		comm;
     long		wiznet;
@@ -4095,10 +4092,8 @@ struct	char_data
     long		has_done;
     int			invis_level;
     int			incog_level;
-    long		affected_by;
-    long		affected_by2;
-    long		affected_by_perm;	// 20140514 NIB - Used for the inherent flags for affects - either from mob index or player's race
-    long		affected_by2_perm;	// 20140514 NIB - Used for the inherent flags for affects2 - either from mob index or player's race
+    long		affected_by[2];
+    long		affected_by_perm[2];	// 20140514 NIB - Used for the inherent flags for affects - either from mob index or player's race
     int			position;
     int			practice;
     int			train;
@@ -4717,10 +4712,11 @@ struct	obj_index_data
     long		vnum;
     char *		material;
     sh_int		item_type;
-    long 		extra_flags;
-    long 		extra2_flags;
-    long		extra3_flags;
-    long		extra4_flags;
+    long        extra[4];
+//    long 		extra_flags;
+//    long 		extra2_flags;
+//    long		extra3_flags;
+//    long		extra4_flags;
     long		wear_flags;
     sh_int		level;
     sh_int 		condition;
@@ -4827,10 +4823,11 @@ struct	obj_data
     char *		old_full_description;
     char *		loaded_by;
     int			item_type;
-    long		extra_flags;
-    long		extra2_flags;
-    long		extra3_flags;
-    long		extra4_flags;
+    long        extra[4];
+//    long		extra_flags;
+//    long		extra2_flags;
+//    long		extra3_flags;
+//    long		extra4_flags;
     int 		wear_flags;
     int			wear_loc;
     int			weight;
@@ -4879,10 +4876,7 @@ struct	obj_data
     char *owner_name;	/* Used to indicate the original mob's name for use decaying the corpse. */
     char *owner_short;	/* Used to indicate the original mob's short for use decaying the corpse. */
 
-    long extra_flags_perm;
-    long extra2_flags_perm;
-    long extra3_flags_perm;
-    long extra4_flags_perm;
+    long extra_perm[4];
     long weapon_flags_perm;	// Used by weapon objects for use with TO_WEAPON
 
     int			tempstore[MAX_TEMPSTORE];		/* Temporary storage values for script processing */
@@ -6459,7 +6453,8 @@ enum trigger_index_enum {
 	TRIG_HITGAIN,
 	TRIG_HPCNT,
 	TRIG_IDENTIFY,
-	TRIG_INSPECT,		// Called when asking a shopkeeper to inspect a custom stock item
+	TRIG_INSPECT,
+    TRIG_INSPECT_CUSTOM,	// Called when asking a shopkeeper to inspect a custom stock item
 	TRIG_INTERRUPT,
 	TRIG_KILL,
 	TRIG_KNOCK,
@@ -6674,6 +6669,7 @@ struct trigger_type {
 #define PROG_AT			(B)		/* Used to indicate the entity is doing a remote action via at, bars certain scripted actions */
 #define PROG_NODAMAGE	(C)		// The script may not do damage at any stage
 #define PROG_NORAWKILL	(D)		// The script may not do rawkill at any stage
+#define PROG_SILENT     (E)     // Blocks execution of any echo commands
 
 #define PROG_FLAG(x,y)		(((x)->progs) && IS_SET((x)->progs->entity_flags,(y)))
 
@@ -6933,6 +6929,9 @@ struct log_entry_data
 /*
  * These are skill_lookup return values for common skills and spells.
  */
+extern sh_int   gsn__auction;
+extern sh_int   gsn__inspect;
+
 extern sh_int	gsn_acid_blast;
 extern sh_int	gsn_acid_breath;
 extern sh_int	gsn_acro;
@@ -7368,15 +7367,15 @@ extern sh_int grn_unique;
 
 #define IS_SOCIAL(ch)	  (IS_SET((ch)->comm, COMM_SOCIAL))
 #define IS_PK(ch)         (((ch)->church != NULL &&     \
-			   (ch)->church->pk == TRUE ) || IS_SET((ch)->act,PLR_PK))
+			   (ch)->church->pk == TRUE ) || IS_SET((ch)->act[0],PLR_PK))
 #define IS_QUESTING(ch)	        ( ch->quest != NULL )
-#define IS_UNDEAD(ch)		(IS_SET((ch)->act, ACT_UNDEAD) || \
+#define IS_UNDEAD(ch)		(IS_SET((ch)->act[0], ACT_UNDEAD) || \
 				 IS_SET((ch)->form, FORM_UNDEAD))
 #define IS_MSP(ch)              (ch->desc ? IS_MSP_DESC( ch->desc ) : FALSE)
 #define IS_MSP_DESC(d)          (IS_SET( d->bits, DESCRIPTOR_MSP ))
 #define sqr(a) 			( a * a )
 #define IS_DEAD(ch)		(ch->dead == TRUE)
-#define IS_NPC(ch)		(IS_SET((ch)->act, ACT_IS_NPC))
+#define IS_NPC(ch)		(IS_SET((ch)->act[0], ACT_IS_NPC))
 #define IS_BOSS(ch)		(IS_NPC(ch) && ((ch)->pIndexData->boss))
 #define IS_NPC_SHIP(ship)	(ship->npc_ship != NULL)
 #define IS_IMMORTAL(ch)		(get_trust(ch) >= LEVEL_IMMORTAL && !IS_NPC(ch) && (ch)->pcdata->immortal != NULL)
@@ -7384,8 +7383,8 @@ extern sh_int grn_unique;
 #define IS_SECURITY(ch,sec) ((ch)->pcdata->security >= (sec))
 #define IS_HERO(ch)		(get_trust(ch) >= LEVEL_HERO)
 #define IS_TRUSTED(ch,level)	(get_trust((ch)) >= (level))
-#define IS_AFFECTED(ch, sn)	(IS_SET((ch)->affected_by, (sn)))
-#define IS_AFFECTED2(ch, sn)	(IS_SET((ch)->affected_by2, (sn)))
+#define IS_AFFECTED(ch, sn)	(IS_SET((ch)->affected_by[0], (sn)))
+#define IS_AFFECTED2(ch, sn)	(IS_SET((ch)->affected_by[1], (sn)))
 #define IN_NATURAL_FORM(ch)	(ch->natural_form)
 
 #define GET_AGE(ch)		((int) (17 + ((ch)->played \
@@ -7404,7 +7403,7 @@ extern sh_int grn_unique;
 #define GET_DAMROLL(ch) \
 		((ch)->damroll+str_app[get_curr_stat(ch,STAT_STR)].todam)
 
-#define IS_OBJCASTER(ch)        (IS_SET((ch)->act, ACT_IS_NPC) \
+#define IS_OBJCASTER(ch)        (IS_SET((ch)->act[0], ACT_IS_NPC) \
 		                 && (ch)->pIndexData->vnum == MOB_VNUM_OBJCASTER)
 
 
@@ -7481,9 +7480,9 @@ extern sh_int grn_unique;
 #define IS_SHIFTED(ch)		(ch->shifted != SHIFTED_NONE )
 #define IS_SAFE(ch) (IS_SET(ch->in_room->room_flags, ROOM_SAFE))
 #define ON_QUEST(ch) (ch->quest != NULL)
-#define IS_INVASION_LEADER(ch)   ( IS_SET(ch->act2, ACT2_INVASION_LEADER ))
+#define IS_INVASION_LEADER(ch)   ( IS_SET(ch->act[1], ACT2_INVASION_LEADER ))
 #define IS_PIRATE(ch)   (!IS_NPC(ch) ? (ch->pcdata->rank[CONT_SERALIA] == NPC_SHIP_RANK_PIRATE || \
-    ch->pcdata->rank[CONT_ATHEMIA] == NPC_SHIP_RANK_PIRATE) : ( IS_SET(ch->act2, ACT2_PIRATE )))
+    ch->pcdata->rank[CONT_ATHEMIA] == NPC_SHIP_RANK_PIRATE) : ( IS_SET(ch->act[1], ACT2_PIRATE )))
 #define IN_SERALIA(area) ( (area->place_flags == PLACE_FIRST_CONTINENT) )
 #define IN_ATHEMIA(area) ( (area->place_flags == PLACE_SECOND_CONTINENT) )
 
@@ -7515,8 +7514,8 @@ extern sh_int grn_unique;
  * Object macros.
  */
 #define CAN_WEAR(obj, part)	(IS_SET((obj)->wear_flags,  (part)))
-#define IS_OBJ_STAT(obj, stat)	(IS_SET((obj)->extra_flags,(stat)))
-#define IS_OBJ2_STAT(obj,stat)  (IS_SET((obj)->extra2_flags,(stat)))
+#define IS_OBJ_STAT(obj, stat)	(IS_SET((obj)->extra[0],(stat)))
+#define IS_OBJ2_STAT(obj,stat)  (IS_SET((obj)->extra[1],(stat)))
 #define IS_WEAPON_STAT(obj,stat)(IS_SET((obj)->value[4],(stat)))
 #define WEIGHT_MULT(obj)	((obj)->item_type == ITEM_CONTAINER ? \
 	(obj)->value[4] : 100)
@@ -7887,7 +7886,9 @@ int	position_lookup	(const char *name);
 int 	sex_lookup	(const char *name);
 int 	size_lookup	(const char *name);
 int flag_lookup (const char *name, const struct flag_type *flag_table);
+int flag_find (const char *name, const struct flag_type *flag_table);
 int stat_lookup (const char *name, const struct flag_type *flag_table, int invalid);
+int stat_find (const char *name, const struct flag_type *flag_table, int invalid);
 char *flag_name(const struct flag_type *flag_table, int bit);
 int damage_class_lookup (const char *name);	/* @@@NIB */
 int toxin_lookup (const char *name);	/* @@@NIB */
@@ -9822,6 +9823,10 @@ bool light_char_has_light(CHAR_DATA *ch);
 
 bool bitvector_lookup(char *argument, int nbanks, long *banks, ...);
 char *bitvector_string(int nbanks, ...);
+
+bool bitmatrix_lookup(char *argument, const struct flag_type **bank, long *flags);
+bool bitmatrix_isset(char *argument, const struct flag_type **bank, long *flags);
+char *bitmatrix_string(const struct flag_type **bank, const long *flags);
 char *flagbank_string(const struct flag_type **bank, ...);
 
 bool obj_oclu_ambiguous(OBJ_DATA *obj);

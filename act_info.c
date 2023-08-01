@@ -325,25 +325,25 @@ char *format_obj_to_char(OBJ_DATA * obj, CHAR_DATA * ch, bool fShort)
 		return buf;
 
 	// How would you be seeing this?
-	if (IS_SET(obj->extra3_flags, ITEM_EXCLUDE_LIST))
+	if (IS_SET(obj->extra[2], ITEM_EXCLUDE_LIST))
 		strcat(buf, "{D(Excluded){x ");
     if (IS_OBJ_STAT(obj, ITEM_INVIS))
 		strcat(buf, "{B(Invis){w ");
-    if (((!IS_NPC(ch) && IS_SET(ch->act, PLR_HOLYLIGHT)) || IS_AFFECTED(ch, AFF_DETECT_MAGIC)) && IS_OBJ_STAT(obj, ITEM_MAGIC))
+    if (((!IS_NPC(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT)) || IS_AFFECTED(ch, AFF_DETECT_MAGIC)) && IS_OBJ_STAT(obj, ITEM_MAGIC))
 		strcat(buf, "{M(Magical){w ");
     if (IS_OBJ_STAT(obj, ITEM_GLOW))
 		strcat(buf, "{W(Glowing){w ");
     if (IS_OBJ_STAT(obj, ITEM_HUM))
 		strcat(buf, "{C(Humming){w ");
-    if (IS_OBJ_STAT(obj, ITEM_BLESS) && ((!IS_NPC(ch) && IS_SET(ch->act, PLR_HOLYLIGHT)) || IS_AFFECTED(ch, AFF_DETECT_GOOD) || (!IS_NPC(ch) && IS_REMORT(ch))))
+    if (IS_OBJ_STAT(obj, ITEM_BLESS) && ((!IS_NPC(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT)) || IS_AFFECTED(ch, AFF_DETECT_GOOD) || (!IS_NPC(ch) && IS_REMORT(ch))))
 		strcat(buf, "{y(Gold Aura){w ");
-    if (IS_OBJ_STAT(obj, ITEM_EVIL) && ((!IS_NPC(ch) && IS_SET(ch->act, PLR_HOLYLIGHT)) || IS_AFFECTED(ch, AFF_DETECT_EVIL) || (!IS_NPC(ch) && IS_REMORT(ch))))
+    if (IS_OBJ_STAT(obj, ITEM_EVIL) && ((!IS_NPC(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT)) || IS_AFFECTED(ch, AFF_DETECT_EVIL) || (!IS_NPC(ch) && IS_REMORT(ch))))
 		strcat(buf, "{R(Red Aura){w ");
-    if (IS_SET(obj->extra2_flags, ITEM_KEPT))
+    if (IS_SET(obj->extra[1], ITEM_KEPT))
 		strcat(buf, "{b({BK{b){x ");
     if (IS_OBJ_STAT(obj, ITEM_PLANTED))
 		strcat(buf, "{R(Planted){w ");
-    if (IS_SET(obj->extra2_flags, ITEM_BURIED))
+    if (IS_SET(obj->extra[1], ITEM_BURIED))
 		strcat(buf, "{y(Buried){w ");
     if (fShort)
     {
@@ -618,12 +618,12 @@ void show_list_to_char(OBJ_DATA *list, CHAR_DATA *ch, bool fShort,
     {
 	/* You dont see hidden objects in a list.
 	   Makes sense since hidden objects can*only* be on the ground. */
-	if (IS_SET(obj->extra_flags, ITEM_HIDDEN))
+	if (IS_SET(obj->extra[0], ITEM_HIDDEN))
 	    continue;
 
 	// Similar to hidden items, but you can still target them and they can never be discovered.
 	//  Immortals with HOLYLIGHT will be able to see this though (for debugging purposes)
-	if (IS_SET(obj->extra3_flags, ITEM_EXCLUDE_LIST) && !IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act, PLR_HOLYLIGHT)))
+	if (IS_SET(obj->extra[2], ITEM_EXCLUDE_LIST) && !IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act[0], PLR_HOLYLIGHT)))
 		continue;
 
 	/* Mist type blocks random objs from view. */
@@ -749,7 +749,7 @@ void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
 		strcat(buf, "{Y[AFK] {G");
     if (victim->invis_level >= LEVEL_HERO)
 		strcat(buf, "{B({WW{Ri{Yz{Gi{B) {G");
-    if (IS_NPC(victim) && IS_SET(victim->act2, ACT2_WIZI_MOB))
+    if (IS_NPC(victim) && IS_SET(victim->act[1], ACT2_WIZI_MOB))
  		strcat(buf, "{B({WW{Ri{Yz{Gi{GMOB{B) {G");
     if (IS_AFFECTED(victim, AFF_CHARM))
 		strcat(buf, "{Y(Charmed) {G");
@@ -1023,7 +1023,7 @@ void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
 		if (str_suffix("\n\r", buf))
 			strcat(buf, "\n\r");
 
-		if (IS_IMMORTAL(ch) && IS_SET(ch->act, PLR_HOLYLIGHT))
+		if (IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT))
 		{
 			strcat(buf, "(");
 			strcat(buf, aura->name);
@@ -1156,11 +1156,11 @@ void show_char_to_char_1(CHAR_DATA * victim, CHAR_DATA * ch, bool examine)
 	show_list_to_char(victim->carrying, ch, TRUE, TRUE);
     }
 
-	if( IS_NPC(ch) || !IS_SET(ch->act2, PLR_NOLORE) || examine )
+	if( IS_NPC(ch) || !IS_SET(ch->act[1], PLR_NOLORE) || examine )
 	{
 		if (IS_NPC(victim) && number_percent() < get_skill(ch, gsn_mob_lore))
 		{
-			if (IS_SET(victim->act, ACT_NO_LORE) && ch->tot_level <= victim->tot_level)
+			if (IS_SET(victim->act[0], ACT_NO_LORE) && ch->tot_level <= victim->tot_level)
 				act("\n\r{R$N is too powerful for you to lore.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			else
 			{
@@ -1171,7 +1171,7 @@ void show_char_to_char_1(CHAR_DATA * victim, CHAR_DATA * ch, bool examine)
 		}
     }
 
-    if (IS_NPC(victim) && (!IS_SET(victim->act, ACT_NO_LORE) || ch->tot_level > victim->tot_level))
+    if (IS_NPC(victim) && (!IS_SET(victim->act[0], ACT_NO_LORE) || ch->tot_level > victim->tot_level))
 		p_percent_trigger(victim, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL,0,0,0,0,0);
 
     return;
@@ -1206,7 +1206,7 @@ void show_char_to_char(CHAR_DATA *list, CHAR_DATA *ch, CHAR_DATA *victim)
 
  	    if (!IS_IMMORTAL(ch)
 	    && IS_NPC(victim)
-	    && IS_SET(victim->act2, ACT2_WIZI_MOB))
+	    && IS_SET(victim->act[1], ACT2_WIZI_MOB))
  	        continue;
 
             if (IS_AFFECTED(rch, AFF_HIDE)
@@ -1266,7 +1266,7 @@ void show_char_to_char(CHAR_DATA *list, CHAR_DATA *ch, CHAR_DATA *victim)
 
 bool check_blind(CHAR_DATA * ch)
 {
-    if (!IS_NPC(ch) && IS_SET(ch->act, PLR_HOLYLIGHT))
+    if (!IS_NPC(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT))
 	return TRUE;
 
     if (IS_AFFECTED(ch, AFF_BLIND))
@@ -1618,7 +1618,7 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 
 	linelength = 0;
 
-	if (IS_IMMORTAL(ch) && (IS_NPC(ch) || IS_SET(ch->act, PLR_HOLYLIGHT))) {
+	if (IS_IMMORTAL(ch) && (IS_NPC(ch) || IS_SET(ch->act[0], PLR_HOLYLIGHT))) {
 		if (IS_SET(room->room2_flags, ROOM_VIRTUAL_ROOM)) {
 			if(room->wilds) {
 				sprintf (buf, "\n\r{C [ Area: %ld '%s', Wilds uid: %ld '%s', Vroom (%ld, %ld) ]{x",
@@ -1942,7 +1942,7 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 		}
 	}
 
-	if (!remote && (!IS_NPC(ch) || IS_SWITCHED(ch)) && IS_SET(ch->act, PLR_AUTOEXIT)) {
+	if (!remote && (!IS_NPC(ch) || IS_SWITCHED(ch)) && IS_SET(ch->act[0], PLR_AUTOEXIT)) {
 		send_to_char("\n\r", ch);
 		do_exits(ch, "auto");
 	}
@@ -2214,14 +2214,14 @@ void do_look(CHAR_DATA * ch, char *argument)
 		{
 			/* Can person lore object */
 			perform_lore = FALSE;
-			if ((IS_NPC(ch) || !IS_SET(ch->act2, PLR_NOLORE)) &&
+			if ((IS_NPC(ch) || !IS_SET(ch->act[1], PLR_NOLORE)) &&
 				get_skill(ch, gsn_lore) > 0 &&
 				number_percent() <= get_skill(ch, gsn_lore) &&
-				((!IS_NPC(ch) && IS_SET(ch->act, PLR_HOLYLIGHT)) ||													// Immortal HOLYLIGHT
-				!IS_SET(obj->extra2_flags, ITEM_NO_LORE) || 														// NO_LORE not set
-				(IS_SET(obj->extra2_flags, ITEM_ALL_REMORT) && IS_REMORT(ch)) ||									// ALL_REMORT and this is a remort
-				(IS_SET(obj->extra2_flags, ITEM_REMORT_ONLY) && IS_REMORT(ch) && ch->tot_level > obj->level) ||		// REMORT_ONLY and this is a remort, check level
-				(!IS_SET(obj->extra2_flags, ITEM_REMORT_ONLY) && ch->tot_level > obj->level)))						// !REMORT_ONLY, check level
+				((!IS_NPC(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT)) ||													// Immortal HOLYLIGHT
+				!IS_SET(obj->extra[1], ITEM_NO_LORE) || 														// NO_LORE not set
+				(IS_SET(obj->extra[1], ITEM_ALL_REMORT) && IS_REMORT(ch)) ||									// ALL_REMORT and this is a remort
+				(IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && IS_REMORT(ch) && ch->tot_level > obj->level) ||		// REMORT_ONLY and this is a remort, check level
+				(!IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && ch->tot_level > obj->level)))						// !REMORT_ONLY, check level
 				perform_lore = TRUE;
 
 			pdesc = get_extra_descr(arg3, obj->extra_descr);
@@ -2346,14 +2346,14 @@ void do_look(CHAR_DATA * ch, char *argument)
 		{
 			/* Can person lore object */
 			perform_lore = FALSE;
-			if ((IS_NPC(ch) || !IS_SET(ch->act2, PLR_NOLORE)) &&
+			if ((IS_NPC(ch) || !IS_SET(ch->act[1], PLR_NOLORE)) &&
 				get_skill(ch, gsn_lore) > 0 &&
 				number_percent() <= get_skill(ch, gsn_lore) &&
-				((!IS_NPC(ch) && IS_SET(ch->act, PLR_HOLYLIGHT)) ||													// Immortal HOLYLIGHT
-				!IS_SET(obj->extra2_flags, ITEM_NO_LORE) || 														// NO_LORE not set
-				(IS_SET(obj->extra2_flags, ITEM_ALL_REMORT) && IS_REMORT(ch)) ||									// ALL_REMORT and this is a remort
-				(IS_SET(obj->extra2_flags, ITEM_REMORT_ONLY) && IS_REMORT(ch) && ch->tot_level > obj->level) ||		// REMORT_ONLY and this is a remort, check level
-				(!IS_SET(obj->extra2_flags, ITEM_REMORT_ONLY) && ch->tot_level > obj->level)))						// !REMORT_ONLY, check level
+				((!IS_NPC(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT)) ||													// Immortal HOLYLIGHT
+				!IS_SET(obj->extra[1], ITEM_NO_LORE) || 														// NO_LORE not set
+				(IS_SET(obj->extra[1], ITEM_ALL_REMORT) && IS_REMORT(ch)) ||									// ALL_REMORT and this is a remort
+				(IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && IS_REMORT(ch) && ch->tot_level > obj->level) ||		// REMORT_ONLY and this is a remort, check level
+				(!IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && ch->tot_level > obj->level)))						// !REMORT_ONLY, check level
 
 				perform_lore = TRUE;
 
@@ -2755,11 +2755,11 @@ void do_examine(CHAR_DATA * ch, char *argument)
 
 					if (get_skill(ch, gsn_lore) > 0 &&
 						number_percent() <= get_skill(ch, gsn_lore) &&
-						((!IS_NPC(ch) && IS_SET(ch->act, PLR_HOLYLIGHT)) ||													// Immortal HOLYLIGHT
-						!IS_SET(obj->extra2_flags, ITEM_NO_LORE) || 														// NO_LORE not set
-						(IS_SET(obj->extra2_flags, ITEM_ALL_REMORT) && IS_REMORT(ch)) ||									// ALL_REMORT and this is a remort
-						(IS_SET(obj->extra2_flags, ITEM_REMORT_ONLY) && IS_REMORT(ch) && ch->tot_level > obj->level) ||		// REMORT_ONLY and this is a remort, check level
-						(!IS_SET(obj->extra2_flags, ITEM_REMORT_ONLY) && ch->tot_level > obj->level)))						// !REMORT_ONLY, check level
+						((!IS_NPC(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT)) ||													// Immortal HOLYLIGHT
+						!IS_SET(obj->extra[1], ITEM_NO_LORE) || 														// NO_LORE not set
+						(IS_SET(obj->extra[1], ITEM_ALL_REMORT) && IS_REMORT(ch)) ||									// ALL_REMORT and this is a remort
+						(IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && IS_REMORT(ch) && ch->tot_level > obj->level) ||		// REMORT_ONLY and this is a remort, check level
+						(!IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && ch->tot_level > obj->level)))						// !REMORT_ONLY, check level
 						perform_lore = TRUE;
 
 					if (ch != victim)
@@ -2814,11 +2814,11 @@ void do_examine(CHAR_DATA * ch, char *argument)
 
 		if (get_skill(ch, gsn_lore) > 0 &&
 			number_percent() <= get_skill(ch, gsn_lore) &&
-			((!IS_NPC(ch) && IS_SET(ch->act, PLR_HOLYLIGHT)) ||													// Immortal HOLYLIGHT
-			!IS_SET(obj->extra2_flags, ITEM_NO_LORE) || 														// NO_LORE not set
-			(IS_SET(obj->extra2_flags, ITEM_ALL_REMORT) && IS_REMORT(ch)) ||									// ALL_REMORT and this is a remort
-			(IS_SET(obj->extra2_flags, ITEM_REMORT_ONLY) && IS_REMORT(ch) && ch->tot_level > obj->level) ||		// REMORT_ONLY and this is a remort, check level
-			(!IS_SET(obj->extra2_flags, ITEM_REMORT_ONLY) && ch->tot_level > obj->level)))						// !REMORT_ONLY, check level
+			((!IS_NPC(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT)) ||													// Immortal HOLYLIGHT
+			!IS_SET(obj->extra[1], ITEM_NO_LORE) || 														// NO_LORE not set
+			(IS_SET(obj->extra[1], ITEM_ALL_REMORT) && IS_REMORT(ch)) ||									// ALL_REMORT and this is a remort
+			(IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && IS_REMORT(ch) && ch->tot_level > obj->level) ||		// REMORT_ONLY and this is a remort, check level
+			(!IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && ch->tot_level > obj->level)))						// !REMORT_ONLY, check level
 			perform_lore = TRUE;
 
 		send_to_char(obj->full_description, ch);
@@ -3515,7 +3515,7 @@ void do_score(CHAR_DATA * ch, char *argument)
 
     }
 
-    if (IS_SET(ch->act, PLR_HELPER))
+    if (IS_SET(ch->act[0], PLR_HELPER))
 	send_to_char("You are a helper.\n\r", ch);
 
     /*
@@ -3697,17 +3697,17 @@ void do_score(CHAR_DATA * ch, char *argument)
     if (IS_IMMORTAL(ch))
     {
 	send_to_char("Holy: ", ch);
-	if (IS_SET(ch->act, PLR_HOLYLIGHT))
+	if (IS_SET(ch->act[0], PLR_HOLYLIGHT))
 	    send_to_char("{WLIGHT{x", ch);
 	else
 	    send_to_char("{DLIGHT{x", ch);
 
-	if (IS_SET(ch->act2, PLR_HOLYAURA))
+	if (IS_SET(ch->act[1], PLR_HOLYAURA))
 	    send_to_char(" {WAURA{x", ch);
 	else
 	    send_to_char(" {DAURA{x", ch);
 
-	if (IS_SET(ch->act2, PLR_HOLYWARP))
+	if (IS_SET(ch->act[1], PLR_HOLYWARP))
 	    send_to_char(" {WWARP{x", ch);
 	else
 	    send_to_char(" {DWARP{x", ch);
@@ -4536,7 +4536,7 @@ void do_who_new(CHAR_DATA * ch, char *argument)
 			"{D(Dead) {x" : "",
 		wch->incog_level > LEVEL_HERO ? "{D(Incog) {x" : "",
 		wch->invis_level > LEVEL_HERO ? "{W(Wizi) {x" : "",
-		IS_SET(wch->act, PLR_BOTTER) ? "{G[BOTTER] {x" : "",
+		IS_SET(wch->act[0], PLR_BOTTER) ? "{G[BOTTER] {x" : "",
 		wch->name);
 
 	free_string(area_type);
@@ -4556,7 +4556,7 @@ void do_who_new(CHAR_DATA * ch, char *argument)
 	else
 	    add_buf(output, "");
 
-	if (IS_SET(wch->act,PLR_HELPER))
+	if (IS_SET(wch->act[0],PLR_HELPER))
 	    add_buf(output, " {W[H]{X");
 
 	if (IS_SET(wch->comm, COMM_AFK))
@@ -4565,11 +4565,11 @@ void do_who_new(CHAR_DATA * ch, char *argument)
 	if (IS_SET(wch->comm, COMM_QUIET))
 	    add_buf(output, " {R[Q]{x");
 
-	if (IS_SET(wch->act, PLR_PK)
+	if (IS_SET(wch->act[0], PLR_PK)
 	||  (wch->church != NULL && wch->church->pk == TRUE))
 	    add_buf(output, " {R[PK]{x");
 
-	if (IS_SET(wch->act, PLR_BUILDING))
+	if (IS_SET(wch->act[0], PLR_BUILDING))
 	    add_buf(output, " {r[Building]{x");
 
 	add_buf(output, "\n\r");
@@ -4839,7 +4839,7 @@ void show_equipment(CHAR_DATA *ch, CHAR_DATA *victim)
 				sprintf(buf2, "%s\n\r", format_obj_to_char(eq[iWear], ch, TRUE));
 			else
 				sprintf(buf2, "something.\n\r");
-		} else if (wear_params[iWear][1] && IS_SET(victim->act, PLR_AUTOEQ) && ch == victim)
+		} else if (wear_params[iWear][1] && IS_SET(victim->act[0], PLR_AUTOEQ) && ch == victim)
 			sprintf(buf2, "nothing.\n\r");
 		else
 			continue;
@@ -5424,10 +5424,10 @@ void do_botter(CHAR_DATA* ch, char *argument)
 	return;
     }
 
-    if (IS_SET(victim->act, PLR_BOTTER))
-	REMOVE_BIT(victim->act, PLR_BOTTER);
+    if (IS_SET(victim->act[0], PLR_BOTTER))
+	REMOVE_BIT(victim->act[0], PLR_BOTTER);
     else
-	SET_BIT(victim->act, PLR_BOTTER);
+	SET_BIT(victim->act[0], PLR_BOTTER);
 
     send_to_char("Flag toggled.\n\r", ch);
 }
@@ -7653,7 +7653,7 @@ void where_locale(char *buf, CHAR_DATA *ch, CHAR_DATA *victim, int locale)
 			{
 				if (IN_WILDERNESS(victim))
 				{
-					if (IS_IMMORTAL(ch) && IS_SET(ch->act, PLR_HOLYLIGHT))	// Immortals just see coordinates
+					if (IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT))	// Immortals just see coordinates
 						sprintf(buf, "%-28s %s (%ld, %ld) [SAME_CONTINENT]\n\r", pers(victim, ch), victim->in_room->name, victim->in_room->x, victim->in_room->y);
 					else
 					{
@@ -7759,7 +7759,7 @@ void where_locale(char *buf, CHAR_DATA *ch, CHAR_DATA *victim, int locale)
 			WILDS_DATA *wilds = victim->in_wilds;
 			if (IS_VALID(wilds))
 			{
-				if (IS_IMMORTAL(ch) && IS_SET(ch->act, PLR_HOLYLIGHT))
+				if (IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT))
 					sprintf(buf, "%-28s Map: %s (%ld, %ld) [IN_WILDS]\n\r", pers(victim, ch), wilds->name, victim->in_room->x, victim->in_room->y);
 				else
 					sprintf(buf, "%-28s Map: %s [IN_WILDS]\n\r", pers(victim, ch), wilds->name);
@@ -7775,7 +7775,7 @@ void where_locale(char *buf, CHAR_DATA *ch, CHAR_DATA *victim, int locale)
 		case LOCALE_SAME_WILDS_REGION:
 		{
 			// Just give the room
-			if (IS_IMMORTAL(ch) && IS_SET(ch->act, PLR_HOLYLIGHT))	// Immortals just see coordinates
+			if (IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT))	// Immortals just see coordinates
 				sprintf(buf, "%-28s %s (%ld, %ld) [SAME_WILDS_REGION]\n\r", pers(victim, ch), victim->in_room->name, victim->in_room->x, victim->in_room->y);
 			else
 			{
@@ -7802,14 +7802,14 @@ void where_locale(char *buf, CHAR_DATA *ch, CHAR_DATA *victim, int locale)
 				WILDS_REGION *region = get_region_by_coors(wilds, victim->in_room->x, victim->in_room->y);
 				if (IS_VALID(region))
 				{
-					if (IS_IMMORTAL(ch) && IS_SET(ch->act, PLR_HOLYLIGHT))
+					if (IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT))
 						sprintf(buf, "%-28s Map Region: %s (%ld, %ld) [SAME_WILDS]\n\r", pers(victim, ch), flag_string(wilderness_regions, region->region), victim->in_room->x, victim->in_room->y);
 					else
 						sprintf(buf, "%-28s Map Region: %s [SAME_WILDS]\n\r", pers(victim, ch), flag_string(wilderness_regions, region->region));
 				}
 				else // Use the default region of the wilderness
 				{
-					if (IS_IMMORTAL(ch) && IS_SET(ch->act, PLR_HOLYLIGHT))
+					if (IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT))
 						sprintf(buf, "%-28s Map Region: %s (%ld, %ld) [SAME_WILDS]\n\r", pers(victim, ch), flag_string(wilderness_regions, wilds->defaultRegion), victim->in_room->x, victim->in_room->y);
 					else
 						sprintf(buf, "%-28s Map Region: %s [SAME_WILDS]\n\r", pers(victim, ch), flag_string(wilderness_regions, wilds->defaultRegion));

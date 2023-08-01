@@ -787,7 +787,7 @@ void do_deny(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    SET_BIT(victim->act, PLR_DENY);
+    SET_BIT(victim->act[0], PLR_DENY);
     send_to_char("You are denied access!\n\r", victim);
     sprintf(buf,"$N denies access to %s",victim->name);
     wiznet(buf,ch,NULL,WIZ_PENALTIES,WIZ_SECURE,0);
@@ -1966,7 +1966,7 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 
     sprintf(buf, "{BWear bits: {x%s\n\r{BExtra bits:{x %s\n\r",
 		flag_string(wear_flags, obj->wear_flags),
-		flagbank_string(extra_flagbank, obj->extra_flags, obj->extra2_flags, obj->extra3_flags, obj->extra4_flags));
+		bitmatrix_string(extra_flagbank, obj->extra));
     add_buf(buffer, buf);
 
     sprintf(buf, "{BNumber:{x %d/%d {BWeight:{x %d\n\r", 1, get_obj_number(obj), get_obj_weight(obj));
@@ -2348,10 +2348,14 @@ void do_mstat(CHAR_DATA *ch, char *argument)
 		send_to_char(buf, ch);
 	}
 
-	sprintf(buf, "{BAct :{x %s\n\r",act_bit_name((IS_NPC(victim) ? 1 : 3), victim->act));
+	sprintf(buf, "{BAct :{x %s\n\r", bitmatrix_string(IS_NPC(victim)?act_flagbank:plr_flagbank, victim->act));
 	send_to_char(buf,ch);
-	sprintf(buf, "{BAct2:{x %s\n\r",act_bit_name((IS_NPC(victim) ? 2 : 4), victim->act2));
+	/*
+	sprintf(buf, "{BAct :{x %s\n\r",act_bit_name((IS_NPC(victim) ? 1 : 3), victim->act[0]));
 	send_to_char(buf,ch);
+	sprintf(buf, "{BAct2:{x %s\n\r",act_bit_name((IS_NPC(victim) ? 2 : 4), victim->act[1]));
+	send_to_char(buf,ch);
+	*/
 
 	if (victim->comm)
 	{
@@ -2383,15 +2387,15 @@ void do_mstat(CHAR_DATA *ch, char *argument)
 		send_to_char(buf,ch);
 	}
 
-	if (victim->affected_by)
+	if (victim->affected_by[0])
 	{
-		sprintf(buf, "{BAffected by{x %s\n\r", affect_bit_name(victim->affected_by));
+		sprintf(buf, "{BAffected by{x %s\n\r", affect_bit_name(victim->affected_by[0]));
 		send_to_char(buf,ch);
 	}
 
-	if (victim->affected_by2)
+	if (victim->affected_by[1])
 	{
-		sprintf(buf, "{BAffected2 by{x %s\n\r", affect2_bit_name(victim->affected_by2));
+		sprintf(buf, "{BAffected2 by{x %s\n\r", affect2_bit_name(victim->affected_by[1]));
 		send_to_char(buf,ch);
 	}
 
@@ -3275,7 +3279,7 @@ void do_switch(CHAR_DATA *ch, char *argument)
     victim->comm = ch->comm;
     victim->lines = ch->lines;
     act("Switched into $n.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-    SET_BIT(victim->act, PLR_COLOUR);
+    SET_BIT(victim->act[0], PLR_COLOUR);
 }
 
 
@@ -3311,7 +3315,7 @@ void do_return(CHAR_DATA *ch, char *argument)
         wiznet(buf,ch->desc->original,0,WIZ_SWITCHES,WIZ_SECURE,get_trust(ch->desc->original));
     }
 
-    REMOVE_BIT(ch->act, PLR_COLOUR);
+    REMOVE_BIT(ch->act[0], PLR_COLOUR);
 
     ch->desc->character       = ch->desc->original;
     ch->desc->original        = NULL;
@@ -3643,7 +3647,7 @@ void do_purge(CHAR_DATA *ch, char *argument)
 	{
 	    vnext = victim->next_in_room;
 	    if (IS_NPC(victim)
-	    && !IS_SET(victim->act,ACT_NOPURGE)
+	    && !IS_SET(victim->act[0],ACT_NOPURGE)
 	    && victim != ch /* safety precaution */
 	    && victim != ch->rider
 	    && victim != ch->mount) {
@@ -3684,7 +3688,7 @@ void do_purge(CHAR_DATA *ch, char *argument)
     }
     else
     if ((obj = get_obj_list(ch, arg, ch->in_room->contents)) != NULL
-    &&     !IS_SET(obj->extra_flags, ITEM_NOPURGE))
+    &&     !IS_SET(obj->extra[0], ITEM_NOPURGE))
     {
 	if (obj->item_type == ITEM_CART)
 	{
@@ -4024,9 +4028,9 @@ void do_freeze(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (IS_SET(victim->act, PLR_FREEZE))
+    if (IS_SET(victim->act[0], PLR_FREEZE))
     {
-	REMOVE_BIT(victim->act, PLR_FREEZE);
+	REMOVE_BIT(victim->act[0], PLR_FREEZE);
 	send_to_char("You can play again.\n\r", victim);
 	send_to_char("FREEZE removed.\n\r", ch);
 	sprintf(buf,"$N thaws %s.",victim->name);
@@ -4034,7 +4038,7 @@ void do_freeze(CHAR_DATA *ch, char *argument)
     }
     else
     {
-	SET_BIT(victim->act, PLR_FREEZE);
+	SET_BIT(victim->act[0], PLR_FREEZE);
 	send_to_char("You can't do ANYthing!\n\r", victim);
 	send_to_char("FREEZE set.\n\r", ch);
 	sprintf(buf,"$N puts %s in the deep freeze.",victim->name);
@@ -4097,14 +4101,14 @@ void do_log(CHAR_DATA *ch, char *argument)
     /*
      * No level check, gods can log anyone.
      */
-    if (IS_SET(victim->act, PLR_LOG))
+    if (IS_SET(victim->act[0], PLR_LOG))
     {
-	REMOVE_BIT(victim->act, PLR_LOG);
+	REMOVE_BIT(victim->act[0], PLR_LOG);
 	send_to_char("LOG removed.\n\r", ch);
     }
     else
     {
-	SET_BIT(victim->act, PLR_LOG);
+	SET_BIT(victim->act[0], PLR_LOG);
 	send_to_char("LOG set.\n\r", ch);
     }
 }
@@ -4162,8 +4166,8 @@ void do_peace(CHAR_DATA *ch, char *argument)
     {
 	if (rch->fighting != NULL)
 	    stop_fighting(rch, TRUE);
-	if (IS_NPC(rch) && IS_SET(rch->act,ACT_AGGRESSIVE))
-	    REMOVE_BIT(rch->act,ACT_AGGRESSIVE);
+	if (IS_NPC(rch) && IS_SET(rch->act[0],ACT_AGGRESSIVE))
+	    REMOVE_BIT(rch->act[0],ACT_AGGRESSIVE);
     }
 
     send_to_char("Done.\n\r", ch);
@@ -5686,8 +5690,8 @@ void do_mset(CHAR_DATA *ch, char *argument)
 	}
 
 	victim->race = race;
-	victim->affected_by_perm = race_table[victim->race].aff;
-	victim->affected_by2_perm = race_table[victim->race].aff2;
+	victim->affected_by_perm[0] = race_table[victim->race].aff;
+	victim->affected_by_perm[1] = race_table[victim->race].aff2;
     victim->imm_flags_perm = race_table[victim->race].imm;
     victim->res_flags_perm = race_table[victim->race].res;
     victim->vuln_flags_perm = race_table[victim->race].vuln;
@@ -5843,7 +5847,7 @@ void do_oset(CHAR_DATA *ch, char *argument)
 
     if (!str_prefix(arg2, "extra"))
     {
-	obj->extra_flags = value;
+	obj->extra[0] = value;
 	return;
     }
 
@@ -6318,14 +6322,14 @@ void do_holylight(CHAR_DATA *ch, char *argument)
     if (IS_NPC(ch))
 	return;
 
-    if (IS_SET(ch->act, PLR_HOLYLIGHT))
+    if (IS_SET(ch->act[0], PLR_HOLYLIGHT))
     {
-	REMOVE_BIT(ch->act, PLR_HOLYLIGHT);
+	REMOVE_BIT(ch->act[0], PLR_HOLYLIGHT);
 	send_to_char("Holy light mode off.\n\r", ch);
     }
     else
     {
-	SET_BIT(ch->act, PLR_HOLYLIGHT);
+	SET_BIT(ch->act[0], PLR_HOLYLIGHT);
 	send_to_char("Holy light mode on.\n\r", ch);
     }
 
@@ -6337,14 +6341,14 @@ void do_holywarp(CHAR_DATA *ch, char *argument)
     if (IS_NPC(ch))
 		return;
 
-    if (IS_SET(ch->act2, PLR_HOLYWARP))
+    if (IS_SET(ch->act[1], PLR_HOLYWARP))
     {
-		REMOVE_BIT(ch->act2, PLR_HOLYWARP);
+		REMOVE_BIT(ch->act[1], PLR_HOLYWARP);
 		send_to_char("Holy warp mode off.\n\r", ch);
     }
     else
     {
-		SET_BIT(ch->act2, PLR_HOLYWARP);
+		SET_BIT(ch->act[1], PLR_HOLYWARP);
 		send_to_char("Holy warp mode on.\n\r", ch);
     }
 
@@ -6356,14 +6360,14 @@ void do_holyaura(CHAR_DATA *ch, char *argument)
     if (IS_NPC(ch))
 	return;
 
-    if (IS_SET(ch->act2, PLR_HOLYAURA))
+    if (IS_SET(ch->act[1], PLR_HOLYAURA))
     {
-	REMOVE_BIT(ch->act2, PLR_HOLYAURA);
+	REMOVE_BIT(ch->act[1], PLR_HOLYAURA);
 	send_to_char("Holy aura mode off.\n\r", ch);
     }
     else
     {
-	SET_BIT(ch->act2, PLR_HOLYAURA);
+	SET_BIT(ch->act[1], PLR_HOLYAURA);
 	send_to_char("Holy aura mode on.\n\r", ch);
     }
 
@@ -6952,15 +6956,15 @@ void do_areset(CHAR_DATA *ch, char *argument)
 
 void do_autosetname(CHAR_DATA *ch, char *argument)
 {
-    if (!IS_SET(ch->act, PLR_AUTOSETNAME))
+    if (!IS_SET(ch->act[0], PLR_AUTOSETNAME))
     {
 	send_to_char("AUTOSETNAME on. Your name keywords will now be automatically set when building.\n\r", ch);
-	SET_BIT(ch->act, PLR_AUTOSETNAME);
+	SET_BIT(ch->act[0], PLR_AUTOSETNAME);
     }
     else
     {
 	send_to_char("AUTOSETNAME off. Your name keywords will no longer be automatically set.\n\r", ch);
-	REMOVE_BIT(ch->act, PLR_AUTOSETNAME);
+	REMOVE_BIT(ch->act[0], PLR_AUTOSETNAME);
     }
 }
 
@@ -7271,9 +7275,9 @@ void do_assignhelper(CHAR_DATA * ch, char *argument)
 	return;
     }
 
-    if (IS_SET(victim->act, PLR_HELPER))
+    if (IS_SET(victim->act[0], PLR_HELPER))
     {
-	REMOVE_BIT(victim->act, PLR_HELPER);
+	REMOVE_BIT(victim->act[0], PLR_HELPER);
 	SET_BIT(ch->comm,COMM_NOHELPER);
 	if (ch == victim)
 	    send_to_char("You are no longer a helper.\n\r", ch);
@@ -7285,7 +7289,7 @@ void do_assignhelper(CHAR_DATA * ch, char *argument)
     }
     else
     {
-	SET_BIT(victim->act, PLR_HELPER);
+	SET_BIT(victim->act[0], PLR_HELPER);
 	REMOVE_BIT(ch->comm,COMM_NOHELPER);
 	if (ch == victim)
 	    send_to_char("You are now a helper.\n\r", ch);

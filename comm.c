@@ -1720,7 +1720,7 @@ void bust_a_prompt(CHAR_DATA *ch)
     if (ch->hunting != NULL)
 		send_to_char("{G[Hunting]{x", ch);
 
-    if (IS_SET(ch->affected_by, AFF_INVISIBLE) || IS_SET(ch->affected_by2, AFF2_IMPROVED_INVIS))
+    if (IS_SET(ch->affected_by[0], AFF_INVISIBLE) || IS_SET(ch->affected_by[1], AFF2_IMPROVED_INVIS))
 		send_to_char("{B[*]{x", ch);
 
     if (IS_MORPHED(ch) && IS_VAMPIRE(ch))
@@ -1889,7 +1889,7 @@ void bust_a_prompt(CHAR_DATA *ch)
 	case 'r' :
 		if(ch->in_room != NULL)
 			sprintf(buf2, "%s",
-				((!IS_NPC(ch) && IS_SET(ch->act,PLR_HOLYLIGHT)) ||
+				((!IS_NPC(ch) && IS_SET(ch->act[0],PLR_HOLYLIGHT)) ||
 				(!IS_AFFECTED(ch,AFF_BLIND) && !room_is_dark(ch->in_room)))
 				? ch->in_room->name : "darkness");
 		else
@@ -2138,7 +2138,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 
 			ch = d->character;
 
-			if (IS_SET(ch->act, PLR_DENY))
+			if (IS_SET(ch->act[0], PLR_DENY))
 			{
 				sprintf(log_buf, "Denying access to %s@%s.", argument, d->host);
 				log_string(log_buf);
@@ -2492,7 +2492,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		switch (argument[0])
 		{
 		case 'y': case 'Y':
-			SET_BIT(ch->act, PLR_COLOUR);
+			SET_BIT(ch->act[0], PLR_COLOUR);
 			break;
 		case 'n': case 'N':
 			break;
@@ -2643,15 +2643,15 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 			ch->perm_stat[i] = pc_race_table[race].stats[i];
 			ch->dirty_stat[i] = TRUE;
 		}
-		ch->act2        = ch->act2|race_table[race].act2;
-		ch->affected_by = ch->affected_by|race_table[race].aff;
+		ch->act[1]        = ch->act[1]|race_table[race].act2;
+		ch->affected_by[0] = ch->affected_by[0]|race_table[race].aff;
 
 		ch->imm_flags_perm = race_table[race].imm;
 		ch->res_flags_perm = race_table[race].res;
 		ch->vuln_flags_perm = race_table[race].vuln;
 		/* 20203003 - Tieryo - Fixing racial affects */
-		ch->affected_by_perm = race_table[race].aff;
-		ch->affected_by2_perm = race_table[race].aff2;
+		ch->affected_by_perm[0] = race_table[race].aff;
+		ch->affected_by_perm[1] = race_table[race].aff2;
 
 		ch->imm_flags	= ch->imm_flags|race_table[race].imm;
 		ch->res_flags	= ch->res_flags|race_table[race].res;
@@ -2871,7 +2871,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		sprintf(log_buf, "%s@%s new player.", ch->name, d->host);
 		log_string(log_buf);
 
-		SET_BIT(ch->act, PLR_NO_CHALLENGE);
+		SET_BIT(ch->act[0], PLR_NO_CHALLENGE);
 
 		group_add(ch,"global skills",FALSE);
 		group_add(ch,class_table[ch->pcdata->class_current].base_group,FALSE);
@@ -2896,12 +2896,12 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 				if (pc_set_table[i].vector != 0)
 				{
 					vector = pc_set_table[i].vector;
-					field = &ch->act;
+					field = &ch->act[0];
 				}
 				else if (pc_set_table[i].vector2 != 0)
 				{
 					vector = pc_set_table[i].vector2;
-					field = &ch->act2;
+					field = &ch->act[1];
 				}
 				else if (pc_set_table[i].vector_comm != 0)
 				{
@@ -3034,9 +3034,9 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 				immortal_list = immortal;
 
 				ch->pcdata->immortal = immortal;
-				SET_BIT(ch->act, PLR_HOLYLIGHT);
-				SET_BIT(ch->act2, PLR_HOLYWARP);
-				SET_BIT(ch->act2, PLR_HOLYAURA);
+				SET_BIT(ch->act[0], PLR_HOLYLIGHT);
+				SET_BIT(ch->act[1], PLR_HOLYWARP);
+				SET_BIT(ch->act[1], PLR_HOLYAURA);
 
 				// Create bootstrap area
 				AREA_DATA *pArea = new_area();
@@ -3606,7 +3606,7 @@ void send_to_char(const char *txt, CHAR_DATA *ch)
     if(txt && ch->desc)
 	{
 		bool capitalize = FALSE;
-	    if(IS_SET(ch->act, PLR_COLOUR))
+	    if(IS_SET(ch->act[0], PLR_COLOUR))
 	    {
 			for(point = txt ; *point ; point++)
 	        {
@@ -3699,7 +3699,7 @@ void page_to_char(const char *txt, CHAR_DATA *ch)
     if(txt && ch->desc)
 	{
 		bool capitalize = FALSE;
-	    if(IS_SET(ch->act, PLR_COLOUR))
+	    if(IS_SET(ch->act[0], PLR_COLOUR))
 	    {
 			for(point = txt, len = 1 ; *point ; point++)
 				{
@@ -4144,7 +4144,7 @@ void colourconv(char *buffer, const char *txt, CHAR_DATA *ch)
 
     if(ch->desc && txt)
     {
-	if(IS_SET(ch->act, PLR_COLOUR))
+	if(IS_SET(ch->act[0], PLR_COLOUR))
 	{
 	    for(point = txt ; *point ; point++)
 	    {

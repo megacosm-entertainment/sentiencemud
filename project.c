@@ -424,10 +424,10 @@ void do_build(CHAR_DATA *ch, char *argument)
     }
 
     if (argument[0] == '\0') {
-	if (IS_SET(ch->act, PLR_BUILDING)) {
-	    if (IS_SET(ch->act, PLR_BUILDING) && ch->pcdata->immortal->build_project != NULL)
+	if (IS_SET(ch->act[0], PLR_BUILDING)) {
+	    if (IS_SET(ch->act[0], PLR_BUILDING) && ch->pcdata->immortal->build_project != NULL)
 		act("You stop building in $t.", ch, NULL, NULL, NULL, NULL, ch->pcdata->immortal->build_project->name, NULL, TO_CHAR);
-	    REMOVE_BIT(ch->act, PLR_BUILDING);
+	    REMOVE_BIT(ch->act[0], PLR_BUILDING);
 	    ch->pcdata->immortal->build_project = NULL;
 	    ch->pcdata->immortal->builder = NULL;
 	    return;
@@ -448,7 +448,7 @@ void do_build(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (IS_SET(ch->act, PLR_BUILDING) && ch->pcdata->immortal->build_project->name != NULL)
+    if (IS_SET(ch->act[0], PLR_BUILDING) && ch->pcdata->immortal->build_project->name != NULL)
 	act("You stop building in $t.", ch, NULL, NULL, NULL, NULL, ch->pcdata->immortal->build_project->name, NULL, TO_CHAR);
 
     ch->pcdata->immortal->build_project = project;
@@ -456,7 +456,7 @@ void do_build(CHAR_DATA *ch, char *argument)
     ch->pcdata->immortal->builder = pb;
     ch->pcdata->immortal->last_olc_command = current_time;
 
-    SET_BIT(ch->act, PLR_BUILDING);
+    SET_BIT(ch->act[0], PLR_BUILDING);
     act("You start building in $t.", ch, NULL, NULL, NULL, NULL, project->name, NULL, TO_CHAR);
 }
 

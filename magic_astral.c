@@ -245,8 +245,8 @@ SPELL_FUNC(spell_reflection)
 	sprintf(buf, "A transparent projection of %s is here.", ch->name);
 	char_to_room(reflection, ch->in_room);
 
-	if (IS_SET(ch->act, PLR_COLOUR))
-		SET_BIT(reflection->act, PLR_COLOUR);
+	if (IS_SET(ch->act[0], PLR_COLOUR))
+		SET_BIT(reflection->act[0], PLR_COLOUR);
 
 	ch->desc->character = reflection;
 	ch->desc->original = ch;
@@ -281,7 +281,7 @@ SPELL_FUNC(spell_summon)
 		return FALSE;
 	}
 
-	if (IS_SET(victim->act, PLR_NOSUMMON)) {
+	if (IS_SET(victim->act[0], PLR_NOSUMMON)) {
 		act("$N isn't allowing summons.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		return FALSE;
 	}

@@ -40,7 +40,7 @@ SPELL_FUNC(spell_curse)
 			if (!saves_dispel(ch,NULL, paf ? paf->level : obj->level)) {
 				if (paf) affect_remove_obj(obj,paf);
 				act("$p glows with a red aura.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
-				REMOVE_BIT(obj->extra_flags,ITEM_BLESS);
+				REMOVE_BIT(obj->extra[0],ITEM_BLESS);
 				return TRUE;
 			} else {
 				act("The holy aura of $p is too powerful for you to overcome.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
@@ -118,7 +118,7 @@ SPELL_FUNC(spell_destruction)
 {
 	OBJ_DATA *obj = (OBJ_DATA *) vo;
 
-	if (IS_SET(obj->extra_flags, ITEM_NOPURGE) || !IS_SET(obj->wear_flags, ITEM_TAKE)) {
+	if (IS_SET(obj->extra[0], ITEM_NOPURGE) || !IS_SET(obj->wear_flags, ITEM_TAKE)) {
 		act("Even with the mightiest of magics, you can't seem to destroy $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 		return FALSE;
 	}

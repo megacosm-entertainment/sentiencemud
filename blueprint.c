@@ -1453,7 +1453,7 @@ int instance_section_count_mob(INSTANCE_SECTION *section, MOB_INDEX_DATA *pMobIn
 	{
 		for(CHAR_DATA *pMob = room->people; pMob; pMob = pMob->next_in_room)
 		{
-			if( IS_NPC(pMob) && pMob->pIndexData == pMobIndex && !IS_SET(pMob->act, ACT_ANIMATED) )
+			if( IS_NPC(pMob) && pMob->pIndexData == pMobIndex && !IS_SET(pMob->act[0], ACT_ANIMATED) )
 				++count;
 		}
 	}
@@ -11486,7 +11486,7 @@ void instance_section_tallyentities(INSTANCE_SECTION *section)
 	{
 		for(OBJ_DATA *obj = room->contents; obj; obj = obj->next_content)
 		{
-			if(!IS_SET(obj->extra3_flags, ITEM_INSTANCE_OBJ))
+			if(!IS_SET(obj->extra[2], ITEM_INSTANCE_OBJ))
 			{
 				list_appendlink(section->instance->objects, obj);
 			}
@@ -11496,7 +11496,7 @@ void instance_section_tallyentities(INSTANCE_SECTION *section)
 		{
 			if( IS_NPC(ch) )
 			{
-				if( !IS_SET(ch->act2, ACT2_INSTANCE_MOB) )
+				if( !IS_SET(ch->act[1], ACT2_INSTANCE_MOB) )
 					list_appendlink(section->instance->mobiles, ch);
 				else if ( IS_BOSS(ch) )
 					list_appendlink(section->instance->bosses, ch);

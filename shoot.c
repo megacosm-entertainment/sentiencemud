@@ -741,7 +741,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
 	return;
     }
 
-    if (!can_drop_obj(ch, obj, TRUE) || IS_SET(obj->extra2_flags, ITEM_KEPT)) {
+    if (!can_drop_obj(ch, obj, TRUE) || IS_SET(obj->extra[1], ITEM_KEPT)) {
 	send_to_char("You can't let go of it.\n\r", ch);
 	return;
     }

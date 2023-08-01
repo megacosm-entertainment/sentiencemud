@@ -124,7 +124,7 @@ SPELL_FUNC(spell_cure_blindness)
 	if (IS_AFFECTED(victim, AFF_BLIND) && number_percent() < chance) {
 		affect_strip(victim, gsn_blindness);
 		affect_strip(victim, gsn_fire_breath);
-		REMOVE_BIT(victim->affected_by, AFF_BLIND);
+		REMOVE_BIT(victim->affected_by[0], AFF_BLIND);
 		send_to_char(skill_table[gsn_blindness].msg_off, victim);
 		send_to_char("\n\r", victim);
 		act("$n is no longer blinded.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);

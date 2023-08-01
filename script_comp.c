@@ -399,7 +399,7 @@ char *compile_entity(char *str,int type, char **store)
 			*p++ = ENTITY_VAR_STR;
 			next_ent = ENT_STRING;
 
-		} else if(ent == ENT_BITVECTOR) {
+		} else if(ent == ENT_BITVECTOR || ent == ENT_BITMATRIX) {
 			if(suffix[0]) {
 				sprintf(buf,"Line %d: type suffix is only allowed for variable fields.", compile_current_line);
 				compile_error_show(buf);

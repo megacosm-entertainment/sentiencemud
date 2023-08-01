@@ -111,7 +111,7 @@ SPELL_FUNC(spell_entrap)
 {
 	OBJ_DATA *obj = (OBJ_DATA *) vo;
 
-	if (IS_SET(obj->extra_flags, ITEM_HOLY) ||
+	if (IS_SET(obj->extra[0], ITEM_HOLY) ||
 		obj->item_type == ITEM_ARTIFACT) {
 		act("$p is too powerful for you to entrap.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 		return FALSE;
@@ -121,7 +121,7 @@ SPELL_FUNC(spell_entrap)
 	act("$n's $p vibrates for a second, then stops.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 
 	obj->trap_dam = level + dice(get_skill(ch, sn),3);
-	SET_BIT(obj->extra_flags, ITEM_TRAPPED);
+	SET_BIT(obj->extra[0], ITEM_TRAPPED);
 	return TRUE;
 }
 
@@ -208,28 +208,28 @@ SPELL_FUNC(spell_identify)
 //	int i = 0;
 	SPELL_DATA *spell;
 
-	if (IS_SET(obj->extra2_flags, ITEM_NO_LORE)) {
+	if (IS_SET(obj->extra[1], ITEM_NO_LORE)) {
 		act("$p is beyond your power to identify.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 		return FALSE;
 	}
 
 	buffer = new_buf();
 
-	if (!obj->extra_flags && !obj->extra2_flags)
+	if (!obj->extra[0] && !obj->extra[1])
 		sprintf(extra_flags, "none");
 	else {
 		// Extra flags
-		if (obj->extra_flags)
-			sprintf(extra_flags, "%s", extra_bit_name(obj->extra_flags));
+		if (obj->extra[0])
+			sprintf(extra_flags, "%s", extra_bit_name(obj->extra[0]));
 		else
 			sprintf(extra_flags, "{x");
 
 		// Extra2 flags
-		if (obj->extra2_flags) {
-			if (obj->extra_flags)
+		if (obj->extra[1]) {
+			if (obj->extra[0])
 				strcat(extra_flags, " ");
 
-			strcat(extra_flags, extra2_bit_name(obj->extra2_flags));
+			strcat(extra_flags, extra2_bit_name(obj->extra[1]));
 		}
 
 		// Extra3 and further will be added here
@@ -565,7 +565,7 @@ SPELL_FUNC(spell_locate_object)
 	while(( obj = (OBJ_DATA *)iterator_nextdata(&it))) {
 		if (!can_see_obj(ch, obj) ||
 			!is_name(target_name, obj->name) ||
-			IS_SET(obj->extra_flags, ITEM_NOLOCATE) ||
+			IS_SET(obj->extra[0], ITEM_NOLOCATE) ||
 			number_percent() > 2 * level ||
 			ch->tot_level < obj->level)
 			continue;

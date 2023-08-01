@@ -1309,7 +1309,7 @@ void do_redit(CHAR_DATA *ch, char *argument)
 		char_to_room(ch, pRoom);
 
 		// Set the last OLC stuff to the current room you are editting when you explicitly do "redit <widevnum>"
-		if (IS_SET(ch->act, PLR_AUTOOLC))
+		if (IS_SET(ch->act[0], PLR_AUTOOLC))
 		{
 //			sprintf(buf, "AUTOOLC: saving area (%s), region (%s), sector (%s), room (%s), room2 (%s)\n\r",
 //				pRoom->area->name,
@@ -1338,7 +1338,7 @@ void do_redit(CHAR_DATA *ch, char *argument)
 	else
 	{
 		// Set the last OLC stuff to the current room you are editting when you explicitly do "redit <widevnum>"
-		if (IS_SET(ch->act, PLR_AUTOOLC))
+		if (IS_SET(ch->act[0], PLR_AUTOOLC))
 		{
 //			sprintf(buf, "AUTOOLC: saving area (%s), region (%s), sector (%s), room (%s), room2 (%s)\n\r",
 //				pRoom->area->name,
@@ -2537,10 +2537,10 @@ void do_mcopy(CHAR_DATA *ch, char *argument)
 	new_mob->description = str_dup(old_mob->description);
 	new_mob->comments   = str_dup(old_mob->comments);
 
-	new_mob->act          = old_mob->act;
-	new_mob->act2         = old_mob->act2;
-	new_mob->affected_by  = old_mob->affected_by;
-	new_mob->affected_by2 = old_mob->affected_by2;
+	new_mob->act[0]          = old_mob->act[0];
+	new_mob->act[1]         = old_mob->act[1];
+	new_mob->affected_by[0]  = old_mob->affected_by[0];
+	new_mob->affected_by[1] = old_mob->affected_by[1];
 
 	new_mob->alignment    = old_mob->alignment;
 	new_mob->level        = old_mob->level;
@@ -2686,8 +2686,8 @@ void do_ocopy(CHAR_DATA *ch, char *argument)
 	new_obj->full_description = str_dup(old_obj->full_description);
 	new_obj->material = str_dup(old_obj->material);
 	new_obj->item_type =  old_obj->item_type;
-	new_obj->extra_flags = old_obj->extra_flags;
-	new_obj->extra2_flags = old_obj->extra2_flags;
+	new_obj->extra[0] = old_obj->extra[0];
+	new_obj->extra[1] = old_obj->extra[1];
 	new_obj->wear_flags = old_obj->wear_flags;
 	new_obj->level = old_obj->level;
 	new_obj->condition = old_obj->condition;
@@ -3389,7 +3389,7 @@ void set_weapon_dice(OBJ_INDEX_DATA *objIndex)
 	default: 						  	break;
 	}
 
-	if (IS_SET(objIndex->extra2_flags, ITEM_REMORT_ONLY))
+	if (IS_SET(objIndex->extra[1], ITEM_REMORT_ONLY))
 	{
 	type += 2;
 	num += 2;
@@ -3457,7 +3457,7 @@ void set_weapon_dice_obj(OBJ_DATA *obj)
 	default: 						  	break;
 	}
 
-	if (IS_SET(obj->extra2_flags, ITEM_REMORT_ONLY))
+	if (IS_SET(obj->extra[1], ITEM_REMORT_ONLY))
 	{
 	type += 2;
 	num += 2;

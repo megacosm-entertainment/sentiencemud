@@ -3668,7 +3668,7 @@ REDIT(redit_create)
 		redit_blueprint_oncreate = FALSE;
 	}
 
-	if (IS_SET(ch->act, PLR_AUTOOLC))
+	if (IS_SET(ch->act[0], PLR_AUTOOLC))
 	{
 		// Have we changed areas?
 		if (ch->desc->last_area != pRoom->area)
@@ -3685,7 +3685,7 @@ REDIT(redit_create)
 	{
 		AREA_REGION *region = &pRoom->area->region;
 
-		if (IS_SET(ch->act, PLR_AUTOOLC))
+		if (IS_SET(ch->act[0], PLR_AUTOOLC))
 		{
 			// Check if we are in the same area as the last used region
 			if (ch->desc->last_area_region)
@@ -3705,7 +3705,7 @@ REDIT(redit_create)
 		__region_add_room(region, pRoom);
 	}
 
-	if (IS_SET(ch->act, PLR_AUTOOLC))
+	if (IS_SET(ch->act[0], PLR_AUTOOLC))
 	{
 		if (ch->desc->last_room_sector != SECT_NONE)
 		{
@@ -6946,27 +6946,27 @@ OEDIT(oedit_show)
     add_buf(buffer, buf);
 
 	sprintf(buf, "Extra flags:  {B[{x%s{B]{x\n\r", bitvector_string(4,
-		pObj->extra_flags, extra_flags,
-		pObj->extra2_flags, extra2_flags,
-		pObj->extra3_flags, extra3_flags,
-		pObj->extra4_flags, extra4_flags));
+		pObj->extra[0], extra_flags,
+		pObj->extra[1], extra2_flags,
+		pObj->extra[2], extra3_flags,
+		pObj->extra[3], extra4_flags));
 	add_buf(buffer, buf);
 
 	/*
     sprintf(buf, "Extra flags:  {B[{x%s{B]{x\n\r",
-	flag_string(extra_flags, pObj->extra_flags));
+	flag_string(extra_flags, pObj->extra[0]));
     add_buf(buffer, buf);
 
     sprintf(buf, "Extra2 flags: {B[{x%s{B]{x\n\r",
-		    flag_string(extra2_flags, pObj->extra2_flags));
+		    flag_string(extra2_flags, pObj->extra[1]));
     add_buf(buffer, buf);
 
     sprintf(buf, "Extra3 flags: {B[{x%s{B]{x\n\r",
-		    flag_string(extra3_flags, pObj->extra3_flags));
+		    flag_string(extra3_flags, pObj->extra[2]));
     add_buf(buffer, buf);
 
     sprintf(buf, "Extra4 flags: {B[{x%s{B]{x\n\r",
-		    flag_string(extra4_flags, pObj->extra4_flags));
+		    flag_string(extra4_flags, pObj->extra[3]));
     add_buf(buffer, buf);
 	*/
 
@@ -8525,7 +8525,7 @@ OEDIT(oedit_short)
 
     send_to_char("Short description set.\n\r", ch);
 
-    if (IS_SET(ch->act, PLR_AUTOSETNAME))
+    if (IS_SET(ch->act[0], PLR_AUTOSETNAME))
     {
 	free_string(pObj->name);
 	pObj->name = short_to_name(pObj->short_descr);
@@ -8999,10 +8999,10 @@ OEDIT(oedit_extra)
 			return FALSE;
 		}
 
-		TOGGLE_BIT(pObj->extra_flags, extra[0]);
-		TOGGLE_BIT(pObj->extra2_flags, extra[1]);
-		TOGGLE_BIT(pObj->extra3_flags, extra[2]);
-		TOGGLE_BIT(pObj->extra4_flags, extra[3]);
+		TOGGLE_BIT(pObj->extra[0], extra[0]);
+		TOGGLE_BIT(pObj->extra[1], extra[1]);
+		TOGGLE_BIT(pObj->extra[2], extra[2]);
+		TOGGLE_BIT(pObj->extra[3], extra[3]);
 
 	    send_to_char("Extra flag toggled.\n\r", ch);
 	    return TRUE;
@@ -10993,7 +10993,7 @@ MEDIT(medit_show)
 	add_buf(buffer, buf);
 
 	sprintf(buf, "Act:          {C[{x%s{C]{x\n\r",
-		bitvector_string(2, pMob->act, act_flags, pMob->act2, act2_flags));
+		bitmatrix_string(act_flagbank, pMob->act));
 	add_buf(buffer, buf);
 
 	sprintf(buf, "Vnum:         {C[{x%6ld{C]{x  Sex: {C[{x%7s{C]{x  Race: {C[{x%s{C]{x\n\r",
@@ -11048,7 +11048,7 @@ MEDIT(medit_show)
 	add_buf(buffer, buf);
 
 	sprintf(buf, "Affected by:  {C[{x%s{C]{x\n\r",
-		bitvector_string(2, pMob->affected_by, affect_flags, pMob->affected_by2, affect2_flags));
+		bitvector_string(2, pMob->affected_by[0], affect_flags, pMob->affected_by[1], affect2_flags));
 	add_buf(buffer, buf);
 
 	sprintf(buf, "Armour:        {C[{xpierce: %d  bash: %d  slash: %d  magic: %d{C]{x\n\r",
@@ -11756,8 +11756,8 @@ MEDIT(medit_create)
     if (wnum.vnum > wnum.pArea->top_vnum_mob)
 	wnum.pArea->top_vnum_mob = wnum.vnum;
 
-    pMob->act			= ACT_IS_NPC;
-    pMob->act2			= 0;
+    pMob->act[0]			= ACT_IS_NPC;
+    pMob->act[1]			= 0;
     iHash			= wnum.vnum % MAX_KEY_HASH;
     pMob->next			= wnum.pArea->mob_index_hash[iHash];
     wnum.pArea->mob_index_hash[iHash]	= pMob;
@@ -11768,7 +11768,7 @@ MEDIT(medit_create)
     pMob->level = 1;
     set_mob_hitdice(pMob);
     set_mob_damdice(pMob);
-    if (!IS_SET(pMob->act, ACT_MOUNT))
+    if (!IS_SET(pMob->act[0], ACT_MOUNT))
 	set_mob_movedice(pMob);
 
     send_to_char("Mobile Created.\n\r", ch);
@@ -11880,7 +11880,7 @@ MEDIT(medit_level)
     set_mob_damdice(pMob);
     send_to_char("Damage dice set.\n\r", ch);
 
-    if (!IS_SET(pMob->act, ACT_MOUNT)) {
+    if (!IS_SET(pMob->act[0], ACT_MOUNT)) {
 	set_mob_movedice(pMob);
 	send_to_char("Movement dice set.\n\r", ch);
     }
@@ -11968,7 +11968,7 @@ MEDIT(medit_short)
     pMob->short_descr = str_dup(argument);
 
     send_to_char("Short description set.\n\r", ch);
-    if (IS_SET(ch->act, PLR_AUTOSETNAME))
+    if (IS_SET(ch->act[0], PLR_AUTOSETNAME))
     {
 	free_string(pMob->player_name);
 	pMob->player_name = short_to_name(pMob->short_descr);
@@ -13199,9 +13199,9 @@ MEDIT(medit_act)
 		long bits[2];
 		if (bitvector_lookup(argument, 2, bits, act_flags, act2_flags))
 		{
-			TOGGLE_BIT(pMob->act, bits[0]);
-			TOGGLE_BIT(pMob->act2, bits[1]);
-			SET_BIT(pMob->act, ACT_IS_NPC);	// Force on, all the time
+			TOGGLE_BIT(pMob->act[0], bits[0]);
+			TOGGLE_BIT(pMob->act[1], bits[1]);
+			SET_BIT(pMob->act[0], ACT_IS_NPC);	// Force on, all the time
 
 			send_to_char("Act flag toggled.\n\r", ch);
 			return TRUE;
@@ -13225,8 +13225,8 @@ MEDIT(medit_affect)
 
 		if (bitvector_lookup(argument, 2, bits, affect_flags, affect2_flags))
 		{
-			TOGGLE_BIT(pMob->affected_by, bits[0]);
-			TOGGLE_BIT(pMob->affected_by2, bits[1]);
+			TOGGLE_BIT(pMob->affected_by[0], bits[0]);
+			TOGGLE_BIT(pMob->affected_by[1], bits[1]);
 
 			send_to_char("Affect flag toggled.\n\r", ch);
 			return TRUE;
@@ -13644,9 +13644,9 @@ MEDIT(medit_race)
 	EDIT_MOB(ch, pMob);
 
 	pMob->race = race;
-	pMob->act	  |= race_table[race].act;
-	pMob->act2	  |= race_table[race].act2;
-	pMob->affected_by |= race_table[race].aff;
+	pMob->act[0]	  |= race_table[race].act;
+	pMob->act[1]	  |= race_table[race].act2;
+	pMob->affected_by[0] |= race_table[race].aff;
 	pMob->off_flags   |= race_table[race].off;
 	pMob->imm_flags   |= race_table[race].imm;
 	pMob->res_flags   |= race_table[race].res;
@@ -14177,7 +14177,7 @@ REDIT(redit_room)
 		}
 	}
 
-	if (IS_SET(ch->act, PLR_AUTOOLC))
+	if (IS_SET(ch->act[0], PLR_AUTOOLC))
 	{
 		ch->desc->last_room_flags = room->room_flags;
 		ch->desc->last_room2_flags = room->room2_flags;
@@ -14207,7 +14207,7 @@ REDIT(redit_sector)
 
     room->sector_type = value;
 
-	if (IS_SET(ch->act, PLR_AUTOOLC))
+	if (IS_SET(ch->act[0], PLR_AUTOOLC))
 	{
 		ch->desc->last_room_sector = room->sector_type;
 	}
@@ -14369,7 +14369,7 @@ REDIT (redit_region)
 	__region_remove_room(room);
 	__region_add_room(region, room);
 
-	if (IS_SET(ch->act, PLR_AUTOOLC))
+	if (IS_SET(ch->act[0], PLR_AUTOOLC))
 	{
 		ch->desc->last_area_region = region;	// Save for faster building
 	}

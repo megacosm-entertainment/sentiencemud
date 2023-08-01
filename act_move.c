@@ -434,7 +434,7 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 	if (IS_SET(pexit->exit_info, EX_HIDDEN) && !IS_SET(pexit->exit_info, EX_FOUND) && IS_SET(pexit->exit_info, EX_MUSTSEE) )
 	{
 		// If they are not an immortal or have holylight off, they can't use the exit
-		if( !IS_IMMORTAL(ch) || !IS_SET(ch->act,PLR_HOLYLIGHT) )
+		if( !IS_IMMORTAL(ch) || !IS_SET(ch->act[0],PLR_HOLYLIGHT) )
 		{
 			send_to_char("Alas, you cannot move that way.\n\r", ch);
 			return;
@@ -1180,9 +1180,9 @@ void do_search(CHAR_DATA *ch, char *argument)
 
 		for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
 		{
-			if (IS_SET(obj->extra_flags, ITEM_HIDDEN) && number_percent() < number_range(60, 90))
+			if (IS_SET(obj->extra[0], ITEM_HIDDEN) && number_percent() < number_range(60, 90))
 			{
-				REMOVE_BIT(obj->extra_flags, ITEM_HIDDEN);
+				REMOVE_BIT(obj->extra[0], ITEM_HIDDEN);
 				act("$n has uncovered $p!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 				act("You have uncovered $p!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 				found = TRUE;
@@ -1228,9 +1228,9 @@ void do_search(CHAR_DATA *ch, char *argument)
 
 		for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
 		{
-			if (IS_SET(obj->extra_flags, ITEM_HIDDEN) && number_percent() < number_range(60, 90))
+			if (IS_SET(obj->extra[0], ITEM_HIDDEN) && number_percent() < number_range(60, 90))
 			{
-				REMOVE_BIT(obj->extra_flags, ITEM_HIDDEN);
+				REMOVE_BIT(obj->extra[0], ITEM_HIDDEN);
 				act("You have uncovered $p{x!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 				found = TRUE;
 			}
@@ -1249,9 +1249,9 @@ void do_search(CHAR_DATA *ch, char *argument)
 
 		for (obj = container->contains; obj != NULL; obj = obj->next_content)
 		{
-			if (IS_SET(obj->extra_flags, ITEM_HIDDEN) && number_percent() < number_range(60, 90))
+			if (IS_SET(obj->extra[0], ITEM_HIDDEN) && number_percent() < number_range(60, 90))
 			{
-				REMOVE_BIT(obj->extra_flags, ITEM_HIDDEN);
+				REMOVE_BIT(obj->extra[0], ITEM_HIDDEN);
 				act("You have uncovered $p{x inside $P{x!", ch, NULL, NULL, obj, container, NULL, NULL, TO_CHAR);
 				found = TRUE;
 			}
@@ -1371,7 +1371,7 @@ int find_door(CHAR_DATA *ch, char *arg, bool show)
 
 		if(IS_SET(pexit->exit_info, EX_HIDDEN) && !IS_SET(pexit->exit_info, EX_FOUND) && IS_SET(pexit->exit_info, EX_MUSTSEE) )
 		{
-			if(!IS_IMMORTAL(ch) || !IS_SET(ch->act,PLR_HOLYLIGHT))
+			if(!IS_IMMORTAL(ch) || !IS_SET(ch->act[0],PLR_HOLYLIGHT))
 			{
 				if (show)
 					act("I see no door $T here.", ch, NULL, NULL, NULL, NULL, NULL, arg, TO_CHAR);
@@ -2558,7 +2558,7 @@ bool can_wake_up(CHAR_DATA *ch, CHAR_DATA *waker)
 		if(IS_IMMORTAL(waker))
 			return TRUE;
 
-		if (!IS_NPC(ch) && IS_SET(ch->act2, PLR_NO_WAKE))
+		if (!IS_NPC(ch) && IS_SET(ch->act[1], PLR_NO_WAKE))
 		{
 			act("You can't wake $N up!", waker, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			return FALSE;
@@ -3791,7 +3791,7 @@ void do_hide(CHAR_DATA *ch, char *argument)
 			int chance;
 			CHAR_DATA *others;
 
-			if (!can_drop_obj(ch, obj, TRUE) || IS_SET(obj->extra2_flags, ITEM_KEPT)) {
+			if (!can_drop_obj(ch, obj, TRUE) || IS_SET(obj->extra[1], ITEM_KEPT)) {
 				send_to_char("You can't let go of it.\n\r", ch);
 				return;
 			}
@@ -3991,7 +3991,7 @@ void do_hide(CHAR_DATA *ch, char *argument)
 
 				p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_HIDE, NULL,0,0,0,0,0);
 			}
-			SET_BIT(obj->extra_flags, ITEM_HIDDEN);
+			SET_BIT(obj->extra[0], ITEM_HIDDEN);
 			return;
 		}
 		else
@@ -4002,7 +4002,7 @@ void do_hide(CHAR_DATA *ch, char *argument)
     }
 
 	// Hiding self
-    if (IS_SET(ch->affected_by, AFF_HIDE))
+    if (IS_SET(ch->affected_by[0], AFF_HIDE))
     {
     	send_to_char("You are already hidden.\n\r", ch);
 		return;
@@ -4036,7 +4036,7 @@ void hide_end(CHAR_DATA *ch)
 
     if (number_percent() < get_skill(ch,gsn_hide))
     {
-		SET_BIT(ch->affected_by, AFF_HIDE);
+		SET_BIT(ch->affected_by[0], AFF_HIDE);
         for (rch = ch->in_room->people; rch != NULL; rch = rch->next_in_room)
 		{
             if (get_skill(rch, gsn_deception) > 0)
@@ -4069,11 +4069,11 @@ void do_visible(CHAR_DATA *ch, char *argument)
     affect_strip (ch, gsn_sneak			);
     affect_strip (ch, gsn_improved_invisibility);
     affect_strip (ch, gsn_cloak_of_guile);
-    REMOVE_BIT   (ch->affected_by, AFF_HIDE		);
-    REMOVE_BIT   (ch->affected_by, AFF_INVISIBLE	);
-    REMOVE_BIT   (ch->affected_by, AFF_SNEAK		);
-    REMOVE_BIT   (ch->affected_by2, AFF2_IMPROVED_INVIS);
-    REMOVE_BIT   (ch->affected_by2, AFF2_CLOAK_OF_GUILE);
+    REMOVE_BIT   (ch->affected_by[0], AFF_HIDE		);
+    REMOVE_BIT   (ch->affected_by[0], AFF_INVISIBLE	);
+    REMOVE_BIT   (ch->affected_by[0], AFF_SNEAK		);
+    REMOVE_BIT   (ch->affected_by[1], AFF2_IMPROVED_INVIS);
+    REMOVE_BIT   (ch->affected_by[1], AFF2_CLOAK_OF_GUILE);
     send_to_char("You reveal yourself.\n\r", ch);
 }
 
@@ -4523,7 +4523,7 @@ void check_see_hidden(CHAR_DATA *ch)
 
 	for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
 	{
-		if (IS_SET(obj->extra2_flags, ITEM_SEE_HIDDEN) &&
+		if (IS_SET(obj->extra[1], ITEM_SEE_HIDDEN) &&
 			obj->wear_loc != WEAR_NONE)
 			break;
 	}
@@ -4580,8 +4580,8 @@ void check_traps(CHAR_DATA *ch, bool show)
 
 	for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content)
 	{
-		if (!IS_SET(obj->extra_flags, ITEM_HIDDEN) &&
-			IS_SET(obj->extra2_flags, ITEM_TRAPPED) &&
+		if (!IS_SET(obj->extra[0], ITEM_HIDDEN) &&
+			IS_SET(obj->extra[1], ITEM_TRAPPED) &&
 			number_percent() < get_skill(ch, gsn_detect_traps))
 		{
 			if ( show )
@@ -4682,7 +4682,7 @@ void do_pk(CHAR_DATA *ch, char *argument)
 
     for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
     {
-		if (IS_SET(mob->act, ACT_PRACTICE))
+		if (IS_SET(mob->act[0], ACT_PRACTICE))
 		    break;
     }
 
@@ -4710,7 +4710,7 @@ void do_pk(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (IS_SET(ch->act, PLR_PK))
+    if (IS_SET(ch->act[0], PLR_PK))
     {
 	send_to_char("{RAre you SURE you want to toggle off PK? The cost is 5000 pneuma.{x\n\r", ch);
 	ch->personal_pk_question = TRUE;

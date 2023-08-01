@@ -501,16 +501,16 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
     fprintf(fp, "MonsterKills %ld\n",	ch->monster_kills		);
 
     fprintf(fp, "Exp  %ld\n",	ch->exp			);
-    if (ch->act != 0)
-	fprintf(fp, "Act  %s\n",   print_flags(ch->act));
-    if (ch->act2 != 0)
-	fprintf(fp, "Act2 %s\n",   print_flags(ch->act2));
-    if (ch->affected_by != 0)		fprintf(fp, "AfBy %s\n",   print_flags(ch->affected_by));
-    if (ch->affected_by2 != 0)		fprintf(fp, "AfBy2 %s\n",   print_flags(ch->affected_by2));
+    if (ch->act[0] != 0)
+	fprintf(fp, "Act  %s\n",   print_flags(ch->act[0]));
+    if (ch->act[1] != 0)
+	fprintf(fp, "Act2 %s\n",   print_flags(ch->act[1]));
+    if (ch->affected_by[0] != 0)		fprintf(fp, "AfBy %s\n",   print_flags(ch->affected_by[0]));
+    if (ch->affected_by[1] != 0)		fprintf(fp, "AfBy2 %s\n",   print_flags(ch->affected_by[1]));
 
     // 20140514 NIB - adding for being able to reset the flags
-    if (ch->affected_by_perm != 0)	fprintf(fp, "AfByPerm %s\n",   print_flags(ch->affected_by_perm));
-    if (ch->affected_by2_perm != 0) fprintf(fp, "AfBy2Perm %s\n",   print_flags(ch->affected_by2_perm));
+    if (ch->affected_by_perm[0] != 0)	fprintf(fp, "AfByPerm %s\n",   print_flags(ch->affected_by_perm[0]));
+    if (ch->affected_by_perm[1] != 0) fprintf(fp, "AfBy2Perm %s\n",   print_flags(ch->affected_by_perm[1]));
     if (ch->imm_flags != 0) fprintf(fp, "Immune %s\n",   print_flags(ch->imm_flags));
     if (ch->imm_flags_perm != 0) fprintf(fp, "ImmunePerm %s\n",   print_flags(ch->imm_flags_perm));
     if (ch->res_flags != 0) fprintf(fp, "Resist %s\n",   print_flags(ch->res_flags));
@@ -708,8 +708,8 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
     ch->id[0] = ch->id[1]		= 0;
     ch->pcdata->creation_date		= -1;
     ch->race				= race_lookup("human");
-    ch->act				= PLR_NOSUMMON;
-    ch->act2				= 0;
+    ch->act[0]				= PLR_NOSUMMON;
+    ch->act[1]				= 0;
     ch->comm				= COMM_PROMPT;
     ch->num_grouped			= 0;
     ch->dead = FALSE;
@@ -959,13 +959,13 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 	    }
 
 	case 'A':
-	    KEY("Act",		ch->act,		fread_flag(fp));
-	    KEY("Act2",	ch->act2,		fread_flag(fp));
-	    KEY("AffectedBy",	ch->affected_by,	fread_flag(fp));
-	    KEY("AfBy",	ch->affected_by,	fread_flag(fp));
-	    KEY("AfBy2",	ch->affected_by2,	fread_flag(fp));
-	    KEY("AfByPerm", ch->affected_by_perm,	fread_flag(fp));
-	    KEY("AfBy2Perm", ch->affected_by2_perm,	fread_flag(fp));
+	    KEY("Act",		ch->act[0],		fread_flag(fp));
+	    KEY("Act2",	ch->act[1],		fread_flag(fp));
+	    KEY("AffectedBy",	ch->affected_by[0],	fread_flag(fp));
+	    KEY("AfBy",	ch->affected_by[0],	fread_flag(fp));
+	    KEY("AfBy2",	ch->affected_by[1],	fread_flag(fp));
+	    KEY("AfByPerm", ch->affected_by_perm[0],	fread_flag(fp));
+	    KEY("AfBy2Perm", ch->affected_by_perm[1],	fread_flag(fp));
 	    KEY("Alignment",	ch->alignment,		fread_number(fp));
 	    KEY("Alig",	ch->alignment,		fread_number(fp));
 	    KEY("ArenaCount",	ch->arena_deaths,	fread_number(fp));
@@ -2485,21 +2485,21 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
         fprintf(fp, "Desc %s~\n",	obj->description	    );
     if (obj->full_description != obj->pIndexData->full_description)
 	fprintf(fp, "FullD %s~\n",     fix_string(obj->full_description));
-    if (obj->extra_flags != obj->extra_flags_perm)
-        fprintf(fp, "ExtF %ld\n",	obj->extra_flags	    );
-    if (obj->extra2_flags != obj->extra2_flags_perm)
-        fprintf(fp, "Ext2F %ld\n",	obj->extra2_flags	    );
-    if (obj->extra3_flags != obj->extra3_flags_perm)
-        fprintf(fp, "Ext3F %ld\n",	obj->extra3_flags	    );
-    if (obj->extra4_flags != obj->extra4_flags_perm)
-        fprintf(fp, "Ext4F %ld\n",	obj->extra4_flags	    );
+    if (obj->extra[0] != obj->extra_perm[0])
+        fprintf(fp, "ExtF %ld\n",	obj->extra[0]	    );
+    if (obj->extra[1] != obj->extra_perm[1])
+        fprintf(fp, "Ext2F %ld\n",	obj->extra[1]	    );
+    if (obj->extra[2] != obj->extra_perm[2])
+        fprintf(fp, "Ext3F %ld\n",	obj->extra[2]	    );
+    if (obj->extra[3] != obj->extra_perm[3])
+        fprintf(fp, "Ext4F %ld\n",	obj->extra[3]	    );
     if (obj->wear_flags != obj->pIndexData->wear_flags)
         fprintf(fp, "WeaF %d\n",	obj->wear_flags		    );
     if (obj->item_type != obj->pIndexData->item_type)
         fprintf(fp, "Ityp %d\n",	obj->item_type		    );
     if (obj->in_room != NULL)
     	fprintf(fp, "Room %s\n",	widevnum_string_room(obj->in_room, NULL)	    );
-    if (IS_SET(obj->extra2_flags, ITEM_ENCHANTED))
+    if (IS_SET(obj->extra[1], ITEM_ENCHANTED))
 	fprintf(fp,"Enchanted_times %d\n", obj->num_enchanted);
 
     /*
@@ -2554,10 +2554,10 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
 	*/
 
 	// Permanent flags based
-    fprintf(fp, "PermExtra %ld\n",	obj->extra_flags_perm );
-    fprintf(fp, "PermExtra2 %ld\n",	obj->extra2_flags_perm );
-	fprintf(fp, "PermExtra3 %ld\n",	obj->extra3_flags_perm );
-	fprintf(fp, "PermExtra4 %ld\n",	obj->extra4_flags_perm );
+    fprintf(fp, "PermExtra %ld\n",	obj->extra_perm[0] );
+    fprintf(fp, "PermExtra2 %ld\n",	obj->extra_perm[1] );
+	fprintf(fp, "PermExtra3 %ld\n",	obj->extra_perm[2] );
+	fprintf(fp, "PermExtra4 %ld\n",	obj->extra_perm[3] );
 	if( obj->item_type == ITEM_WEAPON )
 		fprintf(fp, "PermWeapon %ld\n",	obj->weapon_flags_perm );
 
@@ -3372,6 +3372,8 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 	//ROOM_INDEX_DATA *room = NULL;
 	long values[MAX_OBJVALUES];
 
+	memset(values, 0, sizeof(values));
+
 	fVnum = FALSE;
 	obj = NULL;
 	first = TRUE;  /* used to counter fp offset */
@@ -3786,28 +3788,28 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 
 			if (!str_cmp(word, "ExtraFlags") || !str_cmp(word, "ExtF"))
 			{
-				obj->extra_flags = fread_number(fp);
+				obj->extra[0] = fread_number(fp);
 				fMatch = TRUE;
 				break;
 			}
 
 			if (!str_cmp(word, "Extra2Flags") || !str_cmp(word, "Ext2F"))
 			{
-				obj->extra2_flags = fread_number(fp);
+				obj->extra[1] = fread_number(fp);
 				fMatch = TRUE;
 				break;
 			}
 
 			if (!str_cmp(word, "Extra3Flags") || !str_cmp(word, "Ext3F"))
 			{
-				obj->extra3_flags = fread_number(fp);
+				obj->extra[2] = fread_number(fp);
 				fMatch = TRUE;
 				break;
 			}
 
 			if (!str_cmp(word, "Extra4Flags") || !str_cmp(word, "Ext4F"))
 			{
-				obj->extra4_flags = fread_number(fp);
+				obj->extra[3] = fread_number(fp);
 				fMatch = TRUE;
 				break;
 			}
@@ -4032,10 +4034,10 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 			break;
 
 		case 'P':
-			KEY("PermExtra",		obj->extra_flags_perm,	fread_number(fp));
-			KEY("PermExtra2",		obj->extra2_flags_perm,	fread_number(fp));
-			KEY("PermExtra3",		obj->extra3_flags_perm,	fread_number(fp));
-			KEY("PermExtra4",		obj->extra4_flags_perm,	fread_number(fp));
+			KEY("PermExtra",		obj->extra_perm[0],	fread_number(fp));
+			KEY("PermExtra2",		obj->extra_perm[1],	fread_number(fp));
+			KEY("PermExtra3",		obj->extra_perm[2],	fread_number(fp));
+			KEY("PermExtra4",		obj->extra_perm[3],	fread_number(fp));
 			KEY("PermWeapon",		obj->weapon_flags_perm,	fread_number(fp));
 			KEY("Persist", obj->persist, fread_number(fp));
 			break;
@@ -4424,10 +4426,10 @@ void fix_character(CHAR_DATA *ch)
 
 	/* 20203003 - Tieryo - Fix missing racial perm affects */
 
-	if (ch->affected_by_perm != race_table[ch->race].aff || ch->affected_by2_perm != race_table[ch->race].aff2)
+	if (ch->affected_by_perm[0] != race_table[ch->race].aff || ch->affected_by_perm[1] != race_table[ch->race].aff2)
 	{
-	ch->affected_by_perm = race_table[ch->race].aff;
-	ch->affected_by2_perm = race_table[ch->race].aff2;
+	ch->affected_by_perm[0] = race_table[ch->race].aff;
+	ch->affected_by_perm[1] = race_table[ch->race].aff2;
 	resetaffects = TRUE;
 	}
 	if( resetaffects )
@@ -4436,8 +4438,8 @@ void fix_character(CHAR_DATA *ch)
 		ch->imm_flags = ch->imm_flags_perm;
 		ch->res_flags = ch->res_flags_perm;
 		ch->vuln_flags = ch->vuln_flags_perm;
-		ch->affected_by = ch->affected_by_perm;
-		ch->affected_by2 = ch->affected_by2_perm;
+		ch->affected_by[0] = ch->affected_by_perm[0];
+		ch->affected_by[1] = ch->affected_by_perm[1];
 
 		// Iterate through all affects
 		for(paf = ch->affected; paf; paf = paf->next)
@@ -4445,8 +4447,8 @@ void fix_character(CHAR_DATA *ch)
 			switch (paf->where)
 			{
 				case TO_AFFECTS:
-					SET_BIT(ch->affected_by, paf->bitvector);
-					SET_BIT(ch->affected_by2, paf->bitvector2);
+					SET_BIT(ch->affected_by[0], paf->bitvector);
+					SET_BIT(ch->affected_by[1], paf->bitvector2);
 
 					if( IS_SET(paf->bitvector2, AFF2_DEATHSIGHT) && (paf->level > ch->deathsight_vision) )
 						ch->deathsight_vision = paf->level;
@@ -4474,8 +4476,8 @@ void fix_character(CHAR_DATA *ch)
 					switch (paf->where)
 					{
 						case TO_AFFECTS:
-							SET_BIT(ch->affected_by, paf->bitvector);
-							SET_BIT(ch->affected_by2, paf->bitvector2);
+							SET_BIT(ch->affected_by[0], paf->bitvector);
+							SET_BIT(ch->affected_by[1], paf->bitvector2);
 
 							if( IS_SET(paf->bitvector2, AFF2_DEATHSIGHT) && (paf->level > ch->deathsight_vision) )
 								ch->deathsight_vision = paf->level;
@@ -4497,7 +4499,7 @@ void fix_character(CHAR_DATA *ch)
 	}
 
 	// Update deathsight vision
-	ch->deathsight_vision = ( IS_SET(ch->affected_by2_perm, AFF2_DEATHSIGHT) ) ? ch->tot_level : 0;
+	ch->deathsight_vision = ( IS_SET(ch->affected_by_perm[1], AFF2_DEATHSIGHT) ) ? ch->tot_level : 0;
 	for(paf = ch->affected; paf; paf = paf->next)
 	{
 		if( (paf->where == TO_AFFECTS) && IS_SET(paf->bitvector2, AFF2_DEATHSIGHT) && (paf->level > ch->deathsight_vision) )
@@ -4548,10 +4550,10 @@ void fix_character(CHAR_DATA *ch)
     if (ch->version < 7)
     {
 		if (IS_AFFECTED2(ch, AFF2_ENSNARE))
-			REMOVE_BIT(ch->affected_by2, AFF2_ENSNARE);
+			REMOVE_BIT(ch->affected_by[1], AFF2_ENSNARE);
 
 		if (ch->pcdata->second_sub_class_thief == CLASS_THIEF_SAGE)
-			SET_BIT(ch->affected_by, AFF_DETECT_HIDDEN);
+			SET_BIT(ch->affected_by[0], AFF_DETECT_HIDDEN);
 
 		ch->version = 7;
     }
@@ -4564,7 +4566,7 @@ void fix_character(CHAR_DATA *ch)
 
     if (ch->version < 10)
     {
-		REMOVE_BIT(ch->act, PLR_PK);
+		REMOVE_BIT(ch->act[0], PLR_PK);
 		ch->version = 10;
     }
 
@@ -4622,11 +4624,11 @@ void fix_character(CHAR_DATA *ch)
 
 
     // Make sure non imms dont have builder flag!!
-    if (!IS_IMMORTAL(ch) && IS_SET(ch->act, PLR_BUILDING))
+    if (!IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_BUILDING))
     {
 		sprintf(buf, "fix_character: toggling off builder flag for non-immortal %s", ch->name);
 		log_string(buf);
-		REMOVE_BIT(ch->act, PLR_BUILDING);
+		REMOVE_BIT(ch->act[0], PLR_BUILDING);
     }
 
     // Everyone with an expired locker rent as of this login point will have their locker rent auto-forgiven.
@@ -4663,7 +4665,7 @@ void fix_character(CHAR_DATA *ch)
 		if( IS_IMMORTAL(ch) )
 		{
 			// Give existing immortals HOLYWARP
-			SET_BIT(ch->act2, PLR_HOLYWARP);
+			SET_BIT(ch->act[1], PLR_HOLYWARP);
 		}
 
 

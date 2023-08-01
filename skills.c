@@ -62,7 +62,7 @@ void do_multi(CHAR_DATA *ch, char *argument)
 
     for (mob = ch->in_room->people; mob; mob = mob->next_in_room)
     {
-	if (IS_NPC(mob) && IS_SET(mob->act, ACT_TRAIN))
+	if (IS_NPC(mob) && IS_SET(mob->act[0], ACT_TRAIN))
 	    break;
     }
 
@@ -682,7 +682,7 @@ void do_train(CHAR_DATA *ch, char *argument)
 	} else {
 		for (mob = ch->in_room->people; mob; mob = mob->next_in_room)
 		{
-			if (IS_NPC(mob) && IS_SET(mob->act, ACT_TRAIN))
+			if (IS_NPC(mob) && IS_SET(mob->act[0], ACT_TRAIN))
 				break;
 		}
 
@@ -912,7 +912,7 @@ void do_convert(CHAR_DATA *ch, char *argument)
     for (trainer = ch->in_room->people; trainer != NULL; trainer = trainer->next_in_room)
     {
 	if (IS_NPC(trainer)
-	&&  (IS_SET(trainer->act, ACT_TRAIN) || IS_SET(trainer->act, ACT_PRACTICE)))
+	&&  (IS_SET(trainer->act[0], ACT_TRAIN) || IS_SET(trainer->act[0], ACT_PRACTICE)))
 	    break;
     }
 
@@ -1019,7 +1019,7 @@ void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool sh
 		add_buf(buffer, "\n\r{B [ {w# {B] [ {wName{B ]                       [ {w%{B ]{x\n\r");
 
 	// Do we only show favourited skills?
-	favonly = (IS_SET(ch->act2, PLR_FAVSKILLS)) && !hide_learned;
+	favonly = (IS_SET(ch->act[1], PLR_FAVSKILLS)) && !hide_learned;
 
 	i = 1;
 
@@ -1386,7 +1386,7 @@ void do_practice( CHAR_DATA *ch, char *argument )
 	}
 
 	for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room) {
-		if (IS_NPC(mob) && IS_SET(mob->act, ACT_PRACTICE))
+		if (IS_NPC(mob) && IS_SET(mob->act[0], ACT_PRACTICE))
 			break;
 	}
 
@@ -1597,7 +1597,7 @@ void do_rehearse( CHAR_DATA *ch, char *argument )
 	}
 
 	for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room) {
-		if (IS_NPC(mob) && IS_SET(mob->act, ACT_PRACTICE))
+		if (IS_NPC(mob) && IS_SET(mob->act[0], ACT_PRACTICE))
 			break;
 	}
 
@@ -2449,8 +2449,8 @@ void remort_player(CHAR_DATA *ch, int remort_class)
 		set_perm_stat(ch, i, UMAX(val, 13));
 	}
 
-	ch->affected_by_perm = race_table[ch->race].aff;
-	ch->affected_by2_perm = race_table[ch->race].aff2;
+	ch->affected_by_perm[0] = race_table[ch->race].aff;
+	ch->affected_by_perm[1] = race_table[ch->race].aff2;
     ch->imm_flags_perm = race_table[ch->race].imm;
     ch->res_flags_perm = race_table[ch->race].res;
     ch->vuln_flags_perm = race_table[ch->race].vuln;

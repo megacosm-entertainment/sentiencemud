@@ -965,7 +965,7 @@ void interpret( CHAR_DATA *ch, char *argument )
 	return;
 
     // Frozen people can't do anything
-    if (!IS_NPC(ch) && IS_SET(ch->act, PLR_FREEZE))
+    if (!IS_NPC(ch) && IS_SET(ch->act[0], PLR_FREEZE))
     {
 	send_to_char( "You're totally frozen!\n\r", ch );
 	return;
@@ -1157,9 +1157,9 @@ void interpret( CHAR_DATA *ch, char *argument )
 
 	if (!str_prefix(command, "yes"))
 	{
-	    if (!IS_SET( ch->act, PLR_PK ) )
+	    if (!IS_SET( ch->act[0], PLR_PK ) )
 	    {
-		SET_BIT( ch->act, PLR_PK );
+		SET_BIT( ch->act[0], PLR_PK );
 		send_to_char("You have toggled PK. Good luck!\n\r", ch );
 		sprintf( buf, "%s has toggled PK on!", ch->name );
 		crier_announce( buf );
@@ -1167,7 +1167,7 @@ void interpret( CHAR_DATA *ch, char *argument )
 	    }
 	    else
 	    {
-		REMOVE_BIT( ch->act, PLR_PK );
+		REMOVE_BIT( ch->act[0], PLR_PK );
 		send_to_char("You have toggled PK off.\n\r", ch );
 		sprintf( buf, "%s is no longer PK.", ch->name );
 		crier_announce( buf );
@@ -1185,7 +1185,7 @@ void interpret( CHAR_DATA *ch, char *argument )
 	}
 	else
 	{
-	    if ( IS_SET( ch->act, PLR_PK ) )
+	    if ( IS_SET( ch->act[0], PLR_PK ) )
 	    {
 		send_to_char("Toggle PK off? (y/n)\n\r", ch );
 	    }
@@ -1427,7 +1427,7 @@ void interpret( CHAR_DATA *ch, char *argument )
     if (IS_AFFECTED(ch, AFF_HIDE) && !(allowed || (selected_command != NULL && selected_command->is_ooc)))
     {
         affect_strip(ch, gsn_hide);
-		REMOVE_BIT(ch->affected_by, AFF_HIDE);
+		REMOVE_BIT(ch->affected_by[0], AFF_HIDE);
 		act("You step out of the shadows.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
 		act("$n steps out of the shadows.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
     }
@@ -1571,7 +1571,7 @@ void interpret( CHAR_DATA *ch, char *argument )
 	strcpy( logline, "" );
 
     if (/*ch->tot_level < MAX_LEVEL    Syn - phasing this out.
-    &&*/ ((!IS_NPC(ch) && IS_SET(ch->act, PLR_LOG)) || logAll || cmd_table[cmd].log == LOG_ALWAYS))
+    &&*/ ((!IS_NPC(ch) && IS_SET(ch->act[0], PLR_LOG)) || logAll || cmd_table[cmd].log == LOG_ALWAYS))
     {
 	char s[2 * MAX_INPUT_LENGTH];
 	char *ps;

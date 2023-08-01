@@ -40,7 +40,7 @@ void do_deposit(CHAR_DATA *ch, char *argument)
     /* GQ section */
     for (mob = room->people; mob != NULL; mob = mob->next_in_room)
     {
-	if (IS_SET(mob->act2, ACT2_GQ_MASTER))
+	if (IS_SET(mob->act[1], ACT2_GQ_MASTER))
 	    break;
     }
 
@@ -241,7 +241,7 @@ void do_lore(CHAR_DATA *ch, char *argument)
     mob = NULL;
     for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
     {
-	if (IS_SET(mob->act2, ACT2_LOREMASTER))
+	if (IS_SET(mob->act[1], ACT2_LOREMASTER))
 	    break;
     }
 
@@ -435,7 +435,7 @@ void do_lore(CHAR_DATA *ch, char *argument)
     scroll->extra_descr = ed;
     ed->description = str_dup(buf);
 
-    SET_BIT(scroll->extra_flags, ITEM_GLOW);
+    SET_BIT(scroll->extra[0], ITEM_GLOW);
 
     act("$N gives you $p.", ch, mob, NULL, scroll, NULL, NULL, NULL, TO_CHAR);
     act("$N gives $n $p.", ch, mob, NULL, scroll, NULL, NULL, NULL, TO_ROOM);
@@ -697,14 +697,14 @@ void do_keep(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (IS_SET(obj->extra2_flags, ITEM_KEPT))
+    if (IS_SET(obj->extra[1], ITEM_KEPT))
     {
-	REMOVE_BIT(obj->extra2_flags, ITEM_KEPT);
+	REMOVE_BIT(obj->extra[1], ITEM_KEPT);
 	act("You will no longer keep $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
     }
     else
     {
-	SET_BIT(obj->extra2_flags, ITEM_KEPT);
+	SET_BIT(obj->extra[1], ITEM_KEPT);
 	act("You will now keep $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
     }
 }
@@ -713,8 +713,8 @@ void do_keep(CHAR_DATA *ch, char *argument)
 /* Reset an obj for a new owner. Used in get, etc.*/
 void reset_obj(OBJ_DATA *obj)
 {
-    if (IS_SET(obj->extra2_flags, ITEM_KEPT))
-	REMOVE_BIT(obj->extra2_flags, ITEM_KEPT);
+    if (IS_SET(obj->extra[1], ITEM_KEPT))
+	REMOVE_BIT(obj->extra[1], ITEM_KEPT);
 
     obj->last_wear_loc = WEAR_NONE;
 }
@@ -870,7 +870,7 @@ void do_ruboff(CHAR_DATA *ch, char *argument)
 		return;
     }
 
-    if (IS_SET(obj->extra_flags, ITEM_NOREMOVE))
+    if (IS_SET(obj->extra[0], ITEM_NOREMOVE))
     {
 		send_to_char("The ink seems to be permanent.\n\r", ch);
 		return;

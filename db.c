@@ -227,6 +227,9 @@ bool			objRepop;
    obj_to_room(). When the object is given to a char or a room, this variable
    is toggled off, and the object will then no longer trigger repop scripts. */
 
+sh_int	gsn__auction_info;
+sh_int	gsn__inspect;
+
 sh_int	gsn_acid_blast;
 sh_int	gsn_acid_breath;
 sh_int	gsn_acro;
@@ -1285,6 +1288,10 @@ void boot_db(void)
 	    if (skill_table[sn].pgsn != NULL)
 		*skill_table[sn].pgsn = sn;
 	}
+
+	// Special internal use only gsns
+	gsn__auction_info = -2;
+	gsn__inspect = -1;
 
 	for (lev = 0; lev != MAX_MOB_SKILL_LEVEL; lev++)
 	    mob_skill_table[lev] = 40 + 19 * log10(lev);
@@ -2420,7 +2427,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 			count = 0;
 			for (mob = pRoom->people; mob != NULL; mob = mob->next_in_room)
 			{
-				if (mob->pIndexData == pMobIndex && !IS_SET(mob->act, ACT_ANIMATED))
+				if (mob->pIndexData == pMobIndex && !IS_SET(mob->act[0], ACT_ANIMATED))
 				{
 					count++;
 					if (count >= pReset->arg4)
@@ -2436,13 +2443,13 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 
 			pMob = create_mobile(pMobIndex, FALSE);
 			if( instanced )
-				SET_BIT(pMob->act2, ACT2_INSTANCE_MOB);
+				SET_BIT(pMob->act[1], ACT2_INSTANCE_MOB);
 
 			/*
 			* Some more hard coding.
 			*/
 			if (room_is_dark(pRoom))
-				SET_BIT(pMob->affected_by, AFF_INFRARED);
+				SET_BIT(pMob->affected_by[0], AFF_INFRARED);
 
 			char_to_room(pMob, pRoom);
 			pMob->home_room = pRoom;
@@ -2492,7 +2499,7 @@ void reset_room(ROOM_INDEX_DATA *pRoom)
 
 			pObj = create_object(pObjIndex, UMIN(number_fuzzy(level), LEVEL_HERO -1) , TRUE);
 			if( instanced )
-				SET_BIT(pObj->extra3_flags, ITEM_INSTANCE_OBJ);
+				SET_BIT(pObj->extra[2], ITEM_INSTANCE_OBJ);
 			pObj->cost = 0;
 			objRepop = TRUE;
 			obj_to_room(pObj, pRoom);
@@ -2781,10 +2788,10 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 		long wealth;
 
 		/* make sure bankers always have change money */
-		if (IS_SET(pMobIndex->act, ACT_IS_BANKER))
+		if (IS_SET(pMobIndex->act[0], ACT_IS_BANKER))
 		{
 			wealth = 1000000;
-			SET_BIT(mob->act, ACT_PROTECTED);
+			SET_BIT(mob->act[0], ACT_PROTECTED);
 		}
 		else
 			wealth = number_range(pMobIndex->wealth/2, 3 * pMobIndex->wealth/2);
@@ -2798,11 +2805,11 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 		mob->silver = wealth - (mob->gold * 100);
 	}
 
-	mob->act 				= pMobIndex->act;
-	mob->act2				= pMobIndex->act2;
+	mob->act[0] 				= pMobIndex->act[0];
+	mob->act[1]				= pMobIndex->act[1];
 	mob->comm				= COMM_NOCHANNELS|COMM_NOTELL;
-	mob->affected_by		= pMobIndex->affected_by;
-	mob->affected_by2		= pMobIndex->affected_by2;
+	mob->affected_by[0]		= pMobIndex->affected_by[0];
+	mob->affected_by[1]		= pMobIndex->affected_by[1];
 	mob->alignment			= pMobIndex->alignment;
 	mob->level				= pMobIndex->level;
 	mob->tot_level			= pMobIndex->level;
@@ -2851,8 +2858,8 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 	mob->corpse_type		= pMobIndex->corpse_type;
 	mob->corpse_wnum		= pMobIndex->corpse;
 
-	mob->affected_by_perm	= race->aff;
-	mob->affected_by2_perm	= race->aff2;
+	mob->affected_by_perm[0]	= race->aff;
+	mob->affected_by_perm[1]	= race->aff2;
 	mob->imm_flags_perm		= pMobIndex->imm_flags;
 	mob->res_flags_perm		= pMobIndex->res_flags;
 	mob->vuln_flags_perm	= pMobIndex->vuln_flags;
@@ -2861,28 +2868,28 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 	for (i = 0; i < MAX_STATS; i ++)
 		set_perm_stat_range(mob, i, 11 + mob->level/4, 0, 25);
 
-	if (IS_SET(mob->act,ACT_WARRIOR))
+	if (IS_SET(mob->act[0],ACT_WARRIOR))
 	{
 		mob->perm_stat[STAT_STR] += 3;
 		mob->perm_stat[STAT_INT] -= 1;
 		mob->perm_stat[STAT_CON] += 2;
 	}
 
-	if (IS_SET(mob->act,ACT_THIEF))
+	if (IS_SET(mob->act[0],ACT_THIEF))
 	{
 		mob->perm_stat[STAT_DEX] += 3;
 		mob->perm_stat[STAT_INT] += 1;
 		mob->perm_stat[STAT_WIS] -= 1;
 	}
 
-	if (IS_SET(mob->act,ACT_CLERIC))
+	if (IS_SET(mob->act[0],ACT_CLERIC))
 	{
 		mob->perm_stat[STAT_WIS] += 3;
 		mob->perm_stat[STAT_DEX] -= 1;
 		mob->perm_stat[STAT_STR] += 1;
 	}
 
-	if (IS_SET(mob->act,ACT_MAGE))
+	if (IS_SET(mob->act[0],ACT_MAGE))
 	{
 		mob->perm_stat[STAT_INT] += 3;
 		mob->perm_stat[STAT_STR] -= 1;
@@ -3148,7 +3155,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 			af.bitvector	= 0;
 			af.bitvector2	= AFF2_ELECTRICAL_BARRIER;
 			affect_to_char(mob,&af);
-			REMOVE_BIT(mob->affected_by2_perm, af.bitvector2);	// NIBS - why only this one?
+			REMOVE_BIT(mob->affected_by_perm[1], af.bitvector2);	// NIBS - why only this one?
 		}
 
 		if (IS_AFFECTED2(mob, AFF2_FIRE_BARRIER))
@@ -3272,15 +3279,15 @@ CHAR_DATA *clone_mobile(CHAR_DATA *parent)
     clone->gold		= parent->gold;
     clone->silver	= parent->silver;
     clone->exp		= parent->exp;
-    clone->act		= parent->act;
-    clone->act2		= parent->act2;
+    clone->act[0]		= parent->act[0];
+    clone->act[1]		= parent->act[1];
     clone->comm		= parent->comm;
     clone->imm_flags	= parent->imm_flags;
     clone->res_flags	= parent->res_flags;
     clone->vuln_flags	= parent->vuln_flags;
     clone->invis_level	= parent->invis_level;
-    clone->affected_by	= parent->affected_by;
-    clone->affected_by2	= parent->affected_by2;
+    clone->affected_by[0]	= parent->affected_by[0];
+    clone->affected_by[1]	= parent->affected_by[1];
     clone->position	= parent->position;
     clone->practice	= parent->practice;
     clone->train	= parent->train;
@@ -3299,8 +3306,8 @@ CHAR_DATA *clone_mobile(CHAR_DATA *parent)
     clone->default_pos	= parent->default_pos;
     clone->spec_fun	= parent->spec_fun;
 
-    clone->affected_by_perm = parent->affected_by_perm;
-    clone->affected_by2_perm = parent->affected_by2_perm;
+    clone->affected_by_perm[0] = parent->affected_by_perm[0];
+    clone->affected_by_perm[1] = parent->affected_by_perm[1];
 	clone->imm_flags_perm = parent->imm_flags_perm;
 	clone->res_flags_perm = parent->res_flags_perm;
 	clone->vuln_flags_perm = parent->vuln_flags_perm;
@@ -3377,10 +3384,10 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects,
     obj->times_allowed_fixed	= pObjIndex->times_allowed_fixed;
     obj->fragility	= pObjIndex->fragility;
     obj->item_type	= pObjIndex->item_type;
-    obj->extra_flags	= pObjIndex->extra_flags & ~(ITEM_INVENTORY | ITEM_PERMANENT | ITEM_NOSKULL | ITEM_PLANTED);
-    obj->extra2_flags   = pObjIndex->extra2_flags & ~(ITEM_ENCHANTED | ITEM_NO_RESURRECT | ITEM_THIRD_EYE | ITEM_BURIED | ITEM_UNSEEN );
-    obj->extra3_flags   = pObjIndex->extra3_flags & ~(ITEM_FORCE_LOOT | ITEM_NO_ANIMATE );
-    obj->extra4_flags   = pObjIndex->extra4_flags;
+    obj->extra[0]	= pObjIndex->extra[0] & ~(ITEM_INVENTORY | ITEM_PERMANENT | ITEM_NOSKULL | ITEM_PLANTED);
+    obj->extra[1]   = pObjIndex->extra[1] & ~(ITEM_ENCHANTED | ITEM_NO_RESURRECT | ITEM_THIRD_EYE | ITEM_BURIED | ITEM_UNSEEN );
+    obj->extra[2]   = pObjIndex->extra[2] & ~(ITEM_FORCE_LOOT | ITEM_NO_ANIMATE );
+    obj->extra[3]   = pObjIndex->extra[3];
     obj->wear_flags	= pObjIndex->wear_flags;
 	for(int i = 0; i < MAX_OBJVALUES; i++)
 		obj->value[i] = pObjIndex->value[i];
@@ -3626,10 +3633,10 @@ void clone_object(OBJ_DATA *parent, OBJ_DATA *clone)
     clone->short_descr 	= str_dup(parent->short_descr);
     clone->description	= str_dup(parent->description);
     clone->item_type	= parent->item_type;
-    clone->extra_flags	= parent->extra_flags;
-    clone->extra2_flags	= parent->extra2_flags;
-    clone->extra3_flags	= parent->extra3_flags;
-    clone->extra4_flags	= parent->extra4_flags;
+    clone->extra[0]	= parent->extra[0];
+    clone->extra[1]	= parent->extra[1];
+    clone->extra[2]	= parent->extra[2];
+    clone->extra[3]	= parent->extra[3];
     clone->wear_flags	= parent->wear_flags;
     clone->weight	= parent->weight;
     clone->cost		= parent->cost;
@@ -6089,10 +6096,10 @@ bool extract_clone_room(ROOM_INDEX_DATA *room, unsigned long id1, unsigned long 
 //	fprintf(fp, "ShD  %s~\n",		obj->short_descr);
 //	fprintf(fp, "Desc %s~\n",		obj->description);
 //	fprintf(fp, "FullD %s~\n",		fix_string(obj->full_description));
-//	fprintf(fp, "ExtF %ld\n",		obj->extra_flags);
-//	fprintf(fp, "Ext2F %ld\n",		obj->extra2_flags);
-//	fprintf(fp, "Ext3F %ld\n",		obj->extra3_flags);
-//	fprintf(fp, "Ext4F %ld\n",		obj->extra4_flags);
+//	fprintf(fp, "ExtF %ld\n",		obj->extra[0]);
+//	fprintf(fp, "Ext2F %ld\n",		obj->extra[1]);
+//	fprintf(fp, "Ext3F %ld\n",		obj->extra[2]);
+//	fprintf(fp, "Ext4F %ld\n",		obj->extra[3]);
 //	fprintf(fp, "WeaF %d\n",		obj->wear_flags);
 //	fprintf(fp, "Ityp %d\n",		obj->item_type);
 //	fprintf(fp, "Room %ld\n",		obj->in_room->vnum);
@@ -6381,17 +6388,17 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
 	fprintf(fp, "ShortDesc %s~\n", obj->short_descr);			// **
 	fprintf(fp, "LongDesc %s~\n", obj->description);			// **
 	fprintf(fp, "FullDesc %s~\n", fix_string(obj->full_description));	// **
-	fprintf(fp, "Extra %ld\n", obj->extra_flags);				// **
-	fprintf(fp, "Extra2 %ld\n", obj->extra2_flags);				// **
-	fprintf(fp, "Extra3 %ld\n", obj->extra3_flags);				// **
-	fprintf(fp, "Extra4 %ld\n", obj->extra4_flags);				// **
+	fprintf(fp, "Extra %ld\n", obj->extra[0]);				// **
+	fprintf(fp, "Extra2 %ld\n", obj->extra[1]);				// **
+	fprintf(fp, "Extra3 %ld\n", obj->extra[2]);				// **
+	fprintf(fp, "Extra4 %ld\n", obj->extra[3]);				// **
 	fprintf(fp, "WearFlags %d\n", obj->wear_flags);				// **
 	fprintf(fp, "ItemType %d\n", obj->item_type);				// **
 
-	fprintf(fp, "PermExtra %ld\n", obj->extra_flags_perm);				// **
-	fprintf(fp, "PermExtra2 %ld\n", obj->extra2_flags_perm);				// **
-	fprintf(fp, "PermExtra3 %ld\n", obj->extra3_flags_perm);				// **
-	fprintf(fp, "PermExtra4 %ld\n", obj->extra4_flags_perm);				// **
+	fprintf(fp, "PermExtra %ld\n", obj->extra_perm[0]);				// **
+	fprintf(fp, "PermExtra2 %ld\n", obj->extra_perm[1]);				// **
+	fprintf(fp, "PermExtra3 %ld\n", obj->extra_perm[2]);				// **
+	fprintf(fp, "PermExtra4 %ld\n", obj->extra_perm[3]);				// **
 
 	if( obj->item_type == ITEM_WEAPON )
 		fprintf(fp, "PermWeapon %ld\n", obj->weapon_flags_perm);
@@ -6700,10 +6707,10 @@ void persist_save_mobile(FILE *fp, CHAR_DATA *ch)
 	fprintf(fp, "DeityPnts %ld\n", ch->deitypoints);
 
 	fprintf(fp, "Exp  %ld\n", ch->exp);
-	fprintf(fp, "Act  %s\n", print_flags(ch->act));
-	fprintf(fp, "Act2 %s\n", print_flags(ch->act2));
-	fprintf(fp, "AfBy %s\n", print_flags(ch->affected_by));
-	fprintf(fp, "AfBy2 %s\n", print_flags(ch->affected_by2));
+	fprintf(fp, "Act  %s\n", print_flags(ch->act[0]));
+	fprintf(fp, "Act2 %s\n", print_flags(ch->act[1]));
+	fprintf(fp, "AfBy %s\n", print_flags(ch->affected_by[0]));
+	fprintf(fp, "AfBy2 %s\n", print_flags(ch->affected_by[1]));
 	fprintf(fp, "OffFlags %s\n", print_flags(ch->off_flags));
 	fprintf(fp, "Immune %s\n", print_flags(ch->imm_flags));
 	fprintf(fp, "ImmunePerm %s\n", print_flags(ch->imm_flags_perm));
@@ -7270,6 +7277,8 @@ OBJ_DATA *persist_load_object(FILE *fp)
 	bool good = TRUE, fMatch;
 	long values[MAX_OBJVALUES];
 
+	memset(values, 0, sizeof(values));
+
 	log_string("persist_load: #OBJECT");
 
 	WNUM_LOAD wnum = fread_widevnum(fp, 0);
@@ -7611,10 +7620,10 @@ OBJ_DATA *persist_load_object(FILE *fp)
 				break;
 			case 'E':
 				KEY("Enchanted",	obj->num_enchanted,	fread_number(fp));
-				KEY("Extra",		obj->extra_flags,	fread_number(fp));
-				KEY("Extra2",		obj->extra2_flags,	fread_number(fp));
-				KEY("Extra3",		obj->extra3_flags,	fread_number(fp));
-				KEY("Extra4",		obj->extra4_flags,	fread_number(fp));
+				KEY("Extra",		obj->extra[0],	fread_number(fp));
+				KEY("Extra2",		obj->extra[1],	fread_number(fp));
+				KEY("Extra3",		obj->extra[2],	fread_number(fp));
+				KEY("Extra4",		obj->extra[3],	fread_number(fp));
 				if ( !str_cmp(word,"ExDe") ) {
 					EXTRA_DESCR_DATA *ed;
 
@@ -7727,10 +7736,10 @@ OBJ_DATA *persist_load_object(FILE *fp)
 				KEY("OwnerShort",	obj->owner_short,			fread_string(fp));
 				break;
 			case 'P':
-				KEY("PermExtra",		obj->extra_flags_perm,	fread_number(fp));
-				KEY("PermExtra2",		obj->extra2_flags_perm,	fread_number(fp));
-				KEY("PermExtra3",		obj->extra3_flags_perm,	fread_number(fp));
-				KEY("PermExtra4",		obj->extra4_flags_perm,	fread_number(fp));
+				KEY("PermExtra",		obj->extra_perm[0],	fread_number(fp));
+				KEY("PermExtra2",		obj->extra_perm[1],	fread_number(fp));
+				KEY("PermExtra3",		obj->extra_perm[2],	fread_number(fp));
+				KEY("PermExtra4",		obj->extra_perm[3],	fread_number(fp));
 				KEY("PermWeapon",		obj->weapon_flags_perm,	fread_number(fp));
 				FKEY("Persist",		obj->persist);
 				break;
@@ -7982,10 +7991,10 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 
 					fMatch = TRUE;
 				}
-				KEY("Act",		ch->act,			fread_flag(fp));
-				KEY("Act2",		ch->act2,			fread_flag(fp));
-				KEY("AfBy",		ch->affected_by,	fread_flag(fp));
-				KEY("AfBy2",	ch->affected_by2,	fread_flag(fp));
+				KEY("Act",		ch->act[0],			fread_flag(fp));
+				KEY("Act2",		ch->act[1],			fread_flag(fp));
+				KEY("AfBy",		ch->affected_by[0],	fread_flag(fp));
+				KEY("AfBy2",	ch->affected_by[1],	fread_flag(fp));
 
 				if(IS_KEY("Affcg")) {
 					AFFECT_DATA *paf = new_affect();
