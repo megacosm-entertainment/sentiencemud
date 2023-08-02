@@ -137,6 +137,7 @@ const struct script_cmd_type obj_cmd_table[] = {
 	{ "selfdestruct",		do_opselfdestruct,		FALSE,	FALSE	},
 	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
 	{ "setposition",		scriptcmd_setposition,		TRUE,	TRUE	},
+	{ "setrace",			scriptcmd_setrace,			TRUE,	TRUE	},
 	{ "setrecall",			do_opsetrecall,			FALSE,	TRUE	},
 	{ "settimer",			do_opsettimer,			FALSE,	TRUE	},
 	{ "settitle",			scriptcmd_settitle,			TRUE,	TRUE	},

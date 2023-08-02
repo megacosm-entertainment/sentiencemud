@@ -4980,8 +4980,60 @@ SCRIPT_CMD(scriptcmd_setclass)
 {
 }
 
+// SETRACE $PLAYER $RACE
+// If $PLAYER is level 0, the command requires no security.
 SCRIPT_CMD(scriptcmd_setrace)
 {
+	char *rest = argument;
+	CHAR_DATA *victim;
+	int race;
+
+	SETRETURN(0);
+
+	PARSE_ARGTYPE(MOBILE);
+	victim = arg->d.mob;
+	if (!IS_VALID(victim) || IS_NPC(victim)) return;
+
+	PARSE_ARGTYPE(STRING);
+	race = race_lookup(arg->d.str);
+
+	if (race == 0) return;
+
+	if (!race_table[race].pc_race) return;
+
+	if (victim->tot_level < 1)
+	{
+		// New player
+
+		// Can't select a remort race to start off with
+		if (pc_race_table[race].remort) return;
+	}
+	else
+	{
+		// Existing player
+
+		if (script_security < 9) return;
+
+		// Is remort, but new race isn't remort
+		if (IS_REMORT(victim) && !pc_race_table[race].remort) return;
+
+		// Isn't remort, but new race is remort
+		if (!IS_REMORT(victim) && pc_race_table[race].remort) return;
+	}
+
+
+	victim->race = race;
+	victim->affected_by_perm[0] = race_table[victim->race].aff;
+	victim->affected_by_perm[1] = race_table[victim->race].aff2;
+	victim->imm_flags_perm = race_table[victim->race].imm;
+	victim->res_flags_perm = race_table[victim->race].res;
+	victim->vuln_flags_perm = race_table[victim->race].vuln;
+	affect_fix_char(victim);
+	victim->form = race_table[victim->race].form;
+	victim->parts = race_table[victim->race].parts;
+	victim->lostparts = 0;
+
+	SETRETURN(1);
 }
 
 SCRIPT_CMD(scriptcmd_setsubclass)

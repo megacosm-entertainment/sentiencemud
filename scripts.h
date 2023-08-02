@@ -3002,6 +3002,8 @@ SCRIPT_CMD(scriptcmd_addfoodbuff);
 SCRIPT_CMD(scriptcmd_startreckoning);
 SCRIPT_CMD(scriptcmd_setposition);
 
+SCRIPT_CMD(scriptcmd_setrace);
+
 bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument);
 bool olc_varclear(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument);
 void olc_show_index_vars(BUFFER *buffer, pVARIABLE index_vars);

@@ -149,6 +149,7 @@ const struct script_cmd_type mob_cmd_table[] = {
 	{ "selfdestruct",		do_mpselfdestruct,			FALSE,	FALSE	},
 	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
 	{ "setposition",		scriptcmd_setposition,		TRUE,	TRUE	},
+	{ "setrace",			scriptcmd_setrace,			TRUE,	TRUE	},
 	{ "setrecall",			do_mpsetrecall,				FALSE,	TRUE	},
 	{ "settimer",			do_mpsettimer,				FALSE,	TRUE	},
 	{ "settitle",			scriptcmd_settitle,			TRUE,	TRUE	},

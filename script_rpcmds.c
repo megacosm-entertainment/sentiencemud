@@ -133,6 +133,7 @@ const struct script_cmd_type room_cmd_table[] = {
 	{ "saveplayer",			do_rpsaveplayer,		FALSE,	TRUE	},
 	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
 	{ "setposition",		scriptcmd_setposition,		TRUE,	TRUE	},
+	{ "setrace",			scriptcmd_setrace,			TRUE,	TRUE	},
 	{ "setrecall",			do_rpsetrecall,			FALSE,	TRUE	},
 	{ "settimer",			do_rpsettimer,			FALSE,	TRUE	},
 	{ "settitle",			scriptcmd_settitle,			TRUE,	TRUE	},
