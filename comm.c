@@ -1477,10 +1477,10 @@ bool process_output(DESCRIPTOR_DATA *d, bool fPrompt)
 			{
 				int percent;
 				char wound[100];
-				char *pbuff;
+//				char *pbuff;
 				char buf[2*MAX_STRING_LENGTH];
 				char buf2[MSL];
-				char buffer[MAX_STRING_LENGTH*2];
+				//char buffer[MAX_STRING_LENGTH*2];
 
 				if (victim->max_hit > 0)
 					percent = victim->hit * 100 / victim->max_hit;
@@ -1535,9 +1535,9 @@ bool process_output(DESCRIPTOR_DATA *d, bool fPrompt)
 
 				sprintf(buf,"{M%s %s \n\r{x", buf2, wound);
 				buf[0]	= UPPER(buf[0]);
-				pbuff	= buffer;
-				colourconv(pbuff, buf, d->character);
-				write_to_buffer(d, buffer, 0);
+//				pbuff	= buffer;
+				//colourconv(pbuff, buf, d->character);
+				write_to_buffer(d, buf, 0);
 			}
 
 
@@ -1601,8 +1601,8 @@ void bust_a_prompt(CHAR_DATA *ch)
     const char *str;
     const char *i;
     char *point, *p;
-    char *pbuff;
-    char buffer[ MAX_STRING_LENGTH*2 ];
+    //char *pbuff;
+    //char buffer[ MAX_STRING_LENGTH*2 ];
     char doors[MAX_INPUT_LENGTH];
     EXIT_DATA *pexit;
     bool found;
@@ -1887,9 +1887,9 @@ void bust_a_prompt(CHAR_DATA *ch)
          ++point, ++i;
    }
    *point	= '\0';
-   pbuff	= buffer;
-   colourconv(pbuff, buf, ch);
-   write_to_buffer(ch->desc, buffer, 0);
+   //pbuff	= buffer;
+   //colourconv(pbuff, buf, ch);
+   write_to_buffer(ch->desc, buf, 0);
 }
 
 
@@ -3459,6 +3459,7 @@ void send_to_char_bw(const char *txt, CHAR_DATA *ch)
 void send_to_char( const char *txt, CHAR_DATA *ch )
 {
     if ( txt != NULL && ch->desc != NULL )
+	{
 		if (IS_SET(ch->act, PLR_COLOUR))
 		{	
         	write_to_buffer( ch->desc, txt, strlen(txt) );
@@ -3467,7 +3468,7 @@ void send_to_char( const char *txt, CHAR_DATA *ch )
 		{
         	write_to_buffer(ch->desc, nocolour(txt), strlen_no_colours(txt));
 	    }
-
+	}
     return;
 }
 /*
@@ -3481,7 +3482,7 @@ void send_to_char(const char *txt, CHAR_DATA *ch)
     buf[0] = '\0';
     point2 = buf;
 
-    /*
+    
     if (!IS_NPC(ch) && IS_STONED(ch))
     {
 	char colchar;
@@ -3819,8 +3820,8 @@ void act_new(char *format, CHAR_DATA *ch,
     const 	char 	*str;
     char 		*i = NULL;
     char 		*point;
-    char 		*pbuff;
-    char 		buffer[ MAX_STRING_LENGTH*2 ];
+    //char 		*pbuff;
+//    char 		buffer[ MAX_STRING_LENGTH*2 ];
     char 		buf[ MAX_STRING_LENGTH   ];
     char 		fname[ MAX_INPUT_LENGTH  ];
     bool		see_all;
@@ -4000,9 +4001,9 @@ void act_new(char *format, CHAR_DATA *ch,
         /*buf[0]   = UPPER(buf[0]);*/
         sprintf(buf, "%s", upper_first(&buf[0]));
 	if (to->desc != NULL)
-	{   pbuff = buffer;
-	    colourconv(pbuff, buf, to);
-            write_to_buffer(to->desc, buffer, 0);
+	{//   pbuff = buffer;
+	    //colourconv(pbuff, buf, to);
+            write_to_buffer(to->desc, buf, 0);
 	}
 
 	else
@@ -4044,155 +4045,7 @@ void act_new(char *format, CHAR_DATA *ch,
     }
 }
 
-int colour_new(char type, CHAR_DATA *ch, char *string)
-{
-	const char ColourChar[] = { COLOUR_CHAR, '\0' };
-	const char *pCopyFrom = NULL;
-	int i = 0;
-	int j = 0;
-	bool_t bTerminate = false;
-	char code[100];
-
-
-	    switch ( string[++j] )
-         {
-            case COLOUR_CHAR: /* Two in a row display the actual character */
-               pCopyFrom = ColourChar;
-               break;
-            case 'x':
-               pCopyFrom = CLEAR;
-               break;
-            case 'r': /* dark red */
-               pCopyFrom = ColourRGB(ch->desc, "F200");
-               break;
-            case 'R': /* light red */
-               pCopyFrom = ColourRGB(ch->desc, "F500");
-               break;
-            case 'g': /* dark green */
-               pCopyFrom = ColourRGB(ch->desc, "F020");
-               break;
-            case 'G': /* light green */
-               pCopyFrom = ColourRGB(ch->desc, "F050");
-               break;
-            case 'y': /* dark yellow */
-               pCopyFrom = ColourRGB(ch->desc, "F220");
-               break;
-            case 'Y': /* light yellow */
-               pCopyFrom = ColourRGB(ch->desc, "F550");
-               break;
-            case 'b': /* dark blue */
-               pCopyFrom = ColourRGB(ch->desc, "F002");
-               break;
-            case 'B': /* light blue */
-               pCopyFrom = ColourRGB(ch->desc, "F005");
-               break;
-            case 'm': /* dark magenta */
-               pCopyFrom = ColourRGB(ch->desc, "F202");
-               break;
-            case 'M': /* light magenta */
-               pCopyFrom = ColourRGB(ch->desc, "F505");
-               break;
-            case 'c': /* dark cyan */
-               pCopyFrom = ColourRGB(ch->desc, "F022");
-               break;
-            case 'C': /* light cyan */
-               pCopyFrom = ColourRGB(ch->desc, "F055");
-               break;
-            case 'w': /* dark white */
-               pCopyFrom = ColourRGB(ch->desc, "F222");
-               break;
-            case 'W': /* light white */
-               pCopyFrom = ColourRGB(ch->desc, "F555");
-               break;
-            case 'a': /* dark azure */
-               pCopyFrom = ColourRGB(ch->desc, "F014");
-               break;
-            case 'A': /* light azure */
-               pCopyFrom = ColourRGB(ch->desc, "F025");
-               break;
-            case 'j': /* dark jade */
-               pCopyFrom = ColourRGB(ch->desc, "F031");
-               break;
-            case 'J': /* light jade */
-               pCopyFrom = ColourRGB(ch->desc, "F052");
-               break;
-            case 'l': /* dark lime */
-               pCopyFrom = ColourRGB(ch->desc, "F140");
-               break;
-            case 'L': /* light lime */
-               pCopyFrom = ColourRGB(ch->desc, "F250");
-               break;
-            case 'o': /* dark orange */
-               pCopyFrom = ColourRGB(ch->desc, "F520");
-               break;
-            case 'O': /* light orange */
-               pCopyFrom = ColourRGB(ch->desc, "F530");
-               break;
-            case 'p': /* dark pink */
-               pCopyFrom = ColourRGB(ch->desc, "F301");
-               break;
-            case 'P': /* light pink */
-               pCopyFrom = ColourRGB(ch->desc, "F502");
-               break;
-            case 't': /* dark tan */
-               pCopyFrom = ColourRGB(ch->desc, "F210");
-               break;
-            case 'T': /* light tan */
-               pCopyFrom = ColourRGB(ch->desc, "F321");
-               break;
-            case 'v': /* dark violet */
-               pCopyFrom = ColourRGB(ch->desc, "F104");
-               break;
-            case 'V': /* light violet */
-               pCopyFrom = ColourRGB(ch->desc, "F205");
-               break;
-            case '\0':
-               bTerminate = true;
-               break;
-
-            case '[':
-               if ( tolower(string[++j]) == 'f' || tolower(string[j]) == 'b' )
-               {
-                  char Buffer[8] = {'\0'};
-                  int Index = 0;
-                  bool_t bDone = false, bValid = true;
-
-                  /* Copy the 'f' (foreground) or 'b' (background) */
-                  Buffer[Index++] = string[j++];
-
-                  while ( string[j] != '\0' && !bDone && bValid )
-                  {
-                     if ( string[j] == ']' )
-                        bDone = true;
-                     else if ( Index < 4 )
-                        Buffer[Index++] = string[j++];
-                     else /* It's too long, so drop out - the colour code may still be valid */
-                        bValid = false;
-                  }
-
-                  if ( bDone && bValid )
-                     pCopyFrom = ColourRGB(ch->desc, Buffer);
-               }
-               break;
-
-            default:
-#ifdef DISPLAY_INVALID_COLOUR_CODES
-               Result[i++] = COLOUR_CHAR;
-               Result[i++] = apData[j];
-#endif /* DISPLAY_INVALID_COLOUR_CODES */
-               break;
-         }
-
-         /* Copy the colour code, if any. */
-         if ( pCopyFrom != NULL )
-         {
-            while ( *pCopyFrom != '\0' && i < MAX_OUTPUT_BUFFER )
-               *string++ = *pCopyFrom++;
-         }
-
-	return(strlen(pCopyFrom));
-}
-
+/*
 int colour(char type, CHAR_DATA *ch, char *string)
 {
 	char code[20];
@@ -4254,54 +4107,18 @@ void colourconv(char *buffer, const char *txt, CHAR_DATA *ch)
     if(ch->desc && txt)
     {
 	if(IS_SET(ch->act, PLR_COLOUR))
-	{
-	    for(point = txt ; *point ; point++)
-	    {
-		if(*point == '{')
-		{
-		    point++;
-		    if(*point == '+')
-		    	capitalize = TRUE;
-		    else {
-			    skip = colour(*point, ch, buffer);
-		    	while(skip-- > 0)
-				++buffer;
-			}
-		    continue;
+	
+		{	
+        	write_to_buffer( ch->desc, txt, strlen(txt) );
 		}
-		if( capitalize && isalpha(*point) ) {
-			*buffer = UPPER(*point);
-			capitalize = FALSE;
-		} else
-			*buffer = *point;
-		*++buffer = '\0';
-	    }
-	    *buffer = '\0';
-	}
-	else
-	{
-	    for(point = txt ; *point ; point++)
-	    {
-		if(*point == '{')
+		else
 		{
-		    point++;
-		    if(*point == '+')
-		    	capitalize = TRUE;
-
-		    continue;
-		}
-		if( capitalize && isalpha(*point) ) {
-			*buffer = UPPER(*point);
-			capitalize = FALSE;
-		} else
-			*buffer = *point;
-		*++buffer = '\0';
+        	write_to_buffer(ch->desc, nocolour(txt), strlen_no_colours(txt));
 	    }
-	    *buffer = '\0';
-	}
+	
     }
 }
-
+*/
 void printf_to_char (CHAR_DATA * ch, char *fmt, ...)
 {
     char buf[MSL];

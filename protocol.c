@@ -476,6 +476,7 @@ void ProtocolInput( descriptor_t *apDescriptor, char *apData, int aSize, char *a
                if ( strcmp(pMXPTag, "4.02") >= 0 )
                {
                   pProtocol->pVariables[eMSDP_XTERM_256_COLORS]->ValueInt = 1;
+                  pProtocol->pVariables[eMSDP_ANSI_COLORS]->ValueInt = 1;
                   pProtocol->b256Support = eYES;
                }
                else /* We know for sure that 256 colours are not supported */
@@ -511,10 +512,12 @@ void ProtocolInput( descriptor_t *apDescriptor, char *apData, int aSize, char *a
 
          if ( strcmp(pProtocol->pMXPVersion, "Unknown") )
          {
+            /*
             Write( apDescriptor, "\n" );
             sprintf( MXPBuffer, "MXP version %s detected and enabled.\r\n", 
                pProtocol->pMXPVersion );
             InfoMessage( apDescriptor, MXPBuffer );
+            */
          }
       }
       else /* In-band command */
@@ -568,14 +571,10 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
    const char MXPStop[] = ">\033[7z";
    const char LinkStart[] = "\033[1z<send>\033[7z";
    const char LinkStop[] = "\033[1z</send>\033[7z";
-   bool_t bTerminate = false, bUseMXP = false, bUseMSP = false, bColourOn = false;
-#ifdef COLOUR_CHAR
-   if (apDescriptor->character && IS_SET(apDescriptor->character->act, PLR_COLOUR))
-      bColourOn = true;
-   else
-      bColourOn = false;
+   bool_t bTerminate = false, bUseMXP = false, bUseMSP = false, bColourOn = true;
+   bColourOn = true;
 
-#endif /* COLOUR_CHAR */
+
    int i = 0, j = 0; /* Index values */
 
    protocol_t *pProtocol = apDescriptor ? apDescriptor->pProtocol : NULL;
@@ -757,14 +756,7 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
             case '!': /* Used for in-band MSP sound triggers */
                pCopyFrom = MSP;
                break;
-            case '+':
-               if (isalpha (apData[j++]))
-                  toupper(apData[j++]);
-               break;
-            case '-':
-               if (isalpha (apData[j++]))
-                  tolower(apData[j++]);
-               break;
+
             case '\0':
                bTerminate = true;
                break;
@@ -779,7 +771,6 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
                Result[i++] = *pCopyFrom++;
          }
       }
-#ifdef COLOUR_CHAR
       else if ( bColourOn && apData[j] == COLOUR_CHAR )
       {
          const char ColourChar[] = { COLOUR_CHAR, '\0' };
@@ -791,6 +782,9 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
                pCopyFrom = ColourChar;
                break;
             case 'x':
+               pCopyFrom = s_Clean;
+               break;
+            case 'X':
                pCopyFrom = s_Clean;
                break;
             case 'r': /* dark red */
@@ -830,7 +824,7 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
                pCopyFrom = ColourRGB(apDescriptor, "F055");
                break;
             case 'w': /* dark white */
-               pCopyFrom = ColourRGB(apDescriptor, "F222");
+               pCopyFrom = ColourRGB(apDescriptor, s_Clean);
                break;
             case 'W': /* light white */
                pCopyFrom = ColourRGB(apDescriptor, "F555");
@@ -877,6 +871,9 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
             case 'V': /* light violet */
                pCopyFrom = ColourRGB(apDescriptor, "F205");
                break;
+            case 'D':
+               pCopyFrom = ColourRGB(apDescriptor, "F111");
+               break;
             case '0':
                pCopyFrom = C_BK_BLACK;
                break;
@@ -910,15 +907,8 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
             case '\0':
                bTerminate = true;
                break;
-            case '+':
-               if (isalpha (apData[j++]))
-                  toupper(apData[j++]);
-               break;
-            case '-':
-               if (isalpha (apData[j++]))
-                  tolower(apData[j++]);
-               break;
-#ifdef EXTENDED_COLOUR
+
+
             case '[':
                if ( tolower(apData[++j]) == 'f' || tolower(apData[j]) == 'b' )
                {
@@ -943,7 +933,7 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
                      pCopyFrom = ColourRGB(apDescriptor, Buffer);
                }
                break;
-#endif /* EXTENDED_COLOUR */
+
             default:
 #ifdef DISPLAY_INVALID_COLOUR_CODES
                Result[i++] = COLOUR_CHAR;
@@ -959,7 +949,7 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
                Result[i++] = *pCopyFrom++;
          }
       }
-#endif /* COLOUR_CHAR */
+
       else if ( bUseMXP && apData[j] == '>' )
       {
          const char *pCopyFrom = MXPStop;
@@ -2191,23 +2181,10 @@ static void PerformSubnegotiation( descriptor_t *apDescriptor, char aCmd, char *
                 * identify it from the mud - everything prior to 1.1 claims 
                 * to be version 1.0, so we just don't know.
                 */ 
-               pProtocol->b256Support = eSOMETIMES;
+               pProtocol->b256Support = eYES;
+               pProtocol->pVariables[eMSDP_ANSI_COLORS]->ValueInt = 1;
+               pProtocol->pVariables[eMSDP_XTERM_256_COLORS]->ValueInt = 1;
 
-               if ( strlen(pClientName) > 7 )
-               {
-                  pClientName[6] = '\0';
-                  free(pProtocol->pVariables[eMSDP_CLIENT_ID]->pValueString);
-                  pProtocol->pVariables[eMSDP_CLIENT_ID]->pValueString = AllocString(pClientName);
-                  free(pProtocol->pVariables[eMSDP_CLIENT_VERSION]->pValueString);
-                  pProtocol->pVariables[eMSDP_CLIENT_VERSION]->pValueString = AllocString(pClientName+7);
-
-                  /* Mudlet 1.1 and later supports 256 colours. */
-                  if ( strcmp(pProtocol->pVariables[eMSDP_CLIENT_VERSION]->pValueString, "1.1") >= 0 )
-                  {
-                     pProtocol->pVariables[eMSDP_XTERM_256_COLORS]->ValueInt = 1;
-                     pProtocol->b256Support = eYES;
-                  }
-               }
             }
             else if ( MatchString(pClientName, "EMACS-RINZAI") || MatchString(pClientName, "MUDRAMMER") )
             {
