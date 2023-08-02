@@ -67,6 +67,7 @@ const struct script_cmd_type area_cmd_table[] = {
 	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
 	{ "remaura",			scriptcmd_remaura,			TRUE,	TRUE	},
 	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
+	{ "setposition",		scriptcmd_setposition,		TRUE,	TRUE	},
 	{ "settitle",			scriptcmd_settitle,			TRUE,	TRUE	},
 	{ "specialkey",			scriptcmd_specialkey,		FALSE,	TRUE	},
 	{ "startreckoning",		scriptcmd_startreckoning,	TRUE,	TRUE	},
@@ -121,6 +122,7 @@ const struct script_cmd_type instance_cmd_table[] = {
 	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
 	{ "remaura",			scriptcmd_remaura,			TRUE,	TRUE	},
 	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
+	{ "setposition",		scriptcmd_setposition,		TRUE,	TRUE	},
 	{ "settitle",			scriptcmd_settitle,			TRUE,	TRUE	},
 	{ "specialkey",			scriptcmd_specialkey,		FALSE,	TRUE	},
 	{ "specialrooms",		instancecmd_specialrooms,	FALSE,	TRUE	},
@@ -174,6 +176,7 @@ const struct script_cmd_type dungeon_cmd_table[] = {
 	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
 	{ "remaura",			scriptcmd_remaura,			TRUE,	TRUE	},
 	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
+	{ "setposition",		scriptcmd_setposition,		TRUE,	TRUE	},
 	{ "settitle",			scriptcmd_settitle,			TRUE,	TRUE	},
 	{ "specialexits",		dungeoncmd_specialexits,	FALSE,	TRUE	},
 	{ "specialkey",			scriptcmd_specialkey,		FALSE,	TRUE	},
@@ -1036,14 +1039,14 @@ SCRIPT_CMD(scriptcmd_applytoxin)
 }
 
 
-// ATTACH $ENTITY $TARGET $STRING[ $SILENT]
-// Attaches the $ENTITY to the given field ($STRING) on $TARGET
+// ATTACH $MOBILE $TARGET $STRING[ $STRING][ $SILENT]
+// Attaches the $MOBILE to the given field ($STRING) on $TARGET
 // Fields and what they require for ENTITY and TARGET
 // * PET: NPC, MOBILE
 // * MASTER/FOLLOWER: MOBILE, MOBILE
 // * LEADER/GROUP: MOBILE, MOBILE
 // * CART/PULL: OBJECT (Pullable), MOBILE
-// * ON: FURNITURE, MOBILE/OBJECT
+// * ON: FURNITURE, MOBILE (optional string is checked to get the compartment name)
 // * REPLY: PLAYER, MOBILE
 //
 // $SILENT is a boolean to indicate whether the action is silent
@@ -1053,10 +1056,11 @@ SCRIPT_CMD(scriptcmd_attach)
 {
 	char *rest;
 	char field[MIL];
+	char name[MIL];
+	int compartment_index = 0;
 	CHAR_DATA *entity_mob = NULL;
 	CHAR_DATA *target_mob = NULL;
 	OBJ_DATA *entity_obj = NULL;
-	OBJ_DATA *target_obj = NULL;
 
 	bool show = TRUE;
 
@@ -1077,11 +1081,10 @@ SCRIPT_CMD(scriptcmd_attach)
 		return;
 
 	if( arg->type == ENT_MOBILE ) target_mob = arg->d.mob;
-	else if( arg->type == ENT_OBJECT) target_obj = arg->d.obj;
 	else
 		return;
 
-	if (!target_mob && !target_obj)
+	if (!target_mob)
 		return;
 
 	if (!(rest = expand_argument(info,rest,arg)))
@@ -1092,6 +1095,30 @@ SCRIPT_CMD(scriptcmd_attach)
 	field[MIL] = '\0';
 
 	if(*rest) {
+		// Get the compartment name
+		if(!str_prefix(field, "on"))
+		{
+			if (!(rest = expand_argument(info,rest,arg)))
+				return;
+
+			name[0] = '\0';
+			compartment_index = 0;
+			if (arg->type == ENT_NUMBER)
+			{
+				compartment_index = arg->d.num;
+			}
+			else if( arg->type == ENT_STRING )
+			{
+				strncpy(name,arg->d.str,MIL-1);
+				name[MIL] = '\0';
+			}
+
+			if (compartment_index < 1 && name[0] == '\0') return;
+		}
+	}
+
+	if (*rest)
+	{
 		if (!(rest = expand_argument(info,rest,arg)))
 			return;
 
@@ -1106,7 +1133,7 @@ SCRIPT_CMD(scriptcmd_attach)
 			if(!str_prefix(field, "pet"))
 			{
 				// Make sure ENTITY is an NPC, and the TARGET is a MOBILE and doesn't have a pet already
-				if(!IS_NPC(entity_mob) || !target_mob || target_mob->pet != NULL)
+				if(!IS_NPC(entity_mob) || target_mob->pet != NULL)
 					return;
 
 				// $ENTITY is following someone else
@@ -1128,7 +1155,7 @@ SCRIPT_CMD(scriptcmd_attach)
 			else if(!str_prefix(field, "master") || !str_cmp(field, "follower"))
 			{
 				// Make sure ENTITY is an NPC, and the TARGET is a MOBILE
-				if(!IS_NPC(entity_mob) || !target_mob)
+				if(!IS_NPC(entity_mob))
 					return;
 
 				// $ENTITY is already following someone
@@ -1139,7 +1166,7 @@ SCRIPT_CMD(scriptcmd_attach)
 			else if(!str_prefix(field, "leader") || !str_cmp(field, "group"))
 			{
 				// Make sure ENTITY is an NPC, and the TARGET is a MOBILE and isn't aleady grouped
-				if(!IS_NPC(entity_mob) || !target_mob || target_mob->leader != NULL)
+				if(!IS_NPC(entity_mob) || target_mob->leader != NULL)
 					return;
 
 				// $ENTITY is already following someone else
@@ -1168,7 +1195,7 @@ SCRIPT_CMD(scriptcmd_attach)
 	{
 		if(!str_prefix(field,"cart") || !str_prefix(field,"pull") )
 		{
-			if( target_mob == NULL || target_mob->pulled_cart != NULL ) return;
+			if( target_mob->pulled_cart != NULL ) return;
 
 			// Already being pulled
 			if( entity_obj->pulled_by != NULL ) return;
@@ -1184,23 +1211,40 @@ SCRIPT_CMD(scriptcmd_attach)
 			// $ENTITY cannot already be on something
 			if( entity_obj->on != NULL ) return;
 
-			// $ENTITY is not furniture
-			if( entity_obj->item_type != ITEM_FURNITURE ) return;
 
-			if( target_mob != NULL )
+			// $ENTITY is not furniture
+			if( !IS_FURNITURE(entity_obj) ) return;
+
+			FURNITURE_COMPARTMENT *compartment = NULL;
+
+			if (name[0] != '\0')
 			{
-				target_mob->on = entity_obj;
+				int count;
+				char _name[MIL];
+
+				count = number_argument(name, _name);
+				ITERATOR it;
+				iterator_start(&it, FURNITURE(entity_obj)->compartments);
+				while((compartment = (FURNITURE_COMPARTMENT *)iterator_nextdata(&it)))
+				{
+					if (!is_name(_name, compartment->name) && (--count == 0))
+						break;
+				}
+				iterator_stop(&it);
 			}
-			else	// target_obj != NULL
-			{
-				target_obj->on = entity_obj;
-			}
+			else if (compartment_index > 0)
+				compartment = (FURNITURE_COMPARTMENT *)list_nthdata(FURNITURE(entity_obj)->compartments, compartment_index);
+
+			// Could not find the compartment
+			if (!compartment) return;
+
+			target_mob->on = entity_obj;
+			target_mob->on_compartment = compartment;
 		}
 
 	}
 
 	info->progs->lastreturn = 1;
-
 }
 
 
@@ -1763,7 +1807,7 @@ SCRIPT_CMD(scriptcmd_deduct)
 }
 
 
-// DETACH $ENTITY $STRING[ $SILENT]
+// DETACH $MOBILE $STRING[ $SILENT]
 // Detaches the given field ($STRING) from $ENTITY
 
 // Fields and what they require for ENTITY
@@ -1771,7 +1815,7 @@ SCRIPT_CMD(scriptcmd_deduct)
 // * MASTER/FOLLOWER: MOBILE
 // * LEADER/GROUP: MOBILE
 // * CART: MOBILE
-// * ON: MOBILE/OBJECT
+// * ON: MOBILE
 // * REPLY: MOBILE
 //
 // $SILENT is a boolean to indicate whether the action is silent
@@ -1783,7 +1827,6 @@ SCRIPT_CMD(scriptcmd_detach)
 	char *rest;
 	char field[MIL];
 	CHAR_DATA *mob = NULL;
-	OBJ_DATA *obj = NULL;
 
 	bool show = TRUE;
 
@@ -1793,11 +1836,10 @@ SCRIPT_CMD(scriptcmd_detach)
 		return;
 
 	if( arg->type == ENT_MOBILE ) mob = arg->d.mob;
-	else if( arg->type == ENT_OBJECT) obj = arg->d.obj;
 	else
 		return;
 
-	if (!mob && !obj)
+	if (!mob)
 		return;
 
 	if (!(rest = expand_argument(info,rest,arg)))
@@ -1815,12 +1857,26 @@ SCRIPT_CMD(scriptcmd_detach)
 			show = !arg->d.boolean;
 	}
 
-	if( mob )
+	if( !str_prefix(field, "pet") )
 	{
-		if( !str_prefix(field, "pet") )
-		{
-			if( mob->pet == NULL ) return;
+		if( mob->pet == NULL ) return;
 
+		if( !IS_SET(mob->pet->pIndexData->act[0], ACT_PET) )
+			REMOVE_BIT(mob->pet->act[0], ACT_PET);
+
+		if( !IS_SET(mob->pet->pIndexData->affected_by[0], AFF_CHARM) )
+			REMOVE_BIT(mob->pet->affected_by[0], AFF_CHARM);
+
+		// This will not ungroup/unfollow
+		mob->pet->comm &= ~(COMM_NOTELL|COMM_NOCHANNELS);
+		mob->pet = NULL;
+	}
+	else if(!str_prefix(field, "master") || !str_cmp(field, "follower"))
+	{
+		if( mob->master == NULL ) return;
+
+		if( mob->master->pet == mob )
+		{
 			if( !IS_SET(mob->pet->pIndexData->act[0], ACT_PET) )
 				REMOVE_BIT(mob->pet->act[0], ACT_PET);
 
@@ -1830,55 +1886,32 @@ SCRIPT_CMD(scriptcmd_detach)
 			// This will not ungroup/unfollow
 			mob->pet->comm &= ~(COMM_NOTELL|COMM_NOCHANNELS);
 			mob->pet = NULL;
+
 		}
-		else if(!str_prefix(field, "master") || !str_cmp(field, "follower"))
-		{
-			if( mob->master == NULL ) return;
 
-			if( mob->master->pet == mob )
-			{
-				if( !IS_SET(mob->pet->pIndexData->act[0], ACT_PET) )
-					REMOVE_BIT(mob->pet->act[0], ACT_PET);
-
-				if( !IS_SET(mob->pet->pIndexData->affected_by[0], AFF_CHARM) )
-					REMOVE_BIT(mob->pet->affected_by[0], AFF_CHARM);
-
-				// This will not ungroup/unfollow
-				mob->pet->comm &= ~(COMM_NOTELL|COMM_NOCHANNELS);
-				mob->pet = NULL;
-
-			}
-
-			stop_follower(mob, show);
-		}
-		else if(!str_prefix(field, "leader") || !str_cmp(field, "group"))
-		{
-			if( mob->leader == NULL ) return;
-
-			stop_grouped(mob);
-		}
-		if(!str_prefix(field,"cart") || !str_prefix(field,"pull") )
-		{
-			if( mob->pulled_cart == NULL ) return;
-
-			mob->pulled_cart->pulled_by = NULL;
-			mob->pulled_cart = NULL;
-		}
-		else if( !str_prefix(field, "on") )
-		{
-			mob->on = NULL;
-		}
-		else if( !str_prefix(field, "reply") )
-		{
-			mob->reply = NULL;
-		}
+		stop_follower(mob, show);
 	}
-	else	// obj != NULL
+	else if(!str_prefix(field, "leader") || !str_cmp(field, "group"))
 	{
-		if( !str_prefix(field, "on") )
-		{
-			obj->on = NULL;
-		}
+		if( mob->leader == NULL ) return;
+
+		stop_grouped(mob);
+	}
+	if(!str_prefix(field,"cart") || !str_prefix(field,"pull") )
+	{
+		if( mob->pulled_cart == NULL ) return;
+
+		mob->pulled_cart->pulled_by = NULL;
+		mob->pulled_cart = NULL;
+	}
+	else if( !str_prefix(field, "on") )
+	{
+		mob->on = NULL;
+		mob->on_compartment = NULL;
+	}
+	else if( !str_prefix(field, "reply") )
+	{
+		mob->reply = NULL;
 	}
 
 	info->progs->lastreturn = 1;
@@ -8815,11 +8848,38 @@ SCRIPT_CMD(scriptcmd_addfoodbuff)
 	SETRETURN(1);
 }
 
-// SETPOSITION $MOBILE $POSITION[ $FORCE(boolean)=false]
-// Attempts to set the position of the mob to the target.
-// Force is required to explicitly put it in the position without firing any triggers
+// SETPOSITION $MOBILE $POSITION
 SCRIPT_CMD(scriptcmd_setposition)
 {
+	char *rest = argument;
+	CHAR_DATA *ch;
+	int position;
+	//bool force = FALSE;
 
+	SETRETURN(-1);
+
+	if (script_security < 5) return;
+
+	PARSE_ARGTYPE(MOBILE);
+	if (!IS_VALID(arg->d.mob)) return;
+	ch = arg->d.mob;
+
+	PARSE_ARGTYPE(STRING);
+	if (!str_prefix(arg->d.str, "feign"))				position = POS_FEIGN;
+//	else if (!str_prefix(arg->d.str, "fighting"))		position = POS_FIGHTING;
+//	else if (!str_prefix(arg->d.str, "hanging"))		position = POS_HANGING;
+//	else if (!str_prefix(arg->d.str, "heldup"))			position = POS_HELDUP;
+//	else if (!str_prefix(arg->d.str, "incapacitated"))	position = POS_STUNNED;
+//	else if (!str_prefix(arg->d.str, "mortal"))			position = POS_STUNNED;
+	else if (!str_prefix(arg->d.str, "resting"))		position = POS_RESTING;
+	else if (!str_prefix(arg->d.str, "sitting"))		position = POS_SITTING;
+	else if (!str_prefix(arg->d.str, "sleeping"))		position = POS_SLEEPING;
+	else if (!str_prefix(arg->d.str, "standing"))		position = POS_STANDING;
+//	else if (!str_prefix(arg->d.str, "stunned"))		position = POS_STUNNED;
+	else
+		return;
+
+	ch->position = position;
+	SETRETURN(ch->position);
 }
 

@@ -136,6 +136,7 @@ const struct script_cmd_type token_cmd_table[] = {
 	{ "saveplayer",			do_tpsaveplayer,			FALSE,	TRUE	},
 	{ "scriptwait",			do_tpscriptwait,			TRUE,	TRUE	},
 	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
+	{ "setposition",		scriptcmd_setposition,		TRUE,	TRUE	},
 	{ "setrecall",			do_tpsetrecall,				FALSE,	TRUE	},
 	{ "settimer",			do_tpsettimer,				FALSE,	TRUE	},
 	{ "settitle",			scriptcmd_settitle,			TRUE,	TRUE	},
