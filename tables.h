@@ -223,7 +223,6 @@ extern	const	struct	flag_type	imm_flags[];
 extern	const	struct	flag_type	vuln_flags[];
 extern	const	struct	flag_type	type_flags[];
 extern	const	struct	flag_type	apply_flags[];
-extern	const	struct	flag_type	apply_flags_full[];
 extern	const	struct	flag_type	area_who_titles[];
 extern	const	struct	flag_type	area_who_display[];
 extern	const	struct	flag_type	sex_flags[];

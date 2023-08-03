@@ -5238,7 +5238,7 @@ SCRIPT_CMD(do_mpaddaffect)
 	}
 
 	switch(arg->type) {
-	case ENT_STRING: loc = flag_lookup(arg->d.str,apply_flags_full); break;
+	case ENT_STRING: loc = flag_find(arg->d.str,apply_flags); break;
 	default: return;
 	}
 
@@ -5415,7 +5415,7 @@ SCRIPT_CMD(do_mpaddaffectname)
 	}
 
 	switch(arg->type) {
-	case ENT_STRING: loc = flag_lookup(arg->d.str,apply_flags_full); break;
+	case ENT_STRING: loc = flag_find(arg->d.str,apply_flags); break;
 	default: return;
 	}
 

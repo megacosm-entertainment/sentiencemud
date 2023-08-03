@@ -3889,7 +3889,7 @@ SCRIPT_CMD(do_rpaddaffect)
 	}
 
 	switch(arg->type) {
-	case ENT_STRING: loc = flag_lookup(arg->d.str,apply_flags_full); break;
+	case ENT_STRING: loc = flag_find(arg->d.str,apply_flags); break;
 	default: return;
 	}
 
@@ -4066,7 +4066,7 @@ SCRIPT_CMD(do_rpaddaffectname)
 	}
 
 	switch(arg->type) {
-	case ENT_STRING: loc = flag_lookup(arg->d.str,apply_flags_full); break;
+	case ENT_STRING: loc = flag_find(arg->d.str,apply_flags); break;
 	default: return;
 	}
 
