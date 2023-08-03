@@ -1412,7 +1412,7 @@ void do_prompt(CHAR_DATA * ch, char *argument)
     else {
 	//if (strlen(argument) > 50)
 	//    argument[50] = '\0';
-	if (strlen_no_colours(argument) > 50)
+	if (strlen_no_colours(argument) > 100)
 	{
 		send_to_char("That prompt is too long. Must be no more than 50 characters, not counting colour codes.\n\r",ch);
 		return;

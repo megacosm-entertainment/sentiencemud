@@ -4475,7 +4475,10 @@ char *upper_first(char *arg)
     if (*arg == '\n')
 	return arg;
     else
-	if (*arg == '{')
+	if (*arg == COLOUR_CHAR && *(arg + 1) == '[')
+		*(arg + 7) = UPPER(*(arg + 7));
+	else
+	if (*arg == COLOUR_CHAR)
 	    *(arg + 2) = UPPER(*(arg + 2));
 	else
 	    *arg = UPPER(*arg);

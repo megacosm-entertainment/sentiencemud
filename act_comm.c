@@ -43,15 +43,16 @@
 #include "recycle.h"
 #include "tables.h"
 
+// Moved to merc.h
 /* This macro strips a string of colours and concantenates it into a local buffer.
-   Necesarry to avoid memory leaks. */
+   Necesarry to avoid memory leaks. 
 #define STRIP_COLOUR(string, buffer) \
 	do { \
 		char *no_colour = nocolour(string); \
 		strcat((buffer), no_colour); \
 		free_string(no_colour); \
 	} while(0)
-
+*/
 void do_clear (CHAR_DATA * ch, char *argument)
 {
 	send_to_char ("\x01B[2J\x01B[H", ch);

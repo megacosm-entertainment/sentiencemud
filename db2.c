@@ -625,21 +625,12 @@ int strlen_no_colours( const char *str )
 	for ( i = 0; str[i] != '\0'; i++ )
 	{
 
-		if (str[i] == '`' )
+		if (str[i] == COLOUR_CHAR )
 		{
 			i++;
 			if (str[i] == '[' )
 				i += 5;
-			else if(str[i] == '`')	// Double `` becomes ` when processed, but still counts as two
-				count+=2;
-			continue;
-		}
-
-		if (str[i] == '{' )		// Double {{ becomes { when processed, but still counts as two
-		{
-			i++;
-
-			if( str[i] == '{' )
+			else if(str[i] == COLOUR_CHAR)	// Double {{ becomes { when processed, but still counts as two
 				count+=2;
 			continue;
 		}
@@ -674,24 +665,14 @@ char *nocolour( const char *string )
 	int len = strlen(string);
 
 	for (i = 0, n = 0; i < len && string[i] != '\0';) {
-		if( string[i] == '{' )
-		{
-			if( string[i+1] == '{' )		// Double {{ becomes { when processed, but still counts as two
-			{
-				buf[n++] = '{';
-				buf[n++] = '{';
-			}
-
-			i+=2;
-		}
-		else if (string[i] == '`')
+		if (string[i] == COLOUR_CHAR)
 		{
 			if (string[i+1] == '[')
 				i+= 7;
-			else if(string[i+1] == '`')	// Double `` becomes ` when processed, but still counts as two
+			else if(string[i+1] == '{')	// Double {{ becomes { when processed, but still counts as two
 			{
-				buf[n++] = '`';
-				buf[n++] = '`';
+				buf[n++] = '{';
+				buf[n++] = '{';
 				i+= 2;
 			}
 			else
