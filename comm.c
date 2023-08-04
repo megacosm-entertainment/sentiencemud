@@ -114,14 +114,14 @@ extern	int	malloc_verify	args((void));
 const	char	echo_off_str	[] = { IAC, WILL, TELOPT_ECHO, '\0' };
 const	char	echo_on_str	[] = { IAC, WONT, TELOPT_ECHO, '\0' };
 const	char 	go_ahead_str	[] = { IAC, GA, '\0' };
-const   char    compress_will   [] = { IAC, WILL, TELOPT_COMPRESS2, '\0' };
-const   char    compress_do     [] = { IAC, DO, TELOPT_COMPRESS2, '\0' };
-const   char    compress_dont   [] = { IAC, DONT, TELOPT_COMPRESS2, '\0' };
+//const   char    compress_will   [] = { IAC, WILL, TELOPT_COMPRESS2, '\0' };
+//const   char    compress_do     [] = { IAC, DO, TELOPT_COMPRESS2, '\0' };
+//const   char    compress_dont   [] = { IAC, DONT, TELOPT_COMPRESS2, '\0' };
 
 /* MSP strings */
-const   char    msp_will        [] = { IAC, WILL, TELOPT_MSP, '\0' };
-const   char    msp_do          [] = { IAC, DO, TELOPT_MSP, '\0' };
-const   char    msp_dont        [] = { IAC, DONT, TELOPT_MSP, '\0' };
+//const   char    msp_will        [] = { IAC, WILL, TELOPT_MSP, '\0' };
+//const   char    msp_do          [] = { IAC, DO, TELOPT_MSP, '\0' };
+//const   char    msp_dont        [] = { IAC, DONT, TELOPT_MSP, '\0' };
 
 
 /*
@@ -1253,10 +1253,10 @@ void init_descriptor(int control)
      */
 
     /* mccp: tell the client we support compression */
-    write_to_buffer(dnew, compress_will, 0);
+//    write_to_buffer(dnew, compress_will, 0);
 
     /* msp: tell the client we support msp */
-    write_to_buffer(dnew, msp_will, 0);
+//   write_to_buffer(dnew, msp_will, 0);
 
     if (help_greeting[0] == '.')
 	write_to_buffer(dnew, help_greeting+1, 0);
@@ -1312,6 +1312,7 @@ void close_socket(DESCRIPTOR_DATA *dclose)
 	else
 	    bug("Close_socket: dclose not found.", 0);
     }
+
 
     if (dclose->out_compress) {
         deflateEnd(dclose->out_compress);
@@ -1440,7 +1441,7 @@ void read_from_buffer(DESCRIPTOR_DATA *d)
 	    --k;
 	else if (isascii(d->inbuf[i]) && isprint(d->inbuf[i]))
 	    d->incomm[k++] = d->inbuf[i];
-        else if (d->inbuf[i] == (signed char)IAC) {
+/*        else if (d->inbuf[i] == (signed char)IAC) {
             if (!memcmp(&d->inbuf[i], compress_do, strlen(compress_do))) {
                 i += strlen(compress_do) - 1;
                 compressStart(d);
@@ -1460,7 +1461,7 @@ void read_from_buffer(DESCRIPTOR_DATA *d)
                 REMOVE_BIT(d->bits, DESCRIPTOR_MSP);
             }
 
-        }
+        }*/
     }
 
     /*

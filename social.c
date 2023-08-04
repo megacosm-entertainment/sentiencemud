@@ -274,7 +274,7 @@ void do_chat_list(CHAR_DATA *ch, char *argument)
 	    "Ops");
     send_to_char(buf, ch);
 
-    line(ch, 70);
+    line(ch, NULL, 70);
 
     i = 0;
     for (chat = chat_room_list; chat != NULL; chat = chat->next)
@@ -301,7 +301,7 @@ void do_chat_list(CHAR_DATA *ch, char *argument)
     if (i == 0)
 	send_to_char("No chat rooms found.\n\r", ch);
 
-    line(ch, 70);
+    line(ch, NULL, 70);
 }
 
 

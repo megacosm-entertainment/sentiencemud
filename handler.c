@@ -4895,11 +4895,16 @@ bool is_global_mob(CHAR_DATA *mob)
 
 
 /* send a yellow line of length 'length' to a character */
-void line(CHAR_DATA *ch, int length)
+void line(CHAR_DATA *ch, char *colour, int length)
 {
     int i;
+	char buf[MAX_STRING_LENGTH];
 
-    send_to_char("{Y", ch);
+	if ( colour == NULL)
+		colour = "{Y";
+
+    sprintf(buf, "%s", colour);
+    send_to_char(buf, ch);
     for (i = 0; i < length; i++)
     {
 	send_to_char("-", ch);
