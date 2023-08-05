@@ -7212,7 +7212,7 @@ void do_vislist(CHAR_DATA *ch, char *argument)
 	}
 	else
 	{
-	    sprintf(player_name, "%s%c/%s", PLAYER_DIR, tolower(arg[0]), capitalize(arg));
+	    sprintf(player_name, "%s%c/%s", CHARACTER_DIR, tolower(arg[0]), capitalize(arg));
 	    if ((fp = fopen(player_name, "r")) == NULL)
 	    {
 		found_char = FALSE;

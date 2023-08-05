@@ -197,7 +197,7 @@ void save_char_obj(CHAR_DATA *ch)
 	
 
     fclose(fpReserve);
-	sprintf( strsave, "%s%c/%s",PLAYER_DIR,tolower(ch->name[0]),
+	sprintf( strsave, "%s%c/%s",CHARACTER_DIR,tolower(ch->name[0]),
 			 capitalize( ch->name ) );
     if ((fp = fopen(TEMP_FILE, "w")) == NULL)
     {
@@ -745,7 +745,7 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 
     #if defined(unix)
     /* decompress if .gz file exists */
-    sprintf(strsave, "%s%c/%s%s", PLAYER_DIR, tolower(name[0]), capitalize(name),".gz");
+    sprintf(strsave, "%s%c/%s%s", CHARACTER_DIR, tolower(name[0]), capitalize(name),".gz");
     if ((fp = fopen(strsave, "r")) != NULL)
     {
 		fclose(fp);
@@ -754,7 +754,7 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
     }
     #endif
 
-    sprintf(strsave, "%s%c/%s", PLAYER_DIR, tolower(name[0]), capitalize(name));
+    sprintf(strsave, "%s%c/%s", CHARACTER_DIR, tolower(name[0]), capitalize(name));
     if ((fp = fopen(strsave, "r")) != NULL) {
 		int iNest;
 

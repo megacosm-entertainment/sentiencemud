@@ -2120,7 +2120,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		}
 
 		/* Ban old names -- Gairun - 20111219 */
-		sprintf(strsave, "%s%c/%s", OLD_PLAYER_DIR, tolower(argument[0]), capitalize(argument));
+		sprintf(strsave, "%s%c/%s", OLD_CHARACTER_DIR, tolower(argument[0]), capitalize(argument));
 		if ((fp = fopen(strsave, "r")) != NULL)
 		{
 			fclose(fp);

@@ -81,7 +81,7 @@ void do_delete(CHAR_DATA *ch, char *argument)
 			send_to_char("Delete status removed.\n\r",ch);
 			ch->pcdata->confirm_delete = FALSE;
 		} else {
-			sprintf( strsave, "%s%c/%s",PLAYER_DIR,tolower(ch->name[0]),
+			sprintf( strsave, "%s%c/%s",CHARACTER_DIR,tolower(ch->name[0]),
 			capitalize( ch->name ) );
 			wiznet("$N turns $Mself into line noise.",ch,NULL,0,0,0);
 			stop_fighting(ch,TRUE);
@@ -2104,7 +2104,7 @@ void do_ignore(CHAR_DATA *ch, char *argument)
 	}
 	else
 	{
-	sprintf(player_name, "%s%c/%s", PLAYER_DIR, tolower(arg[0]), capitalize(arg));
+	sprintf(player_name, "%s%c/%s", CHARACTER_DIR, tolower(arg[0]), capitalize(arg));
 	if ((fp = fopen(player_name, "r")) == NULL)
 	{
 	found_char = FALSE;
@@ -2349,7 +2349,7 @@ void do_qlist(CHAR_DATA *ch, char *argument)
 	}
 	else
 	{
-	sprintf(player_name, "%s%c/%s", PLAYER_DIR, tolower(arg[0]), capitalize(arg));
+	sprintf(player_name, "%s%c/%s", CHARACTER_DIR, tolower(arg[0]), capitalize(arg));
 	if ((fp = fopen(player_name, "r")) == NULL)
 	{
 	found_char = FALSE;

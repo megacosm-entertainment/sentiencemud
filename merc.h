@@ -7769,9 +7769,9 @@ char *	crypt		args( ( const char *key, const char *salt ) );
  * so players can go ahead and telnet to all the other descriptors.
  * Then we close it whenever we need to open a file (e.g. a save file).
  */
-#define PLAYER_DIR      "../player/"        	/* Player files */
-#define OLD_PLAYER_DIR	"../player.old/"
-#define GOD_DIR         "../player/staff/"  		/* Staff Pfiles */
+#define CHARACTER_DIR      "../player/characters/"        	/* Player files */
+#define OLD_CHARACTER_DIR	"../player/legacy_characters/"
+#define ACCOUNT_DIR    "../player/accounts/"
 #define TEMP_FILE	"../player/romtmp"
 #define NULL_FILE	"/dev/null"		/* To reserve one stream */
 #define DATA_DIR		"../data/"
