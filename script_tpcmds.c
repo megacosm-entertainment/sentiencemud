@@ -99,7 +99,7 @@ const struct script_cmd_type token_cmd_table[] = {
 	{ "mute",				scriptcmd_mute,				FALSE,	TRUE	},
 	{ "nametrigger",			scriptcmd_nametrigger,	TRUE,	FALSE	},
 	{ "numbertrigger",			scriptcmd_numbertrigger,	TRUE,	FALSE	},
-	{ "oload",				do_tpoload,					FALSE,	TRUE	},
+	{ "oload",				scriptcmd_oload,					FALSE,	TRUE	},
 	{ "otransfer",			do_tpotransfer,				FALSE,	TRUE	},
 	{ "pageat",				scriptcmd_pageat,			FALSE,	TRUE	},
 	{ "peace",				do_tppeace,					FALSE,	FALSE	},

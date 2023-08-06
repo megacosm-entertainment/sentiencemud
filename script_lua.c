@@ -196,7 +196,7 @@ void execute_lua_script(SCRIPT_BLOCK *block)
 	{ "kill",			do_mpkill,			FALSE	},
 	{ "link",			do_mplink,			FALSE	},
 	{ "mload",			do_mpmload,			FALSE	},
-	{ "oload",			do_mpoload,			FALSE	},
+	{ "oload",			scriptcmd_oload,			FALSE	},
 	{ "otransfer",			do_mpotransfer,			FALSE	},
 	{ "peace",			do_mppeace,			FALSE	},
 	{ "prompt",			do_mpprompt,			FALSE	},

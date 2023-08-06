@@ -410,6 +410,39 @@ char *compile_entity(char *str,int type, char **store)
 			*p++ = ENTITY_VAR_BOOLEAN;
 			next_ent = ENT_BOOLEAN;
 
+		} else if(ent == ENT_RESERVED_MOBILE) {
+			if(suffix[0]) {
+				sprintf(buf,"Line %d: type suffix is only allowed for variable fields.", compile_current_line);
+				compile_error_show(buf);
+				return NULL;
+			}
+			if(!compile_variable(field,&p,type,FALSE,TRUE))
+				return NULL;
+			*p++ = ENTITY_VAR_MOBINDEX;
+			next_ent = ENT_MOBINDEX;
+
+		} else if(ent == ENT_RESERVED_OBJECT) {
+			if(suffix[0]) {
+				sprintf(buf,"Line %d: type suffix is only allowed for variable fields.", compile_current_line);
+				compile_error_show(buf);
+				return NULL;
+			}
+			if(!compile_variable(field,&p,type,FALSE,TRUE))
+				return NULL;
+			*p++ = ENTITY_VAR_OBJINDEX;
+			next_ent = ENT_OBJINDEX;
+
+		} else if(ent == ENT_RESERVED_ROOM) {
+			if(suffix[0]) {
+				sprintf(buf,"Line %d: type suffix is only allowed for variable fields.", compile_current_line);
+				compile_error_show(buf);
+				return NULL;
+			}
+			if(!compile_variable(field,&p,type,FALSE,TRUE))
+				return NULL;
+			*p++ = ENTITY_VAR_ROOM;
+			next_ent = ENT_ROOM;
+
 		} else if(ent == ENT_STRING) {
 			bool paddir = TRISTATE;		// false = padleft, true = padright
 

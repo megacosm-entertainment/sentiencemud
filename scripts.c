@@ -8584,6 +8584,7 @@ CHAR_DATA *script_mload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg,
 // OLOAD $WNUM|$OBJINDEX|$OBJECT $LEVEL[ none|room|wear|$MOBILE[ wear]|$OBJECT|$ROOM[ $VARIABLENAME]]
 OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, bool instanced)
 {
+//	char msg[MSL];
 	char buf[MIL], *rest;
 	WNUM wnum;
 	long level;
@@ -8626,6 +8627,8 @@ OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, 
 	}
 
 	if (!pObjIndex) {
+		wiznet("Bad object for script_oload",NULL,NULL,WIZ_TESTING,0,0);
+
 //		bug("*Poload - Bad vnum arg from vnum %d.", VNUM(info->);
 		return NULL;
 	}
@@ -8643,8 +8646,11 @@ OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, 
 		default: level = 0; break;
 		}
 
-		if(level <= 0 || level > get_trust(info->mob))
-			level = get_trust(info->mob);
+		if(info->mob)
+		{
+			if(level <= 0 || level > get_trust(info->mob))
+				level = get_trust(info->mob);
+		}
 
 		if(rest && *rest) {
 			argument = rest;
@@ -8699,8 +8705,10 @@ OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, 
 			}
 		}
 
-	} else
+	} else if(info->mob)
 		level = get_trust(info->mob);
+	else
+		level = 0;
 
 	obj = create_object(pObjIndex, level, TRUE);
 	if( !IS_VALID(obj) )

@@ -110,7 +110,7 @@ const struct script_cmd_type mob_cmd_table[] = {
 	{ "mute",				scriptcmd_mute,				FALSE,	TRUE	},
 	{ "nametrigger",			scriptcmd_nametrigger,	TRUE,	FALSE	},
 	{ "numbertrigger",			scriptcmd_numbertrigger,	TRUE,	FALSE	},
-	{ "oload",				do_mpoload,					FALSE,	TRUE	},
+	{ "oload",				scriptcmd_oload,					FALSE,	TRUE	},
 	{ "otransfer",			do_mpotransfer,				FALSE,	TRUE	},
 	{ "pageat",				scriptcmd_pageat,			FALSE,	TRUE	},
 	{ "peace",				do_mppeace,					FALSE,	FALSE	},

@@ -7900,9 +7900,11 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 	if (IS_NULLSTR(argument))
 	{
 		send_to_char("Syntax:  reserved {Rroom|obj|mob|rprog{x list\n\r", ch);
-		send_to_char("         reserved {Rroom|obj|mob|rprog{x set <name> <widevnum>\n\r", ch);
+		if (IS_IMPLEMENTOR(ch))
+			send_to_char("         reserved {Rroom|obj|mob|rprog{x set <name> <widevnum>\n\r", ch);
 		send_to_char("         reserved {Rarea{x list\n\r", ch);
-		send_to_char("         reserved {Rarea{x set <name> <auid>\n\r", ch);
+		if (IS_IMPLEMENTOR(ch))
+			send_to_char("         reserved {Rarea{x set <name> <auid>\n\r", ch);
 		return;
 	}
 
@@ -7917,7 +7919,8 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 		if (IS_NULLSTR(argument))
 		{
 			send_to_char("Syntax:  reserved room {Rlist{x\n\r", ch);
-			send_to_char("         reserved room {Rset{x <name> <widevnum>\n\r", ch);
+			if (IS_IMPLEMENTOR(ch))
+				send_to_char("         reserved room {Rset{x <name> <widevnum>\n\r", ch);
 			return;
 		}
 
@@ -7966,6 +7969,12 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 
 		if (!str_prefix(arg2, "set"))
 		{
+			if (!IS_IMPLEMENTOR(ch))
+			{
+				do_reserved(ch, "room");
+				return;
+			}
+
 			char arg3[MIL];
 
 			if (IS_NULLSTR(argument))
@@ -8029,7 +8038,8 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 		if (IS_NULLSTR(argument))
 		{
 			send_to_char("Syntax:  reserved rprog {Rlist{x\n\r", ch);
-			send_to_char("         reserved rprog {Rset{x <name> <widevnum>\n\r", ch);
+			if (IS_IMPLEMENTOR(ch))
+				send_to_char("         reserved rprog {Rset{x <name> <widevnum>\n\r", ch);
 			return;
 		}
 
@@ -8078,6 +8088,12 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 
 		if (!str_prefix(arg2, "set"))
 		{
+			if (!IS_IMPLEMENTOR(ch))
+			{
+				do_reserved(ch, "rprog");
+				return;
+			}
+
 			char arg3[MIL];
 
 			if (IS_NULLSTR(argument))
@@ -8141,7 +8157,8 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 		if (IS_NULLSTR(argument))
 		{
 			send_to_char("Syntax:  reserved mob {Rlist{x\n\r", ch);
-			send_to_char("         reserved mob {Rset{x <name> <widevnum>\n\r", ch);
+			if (IS_IMPLEMENTOR(ch))
+				send_to_char("         reserved mob {Rset{x <name> <widevnum>\n\r", ch);
 			return;
 		}
 
@@ -8190,6 +8207,12 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 
 		if (!str_prefix(arg2, "set"))
 		{
+			if (!IS_IMPLEMENTOR(ch))
+			{
+				do_reserved(ch, "mob");
+				return;
+			}
+
 			char arg3[MIL];
 
 			if (IS_NULLSTR(argument))
@@ -8253,7 +8276,8 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 		if (IS_NULLSTR(argument))
 		{
 			send_to_char("Syntax:  reserved obj {Rlist{x\n\r", ch);
-			send_to_char("         reserved obj {Rset{x <name> <widevnum>\n\r", ch);
+			if (IS_IMPLEMENTOR(ch))
+				send_to_char("         reserved obj {Rset{x <name> <widevnum>\n\r", ch);
 			return;
 		}
 
@@ -8302,6 +8326,12 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 
 		if (!str_prefix(arg2, "set"))
 		{
+			if (!IS_IMPLEMENTOR(ch))
+			{
+				do_reserved(ch, "obj");
+				return;
+			}
+
 			char arg3[MIL];
 
 			if (IS_NULLSTR(argument))
@@ -8366,7 +8396,8 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 		if (IS_NULLSTR(argument))
 		{
 			send_to_char("Syntax:  reserved area {Rlist{x\n\r", ch);
-			send_to_char("         reserved area {Rset{x <name> <widevnum>\n\r", ch);
+			if (IS_IMPLEMENTOR(ch))
+				send_to_char("         reserved area {Rset{x <name> <widevnum>\n\r", ch);
 			return;
 		}
 
@@ -8412,6 +8443,12 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 
 		if (!str_prefix(arg2, "set"))
 		{
+			if (!IS_IMPLEMENTOR(ch))
+			{
+				do_reserved(ch, "area");
+				return;
+			}
+
 			char arg3[MIL];
 
 			if (IS_NULLSTR(argument))

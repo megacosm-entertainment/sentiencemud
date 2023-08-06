@@ -15,9 +15,18 @@
 //#define DEBUG_MODULE
 #include "debug.h"
 
+extern RESERVED_WNUM reserved_room_wnums[];
+extern RESERVED_WNUM reserved_obj_wnums[];
+extern RESERVED_WNUM reserved_mob_wnums[];
+extern RESERVED_WNUM reserved_rprog_wnums[];
+extern RESERVED_AREA reserved_areas[];
+
 extern	LLIST *loaded_instances;
 extern	LLIST *loaded_dungeons;
 extern	LLIST *loaded_ships;
+
+RESERVED_WNUM *search_reserved(RESERVED_WNUM *reserved, char *name);
+RESERVED_AREA *search_reserved_area(char *name);
 
 char *expand_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,pVARIABLE *var);
 char *expand_string_expression(SCRIPT_VARINFO *info,char *str,BUFFER *store);
@@ -1237,6 +1246,18 @@ char *expand_entity_game(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_GAME_RELIC_MAGIC:
 		arg->type = ENT_OBJECT;
 		arg->d.obj = mana_regen_relic;
+		break;
+
+	case ENTITY_GAME_RESERVED_MOBILE:
+		arg->type = ENT_RESERVED_MOBILE;
+		break;
+
+	case ENTITY_GAME_RESERVED_OBJECT:
+		arg->type = ENT_RESERVED_OBJECT;
+		break;
+
+	case ENTITY_GAME_RESERVED_ROOM:
+		arg->type = ENT_RESERVED_ROOM;
 		break;
 
 	default: return NULL;
@@ -6001,6 +6022,88 @@ char *expand_entity_bitmatrix(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	return str+1;
 }
 
+char *expand_entity_reserved_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	switch(*str) {
+	case ESCAPE_VARIABLE:
+		arg->type = ENT_MOBINDEX;
+
+		BUFFER *buffer = new_buf();
+		str = expand_name(info,(info?*(info->var):NULL),str+1,buffer);
+		if(!str) {
+			free_buf(buffer);
+			arg->d.mobindex = NULL;
+			return NULL;
+		}
+
+		RESERVED_WNUM *reserved = search_reserved(reserved_mob_wnums, buf_string(buffer));
+		if (reserved && reserved->data)
+			arg->d.mobindex = *((MOB_INDEX_DATA **)reserved->data);
+		else
+			arg->d.mobindex = NULL;
+		free_buf(buffer);
+		break;
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_reserved_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	switch(*str) {
+	case ESCAPE_VARIABLE:
+		arg->type = ENT_OBJINDEX;
+
+		BUFFER *buffer = new_buf();
+		str = expand_name(info,(info?*(info->var):NULL),str+1,buffer);
+		if(!str) {
+			free_buf(buffer);
+			arg->d.objindex = NULL;
+			return NULL;
+		}
+
+		RESERVED_WNUM *reserved = search_reserved(reserved_obj_wnums, buf_string(buffer));
+		if (reserved && reserved->data)
+			arg->d.objindex = *((OBJ_INDEX_DATA **)reserved->data);
+		else
+			arg->d.objindex = NULL;
+		free_buf(buffer);
+		break;
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_reserved_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	switch(*str) {
+	case ESCAPE_VARIABLE:
+		arg->type = ENT_ROOM;
+
+		BUFFER *buffer = new_buf();
+		str = expand_name(info,(info?*(info->var):NULL),str+1,buffer);
+		if(!str) {
+			free_buf(buffer);
+			arg->d.room = NULL;
+			return NULL;
+		}
+
+		RESERVED_WNUM *reserved = search_reserved(reserved_room_wnums, buf_string(buffer));
+		if (reserved && reserved->data)
+			arg->d.room = *((ROOM_INDEX_DATA **)reserved->data);
+		else
+			arg->d.room = NULL;
+		free_buf(buffer);
+		break;
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+
 char *expand_entity_object_container(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 	CONTAINER_DATA *container = IS_VALID(arg->d.obj) && IS_CONTAINER(arg->d.obj) ? CONTAINER(arg->d.obj) : NULL;
@@ -6250,6 +6353,10 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case ENT_OBJECT_FURNITURE:		next = expand_entity_object_furniture(info,str,arg); break;
 		case ENT_OBJECT_LIGHT:			next = expand_entity_object_light(info,str,arg); break;
 		case ENT_OBJECT_MONEY:			next = expand_entity_object_money(info,str,arg); break;
+
+		case ENT_RESERVED_MOBILE:		next = expand_entity_reserved_mobile(info,str,arg); break;
+		case ENT_RESERVED_OBJECT:		next = expand_entity_reserved_object(info,str,arg); break;
+		case ENT_RESERVED_ROOM:			next = expand_entity_reserved_room(info,str,arg); break;
 
 		case ENT_BITVECTOR:		next = expand_entity_bitvector(info,str,arg); break;
 		case ENT_BITMATRIX:		next = expand_entity_bitmatrix(info,str,arg); break;
