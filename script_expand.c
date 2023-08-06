@@ -6254,6 +6254,83 @@ char *expand_entity_object_money(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *ar
 	return str+1;
 }
 
+ROOM_INDEX_DATA *get_portal_destination(CHAR_DATA *ch, OBJ_DATA *portal, bool allow_random);
+
+char *expand_entity_object_portal(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	OBJ_DATA *obj = arg->d.obj;
+	PORTAL_DATA *portal = IS_VALID(arg->d.obj) && IS_PORTAL(arg->d.obj) ? PORTAL(arg->d.obj) : NULL;
+
+	switch(*str) {
+	case ENTITY_OBJ_PORTAL_NAME:
+		arg->type = ENT_STRING;
+		arg->d.str = IS_VALID(portal) ? portal->name : "";
+		break;
+	
+	case ENTITY_OBJ_PORTAL_SHORT:
+		arg->type = ENT_STRING;
+		arg->d.str = IS_VALID(portal) ? portal->short_descr : "";
+		break;
+
+	case ENTITY_OBJ_PORTAL_EXIT:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = IS_VALID(portal) ? portal->flags : 0;
+		arg->d.bv.table = IS_VALID(portal) ? portal_exit_flags : NULL;
+		break;
+
+	case ENTITY_OBJ_PORTAL_FLAGS:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = IS_VALID(portal) ? portal->flags : 0;
+		arg->d.bv.table = IS_VALID(portal) ? portal_flags : NULL;
+		break;
+
+	case ENTITY_OBJ_PORTAL_TYPE:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(portal) ? portal->type : -1;
+		break;
+
+	// This is dependent upon $(enactor) being valid
+	case ENTITY_OBJ_PORTAL_DESTINATION:
+		arg->type = ENT_ROOM;
+		arg->d.room = IS_VALID(obj) ? get_portal_destination(info->ch, obj, TRUE) : NULL;
+		break;
+
+	case ENTITY_OBJ_PORTAL_PARAM0:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(portal) ? portal->params[0] : -1;
+		break;
+
+	case ENTITY_OBJ_PORTAL_PARAM1:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(portal) ? portal->params[1] : -1;
+		break;
+
+	case ENTITY_OBJ_PORTAL_PARAM2:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(portal) ? portal->params[2] : -1;
+		break;
+
+	case ENTITY_OBJ_PORTAL_PARAM3:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(portal) ? portal->params[3] : -1;
+		break;
+
+	case ENTITY_OBJ_PORTAL_PARAM4:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(portal) ? portal->params[4] : -1;
+		break;
+		
+	// TODO: LOCK STATE Entity
+	case ENTITY_OBJ_PORTAL_LOCK:
+		return NULL;
+		
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+
 char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 //	char buf[MSL];
@@ -6353,6 +6430,7 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case ENT_OBJECT_FURNITURE:		next = expand_entity_object_furniture(info,str,arg); break;
 		case ENT_OBJECT_LIGHT:			next = expand_entity_object_light(info,str,arg); break;
 		case ENT_OBJECT_MONEY:			next = expand_entity_object_money(info,str,arg); break;
+		case ENT_OBJECT_PORTAL:			next = expand_entity_object_portal(info,str,arg); break;
 
 		case ENT_RESERVED_MOBILE:		next = expand_entity_reserved_mobile(info,str,arg); break;
 		case ENT_RESERVED_OBJECT:		next = expand_entity_reserved_object(info,str,arg); break;

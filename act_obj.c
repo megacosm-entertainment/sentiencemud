@@ -134,7 +134,7 @@ void get_obj( CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container )
         act("{RYou pick up $p, but recoil in pain and drop it!{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR );
 	act("{R$n picks up $p, but recoils in pain and drops it!{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM );
 	damage( ch, ch, obj->trap_dam, 0, DAM_ENERGY, FALSE );
-	REMOVE_BIT( obj->extra[0], ITEM_TRAPPED );
+	REMOVE_BIT( obj->extra[1], ITEM_TRAPPED );
 	return;
     }
 
@@ -507,7 +507,7 @@ void do_get(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		if (IS_CONTAINER(container))
+		if (IS_CONTAINER(container) || container->item_type == ITEM_CORPSE_NPC || container->item_type == ITEM_CORPSE_PC)
 		{
 			// Look for a money object in the container
 			OBJ_DATA *money;
@@ -635,7 +635,7 @@ void do_get(CHAR_DATA *ch, char *argument)
 				act("{RYou pick up $p, but recoil in pain and drop it!{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 				act("{R$n picks up $p, but recoils in pain and drops it!{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 				damage(ch, ch, obj->trap_dam, 0, DAM_ENERGY, FALSE);
-				REMOVE_BIT(obj->extra[0], ITEM_TRAPPED);
+				REMOVE_BIT(obj->extra[1], ITEM_TRAPPED);
 				return;
 			}
 
@@ -3473,7 +3473,7 @@ void do_eat(CHAR_DATA *ch, char *argument)
 	}
 	else if (obj->item_type == ITEM_PILL)
 	{
-		obj_apply_spells(ch, obj, ch, NULL, TRIG_APPLY_AFFECT);
+		obj_apply_spells(ch, obj, ch, NULL, obj->spells, TRIG_APPLY_AFFECT);
 	}
 
 
@@ -4408,7 +4408,7 @@ void do_quaff(CHAR_DATA *ch, char *argument)
 
     //for (spell = obj->spells; spell != NULL; spell = spell->next)
 	//obj_cast_spell(spell->sn, spell->level, ch, ch, NULL);
-	obj_apply_spells(ch, obj, ch, NULL, TRIG_TOKEN_QUAFF);
+	obj_apply_spells(ch, obj, ch, NULL, obj->spells, TRIG_TOKEN_QUAFF);
 
     if (obj->value[5] <= 0)
 	extract_obj(obj);
@@ -4583,7 +4583,7 @@ void recite_end(CHAR_DATA *ch)
 		else
 		{
 			
-			obj_apply_spells(ch, scroll, victim, obj, TRIG_TOKEN_RECITE);
+			obj_apply_spells(ch, scroll, victim, obj, obj->spells, TRIG_TOKEN_RECITE);
 			//for (spell = scroll->spells; spell != NULL; spell = spell->next)
 			//	obj_cast_spell(spell->sn, spell->level, ch, victim, obj);
 			check_improve(ch,gsn_scrolls,TRUE,2);
@@ -4812,7 +4812,7 @@ void do_zap(CHAR_DATA *ch, char *argument)
 		}
 		else
 		{
-			obj_apply_spells(ch, wand, victim, obj, TRIG_TOKEN_ZAP);
+			obj_apply_spells(ch, wand, victim, obj, obj->spells, TRIG_TOKEN_ZAP);
 			//for (spell = wand->spells; spell != NULL; spell = spell->next)
 			//obj_cast_spell(spell->sn, spell->level, ch, victim, obj);
 			success = TRUE;

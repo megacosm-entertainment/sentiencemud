@@ -5419,3 +5419,87 @@ void free_money_data(MONEY_DATA *data)
     money_data_free = data;
 }
 
+
+
+
+// ===========[ PORTAL ]===========
+PORTAL_DATA *portal_data_free;
+
+PORTAL_DATA *new_portal_data()
+{
+    PORTAL_DATA *data;
+    if (portal_data_free)
+    {
+        data = portal_data_free;
+        portal_data_free = portal_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(PORTAL_DATA));
+
+    memset(data, 0, sizeof(*data));
+
+    data->name = str_dup("");
+    data->short_descr = str_dup("");
+    data->charges = -1;
+
+    VALIDATE(data);
+    return data;
+}
+
+PORTAL_DATA *copy_portal_data(PORTAL_DATA *src, bool repop)
+{
+    if (!IS_VALID(src)) return NULL;
+
+    PORTAL_DATA *data;
+    if (portal_data_free)
+    {
+        data = portal_data_free;
+        portal_data_free = portal_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(PORTAL_DATA));
+
+    data->name = str_dup(src->name);
+    data->short_descr = str_dup(src->short_descr);
+    data->exit = src->exit;
+    data->flags = src->flags;
+    data->charges = src->charges;
+    data->type = src->type;
+
+    for(int i = 0; i < MAX_PORTAL_VALUES; i++)
+        data->params[i] = src->params[i];
+
+    data->lock = copy_lock_state(src->lock);
+
+    SPELL_DATA *spell, *spell_new;
+    for(spell = data->spells;spell;spell = spell->next)
+    {
+	    if (repop || spell->repop == 100 || number_percent() < spell->repop)
+	    {
+            spell_new = new_spell();
+            spell_new->sn = spell->sn;
+            spell_new->token = spell->token;
+            spell_new->level = spell->level;
+            spell_new->repop = spell->repop;
+
+            spell_new->next = data->spells;
+            data->spells = spell_new;
+	    }
+    }
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_portal_data(PORTAL_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    free_string(data->name);
+    free_string(data->short_descr);
+    free_lock_state(data->lock);
+
+    INVALIDATE(data);
+    data->next = portal_data_free;
+    portal_data_free = data;
+}

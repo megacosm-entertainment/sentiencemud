@@ -152,6 +152,7 @@ bool obj_index_can_add_item_type(OBJ_INDEX_DATA *pObjIndex, int item_type)
 			if (item_type == ITEM_FURNITURE) return TRUE;
 			if (item_type == ITEM_JEWELRY) return TRUE;
 			if (item_type == ITEM_LIGHT) return TRUE;
+			if (item_type == ITEM_PORTAL) return TRUE;
 			return FALSE;
 
 		case ITEM_JEWELRY:
@@ -164,6 +165,7 @@ bool obj_index_can_add_item_type(OBJ_INDEX_DATA *pObjIndex, int item_type)
 			if (item_type == ITEM_CONTAINER) return TRUE;
 			if (item_type == ITEM_FURNITURE) return TRUE;
 			if (item_type == ITEM_LIGHT) return TRUE;
+			if (item_type == ITEM_PORTAL) return TRUE;
 			return FALSE;
 
 		case ITEM_FURNITURE:
@@ -171,6 +173,7 @@ bool obj_index_can_add_item_type(OBJ_INDEX_DATA *pObjIndex, int item_type)
 			if (item_type == ITEM_CONTAINER) return TRUE;
 			if (item_type == ITEM_FOUNTAIN) return TRUE;
 			if (item_type == ITEM_LIGHT) return TRUE;
+			if (item_type == ITEM_PORTAL) return TRUE;
 			return FALSE;
 
 		case ITEM_ARMOUR:
@@ -207,6 +210,8 @@ bool obj_index_can_add_item_type(OBJ_INDEX_DATA *pObjIndex, int item_type)
 			if (item_type == ITEM_LIGHT) return TRUE;
 			if (item_type == ITEM_CONTAINER) return TRUE;
 			if (item_type == ITEM_FURNITURE) return TRUE;
+			if (item_type == ITEM_PORTAL) return TRUE;
+			if (item_type == ITEM_CART) return TRUE;
 			return FALSE;
 
 		case ITEM_LIGHT:
@@ -214,6 +219,15 @@ bool obj_index_can_add_item_type(OBJ_INDEX_DATA *pObjIndex, int item_type)
 			if (item_type == ITEM_DRINK_CON) return TRUE;
 			if (item_type == ITEM_FOUNTAIN) return TRUE;
 			if (item_type == ITEM_FURNITURE) return TRUE;
+			if (item_type == ITEM_PORTAL) return TRUE;
+			return FALSE;
+
+		case ITEM_PORTAL:
+			if (item_type == ITEM_LIGHT) return TRUE;
+			if (item_type == ITEM_CONTAINER) return TRUE;
+			if (item_type == ITEM_FURNITURE) return TRUE;
+			if (item_type == ITEM_FOUNTAIN) return TRUE;
+			if (item_type == ITEM_CART) return TRUE;
 			return FALSE;
 	}
 
@@ -287,7 +301,7 @@ bool obj_oclu_ambiguous(OBJ_DATA *obj)
 			types+=list_size(FURNITURE(obj)->compartments);
 	}
 
-	// if (IS_PORTAL(obj)) types++;
+	if (IS_PORTAL(obj)) types++;
 	// if (IS_BOOK(obj)) types++;
 
 	return types > 1;
@@ -320,7 +334,12 @@ void obj_oclu_show_parts(CHAR_DATA *ch, OBJ_DATA *obj)
 		iterator_stop(&it);
 	}
 
-	// IS_PORTAL
+	if (IS_PORTAL(obj))
+	{
+		if (i > 0) send_to_char(", ", ch);
+		send_to_char(PORTAL(obj)->short_descr, ch);
+		i++;
+	}
 
 
 	if (i == 0)
@@ -378,7 +397,18 @@ bool oclu_get_context(OCLU_CONTEXT *context, OBJ_DATA *obj, char *argument)
 			if (compartment) return TRUE;
 		}
 
-		// IS_PORTAL
+		if (IS_PORTAL(obj))
+		{
+			if (is_name(arg, PORTAL(obj)->name) && (count-- == 1))
+			{
+				context->item_type = ITEM_PORTAL;
+				context->which = CONTEXT_PORTAL;
+				context->flags = &(PORTAL(obj)->exit);
+				context->label = PORTAL(obj)->short_descr;
+				context->lock = &(PORTAL(obj)->lock);
+				return TRUE;
+			}
+		}
 	}
 	// Not dealing with an ambiguous object
 	else if (!obj_oclu_ambiguous(obj))
@@ -410,7 +440,15 @@ bool oclu_get_context(OCLU_CONTEXT *context, OBJ_DATA *obj, char *argument)
 			}
 		}
 
-		// IS_PORTAL
+		if (IS_PORTAL(obj))
+		{
+			context->item_type = ITEM_PORTAL;
+			context->which = CONTEXT_PORTAL;
+			context->flags = &(PORTAL(obj)->exit);
+			context->label = PORTAL(obj)->short_descr;
+			context->lock = &(PORTAL(obj)->lock);
+			return TRUE;
+		}
 	}
 
 	return FALSE;

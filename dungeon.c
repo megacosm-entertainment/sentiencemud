@@ -1416,17 +1416,17 @@ static void __dungeon_correct_portals(DUNGEON *dng)
 	{
 		for(OBJ_DATA *obj = room->contents; obj; obj = obj->next_content)
 		{
-			if (obj->item_type == ITEM_PORTAL)
+			if (IS_PORTAL(obj))
 			{
-				switch(obj->value[3])
+				switch(PORTAL(obj)->type)
 				{
 					case GATETYPE_DUNGEON_SPECIAL:
 					{
 						ROOM_INDEX_DATA *room = NULL;
 
-						if (obj->value[5] > 0)
+						if (PORTAL(obj)->params[0] > 0)
 						{
-							room = get_dungeon_special_room(dng, obj->value[5]);
+							room = get_dungeon_special_room(dng, PORTAL(obj)->params[0]);
 						}
 
 						__dungeon_set_portal_room(obj, room);
@@ -8532,10 +8532,10 @@ OBJ_DATA *get_room_dungeon_portal(ROOM_INDEX_DATA *room, WNUM wnum)
 
 	for(obj = room->contents; obj; obj = obj->next_content)
 	{
-		if( obj->item_type == ITEM_PORTAL &&
-			obj->value[3] == GATETYPE_DUNGEON &&
+		if( IS_PORTAL(obj) &&
+			PORTAL(obj)->type == GATETYPE_DUNGEON &&
 			obj->pIndexData->area == wnum.pArea &&
-			obj->value[5] == wnum.vnum)
+			PORTAL(obj)->params[0] == wnum.vnum)
 		{
 			return obj;
 		}

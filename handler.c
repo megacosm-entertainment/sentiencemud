@@ -1137,7 +1137,6 @@ void affect_modify(CHAR_DATA *ch, AFFECT_DATA *paf, bool fAdd)
 
 	    ch->max_hit						+= mod;	break;
 	case APPLY_MOVE:          ch->max_move			+= mod;	break;
-	case APPLY_GOLD:						break;
 	case APPLY_AC:
 	    for (i = 0; i < 4; i ++)
 		ch->armour[i] += mod;
@@ -6465,7 +6464,7 @@ bool can_get_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
     if (container)
     {
 
-		if (!IS_CONTAINER(container))
+		if (!IS_CONTAINER(container) && container->item_type != ITEM_CORPSE_NPC && container->item_type != ITEM_CORPSE_PC)
 		{
 			if (!silent)
 				send_to_char("That's not a container.\n\r", ch);

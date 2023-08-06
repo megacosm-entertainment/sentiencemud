@@ -275,3 +275,7 @@ MONEY_DATA *new_money_data();
 MONEY_DATA *copy_money_data(MONEY_DATA *src);
 void free_money_data(MONEY_DATA *data);
 
+// Portal
+PORTAL_DATA *new_portal_data();
+PORTAL_DATA *copy_portal_data(PORTAL_DATA *src, bool repop);
+void free_portal_data(PORTAL_DATA *data);

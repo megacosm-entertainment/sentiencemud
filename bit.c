@@ -271,7 +271,6 @@ char *affect_loc_name( int location )
 	case APPLY_MANA:		return "mana";
 	case APPLY_HIT:			return "hp";
 	case APPLY_MOVE:		return "moves";
-	case APPLY_GOLD:		return "gold";
 	case APPLY_AC:			return "armour class";
 	case APPLY_HITROLL:		return "hit roll";
 	case APPLY_DAMROLL:		return "damage roll";
@@ -451,10 +450,8 @@ char *extra_bit_name( long extra_flags )
     if ( extra_flags & ITEM_NOREMOVE     ) strcat( buf, " noremove"     );
     if ( extra_flags & ITEM_INVENTORY    ) strcat( buf, " inventory"    );
     if ( extra_flags & ITEM_NOPURGE	 ) strcat( buf, " nopurge"	);
-    /*if ( extra_flags & ITEM_VIS_DEATH	 ) strcat( buf, " vis_death"	);*/
     if ( extra_flags & ITEM_ROT_DEATH	 ) strcat( buf, " rot_death"	);
     if ( extra_flags & ITEM_NOLOCATE	 ) strcat( buf, " no_locate"	);
-    /*if ( extra_flags & ITEM_SELL_EXTRACT ) strcat( buf, " sell_extract" );*/
     if ( extra_flags & ITEM_HIDDEN 	 ) strcat( buf, " hidden" 	);
     if ( extra_flags & ITEM_BURN_PROOF	 ) strcat( buf, " burn_proof"	);
     if ( extra_flags & ITEM_FREEZE_PROOF ) strcat( buf, " freeze_proof"	);
@@ -478,7 +475,6 @@ char *extra2_bit_name( long extra2_flags )
     if ( extra2_flags & ITEM_EMITS_LIGHT 	) strcat( buf, " emits_light" 		);
     if ( extra2_flags & ITEM_FLOAT_USER 	) strcat( buf, " float_user" 		);
     if ( extra2_flags & ITEM_SEE_HIDDEN 	) strcat( buf, " see_hidden" 		);
-    if ( extra2_flags & ITEM_WEED 			) strcat( buf, " weed"			);
     if ( extra2_flags & ITEM_SUPER_STRONG 	) strcat( buf, " super_strong" 		);
     if ( extra2_flags & ITEM_REMORT_ONLY 	) strcat( buf, " remort_only" 		);
     if ( extra2_flags & ITEM_NO_HUNT 		) strcat( buf, " no_hunt"		);

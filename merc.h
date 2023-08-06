@@ -256,6 +256,10 @@ struct sound_type {
 //  Change #1: start of adding item multi-typing
 //    FURNITURE
 
+#define VERSION_OBJECT_010  0x01000009
+//  Change #1: start of adding item multi-typing
+//    PORTAL
+
 #define VERSION_ROOM_001	0x01000001
 //  Change #1: lock states
 
@@ -265,7 +269,7 @@ struct sound_type {
 #define VERSION_DB			VERSION_DB_001
 #define VERSION_AREA		VERSION_AREA_003
 #define VERSION_MOBILE		0x01000000
-#define VERSION_OBJECT		VERSION_OBJECT_009
+#define VERSION_OBJECT		VERSION_OBJECT_010
 #define VERSION_ROOM		VERSION_ROOM_002
 #define VERSION_PLAYER		VERSION_PLAYER_005
 #define VERSION_TOKEN		0x01000000
@@ -379,6 +383,7 @@ typedef struct furniture_compartment_data FURNITURE_COMPARTMENT;
 typedef struct obj_furniture_data FURNITURE_DATA;
 typedef struct obj_light_data LIGHT_DATA;
 typedef struct obj_money_data MONEY_DATA;
+typedef struct obj_portal_data PORTAL_DATA;
 
 typedef struct olc_point_category_type POINT_CATEGORY;
 typedef struct olc_point_data OLC_POINT_DATA;
@@ -2550,15 +2555,15 @@ struct affliction_type {
 /*
  * Extra flags.
  */
-#define ITEM_GLOW		(A)
-#define ITEM_HUM		(B)
+#define ITEM_GLOW		    (A)
+#define ITEM_HUM		    (B)
 #define ITEM_NORESTRING		(C)
 #define ITEM_NOKEYRING		(D)
-#define ITEM_EVIL		(E)
-#define ITEM_INVIS		(F)
-#define ITEM_MAGIC		(G)
-#define ITEM_NODROP		(H)
-#define ITEM_BLESS		(I)
+#define ITEM_EVIL		    (E)
+#define ITEM_INVIS		    (F)
+#define ITEM_MAGIC		    (G)
+#define ITEM_NODROP		    (H)
+#define ITEM_BLESS		    (I)
 #define ITEM_ANTI_GOOD		(J)
 #define ITEM_ANTI_EVIL		(K)
 #define ITEM_ANTI_NEUTRAL	(L)
@@ -2567,54 +2572,55 @@ struct affliction_type {
 #define ITEM_NOPURGE		(O)
 #define ITEM_ROT_DEATH		(P)
 #define ITEM_NOSTEAL		(Q)
-#define ITEM_HOLY		(R)
-#define ITEM_HIDDEN		(S)
+#define ITEM_HOLY		    (R)
+#define ITEM_HIDDEN		    (S)
 #define ITEM_NOLOCATE		(T)
 #define ITEM_MELT_DROP		(U)
-/* #define ITEM_HAD_TIMER          (V)
-  #define ITEM_SELL_EXTRACT	(W) */
+//                          (V)
+//                          (W)
 #define ITEM_FREEZE_PROOF	(X)
 #define ITEM_BURN_PROOF		(Y)
 #define ITEM_NOUNCURSE		(Z)
-#define ITEM_NOSKULL	        (aa)
-#define ITEM_PLANTED	        (bb)
-#define ITEM_PERMANENT	        (cc)
-#define ITEM_SHOP_BOUGHT        (dd) /* Free */
+#define ITEM_NOSKULL	    (aa)
+#define ITEM_PLANTED	    (bb)
+#define ITEM_PERMANENT	    (cc)
+#define ITEM_SHOP_BOUGHT    (dd) /* Free */
 #define ITEM_NOQUEST		(ee)
 
 /*
  * Extra2 object flags.
  */
 #define ITEM_ALL_REMORT	 	(A)
-#define ITEM_LOCKER		(B)
+#define ITEM_LOCKER		    (B)
 #define ITEM_TRUESIGHT		(C)
-#define ITEM_SCARE		(D)
+#define ITEM_SCARE          (D)
 #define ITEM_SUSTAIN		(E)
 #define ITEM_ENCHANTED		(F)
 #define ITEM_EMITS_LIGHT	(G)
 #define ITEM_FLOAT_USER		(H)
 #define ITEM_SEE_HIDDEN		(I)
 #define ITEM_TRAPPED		(J)
-#define ITEM_WEED		(K)
+//                          (K)
 #define ITEM_SUPER_STRONG	(L)
 #define ITEM_REMORT_ONLY	(M)
 #define ITEM_NO_LORE		(N)
 #define ITEM_SELL_ONCE		(O)
 #define ITEM_NO_HUNT		(P)
-#define ITEM_NO_RESURRECT       (Q)
-#define ITEM_NO_DISCHARGE       (R)
+#define ITEM_NO_RESURRECT   (Q)
+#define ITEM_NO_DISCHARGE   (R)
 #define ITEM_NO_DONATE		(S)
-#define ITEM_KEPT		(T)
+#define ITEM_KEPT		    (T)
 #define ITEM_SINGULAR		(U)
 #define ITEM_NO_ENCHANT		(V)
 #define ITEM_NO_LOOT		(W)
-#define ITEM_NO_CONTAINER       (X)
-#define ITEM_THIRD_EYE          (Y)
-#define ITEM_UNSEEN		(Z)
-#define ITEM_BURIED		(aa)
+#define ITEM_NO_CONTAINER   (X)
+#define ITEM_THIRD_EYE      (Y)
+#define ITEM_UNSEEN		    (Z)
+#define ITEM_BURIED		    (aa)
 #define ITEM_NOLOCKER		(bb)
 #define ITEM_NOAUCTION		(cc)	/* Can't be auctioned */
 #define ITEM_KEEP_VALUE		(dd)	/* Keep value when donated */
+//                          (ee)
 
 /* Extra3 */
 
@@ -2844,7 +2850,6 @@ struct affliction_type {
 #define APPLY_MANA			12
 #define APPLY_HIT			13
 #define APPLY_MOVE			14
-#define APPLY_GOLD			15
 #define APPLY_AC			17
 #define APPLY_HITROLL			18
 #define APPLY_DAMROLL			19
@@ -2853,6 +2858,11 @@ struct affliction_type {
 #define APPLY_WEIGHT			22		/* Objects */
 #define APPLY_AGGRESSION		23		/* Mobiles */
 #define APPLY_XPBOOST           24      // Mobiles
+#define APPLY_CARRY_LIMIT       25      // Mobiles
+#define APPLY_WIELD_LIMIT       26      // Mobiles
+#define APPLY_SKILL_LEARN       27      // Mobiles
+#define APPLY_PRACTICE_GAIN     28      // Mobiles
+#define APPLY_DEFENSE           29      // Mobiles
 #define APPLY_SPELL_AFFECT		50
 
 #define APPLY_SKILL			100
@@ -4613,6 +4623,7 @@ struct obj_food_data {
 #define COMPARTMENT_CLOSED      (C)     // Compartment is closed
 #define COMPARTMENT_PUSHOPEN    (G)     // Need to push the compartment to open it
 #define COMPARTMENT_CLOSELOCK   (H)     // When you close the compartment, it locks automatically
+#define COMPARTMENT_UNDERWATER  (W)     // Compartment is considered underwater
 #define COMPARTMENT_TRANSPARENT (X)     // Compartment can show the outside or be seen into regardless if the compartment is closed
 #define COMPARTMENT_ALLOW_MOVE  (Y)     // Compartment lets you move while on it.  Will automatically take you off the furniture.
 #define COMPARTMENT_INSIDE      (Z)     // Compartment is considered inside when using it
@@ -4689,6 +4700,31 @@ struct obj_money_data {
     int gold;
 };
 
+// ===========[ PORTAL ]===========
+#define PORTAL(obj)          ((obj)->_portal)
+#define IS_PORTAL(obj)       IS_VALID(PORTAL(obj))
+
+#define MAX_PORTAL_VALUES   5
+
+struct obj_portal_data {
+    PORTAL_DATA *next;
+    bool valid;
+
+    char *name;             // Name of portal part, for use when object is multi-typed with various things where OPEN/CLOSE/LOCK/UNLOCK needs to know what to target.
+    char *short_descr;      // Display name of the portal part
+
+    long exit;              // Exit flags (uses same exit_flags)
+    long flags;             // (uses portal_flags)
+    int charges;            // (<0 = infinite)
+    int type;               // (uses portal_gatetype)
+
+    // Type specify parameters
+    long params[MAX_PORTAL_VALUES];
+
+    LOCK_STATE *lock;
+
+    SPELL_DATA *spells;
+};
 
 
 /*
@@ -4756,6 +4792,7 @@ struct	obj_index_data
     FURNITURE_DATA *_furniture;
     LIGHT_DATA *_light;
     MONEY_DATA *_money;
+    PORTAL_DATA *_portal;
 };
 
 
@@ -4850,6 +4887,7 @@ struct	obj_data
     FURNITURE_DATA *_furniture;
     LIGHT_DATA *_light;
     MONEY_DATA *_money;
+    PORTAL_DATA *_portal;
 
     SHIP_DATA		*ship;
     LLIST			*waypoints;
@@ -9793,7 +9831,7 @@ AURA_DATA *find_aura_char(CHAR_DATA *ch, char *name);
 void add_aura_to_char(CHAR_DATA *ch, char *name, char *long_descr);
 void remove_aura_from_char(CHAR_DATA *ch, char *name);
 
-void obj_apply_spells(CHAR_DATA *ch, OBJ_DATA *obj, CHAR_DATA *victim, OBJ_DATA *thing, int trigger);
+void obj_apply_spells(CHAR_DATA *ch, OBJ_DATA *obj, CHAR_DATA *victim, OBJ_DATA *thing, SPELL_DATA *spells, int trigger);
 
 bool init_scripting();
 void terminate_scripting();

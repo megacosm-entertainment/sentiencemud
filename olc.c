@@ -199,6 +199,7 @@ const struct olc_cmd_type oedit_table[] =
 	{ "next",			oedit_next				},
 	{ "oupdate",		oedit_update			},
 	{ "persist",		oedit_persist			},
+	{ "portal",			oedit_type_portal		},
 	{ "prev",			oedit_prev				},
 	{ "scriptkwd",		oedit_skeywds			},
 	{ "short",			oedit_short				},
@@ -2718,6 +2719,7 @@ void do_ocopy(CHAR_DATA *ch, char *argument)
 	FURNITURE(new_obj) = copy_furniture_data(FURNITURE(old_obj));
 	LIGHT(new_obj) = copy_light_data(LIGHT(old_obj));
 	MONEY(new_obj) = copy_money_data(MONEY(old_obj));
+	PORTAL(new_obj) = copy_portal_data(PORTAL(old_obj), TRUE);
 
 	// Only copy impsig if imp (to block cheaters)
 	if (get_trust(ch) == MAX_LEVEL)

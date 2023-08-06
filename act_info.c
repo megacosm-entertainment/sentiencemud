@@ -2301,7 +2301,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 					{
 						look_compass(ch, obj);
 					}
-					else if(obj->item_type == ITEM_PORTAL)
+					else if(IS_PORTAL(obj))
 					{
 						look_portal(ch, obj);
 					}
@@ -2523,7 +2523,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 					{
 						look_map(ch, obj);
 					}
-					else if(obj->item_type == ITEM_PORTAL)
+					else if(IS_PORTAL(obj))
 					{
 						look_portal(ch, obj);
 					}

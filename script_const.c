@@ -368,6 +368,7 @@ ENT_FIELD entity_object[] = {
 	{"furniture_data",	ENTITY_OBJ_TYPE_FURNITURE, ENT_OBJECT_FURNITURE},
 	{"light_data",	ENTITY_OBJ_TYPE_LIGHT, ENT_OBJECT_LIGHT},
 	{"money_data",	ENTITY_OBJ_TYPE_MONEY, ENT_OBJECT_MONEY},
+	{"portal_data",	ENTITY_OBJ_TYPE_PORTAL, ENT_OBJECT_PORTAL},
 	{NULL,			0,			ENT_UNKNOWN	}
 };
 
@@ -407,6 +408,24 @@ ENT_FIELD entity_object_money[] = {
 	{"silver",		ENTITY_OBJ_MONEY_SILVER,	ENT_NUMBER },
 	{"gold",		ENTITY_OBJ_MONEY_GOLD,	ENT_NUMBER },
 	{NULL,			0,			ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_object_portal[] = {
+	{"name",		ENTITY_OBJ_PORTAL_NAME,		ENT_STRING	},
+	{"short",		ENTITY_OBJ_PORTAL_SHORT,		ENT_STRING	},
+	{"flags",		ENTITY_OBJ_PORTAL_FLAGS,		ENT_BITVECTOR	},
+	{"exit",		ENTITY_OBJ_PORTAL_EXIT,			ENT_BITVECTOR	},
+	{"type",		ENTITY_OBJ_PORTAL_TYPE,			ENT_NUMBER	},
+	{"room",		ENTITY_OBJ_PORTAL_DESTINATION,	ENT_ROOM	},
+	{"target",		ENTITY_OBJ_PORTAL_DESTINATION,	ENT_ROOM	},
+	{"destination",	ENTITY_OBJ_PORTAL_DESTINATION,	ENT_ROOM	},
+	{"param0",		ENTITY_OBJ_PORTAL_PARAM0,		ENT_NUMBER		},
+	{"param1",		ENTITY_OBJ_PORTAL_PARAM1,		ENT_NUMBER		},
+	{"param2",		ENTITY_OBJ_PORTAL_PARAM2,		ENT_NUMBER		},
+	{"param3",		ENTITY_OBJ_PORTAL_PARAM3,		ENT_NUMBER		},
+	{"param4",		ENTITY_OBJ_PORTAL_PARAM4,		ENT_NUMBER		},
+	//{"lock",		ENTITY_OBJ_PORTAL_LOCK,			ENT_LOCK_STATE },
+	{NULL,			0,								ENT_UNKNOWN	}
 };
 
 ENT_FIELD entity_room[] = {
@@ -841,6 +860,7 @@ struct _entity_type_info entity_type_info[] = {
 	{ ENT_OBJECT_FURNITURE, ENT_OBJECT_FURNITURE, entity_object_furniture, FALSE},
 	{ ENT_OBJECT_LIGHT, ENT_OBJECT_LIGHT, entity_object_light, FALSE},
 	{ ENT_OBJECT_MONEY, ENT_OBJECT_MONEY, entity_object_money, FALSE},
+	{ ENT_OBJECT_PORTAL, ENT_OBJECT_PORTAL, entity_object_portal, FALSE},
 	{ ENT_UNKNOWN,		ENT_UNKNOWN,		NULL,						FALSE	},
 };
 

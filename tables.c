@@ -1137,6 +1137,7 @@ const struct flag_type portal_exit_flags[] =
     {   "broken",		EX_BROKEN,		TRUE	},
     {   "nobash",		EX_NOBASH,		TRUE    },
     {   "walkthrough",		EX_WALKTHROUGH,		TRUE    },
+    {   "barred",       EX_BARRED,      TRUE    },
     {   "nobar",		EX_NOBAR,		TRUE    },
     {   "aerial",		EX_AERIAL,		TRUE	},
     {   "nohunt",		EX_NOHUNT,		TRUE	},

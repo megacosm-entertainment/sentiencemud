@@ -1795,18 +1795,27 @@ void fix_objects(void)
 					iterator_stop(&cit);
 				}
 
-				// IS_PORTAL
+				if (IS_PORTAL(obj))
+				{
+					if (PORTAL(obj)->lock && PORTAL(obj)->lock->key_load.vnum > 0)
+					{
+						PORTAL(obj)->lock->key_wnum.pArea = PORTAL(obj)->lock->key_load.auid > 0 ? get_area_from_uid(PORTAL(obj)->lock->key_load.auid) : pArea;
+						PORTAL(obj)->lock->key_wnum.vnum = PORTAL(obj)->lock->key_load.vnum;
+					}
+
+					for(SPELL_DATA *spell = PORTAL(obj)->spells; spell; spell = spell->next)
+					{
+						if (spell->token_load.auid > 0 && spell->token_load.vnum > 0)
+							spell->token = get_token_index_auid(spell->token_load.auid, spell->token_load.vnum);
+						else
+							spell->token = NULL;
+					}
+				}
 
 				if (obj->spells)
 				{
 					for(SPELL_DATA *spell = obj->spells; spell; spell = spell->next)
 					{
-//						log_stringf("obj %s - spell %d, %ld#%ld",
-//							widevnum_string(obj->area, obj->vnum, NULL),
-//							spell->sn,
-//							spell->token_load.auid,
-//							spell->token_load.vnum);
-
 						if (spell->token_load.auid > 0 && spell->token_load.vnum > 0)
 							spell->token = get_token_index_auid(spell->token_load.auid, spell->token_load.vnum);
 						else
@@ -3411,6 +3420,7 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects,
 		FURNITURE(obj) = copy_furniture_data(FURNITURE(pObjIndex));
 		LIGHT(obj) = copy_light_data(LIGHT(pObjIndex));
 		MONEY(obj) = copy_money_data(MONEY(pObjIndex));
+		PORTAL(obj) = copy_portal_data(PORTAL(pObjIndex), FALSE);
 	}
 
 #if 0
@@ -7263,6 +7273,7 @@ FOOD_DATA *fread_obj_food_data(FILE *fp);
 FURNITURE_DATA *fread_obj_furniture_data(FILE *fp);
 LIGHT_DATA *fread_obj_light_data(FILE *fp);
 MONEY_DATA *fread_obj_money_data(FILE *fp);
+PORTAL_DATA *fread_obj_portal_data(FILE *fp);
 
 void fread_obj_check_version(OBJ_DATA *obj, long values[MAX_OBJVALUES]);
 
@@ -7357,6 +7368,14 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					if (IS_MONEY(obj)) free_money_data(MONEY(obj));
 
 					MONEY(obj) = fread_obj_money_data(fp);
+					fMatch = TRUE;
+					break;
+				}
+				if (!str_cmp(word, "#TYPEPORTAL"))
+				{
+					if (IS_PORTAL(obj)) free_portal_data(PORTAL(obj));
+
+					PORTAL(obj) = fread_obj_portal_data(fp);
 					fMatch = TRUE;
 					break;
 				}

@@ -1469,7 +1469,20 @@ void char_update(void)
 		// Those whose form does not breath ignore this.
 		if (!IS_NPC(ch) && !IS_SET(ch->form, FORM_NO_BREATHING) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act[1], PLR_HOLYAURA)))
 		{
+			bool underwater = FALSE;
 			if (IS_SET(ch->in_room->room_flags, ROOM_UNDERWATER))
+				underwater = TRUE;
+			
+			if (ch->on_compartment)
+			{
+				if (compartment_is_closed(ch->on_compartment))
+					underwater = FALSE;
+				
+				if (IS_SET(ch->on_compartment->flags, COMPARTMENT_UNDERWATER))
+					underwater = TRUE;
+			}
+
+			if (underwater)
 			{
 				// Check that they can survive underwater
 				if (!IS_AFFECTED(ch, AFF_SWIM) &&		// doesn't have underwater breathing spell

@@ -169,22 +169,32 @@ SPELL_FUNC(spell_nexus)
 
 	/* portal one */
 	portal = create_object(obj_index_portal,0, TRUE);
+	if (!IS_PORTAL(portal))
+	{
+		free_obj(portal);
+		send_to_char("A portal tried to form but something went wrong.\n\r", ch);
+		return TRUE;
+	}
+
 	portal->timer = 1 + level / 10;
 
 	if( to_room->wilds && IS_SET(to_room->room2_flags, ROOM_VIRTUAL_ROOM) )
 	{
-		portal->value[3] = GATETYPE_WILDS;
-		portal->value[5] = to_room->wilds->uid;
-		portal->value[6] = to_room->x;
-		portal->value[7] = to_room->y;
+		PORTAL(portal)->type = GATETYPE_WILDS;
+		PORTAL(portal)->params[0] = to_room->wilds->uid;
+		PORTAL(portal)->params[1] = to_room->x;
+		PORTAL(portal)->params[2] = to_room->y;
+		PORTAL(portal)->params[3] = 0;
+		PORTAL(portal)->params[4] = 0;
 	}
 	else
 	{
-		portal->value[3] = GATETYPE_NORMAL;
-		portal->value[5] = to_room->area->uid;
-		portal->value[6] = to_room->vnum;
-		portal->value[7] = to_room->id[0];	// If this is a clone room, these will be set
-		portal->value[8] = to_room->id[1];	// otherwise, they will be 0,0
+		PORTAL(portal)->type = GATETYPE_NORMAL;
+		PORTAL(portal)->params[0] = to_room->area->uid;
+		PORTAL(portal)->params[1] = to_room->vnum;
+		PORTAL(portal)->params[2] = to_room->id[0];	// If this is a clone room, these will be set
+		PORTAL(portal)->params[3] = to_room->id[1];	// otherwise, they will be 0,0
+		PORTAL(portal)->params[4] = 0;
 	}
 
 	obj_to_room(portal,from_room);
@@ -200,18 +210,21 @@ SPELL_FUNC(spell_nexus)
 
 		if( from_room->wilds && IS_SET(from_room->room2_flags, ROOM_VIRTUAL_ROOM) )
 		{
-			portal->value[3] = GATETYPE_WILDS;
-			portal->value[5] = from_room->wilds->uid;
-			portal->value[6] = from_room->x;
-			portal->value[7] = from_room->y;
+			PORTAL(portal)->type = GATETYPE_WILDS;
+			PORTAL(portal)->params[0] = from_room->wilds->uid;
+			PORTAL(portal)->params[1] = from_room->x;
+			PORTAL(portal)->params[2] = from_room->y;
+			PORTAL(portal)->params[3] = 0;
+			PORTAL(portal)->params[4] = 0;
 		}
 		else
 		{
-			portal->value[3] = GATETYPE_NORMAL;
-			portal->value[5] = from_room->area->uid;
-			portal->value[6] = from_room->vnum;
-			portal->value[7] = from_room->id[0];	// If this is a clone room, these will be set
-			portal->value[8] = from_room->id[1];	// otherwise, they will be 0,0
+			PORTAL(portal)->type = GATETYPE_NORMAL;
+			PORTAL(portal)->params[0] = from_room->area->uid;
+			PORTAL(portal)->params[1] = from_room->vnum;
+			PORTAL(portal)->params[2] = from_room->id[0];	// If this is a clone room, these will be set
+			PORTAL(portal)->params[3] = from_room->id[1];	// otherwise, they will be 0,0
+			PORTAL(portal)->params[4] = 0;
 		}
 
 		obj_to_room(portal,to_room);

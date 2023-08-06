@@ -2426,6 +2426,27 @@ void fwrite_obj_multityping(FILE *fp, OBJ_DATA *obj)
 		fprintf(fp, "Gold %d\n", MONEY(obj)->gold);
 		fprintf(fp, "#-TYPEMONEY\n");
 	}
+
+	if (IS_PORTAL(obj))
+	{
+		fprintf(fp, "#TYPEPORTAL\n");
+		fprintf(fp, "Name %s~\n", fix_string(PORTAL(obj)->name));
+		fprintf(fp, "Short %s~\n", fix_string(PORTAL(obj)->short_descr));
+		fprintf(fp, "Exit %s\n", print_flags(PORTAL(obj)->exit));
+		fprintf(fp, "Flags %s\n", print_flags(PORTAL(obj)->flags));
+		fprintf(fp, "Type %s~\n", flag_string(portal_gatetype, PORTAL(obj)->type));
+
+		for(int i = 0; i < MAX_PORTAL_VALUES; i++)
+			fprintf(fp, "Param %d %ld\n", i, PORTAL(obj)->params[i]);
+
+		if (PORTAL(obj)->lock)
+			fwrite_lock_state(fp, PORTAL(obj)->lock);
+
+		if (PORTAL(obj)->spells != NULL)
+			save_spell(fp, PORTAL(obj)->spells);
+
+		fprintf(fp, "#-TYPEPORTAL\n");
+	}
 }
 
 
@@ -2781,7 +2802,7 @@ LOCK_STATE *fread_lock_state(FILE *fp)
 
 	lock = new_lock_state();
 
-    while (str_cmp((word = fread_word(fp)), "#-TYPECONTAINER"))
+    while (str_cmp((word = fread_word(fp)), "#-LOCK"))
 	{
 		fMatch = FALSE;
 
@@ -3217,6 +3238,143 @@ MONEY_DATA *fread_obj_money_data(FILE *fp)
 	return data;
 }
 
+PORTAL_DATA *fread_obj_portal_data(FILE *fp)
+{
+	PORTAL_DATA *data = NULL;
+	char buf[MSL];
+    char *word;
+	bool fMatch;
+
+	data = new_portal_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPEPORTAL"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+			case '#':
+				if (!str_cmp(word, "#LOCK"))
+				{
+					if (!data->lock) free_lock_state(data->lock);
+					data->lock = fread_lock_state(fp);
+					fMatch = TRUE;
+					break;
+				}
+				break;
+
+			case 'E':
+				KEY("Exit", data->exit, fread_flag(fp));
+				break;
+
+			case 'F':
+				KEY("Flags", data->flags, fread_flag(fp));
+				break;
+
+			case 'N':
+				KEYS("Name", data->name, fread_string(fp));
+				break;
+
+			case 'P':
+				if (!str_cmp(word, "Param"))
+				{
+					int p = fread_number(fp);
+					long v = fread_number(fp);
+
+					if (p >= 0 && p < MAX_PORTAL_VALUES)
+					{
+						data->params[p] = v;
+					}
+					else
+					{
+						// Complain
+					}
+
+					fMatch = TRUE;
+					break;
+				}
+				break;
+
+			case 'S':
+				KEYS("Short", data->short_descr, fread_string(fp));
+
+				if (!str_cmp(word, "SpellNew"))
+				{
+					int sn;
+
+					fMatch = TRUE;
+					if ((sn = skill_lookup(fread_string(fp))) > -1)
+					{
+						SPELL_DATA *spell = new_spell();
+						spell->sn = sn;
+						spell->token = NULL;
+						spell->level = fread_number(fp);
+						spell->repop = fread_number(fp);
+
+						// Syn - clean up bad spells on objs.
+						if (!str_cmp(skill_table[sn].name, "reserved") ||
+							!str_cmp(skill_table[sn].name, "none"))
+						{
+							// Complain
+							free_spell(spell);
+						}
+						else
+						{
+							spell->next = data->spells;
+							data->spells = spell;
+						}
+					}
+					else
+					{
+						// Complain
+					}
+				}
+
+				if (!str_cmp(word, "SpellToken"))
+				{
+					WNUM_LOAD wnum = fread_widevnum(fp, 0);
+
+					fMatch = TRUE;
+					if (wnum.auid > 0 && wnum.vnum > 0)
+					{
+						SPELL_DATA *spell = new_spell();
+						spell->sn = 0;
+						spell->token_load = wnum;
+						spell->level = fread_number(fp);
+						spell->repop = fread_number(fp);
+
+						spell->next = data->spells;
+						data->spells = spell;
+					}
+					else
+					{
+						// Complain
+					}
+				}
+
+				break;
+
+			case 'T':
+				if (!str_cmp(word, "Type"))
+				{
+					data->type = flag_lookup(fread_string(fp), portal_gatetype);
+
+					fMatch = TRUE;
+					break;
+				}
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "read_object_portal_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
+
+
 void fread_obj_reset_multityping(OBJ_DATA *obj)
 {
 	free_container_data(CONTAINER(obj));	CONTAINER(obj) = NULL;
@@ -3224,6 +3382,7 @@ void fread_obj_reset_multityping(OBJ_DATA *obj)
 	free_furniture_data(FURNITURE(obj));	FURNITURE(obj) = NULL;
 	free_light_data(LIGHT(obj));			LIGHT(obj) = NULL;
 	free_money_data(MONEY(obj));			MONEY(obj) = NULL;
+	free_portal_data(PORTAL(obj));			PORTAL(obj) = NULL;
 }
 
 void fread_obj_check_version(OBJ_DATA *obj, long values[MAX_OBJVALUES])
@@ -3263,6 +3422,9 @@ void fread_obj_check_version(OBJ_DATA *obj, long values[MAX_OBJVALUES])
 			CONTAINER(obj)->flags = values[1];
 			CONTAINER(obj)->max_volume = values[3];
 			CONTAINER(obj)->weight_multiplier = values[4];
+
+			CONTAINER(obj)->lock = obj->lock;
+			obj->lock = NULL;
 		}
 		else if (obj->item_type == ITEM_WEAPON_CONTAINER)
 		{
@@ -3278,6 +3440,9 @@ void fread_obj_check_version(OBJ_DATA *obj, long values[MAX_OBJVALUES])
 			filter->item_type = ITEM_WEAPON;
 			filter->sub_type = values[1];
 			list_appendlink(CONTAINER(obj)->whitelist, filter);
+
+			CONTAINER(obj)->lock = obj->lock;
+			obj->lock = NULL;
 		}
 		else if (obj->item_type == ITEM_KEYRING)
 		{
@@ -3293,6 +3458,9 @@ void fread_obj_check_version(OBJ_DATA *obj, long values[MAX_OBJVALUES])
 			filter->item_type = ITEM_KEY;
 			filter->sub_type = -1;
 			list_appendlink(CONTAINER(obj)->whitelist, filter);
+
+			CONTAINER(obj)->lock = obj->lock;
+			obj->lock = NULL;
 		}
 	}
 
@@ -3350,6 +3518,36 @@ void fread_obj_check_version(OBJ_DATA *obj, long values[MAX_OBJVALUES])
 
 			list_appendlink(FURNITURE(obj)->compartments, compartment);
 			FURNITURE(obj)->main_compartment = 1;
+
+			compartment->lock = obj->lock;
+			obj->lock = NULL;
+		}
+	}
+
+	if (obj->version < VERSION_OBJECT_010)
+	{
+		if (obj->item_type == ITEM_PORTAL)
+		{
+			if (!IS_PORTAL(obj)) PORTAL(obj) = new_portal_data();
+
+			free_string(PORTAL(obj)->name);
+			PORTAL(obj)->name = str_dup(obj->name);
+			free_string(PORTAL(obj)->short_descr);
+			PORTAL(obj)->short_descr = str_dup(obj->short_descr);
+
+			PORTAL(obj)->charges = values[0];
+			PORTAL(obj)->exit = values[1];
+			PORTAL(obj)->flags = values[2];
+			PORTAL(obj)->type = values[3];
+
+			for(int i = 0; i < MAX_PORTAL_VALUES; i++)
+				PORTAL(obj)->params[i] = values[5 + i];
+
+			PORTAL(obj)->lock = obj->lock;
+			obj->lock = NULL;
+
+			PORTAL(obj)->spells = obj->spells;
+			obj->spells = NULL;
 		}
 	}
 
@@ -3471,6 +3669,14 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				if (IS_MONEY(obj)) free_money_data(MONEY(obj));
 
 				MONEY(obj) = fread_obj_money_data(fp);
+				fMatch = TRUE;
+				break;
+			}
+			if (!str_cmp(word, "#TYPEPORTAL"))
+			{
+				if (IS_PORTAL(obj)) free_portal_data(PORTAL(obj));
+
+				PORTAL(obj) = fread_obj_portal_data(fp);
 				fMatch = TRUE;
 				break;
 			}

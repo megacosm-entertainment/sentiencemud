@@ -332,6 +332,7 @@ DECLARE_OLC_FUN( oedit_type_food );
 DECLARE_OLC_FUN( oedit_type_furniture );
 DECLARE_OLC_FUN( oedit_type_light );
 DECLARE_OLC_FUN( oedit_type_money );
+DECLARE_OLC_FUN( oedit_type_portal );
 
 /*
  * Mobile Editor Prototypes

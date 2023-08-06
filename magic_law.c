@@ -121,7 +121,7 @@ SPELL_FUNC(spell_entrap)
 	act("$n's $p vibrates for a second, then stops.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 
 	obj->trap_dam = level + dice(get_skill(ch, sn),3);
-	SET_BIT(obj->extra[0], ITEM_TRAPPED);
+	SET_BIT(obj->extra[1], ITEM_TRAPPED);
 	return TRUE;
 }
 
