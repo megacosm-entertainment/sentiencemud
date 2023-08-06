@@ -770,6 +770,7 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
 			if(var->type == VAR_EXIT && var->_.door.r) {
 				arg->d.door.r = var->_.door.r;
 				arg->d.door.door = var->_.door.door;
+				arg->type = ENT_EXIT;
 			} else if(var->type == VAR_CLONE_DOOR) {
 				arg->d.cdoor.r = var->_.cdoor.r;
 				arg->d.cdoor.a = var->_.cdoor.a;
