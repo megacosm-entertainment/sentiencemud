@@ -132,6 +132,7 @@ const struct script_cmd_type mob_cmd_table[] = {
 	{ "queue",				do_mpqueue,					FALSE,	TRUE	},
 	{ "raisedead",			do_mpraisedead,				TRUE,	TRUE	},
 	{ "rawkill",			do_mprawkill,				FALSE,	TRUE	},
+	{ "reassign",			scriptcmd_reassign,			TRUE,	FALSE	},
 	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
 	{ "remaura",			scriptcmd_remaura,			TRUE,	TRUE	},
 	{ "remblacklist",		scriptcmd_remblacklist,		TRUE,	TRUE	},

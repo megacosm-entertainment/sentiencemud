@@ -64,6 +64,7 @@ const struct script_cmd_type area_cmd_table[] = {
 	{ "oload",				scriptcmd_oload,			FALSE,	TRUE	},
 	{ "percenttokentrigger",	scriptcmd_percenttokentrigger,	TRUE,	FALSE	},
 	{ "percenttrigger",			scriptcmd_percenttrigger,	TRUE,	FALSE	},
+	{ "reassign",			scriptcmd_reassign,			TRUE,	FALSE	},
 	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
 	{ "remaura",			scriptcmd_remaura,			TRUE,	TRUE	},
 	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
@@ -119,6 +120,7 @@ const struct script_cmd_type instance_cmd_table[] = {
 	{ "oload",				scriptcmd_oload,			FALSE,	TRUE	},
 	{ "percenttokentrigger",	scriptcmd_percenttokentrigger,	TRUE,	FALSE	},
 	{ "percenttrigger",			scriptcmd_percenttrigger,	TRUE,	FALSE	},
+	{ "reassign",			scriptcmd_reassign,			TRUE,	FALSE	},
 	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
 	{ "remaura",			scriptcmd_remaura,			TRUE,	TRUE	},
 	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
@@ -173,6 +175,7 @@ const struct script_cmd_type dungeon_cmd_table[] = {
 	{ "oload",				scriptcmd_oload,			FALSE,	TRUE	},
 	{ "percenttokentrigger",	scriptcmd_percenttokentrigger,	TRUE,	FALSE	},
 	{ "percenttrigger",			scriptcmd_percenttrigger,	TRUE,	FALSE	},
+	{ "reassign",			scriptcmd_reassign,			TRUE,	FALSE	},
 	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
 	{ "remaura",			scriptcmd_remaura,			TRUE,	TRUE	},
 	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
@@ -8935,3 +8938,67 @@ SCRIPT_CMD(scriptcmd_setposition)
 	SETRETURN(ch->position);
 }
 
+
+// REASSIGN <field> <entity>
+//
+// Fields:
+// enactor - mobile
+// victim1 - mobile
+// victim2 - mobile
+// obj1 - object
+// obj2 - object
+// target - mobile
+// random - mobile
+SCRIPT_CMD(scriptcmd_reassign)
+{
+	char *rest = argument;
+
+	if (!info) return;
+
+	SETRETURN(0);
+
+	PARSE_ARGTYPE(STRING);
+
+	if (!str_prefix(arg->d.str, "enactor"))
+	{
+		PARSE_ARGTYPE(MOBILE);
+		info->ch = arg->d.mob;
+	}
+	else if (!str_prefix(arg->d.str, "victim1"))
+	{
+		PARSE_ARGTYPE(MOBILE);
+		info->vch = arg->d.mob;
+	}
+	else if (!str_prefix(arg->d.str, "victim2"))
+	{
+		PARSE_ARGTYPE(MOBILE);
+		info->vch2 = arg->d.mob;
+	}
+	else if (!str_prefix(arg->d.str, "obj1"))
+	{
+		PARSE_ARGTYPE(OBJECT);
+		info->obj1 = arg->d.obj;
+	}
+	else if (!str_prefix(arg->d.str, "obj2"))
+	{
+		PARSE_ARGTYPE(OBJECT);
+		info->obj2 = arg->d.obj;
+	}
+	else if (!str_prefix(arg->d.str, "target"))
+	{
+		if (info->targ)
+		{
+			PARSE_ARGTYPE(MOBILE);
+			*info->targ = arg->d.mob;
+		}
+		else
+			return;
+	}
+	else if (!str_prefix(arg->d.str, "random"))
+	{
+		PARSE_ARGTYPE(MOBILE);
+		info->rch = arg->d.mob;
+	}
+
+	SETRETURN(1);
+}

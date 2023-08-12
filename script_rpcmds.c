@@ -118,6 +118,7 @@ const struct script_cmd_type room_cmd_table[] = {
 	{ "questscroll",		scriptcmd_questscroll,		FALSE,	TRUE	},
 	{ "queue",				do_rpqueue,				FALSE,	TRUE	},
 	{ "rawkill",			do_rprawkill,			FALSE,	TRUE	},
+	{ "reassign",			scriptcmd_reassign,			TRUE,	FALSE	},
 	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
 	{ "remaura",			scriptcmd_remaura,			TRUE,	TRUE	},
 	{ "remblacklist",		scriptcmd_remblacklist,		TRUE,	TRUE	},
