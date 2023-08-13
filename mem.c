@@ -3575,6 +3575,46 @@ void free_log_entry(LOG_ENTRY_DATA *log)
     free_string(log->text);
 }
 
+SCRIPT_SWITCH_CASE *new_script_switch_case(void)
+{
+    SCRIPT_SWITCH_CASE *data = alloc_mem(sizeof(SCRIPT_SWITCH_CASE));
+
+    memset(data, 0, sizeof(SCRIPT_SWITCH_CASE));
+
+    return data;
+}
+
+void free_script_switch_case(SCRIPT_SWITCH_CASE *data)
+{
+    if (data->next)
+        free_script_switch_case(data->next);
+    
+    free_mem(data, sizeof(*data));
+}
+
+SCRIPT_SWITCH *new_script_switch(int nswitch)
+{
+    SCRIPT_SWITCH *data = alloc_mem(nswitch * sizeof(SCRIPT_SWITCH));
+
+    memset(data, 0, nswitch * sizeof(*data));
+
+    return data;
+}
+
+void free_script_switch(SCRIPT_SWITCH *data, int nswitch)
+{
+    if (data && nswitch > 0)
+    {
+        for(int i = 0; i < nswitch; i++)
+        {
+            if (data[i].cases)
+                free_script_switch_case(data[i].cases);
+        }
+
+        free_mem(data, nswitch * sizeof(*data));
+    }
+}
+
 // @@@NIB : 20070123 ----------
 SCRIPT_DATA *script_freechain = NULL;
 
@@ -3596,6 +3636,8 @@ SCRIPT_DATA *new_script(void)
 	s->flags = 0;
     s->comments = &str_empty[0];
 	s->area = NULL;
+    s->n_switch_table = 0;
+    s->switch_table = NULL;
 
 	return s;
 }
@@ -3630,6 +3672,8 @@ void free_script(SCRIPT_DATA *s)
 	free_string(s->src);
 	free_string(s->name);
     free_string(s->comments);
+    free_script_switch(s->switch_table, s->n_switch_table);
+    s->switch_table = NULL;
 
 	s->next = script_freechain;
 	script_freechain = s;
