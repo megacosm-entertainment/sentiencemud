@@ -1155,10 +1155,10 @@ void init_descriptor(int control)
      */
 
     /* mccp: tell the client we support compression */
-    write_to_buffer(dnew, compress_will, 0);
+    //write_to_buffer(dnew, compress_will, 0);
 
     /* msp: tell the client we support msp */
-    write_to_buffer(dnew, msp_will, 0);
+    //write_to_buffer(dnew, msp_will, 0);
 
     if (help_greeting[0] == '.')
 	write_to_buffer(dnew, help_greeting+1, 0);
@@ -1333,6 +1333,7 @@ void read_from_buffer(DESCRIPTOR_DATA *d)
 	if (d->inbuf[i] == '\0')
 	    return;
     }
+	//log_stringf("d->inbuf: %u %d -- %s", sizeof(d->inbuf), strlen(d->inbuf), d->inbuf);
 
     /*
      * Canonical input processing.
