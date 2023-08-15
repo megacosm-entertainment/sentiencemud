@@ -5090,6 +5090,9 @@ bool str_prefix(const char *astr, const char *bstr)
 	return TRUE;
     }
 
+	// Empty strings should *never* prefix another string
+	if (!*astr) return TRUE;
+
     for (; *astr; astr++, bstr++)
     {
 	if (LOWER(*astr) != LOWER(*bstr))
