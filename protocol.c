@@ -562,7 +562,7 @@ void ProtocolInput( descriptor_t *apDescriptor, char *apData, int aSize, char *a
    strcat( apOut, CmdBuf );
 }
 
-const char *ProtocolOutput( descriptor_t *apDescriptor, char *apData, int *apLength )
+const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int *apLength )
 {
    static char Result[MAX_OUTPUT_BUFFER+1];
    const char Tab[] = "\t";
@@ -904,14 +904,6 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, char *apData, int *apLen
             case 'f':
                pCopyFrom = "\033[7m";
                break;
-            case '+':
-               if (isalpha(apData[j] + 2))
-                  UPPER(apData[j] + 2);
-               break;
-            case '-':
-               if (isalpha(apData[j] + 2))
-                  LOWER(apData[j] + 2);
-               break;
             case '\0':
                bTerminate = true;
                break;
@@ -970,6 +962,15 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, char *apData, int *apLen
       {
          /* Avoid accidental triggering of old-style MSP triggers */
          Result[i++] = '?';
+      }
+      // Special handling for {+ and {-
+      else if (apData[j-1] == '+' && apData[j-2] == COLOUR_CHAR)
+      {
+         Result[i++] = UPPER(apData[j]);
+      }
+      else if ( apData[j-1] == '-' && apData[j-2] == COLOUR_CHAR)
+      {
+         Result[i++] = LOWER(apData[j]);
       }
       else /* Just copy the character normally */
       {

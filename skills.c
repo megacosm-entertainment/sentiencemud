@@ -1662,8 +1662,9 @@ bool can_practice( CHAR_DATA *ch, int sn )
 	
 
     if (sn < 0)
+	{
         return FALSE;
-
+	}
 	entry = skill_entry_findsn(ch->sorted_skills, sn);
     this_class = get_this_class(ch, sn);
 

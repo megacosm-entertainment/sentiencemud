@@ -582,7 +582,7 @@ void ProtocolInput( descriptor_t *apDescriptor, char *apData, int aSize, char *a
  * Note that the MXP tags will automatically be removed if the user doesn't 
  * support MXP, but it's very important you remember to close the tags.
  */
-const char *ProtocolOutput( descriptor_t *apDescriptor, char *apData, int *apLength );
+const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int *apLength );
 
 /******************************************************************************
  Copyover save/load functions.
