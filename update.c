@@ -127,12 +127,13 @@ void update_handler(void)
 	msdp_update();
     }
 
-	
+	/*
     if (--pulse_gmcp <= 0)
     {
 	pulse_gmcp = PULSE_PER_SECOND;
 	gmcp_update();
     }
+	*/
     // Check to see if boosts have run out.
     for (i = 0; boost_table[i].name != NULL; i++) {
 	if (i != BOOST_RECKONING && boost_table[i].timer != 0
@@ -4056,7 +4057,18 @@ void gmcp_update( void )
 			UpdateGMCPNumber( d, GMCP_PRACTICE, d->character->practice );
 			UpdateGMCPNumber( d, GMCP_MONEY, d->character->gold );
 
-			sprintf( buf, "%ld", room->vnum );
+
+
+			if(room->wilds) {
+				sprintf (buf, "%ld, %ld",
+					room->x, room->y);
+			} else if(room->source) {
+				sprintf (buf, "%ld",
+					room->source->vnum);
+			} else {
+				sprintf(buf, "%ld", room->vnum);
+			}
+			//sprintf( buf, "%ld", room->vnum );
 			//send_to_char(buf,d->character);
 
 			if ( room && strcmp( buf, d->pProtocol->GMCPVariable[GMCP_ROOM_VNUM] ) )
@@ -4075,6 +4087,11 @@ void gmcp_update( void )
 					if ( !room->exit[i] )
 						continue;
 
+					if (room->exit[i]->wilds.x)
+					{
+						sprintf (buf, "\"%s\": \"%ld,%ld\"", exit[i], room->exit[i]->wilds.x, room->exit[i]->wilds.y);
+						strcat (buf,buf2);
+					}
 					if ( buf[0] == '\0' )
 					{
 						#ifndef COLOR_CODE_FIX
