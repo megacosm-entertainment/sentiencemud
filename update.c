@@ -127,13 +127,13 @@ void update_handler(void)
 	msdp_update();
     }
 
-	/*
+	
     if (--pulse_gmcp <= 0)
     {
 	pulse_gmcp = PULSE_PER_SECOND;
 	gmcp_update();
     }
-	*/
+	
     // Check to see if boosts have run out.
     for (i = 0; boost_table[i].name != NULL; i++) {
 	if (i != BOOST_RECKONING && boost_table[i].timer != 0
@@ -4102,7 +4102,14 @@ void gmcp_update( void )
 					}
 					else
 					{
-						sprintf( buf2, ", \"%s\": \"%ld\"", exit[i], room->exit[i]->u1.to_room->vnum );
+						if (room->wilds || room->exit[i]->wilds.x || room->exit[i]->wilds.y)
+						{
+							sprintf(buf, "\"%s\": \"%ld, %ld\"", exit[i], room->exit[i]->wilds.x, room->exit[i]->wilds.y);
+						}
+							else
+						{
+							sprintf( buf2, ", \"%s\": \"%ld\"", exit[i], room->exit[i]->u1.to_room->vnum );
+						}
 						strcat( buf, buf2 );
 					}
 				}
