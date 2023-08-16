@@ -1920,6 +1920,7 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_MOB_EQ_TATTOO_BACK:
 		arg->type = ENT_OBJECT;
 		arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_BACK);
+		break;
 	case ENTITY_MOB_EQ_LODGED_HEAD:
 		arg->type = ENT_OBJECT;
 		arg->d.obj = get_eq_char(arg->d.mob,WEAR_LODGED_HEAD);
@@ -2028,55 +2029,55 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 	case ENTITY_MOB_ACT:
 		arg->type = ENT_BITVECTOR;
-		arg->d.bv.value = arg->d.mob ? arg->d.mob->act : 0;
-		arg->d.bv.table = arg->d.mob ? (IS_NPC(arg->d.mob) ? act_flags : plr_flags) : NULL;
+		arg->d.bv.value = self ? self->act : 0;
+		arg->d.bv.table = self ? (IS_NPC(self) ? act_flags : plr_flags) : NULL;
 		break;
 
 	case ENTITY_MOB_ACT2:
 		arg->type = ENT_BITVECTOR;
-		arg->d.bv.value = arg->d.mob ? arg->d.mob->act2 : 0;
-		arg->d.bv.table = arg->d.mob ? (IS_NPC(arg->d.mob) ? act2_flags : plr2_flags) : NULL;
+		arg->d.bv.value = self ? self->act2 : 0;
+		arg->d.bv.table = self ? (IS_NPC(self) ? act2_flags : plr2_flags) : NULL;
 		break;
 
 	case ENTITY_MOB_AFFECT:
 		arg->type = ENT_BITVECTOR;
-		arg->d.bv.value = arg->d.mob ? arg->d.mob->affected_by : 0;
-		arg->d.bv.table = arg->d.mob ? affect_flags : NULL;
+		arg->d.bv.value = self ? self->affected_by : 0;
+		arg->d.bv.table = self ? affect_flags : NULL;
 		break;
 
 	case ENTITY_MOB_AFFECT2:
 		arg->type = ENT_BITVECTOR;
-		arg->d.bv.value = arg->d.mob ? arg->d.mob->affected_by2 : 0;
-		arg->d.bv.table = arg->d.mob ? affect2_flags : NULL;
+		arg->d.bv.value = self ? self->affected_by2 : 0;
+		arg->d.bv.table = self ? affect2_flags : NULL;
 		break;
 
 	case ENTITY_MOB_OFF:
 		arg->type = ENT_BITVECTOR;
-		arg->d.bv.value = (arg->d.mob && IS_NPC(arg->d.mob)) ? arg->d.mob->off_flags : 0;
-		arg->d.bv.table = (arg->d.mob && IS_NPC(arg->d.mob)) ? off_flags : NULL;
+		arg->d.bv.value = (self && IS_NPC(self)) ? self->off_flags : 0;
+		arg->d.bv.table = (self && IS_NPC(self)) ? off_flags : NULL;
 		break;
 
 	case ENTITY_MOB_IMMUNE:
 		arg->type = ENT_BITVECTOR;
-		arg->d.bv.value = arg->d.mob ? arg->d.mob->imm_flags : 0;
-		arg->d.bv.table = arg->d.mob ? imm_flags : NULL;
+		arg->d.bv.value = self ? self->imm_flags : 0;
+		arg->d.bv.table = self ? imm_flags : NULL;
 		break;
 
 	case ENTITY_MOB_RESIST:
 		arg->type = ENT_BITVECTOR;
-		arg->d.bv.value = arg->d.mob ? arg->d.mob->res_flags : 0;
-		arg->d.bv.table = arg->d.mob ? res_flags : NULL;
+		arg->d.bv.value = self ? self->res_flags : 0;
+		arg->d.bv.table = self ? res_flags : NULL;
 		break;
 
 	case ENTITY_MOB_VULN:
 		arg->type = ENT_BITVECTOR;
-		arg->d.bv.value = arg->d.mob ? arg->d.mob->vuln_flags : 0;
-		arg->d.bv.table = arg->d.mob ? vuln_flags : NULL;
+		arg->d.bv.value = self ? self->vuln_flags : 0;
+		arg->d.bv.table = self ? vuln_flags : NULL;
 		break;
 
 	case ENTITY_MOB_TEMPSTRING:
 		arg->type = ENT_STRING;
-		arg->d.str = arg->d.mob && arg->d.mob->tempstring ? arg->d.mob->tempstring : &str_empty[0];
+		arg->d.str = self && self->tempstring ? self->tempstring : &str_empty[0];
 		break;
 
 	case ENTITY_MOB_INDEX:
