@@ -339,6 +339,7 @@ bool acceptablePassword(DESCRIPTOR_DATA *d, char *pass);
 void add_possible_subclasses(CHAR_DATA *ch, char *string);
 void add_possible_races(CHAR_DATA *ch, char *string);
 
+
 #define MAX_LOGFILE		1000000
 char logfile_std[MIL];
 char logfile_err[MIL];
@@ -1154,10 +1155,10 @@ void init_descriptor(int control)
      */
 
     /* mccp: tell the client we support compression */
-    write_to_buffer(dnew, compress_will, 0);
+    //write_to_buffer(dnew, compress_will, 0);
 
     /* msp: tell the client we support msp */
-    write_to_buffer(dnew, msp_will, 0);
+    //write_to_buffer(dnew, msp_will, 0);
 
     if (help_greeting[0] == '.')
 	write_to_buffer(dnew, help_greeting+1, 0);
@@ -1332,6 +1333,7 @@ void read_from_buffer(DESCRIPTOR_DATA *d)
 	if (d->inbuf[i] == '\0')
 	    return;
     }
+	//log_stringf("d->inbuf: %u %d -- %s", sizeof(d->inbuf), strlen(d->inbuf), d->inbuf);
 
     /*
      * Canonical input processing.
@@ -1461,7 +1463,7 @@ bool process_output(DESCRIPTOR_DATA *d, bool fPrompt)
     else if (!merc_down)
     {
 		if (d->showstr_point)
-			write_to_buffer(d, "[Hit Return to continue]\n\r", 0);
+			write_to_buffer(d, "{x[Hit Return to continue]\n\r", 0);
 		else if (fPrompt && d->pString && d->connected == CON_PLAYING)
 			write_to_buffer(d, "> ", 2);
 		else if (fPrompt && d->connected == CON_PLAYING)
@@ -1476,10 +1478,10 @@ bool process_output(DESCRIPTOR_DATA *d, bool fPrompt)
 			{
 				int percent;
 				char wound[100];
-				char *pbuff;
+//				char *pbuff;
 				char buf[2*MAX_STRING_LENGTH];
 				char buf2[MSL];
-				char buffer[MAX_STRING_LENGTH*2];
+				//char buffer[MAX_STRING_LENGTH*2];
 
 				if (victim->max_hit > 0)
 					percent = victim->hit * 100 / victim->max_hit;
@@ -1534,9 +1536,9 @@ bool process_output(DESCRIPTOR_DATA *d, bool fPrompt)
 
 				sprintf(buf,"{M%s %s \n\r{x", buf2, wound);
 				buf[0]	= UPPER(buf[0]);
-				pbuff	= buffer;
-				colourconv(pbuff, buf, d->character);
-				write_to_buffer(d, buffer, 0);
+//				pbuff	= buffer;
+				//colourconv(pbuff, buf, d->character);
+				write_to_buffer(d, buf, 0);
 			}
 
 
@@ -1547,6 +1549,9 @@ bool process_output(DESCRIPTOR_DATA *d, bool fPrompt)
 
 			if (IS_SET(ch->comm, COMM_PROMPT))
 				bust_a_prompt(d->character);
+
+			if ( !d->pProtocol->bSGA )
+				write_to_buffer( d, GoAheadStr, 0 );
 
 			if (IS_SET(ch->comm,COMM_TELNET_GA))
 				write_to_buffer(d,go_ahead_str,0);
@@ -1597,8 +1602,8 @@ void bust_a_prompt(CHAR_DATA *ch)
     const char *str;
     const char *i;
     char *point, *p;
-    char *pbuff;
-    char buffer[ MAX_STRING_LENGTH*2 ];
+    //char *pbuff;
+    //char buffer[ MAX_STRING_LENGTH*2 ];
     char doors[MAX_INPUT_LENGTH];
     EXIT_DATA *pexit;
     bool found;
@@ -1883,9 +1888,9 @@ void bust_a_prompt(CHAR_DATA *ch)
          ++point, ++i;
    }
    *point	= '\0';
-   pbuff	= buffer;
-   colourconv(pbuff, buf, ch);
-   write_to_buffer(ch->desc, buffer, 0);
+   //pbuff	= buffer;
+   //colourconv(pbuff, buf, ch);
+   write_to_buffer(ch->desc, buf, 0);
 }
 
 
@@ -3451,6 +3456,23 @@ void send_to_char_bw(const char *txt, CHAR_DATA *ch)
 /*
  * Write to one char, new colour version, by Lope.
  */
+
+void send_to_char( const char *txt, CHAR_DATA *ch )
+{
+    if ( txt != NULL && ch->desc != NULL )
+	{
+		if (IS_SET(ch->act, PLR_COLOUR))
+		{	
+        	write_to_buffer( ch->desc, txt, strlen(txt) );
+		}
+		else
+		{
+        	write_to_buffer(ch->desc, nocolour(txt), strlen_no_colours(txt));
+	    }
+	}
+    return;
+}
+/*
 void send_to_char(const char *txt, CHAR_DATA *ch)
 {
     const	char 	*point;
@@ -3461,7 +3483,7 @@ void send_to_char(const char *txt, CHAR_DATA *ch)
     buf[0] = '\0';
     point2 = buf;
 
-    /*
+    
     if (!IS_NPC(ch) && IS_STONED(ch))
     {
 	char colchar;
@@ -3518,7 +3540,7 @@ void send_to_char(const char *txt, CHAR_DATA *ch)
 	point2++;
 	*point2 = '\0';
     }
-    */
+    
 
     if(txt && ch->desc)
 	{
@@ -3534,7 +3556,7 @@ void send_to_char(const char *txt, CHAR_DATA *ch)
 					if( *point == '+' )
 						capitalize = TRUE;
 					else {
-						skip = colour(*point, ch, point2);
+						skip = colour_new(*point, ch, point2);
 						point2 += skip;
 					}
 					continue;
@@ -3579,7 +3601,7 @@ void send_to_char(const char *txt, CHAR_DATA *ch)
 	}
     return;
 }
-
+*/
 
 /*
  * Send a page to one char.
@@ -3601,10 +3623,29 @@ void page_to_char_bw(const char *txt, CHAR_DATA *ch)
     show_string(ch->desc,"");
 }
 
+void page_to_char(const char *txt, CHAR_DATA *ch)
+{
+    if (txt == NULL || ch->desc == NULL)
+	return;
+
+    if (ch->lines == 0)
+    {
+	send_to_char(txt,ch);
+	return;
+    }
+
+    ch->desc->showstr_head = malloc(strlen(txt) + 1);
+    strcpy(ch->desc->showstr_head,txt);
+    ch->desc->showstr_point = ch->desc->showstr_head;
+
+    show_string(ch->desc,"");
+
+}
 
 /*
  * Page to one char, new colour version, by Lope.
  */
+/*
 void page_to_char(const char *txt, CHAR_DATA *ch)
 {
     const	char	*point;
@@ -3617,7 +3658,7 @@ void page_to_char(const char *txt, CHAR_DATA *ch)
 	{
 		bool capitalize = FALSE;
 	    if(IS_SET(ch->act, PLR_COLOUR))
-	    {
+	    {			
 			for(point = txt, len = 1 ; *point ; point++)
 				{
 				if(*point == '{')
@@ -3659,6 +3700,7 @@ void page_to_char(const char *txt, CHAR_DATA *ch)
 			strcpy(ch->desc->showstr_head, buf);
 			ch->desc->showstr_point = ch->desc->showstr_head;
 			show_string(ch->desc, "");
+			
 	    }
 	    else
 	    {
@@ -3694,6 +3736,7 @@ void page_to_char(const char *txt, CHAR_DATA *ch)
 	}
 
 }
+*/
 
 
 /* string pager */
@@ -3735,7 +3778,11 @@ void show_string(struct descriptor_data *d, char *input)
 		else if (!*scan || (show_lines > 0 && lines >= show_lines))
 		{
 			*scan = '\0';
-			write_to_buffer(d,buffer,strlen(buffer));
+			if (IS_SET(d->character->act, PLR_COLOUR))
+				write_to_buffer(d,buffer,strlen(buffer));
+			else
+				write_to_buffer(d,nocolour(buffer),strlen_no_colours(buffer));
+
 			for (chk = d->showstr_point; *chk && isspace(*chk); chk++);
 
 			if (!*chk)
@@ -3774,8 +3821,8 @@ void act_new(char *format, CHAR_DATA *ch,
     const 	char 	*str;
     char 		*i = NULL;
     char 		*point;
-    char 		*pbuff;
-    char 		buffer[ MAX_STRING_LENGTH*2 ];
+    //char 		*pbuff;
+//    char 		buffer[ MAX_STRING_LENGTH*2 ];
     char 		buf[ MAX_STRING_LENGTH   ];
     char 		fname[ MAX_INPUT_LENGTH  ];
     bool		see_all;
@@ -3955,9 +4002,9 @@ void act_new(char *format, CHAR_DATA *ch,
         /*buf[0]   = UPPER(buf[0]);*/
         sprintf(buf, "%s", upper_first(&buf[0]));
 	if (to->desc != NULL)
-	{   pbuff = buffer;
-	    colourconv(pbuff, buf, to);
-            write_to_buffer(to->desc, buffer, 0);
+	{//   pbuff = buffer;
+	    //colourconv(pbuff, buf, to);
+            write_to_buffer(to->desc, buf, 0);
 	}
 
 	else
@@ -3999,7 +4046,7 @@ void act_new(char *format, CHAR_DATA *ch,
     }
 }
 
-
+/*
 int colour(char type, CHAR_DATA *ch, char *string)
 {
 	char code[20];
@@ -4009,7 +4056,7 @@ int colour(char type, CHAR_DATA *ch, char *string)
 		log_string("Char was null in colour.");
 		return 0;
 	}
-
+ 
 	if(IS_NPC(ch) && !IS_SWITCHED(ch)) return(0);
 
 	switch(type) {
@@ -4061,54 +4108,18 @@ void colourconv(char *buffer, const char *txt, CHAR_DATA *ch)
     if(ch->desc && txt)
     {
 	if(IS_SET(ch->act, PLR_COLOUR))
-	{
-	    for(point = txt ; *point ; point++)
-	    {
-		if(*point == '{')
-		{
-		    point++;
-		    if(*point == '+')
-		    	capitalize = TRUE;
-		    else {
-			    skip = colour(*point, ch, buffer);
-		    	while(skip-- > 0)
-				++buffer;
-			}
-		    continue;
+	
+		{	
+        	write_to_buffer( ch->desc, txt, strlen(txt) );
 		}
-		if( capitalize && isalpha(*point) ) {
-			*buffer = UPPER(*point);
-			capitalize = FALSE;
-		} else
-			*buffer = *point;
-		*++buffer = '\0';
-	    }
-	    *buffer = '\0';
-	}
-	else
-	{
-	    for(point = txt ; *point ; point++)
-	    {
-		if(*point == '{')
+		else
 		{
-		    point++;
-		    if(*point == '+')
-		    	capitalize = TRUE;
-
-		    continue;
-		}
-		if( capitalize && isalpha(*point) ) {
-			*buffer = UPPER(*point);
-			capitalize = FALSE;
-		} else
-			*buffer = *point;
-		*++buffer = '\0';
+        	write_to_buffer(ch->desc, nocolour(txt), strlen_no_colours(txt));
 	    }
-	    *buffer = '\0';
-	}
+	
     }
 }
-
+*/
 void printf_to_char (CHAR_DATA * ch, char *fmt, ...)
 {
     char buf[MSL];

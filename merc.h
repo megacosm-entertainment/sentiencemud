@@ -158,7 +158,7 @@ struct sound_type {
  */
 #define	MAX_KEY_HASH		 9204
 #define MAX_STRING_LENGTH	 4608
-#define MAX_INPUT_LENGTH	 256
+#define MAX_INPUT_LENGTH	 512
 #define PAGELEN			 22
 
 #define MSL MAX_STRING_LENGTH
@@ -7332,12 +7332,13 @@ void send_to_char	args( ( const char *txt, CHAR_DATA *ch ) );
 void page_to_char	args( ( const char *txt, CHAR_DATA *ch ) );
 void act_new ( char *format, CHAR_DATA *ch, CHAR_DATA *vch, CHAR_DATA *vch2, OBJ_DATA *obj, OBJ_DATA *obj2, void *arg1, void *arg2, int type, int min_pos, CHAR_TEST char_func);
 char *stptok            args( (const char *s, char *tok, size_t toklen, char *brk));
-int	colour		args( ( char type, CHAR_DATA *ch, char *string ) );
-void	colourconv	args( ( char *buffer, const char *txt, CHAR_DATA *ch ) );
+//int	colour		args( ( char type, CHAR_DATA *ch, char *string ) );
+//void	colourconv	args( ( char *buffer, const char *txt, CHAR_DATA *ch ) );
 void	send_to_char_bw	args( ( const char *txt, CHAR_DATA *ch ) );
 void	page_to_char_bw	args( ( const char *txt, CHAR_DATA *ch ) );
 void	update_pc_timers( CHAR_DATA *ch );
 void    plogf             args( ( char * fmt, ... ) );
+
 
 /* auction.c */
 void    auction_update  args( ( void ) );
@@ -8733,5 +8734,14 @@ extern LLIST *loaded_waypoint_paths;
 
 extern int disconnect_timeout;
 extern int limbo_timeout;
+
+/* This macro strips a string of colours and concantenates it into a local buffer.
+   Necesarry to avoid memory leaks. */
+#define STRIP_COLOUR(string, buffer) \
+	do { \
+		char *no_colour = nocolour(string); \
+		strcat((buffer), no_colour); \
+		free_string(no_colour); \
+	} while(0)
 
 #endif /* !def __MERC_H__ */

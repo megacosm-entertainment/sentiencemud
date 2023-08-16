@@ -1423,7 +1423,7 @@ void do_prompt(CHAR_DATA * ch, char *argument)
     else {
 	//if (strlen(argument) > 50)
 	//    argument[50] = '\0';
-	if (strlen_no_colours(argument) > 50)
+	if (strlen_no_colours(argument) > 100)
 	{
 		send_to_char("That prompt is too long. Must be no more than 50 characters, not counting colour codes.\n\r",ch);
 		return;
@@ -4128,7 +4128,7 @@ void draw_moon(CHAR_DATA *ch,int colour)
 				{
 					char ms = moon_shadow[i][k];
 
-					if( ms == '{' || ms == COLOUR_CHAR)
+					if( ms == COLOUR_CHAR)
 						buf[j++] = ms;
 
 					buf[j++] = ms;
@@ -4166,7 +4166,7 @@ void draw_moon(CHAR_DATA *ch,int colour)
 
 				char mf = moon_face[i][k+ld];
 
-				if( mf == '{' || mf == COLOUR_CHAR )
+				if( mf == COLOUR_CHAR )
 				{
 					// Double up escaping codes
 					buf[j++] = mf;
@@ -4214,7 +4214,7 @@ void draw_moon(CHAR_DATA *ch,int colour)
 
 				char mf = moon_face[i][k];
 
-				if( mf == '{' || mf == COLOUR_CHAR )
+				if( mf == COLOUR_CHAR )
 				{
 					// Double up escaping codes
 					buf[j++] = mf;
