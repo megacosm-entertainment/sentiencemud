@@ -1297,7 +1297,10 @@ SCRIPTEDIT(scriptedit_code)
 			ret = FALSE;
 						//
 		if(pCode->edit_src == pCode->src) pCode->edit_src = str_dup(pCode->src);
+		{
+			ch->desc->skip_blank_lines = TRUE;
 			string_append(ch, &pCode->edit_src);
+		}
 		return ret;
 	}
 

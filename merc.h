@@ -1413,6 +1413,9 @@ struct	descriptor_data
     ROOM_INDEX_DATA *	input_room;
     TOKEN_DATA *	input_tok;
 
+
+    bool skip_blank_lines;       // Use this to cause the string editor to ignore empty lines when numbering them
+
     unsigned int		muted;			// All text heading to the output will be blocked
 
 };
@@ -8864,6 +8867,7 @@ void	do_buy_mount	args( ( CHAR_DATA *ch, char *argument ) );
 /* string.c */
 void	string_edit	args( ( CHAR_DATA *ch, char **pString ) );
 void    string_append   args( ( CHAR_DATA *ch, char **pString ) );
+char *  string_indent   args( ( const char *src, int indent ) );
 char *	string_replace_static	args( ( char * orig, char * old, char * new ) );
 char *	string_replace	args( ( char * orig, char * old, char * new ) );
 void    string_add      args( ( CHAR_DATA *ch, char *argument ) );
@@ -9297,6 +9301,7 @@ void iterator_start(ITERATOR *it, LLIST *lp);
 void iterator_start_nth(ITERATOR *it, LLIST *lp, int nth);
 LLIST_LINK *iterator_next(ITERATOR *it);
 void *iterator_nextdata(ITERATOR *it);
+void *iterator_prevdata(ITERATOR *it);
 void iterator_remcurrent(ITERATOR *it);
 void iterator_reset(ITERATOR *it);
 void iterator_stop(ITERATOR *it);

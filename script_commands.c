@@ -8246,10 +8246,14 @@ SCRIPT_CMD(scriptcmd_alterobj)
 	const struct flag_type *flags = NULL;
 	const struct flag_type **bank = NULL;
 	long temp_flags[4];
+	int sec_flags[4];
 
 	if(!info) return;
 
 	SETRETURN(0);
+
+	for(int i = 0; i < 4; i++)
+		sec_flags[i] = MIN_SCRIPT_SECURITY;
 
 	if(!(rest = expand_argument(info,argument,arg))) {
 		bug("AlterObj - Error in parsing.",0);
@@ -8348,22 +8352,10 @@ SCRIPT_CMD(scriptcmd_alterobj)
 		int *ptr = NULL;
 
 		if(!str_cmp(field,"cond"))				ptr = (int*)&obj->condition;
-		else if(!str_cmp(field,"container.flags"))	{ ptr = (int *)(IS_CONTAINER(obj)?&CONTAINER(obj)->flags:NULL); flags = container_flags; }
-		else if(!str_cmp(field,"container.weight"))	{ ptr = (int *)(IS_CONTAINER(obj)?&CONTAINER(obj)->max_weight:NULL); hasmin = TRUE; min = 0; }
-		else if(!str_cmp(field,"container.weight%"))	{ ptr = (int *)(IS_CONTAINER(obj)?&CONTAINER(obj)->weight_multiplier:NULL); hasmin = TRUE; min = 0; hasmax = TRUE; max = 100; }
-		else if(!str_cmp(field,"container.volume"))	{ ptr = (int *)(IS_CONTAINER(obj)?&CONTAINER(obj)->max_volume:NULL); hasmin = TRUE; min = 0; }
 		else if(!str_cmp(field,"cost"))			{ ptr = (int*)&obj->cost; min_sec = 5; }
-		else if(!str_cmp(field,"extra"))		{ ptr = (int*)&obj->extra[0]; flags = extra_flags; }
-		else if(!str_cmp(field,"extra2"))		{ ptr = (int*)&obj->extra[1]; flags = extra2_flags; min_sec = 7; }
-		else if(!str_cmp(field,"extra3"))		{ ptr = (int*)&obj->extra[2]; flags = extra3_flags; min_sec = 7; }
-		else if(!str_cmp(field,"extra4"))		{ ptr = (int*)&obj->extra[3]; flags = extra4_flags; min_sec = 7; }
+		else if(!str_cmp(field,"extra"))		{ ptr = (int*)obj->extra; bank = extra_flagbank; sec_flags[1] = sec_flags[2] = sec_flags[3] = 7; }
 		else if(!str_cmp(field,"fixes"))		{ ptr = (int*)&obj->times_allowed_fixed; min_sec = 5; }
-		else if(!str_cmp(field,"food.hunger"))	{ ptr = (int *)(IS_FOOD(obj)?&FOOD(obj)->hunger:NULL); hasmin = TRUE; min = 0; }
-		else if(!str_cmp(field,"food.full"))	{ ptr = (int *)(IS_FOOD(obj)?&FOOD(obj)->full:NULL); hasmin = TRUE; min = 0; }
-		else if(!str_cmp(field,"food.poison"))	{ ptr = (int *)(IS_FOOD(obj)?&FOOD(obj)->poison:NULL); hasmin = TRUE; min = 0; hasmax = TRUE; max = 100; }
 		else if(!str_cmp(field,"level"))		{ ptr = (int*)&obj->level; min_sec = 5; }
-		else if(!str_cmp(field,"light.flags"))	{ ptr = (int *)(IS_LIGHT(obj)?&LIGHT(obj)->flags:NULL); flags = light_flags; }
-		else if(!str_cmp(field,"light.duration"))	{ ptr = (int *)(IS_LIGHT(obj)?&LIGHT(obj)->duration:NULL); }
 		else if(!str_cmp(field,"repairs"))		ptr = (int*)&obj->times_fixed;
 		else if(!str_cmp(field,"tempstore1"))	ptr = (int*)&obj->tempstore[0];
 		else if(!str_cmp(field,"tempstore2"))	ptr = (int*)&obj->tempstore[1];
@@ -8392,6 +8384,30 @@ SCRIPT_CMD(scriptcmd_alterobj)
 			if (!script_bitmatrix_lookup(arg->d.str, bank, temp_flags))
 				return;
 
+			// Make sure the script can change the particular flags
+			if( buf[0] == '=' || buf[0] == '&' )
+			{
+				for(int i = 0; bank[i]; i++)
+				{
+					if (script_security < sec_flags[i])
+					{
+						// Not enough security to change their values
+						temp_flags[i] = ptr[i];
+					}
+				}
+			}
+			else
+			{
+				for(int i = 0; bank[i]; i++)
+				{
+					if (script_security < sec_flags[i])
+					{
+						// Not enough security to change their values
+						temp_flags[i] = 0;
+					}
+				}
+			}
+
 			if (bank == extra_flagbank)
 			{
 				REMOVE_BIT(temp_flags[2], ITEM_INSTANCE_OBJ);
@@ -8400,7 +8416,7 @@ SCRIPT_CMD(scriptcmd_alterobj)
 				{
 					if( IS_SET(ptr[2], ITEM_INSTANCE_OBJ) ) SET_BIT(temp_flags[2], ITEM_INSTANCE_OBJ);
 				}
-			}		
+			}
 		}
 		else if( flags != NULL )
 		{

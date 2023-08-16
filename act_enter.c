@@ -233,7 +233,7 @@ ROOM_INDEX_DATA *get_portal_destination(CHAR_DATA *ch, OBJ_DATA *portal, bool al
 					AREA_REGION *region;
 					if (_portal->params[1] > 0)
 					{
-						region = (AREA_REGION *)list_nthdata(area->regions, _portal->params[1]);
+						region = get_area_region_by_uid(area, _portal->params[1]);
 					}
 					else
 					{
@@ -290,7 +290,7 @@ ROOM_INDEX_DATA *get_portal_destination(CHAR_DATA *ch, OBJ_DATA *portal, bool al
 				{
 					AREA_REGION *region = NULL;
 					if (_portal->params[1] > 0)
-						region = (AREA_REGION *)list_nthdata(area->regions, _portal->params[1]);
+						region = get_area_region_by_uid(area, _portal->params[1]);
 					else
 						region = &area->region;
 

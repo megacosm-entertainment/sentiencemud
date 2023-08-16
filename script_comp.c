@@ -180,6 +180,25 @@ char *compile_expression(char *str,int type, char **store)
 			*p++ = ESCAPE_END;
 			++opnds;
 			expect = TRUE;
+		} else if(*str == '$') {
+			if(expect) {
+				sprintf(buf,"Line %d: Expecting an operator.", compile_current_line);
+				compile_error_show(buf);
+				return NULL;
+			}
+
+			++str;
+			if (*str != '(') {
+				sprintf(buf,"Line %d: Expecting an open parenthesis '(' after '$' for entity expansion.", compile_current_line);
+				compile_error_show(buf);
+				return NULL;
+			}
+			
+			str = compile_entity(str+1,type,&p,NULL);
+			if (!str) return NULL;
+
+			++opnds;
+			expect = TRUE;
 		} else if(*str == '[') {
 			if(expect) {
 				sprintf(buf,"Line %d: Expecting an operator.", compile_current_line);
@@ -324,7 +343,7 @@ char *compile_entity_field(char *str,char *field, char *suffix)
 		}
 		++str;
 	} else {
-		while(*str && !isspace(*str) && *str != ')' && *str != '.' && *str != ':') *field++ = *str++;
+		while(*str && !isspace(*str) && *str != ')' && *str != '.' && *str != ':' && *str != '[') *field++ = *str++;
 	}
 	*field = 0;
 
@@ -334,7 +353,7 @@ char *compile_entity_field(char *str,char *field, char *suffix)
 	if(*str == ':') {
 		str = skip_whitespace(str+1);
 		while(*str && !isspace(*str) && *str != ')' && *str != '.') *suffix++ = *str++;
-	} else if(*str != ')' && *str != '.') {
+	} else if(*str != ')' && *str != '.' && *str != '[') {
 		sprintf(buf,"Line %d: Invalid character in $().", compile_current_line);
 		compile_error_show(buf);
 		return NULL;
@@ -344,7 +363,42 @@ char *compile_entity_field(char *str,char *field, char *suffix)
 	return str;
 }
 
-char *compile_entity(char *str,int type, char **store)
+int compile_entity_listbasetype(int ent)
+{
+	switch(ent)
+	{
+	case ENT_OLLIST_MOB:	ent = ENT_MOBILE; break;
+	case ENT_OLLIST_OBJ:	ent = ENT_OBJECT; break;
+	case ENT_OLLIST_TOK:	ent = ENT_TOKEN; break;
+	case ENT_OLLIST_AFF:	ent = ENT_AFFECT; break;
+
+	case ENT_BLLIST_ROOM:	ent = ENT_ROOM; break;
+	case ENT_BLLIST_MOB:	ent = ENT_MOBILE; break;
+	case ENT_BLLIST_OBJ:	ent = ENT_OBJECT; break;
+	case ENT_BLLIST_TOK:	ent = ENT_TOKEN; break;
+	case ENT_BLLIST_EXIT:	ent = ENT_EXIT; break;
+	case ENT_BLLIST_SKILL:	ent = ENT_SKILLINFO; break;
+	case ENT_BLLIST_AREA:	ent = ENT_AREA; break;
+	case ENT_BLLIST_WILDS:	ent = ENT_WILDS; break;
+
+	case ENT_PLLIST_STR:	ent = ENT_STRING; break;
+	case ENT_PLLIST_CONN:	ent = ENT_CONN; break;
+	case ENT_PLLIST_ROOM:	ent = ENT_ROOM; break;
+	case ENT_PLLIST_MOB:	ent = ENT_MOBILE; break;
+	case ENT_PLLIST_OBJ:	ent = ENT_OBJECT; break;
+	case ENT_PLLIST_TOK:	ent = ENT_TOKEN; break;
+	case ENT_PLLIST_CHURCH:	ent = ENT_CHURCH; break;
+	case ENT_PLLIST_FOOD_BUFF: ent = ENT_FOOD_BUFF; break;
+	case ENT_PLLIST_COMPARTMENT: ent = ENT_COMPARTMENT; break;
+
+	case ENT_ILLIST_VARIABLE:	ent = ENT_VARIABLE; break;
+
+	default:	ent = ENT_UNKNOWN; break;
+	}
+	return ent;
+}
+
+char *compile_entity(char *str,int type, char **store, int *entity_type)
 {
 	char buf[MSL];
 	char field[MIL],suffix[MIL]/*, *s*/;
@@ -374,6 +428,21 @@ char *compile_entity(char *str,int type, char **store)
 			}
 
 		} else {
+			if (script_entity_allow_index(ent))
+			{
+				if (*str == '[')
+				{
+					str = compile_expression(str+1,type, &p);
+					if( !str ) return NULL;
+
+					// Resolve the output type					
+					ent = compile_entity_listbasetype(ent);
+					if (ent == ENT_UNKNOWN) return NULL;
+
+					continue;
+				}
+			}
+
 			if(*str != '.') {
 				sprintf(buf,"Line %d: Expecting '.' in $().", compile_current_line);
 				compile_error_show(buf);
@@ -643,6 +712,8 @@ char *compile_entity(char *str,int type, char **store)
 
 	*p++ = ESCAPE_END;
 	*store = p;
+
+	if (entity_type) *entity_type = ent;
 	return str+1;
 }
 
@@ -662,7 +733,7 @@ char *compile_substring(char *str, int type, char **store, bool ifc, bool doquot
 			if(str[1] == '[')
 				str = compile_expression(str+2,type,&p);
 			else if(str[1] == '(')
-				str = compile_entity(str+2,type,&p);
+				str = compile_entity(str+2,type,&p,NULL);
 			else if(str[1] == '<') {
 				str = compile_variable(str+2,&p,type,TRUE,TRUE);
 			} else if(isalpha(str[1])) {

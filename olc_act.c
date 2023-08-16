@@ -4514,6 +4514,24 @@ void print_obj_portal_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 	}
 }
 
+void print_lock_state(LOCK_STATE *lock, BUFFER *buffer, char *indent)
+{
+	char buf[MSL];
+	OBJ_INDEX_DATA *lock_key = get_obj_index(lock->key_wnum.pArea, lock->key_wnum.vnum);
+
+	sprintf(buf,"%s {x[{YLock State:{x]\n\r"
+				"%s   Key:         {B[{x%ld#%ld{B]{x %s\n\r"
+				"%s   Flags:       {B[{x%s{B]{x\n\r"
+				"%s   Pick Chance: {B[{x%d%%{B]{x\n\r",
+				indent,
+				indent, lock->key_wnum.pArea ? lock->key_wnum.pArea->uid : 0,
+					lock->key_wnum.vnum,
+					lock_key ? lock_key->short_descr : "none",
+				indent, flag_string(lock_flags, lock->flags),
+				indent, lock->pick_chance);
+	add_buf(buffer, buf);
+}
+
 // send obj values to a buffer
 void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 {
@@ -4596,20 +4614,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		}
 
 		if( CONTAINER(obj)->lock )
-		{
-			OBJ_INDEX_DATA *lock_key = get_obj_index(CONTAINER(obj)->lock->key_wnum.pArea, CONTAINER(obj)->lock->key_wnum.vnum);
-
-			sprintf(buf," {x[{YLock State:{x]\n\r"
-						"   Key:         {B[{x%ld#%ld{B]{x %s\n\r"
-						"   Flags:       {B[{x%s{B]{x\n\r"
-						"   Pick Chance: {B[{x%d%%{B]{x\n\r",
-						CONTAINER(obj)->lock->key_wnum.pArea ? CONTAINER(obj)->lock->key_wnum.pArea->uid : 0,
-						CONTAINER(obj)->lock->key_wnum.vnum,
-						lock_key ? lock_key->short_descr : "none",
-						flag_string(lock_flags, CONTAINER(obj)->lock->flags),
-						CONTAINER(obj)->lock->pick_chance);
-			add_buf(buffer, buf);
-		}
+			print_lock_state(CONTAINER(obj)->lock, buffer, "");
 	}
 
 	if (IS_FOOD(obj))
@@ -4740,21 +4745,8 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 				sprintf(buf, "    {C[{WMove Regen  {C]:  {x%d\n\r", compartment->move_regen);
 				add_buf(buffer, buf);
 
-				if( compartment->lock )
-				{
-					OBJ_INDEX_DATA *lock_key = get_obj_index(compartment->lock->key_wnum.pArea, compartment->lock->key_wnum.vnum);
-
-					sprintf(buf,"    {C[{WLock State   {C]\n\r"
-								"      Key:         {C[{x%ld#%ld{C]{x %s\n\r"
-								"      Flags:       {C[{x%s{C]{x\n\r"
-								"      Pick Chance: {C[{x%d%%{C]{x\n\r",
-								compartment->lock->key_wnum.pArea ? compartment->lock->key_wnum.pArea->uid : 0,
-								compartment->lock->key_wnum.vnum,
-								lock_key ? lock_key->short_descr : "none",
-								flag_string(lock_flags, compartment->lock->flags),
-								compartment->lock->pick_chance);
-					add_buf(buffer, buf);
-				}
+				if( compartment->lock)
+					print_lock_state(compartment->lock, buffer, "   ");
 
 				cnt++;
 			}
@@ -10995,10 +10987,9 @@ bool __oedit_type_portal_subtype(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, char *argu
 						return FALSE;
 					}
 
-					if (area && region_no > list_size(area->regions))
+					if (area && !get_area_region_by_uid(area, region_no))
 					{
-						sprintf(buf, "Please specify a number from 1 to %d\n\r", list_size(area->regions));
-						send_to_char(buf, ch);
+						send_to_char("No region in the specified area with that UID.\n\r", ch);
 						return FALSE;
 					}
 
@@ -11143,10 +11134,9 @@ bool __oedit_type_portal_subtype(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, char *argu
 						return FALSE;
 					}
 
-					if (area && region_no > list_size(area->regions))
+					if (area && !get_area_region_by_uid(area, region_no))
 					{
-						sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(area->regions));
-						send_to_char(buf, ch);
+						send_to_char("No region in the specified area with that UID.\n\r", ch);
 						return FALSE;
 					}
 
@@ -11500,6 +11490,7 @@ bool __oedit_type_portal_subtype(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, char *argu
 				portal->params[4] = 0;
 
 				send_to_char("PORTAL DESTINATION set.\n\r", ch);
+				return TRUE;
 			}
 			break;
 	}

@@ -358,6 +358,17 @@ bool script_entity_allow_vars(int type)
 	return FALSE;
 }
 
+bool script_entity_allow_index(int type)
+{
+	int i;
+
+	for(i=0; entity_type_info[i].type_min < ENT_MAX; i++)
+		if( (type >= entity_type_info[i].type_min) && (type <= entity_type_info[i].type_max))
+			return entity_type_info[i].allow_index;
+
+	return FALSE;
+}
+
 //void compile_error_show(char *msg);
 ENT_FIELD *entity_type_lookup(char *name, ENT_FIELD *list)
 {
@@ -9581,4 +9592,15 @@ SCRIPT_DATA *get_script_token(TOKEN_DATA *token, int trigger, int slot)
 	}
 
 	return script;
+}
+
+void scriptcmd_bug(SCRIPT_VARINFO *info, char *message)
+{
+	char buf[2 * MSL];
+
+	sprintf(buf, "Script:%ld#%ld:Line:%d:%s\n\r",
+		info->block->script->area->uid, info->block->script->vnum,
+		info->block->line,
+		message);
+	bug(buf, 0);
 }
