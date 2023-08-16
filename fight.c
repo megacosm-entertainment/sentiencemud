@@ -2751,6 +2751,11 @@ void update_pos(CHAR_DATA *victim)
 	return;
 	}
 
+	if (victim->hit <= 0)
+{
+  victim->position = POS_DEAD;
+}
+/* - Taking this out for now as it only really impacts newbies, and leaves them seemingly stuck for up to 11 minutes?
 	if ((IS_NPC(victim) || (!IS_NPC(victim) && IS_DEAD(victim))) && victim->hit < 1)
 	{
 	victim->position = POS_DEAD;
@@ -2766,6 +2771,7 @@ void update_pos(CHAR_DATA *victim)
 		 if (victim->hit <= -6) victim->position = POS_MORTAL;
 	else if (victim->hit <= -3) victim->position = POS_INCAP;
 	else                          victim->position = POS_STUNNED;
+*/
 }
 
 bool can_start_combat(CHAR_DATA *ch)
