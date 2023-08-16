@@ -260,6 +260,11 @@ struct sound_type {
 //  Change #1: start of adding item multi-typing
 //    PORTAL
 
+#define VERSION_OBJECT_011  0x01000010
+//  Change #1: start of adding item multi-typing
+//    BOOK
+
+
 #define VERSION_ROOM_001	0x01000001
 //  Change #1: lock states
 
@@ -269,7 +274,7 @@ struct sound_type {
 #define VERSION_DB			VERSION_DB_001
 #define VERSION_AREA		VERSION_AREA_003
 #define VERSION_MOBILE		0x01000000
-#define VERSION_OBJECT		VERSION_OBJECT_010
+#define VERSION_OBJECT		VERSION_OBJECT_011
 #define VERSION_ROOM		VERSION_ROOM_002
 #define VERSION_PLAYER		VERSION_PLAYER_005
 #define VERSION_TOKEN		0x01000000
@@ -375,6 +380,8 @@ typedef struct list_link_exit_data LLIST_EXIT_DATA;
 typedef struct list_link_skill_data LLIST_SKILL_DATA;
 typedef struct iterator_type ITERATOR;
 
+typedef struct book_page_data BOOK_PAGE;
+typedef struct obj_book_data BOOK_DATA;
 typedef struct container_filter_data CONTAINER_FILTER;
 typedef struct obj_container_data CONTAINER_DATA;
 typedef struct food_buff_data FOOD_BUFF_DATA;
@@ -1413,6 +1420,8 @@ struct	descriptor_data
     ROOM_INDEX_DATA *	input_room;
     TOKEN_DATA *	input_tok;
 
+    // Writing in books
+    OBJ_DATA *writing_book;
 
     bool skip_blank_lines;       // Use this to cause the string editor to ignore empty lines when numbering them
 
@@ -2568,7 +2577,8 @@ struct affliction_type {
 #define ITEM_DRYING_CLOTH		76		// Used to dry plants for smoking!
 #define ITEM_NEEDLE				77		// Used to sew things
 #define ITEM_BODY_PART			78
-#define ITEM__MAX               79
+#define ITEM_PAGE               79
+#define ITEM__MAX               80
 
 /*
  * Extra flags.
@@ -2902,6 +2912,16 @@ struct affliction_type {
 #define CONT_SINGULAR       (I) // Only allows one item place into the container at a time.
 #define CONT_TRANSPARENT    (J) // Can look inside the container when closed.
 #define CONT_NO_DUPLICATES  (K) // Only one copy of an object can be in the container at a time.
+
+// Book flags (A, C, G and H are mimics of the container flags)
+#define BOOK_CLOSEABLE		(A)
+#define BOOK_CLOSED			(C)
+#define BOOK_PUSHOPEN		(G)
+#define BOOK_CLOSELOCK		(H)
+#define BOOK_NO_RIP         (Y) // Cannot rip pages out of the book
+#define BOOK_WRITABLE       (Z) // Players can write in the book
+
+
 
 /* Types of tools */
 enum {
@@ -4238,6 +4258,7 @@ struct	char_data
     bool 		cross_zone_question;
     bool 		personal_pk_question;
     bool		remort_question;
+    OBJ_DATA *seal_book;
 
     bool 		in_war;
 
@@ -4570,6 +4591,41 @@ struct oclu_context_data
     LOCK_STATE **lock;
 };
 
+// ============[ BOOK ]============
+#define PAGE(obj)               ((obj)->_page)
+#define IS_PAGE(obj)            IS_VALID(PAGE(obj))
+#define BOOK(obj)               ((obj)->_book)
+#define IS_BOOK(obj)            IS_VALID(BOOK(obj))
+
+struct book_page_data {
+    BOOK_PAGE *next;
+    bool valid;
+
+    int page_no;
+    char *title;
+    char *text;
+
+    WNUM_LOAD book;         // Which book does this come from?
+};
+
+struct obj_book_data {
+    BOOK_DATA *next;
+    bool valid;
+
+    char *name;
+    char *short_descr;
+
+    long flags;                 // Uses container flags
+
+    int current_page;
+    LLIST *pages;               // Uses BOOK_PAGE *
+
+    int open_page;              // Initial page on open
+
+    LOCK_STATE *lock;
+};
+
+
 // =========[ CONTAINER ]==========
 #define CONTAINER(obj)          ((obj)->_container)
 #define IS_CONTAINER(obj)       IS_VALID(CONTAINER(obj))
@@ -4805,6 +4861,8 @@ struct	obj_index_data
 
 	LLIST *waypoints;
 
+    BOOK_PAGE *_page;
+    BOOK_DATA *_book;
     CONTAINER_DATA *_container;
     FOOD_DATA *_food;
     FURNITURE_DATA *_furniture;
@@ -4900,6 +4958,8 @@ struct	obj_data
 
     LOCK_STATE		*lock;
 
+    BOOK_PAGE *_page;
+    BOOK_DATA *_book;
     CONTAINER_DATA *_container;
     FOOD_DATA *_food;
     FURNITURE_DATA *_furniture;
@@ -6454,6 +6514,18 @@ enum trigger_index_enum {
 	TRIG_BLOW,
     TRIG_BLUEPRINT_SCHEMATIC,
 	TRIG_BOARD,
+    TRIG_BOOK_PAGE,
+    TRIG_BOOK_PAGE_ATTACH,
+    TRIG_BOOK_PAGE_PREATTACH,
+    TRIG_BOOK_PAGE_PRERIP,
+    TRIG_BOOK_PAGE_RIP,
+    TRIG_BOOK_PREREAD,
+    TRIG_BOOK_PRESEAL,
+    TRIG_BOOK_PREWRITE,
+    TRIG_BOOK_READ,
+    TRIG_BOOK_SEAL,
+    TRIG_BOOK_WRITE_TEXT,
+    TRIG_BOOK_WRITE_TITLE,
 	TRIG_BRANDISH,
 	TRIG_BRIBE,
 	TRIG_BURY,
@@ -6490,6 +6562,7 @@ enum trigger_index_enum {
 	TRIG_EXAMINE,
 	TRIG_EXIT,
 	TRIG_EXPIRE,		/* NIB : 20070124 : token expiration */
+    TRIG_EXTINGUISH,
 	TRIG_EXTRACT,
     TRIG_FAILED,
 	TRIG_FIGHT,
@@ -6509,6 +6582,7 @@ enum trigger_index_enum {
 	TRIG_HITGAIN,
 	TRIG_HPCNT,
 	TRIG_IDENTIFY,
+    TRIG_IGNITE,
 	TRIG_INSPECT,
     TRIG_INSPECT_CUSTOM,	// Called when asking a shopkeeper to inspect a custom stock item
 	TRIG_INTERRUPT,
@@ -6545,10 +6619,12 @@ enum trigger_index_enum {
 	TRIG_PREDROP,
 	TRIG_PREEAT,
 	TRIG_PREENTER,
+    TRIG_PREEXTINGUISH,
 	TRIG_PREFLEE,
 	TRIG_PREGET,
 	TRIG_PREHIDE,			// NIB 20140522 - trigger for testing if you can hide yourself or the object in question
 	TRIG_PREHIDE_IN,		// NIB 20140522 - trigger for testing if the container or mob you are trying to hide an object in will allow it
+    TRIG_PREIGNITE,
 	TRIG_PREKILL,
     TRIG_PRELOCK,
 	TRIG_PREMOUNT,
@@ -6727,6 +6803,8 @@ struct trigger_type {
 #define PROG_NORAWKILL	(D)		// The script may not do rawkill at any stage
 #define PROG_SILENT     (E)     // Blocks execution of any echo commands
 
+#define PROG_SET(x,y)       SET_BIT((x)->progs->entity_flags,(y))
+#define PROG_CLR(x,y)       REMOVE_BIT((x)->progs->entity_flags,(y))
 #define PROG_FLAG(x,y)		(((x)->progs) && IS_SET((x)->progs->entity_flags,(y)))
 
 struct prog_data
@@ -9028,6 +9106,8 @@ void free_script_switch(SCRIPT_SWITCH *data, int nswitch);
 SCRIPT_DATA *new_script(void);
 void free_script_code(SCRIPT_CODE *code, int lines);
 void free_script(SCRIPT_DATA *s);
+
+
 void variable_clearfield(int type, void *ptr);
 void add_immortal(IMMORTAL_DATA *immortal);
 
@@ -9631,6 +9711,7 @@ extern WNUM obj_wnum_empty_vial;
 extern WNUM obj_wnum_potion;
 extern WNUM obj_wnum_blank_scroll;
 extern WNUM obj_wnum_scroll;
+extern WNUM obj_wnum_page;
 extern WNUM obj_wnum_leather_jacket;
 extern WNUM obj_wnum_green_tights;
 extern WNUM obj_wnum_sandals;
@@ -9727,6 +9808,7 @@ extern OBJ_INDEX_DATA *obj_index_empty_vial;
 extern OBJ_INDEX_DATA *obj_index_potion;
 extern OBJ_INDEX_DATA *obj_index_blank_scroll;
 extern OBJ_INDEX_DATA *obj_index_scroll;
+extern OBJ_INDEX_DATA *obj_index_page;
 extern OBJ_INDEX_DATA *obj_index_leather_jacket;
 extern OBJ_INDEX_DATA *obj_index_green_tights;
 extern OBJ_INDEX_DATA *obj_index_sandals;
@@ -9890,6 +9972,11 @@ bool bitmatrix_lookup(char *argument, const struct flag_type **bank, long *flags
 bool bitmatrix_isset(char *argument, const struct flag_type **bank, long *flags);
 char *bitmatrix_string(const struct flag_type **bank, const long *flags);
 char *flagbank_string(const struct flag_type **bank, ...);
+
+BOOK_PAGE *book_get_page(BOOK_DATA *book, int page_no);
+void show_book_page(CHAR_DATA *ch, OBJ_DATA *book);
+bool book_insert_page(BOOK_DATA *book, BOOK_PAGE *new_page);
+int book_max_pages(BOOK_DATA *book);
 
 bool obj_oclu_ambiguous(OBJ_DATA *obj);
 void obj_oclu_show_parts(CHAR_DATA *ch, OBJ_DATA *obj);

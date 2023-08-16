@@ -1497,16 +1497,44 @@ void do_open(CHAR_DATA *ch, char *argument)
 		}
 
 		REMOVE_BIT((*context.flags), CONT_CLOSED);
-		if (context.is_default)
+		if (context.item_type == ITEM_BOOK)
 		{
-			act("You open $p.",ch, NULL, NULL,obj, NULL, NULL, NULL,TO_CHAR);
-			act("$n opens $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+			// Special handling for books.
+			if (BOOK(obj)->open_page > 0)
+			{
+				BOOK(obj)->current_page = BOOK(obj)->open_page;
+			}
+			else if (BOOK(obj)->current_page < 1)
+				BOOK(obj)->current_page = 1;
+
+			char page[MIL];
+			sprintf(page, "to page %d", BOOK(obj)->current_page);
+
+			if (context.is_default)
+			{
+				act("You open $p $T.",ch, NULL, NULL,obj, NULL, NULL, page,TO_CHAR);
+				act("$n opens $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+			}
+			else
+			{
+				act("You open $t on $p $T.",ch, NULL, NULL,obj, NULL, context.label, page,TO_CHAR);
+				act("$n opens $t on $p.", ch, NULL, NULL, obj, NULL, context.label, NULL, TO_ROOM);
+			}
 		}
 		else
 		{
-			act("You open $t on $p.",ch, NULL, NULL,obj, NULL, context.label, NULL,TO_CHAR);
-			act("$n opens $t on $p.", ch, NULL, NULL, obj, NULL, context.label, NULL, TO_ROOM);
+			if (context.is_default)
+			{
+				act("You open $p.",ch, NULL, NULL,obj, NULL, NULL, NULL,TO_CHAR);
+				act("$n opens $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+			}
+			else
+			{
+				act("You open $t on $p.",ch, NULL, NULL,obj, NULL, context.label, NULL,TO_CHAR);
+				act("$n opens $t on $p.", ch, NULL, NULL, obj, NULL, context.label, NULL, TO_ROOM);
+			}
 		}
+
 		p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, ch, NULL, NULL, TRIG_OPEN, NULL,context.which,context.is_default,0,0,0);
 		return;
 	}

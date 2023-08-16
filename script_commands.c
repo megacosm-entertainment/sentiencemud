@@ -2552,6 +2552,7 @@ SCRIPT_CMD(scriptcmd_inputstring)
 		mob->remove_question ||
 		mob->personal_pk_question ||
 		mob->cross_zone_question ||
+		IS_VALID(mob->seal_book) ||
 		mob->pcdata->convert_church != -1 ||
 		mob->challenged ||
 		mob->remort_question)
@@ -8659,265 +8660,6 @@ SCRIPT_CMD(scriptcmd_remtype)
 	SETRETURN(1);
 }
 
-// ADDWHITELIST $CONTAINER $TYPE[ $SUBTYPE]
-SCRIPT_CMD(scriptcmd_addwhitelist)
-{
-	char *rest = argument;
-	OBJ_DATA *container;
-
-	SETRETURN(0);
-
-	PARSE_ARGTYPE(OBJECT);
-	if (!IS_VALID(arg->d.obj)) return;
-	container = arg->d.obj;
-
-	if (!IS_CONTAINER(container)) return;
-
-	PARSE_ARGTYPE(STRING);
-	int type = stat_lookup(arg->d.str, type_flags, NO_FLAG);
-	if( type == NO_FLAG) return;
-
-	int subtype = -1;
-	if (type == ITEM_WEAPON)
-	{
-		// Get subtype
-
-		PARSE_ARGTYPE(STRING);
-		subtype = stat_lookup(arg->d.str, weapon_class, NO_FLAG);
-		if (subtype == NO_FLAG) return;
-	}
-
-	ITERATOR it;
-	CONTAINER_FILTER *filter;
-	iterator_start(&it, CONTAINER(container)->whitelist);
-	while((filter = (CONTAINER_FILTER *)iterator_nextdata(&it)))
-	{
-		if (filter->item_type == type && filter->sub_type == subtype)
-		{
-			break;
-		}
-	}
-	iterator_stop(&it);
-
-	if(filter) return;
-
-	filter = new_container_filter();
-	filter->item_type = type;
-	filter->sub_type = subtype;
-	list_appendlink(CONTAINER(container)->whitelist, filter);
-
-	SETRETURN(1);
-}
-
-// REMWHITELIST $CONTAINER $TYPE[ $SUBTYPE]
-SCRIPT_CMD(scriptcmd_remwhitelist)
-{
-	char *rest = argument;
-	OBJ_DATA *container;
-
-	SETRETURN(0);
-
-	PARSE_ARGTYPE(OBJECT);
-	if (!IS_VALID(arg->d.obj)) return;
-	container = arg->d.obj;
-
-	if (!IS_CONTAINER(container)) return;
-
-	PARSE_ARGTYPE(STRING);
-	int type = stat_lookup(arg->d.str, type_flags, NO_FLAG);
-	if( type == NO_FLAG) return;
-
-	int subtype = -1;
-	if (type == ITEM_WEAPON)
-	{
-		// Get subtype
-
-		PARSE_ARGTYPE(STRING);
-		subtype = stat_lookup(arg->d.str, weapon_class, NO_FLAG);
-		if (subtype == NO_FLAG) return;
-	}
-
-	ITERATOR it;
-	CONTAINER_FILTER *filter;
-	iterator_start(&it, CONTAINER(container)->whitelist);
-	while((filter = (CONTAINER_FILTER *)iterator_nextdata(&it)))
-	{
-		if (filter->item_type == type && filter->sub_type == subtype)
-		{
-			iterator_remcurrent(&it);
-			break;
-		}
-	}
-	iterator_stop(&it);
-
-	if (filter) SETRETURN(1);
-}
-
-// ADDBLACKLIST $CONTAINER $TYPE[ $SUBTYPE]
-SCRIPT_CMD(scriptcmd_addblacklist)
-{
-	char *rest = argument;
-	OBJ_DATA *container;
-
-	SETRETURN(0);
-
-	PARSE_ARGTYPE(OBJECT);
-	if (!IS_VALID(arg->d.obj)) return;
-	container = arg->d.obj;
-
-	if (!IS_CONTAINER(container)) return;
-
-	PARSE_ARGTYPE(STRING);
-	int type = stat_lookup(arg->d.str, type_flags, NO_FLAG);
-	if( type == NO_FLAG) return;
-
-	int subtype = -1;
-	if (type == ITEM_WEAPON)
-	{
-		// Get subtype
-
-		PARSE_ARGTYPE(STRING);
-		subtype = stat_lookup(arg->d.str, weapon_class, NO_FLAG);
-		if (subtype == NO_FLAG) return;
-	}
-
-	ITERATOR it;
-	CONTAINER_FILTER *filter;
-	iterator_start(&it, CONTAINER(container)->blacklist);
-	while((filter = (CONTAINER_FILTER *)iterator_nextdata(&it)))
-	{
-		if (filter->item_type == type && filter->sub_type == subtype)
-		{
-			break;
-		}
-	}
-	iterator_stop(&it);
-
-	if(filter) return;
-
-	filter = new_container_filter();
-	filter->item_type = type;
-	filter->sub_type = subtype;
-	list_appendlink(CONTAINER(container)->blacklist, filter);
-
-	SETRETURN(1);
-}
-
-// REMBLACKLIST $CONTAINER $TYPE[ $SUBTYPE]
-SCRIPT_CMD(scriptcmd_remblacklist)
-{
-	char *rest = argument;
-	OBJ_DATA *container;
-
-	SETRETURN(0);
-
-	PARSE_ARGTYPE(OBJECT);
-	if (!IS_VALID(arg->d.obj)) return;
-	container = arg->d.obj;
-
-	if (!IS_CONTAINER(container)) return;
-
-	PARSE_ARGTYPE(STRING);
-	int type = stat_lookup(arg->d.str, type_flags, NO_FLAG);
-	if( type == NO_FLAG) return;
-
-	int subtype = -1;
-	if (type == ITEM_WEAPON)
-	{
-		// Get subtype
-
-		PARSE_ARGTYPE(STRING);
-		subtype = stat_lookup(arg->d.str, weapon_class, NO_FLAG);
-		if (subtype == NO_FLAG) return;
-	}
-
-	ITERATOR it;
-	CONTAINER_FILTER *filter;
-	iterator_start(&it, CONTAINER(container)->blacklist);
-	while((filter = (CONTAINER_FILTER *)iterator_nextdata(&it)))
-	{
-		if (filter->item_type == type && filter->sub_type == subtype)
-		{
-			iterator_remcurrent(&it);
-			break;
-		}
-	}
-	iterator_stop(&it);
-
-	if (filter) SETRETURN(1);
-}
-
-
-// ADDFOODBUFF $FOOD apply-type(string) level(number|auto) location(string) modifier(number) duration(number|auto) bitvector(string) bitvector2(string)
-SCRIPT_CMD(scriptcmd_addfoodbuff)
-{
-	char *rest = argument;
-	OBJ_DATA *food;
-
-	SETRETURN(0);
-
-	PARSE_ARGTYPE(OBJECT);
-	if (!IS_VALID(arg->d.obj)) return;
-	food = arg->d.obj;
-
-	if (!IS_FOOD(food)) return;
-
-	PARSE_ARGTYPE(STRING);
-	int type = stat_lookup(arg->d.str, food_buff_types, NO_FLAG);
-	if (type == NO_FLAG) return;
-
-	int level;
-	if (!PARSE_ARG) return;
-	if (arg->type == ENT_NUMBER)
-	{
-		level = UMAX(1, arg->d.num);
-	}
-	else if (!str_prefix(arg->d.str, "auto"))
-	{
-		level = 0;
-	}
-	else
-		return;
-
-	PARSE_ARGTYPE(STRING);
-	int location = stat_lookup(arg->d.str, apply_flags, NO_FLAG);
-	if (location == NO_FLAG) return;
-
-	PARSE_ARGTYPE(NUMBER);
-	int modifier = arg->d.num;
-
-	int duration;
-	if (!PARSE_ARG) return;
-	if (arg->type == ENT_NUMBER)
-	{
-		duration = UMAX(1, arg->d.num);
-	}
-	else if (!str_prefix(arg->d.str, "auto"))
-	{
-		duration = 0;
-	}
-	else
-		return;
-
-	long bitvectors[2];
-
-	PARSE_ARGTYPE(STRING);
-
-	if (!bitvector_lookup(arg->d.str, 2, bitvectors, affect_flags, affect2_flags)) return;
-
-	FOOD_BUFF_DATA *buff = new_food_buff_data();
-	buff->where = type;
-	buff->level = level;
-	buff->location = location;
-	buff->modifier = modifier;
-	buff->duration = duration;
-	buff->bitvector = bitvectors[0];
-	buff->bitvector2 = bitvectors[1];
-
-	list_appendlink(FOOD(food)->buffs, buff);
-
-	SETRETURN(1);
-}
 
 // SETPOSITION $MOBILE $POSITION
 SCRIPT_CMD(scriptcmd_setposition)
@@ -8954,6 +8696,1574 @@ SCRIPT_CMD(scriptcmd_setposition)
 	SETRETURN(ch->position);
 }
 
+// ALTEROBJMT $MTCONTEXT $FIELD $OP $VALUE
+// $MTCONTEXT -> any of the fields ENT_OBJECT_TYPE_* fields
+// Eventually allow other contexts
+SCRIPT_CMD(scriptcmd_alterobjmt)
+{
+	char msg[MSL];
+	char buf[2*MIL],field[MIL],*rest;
+	int value, min_sec = MIN_SCRIPT_SECURITY;
+	OBJ_DATA *obj;
+	int min = 0, max = 0;
+	bool hasmin = FALSE, hasmax = FALSE;
+	bool allowarith = TRUE;
+	bool allowbitwise = TRUE;
+	const struct flag_type *flags = NULL;
+	const struct flag_type **bank = NULL;
+	long temp_flags[4];
+	int sec_flags[4];
+	int *ptr = NULL;
+
+	if(!info) return;
+
+	SETRETURN(0);
+
+	for(int i = 0; i < 4; i++)
+		sec_flags[i] = MIN_SCRIPT_SECURITY;
+
+	if(!(rest = expand_argument(info,argument,arg))) {
+		bug("AlterObj - Error in parsing.",0);
+		return;
+	}
+
+	// Get the multi-type
+	switch(arg->type) {
+	case ENT_OBJECT:	// Base level stuff
+		if (!IS_VALID(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if(!str_cmp(field,"cond"))				{ ptr = (int*)&obj->condition; allowarith = TRUE; allowbitwise = FALSE; }
+		else if(!str_cmp(field,"cost"))			{ ptr = (int*)&obj->cost; min_sec = 5; allowarith = TRUE; allowbitwise = FALSE; }
+		else if(!str_cmp(field,"extra"))		{ ptr = (int*)obj->extra; bank = extra_flagbank; sec_flags[1] = sec_flags[2] = sec_flags[3] = 7; allowarith = FALSE; allowbitwise = TRUE; }
+		else if(!str_cmp(field,"fixes"))		{ ptr = (int*)&obj->times_allowed_fixed; min_sec = 5; allowarith = TRUE; allowbitwise = FALSE; }
+		else if(!str_cmp(field,"level"))		{ ptr = (int*)&obj->level; min_sec = 5; allowarith = TRUE; allowbitwise = FALSE; }
+		else if(!str_cmp(field,"repairs"))		{ ptr = (int*)&obj->times_fixed; allowarith = TRUE; allowbitwise = FALSE; }
+		else if(!str_cmp(field,"tempstore1"))	ptr = (int*)&obj->tempstore[0];		// bitwise left TRISTATE to allow both arithmetic and bitwise operations
+		else if(!str_cmp(field,"tempstore2"))	ptr = (int*)&obj->tempstore[1];		// bitwise left TRISTATE to allow both arithmetic and bitwise operations
+		else if(!str_cmp(field,"tempstore3"))	ptr = (int*)&obj->tempstore[2];		// bitwise left TRISTATE to allow both arithmetic and bitwise operations
+		else if(!str_cmp(field,"tempstore4"))	ptr = (int*)&obj->tempstore[3];		// bitwise left TRISTATE to allow both arithmetic and bitwise operations
+		else if(!str_cmp(field,"tempstore5"))	ptr = (int*)&obj->tempstore[4];		// bitwise left TRISTATE to allow both arithmetic and bitwise operations
+		else if(!str_cmp(field,"timer"))		{ ptr = (int*)&obj->timer; allowarith = TRUE; allowbitwise = FALSE; }
+		else if(!str_cmp(field,"wear"))			{ ptr = (int*)&obj->wear_flags; flags = wear_flags; allowarith = FALSE; allowbitwise = TRUE; }
+		else if(!str_cmp(field,"wearloc"))		{ ptr = (int*)&obj->wear_loc; flags = wear_loc_flags; allowarith = FALSE; allowbitwise = FALSE; }
+		else if(!str_cmp(field,"weight"))		{ ptr = (int*)&obj->weight;  allowarith = TRUE; allowbitwise = FALSE;}
+		break;
+
+	case ENT_OBJECT_PAGE:
+		if (!IS_VALID(arg->d.obj) || !IS_PAGE(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (!str_cmp(field, "number"))			{ ptr = (int *)&PAGE(obj)->page_no; min = 1; hasmin = TRUE; }
+		break;
+
+	case ENT_OBJECT_BOOK:
+		if (!IS_VALID(arg->d.obj) || !IS_BOOK(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (!str_cmp(field, "current"))			{ ptr = (int *)&(BOOK(obj)->current_page); allowarith = TRUE; allowbitwise = FALSE; min = 1; hasmin = TRUE; max = book_max_pages(BOOK(obj)); hasmax = TRUE; }
+		else if (!str_cmp(field, "flags"))		{ ptr = (int *)&(BOOK(obj)->flags); flags = book_flags; allowarith = FALSE; allowbitwise = TRUE; }
+		else if (!str_cmp(field, "opener"))		{ ptr = (int *)&(BOOK(obj)->open_page); allowarith = TRUE; allowbitwise = FALSE; min = 1; hasmin = TRUE; max = book_max_pages(BOOK(obj)); hasmax = TRUE; }
+
+		break;
+
+	case ENT_OBJECT_CONTAINER:
+		if (!IS_VALID(arg->d.obj) || !IS_CONTAINER(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (!str_cmp(field, "flags"))			{ ptr = (int *)&(CONTAINER(obj)->flags); flags = container_flags; allowarith = FALSE; allowbitwise = TRUE; }
+		else if (!str_cmp(field, "volume"))		{ ptr = (int *)&(CONTAINER(obj)->max_volume); allowarith = TRUE; allowbitwise = FALSE; min = 0; hasmin = TRUE; }
+		else if (!str_cmp(field, "weight"))		{ ptr = (int *)&(CONTAINER(obj)->max_weight); allowarith = TRUE; allowbitwise = FALSE; min = 0; hasmin = TRUE; }
+		else if (!str_cmp(field, "weight%"))	{ ptr = (int *)&(CONTAINER(obj)->weight_multiplier); allowarith = TRUE; allowbitwise = FALSE; min = 0; hasmin = TRUE; max = 100; hasmax = TRUE; }
+		break;
+
+	case ENT_OBJECT_FOOD:
+		if (!IS_VALID(arg->d.obj) || !IS_FOOD(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if(!str_cmp(field,"hunger"))		{ ptr = (int *)(&FOOD(obj)->hunger); allowarith = TRUE; allowbitwise = FALSE; hasmin = TRUE; min = 0; }
+		else if(!str_cmp(field,"full"))		{ ptr = (int *)(&FOOD(obj)->full); allowarith = TRUE; allowbitwise = FALSE; hasmin = TRUE; min = 0; }
+		else if(!str_cmp(field,"poison"))	{ ptr = (int *)(&FOOD(obj)->poison); allowarith = TRUE; allowbitwise = FALSE; hasmin = TRUE; min = 0; hasmax = TRUE; max = 100; }
+		break;
+
+	case ENT_OBJECT_FURNITURE:
+		if (!IS_VALID(arg->d.obj) || !IS_FURNITURE(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if(!str_cmp(field, "main"))			{ ptr = (int *)(&FURNITURE(obj)->main_compartment); allowarith = FALSE; allowbitwise = FALSE; min = 0; hasmin = TRUE; max = list_size(FURNITURE(obj)->compartments); hasmax = TRUE; }
+		break;
+
+	case ENT_COMPARTMENT:
+	{
+		FURNITURE_COMPARTMENT *compartment = arg->d.compartment;
+		if (!IS_VALID(compartment))
+			return;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if(!str_cmp(field,"flags"))				{ ptr = (int *)&compartment->flags; flags = compartment_flags; allowarith = FALSE; allowbitwise = TRUE; }
+		else if(!str_cmp(field,"occupants"))	{ ptr = (int *)&compartment->max_occupants; allowarith = TRUE; allowbitwise = FALSE; min = 0; hasmin = TRUE; }
+		else if(!str_cmp(field,"weight"))		{ ptr = (int *)&compartment->max_weight; allowarith = TRUE; allowbitwise = FALSE; min = 0; hasmin = TRUE; }
+		else if(!str_cmp(field,"standing"))		{ ptr = (int *)&compartment->standing; flags = furniture_flags; allowarith = FALSE; allowbitwise = TRUE; }
+		else if(!str_cmp(field,"hanging"))		{ ptr = (int *)&compartment->hanging; flags = furniture_flags; allowarith = FALSE; allowbitwise = TRUE; }
+		else if(!str_cmp(field,"sitting"))		{ ptr = (int *)&compartment->sitting; flags = furniture_flags; allowarith = FALSE; allowbitwise = TRUE; }
+		else if(!str_cmp(field,"resting"))		{ ptr = (int *)&compartment->resting; flags = furniture_flags; allowarith = FALSE; allowbitwise = TRUE; }
+		else if(!str_cmp(field,"sleeping"))		{ ptr = (int *)&compartment->sleeping; flags = furniture_flags; allowarith = FALSE; allowbitwise = TRUE; }
+		else if(!str_cmp(field,"health"))		{ ptr = (int *)&compartment->health_regen; allowarith = TRUE; allowbitwise = FALSE; min = 0; hasmin = TRUE; }
+		else if(!str_cmp(field,"mana"))			{ ptr = (int *)&compartment->mana_regen; allowarith = TRUE; allowbitwise = FALSE; min = 0; hasmin = TRUE; }
+		else if(!str_cmp(field,"move"))			{ ptr = (int *)&compartment->move_regen; allowarith = TRUE; allowbitwise = FALSE; min = 0; hasmin = TRUE; }
+		break;
+	}
+	case ENT_OBJECT_LIGHT:
+		if (!IS_VALID(arg->d.obj) || !IS_LIGHT(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if(!str_cmp(field,"duration"))		{ ptr = (int *)(&LIGHT(obj)->duration); allowarith = TRUE; allowbitwise = FALSE; }
+		else if(!str_cmp(field,"flags"))	{ ptr = (int *)(&LIGHT(obj)->flags); flags = light_flags; allowarith = FALSE; allowbitwise = TRUE; }
+		break;
+
+	case ENT_OBJECT_MONEY:
+		if (!IS_VALID(arg->d.obj) || !IS_MONEY(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (!str_cmp(field, "gold"))		{ ptr = (int *)&(MONEY(obj)->gold); min_sec = 5; max = (script_security - 4) * 1000; hasmax = TRUE; }
+		else if (!str_cmp(field, "silver"))	{ ptr = (int *)&(MONEY(obj)->silver); min_sec = 5; max = (script_security - 4) * 100000; hasmax = TRUE; }
+
+		break;
+
+	case ENT_OBJECT_PORTAL:
+		if (!IS_VALID(arg->d.obj) || !IS_PORTAL(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (!str_cmp(field, "charges"))		{ ptr = (int *)&(PORTAL(obj)->charges); allowarith = TRUE; allowbitwise = FALSE; min = -1; hasmin = TRUE; }
+		else if (!str_cmp(field, "exit"))	{ ptr = (int *)&(PORTAL(obj)->exit); flags = portal_exit_flags; allowarith = FALSE; allowbitwise = TRUE; }
+		else if (!str_cmp(field, "flags"))	{ ptr = (int *)&(PORTAL(obj)->flags); flags = portal_flags; allowarith = FALSE; allowbitwise = TRUE; }
+		else if (!str_cmp(field, "param1"))	{ ptr = (int *)&(PORTAL(obj)->params[0]); allowarith = FALSE; allowbitwise = FALSE; }
+		else if (!str_cmp(field, "param2"))	{ ptr = (int *)&(PORTAL(obj)->params[1]); allowarith = FALSE; allowbitwise = FALSE; }
+		else if (!str_cmp(field, "param3"))	{ ptr = (int *)&(PORTAL(obj)->params[2]); allowarith = FALSE; allowbitwise = FALSE; }
+		else if (!str_cmp(field, "param4"))	{ ptr = (int *)&(PORTAL(obj)->params[3]); allowarith = FALSE; allowbitwise = FALSE; }
+		else if (!str_cmp(field, "param5"))	{ ptr = (int *)&(PORTAL(obj)->params[4]); allowarith = FALSE; allowbitwise = FALSE; }
+		else if (!str_cmp(field, "type"))	{ ptr = (int *)&(PORTAL(obj)->type); flags = portal_gatetype; allowarith = FALSE; allowbitwise = FALSE; }
+		break;
+
+	default: break;
+	}
+
+	if(!ptr) return;
+
+	// Get operator
+	argument = one_argument(rest,buf);
+
+	if(!(rest = expand_argument(info,argument,arg))) {
+		scriptcmd_bug(info, "Alterobj - Error in parsing.");
+		return;
+	}
+
+
+	if(script_security < min_sec)
+	{
+		sprintf(buf,"Alterobj - Attempting to alter '%s' with security %d.\n\r", field, script_security);
+		scriptcmd_bug(info, buf);
+		return;
+	}
+
+	if( bank != NULL )
+	{
+		if( arg->type != ENT_STRING ) return;
+
+		if (!script_bitmatrix_lookup(arg->d.str, bank, temp_flags))
+			return;
+
+		// Make sure the script can change the particular flags
+		if( buf[0] == '=' || buf[0] == '&' )
+		{
+			for(int i = 0; bank[i]; i++)
+			{
+				if (script_security < sec_flags[i])
+				{
+					// Not enough security to change their values
+					temp_flags[i] = ptr[i];
+				}
+			}
+		}
+		else
+		{
+			for(int i = 0; bank[i]; i++)
+			{
+				if (script_security < sec_flags[i])
+				{
+					// Not enough security to change their values
+					temp_flags[i] = 0;
+				}
+			}
+		}
+
+		if (bank == extra_flagbank)
+		{
+			REMOVE_BIT(temp_flags[2], ITEM_INSTANCE_OBJ);
+
+			if( buf[0] == '=' || buf[0] == '&' )
+			{
+				if( IS_SET(ptr[2], ITEM_INSTANCE_OBJ) ) SET_BIT(temp_flags[2], ITEM_INSTANCE_OBJ);
+			}
+		}
+	}
+	else if( flags != NULL )
+	{
+		if( arg->type != ENT_STRING ) return;
+
+		value = script_flag_value(flags, arg->d.str);
+
+		if( value == NO_FLAG ) value = 0;
+
+		if( flags == extra3_flags )
+		{
+			REMOVE_BIT(value, ITEM_INSTANCE_OBJ);
+
+			if( buf[0] == '=' || buf[0] == '&' )
+			{
+				value |= (*ptr & (ITEM_INSTANCE_OBJ));
+			}
+		}
+	}
+	else
+	{
+		switch(arg->type) {
+		case ENT_STRING:
+			if( is_number(arg->d.str) )
+				value = atoi(arg->d.str);
+			else
+				return;
+
+			break;
+		case ENT_NUMBER: value = arg->d.num; break;
+		default: return;
+		}
+	}
+
+	switch (buf[0]) {
+	case '+':
+		if( !allowarith ) {
+			sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+				buf[0], field);
+			scriptcmd_bug(info, msg);
+			return;
+		}
+
+		*ptr += value;
+		break;
+
+	case '-':
+		if( !allowarith ) {
+			sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+				buf[0], field);
+			scriptcmd_bug(info, msg);
+			return;
+		}
+
+		*ptr -= value;
+		break;
+
+	case '*':
+		if( !allowarith ) {
+			sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+				buf[0], field);
+			scriptcmd_bug(info, msg);
+			return;
+		}
+
+		*ptr *= value;
+		break;
+
+	case '/':
+		if( !allowarith ) {
+			sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+				buf[0], field);
+			scriptcmd_bug(info, msg);
+			return;
+		}
+
+		if (!value) {
+			bug("Alterobj - adjust called with operator / and value 0", 0);
+			sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+				buf[0], field);
+			scriptcmd_bug(info, msg);
+			return;
+		}
+		*ptr /= value;
+		break;
+	case '%':
+		if( !allowarith ) {
+			sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+				buf[0], field);
+			scriptcmd_bug(info, msg);
+			return;
+		}
+
+		if (!value) {
+			sprintf(msg, "Alterobj - called arithmetic operator (%c) on a field (%s) that doesn't allow arithmetic operations.",
+				buf[0], field);
+			scriptcmd_bug(info, msg);
+			bug("Alterobj - adjust called with operator % and value 0", 0);
+			return;
+		}
+		*ptr %= value;
+		break;
+
+	case '=':
+		if (bank != NULL)
+		{
+			for(int i = 0; bank[i]; i++)
+				ptr[i] = temp_flags[i];
+		}
+		else
+			*ptr = value;
+		break;
+
+	case '&':
+		if( !allowbitwise ) {
+			sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
+				buf[0], field);
+			scriptcmd_bug(info, msg);
+			return;
+		}
+
+		if (bank != NULL)
+		{
+			for(int i = 0; bank[i]; i++)
+				ptr[i] &= temp_flags[i];
+		}
+		else
+			*ptr &= value;
+		break;
+	case '|':
+		if( !allowbitwise ) {
+			sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
+				buf[0], field);
+			scriptcmd_bug(info, msg);
+			return;
+		}
+
+		if (bank != NULL)
+		{
+			for(int i = 0; bank[i]; i++)
+				ptr[i] |= temp_flags[i];
+		}
+		else
+			*ptr |= value;
+		break;
+	case '!':
+		if( !allowbitwise ) {
+			sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
+				buf[0], field);
+			scriptcmd_bug(info, msg);
+			return;
+		}
+
+		if (bank != NULL)
+		{
+			for(int i = 0; bank[i]; i++)
+				ptr[i] &= ~temp_flags[i];
+		}
+		else
+			*ptr &= ~value;
+		break;
+	case '^':
+		if( !allowbitwise ) {
+			sprintf(msg, "Alterobj - called bitwise operator (%c) on a field (%s) that doesn't allow bitwise operations.",
+				buf[0], field);
+			scriptcmd_bug(info, msg);
+			return;
+		}
+
+		if (bank != NULL)
+		{
+			for(int i = 0; bank[i]; i++)
+				ptr[i] ^= temp_flags[i];
+		}
+		else
+			*ptr ^= value;
+
+		break;
+	default:
+		return;
+	}
+
+	if( ptr )
+	{
+		if(hasmin && *ptr < min)
+			*ptr = min;
+
+		if(hasmax && *ptr > max)
+			*ptr = max;
+	}
+
+	SETRETURN(1);
+}
+
+SCRIPT_CMD(scriptcmd_stringobjmt)
+{
+	char msg[MSL];
+	char field[MIL], entitytype[MIL],*rest = argument, **str;
+	int min_sec = MIN_SCRIPT_SECURITY;
+	OBJ_DATA *obj = NULL;
+
+	bool newlines = FALSE;
+	bool check_material = FALSE;
+
+	if(!info) return;
+
+	SETRETURN(0);
+
+	if (!PARSE_ARG)
+	{
+		scriptcmd_bug(info, "StringObj - Error in parsing.");
+		return;
+	}
+
+	field[0] = '\0';
+	str = NULL;
+
+	switch(arg->type) {
+	case ENT_STRING:
+		obj = script_get_obj_here(info, arg->d.str);
+		if (!IS_VALID(obj)) return;
+
+		strncpy(entitytype, "object", MIL-1);
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (!str_cmp(field, "name"))			{ if (obj->old_short_descr) return; str = (char **)&obj->name; }
+		else if (!str_cmp(field, "short"))		{ if (obj->old_short_descr) return; str = (char **)&obj->short_descr; }
+		else if (!str_cmp(field, "long"))		{ if (obj->old_description) return; str = (char **)&obj->description; }
+		else if (!str_cmp(field, "full"))		{ if (obj->old_full_description) return; str = (char **)&obj->full_description; }
+		else if (!str_cmp(field, "owner"))		{ str = (char **)&obj->owner; }
+		else if (!str_cmp(field, "material"))	{ str = (char **)&obj->material; check_material = TRUE; }
+		break;
+
+	case ENT_OBJECT:
+		obj = arg->d.obj;
+		if (!IS_VALID(obj)) return;
+
+		strncpy(entitytype, "object", MIL-1);
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (!str_cmp(field, "name"))			{ if (obj->old_short_descr) return; str = (char **)&obj->name; }
+		else if (!str_cmp(field, "short"))		{ if (obj->old_short_descr) return; str = (char **)&obj->short_descr; }
+		else if (!str_cmp(field, "long"))		{ if (obj->old_description) return; str = (char **)&obj->description; }
+		else if (!str_cmp(field, "full"))		{ if (obj->old_full_description) return; str = (char **)&obj->full_description; newlines = TRUE; }
+		else if (!str_cmp(field, "owner"))		{ str = (char **)&obj->owner; min_sec = 5; }
+		else if (!str_cmp(field, "material"))	{ str = (char **)&obj->material; check_material = TRUE; }
+		break;
+
+	case ENT_OBJECT_PAGE:
+		obj = arg->d.obj;
+		if (!IS_VALID(obj) || !IS_PAGE(obj)) return;
+
+		strncpy(entitytype, "page", MIL-1);
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (!str_cmp(field, "title"))		{ str = (char **)&PAGE(obj)->title; }
+		else if (!str_cmp(field, "text"))	{ str = (char **)&PAGE(obj)->text; newlines = TRUE; }
+		break;
+
+	case ENT_OBJECT_BOOK:
+		obj = arg->d.obj;
+		if (!IS_VALID(obj) || !IS_BOOK(obj)) return;
+
+		strncpy(entitytype, "book", MIL-1);
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (!str_cmp(field, "name"))		{ str = (char **)&BOOK(obj)->name; }
+		else if (!str_cmp(field, "short"))	{ str = (char **)&BOOK(obj)->short_descr; }
+		break;
+
+	case ENT_OBJECT_CONTAINER:
+		obj = arg->d.obj;
+		if (!IS_VALID(obj) || !IS_CONTAINER(obj)) return;
+
+		strncpy(entitytype, "container", MIL-1);
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (!str_cmp(field, "name"))		{ str = (char **)&CONTAINER(obj)->name; }
+		else if (!str_cmp(field, "short"))	{ str = (char **)&CONTAINER(obj)->short_descr; }
+		break;
+		
+	case ENT_OBJECT_PORTAL:
+		obj = arg->d.obj;
+		if (!IS_VALID(obj) || !IS_PORTAL(obj)) return;
+
+		strncpy(entitytype, "portal", MIL-1);
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (!str_cmp(field, "name"))		{ str = (char **)&PORTAL(obj)->name; }
+		else if (!str_cmp(field, "short"))	{ str = (char **)&PORTAL(obj)->short_descr; }
+		break;
+		
+	default:
+		scriptcmd_bug(info, "StringObj - Invalid entity.");
+		return;
+	}
+
+	if(!str) {
+		sprintf(msg, "StringObj - Invalid field '%s' on %s entity.", field, entitytype);
+		scriptcmd_bug(info, msg);
+		return;
+	}
+
+	if(script_security < min_sec) {
+		sprintf(msg,"StringObj - Attempting to restring '%s' with security %d.", field, script_security);
+		scriptcmd_bug(info, msg);
+		return;
+	}
+
+	BUFFER *buffer = new_buf();
+	expand_string(info,rest,buffer);
+
+	if(!buf_string(buffer)[0]) {
+		bug("StringObj - Empty string used.",0);
+		free_buf(buffer);
+		return;
+	}
+
+	if (check_material)
+	{
+		int mat = material_lookup(buf_string(buffer));
+
+		if(mat < 0) {
+			scriptcmd_bug(info, "StringObj - Invalid material.");
+			free_buf(buffer);
+			return;
+		}
+
+		// Force material to the full name
+		clear_buf(buffer);
+		add_buf(buffer,material_table[mat].name);
+	}
+
+	char *p = buf_string(buffer);
+	strip_newline(p, newlines);
+
+	free_string(*str);
+	*str = str_dup(p);
+
+	free_buf(buffer);
+
+	SETRETURN(1);
+}
+
+int __item_type_get_subtype(OBJ_DATA *obj);
+
+
+void __multitype_book(OBJ_DATA *book, SCRIPT_VARINFO *info, char *rest, SCRIPT_PARAM *arg)
+{
+	char buf[MSL];
+	int page_no;
+
+	PARSE_ARGTYPE(STRING);
+
+	if (!str_prefix(arg->d.str, "addpage"))
+	{
+		OBJ_DATA *page;
+		PARSE_ARGTYPE(OBJECT);
+		page = arg->d.obj;
+
+		if (!IS_VALID(page) || !IS_PAGE(page)) return;
+
+		int mode = 0;	// 0 = insert, 1 = append, 2 = explicit page
+		page_no = PAGE(page)->page_no;
+
+		if(rest && *rest)
+		{
+			if(!PARSE_ARG) return;
+			if(arg->type == ENT_NUMBER)
+			{
+				page_no = arg->d.num;
+				if (page_no < 1)
+					return;
+
+				mode = 2;
+			}
+			else if(arg->type == ENT_STRING)
+			{
+				if (!str_prefix(arg->d.str, "append"))
+				{
+					BOOK_PAGE *last_page = (BOOK_PAGE *)list_nthdata(BOOK(book)->pages, -1);
+
+					if (IS_VALID(last_page))
+						page_no = last_page->page_no + 1;
+					else
+						page_no = 1;
+
+					mode = 1;
+				}
+			}
+		}
+
+		PROG_SET(book,PROG_SILENT);
+		PROG_SET(page,PROG_SILENT);
+
+		// $(obj1) == page
+		if(p_percent_trigger(NULL, book, NULL, NULL, info->ch, NULL, NULL, page, NULL, TRIG_BOOK_PAGE_PREATTACH, NULL, page_no,mode,0,0,0))
+		{
+			PROG_CLR(book,PROG_SILENT);
+			PROG_CLR(page,PROG_SILENT);
+			return;
+		}
+
+		// $(obj2) == book
+		if(p_percent_trigger(NULL, page, NULL, NULL, info->ch, NULL, NULL, NULL, book, TRIG_BOOK_PAGE_PREATTACH, NULL, page_no,mode,0,0,0))
+		{
+			PROG_CLR(book,PROG_SILENT);
+			PROG_CLR(page,PROG_SILENT);
+			return;
+		}
+		PROG_CLR(page,PROG_SILENT);
+
+		BOOK_PAGE *new_page = copy_book_page(PAGE(page));
+		new_page->page_no = page_no;
+
+		if (!book_insert_page(BOOK(book), new_page))
+		{
+			free_book_page(new_page);
+		}
+		else
+		{
+			p_percent_trigger(NULL, book, NULL, NULL, info->ch, NULL, NULL, page, NULL, TRIG_BOOK_PAGE_ATTACH, NULL, page_no,mode,0,0,0);
+			p_percent_trigger(NULL, page, NULL, NULL, info->ch, NULL, NULL, NULL, book, TRIG_BOOK_PAGE_ATTACH, NULL, page_no,mode,0,0,0);
+
+			// Get rid of old page
+			extract_obj(page);
+		}
+		PROG_CLR(book,PROG_SILENT);
+
+		SETRETURN(page_no);
+	}
+	else if(!str_prefix(arg->d.str, "rempage"))
+	{
+		CHAR_DATA *to_mob;
+		OBJ_DATA *to_obj;
+		ROOM_INDEX_DATA *to_room;
+		ROOM_INDEX_DATA *here = obj_room(book);
+		bool fToroom = FALSE;
+
+		PARSE_ARGTYPE(NUMBER);
+		page_no = arg->d.num;
+
+		BOOK_PAGE *page = book_get_page(BOOK(book), page_no);
+		if (!IS_VALID(page))
+			return;
+
+		// Destination
+		if (!PARSE_ARG)
+			return;
+
+		OBJ_DATA *torn_page = create_object(obj_index_page, 1, FALSE);
+
+		sprintf(buf, torn_page->short_descr, book->short_descr);
+		free_string(torn_page->short_descr);
+		torn_page->short_descr = str_dup(buf);
+
+		if (!IS_NULLSTR(page->title))
+		{
+			char *title = nocolour(page->title);
+			sprintf(buf, "A torn page, titled '%s', lies crumpled up here.", title);
+			free_string(title);
+			free_string(torn_page->description);
+			torn_page->description = str_dup(buf);
+		}
+
+		int len = strlen(page->title);
+		int lennc = strlen_no_colours(page->title);
+
+		// (80 - lennc) / 2 + lennc + length of color codes
+		int wtitle = (80 + lennc) / 2 + (len - lennc);
+
+		BUFFER *buffer = new_buf();
+
+		sprintf(buf, "%*.*s\n\r", wtitle, wtitle, page->title);
+		add_buf(buffer, buf);
+
+		add_buf(buffer, "--------------------------------------------------------------------------------\n\r");
+		if (IS_NULLSTR(page->text))
+		{
+			char *blank = "BLANK PAGE";
+			int wblank = (80 + strlen(blank)) / 2;
+			sprintf(buf, "\n\r%*.*s\n\r\n\r", wblank, wblank, blank);
+			add_buf(buffer, buf);
+		}
+		else
+		{
+			add_buf(buffer, page->text);
+		}
+		add_buf(buffer, "--------------------------------------------------------------------------------\n\r");
+		
+		char page_no_str[MIL];
+		sprintf(page_no_str, "%d", page_no);
+		int wpage_no = (80 + strlen(page_no_str)) / 2;
+		sprintf(buf, "%*.*s", wpage_no, wpage_no, page_no_str);
+		add_buf(buffer, buf);
+
+		free_string(torn_page->full_description);
+		torn_page->full_description = str_dup(buf_string(buffer));
+		free_buf(buffer);
+
+		free_string(torn_page->name);
+		torn_page->name = short_to_name(torn_page->short_descr);
+
+		// Install multi-typing stuff
+		if (!IS_PAGE(torn_page)) PAGE(torn_page) = new_book_page();
+		PAGE(torn_page)->page_no = page->page_no;
+		free_string(PAGE(torn_page)->title);
+		PAGE(torn_page)->title = str_dup(page->title);
+		free_string(PAGE(torn_page)->text);
+		PAGE(torn_page)->text = str_dup(page->text);
+
+		// Remove actual page from book
+		list_remlink(BOOK(book)->pages, page);
+
+		/*
+		 * Destination
+		 * 'room'  - load to room
+		 * MOBILE  - load to target mobile
+		 * OBJECT  - load to target object
+		 * ROOM    - load to target room
+		 */
+
+		switch(arg->type) {
+		case ENT_STRING:
+			if(!str_cmp(arg->d.str, "room"))
+				fToroom = TRUE;
+			break;
+
+		case ENT_MOBILE:
+			to_mob = arg->d.mob;
+			break;
+
+		case ENT_OBJECT:
+			if( arg->d.obj && IS_SET(torn_page->wear_flags, ITEM_TAKE) ) {
+				if(IS_CONTAINER(arg->d.obj))
+				{
+					int subtype = __item_type_get_subtype(torn_page);
+					if (container_is_valid_item_type(arg->d.obj, torn_page->item_type, subtype))
+						to_obj = arg->d.obj;
+				}
+				else if(arg->d.obj->item_type == ITEM_CORPSE_NPC || arg->d.obj->item_type == ITEM_CORPSE_PC)
+					to_obj = arg->d.obj;
+			}
+			break;
+
+		case ENT_ROOM:		to_room = arg->d.room; break;
+		}
+
+		// Place torn page
+		if( to_room )
+			obj_to_room(torn_page, to_room);
+		else if( to_obj )
+			obj_to_obj(torn_page, to_obj);
+		else if( to_mob && !fToroom && CAN_WEAR(torn_page, ITEM_TAKE) &&
+			(to_mob->carry_number < can_carry_n (to_mob)) &&
+			(get_carry_weight (to_mob) + get_obj_weight (torn_page) <= can_carry_w (to_mob))) {
+			obj_to_char(torn_page, to_mob);
+		}
+		else if( here )
+			obj_to_room(torn_page, here);
+		else
+		{
+			// This is the minimum actions necessary for a phantom object extraction
+			list_remlink(loaded_objects, torn_page);
+			--torn_page->pIndexData->count;
+			free_obj(torn_page);
+			return;
+		}
+
+		if(rest && *rest) variables_set_object(info->var,rest,torn_page);
+		p_percent_trigger(NULL, torn_page, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL,0,0,0,0,0);
+
+		SETRETURN(1);
+	}
+}
+
+char *__multitype_container_gettype(SCRIPT_VARINFO *info, char *rest, SCRIPT_PARAM *arg, int *type, int *subtype)
+{
+	if (!PARSE_ARG || arg->type != ENT_STRING) return NULL;
+	*type = stat_lookup(arg->d.str, type_flags, NO_FLAG);
+	if( *type == NO_FLAG) return NULL;
+
+	*subtype = -1;
+	if (*type == ITEM_WEAPON)
+	{
+		// Get subtype
+		if (!PARSE_ARG || arg->type != ENT_STRING) return NULL;
+		*subtype = stat_lookup(arg->d.str, weapon_class, NO_FLAG);
+	}
+
+	return rest;
+}
+
+void __multitype_container(OBJ_DATA *container, SCRIPT_VARINFO *info, char *rest, SCRIPT_PARAM *arg)
+{
+	PARSE_ARGTYPE(STRING);
+
+	if (!str_prefix(arg->d.str, "addblacklist"))
+	{
+		int type, subtype;
+		if (!(rest = __multitype_container_gettype(info, rest, arg, &type, &subtype)))
+			return;
+
+		if (type == NO_FLAG || subtype == NO_FLAG)
+			return;
+
+		ITERATOR it;
+		CONTAINER_FILTER *filter;
+		iterator_start(&it, CONTAINER(container)->blacklist);
+		while((filter = (CONTAINER_FILTER *)iterator_nextdata(&it)))
+		{
+			if (filter->item_type == type && filter->sub_type == subtype)
+			{
+				break;
+			}
+		}
+		iterator_stop(&it);
+
+		if(filter) return;
+
+		iterator_start(&it, CONTAINER(container)->whitelist);
+		while((filter = (CONTAINER_FILTER *)iterator_nextdata(&it)))
+		{
+			if (filter->item_type == type && filter->sub_type == subtype)
+			{
+				break;
+			}
+		}
+		iterator_stop(&it);
+
+		if(filter) return;
+
+		filter = new_container_filter();
+		filter->item_type = type;
+		filter->sub_type = subtype;
+		list_appendlink(CONTAINER(container)->blacklist, filter);
+
+		SETRETURN(1);
+	}
+	else if (!str_prefix(arg->d.str, "remblacklist"))
+	{
+		int type, subtype;
+		if (!(rest = __multitype_container_gettype(info, rest, arg, &type, &subtype)))
+			return;
+
+		if (type == NO_FLAG || subtype == NO_FLAG)
+			return;
+
+		ITERATOR it;
+		CONTAINER_FILTER *filter;
+		iterator_start(&it, CONTAINER(container)->blacklist);
+		while((filter = (CONTAINER_FILTER *)iterator_nextdata(&it)))
+		{
+			if (filter->item_type == type && filter->sub_type == subtype)
+			{
+				iterator_remcurrent(&it);
+				break;
+			}
+		}
+		iterator_stop(&it);
+
+		if (filter) SETRETURN(1);
+	}
+	else if (!str_prefix(arg->d.str, "addwhitelist"))
+	{
+		int type, subtype;
+		if (!(rest = __multitype_container_gettype(info, rest, arg, &type, &subtype)))
+			return;
+
+		if (type == NO_FLAG || subtype == NO_FLAG)
+			return;
+
+		ITERATOR it;
+		CONTAINER_FILTER *filter;
+		iterator_start(&it, CONTAINER(container)->blacklist);
+		while((filter = (CONTAINER_FILTER *)iterator_nextdata(&it)))
+		{
+			if (filter->item_type == type && filter->sub_type == subtype)
+			{
+				break;
+			}
+		}
+		iterator_stop(&it);
+
+		if(filter) return;
+
+		iterator_start(&it, CONTAINER(container)->whitelist);
+		while((filter = (CONTAINER_FILTER *)iterator_nextdata(&it)))
+		{
+			if (filter->item_type == type && filter->sub_type == subtype)
+			{
+				break;
+			}
+		}
+		iterator_stop(&it);
+
+		if(filter) return;
+
+		filter = new_container_filter();
+		filter->item_type = type;
+		filter->sub_type = subtype;
+		list_appendlink(CONTAINER(container)->whitelist, filter);
+
+		SETRETURN(1);
+	}
+	else if (!str_prefix(arg->d.str, "remwhitelist"))
+	{
+		int type, subtype;
+		if (!(rest = __multitype_container_gettype(info, rest, arg, &type, &subtype)))
+			return;
+
+		if (type == NO_FLAG || subtype == NO_FLAG)
+			return;
+
+		ITERATOR it;
+		CONTAINER_FILTER *filter;
+		iterator_start(&it, CONTAINER(container)->whitelist);
+		while((filter = (CONTAINER_FILTER *)iterator_nextdata(&it)))
+		{
+			if (filter->item_type == type && filter->sub_type == subtype)
+			{
+				iterator_remcurrent(&it);
+				break;
+			}
+		}
+		iterator_stop(&it);
+
+		if (filter) SETRETURN(1);
+	}
+}
+
+// ADDFOODBUFF $FOOD apply-type(string) level(number|auto) location(string) modifier(number) duration(number|auto) bitvector(string) bitvector2(string)
+void __multitype_food(OBJ_DATA *food, SCRIPT_VARINFO *info, char *rest, SCRIPT_PARAM *arg)
+{
+	PARSE_ARGTYPE(STRING);
+
+	if (!str_prefix(arg->d.str, "addbuff"))
+	{
+		PARSE_ARGTYPE(STRING);
+		int type = stat_lookup(arg->d.str, food_buff_types, NO_FLAG);
+		if (type == NO_FLAG) return;
+
+		int level;
+		if (!PARSE_ARG) return;
+		if (arg->type == ENT_NUMBER)
+		{
+			level = UMAX(1, arg->d.num);
+		}
+		else if (!str_prefix(arg->d.str, "auto"))
+		{
+			level = 0;
+		}
+		else
+			return;
+
+		PARSE_ARGTYPE(STRING);
+		int location = stat_lookup(arg->d.str, apply_flags, NO_FLAG);
+		if (location == NO_FLAG) return;
+
+		PARSE_ARGTYPE(NUMBER);
+		int modifier = arg->d.num;
+
+		int duration;
+		if (!PARSE_ARG) return;
+		if (arg->type == ENT_NUMBER)
+		{
+			duration = UMAX(1, arg->d.num);
+		}
+		else if (!str_prefix(arg->d.str, "auto"))
+		{
+			duration = 0;
+		}
+		else
+			return;
+
+		long bitvectors[2];
+
+		PARSE_ARGTYPE(STRING);
+
+		if (!bitvector_lookup(arg->d.str, 2, bitvectors, affect_flags, affect2_flags)) return;
+
+		FOOD_BUFF_DATA *buff = new_food_buff_data();
+		buff->where = type;
+		buff->level = level;
+		buff->location = location;
+		buff->modifier = modifier;
+		buff->duration = duration;
+		buff->bitvector = bitvectors[0];
+		buff->bitvector2 = bitvectors[1];
+
+		list_appendlink(FOOD(food)->buffs, buff);
+
+		SETRETURN(1);
+	}
+}
+
+void __multitype_furniture(OBJ_DATA *furniture, SCRIPT_VARINFO *info, char *rest, SCRIPT_PARAM *arg)
+{
+	PARSE_ARGTYPE(STRING);
+
+	if (!str_prefix(arg->d.str, "addcompartment"))
+	{
+		BUFFER *buffer = new_buf();
+		if (!PARSE_STR(buffer))
+		{
+			free_buf(buffer);
+			return;
+		}
+
+		FURNITURE_COMPARTMENT *compartment = new_furniture_compartment();
+		free_string(compartment->short_descr);
+		compartment->short_descr = str_dup(buf_string(buffer));
+		free_string(compartment->name);
+		compartment->name = short_to_name(compartment->short_descr);
+		
+		list_appendlink(FURNITURE(furniture)->compartments, compartment);
+
+		// Return value is the compartment number of the new compartment
+		SETRETURN(list_size(FURNITURE(furniture)->compartments));
+	}
+}
+
+void __multitype_portal(OBJ_DATA *portal, SCRIPT_VARINFO *info, char *rest, SCRIPT_PARAM *arg)
+{
+	PORTAL_DATA *p = PORTAL(portal);
+
+	PARSE_ARGTYPE(STRING);
+
+	if (!str_prefix(arg->d.str, "destination"))
+	{
+		long params[MAX_PORTAL_VALUES];
+		for(int i = 0; i < MAX_PORTAL_VALUES; i++)
+			params[i] = 0;
+
+		switch(p->type)
+		{
+			default:
+				return;
+
+			case GATETYPE_NORMAL:		// DESTINATION $WIDEVNUM|$ROOM
+			{
+				if (!PARSE_ARG) return;
+
+				ROOM_INDEX_DATA *room = NULL;
+				if (arg->type == ENT_WIDEVNUM)
+					room = get_room_index_wnum(arg->d.wnum);
+				else if (arg->type == ENT_ROOM)
+					room = arg->d.room;
+				else
+					return;
+
+				if (room)
+				{
+					params[0] = room->area->uid;
+					params[1] = room->vnum;
+				}
+				else
+				{
+					params[0] = 0;
+					params[1] = 0;
+				}
+				params[2] = 0;
+				params[3] = 0;
+				params[4] = 0;
+				break;
+			}
+
+			case GATETYPE_WILDS:
+			{
+				PARSE_ARGTYPE(NUMBER);
+				WILDS_DATA *wilds = get_wilds_from_uid(NULL, arg->d.num);
+				if (!wilds)
+					return;
+
+				PARSE_ARGTYPE(NUMBER);
+				int x = arg->d.num;
+				if (x < 1 || x > wilds->map_size_x)
+					return;
+
+				PARSE_ARGTYPE(NUMBER);
+				int y = arg->d.num;
+				if (y < 1 || y > wilds->map_size_y)
+					return;
+
+				params[0] = wilds->uid;
+				params[1] = x;
+				params[2] = y;
+				params[3] = 0;
+				params[4] = 0;
+				break;
+			}
+
+			case GATETYPE_WILDSRANDOM:
+			{
+				PARSE_ARGTYPE(NUMBER);
+				WILDS_DATA *wilds = get_wilds_from_uid(NULL, arg->d.num);
+				if (!wilds)
+					return;
+
+				PARSE_ARGTYPE(NUMBER);
+				int min_x = arg->d.num;
+				if (min_x < 1 || min_x > wilds->map_size_x)
+					return;
+
+				PARSE_ARGTYPE(NUMBER);
+				int min_y = arg->d.num;
+				if (min_y < 1 || min_y > wilds->map_size_y)
+					return;
+
+				PARSE_ARGTYPE(NUMBER);
+				int max_x = arg->d.num;
+				if (max_x < 1 || max_x > wilds->map_size_x)
+					return;
+
+				PARSE_ARGTYPE(NUMBER);
+				int max_y = arg->d.num;
+				if (max_y < 1 || max_y > wilds->map_size_y)
+					return;
+
+				params[0] = wilds->uid;
+				params[1] = UMIN(min_x, max_x);
+				params[2] = UMIN(min_y, max_y);
+				params[3] = UMAX(min_x, max_x);
+				params[4] = UMAX(min_y, max_y);
+				break;
+			}
+
+			case GATETYPE_AREARECALL:
+			case GATETYPE_AREARANDOM:
+			{
+				if (!PARSE_ARG) return;
+				if (arg->type == ENT_STRING && !str_prefix(arg->d.str, "current"))
+				{
+					params[0] = 0;
+				}
+				else if (arg->type == ENT_NUMBER)
+				{
+					AREA_DATA *area = get_area_from_uid(arg->d.num);
+					if (!area)
+						return;
+
+					params[0] = area->uid;
+				}
+				else if (arg->type == ENT_AREA && arg->d.area)
+				{
+					params[0] = arg->d.area->uid;
+				}
+				else
+					return;
+
+				params[1] = 0;
+				params[2] = 0;
+				params[3] = 0;
+				params[4] = 0;
+				break;
+			}
+
+			case GATETYPE_REGIONRECALL:
+			case GATETYPE_REGIONRANDOM:
+			{
+				AREA_DATA *area = NULL;
+				AREA_REGION *region = NULL;
+				if (!PARSE_ARG) return;
+				if (arg->type == ENT_STRING && !str_prefix(arg->d.str, "current"))
+				{
+					params[0] = 0;
+				}
+				else if (arg->type == ENT_NUMBER)
+				{
+					area = get_area_from_uid(arg->d.num);
+					if (!area)
+						return;
+
+					params[0] = area->uid;
+				}
+				else if (arg->type == ENT_AREA && arg->d.area)
+				{
+					area = arg->d.area;
+					params[0] = arg->d.area->uid;
+				}
+				else if (arg->type == ENT_AREA_REGION && arg->d.aregion)
+				{
+					region = arg->d.aregion;
+					params[0] = arg->d.aregion->area->uid;
+					params[1] = arg->d.aregion->uid;
+				}
+				else
+					return;
+
+				if (!region)
+				{
+					if (!PARSE_ARG) return;
+					if (arg->type == ENT_STRING && !str_prefix(arg->d.str, "default"))
+					{
+						params[1] = 0;
+					}
+					else if (arg->type == ENT_NUMBER)
+					{
+						if (arg->d.num < 1)
+							return;
+
+						if (area && !get_area_region_by_uid(area, arg->d.num))
+							return;
+
+						params[1] = arg->d.num;
+					}
+					else
+						return;
+				}
+
+				params[2] = 0;
+				params[3] = 0;
+				params[4] = 0;
+				break;
+			}
+
+			case GATETYPE_SECTIONRANDOM:
+			{
+				PARSE_ARGTYPE(STRING);
+				if(!str_prefix(arg->d.str, "current"))
+				{
+					params[0] = 0;
+				}
+				else
+				{
+					bool mode = TRISTATE;
+					PARSE_ARGTYPE(STRING);
+					if (!str_prefix(arg->d.str, "generated"))
+						mode = FALSE;
+					else if (!str_prefix(arg->d.str, "ordinal"))
+						mode = TRUE;
+					else
+						return;
+
+					PARSE_ARGTYPE(NUMBER);
+
+					if (arg->d.num < 1)
+						return;
+
+					params[0] = mode ? -arg->d.num : arg->d.num;
+				}
+
+				params[1] = 0;
+				params[2] = 0;
+				params[3] = 0;
+				params[4] = 0;
+				break;
+			}
+
+			case GATETYPE_DUNGEON:		// $VNUM|$DUNGEON
+			{
+				DUNGEON_INDEX_DATA *dungeon = NULL;
+				if (!PARSE_ARG) return;
+
+				if (arg->type == ENT_NUMBER)
+				{
+					dungeon = get_dungeon_index(portal->pIndexData->area, arg->d.num);
+				}
+				else if (arg->type == ENT_DUNGEON)
+				{
+					dungeon = arg->d.dungeon ? arg->d.dungeon->index : NULL;
+				}
+				
+				if (!dungeon) return;
+
+				params[0] = dungeon->vnum;
+
+				PARSE_ARGTYPE(STRING);
+				if (!str_prefix(arg->d.str, "floor"))
+				{
+					PARSE_ARGTYPE(NUMBER);
+
+					int floor = arg->d.num;
+					if (!IS_SET(dungeon->flags, DUNGEON_SCRIPTED_LEVELS))
+					{
+						if (floor < 1 || floor > list_size(dungeon->levels))
+							return;
+					}
+
+					params[1] = floor;
+					params[2] = 0;					
+				}
+				else if(!str_prefix(arg->d.str, "room"))
+				{
+					PARSE_ARGTYPE(NUMBER);
+
+					int room_no = arg->d.num;
+					if (!IS_SET(dungeon->flags, DUNGEON_SCRIPTED_LEVELS))
+					{
+						if (room_no < 1 || room_no > list_size(dungeon->special_rooms))
+							return;
+					}
+
+					params[1] = 0;
+					params[2] = room_no;
+				}
+				else if (!str_prefix(arg->d.str, "default"))
+				{
+					params[1] = 0;
+					params[2] = 0;
+				}
+				else
+					return;
+
+				params[3] = 0;
+				params[4] = 0;
+				break;
+			}
+
+			case GATETYPE_DUNGEONFLOOR:
+			{
+				DUNGEON_INDEX_DATA *dungeon = NULL;
+				if (!PARSE_ARG) return;
+
+				if (arg->type == ENT_NUMBER)
+				{
+					dungeon = get_dungeon_index(portal->pIndexData->area, arg->d.num);
+				}
+				else if (arg->type == ENT_DUNGEON)
+				{
+					dungeon = arg->d.dungeon ? arg->d.dungeon->index : NULL;
+				}
+				
+				if (!dungeon) return;
+
+				params[0] = dungeon->vnum;
+
+				if (!PARSE_ARG) return;
+
+				if (arg->type == ENT_STRING && !str_prefix(arg->d.str, "default"))
+				{
+					params[1] = 0;
+				}
+				else if (arg->type == ENT_NUMBER)
+				{
+					int floor = arg->d.num;
+					if (!IS_SET(dungeon->flags, DUNGEON_SCRIPTED_LEVELS))
+					{
+						if (floor < 1 || floor > list_size(dungeon->levels))
+							return;
+					}
+
+					params[1] = floor;
+				}
+				else
+					return;
+
+				params[2] = 0;					
+				params[3] = 0;
+				params[4] = 0;
+				break;
+			}
+
+			case GATETYPE_BLUEPRINT_SECTION_MAZE:
+			{
+				if (!PARSE_ARG) return;
+
+				if (!str_prefix(arg->d.str, "current"))
+				{
+					params[0] = 0;
+				}
+				else
+				{
+					bool mode = TRISTATE;
+
+					if (!str_prefix(arg->d.str, "generated"))
+						mode = FALSE;
+					else if (!str_prefix(arg->d.str, "ordinal"))
+						mode = TRUE;
+					else
+						return;
+
+					PARSE_ARGTYPE(NUMBER);
+
+					params[0] = mode ? -arg->d.num : arg->d.num;
+				}
+
+				PARSE_ARGTYPE(NUMBER);
+				int x = arg->d.num;
+				if (x < 1) return;
+
+				PARSE_ARGTYPE(NUMBER);
+				int y = arg->d.num;
+				if (y < 1) return;
+
+				params[1] = x;
+				params[2] = y;
+				params[3] = 0;
+				params[4] = 0;
+				break;
+			}
+
+			case GATETYPE_BLUEPRINT_SPECIAL:
+			case GATETYPE_DUNGEON_SPECIAL:
+			{
+				PARSE_ARGTYPE(NUMBER);
+				if (arg->d.num < 1)
+					return;
+
+				params[0] = arg->d.num;
+				params[1] = 0;
+				params[2] = 0;
+				params[3] = 0;
+				params[4] = 0;
+				break;
+			}
+
+			case GATETYPE_DUNGEON_FLOOR_SPECIAL:
+			{
+				if (!PARSE_ARG) return;
+
+				if (!str_prefix(arg->d.str,"current"))
+					params[0] = 0;
+				else
+				{
+					bool mode = TRISTATE;
+
+					if (!str_prefix(arg->d.str, "generated"))
+						mode = FALSE;
+					else if (!str_prefix(arg->d.str, "ordinal"))
+						mode = TRUE;
+					else
+						return;
+
+					PARSE_ARGTYPE(NUMBER);
+
+					params[0] = mode ? -arg->d.num : arg->d.num;
+				}
+
+				PARSE_ARGTYPE(NUMBER);
+
+				if (arg->d.num < 1)
+					return;
+
+				params[1] = arg->d.num;
+				params[2] = 0;
+				params[3] = 0;
+				params[4] = 0;
+				break;
+			}
+		}
+
+
+		for(int i = 0; i < MAX_PORTAL_VALUES; i++)
+			p->params[i] = params[i];
+
+		SETRETURN(1);
+	}
+
+}
+
+// MULTITYPE $BOOK addpage $PAGE[ append|$NUMBER]
+// MULTITYPE $BOOK rempage $NUMBER[ room|$MOBILE|$OBJECT|$ROOM[ $VARIABLENAME]]
+// MULTITYPE $CONTAINER addblacklist $TYPE[ $SUBTYPE]
+// MULTITYPE $CONTAINER remblacklist $TYPE[ $SUBTYPE]
+// MULTITYPE $CONTAINER addwhitelist $TYPE[ $SUBTYPE]
+// MULTITYPE $CONTAINER remwhitelist $TYPE[ $SUBTYPE]
+// MULTITYPE $FOOD addbuff apply-type(string) level(number|auto) location(string) modifier(number) duration(number|auto) bitvector(string) bitvector2(string)
+// MULTITYPE $FURNITURE addcompartment $SHORTDESC  (returns the compartment number)
+SCRIPT_CMD(scriptcmd_multitype)
+{
+	char *rest = argument;
+	OBJ_DATA *obj = NULL;
+
+	if(!info) return;
+
+	SETRETURN(0);
+
+	if (!PARSE_ARG)
+	{
+		scriptcmd_bug(info, "MultiType - Error in parsing.");
+		return;
+	}
+
+	switch(arg->type) {
+	case ENT_OBJECT_BOOK:
+		obj = arg->d.obj;
+		if (!IS_VALID(obj) || !IS_BOOK(obj)) return;
+
+		__multitype_book(obj,info,rest,arg);
+		break;
+
+	case ENT_OBJECT_CONTAINER:
+		obj = arg->d.obj;
+		if (!IS_VALID(obj) || !IS_CONTAINER(obj)) return;
+
+		__multitype_container(obj,info,rest,arg);
+		break;
+
+	case ENT_OBJECT_FOOD:
+		obj = arg->d.obj;
+		if (!IS_VALID(obj) || !IS_FOOD(obj)) return;
+
+		__multitype_food(obj,info,rest,arg);
+		break;
+
+	case ENT_OBJECT_FURNITURE:
+		obj = arg->d.obj;
+		if (!IS_VALID(obj) || !IS_FURNITURE(obj)) return;
+
+		__multitype_furniture(obj,info,rest,arg);
+		break;
+
+	case ENT_OBJECT_PORTAL:
+		obj = arg->d.obj;
+		if (!IS_VALID(obj) || !IS_PORTAL(obj)) return;
+
+		__multitype_portal(obj,info,rest,arg);
+		break;
+
+
+	default:
+		// Do nothing
+		return;
+	}
+
+}
 
 // REASSIGN <field> <entity>
 //

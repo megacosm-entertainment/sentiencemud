@@ -23,15 +23,12 @@ const struct script_cmd_type mob_cmd_table[] = {
 	{ "addaffect",			scriptcmd_addaffect,		TRUE,	TRUE	},
 	{ "addaffectname",		scriptcmd_addaffectname,	TRUE,	TRUE	},
 	{ "addaura",			scriptcmd_addaura,			TRUE,	TRUE	},
-	{ "addblacklist",		scriptcmd_addblacklist,			TRUE, TRUE },
-	{ "addfoodbuff",		scriptcmd_addfoodbuff,		TRUE, TRUE },
 	{ "addspell",			scriptcmd_addspell,				TRUE,	TRUE	},
 	{ "addtype",			scriptcmd_addtype,			TRUE, TRUE },
-	{ "addwhitelist",		scriptcmd_addwhitelist,			TRUE, TRUE },
 	{ "alteraffect",		do_mpalteraffect,			TRUE,	TRUE	},
 	{ "alterexit",			do_mpalterexit,				FALSE,	TRUE	},
 	{ "altermob",			do_mpaltermob,				TRUE,	TRUE	},
-	{ "alterobj",			scriptcmd_alterobj,				TRUE,	TRUE	},
+	{ "alterobj",			scriptcmd_alterobjmt,				TRUE,	TRUE	},
 	{ "alterroom",			do_mpalterroom,				TRUE,	TRUE	},
 	{ "appear",				do_mpvis,					FALSE,	FALSE	},
 	{ "applytoxin",			scriptcmd_applytoxin,		FALSE,	TRUE	},
@@ -135,13 +132,11 @@ const struct script_cmd_type mob_cmd_table[] = {
 	{ "reassign",			scriptcmd_reassign,			TRUE,	FALSE	},
 	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
 	{ "remaura",			scriptcmd_remaura,			TRUE,	TRUE	},
-	{ "remblacklist",		scriptcmd_remblacklist,		TRUE,	TRUE	},
 	{ "remember",			do_mpremember,				FALSE,	TRUE	},
 	{ "remort",				do_mpremort,				TRUE,	TRUE	},
 	{ "remove",				do_mpremove,				FALSE,	TRUE	},
 	{ "remspell",			scriptcmd_remspell,				TRUE,	TRUE	},
 	{ "remtype",			scriptcmd_remtype,			TRUE,	TRUE	},
-	{ "remwhitelist",		scriptcmd_remwhitelist,		TRUE,	TRUE	},
 	{ "resetdice",			do_mpresetdice,				TRUE,	TRUE	},
 	{ "restore",			do_mprestore,				TRUE,	TRUE	},
 	{ "revokeskill",		scriptcmd_revokeskill,		FALSE,	TRUE	},
@@ -163,7 +158,7 @@ const struct script_cmd_type mob_cmd_table[] = {
 	{ "startreckoning",		scriptcmd_startreckoning,	TRUE,	TRUE	},
 	{ "stopcombat",			scriptcmd_stopcombat,		FALSE,	TRUE	},
 	{ "stringmob",			do_mpstringmob,				TRUE,	TRUE	},
-	{ "stringobj",			do_mpstringobj,				TRUE,	TRUE	},
+	{ "stringobj",			scriptcmd_stringobjmt,				TRUE,	TRUE	},
 	{ "stripaffect",		do_mpstripaffect,			TRUE,	TRUE	},
 	{ "stripaffectname",	do_mpstripaffectname,		TRUE,	TRUE	},
 	{ "take",				do_mptake,					FALSE,	TRUE	},
@@ -1021,7 +1016,7 @@ SCRIPT_CMD(do_mpat)
 	remote = PROG_FLAG(info->mob,PROG_AT);
 	sec = script_security;
 	script_security = NO_SCRIPT_SECURITY;
-	SET_BIT(info->mob->progs->entity_flags,PROG_AT);
+	PROG_SET(info->mob,PROG_AT);
 	orig = info->mob->in_room;
 	on = info->mob->on;
 	pulled = info->mob->pulled_cart;
@@ -8096,6 +8091,7 @@ SCRIPT_CMD(do_mpremort)
 		mob->remove_question ||
 		mob->personal_pk_question ||
 		mob->cross_zone_question ||
+		IS_VALID(mob->seal_book) ||
 		mob->pcdata->convert_church != -1 ||
 		mob->challenged ||
 		mob->remort_question)

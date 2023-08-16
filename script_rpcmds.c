@@ -20,15 +20,12 @@ const struct script_cmd_type room_cmd_table[] = {
 	{ "addaffect",			scriptcmd_addaffect,	TRUE,	TRUE	},
 	{ "addaffectname",		scriptcmd_addaffectname,TRUE,	TRUE	},
 	{ "addaura",			scriptcmd_addaura,			TRUE,	TRUE	},
-	{ "addblacklist",		scriptcmd_addblacklist,			TRUE, TRUE },
-	{ "addfoodbuff",		scriptcmd_addfoodbuff,		TRUE, TRUE },
 	{ "addspell",			scriptcmd_addspell,				TRUE,	TRUE	},
 	{ "addtype",			scriptcmd_addtype,			TRUE, TRUE },
-	{ "addwhitelist",		scriptcmd_addwhitelist,			TRUE, TRUE },
 	{ "alteraffect",		do_rpalteraffect,		TRUE,	TRUE	},
 	{ "alterexit",			do_rpalterexit,			FALSE,	TRUE	},
 	{ "altermob",			do_rpaltermob,			TRUE,	TRUE	},
-	{ "alterobj",			scriptcmd_alterobj,			TRUE,	TRUE	},
+	{ "alterobj",			scriptcmd_alterobjmt,			TRUE,	TRUE	},
 	{ "alterroom",			do_rpalterroom,			TRUE,	TRUE	},
 	{ "applytoxin",			scriptcmd_applytoxin,	FALSE,	TRUE	},
 	{ "asound",				do_rpasound,			FALSE,	TRUE	},
@@ -121,13 +118,11 @@ const struct script_cmd_type room_cmd_table[] = {
 	{ "reassign",			scriptcmd_reassign,			TRUE,	FALSE	},
 	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
 	{ "remaura",			scriptcmd_remaura,			TRUE,	TRUE	},
-	{ "remblacklist",		scriptcmd_remblacklist,		TRUE,	TRUE	},
 	{ "remember",			do_rpremember,			FALSE,	TRUE	},
 	{ "remort",				do_rpremort,			TRUE,	TRUE	},
 	{ "remove",				do_rpremove,			FALSE,	TRUE	},
 	{ "remspell",			scriptcmd_remspell,			TRUE,	TRUE	},
 	{ "remtype",			scriptcmd_remtype,			TRUE,	TRUE	},
-	{ "remwhitelist",		scriptcmd_remwhitelist,		TRUE,	TRUE	},
 	{ "resetdice",			do_rpresetdice,			TRUE,	TRUE	},
 	{ "restore",			do_rprestore,			TRUE,	TRUE	},
 	{ "revokeskill",		scriptcmd_revokeskill,	FALSE,	TRUE	},
@@ -147,7 +142,7 @@ const struct script_cmd_type room_cmd_table[] = {
 	{ "startreckoning",		scriptcmd_startreckoning,	TRUE,	TRUE	},
 	{ "stopcombat",			scriptcmd_stopcombat,	FALSE,	TRUE	},
 	{ "stringmob",			do_rpstringmob,			TRUE,	TRUE	},
-	{ "stringobj",			do_rpstringobj,			TRUE,	TRUE	},
+	{ "stringobj",			scriptcmd_stringobjmt,			TRUE,	TRUE	},
 	{ "stripaffect",		do_rpstripaffect,		TRUE,	TRUE	},
 	{ "stripaffectname",	do_rpstripaffectname,	TRUE,	TRUE	},
 	{ "transfer",			do_rptransfer,			FALSE,	TRUE	},
@@ -657,7 +652,7 @@ SCRIPT_CMD(do_rpat)
 
 	remote = PROG_FLAG(dest,PROG_AT) ? TRUE : FALSE;
 
-	SET_BIT(dest->progs->entity_flags,PROG_AT);
+	PROG_SET(dest,PROG_AT);
 
 	info2 = *info;
 	target = dest->progs->target;
@@ -684,7 +679,7 @@ SCRIPT_CMD(do_rpat)
 	dest->progs->delay = delay;
 
 	if(!remote)
-		REMOVE_BIT(dest->progs->entity_flags,PROG_AT);
+		PROG_CLR(dest,PROG_AT);
 }
 
 SCRIPT_CMD(do_rpcall)
@@ -6621,6 +6616,7 @@ SCRIPT_CMD(do_rpremort)
 		mob->remove_question ||
 		mob->personal_pk_question ||
 		mob->cross_zone_question ||
+		IS_VALID(mob->seal_book) ||
 		mob->pcdata->convert_church != -1 ||
 		mob->challenged ||
 		mob->remort_question)

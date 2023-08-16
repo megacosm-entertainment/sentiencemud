@@ -77,6 +77,7 @@ const struct olc_help_type help_table[] =
 	{	"areawho",				STRUCT_FLAGS,		area_who_titles,			"Type of area for who."	},
 	{	"armour",				STRUCT_FLAGS,		ac_type,					"Ac for different attacks."	},
 	{	"blueprint",			STRUCT_FLAGS,		blueprint_flags,			"Blueprint flags" },
+	{	"book",					STRUCT_FLAGS,		book_flags,					"Book flags."	},
 	{	"catalyst",				STRUCT_FLAGS,		catalyst_types,				"Catalyst types."	},
 	{ 	"compartment",			STRUCT_FLAGS,		compartment_flags,			"Compartment Flags."},
 	{	"condition",			STRUCT_FLAGS,		room_condition_flags,		"Room Condition types."	},
@@ -4541,6 +4542,56 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
     add_buf(buffer, "\n\r");
 
 	// MULTI-TYPING
+	if (IS_BOOK(obj))
+	{
+		add_buf(buffer, "\n\r{GBook:{x\n\r");
+		sprintf(buf, "{B[{WName             {B]:  {x%s\n\r", BOOK(obj)->name);
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{WShort Description{B]:  {x%s\n\r", BOOK(obj)->short_descr);
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{WFlags            {B]:  {x%s\n\r", flag_string(book_flags, BOOK(obj)->flags));
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{WOpen Page        {B]:  {x%d\n\r", BOOK(obj)->open_page);
+		add_buf(buffer, buf);
+
+		sprintf(buf, "{B[{WPages            {B]:  {x%d\n\r", list_size(BOOK(obj)->pages));
+		add_buf(buffer, buf);
+		if (list_size(BOOK(obj)->pages) > 0)
+		{
+			BOOK_PAGE *page;
+			iterator_start(&it, BOOK(obj)->pages);
+			while((page = (BOOK_PAGE *)iterator_nextdata(&it)))
+			{
+				sprintf(buf, "  {BPage: {x%d\n\r", page->page_no);
+				add_buf(buffer, buf);
+
+				sprintf(buf, "    {CTitle: {x%s\n\r", page->title);
+				add_buf(buffer, buf);
+
+				sprintf(buf, "    {CText:{x\n\r%s\n\r", string_indent(page->text, 5));
+				add_buf(buffer, buf);
+			}
+			iterator_stop(&it);
+		}
+
+		if( BOOK(obj)->lock )
+			print_lock_state(BOOK(obj)->lock, buffer, "");
+	}
+
+	if (IS_PAGE(obj))
+	{
+		sprintf(buf, "\n\r{GPage: {x%d\n\r", PAGE(obj)->page_no);
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{WTitle            {B]:  {x%s\n\r", PAGE(obj)->title);
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{WText             {B]:{x\n\r%s\n\r", PAGE(obj)->text);
+		add_buf(buffer, buf);
+
+		OBJ_INDEX_DATA *book = get_obj_index_auid(PAGE(obj)->book.auid, PAGE(obj)->book.vnum);
+		sprintf(buf, "{B[{WOriginal Book    {B]:  {x%s\n\r", book ? book->short_descr : "none");
+		add_buf(buffer, buf);
+	}
+
 	if (IS_CONTAINER(obj))
 	{
 		add_buf(buffer, "\n\r{GContainer:{x\n\r");
@@ -5117,13 +5168,14 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 	        obj->value[2],obj->value[3]);
 	    add_buf(buffer, buf);
 	    break;
-
+	/*
 	case ITEM_BOOK:
 	    sprintf(buf,
 		"{B[  {Wv1{B]{G Flags:{x      [%s]\n\r",
 		flag_string(container_flags, obj->value[1]));
 	    add_buf(buffer, buf);
 	    break;
+	*/
 
 	case ITEM_TELESCOPE:
 		if( obj->value[4] < 0 )
@@ -6640,6 +6692,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 		}
 		break;
 
+	/*
 	case ITEM_BOOK:
 		switch (value_num)
 		{
@@ -6660,6 +6713,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			break;
 		}
 		break;
+		*/
 
 	case ITEM_TELESCOPE:
 		switch (value_num)
@@ -9119,6 +9173,571 @@ OEDIT(oedit_type)
 
 	send_to_char("Syntax:  type [flag]\n\r"
 				"Type '? type' for a list of flags.\n\r", ch);
+	return FALSE;
+}
+
+void __oedit_book_renumber_pages(BOOK_DATA *book)
+{
+	ITERATOR it;
+	int page_no = 0;
+	BOOK_PAGE *page;
+
+	iterator_start(&it, book->pages);
+	while((page = (BOOK_PAGE *)iterator_nextdata(&it)))
+	{
+		page->page_no = ++page_no;
+	}
+	iterator_stop(&it);
+}
+
+OEDIT(oedit_type_page)
+{
+	OBJ_INDEX_DATA *pObj;
+	EDIT_OBJ(ch, pObj);
+
+	if (argument[0] == '\0')
+	{
+		if (IS_PAGE(pObj))
+		{
+			send_to_char("Syntax:  page title[ <title>]\n\r", ch);
+			send_to_char("         page text (opens string editor)\n\r", ch);
+			send_to_char("         page number <#>\n\r", ch);
+			send_to_char("         page book <widevnum|none>\n\r", ch);
+
+			if (pObj->item_type != ITEM_PAGE)
+			{
+				send_to_char("         page remove\n\r", ch);
+			}
+		}
+		else
+			send_to_char("Syntax:  page add\n\r", ch);
+
+		return FALSE;
+	}
+
+	char arg[MIL];
+
+	argument = one_argument(argument, arg);
+	if (IS_PAGE(pObj))
+	{
+		if (!str_prefix(arg, "title"))
+		{
+			if (strlen_no_colours(argument) > 70)
+			{
+				send_to_char("Title too long.  Please limit non-colour length to 70.\n\r", ch);
+				return FALSE;
+			}
+
+			smash_tilde(argument);
+			free_string(PAGE(pObj)->title);
+			PAGE(pObj)->title = str_dup(argument);
+
+			send_to_char("PAGE Title set.\n\r", ch);
+			return TRUE;
+		}
+		else if (!str_prefix(arg, "text"))
+		{
+			string_append(ch, &PAGE(pObj)->text);
+			return TRUE;
+		}
+		else if (!str_prefix(arg, "number"))
+		{
+			int page_no;
+			if (!is_number(argument) || (page_no = atoi(argument)) < 1)
+			{
+				send_to_char("Please specify a positive number.\n\r", ch);
+				return FALSE;
+			}
+
+			PAGE(pObj)->page_no = page_no;
+			send_to_char("PAGE Number set.\n\r", ch);
+			return TRUE;
+		}
+		else if(!str_prefix(arg, "book"))
+		{
+			WNUM wnum;
+
+			if (!str_prefix(argument, "none"))
+			{
+				wnum.pArea = NULL;
+				wnum.vnum = 0;
+			}
+			else if (!parse_widevnum(argument, pObj->area, &wnum))
+			{
+				send_to_char("Please specify a widevnum.\n\r", ch);
+				return FALSE;
+			}
+			else
+			{
+				OBJ_INDEX_DATA *book = get_obj_index(wnum.pArea, wnum.vnum);
+				if (!book)
+				{
+					send_to_char("No object exists at that widevnum.\n\r", ch);
+					return FALSE;
+				}
+
+				if (!IS_BOOK(book))
+				{
+					send_to_char("Object has not book definition.\n\r", ch);
+					return FALSE;
+				}
+			}
+
+			PAGE(pObj)->book.auid = wnum.pArea ? wnum.pArea->uid : 0;
+			PAGE(pObj)->book.vnum = wnum.vnum;
+			send_to_char("PAGE Original Book set.\n\r", ch);
+			return TRUE;
+		}
+	}
+	else
+	{
+		if (!str_prefix(arg, "add"))
+		{
+			if (!obj_index_can_add_item_type(pObj, ITEM_PAGE))
+			{
+				send_to_char("You cannot add this item type to this object.\n\r", ch);
+				return FALSE;
+			}
+
+			PAGE(pObj) = new_book_page();
+			send_to_char("PAGE data added to object.\n\r\n\r", ch);
+			return TRUE;
+		}
+	}
+
+	oedit_type_page(ch, "");
+	return FALSE;
+}
+
+OEDIT(oedit_type_book)
+{
+	OBJ_INDEX_DATA *pObj;
+	EDIT_OBJ(ch, pObj);
+
+	if (argument[0] == '\0')
+	{
+		if (IS_BOOK(pObj))
+		{
+			send_to_char("Syntax:  book name <name>\n\r", ch);
+			send_to_char("         book short <short description>\n\r", ch);
+			send_to_char("         book flags <flags>\n\r", ch);
+			send_to_char("         book openpage <page#>\n\r", ch);
+			send_to_char("         book page clear\n\r", ch);
+			send_to_char("         book page renumber\n\r", ch);
+			send_to_char("         book page add[ <page#>] (if omitted, appends to the end)\n\r", ch);
+			send_to_char("         book page <page#> title[ <title>]\n\r", ch);
+			send_to_char("         book page <page#> text (opens string editor)\n\r", ch);
+			send_to_char("         book page <page#> remove\n\r", ch);
+			send_to_char("         book lock add\n\r", ch);
+			send_to_char("         book lock remove\n\r", ch);
+			send_to_char("         book lock key <widevnum>\n\r", ch);
+			send_to_char("         book lock key clear\n\r", ch);
+			send_to_char("         book lock flags [flags]\n\r", ch);
+			send_to_char("         book lock pick [0-100]\n\r", ch);
+
+			if (pObj->item_type != ITEM_BOOK)
+			{
+				send_to_char("         book remove\n\r", ch);
+			}
+		}
+		else
+		{
+			send_to_char("Syntax:  book add\n\r", ch);
+		}
+
+		return FALSE;
+	}
+
+	char buf[MSL];
+	char arg[MIL];
+
+	argument = one_argument(argument, arg);
+	if (IS_BOOK(pObj))
+	{
+		if (!str_prefix(arg, "name"))
+		{
+			if (IS_NULLSTR(argument))
+			{
+				send_to_char("Please provide a name.\n\r", ch);
+				return FALSE;
+			}
+
+			smash_tilde(argument);
+			free_string(BOOK(pObj)->name);
+			BOOK(pObj)->name = str_dup(argument);
+
+			send_to_char("BOOK Name set.\n\r", ch);
+			return TRUE;
+		}
+
+		if (!str_prefix(arg, "short"))
+		{
+			if (IS_NULLSTR(argument))
+			{
+				send_to_char("Please provide a short description.\n\r", ch);
+				return FALSE;
+			}
+
+			smash_tilde(argument);
+			free_string(BOOK(pObj)->short_descr);
+			BOOK(pObj)->short_descr = str_dup(argument);
+
+			send_to_char("BOOK Name set.\n\r", ch);
+			return TRUE;
+		}
+
+		if (!str_prefix(arg, "flags"))
+		{
+			long value;
+			if ((value = flag_value(book_flags, argument)) == NO_FLAG)
+			{
+				send_to_char("Invalid book flag.\n\r", ch);
+				send_to_char("Use '? book' for list of valid flags.\n\r", ch);
+				show_help(ch, "book");
+				return FALSE;
+			}
+
+			TOGGLE_BIT(BOOK(pObj)->flags, value);
+			send_to_char("BOOK Flags toggled.\n\r", ch);
+			return TRUE;
+		}
+
+		if (!str_prefix(arg, "openpage"))
+		{
+			if (list_size(BOOK(pObj)->pages) < 1)
+			{
+				send_to_char("Please add a page first.\n\r", ch);
+				return FALSE;
+			}
+
+			int page_no;
+			if (!str_prefix(arg, "none"))
+			{
+				page_no = 0;
+			}
+			else if (!is_number(argument) || (page_no = atoi(argument)) < 1 || page_no > list_size(BOOK(pObj)->pages))
+			{
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(BOOK(pObj)->pages));
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			BOOK(pObj)->open_page = page_no;
+			send_to_char("BOOK Open Page set.\n\r", ch);
+			return TRUE;
+		}
+
+		if (!str_prefix(arg, "lock"))
+		{
+			argument = one_argument(argument, arg);
+
+			if( !str_prefix(arg, "add") )
+			{
+				if( BOOK(pObj)->lock )
+				{
+					send_to_char("BOOK already has a lock state.\n\r", ch);
+					return FALSE;
+				}
+
+				BOOK(pObj)->lock = new_lock_state();
+				send_to_char("Lock State added.\n\r", ch);
+				return TRUE;
+			}
+
+			if( !str_prefix(arg, "remove") )
+			{
+				if( !BOOK(pObj)->lock )
+				{
+					send_to_char("BOOK does not have a lock state.\n\r", ch);
+					return FALSE;
+				}
+
+
+				free_lock_state(BOOK(pObj)->lock);
+				BOOK(pObj)->lock = NULL;
+
+				send_to_char("Lock State removed.\n\r", ch);
+				return TRUE;
+			}
+
+			if( !str_prefix(arg, "key") )
+			{
+				if( !BOOK(pObj)->lock )
+				{
+					send_to_char("BOOK does not have a lock state.\n\r", ch);
+					return FALSE;
+				}
+
+				if( argument[0] == '\0' )
+				{
+					send_to_char("Syntax:  book lock key <widevnum>\n\r", ch);
+					send_to_char("         book lock key clear\n\r", ch);
+					return FALSE;
+				}
+
+				WNUM wnum;
+				if( parse_widevnum(argument, pObj->area, &wnum) )
+				{
+					OBJ_INDEX_DATA *key = get_obj_index(wnum.pArea, wnum.vnum);
+
+					if( !key )
+					{
+						send_to_char("That object does not exist.\n\r", ch);
+						return FALSE;
+					}
+
+					if( key->item_type != ITEM_KEY )
+					{
+						send_to_char("That object is not a key.\n\r", ch);
+						return FALSE;
+					}
+
+					// TODO: make a list
+					BOOK(pObj)->lock->key_wnum = wnum;
+					send_to_char("Lock State key set.\n\r", ch);
+					return TRUE;
+				}
+				else if( !str_prefix(argument, "clear") )
+				{
+					BOOK(pObj)->lock->key_wnum = wnum_zero;
+					send_to_char("Lock State key removed.\n\r", ch);
+					return TRUE;
+				}
+
+				oedit_type_book(ch, "lock key");
+				return FALSE;
+			}
+
+			if( !str_prefix(arg, "flags") )
+			{
+				if( !BOOK(pObj)->lock )
+				{
+					send_to_char("BOOK does not have a lock state.\n\r", ch);
+					return FALSE;
+				}
+
+				int value = flag_value(lock_flags, argument);
+
+				if( value == NO_FLAG )
+				{
+					send_to_char("Syntax:  book lock flags [flags]\n\r", ch);
+					send_to_char("See \"? lock\" for list of flags\n\r\n\r", ch);
+					show_help(ch, "lock");
+					return FALSE;
+				}
+
+				BOOK(pObj)->lock->flags ^= value;
+				send_to_char("Lock State flags changed.\n\r", ch);
+				return TRUE;
+			}
+
+			if( !str_prefix(arg, "pick") )
+			{
+				if( !BOOK(pObj)->lock )
+				{
+					send_to_char("BOOK does not have a lock state.\n\r", ch);
+					return FALSE;
+				}
+
+				if( !is_number(argument) )
+				{
+					send_to_char("That is not a number.\n\r", ch);
+					return FALSE;
+				}
+
+				int value = atoi(argument);
+				if( value < 0 || value > 100 )
+				{
+					send_to_char("Pick chance must be from 0 to 100.\n\r", ch);
+					return FALSE;
+				}
+
+				BOOK(pObj)->lock->pick_chance = value;
+				send_to_char("Lock State pick chance set.\n\r", ch);
+				return TRUE;
+			}
+
+			oedit_type_book(ch, "");
+			return FALSE;
+		}
+
+		if (!str_prefix(arg, "page"))
+		{
+			char arg2[MIL];
+
+			argument = one_argument(argument, arg2);
+
+			if (!str_prefix(arg2, "add"))
+			{
+				int page_no = 0;
+				if (argument[0] != '\0')
+				{
+					if (!is_number(argument) || (page_no = atoi(argument)) < 1)
+					{
+						send_to_char("Please specify a positive number.\n\r", ch);
+						return FALSE;
+					}
+				}
+
+				BOOK_PAGE *page = new_book_page();
+				if (page_no > 0)
+				{
+					page->page_no = page_no;
+					if (!book_insert_page(BOOK(pObj), page))
+					{
+						send_to_char("Attempted to add a duplicate page number.\n\r", ch);
+						free_book_page(page);
+						return FALSE;
+					}
+				}
+				else
+				{
+					BOOK_PAGE *last_page = (BOOK_PAGE *)list_nthdata(BOOK(pObj)->pages, -1);
+
+					// Append to the end
+					list_appendlink(BOOK(pObj)->pages, page);
+					if (last_page)
+						page->page_no = last_page->page_no + 1;
+					else
+						page->page_no = 1;	// No pages in the book, so this will be the first
+				}
+
+				sprintf(buf, "BOOK Page %d added.\n\r", page->page_no);
+				send_to_char(buf, ch);
+				return TRUE;
+			}
+			else if (!str_prefix(arg2, "clear"))
+			{
+				if (list_size(BOOK(pObj)->pages) < 1)
+				{
+					send_to_char("The book is empty.\n\r", ch);
+					return FALSE;
+				}
+
+				list_clear(BOOK(pObj)->pages);
+				send_to_char("BOOK Pages cleared.\n\r", ch);
+				return TRUE;
+			}
+			else if (!str_prefix(arg2, "renumber"))
+			{
+				if (list_size(BOOK(pObj)->pages) < 1)
+				{
+					send_to_char("The book is empty.\n\r", ch);
+					return FALSE;
+				}
+
+				ITERATOR it;
+				int page_no = 0;
+				BOOK_PAGE *page;
+
+				iterator_start(&it, BOOK(pObj)->pages);
+				while((page = (BOOK_PAGE *)iterator_nextdata(&it)))
+				{
+					page->page_no = ++page_no;
+				}
+				iterator_stop(&it);
+
+				send_to_char("BOOK Pages renumbered.\n\r", ch);
+				return TRUE;
+			}
+			else
+			{
+				if (list_size(BOOK(pObj)->pages) < 1)
+				{
+					send_to_char("Please add a page first.\n\r", ch);
+					return FALSE;
+				}
+
+				int page_no;
+				if (!is_number(arg2) || (page_no = atoi(arg2)) < 1 || page_no > list_size(BOOK(pObj)->pages))
+				{
+					sprintf(buf, "Please specify a page number from 1 to %d.\n\r", list_size(BOOK(pObj)->pages));
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				char arg3[MIL];
+				argument = one_argument(argument, arg3);
+
+				if (!str_prefix(arg3, "title"))
+				{
+					if (strlen_no_colours(argument) > 70)
+					{
+						send_to_char("Title too long.  Please limit non-colour length to 70.\n\r", ch);
+						return FALSE;
+					}
+
+					BOOK_PAGE *page = book_get_page(BOOK(pObj), page_no);
+
+					smash_tilde(argument);
+					free_string(page->title);
+					page->title = str_dup(argument);
+
+					send_to_char("BOOK Page Title set.\n\r", ch);
+					return TRUE;
+				}
+				else if (!str_prefix(arg3, "text"))
+				{
+					BOOK_PAGE *page = book_get_page(BOOK(pObj), page_no);
+
+					string_append(ch, &page->text);
+					return TRUE;
+				}
+				else if (!str_prefix(arg3, "remove"))
+				{
+					// Find the page with page number
+					ITERATOR it;
+					BOOK_PAGE *page;
+					iterator_start(&it, BOOK(pObj)->pages);
+					while((page = (BOOK_PAGE *)iterator_nextdata(&it)))
+					{
+						if (page->page_no == page_no)
+						{
+							iterator_remcurrent(&it);
+							break;
+						}
+					}
+					iterator_stop(&it);
+
+					sprintf(buf, "BOOK Page %d removed.\n\r", page_no);
+					send_to_char(buf, ch);
+					return TRUE;
+				}
+			}
+
+			oedit_type_book(ch, "");
+			return FALSE;
+		}
+
+		if (pObj->item_type != ITEM_BOOK)
+		{
+			if (!str_prefix(arg, "remove"))
+			{
+				free_book_data(BOOK(pObj));
+				BOOK(pObj) = NULL;
+
+				send_to_char("BOOK data removed.\n\r", ch);
+				return TRUE;
+			}
+		}
+	}
+	else
+	{
+		if (!str_prefix(arg, "add"))
+		{
+			if (!obj_index_can_add_item_type(pObj, ITEM_BOOK))
+			{
+				send_to_char("You cannot add this item type to this object.\n\r", ch);
+				return FALSE;
+			}
+
+			BOOK(pObj) = new_book_data();
+			send_to_char("BOOK data added to object.\n\r\n\r", ch);
+			return TRUE;
+		}
+	}
+
+	oedit_type_book(ch, "");
 	return FALSE;
 }
 

@@ -807,6 +807,50 @@ void save_object_lockstate(FILE *fp, LOCK_STATE *lock)
 void save_object_multityping(FILE *fp, OBJ_INDEX_DATA *obj)
 {
 	ITERATOR it;
+
+	if (IS_BOOK(obj))
+	{
+		BOOK_DATA *book = BOOK(obj);
+		BOOK_PAGE *page;
+
+		fprintf(fp, "#TYPEBOOK\n");
+		fprintf(fp, "Name %s~\n", fix_string(book->name));
+		fprintf(fp, "Short %s~\n", fix_string(book->short_descr));
+		fprintf(fp, "Flags %s\n", print_flags(book->flags));
+		fprintf(fp, "CurrentPage %d\n", book->current_page);
+		fprintf(fp, "OpenPage %d\n", book->open_page);
+
+		iterator_start(&it, book->pages);
+		while((page = (BOOK_PAGE *)iterator_nextdata(&it)))
+		{
+			fprintf(fp, "#PAGE %d\n", page->page_no);
+			fprintf(fp, "Title %s~\n", fix_string(page->title));
+			fprintf(fp, "Text %s~\n", fix_string(page->text));
+			fprintf(fp, "#-PAGE\n");
+		}
+		iterator_stop(&it);
+
+		if (book->lock)
+			save_object_lockstate(fp, book->lock);
+
+		fprintf(fp, "#-TYPEBOOK\n");
+	}
+
+	if (IS_PAGE(obj))
+	{
+		fprintf(fp, "#TYPEPAGE %d\n", PAGE(obj)->page_no);
+		fprintf(fp, "Title %s~\n", fix_string(PAGE(obj)->title));
+		fprintf(fp, "Text %s~\n", fix_string(PAGE(obj)->text));
+		if (PAGE(obj)->book.auid > 0 && PAGE(obj)->book.vnum > 0)
+		{
+			if (PAGE(obj)->book.auid == obj->area->uid)
+				fprintf(fp, "Book #%ld\n", PAGE(obj)->book.vnum);
+			else
+				fprintf(fp, "Book %ld#%ld\n", PAGE(obj)->book.auid, PAGE(obj)->book.vnum);
+		}
+		fprintf(fp, "#-TYPEPAGE\n");
+	}
+
 	if (IS_CONTAINER(obj))
 	{
 		CONTAINER_FILTER *filter;
@@ -2543,6 +2587,106 @@ LOCK_STATE *read_object_lockstate(FILE *fp)
 	return lock;
 }
 
+
+BOOK_PAGE *read_object_book_page(FILE *fp, char *closer, AREA_DATA *area)
+{
+	BOOK_PAGE *page = new_book_page();
+	char buf[MSL];
+	char *word;
+	bool fMatch;
+
+	page->page_no = fread_number(fp);
+
+	while(str_cmp((word = fread_word(fp)), closer))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+			case 'B':
+				KEY("Book", page->book, fread_widevnum(fp, area ? area->uid : 0));
+				break;
+
+			case 'T':
+				KEYS("Title", page->title, fread_string(fp));
+				KEYS("Text", page->text, fread_string(fp));
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "read_object_book_page: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return page;
+}
+
+BOOK_DATA *read_object_book_data(FILE *fp, AREA_DATA *area)
+{
+	BOOK_DATA *book = new_book_data();
+	char buf[MSL];
+	char *word;
+	bool fMatch;
+
+	while(str_cmp((word = fread_word(fp)), "#-TYPEBOOK"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+			case '#':
+				if (!str_cmp(word, "#LOCK"))
+				{
+					book->lock = read_object_lockstate(fp);
+					fMatch = TRUE;
+					break;
+				}
+				if (!str_cmp(word, "#PAGE"))
+				{
+					BOOK_PAGE *page = read_object_book_page(fp, "#-PAGE", area);
+
+					if (!book_insert_page(book, page))
+					{
+						sprintf(buf, "read_object_book_data: page with duplicate page number (%d) found!  Discarding.", page->page_no);
+						bug(buf, 0);
+						free_book_page(page);	
+					}
+					fMatch = TRUE;
+					break;
+				}
+				break;
+			
+			case 'C':
+				KEY("CurrentPage", book->current_page, fread_number(fp));
+				break;
+
+			case 'F':
+				KEY("Flags", book->flags, fread_flag(fp));
+				break;
+
+			case 'N':
+				KEYS("Name", book->name, fread_string(fp));
+				break;
+
+			case 'O':
+				KEY("OpenPage", book->open_page, fread_number(fp));
+				break;
+			
+			case 'S':
+				KEYS("Short", book->short_descr, fread_string(fp));
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "read_object_book_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return book;
+}
+
 CONTAINER_DATA *read_object_container_data(FILE *fp)
 {
 	CONTAINER_DATA *data = NULL;
@@ -3090,6 +3234,10 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 				ed->next = obj->extra_descr;
 				obj->extra_descr = ed;
 				fMatch = TRUE;
+			} else if (!str_cmp(word, "#TYPEBOOK")) {
+				if (IS_BOOK(obj)) free_book_data(BOOK(obj));
+				BOOK(obj) = read_object_book_data(fp, area);
+				fMatch = TRUE;
 			} else if (!str_cmp(word, "#TYPECONTAINER")) {
 				if (IS_CONTAINER(obj)) free_container_data(CONTAINER(obj));
 				CONTAINER(obj) = read_object_container_data(fp);
@@ -3109,6 +3257,10 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 			} else if (!str_cmp(word, "#TYPEMONEY")) {
 				if (IS_MONEY(obj)) free_money_data(MONEY(obj));
 				MONEY(obj) = read_object_money_data(fp);
+				fMatch = TRUE;
+			} else if (!str_cmp(word, "#TYPEPAGE")) {
+				if (IS_PAGE(obj)) free_book_page(PAGE(obj));
+				PAGE(obj) = read_object_book_page(fp, "#-TYPEPAGE", area);
 				fMatch = TRUE;
 			} else if (!str_cmp(word, "#TYPEPORTAL")) {
 				if (IS_PORTAL(obj)) free_portal_data(PORTAL(obj));
@@ -3598,6 +3750,23 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 		}
 	}
 
+	if (area->version_object < VERSION_OBJECT_011)
+	{
+		if (obj->item_type == ITEM_BOOK)
+		{
+			if(!IS_BOOK(obj)) BOOK(obj) = new_book_data();
+
+			free_string(BOOK(obj)->name);
+			BOOK(obj)->name = str_dup(obj->name);
+			free_string(BOOK(obj)->short_descr);
+			BOOK(obj)->short_descr = str_dup(obj->short_descr);
+
+			BOOK(obj)->flags = values[1] & (BOOK_CLOSEABLE | BOOK_CLOSED | BOOK_CLOSELOCK | BOOK_PUSHOPEN);
+
+			BOOK(obj)->lock = obj->lock;
+			obj->lock = NULL;
+		}
+	}
 
 	// Remove when all item multi-typing is complete
 	for(int i = 0; i < MAX_OBJVALUES; i++)

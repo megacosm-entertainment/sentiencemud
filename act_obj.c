@@ -6889,48 +6889,120 @@ void do_secondary(CHAR_DATA *ch, char *argument)
 
 void do_push(CHAR_DATA *ch, char *argument)
 {
-    char arg[MAX_STRING_LENGTH];
+    char arg[MIL];
     OBJ_DATA *obj;
+	char *start = argument;
 
     argument = one_argument(argument, arg);
 
     if (arg[0] == '\0')
     {
-	send_to_char("What do you want to push?\n\r", ch);
-	return;
+		send_to_char("What do you want to push?\n\r", ch);
+		return;
     }
 
     if ((obj = get_obj_list(ch, arg, ch->in_room->contents)) == NULL)
     {
         if ((obj = get_obj_list(ch, arg, ch->carrying)) == NULL)
-	{
-	    send_to_char ("You can't find it.\n\r",ch);
-	    return;
-	}
+		{
+			send_to_char ("You can't find it.\n\r",ch);
+			return;
+		}
     }
 
-    /* @@@NIB : 20070121 : Added for the new trigger type*/
     if (argument[0]) {
         if(p_use_on_trigger(ch, obj, TRIG_PUSH_ON, argument,0,0,0,0,0)) return;
     } else {
         if(p_use_trigger(ch, obj, TRIG_PUSH,0,0,0,0,0)) return;
     }
 
-    /* @@@NIB : 20070126 : for pushopen containers*/
-    if(obj->item_type == ITEM_CONTAINER && IS_SET(obj->value[1], CONT_PUSHOPEN)) {
- 	if(IS_SET(obj->value[1], CONT_CLOSED)) {
- 	    if(IS_SET(obj->value[1], CONT_LOCKED)) {
- 		send_to_char("It's locked.\n\r", ch);
- 		return;
- 	    }
+	// Ok, need determine if we can target things unambiguously
+	if (obj_oclu_ambiguous(obj) && argument[0] == '\0')
+	{
+		act("Push what on $p?", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		obj_oclu_show_parts(ch, obj);
+		return;
+	}
 
- 	    REMOVE_BIT(obj->value[1], CONT_CLOSED);
- 	    act("You open $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
- 	    act("$n opens $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
- 	    p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_OPEN, NULL,0,0,0,0,0);
- 	    return;
- 	}
-    }
+	OCLU_CONTEXT context;
+	if (!oclu_get_context(&context, obj, argument))
+	{
+		act("You do not see that on $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	if (context.item_type != ITEM_PORTAL && IS_SET(*context.flags, CONT_PUSHOPEN))
+	{
+		if (!IS_SET(*context.flags, CONT_CLOSED))
+		{
+			send_to_char("It's already open.\n\r", ch);
+			return;
+		}
+		if (!IS_SET(*context.flags, CONT_CLOSEABLE))
+		{
+			send_to_char("You can't do that.\n\r", ch);
+			return;
+		}
+
+		if( *context.lock )
+		{
+			if (IS_SET((*context.lock)->flags, LOCK_LOCKED))
+			{
+				OBJ_DATA *key;
+				if ((key = lockstate_getkey(ch, *context.lock)) != NULL)
+				{
+					do_function(ch, &do_unlock, start);
+					do_function(ch, &do_push, start);
+					return;
+				}
+
+				send_to_char("It's locked.\n\r", ch);
+				return;
+			}
+		}
+
+		REMOVE_BIT((*context.flags), CONT_CLOSED);
+		if (context.item_type == ITEM_BOOK)
+		{
+			// Special handling for books.
+			if (BOOK(obj)->open_page > 0)
+			{
+				BOOK(obj)->current_page = BOOK(obj)->open_page;
+			}
+			else if (BOOK(obj)->current_page < 1)
+				BOOK(obj)->current_page = 1;
+
+			char page[MIL];
+			sprintf(page, "to page %d", BOOK(obj)->current_page);
+
+			if (context.is_default)
+			{
+				act("You open $p $T.",ch, NULL, NULL,obj, NULL, NULL, page,TO_CHAR);
+				act("$n opens $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+			}
+			else
+			{
+				act("You open $t on $p $T.",ch, NULL, NULL,obj, NULL, context.label, page,TO_CHAR);
+				act("$n opens $t on $p.", ch, NULL, NULL, obj, NULL, context.label, NULL, TO_ROOM);
+			}
+		}
+		else
+		{
+			if (context.is_default)
+			{
+				act("You open $p.",ch, NULL, NULL,obj, NULL, NULL, NULL,TO_CHAR);
+				act("$n opens $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+			}
+			else
+			{
+				act("You open $t on $p.",ch, NULL, NULL,obj, NULL, context.label, NULL,TO_CHAR);
+				act("$n opens $t on $p.", ch, NULL, NULL, obj, NULL, context.label, NULL, TO_ROOM);
+			}
+		}
+
+		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_OPEN, NULL,context.which,0,0,0,0);
+		return;
+	}
 
     send_to_char("You can't push that.\n\r", ch);
 }
@@ -8275,7 +8347,27 @@ void do_ignite(CHAR_DATA *ch, char *argument)
 
 	// TODO: Add ignition mode onto LIGHT data
 
-	// PREIGNITE trigger?
+	int ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREIGNITE, NULL, 0,0,0,0,0);
+	if (ret)
+	{
+		if (ret != PRET_SILENT)
+		{
+			send_to_char("You cannot ignite that.\n\r", ch);
+		}
+
+		return;
+	}
+
+	ret = p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREIGNITE, NULL, 0,0,0,0,0);
+	if (ret)
+	{
+		if (ret != PRET_SILENT)
+		{
+			send_to_char("You cannot ignite that here.\n\r", ch);
+		}
+
+		return;
+	}
 
 	// Apply light to the room
 	if (obj->carried_by == ch && !light_char_has_light(ch))
@@ -8287,7 +8379,8 @@ void do_ignite(CHAR_DATA *ch, char *argument)
 	act("$n ignites $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 	SET_BIT(LIGHT(obj)->flags, LIGHT_IS_ACTIVE);
 
-	// IGNITE trigger
+	p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_IGNITE, NULL, 0,0,0,0,0);
+	p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, obj, NULL, TRIG_IGNITE, NULL, 0,0,0,0,0);
 }
 
 void do_extinguish(CHAR_DATA *ch, char *argument)
@@ -8325,7 +8418,27 @@ void do_extinguish(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	// PREEXTINGUISH trigger?
+	int ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREEXTINGUISH, NULL, 0,0,0,0,0);
+	if (ret)
+	{
+		if (ret != PRET_SILENT)
+		{
+			send_to_char("You cannot extinguish that.\n\r", ch);
+		}
+
+		return;
+	}
+
+	ret = p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREEXTINGUISH, NULL, 0,0,0,0,0);
+	if (ret)
+	{
+		if (ret != PRET_SILENT)
+		{
+			send_to_char("You cannot extinguish that here.\n\r", ch);
+		}
+
+		return;
+	}
 
 	REMOVE_BIT(LIGHT(obj)->flags, LIGHT_IS_ACTIVE);
 
@@ -8338,7 +8451,8 @@ void do_extinguish(CHAR_DATA *ch, char *argument)
 	else if (!obj->in_obj && obj->in_room != NULL)
 		obj->in_room->light--;
 
-	// EXTINGUISH trigger
+	p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_EXTINGUISH, NULL, 0,0,0,0,0);
+	p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, obj, NULL, TRIG_EXTINGUISH, NULL, 0,0,0,0,0);
 
 	if (IS_SET(LIGHT(obj)->flags, LIGHT_REMOVE_ON_EXTINGUISH))
 	{
@@ -8350,4 +8464,707 @@ void do_extinguish(CHAR_DATA *ch, char *argument)
 			extract_obj(obj);
 		}
 	}
+}
+
+void show_book_page(CHAR_DATA *ch, OBJ_DATA *book)
+{
+	BOOK_PAGE *page = book_get_page(BOOK(book), BOOK(book)->current_page);
+	if (!IS_VALID(page))
+	{
+		send_to_char("The page appears to be missing.\n\r", ch);
+		return;
+	}
+
+	if (IS_NULLSTR(page->title) && IS_NULLSTR(page->text))
+	{
+		send_to_char("The page is blank.\n\r", ch);
+		return;
+	}
+
+	int len = strlen(page->title);
+	int lennc = strlen_no_colours(page->title);
+
+	// (80 - lennc) / 2 + lennc + length of color codes
+	int wtitle = (80 + lennc) / 2 + (len - lennc);
+
+	BUFFER *buffer = new_buf();
+	char buf[MSL];
+	sprintf(buf, "%*.*s\n\r", wtitle, wtitle, page->title);
+	add_buf(buffer, buf);
+	add_buf(buffer, "--------------------------------------------------------------------------------\n\r");
+	add_buf(buffer, page->text);
+	add_buf(buffer, "--------------------------------------------------------------------------------\n\r");
+	
+	char page_no[MIL];
+	sprintf(page_no, "%d", page->page_no);
+	int wpage_no = (80 + strlen(page_no)) / 2;
+	sprintf(buf, "%*.*s", wpage_no, wpage_no, page_no);
+	add_buf(buffer, buf);
+
+	if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+	{
+		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+	}
+	else
+	{
+		page_to_char(buffer->string, ch);
+	}
+
+	free_buf(buffer);
+}
+
+// READ <BOOK>
+void do_read(CHAR_DATA *ch, char *argument)
+{
+	char arg[MIL];
+	OBJ_DATA *obj;
+	char *start = argument;
+
+	argument = one_argument(argument, arg);
+
+	if (!arg[0]) {
+		send_to_char("Read what?\n\r", ch);
+		return;
+	}
+
+	if (!(obj = get_obj_here(ch, NULL, arg))) {
+		send_to_char("You do not have that item.\n\r", ch);
+		return;
+	}
+
+	if (!IS_BOOK(obj))
+	{
+		// Re-route to looking at it if it's not a book object
+		do_look(ch, start);
+		return;
+	}
+
+	if (list_size(BOOK(obj)->pages) < 1)
+	{
+		send_to_char("There is nothing to read.\n\r", ch);
+		return;
+	}
+
+	if (IS_SET(BOOK(obj)->flags, BOOK_CLOSED))
+	{
+		send_to_char("The book is closed.\n\r", ch);
+		return;
+	}
+
+	int ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BOOK_PREREAD, NULL, BOOK(obj)->current_page,0,0,0,0);
+	if (ret)
+	{
+		if (ret != PRET_SILENT)
+		{
+			send_to_char("You cannot read that.\n\r", ch);
+		}
+
+		return;
+	}
+
+	show_book_page(ch, obj);
+
+	p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BOOK_READ, NULL, BOOK(obj)->current_page,0,0,0,0);
+}
+
+void do_write(CHAR_DATA *ch, char *argument)
+{
+	char buf[MSL];
+	char arg[MIL];
+	OBJ_DATA *obj;
+
+	argument = one_argument(argument, arg);
+
+	if (IS_NULLSTR(argument))
+	{
+		send_to_char("Syntax:  write <book> title <title>   (up to 70 characters plain text)\n\r", ch);
+		send_to_char("         write <book> text            (opens string editor)\n\r", ch);
+		return;
+	}
+
+	if (!(obj = get_obj_here(ch, NULL, arg))) {
+		send_to_char("You do not have that item.\n\r", ch);
+		return;
+	}
+
+	if (!IS_BOOK(obj))
+	{
+		send_to_char("You cannot write in that.\n\r", ch);
+		return;
+	}
+
+	if (list_size(BOOK(obj)->pages) < 1)
+	{
+		send_to_char("There are no pages to write on in this book.\n\r", ch);
+		return;
+	}
+
+	if (IS_SET(BOOK(obj)->flags, BOOK_CLOSED))
+	{
+		send_to_char("The book is closed.\n\r", ch);
+		return;
+	}
+
+	if (!IS_SET(BOOK(obj)->flags, BOOK_WRITABLE))
+	{
+		send_to_char("The pages of this book cannot be altered.\n\r", ch);
+		return;
+	}
+
+	BOOK_PAGE *page = book_get_page(BOOK(obj), BOOK(obj)->current_page);
+	if (!IS_VALID(page))
+	{
+		send_to_char("The page appears to be missing.\n\r", ch);
+		return;
+	}
+
+	int ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BOOK_PREWRITE, NULL, 0,0,0,0,0);
+	if (ret)
+	{
+		if (ret != PRET_SILENT)
+		{
+			send_to_char("You cannot write in that book.\n\r", ch);
+		}
+
+		return;
+	}
+
+	char arg2[MIL];
+	argument = one_argument(argument, arg2);
+
+	if (!str_prefix(arg2, "title"))
+	{
+		if (IS_NULLSTR(argument))
+		{
+			free_string(page->title);
+			page->title = str_dup("");
+
+			sprintf(buf, "You have removed the title for page %d.\n\r", page->page_no);
+			send_to_char(buf, ch);
+			act("$n removes something from $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+		}
+		else
+		{
+			if (strlen_no_colours(argument) > 70)
+			{
+				send_to_char("Title is too long.  Please limit non-colour text to 70 characters.\n\r", ch);
+				return;
+			}
+
+			smash_tilde(argument);
+			free_string(page->title);
+			page->title = str_dup(argument);
+
+			sprintf(buf, "You have changed the title for page %d to %s.\n\r", page->page_no, page->title);
+			send_to_char(buf, ch);
+			act("$n writes something in $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+
+		}
+
+		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BOOK_WRITE_TITLE, NULL, 0,0,0,0,0);
+		return;
+	}
+
+	if (!str_prefix(arg2, "text"))
+	{
+		act("$n starts writing something in $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+		ch->desc->writing_book = obj;
+		string_append(ch, &page->text);
+		return;
+	}
+
+	do_write(ch, "");
+}
+
+void do_seal(CHAR_DATA *ch, char *argument)
+{
+	char arg[MIL];
+	OBJ_DATA *obj;
+
+	argument = one_argument(argument, arg);
+
+	if (!arg[0]) {
+		send_to_char("Read what?\n\r", ch);
+		return;
+	}
+
+	if (!(obj = get_obj_carry(ch, arg, ch))) {
+		send_to_char("You do not have that item.\n\r", ch);
+		return;
+	}
+
+	if (!IS_BOOK(obj))
+	{
+		send_to_char("You cannot seal that.\n\r", ch);
+		return;
+	}
+
+	if (!IS_SET(BOOK(obj)->flags, BOOK_WRITABLE))
+	{
+		send_to_char("The pages of this book cannot be altered.\n\r", ch);
+		return;
+	}
+
+	int ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BOOK_PRESEAL, NULL, 0,0,0,0,0);
+	if (ret)
+	{
+		if (ret != PRET_SILENT)
+		{
+			send_to_char("You cannot seal that book.\n\r", ch);
+		}
+
+		return;
+	}
+
+	ch->seal_book = obj;
+}
+
+// PAGE <book> first|last|next|previous|<page#>
+// Book must be OPEN
+void do_page(CHAR_DATA *ch, char *argument)
+{
+	char buf[MSL];
+	char arg[MIL];
+	OBJ_DATA *obj;
+
+	argument = one_argument(argument, arg);
+
+	if (!arg[0]) {
+		send_to_char("Page what?\n\r", ch);
+		return;
+	}
+
+	if (!(obj = get_obj_here(ch, NULL, arg))) {
+		send_to_char("You do not have that item.\n\r", ch);
+		return;
+	}
+
+	if (!IS_BOOK(obj))
+	{
+		send_to_char("That is not a book.\n\r", ch);
+		return;
+	}
+
+	if (list_size(BOOK(obj)->pages) < 1)
+	{
+		send_to_char("There are no pages in that book.\n\r", ch);
+		return;
+	}
+
+	if (IS_SET(BOOK(obj)->flags, BOOK_CLOSED))
+	{
+		send_to_char("The book is closed.\n\r", ch);
+		return;
+	}
+
+	BOOK_PAGE *page;
+	int page_no;
+	if (!str_prefix(argument, "first"))
+	{
+		page = (BOOK_PAGE *)list_nthdata(BOOK(obj)->pages, 1);
+		page_no = page->page_no;
+		act("You turn $p to the first page.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		act("$n turns $p to the first page.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+	}
+	else if (!str_prefix(argument, "last"))
+	{
+		page = (BOOK_PAGE *)list_nthdata(BOOK(obj)->pages, -1);
+		page_no = page->page_no;
+		act("You turn $p to the last page.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		act("$n turns $p to the last page.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+	}
+	else if (!str_prefix(argument, "next"))
+	{
+		// Get the last page
+		BOOK_PAGE *last_page = (BOOK_PAGE *)list_nthdata(BOOK(obj)->pages, -1);
+		if (BOOK(obj)->current_page == last_page->page_no)
+		{
+			send_to_char("There are no more pages.\n\r", ch);
+			return;
+		}
+
+		ITERATOR it;
+		BOOK_PAGE *page;
+		iterator_start(&it, BOOK(obj)->pages);
+		while((page = (BOOK_PAGE *)iterator_nextdata(&it)))
+			if (page->page_no > BOOK(obj)->current_page)
+				break;
+		iterator_stop(&it);
+
+		if (page)
+			page_no = page->page_no;
+		else
+		{
+			send_to_char("There are no more pages.\n\r", ch);
+			return;
+		}
+
+		act("You turn $p to the next page.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		act("$n flips $p to the next page.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+	}
+	else if (!str_prefix(argument, "previous"))
+	{
+		// Get the first page
+		BOOK_PAGE *first_page = (BOOK_PAGE *)list_nthdata(BOOK(obj)->pages, 1);
+		if (BOOK(obj)->current_page == first_page->page_no)
+		{
+			send_to_char("There are no more pages.\n\r", ch);
+			return;
+		}
+
+		ITERATOR it;
+		BOOK_PAGE *page;
+		iterator_start(&it, BOOK(obj)->pages);
+		while((page = (BOOK_PAGE *)iterator_nextdata(&it)))
+			if (page->page_no >= BOOK(obj)->current_page)
+				break;
+		if (page)
+			page = (BOOK_PAGE *)iterator_prevdata(&it);
+		iterator_stop(&it);
+
+		if (page)
+			page_no = page->page_no;
+		else
+		{
+			send_to_char("There are no more pages.\n\r", ch);
+			return;
+		}
+
+		act("You turn $p to the previous page.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		act("$n flips $p back a page.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+	}
+	else if (!is_number(argument))
+	{
+		send_to_char("Please specify a number.\n\r", ch);
+		return;
+	}
+	else
+	{
+		// Get the last page
+		BOOK_PAGE *last_page = (BOOK_PAGE *)list_nthdata(BOOK(obj)->pages, -1);
+
+		page_no = atoi(argument);
+		if (page_no < 1 || page_no > last_page->page_no)
+		{
+			sprintf(buf, "Please specify a page number from 1 to %d.\n\r", last_page->page_no);
+			send_to_char(buf, ch);
+			return;
+		}
+
+		char pagestr[MIL];
+		sprintf(pagestr, "%d", page_no);
+
+		char pagestr2[MIL];
+		int third = last_page->page_no / 3;
+		if (page_no < third)
+			strcpy(pagestr2, "toward the beginning");
+		else if (page_no > (2 * third))
+			strcpy(pagestr2, "toward the end");
+		else
+			strcpy(pagestr2, "in the middle");
+
+		act("You turn $p to page $t.", ch, NULL, NULL, obj, NULL, pagestr, NULL, TO_CHAR);
+		act("$n turns $p to a page $t.", ch, NULL, NULL, obj, NULL, pagestr2, NULL, TO_ROOM);
+	}
+	BOOK(obj)->current_page = page_no;
+
+	int ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BOOK_PAGE, NULL, page_no,0,0,0,0);
+	if (!ret)
+	{
+		int ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BOOK_PREREAD, NULL, page_no,0,0,0,0);
+		if (ret)
+		{
+			if (ret != PRET_SILENT)
+			{
+				send_to_char("You cannot read that.\n\r", ch);
+			}
+
+			return;
+		}
+
+		show_book_page(ch, obj);
+
+		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BOOK_READ, NULL, page_no,0,0,0,0);
+	}
+}
+
+// RIP <book>[ <page#>] (defaults to current page)
+// Contents of the page are put into a scroll.
+// TODO: Instead of a scroll, have a PAGE type so the title and text can be preserved separately.
+void do_rip(CHAR_DATA *ch, char *argument)
+{
+	char buf[MSL];
+	char arg[MIL];
+	OBJ_DATA *obj;
+
+	argument = one_argument(argument, arg);
+
+	if (!arg[0]) {
+		send_to_char("Page what?\n\r", ch);
+		return;
+	}
+
+	if (!(obj = get_obj_here(ch, NULL, arg))) {
+		send_to_char("You do not have that item.\n\r", ch);
+		return;
+	}
+
+	if (!IS_BOOK(obj))
+	{
+		send_to_char("That is not a book.\n\r", ch);
+		return;
+	}
+
+	if (list_size(BOOK(obj)->pages) < 1)
+	{
+		send_to_char("There are no pages in that book.\n\r", ch);
+		return;
+	}
+
+	if (IS_SET(BOOK(obj)->flags, BOOK_CLOSED))
+	{
+		send_to_char("The book is closed.\n\r", ch);
+		return;
+	}
+
+	if (IS_SET(BOOK(obj)->flags, BOOK_NO_RIP))
+	{
+		send_to_char("The pages are too strong to rip out.\n\r", ch);
+		return;
+	}
+
+	if (list_size(BOOK(obj)->pages) < 1)
+	{
+		send_to_char("There are no pages to rip out.\n\r", ch);
+		return;
+	}
+
+	BOOK_PAGE *last_page = (BOOK_PAGE *)list_nthdata(BOOK(obj)->pages, -1);
+	int page_no;
+	if (IS_NULLSTR(argument))
+		page_no = BOOK(obj)->current_page;
+	else if(!is_number(argument) || (page_no = atoi(argument)) < 1 || page_no < last_page->page_no)
+	{
+		sprintf(buf, "Please specify a page number from 1 to %d.\n\r", last_page->page_no);
+		send_to_char(buf, ch);
+		return;
+	}
+
+	// register1 = page_no
+	int ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BOOK_PAGE_PRERIP, NULL, page_no,0,0,0,0);
+	if (ret)
+	{
+		if (ret != PRET_SILENT)
+		{
+			send_to_char("You cannot rip that page out.\n\r", ch);
+		}
+
+		return;
+	}
+
+	ITERATOR it;
+	BOOK_PAGE *page;
+	iterator_start(&it, BOOK(obj)->pages);
+	while((page = (BOOK_PAGE *)iterator_nextdata(&it)))
+		if (page->page_no == page_no)
+			break;
+
+	OBJ_DATA *torn_page = NULL;
+	if (page)
+	{
+		torn_page = create_object(obj_index_page, 1, FALSE);
+
+		sprintf(buf, torn_page->short_descr, obj->short_descr);
+		free_string(torn_page->short_descr);
+		torn_page->short_descr = str_dup(buf);
+
+		if (!IS_NULLSTR(page->title))
+		{
+			char *title = nocolour(page->title);
+			sprintf(buf, "A torn page, titled '%s', lies crumpled up here.", title);
+			free_string(title);
+			free_string(torn_page->description);
+			torn_page->description = str_dup(buf);
+		}
+
+		int len = strlen(page->title);
+		int lennc = strlen_no_colours(page->title);
+
+		// (80 - lennc) / 2 + lennc + length of color codes
+		int wtitle = (80 + lennc) / 2 + (len - lennc);
+
+		BUFFER *buffer = new_buf();
+
+		sprintf(buf, "%*.*s\n\r", wtitle, wtitle, page->title);
+		add_buf(buffer, buf);
+
+		add_buf(buffer, "--------------------------------------------------------------------------------\n\r");
+		if (IS_NULLSTR(page->text))
+		{
+			char *blank = "BLANK PAGE";
+			int wblank = (80 + strlen(blank)) / 2;
+			sprintf(buf, "\n\r%*.*s\n\r\n\r", wblank, wblank, blank);
+			add_buf(buffer, buf);
+		}
+		else
+		{
+			add_buf(buffer, page->text);
+		}
+		add_buf(buffer, "--------------------------------------------------------------------------------\n\r");
+		
+		char page_no_str[MIL];
+		sprintf(page_no_str, "%d", page_no);
+		int wpage_no = (80 + strlen(page_no_str)) / 2;
+		sprintf(buf, "%*.*s", wpage_no, wpage_no, page_no_str);
+		add_buf(buffer, buf);
+
+		free_string(torn_page->full_description);
+		torn_page->full_description = str_dup(buf_string(buffer));
+		free_buf(buffer);
+
+		free_string(torn_page->name);
+		torn_page->name = short_to_name(torn_page->short_descr);
+
+		// Install multi-typing stuff
+		if (!IS_PAGE(torn_page)) PAGE(torn_page) = new_book_page();
+		PAGE(torn_page)->page_no = page->page_no;
+		free_string(PAGE(torn_page)->title);
+		PAGE(torn_page)->title = str_dup(page->title);
+		free_string(PAGE(torn_page)->text);
+		PAGE(torn_page)->text = str_dup(page->text);
+
+		obj_to_char(torn_page, ch);
+
+		iterator_remcurrent(&it);
+
+		char pagestr[MIL];
+		sprintf(pagestr, "%d", page_no);
+		act("You rip page $t out of $p.", ch, NULL, NULL, obj, NULL, pagestr, NULL, TO_CHAR);
+		act("$n rips a page out of $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+	}
+	else
+	{
+		send_to_char("That page is already missing.\n\r", ch);
+	}
+	iterator_stop(&it);
+
+
+	if (page)
+	{
+		// Do this AFTER cleaning up the iterator
+		// obj1 = torn page
+		// register1 = page number
+		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, torn_page, NULL, TRIG_BOOK_PAGE_RIP, NULL, page_no,0,0,0,0);
+	}
+}
+
+
+// ATTACH <page> <book>[ <append>]
+void do_attach(CHAR_DATA *ch, char *argument)
+{
+	char arg[MIL];
+	char arg2[MIL];
+	OBJ_DATA *page;
+	OBJ_DATA *book;
+
+	argument = one_argument(argument, arg);
+	argument = one_argument(argument, arg2);
+
+	if (!arg[0] || !arg2[0]) {
+		send_to_char("Attach what to what?\n\r", ch);
+		return;
+	}
+
+	if (!(page = get_obj_carry(ch, arg, ch))) {
+		send_to_char("You do not have that item.\n\r", ch);
+		return;
+	}
+
+	if (!IS_PAGE(page))
+	{
+		send_to_char("That is not a page.\n\r", ch);
+		return;
+	}
+
+	if (!(book = get_obj_here(ch, NULL, argument))) {
+		send_to_char("You do not see that here.\n\r", ch);
+		return;
+	}
+
+	if (!IS_BOOK(book))
+	{
+		send_to_char("That is not a book.\n\r", ch);
+		return;
+	}
+
+	int page_no = PAGE(page)->page_no;
+	int mode = 0;			// 0 = insert normally, 1 = append, 2 = specific page
+	if (is_number(argument))
+	{
+		page_no = atoi(argument);
+		if (page_no < 1)
+		{
+			send_to_char("Please specify a positive page number.\n\r", ch);
+			return;
+		}
+
+		mode = 2;
+	}
+	else if (!str_prefix(argument, "append"))
+	{
+		BOOK_PAGE *last_page = (BOOK_PAGE *)list_nthdata(BOOK(book)->pages, -1);
+
+		if (IS_VALID(last_page))
+			page_no = last_page->page_no + 1;
+		else
+			page_no = 1;
+
+		mode = 1;
+	}
+
+	// $(obj1) == page
+	int ret = p_percent_trigger(NULL, book, NULL, NULL, ch, NULL, NULL, page, NULL, TRIG_BOOK_PAGE_PREATTACH, NULL, page_no,mode,0,0,0);
+	if (ret)
+	{
+		if (ret != PRET_SILENT)
+		{
+			act("You cannot attach $p to $P.", ch, NULL, NULL, page, book, NULL, NULL, TO_CHAR);
+		}
+		return;
+	}
+
+	// $(obj2) == book
+	ret = p_percent_trigger(NULL, page, NULL, NULL, ch, NULL, NULL, NULL, book, TRIG_BOOK_PAGE_PREATTACH, NULL, page_no,mode,0,0,0);
+	if (ret)
+	{
+		if (ret != PRET_SILENT)
+		{
+			act("You cannot attach $p to $P.", ch, NULL, NULL, page, book, NULL, NULL, TO_CHAR);
+		}
+		return;
+	}
+
+	BOOK_PAGE *new_page = copy_book_page(PAGE(page));
+	new_page->page_no = page_no;
+
+	if (!book_insert_page(BOOK(book), new_page))
+	{
+		act("You try to attach $p to $P, but it falls out.", ch, NULL, NULL, page, book, NULL, NULL, TO_CHAR);
+		act("$n tries to attach $p to $P, but it falls out.", ch, NULL, NULL, page, book, NULL, NULL, TO_ROOM);
+		free_book_page(new_page);
+	}
+	else
+	{
+		act("You attach $p to $P.", ch, NULL, NULL, page, book, NULL, NULL, TO_CHAR);
+		act("$n attaches $p to $P.", ch, NULL, NULL, page, book, NULL, NULL, TO_ROOM);
+
+		p_percent_trigger(NULL, book, NULL, NULL, ch, NULL, NULL, page, NULL, TRIG_BOOK_PAGE_ATTACH, NULL, page_no,mode,0,0,0);
+		p_percent_trigger(NULL, page, NULL, NULL, ch, NULL, NULL, NULL, book, TRIG_BOOK_PAGE_ATTACH, NULL, page_no,mode,0,0,0);
+
+		// Get rid of old page
+		extract_obj(page);
+	}
+
+
+
 }

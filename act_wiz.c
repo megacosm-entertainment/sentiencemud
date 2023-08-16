@@ -2348,6 +2348,40 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 	}
 	add_buf(buffer, "\n\r");
 
+	if (IS_BOOK(obj))
+	{
+		sprintf(buf, "{CBook[{x%s{C / {x%s{C]: {BPages: (Total: {x%d{B, Current: {x%d{B) Flags: {x%s{B{x\n\r",
+			BOOK(obj)->name, BOOK(obj)->short_descr,
+			list_size(BOOK(obj)->pages),
+			BOOK(obj)->current_page,
+			flag_string(book_flags, BOOK(obj)->flags));
+		add_buf(buffer, buf);
+		
+		if (list_size(BOOK(obj)->pages) > 0)
+		{
+			BOOK_PAGE *page;
+			iterator_start(&it, BOOK(obj)->pages);
+			while((page = (BOOK_PAGE *)iterator_nextdata(&it)))
+			{
+				sprintf(buf, " {BPage: {x%d{C - {x%s{x\n\r", page->page_no, page->title);
+				add_buf(buffer, buf);
+
+				// Text is not shown
+			}
+			iterator_stop(&it);
+		}
+
+		if( BOOK(obj)->lock )
+			ostat_lock_state(BOOK(obj)->lock, buffer);
+	}
+
+	if (IS_PAGE(obj))
+	{
+		sprintf(buf, "{CPage[{x%d{C]: {BTitle:{x %s {BText:{x\n\r%s{x\n\r",
+			PAGE(obj)->page_no, PAGE(obj)->title, string_indent(PAGE(obj)->text, 3));
+	    add_buf(buffer, buf);
+	}
+
 	if (IS_CONTAINER(obj))
 	{
 		sprintf(buf, "{CContainer[{x%s{C / {x%s{C]: {BMax Weight:{x %d {BWeight Multiplier:{x %d {BMax Volume:{x %d {BTotal Weight:{x %d {BTotal Volume:{x %d\n\r",

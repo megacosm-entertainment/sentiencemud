@@ -2898,6 +2898,7 @@ DECL_IFC_FUN(ifc_inputwait)
 		ARG_MOB(0)->pk_question ||
 		ARG_MOB(0)->personal_pk_question ||
 		ARG_MOB(0)->cross_zone_question ||
+		IS_VALID(ARG_MOB(0)->seal_book) ||
 		ARG_MOB(0)->pcdata->convert_church != -1 ||
 		ARG_MOB(0)->challenged ||
 		ARG_MOB(0)->remort_question);
@@ -5060,12 +5061,6 @@ DECL_IFC_FUN(ifc_bit)
 	return FALSE;
 }
 
-DECL_IFC_FUN(ifc_iscontainer)
-{
-	*ret = ISARG_OBJ(0) && IS_CONTAINER(ARG_OBJ(0));
-	return TRUE;
-}
-
 // Only checks against white and black lists
 // This does not take into account other aspects of whether it can be put into the container
 //
@@ -5078,6 +5073,24 @@ DECL_IFC_FUN(ifc_isvaliditem)
 		return TRUE;
 	}
 	return FALSE;
+}
+
+DECL_IFC_FUN(ifc_ispage)
+{
+	*ret = ISARG_OBJ(0) && IS_PAGE(ARG_OBJ(0));
+	return TRUE;
+}
+
+DECL_IFC_FUN(ifc_isbook)
+{
+	*ret = ISARG_OBJ(0) && IS_BOOK(ARG_OBJ(0));
+	return TRUE;
+}
+
+DECL_IFC_FUN(ifc_iscontainer)
+{
+	*ret = ISARG_OBJ(0) && IS_CONTAINER(ARG_OBJ(0));
+	return TRUE;
 }
 
 DECL_IFC_FUN(ifc_isfood)
@@ -5104,3 +5117,8 @@ DECL_IFC_FUN(ifc_ismoney)
 	return TRUE;
 }
 
+DECL_IFC_FUN(ifc_isportal)
+{
+	*ret = ISARG_OBJ(0) && IS_PORTAL(ARG_OBJ(0));
+	return TRUE;
+}

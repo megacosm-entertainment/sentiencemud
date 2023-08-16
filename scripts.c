@@ -743,6 +743,7 @@ void script_loop_cleanup(SCRIPT_CB *block, int level)
 			case ENT_PLLIST_ROOM:
 			case ENT_PLLIST_TOK:
 			case ENT_PLLIST_CHURCH:
+			case ENT_PLLIST_BOOK_PAGE:
 			case ENT_PLLIST_FOOD_BUFF:
 			case ENT_PLLIST_COMPARTMENT:
 			case ENT_ILLIST_VARIABLE:
@@ -1078,6 +1079,7 @@ DECL_OPC_FUN(opc_list)
 	SHIP_DATA *ship;
 	AREA_DATA *area;
 	AREA_REGION *aregion;
+	BOOK_PAGE *book_page;
 	FOOD_BUFF_DATA *food_buff;
 	FURNITURE_COMPARTMENT *compartment;
 
@@ -1922,6 +1924,35 @@ DECL_OPC_FUN(opc_list)
 			variables_set_church(block->info.var,block->loops[lp].var_name,church);
 			break;
 
+
+		case ENT_PLLIST_BOOK_PAGE:
+			//log_stringf("opc_list: list type ENT_PLLIST_BOOK_PAGE");
+			if(!arg->d.blist || !arg->d.blist->valid)
+			{
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			block->loops[lp].d.l.type = ENT_PLLIST_BOOK_PAGE;
+			block->loops[lp].d.l.list.lp = arg->d.blist;
+			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
+			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+			book_page = (BOOK_PAGE *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+			//log_stringf("opc_list: church(%s)", church ? church->name : "<END>");
+
+			if( !book_page ) {
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			// Set the variable
+			variables_set_book_page(block->info.var,block->loops[lp].var_name,book_page);
+			break;
+
 		case ENT_PLLIST_FOOD_BUFF:
 			//log_stringf("opc_list: list type ENT_PLLIST_FOOD_BUFF");
 			if(!arg->d.blist || !arg->d.blist->valid)
@@ -2683,6 +2714,21 @@ DECL_OPC_FUN(opc_list)
 			variables_set_church(block->info.var,block->loops[lp].var_name,church);
 
 			if( !church ) {
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				skip = TRUE;
+				break;
+			}
+
+			break;
+
+		case ENT_PLLIST_BOOK_PAGE:
+			//log_stringf("opc_list: list type ENT_PLLIST_BOOK_PAGE");
+			book_page = (BOOK_PAGE *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+			// Set the variable
+			variables_set_book_page(block->info.var,block->loops[lp].var_name,book_page);
+
+			if( !book_page ) {
 				iterator_stop(&block->loops[lp].d.l.list.it);
 				skip = TRUE;
 				break;

@@ -443,6 +443,7 @@ varset(area_region,AREA_REGION,AREA_REGION*,ar,ar)
 varset(wilds,WILDS,WILDS_DATA*,wilds,wilds)
 varset(church,CHURCH,CHURCH_DATA*,church,church)
 varset(affect,AFFECT,AFFECT_DATA*,aff,aff)
+varset(book_page,BOOK_PAGE,BOOK_PAGE*,book_page,book_page)
 varset(food_buff,FOOD_BUFF,FOOD_BUFF_DATA*,food_buff,food_buff)
 varset(compartment,COMPARTMENT,FURNITURE_COMPARTMENT*,compartment,compartment)
 varset(variable,VARIABLE,pVARIABLE,v,variable)
@@ -1718,6 +1719,7 @@ bool variable_copy(ppVARIABLE list,char *oldname,char *newname)
 	case VAR_SKILLINFO:		newv->_.sk.owner = oldv->_.sk.owner; newv->_.sk.sn = oldv->_.sk.sn; break;
 	case VAR_SONG:			newv->_.sn = oldv->_.sn; break;
 	case VAR_AFFECT:		newv->_.aff = oldv->_.aff; break;
+	case VAR_BOOK_PAGE:		newv->_.book_page = oldv->_.book_page; break;
 	case VAR_FOOD_BUFF:		newv->_.food_buff = oldv->_.food_buff; break;
 	case VAR_COMPARTMENT:	newv->_.compartment = oldv->_.compartment; break;
 
@@ -1733,6 +1735,7 @@ bool variable_copy(ppVARIABLE list,char *oldname,char *newname)
 	case VAR_PLLIST_OBJ:
 	case VAR_PLLIST_TOK:
 	case VAR_PLLIST_CHURCH:
+	case VAR_PLLIST_BOOK_PAGE:
 	case VAR_PLLIST_FOOD_BUFF:
 	case VAR_PLLIST_COMPARTMENT:
 	case VAR_PLLIST_VARIABLE:
@@ -1786,6 +1789,7 @@ bool variable_copyto(ppVARIABLE from,ppVARIABLE to,char *oldname,char *newname, 
 	case VAR_SKILLINFO:	newv->_.sk.owner = oldv->_.sk.owner; newv->_.sk.sn = oldv->_.sk.sn; break;
 	case VAR_SONG:		newv->_.sn = oldv->_.sn; break;
 	case VAR_AFFECT:	newv->_.aff = oldv->_.aff; break;
+	case VAR_BOOK_PAGE:		newv->_.book_page = oldv->_.book_page; break;
 	case VAR_FOOD_BUFF:	newv->_.food_buff = oldv->_.food_buff; break;
 	case VAR_COMPARTMENT:	newv->_.compartment = oldv->_.compartment; break;
 
@@ -1802,6 +1806,7 @@ bool variable_copyto(ppVARIABLE from,ppVARIABLE to,char *oldname,char *newname, 
 	case VAR_PLLIST_OBJ:
 	case VAR_PLLIST_TOK:
 	case VAR_PLLIST_CHURCH:
+	case VAR_PLLIST_BOOK_PAGE:
 	case VAR_PLLIST_FOOD_BUFF:
 	case VAR_PLLIST_COMPARTMENT:
 	case VAR_PLLIST_VARIABLE:
@@ -1852,6 +1857,7 @@ bool variable_copylist(ppVARIABLE from,ppVARIABLE to,bool index)
 		case VAR_SKILLINFO:	newv->_.sk.owner = oldv->_.sk.owner; newv->_.sk.sn = oldv->_.sk.sn; break;
 		case VAR_SONG:		newv->_.sn = oldv->_.sn; break;
 		case VAR_AFFECT:	newv->_.aff = oldv->_.aff; break;
+		case VAR_BOOK_PAGE:		newv->_.book_page = oldv->_.book_page; break;
 		case VAR_FOOD_BUFF:	newv->_.food_buff = oldv->_.food_buff; break;
 		case VAR_COMPARTMENT:	newv->_.compartment = oldv->_.compartment; break;
 
@@ -1868,6 +1874,7 @@ bool variable_copylist(ppVARIABLE from,ppVARIABLE to,bool index)
 		case VAR_PLLIST_OBJ:
 		case VAR_PLLIST_TOK:
 		case VAR_PLLIST_CHURCH:
+		case VAR_PLLIST_BOOK_PAGE:
 		case VAR_PLLIST_FOOD_BUFF:
 		case VAR_PLLIST_COMPARTMENT:
 		case VAR_PLLIST_VARIABLE:
@@ -1918,6 +1925,7 @@ pVARIABLE variable_copyvar(pVARIABLE oldv)
 	case VAR_SKILLINFO:		newv->_.sk.owner = oldv->_.sk.owner; newv->_.sk.sn = oldv->_.sk.sn; break;
 	case VAR_SONG:			newv->_.sn = oldv->_.sn; break;
 	case VAR_AFFECT:		newv->_.aff = oldv->_.aff; break;
+	case VAR_BOOK_PAGE:		newv->_.book_page = oldv->_.book_page; break;
 	case VAR_FOOD_BUFF:		newv->_.food_buff = oldv->_.food_buff; break;
 	case VAR_COMPARTMENT:	newv->_.compartment = oldv->_.compartment; break;
 
@@ -1934,6 +1942,7 @@ pVARIABLE variable_copyvar(pVARIABLE oldv)
 	case VAR_PLLIST_OBJ:
 	case VAR_PLLIST_TOK:
 	case VAR_PLLIST_CHURCH:
+	case VAR_PLLIST_BOOK_PAGE:
 	case VAR_PLLIST_FOOD_BUFF:
 	case VAR_PLLIST_COMPARTMENT:
 	case VAR_PLLIST_VARIABLE:
@@ -2009,6 +2018,12 @@ void variable_clearfield(int type, void *ptr)
 			if (cur->_.aff == ptr)
 			{
 				cur->_.aff = NULL;
+			}
+			break;
+		case VAR_BOOK_PAGE:
+			if (cur->_.book_page == ptr)
+			{
+				cur->_.book_page = NULL;
 			}
 			break;
 		case VAR_FOOD_BUFF:
@@ -2285,6 +2300,12 @@ void variable_clearfield(int type, void *ptr)
 
 		case VAR_PLLIST_CHURCH:
 			if( type == VAR_CHURCH && ptr && list_isvalid(cur->_.list)) {
+				list_remlink(cur->_.list, ptr);
+			}
+			break;
+
+		case VAR_PLLIST_BOOK_PAGE:
+			if( type == VAR_BOOK_PAGE && ptr && list_isvalid(cur->_.list)) {
 				list_remlink(cur->_.list, ptr);
 			}
 			break;

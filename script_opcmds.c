@@ -18,15 +18,12 @@ const struct script_cmd_type obj_cmd_table[] = {
 	{ "addaffect",			scriptcmd_addaffect,	TRUE,	TRUE	},
 	{ "addaffectname",		scriptcmd_addaffectname,TRUE,	TRUE	},
 	{ "addaura",			scriptcmd_addaura,			TRUE,	TRUE	},
-	{ "addblacklist",		scriptcmd_addblacklist,			TRUE, TRUE },
-	{ "addfoodbuff",		scriptcmd_addfoodbuff,		TRUE, TRUE },
 	{ "addspell",			scriptcmd_addspell,				TRUE,	TRUE	},
 	{ "addtype",			scriptcmd_addtype,			TRUE, TRUE },
-	{ "addwhitelist",		scriptcmd_addwhitelist,			TRUE, TRUE },
 	{ "alteraffect",		do_opalteraffect,		TRUE,	TRUE	},
 	{ "alterexit",			do_opalterexit,			FALSE,	TRUE	},
 	{ "altermob",			do_opaltermob,			TRUE,	TRUE	},
-	{ "alterobj",			scriptcmd_alterobj,			TRUE,	TRUE	},
+	{ "alterobj",			scriptcmd_alterobjmt,			TRUE,	TRUE	},
 	{ "alterroom",			do_opalterroom,			TRUE,	TRUE	},
 	{ "applytoxin",			scriptcmd_applytoxin,	FALSE,	TRUE	},
 	{ "asound",				do_opasound,			FALSE,	TRUE	},
@@ -123,13 +120,11 @@ const struct script_cmd_type obj_cmd_table[] = {
 	{ "reassign",			scriptcmd_reassign,			TRUE,	FALSE	},
 	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
 	{ "remaura",			scriptcmd_remaura,			TRUE,	TRUE	},
-	{ "remblacklist",		scriptcmd_remblacklist,		TRUE,	TRUE	},
 	{ "remember",			do_opremember,			FALSE,	TRUE	},
 	{ "remort",				do_opremort,			TRUE,	TRUE	},
 	{ "remove",				do_opremove,			FALSE,	TRUE	},
 	{ "remspell",			scriptcmd_remspell,			TRUE,	TRUE	},
 	{ "remtype",			scriptcmd_remtype,			TRUE,	TRUE	},
-	{ "remwhitelist",		scriptcmd_remwhitelist,		TRUE,	TRUE	},
 	{ "resetdice",			do_opresetdice,			TRUE,	TRUE	},
 	{ "restore",			do_oprestore,			TRUE,	TRUE	},
 	{ "revokeskill",		scriptcmd_revokeskill,	FALSE,	TRUE	},
@@ -151,7 +146,7 @@ const struct script_cmd_type obj_cmd_table[] = {
 	{ "startreckoning",		scriptcmd_startreckoning,	TRUE,	TRUE	},
 	{ "stopcombat",			scriptcmd_stopcombat,	FALSE,	TRUE	},
 	{ "stringmob",			do_opstringmob,			TRUE,	TRUE	},
-	{ "stringobj",			do_opstringobj,			TRUE,	TRUE	},
+	{ "stringobj",			scriptcmd_stringobjmt,			TRUE,	TRUE	},
 	{ "stripaffect",		do_opstripaffect,		TRUE,	TRUE	},
 	{ "stripaffectname",	do_opstripaffectname,	TRUE,	TRUE	},
 	{ "transfer",			do_optransfer,			FALSE,	TRUE	},
@@ -684,7 +679,7 @@ SCRIPT_CMD(do_opat)
 		dummy_obj->progs->target = info->obj->progs->target;
 		dummy_obj->progs->vars = info->obj->progs->vars;
 		dummy_obj->progs->delay = info->obj->progs->delay;
-		SET_BIT(dummy_obj->progs->entity_flags,PROG_AT);
+		PROG_SET(dummy_obj,PROG_AT);
 		info2.targ = &(dummy_obj->progs->target);
 		info2.var = &(dummy_obj->progs->vars);
 
@@ -7090,6 +7085,7 @@ SCRIPT_CMD(do_opremort)
 		mob->remove_question ||
 		mob->personal_pk_question ||
 		mob->cross_zone_question ||
+		IS_VALID(mob->seal_book) ||
 		mob->pcdata->convert_church != -1 ||
 		mob->challenged ||
 		mob->remort_question)

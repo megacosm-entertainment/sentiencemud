@@ -241,6 +241,15 @@ void free_aura_data(AURA_DATA *aura);
 
 // Item Multi-typing
 
+// Book
+BOOK_PAGE *new_book_page();
+BOOK_PAGE *copy_book_page(BOOK_PAGE *src);
+void free_book_page(BOOK_PAGE *page);
+
+BOOK_DATA *new_book_data();
+BOOK_DATA *copy_book_data(BOOK_DATA *src);
+void free_book_data(BOOK_DATA *data);
+
 // Container
 CONTAINER_FILTER *new_container_filter();
 void free_container_filter(CONTAINER_FILTER *filter);

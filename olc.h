@@ -327,6 +327,8 @@ DECLARE_OLC_FUN( oedit_persist  );
 DECLARE_OLC_FUN( oedit_lock		);
 DECLARE_OLC_FUN( oedit_waypoints	);
 
+DECLARE_OLC_FUN( oedit_type_page );
+DECLARE_OLC_FUN( oedit_type_book );
 DECLARE_OLC_FUN( oedit_type_container );
 DECLARE_OLC_FUN( oedit_type_food );
 DECLARE_OLC_FUN( oedit_type_furniture );

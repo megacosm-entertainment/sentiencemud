@@ -172,6 +172,7 @@ const struct olc_cmd_type oedit_table[] =
 	{ "addskill",		oedit_addskill			},
 	{ "addspell",		oedit_addspell			},
 	{ "allowedfixed",	oedit_allowed_fixed		},
+	{ "book", 			oedit_type_book			},
 	{ "commands",		show_commands			},
 	{ "comments",		oedit_comments			},
 	{ "condition",		oedit_condition			},
@@ -198,6 +199,7 @@ const struct olc_cmd_type oedit_table[] =
 	{ "name",			oedit_name				},
 	{ "next",			oedit_next				},
 	{ "oupdate",		oedit_update			},
+	{ "page",			oedit_type_page			},
 	{ "persist",		oedit_persist			},
 	{ "portal",			oedit_type_portal		},
 	{ "prev",			oedit_prev				},
@@ -3827,10 +3829,13 @@ SHOP_STOCK_DATA *get_shop_stock_bypos(SHOP_DATA *shop, int nth)
 
 void obj_index_reset_multitype(OBJ_INDEX_DATA *pObjIndex)
 {
+	free_book_page(PAGE(pObjIndex));				PAGE(pObjIndex) = NULL;
+	free_book_data(BOOK(pObjIndex));				BOOK(pObjIndex) = NULL;
 	free_container_data(CONTAINER(pObjIndex));		CONTAINER(pObjIndex) = NULL;
 	free_food_data(FOOD(pObjIndex));				FOOD(pObjIndex) = NULL;
 	free_light_data(LIGHT(pObjIndex));				LIGHT(pObjIndex) = NULL;
 	free_money_data(MONEY(pObjIndex));				MONEY(pObjIndex) = NULL;
+	free_portal_data(PORTAL(pObjIndex));				PORTAL(pObjIndex) = NULL;
 }
 
 void obj_index_set_primarytype(OBJ_INDEX_DATA *pObjIndex, int item_type)
@@ -3840,6 +3845,8 @@ void obj_index_set_primarytype(OBJ_INDEX_DATA *pObjIndex, int item_type)
 	pObjIndex->item_type = item_type;
 	switch(item_type)
 	{
+		case ITEM_PAGE:			PAGE(pObjIndex) = new_book_page(); break;
+		case ITEM_BOOK:			BOOK(pObjIndex) = new_book_data(); break;
 		case ITEM_CONTAINER:	CONTAINER(pObjIndex) = new_container_data(); break;
 		case ITEM_FOOD:			FOOD(pObjIndex) = new_food_data(); break;
 		case ITEM_FURNITURE:	FURNITURE(pObjIndex) = new_furniture_data(); break;

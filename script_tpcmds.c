@@ -18,16 +18,13 @@ const struct script_cmd_type token_cmd_table[] = {
 	{ "addaffect",			scriptcmd_addaffect,		TRUE,	TRUE	},
 	{ "addaffectname",		scriptcmd_addaffectname,	TRUE,	TRUE	},
 	{ "addaura",			scriptcmd_addaura,			TRUE,	TRUE	},
-	{ "addblacklist",		scriptcmd_addblacklist,			TRUE, TRUE },
-	{ "addfoodbuff",		scriptcmd_addfoodbuff,		TRUE, TRUE },
 	{ "addspell",			scriptcmd_addspell,				TRUE,	TRUE	},
 	{ "addtype",			scriptcmd_addtype,			TRUE, TRUE },
-	{ "addwhitelist",		scriptcmd_addwhitelist,			TRUE, TRUE },
 	{ "adjust",				do_tpadjust,				FALSE,	TRUE	},
 	{ "alteraffect",		do_tpalteraffect,			TRUE,	TRUE	},
 	{ "alterexit",			do_tpalterexit,				FALSE,	TRUE	},
 	{ "altermob",			do_tpaltermob,				TRUE,	TRUE	},
-	{ "alterobj",			scriptcmd_alterobj,				TRUE,	TRUE	},
+	{ "alterobj",			scriptcmd_alterobjmt,				TRUE,	TRUE	},
 	{ "alterroom",			do_tpalterroom,				TRUE,	TRUE	},
 	{ "applytoxin",			scriptcmd_applytoxin,		FALSE,	TRUE	},
 	{ "asound",				do_tpasound,				FALSE,	TRUE	},
@@ -124,13 +121,11 @@ const struct script_cmd_type token_cmd_table[] = {
 	{ "reassign",			scriptcmd_reassign,			TRUE,	FALSE	},
 	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
 	{ "remaura",			scriptcmd_remaura,			TRUE,	TRUE	},
-	{ "remblacklist",		scriptcmd_remblacklist,		TRUE,	TRUE	},
 	{ "remember",			do_tpremember,				FALSE,	TRUE	},
 	{ "remort",				do_tpremort,				TRUE,	TRUE	},
 	{ "remove",				do_tpremove,				FALSE,	TRUE	},
 	{ "remspell",			scriptcmd_remspell,			TRUE,	TRUE	},
 	{ "remtype",			scriptcmd_remtype,			TRUE,	TRUE	},
-	{ "remwhitelist",		scriptcmd_remwhitelist,		TRUE,	TRUE	},
 	{ "resetdice",			do_tpresetdice,				TRUE,	TRUE	},
 	{ "restore",			do_tprestore,				TRUE,	TRUE	},
 	{ "revokeskill",		scriptcmd_revokeskill,		FALSE,	TRUE	},
@@ -151,7 +146,7 @@ const struct script_cmd_type token_cmd_table[] = {
 	{ "startreckoning",		scriptcmd_startreckoning,	TRUE,	TRUE	},
 	{ "stopcombat",			scriptcmd_stopcombat,		FALSE,	TRUE	},
 	{ "stringmob",			do_tpstringmob,				TRUE,	TRUE	},
-	{ "stringobj",			do_tpstringobj,				TRUE,	TRUE	},
+	{ "stringobj",			scriptcmd_stringobjmt,				TRUE,	TRUE	},
 	{ "stripaffect",		do_tpstripaffect,			TRUE,	TRUE	},
 	{ "stripaffectname",	do_tpstripaffectname,		TRUE,	TRUE	},
 	{ "transfer",			do_tptransfer,				FALSE,	TRUE	},
@@ -7453,6 +7448,7 @@ SCRIPT_CMD(do_tpremort)
 		mob->remove_question ||
 		mob->personal_pk_question ||
 		mob->cross_zone_question ||
+		IS_VALID(mob->seal_book) ||
 		mob->pcdata->convert_church != -1 ||
 		mob->challenged ||
 		mob->remort_question)

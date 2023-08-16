@@ -30,6 +30,7 @@ RESERVED_AREA *search_reserved_area(char *name);
 
 char *expand_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,pVARIABLE *var);
 char *expand_string_expression(SCRIPT_VARINFO *info,char *str,BUFFER *store);
+char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg);
 
 // Check the validity of the script parameters
 //	Should the ids mismatch, reset the field
@@ -559,6 +560,7 @@ char *expand_argument_variable(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 			break;
 		case VAR_SONG:		arg->type = ENT_SONG; arg->d.song = var->_.sn; break;
 		case VAR_AFFECT:	arg->type = ENT_AFFECT; arg->d.aff = var->_.aff; break;
+		case VAR_BOOK_PAGE:	arg->type = ENT_BOOK_PAGE; arg->d.book_page = var->_.book_page; break;
 		case VAR_FOOD_BUFF:	arg->type = ENT_FOOD_BUFF; arg->d.food_buff = var->_.food_buff; break;
 		case VAR_COMPARTMENT:	arg->type = ENT_COMPARTMENT; arg->d.compartment = var->_.compartment; break;
 
@@ -656,6 +658,7 @@ char *expand_argument_variable(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case VAR_PLLIST_AREA:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_AREA; break;
 		case VAR_PLLIST_AREA_REGION:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_AREA_REGION; break;
 		case VAR_PLLIST_CHURCH:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_CHURCH; break;
+		case VAR_PLLIST_BOOK_PAGE: arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_BOOK_PAGE; break;
 		case VAR_PLLIST_FOOD_BUFF: arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_FOOD_BUFF; break;
 		case VAR_PLLIST_COMPARTMENT: arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_COMPARTMENT; break;
 
@@ -848,6 +851,14 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
 		arg->type = ENT_FOOD_BUFF;
 		break;
 
+	case ENTITY_VAR_BOOK_PAGE:
+		if(var && var->type == VAR_BOOK_PAGE && var->_.book_page)
+			arg->d.book_page = var->_.book_page;
+		else return NULL;
+
+		arg->type = ENT_BOOK_PAGE;
+		break;
+
 	case ENTITY_VAR_COMPARTMENT:
 		if(var && var->type == VAR_COMPARTMENT && var->_.compartment)
 			arg->d.compartment = var->_.compartment;
@@ -1010,6 +1021,7 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
 	case ENTITY_VAR_PLLIST_AREA:
 	case ENTITY_VAR_PLLIST_AREA_REGION:
 	case ENTITY_VAR_PLLIST_CHURCH:
+	case ENTITY_VAR_PLLIST_BOOK_PAGE:
 	case ENTITY_VAR_PLLIST_FOOD_BUFF:
 	case ENTITY_VAR_PLLIST_COMPARTMENT:
 	case ENTITY_VAR_PLLIST_VARIABLE:
@@ -1913,19 +1925,19 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_OLLIST_OBJ;
 		arg->d.list.ptr.obj = self ? &self->carrying : NULL;
 		arg->d.list.owner = self;
-		arg->d.list.owner_type = ENT_UNKNOWN;
+		arg->d.list.owner_type = ENT_MOBILE;
 		break;
 	case ENTITY_MOB_TOKENS:
 		arg->type = ENT_OLLIST_TOK;
 		arg->d.list.ptr.tok = self ? &self->tokens : NULL;
 		arg->d.list.owner = self;
-		arg->d.list.owner_type = ENT_UNKNOWN;
+		arg->d.list.owner_type = ENT_MOBILE;
 		break;
 	case ENTITY_MOB_AFFECTS:
 		arg->type = ENT_OLLIST_AFF;
 		arg->d.list.ptr.aff = self ? &self->affected : NULL;
 		arg->d.list.owner = self;
-		arg->d.list.owner_type = ENT_UNKNOWN;
+		arg->d.list.owner_type = ENT_MOBILE;
 		break;
 	case ENTITY_MOB_MOUNT:
 		arg->d.mob = arg->d.mob ? arg->d.mob->mount : NULL;
@@ -2100,30 +2112,30 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_OBJECT;
 		arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_UPPER_LEG_R);
 		break;
-        case ENTITY_MOB_EQ_TATTOO_LOWER_ARM1:
-                arg->type = ENT_OBJECT;
-                arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_LOWER_ARM_L);
-                break;
-        case ENTITY_MOB_EQ_TATTOO_LOWER_ARM2:
-                arg->type = ENT_OBJECT;
-                arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_LOWER_ARM_R);
-                break;
-        case ENTITY_MOB_EQ_TATTOO_LOWER_LEG1:
-                arg->type = ENT_OBJECT;
-                arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_LOWER_LEG_L);
-                break;
-        case ENTITY_MOB_EQ_TATTOO_LOWER_LEG2:
-                arg->type = ENT_OBJECT;
-                arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_LOWER_LEG_R);
-                break;
-        case ENTITY_MOB_EQ_TATTOO_SHOULDER1:
-                arg->type = ENT_OBJECT;
-                arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_SHOULDER_L);
-                break;
-        case ENTITY_MOB_EQ_TATTOO_SHOULDER2:
-                arg->type = ENT_OBJECT;
-                arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_SHOULDER_R);
-                break;
+	case ENTITY_MOB_EQ_TATTOO_LOWER_ARM1:
+		arg->type = ENT_OBJECT;
+		arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_LOWER_ARM_L);
+		break;
+	case ENTITY_MOB_EQ_TATTOO_LOWER_ARM2:
+		arg->type = ENT_OBJECT;
+		arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_LOWER_ARM_R);
+		break;
+	case ENTITY_MOB_EQ_TATTOO_LOWER_LEG1:
+		arg->type = ENT_OBJECT;
+		arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_LOWER_LEG_L);
+		break;
+	case ENTITY_MOB_EQ_TATTOO_LOWER_LEG2:
+		arg->type = ENT_OBJECT;
+		arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_LOWER_LEG_R);
+		break;
+	case ENTITY_MOB_EQ_TATTOO_SHOULDER1:
+		arg->type = ENT_OBJECT;
+		arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_SHOULDER_L);
+		break;
+	case ENTITY_MOB_EQ_TATTOO_SHOULDER2:
+		arg->type = ENT_OBJECT;
+		arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_SHOULDER_R);
+		break;
 	case ENTITY_MOB_EQ_TATTOO_BACK:
 		arg->type = ENT_OBJECT;
 		arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_BACK);
@@ -2131,6 +2143,7 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_MOB_EQ_TATTOO_NECK:
 		arg->type = ENT_OBJECT;
 		arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_NECK);
+		break;
 	case ENTITY_MOB_EQ_LODGED_HEAD:
 		arg->type = ENT_OBJECT;
 		arg->d.obj = get_eq_char(arg->d.mob,WEAR_LODGED_HEAD);
@@ -2701,6 +2714,16 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 
 	// Multi-typing
+	case ENTITY_OBJ_TYPE_PAGE:
+		arg->type = ENT_BOOK_PAGE;
+		arg->d.book_page = IS_VALID(arg->d.obj) ? PAGE(arg->d.obj) : NULL;
+		break;
+
+	case ENTITY_OBJ_TYPE_BOOK:
+		arg->type = ENT_OBJECT_BOOK;
+		// Uses arg->d.obj
+		break;
+
 	case ENTITY_OBJ_TYPE_CONTAINER:
 		arg->type = ENT_OBJECT_CONTAINER;
 		// Uses arg->d.obj
@@ -2718,6 +2741,11 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 	case ENTITY_OBJ_TYPE_MONEY:
 		arg->type = ENT_OBJECT_MONEY;
+		// Uses arg->d.obj
+		break;
+
+	case ENTITY_OBJ_TYPE_PORTAL:
+		arg->type = ENT_OBJECT_PORTAL;
 		// Uses arg->d.obj
 		break;
 
@@ -3885,6 +3913,66 @@ char *expand_entity_affect(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	return str+1;
 }
 
+char *expand_entity_object_page(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	BOOK_PAGE *page = IS_VALID(arg->d.obj) && IS_PAGE(arg->d.obj) ? PAGE(arg->d.obj) : NULL;
+
+	//printf("expand_entity_object_page() called\n\r");
+	switch(*str) {
+	case ENTITY_BOOK_PAGE_NUMBER:
+		arg->type = ENT_NUMBER;
+		arg->d.num = page ? page->page_no : 0;
+		break;
+
+	case ENTITY_BOOK_PAGE_TITLE:
+		arg->type = ENT_STRING;
+		arg->d.str = page ? page->title : "";
+		break;
+
+	case ENTITY_BOOK_PAGE_TEXT:
+		arg->type = ENT_STRING;
+		arg->d.str = page ? page->text : "";
+		break;
+
+	case ENTITY_BOOK_PAGE_BOOK:
+		arg->type = ENT_OBJINDEX;
+		if (page && page->book.auid > 0 && page->book.vnum > 0)
+			arg->d.objindex = get_obj_index_auid(page->book.auid, page->book.vnum);
+		else
+			arg->d.objindex = NULL;
+		break;
+
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_book_page(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	//printf("expand_entity_book_page() called\n\r");
+	switch(*str) {
+	case ENTITY_BOOK_PAGE_NUMBER:
+		arg->type = ENT_NUMBER;
+		arg->d.num = arg->d.book_page ? arg->d.book_page->page_no : 0;
+		break;
+
+	case ENTITY_BOOK_PAGE_TITLE:
+		arg->type = ENT_STRING;
+		arg->d.str = arg->d.book_page ? arg->d.book_page->title : "";
+		break;
+
+	case ENTITY_BOOK_PAGE_TEXT:
+		arg->type = ENT_STRING;
+		arg->d.str = arg->d.book_page ? arg->d.book_page->text : "";
+		break;
+
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
 char *expand_entity_food_buff(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 	//printf("expand_entity_food_buff() called\n\r");
@@ -4499,16 +4587,16 @@ char *expand_entity_blist_mob(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 		if( uid ) {
 			if( uid->ptr ) {
-				arg->d.token  = (TOKEN_DATA *)uid->ptr;
-				arg->type = ENT_TOKEN;
+				arg->d.mob = (CHAR_DATA *)uid->ptr;
+				arg->type = ENT_MOBILE;
 			} else {
 				arg->d.uid[0] = uid->id[0];
 				arg->d.uid[1] = uid->id[1];
-				arg->type = ENT_TOKEN_ID;
+				arg->type = ENT_MOBILE_ID;
 			}
 		} else {
 			arg->d.mob = NULL;
-			arg->type = ENT_TOKEN;
+			arg->type = ENT_MOBILE;
 		}
 
 		return str;
@@ -4592,16 +4680,16 @@ char *expand_entity_blist_obj(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 		if( uid ) {
 			if( uid->ptr ) {
-				arg->d.mob = (CHAR_DATA *)uid->ptr;
-				arg->type = ENT_MOBILE;
+				arg->d.obj = (OBJ_DATA *)uid->ptr;
+				arg->type = ENT_OBJECT;
 			} else {
 				arg->d.uid[0] = uid->id[0];
 				arg->d.uid[1] = uid->id[1];
-				arg->type = ENT_MOBILE_ID;
+				arg->type = ENT_OBJECT_ID;
 			}
 		} else {
-			arg->d.mob = NULL;
-			arg->type = ENT_MOBILE;
+			arg->d.obj = NULL;
+			arg->type = ENT_OBJECT;
 		}
 
 		return str;
@@ -4685,16 +4773,16 @@ char *expand_entity_blist_token(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg
 
 		if( uid ) {
 			if( uid->ptr ) {
-				arg->d.obj = (OBJ_DATA *)uid->ptr;
-				arg->type = ENT_OBJECT;
+				arg->d.token  = (TOKEN_DATA *)uid->ptr;
+				arg->type = ENT_TOKEN;
 			} else {
 				arg->d.uid[0] = uid->id[0];
 				arg->d.uid[1] = uid->id[1];
-				arg->type = ENT_OBJECT_ID;
+				arg->type = ENT_TOKEN_ID;
 			}
 		} else {
-			arg->d.obj = NULL;
-			arg->type = ENT_OBJECT;
+			arg->d.mob = NULL;
+			arg->type = ENT_TOKEN;
 		}
 
 		return str;
@@ -5221,6 +5309,55 @@ char *expand_entity_plist_church(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *ar
 
 		arg->d.church = church;
 		arg->type = ENT_CHURCH;
+		break;
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_plist_book_page(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	register BOOK_PAGE *book_page = NULL;
+	switch(*str) {
+	case ESCAPE_EXPRESSION:
+	{
+		int index;
+		str = expand_argument_expression(info,str+1,&index);
+		if (!str) return NULL;
+
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			book_page = (BOOK_PAGE *)list_nthdata(arg->d.blist, index);
+
+		arg->d.book_page = book_page;
+		arg->type = ENT_BOOK_PAGE;
+
+		return str;
+	}
+	case ENTITY_LIST_SIZE:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
+		break;
+	case ENTITY_LIST_RANDOM:
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			book_page = (BOOK_PAGE *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
+
+		arg->d.book_page = book_page;
+		arg->type = ENT_BOOK_PAGE;
+		break;
+	case ENTITY_LIST_FIRST:
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			book_page = (BOOK_PAGE *)list_nthdata(arg->d.blist, 1);
+
+		arg->d.book_page = book_page;
+		arg->type = ENT_BOOK_PAGE;
+		break;
+	case ENTITY_LIST_LAST:
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			book_page = (BOOK_PAGE *)list_nthdata(arg->d.blist, -1);
+
+		arg->d.book_page = book_page;
+		arg->type = ENT_BOOK_PAGE;
 		break;
 	default: return NULL;
 	}
@@ -6577,6 +6714,51 @@ char *expand_entity_reserved_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *a
 	return str+1;
 }
 
+char *expand_entity_object_book(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	BOOK_DATA *book = IS_VALID(arg->d.obj) && IS_BOOK(arg->d.obj) ? BOOK(arg->d.obj) : NULL;
+
+	switch(*str) {
+	case ENTITY_OBJ_BOOK_NAME:
+		arg->type = ENT_STRING;
+		arg->d.str = IS_VALID(book) ? book->name : "";
+		break;
+	
+	case ENTITY_OBJ_BOOK_SHORT:
+		arg->type = ENT_STRING;
+		arg->d.str = IS_VALID(book) ? book->short_descr : "";
+		break;
+
+	case ENTITY_OBJ_BOOK_FLAGS:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = IS_VALID(book) ? book->flags : 0;
+		arg->d.bv.table = IS_VALID(book) ? book_flags : NULL;
+		break;
+
+	case ENTITY_OBJ_BOOK_CURRENT:
+		arg->type = ENT_BOOK_PAGE;
+		arg->d.book_page = IS_VALID(book) ? book_get_page(book, book->current_page) : NULL;
+		break;
+
+	case ENTITY_OBJ_BOOK_OPENER:
+		arg->type = ENT_BOOK_PAGE;
+		arg->d.book_page = IS_VALID(book) ? book_get_page(book, book->open_page) : NULL;
+		break;
+	
+	case ENTITY_OBJ_BOOK_PAGES:
+		arg->type = ENT_PLLIST_BOOK_PAGE;
+		arg->d.blist = IS_VALID(book) ? book->pages : NULL;
+		break;
+
+	// TODO: LOCK STATE
+	case ENTITY_OBJ_BOOK_LOCK:
+		return NULL;
+
+	default: return NULL;
+	}
+
+	return str+1;
+}
 
 char *expand_entity_object_container(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
@@ -6840,6 +7022,7 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case ENT_CHURCH:	next = expand_entity_church(info,str,arg); break;
 		case ENT_EXTRADESC:	next = expand_entity_extradesc(info,str,arg); break;
 		case ENT_AFFECT:	next = expand_entity_affect(info,str,arg); break;
+		case ENT_BOOK_PAGE:	next = expand_entity_book_page(info,str,arg); break;
 		case ENT_FOOD_BUFF:	next = expand_entity_food_buff(info,str,arg); break;
 		case ENT_COMPARTMENT:	next = expand_entity_compartment(info,str,arg); break;
 		case ENT_SONG:		next = expand_entity_song(info,str,arg); break;
@@ -6867,6 +7050,7 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case ENT_PLLIST_AREA:		next = expand_entity_plist_area(info,str,arg); break;
 		case ENT_PLLIST_AREA_REGION:	next = expand_entity_plist_area_region(info,str,arg); break;
 		case ENT_PLLIST_CHURCH:	next = expand_entity_plist_church(info,str,arg); break;
+		case ENT_PLLIST_BOOK_PAGE:	next = expand_entity_plist_book_page(info,str,arg); break;
 		case ENT_PLLIST_FOOD_BUFF:	next = expand_entity_plist_food_buff(info,str,arg); break;
 		case ENT_PLLIST_COMPARTMENT:	next = expand_entity_plist_compartment(info,str,arg); break;
 
@@ -6899,6 +7083,8 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case ENT_SHIPINDEX:				next = expand_entity_shipindex(info,str,arg); break;
 
 		// Multi-typing
+		case ENT_OBJECT_PAGE:			next = expand_entity_object_page(info,str,arg); break;
+		case ENT_OBJECT_BOOK:			next = expand_entity_object_book(info,str,arg); break;
 		case ENT_OBJECT_CONTAINER:		next = expand_entity_object_container(info,str,arg); break;
 		case ENT_OBJECT_FOOD:			next = expand_entity_object_food(info,str,arg); break;
 		case ENT_OBJECT_FURNITURE:		next = expand_entity_object_furniture(info,str,arg); break;
@@ -7030,6 +7216,10 @@ char *expand_string_entity(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
 
 	case ENT_BITMATRIX:
 		add_buf(buffer, bitmatrix_string(arg->d.bm.bank, arg->d.bm.values));
+		break;
+
+	case ENT_BOOK_PAGE:
+		add_buf(buffer, IS_VALID(arg->d.book_page) ? arg->d.book_page->title : "");
 		break;
 	}
 

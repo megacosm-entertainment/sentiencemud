@@ -793,6 +793,7 @@ WNUM obj_wnum_empty_vial;
 WNUM obj_wnum_potion;
 WNUM obj_wnum_blank_scroll;
 WNUM obj_wnum_scroll;
+WNUM obj_wnum_page;
 WNUM obj_wnum_leather_jacket;
 WNUM obj_wnum_green_tights;
 WNUM obj_wnum_sandals;
@@ -890,6 +891,7 @@ OBJ_INDEX_DATA *obj_index_empty_vial = NULL;
 OBJ_INDEX_DATA *obj_index_potion = NULL;
 OBJ_INDEX_DATA *obj_index_blank_scroll = NULL;
 OBJ_INDEX_DATA *obj_index_scroll = NULL;
+OBJ_INDEX_DATA *obj_index_page = NULL;
 OBJ_INDEX_DATA *obj_index_leather_jacket = NULL;
 OBJ_INDEX_DATA *obj_index_green_tights = NULL;
 OBJ_INDEX_DATA *obj_index_sandals = NULL;
@@ -1063,6 +1065,7 @@ RESERVED_WNUM reserved_obj_wnums[] =
 //	{ "ObjNewbLeggings",		0,		3749,		&obj_wnum_newb_leggings,		&obj_index_newb_leggings },
 //	{ "ObjNewbQuarterstaff",	0,		3740,		&obj_wnum_newb_quarterstaff,	&obj_index_newb_quarterstaff },
 //	{ "ObjNewbSword",			0,		3742,		&obj_wnum_newb_sword,			&obj_index_newb_sword },
+	{ "ObjPage",				0,		0,			&obj_wnum_page,					&obj_index_page },
 //	{ "ObjPawnTicket",			0,		100058,		&obj_wnum_pawn_ticket,			&obj_index_pawn_ticket },
 //	{ "ObjPirateHead",			0,		157024,		&obj_wnum_pirate_head,			&obj_index_pirate_head },
 	{ "ObjPit",					0,		100002,		&obj_wnum_pit,					&obj_index_pit },
@@ -3415,6 +3418,8 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects,
 	// Item Multi-typing
 	if (multitypes)
 	{
+		PAGE(obj) = copy_book_page(PAGE(pObjIndex));
+		BOOK(obj) = copy_book_data(BOOK(pObjIndex));
 		CONTAINER(obj) = copy_container_data(CONTAINER(pObjIndex));
 		FOOD(obj) = copy_food_data(FOOD(pObjIndex));
 		FURNITURE(obj) = copy_furniture_data(FURNITURE(pObjIndex));
@@ -7271,6 +7276,7 @@ TOKEN_DATA *persist_load_token(FILE *fp)
 	return token;
 }
 
+BOOK_DATA *fread_obj_book_data(FILE *fp);
 CONTAINER_DATA *fread_obj_container_data(FILE *fp);
 FOOD_DATA *fread_obj_food_data(FILE *fp);
 FURNITURE_DATA *fread_obj_furniture_data(FILE *fp);
@@ -7332,6 +7338,14 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					} else
 						good = FALSE;
 
+					break;
+				}
+				if (!str_cmp(word, "#TYPEBOOK"))
+				{
+					if (IS_BOOK(obj)) free_book_data(BOOK(obj));
+
+					BOOK(obj) = fread_obj_book_data(fp);
+					fMatch = TRUE;
 					break;
 				}
 				if (!str_cmp(word, "#TYPECONTAINER"))

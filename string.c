@@ -181,6 +181,16 @@ void string_postprocess(CHAR_DATA *ch, bool execute)
 		if(s) free_string(s);
 	}
 
+	// Done writing the description in a book via the "write" command
+	if (IS_VALID(ch->desc->writing_book))
+	{
+		act("$n finishes writing in $p.", ch, NULL, NULL, ch->desc->writing_book, NULL, NULL, NULL, TO_ROOM);
+
+		p_percent_trigger(NULL, ch->desc->writing_book, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BOOK_WRITE_TEXT, NULL, 0,0,0,0,0);
+		ch->desc->writing_book = NULL;
+	}
+
+	ch->desc->skip_blank_lines = FALSE;
 }
 
 void string_add(CHAR_DATA *ch, char *argument)

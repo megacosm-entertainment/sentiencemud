@@ -86,6 +86,7 @@ ENT_FIELD entity_types[] = {
 	{"skillinfo",		ENTITY_VAR_SKILLINFO,	ENT_SKILLINFO	},
 	{"song",			ENTITY_VAR_SONG,		ENT_SONG		},
 	{"aff",				ENTITY_VAR_AFFECT,		ENT_AFFECT		},
+	{"book_page",		ENTITY_VAR_BOOK_PAGE,	ENT_BOOK_PAGE	},
 	{"food_buff",		ENTITY_VAR_FOOD_BUFF,	ENT_FOOD_BUFF	},
 	{"compartment",		ENTITY_VAR_COMPARTMENT,	ENT_COMPARTMENT },
 	{"conn",			ENTITY_VAR_CONN,		ENT_CONN		},
@@ -109,6 +110,7 @@ ENT_FIELD entity_types[] = {
 	{"list_area",		ENTITY_VAR_PLLIST_AREA,	ENT_PLLIST_AREA	},
 	{"list_aregion",	ENTITY_VAR_PLLIST_AREA_REGION,	ENT_PLLIST_AREA_REGION	},
 	{"list_church",		ENTITY_VAR_PLLIST_CHURCH,	ENT_PLLIST_CHURCH	},
+	{"list_book_page",	ENTITY_VAR_PLLIST_BOOK_PAGE,	ENT_PLLIST_BOOK_PAGE},
 	{"list_food_buff",	ENTITY_VAR_PLLIST_FOOD_BUFF,	ENT_PLLIST_FOOD_BUFF},
 	{"list_compartment",ENTITY_VAR_PLLIST_COMPARTMENT,	ENT_PLLIST_COMPARTMENT},
 	{"dice",			ENTITY_VAR_DICE,		ENT_DICE	},
@@ -363,12 +365,26 @@ ENT_FIELD entity_object[] = {
 	{"extra",		ENTITY_OBJ_EXTRA,			ENT_BITMATRIX },
 	{"wear",		ENTITY_OBJ_WEAR,			ENT_BITVECTOR },
 	{"ship",		ENTITY_OBJ_SHIP,			ENT_SHIP		},
+	{"book_page",	ENTITY_OBJ_TYPE_PAGE,		ENT_BOOK_PAGE},			// This is unique in that it is not handled internally like other type
+	{"book_data",	ENTITY_OBJ_TYPE_BOOK,		ENT_OBJECT_BOOK},
 	{"container_data",	ENTITY_OBJ_TYPE_CONTAINER, ENT_OBJECT_CONTAINER},
 	{"food_data",	ENTITY_OBJ_TYPE_FOOD, ENT_OBJECT_FOOD},
 	{"furniture_data",	ENTITY_OBJ_TYPE_FURNITURE, ENT_OBJECT_FURNITURE},
 	{"light_data",	ENTITY_OBJ_TYPE_LIGHT, ENT_OBJECT_LIGHT},
 	{"money_data",	ENTITY_OBJ_TYPE_MONEY, ENT_OBJECT_MONEY},
 	{"portal_data",	ENTITY_OBJ_TYPE_PORTAL, ENT_OBJECT_PORTAL},
+	{NULL,			0,			ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_object_book[] = {
+	{"name",				ENTITY_OBJ_BOOK_NAME,		ENT_STRING },
+	{"short",				ENTITY_OBJ_BOOK_SHORT,		ENT_STRING },
+	{"flags",				ENTITY_OBJ_BOOK_FLAGS,		ENT_BITVECTOR },
+	{"current",				ENTITY_OBJ_BOOK_CURRENT,	ENT_BOOK_PAGE },
+	{"opener",				ENTITY_OBJ_BOOK_OPENER,		ENT_BOOK_PAGE },
+	{"pages",				ENTITY_OBJ_BOOK_PAGES,		ENT_PLLIST_BOOK_PAGE },
+	// TODO: LOCK
+	//{"lock",				ENTITY_OBJ_BOOK_LOCK,		ENT_LOCK_STATE },
 	{NULL,			0,			ENT_UNKNOWN	}
 };
 
@@ -631,6 +647,14 @@ ENT_FIELD entity_affect[] = {
 	{NULL,			0,			ENT_UNKNOWN	}
 };
 
+ENT_FIELD entity_book_page[] = {
+	{"number",		ENTITY_BOOK_PAGE_NUMBER,	ENT_NUMBER },
+	{"title",		ENTITY_BOOK_PAGE_TITLE,		ENT_STRING },
+	{"text",		ENTITY_BOOK_PAGE_TEXT,		ENT_STRING },
+	{"book",		ENTITY_BOOK_PAGE_BOOK,		ENT_OBJINDEX },
+	{NULL,			0,			ENT_UNKNOWN	}
+};
+
 ENT_FIELD entity_food_buff[] = {
 	{"where",		ENTITY_FOOD_BUFF_WHERE,	ENT_NUMBER	},
 	{"location",	ENTITY_FOOD_BUFF_LOCATION,	ENT_NUMBER	},
@@ -858,6 +882,8 @@ struct _entity_type_info entity_type_info[] = {
 	{ ENT_BLUEPRINT,		ENT_BLUEPRINT,		entity_blueprint,			FALSE,	FALSE },
 	{ ENT_DUNGEONINDEX,		ENT_DUNGEONINDEX,		entity_dungeon_index,				FALSE,	FALSE },
 	{ ENT_WIDEVNUM,		ENT_WIDEVNUM,		entity_widevnum,			FALSE,	FALSE },
+	{ ENT_OBJECT_PAGE, ENT_OBJECT_PAGE, entity_book_page, FALSE,	FALSE },
+	{ ENT_OBJECT_BOOK, ENT_OBJECT_BOOK, entity_object_book, FALSE,	FALSE },
 	{ ENT_OBJECT_CONTAINER, ENT_OBJECT_CONTAINER, entity_object_container, FALSE,	FALSE },
 	{ ENT_OBJECT_FOOD, ENT_OBJECT_FOOD, entity_object_food, FALSE,	FALSE },
 	{ ENT_OBJECT_FURNITURE, ENT_OBJECT_FURNITURE, entity_object_furniture, FALSE,	FALSE },
@@ -899,6 +925,16 @@ struct trigger_type trigger_table	[] = {
 {	"barrier",				NULL,		TRIG_BARRIER,			TRIGSLOT_ATTACKS,		(PRG_MPROG|PRG_TPROG)	},
 {	"blow",					NULL,		TRIG_BLOW,				TRIGSLOT_GENERAL,		(PRG_OPROG|PRG_TPROG)	},
 {	"blueprint_schematic",	NULL,		TRIG_BLUEPRINT_SCHEMATIC, TRIGSLOT_GENERAL,		PRG_IPROG	},
+{	"book_page",			NULL,		TRIG_BOOK_PAGE,			TRIGSLOT_GENERAL		(PRG_OPROG|PRG_TPROG)},
+{	"book_page_prerip",		NULL,		TRIG_BOOK_PAGE_PRERIP,	TRIGSLOT_GENERAL		(PRG_OPROG|PRG_TPROG)},
+{	"book_page_rip",		NULL,		TRIG_BOOK_PAGE_RIP,		TRIGSLOT_GENERAL		(PRG_OPROG|PRG_TPROG)},
+{	"book_preread",			NULL,		TRIG_BOOK_PREREAD,		TRIGSLOT_GENERAL		(PRG_OPROG|PRG_TPROG)},
+{	"book_preseal",			NULL,		TRIG_BOOK_PRESEAL,		TRIGSLOT_GENERAL		(PRG_OPROG|PRG_TPROG)},
+{	"book_prewrite",		NULL,		TRIG_BOOK_PREWRITE,		TRIGSLOT_GENERAL		(PRG_OPROG|PRG_TPROG)},
+{	"book_read",			NULL,		TRIG_BOOK_READ,			TRIGSLOT_GENERAL		(PRG_OPROG|PRG_TPROG)},
+{	"book_seal",			NULL,		TRIG_BOOK_SEAL,			TRIGSLOT_GENERAL		(PRG_OPROG|PRG_TPROG)},
+{	"book_write_text",		NULL,		TRIG_BOOK_WRITE_TEXT,	TRIGSLOT_GENERAL		(PRG_OPROG|PRG_TPROG)},
+{	"book_write_title",		NULL,		TRIG_BOOK_WRITE_TITLE,	TRIGSLOT_GENERAL		(PRG_OPROG|PRG_TPROG)},
 {	"board",				NULL,		TRIG_BOARD,				TRIGSLOT_GENERAL,		(PRG_MPROG|PRG_OPROG|PRG_RPROG|PRG_TPROG)	},
 {	"brandish",				NULL,		TRIG_BRANDISH,			TRIGSLOT_GENERAL,		(PRG_OPROG|PRG_TPROG)	},
 {	"bribe",				NULL,		TRIG_BRIBE,				TRIGSLOT_GENERAL,		(PRG_MPROG|PRG_TPROG)	},
@@ -1256,6 +1292,7 @@ IFCHECK_DATA ifcheck_table[] = {
 	{ "isaffectwhere",		IFC_ANY,	"E",	FALSE,	ifc_isaffectwhere,		"ifcheck isaffectwhere" },
 	{ "isangel",			IFC_ANY,	"E",	FALSE,	ifc_isangel,			"ifcheck isangel" },
 	{ "isareaunlocked",		IFC_ANY,	"E",	FALSE,	ifc_isareaunlocked,		"ifcheck isareaunlocked" },
+	{ "isbook",				IFC_ANY,	"E",	FALSE,	ifc_isbook,				"ifcheck isbook" },
 	{ "isboss",				IFC_ANY,	"E",	FALSE,	ifc_isboss,				"ifcheck isboss" },
 	{ "isbrewing",			IFC_ANY,	"Es",	FALSE,	ifc_isbrewing,			"ifcheck isbrewing" },
 	{ "isbusy",				IFC_ANY,	"E",	FALSE,	ifc_isbusy,				"ifcheck isbusy" },
@@ -1302,6 +1339,7 @@ IFCHECK_DATA ifcheck_table[] = {
 	{ "ispc",				IFC_ANY,	"E",	FALSE,	ifc_ispc,				"ifcheck ispc" },
 	{ "ispersist",			IFC_ANY,	"E",	FALSE,	ifc_ispersist,			"ifcheck ispersist" },
 	{ "ispk",				IFC_ANY,	"E",	FALSE,	ifc_ispk,				"ifcheck ispk" },
+	{ "isportal",			IFC_ANY,	"E",	FALSE,	ifc_isportal,			"ifcheck isportal" },
 	{ "isprey",				IFC_ANY,	"E",	FALSE,	ifc_isprey,				"ifcheck isprey" },
 	{ "isprog",				IFC_ANY,	"ES",	FALSE,	ifc_isprog,				"ifcheck isprog" },
 	{ "ispulling",			IFC_ANY,	"Ee",	FALSE,	ifc_ispulling,			"ifcheck ispulling" },

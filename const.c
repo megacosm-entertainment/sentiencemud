@@ -192,6 +192,7 @@ const struct item_type		item_table	[]	=
     {   ITEM_SEXTANT, 		"sextant"			},
     {   ITEM_WEAPON_CONTAINER,	"weapon_container"		},
     {	ITEM_ROOM_ROOMSHIELD,	"room_roomshield_object"	},
+    {	ITEM_PAGE,		"page"				},
     {	ITEM_BOOK,		"book"				},
     {   ITEM_STINKING_CLOUD, 	"stinking_cloud"		},
     {	ITEM_SMOKE_BOMB,	"smoke_bomb"			},
