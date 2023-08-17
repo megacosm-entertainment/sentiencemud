@@ -1631,7 +1631,7 @@ const char *ColourRGB( descriptor_t *apDescriptor, const char *apRGB )
 {
    protocol_t *pProtocol = apDescriptor ? apDescriptor->pProtocol : NULL;
 
-   if ( pProtocol && pProtocol->pVariables[eMSDP_ANSI_COLORS]->ValueInt )
+   if ( (pProtocol && pProtocol->pVariables[eMSDP_ANSI_COLORS]->ValueInt) || (apDescriptor->character && (IS_SET(apDescriptor->character->act, PLR_COLOUR))))
    {
       if ( IsValidColour(apRGB) )
       {
@@ -2207,6 +2207,7 @@ static void PerformSubnegotiation( descriptor_t *apDescriptor, char aCmd, char *
             {
                /* We know for certain that this client has support */
                pProtocol->pVariables[eMSDP_XTERM_256_COLORS]->ValueInt = 1;
+               pProtocol->pVariables[eMSDP_ANSI_COLORS]->ValueInt = 1;
                pProtocol->b256Support = eYES;
 
                if ( strlen(pClientName) > 9 )
