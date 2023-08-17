@@ -2157,6 +2157,7 @@ static void PerformSubnegotiation( descriptor_t *apDescriptor, char aCmd, char *
                    * colours in TinTin++, WinTin++ and BlowTorch.
                    */
                   pProtocol->pVariables[eMSDP_XTERM_256_COLORS]->ValueInt = 1;
+                  pProtocol->pVariables[eMSDP_ANSI_COLORS]->ValueInt = 1;
                   pProtocol->b256Support = eYES;
                }
 
@@ -2199,6 +2200,7 @@ static void PerformSubnegotiation( descriptor_t *apDescriptor, char aCmd, char *
             {
                /* We know for certain that this client has support */
                pProtocol->pVariables[eMSDP_XTERM_256_COLORS]->ValueInt = 1;
+               pProtocol->pVariables[eMSDP_ANSI_COLORS]->ValueInt = 1;
                pProtocol->b256Support = eYES;
             }
             else if ( PrefixString("DecafMUD", pClientName) )
