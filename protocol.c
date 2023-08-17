@@ -69,7 +69,7 @@ static void CompressStart( descriptor_t *apDescriptor )
     * 
     * Otherwise you can just ignore this function.
     */
-   ReportBug( "CompressStart() in protocol.c is being called, but it doesn't do anything!\n" );
+   compressStart(apDescriptor);
 }
 
 static void CompressEnd( descriptor_t *apDescriptor )
@@ -80,7 +80,7 @@ static void CompressEnd( descriptor_t *apDescriptor )
     * 
     * Otherwise you can just ignore this function.
     */
-   ReportBug( "CompressEnd() in protocol.c is being called, but it doesn't do anything!\n" );
+   compressEnd(apDescriptor);
 }
 
 /*************** START GMCP ***************/

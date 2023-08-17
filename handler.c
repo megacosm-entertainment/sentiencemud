@@ -4895,11 +4895,16 @@ bool is_global_mob(CHAR_DATA *mob)
 
 
 /* send a yellow line of length 'length' to a character */
-void line(CHAR_DATA *ch, int length)
+void line(CHAR_DATA *ch, char *colour, int length)
 {
     int i;
+	char buf[MAX_STRING_LENGTH];
 
-    send_to_char("{Y", ch);
+	if ( colour == NULL)
+		colour = "{Y";
+
+    sprintf(buf, "%s", colour);
+    send_to_char(buf, ch);
     for (i = 0; i < length; i++)
     {
 	send_to_char("-", ch);
@@ -5763,13 +5768,32 @@ bool check_ice_storm(ROOM_INDEX_DATA *room)
 
 
 // does a player with said name exist (ie do they have a pfile)
+bool account_exists(char *argument)
+{
+    char account_name[MSL];
+    bool found_acct = FALSE;
+    FILE *fp;
+
+    sprintf(account_name, "%s%c/%s", ACCOUNT_DIR, tolower(argument[0]), capitalize(argument));
+    if ((fp = fopen(account_name, "r")) == NULL)
+	found_acct = FALSE;
+    else
+    {
+	found_acct = TRUE;
+	fclose (fp);
+    }
+
+    return found_acct;
+}
+
+// does a player with said name exist (ie do they have a pfile)
 bool player_exists(char *argument)
 {
     char player_name[MSL];
     bool found_char = FALSE;
     FILE *fp;
 
-    sprintf(player_name, "%s%c/%s", PLAYER_DIR, tolower(argument[0]), capitalize(argument));
+    sprintf(player_name, "%s%c/%s", CHARACTER_DIR, tolower(argument[0]), capitalize(argument));
     if ((fp = fopen(player_name, "r")) == NULL)
 	found_char = FALSE;
     else

@@ -81,7 +81,7 @@ void do_delete(CHAR_DATA *ch, char *argument)
 			send_to_char("Delete status removed.\n\r",ch);
 			ch->pcdata->confirm_delete = FALSE;
 		} else {
-			sprintf( strsave, "%s%c/%s",PLAYER_DIR,tolower(ch->name[0]),
+			sprintf( strsave, "%s%c/%s",CHARACTER_DIR,tolower(ch->name[0]),
 			capitalize( ch->name ) );
 			wiznet("$N turns $Mself into line noise.",ch,NULL,0,0,0);
 			stop_fighting(ch,TRUE);
@@ -2038,7 +2038,7 @@ void do_ignore(CHAR_DATA *ch, char *argument)
 	"Person", "Reason");
 	send_to_char(buf, ch);
 
-	line(ch, 35);
+	line(ch, NULL, 35);
 	for (ignore = ch->pcdata->ignoring; ignore != NULL;
 	ignore = ignore->next)
 	{
@@ -2053,7 +2053,7 @@ void do_ignore(CHAR_DATA *ch, char *argument)
 	if (i == 0)
 	send_to_char("No ignores found.\n\r", ch);
 
-	line(ch, 35);
+	line(ch, NULL, 35);
 
 	return;
 	}
@@ -2104,7 +2104,7 @@ void do_ignore(CHAR_DATA *ch, char *argument)
 	}
 	else
 	{
-	sprintf(player_name, "%s%c/%s", PLAYER_DIR, tolower(arg[0]), capitalize(arg));
+	sprintf(player_name, "%s%c/%s", CHARACTER_DIR, tolower(arg[0]), capitalize(arg));
 	if ((fp = fopen(player_name, "r")) == NULL)
 	{
 	found_char = FALSE;
@@ -2263,7 +2263,7 @@ void do_qlist(CHAR_DATA *ch, char *argument)
 	if (arg[0] == '\0' || !str_cmp(arg, "show"))
 	{
 	send_to_char("{YQuiet list:{x\n\r", ch);
-	line(ch, 45);
+	line(ch, NULL, 45);
 	i = 0;
 	for (string = ch->pcdata->quiet_people; string != NULL;
 	string = string->next)
@@ -2276,7 +2276,7 @@ void do_qlist(CHAR_DATA *ch, char *argument)
 	if (i == 0)
 	send_to_char("Nobody.\n\r", ch);
 
-	line(ch, 45);
+	line(ch, NULL, 45);
 
 	return;
 	}
@@ -2349,7 +2349,7 @@ void do_qlist(CHAR_DATA *ch, char *argument)
 	}
 	else
 	{
-	sprintf(player_name, "%s%c/%s", PLAYER_DIR, tolower(arg[0]), capitalize(arg));
+	sprintf(player_name, "%s%c/%s", CHARACTER_DIR, tolower(arg[0]), capitalize(arg));
 	if ((fp = fopen(player_name, "r")) == NULL)
 	{
 	found_char = FALSE;
@@ -2480,7 +2480,7 @@ void do_toggle(CHAR_DATA *ch, char *argument)
 	sprintf(buf, "{Y%-15s %s{x\n\r", "Setting", "Status");
 	send_to_char(buf, ch);
 
-	line(ch, 22);
+	line(ch, NULL, 22);
 
 	for (i = 0; pc_set_table[i].name != NULL; i++)
 	{

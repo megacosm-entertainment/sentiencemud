@@ -11992,7 +11992,7 @@ MEDIT(medit_name)
 	return FALSE;
     }
 
-    sprintf(name, "%s%c/%s", PLAYER_DIR, tolower(argument[0]), capitalize(argument));
+    sprintf(name, "%s%c/%s", CHARACTER_DIR, tolower(argument[0]), capitalize(argument));
     if ((fp = fopen(name, "r")) == NULL)
     {
 	free_string(pMob->player_name);
@@ -12045,7 +12045,7 @@ MEDIT(medit_skeywds)
 	return FALSE;
     }
 
-    sprintf(name, "%s%c/%s", PLAYER_DIR, tolower(argument[0]), capitalize(argument));
+    sprintf(name, "%s%c/%s", CHARACTER_DIR, tolower(argument[0]), capitalize(argument));
     if ((fp = fopen(name, "r")) == NULL)
     {
 	free_string(pMob->skeywds);
