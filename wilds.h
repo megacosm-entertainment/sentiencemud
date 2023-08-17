@@ -5,6 +5,9 @@
  *                                                                         *
  **************************************************************************/
 
+#ifndef __WILDS_H__
+#define __WILDS_H__
+
 /* external routines */
 extern void assign_area_vnum args(( long vnum ));                    /* OLC */
 
@@ -12,15 +15,15 @@ extern void assign_area_vnum args(( long vnum ));                    /* OLC */
 extern long top_exit;
 
 /* internal globals */
-long top_wilds;
-long top_wilds_terrain;
-long top_wilds_vlink;
-long top_wilds_vroom;
-WILDS_DATA *wilds_free;
-WILDS_TERRAIN *wilds_terrain_free;
-WILDS_VLINK *wilds_vlink_free;
+extern long top_wilds;
+extern long top_wilds_terrain;
+extern long top_wilds_vlink;
+extern long top_wilds_vroom;
+extern WILDS_DATA *wilds_free;
+extern WILDS_TERRAIN *wilds_terrain_free;
+extern WILDS_VLINK *wilds_vlink_free;
 
-long next_wilds_uid;
+extern long next_wilds_uid;
 
 /* Structure types */
 /* typedef struct    wilds_vlink      WILDS_VLINK; */
@@ -202,4 +205,4 @@ struct wilds_vlink
 };
 
 
-
+#endif // !__WILDS_H__

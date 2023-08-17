@@ -23,7 +23,7 @@
 
 
 /* Global variables */
-PROJECT_DATA		*project_list;		// List of projects.
+extern PROJECT_DATA		*project_list;		// List of projects.
 PROJECT_INQUIRY_DATA	*project_inquiry_list; 	// List of inquiries.
 
 /* This macro is used in more deeply nested project functions (e.g. do_pinquiry) to

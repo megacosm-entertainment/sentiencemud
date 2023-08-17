@@ -45,7 +45,7 @@
 
 extern FILE *                  fpArea;
 extern char                    strArea[MAX_INPUT_LENGTH];
-NOTE_DATA *note_list;
+extern NOTE_DATA *note_list;
 NOTE_DATA *news_list;
 NOTE_DATA *changes_list;
 
