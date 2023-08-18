@@ -145,6 +145,9 @@ bool obj_index_can_add_item_type(OBJ_INDEX_DATA *pObjIndex, int item_type)
 	// Only the PRIMARY object matters
 	switch(pObjIndex->item_type)
 	{
+		case ITEM_BOOK:
+			return FALSE;
+
 		case ITEM_CONTAINER:
 			if (item_type == ITEM_ARMOUR) return TRUE;
 			if (item_type == ITEM_CART) return TRUE;
@@ -152,6 +155,7 @@ bool obj_index_can_add_item_type(OBJ_INDEX_DATA *pObjIndex, int item_type)
 			if (item_type == ITEM_FURNITURE) return TRUE;
 			if (item_type == ITEM_JEWELRY) return TRUE;
 			if (item_type == ITEM_LIGHT) return TRUE;
+			if (item_type == ITEM_PORTAL) return TRUE;
 			return FALSE;
 
 		case ITEM_JEWELRY:
@@ -164,6 +168,7 @@ bool obj_index_can_add_item_type(OBJ_INDEX_DATA *pObjIndex, int item_type)
 			if (item_type == ITEM_CONTAINER) return TRUE;
 			if (item_type == ITEM_FURNITURE) return TRUE;
 			if (item_type == ITEM_LIGHT) return TRUE;
+			if (item_type == ITEM_PORTAL) return TRUE;
 			return FALSE;
 
 		case ITEM_FURNITURE:
@@ -171,6 +176,7 @@ bool obj_index_can_add_item_type(OBJ_INDEX_DATA *pObjIndex, int item_type)
 			if (item_type == ITEM_CONTAINER) return TRUE;
 			if (item_type == ITEM_FOUNTAIN) return TRUE;
 			if (item_type == ITEM_LIGHT) return TRUE;
+			if (item_type == ITEM_PORTAL) return TRUE;
 			return FALSE;
 
 		case ITEM_ARMOUR:
@@ -207,6 +213,8 @@ bool obj_index_can_add_item_type(OBJ_INDEX_DATA *pObjIndex, int item_type)
 			if (item_type == ITEM_LIGHT) return TRUE;
 			if (item_type == ITEM_CONTAINER) return TRUE;
 			if (item_type == ITEM_FURNITURE) return TRUE;
+			if (item_type == ITEM_PORTAL) return TRUE;
+			if (item_type == ITEM_CART) return TRUE;
 			return FALSE;
 
 		case ITEM_LIGHT:
@@ -214,6 +222,15 @@ bool obj_index_can_add_item_type(OBJ_INDEX_DATA *pObjIndex, int item_type)
 			if (item_type == ITEM_DRINK_CON) return TRUE;
 			if (item_type == ITEM_FOUNTAIN) return TRUE;
 			if (item_type == ITEM_FURNITURE) return TRUE;
+			if (item_type == ITEM_PORTAL) return TRUE;
+			return FALSE;
+
+		case ITEM_PORTAL:
+			if (item_type == ITEM_LIGHT) return TRUE;
+			if (item_type == ITEM_CONTAINER) return TRUE;
+			if (item_type == ITEM_FURNITURE) return TRUE;
+			if (item_type == ITEM_FOUNTAIN) return TRUE;
+			if (item_type == ITEM_CART) return TRUE;
 			return FALSE;
 	}
 
@@ -287,7 +304,7 @@ bool obj_oclu_ambiguous(OBJ_DATA *obj)
 			types+=list_size(FURNITURE(obj)->compartments);
 	}
 
-	// if (IS_PORTAL(obj)) types++;
+	if (IS_PORTAL(obj)) types++;
 	// if (IS_BOOK(obj)) types++;
 
 	return types > 1;
@@ -320,7 +337,12 @@ void obj_oclu_show_parts(CHAR_DATA *ch, OBJ_DATA *obj)
 		iterator_stop(&it);
 	}
 
-	// IS_PORTAL
+	if (IS_PORTAL(obj))
+	{
+		if (i > 0) send_to_char(", ", ch);
+		send_to_char(PORTAL(obj)->short_descr, ch);
+		i++;
+	}
 
 
 	if (i == 0)
@@ -338,7 +360,18 @@ bool oclu_get_context(OCLU_CONTEXT *context, OBJ_DATA *obj, char *argument)
 
 		context->is_default = FALSE;
 
-		// IS_BOOK
+		if (IS_BOOK(obj))
+		{
+			if (is_name(arg, BOOK(obj)->name) && (count-- == 1))
+			{
+				context->item_type = ITEM_BOOK;
+				context->which = CONTEXT_BOOK;
+				context->flags = &(BOOK(obj)->flags);
+				context->label = BOOK(obj)->short_descr;
+				context->lock = &(BOOK(obj)->lock);
+				return TRUE;
+			}
+		}
 
 		if (IS_CONTAINER(obj))
 		{
@@ -378,13 +411,33 @@ bool oclu_get_context(OCLU_CONTEXT *context, OBJ_DATA *obj, char *argument)
 			if (compartment) return TRUE;
 		}
 
-		// IS_PORTAL
+		if (IS_PORTAL(obj))
+		{
+			if (is_name(arg, PORTAL(obj)->name) && (count-- == 1))
+			{
+				context->item_type = ITEM_PORTAL;
+				context->which = CONTEXT_PORTAL;
+				context->flags = &(PORTAL(obj)->exit);
+				context->label = PORTAL(obj)->short_descr;
+				context->lock = &(PORTAL(obj)->lock);
+				return TRUE;
+			}
+		}
 	}
 	// Not dealing with an ambiguous object
 	else if (!obj_oclu_ambiguous(obj))
 	{
 		context->is_default = TRUE;
-		// IS_BOOK
+
+		if (IS_BOOK(obj))
+		{
+			context->item_type = ITEM_BOOK;
+			context->which = CONTEXT_BOOK;
+			context->flags = &(BOOK(obj)->flags);
+			context->label = BOOK(obj)->short_descr;
+			context->lock = &(BOOK(obj)->lock);
+			return TRUE;
+		}
 
 		if (IS_CONTAINER(obj))
 		{
@@ -410,10 +463,79 @@ bool oclu_get_context(OCLU_CONTEXT *context, OBJ_DATA *obj, char *argument)
 			}
 		}
 
-		// IS_PORTAL
+		if (IS_PORTAL(obj))
+		{
+			context->item_type = ITEM_PORTAL;
+			context->which = CONTEXT_PORTAL;
+			context->flags = &(PORTAL(obj)->exit);
+			context->label = PORTAL(obj)->short_descr;
+			context->lock = &(PORTAL(obj)->lock);
+			return TRUE;
+		}
 	}
 
 	return FALSE;
+}
+
+////////////////////
+// BOOK
+
+BOOK_PAGE *book_get_page(BOOK_DATA *book, int page_no)
+{
+	ITERATOR it;
+	BOOK_PAGE *page;
+	iterator_start(&it, book->pages);
+	while((page = (BOOK_PAGE *)iterator_nextdata(&it)))
+	{
+		if (page->page_no == page_no)
+			break;
+	}
+	iterator_stop(&it);
+
+	return page;
+}
+
+bool book_insert_page(BOOK_DATA *book, BOOK_PAGE *new_page)
+{
+	bool valid = TRUE;
+
+	ITERATOR it;
+	BOOK_PAGE *page;
+	iterator_start(&it, book->pages);
+	while((page = (BOOK_PAGE *)iterator_nextdata(&it)))
+	{
+		if (page->page_no == new_page->page_no)
+		{
+			// Page already exists with this page!
+			valid = FALSE;
+			break;
+		}
+
+		if (page->page_no > new_page->page_no)
+		{
+			iterator_insert_before(&it, new_page);
+			break;
+		}
+	}
+	iterator_stop(&it);
+
+	if (valid)
+	{
+		// The new page is after ALL the existing pages
+		if (!page)
+			list_appendlink(book->pages, new_page);
+	}
+
+	return valid;
+}
+
+int book_max_pages(BOOK_DATA *book)
+{
+	if (list_size(book->pages) < 1) return 0;
+
+	BOOK_PAGE *last_page = (BOOK_PAGE *)list_nthdata(book->pages, -1);
+
+	return IS_VALID(last_page) ? last_page->page_no : 0;
 }
 
 ////////////////////

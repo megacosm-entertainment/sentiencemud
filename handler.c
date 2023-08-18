@@ -880,7 +880,7 @@ int get_max_train(CHAR_DATA *ch, int stat)
     ||  (stat == STAT_DEX && ch->pcdata->class_thief != -1)
     ||  (stat == STAT_STR && ch->pcdata->class_warrior != -1))
     {*/
-	if ((ch->race == race_lookup("human")) || (ch->race == race_lookup("avatar")))
+	if ((ch->race == grn_human) || (ch->race == grn_avatar))
 	   max += 1;
 /*	else
 	   max += 2;
@@ -1137,7 +1137,6 @@ void affect_modify(CHAR_DATA *ch, AFFECT_DATA *paf, bool fAdd)
 
 	    ch->max_hit						+= mod;	break;
 	case APPLY_MOVE:          ch->max_move			+= mod;	break;
-	case APPLY_GOLD:						break;
 	case APPLY_AC:
 	    for (i = 0; i < 4; i ++)
 		ch->armour[i] += mod;
@@ -6498,7 +6497,7 @@ bool can_get_obj(CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container, MAIL_DATA *m
     if (container)
     {
 
-		if (!IS_CONTAINER(container))
+		if (!IS_CONTAINER(container) && container->item_type != ITEM_CORPSE_NPC && container->item_type != ITEM_CORPSE_PC)
 		{
 			if (!silent)
 				send_to_char("That's not a container.\n\r", ch);
@@ -8732,7 +8731,7 @@ void *list_nthdata(LLIST *lp, register int nth)
 	register LLIST_LINK *link = NULL;
 
 	if(lp && lp->valid) {
-		if( nth < 0 ) nth = lp->size + nth;
+		if( nth < 0 ) nth = lp->size + nth + 1;
 		for(link = lp->head; link && nth > 0; link = link->next)
 			if(link->data)
 			{
@@ -8749,7 +8748,7 @@ void list_remnthlink(LLIST *lp, register int nth)
 	register LLIST_LINK *link = NULL;
 
 	if(lp && lp->valid) {
-		if( nth < 0 ) nth = lp->size + nth;
+		if( nth < 0 ) nth = lp->size + nth + 1;
 		for(link = lp->head; link && nth > 0; link = link->next)
 			if(link->data)
 			{
@@ -8874,7 +8873,7 @@ void iterator_start_nth(ITERATOR *it, LLIST *lp, int nth)
 		if(lp && lp->valid) {
 			it->list = lp;
 
-			if( nth < 0 ) nth = lp->size + nth;
+			if( nth < 0 ) nth = lp->size + nth + 1;
 
 			for(link = lp->head; link && nth > 0; link = link->next)
 				if(link->data)
@@ -8909,6 +8908,25 @@ LLIST_LINK *iterator_next(ITERATOR *it)
 	return link;
 }
 
+void *iterator_prevdata(ITERATOR *it)
+{
+	register LLIST_LINK *link = NULL;
+	//register LLIST_LINK *next = NULL;
+	if(it && it->list && it->list->valid && it->current) {
+		if( it->moved ) {
+			for(link = it->current->prev; link && !link->data; link = link->prev);
+		} else {
+			for(link = it->current; link && !link->data; link = link->prev);
+
+			it->moved = TRUE;
+		}
+		it->current = link;
+	}
+
+	return link ? link->data : NULL;
+
+}
+
 void *iterator_nextdata(ITERATOR *it)
 {
 	register LLIST_LINK *link = NULL;
@@ -8935,6 +8953,9 @@ void iterator_setcurrent(ITERATOR *it, void *data)
 		if( it->list->deleter )
 			(*it->list->deleter)(it->current->data);
 		
+		if (!it->current->data)
+			it->list->size++;
+
 		it->current->data = data;
 	}
 }
@@ -8948,6 +8969,8 @@ void iterator_remcurrent(ITERATOR *it)
 			(*it->list->deleter)(it->current->data);
 
 		it->current->data = NULL;
+		it->list->size--;
+
 	}
 }
 

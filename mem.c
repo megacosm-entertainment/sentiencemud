@@ -660,6 +660,7 @@ CHAR_DATA *new_char( void )
     ch->arena_deaths = 0;
     ch->remove_question = NULL;
     ch->cross_zone_question = FALSE;
+    ch->seal_book = NULL;
     ch->heldup = NULL;
     ch->ambush = NULL;
     ch->pursuit_by = NULL;
@@ -3575,6 +3576,46 @@ void free_log_entry(LOG_ENTRY_DATA *log)
     free_string(log->text);
 }
 
+SCRIPT_SWITCH_CASE *new_script_switch_case(void)
+{
+    SCRIPT_SWITCH_CASE *data = alloc_mem(sizeof(SCRIPT_SWITCH_CASE));
+
+    memset(data, 0, sizeof(SCRIPT_SWITCH_CASE));
+
+    return data;
+}
+
+void free_script_switch_case(SCRIPT_SWITCH_CASE *data)
+{
+    if (data->next)
+        free_script_switch_case(data->next);
+    
+    free_mem(data, sizeof(*data));
+}
+
+SCRIPT_SWITCH *new_script_switch(int nswitch)
+{
+    SCRIPT_SWITCH *data = alloc_mem(nswitch * sizeof(SCRIPT_SWITCH));
+
+    memset(data, 0, nswitch * sizeof(*data));
+
+    return data;
+}
+
+void free_script_switch(SCRIPT_SWITCH *data, int nswitch)
+{
+    if (data && nswitch > 0)
+    {
+        for(int i = 0; i < nswitch; i++)
+        {
+            if (data[i].cases)
+                free_script_switch_case(data[i].cases);
+        }
+
+        free_mem(data, nswitch * sizeof(*data));
+    }
+}
+
 // @@@NIB : 20070123 ----------
 SCRIPT_DATA *script_freechain = NULL;
 
@@ -3596,6 +3637,8 @@ SCRIPT_DATA *new_script(void)
 	s->flags = 0;
     s->comments = &str_empty[0];
 	s->area = NULL;
+    s->n_switch_table = 0;
+    s->switch_table = NULL;
 
 	return s;
 }
@@ -3630,6 +3673,8 @@ void free_script(SCRIPT_DATA *s)
 	free_string(s->src);
 	free_string(s->name);
     free_string(s->comments);
+    free_script_switch(s->switch_table, s->n_switch_table);
+    s->switch_table = NULL;
 
 	s->next = script_freechain;
 	script_freechain = s;
@@ -4985,6 +5030,125 @@ void free_aura_data(AURA_DATA *aura)
 
 // Item Multi-Typing
 
+// ============[ BOOK ]============
+
+BOOK_PAGE *book_page_free;
+BOOK_PAGE *new_book_page()
+{
+    BOOK_PAGE *page;
+
+    if (book_page_free)
+    {
+        page = book_page_free;
+        book_page_free = book_page_free->next;
+    }
+    else
+        page = alloc_mem(sizeof(BOOK_PAGE));
+    
+    memset(page, 0, sizeof(*page));
+
+    page->page_no = 0;
+    page->title = str_dup("");
+    page->text = str_dup("");
+
+    VALIDATE(page);
+    return page;
+}
+
+BOOK_PAGE *copy_book_page(BOOK_PAGE *src)
+{
+    if (!IS_VALID(src)) return NULL;
+
+    BOOK_PAGE *data = alloc_mem(sizeof(BOOK_PAGE));
+
+    data->page_no = src->page_no;
+    data->title = str_dup(src->title);
+    data->text = str_dup(src->text);
+
+    VALIDATE(data);
+    return data;
+}
+
+void *_copy_book_page(void *ptr)
+{
+    return copy_book_page((BOOK_PAGE *)ptr);
+}
+
+void free_book_page(BOOK_PAGE *page)
+{
+    if (!IS_VALID(page)) return;
+
+    free_string(page->title);
+    free_string(page->text);
+
+    INVALIDATE(page);
+}
+
+static void delete_book_page(void *ptr)
+{
+    free_book_page((BOOK_PAGE *)ptr);
+}
+
+BOOK_DATA *book_data_free;
+BOOK_DATA *new_book_data()
+{
+    BOOK_DATA *data;
+
+    if (book_data_free)
+    {
+        data = book_data_free;
+        book_data_free = book_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(BOOK_DATA));
+    
+    memset(data, 0, sizeof(*data));
+
+    data->name = str_dup("");
+    data->short_descr = str_dup("");
+    data->pages = list_createx(FALSE, _copy_book_page, delete_book_page);
+
+    VALIDATE(data);
+    return data;
+}
+
+BOOK_DATA *copy_book_data(BOOK_DATA *src)
+{
+    if (!IS_VALID(src)) return NULL;
+
+    BOOK_DATA *data = alloc_mem(sizeof(BOOK_DATA));
+
+    data->name = str_dup(src->name);
+    data->short_descr = str_dup(src->short_descr);
+
+    data->flags = src->flags;
+
+    data->current_page = src->current_page;
+    data->pages = list_copy(src->pages);
+
+    data->open_page = src->open_page;
+
+    data->lock = copy_lock_state(src->lock);
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_book_data(BOOK_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    free_string(data->name);
+    free_string(data->short_descr);
+
+    list_destroy(data->pages);
+
+    free_lock_state(data->lock);
+
+    INVALIDATE(data);
+}
+
+
 // =========[ CONTAINER ]==========
 CONTAINER_FILTER *new_container_filter()
 {
@@ -5421,3 +5585,87 @@ void free_money_data(MONEY_DATA *data)
     money_data_free = data;
 }
 
+
+
+
+// ===========[ PORTAL ]===========
+PORTAL_DATA *portal_data_free;
+
+PORTAL_DATA *new_portal_data()
+{
+    PORTAL_DATA *data;
+    if (portal_data_free)
+    {
+        data = portal_data_free;
+        portal_data_free = portal_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(PORTAL_DATA));
+
+    memset(data, 0, sizeof(*data));
+
+    data->name = str_dup("");
+    data->short_descr = str_dup("");
+    data->charges = -1;
+
+    VALIDATE(data);
+    return data;
+}
+
+PORTAL_DATA *copy_portal_data(PORTAL_DATA *src, bool repop)
+{
+    if (!IS_VALID(src)) return NULL;
+
+    PORTAL_DATA *data;
+    if (portal_data_free)
+    {
+        data = portal_data_free;
+        portal_data_free = portal_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(PORTAL_DATA));
+
+    data->name = str_dup(src->name);
+    data->short_descr = str_dup(src->short_descr);
+    data->exit = src->exit;
+    data->flags = src->flags;
+    data->charges = src->charges;
+    data->type = src->type;
+
+    for(int i = 0; i < MAX_PORTAL_VALUES; i++)
+        data->params[i] = src->params[i];
+
+    data->lock = copy_lock_state(src->lock);
+
+    SPELL_DATA *spell, *spell_new;
+    for(spell = data->spells;spell;spell = spell->next)
+    {
+	    if (repop || spell->repop == 100 || number_percent() < spell->repop)
+	    {
+            spell_new = new_spell();
+            spell_new->sn = spell->sn;
+            spell_new->token = spell->token;
+            spell_new->level = spell->level;
+            spell_new->repop = spell->repop;
+
+            spell_new->next = data->spells;
+            data->spells = spell_new;
+	    }
+    }
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_portal_data(PORTAL_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    free_string(data->name);
+    free_string(data->short_descr);
+    free_lock_state(data->lock);
+
+    INVALIDATE(data);
+    data->next = portal_data_free;
+    portal_data_free = data;
+}

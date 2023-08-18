@@ -2286,6 +2286,49 @@ void fwrite_obj_multityping(FILE *fp, OBJ_DATA *obj)
 {
 	ITERATOR it;
 
+	if (IS_BOOK(obj))
+	{
+		BOOK_DATA *book = BOOK(obj);
+		BOOK_PAGE *page;
+
+		fprintf(fp, "#TYPEBOOK\n");
+		fprintf(fp, "Name %s~\n", fix_string(book->name));
+		fprintf(fp, "Short %s~\n", fix_string(book->short_descr));
+		fprintf(fp, "Flags %s\n", print_flags(book->flags));
+		fprintf(fp, "CurrentPage %d\n", book->current_page);
+		fprintf(fp, "OpenPage %d\n", book->open_page);
+
+		iterator_start(&it, book->pages);
+		while((page = (BOOK_PAGE *)iterator_nextdata(&it)))
+		{
+			fprintf(fp, "#PAGE %d\n", page->page_no);
+			fprintf(fp, "Title %s~\n", fix_string(page->title));
+			fprintf(fp, "Text %s~\n", fix_string(page->text));
+			fprintf(fp, "#-PAGE\n");
+		}
+		iterator_stop(&it);
+
+		if (book->lock)
+			fwrite_lock_state(fp, book->lock);
+
+		fprintf(fp, "#-TYPEBOOK\n");
+	}
+
+	if (IS_PAGE(obj))
+	{
+		fprintf(fp, "#TYPEPAGE %d\n", PAGE(obj)->page_no);
+		fprintf(fp, "Title %s~\n", fix_string(PAGE(obj)->title));
+		fprintf(fp, "Text %s~\n", fix_string(PAGE(obj)->text));
+		if (PAGE(obj)->book.auid > 0 && PAGE(obj)->book.vnum > 0)
+		{
+			if (PAGE(obj)->book.auid == obj->pIndexData->area->uid)
+				fprintf(fp, "Book #%ld\n", PAGE(obj)->book.vnum);
+			else
+				fprintf(fp, "Book %ld#%ld\n", PAGE(obj)->book.auid, PAGE(obj)->book.vnum);
+		}
+		fprintf(fp, "#-TYPEPAGE\n");
+	}
+
 	if (IS_CONTAINER(obj))
 	{
 		CONTAINER_FILTER *filter;
@@ -2425,6 +2468,27 @@ void fwrite_obj_multityping(FILE *fp, OBJ_DATA *obj)
 		fprintf(fp, "Silver %d\n", MONEY(obj)->silver);
 		fprintf(fp, "Gold %d\n", MONEY(obj)->gold);
 		fprintf(fp, "#-TYPEMONEY\n");
+	}
+
+	if (IS_PORTAL(obj))
+	{
+		fprintf(fp, "#TYPEPORTAL\n");
+		fprintf(fp, "Name %s~\n", fix_string(PORTAL(obj)->name));
+		fprintf(fp, "Short %s~\n", fix_string(PORTAL(obj)->short_descr));
+		fprintf(fp, "Exit %s\n", print_flags(PORTAL(obj)->exit));
+		fprintf(fp, "Flags %s\n", print_flags(PORTAL(obj)->flags));
+		fprintf(fp, "Type %s~\n", flag_string(portal_gatetype, PORTAL(obj)->type));
+
+		for(int i = 0; i < MAX_PORTAL_VALUES; i++)
+			fprintf(fp, "Param %d %ld\n", i, PORTAL(obj)->params[i]);
+
+		if (PORTAL(obj)->lock)
+			fwrite_lock_state(fp, PORTAL(obj)->lock);
+
+		if (PORTAL(obj)->spells != NULL)
+			save_spell(fp, PORTAL(obj)->spells);
+
+		fprintf(fp, "#-TYPEPORTAL\n");
 	}
 }
 
@@ -2781,7 +2845,7 @@ LOCK_STATE *fread_lock_state(FILE *fp)
 
 	lock = new_lock_state();
 
-    while (str_cmp((word = fread_word(fp)), "#-TYPECONTAINER"))
+    while (str_cmp((word = fread_word(fp)), "#-LOCK"))
 	{
 		fMatch = FALSE;
 
@@ -2835,6 +2899,106 @@ LOCK_STATE *fread_lock_state(FILE *fp)
 
 	return lock;
 }
+
+BOOK_PAGE *fread_book_page(FILE *fp, char *closer)
+{
+	BOOK_PAGE *page = new_book_page();
+	char buf[MSL];
+	char *word;
+	bool fMatch;
+
+	page->page_no = fread_number(fp);
+
+	while(str_cmp((word = fread_word(fp)), closer))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+			case 'B':
+				KEY("Book", page->book, fread_widevnum(fp, 0));
+				break;
+
+			case 'T':
+				KEYS("Title", page->title, fread_string(fp));
+				KEYS("Text", page->text, fread_string(fp));
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "fread_book_page: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return page;
+}
+
+BOOK_DATA *fread_obj_book_data(FILE *fp)
+{
+	BOOK_DATA *book = new_book_data();
+	char buf[MSL];
+	char *word;
+	bool fMatch;
+
+	while(str_cmp((word = fread_word(fp)), "#-TYPEBOOK"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+			case '#':
+				if (!str_cmp(word, "#LOCK"))
+				{
+					book->lock = fread_lock_state(fp);
+					fMatch = TRUE;
+					break;
+				}
+				if (!str_cmp(word, "#PAGE"))
+				{
+					BOOK_PAGE *page = fread_book_page(fp, "#-PAGE");
+
+					if (!book_insert_page(book, page))
+					{
+						sprintf(buf, "fread_obj_book_data: page with duplicate page number (%d) found!  Discarding.", page->page_no);
+						bug(buf, 0);
+						free_book_page(page);	
+					}
+					fMatch = TRUE;
+					break;
+				}
+				break;
+			
+			case 'C':
+				KEY("CurrentPage", book->current_page, fread_number(fp));
+				break;
+
+			case 'F':
+				KEY("Flags", book->flags, fread_flag(fp));
+				break;
+
+			case 'N':
+				KEYS("Name", book->name, fread_string(fp));
+				break;
+
+			case 'O':
+				KEY("OpenPage", book->open_page, fread_number(fp));
+				break;
+			
+			case 'S':
+				KEYS("Short", book->short_descr, fread_string(fp));
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "fread_obj_book_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return book;
+}
+
 
 CONTAINER_DATA *fread_obj_container_data(FILE *fp)
 {
@@ -2932,7 +3096,7 @@ CONTAINER_DATA *fread_obj_container_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "fread_container_data: no match for word %s", word);
+			sprintf(buf, "fread_obj_container_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -3030,7 +3194,7 @@ FOOD_DATA *fread_obj_food_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_object_food_data: no match for word %s", word);
+			sprintf(buf, "fread_obj_food_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -3101,7 +3265,7 @@ FURNITURE_COMPARTMENT *fread_furniture_compartment(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_furniture_compartment: no match for word %s", word);
+			sprintf(buf, "fread_furniture_compartment: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -3142,7 +3306,7 @@ FURNITURE_DATA *fread_obj_furniture_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_object_furniture_data: no match for word %s", word);
+			sprintf(buf, "fread_obj_furniture_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -3176,7 +3340,7 @@ LIGHT_DATA *fread_obj_light_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_object_light_data: no match for word %s", word);
+			sprintf(buf, "fread_obj_light_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -3209,7 +3373,7 @@ MONEY_DATA *fread_obj_money_data(FILE *fp)
 		}
 
 		if (!fMatch) {
-			sprintf(buf, "read_object_money_data: no match for word %s", word);
+			sprintf(buf, "fread_obj_money_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -3217,13 +3381,152 @@ MONEY_DATA *fread_obj_money_data(FILE *fp)
 	return data;
 }
 
+PORTAL_DATA *fread_obj_portal_data(FILE *fp)
+{
+	PORTAL_DATA *data = NULL;
+	char buf[MSL];
+    char *word;
+	bool fMatch;
+
+	data = new_portal_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPEPORTAL"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+			case '#':
+				if (!str_cmp(word, "#LOCK"))
+				{
+					if (!data->lock) free_lock_state(data->lock);
+					data->lock = fread_lock_state(fp);
+					fMatch = TRUE;
+					break;
+				}
+				break;
+
+			case 'E':
+				KEY("Exit", data->exit, fread_flag(fp));
+				break;
+
+			case 'F':
+				KEY("Flags", data->flags, fread_flag(fp));
+				break;
+
+			case 'N':
+				KEYS("Name", data->name, fread_string(fp));
+				break;
+
+			case 'P':
+				if (!str_cmp(word, "Param"))
+				{
+					int p = fread_number(fp);
+					long v = fread_number(fp);
+
+					if (p >= 0 && p < MAX_PORTAL_VALUES)
+					{
+						data->params[p] = v;
+					}
+					else
+					{
+						// Complain
+					}
+
+					fMatch = TRUE;
+					break;
+				}
+				break;
+
+			case 'S':
+				KEYS("Short", data->short_descr, fread_string(fp));
+
+				if (!str_cmp(word, "SpellNew"))
+				{
+					int sn;
+
+					fMatch = TRUE;
+					if ((sn = skill_lookup(fread_string(fp))) > -1)
+					{
+						SPELL_DATA *spell = new_spell();
+						spell->sn = sn;
+						spell->token = NULL;
+						spell->level = fread_number(fp);
+						spell->repop = fread_number(fp);
+
+						// Syn - clean up bad spells on objs.
+						if (!str_cmp(skill_table[sn].name, "reserved") ||
+							!str_cmp(skill_table[sn].name, "none"))
+						{
+							// Complain
+							free_spell(spell);
+						}
+						else
+						{
+							spell->next = data->spells;
+							data->spells = spell;
+						}
+					}
+					else
+					{
+						// Complain
+					}
+				}
+
+				if (!str_cmp(word, "SpellToken"))
+				{
+					WNUM_LOAD wnum = fread_widevnum(fp, 0);
+
+					fMatch = TRUE;
+					if (wnum.auid > 0 && wnum.vnum > 0)
+					{
+						SPELL_DATA *spell = new_spell();
+						spell->sn = 0;
+						spell->token_load = wnum;
+						spell->level = fread_number(fp);
+						spell->repop = fread_number(fp);
+
+						spell->next = data->spells;
+						data->spells = spell;
+					}
+					else
+					{
+						// Complain
+					}
+				}
+
+				break;
+
+			case 'T':
+				if (!str_cmp(word, "Type"))
+				{
+					data->type = flag_lookup(fread_string(fp), portal_gatetype);
+
+					fMatch = TRUE;
+					break;
+				}
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "fread_obj_portal_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
+
+
 void fread_obj_reset_multityping(OBJ_DATA *obj)
 {
+	free_book_data(BOOK(obj));				BOOK(obj) = NULL;
 	free_container_data(CONTAINER(obj));	CONTAINER(obj) = NULL;
 	free_food_data(FOOD(obj));				FOOD(obj) = NULL;
 	free_furniture_data(FURNITURE(obj));	FURNITURE(obj) = NULL;
 	free_light_data(LIGHT(obj));			LIGHT(obj) = NULL;
 	free_money_data(MONEY(obj));			MONEY(obj) = NULL;
+	free_portal_data(PORTAL(obj));			PORTAL(obj) = NULL;
 }
 
 void fread_obj_check_version(OBJ_DATA *obj, long values[MAX_OBJVALUES])
@@ -3263,6 +3566,9 @@ void fread_obj_check_version(OBJ_DATA *obj, long values[MAX_OBJVALUES])
 			CONTAINER(obj)->flags = values[1];
 			CONTAINER(obj)->max_volume = values[3];
 			CONTAINER(obj)->weight_multiplier = values[4];
+
+			CONTAINER(obj)->lock = obj->lock;
+			obj->lock = NULL;
 		}
 		else if (obj->item_type == ITEM_WEAPON_CONTAINER)
 		{
@@ -3278,6 +3584,9 @@ void fread_obj_check_version(OBJ_DATA *obj, long values[MAX_OBJVALUES])
 			filter->item_type = ITEM_WEAPON;
 			filter->sub_type = values[1];
 			list_appendlink(CONTAINER(obj)->whitelist, filter);
+
+			CONTAINER(obj)->lock = obj->lock;
+			obj->lock = NULL;
 		}
 		else if (obj->item_type == ITEM_KEYRING)
 		{
@@ -3293,6 +3602,9 @@ void fread_obj_check_version(OBJ_DATA *obj, long values[MAX_OBJVALUES])
 			filter->item_type = ITEM_KEY;
 			filter->sub_type = -1;
 			list_appendlink(CONTAINER(obj)->whitelist, filter);
+
+			CONTAINER(obj)->lock = obj->lock;
+			obj->lock = NULL;
 		}
 	}
 
@@ -3350,12 +3662,59 @@ void fread_obj_check_version(OBJ_DATA *obj, long values[MAX_OBJVALUES])
 
 			list_appendlink(FURNITURE(obj)->compartments, compartment);
 			FURNITURE(obj)->main_compartment = 1;
+
+			compartment->lock = obj->lock;
+			obj->lock = NULL;
+		}
+	}
+
+	if (obj->version < VERSION_OBJECT_010)
+	{
+		if (obj->item_type == ITEM_PORTAL)
+		{
+			if (!IS_PORTAL(obj)) PORTAL(obj) = new_portal_data();
+
+			free_string(PORTAL(obj)->name);
+			PORTAL(obj)->name = str_dup(obj->name);
+			free_string(PORTAL(obj)->short_descr);
+			PORTAL(obj)->short_descr = str_dup(obj->short_descr);
+
+			PORTAL(obj)->charges = values[0];
+			PORTAL(obj)->exit = values[1];
+			PORTAL(obj)->flags = values[2];
+			PORTAL(obj)->type = values[3];
+
+			for(int i = 0; i < MAX_PORTAL_VALUES; i++)
+				PORTAL(obj)->params[i] = values[5 + i];
+
+			PORTAL(obj)->lock = obj->lock;
+			obj->lock = NULL;
+
+			PORTAL(obj)->spells = obj->spells;
+			obj->spells = NULL;
+		}
+	}
+
+	if (obj->version < VERSION_OBJECT_011)
+	{
+		if (obj->item_type == ITEM_BOOK)
+		{
+			if(!IS_BOOK(obj)) BOOK(obj) = new_book_data();
+
+			free_string(BOOK(obj)->name);
+			BOOK(obj)->name = str_dup(obj->name);
+			free_string(BOOK(obj)->short_descr);
+			BOOK(obj)->short_descr = str_dup(obj->short_descr);
+
+			BOOK(obj)->flags = values[1] & (BOOK_CLOSEABLE | BOOK_CLOSED | BOOK_CLOSELOCK | BOOK_PUSHOPEN);
+
+			BOOK(obj)->lock = obj->lock;
+			obj->lock = NULL;
 		}
 	}
 
 	for(int i = 0; i < MAX_OBJVALUES; i++)
 		obj->value[i] = values[i];
-
 }
 
 // Read an object and its contents
@@ -3433,6 +3792,14 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				fMatch		= TRUE;
 				break;
 			}
+			if (!str_cmp(word, "#TYPEBOOK"))
+			{
+				if (IS_BOOK(obj)) free_book_data(BOOK(obj));
+
+				BOOK(obj) = fread_obj_book_data(fp);
+				fMatch = TRUE;
+				break;
+			}
 			if (!str_cmp(word, "#TYPECONTAINER"))
 			{
 				if (IS_CONTAINER(obj)) free_container_data(CONTAINER(obj));
@@ -3471,6 +3838,22 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				if (IS_MONEY(obj)) free_money_data(MONEY(obj));
 
 				MONEY(obj) = fread_obj_money_data(fp);
+				fMatch = TRUE;
+				break;
+			}
+			if (!str_cmp(word, "#TYPEPAGE"))
+			{
+				if (IS_PAGE(obj)) free_book_page(PAGE(obj));
+
+				PAGE(obj) = fread_book_page(fp, "#-TYPEPAGE");
+				fMatch = TRUE;
+				break;
+			}
+			if (!str_cmp(word, "#TYPEPORTAL"))
+			{
+				if (IS_PORTAL(obj)) free_portal_data(PORTAL(obj));
+
+				PORTAL(obj) = fread_obj_portal_data(fp);
 				fMatch = TRUE;
 				break;
 			}

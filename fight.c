@@ -4689,15 +4689,15 @@ void do_bash(CHAR_DATA *ch, char *argument)
 	// Bash a portal
 	if ((obj = get_obj_here(ch, NULL, argument)) != NULL)
 	{
-		if (obj->item_type == ITEM_PORTAL)
+		if (IS_PORTAL(obj))
 		{
-			if (!IS_SET(obj->value[1],EX_ISDOOR))
+			if (!IS_SET(PORTAL(obj)->exit,EX_ISDOOR))
 			{
 				send_to_char("You can't do that.\n\r",ch);
 				return;
 			}
 
-			if (!IS_SET(obj->value[1],EX_CLOSED))
+			if (!IS_SET(PORTAL(obj)->exit,EX_CLOSED))
 			{
 				act("$n attempts to bash down the already open $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 				send_to_char("It's already open.\n\r", ch);
@@ -4728,14 +4728,14 @@ void do_bash(CHAR_DATA *ch, char *argument)
 			damage(ch, ch, dam, gsn_bash, DAM_BASH, FALSE);
 			deduct_move(ch, 75);
 
-			if (IS_SET(obj->value[1], EX_NOBASH) ||
-				(!obj->lock && !obj->lock->pick_chance && IS_SET(obj->value[1], EX_NOPASS)))
+			if (IS_SET(PORTAL(obj)->exit, EX_NOBASH) ||
+				(PORTAL(obj)->lock && PORTAL(obj)->lock->pick_chance < 1 && IS_SET(PORTAL(obj)->exit, EX_NOPASS)))
 			{
 				chance = chance / 5;	// Only 1/5 the original chance to break off any bars on the door
 
-				if (IS_SET(obj->value[1], EX_BARRED) && number_percent() < chance)
+				if (IS_SET(PORTAL(obj)->exit, EX_BARRED) && number_percent() < chance)
 				{
-					REMOVE_BIT(obj->value[1], EX_BARRED);
+					REMOVE_BIT(PORTAL(obj)->exit, EX_BARRED);
 					act("You rebound off $p, managing to break off the bars holding the $p closed, before flying backwards!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 					act("$n rebounds off $p and flies backwards, breaking the bars on the $p in the process!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 				}
@@ -4752,13 +4752,13 @@ void do_bash(CHAR_DATA *ch, char *argument)
 			}
 
 			if (number_percent() < chance) {
-				if( obj->lock )
+				if( PORTAL(obj)->lock )
 				{
-					REMOVE_BIT(obj->lock->flags, LOCK_LOCKED);
+					REMOVE_BIT(PORTAL(obj)->lock->flags, LOCK_LOCKED);
 				}
 
-				REMOVE_BIT(obj->value[1], (EX_CLOSED|EX_BARRED));
-				SET_BIT(obj->value[1], EX_BROKEN);
+				REMOVE_BIT(PORTAL(obj)->exit, (EX_CLOSED|EX_BARRED));
+				SET_BIT(PORTAL(obj)->exit, EX_BROKEN);
 
 				act("$p explodes, sending pieces everywhere!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 				act("$p explodes, sending pieces everywhere!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);

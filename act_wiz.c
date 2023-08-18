@@ -59,7 +59,6 @@ extern RESERVED_WNUM reserved_rprog_wnums[];
 extern RESERVED_AREA reserved_areas[];
 extern GLOBAL_DATA gconfig;
 
-char *string_indent(const char *src, int indent);
 
 RESERVED_WNUM *search_reserved(RESERVED_WNUM *reserved, char *name)
 {
@@ -1915,6 +1914,358 @@ void do_wstat (CHAR_DATA * ch, char *argument)
     return;
 }
 
+void ostat_lock_state(LOCK_STATE *lock, BUFFER *buffer)
+{
+	char buf[MSL];
+	sprintf(buf,"   {CLock State:  Key:{x %s Flags:{x %s {CPick Chance:{x %d%%\r",
+				lockstate_keylist(lock), 
+				flag_string(lock_flags, lock->flags),
+				lock->pick_chance);
+	add_buf(buffer, buf);
+}
+
+void ostat_portal_destination(OBJ_DATA *obj, BUFFER *buffer)
+{
+	PORTAL_DATA *portal = PORTAL(obj);
+	add_buf(buffer, " {CDestination: {x");
+
+	char buf[MSL];
+	AREA_DATA *area;
+	WILDS_DATA *wilds;
+	ROOM_INDEX_DATA *room;
+	DUNGEON_INDEX_DATA *dungeon;
+	BLUEPRINT *blueprint;
+	switch(portal->type)
+	{
+		case GATETYPE_ENVIRONMENT:
+			add_buf(buffer, "Current Environment");
+			break;
+
+		case GATETYPE_NORMAL:
+			area = get_area_from_uid(portal->params[0]);
+			room = get_room_index(area,portal->params[1]);
+			if (room)
+				sprintf(buf,
+					"%s{C ({x%ld{B) in {x%s {C({x%ld{C){x",
+					room->name, portal->params[1],
+					area->name, portal->params[0]);
+			else
+				sprintf(buf, "none");
+			add_buf(buffer, buf);
+			break;
+
+		case GATETYPE_WILDS:
+			wilds = get_wilds_from_uid(NULL, portal->params[0]);
+			sprintf(buf,
+				"%s{C ({x%ld{C) at ({x%ld{C, {x%ld{C){x",
+				wilds ? wilds->name : "none", portal->params[0],
+				portal->params[1],
+				portal->params[2]);
+			add_buf(buffer, buf);
+			break;
+
+		case GATETYPE_WILDSRANDOM:
+			wilds = get_wilds_from_uid(NULL, portal->params[0]);
+			sprintf(buf,
+				"%s{C ({x%ld{C) at ({x%ld{C, {x%ld{C) to ({x%ld{C, {x%ld{C){x",
+				wilds ? wilds->name : "none", portal->params[0],
+				UMIN(portal->params[1],portal->params[3]),
+				UMIN(portal->params[2],portal->params[4]),
+				UMAX(portal->params[1],portal->params[3]),
+				UMAX(portal->params[2],portal->params[4]));
+			add_buf(buffer, buf);
+			break;
+
+		case GATETYPE_AREARANDOM:
+			if (portal->params[0] > 0)
+			{
+				area = get_area_from_uid(portal->params[0]);
+				sprintf(buf,
+					"%s{C ({x%ld{C){x",
+					area ? area->name : "none",
+					portal->params[0]);
+			}
+			else
+			{
+				sprintf(buf, "{YCurrent Area/Wilderness{x");
+			}
+			add_buf(buffer, buf);
+			break;
+		
+		case GATETYPE_REGIONRANDOM:
+		{
+			char buf2[MIL];
+			if (portal->params[0] > 0)
+			{
+				area = get_area_from_uid(portal->params[0]);
+				sprintf(buf2,
+					"{x%s{C ({x%ld{C)",
+					area ? area->name : "none",
+					portal->params[0]);
+			}
+			else
+			{
+				sprintf(buf2,
+					"{YCurrent Area/Wilderness{C");
+			}
+
+			if (portal->params[1] > 0)
+			{
+				if (portal->params[0] > 0)
+				{
+					area = get_area_from_uid(portal->params[0]);
+
+					AREA_REGION *region = NULL;
+
+					if (area)
+					{
+						region = (AREA_REGION *)list_nthdata(area->regions, portal->params[1]);
+					}
+
+					sprintf(buf,
+						"%s in Region {x%s{C ({x%ld{C){x",
+						buf2,
+						region ? region->name : "{D-invalid-",
+						portal->params[1]);
+				}
+				else
+				{
+					sprintf(buf,
+						"%s in Region ({x%ld{C){x",
+						buf2,
+						portal->params[1]);
+				}
+			}
+			else
+			{
+				sprintf(buf,
+					"%s in {YDefault{C Region{x",
+					buf2);
+			}
+			add_buf(buffer, buf);
+			break;
+		}
+
+		case GATETYPE_SECTIONRANDOM:
+			if (portal->params[0])
+				sprintf(buf,
+					"%s{C Section {x%d",
+					((portal->params[0] > 0)?"{YGenerated":((portal->params[0] < 0)?"{GOrdinal":"{WCurrent")),
+					abs(portal->params[0]));
+			else
+				sprintf(buf, "{WCurrent{B Section {x");
+			add_buf(buffer, buf);
+			break;
+
+		case GATETYPE_INSTANCERANDOM:
+			// No extra values - target is based upon current location
+			sprintf(buf, "{CRandom Room in {YCurrent{C Instance{x");
+			add_buf(buffer, buf);
+			break;
+
+		case GATETYPE_DUNGEONRANDOM:
+			// No extra values - target is based upon current location
+			sprintf(buf, "{CRandom Room in {YCurrent{C Dungeon{x");
+			add_buf(buffer, buf);
+			break;
+
+		case GATETYPE_AREARECALL:
+			if (portal->params[0] > 0)
+			{
+				area = get_area_from_uid(portal->params[0]);
+				sprintf(buf,
+					"{CRecall of {x%s{C ({x%ld{C){x",
+					area ? area->name : "none",
+					portal->params[0]);
+			}
+			else
+			{
+				sprintf(buf, "{CRecall of {YCurrent{C Area{x");
+			}
+			add_buf(buffer, buf);
+			break;
+
+		case GATETYPE_REGIONRECALL:
+		{
+			char buf2[MIL];
+			if (portal->params[0] > 0)
+			{
+				area = get_area_from_uid(portal->params[0]);
+				sprintf(buf2,
+					"{x%s{C ({x%ld{C)",
+					area ? area->name : "none",
+					portal->params[0]);
+			}
+			else
+			{
+				sprintf(buf2, "{YCurrent Area{x");
+			}
+			add_buf(buffer, buf);
+
+			if (portal->params[1] > 0)
+			{
+				if (portal->params[0] > 0)
+				{
+					area = get_area_from_uid(portal->params[0]);
+
+					AREA_REGION *region = NULL;
+
+					if (area)
+					{
+						region = (AREA_REGION *)list_nthdata(area->regions, portal->params[1]);
+					}
+
+					sprintf(buf,
+						"{CRecall of %s in {x%s{C ({x%ld{C){x",
+						buf2,
+						region ? region->name : "{D-invalid-",
+						portal->params[1]);
+				}
+				else
+				{
+					sprintf(buf,
+						"{CRecall of %s in Region ({x%ld{c){x",
+						buf2,
+						portal->params[1]);
+				}
+			}
+			else
+			{
+				sprintf(buf,
+					"{CRecall of %s in {YDefault{C Region{x",
+					buf2);
+			}
+			add_buf(buffer, buf);
+			break;
+		}
+
+		case GATETYPE_DUNGEON:
+			dungeon = get_dungeon_index(obj->pIndexData->area, portal->params[0]);
+			if (portal->params[1] > 0)
+				sprintf(buf,
+					"{CFloor {x%ld{C in {x%s{C ({x%ld{C){x",
+					portal->params[1],
+					dungeon ? dungeon->name : "none", portal->params[0]);
+			else if (portal->params[2] > 0)
+				sprintf(buf,
+					"{CSpecial Room {x%ld{C in {x%s{C ({x%ld{C){x",
+					portal->params[2],
+					dungeon ? dungeon->name : "none", portal->params[0]);
+			else
+				sprintf(buf,
+					"{YDefault{B Entrance in {x%s{C ({x%ld{C){x",
+					dungeon ? dungeon->name : "none", portal->params[0]);
+			add_buf(buffer, buf);
+			break;
+
+		case GATETYPE_INSTANCE:
+		{
+			char buf2[MIL];
+			if (portal->params[1] > 0 || portal->params[2] > 0)
+				sprintf(buf2, "{C({W%ld{C:{W%ld{C)", portal->params[1], portal->params[2]);
+			else
+				sprintf(buf2, "{C(Spawned)");
+
+			blueprint = get_blueprint(obj->pIndexData->area, portal->params[0]);
+			if (portal->params[3] > 0)
+			{
+				sprintf(buf,
+					"{CSpecial Room {x%ld{C in {x%s{C ({x%ld{C) %s{x",
+					portal->params[3],
+					blueprint ? blueprint->name : "none", portal->params[0],
+					buf2);
+			}
+			else
+			{
+				sprintf(buf,
+					"{YDefault{C Entrance in {x%s{C ({x%ld{C) %s{x",
+					blueprint ? blueprint->name : "none", portal->params[0],
+					buf2);
+			}
+			add_buf(buffer, buf);
+			break;
+		}
+
+		case GATETYPE_RANDOM:
+			sprintf(buf, "{xRandom Room");
+			add_buf(buffer, buf);
+			break;
+
+		case GATETYPE_DUNGEONFLOOR:
+			dungeon = get_dungeon_index(obj->pIndexData->area, portal->params[0]);
+			if (portal->params[1] > 0)
+			{
+				sprintf(buf,
+					"{CFloor {x%ld{C in {x%s{C ({x%ld{C){x",
+					portal->params[1],
+					dungeon ? dungeon->name : "none", portal->params[0]);
+			}
+			else
+			{
+				sprintf(buf,
+					"{YPrevious/Next Floor{C in {x%s{C ({x%ld{C){x",
+					dungeon ? dungeon->name : "none", portal->params[0]);
+			}
+			add_buf(buffer, buf);
+			break;
+		
+		case GATETYPE_BLUEPRINT_SECTION_MAZE:
+			sprintf(buf,
+				"{C({x%ld{C, {x%ld{C) in {x%s{x %d{B Maze Section{x",
+				portal->params[1], portal->params[2],
+				((portal->params[0] > 0)?"{YGenerated":((portal->params[0] < 0)?"{GOrdinal":"{WCurrent")), abs(portal->params[0]));
+			add_buf(buffer, buf);
+			break;
+		
+		case GATETYPE_BLUEPRINT_SPECIAL:
+			sprintf(buf,
+				"{CSpecial Room {x%ld{C in {YCurrent{C Instance{x",
+				portal->params[0]);
+			add_buf(buffer, buf);
+			break;
+
+		case GATETYPE_DUNGEON_FLOOR_SPECIAL:
+			if (portal->params[1] > 0)
+			{
+				sprintf(buf,
+					"{CSpecial Room {x%ld{C on Floor %s %d{C in {YCurrent{C Dungeon{x",
+					portal->params[1],
+					((portal->params[0] > 0)?"{YGenerated":((portal->params[0] < 0)?"{GOrdinal":"{WCurrent")), abs(portal->params[0]));
+			}
+			else
+			{
+				sprintf(buf,
+					"{YDefault{C Entrance on Floor %s %d{C in {YCurrent{C Dungeon{x",
+					((portal->params[0] > 0)?"{YGenerated":((portal->params[0] < 0)?"{GOrdinal":"{WCurrent")), abs(portal->params[0]));
+			}
+			add_buf(buffer, buf);
+			break;
+
+		case GATETYPE_DUNGEON_SPECIAL:
+			sprintf(buf,
+				"{CSpecial Room {x%ld{C in {YCurrent{C Dungeon{x",
+				portal->params[0]);
+			add_buf(buffer, buf);
+			break;
+
+		case GATETYPE_DUNGEON_RANDOM_FLOOR:
+			sprintf(buf,
+				"{CFloors {x%ld{C to {x%ld{C in {YCurrent{C Dungeon{x",
+				portal->params[0], portal->params[1]);
+			add_buf(buffer, buf);
+			break;
+		
+		default:
+			sprintf(buf,
+				"{RERROR:{W Missing destination description for type {Y%s{x",
+				flag_string(portal_gatetype, portal->type));
+			add_buf(buffer, buf);
+			break;
+	}
+
+	add_buf(buffer, "\n\r");
+}
+
 void do_ostat(CHAR_DATA *ch, char *argument)
 {
 	BUFFER *buffer;
@@ -1997,9 +2348,43 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 	}
 	add_buf(buffer, "\n\r");
 
+	if (IS_BOOK(obj))
+	{
+		sprintf(buf, "{CBook[{x%s{C / {x%s{C]: {BPages: (Total: {x%d{B, Current: {x%d{B) Flags: {x%s{B{x\n\r",
+			BOOK(obj)->name, BOOK(obj)->short_descr,
+			list_size(BOOK(obj)->pages),
+			BOOK(obj)->current_page,
+			flag_string(book_flags, BOOK(obj)->flags));
+		add_buf(buffer, buf);
+		
+		if (list_size(BOOK(obj)->pages) > 0)
+		{
+			BOOK_PAGE *page;
+			iterator_start(&it, BOOK(obj)->pages);
+			while((page = (BOOK_PAGE *)iterator_nextdata(&it)))
+			{
+				sprintf(buf, " {BPage: {x%d{C - {x%s{x\n\r", page->page_no, page->title);
+				add_buf(buffer, buf);
+
+				// Text is not shown
+			}
+			iterator_stop(&it);
+		}
+
+		if( BOOK(obj)->lock )
+			ostat_lock_state(BOOK(obj)->lock, buffer);
+	}
+
+	if (IS_PAGE(obj))
+	{
+		sprintf(buf, "{CPage[{x%d{C]: {BTitle:{x %s {BText:{x\n\r%s{x\n\r",
+			PAGE(obj)->page_no, PAGE(obj)->title, string_indent(PAGE(obj)->text, 3));
+	    add_buf(buffer, buf);
+	}
+
 	if (IS_CONTAINER(obj))
 	{
-		sprintf(buf, "{CContainer[%s / %s]: {BMax Weight:{x %d {BWeight Multiplier:{x %d {BMax Volume:{x %d {BTotal Weight:{x %d {BTotal Volume:{x %d\n\r",
+		sprintf(buf, "{CContainer[{x%s{C / {x%s{C]: {BMax Weight:{x %d {BWeight Multiplier:{x %d {BMax Volume:{x %d {BTotal Weight:{x %d {BTotal Volume:{x %d\n\r",
 			CONTAINER(obj)->name, CONTAINER(obj)->short_descr,
 			CONTAINER(obj)->max_weight,
 			CONTAINER(obj)->weight_multiplier,
@@ -2009,13 +2394,7 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 	    add_buf(buffer, buf);
 
 		if (CONTAINER(obj)->lock)
-		{
-			sprintf(buf,"   {CLock State:  Key:{x %s Flags:{x %s {CPick Chance:{x %d%%\r",
-						lockstate_keylist(CONTAINER(obj)->lock), 
-						flag_string(lock_flags, CONTAINER(obj)->lock->flags),
-						CONTAINER(obj)->lock->pick_chance);
-			add_buf(buffer, buf);
-		}
+			ostat_lock_state(CONTAINER(obj)->lock, buffer);
 	}
 
 	if (IS_FOOD(obj))
@@ -2132,6 +2511,47 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 	{
 		sprintf(buf, "{CMoney: {Y%dg {W%ds{x\n\r", MONEY(obj)->gold, MONEY(obj)->silver);
 	    add_buf(buffer, buf);
+	}
+
+	if (IS_PORTAL(obj))
+	{
+		char charges[MIL];
+		if (PORTAL(obj)->charges < 0)
+			strcpy(charges, "Unlimted");
+		else
+			sprintf(charges, "%d", PORTAL(obj)->charges);
+
+		sprintf(buf, "{CPortal[{x%s{C / {x%s{C]: {BType: {x%s{B  Charges: {x%s\n\r",
+			PORTAL(obj)->name, PORTAL(obj)->short_descr,
+			flag_string(portal_gatetype, PORTAL(obj)->type),
+			charges);
+		add_buf(buffer, buf);
+
+		ostat_portal_destination(obj, buffer);
+
+		if (PORTAL(obj)->lock)
+			ostat_lock_state(PORTAL(obj)->lock, buffer);
+
+		if (PORTAL(obj)->spells)
+		{
+			SPELL_DATA *spell;
+			for(spell = PORTAL(obj)->spells; spell; spell = spell->next)
+			{
+				char name[MIL];
+				if (spell->token)
+				{
+					sprintf(name, "{x%s {C({x%ld{W#{x%ld{C)", spell->token->name, spell->token->area->uid, spell->token->vnum);
+				}
+				else
+				{
+					sprintf(name, "{x%s", skill_table[spell->sn].name);
+				}
+
+				sprintf(buf, " {CSpell: %s {CLevel: {x%d\n\r",
+					name, spell->level);
+				add_buf(buffer, buf);
+			}
+		}
 	}
 
     if (obj->extra_descr != NULL || obj->pIndexData->extra_descr != NULL)
@@ -7900,9 +8320,11 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 	if (IS_NULLSTR(argument))
 	{
 		send_to_char("Syntax:  reserved {Rroom|obj|mob|rprog{x list\n\r", ch);
-		send_to_char("         reserved {Rroom|obj|mob|rprog{x set <name> <widevnum>\n\r", ch);
+		if (IS_IMPLEMENTOR(ch))
+			send_to_char("         reserved {Rroom|obj|mob|rprog{x set <name> <widevnum>\n\r", ch);
 		send_to_char("         reserved {Rarea{x list\n\r", ch);
-		send_to_char("         reserved {Rarea{x set <name> <auid>\n\r", ch);
+		if (IS_IMPLEMENTOR(ch))
+			send_to_char("         reserved {Rarea{x set <name> <auid>\n\r", ch);
 		return;
 	}
 
@@ -7917,7 +8339,8 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 		if (IS_NULLSTR(argument))
 		{
 			send_to_char("Syntax:  reserved room {Rlist{x\n\r", ch);
-			send_to_char("         reserved room {Rset{x <name> <widevnum>\n\r", ch);
+			if (IS_IMPLEMENTOR(ch))
+				send_to_char("         reserved room {Rset{x <name> <widevnum>\n\r", ch);
 			return;
 		}
 
@@ -7966,6 +8389,12 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 
 		if (!str_prefix(arg2, "set"))
 		{
+			if (!IS_IMPLEMENTOR(ch))
+			{
+				do_reserved(ch, "room");
+				return;
+			}
+
 			char arg3[MIL];
 
 			if (IS_NULLSTR(argument))
@@ -8029,7 +8458,8 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 		if (IS_NULLSTR(argument))
 		{
 			send_to_char("Syntax:  reserved rprog {Rlist{x\n\r", ch);
-			send_to_char("         reserved rprog {Rset{x <name> <widevnum>\n\r", ch);
+			if (IS_IMPLEMENTOR(ch))
+				send_to_char("         reserved rprog {Rset{x <name> <widevnum>\n\r", ch);
 			return;
 		}
 
@@ -8078,6 +8508,12 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 
 		if (!str_prefix(arg2, "set"))
 		{
+			if (!IS_IMPLEMENTOR(ch))
+			{
+				do_reserved(ch, "rprog");
+				return;
+			}
+
 			char arg3[MIL];
 
 			if (IS_NULLSTR(argument))
@@ -8141,7 +8577,8 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 		if (IS_NULLSTR(argument))
 		{
 			send_to_char("Syntax:  reserved mob {Rlist{x\n\r", ch);
-			send_to_char("         reserved mob {Rset{x <name> <widevnum>\n\r", ch);
+			if (IS_IMPLEMENTOR(ch))
+				send_to_char("         reserved mob {Rset{x <name> <widevnum>\n\r", ch);
 			return;
 		}
 
@@ -8190,6 +8627,12 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 
 		if (!str_prefix(arg2, "set"))
 		{
+			if (!IS_IMPLEMENTOR(ch))
+			{
+				do_reserved(ch, "mob");
+				return;
+			}
+
 			char arg3[MIL];
 
 			if (IS_NULLSTR(argument))
@@ -8253,7 +8696,8 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 		if (IS_NULLSTR(argument))
 		{
 			send_to_char("Syntax:  reserved obj {Rlist{x\n\r", ch);
-			send_to_char("         reserved obj {Rset{x <name> <widevnum>\n\r", ch);
+			if (IS_IMPLEMENTOR(ch))
+				send_to_char("         reserved obj {Rset{x <name> <widevnum>\n\r", ch);
 			return;
 		}
 
@@ -8302,6 +8746,12 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 
 		if (!str_prefix(arg2, "set"))
 		{
+			if (!IS_IMPLEMENTOR(ch))
+			{
+				do_reserved(ch, "obj");
+				return;
+			}
+
 			char arg3[MIL];
 
 			if (IS_NULLSTR(argument))
@@ -8366,7 +8816,8 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 		if (IS_NULLSTR(argument))
 		{
 			send_to_char("Syntax:  reserved area {Rlist{x\n\r", ch);
-			send_to_char("         reserved area {Rset{x <name> <widevnum>\n\r", ch);
+			if (IS_IMPLEMENTOR(ch))
+				send_to_char("         reserved area {Rset{x <name> <widevnum>\n\r", ch);
 			return;
 		}
 
@@ -8412,6 +8863,12 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 
 		if (!str_prefix(arg2, "set"))
 		{
+			if (!IS_IMPLEMENTOR(ch))
+			{
+				do_reserved(ch, "area");
+				return;
+			}
+
 			char arg3[MIL];
 
 			if (IS_NULLSTR(argument))

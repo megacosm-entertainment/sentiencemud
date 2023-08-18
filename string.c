@@ -32,7 +32,7 @@
 
 char *string_linedel(char *, int);
 char *string_lineadd(char *, char *, int);
-char *numlineas(char *);
+char *numlineas(bool skip_blank_lines, char *);
 
 
 void string_edit(CHAR_DATA *ch, char **pString)
@@ -68,7 +68,8 @@ void string_append(CHAR_DATA *ch, char **pString)
     {
         *pString = str_dup("");
     }
-    send_to_char(numlineas(*pString), ch);
+
+    send_to_char(numlineas(ch->desc->skip_blank_lines, *pString), ch);
 
     /*
     if (*(*pString + strlen(*pString) - 1) != '\r')
@@ -180,6 +181,16 @@ void string_postprocess(CHAR_DATA *ch, bool execute)
 		if(s) free_string(s);
 	}
 
+	// Done writing the description in a book via the "write" command
+	if (IS_VALID(ch->desc->writing_book))
+	{
+		act("$n finishes writing in $p.", ch, NULL, NULL, ch->desc->writing_book, NULL, NULL, NULL, TO_ROOM);
+
+		p_percent_trigger(NULL, ch->desc->writing_book, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BOOK_WRITE_TEXT, NULL, 0,0,0,0,0);
+		ch->desc->writing_book = NULL;
+	}
+
+	ch->desc->skip_blank_lines = FALSE;
 }
 
 void string_add(CHAR_DATA *ch, char *argument)
@@ -225,8 +236,8 @@ void string_add(CHAR_DATA *ch, char *argument)
         if (!str_cmp(arg1, ".s"))
         {
             send_to_char("String so far:\n\r", ch);
-	    send_to_char(numlineas(*ch->desc->pString), ch);
-	    return;
+			send_to_char(numlineas(ch->desc->skip_blank_lines, *ch->desc->pString), ch);
+		    return;
         }
 
         if (!str_cmp(arg1, ".r"))
@@ -830,7 +841,7 @@ char *olc_getline(char *str, char *buf)
 }
 
 
-char *numlineas(char *string)
+char *numlineas(bool skip_blank_lines, char *string)
 {
     int cnt = 1;
     static char buf[MAX_STRING_LENGTH*3];
@@ -841,7 +852,11 @@ char *numlineas(char *string)
     while (*string)
     {
 		string = olc_getline(string, tmpb);
-		sprintf(buf2, "%2d. %s\n\r", cnt++, tmpb);
+		char *skipped = skip_whitespace(tmpb);	// Take into account blank lines
+		if((skipped[0] && str_prefix("**", skipped)) || !skip_blank_lines)	// if the line is not empty or a comment
+			sprintf(buf2, "%3d. %s\n\r", cnt++, tmpb);
+		else
+			sprintf(buf2, "     %s\n\r", tmpb);
 		strcat(buf, buf2);
     }
 

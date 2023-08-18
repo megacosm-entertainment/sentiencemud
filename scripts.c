@@ -358,6 +358,17 @@ bool script_entity_allow_vars(int type)
 	return FALSE;
 }
 
+bool script_entity_allow_index(int type)
+{
+	int i;
+
+	for(i=0; entity_type_info[i].type_min < ENT_MAX; i++)
+		if( (type >= entity_type_info[i].type_min) && (type <= entity_type_info[i].type_max))
+			return entity_type_info[i].allow_index;
+
+	return FALSE;
+}
+
 //void compile_error_show(char *msg);
 ENT_FIELD *entity_type_lookup(char *name, ENT_FIELD *list)
 {
@@ -627,6 +638,37 @@ bool opc_skip_to_label(SCRIPT_CB *block,int op,int id,bool dir)
 	return FALSE;
 }
 
+
+bool opc_skip_to_level(SCRIPT_CB *block,int op,int level)
+{
+	int line, last;
+	SCRIPT_CODE *code;
+	char buf[MIL];
+
+	code = block->script->code;
+	last = block->script->lines;
+
+	if(wiznet_script) {
+		sprintf(buf,"Skipping to %s with Level %d.", opcode_names[op], level);
+		wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
+	}
+
+	for(line = block->line; line < last; line++) {
+//		if(wiznet_script) {
+//			(buf,"Checking: Line=%d, Opcode=%d(%s), Level=%d", line+1,code[line].opcode,opcode_names[code[line].opcode],code[line].level);
+//			wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
+//		}
+		if(code[line].opcode == op && code[line].level == level) {
+			block->line = line+1;
+			DBG2EXITVALUE2(TRUE);
+			return TRUE;
+		}
+	}
+
+	DBG2EXITVALUE2(FALSE);
+	return FALSE;
+}
+
 bool opc_skip_block(SCRIPT_CB *block,int level,bool endblock)
 {
 	int line, last;
@@ -701,6 +743,7 @@ void script_loop_cleanup(SCRIPT_CB *block, int level)
 			case ENT_PLLIST_ROOM:
 			case ENT_PLLIST_TOK:
 			case ENT_PLLIST_CHURCH:
+			case ENT_PLLIST_BOOK_PAGE:
 			case ENT_PLLIST_FOOD_BUFF:
 			case ENT_PLLIST_COMPARTMENT:
 			case ENT_ILLIST_VARIABLE:
@@ -1036,6 +1079,7 @@ DECL_OPC_FUN(opc_list)
 	SHIP_DATA *ship;
 	AREA_DATA *area;
 	AREA_REGION *aregion;
+	BOOK_PAGE *book_page;
 	FOOD_BUFF_DATA *food_buff;
 	FURNITURE_COMPARTMENT *compartment;
 
@@ -1880,6 +1924,35 @@ DECL_OPC_FUN(opc_list)
 			variables_set_church(block->info.var,block->loops[lp].var_name,church);
 			break;
 
+
+		case ENT_PLLIST_BOOK_PAGE:
+			//log_stringf("opc_list: list type ENT_PLLIST_BOOK_PAGE");
+			if(!arg->d.blist || !arg->d.blist->valid)
+			{
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			block->loops[lp].d.l.type = ENT_PLLIST_BOOK_PAGE;
+			block->loops[lp].d.l.list.lp = arg->d.blist;
+			iterator_start(&block->loops[lp].d.l.list.it,arg->d.blist);
+			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+			book_page = (BOOK_PAGE *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+			//log_stringf("opc_list: church(%s)", church ? church->name : "<END>");
+
+			if( !book_page ) {
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			// Set the variable
+			variables_set_book_page(block->info.var,block->loops[lp].var_name,book_page);
+			break;
+
 		case ENT_PLLIST_FOOD_BUFF:
 			//log_stringf("opc_list: list type ENT_PLLIST_FOOD_BUFF");
 			if(!arg->d.blist || !arg->d.blist->valid)
@@ -2648,6 +2721,21 @@ DECL_OPC_FUN(opc_list)
 
 			break;
 
+		case ENT_PLLIST_BOOK_PAGE:
+			//log_stringf("opc_list: list type ENT_PLLIST_BOOK_PAGE");
+			book_page = (BOOK_PAGE *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+			// Set the variable
+			variables_set_book_page(block->info.var,block->loops[lp].var_name,book_page);
+
+			if( !book_page ) {
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				skip = TRUE;
+				break;
+			}
+
+			break;
+
 		case ENT_PLLIST_FOOD_BUFF:
 			//log_stringf("opc_list: list type ENT_PLLIST_FOOD_BUFF");
 			food_buff = (FOOD_BUFF_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
@@ -2832,6 +2920,78 @@ DECL_OPC_FUN(opc_exitwhile)
 	return opc_skip_to_label(block,OP_ENDWHILE,block->cur_line->label,TRUE);
 }
 
+
+DECL_OPC_FUN(opc_switch)
+{
+	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
+		return opc_skip_block(block,block->cur_line->level-1,FALSE);
+
+	SCRIPT_PARAM *arg = new_script_param();
+	if(!expand_argument(&block->info,block->cur_line->rest,arg)) {
+		block->ret_val = PRET_BADSYNTAX;
+		free_script_param(arg);
+		return FALSE;
+	}
+
+	if (arg->type != ENT_NUMBER)
+	{
+		block->ret_val = PRET_BADSYNTAX;
+		free_script_param(arg);
+		return FALSE;
+	}
+
+	long value = arg->d.num;
+	free_script_param(arg);
+
+	if (block->script->switch_table && block->cur_line->param >= 0 && block->cur_line->param < block->script->n_switch_table)
+	{
+		SCRIPT_SWITCH *sw = &block->script->switch_table[block->cur_line->param];
+		SCRIPT_SWITCH_CASE *swc;
+
+		for(swc = sw->cases; swc; swc = swc->next)
+		{
+			if (value >= swc->a && value <= swc->b)
+			{
+				if(swc->line >= 0 && swc->line < block->script->lines) {
+					block->line = swc->line;
+					block->cur_line = &block->script->code[swc->line];
+					script_loop_cleanup(block, block->cur_line->level);
+					if(block->cur_line->level > 0) block->cond[block->cur_line->level-1] = TRUE;
+					return TRUE;
+				}
+				return FALSE;
+			}
+		}
+
+		// While lines start at 0, the default in a switch statement can never point to line 0, as the switch statement itself (this opcode) must come before it
+		if(sw->default_case > 0 && sw->default_case < block->script->lines) {
+			block->line = sw->default_case;
+			block->cur_line = &block->script->code[sw->default_case];
+			script_loop_cleanup(block, block->cur_line->level);
+			if(block->cur_line->level > 0) block->cond[block->cur_line->level-1] = TRUE;
+			return TRUE;
+		}
+
+		// Skip to the end of the switch
+		return opc_skip_block(block,OP_ENDSWITCH,block->cur_line->level);
+	}
+
+	// To get to here means something bad happened
+	block->ret_val = PRET_BADSYNTAX;
+	return FALSE;
+}
+
+DECL_OPC_FUN(opc_endswitch)
+{
+	opc_next_line(block);
+	return TRUE;
+}
+
+DECL_OPC_FUN(opc_exitswitch)
+{
+	// Skip to the end of the switch
+	return opc_skip_block(block,OP_ENDSWITCH,block->cur_line->level);
+}
 
 DECL_OPC_FUN(opc_mob)
 {
@@ -6466,22 +6626,24 @@ void do_ifchecks( CHAR_DATA *ch, char *argument)
 	}
 
 	add_buf(buffer,"{WIf-Checks:{x\n\r");
-	add_buf(buffer,"{D==============================================================={x\n\r");
-	add_buf(buffer,"{WNum  {D| {WName                {D| {W         Types          {D| {WValue {D|{x\n\r");
-	add_buf(buffer,"{D---------------------------------------------------------------{x\n\r");
+	add_buf(buffer,"{D========================================================================={x\n\r");
+	add_buf(buffer,"{WNum  {D| {WName                {D| {W              Types               {D| {WValue {D|{x\n\r");
+	add_buf(buffer,"{D-------------------------------------------------------------------------{x\n\r");
 
-	for(i=0,j=0;ifcheck_table[i].name;i++) if(!*argument || is_name(argument,ifcheck_table[i].name)) {
-		sprintf(buf,"{W%4d{D)  {Y%-20.20s %s %s %s %s %s   %s{x\n\r",++j,
+	for(i=0,j=0;ifcheck_table[i].name;i++) if(ifcheck_table[i].name[0] != '_' && (!*argument || is_name(argument,ifcheck_table[i].name))) {
+		sprintf(buf,"{W%4d{D)  {Y%-20.20s %s %s %s %s %s %s %s   %s{x\n\r",++j,
 			ifcheck_table[i].name,
 			((ifcheck_table[i].type & IFC_M) ? "{Gmob" : "   "),
 			((ifcheck_table[i].type & IFC_O) ? "{Gobj" : "   "),
 			((ifcheck_table[i].type & IFC_R) ? "{Groom" : "    "),
 			((ifcheck_table[i].type & IFC_T) ? "{Gtoken" : "     "),
 			((ifcheck_table[i].type & IFC_A) ? "{Garea" : "    "),
+			((ifcheck_table[i].type & IFC_I) ? "{Ginst" : "    "),
+			((ifcheck_table[i].type & IFC_D) ? "{Gdung" : "    "),
 			(ifcheck_table[i].numeric ? "{B NUM " : "{R T/F "));
 		add_buf(buffer,buf);
 	}
-	add_buf(buffer,"{D==============================================================={x\n\r");
+	add_buf(buffer,"{D========================================================================={x\n\r");
 
 //	pbuf = buf_string(buffer);
 //	sprintf(buf,"pbuf = '%.15s{x', %d\n\r", pbuf, strlen(pbuf));
@@ -8584,6 +8746,7 @@ CHAR_DATA *script_mload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg,
 // OLOAD $WNUM|$OBJINDEX|$OBJECT $LEVEL[ none|room|wear|$MOBILE[ wear]|$OBJECT|$ROOM[ $VARIABLENAME]]
 OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, bool instanced)
 {
+//	char msg[MSL];
 	char buf[MIL], *rest;
 	WNUM wnum;
 	long level;
@@ -8626,6 +8789,8 @@ OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, 
 	}
 
 	if (!pObjIndex) {
+		wiznet("Bad object for script_oload",NULL,NULL,WIZ_TESTING,0,0);
+
 //		bug("*Poload - Bad vnum arg from vnum %d.", VNUM(info->);
 		return NULL;
 	}
@@ -8643,8 +8808,11 @@ OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, 
 		default: level = 0; break;
 		}
 
-		if(level <= 0 || level > get_trust(info->mob))
-			level = get_trust(info->mob);
+		if(info->mob)
+		{
+			if(level <= 0 || level > get_trust(info->mob))
+				level = get_trust(info->mob);
+		}
 
 		if(rest && *rest) {
 			argument = rest;
@@ -8699,8 +8867,10 @@ OBJ_DATA *script_oload(SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg, 
 			}
 		}
 
-	} else
+	} else if(info->mob)
 		level = get_trust(info->mob);
+	else
+		level = 0;
 
 	obj = create_object(pObjIndex, level, TRUE);
 	if( !IS_VALID(obj) )
@@ -9468,4 +9638,15 @@ SCRIPT_DATA *get_script_token(TOKEN_DATA *token, int trigger, int slot)
 	}
 
 	return script;
+}
+
+void scriptcmd_bug(SCRIPT_VARINFO *info, char *message)
+{
+	char buf[2 * MSL];
+
+	sprintf(buf, "Script:%ld#%ld:Line:%d:%s\n\r",
+		info->block->script->area->uid, info->block->script->vnum,
+		info->block->line,
+		message);
+	bug(buf, 0);
 }

@@ -77,6 +77,7 @@ const struct olc_help_type help_table[] =
 	{	"areawho",				STRUCT_FLAGS,		area_who_titles,			"Type of area for who."	},
 	{	"armour",				STRUCT_FLAGS,		ac_type,					"Ac for different attacks."	},
 	{	"blueprint",			STRUCT_FLAGS,		blueprint_flags,			"Blueprint flags" },
+	{	"book",					STRUCT_FLAGS,		book_flags,					"Book flags."	},
 	{	"catalyst",				STRUCT_FLAGS,		catalyst_types,				"Catalyst types."	},
 	{ 	"compartment",			STRUCT_FLAGS,		compartment_flags,			"Compartment Flags."},
 	{	"condition",			STRUCT_FLAGS,		room_condition_flags,		"Room Condition types."	},
@@ -4157,19 +4158,26 @@ REDIT(redit_persist)
 	return TRUE;
 }
 
-void print_obj_portal_values(OBJ_INDEX_DATA *portal, BUFFER *buffer)
+void print_obj_portal_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 {
 	char buf[MSL];
+	PORTAL_DATA *portal = PORTAL(obj);
 
-	sprintf(buf,
-		"{B[  {Wv0{B]{G Charges:{x           [%ld]\n\r"
-		"{B[  {Wv1{B]{G Exit Flags:{x        %s\n\r"
-		"{B[  {Wv2{B]{G Portal Flags:{x      %s\n\r"
-		"{B[  {Wv3{B]{G Portal Type:{x       %s\n\r",
-		portal->value[0],
-		flag_string(portal_exit_flags, portal->value[1]),
-		flag_string(portal_flags, portal->value[2]),
-		flag_string(portal_gatetype, portal->value[3]));
+	add_buf(buffer, "\n\r{GPortal:{x\n\r");
+	sprintf(buf, "{B[{WName             {B]:  {x%s\n\r", portal->name);
+	add_buf(buffer, buf);
+	sprintf(buf, "{B[{WShort Description{B]:  {x%s\n\r", portal->short_descr);
+	add_buf(buffer, buf);
+	if (portal->charges < 0)
+		sprintf(buf, "{B[{WCharges          {B]:  {xInfinite\n\r");
+	else
+		sprintf(buf, "{B[{WCharges          {B]:  {x%d\n\r", portal->charges);
+	add_buf(buffer, buf);
+	sprintf(buf, "{B[{WExit Flags       {B]:  {x%s\n\r", flag_string(portal_exit_flags, portal->exit));
+	add_buf(buffer, buf);
+	sprintf(buf, "{B[{WPortal Flags     {B]:  {x%s\n\r", flag_string(portal_exit_flags, portal->flags));
+	add_buf(buffer, buf);
+	sprintf(buf, "{B[{WPortal Type      {B]:  {x%s\n\r", flag_string(portal_gatetype, portal->type));
 	add_buf(buffer, buf);
 
 	AREA_DATA *area;
@@ -4177,303 +4185,352 @@ void print_obj_portal_values(OBJ_INDEX_DATA *portal, BUFFER *buffer)
 	ROOM_INDEX_DATA *room;
 	DUNGEON_INDEX_DATA *dungeon;
 	BLUEPRINT *blueprint;
-	switch(portal->value[3])
+	switch(portal->type)
 	{
 		case GATETYPE_ENVIRONMENT:
 			// Nothing gets set on environment portals
+			sprintf(buf, "{B[{WDestination      {B]:  Current Environment{x\n\r");
+			add_buf(buffer, buf);
 			break;
 
 		case GATETYPE_NORMAL:
-			area = get_area_from_uid(portal->value[5]);
-			room = get_room_index(area,portal->value[6]);
-			sprintf(buf,
-				"{B[  {Wv5{B]{G Area Uid:{x          [%ld] %s\n\r"
-				"{B[  {Wv6{B]{G Room:{x              [%ld] %s\n\r",
-				portal->value[5], area ? area->name : "none",
-				portal->value[6], room ? room->name : "none");
+			area = get_area_from_uid(portal->params[0]);
+			room = get_room_index(area,portal->params[1]);
+			if (room)
+				sprintf(buf,
+					"{B[{WDestination      {B]:  {x%s{B ({x%ld{B) in {x%s {B({x%ld{B){x\n\r",
+					room->name, portal->params[1],
+					area->name, portal->params[0]);
+			else
+				sprintf(buf, "{B[{WDestination      {B]:  {xnone\n\r");
 			add_buf(buffer, buf);
 			break;
 
 		case GATETYPE_WILDS:
-			wilds = get_wilds_from_uid(NULL, portal->value[5]);
+			wilds = get_wilds_from_uid(NULL, portal->params[0]);
 			sprintf(buf,
-				"{B[  {Wv5{B]{G Wilds:{x             [%ld] %s\n\r"
-				"{B[  {Wv6{B]{G X Coordinate:{x      [%ld]\n\r"
-				"{B[  {Wv7{B]{G Y Coordinate:{x      [%ld]\n\r",
-				portal->value[5], wilds ? wilds->name : "none",
-				portal->value[6],
-				portal->value[7]);
+				"{B[{WDestination      {B]:  {x%s{B ({x%ld{B) at ({x%ld{B, {x%ld{B){x\n\r",
+				wilds ? wilds->name : "none", portal->params[0],
+				portal->params[1],
+				portal->params[2]);
 			add_buf(buffer, buf);
 			break;
 
 		case GATETYPE_WILDSRANDOM:
-			wilds = get_wilds_from_uid(NULL, portal->value[5]);
+			wilds = get_wilds_from_uid(NULL, portal->params[0]);
 			sprintf(buf,
-				"{B[  {Wv5{B]{G Wilds:{x             [%ld] %s\n\r"
-				"{B[  {Wv6{B]{G Minimum X:{x         [%ld]\n\r"
-				"{B[  {Wv7{B]{G Minimum Y:{x         [%ld]\n\r"
-				"{B[  {Wv8{B]{G Maximum X:{x         [%ld]\n\r"
-				"{B[  {Wv9{B]{G Maximum Y:{x         [%ld]\n\r",
-				portal->value[5], wilds ? wilds->name : "none",
-				portal->value[6],
-				portal->value[7],
-				portal->value[8],
-				portal->value[9]);
+				"{B[{WDestination      {B]:  {x%s{B ({x%ld{B) at ({x%ld{B, {x%ld{B) to ({x%ld{B, {x%ld{B){x\n\r",
+				wilds ? wilds->name : "none", portal->params[0],
+				UMIN(portal->params[1],portal->params[3]),
+				UMIN(portal->params[2],portal->params[4]),
+				UMAX(portal->params[1],portal->params[3]),
+				UMAX(portal->params[2],portal->params[4]));
 			add_buf(buffer, buf);
 			break;
 
 		case GATETYPE_AREARANDOM:
-			if (portal->value[5] > 0)
+			if (portal->params[0] > 0)
 			{
-				area = get_area_from_uid(portal->value[5]);
+				area = get_area_from_uid(portal->params[0]);
 				sprintf(buf,
-					"{B[  {Wv5{B]{G Area:{x              [%ld] %s\n\r",
-					portal->value[5],
-					area ? area->name : "none");
+					"{B[{WDestination      {B]:  {x%s{B ({x%ld{B){x\n\r",
+					area ? area->name : "none",
+					portal->params[0]);
 			}
 			else
 			{
 				sprintf(buf,
-					"{B[  {Wv5{B]{G Area:{x              [%ld] {Y-current area or wilderness-{x\n\r",
-					portal->value[5]);
+					"{B[{WDestination      {B]:  {Y-current area or wilderness-{B ({x%ld{B){x\n\r",
+					portal->params[0]);
 			}
 			add_buf(buffer, buf);
 			break;
 		
 		case GATETYPE_REGIONRANDOM:
-			if (portal->value[5] > 0)
+		{
+			char buf2[MIL];
+			if (portal->params[0] > 0)
 			{
-				area = get_area_from_uid(portal->value[5]);
-				sprintf(buf,
-					"{B[  {Wv5{B]{G Area:{x              [%ld] %s\n\r",
-					portal->value[5],
-					area ? area->name : "none");
+				area = get_area_from_uid(portal->params[0]);
+				sprintf(buf2,
+					"{x%s{B ({x%ld{B)",
+					area ? area->name : "none",
+					portal->params[0]);
 			}
 			else
 			{
-				sprintf(buf,
-					"{B[  {Wv5{B]{G Area:{x              [%ld] {Y-current area (not wilderness)-{x\n\r",
-					portal->value[5]);
+				sprintf(buf2,
+					"{Y-current area or wilderness-{B");
 			}
-			add_buf(buffer, buf);
 
-			if (portal->value[6] > 0)
+			if (portal->params[1] > 0)
 			{
-				if (portal->value[5] > 0)
+				if (portal->params[0] > 0)
 				{
-					area = get_area_from_uid(portal->value[5]);
+					area = get_area_from_uid(portal->params[0]);
 
 					AREA_REGION *region = NULL;
 
 					if (area)
 					{
-						region = (AREA_REGION *)list_nthdata(area->regions, portal->value[6]);
+						region = (AREA_REGION *)list_nthdata(area->regions, portal->params[1]);
 					}
 
 					sprintf(buf,
-						"{B[  {Wv6{B]{G Region:{x            [%ld] %s{x\n\r",
-						portal->value[6],
-						region ? region->name : "{D-invalid-");
+						"{B[{WDestination      {B]:  %s in Region {x%s{B ({x%ld{B){x\n\r",
+						buf2,
+						region ? region->name : "{D-invalid-",
+						portal->params[1]);
 				}
 				else
 				{
 					sprintf(buf,
-						"{B[  {Wv6{B]{G Region:{x            [%ld]\n\r",
-						portal->value[6]);
+						"{B[{WDestination      {B]:  %s in Region ({x%ld{B){x\n\r",
+						buf2,
+						portal->params[1]);
 				}
 			}
 			else
 			{
 				sprintf(buf,
-					"{B[  {Wv6{B]{G Region:{x            [%ld] {Y-default region-{x\n\r",
-					portal->value[6]);
+					"{B[{WDestination      {B]:  %s in {YDefault{B Region{x\n\r",
+					buf2);
 			}
 			add_buf(buffer, buf);
 			break;
+		}
 
 		case GATETYPE_SECTIONRANDOM:
-			sprintf(buf,
-				"{B[  {Wv5{B]{G Section Index:{x     [%d] %s{x\n\r",
-				abs(portal->value[5]), ((portal->value[5] > 0)?"{YGenerated":((portal->value[5] < 0)?"{GOrdinal":"{WCurrent")));
+			if (portal->params[0])
+				sprintf(buf,
+					"{B[{WDestination      {B]:  %s{B Section {x%d\n\r",
+					((portal->params[0] > 0)?"{YGenerated":((portal->params[0] < 0)?"{GOrdinal":"{WCurrent")),
+					abs(portal->params[0]));
+			else
+				sprintf(buf,
+					"{B[{WDestination      {B]:  {WCurrent{B Section {x\n\r");
 			add_buf(buffer, buf);
 			break;
 
 		case GATETYPE_INSTANCERANDOM:
 			// No extra values - target is based upon current location
+			sprintf(buf, "{B[{WDestination      {B]:  Random Room in {YCurrent{B Instance{x\n\r");
+			add_buf(buffer, buf);
 			break;
 
 		case GATETYPE_DUNGEONRANDOM:
 			// No extra values - target is based upon current location
+			sprintf(buf, "{B[{WDestination      {B]:  Random Room in {YCurrent{B Dungeon{x\n\r");
+			add_buf(buffer, buf);
 			break;
 
 		case GATETYPE_AREARECALL:
-			if (portal->value[5] > 0)
+			if (portal->params[0] > 0)
 			{
-				area = get_area_from_uid(portal->value[5]);
+				area = get_area_from_uid(portal->params[0]);
 				sprintf(buf,
-					"{B[  {Wv5{B]{G Area:{x              [%ld] %s\n\r",
-					portal->value[5],
-					area ? area->name : "none");
+					"{B[{WDestination      {B]:  Recall of %s{B ({x%ld{B){x\n\r",
+					area ? area->name : "none",
+					portal->params[0]);
 			}
 			else
 			{
 				sprintf(buf,
-					"{B[  {Wv5{B]{G Area:{x              [%ld] {Y-current area-{x\n\r",
-					portal->value[5]);
-			}
-			add_buf(buffer, buf);
-
-			if (portal->value[6] > 0)
-			{
-				if (portal->value[5] > 0)
-				{
-					area = get_area_from_uid(portal->value[5]);
-
-					AREA_REGION *region = NULL;
-
-					if (area)
-					{
-						region = (AREA_REGION *)list_nthdata(area->regions, portal->value[6]);
-					}
-
-					sprintf(buf,
-						"{B[  {Wv6{B]{G Region:{x            [%ld] %s{x\n\r",
-						portal->value[6],
-						region ? region->name : "{D-invalid-");
-				}
-				else
-				{
-					sprintf(buf,
-						"{B[  {Wv6{B]{G Region:{x            [%ld]\n\r",
-						portal->value[6]);
-				}
-			}
-			else
-			{
-				sprintf(buf,
-					"{B[  {Wv6{B]{G Region:{x            [%ld] {Y-default region-{x\n\r",
-					portal->value[6]);
+					"{B[{WDestination      {B]:  Recall of {YCurrent{B Area{x\n\r");
 			}
 			add_buf(buffer, buf);
 			break;
 
 		case GATETYPE_REGIONRECALL:
-			if (portal->value[5] > 0)
+		{
+			char buf2[MIL];
+			if (portal->params[0] > 0)
 			{
-				area = get_area_from_uid(portal->value[5]);
-				sprintf(buf,
-					"{B[  {Wv5{B]{G Area:{x              [%ld] %s\n\r",
-					portal->value[5],
-					area ? area->name : "none");
+				area = get_area_from_uid(portal->params[0]);
+				sprintf(buf2,
+					"{x%s{B ({x%ld{B})",
+					area ? area->name : "none",
+					portal->params[0]);
+			}
+			else
+			{
+				sprintf(buf2,
+					"{Y-current area-{x");
+			}
+			add_buf(buffer, buf);
+
+			if (portal->params[1] > 0)
+			{
+				if (portal->params[0] > 0)
+				{
+					area = get_area_from_uid(portal->params[0]);
+
+					AREA_REGION *region = NULL;
+
+					if (area)
+					{
+						region = (AREA_REGION *)list_nthdata(area->regions, portal->params[1]);
+					}
+
+					sprintf(buf,
+						"{B[{WDestination      {B]:  Recall of %s in {x%s{B ({x%ld{B){x\n\r",
+						buf2,
+						region ? region->name : "{D-invalid-",
+						portal->params[1]);
+				}
+				else
+				{
+					sprintf(buf,
+						"{B[{WDestination      {B]:  Recall of %s in Region ({x%ld{B){x\n\r",
+						buf2,
+						portal->params[1]);
+				}
 			}
 			else
 			{
 				sprintf(buf,
-					"{B[  {Wv5{B]{G Area:{x              [%ld] {Y-current area-{x\n\r",
-					portal->value[5]);
+					"{B[{WDestination      {B]:  Recall of %s in {YDefault{B Region{x\n\r",
+					buf2);
 			}
 			add_buf(buffer, buf);
 			break;
+		}
 
 		case GATETYPE_DUNGEON:
-			dungeon = get_dungeon_index(portal->area, portal->value[5]);
-			sprintf(buf,
-				"{B[  {Wv5{B]{G Dungeon:{x           [%ld] %s\n\r"
-				"{B[  {Wv6{B]{G Floor:{x             [%ld]\n\r"
-				"{B[  {Wv7{B]{G Special Room:{x      [%ld]\n\r",
-				portal->value[5], dungeon ? dungeon->name : "none",
-				portal->value[6],
-				portal->value[7]);
+			dungeon = get_dungeon_index(obj->area, portal->params[0]);
+			if (portal->params[1] > 0)
+				sprintf(buf,
+					"{B[{WDestination      {B]:  Floor %ld in {x%s{B ({x%ld{B){x\n\r",
+					portal->params[1],
+					dungeon ? dungeon->name : "none", portal->params[0]);
+			else if (portal->params[2] > 0)
+				sprintf(buf,
+					"{B[{WDestination      {B]:  Special Room %ld in {x%s{B ({x%ld{B){x\n\r",
+					portal->params[2],
+					dungeon ? dungeon->name : "none", portal->params[0]);
+			else
+				sprintf(buf,
+					"{B[{WDestination      {B]:  {YDefault{B Entrance in {x%s{B ({x%ld{B){x\n\r",
+					dungeon ? dungeon->name : "none", portal->params[0]);
 			add_buf(buffer, buf);
-
-			if (portal->value[6] < 1 && portal->value[7] < 1)
-				add_buf(buffer, "{B[  {W**{B]{C Portal will go to dungeon's default entrance.\n\r");
 			break;
 
 		case GATETYPE_INSTANCE:
-			blueprint = get_blueprint(portal->area, portal->value[5]);
-			sprintf(buf,
-				"{B[  {Wv5{B]{G Instance:{x          [%ld] %s\n\r"
-				"{B[  {Wv6{B]{G UID (upper):{x       [%ld]\n\r"
-				"{B[  {Wv7{B]{G UID (lower):{x       [%ld]\n\r"
-				"{B[  {Wv8{B]{G Special Room:{x      [%ld]\n\r",
-				portal->value[5], blueprint ? blueprint->name : "none",
-				portal->value[6],
-				portal->value[7],
-				portal->value[8]);
-			add_buf(buffer, buf);
+		{
+			char buf2[MIL];
+			if (portal->params[1] > 0 || portal->params[2] > 0)
+				sprintf(buf2, "{C({W%ld{C:{W%ld{C)", portal->params[1], portal->params[2]);
+			else
+				sprintf(buf2, "{C(Spawned)");
 
-			if (portal->value[6] < 1 && portal->value[7] < 1)
-				add_buf(buffer, "{B[  {W**{B]{C Portal will spawn the instance and assign it to the portal upon entering.\n\r");
-			if (portal->value[8] < 1)
-				add_buf(buffer, "{B[  {W**{B]{C Portal will go to instance's default entrance.\n\r");
-			break;
-
-		case GATETYPE_RANDOM:
-			// Nothing
-			break;
-
-		case GATETYPE_DUNGEONFLOOR:
-			dungeon = get_dungeon_index(portal->area, portal->value[5]);
-			if (portal->value[6] > 0)
+			blueprint = get_blueprint(obj->area, portal->params[0]);
+			if (portal->params[3] > 0)
 			{
 				sprintf(buf,
-					"{B[  {Wv5{B]{G Dungeon:{x           [%ld] %s\n\r"
-					"{B[  {Wv6{B]{G Floor:{x             [%ld]\n\r",
-					portal->value[5], dungeon ? dungeon->name : "none",
-					portal->value[6]);
+					"{B[{WDestination      {B]:  Special Room {x%ld{B in {x%s{B ({x%ld{B) %s{x\n\r",
+					portal->params[3],
+					blueprint ? blueprint->name : "none", portal->params[0],
+					buf2);
 			}
 			else
 			{
 				sprintf(buf,
-					"{B[  {Wv5{B]{G Dungeon:{x           [%ld] %s\n\r"
-					"{B[  {Wv6{B]{G Floor:{x             {YUses PREVFLOOR and NEXTFLOOR flags.{x\n\r",
-					portal->value[5], dungeon ? dungeon->name : "none");
+					"{B[{WDestination      {B]:  {YDefault{B Entrance in {x%s{B ({x%ld{B) %s{x\n\r",
+					blueprint ? blueprint->name : "none", portal->params[0],
+					buf2);
+			}
+			add_buf(buffer, buf);
+			break;
+		}
+
+		case GATETYPE_RANDOM:
+			sprintf(buf, "{B[{WDestination      {B]:  Random Room{x\n\r");
+			add_buf(buffer, buf);
+			break;
+
+		case GATETYPE_DUNGEONFLOOR:
+			dungeon = get_dungeon_index(obj->area, portal->params[0]);
+			if (portal->params[1] > 0)
+			{
+				sprintf(buf,
+					"{B[{WDestination      {B]:  Floor {x%ld{B in {x%s{B ({x%ld{B){x\n\r",
+					portal->params[1],
+					dungeon ? dungeon->name : "none", portal->params[0]);
+			}
+			else
+			{
+				sprintf(buf,
+					"{B[{WDestination      {B]:  Previous/Next Floor in {x%s{B ({x%ld{B){x\n\r",
+					dungeon ? dungeon->name : "none", portal->params[0]);
 			}
 			add_buf(buffer, buf);
 			break;
 		
 		case GATETYPE_BLUEPRINT_SECTION_MAZE:
 			sprintf(buf,
-				"{B[  {Wv5{B]{G Section Index:{x     [%d] %s{x\n\r"
-				"{B[  {Wv6{B]{G X-Coordinate:{x      [%ld]\n\r"
-				"{B[  {Wv7{B]{G Y-Coordinate:{x      [%ld]\n\r",
-				abs(portal->value[5]), ((portal->value[5] > 0)?"{YGenerated":((portal->value[5] < 0)?"{GOrdinal":"{WCurrent")),
-				portal->value[6], portal->value[7]);
+				"{B[{WDestination      {B]:  ({x%ld{B, {x%ld{B) in {x%s{x %d{B Maze Section{x\n\r",
+				portal->params[1], portal->params[2],
+				((portal->params[0] > 0)?"{YGenerated":((portal->params[0] < 0)?"{GOrdinal":"{WCurrent")), abs(portal->params[0]));
 			add_buf(buffer, buf);
 			break;
 		
 		case GATETYPE_BLUEPRINT_SPECIAL:
 			sprintf(buf,
-				"{B[  {Wv5{B]{G Special Room:{x      [%ld]\n\r",
-				portal->value[5]);
+				"{B[{WDestination      {B]:  Special Room {x%ld{B in {YCurrent{B Instance{x\n\r",
+				portal->params[0]);
 			add_buf(buffer, buf);
 			break;
 
 		case GATETYPE_DUNGEON_FLOOR_SPECIAL:
-			sprintf(buf,
-				"{B[  {Wv5{B]{G Floor index:{x       [%d] %s{x\n\r"
-				"{B[  {Wv6{B]{G Special Room:{x      [%ld]\n\r",
-				abs(portal->value[5]), ((portal->value[5] > 0)?"{YGenerated":((portal->value[5] < 0)?"{GOrdinal":"{WCurrent")),
-				portal->value[6]);
+			if (portal->params[1] > 0)
+			{
+				sprintf(buf,
+					"{B[{WDestination      {B]:  Special Room {x%ld{B on Floor %s %d{B in {YCurrent{B Dungeon{x\n\r",
+					portal->params[1],
+					((portal->params[0] > 0)?"{YGenerated":((portal->params[0] < 0)?"{GOrdinal":"{WCurrent")), abs(portal->params[0]));
+			}
+			else
+			{
+				sprintf(buf,
+					"{B[{WDestination      {B]:  {YDefault{B Entrance on Floor %s %d{B in {YCurrent{B Dungeon{x\n\r",
+					((portal->params[0] > 0)?"{YGenerated":((portal->params[0] < 0)?"{GOrdinal":"{WCurrent")), abs(portal->params[0]));
+			}
 			add_buf(buffer, buf);
 			break;
 
 		case GATETYPE_DUNGEON_SPECIAL:
 			sprintf(buf,
-				"{B[  {Wv5{B]{G Special Room:{x      [%ld]\n\r",
-				portal->value[5]);
+				"{B[{WDestination      {B]:  Special Room {x%ld{B in {YCurrent{B Dungeon{x\n\r",
+				portal->params[0]);
 			add_buf(buffer, buf);
 			break;
 
 		case GATETYPE_DUNGEON_RANDOM_FLOOR:
 			sprintf(buf,
-				"{B[  {Wv5{B]{G Minimum Floor:{x     [%ld]\n\r"
-				"{B[  {Wv6{B]{G Maximum Floor:{x     [%ld]\n\r",
-				portal->value[5], portal->value[6]);
+				"{B[{WDestination      {B]:  Floors {x%ld{B to {x%ld{B in {YCurrent{B Dungeon{x\n\r",
+				portal->params[0], portal->params[1]);
 			add_buf(buffer, buf);
 			break;
+
 	}
+}
+
+void print_lock_state(LOCK_STATE *lock, BUFFER *buffer, char *indent)
+{
+	char buf[MSL];
+	OBJ_INDEX_DATA *lock_key = get_obj_index(lock->key_wnum.pArea, lock->key_wnum.vnum);
+
+	sprintf(buf,"%s {x[{YLock State:{x]\n\r"
+				"%s   Key:         {B[{x%ld#%ld{B]{x %s\n\r"
+				"%s   Flags:       {B[{x%s{B]{x\n\r"
+				"%s   Pick Chance: {B[{x%d%%{B]{x\n\r",
+				indent,
+				indent, lock->key_wnum.pArea ? lock->key_wnum.pArea->uid : 0,
+					lock->key_wnum.vnum,
+					lock_key ? lock_key->short_descr : "none",
+				indent, flag_string(lock_flags, lock->flags),
+				indent, lock->pick_chance);
+	add_buf(buffer, buf);
 }
 
 // send obj values to a buffer
@@ -4485,6 +4542,56 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
     add_buf(buffer, "\n\r");
 
 	// MULTI-TYPING
+	if (IS_BOOK(obj))
+	{
+		add_buf(buffer, "\n\r{GBook:{x\n\r");
+		sprintf(buf, "{B[{WName             {B]:  {x%s\n\r", BOOK(obj)->name);
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{WShort Description{B]:  {x%s\n\r", BOOK(obj)->short_descr);
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{WFlags            {B]:  {x%s\n\r", flag_string(book_flags, BOOK(obj)->flags));
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{WOpen Page        {B]:  {x%d\n\r", BOOK(obj)->open_page);
+		add_buf(buffer, buf);
+
+		sprintf(buf, "{B[{WPages            {B]:  {x%d\n\r", list_size(BOOK(obj)->pages));
+		add_buf(buffer, buf);
+		if (list_size(BOOK(obj)->pages) > 0)
+		{
+			BOOK_PAGE *page;
+			iterator_start(&it, BOOK(obj)->pages);
+			while((page = (BOOK_PAGE *)iterator_nextdata(&it)))
+			{
+				sprintf(buf, "  {BPage: {x%d\n\r", page->page_no);
+				add_buf(buffer, buf);
+
+				sprintf(buf, "    {CTitle: {x%s\n\r", page->title);
+				add_buf(buffer, buf);
+
+				sprintf(buf, "    {CText:{x\n\r%s\n\r", string_indent(page->text, 5));
+				add_buf(buffer, buf);
+			}
+			iterator_stop(&it);
+		}
+
+		if( BOOK(obj)->lock )
+			print_lock_state(BOOK(obj)->lock, buffer, "");
+	}
+
+	if (IS_PAGE(obj))
+	{
+		sprintf(buf, "\n\r{GPage: {x%d\n\r", PAGE(obj)->page_no);
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{WTitle            {B]:  {x%s\n\r", PAGE(obj)->title);
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{WText             {B]:{x\n\r%s\n\r", PAGE(obj)->text);
+		add_buf(buffer, buf);
+
+		OBJ_INDEX_DATA *book = get_obj_index_auid(PAGE(obj)->book.auid, PAGE(obj)->book.vnum);
+		sprintf(buf, "{B[{WOriginal Book    {B]:  {x%s\n\r", book ? book->short_descr : "none");
+		add_buf(buffer, buf);
+	}
+
 	if (IS_CONTAINER(obj))
 	{
 		add_buf(buffer, "\n\r{GContainer:{x\n\r");
@@ -4558,20 +4665,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		}
 
 		if( CONTAINER(obj)->lock )
-		{
-			OBJ_INDEX_DATA *lock_key = get_obj_index(CONTAINER(obj)->lock->key_wnum.pArea, CONTAINER(obj)->lock->key_wnum.vnum);
-
-			sprintf(buf," {x[{YLock State:{x]\n\r"
-						"   Key:         {B[{x%ld#%ld{B]{x %s\n\r"
-						"   Flags:       {B[{x%s{B]{x\n\r"
-						"   Pick Chance: {B[{x%d%%{B]{x\n\r",
-						CONTAINER(obj)->lock->key_wnum.pArea ? CONTAINER(obj)->lock->key_wnum.pArea->uid : 0,
-						CONTAINER(obj)->lock->key_wnum.vnum,
-						lock_key ? lock_key->short_descr : "none",
-						flag_string(lock_flags, CONTAINER(obj)->lock->flags),
-						CONTAINER(obj)->lock->pick_chance);
-			add_buf(buffer, buf);
-		}
+			print_lock_state(CONTAINER(obj)->lock, buffer, "");
 	}
 
 	if (IS_FOOD(obj))
@@ -4702,21 +4796,8 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 				sprintf(buf, "    {C[{WMove Regen  {C]:  {x%d\n\r", compartment->move_regen);
 				add_buf(buffer, buf);
 
-				if( compartment->lock )
-				{
-					OBJ_INDEX_DATA *lock_key = get_obj_index(compartment->lock->key_wnum.pArea, compartment->lock->key_wnum.vnum);
-
-					sprintf(buf,"    {C[{WLock State   {C]\n\r"
-								"      Key:         {C[{x%ld#%ld{C]{x %s\n\r"
-								"      Flags:       {C[{x%s{C]{x\n\r"
-								"      Pick Chance: {C[{x%d%%{C]{x\n\r",
-								compartment->lock->key_wnum.pArea ? compartment->lock->key_wnum.pArea->uid : 0,
-								compartment->lock->key_wnum.vnum,
-								lock_key ? lock_key->short_descr : "none",
-								flag_string(lock_flags, compartment->lock->flags),
-								compartment->lock->pick_chance);
-					add_buf(buffer, buf);
-				}
+				if( compartment->lock)
+					print_lock_state(compartment->lock, buffer, "   ");
 
 				cnt++;
 			}
@@ -4749,6 +4830,57 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		add_buf(buffer, buf);
 	}
 
+	if (IS_PORTAL(obj))
+	{
+		print_obj_portal_values(obj, buffer);
+
+		if( PORTAL(obj)->lock )
+		{
+			OBJ_INDEX_DATA *lock_key = get_obj_index(PORTAL(obj)->lock->key_wnum.pArea, PORTAL(obj)->lock->key_wnum.vnum);
+
+			sprintf(buf," {x[{YLock State:{x]\n\r"
+						"   Key:         {B[{x%ld#%ld{B]{x %s\n\r"
+						"   Flags:       {B[{x%s{B]{x\n\r"
+						"   Pick Chance: {B[{x%d%%{B]{x\n\r",
+						PORTAL(obj)->lock->key_wnum.pArea ? PORTAL(obj)->lock->key_wnum.pArea->uid : 0,
+						PORTAL(obj)->lock->key_wnum.vnum,
+						lock_key ? lock_key->short_descr : "none",
+						flag_string(lock_flags, PORTAL(obj)->lock->flags),
+						PORTAL(obj)->lock->pick_chance);
+			add_buf(buffer, buf);
+		}
+
+		if (PORTAL(obj)->spells)
+		{
+			int cnt = 0;
+
+			sprintf(buf, "{g%-6s %-20s %-10s %-6s{x\n\r", "Number", "Spell", "Level", "Random");
+			add_buf(buffer, buf);
+
+			sprintf(buf, "{g%-6s %-20s %-10s %-6s{x\n\r", "------", "-----", "-----", "------");
+			add_buf(buffer, buf);
+
+			for (SPELL_DATA *spell = PORTAL(obj)->spells; spell != NULL; spell = spell->next, cnt++)
+			{
+				char name[MIL];
+				if (spell->token)
+				{
+					sprintf(name, "%s (%ld#%ld)", spell->token->name, spell->token->area->uid, spell->token->vnum);
+				}
+				else
+				{
+					strcpy(name, skill_table[spell->sn].name);
+				}
+
+				sprintf(buf, "{B[{W%4d{B]{x %-20s %-10d %d%%\n\r",
+					cnt,
+					name, spell->level, spell->repop);
+				buf[0] = UPPER(buf[0]);
+				add_buf(buffer, buf);
+			}
+		}
+	}
+
     add_buf(buffer, "\n\r");
 
     switch(obj->item_type)
@@ -4766,10 +4898,6 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		obj->value[1],
 		obj->value[2]);
 	    add_buf(buffer, buf);
-	    break;
-
-	case ITEM_PORTAL:
-		print_obj_portal_values(obj, buffer);
 	    break;
 
 	/*
@@ -5040,13 +5168,14 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 	        obj->value[2],obj->value[3]);
 	    add_buf(buffer, buf);
 	    break;
-
+	/*
 	case ITEM_BOOK:
 	    sprintf(buf,
 		"{B[  {Wv1{B]{G Flags:{x      [%s]\n\r",
 		flag_string(container_flags, obj->value[1]));
 	    add_buf(buffer, buf);
 	    break;
+	*/
 
 	case ITEM_TELESCOPE:
 		if( obj->value[4] < 0 )
@@ -5112,12 +5241,13 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
     }
 }
 
-bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, char *argument)
+bool set_portal_params(CHAR_DATA *ch, OBJ_INDEX_DATA *obj, int value_num, char *argument)
 {
+	PORTAL_DATA *portal = PORTAL(obj);
 	char buf[MSL];
 	WILDS_DATA *wilds;
 	long vnum;
-	switch(portal->value[3])
+	switch(portal->type)
 	{
 		case GATETYPE_ENVIRONMENT:
 			// Nothing gets set on environment portals
@@ -5126,7 +5256,7 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 		case GATETYPE_NORMAL:
 			switch(value_num)
 			{
-				case 5:		// AUID
+				case 0:		// AUID
 					if (!is_number(argument))
 					{
 						send_to_char("That is not a number.\n\r", ch);
@@ -5146,14 +5276,14 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 						return FALSE;
 					}
 
-					portal->value[5] = vnum;
-					portal->value[6] = 0;
-					portal->value[7] = 0;
-					portal->value[8] = 0;
+					portal->params[0] = vnum;
+					portal->params[1] = 0;
+					portal->params[2] = 0;
+					portal->params[3] = 0;
 					send_to_char("Area UID set.\n\r", ch);
 					return TRUE;
 
-				case 6:		// VNUM
+				case 1:		// VNUM
 					if (!is_number(argument))
 					{
 						send_to_char("That is not a number.\n\r", ch);
@@ -5161,15 +5291,15 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 					}
 
 					vnum = atol(argument);
-					if (!get_room_index_auid(portal->value[5], vnum))
+					if (!get_room_index_auid(portal->params[0], vnum))
 					{
 						send_to_char("There is no such room.\n\r", ch);
 						return FALSE;
 					}
 
-					portal->value[6] = vnum;
-					portal->value[7] = 0;
-					portal->value[8] = 0;
+					portal->params[1] = vnum;
+					portal->params[2] = 0;
+					portal->params[3] = 0;
 					send_to_char("Room set.\n\r", ch);
 					return TRUE;
 			}
@@ -5178,7 +5308,7 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 		case GATETYPE_WILDS:
 			switch(value_num)
 			{
-				case 5:		// WUID
+				case 0:		// WUID
 					if (!is_number(argument))
 					{
 						send_to_char("That is not a number.\n\r", ch);
@@ -5192,20 +5322,20 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 						return FALSE;
 					}
 
-					portal->value[5] = vnum;
-					portal->value[6] = 0;
-					portal->value[7] = 0;
+					portal->params[0] = vnum;
+					portal->params[1] = 0;
+					portal->params[2] = 0;
 					send_to_char("WILDS UiD set.\n\r", ch);
 					return TRUE;
 
-				case 6:		// X
+				case 1:		// X
 					if (!is_number(argument))
 					{
 						send_to_char("That is not a number.\n\r", ch);
 						return FALSE;
 					}
 
-					wilds = get_wilds_from_uid(NULL, portal->value[5]);
+					wilds = get_wilds_from_uid(NULL, portal->params[0]);
 					if (!wilds)
 					{
 						send_to_char("WILDS UID not set.\n\r", ch);
@@ -5220,18 +5350,18 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 						return FALSE;
 					}
 
-					portal->value[6] = vnum;
+					portal->params[1] = vnum;
 					send_to_char("X coordinate set.\n\r", ch);
 					return TRUE;
 
-				case 7:		// Y
+				case 2:		// Y
 					if (!is_number(argument))
 					{
 						send_to_char("That is not a number.\n\r", ch);
 						return FALSE;
 					}
 
-					wilds = get_wilds_from_uid(NULL, portal->value[5]);
+					wilds = get_wilds_from_uid(NULL, portal->params[0]);
 					if (!wilds)
 					{
 						send_to_char("WILDS UID not set.\n\r", ch);
@@ -5246,7 +5376,7 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 						return FALSE;
 					}
 
-					portal->value[7] = vnum;
+					portal->params[2] = vnum;
 					send_to_char("Y coordinate set.\n\r", ch);
 					return TRUE;
 			}
@@ -5255,7 +5385,7 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 		case GATETYPE_WILDSRANDOM:
 			switch(value_num)
 			{
-				case 5:		// WUID
+				case 0:		// WUID
 					if (!is_number(argument))
 					{
 						send_to_char("That is not a number.\n\r", ch);
@@ -5270,22 +5400,22 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 						return FALSE;
 					}
 
-					portal->value[5] = vnum;
-					portal->value[6] = 0;
-					portal->value[7] = 0;
-					portal->value[8] = wilds->map_size_x - 1;
-					portal->value[9] = wilds->map_size_y - 1;
+					portal->params[0] = vnum;
+					portal->params[1] = 0;
+					portal->params[2] = 0;
+					portal->params[3] = wilds->map_size_x - 1;
+					portal->params[4] = wilds->map_size_y - 1;
 					send_to_char("WILDS UiD set.\n\r", ch);
 					return TRUE;
 
-				case 6:		// Min X
+				case 1:		// Min X
 					if (!is_number(argument))
 					{
 						send_to_char("That is not a number.\n\r", ch);
 						return FALSE;
 					}
 
-					wilds = get_wilds_from_uid(NULL, portal->value[5]);
+					wilds = get_wilds_from_uid(NULL, portal->params[0]);
 					if (!wilds)
 					{
 						send_to_char("WILDS UID not set.\n\r", ch);
@@ -5300,24 +5430,24 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 						return FALSE;
 					}
 
-					if (vnum > portal->value[8])
+					if (vnum > portal->params[3])
 					{
 						send_to_char("Minimum X coordinate cannot be greater than the Maximum X coordinate.\n\r", ch);
 						return FALSE;
 					}
 
-					portal->value[6] = vnum;
+					portal->params[1] = vnum;
 					send_to_char("Minimum X coordinate set.\n\r", ch);
 					return TRUE;
 
-				case 7:		// Min Y
+				case 2:		// Min Y
 					if (!is_number(argument))
 					{
 						send_to_char("That is not a number.\n\r", ch);
 						return FALSE;
 					}
 
-					wilds = get_wilds_from_uid(NULL, portal->value[5]);
+					wilds = get_wilds_from_uid(NULL, portal->params[0]);
 					if (!wilds)
 					{
 						send_to_char("WILDS UID not set.\n\r", ch);
@@ -5332,24 +5462,24 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 						return FALSE;
 					}
 
-					if (vnum > portal->value[9])
+					if (vnum > portal->params[4])
 					{
 						send_to_char("Minimum Y coordinate cannot be greater than the Maximum Y coordinate.\n\r", ch);
 						return FALSE;
 					}
 
-					portal->value[7] = vnum;
+					portal->params[2] = vnum;
 					send_to_char("Minimum Y coordinate set.\n\r", ch);
 					return TRUE;
 
-				case 8:		// Max X
+				case 3:		// Max X
 					if (!is_number(argument))
 					{
 						send_to_char("That is not a number.\n\r", ch);
 						return FALSE;
 					}
 
-					wilds = get_wilds_from_uid(NULL, portal->value[5]);
+					wilds = get_wilds_from_uid(NULL, portal->params[0]);
 					if (!wilds)
 					{
 						send_to_char("WILDS UID not set.\n\r", ch);
@@ -5364,24 +5494,24 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 						return FALSE;
 					}
 
-					if (vnum < portal->value[6])
+					if (vnum < portal->params[1])
 					{
 						send_to_char("Maximum X coordinate cannot be less than the Minimum X coordinate.\n\r", ch);
 						return FALSE;
 					}
 
-					portal->value[8] = vnum;
+					portal->params[3] = vnum;
 					send_to_char("Maximum X coordinate set.\n\r", ch);
 					return TRUE;
 
-				case 9:		// Max Y
+				case 4:		// Max Y
 					if (!is_number(argument))
 					{
 						send_to_char("That is not a number.\n\r", ch);
 						return FALSE;
 					}
 
-					wilds = get_wilds_from_uid(NULL, portal->value[5]);
+					wilds = get_wilds_from_uid(NULL, portal->params[0]);
 					if (!wilds)
 					{
 						send_to_char("WILDS UID not set.\n\r", ch);
@@ -5396,13 +5526,13 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 						return FALSE;
 					}
 
-					if (vnum < portal->value[7])
+					if (vnum < portal->params[2])
 					{
 						send_to_char("Maximum Y coordinate cannot be less than the Minimum Y coordinate.\n\r", ch);
 						return FALSE;
 					}
 
-					portal->value[9] = vnum;
+					portal->params[4] = vnum;
 					send_to_char("Maximum Y coordinate set.\n\r", ch);
 					return TRUE;
 			}
@@ -5411,7 +5541,7 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 		case GATETYPE_AREARANDOM:
 			switch(value_num)
 			{
-				case 5:		// AUID (0 == current area or wilds)
+				case 0:		// AUID (0 == current area or wilds)
 					if (!is_number(argument))
 					{
 						send_to_char("That is not a number.\n\r", ch);
@@ -5425,7 +5555,7 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 						return FALSE;
 					}
 
-					portal->value[5] = UMAX(0, vnum);
+					portal->params[0] = UMAX(0, vnum);
 					send_to_char("Area UID set.\n\r", ch);
 					return TRUE;
 			}
@@ -5434,10 +5564,10 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 		case GATETYPE_REGIONRANDOM:
 			switch(value_num)
 			{
-				case 5:		// AUID (0 == current area)
+				case 0:		// AUID (0 == current area)
 					if (!str_prefix(argument, "current"))
 					{
-						portal->value[5] = 0;
+						portal->params[0] = 0;
 					}
 					else
 					{
@@ -5454,15 +5584,15 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 							return FALSE;
 						}
 
-						portal->value[5] = vnum;
+						portal->params[0] = vnum;
 					}
 					send_to_char("Area UID set.\n\r", ch);
 					return TRUE;
 
-				case 6:
+				case 1:
 					if (!str_prefix(argument, "default"))
 					{
-						portal->value[6] = 0;
+						portal->params[1] = 0;
 					}
 					else
 					{
@@ -5479,7 +5609,7 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 							return FALSE;
 						}
 
-						portal->value[6] = vnum;
+						portal->params[1] = vnum;
 					}
 					send_to_char("Region Index set.\n\r", ch);
 					return TRUE;
@@ -5489,10 +5619,10 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 		case GATETYPE_SECTIONRANDOM:
 			switch(value_num)
 			{
-				case 5:
+				case 0:
 					if (!str_prefix(argument, "current"))
 					{
-						portal->value[0] = 0;
+						portal->params[0] = 0;
 						send_to_char("Section index set to {WCURRENT{x.\n\r", ch);
 						return TRUE;
 					}
@@ -5526,7 +5656,7 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 							return FALSE;
 						}
 
-						portal->value[5] = mode ? -index : index;
+						portal->params[0] = mode ? -index : index;
 						sprintf(buf, "Section index set to %s %d.\n\r",
 							mode ? "{GOrdinal{x" : "{YGenerated{x",
 							abs(index));
@@ -5548,7 +5678,7 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 		case GATETYPE_AREARECALL:
 			switch(value_num)
 			{
-				case 5:		// AUID
+				case 0:		// AUID
 					if (!is_number(argument))
 					{
 						send_to_char("That is not a number.\n\r", ch);
@@ -5562,7 +5692,7 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 						return FALSE;
 					}
 
-					portal->value[5] = UMAX(0, vnum);
+					portal->params[0] = UMAX(0, vnum);
 					send_to_char("Area UID set.\n\r", ch);
 					return TRUE;
 			}
@@ -5571,10 +5701,10 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 		case GATETYPE_REGIONRECALL:
 			switch(value_num)
 			{
-				case 5:		// AUID (0 == current area)
+				case 0:		// AUID (0 == current area)
 					if (!str_prefix(argument, "current"))
 					{
-						portal->value[5] = 0;
+						portal->params[0] = 0;
 					}
 					else
 					{
@@ -5591,15 +5721,15 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 							return FALSE;
 						}
 
-						portal->value[5] = vnum;
+						portal->params[0] = vnum;
 					}
 					send_to_char("Area UID set.\n\r", ch);
 					return TRUE;
 
-				case 6:
+				case 1:
 					if (!str_prefix(argument, "default"))
 					{
-						portal->value[6] = 0;
+						portal->params[1] = 0;
 					}
 					else
 					{
@@ -5616,7 +5746,7 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 							return FALSE;
 						}
 
-						portal->value[6] = vnum;
+						portal->params[1] = vnum;
 					}
 					send_to_char("Region Index set.\n\r", ch);
 					return TRUE;
@@ -5626,7 +5756,7 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 		case GATETYPE_DUNGEON:
 			switch(value_num)
 			{
-				case 5:	// Dungeon VNUM.  Dungeon must exist in the same area as the portal
+				case 0:	// Dungeon VNUM.  Dungeon must exist in the same area as the portal
 					if (!is_number(argument))
 					{
 						send_to_char("That is not a number.\n\r", ch);
@@ -5634,16 +5764,16 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 					}
 
 					vnum = atol(argument);
-					DUNGEON_INDEX_DATA *dng = get_dungeon_index(portal->area, vnum);
+					DUNGEON_INDEX_DATA *dng = get_dungeon_index(obj->area, vnum);
 					if (!dng)
 					{
 						send_to_char("There is no such dungeon.\n\r", ch);
 						return FALSE;
 					}
 
-					portal->value[5] = vnum;
-					portal->value[6] = 0;
-					portal->value[7] = 0;
+					portal->params[0] = vnum;
+					portal->params[1] = 0;
+					portal->params[2] = 0;
 					send_to_char("Dungeon Vnum set.  Target location is default entrance.\n\r", ch);
 
 					if (IS_SET(dng->flags, DUNGEON_SCRIPTED_LEVELS))
@@ -5652,9 +5782,9 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 					}
 					return TRUE;
 
-				case 6:	// Target Floor (priority #1)
+				case 1:	// Target Floor (priority #1)
 					{
-						DUNGEON_INDEX_DATA *dng = get_dungeon_index(portal->area, portal->value[5]);
+						DUNGEON_INDEX_DATA *dng = get_dungeon_index(obj->area, portal->params[0]);
 						if (!dng)
 						{
 							send_to_char("Please select Dungeon first.\n\r", ch);
@@ -5667,14 +5797,14 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 							return FALSE;
 						}
 
-						portal->value[6] = atol(argument);
+						portal->params[1] = atol(argument);
 						send_to_char("Target Floor set.\n\r", ch);
 						return TRUE;
 					}
 
-				case 7: // Target special room (priority #2, v6 must be invalid)
+				case 2: // Target special room (priority #2, v6 must be invalid)
 					{
-						DUNGEON_INDEX_DATA *dng = get_dungeon_index(portal->area, portal->value[5]);
+						DUNGEON_INDEX_DATA *dng = get_dungeon_index(obj->area, portal->params[0]);
 						if (!dng)
 						{
 							send_to_char("Please select Dungeon first.\n\r", ch);
@@ -5687,7 +5817,7 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 							return FALSE;
 						}
 
-						portal->value[7] = atol(argument);
+						portal->params[2] = atol(argument);
 						send_to_char("Target Special Room set.\n\r", ch);
 						return TRUE;
 					}
@@ -5707,7 +5837,7 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 		case GATETYPE_DUNGEONFLOOR:
 			switch(value_num)
 			{
-				case 5:	// Dungeon VNUM.  Dungeon must exist in the same area as the portal
+				case 0:	// Dungeon VNUM.  Dungeon must exist in the same area as the portal
 					if (!is_number(argument))
 					{
 						send_to_char("That is not a number.\n\r", ch);
@@ -5715,16 +5845,16 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 					}
 
 					vnum = atol(argument);
-					DUNGEON_INDEX_DATA *dng = get_dungeon_index(portal->area, vnum);
+					DUNGEON_INDEX_DATA *dng = get_dungeon_index(obj->area, vnum);
 					if (!dng)
 					{
 						send_to_char("There is no such dungeon.\n\r", ch);
 						return FALSE;
 					}
 
-					portal->value[5] = vnum;
-					portal->value[6] = 0;
-					portal->value[7] = 0;
+					portal->params[0] = vnum;
+					portal->params[1] = 0;
+					portal->params[2] = 0;
 					send_to_char("Dungeon Vnum set.  Target location is default entrance.\n\r", ch);
 
 					if (IS_SET(dng->flags, DUNGEON_SCRIPTED_LEVELS))
@@ -5733,9 +5863,9 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 					}
 					return TRUE;
 
-				case 6:	// Target Floor (0 = use PREVFLOOR and NEXTFLOOR flags)
+				case 1:	// Target Floor (0 = use PREVFLOOR and NEXTFLOOR flags)
 					{
-						DUNGEON_INDEX_DATA *dng = get_dungeon_index(portal->area, portal->value[5]);
+						DUNGEON_INDEX_DATA *dng = get_dungeon_index(obj->area, portal->params[0]);
 						if (!dng)
 						{
 							send_to_char("Please select Dungeon first.\n\r", ch);
@@ -5748,7 +5878,7 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 							return FALSE;
 						}
 
-						portal->value[6] = atol(argument);
+						portal->params[1] = atol(argument);
 						send_to_char("Target Floor set.\n\r", ch);
 						return TRUE;
 					}
@@ -5758,10 +5888,10 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 		case GATETYPE_BLUEPRINT_SECTION_MAZE:
 			switch(value_num)
 			{
-				case 5:
+				case 0:
 					if (!str_prefix(argument, "current"))
 					{
-						portal->value[0] = 0;
+						portal->params[0] = 0;
 						send_to_char("Section index set to {WCURRENT{x.\n\r", ch);
 						return TRUE;
 					}
@@ -5795,7 +5925,7 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 							return FALSE;
 						}
 
-						portal->value[5] = mode ? -index : index;
+						portal->params[0] = mode ? -index : index;
 						sprintf(buf, "Section index set to %s %d.\n\r",
 							mode ? "{GOrdinal{x" : "{YGenerated{x",
 							abs(index));
@@ -5804,7 +5934,7 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 					}
 					break;
 
-				case 6:
+				case 1:
 					if (!is_number(argument))
 					{
 						send_to_char("That is not a number.\n\r", ch);
@@ -5818,11 +5948,11 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 						return FALSE;
 					}
 
-					portal->value[6] = x;
+					portal->params[1] = x;
 					send_to_char("X-coordinate set.\n\r", ch);
 					return TRUE;
 				
-				case 7:
+				case 2:
 					if (!is_number(argument))
 					{
 						send_to_char("That is not a number.\n\r", ch);
@@ -5836,7 +5966,7 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 						return FALSE;
 					}
 
-					portal->value[7] = y;
+					portal->params[2] = y;
 					send_to_char("Y-coordinate set.\n\r", ch);
 					return TRUE;
 			}
@@ -5845,7 +5975,7 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 		case GATETYPE_BLUEPRINT_SPECIAL:
 			switch(value_num)
 			{
-				case 5:
+				case 0:
 					if (!is_number(argument))
 					{
 						send_to_char("That is not a number.\n\r", ch);
@@ -5859,7 +5989,7 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 						return FALSE;
 					}
 
-					portal->value[5] = index;
+					portal->params[0] = index;
 					send_to_char("Special Room index set.\n\r", ch);
 					return TRUE;
 			}
@@ -5868,10 +5998,10 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 		case GATETYPE_DUNGEON_FLOOR_SPECIAL:
 			switch(value_num)
 			{
-				case 5:
+				case 0:
 					if (!str_prefix(argument, "current"))
 					{
-						portal->value[0] = 0;
+						portal->params[0] = 0;
 						send_to_char("FLoor index set to {WCURRENT{x.\n\r", ch);
 						return TRUE;
 					}
@@ -5905,7 +6035,7 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 							return FALSE;
 						}
 
-						portal->value[5] = mode ? -index : index;
+						portal->params[0] = mode ? -index : index;
 						sprintf(buf, "Floor index set to %s %d.\n\r",
 							mode ? "{GOrdinal{x" : "{YGenerated{x",
 							abs(index));
@@ -5914,7 +6044,7 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 					}
 					break;
 
-				case 6:
+				case 1:
 					if (!is_number(argument))
 					{
 						send_to_char("That is not a number.\n\r", ch);
@@ -5928,7 +6058,7 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 						return FALSE;
 					}
 
-					portal->value[6] = index;
+					portal->params[1] = index;
 					send_to_char("Special Room index set.\n\r", ch);
 					return TRUE;
 			}
@@ -5937,7 +6067,7 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 		case GATETYPE_DUNGEON_SPECIAL:
 			switch(value_num)
 			{
-				case 5:
+				case 0:
 					if (!is_number(argument))
 					{
 						send_to_char("That is not a number.\n\r", ch);
@@ -5951,7 +6081,7 @@ bool set_portal_values(CHAR_DATA *ch, OBJ_INDEX_DATA *portal, int value_num, cha
 						return FALSE;
 					}
 
-					portal->value[5] = index;
+					portal->params[0] = index;
 					send_to_char("Special Room index set.\n\r", ch);
 					return TRUE;
 			}
@@ -6268,90 +6398,6 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 		}
 		break;
 
-	case ITEM_PORTAL:
-		switch (value_num)
-		{
-		default:
-			do_help(ch, "ITEM_PORTAL");
-			return FALSE;
-		case 0:
-			send_to_char("CHARGES SET.\n\r\n\r", ch);
-			pObj->value[0] = atoi (argument);
-			break;
-		case 1:
-			send_to_char("EXIT (PORTAL) FLAGS SET.\n\r\n\r", ch);
-			pObj->value[1] ^= (flag_value(portal_exit_flags, argument) != NO_FLAG ? flag_value(portal_exit_flags, argument) : 0);
-			break;
-		case 2:
-			{
-				send_to_char("PORTAL FLAGS SET.\n\r\n\r", ch);
-				int flags = flag_value(portal_flags, argument);
-
-				if( flags != NO_FLAG )
-				{
-					pObj->value[2] ^= flags;
-				}
-			}
-			break;
-		case 3:
-			{
-				int portal_type = flag_value(portal_gatetype, argument);
-
-				if (portal_type == NO_FLAG)
-				{
-					send_to_char("? portal_type", ch);
-					return FALSE;
-				}
-
-				pObj->value[3] = portal_type;
-				pObj->value[4] = 0;
-				pObj->value[5] = 0;
-				pObj->value[6] = 0;
-				pObj->value[7] = 0;
-				pObj->value[8] = 0;
-			}
-			break;
-		case 5:
-		case 6:
-		case 7:
-		case 8:
-			return set_portal_values(ch, pObj, value_num, argument);
-		}
-		break;
-
-	case ITEM_FURNITURE:
-		switch (value_num)
-		{
-		default:
-			do_help(ch, "ITEM_FURNITURE");
-			return FALSE;
-		case 0:
-			send_to_char("NUMBER OF PEOPLE SET.\n\r\n\r", ch);
-			pObj->value[0] = atoi (argument);
-			break;
-		case 1:
-			send_to_char("MAX WEIGHT SET.\n\r\n\r", ch);
-			pObj->value[1] = atoi (argument);
-			break;
-		case 2:
-			send_to_char("FURNITURE FLAGS TOGGLED.\n\r\n\r", ch);
-			pObj->value[2] ^= (flag_value(furniture_flags, argument) != NO_FLAG ? flag_value(furniture_flags, argument) : 0);
-			break;
-		case 3:
-			send_to_char("HEAL BONUS SET.\n\r\n\r", ch);
-			pObj->value[3] = atoi (argument);
-			break;
-		case 4:
-			send_to_char("MANA BONUS SET.\n\r\n\r", ch);
-			pObj->value[4] = atoi (argument);
-			break;
-		case 5:
-			send_to_char("MOVE BONUS SET.\n\r\n\r", ch);
-			pObj->value[5] = atoi (argument);
-			break;
-		}
-		break;
-
 	case ITEM_CART:
 		switch (value_num)
 		{
@@ -6646,6 +6692,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 		}
 		break;
 
+	/*
 	case ITEM_BOOK:
 		switch (value_num)
 		{
@@ -6666,6 +6713,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			break;
 		}
 		break;
+		*/
 
 	case ITEM_TELESCOPE:
 		switch (value_num)
@@ -7004,6 +7052,7 @@ OEDIT(oedit_show)
          pObj->points);
     add_buf(buffer, buf);
 
+	/*
     if( pObj->lock )
     {
 		OBJ_INDEX_DATA *lock_key = get_obj_index(pObj->lock->key_wnum.pArea, pObj->lock->key_wnum.vnum);
@@ -7019,6 +7068,7 @@ OEDIT(oedit_show)
 	    			pObj->lock->pick_chance);
 	    add_buf(buffer, buf);
 	}
+	*/
 
     if (pObj->extra_descr)
     {
@@ -7105,7 +7155,6 @@ OEDIT(oedit_show)
 			cnt++;
 		}
     }
-
 
     if (pObj->spells)
     {
@@ -9127,6 +9176,571 @@ OEDIT(oedit_type)
 	return FALSE;
 }
 
+void __oedit_book_renumber_pages(BOOK_DATA *book)
+{
+	ITERATOR it;
+	int page_no = 0;
+	BOOK_PAGE *page;
+
+	iterator_start(&it, book->pages);
+	while((page = (BOOK_PAGE *)iterator_nextdata(&it)))
+	{
+		page->page_no = ++page_no;
+	}
+	iterator_stop(&it);
+}
+
+OEDIT(oedit_type_page)
+{
+	OBJ_INDEX_DATA *pObj;
+	EDIT_OBJ(ch, pObj);
+
+	if (argument[0] == '\0')
+	{
+		if (IS_PAGE(pObj))
+		{
+			send_to_char("Syntax:  page title[ <title>]\n\r", ch);
+			send_to_char("         page text (opens string editor)\n\r", ch);
+			send_to_char("         page number <#>\n\r", ch);
+			send_to_char("         page book <widevnum|none>\n\r", ch);
+
+			if (pObj->item_type != ITEM_PAGE)
+			{
+				send_to_char("         page remove\n\r", ch);
+			}
+		}
+		else
+			send_to_char("Syntax:  page add\n\r", ch);
+
+		return FALSE;
+	}
+
+	char arg[MIL];
+
+	argument = one_argument(argument, arg);
+	if (IS_PAGE(pObj))
+	{
+		if (!str_prefix(arg, "title"))
+		{
+			if (strlen_no_colours(argument) > 70)
+			{
+				send_to_char("Title too long.  Please limit non-colour length to 70.\n\r", ch);
+				return FALSE;
+			}
+
+			smash_tilde(argument);
+			free_string(PAGE(pObj)->title);
+			PAGE(pObj)->title = str_dup(argument);
+
+			send_to_char("PAGE Title set.\n\r", ch);
+			return TRUE;
+		}
+		else if (!str_prefix(arg, "text"))
+		{
+			string_append(ch, &PAGE(pObj)->text);
+			return TRUE;
+		}
+		else if (!str_prefix(arg, "number"))
+		{
+			int page_no;
+			if (!is_number(argument) || (page_no = atoi(argument)) < 1)
+			{
+				send_to_char("Please specify a positive number.\n\r", ch);
+				return FALSE;
+			}
+
+			PAGE(pObj)->page_no = page_no;
+			send_to_char("PAGE Number set.\n\r", ch);
+			return TRUE;
+		}
+		else if(!str_prefix(arg, "book"))
+		{
+			WNUM wnum;
+
+			if (!str_prefix(argument, "none"))
+			{
+				wnum.pArea = NULL;
+				wnum.vnum = 0;
+			}
+			else if (!parse_widevnum(argument, pObj->area, &wnum))
+			{
+				send_to_char("Please specify a widevnum.\n\r", ch);
+				return FALSE;
+			}
+			else
+			{
+				OBJ_INDEX_DATA *book = get_obj_index(wnum.pArea, wnum.vnum);
+				if (!book)
+				{
+					send_to_char("No object exists at that widevnum.\n\r", ch);
+					return FALSE;
+				}
+
+				if (!IS_BOOK(book))
+				{
+					send_to_char("Object has not book definition.\n\r", ch);
+					return FALSE;
+				}
+			}
+
+			PAGE(pObj)->book.auid = wnum.pArea ? wnum.pArea->uid : 0;
+			PAGE(pObj)->book.vnum = wnum.vnum;
+			send_to_char("PAGE Original Book set.\n\r", ch);
+			return TRUE;
+		}
+	}
+	else
+	{
+		if (!str_prefix(arg, "add"))
+		{
+			if (!obj_index_can_add_item_type(pObj, ITEM_PAGE))
+			{
+				send_to_char("You cannot add this item type to this object.\n\r", ch);
+				return FALSE;
+			}
+
+			PAGE(pObj) = new_book_page();
+			send_to_char("PAGE data added to object.\n\r\n\r", ch);
+			return TRUE;
+		}
+	}
+
+	oedit_type_page(ch, "");
+	return FALSE;
+}
+
+OEDIT(oedit_type_book)
+{
+	OBJ_INDEX_DATA *pObj;
+	EDIT_OBJ(ch, pObj);
+
+	if (argument[0] == '\0')
+	{
+		if (IS_BOOK(pObj))
+		{
+			send_to_char("Syntax:  book name <name>\n\r", ch);
+			send_to_char("         book short <short description>\n\r", ch);
+			send_to_char("         book flags <flags>\n\r", ch);
+			send_to_char("         book openpage <page#>\n\r", ch);
+			send_to_char("         book page clear\n\r", ch);
+			send_to_char("         book page renumber\n\r", ch);
+			send_to_char("         book page add[ <page#>] (if omitted, appends to the end)\n\r", ch);
+			send_to_char("         book page <page#> title[ <title>]\n\r", ch);
+			send_to_char("         book page <page#> text (opens string editor)\n\r", ch);
+			send_to_char("         book page <page#> remove\n\r", ch);
+			send_to_char("         book lock add\n\r", ch);
+			send_to_char("         book lock remove\n\r", ch);
+			send_to_char("         book lock key <widevnum>\n\r", ch);
+			send_to_char("         book lock key clear\n\r", ch);
+			send_to_char("         book lock flags [flags]\n\r", ch);
+			send_to_char("         book lock pick [0-100]\n\r", ch);
+
+			if (pObj->item_type != ITEM_BOOK)
+			{
+				send_to_char("         book remove\n\r", ch);
+			}
+		}
+		else
+		{
+			send_to_char("Syntax:  book add\n\r", ch);
+		}
+
+		return FALSE;
+	}
+
+	char buf[MSL];
+	char arg[MIL];
+
+	argument = one_argument(argument, arg);
+	if (IS_BOOK(pObj))
+	{
+		if (!str_prefix(arg, "name"))
+		{
+			if (IS_NULLSTR(argument))
+			{
+				send_to_char("Please provide a name.\n\r", ch);
+				return FALSE;
+			}
+
+			smash_tilde(argument);
+			free_string(BOOK(pObj)->name);
+			BOOK(pObj)->name = str_dup(argument);
+
+			send_to_char("BOOK Name set.\n\r", ch);
+			return TRUE;
+		}
+
+		if (!str_prefix(arg, "short"))
+		{
+			if (IS_NULLSTR(argument))
+			{
+				send_to_char("Please provide a short description.\n\r", ch);
+				return FALSE;
+			}
+
+			smash_tilde(argument);
+			free_string(BOOK(pObj)->short_descr);
+			BOOK(pObj)->short_descr = str_dup(argument);
+
+			send_to_char("BOOK Name set.\n\r", ch);
+			return TRUE;
+		}
+
+		if (!str_prefix(arg, "flags"))
+		{
+			long value;
+			if ((value = flag_value(book_flags, argument)) == NO_FLAG)
+			{
+				send_to_char("Invalid book flag.\n\r", ch);
+				send_to_char("Use '? book' for list of valid flags.\n\r", ch);
+				show_help(ch, "book");
+				return FALSE;
+			}
+
+			TOGGLE_BIT(BOOK(pObj)->flags, value);
+			send_to_char("BOOK Flags toggled.\n\r", ch);
+			return TRUE;
+		}
+
+		if (!str_prefix(arg, "openpage"))
+		{
+			if (list_size(BOOK(pObj)->pages) < 1)
+			{
+				send_to_char("Please add a page first.\n\r", ch);
+				return FALSE;
+			}
+
+			int page_no;
+			if (!str_prefix(arg, "none"))
+			{
+				page_no = 0;
+			}
+			else if (!is_number(argument) || (page_no = atoi(argument)) < 1 || page_no > list_size(BOOK(pObj)->pages))
+			{
+				sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(BOOK(pObj)->pages));
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+
+			BOOK(pObj)->open_page = page_no;
+			send_to_char("BOOK Open Page set.\n\r", ch);
+			return TRUE;
+		}
+
+		if (!str_prefix(arg, "lock"))
+		{
+			argument = one_argument(argument, arg);
+
+			if( !str_prefix(arg, "add") )
+			{
+				if( BOOK(pObj)->lock )
+				{
+					send_to_char("BOOK already has a lock state.\n\r", ch);
+					return FALSE;
+				}
+
+				BOOK(pObj)->lock = new_lock_state();
+				send_to_char("Lock State added.\n\r", ch);
+				return TRUE;
+			}
+
+			if( !str_prefix(arg, "remove") )
+			{
+				if( !BOOK(pObj)->lock )
+				{
+					send_to_char("BOOK does not have a lock state.\n\r", ch);
+					return FALSE;
+				}
+
+
+				free_lock_state(BOOK(pObj)->lock);
+				BOOK(pObj)->lock = NULL;
+
+				send_to_char("Lock State removed.\n\r", ch);
+				return TRUE;
+			}
+
+			if( !str_prefix(arg, "key") )
+			{
+				if( !BOOK(pObj)->lock )
+				{
+					send_to_char("BOOK does not have a lock state.\n\r", ch);
+					return FALSE;
+				}
+
+				if( argument[0] == '\0' )
+				{
+					send_to_char("Syntax:  book lock key <widevnum>\n\r", ch);
+					send_to_char("         book lock key clear\n\r", ch);
+					return FALSE;
+				}
+
+				WNUM wnum;
+				if( parse_widevnum(argument, pObj->area, &wnum) )
+				{
+					OBJ_INDEX_DATA *key = get_obj_index(wnum.pArea, wnum.vnum);
+
+					if( !key )
+					{
+						send_to_char("That object does not exist.\n\r", ch);
+						return FALSE;
+					}
+
+					if( key->item_type != ITEM_KEY )
+					{
+						send_to_char("That object is not a key.\n\r", ch);
+						return FALSE;
+					}
+
+					// TODO: make a list
+					BOOK(pObj)->lock->key_wnum = wnum;
+					send_to_char("Lock State key set.\n\r", ch);
+					return TRUE;
+				}
+				else if( !str_prefix(argument, "clear") )
+				{
+					BOOK(pObj)->lock->key_wnum = wnum_zero;
+					send_to_char("Lock State key removed.\n\r", ch);
+					return TRUE;
+				}
+
+				oedit_type_book(ch, "lock key");
+				return FALSE;
+			}
+
+			if( !str_prefix(arg, "flags") )
+			{
+				if( !BOOK(pObj)->lock )
+				{
+					send_to_char("BOOK does not have a lock state.\n\r", ch);
+					return FALSE;
+				}
+
+				int value = flag_value(lock_flags, argument);
+
+				if( value == NO_FLAG )
+				{
+					send_to_char("Syntax:  book lock flags [flags]\n\r", ch);
+					send_to_char("See \"? lock\" for list of flags\n\r\n\r", ch);
+					show_help(ch, "lock");
+					return FALSE;
+				}
+
+				BOOK(pObj)->lock->flags ^= value;
+				send_to_char("Lock State flags changed.\n\r", ch);
+				return TRUE;
+			}
+
+			if( !str_prefix(arg, "pick") )
+			{
+				if( !BOOK(pObj)->lock )
+				{
+					send_to_char("BOOK does not have a lock state.\n\r", ch);
+					return FALSE;
+				}
+
+				if( !is_number(argument) )
+				{
+					send_to_char("That is not a number.\n\r", ch);
+					return FALSE;
+				}
+
+				int value = atoi(argument);
+				if( value < 0 || value > 100 )
+				{
+					send_to_char("Pick chance must be from 0 to 100.\n\r", ch);
+					return FALSE;
+				}
+
+				BOOK(pObj)->lock->pick_chance = value;
+				send_to_char("Lock State pick chance set.\n\r", ch);
+				return TRUE;
+			}
+
+			oedit_type_book(ch, "");
+			return FALSE;
+		}
+
+		if (!str_prefix(arg, "page"))
+		{
+			char arg2[MIL];
+
+			argument = one_argument(argument, arg2);
+
+			if (!str_prefix(arg2, "add"))
+			{
+				int page_no = 0;
+				if (argument[0] != '\0')
+				{
+					if (!is_number(argument) || (page_no = atoi(argument)) < 1)
+					{
+						send_to_char("Please specify a positive number.\n\r", ch);
+						return FALSE;
+					}
+				}
+
+				BOOK_PAGE *page = new_book_page();
+				if (page_no > 0)
+				{
+					page->page_no = page_no;
+					if (!book_insert_page(BOOK(pObj), page))
+					{
+						send_to_char("Attempted to add a duplicate page number.\n\r", ch);
+						free_book_page(page);
+						return FALSE;
+					}
+				}
+				else
+				{
+					BOOK_PAGE *last_page = (BOOK_PAGE *)list_nthdata(BOOK(pObj)->pages, -1);
+
+					// Append to the end
+					list_appendlink(BOOK(pObj)->pages, page);
+					if (last_page)
+						page->page_no = last_page->page_no + 1;
+					else
+						page->page_no = 1;	// No pages in the book, so this will be the first
+				}
+
+				sprintf(buf, "BOOK Page %d added.\n\r", page->page_no);
+				send_to_char(buf, ch);
+				return TRUE;
+			}
+			else if (!str_prefix(arg2, "clear"))
+			{
+				if (list_size(BOOK(pObj)->pages) < 1)
+				{
+					send_to_char("The book is empty.\n\r", ch);
+					return FALSE;
+				}
+
+				list_clear(BOOK(pObj)->pages);
+				send_to_char("BOOK Pages cleared.\n\r", ch);
+				return TRUE;
+			}
+			else if (!str_prefix(arg2, "renumber"))
+			{
+				if (list_size(BOOK(pObj)->pages) < 1)
+				{
+					send_to_char("The book is empty.\n\r", ch);
+					return FALSE;
+				}
+
+				ITERATOR it;
+				int page_no = 0;
+				BOOK_PAGE *page;
+
+				iterator_start(&it, BOOK(pObj)->pages);
+				while((page = (BOOK_PAGE *)iterator_nextdata(&it)))
+				{
+					page->page_no = ++page_no;
+				}
+				iterator_stop(&it);
+
+				send_to_char("BOOK Pages renumbered.\n\r", ch);
+				return TRUE;
+			}
+			else
+			{
+				if (list_size(BOOK(pObj)->pages) < 1)
+				{
+					send_to_char("Please add a page first.\n\r", ch);
+					return FALSE;
+				}
+
+				int page_no;
+				if (!is_number(arg2) || (page_no = atoi(arg2)) < 1 || page_no > list_size(BOOK(pObj)->pages))
+				{
+					sprintf(buf, "Please specify a page number from 1 to %d.\n\r", list_size(BOOK(pObj)->pages));
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				char arg3[MIL];
+				argument = one_argument(argument, arg3);
+
+				if (!str_prefix(arg3, "title"))
+				{
+					if (strlen_no_colours(argument) > 70)
+					{
+						send_to_char("Title too long.  Please limit non-colour length to 70.\n\r", ch);
+						return FALSE;
+					}
+
+					BOOK_PAGE *page = book_get_page(BOOK(pObj), page_no);
+
+					smash_tilde(argument);
+					free_string(page->title);
+					page->title = str_dup(argument);
+
+					send_to_char("BOOK Page Title set.\n\r", ch);
+					return TRUE;
+				}
+				else if (!str_prefix(arg3, "text"))
+				{
+					BOOK_PAGE *page = book_get_page(BOOK(pObj), page_no);
+
+					string_append(ch, &page->text);
+					return TRUE;
+				}
+				else if (!str_prefix(arg3, "remove"))
+				{
+					// Find the page with page number
+					ITERATOR it;
+					BOOK_PAGE *page;
+					iterator_start(&it, BOOK(pObj)->pages);
+					while((page = (BOOK_PAGE *)iterator_nextdata(&it)))
+					{
+						if (page->page_no == page_no)
+						{
+							iterator_remcurrent(&it);
+							break;
+						}
+					}
+					iterator_stop(&it);
+
+					sprintf(buf, "BOOK Page %d removed.\n\r", page_no);
+					send_to_char(buf, ch);
+					return TRUE;
+				}
+			}
+
+			oedit_type_book(ch, "");
+			return FALSE;
+		}
+
+		if (pObj->item_type != ITEM_BOOK)
+		{
+			if (!str_prefix(arg, "remove"))
+			{
+				free_book_data(BOOK(pObj));
+				BOOK(pObj) = NULL;
+
+				send_to_char("BOOK data removed.\n\r", ch);
+				return TRUE;
+			}
+		}
+	}
+	else
+	{
+		if (!str_prefix(arg, "add"))
+		{
+			if (!obj_index_can_add_item_type(pObj, ITEM_BOOK))
+			{
+				send_to_char("You cannot add this item type to this object.\n\r", ch);
+				return FALSE;
+			}
+
+			BOOK(pObj) = new_book_data();
+			send_to_char("BOOK data added to object.\n\r\n\r", ch);
+			return TRUE;
+		}
+	}
+
+	oedit_type_book(ch, "");
+	return FALSE;
+}
+
 void oedit_type_container_showlist(CHAR_DATA *ch, LLIST *list, char *name, char color)
 {
 	if (list_size(list) > 0)
@@ -10760,6 +11374,1299 @@ OEDIT(oedit_type_money)
 	return FALSE;
 }
 
+bool __oedit_type_portal_subtype(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, char *argument)
+{
+	char buf[MSL];
+	char arg[MIL];
+	PORTAL_DATA *portal = PORTAL(pObj);
+
+	argument = one_argument(argument, arg);
+
+	switch(portal->type)
+	{
+		default: break;
+
+		case GATETYPE_NORMAL:
+			if (!str_prefix(arg, "room"))
+			{
+				WNUM wnum;
+				
+				if (!parse_widevnum(argument, pObj->area, &wnum))
+				{
+					send_to_char("That is not a widevnum.\n\r", ch);
+					return FALSE;
+				}
+
+				ROOM_INDEX_DATA *room = get_room_index(wnum.pArea, wnum.vnum);
+				if (!room)
+				{
+					send_to_char("No room exists for that widevnum.\n\r", ch);
+					return FALSE;
+				}
+
+				portal->params[0] = room->area->uid;
+				portal->params[1] = room->vnum;
+				portal->params[2] = 0;
+				portal->params[3] = 0;
+				portal->params[4] = 0;
+				send_to_char("PORTAL DESTINATION set.\n\r", ch);
+				return TRUE;
+			}
+			break;
+
+		case GATETYPE_WILDS:
+			if (!str_prefix(arg, "wilds"))
+			{
+				char arg2[MIL];
+				char arg3[MIL];
+
+				argument = one_argument(argument, arg2);
+				argument = one_argument(argument, arg3);
+
+				if (!is_number(arg2) || !is_number(arg3) || !is_number(argument))
+				{
+					send_to_char("That is not a number.\n\r", ch);
+					return FALSE;
+				}
+
+				WILDS_DATA *wilds = get_wilds_from_uid(NULL, atol(arg2));
+				if (!wilds)
+				{
+					send_to_char("No such wilds with that uid.\n\r", ch);
+					return FALSE;
+				}
+
+				long x = atoi(arg3);
+				long y = atoi(argument);
+				if (x < 1 || x > wilds->map_size_x)
+				{
+					sprintf(buf, "Please specify an x-coordinate from 1 to %d\n\r", wilds->map_size_x);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+				if (y < 1 || y > wilds->map_size_y)
+				{
+					sprintf(buf, "Please specify an y-coordinate from 1 to %d\n\r", wilds->map_size_y);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				portal->params[0] = wilds->uid;
+				portal->params[1] = x;
+				portal->params[2] = y;
+				portal->params[3] = 0;
+				portal->params[4] = 0;
+
+				send_to_char("PORTAL DESTINATION set.\n\r", ch);
+				return TRUE;
+			}
+			break;
+		case GATETYPE_WILDSRANDOM:
+			if (!str_prefix(arg, "wildsrandom"))
+			{
+				char arg2[MIL];
+				char arg3[MIL];
+				char arg4[MIL];
+				char arg5[MIL];
+
+				argument = one_argument(argument, arg2);
+				argument = one_argument(argument, arg3);
+				argument = one_argument(argument, arg4);
+				argument = one_argument(argument, arg5);
+
+				if (!is_number(arg2) || !is_number(arg3) || !is_number(arg4) || !is_number(arg5) || !is_number(argument))
+				{
+					send_to_char("That is not a number.\n\r", ch);
+					return FALSE;
+				}
+
+				WILDS_DATA *wilds = get_wilds_from_uid(NULL, atol(arg2));
+				if (!wilds)
+				{
+					send_to_char("No such wilds with that uid.\n\r", ch);
+					return FALSE;
+				}
+
+				long min_x = atol(arg3);
+				long min_y = atol(arg4);
+				long max_x = atol(arg5);
+				long max_y = atol(argument);
+				if (min_x < 1 || min_x > wilds->map_size_x)
+				{
+					sprintf(buf, "Please specify a minimum x-coordinate from 1 to %d\n\r", wilds->map_size_x);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+				if (min_y < 1 || min_y > wilds->map_size_y)
+				{
+					sprintf(buf, "Please specify a minimum y-coordinate from 1 to %d\n\r", wilds->map_size_y);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+				if (max_x < 1 || max_x > wilds->map_size_x)
+				{
+					sprintf(buf, "Please specify a maximum x-coordinate from 1 to %d\n\r", wilds->map_size_x);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+				if (max_y < 1 || max_y > wilds->map_size_y)
+				{
+					sprintf(buf, "Please specify a maximum y-coordinate from 1 to %d\n\r", wilds->map_size_y);
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				portal->params[0] = wilds->uid;
+				portal->params[1] = UMIN(min_x, max_x);
+				portal->params[2] = UMIN(min_y, max_y);
+				portal->params[3] = UMAX(min_x, max_x);
+				portal->params[4] = UMAX(min_y, max_y);
+
+				send_to_char("PORTAL DESTINATION set.\n\r", ch);
+				return TRUE;
+			}
+			break;
+		case GATETYPE_AREARANDOM:
+			if (!str_prefix(arg, "arearandom"))
+			{
+				if (!str_prefix(argument, "current"))
+				{
+					portal->params[0] = 0;
+				}
+				else if(!is_number(argument))
+				{
+					send_to_char("That is not a number.\n\r", ch);
+					return FALSE;
+				}
+				else
+				{
+					AREA_DATA *area = get_area_from_uid(atol(argument));
+					if (!area)
+					{
+						send_to_char("No such area exists for that uid.\n\r", ch);
+						return FALSE;
+					}
+
+					portal->params[0] = area->uid;
+				}
+
+				portal->params[1] = 0;
+				portal->params[2] = 0;
+				portal->params[3] = 0;
+				portal->params[4] = 0;
+
+				send_to_char("PORTAL DESTINATION set.\n\r", ch);
+				return TRUE;
+			}
+			break;
+		case GATETYPE_REGIONRANDOM:
+			if (!str_prefix(arg, "regionrandom"))
+			{
+				char arg2[MIL];
+				AREA_DATA *area = NULL;
+
+				argument = one_argument(argument, arg2);
+
+				if (!str_prefix(arg2, "current"))
+				{
+					portal->params[0] = 0;
+				}
+				else if(!is_number(arg2))
+				{
+					send_to_char("That is not a number.\n\r", ch);
+					return FALSE;
+				}
+				else
+				{
+					area = get_area_from_uid(atol(arg2));
+					if (!area)
+					{
+						send_to_char("No such area exists for that uid.\n\r", ch);
+						return FALSE;
+					}
+
+					portal->params[0] = area->uid;
+				}
+
+				if (!str_prefix(argument, "default"))
+				{
+					portal->params[1] = 0;
+				}
+				else if(!is_number(argument))
+				{
+					send_to_char("That is not a number.\n\r", ch);
+					return FALSE;
+				}
+				else
+				{
+					long region_no = atol(argument);
+					if (region_no < 1)
+					{
+						send_to_char("Please specify a positive region number.\n\r", ch);
+						return FALSE;
+					}
+
+					if (area && !get_area_region_by_uid(area, region_no))
+					{
+						send_to_char("No region in the specified area with that UID.\n\r", ch);
+						return FALSE;
+					}
+
+					portal->params[1] = region_no;
+				}
+
+				portal->params[2] = 0;
+				portal->params[3] = 0;
+				portal->params[4] = 0;
+
+				send_to_char("PORTAL DESTINATION set.\n\r", ch);
+				return TRUE;
+			}
+			break;
+		case GATETYPE_SECTIONRANDOM:
+			if (!str_prefix(arg, "sectionrandom"))
+			{
+				char arg2[MIL];
+
+				argument = one_argument(argument, arg2);
+
+				if (!str_prefix(arg2, "current"))
+				{
+					portal->params[0] = 0;
+				}
+				else
+				{
+					bool mode = TRISTATE;
+
+					if (!str_prefix(arg2, "generated"))
+						mode = FALSE;
+					else if (!str_prefix(arg2, "ordinal"))
+						mode = TRUE;
+					else
+					{
+						send_to_char("Please specify {Ygenerated{x or {Gordinal{x.\n\r", ch);
+						return FALSE;
+					}
+
+					if (!is_number(argument))
+					{
+						send_to_char("That is not a number.\n\r", ch);
+						return FALSE;
+					}
+					int section_no = atoi(argument);
+					if (section_no < 1)
+					{
+						send_to_char("Please specify a positive section number.\n\r", ch);
+						return FALSE;
+					}
+
+					portal->params[0] = mode ? -section_no : section_no;
+				}
+
+				portal->params[1] = 0;
+				portal->params[2] = 0;
+				portal->params[3] = 0;
+				portal->params[4] = 0;
+
+				send_to_char("PORTAL DESTINATION set.\n\r", ch);
+				return TRUE;
+			}
+			break;
+		case GATETYPE_AREARECALL:
+			if (!str_prefix(arg, "arearecall"))
+			{
+				if (!str_prefix(argument, "current"))
+				{
+					portal->params[0] = 0;
+				}
+				else if (!is_number(argument))
+				{
+					send_to_char("That is not a number.\n\r", ch);
+					return FALSE;
+				}
+				else
+				{
+					AREA_DATA *area = get_area_from_uid(atol(argument));
+					if (!area)
+					{
+						send_to_char("No such area exists for that uid.\n\r", ch);
+						return FALSE;
+					}
+
+					portal->params[0] = area->uid;
+				}
+
+				portal->params[1] = 0;
+				portal->params[2] = 0;
+				portal->params[3] = 0;
+				portal->params[4] = 0;
+
+				send_to_char("PORTAL DESTINATION set.\n\r", ch);
+				return TRUE;
+			}
+			break;
+		case GATETYPE_REGIONRECALL:
+			if (!str_prefix(arg, "regionrecall"))
+			{
+				char arg2[MIL];
+				AREA_DATA *area = NULL;
+
+				argument = one_argument(argument, arg2);
+
+				if (!str_prefix(arg2, "current"))
+				{
+					portal->params[0] = 0;
+				}
+				else if (!is_number(arg2))
+				{
+					send_to_char("That is not a number.\n\r", ch);
+					return FALSE;
+				}
+				else
+				{
+					area = get_area_from_uid(atol(arg2));
+					if (!area)
+					{
+						send_to_char("No such area exists for that uid.\n\r", ch);
+						return FALSE;
+					}
+
+					portal->params[0] = area->uid;
+				}
+
+				if (!str_prefix(argument, "default"))
+				{
+					portal->params[1] = 0;
+				}
+				else if (!is_number(argument))
+				{
+					send_to_char("That is not a number.\n\r", ch);
+					return FALSE;
+				}
+				else
+				{
+					long region_no = atol(argument);
+
+					if (region_no < 1)
+					{
+						send_to_char("Please specify a positive region number.\n\r", ch);
+						return FALSE;
+					}
+
+					if (area && !get_area_region_by_uid(area, region_no))
+					{
+						send_to_char("No region in the specified area with that UID.\n\r", ch);
+						return FALSE;
+					}
+
+					portal->params[1] = region_no;
+				}
+
+				portal->params[2] = 0;
+				portal->params[3] = 0;
+				portal->params[4] = 0;
+
+				send_to_char("PORTAL DESTINATION set.\n\r", ch);
+				return TRUE;
+			}
+			send_to_char("         portal regionrecall <auid|current>[ <region#|default>]\n\r", ch);
+			break;
+		case GATETYPE_DUNGEON:
+			if (!str_prefix(arg, "dungeon"))
+			{
+				char arg2[MIL];
+				char arg3[MIL];
+
+				argument = one_argument(argument, arg2);
+				argument = one_argument(argument, arg3);
+				
+				if (!is_number(arg2))
+				{
+					send_to_char("That is not a number.\n\r", ch);
+					return FALSE;
+				}
+
+				DUNGEON_INDEX_DATA *dungeon = get_dungeon_index(pObj->area, atol(arg2));
+				if (!dungeon)
+				{
+					send_to_char("No such dungeon exists for that vnum.\n\r", ch);
+					return FALSE;
+				}
+
+				portal->params[0] = dungeon->vnum;
+
+				if (!str_prefix(arg3, "floor"))
+				{
+					if (!is_number(argument))
+					{
+						send_to_char("That is not a number.\n\r", ch);
+						return FALSE;
+					}
+
+					int floor = atoi(argument);
+					if (!IS_SET(dungeon->flags, DUNGEON_SCRIPTED_LEVELS))
+					{
+						if (floor < 1 || floor > list_size(dungeon->levels))
+						{
+							sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(dungeon->levels));
+							send_to_char(buf, ch);
+							return FALSE;
+						}
+					}
+
+					portal->params[1] = floor;
+					portal->params[2] = 0;					
+				}
+				else if(!str_prefix(arg3, "room"))
+				{
+					if (!is_number(argument))
+					{
+						send_to_char("That is not a number.\n\r", ch);
+						return FALSE;
+					}
+
+					int room_no = atoi(argument);
+					if (!IS_SET(dungeon->flags, DUNGEON_SCRIPTED_LEVELS))
+					{
+						if (room_no < 1 || room_no > list_size(dungeon->special_rooms))
+						{
+							sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(dungeon->special_rooms));
+							send_to_char(buf, ch);
+							return FALSE;
+						}
+					}
+
+					portal->params[1] = 0;
+					portal->params[2] = room_no;
+				}
+				else if (!str_prefix(arg3, "default"))
+				{
+					portal->params[1] = 0;
+					portal->params[2] = 0;
+				}
+				else
+				{
+					return TRISTATE;
+				}
+
+				portal->params[3] = 0;
+				portal->params[4] = 0;
+
+				send_to_char("PORTAL DESTINATION set.\n\r", ch);
+				return TRUE;
+			}
+			break;
+		case GATETYPE_INSTANCE:
+			// TODO: Complete
+			break;
+		case GATETYPE_RANDOM: break;
+		case GATETYPE_DUNGEONFLOOR:
+			if (!str_prefix(arg, "dungeonfloor"))
+			{
+				char arg2[MIL];
+
+				argument = one_argument(argument, arg2);
+				
+				if (!is_number(arg2))
+				{
+					send_to_char("That is not a number.\n\r", ch);
+					return FALSE;
+				}
+
+				DUNGEON_INDEX_DATA *dungeon = get_dungeon_index(pObj->area, atol(arg2));
+				if (!dungeon)
+				{
+					send_to_char("No such dungeon exists for that vnum.\n\r", ch);
+					return FALSE;
+				}
+
+				portal->params[0] = dungeon->vnum;
+
+				if (!str_prefix(argument, "default"))
+				{
+					portal->params[1] = 0;
+				}
+				else
+				{
+					if (!is_number(argument))
+					{
+						send_to_char("That is not a number.\n\r", ch);
+						return FALSE;
+					}
+
+					int floor = atoi(argument);
+					if (!IS_SET(dungeon->flags, DUNGEON_SCRIPTED_LEVELS))
+					{
+						if (floor < 1 || floor > list_size(dungeon->levels))
+						{
+							sprintf(buf, "Please specify a number from 1 to %d.\n\r", list_size(dungeon->levels));
+							send_to_char(buf, ch);
+							return FALSE;
+						}
+					}
+
+					portal->params[1] = floor;
+				}
+
+				portal->params[2] = 0;					
+				portal->params[3] = 0;
+				portal->params[4] = 0;
+
+				send_to_char("PORTAL DESTINATION set.\n\r", ch);
+				return TRUE;
+			}
+			break;
+		case GATETYPE_BLUEPRINT_SECTION_MAZE:
+			if (!str_prefix(arg, "sectionmaze"))
+			{
+				char arg2[MIL];
+				char arg3[MIL];
+				char arg4[MIL];
+
+				argument = one_argument(argument, arg2);
+				argument = one_argument(argument, arg3);
+				argument = one_argument(argument, arg4);
+
+				int x, y;
+				if (!str_prefix(arg2, "current"))
+				{
+					portal->params[0] = 0;
+
+					if (!is_number(arg3) || !is_number(arg4))
+					{
+						send_to_char("That is not a number.\n\r", ch);
+						return FALSE;
+					}
+
+					x = atoi(arg3);
+					y = atoi(arg4);
+				}
+				else
+				{
+					bool mode = TRISTATE;
+
+					if (!str_prefix(arg2, "generated"))
+						mode = FALSE;
+					else if (!str_prefix(arg2, "ordinal"))
+						mode = TRUE;
+					else
+					{
+						send_to_char("Please specify either {Ygenerated{x or {Gordinal{x.\n\r", ch);
+						return FALSE;
+					}
+
+					if (!is_number(arg3))
+					{
+						send_to_char("That is not a number.\n\r", ch);
+						return FALSE;
+					}
+
+					int section_no = atoi(arg3);
+
+					portal->params[0] = mode ? -section_no : section_no;
+
+					if (!is_number(arg4) || !is_number(argument))
+					{
+						send_to_char("That is not a number.\n\r", ch);
+						return FALSE;
+					}
+
+					x = atoi(arg4);
+					y = atoi(argument);
+				}
+
+				if (x < 1 || y < 1)
+				{
+					send_to_char("Please specify a positive number.\n\r", ch);
+					return FALSE;
+				}
+
+				portal->params[1] = x;
+				portal->params[2] = y;
+				portal->params[3] = 0;
+				portal->params[4] = 0;
+
+				send_to_char("PORTAL DESTINATION set.\n\r", ch);
+				return TRUE;
+			}
+			break;
+		case GATETYPE_BLUEPRINT_SPECIAL:
+			if (!str_prefix(arg, "instancespecial"))
+			{
+				if (!is_number(argument))
+				{
+					send_to_char("That is not a number.\n\r", ch);
+					return FALSE;
+				}
+
+				int room_no = atoi(argument);
+				if (room_no < 1)
+				{
+					send_to_char("Please specify a positive special room number.\n\r", ch);
+					return FALSE;
+				}
+
+				portal->params[0] = room_no;
+				portal->params[1] = 0;
+				portal->params[2] = 0;
+				portal->params[3] = 0;
+				portal->params[4] = 0;
+
+				send_to_char("PORTAL DESTINATION set.\n\r", ch);
+				return TRUE;
+			}
+			break;
+		case GATETYPE_DUNGEON_FLOOR_SPECIAL:
+			if (!str_prefix(arg, "floorspecial"))
+			{
+				char arg2[MIL];
+				char arg3[MIL];
+
+				argument = one_argument(argument, arg2);
+				argument = one_argument(argument, arg3);
+
+				int room_no;
+				if (!str_prefix(arg2, "current"))
+				{
+					portal->params[0] = 0;
+
+					if (!is_number(arg3))
+					{
+						send_to_char("That is not a number.\n\r", ch);
+						return FALSE;
+					}
+
+					room_no = atoi(arg3);
+				}
+				else
+				{
+					bool mode = TRISTATE;
+
+					if (!str_prefix(arg2, "generated"))
+						mode = FALSE;
+					else if (!str_prefix(arg2, "ordinal"))
+						mode = TRUE;
+					else
+					{
+						send_to_char("Please specify either {Ygenerated{x or {Gordinal{x.\n\r", ch);
+						return FALSE;
+					}
+
+					if (!is_number(arg3))
+					{
+						send_to_char("That is not a number.\n\r", ch);
+						return FALSE;
+					}
+
+					int floor = atoi(arg3);
+
+					portal->params[0] = mode ? -floor : floor;
+
+					if (!is_number(argument))
+					{
+						send_to_char("That is not a number.\n\r", ch);
+						return FALSE;
+					}
+
+					room_no = atoi(argument);
+				}
+
+				if (room_no < 1)
+				{
+					send_to_char("Please specify a positive special room number.\n\r", ch);
+					return FALSE;
+				}
+
+				portal->params[1] = room_no;
+				portal->params[2] = 0;
+				portal->params[3] = 0;
+				portal->params[4] = 0;
+
+				send_to_char("PORTAL DESTINATION set.\n\r", ch);
+				return TRUE;
+			}
+			break;
+		case GATETYPE_DUNGEON_SPECIAL:
+			if (!str_prefix(arg, "dungeonspecial"))
+			{
+				if (!is_number(argument))
+				{
+					send_to_char("That is not a number.\n\r", ch);
+					return FALSE;
+				}
+
+				int room_no = atoi(argument);
+				if (room_no < 1)
+				{
+					send_to_char("Please specify a positive special room number.\n\r", ch);
+					return FALSE;
+				}
+
+				portal->params[0] = room_no;
+				portal->params[1] = 0;
+				portal->params[2] = 0;
+				portal->params[3] = 0;
+				portal->params[4] = 0;
+
+				send_to_char("PORTAL DESTINATION set.\n\r", ch);
+				return TRUE;
+			}
+			break;
+	}
+
+	return TRISTATE;
+}
+
+OEDIT(oedit_type_portal)
+{
+	OBJ_INDEX_DATA *pObj;
+	EDIT_OBJ(ch, pObj);
+
+	if (argument[0] == '\0')
+	{
+		if (IS_PORTAL(pObj))
+		{
+			send_to_char("Syntax:  portal name <name>\n\r", ch);
+			send_to_char("         portal short <description>\n\r", ch);
+			send_to_char("         portal charge <#charge|infinite>\n\r", ch);
+			send_to_char("         portal flags <flags>\n\r", ch);
+			send_to_char("         portal exit <exit flags>\n\r", ch);
+			send_to_char("         portal type <type>\n\r", ch);
+			switch(PORTAL(pObj)->type)
+			{
+				case GATETYPE_ENVIRONMENT: break;
+				case GATETYPE_NORMAL:
+					send_to_char("         portal room <widevnum>\n\r", ch);
+					break;
+				case GATETYPE_WILDS:
+					send_to_char("         portal wilds <wuid> <x> <y>\n\r", ch);
+					break;
+				case GATETYPE_WILDSRANDOM:
+					send_to_char("         portal wildsrandom <wuid> <min-x> <min-y> <max-x> <max-y>\n\r", ch);
+					break;
+				case GATETYPE_AREARANDOM:
+					send_to_char("         portal arearandom <auid|current>\n\r", ch);
+					break;
+				case GATETYPE_REGIONRANDOM:
+					send_to_char("         portal regionrandom <auid|current>[ <region|default>]\n\r", ch);
+					break;
+				case GATETYPE_SECTIONRANDOM:
+					send_to_char("         portal sectionrandom current\n\r", ch);
+					send_to_char("         portal sectionrandom generated|ordinal <section#>\n\r", ch);
+					break;
+				case GATETYPE_INSTANCERANDOM: break;
+				case GATETYPE_DUNGEONRANDOM: break;
+				case GATETYPE_AREARECALL:
+					send_to_char("         portal arearecall <auid|current>\n\r", ch);
+					break;
+				case GATETYPE_REGIONRECALL:
+					send_to_char("         portal regionrecall <auid|current>[ <region#|default>]\n\r", ch);
+					break;
+				case GATETYPE_DUNGEON:
+					send_to_char("         portal dungeon <local vnum> floor <floor#>\n\r", ch);
+					send_to_char("         portal dungeon <local vnum> room <special room#>\n\r", ch);
+					send_to_char("         portal dungeon <local vnum> default\n\r", ch);
+					break;
+				case GATETYPE_INSTANCE:
+					// TODO: Complete
+					break;
+				case GATETYPE_RANDOM: break;
+				case GATETYPE_DUNGEONFLOOR:
+					send_to_char("         portal dungeonfloor <local vnum> <floor#|default>\n\r", ch);
+					break;
+				case GATETYPE_BLUEPRINT_SECTION_MAZE:
+					send_to_char("         portal sectionmaze current <x> <y>\n\r", ch);
+					send_to_char("         portal sectionmaze generated|ordinal <section#> <x> <y>\n\r", ch);
+					break;
+				case GATETYPE_BLUEPRINT_SPECIAL:
+					send_to_char("         portal instancespecial <special room#>\n\r", ch);
+					break;
+				case GATETYPE_DUNGEON_FLOOR_SPECIAL:
+					send_to_char("         portal floorspecial current <special room#>\n\r", ch);
+					send_to_char("         portal floorspecial generated|ordinal <floor #> <special room#>\n\r", ch);
+					break;
+				case GATETYPE_DUNGEON_SPECIAL:
+					send_to_char("         portal dungeonspecial <special room#>\n\r", ch);
+					break;
+			}
+
+			send_to_char("         portal lock add\n\r", ch);
+			send_to_char("         portal lock remove\n\r", ch);
+			send_to_char("         portal lock key <widevnum>\n\r", ch);
+			send_to_char("         portal lock key clear\n\r", ch);
+			send_to_char("         portal lock flags [flags]\n\r", ch);
+			send_to_char("         portal lock pick [0-100]\n\r", ch);
+
+			send_to_char("         portal spell clear\n\r", ch);
+			send_to_char("         portal spell add <spell name|token widevnum> <spell level> <random>\n\r", ch);
+			send_to_char("         portal spell remove <#>\n\r", ch);
+
+			if (pObj->item_type != ITEM_PORTAL)
+				send_to_char("         portal remove\n\r", ch);
+		}
+		else
+		{
+			send_to_char("Syntax:  portal add\n\r", ch);
+		}
+		return FALSE;
+	}
+
+	char buf[MSL];
+	char arg[MIL];
+
+	argument = one_argument(argument, arg);
+	
+	if (IS_PORTAL(pObj))
+	{
+		if (!str_prefix(arg, "name"))
+		{
+			if (argument[0] == '\0')
+			{
+				send_to_char("Please specify a name.\n\r", ch);
+				return FALSE;
+			}
+
+			free_string(PORTAL(pObj)->name);
+			PORTAL(pObj)->name = str_dup(argument);
+
+			send_to_char("PORTAL NAME set.\n\r", ch);
+			return TRUE;
+		}
+		else if (!str_prefix(arg, "short"))
+		{
+			if (argument[0] == '\0')
+			{
+				send_to_char("Please specify a short description.\n\r", ch);
+				return FALSE;
+			}
+
+			free_string(PORTAL(pObj)->short_descr);
+			PORTAL(pObj)->short_descr = str_dup(argument);
+
+			send_to_char("PORTAL SHORT DESCRIPTION set.\n\r", ch);
+			return TRUE;
+		}
+		else if (!str_prefix(arg, "flags"))
+		{
+			long value;
+			if ((value = flag_lookup(argument, portal_flags)) == NO_FLAG)
+			{
+				send_to_char("Invalid portal flag.\n\r", ch);
+				send_to_char("Please use '? portal' for list of valid flags.\n\r", ch);
+				show_help(ch, "portal");
+				return FALSE;
+			}
+
+			TOGGLE_BIT(PORTAL(pObj)->flags, value);
+			send_to_char("PORTAL FLAGS toggled.\n\r", ch);
+			return TRUE;
+		}
+		else if (!str_prefix(arg, "exit"))
+		{
+			long value;
+			if ((value = flag_lookup(argument, portal_exit_flags)) == NO_FLAG)
+			{
+				send_to_char("Invalid portal exit flag.\n\r", ch);
+				send_to_char("Please use '? portal_exit' for list of valid flags.\n\r", ch);
+				show_help(ch, "portal_exit");
+				return FALSE;
+			}
+
+			TOGGLE_BIT(PORTAL(pObj)->exit, value);
+			send_to_char("PORTAL EXIT FLAGS toggled.\n\r", ch);
+			return TRUE;
+		}
+		else if (!str_prefix(arg, "type"))
+		{
+			int type;
+			if ((type = stat_lookup(argument, portal_gatetype, NO_FLAG)) == NO_FLAG)
+			{
+				send_to_char("Invalid portal type.\n\r", ch);
+				send_to_char("Please use '? portal_type' for list of valid types.\n\r", ch);
+				show_help(ch, "portal_type");
+				return FALSE;
+			}
+
+			PORTAL(pObj)->type = type;
+			PORTAL(pObj)->params[0] = 0;
+			PORTAL(pObj)->params[1] = 0;
+			PORTAL(pObj)->params[2] = 0;
+			PORTAL(pObj)->params[3] = 0;
+			PORTAL(pObj)->params[4] = 0;
+
+			send_to_char("PORTAL TYPE set.\n\r", ch);
+
+			switch(PORTAL(pObj)->type)
+			{
+				case GATETYPE_ENVIRONMENT: break;
+				case GATETYPE_NORMAL:
+					send_to_char("Syntax:  portal room <widevnum>\n\r", ch);
+					break;
+				case GATETYPE_WILDS:
+					send_to_char("Syntax:  portal wilds <wuid> <x> <y>\n\r", ch);
+					break;
+				case GATETYPE_WILDSRANDOM:
+					send_to_char("Syntax:  portal wildsrandom <wuid> <min-x> <min-y> <max-x> <max-y>\n\r", ch);
+					break;
+				case GATETYPE_AREARANDOM:
+					send_to_char("Syntax:  portal arearandom <auid|current>\n\r", ch);
+					break;
+				case GATETYPE_REGIONRANDOM:
+					send_to_char("Syntax:  portal regionrandom <auid|current>[ <region|default>]\n\r", ch);
+					break;
+				case GATETYPE_SECTIONRANDOM:
+					send_to_char("Syntax:  portal sectionrandom current\n\r", ch);
+					send_to_char("         portal sectionrandom generated|ordinal <section#>\n\r", ch);
+					break;
+				case GATETYPE_INSTANCERANDOM: break;
+				case GATETYPE_DUNGEONRANDOM: break;
+				case GATETYPE_AREARECALL:
+					send_to_char("Syntax:  portal arearecall <auid|current>\n\r", ch);
+					break;
+				case GATETYPE_REGIONRECALL:
+					send_to_char("Syntax:  portal regionrecall <auid|current>[ <region#|default>]\n\r", ch);
+					break;
+				case GATETYPE_DUNGEON:
+					send_to_char("Syntax:  portal dungeon <local vnum> floor <floor#>\n\r", ch);
+					send_to_char("         portal dungeon <local vnum> room <special room#>\n\r", ch);
+					send_to_char("         portal dungeon <local vnum> default\n\r", ch);
+					break;
+				case GATETYPE_INSTANCE:
+					// TODO: Complete
+					break;
+				case GATETYPE_RANDOM: break;
+				case GATETYPE_DUNGEONFLOOR:
+					send_to_char("Syntax:  portal dungeonfloor <local vnum> <floor#|default>\n\r", ch);
+					break;
+				case GATETYPE_BLUEPRINT_SECTION_MAZE:
+					send_to_char("Syntax:  portal sectionmaze current <x> <y>\n\r", ch);
+					send_to_char("         portal sectionmaze generated|ordinal <section#> <x> <y>\n\r", ch);
+					break;
+				case GATETYPE_BLUEPRINT_SPECIAL:
+					send_to_char("Syntax:  portal instancespecial <special room#>\n\r", ch);
+					break;
+				case GATETYPE_DUNGEON_FLOOR_SPECIAL:
+					send_to_char("Syntax:  portal floorspecial current <special room#>\n\r", ch);
+					send_to_char("         portal floorspecial generated|ordinal <floor #> <special room#>\n\r", ch);
+					break;
+				case GATETYPE_DUNGEON_SPECIAL:
+					send_to_char("Syntax:  portal dungeonspecial <special room#>\n\r", ch);
+					break;
+			}
+
+			return TRUE;
+		}
+		else if (!str_prefix(arg, "lock"))
+		{
+			argument = one_argument(argument, arg);
+
+			if( !str_prefix(arg, "add") )
+			{
+				if( PORTAL(pObj)->lock )
+				{
+					send_to_char("PORTAL already has a lock state.\n\r", ch);
+					return FALSE;
+				}
+
+				PORTAL(pObj)->lock = new_lock_state();
+				send_to_char("Lock State added.\n\r", ch);
+				return TRUE;
+			}
+
+			if( !str_prefix(arg, "remove") )
+			{
+				if( !PORTAL(pObj)->lock )
+				{
+					send_to_char("PORTAL does not have a lock state.\n\r", ch);
+					return FALSE;
+				}
+
+
+				free_lock_state(PORTAL(pObj)->lock);
+				PORTAL(pObj)->lock = NULL;
+
+				send_to_char("Lock State removed.\n\r", ch);
+				return TRUE;
+			}
+
+			if( !str_prefix(arg, "key") )
+			{
+				if( !PORTAL(pObj)->lock )
+				{
+					send_to_char("PORTAL does not have a lock state.\n\r", ch);
+					return FALSE;
+				}
+
+				if( argument[0] == '\0' )
+				{
+					send_to_char("Syntax:  portal lock key <widevnum>\n\r", ch);
+					send_to_char("         portal lock key clear\n\r", ch);
+					return FALSE;
+				}
+
+				WNUM wnum;
+				if( parse_widevnum(argument, pObj->area, &wnum) )
+				{
+					OBJ_INDEX_DATA *key = get_obj_index(wnum.pArea, wnum.vnum);
+
+					if( !key )
+					{
+						send_to_char("That object does not exist.\n\r", ch);
+						return FALSE;
+					}
+
+					if( key->item_type != ITEM_KEY )
+					{
+						send_to_char("That object is not a key.\n\r", ch);
+						return FALSE;
+					}
+
+					// TODO: make a list
+					PORTAL(pObj)->lock->key_wnum = wnum;
+					send_to_char("Lock State key set.\n\r", ch);
+					return TRUE;
+				}
+				else if( !str_prefix(argument, "clear") )
+				{
+					PORTAL(pObj)->lock->key_wnum = wnum_zero;
+					send_to_char("Lock State key removed.\n\r", ch);
+					return TRUE;
+				}
+
+				oedit_type_portal(ch, "lock key");
+				return FALSE;
+			}
+
+			if( !str_prefix(arg, "flags") )
+			{
+				if( !PORTAL(pObj)->lock )
+				{
+					send_to_char("PORTAL does not have a lock state.\n\r", ch);
+					return FALSE;
+				}
+
+				int value = flag_value(lock_flags, argument);
+
+				if( value == NO_FLAG )
+				{
+					send_to_char("Syntax:  portal lock flags [flags]\n\r", ch);
+					send_to_char("See \"? lock\" for list of flags\n\r\n\r", ch);
+					show_help(ch, "lock");
+					return FALSE;
+				}
+
+				PORTAL(pObj)->lock->flags ^= value;
+				send_to_char("Lock State flags changed.\n\r", ch);
+				return TRUE;
+			}
+
+			if( !str_prefix(arg, "pick") )
+			{
+				if( !PORTAL(pObj)->lock )
+				{
+					send_to_char("PORTAL does not have a lock state.\n\r", ch);
+					return FALSE;
+				}
+
+				if( !is_number(argument) )
+				{
+					send_to_char("That is not a number.\n\r", ch);
+					return FALSE;
+				}
+
+				int value = atoi(argument);
+				if( value < 0 || value > 100 )
+				{
+					send_to_char("Pick chance must be from 0 to 100.\n\r", ch);
+					return FALSE;
+				}
+
+				PORTAL(pObj)->lock->pick_chance = value;
+				send_to_char("Lock State pick chance set.\n\r", ch);
+				return TRUE;
+			}
+
+			oedit_type_portal(ch, "");
+			return FALSE;
+		}
+		else if (!str_prefix(arg, "spell"))
+		{
+			argument = one_argument(argument, arg);
+
+			if (!str_prefix(arg, "add"))
+			{
+				char arg2[MIL];
+				char arg3[MIL];
+				WNUM wnum;
+				int sn;
+				TOKEN_INDEX_DATA *token;
+
+				argument = one_argument(argument, arg2);
+				argument = one_argument(argument, arg3);
+
+				if (parse_widevnum(arg2, NULL, &wnum))
+				{
+					sn = 0;
+
+					token = get_token_index_wnum(wnum);
+
+					if( !token )
+					{
+						send_to_char("No such token exists.\n\r", ch);
+						return FALSE;
+					}
+
+					if (token->type != TOKEN_SPELL)
+					{
+						send_to_char("That token is not a SPELL token.\n\r", ch);
+						return FALSE;
+					}
+				}
+				else if ((sn = skill_lookup(arg2)) == -1 || (skill_table[sn].spell_fun == spell_null))
+				{
+					send_to_char("That's not a spell.\n\r", ch);
+					return FALSE;
+				}
+
+				SPELL_DATA *spell_tmp;
+
+				for (spell_tmp = PORTAL(pObj)->spells; spell_tmp != NULL; spell_tmp = spell_tmp->next)
+				{
+					if ((token && spell_tmp->token == token) || (sn > 0 && spell_tmp->sn == sn))
+					{
+						send_to_char("That spell is already on the object.\n\r", ch);
+						return FALSE;
+					}	
+				}
+
+				if (!is_number(arg3) || !is_number(argument))
+				{
+					send_to_char("That is not a number.\n\r", ch);
+					return FALSE;
+				}
+
+				int level = atoi(arg3);
+				if (level < 1 || level > get_trust(ch))
+				{
+					sprintf(buf, "Please specify a level from 1 to %d.\n\r", get_trust(ch));
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				int chance = atoi(argument);
+				if (chance < 1 || chance > 100)
+				{
+					send_to_char("Please specify a number from 1 to 100.\n\r", ch);
+					return FALSE;
+				}
+
+				SPELL_DATA *spell = new_spell();
+				spell->sn = sn;
+				spell->token = token;
+				spell->level = level;
+				spell->repop = chance;
+				spell->next = NULL;
+
+				if (PORTAL(pObj)->spells == NULL)
+					PORTAL(pObj)->spells = spell;
+				else
+				{
+					for(spell_tmp = PORTAL(pObj)->spells; spell_tmp->next != NULL; spell_tmp = spell_tmp->next);
+			        spell_tmp->next = spell;
+				}
+
+			    sprintf(buf, "PORTAL Spell %s, level %d, random %d added.\n\r",
+					get_spell_data_name(spell), spell->level, spell->repop);
+			    send_to_char(buf, ch);
+				return TRUE;
+			}
+			else if (!str_prefix(arg, "remove"))
+			{
+				if (!is_number(argument))
+				{
+					send_to_char("That is not a number.\n\r", ch);
+					return FALSE;
+				}
+
+				int n = atoi(argument);
+				int i = 0;
+				SPELL_DATA *spell_prev = NULL;
+				SPELL_DATA *spell;
+				for (spell = PORTAL(pObj)->spells; spell != NULL; spell = spell->next)
+				{
+					if (i == n)
+						break;
+					i++;
+					spell_prev = spell;
+				}
+
+				if (spell == NULL)
+				{
+					send_to_char("No such PORTAL spell.\n\r", ch);
+					return FALSE;
+				}
+
+				// First one on the list
+				if (!spell_prev)
+					PORTAL(pObj)->spells = spell->next;
+				else
+					spell_prev->next = spell->next;
+				free_spell(spell);
+
+				send_to_char("PORTAL Spell removed.\n\r", ch);
+				return TRUE;
+			}
+			else if (!str_prefix(arg, "clear"))
+			{
+				SPELL_DATA *spell, *next_spell;
+
+				for(spell = PORTAL(pObj)->spells; spell; spell = next_spell)
+				{
+					next_spell = spell->next;
+
+					free_spell(spell);
+				}
+
+				PORTAL(pObj)->spells = NULL;
+
+				send_to_char("PORTAL Spells cleared.\n\r", ch);
+				return TRUE;
+			}
+
+			oedit_type_portal(ch, "");
+			return FALSE;
+		}
+		else if (pObj->item_type != ITEM_PORTAL)
+		{
+			if(!str_prefix(arg, "remove"))
+			{
+				free_portal_data(PORTAL(pObj));
+				PORTAL(pObj) = NULL;
+
+				send_to_char("PORTAL type removed.\n\r\n\r", ch);
+				return TRUE;
+			}
+		}
+
+		bool ret = __oedit_type_portal_subtype(ch, pObj, argument);
+		if (ret != TRISTATE) return ret;
+	}
+	else if(!str_prefix(arg, "add"))
+	{
+		if (!obj_index_can_add_item_type(pObj, ITEM_PORTAL))
+		{
+			send_to_char("You cannot add this item type to this object.\n\r", ch);
+			return FALSE;
+		}
+		
+		PORTAL(pObj) = new_portal_data();
+		send_to_char("PORTAL type added.\n\r\n\r", ch);
+		return TRUE;
+	}
+
+	oedit_type_portal(ch, "");
+	return FALSE;
+}
 
 OEDIT(oedit_material)
 {

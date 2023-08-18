@@ -241,6 +241,15 @@ void free_aura_data(AURA_DATA *aura);
 
 // Item Multi-typing
 
+// Book
+BOOK_PAGE *new_book_page();
+BOOK_PAGE *copy_book_page(BOOK_PAGE *src);
+void free_book_page(BOOK_PAGE *page);
+
+BOOK_DATA *new_book_data();
+BOOK_DATA *copy_book_data(BOOK_DATA *src);
+void free_book_data(BOOK_DATA *data);
+
 // Container
 CONTAINER_FILTER *new_container_filter();
 void free_container_filter(CONTAINER_FILTER *filter);
@@ -275,3 +284,7 @@ MONEY_DATA *new_money_data();
 MONEY_DATA *copy_money_data(MONEY_DATA *src);
 void free_money_data(MONEY_DATA *data);
 
+// Portal
+PORTAL_DATA *new_portal_data();
+PORTAL_DATA *copy_portal_data(PORTAL_DATA *src, bool repop);
+void free_portal_data(PORTAL_DATA *data);

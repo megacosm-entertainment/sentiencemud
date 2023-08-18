@@ -2576,14 +2576,14 @@ static void __instance_correct_portals(INSTANCE *instance)
 		for(OBJ_DATA *obj = room->contents; obj; obj = obj->next_content)
 		{
 			// Make sure portals that lead anywhere within the instance uses the correct room id
-			if( obj->item_type == ITEM_PORTAL )
+			if( IS_PORTAL(obj) )
 			{
-				switch(obj->value[3])
+				switch(PORTAL(obj)->type)
 				{
 					case GATETYPE_NORMAL:
 					{
-						long auid = obj->value[5];
-						long vnum = obj->value[6];
+						long auid = PORTAL(obj)->params[0];
+						long vnum = PORTAL(obj)->params[1];
 						ROOM_INDEX_DATA *dest;
 
 						if ( auid > 0 && vnum > 0 )
@@ -2591,8 +2591,8 @@ static void __instance_correct_portals(INSTANCE *instance)
 							// If the portal is pointing to a room in the blueprint
 							if (room->area->uid == auid && (dest = instance_section_get_room_byvnum(section, vnum)))
 							{
-								obj->value[7] = dest->id[0];
-								obj->value[8] = dest->id[1];
+								PORTAL(obj)->params[2] = dest->id[0];
+								PORTAL(obj)->params[3] = dest->id[1];
 							}
 							else
 							{
@@ -2603,13 +2603,13 @@ static void __instance_correct_portals(INSTANCE *instance)
 									IS_SET(dest->area->area_flags, AREA_BLUEPRINT) )
 								{
 									// Nullify destination
-									obj->value[5] = 0;
-									obj->value[6] = 0;
+									PORTAL(obj)->params[0] = 0;
+									PORTAL(obj)->params[1] = 0;
 								}
 
 								// Force it to be static
-								obj->value[7] = 0;
-								obj->value[8] = 0;
+								PORTAL(obj)->params[2] = 0;
+								PORTAL(obj)->params[3] = 0;
 							}
 						}
 						break;
@@ -2618,18 +2618,18 @@ static void __instance_correct_portals(INSTANCE *instance)
 					case GATETYPE_BLUEPRINT_SECTION_MAZE:
 					{
 						ROOM_INDEX_DATA *room = NULL;
-						if (obj->value[5])
+						if (PORTAL(obj)->params[0])
 						{
-							section = instance_get_section(instance, obj->value[5]);
+							section = instance_get_section(instance, PORTAL(obj)->params[0]);
 						}
 
 						// is it a maze section?
 						if (IS_VALID(section) && section->section->type == BSTYPE_MAZE)
 						{
-							if (obj->value[5] > 0 && obj->value[5] <= section->section->maze_x &&
-								obj->value[6] > 0 && obj->value[6] <= section->section->maze_y)
+							if (PORTAL(obj)->params[0] > 0 && PORTAL(obj)->params[0] <= section->section->maze_x &&
+								PORTAL(obj)->params[1] > 0 && PORTAL(obj)->params[1] <= section->section->maze_y)
 							{
-								int index = (obj->value[6] - 1) * section->section->maze_x + obj->value[5];
+								int index = (PORTAL(obj)->params[1] - 1) * section->section->maze_x + PORTAL(obj)->params[0];
 
 								room = list_nthdata(section->rooms, index);
 							}
@@ -2641,7 +2641,7 @@ static void __instance_correct_portals(INSTANCE *instance)
 
 					case GATETYPE_BLUEPRINT_SPECIAL:
 					{
-						ROOM_INDEX_DATA *room = get_instance_special_room(instance, obj->value[5]);
+						ROOM_INDEX_DATA *room = get_instance_special_room(instance, PORTAL(obj)->params[0]);
 
 						__instance_set_portal_room(obj, room);
 						break;

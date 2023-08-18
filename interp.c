@@ -143,7 +143,7 @@ const	struct	cmd_type	cmd_table	[] =
     { "motd",		do_motd,	POS_DEAD,        0,  LOG_NORMAL, 1, TRUE },
     { "mccp",	 	do_compress,	POS_DEAD,        0,  LOG_NORMAL, 1, TRUE },
     { "news",		do_news,	POS_DEAD,	 0,  LOG_NORMAL, 1, TRUE },
-    { "read",		do_look,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
+    { "read",		do_read,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
     { "repair",		do_repair,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
     { "report",		do_report,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
     { "rules",		do_rules,	POS_DEAD,	 0,  LOG_NORMAL, 1, FALSE },
@@ -160,6 +160,11 @@ const	struct	cmd_type	cmd_table	[] =
     { "who",		do_who_new,	POS_DEAD,	 0,  LOG_NORMAL, 1, TRUE },
     { "whois",		do_whois,	POS_DEAD,	 0,  LOG_NORMAL, 1, TRUE },
     { "wizlist",	do_wizlist,	POS_DEAD,        0,  LOG_NORMAL, 1, TRUE },
+    { "write",		do_write,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
+	{ "seal",		do_seal,	POS_RESTING,	0,	LOG_NORMAL, 1, FALSE },
+	{ "page",		do_page,	POS_RESTING,	0,	LOG_NORMAL, 1, FALSE },
+	{ "rip",		do_rip,		POS_RESTING,	0,	LOG_NORMAL, 1, FALSE },
+	{ "attach",		do_attach,	POS_RESTING,	0,	LOG_NORMAL, 1, FALSE },
 
     // Configuration commands
     { "alias",		do_alias,	POS_DEAD,	 0,  LOG_NORMAL, 1, TRUE },
@@ -1058,6 +1063,25 @@ void interpret( CHAR_DATA *ch, char *argument )
 	argument = one_argument( argument, command );
 
     // Questions which people must answer before they can go on with life!
+
+	// Sealing a book
+	if (IS_VALID(ch->seal_book))
+	{
+		if (IS_BOOK(ch->seal_book) && IS_SET(BOOK(ch->seal_book)->flags, BOOK_WRITABLE))
+		{
+			if (!str_prefix(command, "yes"))
+			{
+				REMOVE_BIT(BOOK(ch->seal_book)->flags, BOOK_WRITABLE);
+				act("{Y$p shimmers briefly.{x", ch, NULL, NULL, ch->seal_book, NULL, NULL, NULL, TO_ALL);
+				act("$p can no longer be modified.", ch, NULL, NULL, ch->seal_book, NULL, NULL, NULL, TO_CHAR);
+
+				p_percent_trigger(NULL, ch->seal_book, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_BOOK_SEAL, NULL, 0,0,0,0,0);
+			}
+		}
+
+		ch->seal_book = NULL;
+		return;
+	}
 
     // Remove yourself from a church?
     // Disabled pneuma/dp loss for now - Tieryo

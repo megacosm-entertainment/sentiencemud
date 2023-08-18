@@ -1426,17 +1426,17 @@ void do_open(CHAR_DATA *ch, char *argument)
 		// portal stuff, has different flags, as they are treated more like exits
 		if (context.item_type == ITEM_PORTAL)
 		{
-			if (!IS_SET(obj->value[1],EX_CLOSED))
+			if (!IS_SET(PORTAL(obj)->exit,EX_CLOSED))
 			{
 				send_to_char("It's already open.\n\r",ch);
 				return;
 			}
 
-			if( obj->lock )
+			if( PORTAL(obj)->lock )
 			{
-				if (IS_SET(obj->lock->flags, LOCK_LOCKED))
+				if (IS_SET(PORTAL(obj)->lock->flags, LOCK_LOCKED))
 				{
-					if ((key = lockstate_getkey(ch,obj->lock)) != NULL)
+					if ((key = lockstate_getkey(ch,PORTAL(obj)->lock)) != NULL)
 					{
 						do_function(ch, &do_unlock, start);
 						do_function(ch, &do_open, start);
@@ -1448,7 +1448,7 @@ void do_open(CHAR_DATA *ch, char *argument)
 				}
 			}
 
-			REMOVE_BIT(obj->value[1],EX_CLOSED);
+			REMOVE_BIT(PORTAL(obj)->exit,EX_CLOSED);
 			if (context.is_default)
 			{
 				act("You open $p.",ch, NULL, NULL,obj, NULL, NULL, NULL,TO_CHAR);
@@ -1497,16 +1497,44 @@ void do_open(CHAR_DATA *ch, char *argument)
 		}
 
 		REMOVE_BIT((*context.flags), CONT_CLOSED);
-		if (context.is_default)
+		if (context.item_type == ITEM_BOOK)
 		{
-			act("You open $p.",ch, NULL, NULL,obj, NULL, NULL, NULL,TO_CHAR);
-			act("$n opens $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+			// Special handling for books.
+			if (BOOK(obj)->open_page > 0)
+			{
+				BOOK(obj)->current_page = BOOK(obj)->open_page;
+			}
+			else if (BOOK(obj)->current_page < 1)
+				BOOK(obj)->current_page = 1;
+
+			char page[MIL];
+			sprintf(page, "to page %d", BOOK(obj)->current_page);
+
+			if (context.is_default)
+			{
+				act("You open $p $T.",ch, NULL, NULL,obj, NULL, NULL, page,TO_CHAR);
+				act("$n opens $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+			}
+			else
+			{
+				act("You open $t on $p $T.",ch, NULL, NULL,obj, NULL, context.label, page,TO_CHAR);
+				act("$n opens $t on $p.", ch, NULL, NULL, obj, NULL, context.label, NULL, TO_ROOM);
+			}
 		}
 		else
 		{
-			act("You open $t on $p.",ch, NULL, NULL,obj, NULL, context.label, NULL,TO_CHAR);
-			act("$n opens $t on $p.", ch, NULL, NULL, obj, NULL, context.label, NULL, TO_ROOM);
+			if (context.is_default)
+			{
+				act("You open $p.",ch, NULL, NULL,obj, NULL, NULL, NULL,TO_CHAR);
+				act("$n opens $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+			}
+			else
+			{
+				act("You open $t on $p.",ch, NULL, NULL,obj, NULL, context.label, NULL,TO_CHAR);
+				act("$n opens $t on $p.", ch, NULL, NULL, obj, NULL, context.label, NULL, TO_ROOM);
+			}
 		}
+
 		p_percent_trigger(NULL, obj, NULL, NULL, NULL, NULL, ch, NULL, NULL, TRIG_OPEN, NULL,context.which,context.is_default,0,0,0);
 		return;
 	}
@@ -1600,26 +1628,26 @@ void do_close(CHAR_DATA *ch, char *argument)
 		/* portal stuff */
 		if (context.item_type == ITEM_PORTAL)
 		{
-			if (!IS_SET(obj->value[1],EX_ISDOOR) ||
-				IS_SET(obj->value[1],EX_NOCLOSE))
+			if (!IS_SET(PORTAL(obj)->exit,EX_ISDOOR) ||
+				IS_SET(PORTAL(obj)->exit,EX_NOCLOSE))
 			{
 				send_to_char("You can't do that.\n\r",ch);
 				return;
 			}
 
-			if (IS_SET(obj->value[1],EX_CLOSED))
+			if (IS_SET(PORTAL(obj)->exit,EX_CLOSED))
 			{
 				send_to_char("It's already closed.\n\r",ch);
 				return;
 			}
 
-			if (IS_SET(obj->value[1],EX_BROKEN))
+			if (IS_SET(PORTAL(obj)->exit,EX_BROKEN))
 			{
 				send_to_char("That door has been destroyed. It cannot be closed.\n\r",ch);
 				return;
 			}
 
-			SET_BIT(obj->value[1],EX_CLOSED);
+			SET_BIT(PORTAL(obj)->exit,EX_CLOSED);
 			if (context.is_default)
 			{
 				act("You close $p.",ch, NULL, NULL,obj, NULL, NULL, NULL,TO_CHAR);
@@ -1813,44 +1841,44 @@ void do_lock(CHAR_DATA *ch, char *argument)
 		/* portal stuff */
 		if (context.item_type == ITEM_PORTAL)
 		{
-			if (!IS_SET(obj->value[1],EX_ISDOOR) ||
-				IS_SET(obj->value[1],EX_NOCLOSE))
+			if (!IS_SET(PORTAL(obj)->exit,EX_ISDOOR) ||
+				IS_SET(PORTAL(obj)->exit,EX_NOCLOSE))
 			{
 				send_to_char("You can't do that.\n\r",ch);
 				return;
 			}
 
-			if (!IS_SET(obj->value[1],EX_CLOSED))
+			if (!IS_SET(PORTAL(obj)->exit,EX_CLOSED))
 			{
 				send_to_char("It's not closed.\n\r",ch);
 				return;
 			}
 
-			if (!lockstate_functional(obj->lock))
+			if (!lockstate_functional(PORTAL(obj)->lock))
 			{
 				send_to_char("It can't be locked.\n\r",ch);
 				return;
 			}
 
-			if ((key = lockstate_getkey(ch,obj->lock)) == NULL)
+			if ((key = lockstate_getkey(ch,PORTAL(obj)->lock)) == NULL)
 			{
 				send_to_char("You lack the key.\n\r",ch);
 				return;
 			}
 
-			if (IS_SET(obj->lock->flags,LOCK_BROKEN))
+			if (IS_SET(PORTAL(obj)->lock->flags,LOCK_BROKEN))
 			{
 				send_to_char("The lock is broken.\n\r",ch);
 				return;
 			}
 
-			if (IS_SET(obj->lock->flags,LOCK_JAMMED))
+			if (IS_SET(PORTAL(obj)->lock->flags,LOCK_JAMMED))
 			{
 				send_to_char("The lock has been jammed.\n\r",ch);
 				return;
 			}
 
-			if (IS_SET(obj->lock->flags,LOCK_LOCKED))
+			if (IS_SET(PORTAL(obj)->lock->flags,LOCK_LOCKED))
 			{
 				send_to_char("It's already locked.\n\r",ch);
 				return;
@@ -1887,7 +1915,7 @@ void do_lock(CHAR_DATA *ch, char *argument)
 				act("$n locks $t on $p.",ch, NULL, NULL,obj, NULL, context.label, NULL,TO_ROOM);
 			}
 
-			SET_BIT(obj->lock->flags,LOCK_LOCKED);
+			SET_BIT(PORTAL(obj)->lock->flags,LOCK_LOCKED);
 
 			uk = TRUE;
 			if (p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_LOCK, NULL,context.which,context.is_default,0,0,0))
@@ -1895,7 +1923,7 @@ void do_lock(CHAR_DATA *ch, char *argument)
 			if (p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, key, TRIG_LOCK, NULL,context.which,context.is_default,0,0,0))
 				uk = FALSE;
 			if (uk)
-				use_key(ch, key, obj->lock);
+				use_key(ch, key, PORTAL(obj)->lock);
 			return;
 		}
 
@@ -2097,43 +2125,43 @@ void do_unlock(CHAR_DATA *ch, char *argument)
 
 		if (context.item_type == ITEM_PORTAL)
 		{
-			if (!IS_SET(obj->value[1],EX_ISDOOR))
+			if (!IS_SET(PORTAL(obj)->exit,EX_ISDOOR))
 			{
 				send_to_char("You can't do that.\n\r",ch);
 				return;
 			}
 
-			if (!IS_SET(obj->value[1],EX_CLOSED))
+			if (!IS_SET(PORTAL(obj)->exit,EX_CLOSED))
 			{
 				send_to_char("It's not closed.\n\r",ch);
 				return;
 			}
 
-			if (!lockstate_functional(obj->lock))
+			if (!lockstate_functional(PORTAL(obj)->lock))
 			{
 				send_to_char("It can't be locked.\n\r",ch);
 				return;
 			}
 
-			if ((key = lockstate_getkey(ch,obj->lock)) == NULL)
+			if ((key = lockstate_getkey(ch,PORTAL(obj)->lock)) == NULL)
 			{
 				send_to_char("You lack the key.\n\r",ch);
 				return;
 			}
 
-			if (IS_SET(obj->lock->flags,LOCK_BROKEN))
+			if (IS_SET(PORTAL(obj)->lock->flags,LOCK_BROKEN))
 			{
 				send_to_char("The lock is broken.\n\r",ch);
 				return;
 			}
 
-			if (IS_SET(obj->lock->flags,LOCK_JAMMED))
+			if (IS_SET(PORTAL(obj)->lock->flags,LOCK_JAMMED))
 			{
 				send_to_char("The lock has been jammed.\n\r",ch);
 				return;
 			}
 
-			if (!IS_SET(obj->lock->flags,LOCK_LOCKED))
+			if (!IS_SET(PORTAL(obj)->lock->flags,LOCK_LOCKED))
 			{
 				send_to_char("It's already unlocked.\n\r",ch);
 				return;
@@ -2176,7 +2204,7 @@ void do_unlock(CHAR_DATA *ch, char *argument)
 				act("$n unlocks $t on $p.",ch, NULL, NULL,obj, NULL, context.label, NULL,TO_ROOM);
 			}
 
-			REMOVE_BIT(obj->lock->flags,LOCK_LOCKED);
+			REMOVE_BIT(PORTAL(obj)->lock->flags,LOCK_LOCKED);
 
 			uk = TRUE;
 			if (p_percent_trigger(NULL, key, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_UNLOCK, NULL,context.which,context.is_default,0,0,0))
@@ -2184,7 +2212,7 @@ void do_unlock(CHAR_DATA *ch, char *argument)
 			if (p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, key, TRIG_UNLOCK, NULL,context.which,context.is_default,0,0,0))
 				uk = FALSE;
 			if (uk)
-				use_key(ch, key, obj->lock);
+				use_key(ch, key, PORTAL(obj)->lock);
 			return;
 		}
 

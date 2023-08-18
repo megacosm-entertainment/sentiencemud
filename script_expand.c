@@ -15,12 +15,22 @@
 //#define DEBUG_MODULE
 #include "debug.h"
 
+extern RESERVED_WNUM reserved_room_wnums[];
+extern RESERVED_WNUM reserved_obj_wnums[];
+extern RESERVED_WNUM reserved_mob_wnums[];
+extern RESERVED_WNUM reserved_rprog_wnums[];
+extern RESERVED_AREA reserved_areas[];
+
 extern	LLIST *loaded_instances;
 extern	LLIST *loaded_dungeons;
 extern	LLIST *loaded_ships;
 
+RESERVED_WNUM *search_reserved(RESERVED_WNUM *reserved, char *name);
+RESERVED_AREA *search_reserved_area(char *name);
+
 char *expand_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,pVARIABLE *var);
 char *expand_string_expression(SCRIPT_VARINFO *info,char *str,BUFFER *store);
+char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg);
 
 // Check the validity of the script parameters
 //	Should the ids mismatch, reset the field
@@ -381,7 +391,7 @@ char *expand_argument_expression(SCRIPT_VARINFO *info, char *str,int *num)
 				break;
 			}
 			expect = TRUE;
-		} else if(*str == ESCAPE_VARIABLE) {	// Variable
+		} else if(*str == ESCAPE_VARIABLE) {	// Variable.. must resolve to a numerical value
 			if(expect) {
 				// Generate an error - missing an operator
 				break;
@@ -408,6 +418,34 @@ char *expand_argument_expression(SCRIPT_VARINFO *info, char *str,int *num)
 				// Generate an error - expression too complex, simplify
 				break;
 			}
+			expect = TRUE;
+		} else if(*str == ESCAPE_ENTITY) {		// $() ENTITY.. must resolve to a numerical value
+			if(expect) {
+				// Generate an error - missing an operator
+				break;
+			}
+
+			SCRIPT_PARAM *arg = new_script_param();
+
+			str = expand_argument_entity(info,str+1,arg);
+			if(!str) {
+				break;
+			}
+
+			if (arg->type == ENT_NUMBER)
+				value = arg->d.num;
+			else if (arg->type == ENT_STRING && is_number(arg->d.str))
+				value = atoi(arg->d.str);
+			else
+				value = 0;
+
+			free_script_param(arg);
+
+			if(!push(&opnd,value)) {
+				// Generate an error - expression too complex, simplify
+				break;
+			}
+
 			expect = TRUE;
 		} else if(*str == ESCAPE_EXPRESSION) {
 			if(expect) {
@@ -522,6 +560,7 @@ char *expand_argument_variable(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 			break;
 		case VAR_SONG:		arg->type = ENT_SONG; arg->d.song = var->_.sn; break;
 		case VAR_AFFECT:	arg->type = ENT_AFFECT; arg->d.aff = var->_.aff; break;
+		case VAR_BOOK_PAGE:	arg->type = ENT_BOOK_PAGE; arg->d.book_page = var->_.book_page; break;
 		case VAR_FOOD_BUFF:	arg->type = ENT_FOOD_BUFF; arg->d.food_buff = var->_.food_buff; break;
 		case VAR_COMPARTMENT:	arg->type = ENT_COMPARTMENT; arg->d.compartment = var->_.compartment; break;
 
@@ -619,6 +658,7 @@ char *expand_argument_variable(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case VAR_PLLIST_AREA:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_AREA; break;
 		case VAR_PLLIST_AREA_REGION:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_AREA_REGION; break;
 		case VAR_PLLIST_CHURCH:	arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_CHURCH; break;
+		case VAR_PLLIST_BOOK_PAGE: arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_BOOK_PAGE; break;
 		case VAR_PLLIST_FOOD_BUFF: arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_FOOD_BUFF; break;
 		case VAR_PLLIST_COMPARTMENT: arg->d.blist = var->_.list;	arg->type = ENT_PLLIST_COMPARTMENT; break;
 
@@ -761,6 +801,7 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
 			if(var->type == VAR_EXIT && var->_.door.r) {
 				arg->d.door.r = var->_.door.r;
 				arg->d.door.door = var->_.door.door;
+				arg->type = ENT_EXIT;
 			} else if(var->type == VAR_CLONE_DOOR) {
 				arg->d.cdoor.r = var->_.cdoor.r;
 				arg->d.cdoor.a = var->_.cdoor.a;
@@ -808,6 +849,14 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
 		else return NULL;
 
 		arg->type = ENT_FOOD_BUFF;
+		break;
+
+	case ENTITY_VAR_BOOK_PAGE:
+		if(var && var->type == VAR_BOOK_PAGE && var->_.book_page)
+			arg->d.book_page = var->_.book_page;
+		else return NULL;
+
+		arg->type = ENT_BOOK_PAGE;
 		break;
 
 	case ENTITY_VAR_COMPARTMENT:
@@ -972,6 +1021,7 @@ char *expand_escape_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,SCRI
 	case ENTITY_VAR_PLLIST_AREA:
 	case ENTITY_VAR_PLLIST_AREA_REGION:
 	case ENTITY_VAR_PLLIST_CHURCH:
+	case ENTITY_VAR_PLLIST_BOOK_PAGE:
 	case ENTITY_VAR_PLLIST_FOOD_BUFF:
 	case ENTITY_VAR_PLLIST_COMPARTMENT:
 	case ENTITY_VAR_PLLIST_VARIABLE:
@@ -1237,6 +1287,18 @@ char *expand_entity_game(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_GAME_RELIC_MAGIC:
 		arg->type = ENT_OBJECT;
 		arg->d.obj = mana_regen_relic;
+		break;
+
+	case ENTITY_GAME_RESERVED_MOBILE:
+		arg->type = ENT_RESERVED_MOBILE;
+		break;
+
+	case ENTITY_GAME_RESERVED_OBJECT:
+		arg->type = ENT_RESERVED_OBJECT;
+		break;
+
+	case ENTITY_GAME_RESERVED_ROOM:
+		arg->type = ENT_RESERVED_ROOM;
 		break;
 
 	default: return NULL;
@@ -1863,19 +1925,19 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_OLLIST_OBJ;
 		arg->d.list.ptr.obj = self ? &self->carrying : NULL;
 		arg->d.list.owner = self;
-		arg->d.list.owner_type = ENT_UNKNOWN;
+		arg->d.list.owner_type = ENT_MOBILE;
 		break;
 	case ENTITY_MOB_TOKENS:
 		arg->type = ENT_OLLIST_TOK;
 		arg->d.list.ptr.tok = self ? &self->tokens : NULL;
 		arg->d.list.owner = self;
-		arg->d.list.owner_type = ENT_UNKNOWN;
+		arg->d.list.owner_type = ENT_MOBILE;
 		break;
 	case ENTITY_MOB_AFFECTS:
 		arg->type = ENT_OLLIST_AFF;
 		arg->d.list.ptr.aff = self ? &self->affected : NULL;
 		arg->d.list.owner = self;
-		arg->d.list.owner_type = ENT_UNKNOWN;
+		arg->d.list.owner_type = ENT_MOBILE;
 		break;
 	case ENTITY_MOB_MOUNT:
 		arg->d.mob = arg->d.mob ? arg->d.mob->mount : NULL;
@@ -2050,36 +2112,38 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->type = ENT_OBJECT;
 		arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_UPPER_LEG_R);
 		break;
-        case ENTITY_MOB_EQ_TATTOO_LOWER_ARM1:
-                arg->type = ENT_OBJECT;
-                arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_LOWER_ARM_L);
-                break;
-        case ENTITY_MOB_EQ_TATTOO_LOWER_ARM2:
-                arg->type = ENT_OBJECT;
-                arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_LOWER_ARM_R);
-                break;
-        case ENTITY_MOB_EQ_TATTOO_LOWER_LEG1:
-                arg->type = ENT_OBJECT;
-                arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_LOWER_LEG_L);
-                break;
-        case ENTITY_MOB_EQ_TATTOO_LOWER_LEG2:
-                arg->type = ENT_OBJECT;
-                arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_LOWER_LEG_R);
-                break;
-        case ENTITY_MOB_EQ_TATTOO_SHOULDER1:
-                arg->type = ENT_OBJECT;
-                arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_SHOULDER_L);
-                break;
-        case ENTITY_MOB_EQ_TATTOO_SHOULDER2:
-                arg->type = ENT_OBJECT;
-                arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_SHOULDER_R);
-                break;
+	case ENTITY_MOB_EQ_TATTOO_LOWER_ARM1:
+		arg->type = ENT_OBJECT;
+		arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_LOWER_ARM_L);
+		break;
+	case ENTITY_MOB_EQ_TATTOO_LOWER_ARM2:
+		arg->type = ENT_OBJECT;
+		arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_LOWER_ARM_R);
+		break;
+	case ENTITY_MOB_EQ_TATTOO_LOWER_LEG1:
+		arg->type = ENT_OBJECT;
+		arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_LOWER_LEG_L);
+		break;
+	case ENTITY_MOB_EQ_TATTOO_LOWER_LEG2:
+		arg->type = ENT_OBJECT;
+		arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_LOWER_LEG_R);
+		break;
+	case ENTITY_MOB_EQ_TATTOO_SHOULDER1:
+		arg->type = ENT_OBJECT;
+		arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_SHOULDER_L);
+		break;
+	case ENTITY_MOB_EQ_TATTOO_SHOULDER2:
+		arg->type = ENT_OBJECT;
+		arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_SHOULDER_R);
+		break;
 	case ENTITY_MOB_EQ_TATTOO_BACK:
 		arg->type = ENT_OBJECT;
 		arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_BACK);
+		break;
 	case ENTITY_MOB_EQ_TATTOO_NECK:
 		arg->type = ENT_OBJECT;
 		arg->d.obj = get_eq_char(arg->d.mob,WEAR_TATTOO_NECK);
+		break;
 	case ENTITY_MOB_EQ_LODGED_HEAD:
 		arg->type = ENT_OBJECT;
 		arg->d.obj = get_eq_char(arg->d.mob,WEAR_LODGED_HEAD);
@@ -2200,26 +2264,26 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 	case ENTITY_MOB_OFF:
 		arg->type = ENT_BITVECTOR;
-		arg->d.bv.value = (arg->d.mob && IS_NPC(arg->d.mob)) ? arg->d.mob->off_flags : 0;
-		arg->d.bv.table = (arg->d.mob && IS_NPC(arg->d.mob)) ? off_flags : NULL;
+		arg->d.bv.value = (self && IS_NPC(self)) ? self->off_flags : 0;
+		arg->d.bv.table = (self && IS_NPC(self)) ? off_flags : NULL;
 		break;
 
 	case ENTITY_MOB_IMMUNE:
 		arg->type = ENT_BITVECTOR;
-		arg->d.bv.value = arg->d.mob ? arg->d.mob->imm_flags : 0;
-		arg->d.bv.table = arg->d.mob ? imm_flags : NULL;
+		arg->d.bv.value = self ? self->imm_flags : 0;
+		arg->d.bv.table = self ? imm_flags : NULL;
 		break;
 
 	case ENTITY_MOB_RESIST:
 		arg->type = ENT_BITVECTOR;
-		arg->d.bv.value = arg->d.mob ? arg->d.mob->res_flags : 0;
-		arg->d.bv.table = arg->d.mob ? res_flags : NULL;
+		arg->d.bv.value = self ? self->res_flags : 0;
+		arg->d.bv.table = self ? res_flags : NULL;
 		break;
 
 	case ENTITY_MOB_VULN:
 		arg->type = ENT_BITVECTOR;
-		arg->d.bv.value = arg->d.mob ? arg->d.mob->vuln_flags : 0;
-		arg->d.bv.table = arg->d.mob ? vuln_flags : NULL;
+		arg->d.bv.value = self ? self->vuln_flags : 0;
+		arg->d.bv.table = self ? vuln_flags : NULL;
 		break;
 
 	case ENTITY_MOB_TEMPSTRING:
@@ -2650,6 +2714,16 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 
 	// Multi-typing
+	case ENTITY_OBJ_TYPE_PAGE:
+		arg->type = ENT_BOOK_PAGE;
+		arg->d.book_page = IS_VALID(arg->d.obj) ? PAGE(arg->d.obj) : NULL;
+		break;
+
+	case ENTITY_OBJ_TYPE_BOOK:
+		arg->type = ENT_OBJECT_BOOK;
+		// Uses arg->d.obj
+		break;
+
 	case ENTITY_OBJ_TYPE_CONTAINER:
 		arg->type = ENT_OBJECT_CONTAINER;
 		// Uses arg->d.obj
@@ -2667,6 +2741,11 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 	case ENTITY_OBJ_TYPE_MONEY:
 		arg->type = ENT_OBJECT_MONEY;
+		// Uses arg->d.obj
+		break;
+
+	case ENTITY_OBJ_TYPE_PORTAL:
+		arg->type = ENT_OBJECT_PORTAL;
 		// Uses arg->d.obj
 		break;
 
@@ -3051,6 +3130,8 @@ char *expand_entity_token(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_TOKEN_VAL5:
 	case ENTITY_TOKEN_VAL6:
 	case ENTITY_TOKEN_VAL7:
+	case ENTITY_TOKEN_VAL8:
+	case ENTITY_TOKEN_VAL9:
 		arg->type = ENT_NUMBER;
 		arg->d.num = arg->d.token ? arg->d.token->value[*str  - ENTITY_TOKEN_VAL0] : 0;
 		break;
@@ -3300,6 +3381,22 @@ char *expand_entity_list_mob(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	register CHAR_DATA *mob;
 	register int count;
 	switch(*str) {
+	case ESCAPE_EXPRESSION:
+	{
+		int index;
+		str = expand_argument_expression(info,str+1,&index);
+		if (!str) return NULL;
+
+		if(arg->d.list.ptr.mob)
+		{
+			arg->type = ENT_MOBILE;
+			for(mob = *arg->d.list.ptr.mob;--index > 0 && mob;mob = mob->next_in_room);
+			arg->d.mob = mob;
+		}
+
+		return str;
+	}
+
 	case ENTITY_LIST_SIZE:
 		arg->type = ENT_NUMBER;
 		count = 0;
@@ -3344,6 +3441,22 @@ char *expand_entity_list_obj(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	register OBJ_DATA *obj;
 	register int count;
 	switch(*str) {
+	case ESCAPE_EXPRESSION:
+	{
+		int index;
+		str = expand_argument_expression(info,str+1,&index);
+		if (!str) return NULL;
+
+		if(arg->d.list.ptr.obj)
+		{
+			arg->type = ENT_OBJECT;
+			for(obj = *arg->d.list.ptr.obj;--index > 0 && obj;obj = obj->next_content);
+			arg->d.obj = obj;
+		}
+
+		return str;
+	}
+
 	case ENTITY_LIST_SIZE:
 		arg->type = ENT_NUMBER;
 		count = 0;
@@ -3388,6 +3501,21 @@ char *expand_entity_list_token(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	register TOKEN_DATA *token;
 	register int count;
 	switch(*str) {
+	case ESCAPE_EXPRESSION:
+	{
+		int index;
+		str = expand_argument_expression(info,str+1,&index);
+		if (!str) return NULL;
+
+		if(arg->d.list.ptr.obj)
+		{
+			arg->type = ENT_TOKEN;
+			for(token = *arg->d.list.ptr.tok;--index > 0 && token;token = token->next);
+			arg->d.token = token;
+		}
+
+		return str;
+	}
 	case ENTITY_LIST_SIZE:
 		arg->type = ENT_NUMBER;
 		count = 0;
@@ -3432,6 +3560,21 @@ char *expand_entity_list_affect(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg
 	register AFFECT_DATA *affect;
 	register int count;
 	switch(*str) {
+	case ESCAPE_EXPRESSION:
+	{
+		int index;
+		str = expand_argument_expression(info,str+1,&index);
+		if (!str) return NULL;
+
+		if(arg->d.list.ptr.obj)
+		{
+			arg->type = ENT_AFFECT;
+			for(affect = *arg->d.list.ptr.aff;--index > 0 && affect;affect = affect->next);
+			arg->d.aff = affect;
+		}
+
+		return str;
+	}
 	case ENTITY_LIST_SIZE:
 		arg->type = ENT_NUMBER;
 		count = 0;
@@ -3762,6 +3905,66 @@ char *expand_entity_affect(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_AFFECT_TIMER:
 		arg->type = ENT_NUMBER;
 		arg->d.num = arg->d.aff ? arg->d.aff->duration : 0;
+		break;
+
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_object_page(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	BOOK_PAGE *page = IS_VALID(arg->d.obj) && IS_PAGE(arg->d.obj) ? PAGE(arg->d.obj) : NULL;
+
+	//printf("expand_entity_object_page() called\n\r");
+	switch(*str) {
+	case ENTITY_BOOK_PAGE_NUMBER:
+		arg->type = ENT_NUMBER;
+		arg->d.num = page ? page->page_no : 0;
+		break;
+
+	case ENTITY_BOOK_PAGE_TITLE:
+		arg->type = ENT_STRING;
+		arg->d.str = page ? page->title : "";
+		break;
+
+	case ENTITY_BOOK_PAGE_TEXT:
+		arg->type = ENT_STRING;
+		arg->d.str = page ? page->text : "";
+		break;
+
+	case ENTITY_BOOK_PAGE_BOOK:
+		arg->type = ENT_OBJINDEX;
+		if (page && page->book.auid > 0 && page->book.vnum > 0)
+			arg->d.objindex = get_obj_index_auid(page->book.auid, page->book.vnum);
+		else
+			arg->d.objindex = NULL;
+		break;
+
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_book_page(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	//printf("expand_entity_book_page() called\n\r");
+	switch(*str) {
+	case ENTITY_BOOK_PAGE_NUMBER:
+		arg->type = ENT_NUMBER;
+		arg->d.num = arg->d.book_page ? arg->d.book_page->page_no : 0;
+		break;
+
+	case ENTITY_BOOK_PAGE_TITLE:
+		arg->type = ENT_STRING;
+		arg->d.str = arg->d.book_page ? arg->d.book_page->title : "";
+		break;
+
+	case ENTITY_BOOK_PAGE_TEXT:
+		arg->type = ENT_STRING;
+		arg->d.str = arg->d.book_page ? arg->d.book_page->text : "";
 		break;
 
 	default: return NULL;
@@ -4266,6 +4469,22 @@ char *expand_entity_plist_str(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 	char *p = NULL;
 	switch(*str) {
+	case ESCAPE_EXPRESSION:
+	{
+		int index;
+		str = expand_argument_expression(info,str+1,&index);
+		if (!str) return NULL;
+
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			p = (char *)list_nthdata(arg->d.blist, index);
+
+		clear_buf(arg->buffer);
+		add_buf(arg->buffer, p ? p : "");
+		arg->d.str = buf_string(arg->buffer);
+		arg->type = ENT_STRING;
+
+		return str;
+	}
 	case ENTITY_LIST_SIZE:
 		arg->type = ENT_NUMBER;
 		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -4281,7 +4500,7 @@ char *expand_entity_plist_str(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 	case ENTITY_LIST_FIRST:
 		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			p = (char *)list_nthdata(arg->d.blist, 0);
+			p = (char *)list_nthdata(arg->d.blist, 1);
 
 		clear_buf(arg->buffer);
 		add_buf(arg->buffer, p ? p : "");
@@ -4307,6 +4526,20 @@ char *expand_entity_blist_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 	register LLIST_ROOM_DATA *r = NULL;
 	switch(*str) {
+	case ESCAPE_EXPRESSION:
+	{
+		int index;
+		str = expand_argument_expression(info,str+1,&index);
+		if (!str) return NULL;
+
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			r = (LLIST_ROOM_DATA *)list_nthdata(arg->d.blist, index);
+
+		arg->d.room = r ? r->room : NULL;
+		arg->type = ENT_ROOM;
+
+		return str;
+	}
 	case ENTITY_LIST_SIZE:
 		arg->type = ENT_NUMBER;
 		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -4320,7 +4553,7 @@ char *expand_entity_blist_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 	case ENTITY_LIST_FIRST:
 		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			r = (LLIST_ROOM_DATA *)list_nthdata(arg->d.blist, 0);
+			r = (LLIST_ROOM_DATA *)list_nthdata(arg->d.blist, 1);
 
 		arg->d.room = r ? r->room : NULL;
 		arg->type = ENT_ROOM;
@@ -4343,6 +4576,31 @@ char *expand_entity_blist_mob(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 	register LLIST_UID_DATA *uid = NULL;
 	switch(*str) {
+	case ESCAPE_EXPRESSION:
+	{
+		int index;
+		str = expand_argument_expression(info,str+1,&index);
+		if (!str) return NULL;
+
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			uid = (LLIST_UID_DATA *)list_nthdata(arg->d.blist, index);
+
+		if( uid ) {
+			if( uid->ptr ) {
+				arg->d.mob = (CHAR_DATA *)uid->ptr;
+				arg->type = ENT_MOBILE;
+			} else {
+				arg->d.uid[0] = uid->id[0];
+				arg->d.uid[1] = uid->id[1];
+				arg->type = ENT_MOBILE_ID;
+			}
+		} else {
+			arg->d.mob = NULL;
+			arg->type = ENT_MOBILE;
+		}
+
+		return str;
+	}
 	case ENTITY_LIST_SIZE:
 		arg->type = ENT_NUMBER;
 		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -4367,7 +4625,7 @@ char *expand_entity_blist_mob(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 	case ENTITY_LIST_FIRST:
 		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			uid = (LLIST_UID_DATA *)list_nthdata(arg->d.blist, 0);
+			uid = (LLIST_UID_DATA *)list_nthdata(arg->d.blist, 1);
 
 		if( uid ) {
 			if( uid->ptr ) {
@@ -4411,6 +4669,31 @@ char *expand_entity_blist_obj(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 	register LLIST_UID_DATA *uid = NULL;
 	switch(*str) {
+	case ESCAPE_EXPRESSION:
+	{
+		int index;
+		str = expand_argument_expression(info,str+1,&index);
+		if (!str) return NULL;
+
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			uid = (LLIST_UID_DATA *)list_nthdata(arg->d.blist, index);
+
+		if( uid ) {
+			if( uid->ptr ) {
+				arg->d.obj = (OBJ_DATA *)uid->ptr;
+				arg->type = ENT_OBJECT;
+			} else {
+				arg->d.uid[0] = uid->id[0];
+				arg->d.uid[1] = uid->id[1];
+				arg->type = ENT_OBJECT_ID;
+			}
+		} else {
+			arg->d.obj = NULL;
+			arg->type = ENT_OBJECT;
+		}
+
+		return str;
+	}
 	case ENTITY_LIST_SIZE:
 		arg->type = ENT_NUMBER;
 		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -4435,7 +4718,7 @@ char *expand_entity_blist_obj(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 	case ENTITY_LIST_FIRST:
 		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			uid = (LLIST_UID_DATA *)list_nthdata(arg->d.blist, 0);
+			uid = (LLIST_UID_DATA *)list_nthdata(arg->d.blist, 1);
 
 		if( uid ) {
 			if( uid->ptr ) {
@@ -4479,6 +4762,31 @@ char *expand_entity_blist_token(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg
 {
 	register LLIST_UID_DATA *uid = NULL;
 	switch(*str) {
+	case ESCAPE_EXPRESSION:
+	{
+		int index;
+		str = expand_argument_expression(info,str+1,&index);
+		if (!str) return NULL;
+
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			uid = (LLIST_UID_DATA *)list_nthdata(arg->d.blist, index);
+
+		if( uid ) {
+			if( uid->ptr ) {
+				arg->d.token  = (TOKEN_DATA *)uid->ptr;
+				arg->type = ENT_TOKEN;
+			} else {
+				arg->d.uid[0] = uid->id[0];
+				arg->d.uid[1] = uid->id[1];
+				arg->type = ENT_TOKEN_ID;
+			}
+		} else {
+			arg->d.mob = NULL;
+			arg->type = ENT_TOKEN;
+		}
+
+		return str;
+	}
 	case ENTITY_LIST_SIZE:
 		arg->type = ENT_NUMBER;
 		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -4503,7 +4811,7 @@ char *expand_entity_blist_token(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg
 		break;
 	case ENTITY_LIST_FIRST:
 		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			uid = (LLIST_UID_DATA *)list_nthdata(arg->d.blist, 0);
+			uid = (LLIST_UID_DATA *)list_nthdata(arg->d.blist, 1);
 
 		if( uid ) {
 			if( uid->ptr ) {
@@ -4547,6 +4855,30 @@ char *expand_entity_blist_area(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 	register LLIST_AREA_DATA *uid = NULL;
 	switch(*str) {
+	case ESCAPE_EXPRESSION:
+	{
+		int index;
+		str = expand_argument_expression(info,str+1,&index);
+		if (!str) return NULL;
+
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			uid = (LLIST_AREA_DATA *)list_nthdata(arg->d.blist, index);
+
+		if( uid ) {
+			if( uid->area ) {
+				arg->d.area = (AREA_DATA *)uid->area;
+				arg->type = ENT_AREA;
+			} else {
+				arg->d.aid = uid->uid;
+				arg->type = ENT_AREA_ID;
+			}
+		} else {
+			arg->d.area = NULL;
+			arg->type = ENT_AREA;
+		}
+
+		return str;
+	}
 	case ENTITY_LIST_SIZE:
 		arg->type = ENT_NUMBER;
 		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -4559,7 +4891,7 @@ char *expand_entity_blist_area(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 	case ENTITY_LIST_FIRST:
 		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			uid = (LLIST_AREA_DATA *)list_nthdata(arg->d.blist, 0);
+			uid = (LLIST_AREA_DATA *)list_nthdata(arg->d.blist, 1);
 
 		break;
 	case ENTITY_LIST_LAST:
@@ -4590,6 +4922,31 @@ char *expand_entity_blist_area_region(SCRIPT_VARINFO *info,char *str,SCRIPT_PARA
 {
 	register LLIST_AREA_REGION_DATA *region = NULL;
 	switch(*str) {
+	case ESCAPE_EXPRESSION:
+	{
+		int index;
+		str = expand_argument_expression(info,str+1,&index);
+		if (!str) return NULL;
+
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			region = (LLIST_AREA_REGION_DATA *)list_nthdata(arg->d.blist, index);
+
+		if( region ) {
+			if( region->aregion ) {
+				arg->d.aregion = (AREA_REGION *)region->aregion;
+				arg->type = ENT_AREA_REGION;
+			} else {
+				arg->d.arid.aid = region->aid;
+				arg->d.arid.rid = region->rid;
+				arg->type = ENT_AREA_REGION_ID;
+			}
+		} else {
+			arg->d.aregion = NULL;
+			arg->type = ENT_AREA_REGION;
+		}
+
+		return str;
+	}
 	case ENTITY_LIST_SIZE:
 		arg->type = ENT_NUMBER;
 		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -4602,7 +4959,7 @@ char *expand_entity_blist_area_region(SCRIPT_VARINFO *info,char *str,SCRIPT_PARA
 		break;
 	case ENTITY_LIST_FIRST:
 		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			region = (LLIST_AREA_REGION_DATA *)list_nthdata(arg->d.blist, 0);
+			region = (LLIST_AREA_REGION_DATA *)list_nthdata(arg->d.blist, 1);
 
 		break;
 	case ENTITY_LIST_LAST:
@@ -4634,6 +4991,30 @@ char *expand_entity_blist_wilds(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg
 {
 	register LLIST_WILDS_DATA *uid = NULL;
 	switch(*str) {
+	case ESCAPE_EXPRESSION:
+	{
+		int index;
+		str = expand_argument_expression(info,str+1,&index);
+		if (!str) return NULL;
+
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			uid = (LLIST_WILDS_DATA *)list_nthdata(arg->d.blist, index);
+
+		if( uid ) {
+			if( uid->wilds ) {
+				arg->d.wilds = (WILDS_DATA *)uid->wilds;
+				arg->type = ENT_WILDS;
+			} else {
+				arg->d.wid = uid->uid;
+				arg->type = ENT_WILDS_ID;
+			}
+		} else {
+			arg->d.wilds = NULL;
+			arg->type = ENT_WILDS;
+		}
+
+		return str;
+	}
 	case ENTITY_LIST_SIZE:
 		arg->type = ENT_NUMBER;
 		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -4646,7 +5027,7 @@ char *expand_entity_blist_wilds(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg
 		break;
 	case ENTITY_LIST_FIRST:
 		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			uid = (LLIST_WILDS_DATA *)list_nthdata(arg->d.blist, 0);
+			uid = (LLIST_WILDS_DATA *)list_nthdata(arg->d.blist, 1);
 
 		break;
 	case ENTITY_LIST_LAST:
@@ -4677,6 +5058,26 @@ char *expand_entity_blist_exit(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 	register LLIST_EXIT_DATA *e = NULL;
 	switch(*str) {
+	case ESCAPE_EXPRESSION:
+	{
+		int index;
+		str = expand_argument_expression(info,str+1,&index);
+		if (!str) return NULL;
+
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			e = (LLIST_EXIT_DATA *)list_nthdata(arg->d.blist, index);
+
+		if( e ) {
+			arg->d.door.r = e->room;
+			arg->d.door.door = e->door;
+		} else {
+			arg->d.door.r = NULL;
+			arg->d.door.door = 0;
+		}
+		arg->type = ENT_EXIT;
+
+		return str;
+	}
 	case ENTITY_LIST_SIZE:
 		arg->type = ENT_NUMBER;
 		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -4689,7 +5090,7 @@ char *expand_entity_blist_exit(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 	case ENTITY_LIST_FIRST:
 		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			e = (LLIST_EXIT_DATA *)list_nthdata(arg->d.blist, 0);
+			e = (LLIST_EXIT_DATA *)list_nthdata(arg->d.blist, 1);
 
 		break;
 	case ENTITY_LIST_LAST:
@@ -4716,6 +5117,34 @@ char *expand_entity_blist_skillinfo(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM 
 {
 	register LLIST_SKILL_DATA *s = NULL;
 	switch(*str) {
+	case ESCAPE_EXPRESSION:
+	{
+		int index;
+		str = expand_argument_expression(info,str+1,&index);
+		if (!str) return NULL;
+
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			s = (LLIST_SKILL_DATA *)list_nthdata(arg->d.blist, index);
+
+		if( s && s->mob && (IS_VALID(s->tok) || (s->sn > 0 && s->sn < MAX_SKILL)) ) {
+			arg->d.sk.m = s->mob;
+			arg->d.sk.t = s->tok;
+			arg->d.sk.sn = (s->sn > 0 && s->sn < MAX_SKILL) ? s->sn : 0;
+			arg->d.sk.mid[0] = s->mid[0];
+			arg->d.sk.mid[1] = s->mid[1];
+			arg->d.sk.tid[0] = s->tid[0];
+			arg->d.sk.tid[1] = s->tid[1];
+		} else {
+			arg->d.sk.m = NULL;
+			arg->d.sk.t = NULL;
+			arg->d.sk.sn = 0;
+			arg->d.sk.mid[0] = arg->d.sk.mid[1] = 0;
+			arg->d.sk.tid[0] = arg->d.sk.tid[1] = 0;
+		}
+		arg->type = ENT_SKILLINFO;
+
+		return str;
+	}
 	case ENTITY_LIST_SIZE:
 		arg->type = ENT_NUMBER;
 		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -4743,7 +5172,7 @@ char *expand_entity_blist_skillinfo(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM 
 		break;
 	case ENTITY_LIST_FIRST:
 		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			s = (LLIST_SKILL_DATA *)list_nthdata(arg->d.blist, 0);
+			s = (LLIST_SKILL_DATA *)list_nthdata(arg->d.blist, 1);
 
 		if( s && s->mob && (IS_VALID(s->tok) || (s->sn > 0 && s->sn < MAX_SKILL)) ) {
 			arg->d.sk.m = s->mob;
@@ -4793,6 +5222,20 @@ char *expand_entity_plist_conn(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 	register DESCRIPTOR_DATA *conn = NULL;
 	switch(*str) {
+	case ESCAPE_EXPRESSION:
+	{
+		int index;
+		str = expand_argument_expression(info,str+1,&index);
+		if (!str) return NULL;
+
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			conn = (DESCRIPTOR_DATA *)list_nthdata(arg->d.blist, index);
+
+		arg->d.conn = conn;
+		arg->type = ENT_CONN;
+
+		return str;
+	}
 	case ENTITY_LIST_SIZE:
 		arg->type = ENT_NUMBER;
 		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -4806,7 +5249,7 @@ char *expand_entity_plist_conn(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 	case ENTITY_LIST_FIRST:
 		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			conn = (DESCRIPTOR_DATA *)list_nthdata(arg->d.blist, 0);
+			conn = (DESCRIPTOR_DATA *)list_nthdata(arg->d.blist, 1);
 
 		arg->d.conn = conn;
 		arg->type = ENT_CONN;
@@ -4828,6 +5271,20 @@ char *expand_entity_plist_church(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *ar
 {
 	register CHURCH_DATA *church = NULL;
 	switch(*str) {
+	case ESCAPE_EXPRESSION:
+	{
+		int index;
+		str = expand_argument_expression(info,str+1,&index);
+		if (!str) return NULL;
+
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			church = (CHURCH_DATA *)list_nthdata(arg->d.blist, index);
+
+		arg->d.church = church;
+		arg->type = ENT_CHURCH;
+
+		return str;
+	}
 	case ENTITY_LIST_SIZE:
 		arg->type = ENT_NUMBER;
 		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -4841,7 +5298,7 @@ char *expand_entity_plist_church(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *ar
 		break;
 	case ENTITY_LIST_FIRST:
 		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			church = (CHURCH_DATA *)list_nthdata(arg->d.blist, 0);
+			church = (CHURCH_DATA *)list_nthdata(arg->d.blist, 1);
 
 		arg->d.church = church;
 		arg->type = ENT_CHURCH;
@@ -4859,10 +5316,73 @@ char *expand_entity_plist_church(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *ar
 	return str+1;
 }
 
+char *expand_entity_plist_book_page(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	register BOOK_PAGE *book_page = NULL;
+	switch(*str) {
+	case ESCAPE_EXPRESSION:
+	{
+		int index;
+		str = expand_argument_expression(info,str+1,&index);
+		if (!str) return NULL;
+
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			book_page = (BOOK_PAGE *)list_nthdata(arg->d.blist, index);
+
+		arg->d.book_page = book_page;
+		arg->type = ENT_BOOK_PAGE;
+
+		return str;
+	}
+	case ENTITY_LIST_SIZE:
+		arg->type = ENT_NUMBER;
+		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
+		break;
+	case ENTITY_LIST_RANDOM:
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			book_page = (BOOK_PAGE *)list_nthdata(arg->d.blist, number_range(0,arg->d.blist->size-1));
+
+		arg->d.book_page = book_page;
+		arg->type = ENT_BOOK_PAGE;
+		break;
+	case ENTITY_LIST_FIRST:
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			book_page = (BOOK_PAGE *)list_nthdata(arg->d.blist, 1);
+
+		arg->d.book_page = book_page;
+		arg->type = ENT_BOOK_PAGE;
+		break;
+	case ENTITY_LIST_LAST:
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			book_page = (BOOK_PAGE *)list_nthdata(arg->d.blist, -1);
+
+		arg->d.book_page = book_page;
+		arg->type = ENT_BOOK_PAGE;
+		break;
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
 char *expand_entity_plist_food_buff(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 	register FOOD_BUFF_DATA *food_buff = NULL;
 	switch(*str) {
+	case ESCAPE_EXPRESSION:
+	{
+		int index;
+		str = expand_argument_expression(info,str+1,&index);
+		if (!str) return NULL;
+
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			food_buff = (FOOD_BUFF_DATA *)list_nthdata(arg->d.blist, index);
+
+		arg->d.food_buff = food_buff;
+		arg->type = ENT_FOOD_BUFF;
+
+		return str;
+	}
 	case ENTITY_LIST_SIZE:
 		arg->type = ENT_NUMBER;
 		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -4876,7 +5396,7 @@ char *expand_entity_plist_food_buff(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM 
 		break;
 	case ENTITY_LIST_FIRST:
 		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			food_buff = (FOOD_BUFF_DATA *)list_nthdata(arg->d.blist, 0);
+			food_buff = (FOOD_BUFF_DATA *)list_nthdata(arg->d.blist, 1);
 
 		arg->d.food_buff = food_buff;
 		arg->type = ENT_FOOD_BUFF;
@@ -4898,6 +5418,20 @@ char *expand_entity_plist_compartment(SCRIPT_VARINFO *info,char *str,SCRIPT_PARA
 {
 	register FURNITURE_COMPARTMENT *compartment = NULL;
 	switch(*str) {
+	case ESCAPE_EXPRESSION:
+	{
+		int index;
+		str = expand_argument_expression(info,str+1,&index);
+		if (!str) return NULL;
+
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			compartment = (FURNITURE_COMPARTMENT *)list_nthdata(arg->d.blist, index);
+
+		arg->d.compartment = compartment;
+		arg->type = ENT_COMPARTMENT;
+
+		return str;
+	}
 	case ENTITY_LIST_SIZE:
 		arg->type = ENT_NUMBER;
 		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -4911,7 +5445,7 @@ char *expand_entity_plist_compartment(SCRIPT_VARINFO *info,char *str,SCRIPT_PARA
 		break;
 	case ENTITY_LIST_FIRST:
 		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			compartment = (FURNITURE_COMPARTMENT *)list_nthdata(arg->d.blist, 0);
+			compartment = (FURNITURE_COMPARTMENT *)list_nthdata(arg->d.blist, 1);
 
 		arg->d.compartment = compartment;
 		arg->type = ENT_COMPARTMENT;
@@ -4933,6 +5467,20 @@ char *expand_entity_plist_mob(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 	register CHAR_DATA *ch = NULL;
 	switch(*str) {
+	case ESCAPE_EXPRESSION:
+	{
+		int index;
+		str = expand_argument_expression(info,str+1,&index);
+		if (!str) return NULL;
+
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			ch = (CHAR_DATA *)list_nthdata(arg->d.blist, index);
+
+		arg->d.mob = ch;
+		arg->type = ENT_MOBILE;
+
+		return str;
+	}
 	case ENTITY_LIST_SIZE:
 		arg->type = ENT_NUMBER;
 		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -4946,7 +5494,7 @@ char *expand_entity_plist_mob(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 	case ENTITY_LIST_FIRST:
 		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			ch = (CHAR_DATA *)list_nthdata(arg->d.blist, 0);
+			ch = (CHAR_DATA *)list_nthdata(arg->d.blist, 1);
 
 		arg->d.mob = ch;
 		arg->type = ENT_MOBILE;
@@ -4968,6 +5516,20 @@ char *expand_entity_plist_obj(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 	register OBJ_DATA *obj = NULL;
 	switch(*str) {
+	case ESCAPE_EXPRESSION:
+	{
+		int index;
+		str = expand_argument_expression(info,str+1,&index);
+		if (!str) return NULL;
+
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			obj = (OBJ_DATA *)list_nthdata(arg->d.blist, index);
+
+		arg->d.obj = obj;
+		arg->type = ENT_OBJECT;
+
+		return str;
+	}
 	case ENTITY_LIST_SIZE:
 		arg->type = ENT_NUMBER;
 		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -4981,7 +5543,7 @@ char *expand_entity_plist_obj(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 	case ENTITY_LIST_FIRST:
 		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			obj = (OBJ_DATA *)list_nthdata(arg->d.blist, 0);
+			obj = (OBJ_DATA *)list_nthdata(arg->d.blist, 1);
 
 		arg->d.obj = obj;
 		arg->type = ENT_OBJECT;
@@ -5003,6 +5565,20 @@ char *expand_entity_plist_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 	register ROOM_INDEX_DATA *room = NULL;
 	switch(*str) {
+	case ESCAPE_EXPRESSION:
+	{
+		int index;
+		str = expand_argument_expression(info,str+1,&index);
+		if (!str) return NULL;
+
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			room = (ROOM_INDEX_DATA *)list_nthdata(arg->d.blist, index);
+
+		arg->d.room = room;
+		arg->type = ENT_ROOM;
+
+		return str;
+	}
 	case ENTITY_LIST_SIZE:
 		arg->type = ENT_NUMBER;
 		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -5016,7 +5592,7 @@ char *expand_entity_plist_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 	case ENTITY_LIST_FIRST:
 		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			room = (ROOM_INDEX_DATA *)list_nthdata(arg->d.blist, 0);
+			room = (ROOM_INDEX_DATA *)list_nthdata(arg->d.blist, 1);
 
 		arg->d.room = room;
 		arg->type = ENT_ROOM;
@@ -5038,6 +5614,20 @@ char *expand_entity_plist_token(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg
 {
 	register TOKEN_DATA *token = NULL;
 	switch(*str) {
+	case ESCAPE_EXPRESSION:
+	{
+		int index;
+		str = expand_argument_expression(info,str+1,&index);
+		if (!str) return NULL;
+
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			token = (TOKEN_DATA *)list_nthdata(arg->d.blist, index);
+
+		arg->d.token = token;
+		arg->type = ENT_TOKEN;
+
+		return str;
+	}
 	case ENTITY_LIST_SIZE:
 		arg->type = ENT_NUMBER;
 		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -5051,7 +5641,7 @@ char *expand_entity_plist_token(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg
 		break;
 	case ENTITY_LIST_FIRST:
 		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			token = (TOKEN_DATA *)list_nthdata(arg->d.blist, 0);
+			token = (TOKEN_DATA *)list_nthdata(arg->d.blist, 1);
 
 		arg->d.token = token;
 		arg->type = ENT_TOKEN;
@@ -5073,6 +5663,20 @@ char *expand_entity_plist_area(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 	register AREA_DATA *area = NULL;
 	switch(*str) {
+	case ESCAPE_EXPRESSION:
+	{
+		int index;
+		str = expand_argument_expression(info,str+1,&index);
+		if (!str) return NULL;
+
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			area = (AREA_DATA *)list_nthdata(arg->d.blist, index);
+
+		arg->d.area = area;
+		arg->type = ENT_AREA;
+
+		return str;
+	}
 	case ENTITY_LIST_SIZE:
 		arg->type = ENT_NUMBER;
 		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -5086,7 +5690,7 @@ char *expand_entity_plist_area(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 	case ENTITY_LIST_FIRST:
 		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			area = (AREA_DATA *)list_nthdata(arg->d.blist, 0);
+			area = (AREA_DATA *)list_nthdata(arg->d.blist, 1);
 
 		arg->d.area = area;
 		arg->type = ENT_AREA;
@@ -5108,6 +5712,20 @@ char *expand_entity_plist_area_region(SCRIPT_VARINFO *info,char *str,SCRIPT_PARA
 {
 	register AREA_REGION *region = NULL;
 	switch(*str) {
+	case ESCAPE_EXPRESSION:
+	{
+		int index;
+		str = expand_argument_expression(info,str+1,&index);
+		if (!str) return NULL;
+
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			region = (AREA_REGION *)list_nthdata(arg->d.blist, index);
+
+		arg->d.aregion = region;
+		arg->type = ENT_AREA_REGION;
+
+		return str;
+	}
 	case ENTITY_LIST_SIZE:
 		arg->type = ENT_NUMBER;
 		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -5121,7 +5739,7 @@ char *expand_entity_plist_area_region(SCRIPT_VARINFO *info,char *str,SCRIPT_PARA
 		break;
 	case ENTITY_LIST_FIRST:
 		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			region = (AREA_REGION *)list_nthdata(arg->d.blist, 0);
+			region = (AREA_REGION *)list_nthdata(arg->d.blist, 1);
 
 		arg->d.aregion = region;
 		arg->type = ENT_AREA_REGION;
@@ -5143,6 +5761,20 @@ char *expand_entity_plist_variable(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *
 {
 	register VARIABLE *variable = NULL;
 	switch(*str) {
+	case ESCAPE_EXPRESSION:
+	{
+		int index;
+		str = expand_argument_expression(info,str+1,&index);
+		if (!str) return NULL;
+
+		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
+			variable = (VARIABLE *)list_nthdata(arg->d.blist, index);
+
+		arg->d.variable = variable;
+		arg->type = ENT_VARIABLE;
+
+		return str;
+	}
 	case ENTITY_LIST_SIZE:
 		arg->type = ENT_NUMBER;
 		arg->d.num = (arg->d.blist && arg->d.blist->valid) ? arg->d.blist->size : 0;
@@ -5156,7 +5788,7 @@ char *expand_entity_plist_variable(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *
 		break;
 	case ENTITY_LIST_FIRST:
 		if(arg->d.blist && arg->d.blist->valid && arg->d.blist->size > 0)
-			variable = (VARIABLE *)list_nthdata(arg->d.blist, 0);
+			variable = (VARIABLE *)list_nthdata(arg->d.blist, 1);
 
 		arg->d.variable = variable;
 		arg->type = ENT_VARIABLE;
@@ -6001,6 +6633,133 @@ char *expand_entity_bitmatrix(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	return str+1;
 }
 
+char *expand_entity_reserved_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	switch(*str) {
+	case ESCAPE_VARIABLE:
+		arg->type = ENT_MOBINDEX;
+
+		BUFFER *buffer = new_buf();
+		str = expand_name(info,(info?*(info->var):NULL),str+1,buffer);
+		if(!str) {
+			free_buf(buffer);
+			arg->d.mobindex = NULL;
+			return NULL;
+		}
+
+		RESERVED_WNUM *reserved = search_reserved(reserved_mob_wnums, buf_string(buffer));
+		if (reserved && reserved->data)
+			arg->d.mobindex = *((MOB_INDEX_DATA **)reserved->data);
+		else
+			arg->d.mobindex = NULL;
+		free_buf(buffer);
+		break;
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_reserved_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	switch(*str) {
+	case ESCAPE_VARIABLE:
+		arg->type = ENT_OBJINDEX;
+
+		BUFFER *buffer = new_buf();
+		str = expand_name(info,(info?*(info->var):NULL),str+1,buffer);
+		if(!str) {
+			free_buf(buffer);
+			arg->d.objindex = NULL;
+			return NULL;
+		}
+
+		RESERVED_WNUM *reserved = search_reserved(reserved_obj_wnums, buf_string(buffer));
+		if (reserved && reserved->data)
+			arg->d.objindex = *((OBJ_INDEX_DATA **)reserved->data);
+		else
+			arg->d.objindex = NULL;
+		free_buf(buffer);
+		break;
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_reserved_room(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	switch(*str) {
+	case ESCAPE_VARIABLE:
+		arg->type = ENT_ROOM;
+
+		BUFFER *buffer = new_buf();
+		str = expand_name(info,(info?*(info->var):NULL),str+1,buffer);
+		if(!str) {
+			free_buf(buffer);
+			arg->d.room = NULL;
+			return NULL;
+		}
+
+		RESERVED_WNUM *reserved = search_reserved(reserved_room_wnums, buf_string(buffer));
+		if (reserved && reserved->data)
+			arg->d.room = *((ROOM_INDEX_DATA **)reserved->data);
+		else
+			arg->d.room = NULL;
+		free_buf(buffer);
+		break;
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+char *expand_entity_object_book(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	BOOK_DATA *book = IS_VALID(arg->d.obj) && IS_BOOK(arg->d.obj) ? BOOK(arg->d.obj) : NULL;
+
+	switch(*str) {
+	case ENTITY_OBJ_BOOK_NAME:
+		arg->type = ENT_STRING;
+		arg->d.str = IS_VALID(book) ? book->name : "";
+		break;
+	
+	case ENTITY_OBJ_BOOK_SHORT:
+		arg->type = ENT_STRING;
+		arg->d.str = IS_VALID(book) ? book->short_descr : "";
+		break;
+
+	case ENTITY_OBJ_BOOK_FLAGS:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = IS_VALID(book) ? book->flags : 0;
+		arg->d.bv.table = IS_VALID(book) ? book_flags : NULL;
+		break;
+
+	case ENTITY_OBJ_BOOK_CURRENT:
+		arg->type = ENT_BOOK_PAGE;
+		arg->d.book_page = IS_VALID(book) ? book_get_page(book, book->current_page) : NULL;
+		break;
+
+	case ENTITY_OBJ_BOOK_OPENER:
+		arg->type = ENT_BOOK_PAGE;
+		arg->d.book_page = IS_VALID(book) ? book_get_page(book, book->open_page) : NULL;
+		break;
+	
+	case ENTITY_OBJ_BOOK_PAGES:
+		arg->type = ENT_PLLIST_BOOK_PAGE;
+		arg->d.blist = IS_VALID(book) ? book->pages : NULL;
+		break;
+
+	// TODO: LOCK STATE
+	case ENTITY_OBJ_BOOK_LOCK:
+		return NULL;
+
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
 char *expand_entity_object_container(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 	CONTAINER_DATA *container = IS_VALID(arg->d.obj) && IS_CONTAINER(arg->d.obj) ? CONTAINER(arg->d.obj) : NULL;
@@ -6151,6 +6910,83 @@ char *expand_entity_object_money(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *ar
 	return str+1;
 }
 
+ROOM_INDEX_DATA *get_portal_destination(CHAR_DATA *ch, OBJ_DATA *portal, bool allow_random);
+
+char *expand_entity_object_portal(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	OBJ_DATA *obj = arg->d.obj;
+	PORTAL_DATA *portal = IS_VALID(arg->d.obj) && IS_PORTAL(arg->d.obj) ? PORTAL(arg->d.obj) : NULL;
+
+	switch(*str) {
+	case ENTITY_OBJ_PORTAL_NAME:
+		arg->type = ENT_STRING;
+		arg->d.str = IS_VALID(portal) ? portal->name : "";
+		break;
+	
+	case ENTITY_OBJ_PORTAL_SHORT:
+		arg->type = ENT_STRING;
+		arg->d.str = IS_VALID(portal) ? portal->short_descr : "";
+		break;
+
+	case ENTITY_OBJ_PORTAL_EXIT:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = IS_VALID(portal) ? portal->flags : 0;
+		arg->d.bv.table = IS_VALID(portal) ? portal_exit_flags : NULL;
+		break;
+
+	case ENTITY_OBJ_PORTAL_FLAGS:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = IS_VALID(portal) ? portal->flags : 0;
+		arg->d.bv.table = IS_VALID(portal) ? portal_flags : NULL;
+		break;
+
+	case ENTITY_OBJ_PORTAL_TYPE:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(portal) ? portal->type : -1;
+		break;
+
+	// This is dependent upon $(enactor) being valid
+	case ENTITY_OBJ_PORTAL_DESTINATION:
+		arg->type = ENT_ROOM;
+		arg->d.room = IS_VALID(obj) ? get_portal_destination(info->ch, obj, TRUE) : NULL;
+		break;
+
+	case ENTITY_OBJ_PORTAL_PARAM0:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(portal) ? portal->params[0] : -1;
+		break;
+
+	case ENTITY_OBJ_PORTAL_PARAM1:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(portal) ? portal->params[1] : -1;
+		break;
+
+	case ENTITY_OBJ_PORTAL_PARAM2:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(portal) ? portal->params[2] : -1;
+		break;
+
+	case ENTITY_OBJ_PORTAL_PARAM3:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(portal) ? portal->params[3] : -1;
+		break;
+
+	case ENTITY_OBJ_PORTAL_PARAM4:
+		arg->type = ENT_NUMBER;
+		arg->d.num = IS_VALID(portal) ? portal->params[4] : -1;
+		break;
+		
+	// TODO: LOCK STATE Entity
+	case ENTITY_OBJ_PORTAL_LOCK:
+		return NULL;
+		
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+
 char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
 //	char buf[MSL];
@@ -6186,6 +7022,7 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case ENT_CHURCH:	next = expand_entity_church(info,str,arg); break;
 		case ENT_EXTRADESC:	next = expand_entity_extradesc(info,str,arg); break;
 		case ENT_AFFECT:	next = expand_entity_affect(info,str,arg); break;
+		case ENT_BOOK_PAGE:	next = expand_entity_book_page(info,str,arg); break;
 		case ENT_FOOD_BUFF:	next = expand_entity_food_buff(info,str,arg); break;
 		case ENT_COMPARTMENT:	next = expand_entity_compartment(info,str,arg); break;
 		case ENT_SONG:		next = expand_entity_song(info,str,arg); break;
@@ -6213,6 +7050,7 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case ENT_PLLIST_AREA:		next = expand_entity_plist_area(info,str,arg); break;
 		case ENT_PLLIST_AREA_REGION:	next = expand_entity_plist_area_region(info,str,arg); break;
 		case ENT_PLLIST_CHURCH:	next = expand_entity_plist_church(info,str,arg); break;
+		case ENT_PLLIST_BOOK_PAGE:	next = expand_entity_plist_book_page(info,str,arg); break;
 		case ENT_PLLIST_FOOD_BUFF:	next = expand_entity_plist_food_buff(info,str,arg); break;
 		case ENT_PLLIST_COMPARTMENT:	next = expand_entity_plist_compartment(info,str,arg); break;
 
@@ -6245,11 +7083,18 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case ENT_SHIPINDEX:				next = expand_entity_shipindex(info,str,arg); break;
 
 		// Multi-typing
+		case ENT_OBJECT_PAGE:			next = expand_entity_object_page(info,str,arg); break;
+		case ENT_OBJECT_BOOK:			next = expand_entity_object_book(info,str,arg); break;
 		case ENT_OBJECT_CONTAINER:		next = expand_entity_object_container(info,str,arg); break;
 		case ENT_OBJECT_FOOD:			next = expand_entity_object_food(info,str,arg); break;
 		case ENT_OBJECT_FURNITURE:		next = expand_entity_object_furniture(info,str,arg); break;
 		case ENT_OBJECT_LIGHT:			next = expand_entity_object_light(info,str,arg); break;
 		case ENT_OBJECT_MONEY:			next = expand_entity_object_money(info,str,arg); break;
+		case ENT_OBJECT_PORTAL:			next = expand_entity_object_portal(info,str,arg); break;
+
+		case ENT_RESERVED_MOBILE:		next = expand_entity_reserved_mobile(info,str,arg); break;
+		case ENT_RESERVED_OBJECT:		next = expand_entity_reserved_object(info,str,arg); break;
+		case ENT_RESERVED_ROOM:			next = expand_entity_reserved_room(info,str,arg); break;
 
 		case ENT_BITVECTOR:		next = expand_entity_bitvector(info,str,arg); break;
 		case ENT_BITMATRIX:		next = expand_entity_bitmatrix(info,str,arg); break;
@@ -6371,6 +7216,10 @@ char *expand_string_entity(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
 
 	case ENT_BITMATRIX:
 		add_buf(buffer, bitmatrix_string(arg->d.bm.bank, arg->d.bm.values));
+		break;
+
+	case ENT_BOOK_PAGE:
+		add_buf(buffer, IS_VALID(arg->d.book_page) ? arg->d.book_page->title : "");
 		break;
 	}
 

@@ -1628,11 +1628,11 @@ void reverie_end(CHAR_DATA *ch, int amount)
     check_improve(ch, gsn_reverie, TRUE, 1);
 }
 
-void obj_apply_spells(CHAR_DATA *ch, OBJ_DATA *obj, CHAR_DATA *victim, OBJ_DATA *thing, int trigger)
+void obj_apply_spells(CHAR_DATA *ch, OBJ_DATA *obj, CHAR_DATA *victim, OBJ_DATA *thing, SPELL_DATA *spells, int trigger)
 {
 	SPELL_DATA *spell;
 
-	for(spell = obj->spells; spell; spell = spell->next)
+	for(spell = spells; spell; spell = spell->next)
 	{
 		if (spell->token)
 			p_token_index_percent_trigger(spell->token, ch, victim, NULL, obj, thing, trigger, NULL, spell->level, 0, 0, 0, 0,0,0,0,0,0);

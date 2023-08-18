@@ -104,9 +104,10 @@ ROOM_INDEX_DATA *get_portal_destination(CHAR_DATA *ch, OBJ_DATA *portal, bool al
 	DUNGEON *in_dungeon = get_room_dungeon(old_room);
 	INSTANCE *in_instance = get_room_instance(old_room);
 	ROOM_INDEX_DATA *location = NULL;
+	PORTAL_DATA *_portal = PORTAL(portal);
 
 	// Value 3: Portal type
-	switch(portal->value[3])
+	switch(_portal->type)
 	{
 		case GATETYPE_ENVIRONMENT:
 			// No values
@@ -114,53 +115,53 @@ ROOM_INDEX_DATA *get_portal_destination(CHAR_DATA *ch, OBJ_DATA *portal, bool al
 			break;
 
 		case GATETYPE_NORMAL:
-			if (IS_SET(portal->value[2],GATE_BUGGY) && (number_percent() < 5))
+			if (IS_SET(_portal->flags,GATE_BUGGY) && (number_percent() < 5))
 			{
 				if (allow_random)
 					location = get_random_room( ch, 0 );
 			}
 			else
 			{
-				// Value 5: AUID
-				// Value 6: VNUM
-				// Value 7: UID 0
-				// Value 8: UID 1
-				// If v7 and v8 are both 0, it will reference a static room
-				location = get_room_index_auid(portal->value[5], portal->value[6]);
+				// Param 0: AUID
+				// Param 1: VNUM
+				// Param 2: UID 0
+				// Param 3: UID 1
+				// If p2 and p3 are both 0, it will reference a static room
+				location = get_room_index_auid(_portal->params[0], _portal->params[1]);
 
 				// Check if this portal points to a clone room, if so, find it
-				if( location != NULL && (portal->value[7] > 0 || portal->value[8] > 0)) {
-					location = get_clone_room(location, (unsigned long)portal->value[7], (unsigned long)portal->value[8]);
+				if( location != NULL && (_portal->params[2] > 0 || _portal->params[3] > 0)) {
+					location = get_clone_room(location, (unsigned long)_portal->params[2], (unsigned long)_portal->params[3]);
 				}
 			}
 			break;
 		
 		case GATETYPE_WILDS:
-			// Value 5: WUID
-			// Value 6: X
-			// Value 7: Y
+			// Param 0: WUID
+			// Param 1: X
+			// Param 2: Y
 			{
-				WILDS_DATA *wilds = get_wilds_from_uid(NULL,portal->value[5]);
-				location = get_wilds_vroom(wilds,portal->value[6],portal->value[7]);
+				WILDS_DATA *wilds = get_wilds_from_uid(NULL,_portal->params[0]);
+				location = get_wilds_vroom(wilds,_portal->params[1],_portal->params[2]);
 				if(!location)
-					location = create_wilds_vroom(wilds,portal->value[6],portal->value[7]);
+					location = create_wilds_vroom(wilds,_portal->params[1],_portal->params[2]);
 			}
 			break;
 
 		case GATETYPE_WILDSRANDOM:
-			// Value 5: WUID
-			// Value 6: Min X (defaults to 0)
-			// Value 7: Min Y (defaults to 0)
-			// Value 8: Max X (defaults to map_size_x - 1)
-			// Value 9: Max Y (defaults to map_size_y - 1)
+			// Param 0: WUID
+			// Param 1: Min X (defaults to 0)
+			// Param 2: Min Y (defaults to 0)
+			// Param 3: Max X (defaults to map_size_x - 1)
+			// Param 4: Max Y (defaults to map_size_y - 1)
 			// Ranges will be clamped to the actual map size
 			if (allow_random)
 			{
-				WILDS_DATA *wilds = get_wilds_from_uid(NULL, portal->value[5]);
+				WILDS_DATA *wilds = get_wilds_from_uid(NULL, _portal->params[0]);
 				if (wilds)
 				{
-					int x = number_range(portal->value[6], portal->value[8]);
-					int y = number_range(portal->value[7], portal->value[9]);
+					int x = number_range(_portal->params[1], _portal->params[3]);
+					int y = number_range(_portal->params[2], _portal->params[4]);
 
 					// Clamp to the current size of the map (as it can change after the portal was created)
 					x = URANGE(0, x, wilds->map_size_x - 1);
@@ -179,7 +180,7 @@ ROOM_INDEX_DATA *get_portal_destination(CHAR_DATA *ch, OBJ_DATA *portal, bool al
 			break;
 
 		case GATETYPE_AREARANDOM:
-			// Value 5: AUID (0 = area of current room, ignored in wilds)
+			// Param 0: AUID (0 = area of current room, ignored in wilds)
 			if (allow_random)
 			{
 				ROOM_INDEX_DATA *here;
@@ -187,9 +188,9 @@ ROOM_INDEX_DATA *get_portal_destination(CHAR_DATA *ch, OBJ_DATA *portal, bool al
 				here = obj_room(portal);
 
 				if(here) {
-					if(portal->value[5] > 0)
+					if(_portal->params[0] > 0)
 					{
-						location = get_random_room_area(ch, get_area_from_uid(portal->value[5]));
+						location = get_random_room_area(ch, get_area_from_uid(_portal->params[0]));
 					}
 					else if(here->wilds)
 					{
@@ -207,16 +208,16 @@ ROOM_INDEX_DATA *get_portal_destination(CHAR_DATA *ch, OBJ_DATA *portal, bool al
 			break;
 
 		case GATETYPE_REGIONRECALL:
-			// Value 5: AUID (0 = area of current room, does not work in wilds)
-			// Value 6: Region index (0 = default region)
+			// Param 0: AUID (0 = area of current room, does not work in wilds)
+			// Param 1: Region index (0 = default region)
 			{
 				AREA_DATA *area = NULL;
 				ROOM_INDEX_DATA *here;
 
 				// Get the area
-				if (portal->value[5] > 0)
+				if (_portal->params[0] > 0)
 				{
-					area = get_area_from_uid(portal->value[5]);
+					area = get_area_from_uid(_portal->params[0]);
 				}
 				else
 				{
@@ -230,9 +231,9 @@ ROOM_INDEX_DATA *get_portal_destination(CHAR_DATA *ch, OBJ_DATA *portal, bool al
 				if (area)
 				{
 					AREA_REGION *region;
-					if (portal->value[6] > 0)
+					if (_portal->params[1] > 0)
 					{
-						region = (AREA_REGION *)list_nthdata(area->regions, portal->value[6]);
+						region = get_area_region_by_uid(area, _portal->params[1]);
 					}
 					else
 					{
@@ -249,12 +250,12 @@ ROOM_INDEX_DATA *get_portal_destination(CHAR_DATA *ch, OBJ_DATA *portal, bool al
 			break;
 
 		case GATETYPE_AREARECALL:
-			// Value 5: AUID (0 = area of current room, does not work in wilds)
+			// Param 0: AUID (0 = area of current room, does not work in wilds)
 			{
 				AREA_DATA *area = NULL;
 
-				if (portal->value[5] > 0)
-					area = get_area_from_uid(portal->value[5]);
+				if (_portal->params[0] > 0)
+					area = get_area_from_uid(_portal->params[0]);
 				else
 				{
 					ROOM_INDEX_DATA *here = obj_room(portal);
@@ -269,15 +270,14 @@ ROOM_INDEX_DATA *get_portal_destination(CHAR_DATA *ch, OBJ_DATA *portal, bool al
 			break;
 
 		case GATETYPE_REGIONRANDOM:
-			// TODO: Complete
-			// Value 5: AUID (0 = current area, does not work in wilds)
-			// Value 6: Region Index
+			// Param 0: AUID (0 = current area, does not work in wilds)
+			// Param 1: Region Index
 			if (allow_random)
 			{
 				AREA_DATA *area = NULL;
 
-				if (portal->value[5] > 0)
-					area = get_area_from_uid(portal->value[5]);
+				if (_portal->params[0] > 0)
+					area = get_area_from_uid(_portal->params[0]);
 				else
 				{
 					ROOM_INDEX_DATA *here = obj_room(portal);
@@ -289,8 +289,8 @@ ROOM_INDEX_DATA *get_portal_destination(CHAR_DATA *ch, OBJ_DATA *portal, bool al
 				if (area)
 				{
 					AREA_REGION *region = NULL;
-					if (portal->value[6] > 0)
-						region = (AREA_REGION *)list_nthdata(area->regions, portal->value[6]);
+					if (_portal->params[1] > 0)
+						region = get_area_region_by_uid(area, _portal->params[1]);
 					else
 						region = &area->region;
 
@@ -303,14 +303,14 @@ ROOM_INDEX_DATA *get_portal_destination(CHAR_DATA *ch, OBJ_DATA *portal, bool al
 			break;
 		
 		case GATETYPE_SECTIONRANDOM:
-			// Value 5: Section index (0 = current section, <0 = ordinal index, >0 = generated index)
+			// Param 0: Section index (0 = current section, <0 = ordinal index, >0 = generated index)
 			if( allow_random && IS_VALID(old_room->instance_section) )
 			{
 				INSTANCE_SECTION *section = old_room->instance_section;
 
-				if (portal->value[5] != 0)
+				if (_portal->params[0] != 0)
 				{
-					section = instance_get_section(section->instance, portal->value[5]);
+					section = instance_get_section(section->instance, _portal->params[0]);
 				}
 
 				location = section_random_room(ch, section );
@@ -353,23 +353,23 @@ ROOM_INDEX_DATA *get_portal_destination(CHAR_DATA *ch, OBJ_DATA *portal, bool al
 			break;
 
 		case GATETYPE_INSTANCE:
-			// Value 5: Vnum (Area is the PORTAL's area)
-			// Value 6: Upper UID
-			// Value 7: Lower UID
-			// Value 8: Special Room (if 0, go to default entrance)
-			if (portal->value[5] > 0)
+			// Param 0: Vnum (Area is the PORTAL's area)
+			// Param 1: Upper UID
+			// Param 2: Lower UID
+			// Param 3: Special Room (if 0, go to default entrance)
+			if (_portal->params[0] > 0)
 			{
 				INSTANCE *instance = NULL;
-				if (portal->value[6] > 0 || portal->value[7] > 0)
+				if (_portal->params[1] > 0 || _portal->params[2] > 0)
 				{
-					instance = find_instance(portal->value[6], portal->value[7]);
+					instance = find_instance(_portal->params[1], _portal->params[2]);
 				}
 
 				// Was it not found or undefined?
-				if (!IS_VALID(instance) || instance->blueprint->area != portal->pIndexData->area || instance->blueprint->vnum != portal->value[5])
+				if (!IS_VALID(instance) || instance->blueprint->area != portal->pIndexData->area || instance->blueprint->vnum != _portal->params[0])
 				{
 					// [Re]spawn the instance
-					BLUEPRINT *bp = get_blueprint(portal->pIndexData->area, portal->value[5]);
+					BLUEPRINT *bp = get_blueprint(portal->pIndexData->area, _portal->params[0]);
 
 					instance = create_instance(bp);
 				}
@@ -377,39 +377,39 @@ ROOM_INDEX_DATA *get_portal_destination(CHAR_DATA *ch, OBJ_DATA *portal, bool al
 				if (!IS_VALID(instance))
 					break;
 
-				portal->value[6] = instance->uid[0];
-				portal->value[7] = instance->uid[7];
+				_portal->params[1] = instance->uid[0];
+				_portal->params[2] = instance->uid[7];
 				
 				// Get the special room
-				if (portal->value[8] > 0)
-					location = get_instance_special_room(instance, portal->value[8]);
+				if (_portal->params[3] > 0)
+					location = get_instance_special_room(instance, _portal->params[3]);
 				else
 					location = instance->entrance;
 			}
 			break;
 
 		case GATETYPE_DUNGEON:
-			// Value 5: Vnum (Area is the PORTAL's area)
-			// Value 6: Floor (this takes precendent)
-			// Value 7: Entry Room (only looked at if v6 is 0)
-			// if Value 6 and 7 are both less than 1, need to go to the default entrance
-			if (portal->value[5] > 0)
+			// Param 0: Vnum (Area is the PORTAL's area)
+			// Param 1: Floor (this takes precendent)
+			// Param 2: Entry Room (only looked at if v6 is 0)
+			// if Param 1 and 2 are both less than 1, need to go to the default entrance
+			if (_portal->params[0] > 0)
 			{
-				if (portal->value[6] > 0)
-					location = spawn_dungeon_player_floor(ch, portal->pIndexData->area, portal->value[5], portal->value[6]);
-				else if (portal->value[7] > 0)
-					location = spawn_dungeon_player_special_room(ch, portal->pIndexData->area, portal->value[5], portal->value[7], NULL);
+				if (_portal->params[1] > 0)
+					location = spawn_dungeon_player_floor(ch, portal->pIndexData->area, _portal->params[0], _portal->params[1]);
+				else if (_portal->params[2] > 0)
+					location = spawn_dungeon_player_special_room(ch, portal->pIndexData->area, _portal->params[0], _portal->params[2], NULL);
 				else // Current default is assumed to be floor 1, but that needs to be changed to get the named special room.
-					location = spawn_dungeon_player_floor(ch, portal->pIndexData->area, portal->value[5], 1);
+					location = spawn_dungeon_player_floor(ch, portal->pIndexData->area, _portal->params[0], 1);
 			}
 			break;
 
 		case GATETYPE_DUNGEONFLOOR:
 			// Must be inside a dungeon for it to work
-			// Value 5: Floor (0 = check Previous and Next Floor flags)
+			// Param 0: Floor (0 = check Previous and Next Floor flags)
 			if (IS_VALID(in_dungeon))
 			{
-				int floor = portal->value[5];
+				int floor = _portal->params[0];
 
 				if( floor < 1 )
 				{
@@ -433,19 +433,19 @@ ROOM_INDEX_DATA *get_portal_destination(CHAR_DATA *ch, OBJ_DATA *portal, bool al
 
 		case GATETYPE_DUNGEON_FLOOR_SPECIAL:
 			// Must be inside a dungeon for it to work
-			// Value 5: Floor (>0:generated index, <0:ordinal index, 0:current)
-			// Value 6: Special room index (<1: invalid)
-			if (IS_VALID(in_dungeon) && portal->value[6] > 0)
+			// Param 0: Floor (>0:generated index, <0:ordinal index, 0:current)
+			// Param 1: Special room index (<1: invalid)
+			if (IS_VALID(in_dungeon) && _portal->params[1] > 0)
 			{
 				INSTANCE *instance = in_instance;
-				if (portal->value[5] != 0)
+				if (_portal->params[0] != 0)
 				{
-					instance = dungeon_get_instance_level(in_dungeon, portal->value[5]);
+					instance = dungeon_get_instance_level(in_dungeon, _portal->params[0]);
 					if (!IS_VALID(instance))
 						break;
 				}
 
-				location = get_instance_special_room(instance, portal->value[6]);
+				location = get_instance_special_room(instance, _portal->params[1]);
 			}
 			break;
 
@@ -453,8 +453,8 @@ ROOM_INDEX_DATA *get_portal_destination(CHAR_DATA *ch, OBJ_DATA *portal, bool al
 			if (allow_random && IS_VALID(in_dungeon))
 			{
 				int floors = list_size(in_dungeon->floors);
-				int min_f = (portal->value[5] > 0) ? portal->value[5] : 1;
-				int max_f = (portal->value[6] > 0) ? portal->value[6] : floors;
+				int min_f = (_portal->params[0] > 0) ? _portal->params[0] : 1;
+				int max_f = (_portal->params[1] > 0) ? _portal->params[1] : floors;
 
 				min_f = UMAX(min_f, 1);
 				max_f = UMIN(max_f, floors);
@@ -567,7 +567,7 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 		return;
 	}
 
-	if (portal->item_type != ITEM_PORTAL || IS_SET(portal->value[1],EX_CLOSED))
+	if (!IS_PORTAL(portal) || IS_SET(PORTAL(portal)->exit,EX_CLOSED))
 	{
 	    send_to_char("You can't seem to find a way in.\n\r",ch);
 	    return;
@@ -576,7 +576,7 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
  	/* @@@NIB : 20070126 : Changed the polarity of nocurse
  		It had a NOT.  But that's backwards to the name of
  		the flag.*/
- 	if (IS_SET(portal->value[2],GATE_NOCURSE)
+ 	if (IS_SET(PORTAL(portal)->flags,GATE_NOCURSE)
   		&&  (IS_AFFECTED(ch,AFF_CURSE)))
 	    /*
 	       ||   IS_SET(old_room->room_flags,ROOM_NO_RECALL)))
@@ -619,12 +619,12 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 		return;
 
  	/* @@@NIB : 20070126 : added the check */
- 	if(!IS_SET(portal->value[2],GATE_SILENTENTRY))
+ 	if(!IS_SET(PORTAL(portal)->flags,GATE_SILENTENTRY))
   		act("$n steps into $p.",ch, NULL, NULL,portal, NULL, NULL,NULL,TO_ROOM);
 
-	if (IS_SET(portal->value[2],GATE_NORMAL_EXIT))
+	if (IS_SET(PORTAL(portal)->flags,GATE_NORMAL_EXIT))
 	    act("{YYou enter $p.{x",ch, NULL, NULL,portal, NULL, NULL,NULL,TO_CHAR);
-	else if (!IS_SET(portal->value[2], GATE_RANDOM))
+	else if (!IS_SET(PORTAL(portal)->flags, GATE_RANDOM))
 	    act("{YYou walk through $p and find yourself in $T.{x",
 		    ch, NULL, NULL,portal, NULL, NULL,location->name,TO_CHAR);
 	else
@@ -647,7 +647,7 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 	}
 
         /* Let portals cast spells */
-	obj_apply_spells(ch, portal, ch, NULL, TRIG_APPLY_AFFECT);
+	obj_apply_spells(ch, portal, ch, NULL, PORTAL(portal)->spells, TRIG_APPLY_AFFECT);
 		/*
 	{
 		SPELL_DATA *spell;
@@ -657,7 +657,7 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 	}
 	*/
 
-	if (IS_SET(portal->value[2],GATE_GOWITH)) /* take the gate along */
+	if (IS_SET(PORTAL(portal)->flags,GATE_GOWITH)) /* take the gate along */
 	{
 	    obj_from_room(portal);
 	    obj_to_room(portal,location);
@@ -665,7 +665,7 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 
 	/* @@@NIB : 20070127 : strip off if portal is nosneak
 			Right now, it does not mix with "sneak". */
-	if(IS_SET(portal->value[2],GATE_NOSNEAK)) {
+	if(IS_SET(PORTAL(portal)->flags,GATE_NOSNEAK)) {
 		affect_strip(ch, gsn_sneak);
 		REMOVE_BIT(ch->affected_by[0], AFF_SNEAK);
 
@@ -675,7 +675,7 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 			apply.  If they are already sneaking, that's a different story.
 			Improvement is not done here and if you fail, it doesn't say
 			anything. */
-	} else if(IS_SET(portal->value[2],GATE_SNEAK)) {
+	} else if(IS_SET(PORTAL(portal)->flags,GATE_SNEAK)) {
 		if(!MOUNTED(ch) && !ch->fighting && !IS_AFFECTED(ch,AFF_SNEAK) &&
 			(number_percent() < get_skill(ch,gsn_sneak))) {
 			AFFECT_DATA af;
@@ -696,7 +696,7 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 	}
 
 	/* @@@NIB : 20070126 : added the check */
-	if(!IS_SET(portal->value[2],GATE_SILENTEXIT)) {
+	if(!IS_SET(PORTAL(portal)->flags,GATE_SILENTEXIT)) {
 
 		if( IS_VALID(in_dungeon) && !IS_VALID(to_dungeon) )
 		{
@@ -732,13 +732,13 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 					act("{W$n materializes.{x", ch,NULL,NULL,NULL,NULL, NULL, NULL, TO_ROOM);
 			}
 		}
-		else if (IS_SET(portal->value[2],GATE_NORMAL_EXIT))
+		else if (IS_SET(PORTAL(portal)->flags,GATE_NORMAL_EXIT))
   		    act("$n has arrived.",ch, NULL, NULL, NULL, NULL, NULL,NULL,TO_ROOM);
   		else
   		    act("$n has arrived through $p.",ch, NULL, NULL,portal, NULL, NULL,NULL,TO_ROOM);
 	}
 
-	if(!IS_NPC(ch) && IS_SET(portal->value[2],GATE_FORCE_BRIEF)) {
+	if(!IS_NPC(ch) && IS_SET(PORTAL(portal)->flags,GATE_FORCE_BRIEF)) {
 		bool was_brief = IS_SET(ch->comm, COMM_BRIEF) && TRUE;
 
 		SET_BIT(ch->comm, COMM_BRIEF);
@@ -758,11 +758,11 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 
 
 	/* charges */
-	if (portal->value[0] > 0)
+	if (PORTAL(portal)->charges > 0)
 	{
-	    portal->value[0]--;
-	    if (portal->value[0] == 0)
-		portal->value[0] = -1;
+	    PORTAL(portal)->charges--;
+	    if (PORTAL(portal)->charges == 0)
+			PORTAL(portal)->charges = -1;
 	}
 
 	if(p_percent_trigger(NULL, portal, NULL, NULL, ch, NULL, NULL,NULL, NULL,TRIG_ENTRY, NULL,0,0,0,0,0))
@@ -791,17 +791,15 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 	    }
 	}
 
-	if (portal != NULL && portal->value[0] == -1)
+	if (portal != NULL && PORTAL(portal)->charges == -1)
 	{
 	    act("$p fades out of existence.",ch, NULL, NULL,portal,NULL, NULL, NULL,TO_CHAR);
 	    if (ch->in_room == old_room)
-		act("$p fades out of existence.",ch, NULL, NULL,portal,NULL, NULL, NULL,TO_ROOM);
+			act("$p fades out of existence.",ch, NULL, NULL,portal,NULL, NULL, NULL,TO_ROOM);
 	    else if (old_room->people != NULL)
 	    {
-		act("$p fades out of existence.",
-			old_room->people, NULL, NULL,portal,NULL, NULL, NULL,TO_CHAR);
-		act("$p fades out of existence.",
-			old_room->people, NULL, NULL,portal,NULL, NULL, NULL,TO_ROOM);
+			act("$p fades out of existence.", old_room->people, NULL, NULL,portal,NULL, NULL, NULL,TO_CHAR);
+			act("$p fades out of existence.", old_room->people, NULL, NULL,portal,NULL, NULL, NULL,TO_ROOM);
 	    }
 	    extract_obj(portal);
 	}

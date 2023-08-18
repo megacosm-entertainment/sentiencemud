@@ -256,6 +256,15 @@ struct sound_type {
 //  Change #1: start of adding item multi-typing
 //    FURNITURE
 
+#define VERSION_OBJECT_010  0x01000009
+//  Change #1: start of adding item multi-typing
+//    PORTAL
+
+#define VERSION_OBJECT_011  0x01000010
+//  Change #1: start of adding item multi-typing
+//    BOOK
+
+
 #define VERSION_ROOM_001	0x01000001
 //  Change #1: lock states
 
@@ -265,7 +274,7 @@ struct sound_type {
 #define VERSION_DB			VERSION_DB_001
 #define VERSION_AREA		VERSION_AREA_003
 #define VERSION_MOBILE		0x01000000
-#define VERSION_OBJECT		VERSION_OBJECT_009
+#define VERSION_OBJECT		VERSION_OBJECT_011
 #define VERSION_ROOM		VERSION_ROOM_002
 #define VERSION_PLAYER		VERSION_PLAYER_005
 #define VERSION_TOKEN		0x01000000
@@ -371,6 +380,8 @@ typedef struct list_link_exit_data LLIST_EXIT_DATA;
 typedef struct list_link_skill_data LLIST_SKILL_DATA;
 typedef struct iterator_type ITERATOR;
 
+typedef struct book_page_data BOOK_PAGE;
+typedef struct obj_book_data BOOK_DATA;
 typedef struct container_filter_data CONTAINER_FILTER;
 typedef struct obj_container_data CONTAINER_DATA;
 typedef struct food_buff_data FOOD_BUFF_DATA;
@@ -379,6 +390,7 @@ typedef struct furniture_compartment_data FURNITURE_COMPARTMENT;
 typedef struct obj_furniture_data FURNITURE_DATA;
 typedef struct obj_light_data LIGHT_DATA;
 typedef struct obj_money_data MONEY_DATA;
+typedef struct obj_portal_data PORTAL_DATA;
 
 typedef struct olc_point_category_type POINT_CATEGORY;
 typedef struct olc_point_data OLC_POINT_DATA;
@@ -526,6 +538,19 @@ typedef struct skill_entry_type {
 	TOKEN_DATA *token;	// Skill/Spell Token, NULL if this is a built-in skill
 } SKILL_ENTRY;
 
+typedef struct script_switch_case_data SCRIPT_SWITCH_CASE;
+struct script_switch_case_data {
+    SCRIPT_SWITCH_CASE *next;
+    long a, b;
+    int line;
+};
+
+typedef struct script_switch_table_data SCRIPT_SWITCH;
+struct script_switch_table_data {
+    SCRIPT_SWITCH_CASE *cases;
+    int default_case;
+};
+
 struct script_data {
 	SCRIPT_DATA *next;
 	AREA_DATA *area;
@@ -541,6 +566,8 @@ struct script_data {
 	int security;	/* IMP only control over runtime aspects */
 	int run_security;	// Minimum security needed to RUN this script
     char *comments;
+    int n_switch_table;
+    SCRIPT_SWITCH *switch_table;
 };
 
 struct script_varinfo {
@@ -1392,6 +1419,11 @@ struct	descriptor_data
     OBJ_DATA *		input_obj;
     ROOM_INDEX_DATA *	input_room;
     TOKEN_DATA *	input_tok;
+
+    // Writing in books
+    OBJ_DATA *writing_book;
+
+    bool skip_blank_lines;       // Use this to cause the string editor to ignore empty lines when numbering them
 
     unsigned int		muted;			// All text heading to the output will be blocked
 
@@ -2545,20 +2577,21 @@ struct affliction_type {
 #define ITEM_DRYING_CLOTH		76		// Used to dry plants for smoking!
 #define ITEM_NEEDLE				77		// Used to sew things
 #define ITEM_BODY_PART			78
-#define ITEM__MAX               79
+#define ITEM_PAGE               79
+#define ITEM__MAX               80
 
 /*
  * Extra flags.
  */
-#define ITEM_GLOW		(A)
-#define ITEM_HUM		(B)
+#define ITEM_GLOW		    (A)
+#define ITEM_HUM		    (B)
 #define ITEM_NORESTRING		(C)
 #define ITEM_NOKEYRING		(D)
-#define ITEM_EVIL		(E)
-#define ITEM_INVIS		(F)
-#define ITEM_MAGIC		(G)
-#define ITEM_NODROP		(H)
-#define ITEM_BLESS		(I)
+#define ITEM_EVIL		    (E)
+#define ITEM_INVIS		    (F)
+#define ITEM_MAGIC		    (G)
+#define ITEM_NODROP		    (H)
+#define ITEM_BLESS		    (I)
 #define ITEM_ANTI_GOOD		(J)
 #define ITEM_ANTI_EVIL		(K)
 #define ITEM_ANTI_NEUTRAL	(L)
@@ -2567,54 +2600,55 @@ struct affliction_type {
 #define ITEM_NOPURGE		(O)
 #define ITEM_ROT_DEATH		(P)
 #define ITEM_NOSTEAL		(Q)
-#define ITEM_HOLY		(R)
-#define ITEM_HIDDEN		(S)
+#define ITEM_HOLY		    (R)
+#define ITEM_HIDDEN		    (S)
 #define ITEM_NOLOCATE		(T)
 #define ITEM_MELT_DROP		(U)
-/* #define ITEM_HAD_TIMER          (V)
-  #define ITEM_SELL_EXTRACT	(W) */
+//                          (V)
+//                          (W)
 #define ITEM_FREEZE_PROOF	(X)
 #define ITEM_BURN_PROOF		(Y)
 #define ITEM_NOUNCURSE		(Z)
-#define ITEM_NOSKULL	        (aa)
-#define ITEM_PLANTED	        (bb)
-#define ITEM_PERMANENT	        (cc)
-#define ITEM_SHOP_BOUGHT        (dd) /* Free */
+#define ITEM_NOSKULL	    (aa)
+#define ITEM_PLANTED	    (bb)
+#define ITEM_PERMANENT	    (cc)
+#define ITEM_SHOP_BOUGHT    (dd) /* Free */
 #define ITEM_NOQUEST		(ee)
 
 /*
  * Extra2 object flags.
  */
 #define ITEM_ALL_REMORT	 	(A)
-#define ITEM_LOCKER		(B)
+#define ITEM_LOCKER		    (B)
 #define ITEM_TRUESIGHT		(C)
-#define ITEM_SCARE		(D)
+#define ITEM_SCARE          (D)
 #define ITEM_SUSTAIN		(E)
 #define ITEM_ENCHANTED		(F)
 #define ITEM_EMITS_LIGHT	(G)
 #define ITEM_FLOAT_USER		(H)
 #define ITEM_SEE_HIDDEN		(I)
 #define ITEM_TRAPPED		(J)
-#define ITEM_WEED		(K)
+//                          (K)
 #define ITEM_SUPER_STRONG	(L)
 #define ITEM_REMORT_ONLY	(M)
 #define ITEM_NO_LORE		(N)
 #define ITEM_SELL_ONCE		(O)
 #define ITEM_NO_HUNT		(P)
-#define ITEM_NO_RESURRECT       (Q)
-#define ITEM_NO_DISCHARGE       (R)
+#define ITEM_NO_RESURRECT   (Q)
+#define ITEM_NO_DISCHARGE   (R)
 #define ITEM_NO_DONATE		(S)
-#define ITEM_KEPT		(T)
+#define ITEM_KEPT		    (T)
 #define ITEM_SINGULAR		(U)
 #define ITEM_NO_ENCHANT		(V)
 #define ITEM_NO_LOOT		(W)
-#define ITEM_NO_CONTAINER       (X)
-#define ITEM_THIRD_EYE          (Y)
-#define ITEM_UNSEEN		(Z)
-#define ITEM_BURIED		(aa)
+#define ITEM_NO_CONTAINER   (X)
+#define ITEM_THIRD_EYE      (Y)
+#define ITEM_UNSEEN		    (Z)
+#define ITEM_BURIED		    (aa)
 #define ITEM_NOLOCKER		(bb)
 #define ITEM_NOAUCTION		(cc)	/* Can't be auctioned */
 #define ITEM_KEEP_VALUE		(dd)	/* Keep value when donated */
+//                          (ee)
 
 /* Extra3 */
 
@@ -2844,7 +2878,6 @@ struct affliction_type {
 #define APPLY_MANA			12
 #define APPLY_HIT			13
 #define APPLY_MOVE			14
-#define APPLY_GOLD			15
 #define APPLY_AC			17
 #define APPLY_HITROLL			18
 #define APPLY_DAMROLL			19
@@ -2853,6 +2886,11 @@ struct affliction_type {
 #define APPLY_WEIGHT			22		/* Objects */
 #define APPLY_AGGRESSION		23		/* Mobiles */
 #define APPLY_XPBOOST           24      // Mobiles
+#define APPLY_CARRY_LIMIT       25      // Mobiles
+#define APPLY_WIELD_LIMIT       26      // Mobiles
+#define APPLY_SKILL_LEARN       27      // Mobiles
+#define APPLY_PRACTICE_GAIN     28      // Mobiles
+#define APPLY_DEFENSE           29      // Mobiles
 #define APPLY_SPELL_AFFECT		50
 
 #define APPLY_SKILL			100
@@ -2874,6 +2912,16 @@ struct affliction_type {
 #define CONT_SINGULAR       (I) // Only allows one item place into the container at a time.
 #define CONT_TRANSPARENT    (J) // Can look inside the container when closed.
 #define CONT_NO_DUPLICATES  (K) // Only one copy of an object can be in the container at a time.
+
+// Book flags (A, C, G and H are mimics of the container flags)
+#define BOOK_CLOSEABLE		(A)
+#define BOOK_CLOSED			(C)
+#define BOOK_PUSHOPEN		(G)
+#define BOOK_CLOSELOCK		(H)
+#define BOOK_NO_RIP         (Y) // Cannot rip pages out of the book
+#define BOOK_WRITABLE       (Z) // Players can write in the book
+
+
 
 /* Types of tools */
 enum {
@@ -4210,6 +4258,7 @@ struct	char_data
     bool 		cross_zone_question;
     bool 		personal_pk_question;
     bool		remort_question;
+    OBJ_DATA *seal_book;
 
     bool 		in_war;
 
@@ -4542,6 +4591,41 @@ struct oclu_context_data
     LOCK_STATE **lock;
 };
 
+// ============[ BOOK ]============
+#define PAGE(obj)               ((obj)->_page)
+#define IS_PAGE(obj)            IS_VALID(PAGE(obj))
+#define BOOK(obj)               ((obj)->_book)
+#define IS_BOOK(obj)            IS_VALID(BOOK(obj))
+
+struct book_page_data {
+    BOOK_PAGE *next;
+    bool valid;
+
+    int page_no;
+    char *title;
+    char *text;
+
+    WNUM_LOAD book;         // Which book does this come from?
+};
+
+struct obj_book_data {
+    BOOK_DATA *next;
+    bool valid;
+
+    char *name;
+    char *short_descr;
+
+    long flags;                 // Uses container flags
+
+    int current_page;
+    LLIST *pages;               // Uses BOOK_PAGE *
+
+    int open_page;              // Initial page on open
+
+    LOCK_STATE *lock;
+};
+
+
 // =========[ CONTAINER ]==========
 #define CONTAINER(obj)          ((obj)->_container)
 #define IS_CONTAINER(obj)       IS_VALID(CONTAINER(obj))
@@ -4613,6 +4697,7 @@ struct obj_food_data {
 #define COMPARTMENT_CLOSED      (C)     // Compartment is closed
 #define COMPARTMENT_PUSHOPEN    (G)     // Need to push the compartment to open it
 #define COMPARTMENT_CLOSELOCK   (H)     // When you close the compartment, it locks automatically
+#define COMPARTMENT_UNDERWATER  (W)     // Compartment is considered underwater
 #define COMPARTMENT_TRANSPARENT (X)     // Compartment can show the outside or be seen into regardless if the compartment is closed
 #define COMPARTMENT_ALLOW_MOVE  (Y)     // Compartment lets you move while on it.  Will automatically take you off the furniture.
 #define COMPARTMENT_INSIDE      (Z)     // Compartment is considered inside when using it
@@ -4689,6 +4774,31 @@ struct obj_money_data {
     int gold;
 };
 
+// ===========[ PORTAL ]===========
+#define PORTAL(obj)          ((obj)->_portal)
+#define IS_PORTAL(obj)       IS_VALID(PORTAL(obj))
+
+#define MAX_PORTAL_VALUES   5
+
+struct obj_portal_data {
+    PORTAL_DATA *next;
+    bool valid;
+
+    char *name;             // Name of portal part, for use when object is multi-typed with various things where OPEN/CLOSE/LOCK/UNLOCK needs to know what to target.
+    char *short_descr;      // Display name of the portal part
+
+    long exit;              // Exit flags (uses same exit_flags)
+    long flags;             // (uses portal_flags)
+    int charges;            // (<0 = infinite)
+    int type;               // (uses portal_gatetype)
+
+    // Type specify parameters
+    long params[MAX_PORTAL_VALUES];
+
+    LOCK_STATE *lock;
+
+    SPELL_DATA *spells;
+};
 
 
 /*
@@ -4751,11 +4861,14 @@ struct	obj_index_data
 
 	LLIST *waypoints;
 
+    BOOK_PAGE *_page;
+    BOOK_DATA *_book;
     CONTAINER_DATA *_container;
     FOOD_DATA *_food;
     FURNITURE_DATA *_furniture;
     LIGHT_DATA *_light;
     MONEY_DATA *_money;
+    PORTAL_DATA *_portal;
 };
 
 
@@ -4845,11 +4958,14 @@ struct	obj_data
 
     LOCK_STATE		*lock;
 
+    BOOK_PAGE *_page;
+    BOOK_DATA *_book;
     CONTAINER_DATA *_container;
     FOOD_DATA *_food;
     FURNITURE_DATA *_furniture;
     LIGHT_DATA *_light;
     MONEY_DATA *_money;
+    PORTAL_DATA *_portal;
 
     SHIP_DATA		*ship;
     LLIST			*waypoints;
@@ -6398,6 +6514,18 @@ enum trigger_index_enum {
 	TRIG_BLOW,
     TRIG_BLUEPRINT_SCHEMATIC,
 	TRIG_BOARD,
+    TRIG_BOOK_PAGE,
+    TRIG_BOOK_PAGE_ATTACH,
+    TRIG_BOOK_PAGE_PREATTACH,
+    TRIG_BOOK_PAGE_PRERIP,
+    TRIG_BOOK_PAGE_RIP,
+    TRIG_BOOK_PREREAD,
+    TRIG_BOOK_PRESEAL,
+    TRIG_BOOK_PREWRITE,
+    TRIG_BOOK_READ,
+    TRIG_BOOK_SEAL,
+    TRIG_BOOK_WRITE_TEXT,
+    TRIG_BOOK_WRITE_TITLE,
 	TRIG_BRANDISH,
 	TRIG_BRIBE,
 	TRIG_BURY,
@@ -6434,6 +6562,7 @@ enum trigger_index_enum {
 	TRIG_EXAMINE,
 	TRIG_EXIT,
 	TRIG_EXPIRE,		/* NIB : 20070124 : token expiration */
+    TRIG_EXTINGUISH,
 	TRIG_EXTRACT,
     TRIG_FAILED,
 	TRIG_FIGHT,
@@ -6453,6 +6582,7 @@ enum trigger_index_enum {
 	TRIG_HITGAIN,
 	TRIG_HPCNT,
 	TRIG_IDENTIFY,
+    TRIG_IGNITE,
 	TRIG_INSPECT,
     TRIG_INSPECT_CUSTOM,	// Called when asking a shopkeeper to inspect a custom stock item
 	TRIG_INTERRUPT,
@@ -6489,10 +6619,12 @@ enum trigger_index_enum {
 	TRIG_PREDROP,
 	TRIG_PREEAT,
 	TRIG_PREENTER,
+    TRIG_PREEXTINGUISH,
 	TRIG_PREFLEE,
 	TRIG_PREGET,
 	TRIG_PREHIDE,			// NIB 20140522 - trigger for testing if you can hide yourself or the object in question
 	TRIG_PREHIDE_IN,		// NIB 20140522 - trigger for testing if the container or mob you are trying to hide an object in will allow it
+    TRIG_PREIGNITE,
 	TRIG_PREKILL,
     TRIG_PRELOCK,
 	TRIG_PREMOUNT,
@@ -6671,6 +6803,8 @@ struct trigger_type {
 #define PROG_NORAWKILL	(D)		// The script may not do rawkill at any stage
 #define PROG_SILENT     (E)     // Blocks execution of any echo commands
 
+#define PROG_SET(x,y)       SET_BIT((x)->progs->entity_flags,(y))
+#define PROG_CLR(x,y)       REMOVE_BIT((x)->progs->entity_flags,(y))
 #define PROG_FLAG(x,y)		(((x)->progs) && IS_SET((x)->progs->entity_flags,(y)))
 
 struct prog_data
@@ -8812,6 +8946,7 @@ void	do_buy_mount	args( ( CHAR_DATA *ch, char *argument ) );
 /* string.c */
 void	string_edit	args( ( CHAR_DATA *ch, char **pString ) );
 void    string_append   args( ( CHAR_DATA *ch, char **pString ) );
+char *  string_indent   args( ( const char *src, int indent ) );
 char *	string_replace_static	args( ( char * orig, char * old, char * new ) );
 char *	string_replace	args( ( char * orig, char * old, char * new ) );
 void    string_add      args( ( CHAR_DATA *ch, char *argument ) );
@@ -8965,9 +9100,15 @@ void remove_immortal(IMMORTAL_DATA *immortal);
 void show_immortal(IMMORTAL_DATA *immortal, CHAR_DATA *ch);
 void print_immortal_info(IMMORTAL_DATA *immortal, CHAR_DATA *ch);
 
+SCRIPT_SWITCH_CASE *new_script_switch_case(void);
+void free_script_switch_case(SCRIPT_SWITCH_CASE *data);
+SCRIPT_SWITCH *new_script_switch(int nswitch);
+void free_script_switch(SCRIPT_SWITCH *data, int nswitch);
 SCRIPT_DATA *new_script(void);
 void free_script_code(SCRIPT_CODE *code, int lines);
 void free_script(SCRIPT_DATA *s);
+
+
 void variable_clearfield(int type, void *ptr);
 void add_immortal(IMMORTAL_DATA *immortal);
 
@@ -9241,6 +9382,7 @@ void iterator_start(ITERATOR *it, LLIST *lp);
 void iterator_start_nth(ITERATOR *it, LLIST *lp, int nth);
 LLIST_LINK *iterator_next(ITERATOR *it);
 void *iterator_nextdata(ITERATOR *it);
+void *iterator_prevdata(ITERATOR *it);
 void iterator_remcurrent(ITERATOR *it);
 void iterator_reset(ITERATOR *it);
 void iterator_stop(ITERATOR *it);
@@ -9570,6 +9712,7 @@ extern WNUM obj_wnum_empty_vial;
 extern WNUM obj_wnum_potion;
 extern WNUM obj_wnum_blank_scroll;
 extern WNUM obj_wnum_scroll;
+extern WNUM obj_wnum_page;
 extern WNUM obj_wnum_leather_jacket;
 extern WNUM obj_wnum_green_tights;
 extern WNUM obj_wnum_sandals;
@@ -9666,6 +9809,7 @@ extern OBJ_INDEX_DATA *obj_index_empty_vial;
 extern OBJ_INDEX_DATA *obj_index_potion;
 extern OBJ_INDEX_DATA *obj_index_blank_scroll;
 extern OBJ_INDEX_DATA *obj_index_scroll;
+extern OBJ_INDEX_DATA *obj_index_page;
 extern OBJ_INDEX_DATA *obj_index_leather_jacket;
 extern OBJ_INDEX_DATA *obj_index_green_tights;
 extern OBJ_INDEX_DATA *obj_index_sandals;
@@ -9794,7 +9938,7 @@ AURA_DATA *find_aura_char(CHAR_DATA *ch, char *name);
 void add_aura_to_char(CHAR_DATA *ch, char *name, char *long_descr);
 void remove_aura_from_char(CHAR_DATA *ch, char *name);
 
-void obj_apply_spells(CHAR_DATA *ch, OBJ_DATA *obj, CHAR_DATA *victim, OBJ_DATA *thing, int trigger);
+void obj_apply_spells(CHAR_DATA *ch, OBJ_DATA *obj, CHAR_DATA *victim, OBJ_DATA *thing, SPELL_DATA *spells, int trigger);
 
 bool init_scripting();
 void terminate_scripting();
@@ -9829,6 +9973,11 @@ bool bitmatrix_lookup(char *argument, const struct flag_type **bank, long *flags
 bool bitmatrix_isset(char *argument, const struct flag_type **bank, long *flags);
 char *bitmatrix_string(const struct flag_type **bank, const long *flags);
 char *flagbank_string(const struct flag_type **bank, ...);
+
+BOOK_PAGE *book_get_page(BOOK_DATA *book, int page_no);
+void show_book_page(CHAR_DATA *ch, OBJ_DATA *book);
+bool book_insert_page(BOOK_DATA *book, BOOK_PAGE *new_page);
+int book_max_pages(BOOK_DATA *book);
 
 bool obj_oclu_ambiguous(OBJ_DATA *obj);
 void obj_oclu_show_parts(CHAR_DATA *ch, OBJ_DATA *obj);

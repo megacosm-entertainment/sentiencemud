@@ -166,7 +166,7 @@ enum ifcheck_enum {
 		CHK_ISACTIVE,
 		CHK_ISAFFECTCUSTOM,CHK_ISAFFECTGROUP,CHK_ISAFFECTSKILL,CHK_ISAFFECTWHERE,
 		CHK_ISAMBUSHING,CHK_ISANGEL,CHK_ISAREAUNLOCKED,
-		CHK_ISBOSS,CHK_ISBREWING,CHK_ISBUSY,
+		CHK_ISBOOK,CHK_ISBOSS,CHK_ISBREWING,CHK_ISBUSY,
 		CHK_ISCASTFAILURE,CHK_ISCASTING,CHK_ISCASTRECOVERED,CHK_ISCASTROOMBLOCKED,CHK_ISCASTSUCCESS,
 		CHK_ISCHARM,CHK_ISCHURCHEXCOM,CHK_ISCHURCHPK,CHK_ISCLONEROOM,CHK_ISCONTAINER,CHK_ISCPKPROOF,CHK_ISCROSSZONE,
 		CHK_ISDEAD,CHK_ISDELAY,CHK_ISDEMON,
@@ -180,7 +180,7 @@ enum ifcheck_enum {
 		CHK_ISMOBILE,CHK_ISMONEY,CHK_ISMOONUP,CHK_ISMORPHED,CHK_ISMYSTIC,
 		CHK_ISNEUTRAL,CHK_ISNPC,
 		CHK_ISOBJECT,CHK_ISON,CHK_ISOWNER,
-		CHK_ISPC,CHK_ISPERSIST,CHK_ISPK,CHK_ISPREY,CHK_ISPROG,CHK_ISPULLING,CHK_ISPULLINGRELIC,
+		CHK_ISPC,CHK_ISPERSIST,CHK_ISPK,CHK_ISPORTAL,CHK_ISPREY,CHK_ISPROG,CHK_ISPULLING,CHK_ISPULLINGRELIC,
 		CHK_ISQUESTING,
 		CHK_ISREMORT,CHK_ISREPAIRABLE,CHK_ISRESTRUNG,CHK_ISRIDDEN,CHK_ISRIDER,CHK_ISRIDING,CHK_ISROOM,CHK_ISROOMDARK,
 		CHK_ISSAFE,CHK_ISSCRIBING,CHK_ISSHIFTED,CHK_ISSHOOTING,CHK_ISSHOPKEEPER,CHK_ISSPELL,CHK_ISSUBCLASS,CHK_ISSUSTAINED,
@@ -335,6 +335,7 @@ enum variable_enum {
 	VAR_DUNGEONINDEX,
 	VAR_SHIPINDEX,
 	
+	VAR_BOOK_PAGE,
 	VAR_FOOD_BUFF,
 	VAR_COMPARTMENT,
 
@@ -365,6 +366,7 @@ enum variable_enum {
 	VAR_PLLIST_AREA,
 	VAR_PLLIST_AREA_REGION,
 	VAR_PLLIST_CHURCH,
+	VAR_PLLIST_BOOK_PAGE,
 	VAR_PLLIST_FOOD_BUFF,
 	VAR_PLLIST_COMPARTMENT,
 	VAR_PLLIST_VARIABLE,
@@ -410,6 +412,9 @@ enum script_command_enum {
 	OP_WHILE,		/* while .... */
 	OP_ENDWHILE,
 	OP_EXITWHILE,
+	OP_SWITCH,
+	OP_ENDSWITCH,
+	OP_EXITSWITCH,		// Hidden opcode, looks for the ENDSWITCH
 	/* Add new opcodes here... */
 	OP_MOB,			/* A mob command */
 	OP_OBJ,			/* An obj command */
@@ -491,6 +496,7 @@ enum entity_type_enum {
 	ENT_PLLIST_AREA,
 	ENT_PLLIST_AREA_REGION,
 	ENT_PLLIST_CHURCH,
+	ENT_PLLIST_BOOK_PAGE,
 	ENT_PLLIST_FOOD_BUFF,
 	ENT_PLLIST_COMPARTMENT,
 	ENT_PLLIST_MAX,
@@ -550,15 +556,24 @@ enum entity_type_enum {
 	ENT_QUESTPART,
 	ENT_QUEST,
 
+	ENT_BOOK_PAGE,
 	ENT_FOOD_BUFF,
 	ENT_COMPARTMENT,
 	
 	// Multi-typing
+	ENT_OBJECT_PAGE,
+	ENT_OBJECT_BOOK,
 	ENT_OBJECT_CONTAINER,
 	ENT_OBJECT_FOOD,
 	ENT_OBJECT_FURNITURE,
 	ENT_OBJECT_LIGHT,
 	ENT_OBJECT_MONEY,
+	ENT_OBJECT_PORTAL,
+
+	// Game Reserved stuff
+	ENT_RESERVED_MOBILE,
+	ENT_RESERVED_OBJECT,
+	ENT_RESERVED_ROOM,
 
 	ENT_MAX,
 	ENT_UNKNOWN = ENT_MAX+1,
@@ -607,6 +622,7 @@ enum entity_variable_types_enum {
 	ENTITY_VAR_SONG,
 	ENTITY_VAR_CONN,
 	ENTITY_VAR_AFFECT,
+	ENTITY_VAR_BOOK_PAGE,
 	ENTITY_VAR_FOOD_BUFF,
 	ENTITY_VAR_COMPARTMENT,
 	ENTITY_VAR_CHURCH,
@@ -644,6 +660,7 @@ enum entity_variable_types_enum {
 	ENTITY_VAR_PLLIST_AREA,
 	ENTITY_VAR_PLLIST_AREA_REGION,
 	ENTITY_VAR_PLLIST_CHURCH,
+	ENTITY_VAR_PLLIST_BOOK_PAGE,
 	ENTITY_VAR_PLLIST_FOOD_BUFF,
 	ENTITY_VAR_PLLIST_COMPARTMENT,
 	ENTITY_VAR_PLLIST_VARIABLE,
@@ -836,15 +853,29 @@ enum entity_object_enum {
 	ENTITY_OBJ_EXTRA,
 	ENTITY_OBJ_WEAR,
 	ENTITY_OBJ_SHIP,
+	ENTITY_OBJ_TYPE_PAGE,
+	ENTITY_OBJ_TYPE_BOOK,
 	ENTITY_OBJ_TYPE_CONTAINER,
 	ENTITY_OBJ_TYPE_FOOD,
 	ENTITY_OBJ_TYPE_FURNITURE,
 	ENTITY_OBJ_TYPE_LIGHT,
 	ENTITY_OBJ_TYPE_MONEY,
+	ENTITY_OBJ_TYPE_PORTAL,
 };
 
 
 // Multi-typing
+enum entity_object_book_enum
+{
+	ENTITY_OBJ_BOOK_NAME = ESCAPE_EXTRA,
+	ENTITY_OBJ_BOOK_SHORT,
+	ENTITY_OBJ_BOOK_FLAGS,
+	ENTITY_OBJ_BOOK_CURRENT,
+	ENTITY_OBJ_BOOK_OPENER,
+	ENTITY_OBJ_BOOK_PAGES,
+	ENTITY_OBJ_BOOK_LOCK,
+};
+
 enum entity_object_container_enum
 {
 	ENTITY_OBJ_CONTAINER_NAME = ESCAPE_EXTRA,
@@ -878,6 +909,22 @@ enum entity_object_light_enum {
 enum entity_object_money_enum {
 	ENTITY_OBJ_MONEY_SILVER = ESCAPE_EXTRA,
 	ENTITY_OBJ_MONEY_GOLD,
+};
+
+enum entity_object_portal_enum {
+	ENTITY_OBJ_PORTAL_NAME = ESCAPE_EXTRA,
+	ENTITY_OBJ_PORTAL_SHORT,
+	ENTITY_OBJ_PORTAL_FLAGS,
+	ENTITY_OBJ_PORTAL_EXIT,
+	ENTITY_OBJ_PORTAL_TYPE,
+	ENTITY_OBJ_PORTAL_DESTINATION,
+	ENTITY_OBJ_PORTAL_PARAM0,
+	ENTITY_OBJ_PORTAL_PARAM1,
+	ENTITY_OBJ_PORTAL_PARAM2,
+	ENTITY_OBJ_PORTAL_PARAM3,
+	ENTITY_OBJ_PORTAL_PARAM4,
+	ENTITY_OBJ_PORTAL_LOCK,
+	// ENTITY_OBJ_PORTAL_SPELLS,
 };
 
 enum entity_room_enum {
@@ -950,6 +997,8 @@ enum entity_token_enum {
 	ENTITY_TOKEN_VAL5,
 	ENTITY_TOKEN_VAL6,
 	ENTITY_TOKEN_VAL7,
+	ENTITY_TOKEN_VAL8,
+	ENTITY_TOKEN_VAL9,
 	ENTITY_TOKEN_NEXT,
 	ENTITY_TOKEN_VARIABLES,
 };
@@ -1003,6 +1052,9 @@ enum entity_game_enum {
 	ENTITY_GAME_RELIC_LOSTSOULS,
 	ENTITY_GAME_RELIC_HEALTH,
 	ENTITY_GAME_RELIC_MAGIC,
+	ENTITY_GAME_RESERVED_MOBILE,
+	ENTITY_GAME_RESERVED_OBJECT,
+	ENTITY_GAME_RESERVED_ROOM,
 };
 
 enum entity_persist_enum {
@@ -1093,6 +1145,13 @@ enum entity_affect_enum {
 	ENTITY_AFFECT_BITS2,
 	ENTITY_AFFECT_TIMER,
 	ENTITY_AFFECT_LEVEL
+};
+
+enum entity_book_page_enum {
+	ENTITY_BOOK_PAGE_NUMBER = ESCAPE_EXTRA,
+	ENTITY_BOOK_PAGE_TITLE,
+	ENTITY_BOOK_PAGE_TEXT,
+	ENTITY_BOOK_PAGE_BOOK,
 };
 
 enum entity_food_buff_enum {
@@ -1361,6 +1420,7 @@ enum entity_fleet_enum {
 #define IN_FOR			-3 /* Flag: Executable statements */
 #define IN_LIST			-4 /* Flag: Executable statements */
 #define IN_WHILE		-5 /* Flag: Begin of if-else-endif block */
+#define IN_SWITCH		-6
 #define MAX_CALL_LEVEL		15 /* Maximum nested calls */
 
 struct script_var_type {
@@ -1381,6 +1441,7 @@ struct script_var_type {
 		TOKEN_DATA *t;
 		AREA_DATA *a;
 		AFFECT_DATA *aff;
+		BOOK_PAGE *book_page;
 		FOOD_BUFF_DATA *food_buff;
 		FURNITURE_COMPARTMENT *compartment;
 		DESCRIPTOR_DATA *conn;
@@ -1539,6 +1600,20 @@ struct loop_data {
 	char buf[MSL];
 };
 
+struct switch_case_data {
+	struct switch_case_data *next;
+	long a, b;
+	int line;
+};
+
+struct switch_data {
+	struct switch_data *next;
+	int id;
+	struct switch_case_data *case_head;
+	struct switch_case_data *case_tail;	// Most recently added case
+	int default_case;		// Line number of default case
+};
+
 /* Running information used in execution */
 struct script_control_block {
 	SCRIPT_CB *next;
@@ -1568,6 +1643,7 @@ struct script_parameter {
 		AREA_DATA *area;
 		TOKEN_DATA *token;
 		AFFECT_DATA *aff;
+		BOOK_PAGE *book_page;
 		FOOD_BUFF_DATA *food_buff;
 		FURNITURE_COMPARTMENT *compartment;
 		DESCRIPTOR_DATA *conn;
@@ -1673,6 +1749,7 @@ struct _entity_type_info {
 	int type_max;
 	ENT_FIELD *fields;
 	bool allow_vars;
+	bool allow_index;
 };
 
 /* Externs */
@@ -1733,6 +1810,8 @@ extern struct _entity_type_info entity_type_info[];
 extern bool script_destructed;
 
 /* Ifchecks */
+DECL_IFC_FUN(ifc__number);
+DECL_IFC_FUN(ifc__string);
 DECL_IFC_FUN(ifc_abs);
 DECL_IFC_FUN(ifc_act);
 DECL_IFC_FUN(ifc_act2);
@@ -1887,6 +1966,7 @@ DECL_IFC_FUN(ifc_ismystic);
 DECL_IFC_FUN(ifc_isneutral);
 DECL_IFC_FUN(ifc_isnpc);
 DECL_IFC_FUN(ifc_ison);
+DECL_IFC_FUN(ifc_ispage);
 DECL_IFC_FUN(ifc_ispc);
 DECL_IFC_FUN(ifc_isprey);
 DECL_IFC_FUN(ifc_isprog);
@@ -2184,11 +2264,13 @@ DECL_IFC_FUN(ifc_isexitvisible);
 DECL_IFC_FUN(ifc_savage);
 
 
+DECL_IFC_FUN(ifc_isbook);
 DECL_IFC_FUN(ifc_iscontainer);
 DECL_IFC_FUN(ifc_isfood);
 DECL_IFC_FUN(ifc_isfurniture);
 DECL_IFC_FUN(ifc_islight);
 DECL_IFC_FUN(ifc_ismoney);
+DECL_IFC_FUN(ifc_isportal);
 
 
 /* Opcode functions */
@@ -2207,6 +2289,9 @@ DECL_OPC_FUN(opc_exitlist);
 DECL_OPC_FUN(opc_while);
 DECL_OPC_FUN(opc_endwhile);
 DECL_OPC_FUN(opc_exitwhile);
+DECL_OPC_FUN(opc_switch);
+DECL_OPC_FUN(opc_endswitch);
+DECL_OPC_FUN(opc_exitswitch);
 DECL_OPC_FUN(opc_mob);
 DECL_OPC_FUN(opc_obj);
 DECL_OPC_FUN(opc_room);
@@ -2281,6 +2366,7 @@ bool script_dungeon_remref(DUNGEON *dungeon);
 
 ENT_FIELD *script_entity_fields(int type);
 bool script_entity_allow_vars(int type);
+bool script_entity_allow_index(int type);
 void script_entity_info(int type, ENT_FIELD **fields, bool *vars);
 
 /* Expansion */
@@ -2294,7 +2380,7 @@ AREA_DATA *get_area_from_scriptinfo(SCRIPT_VARINFO *info);
 void compile_error(char *msg);
 char *compile_ifcheck(char *str,int type, char **store);
 char *compile_expression(char *str,int type, char **store);
-char *compile_entity(char *str,int type, char **store);
+char *compile_entity(char *str,int type, char **store, int *entity_type);
 char *compile_substring(char *str, int type, char **store, bool ifc, bool doquotes, bool recursed);
 char *compile_string(char *str, int type, int *length, bool doquotes);
 bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type);
@@ -2347,6 +2433,7 @@ bool variables_argremove_string_phrase(ppVARIABLE list,char *name,char *phrase);
 bool variables_format_string(ppVARIABLE list,char *name);
 bool variables_format_paragraph(ppVARIABLE list,char *name);
 bool variables_set_affect (ppVARIABLE list,char *name,AFFECT_DATA* aff);
+bool variables_set_book_page (ppVARIABLE list,char *name,BOOK_PAGE *book_page);
 bool variables_set_food_buff (ppVARIABLE list,char *name,FOOD_BUFF_DATA* food_buff);
 bool variables_set_compartment (ppVARIABLE list,char *name,FURNITURE_COMPARTMENT* compartment);
 bool variables_set_area (ppVARIABLE list,char *name,AREA_DATA* a);
@@ -2390,6 +2477,7 @@ bool variables_setindex_room(ppVARIABLE list,char *name,WNUM_LOAD wnum_load, boo
 bool variables_setindex_string(ppVARIABLE list,char *name,char *str,bool shared, bool saved);
 bool variables_setindex_skill(ppVARIABLE list,char *name,int sn, bool saved);
 bool variables_setindex_song(ppVARIABLE list,char *name,int sn, bool saved);
+bool variables_setsave_book_page (ppVARIABLE list,char *name,BOOK_PAGE *book_page, bool save);
 bool variables_setsave_food_buff (ppVARIABLE list,char *name,FOOD_BUFF_DATA* food_buff, bool save);
 bool variables_setsave_compartment (ppVARIABLE list,char *name,FURNITURE_COMPARTMENT* compartment, bool save);
 bool variables_setsave_affect(ppVARIABLE list,char *name,AFFECT_DATA *aff, bool save);
@@ -2993,16 +3081,15 @@ SCRIPT_CMD(scriptcmd_dungeoncommence);
 SCRIPT_CMD(scriptcmd_alterobj);
 SCRIPT_CMD(scriptcmd_addtype);
 SCRIPT_CMD(scriptcmd_remtype);
-SCRIPT_CMD(scriptcmd_addwhitelist);
-SCRIPT_CMD(scriptcmd_remwhitelist);
-SCRIPT_CMD(scriptcmd_addblacklist);
-SCRIPT_CMD(scriptcmd_remblacklist);
-
-SCRIPT_CMD(scriptcmd_addfoodbuff);
 SCRIPT_CMD(scriptcmd_startreckoning);
 SCRIPT_CMD(scriptcmd_setposition);
 
 SCRIPT_CMD(scriptcmd_setrace);
+
+SCRIPT_CMD(scriptcmd_alterobjmt);
+SCRIPT_CMD(scriptcmd_stringobjmt);
+SCRIPT_CMD(scriptcmd_multitype);
+SCRIPT_CMD(scriptcmd_reassign);
 
 bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument);
 bool olc_varclear(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument);
@@ -3014,6 +3101,8 @@ bool load_triggers();
 void save_triggers();
 void trigger_type_add_use(struct trigger_type *tt);
 void trigger_type_delete_use(struct trigger_type *tt);
+
+void scriptcmd_bug(SCRIPT_VARINFO *info, char *message);
 
 #include "tables.h"
 

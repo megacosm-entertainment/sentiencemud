@@ -1563,6 +1563,13 @@ void bust_a_prompt(CHAR_DATA *ch)
 		return;
 	}
 
+	if (IS_VALID(ch->seal_book))
+	{
+		sprintf(buf, "{WSeal {x%s{W so it is no longer writable?{x\n\r", ch->seal_book->short_descr);
+		send_to_char(buf, ch);
+		return;
+	}
+
     if (ch->pk_question || ch->remove_question)
     {
 	send_to_char("{Y({xY{R/{xN{Y){x\n\r", ch);

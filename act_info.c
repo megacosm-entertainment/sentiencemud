@@ -2301,7 +2301,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 					{
 						look_compass(ch, obj);
 					}
-					else if(obj->item_type == ITEM_PORTAL)
+					else if(IS_PORTAL(obj))
 					{
 						look_portal(ch, obj);
 					}
@@ -2523,7 +2523,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 					{
 						look_map(ch, obj);
 					}
-					else if(obj->item_type == ITEM_PORTAL)
+					else if(IS_PORTAL(obj))
 					{
 						look_portal(ch, obj);
 					}
@@ -4437,41 +4437,39 @@ void do_who_new(CHAR_DATA * ch, char *argument)
     argument = one_argument(argument, arg2);
     if (arg[0] != '\0')
     {
-	if (is_number(arg) && is_number(arg2))
-	{
-	    iLevelLower = atoi(arg);
-	    iLevelUpper = atoi(arg2);
-	}
+		if (is_number(arg) && is_number(arg2))
+		{
+			iLevelLower = atoi(arg);
+			iLevelUpper = atoi(arg2);
+		}
 
-	for (church = church_list; church != NULL; church = church->next)
-	{
-	    if (!str_prefix(arg, church->name))
-		break;
-	}
+		for (church = church_list; church != NULL; church = church->next)
+		{
+			if (!str_prefix(arg, church->name))
+			break;
+		}
     }
 
-    send_to_char(
-    "\n\r{b.,-~^~{B-,._.,{C[ {WPlayers in Sentience {C]{B-.._.,-{b~^~-,.{x\n\r",
-    	ch);
+    send_to_char("\n\r{b.,-~^~{B-,._.,{C[ {WPlayers in Sentience {C]{B-.._.,-{b~^~-,.{x\n\r", ch);
 
     nMatch = 0;
     nMatch2 = 0;
     for (d = descriptor_list; d != NULL; d = d->next)
     {
-	CHAR_DATA *wch;
+		CHAR_DATA *wch;
 
-	if (d->connected != CON_PLAYING)
-	    continue;
+		if (d->connected != CON_PLAYING)
+	    	continue;
 
-	wch = (d->original != NULL) ? d->original : d->character;
+		wch = (d->original != NULL) ? d->original : d->character;
 
-	if (wch)
-	{
-	    if (IS_IMMORTAL(wch) && !can_see_imm(ch, wch))
-			continue;
-	    else
-			nMatch2++;
-	}
+		if (wch)
+		{
+			if (IS_IMMORTAL(wch) && !can_see_imm(ch, wch))
+				continue;
+			else
+				nMatch2++;
+		}
     }
 
     buf[0] = '\0';
@@ -4489,90 +4487,81 @@ void do_who_new(CHAR_DATA * ch, char *argument)
 //	    continue;
 //	}
 
-	if ((iLevelLower != 0
-	     &&  wch->tot_level >= iLevelLower && wch->tot_level <= iLevelUpper)
-	||   !str_prefix(arg, wch->name)
-	||   ((!str_cmp(arg, "immortal")
-	       || !str_cmp(arg, "immortals") || !str_cmp(arg, "imm"))
-	      && wch->tot_level >= LEVEL_IMMORTAL)
-	||   (church != NULL && wch->church == church)
-	||   !str_prefix(arg, race_table[wch->race].name)
-	||   !str_prefix(arg, sub_class_table[get_profession(wch, SUBCLASS_CURRENT)].name[wch->sex]))
-	    ;
-	else
-	    continue;
+		if ((iLevelLower != 0 &&  wch->tot_level >= iLevelLower && wch->tot_level <= iLevelUpper) ||
+			arg[0] =='\0' || !str_prefix(arg, wch->name) ||
+			((!str_cmp(arg, "immortal") || !str_cmp(arg, "immortals") || !str_cmp(arg, "imm")) && wch->tot_level >= LEVEL_IMMORTAL) ||
+			(church != NULL && wch->church == church) ||
+			!str_prefix(arg, race_table[wch->race].name) || !str_prefix(arg, sub_class_table[get_profession(wch, SUBCLASS_CURRENT)].name[wch->sex]))
+			;
+		else
+			continue;
 
         if (wch->tot_level >= LEVEL_IMMORTAL)
-	    strcpy(classstr,wch->pcdata->immortal->imm_flag);
-	else
-	    strcpy(classstr,sub_class_table[get_profession(wch, SUBCLASS_CURRENT)].who_name[wch->sex]);
-	classlen = 12 + strlen(classstr) - strlen_no_colours(classstr);
+		    strcpy(classstr,wch->pcdata->immortal->imm_flag);
+		else
+	    	strcpy(classstr,sub_class_table[get_profession(wch, SUBCLASS_CURRENT)].who_name[wch->sex]);
+		classlen = 12 + strlen(classstr) - strlen_no_colours(classstr);
 
-	if(wch->race >= MAX_PC_RACE)
-		strcpy(racestr, "       ");
-	else
-		strcpy(racestr, pc_race_table[wch->race].who_name);
-	racelen = 7 + strlen(racestr) - strlen_no_colours(racestr);
+		if(wch->race >= MAX_PC_RACE)
+			strcpy(racestr, "       ");
+		else
+			strcpy(racestr, pc_race_table[wch->race].who_name);
+		racelen = 7 + strlen(racestr) - strlen_no_colours(racestr);
 
-	nMatch++;
+		nMatch++;
 
-	area_type = get_char_where(wch);
+		area_type = get_char_where(wch);
 
-	/* @SYN070509 Get rid of imm level. */
-	if (IS_IMMORTAL(wch))
-	    sprintf(level, "{W  IMM  {x");
-	else
-	    sprintf(level, "%-3d{B:{G%-3d", wch->level, wch->tot_level);
+		/* @SYN070509 Get rid of imm level. */
+		if (IS_IMMORTAL(wch))
+		    sprintf(level, "{W  IMM  {x");
+		else
+		    sprintf(level, "%-3d{B:{G%-3d", wch->level, wch->tot_level);
 
-	sprintf(buf,
-        "{B[{G%s{B][{M%s{B][ {Y%-*.*s {R%-*.*s {C%-6s {B] "
-	"%s%s%s%s{G%-12s{x",
-	level,
-		wch->sex == 0 ? "N" : (wch->sex == 1 ? "M" : "F"),
-		racelen,racelen,racestr,
-		classlen,classlen,classstr,
-		area_type,
-		(IS_DEAD(wch)) ?
-			"{D(Dead) {x" : "",
-		wch->incog_level > LEVEL_HERO ? "{D(Incog) {x" : "",
-		wch->invis_level > LEVEL_HERO ? "{W(Wizi) {x" : "",
-		IS_SET(wch->act[0], PLR_BOTTER) ? "{G[BOTTER] {x" : "",
-		wch->name);
+		sprintf(buf,
+        	"{B[{G%s{B][{M%s{B][ {Y%-*.*s {R%-*.*s {C%-6s {B] %s%s%s%s{G%-12s{x",
+			level,
+			wch->sex == 0 ? "N" : (wch->sex == 1 ? "M" : "F"),
+			racelen,racelen,racestr,
+			classlen,classlen,classstr,
+			area_type,
+			IS_DEAD(wch) ? "{D(Dead) {x" : "",
+			wch->incog_level > LEVEL_HERO ? "{D(Incog) {x" : "",
+			wch->invis_level > LEVEL_HERO ? "{W(Wizi) {x" : "",
+			IS_SET(wch->act[0], PLR_BOTTER) ? "{G[BOTTER] {x" : "",
+			wch->name);
 
-	free_string(area_type);
-	add_buf(output, buf);
+		free_string(area_type);
+		add_buf(output, buf);
 
-	if (wch->church != NULL)
-	{
-	    buf_size = 50 - fstr_len(&buf[0]);
+		if (wch->church != NULL)
+		{
+			buf_size = 50 - fstr_len(&buf[0]);
 
-	    for (line_counter = 0; line_counter < buf_size; line_counter++)
-		add_buf(output, " ");
+			for (line_counter = 0; line_counter < buf_size; line_counter++)
+			add_buf(output, " ");
 
-	    add_buf(output, "{Y[{x");
-	    add_buf(output, wch->church->flag);
-	    add_buf(output, "{Y]{x");
-	}
-	else
-	    add_buf(output, "");
+			add_buf(output, "{Y[{x");
+			add_buf(output, wch->church->flag);
+			add_buf(output, "{Y]{x");
+		}
 
-	if (IS_SET(wch->act[0],PLR_HELPER))
-	    add_buf(output, " {W[H]{X");
+		if (IS_SET(wch->act[0],PLR_HELPER))
+		    add_buf(output, " {W[H]{X");
 
-	if (IS_SET(wch->comm, COMM_AFK))
-	    add_buf(output, " {M[AFK]{x");
+		if (IS_SET(wch->comm, COMM_AFK))
+		    add_buf(output, " {M[AFK]{x");
 
-	if (IS_SET(wch->comm, COMM_QUIET))
-	    add_buf(output, " {R[Q]{x");
+		if (IS_SET(wch->comm, COMM_QUIET))
+			add_buf(output, " {R[Q]{x");
 
-	if (IS_SET(wch->act[0], PLR_PK)
-	||  (wch->church != NULL && wch->church->pk == TRUE))
-	    add_buf(output, " {R[PK]{x");
+		if (IS_SET(wch->act[0], PLR_PK) || (wch->church != NULL && wch->church->pk == TRUE))
+		    add_buf(output, " {R[PK]{x");
 
-	if (IS_SET(wch->act[0], PLR_BUILDING))
-	    add_buf(output, " {r[Building]{x");
+		if (IS_SET(wch->act[0], PLR_BUILDING))
+	    	add_buf(output, " {r[Building]{x");
 
-	add_buf(output, "\n\r");
+		add_buf(output, "\n\r");
     }
 
 	if( nMatch != nMatch2 ) {

@@ -793,6 +793,7 @@ WNUM obj_wnum_empty_vial;
 WNUM obj_wnum_potion;
 WNUM obj_wnum_blank_scroll;
 WNUM obj_wnum_scroll;
+WNUM obj_wnum_page;
 WNUM obj_wnum_leather_jacket;
 WNUM obj_wnum_green_tights;
 WNUM obj_wnum_sandals;
@@ -890,6 +891,7 @@ OBJ_INDEX_DATA *obj_index_empty_vial = NULL;
 OBJ_INDEX_DATA *obj_index_potion = NULL;
 OBJ_INDEX_DATA *obj_index_blank_scroll = NULL;
 OBJ_INDEX_DATA *obj_index_scroll = NULL;
+OBJ_INDEX_DATA *obj_index_page = NULL;
 OBJ_INDEX_DATA *obj_index_leather_jacket = NULL;
 OBJ_INDEX_DATA *obj_index_green_tights = NULL;
 OBJ_INDEX_DATA *obj_index_sandals = NULL;
@@ -1063,6 +1065,7 @@ RESERVED_WNUM reserved_obj_wnums[] =
 //	{ "ObjNewbLeggings",		0,		3749,		&obj_wnum_newb_leggings,		&obj_index_newb_leggings },
 //	{ "ObjNewbQuarterstaff",	0,		3740,		&obj_wnum_newb_quarterstaff,	&obj_index_newb_quarterstaff },
 //	{ "ObjNewbSword",			0,		3742,		&obj_wnum_newb_sword,			&obj_index_newb_sword },
+	{ "ObjPage",				0,		0,			&obj_wnum_page,					&obj_index_page },
 //	{ "ObjPawnTicket",			0,		100058,		&obj_wnum_pawn_ticket,			&obj_index_pawn_ticket },
 //	{ "ObjPirateHead",			0,		157024,		&obj_wnum_pirate_head,			&obj_index_pirate_head },
 	{ "ObjPit",					0,		100002,		&obj_wnum_pit,					&obj_index_pit },
@@ -1795,18 +1798,27 @@ void fix_objects(void)
 					iterator_stop(&cit);
 				}
 
-				// IS_PORTAL
+				if (IS_PORTAL(obj))
+				{
+					if (PORTAL(obj)->lock && PORTAL(obj)->lock->key_load.vnum > 0)
+					{
+						PORTAL(obj)->lock->key_wnum.pArea = PORTAL(obj)->lock->key_load.auid > 0 ? get_area_from_uid(PORTAL(obj)->lock->key_load.auid) : pArea;
+						PORTAL(obj)->lock->key_wnum.vnum = PORTAL(obj)->lock->key_load.vnum;
+					}
+
+					for(SPELL_DATA *spell = PORTAL(obj)->spells; spell; spell = spell->next)
+					{
+						if (spell->token_load.auid > 0 && spell->token_load.vnum > 0)
+							spell->token = get_token_index_auid(spell->token_load.auid, spell->token_load.vnum);
+						else
+							spell->token = NULL;
+					}
+				}
 
 				if (obj->spells)
 				{
 					for(SPELL_DATA *spell = obj->spells; spell; spell = spell->next)
 					{
-//						log_stringf("obj %s - spell %d, %ld#%ld",
-//							widevnum_string(obj->area, obj->vnum, NULL),
-//							spell->sn,
-//							spell->token_load.auid,
-//							spell->token_load.vnum);
-
 						if (spell->token_load.auid > 0 && spell->token_load.vnum > 0)
 							spell->token = get_token_index_auid(spell->token_load.auid, spell->token_load.vnum);
 						else
@@ -3406,11 +3418,14 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects,
 	// Item Multi-typing
 	if (multitypes)
 	{
+		PAGE(obj) = copy_book_page(PAGE(pObjIndex));
+		BOOK(obj) = copy_book_data(BOOK(pObjIndex));
 		CONTAINER(obj) = copy_container_data(CONTAINER(pObjIndex));
 		FOOD(obj) = copy_food_data(FOOD(pObjIndex));
 		FURNITURE(obj) = copy_furniture_data(FURNITURE(pObjIndex));
 		LIGHT(obj) = copy_light_data(LIGHT(pObjIndex));
 		MONEY(obj) = copy_money_data(MONEY(pObjIndex));
+		PORTAL(obj) = copy_portal_data(PORTAL(pObjIndex), FALSE);
 	}
 
 #if 0
@@ -5079,6 +5094,9 @@ bool str_prefix(const char *astr, const char *bstr)
 	bug("Strn_cmp: null bstr.", 0);
 	return TRUE;
     }
+
+	// Empty strings should *never* prefix another string
+	if (!*astr) return TRUE;
 
     for (; *astr; astr++, bstr++)
     {
@@ -7258,11 +7276,13 @@ TOKEN_DATA *persist_load_token(FILE *fp)
 	return token;
 }
 
+BOOK_DATA *fread_obj_book_data(FILE *fp);
 CONTAINER_DATA *fread_obj_container_data(FILE *fp);
 FOOD_DATA *fread_obj_food_data(FILE *fp);
 FURNITURE_DATA *fread_obj_furniture_data(FILE *fp);
 LIGHT_DATA *fread_obj_light_data(FILE *fp);
 MONEY_DATA *fread_obj_money_data(FILE *fp);
+PORTAL_DATA *fread_obj_portal_data(FILE *fp);
 
 void fread_obj_check_version(OBJ_DATA *obj, long values[MAX_OBJVALUES]);
 
@@ -7320,6 +7340,14 @@ OBJ_DATA *persist_load_object(FILE *fp)
 
 					break;
 				}
+				if (!str_cmp(word, "#TYPEBOOK"))
+				{
+					if (IS_BOOK(obj)) free_book_data(BOOK(obj));
+
+					BOOK(obj) = fread_obj_book_data(fp);
+					fMatch = TRUE;
+					break;
+				}
 				if (!str_cmp(word, "#TYPECONTAINER"))
 				{
 					if (IS_CONTAINER(obj)) free_container_data(CONTAINER(obj));
@@ -7357,6 +7385,14 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					if (IS_MONEY(obj)) free_money_data(MONEY(obj));
 
 					MONEY(obj) = fread_obj_money_data(fp);
+					fMatch = TRUE;
+					break;
+				}
+				if (!str_cmp(word, "#TYPEPORTAL"))
+				{
+					if (IS_PORTAL(obj)) free_portal_data(PORTAL(obj));
+
+					PORTAL(obj) = fread_obj_portal_data(fp);
 					fMatch = TRUE;
 					break;
 				}
