@@ -62,6 +62,7 @@
 #include <zlib.h>
 /* VIZZWILDS - support for plogf() and printf_to_char() functions*/
 #include <stdarg.h>
+#include <unistd.h>
 
 #include "merc.h"
 #include "interp.h"
@@ -98,10 +99,6 @@ extern	int	malloc_verify	args((void));
 #include <signal.h>
 #endif
 
-#if defined(apollo)
-#undef __attribute
-#endif
-
 
 /*
  * Socket and TCP/IP stuff.
@@ -127,37 +124,6 @@ const	char 	go_ahead_str	[] = { IAC, GA, '\0' };
 /*
  * OS-dependent declarations.
  */
-#if	defined(_AIX)
-#include <sys/select.h>
-int	accept		args((int s, struct sockaddr *addr, int *addrlen));
-int	bind		args((int s, struct sockaddr *name, int namelen));
-void	bzero		args((char *b, int length));
-int	getpeername	args((int s, struct sockaddr *name, int *namelen));
-int	getsockname	args((int s, struct sockaddr *name, int *namelen));
-int	gettimeofday	args((struct timeval *tp, struct timezone *tzp));
-int	listen		args((int s, int backlog));
-int	setsockopt	args((int s, int level, int optname, void *optval,
-			    int optlen));
-int	socket		args((int domain, int type, int protocol));
-#endif
-
-#if	defined(apollo)
-#include <unistd.h>
-void	bzero		args((char *b, int length));
-#endif
-
-#if	defined(__hpux)
-int	accept		args((int s, void *addr, int *addrlen));
-int	bind		args((int s, const void *addr, int addrlen));
-void	bzero		args((char *b, int length));
-int	getpeername	args((int s, void *addr, int *addrlen));
-int	getsockname	args((int s, void *name, int *addrlen));
-int	gettimeofday	args((struct timeval *tp, struct timezone *tzp));
-int	listen		args((int s, int backlog));
-int	setsockopt	args((int s, int level, int optname,
- 				const void *optval, int optlen));
-int	socket		args((int domain, int type, int protocol));
-#endif
 
 #if	defined(interactive)
 #include <net/errno.h>
@@ -177,104 +143,15 @@ int getsockname args( ( int s, struct sockaddr *name, int *namelen ) );
 int listen    args( ( int s, int backlog ) );
 */
 
-int	close		args((int fd));
+//int	close		args((int fd));
 /* int	gettimeofday	args((struct timeval *tp, struct timezone *tzp)); */
 /*int	read		args((int fd, char *buf, int nbyte));*/
-int	select		args((int width, fd_set *readfds, fd_set *writefds,
-			    fd_set *exceptfds, struct timeval *timeout));
-int	socket		args((int domain, int type, int protocol));
+//int	select		args((int width, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout));
+//int	socket		args((int domain, int type, int protocol));
 /*int	write		args((int fd, char *buf, int nbyte));*/
 #endif
 
-#if	defined(MIPS_OS)
-extern	int		errno;
-#endif
 
-#if	defined(NeXT)
-int	close		args((int fd));
-int	fcntl		args((int fd, int cmd, int arg));
-#if	!defined(htons)
-u_short	htons		args((u_short hostshort));
-#endif
-#if	!defined(ntohl)
-u_long	ntohl		args((u_long hostlong));
-#endif
-int	read		args((int fd, char *buf, int nbyte));
-int	select		args((int width, fd_set *readfds, fd_set *writefds,
-			    fd_set *exceptfds, struct timeval *timeout));
-int	write		args((int fd, char *buf, int nbyte));
-#endif
-
-#if	defined(sequent)
-int	accept		args((int s, struct sockaddr *addr, int *addrlen));
-int	bind		args((int s, struct sockaddr *name, int namelen));
-int	close		args((int fd));
-int	fcntl		args((int fd, int cmd, int arg));
-int	getpeername	args((int s, struct sockaddr *name, int *namelen));
-int	getsockname	args((int s, struct sockaddr *name, int *namelen));
-int	gettimeofday	args((struct timeval *tp, struct timezone *tzp));
-#if	!defined(htons)
-u_short	htons		args((u_short hostshort));
-#endif
-int	listen		args((int s, int backlog));
-#if	!defined(ntohl)
-u_long	ntohl		args((u_long hostlong));
-#endif
-int	read		args((int fd, char *buf, int nbyte));
-int	select		args((int width, fd_set *readfds, fd_set *writefds,
-			    fd_set *exceptfds, struct timeval *timeout));
-int	setsockopt	args((int s, int level, int optname, caddr_t optval,
-
-			    int optlen));
-int	socket		args((int domain, int type, int protocol));
-int	write		args((int fd, char *buf, int nbyte));
-#endif
-
-/* This includes Solaris Sys V as well */
-#if defined(sun)
-int	accept		args((int s, struct sockaddr *addr, int *addrlen));
-int	bind		args((int s, struct sockaddr *name, int namelen));
-void	bzero		args((char *b, int length));
-int	close		args((int fd));
-int	getpeername	args((int s, struct sockaddr *name, int *namelen));
-int	getsockname	args((int s, struct sockaddr *name, int *namelen));
-int	listen		args((int s, int backlog));
-int	read		args((int fd, char *buf, int nbyte));
-int	select		args((int width, fd_set *readfds, fd_set *writefds,
-			    fd_set *exceptfds, struct timeval *timeout));
-
-#if !defined(__SVR4)
-int	gettimeofday	args((struct timeval *tp, struct timezone *tzp));
-
-#if defined(SYSV)
-int setsockopt		args((int s, int level, int optname,
-			    const char *optval, int optlen));
-#else
-int	setsockopt	args((int s, int level, int optname, void *optval,
-			    int optlen));
-#endif
-#endif
-int	socket		args((int domain, int type, int protocol));
-int	write		args((int fd, char *buf, int nbyte));
-#endif
-
-#if defined(ultrix)
-int	accept		args((int s, struct sockaddr *addr, int *addrlen));
-int	bind		args((int s, struct sockaddr *name, int namelen));
-void	bzero		args((char *b, int length));
-int	close		args((int fd));
-int	getpeername	args((int s, struct sockaddr *name, int *namelen));
-int	getsockname	args((int s, struct sockaddr *name, int *namelen));
-int	gettimeofday	args((struct timeval *tp, struct timezone *tzp));
-int	listen		args((int s, int backlog));
-int	read		args((int fd, char *buf, int nbyte));
-int	select		args((int width, fd_set *readfds, fd_set *writefds,
-			    fd_set *exceptfds, struct timeval *timeout));
-int	setsockopt	args((int s, int level, int optname, void *optval,
-			    int optlen));
-int	socket		args((int domain, int type, int protocol));
-int	write		args((int fd, char *buf, int nbyte));
-#endif
 
 
 void show_form_state(CHAR_DATA *ch);
@@ -1282,7 +1159,9 @@ void close_socket(DESCRIPTOR_DATA *dclose)
 	if (dclose->connected == CON_PLAYING && !merc_down)
 	{
 	    if (ch->invis_level < LEVEL_IMMORTAL)
-		act("$n has lost $s link.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		{
+			act("$n has lost $s link.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		}
 		wiznet("$N has lost $S link.",ch,NULL,WIZ_LINKS,0,0);
 
 	    ch->desc = NULL;
@@ -3549,7 +3428,7 @@ void send_to_char(const char *txt, CHAR_DATA *ch)
     buf[0] = '\0';
     point2 = buf;
 
-    /*
+    //
     if (!IS_NPC(ch) && IS_STONED(ch))
     {
 	char colchar;

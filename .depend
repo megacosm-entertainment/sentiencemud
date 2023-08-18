@@ -3,11 +3,8 @@ obj/act_comm.o: act_comm.c merc.h protocol.h sha256.h interp.h recycle.h \
 obj/act_enter.o: act_enter.c merc.h protocol.h sha256.h interp.h wilds.h
 obj/act_info.o: act_info.c merc.h protocol.h sha256.h interp.h magic.h \
  recycle.h tables.h db.h wilds.h scripts.h
-obj/act_info2.o: act_info2.c /usr/include/mysql/mysql.h \
- /usr/include/mysql/mariadb_com.h /usr/include/mysql/mariadb_version.h \
- /usr/include/mysql/ma_list.h /usr/include/mysql/mariadb_ctype.h \
- /usr/include/mysql/mariadb_stmt.h merc.h protocol.h sha256.h interp.h \
- magic.h recycle.h tables.h db.h
+obj/act_info2.o: act_info2.c merc.h protocol.h sha256.h interp.h magic.h \
+ recycle.h tables.h db.h
 obj/act_move.o: act_move.c merc.h protocol.h sha256.h interp.h olc.h wilds.h \
  scripts.h tables.h
 obj/act_obj.o: act_obj.c merc.h protocol.h sha256.h magic.h interp.h \

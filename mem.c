@@ -4748,7 +4748,9 @@ void free_dungeon(DUNGEON *dng)
 
     // Automatically remove it from the list
     if (dng->index)
+    {
         list_remlink(dng->index->loaded, dng);
+    }
 
 	INVALIDATE(dng);
 	dng->next = dungeon_free;

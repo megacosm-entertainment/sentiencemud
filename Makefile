@@ -1,12 +1,14 @@
 CC      = gcc
-PROF    = -Wall -O0 -g -pg -ggdb -g 
+#PROF    = -Wall -O0 -g -pg -ggdb -g 
+PROF	= -Wall -O
 OBJDIR	= obj
 VPATH   = .:obj
-LIBS =  -lpthread -lz -lm -lrt -lssl -lcrypto -ldl -lcrypt
+LIBS	= -lcrypt -lm -lz
+#LIBS =  -lpthread -lz -lm -lrt -lssl -lcrypto -ldl -lcrypt
 #LIBS    = -L/usr/lib/x86_64-linux-gnu  -lpthread -lz -lm -ldl
 NOCRYPT = -Dlinux
 #C_FLAGS =  $(PROF) $(NOCRYPT) -DOLD_RAND -DMALLOC_STDLIB  -DBIG_JOINS=1  -fno-strict-aliasing   -g -fabi-version=2 -fno-omit-frame-pointer -fno-strict-aliasing
-C_FLAGS = $(PROF) -DOLD_RAND -DMALLOC_STDLIB -fstack-protector  -m64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv -fPIC -fabi-version=2 -fno-omit-frame-pointer
+C_FLAGS = $(PROF) #-DOLD_RAND -DMALLOC_STDLIB -fstack-protector  -m64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv -fPIC -fabi-version=2 -fno-omit-frame-pointer
 L_FLAGS =  $(PROF) $(LIBS)
 EXE	= sent
 BUILD_NUMBER_FILE = build.txt
