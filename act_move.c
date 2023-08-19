@@ -1784,8 +1784,8 @@ void do_lock(CHAR_DATA *ch, char *argument)
 			}
 
 			SET_BIT(obj->lock->flags,LOCK_LOCKED);
-			act("You lock $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-			act("$n locks $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
+			act("You lock $p with $P.",ch, NULL, NULL,obj, key, NULL,NULL,TO_CHAR);
+			act("$n locks $p with $P.",ch, NULL, NULL,obj, key, NULL,NULL,TO_ROOM);
 
 			use_key(ch, key);
 			return;
@@ -1831,8 +1831,8 @@ void do_lock(CHAR_DATA *ch, char *argument)
 		}
 
 		SET_BIT(obj->lock->flags, LOCK_LOCKED);
-		act("You lock $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-		act("$n locks $p.",ch, NULL, NULL,obj, NULL, NULL, NULL, TO_ROOM);
+		act("You lock $p with $P.",ch, NULL, NULL,obj, key, NULL,NULL,TO_CHAR);
+		act("$n locks $p with $P.",ch, NULL, NULL,obj, key, NULL, NULL, TO_ROOM);
 
 		use_key(ch, key);
 		return;
@@ -1880,8 +1880,8 @@ void do_lock(CHAR_DATA *ch, char *argument)
 		SET_BIT(pexit->door.lock.flags, LOCK_LOCKED);
 		/* send_to_char("*Click*\n\r", ch); */
 		exit_name(ch->in_room, door, exit);
-		act("You lock $T.", ch, NULL, NULL, NULL, NULL, NULL, exit, TO_CHAR);
-		act("$n locks $T.", ch, NULL, NULL, NULL, NULL, NULL, exit, TO_ROOM);
+		act("You lock $T with $p.", ch, NULL, NULL, key, NULL, NULL, exit, TO_CHAR);
+		act("$n locks $T with $p.", ch, NULL, NULL, key, NULL, NULL, exit, TO_ROOM);
 
 		/* lock the other side */
 		if ((to_room   = pexit->u1.to_room) != NULL &&
@@ -1957,8 +1957,8 @@ void do_unlock(CHAR_DATA *ch, char *argument)
 			}
 
 			REMOVE_BIT(obj->lock->flags,LOCK_LOCKED);
-			act("You unlock $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-			act("$n unlocks $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
+			act("You unlock $p with $P.",ch, NULL, NULL,obj, key, NULL,NULL,TO_CHAR);
+			act("$n unlocks $p with $P.",ch, NULL, NULL,obj, key, NULL,NULL,TO_ROOM);
 			use_key(ch, key);
 			return;
 		}
@@ -2002,8 +2002,8 @@ void do_unlock(CHAR_DATA *ch, char *argument)
 		}
 
 		REMOVE_BIT(obj->lock->flags,LOCK_LOCKED);
-		act("You unlock $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-		act("$n unlocks $p.",ch, NULL, NULL,obj, NULL, NULL,NULL, TO_ROOM);
+		act("You unlock $p with $P.",ch, NULL, NULL,obj, key, NULL,NULL,TO_CHAR);
+		act("$n unlocks $p with $P.",ch, NULL, NULL,obj, key, NULL,NULL, TO_ROOM);
 
 		if (key && !is_name("house",key->name))
 		{
@@ -2062,8 +2062,8 @@ void do_unlock(CHAR_DATA *ch, char *argument)
 		REMOVE_BIT(pexit->door.lock.flags, LOCK_LOCKED);
 		/* send_to_char("*Click*\n\r", ch); */
 		exit_name(ch->in_room, door, exit);
-		act("You unlock $T.", ch, NULL, NULL, NULL, NULL, NULL, exit, TO_CHAR);
-		act("$n unlocks $T.", ch, NULL, NULL, NULL, NULL, NULL, exit, TO_ROOM);
+		act("You unlock $T with $p.", ch, NULL, NULL, key, NULL, NULL, exit, TO_CHAR);
+		act("$n unlocks $T with $p.", ch, NULL, NULL, key, NULL, NULL, exit, TO_ROOM);
 
 		/* unlock the other side */
 		if ((to_room   = pexit->u1.to_room) != NULL &&

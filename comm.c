@@ -1869,7 +1869,7 @@ void bust_a_prompt(CHAR_DATA *ch)
 		sprintf(buf2, "%d", can_carry_n(ch));
 		i = buf2; break;
 	case 'C' :
-		sprintf(buf2, "%ld", (ch->silver / 50 + ch->gold/30));
+		sprintf(buf2, "%ld", COIN_WEIGHT(ch));
 		i = buf2; break;
 	case 'J' :
 		sprintf(buf2, "%s", IS_IMMORTAL(ch) ? ch->pcdata->immortal->build_project!= NULL ? ch->pcdata->immortal->build_project->name : "" : "N/A");
