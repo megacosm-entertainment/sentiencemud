@@ -3986,7 +3986,7 @@ int get_obj_weight(OBJ_DATA *obj)
 /* return weight of x silver and y gold */
 int get_weight_coins(long silver, long gold)
 {
-    return silver/500 + gold/300;
+    return silver/800 + gold/300;
 }
 
 

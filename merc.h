@@ -6769,7 +6769,7 @@ extern sh_int grn_unique;
 #define SHIP_STATE(ch, npulse)  ((ch)->ship_move = UMAX((ch)->ship_move, (npulse)))
 #define SHIP_ATTACK_STATE(ch, npulse)  ((ch)->ship_attack = UMAX((ch)->ship_attack, (npulse)))
 #define REVERIE_STATE(ch, npulse)  ((ch)->reverie = UMAX((ch)->reverie, (npulse)))
-#define COIN_WEIGHT(ch) 	((ch)->gold/300 + (ch)->silver/500)
+#define COIN_WEIGHT(ch) 	((ch)->gold/300 + (ch)->silver/800)
 #define get_carry_weight(ch)	((ch)->carry_weight + COIN_WEIGHT(ch))
 #define PULLING_CART(ch) \
 		((!IS_NPC(ch) && ch->pulled_cart) ? ch->pulled_cart : NULL)
