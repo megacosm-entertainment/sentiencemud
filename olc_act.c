@@ -3791,8 +3791,14 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 	    break;
 
 	case ITEM_SCROLL:
-	case ITEM_POTION:
 	case ITEM_PILL:
+	    break;
+
+	case ITEM_POTION:
+        sprintf(buf,
+            	"{B[  {Wv5{B]{G Charges:{x                [%ld]\n\r",
+            	obj->value[5]);
+	    add_buf(buffer, buf);
 	    break;
 
 	case ITEM_TATTOO:
@@ -4167,9 +4173,21 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 		break;
 
 	case ITEM_SCROLL:
-	case ITEM_POTION:
 	case ITEM_PILL:
 		break;
+
+	case ITEM_POTION:
+	switch (value_num)
+	{
+		default:
+			do_help(ch, "ITEM_POTION");
+			return FALSE;
+		case 5:
+			send_to_char("TOTAL CHARGES SET\n\r\n\r", ch);
+			pObj->value[5] = atoi(argument);
+			break;
+	}
+	break;
 
 	case ITEM_TATTOO:
 		switch (value_num)
