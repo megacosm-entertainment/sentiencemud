@@ -3803,7 +3803,7 @@ const struct skill_type	skill_table [MAX_SKILL]	=
 	}, {
 		"maze",
 		{ 22, 31, 31, 31 }, { 5, 5, 4, 4},
-		spell_maze, TAR_CHAR_OFFENSIVE, POS_FIGHTING, &gsn_maze,
+		spell_maze, TAR_CHAR_DEFENSIVE, POS_FIGHTING, &gsn_maze,
 		-1, 100, 8,
 		"", "!Maze!", "", "",
 		{ { CATALYST_NONE, 0 },{ CATALYST_NONE, 0 },{ CATALYST_NONE, 0 } }

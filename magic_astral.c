@@ -86,6 +86,12 @@ SPELL_FUNC(spell_maze)
 
 	victim = (CHAR_DATA *) vo;
 
+	if (!(victim == ch || is_same_group(victim,ch) || is_same_group(victim,ch->fighting)))
+	{
+		send_to_char("You may only cast this spell on yourself, your own group, or enemy groups.\n\r", ch);
+		return FALSE;
+	}
+
 
 	catalyst = has_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY,1,CATALYST_MAXSTRENGTH);
 
@@ -104,6 +110,7 @@ SPELL_FUNC(spell_maze)
 		return FALSE;
 	}
 	*/
+
 	if (saves_spell(level, victim, DAM_NONE)) {
 		send_to_char("Nothing happens.\n\r", ch);
 		return FALSE;
