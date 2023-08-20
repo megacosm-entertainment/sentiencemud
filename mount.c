@@ -209,9 +209,28 @@ void do_whistle(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    act("You whistle on $p loudly and $N appears out of nowhere.", ch, mount, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-    act("$n whistles on $p loudly and $N appears out of nowhere.", ch, mount, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-    char_from_room(mount);
-    char_to_room(mount, ch->in_room);
-    mount->position = POS_STANDING;
+    if (ch->in_room == mount->in_room)
+    {
+        if (RIDDEN(mount) || mount->position != POS_STANDING || mount->fighting != NULL)
+        {
+            send_to_char("Your mount must be unridden, standing, and out of combat to be dismissed.\n\r", ch);
+            return;
+        }
+        else
+        {
+            act("You send $N home.", ch, mount, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+            act("$N wanders home.", ch, mount, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+            char_from_room(mount);
+            char_to_room(mount, mount->home_room);
+            mount->position = POS_STANDING;
+        }
+    }
+    else
+    {
+        act("You whistle on $p loudly and $N appears out of nowhere.", ch, mount, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+        act("$n whistles on $p loudly and $N appears out of nowhere.", ch, mount, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+        char_from_room(mount);
+        char_to_room(mount, ch->in_room);
+        mount->position = POS_STANDING;
+    }
 }
