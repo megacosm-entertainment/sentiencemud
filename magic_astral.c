@@ -150,7 +150,7 @@ SPELL_FUNC(spell_maze)
 	}
 	else
 	{
-		lvl = victim->tot_level - ch->tot_level;
+		lvl = UMAX(10, victim->tot_level - ch->tot_level);
 	}
 
 	catalyst = use_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY,lvl,1,CATALYST_MAXSTRENGTH,TRUE);
