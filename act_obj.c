@@ -3763,6 +3763,9 @@ void do_quaff(CHAR_DATA *ch, char *argument)
 	return;
     }
 
+	if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREDRINK, NULL))
+	return;
+
     if (ch->tot_level < obj->level)
     {
 	send_to_char("This liquid is too powerful for you to drink.\n\r",ch);
@@ -3791,6 +3794,8 @@ void do_quaff(CHAR_DATA *ch, char *argument)
         act("$n quaffs $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
         act("You quaff $p.", ch, NULL, NULL, obj, NULL, NULL, NULL ,TO_CHAR);
     }
+
+	p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_DRINK, NULL);
 
     for (spell = obj->spells; spell != NULL; spell = spell->next)
 	obj_cast_spell(spell->sn, spell->level, ch, ch, NULL);
