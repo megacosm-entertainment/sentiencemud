@@ -1359,7 +1359,7 @@ void read_from_buffer(DESCRIPTOR_DATA *d)
 	    --k;
 	else if (isascii(d->inbuf[i]) && isprint(d->inbuf[i]))
 	    d->incomm[k++] = d->inbuf[i];
-        else if (d->inbuf[i] == (signed char)IAC) {
+    /*    else if (d->inbuf[i] == (signed char)IAC) {
             if (!memcmp(&d->inbuf[i], compress_do, strlen(compress_do))) {
                 i += strlen(compress_do) - 1;
                 compressStart(d);
@@ -1379,7 +1379,7 @@ void read_from_buffer(DESCRIPTOR_DATA *d)
                 REMOVE_BIT(d->bits, DESCRIPTOR_MSP);
             }
 
-        }
+        }*/
     }
 
     /*
