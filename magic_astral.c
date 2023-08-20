@@ -80,12 +80,20 @@ SPELL_FUNC(spell_maze)
 {
 	int skill;
 	CHAR_DATA *victim = NULL;
-	OBJ_DATA *stone;
 	ROOM_INDEX_DATA *room;
 	AREA_DATA *area;
+	int lvl, catalyst;
 
 	victim = (CHAR_DATA *) vo;
 
+
+	catalyst = has_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY,1,CATALYST_MAXSTRENGTH);
+
+	if(!catalyst) {
+		send_to_char("You appear to be missing a required astral catalyst.\n\r", ch);
+		return TRUE;
+	}
+	/*
 	stone = get_warp_stone(ch);
 	if (stone) {
 		act("You draw upon the power of $p.",ch, NULL, NULL,stone,NULL, NULL, NULL,TO_CHAR);
@@ -95,19 +103,27 @@ SPELL_FUNC(spell_maze)
 		send_to_char("You appear to be missing a required reagent.\n\r", ch);
 		return FALSE;
 	}
-
+	*/
 	if (saves_spell(level, victim, DAM_NONE)) {
 		send_to_char("Nothing happens.\n\r", ch);
 		return FALSE;
 	}
 
 	skill = get_skill(ch, gsn_maze);
-	if (!(area = find_area("Geldoff's Maze")) || (number_percent() >= skill)) {
+	if (!(area = find_area("Maze-Level1")) || !(area = find_area("Geldoff's Maze")) || (number_percent() >= skill)) {
 		send_to_char("Your mind seems to have gotten lost in its own maze...\n\r", ch);
 		ch->daze += 10 - number_range(0, skill/10);
 		return FALSE;
 	}
-
+	if (victim->fighting == ch || ch->fighting)
+	{
+		area = find_area("Geldoff's Maze");
+		victim->maze_time_left = 3;
+	} 
+	else
+	{
+		area = find_area("Maze-Level1");
+	}
 	while(!(room = get_room_index(number_range(area->min_vnum, area->max_vnum))));
 
 	if (victim->fighting) stop_fighting(victim, TRUE);
@@ -121,7 +137,16 @@ SPELL_FUNC(spell_maze)
 	act("{D$n disappears in a puff of smoke!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 	act("{DYou disappear in a puff of smoke!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
-	victim->maze_time_left = 3;
+	if (victim == ch)
+	{
+		lvl = ch->tot_level/4;
+	}
+	else
+	{
+		lvl = victim->tot_level - ch->tot_level;
+	}
+
+	catalyst = use_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY,lvl,1,CATALYST_MAXSTRENGTH,TRUE);
 
 	char_from_room(victim);
 	char_to_room(victim, room);
