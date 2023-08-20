@@ -2292,8 +2292,8 @@ void do_look(CHAR_DATA * ch, char *argument)
 			/* Can person lore object */
 			perform_lore = FALSE;
 			if ((IS_NPC(ch) || !IS_SET(ch->act2, PLR_NOLORE)) &&
-				get_skill(ch, gsn_lore) > 0 &&
-				number_percent() <= get_skill(ch, skill_lookup("lore")) &&
+				/* get_skill(ch, gsn_lore) > 0 &&
+				number_percent() <= get_skill(ch, skill_lookup("lore")) &&*/
 				((!IS_NPC(ch) && IS_SET(ch->act, PLR_HOLYLIGHT)) ||													// Immortal HOLYLIGHT
 				!IS_SET(obj->extra2_flags, ITEM_NO_LORE) || 														// NO_LORE not set
 				(IS_SET(obj->extra2_flags, ITEM_ALL_REMORT) && IS_REMORT(ch)) ||									// ALL_REMORT and this is a remort
@@ -2317,7 +2317,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 						send_to_char("\n\r", ch);
 
 					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
-					check_improve(ch, gsn_lore, TRUE, 10);
+					//check_improve(ch, gsn_lore, TRUE, 10);
 					return;
 				}
 				else
@@ -2420,8 +2420,8 @@ void do_look(CHAR_DATA * ch, char *argument)
 			/* Can person lore object */
 			perform_lore = FALSE;
 			if ((IS_NPC(ch) || !IS_SET(ch->act2, PLR_NOLORE)) &&
-				get_skill(ch, gsn_lore) > 0 &&
-				number_percent() <= get_skill(ch, skill_lookup("lore")) &&
+				/* get_skill(ch, gsn_lore) > 0 &&
+				number_percent() <= get_skill(ch, skill_lookup("lore")) && */
 				((!IS_NPC(ch) && IS_SET(ch->act, PLR_HOLYLIGHT)) ||													// Immortal HOLYLIGHT
 				!IS_SET(obj->extra2_flags, ITEM_NO_LORE) || 														// NO_LORE not set
 				(IS_SET(obj->extra2_flags, ITEM_ALL_REMORT) && IS_REMORT(ch)) ||									// ALL_REMORT and this is a remort
@@ -2494,7 +2494,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 						send_to_char("\n\r", ch);
 
 					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
-					check_improve(ch, gsn_lore, TRUE, 10);
+					//check_improve(ch, gsn_lore, TRUE, 10);
 					return;
 				}
 			}
@@ -2822,8 +2822,8 @@ void do_examine(CHAR_DATA * ch, char *argument)
 				{
 					if (p_percent_trigger(NULL, obj, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_EXAMINE, argument)) return;
 
-					if (get_skill(ch, gsn_lore) > 0 &&
-						number_percent() <= get_skill(ch, gsn_lore) &&
+					if ( /* get_skill(ch, gsn_lore) > 0 &&
+						number_percent() <= get_skill(ch, gsn_lore) && */
 						((!IS_NPC(ch) && IS_SET(ch->act, PLR_HOLYLIGHT)) ||													// Immortal HOLYLIGHT
 						!IS_SET(obj->extra2_flags, ITEM_NO_LORE) || 														// NO_LORE not set
 						(IS_SET(obj->extra2_flags, ITEM_ALL_REMORT) && IS_REMORT(ch)) ||									// ALL_REMORT and this is a remort
@@ -2851,7 +2851,7 @@ void do_examine(CHAR_DATA * ch, char *argument)
 						send_to_char("\n\r", ch);
 
 					p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
-					check_improve(ch, gsn_lore, TRUE, 10);
+					//check_improve(ch, gsn_lore, TRUE, 10);
 					return;
 				}
 
