@@ -1896,6 +1896,8 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 				send_to_char("\n\r\n\r", ch);
 			}
 
+			bool add_blank = FALSE;
+
 			if (!remote && get_skill(ch, gsn_sense_danger) > 0 &&
 				(!IS_NPC(ch) && ch->pcdata->danger_range > 0)) {
 				int dir;
@@ -1920,11 +1922,24 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 					}
 				}
 
-				strcat(buf, "{x\n\r\n\r");
+				strcat(buf, "{x\n\r");
 				send_to_char(buf,ch);
+
+				add_blank = TRUE;
 
 				if (number_percent() == 1)
 					check_improve(ch, gsn_sense_danger, TRUE, 1);
+			}
+
+			if (!remote)
+			{
+				if (p_percent_trigger(NULL, NULL, room, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ROOM_HEADER, NULL, 0, 0, 0, 0, 0))
+					add_blank = TRUE;
+			}
+
+			if (!remote && add_blank)
+			{
+				send_to_char("\n\r", ch);
 			}
 
 #if 1
@@ -1945,6 +1960,11 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 	if (!remote && (!IS_NPC(ch) || IS_SWITCHED(ch)) && IS_SET(ch->act[0], PLR_AUTOEXIT)) {
 		send_to_char("\n\r", ch);
 		do_exits(ch, "auto");
+	}
+
+	if (!remote)
+	{
+		p_percent_trigger(NULL, NULL, room, NULL, ch, NULL, NULL, NULL, NULL, TRIG_ROOM_FOOTER, NULL, 0, 0, 0, 0, 0);
 	}
 
 	/* VIZZWILDS - Check if char is in a wilderness room, and if so display wilds map */

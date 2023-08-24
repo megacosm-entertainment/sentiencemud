@@ -2476,59 +2476,59 @@ void do_toggle(CHAR_DATA *ch, char *argument)
 	/* Show current settings */
 	if (argument[0] == '\0')
 	{
-	sprintf(buf, "{Y%-15s %s{x\n\r", "Setting", "Status");
-	send_to_char(buf, ch);
+		sprintf(buf, "{Y%-15s %s{x\n\r", "Setting", "Status");
+		send_to_char(buf, ch);
 
-	line(ch, 22);
+		line(ch, 22);
 
-	for (i = 0; pc_set_table[i].name != NULL; i++)
-	{
-	if (ch->tot_level >= pc_set_table[i].min_level)
-	{
-	if (pc_set_table[i].vector != 0)
-	{
-	vector = pc_set_table[i].vector;
-	field = &ch->act[0];
-	}
-	else if (pc_set_table[i].vector2 != 0)
-	{
-	vector = pc_set_table[i].vector2;
-	field = &ch->act[1];
-	}
-	else if (pc_set_table[i].vector_comm != 0)
-	{
-	vector = pc_set_table[i].vector_comm;
-	field = &ch->comm;
-	}
-	else
-	{
-	sprintf(buf, "do_toggle: no good vector/field for setting %s",
-	pc_set_table[i].name);
-	bug(buf, 0);
-	return;
-	}
+		for (i = 0; pc_set_table[i].name != NULL; i++)
+		{
+			if (ch->tot_level >= pc_set_table[i].min_level)
+			{
+				if (pc_set_table[i].vector != 0)
+				{
+					vector = pc_set_table[i].vector;
+					field = &ch->act[0];
+				}
+				else if (pc_set_table[i].vector2 != 0)
+				{
+					vector = pc_set_table[i].vector2;
+					field = &ch->act[1];
+				}
+				else if (pc_set_table[i].vector_comm != 0)
+				{
+					vector = pc_set_table[i].vector_comm;
+					field = &ch->comm;
+				}
+				else
+				{
+					sprintf(buf, "do_toggle: no good vector/field for setting %s", pc_set_table[i].name);
+					bug(buf, 0);
+					return;
+				}
 
-	if (pc_set_table[i].inverted)
-	{
-	if (IS_SET(*field, vector))
-	sprintf(status, "{DOFF{x");
-	else
-	sprintf(status, "{WON{x");
-	}
-	else
-	{
-	if (IS_SET(*field, vector))
-	sprintf(status, "{WON{x");
-	else
-	sprintf(status, "{DOFF{x");
-	}
+				if (pc_set_table[i].inverted)
+				{
+					if (IS_SET(*field, vector))
+						sprintf(status, "{DOFF{x");
+					else
+						sprintf(status, "{WON{x");
+				}
+				else
+				{
+					if (IS_SET(*field, vector))
+						sprintf(status, "{WON{x");
+					else
+						sprintf(status, "{DOFF{x");
+				}
 
-	sprintf(buf, "%-15s %s\n\r", pc_set_table[i].name, status);
-	send_to_char(buf, ch);
-	}
-	}
+				sprintf(buf, "%-15s %s\n\r", pc_set_table[i].name, status);
+				send_to_char(buf, ch);
+			}
+		}
 
-	return;
+		p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_TOGGLE_LIST, NULL, 0, 0, 0, 0, 0);
+		return;
 	}
 
 	/* Toggle a setting */
@@ -2537,66 +2537,67 @@ void do_toggle(CHAR_DATA *ch, char *argument)
 	found = FALSE;
 	for (i = 0; pc_set_table[i].name != NULL; i++)
 	{
-	if (!str_prefix(arg, pc_set_table[i].name)
-	&&  ch->tot_level >= pc_set_table[i].min_level) {
-	found = TRUE;
-	break;
-	}
+		if (!str_prefix(arg, pc_set_table[i].name) &&
+			ch->tot_level >= pc_set_table[i].min_level) {
+			found = TRUE;
+			break;
+		}
 	}
 
-	if (!found) {
-	send_to_char("That is not a valid setting.\n\r", ch);
-	return;
+	if (!found)
+	{
+		if (!p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_TOGGLE_CUSTOM, arg, 0, 0, 0, 0, 0))
+			send_to_char("That is not a valid setting.\n\r", ch);
+		return;
 	}
 
 	if (pc_set_table[i].vector != 0)
 	{
-	vector = pc_set_table[i].vector;
-	field = &ch->act[0];
+		vector = pc_set_table[i].vector;
+		field = &ch->act[0];
 	}
 	else if (pc_set_table[i].vector2 != 0)
 	{
-	vector = pc_set_table[i].vector2;
-	field = &ch->act[1];
+		vector = pc_set_table[i].vector2;
+		field = &ch->act[1];
 	}
 	else if (pc_set_table[i].vector_comm != 0)
 	{
-	vector = pc_set_table[i].vector_comm;
-	field = &ch->comm;
+		vector = pc_set_table[i].vector_comm;
+		field = &ch->comm;
 	}
 	else
 	{
-	sprintf(buf, "do_toggle: no good vector/field for setting %s",
-	pc_set_table[i].name);
-	bug(buf, 0);
-	return;
+		sprintf(buf, "do_toggle: no good vector/field for setting %s", pc_set_table[i].name);
+		bug(buf, 0);
+		return;
 	}
 
 	if (pc_set_table[i].inverted)
 	{
-	if (IS_SET(*field, vector))
-	{
-	REMOVE_BIT(*field, vector);
-	act("$t is now {WON{x.", ch, NULL, NULL, NULL, NULL, pc_set_table[i].name, NULL, TO_CHAR);
+		if (IS_SET(*field, vector))
+		{
+			REMOVE_BIT(*field, vector);
+			act("$t is now {WON{x.", ch, NULL, NULL, NULL, NULL, pc_set_table[i].name, NULL, TO_CHAR);
+		}
+		else
+		{
+			SET_BIT(*field, vector);
+			act("$t is now {DOFF{x.", ch, NULL, NULL, NULL, NULL, pc_set_table[i].name, NULL, TO_CHAR);
+		}
 	}
 	else
 	{
-	SET_BIT(*field, vector);
-	act("$t is now {WOFF{x.", ch, NULL, NULL, NULL, NULL, pc_set_table[i].name, NULL, TO_CHAR);
-	}
-	}
-	else
-	{
-	if (IS_SET(*field, vector))
-	{
-	REMOVE_BIT(*field, vector);
-	act("$t is now {DOFF{x.", ch, NULL, NULL, NULL, NULL, pc_set_table[i].name, NULL, TO_CHAR);
-	}
-	else
-	{
-	SET_BIT(*field, vector);
-	act("$t is now {WON{x.", ch, NULL, NULL, NULL, NULL, pc_set_table[i].name, NULL, TO_CHAR);
-	}
+		if (IS_SET(*field, vector))
+		{
+			REMOVE_BIT(*field, vector);
+			act("$t is now {DOFF{x.", ch, NULL, NULL, NULL, NULL, pc_set_table[i].name, NULL, TO_CHAR);
+		}
+		else
+		{
+			SET_BIT(*field, vector);
+			act("$t is now {WON{x.", ch, NULL, NULL, NULL, NULL, pc_set_table[i].name, NULL, TO_CHAR);
+		}
 	}
 }
 

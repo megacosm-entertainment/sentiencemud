@@ -4043,7 +4043,7 @@ void act_new(char *format, CHAR_DATA *ch,
         *point++ = '\r';
 	*point   = '\0';
         /*buf[0]   = UPPER(buf[0]);*/
-        sprintf(buf, "%s", upper_first(&buf[0]));
+        //sprintf(buf, "%s", upper_first(&buf[0]));
 	if (to->desc != NULL)
 	{   pbuff = buffer;
 	    colourconv(pbuff, buf, to);

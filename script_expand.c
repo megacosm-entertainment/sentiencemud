@@ -3853,8 +3853,10 @@ char *expand_entity_affect(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		if(arg->d.aff) {
 			if(arg->d.aff->custom_name)
 				arg->d.str = arg->d.aff->custom_name;
-			else
+			else if(arg->d.aff->type >= 0)
 				arg->d.str = skill_table[arg->d.aff->type].name;
+			else
+				arg->d.str = &str_empty[0];
 		} else
 			arg->d.str = &str_empty[0];
 		//printf("expand_entity_affect(NAME)-> \"%s\"\n\r", arg->d.str);
