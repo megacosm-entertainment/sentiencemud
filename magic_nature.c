@@ -185,11 +185,12 @@ SPELL_FUNC(spell_ensnare)
 
 	af.slot	= obj_wear_loc;
 	af.where = TO_AFFECTS;
+	af.group = AFFGROUP_PHYSICAL;
 	af.type = sn;
 	af.location = APPLY_DEX;
 	af.modifier = -3;
 	af.level = level + 1;
-	af.duration = 2 + (int) ch->tot_level/10; //1+level > 3 ? 3 : 1+level;
+	af.duration = 3; //2 + (int) ch->tot_level/10; //1+level > 3 ? 3 : 1+level;
 	af.bitvector = 0;
 	af.bitvector2 = AFF2_ENSNARE;
 	affect_to_char(victim, &af);

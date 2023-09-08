@@ -169,13 +169,13 @@ SPELL_FUNC(spell_slow)
 	if(IS_REMORT(ch)) lvl -= LEVEL_HERO;		// If the caster is remort, it will require LESS catalyst
 	lvl = (lvl > 19) ? (lvl / 10) : 1;
 
-	catalyst = has_catalyst(ch,NULL,CATALYST_BODY,CATALYST_INVENTORY,1,CATALYST_MAXSTRENGTH);
+	catalyst = has_catalyst(ch,NULL,CATALYST_BODY,CATALYST_INVENTORY|CATALYST_ACTIVE,1,CATALYST_MAXSTRENGTH);
 	if(catalyst >= 0 && catalyst < lvl) {
 		send_to_char("You appear to be missing a required body catalyst.\n\r", ch);
 		return FALSE;
 	}
 
-	use_catalyst(ch,NULL,CATALYST_BODY,CATALYST_INVENTORY,lvl,1,CATALYST_MAXSTRENGTH,TRUE);
+	use_catalyst(ch,NULL,CATALYST_BODY,CATALYST_INVENTORY|CATALYST_ACTIVE,lvl,1,CATALYST_MAXSTRENGTH,TRUE);
 
 	if (IS_AFFECTED(victim,AFF_SLOW)) {
 		if (victim == ch)

@@ -671,6 +671,8 @@ const struct flag_type plr2_flags[] =
     {	"holyaura",		PLR_HOLYAURA,		FALSE	},
     {	"mobile",		PLR_MOBILE,		FALSE	},
     {	"favskills",	PLR_FAVSKILLS,	FALSE	},
+    {   "compass",      PLR_COMPASS,    FALSE   },
+    {   "autocatalyst", PLR_AUTOCAT,    FALSE   },
     {	NULL,			0,	0			}
 };
 
@@ -1376,6 +1378,7 @@ const struct flag_type extra3_flags[] =
     {   "no_animate",		ITEM_NO_ANIMATE,	FALSE   },
     {	"rift_update",		ITEM_RIFT_UPDATE,	TRUE	},
     {	"show_in_wilds",	ITEM_SHOW_IN_WILDS,	TRUE	},
+    {   "activated",        ITEM_ACTIVATED,     FALSE   },
     {	"instance_obj",		ITEM_INSTANCE_OBJ,	FALSE	},
     {   NULL,			0,			0	}
 };

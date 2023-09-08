@@ -2518,6 +2518,7 @@ struct affliction_type {
 #define ITEM_NO_ANIMATE		(G)	// Similar to ITEM_NO_RESURRECT, but designed for animate dead, instead
 #define ITEM_RIFT_UPDATE	(H)	// Allows the item to update in the rift.
 #define ITEM_SHOW_IN_WILDS	(I)	// Show object in the wilderness maps.
+#define ITEM_ACTIVATED      (J) // Catalyst has been activated.
 
 #define ITEM_INSTANCE_OBJ	(Z)	// Object is part of an instance
 
@@ -3161,6 +3162,8 @@ enum {
 #define PLR_HOLYWARP		(G)
 #define PLR_NORECKONING		(H)
 #define PLR_NOLORE			(I)
+#define PLR_COMPASS         (J)
+#define PLR_AUTOCAT         (K)
 
 #define COMM_QUIET              (A)
 #define COMM_NOMUSIC           	(B)

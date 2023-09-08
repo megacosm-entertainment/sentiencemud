@@ -35,13 +35,13 @@ SPELL_FUNC(spell_gate)
 	// getdistance... ln(distance)+1
 	distance = 1;
 
-	catalyst = has_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY,1,CATALYST_MAXSTRENGTH);
+	catalyst = has_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY|CATALYST_ACTIVE,1,CATALYST_MAXSTRENGTH);
 	if(catalyst >= 0 && catalyst < distance) {
 		send_to_char("You appear to be missing a required astral catalyst.\n\r", ch);
 		return TRUE;
 	}
 
-	catalyst = use_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY,distance,1,CATALYST_MAXSTRENGTH,TRUE);
+	catalyst = use_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY|CATALYST_ACTIVE,distance,1,CATALYST_MAXSTRENGTH,TRUE);
 
 	if (ch->pet && ch->in_room == ch->pet->in_room)
 		gate_pet = TRUE;
@@ -93,7 +93,7 @@ SPELL_FUNC(spell_maze)
 	}
 
 
-	catalyst = has_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY,1,CATALYST_MAXSTRENGTH);
+	catalyst = has_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY|CATALYST_ACTIVE,1,CATALYST_MAXSTRENGTH);
 
 	if(!catalyst) {
 		send_to_char("You appear to be missing a required astral catalyst.\n\r", ch);
@@ -117,7 +117,7 @@ SPELL_FUNC(spell_maze)
 	}
 
 	skill = get_skill(ch, gsn_maze);
-	if (!(area = find_area("Maze-Level1")) || !(area = find_area("Geldoff's Maze")) || (number_percent() >= skill)) {
+	if (!(area = find_area("Maze-Level1")) || !(area = find_area("Geldoff's Maze"))) {
 		send_to_char("Your mind seems to have gotten lost in its own maze...\n\r", ch);
 		ch->daze += 10 - number_range(0, skill/10);
 		return FALSE;
@@ -153,7 +153,7 @@ SPELL_FUNC(spell_maze)
 		lvl = UMAX(10, victim->tot_level - ch->tot_level);
 	}
 
-	catalyst = use_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY,lvl,1,CATALYST_MAXSTRENGTH,TRUE);
+	catalyst = use_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY|CATALYST_ACTIVE,lvl,1,CATALYST_MAXSTRENGTH,TRUE);
 
 	char_from_room(victim);
 	char_to_room(victim, room);
@@ -191,13 +191,13 @@ SPELL_FUNC(spell_nexus)
 	// getdistance... ln(distance)+1
 	distance = 1;
 
-	catalyst = has_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY,1,CATALYST_MAXSTRENGTH);
+	catalyst = has_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY|CATALYST_ACTIVE,1,CATALYST_MAXSTRENGTH);
 	if(catalyst >= 0 && catalyst < distance) {
 		send_to_char("You appear to be missing a required astral catalyst.\n\r", ch);
 		return TRUE;
 	}
 
-	catalyst = use_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY,distance,1,CATALYST_MAXSTRENGTH,TRUE);
+	catalyst = use_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY|CATALYST_ACTIVE,distance,1,CATALYST_MAXSTRENGTH,TRUE);
 
 	/* portal one */
 	portal = create_object(get_obj_index(OBJ_VNUM_PORTAL),0, TRUE);

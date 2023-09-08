@@ -1811,9 +1811,9 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 	obj->description, obj->full_description);
     send_to_char(buf, ch);
 
-    sprintf(buf, "{BWear bits: {x%s\n\r{BExtra bits:{x %s\n\r{BExtra2 bits:{x %s\n\r",
+    sprintf(buf, "{BWear bits: {x%s\n\r{BExtra bits:{x %s\n\r{BExtra2 bits:{x %s\n\r{BExtra3 bits:{x %s\n\r",
 	wear_bit_name(obj->wear_flags), extra_bit_name(obj->extra_flags),
-	extra2_bit_name(obj->extra2_flags));
+	extra2_bit_name(obj->extra2_flags), extra3_bit_name(obj->extra3_flags));
     send_to_char(buf, ch);
 
     sprintf(buf, "{BNumber:{x %d/%d {BWeight:{x %d\n\r",

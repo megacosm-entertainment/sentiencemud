@@ -2026,6 +2026,13 @@ void char_update(void)
 			// Fire off deathtraps.
 		    if (IS_SET(ch->in_room->room_flags, ROOM_DEATH_TRAP) &&
 		    	!IS_SET(ch->in_room->room_flags, ROOM_CPK)) {		// no cpk-deathtraps
+						{
+		ROOM_INDEX_DATA *here = ch->in_room;
+		ch->position = POS_STANDING;
+		if(!p_percent_trigger(ch, NULL, NULL, NULL, ch, ch, NULL, NULL, NULL, TRIG_DEATH, NULL))
+			p_percent_trigger(NULL, NULL, here, NULL, ch, ch, NULL, NULL, NULL, TRIG_DEATH, NULL);
+	}
+
 					raw_kill(ch, TRUE, FALSE, RAWKILL_NORMAL);
 		    }
 
@@ -2752,6 +2759,7 @@ void aggr_update(void)
 				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			af.slot	= WEAR_NONE;
 			af.where     = TO_AFFECTS;
+			af.group	 = AFFGROUP_PHYSICAL;
 			af.type      = gsn_blindness;
 			af.level     = obj->level;
 			af.location  = APPLY_HITROLL;
@@ -2771,6 +2779,7 @@ void aggr_update(void)
 				wch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			af.slot	= WEAR_NONE;
 			af.where     = TO_AFFECTS;
+			af.group	 = AFFGROUP_PHYSICAL;
 			af.type      = gsn_poison;
 			af.level     = obj->level * 3/4;
 			af.duration  = URANGE(1,obj->level / 2, 5);

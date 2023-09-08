@@ -183,7 +183,7 @@ SPELL_FUNC(spell_exorcism)
 	if(IS_REMORT(ch)) lvl -= LEVEL_HERO;		// If the caster is remort, it will require LESS catalyst
 	lvl = (lvl > 19) ? (lvl / 10) : 1;
 
-	catalyst = use_catalyst(ch,NULL,CATALYST_HOLY,CATALYST_HOLD,600,lvl,CATALYST_MAXSTRENGTH,TRUE);
+	catalyst = use_catalyst(ch,NULL,CATALYST_HOLY,CATALYST_HOLD|CATALYST_ACTIVE,600,lvl,CATALYST_MAXSTRENGTH,TRUE);
 
 	if (victim->alignment > -500) {
 		act("$N is unaffected by your exorcism.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);

@@ -2230,7 +2230,7 @@ bool check_catch(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *wield)
 	if (get_weapon_sn(victim) != gsn_hand_to_hand)
 		return FALSE;
 
-	if (!can_see(ch,victim))
+	if (!can_see(victim,ch))
 		chance /= 2;
 
 	/* shifted players have more of a chance due to their eXtreeeem fighting skills */
@@ -2316,7 +2316,7 @@ bool check_parry(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *wield)
 
 	chance -= abs(wield->weight / 5 - weapon->weight / 5);
 
-	if (!can_see(ch,victim))
+	if (!can_see(victim,ch))
 		chance /= 2;
 
 	if (IS_AFFECTED2(victim, AFF2_WARCRY))
@@ -2704,7 +2704,7 @@ bool check_spear_block(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *wield)
 	chance += get_weapon_skill(victim, get_weapon_sn(victim)) / 7;
 	chance -= get_weapon_skill(ch, get_weapon_sn(ch)) / 8;
 
-	if (!can_see(ch,victim))
+	if (!can_see(victim,ch))
 	chance /= 2;
 
 	if (IS_AFFECTED2(victim, AFF2_WARCRY))
@@ -4139,7 +4139,7 @@ int xp_compute(CHAR_DATA *gch, CHAR_DATA *victim, int total_levels)
 
 	if( xp > 0 && bonus_xp > 0 ) {
 		if(!(IS_IMMORTAL(gch) || gch->tot_level == 120))
-			printf_to_char(gch, "{W%d%% more experience!{x", bonus_xp);
+			printf_to_char(gch, "{W%d%% more experience!{x\n\r", bonus_xp);
 		xp = (100 + bonus_xp) * xp / 100;
 	}
 	// kind of a hack but oh well

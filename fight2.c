@@ -476,6 +476,7 @@ memset(&af,0,sizeof(af));
 	affect_to_char(ch, &af);
 
 	af.where     = TO_AFFECTS;
+	af.group	 = AFFGROUP_METARACIAL;
 	af.type      = gsn_haste;
 	af.level     = ch->tot_level * 2;
 	af.duration = -1;
@@ -487,6 +488,7 @@ memset(&af,0,sizeof(af));
 
 	/* make it worth it */
         af.where = TO_AFFECTS;
+	af.group = AFFGROUP_METARACIAL;
 	af.type = gsn_regeneration;
 	af.level = ch->tot_level;
 	af.duration = -1;

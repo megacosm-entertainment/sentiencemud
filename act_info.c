@@ -1866,116 +1866,131 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 		send_to_char(buf, ch);
 		linelength -= 21;
 	}
-
-	for (count = 0; count < linelength; count++)
-	send_to_char(" ", ch);
-
-	pexit = room->exit[7];
-	if (pexit != NULL && (!IS_SET(pexit->exit_info, EX_HIDDEN) ||
-		IS_SET(pexit->exit_info, EX_FOUND)) && !IS_SET(pexit->exit_info, EX_WALKTHROUGH)) {
-		if (IS_SET(pexit->exit_info, EX_CLOSED))
-			send_to_char("{M#{b     ", ch);
-		else
-			send_to_char("{YNW{b    ", ch);
-	} else
-		send_to_char("{b-     ", ch);
-
-
-	pexit = room->exit[0];
-	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
-		(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
-		if (IS_SET(pexit->exit_info, EX_CLOSED))
-			send_to_char("{M#{b", ch);
-		else
-			send_to_char("{YN{b", ch);
-	} else
-		send_to_char("{b-", ch);
-
-	pexit = room->exit[6];
-	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
-		(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
-		if (IS_SET(pexit->exit_info, EX_CLOSED))
-			send_to_char("     {M#{x\n\r", ch);
-		else
-			send_to_char("    {YNE{x\n\r", ch);
-	} else
-		send_to_char("     {b-{x\n\r", ch);
-
-
-	send_to_char ("{B({b-----------------------------------------------{B){b  ", ch);
-
-	pexit = room->exit[3];
-	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
-		(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
-		if (IS_SET(pexit->exit_info, EX_CLOSED))
-			send_to_char("{M#{B<{b-", ch);
-		else
-			send_to_char("{YW{B<{b-", ch);
-	} else
-		send_to_char("-{B<{b-", ch);
-
-	pexit = room->exit[4];
-	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
-		(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
-		if (IS_SET(pexit->exit_info, EX_CLOSED))
-			send_to_char("{M#{b-{B({WA{B){b-", ch);
-		else
-			send_to_char("{YU{b-{B({WA{B){b-", ch);
-	} else
-		send_to_char("--{B({WA{B){b-", ch);
-
-	pexit = room->exit[5];
-	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
-		(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
-		if (IS_SET(pexit->exit_info, EX_CLOSED))
-			send_to_char("{M#{b-{B>{b", ch);
-		else
-			send_to_char("{YD{b-{B>{b", ch);
-	} else
-		send_to_char("--{B>{b", ch);
-
-	pexit = room->exit[1];
-	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
-		(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
-		if (IS_SET(pexit->exit_info, EX_CLOSED))
-			send_to_char("{M#{b\n\r", ch);
-		else
-			send_to_char("{YE{b\n\r", ch);
-	} else
-		send_to_char("-\n\r", ch);
-
-	for (count = 0; count < 51; count++)
+	if (IS_SET(ch->act2, PLR_COMPASS))
+	{
+		for (count = 0; count < linelength; count++)
 		send_to_char(" ", ch);
 
-	pexit = room->exit[9];
-	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
-		(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
-		if (IS_SET(pexit->exit_info, EX_CLOSED))
-			send_to_char("{M#{b     ", ch);
-		else
-			send_to_char("{YSW{b    ", ch);
-	} else
-		send_to_char("-     ", ch);
+		pexit = room->exit[7];
+		if (pexit != NULL && (!IS_SET(pexit->exit_info, EX_HIDDEN) ||
+			IS_SET(pexit->exit_info, EX_FOUND)) && !IS_SET(pexit->exit_info, EX_WALKTHROUGH)) {
+			if (IS_SET(pexit->exit_info, EX_CLOSED))
+				send_to_char("{M#{b     ", ch);
+			else
+				send_to_char("{YNW{b    ", ch);
+		} else
+			send_to_char("{b-     ", ch);
 
-	pexit = room->exit[2];
-	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
-		(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
-		if (IS_SET(pexit->exit_info, EX_CLOSED))
-			send_to_char("{M#{b", ch);
-		else
-			send_to_char("{YS{b", ch);
-	} else
-		send_to_char("-{b", ch);
 
-	pexit = room->exit[8];
-	if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
-		(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
-		if (IS_SET(pexit->exit_info, EX_CLOSED))
-			send_to_char("     {M#{x\n\r", ch);
-		else
-			send_to_char("    {YSE{x\n\r", ch);
-	} else
-		send_to_char("     -{x\n\r", ch);
+		pexit = room->exit[0];
+		if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
+			(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
+			if (IS_SET(pexit->exit_info, EX_CLOSED))
+				send_to_char("{M#{b", ch);
+			else
+				send_to_char("{YN{b", ch);
+		} else
+			send_to_char("{b-", ch);
+
+		pexit = room->exit[6];
+		if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
+			(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
+			if (IS_SET(pexit->exit_info, EX_CLOSED))
+				send_to_char("     {M#{x", ch);
+			else
+				send_to_char("    {YNE{x", ch);
+		} else
+			send_to_char("     {b-{x", ch);
+	}
+	send_to_char("{x\n\r", ch);
+	if(IS_SET(ch->act2, PLR_COMPASS))
+	{
+		send_to_char ("{B({b-----------------------------------------------{B){b  ", ch);
+	}
+	else
+	{
+		send_to_char("{B({b--------------------------------------------------------------{B)", ch);
+	}
+	if(IS_SET(ch->act2, PLR_COMPASS))
+	{
+		pexit = room->exit[3];
+		if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
+			(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
+			if (IS_SET(pexit->exit_info, EX_CLOSED))
+				send_to_char("{M#{B<{b-", ch);
+			else
+				send_to_char("{YW{B<{b-", ch);
+		} else
+			send_to_char("{b-{B<{b-", ch);	
+
+		pexit = room->exit[4];
+		if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
+			(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
+			if (IS_SET(pexit->exit_info, EX_CLOSED))
+				send_to_char("{M#{b-{B({WA{B){b-", ch);
+			else
+				send_to_char("{YU{b-{B({WA{B){b-", ch);
+		} else
+			send_to_char("{b--{B({WA{B){b-", ch);
+
+		pexit = room->exit[5];
+		if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
+			(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
+			if (IS_SET(pexit->exit_info, EX_CLOSED))
+				send_to_char("{M#{b-{B>{b", ch);
+			else
+				send_to_char("{YD{b-{B>{b", ch);
+		} else
+			send_to_char("{b--{B>{b", ch);
+
+		pexit = room->exit[1];
+		if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
+			(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
+			if (IS_SET(pexit->exit_info, EX_CLOSED))
+				send_to_char("{M#{b", ch);
+			else
+				send_to_char("{YE{b", ch);
+		} else
+			send_to_char("{b-", ch);
+	}
+	send_to_char("{x\n\r", ch);
+	if(IS_SET(ch->act2, PLR_COMPASS))
+	{
+
+		for (count = 0; count < 51; count++)
+			send_to_char(" ", ch);
+
+		pexit = room->exit[9];
+		if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
+			(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
+			if (IS_SET(pexit->exit_info, EX_CLOSED))
+				send_to_char("{M#{b     ", ch);
+			else
+				send_to_char("{YSW{b    ", ch);
+		} else
+			send_to_char("{b-     ", ch);
+
+		pexit = room->exit[2];
+		if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
+			(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
+			if (IS_SET(pexit->exit_info, EX_CLOSED))
+				send_to_char("{M#{b", ch);
+			else
+				send_to_char("{YS{b", ch);
+		} else
+			send_to_char("{b-{b", ch);
+
+		pexit = room->exit[8];
+		if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
+			(!IS_SET(pexit->exit_info, EX_HIDDEN) || IS_SET(pexit->exit_info, EX_FOUND))) {
+			if (IS_SET(pexit->exit_info, EX_CLOSED))
+				send_to_char("     {M#{x", ch);
+			else
+				send_to_char("    {YSE{x", ch);
+		} else
+			send_to_char("{b     -{x", ch);
+	}
+	send_to_char("{x\n\r", ch);
 
 	if (!automatic || ((!IS_NPC(ch) || IS_SWITCHED(ch)) && !IS_SET(ch->comm, COMM_BRIEF))) {
 		if (IS_WILDERNESS(room) || IS_SET(room->room_flags, ROOM_VIEWWILDS)) {
@@ -4360,8 +4375,8 @@ void do_time(CHAR_DATA * ch, char *argument)
 	}
 	}
 	/* Add special timer for showing remaining reckoning info to immortals. -- Areo */
-	if(IS_IMMORTAL(ch))
-	{
+	//if(IS_IMMORTAL(ch))
+	//{
 		if (boost_table[BOOST_RECKONING].boost != 100){
 		mins = (boost_table[BOOST_RECKONING].timer - current_time)/60;
 
@@ -4373,7 +4388,7 @@ void do_time(CHAR_DATA * ch, char *argument)
 			mins,
 			mins > 1 ? "s" : "");
 	send_to_char(buf,ch);
-	}
+	//}
 	}
 
 	if(!IS_NPC(ch) && lunar)
@@ -6734,8 +6749,8 @@ int show_map(CHAR_DATA * ch, char *buf, char *map, int counter, int line)
 	char buf2[4];
 
 	if (line == 1 || line == 7) {
-		memcpy(buf+counter,"{B+{b----------{B+{x",20);
-		counter += 20;
+		memcpy(buf+counter,"{B+{b----------{B+{x ",21);
+		counter += 21;
 	} else {
 		int count;
 		memcpy(buf+counter,"{b|",3);
@@ -6783,7 +6798,7 @@ void create_map(CHAR_DATA *ch, ROOM_INDEX_DATA *start_room, char *map)
 /* Before we check the adjacent rooms, keep track of where we came from */
     last_room = start_room;
 
-/* Check north */
+ /* Check north */
     while(last_room->exit[ DIR_NORTH ] != NULL
           && y > 1
           && !IS_SET(last_room->exit[ DIR_NORTH ]->exit_info, EX_HIDDEN))
@@ -7362,6 +7377,21 @@ void convert_map_char(char *buf, char ch)
 	    *(buf++) = 'Y';
 	    *(buf++) = '<';
 	    break;
+	case '/':
+		*(buf++) = '{';
+		*(buf++) = 'B';
+		*(buf++) = '/';
+		break;
+	case '\\':
+		*(buf++) = '{';
+		*(buf++) = 'B';
+		*(buf++) = '\\';
+		break;
+	case 'X':
+		*(buf++) = '{';
+		*(buf++) = 'B';
+		*(buf++) = 'X';
+		break;
     }
 }
 

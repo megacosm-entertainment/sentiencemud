@@ -217,6 +217,7 @@ const	struct	cmd_type	cmd_table	[] =
     { "yell",			do_yell,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
 
     // Object manipulation commands
+	{ "activate",		do_activate,	POS_RESTING, 0, LOG_NORMAL, 1, FALSE },
     { "bind",			do_bind,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
     { "blow",			do_blow,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
     { "brandish",		do_brandish,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },

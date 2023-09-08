@@ -153,13 +153,13 @@ SPELL_FUNC(spell_earth_walk)
 		// Add distance calculations
 		distance = 1;
 
-		catalyst = has_catalyst(ch,NULL,CATALYST_NATURE,CATALYST_HERE,1,CATALYST_MAXSTRENGTH);
+		catalyst = has_catalyst(ch,NULL,CATALYST_NATURE,CATALYST_HERE|CATALYST_ACTIVE,1,CATALYST_MAXSTRENGTH);
 		if(catalyst >= 0 && catalyst < distance) {
 			send_to_char("You appear to be missing a required natural catalyst.\n\r", ch);
 			return FALSE;
 		}
 
-		catalyst = use_catalyst(ch,NULL,CATALYST_NATURE,CATALYST_INVENTORY,distance,1,CATALYST_MAXSTRENGTH,TRUE);
+		catalyst = use_catalyst(ch,NULL,CATALYST_NATURE,CATALYST_INVENTORY|CATALYST_ACTIVE,distance,1,CATALYST_MAXSTRENGTH,TRUE);
 	} else
 		catalyst = 0;
 

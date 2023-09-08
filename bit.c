@@ -500,6 +500,7 @@ char *extra3_bit_name( long extra3_flags )
     if ( extra3_flags & ITEM_KEEP_EQUIPPED	) strcat( buf, " keep_equipped"		);
     if ( extra3_flags & ITEM_NO_ANIMATE		) strcat( buf, " no_animate"		);
     if ( extra3_flags & ITEM_RIFT_UPDATE	) strcat( buf, " rift_update"		);
+    if ( extra3_flags & ITEM_ACTIVATED        ) strcat( buf, " activated"		);
 
     return ( buf[0] != '\0' ) ? buf+1 : "none";
 }
@@ -597,6 +598,8 @@ char *act_bit_name( int act_type, long act_flags )
 		if (act_flags & PLR_HOLYWARP	) strcat(buf, " holy_warp");
 		if (act_flags & PLR_NORECKONING	) strcat(buf, " no_reckoning");
 		if (act_flags & PLR_NOLORE		) strcat(buf, " no_lore");
+        if (act_flags & PLR_COMPASS     ) strcat(buf, " compass");
+        if (act_flags & PLR_AUTOCAT     ) strcat(buf, " autocat");
 		break;
 	}
     return ( buf[0] != '\0' ) ? buf+1 : "none";

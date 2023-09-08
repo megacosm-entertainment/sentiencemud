@@ -590,7 +590,7 @@ DECLARE_DO_FUN( do_expand	);
 DECLARE_DO_FUN( do_collapse	);
 
 DECLARE_DO_FUN( do_spawntreasuremap );
-
+DECLARE_DO_FUN( do_activate );
 //DECLARE_DO_FUN( do_speed	);
 //DECLARE_DO_FUN( do_steer	);
 //DECLARE_DO_FUN( do_navigate );

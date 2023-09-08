@@ -341,7 +341,7 @@ SPELL_FUNC(spell_glacial_wave)
 		do_ice = FALSE;
 		catalyst = 0;
 	} else {
-		catalyst = use_catalyst(ch,NULL,CATALYST_ICE,CATALYST_ROOM|CATALYST_HOLD,10,1,CATALYST_MAXSTRENGTH,TRUE);
+		catalyst = use_catalyst(ch,NULL,CATALYST_ICE,CATALYST_ROOM|CATALYST_HOLD|CATALYST_ACTIVE,10,1,CATALYST_MAXSTRENGTH,TRUE);
 
 		// If they have an ice catalyst...
 		if(catalyst > 0) {

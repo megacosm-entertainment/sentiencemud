@@ -1348,3 +1348,50 @@ void do_affix(CHAR_DATA *ch, char *argument)
 		p_percent_trigger(NULL, obj, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_WEAR, NULL);
 	}
 }
+
+void do_activate(CHAR_DATA *ch, char *argument)
+{
+    char arg[MSL], arg2[MSL];
+    OBJ_DATA *obj;
+	AFFECT_DATA *aff, *prev, *next;
+
+    argument = one_argument(argument, arg);
+    if (arg[0] == '\0')
+    {
+	send_to_char("Syntax: [de]activate <item>\n\r", ch);
+	return;
+    }
+
+    if ((obj = get_obj_list(ch, arg, ch->carrying)) == NULL)
+    {
+	act("You aren't carrying any $t.", ch, NULL, NULL, NULL, NULL, arg, NULL, TO_CHAR);
+	return;
+    }
+
+	if (!obj->catalyst)
+	{
+		send_to_char("You may only [de]activate catalysts.\n\r", ch);
+	}
+	else
+	{
+    	if (IS_SET(obj->extra3_flags, ITEM_ACTIVATED))
+    	{
+			REMOVE_BIT(obj->extra3_flags, ITEM_ACTIVATED);
+			for (aff = obj->catalyst; aff != NULL; aff = aff->next)
+			{
+				aff->where = TO_CATALYST_DORMANT;
+			}
+			act("You will no longer use $p to fuel your more powerful spells.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			
+    	}
+    	else
+    	{
+			SET_BIT(obj->extra3_flags, ITEM_ACTIVATED);
+			for (aff = obj->catalyst; aff != NULL; aff = aff->next)
+			{
+				aff->where = TO_CATALYST_ACTIVE;
+			}
+			act("You will now use $p to fuel your more powerful spells.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+    	}
+	}
+}

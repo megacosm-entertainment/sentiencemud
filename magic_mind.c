@@ -338,13 +338,13 @@ SPELL_FUNC(spell_morphlock)
 		if(IS_REMORT(ch)) lvl -= LEVEL_HERO;		// If the caster is remort, it will require LESS catalyst
 		lvl = (lvl > 19) ? (lvl / 10) : 1;
 
-		catalyst = has_catalyst(ch,NULL,CATALYST_MIND,CATALYST_INVENTORY,1,CATALYST_MAXSTRENGTH);
+		catalyst = has_catalyst(ch,NULL,CATALYST_MIND,CATALYST_INVENTORY|CATALYST_ACTIVE,1,CATALYST_MAXSTRENGTH);
 		if(catalyst >= 0 && catalyst < lvl) {
 			send_to_char("You appear to be missing a required mental catalyst.\n\r", ch);
 			return FALSE;
 		}
 
-		use_catalyst(ch,NULL,CATALYST_MIND,CATALYST_INVENTORY,lvl,1,CATALYST_MAXSTRENGTH,TRUE);
+		use_catalyst(ch,NULL,CATALYST_MIND,CATALYST_INVENTORY|CATALYST_ACTIVE,lvl,1,CATALYST_MAXSTRENGTH,TRUE);
 
 		if (saves_spell(level,victim,DAM_MENTAL)) {
 			send_to_char("Nothing happens.\n\r", ch);

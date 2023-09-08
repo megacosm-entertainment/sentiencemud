@@ -56,9 +56,9 @@ SPELL_FUNC(spell_animate_dead)
 			return FALSE;
 		}
 
-		catalyst = has_catalyst(ch,NULL,CATALYST_DEATH,CATALYST_CARRY|CATALYST_ROOM,1,CATALYST_MAXSTRENGTH);
+		catalyst = has_catalyst(ch,NULL,CATALYST_DEATH,CATALYST_CARRY|CATALYST_ROOM|CATALYST_ACTIVE,1,CATALYST_MAXSTRENGTH);
 		if(catalyst < 0 || catalyst > 4) catalyst = 4;
-		if(catalyst) use_catalyst(ch,NULL,CATALYST_DEATH,CATALYST_CARRY|CATALYST_ROOM,catalyst,1,CATALYST_MAXSTRENGTH,TRUE);
+		if(catalyst) use_catalyst(ch,NULL,CATALYST_DEATH,CATALYST_CARRY|CATALYST_ROOM|CATALYST_ACTIVE,catalyst,1,CATALYST_MAXSTRENGTH,TRUE);
 
 		chance = obj->condition * CORPSE_ANIMATE(obj);
 		lvl = ch->tot_level / 2;

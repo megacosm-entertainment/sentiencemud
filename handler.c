@@ -7369,7 +7369,7 @@ int has_catalyst(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int method,int min
 				(IS_SET(method,CATALYST_WORN) && obj->wear_loc != WEAR_NONE) ||
 				IS_SET(method,(CATALYST_CARRY))) {
 					for(aff = obj->catalyst; aff; aff = aff->next) if(aff->level >= min_strength && aff->level <= max_strength && aff->type == type) {
-						if( IS_SET(method, CATALYST_ACTIVE) && (aff->where != TO_CATALYST_ACTIVE))
+						if( IS_SET(method, CATALYST_ACTIVE) && (aff->where != TO_CATALYST_ACTIVE) && !IS_SET(ch->act2, PLR_AUTOCAT))
 							continue;
 
 						if(aff->duration < 0) return -1;	// Negative is treated as a "source"
@@ -7381,7 +7381,7 @@ int has_catalyst(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int method,int min
 				for (objNest = obj->contains; objNest; objNest = nextNest) {
 					nextNest = objNest->next_content;
 					for(aff = objNest->catalyst; aff; aff = aff->next) if(aff->level >= min_strength && aff->level <= max_strength && aff->type == type) {
-						if( IS_SET(method, CATALYST_ACTIVE) && (aff->where != TO_CATALYST_ACTIVE))
+						if( IS_SET(method, CATALYST_ACTIVE) && (aff->where != TO_CATALYST_ACTIVE) && !IS_SET(ch->act2, PLR_AUTOCAT))
 							continue;
 						if(aff->duration < 0) return -1;	// Negative is treated as a "source"
 
@@ -7396,7 +7396,7 @@ int has_catalyst(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int method,int min
 	if(IS_SET(method,CATALYST_ROOM)) {
 		for(obj = room->contents; obj; obj = obj->next_content) {
 			for(aff = obj->catalyst; aff; aff = aff->next) if(aff->level >= min_strength && aff->level <= max_strength && aff->type == type) {
-					if( IS_SET(method, CATALYST_ACTIVE) && (aff->where != TO_CATALYST_ACTIVE))
+					if( IS_SET(method, CATALYST_ACTIVE) && (aff->where != TO_CATALYST_ACTIVE) && !IS_SET(ch->act2, PLR_AUTOCAT))
 						continue;
 				if(aff->duration < 0) return -1;	// Negative is treated as a "source"
 				total += aff->duration;
@@ -7404,7 +7404,7 @@ int has_catalyst(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int method,int min
 			for (objNest = obj->contains; objNest; objNest = nextNest) {
 				nextNest = objNest->next_content;
 				for(aff = objNest->catalyst; aff; aff = aff->next) if(aff->level >= min_strength && aff->level <= max_strength && aff->type == type) {
-					if( IS_SET(method, CATALYST_ACTIVE) && (aff->where != TO_CATALYST_ACTIVE))
+					if( IS_SET(method, CATALYST_ACTIVE) && (aff->where != TO_CATALYST_ACTIVE) && !IS_SET(ch->act2, PLR_AUTOCAT))
 						continue;
 					if(aff->duration < 0) return -1;	// Negative is treated as a "source"
 						total += aff->duration;
@@ -7432,7 +7432,7 @@ int use_catalyst_obj(CHAR_DATA *ch,ROOM_INDEX_DATA *room,OBJ_DATA *obj,int type,
 	for(prev = NULL, aff = obj->catalyst; aff && total < left; aff = next) {
 		next = aff->next;
 		if(aff->level >= min_strength && aff->level <= max_strength && aff->type == type) {
-			if( active && (aff->where != TO_CATALYST_ACTIVE) ) continue;
+			if( active && (aff->where != TO_CATALYST_ACTIVE) && !IS_SET(ch->act2, PLR_AUTOCAT) ) continue;
 
 			if(aff->duration < 0) {
 				if(show && !p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CATALYST_SOURCE, NULL))
@@ -7449,8 +7449,8 @@ int use_catalyst_obj(CHAR_DATA *ch,ROOM_INDEX_DATA *room,OBJ_DATA *obj,int type,
 
 				if(!obj->catalyst) {	// All catalyst affects have been exhausted
 					if(show && !p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CATALYST_FULL, NULL) && ch)
-						act("$p flares brightly and vanishes!",room->people, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
-					extract_obj(obj);
+						act("$p flares brightly!",room->people, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
+//					extract_obj(obj);
 					return total;
 				}
 			} else {

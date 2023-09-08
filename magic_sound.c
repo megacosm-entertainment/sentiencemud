@@ -56,14 +56,14 @@ SPELL_FUNC(spell_silence)
 	if(IS_REMORT(ch)) lvl -= LEVEL_HERO;		// If the caster is remort, it will require LESS catalyst
 	lvl = (lvl > 19) ? (lvl / 10) : 1;
 
-	catalyst = has_catalyst(ch,NULL,CATALYST_SOUND,CATALYST_INVENTORY,1,CATALYST_MAXSTRENGTH);
+	catalyst = has_catalyst(ch,NULL,CATALYST_SOUND,CATALYST_INVENTORY|CATALYST_ACTIVE,1,CATALYST_MAXSTRENGTH);
 	if(catalyst >= 0 && catalyst < lvl) {
 		sprintf(buf,"You appear to be missing a required sound catalyst. (%d/%d)\n\r",catalyst,lvl);
 		send_to_char(buf, ch);
 		return FALSE;
 	}
 
-	catalyst = use_catalyst(ch,NULL,CATALYST_SOUND,CATALYST_INVENTORY,lvl * 3,1,CATALYST_MAXSTRENGTH,TRUE);
+	catalyst = use_catalyst(ch,NULL,CATALYST_SOUND,CATALYST_INVENTORY|CATALYST_ACTIVE,lvl * 3,1,CATALYST_MAXSTRENGTH,TRUE);
 
 	if (IS_AFFECTED2(victim, AFF2_SILENCE)) {
 		if (victim == ch)
