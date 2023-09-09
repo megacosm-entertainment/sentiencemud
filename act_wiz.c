@@ -2816,7 +2816,7 @@ void do_shutdown(CHAR_DATA *ch, char *argument)
     write_mail();
     write_chat_rooms();
     write_gq();
-    write_permanent_objs();
+//    write_permanent_objs();
     persist_save();
     save_projects();
     save_instances();
@@ -7822,3 +7822,8 @@ void do_immflag(CHAR_DATA *ch, char *argument)
     act("Your immortal flag has been set to $T.", ch, NULL, NULL, NULL, NULL, NULL, argument, TO_CHAR);
 }
 
+void do_reloadstats(CHAR_DATA *ch, char *argument)
+{
+	load_statistics();
+	stats_load_time = current_time;
+}

@@ -87,13 +87,19 @@ void update_handler(void)
     {
         pulse_area = PULSE_AREA;
 	area_update(FALSE);
-	write_permanent_objs();
+//	write_permanent_objs();
 	persist_save();
 	write_mail();
 	save_projects();
 	save_immstaff();
 	save_instances();
+	// Load stats every 12 hours.
+	if (current_time >= stats_load_time + 43200) 
+	{
+	    load_statistics();
+		stats_load_time = current_time;
     }
+	}
 
     if (--pulse_auction <= 0)
     {

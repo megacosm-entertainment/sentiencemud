@@ -307,6 +307,7 @@ bool		    wizlock;		/* Game is wizlocked		*/
 bool		    newlock;		/* Game is newlocked		*/
 char		    str_boot_time[MAX_INPUT_LENGTH];
 time_t		    current_time;	/* time of this pulse */
+time_t			stats_load_time;
 bool		    MOBtrigger = TRUE;  /* act() switch                 */
 LLIST *loaded_areas;
 

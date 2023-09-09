@@ -3277,6 +3277,23 @@ void show_church_info(CHURCH_DATA *church, CHAR_DATA *ch)
 	    "none" : get_obj_index(church->key)->short_descr);
     add_buf(buffer, buf);
 
+	sprintf(buf, "{YTreasure Room(s):{x\n\r");
+	add_buf(buffer, buf);
+
+    CHURCH_TREASURE_ROOM *treasure;
+    ITERATOR it;
+	iterator_start(&it, church->treasure_rooms);
+	while( (treasure = (CHURCH_TREASURE_ROOM *)iterator_nextdata(&it)) ) {
+		if( treasure->room != NULL )
+		{
+			ROOM_INDEX_DATA *room = treasure->room;
+			sprintf(buf, "{x\t\t%ld - %s{x\n\r", room->vnum, room->name);
+			add_buf(buffer,buf);
+		}
+	}
+	iterator_stop(&it);
+	
+
     sprintf(buf, "{YPK record:{x %ld wins, %ld losses\n\r",
     	church->pk_wins, church->pk_losses);
     add_buf(buffer, buf);

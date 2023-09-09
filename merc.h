@@ -6994,6 +6994,7 @@ extern		bool			logAll;
 extern		char			bug_buf		[];
 extern		char			log_buf		[];
 extern		time_t			current_time;
+extern      time_t          stats_load_time;
 extern          SCRIPT_DATA       *     mprog_list;
 extern          SCRIPT_DATA       *     oprog_list;
 extern          SCRIPT_DATA       *     rprog_list;

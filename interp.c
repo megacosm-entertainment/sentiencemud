@@ -224,6 +224,7 @@ const	struct	cmd_type	cmd_table	[] =
     { "brew",			do_brew,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
     { "close",			do_close,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
     { "combine",		do_combine,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
+	{ "deactivate",		do_activate,	POS_RESTING, 0, LOG_NORMAL, 1, FALSE },
     { "deposit",		do_deposit,	POS_RESTING,	 0,  LOG_ALWAYS, 1, FALSE },
     { "drink",			do_drink,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
     { "drop",			do_drop,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
@@ -559,6 +560,7 @@ const	struct	cmd_type	cmd_table	[] =
     { "ships",		do_ships,	POS_DEAD,	0,		LOG_NORMAL, 1, TRUE },
 
     { "spawntreasuremap", do_spawntreasuremap, POS_DEAD, L5, LOG_NORMAL, 1, TRUE },
+	{ "statsreload", do_reloadstats,	POS_DEAD, MAX_LEVEL, LOG_NORMAL, 1, TRUE },
 
     { "",		0,		POS_DEAD,     0,  LOG_NORMAL, 0, FALSE }
 };

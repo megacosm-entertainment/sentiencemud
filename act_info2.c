@@ -12,7 +12,6 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <time.h>
-#include <mysql.h>
 #include "merc.h"
 #include "interp.h"
 #include "magic.h"
@@ -20,7 +19,8 @@
 #include "tables.h"
 #include "db.h"
 
-extern long int   __BUILD_DATE;
+//extern long int   __BUILD_DATE;
+extern char __BUILD_DATE;
 extern long int   __BUILD_NUMBER;
 
 /* MOVED: combat/assess.c */
@@ -64,16 +64,12 @@ void do_showversion(CHAR_DATA *ch, char *argument)
 {
 	char buf[MAX_STRING_LENGTH];
 	buf[0] = '\0';
-	time_t  build_date;
-	build_date = (time_t) &__BUILD_DATE;
+//	time_t  build_date;
+//	build_date = (time_t) &__BUILD_DATE;
 //	builddate = &__BUILD_DATE)
 //	sprintf(buf,"Build Date: %u\n\r",&build_date);
-	sprintf(buf,"Build Number: %ld, built on %s",(long int)(size_t)&__BUILD_NUMBER,ctime(&build_date));
+	sprintf(buf,"Build Number: %s (\t<a href=\"%s\">%s\t</a>)\n\rCommit URL: %s\n\rBuild Date: %s", BUILD_NUMBER, COMMIT, VERSION, COMMIT, BUILD_DATE);
 	send_to_char(buf,ch);
-	if (IS_IMMORTAL(ch)){
-	sprintf(buf,"MySQL Client Version: %s", mysql_get_client_info());
-	send_to_char(buf,ch);
-	}
 
 }
 

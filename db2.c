@@ -1285,6 +1285,7 @@ void load_area_trade( AREA_DATA *pArea, FILE *fp )
 /* Load report information */
 void load_statistics()
 {
+	stats_load_time = current_time;
     log_string("stats.c, Loading Statistics...");
 
     // Load Top10PKers.info
