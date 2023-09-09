@@ -341,6 +341,8 @@ char *format_obj_to_char(OBJ_DATA * obj, CHAR_DATA * ch, bool fShort)
 	strcat(buf, "{R(Red Aura){w ");
     if (IS_SET(obj->extra2_flags, ITEM_KEPT))
 	strcat(buf, "{b({BK{b){x ");
+	if (IS_SET(obj->extra3_flags, ITEM_ACTIVATED))
+	strcat(buf, "{b({WA{b){x ");
     if (IS_OBJ_STAT(obj, ITEM_PLANTED))
 	strcat(buf, "{R(Planted){w ");
     if (IS_SET(obj->extra2_flags, ITEM_BURIED))
