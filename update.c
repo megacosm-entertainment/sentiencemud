@@ -4104,7 +4104,7 @@ void gmcp_update( void )
 
 					if (room->exit[i]->wilds.x)
 					{
-						sprintf (buf, "\"%s\": \"%ld,%ld\"", exit[i], room->exit[i]->wilds.x, room->exit[i]->wilds.y);
+						sprintf (buf, "\"%s\": \"%d,%d\"", exit[i], room->exit[i]->wilds.x, room->exit[i]->wilds.y);
 						strcat (buf,buf2);
 					}
 					if ( buf[0] == '\0' )
@@ -4119,7 +4119,7 @@ void gmcp_update( void )
 					{
 						if (room->wilds || room->exit[i]->wilds.x || room->exit[i]->wilds.y)
 						{
-							sprintf(buf, "\"%s\": \"%ld, %ld\"", exit[i], room->exit[i]->wilds.x, room->exit[i]->wilds.y);
+							sprintf(buf, "\"%s\": \"%d, %d\"", exit[i], room->exit[i]->wilds.x, room->exit[i]->wilds.y);
 						}
 							else
 						{

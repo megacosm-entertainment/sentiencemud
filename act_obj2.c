@@ -1351,9 +1351,9 @@ void do_affix(CHAR_DATA *ch, char *argument)
 
 void do_activate(CHAR_DATA *ch, char *argument)
 {
-    char arg[MSL], arg2[MSL];
+    char arg[MSL];
     OBJ_DATA *obj;
-	AFFECT_DATA *aff, *prev, *next;
+	AFFECT_DATA *aff;
 
     argument = one_argument(argument, arg);
     if (arg[0] == '\0')
