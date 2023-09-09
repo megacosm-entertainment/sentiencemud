@@ -430,7 +430,7 @@ const  struct player_setting_type    pc_set_table[] =
     {	"mobile",	PLR_MOBILE,	0,	0, FALSE,	0, SETTING_OFF },
     {	"favskills",	0,	PLR_FAVSKILLS,	0, FALSE,	0, SETTING_OFF },
 	{	"compass",	0,	PLR_COMPASS,	0,	FALSE,	0,	SETTING_ON},
-	{	"autocatalyst", 0, PLR_AUTOCAT,	0,	FALSE, 0,	SETTING_OFF},
+	{	"autocatalyst", 0, PLR_AUTOCAT,	0,	FALSE, 0,	SETTING_ON},
 /*    {	"building",     PLR_BUILDING,	 0,		0,		FALSE,  IM,	SETTING_OFF	},*/
     {	NULL,		0,		 0,		0,		FALSE,	0,	SETTING_OFF	}
 };

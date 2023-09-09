@@ -4139,6 +4139,12 @@ void fix_character(CHAR_DATA *ch)
 
 		ch->version = VERSION_PLAYER_005;
 	}
+
+	if (ch->version < VERSION_PLAYER_007 )
+		SET_BIT(ch->act2, PLR_COMPASS);
+		SET_BIT(ch->act2, PLR_AUTOCAT);
+
+		ch->version = VERSION_PLAYER_007;
 }
 
 
