@@ -328,23 +328,23 @@ char *format_obj_to_char(OBJ_DATA * obj, CHAR_DATA * ch, bool fShort)
 	return buf;
 
     if (IS_OBJ_STAT(obj, ITEM_INVIS))
-	strcat(buf, "{B(Invis){w ");
+		strcat(buf, "{B(Invis){w ");
     if (IS_AFFECTED(ch, AFF_DETECT_MAGIC) && IS_OBJ_STAT(obj, ITEM_MAGIC))
-	strcat(buf, "{M(Magical){w ");
+		strcat(buf, "{M(Magical){w ");
     if (IS_OBJ_STAT(obj, ITEM_GLOW))
-	strcat(buf, "{W(Glowing){w ");
+		strcat(buf, "{W(Glowing){w ");
     if (IS_OBJ_STAT(obj, ITEM_HUM))
-	strcat(buf, "{C(Humming){w ");
+		strcat(buf, "{C(Humming){w ");
     if ((IS_AFFECTED(ch, AFF_DETECT_GOOD) || (!IS_NPC(ch) && IS_REMORT(ch))) && IS_OBJ_STAT(obj, ITEM_BLESS))
-	strcat(buf, "{y(Gold Aura){w ");
+		strcat(buf, "{y(Gold Aura){w ");
     if ((IS_AFFECTED(ch, AFF_DETECT_EVIL) || (!IS_NPC(ch) && IS_REMORT(ch))) && IS_OBJ_STAT(obj, ITEM_EVIL))
-	strcat(buf, "{R(Red Aura){w ");
+		strcat(buf, "{R(Red Aura){w ");
     if (IS_SET(obj->extra2_flags, ITEM_KEPT))
-	strcat(buf, "{b({BK{b){x ");
+		strcat(buf, "{b({BK{b){x ");
 	if (IS_SET(obj->extra3_flags, ITEM_ACTIVATED))
-	strcat(buf, "{b({WA{b){x ");
+		strcat(buf, "{b({WA{b){x ");
     if (IS_OBJ_STAT(obj, ITEM_PLANTED))
-	strcat(buf, "{R(Planted){w ");
+		strcat(buf, "{R(Planted){w ");
     if (IS_SET(obj->extra2_flags, ITEM_BURIED))
 		strcat(buf, "{y(Buried){w ");
     if (fShort)
