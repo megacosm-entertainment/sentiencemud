@@ -837,7 +837,7 @@ struct olc_point_area_data {
 #define MAX_WILDERNESS_EXITS	100000
 #define MAX_WORDS		45424
 #define SILVER_PER_KG		500
-#define MINS_PER_DEATH		8
+#define MINS_PER_DEATH		4
 #define PORT_NORMAL	        9000
 #define PORT_TEST		9999
 #define PORT_RAE	        7777
