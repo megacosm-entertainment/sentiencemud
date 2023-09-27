@@ -31,8 +31,9 @@
 /******************************************************************************
  The following section is for Diku/Merc derivatives.  Replace as needed.
  ******************************************************************************/
-
+#include "strings.h"
 #include "merc.h"
+
 
 static void Write( descriptor_t *apDescriptor, const char *apData )
 {
@@ -443,7 +444,7 @@ void ProtocolInput( descriptor_t *apDescriptor, char *apData, int aSize, char *a
            IacBuf[IacIndex++] = apData[Index];
       }
       else if ( apData[Index] == (char)27 && apData[Index+1] == '[' && 
-         isdigit(apData[Index+2]) && apData[Index+3] == 'z' )
+         ISDIGIT(apData[Index+2]) && apData[Index+3] == 'z' )
       {
          char MXPBuffer [1024];
          char *pMXPTag = NULL;
@@ -629,7 +630,7 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
                   int Number = 0;
                   bool_t bDone = false, bValid = true;
 
-                  while ( isdigit(apData[++j]) )
+                  while ( ISDIGIT(apData[++j]) )
                   {
                      Number *= 10;
                      Number += (apData[j])-'0';
@@ -1123,7 +1124,7 @@ void CopyoverSet( descriptor_t *apDescriptor, const char *apData )
             default:
                if ( apData[i] == '/' )
                   bDoneWidth = true;
-               else if ( isdigit(apData[i]) )
+               else if ( ISDIGIT(apData[i]) )
                {
                   if ( bDoneWidth )
                   {
@@ -2107,7 +2108,7 @@ static void PerformSubnegotiation( descriptor_t *apDescriptor, char aCmd, char *
 
             for ( ; apData[j] != '\0' && i < MaxClientLength; ++j )
             {
-               if ( isprint(apData[j]) )
+               if ( ISPRINT(apData[j]) )
                   pClientName[i++] = apData[j];
             }
             pClientName[i] = '\0';
@@ -2598,7 +2599,7 @@ static void ExecuteMSDPPair( descriptor_t *apDescriptor, const char *apVariable,
 
                         for ( j = 0; j < VariableNameTable[i].Max && *apValue != '\0'; ++apValue )
                         {
-                           if ( isprint(*apValue) )
+                           if ( ISPRINT(*apValue) )
                               pBuffer[j++] = *apValue;
                         }
                         pBuffer[j++] = '\0';
@@ -2912,7 +2913,7 @@ static char *GetMxpTag( const char *apTag, const char *apText )
          for ( ; pStartPos < pEndPos && Index < 60; ++pStartPos )
          {
             char Letter = *pStartPos;
-            if ( Letter == '.' || isdigit(Letter) || isalpha(Letter) )
+            if ( Letter == '.' || ISDIGIT(Letter) || ISALPHA(Letter) )
             {
                MXPBuffer[Index++] = Letter;
             }
@@ -3008,7 +3009,7 @@ static bool_t PrefixString( const char *apPart, const char *apWhole )
 
 static bool_t IsNumber( const char *apString )
 {
-   while ( *apString && isdigit(*apString) )
+   while ( *apString && ISDIGIT(*apString) )
       ++apString;
    return ( !*apString );
 }
@@ -3780,7 +3781,7 @@ void UpdateGMCPNumber( descriptor_t *apDescriptor, GMCP_VARIABLE var, const long
 
 static char *OneArg( char *fStr, char *bStr )
 {
-	while ( isspace( *fStr ) )
+	while ( ISSPACE( *fStr ) )
 		fStr++;
 
 	char argEnd = ' ';
@@ -3804,7 +3805,7 @@ static char *OneArg( char *fStr, char *bStr )
 
 	*bStr = '\0';
 
-	while ( isspace( *fStr ) )
+	while ( ISSPACE( *fStr ) )
 		fStr++;
 
 	return fStr;

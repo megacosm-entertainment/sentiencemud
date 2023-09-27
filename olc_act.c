@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include "strings.h"
 #include "merc.h"
 #include "tables.h"
 #include "olc.h"
@@ -1333,7 +1334,7 @@ AEDIT(aedit_file)
      */
     for (i = 0; i < length; i++)
     {
-	if (!isalnum(file[i]))
+	if (!ISALNUM(file[i]))
 	{
 	    send_to_char("Only letters and numbers are valid.\n\r", ch);
 	    return FALSE;
@@ -10659,17 +10660,17 @@ MEDIT(medit_hitdice)
 
     num = cp = argument;
 
-    while (isdigit(*cp)) ++cp;
-    while (*cp != '\0' && !isdigit(*cp))  *(cp++) = '\0';
+    while (ISDIGIT(*cp)) ++cp;
+    while (*cp != '\0' && !ISDIGIT(*cp))  *(cp++) = '\0';
 
     type = cp;
 
-    while (isdigit(*cp)) ++cp;
-    while (*cp != '\0' && !isdigit(*cp)) *(cp++) = '\0';
+    while (ISDIGIT(*cp)) ++cp;
+    while (*cp != '\0' && !ISDIGIT(*cp)) *(cp++) = '\0';
 
     bonus = cp;
 
-    while (isdigit(*cp)) ++cp;
+    while (ISDIGIT(*cp)) ++cp;
     if (*cp != '\0') *cp = '\0';
 
     if ((!is_number(num  ) || atoi(num  ) < 1)
@@ -10705,17 +10706,17 @@ MEDIT(medit_manadice)
 
     num = cp = argument;
 
-    while (isdigit(*cp)) ++cp;
-    while (*cp != '\0' && !isdigit(*cp))  *(cp++) = '\0';
+    while (ISDIGIT(*cp)) ++cp;
+    while (*cp != '\0' && !ISDIGIT(*cp))  *(cp++) = '\0';
 
     type = cp;
 
-    while (isdigit(*cp)) ++cp;
-    while (*cp != '\0' && !isdigit(*cp)) *(cp++) = '\0';
+    while (ISDIGIT(*cp)) ++cp;
+    while (*cp != '\0' && !ISDIGIT(*cp)) *(cp++) = '\0';
 
     bonus = cp;
 
-    while (isdigit(*cp)) ++cp;
+    while (ISDIGIT(*cp)) ++cp;
     if (*cp != '\0') *cp = '\0';
 
     if (!(is_number(num) && is_number(type) && is_number(bonus)))
@@ -10757,17 +10758,17 @@ MEDIT(medit_damdice)
 
     num = cp = argument;
 
-    while (isdigit(*cp)) ++cp;
-    while (*cp != '\0' && !isdigit(*cp))  *(cp++) = '\0';
+    while (ISDIGIT(*cp)) ++cp;
+    while (*cp != '\0' && !ISDIGIT(*cp))  *(cp++) = '\0';
 
     type = cp;
 
-    while (isdigit(*cp)) ++cp;
-    while (*cp != '\0' && !isdigit(*cp)) *(cp++) = '\0';
+    while (ISDIGIT(*cp)) ++cp;
+    while (*cp != '\0' && !ISDIGIT(*cp)) *(cp++) = '\0';
 
     bonus = cp;
 
-    while (isdigit(*cp)) ++cp;
+    while (ISDIGIT(*cp)) ++cp;
     if (*cp != '\0') *cp = '\0';
 
     if (!(is_number(num) && is_number(type) && is_number(bonus)))

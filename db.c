@@ -41,6 +41,7 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <stdarg.h>
+#include "strings.h"
 #include "merc.h"
 #include "db.h"
 #include "math.h"
@@ -49,6 +50,7 @@
 #include "olc_save.h"
 #include "scripts.h"
 #include "wilds.h"
+
 
 #if !defined(OLD_RAND)
 #if !defined(linux)
@@ -3251,7 +3253,7 @@ char fread_letter(FILE *fp)
     {
 	c = getc(fp);
     }
-    while (isspace(c));
+    while (ISSPACE(c));
 
     return c;
 }
@@ -3300,7 +3302,7 @@ long fread_number(FILE *fp)
     {
 	c = getc(fp);
     }
-    while (isspace(c));
+    while (ISSPACE(c));
 
     number = 0;
 
@@ -3315,13 +3317,13 @@ long fread_number(FILE *fp)
 	c = getc(fp);
     }
 
-    if (!isdigit(c))
+    if (!ISDIGIT(c))
     {
 	bug("Fread_number: bad format (%c).", c);
 	exit(1);
     }
 
-    while (isdigit(c))
+    while (ISDIGIT(c))
     {
 	number = number * 10 + c - '0';
 	c      = getc(fp);
@@ -3349,7 +3351,7 @@ long fread_flag(FILE *fp)
     {
 	c = getc(fp);
     }
-    while (isspace(c));
+    while (ISSPACE(c));
 
     if (c == '-')
     {
@@ -3359,7 +3361,7 @@ long fread_flag(FILE *fp)
 
     number = 0;
 
-    if (!isdigit(c))
+    if (!ISDIGIT(c))
     {
 	while (('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z'))
 	{
@@ -3368,7 +3370,7 @@ long fread_flag(FILE *fp)
 	}
     }
 
-    while (isdigit(c))
+    while (ISDIGIT(c))
     {
 	number = number * 10 + c - '0';
 	c = getc(fp);
@@ -3437,7 +3439,7 @@ char *fread_string(FILE *fp)
     {
 	c = getc(fp);
     }
-    while (isspace(c));
+    while (ISSPACE(c));
 
     if ((*plast++ = c) == '~')
 	return &str_empty[0];
@@ -3572,7 +3574,7 @@ char *fread_string_eol(FILE *fp)
     {
 	c = getc(fp);
     }
-    while (isspace(c));
+    while (ISSPACE(c));
 
     if ((*plast++ = c) == '\n')
 	return &str_empty[0];
@@ -3655,7 +3657,7 @@ char *fread_string_new(FILE *fp)
      */
     do
         c = getc(fp);
-    while (isspace(c));
+    while (ISSPACE(c));
 
     if (c == '~')
 	return &str_empty[0];
@@ -3705,7 +3707,7 @@ char *fread_string_eol_new(FILE *fp)
      */
     do
         c = getc(fp);
-    while (isspace(c));
+    while (ISSPACE(c));
 
     if (c == '~')
 	return &str_empty[0];
@@ -3766,7 +3768,7 @@ char *fread_word(FILE *fp)
     {
 	cEnd = getc(fp);
     }
-    while (isspace(cEnd));
+    while (ISSPACE(cEnd));
 
     if (cEnd == '\'' || cEnd == '"')
     {
@@ -3782,7 +3784,7 @@ char *fread_word(FILE *fp)
     for (; pword < word + MAX_INPUT_LENGTH; pword++)
     {
 	*pword = getc(fp);
-	if (cEnd == ' ' ? isspace(*pword) : *pword == cEnd)
+	if (cEnd == ' ' ? ISSPACE(*pword) : *pword == cEnd)
 	{
 	    if (cEnd == ' ')
 		ungetc(*pword, fp);
@@ -4709,14 +4711,14 @@ void do_memory(CHAR_DATA *ch, char *argument)
 /* @@@NIB : 20070123 : does what it says...*/
 char *skip_whitespace(register char *str)
 {
-	if(str) while(isspace(*str)) ++str;
+	if(str) while(ISSPACE(*str)) ++str;
 	return str;
 }
 
 void strip_newline(char *buf, bool append)
 {
 	int len = strlen(buf);
-	while(len > 0 && isspace(buf[len-1])) --len;
+	while(len > 0 && ISSPACE(buf[len-1])) --len;
 	if(append) {
 		buf[len++] = '\n';
 		buf[len++] = '\r';
@@ -4767,16 +4769,16 @@ char *fread_string_len(FILE *fp)
 	/* Skip whitespaces*/
     do
 	c = getc(fp);
-    while (isspace(c));
+    while (ISSPACE(c));
 
     len = 0;
 
-    if (!isdigit(c)) {
+    if (!ISDIGIT(c)) {
 	bug("Fread_string_new: bad format (%c).", c);
 	exit(1);
     }
 
-    while (isdigit(c))
+    while (ISDIGIT(c))
     {
 	len = len * 10 + c - '0';
 	c      = getc(fp);

@@ -5,6 +5,7 @@
  *                                                                         *
  **************************************************************************/
 
+#include "strings.h"
 #include "merc.h"
 #include "tables.h"
 #include "scripts.h"
@@ -434,7 +435,7 @@ char *ifcheck_get_value(SCRIPT_VARINFO *info,IFCHECK_DATA *ifc,char *text,int *r
 	for(i=0;argument && *argument && *argument != ESCAPE_END && *argument != '=' && *argument != '<' &&
 		*argument != '>' && *argument != '!' && *argument != '&' && i<IFC_MAXPARAMS;i++) {
 //		if(wiznet_script) {
-//			sprintf(buf,"*argument = %02.2X (%c)", *argument, isprint(*argument) ? *argument : ' ');
+//			sprintf(buf,"*argument = %02.2X (%c)", *argument, ISPRINT(*argument) ? *argument : ' ');
 //			wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
 //		}
 		clear_buf(argv[i]->buffer);

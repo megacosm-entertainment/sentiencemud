@@ -40,6 +40,7 @@
 #include <ctype.h>
 #include <time.h>
 #include <math.h>
+#include "strings.h"
 #include "merc.h"
 #include "interp.h"
 #include "magic.h"
@@ -50,6 +51,7 @@
 #include "wilds.h"
 #include "scripts.h"
 #include "sha256.h"
+
 
 bool can_see_imm(CHAR_DATA *ch, CHAR_DATA *victim);
 void look_through_telescope(CHAR_DATA *ch, OBJ_DATA *telescope, char *argument);
@@ -4696,7 +4698,7 @@ void do_whois(CHAR_DATA * ch, char *argument)
 		    class += 2;
 	}
 
-	while (isspace(*class))
+	while (ISSPACE(*class))
 	{
 	   class++;
 	}
@@ -5098,7 +5100,7 @@ void do_password(CHAR_DATA *ch, char *argument)
      * So we just steal all its code.  Bleagh.
      */
     pArg = arg1;
-    while (isspace(*argument))
+    while (ISSPACE(*argument))
 	argument++;
 
     cEnd = ' ';
@@ -5115,7 +5117,7 @@ void do_password(CHAR_DATA *ch, char *argument)
     *pArg = '\0';
 
     pArg = arg2;
-    while (isspace(*argument))
+    while (ISSPACE(*argument))
 	argument++;
 
     cEnd = ' ';

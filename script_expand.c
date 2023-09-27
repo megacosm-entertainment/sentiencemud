@@ -6,6 +6,7 @@
  *                                                                         *
  **************************************************************************/
 
+#include "strings.h"
 #include "merc.h"
 #include "scripts.h"
 #include "recycle.h"
@@ -34,7 +35,7 @@ void expand_escape2print(char *str, BUFFER *buffer)
 {
 	char hex[10];
 	while(*str) {
-		if(isprint(*str)) add_buf_char(buffer, *str);
+		if(ISPRINT(*str)) add_buf_char(buffer, *str);
 		else {
 			sprintf(hex,"0x%2.2X", *str);
 			add_buf(buffer, hex);
@@ -291,7 +292,7 @@ char *expand_name(SCRIPT_VARINFO *info,pVARIABLE vars,char *str,BUFFER *buffer)
 char *expand_number(char *str, int *num)
 {
 	char arg[MIL], *s = str, *p = arg;
-	while(isdigit(*s)) *p++ = *s++;
+	while(ISDIGIT(*s)) *p++ = *s++;
  	*p = 0;
  	if(arg[0]) {
 		str = s;
@@ -364,7 +365,7 @@ char *expand_argument_expression(SCRIPT_VARINFO *info, char *str,int *num)
 	if(info)
 	while(*str && *str != ESCAPE_END) {
 		str = skip_whitespace(str);
-		if(isdigit(*str)) {	// Constant
+		if(ISDIGIT(*str)) {	// Constant
 			if(expect) {
 				// Generate an error - missing an operator
 				break;

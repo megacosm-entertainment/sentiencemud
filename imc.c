@@ -1,10 +1,10 @@
 /* IMC2 Freedom Client - Developed by Mud Domain.
  *
- * Copyright ©2004-2008 by Roger Libiez ( Samson )
- * Contributions by Johnathan Walker ( Xorith ), Copyright ©2004
- * Additional contributions by Jesse Defer ( Garil ), Copyright ©2004
- * Additional contributions by Rogel, Copyright ©2004
- * Additional contributions by MTFox, multiconnection added Copyright ©2008
+ * Copyright ï¿½2004-2008 by Roger Libiez ( Samson )
+ * Contributions by Johnathan Walker ( Xorith ), Copyright ï¿½2004
+ * Additional contributions by Jesse Defer ( Garil ), Copyright ï¿½2004
+ * Additional contributions by Rogel, Copyright ï¿½2004
+ * Additional contributions by MTFox, multiconnection added Copyright ï¿½2008
  * Additional contributions by Madison Koenig (Pedlar, Syxx), Copyright (C) 2008.
  * Added in Channel Separator for Colour code issues, and customization.
  * Comments and suggestions welcome: http://www.mudbytes.net/imc2-support-forum
@@ -77,6 +77,7 @@
 #include "merc.h"
 #if defined(IMCROM)
 #include "tables.h"
+#include "strings.h"
 #endif
 #endif
 #if defined(IMCACK)
@@ -351,7 +352,7 @@ char *imcone_argument( char *argument, char *arg_first )
    if( !argument || argument[0] == '\0' )
       return NULL;
 
-   while( isspace( *argument ) )
+   while( ISSPACE( *argument ) )
       argument++;
 
    cEnd = ' ';
@@ -375,7 +376,7 @@ char *imcone_argument( char *argument, char *arg_first )
    if( arg_first )
       *arg_first = '\0';
 
-   while( isspace( *argument ) )
+   while( ISSPACE( *argument ) )
       argument++;
 
    return argument;
@@ -1153,7 +1154,7 @@ int imcfread_number( FILE * fp )
       }
       c = getc( fp );
    }
-   while( isspace( c ) );
+   while( ISSPACE( c ) );
 
    number = 0;
 
@@ -1166,13 +1167,13 @@ int imcfread_number( FILE * fp )
       c = getc( fp );
    }
 
-   if( !isdigit( c ) )
+   if( !ISDIGIT( c ) )
    {
       imclog( "imcfread_number: bad format. (%c)", c );
       return 0;
    }
 
-   while( isdigit( c ) )
+   while( ISDIGIT( c ) )
    {
       if( feof( fp ) )
       {
@@ -1221,7 +1222,7 @@ char *imcfread_line( FILE * fp )
       }
       c = getc( fp );
    }
-   while( isspace( c ) );
+   while( ISSPACE( c ) );
 
    ungetc( c, fp );
 
@@ -1281,7 +1282,7 @@ char *imcfread_word( FILE * fp )
       }
       cEnd = getc( fp );
    }
-   while( isspace( cEnd ) );
+   while( ISSPACE( cEnd ) );
 
    if( cEnd == '\'' || cEnd == '"' )
    {
@@ -1303,7 +1304,7 @@ char *imcfread_word( FILE * fp )
          return word;
       }
       *pword = getc( fp );
-      if( cEnd == ' ' ? isspace( *pword ) : *pword == cEnd )
+      if( cEnd == ' ' ? ISSPACE( *pword ) : *pword == cEnd )
       {
          if( cEnd == ' ' )
             ungetc( *pword, fp );
@@ -1358,7 +1359,7 @@ char imcfread_letter( FILE * fp )
       }
       c = getc( fp );
    }
-   while( isspace( c ) );
+   while( ISSPACE( c ) );
 
    return c;
 }
@@ -2269,7 +2270,7 @@ char *break_newlines( char *argument, char *arg_first )
    if( !argument || argument[0] == '\0' )
       return NULL;
 
-   while( isspace( *argument ) )
+   while( ISSPACE( *argument ) )
       argument++;
 
    cEnd = '\n';
@@ -2293,7 +2294,7 @@ char *break_newlines( char *argument, char *arg_first )
    if( arg_first )
       *arg_first = '\0';
 
-   while( isspace( *argument ) )
+   while( ISSPACE( *argument ) )
       argument++;
 
    return argument;
@@ -4508,7 +4509,7 @@ void imc_readhelp( IMC_HELP_DATA * help, FILE * fp )
             {
                int num = 0;
 
-               while( ( hbuf[num] = fgetc( fp ) ) != EOF && hbuf[num] != '¢' && num < ( LGST - 2 ) )
+               while( ( hbuf[num] = fgetc( fp ) ) != EOF && hbuf[num] != 'ï¿½' && num < ( LGST - 2 ) )
                   num++;
                hbuf[num] = '\0';
                help->text = IMCSTRALLOC( hbuf );
@@ -5254,49 +5255,49 @@ void imc_load_who_template( void )
 
       if( !strcasecmp( word, "Head:" ) )
       {
-         while( ( hbuf[num] = fgetc( fp ) ) != EOF && hbuf[num] != '¢' && num < ( LGST - 2 ) )
+         while( ( hbuf[num] = fgetc( fp ) ) != EOF && hbuf[num] != 'ï¿½' && num < ( LGST - 2 ) )
             ++num;
          hbuf[num] = '\0';
          whot->head = IMCSTRALLOC( parse_who_header( hbuf ) );
       }
       else if( !strcasecmp( word, "Tail:" ) )
       {
-         while( ( hbuf[num] = fgetc( fp ) ) != EOF && hbuf[num] != '¢' && num < ( LGST - 2 ) )
+         while( ( hbuf[num] = fgetc( fp ) ) != EOF && hbuf[num] != 'ï¿½' && num < ( LGST - 2 ) )
             ++num;
          hbuf[num] = '\0';
          whot->tail = IMCSTRALLOC( parse_who_tail( hbuf ) );
       }
       else if( !strcasecmp( word, "Plrline:" ) )
       {
-         while( ( hbuf[num] = fgetc( fp ) ) != EOF && hbuf[num] != '¢' && num < ( LGST - 2 ) )
+         while( ( hbuf[num] = fgetc( fp ) ) != EOF && hbuf[num] != 'ï¿½' && num < ( LGST - 2 ) )
             ++num;
          hbuf[num] = '\0';
          whot->plrline = IMCSTRALLOC( hbuf );
       }
       else if( !strcasecmp( word, "Immline:" ) )
       {
-         while( ( hbuf[num] = fgetc( fp ) ) != EOF && hbuf[num] != '¢' && num < ( LGST - 2 ) )
+         while( ( hbuf[num] = fgetc( fp ) ) != EOF && hbuf[num] != 'ï¿½' && num < ( LGST - 2 ) )
             ++num;
          hbuf[num] = '\0';
          whot->immline = IMCSTRALLOC( hbuf );
       }
       else if( !strcasecmp( word, "Immheader:" ) )
       {
-         while( ( hbuf[num] = fgetc( fp ) ) != EOF && hbuf[num] != '¢' && num < ( LGST - 2 ) )
+         while( ( hbuf[num] = fgetc( fp ) ) != EOF && hbuf[num] != 'ï¿½' && num < ( LGST - 2 ) )
             ++num;
          hbuf[num] = '\0';
          whot->immheader = IMCSTRALLOC( hbuf );
       }
       else if( !strcasecmp( word, "Plrheader:" ) )
       {
-         while( ( hbuf[num] = fgetc( fp ) ) != EOF && hbuf[num] != '¢' && num < ( LGST - 2 ) )
+         while( ( hbuf[num] = fgetc( fp ) ) != EOF && hbuf[num] != 'ï¿½' && num < ( LGST - 2 ) )
             ++num;
          hbuf[num] = '\0';
          whot->plrheader = IMCSTRALLOC( hbuf );
       }
       else if( !strcasecmp( word, "Master:" ) )
       {
-         while( ( hbuf[num] = fgetc( fp ) ) != EOF && hbuf[num] != '¢' && num < ( LGST - 2 ) )
+         while( ( hbuf[num] = fgetc( fp ) ) != EOF && hbuf[num] != 'ï¿½' && num < ( LGST - 2 ) )
             ++num;
          hbuf[num] = '\0';
          whot->master = IMCSTRALLOC( hbuf );
@@ -6356,7 +6357,7 @@ IMC_CMD( imctell )
       char buf2[SMST];
 
       argument++;
-      while( isspace( *argument ) )
+      while( ISSPACE( *argument ) )
          argument++;
       imcstrlcpy( buf2, argument, SMST );
       p = imc_send_social( ch, argument, 1 );
@@ -6372,7 +6373,7 @@ IMC_CMD( imctell )
    else if( argument[0] == ',' )
    {
       argument++;
-      while( isspace( *argument ) )
+      while( ISSPACE( *argument ) )
          argument++;
       imc_send_tell( CH_IMCNAME( ch ), fix_sending( buf ), colour_mtoi( argument ), 1 );
       snprintf( buf1, LGST, "~WImctell: ~c%s %s\r\n", buf, argument );
@@ -6435,7 +6436,7 @@ IMC_CMD( imcreply )
       char buf2[SMST];
 
       argument++;
-      while( isspace( *argument ) )
+      while( ISSPACE( *argument ) )
          argument++;
       imcstrlcpy( buf2, argument, SMST );
       p = imc_send_social( ch, argument, 1 );
@@ -6451,7 +6452,7 @@ IMC_CMD( imcreply )
    else if( argument[0] == ',' )
    {
       argument++;
-      while( isspace( *argument ) )
+      while( ISSPACE( *argument ) )
          argument++;
       imc_send_tell( CH_IMCNAME( ch ), IMC_RREPLY( ch ), colour_mtoi( argument ), 1 );
       snprintf( buf1, LGST, "~WImctell: ~c%s %s\r\n", fix_sender(IMC_RREPLY( ch )), argument );
@@ -8215,7 +8216,7 @@ const char *imc_find_social( CHAR_DATA * ch, const char *sname, const char *pers
    return socname;
 }
 
-/* Revised 10/10/03 by Xorith: Recognize the need to capitalize for a new sentence. */
+/* Revised 10/10/03 by Xorith: Recognize the need to capitalize for a newï¿½sentence. */
 char *imc_act_string( const char *format, CHAR_DATA * ch, CHAR_DATA * vic )
 {
    static const char *const he_she[] = { "it", "he", "she", "shi" };
@@ -8236,7 +8237,7 @@ char *imc_act_string( const char *format, CHAR_DATA * ch, CHAR_DATA * vic )
    {
       if( *format == '.' || *format == '?' || *format == '!' )
          should_upper = TRUE;
-      else if( should_upper == TRUE && !isspace( *format ) && *format != '$' )
+      else if( should_upper == TRUE && !ISSPACE( *format ) && *format != '$' )
          should_upper = FALSE;
 
       if( *format != '$' )
@@ -8721,7 +8722,7 @@ bool imc_command_hook( CHAR_DATA * ch, const char *command, char *argument )
           * Strip the , and then extra spaces - Remcon 6-28-03
           */
          argument++;
-         while( isspace( *argument ) )
+         while( ISSPACE( *argument ) )
             argument++;
          imc_sendmessage( c, CH_IMCNAME( ch ), colour_mtoi( argument ), 1 );
          break;
@@ -8730,7 +8731,7 @@ bool imc_command_hook( CHAR_DATA * ch, const char *command, char *argument )
           * Strip the @ and then extra spaces - Remcon 6-28-03
           */
          argument++;
-         while( isspace( *argument ) )
+         while( ISSPACE( *argument ) )
             argument++;
          p = imc_send_social( ch, argument, 0 );
          if( !p || p[0] == '\0' )

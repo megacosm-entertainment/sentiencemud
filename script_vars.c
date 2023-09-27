@@ -5,6 +5,7 @@
  *                                                                         *
  **************************************************************************/
 
+#include "strings.h"
 #include "merc.h"
 #include "db.h"
 #include "scripts.h"
@@ -31,7 +32,7 @@ bool variable_validname(char *str)
 	if(!str || !*str) return FALSE;
 
 	while(*str) {
-		if(!isprint(*str) || *str == '~') return FALSE;
+		if(!ISPRINT(*str) || *str == '~') return FALSE;
 		++str;
 	}
 
