@@ -8741,6 +8741,25 @@ extern LLIST *loaded_waypoint_paths;
 extern int disconnect_timeout;
 extern int limbo_timeout;
 
+/*
+ Introducing some variables to keep compiler from complaining. These are used in do_version.
+*/
+#ifndef BUILD_NUMBER
+#define BUILD_NUMBER "UNKNOWN"
+#endif
+
+#ifndef COMMIT
+#define COMMIT "UNKNOWN"
+#endif
+
+#ifndef VERSION
+#define VERSION "UNKNOWN"
+#endif
+
+#ifndef BUILD_DATE
+#define BUILD_DATE "UNKNOWN"
+#endif
+
 /* This macro strips a string of colours and concantenates it into a local buffer.
    Necesarry to avoid memory leaks. */
 #define STRIP_COLOUR(string, buffer) \
