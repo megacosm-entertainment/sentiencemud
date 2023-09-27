@@ -1923,6 +1923,19 @@ const	struct	pc_race_type	pc_race_table	[]	=
 		NULL,
 		TRUE,
 		{0, 0, 0, 0, 0}
+	},	{
+		NULL,
+		NULL,
+		{""},
+		{13, 13, 13, 13, 13},
+		{18, 18, 18, 18, 18},
+		{3000, 3000, 3000},
+		SIZE_MEDIUM,
+		ALIGN_NONE,
+		NULL,
+		NULL,
+		FALSE,
+		{0, 0, 0, 0, 0}
 	}
 };
 
