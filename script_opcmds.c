@@ -206,7 +206,7 @@ void do_opstat(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	sprintf(arg, "Object #%-6ld [%s] ID [%08X:%08X]\n\r", obj->pIndexData->vnum, obj->short_descr, (int)obj->id[0], (int)obj->id[1]);
+	sprintf(arg, "Object #%-6ld [%s] ID [%9d:%9d]\n\r", obj->pIndexData->vnum, obj->short_descr, (int)obj->id[0], (int)obj->id[1]);
 	send_to_char(arg, ch);
 
 	if( !IS_NULLSTR(obj->pIndexData->comments) )

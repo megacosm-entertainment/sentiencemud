@@ -252,7 +252,7 @@ void do_mpstat(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	sprintf(arg, "Mobile #%-6ld [%s] ID [%8X:%8X]\n\r", victim->pIndexData->vnum, victim->short_descr, (int)victim->id[0], (int)victim->id[1]);
+	sprintf(arg, "Mobile #%-6ld [%s] ID [%9d:%9d]\n\r", victim->pIndexData->vnum, victim->short_descr, (int)victim->id[0], (int)victim->id[1]);
 	send_to_char(arg, ch);
 
 	if( !IS_NULLSTR(victim->pIndexData->comments) )
