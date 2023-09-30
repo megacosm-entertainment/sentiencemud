@@ -7663,7 +7663,7 @@ ROOM_INDEX_DATA *persist_load_room(FILE *fp, char rtype)
 		if( !room ) {
 			room = create_virtual_room_nouid( source, FALSE, FALSE, FALSE );
 			if( !room ) {
-				sprintf(buf, "persist_load_room: could not create clone room for %ld with uid %08X:%08X.", vnum, x, y);
+				sprintf(buf, "persist_load_room: could not create clone room for %ld with uid %09d:%09d.", vnum, x, y);
 				bug(buf,0);
 				return NULL;
 			}
