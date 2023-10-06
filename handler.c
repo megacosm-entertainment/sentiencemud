@@ -331,7 +331,7 @@ int sub_class_search(const char *name)
 /* for immunity, vulnerabiltiy, and resistant
    the 'globals' (magic and weapons) may be overriden
    three other cases -- wood, silver, and iron -- are checked in fight.c */
-int check_immune(CHAR_DATA *ch, sh_int dam_type)
+int check_immune(CHAR_DATA *ch, int16_t dam_type)
 {
     int immune, def;
     long bit;
@@ -6610,7 +6610,7 @@ CHAR_DATA* get_player(char *name)
 }
 
 // get reputation for player
-sh_int  get_player_reputation args( ( int reputation_points ) )
+int16_t  get_player_reputation args( ( int reputation_points ) )
 {
 	int i = 0;
 	int reputation_type = 0;

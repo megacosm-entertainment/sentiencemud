@@ -61,13 +61,13 @@ int parse_door(char *name)
 }
 
 
-const	sh_int	rev_dir		[]		=
+const	int16_t	rev_dir		[]		=
 {
     2, 3, 0, 1, 5, 4, 9, 8, 7, 6
 };
 
 
-const	sh_int	movement_loss	[SECT_MAX]	=
+const	int16_t	movement_loss	[SECT_MAX]	=
 {
 	1,		/* SECT_INSIDE */
 	2,		/* SECT_CITY */

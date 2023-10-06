@@ -262,7 +262,7 @@ bool saves_dispel(CHAR_DATA *ch, CHAR_DATA *victim, int spell_level)
  * Compute a saving throw.
  * Negative apply's make saving throw better.
  */
-bool saves_spell(int level, CHAR_DATA *victim, sh_int dam_type)
+bool saves_spell(int level, CHAR_DATA *victim, int16_t dam_type)
 {
     int chance;
     //char buf[MSL];

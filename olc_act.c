@@ -2178,7 +2178,7 @@ bool rp_change_exit(ROOM_INDEX_DATA *pRoom, char *argument, int door)
 
     if (!str_cmp(arg, "delete"))
     {
-	sh_int rev;
+	int16_t rev;
 
 	if (!pRoom->exit[door])
 	{
@@ -2260,7 +2260,7 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 	if (!room_is_clone(pRoom) && (value = flag_value(exit_flags, argument)) != NO_FLAG)
 	{
 		ROOM_INDEX_DATA *pToRoom;
-		sh_int rev;
+		int16_t rev;
 
 		if (!pRoom->exit[door])
 		{
@@ -2339,7 +2339,7 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 	if (!str_cmp(command, "delete"))
 	{
 		ROOM_INDEX_DATA *pToRoom;
-		sh_int rev;
+		int16_t rev;
 
 		if (!pRoom->exit[door])
 		{
@@ -2482,7 +2482,7 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 	{
 		ROOM_INDEX_DATA *pToRoom;
 		EXIT_DATA *pExit;
-		sh_int rev;
+		int16_t rev;
 
 		if (arg[0] == '\0' || !is_number(arg))
 		{

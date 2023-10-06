@@ -3515,7 +3515,7 @@ TOKEN_DATA *token_find_match(SCRIPT_VARINFO *info, TOKEN_DATA *tokens,char *argu
  * item_type: item type or -1
  * fWear: TRUE: item must be worn, FALSE: don't care
  */
-bool has_item(CHAR_DATA *ch, long vnum, sh_int item_type, bool fWear)
+bool has_item(CHAR_DATA *ch, long vnum, int16_t item_type, bool fWear)
 {
     OBJ_DATA *obj;
     for (obj = ch->carrying; obj; obj = obj->next_content)
@@ -3946,7 +3946,7 @@ bool script_change_exit(ROOM_INDEX_DATA *pRoom, ROOM_INDEX_DATA *pToRoom, int do
 	EXIT_DATA *pExit;
 
 	if (!pToRoom) {
-		sh_int rev;
+		int16_t rev;
 
 		if (!pRoom->exit[door]) {
 			bug("script_change_exit: Couldn't delete exit. %d", pRoom->vnum);

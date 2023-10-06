@@ -120,7 +120,7 @@ struct church_type
 {
     char 	*name;
     char 	*who_name;
-    sh_int 	hall;
+    int16_t 	hall;
     bool	independent; /* true for loners */
 };
 

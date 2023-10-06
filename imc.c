@@ -30,58 +30,22 @@
 #include <errno.h>
 #include <sys/file.h>
 #include <time.h>
-#ifdef WIN32
-#include <io.h>
-#undef EINTR
-#undef EMFILE
-#define EINTR WSAEINTR
-#define EMFILE WSAEMFILE
-#define EWOULDBLOCK WSAEWOULDBLOCK
-#define EINPROGRESS WSAEINPROGRESS
-#define MAXHOSTNAMELEN 32
-#else
 #include <fnmatch.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
-#endif
-#if defined(__OpenBSD__) || defined(__FreeBSD__)
-#include <sys/types.h>
-#endif
 #ifdef IMCSTANDALONE
 #include "imc.h"
 #endif
 #include "sha256.h"
 
-#if defined(IMCCIRCLE) || (_TBAMUD)
-#include "conf.h"
-#include "sysdep.h"
-#include "structs.h"
-#include "utils.h"
-#include "comm.h"
-#include "db.h"
-#include "handler.h"
-#include "interpreter.h"
-#include "imc.h"
-#endif
-
-#if defined(IMCSMAUG) || defined(IMCCHRONICLES)
-#include "mud.h"
-#if defined(IMCCHRONICLES)
-#include "factions.h"
-#include "files.h"
-#endif
-#endif
 #if defined(IMCROM) || defined(IMCMERC) || defined(IMCUENVY) || defined(IMC1STMUD)
 #include "merc.h"
 #if defined(IMCROM)
 #include "tables.h"
 #include "strings.h"
 #endif
-#endif
-#if defined(IMCACK)
-#include "globals.h"
 #endif
 
 #define IMCKEY( literal, field, value ) \
@@ -233,14 +197,8 @@ void imclog( const char *format, ... )
    snprintf( buf2, LGST, "IMC: %s", buf );
 
    strtime = ctime( &imc_time );
-#if defined(IMCSMAUG)
-   log_string( buf2 );
-#elif defined(IMCACK)
-   monitor_chan( buf2, MONITOR_IMC );
-#else
    strtime[strlen( strtime ) - 1] = '\0';
    fprintf( stderr, "%s :: %s\n", strtime, buf2 );
-#endif
 }
 
 /* Generic bug logging function which will route the message to the appropriate function that handles bug logs */
@@ -257,14 +215,8 @@ void imcbug( const char *format, ... )
    snprintf( buf2, LGST, " IMC: %s", buf );
 
    strtime = ctime( &imc_time );
-#if defined(IMCSMAUG)
-   bug( "%s", buf2 );
-#elif defined(IMCACK)
-   monitor_chan( buf2, MONITOR_IMC );
-#else
    strtime[strlen( strtime ) - 1] = '\0';
    fprintf( stderr, "%s :: ***BUG*** %s\n", strtime, buf2 );
-#endif
 }
 
 /*
@@ -445,21 +397,7 @@ void imc_to_char( const char *txt, CHAR_DATA * ch )
    char buf[LGST * 2];
 
    snprintf( buf, LGST * 2, "%s\033[0m", colour_itom( txt, ch ) );
-#if defined(IMCSMAUG)
-   send_to_char_colour( buf, ch );
-#elif defined(IMCCIRCLE)
- #if _CIRCLEMUD < CIRCLEMUD_VERSION(3,0,21)
    send_to_char( buf, ch );
- #else
-   send_to_char( ch, "%s", buf );
- #endif
-#elif defined(_TBAMUD)
-   send_to_char( ch, "%s", buf );
-#elif defined(IMCSTANDALONE)
-   fprintf( stderr, "%s\n", buf );
-#else
-   send_to_char( buf, ch );
-#endif
 }
 
 /* Modified version of Smaug's ch_printf_colour function */
@@ -481,15 +419,7 @@ void imc_to_pager( const char *txt, CHAR_DATA * ch )
    char buf[LGST * 2];
 
    snprintf( buf, LGST * 2, "%s\033[0m", colour_itom( txt, ch ) );
-#if defined(IMCSMAUG) || defined(IMCCHRONICLES)
-   send_to_pager_colour( buf, ch );
-#elif defined(IMCROM)
-   page_to_char( buf, ch );
-#elif defined(IMC1STMUD)
-   sendpage( ch, buf2 );
-#else
    imc_to_char( buf, ch );
-#endif
 }
 
 /* Generic pager_printf type function */
@@ -2119,12 +2049,7 @@ const char *get_local_chanwho( IMC_CHANNEL * c )
    {
       person = d->original ? d->original : d->character;
 
-#if defined (IMCCIRCLE) || (_TBAMUD)
-/* might want to check for other muds as well */
-      if( !person || d->connected != CON_PLAYING )
-#else
       if( !person )
-#endif
          continue;
 
 #if !defined(IMCSTANDALONE)
@@ -5028,17 +4953,6 @@ void imcfread_config_file( FILE * fin )
          case 'E':
             if( !strcasecmp( word, "End" ) )
             {
-#if defined(IMCCHRONICLES)
-               char lbuf1[LGST], lbuf2[LGST];
-
-               snprintf( lbuf1, LGST, "%s %s.%s", CODEBASE_VERSION_TITLE, CODEBASE_VERSION_MAJOR, CODEBASE_VERSION_MINOR );
-               if( this_imcmud->base )
-                  IMCSTRFREE( this_imcmud->base );
-               this_imcmud->base = IMCSTRALLOC( lbuf1 );
-
-               snprintf( lbuf2, LGST, "%s%s", IMC_VERSION_STRING, this_imcmud->base );
-               this_imcmud->versionid = IMCSTRALLOC( lbuf2 );
-#endif
                return;
             }
             break;

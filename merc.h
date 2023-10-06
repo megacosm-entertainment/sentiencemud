@@ -54,6 +54,8 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+//#include <stdbool.h>
+#include <stdint.h>
 #include "protocol.h"
 #include "sha256.h"
 
@@ -71,9 +73,10 @@
 
 
 /* System calls */
+/*
 int unlink();
 int system();
-
+*/
 #if	!defined(FALSE)
 #define FALSE	 0
 #endif
@@ -82,7 +85,6 @@ int system();
 #define TRUE	 1
 #endif
 
-#define TRISTATE 2
 
 #if	!defined(false)
 #define false	 0
@@ -92,15 +94,13 @@ int system();
 #define true	 1
 #endif
 
-#if	defined(_AIX)
-typedef int				sh_int;
-typedef int				bool;
-#define unix
-#else
-typedef short   int			sh_int;
-typedef unsigned char			bool;
-#endif
+//typedef short   int			int16_t;
 
+typedef unsigned char			bool;
+enum tribool: uint8_t {False = 0, True = 1, Unknown = 2};
+
+typedef unsigned char bool;
+#define TRISTATE 2
 #define TELOPT_COMPRESS 	85
 
 #define COMPRESS_BUF_SIZE 	16384
@@ -452,8 +452,8 @@ typedef struct skill_entry_type {
 	bool practice;		// Can this be practiced/trained?
 	bool improve;		// Can this improve through use?
 	bool isspell;		// Whether this is a spell;
-	sh_int sn;			// Skill Number
-	sh_int song;		// Song Number
+	int16_t sn;			// Skill Number
+	int16_t song;		// Song Number
 	TOKEN_DATA *token;	// Skill/Spell Token, NULL if this is a built-in skill
 } SKILL_ENTRY;
 
@@ -959,8 +959,8 @@ struct	ban_data
 {
     BAN_DATA *	next;
     bool	valid;
-    sh_int	ban_flags;
-    sh_int	level;
+    int16_t	ban_flags;
+    int16_t	level;
     char *	name;
 };
 
@@ -968,7 +968,7 @@ struct buf_type
 {
     BUFFER *    next;
     bool        valid;
-    sh_int      state;  /* error state of the buffer */
+    int16_t      state;  /* error state of the buffer */
     int		size;   /* size in k */
     char *      string; /* buffer's string */
 };
@@ -1267,8 +1267,8 @@ struct	descriptor_data
     CHAR_DATA *		original;
     bool		valid;
     char *		host;
-    sh_int		descriptor;
-    sh_int		connected;
+    int16_t		descriptor;
+    int16_t		connected;
     bool		fcommand;
     char		inbuf		[4 * MAX_INPUT_LENGTH];
     char		incomm		[4 * MAX_INPUT_LENGTH];
@@ -1312,35 +1312,35 @@ struct	descriptor_data
  */
 struct	str_app_type
 {
-    sh_int	tohit;
-    sh_int	todam;
-    sh_int	carry;
-    sh_int	wield;
+    int16_t	tohit;
+    int16_t	todam;
+    int16_t	carry;
+    int16_t	wield;
 };
 
 
 struct	int_app_type
 {
-    sh_int	learn;
+    int16_t	learn;
 };
 
 
 struct	wis_app_type
 {
-    sh_int	practice;
+    int16_t	practice;
 };
 
 
 struct	dex_app_type
 {
-    sh_int	defensive;
+    int16_t	defensive;
 };
 
 
 struct	con_app_type
 {
-    sh_int	hitp;
-    sh_int	shock;
+    int16_t	hitp;
+    int16_t	shock;
 };
 
 
@@ -1412,11 +1412,11 @@ struct	shop_data
 {
     SHOP_DATA *	next;			/* Next shop in list		*/
     long	keeper;			/* Vnum of shop keeper mob	*/
-    sh_int	buy_type [MAX_TRADE];	/* Item types shop will buy	*/
-    sh_int	profit_buy;		/* Cost multiplier for buying	*/
-    sh_int	profit_sell;		/* Cost multiplier for selling	*/
-    sh_int	open_hour;		/* First opening hour		*/
-    sh_int	close_hour;		/* First closing hour		*/
+    int16_t	buy_type [MAX_TRADE];	/* Item types shop will buy	*/
+    int16_t	profit_buy;		/* Cost multiplier for buying	*/
+    int16_t	profit_sell;		/* Cost multiplier for selling	*/
+    int16_t	open_hour;		/* First opening hour		*/
+    int16_t	close_hour;		/* First closing hour		*/
 
     int restock_interval;		// How long between restocking checks, in minutes
     time_t next_restock;
@@ -1550,8 +1550,8 @@ struct weapon_type
 {
     char *	name;
     long	vnum;
-    sh_int	type;
-    sh_int	*gsn;
+    int16_t	type;
+    int16_t	*gsn;
 };
 
 struct wiznet_type
@@ -1573,8 +1573,8 @@ struct race_type
 {
     char *	name;			/* call name of the race */
     bool	pc_race;		/* can be chosen by pcs */
-    sh_int	*pgrn;
-    sh_int	*pgprn;			/* PC race pointer */
+    int16_t	*pgrn;
+    int16_t	*pgprn;			/* PC race pointer */
     long	act;			/* act bits for the race */
     long	act2;			/* Vizz - act2 bits for the race */
     long	aff;			/* aff bits for the race */
@@ -1597,8 +1597,8 @@ struct pc_race_type  /* additional data for pc races */
     int    max_vital_stats[3];		/* max hit points, mana, and move */
     int	   size;
     int    alignment;			/* good, neutral or evil */
-    sh_int	*pgrn;
-    sh_int	*prgrn;		/* Pointer to the REMORT race */
+    int16_t	*pgrn;
+    int16_t	*prgrn;		/* Pointer to the REMORT race */
     bool   remort;			/* is it a remort race? */
     long   objects[5];			/* starting objects */
 };
@@ -1667,7 +1667,7 @@ struct	note_data
 {
     NOTE_DATA *	next;
     bool 	valid;
-    sh_int	type;
+    int16_t	type;
     char *	sender;
     char *	date;
     char *	to_list;
@@ -1697,18 +1697,18 @@ struct	affect_data
 {
     AFFECT_DATA *	next;
     bool		valid;
-    sh_int		group;
-    sh_int		where;
-    sh_int		type;
-    sh_int		level;
-    sh_int		duration;
-    sh_int		location;
-    sh_int		modifier;
+    int16_t		group;
+    int16_t		where;
+    int16_t		type;
+    int16_t		level;
+    int16_t		duration;
+    int16_t		location;
+    int16_t		modifier;
     long		bitvector;
     long		bitvector2;
-    sh_int 		random;
+    int16_t 		random;
     char 		*custom_name;
-    sh_int		slot;
+    int16_t		slot;
 };
 
 /* where definitions */
@@ -2998,6 +2998,8 @@ enum {
 #define AREA_NO_FADING		(K)
 #define AREA_BLUEPRINT		(L)		// Area is used to hold rooms used for Blueprints.  Will block VLINKs
 #define AREA_LOCKED			(M)		// Area requires the player to unlock the area first
+#define AREA_SOCIAL         (N)
+#define AREA_HOUSING        (O)
 #define AREA_NO_SAVE		(Z)
 
 /*
@@ -3030,7 +3032,9 @@ enum {
 #define SECT_UNDERWATER		23
 #define SECT_DEEP_UNDERWATER	24
 #define SECT_JUNGLE		25
-#define SECT_MAX		26
+#define SECT_PAVED_ROAD 26
+#define SECT_DIRT_ROAD  27
+#define SECT_MAX		28
 
 
 #define WEAR_PARAM_SEEN		0
@@ -3128,7 +3132,7 @@ enum {
 #define POS_HELDUP		      10
 
 #define PLR_IS_NPC		(A)
-#define PLR_EXCOMMUNICATED	(B)
+#define PLR_EXCOMMUNICATED	(B) // Not used anymore.
 #define PLR_PK			(C)
 #define PLR_AUTOEXIT		(D)
 #define PLR_AUTOLOOT		(E)
@@ -3166,6 +3170,10 @@ enum {
 #define PLR_NOLORE			(I)
 #define PLR_COMPASS         (J)
 #define PLR_AUTOCAT         (K)
+#define PLR_STAFF           (L)
+#define PLR_AUTOAFK         (M)
+#define PLR_HIDE_IDLE       (N)
+#define PLR_SHOW_TIMESTAMPS (O)
 
 #define COMM_QUIET              (A)
 #define COMM_NOMUSIC           	(B)
@@ -3345,8 +3353,8 @@ struct	mob_index_data
 
     AREA_DATA *		area;
     long		vnum;
-    sh_int		count;
-    sh_int		killed;
+    int16_t		count;
+    int16_t		killed;
     char *		player_name;
     char *		short_descr;
     char *		long_descr;
@@ -3357,27 +3365,27 @@ struct	mob_index_data
     long		act2;
     long		affected_by;
     long		affected_by2;
-    sh_int		alignment;
-    sh_int		level;
-    sh_int		hitroll;
+    int16_t		alignment;
+    int16_t		level;
+    int16_t		hitroll;
     DICE_DATA	hit;
     DICE_DATA	mana;
     DICE_DATA	damage;
-    sh_int		ac[4];
-    sh_int 		dam_type;
+    int16_t		ac[4];
+    int16_t 		dam_type;
     long		off_flags;
     long		imm_flags;
     long		res_flags;
     int 		vuln_flags;
-    sh_int		start_pos;
-    sh_int		default_pos;
+    int16_t		start_pos;
+    int16_t		default_pos;
 
-    sh_int		sex;
-    sh_int		race;
+    int16_t		sex;
+    int16_t		race;
     long		wealth;
     long		form;
     long		parts;
-    sh_int		size;
+    int16_t		size;
     char *		material;
     /*long		mprog_flags; */
     long 		move;
@@ -4309,7 +4317,7 @@ struct	liq_type
 {
     char *	liq_name;
     char *	liq_colour;
-    sh_int	liq_affect[LIQ_AFF_MAX];
+    int16_t	liq_affect[LIQ_AFF_MAX];
 };
 
 
@@ -4374,19 +4382,19 @@ struct	obj_index_data
     char * 		full_description;
     long		vnum;
     char *		material;
-    sh_int		item_type;
+    int16_t		item_type;
     long 		extra_flags;
     long 		extra2_flags;
     long		extra3_flags;
     long		extra4_flags;
     long		wear_flags;
-    sh_int		level;
-    sh_int 		condition;
-    sh_int		count;
-    sh_int		weight;
+    int16_t		level;
+    int16_t 		condition;
+    int16_t		count;
+    int16_t		weight;
     long		cost;
-    sh_int 		fragility;
-    sh_int		times_allowed_fixed;
+    int16_t 		fragility;
+    int16_t		times_allowed_fixed;
     long		value[8];
     SPELL_DATA 		*spells;
     char *		imp_sig;
@@ -4572,7 +4580,7 @@ struct	exit_data
 	int orig_door;
 
 	struct door_data {
-		sh_int strength;
+		int16_t strength;
 		char *material;
 		LOCK_STATE lock;
 		LOCK_STATE rs_lock;
@@ -4646,12 +4654,12 @@ struct	area_data {
     char *  description;
     char *  comments;
     char *  notes;
-	sh_int age;
-	sh_int nplayer;
-	sh_int low_range;
-	sh_int high_range;
-    sh_int min_level;
-    sh_int max_level;
+	int16_t age;
+	int16_t nplayer;
+	int16_t low_range;
+	int16_t high_range;
+    int16_t min_level;
+    int16_t max_level;
 	long min_vnum;
 	long max_vnum;
 	bool empty;
@@ -4942,22 +4950,22 @@ struct ship_crew_index_data
 	int min_rank;			// Minimum rank required to purchase this crew member
 
 	// Initial Skill Values
-	sh_int scouting;		// Needed to function as a Scout properly
+	int16_t scouting;		// Needed to function as a Scout properly
 							//  - Higher ratings mean better chance at spotting things.
 
-	sh_int gunning;			// Needed to operate the ship weaponery
+	int16_t gunning;			// Needed to operate the ship weaponery
 							//  - Higher ratings mean faster operational speeds (thus able to attack faster)
 
-	sh_int oarring;			// Needed to operate the sailboat's oars.
+	int16_t oarring;			// Needed to operate the sailboat's oars.
 							//  - Higher ratings allow for greater stamina and ability to last at higher speeds.
 
-	sh_int mechanics;		// Needed to function as a Mechanic properly
+	int16_t mechanics;		// Needed to function as a Mechanic properly
 							//  - Higher ratings means faster repair times
 
-	sh_int navigation;		// Needed to function as a Navigator properly
+	int16_t navigation;		// Needed to function as a Navigator properly
 							//  - Higher ratings means more accurate navigation
 
-	sh_int leadership;		// Needed to function as a First Mate properly
+	int16_t leadership;		// Needed to function as a First Mate properly
 							//  - Higher ratings means quicker response times between issuing a command and its execution.
 							//  - Is also needed when having a ship manned by an NPC captain owned that is part of a player's armada
 
@@ -4968,12 +4976,12 @@ struct ship_crew_data
     SHIP_CREW_DATA *next;
 	bool valid;
 
-	sh_int scouting;
-	sh_int gunning;
-	sh_int oarring;
-	sh_int mechanics;
-	sh_int navigation;
-	sh_int leadership;
+	int16_t scouting;
+	int16_t gunning;
+	int16_t oarring;
+	int16_t mechanics;
+	int16_t navigation;
+	int16_t leadership;
 };
 
 
@@ -5048,7 +5056,7 @@ struct npc_ship_data
 
 struct ship_type
 {
-    sh_int               ship_type;
+    int16_t               ship_type;
 
     long                 rooms[MAX_SHIP_ROOMS];
 };
@@ -5137,7 +5145,7 @@ struct ship_data
 
 	int					ship_flags;
 
-	sh_int				ship_type;
+	int16_t				ship_type;
 	INSTANCE			*instance;
 
 	int					cannons;
@@ -5147,10 +5155,10 @@ struct ship_data
 	char				*ship_name_plain;
 	char				*ship_name;
 
-	sh_int				max_crew;
-	sh_int				min_crew;
+	int16_t				max_crew;
+	int16_t				min_crew;
 
-	sh_int				attack_position;
+	int16_t				attack_position;
 	SHIP_DATA			*ship_attacked;
 	unsigned long		ship_attacked_uid[2];
 
@@ -5180,7 +5188,7 @@ struct ship_data
 	int					sextant_y;
 
 	/* When scuttled show different steps of scuttling */
-	sh_int				scuttle_time;
+	int16_t				scuttle_time;
 	OBJ_DATA			*cannons_obj;
 
 	LLIST				*special_keys;
@@ -5680,18 +5688,18 @@ struct church_command_type
 struct	skill_type
 {
     char *	name;			/* Name of skill		*/
-    sh_int	skill_level[MAX_CLASS];	/* Level needed by class	*/
-    sh_int	rating[MAX_CLASS];	/* How hard it is to learn	*/
+    int16_t	skill_level[MAX_CLASS];	/* Level needed by class	*/
+    int16_t	rating[MAX_CLASS];	/* How hard it is to learn	*/
     SPELL_FUN *	spell_fun;		/* Spell pointer (for spells)	*/
-    sh_int	target;			/* Legal targets		*/
-    sh_int	minimum_position;	/* Position for caster / user	*/
-    sh_int *	pgsn;			/* Pointer to associated gsn	*/
-    /* sh_int	slot;		 	Syn- reusing this as a racial skill toggle. */
+    int16_t	target;			/* Legal targets		*/
+    int16_t	minimum_position;	/* Position for caster / user	*/
+    int16_t *	pgsn;			/* Pointer to associated gsn	*/
+    /* int16_t	slot;		 	Syn- reusing this as a racial skill toggle. */
     int 	race;			/* If it's a racial skill ONLY, this is the race number. If not, its -1.
 					   This doesn't apply for skills that can be gotten from classes, like archery. */
 
-    sh_int	min_mana;		/* Minimum mana used		*/
-    sh_int	beats;			/* Waiting time after use	*/
+    int16_t	min_mana;		/* Minimum mana used		*/
+    int16_t	beats;			/* Waiting time after use	*/
     char *	noun_damage;		/* Damage message		*/
     char *	msg_off;		/* Wear off message		*/
     char *	msg_obj;		/* Wear off message for obects	*/
@@ -5701,15 +5709,15 @@ struct	skill_type
 
 struct mob_index_skill_data {
 	MOB_INDEX_SKILL_DATA *next;
-	sh_int sn;		/* Which skill */
-	sh_int ratings[6];	/* multi-point %rating mapping, -1 terminated */
-	sh_int chance;		/* Chance of being added at all */
+	int16_t sn;		/* Which skill */
+	int16_t ratings[6];	/* multi-point %rating mapping, -1 terminated */
+	int16_t chance;		/* Chance of being added at all */
 };
 
 struct mob_skill_data {
 	MOB_SKILL_DATA *next;
-	sh_int sn;		/* Which skill */
-	sh_int rating;
+	int16_t sn;		/* Which skill */
+	int16_t rating;
 };
 
 
@@ -5727,15 +5735,15 @@ struct music_type
     char *	spell1;		        /* Spell pointer (for spells)	*/
     char *	spell2;	        	/* Spell pointer (for spells)	*/
     char *	spell3;   		/* Spell pointer (for spells)	*/
-    sh_int	beats;			/* Waiting time after use	*/
-    sh_int      mana;
-    sh_int	target;			/* Legal targets		*/
+    int16_t	beats;			/* Waiting time after use	*/
+    int16_t      mana;
+    int16_t	target;			/* Legal targets		*/
 };
 
 struct  group_type
 {
     char *	name;
-    sh_int	rating[MAX_CLASS];
+    int16_t	rating[MAX_CLASS];
     char *	spells[MAX_IN_GROUP];
 };
 
@@ -6260,382 +6268,382 @@ struct log_entry_data
 /*
  * These are skill_lookup return values for common skills and spells.
  */
-extern sh_int	gsn_acid_blast;
-extern sh_int	gsn_acid_breath;
-extern sh_int	gsn_acro;
-extern sh_int	gsn_afterburn;
-extern sh_int	gsn_air_spells;
-extern sh_int	gsn_ambush;
-extern sh_int	gsn_animate_dead;
-extern sh_int	gsn_archery;
-extern sh_int	gsn_armour;
-extern sh_int	gsn_athletics;
-extern sh_int	gsn_avatar_shield;
-extern sh_int	gsn_axe;
-extern sh_int	gsn_backstab;
-extern sh_int	gsn_bar;
-extern sh_int	gsn_bash;
-extern sh_int	gsn_behead;
-extern sh_int	gsn_berserk;
-extern sh_int	gsn_bind;
-extern sh_int	gsn_bite;
-extern sh_int	gsn_blackjack;
-extern sh_int	gsn_bless;
-extern sh_int	gsn_blindness;
-extern sh_int	gsn_blowgun;
-extern sh_int	gsn_bomb;
-extern sh_int	gsn_bow;
-extern sh_int	gsn_breath;
-extern sh_int	gsn_brew;
-extern sh_int	gsn_burgle;
-extern sh_int	gsn_burning_hands;
-extern sh_int	gsn_call_familiar;
-extern sh_int	gsn_call_lightning;
-extern sh_int	gsn_calm;
-extern sh_int	gsn_cancellation;
-extern sh_int	gsn_catch;
-extern sh_int	gsn_cause_critical;
-extern sh_int	gsn_cause_light;
-extern sh_int	gsn_cause_serious;
-extern sh_int	gsn_chain_lightning;
-extern sh_int	gsn_channel;
-extern sh_int	gsn_charge;
-extern sh_int	gsn_charm_person;
-extern sh_int	gsn_chill_touch;
-extern sh_int	gsn_circle;
-extern sh_int	gsn_cloak_of_guile;
-extern sh_int	gsn_colour_spray;
-extern sh_int	gsn_combine;
-extern sh_int	gsn_consume;
-extern sh_int	gsn_continual_light;
-extern sh_int	gsn_control_weather;
-extern sh_int	gsn_cosmic_blast;
-extern sh_int	gsn_counterspell;
-extern sh_int	gsn_create_food;
-extern sh_int	gsn_create_rose;
-extern sh_int	gsn_create_spring;
-extern sh_int	gsn_create_water;
-extern sh_int	gsn_crippling_touch;
-extern sh_int	gsn_crossbow;
-extern sh_int	gsn_cure_blindness;
-extern sh_int	gsn_cure_critical;
-extern sh_int	gsn_cure_disease;
-extern sh_int	gsn_cure_light;
-extern sh_int	gsn_cure_poison;
-extern sh_int	gsn_cure_serious;
-extern sh_int	gsn_cure_toxic;
-extern sh_int	gsn_curse;
-extern sh_int	gsn_dagger;
-extern sh_int	gsn_death_grip;
-extern sh_int	gsn_deathbarbs;
-extern sh_int	gsn_deathsight;
-extern sh_int	gsn_deception;
-extern sh_int	gsn_deep_trance;
-extern sh_int	gsn_demonfire;
-extern sh_int	gsn_destruction;
-extern sh_int	gsn_detect_hidden;
-extern sh_int	gsn_detect_invis;
-extern sh_int	gsn_detect_magic;
-extern sh_int	gsn_detect_traps;
-extern sh_int	gsn_dirt;
-extern sh_int	gsn_dirt_kicking;
-extern sh_int	gsn_disarm;
-extern sh_int	gsn_discharge;
-extern sh_int	gsn_dispel_evil;
-extern sh_int	gsn_dispel_good;
-extern sh_int	gsn_dispel_magic;
-extern sh_int	gsn_dispel_room;
-extern sh_int	gsn_dodge;
-extern sh_int	gsn_dual;
-extern sh_int	gsn_eagle_eye;
-extern sh_int	gsn_earth_spells;
-extern sh_int	gsn_earthquake;
-extern sh_int	gsn_electrical_barrier;
-extern sh_int	gsn_enchant_armour;
-extern sh_int	gsn_enchant_weapon;
-extern sh_int	gsn_energy_drain;
-extern sh_int	gsn_energy_field;
-extern sh_int	gsn_enhanced_damage;
-extern sh_int	gsn_ensnare;
-extern sh_int	gsn_entrap;
-extern sh_int	gsn_envenom;
-extern sh_int	gsn_evasion;
-extern sh_int	gsn_exorcism;
-extern sh_int	gsn_exotic;
-extern sh_int	gsn_fade;
-extern sh_int	gsn_faerie_fire;
-extern sh_int	gsn_faerie_fog;
-extern sh_int	gsn_fast_healing;
-extern sh_int	gsn_fatigue;
-extern sh_int	gsn_feign;
-extern sh_int	gsn_fire_barrier;
-extern sh_int	gsn_fire_breath;
-extern sh_int	gsn_fire_cloud;
-extern sh_int	gsn_fire_spells;
-extern sh_int	gsn_fireball;
-extern sh_int	gsn_fireproof;
-extern sh_int	gsn_flail;
-extern sh_int	gsn_flamestrike;
-extern sh_int	gsn_flight;
-extern sh_int	gsn_fly;
-extern sh_int	gsn_fourth_attack;
-extern sh_int	gsn_frenzy;
-extern sh_int	gsn_frost_barrier;
-extern sh_int	gsn_frost_breath;
-extern sh_int	gsn_gas_breath;
-extern sh_int	gsn_gate;
-extern sh_int	gsn_giant_strength;
-extern sh_int	gsn_glorious_bolt;
-extern sh_int	gsn_haggle;
-extern sh_int	gsn_hand_to_hand;
-extern sh_int	gsn_harm;
-extern sh_int	gsn_harpooning;
-extern sh_int	gsn_haste;
-extern sh_int	gsn_heal;
-extern sh_int	gsn_healing_aura;
-extern sh_int	gsn_healing_hands;
-extern sh_int	gsn_hide;
-extern sh_int	gsn_holdup;
-extern sh_int	gsn_holy_shield;
-extern sh_int	gsn_holy_sword;
-extern sh_int	gsn_holy_word;
-extern sh_int	gsn_holy_wrath;
-extern sh_int	gsn_hunt;
-extern sh_int	gsn_ice_storm;
-extern sh_int	gsn_identify;
-extern sh_int	gsn_improved_invisibility;
-extern sh_int	gsn_inferno;
-extern sh_int	gsn_infravision;
-extern sh_int	gsn_infuse;
-extern sh_int	gsn_intimidate;
-extern sh_int	gsn_invis;
-extern sh_int	gsn_judge;
-extern sh_int	gsn_kick;
-extern sh_int	gsn_kill;
-extern sh_int	gsn_leadership;
-extern sh_int	gsn_light_shroud;
-extern sh_int	gsn_lightning_bolt;
-extern sh_int	gsn_lightning_breath;
-extern sh_int	gsn_locate_object;
-extern sh_int	gsn_lore;
-extern sh_int	gsn_mace;
-extern sh_int	gsn_magic_missile;
-extern sh_int	gsn_martial_arts;
-extern sh_int	gsn_mass_healing;
-extern sh_int	gsn_mass_invis;
-extern sh_int	gsn_master_weather;
-extern sh_int	gsn_maze;
-extern sh_int	gsn_meditation;
-extern sh_int	gsn_mob_lore;
-extern sh_int	gsn_momentary_darkness;
-extern sh_int	gsn_morphlock;
-extern sh_int	gsn_mount_and_weapon_style;
-extern sh_int	gsn_music;
-extern sh_int	gsn_navigation;
-extern sh_int	gsn_neurotoxin;
-extern sh_int	gsn_nexus;
-extern sh_int	gsn_parry;
-extern sh_int	gsn_pass_door;
-extern sh_int	gsn_peek;
-extern sh_int	gsn_pick_lock;
-extern sh_int	gsn_plague;
-extern sh_int	gsn_poison;
-extern sh_int	gsn_polearm;
-extern sh_int	gsn_possess;
-extern sh_int	gsn_pursuit;
-extern sh_int	gsn_quarterstaff;
-extern sh_int	gsn_raise_dead;
-extern sh_int	gsn_recall;
-extern sh_int	gsn_recharge;
-extern sh_int	gsn_refresh;
-extern sh_int	gsn_regeneration;
-extern sh_int	gsn_remove_curse;
-extern sh_int	gsn_rending;
-extern sh_int	gsn_repair;
-extern sh_int	gsn_rescue;
-extern sh_int	gsn_resurrect;
-extern sh_int	gsn_reverie;
-extern sh_int	gsn_riding;
-extern sh_int	gsn_room_shield;
-extern sh_int	gsn_sanctuary;
-extern sh_int	gsn_scan;
-extern sh_int	gsn_scribe;
-extern sh_int	gsn_scrolls;
-extern sh_int	gsn_scry;
-extern sh_int	gsn_second_attack;
-extern sh_int	gsn_sense_danger;
-extern sh_int	gsn_shape;
-extern sh_int	gsn_shield;
-extern sh_int	gsn_shield_block;
-extern sh_int	gsn_shield_weapon_style;
-extern sh_int	gsn_shift;
-extern sh_int	gsn_shocking_grasp;
-extern sh_int	gsn_silence;
-extern sh_int	gsn_single_style;
-extern sh_int	gsn_skull;
-extern sh_int	gsn_sleep;
-extern sh_int	gsn_slit_throat;
-extern sh_int	gsn_slow;
-extern sh_int	gsn_smite;
-extern sh_int	gsn_sneak;
-extern sh_int	gsn_spear;
-extern sh_int	gsn_spell_deflection;
-extern sh_int	gsn_spell_shield;
-extern sh_int	gsn_spell_trap;
-extern sh_int	gsn_spirit_rack;
-extern sh_int	gsn_stake;
-extern sh_int	gsn_starflare;
-extern sh_int	gsn_staves;
-extern sh_int	gsn_steal;
-extern sh_int	gsn_stone_skin;
-extern sh_int	gsn_stone_spikes;
-extern sh_int	gsn_subvert;
-extern sh_int	gsn_summon;
-extern sh_int	gsn_survey;
-extern sh_int	gsn_swerve;
-extern sh_int	gsn_sword;
-extern sh_int	gsn_sword_and_dagger_style;
-extern sh_int	gsn_tail_kick;
-extern sh_int	gsn_tattoo;
-extern sh_int	gsn_temperance;
-extern sh_int	gsn_third_attack;
-extern sh_int	gsn_third_eye;
-extern sh_int	gsn_throw;
-extern sh_int	gsn_titanic_attack;
-extern sh_int	gsn_toxic_fumes;
-extern sh_int	gsn_toxins;
-extern sh_int	gsn_trackless_step;
-extern sh_int	gsn_trample;
-extern sh_int	gsn_trip;
-extern sh_int	gsn_turn_undead;
-extern sh_int	gsn_two_handed_style;
-extern sh_int	gsn_underwater_breathing;
-extern sh_int	gsn_vision;
-extern sh_int	gsn_wands;
-extern sh_int	gsn_warcry;
-extern sh_int	gsn_water_spells;
-extern sh_int	gsn_weaken;
-extern sh_int	gsn_weaving;
-extern sh_int	gsn_web;
-extern sh_int	gsn_whip;
-extern sh_int	gsn_wilderness_spear_style;
-extern sh_int	gsn_wind_of_confusion;
-extern sh_int	gsn_withering_cloud;
-extern sh_int	gsn_word_of_recall;
+extern int16_t	gsn_acid_blast;
+extern int16_t	gsn_acid_breath;
+extern int16_t	gsn_acro;
+extern int16_t	gsn_afterburn;
+extern int16_t	gsn_air_spells;
+extern int16_t	gsn_ambush;
+extern int16_t	gsn_animate_dead;
+extern int16_t	gsn_archery;
+extern int16_t	gsn_armour;
+extern int16_t	gsn_athletics;
+extern int16_t	gsn_avatar_shield;
+extern int16_t	gsn_axe;
+extern int16_t	gsn_backstab;
+extern int16_t	gsn_bar;
+extern int16_t	gsn_bash;
+extern int16_t	gsn_behead;
+extern int16_t	gsn_berserk;
+extern int16_t	gsn_bind;
+extern int16_t	gsn_bite;
+extern int16_t	gsn_blackjack;
+extern int16_t	gsn_bless;
+extern int16_t	gsn_blindness;
+extern int16_t	gsn_blowgun;
+extern int16_t	gsn_bomb;
+extern int16_t	gsn_bow;
+extern int16_t	gsn_breath;
+extern int16_t	gsn_brew;
+extern int16_t	gsn_burgle;
+extern int16_t	gsn_burning_hands;
+extern int16_t	gsn_call_familiar;
+extern int16_t	gsn_call_lightning;
+extern int16_t	gsn_calm;
+extern int16_t	gsn_cancellation;
+extern int16_t	gsn_catch;
+extern int16_t	gsn_cause_critical;
+extern int16_t	gsn_cause_light;
+extern int16_t	gsn_cause_serious;
+extern int16_t	gsn_chain_lightning;
+extern int16_t	gsn_channel;
+extern int16_t	gsn_charge;
+extern int16_t	gsn_charm_person;
+extern int16_t	gsn_chill_touch;
+extern int16_t	gsn_circle;
+extern int16_t	gsn_cloak_of_guile;
+extern int16_t	gsn_colour_spray;
+extern int16_t	gsn_combine;
+extern int16_t	gsn_consume;
+extern int16_t	gsn_continual_light;
+extern int16_t	gsn_control_weather;
+extern int16_t	gsn_cosmic_blast;
+extern int16_t	gsn_counterspell;
+extern int16_t	gsn_create_food;
+extern int16_t	gsn_create_rose;
+extern int16_t	gsn_create_spring;
+extern int16_t	gsn_create_water;
+extern int16_t	gsn_crippling_touch;
+extern int16_t	gsn_crossbow;
+extern int16_t	gsn_cure_blindness;
+extern int16_t	gsn_cure_critical;
+extern int16_t	gsn_cure_disease;
+extern int16_t	gsn_cure_light;
+extern int16_t	gsn_cure_poison;
+extern int16_t	gsn_cure_serious;
+extern int16_t	gsn_cure_toxic;
+extern int16_t	gsn_curse;
+extern int16_t	gsn_dagger;
+extern int16_t	gsn_death_grip;
+extern int16_t	gsn_deathbarbs;
+extern int16_t	gsn_deathsight;
+extern int16_t	gsn_deception;
+extern int16_t	gsn_deep_trance;
+extern int16_t	gsn_demonfire;
+extern int16_t	gsn_destruction;
+extern int16_t	gsn_detect_hidden;
+extern int16_t	gsn_detect_invis;
+extern int16_t	gsn_detect_magic;
+extern int16_t	gsn_detect_traps;
+extern int16_t	gsn_dirt;
+extern int16_t	gsn_dirt_kicking;
+extern int16_t	gsn_disarm;
+extern int16_t	gsn_discharge;
+extern int16_t	gsn_dispel_evil;
+extern int16_t	gsn_dispel_good;
+extern int16_t	gsn_dispel_magic;
+extern int16_t	gsn_dispel_room;
+extern int16_t	gsn_dodge;
+extern int16_t	gsn_dual;
+extern int16_t	gsn_eagle_eye;
+extern int16_t	gsn_earth_spells;
+extern int16_t	gsn_earthquake;
+extern int16_t	gsn_electrical_barrier;
+extern int16_t	gsn_enchant_armour;
+extern int16_t	gsn_enchant_weapon;
+extern int16_t	gsn_energy_drain;
+extern int16_t	gsn_energy_field;
+extern int16_t	gsn_enhanced_damage;
+extern int16_t	gsn_ensnare;
+extern int16_t	gsn_entrap;
+extern int16_t	gsn_envenom;
+extern int16_t	gsn_evasion;
+extern int16_t	gsn_exorcism;
+extern int16_t	gsn_exotic;
+extern int16_t	gsn_fade;
+extern int16_t	gsn_faerie_fire;
+extern int16_t	gsn_faerie_fog;
+extern int16_t	gsn_fast_healing;
+extern int16_t	gsn_fatigue;
+extern int16_t	gsn_feign;
+extern int16_t	gsn_fire_barrier;
+extern int16_t	gsn_fire_breath;
+extern int16_t	gsn_fire_cloud;
+extern int16_t	gsn_fire_spells;
+extern int16_t	gsn_fireball;
+extern int16_t	gsn_fireproof;
+extern int16_t	gsn_flail;
+extern int16_t	gsn_flamestrike;
+extern int16_t	gsn_flight;
+extern int16_t	gsn_fly;
+extern int16_t	gsn_fourth_attack;
+extern int16_t	gsn_frenzy;
+extern int16_t	gsn_frost_barrier;
+extern int16_t	gsn_frost_breath;
+extern int16_t	gsn_gas_breath;
+extern int16_t	gsn_gate;
+extern int16_t	gsn_giant_strength;
+extern int16_t	gsn_glorious_bolt;
+extern int16_t	gsn_haggle;
+extern int16_t	gsn_hand_to_hand;
+extern int16_t	gsn_harm;
+extern int16_t	gsn_harpooning;
+extern int16_t	gsn_haste;
+extern int16_t	gsn_heal;
+extern int16_t	gsn_healing_aura;
+extern int16_t	gsn_healing_hands;
+extern int16_t	gsn_hide;
+extern int16_t	gsn_holdup;
+extern int16_t	gsn_holy_shield;
+extern int16_t	gsn_holy_sword;
+extern int16_t	gsn_holy_word;
+extern int16_t	gsn_holy_wrath;
+extern int16_t	gsn_hunt;
+extern int16_t	gsn_ice_storm;
+extern int16_t	gsn_identify;
+extern int16_t	gsn_improved_invisibility;
+extern int16_t	gsn_inferno;
+extern int16_t	gsn_infravision;
+extern int16_t	gsn_infuse;
+extern int16_t	gsn_intimidate;
+extern int16_t	gsn_invis;
+extern int16_t	gsn_judge;
+extern int16_t	gsn_kick;
+extern int16_t	gsn_kill;
+extern int16_t	gsn_leadership;
+extern int16_t	gsn_light_shroud;
+extern int16_t	gsn_lightning_bolt;
+extern int16_t	gsn_lightning_breath;
+extern int16_t	gsn_locate_object;
+extern int16_t	gsn_lore;
+extern int16_t	gsn_mace;
+extern int16_t	gsn_magic_missile;
+extern int16_t	gsn_martial_arts;
+extern int16_t	gsn_mass_healing;
+extern int16_t	gsn_mass_invis;
+extern int16_t	gsn_master_weather;
+extern int16_t	gsn_maze;
+extern int16_t	gsn_meditation;
+extern int16_t	gsn_mob_lore;
+extern int16_t	gsn_momentary_darkness;
+extern int16_t	gsn_morphlock;
+extern int16_t	gsn_mount_and_weapon_style;
+extern int16_t	gsn_music;
+extern int16_t	gsn_navigation;
+extern int16_t	gsn_neurotoxin;
+extern int16_t	gsn_nexus;
+extern int16_t	gsn_parry;
+extern int16_t	gsn_pass_door;
+extern int16_t	gsn_peek;
+extern int16_t	gsn_pick_lock;
+extern int16_t	gsn_plague;
+extern int16_t	gsn_poison;
+extern int16_t	gsn_polearm;
+extern int16_t	gsn_possess;
+extern int16_t	gsn_pursuit;
+extern int16_t	gsn_quarterstaff;
+extern int16_t	gsn_raise_dead;
+extern int16_t	gsn_recall;
+extern int16_t	gsn_recharge;
+extern int16_t	gsn_refresh;
+extern int16_t	gsn_regeneration;
+extern int16_t	gsn_remove_curse;
+extern int16_t	gsn_rending;
+extern int16_t	gsn_repair;
+extern int16_t	gsn_rescue;
+extern int16_t	gsn_resurrect;
+extern int16_t	gsn_reverie;
+extern int16_t	gsn_riding;
+extern int16_t	gsn_room_shield;
+extern int16_t	gsn_sanctuary;
+extern int16_t	gsn_scan;
+extern int16_t	gsn_scribe;
+extern int16_t	gsn_scrolls;
+extern int16_t	gsn_scry;
+extern int16_t	gsn_second_attack;
+extern int16_t	gsn_sense_danger;
+extern int16_t	gsn_shape;
+extern int16_t	gsn_shield;
+extern int16_t	gsn_shield_block;
+extern int16_t	gsn_shield_weapon_style;
+extern int16_t	gsn_shift;
+extern int16_t	gsn_shocking_grasp;
+extern int16_t	gsn_silence;
+extern int16_t	gsn_single_style;
+extern int16_t	gsn_skull;
+extern int16_t	gsn_sleep;
+extern int16_t	gsn_slit_throat;
+extern int16_t	gsn_slow;
+extern int16_t	gsn_smite;
+extern int16_t	gsn_sneak;
+extern int16_t	gsn_spear;
+extern int16_t	gsn_spell_deflection;
+extern int16_t	gsn_spell_shield;
+extern int16_t	gsn_spell_trap;
+extern int16_t	gsn_spirit_rack;
+extern int16_t	gsn_stake;
+extern int16_t	gsn_starflare;
+extern int16_t	gsn_staves;
+extern int16_t	gsn_steal;
+extern int16_t	gsn_stone_skin;
+extern int16_t	gsn_stone_spikes;
+extern int16_t	gsn_subvert;
+extern int16_t	gsn_summon;
+extern int16_t	gsn_survey;
+extern int16_t	gsn_swerve;
+extern int16_t	gsn_sword;
+extern int16_t	gsn_sword_and_dagger_style;
+extern int16_t	gsn_tail_kick;
+extern int16_t	gsn_tattoo;
+extern int16_t	gsn_temperance;
+extern int16_t	gsn_third_attack;
+extern int16_t	gsn_third_eye;
+extern int16_t	gsn_throw;
+extern int16_t	gsn_titanic_attack;
+extern int16_t	gsn_toxic_fumes;
+extern int16_t	gsn_toxins;
+extern int16_t	gsn_trackless_step;
+extern int16_t	gsn_trample;
+extern int16_t	gsn_trip;
+extern int16_t	gsn_turn_undead;
+extern int16_t	gsn_two_handed_style;
+extern int16_t	gsn_underwater_breathing;
+extern int16_t	gsn_vision;
+extern int16_t	gsn_wands;
+extern int16_t	gsn_warcry;
+extern int16_t	gsn_water_spells;
+extern int16_t	gsn_weaken;
+extern int16_t	gsn_weaving;
+extern int16_t	gsn_web;
+extern int16_t	gsn_whip;
+extern int16_t	gsn_wilderness_spear_style;
+extern int16_t	gsn_wind_of_confusion;
+extern int16_t	gsn_withering_cloud;
+extern int16_t	gsn_word_of_recall;
 
-extern sh_int	gsn_ice_shards;
-extern sh_int	gsn_stone_touch;
-extern sh_int	gsn_glacial_wave;
-extern sh_int	gsn_earth_walk;
-extern sh_int	gsn_flash;
-extern sh_int	gsn_shriek;
-extern sh_int	gsn_dark_shroud;
-extern sh_int	gsn_soul_essence;
-
-
+extern int16_t	gsn_ice_shards;
+extern int16_t	gsn_stone_touch;
+extern int16_t	gsn_glacial_wave;
+extern int16_t	gsn_earth_walk;
+extern int16_t	gsn_flash;
+extern int16_t	gsn_shriek;
+extern int16_t	gsn_dark_shroud;
+extern int16_t	gsn_soul_essence;
 
 
 
 
-extern sh_int gprn_human;
-extern sh_int gprn_elf;
-extern sh_int gprn_dwarf;
-extern sh_int gprn_titan;
-extern sh_int gprn_vampire;
-extern sh_int gprn_drow;
-extern sh_int gprn_sith;
-extern sh_int gprn_draconian;
-extern sh_int gprn_slayer;
-extern sh_int gprn_minotaur;
-extern sh_int gprn_angel;
-extern sh_int gprn_mystic;
-extern sh_int gprn_demon;
-extern sh_int gprn_lich;
-extern sh_int gprn_avatar;
-extern sh_int gprn_seraph;
-extern sh_int gprn_berserker;
-extern sh_int gprn_colossus;
-extern sh_int gprn_fiend;
-extern sh_int gprn_specter;
-extern sh_int gprn_naga;
-extern sh_int gprn_dragon;
-extern sh_int gprn_changeling;
-extern sh_int gprn_hell_baron;
-extern sh_int gprn_wraith;
-extern sh_int gprn_shaper;
 
 
-extern sh_int grn_human;
-extern sh_int grn_elf;
-extern sh_int grn_dwarf;
-extern sh_int grn_titan;
-extern sh_int grn_vampire;
-extern sh_int grn_drow;
-extern sh_int grn_sith;
-extern sh_int grn_draconian;
-extern sh_int grn_slayer;
-extern sh_int grn_minotaur;
-extern sh_int grn_angel;
-extern sh_int grn_mystic;
-extern sh_int grn_demon;
-extern sh_int grn_lich;
-extern sh_int grn_avatar;
-extern sh_int grn_seraph;
-extern sh_int grn_berserker;
-extern sh_int grn_colossus;
-extern sh_int grn_fiend;
-extern sh_int grn_specter;
-extern sh_int grn_naga;
-extern sh_int grn_dragon;
-extern sh_int grn_changeling;
-extern sh_int grn_hell_baron;
-extern sh_int grn_wraith;
-extern sh_int grn_shaper;
-extern sh_int grn_were_changed;
-extern sh_int grn_mob_vampire;
-extern sh_int grn_bat;
-extern sh_int grn_werewolf;
-extern sh_int grn_bear;
-extern sh_int grn_bugbear;
-extern sh_int grn_cat;
-extern sh_int grn_centipede;
-extern sh_int grn_dog;
-extern sh_int grn_doll;
-extern sh_int grn_fido;
-extern sh_int grn_fox;
-extern sh_int grn_goblin;
-extern sh_int grn_hobgoblin;
-extern sh_int grn_kobold;
-extern sh_int grn_lizard;
-extern sh_int grn_doxian;
-extern sh_int grn_orc;
-extern sh_int grn_pig;
-extern sh_int grn_rabbit;
-extern sh_int grn_school_monster;
-extern sh_int grn_snake;
-extern sh_int grn_song_bird;
-extern sh_int grn_golem;
-extern sh_int grn_unicorn;
-extern sh_int grn_griffon;
-extern sh_int grn_troll;
-extern sh_int grn_water_fowl;
-extern sh_int grn_giant;
-extern sh_int grn_wolf;
-extern sh_int grn_wyvern;
-extern sh_int grn_nileshian;
-extern sh_int grn_skeleton;
-extern sh_int grn_zombie;
-extern sh_int grn_wisp;
-extern sh_int grn_insect;
-extern sh_int grn_gnome;
-extern sh_int grn_angel_mob;
-extern sh_int grn_demon_mob;
-extern sh_int grn_rodent;
-extern sh_int grn_treant;
-extern sh_int grn_horse;
-extern sh_int grn_bird;
-extern sh_int grn_fungus;
-extern sh_int grn_unique;
+extern int16_t gprn_human;
+extern int16_t gprn_elf;
+extern int16_t gprn_dwarf;
+extern int16_t gprn_titan;
+extern int16_t gprn_vampire;
+extern int16_t gprn_drow;
+extern int16_t gprn_sith;
+extern int16_t gprn_draconian;
+extern int16_t gprn_slayer;
+extern int16_t gprn_minotaur;
+extern int16_t gprn_angel;
+extern int16_t gprn_mystic;
+extern int16_t gprn_demon;
+extern int16_t gprn_lich;
+extern int16_t gprn_avatar;
+extern int16_t gprn_seraph;
+extern int16_t gprn_berserker;
+extern int16_t gprn_colossus;
+extern int16_t gprn_fiend;
+extern int16_t gprn_specter;
+extern int16_t gprn_naga;
+extern int16_t gprn_dragon;
+extern int16_t gprn_changeling;
+extern int16_t gprn_hell_baron;
+extern int16_t gprn_wraith;
+extern int16_t gprn_shaper;
+
+
+extern int16_t grn_human;
+extern int16_t grn_elf;
+extern int16_t grn_dwarf;
+extern int16_t grn_titan;
+extern int16_t grn_vampire;
+extern int16_t grn_drow;
+extern int16_t grn_sith;
+extern int16_t grn_draconian;
+extern int16_t grn_slayer;
+extern int16_t grn_minotaur;
+extern int16_t grn_angel;
+extern int16_t grn_mystic;
+extern int16_t grn_demon;
+extern int16_t grn_lich;
+extern int16_t grn_avatar;
+extern int16_t grn_seraph;
+extern int16_t grn_berserker;
+extern int16_t grn_colossus;
+extern int16_t grn_fiend;
+extern int16_t grn_specter;
+extern int16_t grn_naga;
+extern int16_t grn_dragon;
+extern int16_t grn_changeling;
+extern int16_t grn_hell_baron;
+extern int16_t grn_wraith;
+extern int16_t grn_shaper;
+extern int16_t grn_were_changed;
+extern int16_t grn_mob_vampire;
+extern int16_t grn_bat;
+extern int16_t grn_werewolf;
+extern int16_t grn_bear;
+extern int16_t grn_bugbear;
+extern int16_t grn_cat;
+extern int16_t grn_centipede;
+extern int16_t grn_dog;
+extern int16_t grn_doll;
+extern int16_t grn_fido;
+extern int16_t grn_fox;
+extern int16_t grn_goblin;
+extern int16_t grn_hobgoblin;
+extern int16_t grn_kobold;
+extern int16_t grn_lizard;
+extern int16_t grn_doxian;
+extern int16_t grn_orc;
+extern int16_t grn_pig;
+extern int16_t grn_rabbit;
+extern int16_t grn_school_monster;
+extern int16_t grn_snake;
+extern int16_t grn_song_bird;
+extern int16_t grn_golem;
+extern int16_t grn_unicorn;
+extern int16_t grn_griffon;
+extern int16_t grn_troll;
+extern int16_t grn_water_fowl;
+extern int16_t grn_giant;
+extern int16_t grn_wolf;
+extern int16_t grn_wyvern;
+extern int16_t grn_nileshian;
+extern int16_t grn_skeleton;
+extern int16_t grn_zombie;
+extern int16_t grn_wisp;
+extern int16_t grn_insect;
+extern int16_t grn_gnome;
+extern int16_t grn_angel_mob;
+extern int16_t grn_demon_mob;
+extern int16_t grn_rodent;
+extern int16_t grn_treant;
+extern int16_t grn_horse;
+extern int16_t grn_bird;
+extern int16_t grn_fungus;
+extern int16_t grn_unique;
 
 
 
@@ -7023,62 +7031,6 @@ extern		IMMORTAL_DATA		*immortal_list;
 extern		IMMORTAL_DATA		*unassigned_immortal_list;
 
 
-/*
- * OS-dependent declarations.
- * These are all very standard library functions,
- *  but some systems have incomplete or non-ansi header files.
- */
-#if	defined(linux)
-char *	crypt		args( ( const char *key, const char *salt ) );
-#endif
-
-#if	defined(MIPS_OS)
-char *	crypt		args( ( const char *key, const char *salt ) );
-#endif
-
-#if	defined(NeXT)
-char *	crypt		args( ( const char *key, const char *salt ) );
-#endif
-
-#if	defined(sequent)
-char *	crypt		args( ( const char *key, const char *salt ) );
-int	fclose		args( ( FILE *stream ) );
-int	fprintf		args( ( FILE *stream, const char *format, ... ) );
-int	fread		args( ( void *ptr, int size, int n, FILE *stream ) );
-int	fseek		args( ( FILE *stream, long offset, int ptrname ) );
-void	perror		args( ( const char *s ) );
-int	ungetc		args( ( int c, FILE *stream ) );
-#endif
-
-#if	defined(sun)
-char *	crypt		args( ( const char *key, const char *salt ) );
-int	fclose		args( ( FILE *stream ) );
-int	fprintf		args( ( FILE *stream, const char *format, ... ) );
-#if	defined(SYSV)
-siz_t	fread		args( ( void *ptr, size_t size, size_t n,
-			    FILE *stream) );
-#elif !defined(__SVR4)
-int	fread		args( ( void *ptr, int size, int n, FILE *stream ) );
-#endif
-int	fseek		args( ( FILE *stream, long offset, int ptrname ) );
-void	perror		args( ( const char *s ) );
-int	ungetc		args( ( int c, FILE *stream ) );
-#endif
-
-#if	defined(ultrix)
-char *	crypt		args( ( const char *key, const char *salt ) );
-#endif
-
-/*
- * The crypt(3) function is not available on some operating systems.
- * In particular, the U.S. Government prohibits its export from the
- *   United States to foreign countries.
- * Turn on NOCRYPT to keep passwords in plain text.
- */
-#if	defined(NOCRYPT)
-#define crypt(s1, s2)	(s1)
-#endif
-
 
 /*
  * Data files used by the server.
@@ -7300,15 +7252,15 @@ long adjust_keeper_price(CHAR_DATA *keeper, long price, bool fBuy);
 bool get_stock_keeper(CHAR_DATA *ch, CHAR_DATA *keeper, SHOP_REQUEST_DATA *request, char *argument);
 OBJ_DATA *get_obj_keeper( CHAR_DATA *ch, CHAR_DATA *keeper, char *argument );
 void bomb_end( CHAR_DATA *ch);
-void brew_end( CHAR_DATA *ch, sh_int sn );
+void brew_end( CHAR_DATA *ch, int16_t sn );
 void do_restring( CHAR_DATA *ch, char *argument );
 void obj_to_keeper( OBJ_DATA *obj, CHAR_DATA *ch );
 void recite_end( CHAR_DATA *ch);
 void removeall(CHAR_DATA *ch);
 void repair_end( CHAR_DATA *ch );
 void save_last_wear( CHAR_DATA *ch );
-void scribe_end( CHAR_DATA *ch, sh_int sn, sh_int sn2, sh_int sn3 );
-void ink_end( CHAR_DATA *ch, CHAR_DATA *victim, sh_int loc, sh_int sn, sh_int sn2, sh_int sn3 );
+void scribe_end( CHAR_DATA *ch, int16_t sn, int16_t sn2, int16_t sn3 );
+void ink_end( CHAR_DATA *ch, CHAR_DATA *victim, int16_t loc, int16_t sn, int16_t sn2, int16_t sn3 );
 int get_wear_loc(CHAR_DATA *ch, OBJ_DATA *obj);
 void wear_obj( CHAR_DATA *ch, OBJ_DATA *obj, bool fReplace);
 void change_money(CHAR_DATA *ch, CHAR_DATA *changer, long gold, long silver);
@@ -7556,8 +7508,8 @@ AREA_DATA *get_sailing_boat_area args(( void ));
 void    stop_boarding args( ( SHIP_DATA *ship ) );
 bool    is_boat_safe  args( ( CHAR_DATA *ch, SHIP_DATA *ship, SHIP_DATA *ship2) );
 void    make_ship_crew_return_to_ship args(( SHIP_DATA *boarding_ship ));
-sh_int  get_rating args( ( int ships_destroyed ) );
-sh_int  get_player_reputation args( ( int reputation_points ) );
+int16_t  get_rating args( ( int ships_destroyed ) );
+int16_t  get_player_reputation args( ( int reputation_points ) );
 CHAR_DATA *get_captain args( ( SHIP_DATA *ship ) );
 
 /* recycle.c */
@@ -7643,7 +7595,7 @@ void free_token( TOKEN_DATA *token );
 void free_token_index( TOKEN_INDEX_DATA *token_index);
 void free_trade_item(TRADE_ITEM *item);
 void free_waypoint args( ( WAYPOINT_DATA *waypoint ) );
-void new_trade_item	args ( ( AREA_DATA *area, sh_int type, long replenish_time, long replenish_amount, long max_qty, long min_price, long max_price, long obj_vnum ) );
+void new_trade_item	args ( ( AREA_DATA *area, int16_t type, long replenish_time, long replenish_amount, long max_qty, long min_price, long max_price, long obj_vnum ) );
 HELP_DATA *new_help(void);
 void free_help(HELP_DATA *);
 EVENT_DATA *new_event(void);
@@ -7702,7 +7654,7 @@ void	affect_check	args( (CHAR_DATA *ch, int where, long vector, long vector2) );
 int	count_users	args( (OBJ_DATA *obj) );
 void 	deduct_cost	args( (CHAR_DATA *ch, int cost) );
 void	affect_enchant	args( (OBJ_DATA *obj) );
-int 	check_immune	args( (CHAR_DATA *ch, sh_int dam_type) );
+int 	check_immune	args( (CHAR_DATA *ch, int16_t dam_type) );
 int 	material_lookup args( ( const char *name) );
 int	weapon_lookup	args( ( const char *name) );
 int	weapon_type	args( ( const char *name) );
@@ -7952,7 +7904,7 @@ int	find_spell	args( ( CHAR_DATA *ch, const char *name) );
 int 	mana_cost 	(CHAR_DATA *ch, int min_mana, int level);
 int	skill_lookup	args( ( const char *name ) );
 OD*	get_warp_stone	args( ( CHAR_DATA *ch ) );
-bool	saves_spell	args( ( int level, CHAR_DATA *victim, sh_int dam_type ) );
+bool	saves_spell	args( ( int level, CHAR_DATA *victim, int16_t dam_type ) );
 void	obj_cast_spell	args( ( int sn, int level, CHAR_DATA *ch,
 				    CHAR_DATA *victim, OBJ_DATA *obj ) );
 void obj_cast( int sn, int level, OBJ_DATA *obj, ROOM_INDEX_DATA *room, char *argument);
@@ -8298,7 +8250,7 @@ void add_immortal(IMMORTAL_DATA *immortal);
  */
 extern	char *	const	dir_name        [];
 int parse_door(char *name);
-extern	const	sh_int	rev_dir         [];
+extern	const	int16_t	rev_dir         [];
 extern	const	struct	spec_type	spec_table	[];
 
 /*

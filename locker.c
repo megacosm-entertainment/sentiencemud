@@ -18,7 +18,7 @@ void do_locker(CHAR_DATA *ch, char* argument)
 	char arg2[MAX_INPUT_LENGTH];
 	char buf[MSL];
 	OBJ_DATA *obj;
-	bool item = FALSE;
+	bool item = false;
 	struct tm *rent_time;
 
 	argument = one_argument(argument, arg1);
@@ -74,7 +74,7 @@ void do_locker(CHAR_DATA *ch, char* argument)
 
 	for (obj = ch->carrying; obj != NULL; obj = obj->next_content) {
 		if (IS_SET(obj->extra2_flags, ITEM_LOCKER)) {
-			item = TRUE;
+			item = true;
 			break;
 		}
 	}
@@ -139,7 +139,7 @@ void do_locker(CHAR_DATA *ch, char* argument)
 
 		sprintf(buf, "You look in your locker and see %d items:\n\r", i);
 		send_to_char(buf, ch);
-		show_list_to_char(ch->locker, ch, TRUE, TRUE);
+		show_list_to_char(ch->locker, ch, true, true);
 
 		act("$n looks over the contents of $s locker.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 		return;

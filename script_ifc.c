@@ -102,7 +102,7 @@ extern bool wiznet_script;
 #define VALID_NPC(x) (ISARG_MOB(x) && IS_NPC(ARG_MOB(x)))
 #define VALID_PLAYER(x) (ISARG_MOB(x) && !IS_NPC(ARG_MOB(x)))
 
-#define ARG_BOOL(x) ( (ISARG_NUM(x) && ARG_NUM(x) != 0) || (ISARG_STR(x) && !str_cmp(ARG_STR(x), "true")) )
+#define ARG_BOOL(x) ( (ISARG_NUM(x) && ARG_NUM(x) != 0) || (ISARG_STR(x) && !str_cmp(ARG_STR(x), "TRUE")) )
 
 long flag_value_ifcheck(const struct flag_type *flag_table, char *argument)
 {
@@ -1995,7 +1995,7 @@ DECL_IFC_FUN(ifc_tokentimer)
 	} else
 		return FALSE;
 
-	// If the token doesn't exist on the entity, any checks on its values are always false.
+	// If the token doesn't exist on the entity, any checks on its values are always FALSE.
 	if(!tok) return FALSE;
 
 	*ret = tok->timer;
@@ -2042,7 +2042,7 @@ DECL_IFC_FUN(ifc_tokenvalue)
 	} else
 		return FALSE;
 
-	// If the token doesn't exist on the entity, any checks on its values are always false.
+	// If the token doesn't exist on the entity, any checks on its values are always FALSE.
 	if(!tok) return FALSE;
 
 	if (val < 0 || val >= MAX_TOKEN_VALUES)

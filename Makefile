@@ -3,9 +3,6 @@ PROF    = -Wall -O -g -pg -ggdb -g
 OBJDIR	= obj
 VPATH   = .:obj
 LIBS = -lpthread -lz -lm -lrt -lssl -lcrypto -ldl -lcrypt
-#LIBS    = -L/usr/lib/x86_64-linux-gnu -lmysqlclient -lpthread -lz -lm -ldl
-NOCRYPT = -Dlinux
-#C_FLAGS =  $(PROF) $(NOCRYPT) -DOLD_RAND -DMALLOC_STDLIB -I/usr/include/mysql -DBIG_JOINS=1  -fno-strict-aliasing   -g -fabi-version=2 -fno-omit-frame-pointer -fno-strict-aliasing
 C_FLAGS = $(PROF) -fcommon -DOLD_RAND -DMALLOC_STDLIB -fstack-protector  -m64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv -fPIC -fabi-version=2 -fno-omit-frame-pointer -DVERSION=\"$(GIT_VERSION)\" -DBUILD_DATE=\"$(CUR_BUILD_DATE)\" -DBUILD_NUMBER=\"$(CUR_BUILD_NUMBER)\" -DCOMMIT=\"$(GIT_URL)\"
 L_FLAGS =  $(PROF) $(LIBS)
 EXE	= sent

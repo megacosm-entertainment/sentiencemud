@@ -574,7 +574,7 @@ void do_train(CHAR_DATA *ch, char *argument)
     CHAR_DATA *mob;
     AFFECT_DATA *af;
     OBJ_DATA *obj;
-    sh_int stat = - 1;
+    int16_t stat = - 1;
     char *pOutput = NULL;
     int cost;
     int max_hit;

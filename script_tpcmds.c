@@ -4920,7 +4920,7 @@ SCRIPT_CMD(do_tpalterexit)
 	ROOM_INDEX_DATA *room;
 	EXIT_DATA *ex = NULL;
 	int *ptr = NULL;
-	sh_int *sptr = NULL;
+	int16_t *sptr = NULL;
 	char **str;
 	int min, max;
 	bool hasmin = FALSE, hasmax = FALSE;
@@ -5029,7 +5029,7 @@ SCRIPT_CMD(do_tpalterexit)
 
 	if(!str_cmp(field,"flags"))					{ ptr = (int*)&ex->exit_info; flags = exit_flags; }
 	else if(!str_cmp(field,"resets"))			{ ptr = (int*)&ex->rs_flags; flags = exit_flags; min_sec = 7; }
-	else if(!str_cmp(field,"strength"))			sptr = (sh_int*)&ex->door.strength;
+	else if(!str_cmp(field,"strength"))			sptr = (int16_t*)&ex->door.strength;
 	else if(!str_cmp(field,"lock"))				{ ptr = (int*)&ex->door.lock.flags; flags = lock_flags; }
 	else if(!str_cmp(field,"lockreset"))		{ ptr = (int*)&ex->door.rs_lock.flags; flags = lock_flags; min_sec = 7; }
 	else if(!str_cmp(field,"key"))				ptr = (int*)&ex->door.lock.key_vnum;
@@ -5409,7 +5409,7 @@ SCRIPT_CMD(do_tpalterroom)
 	WILDS_DATA *wilds;
 
 	int *ptr = NULL;
-	sh_int *sptr = NULL;
+	int16_t *sptr = NULL;
 	char **str;
 	bool allow_empty = FALSE;
 	bool allowarith = TRUE;

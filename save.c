@@ -758,7 +758,6 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
     found = FALSE;
     fclose(fpReserve);
 
-    #if defined(unix)
     /* decompress if .gz file exists */
     sprintf(strsave, "%s%c/%s%s", PLAYER_DIR, tolower(name[0]), capitalize(name),".gz");
     if ((fp = fopen(strsave, "r")) != NULL)
@@ -767,7 +766,6 @@ bool load_char_obj(DESCRIPTOR_DATA *d, char *name)
 		sprintf(buf,"gzip -dfq %s",strsave);
 		system(buf);
     }
-    #endif
 
     sprintf(strsave, "%s%c/%s", PLAYER_DIR, tolower(name[0]), capitalize(name));
     if ((fp = fopen(strsave, "r")) != NULL) {

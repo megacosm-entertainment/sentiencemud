@@ -243,7 +243,7 @@ ROOM_INDEX_DATA *create_vroom(WILDS_DATA *pWilds,
 {
     ROOM_INDEX_DATA *pRoomIndex;
     WILDS_VLINK *pVLink;
-    sh_int door;
+    int16_t door;
 
 
 // First check pointer parameters are valid

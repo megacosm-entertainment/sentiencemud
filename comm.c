@@ -73,38 +73,6 @@
 #include "sha256.h"
 
 /*
- * Malloc debugging stuff.
- */
-#if defined(sun)
-#undef MALLOC_DEBUG
-#endif
-
-#if defined(MALLOC_DEBUG)
-#include <malloc.h>
-extern	int	malloc_debug	args((int ));
-extern	int	malloc_verify	args((void));
-#endif
-
-
-/*
- * Signal handling.
- * Apollo has a problem with __attribute(atomic) in signal.h,
- *   I dance around it.
- */
-#if defined(apollo)
-#define __attribute(x)
-#endif
-
-#if defined(unix)
-#include <signal.h>
-#endif
-
-#if defined(apollo)
-#undef __attribute
-#endif
-
-
-/*
  * Socket and TCP/IP stuff.
  */
 #include <fcntl.h>
@@ -128,37 +96,6 @@ const   char    msp_dont        [] = { IAC, DONT, TELOPT_MSP, '\0' };
 /*
  * OS-dependent declarations.
  */
-#if	defined(_AIX)
-#include <sys/select.h>
-int	accept		args((int s, struct sockaddr *addr, int *addrlen));
-int	bind		args((int s, struct sockaddr *name, int namelen));
-void	bzero		args((char *b, int length));
-int	getpeername	args((int s, struct sockaddr *name, int *namelen));
-int	getsockname	args((int s, struct sockaddr *name, int *namelen));
-int	gettimeofday	args((struct timeval *tp, struct timezone *tzp));
-int	listen		args((int s, int backlog));
-int	setsockopt	args((int s, int level, int optname, void *optval,
-			    int optlen));
-int	socket		args((int domain, int type, int protocol));
-#endif
-
-#if	defined(apollo)
-#include <unistd.h>
-void	bzero		args((char *b, int length));
-#endif
-
-#if	defined(__hpux)
-int	accept		args((int s, void *addr, int *addrlen));
-int	bind		args((int s, const void *addr, int addrlen));
-void	bzero		args((char *b, int length));
-int	getpeername	args((int s, void *addr, int *addrlen));
-int	getsockname	args((int s, void *name, int *addrlen));
-int	gettimeofday	args((struct timeval *tp, struct timezone *tzp));
-int	listen		args((int s, int backlog));
-int	setsockopt	args((int s, int level, int optname,
- 				const void *optval, int optlen));
-int	socket		args((int domain, int type, int protocol));
-#endif
 
 #if	defined(interactive)
 #include <net/errno.h>
@@ -187,95 +124,6 @@ int	socket		args((int domain, int type, int protocol));
 /*int	write		args((int fd, char *buf, int nbyte));*/
 #endif
 
-#if	defined(MIPS_OS)
-extern	int		errno;
-#endif
-
-#if	defined(NeXT)
-int	close		args((int fd));
-int	fcntl		args((int fd, int cmd, int arg));
-#if	!defined(htons)
-u_short	htons		args((u_short hostshort));
-#endif
-#if	!defined(ntohl)
-u_long	ntohl		args((u_long hostlong));
-#endif
-int	read		args((int fd, char *buf, int nbyte));
-int	select		args((int width, fd_set *readfds, fd_set *writefds,
-			    fd_set *exceptfds, struct timeval *timeout));
-int	write		args((int fd, char *buf, int nbyte));
-#endif
-
-#if	defined(sequent)
-int	accept		args((int s, struct sockaddr *addr, int *addrlen));
-int	bind		args((int s, struct sockaddr *name, int namelen));
-int	close		args((int fd));
-int	fcntl		args((int fd, int cmd, int arg));
-int	getpeername	args((int s, struct sockaddr *name, int *namelen));
-int	getsockname	args((int s, struct sockaddr *name, int *namelen));
-int	gettimeofday	args((struct timeval *tp, struct timezone *tzp));
-#if	!defined(htons)
-u_short	htons		args((u_short hostshort));
-#endif
-int	listen		args((int s, int backlog));
-#if	!defined(ntohl)
-u_long	ntohl		args((u_long hostlong));
-#endif
-int	read		args((int fd, char *buf, int nbyte));
-int	select		args((int width, fd_set *readfds, fd_set *writefds,
-			    fd_set *exceptfds, struct timeval *timeout));
-int	setsockopt	args((int s, int level, int optname, caddr_t optval,
-
-			    int optlen));
-int	socket		args((int domain, int type, int protocol));
-int	write		args((int fd, char *buf, int nbyte));
-#endif
-
-/* This includes Solaris Sys V as well */
-#if defined(sun)
-int	accept		args((int s, struct sockaddr *addr, int *addrlen));
-int	bind		args((int s, struct sockaddr *name, int namelen));
-void	bzero		args((char *b, int length));
-int	close		args((int fd));
-int	getpeername	args((int s, struct sockaddr *name, int *namelen));
-int	getsockname	args((int s, struct sockaddr *name, int *namelen));
-int	listen		args((int s, int backlog));
-int	read		args((int fd, char *buf, int nbyte));
-int	select		args((int width, fd_set *readfds, fd_set *writefds,
-			    fd_set *exceptfds, struct timeval *timeout));
-
-#if !defined(__SVR4)
-int	gettimeofday	args((struct timeval *tp, struct timezone *tzp));
-
-#if defined(SYSV)
-int setsockopt		args((int s, int level, int optname,
-			    const char *optval, int optlen));
-#else
-int	setsockopt	args((int s, int level, int optname, void *optval,
-			    int optlen));
-#endif
-#endif
-int	socket		args((int domain, int type, int protocol));
-int	write		args((int fd, char *buf, int nbyte));
-#endif
-
-#if defined(ultrix)
-int	accept		args((int s, struct sockaddr *addr, int *addrlen));
-int	bind		args((int s, struct sockaddr *name, int namelen));
-void	bzero		args((char *b, int length));
-int	close		args((int fd));
-int	getpeername	args((int s, struct sockaddr *name, int *namelen));
-int	getsockname	args((int s, struct sockaddr *name, int *namelen));
-int	gettimeofday	args((struct timeval *tp, struct timezone *tzp));
-int	listen		args((int s, int backlog));
-int	read		args((int fd, char *buf, int nbyte));
-int	select		args((int width, fd_set *readfds, fd_set *writefds,
-			    fd_set *exceptfds, struct timeval *timeout));
-int	setsockopt	args((int s, int level, int optname, void *optval,
-			    int optlen));
-int	socket		args((int domain, int type, int protocol));
-int	write		args((int fd, char *buf, int nbyte));
-#endif
 
 
 void show_form_state(CHAR_DATA *ch);
@@ -309,7 +157,7 @@ bool		    newlock;		/* Game is newlocked		*/
 char		    str_boot_time[MAX_INPUT_LENGTH];
 time_t		    current_time;	/* time of this pulse */
 time_t			stats_load_time;
-bool		    MOBtrigger = TRUE;  /* act() switch                 */
+bool		    MOBtrigger = true;  /* act() switch                 */
 LLIST *loaded_areas;
 
 /*
@@ -458,7 +306,7 @@ bool parse_options(int argc, char **argv)
 			if( p <= 1024 )
 			{
 				fprintf(stderr, "Port number must be above 1024.");
-				return FALSE;
+				return false;
 			}
 
 			port = p;
@@ -469,35 +317,35 @@ bool parse_options(int argc, char **argv)
 			{
 				case 'n':
 				case 'N':
-					newlock = TRUE;
+					newlock = true;
 					break;
 
 				case 't':
 				case 'T':
-					is_test_port = TRUE;
+					is_test_port = true;
 					break;
 
 				case 'w':
 				case 'W':
-					wizlock = TRUE;
+					wizlock = true;
 					break;
 
 				case '?':
 					// Silently return
-					return FALSE;
+					return false;
 
 				default:
 					fprintf(stderr, "Invalid option found.");
-					return FALSE;
+					return false;
 			}
 		}
 		else {
 			fprintf(stderr, "Invalid argument found.");
-			return FALSE;
+			return false;
 		}
 
 	}
-	return TRUE;
+	return true;
 }
 
 
@@ -516,67 +364,67 @@ int main(int argc, char **argv)
     malloc_debug(2);
 #endif
 
-	conn_players = list_create(FALSE);
+	conn_players = list_create(false);
 	if(!conn_players) {
 		perror("Could not create 'conn_players'");
 		exit(1);
 	}
 
-	conn_immortals = list_create(FALSE);
+	conn_immortals = list_create(false);
 	if(!conn_immortals) {
 		perror("Could not create 'conn_immortals'");
 		exit(1);
 	}
 
-	conn_online = list_create(FALSE);
+	conn_online = list_create(false);
 	if(!conn_online) {
 		perror("Could not create 'conn_online'");
 		exit(1);
 	}
-	loaded_areas = list_create(FALSE);
+	loaded_areas = list_create(false);
 	if(!loaded_areas) {
 		perror("Could not create 'loaded_areas'");
 		exit(1);
 	}
-	loaded_wilds = list_create(FALSE);
+	loaded_wilds = list_create(false);
 	if(!loaded_wilds) {
 		perror("Could not create 'loaded_wilds'");
 		exit(1);
 	}
-	list_churches = list_create(FALSE);
+	list_churches = list_create(false);
 	if(!list_churches) {
 		perror("Could not create 'list_churches'");
 		exit(1);
 	}
-	persist_mobs = list_create(FALSE);
+	persist_mobs = list_create(false);
 	if(!persist_mobs) {
 		perror("Could not create 'persist_mobs'");
 		exit(1);
 	}
-	persist_objs = list_create(FALSE);
+	persist_objs = list_create(false);
 	if(!persist_objs) {
 		perror("Could not create 'persist_objs'");
 		exit(1);
 	}
-	persist_rooms = list_create(FALSE);
+	persist_rooms = list_create(false);
 	if(!persist_rooms) {
 		perror("Could not create 'persist_rooms'");
 		exit(1);
 	}
-	loaded_chars = list_create(FALSE);
+	loaded_chars = list_create(false);
 	if(!loaded_chars) {
 		perror("Could not create 'loaded_chars'");
 		exit(1);
 	}
 // Temporarily disabling for reconnect crash.
 /*
-	loaded_players = list_create(FALSE);
+	loaded_players = list_create(false);
 	if(!loaded_players) {
 		perror("Could not create 'loaded_players'");
 		exit(1);
 	}
 */
-	loaded_objects = list_create(FALSE);
+	loaded_objects = list_create(false);
 	if(!loaded_objects) {
 		perror("Could not create 'loaded_objects'");
 		exit(1);
@@ -605,9 +453,9 @@ int main(int argc, char **argv)
      */
     port = 9000;
 	port_tls = 9001;
-    is_test_port = FALSE;
-    newlock = FALSE;
-    wizlock = FALSE;
+    is_test_port = false;
+    newlock = false;
+    wizlock = false;
 
     if( !parse_options(argc, argv) )
     {
@@ -639,10 +487,10 @@ int main(int argc, char **argv)
     }
 #endif
 
-    //if(port == PORT_TEST) newlock = TRUE;	/* The alpha port is initially set to newlock*/
-    //if(port == PORT_TEST) wizlock = TRUE;	/* Newlock/Wizlock all ports for now */
+    //if(port == PORT_TEST) newlock = true;	/* The alpha port is initially set to newlock*/
+    //if(port == PORT_TEST) wizlock = true;	/* Newlock/Wizlock all ports for now */
 
-    //if(port == PORT_TEST || port == PORT_ALPHA || port == PORT_SYN) is_test_port = TRUE;
+    //if(port == PORT_TEST || port == PORT_ALPHA || port == PORT_SYN) is_test_port = true;
 
     RedirectOutput();
 
@@ -658,7 +506,7 @@ int main(int argc, char **argv)
     sprintf(log_buf, "Sentience is up on port %d.", port);
     log_string(log_buf);
     #ifdef IMC
-    imc_startup( FALSE, -1, FALSE );
+    imc_startup( false, -1, false );
     #endif
     game_loop_unix(control);
 	list_destroy(conn_players);
@@ -687,7 +535,7 @@ int main(int argc, char **argv)
 	SERVER_DATA *server;
 	extern SERVER_DATA *first_server;
 	for( server = first_server; server; server = server->next )
-	imc_shutdown(FALSE, server);
+	imc_shutdown(false, server);
 	#endif
 
     if (gconfig_write()==1)
@@ -887,7 +735,7 @@ void game_loop_unix(int control)
 	for (d = descriptor_list; d != NULL; d = d_next)
 	{
 	    d_next	= d->next;
-	    d->fcommand	= FALSE;
+	    d->fcommand	= false;
 
 	    if (FD_ISSET(d->descriptor, &in_set))
 	    {
@@ -923,7 +771,7 @@ void game_loop_unix(int control)
 	   read_from_buffer(d);
 	   if (d->incomm[0] != '\0')
 	   {
-	       d->fcommand	= TRUE;
+	       d->fcommand	= true;
 		if(d->pProtocol != NULL)
 		    d->pProtocol->WriteOOB = 0;
 	       stop_idling(d->character);
@@ -974,7 +822,7 @@ imc_loop();
 	if ((d->fcommand || d->outtop > 0)
 		&&   FD_ISSET(d->descriptor, &out_set))
 	{
-	    if (!process_output(d, TRUE))
+	    if (!process_output(d, true))
 	    {
 		if (d->character != NULL
 			&& d->connected == CON_PLAYING) {
@@ -1176,7 +1024,7 @@ void close_socket(DESCRIPTOR_DATA *dclose)
     CHAR_DATA *ch;
 
     if (dclose->outtop > 0)
-	process_output(dclose, FALSE);
+	process_output(dclose, false);
 
     if (dclose->snoop_by != NULL)
     {
@@ -1256,7 +1104,7 @@ bool read_from_descriptor(DESCRIPTOR_DATA *d)
 
     /* Hold horses if pending command already. */
     if (d->incomm[0] != '\0')
-	return TRUE;
+	return true;
 
     /* Check for overflow. */
 //    iStart = strlen(d->inbuf);
@@ -1268,7 +1116,7 @@ bool read_from_descriptor(DESCRIPTOR_DATA *d)
 	log_string(log_buf);
 	write_to_descriptor(d,
 	    "\n\r*** PUT A LID ON IT!!! ***\n\r", 0);
-	return FALSE;
+	return false;
     }
 
     /* Snarf input. */
@@ -1296,21 +1144,21 @@ bool read_from_descriptor(DESCRIPTOR_DATA *d)
 	else if (nRead == 0)
 	{
 	    log_string("EOF encountered on read.");
-	    return FALSE;
+	    return false;
 	}
 	else if (errno == EWOULDBLOCK)
 	    break;
 	else
 	{
 	    perror("Read_from_descriptor");
-	    return FALSE;
+	    return false;
 	}
     }
 
 //    d->inbuf[iStart] = '\0';
     read_buf[iStart] = '\0';
     ProtocolInput(d,read_buf,iStart,d->inbuf);
-    return TRUE;
+    return true;
 }
 
 
@@ -1564,7 +1412,7 @@ bool process_output(DESCRIPTOR_DATA *d, bool fPrompt)
      * Short-circuit if nothing to write.
      */
 	if (d->outtop == 0)
-		return TRUE;
+		return true;
 
     /*
      * Snoop-o-rama.
@@ -1583,12 +1431,12 @@ bool process_output(DESCRIPTOR_DATA *d, bool fPrompt)
 	if (!write_to_descriptor(d, d->outbuf, d->outtop))
 	{
 		d->outtop = 0;
-		return FALSE;
+		return false;
 	}
 	else
 	{
 		d->outtop = 0;
-		return TRUE;
+		return true;
 	}
 }
 
@@ -1725,14 +1573,14 @@ void bust_a_prompt(CHAR_DATA *ch)
 	switch(*str) {
 	default : i = " "; break;
 	case 'e':
-		found = FALSE;
+		found = false;
 		doors[0] = '\0';
 		for (door = 0; door < 10; door++) {
 			if ((pexit = ch->in_room->exit [door]) && pexit ->u1.to_room &&
 				(can_see_room(ch,pexit->u1.to_room) ||
 					(IS_AFFECTED(ch,AFF_INFRARED) && !IS_AFFECTED(ch,AFF_BLIND))) &&
 				!IS_SET(pexit->exit_info,EX_CLOSED)) {
-				found = TRUE;
+				found = true;
 				strcat(doors,dir_name[door]);
 			}
 		}
@@ -1971,10 +1819,10 @@ bool write_to_descriptor_2(int desc, char *txt, int length)
     {
 	nBlock = UMIN(length - iStart, 4096);
 	if ((nWrite = write(desc, txt + iStart, nBlock)) < 0)
-	    { perror("Write_to_descriptor"); return FALSE; }
+	    { perror("Write_to_descriptor"); return false; }
     }
 
-    return TRUE;
+    return true;
 }
 
 
@@ -1988,7 +1836,7 @@ bool write_to_descriptor(DESCRIPTOR_DATA *d, char *txt, int length)
 }
 
 
-#define DEBUG		TRUE
+#define DEBUG		true
 
 void plogf (char *fmt, ...)
 {
@@ -2153,7 +2001,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		/*
 		if ((ch = find_existing_player(argument)) != NULL)
 		{
-			fOld = TRUE;
+			fOld = true;
 			d->character = ch;
 		}
 		else
@@ -2179,8 +2027,8 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 			}
 
 			// Adding back in for reconnect crash
-			if (check_reconnect(d, argument, FALSE))
-				fOld = TRUE;
+			if (check_reconnect(d, argument, false))
+				fOld = true;
 			else
 			{
 			if (wizlock && !IS_IMMORTAL(ch))
@@ -2208,13 +2056,13 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 			/* Syn - placed here for ease of testing so that I don't have to spam through
 				pw entry/motd's every single time I boot the game. DEBUG is a definition
 				as a safeguard just in case someone runs it on PORT_SYN for whatever reason. */
-			else if (DEBUG == TRUE)
+			else if (DEBUG == true)
 			{
 				write_to_buffer(d, "Welcome back, Master.\n\r", 0);
 				if (check_playing(d,ch->name))
 					return;
 
-				if (check_reconnect(d,ch->name,TRUE))
+				if (check_reconnect(d,ch->name,true))
 					return;
 
 				reset_char(ch);
@@ -2247,7 +2095,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 				return;
 			}
 
-			if(port == PORT_ALPHA) newlock = TRUE;	/* Reset the newlock, even if this one fails to do anything...*/
+			if(port == PORT_ALPHA) newlock = true;	/* Reset the newlock, even if this one fails to do anything...*/
 
 			sprintf(buf, "\n\rDo you want to create a character named %s (Y/N)? ", argument);
 			write_to_buffer(d, buf, 0);
@@ -2257,9 +2105,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		break;
 
 	case CON_GET_OLD_PASSWORD:
-#if defined(unix)
 		write_to_buffer(d, "\n\r", 2);
-#endif
 		if (ch->pcdata->pwd_vers < 1) {
 		if (strcmp(crypt(argument, ch->pcdata->pwd), ch->pcdata->pwd))
 		{
@@ -2298,7 +2144,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		if (check_playing(d,ch->name))
 			return;
 
-		if (check_reconnect(d, ch->name, TRUE))
+		if (check_reconnect(d, ch->name, true))
 			return;
 
 		sprintf(log_buf, "%s@%s has connected.", ch->name, d->host);
@@ -2314,7 +2160,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 			d->connected = CON_GET_EMAIL;
 			return;
 		}
-        if (ch->pcdata->need_change_pw == TRUE || ch->pcdata->pwd_vers < 1) {
+        if (ch->pcdata->need_change_pw == true || ch->pcdata->pwd_vers < 1) {
 	        send_to_char("\n\rYou are required to set a new password. Please do so now.\n\rPassword: ",ch);
 	        d->connected = CON_CHANGE_PASSWORD;
 	        return;
@@ -2371,7 +2217,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		ch->pcdata->pwd	= str_dup(pwdnew);
 		write_to_buffer(d, "Please retype new password: ", 0);
 
-		ch->pcdata->need_change_pw = FALSE;
+		ch->pcdata->need_change_pw = false;
 		d->connected = CON_CHANGE_PASSWORD_CONFIRM;
 		break;
 
@@ -2420,7 +2266,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 
 				close_socket(d_old);
 			}
-			if (check_reconnect(d,ch->name,TRUE))
+			if (check_reconnect(d,ch->name,true))
 				return;
 			write_to_buffer(d,"Reconnect attempt failed.\n\rName: ",0);
 			if (d->character != NULL)
@@ -2472,9 +2318,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		break;
 
 	case CON_GET_NEW_PASSWORD:
-#if defined(unix)
 		write_to_buffer(d, "\n\r", 2);
-#endif
 		if (!acceptablePassword(d, argument))
 			return;
 
@@ -2486,13 +2330,11 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		write_to_buffer(d, "Please retype password: ", 0);
 		d->connected = CON_CONFIRM_NEW_PASSWORD;
 
-		ch->pcdata->need_change_pw = FALSE;
+		ch->pcdata->need_change_pw = false;
 		break;
 
 	case CON_CONFIRM_NEW_PASSWORD:
-#if defined(unix)
 		write_to_buffer(d, "\n\r", 2);
-#endif
 
 		if (strcmp(sha256_crypt(argument), ch->pcdata->pwd))
 		{
@@ -2665,7 +2507,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		/* initialize stats */
 		for (i = 0; i < MAX_STATS; i++) {
 			ch->perm_stat[i] = pc_race_table[race].stats[i];
-			ch->dirty_stat[i] = TRUE;
+			ch->dirty_stat[i] = true;
 		}
 		ch->act2        = ch->act2|race_table[race].act2;
 		ch->affected_by = ch->affected_by|race_table[race].aff;
@@ -2689,7 +2531,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 			if (pc_race_table[race].skills[i] == NULL)
 				break;
 
-			group_add(ch,pc_race_table[race].skills[i],FALSE);
+			group_add(ch,pc_race_table[race].skills[i],false);
 		}
 
 		ch->size = pc_race_table[race].size;
@@ -2897,9 +2739,9 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 
 		SET_BIT(ch->act, PLR_NO_CHALLENGE);
 
-		group_add(ch,"global skills",FALSE);
-		group_add(ch,class_table[ch->pcdata->class_current].base_group,FALSE);
-		group_add(ch, sub_class_table[ch->pcdata->sub_class_current].default_group, FALSE);
+		group_add(ch,"global skills",false);
+		group_add(ch,class_table[ch->pcdata->class_current].base_group,false);
+		group_add(ch, sub_class_table[ch->pcdata->sub_class_current].default_group, false);
 
 		/* Make it so no notes appear*/
 		ch->pcdata->last_note = current_time;
@@ -3021,7 +2863,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		{
 			int prime_stat = class_table[ch->pcdata->class_current].attr_prime;
 			ch->perm_stat[prime_stat] += 3;
-			ch->dirty_stat[prime_stat] = TRUE;
+			ch->dirty_stat[prime_stat] = true;
 
 			ch->exp	= 0;
 			ch->hit	= ch->max_hit;
@@ -3190,17 +3032,17 @@ bool check_parse_name(char *name)
     if (is_exact_name(name,
 	"sentience all auto her his immortal its self somebody someone something the you your loner"))
     {
-	return FALSE;
+	return false;
     }
 
     /*
      * Length restrictions.
      */
     if (strlen(name) <  3)
-	return FALSE;
+	return false;
 
     if (strlen(name) > 12)
-	return FALSE;
+	return false;
 
     /*
      * Alphanumerics only.
@@ -3208,34 +3050,34 @@ bool check_parse_name(char *name)
      */
     {
 	char *pc;
-	bool fIll,adjcaps = FALSE,cleancaps = FALSE;
+	bool fIll,adjcaps = false,cleancaps = false;
  	int total_caps = 0;
 
-	fIll = TRUE;
+	fIll = true;
 	for (pc = name; *pc != '\0'; pc++)
 	{
 	    if (!ISALPHA(*pc))
-		return FALSE;
+		return false;
 
 	    if (ISUPPER(*pc)) /* ugly anti-caps hack */
 	    {
 		if (adjcaps)
-		    cleancaps = TRUE;
+		    cleancaps = true;
 		total_caps++;
-		adjcaps = TRUE;
+		adjcaps = true;
 	    }
 	    else
-		adjcaps = FALSE;
+		adjcaps = false;
 
 	    if (LOWER(*pc) != 'i' && LOWER(*pc) != 'l')
-		fIll = FALSE;
+		fIll = false;
 	}
 
 	if (fIll)
-	    return FALSE;
+	    return false;
 
 	if (cleancaps || (total_caps > (strlen(name)) / 2 && strlen(name) < 3))
-	    return FALSE;
+	    return false;
     }
 
    /*
@@ -3253,7 +3095,7 @@ bool check_parse_name(char *name)
 		  pMobIndex  = pMobIndex->next)
 	    {
 		if (is_name(name, pMobIndex->player_name))
-		    return FALSE;
+		    return false;
 	    }
 	}
     }
@@ -3280,11 +3122,11 @@ bool check_parse_name(char *name)
             sprintf(log_buf,"Double newbie alert (%s)",name);
             wiznet(log_buf,NULL,NULL,WIZ_LOGINS,0,0);
 
-            return FALSE;
+            return false;
         }
     }
 
-    return TRUE;
+    return true;
 }
 // Temporarily disabling for reconnect crash
 /*
@@ -3335,8 +3177,8 @@ bool check_reconnect(DESCRIPTOR_DATA *d, char *name, bool fConn)
 					CHAR_DATA *pet=d->character->pet;
 
 					char_to_room(pet,get_room_index(ROOM_VNUM_LIMBO));
-					stop_follower(pet,TRUE);
-					extract_char(pet,TRUE);
+					stop_follower(pet,true);
+					extract_char(pet,true);
                 }
 
 				// Temporarily adding this back for reconnect crash
@@ -3369,12 +3211,12 @@ bool check_reconnect(DESCRIPTOR_DATA *d, char *name, bool fConn)
 		    }
 		    iterator_stop(&cit);
 
-			return TRUE;
+			return true;
 		}
     }
     iterator_stop(&cit);
 
-    return FALSE;
+    return false;
 }
 
 
@@ -3397,11 +3239,11 @@ bool check_playing(DESCRIPTOR_DATA *d, char *name)
 	    write_to_buffer(d, "That character is already playing.\n\r",0);
 	    write_to_buffer(d, "Do you wish to connect anyway (Y/N)?",0);
 	    d->connected = CON_BREAK_CONNECT;
-	    return TRUE;
+	    return true;
 	}
     }
 
-    return FALSE;
+    return false;
 }
 
 
@@ -3546,7 +3388,7 @@ void send_to_char(const char *txt, CHAR_DATA *ch)
 
     if(txt && ch->desc)
 	{
-		bool capitalize = FALSE;
+		bool capitalize = false;
 	    if(IS_SET(ch->act, PLR_COLOUR))
 	    {
 			for(point = txt ; *point ; point++)
@@ -3556,7 +3398,7 @@ void send_to_char(const char *txt, CHAR_DATA *ch)
 					point++;
 
 					if( *point == '+' )
-						capitalize = TRUE;
+						capitalize = true;
 					else {
 						skip = colour_new(*point, ch, point2);
 						point2 += skip;
@@ -3567,7 +3409,7 @@ void send_to_char(const char *txt, CHAR_DATA *ch)
 			    if( capitalize && ISALPHA(*point) )
 				{
 			    	*point2 = UPPER(*point);	// Make uppercase
-			    	capitalize = FALSE;
+			    	capitalize = false;
 				}
 				else
 					*point2 = *point;
@@ -3584,14 +3426,14 @@ void send_to_char(const char *txt, CHAR_DATA *ch)
 				{
 					point++;
 					if( *point == '+' )
-						capitalize = TRUE;
+						capitalize = true;
 
 					continue;
 				}
 			    if( capitalize && ISALPHA(*point) )
 				{
 			    	*point2 = UPPER(*point);	// Make uppercase
-			    	capitalize = FALSE;
+			    	capitalize = false;
 				}
 				else
 					*point2 = *point;
@@ -3658,7 +3500,7 @@ void page_to_char(const char *txt, CHAR_DATA *ch)
 
     if(txt && ch->desc)
 	{
-		bool capitalize = FALSE;
+		bool capitalize = false;
 	    if(IS_SET(ch->act, PLR_COLOUR))
 	    {			
 			for(point = txt, len = 1 ; *point ; point++)
@@ -3681,7 +3523,7 @@ void page_to_char(const char *txt, CHAR_DATA *ch)
 			    {
 					point++;
 					if( *point == '+')
-						capitalize = TRUE;
+						capitalize = true;
 					else {
 						skip = colour(*point, ch, point2);
 						point2+=skip;
@@ -3691,7 +3533,7 @@ void page_to_char(const char *txt, CHAR_DATA *ch)
 			    if( capitalize && ISALPHA(*point) )
 				{
 			    	*point2 = UPPER(*point);	// Make uppercase
-			    	capitalize = FALSE;
+			    	capitalize = false;
 				}
 				else
 					*point2 = *point;
@@ -3716,13 +3558,13 @@ void page_to_char(const char *txt, CHAR_DATA *ch)
 				{
 					point++;
 					if( *point == '+')
-						capitalize = TRUE;
+						capitalize = true;
 					continue;
 				}
 			    if( capitalize && ISALPHA(*point) )
 				{
 			    	*point2 = UPPER(*point);	// Make uppercase
-			    	capitalize = FALSE;
+			    	capitalize = false;
 				}
 				else
 					*point2 = *point;
@@ -3889,12 +3731,12 @@ void act_new(char *format, CHAR_DATA *ch,
                 *point++ = *str++;
                 continue;
             }
-	    see_all = FALSE;
+	    see_all = false;
             ++str;
 
             if( *str == '$' )
             {
-				see_all = TRUE;
+				see_all = true;
 	            ++str;
 			}
 
@@ -4105,7 +3947,7 @@ void colourconv(char *buffer, const char *txt, CHAR_DATA *ch)
 {
     const char *point;
     int skip = 0;
-    bool capitalize = FALSE;
+    bool capitalize = false;
 
     if(ch->desc && txt)
     {
@@ -4189,7 +4031,7 @@ void room_echo(ROOM_INDEX_DATA *pRoom, char *message)
 void echo_around(ROOM_INDEX_DATA *pRoom, char *message)
 {
     EXIT_DATA *pexit;
-    sh_int dir;
+    int16_t dir;
 
     for (dir = 0; dir < MAX_DIR; dir++)
     {
@@ -4245,46 +4087,46 @@ void show_form_state(CHAR_DATA *ch)
 
 bool acceptablePassword(DESCRIPTOR_DATA *d, char *pass)
 {
-    bool lower = FALSE;
-    bool upper = FALSE;
-    bool number = FALSE;
+    bool lower = false;
+    bool upper = false;
+    bool number = false;
     char *p;
 
     if (strlen(pass) < 5)
     {
 	write_to_buffer(d,
 	    "Password must be at least five characters long.\n\rPassword: ", 0);
-	return FALSE;
+	return false;
     }
 
     for (p = pass; *p != '\0'; p++)
     {
         if (*p >= 'a' && *p <= 'z')
-	    lower = TRUE;
+	    lower = true;
 
 	if (*p >= 'A' && *p <= 'Z')
-	    upper = TRUE;
+	    upper = true;
 
 	if (*p >= '0' && *p <= '9')
-	    number = TRUE;
+	    number = true;
     }
 
     if (!lower)
     {
     	write_to_buffer(d, "Password must contain a lowercase letter.\n\rPassword: ", 0);
-	return FALSE;
+	return false;
     }
 
     if (!upper)
     {
     	write_to_buffer(d, "Password must contain an uppercase letter.\n\rPassword: ", 0);
-	return FALSE;
+	return false;
     }
 
     if (!number)
     {
     	write_to_buffer(d, "Password must contain a number.\n\rPassword: ", 0);
-	return FALSE;
+	return false;
     }
 
     for (p = pass; *p != '\0'; p++)
@@ -4294,11 +4136,11 @@ bool acceptablePassword(DESCRIPTOR_DATA *d, char *pass)
 	    write_to_buffer(d,
 		"New password not acceptable, try again.\n\rPassword: ",
 		0);
-	    return FALSE;
+	    return false;
 	}
     }
 
-    return TRUE;
+    return true;
 }
 
 
@@ -4520,7 +4362,7 @@ void add_possible_races(CHAR_DATA *ch, char *string)
 {
     char buf[MSL];
     int i;
-    bool found = FALSE;
+    bool found = false;
 
     sprintf(buf, " {B[{C");
     for (i = 1; i < MAX_PC_RACE; i++)
@@ -4533,7 +4375,7 @@ void add_possible_races(CHAR_DATA *ch, char *string)
 	    if (found)
 		strcat(buf, " ");
 
-	    found = TRUE;
+	    found = true;
 	    strcat(buf, pc_race_table[i].name);
 	}
     }

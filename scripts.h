@@ -1960,7 +1960,7 @@ void get_level_damage(int level, int *num, int *type, bool fRemort, bool fTwo);
 CHAR_DATA *get_random_char(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token);
 int count_people_room(CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, int iFlag);
 int get_order(CHAR_DATA *ch, OBJ_DATA *obj);
-bool has_item(CHAR_DATA *ch, long vnum, sh_int item_type, bool fWear);
+bool has_item(CHAR_DATA *ch, long vnum, int16_t item_type, bool fWear);
 CHAR_DATA *get_mob_vnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, long vnum);
 OBJ_DATA *get_obj_vnum_room(CHAR_DATA *ch, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token, long vnum);
 void do_mob_transfer(CHAR_DATA *ch,ROOM_INDEX_DATA *room,bool quiet,int mode);

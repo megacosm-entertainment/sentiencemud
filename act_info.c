@@ -307,7 +307,7 @@ int show_map(CHAR_DATA * ch, char *buf, char *map, int counter, int line);
 char *get_char_where args((CHAR_DATA * ch));
 CHURCH_DATA *find_char_church(CHAR_DATA * ch);
 int find_char_position_in_church(CHAR_DATA * ch);
-void format_page(sh_int n, char *a, CHAR_DATA * wch);
+void format_page(int16_t n, char *a, CHAR_DATA * wch);
 /*
 int get_squares_to_show_x(ROOM_INDEX_DATA *pRoom, int bonus_view);
 int get_squares_to_show_y(ROOM_INDEX_DATA *pRoom, int bonus_view);
@@ -4779,9 +4779,9 @@ void do_whois(CHAR_DATA * ch, char *argument)
 
 
 /* MOVED: unsorted */
-void format_page(sh_int n, char *a, CHAR_DATA * ch)
+void format_page(int16_t n, char *a, CHAR_DATA * ch)
 {
-    sh_int counter;
+    int16_t counter;
 
     if (n - fstr_len(a) <= 0)
 	return;

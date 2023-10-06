@@ -7381,7 +7381,7 @@ void do_brew(CHAR_DATA *ch, char *argument)
 }
 
 
-void brew_end(CHAR_DATA *ch, sh_int sn)
+void brew_end(CHAR_DATA *ch, int16_t sn)
 {
     char buf[2*MAX_STRING_LENGTH];
     OBJ_DATA *potion;
@@ -7719,7 +7719,7 @@ void do_scribe(CHAR_DATA *ch, char *argument)
 }
 
 
-void scribe_end(CHAR_DATA *ch, sh_int sn, sh_int sn2, sh_int sn3)
+void scribe_end(CHAR_DATA *ch, int16_t sn, int16_t sn2, int16_t sn3)
 {
     char buf[2*MAX_STRING_LENGTH];
     OBJ_DATA *scroll;

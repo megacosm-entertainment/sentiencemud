@@ -1160,7 +1160,7 @@ void do_ink(CHAR_DATA *ch, char *argument)
 }
 
 
-void ink_end( CHAR_DATA *ch, CHAR_DATA *victim, sh_int loc, sh_int sn, sh_int sn2, sh_int sn3 )
+void ink_end( CHAR_DATA *ch, CHAR_DATA *victim, int16_t loc, int16_t sn, int16_t sn2, int16_t sn3 )
 {
     char buf[2*MAX_STRING_LENGTH];
     OBJ_DATA *tattoo;
