@@ -400,7 +400,7 @@ bool variables_setsave_##n (ppVARIABLE list,char *name,t v, bool save) \
 	if(!var) return FALSE; \
  \
 	var->type = VAR_##c; \
-	if( save != TRISTATE ) \
+	if( save != false ) \
 		var->save = save; \
 	var->_.f = v; \
  \
@@ -409,7 +409,7 @@ bool variables_setsave_##n (ppVARIABLE list,char *name,t v, bool save) \
  \
 bool variables_set_##n (ppVARIABLE list,char *name,t v) \
 { \
-	return variables_setsave_##n (list, name, v, TRISTATE); \
+	return variables_setsave_##n (list, name, v, false); \
 } \
 
 
@@ -432,7 +432,7 @@ varset(ship,SHIP,SHIP_DATA *,ship,ship)
 
 bool variables_set_dice (ppVARIABLE list,char *name,DICE_DATA *d)
 {
-	return variables_setsave_dice (list, name, d, TRISTATE);
+	return variables_setsave_dice (list, name, d, false);
 }
 
 bool variables_setsave_dice (ppVARIABLE list,char *name,DICE_DATA *d, bool save)
@@ -442,7 +442,7 @@ bool variables_setsave_dice (ppVARIABLE list,char *name,DICE_DATA *d, bool save)
 	if(!var) return FALSE;
 
 	var->type = VAR_DICE;
-	if( save != TRISTATE )
+	if( save != false )
 		var->save = save;
 	var->_.dice.number = d->number;
 	var->_.dice.size = d->size;
@@ -459,7 +459,7 @@ bool variables_set_door (ppVARIABLE list,char *name, ROOM_INDEX_DATA *room, int 
 	if(!var) return FALSE;
 
 	var->type = VAR_EXIT;
-	if( save != TRISTATE )
+	if( save != false )
 		var->save = save;
 	var->_.door.r = room;
 	var->_.door.door = door;
@@ -472,7 +472,7 @@ bool variables_set_exit (ppVARIABLE list,char *name, EXIT_DATA *ex)
 {
 	if( !ex || !ex->from_room) return FALSE;
 
-	return variables_set_door( list, name, ex->from_room, ex->orig_door, TRISTATE );
+	return variables_set_door( list, name, ex->from_room, ex->orig_door, false );
 }
 
 bool variables_setsave_exit (ppVARIABLE list,char *name, EXIT_DATA *ex, bool save)
@@ -485,7 +485,7 @@ bool variables_setsave_exit (ppVARIABLE list,char *name, EXIT_DATA *ex, bool sav
 
 bool variables_set_skill (ppVARIABLE list,char *name,int sn)
 {
-	return variables_setsave_skill( list, name, sn, TRISTATE );
+	return variables_setsave_skill( list, name, sn, false );
 }
 
 bool variables_setsave_skill (ppVARIABLE list,char *name,int sn, bool save)
@@ -495,7 +495,7 @@ bool variables_setsave_skill (ppVARIABLE list,char *name,int sn, bool save)
 	if(!var) return FALSE;
 
 	var->type = VAR_SKILL;
-	if( save != TRISTATE )
+	if( save != false )
 		var->save = save;
 	var->_.sn =  (sn > 0 && sn < MAX_SKILL) ? sn : 0;
 
@@ -504,7 +504,7 @@ bool variables_setsave_skill (ppVARIABLE list,char *name,int sn, bool save)
 
 bool variables_set_skillinfo (ppVARIABLE list,char *name,CHAR_DATA *owner, int sn, TOKEN_DATA *token)
 {
-	return variables_setsave_skillinfo( list, name, owner, sn, token, TRISTATE );
+	return variables_setsave_skillinfo( list, name, owner, sn, token, false );
 }
 
 bool variables_setsave_skillinfo (ppVARIABLE list,char *name,CHAR_DATA *owner, int sn, TOKEN_DATA *token, bool save)
@@ -514,7 +514,7 @@ bool variables_setsave_skillinfo (ppVARIABLE list,char *name,CHAR_DATA *owner, i
 	if(!var) return FALSE;
 
 	var->type = VAR_SKILLINFO;
-	if( save != TRISTATE )
+	if( save != false )
 		var->save = save;
 	var->_.sk.owner = owner;
 	var->_.sk.token = token;

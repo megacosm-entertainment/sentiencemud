@@ -54,7 +54,7 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-//#include <stdbool.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include "protocol.h"
 #include "sha256.h"
@@ -77,6 +77,7 @@
 int unlink();
 int system();
 */
+/*
 #if	!defined(FALSE)
 #define FALSE	 0
 #endif
@@ -97,10 +98,20 @@ int system();
 //typedef short   int			int16_t;
 
 typedef unsigned char			bool;
-enum tribool: uint8_t {False = 0, True = 1, Unknown = 2};
+//enum tribool: uint8_t {False = 0, True = 1, Unknown = 2};
+*/
 
-typedef unsigned char bool;
-#define TRISTATE 2
+#if	!defined(FALSE)
+#define FALSE	 false
+#endif
+
+#if	!defined(TRUE)
+#define TRUE	 true
+#endif
+typedef unsigned char sent_bool;
+#define TRISTATE_FALSE 0
+#define TRISTATE_TRUE 1
+#define TRISTATE_UNDEF 2
 #define TELOPT_COMPRESS 	85
 
 #define COMPRESS_BUF_SIZE 	16384

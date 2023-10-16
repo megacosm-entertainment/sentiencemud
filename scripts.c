@@ -7626,7 +7626,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 				return;
 
 			if( arg->type == ENT_MOBILE && IS_VALID(arg->d.mob) )
-				variables_set_list_mob(vars,name,arg->d.mob,TRISTATE);
+				variables_set_list_mob(vars,name,arg->d.mob,false);
 
 		// MOBLIST remove <index>
 		} else if( !str_cmp(arg->d.str, "remove") ) {
@@ -7664,7 +7664,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 				return;
 
 			if( arg->type == ENT_OBJECT && IS_VALID(arg->d.obj) )
-				variables_set_list_obj(vars,name,arg->d.obj,TRISTATE);
+				variables_set_list_obj(vars,name,arg->d.obj,false);
 
 		// OBJLIST remove <index>
 		} else if( !str_cmp(arg->d.str, "remove") ) {

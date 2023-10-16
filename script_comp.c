@@ -413,7 +413,7 @@ char *compile_entity(char *str,int type, char **store)
 			next_ent = ENT_BOOLEAN;
 
 		} else if(ent == ENT_STRING) {
-			bool paddir = TRISTATE;		// false = padleft, true = padright
+			sent_bool paddir = TRISTATE_UNDEF;		// false = padleft, true = padright
 			if( !str_cmp(field, "padleft") )
 			{
 				paddir = false;
@@ -430,7 +430,7 @@ char *compile_entity(char *str,int type, char **store)
 			}
 */
 
-			if (paddir != TRISTATE)
+			if (paddir != TRISTATE_UNDEF)
 			{
 				if( !is_number(suffix) )
 				{
@@ -468,7 +468,7 @@ char *compile_entity(char *str,int type, char **store)
 			}
 
 		} else if(ent == ENT_NUMBER) {
-			bool paddir = TRISTATE;		// false = padleft, true = padright
+			sent_bool paddir = TRISTATE_UNDEF;		// false = padleft, true = padright
 			if( !str_cmp(field, "padleft") )
 			{
 				paddir = false;
@@ -484,7 +484,7 @@ char *compile_entity(char *str,int type, char **store)
 				return NULL;
 			}
 */
-			if (paddir != TRISTATE)
+			if (paddir != TRISTATE_UNDEF)
 			{
 				if( !is_number(suffix) )
 				{

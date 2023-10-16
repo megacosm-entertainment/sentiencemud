@@ -232,7 +232,7 @@ static void Negotiate               ( descriptor_t *apDescriptor );
 static void PerformHandshake        ( descriptor_t *apDescriptor, char aCmd, char aProtocol );
 static void PerformSubnegotiation   ( descriptor_t *apDescriptor, char aCmd, char *apData, int aSize );
 static void SendNegotiationSequence ( descriptor_t *apDescriptor, char aCmd, char aProtocol );
-static bool_t ConfirmNegotiation    ( descriptor_t *apDescriptor, negotiated_t aProtocol, bool_t abWillDo, bool_t abSendReply );
+static bool ConfirmNegotiation    ( descriptor_t *apDescriptor, negotiated_t aProtocol, bool abWillDo, bool abSendReply );
 
 static void ParseMSDP               ( descriptor_t *apDescriptor, const char *apData );
 static void ExecuteMSDPPair         ( descriptor_t *apDescriptor, const char *apVariable, const char *apValue );
@@ -246,13 +246,13 @@ static void SendMSSP                ( descriptor_t *apDescriptor );
 
 static char *GetMxpTag              ( const char *apTag, const char *apText );
 
-static const char *GetAnsiColour    ( bool_t abBackground, int aRed, int aGreen, int aBlue );
-static const char *GetRGBColour     ( bool_t abBackground, int aRed, int aGreen, int aBlue );
-static bool_t IsValidColour         ( const char *apArgument );
+static const char *GetAnsiColour    ( bool abBackground, int aRed, int aGreen, int aBlue );
+static const char *GetRGBColour     ( bool abBackground, int aRed, int aGreen, int aBlue );
+static bool IsValidColour         ( const char *apArgument );
 
-static bool_t MatchString           ( const char *apFirst, const char *apSecond );
-static bool_t PrefixString          ( const char *apPart, const char *apWhole );
-static bool_t IsNumber              ( const char *apString );
+static bool MatchString           ( const char *apFirst, const char *apSecond );
+static bool PrefixString          ( const char *apPart, const char *apWhole );
+static bool IsNumber              ( const char *apString );
 static char  *AllocString           ( const char *apString );
 
 /******************************************************************************
@@ -298,7 +298,7 @@ protocol_t *ProtocolCreate( void )
    protocol_t *pProtocol;
 
    /* Called the first time we enter - make sure the table is correct */
-   static bool_t bInit = false;
+   static bool bInit = false;
    if ( !bInit )
    {
       bInit = true;
@@ -574,7 +574,7 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
    const char MXPStop[] = ">\033[7z";
    const char LinkStart[] = "\033[1z<send>\033[7z";
    const char LinkStop[] = "\033[1z</send>\033[7z";
-   bool_t bTerminate = false, bUseMXP = false, bUseMSP = false, bColourOn = true;
+   bool bTerminate = false, bUseMXP = false, bUseMSP = false, bColourOn = true;
    bColourOn = true;
 
 
@@ -628,7 +628,7 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
                   char Buffer[8] = {'\0'}, BugString[256];
                   int Index = 0;
                   int Number = 0;
-                  bool_t bDone = false, bValid = true;
+                  bool bDone = false, bValid = true;
 
                   while ( ISDIGIT(apData[++j]) )
                   {
@@ -678,7 +678,7 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
                {
                   char Buffer[8] = {'\0'}, BugString[256];
                   int Index = 0;
-                  bool_t bDone = false, bValid = true;
+                  bool bDone = false, bValid = true;
 
                   /* Copy the 'f' (foreground) or 'b' (background) */
                   Buffer[Index++] = apData[j++];
@@ -714,7 +714,7 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
                {
                   char Buffer[8] = {'\0'}, BugString[256];
                   int Index = 0;
-                  bool_t bDone = false, bValid = true;
+                  bool bDone = false, bValid = true;
 
                   ++j; /* Skip the 'x' */
 
@@ -920,7 +920,7 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
                {
                   char Buffer[8] = {'\0'};
                   int Index = 0;
-                  bool_t bDone = false, bValid = true;
+                  bool bDone = false, bValid = true;
 
                   /* Copy the 'f' (foreground) or 'b' (background) */
                   Buffer[Index++] = apData[j++];
@@ -1014,7 +1014,7 @@ void ProtocolNegotiate( descriptor_t *apDescriptor )
 }
 
 /* Tells the client to switch echo on or off. */
-void ProtocolNoEcho( descriptor_t *apDescriptor, bool_t abOn )
+void ProtocolNoEcho( descriptor_t *apDescriptor, bool abOn )
 {
    ConfirmNegotiation(apDescriptor, eNEGOTIATED_ECHO, abOn, true);
 }
@@ -1082,7 +1082,7 @@ void CopyoverSet( descriptor_t *apDescriptor, const char *apData )
    if ( pProtocol != NULL && apData != NULL )
    {
       int Width = 0, Height = 0;
-      bool_t bDoneWidth = false;
+      bool bDoneWidth = false;
       int i; /* Loop counter */
 
       for ( i = 0; apData[i] != '\0'; ++i )
@@ -1641,7 +1641,7 @@ const char *ColourRGB( descriptor_t *apDescriptor, const char *apRGB )
    {
       if ( IsValidColour(apRGB) )
       {
-         bool_t bBackground = (tolower(apRGB[0]) == 'b');
+         bool bBackground = (tolower(apRGB[0]) == 'b');
          int Red = apRGB[1] - '0';
          int Green = apRGB[2] - '0';
          int Blue = apRGB[3] - '0';
@@ -2104,7 +2104,7 @@ static void PerformSubnegotiation( descriptor_t *apDescriptor, char aCmd, char *
             const int MaxClientLength = 64;
             char *pClientName = alloca(MaxClientLength+1);
             int i = 0, j = 1;
-            bool_t bStopCyclicTTYPE = false;
+            bool bStopCyclicTTYPE = false;
 
             for ( ; apData[j] != '\0' && i < MaxClientLength; ++j )
             {
@@ -2310,9 +2310,9 @@ static void SendNegotiationSequence( descriptor_t *apDescriptor, char aCmd, char
    Write(apDescriptor, NegotiateSequence);
 }
 
-static bool_t ConfirmNegotiation( descriptor_t *apDescriptor, negotiated_t aProtocol, bool_t abWillDo, bool_t abSendReply )
+static bool ConfirmNegotiation( descriptor_t *apDescriptor, negotiated_t aProtocol, bool abWillDo, bool abSendReply )
 {
-   bool_t bResult = false;
+   bool bResult = false;
 
    if ( aProtocol >= eNEGOTIATED_TTYPE && aProtocol < eNEGOTIATED_MAX )
    {
@@ -2422,7 +2422,7 @@ static void ExecuteMSDPPair( descriptor_t *apDescriptor, const char *apVariable,
    {
       if ( MatchString(apVariable, "SEND") )
       {
-         bool_t bDone = false;
+         bool bDone = false;
          int i; /* Loop counter */
          for ( i = eMSDP_NONE+1; i < eMSDP_MAX && !bDone; ++i )
          {
@@ -2435,7 +2435,7 @@ static void ExecuteMSDPPair( descriptor_t *apDescriptor, const char *apVariable,
       }
       else if ( MatchString(apVariable, "REPORT") )
       {
-         bool_t bDone = false;
+         bool bDone = false;
          int i; /* Loop counter */
          for ( i = eMSDP_NONE+1; i < eMSDP_MAX && !bDone; ++i )
          {
@@ -2465,7 +2465,7 @@ static void ExecuteMSDPPair( descriptor_t *apDescriptor, const char *apVariable,
       }
       else if ( MatchString(apVariable, "UNREPORT") )
       {
-         bool_t bDone = false;
+         bool bDone = false;
          int i; /* Loop counter */
          for ( i = eMSDP_NONE+1; i < eMSDP_MAX && !bDone; ++i )
          {
@@ -2934,7 +2934,7 @@ static char *GetMxpTag( const char *apTag, const char *apText )
  Local colour functions.
  ******************************************************************************/
 
-static const char *GetAnsiColour( bool_t abBackground, int aRed, int aGreen, int aBlue )
+static const char *GetAnsiColour( bool abBackground, int aRed, int aGreen, int aBlue )
 {
    if ( aRed == aGreen && aRed == aBlue && aRed < 2)
       return abBackground ? s_BackBlack : aRed >= 1 ? s_BoldBlack : s_DarkBlack;
@@ -2954,7 +2954,7 @@ static const char *GetAnsiColour( bool_t abBackground, int aRed, int aGreen, int
       return abBackground ? s_BackBlue : aBlue >= 3 ? s_BoldBlue : s_DarkBlue;
 }
 
-static const char *GetRGBColour( bool_t abBackground, int aRed, int aGreen, int aBlue )
+static const char *GetRGBColour( bool abBackground, int aRed, int aGreen, int aBlue )
 {
    static char Result[16];
    int ColVal = 16 + (aRed * 36) + (aGreen * 6) + aBlue;
@@ -2966,7 +2966,7 @@ static const char *GetRGBColour( bool_t abBackground, int aRed, int aGreen, int 
    return Result;
 }
 
-static bool_t IsValidColour( const char *apArgument )
+static bool IsValidColour( const char *apArgument )
 {
    int i; /* Loop counter */
 
@@ -2993,21 +2993,21 @@ static bool_t IsValidColour( const char *apArgument )
  Other local functions.
  ******************************************************************************/
 
-static bool_t MatchString( const char *apFirst, const char *apSecond )
+static bool MatchString( const char *apFirst, const char *apSecond )
 {
    while ( *apFirst && tolower(*apFirst) == tolower(*apSecond) )
       ++apFirst, ++apSecond;
    return ( !*apFirst && !*apSecond );
 }
 
-static bool_t PrefixString( const char *apPart, const char *apWhole )
+static bool PrefixString( const char *apPart, const char *apWhole )
 {
    while ( *apPart && tolower(*apPart) == tolower(*apWhole) )
       ++apPart, ++apWhole;
    return ( !*apPart );
 }
 
-static bool_t IsNumber( const char *apString )
+static bool IsNumber( const char *apString )
 {
    while ( *apString && ISDIGIT(*apString) )
       ++apString;

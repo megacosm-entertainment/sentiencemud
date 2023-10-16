@@ -97,34 +97,6 @@ const   char    msp_dont        [] = { IAC, DONT, TELOPT_MSP, '\0' };
  * OS-dependent declarations.
  */
 
-#if	defined(interactive)
-#include <net/errno.h>
-#include <sys/fnctl.h>
-#endif
-
-#if	defined(linux)
-/*
-    Linux shouldn't need these. If you have a problem compiling, try
-    uncommenting these functions.
-*/
-/*
-int accept    args( ( int s, struct sockaddr *addr, int *addrlen ) );
-int bind    args( ( int s, struct sockaddr *name, int namelen ) );
-int getpeername args( ( int s, struct sockaddr *name, int *namelen ) );
-int getsockname args( ( int s, struct sockaddr *name, int *namelen ) );
-int listen    args( ( int s, int backlog ) );
-*/
-
-int	close		args((int fd));
-/* int	gettimeofday	args((struct timeval *tp, struct timezone *tzp)); */
-/*int	read		args((int fd, char *buf, int nbyte));*/
-int	select		args((int width, fd_set *readfds, fd_set *writefds,
-			    fd_set *exceptfds, struct timeval *timeout));
-int	socket		args((int domain, int type, int protocol));
-/*int	write		args((int fd, char *buf, int nbyte));*/
-#endif
-
-
 
 void show_form_state(CHAR_DATA *ch);
 /* VIZZWILDS */

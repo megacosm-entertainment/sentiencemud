@@ -6,7 +6,7 @@
  The copyright holder grants any entity the right to use this work for any 
  purpose, without any conditions, unless such conditions are required by law.
  ******************************************************************************/
-
+#include <stdbool.h>
 #ifndef PROTOCOL_H
 #define PROTOCOL_H
 
@@ -119,13 +119,13 @@ https://wiki.mudlet.org/w/Standards:Discord_GMCP */
 /******************************************************************************
  Types.
  ******************************************************************************/
-
+/*
 typedef enum
 {
    false, 
    true
-} bool_t;
-
+} bool;
+*/
 typedef enum
 {
    eNEGOTIATED_TTYPE, 
@@ -412,10 +412,10 @@ typedef struct
 {
    variable_t   Variable;      /* The enum type of this variable */
    const char  *pName;         /* The string name of this variable */
-   bool_t       bString;       /* Is this variable a string or a number? */
-   bool_t       bConfigurable; /* Can it be configured by the client? */
-   bool_t       bWriteOnce;    /* Can only set this variable once */
-   bool_t       bGUI;          /* It's a special GUI configuration variable */
+   bool       bString;       /* Is this variable a string or a number? */
+   bool       bConfigurable; /* Can it be configured by the client? */
+   bool       bWriteOnce;    /* Can only set this variable once */
+   bool       bGUI;          /* It's a special GUI configuration variable */
    int          Min;           /* The minimum valid value or string length */
    int          Max;           /* The maximum valid value or string length */
    int          Default;       /* The default value for a number */
@@ -424,8 +424,8 @@ typedef struct
 
 typedef struct
 {
-   bool_t       bReport;       /* Is this variable being reported? */
-   bool_t       bDirty;        /* Does this variable need to be sent again? */
+   bool       bReport;       /* Is this variable being reported? */
+   bool       bDirty;        /* Does this variable need to be sent again? */
    int          ValueInt;      /* The numeric value of the variable */
    char        *pValueString;  /* The string value of the variable */
 } MSDP_t;
@@ -440,22 +440,22 @@ typedef struct
 typedef struct
 {
    int       WriteOOB;         /* Used internally to indicate OOB data */
-   bool_t    Negotiated[eNEGOTIATED_MAX];
-   bool_t    bIACMode;         /* Current mode - deals with broken packets */
-   bool_t    bNegotiated;      /* Indicates client successfully negotiated */
-   bool_t    bRenegotiate;     /* Workaround for clients that autoconnect */
-   bool_t    bNeedMXPVersion;  /* Workaround for clients that autoconnect */
-   bool_t    bBlockMXP;        /* Used internally based on MXP version */
-   bool_t    bTTYPE;           /* The client supports TTYPE */
-   bool_t    bECHO;            /* Toggles ECHO on/off */
-   bool_t    bNAWS;            /* The client supports NAWS */
-   bool_t    bCHARSET;         /* The client supports CHARSET */
-   bool_t    bMSDP;            /* The client supports MSDP */
-   bool_t    bMSSP;            /* The client supports MSSP */
-   bool_t    bATCP;            /* The client supports ATCP */
-   bool_t    bMSP;             /* The client supports MSP */
-   bool_t    bMXP;             /* The client supports MXP */
-   bool_t    bMCCP;            /* The client supports MCCP */
+   bool    Negotiated[eNEGOTIATED_MAX];
+   bool    bIACMode;         /* Current mode - deals with broken packets */
+   bool    bNegotiated;      /* Indicates client successfully negotiated */
+   bool    bRenegotiate;     /* Workaround for clients that autoconnect */
+   bool    bNeedMXPVersion;  /* Workaround for clients that autoconnect */
+   bool    bBlockMXP;        /* Used internally based on MXP version */
+   bool    bTTYPE;           /* The client supports TTYPE */
+   bool    bECHO;            /* Toggles ECHO on/off */
+   bool    bNAWS;            /* The client supports NAWS */
+   bool    bCHARSET;         /* The client supports CHARSET */
+   bool    bMSDP;            /* The client supports MSDP */
+   bool    bMSSP;            /* The client supports MSSP */
+   bool    bATCP;            /* The client supports ATCP */
+   bool    bMSP;             /* The client supports MSP */
+   bool    bMXP;             /* The client supports MXP */
+   bool    bMCCP;            /* The client supports MCCP */
    support_t b256Support;      /* The client supports XTerm 256 colors */
    int       ScreenWidth;      /* The client's screen width */
    int       ScreenHeight;     /* The client's screen height */
@@ -464,10 +464,10 @@ typedef struct
    MSDP_t  **pVariables;       /* The MSDP variables */
 
 	/*************** START GMCP ***************/
-	bool_t	bGMCP; /* The client supports GMCP */
-	bool_t	bSGA; /* The client supports SGA */
-	bool_t	bGMCPSupport[GMCP_SUPPORT_MAX]; /* The client supports specific modules */
-	bool_t	bGMCPUpdatePackage[GMCP_PACKAGE_MAX]; /* Send these packages to the client. */
+	bool	bGMCP; /* The client supports GMCP */
+	bool	bSGA; /* The client supports SGA */
+	bool	bGMCPSupport[GMCP_SUPPORT_MAX]; /* The client supports specific modules */
+	bool	bGMCPUpdatePackage[GMCP_PACKAGE_MAX]; /* Send these packages to the client. */
 	char	*GMCPVariable[GMCP_MAX]; /* The message for each variable */
 	/*************** END GMCP ***************/
 
@@ -505,7 +505,7 @@ void ProtocolNegotiate( descriptor_t *apDescriptor );
  * 
  * Tells the client to switch echo on or off.
  */
-void ProtocolNoEcho( descriptor_t *apDescriptor, bool_t abOn );
+void ProtocolNoEcho( descriptor_t *apDescriptor, bool abOn );
 
 /* Function: ProtocolInput
  *

@@ -5021,7 +5021,7 @@ void do_bash(CHAR_DATA *ch, char *argument)
 		act("$n slams into you...", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 		act("$n slams into $N...", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
 
-		dam = (ch->tot_level + get_skill(ch, gsn_bash))*7*log10(ch->tot_level);
+		dam = (ch->tot_level + get_skill(ch, gsn_bash))*4*log10(ch->tot_level);
 		if (ch->size > victim->size) dam *= (ch->size - victim->size);
 		if (ch->size < victim->size) dam /= (victim->size - ch->size);
 
@@ -6555,7 +6555,7 @@ void do_kick(CHAR_DATA *ch, char *argument)
 	if (skill > number_percent()) {
 		int dam = 0;
 
-		dam += 15 *number_range(ch->tot_level/2, ch->tot_level);
+		dam += 7 *number_range(ch->tot_level/2, ch->tot_level);
 
 		if (get_skill(ch,gsn_martial_arts) > 0) {
 			dam += (int) dam * (get_skill(ch,gsn_martial_arts) / 100);
