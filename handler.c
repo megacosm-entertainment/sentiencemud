@@ -7658,7 +7658,7 @@ TOKEN_DATA *idfind_token_char(CHAR_DATA *ch, register unsigned long id1, registe
 {
 	register TOKEN_DATA *token;
 
-	if( !ch ) return false;
+	if( !ch ) return NULL;
 
 	for (token = ch->tokens; token; token = token->next)
 		if(token->id[0] == id1 && token->id[1] == id2)
@@ -7670,7 +7670,7 @@ TOKEN_DATA *idfind_token_object(OBJ_DATA *obj, register unsigned long id1, regis
 {
 	register TOKEN_DATA *token;
 
-	if( !obj ) return false;
+	if( !obj ) return NULL;
 
 	for (token = obj->tokens; token; token = token->next)
 		if(token->id[0] == id1 && token->id[1] == id2)
@@ -7682,7 +7682,7 @@ TOKEN_DATA *idfind_token_room(ROOM_INDEX_DATA *room, register unsigned long id1,
 {
 	register TOKEN_DATA *token;
 
-	if( !room ) return false;
+	if( !room ) return NULL;
 
 	for (token = room->tokens; token; token = token->next)
 		if(token->id[0] == id1 && token->id[1] == id2)

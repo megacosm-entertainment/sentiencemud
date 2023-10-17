@@ -135,7 +135,7 @@ LLIST *loaded_areas;
 /*
  * OS-dependent local functions.
  */
-void	game_loop_unix		args((int control));
+void	game_loop		args((int control));
 int	init_socket		args((int port));
 void	init_descriptor		args((int control));
 bool	read_from_descriptor	args((DESCRIPTOR_DATA *d));
@@ -480,7 +480,7 @@ int main(int argc, char **argv)
     #ifdef IMC
     imc_startup( false, -1, false );
     #endif
-    game_loop_unix(control);
+    game_loop(control);
 	list_destroy(conn_players);
 	list_destroy(conn_immortals);
 	list_destroy(conn_online);
@@ -606,7 +606,7 @@ int init_socket(int port)
     return fd;
 }
 
-void game_loop_unix(int control)
+void game_loop(int control)
 {
     static struct timeval null_time;
     struct timeval last_time;

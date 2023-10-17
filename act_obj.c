@@ -1469,7 +1469,7 @@ void do_give(CHAR_DATA *ch, char *argument)
     OBJ_DATA *match_obj;
     int i = 0;
     bool found = true;
-    OBJ_DATA *any = false;
+    OBJ_DATA *any = NULL;
     long amount;
 
     argument = one_argument(argument, arg1);
