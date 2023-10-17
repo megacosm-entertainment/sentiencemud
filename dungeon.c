@@ -55,7 +55,7 @@ SCRIPT_DATA *read_script_new( FILE *fp, AREA_DATA *area, int type);
 
 extern LLIST *loaded_instances;
 
-bool dungeons_changed = FALSE;
+bool dungeons_changed = false;
 long top_dungeon_vnum = 0;
 LLIST *loaded_dungeons;
 
@@ -74,7 +74,7 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp)
 
 	while (str_cmp((word = fread_word(fp)), "#-DUNGEON"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		switch(word[0])
 		{
@@ -114,7 +114,7 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp)
 							sprintf(buf, "load_dungeon_index: invalid spell '%s' for TRIG_SPELLCAST", p);
 							bug(buf, 0);
 							free_trigger(dpr);
-							fMatch = TRUE;
+							fMatch = true;
 							break;
 						}
 
@@ -122,7 +122,7 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp)
 						sprintf(buf, "%d", tsn);
 						dpr->trig_phrase = str_dup(buf);
 						dpr->trig_number = tsn;
-						dpr->numeric = TRUE;
+						dpr->numeric = true;
 
 					} else {
 						dpr->trig_number = atoi(dpr->trig_phrase);
@@ -133,7 +133,7 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp)
 
 					list_appendlink(dng->progs[trigger_table[tindex].slot], dpr);
 				}
-				fMatch = TRUE;
+				fMatch = true;
 			}
 			break;
 
@@ -155,7 +155,7 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp)
 					list_appendlink(dng->floors, bp);
 				}
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			break;
@@ -192,7 +192,7 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp)
 				special->vnum = vnum;
 
 				list_appendlink(dng->special_rooms, special);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			break;
@@ -203,7 +203,7 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp)
 				int value;
 				bool saved;
 
-				fMatch = TRUE;
+				fMatch = true;
 
 				name = fread_string(fp);
 				saved = fread_number(fp);
@@ -217,13 +217,13 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp)
 				char *str;
 				bool saved;
 
-				fMatch = TRUE;
+				fMatch = true;
 
 				name = fread_string(fp);
 				saved = fread_number(fp);
 				str = fread_string(fp);
 
-				variables_setindex_string (&dng->index_vars,name,str,FALSE,saved);
+				variables_setindex_string (&dng->index_vars,name,str,false,saved);
 			}
 
 			if (!str_cmp(word, "VarRoom")) {
@@ -231,7 +231,7 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp)
 				int value;
 				bool saved;
 
-				fMatch = TRUE;
+				fMatch = true;
 
 				name = fread_string(fp);
 				saved = fread_number(fp);
@@ -274,7 +274,7 @@ void load_dungeons()
 
 	while (str_cmp((word = fread_word(fp)), "#END"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		if( !str_cmp(word, "#DUNGEON") )
 		{
@@ -284,7 +284,7 @@ void load_dungeons()
 			dng->next = dungeon_index_hash[iHash];
 			dungeon_index_hash[iHash] = dng;
 
-			fMatch = TRUE;
+			fMatch = true;
 		}
 
 		if (!str_cmp(word, "#DUNGEONPROG"))
@@ -298,7 +298,7 @@ void load_dungeons()
 		    		top_dprog_index = pr->vnum;
 		    }
 
-		    fMatch = TRUE;
+		    fMatch = true;
 		}
 
 
@@ -387,7 +387,7 @@ bool save_dungeons()
 	if (fp == NULL)
 	{
 		bug("Couldn't save dungeons.dat", 0);
-		return FALSE;
+		return false;
 	}
 
 	int iHash;
@@ -408,8 +408,8 @@ bool save_dungeons()
 
 	fclose(fp);
 
-	dungeons_changed = FALSE;
-	return TRUE;
+	dungeons_changed = false;
+	return true;
 }
 
 bool can_edit_dungeons(CHAR_DATA *ch)
@@ -449,7 +449,7 @@ DUNGEON *create_dungeon(long vnum)
 
 	dng->progs			= new_prog_data();
 	dng->progs->progs	= index->progs;
-	variable_copylist(&index->index_vars,&dng->progs->vars,FALSE);
+	variable_copylist(&index->index_vars,&dng->progs->vars,false);
 
 	dng->entry_room = get_room_index(index->entry_room);
 	if( !dng->entry_room )
@@ -468,7 +468,7 @@ DUNGEON *create_dungeon(long vnum)
 	dng->flags = index->flags;
 
 	int floor = 1;
-	bool error = FALSE;
+	bool error = false;
 	BLUEPRINT *bp;
 	INSTANCE *instance;
 	iterator_start(&it, index->floors);
@@ -478,7 +478,7 @@ DUNGEON *create_dungeon(long vnum)
 
 		if( !instance )
 		{
-			error = TRUE;
+			error = true;
 			break;
 		}
 
@@ -542,7 +542,7 @@ void extract_dungeon(DUNGEON *dungeon)
     if(dungeon->progs) {
 	    SET_BIT(dungeon->progs->entity_flags,PROG_NODESTRUCT);
 	    if(dungeon->progs->script_ref > 0) {
-			dungeon->progs->extract_when_done = TRUE;
+			dungeon->progs->extract_when_done = true;
 			return;
 		}
     }
@@ -698,11 +698,11 @@ void dungeon_check_empty(DUNGEON *dungeon)
 	if( dungeon->empty )
 	{
 		if( list_size(dungeon->players) > 0 )
-			dungeon->empty = FALSE;
+			dungeon->empty = false;
 	}
 	else if( list_size(dungeon->players) < 1 )
 	{
-		dungeon->empty = TRUE;
+		dungeon->empty = true;
 		if( dungeon_can_idle(dungeon) )
 			dungeon->idle_timer = UMAX(DUNGEON_IDLE_TIMEOUT, dungeon->idle_timer);
 	}
@@ -813,7 +813,7 @@ void list_dungeons(CHAR_DATA *ch, char *argument)
 		send_to_char("{RWARNING:{W Having scrolling off may limit how many dungeons you can see.{x\n\r", ch);
 
 	int lines = 0;
-	bool error = FALSE;
+	bool error = false;
 	BUFFER *buffer = new_buf();
 	char buf[MSL];
 
@@ -830,7 +830,7 @@ void list_dungeons(CHAR_DATA *ch, char *argument)
 			++lines;
 			if( !add_buf(buffer, buf) || (!ch->lines && strlen(buf_string(buffer)) > MAX_STRING_LENGTH) )
 			{
-				error = TRUE;
+				error = true;
 				break;
 			}
 		}
@@ -900,7 +900,7 @@ void do_dngedit(CHAR_DATA *ch, char *argument)
 		{
 			if (dngedit_create(ch, argument))
 			{
-				dungeons_changed = TRUE;
+				dungeons_changed = true;
 				ch->pcdata->immortal->last_olc_command = current_time;
 				ch->desc->editor = ED_DUNGEON;
 			}
@@ -951,7 +951,7 @@ void dngedit(CHAR_DATA *ch, char *argument)
 		{
 			if ((*dngedit_table[cmd].olc_fun) (ch, argument))
 			{
-				dungeons_changed = TRUE;
+				dungeons_changed = true;
 			}
 
 			return;
@@ -964,7 +964,7 @@ void dngedit(CHAR_DATA *ch, char *argument)
 DNGEDIT( dngedit_list )
 {
 	list_dungeons(ch, argument);
-	return FALSE;
+	return false;
 }
 
 void dngedit_buffer_floors(BUFFER *buffer, DUNGEON_INDEX_DATA *dng)
@@ -1136,7 +1136,7 @@ DNGEDIT( dngedit_show )
 				while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
 					sprintf(buf, "{C[{W%4d{C]{x %-20ld %-10s %-6s\n\r", cnt,
 						trigger->vnum,trigger_name(trigger->trig_type),
-						trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, FALSE, FALSE));
+						trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, false, false));
 					add_buf(buffer, buf);
 					cnt++;
 				}
@@ -1191,7 +1191,7 @@ DNGEDIT( dngedit_show )
 	}
 
 	free_buf(buffer);
-	return FALSE;
+	return false;
 }
 
 void do_dngshow(CHAR_DATA *ch, char *argument)
@@ -1252,7 +1252,7 @@ DNGEDIT( dngedit_create )
 	else if( get_dungeon_index(value) )
 	{
 		send_to_char("That vnum already exists.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	dng = new_dungeon_index();
@@ -1266,7 +1266,7 @@ DNGEDIT( dngedit_create )
 	if( dng->vnum > top_dungeon_vnum)
 		top_dungeon_vnum = dng->vnum;
 
-    return TRUE;
+    return true;
 }
 
 DNGEDIT( dngedit_name )
@@ -1280,13 +1280,13 @@ DNGEDIT( dngedit_name )
 	if (argument[0] == '\0')
 	{
 		send_to_char("Syntax:  name [string]\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	free_string(dng->name);
 	dng->name = str_dup(argument);
 	send_to_char("Name changed.\n\r", ch);
-	return TRUE;
+	return true;
 }
 
 DNGEDIT( dngedit_repop )
@@ -1298,13 +1298,13 @@ DNGEDIT( dngedit_repop )
 	if( !is_number(argument) )
 	{
 		send_to_char("Syntax:  repop [age]\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	int repop = atoi(argument);
 	dng->repop = UMAX(0, repop);
 	send_to_char("Repop changed.\n\r", ch);
-	return TRUE;
+	return true;
 }
 
 
@@ -1317,11 +1317,11 @@ DNGEDIT( dngedit_description )
 	if (argument[0] == '\0')
 	{
 		string_append(ch, &dng->description);
-		return TRUE;
+		return true;
 	}
 
 	send_to_char("Syntax:  description - line edit\n\r", ch);
-	return FALSE;
+	return false;
 }
 
 DNGEDIT( dngedit_comments )
@@ -1333,11 +1333,11 @@ DNGEDIT( dngedit_comments )
 	if (argument[0] == '\0')
 	{
 		string_append(ch, &dng->comments);
-		return TRUE;
+		return true;
 	}
 
 	send_to_char("Syntax:  comments - line edit\n\r", ch);
-	return FALSE;
+	return false;
 }
 
 DNGEDIT( dngedit_areawho )
@@ -1354,7 +1354,7 @@ DNGEDIT( dngedit_areawho )
 			dng->area_who = AREA_BLANK;
 
 			send_to_char("Area who title cleared.\n\r", ch);
-			return TRUE;
+			return true;
 		}
 
 		if ((value = flag_value(area_who_titles, argument)) != NO_FLAG)
@@ -1362,19 +1362,19 @@ DNGEDIT( dngedit_areawho )
 			if( value == AREA_INSTANCE || value == AREA_DUTY )
 			{
 				send_to_char("Area who title only allowed in blueprints.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			dng->area_who = value;
 
 			send_to_char("Area who title set.\n\r", ch);
-			return TRUE;
+			return true;
 		}
     }
 
     send_to_char("Syntax:  areawho [title]\n\r"
 				"Type '? areawho' for a list of who titles.\n\r", ch);
-    return FALSE;
+    return false;
 
 }
 
@@ -1390,7 +1390,7 @@ DNGEDIT( dngedit_floors )
 		send_to_char("Syntax:  floors add <vnum>\n\r", ch);
 		send_to_char("         floors remove #\n\r", ch);
 		send_to_char("         floors list\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	argument = one_argument(argument, arg);
@@ -1403,7 +1403,7 @@ DNGEDIT( dngedit_floors )
 
 		page_to_char(buffer->string, ch);
 		free_buf(buffer);
-		return FALSE;
+		return false;
 	}
 
 	if( !str_prefix(arg, "add") )
@@ -1411,7 +1411,7 @@ DNGEDIT( dngedit_floors )
 		if( !is_number(argument) )
 		{
 			send_to_char("That is not a number.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		long vnum = atol(argument);
@@ -1421,7 +1421,7 @@ DNGEDIT( dngedit_floors )
 		if( !bp )
 		{
 			send_to_char("That blueprint does not exist.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if( bp->mode == BLUEPRINT_MODE_STATIC )
@@ -1430,18 +1430,18 @@ DNGEDIT( dngedit_floors )
 				bp->static_exit_section < 1 || bp->static_exit_link < 1 )
 			{
 				send_to_char("Blueprint must have an entrance and exit specified.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 		}
 		else
 		{
 			send_to_char("Blueprint mode not supported yet.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		list_appendlink(dng->floors, bp);
 		send_to_char("Floor added.\n\r", ch);
-		return TRUE;
+		return true;
 	}
 
 	if( !str_prefix(arg, "remove") || !str_prefix(arg, "delete") )
@@ -1449,7 +1449,7 @@ DNGEDIT( dngedit_floors )
 		if( !is_number(argument) )
 		{
 			send_to_char("That is not a number.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		int index = atoi(argument);
@@ -1457,7 +1457,7 @@ DNGEDIT( dngedit_floors )
 		if( index < 1 || index > list_size(dng->floors) )
 		{
 			send_to_char("Index out of range.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		list_remnthlink(dng->floors, index);
@@ -1479,11 +1479,11 @@ DNGEDIT( dngedit_floors )
 		iterator_stop(&it);
 
 		send_to_char("Floor removed.\n\r", ch);
-		return TRUE;
+		return true;
 	}
 
 	dngedit_floors(ch, "");
-	return FALSE;
+	return false;
 }
 
 DNGEDIT( dngedit_entry )
@@ -1496,13 +1496,13 @@ DNGEDIT( dngedit_entry )
 	if (argument[0] == '\0')
 	{
 		send_to_char("Syntax:  entry <vnum>\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if( !is_number(argument) )
 	{
 		send_to_char("That is not a number.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	value = atol(argument);
@@ -1510,12 +1510,12 @@ DNGEDIT( dngedit_entry )
 	if( !get_room_index(value) )
 	{
 		send_to_char("That room does not exist.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	dng->entry_room = value;
 	send_to_char("Entry room changed.\n\r", ch);
-	return TRUE;
+	return true;
 }
 
 DNGEDIT( dngedit_exit )
@@ -1528,13 +1528,13 @@ DNGEDIT( dngedit_exit )
 	if (argument[0] == '\0')
 	{
 		send_to_char("Syntax:  exit <vnum>\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if( !is_number(argument) )
 	{
 		send_to_char("That is not a number.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	value = atol(argument);
@@ -1542,12 +1542,12 @@ DNGEDIT( dngedit_exit )
 	if( !get_room_index(value) )
 	{
 		send_to_char("That room does not exist.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	dng->exit_room = value;
 	send_to_char("Exit room changed.\n\r", ch);
-	return TRUE;
+	return true;
 }
 
 DNGEDIT( dngedit_flags )
@@ -1561,18 +1561,18 @@ DNGEDIT( dngedit_flags )
 	{
 		send_to_char("Syntax:  flags <flags>\n\r", ch);
 		send_to_char("'? dungeon' for list of flags.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if( (value = flag_value(dungeon_flags, argument)) != NO_FLAG )
 	{
 		dng->flags ^= value;
 		send_to_char("Dungeon flags changed.\n\r", ch);
-		return TRUE;
+		return true;
 	}
 
 	dngedit_flags(ch, "");
-	return FALSE;
+	return false;
 
 }
 
@@ -1587,13 +1587,13 @@ DNGEDIT( dngedit_zoneout )
 	if (argument[0] == '\0')
 	{
 		send_to_char("Syntax:  zoneout [string]\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	free_string(dng->zone_out);
 	dng->zone_out = str_dup(argument);
 	send_to_char("ZoneOut changed.\n\r", ch);
-	return TRUE;
+	return true;
 }
 
 DNGEDIT( dngedit_portalout )
@@ -1607,13 +1607,13 @@ DNGEDIT( dngedit_portalout )
 	if (argument[0] == '\0')
 	{
 		send_to_char("Syntax:  portalout [string]\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	free_string(dng->zone_out_portal);
 	dng->zone_out_portal = str_dup(argument);
 	send_to_char("PortalOut changed.\n\r", ch);
-	return TRUE;
+	return true;
 }
 
 DNGEDIT( dngedit_mountout )
@@ -1627,13 +1627,13 @@ DNGEDIT( dngedit_mountout )
 	if (argument[0] == '\0')
 	{
 		send_to_char("Syntax:  mountout [string]\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	free_string(dng->zone_out_mount);
 	dng->zone_out_mount = str_dup(argument);
 	send_to_char("MountOut changed.\n\r", ch);
-	return TRUE;
+	return true;
 }
 
 DNGEDIT( dngedit_special )
@@ -1656,7 +1656,7 @@ DNGEDIT( dngedit_special )
 		send_to_char("         special # name [name]\n\r", ch);
 		send_to_char("         special # floor [floor]\n\r", ch);
 		send_to_char("         special # room [section] [room vnum]\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if( !str_prefix(arg1, "list") )
@@ -1720,7 +1720,7 @@ DNGEDIT( dngedit_special )
 			send_to_char("Dungeon has no special rooms defined.\n\r", ch);
 		}
 
-		return FALSE;
+		return false;
 	}
 
 	if( is_number(arg1) )
@@ -1732,13 +1732,13 @@ DNGEDIT( dngedit_special )
 		if( !IS_VALID(special) )
 		{
 			send_to_char("No such special room.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if( arg2[0] == '\0' )
 		{
 			dngedit_special(ch, "");
-			return FALSE;
+			return false;
 		}
 
 		if( !str_prefix(arg2, "remove") || !str_prefix(arg2, "delete") )
@@ -1746,7 +1746,7 @@ DNGEDIT( dngedit_special )
 			list_remnthlink(dng->special_rooms, index);
 
 			send_to_char("Special room deleted.\n\r", ch);
-			return TRUE;
+			return true;
 		}
 
 		if( !str_prefix(arg2, "floor") )
@@ -1754,7 +1754,7 @@ DNGEDIT( dngedit_special )
 			if( !is_number(arg3) )
 			{
 				send_to_char("That is not a number.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			int floor = atoi(arg3);
@@ -1762,7 +1762,7 @@ DNGEDIT( dngedit_special )
 			if( floor < 1 || floor > list_size(dng->floors) )
 			{
 				send_to_char("Floor out of range.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			special->floor = floor;
@@ -1770,7 +1770,7 @@ DNGEDIT( dngedit_special )
 			special->vnum = -1;
 
 			send_to_char("Floor changed.\n\r", ch);
-			return TRUE;
+			return true;
 		}
 
 		if( !str_prefix(arg2, "name") )
@@ -1778,7 +1778,7 @@ DNGEDIT( dngedit_special )
 			if( IS_NULLSTR(arg3) )
 			{
 				send_to_char("Syntax:  special # name [name]\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			smash_tilde(arg3);
@@ -1786,7 +1786,7 @@ DNGEDIT( dngedit_special )
 			special->name = str_dup(arg3);
 
 			send_to_char("Special room name changed.\n\r", ch);
-			return TRUE;
+			return true;
 		}
 
 		if( !str_prefix(arg2, "room") )
@@ -1794,7 +1794,7 @@ DNGEDIT( dngedit_special )
 			if( !is_number(arg3) || !is_number(arg4) )
 			{
 				send_to_char("That is not a number.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			int section = atoi(arg3);
@@ -1805,7 +1805,7 @@ DNGEDIT( dngedit_special )
 			if( section < 1 || section > list_size(bp->sections) )
 			{
 				send_to_char("Section number out of range.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			BLUEPRINT_SECTION *bs = list_nthdata(bp->sections, section);
@@ -1813,20 +1813,20 @@ DNGEDIT( dngedit_special )
 			if( vnum < bs->lower_vnum || vnum > bs->upper_vnum )
 			{
 				send_to_char("Room vnum not in the section.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			if( !get_room_index(vnum) )
 			{
 				send_to_char("Room does not exist.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			special->section = section;
 			special->vnum = vnum;
 
 			send_to_char("Special room changed.\n\r", ch);
-			return TRUE;
+			return true;
 		}
 	}
 	else if( !str_prefix(arg1, "add") )
@@ -1838,13 +1838,13 @@ DNGEDIT( dngedit_special )
 		if( argument[0] == '\0' )
 		{
 			send_to_char("Syntax:  special add [floor] [section] [room vnum] [name]\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if( !is_number(arg2) || !is_number(arg3) || !is_number(arg4) )
 		{
 			send_to_char("That is not a number.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		int floor = atoi(arg2);
@@ -1854,7 +1854,7 @@ DNGEDIT( dngedit_special )
 		if( floor < 1 || floor > list_size(dng->floors) )
 		{
 			send_to_char("Floor out of range.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		BLUEPRINT *bp = list_nthdata(dng->floors, floor);
@@ -1862,13 +1862,13 @@ DNGEDIT( dngedit_special )
 		if( bp->mode != BLUEPRINT_MODE_STATIC )
 		{
 			send_to_char("Only STATIC blueprints are supported.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if( section < 1 || section > list_size(bp->sections) )
 		{
 			send_to_char("Section number out of range.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		BLUEPRINT_SECTION *bs = list_nthdata(bp->sections, section);
@@ -1876,13 +1876,13 @@ DNGEDIT( dngedit_special )
 		if( vnum < bs->lower_vnum || vnum > bs->upper_vnum )
 		{
 			send_to_char("Room vnum not in the section.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if( !get_room_index(vnum) )
 		{
 			send_to_char("Room does not exist.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		char name[MIL+1];
@@ -1901,12 +1901,12 @@ DNGEDIT( dngedit_special )
 		list_appendlink(dng->special_rooms, special);
 
 		send_to_char("Special Room added.\n\r", ch);
-		return TRUE;
+		return true;
 	}
 
 
 	dngedit_special(ch, "");
-	return FALSE;
+	return false;
 }
 
 DNGEDIT (dngedit_adddprog)
@@ -1927,13 +1927,13 @@ DNGEDIT (dngedit_adddprog)
     if (!is_number(num) || trigger[0] =='\0' || phrase[0] =='\0')
     {
 	send_to_char("Syntax:   adddprog [vnum] [trigger] [phrase]\n\r",ch);
-	return FALSE;
+	return false;
     }
 
     if ((tindex = trigger_index(trigger, PRG_DPROG)) < 0) {
 	send_to_char("Valid flags are:\n\r",ch);
 	show_help(ch, "dprog");
-	return FALSE;
+	return false;
     }
 
     slot = trigger_table[tindex].slot;
@@ -1941,7 +1941,7 @@ DNGEDIT (dngedit_adddprog)
     if ((code = get_script_index (atol(num), PRG_DPROG)) == NULL)
     {
 	send_to_char("No such DUNGEONProgram.\n\r",ch);
-	return FALSE;
+	return false;
     }
 
     // Make sure this has a list of progs!
@@ -1958,7 +1958,7 @@ DNGEDIT (dngedit_adddprog)
     list_appendlink(dungeon->progs[slot], list);
 
     send_to_char("Dprog Added.\n\r",ch);
-    return TRUE;
+    return true;
 }
 
 DNGEDIT (dngedit_deldprog)
@@ -1973,7 +1973,7 @@ DNGEDIT (dngedit_deldprog)
     if (!is_number(dprog) || dprog[0] == '\0')
     {
        send_to_char("Syntax:  deldprog [#dprog]\n\r",ch);
-       return FALSE;
+       return false;
     }
 
     value = atol (dprog);
@@ -1981,16 +1981,16 @@ DNGEDIT (dngedit_deldprog)
     if (value < 0)
     {
         send_to_char("Only non-negative dprog-numbers allowed.\n\r",ch);
-        return FALSE;
+        return false;
     }
 
     if(!edit_deltrigger(dungeon->progs,value)) {
 	send_to_char("No such dprog.\n\r",ch);
-	return FALSE;
+	return false;
     }
 
     send_to_char("Dprog removed.\n\r", ch);
-    return TRUE;
+    return true;
 }
 
 DNGEDIT(dngedit_varset)
@@ -2006,7 +2006,7 @@ DNGEDIT(dngedit_varset)
 
     if (argument[0] == '\0') {
 	send_to_char("Syntax:  varset <name> <number|string|room> <yes|no> <value>\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     argument = one_argument(argument, name);
@@ -2015,38 +2015,38 @@ DNGEDIT(dngedit_varset)
 
     if(!variable_validname(name)) {
 	send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     saved = !str_cmp(yesno,"yes");
 
     if(!argument[0]) {
 	send_to_char("Set what on the variable?\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if(!str_cmp(type,"room")) {
 	if(!is_number(argument)) {
 	    send_to_char("Specify a room vnum.\n\r", ch);
-	    return FALSE;
+	    return false;
 	}
 
 	variables_setindex_room(&dungeon->index_vars,name,atoi(argument),saved);
     } else if(!str_cmp(type,"string"))
-	variables_setindex_string(&dungeon->index_vars,name,argument,FALSE,saved);
+	variables_setindex_string(&dungeon->index_vars,name,argument,false,saved);
     else if(!str_cmp(type,"number")) {
 	if(!is_number(argument)) {
 	    send_to_char("Specify an integer.\n\r", ch);
-	    return FALSE;
+	    return false;
 	}
 
 	variables_setindex_integer(&dungeon->index_vars,name,atoi(argument),saved);
     } else {
 	send_to_char("Invalid type of variable.\n\r", ch);
-	return FALSE;
+	return false;
     }
     send_to_char("Variable set.\n\r", ch);
-    return TRUE;
+    return true;
 }
 
 DNGEDIT(dngedit_varclear)
@@ -2057,21 +2057,21 @@ DNGEDIT(dngedit_varclear)
 
     if (argument[0] == '\0') {
 	send_to_char("Syntax:  varclear <name>\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if(!variable_validname(argument)) {
 	send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if(!variable_remove(&dungeon->index_vars,argument)) {
 	send_to_char("No such variable defined.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     send_to_char("Variable cleared.\n\r", ch);
-    return TRUE;
+    return true;
 }
 
 
@@ -2180,7 +2180,7 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
 				send_to_char("{RWARNING:{W Having scrolling off may limit how many dungeons you can see.{x\n\r", ch);
 
 			int lines = 0;
-			bool error = FALSE;
+			bool error = false;
 			BUFFER *buffer = new_buf();
 			char buf[MSL];
 
@@ -2236,7 +2236,7 @@ void do_dungeon(CHAR_DATA *ch, char *argument)
 
 				if( !add_buf(buffer, buf) || (!ch->lines && strlen(buf_string(buffer)) > MAX_STRING_LENGTH) )
 				{
-					error = TRUE;
+					error = true;
 					break;
 				}
 			}
@@ -2387,7 +2387,7 @@ DUNGEON *dungeon_load(FILE *fp)
 
 	dungeon->progs			= new_prog_data();
 	dungeon->progs->progs	= dungeon->index->progs;
-	variable_copylist(&dungeon->index->index_vars,&dungeon->progs->vars,FALSE);
+	variable_copylist(&dungeon->index->index_vars,&dungeon->progs->vars,false);
 
 
 	dungeon->entry_room = get_room_index(dungeon->index->entry_room);
@@ -2395,7 +2395,7 @@ DUNGEON *dungeon_load(FILE *fp)
 
 	while (str_cmp((word = fread_word(fp)), "#-DUNGEON"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		switch(word[0])
 		{
@@ -2412,7 +2412,7 @@ DUNGEON *dungeon_load(FILE *fp)
 					dungeon_tallyentities(dungeon, instance);
 				}
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 
@@ -2434,7 +2434,7 @@ DUNGEON *dungeon_load(FILE *fp)
 
 				dungeon_addowner_playerid(dungeon, id1, id2);
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			break;
@@ -2445,7 +2445,7 @@ DUNGEON *dungeon_load(FILE *fp)
 				dungeon->uid[0] = fread_number(fp);
 				dungeon->uid[1] = fread_number(fp);
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 

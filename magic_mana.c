@@ -21,7 +21,7 @@
 SPELL_FUNC(spell_cancellation)
 {
 	CHAR_DATA *victim = (CHAR_DATA *) vo;
-	bool found = FALSE;
+	bool found = false;
 	int number_affects;
 	AFFECT_DATA *af;
 
@@ -31,7 +31,7 @@ SPELL_FUNC(spell_cancellation)
 		!(IS_AFFECTED(ch, AFF_CHARM) && ch->master == victim)) ||
 		(IS_NPC(ch) && !IS_NPC(victim))) {
 		send_to_char("You failed, try dispel magic.\n\r",ch);
-		return FALSE;
+		return false;
 	}
 
 	act("{YA negating magical aura surrounds you.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -40,7 +40,7 @@ SPELL_FUNC(spell_cancellation)
 	number_affects = 0;
 	for (af = victim->affected; af != NULL; af = af->next)
 		if(af->group == AFFGROUP_MAGICAL && !af->custom_name) {
-			if(check_dispel(ch, victim, af->type)) found = TRUE;
+			if(check_dispel(ch, victim, af->type)) found = true;
 			number_affects++;
 		}
 
@@ -50,7 +50,7 @@ SPELL_FUNC(spell_cancellation)
 		else
 			send_to_char("There is nothing affecting you.\n\r", ch);
 
-		return FALSE;
+		return false;
 	}
 
 	return found;
@@ -63,7 +63,7 @@ SPELL_FUNC(spell_channel)
 
 	if (victim->mana < 1) {
 		act("{Y$N doesn't have any mana to drain.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	dam = victim->mana / 20;
@@ -82,7 +82,7 @@ SPELL_FUNC(spell_channel)
 	send_to_char("{YYou feel your mana channeled away!{x\n\r",victim);
 	act("{YYou feel more powerful as you channel mana from $N!{x",ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 	act("$N magically fades as his mana is partially removed!",ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_counter_spell)
@@ -93,11 +93,11 @@ SPELL_FUNC(spell_counter_spell)
 	victim = (CHAR_DATA *) vo;
 
 	if (victim->cast <= 0)
-		return FALSE;
+		return false;
 
 	sn = victim->cast_sn;
 	if (number_percent() < get_skill(ch, gsn_counterspell) && can_see(ch, victim)) {
-		stop_casting(victim, FALSE);
+		stop_casting(victim, false);
 		act("{YYour magic fizzles and backfires!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		act("{Y$n's magic fizzles and backfires!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
@@ -107,28 +107,28 @@ SPELL_FUNC(spell_counter_spell)
 		switch (skill_table[sn].target) {
 		default:
 			bug("Do_cast: bad target for sn %d.", sn);
-			return TRUE;
+			return true;
 
 		case TAR_IGNORE:
-			return TRUE;
+			return true;
 			break;
 
 		case TAR_IGNORE_CHAR_DEF:
-			return TRUE;
+			return true;
 			break;
 
 		case TAR_CHAR_OFFENSIVE:
 			if (!IS_NPC(ch)) {
-				if (is_safe(ch, victim, TRUE) && victim != ch &&
+				if (is_safe(ch, victim, true) && victim != ch &&
 					!IS_SET(ch->in_room->room2_flags, ROOM_MULTIPLAY)) {
 					send_to_char("Not on that target.\n\r",ch);
-					return TRUE;
+					return true;
 				}
 			}
 
 			if (IS_AFFECTED(ch, AFF_CHARM) && ch->master == victim) {
 				send_to_char("You can't do that on your own follower.\n\r", ch);
-				return TRUE;
+				return true;
 			}
 
 			vo = (void *) victim;
@@ -145,9 +145,9 @@ SPELL_FUNC(spell_counter_spell)
 		ch->mana -= (mana * 2)/3;
 		(*skill_table[sn].spell_fun)(sn, 3 * ch->tot_level/4, victim, vo, target, WEAR_NONE);
 	} else
-		stop_casting(victim, TRUE);
+		stop_casting(victim, true);
 
-	return TRUE;
+	return true;
 }
 
 
@@ -161,17 +161,17 @@ SPELL_FUNC(spell_discharge)
 
 	if (obj->wear_loc != -1) {
 		send_to_char("The item must be carried to be discharged.\n\r",ch);
-		return FALSE;
+		return false;
 	}
 
 	if (!obj->affected) {
 		act("$p has no magical affects which you can strip.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	if (IS_SET(obj->extra2_flags, ITEM_NO_DISCHARGE)) {
 		act("$p's magic cannot be removed from it.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	for (paf = obj->affected; paf; paf = paf->next) number++;
@@ -187,14 +187,14 @@ SPELL_FUNC(spell_discharge)
 		}
 	}
 
-	return TRUE;
+	return true;
 }
 
 
 SPELL_FUNC(spell_dispel_magic)
 {
 	CHAR_DATA *victim = (CHAR_DATA *) vo;
-	bool found = FALSE;
+	bool found = false;
 	int number_affects;
 	int old;
 	AFFECT_DATA *af, *af_next;
@@ -207,7 +207,7 @@ SPELL_FUNC(spell_dispel_magic)
 		af_next = af->next;
 		if((af->group == AFFGROUP_DIVINE || af->group == AFFGROUP_MAGICAL || af->group == AFFGROUP_MENTAL) &&
 			!af->custom_name) {
-			if(check_dispel(ch, victim, af->type)) found = TRUE;
+			if(check_dispel(ch, victim, af->type)) found = true;
 			number_affects++;
 		}
 	}
@@ -216,18 +216,18 @@ SPELL_FUNC(spell_dispel_magic)
 	victim->tempstore[3] = found ? 1 : 0;
 	if(!p_percent_trigger(victim,NULL,NULL,NULL,ch,NULL,NULL, NULL, NULL,TRIG_SPELL_DISPEL, NULL) && !number_affects) {
 		act("$N has no magic affecting $M.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
-	found = victim->tempstore[3] ? TRUE : FALSE;
+	found = victim->tempstore[3] ? true : false;
 	victim->tempstore[3] = old;
 
 	if(!found && number_affects > 0) {
 		act("The magic on $N is too strong for you to dispel.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_dispel_room)
@@ -237,7 +237,7 @@ SPELL_FUNC(spell_dispel_room)
 	ROOM_INDEX_DATA *pRoom = NULL;
 	ROOM_INDEX_DATA *rev_pRoom;
 	int index;
-	bool exists = FALSE;
+	bool exists = false;
 	char buf[MAX_STRING_LENGTH];
 	char buf2[MAX_STRING_LENGTH];
 
@@ -249,20 +249,20 @@ SPELL_FUNC(spell_dispel_room)
 
 	// Dispel current room
 	for (obj = ch->in_room->contents; obj != NULL; obj = obj->next_content) {
-		exists = FALSE;
+		exists = false;
 
 		if (obj->item_type == ITEM_ROOM_FLAME) {
 			sprintf(buf, "{DThe flames die down and disappear.{x\n\r");
-			exists = TRUE;
+			exists = true;
 		} else if (obj->item_type == ITEM_ROOM_DARKNESS) {
 			sprintf(buf, "{YThe light returns.{x\n\r");
-			exists = TRUE;
+			exists = true;
 		} else if (obj->item_type == ITEM_ROOM_ROOMSHIELD) {
 			sprintf(buf, "{YThe energy field shielding the room fades away.{x\n\r");
-			exists = TRUE;
+			exists = true;
 		} else if (obj->item_type == ITEM_STINKING_CLOUD || obj->item_type == ITEM_WITHERING_CLOUD) {
 			sprintf(buf, "{gThe poisonous haze disappears.{x\n\r");
-			exists = TRUE;
+			exists = true;
 		}
 		else if(IS_SET(obj->extra3_flags, ITEM_CAN_DISPEL)) {
 			if(!saves_dispel(ch, NULL, obj->level))
@@ -289,23 +289,23 @@ SPELL_FUNC(spell_dispel_room)
 		if (pexit && ((pRoom = pexit->u1.to_room)) &&
 			!IS_SET(pexit->exit_info, EX_CLOSED)) {
 			for (obj = pRoom->contents; obj; obj = obj->next_content)  {
-				exists = FALSE;
+				exists = false;
 				if (obj->item_type == ITEM_ROOM_FLAME) {
 					sprintf(buf, "{DThe flames die down and disappear.{x\n\r");
 					sprintf(buf2, "{YYou hear the hissing sound of dying flames from the %s.{x\n\r",	dir_name[ index ]);
-					exists = TRUE;
+					exists = true;
 				} else if (obj->item_type == ITEM_ROOM_DARKNESS) {
 					sprintf(buf, "{YThe light returns.{x\n\r");
 					sprintf(buf2, "{YThe room to the %s suddenly seems brighter.{x\n\r",	dir_name[ index ]);
-					exists = TRUE;
+					exists = true;
 				} else if (obj->item_type == ITEM_ROOM_ROOMSHIELD) {
 					sprintf(buf, "{YThe energy field shielding the room fades away.{x\n\r");
 					sprintf(buf2, "{YYou hear the crackling sound of negation from the %s.{x\n\r",	dir_name[ index ]);
-					exists = TRUE;
+					exists = true;
 				} else if (obj->item_type == ITEM_STINKING_CLOUD || obj->item_type == ITEM_WITHERING_CLOUD) {
 					sprintf(buf, "{gThe poisonous haze disappears.{x\n\r");
 					sprintf(buf2, "{YThe noxious fumes wafting in from the %s dissipate.{x\n\r",	dir_name[ index ]);
-					exists = TRUE;
+					exists = true;
 				}
 				else if(IS_SET(obj->extra3_flags, ITEM_CAN_DISPEL)) {
 					if(!saves_dispel(ch, NULL, obj->level))
@@ -327,7 +327,7 @@ SPELL_FUNC(spell_dispel_room)
 			}
 		}
 	}
-	return TRUE;
+	return true;
 }
 
 
@@ -337,12 +337,12 @@ SPELL_FUNC(spell_magic_missile)
 	int dam;
 
 	if (check_shield_block_projectile(ch, victim, "magic missile", NULL))
-		return FALSE;
+		return false;
 
 	dam = dice(level, level/9);
 
-	damage(ch, victim, dam, sn, DAM_MAGIC ,TRUE);
-	return TRUE;
+	damage(ch, victim, dam, sn, DAM_MAGIC ,true);
+	return true;
 }
 
 
@@ -353,12 +353,12 @@ SPELL_FUNC(spell_recharge)
 
 	if (obj->item_type != ITEM_WAND && obj->item_type != ITEM_STAFF &&  obj->item_type != ITEM_POTION) {
 		send_to_char("That item does not carry charges.\n\r",ch);
-		return FALSE;
+		return false;
 	}
 
 	if (obj->level > ch->tot_level) {
 		act("$p's powers exceed yours.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	if (number_percent() > get_skill(ch, gsn_recharge)) {
@@ -368,7 +368,7 @@ SPELL_FUNC(spell_recharge)
 	} else {
 		if (obj->value[0] < 10) {
 			act("$p's magical energies are too low to be recharged.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-			return FALSE;
+			return false;
 		}
 
 		switch (obj->item_type) {
@@ -398,7 +398,7 @@ SPELL_FUNC(spell_recharge)
 				obj->value[5] = charges;
 			} else {
 				act("Only an alchemist can recharge magical potions.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-				return FALSE;
+				return false;
 			}
 
 			break;
@@ -406,7 +406,7 @@ SPELL_FUNC(spell_recharge)
 
 		act("$p hisses with power as you breathe magical energy into it.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 	}
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_refresh)
@@ -421,19 +421,19 @@ SPELL_FUNC(spell_refresh)
 		send_to_char("You feel less tired.\n\r", victim);
 	if (ch != victim)
 		act("$N looks less tired.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_spell_deflection)
 {
 	CHAR_DATA *victim = (CHAR_DATA *) vo;
 	AFFECT_DATA af;
-	bool perm = FALSE;
+	bool perm = false;
 	memset(&af,0,sizeof(af));
 
 	if (level > MAGIC_WEAR_SPELL) {
 		level -= MAGIC_WEAR_SPELL;
-		perm = TRUE;
+		perm = true;
 	}
 
 	if (perm && is_affected(victim, sn)) {
@@ -443,7 +443,7 @@ SPELL_FUNC(spell_spell_deflection)
 			send_to_char("{MYou are already protected by spell deflection.{x\n\r",ch);
 		else
 			act("{M$N is already protected by spell deflection.{x",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	af.slot = obj_wear_loc;
@@ -461,19 +461,19 @@ SPELL_FUNC(spell_spell_deflection)
 	act("{MA dazzling crimson aura appears around $n.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 	send_to_char("{MA dazzling crimson aura appears around you.{x\n\r", victim);
 
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_spell_shield)
 {
 	CHAR_DATA *victim = (CHAR_DATA *) vo;
 	AFFECT_DATA af;
-	bool perm = FALSE;
+	bool perm = false;
 	memset(&af,0,sizeof(af));
 
 	if (level > MAGIC_WEAR_SPELL) {
 		level -= MAGIC_WEAR_SPELL;
-		perm = TRUE;
+		perm = true;
 	}
 
 	if (perm && is_affected(victim, sn)) {
@@ -483,7 +483,7 @@ SPELL_FUNC(spell_spell_shield)
 			send_to_char("You are already protected by a spell shield.\n\r",ch);
 		else
 			act("$N is already protected by a spell shield.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	af.slot = obj_wear_loc;
@@ -501,7 +501,7 @@ SPELL_FUNC(spell_spell_shield)
 	act("{CA hazy blue sphere appears around $n.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 	send_to_char("{CA hazy blue sphere appears around you.{x\n\r", victim);
 
-	return TRUE;
+	return true;
 }
 
 
@@ -514,16 +514,16 @@ SPELL_FUNC(spell_spell_trap)
 			act("{W$p shimmers briefly.{x",ch, NULL, NULL, trap, NULL, NULL, NULL, TO_ALL);
 			trap->level += ch->level/2;
 			trap->timer += number_range(0,(ch->level/30));
-			return TRUE;
+			return true;
 		}
 	}
 
-	trap = create_object(get_obj_index(OBJ_VNUM_SPELL_TRAP), level, TRUE);
+	trap = create_object(get_obj_index(OBJ_VNUM_SPELL_TRAP), level, true);
 	trap->timer = 4;
 	trap->level = ch->tot_level;
 	obj_to_room(trap, ch->in_room);
 
 	act("{W$n forms a small glass orb in $s palm and places it on the ground.{x",ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 	act("{WYou form a small glass orb in your palm and place it on the ground.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	return TRUE;
+	return true;
 }

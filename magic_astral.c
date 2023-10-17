@@ -26,11 +26,11 @@ SPELL_FUNC(spell_gate)
 
 	if (!victim) {
 		send_to_char("Nobody like that is around.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if (!can_gate(ch, victim))
-		return FALSE;
+		return false;
 
 	// getdistance... ln(distance)+1
 	distance = 1;
@@ -38,15 +38,15 @@ SPELL_FUNC(spell_gate)
 	catalyst = has_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY|CATALYST_ACTIVE,1,CATALYST_MAXSTRENGTH);
 	if(catalyst >= 0 && catalyst < distance) {
 		send_to_char("You appear to be missing a required astral catalyst.\n\r", ch);
-		return TRUE;
+		return true;
 	}
 
-	catalyst = use_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY|CATALYST_ACTIVE,distance,1,CATALYST_MAXSTRENGTH,TRUE);
+	catalyst = use_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY|CATALYST_ACTIVE,distance,1,CATALYST_MAXSTRENGTH,true);
 
 	if (ch->pet && ch->in_room == ch->pet->in_room)
-		gate_pet = TRUE;
+		gate_pet = true;
 	else
-		gate_pet = FALSE;
+		gate_pet = false;
 
 	act("{M$n steps through a gate and vanishes.{x",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
 	send_to_char("{MYou step through a gate and vanish.\n\r{x",ch);
@@ -73,7 +73,7 @@ SPELL_FUNC(spell_gate)
 		do_look(MOUNTED(ch),"auto");
 	}
 
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_maze)
@@ -89,7 +89,7 @@ SPELL_FUNC(spell_maze)
 	if (!(victim == ch || is_same_group(victim,ch) || is_same_group(victim,ch->fighting)))
 	{
 		send_to_char("You may only cast this spell on yourself, your own group, or enemy groups.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 
@@ -97,7 +97,7 @@ SPELL_FUNC(spell_maze)
 
 	if(!catalyst) {
 		send_to_char("You appear to be missing a required astral catalyst.\n\r", ch);
-		return TRUE;
+		return true;
 	}
 	/*
 	stone = get_warp_stone(ch);
@@ -107,20 +107,20 @@ SPELL_FUNC(spell_maze)
 		extract_obj(stone);
 	} else {
 		send_to_char("You appear to be missing a required reagent.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 	*/
 
 	if (saves_spell(level, victim, DAM_NONE)) {
 		send_to_char("Nothing happens.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	skill = get_skill(ch, gsn_maze);
 	if (!(area = find_area("Maze-Level1")) || !(area = find_area("Geldoff's Maze"))) {
 		send_to_char("Your mind seems to have gotten lost in its own maze...\n\r", ch);
 		ch->daze += 10 - number_range(0, skill/10);
-		return FALSE;
+		return false;
 	}
 	if (victim->fighting == ch || ch->fighting)
 	{
@@ -133,7 +133,7 @@ SPELL_FUNC(spell_maze)
 	}
 	while(!(room = get_room_index(number_range(area->min_vnum, area->max_vnum))));
 
-	if (victim->fighting) stop_fighting(victim, TRUE);
+	if (victim->fighting) stop_fighting(victim, true);
 
 	act("{WA phantasmal maze encapsulates $n!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 	act("{WA phantasmal maze appears about you!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -153,13 +153,13 @@ SPELL_FUNC(spell_maze)
 		lvl = UMAX(10, victim->tot_level - ch->tot_level);
 	}
 
-	catalyst = use_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY|CATALYST_ACTIVE,lvl,1,CATALYST_MAXSTRENGTH,TRUE);
+	catalyst = use_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY|CATALYST_ACTIVE,lvl,1,CATALYST_MAXSTRENGTH,true);
 
 	char_from_room(victim);
 	char_to_room(victim, room);
 
 	do_function(victim, &do_look, "");
-	return TRUE;
+	return true;
 }
 
 
@@ -174,15 +174,15 @@ SPELL_FUNC(spell_nexus)
 
 	if (!victim) {
 		send_to_char("Nobody like that is around.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if (!can_gate(ch, victim))
-		return FALSE;
+		return false;
 
 	if (victim->in_room == ch->in_room ) {
 		send_to_char("What would be the point?\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 
@@ -194,13 +194,13 @@ SPELL_FUNC(spell_nexus)
 	catalyst = has_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY|CATALYST_ACTIVE,1,CATALYST_MAXSTRENGTH);
 	if(catalyst >= 0 && catalyst < distance) {
 		send_to_char("You appear to be missing a required astral catalyst.\n\r", ch);
-		return TRUE;
+		return true;
 	}
 
-	catalyst = use_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY|CATALYST_ACTIVE,distance,1,CATALYST_MAXSTRENGTH,TRUE);
+	catalyst = use_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY|CATALYST_ACTIVE,distance,1,CATALYST_MAXSTRENGTH,true);
 
 	/* portal one */
-	portal = create_object(get_obj_index(OBJ_VNUM_PORTAL),0, TRUE);
+	portal = create_object(get_obj_index(OBJ_VNUM_PORTAL),0, true);
 	portal->timer = 1 + level / 10;
 
 	if( to_room->wilds && IS_SET(to_room->room2_flags, ROOM_VIRTUAL_ROOM) )
@@ -228,7 +228,7 @@ SPELL_FUNC(spell_nexus)
 	if (to_room != from_room) {
 
 		/* portal two */
-		portal = create_object(get_obj_index(OBJ_VNUM_PORTAL),0, TRUE);
+		portal = create_object(get_obj_index(OBJ_VNUM_PORTAL),0, true);
 		portal->timer = 1 + level/10;
 
 		if( from_room->wilds && IS_SET(from_room->room2_flags, ROOM_VIRTUAL_ROOM) )
@@ -258,7 +258,7 @@ SPELL_FUNC(spell_nexus)
 
 	if (IS_MSP(victim)) send_to_char(sound_table[ SOUND_TELEPORT ].tag, victim);
 */
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_reflection)
@@ -268,10 +268,10 @@ SPELL_FUNC(spell_reflection)
 
 	if (!get_mob_index(MOB_VNUM_REFLECTION)) {
 		bug("spell_reflection: get_mob_index was null!\n\r",0);
-		return FALSE;
+		return false;
 	}
 
-	reflection = create_mobile(get_mob_index(MOB_VNUM_REFLECTION), FALSE);
+	reflection = create_mobile(get_mob_index(MOB_VNUM_REFLECTION), false);
 
 	free_string(reflection->short_descr);
 	reflection->short_descr = str_dup(buf);
@@ -301,7 +301,7 @@ SPELL_FUNC(spell_reflection)
 	send_to_char("Type 'return' to return to your normal body.\n\r", ch);
 
 	act("The shadow of $n bends and warps, then detaches itself from $s body!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_summon)
@@ -312,17 +312,17 @@ SPELL_FUNC(spell_summon)
 
 	if (!victim) {
 		send_to_char("Nobody like that is around.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if (IS_SET(victim->act, PLR_NOSUMMON)) {
 		act("$N isn't allowing summons.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	if (victim->fighting || victim->maze_time_left > 0) {
 		send_to_char("Nothing happens.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	//
@@ -334,27 +334,27 @@ SPELL_FUNC(spell_summon)
 		IS_SET(victim->in_room->room_flags, ROOM_SAFE) ||
 		IS_SET(victim->in_room->area->area_flags, AREA_NO_RECALL)) {
 		send_to_char("Your target is in a magically protected room.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if (IS_SET(ch->in_room->room_flags, ROOM_PK) || IS_SET(ch->in_room->room_flags, ROOM_CPK) || IS_SET(ch->in_room->room_flags, ROOM_ARENA)) {
 		send_to_char("You can't summon players into this room.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if (!can_gate(ch, victim))
-		return FALSE;
+		return false;
 
 	if (victim->tot_level < ch->tot_level - 20 && !is_pk(victim)) {
 		if (is_pk_safe_range(ch->in_room, 5, -1) > -1) {
 			act("You have to be at least 5 rooms away from a PK area to summon $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-			return FALSE;
+			return false;
 		}
 	}
 
 	if (victim->pulled_cart) {
 		act("$N must first drop what $E is pulling.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	act("{R$n disappears suddenly.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
@@ -363,5 +363,5 @@ SPELL_FUNC(spell_summon)
 	act("{R$n arrives suddenly.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 	act("{M$n has summoned you!{x", ch, victim, NULL, NULL, NULL, NULL, NULL,   TO_VICT);
 	do_function(victim, &do_look, "auto");
-	return TRUE;
+	return true;
 }

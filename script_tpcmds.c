@@ -14,142 +14,142 @@
 
 // Commands used by token scripts
 const struct script_cmd_type token_cmd_table[] = {
-	{ "addaffect",			scriptcmd_addaffect,		TRUE,	TRUE	},
-	{ "addaffectname",		scriptcmd_addaffectname,	TRUE,	TRUE	},
-	{ "addspell",			do_tpaddspell,				TRUE,	TRUE	},
-	{ "adjust",				do_tpadjust,				FALSE,	TRUE	},
-	{ "alteraffect",		do_tpalteraffect,			TRUE,	TRUE	},
-	{ "alterexit",			do_tpalterexit,				FALSE,	TRUE	},
-	{ "altermob",			do_tpaltermob,				TRUE,	TRUE	},
-	{ "alterobj",			do_tpalterobj,				TRUE,	TRUE	},
-	{ "alterroom",			do_tpalterroom,				TRUE,	TRUE	},
-	{ "applytoxin",			scriptcmd_applytoxin,		FALSE,	TRUE	},
-	{ "asound",				do_tpasound,				FALSE,	TRUE	},
-	{ "attach",				scriptcmd_attach,			TRUE,	TRUE	},
-	{ "award",				scriptcmd_award,			TRUE,	TRUE	},
-	{ "breathe",			scriptcmd_breathe,		FALSE,	TRUE	},
-	{ "call",				do_tpcall,					FALSE,	TRUE	},
-	{ "castfailure",		do_tpcastfailure,			FALSE,	TRUE	},
-	{ "castrecover",		do_tpcastrecover,			FALSE,	TRUE	},
-	{ "chargebank",			do_tpchargebank,			FALSE,	TRUE	},
-	{ "checkpoint",			do_tpcheckpoint,			FALSE,	TRUE	},
-	{ "cloneroom",			do_tpcloneroom,				TRUE,	TRUE	},
-	{ "condition",			do_tpcondition,				FALSE,	TRUE	},
-	{ "crier",				do_tpcrier,					FALSE,	TRUE	},
-	{ "damage",				scriptcmd_damage,			FALSE,	TRUE	},
-	{ "deduct",				scriptcmd_deduct,			TRUE,	TRUE	},
-	{ "dequeue",			do_tpdequeue,				FALSE,	FALSE	},
-	{ "destroyroom",		do_tpdestroyroom,			TRUE,	TRUE	},
-	{ "detach",				scriptcmd_detach,			TRUE,	TRUE	},
-	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	TRUE,	TRUE	},
-	{ "echo",				do_tpecho,					FALSE,	TRUE	},
-	{ "echoaround",			do_tpechoaround,			FALSE,	TRUE	},
-	{ "echoat",				scriptcmd_echoat,			FALSE,	TRUE	},
-	{ "echobattlespam",		do_tpechobattlespam,		FALSE,	TRUE	},
-	{ "echochurch",			do_tpechochurch,			FALSE,	TRUE	},
-	{ "echogrouparound",	do_tpechogrouparound,		FALSE,	TRUE	},
-	{ "echogroupat",		do_tpechogroupat,			FALSE,	TRUE	},
-	{ "echoleadaround",		do_tpecholeadaround,		FALSE,	TRUE	},
-	{ "echoleadat",			do_tpecholeadat,			FALSE,	TRUE	},
-	{ "echonotvict",		do_tpechonotvict,			FALSE,	TRUE	},
-	{ "echoroom",			do_tpechoroom,				FALSE,	TRUE	},
-	{ "ed",					scriptcmd_ed,				FALSE,	TRUE	},
-	{ "entercombat",		scriptcmd_entercombat,		FALSE,	TRUE	},
-	{ "fade",				scriptcmd_fade,				TRUE,	TRUE	},
-	{ "fixaffects",			do_tpfixaffects,			FALSE,	TRUE	},
-	{ "flee",				scriptcmd_flee,				FALSE,	TRUE	},
-	{ "force",				do_tpforce,					FALSE,	TRUE	},
-	{ "forget",				do_tpforget,				FALSE,	FALSE	},
-	{ "gdamage",			do_tpgdamage,				FALSE,	TRUE	},
-	{ "gecho",      	 	do_tpgecho,					FALSE,	TRUE	},
-	{ "gforce",				do_tpgforce,				FALSE,	TRUE	},
-	{ "give",				do_tpgive,					FALSE,	TRUE	},
-	{ "goto",				do_tpgoto,					FALSE,	TRUE	},
-	{ "grantskill",			scriptcmd_grantskill,		FALSE,	TRUE	},
-	{ "group",				do_tpgroup,					FALSE,	TRUE	},
-	{ "gtransfer",			do_tpgtransfer,				FALSE,	TRUE	},
-	{ "input",				do_tpinput,					FALSE,	TRUE	},
-	{ "inputstring",		scriptcmd_inputstring,		FALSE,	TRUE	},
-	{ "instancecomplete",	scriptcmd_instancecomplete,	TRUE,	TRUE	},
-	{ "interrupt",			do_tpinterrupt,				FALSE,	TRUE	},
-	{ "junk",				do_tpjunk,					FALSE,	TRUE	},
-	{ "link",				do_tplink,					FALSE,	TRUE	},
-	{ "loadinstanced",		scriptcmd_loadinstanced,	TRUE,	TRUE	},
-	{ "lockadd",			scriptcmd_lockadd,			FALSE,	TRUE	},
-	{ "lockremove",			scriptcmd_lockremove,		FALSE,	TRUE	},
-	{ "mload",				do_tpmload,					FALSE,	TRUE	},
-	{ "mute",				scriptcmd_mute,				FALSE,	TRUE	},
-	{ "oload",				do_tpoload,					FALSE,	TRUE	},
-	{ "otransfer",			do_tpotransfer,				FALSE,	TRUE	},
-	{ "pageat",				scriptcmd_pageat,			FALSE,	TRUE	},
-	{ "peace",				do_tppeace,					FALSE,	FALSE	},
-	{ "persist",			do_tppersist,				FALSE,	TRUE	},
-	{ "prompt",				do_tpprompt,				FALSE,	TRUE	},
-	{ "purge",				do_tppurge,					FALSE,	FALSE	},
-	{ "questaccept",		scriptcmd_questaccept,		FALSE,	TRUE	},
-	{ "questcancel",		scriptcmd_questcancel,		FALSE,	TRUE	},
-	{ "questcomplete",		scriptcmd_questcomplete,	FALSE,	TRUE	},
-	{ "questgenerate",		scriptcmd_questgenerate,	FALSE,	TRUE	},
-	{ "questpartcustom",	scriptcmd_questpartcustom,	TRUE,	TRUE	},
-	{ "questpartgetitem",	scriptcmd_questpartgetitem,	TRUE,	TRUE	},
-	{ "questpartgoto",		scriptcmd_questpartgoto,	TRUE,	TRUE	},
-	{ "questpartrescue",	scriptcmd_questpartrescue,	TRUE,	TRUE	},
-	{ "questpartslay",		scriptcmd_questpartslay,	TRUE,	TRUE	},
-	{ "questscroll",		scriptcmd_questscroll,		FALSE,	TRUE	},
-	{ "queue",				do_tpqueue,					FALSE,	TRUE	},
-	{ "raisedead",			do_tpraisedead,				TRUE,	TRUE	},
-	{ "rawkill",			do_tprawkill,				FALSE,	TRUE	},
-	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
-	{ "remember",			do_tpremember,				FALSE,	TRUE	},
-	{ "remort",				do_tpremort,				TRUE,	TRUE	},
-	{ "remove",				do_tpremove,				FALSE,	TRUE	},
-	{ "remspell",			do_tpremspell,				TRUE,	TRUE	},
-	{ "resetdice",			do_tpresetdice,				TRUE,	TRUE	},
-	{ "restore",			do_tprestore,				TRUE,	TRUE	},
-	{ "revokeskill",		scriptcmd_revokeskill,		FALSE,	TRUE	},
-	{ "saveplayer",			do_tpsaveplayer,			FALSE,	TRUE	},
-	{ "scriptwait",			do_tpscriptwait,			TRUE,	TRUE	},
-	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
-	{ "setrecall",			do_tpsetrecall,				FALSE,	TRUE	},
-	{ "settimer",			do_tpsettimer,				FALSE,	TRUE	},
-	{ "showroom",			do_tpshowroom,				TRUE,	TRUE	},
-	{ "skimprove",			do_tpskimprove,				TRUE,	TRUE	},
-	{ "spawndungeon",		scriptcmd_spawndungeon,		TRUE,	TRUE	},
-	{ "specialkey",			scriptcmd_specialkey,		FALSE,	TRUE	},
-	{ "startcombat",		scriptcmd_startcombat,		FALSE,	TRUE	},
-	{ "stopcombat",			scriptcmd_stopcombat,		FALSE,	TRUE	},
-	{ "stringmob",			do_tpstringmob,				TRUE,	TRUE	},
-	{ "stringobj",			do_tpstringobj,				TRUE,	TRUE	},
-	{ "stripaffect",		do_tpstripaffect,			TRUE,	TRUE	},
-	{ "stripaffectname",	do_tpstripaffectname,		TRUE,	TRUE	},
-	{ "transfer",			do_tptransfer,				FALSE,	TRUE	},
-	{ "treasuremap",		scriptcmd_treasuremap,		FALSE,	TRUE	},
-	{ "ungroup",			do_tpungroup,				FALSE,	TRUE	},
-	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
-	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
-	{ "usecatalyst",		do_tpusecatalyst,			FALSE,	TRUE	},
-	{ "varclear",			do_tpvarclear,				FALSE,	TRUE	},
-	{ "varclearon",			do_tpvarclearon,			FALSE,	TRUE	},
-	{ "varcopy",			do_tpvarcopy,				FALSE,	TRUE	},
-	{ "varsave",			do_tpvarsave,				FALSE,	TRUE	},
-	{ "varsaveon",			do_tpvarsaveon,				FALSE,	TRUE	},
-	{ "varset",				do_tpvarset,				FALSE,	TRUE	},
-	{ "varseton",			do_tpvarseton,				FALSE,	TRUE	},
-	{ "vforce",				do_tpvforce,				FALSE,	TRUE	},
-	{ "wildernessmap",		scriptcmd_wildernessmap,	FALSE,	TRUE	},
-	{ "wiretransfer",		do_tpwiretransfer,			FALSE,	TRUE	},
-	{ "xcall",				do_tpxcall,					FALSE,	TRUE	},
-	{ "zecho",				do_tpzecho,					FALSE,	TRUE	},
-	{ "zot",				do_tpzot,					TRUE,	TRUE	},
-	{ NULL,					NULL,						FALSE,	FALSE	}
+	{ "addaffect",			scriptcmd_addaffect,		true,	true	},
+	{ "addaffectname",		scriptcmd_addaffectname,	true,	true	},
+	{ "addspell",			do_tpaddspell,				true,	true	},
+	{ "adjust",				do_tpadjust,				false,	true	},
+	{ "alteraffect",		do_tpalteraffect,			true,	true	},
+	{ "alterexit",			do_tpalterexit,				false,	true	},
+	{ "altermob",			do_tpaltermob,				true,	true	},
+	{ "alterobj",			do_tpalterobj,				true,	true	},
+	{ "alterroom",			do_tpalterroom,				true,	true	},
+	{ "applytoxin",			scriptcmd_applytoxin,		false,	true	},
+	{ "asound",				do_tpasound,				false,	true	},
+	{ "attach",				scriptcmd_attach,			true,	true	},
+	{ "award",				scriptcmd_award,			true,	true	},
+	{ "breathe",			scriptcmd_breathe,		false,	true	},
+	{ "call",				do_tpcall,					false,	true	},
+	{ "castfailure",		do_tpcastfailure,			false,	true	},
+	{ "castrecover",		do_tpcastrecover,			false,	true	},
+	{ "chargebank",			do_tpchargebank,			false,	true	},
+	{ "checkpoint",			do_tpcheckpoint,			false,	true	},
+	{ "cloneroom",			do_tpcloneroom,				true,	true	},
+	{ "condition",			do_tpcondition,				false,	true	},
+	{ "crier",				do_tpcrier,					false,	true	},
+	{ "damage",				scriptcmd_damage,			false,	true	},
+	{ "deduct",				scriptcmd_deduct,			true,	true	},
+	{ "dequeue",			do_tpdequeue,				false,	false	},
+	{ "destroyroom",		do_tpdestroyroom,			true,	true	},
+	{ "detach",				scriptcmd_detach,			true,	true	},
+	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	true,	true	},
+	{ "echo",				do_tpecho,					false,	true	},
+	{ "echoaround",			do_tpechoaround,			false,	true	},
+	{ "echoat",				scriptcmd_echoat,			false,	true	},
+	{ "echobattlespam",		do_tpechobattlespam,		false,	true	},
+	{ "echochurch",			do_tpechochurch,			false,	true	},
+	{ "echogrouparound",	do_tpechogrouparound,		false,	true	},
+	{ "echogroupat",		do_tpechogroupat,			false,	true	},
+	{ "echoleadaround",		do_tpecholeadaround,		false,	true	},
+	{ "echoleadat",			do_tpecholeadat,			false,	true	},
+	{ "echonotvict",		do_tpechonotvict,			false,	true	},
+	{ "echoroom",			do_tpechoroom,				false,	true	},
+	{ "ed",					scriptcmd_ed,				false,	true	},
+	{ "entercombat",		scriptcmd_entercombat,		false,	true	},
+	{ "fade",				scriptcmd_fade,				true,	true	},
+	{ "fixaffects",			do_tpfixaffects,			false,	true	},
+	{ "flee",				scriptcmd_flee,				false,	true	},
+	{ "force",				do_tpforce,					false,	true	},
+	{ "forget",				do_tpforget,				false,	false	},
+	{ "gdamage",			do_tpgdamage,				false,	true	},
+	{ "gecho",      	 	do_tpgecho,					false,	true	},
+	{ "gforce",				do_tpgforce,				false,	true	},
+	{ "give",				do_tpgive,					false,	true	},
+	{ "goto",				do_tpgoto,					false,	true	},
+	{ "grantskill",			scriptcmd_grantskill,		false,	true	},
+	{ "group",				do_tpgroup,					false,	true	},
+	{ "gtransfer",			do_tpgtransfer,				false,	true	},
+	{ "input",				do_tpinput,					false,	true	},
+	{ "inputstring",		scriptcmd_inputstring,		false,	true	},
+	{ "instancecomplete",	scriptcmd_instancecomplete,	true,	true	},
+	{ "interrupt",			do_tpinterrupt,				false,	true	},
+	{ "junk",				do_tpjunk,					false,	true	},
+	{ "link",				do_tplink,					false,	true	},
+	{ "loadinstanced",		scriptcmd_loadinstanced,	true,	true	},
+	{ "lockadd",			scriptcmd_lockadd,			false,	true	},
+	{ "lockremove",			scriptcmd_lockremove,		false,	true	},
+	{ "mload",				do_tpmload,					false,	true	},
+	{ "mute",				scriptcmd_mute,				false,	true	},
+	{ "oload",				do_tpoload,					false,	true	},
+	{ "otransfer",			do_tpotransfer,				false,	true	},
+	{ "pageat",				scriptcmd_pageat,			false,	true	},
+	{ "peace",				do_tppeace,					false,	false	},
+	{ "persist",			do_tppersist,				false,	true	},
+	{ "prompt",				do_tpprompt,				false,	true	},
+	{ "purge",				do_tppurge,					false,	false	},
+	{ "questaccept",		scriptcmd_questaccept,		false,	true	},
+	{ "questcancel",		scriptcmd_questcancel,		false,	true	},
+	{ "questcomplete",		scriptcmd_questcomplete,	false,	true	},
+	{ "questgenerate",		scriptcmd_questgenerate,	false,	true	},
+	{ "questpartcustom",	scriptcmd_questpartcustom,	true,	true	},
+	{ "questpartgetitem",	scriptcmd_questpartgetitem,	true,	true	},
+	{ "questpartgoto",		scriptcmd_questpartgoto,	true,	true	},
+	{ "questpartrescue",	scriptcmd_questpartrescue,	true,	true	},
+	{ "questpartslay",		scriptcmd_questpartslay,	true,	true	},
+	{ "questscroll",		scriptcmd_questscroll,		false,	true	},
+	{ "queue",				do_tpqueue,					false,	true	},
+	{ "raisedead",			do_tpraisedead,				true,	true	},
+	{ "rawkill",			do_tprawkill,				false,	true	},
+	{ "reckoning",			scriptcmd_reckoning,		true,	true	},
+	{ "remember",			do_tpremember,				false,	true	},
+	{ "remort",				do_tpremort,				true,	true	},
+	{ "remove",				do_tpremove,				false,	true	},
+	{ "remspell",			do_tpremspell,				true,	true	},
+	{ "resetdice",			do_tpresetdice,				true,	true	},
+	{ "restore",			do_tprestore,				true,	true	},
+	{ "revokeskill",		scriptcmd_revokeskill,		false,	true	},
+	{ "saveplayer",			do_tpsaveplayer,			false,	true	},
+	{ "scriptwait",			do_tpscriptwait,			true,	true	},
+	{ "sendfloor",			scriptcmd_sendfloor,		false,	true	},
+	{ "setrecall",			do_tpsetrecall,				false,	true	},
+	{ "settimer",			do_tpsettimer,				false,	true	},
+	{ "showroom",			do_tpshowroom,				true,	true	},
+	{ "skimprove",			do_tpskimprove,				true,	true	},
+	{ "spawndungeon",		scriptcmd_spawndungeon,		true,	true	},
+	{ "specialkey",			scriptcmd_specialkey,		false,	true	},
+	{ "startcombat",		scriptcmd_startcombat,		false,	true	},
+	{ "stopcombat",			scriptcmd_stopcombat,		false,	true	},
+	{ "stringmob",			do_tpstringmob,				true,	true	},
+	{ "stringobj",			do_tpstringobj,				true,	true	},
+	{ "stripaffect",		do_tpstripaffect,			true,	true	},
+	{ "stripaffectname",	do_tpstripaffectname,		true,	true	},
+	{ "transfer",			do_tptransfer,				false,	true	},
+	{ "treasuremap",		scriptcmd_treasuremap,		false,	true	},
+	{ "ungroup",			do_tpungroup,				false,	true	},
+	{ "unlockarea",			scriptcmd_unlockarea,		true,	true	},
+	{ "unmute",				scriptcmd_unmute,			false,	true	},
+	{ "usecatalyst",		do_tpusecatalyst,			false,	true	},
+	{ "varclear",			do_tpvarclear,				false,	true	},
+	{ "varclearon",			do_tpvarclearon,			false,	true	},
+	{ "varcopy",			do_tpvarcopy,				false,	true	},
+	{ "varsave",			do_tpvarsave,				false,	true	},
+	{ "varsaveon",			do_tpvarsaveon,				false,	true	},
+	{ "varset",				do_tpvarset,				false,	true	},
+	{ "varseton",			do_tpvarseton,				false,	true	},
+	{ "vforce",				do_tpvforce,				false,	true	},
+	{ "wildernessmap",		scriptcmd_wildernessmap,	false,	true	},
+	{ "wiretransfer",		do_tpwiretransfer,			false,	true	},
+	{ "xcall",				do_tpxcall,					false,	true	},
+	{ "zecho",				do_tpzecho,					false,	true	},
+	{ "zot",				do_tpzot,					true,	true	},
+	{ NULL,					NULL,						false,	false	}
 };
 
 // Commands accessible by other scripts
 const struct script_cmd_type tokenother_cmd_table[] = {
-	{ "adjust",		do_tpadjust,	FALSE,	TRUE	},
-	{ "give",		do_tpgive,		FALSE,	TRUE	},
-	{ "junk",		do_tpjunk,		FALSE,	TRUE	},
-	{ NULL,			NULL,			FALSE,	FALSE	}
+	{ "adjust",		do_tpadjust,	false,	true	},
+	{ "give",		do_tpgive,		false,	true	},
+	{ "junk",		do_tpjunk,		false,	true	},
+	{ NULL,			NULL,			false,	false	}
 };
 
 
@@ -739,7 +739,7 @@ void token_interpret(SCRIPT_VARINFO *info, char *argument)
 
 	argument = one_argument(argument, command);
 
-	cmd = tpcmd_lookup(command,TRUE);
+	cmd = tpcmd_lookup(command,true);
 
 	if(cmd < 0) {
 		sprintf(buf, "Token_interpret: invalid cmd from token %ld: '%s'", info->token->pIndexData->vnum, command);
@@ -766,7 +766,7 @@ void tokenother_interpret(SCRIPT_VARINFO *info, char *argument)
 
 	argument = one_argument(argument, command);
 
-	cmd = tpcmd_lookup(command,FALSE);
+	cmd = tpcmd_lookup(command,false);
 
 	if(cmd < 0) {
 		sprintf(buf, "Tokenother_interpret: invalid cmd: '%s'", command);
@@ -1829,7 +1829,7 @@ SCRIPT_CMD(do_tpinterrupt)
 	ROOM_INDEX_DATA *here;
 
 	int stop, ret = 0;
-	bool silent = FALSE;
+	bool silent = false;
 
 	if(!info || !info->token) return;
 
@@ -1872,7 +1872,7 @@ SCRIPT_CMD(do_tpinterrupt)
 	ret = 0;
 
 	if (IS_SET(stop,INTERRUPT_SILENT))
-		silent = TRUE;
+		silent = true;
 
 	if (IS_SET(stop,INTERRUPT_CAST) && victim->cast > 0) {
 		stop_casting(victim, !silent);
@@ -1917,9 +1917,9 @@ SCRIPT_CMD(do_tpinterrupt)
 
 	if (IS_SET(stop,INTERRUPT_RECITE) && victim->recite > 0) {
 		if(victim->cast_target_name)
-			variables_set_string(info->var,"stoprecitetarget",victim->cast_target_name,FALSE);
+			variables_set_string(info->var,"stoprecitetarget",victim->cast_target_name,false);
 		else
-			variables_set_string(info->var,"stoprecitetarget","",FALSE);
+			variables_set_string(info->var,"stoprecitetarget","",false);
 		variables_set_object(info->var,"stopreciteobj",victim->recite_scroll);
 		victim->recite = 0;
 		victim->cast_target_name = NULL;
@@ -1952,9 +1952,9 @@ SCRIPT_CMD(do_tpinterrupt)
 
 	if (IS_SET(stop,INTERRUPT_RANGED) && victim->ranged > 0) {
 		if(victim->projectile_victim)
-			variables_set_string(info->var,"stoprangedtarget",victim->projectile_victim,FALSE);
+			variables_set_string(info->var,"stoprangedtarget",victim->projectile_victim,false);
 		else
-			variables_set_string(info->var,"stoprangedtarget","",FALSE);
+			variables_set_string(info->var,"stoprangedtarget","",false);
 		variables_set_object(info->var,"stoprangedweapon",victim->projectile_weapon);
 		variables_set_object(info->var,"stoprangedammo",victim->projectile);
 		variables_set_integer(info->var,"stoprangedist",victim->projectile_range);
@@ -2009,8 +2009,8 @@ SCRIPT_CMD(do_tpalterobj)
 	int value, num, min_sec = MIN_SCRIPT_SECURITY;
 	OBJ_DATA *obj = NULL;
 	int min, max;
-	bool hasmin = FALSE, hasmax = FALSE;
-	bool allowarith = TRUE;
+	bool hasmin = false, hasmax = false;
+	bool allowarith = true;
 	const struct flag_type *flags = NULL;
 
 	if(!info || !info->token) return;
@@ -2129,7 +2129,7 @@ SCRIPT_CMD(do_tpalterobj)
 		else if(!str_cmp(field,"key"))			{ if( obj->lock ) { ptr = (int*)&obj->lock->key_vnum; } }
 		else if(!str_cmp(field,"level"))		{ ptr = (int*)&obj->level; min_sec = 5; }
 		else if(!str_cmp(field,"lockflags"))	{ if( obj->lock ) { ptr = (int*)&obj->lock->flags; flags = lock_flags; } }
-		else if(!str_cmp(field,"pickchance"))	{ if( obj->lock ) { ptr = (int*)&obj->lock->pick_chance; min = 0; max = 100; hasmin = hasmax = TRUE; } }
+		else if(!str_cmp(field,"pickchance"))	{ if( obj->lock ) { ptr = (int*)&obj->lock->pick_chance; min = 0; max = 100; hasmin = hasmax = true; } }
 		else if(!str_cmp(field,"repairs"))		ptr = (int*)&obj->times_fixed;
 		else if(!str_cmp(field,"tempstore1"))	ptr = (int*)&obj->tempstore[0];
 		else if(!str_cmp(field,"tempstore2"))	ptr = (int*)&obj->tempstore[1];
@@ -2153,7 +2153,7 @@ SCRIPT_CMD(do_tpalterobj)
 		{
 			if( arg->type != ENT_STRING ) return;
 
-			allowarith = FALSE;	// This is a bit vector, no arithmetic operators.
+			allowarith = false;	// This is a bit vector, no arithmetic operators.
 			value = script_flag_value(flags, arg->d.str);
 
 			if( value == NO_FLAG ) value = 0;
@@ -2315,7 +2315,7 @@ SCRIPT_CMD(do_tpdamage)
 	char buf[MSL],*rest;
 	CHAR_DATA *victim = NULL, *victim_next;
 	int low, high, level, value, dc;
-	bool fAll = FALSE, fKill = FALSE, fLevel = FALSE, fRemort = FALSE, fTwo = FALSE;
+	bool fAll = false, fKill = false, fLevel = false, fRemort = false, fTwo = false;
 
 
 	if(!info || !info->token || !token_room(info->token)) return;
@@ -2327,7 +2327,7 @@ SCRIPT_CMD(do_tpdamage)
 
 	switch(arg->type) {
 	case ENT_STRING:
-		if(!str_cmp(arg->d.str,"all")) fAll = TRUE;
+		if(!str_cmp(arg->d.str,"all")) fAll = true;
 		else victim = get_char_room(NULL, token_room(info->token), arg->d.str);
 		break;
 	case ENT_MOBILE: victim = arg->d.mob; break;
@@ -2353,10 +2353,10 @@ SCRIPT_CMD(do_tpdamage)
 	switch(arg->type) {
 	case ENT_NUMBER: low = arg->d.num; break;
 	case ENT_STRING:
-		if(!str_cmp(arg->d.str,"level")) { fLevel = TRUE; break; }
-		if(!str_cmp(arg->d.str,"remort")) { fLevel = fRemort = TRUE; break; }
-		if(!str_cmp(arg->d.str,"dual")) { fLevel = fTwo = TRUE; break; }
-		if(!str_cmp(arg->d.str,"dualremort")) { fLevel = fTwo = fRemort = TRUE; break; }
+		if(!str_cmp(arg->d.str,"level")) { fLevel = true; break; }
+		if(!str_cmp(arg->d.str,"remort")) { fLevel = fRemort = true; break; }
+		if(!str_cmp(arg->d.str,"dual")) { fLevel = fTwo = true; break; }
+		if(!str_cmp(arg->d.str,"dualremort")) { fLevel = fTwo = fRemort = true; break; }
 		if(is_number(arg->d.str)) { low = atoi(arg->d.str); break; }
 	default:
 		bug("TpDamage - invalid argument from vnum %ld.", VNUM(info->token));
@@ -2415,7 +2415,7 @@ SCRIPT_CMD(do_tpdamage)
 
 	// No expansion!
 	argument = one_argument(rest, buf);
-	if (!str_cmp(buf,"kill") || !str_cmp(buf,"lethal")) fKill = TRUE;
+	if (!str_cmp(buf,"kill") || !str_cmp(buf,"lethal")) fKill = true;
 
 	one_argument(argument, buf);
 	dc = damage_class_lookup(buf);
@@ -2426,11 +2426,11 @@ SCRIPT_CMD(do_tpdamage)
 		for(victim = token_room(info->token)->people; victim; victim = victim_next) {
 			victim_next = victim->next_in_room;
 			value = fLevel ? dice(low,high) : number_range(low,high);
-			damage(victim, victim, fKill ? value : UMIN(victim->hit,value), TYPE_UNDEFINED, dc, FALSE);
+			damage(victim, victim, fKill ? value : UMIN(victim->hit,value), TYPE_UNDEFINED, dc, false);
 		}
 	} else {
 		value = fLevel ? dice(low,high) : number_range(low,high);
-		damage(victim, victim, fKill ? value : UMIN(victim->hit,value), TYPE_UNDEFINED, dc, FALSE);
+		damage(victim, victim, fKill ? value : UMIN(victim->hit,value), TYPE_UNDEFINED, dc, false);
 	}
 }
 
@@ -2511,7 +2511,7 @@ SCRIPT_CMD(do_tpgdamage)
 	char buf[MSL],*rest;
 	CHAR_DATA *victim = NULL, *rch, *rch_next;
 	int low, high, level, value, dc;
-	bool fKill = FALSE, fLevel = FALSE, fRemort = FALSE, fTwo = FALSE;
+	bool fKill = false, fLevel = false, fRemort = false, fTwo = false;
 
 
 	if(!info || !info->token) return;
@@ -2546,10 +2546,10 @@ SCRIPT_CMD(do_tpgdamage)
 	switch(arg->type) {
 	case ENT_NUMBER: low = arg->d.num; break;
 	case ENT_STRING:
-		if(!str_cmp(arg->d.str,"level")) { fLevel = TRUE; break; }
-		if(!str_cmp(arg->d.str,"remort")) { fLevel = fRemort = TRUE; break; }
-		if(!str_cmp(arg->d.str,"dual")) { fLevel = fTwo = TRUE; break; }
-		if(!str_cmp(arg->d.str,"dualremort")) { fLevel = fTwo = fRemort = TRUE; break; }
+		if(!str_cmp(arg->d.str,"level")) { fLevel = true; break; }
+		if(!str_cmp(arg->d.str,"remort")) { fLevel = fRemort = true; break; }
+		if(!str_cmp(arg->d.str,"dual")) { fLevel = fTwo = true; break; }
+		if(!str_cmp(arg->d.str,"dualremort")) { fLevel = fTwo = fRemort = true; break; }
 		if(is_number(arg->d.str)) { low = atoi(arg->d.str); break; }
 	default:
 		bug("TpGdamage - invalid argument from vnum %ld.", VNUM(info->token));
@@ -2603,7 +2603,7 @@ SCRIPT_CMD(do_tpgdamage)
 
 	// No expansion!
 	argument = one_argument(rest, buf);
-	if (!str_cmp(buf,"kill") || !str_cmp(buf,"lethal")) fKill = TRUE;
+	if (!str_cmp(buf,"kill") || !str_cmp(buf,"lethal")) fKill = true;
 
 	one_argument(argument, buf);
 	dc = damage_class_lookup(buf);
@@ -2614,7 +2614,7 @@ SCRIPT_CMD(do_tpgdamage)
 		rch_next = rch->next_in_room;
 		if (rch != victim && is_same_group(victim,rch)) {
 			value = fLevel ? dice(low,high) : number_range(low,high);
-			damage(rch, rch, fKill ? value : UMIN(rch->hit,value), TYPE_UNDEFINED, dc, FALSE);
+			damage(rch, rch, fKill ? value : UMIN(rch->hit,value), TYPE_UNDEFINED, dc, false);
 		}
 	}
 }
@@ -2650,9 +2650,9 @@ SCRIPT_CMD(do_tpasound)
 
 					if(i <= j) {
 						// No, so do the message
-						MOBtrigger  = FALSE;
+						MOBtrigger  = false;
 						act(buffer->string, room->people, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL);
-						MOBtrigger  = TRUE;
+						MOBtrigger  = true;
 						rooms[i++] = room;
 					}
 				}
@@ -2727,14 +2727,14 @@ SCRIPT_CMD(do_tppurge)
 			bug("Oppurge - Attempting to purge a PC from vnum %d.", VNUM(info->token));
 			return;
 		}
-		extract_char(victim, TRUE);
+		extract_char(victim, true);
 	} else if(obj)
 		extract_obj(obj);
 	else if(here) {
 		for (victim = here->people; victim; victim = vnext) {
 			vnext = victim->next_in_room;
 			if (IS_NPC(victim) && !IS_SET(victim->act, ACT_NOPURGE))
-				extract_char(victim, TRUE);
+				extract_char(victim, true);
 		}
 
 		for (obj = here->contents; obj; obj = obj_next) {
@@ -2746,7 +2746,7 @@ SCRIPT_CMD(do_tppurge)
 		for (victim = *mobs; victim; victim = vnext) {
 			vnext = victim->next_in_room;
 			if (IS_NPC(victim) && !IS_SET(victim->act, ACT_NOPURGE))
-				extract_char(victim, TRUE);
+				extract_char(victim, true);
 		}
 	} else if(objs) {
 		for (obj = *objs; obj; obj = obj_next) {
@@ -2932,7 +2932,7 @@ SCRIPT_CMD(do_tpotransfer)
 
 	if (obj->carried_by) {
 		if (obj->wear_loc != WEAR_NONE)
-			unequip_char(obj->carried_by, obj, TRUE);
+			unequip_char(obj->carried_by, obj, true);
 		obj_from_char(obj);
 	} else if(obj->in_obj)
 		obj_from_obj(obj);
@@ -2961,7 +2961,7 @@ SCRIPT_CMD(do_tppeace)
 
 	for (rch = token_room(info->token)->people; rch; rch = rch->next_in_room) {
 		if (rch->fighting)
-			stop_fighting(rch, TRUE);
+			stop_fighting(rch, true);
 		if (IS_NPC(rch) && IS_SET(rch->act,ACT_AGGRESSIVE))
 			REMOVE_BIT(rch->act,ACT_AGGRESSIVE);
 	}
@@ -2973,7 +2973,7 @@ SCRIPT_CMD(do_tptransfer)
 	char buf[MIL], buf2[MIL], *rest;
 	CHAR_DATA *victim = NULL,*vnext;
 	ROOM_INDEX_DATA *dest;
-	bool all = FALSE, force = FALSE, quiet = FALSE;
+	bool all = false, force = false, quiet = false;
 	int mode;
 
 	if(!info || !info->token || !token_room(info->token)) return;
@@ -2985,7 +2985,7 @@ SCRIPT_CMD(do_tptransfer)
 
 	switch(arg->type) {
 	case ENT_STRING:
-		if(!str_cmp(arg->d.str,"all")) all = TRUE;
+		if(!str_cmp(arg->d.str,"all")) all = true;
 		else victim = get_char_world(NULL, arg->d.str);
 		break;
 	case ENT_MOBILE: victim = arg->d.mob; break;
@@ -3043,7 +3043,7 @@ SCRIPT_CMD(do_tpremove)
 	CHAR_DATA *victim;
 	OBJ_DATA *obj = NULL, *obj_next;
 	int vnum = 0, count = 0;
-	bool fAll = FALSE;
+	bool fAll = false;
 
 	char name[MIL], *rest;
 
@@ -3080,7 +3080,7 @@ SCRIPT_CMD(do_tpremove)
 		if(is_number(arg->d.str))
 			vnum = atoi(arg->d.str);
 		else if(!str_cmp(arg->d.str,"all"))
-			fAll = TRUE;
+			fAll = true;
 		else
 			strncpy(name,arg->d.str,MIL-1);
 		break;
@@ -3133,7 +3133,7 @@ SCRIPT_CMD(do_tpgtransfer)
 	char buf[MIL], buf2[MIL], buf3[MIL], *rest;
 	CHAR_DATA *victim, *vch,*next;
 	ROOM_INDEX_DATA *dest;
-	bool all = FALSE, force = FALSE, quiet = FALSE;
+	bool all = false, force = false, quiet = false;
 	int mode;
 
 
@@ -3199,8 +3199,8 @@ SCRIPT_CMD(do_tplink)
 	int door, vnum;
 	unsigned long id1, id2;
 
-	bool del = FALSE;
-	bool environ = FALSE;
+	bool del = false;
+	bool environ = false;
 
 	if(!info || !info->token) return;
 
@@ -3242,13 +3242,13 @@ SCRIPT_CMD(do_tplink)
 			!str_cmp(arg->d.str,"remove") ||
 			!str_cmp(arg->d.str,"unlink")) {
 			vnum = 0;
-			del = TRUE;
+			del = true;
 		} else if(!str_cmp(arg->d.str,"environment") ||
 			!str_cmp(arg->d.str,"environ") ||
 			!str_cmp(arg->d.str,"extern") ||
 			!str_cmp(arg->d.str,"outside")) {
 			vnum = 0;
-			environ = TRUE;
+			environ = true;
 		} else if(!str_cmp(arg->d.str,"vroom")) {
 			argument = rest;
 			if(!(rest = expand_argument(info,argument,arg)) || arg->type != ENT_NUMBER)
@@ -3333,7 +3333,7 @@ SCRIPT_CMD(do_tpmload)
 		return;
 	}
 
-	victim = create_mobile(pMobIndex, FALSE);
+	victim = create_mobile(pMobIndex, false);
 	char_to_room(victim, token_room(info->token));
 	if(rest && *rest) variables_set_mobile(info->var,rest,victim);
 	p_percent_trigger(victim, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_REPOP, NULL);
@@ -3343,7 +3343,7 @@ SCRIPT_CMD(do_tpoload)
 {
 	char buf[MIL], *rest;
 	long vnum, level;
-	bool fWear = FALSE;
+	bool fWear = false;
 	OBJ_INDEX_DATA *pObjIndex;
 	OBJ_DATA *obj;
 
@@ -3404,7 +3404,7 @@ SCRIPT_CMD(do_tpoload)
 				to_mob = arg->d.mob;
 				if((rest = one_argument(rest,buf))) {
 					if (!str_cmp(buf, "wear"))
-						fWear = TRUE;
+						fWear = true;
 					// use "none/carry"
 				}
 				break;
@@ -3429,7 +3429,7 @@ SCRIPT_CMD(do_tpoload)
 	} else
 		level = pObjIndex->level;
 
-	obj = create_object(pObjIndex, level, TRUE);
+	obj = create_object(pObjIndex, level, true);
 	if(to_room)
 		obj_to_room(obj, to_room);
 	else if( to_obj )
@@ -3439,7 +3439,7 @@ SCRIPT_CMD(do_tpoload)
 		(get_carry_weight (to_mob) + get_obj_weight (obj) <= can_carry_w (to_mob))) {
 		obj_to_char(obj, to_mob);
 		if (fWear)
-			wear_obj(to_mob, obj, TRUE);
+			wear_obj(to_mob, obj, true);
 	} else
 		obj_to_room(obj, token_room(info->token));
 
@@ -3451,7 +3451,7 @@ SCRIPT_CMD(do_tpforce)
 {
 	char *rest;
 	CHAR_DATA *victim = NULL, *next;
-	bool fAll = FALSE, forced;
+	bool fAll = false, forced;
 
 
 	if(!info || !info->token) return;
@@ -3463,7 +3463,7 @@ SCRIPT_CMD(do_tpforce)
 
 	switch(arg->type) {
 	case ENT_STRING:
-		if(!str_cmp(arg->d.str,"all")) fAll = TRUE;
+		if(!str_cmp(arg->d.str,"all")) fAll = true;
 		else victim = get_char_room(NULL,token_room(info->token), arg->d.str);
 		break;
 	case ENT_MOBILE: victim = arg->d.mob; break;
@@ -3485,11 +3485,11 @@ SCRIPT_CMD(do_tpforce)
 		if (fAll) {
 			for (victim = token_room(info->token)->people; victim; victim = next) {
 				next = victim->next_in_room;
-				forced_command = TRUE;
+				forced_command = true;
 				interpret(victim, buffer->string);
 			}
 		} else {
-			forced_command = TRUE;
+			forced_command = true;
 			interpret(victim, buffer->string);
 		}
 
@@ -3556,7 +3556,7 @@ SCRIPT_CMD(do_tpgoto)
 		return;
 	}
 
-	if (info->token->player->fighting) stop_fighting(info->token->player, TRUE);
+	if (info->token->player->fighting) stop_fighting(info->token->player, true);
 
 	char_from_room(info->token->player);
 	char_to_room(info->token->player, dest);
@@ -3569,7 +3569,7 @@ SCRIPT_CMD(do_tpstringobj)
 	int min_sec = MIN_SCRIPT_SECURITY;
 	OBJ_DATA *obj = NULL;
 
-	bool newlines = FALSE;
+	bool newlines = false;
 
 	if(!info || !info->token) return;
 
@@ -3650,7 +3650,7 @@ SCRIPT_CMD(do_tpstringobj)
 				return;	// Can't change restrings, sorry!
 			}
 			str = (char**)&obj->full_description;
-			newlines = TRUE;
+			newlines = true;
 		} else if(!str_cmp(field,"material")) {
 			int mat = material_lookup(buf);
 
@@ -3692,12 +3692,12 @@ SCRIPT_CMD(do_tpaltermob)
 	CHAR_DATA *mob = NULL;
 
 	int *ptr = NULL;
-	bool allowpc = FALSE;
-	bool allowarith = TRUE;
-	bool allowbitwise = TRUE;
-	bool lookuprace = FALSE;
-	bool hasmin = FALSE;
-	bool hasmax = FALSE;
+	bool allowpc = false;
+	bool allowarith = true;
+	bool allowbitwise = true;
+	bool lookuprace = false;
+	bool hasmin = false;
+	bool hasmax = false;
 	int dirty_stat = -1;
 	const struct flag_type *flags = NULL;
 
@@ -3763,80 +3763,80 @@ SCRIPT_CMD(do_tpaltermob)
 	else if(!str_cmp(field,"bomb"))		ptr = (int*)&mob->bomb;
 	else if(!str_cmp(field,"brew"))		ptr = (int*)&mob->brew;
 	else if(!str_cmp(field,"cast"))		ptr = (int*)&mob->cast;
-	else if(!str_cmp(field,"comm"))		{ ptr = IS_NPC(mob)?NULL:(int*)&mob->comm; allowpc = TRUE; allowarith = FALSE; min_sec = 7; flags = comm_flags; }		// 20140512NIB - Allows for scripted fun with player communications, only bit operators allowed
+	else if(!str_cmp(field,"comm"))		{ ptr = IS_NPC(mob)?NULL:(int*)&mob->comm; allowpc = true; allowarith = false; min_sec = 7; flags = comm_flags; }		// 20140512NIB - Allows for scripted fun with player communications, only bit operators allowed
 	else if(!str_cmp(field,"damroll"))	ptr = (int*)&mob->damroll;
-	else if(!str_cmp(field,"danger"))	{ ptr = IS_NPC(mob)?NULL:(int*)&mob->pcdata->danger_range; allowpc = TRUE; }
+	else if(!str_cmp(field,"danger"))	{ ptr = IS_NPC(mob)?NULL:(int*)&mob->pcdata->danger_range; allowpc = true; }
 	else if(!str_cmp(field,"daze"))		ptr = (int*)&mob->daze;
-	else if(!str_cmp(field,"death"))	{ ptr = (IS_NPC(mob) || !IS_DEAD(mob))?NULL:(int*)&mob->time_left_death; allowpc = TRUE; }
+	else if(!str_cmp(field,"death"))	{ ptr = (IS_NPC(mob) || !IS_DEAD(mob))?NULL:(int*)&mob->time_left_death; allowpc = true; }
 	else if(!str_cmp(field,"dicenumber"))	{ ptr = IS_NPC(mob)?&mob->damage.number:NULL; }
 	else if(!str_cmp(field,"dicetype"))	{ ptr = IS_NPC(mob)?&mob->damage.size:NULL; }
 	else if(!str_cmp(field,"dicebonus"))	{ ptr = IS_NPC(mob)?&mob->damage.bonus:NULL; }
-	else if(!str_cmp(field,"drunk"))	{ ptr = IS_NPC(mob)?NULL:(int*)&mob->pcdata->condition[COND_DRUNK]; allowpc = TRUE; }
-//	else if(!str_cmp(field,"exitdir"))	{ ptr = (int*)&mob->exit_dir; allowpc = TRUE; }
-	else if(!str_cmp(field,"exp"))		{ ptr = (int*)&mob->exp; allowpc = TRUE; }
+	else if(!str_cmp(field,"drunk"))	{ ptr = IS_NPC(mob)?NULL:(int*)&mob->pcdata->condition[COND_DRUNK]; allowpc = true; }
+//	else if(!str_cmp(field,"exitdir"))	{ ptr = (int*)&mob->exit_dir; allowpc = true; }
+	else if(!str_cmp(field,"exp"))		{ ptr = (int*)&mob->exp; allowpc = true; }
 	else if(!str_cmp(field,"fade"))		ptr = (int*)&mob->fade;
-	else if(!str_cmp(field,"fullness"))	{ ptr = IS_NPC(mob)?NULL:(int*)&mob->pcdata->condition[COND_FULL]; allowpc = TRUE; }
+	else if(!str_cmp(field,"fullness"))	{ ptr = IS_NPC(mob)?NULL:(int*)&mob->pcdata->condition[COND_FULL]; allowpc = true; }
 	else if(!str_cmp(field,"gold"))		ptr = (int*)&mob->gold;
 	else if(!str_cmp(field,"hide"))		ptr = (int*)&mob->hide;
 	else if(!str_cmp(field,"hit"))		ptr = (int*)&mob->hit;
 	else if(!str_cmp(field,"hitdamage"))	ptr = (int*)&mob->hit_damage;
 	else if(!str_cmp(field,"hitroll"))	ptr = (int*)&mob->hitroll;
-	else if(!str_cmp(field,"hunger"))	{ ptr = IS_NPC(mob)?NULL:(int*)&mob->pcdata->condition[COND_HUNGER]; allowpc = TRUE; }
-	else if(!str_cmp(field,"imm"))		{ ptr = (int*)&mob->imm_flags; allowarith = FALSE; flags = imm_flags; }
+	else if(!str_cmp(field,"hunger"))	{ ptr = IS_NPC(mob)?NULL:(int*)&mob->pcdata->condition[COND_HUNGER]; allowpc = true; }
+	else if(!str_cmp(field,"imm"))		{ ptr = (int*)&mob->imm_flags; allowarith = false; flags = imm_flags; }
 	else if(!str_cmp(field,"level"))	ptr = (int*)&mob->tot_level;
-	else if(!str_cmp(field,"lostparts"))	{ ptr = (int*)&mob->lostparts; allowarith = FALSE; flags = part_flags; }
+	else if(!str_cmp(field,"lostparts"))	{ ptr = (int*)&mob->lostparts; allowarith = false; flags = part_flags; }
 	else if(!str_cmp(field,"mana"))		ptr = (int*)&mob->mana;
-	else if(!str_cmp(field,"manastore"))	{ ptr = (int*)&mob->manastore; allowpc = TRUE; }
+	else if(!str_cmp(field,"manastore"))	{ ptr = (int*)&mob->manastore; allowpc = true; }
 //	else if(!str_cmp(field,"material"))	ptr = (int*)&mob->material;
 	else if(!str_cmp(field,"maxexp"))	ptr = (int*)&mob->maxexp;
 	else if(!str_cmp(field,"maxhit"))	ptr = (int*)&mob->max_hit;
 	else if(!str_cmp(field,"maxmana"))	ptr = (int*)&mob->max_mana;
 	else if(!str_cmp(field,"maxmove"))	ptr = (int*)&mob->max_move;
-	else if(!str_cmp(field,"mazed"))	{ ptr = (IS_NPC(mob))?NULL:(int*)&mob->maze_time_left; allowpc = TRUE; }
-	else if(!str_cmp(field,"modcon"))	{ ptr = (int*)&mob->mod_stat[STAT_CON]; allowpc = TRUE; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_CON; }
-	else if(!str_cmp(field,"moddex"))	{ ptr = (int*)&mob->mod_stat[STAT_DEX]; allowpc = TRUE; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_DEX; }
-	else if(!str_cmp(field,"modint"))	{ ptr = (int*)&mob->mod_stat[STAT_INT]; allowpc = TRUE; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_INT; }
-	else if(!str_cmp(field,"modstr"))	{ ptr = (int*)&mob->mod_stat[STAT_STR]; allowpc = TRUE; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_STR; }
-	else if(!str_cmp(field,"modwis"))	{ ptr = (int*)&mob->mod_stat[STAT_WIS]; allowpc = TRUE; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_WIS; }
+	else if(!str_cmp(field,"mazed"))	{ ptr = (IS_NPC(mob))?NULL:(int*)&mob->maze_time_left; allowpc = true; }
+	else if(!str_cmp(field,"modcon"))	{ ptr = (int*)&mob->mod_stat[STAT_CON]; allowpc = true; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_CON; }
+	else if(!str_cmp(field,"moddex"))	{ ptr = (int*)&mob->mod_stat[STAT_DEX]; allowpc = true; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_DEX; }
+	else if(!str_cmp(field,"modint"))	{ ptr = (int*)&mob->mod_stat[STAT_INT]; allowpc = true; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_INT; }
+	else if(!str_cmp(field,"modstr"))	{ ptr = (int*)&mob->mod_stat[STAT_STR]; allowpc = true; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_STR; }
+	else if(!str_cmp(field,"modwis"))	{ ptr = (int*)&mob->mod_stat[STAT_WIS]; allowpc = true; min_sec = IS_NPC(mob)?0:3; dirty_stat = STAT_WIS; }
 	else if(!str_cmp(field,"move"))		ptr = (int*)&mob->move;
 	else if(!str_cmp(field,"music"))	ptr = (int*)&mob->music;
 	else if(!str_cmp(field,"norecall"))	ptr = (int*)&mob->no_recall;
 	else if(!str_cmp(field,"panic"))	ptr = (int*)&mob->panic;
 	else if(!str_cmp(field,"paralyzed"))	ptr = (int*)&mob->paralyzed;
 	else if(!str_cmp(field,"paroxysm"))	ptr = (int*)&mob->paroxysm;
-	else if(!str_cmp(field,"parts"))	{ ptr = (int*)&mob->parts; allowarith = FALSE; flags = part_flags; }
-	else if(!str_cmp(field,"permaffects"))	{ ptr = (int*)&mob->affected_by_perm; allowarith = FALSE; flags = affect_flags; }
-	else if(!str_cmp(field,"permaffects2"))	{ ptr = (int*)&mob->affected_by2_perm; allowarith = FALSE; flags = affect2_flags; }
-	else if(!str_cmp(field,"permimm"))	{ ptr = (int*)&mob->imm_flags_perm; allowarith = FALSE; flags = imm_flags; }
-	else if(!str_cmp(field,"permres"))	{ ptr = (int*)&mob->res_flags_perm; allowarith = FALSE; flags = imm_flags; }
-	else if(!str_cmp(field,"permvuln"))	{ ptr = (int*)&mob->vuln_flags_perm; allowarith = FALSE; flags = imm_flags; }
+	else if(!str_cmp(field,"parts"))	{ ptr = (int*)&mob->parts; allowarith = false; flags = part_flags; }
+	else if(!str_cmp(field,"permaffects"))	{ ptr = (int*)&mob->affected_by_perm; allowarith = false; flags = affect_flags; }
+	else if(!str_cmp(field,"permaffects2"))	{ ptr = (int*)&mob->affected_by2_perm; allowarith = false; flags = affect2_flags; }
+	else if(!str_cmp(field,"permimm"))	{ ptr = (int*)&mob->imm_flags_perm; allowarith = false; flags = imm_flags; }
+	else if(!str_cmp(field,"permres"))	{ ptr = (int*)&mob->res_flags_perm; allowarith = false; flags = imm_flags; }
+	else if(!str_cmp(field,"permvuln"))	{ ptr = (int*)&mob->vuln_flags_perm; allowarith = false; flags = imm_flags; }
 	else if(!str_cmp(field,"pktimer"))	ptr = (int*)&mob->pk_timer;
 	else if(!str_cmp(field,"pneuma"))	ptr = (int*)&mob->pneuma;
 	else if(!str_cmp(field,"practice"))	ptr = (int*)&mob->practice;
-	else if(!str_cmp(field,"race"))		{ ptr = (int*)&mob->race; min_sec = 7; allowarith = FALSE; lookuprace = TRUE; }
+	else if(!str_cmp(field,"race"))		{ ptr = (int*)&mob->race; min_sec = 7; allowarith = false; lookuprace = true; }
 	else if(!str_cmp(field,"ranged"))	ptr = (int*)&mob->ranged;
 	else if(!str_cmp(field,"recite"))	ptr = (int*)&mob->recite;
-	else if(!str_cmp(field,"res"))		{ ptr = (int*)&mob->res_flags;  allowarith = FALSE; flags = imm_flags; }
+	else if(!str_cmp(field,"res"))		{ ptr = (int*)&mob->res_flags;  allowarith = false; flags = imm_flags; }
 	else if(!str_cmp(field,"resurrect"))	ptr = (int*)&mob->resurrect;
 	else if(!str_cmp(field,"reverie"))	ptr = (int*)&mob->reverie;
 	else if(!str_cmp(field,"scribe"))	ptr = (int*)&mob->scribe;
-	else if(!str_cmp(field,"sex"))		{ ptr = (int*)&mob->sex; min = 0; max = 2; hasmin = hasmax = TRUE; flags = sex_flags; }
+	else if(!str_cmp(field,"sex"))		{ ptr = (int*)&mob->sex; min = 0; max = 2; hasmin = hasmax = true; flags = sex_flags; }
 	else if(!str_cmp(field,"silver"))	ptr = (int*)&mob->silver;
-	else if(!str_cmp(field,"size"))		{ ptr = (int*)&mob->size; min = SIZE_TINY; max = SIZE_GIANT; hasmin = hasmax = TRUE; flags = size_flags; }
+	else if(!str_cmp(field,"size"))		{ ptr = (int*)&mob->size; min = SIZE_TINY; max = SIZE_GIANT; hasmin = hasmax = true; flags = size_flags; }
 	else if(!str_cmp(field,"skillchance"))	ptr = (int*)&mob->skill_chance;
 	else if(!str_cmp(field,"sublevel"))	ptr = (int*)&mob->level;
 	else if(!str_cmp(field,"tempstore1"))	ptr = (int*)&mob->tempstore[0];
 	else if(!str_cmp(field,"tempstore2"))	ptr = (int*)&mob->tempstore[1];
 	else if(!str_cmp(field,"tempstore3"))	ptr = (int*)&mob->tempstore[2];
 	else if(!str_cmp(field,"tempstore4"))	ptr = (int*)&mob->tempstore[3];
-	else if(!str_cmp(field,"thirst"))	{ ptr = IS_NPC(mob)?NULL:(int*)&mob->pcdata->condition[COND_THIRST]; allowpc = TRUE; }
+	else if(!str_cmp(field,"thirst"))	{ ptr = IS_NPC(mob)?NULL:(int*)&mob->pcdata->condition[COND_THIRST]; allowpc = true; }
 	else if(!str_cmp(field,"toxinneuro"))	ptr = (int*)&mob->toxin[TOXIN_NEURO];
 	else if(!str_cmp(field,"toxinpara"))	ptr = (int*)&mob->toxin[TOXIN_PARALYZE];
 	else if(!str_cmp(field,"toxinvenom"))	ptr = (int*)&mob->toxin[TOXIN_VENOM];
 	else if(!str_cmp(field,"toxinweak"))	ptr = (int*)&mob->toxin[TOXIN_WEAKNESS];
 	else if(!str_cmp(field,"train"))	ptr = (int*)&mob->train;
 	else if(!str_cmp(field,"trance"))	ptr = (int*)&mob->trance;
-	else if(!str_cmp(field,"vuln"))		{ ptr = (int*)&mob->vuln_flags; allowarith = FALSE; flags = imm_flags; }
+	else if(!str_cmp(field,"vuln"))		{ ptr = (int*)&mob->vuln_flags; allowarith = false; flags = imm_flags; }
 	else if(!str_cmp(field,"wait"))		ptr = (int*)&mob->wait;
 	else if(!str_cmp(field,"wildviewx"))	ptr = (int*)&mob->wildview_bonus_x;
 	else if(!str_cmp(field,"wildviewy"))	ptr = (int*)&mob->wildview_bonus_y;
@@ -3859,15 +3859,15 @@ SCRIPT_CMD(do_tpaltermob)
 		if( arg->type != ENT_STRING ) return;
 
 		// This is a race, can only be assigned
-		allowarith = FALSE;
-		allowbitwise = FALSE;
+		allowarith = false;
+		allowbitwise = false;
 		value = race_lookup(arg->d.str);
 	}
 	else if( flags != NULL )
 	{
 		if( arg->type != ENT_STRING ) return;
 
-		allowarith = FALSE;	// This is a bit vector, no arithmetic operators.
+		allowarith = false;	// This is a bit vector, no arithmetic operators.
 		value = script_flag_value(flags, arg->d.str);
 
 		if( value == NO_FLAG ) value = 0;
@@ -3995,7 +3995,7 @@ SCRIPT_CMD(do_tpaltermob)
 		*ptr = max;
 
 	if(dirty_stat >= 0 && dirty_stat < MAX_STATS)
-		mob->dirty_stat[dirty_stat] = TRUE;
+		mob->dirty_stat[dirty_stat] = true;
 }
 
 
@@ -4005,7 +4005,7 @@ SCRIPT_CMD(do_tpstringmob)
 	int min_sec = MIN_SCRIPT_SECURITY;
 	CHAR_DATA *mob = NULL;
 
-	bool newlines = FALSE;
+	bool newlines = false;
 
 	if(!info || !info->token) return;
 
@@ -4061,8 +4061,8 @@ SCRIPT_CMD(do_tpstringmob)
 		if(!str_cmp(field,"name"))				str = (char**)&mob->name;
 		else if(!str_cmp(field,"owner"))		{ str = (char**)&mob->owner; min_sec = 5; }
 		else if(!str_cmp(field,"short"))		str = (char**)&mob->short_descr;
-		else if(!str_cmp(field,"long"))			{ str = (char**)&mob->long_descr; strcat(buf,"\n\r"); newlines = TRUE; }
-		else if(!str_cmp(field,"full"))			{ str = (char**)&mob->description; newlines = TRUE; }
+		else if(!str_cmp(field,"long"))			{ str = (char**)&mob->long_descr; strcat(buf,"\n\r"); newlines = true; }
+		else if(!str_cmp(field,"full"))			{ str = (char**)&mob->description; newlines = true; }
 		else if(!str_cmp(field,"tempstring"))	str = (char**)&mob->tempstring;
 		else
 		{
@@ -4093,7 +4093,7 @@ SCRIPT_CMD(do_tpskimprove)
 	CHAR_DATA *mob = NULL;
 
 	TOKEN_DATA *token = NULL;
-	bool success = FALSE;
+	bool success = false;
 
 	if(script_security < MIN_SCRIPT_SECURITY) {
 		bug("TpSkImprove - Insufficient security.",0);
@@ -4174,7 +4174,7 @@ SCRIPT_CMD(do_tpskimprove)
 	}
 
 	switch(arg->type) {
-	case ENT_NONE: success = TRUE; break;
+	case ENT_NONE: success = true; break;
 	case ENT_STRING:
 		if(is_number(arg->d.str))
 
@@ -4186,7 +4186,7 @@ SCRIPT_CMD(do_tpskimprove)
 	case ENT_NUMBER:
 		success = (bool)(arg->d.num != 0);
 		break;
-	default: success = FALSE;
+	default: success = false;
 	}
 
 	if(token)
@@ -4245,7 +4245,7 @@ SCRIPT_CMD(do_tprawkill)
 	}
 
 	switch(arg->type) {
-	case ENT_NONE:	has_head = TRUE; break;
+	case ENT_NONE:	has_head = true; break;
 	case ENT_STRING:
 		has_head = !str_cmp(arg->d.str,"true") ||
 			!str_cmp(arg->d.str,"yes") ||
@@ -4260,7 +4260,7 @@ SCRIPT_CMD(do_tprawkill)
 	}
 
 	switch(arg->type) {
-	case ENT_NONE:	show_msg = TRUE; break;
+	case ENT_NONE:	show_msg = true; break;
 	case ENT_STRING:
 		show_msg = !str_cmp(arg->d.str,"true") ||
 			!str_cmp(arg->d.str,"yes");
@@ -4793,7 +4793,7 @@ SCRIPT_CMD(do_tpinput)
 	BUFFER *buffer = new_buf();
 	expand_string(info,rest,buffer);
 
-	mob->desc->input = TRUE;
+	mob->desc->input = true;
 	mob->desc->input_var = p ? str_dup(p) : NULL;
 	mob->desc->input_prompt = str_dup(buffer->string[0] ? buffer->string : " >");
 	mob->desc->input_script = vnum;
@@ -4923,8 +4923,8 @@ SCRIPT_CMD(do_tpalterexit)
 	int16_t *sptr = NULL;
 	char **str;
 	int min, max;
-	bool hasmin = FALSE, hasmax = FALSE;
-	bool allowarith = TRUE;
+	bool hasmin = false, hasmax = false;
+	bool allowarith = true;
 	const struct flag_type *flags = NULL;
 
 	if(!info || !info->token) return;
@@ -5034,8 +5034,8 @@ SCRIPT_CMD(do_tpalterexit)
 	else if(!str_cmp(field,"lockreset"))		{ ptr = (int*)&ex->door.rs_lock.flags; flags = lock_flags; min_sec = 7; }
 	else if(!str_cmp(field,"key"))				ptr = (int*)&ex->door.lock.key_vnum;
 	else if(!str_cmp(field,"keyreset"))			{ ptr = (int*)&ex->door.rs_lock.key_vnum; min_sec = 7; }
-	else if(!str_cmp(field,"pick"))				{ ptr = (int*)&ex->door.lock.pick_chance; min = 0; max = 100; hasmin = hasmax = TRUE; }
-	else if(!str_cmp(field,"pickreset"))		{ ptr = (int*)&ex->door.rs_lock.pick_chance; min_sec = 7; min = 0; max = 100; hasmin = hasmax = TRUE; }
+	else if(!str_cmp(field,"pick"))				{ ptr = (int*)&ex->door.lock.pick_chance; min = 0; max = 100; hasmin = hasmax = true; }
+	else if(!str_cmp(field,"pickreset"))		{ ptr = (int*)&ex->door.rs_lock.pick_chance; min_sec = 7; min = 0; max = 100; hasmin = hasmax = true; }
 
 	if(!ptr && !sptr) return;
 
@@ -5050,7 +5050,7 @@ SCRIPT_CMD(do_tpalterexit)
 	{
 		if( arg->type != ENT_STRING || !ptr ) return;
 
-		allowarith = FALSE;	// This is a bit vector, no arithmetic operators.
+		allowarith = false;	// This is a bit vector, no arithmetic operators.
 		value = script_flag_value(flags, arg->d.str);
 
 		if( value == NO_FLAG ) value = 0;
@@ -5345,7 +5345,7 @@ SCRIPT_CMD(do_tpcloneroom)
 	OBJ_DATA *obj;
 	ROOM_INDEX_DATA *source, *room, *clone;
 	TOKEN_DATA *tok;
-	bool no_env = FALSE;
+	bool no_env = false;
 
 	if(!info || !info->token) return;
 
@@ -5377,7 +5377,7 @@ SCRIPT_CMD(do_tpcloneroom)
 		room = NULL;
 		tok = NULL;
 		if(!str_cmp(arg->d.str, "none"))
-			no_env = TRUE;
+			no_env = true;
 		break;
 	default: return;
 	}
@@ -5411,8 +5411,8 @@ SCRIPT_CMD(do_tpalterroom)
 	int *ptr = NULL;
 	int16_t *sptr = NULL;
 	char **str;
-	bool allow_empty = FALSE;
-	bool allowarith = TRUE;
+	bool allow_empty = false;
+	bool allowarith = true;
 	const struct flag_type *flags = NULL;
 
 	if(!info || !info->token) return;
@@ -5510,8 +5510,8 @@ SCRIPT_CMD(do_tpalterroom)
 
 	str = NULL;
 	if(!str_cmp(field,"name"))		str = &room->name;
-	else if(!str_cmp(field,"desc"))		{ str = &room->description; allow_empty = TRUE; }
-	else if(!str_cmp(field,"owner"))	{ str = &room->owner; allow_empty = TRUE; min_sec = 9; }
+	else if(!str_cmp(field,"desc"))		{ str = &room->description; allow_empty = true; }
+	else if(!str_cmp(field,"owner"))	{ str = &room->owner; allow_empty = true; min_sec = 9; }
 
 	if(str) {
 		if(script_security < min_sec) {
@@ -5568,7 +5568,7 @@ SCRIPT_CMD(do_tpalterroom)
 	{
 		if( arg->type != ENT_STRING ) return;
 
-		allowarith = FALSE;	// This is a bit vector, no arithmetic operators.
+		allowarith = false;	// This is a bit vector, no arithmetic operators.
 		value = script_flag_value(flags, arg->d.str);
 
 		if( value == NO_FLAG ) value = 0;
@@ -5825,14 +5825,14 @@ SCRIPT_CMD(do_tpshowroom)
 			for(viewer = room->people; viewer; viewer = next) {
 				next = viewer->next_in_room;
 				if(!IS_NPC(viewer) && (force || (IS_AWAKE(viewer) && check_vision(viewer,dest,false,false)))) {
-					show_map_to_char_wyx(wilds,x,y, viewer,x,y, width + viewer->wildview_bonus_x, height + viewer->wildview_bonus_y, FALSE);
+					show_map_to_char_wyx(wilds,x,y, viewer,x,y, width + viewer->wildview_bonus_x, height + viewer->wildview_bonus_y, false);
 				}
 			}
 		} else if(!IS_NPC(viewer)) {
 			// There is no awake check here since it is to one mob.
 			//  This can be used in things like DREAMS, seeing yourself at a certain location!
 
-			show_map_to_char_wyx(wilds,x,y, viewer,x,y, width + viewer->wildview_bonus_x, height + viewer->wildview_bonus_y, FALSE);
+			show_map_to_char_wyx(wilds,x,y, viewer,x,y, width + viewer->wildview_bonus_x, height + viewer->wildview_bonus_y, false);
 		}
 		return;
 	}
@@ -6356,7 +6356,7 @@ SCRIPT_CMD(do_tppersist)
 	CHAR_DATA *mob = NULL;
 	OBJ_DATA *obj = NULL;
 	ROOM_INDEX_DATA *room = NULL;
-	bool persist = FALSE, current = FALSE;
+	bool persist = false, current = false;
 
 
 	if(!info || !info->token) return;
@@ -6532,7 +6532,7 @@ SCRIPT_CMD(do_tpskillgroup)
 	char *rest;
 	CHAR_DATA *mob = NULL;
 	int gn;
-	bool fAdd = FALSE;
+	bool fAdd = false;
 
 	if(!info || !info->token || IS_NULLSTR(argument)) return;
 
@@ -6554,9 +6554,9 @@ SCRIPT_CMD(do_tpskillgroup)
 	argument = one_argument(rest,buf);
 
 	if( !str_cmp(buf, "add") )
-		fAdd = TRUE;
+		fAdd = true;
 	else if(!str_cmp(buf, "remove"))
-		fAdd = FALSE;
+		fAdd = false;
 	else
 		return;
 
@@ -6805,7 +6805,7 @@ SCRIPT_CMD(do_tpcastfailure)
 
 	if( mob->cast > 0 && !mob->casting_recovered && mob->cast_successful == MAGICCAST_SUCCESS )
 	{
-		mob->casting_recovered = TRUE;
+		mob->casting_recovered = true;
 
 		if( rest && *rest )
 		{
@@ -6863,9 +6863,9 @@ SCRIPT_CMD(do_tpcastrecover)
 
 	if( mob->cast > 0 && !mob->casting_recovered && mob->cast_successful != MAGICCAST_SUCCESS )
 	{
-		bool recover = TRUE;
+		bool recover = true;
 		int chance;
-		mob->casting_recovered = TRUE;
+		mob->casting_recovered = true;
 		if(mob->cast_token) {
 			if(!IS_SET(mob->cast_token->pIndexData->flags,TOKEN_NOSKILLTEST)) {
 				if( mob->cast_successful == MAGICCAST_ROOMBLOCK) {
@@ -6874,16 +6874,16 @@ SCRIPT_CMD(do_tpcastrecover)
 					if (IS_SET(mob->in_room->room2_flags, ROOM_HARD_MAGIC)) chance += 2;
 					if (mob->in_room->sector_type == SECT_CURSED_SANCTUM) chance += 2;
 					if (!IS_NPC(mob) && chance > 0 && number_range(1,chance) > 1)
-						recover = FALSE;
+						recover = false;
 				}
 
 				if( recover ) {
 					if (mob->cast_token->pIndexData->value[TOKVAL_SPELL_RATING] > 0) {
 						if (number_range(0,mob->cast_token->pIndexData->value[TOKVAL_SPELL_RATING]) > mob->cast_token->value[TOKVAL_SPELL_RATING])
-							recover = FALSE;
+							recover = false;
 					} else {
 						if (number_percent() > mob->cast_token->value[TOKVAL_SPELL_RATING])
-							recover = FALSE;
+							recover = false;
 					}
 				}
 			}
@@ -6896,10 +6896,10 @@ SCRIPT_CMD(do_tpcastrecover)
 				if (IS_SET(mob->in_room->room2_flags, ROOM_HARD_MAGIC)) chance += 2;
 				if (mob->in_room->sector_type == SECT_CURSED_SANCTUM) chance += 2;
 				if (!IS_NPC(mob) && chance > 0 && number_range(1,chance) > 1)
-					recover = FALSE;
+					recover = false;
 			}
 			if (recover && number_percent() > get_skill(mob, mob->cast_sn))
-				recover = FALSE;
+				recover = false;
 		}
 
 		if(recover)
@@ -7026,7 +7026,7 @@ SCRIPT_CMD(do_tpremspell)
 	OBJ_DATA *target;
 	int level;
 	int sn;
-	bool found = FALSE, show = TRUE;
+	bool found = false, show = true;
 	AFFECT_DATA *paf;
 
 	if(!info || !info->token || IS_NULLSTR(argument)) return;
@@ -7056,11 +7056,11 @@ SCRIPT_CMD(do_tpremspell)
 		if(arg->type != ENT_STRING || IS_NULLSTR(arg->d.str)) return;
 
 		if( !str_cmp(arg->d.str, "silent") )
-			show = FALSE;
+			show = false;
 	}
 
 
-	found = FALSE;
+	found = false;
 	spell_prev = NULL;
 	for(spell = target->spells; spell; spell_prev = spell, spell = spell->next) {
 		if( spell->sn == sn ) {
@@ -7073,7 +7073,7 @@ SCRIPT_CMD(do_tpremspell)
 
 			free_spell(spell);
 
-			found = TRUE;
+			found = true;
 			break;
 		}
 	}
@@ -7102,7 +7102,7 @@ SCRIPT_CMD(do_tpremspell)
 				return;
 			}
 
-			found = FALSE;
+			found = false;
 			level = 0;
 
 
@@ -7114,7 +7114,7 @@ SCRIPT_CMD(do_tpremspell)
 						if (spell->sn == sn && spell->level > level ) {
 							level = spell->level;	// Keep the maximum
 							found_loc = obj_tmp->wear_loc;
-							found = TRUE;
+							found = true;
 						}
 					}
 				}
@@ -7434,7 +7434,7 @@ SCRIPT_CMD(do_tpremort)
 
     if (mob->tot_level < LEVEL_HERO) return;
 
-    mob->remort_question = TRUE;
+    mob->remort_question = true;
     show_multiclass_choices(mob, mob);
 
 	info->token->progs->lastreturn = 1;
@@ -7476,7 +7476,7 @@ SCRIPT_CMD(do_tpgroup)
 	char *rest;
 
 	CHAR_DATA *follower, *leader;
-	bool fShow = TRUE;
+	bool fShow = true;
 
 	if(!info || !info->token || IS_NULLSTR(argument)) return;
 
@@ -7521,7 +7521,7 @@ SCRIPT_CMD(do_tpungroup)
 {
 	char *rest;
 
-	bool fAll = FALSE;
+	bool fAll = false;
 
 	if(!info || !info->token || IS_NULLSTR(argument)) return;
 

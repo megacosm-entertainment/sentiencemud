@@ -21,11 +21,11 @@ SPELL_FUNC(spell_create_spring)
 {
 	OBJ_DATA *spring;
 
-	spring = create_object(get_obj_index(OBJ_VNUM_SPRING), 0, TRUE);
+	spring = create_object(get_obj_index(OBJ_VNUM_SPRING), 0, true);
 	spring->timer = level;
 	obj_to_room(spring, ch->in_room);
 	act("$p flows from the ground.", ch, NULL, NULL, spring, NULL, NULL, NULL, TO_ALL);
-	return TRUE;
+	return true;
 }
 
 
@@ -36,12 +36,12 @@ SPELL_FUNC(spell_create_water)
 
 	if (obj->item_type != ITEM_DRINK_CON) {
 		send_to_char("It is unable to hold water.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if (obj->value[2] != LIQ_WATER && obj->value[1]) {
 		send_to_char("It contains some other liquid.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	water = obj->value[0] - obj->value[1];
@@ -55,5 +55,5 @@ SPELL_FUNC(spell_create_water)
 		obj->name = str_dup(buf);
 	}
 	act("$p is filled.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-	return TRUE;
+	return true;
 }

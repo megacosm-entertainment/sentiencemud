@@ -21,13 +21,13 @@ SPELL_FUNC(spell_dark_shroud)
 {
 	CHAR_DATA *victim = (CHAR_DATA *) vo;
 	AFFECT_DATA af;
-	bool perm = FALSE;
+	bool perm = false;
 	memset(&af,0,sizeof(af));
 
 	// Is an obj
 	if (level > 9000) {
 		level -= 9000;
-		perm = TRUE;
+		perm = true;
 	}
 
 	if (perm && is_affected(victim, sn))
@@ -37,13 +37,13 @@ SPELL_FUNC(spell_dark_shroud)
 			send_to_char("You are already surrounded by darkness.\n\r",ch);
 		else
 			act("$N is already surrounded by darkness.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	if(!perm) {
-		if(use_catalyst(ch,NULL,CATALYST_DARKNESS,CATALYST_INVENTORY|CATALYST_ACTIVE,1,1,CATALYST_MAXSTRENGTH,TRUE) < 1) {
+		if(use_catalyst(ch,NULL,CATALYST_DARKNESS,CATALYST_INVENTORY|CATALYST_ACTIVE,1,1,CATALYST_MAXSTRENGTH,true) < 1) {
 			send_to_char("You appear to be missing a darkness catalyst.\n\r",ch);
-			return FALSE;
+			return false;
 		}
 	}
 
@@ -64,7 +64,7 @@ SPELL_FUNC(spell_dark_shroud)
 	else
 		act("{D$n is surrounded by a shroud of darkness.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 	send_to_char("{DYou are surrounded by a shroud of darkness.{x\n\r", victim);
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_momentary_darkness)
@@ -77,24 +77,24 @@ SPELL_FUNC(spell_momentary_darkness)
 	catalyst = has_catalyst(ch,NULL,CATALYST_DARKNESS,CATALYST_CARRY|CATALYST_ACTIVE,1,CATALYST_MAXSTRENGTH);
 	if(!catalyst) {
 		send_to_char("You appear to be missing a required darkness catalyst.\n\r", ch);
-		return FALSE;
+		return false;
 	}
-	catalyst = use_catalyst(ch,NULL,CATALYST_DARKNESS,CATALYST_CARRY|CATALYST_ACTIVE,5,1,CATALYST_MAXSTRENGTH,TRUE);
+	catalyst = use_catalyst(ch,NULL,CATALYST_DARKNESS,CATALYST_CARRY|CATALYST_ACTIVE,5,1,CATALYST_MAXSTRENGTH,true);
 
 	for (darkness = ch->in_room->contents; darkness; darkness = darkness->next_content) {
 		if (darkness->item_type == ITEM_ROOM_DARKNESS) {
 			act("{DThe darkness seems to grow stronger...{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL);
 			darkness->timer += 3 + catalyst;
-			return TRUE;
+			return true;
 		}
 	}
 
 	if (!(index = get_obj_index(OBJ_VNUM_ROOM_DARKNESS))) {
 		bug("spell_momentary_darkness: get_obj_index was null!\n\r", 0);
-		return FALSE;
+		return false;
 	}
 
-	darkness = create_object(index, 0, TRUE);
+	darkness = create_object(index, 0, true);
 	darkness->timer = 3 + catalyst;
 	darkness->level = ch->tot_level;
 
@@ -104,9 +104,9 @@ SPELL_FUNC(spell_momentary_darkness)
 
 	// Stop fights in the room
 	for (rch = ch->in_room->people; rch; rch = rch->next_in_room) {
-		if (rch->fighting) stop_fighting(rch, TRUE);
+		if (rch->fighting) stop_fighting(rch, true);
 		if (IS_NPC(rch) && IS_SET(rch->act,ACT_AGGRESSIVE))
 			REMOVE_BIT(rch->act,ACT_AGGRESSIVE);
 	}
-	return TRUE;
+	return true;
 }

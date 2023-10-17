@@ -43,65 +43,65 @@
 const struct flag_stat_type flag_stat_table[] =
 {
 /*  {	structure					stat	}, */
-	{	token_flags,				FALSE	},
-	{	area_flags,					FALSE	},
-	{	sex_flags,					TRUE	},
-	{	exit_flags,					FALSE	},
-	{	door_resets,				TRUE	},
-	{	room_flags,					FALSE	},
-	{	sector_flags,				TRUE	},
-	{	type_flags,					TRUE	},
-	{	extra_flags,				FALSE	},
-	{	wear_flags,					FALSE	},
-	{	act_flags,					FALSE	},
-	{	act2_flags,					FALSE	},
-	{	affect_flags,				FALSE	},
-	{	affect2_flags,				FALSE	},
-	{	apply_flags,				TRUE	},
-	{	wear_loc_flags,				TRUE	},
-	{	wear_loc_strings,			TRUE	},
-	{	wear_loc_names,				TRUE	},
-	{	container_flags,			FALSE	},
+	{	token_flags,				false	},
+	{	area_flags,					false	},
+	{	sex_flags,					true	},
+	{	exit_flags,					false	},
+	{	door_resets,				true	},
+	{	room_flags,					false	},
+	{	sector_flags,				true	},
+	{	type_flags,					true	},
+	{	extra_flags,				false	},
+	{	wear_flags,					false	},
+	{	act_flags,					false	},
+	{	act2_flags,					false	},
+	{	affect_flags,				false	},
+	{	affect2_flags,				false	},
+	{	apply_flags,				true	},
+	{	wear_loc_flags,				true	},
+	{	wear_loc_strings,			true	},
+	{	wear_loc_names,				true	},
+	{	container_flags,			false	},
 
 /* ROM specific flags: */
 
-    {	form_flags,					FALSE	},
-    {	part_flags,					FALSE	},
-    {	ac_type,					TRUE	},
-    {	size_flags,					TRUE	},
-    {	position_flags,				TRUE	},
-    {	off_flags,					FALSE	},
-    {	imm_flags,					FALSE	},
-    {	res_flags,					FALSE	},
-    {	vuln_flags,					FALSE	},
-    {	weapon_class,				TRUE	},
-    {	weapon_type2,				FALSE	},
-    {	apply_types,				TRUE	},
-    {	ranged_weapon_class,		TRUE	},
-    {	script_flags,				FALSE	},
-    {	catalyst_types,				TRUE	},
-    {	affgroup_mobile_flags,		TRUE	},
-    {	affgroup_object_flags,		TRUE	},
-    {	catalyst_types,				TRUE	},
-    {	boolean_types,				TRUE	},
-    {	moon_phases,				TRUE	},
-    {	spell_target_types,			TRUE	},
-    {	area_who_titles,			TRUE	},
-    {	area_who_display,			TRUE	},
-    {	instrument_types,			TRUE	},
-    {	place_flags,				TRUE	},
-    {	corpse_types,				TRUE	},
-    {	variable_types,				TRUE	},
-	{	blueprint_section_types,	TRUE	},
-	{	transfer_modes,				TRUE	},
-	{	ship_class_types,			TRUE	},
+    {	form_flags,					false	},
+    {	part_flags,					false	},
+    {	ac_type,					true	},
+    {	size_flags,					true	},
+    {	position_flags,				true	},
+    {	off_flags,					false	},
+    {	imm_flags,					false	},
+    {	res_flags,					false	},
+    {	vuln_flags,					false	},
+    {	weapon_class,				true	},
+    {	weapon_type2,				false	},
+    {	apply_types,				true	},
+    {	ranged_weapon_class,		true	},
+    {	script_flags,				false	},
+    {	catalyst_types,				true	},
+    {	affgroup_mobile_flags,		true	},
+    {	affgroup_object_flags,		true	},
+    {	catalyst_types,				true	},
+    {	boolean_types,				true	},
+    {	moon_phases,				true	},
+    {	spell_target_types,			true	},
+    {	area_who_titles,			true	},
+    {	area_who_display,			true	},
+    {	instrument_types,			true	},
+    {	place_flags,				true	},
+    {	corpse_types,				true	},
+    {	variable_types,				true	},
+	{	blueprint_section_types,	true	},
+	{	transfer_modes,				true	},
+	{	ship_class_types,			true	},
     {	0,							0		}
 };
 
 
 /*****************************************************************************
  Name:		is_stat( table )
- Purpose:	Returns TRUE if the table is a stat table and FALSE if flag.
+ Purpose:	Returns true if the table is a stat table and false if flag.
  Called by:	flag_value and flag_string.
  Note:		This function is local and used only in bit.c.
  ****************************************************************************/
@@ -113,9 +113,9 @@ bool is_stat( const struct flag_type *flag_table )
     {
 	if ( flag_stat_table[flag].structure == flag_table
 	  && flag_stat_table[flag].stat )
-	    return TRUE;
+	    return true;
     }
-    return FALSE;
+    return false;
 }
 
 
@@ -129,7 +129,7 @@ long flag_value( const struct flag_type *flag_table, char *argument)
     char word[MAX_INPUT_LENGTH];
     long bit;
     long marked = 0;
-    bool found = FALSE;
+    bool found = false;
 
     if ( flag_table == NULL ) return NO_FLAG;
 
@@ -156,7 +156,7 @@ long flag_value( const struct flag_type *flag_table, char *argument)
         if ( ( bit = flag_lookup( word, flag_table ) ) != 0 )
         {
             SET_BIT( marked, bit );
-            found = TRUE;
+            found = true;
         }
     }
 
@@ -458,7 +458,7 @@ char *extra2_bit_name( long extra2_flags )
     buf[0] = '\0';
     if ( extra2_flags & ITEM_ALL_REMORT   	) strcat( buf, " all_remort"      	);
     if ( extra2_flags & ITEM_LOCKER    		) strcat( buf, " locker"          	);
-    if ( extra2_flags & ITEM_TRUESIGHT 		) strcat( buf, " truesight"     	);
+    if ( extra2_flags & ITEM_trueSIGHT 		) strcat( buf, " truesight"     	);
     if ( extra2_flags & ITEM_SCARE     		) strcat( buf, " scare"         	);
     if ( extra2_flags & ITEM_SUSTAIN   		) strcat( buf, " life-sustaining"	);
     if ( extra2_flags & ITEM_ENCHANTED 		) strcat( buf, " enchanted" 		);

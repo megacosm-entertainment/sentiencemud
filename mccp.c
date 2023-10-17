@@ -66,7 +66,7 @@ bool compressStart(DESCRIPTOR_DATA *desc)
     z_stream *s;
 
     if (desc->out_compress) /* already compressing */
-        return TRUE;
+        return true;
 
     /* allocate and init stream, buffer */
     s = (z_stream *)alloc_mem(sizeof(*s));
@@ -76,7 +76,7 @@ bool compressStart(DESCRIPTOR_DATA *desc)
     {
 	log_string( "PANIC!  Couldn't find an s to which to compress!" );
 	close_socket( desc );
-	return FALSE;
+	return false;
     }
 
     s->next_in = NULL;
@@ -93,14 +93,14 @@ bool compressStart(DESCRIPTOR_DATA *desc)
         /* problems with zlib, try to clean up */
         free_mem(desc->out_compress_buf, COMPRESS_BUF_SIZE);
         free_mem(s, sizeof(z_stream));
-	return FALSE;
+	return false;
     }
 
     write_to_descriptor(desc, compress_start, strlen(compress_start));
 
     /* now we're compressing */
     desc->out_compress = s;
-    return TRUE;
+    return true;
 }
 
 /* Cleanly shut down compression on `desc' */
@@ -109,7 +109,7 @@ bool compressEnd(DESCRIPTOR_DATA *desc)
     unsigned char dummy[1];
 
     if (!desc->out_compress)
-        return TRUE;
+        return true;
 
     desc->out_compress->avail_in = 0;
     desc->out_compress->next_in = dummy;
@@ -117,10 +117,10 @@ bool compressEnd(DESCRIPTOR_DATA *desc)
     /* No terminating signature is needed - receiver will get Z_STREAM_END */
 
     if (deflate(desc->out_compress, Z_FINISH) != Z_STREAM_END)
-        return FALSE;
+        return false;
 
     if (!processCompressed(desc)) /* try to send any residual data */
-        return FALSE;
+        return false;
 
     deflateEnd(desc->out_compress);
     free_mem(desc->out_compress_buf, COMPRESS_BUF_SIZE);
@@ -128,7 +128,7 @@ bool compressEnd(DESCRIPTOR_DATA *desc)
     desc->out_compress = NULL;
     desc->out_compress_buf = NULL;
 
-    return TRUE;
+    return true;
 }
 
 /* Try to send any pending compressed-but-not-sent data in `desc' */
@@ -137,7 +137,7 @@ bool processCompressed(DESCRIPTOR_DATA *desc)
     int iStart, nBlock, nWrite, len;
 
     if (!desc->out_compress)
-        return TRUE;
+        return true;
 
     /* Try to write out some data.. */
     len = desc->out_compress->next_out - desc->out_compress_buf;
@@ -156,7 +156,7 @@ bool processCompressed(DESCRIPTOR_DATA *desc)
 #endif
                     break;
 
-                return FALSE; /* write error */
+                return false; /* write error */
             }
 
             if (nWrite <= 0)
@@ -172,7 +172,7 @@ bool processCompressed(DESCRIPTOR_DATA *desc)
         }
     }
 
-    return TRUE;
+    return true;
 }
 
 /* write_to_descriptor, the compressed case */
@@ -191,19 +191,19 @@ bool writeCompressed(DESCRIPTOR_DATA *desc, char *txt, int length)
 
             if (status != Z_OK) {
                 /* Boom */
-                return FALSE;
+                return false;
             }
         }
 
         /* Try to write out some data.. */
         if (!processCompressed(desc))
-            return FALSE;
+            return false;
 
         /* loop */
     }
 
     /* Done. */
-    return TRUE;
+    return true;
 }
 
 /* User-level compression toggle */

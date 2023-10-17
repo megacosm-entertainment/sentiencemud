@@ -26,17 +26,17 @@ SPELL_FUNC(spell_earth_walk)
 
 	if (victim == NULL) {
 		send_to_char("Nobody like that is around.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if (IS_NPC(victim)) {
 		send_to_char("The earth seems impenetrable.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if (victim == ch) {
 		send_to_char("What would be the point?\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if (!victim || !victim->in_room) {
@@ -45,17 +45,17 @@ SPELL_FUNC(spell_earth_walk)
 		sprintf(buf, "spell_earth_walk: %s tried to earth walk to %s who had null in_room!",
 			ch->name, (victim == NULL) ? "nobody???" : victim->name);
 		bug(buf, 0);
-		return FALSE;
+		return false;
 	}
 
 	if (ch->in_room == victim->in_room) {
 		send_to_char("What would be the point?\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if (MOUNTED(ch)) {
 		send_to_char("Earth walking is a solitary action.  Dismount before trying again.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 #if 0
@@ -95,14 +95,14 @@ SPELL_FUNC(spell_earth_walk)
 		(victim->in_room->area->place_flags == PLACE_OTHER_PLANE) ||
 		IS_SET(victim->in_room->area->area_flags, AREA_NO_RECALL)) {
 		send_to_char("Outside interference stops your earth walk.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if (IS_SET(victim->in_room->room_flags, ROOM_NO_RECALL) ||
 		IS_SET(victim->in_room->room_flags, ROOM_NOMAGIC) ||
 		IS_SET(victim->in_room->room_flags, ROOM_CPK)) {
 		send_to_char("That room is protected from gating magic.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	switch(t1) {
@@ -123,7 +123,7 @@ SPELL_FUNC(spell_earth_walk)
 		s1 = 5; break;
 	default:
 		send_to_char("You aren't near earthen terrain.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	switch(t2) {
@@ -144,7 +144,7 @@ SPELL_FUNC(spell_earth_walk)
 		s2 = 5; break;
 	default:
 		send_to_char("You can't find earthen terrain to lock onto.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 
@@ -156,10 +156,10 @@ SPELL_FUNC(spell_earth_walk)
 		catalyst = has_catalyst(ch,NULL,CATALYST_NATURE,CATALYST_HERE|CATALYST_ACTIVE,1,CATALYST_MAXSTRENGTH);
 		if(catalyst >= 0 && catalyst < distance) {
 			send_to_char("You appear to be missing a required natural catalyst.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
-		catalyst = use_catalyst(ch,NULL,CATALYST_NATURE,CATALYST_INVENTORY|CATALYST_ACTIVE,distance,1,CATALYST_MAXSTRENGTH,TRUE);
+		catalyst = use_catalyst(ch,NULL,CATALYST_NATURE,CATALYST_INVENTORY|CATALYST_ACTIVE,distance,1,CATALYST_MAXSTRENGTH,true);
 	} else
 		catalyst = 0;
 
@@ -215,7 +215,7 @@ SPELL_FUNC(spell_earth_walk)
 	}
 
 	do_function(ch, &do_look, "auto");
-	return TRUE;
+	return true;
 }
 
 
@@ -234,15 +234,15 @@ SPELL_FUNC(spell_earthquake)
 		if (vch->in_room == ch->in_room) {
 			if (vch != ch && !is_same_group(ch, vch)) {
 				if (IS_AFFECTED(vch,AFF_FLYING))
-					damage(ch,vch,0,sn,DAM_BASH,TRUE);
+					damage(ch,vch,0,sn,DAM_BASH,true);
 				else
-					damage(ch,vch,level + dice(2, 8), sn, DAM_BASH,TRUE);
+					damage(ch,vch,level + dice(2, 8), sn, DAM_BASH,true);
 			}
 
 			continue;
 		}
 	}
-	return TRUE;
+	return true;
 }
 
 
@@ -250,12 +250,12 @@ SPELL_FUNC(spell_giant_strength)
 {
 	CHAR_DATA *victim = (CHAR_DATA *) vo;
 	AFFECT_DATA af;
-	bool perm = FALSE;
+	bool perm = false;
 	memset(&af,0,sizeof(af));
 
 	if (level > MAGIC_WEAR_SPELL) {
 		level -= MAGIC_WEAR_SPELL;
-		perm = TRUE;
+		perm = true;
 	}
 
 	if (perm && is_affected(victim, sn)) {
@@ -265,7 +265,7 @@ SPELL_FUNC(spell_giant_strength)
 			send_to_char("You are already as strong as you can get!\n\r",ch);
 		else
 			act("$N can't get any stronger.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	af.where = TO_AFFECTS;
@@ -283,19 +283,19 @@ SPELL_FUNC(spell_giant_strength)
 	send_to_char("Your muscles surge with heightened power!\n\r", victim);
 	act("$n's muscles surge with heightened power.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
 
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_stone_skin)
 {
 	CHAR_DATA *victim = (CHAR_DATA *) vo;
 	AFFECT_DATA af;
-	bool perm = FALSE;
+	bool perm = false;
 	memset(&af,0,sizeof(af));
 
 	if (level > MAGIC_WEAR_SPELL) {
 		level -= MAGIC_WEAR_SPELL;
-		perm = TRUE;
+		perm = true;
 	}
 
 	if (perm && is_affected(victim, sn))
@@ -305,7 +305,7 @@ SPELL_FUNC(spell_stone_skin)
 			send_to_char("Your skin is already as hard as a rock.\n\r",ch);
 		else
 			act("$N's skin is already as hard as can be.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	af.where = TO_AFFECTS;
@@ -321,7 +321,7 @@ SPELL_FUNC(spell_stone_skin)
 	affect_to_char(victim, &af);
 	act("$n's skin turns to stone.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 	send_to_char("Your skin turns to stone.\n\r", victim);
-	return TRUE;
+	return true;
 }
 
 
@@ -337,19 +337,19 @@ SPELL_FUNC(spell_stone_spikes)
 		ch->in_room->sector_type == SECT_WATER_SWIM ||
 		ch->in_room->sector_type == SECT_WATER_NOSWIM) {
 		send_to_char("You fail to invoke your elemental magic here.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	act("Three huge stone spikes jut up from the ground!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 	for (victim = ch->in_room->people; victim != NULL; victim = victim_next) {
 		victim_next = victim->next_in_room;
 
-		if (!is_safe(ch, victim, FALSE) && ch != victim) {
+		if (!is_safe(ch, victim, false) && ch != victim) {
 			if (number_percent() < get_curr_stat(victim, STAT_DEX)) {
 				send_to_char("You dodge the spikes!\n\r", victim);
 				act("$n dodges the spikes!", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 			} else {
-				damage(ch, victim, dice(level/4, 8), sn, DAM_PIERCE, TRUE);
+				damage(ch, victim, dice(level/4, 8), sn, DAM_PIERCE, true);
 				affect_strip(victim, gsn_sneak);
 				REMOVE_BIT(victim->affected_by, AFF_HIDE);
 				REMOVE_BIT(victim->affected_by, AFF_SNEAK);
@@ -368,12 +368,12 @@ SPELL_FUNC(spell_stone_spikes)
 			for (victim = to_room->people; victim; victim = victim_next) {
 				victim_next = victim->next_in_room;
 
-				if (!is_safe(ch, victim, FALSE)) {
+				if (!is_safe(ch, victim, false)) {
 					if (number_percent() < get_curr_stat(victim, STAT_DEX)) {
 						send_to_char("You dodge the spikes!\n\r", victim);
 						act("$n dodges the spikes!", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 					} else {
-						damage(ch, victim, dice(level/4, 8), sn, DAM_PIERCE, TRUE);
+						damage(ch, victim, dice(level/4, 8), sn, DAM_PIERCE, true);
 						affect_strip(victim, gsn_sneak);
 						REMOVE_BIT(victim->affected_by, AFF_HIDE);
 						REMOVE_BIT(victim->affected_by, AFF_SNEAK);
@@ -382,7 +382,7 @@ SPELL_FUNC(spell_stone_spikes)
 			}
 		}
 	}
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_stone_touch)
@@ -403,7 +403,7 @@ SPELL_FUNC(spell_stone_touch)
 			send_to_char("You are already a statue.\n\r",ch);
 		else
 			act("$N is already a statue.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	af.slot	= obj_wear_loc;
@@ -426,5 +426,5 @@ SPELL_FUNC(spell_stone_touch)
 	affect_to_char(victim, &af);
 	act("$n's entire body turns to stone, becoming immobilized like a statue.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 	send_to_char("Your entire body turns to stone, leaving you immobilized like a statue.\n\r", victim);
-	return TRUE;
+	return true;
 }

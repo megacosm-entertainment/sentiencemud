@@ -120,7 +120,7 @@ void do_asave_new(CHAR_DATA *ch, char *argument)
 		if (projects_changed)
 		{
 			save_projects();
-			projects_changed = FALSE;
+			projects_changed = false;
 			send_to_char("Project list saved.\n\r", ch);
 		}
 
@@ -237,7 +237,7 @@ void do_asave_new(CHAR_DATA *ch, char *argument)
     if (!str_cmp(arg1, "projects"))
     {
 		save_projects();
-		projects_changed = FALSE;
+		projects_changed = false;
 		send_to_char("Projects saved.\n\r", ch);
 		return;
     }
@@ -1333,7 +1333,7 @@ AREA_DATA *read_area_new(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-AREA"))
     {
-	fMatch = FALSE;
+	fMatch = false;
 
 	switch (word[0])
 	{
@@ -1363,7 +1363,7 @@ AREA_DATA *read_area_new(FILE *fp)
 		}
 		else if (!str_cmp( word, "#TRADE"	) ) {
 			load_area_trade( area, fp );
-		  fMatch = TRUE;
+		  fMatch = true;
     }
 		else if (!str_cmp(word, "#OBJECT"))
 		{
@@ -1428,7 +1428,7 @@ AREA_DATA *read_area_new(FILE *fp)
 		/* VIZZWILDS */
 		else if (!str_cmp(word, "#WILDS"))
 		{
-		    fMatch = TRUE;
+		    fMatch = true;
 		    load_wilds(fp, area);
 		}
 		else
@@ -1467,7 +1467,7 @@ AREA_DATA *read_area_new(FILE *fp)
 						sprintf(buf, "read_area_new: invalid spell '%s' for TRIG_SPELLCAST", p);
 						bug(buf, 0);
 						free_trigger(apr);
-						fMatch = TRUE;
+						fMatch = true;
 						break;
 					}
 
@@ -1475,7 +1475,7 @@ AREA_DATA *read_area_new(FILE *fp)
 					sprintf(buf, "%d", tsn);
 					apr->trig_phrase = str_dup(buf);
 					apr->trig_number = tsn;
-					apr->numeric = TRUE;
+					apr->numeric = true;
 
 				} else {
 			    	apr->trig_number = atoi(apr->trig_phrase);
@@ -1486,7 +1486,7 @@ AREA_DATA *read_area_new(FILE *fp)
 
 				list_appendlink(area->progs->progs[trigger_table[tindex].slot], apr);
 		    }
-		    fMatch = TRUE;
+		    fMatch = true;
 		}
 
 
@@ -1517,7 +1517,7 @@ AREA_DATA *read_area_new(FILE *fp)
 			if (!str_cmp(word, "Levels")) {
 		    	area->min_level = fread_number(fp);
 		    	area->max_level = fread_number(fp);
-		    	fMatch = TRUE;
+		    	fMatch = true;
 			}
 		break;
 
@@ -1537,11 +1537,11 @@ AREA_DATA *read_area_new(FILE *fp)
 	    case 'R':
 		if (!str_cmp(word, "Recall")) {
 			location_set(&area->recall,0,fread_number(fp),0,0);
-			fMatch = TRUE;
+			fMatch = true;
 		}
 		if (!str_cmp(word, "RecallW")) {
 			location_set(&area->recall,fread_number(fp),fread_number(fp),fread_number(fp),fread_number(fp));
-			fMatch = TRUE;
+			fMatch = true;
 		}
 		KEY("Repop",		area->repop,		fread_number(fp));
 		break;
@@ -1560,7 +1560,7 @@ AREA_DATA *read_area_new(FILE *fp)
 			int value;
 			bool saved;
 
-			fMatch = TRUE;
+			fMatch = true;
 
 			name = fread_string(fp);
 			saved = fread_number(fp);
@@ -1574,13 +1574,13 @@ AREA_DATA *read_area_new(FILE *fp)
 			char *str;
 			bool saved;
 
-			fMatch = TRUE;
+			fMatch = true;
 
 			name = fread_string(fp);
 			saved = fread_number(fp);
 			str = fread_string(fp);
 
-			variables_setindex_string (&area->index_vars,name,str,FALSE,saved);
+			variables_setindex_string (&area->index_vars,name,str,false,saved);
 		}
 
 		if (!str_cmp(word, "VarRoom")) {
@@ -1588,7 +1588,7 @@ AREA_DATA *read_area_new(FILE *fp)
 			int value;
 			bool saved;
 
-			fMatch = TRUE;
+			fMatch = true;
 
 			name = fread_string(fp);
 			saved = fread_number(fp);
@@ -1607,7 +1607,7 @@ AREA_DATA *read_area_new(FILE *fp)
 		if (!str_cmp(word, "VNUMs")) {
 		    area->min_vnum = fread_number(fp);
 		    area->max_vnum = fread_number(fp);
-		    fMatch = TRUE;
+		    fMatch = true;
 		}
 
 		break;
@@ -1632,7 +1632,7 @@ AREA_DATA *read_area_new(FILE *fp)
 	}
     }
 
-	variable_copylist(&area->index_vars,&area->progs->vars,FALSE);
+	variable_copylist(&area->index_vars,&area->progs->vars,false);
 
     if (IS_SET(area->area_flags, AREA_CHANGED))
 		REMOVE_BIT(area->area_flags, AREA_CHANGED);
@@ -1679,7 +1679,7 @@ void read_virtual_rooms(FILE *fp, AREA_DATA *area)
 
     while (str_cmp((word = fread_word(fp)), "#-VMAP"))
     {
-	fMatch = FALSE;
+	fMatch = false;
 
         switch (UPPER(word[0]))
 	{
@@ -1687,7 +1687,7 @@ void read_virtual_rooms(FILE *fp, AREA_DATA *area)
                 /*
 		if (!str_cmp(word, "End"))
 		{
-                    fMatch = TRUE;
+                    fMatch = true;
                     sprintf(buf, "Area: '%s' (%s), vMap size = %d x %d",
                         area->name, area->file_name, area->map_size_x, area->map_size_y);
                     log_string(buf);
@@ -1713,7 +1713,7 @@ void read_virtual_rooms(FILE *fp, AREA_DATA *area)
 	    case 'M':
 	        if (!str_cmp(word, "Map"))
 		{
-		    fMatch = TRUE;
+		    fMatch = true;
 
 		    area->map = alloc_perm(area->map_size_x * area->map_size_y);
 		    for (y = 0; y < area->map_size_y; y++) {
@@ -2045,14 +2045,14 @@ void create_virtual_room_new(AREA_DATA *area, long vnum, int x, int y,
     int iHash;
     bool fLink;
 
-    fBootDb = FALSE;
+    fBootDb = false;
     if (get_room_index(vnum) != NULL)
     {
         bug("Load_rooms: vnum %ld duplicated.", vnum);
         exit(1);
     }
 
-    fBootDb = TRUE;
+    fBootDb = true;
     pParent			= get_room_index(parent);
     pRoomIndex			= alloc_perm(sizeof(*pRoomIndex));
     pRoomIndex->owner		= NULL;
@@ -2081,7 +2081,7 @@ void create_virtual_room_new(AREA_DATA *area, long vnum, int x, int y,
     for (door = 0; door < MAX_DIR; door++)
         pRoomIndex->exit[door] = NULL;
 
-    fLink = FALSE;
+    fLink = false;
 
     /* defaults */
     pRoomIndex->heal_rate = 100;
@@ -2127,11 +2127,11 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
     {
         room->vnum = fread_number(fp);
     }
-    room->persist = FALSE;
+    room->persist = false;
 
     while (str_cmp((word = fread_word(fp)), "#-ROOM")
            && str_cmp(word, "#-TERRAIN")) {
-	fMatch = FALSE;
+	fMatch = false;
 
 	switch(word[0]) {
 	    case '#':
@@ -2139,13 +2139,13 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 		    ed = read_extra_descr_new(fp);
 		    ed->next = room->extra_descr;
 		    room->extra_descr = ed;
-		    fMatch = TRUE;
+		    fMatch = true;
 		}
 		else if (!str_cmp(word, "#CONDITIONAL_DESCR")) {
 		    cd = read_conditional_descr_new(fp);
 		    cd->next = room->conditional_descr;
 		    room->conditional_descr = cd;
-		    fMatch = TRUE;
+		    fMatch = true;
 		}
 		else if (!str_cmp(word, "#X")) { // finish here
 		    ex = read_exit_new(fp);
@@ -2159,12 +2159,12 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 		    	room->exit[ex->orig_door] = ex;
 		    	ex->from_room = room;
 			}
-		    fMatch = TRUE;
+		    fMatch = true;
 		}
 		else if (!str_cmp(word, "#RESET")) {
 	   	    reset = read_reset_new(fp);
 		    new_reset(room, reset);
-		    fMatch = TRUE;
+		    fMatch = true;
 		}
 
 		break;
@@ -2174,7 +2174,7 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 				room->x = fread_number(fp);
 				room->y = fread_number(fp);
 				room->z = fread_number(fp);
-				fMatch = TRUE;
+				fMatch = true;
 			}
 			break;
 
@@ -2204,9 +2204,9 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 		break;
 		case 'P':
 			if(!str_cmp(word, "Persist")) {
-				room->persist = TRUE;
+				room->persist = true;
 
-				fMatch = TRUE;
+				fMatch = true;
 			}
 			break;
 
@@ -2239,7 +2239,7 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 						sprintf(buf, "read_room_new: invalid spell '%s' for TRIG_SPELLCAST", p);
 						bug(buf, 0);
 						free_trigger(rpr);
-						fMatch = TRUE;
+						fMatch = true;
 						break;
 					}
 
@@ -2247,7 +2247,7 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 					sprintf(buf, "%d", tsn);
 					rpr->trig_phrase = str_dup(buf);
 					rpr->trig_number = tsn;
-					rpr->numeric = TRUE;
+					rpr->numeric = true;
 
 				} else {
 			    	rpr->trig_number = atoi(rpr->trig_phrase);
@@ -2259,7 +2259,7 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 
 				list_appendlink(room->progs->progs[trigger_table[tindex].slot], rpr);
 		    }
-		    fMatch = TRUE;
+		    fMatch = true;
 		}
 
 		break;
@@ -2274,7 +2274,7 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 			int value;
 			bool saved;
 
-			fMatch = TRUE;
+			fMatch = true;
 
 			name = fread_string(fp);
 			saved = fread_number(fp);
@@ -2288,13 +2288,13 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 			char *str;
 			bool saved;
 
-			fMatch = TRUE;
+			fMatch = true;
 
 			name = fread_string(fp);
 			saved = fread_number(fp);
 			str = fread_string(fp);
 
-			variables_setindex_string (&room->index_vars,name,str,FALSE,saved);
+			variables_setindex_string (&room->index_vars,name,str,false,saved);
 		}
 
 		if (!str_cmp(word, "VarRoom")) {
@@ -2302,7 +2302,7 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 			int value;
 			bool saved;
 
-			fMatch = TRUE;
+			fMatch = true;
 
 			name = fread_string(fp);
 			saved = fread_number(fp);
@@ -2318,7 +2318,7 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 			room->x = fread_number(fp);
 			room->y = fread_number(fp);
 			room->z = fread_number(fp);
-		    fMatch = TRUE;
+		    fMatch = true;
 		}
 	    	break;
 
@@ -2331,7 +2331,7 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
     }
 
 	if (recordtype != ROOMTYPE_TERRAIN)
-		variable_copylist(&room->index_vars,&room->progs->vars,FALSE);
+		variable_copylist(&room->index_vars,&room->progs->vars,false);
 
 	if( room->persist )
 		persist_addroom(room);
@@ -2403,10 +2403,10 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 
     mob = new_mob_index();
     mob->vnum = fread_number(fp);
-    mob->persist = FALSE;
+    mob->persist = false;
 
     while (str_cmp((word = fread_word(fp)), "#-MOBILE")) {
-	fMatch = FALSE;
+	fMatch = false;
 
 	switch(word[0]) {
 	    case '#':
@@ -2416,18 +2416,18 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 					free_ship_crew_index(mob->pCrew);
 
 				mob->pCrew = read_ship_crew_index_new(fp);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 
 	        if (!str_cmp(word, "#SHOP")) {
-			    fMatch = TRUE;
+			    fMatch = true;
 			    shop = read_shop_new(fp);
 			    mob->pShop = shop;
 			    break;
 			}
 	        if (!str_cmp(word, "#QUESTOR")) {
-			    fMatch = TRUE;
+			    fMatch = true;
 			    questor = read_questor_new(fp);
 			    mob->pQuestor = questor;
 			    break;
@@ -2446,7 +2446,7 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 		break;
 
 		case 'B':
-			KEY("Boss", mob->boss, TRUE);
+			KEY("Boss", mob->boss, true);
 			break;
 
 	    case 'C':
@@ -2465,7 +2465,7 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 		    mob->damage.number = fread_number(fp);
 		    mob->damage.size = fread_number(fp);
 		    mob->damage.bonus = fread_number(fp);
-		    fMatch = TRUE;
+		    fMatch = true;
 		}
 
 		break;
@@ -2481,7 +2481,7 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 		    mob->hit.number = fread_number(fp);
 		    mob->hit.size = fread_number(fp);
 		    mob->hit.bonus = fread_number(fp);
-		    fMatch = TRUE;
+		    fMatch = true;
 		}
 
 		break;
@@ -2503,7 +2503,7 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 		    mob->mana.number = fread_number(fp);
 		    mob->mana.size = fread_number(fp);
 		    mob->mana.bonus = fread_number(fp);
-		    fMatch = TRUE;
+		    fMatch = true;
 		}
 
 		if (!str_cmp(word, "MobProg")) {
@@ -2531,7 +2531,7 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 						sprintf(buf, "read_mob_new: invalid spell '%s' for TRIG_SPELLCAST", p);
 						bug(buf, 0);
 						free_trigger(mpr);
-						fMatch = TRUE;
+						fMatch = true;
 						break;
 					}
 
@@ -2539,7 +2539,7 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 					sprintf(buf, "%d", tsn);
 					mpr->trig_phrase = str_dup(buf);
 					mpr->trig_number = tsn;
-					mpr->numeric = TRUE;
+					mpr->numeric = true;
 
 				} else {
 			    	mpr->trig_number = atoi(mpr->trig_phrase);
@@ -2551,7 +2551,7 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 
 				list_appendlink(mob->progs[trigger_table[tindex].slot], mpr);
 		    }
-		    fMatch = TRUE;
+		    fMatch = true;
 		}
 		break;
 
@@ -2565,7 +2565,7 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 		break;
 	    case 'P':
 	        KEY("Parts",	mob->parts,	fread_number(fp));
-	        KEY("Persist",	mob->persist, TRUE);
+	        KEY("Persist",	mob->persist, true);
 		break;
 
 	    case 'R':
@@ -2578,7 +2578,7 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 
 		    free_string(race_string);
 
-		    fMatch = TRUE;
+		    fMatch = true;
 		}
 
 		break;
@@ -2596,7 +2596,7 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 		    mob->spec_fun = spec_lookup(name);
 
 		    free_string(name);
-		    fMatch = TRUE;
+		    fMatch = true;
 		}
 
 		break;
@@ -2608,7 +2608,7 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 			int value;
 			bool saved;
 
-			fMatch = TRUE;
+			fMatch = true;
 
 			name = fread_string(fp);
 			saved = fread_number(fp);
@@ -2622,13 +2622,13 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 			char *str;
 			bool saved;
 
-			fMatch = TRUE;
+			fMatch = true;
 
 			name = fread_string(fp);
 			saved = fread_number(fp);
 			str = fread_string(fp);
 
-			variables_setindex_string (&mob->index_vars,name,str,FALSE,saved);
+			variables_setindex_string (&mob->index_vars,name,str,false,saved);
 		}
 
 		if (!str_cmp(word, "VarRoom")) {
@@ -2636,7 +2636,7 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 			int value;
 			bool saved;
 
-			fMatch = TRUE;
+			fMatch = true;
 
 			name = fread_string(fp);
 			saved = fread_number(fp);
@@ -2709,10 +2709,10 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 
     obj = new_obj_index();
     obj->vnum = fread_number(fp);
-    obj->persist = FALSE;
+    obj->persist = false;
 
     while (str_cmp((word = fread_word(fp)), "#-OBJECT")) {
-	fMatch = FALSE;
+	fMatch = false;
 
 	switch(word[0]) {
 	    case '#':
@@ -2765,7 +2765,7 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 		    obj->item_type = item_lookup(item_type);
 
 		    free_string(item_type);
-		    fMatch = TRUE;
+		    fMatch = true;
 		}
 
 		break;
@@ -2782,7 +2782,7 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 				obj->lock->key_vnum = fread_number(fp);
 				obj->lock->flags = fread_number(fp);
 				obj->lock->pick_chance = fread_number(fp);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 
@@ -2806,7 +2806,7 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 
 				list_appendlink(obj->waypoints, wp);
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 
@@ -2843,7 +2843,7 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 						sprintf(buf, "read_obj_new: invalid spell '%s' for TRIG_SPELLCAST", p);
 						bug(buf, 0);
 						free_trigger(opr);
-						fMatch = TRUE;
+						fMatch = true;
 						break;
 					}
 
@@ -2851,7 +2851,7 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 					sprintf(buf, "%d", tsn);
 					opr->trig_phrase = str_dup(buf);
 					opr->trig_number = tsn;
-					opr->numeric = TRUE;
+					opr->numeric = true;
 
 				} else {
 			    	opr->trig_number = atoi(opr->trig_phrase);
@@ -2865,14 +2865,14 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 
 				list_appendlink(obj->progs[trigger_table[tindex].slot], opr);
 		    }
-		    fMatch = TRUE;
+		    fMatch = true;
 		}
 		break;
 
 	    case 'P':
 			if(!str_cmp(word, "Persist")) {
-				obj->persist = TRUE;
-				fMatch = TRUE;
+				obj->persist = true;
+				fMatch = true;
 			}
 	        KEY("Points",	obj->points, fread_number(fp));
 		break;
@@ -2889,7 +2889,7 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 		{
 		    int sn;
 
-		    fMatch = TRUE;
+		    fMatch = true;
 		    if ((sn = skill_lookup(fread_string(fp))) > -1)
 		    {
 			    spell = new_spell();
@@ -2920,7 +2920,7 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 
                 if (!str_cmp(word, "SpellLevel"))
 		{
-		    fMatch = TRUE;
+		    fMatch = true;
 		    spell = new_spell();
 		    spell->level = fread_number(fp);
 		    spell->repop = 100;
@@ -2930,26 +2930,26 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 
 		if (!str_cmp(word, "Spell1"))
 		{
-		    fMatch = TRUE;
+		    fMatch = true;
 		    obj->spells->sn = skill_lookup(fread_string(fp));
 		}
 
 		if (!str_cmp(word, "Spell2"))
 		{
-		    fMatch = TRUE;
+		    fMatch = true;
 		    obj->spells->sn = skill_lookup(fread_string(fp));
 		}
 
 		if (!str_cmp(word, "Spell3"))
 		{
-		    fMatch = TRUE;
+		    fMatch = true;
 		    obj->spells->sn = skill_lookup(fread_string(fp));
 
 		}
 
 		if (!str_cmp(word, "Spell4"))
 		{
-		    fMatch = TRUE;
+		    fMatch = true;
 		    obj->spells->sn = skill_lookup(fread_string(fp));
 		}
 		break;
@@ -2970,14 +2970,14 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 		    for (i = 0; i < 8; i++)
 			obj->value[i] = fread_number(fp);
 
-		    fMatch = TRUE;
+		    fMatch = true;
 		}
 		if (!str_cmp(word, "VarInt")) {
 			char *name;
 			int value;
 			bool saved;
 
-			fMatch = TRUE;
+			fMatch = true;
 
 			name = fread_string(fp);
 			saved = fread_number(fp);
@@ -2991,13 +2991,13 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 			char *str;
 			bool saved;
 
-			fMatch = TRUE;
+			fMatch = true;
 
 			name = fread_string(fp);
 			saved = fread_number(fp);
 			str = fread_string(fp);
 
-			variables_setindex_string (&obj->index_vars,name,str,FALSE,saved);
+			variables_setindex_string (&obj->index_vars,name,str,false,saved);
 		}
 
 		if (!str_cmp(word, "VarRoom")) {
@@ -3005,7 +3005,7 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 			int value;
 			bool saved;
 
-			fMatch = TRUE;
+			fMatch = true;
 
 			name = fread_string(fp);
 			saved = fread_number(fp);
@@ -3191,7 +3191,7 @@ SCRIPT_DATA *read_script_new(FILE *fp, AREA_DATA *area, int type)
 	scr->area = area;
 
 	while (str_cmp((word = fread_word(fp)), last_word)) {
-		fMatch = FALSE;
+		fMatch = false;
 
 		switch (word[0]) {
 		case 'C':
@@ -3209,7 +3209,7 @@ SCRIPT_DATA *read_script_new(FILE *fp, AREA_DATA *area, int type)
 			    scr->flags = (value != NO_FLAG) ? value : 0;
 
 			    free_string(str);
-			    fMatch = TRUE;
+			    fMatch = true;
 			}
 			break;
 
@@ -3252,7 +3252,7 @@ EXTRA_DESCR_DATA *read_extra_descr_new(FILE *fp)
 
 	while (str_cmp((word = fread_word(fp)), "#-EXTRA_DESCR"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 		switch (word[0])
 		{
 		case 'D':
@@ -3265,7 +3265,7 @@ EXTRA_DESCR_DATA *read_extra_descr_new(FILE *fp)
 				if( ed->description )
 					free_string(ed->description);
 				ed->description = NULL;
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			break;
@@ -3290,7 +3290,7 @@ CONDITIONAL_DESCR_DATA *read_conditional_descr_new(FILE *fp)
     cd = new_conditional_descr();
 
     while (str_cmp((word = fread_word(fp)), "#-CONDITIONAL_DESCR")) {
-	fMatch = FALSE;
+	fMatch = false;
 	switch (word[0]) {
 	    case 'C':
 	        KEY("Condition",	cd->condition,	fread_number(fp));
@@ -3329,7 +3329,7 @@ EXIT_DATA *read_exit_new(FILE *fp)
     else
     	ex->orig_door = parse_direction(word);
     while (str_cmp((word = fread_word(fp)), "#-X")) {
-	fMatch = FALSE;
+	fMatch = false;
 
 	switch (word[0]) {
 	    case 'D':
@@ -3343,7 +3343,7 @@ EXIT_DATA *read_exit_new(FILE *fp)
 		    int i;
 		    char letter;
 
-		    fMatch = TRUE;
+		    fMatch = true;
 
                     letter = getc(fp);
 		    for (i = 0, letter = getc(fp); letter != '~'; i++) {
@@ -3374,7 +3374,7 @@ EXIT_DATA *read_exit_new(FILE *fp)
 	    case 'T':
 	        if (!str_cmp(word, "To_room")) {
 		    ex->u1.vnum = fread_number(fp);
-		    fMatch = TRUE;
+		    fMatch = true;
 		}
 
 		break;
@@ -3400,7 +3400,7 @@ RESET_DATA *read_reset_new(FILE *fp)
     reset->command = fread_letter(fp);
 
     while (str_cmp((word = fread_word(fp)), "#-RESET")) {
-	fMatch = FALSE;
+	fMatch = false;
 	switch (word[0]) {
 	    case 'A':
 	    if (!str_cmp(word, "Arguments")) {
@@ -3408,7 +3408,7 @@ RESET_DATA *read_reset_new(FILE *fp)
                 reset->arg2 = fread_number(fp);
                 reset->arg3 = fread_number(fp);
                 reset->arg4 = fread_number(fp);
-		fMatch = TRUE;
+		fMatch = true;
 	    }
 
 	    break;
@@ -3434,7 +3434,7 @@ AFFECT_DATA *read_obj_affect_new(FILE *fp)
     af->where = fread_number(fp);
 
     while (str_cmp((word = fread_word(fp)), "#-AFFECT")) {
-	fMatch = FALSE;
+	fMatch = false;
 	switch (word[0]) {
 	    case 'B':
 	        KEY("BitVector",	af->bitvector,	fread_number(fp));
@@ -3483,12 +3483,12 @@ AFFECT_DATA *read_obj_catalyst_new(FILE *fp)
     af->where = TO_CATALYST_DORMANT;
 
     while (str_cmp((word = fread_word(fp)), "#-CATALYST")) {
-	fMatch = FALSE;
+	fMatch = false;
 	switch (word[0]) {
 		case 'A':
 			if (!str_cmp(word, "Active")) {
 				fread_to_eol(fp);
-				fMatch = TRUE;
+				fMatch = true;
 				af->where = TO_CATALYST_ACTIVE;
 			}
 			break;
@@ -3528,7 +3528,7 @@ QUESTOR_DATA *read_questor_new(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-QUESTOR"))
     {
-	fMatch = FALSE;
+	fMatch = false;
 	switch (word[0]) {
 		case 'F':
 	        KEYS("Footer",		questor->footer,	fread_string(fp));
@@ -3577,12 +3577,12 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-STOCK"))
     {
-		fMatch = FALSE;
+		fMatch = false;
 		switch (word[0]) {
 		case 'C':
 			if(!str_cmp(word, "Crew"))
 			{
-				fMatch = TRUE;
+				fMatch = true;
 				stock->vnum = fread_number(fp);
 				stock->type = STOCK_CREW;
 				break;
@@ -3597,7 +3597,7 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)
 		case 'G':
 			if(!str_cmp(word, "Guard"))
 			{
-				fMatch = TRUE;
+				fMatch = true;
 				stock->vnum = fread_number(fp);
 				stock->type = STOCK_GUARD;
 				break;
@@ -3606,7 +3606,7 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)
 		case 'K':
 			if(!str_cmp(word, "Keyword"))
 			{
-				fMatch = TRUE;
+				fMatch = true;
 				stock->custom_keyword = fread_string(fp);
 				stock->vnum = 0;
 				stock->type = STOCK_CUSTOM;
@@ -3619,7 +3619,7 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)
 		case 'M':
 			if(!str_cmp(word, "Mount"))
 			{
-				fMatch = TRUE;
+				fMatch = true;
 				stock->vnum = fread_number(fp);
 				stock->type = STOCK_MOUNT;
 				break;
@@ -3628,7 +3628,7 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)
 		case 'O':
 			if(!str_cmp(word, "Object"))
 			{
-				fMatch = TRUE;
+				fMatch = true;
 				stock->vnum = fread_number(fp);
 				stock->type = STOCK_OBJECT;
 				break;
@@ -3637,7 +3637,7 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)
 		case 'P':
 			if(!str_cmp(word, "Pet"))
 			{
-				fMatch = TRUE;
+				fMatch = true;
 				stock->vnum = fread_number(fp);
 				stock->type = STOCK_PET;
 				break;
@@ -3655,13 +3655,13 @@ SHOP_STOCK_DATA *read_shop_stock_new(FILE *fp)
 		case 'S':
 			if(!str_cmp(word, "Ship"))
 			{
-				fMatch = TRUE;
+				fMatch = true;
 				stock->vnum = fread_number(fp);
 				stock->type = STOCK_SHIP;
 				break;
 			}
 			KEY("Silver", stock->silver, fread_number(fp));
-			KEY("Singular", stock->singular, TRUE);
+			KEY("Singular", stock->singular, true);
 			break;
 
 		}
@@ -3685,7 +3685,7 @@ SHIP_CREW_INDEX_DATA *read_ship_crew_index_new(FILE *fp)
 	crew = new_ship_crew_index();
     while (str_cmp((word = fread_word(fp)), "#-CREW"))
     {
-		fMatch = FALSE;
+		fMatch = false;
 		switch (word[0]) {
 		case 'G':
 			KEY("Gunning", crew->gunning, fread_number(fp));
@@ -3731,7 +3731,7 @@ SHOP_DATA *read_shop_new(FILE *fp)
 
     while (str_cmp((word = fread_word(fp)), "#-SHOP"))
     {
-	fMatch = FALSE;
+	fMatch = false;
 	switch (word[0]) {
 		case '#':
 			if(!str_cmp(word, "#STOCK")) {
@@ -3741,7 +3741,7 @@ SHOP_DATA *read_shop_new(FILE *fp)
 					stock->next = shop->stock;
 					shop->stock = stock;
 				}
-				fMatch = TRUE;
+				fMatch = true;
 			}
 			break;
 	    case 'D':
@@ -3776,7 +3776,7 @@ SHOP_DATA *read_shop_new(FILE *fp)
 				shop->shipyard_region[1][0] = fread_number(fp);
 				shop->shipyard_region[1][1] = fread_number(fp);
 				shop->shipyard_description = fread_string(fp);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			break;
@@ -3785,7 +3785,7 @@ SHOP_DATA *read_shop_new(FILE *fp)
 	        if (!str_cmp(word, "Trade")) {
 		    int i;
 
-		    fMatch = TRUE;
+		    fMatch = true;
 
                     for (i = 0; i < MAX_TRADE; i++) {
 			if (shop->buy_type[i] == 0) {
@@ -3822,7 +3822,7 @@ TOKEN_INDEX_DATA *read_token(FILE *fp)
     token->vnum = fread_number(fp);
 
     while (str_cmp((word = fread_word(fp)), "#-TOKEN")) {
-	fMatch = FALSE;
+	fMatch = false;
 
 	switch(word[0]) {
 	    case '#':
@@ -3875,7 +3875,7 @@ TOKEN_INDEX_DATA *read_token(FILE *fp)
 						sprintf(buf, "read_token: invalid spell '%s' for TRIG_SPELLCAST", p);
 						bug(buf, 0);
 						free_trigger(tpr);
-						fMatch = TRUE;
+						fMatch = true;
 						break;
 					}
 
@@ -3883,7 +3883,7 @@ TOKEN_INDEX_DATA *read_token(FILE *fp)
 					sprintf(buf, "%d", tsn);
 					tpr->trig_phrase = str_dup(buf);
 					tpr->trig_number = tsn;
-					tpr->numeric = TRUE;
+					tpr->numeric = true;
 
 				} else {
 			    	tpr->trig_number = atoi(tpr->trig_phrase);
@@ -3896,7 +3896,7 @@ TOKEN_INDEX_DATA *read_token(FILE *fp)
 
 				list_appendlink(token->progs[trigger_table[tindex].slot], tpr);
 		    }
-		    fMatch = TRUE;
+		    fMatch = true;
 		}
 		KEY("Type",	token->type,	fread_number(fp));
 		break;
@@ -3906,7 +3906,7 @@ TOKEN_INDEX_DATA *read_token(FILE *fp)
 		    int index;
 		    long value;
 
-		    fMatch = TRUE;
+		    fMatch = true;
 
 		    index = fread_number(fp);
 		    value = fread_number(fp);
@@ -3917,7 +3917,7 @@ TOKEN_INDEX_DATA *read_token(FILE *fp)
 		if (!str_cmp(word, "ValueName")) {
 		    int index;
 
-		    fMatch = TRUE;
+		    fMatch = true;
 
 		    index = fread_number(fp);
 		    token->value_name[index] = fread_string(fp);
@@ -3928,7 +3928,7 @@ TOKEN_INDEX_DATA *read_token(FILE *fp)
 			int value;
 			bool saved;
 
-			fMatch = TRUE;
+			fMatch = true;
 
 			name = fread_string(fp);
 			saved = fread_number(fp);
@@ -3942,13 +3942,13 @@ TOKEN_INDEX_DATA *read_token(FILE *fp)
 			char *str;
 			bool saved;
 
-			fMatch = TRUE;
+			fMatch = true;
 
 			name = fread_string(fp);
 			saved = fread_number(fp);
 			str = fread_string(fp);
 
-			variables_setindex_string (&token->index_vars,name,str,FALSE,saved);
+			variables_setindex_string (&token->index_vars,name,str,false,saved);
 		}
 
 		if (!str_cmp(word, "VarRoom")) {
@@ -3956,7 +3956,7 @@ TOKEN_INDEX_DATA *read_token(FILE *fp)
 			int value;
 			bool saved;
 
-			fMatch = TRUE;
+			fMatch = true;
 
 			name = fread_string(fp);
 			saved = fread_number(fp);

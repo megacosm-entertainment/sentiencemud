@@ -62,7 +62,7 @@ bool script_readlua(SCRIPT_DATA *script, char *path)
 	L = script->lua->L;
 
 	// Load the source string into the LUA state, which will compile the code
-	if(luaL_loadstring(L,script->edit_src)) return FALSE;
+	if(luaL_loadstring(L,script->edit_src)) return false;
 
 	// Grab the compiled information
 	f = clvalue(L->top - 1)->l.p;
@@ -72,7 +72,7 @@ bool script_readlua(SCRIPT_DATA *script, char *path)
 	luaU_dump(L,f,_lua_buildcode,script->lua,0);
 	lua_unlock(L);
 
-	return TRUE;
+	return true;
 }
 
 
@@ -83,7 +83,7 @@ bool script_loadlua(SCRIPT_DATA *script)
 	char path[MSL];
 	char *types = "mort";
 
-	if(script->type == -1) return FALSE;
+	if(script->type == -1) return false;
 
 	sprintf(path,LUA_PATH "%c%ld" LUA_EXT, types[script->type], script->vnum);
 
@@ -93,7 +93,7 @@ bool script_loadlua(SCRIPT_DATA *script)
 	ISSET_BIT(script->flags,SCRIPT_LUA);
 
 	script->lua->L = lua_newstate();
-	if(!script->lua->L) return FALSE;
+	if(!script->lua->L) return false;
 
 	// The LUA state created here will be kept, why?
 	//	Because I want to have the option down the road to create global scripting
@@ -141,92 +141,92 @@ void execute_lua_script(SCRIPT_BLOCK *block)
 // Script API
 
 
-	{ "addaffect",			do_mpaddaffect,		TRUE	},
-	{ "addaffectname",		do_mpaddaffectname,		TRUE	},
-	{ "airshipaddwaypoint", 	do_mpairshipaddwaypoint,	TRUE	},
-	{ "airshipsetcrash", 		do_mpairshipsetcrash,		TRUE	},
-	{ "alterexit",			do_mpalterexit,		FALSE	},
-	{ "altermob",			do_mpaltermob,			TRUE	},
-	{ "alterobj",			do_mpalterobj,			TRUE	},
-	{ "appear",			do_mpvis,			FALSE	},
-	{ "asound", 			do_mpasound,			FALSE	},
-	{ "assist",			do_mpassist,			FALSE	},
-	{ "at",				do_mpat,			FALSE	},
-	{ "awardgold",			do_mpawardgold,			TRUE	},
-	{ "awardpneuma",		do_mpawardpneuma,		TRUE	},
-	{ "awardprac",			do_mpawardprac,			TRUE	},
-	{ "awardqp",			do_mpawardqp,			TRUE	},
-	{ "awardxp",			do_mpawardxp,			TRUE	},
-	{ "call",			do_mpcall,			FALSE	},
-	{ "cancel",			do_mpcancel,			FALSE	},
-	{ "cast",			do_mpcast,			FALSE	},
-	{ "changevesselname",		do_mpchangevesselname,		TRUE	},
-	{ "chargemoney",		do_mpchargemoney,		FALSE	},
-	{ "damage",			do_mpdamage,			FALSE	},
-	{ "decdeity",			do_mpdecdeity,			TRUE	},
-	{ "decpneuma",			do_mpdecpneuma,			TRUE	},
-	{ "decprac",			do_mpdecprac,			TRUE	},
-	{ "decquest",			do_mpdecquest,			TRUE	},
-	{ "dectrain",			do_mpdectrain,			TRUE	},
-	{ "delay",			do_mpdelay,			FALSE	},
-	{ "dequeue",			do_mpdequeue,			FALSE	},
-	{ "disappear",    		do_mpinvis,			FALSE	},
-	{ "echo",			do_mpecho,			FALSE	},
-	{ "echoaround",			do_mpechoaround,		FALSE	},
-	{ "echoat",			do_mpechoat,			FALSE	},
-	{ "echobattlespam",		do_mpechobattlespam,		FALSE	},
-	{ "echochurch",			do_mpechochurch,		FALSE	},
-	{ "echogrouparound",		do_mpechogrouparound,		FALSE	},
-	{ "echogroupat",		do_mpechogroupat,		FALSE	},
-	{ "echoleadaround",		do_mpecholeadaround,		FALSE	},
-	{ "echoleadat",			do_mpecholeadat,		FALSE	},
-	{ "echonotvict",		do_mpechonotvict,		FALSE	},
-	{ "flee",			do_mpflee,			FALSE	},
-	{ "force",			do_mpforce,			FALSE	},
-	{ "forget",			do_mpforget,			FALSE	},
-	{ "gdamage",			do_mpgdamage,			FALSE	},
-	{ "gecho",			do_mpgecho,			FALSE	},
-	{ "gforce",			do_mpgforce,			FALSE	},
-	{ "goto",			do_mpgoto,			FALSE	},
-	{ "gtransfer",			do_mpgtransfer,			FALSE	},
-	{ "hunt",			do_mphunt,			FALSE	},
-	{ "input",			do_mpinput,			FALSE	},
-	{ "interrupt",			do_mpinterrupt,			FALSE	},
-	{ "junk",			do_mpjunk,			FALSE	},
-	{ "kill",			do_mpkill,			FALSE	},
-	{ "link",			do_mplink,			FALSE	},
-	{ "mload",			do_mpmload,			FALSE	},
-	{ "oload",			do_mpoload,			FALSE	},
-	{ "otransfer",			do_mpotransfer,			FALSE	},
-	{ "peace",			do_mppeace,			FALSE	},
-	{ "prompt",			do_mpprompt,			FALSE	},
-	{ "purge",			do_mppurge,			FALSE	},
-	{ "queue",			do_mpqueue,			FALSE	},
-	{ "raisedead",			do_mpraisedead,			TRUE	},
-	{ "rawkill",			do_mprawkill,			FALSE	},
-	{ "remember",			do_mpremember,			FALSE	},
-	{ "remove",			do_mpremove,			FALSE	},
-	{ "resetdice",			do_mpresetdice,			TRUE	},
-	{ "selfdestruct",		do_mpselfdestruct,		FALSE	},
-	{ "settimer",			do_mpsettimer,			FALSE	},
-	{ "skimprove",			do_mpskimprove,			TRUE	},
-	{ "stringobj",			do_mpstringobj,			TRUE	},
-	{ "stringmob",			do_mpstringmob,			TRUE	},
-	{ "stripaffect",		do_mpstripaffect,		TRUE	},
-	{ "stripaffectname",		do_mpstripaffectname,		TRUE	},
-	{ "take",			do_mptake,			FALSE	},
-	{ "teleport", 			do_mpteleport,			FALSE	},
-	{ "usecatalyst",		do_mpusecatalyst,		FALSE	},
-	{ "varset",			do_mpvarset,			FALSE	},
-	{ "varclear",			do_mpvarclear,			FALSE	},
-	{ "varclearon",			do_mpvarclearon,		FALSE	},
-	{ "varcopy",			do_mpvarcopy,			FALSE	},
-	{ "varsave",			do_mpvarsave,			FALSE	},
-	{ "varsaveon",			do_mpvarsaveon,			FALSE	},
-	{ "varset",			do_mpvarset,			FALSE	},
-	{ "varseton",			do_mpvarseton,			FALSE	},
-	{ "vforce",			do_mpvforce,			FALSE	},
-	{ "zot",			do_mpzot,			TRUE	},
+	{ "addaffect",			do_mpaddaffect,		true	},
+	{ "addaffectname",		do_mpaddaffectname,		true	},
+	{ "airshipaddwaypoint", 	do_mpairshipaddwaypoint,	true	},
+	{ "airshipsetcrash", 		do_mpairshipsetcrash,		true	},
+	{ "alterexit",			do_mpalterexit,		false	},
+	{ "altermob",			do_mpaltermob,			true	},
+	{ "alterobj",			do_mpalterobj,			true	},
+	{ "appear",			do_mpvis,			false	},
+	{ "asound", 			do_mpasound,			false	},
+	{ "assist",			do_mpassist,			false	},
+	{ "at",				do_mpat,			false	},
+	{ "awardgold",			do_mpawardgold,			true	},
+	{ "awardpneuma",		do_mpawardpneuma,		true	},
+	{ "awardprac",			do_mpawardprac,			true	},
+	{ "awardqp",			do_mpawardqp,			true	},
+	{ "awardxp",			do_mpawardxp,			true	},
+	{ "call",			do_mpcall,			false	},
+	{ "cancel",			do_mpcancel,			false	},
+	{ "cast",			do_mpcast,			false	},
+	{ "changevesselname",		do_mpchangevesselname,		true	},
+	{ "chargemoney",		do_mpchargemoney,		false	},
+	{ "damage",			do_mpdamage,			false	},
+	{ "decdeity",			do_mpdecdeity,			true	},
+	{ "decpneuma",			do_mpdecpneuma,			true	},
+	{ "decprac",			do_mpdecprac,			true	},
+	{ "decquest",			do_mpdecquest,			true	},
+	{ "dectrain",			do_mpdectrain,			true	},
+	{ "delay",			do_mpdelay,			false	},
+	{ "dequeue",			do_mpdequeue,			false	},
+	{ "disappear",    		do_mpinvis,			false	},
+	{ "echo",			do_mpecho,			false	},
+	{ "echoaround",			do_mpechoaround,		false	},
+	{ "echoat",			do_mpechoat,			false	},
+	{ "echobattlespam",		do_mpechobattlespam,		false	},
+	{ "echochurch",			do_mpechochurch,		false	},
+	{ "echogrouparound",		do_mpechogrouparound,		false	},
+	{ "echogroupat",		do_mpechogroupat,		false	},
+	{ "echoleadaround",		do_mpecholeadaround,		false	},
+	{ "echoleadat",			do_mpecholeadat,		false	},
+	{ "echonotvict",		do_mpechonotvict,		false	},
+	{ "flee",			do_mpflee,			false	},
+	{ "force",			do_mpforce,			false	},
+	{ "forget",			do_mpforget,			false	},
+	{ "gdamage",			do_mpgdamage,			false	},
+	{ "gecho",			do_mpgecho,			false	},
+	{ "gforce",			do_mpgforce,			false	},
+	{ "goto",			do_mpgoto,			false	},
+	{ "gtransfer",			do_mpgtransfer,			false	},
+	{ "hunt",			do_mphunt,			false	},
+	{ "input",			do_mpinput,			false	},
+	{ "interrupt",			do_mpinterrupt,			false	},
+	{ "junk",			do_mpjunk,			false	},
+	{ "kill",			do_mpkill,			false	},
+	{ "link",			do_mplink,			false	},
+	{ "mload",			do_mpmload,			false	},
+	{ "oload",			do_mpoload,			false	},
+	{ "otransfer",			do_mpotransfer,			false	},
+	{ "peace",			do_mppeace,			false	},
+	{ "prompt",			do_mpprompt,			false	},
+	{ "purge",			do_mppurge,			false	},
+	{ "queue",			do_mpqueue,			false	},
+	{ "raisedead",			do_mpraisedead,			true	},
+	{ "rawkill",			do_mprawkill,			false	},
+	{ "remember",			do_mpremember,			false	},
+	{ "remove",			do_mpremove,			false	},
+	{ "resetdice",			do_mpresetdice,			true	},
+	{ "selfdestruct",		do_mpselfdestruct,		false	},
+	{ "settimer",			do_mpsettimer,			false	},
+	{ "skimprove",			do_mpskimprove,			true	},
+	{ "stringobj",			do_mpstringobj,			true	},
+	{ "stringmob",			do_mpstringmob,			true	},
+	{ "stripaffect",		do_mpstripaffect,		true	},
+	{ "stripaffectname",		do_mpstripaffectname,		true	},
+	{ "take",			do_mptake,			false	},
+	{ "teleport", 			do_mpteleport,			false	},
+	{ "usecatalyst",		do_mpusecatalyst,		false	},
+	{ "varset",			do_mpvarset,			false	},
+	{ "varclear",			do_mpvarclear,			false	},
+	{ "varclearon",			do_mpvarclearon,		false	},
+	{ "varcopy",			do_mpvarcopy,			false	},
+	{ "varsave",			do_mpvarsave,			false	},
+	{ "varsaveon",			do_mpvarsaveon,			false	},
+	{ "varset",			do_mpvarset,			false	},
+	{ "varseton",			do_mpvarseton,			false	},
+	{ "vforce",			do_mpvforce,			false	},
+	{ "zot",			do_mpzot,			true	},
 
 // echo.room		(<STRING>[,<LOCATION>])
 // echo.at		(<STRING>,<MOBILE>)

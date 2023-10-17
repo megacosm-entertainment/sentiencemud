@@ -123,7 +123,7 @@ char *format_and_colour_html( char *buf )
 {
     char newbuf[16000];
     char *a, *b;
-    bool enc = FALSE;
+    bool enc = false;
 
     a = buf;
     b = newbuf;
@@ -194,12 +194,12 @@ char *format_and_colour_html( char *buf )
 	    {
 		b++;
 	    }
-	    enc = FALSE;
+	    enc = false;
 	}
 	else
 	    if ( *a == '{' )
 	    {
-		enc = TRUE;
+		enc = true;
 	    }
 	    else
 	    {
@@ -244,8 +244,8 @@ BUFFER *get_players_html()
     int iLevelUpper;
     int nMatch;
     int nMatch2;
-    bool fImmortalOnly = FALSE;
-    bool fChurchOnly = FALSE;
+    bool fImmortalOnly = false;
+    bool fChurchOnly = false;
     int line_counter = 0;
     int buf_size;
     char *area_type;

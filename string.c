@@ -156,7 +156,7 @@ void string_postprocess(CHAR_DATA *ch, bool execute)
 		}
 
 		// Clear this incase other scripts chain together
-		ch->desc->input = FALSE;
+		ch->desc->input = false;
 		ch->desc->input_var = NULL;
 		ch->desc->input_script = 0;
 		ch->desc->input_mob = NULL;
@@ -169,7 +169,7 @@ void string_postprocess(CHAR_DATA *ch, bool execute)
 
 		if(script && execute) {
 			if(!IS_NULLSTR(v) && !IS_NULLSTR(s)) {
-				variables_set_string(var,v,s,FALSE);
+				variables_set_string(var,v,s,false);
 			}
 
 			ret = execute_script(script->vnum, script, mob, obj, room, tok, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL,NULL,0,0,0,0,0);
@@ -210,9 +210,9 @@ void string_add(CHAR_DATA *ch, char *argument)
 
 	}
 
-	argument = first_arg(argument, arg2, FALSE);
+	argument = first_arg(argument, arg2, false);
 	strcpy(tmparg3, argument);
-        argument = first_arg(argument, arg3, FALSE);
+        argument = first_arg(argument, arg3, false);
 
 
 	 if (!str_cmp(arg1, ".c"))
@@ -306,7 +306,7 @@ void string_add(CHAR_DATA *ch, char *argument)
 
     if (*argument == '~' || *argument == '@')
     {
-		string_postprocess(ch, TRUE);
+		string_postprocess(ch, true);
         return;
     }
 
@@ -321,7 +321,7 @@ void string_add(CHAR_DATA *ch, char *argument)
         send_to_char("String too long, last line skipped.\n\r", ch);
 
 	/* Force character out of editing mode. */
-		string_postprocess(ch, FALSE);
+		string_postprocess(ch, false);
         return;
     }
 
@@ -345,7 +345,7 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 	char xbuf3[MAX_STRING_LENGTH];
 	char *rdesc;
 	int i = 0, lines = 0, leni, len;
-	bool cap = TRUE;
+	bool cap = true;
 
 	xbuf[0] = xbuf2[0] = xbuf3[0] = 0;
 
@@ -394,11 +394,11 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 					rdesc++;
 				}
 			}
-			cap = TRUE;
+			cap = true;
 		} else {
 			xbuf2[i]=*rdesc;
 			if (cap) {
-				cap = FALSE;
+				cap = false;
 				xbuf2[i] = UPPER(xbuf2[i]);
 			}
 			i++;
@@ -499,7 +499,7 @@ char *format_paragraph_len(char *oldstring,int lens[][2], int lenc,bool mem)
 char *format_paragraph(char *oldstring)
 {
 	int lens[1][2] = { { 0,77 } };
-	return format_paragraph_len(oldstring,lens,1,TRUE);
+	return format_paragraph_len(oldstring,lens,1,true);
 }
 
 
@@ -509,7 +509,7 @@ char *format_string_len(char *oldstring,int lens[][2], int lenc,bool mem)
 	char xbuf2[MAX_STRING_LENGTH];
 	char *rdesc;
 	int i = 0, lines = 0, leni, len;
-	bool cap = TRUE;
+	bool cap = true;
 
 	xbuf[0] = xbuf2[0] = 0;
 
@@ -557,11 +557,11 @@ char *format_string_len(char *oldstring,int lens[][2], int lenc,bool mem)
 					rdesc++;
 				}
 			}
-			cap = TRUE;
+			cap = true;
 		} else {
 			xbuf2[i]=*rdesc;
 			if (cap) {
-				cap = FALSE;
+				cap = false;
 				xbuf2[i] = UPPER(xbuf2[i]);
 			}
 			i++;
@@ -623,7 +623,7 @@ char *format_string_len(char *oldstring,int lens[][2], int lenc,bool mem)
 char *format_string(char *oldstring)
 {
 	int lens[1][2] = { { 0,77 } };
-	return format_string_len(oldstring,lens,1,TRUE);
+	return format_string_len(oldstring,lens,1,true);
 }
 
 
@@ -765,7 +765,7 @@ char *string_lineadd(char *string, char *newstr, int line)
 {
     char *strtmp = string;
     int cnt = 1, tmp = 0;
-    bool done = FALSE;
+    bool done = false;
     char buf[MAX_STRING_LENGTH];
 
     buf[0] = '\0';
@@ -778,7 +778,7 @@ char *string_lineadd(char *string, char *newstr, int line)
 	    strcat(buf, "\n\r");
 	    tmp += strlen(newstr) + 2;
 	    cnt++;
-	    done = TRUE;
+	    done = true;
 	}
 
 	buf[tmp++] = *strtmp;
@@ -805,13 +805,13 @@ char *string_lineadd(char *string, char *newstr, int line)
 char *olc_getline(char *str, char *buf)
 {
     int tmp = 0;
-    bool found = FALSE;
+    bool found = false;
 
     while (*str)
     {
 	if (*str == '\n')
 	{
-	    found = TRUE;
+	    found = true;
 	    break;
 	}
 
@@ -859,7 +859,7 @@ bool string_argremove_index(char *src, int argindex, char *buf)
 	char arg[MIL];
 	int i;
 
-	if( !src || !buf || argindex < 0 ) return FALSE;
+	if( !src || !buf || argindex < 0 ) return false;
 
 	strcpy(buf, src);
 
@@ -877,7 +877,7 @@ bool string_argremove_index(char *src, int argindex, char *buf)
 	right_start = one_argument(left_end, arg);
 
 	strcpy(buf + (int)(left_end - left_start), right_start);
-	return TRUE;
+	return true;
 }
 
 bool string_argremove_phrase(char *src, char *phrase, char *buf)
@@ -886,7 +886,7 @@ bool string_argremove_phrase(char *src, char *phrase, char *buf)
 	char *left_end = src;
 	char arg[MIL];
 
-	if( !src || !buf || IS_NULLSTR(phrase) ) return FALSE;
+	if( !src || !buf || IS_NULLSTR(phrase) ) return false;
 
 	strcpy(buf, src);
 
@@ -902,5 +902,5 @@ bool string_argremove_phrase(char *src, char *phrase, char *buf)
 			left_end = rest;
 	}
 
-	return TRUE;
+	return true;
 }

@@ -51,7 +51,7 @@ void room_update(ROOM_INDEX_DATA *room);
 void save_script_new(FILE *fp, AREA_DATA *area,SCRIPT_DATA *scr,char *type);
 SCRIPT_DATA *read_script_new( FILE *fp, AREA_DATA *area, int type);
 
-bool blueprints_changed = FALSE;
+bool blueprints_changed = false;
 long top_blueprint_section_vnum = 0;
 long top_blueprint_vnum = 0;
 LLIST *loaded_instances;
@@ -83,7 +83,7 @@ BLUEPRINT_LINK *load_blueprint_link(FILE *fp)
 
 	while (str_cmp((word = fread_word(fp)), "#-LINK"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 		switch(word[0])
 		{
 		case 'D':
@@ -123,7 +123,7 @@ BLUEPRINT_SECTION *load_blueprint_section(FILE *fp)
 
 	while (str_cmp((word = fread_word(fp)), "#-SECTION"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		switch(word[0])
 		{
@@ -150,7 +150,7 @@ BLUEPRINT_SECTION *load_blueprint_section(FILE *fp)
 					bs->links = link;
 				}
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			break;
@@ -215,7 +215,7 @@ BLUEPRINT *load_blueprint(FILE *fp)
 
 	while (str_cmp((word = fread_word(fp)), "#-BLUEPRINT"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		switch(word[0])
 		{
@@ -260,7 +260,7 @@ BLUEPRINT *load_blueprint(FILE *fp)
 							sprintf(buf, "load_blueprint: invalid spell '%s' for TRIG_SPELLCAST", p);
 							bug(buf, 0);
 							free_trigger(ipr);
-							fMatch = TRUE;
+							fMatch = true;
 							break;
 						}
 
@@ -268,7 +268,7 @@ BLUEPRINT *load_blueprint(FILE *fp)
 						sprintf(buf, "%d", tsn);
 						ipr->trig_phrase = str_dup(buf);
 						ipr->trig_number = tsn;
-						ipr->numeric = TRUE;
+						ipr->numeric = true;
 
 					} else {
 						ipr->trig_number = atoi(ipr->trig_phrase);
@@ -279,7 +279,7 @@ BLUEPRINT *load_blueprint(FILE *fp)
 
 					list_appendlink(bp->progs[trigger_table[tindex].slot], ipr);
 				}
-				fMatch = TRUE;
+				fMatch = true;
 			}
 			break;
 
@@ -305,7 +305,7 @@ BLUEPRINT *load_blueprint(FILE *fp)
 				special->vnum = vnum;
 
 				list_appendlink(bp->special_rooms, special);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 
@@ -313,7 +313,7 @@ BLUEPRINT *load_blueprint(FILE *fp)
 			{
 				bp->mode = BLUEPRINT_MODE_STATIC;
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 
@@ -327,7 +327,7 @@ BLUEPRINT *load_blueprint(FILE *fp)
 				bp->static_entry_section = section;
 				bp->static_entry_link = link;
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 
@@ -339,7 +339,7 @@ BLUEPRINT *load_blueprint(FILE *fp)
 				bp->static_exit_section = section;
 				bp->static_exit_link = link;
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 
@@ -360,7 +360,7 @@ BLUEPRINT *load_blueprint(FILE *fp)
 
 				sbl->next = bp->static_layout;
 				bp->static_layout = sbl;
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 
@@ -373,7 +373,7 @@ BLUEPRINT *load_blueprint(FILE *fp)
 				{
 					list_appendlink(bp->sections, bs);
 				}
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			break;
@@ -384,7 +384,7 @@ BLUEPRINT *load_blueprint(FILE *fp)
 				int value;
 				bool saved;
 
-				fMatch = TRUE;
+				fMatch = true;
 
 				name = fread_string(fp);
 				saved = fread_number(fp);
@@ -398,13 +398,13 @@ BLUEPRINT *load_blueprint(FILE *fp)
 				char *str;
 				bool saved;
 
-				fMatch = TRUE;
+				fMatch = true;
 
 				name = fread_string(fp);
 				saved = fread_number(fp);
 				str = fread_string(fp);
 
-				variables_setindex_string (&bp->index_vars,name,str,FALSE,saved);
+				variables_setindex_string (&bp->index_vars,name,str,false,saved);
 			}
 
 			if (!str_cmp(word, "VarRoom")) {
@@ -412,7 +412,7 @@ BLUEPRINT *load_blueprint(FILE *fp)
 				int value;
 				bool saved;
 
-				fMatch = TRUE;
+				fMatch = true;
 
 				name = fread_string(fp);
 				saved = fread_number(fp);
@@ -456,7 +456,7 @@ void load_blueprints()
 
 	while (str_cmp((word = fread_word(fp)), "#END"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		if( !str_cmp(word, "#SECTION") )
 		{
@@ -466,7 +466,7 @@ void load_blueprints()
 			bs->next = blueprint_section_hash[iHash];
 			blueprint_section_hash[iHash] = bs;
 
-			fMatch = TRUE;
+			fMatch = true;
 			continue;
 		}
 
@@ -478,7 +478,7 @@ void load_blueprints()
 			bp->next = blueprint_hash[iHash];
 			blueprint_hash[iHash] = bp;
 
-			fMatch = TRUE;
+			fMatch = true;
 			continue;
 		}
 
@@ -493,7 +493,7 @@ void load_blueprints()
 		    		top_iprog_index = pr->vnum;
 		    }
 
-		    fMatch = TRUE;
+		    fMatch = true;
 			continue;
 		}
 
@@ -625,7 +625,7 @@ bool save_blueprints()
 	if (fp == NULL)
 	{
 		bug("Couldn't save blueprints.dat", 0);
-		return FALSE;
+		return false;
 	}
 
 	int iHash;
@@ -655,26 +655,26 @@ bool save_blueprints()
 
 	fclose(fp);
 
-	blueprints_changed = FALSE;
-	return TRUE;
+	blueprints_changed = false;
+	return true;
 }
 
 bool valid_section_link(BLUEPRINT_LINK *bl)
 {
-	if( !IS_VALID(bl) ) return FALSE;
+	if( !IS_VALID(bl) ) return false;
 
-	if( bl->vnum <= 0 ) return FALSE;
+	if( bl->vnum <= 0 ) return false;
 
-	if( bl->door < 0 || bl->door >= MAX_DIR ) return FALSE;
+	if( bl->door < 0 || bl->door >= MAX_DIR ) return false;
 
-	if( !bl->room ) return FALSE;
+	if( !bl->room ) return false;
 
-	if( !bl->ex ) return FALSE;
+	if( !bl->ex ) return false;
 
 	// Only environment exits can be used as links
-	if( !IS_SET(bl->ex->exit_info, EX_ENVIRONMENT) ) return FALSE;
+	if( !IS_SET(bl->ex->exit_info, EX_ENVIRONMENT) ) return false;
 
-	return TRUE;
+	return true;
 }
 
 BLUEPRINT_LINK *get_section_link(BLUEPRINT_SECTION *bs, int link)
@@ -694,25 +694,25 @@ BLUEPRINT_LINK *get_section_link(BLUEPRINT_SECTION *bs, int link)
 
 bool valid_static_link(STATIC_BLUEPRINT_LINK *sbl)
 {
-	if( !IS_VALID(sbl) ) return FALSE;
-	if( !IS_VALID(sbl->blueprint) ) return FALSE;
+	if( !IS_VALID(sbl) ) return false;
+	if( !IS_VALID(sbl->blueprint) ) return false;
 
 	BLUEPRINT_SECTION *section1 = (BLUEPRINT_SECTION *)list_nthdata(sbl->blueprint->sections, sbl->section1);
-	if( !IS_VALID(section1) ) return FALSE;
+	if( !IS_VALID(section1) ) return false;
 
 	BLUEPRINT_SECTION *section2 = (BLUEPRINT_SECTION *)list_nthdata(sbl->blueprint->sections, sbl->section2);
-	if( !IS_VALID(section2) ) return FALSE;
+	if( !IS_VALID(section2) ) return false;
 
 	BLUEPRINT_LINK *link1 = get_section_link(section1, sbl->link1);
-	if( !valid_section_link(link1) ) return FALSE;
+	if( !valid_section_link(link1) ) return false;
 
 	BLUEPRINT_LINK *link2 = get_section_link(section2, sbl->link2);
-	if( !valid_section_link(link2) ) return FALSE;
+	if( !valid_section_link(link2) ) return false;
 
 	// Only allow links that are reverse directions to link
-	if( rev_dir[link1->door] != link2->door ) return FALSE;
+	if( rev_dir[link1->door] != link2->door ) return false;
 
-	return TRUE;
+	return true;
 }
 
 BLUEPRINT_SECTION *get_blueprint_section(long vnum)
@@ -760,7 +760,7 @@ bool rooms_in_same_section(long vnum1, long vnum2)
 	BLUEPRINT_SECTION *s1 = get_blueprint_section_byroom(vnum1);
 	BLUEPRINT_SECTION *s2 = get_blueprint_section_byroom(vnum2);
 
-	if( !s1 && !s2 ) return TRUE;	// If neither are in a blueprint section, they are considered in the same section
+	if( !s1 && !s2 ) return true;	// If neither are in a blueprint section, they are considered in the same section
 
 	return s1 && s2 && (s1 == s2);
 }
@@ -958,7 +958,7 @@ bool generate_static_instance(INSTANCE *instance)
 	BLUEPRINT_SECTION *bs;
 	BLUEPRINT *bp = instance->blueprint;
 
-	bool valid = TRUE;
+	bool valid = true;
 	iterator_start(&bsit, bp->sections);
 	while((bs = (BLUEPRINT_SECTION *)iterator_nextdata(&bsit)))
 	{
@@ -966,7 +966,7 @@ bool generate_static_instance(INSTANCE *instance)
 
 		if( !section )
 		{
-			valid = FALSE;
+			valid = false;
 			break;
 		}
 
@@ -1160,7 +1160,7 @@ INSTANCE *create_instance(BLUEPRINT *blueprint)
 
 		instance->progs			= new_prog_data();
 		instance->progs->progs	= blueprint->progs;
-		variable_copylist(&blueprint->index_vars,&instance->progs->vars,FALSE);
+		variable_copylist(&blueprint->index_vars,&instance->progs->vars,false);
 
 		if( blueprint->mode == BLUEPRINT_MODE_STATIC )
 		{
@@ -1252,11 +1252,11 @@ void instance_check_empty(INSTANCE *instance)
 	if( instance->empty )
 	{
 		if( list_size(instance->players) > 0 )
-			instance->empty = FALSE;
+			instance->empty = false;
 	}
 	else if( list_size(instance->players) < 1 )
 	{
-		instance->empty = TRUE;
+		instance->empty = true;
 		if( instance_can_idle(instance) )
 			instance->idle_timer = UMAX(15, instance->idle_timer);
 	}
@@ -1326,7 +1326,7 @@ void extract_instance(INSTANCE *instance)
     if(instance->progs) {
 	    SET_BIT(instance->progs->entity_flags,PROG_NODESTRUCT);
 	    if(instance->progs->script_ref > 0) {
-			instance->progs->extract_when_done = TRUE;
+			instance->progs->extract_when_done = true;
 			return;
 		}
     }
@@ -1499,7 +1499,7 @@ void list_blueprint_sections(CHAR_DATA *ch, char *argument)
 		send_to_char("{RWARNING:{W Having scrolling off may limit how many sections you can see.{x\n\r", ch);
 
 	int lines = 0;
-	bool error = FALSE;
+	bool error = false;
 	BUFFER *buffer = new_buf();
 	char buf[MSL];
 
@@ -1520,7 +1520,7 @@ void list_blueprint_sections(CHAR_DATA *ch, char *argument)
 			++lines;
 			if( !add_buf(buffer, buf) || (!ch->lines && strlen(buf_string(buffer)) > MAX_STRING_LENGTH) )
 			{
-				error = TRUE;
+				error = true;
 				break;
 			}
 		}
@@ -1591,7 +1591,7 @@ void do_bsedit(CHAR_DATA *ch, char *argument)
 		{
 			if (bsedit_create(ch, argument))
 			{
-				blueprints_changed = TRUE;
+				blueprints_changed = true;
 				ch->pcdata->immortal->last_olc_command = current_time;
 				ch->desc->editor = ED_BPSECT;
 			}
@@ -1643,7 +1643,7 @@ void bsedit(CHAR_DATA *ch, char *argument)
 		{
 			if ((*bsedit_table[cmd].olc_fun) (ch, argument))
 			{
-				blueprints_changed = TRUE;
+				blueprints_changed = true;
 			}
 
 			return;
@@ -1656,7 +1656,7 @@ void bsedit(CHAR_DATA *ch, char *argument)
 BSEDIT( bsedit_list )
 {
 	list_blueprint_sections(ch, argument);
-	return FALSE;
+	return false;
 }
 
 BSEDIT( bsedit_show )
@@ -1724,7 +1724,7 @@ BSEDIT( bsedit_show )
 	page_to_char(buffer->string, ch);
 
 	free_buf(buffer);
-	return FALSE;
+	return false;
 }
 
 
@@ -1785,7 +1785,7 @@ BSEDIT( bsedit_create )
 	else if( get_blueprint_section(value) )
 	{
 		send_to_char("That vnum already exists.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	bs = new_blueprint_section();
@@ -1799,7 +1799,7 @@ BSEDIT( bsedit_create )
 	if( bs->vnum > top_blueprint_section_vnum)
 		top_blueprint_section_vnum = bs->vnum;
 
-    return TRUE;
+    return true;
 }
 
 BSEDIT( bsedit_name )
@@ -1811,13 +1811,13 @@ BSEDIT( bsedit_name )
 	if (argument[0] == '\0')
 	{
 		send_to_char("Syntax:  name [string]\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	free_string(bs->name);
 	bs->name = str_dup(argument);
 	send_to_char("Name changed.\n\r", ch);
-	return TRUE;
+	return true;
 }
 
 BSEDIT( bsedit_description )
@@ -1829,11 +1829,11 @@ BSEDIT( bsedit_description )
 	if (argument[0] == '\0')
 	{
 		string_append(ch, &bs->description);
-		return TRUE;
+		return true;
 	}
 
 	send_to_char("Syntax:  description - line edit\n\r", ch);
-	return FALSE;
+	return false;
 }
 
 BSEDIT( bsedit_comments )
@@ -1845,11 +1845,11 @@ BSEDIT( bsedit_comments )
 	if (argument[0] == '\0')
 	{
 		string_append(ch, &bs->comments);
-		return TRUE;
+		return true;
 	}
 
 	send_to_char("Syntax:  comments - line edit\n\r", ch);
-	return FALSE;
+	return false;
 }
 
 BSEDIT( bsedit_type )
@@ -1863,19 +1863,19 @@ BSEDIT( bsedit_type )
 	{
 		send_to_char("Syntax:  type <type>\n\r", ch);
 		send_to_char("'? section_types' for list of types.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if( (value = flag_value(blueprint_section_types, argument)) == NO_FLAG )
 	{
 		send_to_char("That is not a valid type.\n\r", ch);
 		send_to_char("'? section_types' for list of types.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	bs->type = value;
 	send_to_char("Section type changed.\n\r", ch);
-	return TRUE;
+	return true;
 }
 
 BSEDIT( bsedit_flags )
@@ -1889,19 +1889,19 @@ BSEDIT( bsedit_flags )
 	{
 		send_to_char("Syntax:  flags <flags>\n\r", ch);
 		send_to_char("'? section_flags' for list of flags.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if( (value = flag_value(blueprint_section_flags, argument)) == NO_FLAG )
 	{
 		send_to_char("That is not a valid flag.\n\r", ch);
 		send_to_char("'? section_flags' for list of flags.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	bs->flags ^= value;
 	send_to_char("Section flags changed.\n\r", ch);
-	return TRUE;
+	return true;
 }
 
 
@@ -1918,7 +1918,7 @@ BSEDIT( bsedit_recall )
 	{
 		send_to_char("Syntax:  recall [vnum]\n\r", ch);
 		send_to_char("         recall none\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if( !str_cmp(argument, "none") )
@@ -1926,52 +1926,52 @@ BSEDIT( bsedit_recall )
 		if( bs->recall < 1 )
 		{
 			send_to_char("Recall was not defined.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		bs->recall = 0;
 
 		send_to_char("Recall cleared.\n\r", ch);
-		return TRUE;
+		return true;
 	}
 
 	if( bs->lower_vnum < 1 || bs->upper_vnum < 1 )
 	{
 		send_to_char("Vnum range must be set first.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if (!is_number(argument))
 	{
 		send_to_char("That is not a number.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	vnum = atol(argument);
 	if( vnum <= 0 )
 	{
 		send_to_char("That room does not exist.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if( vnum < bs->lower_vnum || vnum > bs->upper_vnum )
 	{
 		sprintf(buf, "Value must be a value from %ld to %ld.\n\r", bs->lower_vnum, bs->upper_vnum);
 		send_to_char(buf, ch);
-		return FALSE;
+		return false;
 	}
 
 	room = get_room_index(vnum);
 	if( room == NULL )
 	{
 		send_to_char("That room does not exist.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	bs->recall = vnum;
 	sprintf(buf, "Recall set to %.30s (%ld)\n\r", room->name, vnum);
 	send_to_char(buf, ch);
-	return TRUE;
+	return true;
 }
 
 bool validate_vnum_range(CHAR_DATA *ch, BLUEPRINT_SECTION *section, long lower, long upper)
@@ -1982,7 +1982,7 @@ bool validate_vnum_range(CHAR_DATA *ch, BLUEPRINT_SECTION *section, long lower, 
 	if( !check_range(lower, upper) )
 	{
 		send_to_char("Vnums must be in the same area.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	// Check that are no overlaps
@@ -2001,15 +2001,15 @@ bool validate_vnum_range(CHAR_DATA *ch, BLUEPRINT_SECTION *section, long lower, 
 					(bs->upper_vnum >= lower && bs->upper_vnum <= upper ) )
 				{
 					send_to_char("Blueprint section vnum ranges cannot overlap.\n\r", ch);
-					return FALSE;
+					return false;
 				}
 			}
 		}
 	}
 
 	// Verify there are any rooms in the range
-	bool found = FALSE;
-	bool valid = TRUE;
+	bool found = false;
+	bool valid = true;
 	BUFFER *buffer = new_buf();		// This will buffer up ALL the problem rooms
 
 	for(long vnum = lower; vnum <= upper; vnum++)
@@ -2018,21 +2018,21 @@ bool validate_vnum_range(CHAR_DATA *ch, BLUEPRINT_SECTION *section, long lower, 
 
 		if( room )
 		{
-			found = TRUE;
+			found = true;
 
 			if( !IS_SET(room->room2_flags, ROOM_BLUEPRINT) &&
 				!IS_SET(room->area->area_flags, AREA_BLUEPRINT) )
 			{
 				sprintf(buf, "{xRoom {W%ld{x is not allocated for use in blueprints.\n\r", room->vnum);
 				add_buf(buffer, buf);
-				valid = FALSE;
+				valid = false;
 			}
 
 			if( IS_SET(room->room2_flags, (ROOM_NOCLONE|ROOM_VIRTUAL_ROOM)) )
 			{
 				sprintf(buf, "{xRoom {W%ld{x cannot be used in blueprints.\n\r", room->vnum);
 				add_buf(buffer, buf);
-				valid = FALSE;
+				valid = false;
 			}
 
 			// Verify the room does not have non-environment exits pointing OUT of the range of vnums
@@ -2048,13 +2048,13 @@ bool validate_vnum_range(CHAR_DATA *ch, BLUEPRINT_SECTION *section, long lower, 
 					{
 						sprintf(buf, "{xRoom {W%ld{x has an exit ({W%s{x) leading to wilderness.\n\r", room->vnum, dir_name[i]);
 						add_buf(buffer, buf);
-						valid = FALSE;
+						valid = false;
 					}
 					else if( ex->u1.to_room->vnum < lower || ex->u1.to_room->vnum > upper )
 					{
 						sprintf(buf, "{xRoom {W%ld{x has an exit ({W%s{x) leading outside of the vnum range.\n\r", room->vnum, dir_name[i]);
 						add_buf(buffer, buf);
-						valid = FALSE;
+						valid = false;
 					}
 				}
 			}
@@ -2090,13 +2090,13 @@ BSEDIT( bsedit_rooms )
 	{
 		send_to_char("Syntax:  rooms [lower vnum][upper vnum]\n\r", ch);
 		send_to_char("{YVnums must be in the same area.{x\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if( !is_number(arg) || !is_number(argument) )
 	{
 		send_to_char("That is not a number.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	lvnum = atol(arg);
@@ -2156,10 +2156,10 @@ BSEDIT( bsedit_rooms )
 
 		}
 
-		return TRUE;
+		return true;
 	}
 
-	return FALSE;
+	return false;
 }
 
 BSEDIT( bsedit_link )
@@ -2179,7 +2179,7 @@ BSEDIT( bsedit_link )
 		send_to_char("         link # name <name>\n\r", ch);
 		send_to_char("         link # room <vnum>\n\r", ch);
 		send_to_char("         link # exit <door>\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	argument = one_argument(argument, arg);
@@ -2211,7 +2211,7 @@ BSEDIT( bsedit_link )
 			send_to_char("No links defined.\n\r", ch);
 		}
 
-		return FALSE;
+		return false;
 	}
 
 	if( !str_cmp(arg, "add") )
@@ -2219,60 +2219,60 @@ BSEDIT( bsedit_link )
 		if( bs->lower_vnum < 1 || bs->upper_vnum < 1 )
 		{
 			send_to_char("Vnum range must be set first.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if( !is_number(arg2) )
 		{
 			send_to_char("That is not a number.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		long vnum = atol(arg2);
 		if( vnum < bs->lower_vnum || vnum > bs->upper_vnum )
 		{
 			send_to_char("Vnum is out of range of blueprint section.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		ROOM_INDEX_DATA *room = get_room_index(vnum);
 		if( !room )
 		{
 			send_to_char("That room does not exist.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
-		bool found = FALSE;
+		bool found = false;
 		for( int i = 0; i < MAX_DIR; i++ )
 		{
 			if( room->exit[i] )
-				found = TRUE;
+				found = true;
 		}
 
 		if( !found )
 		{
 			send_to_char("That room has no exits.\n\r,", ch);
-			return FALSE;
+			return false;
 		}
 
 		int door = parse_door(argument);
 		if( door < 0 )
 		{
 			send_to_char("That is an invalid exit.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		EXIT_DATA *ex = room->exit[door];
 		if( !ex )
 		{
 			send_to_char("That is an invalid exit.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if( !IS_SET(ex->exit_info, EX_ENVIRONMENT) )
 		{
 			send_to_char("Exit links must be {YENVIRONMENT{x exits.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		link = new_blueprint_link();
@@ -2300,20 +2300,20 @@ BSEDIT( bsedit_link )
 		}
 
 		send_to_char("Link added.\n\r", ch);
-		return TRUE;
+		return true;
 	}
 
 	if( !is_number(arg) )
 	{
 		send_to_char("That is not a number.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	int linkno = atoi(arg);
 	if( linkno < 1 )
 	{
 		send_to_char("That is not a section link.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 
@@ -2332,7 +2332,7 @@ BSEDIT( bsedit_link )
 		if(!link)
 		{
 			send_to_char("That is not a section link.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if( prev )
@@ -2342,14 +2342,14 @@ BSEDIT( bsedit_link )
 
 		free_blueprint_link(link);
 		send_to_char("Link removed.\n\r", ch);
-		return TRUE;
+		return true;
 	}
 
 	link = get_section_link(bs, linkno);
 	if( !link )
 	{
 		send_to_char("That is not a section link.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if( !str_cmp(arg2, "name") )
@@ -2357,14 +2357,14 @@ BSEDIT( bsedit_link )
 		if( argument[0] == '\0' )
 		{
 			send_to_char("Syntax:  link # name <name>\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		free_string(link->name);
 		link->name = str_dup(argument);
 
 		send_to_char("Name changed.\n\r", ch);
-		return TRUE;
+		return true;
 	}
 
 	if( !str_cmp(arg2, "room") )
@@ -2372,40 +2372,40 @@ BSEDIT( bsedit_link )
 		if( argument[0] == '\0' )
 		{
 			send_to_char("Syntax:  link # room <vnum>\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if( !is_number(argument) )
 		{
 			send_to_char("That is not a number.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		long vnum = atol(argument);
 		if( vnum < bs->lower_vnum || vnum > bs->upper_vnum )
 		{
 			send_to_char("Vnum is out of range of blueprint section.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		ROOM_INDEX_DATA *room = get_room_index(vnum);
 		if( !room )
 		{
 			send_to_char("That room does not exist.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
-		bool found = FALSE;
+		bool found = false;
 		for( int i = 0; i < MAX_DIR; i++ )
 		{
 			if( room->exit[i] )
-				found = TRUE;
+				found = true;
 		}
 
 		if( !found )
 		{
 			send_to_char("That room has no exits.\n\r,", ch);
-			return FALSE;
+			return false;
 		}
 
 		link->vnum = vnum;
@@ -2415,7 +2415,7 @@ BSEDIT( bsedit_link )
 
 
 		send_to_char("Room changed.\n\r", ch);
-		return TRUE;
+		return true;
 	}
 
 	if( !str_cmp(arg2, "exit") )
@@ -2423,37 +2423,37 @@ BSEDIT( bsedit_link )
 		if( argument[0] == '\0' )
 		{
 			send_to_char("Syntax:  link # exit <door>\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		int door = parse_door(argument);
 		if( door < 0 )
 		{
 			send_to_char("That is an invalid exit.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		EXIT_DATA *ex = link->room->exit[door];
 		if( !ex )
 		{
 			send_to_char("That is an invalid exit.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if( !IS_SET(ex->exit_info, EX_ENVIRONMENT) )
 		{
 			send_to_char("Exit links must be {YENVIRONMENT{x exits.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		link->door = door;
 		link->ex = ex;
 		send_to_char("Exit changed.\n\r", ch);
-		return TRUE;
+		return true;
 	}
 
 	bsedit_link(ch, "");
-	return FALSE;
+	return false;
 }
 
 
@@ -2504,7 +2504,7 @@ void list_blueprints(CHAR_DATA *ch, char *argument)
 		send_to_char("{RWARNING:{W Having scrolling off may limit how many blueprints you can see.{x\n\r", ch);
 
 	int lines = 0;
-	bool error = FALSE;
+	bool error = false;
 	BUFFER *buffer = new_buf();
 	char buf[MSL];
 
@@ -2522,7 +2522,7 @@ void list_blueprints(CHAR_DATA *ch, char *argument)
 			++lines;
 			if( !add_buf(buffer, buf) || (!ch->lines && strlen(buf_string(buffer)) > MAX_STRING_LENGTH) )
 			{
-				error = TRUE;
+				error = true;
 				break;
 			}
 		}
@@ -2593,7 +2593,7 @@ void do_bpedit(CHAR_DATA *ch, char *argument)
 		{
 			if (bpedit_create(ch, argument))
 			{
-				blueprints_changed = TRUE;
+				blueprints_changed = true;
 				ch->pcdata->immortal->last_olc_command = current_time;
 				ch->desc->editor = ED_BLUEPRINT;
 			}
@@ -2644,7 +2644,7 @@ void bpedit(CHAR_DATA *ch, char *argument)
 		{
 			if ((*bpedit_table[cmd].olc_fun) (ch, argument))
 			{
-				blueprints_changed = TRUE;
+				blueprints_changed = true;
 			}
 
 			return;
@@ -2657,7 +2657,7 @@ void bpedit(CHAR_DATA *ch, char *argument)
 BPEDIT( bpedit_list )
 {
 	list_blueprints(ch, argument);
-	return FALSE;
+	return false;
 }
 
 BPEDIT( bpedit_show )
@@ -2905,7 +2905,7 @@ BPEDIT( bpedit_show )
 				while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
 					sprintf(buf, "{C[{W%4d{C]{x %-20ld %-10s %-6s\n\r", cnt,
 						trigger->vnum,trigger_name(trigger->trig_type),
-						trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, FALSE, FALSE));
+						trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, false, false));
 					add_buf(buffer, buf);
 					cnt++;
 				}
@@ -2961,7 +2961,7 @@ BPEDIT( bpedit_show )
 	}
 
 	free_buf(buffer);
-	return FALSE;
+	return false;
 }
 
 void do_bpshow(CHAR_DATA *ch, char *argument)
@@ -3022,7 +3022,7 @@ BPEDIT( bpedit_create )
 	else if( get_blueprint(value) )
 	{
 		send_to_char("That vnum already exists.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	bp = new_blueprint();
@@ -3036,7 +3036,7 @@ BPEDIT( bpedit_create )
 	if( bp->vnum > top_blueprint_vnum)
 		top_blueprint_vnum = bp->vnum;
 
-    return TRUE;
+    return true;
 
 }
 
@@ -3050,13 +3050,13 @@ BPEDIT( bpedit_name )
 	if (argument[0] == '\0')
 	{
 		send_to_char("Syntax:  name [string]\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	free_string(bp->name);
 	bp->name = str_dup(argument);
 	send_to_char("Name changed.\n\r", ch);
-	return TRUE;
+	return true;
 }
 
 BPEDIT( bpedit_repop )
@@ -3068,13 +3068,13 @@ BPEDIT( bpedit_repop )
 	if( !is_number(argument) )
 	{
 		send_to_char("Syntax:  repop [age]\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	int repop = atoi(argument);
 	bp->repop = UMAX(0, repop);
 	send_to_char("Repop changed.\n\r", ch);
-	return TRUE;
+	return true;
 }
 
 BPEDIT( bpedit_flags )
@@ -3088,18 +3088,18 @@ BPEDIT( bpedit_flags )
 	{
 		send_to_char("Syntax:  flags <flags>\n\r", ch);
 		send_to_char("'? instance' for list of flags.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if( (value = flag_value(instance_flags, argument)) != NO_FLAG )
 	{
 		bp->flags ^= value;
 		send_to_char("Instance flags changed.\n\r", ch);
-		return TRUE;
+		return true;
 	}
 
 	bpedit_flags(ch, "");
-	return FALSE;
+	return false;
 
 }
 
@@ -3113,11 +3113,11 @@ BPEDIT( bpedit_description )
 	if (argument[0] == '\0')
 	{
 		string_append(ch, &bp->description);
-		return TRUE;
+		return true;
 	}
 
 	send_to_char("Syntax:  description\n\r", ch);
-	return FALSE;
+	return false;
 }
 
 BPEDIT( bpedit_comments )
@@ -3129,11 +3129,11 @@ BPEDIT( bpedit_comments )
 	if (argument[0] == '\0')
 	{
 		string_append(ch, &bp->comments);
-		return TRUE;
+		return true;
 	}
 
 	send_to_char("Syntax:  comments\n\r", ch);
-	return FALSE;
+	return false;
 }
 
 BPEDIT( bpedit_areawho )
@@ -3147,7 +3147,7 @@ BPEDIT( bpedit_areawho )
 	{
 		send_to_char("Syntax:  areawho <value>\n\r", ch);
 		send_to_char("See '? areawho' for list\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if ( !str_prefix(argument, "blank") )
@@ -3155,7 +3155,7 @@ BPEDIT( bpedit_areawho )
 	    bp->area_who = AREA_BLANK;
 
 	    send_to_char("Area who title cleared.\n\r", ch);
-	    return TRUE;
+	    return true;
 	}
 
 
@@ -3164,11 +3164,11 @@ BPEDIT( bpedit_areawho )
 		bp->area_who = value;
 
 		send_to_char("Area who title set.\n\r", ch);
-		return TRUE;
+		return true;
 	}
 
 	bpedit_areawho(ch, "");
-	return FALSE;
+	return false;
 }
 
 BPEDIT( bpedit_mode )
@@ -3180,7 +3180,7 @@ BPEDIT( bpedit_mode )
 	if( argument[0] == '\0' )
 	{
 		send_to_char("Syntax:  mode static|procedural\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if( !str_prefix(argument, "static") )
@@ -3188,7 +3188,7 @@ BPEDIT( bpedit_mode )
 		if( bp->mode == BLUEPRINT_MODE_STATIC )
 		{
 			send_to_char("Blueprint is already in STATIC mode.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 
@@ -3204,17 +3204,17 @@ BPEDIT( bpedit_mode )
 		bp->static_exit_link = -1;
 
 		send_to_char("Blueprint changed to STATIC mode.\n\r", ch);
-		return TRUE;
+		return true;
 	}
 
 	if( !str_prefix(argument, "procedural") )
 	{
 		send_to_char("Procedural mode is not implemented yet.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	bpedit_mode(ch, "");
-	return FALSE;
+	return false;
 }
 
 BPEDIT( bpedit_section )
@@ -3230,7 +3230,7 @@ BPEDIT( bpedit_section )
 		send_to_char("Syntax:  section add <vnum>\n\r", ch);
 		send_to_char("         section delete <#>\n\r", ch);
 		send_to_char("         section list\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	argument = one_argument(argument, arg);
@@ -3240,25 +3240,25 @@ BPEDIT( bpedit_section )
 		if(!is_number(argument))
 		{
 			send_to_char("That is not a number.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		bs = get_blueprint_section(atol(argument));
 		if( !bs )
 		{
 			send_to_char("That blueprint section does not exist.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if( !list_appendlink(bp->sections, bs) )
 		{
 			send_to_char("{WError adding blueprint section to blueprint.{x\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 
 		send_to_char("Blueprint section added.\n\r", ch);
-		return TRUE;
+		return true;
 	}
 
 	if( !str_prefix(arg, "delete") )
@@ -3266,7 +3266,7 @@ BPEDIT( bpedit_section )
 		if(!is_number(argument))
 		{
 			send_to_char("That is not a number.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		int index = atoi(argument);
@@ -3274,7 +3274,7 @@ BPEDIT( bpedit_section )
 		if( index < 1 || index > list_size(bp->sections) )
 		{
 			send_to_char("Index out of range.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		list_remnthlink(bp->sections, index);
@@ -3336,7 +3336,7 @@ BPEDIT( bpedit_section )
 				bp->static_exit_section--;
 		}
 
-		return TRUE;
+		return true;
 	}
 
 	if( !str_prefix(arg, "list") )
@@ -3379,11 +3379,11 @@ BPEDIT( bpedit_section )
 			send_to_char("Blueprint has no blueprint sections assigned.\n\r", ch);
 		}
 
-		return FALSE;
+		return false;
 	}
 
 	bpedit_section(ch, "");
-	return FALSE;
+	return false;
 }
 
 BPEDIT( bpedit_static )
@@ -3396,7 +3396,7 @@ BPEDIT( bpedit_static )
 	if( bp->mode != BLUEPRINT_MODE_STATIC )
 	{
 		send_to_char("Blueprint is not in STATIC mode.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if( argument[0] == '\0' )
@@ -3413,7 +3413,7 @@ BPEDIT( bpedit_static )
 		send_to_char("         static special # remove\n\r", ch);
 		send_to_char("         static special # name <name>\n\r", ch);
 		send_to_char("         static special # room <section#> <room vnum>\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	argument = one_argument(argument, arg);
@@ -3432,7 +3432,7 @@ BPEDIT( bpedit_static )
 			send_to_char("         static special # remove\n\r", ch);
 			send_to_char("         static special # name <name>\n\r", ch);
 			send_to_char("         static special # room <section#> <room vnum>\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if( is_number(arg2) )
@@ -3444,7 +3444,7 @@ BPEDIT( bpedit_static )
 			if( !IS_VALID(special) )
 			{
 				send_to_char("No such special room.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			if( argument[0] == '\0' )
@@ -3452,14 +3452,14 @@ BPEDIT( bpedit_static )
 				send_to_char("Syntax:  static special # remove\n\r", ch);
 				send_to_char("         static special # name <name>\n\r", ch);
 				send_to_char("         static special # room <section#> <room vnum>\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			if( !str_prefix(argument, "remove") || !str_prefix(argument, "delete") )
 			{
 				list_remnthlink(bp->special_rooms, index);
 				send_to_char("Special Room removed.\n\r", ch);
-				return TRUE;
+				return true;
 			}
 
 
@@ -3470,14 +3470,14 @@ BPEDIT( bpedit_static )
 				if( argument[0] == '\0' )
 				{
 					send_to_char("Syntax:  static special # name <name>\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				free_string(special->name);
 				special->name = str_dup(argument);
 
 				send_to_char("Name changed.\n\r", ch);
-				return TRUE;
+				return true;
 			}
 
 			argument = one_argument(argument, arg4);
@@ -3487,7 +3487,7 @@ BPEDIT( bpedit_static )
 				if( !is_number(arg4) || !is_number(argument) )
 				{
 					send_to_char("That is not a number.\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				int section = atoi(arg4);
@@ -3496,7 +3496,7 @@ BPEDIT( bpedit_static )
 				if( section < 1 || section > list_size(bp->sections) )
 				{
 					send_to_char("Section number out of range.\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				BLUEPRINT_SECTION *bs = list_nthdata(bp->sections, section);
@@ -3504,26 +3504,26 @@ BPEDIT( bpedit_static )
 				if( vnum < bs->lower_vnum || vnum > bs->upper_vnum )
 				{
 					send_to_char("Room vnum not in the section.\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				if( !get_room_index(vnum) )
 				{
 					send_to_char("Room does not exist.\n\r", ch);
-					return FALSE;
+					return false;
 				}
 
 				special->section = section;
 				special->vnum = vnum;
 
 				send_to_char("Special room changed.\n\r", ch);
-				return TRUE;
+				return true;
 			}
 
 			send_to_char("Syntax:  static special # remove\n\r", ch);
 			send_to_char("         static special # name <name>\n\r", ch);
 			send_to_char("         static special # room <section#> <room vnum>\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if( !str_prefix(arg2, "add") )
@@ -3531,7 +3531,7 @@ BPEDIT( bpedit_static )
 			if( argument[0] == '\0' )
 			{
 				send_to_char("Syntax:  static special add <section#> <room vnum> <name>\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			argument = one_argument(argument, arg3);
@@ -3541,7 +3541,7 @@ BPEDIT( bpedit_static )
 			if( !is_number(arg3) || !is_number(arg4) )
 			{
 				send_to_char("That is not a number.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			int section = atoi(arg3);
@@ -3550,7 +3550,7 @@ BPEDIT( bpedit_static )
 			if( section < 1 || section > list_size(bp->sections) )
 			{
 				send_to_char("Section number out of range.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			BLUEPRINT_SECTION *bs = list_nthdata(bp->sections, section);
@@ -3558,13 +3558,13 @@ BPEDIT( bpedit_static )
 			if( vnum < bs->lower_vnum || vnum > bs->upper_vnum )
 			{
 				send_to_char("Room vnum not in the section.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			if( !get_room_index(vnum) )
 			{
 				send_to_char("Room does not exist.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			char name[MIL+1];
@@ -3582,14 +3582,14 @@ BPEDIT( bpedit_static )
 			list_appendlink(bp->special_rooms, special);
 
 			send_to_char("Special Room added.\n\r", ch);
-			return TRUE;
+			return true;
 		}
 
 		send_to_char("Syntax:  static special add <section#> <room vnum> <name>\n\r", ch);
 		send_to_char("         static special # remove\n\r", ch);
 		send_to_char("         static special # name <name>\n\r", ch);
 		send_to_char("         static special # room <section#> <room vnum>\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if( !str_prefix(arg, "link") )
@@ -3603,7 +3603,7 @@ BPEDIT( bpedit_static )
 		{
 			send_to_char("Syntax:  static link add <section1#> <link1#> <section2#> <link2#>\n\r", ch);
 			send_to_char("         static link remove #\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		argument = one_argument(argument, arg2);
@@ -3619,7 +3619,7 @@ BPEDIT( bpedit_static )
 			if( !is_number(arg3) || !is_number(arg4) || !is_number(arg5) || !is_number(argument) )
 			{
 				send_to_char("That is not a number.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			int section1 = atoi(arg3);
@@ -3630,27 +3630,27 @@ BPEDIT( bpedit_static )
 			if( section1 < 1 || section1 > list_size(bp->sections) )
 			{
 				send_to_char("Index out of range.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, section1);
 			if( !get_section_link(bs, link1) )
 			{
 				send_to_char("Link index out of range.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			if( section2 < 1 || section2 > list_size(bp->sections) )
 			{
 				send_to_char("Index out of range.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, section2);
 			if( !get_section_link(bs, link2) )
 			{
 				send_to_char("Link index out of range.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			STATIC_BLUEPRINT_LINK *sbl = new_static_blueprint_link();
@@ -3665,7 +3665,7 @@ BPEDIT( bpedit_static )
 			bp->static_layout = sbl;
 
 			send_to_char("Static link added.\n\r", ch);
-			return TRUE;
+			return true;
 		}
 
 		if( !str_prefix(arg2, "remove") )
@@ -3675,14 +3675,14 @@ BPEDIT( bpedit_static )
 			if( !is_number(arg2) )
 			{
 				send_to_char("That is not a number.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			int index = atoi(arg);
 			if( index < 1 )
 			{
 				send_to_char("Link does not exist.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			prev = NULL;
@@ -3697,17 +3697,17 @@ BPEDIT( bpedit_static )
 
 					free_static_blueprint_link(cur);
 					send_to_char("Link removed.\n\r", ch);
-					return TRUE;
+					return true;
 				}
 			}
 
 
 			send_to_char("Link does not exist.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		bpedit_static(ch, "link");
-		return FALSE;
+		return false;
 	}
 
 	if( !str_prefix(arg, "recall") )
@@ -3716,7 +3716,7 @@ BPEDIT( bpedit_static )
 		{
 			send_to_char("Syntax:  static recall <section#>\n\r", ch);
 			send_to_char("         static recall clear\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if( is_number(argument) )
@@ -3725,23 +3725,23 @@ BPEDIT( bpedit_static )
 			if( index < 1 || index > list_size(bp->sections) )
 			{
 				send_to_char("Index out of range.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			bp->static_recall = index;
 			send_to_char("Blueprint recall section changed.\n\r", ch);
-			return TRUE;
+			return true;
 		}
 
 		if( !str_prefix(argument, "clear") )
 		{
 			bp->static_recall = -1;
 			send_to_char("Blueprint recall section cleared.\n\r", ch);
-			return TRUE;
+			return true;
 		}
 
 		bpedit_static(ch, "recall");
-		return FALSE;
+		return false;
 	}
 
 	if( !str_prefix(arg, "entry") )
@@ -3752,7 +3752,7 @@ BPEDIT( bpedit_static )
 		{
 			send_to_char("Syntax:  static entry <section#> <link#>\n\r", ch);
 			send_to_char("         static entry clear\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		argument = one_argument(argument, arg2);
@@ -3765,7 +3765,7 @@ BPEDIT( bpedit_static )
 			if( section < 1 || section > list_size(bp->sections) )
 			{
 				send_to_char("Section index out of range.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, section);
@@ -3773,14 +3773,14 @@ BPEDIT( bpedit_static )
 			if( !get_section_link(bs, link) )
 			{
 				send_to_char("Link index out of range.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 
 			bp->static_entry_section = section;
 			bp->static_entry_link = link;
 			send_to_char("Blueprint entry point changed.\n\r", ch);
-			return TRUE;
+			return true;
 		}
 
 		if( !str_prefix(arg2, "clear") )
@@ -3788,11 +3788,11 @@ BPEDIT( bpedit_static )
 			bp->static_entry_section = -1;
 			bp->static_entry_link = -1;
 			send_to_char("Blueprint entry point cleared.\n\r", ch);
-			return TRUE;
+			return true;
 		}
 
 		bpedit_static(ch, "entry");
-		return FALSE;
+		return false;
 	}
 
 	if( !str_prefix(arg, "exit") )
@@ -3803,7 +3803,7 @@ BPEDIT( bpedit_static )
 		{
 			send_to_char("Syntax:  static exit <section#> <link#>\n\r", ch);
 			send_to_char("         static exit clear\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		argument = one_argument(argument, arg2);
@@ -3816,7 +3816,7 @@ BPEDIT( bpedit_static )
 			if( section < 1 || section > list_size(bp->sections) )
 			{
 				send_to_char("Section index out of range.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			BLUEPRINT_SECTION *bs = (BLUEPRINT_SECTION *)list_nthdata(bp->sections, section);
@@ -3824,14 +3824,14 @@ BPEDIT( bpedit_static )
 			if( !get_section_link(bs, link) )
 			{
 				send_to_char("Link index out of range.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 
 			bp->static_exit_section = section;
 			bp->static_exit_link = link;
 			send_to_char("Blueprint exit point changed.\n\r", ch);
-			return TRUE;
+			return true;
 		}
 
 		if( !str_prefix(arg2, "clear") )
@@ -3839,16 +3839,16 @@ BPEDIT( bpedit_static )
 			bp->static_exit_section = -1;
 			bp->static_exit_link = -1;
 			send_to_char("Blueprint exit point cleared.\n\r", ch);
-			return TRUE;
+			return true;
 		}
 
 		bpedit_static(ch, "exit");
-		return FALSE;
+		return false;
 	}
 
 
 	bpedit_static(ch, "");
-	return FALSE;
+	return false;
 }
 
 
@@ -3870,13 +3870,13 @@ BPEDIT (bpedit_addiprog)
     if (!is_number(num) || trigger[0] =='\0' || phrase[0] =='\0')
     {
 	send_to_char("Syntax:   addiprog [vnum] [trigger] [phrase]\n\r",ch);
-	return FALSE;
+	return false;
     }
 
     if ((tindex = trigger_index(trigger, PRG_IPROG)) < 0) {
 	send_to_char("Valid flags are:\n\r",ch);
 	show_help(ch, "iprog");
-	return FALSE;
+	return false;
     }
 
     slot = trigger_table[tindex].slot;
@@ -3884,7 +3884,7 @@ BPEDIT (bpedit_addiprog)
     if ((code = get_script_index (atol(num), PRG_IPROG)) == NULL)
     {
 	send_to_char("No such INSTANCEProgram.\n\r",ch);
-	return FALSE;
+	return false;
     }
 
     // Make sure this has a list of progs!
@@ -3901,7 +3901,7 @@ BPEDIT (bpedit_addiprog)
     list_appendlink(blueprint->progs[slot], list);
 
     send_to_char("Iprog Added.\n\r",ch);
-    return TRUE;
+    return true;
 }
 
 BPEDIT (bpedit_deliprog)
@@ -3916,7 +3916,7 @@ BPEDIT (bpedit_deliprog)
     if (!is_number(iprog) || iprog[0] == '\0')
     {
        send_to_char("Syntax:  deliprog [#iprog]\n\r",ch);
-       return FALSE;
+       return false;
     }
 
     value = atol (iprog);
@@ -3924,16 +3924,16 @@ BPEDIT (bpedit_deliprog)
     if (value < 0)
     {
         send_to_char("Only non-negative iprog-numbers allowed.\n\r",ch);
-        return FALSE;
+        return false;
     }
 
     if(!edit_deltrigger(blueprint->progs,value)) {
 	send_to_char("No such iprog.\n\r",ch);
-	return FALSE;
+	return false;
     }
 
     send_to_char("Iprog removed.\n\r", ch);
-    return TRUE;
+    return true;
 }
 
 BPEDIT(bpedit_varset)
@@ -3949,7 +3949,7 @@ BPEDIT(bpedit_varset)
 
     if (argument[0] == '\0') {
 	send_to_char("Syntax:  varset <name> <number|string|room> <yes|no> <value>\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     argument = one_argument(argument, name);
@@ -3958,38 +3958,38 @@ BPEDIT(bpedit_varset)
 
     if(!variable_validname(name)) {
 	send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     saved = !str_cmp(yesno,"yes");
 
     if(!argument[0]) {
 	send_to_char("Set what on the variable?\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if(!str_cmp(type,"room")) {
 	if(!is_number(argument)) {
 	    send_to_char("Specify a room vnum.\n\r", ch);
-	    return FALSE;
+	    return false;
 	}
 
 	variables_setindex_room(&blueprint->index_vars,name,atoi(argument),saved);
     } else if(!str_cmp(type,"string"))
-	variables_setindex_string(&blueprint->index_vars,name,argument,FALSE,saved);
+	variables_setindex_string(&blueprint->index_vars,name,argument,false,saved);
     else if(!str_cmp(type,"number")) {
 	if(!is_number(argument)) {
 	    send_to_char("Specify an integer.\n\r", ch);
-	    return FALSE;
+	    return false;
 	}
 
 	variables_setindex_integer(&blueprint->index_vars,name,atoi(argument),saved);
     } else {
 	send_to_char("Invalid type of variable.\n\r", ch);
-	return FALSE;
+	return false;
     }
     send_to_char("Variable set.\n\r", ch);
-    return TRUE;
+    return true;
 }
 
 BPEDIT(bpedit_varclear)
@@ -4000,21 +4000,21 @@ BPEDIT(bpedit_varclear)
 
     if (argument[0] == '\0') {
 	send_to_char("Syntax:  varclear <name>\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if(!variable_validname(argument)) {
 	send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     if(!variable_remove(&blueprint->index_vars,argument)) {
 	send_to_char("No such variable defined.\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     send_to_char("Variable cleared.\n\r", ch);
-    return TRUE;
+    return true;
 }
 
 
@@ -4043,7 +4043,7 @@ void do_instance(CHAR_DATA *ch, char *argument)
 			send_to_char("{RWARNING:{W Having scrolling off may limit how many instances you can see.{x\n\r", ch);
 
 		int lines = 0;
-		bool error = FALSE;
+		bool error = false;
 		BUFFER *buffer = new_buf();
 		char buf[MSL];
 
@@ -4074,7 +4074,7 @@ void do_instance(CHAR_DATA *ch, char *argument)
 
 			if( !add_buf(buffer, buf) || (!ch->lines && strlen(buf_string(buffer)) > MAX_STRING_LENGTH) )
 			{
-				error = TRUE;
+				error = true;
 				break;
 			}
 		}
@@ -4351,7 +4351,7 @@ INSTANCE_SECTION *instance_section_load(FILE *fp)
 {
 	char *word;
 	bool fMatch;
-	bool fError = FALSE;
+	bool fError = false;
 
 	INSTANCE_SECTION *section = new_instance_section();
 	long vnum = fread_number(fp);
@@ -4360,7 +4360,7 @@ INSTANCE_SECTION *instance_section_load(FILE *fp)
 
 	while (str_cmp((word = fread_word(fp)), "#-SECTION"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		switch(word[0])
 		{
@@ -4376,9 +4376,9 @@ INSTANCE_SECTION *instance_section_load(FILE *fp)
 					list_appendlink(section->rooms, room);
 				}
 				else
-					fError = TRUE;
+					fError = true;
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			break;
@@ -4404,7 +4404,7 @@ INSTANCE *instance_load(FILE *fp)
 {
 	char *word;
 	bool fMatch;
-	bool fError = FALSE;
+	bool fError = false;
 
 	INSTANCE *instance = new_instance();
 	long vnum = fread_number(fp);
@@ -4413,11 +4413,11 @@ INSTANCE *instance_load(FILE *fp)
 
 	instance->progs			= new_prog_data();
 	instance->progs->progs	= instance->blueprint->progs;
-	variable_copylist(&instance->blueprint->index_vars,&instance->progs->vars,FALSE);
+	variable_copylist(&instance->blueprint->index_vars,&instance->progs->vars,false);
 
 	while (str_cmp((word = fread_word(fp)), "#-INSTANCE"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		switch(word[0])
 		{
@@ -4436,9 +4436,9 @@ INSTANCE *instance_load(FILE *fp)
 					instance_section_tallyentities(section);
 				}
 				else
-					fError = TRUE;
+					fError = true;
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			break;
@@ -4453,7 +4453,7 @@ INSTANCE *instance_load(FILE *fp)
 				//log_string("get_clone_room: instance->entrance");
 				instance->entrance = get_clone_room(get_room_index(room_vnum), id1, id2);
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 
@@ -4466,7 +4466,7 @@ INSTANCE *instance_load(FILE *fp)
 				//log_string("get_clone_room: instance->exit");
 				instance->exit = get_clone_room(get_room_index(room_vnum), id1, id2);
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 
@@ -4483,7 +4483,7 @@ INSTANCE *instance_load(FILE *fp)
 				instance->object_uid[0] = fread_number(fp);
 				instance->object_uid[1] = fread_number(fp);
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			break;
@@ -4497,7 +4497,7 @@ INSTANCE *instance_load(FILE *fp)
 
 				instance_addowner_playerid(instance, uid[0], uid[1]);
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			break;
@@ -4512,7 +4512,7 @@ INSTANCE *instance_load(FILE *fp)
 				//log_string("get_clone_room: instance->recall");
 				instance->recall = get_clone_room(get_room_index(room_vnum), id1, id2);
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			break;

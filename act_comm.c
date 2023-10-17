@@ -74,12 +74,12 @@ void do_delete(CHAR_DATA *ch, char *argument)
 	if (ch->pcdata->confirm_delete) {
 		if (argument[0]) {
 			send_to_char("Delete status removed.\n\r",ch);
-			ch->pcdata->confirm_delete = FALSE;
+			ch->pcdata->confirm_delete = false;
 		} else {
 			sprintf( strsave, "%s%c/%s",PLAYER_DIR,tolower(ch->name[0]),
 			capitalize( ch->name ) );
 			wiznet("$N turns $Mself into line noise.",ch,NULL,0,0,0);
-			stop_fighting(ch,TRUE);
+			stop_fighting(ch,true);
 			do_function(ch, &do_quit, NULL);
 			unlink(strsave);
 		}
@@ -94,7 +94,7 @@ void do_delete(CHAR_DATA *ch, char *argument)
 	send_to_char("Type delete again to confirm this command.\n\r",ch);
 	send_to_char("{RWARNING: this command is irreversible.{x\n\r",ch);
 	send_to_char("Typing delete with an argument will undo delete status.\n\r", ch);
-	ch->pcdata->confirm_delete = TRUE;
+	ch->pcdata->confirm_delete = true;
 	wiznet("$N is contemplating deletion.",ch,NULL,0,0,get_trust(ch));
 }
 
@@ -267,20 +267,20 @@ bool can_speak_channels(CHAR_DATA *ch)
 {
 	if (IS_SET(ch->comm,COMM_QUIET)) {
 		send_to_char("You must turn off quiet mode first.\n\r",ch);
-		return FALSE;
+		return false;
 	}
 
 	if (IS_SET(ch->in_room->room_flags, ROOM_NOCOMM)) {
 		send_to_char("No one can hear you.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if (IS_SET(ch->comm,COMM_NOCHANNELS)) {
 		send_to_char("The gods have revoked your channel priviliges.\n\r",ch);
-		return FALSE;
+		return false;
 	}
 
-	return TRUE;
+	return true;
 }
 
 /* MOVED: channels.c */
@@ -644,7 +644,7 @@ void do_say(CHAR_DATA *ch, char *argument)
 	char buf2[MAX_STRING_LENGTH], msg[MSL];
 	int i;
 	char *second;
-	bool break_line = TRUE;
+	bool break_line = true;
 
 	if (!argument[0]) {
 	send_to_char("Say what?\n\r", ch);
@@ -674,7 +674,7 @@ void do_say(CHAR_DATA *ch, char *argument)
 	{
 	if (msg[i] == '!'
 	&& msg[i+1] != ' ')
-	break_line = FALSE;
+	break_line = false;
 	}
 
 	if (break_line)
@@ -701,7 +701,7 @@ void do_say(CHAR_DATA *ch, char *argument)
 	{
 	if (msg[i] == '?'
 	&& msg[i+1] != ' ')
-	break_line = FALSE;
+	break_line = false;
 	}
 
 	if (break_line)
@@ -728,7 +728,7 @@ void do_say(CHAR_DATA *ch, char *argument)
 	for (i = 0; msg[i] != '\0'; i++)
 	{
 	if (msg[i] == '.'
-	&& msg[i+1] != ' ') break_line = FALSE;
+	&& msg[i+1] != ' ') break_line = false;
 	}
 
 	if (break_line)
@@ -1104,10 +1104,10 @@ void do_emote(CHAR_DATA *ch, char *argument)
 	return;
 	}
 
-	MOBtrigger = FALSE;
+	MOBtrigger = false;
 	act("$n $T{x", ch, NULL, NULL, NULL, NULL, NULL, argument, TO_ROOM);
 	act("$n $T{x", ch, NULL, NULL, NULL, NULL, NULL, argument, TO_CHAR);
-	MOBtrigger = TRUE;
+	MOBtrigger = true;
 }
 
 
@@ -1196,7 +1196,7 @@ void do_quit(CHAR_DATA *ch, char *argument)
 	/* Make sure to unshift them first. Leave ch->shifted ON so we know to re-shift them
 	   back on login.*/
 	if (IS_SHIFTED(ch)) {
-	shift_char(ch, TRUE);
+	shift_char(ch, true);
 	ch->shifted = IS_VAMPIRE(ch) ? SHIFTED_WEREWOLF : SHIFTED_SLAYER;
 	}
 
@@ -1259,7 +1259,7 @@ void do_quit(CHAR_DATA *ch, char *argument)
 	if (obj->wear_loc != WEAR_NONE)
 	{
 	for (paf = obj->affected; paf != NULL; paf = paf->next)
-	affect_modify(ch, paf, FALSE);
+	affect_modify(ch, paf, false);
 	}
 	}
 
@@ -1286,10 +1286,10 @@ void do_quit(CHAR_DATA *ch, char *argument)
 	mount = MOUNTED(ch);
 
 	ch->mount = NULL;
-	ch->riding = FALSE;
+	ch->riding = false;
 
 	mount->rider = NULL;
-	mount->riding = FALSE;
+	mount->riding = false;
 
 	if (!str_cmp(mount->pIndexData->owner, ch->name))
 	{
@@ -1300,7 +1300,7 @@ void do_quit(CHAR_DATA *ch, char *argument)
 	char_to_room(mount, mount->home_room);
 	}
 	else
-	extract_char(mount, TRUE);
+	extract_char(mount, true);
 	}
 	}
 
@@ -1321,7 +1321,7 @@ void do_quit(CHAR_DATA *ch, char *argument)
 
 	connection_remove(d);
 
-	extract_char(ch, TRUE);
+	extract_char(ch, true);
 
 	if (d != NULL)
 	close_socket(d);
@@ -1335,7 +1335,7 @@ void do_quit(CHAR_DATA *ch, char *argument)
 	tch = d->original ? d->original : d->character;
 	if (tch && tch->id[0] == id[0] && tch->id[1] == id[1])
 	{
-	extract_char(tch,TRUE);
+	extract_char(tch,true);
 	close_socket(d);
 	}
 	}
@@ -1405,7 +1405,7 @@ void do_follow(CHAR_DATA *ch, char *argument)
 	send_to_char("You already follow yourself.\n\r", ch);
 	return;
 	}
-	stop_follower(ch,TRUE);
+	stop_follower(ch,true);
 	return;
 	}
 
@@ -1427,9 +1427,9 @@ void do_follow(CHAR_DATA *ch, char *argument)
 	REMOVE_BIT(ch->act,PLR_NOFOLLOW);
 
 	if (ch->master != NULL)
-	stop_follower(ch,TRUE);
+	stop_follower(ch,true);
 
-	add_follower(ch, victim,TRUE);
+	add_follower(ch, victim,true);
 }
 
 
@@ -1502,12 +1502,12 @@ void nuke_pets(CHAR_DATA *ch)
 
 	if ((pet = ch->pet) != NULL)
 	{
-	stop_follower(pet,TRUE);
+	stop_follower(pet,true);
 
 	if (pet->in_room != NULL)
 	act("$N slowly fades away.",ch,pet, NULL,NULL, NULL, NULL, NULL,TO_NOTVICT);
 
-	extract_char(pet,TRUE);
+	extract_char(pet,true);
 	}
 
 	ch->pet = NULL;
@@ -1517,12 +1517,12 @@ void nuke_pets(CHAR_DATA *ch)
 	if (ch->mount != NULL)
 	{
 	ch->mount->rider = NULL;
-	ch->mount->riding = FALSE;
+	ch->mount->riding = false;
 	}
 	}
 
 	ch->mount = NULL;
-	ch->riding = FALSE;
+	ch->riding = false;
 }
 
 
@@ -1535,7 +1535,7 @@ void die_follower(CHAR_DATA *ch)
 	if (ch->master != NULL)
 	{
 		ch->master->pet = NULL;
-		stop_follower(ch,TRUE);
+		stop_follower(ch,true);
 	}
 
 	stop_grouped(ch);
@@ -1544,10 +1544,10 @@ void die_follower(CHAR_DATA *ch)
 	while(( fch = (CHAR_DATA *)iterator_nextdata(&it)))
 	{
 		if (fch->master == ch)
-			stop_follower(fch,TRUE);
+			stop_follower(fch,true);
 
 		if (fch->leader == ch)
-			add_grouped(fch, fch, TRUE);
+			add_grouped(fch, fch, true);
 	}
 	iterator_stop(&it);
 }
@@ -1733,7 +1733,7 @@ void do_group(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (!add_grouped(victim, ch,TRUE))
+	if (!add_grouped(victim, ch,true))
 		return;
 
 	act_new("$N joins $n's group.",ch,victim,NULL,NULL,NULL,NULL,NULL,TO_NOTVICT,POS_RESTING,NULL);
@@ -1865,7 +1865,7 @@ void do_split(CHAR_DATA *ch, char *argument)
 void do_gtell(CHAR_DATA *ch, char *argument)
 {
 	CHAR_DATA *gch;
-	bool another_person = FALSE;
+	bool another_person = false;
 	ITERATOR it;
 
 	if (argument[0] == '\0') {
@@ -1884,7 +1884,7 @@ void do_gtell(CHAR_DATA *ch, char *argument)
 		if (is_same_group(gch, ch)) {
 			act_new("{C$$n tells the group '$t'{x", ch,gch,NULL,NULL,NULL,argument,NULL,TO_VICT,POS_SLEEPING,NULL);
 			if (gch != ch)
-				another_person = TRUE;
+				another_person = true;
 		}
 	}
 	iterator_stop(&it);
@@ -1904,14 +1904,14 @@ void do_gtell(CHAR_DATA *ch, char *argument)
 bool is_same_group(CHAR_DATA *ach, CHAR_DATA *bch)
 {
 	if (ach == NULL || bch == NULL)
-	return FALSE;
+	return false;
 
 	if (ach == bch)
-	return TRUE;
+	return true;
 
 	/* Mount fix */
 	if (ach == MOUNTED(bch) || bch == MOUNTED(ach))
-	return TRUE;
+	return true;
 
 	if (ach->leader != NULL)
 	ach = ach->leader;
@@ -1961,7 +1961,7 @@ bool add_grouped(CHAR_DATA *ch, CHAR_DATA *master, bool show)
 	send_to_char("You may only have 9 people in your group.\n\r", master);
 	act("$N's group is currently full.", ch, master, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 	}
-	return FALSE;
+	return false;
 	}
 
 	if (ch != master) {
@@ -1976,7 +1976,7 @@ bool add_grouped(CHAR_DATA *ch, CHAR_DATA *master, bool show)
 
 	p_percent_trigger( ch, NULL, NULL, NULL, master, NULL, NULL, NULL, NULL, TRIG_GROUPED, NULL);
 
-	return TRUE;
+	return true;
 }
 
 
@@ -2079,7 +2079,7 @@ void do_ignore(CHAR_DATA *ch, char *argument)
 	FILE *fp;
 	char player_name[MAX_STRING_LENGTH];
 	bool found_char;
-	bool remove = FALSE;
+	bool remove = false;
 
 	argument = one_argument(argument, arg);
 
@@ -2117,7 +2117,7 @@ void do_ignore(CHAR_DATA *ch, char *argument)
 	{
 	if (!str_prefix(arg, ignore->name))
 	{
-	remove = TRUE;
+	remove = true;
 	break;
 	}
 
@@ -2152,7 +2152,7 @@ void do_ignore(CHAR_DATA *ch, char *argument)
 	if ((victim = get_char_world(ch, arg)) != NULL
 	&& !IS_NPC(victim))
 	{
-	found_char = TRUE;
+	found_char = true;
 	sprintf(arg, "%s", capitalize(victim->name));
 	}
 	else
@@ -2160,11 +2160,11 @@ void do_ignore(CHAR_DATA *ch, char *argument)
 	sprintf(player_name, "%s%c/%s", PLAYER_DIR, tolower(arg[0]), capitalize(arg));
 	if ((fp = fopen(player_name, "r")) == NULL)
 	{
-	found_char = FALSE;
+	found_char = false;
 	}
 	else
 	{
-	found_char = TRUE;
+	found_char = true;
 	fclose (fp);
 	}
 	}
@@ -2360,14 +2360,14 @@ void do_qlist(CHAR_DATA *ch, char *argument)
 	return;
 	}
 
-	found = FALSE;
+	found = false;
 	string_prev = NULL;
 	for (string = ch->pcdata->quiet_people; string != NULL;
 	string = string->next)
 	{
 	if (!str_prefix(arg, string->string))
 	{
-	found = TRUE;
+	found = true;
 	break;
 	}
 
@@ -2402,7 +2402,7 @@ void do_qlist(CHAR_DATA *ch, char *argument)
 	if ((victim = get_char_world(ch, arg)) != NULL
 	&& !IS_NPC(victim))
 	{
-	found_char = TRUE;
+	found_char = true;
 	sprintf(arg, "%s", capitalize(victim->name));
 	}
 	else
@@ -2410,11 +2410,11 @@ void do_qlist(CHAR_DATA *ch, char *argument)
 	sprintf(player_name, "%s%c/%s", PLAYER_DIR, tolower(arg[0]), capitalize(arg));
 	if ((fp = fopen(player_name, "r")) == NULL)
 	{
-	found_char = FALSE;
+	found_char = false;
 	}
 	else
 	{
-	found_char = TRUE;
+	found_char = true;
 	fclose (fp);
 	}
 	}
@@ -2597,12 +2597,12 @@ void do_toggle(CHAR_DATA *ch, char *argument)
 	/* Toggle a setting */
 	argument = one_argument(argument, arg);
 
-	found = FALSE;
+	found = false;
 	for (i = 0; pc_set_table[i].name != NULL; i++)
 	{
 	if (!str_prefix(arg, pc_set_table[i].name)
 	&&  ch->tot_level >= pc_set_table[i].min_level) {
-	found = TRUE;
+	found = true;
 	break;
 	}
 	}
@@ -2854,7 +2854,7 @@ void do_sayto(CHAR_DATA *ch, char *argument)
 	int i;
 	char *second;
 	CHAR_DATA *victim;
-	bool break_line = TRUE;
+	bool break_line = true;
 
 	if (!argument[0]) {
 	send_to_char("Say to whom and what?\n\r", ch);
@@ -2891,7 +2891,7 @@ void do_sayto(CHAR_DATA *ch, char *argument)
 	buf[0] = '\0';
 	for (i = 0; msg[i]; i++)
 	if (msg[i] == '!' && msg[i+1] != ' ')
-	break_line = FALSE;
+	break_line = false;
 
 	if (break_line) {
 	second = stptok(msg, buf, sizeof(buf), "!");
@@ -2917,7 +2917,7 @@ void do_sayto(CHAR_DATA *ch, char *argument)
 
 	for (i = 0; msg[i]; i++)
 	if (msg[i] == '?' && msg[i+1] != ' ')
-	break_line = FALSE;
+	break_line = false;
 
 	if (break_line) {
 	second = stptok(msg, buf, sizeof(buf), "?");
@@ -2943,7 +2943,7 @@ void do_sayto(CHAR_DATA *ch, char *argument)
 
 	for (i = 0; msg[i] != '\0'; i++)
 	if (msg[i] == '.' && msg[i+1] != ' ')
-	break_line = FALSE;
+	break_line = false;
 
 	if (break_line) {
 	second = stptok(msg, buf, sizeof(buf), ".");

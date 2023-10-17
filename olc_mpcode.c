@@ -185,7 +185,7 @@ bool script_security_check(CHAR_DATA *ch)
 	if(port == PORT_NORMAL)
 		return (bool)(!IS_NPC(ch) && ch->tot_level >= (MAX_LEVEL-1));
 	else
-		return TRUE;
+		return true;
 }
 
 bool script_imp_check(CHAR_DATA *ch)
@@ -537,7 +537,7 @@ void ipedit( CHAR_DATA *ch, char *argument)
 	if (!str_prefix(command, ipedit_table[cmd].name) )
 	{
 		if ((*ipedit_table[cmd].olc_fun) (ch, argument) && pIcode)
-			blueprints_changed = TRUE;
+			blueprints_changed = true;
 		return;
 	}
     }
@@ -588,7 +588,7 @@ void dpedit( CHAR_DATA *ch, char *argument)
 	if (!str_prefix(command, dpedit_table[cmd].name) )
 	{
 		if ((*dpedit_table[cmd].olc_fun) (ch, argument) && pDcode)
-			dungeons_changed = TRUE;
+			dungeons_changed = true;
 		return;
 	}
     }
@@ -976,7 +976,7 @@ MPEDIT (mpedit_create)
 	if ( auto_vnum > ch->in_room->area->max_vnum ) {
 		send_to_char("Sorry, this area has no more space left.\n\r",
 				ch );
-		return FALSE;
+		return false;
 	}
     }
 
@@ -987,19 +987,19 @@ MPEDIT (mpedit_create)
     if ( ad == NULL )
     {
     	send_to_char( "MPEdit : Vnum is not assigned an area.\n\r", ch );
-    	return FALSE;
+    	return false;
     }
 
     if ( !IS_BUILDER(ch, ad) )
     {
         send_to_char("MPEdit : Insufficient security to create MobProgs.\n\r", ch);
-        return FALSE;
+        return false;
     }
 
     if ( get_script_index(value,PRG_MPROG) )
     {
 	send_to_char("MPEdit: Code vnum already exists.\n\r",ch);
-	return FALSE;
+	return false;
     }
 
     pMcode			= new_script();
@@ -1013,7 +1013,7 @@ MPEDIT (mpedit_create)
 
     send_to_char("MobProgram Code Created.\n\r",ch);
 
-    return TRUE;
+    return true;
 }
 
 OPEDIT (opedit_create)
@@ -1042,7 +1042,7 @@ OPEDIT (opedit_create)
 	if ( auto_vnum > ch->in_room->area->max_vnum ) {
 		send_to_char("Sorry, this area has no more space left.\n\r",
 				ch );
-		return FALSE;
+		return false;
 	}
     }
 
@@ -1051,7 +1051,7 @@ OPEDIT (opedit_create)
     if (IS_NULLSTR(argument) || value < 1)
     {
 	send_to_char( "Syntax : opedit create [vnum]\n\r", ch );
-	return FALSE;
+	return false;
     }*/
 
     ad = get_vnum_area(value);
@@ -1059,19 +1059,19 @@ OPEDIT (opedit_create)
     if ( ad == NULL )
     {
     	send_to_char( "OPEdit : Vnum is not assigned an area.\n\r", ch );
-    	return FALSE;
+    	return false;
     }
 
     if ( !IS_BUILDER(ch, ad) )
     {
         send_to_char("OPEdit : Insufficient security to create ObjProgs.\n\r", ch);
-        return FALSE;
+        return false;
     }
 
     if ( get_script_index(value,PRG_OPROG) )
     {
 	send_to_char("OPEdit: Code vnum already exists.\n\r",ch);
-	return FALSE;
+	return false;
     }
 
     pOcode			= new_script();
@@ -1085,7 +1085,7 @@ OPEDIT (opedit_create)
 
     send_to_char("ObjProgram Code Created.\n\r",ch);
 
-    return TRUE;
+    return true;
 }
 
 RPEDIT (rpedit_create)
@@ -1114,7 +1114,7 @@ RPEDIT (rpedit_create)
 	if ( auto_vnum > ch->in_room->area->max_vnum ) {
 		send_to_char("Sorry, this area has no more space left.\n\r",
 				ch );
-		return FALSE;
+		return false;
 	}
     }
 
@@ -1124,7 +1124,7 @@ RPEDIT (rpedit_create)
     if (IS_NULLSTR(argument) || value < 1)
     {
 	send_to_char( "Syntax : rpedit create [vnum]\n\r", ch );
-	return FALSE;
+	return false;
     }
 */
     ad = get_vnum_area(value);
@@ -1132,19 +1132,19 @@ RPEDIT (rpedit_create)
     if ( ad == NULL )
     {
     	send_to_char( "RPEdit : Vnum is not assigned an area.\n\r", ch );
-    	return FALSE;
+    	return false;
     }
 
     if ( !IS_BUILDER(ch, ad) )
     {
         send_to_char("RPEdit : Insufficient security to create RoomProgs.\n\r", ch);
-        return FALSE;
+        return false;
     }
 
     if ( get_script_index(value,PRG_RPROG) )
     {
 	send_to_char("RPEdit: Code vnum already exists.\n\r",ch);
-	return FALSE;
+	return false;
     }
 
     pRcode			= new_script();
@@ -1158,7 +1158,7 @@ RPEDIT (rpedit_create)
 
     send_to_char("RoomProgram Code Created.\n\r",ch);
 
-    return TRUE;
+    return true;
 }
 
 TPEDIT (tpedit_create)
@@ -1187,7 +1187,7 @@ TPEDIT (tpedit_create)
 	if ( auto_vnum > ch->in_room->area->max_vnum ) {
 		send_to_char("Sorry, this area has no more space left.\n\r",
 				ch );
-		return FALSE;
+		return false;
 	}
     }
 
@@ -1197,7 +1197,7 @@ TPEDIT (tpedit_create)
     if (IS_NULLSTR(argument) || value < 1)
     {
 	send_to_char( "Syntax : rpedit create [vnum]\n\r", ch );
-	return FALSE;
+	return false;
     }
 */
     ad = get_vnum_area(value);
@@ -1205,19 +1205,19 @@ TPEDIT (tpedit_create)
     if ( ad == NULL )
     {
     	send_to_char( "TPEdit : Vnum is not assigned an area.\n\r", ch );
-    	return FALSE;
+    	return false;
     }
 
     if ( !IS_BUILDER(ch, ad) )
     {
         send_to_char("TPEdit : Insufficient security to create TokenProgs.\n\r", ch);
-        return FALSE;
+        return false;
     }
 
     if ( get_script_index(value,PRG_TPROG) )
     {
 	send_to_char("TPEdit: Code vnum already exists.\n\r",ch);
-	return FALSE;
+	return false;
     }
 
     pTcode			= new_script();
@@ -1231,7 +1231,7 @@ TPEDIT (tpedit_create)
 
     send_to_char("TokenProgram Code Created.\n\r",ch);
 
-    return TRUE;
+    return true;
 }
 
 
@@ -1261,7 +1261,7 @@ APEDIT (apedit_create)
 
 		if ( auto_vnum > ch->in_room->area->max_vnum ) {
 			send_to_char("Sorry, this area has no more space left.\n\r", ch );
-			return FALSE;
+			return false;
 		}
 	}
 
@@ -1272,19 +1272,19 @@ APEDIT (apedit_create)
 	if ( ad == NULL )
 	{
 		send_to_char( "APEdit : Vnum is not assigned an area.\n\r", ch );
-		return FALSE;
+		return false;
 	}
 
 	if ( !IS_BUILDER(ch, ad) )
 	{
 	send_to_char("APEdit : Insufficient security to create AreaProgs.\n\r", ch);
-	return FALSE;
+	return false;
 	}
 
 	if ( get_script_index(value,PRG_APROG) )
 	{
 	send_to_char("APEdit: Code vnum already exists.\n\r",ch);
-	return FALSE;
+	return false;
 	}
 
 	pAcode			= new_script();
@@ -1298,7 +1298,7 @@ APEDIT (apedit_create)
 
 	send_to_char("AreaProgram Code Created.\n\r",ch);
 
-	return TRUE;
+	return true;
 }
 
 IPEDIT (ipedit_create)
@@ -1328,13 +1328,13 @@ IPEDIT (ipedit_create)
 	if ( !can_edit_blueprints(ch) )
 	{
 		send_to_char("IPEdit : Insufficient security to create InstanceProgs.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if ( get_script_index(value,PRG_IPROG) )
 	{
 		send_to_char("IPEdit: Code vnum already exists.\n\r",ch);
-		return FALSE;
+		return false;
 	}
 
 	pIcode			= new_script();
@@ -1351,7 +1351,7 @@ IPEDIT (ipedit_create)
 
 	send_to_char("InstanceProgram Code Created.\n\r",ch);
 
-	return TRUE;
+	return true;
 }
 
 DPEDIT (dpedit_create)
@@ -1381,13 +1381,13 @@ DPEDIT (dpedit_create)
 	if ( !can_edit_dungeons(ch) )
 	{
 		send_to_char("DPEdit : Insufficient security to create DungeonProgs.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if ( get_script_index(value,PRG_DPROG) )
 	{
 		send_to_char("DPEdit: Code vnum already exists.\n\r",ch);
-		return FALSE;
+		return false;
 	}
 
 	pDcode			= new_script();
@@ -1404,7 +1404,7 @@ DPEDIT (dpedit_create)
 
 	send_to_char("DungeonProgram Code Created.\n\r",ch);
 
-	return TRUE;
+	return true;
 }
 
 
@@ -1439,7 +1439,7 @@ SCRIPTEDIT(scriptedit_show)
 		send_to_char(buf,ch);
 	}
 
-    return FALSE;
+    return false;
 }
 
 // @@@NIB : 20070123 : Made the editor use a COPY of the script source
@@ -1454,9 +1454,9 @@ SCRIPTEDIT(scriptedit_code)
 		// If they so much as EDIT the code and not authorized.
 		if (IS_SET(pCode->flags,SCRIPT_SECURED) && !script_imp_check(ch)) {
 			REMOVE_BIT(pCode->flags,SCRIPT_SECURED);
-			ret = TRUE;
+			ret = true;
 		} else
-			ret = FALSE;
+			ret = false;
 						//
 		if(pCode->edit_src == pCode->src) pCode->edit_src = str_dup(pCode->src);
 			string_append(ch, &pCode->edit_src);
@@ -1464,7 +1464,7 @@ SCRIPTEDIT(scriptedit_code)
 	}
 
 	send_to_char("Syntax: code\n\r",ch);
-	return FALSE;
+	return false;
 }
 
 SCRIPTEDIT(scriptedit_comments)
@@ -1476,11 +1476,11 @@ SCRIPTEDIT(scriptedit_comments)
     if (argument[0] != '\0')
     {
 	send_to_char("Syntax:  comment\n\r", ch);
-	return FALSE;
+	return false;
     }
 
     string_append(ch, &pCode->comments);
-    return TRUE;
+    return true;
 }
 
 SCRIPTEDIT(scriptedit_compile)
@@ -1494,7 +1494,7 @@ SCRIPTEDIT(scriptedit_compile)
 		buffer = new_buf();
 		if(!buffer) {
 			send_to_char("WTF?! Couldn't create the buffer!\n\r",ch);
-			return FALSE;
+			return false;
 		}
 
 		if (ch->tot_level < (MAX_LEVEL-1))
@@ -1502,7 +1502,7 @@ SCRIPTEDIT(scriptedit_compile)
 
 		if (pCode->src && pCode->edit_src && ((pCode->src == pCode->edit_src) || !str_cmp(pCode->src,pCode->edit_src))) {
 			send_to_char("Script is up-to-date.  Nothing to compile.\n\r",ch);
-			return FALSE;
+			return false;
 		}
 
 		if(compile_script(buffer,pCode,pCode->edit_src,olc_script_typeifc[pCode->type]))
@@ -1511,11 +1511,11 @@ SCRIPTEDIT(scriptedit_compile)
 		page_to_char(buf_string(buffer), ch);
 		free_buf(buffer);
 
-		return TRUE;
+		return true;
 	}
 
 	send_to_char("Syntax: compile\n\r",ch);
-	return FALSE;
+	return false;
 }
 
 SCRIPTEDIT(scriptedit_name)
@@ -1525,14 +1525,14 @@ SCRIPTEDIT(scriptedit_name)
 
 	if (!argument[0]) {
 		send_to_char("Syntax:  name [string]\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	free_string(pCode->name);
 	pCode->name = str_dup(argument);
 
 	send_to_char("Name set.\n\r", ch);
-	return TRUE;
+	return true;
 }
 
 SCRIPTEDIT(scriptedit_flags)
@@ -1546,30 +1546,30 @@ SCRIPTEDIT(scriptedit_flags)
 
 		if (!script_security_check(ch)) {
 			send_to_char("You must be level 154 or higher to toggle these.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if ((value = flag_value(script_flags, argument)) != NO_FLAG) {
 			if(IS_SET(value,SCRIPT_SECURED) && !IS_SET(pCode->flags,SCRIPT_SECURED) && !script_imp_check(ch)) {
 				send_to_char("Insufficent security to set script as secured.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			if(IS_SET(value,SCRIPT_SYSTEM) && !IS_SET(pCode->flags,SCRIPT_SYSTEM) && !script_imp_check(ch)) {
 				send_to_char("Insufficent security to set script as system.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			TOGGLE_BIT(pCode->flags, value);
 
 			send_to_char("Script flag toggled.\n\r", ch);
-			return TRUE;
+			return true;
 		}
 	}
 
 	send_to_char("Syntax:  flags [flag]\n\r"
 		"Type '? scriptflags' for a list of flags.\n\r", ch);
-	return FALSE;
+	return false;
 }
 
 SCRIPTEDIT(scriptedit_depth)
@@ -1581,7 +1581,7 @@ SCRIPTEDIT(scriptedit_depth)
 
 	if (!script_security_check(ch)) {
 		send_to_char("You must be level 154 or higher to set call depth.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 
@@ -1592,7 +1592,7 @@ SCRIPTEDIT(scriptedit_depth)
 			if(value < 1) {
 				send_to_char("Invalid call depth.\n\r", ch);
 				send_to_char("Syntax:  depth [num>0|infinite|default]\n\r", ch);
-				return FALSE;
+				return false;
 			}
 		} else if(!str_prefix(argument,"infinite"))
 			value = -1;
@@ -1601,18 +1601,18 @@ SCRIPTEDIT(scriptedit_depth)
 		else {
 			send_to_char("Invalid call depth.\n\r", ch);
 			send_to_char("Syntax:  depth [num>0|infinite|default]\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 
 		pCode->depth = value;
 
 		send_to_char("Script call depth set.\n\r", ch);
-		return TRUE;
+		return true;
 	}
 
 	send_to_char("Syntax:  depth [num>0|infinite|default]\n\r", ch);
-	return FALSE;
+	return false;
 }
 
 
@@ -1625,7 +1625,7 @@ SCRIPTEDIT(scriptedit_security)
 
 	if (!script_imp_check(ch)) {
 		send_to_char("Only an IMP can set security on a script.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if (is_number(argument)) {
@@ -1634,17 +1634,17 @@ SCRIPTEDIT(scriptedit_security)
 			char buf[MIL];
 			sprintf(buf,"Security may only be from %d to %d.\n\r", MIN_SCRIPT_SECURITY, MAX_SCRIPT_SECURITY);
 			send_to_char(buf, ch);
-			return FALSE;
+			return false;
 		}
 
 		pCode->security = value;
 
 		send_to_char("Script security set.\n\r", ch);
-		return TRUE;
+		return true;
 	}
 
 	send_to_char("Syntax:  security <0-9>\n\r", ch);
-	return FALSE;
+	return false;
 }
 
 
@@ -1724,7 +1724,7 @@ void show_script_list(CHAR_DATA *ch, char *argument,int type)
 
     buffer = new_buf();
 
-    error = FALSE;
+    error = false;
     for( long vnum = min; vnum <= max; vnum++)
     {
     	prg = get_script_index(vnum, type);
@@ -1771,7 +1771,7 @@ void show_script_list(CHAR_DATA *ch, char *argument,int type)
 		buf[len+2] = 0;
 		count++;
 		if(!add_buf(buffer, buf) || (!ch->lines && strlen(buf_string(buffer)) > MAX_STRING_LENGTH)) {
-			error = TRUE;
+			error = true;
 			break;
 		}
 
@@ -1800,43 +1800,43 @@ void show_script_list(CHAR_DATA *ch, char *argument,int type)
 MPEDIT( mpedit_list )
 {
 	show_script_list(ch,argument,PRG_MPROG);
-	return FALSE;
+	return false;
 }
 
 OPEDIT( opedit_list )
 {
 	show_script_list(ch,argument,PRG_OPROG);
-	return FALSE;
+	return false;
 }
 
 RPEDIT( rpedit_list )
 {
 	show_script_list(ch,argument,PRG_RPROG);
-	return FALSE;
+	return false;
 }
 
 TPEDIT( tpedit_list )
 {
 	show_script_list(ch,argument,PRG_TPROG);
-	return FALSE;
+	return false;
 }
 
 APEDIT( apedit_list )
 {
 	show_script_list(ch,argument,PRG_APROG);
-	return FALSE;
+	return false;
 }
 
 IPEDIT( ipedit_list )
 {
 	show_script_list(ch,argument,PRG_IPROG);
-	return FALSE;
+	return false;
 }
 
 DPEDIT( dpedit_list )
 {
 	show_script_list(ch,argument,PRG_DPROG);
-	return FALSE;
+	return false;
 }
 
 

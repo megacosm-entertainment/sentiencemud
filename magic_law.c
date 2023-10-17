@@ -22,13 +22,13 @@ SPELL_FUNC(spell_armour)
 {
 	CHAR_DATA *victim = (CHAR_DATA *) vo;
 	AFFECT_DATA af;
-	bool perm = FALSE;
+	bool perm = false;
 
 	memset(&af,0,sizeof(af));
 
 	if (level > MAGIC_WEAR_SPELL) {
 		level -= MAGIC_WEAR_SPELL;
-		perm = TRUE;
+		perm = true;
 	}
 
 	if (perm && is_affected(victim, sn)) {
@@ -38,7 +38,7 @@ SPELL_FUNC(spell_armour)
 			send_to_char("You are already armoured.\n\r",ch);
 		else
 			act("$N is already armoured.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	af.slot = obj_wear_loc;
@@ -54,7 +54,7 @@ SPELL_FUNC(spell_armour)
 	affect_to_char(victim, &af);
 	send_to_char("You feel someone protecting you.\n\r", victim);
 	if (ch != victim) act("$N is protected by your magic.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_cloak_of_guile)
@@ -62,13 +62,13 @@ SPELL_FUNC(spell_cloak_of_guile)
 	CHAR_DATA *victim;
 	AFFECT_DATA af;
 	memset(&af,0,sizeof(af));
-	bool perm = FALSE;
+	bool perm = false;
 
 	victim = (CHAR_DATA *) vo;
 
 	if (level > MAGIC_WEAR_SPELL) {
 		level -= MAGIC_WEAR_SPELL;
-		perm = TRUE;
+		perm = true;
 	}
 
 	if (perm && is_affected(victim, sn)) {
@@ -78,7 +78,7 @@ SPELL_FUNC(spell_cloak_of_guile)
 			send_to_char("You are already enshrouded.\n\r",ch);
 		else
 			act("$N is already enshrouded.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	af.slot = obj_wear_loc;
@@ -95,7 +95,7 @@ SPELL_FUNC(spell_cloak_of_guile)
 
 	send_to_char("You feel shrouded.\n\r", victim);
 	act("$n shimmers with a dark green glow.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_entrap)
@@ -105,7 +105,7 @@ SPELL_FUNC(spell_entrap)
 	if (IS_SET(obj->extra_flags, ITEM_HOLY) ||
 		obj->item_type == ITEM_ARTIFACT) {
 		act("$p is too powerful for you to entrap.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	act("$p vibrates for a second, then stops.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
@@ -113,7 +113,7 @@ SPELL_FUNC(spell_entrap)
 
 	obj->trap_dam = level + dice(get_skill(ch, sn),3);
 	SET_BIT(obj->extra_flags, ITEM_TRAPPED);
-	return TRUE;
+	return true;
 }
 
 
@@ -126,7 +126,7 @@ SPELL_FUNC(spell_faerie_fire)
 	memset(&af,0,sizeof(af));
 
 	if (IS_AFFECTED(victim, AFF_FAERIE_FIRE))
-		return FALSE;
+		return false;
 
 	af.slot	= obj_wear_loc;
 	af.where = TO_AFFECTS;
@@ -143,7 +143,7 @@ SPELL_FUNC(spell_faerie_fire)
 	send_to_char("You are surrounded by a pink outline.\n\r", victim);
 	act("$n is surrounded by a pink outline.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-	return TRUE;
+	return true;
 }
 
 
@@ -161,7 +161,7 @@ SPELL_FUNC(spell_identify)
 
 	if (IS_SET(obj->extra2_flags, ITEM_NO_LORE)) {
 		act("$p is beyond your power to identify.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	buffer = new_buf();
@@ -478,7 +478,7 @@ SPELL_FUNC(spell_identify)
 	else if(sn == gsn_identify)
 		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_IDENTIFY, NULL);
 
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_locate_object)
@@ -493,9 +493,9 @@ SPELL_FUNC(spell_locate_object)
 	ITERATOR it;
 
 	if (!target_name)
-		return FALSE;
+		return false;
 
-	found = FALSE;
+	found = false;
 	number = 0;
 	max_found = IS_IMMORTAL(ch) ? 200 : 2 * level;
 
@@ -510,7 +510,7 @@ SPELL_FUNC(spell_locate_object)
 			ch->tot_level < obj->level)
 			continue;
 
-		found = TRUE;
+		found = true;
 		number++;
 
 		for (in_obj = obj; in_obj->in_obj; in_obj = in_obj->in_obj);
@@ -548,7 +548,7 @@ SPELL_FUNC(spell_locate_object)
 		page_to_char(buf_string(buffer),ch);
 
 	free_buf(buffer);
-	return TRUE;
+	return true;
 }
 
 
@@ -556,12 +556,12 @@ SPELL_FUNC(spell_pass_door)
 {
 	CHAR_DATA *victim = (CHAR_DATA *) vo;
 	AFFECT_DATA af;
-	bool perm = FALSE;
+	bool perm = false;
 	memset(&af,0,sizeof(af));
 
 	if (level > MAGIC_WEAR_SPELL) {
 		level -= MAGIC_WEAR_SPELL;
-		perm = TRUE;
+		perm = true;
 	}
 
 	if (perm && is_affected(victim, sn)) {
@@ -571,7 +571,7 @@ SPELL_FUNC(spell_pass_door)
 			send_to_char("You are already out of phase.\n\r",ch);
 		else
 			act("$N is already shifted out of phase.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	af.slot = obj_wear_loc;
@@ -588,7 +588,7 @@ SPELL_FUNC(spell_pass_door)
 
 	act("$n turns translucent.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 	send_to_char("You turn translucent.\n\r", victim);
-	return TRUE;
+	return true;
 }
 
 
@@ -597,7 +597,7 @@ SPELL_FUNC(spell_room_shield)
 	OBJ_DATA *roomshield;
 	OBJ_DATA *obj;
 	int catalyst;
-	bool outside = FALSE;
+	bool outside = false;
 
 	catalyst = has_catalyst(ch,NULL,CATALYST_LAW,CATALYST_INVENTORY|CATALYST_ACTIVE,1,CATALYST_MAXSTRENGTH);
 
@@ -605,10 +605,10 @@ SPELL_FUNC(spell_room_shield)
 		if( catalyst >= 0 ) {
 			if ( catalyst < 10 ) {
 				send_to_char("You may not cast this spell outdoors.\n\r", ch);
-				return FALSE;
+				return false;
 			} else {
 				catalyst -= 10;
-				outside = TRUE;
+				outside = true;
 			}
 		}
 	}
@@ -616,7 +616,7 @@ SPELL_FUNC(spell_room_shield)
 	for (obj = ch->in_room->contents; obj; obj = obj->next_content)
 		if (obj->item_type == ITEM_ROOM_ROOMSHIELD) {
 			send_to_char("A room shield has already been set up here.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 	if( catalyst > 0 )
@@ -628,12 +628,12 @@ SPELL_FUNC(spell_room_shield)
 
 		cost = outside ? (catalyst + 10) : catalyst;	// Being outdoors weakens the use of the catalyst, but is part of the cost
 
-		use_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY|CATALYST_ACTIVE,cost,1,CATALYST_MAXSTRENGTH,TRUE);
+		use_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY|CATALYST_ACTIVE,cost,1,CATALYST_MAXSTRENGTH,true);
 	}
 	else if(catalyst < 0)
 		catalyst = 10;
 
-	roomshield = create_object(get_obj_index(OBJ_VNUM_ROOMSHIELD), 0, TRUE);
+	roomshield = create_object(get_obj_index(OBJ_VNUM_ROOMSHIELD), 0, true);
 	roomshield->timer = 3 + ((3 * catalyst * catalyst + 1) / 4);
 	roomshield->level = ch->tot_level;
 	roomshield->owner = str_dup(ch->name);
@@ -643,7 +643,7 @@ SPELL_FUNC(spell_room_shield)
 	act("{YThe fizzling energy orb quickly expands to fill the entire room!{X",   ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 	act("{YAn orb of energy forms in your hands and you cast it at the ground before you.{X",   ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 	act("{YThe fizzling energy orb quickly expands to fill the entire room!{X",   ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	return TRUE;
+	return true;
 }
 
 
@@ -655,33 +655,33 @@ SPELL_FUNC(spell_word_of_recall)
 	ROOM_INDEX_DATA *location;
 
 	if (IS_NPC(victim))
-		return FALSE;
+		return false;
 
 	if(p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECALL, NULL) ||
 		p_percent_trigger(NULL, NULL, ch->in_room, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECALL, NULL))
-		return FALSE;
+		return false;
 
 	location = get_recall_room(ch);
 
 	if (location == NULL) {
 		send_to_char("You are completely lost.\n\r",victim);
-		return FALSE;
+		return false;
 	}
 
 	//Added area_no_recall check to go with corresponding area flag - Areo 08-10-2006
 	if (IS_SET(victim->in_room->room_flags,ROOM_NO_RECALL) || IS_AFFECTED(victim,AFF_CURSE) || IS_SET(victim->in_room->area->area_flags, AREA_NO_RECALL)) {
 		send_to_char("Your attempt to recall has failed.\n\r",victim);
-		return FALSE;
+		return false;
 	}
 
 	if (ch->no_recall > 0) {
 		send_to_char("You can't summon enough energy.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if (victim->fighting) {
 		send_to_char("The gods look down and grin with interest. Finish the fight!\n\r", victim);
-		return FALSE;
+		return false;
 	}
 
 	victim->move /= 2;
@@ -691,5 +691,5 @@ SPELL_FUNC(spell_word_of_recall)
 	char_to_room(victim,location);
 	act("{W$n appears in the room.{x",victim, NULL, NULL, NULL, NULL,NULL,NULL,TO_ROOM);
 	do_function(victim, &do_look, "auto");
-	return TRUE;
+	return true;
 }

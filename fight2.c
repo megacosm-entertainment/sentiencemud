@@ -39,7 +39,7 @@ void do_smite(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (is_safe(ch, victim, TRUE))
+	if (is_safe(ch, victim, true))
 		return;
 
 	wield = get_eq_char(ch, WEAR_WIELD);
@@ -96,11 +96,11 @@ void do_smite(CHAR_DATA *ch, char *argument)
 		act("{R$n smites you with a powerful $t!{x", ch, victim, NULL, NULL, NULL, attack_table[wield->value[3]].noun, NULL, TO_VICT);
 
 		victim->set_death_type = DEATHTYPE_SMITE;
-		damage(ch, victim, 30000, gsn_smite, DAM_NONE, TRUE);
-		check_improve(ch, gsn_smite, FALSE, 1);
+		damage(ch, victim, 30000, gsn_smite, DAM_NONE, true);
+		check_improve(ch, gsn_smite, false, 1);
 	} else {
-		damage(ch, victim, dice(wield->value[1]*2,wield->value[2]*2), gsn_smite, DAM_HOLY, TRUE);
-		check_improve(ch, gsn_smite, FALSE, 1);
+		damage(ch, victim, dice(wield->value[1]*2,wield->value[2]*2), gsn_smite, DAM_HOLY, true);
+		check_improve(ch, gsn_smite, false, 1);
 	}
 }
 
@@ -181,8 +181,8 @@ void do_stake(CHAR_DATA *ch, char *argument)
 			p_percent_trigger(NULL, NULL, here, NULL, ch, victim, NULL, NULL, NULL, TRIG_DEATH, NULL);
 	}
 
-	raw_kill(victim, FALSE, TRUE, RAWKILL_INCINERATE);
-	check_improve(ch, gsn_stake, TRUE, 1);
+	raw_kill(victim, false, true, RAWKILL_INCINERATE);
+	check_improve(ch, gsn_stake, true, 1);
 	return;
     }
     else
@@ -191,8 +191,8 @@ void do_stake(CHAR_DATA *ch, char *argument)
 	act("You awake to the sight of $n looming over you with $p in $s hand!", ch, victim, NULL, stake, NULL, NULL, NULL, TO_VICT);
 	act("$n sneaks up on $N, stakeing $p, but wakes $M!", ch, victim, NULL, stake, NULL, NULL, NULL, TO_NOTVICT);
 
-	one_hit(victim, ch, 0, FALSE);
-	check_improve(ch, gsn_stake, FALSE, 1);
+	one_hit(victim, ch, 0, false);
+	check_improve(ch, gsn_stake, false, 1);
     }
 }
 
@@ -232,7 +232,7 @@ void do_trample(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (is_safe(ch,victim,TRUE))
+	if (is_safe(ch,victim,true))
 		return;
 
 	mount = MOUNTED(ch);
@@ -274,14 +274,14 @@ void do_trample(CHAR_DATA *ch, char *argument)
 			damclass = victim->hit_class;
 			victim->hit_damage = 0;
 			victim->hit_class = DAM_NONE;
-			damage(ch, victim, dam, gsn_trample, damclass, TRUE);
+			damage(ch, victim, dam, gsn_trample, damclass, true);
 		} else {
 			victim->hit_damage = 0;
 			victim->hit_class = DAM_NONE;
 		}
 
-		check_improve(ch, gsn_trample, TRUE, 1);
-		check_improve(ch, gsn_riding, TRUE, 10);
+		check_improve(ch, gsn_trample, true, 1);
+		check_improve(ch, gsn_riding, true, 10);
 		victim->position = POS_RESTING;
 		victim->bashed = skill_table[gsn_trample].beats;
 		WAIT_STATE(ch, skill_table[gsn_trample].beats);
@@ -296,8 +296,8 @@ void do_trample(CHAR_DATA *ch, char *argument)
 			act("{R$n charges towards $N at full speed but $E scrambles out of the way!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
 		}
 		WAIT_STATE(ch, (skill_table[gsn_trample].beats * 3)/2);
-		check_improve(ch, gsn_trample, FALSE, 1);
-		check_improve(ch, gsn_riding, FALSE, 10);
+		check_improve(ch, gsn_trample, false, 1);
+		check_improve(ch, gsn_riding, false, 10);
 
 		if(!p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_ATTACK_TRAMPLE,"attack_fail"))
 			multi_hit(victim, ch, TYPE_UNDEFINED);
@@ -331,7 +331,7 @@ void do_shift(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    shift_char(ch, FALSE);
+    shift_char(ch, false);
 
     /* wait state is here because shift_char above is also used in log out/in routines.
        Only wait when shifting, not going back.*/
@@ -423,7 +423,7 @@ memset(&af,0,sizeof(af));
 	{
 	    obj_next = obj->next_content;
 	    if (obj->wear_loc != WEAR_NONE)
-	        unequip_char(ch, obj, FALSE);
+	        unequip_char(ch, obj, false);
 	}
 
 	// remove affects
@@ -562,7 +562,7 @@ void do_shape(CHAR_DATA *ch, char *argument)
 		else if(IS_AFFECTED2(ch, AFF2_MORPHLOCK))
 			send_to_char("Your body refuses to change shape!\n\r", ch);
 		else {
-			ch->morphed = FALSE;
+			ch->morphed = false;
 			free_string(ch->short_descr);
 			free_string(ch->long_descr);
 
@@ -601,11 +601,11 @@ void do_shape(CHAR_DATA *ch, char *argument)
 
 	act("{YThere is a puff of smoke as $n turns into $t!{x", ch, NULL, NULL, NULL, NULL, pMob->short_descr, NULL, TO_ROOM);
 
-	ch->morphed = TRUE;
+	ch->morphed = true;
 	ch->short_descr = str_dup(pMob->short_descr);
 	ch->long_descr  = str_dup(pMob->long_descr);
 
-	check_improve(ch, gsn_shape,TRUE,6);
+	check_improve(ch, gsn_shape,true,6);
 }
 
 
@@ -630,9 +630,9 @@ bool check_evasion(CHAR_DATA *ch)
     &&  get_skill(ch, gsn_evasion) > 0
     &&  IS_AFFECTED2(ch, AFF2_EVASION)
     &&  number_percent() < (get_skill(ch, gsn_evasion) - 25 + get_curr_stat(ch,STAT_DEX)))
-	return TRUE;
+	return true;
 
-    return FALSE;
+    return false;
 }
 
 
@@ -665,7 +665,7 @@ void do_behead(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (is_safe(ch, victim, TRUE))
+	if (is_safe(ch, victim, true))
 		return;
 
 	wield = get_eq_char(ch, WEAR_WIELD);
@@ -718,19 +718,19 @@ void do_behead(CHAR_DATA *ch, char *argument)
 			victim->hit_damage = 0;
 
 			if(hit > 0) {
-				damage(ch, victim, hit, gsn_behead, DAM_SLASH, FALSE);
+				damage(ch, victim, hit, gsn_behead, DAM_SLASH, false);
 			} else {
 				p_percent_trigger(victim,NULL, NULL, NULL, ch, victim, NULL, wield, NULL, TRIG_ATTACK_BEHEAD,"failvict");
 				p_percent_trigger(ch,NULL, NULL, NULL, ch, victim, NULL, wield, NULL, TRIG_ATTACK_BEHEAD,"failatt");
 			}
 
-			check_improve(ch, gsn_behead, TRUE, 6);
+			check_improve(ch, gsn_behead, true, 6);
 		} else
-			check_improve(ch, gsn_behead, FALSE, 6);
+			check_improve(ch, gsn_behead, false, 6);
 	} else {
 		act("{Y$N quickly ducks under your decapitating $t!{x", ch, victim, NULL, NULL, NULL, attack_table[wield->value[3]].noun, NULL, TO_CHAR);
 		act("{GYou quickly duck under $n's decapitating $t!{x",	ch, victim, NULL, NULL, NULL, attack_table[wield->value[3]].noun, NULL, TO_VICT);
 		act("{Y$N quickly ducks under $n's decapitating $t!{x",	ch, victim, NULL, NULL, NULL, attack_table[wield->value[3]].noun, NULL, TO_NOTVICT);
-		check_improve(ch, gsn_behead, FALSE, 6);
+		check_improve(ch, gsn_behead, false, 6);
 	}
 }

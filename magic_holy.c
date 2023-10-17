@@ -21,12 +21,12 @@ SPELL_FUNC(spell_avatar_shield)
 {
 	CHAR_DATA *victim = (CHAR_DATA *) vo;
 	AFFECT_DATA af;
-	bool perm = FALSE;
+	bool perm = false;
 	memset(&af,0,sizeof(af));
 
 	if (level > MAGIC_WEAR_SPELL) {
 		level -= MAGIC_WEAR_SPELL;
-		perm = TRUE;
+		perm = true;
 	}
 
 	if (perm && is_affected(victim, sn)) {
@@ -36,7 +36,7 @@ SPELL_FUNC(spell_avatar_shield)
 			send_to_char("You are already protected.\n\r",ch);
 		else
 			act("$N is already protected.",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	af.slot = obj_wear_loc;
@@ -52,7 +52,7 @@ SPELL_FUNC(spell_avatar_shield)
 	send_to_char("You feel shielded from evil.\n\r", victim);
 	if (ch != victim)
 		act("$N is shielded from evil.",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	return TRUE;
+	return true;
 }
 
 
@@ -61,13 +61,13 @@ SPELL_FUNC(spell_bless)
 	CHAR_DATA *victim;
 	OBJ_DATA *obj;
 	AFFECT_DATA af;
-	bool perm = FALSE;
+	bool perm = false;
 
 	memset(&af,0,sizeof(af));
 
 	if (level > MAGIC_WEAR_SPELL) {
 		level -= MAGIC_WEAR_SPELL;
-		perm = TRUE;
+		perm = true;
 	}
 
 	/* deal with the object case first */
@@ -75,7 +75,7 @@ SPELL_FUNC(spell_bless)
 		obj = (OBJ_DATA *) vo;
 		if (IS_OBJ_STAT(obj,ITEM_BLESS)) {
 			act("$p is already blessed.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-			return FALSE;
+			return false;
 		}
 
 		if (IS_OBJ_STAT(obj,ITEM_EVIL)) {
@@ -86,10 +86,10 @@ SPELL_FUNC(spell_bless)
 				if (paf) affect_remove_obj(obj,paf);
 				act("$p glows a pale blue.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
 				REMOVE_BIT(obj->extra_flags,ITEM_EVIL);
-				return TRUE;
+				return true;
 			} else {
 				act("The evil of $p is too powerful for you to overcome.", ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-				return FALSE;
+				return false;
 			}
 		}
 
@@ -107,7 +107,7 @@ SPELL_FUNC(spell_bless)
 
 		act("$p glows with a holy aura.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
 
-		return TRUE;
+		return true;
 	}
 
 	/* character target */
@@ -120,7 +120,7 @@ SPELL_FUNC(spell_bless)
 			send_to_char("You are already blessed.\n\r",ch);
 		else
 			act("$N already has divine favor.",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	af.slot	= obj_wear_loc;
@@ -137,7 +137,7 @@ SPELL_FUNC(spell_bless)
 	send_to_char("You feel righteous.\n\r", victim);
 	if (ch != victim) act("You grant $N the favor of your god.",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
-	return TRUE;
+	return true;
 }
 
 
@@ -148,12 +148,12 @@ SPELL_FUNC(spell_dispel_evil)
 
 	if (IS_GOOD(victim)) {
 		act("The gods protect $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-		return FALSE;
+		return false;
 	}
 
 	if (IS_NEUTRAL(victim)) {
 		act("$N does not seem to be affected.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	if (victim->hit > (ch->tot_level * 4))
@@ -162,8 +162,8 @@ SPELL_FUNC(spell_dispel_evil)
 		dam = UMAX(victim->hit, dice(level,4));
 	if (saves_spell(level, victim,DAM_HOLY))
 		dam /= 2;
-	damage(ch, victim, dam, sn, DAM_HOLY ,TRUE);
-	return TRUE;
+	damage(ch, victim, dam, sn, DAM_HOLY ,true);
+	return true;
 }
 
 SPELL_FUNC(spell_exorcism)
@@ -183,13 +183,13 @@ SPELL_FUNC(spell_exorcism)
 	if(IS_REMORT(ch)) lvl -= LEVEL_HERO;		// If the caster is remort, it will require LESS catalyst
 	lvl = (lvl > 19) ? (lvl / 10) : 1;
 
-	catalyst = use_catalyst(ch,NULL,CATALYST_HOLY,CATALYST_HOLD|CATALYST_ACTIVE,600,lvl,CATALYST_MAXSTRENGTH,TRUE);
+	catalyst = use_catalyst(ch,NULL,CATALYST_HOLY,CATALYST_HOLD|CATALYST_ACTIVE,600,lvl,CATALYST_MAXSTRENGTH,true);
 
 	if (victim->alignment > -500) {
 		act("$N is unaffected by your exorcism.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		act("$N's exorcism has no effect upon you.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 		act("$N is unaffected by $n's exorcism.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
-		return FALSE;
+		return false;
 	} else {
 		act("A large phantasmal pit opens up beneath you making a loud slurping noise!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 		act("A large phantasmal pit opens up beneath $n making a loud slurping noise!", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
@@ -203,7 +203,7 @@ SPELL_FUNC(spell_exorcism)
 
 	if (!area) {
 		bug("No area for exorcism!", 0);
-		return FALSE;
+		return false;
 	}
 
 	do
@@ -216,7 +216,7 @@ SPELL_FUNC(spell_exorcism)
 	if (chance < 20) {
 		act("$N is too powerful for you to banish.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		act("You resist the power of $n's exorcism.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
-		return FALSE;
+		return false;
 	}
 
 	chance = URANGE(1, 3 * abs(chance), 100);
@@ -230,7 +230,7 @@ SPELL_FUNC(spell_exorcism)
 		act("$N resists the power of your exorcism.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		send_to_char("You feel a slight disturbance in the air.\n\r", victim);
 	}
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_glorious_bolt)
@@ -243,19 +243,19 @@ SPELL_FUNC(spell_glorious_bolt)
 	act("{Y$n calls forth a glorious bolt of fury upon you!{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 
 	if (check_shield_block_projectile(ch, victim, "glorious bolt", NULL))
-		return FALSE;
+		return false;
 
 	if (victim->alignment >= 0) {
 		act("{C$N appears unaffected by your glorious bolt.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		act("{CYou are unaffected by $n's glorious bolt.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 		act("{C$N appears unaffected by $n's glorious bolt.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
-		return TRUE;
+		return true;
 	}
 
 	dam = 2 * dice(level, 10);
 	dam += dam * (victim->alignment / -1000);
-	damage(ch, victim, dam, sn, DAM_HOLY ,TRUE);
-	return TRUE;
+	damage(ch, victim, dam, sn, DAM_HOLY ,true);
+	return true;
 }
 
 
@@ -264,12 +264,12 @@ SPELL_FUNC(spell_holy_shield)
 {
 	OBJ_DATA *obj;
 	AFFECT_DATA af;
-	bool perm = FALSE;
+	bool perm = false;
 	memset(&af,0,sizeof(af));
 
 	if (level > MAGIC_WEAR_SPELL) {
 		level -= MAGIC_WEAR_SPELL;
-		perm = TRUE;
+		perm = true;
 	}
 
 	/* deal with the object case first */
@@ -278,17 +278,17 @@ SPELL_FUNC(spell_holy_shield)
 
 		if (!CAN_WEAR(obj, ITEM_WEAR_SHIELD)) {
 			act("$p is not affected.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-			return FALSE;
+			return false;
 		}
 
 		if (IS_OBJ_STAT(obj,ITEM_HOLY)) {
 			act("$p is already enchanted!",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-			return FALSE;
+			return false;
 		}
 
 		if (IS_OBJ_STAT(obj,ITEM_EVIL)) {
 			act("The evil of $p is too powerful for you to enchant.", ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-			return FALSE;
+			return false;
 		}
 
 		af.slot = obj_wear_loc;
@@ -304,9 +304,9 @@ SPELL_FUNC(spell_holy_shield)
 		affect_to_obj(obj,&af);
 
 		act("Fiery red runes glow brightly on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
-		return TRUE;
+		return true;
 	}
-	return FALSE;
+	return false;
 }
 
 
@@ -314,12 +314,12 @@ SPELL_FUNC(spell_holy_sword)
 {
 	OBJ_DATA *obj;
 	AFFECT_DATA af;
-	bool perm = FALSE;
+	bool perm = false;
 	memset(&af,0,sizeof(af));
 
 	if (level > MAGIC_WEAR_SPELL) {
 		level -= MAGIC_WEAR_SPELL;
-		perm = TRUE;
+		perm = true;
 	}
 
 	if (target == TARGET_OBJ) {
@@ -327,17 +327,17 @@ SPELL_FUNC(spell_holy_sword)
 
 		if (obj->item_type != ITEM_WEAPON || obj->value[0] != WEAPON_SWORD) {
 			act("$p is not affected.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-			return FALSE;
+			return false;
 		}
 
 		if (IS_OBJ_STAT(obj,ITEM_HOLY)) {
 			act("$p is already enchanted!",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-			return FALSE;
+			return false;
 		}
 
 		if (IS_OBJ_STAT(obj,ITEM_EVIL)) {
 			act("The evil of $p is too powerful for you to overcome.", ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-			return FALSE;
+			return false;
 		}
 
 		af.slot = obj_wear_loc;
@@ -353,9 +353,9 @@ SPELL_FUNC(spell_holy_sword)
 		affect_to_obj(obj,&af);
 
 		act("Fiery red runes glow brightly on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
-		return TRUE;
+		return true;
 	}
-	return FALSE;
+	return false;
 }
 
 
@@ -383,18 +383,18 @@ SPELL_FUNC(spell_holy_word)
 			spell_frenzy(frenzy_num,level,ch,(void *) vch,TARGET_CHAR, WEAR_NONE);
 			spell_bless(bless_num,level,ch,(void *) vch,TARGET_CHAR, WEAR_NONE);
 		} else if ((IS_GOOD(ch) && IS_EVIL(vch)) || (IS_EVIL(ch) && IS_GOOD(vch))) {
-			if (!is_safe_spell(ch,vch,TRUE)) {
+			if (!is_safe_spell(ch,vch,true)) {
 				spell_curse(curse_num,level,ch,(void *) vch,TARGET_CHAR, WEAR_NONE);
 				send_to_char("{YYou are struck down!{x\n\r",vch);
 				dam = dice(level,8);
-				damage(ch,vch,dam,sn,DAM_HOLY,TRUE);
+				damage(ch,vch,dam,sn,DAM_HOLY,true);
 			}
 		} else if (IS_NEUTRAL(ch)) {
-			if (!is_safe_spell(ch,vch,TRUE)) {
+			if (!is_safe_spell(ch,vch,true)) {
 				spell_curse(curse_num,level/2,ch,(void *) vch,TARGET_CHAR, WEAR_NONE);
 				send_to_char("{YYou are struck down!{x\n\r",vch);
 				dam = dice(level,5);
-				damage(ch,vch,dam,sn,DAM_MAGIC,TRUE);
+				damage(ch,vch,dam,sn,DAM_MAGIC,true);
 			}
 		}
 	}
@@ -402,7 +402,7 @@ SPELL_FUNC(spell_holy_word)
 	//  send_to_char("You feel drained.\n\r",ch);
 	//  ch->move = 0;
 	//  ch->hit /= 2;
-	return TRUE;
+	return true;
 }
 
 
@@ -410,12 +410,12 @@ SPELL_FUNC(spell_light_shroud)
 {
 	CHAR_DATA *victim = (CHAR_DATA *) vo;
 	AFFECT_DATA af;
-	bool perm = FALSE;
+	bool perm = false;
 	memset(&af,0,sizeof(af));
 
 	if (level > MAGIC_WEAR_SPELL) {
 		level -= MAGIC_WEAR_SPELL;
-		perm = TRUE;
+		perm = true;
 	}
 
 	if (perm && is_affected(victim, sn)) {
@@ -426,7 +426,7 @@ SPELL_FUNC(spell_light_shroud)
 		else
 			act("$N is already protected by a shroud.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
 
-		return FALSE;
+		return false;
 	}
 
 	af.slot = obj_wear_loc;
@@ -442,7 +442,7 @@ SPELL_FUNC(spell_light_shroud)
 	affect_to_char(victim, &af);
 	act("{W$n is surrounded by a light shroud.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 	send_to_char("{WYou are surrounded by a light shroud.{x\n\r", victim);
-	return TRUE;
+	return true;
 }
 
 
@@ -450,7 +450,7 @@ SPELL_FUNC(spell_remove_curse)
 {
 	CHAR_DATA *victim;
 	OBJ_DATA *obj;
-	bool found = FALSE;
+	bool found = false;
 
 	/* do object cases first */
 	if (target == TARGET_OBJ) {
@@ -472,11 +472,11 @@ SPELL_FUNC(spell_remove_curse)
 				act("$p glows blue.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
 			} else
 				act("The curse on $p is beyond your power.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-			return TRUE;
+			return true;
 		} else
 			act("There doesn't seem to be a curse on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
 
-		return FALSE;
+		return false;
 	}
 
 	/* characters */
@@ -491,7 +491,7 @@ SPELL_FUNC(spell_remove_curse)
 		if ((IS_OBJ_STAT(obj,ITEM_NODROP) || IS_OBJ_STAT(obj,ITEM_NOREMOVE)) && !IS_OBJ_STAT(obj,ITEM_NOUNCURSE)) {
 			/* attempt to remove curse */
 			if (!saves_dispel(ch,NULL,obj->level)) {
-				found = TRUE;
+				found = true;
 				REMOVE_BIT(obj->extra_flags,ITEM_NODROP);
 				REMOVE_BIT(obj->extra_flags,ITEM_NOREMOVE);
 				act("Your $p glows blue.",victim, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
@@ -499,7 +499,7 @@ SPELL_FUNC(spell_remove_curse)
 			}
 		}
 	}
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_sanctuary)
@@ -507,12 +507,12 @@ SPELL_FUNC(spell_sanctuary)
 	CHAR_DATA *victim = (CHAR_DATA *) vo;
 	AFFECT_DATA af;
 	int sk;
-	bool perm = FALSE;
+	bool perm = false;
 	memset(&af,0,sizeof(af));
 
 	if (level > MAGIC_WEAR_SPELL) {
 		level -= MAGIC_WEAR_SPELL;
-		perm = TRUE;
+		perm = true;
 	}
 
 	if (perm && is_affected(victim, sn)) {
@@ -522,7 +522,7 @@ SPELL_FUNC(spell_sanctuary)
 			send_to_char("You are already in sanctuary.\n\r",ch);
 		else
 			act("$N is already in sanctuary.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	af.slot = obj_wear_loc;
@@ -543,5 +543,5 @@ SPELL_FUNC(spell_sanctuary)
 	affect_to_char(victim, &af);
 	act("{W$n is surrounded by a white aura.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 	send_to_char("{WYou are surrounded by a white aura.{x\n\r", victim);
-	return TRUE;
+	return true;
 }

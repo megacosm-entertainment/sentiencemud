@@ -30,7 +30,7 @@ SPELL_FUNC(spell_curse)
 		obj = (OBJ_DATA *) vo;
 		if (IS_OBJ_STAT(obj,ITEM_EVIL)) {
 			act("$p is already filled with evil.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-			return FALSE;
+			return false;
 		}
 
 		if (IS_OBJ_STAT(obj,ITEM_BLESS)) {
@@ -41,10 +41,10 @@ SPELL_FUNC(spell_curse)
 				if (paf) affect_remove_obj(obj,paf);
 				act("$p glows with a red aura.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
 				REMOVE_BIT(obj->extra_flags,ITEM_BLESS);
-				return TRUE;
+				return true;
 			} else {
 				act("The holy aura of $p is too powerful for you to overcome.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-				return FALSE;
+				return false;
 			}
 		}
 
@@ -64,7 +64,7 @@ SPELL_FUNC(spell_curse)
 
 		if (obj->wear_loc != WEAR_NONE)
 			ch->saving_throw += 1;
-		return TRUE;
+		return true;
 	}
 
 	/* character curses */
@@ -72,7 +72,7 @@ SPELL_FUNC(spell_curse)
 		victim = (CHAR_DATA *) vo;
 
 		if (IS_AFFECTED(victim,AFF_CURSE) || saves_spell(level,victim,DAM_NEGATIVE))
-			return FALSE;
+			return false;
 
 		af.where = TO_AFFECTS;
 		af.group = AFFGROUP_DIVINE;
@@ -89,10 +89,10 @@ SPELL_FUNC(spell_curse)
 		send_to_char("You feel unclean.\n\r", victim);
 		if (ch != victim)
 			act("$N looks very uncomfortable.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-		return TRUE;
+		return true;
 	}
 
-	return FALSE;
+	return false;
 }
 
 
@@ -109,9 +109,9 @@ SPELL_FUNC(spell_demonfire)
 	if (saves_spell(level, victim,DAM_NEGATIVE))
 		dam /= 2;
 
-	damage(ch, victim, dam, sn, DAM_NEGATIVE ,TRUE);
+	damage(ch, victim, dam, sn, DAM_NEGATIVE ,true);
 	spell_curse(gsn_curse, 3 * level / 4, ch, (void *) victim,TARGET_CHAR, WEAR_NONE);
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_destruction)
@@ -120,16 +120,16 @@ SPELL_FUNC(spell_destruction)
 
 	if (IS_SET(obj->extra_flags, ITEM_NOPURGE) || !IS_SET(obj->wear_flags, ITEM_TAKE)) {
 		act("Even with the mightiest of magics, you can't seem to destroy $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	act("A powerful force engulfs $p, and it vanishes instantly!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 	act("$n's $p vanishes in a flash of light!", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 
-	if (obj->wear_loc != WEAR_NONE) unequip_char(obj->carried_by, obj, TRUE);
+	if (obj->wear_loc != WEAR_NONE) unequip_char(obj->carried_by, obj, true);
 
 	extract_obj(obj);
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_dispel_good)
@@ -139,12 +139,12 @@ SPELL_FUNC(spell_dispel_good)
 
 	if (IS_EVIL(victim)) {
 		act("$N is protected by $S evil.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-		return FALSE;
+		return false;
 	}
 
 	if (IS_NEUTRAL(victim)) {
 		act("$N does not seem to be affected.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	if (victim->hit > (ch->tot_level * 4))
@@ -153,8 +153,8 @@ SPELL_FUNC(spell_dispel_good)
 		dam = UMAX(victim->hit, dice(level,4));
 	if (saves_spell(level, victim,DAM_NEGATIVE))
 		dam /= 2;
-	damage(ch, victim, dam, sn, DAM_NEGATIVE ,TRUE);
-	return TRUE;
+	damage(ch, victim, dam, sn, DAM_NEGATIVE ,true);
+	return true;
 }
 
 SPELL_FUNC(spell_slow)
@@ -172,24 +172,24 @@ SPELL_FUNC(spell_slow)
 	catalyst = has_catalyst(ch,NULL,CATALYST_BODY,CATALYST_INVENTORY|CATALYST_ACTIVE,1,CATALYST_MAXSTRENGTH);
 	if(catalyst >= 0 && catalyst < lvl) {
 		send_to_char("You appear to be missing a required body catalyst.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
-	use_catalyst(ch,NULL,CATALYST_BODY,CATALYST_INVENTORY|CATALYST_ACTIVE,lvl,1,CATALYST_MAXSTRENGTH,TRUE);
+	use_catalyst(ch,NULL,CATALYST_BODY,CATALYST_INVENTORY|CATALYST_ACTIVE,lvl,1,CATALYST_MAXSTRENGTH,true);
 
 	if (IS_AFFECTED(victim,AFF_SLOW)) {
 		if (victim == ch)
 			send_to_char("You can't move any slower!\n\r",ch);
 		else
 			act("$N can't get any slower.", ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	if (IS_SET(victim->imm_flags,IMM_MAGIC)) {
 		if (victim != ch)
 			send_to_char("Nothing seemed to happen.\n\r",ch);
 		send_to_char("You feel momentarily lethargic.\n\r",victim);
-		return FALSE;
+		return false;
 	}
 
 	af.where = TO_AFFECTS;
@@ -205,7 +205,7 @@ SPELL_FUNC(spell_slow)
 	affect_to_char(victim, &af);
 	send_to_char("You feel yourself slow i n g  d  o   w    n...\n\r", victim);
 	act("$n starts to move in slow motion.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_weaken)
@@ -215,7 +215,7 @@ SPELL_FUNC(spell_weaken)
 	memset(&af,0,sizeof(af));
 
 	if (is_affected(victim, sn) || saves_spell(level, victim,DAM_OTHER))
-		return FALSE;
+		return false;
 
 	af.where     = TO_AFFECTS;
 	af.group    = AFFGROUP_MAGICAL;
@@ -230,5 +230,5 @@ SPELL_FUNC(spell_weaken)
 	affect_to_char(victim, &af);
 	send_to_char("You feel your strength slip away.\n\r", victim);
 	act("$n looks tired and weak.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
-	return TRUE;
+	return true;
 }

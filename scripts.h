@@ -603,7 +603,7 @@ enum entity_prior_enum {
 };
 
 enum entity_boolean_enum {
-	ENTITY_BOOLEAN_TRUE_FALSE = ESCAPE_EXTRA,
+	ENTITY_BOOLEAN_true_false = ESCAPE_EXTRA,
 	ENTITY_BOOLEAN_YES_NO,
 	ENTITY_BOOLEAN_ON_OFF
 };
@@ -1246,7 +1246,7 @@ struct ifcheck_data {
 	char *help;			/* Help keywords (for accessing the help file) */
 };
 
-#define BOOLEXP_TRUE	0	// Evaluates the logical value of LEFT == (LEFT)
+#define BOOLEXP_true	0	// Evaluates the logical value of LEFT == (LEFT)
 #define BOOLEXP_NOT		1	// Evaluates the logical NOT of LEFT == (!LEFT)
 #define BOOLEXP_AND		2	// Evaluates the logical AND of LEFT and RIGHT == (LEFT && RIGHT)
 #define BOOLEXP_OR		3	// Evaluates the logical OR of LEFT and RIGHT == (LEFT || RIGHT)

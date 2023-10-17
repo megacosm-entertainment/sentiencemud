@@ -175,12 +175,12 @@ void global_reset( void )
 	    && gq_mob->count + 1 > 50 )
 		continue;
 
-	    ch = create_mobile(get_mob_index(gq_mob->vnum), FALSE);
+	    ch = create_mobile(get_mob_index(gq_mob->vnum), false);
 	    if ( gq_mob->obj != 0 )
 	    {
 		obj = create_object( get_obj_index( gq_mob->obj ),
 			get_obj_index( gq_mob->obj )->level,
-			FALSE);
+			false);
 		obj_to_char(obj, ch);
 	    }
 
@@ -203,7 +203,7 @@ void global_reset( void )
 
 	    if ( number_percent() < gq_obj->repop )
 	    {
-		obj = create_object(get_obj_index(gq_obj->vnum), 1, FALSE);
+		obj = create_object(get_obj_index(gq_obj->vnum), 1, false);
 		obj_to_room( obj, room );
 	    }
 	}
@@ -399,7 +399,7 @@ OBJ_DATA *get_random_obj_area( CHAR_DATA *ch, AREA_DATA *area, ROOM_INDEX_DATA *
 	}
 
     if (room != NULL) {
-		obj = create_object(oIndex, oIndex->level, TRUE);
+		obj = create_object(oIndex, oIndex->level, true);
 		obj_to_room(obj, room);
     } else
 		obj = NULL;
@@ -418,7 +418,7 @@ OBJ_DATA *get_random_obj( CHAR_DATA *ch, int continent )
 
 	for (tries = 0; tries < 200; tries++)
 	{
-		area = get_random_area(ch, continent, TRUE);
+		area = get_random_area(ch, continent, true);
 
 		if ( IS_SET(area->area_flags,AREA_NO_GET_RANDOM) )
 			continue;
@@ -504,7 +504,7 @@ CHAR_DATA *get_random_mob( CHAR_DATA *ch, int continent )
     AREA_DATA *area;
     //char buf[MSL];
 
-	area = get_random_area(ch, continent, TRUE);
+	area = get_random_area(ch, continent, true);
 
 	return get_random_mob_area(ch, area);
 }
@@ -591,7 +591,7 @@ ROOM_INDEX_DATA *get_random_room( CHAR_DATA *ch, int continent )
     AREA_DATA *area;
 
 
-	area = get_random_area(ch, continent, TRUE);
+	area = get_random_area(ch, continent, true);
 
     return get_random_room_area_byflags(ch, area,
     	(ROOM_PRIVATE | ROOM_SOLITARY | ROOM_DEATH_TRAP | ROOM_SAFE | ROOM_CPK),
@@ -954,7 +954,7 @@ void load_npc_ships()
 		    }
 
 			// Add cargo object to npc ship index.
-			pObj = create_object( pObjIndex, pObjIndex->level, FALSE );
+			pObj = create_object( pObjIndex, pObjIndex->level, false );
 			pObj->next_content = npc_ship->cargo;
 			npc_ship->cargo = pObj;
 			continue;
@@ -1082,7 +1082,7 @@ void do_dump( CHAR_DATA *ch, char *argument )
 					flag_string(wear_flags, obj->wear_flags));
 
 				fprintf( fp, "%s	%s	%d	%d	%d	%ld	%s	",
-					obj->update == TRUE ? "Yes" : "No",
+					obj->update == true ? "Yes" : "No",
 					fragile_table[obj->fragility].name,
 					obj->weight,
 					obj->condition,

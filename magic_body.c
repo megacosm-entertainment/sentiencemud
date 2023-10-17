@@ -27,7 +27,7 @@ SPELL_FUNC(spell_blindness)
 
 	if (IS_AFFECTED(victim, AFF_BLIND) || saves_spell(level, victim, DAM_OTHER)) {
 		send_to_char("Nothing happens.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	af.where = TO_AFFECTS;
@@ -44,28 +44,28 @@ SPELL_FUNC(spell_blindness)
 	send_to_char("You are blinded!\n\r", victim);
 	act("$n appears to be blinded.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
 
-	return TRUE;
+	return true;
 }
 
 
 SPELL_FUNC(spell_cause_light)
 {
-	damage(ch, (CHAR_DATA *) vo, dice(1, 8) + level / 3, sn,DAM_HARM,TRUE);
-	return TRUE;
+	damage(ch, (CHAR_DATA *) vo, dice(1, 8) + level / 3, sn,DAM_HARM,true);
+	return true;
 }
 
 
 SPELL_FUNC(spell_cause_critical)
 {
-	damage(ch, (CHAR_DATA *) vo, dice(3, 8) + level - 6, sn,DAM_HARM,TRUE);
-	return TRUE;
+	damage(ch, (CHAR_DATA *) vo, dice(3, 8) + level - 6, sn,DAM_HARM,true);
+	return true;
 }
 
 
 SPELL_FUNC(spell_cause_serious)
 {
-	damage(ch, (CHAR_DATA *) vo, dice(2, 8) + level / 2, sn,DAM_HARM,TRUE);
-	return TRUE;
+	damage(ch, (CHAR_DATA *) vo, dice(2, 8) + level / 2, sn,DAM_HARM,true);
+	return true;
 }
 
 
@@ -85,7 +85,7 @@ SPELL_FUNC(spell_colour_spray)
 	int dam;
 
 	if (check_shield_block_projectile(ch, victim, "colour spray", NULL))
-		return FALSE;
+		return false;
 
 	level = UMIN(level, sizeof(dam_each)/sizeof(dam_each[0]) - 1);
 	level = UMAX(0, level);
@@ -95,8 +95,8 @@ SPELL_FUNC(spell_colour_spray)
 	else
 		spell_blindness(gsn_blindness,level/2,ch,(void *) victim,TARGET_CHAR, WEAR_NONE);
 
-	damage(ch, victim, dam, sn, DAM_LIGHT,TRUE);
-	return TRUE;
+	damage(ch, victim, dam, sn, DAM_LIGHT,true);
+	return true;
 }
 
 
@@ -113,7 +113,7 @@ SPELL_FUNC(spell_cure_blindness)
 		else
 			act("$N doesn't appear to be blinded.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
-		return TRUE;
+		return true;
 	}
 
 	if (get_profession(ch, CLASS_CLERIC) != -1)
@@ -129,7 +129,7 @@ SPELL_FUNC(spell_cure_blindness)
 		send_to_char("\n\r", victim);
 		act("$n is no longer blinded.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
 	}
-	return TRUE;
+	return true;
 }
 
 
@@ -146,7 +146,7 @@ SPELL_FUNC(spell_cure_critical)
 	send_to_char("You feel better!\n\r", victim);
 	if (ch != victim)
 		act("$N looks much better.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	return TRUE;
+	return true;
 }
 
 
@@ -160,7 +160,7 @@ SPELL_FUNC(spell_cure_disease)
 			send_to_char("You aren't ill.\n\r",ch);
 		else
 		act("$N doesn't appear to be diseased.",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	if (get_profession(ch, CLASS_CLERIC) != -1)
@@ -180,7 +180,7 @@ SPELL_FUNC(spell_cure_disease)
 		else
 			act("$N suffers from a stronger illness.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
 	}
-	return TRUE;
+	return true;
 }
 
 
@@ -196,7 +196,7 @@ SPELL_FUNC(spell_cure_light)
 	send_to_char("You feel better!\n\r", victim);
 	if (ch != victim)
 		act("$N looks slightly better.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	return TRUE;
+	return true;
 }
 
 
@@ -210,7 +210,7 @@ SPELL_FUNC(spell_cure_poison)
 			send_to_char("You aren't poisoned.\n\r",ch);
 		else
 			act("$N doesn't appear to be poisoned.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	if (get_profession(ch, CLASS_CLERIC) != -1)
@@ -230,7 +230,7 @@ SPELL_FUNC(spell_cure_poison)
 		else
 			act("$N suffers from a deeper poison.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
 	}
-	return TRUE;
+	return true;
 }
 
 
@@ -246,7 +246,7 @@ SPELL_FUNC(spell_cure_serious)
 	send_to_char("You feel better!\n\r", victim);
 	if (ch != victim)
 		act("$N looks moderately better.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_cure_toxic)
@@ -260,7 +260,7 @@ SPELL_FUNC(spell_cure_toxic)
 			send_to_char("You aren't suffering from toxic fumes.\n\r",ch);
 		else
 			act("$N doesn't appear to be suffering from toxic fumes.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	if (get_profession(ch, CLASS_CLERIC) != -1)
@@ -277,7 +277,7 @@ SPELL_FUNC(spell_cure_toxic)
 			act("$n looks much better.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
 		} else {
 			// This is where the spell is PERMANENT and cannot be removed here.
-			helped = FALSE;
+			helped = false;
 			for(paf = tox;paf;paf = next) {
 				next = paf->next;
 				if (paf->type == gsn_toxic_fumes) {
@@ -290,15 +290,15 @@ SPELL_FUNC(spell_cure_toxic)
 					if(paf->duration >= 0) paf->duration = -1;
 
 					if(chance != paf->duration)
-						helped = TRUE;
+						helped = true;
 				}
 			}
 			if(helped)
 				act("$n looks much better.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
 		}
-		return TRUE;
+		return true;
 	}
-	return FALSE;
+	return false;
 }
 
 
@@ -311,20 +311,20 @@ SPELL_FUNC(spell_harm)
 	if (saves_spell(level, victim,DAM_HARM))
 		dam = UMIN(50, dam / 2);
 	//dam = UMIN(100, dam);
-	damage(ch, victim, dam, sn, DAM_HARM ,TRUE);
-	return TRUE;
+	damage(ch, victim, dam, sn, DAM_HARM ,true);
+	return true;
 }
 
 SPELL_FUNC(spell_haste)
 {
 	CHAR_DATA *victim = (CHAR_DATA *) vo;
 	AFFECT_DATA af;
-	bool perm = FALSE;
+	bool perm = false;
 	memset(&af,0,sizeof(af));
 
 	if (level > MAGIC_WEAR_SPELL) {
 		level -= MAGIC_WEAR_SPELL;
-		perm = TRUE;
+		perm = true;
 	}
 
 	if (perm && is_affected(victim, sn)) {
@@ -334,7 +334,7 @@ SPELL_FUNC(spell_haste)
 			send_to_char("You can't move any faster!\n\r",ch);
 		else
 			act("$N is already moving as fast as $E can.", ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	af.where = TO_AFFECTS;
@@ -354,7 +354,7 @@ SPELL_FUNC(spell_haste)
 	send_to_char("You feel yourself moving more quickly.\n\r", victim);
 	act("$n is moving more quickly.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
 
-	return TRUE;
+	return true;
 }
 
 
@@ -384,7 +384,7 @@ SPELL_FUNC(spell_heal)
 	if (ch != victim)
 	act("A warm aura surrounds $N momentarily, then fades.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
-	return TRUE;
+	return true;
 }
 
 
@@ -392,12 +392,12 @@ SPELL_FUNC(spell_healing_aura)
 {
 	CHAR_DATA *gch = (CHAR_DATA *) vo;
 	AFFECT_DATA af;
-	bool perm = FALSE;
+	bool perm = false;
 	memset(&af,0,sizeof(af));
 
 	if (level > MAGIC_WEAR_SPELL) {
 		level -= MAGIC_WEAR_SPELL;
-		perm = TRUE;
+		perm = true;
 	}
 
 	if (perm && is_affected(gch, sn)) {
@@ -407,7 +407,7 @@ SPELL_FUNC(spell_healing_aura)
 			send_to_char("You are already surrounded by a healing aura.\n\r",ch);
 		else
 			act("$N is already surrounded by a healing aura.",ch,gch, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	af.where = TO_AFFECTS;
@@ -424,7 +424,7 @@ SPELL_FUNC(spell_healing_aura)
 	send_to_char("You feel a warm glow within you.\n\r", gch);
 	if (ch != gch)
 		act("$N is surrounded with a warm healing aura.",ch,gch, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-	return TRUE;
+	return true;
 }
 
 
@@ -432,12 +432,12 @@ SPELL_FUNC(spell_infravision)
 {
 	CHAR_DATA *victim = (CHAR_DATA *) vo;
 	AFFECT_DATA af;
-	bool perm = FALSE;
+	bool perm = false;
 	memset(&af,0,sizeof(af));
 
 	if (level > MAGIC_WEAR_SPELL) {
 		level -= MAGIC_WEAR_SPELL;
-		perm = TRUE;
+		perm = true;
 	}
 
 	if (perm && is_affected(victim, sn)) {
@@ -447,7 +447,7 @@ SPELL_FUNC(spell_infravision)
 			send_to_char("You can already see in the dark.\n\r",ch);
 		else
 			act("$N already has infravision.\n\r",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-		return FALSE;
+		return false;
 	}
 	act("$n's eyes glow red.\n\r", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
@@ -463,7 +463,7 @@ SPELL_FUNC(spell_infravision)
 	af.slot = obj_wear_loc;
 	affect_to_char(victim, &af);
 	send_to_char("Your eyes glow red.\n\r", victim);
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_invis)
@@ -471,7 +471,7 @@ SPELL_FUNC(spell_invis)
 	CHAR_DATA *victim;
 	OBJ_DATA *obj;
 	AFFECT_DATA af;
-	bool perm = FALSE;
+	bool perm = false;
 	memset(&af,0,sizeof(af));
 
 	/* object invisibility */
@@ -480,7 +480,7 @@ SPELL_FUNC(spell_invis)
 
 		if (IS_OBJ_STAT(obj,ITEM_INVIS)) {
 			act("$p is already invisible.",ch, NULL, NULL,obj,NULL, NULL, NULL,TO_CHAR);
-			return FALSE;
+			return false;
 		}
 
 		af.where = TO_OBJECT;
@@ -496,7 +496,7 @@ SPELL_FUNC(spell_invis)
 		affect_to_obj(obj,&af);
 
 		act("$p fades out of sight.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
-		return TRUE;
+		return true;
 	}
 
 	/* character invisibility */
@@ -504,13 +504,13 @@ SPELL_FUNC(spell_invis)
 
 	if (level > MAGIC_WEAR_SPELL) {
 		level -= MAGIC_WEAR_SPELL;
-		perm = TRUE;
+		perm = true;
 	}
 
 	if (perm && is_affected(victim, sn))
 		affect_strip(victim, sn);
 	else if (IS_AFFECTED(victim, AFF_INVISIBLE) || IS_AFFECTED2(victim, AFF2_IMPROVED_INVIS))
-		return FALSE;
+		return false;
 
 	act("$n fades out of existence.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
@@ -526,7 +526,7 @@ SPELL_FUNC(spell_invis)
 	af.slot = obj_wear_loc;
 	affect_to_char(victim, &af);
 	send_to_char("You fade out of existence.\n\r", victim);
-	return TRUE;
+	return true;
 }
 
 
@@ -544,7 +544,7 @@ SPELL_FUNC(spell_mass_healing)
 			spell_refresh(refresh_num,level,ch,(void *) gch,TARGET_CHAR, WEAR_NONE);
 		}
 	}
-	return TRUE;
+	return true;
 }
 
 
@@ -573,7 +573,7 @@ SPELL_FUNC(spell_mass_invis)
 		af.slot	= obj_wear_loc;
 		affect_to_char(gch, &af);
 	}
-	return TRUE;
+	return true;
 }
 
 
@@ -581,14 +581,14 @@ SPELL_FUNC(spell_regeneration)
 {
 	CHAR_DATA *gch;
 	AFFECT_DATA af;
-	bool perm = FALSE;
+	bool perm = false;
 	memset(&af,0,sizeof(af));
 
 	gch = (CHAR_DATA *) vo;
 
 	if (level > MAGIC_WEAR_SPELL) {
 		level -= MAGIC_WEAR_SPELL;
-		perm = TRUE;
+		perm = true;
 	}
 
 	if (perm && is_affected(gch, sn))
@@ -598,7 +598,7 @@ SPELL_FUNC(spell_regeneration)
 			send_to_char("You are already affected by regeneration.\n\r",ch);
 		else
 			act("$N is already regenerating.",ch,gch, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	af.where = TO_AFFECTS;
@@ -616,5 +616,5 @@ SPELL_FUNC(spell_regeneration)
 
 	if (ch != gch) act("$N glows warmly.",ch,gch, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
 
-	return TRUE;
+	return true;
 }

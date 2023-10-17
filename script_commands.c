@@ -16,85 +16,85 @@
 #include "debug.h"
 
 const struct script_cmd_type area_cmd_table[] = {
-	{ "call",				scriptcmd_call,				FALSE,	TRUE	},
-	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	TRUE,	TRUE	},
-	{ "echoat",				scriptcmd_echoat,			FALSE,	TRUE	},
-	{ "instancecomplete",	scriptcmd_instancecomplete,	TRUE,	TRUE	},
-	{ "mload",				scriptcmd_mload,			FALSE,	TRUE	},
-	{ "mute",				scriptcmd_mute,				FALSE,	TRUE	},
-	{ "oload",				scriptcmd_oload,			FALSE,	TRUE	},
-	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
-	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
-	{ "specialkey",			scriptcmd_specialkey,		FALSE,	TRUE	},
-	{ "treasuremap",		scriptcmd_treasuremap,		FALSE,	TRUE	},
-	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
-	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
-	{ "varclear",			scriptcmd_varclear,			FALSE,	TRUE	},
-	{ "varclearon",			scriptcmd_varclearon,		FALSE,	TRUE	},
-	{ "varcopy",			scriptcmd_varcopy,			FALSE,	TRUE	},
-	{ "varsave",			scriptcmd_varsave,			FALSE,	TRUE	},
-	{ "varsaveon",			scriptcmd_varsaveon,		FALSE,	TRUE	},
-	{ "varset",				scriptcmd_varset,			FALSE,	TRUE	},
-	{ "varseton",			scriptcmd_varseton,			FALSE,	TRUE	},
-	{ "wildernessmap",		scriptcmd_wildernessmap,	FALSE,	TRUE	},
-	{ "xcall",				scriptcmd_xcall,			FALSE,	TRUE	},
-	{ NULL,					NULL,						FALSE,	FALSE	}
+	{ "call",				scriptcmd_call,				false,	true	},
+	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	true,	true	},
+	{ "echoat",				scriptcmd_echoat,			false,	true	},
+	{ "instancecomplete",	scriptcmd_instancecomplete,	true,	true	},
+	{ "mload",				scriptcmd_mload,			false,	true	},
+	{ "mute",				scriptcmd_mute,				false,	true	},
+	{ "oload",				scriptcmd_oload,			false,	true	},
+	{ "reckoning",			scriptcmd_reckoning,		true,	true	},
+	{ "sendfloor",			scriptcmd_sendfloor,		false,	true	},
+	{ "specialkey",			scriptcmd_specialkey,		false,	true	},
+	{ "treasuremap",		scriptcmd_treasuremap,		false,	true	},
+	{ "unlockarea",			scriptcmd_unlockarea,		true,	true	},
+	{ "unmute",				scriptcmd_unmute,			false,	true	},
+	{ "varclear",			scriptcmd_varclear,			false,	true	},
+	{ "varclearon",			scriptcmd_varclearon,		false,	true	},
+	{ "varcopy",			scriptcmd_varcopy,			false,	true	},
+	{ "varsave",			scriptcmd_varsave,			false,	true	},
+	{ "varsaveon",			scriptcmd_varsaveon,		false,	true	},
+	{ "varset",				scriptcmd_varset,			false,	true	},
+	{ "varseton",			scriptcmd_varseton,			false,	true	},
+	{ "wildernessmap",		scriptcmd_wildernessmap,	false,	true	},
+	{ "xcall",				scriptcmd_xcall,			false,	true	},
+	{ NULL,					NULL,						false,	false	}
 };
 
 const struct script_cmd_type instance_cmd_table[] = {
-	{ "call",				scriptcmd_call,				FALSE,	TRUE	},
-	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	TRUE,	TRUE	},
-	{ "echoat",				scriptcmd_echoat,			FALSE,	TRUE	},
-	{ "instancecomplete",	scriptcmd_instancecomplete,	TRUE,	TRUE	},
-	{ "loadinstanced",		scriptcmd_loadinstanced,	TRUE,	TRUE	},
-	{ "makeinstanced",		scriptcmd_makeinstanced,	TRUE,	TRUE	},
-	{ "mload",				scriptcmd_mload,			FALSE,	TRUE	},
-	{ "mute",				scriptcmd_mute,				FALSE,	TRUE	},
-	{ "oload",				scriptcmd_oload,			FALSE,	TRUE	},
-	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
-	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
-	{ "specialkey",			scriptcmd_specialkey,		FALSE,	TRUE	},
-	{ "treasuremap",		scriptcmd_treasuremap,		FALSE,	TRUE	},
-	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
-	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
-	{ "varclear",			scriptcmd_varclear,			FALSE,	TRUE	},
-	{ "varclearon",			scriptcmd_varclearon,		FALSE,	TRUE	},
-	{ "varcopy",			scriptcmd_varcopy,			FALSE,	TRUE	},
-	{ "varsave",			scriptcmd_varsave,			FALSE,	TRUE	},
-	{ "varsaveon",			scriptcmd_varsaveon,		FALSE,	TRUE	},
-	{ "varset",				scriptcmd_varset,			FALSE,	TRUE	},
-	{ "varseton",			scriptcmd_varseton,			FALSE,	TRUE	},
-	{ "wildernessmap",		scriptcmd_wildernessmap,	FALSE,	TRUE	},
-	{ "xcall",				scriptcmd_xcall,			FALSE,	TRUE	},
-	{ NULL,					NULL,						FALSE,	FALSE	}
+	{ "call",				scriptcmd_call,				false,	true	},
+	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	true,	true	},
+	{ "echoat",				scriptcmd_echoat,			false,	true	},
+	{ "instancecomplete",	scriptcmd_instancecomplete,	true,	true	},
+	{ "loadinstanced",		scriptcmd_loadinstanced,	true,	true	},
+	{ "makeinstanced",		scriptcmd_makeinstanced,	true,	true	},
+	{ "mload",				scriptcmd_mload,			false,	true	},
+	{ "mute",				scriptcmd_mute,				false,	true	},
+	{ "oload",				scriptcmd_oload,			false,	true	},
+	{ "reckoning",			scriptcmd_reckoning,		true,	true	},
+	{ "sendfloor",			scriptcmd_sendfloor,		false,	true	},
+	{ "specialkey",			scriptcmd_specialkey,		false,	true	},
+	{ "treasuremap",		scriptcmd_treasuremap,		false,	true	},
+	{ "unlockarea",			scriptcmd_unlockarea,		true,	true	},
+	{ "unmute",				scriptcmd_unmute,			false,	true	},
+	{ "varclear",			scriptcmd_varclear,			false,	true	},
+	{ "varclearon",			scriptcmd_varclearon,		false,	true	},
+	{ "varcopy",			scriptcmd_varcopy,			false,	true	},
+	{ "varsave",			scriptcmd_varsave,			false,	true	},
+	{ "varsaveon",			scriptcmd_varsaveon,		false,	true	},
+	{ "varset",				scriptcmd_varset,			false,	true	},
+	{ "varseton",			scriptcmd_varseton,			false,	true	},
+	{ "wildernessmap",		scriptcmd_wildernessmap,	false,	true	},
+	{ "xcall",				scriptcmd_xcall,			false,	true	},
+	{ NULL,					NULL,						false,	false	}
 };
 
 const struct script_cmd_type dungeon_cmd_table[] = {
-	{ "call",				scriptcmd_call,				FALSE,	TRUE	},
-	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	TRUE,	TRUE	},
-	{ "echoat",				scriptcmd_echoat,			FALSE,	TRUE	},
-	{ "instancecomplete",	scriptcmd_instancecomplete,	TRUE,	TRUE	},
-	{ "loadinstanced",		scriptcmd_loadinstanced,	TRUE,	TRUE	},
-	{ "makeinstanced",		scriptcmd_makeinstanced,	TRUE,	TRUE	},
-	{ "mload",				scriptcmd_mload,			FALSE,	TRUE	},
-	{ "mute",				scriptcmd_mute,				FALSE,	TRUE	},
-	{ "oload",				scriptcmd_oload,			FALSE,	TRUE	},
-	{ "reckoning",			scriptcmd_reckoning,		TRUE,	TRUE	},
-	{ "sendfloor",			scriptcmd_sendfloor,		FALSE,	TRUE	},
-	{ "specialkey",			scriptcmd_specialkey,		FALSE,	TRUE	},
-	{ "treasuremap",		scriptcmd_treasuremap,		FALSE,	TRUE	},
-	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
-	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
-	{ "varclear",			scriptcmd_varclear,			FALSE,	TRUE	},
-	{ "varclearon",			scriptcmd_varclearon,		FALSE,	TRUE	},
-	{ "varcopy",			scriptcmd_varcopy,			FALSE,	TRUE	},
-	{ "varsave",			scriptcmd_varsave,			FALSE,	TRUE	},
-	{ "varsaveon",			scriptcmd_varsaveon,		FALSE,	TRUE	},
-	{ "varset",				scriptcmd_varset,			FALSE,	TRUE	},
-	{ "varseton",			scriptcmd_varseton,			FALSE,	TRUE	},
-	{ "wildernessmap",		scriptcmd_wildernessmap,	FALSE,	TRUE	},
-	{ "xcall",				scriptcmd_xcall,			FALSE,	TRUE	},
-	{ NULL,					NULL,						FALSE,	FALSE	}
+	{ "call",				scriptcmd_call,				false,	true	},
+	{ "dungeoncomplete",	scriptcmd_dungeoncomplete,	true,	true	},
+	{ "echoat",				scriptcmd_echoat,			false,	true	},
+	{ "instancecomplete",	scriptcmd_instancecomplete,	true,	true	},
+	{ "loadinstanced",		scriptcmd_loadinstanced,	true,	true	},
+	{ "makeinstanced",		scriptcmd_makeinstanced,	true,	true	},
+	{ "mload",				scriptcmd_mload,			false,	true	},
+	{ "mute",				scriptcmd_mute,				false,	true	},
+	{ "oload",				scriptcmd_oload,			false,	true	},
+	{ "reckoning",			scriptcmd_reckoning,		true,	true	},
+	{ "sendfloor",			scriptcmd_sendfloor,		false,	true	},
+	{ "specialkey",			scriptcmd_specialkey,		false,	true	},
+	{ "treasuremap",		scriptcmd_treasuremap,		false,	true	},
+	{ "unlockarea",			scriptcmd_unlockarea,		true,	true	},
+	{ "unmute",				scriptcmd_unmute,			false,	true	},
+	{ "varclear",			scriptcmd_varclear,			false,	true	},
+	{ "varclearon",			scriptcmd_varclearon,		false,	true	},
+	{ "varcopy",			scriptcmd_varcopy,			false,	true	},
+	{ "varsave",			scriptcmd_varsave,			false,	true	},
+	{ "varsaveon",			scriptcmd_varsaveon,		false,	true	},
+	{ "varset",				scriptcmd_varset,			false,	true	},
+	{ "varseton",			scriptcmd_varseton,			false,	true	},
+	{ "wildernessmap",		scriptcmd_wildernessmap,	false,	true	},
+	{ "xcall",				scriptcmd_xcall,			false,	true	},
+	{ NULL,					NULL,						false,	false	}
 };
 
 int apcmd_lookup(char *command)
@@ -267,7 +267,7 @@ SCRIPT_CMD(scriptcmd_addaffect)
 
 	switch(arg->type) {
 	case ENT_STRING:
-		if (!(mob = script_get_char_room(info, arg->d.str, FALSE)))
+		if (!(mob = script_get_char_room(info, arg->d.str, false)))
 			obj = script_get_obj_here(info, arg->d.str);
 		break;
 	case ENT_MOBILE: mob = arg->d.mob; break;
@@ -572,7 +572,7 @@ SCRIPT_CMD(scriptcmd_addaffectname)
 
 	switch(arg->type) {
 	case ENT_STRING:
-		if (!(mob = script_get_char_room(info, arg->d.str, FALSE)))
+		if (!(mob = script_get_char_room(info, arg->d.str, false)))
 			obj = script_get_obj_here(info, arg->d.str);
 		break;
 	case ENT_MOBILE: mob = arg->d.mob; break;
@@ -868,7 +868,7 @@ SCRIPT_CMD(scriptcmd_applytoxin)
 		return;
 
 	switch(arg->type) {
-	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, FALSE); break;
+	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, false); break;
 	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
@@ -937,7 +937,7 @@ SCRIPT_CMD(scriptcmd_attach)
 	OBJ_DATA *entity_obj = NULL;
 	OBJ_DATA *target_obj = NULL;
 
-	bool show = TRUE;
+	bool show = true;
 
 	info->progs->lastreturn = 0;
 
@@ -1099,7 +1099,7 @@ SCRIPT_CMD(scriptcmd_award)
 
 	switch(arg->type) {
 	case ENT_CHURCH: church = arg->d.church; break;
-	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, TRUE); break;
+	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, true); break;
 	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
@@ -1211,7 +1211,7 @@ SCRIPT_CMD(scriptcmd_breathe)
 		return;
 
 	switch(arg->type) {
-	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, FALSE); break;
+	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, false); break;
 	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
@@ -1233,7 +1233,7 @@ SCRIPT_CMD(scriptcmd_breathe)
 			return;
 
 		switch(arg->type) {
-		case ENT_STRING: attacker = script_get_char_room(info, arg->d.str, FALSE); break;
+		case ENT_STRING: attacker = script_get_char_room(info, arg->d.str, false); break;
 		case ENT_MOBILE: attacker = arg->d.mob; break;
 		default: attacker = NULL; break;
 		}
@@ -1310,7 +1310,7 @@ SCRIPT_CMD(scriptcmd_call)
 		}
 
 		switch(arg->type) {
-		case ENT_STRING: ch = script_get_char_room(info, arg->d.str, FALSE); break;
+		case ENT_STRING: ch = script_get_char_room(info, arg->d.str, false); break;
 		case ENT_MOBILE: ch = arg->d.mob; break;
 		default: ch = NULL; break;
 		}
@@ -1333,7 +1333,7 @@ SCRIPT_CMD(scriptcmd_call)
 		}
 
 		switch(arg->type) {
-		case ENT_STRING: vch = script_get_char_room(info, arg->d.str, FALSE); break;
+		case ENT_STRING: vch = script_get_char_room(info, arg->d.str, false); break;
 		case ENT_MOBILE: vch = arg->d.mob; break;
 		default: vch = NULL; break;
 		}
@@ -1390,7 +1390,7 @@ SCRIPT_CMD(scriptcmd_damage)
 	char *rest;
 	CHAR_DATA *victim = NULL, *victim_next, *attacker = NULL;
 	int low, high, level, value, dc;
-	bool fAll = FALSE, fKill = FALSE, fLevel = FALSE, fRemort = FALSE, fTwo = FALSE;
+	bool fAll = false, fKill = false, fLevel = false, fRemort = false, fTwo = false;
 
 
 	if(!(rest = expand_argument(info,argument,arg))) {
@@ -1400,8 +1400,8 @@ SCRIPT_CMD(scriptcmd_damage)
 
 	switch(arg->type) {
 	case ENT_STRING:
-		if(!str_cmp(arg->d.str,"all")) fAll = TRUE;
-		else victim = script_get_char_room(info, arg->d.str, FALSE);
+		if(!str_cmp(arg->d.str,"all")) fAll = true;
+		else victim = script_get_char_room(info, arg->d.str, false);
 		break;
 	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
@@ -1422,10 +1422,10 @@ SCRIPT_CMD(scriptcmd_damage)
 	switch(arg->type) {
 	case ENT_NUMBER: low = arg->d.num; break;
 	case ENT_STRING:
-		if(!str_cmp(arg->d.str,"level")) { fLevel = TRUE; break; }
-		if(!str_cmp(arg->d.str,"remort")) { fLevel = fRemort = TRUE; break; }
-		if(!str_cmp(arg->d.str,"dual")) { fLevel = fTwo = TRUE; break; }
-		if(!str_cmp(arg->d.str,"dualremort")) { fLevel = fTwo = fRemort = TRUE; break; }
+		if(!str_cmp(arg->d.str,"level")) { fLevel = true; break; }
+		if(!str_cmp(arg->d.str,"remort")) { fLevel = fRemort = true; break; }
+		if(!str_cmp(arg->d.str,"dual")) { fLevel = fTwo = true; break; }
+		if(!str_cmp(arg->d.str,"dualremort")) { fLevel = fTwo = fRemort = true; break; }
 		if(is_number(arg->d.str)) { low = atoi(arg->d.str); break; }
 	default:
 		return;
@@ -1473,7 +1473,7 @@ SCRIPT_CMD(scriptcmd_damage)
 
 		if( arg->type != ENT_STRING ) return;
 
-		if (!str_cmp(arg->d.str,"kill") || !str_cmp(arg->d.str,"lethal")) fKill = TRUE;
+		if (!str_cmp(arg->d.str,"kill") || !str_cmp(arg->d.str,"lethal")) fKill = true;
 	}
 
 	if( *rest ) {
@@ -1505,12 +1505,12 @@ SCRIPT_CMD(scriptcmd_damage)
 			victim_next = victim->next_in_room;
 			if (victim != info->mob && (!attacker || victim != attacker)) {
 				value = fLevel ? dice(low,high) : number_range(low,high);
-				damage(attacker?attacker:victim, victim, fKill ? value : UMIN(victim->hit,value), TYPE_UNDEFINED, dc, FALSE);
+				damage(attacker?attacker:victim, victim, fKill ? value : UMIN(victim->hit,value), TYPE_UNDEFINED, dc, false);
 			}
 		}
 	} else {
 		value = fLevel ? dice(low,high) : number_range(low,high);
-		damage(attacker?attacker:victim, victim, fKill ? value : UMIN(victim->hit,value), TYPE_UNDEFINED, dc, FALSE);
+		damage(attacker?attacker:victim, victim, fKill ? value : UMIN(victim->hit,value), TYPE_UNDEFINED, dc, false);
 	}
 }
 
@@ -1540,7 +1540,7 @@ SCRIPT_CMD(scriptcmd_deduct)
 
 	switch(arg->type) {
 	case ENT_CHURCH: church = arg->d.church; break;
-	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, TRUE); break;
+	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, true); break;
 	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
@@ -1655,7 +1655,7 @@ SCRIPT_CMD(scriptcmd_detach)
 	CHAR_DATA *mob = NULL;
 	OBJ_DATA *obj = NULL;
 
-	bool show = TRUE;
+	bool show = true;
 
 	info->progs->lastreturn = 0;
 
@@ -1787,7 +1787,7 @@ SCRIPT_CMD(scriptcmd_echoat)
 
 
 	switch(arg->type) {
-	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, FALSE); break;
+	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, false); break;
 	case ENT_MOBILE: victim = arg->d.mob; break;
 	case ENT_ROOM: room = arg->d.room; break;
 	case ENT_AREA: area = arg->d.area; break;
@@ -1942,7 +1942,7 @@ SCRIPT_CMD(scriptcmd_entercombat)
 	CHAR_DATA *attacker = NULL;
 	CHAR_DATA *victim = NULL;
 
-	bool fSilent = FALSE;
+	bool fSilent = false;
 
 
 	info->progs->lastreturn = 0;
@@ -1951,7 +1951,7 @@ SCRIPT_CMD(scriptcmd_entercombat)
 		return;
 
 	switch(arg->type) {
-	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, FALSE); break;
+	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, false); break;
 	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
@@ -1966,10 +1966,10 @@ SCRIPT_CMD(scriptcmd_entercombat)
 		attacker = victim;
 		if( arg->type == ENT_BOOLEAN ) {
 			// VICTIM SILENT syntax
-			fSilent = arg->d.boolean == TRUE;
+			fSilent = arg->d.boolean == true;
 		} else {
 			switch(arg->type) {
-			case ENT_STRING: victim = script_get_char_room(info, arg->d.str, FALSE); break;
+			case ENT_STRING: victim = script_get_char_room(info, arg->d.str, false); break;
 			case ENT_MOBILE: victim = arg->d.mob; break;
 			default: victim = NULL; break;
 			}
@@ -1983,7 +1983,7 @@ SCRIPT_CMD(scriptcmd_entercombat)
 
 				// ATTACKER VICTIM SILENT syntax
 				if( arg->type == ENT_BOOLEAN )
-					fSilent = arg->d.boolean == TRUE;
+					fSilent = arg->d.boolean == true;
 			}
 		}
 	} else if(!info->mob)
@@ -2005,7 +2005,7 @@ SCRIPT_CMD(scriptcmd_entercombat)
 // $PLAYER    - player to force into fading
 // $DIRECTION - exit to travel in, "random"|"any" to pick a random exit
 // $RATING    - skill rating to mimic the fading, ranging from 1 to 100
-// $INTERRUPT - flag (default FALSE) on whether to interrupt the player.
+// $INTERRUPT - flag (default false) on whether to interrupt the player.
 //
 // Fails if not a player
 // Fails if player is rifting
@@ -2031,7 +2031,7 @@ SCRIPT_CMD(scriptcmd_fade)
 
 	target = info->mob;
 	switch(arg->type) {
-	case ENT_STRING: target = script_get_char_room(info, arg->d.str, TRUE); break;
+	case ENT_STRING: target = script_get_char_room(info, arg->d.str, true); break;
 	case ENT_MOBILE: target = arg->d.mob; break;
 	default: target = NULL; break;
 	}
@@ -2075,16 +2075,16 @@ SCRIPT_CMD(scriptcmd_fade)
 		// Check whether to make the busy flag false
 		if( arg->type == ENT_BOOLEAN )
 		{
-			if( arg->d.boolean ) busy = FALSE;
+			if( arg->d.boolean ) busy = false;
 		}
 		else if( arg->type == ENT_NUMBER )
 		{
-			if( arg->d.num != 0 ) busy = FALSE;
+			if( arg->d.num != 0 ) busy = false;
 		}
 		else if( arg->type == ENT_STRING )
 		{
 			if( !str_cmp(arg->d.str, "yes") || !str_cmp(arg->d.str, "true") )
-				busy = FALSE;
+				busy = false;
 		}
 
 	}
@@ -2115,7 +2115,7 @@ SCRIPT_CMD(scriptcmd_flee)
 	char *rest;
 	CHAR_DATA *target;
 	int door = -1;
-	bool conceal = FALSE, pursue = TRUE;
+	bool conceal = false, pursue = true;
 	char fleedata[MIL];
 	char *fleearg = str_empty;
 
@@ -2127,7 +2127,7 @@ SCRIPT_CMD(scriptcmd_flee)
 
 	target = info->mob;
 	switch(arg->type) {
-	case ENT_STRING: target = script_get_char_room(info, arg->d.str, TRUE); break;
+	case ENT_STRING: target = script_get_char_room(info, arg->d.str, true); break;
 	case ENT_MOBILE: target = arg->d.mob; break;
 	default: target = NULL; break;
 	}
@@ -2237,7 +2237,7 @@ SCRIPT_CMD(scriptcmd_grantskill)
 		rating = URANGE(1,arg->d.num,100);
 
 		if( *rest ) {
-			bool fPerm = FALSE;
+			bool fPerm = false;
 
 			if(!(rest = expand_argument(info,rest,arg)))
 				return;
@@ -2377,7 +2377,7 @@ SCRIPT_CMD(scriptcmd_inputstring)
 
 	pVARIABLE var = variable_get(*(info->var),buf_string(buffer));
 
-	mob->desc->input = TRUE;
+	mob->desc->input = true;
 	if( var && var->type == VAR_STRING && !IS_NULLSTR(var->_.s) )
 		mob->desc->inputString = str_dup(var->_.s);
 	else
@@ -2734,7 +2734,7 @@ SCRIPT_CMD(scriptcmd_questaccept)
 	for (QUEST_PART_DATA *qp = mob->quest->parts; qp != NULL; qp = qp->next)
 		mob->countdown += qp->minutes;
 
-	mob->quest->generating = FALSE;
+	mob->quest->generating = false;
 	info->progs->lastreturn = mob->countdown;
 }
 
@@ -2968,8 +2968,8 @@ SCRIPT_CMD(scriptcmd_questgenerate)
 		return;
 
 	mob->quest = new_quest();
-	mob->quest->generating = TRUE;
-	mob->quest->scripted = TRUE;
+	mob->quest->generating = true;
+	mob->quest->scripted = true;
 	mob->quest->questgiver_type = qg_type;
 	mob->quest->questgiver = qg_vnum;
 	if( qr_mob )
@@ -2988,7 +2988,7 @@ SCRIPT_CMD(scriptcmd_questgenerate)
 		mob->quest->questreceiver = qr_room->vnum;
 	}
 
-	bool success = TRUE;
+	bool success = true;
 	for(int i = 0; i < parts; i++)
 	{
 		QUEST_PART_DATA *part = new_quest_part();
@@ -3001,7 +3001,7 @@ SCRIPT_CMD(scriptcmd_questgenerate)
 
 		if( execute_script(script->vnum, script, info->mob, info->obj, info->room, info->token, NULL, NULL, NULL, mob, NULL, NULL, NULL, NULL,NULL, NULL,NULL,NULL,0,0,0,0,0) <= 0 )
 		{
-			success = FALSE;
+			success = false;
 			break;
 		}
 	}
@@ -3058,7 +3058,7 @@ SCRIPT_CMD(scriptcmd_questpartcustom)
 
 
 	part->description = str_dup(buf);
-	part->custom_task = TRUE;
+	part->custom_task = true;
 	part->minutes = minutes;
 
 	info->progs->lastreturn = 1;
@@ -3668,7 +3668,7 @@ SCRIPT_CMD(scriptcmd_spawndungeon)
 		return;
 
 	switch(arg->type) {
-	case ENT_STRING: ch = script_get_char_room(info, arg->d.str, FALSE); break;
+	case ENT_STRING: ch = script_get_char_room(info, arg->d.str, false); break;
 	case ENT_MOBILE: ch = arg->d.mob; break;
 	default: ch = NULL; break;
 	}
@@ -3769,7 +3769,7 @@ SCRIPT_CMD(scriptcmd_startcombat)
 	}
 
 	switch(arg->type) {
-	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, FALSE); break;
+	case ENT_STRING: victim = script_get_char_room(info, arg->d.str, false); break;
 	case ENT_MOBILE: victim = arg->d.mob; break;
 	default: victim = NULL; break;
 	}
@@ -3783,7 +3783,7 @@ SCRIPT_CMD(scriptcmd_startcombat)
 
 		attacker = victim;
 		switch(arg->type) {
-		case ENT_STRING: victim = script_get_char_room(info, arg->d.str, FALSE); break;
+		case ENT_STRING: victim = script_get_char_room(info, arg->d.str, false); break;
 		case ENT_MOBILE: victim = arg->d.mob; break;
 		default: victim = NULL; break;
 		}
@@ -3809,7 +3809,7 @@ SCRIPT_CMD(scriptcmd_startcombat)
 		return;
 
 	// The victim is safe
-	if(is_safe(attacker, victim, FALSE)) return;
+	if(is_safe(attacker, victim, false)) return;
 
 	// Set them to fighting!
 	if(set_fighting(attacker, victim))
@@ -3825,7 +3825,7 @@ SCRIPT_CMD(scriptcmd_stopcombat)
 	char *rest;
 
 	CHAR_DATA *mob;
-	bool fBoth = FALSE;
+	bool fBoth = false;
 
 	info->progs->lastreturn = 0;
 
@@ -4298,7 +4298,7 @@ SCRIPT_CMD(scriptcmd_xcall)
 		}
 
 		switch(arg->type) {
-		case ENT_STRING: ch = script_get_char_room(info, arg->d.str, FALSE); break;
+		case ENT_STRING: ch = script_get_char_room(info, arg->d.str, false); break;
 		case ENT_MOBILE: ch = arg->d.mob; break;
 		default: ch = NULL; break;
 		}
@@ -4320,7 +4320,7 @@ SCRIPT_CMD(scriptcmd_xcall)
 		}
 
 		switch(arg->type) {
-		case ENT_STRING: vch = script_get_char_room(info, arg->d.str, FALSE); break;
+		case ENT_STRING: vch = script_get_char_room(info, arg->d.str, false); break;
 		case ENT_MOBILE: vch = arg->d.mob; break;
 		default: vch = NULL; break;
 		}

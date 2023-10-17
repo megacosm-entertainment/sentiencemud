@@ -27,7 +27,7 @@ char *expand_string_expression(SCRIPT_VARINFO *info,char *str,BUFFER *store);
 //	Should the ids mismatch, reset the field
 bool check_varinfo(SCRIPT_VARINFO *info)
 {
-	bool ret = TRUE;
+	bool ret = true;
 	return ret;
 }
 
@@ -65,9 +65,9 @@ char *expand_skip(register char *str)
 
 static bool push(STACK *stk,int val)
 {
-	if(stk->t >= MAX_STACK) return FALSE;
+	if(stk->t >= MAX_STACK) return false;
 	stk->s[stk->t++] = val;
-	return TRUE;
+	return true;
 }
 
 static int perform_operation(STACK *op,STACK *opr)
@@ -101,7 +101,7 @@ static int perform_operation(STACK *op,STACK *opr)
 
 static bool push_operator(STACK *stk,int op)
 {
-	if(script_expression_tostack[op] == STK_MAX) return FALSE;
+	if(script_expression_tostack[op] == STK_MAX) return false;
 	return push(stk,script_expression_tostack[op]);
 }
 
@@ -111,27 +111,27 @@ static bool process_expession_stack(STACK *stk_op,STACK *stk_opr,int op)
 
 	if(op == CH_MAX) {
 		//printf("invalid operator.\n");
-		return FALSE;
+		return false;
 	}
 
 	// Iterate through the operators that CAN be popped off the stack
 	while((t = script_expression_stack_action[op][top(stk_opr,STK_EMPTY)]) == POP &&
 		(t = perform_operation(stk_op,stk_opr)) == DONE);
 
-	if(t == DONE) return TRUE;
+	if(t == DONE) return true;
 	else if(t == PUSH) {
 		push_operator(stk_opr,op);
-		return TRUE;
+		return true;
 	} else if(t == DELETE) {
 		--stk_opr->t;
-		return TRUE;
+		return true;
 	}
 //	else if(t == ERROR1) printf("unmatched right parentheses.\n");
 //	else if(t == ERROR2) printf("unmatched left parentheses.\n");
 //	else if(t == ERROR3) printf("division by zero.\n");
 //	else if(t == ERROR4) printf("insufficient operators/operands on stack.\n");
 
-	return FALSE;
+	return false;
 }
 
 // Used by expand_variable to expand internal variable references into string components
@@ -204,7 +204,7 @@ char *expand_variable_recursive(SCRIPT_VARINFO *info, char *str,BUFFER *buffer)
 char *expand_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,pVARIABLE *var)
 {
 	BUFFER *buffer;
-	bool deref = FALSE;
+	bool deref = false;
 	pVARIABLE v;
 
 	//if(*str == ESCAPE_VARIABLE && wiznet_variables) {
@@ -214,7 +214,7 @@ char *expand_variable(SCRIPT_VARINFO *info, pVARIABLE vars,char *str,pVARIABLE *
 	//}
 
 	if(*str == '*') {
-		deref = TRUE;
+		deref = true;
 		++str;
 	}
 
@@ -356,7 +356,7 @@ char *expand_argument_expression(SCRIPT_VARINFO *info, char *str,int *num)
 	STACK optr,opnd;
 	pVARIABLE var;
 	int value,op;
-	bool expect = FALSE;	// FALSE = number/open, TRUE = operator/close
+	bool expect = false;	// false = number/open, true = operator/close
 	char *p = str;
 	pVARIABLE vars = info ? *(info->var) : NULL;
 
@@ -381,7 +381,7 @@ char *expand_argument_expression(SCRIPT_VARINFO *info, char *str,int *num)
 				// Generate an error - expression too complex, simplify
 				break;
 			}
-			expect = TRUE;
+			expect = true;
 		} else if(*str == ESCAPE_VARIABLE) {	// Variable
 			if(expect) {
 				// Generate an error - missing an operator
@@ -409,7 +409,7 @@ char *expand_argument_expression(SCRIPT_VARINFO *info, char *str,int *num)
 				// Generate an error - expression too complex, simplify
 				break;
 			}
-			expect = TRUE;
+			expect = true;
 		} else if(*str == ESCAPE_EXPRESSION) {
 			if(expect) {
 				// Generate an error - missing an operator
@@ -428,21 +428,21 @@ char *expand_argument_expression(SCRIPT_VARINFO *info, char *str,int *num)
 				// Generate an error - expression too complex, simplify
 				break;
 			}
-			expect = TRUE;
+			expect = true;
 		} else {
 //			sprintf(buf,"expand_argument_expression: operator = %c, %2.2X", *str, str[1]&0xFF);
 //			wiznet(buf,NULL,NULL,WIZ_TESTING,0,0);
 
 			switch(*str) {
-			case '+': op = expect ? CH_ADD : CH_MAX; expect=FALSE; break;
-			case '-': op = expect ? CH_SUB : CH_NEG; expect=FALSE; break;
-			case '*': op = expect ? CH_MUL : CH_MAX; expect=FALSE; break;
-			case '/': op = expect ? CH_DIV : CH_MAX; expect=FALSE; break;
-			case '%': op = expect ? CH_MOD : CH_MAX; expect=FALSE; break;
-			case ':': op = expect ? CH_RAND : CH_MAX; expect=FALSE; break;
-			case '!': op = expect ? CH_MAX : CH_NOT; expect=FALSE; break;
-			case '(': op = expect ? CH_MAX : CH_OPEN; expect=FALSE; break;
-			case ')': op = expect ? CH_CLOSE : CH_MAX; expect=TRUE; break;
+			case '+': op = expect ? CH_ADD : CH_MAX; expect=false; break;
+			case '-': op = expect ? CH_SUB : CH_NEG; expect=false; break;
+			case '*': op = expect ? CH_MUL : CH_MAX; expect=false; break;
+			case '/': op = expect ? CH_DIV : CH_MAX; expect=false; break;
+			case '%': op = expect ? CH_MOD : CH_MAX; expect=false; break;
+			case ':': op = expect ? CH_RAND : CH_MAX; expect=false; break;
+			case '!': op = expect ? CH_MAX : CH_NOT; expect=false; break;
+			case '(': op = expect ? CH_MAX : CH_OPEN; expect=false; break;
+			case ')': op = expect ? CH_CLOSE : CH_MAX; expect=true; break;
 			default:  op = CH_MAX; break;
 			}
 
@@ -1429,7 +1429,7 @@ char *expand_entity_variable(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 char *expand_entity_boolean(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
 {
 	switch(*str) {
-		case ENTITY_BOOLEAN_TRUE_FALSE:
+		case ENTITY_BOOLEAN_true_false:
 			arg->type = ENT_STRING;
 			arg->d.str = arg->d.boolean ? "true" : "false";
 			break;
@@ -5220,19 +5220,19 @@ char *expand_entity_bitvector(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 			str = expand_name(info,(info?*(info->var):NULL),str+1,buffer);
 			if(!str) {
 				free_buf(buffer);
-				arg->d.boolean = FALSE;
+				arg->d.boolean = false;
 				return NULL;
 			}
 
 
 			bit = flag_lookup(buf_string(buffer), arg->d.bv.table);
 
-			arg->d.boolean = IS_SET(arg->d.bv.value, bit) && TRUE;
+			arg->d.boolean = IS_SET(arg->d.bv.value, bit) && true;
 			free_buf(buffer);
 		}
 		else
 		{
-			arg->d.boolean = FALSE;
+			arg->d.boolean = false;
 		}
 		break;
 	default: return NULL;
@@ -5813,16 +5813,16 @@ bool expand_string(SCRIPT_VARINFO *info,char *str,BUFFER *buffer)
 		if(!str) {
 			clear_buf(buffer);
 			expand_string_dump(buf_string(buffer));
-			DBG2EXITVALUE2(FALSE);
-			return FALSE;
+			DBG2EXITVALUE2(false);
+			return false;
 		}
 	}
 
 //	wiznet("EXPAND_STRING:",NULL,NULL,WIZ_TESTING,0,0);
 //	wiznet(start,NULL,NULL,WIZ_TESTING,0,0);
 	expand_string_dump(buf_string(buffer));
-	DBG2EXITVALUE2(TRUE);
-	return TRUE;
+	DBG2EXITVALUE2(true);
+	return true;
 }
 
 char *one_argument_escape( char *argument, char *arg_first )

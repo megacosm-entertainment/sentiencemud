@@ -29,14 +29,14 @@ pVARIABLE variable_freechain = NULL;
 
 bool variable_validname(char *str)
 {
-	if(!str || !*str) return FALSE;
+	if(!str || !*str) return false;
 
 	while(*str) {
-		if(!ISPRINT(*str) || *str == '~') return FALSE;
+		if(!ISPRINT(*str) || *str == '~') return false;
 		++str;
 	}
 
-	return TRUE;
+	return true;
 }
 
 pVARIABLE variable_new(void)
@@ -358,7 +358,7 @@ pVARIABLE variable_alloc(char *name, bool index)
 	var = variable_new();
 	if(var) {
 		var->name = str_dup(name);
-		var->save = FALSE;
+		var->save = false;
 		var->index = index;
 
 		if(index) {
@@ -395,16 +395,16 @@ pVARIABLE variable_create(ppVARIABLE list,char *name, bool index, bool clear)
 #define varset(n,c,t,v,f) \
 bool variables_setsave_##n (ppVARIABLE list,char *name,t v, bool save) \
 { \
-	pVARIABLE var = variable_create(list,name,FALSE,TRUE); \
+	pVARIABLE var = variable_create(list,name,false,true); \
  \
-	if(!var) return FALSE; \
+	if(!var) return false; \
  \
 	var->type = VAR_##c; \
 	if( save != false ) \
 		var->save = save; \
 	var->_.f = v; \
  \
-	return TRUE; \
+	return true; \
 } \
  \
 bool variables_set_##n (ppVARIABLE list,char *name,t v) \
@@ -437,9 +437,9 @@ bool variables_set_dice (ppVARIABLE list,char *name,DICE_DATA *d)
 
 bool variables_setsave_dice (ppVARIABLE list,char *name,DICE_DATA *d, bool save)
 {
-	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
+	pVARIABLE var = variable_create(list,name,false,true);
 
-	if(!var) return FALSE;
+	if(!var) return false;
 
 	var->type = VAR_DICE;
 	if( save != false )
@@ -449,14 +449,14 @@ bool variables_setsave_dice (ppVARIABLE list,char *name,DICE_DATA *d, bool save)
 	var->_.dice.bonus = d->bonus;
 	var->_.dice.last_roll = d->last_roll;
 
-	return TRUE;
+	return true;
 }
 
 bool variables_set_door (ppVARIABLE list,char *name, ROOM_INDEX_DATA *room, int door, bool save)
 {
-	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
+	pVARIABLE var = variable_create(list,name,false,true);
 
-	if(!var) return FALSE;
+	if(!var) return false;
 
 	var->type = VAR_EXIT;
 	if( save != false )
@@ -464,20 +464,20 @@ bool variables_set_door (ppVARIABLE list,char *name, ROOM_INDEX_DATA *room, int 
 	var->_.door.r = room;
 	var->_.door.door = door;
 
-	return TRUE;
+	return true;
 }
 
 
 bool variables_set_exit (ppVARIABLE list,char *name, EXIT_DATA *ex)
 {
-	if( !ex || !ex->from_room) return FALSE;
+	if( !ex || !ex->from_room) return false;
 
 	return variables_set_door( list, name, ex->from_room, ex->orig_door, false );
 }
 
 bool variables_setsave_exit (ppVARIABLE list,char *name, EXIT_DATA *ex, bool save)
 {
-	if( !ex || !ex->from_room) return FALSE;
+	if( !ex || !ex->from_room) return false;
 
 	return variables_set_door( list, name, ex->from_room, ex->orig_door, save);
 }
@@ -490,16 +490,16 @@ bool variables_set_skill (ppVARIABLE list,char *name,int sn)
 
 bool variables_setsave_skill (ppVARIABLE list,char *name,int sn, bool save)
 {
-	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
+	pVARIABLE var = variable_create(list,name,false,true);
 
-	if(!var) return FALSE;
+	if(!var) return false;
 
 	var->type = VAR_SKILL;
 	if( save != false )
 		var->save = save;
 	var->_.sn =  (sn > 0 && sn < MAX_SKILL) ? sn : 0;
 
-	return TRUE;
+	return true;
 }
 
 bool variables_set_skillinfo (ppVARIABLE list,char *name,CHAR_DATA *owner, int sn, TOKEN_DATA *token)
@@ -509,9 +509,9 @@ bool variables_set_skillinfo (ppVARIABLE list,char *name,CHAR_DATA *owner, int s
 
 bool variables_setsave_skillinfo (ppVARIABLE list,char *name,CHAR_DATA *owner, int sn, TOKEN_DATA *token, bool save)
 {
-	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
+	pVARIABLE var = variable_create(list,name,false,true);
 
-	if(!var) return FALSE;
+	if(!var) return false;
 
 	var->type = VAR_SKILLINFO;
 	if( save != false )
@@ -520,95 +520,95 @@ bool variables_setsave_skillinfo (ppVARIABLE list,char *name,CHAR_DATA *owner, i
 	var->_.sk.token = token;
 	var->_.sk.sn =  (sn > 0 && sn < MAX_SKILL) ? sn : 0;
 
-	return TRUE;
+	return true;
 }
 
 bool variables_set_mobile_id (ppVARIABLE list,char *name,unsigned long a, unsigned long b, bool save)
 {
-	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
+	pVARIABLE var = variable_create(list,name,false,true);
 
-	if(!var) return FALSE;
+	if(!var) return false;
 
 	var->type = VAR_MOBILE_ID;
 	var->save = save;
 	var->_.mid.a = a;
 	var->_.mid.b = b;
 
-	return TRUE;
+	return true;
 }
 
 bool variables_set_object_id (ppVARIABLE list,char *name,unsigned long a, unsigned long b, bool save)
 {
-	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
+	pVARIABLE var = variable_create(list,name,false,true);
 
-	if(!var) return FALSE;
+	if(!var) return false;
 
 	var->type = VAR_OBJECT_ID;
 	var->save = save;
 	var->_.oid.a = a;
 	var->_.oid.b = b;
 
-	return TRUE;
+	return true;
 }
 
 bool variables_set_token_id (ppVARIABLE list,char *name,unsigned long a, unsigned long b, bool save)
 {
-	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
+	pVARIABLE var = variable_create(list,name,false,true);
 
-	if(!var) return FALSE;
+	if(!var) return false;
 
 	var->type = VAR_TOKEN_ID;
 	var->save = save;
 	var->_.tid.a = a;
 	var->_.tid.b = b;
 
-	return TRUE;
+	return true;
 }
 
 bool variables_set_area_id (ppVARIABLE list,char *name, long aid, bool save)
 {
-	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
+	pVARIABLE var = variable_create(list,name,false,true);
 
-	if(!var) return FALSE;
+	if(!var) return false;
 
 	var->type = VAR_AREA_ID;
 	var->save = save;
 	var->_.aid = aid;
 
-	return TRUE;
+	return true;
 }
 
 bool variables_set_wilds_id (ppVARIABLE list,char *name, long wid, bool save)
 {
-	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
+	pVARIABLE var = variable_create(list,name,false,true);
 
-	if(!var) return FALSE;
+	if(!var) return false;
 
 	var->type = VAR_WILDS_ID;
 	var->save = save;
 	var->_.wid = wid;
 
-	return TRUE;
+	return true;
 }
 
 bool variables_set_church_id (ppVARIABLE list,char *name, long chid, bool save)
 {
-	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
+	pVARIABLE var = variable_create(list,name,false,true);
 
-	if(!var) return FALSE;
+	if(!var) return false;
 
 	var->type = VAR_CHURCH_ID;
 	var->save = save;
 	var->_.chid = chid;
 
-	return TRUE;
+	return true;
 }
 
 bool variables_set_clone_room (ppVARIABLE list,char *name, ROOM_INDEX_DATA *source,unsigned long a, unsigned long b, bool save)
 {
-	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
+	pVARIABLE var = variable_create(list,name,false,true);
 
-	if(!var) return FALSE;
+	if(!var) return false;
 
 	var->type = VAR_CLONE_ROOM;
 	var->save = save;
@@ -616,14 +616,14 @@ bool variables_set_clone_room (ppVARIABLE list,char *name, ROOM_INDEX_DATA *sour
 	var->_.cr.a = a;
 	var->_.cr.b = b;
 
-	return TRUE;
+	return true;
 }
 
 bool variables_set_wilds_room (ppVARIABLE list,char *name, unsigned long w, int x, int y, bool save)
 {
-	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
+	pVARIABLE var = variable_create(list,name,false,true);
 
-	if(!var) return FALSE;
+	if(!var) return false;
 
 	var->type = VAR_WILDS_ROOM;
 	var->save = save;
@@ -631,14 +631,14 @@ bool variables_set_wilds_room (ppVARIABLE list,char *name, unsigned long w, int 
 	var->_.wroom.x = x;
 	var->_.wroom.y = y;
 
-	return TRUE;
+	return true;
 }
 
 bool variables_set_clone_door (ppVARIABLE list,char *name, ROOM_INDEX_DATA *source,unsigned long a, unsigned long b, int door, bool save)
 {
-	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
+	pVARIABLE var = variable_create(list,name,false,true);
 
-	if(!var) return FALSE;
+	if(!var) return false;
 
 	var->type = VAR_CLONE_DOOR;
 	var->save = save;
@@ -647,14 +647,14 @@ bool variables_set_clone_door (ppVARIABLE list,char *name, ROOM_INDEX_DATA *sour
 	var->_.cdoor.b = b;
 	var->_.cdoor.door = door;
 
-	return TRUE;
+	return true;
 }
 
 bool variables_set_wilds_door (ppVARIABLE list,char *name, unsigned long w, int x, int y, int door, bool save)
 {
-	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
+	pVARIABLE var = variable_create(list,name,false,true);
 
-	if(!var) return FALSE;
+	if(!var) return false;
 
 	var->type = VAR_WILDS_DOOR;
 	var->save = save;
@@ -663,14 +663,14 @@ bool variables_set_wilds_door (ppVARIABLE list,char *name, unsigned long w, int 
 	var->_.wdoor.y = y;
 	var->_.wdoor.door = door;
 
-	return TRUE;
+	return true;
 }
 
 bool variables_set_skillinfo_id (ppVARIABLE list,char *name, unsigned long ma, unsigned long mb, unsigned long ta, unsigned long tb, int sn, bool save)
 {
-	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
+	pVARIABLE var = variable_create(list,name,false,true);
 
-	if(!var) return FALSE;
+	if(!var) return false;
 
 	var->type = VAR_SKILLINFO_ID;
 	var->save = save;
@@ -680,12 +680,12 @@ bool variables_set_skillinfo_id (ppVARIABLE list,char *name, unsigned long ma, u
 	var->_.skid.tid[1] = tb;
 	var->_.skid.sn = (sn > 0 && sn < MAX_SKILL) ? sn : 0;
 
-	return TRUE;
+	return true;
 }
 
 pVARIABLE variables_set_list (ppVARIABLE list, char *name, int type, bool save)
 {
-	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
+	pVARIABLE var = variable_create(list,name,false,true);
 
 	if(var)
 	{
@@ -694,13 +694,13 @@ pVARIABLE variables_set_list (ppVARIABLE list, char *name, int type, bool save)
 		var->save = save;
 
 		if( type > VAR_BLLIST_FIRST && type < VAR_BLLIST_LAST )
-			var->_.list = list_createx(FALSE, __var_blist_copier[type - VAR_BLLIST_FIRST], __var_blist_deleter[type - VAR_BLLIST_FIRST]);
+			var->_.list = list_createx(false, __var_blist_copier[type - VAR_BLLIST_FIRST], __var_blist_deleter[type - VAR_BLLIST_FIRST]);
 
 		else if( type == VAR_PLLIST_STR )
-			var->_.list = list_createx(FALSE, deepcopy_string, deleter_string);
+			var->_.list = list_createx(false, deepcopy_string, deleter_string);
 
 		else
-			var->_.list = list_create(FALSE);
+			var->_.list = list_create(false);
 
 
 		// 20140511 NIB - the use of the purge flag here would not allow for list culling
@@ -714,15 +714,15 @@ pVARIABLE variables_set_list (ppVARIABLE list, char *name, int type, bool save)
 
 bool variables_set_connection (ppVARIABLE list, char *name, DESCRIPTOR_DATA *conn)
 {
-	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
+	pVARIABLE var = variable_create(list,name,false,true);
 
-	if(!var) return FALSE;
+	if(!var) return false;
 
 	var->type = VAR_CONNECTION;
-	var->save = FALSE;					// These will never save
+	var->save = false;					// These will never save
 	var->_.conn = conn;
 
-	return TRUE;
+	return true;
 }
 
 bool variables_set_list_str (ppVARIABLE list, char *name, char *str, bool save)
@@ -730,19 +730,19 @@ bool variables_set_list_str (ppVARIABLE list, char *name, char *str, bool save)
 	char *cpy;
 	pVARIABLE var = variable_get(*list, name);
 
-	if( !str ) return FALSE;
+	if( !str ) return false;
 
 	if( !var ) {
 		if ( !(var = variables_set_list(list,name,VAR_PLLIST_STR,save)) )
-			return FALSE;
+			return false;
 	} else if( var->type != VAR_PLLIST_STR )
-		return FALSE;
+		return false;
 
 	cpy = str_dup(str);
 	if( !list_appendlink(var->_.list, cpy) )
 		free_string(cpy);
 
-	return TRUE;
+	return true;
 }
 
 
@@ -751,13 +751,13 @@ bool variables_append_list_str (ppVARIABLE list, char *name, char *str)
 	char *cpy;
 	pVARIABLE var = variable_get(*list, name);
 
-	if( !str || !var || var->type != VAR_PLLIST_STR) return FALSE;
+	if( !str || !var || var->type != VAR_PLLIST_STR) return false;
 
 	cpy = str_dup(str);
 	if( !list_appendlink(var->_.list, cpy) )
 		free_string(cpy);
 
-	return TRUE;
+	return true;
 }
 
 // Used for loading purposes
@@ -766,9 +766,9 @@ static bool variables_append_list_uid (ppVARIABLE list, char *name, int type, un
 	LLIST_UID_DATA *data;
 	pVARIABLE var = variable_get(*list, name);
 
-	if( (!a && !b)  || !var || var->type != type) return FALSE;
+	if( (!a && !b)  || !var || var->type != type) return false;
 
-	if( !(data = alloc_mem(sizeof(LLIST_UID_DATA))) ) return FALSE;
+	if( !(data = alloc_mem(sizeof(LLIST_UID_DATA))) ) return false;
 
 	data->ptr = NULL;
 	data->id[0] = a;
@@ -777,7 +777,7 @@ static bool variables_append_list_uid (ppVARIABLE list, char *name, int type, un
 	if( !list_appendlink(var->_.list, data) )
 		free_mem(data,sizeof(LLIST_UID_DATA));
 
-	return TRUE;
+	return true;
 }
 
 bool variables_set_list_mob (ppVARIABLE list, char *name, CHAR_DATA *mob, bool save)
@@ -785,15 +785,15 @@ bool variables_set_list_mob (ppVARIABLE list, char *name, CHAR_DATA *mob, bool s
 	LLIST_UID_DATA *data;
 	pVARIABLE var = variable_get(*list, name);
 
-	if( !IS_VALID(mob) ) return FALSE;
+	if( !IS_VALID(mob) ) return false;
 
 	if( !var ) {
 		if ( !(var = variables_set_list(list,name,VAR_BLLIST_MOB,save)) )
-			return FALSE;
+			return false;
 	} else if( var->type != VAR_BLLIST_MOB )
-		return FALSE;
+		return false;
 
-	if( !(data = alloc_mem(sizeof(LLIST_UID_DATA))) ) return FALSE;
+	if( !(data = alloc_mem(sizeof(LLIST_UID_DATA))) ) return false;
 
 	data->ptr = mob;
 	data->id[0] = mob->id[0];
@@ -802,7 +802,7 @@ bool variables_set_list_mob (ppVARIABLE list, char *name, CHAR_DATA *mob, bool s
 	if( !list_appendlink(var->_.list, data) )
 		free_mem(data,sizeof(LLIST_UID_DATA));
 
-	return TRUE;
+	return true;
 }
 
 bool variables_append_list_mob (ppVARIABLE list, char *name, CHAR_DATA *mob)
@@ -810,9 +810,9 @@ bool variables_append_list_mob (ppVARIABLE list, char *name, CHAR_DATA *mob)
 	LLIST_UID_DATA *data;
 	pVARIABLE var = variable_get(*list, name);
 
-	if( !IS_VALID(mob) || !var || var->type != VAR_BLLIST_MOB) return FALSE;
+	if( !IS_VALID(mob) || !var || var->type != VAR_BLLIST_MOB) return false;
 
-	if( !(data = alloc_mem(sizeof(LLIST_UID_DATA))) ) return FALSE;
+	if( !(data = alloc_mem(sizeof(LLIST_UID_DATA))) ) return false;
 
 	data->ptr = mob;
 	data->id[0] = mob->id[0];
@@ -821,7 +821,7 @@ bool variables_append_list_mob (ppVARIABLE list, char *name, CHAR_DATA *mob)
 	if( !list_appendlink(var->_.list, data) )
 		free_mem(data,sizeof(LLIST_UID_DATA));
 
-	return TRUE;
+	return true;
 }
 
 bool variables_set_list_obj (ppVARIABLE list, char *name, OBJ_DATA *obj, bool save)
@@ -829,15 +829,15 @@ bool variables_set_list_obj (ppVARIABLE list, char *name, OBJ_DATA *obj, bool sa
 	LLIST_UID_DATA *data;
 	pVARIABLE var = variable_get(*list, name);
 
-	if( !IS_VALID(obj) ) return FALSE;
+	if( !IS_VALID(obj) ) return false;
 
 	if( !var ) {
 		if ( !(var = variables_set_list(list,name,VAR_BLLIST_OBJ,save)) )
-			return FALSE;
+			return false;
 	} else if( var->type != VAR_BLLIST_OBJ )
-		return FALSE;
+		return false;
 
-	if( !(data = alloc_mem(sizeof(LLIST_UID_DATA))) ) return FALSE;
+	if( !(data = alloc_mem(sizeof(LLIST_UID_DATA))) ) return false;
 
 	data->ptr = obj;
 	data->id[0] = obj->id[0];
@@ -846,7 +846,7 @@ bool variables_set_list_obj (ppVARIABLE list, char *name, OBJ_DATA *obj, bool sa
 	if( !list_appendlink(var->_.list, data) )
 		free_mem(data,sizeof(LLIST_UID_DATA));
 
-	return TRUE;
+	return true;
 }
 
 bool variables_append_list_obj (ppVARIABLE list, char *name, OBJ_DATA *obj)
@@ -854,9 +854,9 @@ bool variables_append_list_obj (ppVARIABLE list, char *name, OBJ_DATA *obj)
 	LLIST_UID_DATA *data;
 	pVARIABLE var = variable_get(*list, name);
 
-	if( !IS_VALID(obj) || !var || var->type != VAR_BLLIST_OBJ) return FALSE;
+	if( !IS_VALID(obj) || !var || var->type != VAR_BLLIST_OBJ) return false;
 
-	if( !(data = alloc_mem(sizeof(LLIST_UID_DATA))) ) return FALSE;
+	if( !(data = alloc_mem(sizeof(LLIST_UID_DATA))) ) return false;
 
 	data->ptr = obj;
 	data->id[0] = obj->id[0];
@@ -865,7 +865,7 @@ bool variables_append_list_obj (ppVARIABLE list, char *name, OBJ_DATA *obj)
 	if( !list_appendlink(var->_.list, data) )
 		free_mem(data,sizeof(LLIST_UID_DATA));
 
-	return TRUE;
+	return true;
 }
 
 bool variables_set_list_token (ppVARIABLE list, char *name, TOKEN_DATA *token, bool save)
@@ -873,15 +873,15 @@ bool variables_set_list_token (ppVARIABLE list, char *name, TOKEN_DATA *token, b
 	LLIST_UID_DATA *data;
 	pVARIABLE var = variable_get(*list, name);
 
-	if( !IS_VALID(token) ) return FALSE;
+	if( !IS_VALID(token) ) return false;
 
 	if( !var ) {
 		if ( !(var = variables_set_list(list,name,VAR_BLLIST_TOK,save)) )
-			return FALSE;
+			return false;
 	} else if( var->type != VAR_BLLIST_TOK )
-		return FALSE;
+		return false;
 
-	if( !(data = alloc_mem(sizeof(LLIST_UID_DATA))) ) return FALSE;
+	if( !(data = alloc_mem(sizeof(LLIST_UID_DATA))) ) return false;
 
 	data->ptr = token;
 	data->id[0] = token->id[0];
@@ -890,7 +890,7 @@ bool variables_set_list_token (ppVARIABLE list, char *name, TOKEN_DATA *token, b
 	if( !list_appendlink(var->_.list, data) )
 		free_mem(data,sizeof(LLIST_UID_DATA));
 
-	return TRUE;
+	return true;
 }
 
 bool variables_append_list_token (ppVARIABLE list, char *name, TOKEN_DATA *token)
@@ -898,9 +898,9 @@ bool variables_append_list_token (ppVARIABLE list, char *name, TOKEN_DATA *token
 	LLIST_UID_DATA *data;
 	pVARIABLE var = variable_get(*list, name);
 
-	if( !IS_VALID(token) || !var || var->type != VAR_BLLIST_TOK) return FALSE;
+	if( !IS_VALID(token) || !var || var->type != VAR_BLLIST_TOK) return false;
 
-	if( !(data = alloc_mem(sizeof(LLIST_UID_DATA))) ) return FALSE;
+	if( !(data = alloc_mem(sizeof(LLIST_UID_DATA))) ) return false;
 
 	data->ptr = token;
 	data->id[0] = token->id[0];
@@ -909,7 +909,7 @@ bool variables_append_list_token (ppVARIABLE list, char *name, TOKEN_DATA *token
 	if( !list_appendlink(var->_.list, data) )
 		free_mem(data,sizeof(LLIST_UID_DATA));
 
-	return TRUE;
+	return true;
 }
 
 bool variables_set_list_area (ppVARIABLE list, char *name, AREA_DATA *area, bool save)
@@ -917,15 +917,15 @@ bool variables_set_list_area (ppVARIABLE list, char *name, AREA_DATA *area, bool
 	LLIST_AREA_DATA *data;
 	pVARIABLE var = variable_get(*list, name);
 
-	if( !area ) return FALSE;
+	if( !area ) return false;
 
 	if( !var ) {
 		if ( !(var = variables_set_list(list,name,VAR_BLLIST_AREA,save)) )
-			return FALSE;
+			return false;
 	} else if( var->type != VAR_BLLIST_AREA )
-		return FALSE;
+		return false;
 
-	if( !(data = alloc_mem(sizeof(LLIST_AREA_DATA))) ) return FALSE;
+	if( !(data = alloc_mem(sizeof(LLIST_AREA_DATA))) ) return false;
 
 	data->area = area;
 	data->uid = area->uid;
@@ -933,7 +933,7 @@ bool variables_set_list_area (ppVARIABLE list, char *name, AREA_DATA *area, bool
 	if( !list_appendlink(var->_.list, data) )
 		free_mem(data,sizeof(LLIST_AREA_DATA));
 
-	return TRUE;
+	return true;
 }
 
 bool variables_append_list_area (ppVARIABLE list, char *name, AREA_DATA *area)
@@ -941,9 +941,9 @@ bool variables_append_list_area (ppVARIABLE list, char *name, AREA_DATA *area)
 	LLIST_AREA_DATA *data;
 	pVARIABLE var = variable_get(*list, name);
 
-	if( !area || !var || var->type != VAR_BLLIST_AREA) return FALSE;
+	if( !area || !var || var->type != VAR_BLLIST_AREA) return false;
 
-	if( !(data = alloc_mem(sizeof(LLIST_AREA_DATA))) ) return FALSE;
+	if( !(data = alloc_mem(sizeof(LLIST_AREA_DATA))) ) return false;
 
 	data->area = area;
 	data->uid = area->uid;
@@ -951,7 +951,7 @@ bool variables_append_list_area (ppVARIABLE list, char *name, AREA_DATA *area)
 	if( !list_appendlink(var->_.list, data) )
 		free_mem(data,sizeof(LLIST_AREA_DATA));
 
-	return TRUE;
+	return true;
 }
 
 bool variables_set_list_wilds (ppVARIABLE list, char *name, WILDS_DATA *wilds, bool save)
@@ -959,15 +959,15 @@ bool variables_set_list_wilds (ppVARIABLE list, char *name, WILDS_DATA *wilds, b
 	LLIST_WILDS_DATA *data;
 	pVARIABLE var = variable_get(*list, name);
 
-	if( !wilds ) return FALSE;
+	if( !wilds ) return false;
 
 	if( !var ) {
 		if ( !(var = variables_set_list(list,name,VAR_BLLIST_WILDS,save)) )
-			return FALSE;
+			return false;
 	} else if( var->type != VAR_BLLIST_WILDS )
-		return FALSE;
+		return false;
 
-	if( !(data = alloc_mem(sizeof(LLIST_WILDS_DATA))) ) return FALSE;
+	if( !(data = alloc_mem(sizeof(LLIST_WILDS_DATA))) ) return false;
 
 	data->wilds = wilds;
 	data->uid = wilds->uid;
@@ -975,7 +975,7 @@ bool variables_set_list_wilds (ppVARIABLE list, char *name, WILDS_DATA *wilds, b
 	if( !list_appendlink(var->_.list, data) )
 		free_mem(data,sizeof(LLIST_WILDS_DATA));
 
-	return TRUE;
+	return true;
 }
 
 bool variables_append_list_wilds (ppVARIABLE list, char *name, WILDS_DATA *wilds)
@@ -983,9 +983,9 @@ bool variables_append_list_wilds (ppVARIABLE list, char *name, WILDS_DATA *wilds
 	LLIST_WILDS_DATA *data;
 	pVARIABLE var = variable_get(*list, name);
 
-	if( !wilds || !var || var->type != VAR_BLLIST_WILDS) return FALSE;
+	if( !wilds || !var || var->type != VAR_BLLIST_WILDS) return false;
 
-	if( !(data = alloc_mem(sizeof(LLIST_WILDS_DATA))) ) return FALSE;
+	if( !(data = alloc_mem(sizeof(LLIST_WILDS_DATA))) ) return false;
 
 	data->wilds = wilds;
 	data->uid = wilds->uid;
@@ -993,7 +993,7 @@ bool variables_append_list_wilds (ppVARIABLE list, char *name, WILDS_DATA *wilds
 	if( !list_appendlink(var->_.list, data) )
 		free_mem(data,sizeof(LLIST_WILDS_DATA));
 
-	return TRUE;
+	return true;
 }
 
 bool variables_set_list_room (ppVARIABLE list, char *name, ROOM_INDEX_DATA *room, bool save)
@@ -1001,15 +1001,15 @@ bool variables_set_list_room (ppVARIABLE list, char *name, ROOM_INDEX_DATA *room
 	LLIST_ROOM_DATA *data;
 	pVARIABLE var = variable_get(*list, name);
 
-	if( !room ) return FALSE;
+	if( !room ) return false;
 
 	if( !var ) {
 		if ( !(var = variables_set_list(list,name,VAR_BLLIST_ROOM,save)) )
-			return FALSE;
+			return false;
 	} else if( var->type != VAR_BLLIST_ROOM )
-		return FALSE;
+		return false;
 
-	if( !(data = alloc_mem(sizeof(LLIST_ROOM_DATA))) ) return FALSE;
+	if( !(data = alloc_mem(sizeof(LLIST_ROOM_DATA))) ) return false;
 
 	data->room = room;
 	if( room->source ) {
@@ -1032,7 +1032,7 @@ bool variables_set_list_room (ppVARIABLE list, char *name, ROOM_INDEX_DATA *room
 	if( !list_appendlink(var->_.list, data) )
 		free_mem(data,sizeof(LLIST_ROOM_DATA));
 
-	return TRUE;
+	return true;
 }
 
 bool variables_append_list_room (ppVARIABLE list, char *name, ROOM_INDEX_DATA *room)
@@ -1040,9 +1040,9 @@ bool variables_append_list_room (ppVARIABLE list, char *name, ROOM_INDEX_DATA *r
 	LLIST_ROOM_DATA *data;
 	pVARIABLE var = variable_get(*list, name);
 
-	if( !room || !var || var->type != VAR_BLLIST_ROOM) return FALSE;
+	if( !room || !var || var->type != VAR_BLLIST_ROOM) return false;
 
-	if( !(data = alloc_mem(sizeof(LLIST_ROOM_DATA))) ) return FALSE;
+	if( !(data = alloc_mem(sizeof(LLIST_ROOM_DATA))) ) return false;
 
 	data->room = room;
 	if( room->source ) {
@@ -1065,20 +1065,20 @@ bool variables_append_list_room (ppVARIABLE list, char *name, ROOM_INDEX_DATA *r
 	if( !list_appendlink(var->_.list, data) )
 		free_mem(data,sizeof(LLIST_ROOM_DATA));
 
-	return TRUE;
+	return true;
 }
 
 bool variables_set_list_connection (ppVARIABLE list, char *name, DESCRIPTOR_DATA *conn, bool save)
 {
 	pVARIABLE var = variable_get(*list, name);
 
-	if( !conn ) return FALSE;
+	if( !conn ) return false;
 
 	if( !var ) {
 		if ( !(var = variables_set_list(list,name,VAR_PLLIST_CONN,save)) )
-			return FALSE;
+			return false;
 	} else if( var->type != VAR_PLLIST_CONN )
-		return FALSE;
+		return false;
 
 	return list_appendlink(var->_.list, conn);
 }
@@ -1087,7 +1087,7 @@ bool variables_append_list_connection (ppVARIABLE list, char *name, DESCRIPTOR_D
 {
 	pVARIABLE var = variable_get(*list, name);
 
-	if( !conn || !var || var->type != VAR_PLLIST_CONN) return FALSE;
+	if( !conn || !var || var->type != VAR_PLLIST_CONN) return false;
 
 	return list_appendlink(var->_.list, conn);
 }
@@ -1097,9 +1097,9 @@ static bool variables_append_list_area_id(ppVARIABLE list, char *name, long aid)
 	LLIST_AREA_DATA *data;
 	pVARIABLE var = variable_get(*list, name);
 
-	if( !var || var->type != VAR_BLLIST_AREA) return FALSE;
+	if( !var || var->type != VAR_BLLIST_AREA) return false;
 
-	if( !(data = alloc_mem(sizeof(LLIST_AREA_DATA))) ) return FALSE;
+	if( !(data = alloc_mem(sizeof(LLIST_AREA_DATA))) ) return false;
 
 	data->area = NULL;
 	data->uid = aid;
@@ -1107,7 +1107,7 @@ static bool variables_append_list_area_id(ppVARIABLE list, char *name, long aid)
 	if( !list_appendlink(var->_.list, data) )
 		free_mem(data,sizeof(LLIST_AREA_DATA));
 
-	return TRUE;
+	return true;
 }
 
 static bool variables_append_list_wilds_id(ppVARIABLE list, char *name, long wid)
@@ -1115,9 +1115,9 @@ static bool variables_append_list_wilds_id(ppVARIABLE list, char *name, long wid
 	LLIST_WILDS_DATA *data;
 	pVARIABLE var = variable_get(*list, name);
 
-	if( !var || var->type != VAR_BLLIST_WILDS) return FALSE;
+	if( !var || var->type != VAR_BLLIST_WILDS) return false;
 
-	if( !(data = alloc_mem(sizeof(LLIST_WILDS_DATA))) ) return FALSE;
+	if( !(data = alloc_mem(sizeof(LLIST_WILDS_DATA))) ) return false;
 
 	data->wilds = NULL;
 	data->uid = wid;
@@ -1125,7 +1125,7 @@ static bool variables_append_list_wilds_id(ppVARIABLE list, char *name, long wid
 	if( !list_appendlink(var->_.list, data) )
 		free_mem(data,sizeof(LLIST_WILDS_DATA));
 
-	return TRUE;
+	return true;
 }
 
 
@@ -1134,9 +1134,9 @@ static bool variables_append_list_room_id (ppVARIABLE list, char *name, unsigned
 	LLIST_ROOM_DATA *data;
 	pVARIABLE var = variable_get(*list, name);
 
-	if( !var || var->type != VAR_BLLIST_ROOM) return FALSE;
+	if( !var || var->type != VAR_BLLIST_ROOM) return false;
 
-	if( !(data = alloc_mem(sizeof(LLIST_ROOM_DATA))) ) return FALSE;
+	if( !(data = alloc_mem(sizeof(LLIST_ROOM_DATA))) ) return false;
 
 	data->room = NULL;
 	data->id[0] = a;
@@ -1147,7 +1147,7 @@ static bool variables_append_list_room_id (ppVARIABLE list, char *name, unsigned
 	if( !list_appendlink(var->_.list, data) )
 		free_mem(data,sizeof(LLIST_ROOM_DATA));
 
-	return TRUE;
+	return true;
 }
 
 bool variables_append_list_door (ppVARIABLE list, char *name, ROOM_INDEX_DATA *room, int door)
@@ -1155,9 +1155,9 @@ bool variables_append_list_door (ppVARIABLE list, char *name, ROOM_INDEX_DATA *r
 	LLIST_EXIT_DATA *data;
 	pVARIABLE var = variable_get(*list, name);
 
-	if( !room || door < 0 || door >= MAX_DIR || !var || var->type != VAR_BLLIST_EXIT) return FALSE;
+	if( !room || door < 0 || door >= MAX_DIR || !var || var->type != VAR_BLLIST_EXIT) return false;
 
-	if( !(data = alloc_mem(sizeof(LLIST_EXIT_DATA))) ) return FALSE;
+	if( !(data = alloc_mem(sizeof(LLIST_EXIT_DATA))) ) return false;
 
 	data->room = room;
 	if( room->source ) {
@@ -1181,7 +1181,7 @@ bool variables_append_list_door (ppVARIABLE list, char *name, ROOM_INDEX_DATA *r
 	if( !list_appendlink(var->_.list, data) )
 		free_mem(data,sizeof(LLIST_EXIT_DATA));
 
-	return TRUE;
+	return true;
 }
 
 static bool variables_append_list_door_id (ppVARIABLE list, char *name, unsigned long a, unsigned long b, unsigned long c, unsigned long d, int door)
@@ -1189,9 +1189,9 @@ static bool variables_append_list_door_id (ppVARIABLE list, char *name, unsigned
 	LLIST_EXIT_DATA *data;
 	pVARIABLE var = variable_get(*list, name);
 
-	if( door < 0 || door >= MAX_DIR || !var || var->type != VAR_BLLIST_EXIT) return FALSE;
+	if( door < 0 || door >= MAX_DIR || !var || var->type != VAR_BLLIST_EXIT) return false;
 
-	if( !(data = alloc_mem(sizeof(LLIST_EXIT_DATA))) ) return FALSE;
+	if( !(data = alloc_mem(sizeof(LLIST_EXIT_DATA))) ) return false;
 
 	data->room = NULL;
 	data->id[0] = a;
@@ -1203,12 +1203,12 @@ static bool variables_append_list_door_id (ppVARIABLE list, char *name, unsigned
 	if( !list_appendlink(var->_.list, data) )
 		free_mem(data,sizeof(LLIST_EXIT_DATA));
 
-	return TRUE;
+	return true;
 }
 
 bool variables_append_list_exit (ppVARIABLE list, char *name, EXIT_DATA *ex)
 {
-	if( !ex ) return FALSE;
+	if( !ex ) return false;
 
 	return variables_append_list_door(list, name, ex->from_room, ex->orig_door);
 }
@@ -1218,9 +1218,9 @@ bool variables_append_list_skill_sn (ppVARIABLE list, char *name, CHAR_DATA *ch,
 	LLIST_SKILL_DATA *data;
 	pVARIABLE var = variable_get(*list, name);
 
-	if( !ch || sn < 1 || sn >= MAX_SKILL || !var || var->type != VAR_BLLIST_SKILL) return FALSE;
+	if( !ch || sn < 1 || sn >= MAX_SKILL || !var || var->type != VAR_BLLIST_SKILL) return false;
 
-	if( !(data = alloc_mem(sizeof(LLIST_SKILL_DATA))) ) return FALSE;
+	if( !(data = alloc_mem(sizeof(LLIST_SKILL_DATA))) ) return false;
 
 	data->mob = ch;
 	data->sn = sn;
@@ -1233,7 +1233,7 @@ bool variables_append_list_skill_sn (ppVARIABLE list, char *name, CHAR_DATA *ch,
 	if( !list_appendlink(var->_.list, data) )
 		free_mem(data,sizeof(LLIST_SKILL_DATA));
 
-	return TRUE;
+	return true;
 }
 
 bool variables_append_list_skill_token (ppVARIABLE list, char *name, TOKEN_DATA *tok)
@@ -1241,9 +1241,9 @@ bool variables_append_list_skill_token (ppVARIABLE list, char *name, TOKEN_DATA 
 	LLIST_SKILL_DATA *data;
 	pVARIABLE var = variable_get(*list, name);
 
-	if( !tok || !tok->player || (tok->type != TOKEN_SKILL && tok->type != TOKEN_SPELL) || !var || var->type != VAR_BLLIST_SKILL) return FALSE;
+	if( !tok || !tok->player || (tok->type != TOKEN_SKILL && tok->type != TOKEN_SPELL) || !var || var->type != VAR_BLLIST_SKILL) return false;
 
-	if( !(data = alloc_mem(sizeof(LLIST_SKILL_DATA))) ) return FALSE;
+	if( !(data = alloc_mem(sizeof(LLIST_SKILL_DATA))) ) return false;
 
 	data->mob = tok->player;
 	data->sn = 0;
@@ -1256,7 +1256,7 @@ bool variables_append_list_skill_token (ppVARIABLE list, char *name, TOKEN_DATA 
 	if( !list_appendlink(var->_.list, data) )
 		free_mem(data,sizeof(LLIST_SKILL_DATA));
 
-	return TRUE;
+	return true;
 }
 
 static bool variables_append_list_skill_id (ppVARIABLE list, char *name, unsigned long ma, unsigned long mb, unsigned long ta, unsigned long tb, int sn)
@@ -1264,9 +1264,9 @@ static bool variables_append_list_skill_id (ppVARIABLE list, char *name, unsigne
 	LLIST_SKILL_DATA *data;
 	pVARIABLE var = variable_get(*list, name);
 
-	if( !var || var->type != VAR_BLLIST_SKILL) return FALSE;
+	if( !var || var->type != VAR_BLLIST_SKILL) return false;
 
-	if( !(data = alloc_mem(sizeof(LLIST_SKILL_DATA))) ) return FALSE;
+	if( !(data = alloc_mem(sizeof(LLIST_SKILL_DATA))) ) return false;
 
 	data->mob = NULL;
 	data->sn = (sn > 0 && sn < MAX_SKILL) ? sn : 0;;
@@ -1279,28 +1279,28 @@ static bool variables_append_list_skill_id (ppVARIABLE list, char *name, unsigne
 	if( !list_appendlink(var->_.list, data) )
 		free_mem(data,sizeof(LLIST_SKILL_DATA));
 
-	return TRUE;
+	return true;
 }
 
 
 bool variables_setindex_integer (ppVARIABLE list,char *name,int num, bool saved)
 {
-	pVARIABLE var = variable_create(list,name,TRUE,TRUE);
+	pVARIABLE var = variable_create(list,name,true,true);
 
-	if(!var) return FALSE;
+	if(!var) return false;
 
 	var->type = VAR_INTEGER;
 	var->_.i = num;
 	var->save = saved;
 
-	return TRUE;
+	return true;
 }
 
 bool variables_setindex_room (ppVARIABLE list,char *name,long vnum, bool saved)
 {
-	pVARIABLE var = variable_create(list,name,TRUE,TRUE);
+	pVARIABLE var = variable_create(list,name,true,true);
 
-	if(!var) return FALSE;
+	if(!var) return false;
 
 	var->type = VAR_ROOM;
 	if(fBootDb)
@@ -1309,16 +1309,16 @@ bool variables_setindex_room (ppVARIABLE list,char *name,long vnum, bool saved)
 		var->_.r = get_room_index(vnum);
 	var->save = saved;
 
-	return TRUE;
+	return true;
 }
 
 
 // Only reason this is seperate is the shared handling
 bool variables_setindex_string(ppVARIABLE list,char *name,char *str,bool shared, bool saved)
 {
-	pVARIABLE var = variable_create(list,name,TRUE,TRUE);
+	pVARIABLE var = variable_create(list,name,true,true);
 
-	if(!var) return FALSE;
+	if(!var) return false;
 
 	if(shared) {
 		var->type = VAR_STRING_S;
@@ -1329,16 +1329,16 @@ bool variables_setindex_string(ppVARIABLE list,char *name,char *str,bool shared,
 	}
 	var->save = saved;
 
-	return TRUE;
+	return true;
 }
 
 
 // Only reason this is seperate is the shared handling
 bool variables_set_string(ppVARIABLE list,char *name,char *str,bool shared)
 {
-	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
+	pVARIABLE var = variable_create(list,name,false,true);
 
-	if(!var) return FALSE;
+	if(!var) return false;
 
 	if(shared) {
 		var->type = VAR_STRING_S;
@@ -1347,14 +1347,14 @@ bool variables_set_string(ppVARIABLE list,char *name,char *str,bool shared)
 		var->type = VAR_STRING;
 		var->_.s = str_dup(str);
 	}
-	return TRUE;
+	return true;
 }
 
 bool variables_setsave_string(ppVARIABLE list,char *name,char *str,bool shared, bool save)
 {
-	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
+	pVARIABLE var = variable_create(list,name,false,true);
 
-	if(!var) return FALSE;
+	if(!var) return false;
 
 	if(shared) {
 		var->type = VAR_STRING_S;
@@ -1365,28 +1365,28 @@ bool variables_setsave_string(ppVARIABLE list,char *name,char *str,bool shared, 
 	}
 
 	var->save = save;
-	return TRUE;
+	return true;
 }
 
 bool variables_append_string(ppVARIABLE list,char *name,char *str)
 {
-	pVARIABLE var = variable_create(list,name,FALSE,FALSE);
+	pVARIABLE var = variable_create(list,name,false,false);
 	char *nstr;
 	int len;
 
-	if(!var) return FALSE;
+	if(!var) return false;
 
 	if(var->type == VAR_STRING_S) {
 		len = strlen(var->_.s);
 		nstr = alloc_mem(len+strlen(str)+1);
-		if(!nstr) return FALSE;
+		if(!nstr) return false;
 		strcpy(nstr,var->_.s);
 		strcpy(nstr+len,str);
 		var->_.s = nstr;
 	} else if(var->type == VAR_STRING) {
 		len = strlen(var->_.s);
 		nstr = alloc_mem(len+strlen(str)+1);
-		if(!nstr) return FALSE;
+		if(!nstr) return false;
 		strcpy(nstr,var->_.s);
 		strcpy(nstr+len,str);
 		free_string(var->_.s);
@@ -1394,26 +1394,26 @@ bool variables_append_string(ppVARIABLE list,char *name,char *str)
 	} else
 		var->_.s = str_dup(str);
 	var->type = VAR_STRING;
-	return TRUE;
+	return true;
 }
 
 bool variables_argremove_string_index(ppVARIABLE list,char *name,int argindex)
 {
-	pVARIABLE var = variable_create(list,name,FALSE,FALSE);
+	pVARIABLE var = variable_create(list,name,false,false);
 	char *nstr;
 	int len;
 
-	if(!var) return FALSE;
+	if(!var) return false;
 
 	if(var->type == VAR_STRING_S) {
 		len = strlen(var->_.s);
 
 		nstr = alloc_mem(len);
-		if(!nstr) return FALSE;
+		if(!nstr) return false;
 
 		if(!string_argremove_index(var->_.s, argindex, nstr)) {
 			free_mem(nstr, len);
-			return FALSE;
+			return false;
 		}
 
 		var->_.s = nstr;
@@ -1421,11 +1421,11 @@ bool variables_argremove_string_index(ppVARIABLE list,char *name,int argindex)
 		len = strlen(var->_.s);
 
 		nstr = alloc_mem(len);
-		if(!nstr) return FALSE;
+		if(!nstr) return false;
 
 		if(!string_argremove_index(var->_.s, argindex, nstr)) {
 			free_mem(nstr, len);
-			return FALSE;
+			return false;
 		}
 
 		free_string(var->_.s);
@@ -1433,26 +1433,26 @@ bool variables_argremove_string_index(ppVARIABLE list,char *name,int argindex)
 	} else
 		var->_.s = str_dup("");
 	var->type = VAR_STRING;
-	return TRUE;
+	return true;
 }
 
 bool variables_argremove_string_phrase(ppVARIABLE list,char *name,char *phrase)
 {
-	pVARIABLE var = variable_create(list,name,FALSE,FALSE);
+	pVARIABLE var = variable_create(list,name,false,false);
 	char *nstr;
 	int len;
 
-	if(!var) return FALSE;
+	if(!var) return false;
 
 	if(var->type == VAR_STRING_S) {
 		len = strlen(var->_.s);
 
 		nstr = alloc_mem(len);
-		if(!nstr) return FALSE;
+		if(!nstr) return false;
 
 		if(!string_argremove_phrase(var->_.s, phrase, nstr)) {
 			free_mem(nstr, len);
-			return FALSE;
+			return false;
 		}
 
 		var->_.s = nstr;
@@ -1460,11 +1460,11 @@ bool variables_argremove_string_phrase(ppVARIABLE list,char *name,char *phrase)
 		len = strlen(var->_.s);
 
 		nstr = alloc_mem(len);
-		if(!nstr) return FALSE;
+		if(!nstr) return false;
 
 		if(!string_argremove_phrase(var->_.s, phrase, nstr)) {
 			free_mem(nstr, len);
-			return FALSE;
+			return false;
 		}
 
 		free_string(var->_.s);
@@ -1472,18 +1472,18 @@ bool variables_argremove_string_phrase(ppVARIABLE list,char *name,char *phrase)
 	} else
 		var->_.s = str_dup("");
 	var->type = VAR_STRING;
-	return TRUE;
+	return true;
 }
 
 bool variables_format_string(ppVARIABLE list,char *name)
 {
 	pVARIABLE var = variable_get(*list,name);
 
-	if(!var || (var->type != VAR_STRING_S && var->type != VAR_STRING)) return FALSE;
+	if(!var || (var->type != VAR_STRING_S && var->type != VAR_STRING)) return false;
 
 	var->_.s = format_string(var->_.s);
 	var->type = VAR_STRING;
-	return TRUE;
+	return true;
 }
 
 
@@ -1491,11 +1491,11 @@ bool variables_format_paragraph(ppVARIABLE list,char *name)
 {
 	pVARIABLE var = variable_get(*list,name);
 
-	if(!var || (var->type != VAR_STRING_S && var->type != VAR_STRING)) return FALSE;
+	if(!var || (var->type != VAR_STRING_S && var->type != VAR_STRING)) return false;
 
 	var->_.s = format_paragraph(var->_.s);
 	var->type = VAR_STRING;
-	return TRUE;
+	return true;
 }
 
 bool variable_remove(ppVARIABLE list,char *name)
@@ -1503,7 +1503,7 @@ bool variable_remove(ppVARIABLE list,char *name)
 	register pVARIABLE cur,prev;
 	int test = 0;
 
-	if(!*list) return FALSE;
+	if(!*list) return false;
 
 	for(prev = NULL,cur = *list;cur && (test = str_cmp(cur->name,name)) < 0; prev = cur, cur = cur->next);
 
@@ -1512,10 +1512,10 @@ bool variable_remove(ppVARIABLE list,char *name)
 		else *list = cur->next;
 
 		variable_free(cur);
-		return TRUE;
+		return true;
 	}
 
-	return FALSE;
+	return false;
 }
 
 
@@ -1524,14 +1524,14 @@ bool variable_copy(ppVARIABLE list,char *oldname,char *newname)
 	pVARIABLE oldv, newv;
 	//ITERATOR it;
 
-	if(!(oldv = variable_get(*list,oldname))) return FALSE;
+	if(!(oldv = variable_get(*list,oldname))) return false;
 
-	if(!str_cmp(oldname,newname)) return TRUE;	// Copy to itself is.. dumb.
+	if(!str_cmp(oldname,newname)) return true;	// Copy to itself is.. dumb.
 
-	if(!(newv = variable_create(list,newname,oldv->index,TRUE))) return FALSE;
+	if(!(newv = variable_create(list,newname,oldv->index,true))) return false;
 
 	newv->type = oldv->type;
-	newv->save = oldv->index ? oldv->save : FALSE;
+	newv->save = oldv->index ? oldv->save : false;
 
 	switch(newv->type) {
 	case VAR_UNKNOWN:		break;
@@ -1576,7 +1576,7 @@ bool variable_copy(ppVARIABLE list,char *oldname,char *newname)
 
 	}
 
-	return TRUE;
+	return true;
 }
 
 bool variable_copyto(ppVARIABLE from,ppVARIABLE to,char *oldname,char *newname, bool index)
@@ -1585,12 +1585,12 @@ bool variable_copyto(ppVARIABLE from,ppVARIABLE to,char *oldname,char *newname, 
 
 	if(from == to) return variable_copy(from,oldname,newname);
 
-	if(!(oldv = variable_get(*from,oldname))) return FALSE;
+	if(!(oldv = variable_get(*from,oldname))) return false;
 
-	if(!(newv = variable_create(to,newname,index,TRUE))) return FALSE;
+	if(!(newv = variable_create(to,newname,index,true))) return false;
 
 	newv->type = oldv->type;
-	newv->save = oldv->index ? oldv->save : FALSE;
+	newv->save = oldv->index ? oldv->save : false;
 
 	switch(newv->type) {
 	case VAR_UNKNOWN:	break;
@@ -1636,20 +1636,20 @@ bool variable_copyto(ppVARIABLE from,ppVARIABLE to,char *oldname,char *newname, 
 
 	}
 
-	return TRUE;
+	return true;
 }
 
 bool variable_copylist(ppVARIABLE from,ppVARIABLE to,bool index)
 {
 	pVARIABLE oldv, newv;
 
-	if(from == to) return TRUE;
+	if(from == to) return true;
 
 	for(oldv = *from; oldv; oldv = oldv->next) {
-		if(!(newv = variable_create(to,oldv->name,index,TRUE))) continue;
+		if(!(newv = variable_create(to,oldv->name,index,true))) continue;
 
 		newv->type = oldv->type;
-		newv->save = oldv->index ? oldv->save : FALSE;
+		newv->save = oldv->index ? oldv->save : false;
 
 		switch(newv->type) {
 		case VAR_UNKNOWN:	break;
@@ -1695,7 +1695,7 @@ bool variable_copylist(ppVARIABLE from,ppVARIABLE to,bool index)
 		}
 	}
 
-	return TRUE;
+	return true;
 }
 
 pVARIABLE variable_copyvar(pVARIABLE oldv)
@@ -1705,7 +1705,7 @@ pVARIABLE variable_copyvar(pVARIABLE oldv)
 	if(!newv) return NULL;
 
 	newv->type = oldv->type;
-	newv->save = oldv->index ? oldv->save : FALSE;
+	newv->save = oldv->index ? oldv->save : false;
 
 	switch(newv->type) {
 	case VAR_UNKNOWN:		break;
@@ -1770,7 +1770,7 @@ void list_free_variable(void *data)
 
 LLIST *variable_copy_tolist(ppVARIABLE vars)
 {
-	LLIST *lst = list_createx(TRUE, NULL, list_free_variable);
+	LLIST *lst = list_createx(true, NULL, list_free_variable);
 	pVARIABLE oldv;
 
 	for(oldv = *vars; oldv; oldv = oldv->next)
@@ -1785,10 +1785,10 @@ bool variable_setsave(pVARIABLE vars,char *name,bool state)
 
 	if(v) {
 		v->save = state;
-		return TRUE;
+		return true;
 	}
 
-	return FALSE;
+	return false;
 }
 
 
@@ -2852,12 +2852,12 @@ bool variable_fread_str_list(ppVARIABLE vars, char *name, FILE *fp)
 		word   = feof(fp) ? "End" : fread_word(fp);
 
 		if (!str_cmp(word, "End"))
-			return TRUE;
+			return true;
 
 		else if (!str_cmp(word, "String")) {
 
 			if( !variables_append_list_str( vars, name, fread_string(fp)) )
-				return FALSE;
+				return false;
 
 		} else
 			fread_to_eol(fp);
@@ -2872,12 +2872,12 @@ bool variable_fread_uid_list(ppVARIABLE vars, char *name, int type, FILE *fp)
 		word   = feof(fp) ? "End" : fread_word(fp);
 
 		if (!str_cmp(word, "End"))
-			return TRUE;
+			return true;
 
 		else if (!str_cmp(word, "UID")) {
 
 			if( !variables_append_list_uid( vars, name, type, fread_number(fp), fread_number(fp)) )
-				return FALSE;
+				return false;
 
 		} else
 			fread_to_eol(fp);
@@ -2893,22 +2893,22 @@ bool variable_fread_room_list(ppVARIABLE vars, char *name, FILE *fp)
 		word   = feof(fp) ? "End" : fread_word(fp);
 
 		if (!str_cmp(word, "End"))
-			return TRUE;
+			return true;
 
 		else if (!str_cmp(word, "VRoom")) {
 
 			if( !variables_append_list_room_id( vars, name, fread_number(fp), fread_number(fp), fread_number(fp), fread_number(fp)) )
-				return FALSE;
+				return false;
 
 		} else if (!str_cmp(word, "CRoom")) {
 
 			if( !variables_append_list_room_id( vars, name, 0, fread_number(fp), fread_number(fp), fread_number(fp)) )
-				return FALSE;
+				return false;
 
 		} else if (!str_cmp(word, "Room")) {
 
 			if( !variables_append_list_room_id( vars, name, 0, fread_number(fp), 0, 0) )
-				return FALSE;
+				return false;
 
 		} else
 			fread_to_eol(fp);
@@ -2925,22 +2925,22 @@ bool variable_fread_exit_list(ppVARIABLE vars, char *name, FILE *fp)
 		word   = feof(fp) ? "End" : fread_word(fp);
 
 		if (!str_cmp(word, "End"))
-			return TRUE;
+			return true;
 
 		else if (!str_cmp(word, "VRoom")) {
 
 			if( !variables_append_list_door_id( vars, name, fread_number(fp), fread_number(fp), fread_number(fp), fread_number(fp), fread_number(fp)) )
-				return FALSE;
+				return false;
 
 		} else if (!str_cmp(word, "CRoom")) {
 
 			if( !variables_append_list_door_id( vars, name, 0, fread_number(fp), fread_number(fp), fread_number(fp), fread_number(fp)) )
-				return FALSE;
+				return false;
 
 		} else if (!str_cmp(word, "Room")) {
 
 			if( !variables_append_list_door_id( vars, name, 0, fread_number(fp), 0, 0, fread_number(fp)) )
-				return FALSE;
+				return false;
 
 		} else
 			fread_to_eol(fp);
@@ -2957,12 +2957,12 @@ bool variable_fread_area_list(ppVARIABLE vars, char *name, FILE *fp)
 		word   = feof(fp) ? "End" : fread_word(fp);
 
 		if (!str_cmp(word, "End"))
-			return TRUE;
+			return true;
 
 		else if (!str_cmp(word, "Area")) {
 
 			if( !variables_append_list_area_id( vars, name, fread_number(fp)) )
-				return FALSE;
+				return false;
 
 		} else
 			fread_to_eol(fp);
@@ -2979,12 +2979,12 @@ bool variable_fread_wilds_list(ppVARIABLE vars, char *name, FILE *fp)
 		word   = feof(fp) ? "End" : fread_word(fp);
 
 		if (!str_cmp(word, "End"))
-			return TRUE;
+			return true;
 
 		else if (!str_cmp(word, "Wilds")) {
 
 			if( !variables_append_list_wilds_id( vars, name, fread_number(fp)) )
-				return FALSE;
+				return false;
 
 		} else
 			fread_to_eol(fp);
@@ -3001,17 +3001,17 @@ bool variable_fread_skill_list(ppVARIABLE vars, char *name, FILE *fp)
 		word   = feof(fp) ? "End" : fread_word(fp);
 
 		if (!str_cmp(word, "End"))
-			return TRUE;
+			return true;
 
 		else if (!str_cmp(word, "Skill")) {
 
 			if( !variables_append_list_skill_id (vars, name, fread_number(fp), fread_number(fp), 0, 0, skill_lookup(fread_word(fp))) )
-				return FALSE;
+				return false;
 
 		} else if (!str_cmp(word, "Token")) {
 
 			if( !variables_append_list_skill_id (vars, name, fread_number(fp), fread_number(fp), fread_number(fp), fread_number(fp), 0) )
-				return FALSE;
+				return false;
 
 		} else
 			fread_to_eol(fp);
@@ -3062,19 +3062,19 @@ bool variable_fread(ppVARIABLE vars, int type, FILE *fp)
 
 	switch(type) {
 	case VAR_BOOLEAN:
-		return variables_setsave_boolean(vars, name, (fread_number(fp) != 0), TRUE);
+		return variables_setsave_boolean(vars, name, (fread_number(fp) != 0), true);
 
 	case VAR_INTEGER:
-		return variables_setsave_integer(vars, name, fread_number(fp), TRUE);
+		return variables_setsave_integer(vars, name, fread_number(fp), true);
 
 	case VAR_STRING:
 	case VAR_STRING_S:	// They all get changed to shared on load...
-		return variables_setsave_string(vars, name, fread_string(fp), TRUE, TRUE);
+		return variables_setsave_string(vars, name, fread_string(fp), true, true);
 
 	case VAR_ROOM:
 		{
 			ROOM_INDEX_DATA *room = get_room_index(fread_number(fp));
-			return room && variables_setsave_room(vars, name, room, TRUE);
+			return room && variables_setsave_room(vars, name, room, true);
 		}
 
 	case VAR_CLONE_ROOM:
@@ -3084,7 +3084,7 @@ bool variable_fread(ppVARIABLE vars, int type, FILE *fp)
 			int y = fread_number(fp);
 
 			// Wait to resolve until AFTER all persistant rooms are loaded
-			return room && variables_set_clone_room(vars, name, room, x, y, TRUE);
+			return room && variables_set_clone_room(vars, name, room, x, y, true);
 		}
 
 	case VAR_WILDS_ROOM:
@@ -3102,16 +3102,16 @@ bool variable_fread(ppVARIABLE vars, int type, FILE *fp)
 				if( !room )
 					room = create_wilds_vroom(wilds,x,y);
 
-				return room && variables_setsave_room(vars, name, room, TRUE);
+				return room && variables_setsave_room(vars, name, room, true);
 			} else
-				return variables_set_wilds_room(vars,name,wuid, x, y, TRUE);
+				return variables_set_wilds_room(vars,name,wuid, x, y, true);
 		}
 
 	case VAR_DOOR:
 		{
 			ROOM_INDEX_DATA *room = get_room_index(fread_number(fp));
 
-			return room && variables_set_door(vars, name, room, fread_number(fp), TRUE);
+			return room && variables_set_door(vars, name, room, fread_number(fp), true);
 		}
 
 	case VAR_CLONE_DOOR:
@@ -3122,7 +3122,7 @@ bool variable_fread(ppVARIABLE vars, int type, FILE *fp)
 			int y = fread_number(fp);
 			int door = fread_number(fp);
 
-			return room && variables_set_clone_door(vars, name, room, x, y, door, TRUE);
+			return room && variables_set_clone_door(vars, name, room, x, y, door, true);
 		}
 
 	case VAR_WILDS_DOOR:
@@ -3140,37 +3140,37 @@ bool variable_fread(ppVARIABLE vars, int type, FILE *fp)
 				if( !room )
 					room = create_wilds_vroom(wilds,x,y);
 
-				return room && variables_set_door(vars, name, room, fread_number(fp), TRUE);
+				return room && variables_set_door(vars, name, room, fread_number(fp), true);
 			} else
-				return variables_set_wilds_door(vars, name, wuid, x, y, fread_number(fp), TRUE);
+				return variables_set_wilds_door(vars, name, wuid, x, y, fread_number(fp), true);
 		}
 
 	case VAR_MOBILE_ID:
 		a = fread_number(fp);
 		b = fread_number(fp);
-		return variables_set_mobile_id(vars, name, a, b, TRUE);
+		return variables_set_mobile_id(vars, name, a, b, true);
 
 	case VAR_OBJECT_ID:
 		a = fread_number(fp);
 		b = fread_number(fp);
-		return variables_set_object_id(vars, name, a, b, TRUE);
+		return variables_set_object_id(vars, name, a, b, true);
 
 	case VAR_TOKEN_ID:
 		a = fread_number(fp);
 		b = fread_number(fp);
-		return variables_set_token_id(vars, name, a, b, TRUE);
+		return variables_set_token_id(vars, name, a, b, true);
 
 	case VAR_AREA_ID:
-		return variables_set_area_id(vars, name, fread_number(fp), TRUE);
+		return variables_set_area_id(vars, name, fread_number(fp), true);
 
 	case VAR_WILDS_ID:
-		return variables_set_wilds_id(vars, name, fread_number(fp), TRUE);
+		return variables_set_wilds_id(vars, name, fread_number(fp), true);
 
 	case VAR_CHURCH_ID:
-		return variables_set_church_id(vars, name, fread_number(fp), TRUE);
+		return variables_set_church_id(vars, name, fread_number(fp), true);
 
 	case VAR_SKILL:
-		return variables_setsave_skill(vars, name, skill_lookup(fread_word(fp)), TRUE);
+		return variables_setsave_skill(vars, name, skill_lookup(fread_word(fp)), true);
 
 	case VAR_SKILLINFO_ID:
 		a = fread_number(fp);
@@ -3178,49 +3178,49 @@ bool variable_fread(ppVARIABLE vars, int type, FILE *fp)
 		c = fread_number(fp);
 		d = fread_number(fp);
 
-		return variables_set_skillinfo_id (vars, name, a, b, c, d, skill_lookup(fread_word(fp)) , TRUE);
+		return variables_set_skillinfo_id (vars, name, a, b, c, d, skill_lookup(fread_word(fp)) , true);
 
 	case VAR_PLLIST_STR:
-		if( variables_set_list(vars, name, VAR_PLLIST_STR, TRUE) )
+		if( variables_set_list(vars, name, VAR_PLLIST_STR, true) )
 			return variable_fread_str_list(vars, name, fp);
 
 	case VAR_BLLIST_MOB:
 	case VAR_BLLIST_OBJ:
 	case VAR_BLLIST_TOK:
-		if( variables_set_list(vars, name, type, TRUE) )
+		if( variables_set_list(vars, name, type, true) )
 			return variable_fread_uid_list(vars, name, type, fp);
 		else
-			return FALSE;
+			return false;
 
 	case VAR_BLLIST_AREA:
-		if( variables_set_list(vars, name, VAR_BLLIST_AREA, TRUE) )
+		if( variables_set_list(vars, name, VAR_BLLIST_AREA, true) )
 			return variable_fread_area_list(vars, name, fp);
 		else
-			return FALSE;
+			return false;
 
 	case VAR_BLLIST_WILDS:
-		if( variables_set_list(vars, name, VAR_BLLIST_WILDS, TRUE) )
+		if( variables_set_list(vars, name, VAR_BLLIST_WILDS, true) )
 			return variable_fread_wilds_list(vars, name, fp);
 		else
-			return FALSE;
+			return false;
 
 	case VAR_BLLIST_ROOM:
-		if( variables_set_list(vars, name, VAR_BLLIST_ROOM, TRUE) )
+		if( variables_set_list(vars, name, VAR_BLLIST_ROOM, true) )
 			return variable_fread_room_list(vars, name, fp);
 		else
-			return FALSE;
+			return false;
 
 	case VAR_BLLIST_EXIT:
-		if( variables_set_list(vars, name, VAR_BLLIST_EXIT, TRUE) )
+		if( variables_set_list(vars, name, VAR_BLLIST_EXIT, true) )
 			return variable_fread_exit_list(vars, name, fp);
 		else
-			return FALSE;
+			return false;
 
 	case VAR_BLLIST_SKILL:
-		if( variables_set_list(vars, name, VAR_BLLIST_SKILL, TRUE) )
+		if( variables_set_list(vars, name, VAR_BLLIST_SKILL, true) )
 			return variable_fread_skill_list(vars, name, fp);
 		else
-			return FALSE;
+			return false;
 
 	case VAR_DICE:
 		{
@@ -3231,16 +3231,16 @@ bool variable_fread(ppVARIABLE vars, int type, FILE *fp)
 			xyz.bonus = fread_number(fp);
 			xyz.last_roll = fread_number(fp);
 
-			return variables_setsave_dice(vars, name, &xyz, TRUE);
+			return variables_setsave_dice(vars, name, &xyz, true);
 
 		}
 
-		return FALSE;
+		return false;
 	}
 
 	// Ignore rest
 	fread_to_eol(fp);
-	return TRUE;
+	return true;
 }
 
 void script_varclearon(SCRIPT_VARINFO *info, VARIABLE **vars, char *argument, SCRIPT_PARAM *arg)
@@ -3272,7 +3272,7 @@ void script_varclearon(SCRIPT_VARINFO *info, VARIABLE **vars, char *argument, SC
 //
 //   types:				CALL
 //     integer <number>			variable_set_integer
-//     string <string>			variable_set_string (shared:FALSE)
+//     string <string>			variable_set_string (shared:false)
 //     room <entity>			variable_set_room
 //     room <vnum>			variable_set_room
 //     mobile <entity>			variable_set_mobile

@@ -19,7 +19,7 @@
 
 SPELL_FUNC(spell_air_pocket)
 {
-	return FALSE;
+	return false;
 }
 
 SPELL_FUNC(spell_faerie_fog)
@@ -51,19 +51,19 @@ SPELL_FUNC(spell_faerie_fog)
 		act("$n is revealed!", ich, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 		send_to_char("You are revealed!\n\r", ich);
 	}
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_fly)
 {
 	CHAR_DATA *victim = (CHAR_DATA *) vo;
 	AFFECT_DATA af;
-	bool perm = FALSE;
+	bool perm = false;
 	memset(&af,0,sizeof(af));
 
 	if (level > MAGIC_WEAR_SPELL) {
 		level -= MAGIC_WEAR_SPELL;
-		perm = TRUE;
+		perm = true;
 	}
 
 	if (perm && is_affected(victim, sn)) {
@@ -73,7 +73,7 @@ SPELL_FUNC(spell_fly)
 			send_to_char("You are already airborne.\n\r",ch);
 		else
 			act("$N doesn't need your help to fly.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	af.where = TO_AFFECTS;
@@ -91,7 +91,7 @@ SPELL_FUNC(spell_fly)
 	send_to_char("Your feet rise off the ground.\n\r", victim);
 	act("$n's feet rise off the ground.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-	return TRUE;
+	return true;
 }
 
 
@@ -99,7 +99,7 @@ SPELL_FUNC(spell_underwater_breathing)
 {
 	CHAR_DATA *victim = (CHAR_DATA *) vo;
 	AFFECT_DATA af;
-	bool perm = FALSE;
+	bool perm = false;
 
 	memset(&af,0,sizeof(af));
 
@@ -107,7 +107,7 @@ SPELL_FUNC(spell_underwater_breathing)
 		level -= MAGIC_SCRIPT_SPELL;
 	else if (level > MAGIC_WEAR_SPELL) {
 		level -= MAGIC_WEAR_SPELL;
-		perm = TRUE;
+		perm = true;
 	}
 
 	if (perm && is_affected(victim, sn))
@@ -117,7 +117,7 @@ SPELL_FUNC(spell_underwater_breathing)
 			send_to_char("You can already breath underwater.\n\r",ch);
 		else
 			act("$N can already breath underwater.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	af.where = TO_AFFECTS;
@@ -133,7 +133,7 @@ SPELL_FUNC(spell_underwater_breathing)
 	affect_to_char(victim, &af);
 	send_to_char("You feel a strange sensation as gills sprout behind your ears.\n\r", victim);
 	if (ch != victim) act("Gills sprout from behind $N's ears.",ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_wind_of_confusion)
@@ -154,10 +154,10 @@ SPELL_FUNC(spell_wind_of_confusion)
 			}
 
 			if (vch->master) {
-				stop_follower(vch,TRUE);
+				stop_follower(vch,true);
 				die_follower(vch);
 			}
 		}
 	}
-	return TRUE;
+	return true;
 }

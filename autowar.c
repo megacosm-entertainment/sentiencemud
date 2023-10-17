@@ -514,7 +514,7 @@ void test_for_end_of_war()
     {
 	CHAR_DATA *wch;
 	int race;
-	bool ended = TRUE;
+	bool ended = true;
 
 	/* End of war is when only one race is left */
 	if ( auto_war->team_players == NULL )
@@ -530,7 +530,7 @@ void test_for_end_of_war()
 	for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
 	{
 	    if ( wch->race != race )
-		ended = FALSE;
+		ended = false;
 	}
 
 	if ( ended )
@@ -562,9 +562,9 @@ void test_for_end_of_war()
     if ( auto_war->war_type == AUTO_WAR_JIHAD )
     {
 	CHAR_DATA *wch;
-	bool ended = TRUE;
-	bool good = FALSE;
-	bool evil = FALSE;
+	bool ended = true;
+	bool good = false;
+	bool evil = false;
 
 	if ( auto_war->team_players == NULL )
 	{
@@ -573,21 +573,21 @@ void test_for_end_of_war()
 	}
 
 	if ( auto_war->team_players->alignment < 0 )
-	    evil = TRUE;
+	    evil = true;
 	else
-	    good = TRUE;
+	    good = true;
 
 	/* Is there another player of a different alignment */
 	for ( wch = auto_war->team_players; wch != NULL; wch = wch->next_in_auto_war )
 	{
-	    if ( ( evil == TRUE &&
+	    if ( ( evil == true &&
 			( wch->alignment > 0 ||
 			  IS_CHURCH_GOOD( wch ) ) ) ||
-		    ( good == TRUE &&
+		    ( good == true &&
 		      ( wch->alignment < 0 ||
 			IS_CHURCH_EVIL( wch ) ) ) )
 	    {
-		ended = FALSE;
+		ended = false;
 	    }
 	}
 

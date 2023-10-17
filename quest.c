@@ -116,7 +116,7 @@ OBJ_DATA *generate_quest_scroll(CHAR_DATA *ch, char *questgiver, long vnum,
 		scroll_index = get_obj_index(OBJ_VNUM_QUEST_SCROLL);
 	}
 
-	OBJ_DATA *scroll = create_object(scroll_index, 0, TRUE);
+	OBJ_DATA *scroll = create_object(scroll_index, 0, true);
 	if( scroll != NULL )
 	{
 		/*
@@ -205,8 +205,8 @@ void do_quest(CHAR_DATA *ch, char *argument)
 		QUEST_PART_DATA *part;
 		int i;
 		int total_parts;
-		bool totally_complete = FALSE;
-		bool found = FALSE;
+		bool totally_complete = false;
+		bool found = false;
 
 		total_parts = 0;
 
@@ -226,13 +226,13 @@ void do_quest(CHAR_DATA *ch, char *argument)
 		while(part != NULL)
 		{
 			if (!part->complete)
-				found = TRUE;
+				found = true;
 			total_parts++;
 			part = part->next;
 		}
 
 		if (!found)
-			totally_complete = TRUE;
+			totally_complete = true;
 
 		i = 1;
 		for (part = ch->quest->parts; part != NULL; part = part->next, i++)
@@ -245,7 +245,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
 			else
 			{
 				sprintf(buf, "Task {Y%d{x of your quest is not complete.\n\r", i);
-				totally_complete = FALSE;
+				totally_complete = false;
 				send_to_char(buf, ch);
 			}
 		}
@@ -414,7 +414,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
 
 		if (generate_quest(ch, mob))
 		{
-			ch->quest->generating = FALSE;
+			ch->quest->generating = false;
 
 			sprintf(buf, "Thank you, brave %s!", HANDLE(ch));
 			do_say(mob, buf);
@@ -653,14 +653,14 @@ void do_quest(CHAR_DATA *ch, char *argument)
 			act ("You inform $N you have completed your quest.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		}
 
-		found = FALSE;
-		incomplete = FALSE;
+		found = false;
+		incomplete = false;
 		for (part = ch->quest->parts; part != NULL; part = part->next)
 		{
 			if (part->complete)
-				found = TRUE;
+				found = true;
 			if (!part->complete)
-				incomplete = TRUE;
+				incomplete = true;
 		}
 
 		if (!found)
@@ -849,7 +849,7 @@ void do_quest(CHAR_DATA *ch, char *argument)
 
 
 /*
- * Generate a quest. Returns TRUE if a quest is found.
+ * Generate a quest. Returns true if a quest is found.
  */
 bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 {
@@ -858,8 +858,8 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 	int parts;
 	int i;
 
-	ch->quest->generating = TRUE;
-	ch->quest->scripted = FALSE;
+	ch->quest->generating = true;
+	ch->quest->scripted = false;
 
 	if (ch->tot_level <= 30)
 		parts = number_range(1, 3);
@@ -882,7 +882,7 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 	questman->tempstore[1] = bFun ? 1 : 0;		// Whether this was a F.U.N. quest (In)
 	questman->tempstore[2] = qd->scroll;		// Default quest scroll item
 	if(p_percent_trigger( questman, NULL, NULL, NULL, ch, NULL, NULL,NULL, NULL, TRIG_PREQUEST, NULL))
-		return FALSE;
+		return false;
 	parts = questman->tempstore[0];				// Updated number of parts to do
 	if( parts < 1 ) parts = 1;					//    Require at least one part.
 
@@ -900,7 +900,7 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 		if (generate_quest_part(ch, questman, part, parts - i))
 			continue;
 		else
-			return FALSE;
+			return false;
 	}
 
 	// create the scroll
@@ -910,7 +910,7 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
 	if( scroll == NULL )
 	{
 		// COMPLAIN
-		return FALSE;
+		return false;
 	}
 
 	free_string(scroll->name);
@@ -925,7 +925,7 @@ bool generate_quest(CHAR_DATA *ch, CHAR_DATA *questman)
     act("$N gives $p to $n.", ch, questman, NULL, scroll, NULL, NULL, NULL, TO_ROOM);
     act("$N gives you $p.",   ch, questman, NULL, scroll, NULL, NULL, NULL, TO_CHAR);
     obj_to_char(scroll, ch);
-    return TRUE;
+    return true;
 }
 
 /* Set up a quest part. */
@@ -997,10 +997,10 @@ bool is_quest_token(OBJ_DATA *obj)
     for (; quest_item_token_table[i] != 0; i++)
     {
         if (obj->pIndexData->vnum == quest_item_token_table[i])
-	    return TRUE;
+	    return true;
     }
 
-    return FALSE;
+    return false;
 }
 
 
@@ -1010,7 +1010,7 @@ void check_quest_rescue_mob(CHAR_DATA *ch, bool show)
     CHAR_DATA *mob;
     char buf[MAX_STRING_LENGTH];
     int i;
-    bool found = TRUE;
+    bool found = true;
 
     if (ch->quest == NULL)
         return;
@@ -1027,10 +1027,10 @@ void check_quest_rescue_mob(CHAR_DATA *ch, bool show)
         i++;
 
 		// already did it
-		if (part->complete == TRUE)
+		if (part->complete == true)
 			continue;
 
-		found = FALSE;
+		found = false;
 		mob = ch->in_room->people;
 		while (mob != NULL)
 		{
@@ -1049,7 +1049,7 @@ void check_quest_rescue_mob(CHAR_DATA *ch, bool show)
 				if (IS_NPC(mob) && IS_SET(mob->act, ACT_AGGRESSIVE))
 				    REMOVE_BIT(mob->act, ACT_AGGRESSIVE);
 
-				found = TRUE;
+				found = true;
 				break;
 		    }
 
@@ -1064,7 +1064,7 @@ void check_quest_rescue_mob(CHAR_DATA *ch, bool show)
 				send_to_char(buf, ch);
 			}
 
-			part->complete = TRUE;
+			part->complete = true;
 			break;
 		}
     }
@@ -1097,7 +1097,7 @@ void check_quest_retrieve_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool show)
 			i++;
 
 			// already did it
-			if (part->complete == TRUE)
+			if (part->complete == true)
 				continue;
 
 			if (part->pObj == obj)
@@ -1109,7 +1109,7 @@ void check_quest_retrieve_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool show)
 					send_to_char(buf, ch);
 				}
 
-				part->complete = TRUE;
+				part->complete = true;
 			}
 		}
     }
@@ -1136,7 +1136,7 @@ void check_quest_slay_mob(CHAR_DATA *ch, CHAR_DATA *mob, bool show)
         i++;
 
 		// already did it
-		if (part->complete == TRUE)
+		if (part->complete == true)
 			continue;
 
         if (part->mob == mob->pIndexData->vnum && !part->complete)
@@ -1147,7 +1147,7 @@ void check_quest_slay_mob(CHAR_DATA *ch, CHAR_DATA *mob, bool show)
 				send_to_char(buf, ch);
 			}
 
-			part->complete = TRUE;
+			part->complete = true;
 		}
     }
 }
@@ -1179,7 +1179,7 @@ void check_quest_travel_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool show)
         i++;
 
 		// already did it
-		if (part->complete == TRUE)
+		if (part->complete == true)
 			continue;
 
 		target_room = get_room_index(part->room);
@@ -1195,7 +1195,7 @@ void check_quest_travel_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool show)
 				send_to_char(buf, ch);
 			}
 
-			part->complete = TRUE;
+			part->complete = true;
 		}
     }
 }
@@ -1206,12 +1206,12 @@ bool check_quest_custom_task(CHAR_DATA *ch, int task, bool show)
 	int i;
 
 	if (ch->quest == NULL)
-		return FALSE;
+		return false;
 
     if (IS_NPC(ch))
     {
 		bug("check_quest_custom_task: NPC", 0);
-		return FALSE;
+		return false;
     }
 
     i = 0;
@@ -1224,7 +1224,7 @@ bool check_quest_custom_task(CHAR_DATA *ch, int task, bool show)
 			continue;
 
 		// already did it
-		if (part->complete == TRUE)
+		if (part->complete == true)
 	    	continue;
 
 
@@ -1234,12 +1234,12 @@ bool check_quest_custom_task(CHAR_DATA *ch, int task, bool show)
 	    	sprintf(buf, "{YYou have completed task %d of your quest!{x\n\r", i);
 	    	send_to_char(buf, ch);
 		}
-	    part->complete = TRUE;
+	    part->complete = true;
 
-	    return TRUE;
+	    return true;
     }
 
-    return FALSE;
+    return false;
 }
 
 int count_quest_parts(CHAR_DATA *ch)
@@ -1267,16 +1267,16 @@ bool is_quest_item(OBJ_DATA *obj)
     for (i = 0; quest_item_table[i] != 0; i++)
     {
 	if (obj->pIndexData->vnum == quest_item_table[i])
-	    return TRUE;
+	    return true;
     }
 
     for (i = 0; quest2_item_table[i] != 0; i++)
     {
 	if (obj->pIndexData->vnum == quest2_item_table[i])
-	    return TRUE;
+	    return true;
     }
 
-    return FALSE;
+    return false;
 }
 
 

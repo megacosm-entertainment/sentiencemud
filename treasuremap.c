@@ -161,7 +161,7 @@ OBJ_DATA *create_treasure_map(WILDS_DATA *pWilds, AREA_DATA *pArea, OBJ_DATA *tr
 			obj_from_room(treasure);
 
 		// Find location for map
-		while(TRUE) {
+		while(true) {
 			if( pArea && pArea->open )
 			{
 				vx = number_range(-50, 50);
@@ -202,7 +202,7 @@ OBJ_DATA *create_treasure_map(WILDS_DATA *pWilds, AREA_DATA *pArea, OBJ_DATA *tr
 	}
 
 	// create the scroll
-	scroll = create_object(get_obj_index(OBJ_VNUM_TREASURE_MAP), 0, TRUE);
+	scroll = create_object(get_obj_index(OBJ_VNUM_TREASURE_MAP), 0, true);
 
 	return create_wilderness_map(pWilds, vx, vy, scroll, 5, "{RX{x");
 }
@@ -247,7 +247,7 @@ void do_spawntreasuremap(CHAR_DATA *ch, char *argument)
 		int i = number_range(0, MAX_TREASURES-1);
 
 		// create object
-		treasure = create_object(get_obj_index(treasure_table[i]), 0, TRUE);
+		treasure = create_object(get_obj_index(treasure_table[i]), 0, true);
 
 		if( !treasure )
 		{

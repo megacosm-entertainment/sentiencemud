@@ -94,7 +94,7 @@ void do_disembark( CHAR_DATA *ch, char *argument)
     	act("{W$n disembarks from $p.{x", ch, NULL, NULL, ship_obj, NULL, NULL, NULL, TO_ROOM);
 	}
 
-	move_cart(ch,location,TRUE);
+	move_cart(ch,location,true);
 }
 
 
@@ -174,7 +174,7 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 			act("{WYou board {x$p{W.{x\n\r", ch, NULL, NULL, portal, NULL, NULL, NULL, TO_CHAR);
 			act("{W$n boards {x$p{W.{x\n\r", ch, NULL, NULL, portal, NULL, NULL, NULL, TO_ROOM);
 
-			move_cart(ch,location,TRUE);
+			move_cart(ch,location,true);
 
 			char_from_room(ch);
 			char_to_room(ch, location);
@@ -393,7 +393,7 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 	    act("{YYou walk through $p and find yourself somewhere else...{x",
 		    ch, NULL, NULL,portal, NULL, NULL,location->name,TO_CHAR);
 
-	move_cart(ch,location,TRUE);
+	move_cart(ch,location,true);
 
 	DUNGEON *to_dungeon = get_room_dungeon(location);
 	INSTANCE *to_instance = get_room_instance(location);
@@ -488,7 +488,7 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 	}
 
 	if(!IS_NPC(ch) && IS_SET(portal->value[2],GATE_FORCE_BRIEF)) {
-		bool was_brief = IS_SET(ch->comm, COMM_BRIEF) && TRUE;
+		bool was_brief = IS_SET(ch->comm, COMM_BRIEF) && true;
 
 		SET_BIT(ch->comm, COMM_BRIEF);
 		do_function(ch, &do_look, "auto");

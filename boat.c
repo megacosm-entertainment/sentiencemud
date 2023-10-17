@@ -189,7 +189,7 @@ bool ship_seek_point(SHIP_DATA *ship)
 			}
 			else if( IS_VALID(ship->owner) && !IS_NPC(ship->owner) )
 			{
-				check_improve(ship->owner, gsn_navigation, TRUE, 10);
+				check_improve(ship->owner, gsn_navigation, true, 10);
 				skill = get_skill(ship->owner, gsn_navigation);
 			}
 
@@ -476,7 +476,7 @@ SHIP_INDEX_DATA *load_ship_index(FILE *fp)
 
 	while (str_cmp((word = fread_word(fp)), "#-SHIP"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		switch(word[0])
 		{
@@ -495,7 +495,7 @@ SHIP_INDEX_DATA *load_ship_index(FILE *fp)
 					ship->blueprint = bp;
 				}
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			break;
@@ -508,7 +508,7 @@ SHIP_INDEX_DATA *load_ship_index(FILE *fp)
 				ship->min_crew = fread_number(fp);
 				ship->max_crew = fread_number(fp);
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			break;
@@ -540,7 +540,7 @@ SHIP_INDEX_DATA *load_ship_index(FILE *fp)
 					list_appendlink(ship->special_keys, key);
 				}
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			break;
@@ -595,7 +595,7 @@ void load_ships()
 
 	while (str_cmp((word = fread_word(fp)), "#END"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		if( !str_cmp(word, "#SHIP") )
 		{
@@ -605,7 +605,7 @@ void load_ships()
 			ship->next = ship_index_hash[iHash];
 			ship_index_hash[iHash] = ship;
 
-			fMatch = TRUE;
+			fMatch = true;
 			continue;
 		}
 
@@ -665,7 +665,7 @@ bool save_ships()
 	if (fp == NULL)
 	{
 		bug("Couldn't save ships.dat", 0);
-		return FALSE;
+		return false;
 	}
 
 	int iHash;
@@ -735,7 +735,7 @@ SHIP_DATA *create_ship(long vnum)
 
 	ship->index = ship_index;
 
-	obj = create_object(obj_index, 0, FALSE);
+	obj = create_object(obj_index, 0, false);
 	if( !IS_VALID(obj) )
 	{
 		free_ship(ship);
@@ -1214,7 +1214,7 @@ SPECIAL_KEY_DATA *ship_special_key_load(FILE *fp)
 
 	while (str_cmp((word = fread_word(fp)), "#-SPECIALKEY"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		switch(word[0])
 		{
@@ -1252,7 +1252,7 @@ SHIP_ROUTE *ship_route_load(FILE *fp, SHIP_DATA *ship)
 
 	while (str_cmp((word = fread_word(fp)), "#-ROUTE"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		switch(word[0])
 		{
@@ -1265,7 +1265,7 @@ SHIP_ROUTE *ship_route_load(FILE *fp, SHIP_DATA *ship)
 
 				list_appendlink(route->waypoints, wp);
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			break;
@@ -1317,7 +1317,7 @@ SHIP_DATA *ship_load(FILE *fp)
 
 	while (str_cmp((word = fread_word(fp)), "#-SHIP"))
 	{
-		fMatch = FALSE;
+		fMatch = false;
 
 		switch(word[0])
 		{
@@ -1332,7 +1332,7 @@ SHIP_DATA *ship_load(FILE *fp)
 					ship->instance->ship = ship;
 				}
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			if( !str_cmp(word, "#MOBILE") )
@@ -1345,7 +1345,7 @@ SHIP_DATA *ship_load(FILE *fp)
 					char_to_room(crew, crew->in_room);
 				}
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			if( !str_cmp(word, "#OBJECT") )
@@ -1358,7 +1358,7 @@ SHIP_DATA *ship_load(FILE *fp)
 					obj_to_room(obj, obj->in_room);
 				}
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			if( !str_cmp(word, "#ROUTE") )
@@ -1366,7 +1366,7 @@ SHIP_DATA *ship_load(FILE *fp)
 				SHIP_ROUTE *route = ship_route_load(fp, ship);
 
 				list_appendlink(ship->routes, route);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			if( !str_cmp(word, "#SPECIALKEY") )
@@ -1374,7 +1374,7 @@ SHIP_DATA *ship_load(FILE *fp)
 				SPECIAL_KEY_DATA *sk = ship_special_key_load(fp);
 
 				list_appendlink(ship->special_keys, sk);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			break;
@@ -1389,7 +1389,7 @@ SHIP_DATA *ship_load(FILE *fp)
 			{
 				ship->boarded_by_uid[0] = fread_number(fp);
 				ship->boarded_by_uid[1] = fread_number(fp);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			break;
@@ -1400,14 +1400,14 @@ SHIP_DATA *ship_load(FILE *fp)
 			{
 				ship->char_attacked_uid[0] = fread_number(fp);
 				ship->char_attacked_uid[1] = fread_number(fp);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			if( !str_cmp(word, "Crew") )
 			{
 				ship->min_crew = fread_number(fp);
 				ship->max_crew = fread_number(fp);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			break;
@@ -1420,7 +1420,7 @@ SHIP_DATA *ship_load(FILE *fp)
 
 				ship->first_mate = ship_load_find_crew(ship, id1, id2);
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			KEYS("Flag", ship->flag, fread_string(fp));
@@ -1442,7 +1442,7 @@ SHIP_DATA *ship_load(FILE *fp)
 
 				list_appendlink(ship->waypoints, wp);
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			KEY("MoveSteps", ship->move_steps, fread_number(fp));
@@ -1457,7 +1457,7 @@ SHIP_DATA *ship_load(FILE *fp)
 
 				ship->navigator = ship_load_find_crew(ship, id1, id2);
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			break;
@@ -1476,14 +1476,14 @@ SHIP_DATA *ship_load(FILE *fp)
 					list_appendlink(ship->oarsmen, oarsman);
 				}
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			if( !str_cmp(word, "Owner") )
 			{
 				ship->owner_uid[0] = fread_number(fp);
 				ship->owner_uid[1] = fread_number(fp);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			break;
@@ -1500,7 +1500,7 @@ SHIP_DATA *ship_load(FILE *fp)
 
 				ship->scout = ship_load_find_crew(ship, id1, id2);
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			KEY("ScuttleTime", ship->scuttle_time, fread_number(fp));
@@ -1517,21 +1517,21 @@ SHIP_DATA *ship_load(FILE *fp)
 					memset(&ship->seek_point, 0, sizeof(ship->seek_point));
 				}
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			if( !str_cmp(word, "ShipAttacked") )
 			{
 				ship->ship_attacked_uid[0] = fread_number(fp);
 				ship->ship_attacked_uid[1] = fread_number(fp);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			if( !str_cmp(word, "ShipChased") )
 			{
 				ship->ship_chased_uid[0] = fread_number(fp);
 				ship->ship_chased_uid[1] = fread_number(fp);
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			KEY("ShipFlags", ship->ship_flags, fread_number(fp));
@@ -1548,7 +1548,7 @@ SHIP_DATA *ship_load(FILE *fp)
 
 				ship->steering.move = fread_number(fp);
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			break;
@@ -2147,7 +2147,7 @@ void do_ships(CHAR_DATA *ch, char *argument)
 				send_to_char("{RWARNING:{W Having scrolling off may limit how many ships you can see.{x\n\r", ch);
 
 			int lines = 0;
-			bool error = FALSE;
+			bool error = false;
 			BUFFER *buffer = new_buf();
 			ITERATOR it;
 			char buf[MSL];
@@ -2195,7 +2195,7 @@ void do_ships(CHAR_DATA *ch, char *argument)
 
 				if( !add_buf(buffer, buf) || (!ch->lines && strlen(buf_string(buffer)) > MAX_STRING_LENGTH) )
 				{
-					error = TRUE;
+					error = true;
 					break;
 				}
 			}
@@ -3389,7 +3389,7 @@ void do_ship_aim( CHAR_DATA *ch, char *argument )
 	char_from_room(ch);
 	char_to_room(ch, orig->ship->ship->in_room);
 
-	show_map_to_char(ch, ch, ch->wildview_bonus_x, ch->wildview_bonus_y,FALSE);
+	show_map_to_char(ch, ch, ch->wildview_bonus_x, ch->wildview_bonus_y,false);
 
 	x = get_squares_to_show_x(ch->wildview_bonus_x);
 	y = get_squares_to_show_y(ch->wildview_bonus_y);
@@ -3398,7 +3398,7 @@ void do_ship_aim( CHAR_DATA *ch, char *argument )
 
 	victim = get_char_world( ch, arg);
 
-	if (!(victim != NULL && IN_WILDERNESS(victim) && !is_safe(ch, victim, TRUE) &&
+	if (!(victim != NULL && IN_WILDERNESS(victim) && !is_safe(ch, victim, true) &&
 				(victim->in_room->x < ch->in_room->x + x &&
 				 victim->in_room->x > ch->in_room->x - x)
 				&& (victim->in_room->y < ch->in_room->y + y &&
@@ -5475,7 +5475,7 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 			}
 
 			extract_obj(map);
-			map = create_object(get_obj_index(OBJ_VNUM_NAVIGATIONAL_CHART), 0, FALSE);
+			map = create_object(get_obj_index(OBJ_VNUM_NAVIGATIONAL_CHART), 0, false);
 			obj_to_char(map, ch);
 		}
 		else
@@ -5491,7 +5491,7 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 			{
 				// Replace blank scroll with map object
 				extract_obj(map);
-				map = create_object(get_obj_index(OBJ_VNUM_NAVIGATIONAL_CHART), 0, FALSE);
+				map = create_object(get_obj_index(OBJ_VNUM_NAVIGATIONAL_CHART), 0, false);
 				obj_to_char(map, ch);
 			}
 			else if( map->item_type != ITEM_MAP )
@@ -6193,7 +6193,7 @@ void do_ship_keys(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		OBJ_DATA *key = create_object(key_index, 0, TRUE);
+		OBJ_DATA *key = create_object(key_index, 0, true);
 		if( !IS_VALID(key) )
 		{
 			send_to_char("Could not generate the key.  Please inform an immortal or file a bug report.\n\r", ch);
@@ -6517,7 +6517,7 @@ void do_ship_crew(CHAR_DATA *ch, char *argument)
 		list_remlink(ship->crew, crew);
 		crew->belongs_to_ship = NULL;
 
-		extract_char(crew, TRUE);
+		extract_char(crew, true);
 
 		send_to_char("Crew member removed.\n\r", ch);
 		return;
@@ -7180,7 +7180,7 @@ void list_ship_indexes(CHAR_DATA *ch, char *argument)
 		send_to_char("{RWARNING:{W Having scrolling off may limit how many ships you can see.{x\n\r", ch);
 
 	int lines = 0;
-	bool error = FALSE;
+	bool error = false;
 	BUFFER *buffer = new_buf();
 	char buf[MSL];
 
@@ -7198,7 +7198,7 @@ void list_ship_indexes(CHAR_DATA *ch, char *argument)
 			++lines;
 			if( !add_buf(buffer, buf) || (!ch->lines && strlen(buf_string(buffer)) > MAX_STRING_LENGTH) )
 			{
-				error = TRUE;
+				error = true;
 				break;
 			}
 		}
@@ -7360,7 +7360,7 @@ void do_shshow(CHAR_DATA *ch, char *argument)
 SHEDIT( shedit_list )
 {
 	list_ship_indexes(ch, argument);
-	return FALSE;
+	return false;
 }
 
 SHEDIT( shedit_show )
@@ -7478,7 +7478,7 @@ SHEDIT( shedit_show )
 	}
 
 	free_buf(buffer);
-	return FALSE;
+	return false;
 }
 
 SHEDIT( shedit_create )
@@ -7504,7 +7504,7 @@ SHEDIT( shedit_create )
 	else if( get_ship_index(value) )
 	{
 		send_to_char("That vnum already exists.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	ship = new_ship_index();
@@ -7518,7 +7518,7 @@ SHEDIT( shedit_create )
 	if( ship->vnum > top_ship_index_vnum)
 		top_ship_index_vnum = ship->vnum;
 
-    return TRUE;
+    return true;
 }
 
 SHEDIT( shedit_name )
@@ -7532,13 +7532,13 @@ SHEDIT( shedit_name )
 	if( argument[0] == '\0' )
 	{
 		send_to_char("Syntax:  name [name]\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	free_string(ship->name);
 	ship->name = str_dup(argument);
 	send_to_char("Name changed.\n\r", ch);
-	return TRUE;
+	return true;
 }
 
 SHEDIT( shedit_desc )
@@ -7550,11 +7550,11 @@ SHEDIT( shedit_desc )
 	if( argument[0] != '\0' )
 	{
 		send_to_char("Syntax:  desc\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	string_append(ch, &ship->description);
-	return TRUE;
+	return true;
 }
 
 SHEDIT( shedit_class )
@@ -7570,12 +7570,12 @@ SHEDIT( shedit_class )
 		send_to_char("Syntax:  class [ship class]\n\r", ch);
 		send_to_char("See '? shipclass' for list of classes.\n\r\n\r", ch);
 		show_help(ch, "shipclass");
-		return FALSE;
+		return false;
 	}
 
 	ship->ship_class = value;
 	send_to_char("Ship Class changed.\n\r", ch);
-	return TRUE;
+	return true;
 }
 
 SHEDIT( shedit_flags)
@@ -7591,12 +7591,12 @@ SHEDIT( shedit_flags)
 		send_to_char("Syntax:  flags [flags]\n\r", ch);
 		send_to_char("See '? ship' for list of flags.\n\r\n\r", ch);
 		show_help(ch, "ship");
-		return FALSE;
+		return false;
 	}
 
 	ship->flags ^= value;
 	send_to_char("Ship flags changed.\n\r", ch);
-	return TRUE;
+	return true;
 }
 
 SHEDIT( shedit_blueprint )
@@ -7609,19 +7609,19 @@ SHEDIT( shedit_blueprint )
 	if( argument[0] == '\0' )
 	{
 		send_to_char("Syntax:  blueprint [vnum]\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if( !is_number(argument) )
 	{
 		send_to_char("That is not a number.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if( !(bp = get_blueprint(atol(argument))) )
 	{
 		send_to_char("Blueprint does not exist.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if( bp->mode == BLUEPRINT_MODE_STATIC )
@@ -7632,7 +7632,7 @@ SHEDIT( shedit_blueprint )
 		if( bp->static_entry_section < 1 || bp->static_entry_link < 1)
 		{
 			send_to_char("Blueprint requires an entry point for boarding purposes.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		// * Room with HELM
@@ -7693,7 +7693,7 @@ SHEDIT( shedit_blueprint )
 		if( !helm )
 		{
 			send_to_char("Blueprint requires at least one room with the 'helm' flag set, for controlling the ship.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if( !viewwilds )
@@ -7706,14 +7706,14 @@ SHEDIT( shedit_blueprint )
 	else
 	{
 		send_to_char("Only static blueprints supported.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 
 
 	ship->blueprint = bp;
 	send_to_char("Ship blueprint changed.\n\r", ch);
-	return TRUE;
+	return true;
 }
 
 SHEDIT( shedit_object )
@@ -7727,13 +7727,13 @@ SHEDIT( shedit_object )
 	if( argument[0] == '\0' )
 	{
 		send_to_char("Syntax:  object [vnum]\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if( !is_number(argument) )
 	{
 		send_to_char("That is not a number.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	vnum = atol(argument);
@@ -7741,18 +7741,18 @@ SHEDIT( shedit_object )
 	if( !obj )
 	{
 		send_to_char("That object does not exist.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if( obj->item_type != ITEM_SHIP )
 	{
 		send_to_char("Object is not a ship.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	ship->ship_object = vnum;
 	send_to_char("Ship object set.\n\r", ch);
-	return TRUE;
+	return true;
 }
 
 SHEDIT( shedit_hit )
@@ -7764,25 +7764,25 @@ SHEDIT( shedit_hit )
 	if( argument[0] == '\0' )
 	{
 		send_to_char("Syntax:  hit [points]\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if( !is_number(argument) )
 	{
 		send_to_char("That is not a number.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	int value = atoi(argument);
 	if( value < 1 || value > SHIP_MAX_HIT )
 	{
 		send_to_char("Hit points must be in the range of 1 to " __STR(SHIP_MAX_HIT) ".\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	ship->hit = value;
 	send_to_char("Ship hit points changed.\n\r", ch);
-	return TRUE;
+	return true;
 }
 
 SHEDIT( shedit_turning )
@@ -7794,25 +7794,25 @@ SHEDIT( shedit_turning )
 	if( argument[0] == '\0' )
 	{
 		send_to_char("Syntax:  turning [degrees]\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if( !is_number(argument) )
 	{
 		send_to_char("That is not a number.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	int value = atoi(argument);
 	if( value < 1 || value > 60 )
 	{
 		send_to_char("Turning power must be in the range of 1 to 60 degrees.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	ship->turning = value;
 	send_to_char("Turning power changed.\n\r", ch);
-	return TRUE;
+	return true;
 }
 
 SHEDIT( shedit_guns )
@@ -7824,25 +7824,25 @@ SHEDIT( shedit_guns )
 	if( argument[0] == '\0' )
 	{
 		send_to_char("Syntax:  guns [count]\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if( !is_number(argument) )
 	{
 		send_to_char("That is not a number.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	int value = atoi(argument);
 	if( value < 0 || value > SHIP_MAX_GUNS )
 	{
 		send_to_char("Gun allowance must be in the range of 0 to " __STR(SHIP_MAX_GUNS) ".\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	ship->guns = value;
 	send_to_char("Ship gun allowance changed.\n\r", ch);
-	return TRUE;
+	return true;
 }
 
 
@@ -7855,25 +7855,25 @@ SHEDIT( shedit_oars )
 	if( argument[0] == '\0' )
 	{
 		send_to_char("Syntax:  oars [number]\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if( !is_number(argument) )
 	{
 		send_to_char("That is not a number.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	int value = atoi(argument);
 	if( value < 0 )
 	{
 		send_to_char("Number of Oar positions must be non-negative.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	ship->oars = value;
 	send_to_char("Oar positions changed.\n\r", ch);
-	return TRUE;
+	return true;
 }
 
 
@@ -7887,7 +7887,7 @@ SHEDIT( shedit_crew )
 	if( argument[0] == '\0' )
 	{
 		send_to_char("Syntax:  crew [min] [max]\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	argument = one_argument(argument, arg);
@@ -7895,7 +7895,7 @@ SHEDIT( shedit_crew )
 	if( !is_number(arg) ||  !is_number(argument) )
 	{
 		send_to_char("That is not a number.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	int min_crew = atoi(arg);
@@ -7911,19 +7911,19 @@ SHEDIT( shedit_crew )
 	if( min_crew < 0 || min_crew > SHIP_MAX_CREW )
 	{
 		send_to_char("Minimum crew allowance must be in the range of 0 to " __STR(SHIP_MAX_CREW) ".\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if( max_crew < 0 || max_crew > SHIP_MAX_CREW )
 	{
 		send_to_char("Maximum crew allowance must be in the range of 0 to " __STR(SHIP_MAX_CREW) ".\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	ship->min_crew = min_crew;
 	ship->max_crew = max_crew;
 	send_to_char("Ship crew allowance changed.\n\r", ch);
-	return TRUE;
+	return true;
 }
 
 SHEDIT( shedit_move )
@@ -7936,7 +7936,7 @@ SHEDIT( shedit_move )
 	if( argument[0] == '\0' )
 	{
 		send_to_char("Syntax:  move [delay] [steps]\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	argument = one_argument(argument, arg);
@@ -7944,7 +7944,7 @@ SHEDIT( shedit_move )
 	if( !is_number(arg) || !is_number(argument) )
 	{
 		send_to_char("That is not a number.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	int delay = atoi(arg);
@@ -7953,19 +7953,19 @@ SHEDIT( shedit_move )
 	if( delay < SHIP_MIN_DELAY )
 	{
 		send_to_char("Move delay must be at least " __STR(SHIP_MIN_DELAY) ".\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if( steps < SHIP_MIN_STEPS )
 	{
 		send_to_char("Move steps must be at least " __STR(SHIP_MIN_STEPS) ".\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	ship->move_steps = steps;
 	ship->move_delay = delay;
 	send_to_char("Ship movement changed.\n\r", ch);
-	return TRUE;
+	return true;
 }
 
 SHEDIT( shedit_weight )
@@ -7977,25 +7977,25 @@ SHEDIT( shedit_weight )
 	if( argument[0] == '\0' )
 	{
 		send_to_char("Syntax:  weight [weight]\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if( !is_number(argument) )
 	{
 		send_to_char("That is not a number.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	int value = atoi(argument);
 	if( value < 0 || value > SHIP_MAX_WEIGHT )
 	{
 		send_to_char("Weight allowance must be in the range of 0 to " __STR(SHIP_MAX_WEIGHT) ".\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	ship->weight = value;
 	send_to_char("Ship weight allowance changed.\n\r", ch);
-	return TRUE;
+	return true;
 }
 
 SHEDIT( shedit_capacity )
@@ -8007,25 +8007,25 @@ SHEDIT( shedit_capacity )
 	if( argument[0] == '\0' )
 	{
 		send_to_char("Syntax:  capacity [count]\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if( !is_number(argument) )
 	{
 		send_to_char("That is not a number.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	int value = atoi(argument);
 	if( value < 0 || value > SHIP_MAX_CAPACITY )
 	{
 		send_to_char("Ship capacity must be in the range of 0 to " __STR(SHIP_MAX_CAPACITY) ".\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	ship->capacity = value;
 	send_to_char("Ship capacity changed.\n\r", ch);
-	return TRUE;
+	return true;
 }
 
 SHEDIT( shedit_armor)
@@ -8037,25 +8037,25 @@ SHEDIT( shedit_armor)
 	if( argument[0] == '\0' )
 	{
 		send_to_char("Syntax:  armor [rating]\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if( !is_number(argument) )
 	{
 		send_to_char("That is not a number.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	int value = atoi(argument);
 	if( value < 0 || value > SHIP_MAX_ARMOR )
 	{
 		send_to_char("Ship base armor must be in the range of 0 to " __STR(SHIP_MAX_ARMOR) ".\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	ship->armor = value;
 	send_to_char("Ship base armor changed.\n\r", ch);
-	return TRUE;
+	return true;
 }
 
 
@@ -8071,7 +8071,7 @@ SHEDIT( shedit_keys )
 		send_to_char("Syntax:  keys list\n\r", ch);
 		send_to_char("Syntax:  keys add <vnum>\n\r", ch);
 		send_to_char("Syntax:  keys remove <#>\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	argument = one_argument(argument, arg);
@@ -8123,7 +8123,7 @@ SHEDIT( shedit_keys )
 			send_to_char("No special keys to display.\n\r", ch);
 		}
 
-		return FALSE;
+		return false;
 	}
 
 	if( !str_cmp(arg, "add") )
@@ -8134,31 +8134,31 @@ SHEDIT( shedit_keys )
 		if( !is_number(argument) )
 		{
 			send_to_char("That is not a number,\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		vnum = atol(argument);
 		if( !(key = get_obj_index(vnum)) )
 		{
 			send_to_char("That object does not exist.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if( key->item_type != ITEM_KEY )
 		{
 			send_to_char("That is not a key.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if( list_hasdata(ship->special_keys, key) )
 		{
 			send_to_char("That key is already in the list.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		list_appendlink(ship->special_keys, key);
 		send_to_char("Key added.\n\r", ch);
-		return TRUE;
+		return true;
 	}
 
 	if( !str_cmp(arg, "remove") )
@@ -8166,23 +8166,23 @@ SHEDIT( shedit_keys )
 		if( !is_number(argument) )
 		{
 			send_to_char("That is not a number,\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		int value = atoi(argument);
 		if( value < 0 || value > list_size(ship->special_keys) )
 		{
 			send_to_char("Index out of range.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		list_remnthlink(ship->special_keys, value);
 		send_to_char("Key removed.\n\r", ch);
-		return TRUE;
+		return true;
 	}
 
 	shedit_keys(ch, "");
-	return FALSE;
+	return false;
 
 }
 

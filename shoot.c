@@ -182,7 +182,7 @@ void do_shoot( CHAR_DATA *ch, char *argument )
 	return;
     }
 
-    if ( is_safe( ch, victim, TRUE ) )
+    if ( is_safe( ch, victim, true ) )
 	return;
 
     range = get_distance( ch, arg1, direction, bow->value[3] );
@@ -253,7 +253,7 @@ void do_shoot( CHAR_DATA *ch, char *argument )
     if ( get_skill(ch, gsn_archery) > 0 )
     {
     	ch->ranged -= (ch->ranged * (get_skill(ch, gsn_archery)/3))/100;
-	check_improve(ch, gsn_archery, TRUE, 6);
+	check_improve(ch, gsn_archery, true, 6);
     }
 
     ch->projectile_weapon = bow;
@@ -366,9 +366,9 @@ void ranged_end( CHAR_DATA *ch )
 	act("{B$p falls onto the ground.{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL);
 	obj_from_char( obj );
 	obj_to_room( obj, ch->in_room );
-	check_improve( ch, sn, FALSE, 1 );
-	check_improve( ch, gsn_archery, FALSE, 1 );
-	stop_ranged( ch, FALSE );
+	check_improve( ch, sn, false, 1 );
+	check_improve( ch, gsn_archery, false, 1 );
+	stop_ranged( ch, false );
 	return;
     }
 
@@ -418,7 +418,7 @@ void ranged_end( CHAR_DATA *ch )
 	act("{YYou fire $p{Y at $N.{x",  ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 
 	// If we killed them make the victim null
-	if ( damage( ch, victim, dam, gsn_archery, dt, TRUE))
+	if ( damage( ch, victim, dam, gsn_archery, dt, true))
 	    victim = NULL;
 
 	obj_from_char( obj );
@@ -429,16 +429,16 @@ void ranged_end( CHAR_DATA *ch )
 	{
 	    obj_to_char( obj, victim );
 	    if ( victim->fighting == ch )
-		stop_fighting( victim, FALSE );
+		stop_fighting( victim, false );
 	}
 
 	// @@@NIB : 20070128 --------------
-	check_improve( ch, sn, TRUE, 1 );
+	check_improve( ch, sn, true, 1 );
 	if(sn == gsn_bow || sn == gsn_crossbow)
-		check_improve( ch, gsn_archery, TRUE, 1 );
+		check_improve( ch, gsn_archery, true, 1 );
 	WAIT_STATE(ch,beats);
 	// @@@NIB : 20070128 --------------
-	stop_ranged( ch, FALSE );
+	stop_ranged( ch, false );
 	return;
     }
 
@@ -491,11 +491,11 @@ void ranged_end( CHAR_DATA *ch )
 	    }
 
 	    // @@@NIB : 20070128 --------------
-	    check_improve( ch, sn, FALSE, 1 );
+	    check_improve( ch, sn, false, 1 );
 	    if(sn == gsn_bow || sn == gsn_crossbow)
-		check_improve( ch, gsn_archery, FALSE, 1 );
+		check_improve( ch, gsn_archery, false, 1 );
 	    // @@@NIB : 20070128 --------------
-	    stop_ranged( ch, FALSE );
+	    stop_ranged( ch, false );
 	    return;
 	}
 
@@ -516,7 +516,7 @@ void ranged_end( CHAR_DATA *ch )
     if ( number_percent() > URANGE(0, (skill + get_curr_stat(ch, STAT_DEX) / 5), 90) )
     {
 	/* generate miss messages */
-	damage( ch, victim, 0, gsn_archery, dt, TRUE );
+	damage( ch, victim, 0, gsn_archery, dt, true );
 
 	switch( number_range(0, 3) )
 	{
@@ -548,15 +548,15 @@ void ranged_end( CHAR_DATA *ch )
 	}
 
 	if ( victim->fighting == ch )
-	    stop_fighting( victim, FALSE );
+	    stop_fighting( victim, false );
 
 	// @@@NIB : 20070128 --------------
-	check_improve( ch, sn, FALSE, 1 );
+	check_improve( ch, sn, false, 1 );
 	if(sn == gsn_bow || sn == gsn_crossbow)
-		check_improve( ch, gsn_archery, FALSE, 1 );
+		check_improve( ch, gsn_archery, false, 1 );
 	WAIT_STATE(ch,beats);
 	// @@@NIB : 20070128 --------------
-	stop_ranged( ch, FALSE );
+	stop_ranged( ch, false );
 	return;
     }
 
@@ -564,7 +564,7 @@ void ranged_end( CHAR_DATA *ch )
     if ( ( shield = get_eq_char(ch, WEAR_SHIELD)) == NULL
     || !check_shield_block_projectile( ch, victim, obj->short_descr, obj ) )
     {
-	damage( ch, victim, dam, gsn_archery, dt, TRUE );
+	damage( ch, victim, dam, gsn_archery, dt, true );
 	WAIT_STATE(ch,beats);
     }
 
@@ -588,7 +588,7 @@ void ranged_end( CHAR_DATA *ch )
     {
 	obj_to_char( obj, victim );
 	if ( victim->fighting == ch )
-	    stop_fighting( victim, FALSE );
+	    stop_fighting( victim, false );
     }
 
     // Decay arrows
@@ -600,10 +600,10 @@ void ranged_end( CHAR_DATA *ch )
 	room_echo( target_room, buf );
     }
 
-    check_improve( ch, sn, TRUE, 1 );
+    check_improve( ch, sn, true, 1 );
     if(sn == gsn_bow || sn == gsn_crossbow)
-	check_improve( ch, gsn_archery, TRUE, 1 );
-    stop_ranged( ch, FALSE );
+	check_improve( ch, gsn_archery, true, 1 );
+    stop_ranged( ch, false );
 }
 
 
@@ -707,7 +707,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
     int skill = 0;
     int dam;
     int ii;
-    bool found = FALSE;
+    bool found = false;
 
     argument = one_argument( argument, arg1 );
     argument = one_argument( argument, arg2 );
@@ -741,7 +741,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
 	return;
     }
 
-    if (!can_drop_obj(ch, obj, TRUE) || IS_SET(obj->extra2_flags, ITEM_KEPT)) {
+    if (!can_drop_obj(ch, obj, true) || IS_SET(obj->extra2_flags, ITEM_KEPT)) {
 	send_to_char("You can't let go of it.\n\r", ch);
 	return;
     }
@@ -768,7 +768,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
 	    {
 		if ( cloud->item_type == ITEM_STINKING_CLOUD )
 		{
-		    found = TRUE;
+		    found = true;
 		    break;
 		}
 	    }
@@ -776,7 +776,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
 	    if ( !found )
 	    {
 		cloud = create_object( get_obj_index( OBJ_VNUM_STINKING_CLOUD ),
-			0, TRUE );
+			0, true );
 		cloud->timer = 4;
 		obj_to_room( cloud, ch->in_room );
 	    }
@@ -786,7 +786,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
 	    cloud->level = obj->level;
 	    extract_obj( obj );
 
-	    check_improve( ch, gsn_throw, TRUE, 1 );
+	    check_improve( ch, gsn_throw, true, 1 );
 	}
 	else
 	{
@@ -830,7 +830,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
 	return;
     }
 
-    if ( is_safe( ch, victim, TRUE ) )
+    if ( is_safe( ch, victim, true ) )
 	return;
 
     WAIT_STATE( ch, skill_table[gsn_throw].beats );
@@ -853,7 +853,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
 
 	obj_from_char( obj );
 	obj_to_room( obj, ch->in_room );
-	check_improve( ch, gsn_throw, FALSE, 1 );
+	check_improve( ch, gsn_throw, false, 1 );
 	return;
     }
 
@@ -866,7 +866,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
 	act("$n throws $s $p at $N!",  ch, victim, NULL, obj, NULL, NULL, NULL, TO_NOTVICT);
 	act("You throw $p at $N!",     ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 
-	if ( damage( ch, victim, dam, gsn_throw, obj->value[3], TRUE ) == FALSE )
+	if ( damage( ch, victim, dam, gsn_throw, obj->value[3], true ) == false )
 	    victim = NULL;
 
 	obj_from_char( obj );
@@ -876,7 +876,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
 	{
 	    obj_to_char( obj, victim );
 	    if ( victim->fighting == ch )
-		stop_fighting( victim, FALSE );
+		stop_fighting( victim, false );
 	}
             p_give_trigger( NULL, obj, NULL, victim, obj, TRIG_THROW );
             p_give_trigger( NULL, NULL, ch->in_room, victim, obj, TRIG_THROW );
@@ -941,7 +941,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
 	    /* generate miss messages */
             if (ch->in_room == victim->in_room)
             {
-	        damage( ch, victim, 0, gsn_throw, obj->value[3], TRUE );
+	        damage( ch, victim, 0, gsn_throw, obj->value[3], true );
             }
 	    else
             {
@@ -965,17 +965,17 @@ void do_throw( CHAR_DATA *ch, char *argument )
 	    obj_from_char( obj );
 	    obj_to_room( obj, target_room );
 	    if ( victim->fighting == ch )
-			stop_fighting( victim, FALSE );
+			stop_fighting( victim, false );
 
 		p_give_trigger( NULL, obj, NULL, ch, obj, TRIG_THROW );
 		p_give_trigger( NULL, NULL, in_room, ch, obj, TRIG_THROW );
 
-	    check_improve( ch, gsn_throw, FALSE, 1 );
+	    check_improve( ch, gsn_throw, false, 1 );
 	    return;
 	}
 
 	/* do damage and generate messages */
-	if ( damage( ch, victim, dam, gsn_throw , attack_table[obj->value[3]].damage,  TRUE ) == FALSE )
+	if ( damage( ch, victim, dam, gsn_throw , attack_table[obj->value[3]].damage,  true ) == false )
 	{
 	    victim = NULL;
 	}
@@ -988,7 +988,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
 	{
 	    obj_to_char( obj, victim );
 	    if ( victim->fighting == ch )
-		stop_fighting( victim, FALSE );
+		stop_fighting( victim, false );
 	}
 
 	if ( victim != NULL && IS_NPC(victim) && victim->hit > victim->max_hit/5 )
@@ -1001,7 +1001,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
         	p_give_trigger( NULL, obj, NULL, victim, obj, TRIG_THROW );
 	p_give_trigger( NULL, NULL, in_room, ch, obj, TRIG_THROW );
 
-	check_improve( ch, gsn_throw, TRUE, 1 );
+	check_improve( ch, gsn_throw, true, 1 );
     }
 
     return;

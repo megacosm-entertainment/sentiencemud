@@ -252,7 +252,7 @@ void do_mailadd(CHAR_DATA *ch, char *argument)
 	    return;
 	}
 
-	if (!can_put_obj(ch, obj, NULL, mail, FALSE))
+	if (!can_put_obj(ch, obj, NULL, mail, false))
 	    return;
 
 	act("You put $p in your package.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
@@ -265,13 +265,13 @@ void do_mailadd(CHAR_DATA *ch, char *argument)
     {
 	int i = 0;
 	char short_descr[MSL];
-	bool found = TRUE;
-	bool any = FALSE;
+	bool found = true;
+	bool any = false;
 	OBJ_DATA *match_obj;
 
 	while (found)
 	{
-	    found = FALSE;
+	    found = false;
 	    i = 0;
 	    match_obj = NULL;
 
@@ -280,11 +280,11 @@ void do_mailadd(CHAR_DATA *ch, char *argument)
 		obj_next = obj->next_content;
 
 		if ((arg[3] == '\0' || is_name(&arg[4], obj->name))
-		&&  can_put_obj(ch, obj, NULL, mail, TRUE))
+		&&  can_put_obj(ch, obj, NULL, mail, true))
 		{
 		    sprintf(short_descr, "%s", obj->short_descr);
-		    found = TRUE;
-		    any = TRUE;
+		    found = true;
+		    any = true;
 		    break;
 		}
 	    }
@@ -296,7 +296,7 @@ void do_mailadd(CHAR_DATA *ch, char *argument)
 		    obj_next = obj->next_content;
 
 		    if (str_cmp(obj->short_descr, short_descr)
-		    ||  !can_put_obj(ch, obj, NULL, mail, TRUE))
+		    ||  !can_put_obj(ch, obj, NULL, mail, true))
 			continue;
 
 		    if (count_weight_mail(mail) >= MAX_POSTAL_WEIGHT)
@@ -391,7 +391,7 @@ void do_mailrem(CHAR_DATA *ch, char *argument)
 	    return;
 	}
 
-	if (!can_get_obj(ch, obj, NULL, mail, FALSE))
+	if (!can_get_obj(ch, obj, NULL, mail, false))
 	    return;
 
 	act("You take $p out of the package.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
@@ -407,12 +407,12 @@ void do_mailrem(CHAR_DATA *ch, char *argument)
 	char buf[MSL];
 	char short_descr[MSL];
 	OBJ_DATA *match_obj;
-	bool found = TRUE;
-	bool any = FALSE;
+	bool found = true;
+	bool any = false;
 
 	while (found)
 	{
-	    found = FALSE;
+	    found = false;
 	    i = 0;
 	    match_obj = NULL;
 
@@ -421,11 +421,11 @@ void do_mailrem(CHAR_DATA *ch, char *argument)
 		obj_next = obj->next_content;
 
 		if ((arg[3] == '\0' || is_name(&arg[4], obj->name))
-		&&  can_get_obj(ch, obj, NULL, mail, TRUE))
+		&&  can_get_obj(ch, obj, NULL, mail, true))
 		{
 		    sprintf(short_descr, "%s", obj->short_descr);
-		    found = TRUE;
-		    any = TRUE;
+		    found = true;
+		    any = true;
 		    break;
 		}
 	    }
@@ -437,7 +437,7 @@ void do_mailrem(CHAR_DATA *ch, char *argument)
 		    obj_next = obj->next_content;
 
 		    if (str_cmp(obj->short_descr, short_descr)
-		    ||  !can_get_obj(ch, obj, NULL, mail, TRUE))
+		    ||  !can_get_obj(ch, obj, NULL, mail, true))
 			continue;
 
 		    if (get_carry_weight(ch) + get_obj_weight(obj) >= can_carry_w(ch))
@@ -762,12 +762,12 @@ bool has_mail(CHAR_DATA *ch)
     MAIL_DATA *mail;
 
     if (IS_NPC(ch))
-	return FALSE;
+	return false;
 
     if (ch == NULL)
     {
 	bug("has_mail: ch null!", 0);
-	return FALSE;
+	return false;
     }
 
     for (mail = mail_list; mail != NULL; mail = mail->next)
@@ -775,10 +775,10 @@ bool has_mail(CHAR_DATA *ch)
 	if (!str_cmp(ch->name, mail->recipient)
 	&& !mail->picked_up
 	&& mail->status >= MAIL_DELIVERED)
-	    return TRUE;
+	    return true;
     }
 
-    return FALSE;
+    return false;
 }
 
 
@@ -790,7 +790,7 @@ void check_new_mail(CHAR_DATA *ch)
     OBJ_DATA *obj_next;
     OBJ_DATA *prototype;
     char buf[MSL];
-    bool found = FALSE;
+    bool found = false;
     int i;
 
     for (; ;)
@@ -807,7 +807,7 @@ void check_new_mail(CHAR_DATA *ch)
 	if (mail == NULL)
 	    break;
 	else
-	    found = TRUE;
+	    found = true;
 
 	sprintf(buf, "{xYou receive a package from %s.\n\r", mail->sender);
 	send_to_char(buf, ch);
@@ -842,7 +842,7 @@ void check_new_mail(CHAR_DATA *ch)
 		act("You take $p out of the package.", ch, NULL, NULL, prototype, NULL, NULL, NULL, TO_CHAR);
 	}
 
-	mail->picked_up = TRUE;
+	mail->picked_up = true;
 
 	// Give them message
 	if (mail->message != NULL)
@@ -850,7 +850,7 @@ void check_new_mail(CHAR_DATA *ch)
 	    OBJ_DATA *parchment;
 	    char buf[MSL];
 
-	    parchment = create_object(get_obj_index(OBJ_VNUM_BLANK_SCROLL), 1, FALSE);
+	    parchment = create_object(get_obj_index(OBJ_VNUM_BLANK_SCROLL), 1, false);
 
 	    free_string(parchment->name);
 	    free_string(parchment->short_descr);
@@ -870,7 +870,7 @@ void check_new_mail(CHAR_DATA *ch)
 	//free_mail(mail);
     }
 
-    if (found == TRUE)
+    if (found == true)
 	write_mail();
 }
 
@@ -905,7 +905,7 @@ void do_mailinfo(CHAR_DATA *ch, char *argument)
 	    if (mail->status < MAIL_DELIVERED)
 		sprintf(status, "{yBeing Delivered     {x");
 	    else
-	    if (mail->picked_up == TRUE)
+	    if (mail->picked_up == true)
 		sprintf(status, "{GPicked Up           {x");
 	    else
 		sprintf(status, "{RNot Picked Up       {x");

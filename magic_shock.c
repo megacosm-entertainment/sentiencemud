@@ -26,12 +26,12 @@ SPELL_FUNC(spell_call_lightning)
 
 	if (!IS_OUTSIDE(ch)) {
 		send_to_char("You must be outdoors.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if (weather_info.sky < SKY_RAINING) {
 		send_to_char("You need bad weather.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	dam = dice(level/2, 8);
@@ -42,15 +42,15 @@ SPELL_FUNC(spell_call_lightning)
 	for (vch = ch->in_room->people; vch != NULL; vch = vch_next) {
 		vch_next = vch->next_in_room;
 
-		if (!is_safe(ch, vch, FALSE)) {
+		if (!is_safe(ch, vch, false)) {
 			if (!check_spell_deflection(ch, vch, sn)) continue;
 
 			if (vch != ch && (IS_NPC(ch) ? !IS_NPC(vch) : IS_NPC(vch)))
-				damage(ch, vch, saves_spell(level,vch,DAM_LIGHTNING) ? dam / 2 : dam, sn,DAM_LIGHTNING,TRUE);
+				damage(ch, vch, saves_spell(level,vch,DAM_LIGHTNING) ? dam / 2 : dam, sn,DAM_LIGHTNING,true);
 		}
 	}
 
-	return TRUE;
+	return true;
 }
 
 
@@ -70,17 +70,17 @@ SPELL_FUNC(spell_chain_lightning)
 	if (saves_spell(level,victim,DAM_LIGHTNING))
 		dam /= 3;
 
-	damage(ch,victim,dam,sn,DAM_LIGHTNING,TRUE);
+	damage(ch,victim,dam,sn,DAM_LIGHTNING,true);
 	shock_effect(victim,ch->tot_level/2,dam,TARGET_CHAR);
 	last_vict = victim;
 	level -= 4;   /* decrement damage */
 
 	/* new targets */
 	while (level > 0) {
-		found = FALSE;
+		found = false;
 		for (tmp_vict = ch->in_room->people; tmp_vict != NULL; tmp_vict = next_vict) {
 			next_vict = tmp_vict->next_in_room;
-			if (!is_safe(ch,tmp_vict,FALSE) && can_see(ch,tmp_vict) && tmp_vict != last_vict) {
+			if (!is_safe(ch,tmp_vict,false) && can_see(ch,tmp_vict) && tmp_vict != last_vict) {
 				if (!check_spell_deflection(ch, tmp_vict, sn))
 					continue;
 
@@ -94,7 +94,7 @@ SPELL_FUNC(spell_chain_lightning)
 						continue;
 				}
 
-				found = TRUE;
+				found = true;
 				last_vict = tmp_vict;
 
 				act("The bolt arcs to $n!",tmp_vict, NULL, NULL, NULL, NULL,NULL,NULL,TO_ROOM);
@@ -104,22 +104,22 @@ SPELL_FUNC(spell_chain_lightning)
 				if (saves_spell(level,tmp_vict,DAM_LIGHTNING))
 					dam /= 3;
 
-				damage(ch,tmp_vict,dam,sn,DAM_LIGHTNING,TRUE);
+				damage(ch,tmp_vict,dam,sn,DAM_LIGHTNING,true);
 				shock_effect(victim,ch->tot_level/2,dam,TARGET_CHAR);
 				level -= 10;  /* decrement damage */
 			}
 		}   /* end target searching loop */
 
 		if (!found) {/* no target found, hit the caster */
-			if (!ch) return TRUE;
+			if (!ch) return true;
 
 			if (!check_spell_deflection(ch, ch, sn))
-				return TRUE;
+				return true;
 
 			if (last_vict == ch) {/* no double hits */
 				act("The bolt seems to have fizzled out.",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
 				act("The bolt grounds out through your body.", ch,NULL, NULL, NULL, NULL, NULL,NULL,TO_CHAR);
-				return TRUE;
+				return true;
 			}
 
 			last_vict = ch;
@@ -128,26 +128,26 @@ SPELL_FUNC(spell_chain_lightning)
 			dam = dice(level,6);
 			if (saves_spell(level,ch,DAM_LIGHTNING))
 				dam /= 3;
-			damage(ch,ch,dam,sn,DAM_LIGHTNING,TRUE);
+			damage(ch,ch,dam,sn,DAM_LIGHTNING,true);
 			shock_effect(victim,ch->tot_level/2,dam,TARGET_CHAR);
 			level -= 4;  /* decrement damage */
-			if (!ch) return TRUE;
+			if (!ch) return true;
 		}
 	}
 
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_electrical_barrier)
 {
 	CHAR_DATA *victim = (CHAR_DATA *) vo;
 	AFFECT_DATA af;
-	bool perm = FALSE;
+	bool perm = false;
 	memset(&af,0,sizeof(af));
 
 	if (level > MAGIC_WEAR_SPELL) {
 		level -= MAGIC_WEAR_SPELL;
-		perm = TRUE;
+		perm = true;
 	}
 
 	if (perm && is_affected(victim, sn))
@@ -157,7 +157,7 @@ SPELL_FUNC(spell_electrical_barrier)
 			send_to_char("You are already surrounded by an electrical barrier.\n\r",ch);
 		else
 			act("$N is already surrounded by an electrical barrier.", ch,victim, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	af.slot	= WEAR_NONE;
@@ -174,7 +174,7 @@ SPELL_FUNC(spell_electrical_barrier)
 	affect_to_char(victim, &af);
 	act("{WCrackling blue arcs of electricity whip up and around $n forming a hazy barrier.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 	send_to_char("{WYou are surrounded by an electrical barrier.\n\r{x", victim);
-	return TRUE;
+	return true;
 }
 
 
@@ -188,7 +188,7 @@ SPELL_FUNC(spell_lightning_breath)
 	act("You breathe a bolt of lightning at $N.",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
 	if (check_shield_block_projectile(ch, victim, "lightning bolt", NULL))
-		return FALSE;
+		return false;
 
 	dam = level * 16;
 	if (IS_DRAGON(ch))
@@ -198,12 +198,12 @@ SPELL_FUNC(spell_lightning_breath)
 
 	if (saves_spell(level,victim,DAM_LIGHTNING)) {
 		shock_effect(victim,level/2,dam/8,TARGET_CHAR);
-		damage(ch,victim,dam/2,sn,DAM_LIGHTNING,TRUE);
+		damage(ch,victim,dam/2,sn,DAM_LIGHTNING,true);
 	} else {
 		shock_effect(victim,level,dam/8,TARGET_CHAR);
-		damage(ch,victim,dam,sn,DAM_LIGHTNING,TRUE);
+		damage(ch,victim,dam,sn,DAM_LIGHTNING,true);
 	}
-	return TRUE;
+	return true;
 }
 
 
@@ -213,7 +213,7 @@ SPELL_FUNC(spell_lightning_bolt)
 	int dam;
 
 	if (check_shield_block_projectile(ch, victim, "lightning bolt", NULL))
-		return FALSE;
+		return false;
 
 	level = UMAX(0, level);
 	dam = dice(level, level/6);
@@ -223,9 +223,9 @@ SPELL_FUNC(spell_lightning_bolt)
 
 	dam = UMIN(dam, 2500);
 
-	damage(ch, victim, dam, sn, DAM_LIGHTNING ,TRUE);
+	damage(ch, victim, dam, sn, DAM_LIGHTNING ,true);
 	shock_effect(victim,ch->tot_level/2,dam,TARGET_CHAR);
-	return TRUE;
+	return true;
 }
 
 
@@ -244,6 +244,6 @@ SPELL_FUNC(spell_shocking_grasp)
 
 	dam = UMIN(dam, 2500);
 
-	damage(ch, victim, dam, sn, DAM_LIGHTNING ,TRUE);
-	return TRUE;
+	damage(ch, victim, dam, sn, DAM_LIGHTNING ,true);
+	return true;
 }

@@ -30,12 +30,12 @@ SPELL_FUNC(spell_shriek)
 	victim->set_death_type = DEATHTYPE_MAGIC;
 
 	if (saves_spell(level,victim,DAM_SOUND)) {
-		damage(ch,victim,dam/4,sn,DAM_SOUND,TRUE);
+		damage(ch,victim,dam/4,sn,DAM_SOUND,true);
 	} else {
 		act("$N screams in pain, covering $S ears.",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
-		damage(ch,victim,dam,sn,DAM_SOUND,TRUE);
+		damage(ch,victim,dam,sn,DAM_SOUND,true);
 	}
-	return TRUE;
+	return true;
 }
 
 
@@ -60,22 +60,22 @@ SPELL_FUNC(spell_silence)
 	if(catalyst >= 0 && catalyst < lvl) {
 		sprintf(buf,"You appear to be missing a required sound catalyst. (%d/%d)\n\r",catalyst,lvl);
 		send_to_char(buf, ch);
-		return FALSE;
+		return false;
 	}
 
-	catalyst = use_catalyst(ch,NULL,CATALYST_SOUND,CATALYST_INVENTORY|CATALYST_ACTIVE,lvl * 3,1,CATALYST_MAXSTRENGTH,TRUE);
+	catalyst = use_catalyst(ch,NULL,CATALYST_SOUND,CATALYST_INVENTORY|CATALYST_ACTIVE,lvl * 3,1,CATALYST_MAXSTRENGTH,true);
 
 	if (IS_AFFECTED2(victim, AFF2_SILENCE)) {
 		if (victim == ch)
 			send_to_char("You are already silenced.\n\r",ch);
 		else
 			act("$N is already silenced.",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	if (saves_spell(level,victim,DAM_OTHER)) {
 		send_to_char("Nothing happens.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	af.slot	= WEAR_NONE;
@@ -93,7 +93,7 @@ SPELL_FUNC(spell_silence)
 	send_to_char("You get the feeling there is a huge sock in your throat.\n\r", victim);
 	act("You have been silenced!",victim, NULL, NULL, NULL, NULL,NULL,NULL,TO_CHAR);
 	act("$n has been silenced!",victim,NULL, NULL, NULL, NULL, NULL,NULL,TO_ROOM);
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_vocalize)
@@ -105,16 +105,16 @@ SPELL_FUNC(spell_vocalize)
 
 	if ((direction = parse_direction(dir)) == -1) {
 		send_to_char("That's not a direction.", ch);
-		return FALSE;
+		return false;
 	}
 
 	if (!ch->in_room->exit[direction]) {
 		send_to_char("Nothing happens.", ch);
-		return FALSE;
+		return false;
 	}
 
 	sprintf(buf, "%s says '%s'.\n\r", ch->name, speaker);
 	buf[0] = UPPER(buf[0]);
-	return FALSE;
+	return false;
 }
 

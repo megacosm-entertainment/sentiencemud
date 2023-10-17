@@ -181,7 +181,7 @@ void do_play(CHAR_DATA *ch, char *argument)
 
 			case TAR_CHAR_OFFENSIVE:
 			case TAR_OBJ_CHAR_OFF:
-				if ( is_safe( ch, mob, TRUE ) )
+				if ( is_safe( ch, mob, true ) )
 					return;
 				break;
 
@@ -303,7 +303,7 @@ void music_end( CHAR_DATA *ch )
 	int song_num;
 	int sn;
 	const struct music_type* pSong = NULL;
-	bool offensive = FALSE;
+	bool offensive = false;
 	bool wasdead;
 
     act( "{YYou finish playing your song.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -358,7 +358,7 @@ void music_end( CHAR_DATA *ch )
 					if( sn > 0 && sn < MAX_SKILL && skill_table[sn].spell_fun != spell_null)
 					{
 						if(skill_table[sn].target == TAR_CHAR_OFFENSIVE || skill_table[sn].target == TAR_OBJ_CHAR_DEF)
-							offensive = TRUE;
+							offensive = true;
 						if (check_spell_deflection(ch, mob, sn))
 							(*skill_table[sn].spell_fun) (sn, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
 					}
@@ -372,7 +372,7 @@ void music_end( CHAR_DATA *ch )
 					if( sn > 0 && sn < MAX_SKILL && skill_table[sn].spell_fun != spell_null)
 					{
 						if(skill_table[sn].target == TAR_CHAR_OFFENSIVE || skill_table[sn].target == TAR_OBJ_CHAR_DEF)
-							offensive = TRUE;
+							offensive = true;
 						if (check_spell_deflection(ch, mob, sn))
 							(*skill_table[sn].spell_fun) (sn, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
 					}
@@ -386,7 +386,7 @@ void music_end( CHAR_DATA *ch )
 					if( sn > 0 && sn < MAX_SKILL && skill_table[sn].spell_fun != spell_null)
 					{
 						if(skill_table[sn].target == TAR_CHAR_OFFENSIVE || skill_table[sn].target == TAR_OBJ_CHAR_DEF)
-							offensive = TRUE;
+							offensive = true;
 						if (check_spell_deflection(ch, mob, sn))
 							(*skill_table[sn].spell_fun) (sn, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
 					}
@@ -397,13 +397,13 @@ void music_end( CHAR_DATA *ch )
 			{
 				if (check_spell_deflection_token(ch, mob, token, script, music_target_name)) {
 					if( execute_script(script->vnum, script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, mob, NULL, NULL, NULL,music_target_name,NULL,0,0,0,0,0) > 0)
-						offensive = TRUE;
+						offensive = true;
 				}
 			}
 
 			free_string(music_target_name);
 
-			if (mob != ch && !is_safe(ch, mob, FALSE) && (type == TAR_CHAR_OFFENSIVE || type == TAR_OBJ_CHAR_OFF || offensive))
+			if (mob != ch && !is_safe(ch, mob, false) && (type == TAR_CHAR_OFFENSIVE || type == TAR_OBJ_CHAR_OFF || offensive))
 			{
 				multi_hit(ch, mob, TYPE_UNDEFINED);
 			}
@@ -428,7 +428,7 @@ void music_end( CHAR_DATA *ch )
 				if( sn1 < 1 || sn1 >= MAX_SKILL || skill_table[sn1].spell_fun == spell_null)
 					sn1 = -1;
 				else if(skill_table[sn1].target == TAR_CHAR_OFFENSIVE || skill_table[sn1].target == TAR_OBJ_CHAR_DEF)
-					offensive = TRUE;
+					offensive = true;
 
 			}
 
@@ -439,7 +439,7 @@ void music_end( CHAR_DATA *ch )
 				if( sn2 < 1 || sn2 >= MAX_SKILL || skill_table[sn2].spell_fun == spell_null)
 					sn2 = -1;
 				else if(skill_table[sn2].target == TAR_CHAR_OFFENSIVE || skill_table[sn2].target == TAR_OBJ_CHAR_DEF)
-					offensive = TRUE;
+					offensive = true;
 			}
 
 			if( pSong->spell3 )
@@ -449,7 +449,7 @@ void music_end( CHAR_DATA *ch )
 				if( sn3 < 1 || sn3 >= MAX_SKILL || skill_table[sn3].spell_fun == spell_null)
 					sn3 = -1;
 				else if(skill_table[sn3].target == TAR_CHAR_OFFENSIVE || skill_table[sn3].target == TAR_OBJ_CHAR_DEF)
-					offensive = TRUE;
+					offensive = true;
 			}
 		}
 
@@ -495,10 +495,10 @@ void music_end( CHAR_DATA *ch )
 				{
 					if (check_spell_deflection_token(ch, mob, token, script, NULL))
 						if(execute_script(script->vnum, script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, mob, NULL,NULL, NULL,NULL, NULL,0,0,0,0,0) > 0)
-							offensive = TRUE;
+							offensive = true;
 				}
 
-				if (mob != ch && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1])) && (mob->dead == wasdead) && !is_safe(ch, mob, FALSE) && offensive)
+				if (mob != ch && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1])) && (mob->dead == wasdead) && !is_safe(ch, mob, false) && offensive)
 					set_fighting(mob, ch);
 			}
 			break;
@@ -548,7 +548,7 @@ void music_end( CHAR_DATA *ch )
 			{
 				mob_next = mob->next_in_room;
 
-				if ( is_safe( ch, mob, FALSE ) )
+				if ( is_safe( ch, mob, false ) )
 					continue;
 
 				id[0] = mob->id[0];
@@ -580,10 +580,10 @@ void music_end( CHAR_DATA *ch )
 				{
 					if (check_spell_deflection_token(ch, mob, token, script, NULL))
 						if(execute_script(script->vnum, script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, mob, NULL,NULL, NULL,NULL, NULL,0,0,0,0,0) > 0)
-							offensive = TRUE;
+							offensive = true;
 				}
 
-				if (mob != ch && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1])) && (mob->dead == wasdead) && !is_safe(ch, mob, FALSE) && offensive)
+				if (mob != ch && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1])) && (mob->dead == wasdead) && !is_safe(ch, mob, false) && offensive)
 					set_fighting(mob, ch);
 			}
 			break;
@@ -699,7 +699,7 @@ void music_end( CHAR_DATA *ch )
 			    (*skill_table[sn].spell_fun) (sn, ch->tot_level, ch, mob, TARGET_CHAR);
 		}
 
-		if (mob != ch && !is_safe(ch, mob, FALSE)
+		if (mob != ch && !is_safe(ch, mob, false)
 		&&  (music_table[song_num].target == TAR_CHAR_OFFENSIVE
 		     || music_table[song_num].target == TAR_OBJ_CHAR_OFF))
 		    set_fighting(mob, ch);
@@ -753,7 +753,7 @@ void music_end( CHAR_DATA *ch )
 	    {
 	        mob_next = mob->next_in_room;
 
-                if ( is_safe( ch, mob, FALSE ) )
+                if ( is_safe( ch, mob, false ) )
 		    continue;
 
 		if ( music_table[song_num].spell1 != NULL
@@ -842,7 +842,7 @@ void music_end( CHAR_DATA *ch )
     }
     */
 
-    check_improve(ch, gsn_music, TRUE, 2);
+    check_improve(ch, gsn_music, true, 2);
 }
 
 
@@ -850,13 +850,13 @@ bool was_bard( CHAR_DATA *ch )
 {
     // they are a bard now, so they have to level to get the songs
     if ( ch->pcdata->sub_class_current == CLASS_THIEF_BARD )
-	return FALSE;
+	return false;
 
     // They were a bard sometime in the past so they dont have to level.
     if ( ch->pcdata->sub_class_thief == CLASS_THIEF_BARD )
-	return TRUE;
+	return true;
 
-    return FALSE;
+    return false;
 }
 
 int music_lookup( char *name)

@@ -221,7 +221,7 @@ void do_chadd(CHAR_DATA *ch, char *argument)
     CHURCH_PLAYER_DATA *new_member;
     char buf[MAX_STRING_LENGTH];
     char arg[MAX_STRING_LENGTH];
-    bool found = FALSE;
+    bool found = false;
     int i;
 
     argument = one_argument(argument, arg);
@@ -232,13 +232,13 @@ void do_chadd(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    found = FALSE;
+    found = false;
     for (temp_char = ch->in_room->people; temp_char != NULL;
 	 temp_char = temp_char->next_in_room)
     {
 	if (IS_NPC(temp_char)
 	&& IS_SET(temp_char->act2, ACT2_CHURCHMASTER))
-            found = TRUE;
+            found = true;
     }
 
     if (!found)
@@ -448,14 +448,14 @@ void do_chrem(CHAR_DATA *ch, char *argument)
 	if (IS_IMMORTAL(ch))
 	{
 		CHURCH_DATA *church;
-		found = FALSE;
+		found = false;
 		for (church = church_list; church != NULL; church = church->next)
 		{
 		    for (member = church->people; member != NULL; member = member->next)
 		    {
 				if (!str_prefix(member->name, arg))
 				{
-				    found = TRUE;
+				    found = true;
 				    break;
 				}
 		    }
@@ -493,14 +493,14 @@ void do_chrem(CHAR_DATA *ch, char *argument)
 		    return;
 		}
 
-		found = FALSE;
+		found = false;
 		for (member = ch->church->people; member != NULL; member = member->next)
 		{
 		    if (!str_prefix(member->name, arg) ||
 		    	(!str_cmp(member->name, ch->name) &&
 			    	(!str_cmp(arg, "self") || !str_cmp(arg, "me"))))
 	    	{
-				found = TRUE;
+				found = true;
 				break;
 	    	}
 		}
@@ -577,14 +577,14 @@ void remove_member(CHURCH_PLAYER_DATA * member)
 	return;
     }
 
-    found = FALSE;
+    found = false;
     prev_member = NULL;
     for (member2 = member->church->people; member2 != NULL;
 	 prev_member = member2, member2 = member2->next)
     {
 	if (member2 == member)
 	{
-	    found = TRUE;
+	    found = true;
 	    break;
 	}
     }
@@ -630,7 +630,7 @@ void do_chprom(CHAR_DATA *ch, char *argument)
 
     if (IS_IMMORTAL(ch))
     {
-	found = FALSE;
+	found = false;
 	member = NULL;
 	for (church = church_list; church != NULL; church = church->next)
 	{
@@ -638,7 +638,7 @@ void do_chprom(CHAR_DATA *ch, char *argument)
 	    {
 		if (!str_cmp(arg, member->name))
 		{
-		    found = TRUE;
+		    found = true;
 		    break;
 		}
 	    }
@@ -727,7 +727,7 @@ void do_chdem(CHAR_DATA *ch, char *argument)
 
     if (IS_IMMORTAL(ch))
     {
-	bool found = FALSE;
+	bool found = false;
 	member = NULL;
 	for (church = church_list; church != NULL; church = church->next)
 	{
@@ -735,7 +735,7 @@ void do_chdem(CHAR_DATA *ch, char *argument)
 	    {
 		if (!str_cmp(arg, member->name))
 		{
-		    found = TRUE;
+		    found = true;
 		    break;
 		}
 	    }
@@ -919,7 +919,7 @@ void do_chgohall(CHAR_DATA *ch, char *argument)
 
 	send_to_char("Are you sure you want to do this? (yes/no)\n\r", ch);
 
-	ch->cross_zone_question = TRUE;
+	ch->cross_zone_question = true;
 	return;
     }
 
@@ -961,7 +961,7 @@ void do_chgohall(CHAR_DATA *ch, char *argument)
 
 	    send_to_char("Are you sure you want to do this? (yes/no)\n\r", ch);
 
-	    ch->cross_zone_question = TRUE;
+	    ch->cross_zone_question = true;
 	    return;
 	}
     }
@@ -979,7 +979,7 @@ void do_chflag(CHAR_DATA *ch, char *argument)
     CHAR_DATA *temp_char;
     char arg1[MAX_STRING_LENGTH];
     char buf[MSL];
-    bool found = FALSE;
+    bool found = false;
 
     argument = one_argument_norm(argument, arg1);
 
@@ -989,13 +989,13 @@ void do_chflag(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    found = FALSE;
+    found = false;
     for (temp_char = ch->in_room->people; temp_char != NULL;
 	 temp_char = temp_char->next_in_room)
     {
 	if (IS_NPC(temp_char) && IS_SET(temp_char->act2, ACT2_CHURCHMASTER))
 	{
-	    found = TRUE;
+	    found = true;
 	    break;
 	}
     }
@@ -1050,12 +1050,12 @@ void do_chdeposit(CHAR_DATA * ch, char *argument)
     }
 
 
-    found = FALSE;
+    found = false;
     for (temp_char = ch->in_room->people; temp_char != NULL;
 	 temp_char = temp_char->next_in_room)
     {
 	if (IS_NPC(temp_char) && IS_SET(temp_char->act2, ACT2_CHURCHMASTER))
-	    found = TRUE;
+	    found = true;
     }
 
     if (!found)
@@ -1136,7 +1136,7 @@ void do_chbalance(CHAR_DATA * ch, char *argument)
     CHURCH_DATA *church;
     char buf[MAX_STRING_LENGTH];
     char arg[MSL];
-    bool found = FALSE;
+    bool found = false;
 
     argument = one_argument(argument, arg);
 
@@ -1169,12 +1169,12 @@ void do_chbalance(CHAR_DATA * ch, char *argument)
 	return;
     }
 
-    found = FALSE;
+    found = false;
     for (temp_char = ch->in_room->people; temp_char != NULL;
 	 temp_char = temp_char->next_in_room)
     {
 	if (IS_NPC(temp_char) && IS_SET(temp_char->act2, ACT2_CHURCHMASTER))
-	    found = TRUE;
+	    found = true;
     }
 
     if (!found)
@@ -1212,13 +1212,13 @@ void do_chcreate(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    found = FALSE;
+    found = false;
     for (temp_char = ch->in_room->people; temp_char != NULL;
 	 temp_char = temp_char->next_in_room)
     {
         log_string(temp_char->name);
 	if (IS_NPC(temp_char) && IS_SET(temp_char->act2, ACT2_CHURCHMASTER))
-	    found = TRUE;
+	    found = true;
     }
 
     if (!found)
@@ -1438,7 +1438,7 @@ void do_chlist(CHAR_DATA *ch, char *argument)
 	counter = 0;
 	for (member = church->people; member != NULL; member = member->next)
 	{
-	    bool online = FALSE;
+	    bool online = false;
 	    DESCRIPTOR_DATA *d;
 
 	    if (member->ch != NULL && member->ch->desc != NULL)
@@ -1453,7 +1453,7 @@ void do_chlist(CHAR_DATA *ch, char *argument)
 		}
 
 		if (wch != NULL)
-	 	    online = TRUE;
+	 	    online = true;
 	    }
 
 	    counter++;
@@ -1750,7 +1750,7 @@ void show_chlist_to_char(CHAR_DATA *ch)
 
         sprintf(buf, "{G%-3d{x {R%-3s{x %-30.30s %-4d %-15s{x",
             i,
-            church->pk == TRUE ? "PK" : "",
+            church->pk == true ? "PK" : "",
 	    church->name,
 	    church->max_positions,
 	    church->alignment == CHURCH_EVIL ?
@@ -2237,7 +2237,7 @@ void do_chtransfer(CHAR_DATA *ch, char *argument)
     char buf[MAX_STRING_LENGTH];
     CHURCH_DATA *church;
     long amount;
-    bool found_admin = FALSE;
+    bool found_admin = false;
     CHAR_DATA *temp_char;
 
     argument = one_argument(argument, arg);
@@ -2250,7 +2250,7 @@ void do_chtransfer(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    found_admin = FALSE;
+    found_admin = false;
     for (temp_char = ch->in_room->people;
           temp_char != NULL;
           temp_char = temp_char->next_in_room)
@@ -2258,7 +2258,7 @@ void do_chtransfer(CHAR_DATA *ch, char *argument)
         if (IS_NPC(temp_char)
         && IS_SET(temp_char->act2, ACT2_CHURCHMASTER))
 	{
-	    found_admin = TRUE;
+	    found_admin = true;
 	    break;
 	}
     }
@@ -2370,7 +2370,7 @@ void do_chwithdraw(CHAR_DATA *ch, char *argument)
     CHAR_DATA *mob;
     CHURCH_PLAYER_DATA *member;
     long amt;
-    bool found = FALSE;
+    bool found = false;
 
     argument = one_argument(argument, arg);
     argument = one_argument(argument, arg2);
@@ -2394,7 +2394,7 @@ void do_chwithdraw(CHAR_DATA *ch, char *argument)
     {
 	if (IS_NPC(mob) && IS_SET(mob->act2, ACT2_CHURCHMASTER))
 	{
-	    found = TRUE;
+	    found = true;
 	    break;
 	}
     }
@@ -2753,7 +2753,7 @@ void do_chwhere(CHAR_DATA *ch, char *argument)
     {
 	send_to_char(
 	"You detect the location of your fellow members:\n\r{x", ch);
-	found = FALSE;
+	found = false;
 	for (d = descriptor_list; d; d = d->next)
 	{
 	    if (d->connected == CON_PLAYING
@@ -2762,7 +2762,7 @@ void do_chwhere(CHAR_DATA *ch, char *argument)
 	    &&  victim->church == ch->church && !IS_NPC(victim)
 	    &&  victim->in_room != NULL)
 	    {
-		found = TRUE;
+		found = true;
 		    sprintf(buf, "{Y%-28s{X %s\n\r",
 			    pers(victim, ch), victim->in_room->name);
 		send_to_char(buf, ch);
@@ -2779,7 +2779,7 @@ void do_chtoggle(CHAR_DATA * ch, char *argument)
     char arg[MAX_STRING_LENGTH];
     char buf[MAX_STRING_LENGTH];
     CHAR_DATA *temp_char;
-    bool found = FALSE;
+    bool found = false;
 
     argument = one_argument(argument, arg);
 
@@ -2789,12 +2789,12 @@ void do_chtoggle(CHAR_DATA * ch, char *argument)
 	return;
     }
 
-    found = FALSE;
+    found = false;
     for (temp_char = ch->in_room->people; temp_char != NULL;
 	 temp_char = temp_char->next_in_room) {
 	if (IS_NPC(temp_char) &&
 			IS_SET(temp_char->act2, ACT2_CHURCHMASTER))
-	    found = TRUE;
+	    found = true;
     }
 
     if (!found) {
@@ -2804,7 +2804,7 @@ void do_chtoggle(CHAR_DATA * ch, char *argument)
 	return;
     }
 
-    if (ch->church->pk == TRUE)
+    if (ch->church->pk == true)
     {
 	if(ch->church->pneuma >= 5000)
 	    ch->church->pneuma -= 5000;
@@ -2814,7 +2814,7 @@ void do_chtoggle(CHAR_DATA * ch, char *argument)
 	    return;
 	}
 
-	ch->church->pk = FALSE;
+	ch->church->pk = false;
 	sprintf(buf, "{Y[%s is no longer a player killing church!]{x\n\r", ch->church->name);
 	gecho(buf);
     }
@@ -2823,7 +2823,7 @@ void do_chtoggle(CHAR_DATA * ch, char *argument)
 	send_to_char("{RWarning: {xYour church will be a player killing church!\n\r",
 		ch);
 	send_to_char("{YAre you sure you want to do this?{x\n\r", ch);
-	ch->pk_question = TRUE;
+	ch->pk_question = true;
     }
 }
 
@@ -2905,7 +2905,7 @@ bool is_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room)
 				break;
 		iterator_stop(&cit);
 
-		return church && TRUE;
+		return church && true;
 	}
 
 	iterator_start(&it, church->treasure_rooms);
@@ -2915,7 +2915,7 @@ bool is_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room)
 	}
 	iterator_stop(&it);
 
-    return treasure && TRUE;
+    return treasure && true;
 }
 
 
@@ -3126,16 +3126,16 @@ bool is_trusted(CHURCH_PLAYER_DATA *member, char *command)
     if (member == NULL)
     {
 	bug("is_trusted: null member!", 0);
-	return FALSE;
+	return false;
     }
 
     for (string = member->commands; string != NULL; string = string->next)
     {
 	if (!str_cmp(string->string, command))
-	    return TRUE;
+	    return true;
     }
 
-    return FALSE;
+    return false;
 }
 
 
@@ -3546,7 +3546,7 @@ void do_chdonate(CHAR_DATA *ch, char *argument)
 		return;
     }
 
-    if (!can_drop_obj(ch, obj, TRUE) || IS_SET(obj->extra2_flags, ITEM_KEPT))
+    if (!can_drop_obj(ch, obj, true) || IS_SET(obj->extra2_flags, ITEM_KEPT))
     {
 		send_to_char("It's stuck to you.\n\r", ch);
 		return;
@@ -3596,7 +3596,7 @@ void do_chdonate(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (!can_drop_obj(ch, obj, TRUE) || IS_SET(obj->extra2_flags, ITEM_KEPT))
+    if (!can_drop_obj(ch, obj, true) || IS_SET(obj->extra2_flags, ITEM_KEPT))
     {
     	send_to_char("It's stuck to you.\n\r", ch);
 	return;
@@ -3734,7 +3734,7 @@ void read_churches_new()
 	return;
     }
 
-    while(TRUE) {
+    while(true) {
         word = fread_word(fp);
 	if (!str_cmp(word, "#ENDFILE"))
 	    break;
@@ -3768,7 +3768,7 @@ CHURCH_DATA *read_church(FILE *fp)
 
     for (; ;) {
         word = fread_word(fp);
-	fMatch = FALSE;
+	fMatch = false;
 
         if (!str_cmp(word, "#-CHURCH"))
 	    break;
@@ -3864,7 +3864,7 @@ CHURCH_DATA *read_church(FILE *fp)
 					}
 				}
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			if( !str_cmp(word, "TreasureRoomMR") ) {
@@ -3880,7 +3880,7 @@ CHURCH_DATA *read_church(FILE *fp)
 					}
 				}
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			if( !str_cmp(word, "TreasureVRoom") ) {
@@ -3905,7 +3905,7 @@ CHURCH_DATA *read_church(FILE *fp)
 					}
 				}
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 			if( !str_cmp(word, "TreasureVRoomMR") ) {
@@ -3934,7 +3934,7 @@ CHURCH_DATA *read_church(FILE *fp)
 					}
 				}
 
-				fMatch = TRUE;
+				fMatch = true;
 				break;
 			}
 		break;
@@ -3980,7 +3980,7 @@ CHURCH_PLAYER_DATA *read_church_member(FILE *fp)
 
     for (; ;) {
         word = fread_word(fp);
-	fMatch = FALSE;
+	fMatch = false;
 
         if (!str_cmp(word, "#-MEMBER"))
 	    break;
@@ -4038,7 +4038,7 @@ bool is_in_treasure_room(OBJ_DATA *obj)
     ROOM_INDEX_DATA *room = obj->in_room;
 
     if (room == NULL)
-		return FALSE;
+		return false;
 
 	return is_treasure_room(NULL, room);
 }
@@ -4060,7 +4060,7 @@ bool vnum_in_treasure_room(CHURCH_DATA *church, long vnum)
 	}
 	iterator_stop(&rit);
 
-    return obj && TRUE;
+    return obj && true;
 }
 
 
@@ -4086,7 +4086,7 @@ void update_church_pks(void)
 bool is_excommunicated(CHAR_DATA *ch)
 {
     if (ch->church == NULL || ch->church_member == NULL)
-		return FALSE;
+		return false;
 
     return IS_SET(ch->church_member->flags, CHURCH_PLAYER_EXCOMMUNICATED);
 }
@@ -4095,7 +4095,7 @@ bool church_add_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room, int mi
 {
 	CHURCH_TREASURE_ROOM *treasure = alloc_mem(sizeof(CHURCH_TREASURE_ROOM));
 
-	if( !treasure ) return FALSE;
+	if( !treasure ) return false;
 
 	treasure->room = room;
 	treasure->min_rank = min_rank;
@@ -4103,10 +4103,10 @@ bool church_add_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room, int mi
 	if(!list_appendlink(church->treasure_rooms, treasure))
 	{
 		free_mem(treasure, sizeof(CHURCH_TREASURE_ROOM));
-		return FALSE;
+		return false;
 	}
 
-	return TRUE;
+	return true;
 }
 
 void church_remove_treasure_room(CHURCH_DATA *church, ROOM_INDEX_DATA *room)
@@ -4161,7 +4161,7 @@ CHURCH_TREASURE_ROOM *get_church_treasure_room(CHAR_DATA *ch, CHURCH_DATA *churc
 
 bool church_set_treasure_room_rank(CHURCH_DATA *church, int nth, int min_rank)
 {
-	if( nth < 1 ) return FALSE;
+	if( nth < 1 ) return false;
 
 	CHURCH_TREASURE_ROOM *treasure;
 	ITERATOR it;
@@ -4171,12 +4171,12 @@ bool church_set_treasure_room_rank(CHURCH_DATA *church, int nth, int min_rank)
 		if( !--nth)
 		{
 			treasure->min_rank = min_rank;
-			return TRUE;
+			return true;
 		}
 	}
 	iterator_stop(&it);
 
-	return FALSE;
+	return false;
 }
 
 int church_available_treasure_rooms(CHAR_DATA *ch)
@@ -4216,7 +4216,7 @@ void do_chtreasure(CHAR_DATA *ch, char *argument)
     char buf[MAX_STRING_LENGTH];
     char arg[MIL];
     char arg2[MIL];
-    bool found = FALSE;
+    bool found = false;
 
     argument = one_argument(argument, arg);
     argument = one_argument(argument, arg2);
@@ -4246,7 +4246,7 @@ void do_chtreasure(CHAR_DATA *ch, char *argument)
 		CHURCH_TREASURE_ROOM *treasure;
 		ITERATOR it;
 
-		bool skipped = FALSE;
+		bool skipped = false;
 
 		int i = 0;
 		iterator_start(&it, ch->church->treasure_rooms);
@@ -4254,7 +4254,7 @@ void do_chtreasure(CHAR_DATA *ch, char *argument)
 		{
 			if( ch->church_member->rank < treasure->min_rank )
 			{
-				skipped = TRUE;
+				skipped = true;
 				continue;
 			}
 
@@ -4291,11 +4291,11 @@ void do_chtreasure(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		found = FALSE;
+		found = false;
 		for (temp_char = ch->in_room->people; temp_char != NULL; temp_char = temp_char->next_in_room)
 		{
 			if (IS_NPC(temp_char) && IS_SET(temp_char->act2, ACT2_CHURCHMASTER))
-				found = TRUE;
+				found = true;
 		}
 
 		if (!found)

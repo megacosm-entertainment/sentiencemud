@@ -218,9 +218,9 @@ bool map_char_cmp(WILDS_DATA *pWilds, int x, int y, char *check)
         sprintf(map_char, "%c", pWilds->map[y * pWilds->map_size_x + x]);
 
     if (!str_cmp(map_char, check))
-        return TRUE;
+        return true;
     else
-        return FALSE;
+        return false;
 
 }
 
@@ -231,9 +231,9 @@ bool check_for_bad_room(WILDS_DATA *pWilds, int x, int y)
     pTerrain = get_terrain_by_coors(pWilds, x, y);
 
     if (!pTerrain || pTerrain->nonroom)
-        return FALSE;
+        return false;
     else
-        return TRUE;
+        return true;
 
 }
 
@@ -338,7 +338,7 @@ bool vroom_has_from_vlinks(ROOM_INDEX_DATA *pRoomIndex)
     if (!pWilds)
     {
         plogf("wilds.c, vroom_has_from_vlinks(): pRoomIndex->wilds is NULL.");
-        return FALSE;
+        return false;
     }
 
     for (pVLink = pWilds->pVLink; pVLink ; pVLink = pVLink->next)
@@ -346,13 +346,13 @@ bool vroom_has_from_vlinks(ROOM_INDEX_DATA *pRoomIndex)
         if (pRoomIndex->x == pVLink->wildsorigin_x && pRoomIndex->y == pVLink->wildsorigin_y &&
         	IS_SET(pVLink->current_linkage, VLINK_FROM_WILDS))
         {
-            return TRUE;
+            return true;
         }
     }
 
 
 
-	return FALSE;
+	return false;
 }
 
 void destroy_wilds_vroom(ROOM_INDEX_DATA *pRoomIndex)
@@ -393,7 +393,7 @@ void destroy_wilds_vroom(ROOM_INDEX_DATA *pRoomIndex)
 
     if( pRoomIndex->progs ) {
 		if( pRoomIndex->progs->script_ref > 0 ) {
-			pRoomIndex->progs->extract_when_done = TRUE;
+			pRoomIndex->progs->extract_when_done = true;
 			return;
 		}
 	}
@@ -658,7 +658,7 @@ ROOM_INDEX_DATA *create_wilds_vroom(WILDS_DATA *pWilds, int x, int y)
 {
     ROOM_INDEX_DATA *pRoomIndex;
     WILDS_TERRAIN *pTerrain;
-    bool nonroom = FALSE;
+    bool nonroom = false;
 
     if (!pWilds)
     {
@@ -671,7 +671,7 @@ ROOM_INDEX_DATA *create_wilds_vroom(WILDS_DATA *pWilds, int x, int y)
     {
 
         if ((pTerrain = get_terrain_by_coors (pWilds, x, y)) == NULL)
-            nonroom = TRUE;
+            nonroom = true;
 
         if (!nonroom)
         {
@@ -701,7 +701,7 @@ ROOM_INDEX_DATA *create_wilds_vroom(WILDS_DATA *pWilds, int x, int y)
 WILDS_TERRAIN *get_terrain_by_coors (WILDS_DATA *pWilds, int x, int y)
 {
     WILDS_TERRAIN *pTerrain;
-    bool found = FALSE;
+    bool found = false;
     char j;
 
     /* Check pointer is valid */
@@ -717,7 +717,7 @@ WILDS_TERRAIN *get_terrain_by_coors (WILDS_DATA *pWilds, int x, int y)
     {
         if (pTerrain->mapchar == j)
         {
-            found = TRUE;
+            found = true;
             break;
         }
     }
@@ -1059,7 +1059,7 @@ bool link_vlink(WILDS_VLINK *pVLink)
     ROOM_INDEX_DATA *pWildsRoom = NULL;
     ROOM_INDEX_DATA *pRevRoom = NULL;
     EXIT_DATA *pExit = NULL;
-    bool found = FALSE;
+    bool found = false;
     long portal_x = 0;
     long portal_y = 0;
     int rev = 0;
@@ -1068,7 +1068,7 @@ bool link_vlink(WILDS_VLINK *pVLink)
     if (!pVLink)
     {
         plogf("wilds.c, link_vlink(): pVLink is NULL");
-        return (FALSE);
+        return (false);
     }
 
     pWilds = pVLink->pWilds;
@@ -1098,10 +1098,10 @@ bool link_vlink(WILDS_VLINK *pVLink)
 				if(pExit->keyword) { free_string(pExit->keyword); pExit->keyword=NULL; }
 			} else {
 				plogf("wilds.c, link_vlink(): Wilds-side vlink exit already exists.");
-				return (FALSE);
+				return (false);
 			}
 
-			found = TRUE;
+			found = true;
 			pExit->short_desc = str_dup("");
 			pExit->long_desc = str_dup(pVLink->orig_description);
 			pExit->keyword = str_dup(pVLink->orig_keyword);
@@ -1141,7 +1141,7 @@ bool link_vlink(WILDS_VLINK *pVLink)
 
 				if (pRevRoom->exit[rev]==NULL)
 				{
-					found = TRUE;
+					found = true;
 					pExit = new_exit ();
 					pExit->long_desc = str_dup(pVLink->rev_description);
 					pExit->keyword = str_dup(pVLink->rev_keyword);
@@ -1164,7 +1164,7 @@ bool link_vlink(WILDS_VLINK *pVLink)
 					SET_BIT(pVLink->current_linkage, VLINK_TO_WILDS);
 				}
 				else
-					return (FALSE);
+					return (false);
 			}
         }
         else
@@ -1175,9 +1175,9 @@ bool link_vlink(WILDS_VLINK *pVLink)
     }
 
     if (found)
-        return (TRUE);
+        return (true);
     else
-        return (FALSE);
+        return (false);
 }
 
 bool unlink_vlink(WILDS_VLINK *pVLink)
@@ -1186,7 +1186,7 @@ bool unlink_vlink(WILDS_VLINK *pVLink)
     ROOM_INDEX_DATA *pWildsRoom = NULL;
     ROOM_INDEX_DATA *pRevRoom = NULL;
     EXIT_DATA *pExit = NULL;
-    bool found = FALSE;
+    bool found = false;
     long portal_x = 0;
     long portal_y = 0;
     int rev = 0;
@@ -1195,13 +1195,13 @@ bool unlink_vlink(WILDS_VLINK *pVLink)
     if (!pVLink)
     {
         plogf("wilds.c, unlink_vlink(): pVLink is NULL");
-        return (FALSE);
+        return (false);
     }
 
     if (pVLink->current_linkage == VLINK_UNLINKED)
     {
         plogf("wilds.c, unlink_vlink(): current_linkage is VLINK_UNLINKED, so can't unlink.");
-        return(FALSE);
+        return(false);
     }
     pWilds = pVLink->pWilds;
 
@@ -1230,7 +1230,7 @@ pWilds->map[(portal_y * pWilds->map_size_x) + portal_x] =
             {
 		    pWildsRoom->exit[pVLink->door] = NULL;
                 free_exit(pExit);
-                found = TRUE;
+                found = true;
 		link_vroom(pWildsRoom);
             }
             else
@@ -1250,7 +1250,7 @@ pWilds->map[(portal_y * pWilds->map_size_x) + portal_x] =
             {
 		    pRevRoom->exit[rev] = NULL;
                 free_exit(pExit);
-                found = TRUE;
+                found = true;
             }
             else
                 plogf("wilds.c, unlink_vlink(): reverse side of vlink - exit missing!");
@@ -1261,10 +1261,10 @@ pWilds->map[(portal_y * pWilds->map_size_x) + portal_x] =
     if (found)
     {
         pVLink->current_linkage = VLINK_UNLINKED;
-        return (TRUE);
+        return (true);
     }
     else
-        return (FALSE);
+        return (false);
 }
 
 WILDS_VLINK *find_vlink_to_coord(WILDS_DATA *pWilds, int x, int y)
@@ -1437,7 +1437,7 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 	int x, y;
 	long index;
 	DESCRIPTOR_DATA * d;
-	bool foundterrain = FALSE;
+	bool foundterrain = false;
 	char j[6];
 	char last_terrain[6];
 	char temp[6];
@@ -1557,14 +1557,14 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 				else
 				{
 					/* Vizz - Search the terrain list linearly for now at least. could index this later for speed */
-					foundterrain = FALSE;
+					foundterrain = false;
 					for(pTerrain = pWilds->pTerrain;pTerrain;pTerrain = pTerrain->next)
 					{
 						if (pWilds->map[index] == pTerrain->mapchar)
 						{
 							sprintf(temp, pTerrain->showchar);
 							sprintf(last_terrain, temp);
-							foundterrain = TRUE;
+							foundterrain = true;
 						}
 
 					}
@@ -1789,14 +1789,14 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 		cString = 0;
 		for (x = vp_startx;x <= vp_endx;x++, mp+=col_size)
 		{
-			found = FALSE;
+			found = false;
 
 			if (x >= 0 && x < pWilds->map_size_x && y >= 0 && y < pWilds->map_size_y)
 			{
 				if((pVLink = find_vlink_to_coord(pWilds,x,y)) && pVLink->map_tile && pVLink->map_tile[0])
 				{
 					strcpy(temp,pVLink->map_tile);
-					found = TRUE;
+					found = true;
 				}
 
 				for (d = descriptor_list; d != NULL;d = d->next)
@@ -1809,7 +1809,7 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 						d->character->in_room->y == y)
 					{
 						sprintf(temp, "{W@");
-						found = TRUE;
+						found = true;
 					}
 				}
 
@@ -1821,14 +1821,14 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 						ship->ship->in_room->y == y )
 					{
 						get_ship_wildsicon(ship, temp, sizeof(temp) - 1);
-						found = TRUE;
+						found = true;
 					}
 					else if(is_wilds_coords(&ship->last_coords[0], pWilds, x, y) ||
 						is_wilds_coords(&ship->last_coords[1], pWilds, x, y) ||
 						is_wilds_coords(&ship->last_coords[2], pWilds, x, y) )
 					{
 						sprintf(temp, "{C~");
-						found = TRUE;
+						found = true;
 					}
 
 				}
@@ -1837,7 +1837,7 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 				if ((vx == x) && (vy == y))
 				{
 					sprintf(temp, "{M@");
-					found = TRUE;
+					found = true;
 				}
 
 
@@ -1851,14 +1851,14 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 					else
 					{
 						/* Vizz - Search the terrain list linearly for now at least. could index this later for speed */
-						foundterrain = FALSE;
+						foundterrain = false;
 						for(pTerrain = pWilds->pTerrain;pTerrain;pTerrain = pTerrain->next)
 						{
 							if (pWilds->map[index] == pTerrain->mapchar)
 							{
 								sprintf(temp, pTerrain->showchar);
 								sprintf(last_terrain, temp);
-								foundterrain = TRUE;
+								foundterrain = true;
 							}
 
 						}
@@ -1877,12 +1877,12 @@ void show_map_to_char_wyx(WILDS_DATA *pWilds, int wx, int wy,
 
 				if (last_char_same && (temp[2] != last_char || temp[1] != last_colour_char))
 				{
-					last_char_same = FALSE;
+					last_char_same = false;
 				}
 
 				if (temp[2] == last_char && temp[1] == last_colour_char)
 				{
-					 last_char_same = TRUE;
+					 last_char_same = true;
 				}
 
 				if (last_char_same)
@@ -2017,8 +2017,8 @@ void get_wilds_mapstring(BUFFER *buffer, WILDS_DATA *pWilds,
     WILDS_VLINK *pVLink;
     int x, y;
     long index;
-    bool found = FALSE;
-    bool foundterrain = FALSE;
+    bool found = false;
+    bool foundterrain = false;
     char j[6];
     char last_terrain[6];
     char temp[6];
@@ -2031,7 +2031,7 @@ void get_wilds_mapstring(BUFFER *buffer, WILDS_DATA *pWilds,
 
     squares_to_show_x = get_squares_to_show_x(bonus_view_x);
     squares_to_show_y = get_squares_to_show_y(bonus_view_y);
-    last_char_same = FALSE;
+    last_char_same = false;
     last_char = ' ';
     last_colour_char = ' ';
 
@@ -2048,20 +2048,20 @@ void get_wilds_mapstring(BUFFER *buffer, WILDS_DATA *pWilds,
         for (x = vp_startx;x <= vp_endx;x++)
 
         {
-            found = FALSE;
+            found = false;
             index = y * pWilds->map_size_x + x;
 
             if (x >= 0 && x < pWilds->map_size_x && y >= 0 && y < pWilds->map_size_y)
             {
 				if((pVLink = find_vlink_to_coord(pWilds,x,y)) && pVLink->map_tile && pVLink->map_tile[0]) {
 					strcpy(temp,pVLink->map_tile);
-					found = TRUE;
+					found = true;
 				}
 
                 if ((vx == x) && (vy == y))
                 {
                     sprintf(temp, marker);
-                    found = TRUE;
+                    found = true;
                 }
 
                 if (!found)
@@ -2073,14 +2073,14 @@ void get_wilds_mapstring(BUFFER *buffer, WILDS_DATA *pWilds,
                     }
                     else
                     {
-                        foundterrain = FALSE;
+                        foundterrain = false;
                         for(pTerrain = pWilds->pTerrain;pTerrain;pTerrain = pTerrain->next)
                         {
                             if (pWilds->map[index] == pTerrain->mapchar)
                             {
                                 sprintf(temp, pTerrain->showchar);
                                 sprintf(last_terrain, temp);
-                                foundterrain = TRUE;
+                                foundterrain = true;
                             }
 
                         }
@@ -2099,12 +2099,12 @@ void get_wilds_mapstring(BUFFER *buffer, WILDS_DATA *pWilds,
                     && (temp[2] != last_char
                         || temp[1] != last_colour_char))
                 {
-                    last_char_same = FALSE;
+                    last_char_same = false;
                 }
 
                 if (temp[2] == last_char && temp[1] == last_colour_char)
                 {
-                     last_char_same = TRUE;
+                     last_char_same = true;
                 }
 
                 if (last_char_same)
@@ -2155,8 +2155,8 @@ void show_map_to_char(CHAR_DATA * ch,
     int x, y;
     long index;
     DESCRIPTOR_DATA * d;
-    bool found = FALSE;
-    bool foundterrain = FALSE;
+    bool found = false;
+    bool foundterrain = false;
     char j[5];
     char last_terrain[5];
     char temp[5];
@@ -2184,7 +2184,7 @@ void show_map_to_char(CHAR_DATA * ch,
 
     squares_to_show_x = get_squares_to_show_x(bonus_view_x);
     squares_to_show_y = get_squares_to_show_y(bonus_view_y);
-    last_char_same = FALSE;
+    last_char_same = false;
     last_char = ' ';
     last_colour_char = ' ';
     edit_mapstring[0] = '\0';
@@ -2252,7 +2252,7 @@ void show_map_to_char(CHAR_DATA * ch,
         for (x = vp_startx;x <= vp_endx;x++)
 
         {
-            found = FALSE;
+            found = false;
             index = y * pWilds->map_size_x + x;
 
             if (x >= 0
@@ -2263,14 +2263,14 @@ void show_map_to_char(CHAR_DATA * ch,
 
 		if((pVLink = find_vlink_to_coord(pWilds,x,y)) && pVLink->map_tile && pVLink->map_tile[0]) {
 			strcpy(temp,pVLink->map_tile);
-			found = TRUE;
+			found = true;
 		}
 
                 if (ch->in_room->x == x
                     && ch->in_room->y == y)
                 {
                     sprintf(temp, "{M@{x");
-                    found = TRUE;
+                    found = true;
                 }
 
                 for (d = descriptor_list; d != NULL;d = d->next)
@@ -2283,7 +2283,7 @@ void show_map_to_char(CHAR_DATA * ch,
                     	d->character->in_room->y == y)
                     {
                         sprintf(temp, "{W@{x");
-                        found = TRUE;
+                        found = true;
                     }
                 }
 
@@ -2298,14 +2298,14 @@ void show_map_to_char(CHAR_DATA * ch,
                     else
                     {
 /* Vizz - Search the terrain list linearly for now at least. could index this later for speed */
-                        foundterrain = FALSE;
+                        foundterrain = false;
                         for(pTerrain = pWilds->pTerrain;pTerrain;pTerrain = pTerrain->next)
                         {
                             if (pWilds->map[index] == pTerrain->mapchar)
                             {
                                 sprintf(temp, pTerrain->showchar);
                                 sprintf(last_terrain, temp);
-                                foundterrain = TRUE;
+                                foundterrain = true;
                             }
 
                         }
@@ -2326,12 +2326,12 @@ void show_map_to_char(CHAR_DATA * ch,
                     && (temp[2] != last_char
                         || temp[1] != last_colour_char))
                 {
-                    last_char_same = FALSE;
+                    last_char_same = false;
                 }
 
                 if (temp[2] == last_char && temp[1] == last_colour_char)
                 {
-                     last_char_same = TRUE;
+                     last_char_same = true;
                 }
 
                 if (last_char_same)
@@ -2567,7 +2567,7 @@ WILDS_DATA *new_wilds (void)
 //    pWilds->char_matrix = NULL;
 //    pWilds->obj_matrix = NULL;
 	pWilds->loaded_rooms = 0;
-	pWilds->loaded_vrooms = list_create(FALSE);
+	pWilds->loaded_vrooms = list_create(false);
     VALIDATE (pWilds);
 
     return pWilds;
@@ -2670,7 +2670,7 @@ void char_to_vroom (CHAR_DATA *ch, WILDS_DATA *pWilds, int x, int y)
     {
         if (ch->in_room->area->empty)
         {
-            ch->in_room->area->empty = FALSE;
+            ch->in_room->area->empty = false;
             ch->in_room->area->age = 0;
         }
 
@@ -2680,7 +2680,7 @@ void char_to_vroom (CHAR_DATA *ch, WILDS_DATA *pWilds, int x, int y)
         {
             if (ch->in_wilds->empty)
             {
-                ch->in_wilds->empty = FALSE;
+                ch->in_wilds->empty = false;
                 ch->in_wilds->age = 0;
             }
 
@@ -2816,7 +2816,7 @@ void free_vlink (WILDS_VLINK *pVLink)
 bool add_terrain (WILDS_DATA *pWilds, WILDS_TERRAIN *pTerrain)
 {
     if (!IS_VALID(pTerrain))
-        return FALSE;
+        return false;
 
     if (pWilds->pTerrain != NULL)
     {
@@ -2829,13 +2829,13 @@ bool add_terrain (WILDS_DATA *pWilds, WILDS_TERRAIN *pTerrain)
         /* Put new struct in list */
         pWilds->pTerrain = pTerrain;
 
-        return TRUE;
+        return true;
     }
     else
     {
         /* Put new struct in list */
         pWilds->pTerrain = pTerrain;
-        return TRUE;
+        return true;
     }
 }
 
@@ -2844,7 +2844,7 @@ bool del_terrain (WILDS_DATA *pWilds, WILDS_TERRAIN *pTerrain)
     WILDS_TERRAIN *prev_pTerrain, *next_pTerrain;
 
     if (!IS_VALID(pTerrain))
-        return FALSE;
+        return false;
 
     prev_pTerrain = pTerrain->prev;
     next_pTerrain = pTerrain->next;
@@ -2867,7 +2867,7 @@ bool del_terrain (WILDS_DATA *pWilds, WILDS_TERRAIN *pTerrain)
         pWilds->pTerrain = next_pTerrain;
 
     free_terrain(pTerrain);
-    return TRUE;
+    return true;
 }
 
 WILDS_TERRAIN *new_terrain (WILDS_DATA *pWilds)
@@ -3097,10 +3097,10 @@ bool link_contents_wilds(WILDS_DATA *pWilds, int x, int y, OBJ_DATA *contents)
 {
 	register OBJ_DATA *prev, *obj;
 
-	if(!contents) return FALSE;
+	if(!contents) return false;
 
 	for(prev = NULL, obj = pWilds->obj_list; obj; prev = obj, obj = obj->next_in_wilds) {
-		if(obj->x == x && obj->y == y) return FALSE;
+		if(obj->x == x && obj->y == y) return false;
 
 		if(obj->y > y || (obj->y == y && obj->x > x)) break;
 	}
@@ -3117,7 +3117,7 @@ bool link_contents_wilds(WILDS_DATA *pWilds, int x, int y, OBJ_DATA *contents)
 		contents->next_in_wilds = obj;
 	}
 
-	return TRUE;
+	return true;
 }
 
 OBJ_DATA *unlink_contents_wilds(WILDS_DATA *pWilds, int x, int y)

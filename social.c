@@ -64,7 +64,7 @@ void do_chat(CHAR_DATA *ch, char *argument)
 
     if (!str_cmp(arg, "create"))
     {
-	chat_create(ch, argument, FALSE);
+	chat_create(ch, argument, false);
 	return;
     }
 
@@ -76,7 +76,7 @@ void do_chat(CHAR_DATA *ch, char *argument)
 		    "contact the Immortals.\n\r", ch);
 	    return;
 	}
-	chat_create(ch, argument, TRUE);
+	chat_create(ch, argument, true);
 	return;
     }
 
@@ -312,7 +312,7 @@ void do_chat_join(CHAR_DATA *ch, char *argument)
     char buf[MAX_STRING_LENGTH];
     CHAT_ROOM_DATA *chat;
     ROOM_INDEX_DATA *room;
-    bool found = FALSE;
+    bool found = false;
 
     argument = one_argument(argument, arg);
     argument = one_argument(argument, arg2);
@@ -333,7 +333,7 @@ void do_chat_join(CHAR_DATA *ch, char *argument)
     {
 	if (!str_cmp(chat->name, arg))
 	{
-	    found = TRUE;
+	    found = true;
 	    break;
 	}
     }
@@ -492,10 +492,10 @@ void chat_create(CHAR_DATA *ch, char *argument, bool perm)
 	chat->password = str_dup ("none");
     chat->max_people = num;
     chat->curr_people = 1;
-    if (perm == TRUE)
-	chat->permanent = TRUE;
+    if (perm == true)
+	chat->permanent = true;
     else
-	chat->permanent = FALSE;
+	chat->permanent = false;
     chat->vnum = ch->in_room->vnum;
     chat->created_by = str_dup(ch->name);
 
@@ -598,7 +598,7 @@ void do_chat_delete(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if (ch->in_room->chat_room->permanent == TRUE
+    if (ch->in_room->chat_room->permanent == true
     && ch->tot_level < MAX_LEVEL)
     {
 	send_to_char(
@@ -723,11 +723,11 @@ bool is_op(CHAT_ROOM_DATA *chat, char *arg)
     {
 	sprintf(buf, "is_op: null chat_room");
 	bug(buf, 0);
-	return FALSE;
+	return false;
     }
 
     if (chat->ops == NULL)
-	return FALSE;
+	return false;
 
     for (op = chat->ops; op != NULL; op = op->next)
     {
@@ -735,10 +735,10 @@ bool is_op(CHAT_ROOM_DATA *chat, char *arg)
 	    continue;
 
 	if (!str_cmp(op->name, arg))
-	    return TRUE;
+	    return true;
     }
 
-    return FALSE;
+    return false;
 }
 
 
@@ -779,7 +779,7 @@ void chat_rem_op(CHAR_DATA *ch, char *arg)
     CHAT_OP_DATA *prev_op;
     CHAR_DATA *vch;
     char buf[MAX_STRING_LENGTH];
-    bool found = FALSE;
+    bool found = false;
     int op_count = 0;
 
     op = NULL;
@@ -792,7 +792,7 @@ void chat_rem_op(CHAR_DATA *ch, char *arg)
 
 	if (!str_cmp(op->name, arg))
 	{
-	    found = TRUE;
+	    found = true;
 	    break;
 	}
     }
@@ -906,7 +906,7 @@ void do_chat_ban(CHAR_DATA *ch, char *argument)
     CHAT_ROOM_DATA *chat;
     char arg[MAX_STRING_LENGTH];
     char buf[2*MAX_STRING_LENGTH];
-    bool add = TRUE;
+    bool add = true;
     int n = 0;
 
     argument = one_argument_norm(argument, arg);
@@ -975,9 +975,9 @@ void do_chat_ban(CHAR_DATA *ch, char *argument)
     for (ban = chat->bans; ban != NULL; ban = ban->next)
     {
 	if (!str_cmp(ban->name, arg))
-	    add = FALSE;
+	    add = false;
 	else
-	    add = TRUE;
+	    add = true;
     }
 
     if (strlen(arg) > 12)
@@ -1148,7 +1148,7 @@ void write_chat_rooms()
     count = 0;
     for (chat = chat_room_list; chat != NULL; chat = chat->next)
     {
-        if (chat->permanent == TRUE)
+        if (chat->permanent == true)
             count++;
     }
 
@@ -1162,7 +1162,7 @@ void write_chat_rooms()
 
     for (chat = chat_room_list; chat != NULL; chat = chat->next)
     {
- 	if (chat->permanent == TRUE)
+ 	if (chat->permanent == true)
 	{
    	    fprintf(fp, "%s~\n", fix_string(chat->name));
 	    fprintf(fp, "%s~\n", fix_string(chat->topic)) ;
@@ -1230,7 +1230,7 @@ void read_chat_rooms()
 	chat->name = fread_string(fp);
 	chat->topic = fread_string(fp);
 	chat->password = fread_string(fp);
-	chat->permanent = TRUE;
+	chat->permanent = true;
 	chat->created_by = fread_string(fp);
 	chat->vnum = fread_number(fp);
 	chat->max_people = fread_number(fp);

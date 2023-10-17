@@ -411,7 +411,7 @@ bool run_olc_editor(DESCRIPTOR_DATA *d)
 {
     // No command should have a space, so no need for quoting.
     // No OLC command should start with ' or ".
-    if (d->incomm[0] == '\'' || d->incomm[0] == '"') return FALSE;
+    if (d->incomm[0] == '\'' || d->incomm[0] == '"') return false;
     switch (d->editor)
     {
 	case ED_AREA:
@@ -481,9 +481,9 @@ bool run_olc_editor(DESCRIPTOR_DATA *d)
 	    break;
 
 	default:
-	    return FALSE;
+	    return false;
     }
-    return TRUE;
+    return true;
 }
 
 
@@ -746,7 +746,7 @@ bool show_commands(CHAR_DATA *ch, char *argument)
 		break;
 	}
 
-	return FALSE;
+	return false;
 }
 
 // Given "anum" of an area, retrieve its area struct
@@ -785,19 +785,19 @@ bool edit_done(CHAR_DATA *ch)
     ch->desc->pEdit = NULL;
     ch->desc->hCat = NULL;
     ch->desc->editor = 0;
-    return FALSE;
+    return false;
 }
 
 
 bool has_access_area(CHAR_DATA *ch, AREA_DATA *area)
 {
     if (ch->tot_level == MAX_LEVEL)
-	return TRUE;
+	return true;
 
     if (!IS_BUILDER(ch, area))
-	return FALSE;
+	return false;
 
-    return TRUE;
+    return true;
 }
 
 
@@ -1110,7 +1110,7 @@ void pedit(CHAR_DATA *ch, char *argument)
 	{
 	    if ((*pedit_table[cmd].olc_fun) (ch, argument))
 	    {
-		projects_changed = TRUE;
+		projects_changed = true;
 		return;
 	    }
 	    else
@@ -1802,7 +1802,7 @@ void do_vledit (CHAR_DATA * ch, char *argument)
     char arg1[MSL];
     char buf[MSL];
     int value = 0;
-    bool found = FALSE;
+    bool found = false;
 
 /* Vizz - Mob don't get access to olc commands. */
     if (IS_NPC (ch))
@@ -1829,7 +1829,7 @@ void do_vledit (CHAR_DATA * ch, char *argument)
             return;
         }
 	else
-            found = TRUE;
+            found = true;
     }
     else if (!str_cmp (arg1, "show"))
     {
@@ -3084,7 +3084,7 @@ void do_rlist(CHAR_DATA *ch, char *argument)
     char buf[MAX_STRING_LENGTH];
     char arg[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
-    bool range = FALSE;
+    bool range = false;
     long vnum;
     long vnum_min;
     long vnum_max;
@@ -3094,7 +3094,7 @@ void do_rlist(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, arg2);
 
     if (arg[0] != '\0' && arg2[0] != '\0')
-	    range = TRUE;
+	    range = true;
 
     if (range && (!is_number(arg) || !is_number (arg2)))
     {
@@ -3188,7 +3188,7 @@ void do_mlist(CHAR_DATA *ch, char *argument)
     buf1  = new_buf();
     pArea = ch->in_room->area;
     fAll  = !str_cmp(arg, "all");
-    found = FALSE;
+    found = false;
 
     for (vnum = pArea->min_vnum; vnum <= pArea->max_vnum; vnum++)
     {
@@ -3197,7 +3197,7 @@ void do_mlist(CHAR_DATA *ch, char *argument)
 	    if (fAll || is_name(arg, pMobIndex->player_name))
 	    {
 		char *noc;
-		found = TRUE;
+		found = true;
 		noc = nocolour(pMobIndex->short_descr);
 		sprintf(buf, "{x[%5ld] %-17.16s{x", pMobIndex->vnum, noc);
 		add_buf(buf1, buf);
@@ -3268,7 +3268,7 @@ void do_olist(CHAR_DATA *ch, char *argument)
     pArea = ch->in_room->area;
     buf1  = new_buf();
     fAll  = !str_cmp(arg, "all");
-    found = FALSE;
+    found = false;
 
     for (vnum = pArea->min_vnum; vnum <= pArea->max_vnum; vnum++)
     {
@@ -3277,7 +3277,7 @@ void do_olist(CHAR_DATA *ch, char *argument)
 	    if (fAll || is_name(arg, pObjIndex->name)
 	    || flag_value(type_flags, arg) == pObjIndex->item_type)
 	    {
-		found = TRUE;/*
+		found = true;/*
 		sprintf(buf2, "%s", pObjIndex->short_descr);
 		if ((i = (17 - strlen_no_colours(buf2))) > 0) {
 		   while (i > 0) {
@@ -3723,42 +3723,42 @@ void do_dislink(CHAR_DATA *ch, char *argument)
 bool has_access_helpcat(CHAR_DATA *ch, HELP_CATEGORY *hcat)
 {
     if (IS_NPC(ch))
-	return FALSE;
+	return false;
 
     if (ch->pcdata->security >= 9)
-    	return TRUE;
+    	return true;
 
     if (strstr(hcat->builders, ch->name)
     ||  strstr(hcat->builders, "All"))
-	return TRUE;
+	return true;
 
     if (hcat->security < 9 && ch->pcdata->security > hcat->security)
-	return TRUE;
+	return true;
 
-    return FALSE;
+    return false;
 }
 
 
 bool has_access_help(CHAR_DATA *ch, HELP_DATA *help)
 {
     if (IS_NPC(ch))
-	return FALSE;
+	return false;
 
     if (ch->pcdata->security >= 9)
-    	return TRUE;
+    	return true;
 
     if (strstr(help->builders, ch->name)
     ||  strstr(help->builders, "All")
     ||  strstr(help->hCat->builders, ch->name)
     ||  strstr(help->hCat->builders, "All"))
-	return TRUE;
+	return true;
 
     if (help->security < 9 && help->hCat->security < 9
     &&  ch->pcdata->security >= help->security
     &&  ch->pcdata->security >= help->hCat->security)
-	return TRUE;
+	return true;
 
-    return FALSE;
+    return false;
 }
 
 
@@ -3768,7 +3768,7 @@ void do_rjunk(CHAR_DATA *ch, char *argument)
     long vnum;
     AREA_DATA *area;
     ROOM_INDEX_DATA *room;
-    bool changed = FALSE;
+    bool changed = false;
 
     if (ch->in_room == NULL)
 	return;
@@ -3799,7 +3799,7 @@ void do_rjunk(CHAR_DATA *ch, char *argument)
 	    dislink_room(room);
 	    free_string(room->name);
 	    room->name = str_dup("Null");
-	    changed = TRUE;
+	    changed = true;
 	}
     }
 
@@ -3816,13 +3816,13 @@ bool has_imp_sig(MOB_INDEX_DATA *mob, OBJ_INDEX_DATA *obj)
     if (mob == NULL && obj == NULL)
     {
 	bug("check_imp_sig: both mob and obj were null.", 0);
-	return FALSE;
+	return false;
     }
 
     if (mob != NULL && obj != NULL)
     {
 	bug("check_imp_sig: had both mob and obj.", 0);
-	return FALSE;
+	return false;
     }
 
     if (mob != NULL)
@@ -3831,7 +3831,7 @@ bool has_imp_sig(MOB_INDEX_DATA *mob, OBJ_INDEX_DATA *obj)
 	||  !str_cmp(mob->sig, "(none)")
 	||  !str_cmp(mob->sig, "none")
 	||  !str_cmp(mob->sig, "(null)"))
-	    return FALSE;
+	    return false;
     }
 
     if (obj != NULL)
@@ -3840,10 +3840,10 @@ bool has_imp_sig(MOB_INDEX_DATA *mob, OBJ_INDEX_DATA *obj)
 	||  !str_cmp(obj->imp_sig, "(none)")
 	||  !str_cmp(obj->imp_sig, "none")
 	||  !str_cmp(obj->imp_sig, "(null)"))
-	    return FALSE;
+	    return false;
     }
 
-    return TRUE;
+    return true;
 }
 
 
@@ -3930,7 +3930,7 @@ void do_tlist(CHAR_DATA *ch, char *argument)
     pArea = ch->in_room->area;
     buf1  = new_buf();
     fAll  = arg[0] == '\0';
-    found = FALSE;
+    found = false;
 
     for (vnum = pArea->min_vnum; vnum <= pArea->max_vnum; vnum++)
     {
@@ -3938,7 +3938,7 @@ void do_tlist(CHAR_DATA *ch, char *argument)
 	{
 	    if (fAll || is_name(arg, token_index->name))
 	    {
-		found = TRUE;
+		found = true;
 		sprintf(buf, "{Y[{x%5ld{Y]{x %-17.16s{x",
 		    token_index->vnum, token_index->name);
 		add_buf(buf1, buf);

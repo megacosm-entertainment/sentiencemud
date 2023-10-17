@@ -129,7 +129,7 @@ SPEC_FUN *spec_lookup( const char *name )
 bool spec_questmaster (CHAR_DATA *ch)
 {
     if (ch->fighting != NULL) return spec_cast_mage( ch );
-    return FALSE;
+    return false;
 }
 
 char *spec_name( SPEC_FUN *function)
@@ -153,7 +153,7 @@ bool spec_protector(CHAR_DATA *ch)
 
     if (!IS_AWAKE(ch) || IS_AFFECTED(ch,AFF_CALM) || ch->in_room == NULL ||
     	IS_AFFECTED(ch,AFF_CHARM) || ch->fighting != NULL)
-        return FALSE;
+        return false;
 
     /* look for a fight in the room */
     iterator_start(&it, loaded_chars);
@@ -170,7 +170,7 @@ bool spec_protector(CHAR_DATA *ch)
 			act("{W$n draws his sword and kicks his horse into a gallop.{x",ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 			char_from_room(ch);
 			char_to_room(ch, victim->in_room);
-			stop_fighting(victim, TRUE);
+			stop_fighting(victim, true);
 			act("{W$n gallops in on his mighty steed!{x",ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 			act("{C$n says 'By the council of Olaria, I Sir Albert Stiener, sentence you to\n\rgaol for the term of your natural life!'{x",ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 			act("$n drags $N away.",ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
@@ -185,7 +185,7 @@ bool spec_protector(CHAR_DATA *ch)
     }
     iterator_stop(&it);
 
-    return TRUE;
+    return true;
 }
 
 bool spec_patrolman(CHAR_DATA *ch)
@@ -198,7 +198,7 @@ bool spec_patrolman(CHAR_DATA *ch)
 
 	if (!IS_AWAKE(ch) || IS_AFFECTED(ch,AFF_CALM) || ch->in_room == NULL ||
 		IS_AFFECTED(ch,AFF_CHARM) || ch->fighting != NULL)
-		return FALSE;
+		return false;
 
 	/* look for a fight in the room */
 	for (vch = ch->in_room->people; vch != NULL; vch = vch->next_in_room)
@@ -215,7 +215,7 @@ bool spec_patrolman(CHAR_DATA *ch)
 	}
 
 	if (victim == NULL || (IS_NPC(victim) && victim->spec_fun == ch->spec_fun))
-		return FALSE;
+		return false;
 
 	if (((obj = get_eq_char(ch,WEAR_NECK_1)) != NULL && obj->pIndexData->vnum == OBJ_VNUM_WHISTLE) ||
 		((obj = get_eq_char(ch,WEAR_NECK_2)) != NULL && obj->pIndexData->vnum == OBJ_VNUM_WHISTLE)) {
@@ -251,7 +251,7 @@ bool spec_patrolman(CHAR_DATA *ch)
 
 	multi_hit(ch,victim,TYPE_UNDEFINED);
 
-	return TRUE;
+	return true;
 }
 
 
@@ -260,7 +260,7 @@ bool spec_nasty( CHAR_DATA *ch )
     CHAR_DATA *victim, *v_next;
 
     if (!IS_AWAKE(ch)) {
-       return FALSE;
+       return false;
     }
 
     if (ch->position != POS_FIGHTING) {
@@ -274,22 +274,22 @@ bool spec_nasty( CHAR_DATA *ch )
 	     do_function(ch, &do_backstab, victim->name);
 
              /* should steal some coins right away? :) */
-             return TRUE;
+             return true;
           }
        }
-       return FALSE;    /*  No one to attack */
+       return false;    /*  No one to attack */
     }
 
     /* okay, we must be fighting.... steal some coins and flee */
     if ( (victim = ch->fighting) == NULL)
-        return FALSE;   /* let's be paranoid.... */
+        return false;   /* let's be paranoid.... */
 
     switch ( number_bits(2) )
     {
         case 1:  do_function(ch, &do_flee, "");
-                 return TRUE;
+                 return true;
 
-        default: return FALSE;
+        default: return false;
     }
 }
 
@@ -303,7 +303,7 @@ bool dragon( CHAR_DATA *ch, char *spell_name )
     int sn;
 
     if ( ch->position != POS_FIGHTING )
-	return FALSE;
+	return false;
 
     for ( victim = ch->in_room->people; victim != NULL; victim = v_next )
     {
@@ -313,12 +313,12 @@ bool dragon( CHAR_DATA *ch, char *spell_name )
     }
 
     if ( victim == NULL )
-	return FALSE;
+	return false;
 
     if ( ( sn = skill_lookup( spell_name ) ) < 0 )
-	return FALSE;
+	return false;
     (*skill_table[sn].spell_fun) ( sn, ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE);
-    return TRUE;
+    return true;
 }
 
 
@@ -329,7 +329,7 @@ bool dragon( CHAR_DATA *ch, char *spell_name )
 bool spec_breath_any( CHAR_DATA *ch )
 {
     if ( ch->position != POS_FIGHTING )
-	return FALSE;
+	return false;
 
     switch ( number_bits( 3 ) )
     {
@@ -343,7 +343,7 @@ bool spec_breath_any( CHAR_DATA *ch )
     case 7: return spec_breath_frost		( ch );
     }
 
-    return FALSE;
+    return false;
 }
 
 
@@ -374,12 +374,12 @@ bool spec_breath_gas( CHAR_DATA *ch )
     int sn;
 
     if ( ch->position != POS_FIGHTING )
-	return FALSE;
+	return false;
 
     if ( ( sn = skill_lookup( "gas breath" ) ) < 0 )
-	return FALSE;
+	return false;
     (*skill_table[sn].spell_fun) ( sn, ch->tot_level, ch, NULL,TARGET_CHAR, WEAR_NONE);
-    return TRUE;
+    return true;
 }
 
 
@@ -398,7 +398,7 @@ bool spec_cast_adept( CHAR_DATA *ch )
     char buf[MAX_STRING_LENGTH];
 
     if ( !IS_AWAKE(ch) )
-	return FALSE;
+	return false;
 
     for ( victim = ch->in_room->people; victim != NULL; victim = v_next )
     {
@@ -409,47 +409,47 @@ bool spec_cast_adept( CHAR_DATA *ch )
     }
 
     if ( victim == NULL )
-	return FALSE;
+	return false;
 
     switch ( number_bits( 4 ) )
     {
     case 0:
 	sprintf( buf, "'armour' %s", victim->name );
 	do_function( ch, &do_cast, buf );
-	return TRUE;
+	return true;
 
     case 1:
 	sprintf( buf, "'bless' %s", victim->name );
 	do_function( ch, &do_cast, buf );
-	return TRUE;
+	return true;
 
     case 2:
 	sprintf( buf, "'cure blindness' %s", victim->name );
 	do_function( ch, &do_cast, buf );
-	return TRUE;
+	return true;
 
     case 3:
 	sprintf( buf, "'heal' %s", victim->name );
 	do_function( ch, &do_cast, buf );
-	return TRUE;
+	return true;
 
     case 4:
 	sprintf( buf, "'cure poison' %s", victim->name );
 	do_function( ch, &do_cast, buf );
-	return TRUE;
+	return true;
 
     case 5:
 	sprintf( buf, "'refresh' %s", victim->name );
 	do_function( ch, &do_cast, buf );
-	return TRUE;
+	return true;
 
     case 6:
 	sprintf( buf, "'cure disease' %s", victim->name );
 	do_function( ch, &do_cast, buf );
-	return TRUE;
+	return true;
     }
 
-    return FALSE;
+    return false;
 }
 
 
@@ -463,7 +463,7 @@ bool spec_cast_cleric( CHAR_DATA *ch )
     int sn;
 
     if ( ch->position != POS_FIGHTING )
-	return FALSE;
+	return false;
 
     for ( victim = ch->in_room->people; victim != NULL; victim = v_next )
     {
@@ -473,7 +473,7 @@ bool spec_cast_cleric( CHAR_DATA *ch )
     }
 
     if ( victim == NULL )
-	return FALSE;
+	return false;
 
     for ( ;; )
     {
@@ -500,16 +500,16 @@ bool spec_cast_cleric( CHAR_DATA *ch )
 	    break;
     }
 
-    if ( spell == NULL ) return FALSE;
+    if ( spell == NULL ) return false;
 
     if ( ( sn = skill_lookup( spell ) ) < 0 )
-	return FALSE;
+	return false;
     //mob_cast( ch, sn , ch->tot_level, victim->name);
 
 	sprintf( buf, "'%s' %s", spell, victim->name );
 	do_function( ch, &do_cast, buf );
 
-    return TRUE;
+    return true;
 }
 
 bool spec_cast_judge( CHAR_DATA *ch )
@@ -521,7 +521,7 @@ bool spec_cast_judge( CHAR_DATA *ch )
     int sn;
 
     if ( ch->position != POS_FIGHTING )
-        return FALSE;
+        return false;
 
     for ( victim = ch->in_room->people; victim != NULL; victim = v_next )
     {
@@ -531,17 +531,17 @@ bool spec_cast_judge( CHAR_DATA *ch )
     }
 
     if ( victim == NULL )
-        return FALSE;
+        return false;
 
     spell = "high explosive";
     if ( ( sn = skill_lookup( spell ) ) < 0 )
-        return FALSE;
+        return false;
     //mob_cast( ch, sn , ch->tot_level, victim->name);
 
 	sprintf( buf, "'%s' %s", spell, victim->name );
 	do_function( ch, &do_cast, buf );
 
-    return TRUE;
+    return true;
 }
 
 
@@ -555,7 +555,7 @@ bool spec_cast_mage( CHAR_DATA *ch )
     int sn;
 
     if ( ch->position != POS_FIGHTING )
-	return FALSE;
+	return false;
 
     for ( victim = ch->in_room->people; victim != NULL; victim = v_next )
     {
@@ -565,7 +565,7 @@ bool spec_cast_mage( CHAR_DATA *ch )
     }
 
     if ( victim == NULL )
-	return FALSE;
+	return false;
 
     for ( ;; )
     {
@@ -592,12 +592,12 @@ bool spec_cast_mage( CHAR_DATA *ch )
     }
 
     if ( ( sn = skill_lookup( spell ) ) < 0 )
-		return FALSE;
+		return false;
 
 	sprintf( buf, "'%s' %s", spell, victim->name );
 	do_function( ch, &do_cast, buf );
 
-    return TRUE;
+    return true;
 }
 
 
@@ -611,7 +611,7 @@ bool spec_cast_undead( CHAR_DATA *ch )
     int sn;
 
     if ( ch->position != POS_FIGHTING )
-		return FALSE;
+		return false;
 
     for ( victim = ch->in_room->people; victim != NULL; victim = v_next )
     {
@@ -621,7 +621,7 @@ bool spec_cast_undead( CHAR_DATA *ch )
     }
 
     if ( victim == NULL )
-	return FALSE;
+	return false;
 
     for ( ;; )
     {
@@ -646,12 +646,12 @@ bool spec_cast_undead( CHAR_DATA *ch )
     }
 
     if ( ( sn = skill_lookup( spell ) ) < 0 )
-		return FALSE;
+		return false;
 
 	sprintf( buf, "'%s' %s", spell, victim->name );
 	do_function( ch, &do_cast, buf );
 
-    return TRUE;
+    return true;
 }
 
 
@@ -663,7 +663,7 @@ bool spec_executioner( CHAR_DATA *ch )
     char *crime;
 
     if ( !IS_AWAKE(ch) || ch->fighting != NULL )
-	return FALSE;
+	return false;
 
     crime = "";
     for ( victim = ch->in_room->people; victim != NULL; victim = v_next )
@@ -680,13 +680,13 @@ bool spec_executioner( CHAR_DATA *ch )
     }
 
     if ( victim == NULL )
-	return FALSE;
+	return false;
 
     sprintf( buf, "%s is a %s!  PROTECT THE INNOCENT!  MORE BLOOOOD!!!",
 	victim->name, crime );
     do_function(ch, &do_yell, buf );
     multi_hit( ch, victim, TYPE_UNDEFINED );
-    return TRUE;
+    return true;
 }
 
 
@@ -699,7 +699,7 @@ bool spec_fido( CHAR_DATA *ch )
     OBJ_DATA *obj_next;
 
     if ( !IS_AWAKE(ch) )
-	return FALSE;
+	return false;
 
     for ( corpse = ch->in_room->contents; corpse != NULL; corpse = c_next )
     {
@@ -715,10 +715,10 @@ bool spec_fido( CHAR_DATA *ch )
 	    obj_to_room( obj, ch->in_room );
 	}
 	extract_obj( corpse );
-	return TRUE;
+	return true;
     }
 
-    return FALSE;
+    return false;
 }
 
 
@@ -729,7 +729,7 @@ bool spec_guard( CHAR_DATA *ch )
     CHAR_DATA *v_next;
 
     if (!IS_AWAKE(ch) || ch->fighting != NULL)
-	return FALSE;
+	return false;
 
     for ( victim = ch->in_room->people; victim != NULL; victim = v_next )
     {
@@ -770,7 +770,7 @@ bool spec_guard( CHAR_DATA *ch )
 	}
     }
 
-    return FALSE;
+    return false;
 }
 
 
@@ -780,7 +780,7 @@ bool spec_janitor( CHAR_DATA *ch )
     OBJ_DATA *trash_next;
 
     if ( !IS_AWAKE(ch) )
-	return FALSE;
+	return false;
 
     for ( trash = ch->in_room->contents; trash != NULL; trash = trash_next )
     {
@@ -794,11 +794,11 @@ bool spec_janitor( CHAR_DATA *ch )
 	    act( "$n picks up some trash.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
 	    obj_from_room( trash );
 	    obj_to_char( trash, ch );
-	    return TRUE;
+	    return true;
 	}
     }
 
-    return FALSE;
+    return false;
 }
 
 
@@ -820,14 +820,14 @@ bool spec_mayor( CHAR_DATA *ch )
 	if ( time_info.hour ==  6 )
 	{
 	    path = open_path;
-	    move = TRUE;
+	    move = true;
 	    pos  = 0;
 	}
 
 	if ( time_info.hour == 20 )
 	{
 	    path = close_path;
-	    move = TRUE;
+	    move = true;
 	    pos  = 0;
 	}
     }
@@ -835,7 +835,7 @@ bool spec_mayor( CHAR_DATA *ch )
     if ( ch->fighting != NULL )
 	return spec_cast_mage( ch );
     if ( !move || ch->position < POS_SLEEPING )
-	return FALSE;
+	return false;
 
     switch ( path[pos] )
     {
@@ -843,7 +843,7 @@ bool spec_mayor( CHAR_DATA *ch )
     case '1':
     case '2':
     case '3':
-	move_char( ch, path[pos] - '0', FALSE );
+	move_char( ch, path[pos] - '0', false );
 	break;
 
     case 'W':
@@ -913,13 +913,13 @@ bool spec_mayor( CHAR_DATA *ch )
 	break;
 
     case '.' :
-	move = FALSE;
+	move = false;
 	break;
     }
 
     pos++;
     */
-    return FALSE;
+    return false;
 }
 
 
@@ -932,13 +932,13 @@ bool spec_poison( CHAR_DATA *ch )
     || ( victim = ch->fighting ) == NULL
     || number_percent() > 2 * ch->tot_level
     || number_percent() < 80 )
-	return FALSE;
+	return false;
 
     act( "You bite $N!",  ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR    );
     act( "$n bites $N!",  ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT );
     act( "$n bites you!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT    );
     spell_poison( gsn_poison, ch->tot_level, ch, victim,TARGET_CHAR, WEAR_NONE);
-    return TRUE;
+    return true;
 }
 
 
@@ -950,7 +950,7 @@ bool spec_thief( CHAR_DATA *ch )
     long gold,silver;
 
     if ( ch->position != POS_STANDING )
-	return FALSE;
+	return false;
 
     for ( victim = ch->in_room->people; victim != NULL; victim = v_next )
     {
@@ -966,7 +966,7 @@ bool spec_thief( CHAR_DATA *ch )
 	{
 	    act( "You discover $n's hands in your wallet!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT );
 	    act( "$N discovers $n's hands in $S wallet!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT );
-	    return TRUE;
+	    return true;
 	}
 	else
 	{
@@ -978,22 +978,22 @@ bool spec_thief( CHAR_DATA *ch )
 	    silver = UMIN(silver,ch->tot_level*ch->tot_level * 25);
 	    ch->silver	+= silver;
 	    victim->silver -= silver;
-	    return TRUE;
+	    return true;
 	}
     }
 
-    return FALSE;
+    return false;
 }
 
 bool spec_dark_magic( CHAR_DATA *ch )
 {
-	return FALSE;
+	return false;
 	/*
    CHAR_DATA *victim;
    CHAR_DATA *v_next;
 
    if ( ch->position != POS_FIGHTING )
-    return FALSE;
+    return false;
 
    for ( victim = ch->in_room->people; victim != NULL; victim = v_next )
    {
@@ -1003,9 +1003,9 @@ bool spec_dark_magic( CHAR_DATA *ch )
    }
 
    if ( victim == NULL )
-    return FALSE;
+    return false;
    if (ch->stunned)
-       return FALSE;
+       return false;
 
     switch ( number_bits( 4 ) )
     {
@@ -1036,7 +1036,7 @@ bool spec_dark_magic( CHAR_DATA *ch )
              mob_cast( ch, skill_lookup( "faerie fire" ) , ch->tot_level, ch->name);
         }
 
-        return TRUE;
+        return true;
 
         case  1:
              if (!IS_AFFECTED(victim, AFF_POISON))
@@ -1059,7 +1059,7 @@ bool spec_dark_magic( CHAR_DATA *ch )
                 // spell_dispel_magic( skill_lookup("dispel magic" ), ch->tot_level, ch, victim, TAR_CHAR_SELF );
                  mob_cast( ch, skill_lookup( "dispel magic" ) , ch->tot_level, victim->name);
                }
-               return TRUE;
+               return true;
 
                case 2:
                    if (ch->hit < (ch->max_hit * .50 ) )
@@ -1081,7 +1081,7 @@ bool spec_dark_magic( CHAR_DATA *ch )
                     //    spell_flamestrike( skill_lookup("flamestrike" ), ch->tot_level, ch, victim, TAR_CHAR_SELF );
                         mob_cast( ch, skill_lookup( "flamestrike" ) , ch->tot_level, victim->name);
                      }
-                     return TRUE;
+                     return true;
 
                    case 3:
                        if (!IS_AFFECTED(victim, AFF_PLAGUE))
@@ -1108,12 +1108,12 @@ bool spec_dark_magic( CHAR_DATA *ch )
                         }
 
 
-                        return TRUE;
+                        return true;
 
 
         }
 
-       return FALSE; */
+       return false; */
 }
 
 bool spec_magic_master( CHAR_DATA *ch )
@@ -1123,7 +1123,7 @@ bool spec_magic_master( CHAR_DATA *ch )
    char buf[MAX_STRING_LENGTH];
 
    if ( ch->position != POS_FIGHTING )
-    return FALSE;
+    return false;
 
    for ( victim = ch->in_room->people; victim != NULL; victim = v_next )
    {
@@ -1133,7 +1133,7 @@ bool spec_magic_master( CHAR_DATA *ch )
    }
 
 	if ( victim == NULL )
-	    return FALSE;
+	    return false;
     switch ( number_bits( 4 ) )
     {
 
@@ -1159,7 +1159,7 @@ bool spec_magic_master( CHAR_DATA *ch )
 			do_function( ch, &do_cast, buf );
         }
 
-        return TRUE;
+        return true;
 
         case  1:
              if (!IS_AFFECTED(victim, AFF_POISON))
@@ -1177,7 +1177,7 @@ bool spec_magic_master( CHAR_DATA *ch )
 			sprintf( buf, "'dispel magic' %s", victim->name );
 			do_function( ch, &do_cast, buf );
                }
-               return TRUE;
+               return true;
 
                case 2:
                    if (ch->hit < (ch->max_hit * .50 ) )
@@ -1195,7 +1195,7 @@ bool spec_magic_master( CHAR_DATA *ch )
 			sprintf( buf, "'flamestrike' me" );
 			do_function( ch, &do_cast, buf );
                      }
-                     return TRUE;
+                     return true;
 
                    case 3:
                        if (!IS_AFFECTED(victim, AFF_PLAGUE))
@@ -1219,12 +1219,12 @@ bool spec_magic_master( CHAR_DATA *ch )
                         }
 
 
-                        return TRUE;
+                        return true;
 
 
         }
 
-       return FALSE;
+       return false;
 }
 
 bool spec_fight_bot( CHAR_DATA *ch ) {
@@ -1233,13 +1233,13 @@ bool spec_fight_bot( CHAR_DATA *ch ) {
 
    if ( ch->position != POS_FIGHTING )
    {
-       return FALSE;
+       return false;
    }
 
    // Dont want to cast while fighting
    if ( ch->cast > 0 )
    {
-	   return FALSE;
+	   return false;
    }
 
    victim = ch->fighting;
@@ -1248,14 +1248,14 @@ bool spec_fight_bot( CHAR_DATA *ch ) {
    {
        sprintf( buf, "'web' %s", victim->name );
        do_function( ch, &do_cast, buf );
-	   return TRUE;
+	   return true;
    }
 
    if (ch->hit < (ch->max_hit * .65 ) )
    {
        sprintf( buf, "'heal' me" );
        do_function( ch, &do_cast, buf );
-	   return TRUE;
+	   return true;
    }
 
    if (ch->hit < (ch->max_hit * .5 ) )
@@ -1264,7 +1264,7 @@ bool spec_fight_bot( CHAR_DATA *ch ) {
 	   {
 		   sprintf( buf, "'silence' %s", victim->name );
 		   do_function( ch, &do_cast, buf );
-	   	   return TRUE;
+	   	   return true;
 	   }
    }
 
@@ -1285,7 +1285,7 @@ bool spec_fight_bot( CHAR_DATA *ch ) {
 			if ( obj->wear_loc != WEAR_NONE
 			&&   can_see_obj( ch, obj ))
 			{
-				remove_obj( ch, obj->wear_loc, TRUE );
+				remove_obj( ch, obj->wear_loc, true );
 			}
 		}
 
@@ -1293,7 +1293,7 @@ bool spec_fight_bot( CHAR_DATA *ch ) {
 		{
 			obj_next = obj->next_content;
 			if ( obj->wear_loc == WEAR_NONE && can_see_obj( ch, obj ) )
-			wear_obj( ch, obj, FALSE );
+			wear_obj( ch, obj, false );
 		}
    }
 
@@ -1301,34 +1301,34 @@ bool spec_fight_bot( CHAR_DATA *ch ) {
    {
        sprintf( buf, "'blindness' %s", victim->name );
        do_function( ch, &do_cast, buf );
-	   return TRUE;
+	   return true;
    }
 
    if ( victim->cast > 0 )
    {
        sprintf( buf, "'counterspell' %s", victim->name );
        do_function( ch, &do_cast, buf );
-	   return TRUE;
+	   return true;
    }
 
    if (!IS_AFFECTED(victim, AFF_POISON))
    {
        sprintf( buf, "'poison' %s", victim->name );
        do_function( ch, &do_cast, buf );
-	   return TRUE;
+	   return true;
    }
 
    if (!IS_AFFECTED(victim, AFF_PLAGUE))
    {
        sprintf( buf, "'plague' %s", victim->name );
        do_function( ch, &do_cast, buf );
-	   return TRUE;
+	   return true;
    }
 
    sprintf( buf, "'magic missile' %s", victim->name );
    do_function( ch, &do_cast, buf );
 
-   return TRUE;
+   return true;
 }
 
 bool spec_pirate( CHAR_DATA *ch ) {
@@ -1337,13 +1337,13 @@ bool spec_pirate( CHAR_DATA *ch ) {
 
 	if ( ch->position != POS_FIGHTING )
 	{
-		return FALSE;
+		return false;
 	}
 
 	// Dont want to cast while fighting
 	if ( ch->cast > 0 )
 	{
-		return FALSE;
+		return false;
 	}
 
 	victim = ch->fighting;
@@ -1352,28 +1352,28 @@ bool spec_pirate( CHAR_DATA *ch ) {
 	{
 		sprintf( buf, "'silence' %s", victim->name );
 		do_function( ch, &do_cast, buf );
-		return TRUE;
+		return true;
 	}
 
 	if (!IS_AFFECTED(victim, AFF_WEB) && number_percent() < 5)
 	{
 		sprintf( buf, "'web' %s", victim->name );
 		do_function( ch, &do_cast, buf );
-		return TRUE;
+		return true;
 	}
 
 	if (ch->hit < (ch->max_hit * .65 ) && number_percent() < 5)
 	{
 		sprintf( buf, "'cure critical' me" );
 		do_function( ch, &do_cast, buf );
-		return TRUE;
+		return true;
 	}
 
 	if (IS_AFFECTED(ch, AFF_BLIND) && number_percent() < 5)
 	{
 		sprintf( buf, "'cure blindness' me" );
 		do_function( ch, &do_cast, buf );
-		return TRUE;
+		return true;
 	}
 
 	if (!IS_AFFECTED(ch, AFF_SANCTUARY))
@@ -1387,7 +1387,7 @@ bool spec_pirate( CHAR_DATA *ch ) {
 			if ( obj->wear_loc != WEAR_NONE
 					&&   can_see_obj( ch, obj ))
 			{
-				remove_obj( ch, obj->wear_loc, TRUE );
+				remove_obj( ch, obj->wear_loc, true );
 			}
 		}
 
@@ -1395,7 +1395,7 @@ bool spec_pirate( CHAR_DATA *ch ) {
 		{
 			obj_next = obj->next_content;
 			if ( obj->wear_loc == WEAR_NONE && can_see_obj( ch, obj ) )
-				wear_obj( ch, obj, FALSE );
+				wear_obj( ch, obj, false );
 		}
 	}
 
@@ -1403,31 +1403,31 @@ bool spec_pirate( CHAR_DATA *ch ) {
 	{
 		sprintf( buf, "'blindness' %s", victim->name );
 		do_function( ch, &do_cast, buf );
-		return TRUE;
+		return true;
 	}
 
 	if ( victim->cast > 0 && number_percent() < 5 )
 	{
 		sprintf( buf, "'counterspell' %s", victim->name );
 		do_function( ch, &do_cast, buf );
-		return TRUE;
+		return true;
 	}
 
 	if (!IS_AFFECTED(victim, AFF_POISON) && number_percent() < 5)
 	{
 		sprintf( buf, "'poison' %s", victim->name );
 		do_function( ch, &do_cast, buf );
-		return TRUE;
+		return true;
 	}
 
 	if (!IS_AFFECTED(victim, AFF_PLAGUE) && number_percent() < 5)
 	{
 		sprintf( buf, "'plague' %s", victim->name );
 		do_function( ch, &do_cast, buf );
-		return TRUE;
+		return true;
 	}
 
-   return TRUE;
+   return true;
 }
 
 bool spec_pirate_hunter( CHAR_DATA *ch ) {
@@ -1436,12 +1436,12 @@ bool spec_pirate_hunter( CHAR_DATA *ch ) {
 
 	if ( ch->position != POS_FIGHTING )
 	{
-		return FALSE;
+		return false;
 	}
 
 	// Dont want to cast while fighting
 	if ( ch->cast > 0 ) {
-		return FALSE;
+		return false;
 	}
 
 	victim = ch->fighting;
@@ -1458,45 +1458,45 @@ bool spec_pirate_hunter( CHAR_DATA *ch ) {
 	{
 		sprintf( buf, "'web' %s", victim->name );
 		do_function( ch, &do_cast, buf );
-		return TRUE;
+		return true;
 	}
 
 	if (ch->hit < (ch->max_hit * .65 ) && number_percent() < 10)
 	{
 		sprintf( buf, "'cure critical' me" );
 		do_function( ch, &do_cast, buf );
-		return TRUE;
+		return true;
 	}
 
 	if (IS_AFFECTED(ch, AFF_BLIND) && number_percent() < 10)
 	{
 		sprintf( buf, "'cure blindness' me" );
 		do_function( ch, &do_cast, buf );
-		return TRUE;
+		return true;
 	}
 
 	if (IS_AFFECTED(ch, AFF_HASTE) && number_percent() < 10)
 	{
 		sprintf( buf, "'haste' me" );
 		do_function( ch, &do_cast, buf );
-		return TRUE;
+		return true;
 	}
 
 	if (!IS_AFFECTED(ch, AFF_SANCTUARY) && number_percent() < 5)
 	{
 		sprintf( buf, "'sanctuary' me" );
 		do_function( ch, &do_cast, buf );
-    return TRUE;
+    return true;
 	}
 
 	if (!IS_AFFECTED(victim, AFF_BLIND) && number_percent() < 5)
 	{
 		sprintf( buf, "'blindness' %s", victim->name );
 		do_function( ch, &do_cast, buf );
-		return TRUE;
+		return true;
 	}
 
-   return TRUE;
+   return true;
 }
 
 bool spec_invasion( CHAR_DATA *ch )
@@ -1508,7 +1508,7 @@ bool spec_invasion( CHAR_DATA *ch )
 
 
     if (!IS_AWAKE(ch) || ch->fighting != NULL)
-	return FALSE;
+	return false;
 
 /*
     for ( victim = ch->in_room->people; victim != NULL; victim = v_next )
@@ -1564,9 +1564,9 @@ bool spec_invasion( CHAR_DATA *ch )
           break;
       }
       act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-    return TRUE;
+    return true;
    }
-   return FALSE;
+   return false;
 }
 
 bool spec_invasion_leader( CHAR_DATA *ch ) {
@@ -1577,12 +1577,12 @@ bool spec_invasion_leader( CHAR_DATA *ch ) {
 
 	if ( ch->position != POS_FIGHTING )
 	{
-		return FALSE;
+		return false;
 	}
 
 	// Dont want to cast while fighting
 	if ( ch->cast > 0 ) {
-		return FALSE;
+		return false;
 	}
 
 	victim = ch->fighting;
@@ -1593,7 +1593,7 @@ bool spec_invasion_leader( CHAR_DATA *ch ) {
         ch->tot_level - 30 < victim->tot_level - 30) {
         sprintf(buf, "This quest is for level %d maximum %s.", ch->tot_level - 30, victim->name);
         do_say(ch, buf);
-        stop_fighting(vch, TRUE);
+        stop_fighting(vch, true);
     }
   }
 
@@ -1637,43 +1637,43 @@ bool spec_invasion_leader( CHAR_DATA *ch ) {
 	{
 		sprintf( buf, "'web' %s", victim->name );
 		do_function( ch, &do_cast, buf );
-		return TRUE;
+		return true;
 	}
 
 	if (ch->hit < (ch->max_hit * .65 ) && number_percent() < 10)
 	{
 		sprintf( buf, "'cure critical' me" );
 		do_function( ch, &do_cast, buf );
-		return TRUE;
+		return true;
 	}
 
 	if (IS_AFFECTED(ch, AFF_BLIND) && number_percent() < 10)
 	{
 		sprintf( buf, "'cure blindness' me" );
 		do_function( ch, &do_cast, buf );
-		return TRUE;
+		return true;
 	}
 
 	if (IS_AFFECTED(ch, AFF_HASTE) && number_percent() < 10)
 	{
 		sprintf( buf, "'haste' me" );
 		do_function( ch, &do_cast, buf );
-		return TRUE;
+		return true;
 	}
 
 	if (!IS_AFFECTED(ch, AFF_SANCTUARY) && number_percent() < 5)
 	{
 		sprintf( buf, "'sanctuary' me" );
 		do_function( ch, &do_cast, buf );
-    return TRUE;
+    return true;
 	}
 
 	if (!IS_AFFECTED(victim, AFF_BLIND) && number_percent() < 5)
 	{
 		sprintf( buf, "'blindness' %s", victim->name );
 		do_function( ch, &do_cast, buf );
-		return TRUE;
+		return true;
 	}
 
-   return TRUE;
+   return true;
 }

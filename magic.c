@@ -199,7 +199,7 @@ void say_spell(CHAR_DATA *ch, int sn)
 }
 
 
-/* FALSE - dispel spell. ch = caster, victim = person being dispelled. */
+/* false - dispel spell. ch = caster, victim = person being dispelled. */
 bool saves_dispel(CHAR_DATA *ch, CHAR_DATA *victim, int spell_level)
 {
 	int save;
@@ -212,7 +212,7 @@ bool saves_dispel(CHAR_DATA *ch, CHAR_DATA *victim, int spell_level)
 		spell_level -= MAGIC_WEAR_SPELL;
 
 	if (IS_IMMORTAL(ch) && !IS_NPC(ch))
-		return FALSE;
+		return false;
 
 	// Base save, 100% chance it gos through
 	save = 100;
@@ -236,7 +236,7 @@ bool saves_dispel(CHAR_DATA *ch, CHAR_DATA *victim, int spell_level)
 
 	if (victim)
 	switch(check_immune(victim, DAM_MAGIC)) {
-	case IS_IMMUNE: return FALSE;
+	case IS_IMMUNE: return false;
 	case IS_RESISTANT: save /= 2; break;
 	case IS_VULNERABLE: save *= 2; break;
 	default: break;
@@ -278,7 +278,7 @@ bool saves_spell(int level, CHAR_DATA *victim, int16_t dam_type)
 
     switch(check_immune(victim,dam_type))
     {
-	case IS_IMMUNE:		return TRUE;
+	case IS_IMMUNE:		return true;
 	case IS_RESISTANT:	chance += 10; break;
 	case IS_VULNERABLE:	chance -= 10; break;
     }
@@ -294,9 +294,9 @@ bool saves_spell(int level, CHAR_DATA *victim, int16_t dam_type)
     //sprintf(buf, "%d", chance);send_to_char(buf,victim);
 
     if (number_percent() < chance)
-        return TRUE;
+        return true;
     else
-	return FALSE;
+	return false;
 }
 
 
@@ -317,14 +317,14 @@ bool check_dispel(CHAR_DATA *ch, CHAR_DATA *victim, int sn)
 					if (skill_table[sn].msg_disp && skill_table[sn].msg_disp[0])
 						act(skill_table[sn].msg_disp,victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
 
-					return TRUE;
+					return true;
 				} else
 					af->level--;
 			}
 		}
 	}
 
-	return FALSE;
+	return false;
 }
 
 bool validate_spell_target(CHAR_DATA *ch,int type,char *arg,int *t,CHAR_DATA **v, OBJ_DATA **o)
@@ -350,19 +350,19 @@ bool validate_spell_target(CHAR_DATA *ch,int type,char *arg,int *t,CHAR_DATA **v
 				send_to_char("Cast it on whom?\n\r", ch);
 			else
 				send_to_char("They aren't here.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
-		if (is_safe(ch, victim, TRUE) ||
+		if (is_safe(ch, victim, true) ||
 			(victim->fighting && !is_same_group(ch, victim->fighting) &&
 			ch != victim && !IS_SET(ch->in_room->room2_flags, ROOM_MULTIPLAY))) {
 			send_to_char("Not on that target.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if (ch->fighting && !is_same_group(victim, ch->fighting) && ch != victim && !IS_NPC(victim)) {
 			act("You must finish your fight before attacking $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-			return FALSE;
+			return false;
 		}
 
 		target = TARGET_CHAR;
@@ -373,14 +373,14 @@ bool validate_spell_target(CHAR_DATA *ch,int type,char *arg,int *t,CHAR_DATA **v
 			victim = get_char_room(ch, NULL, arg);
 			if (!victim) {
 				send_to_char("They aren't here.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			if (victim != ch && victim->fighting && victim->fighting != ch &&
 				!is_same_group(ch, victim->fighting) && !IS_NPC(victim) &&
 				!IS_NPC(victim->fighting) && !is_pk(ch) && !IS_SET(ch->in_room->room_flags, ROOM_ARENA)) {
 				send_to_char("You can't interfere in a PK battle if you are not PK.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 		} else
 		victim = ch;
@@ -391,7 +391,7 @@ bool validate_spell_target(CHAR_DATA *ch,int type,char *arg,int *t,CHAR_DATA **v
 	case TAR_CHAR_SELF:
 		if (arg[0] && str_cmp(arg, "me") && str_cmp(arg, "self") && str_prefix(arg, ch->name)) {
 			send_to_char("You may not cast this spell on another.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		victim = ch;
@@ -401,12 +401,12 @@ bool validate_spell_target(CHAR_DATA *ch,int type,char *arg,int *t,CHAR_DATA **v
 	case TAR_OBJ_INV:
 		if (!arg[0]) {
 			send_to_char("Cast it on what?\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if (!(obj = get_obj_list(ch, arg, ch->carrying))) {
 			send_to_char("You're not carrying that item.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		target = TARGET_OBJ;
@@ -415,13 +415,13 @@ bool validate_spell_target(CHAR_DATA *ch,int type,char *arg,int *t,CHAR_DATA **v
 	case TAR_OBJ_GROUND:
 		if (!arg[0]) {
 			send_to_char("Cast it on what?\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		obj = get_obj_list(ch, arg, ch->in_room->contents);
 		if (!obj) {
 			send_to_char("It's not anywhere around here.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		target = TARGET_OBJ;
@@ -430,7 +430,7 @@ bool validate_spell_target(CHAR_DATA *ch,int type,char *arg,int *t,CHAR_DATA **v
 	case TAR_OBJ_CHAR_OFF:
 		if (!arg[0] && !ch->fighting) {
 			send_to_char("Cast it on whom or what?\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if (ch->fighting && !arg[0])
@@ -443,14 +443,14 @@ bool validate_spell_target(CHAR_DATA *ch,int type,char *arg,int *t,CHAR_DATA **v
 		else if (obj) target = TARGET_OBJ;
 		else {
 			send_to_char("You don't see that here.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
-		if (target == TARGET_CHAR && (is_safe(ch, victim, TRUE) ||
+		if (target == TARGET_CHAR && (is_safe(ch, victim, true) ||
 			(victim->fighting && ch != victim && !is_same_group(ch, victim->fighting) &&
 			!IS_SET(ch->in_room->room2_flags, ROOM_MULTIPLAY)))) {
 			send_to_char("Not on that target.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 		break;
 
@@ -467,7 +467,7 @@ bool validate_spell_target(CHAR_DATA *ch,int type,char *arg,int *t,CHAR_DATA **v
 				!is_same_group(ch, victim->fighting) && !IS_NPC(victim) &&
 				!IS_NPC(victim->fighting) && !is_pk(ch) && !IS_SET(ch->in_room->room_flags, ROOM_ARENA)) {
 				send_to_char("You can't interfere in a PK battle if you are not PK.\n\r", ch);
-				return FALSE;
+				return false;
 			}
 
 			target = TARGET_CHAR;
@@ -475,20 +475,20 @@ bool validate_spell_target(CHAR_DATA *ch,int type,char *arg,int *t,CHAR_DATA **v
 			target = TARGET_OBJ;
 		else {
 			send_to_char("They aren't here.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 		break;
 
 	case TAR_IGNORE_CHAR_DEF:
 		if (!arg[0]) {
 			send_to_char("Cast it on whom?\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		victim = get_char_world(ch, arg);
 		if (!victim) {
 			send_to_char("They aren't anywhere in Sentience.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		target = TARGET_CHAR;
@@ -503,7 +503,7 @@ bool validate_spell_target(CHAR_DATA *ch,int type,char *arg,int *t,CHAR_DATA **v
 	*o = obj;
 	*t = target;
 
-	return TRUE;
+	return true;
 }
 
 bool check_mana_cost(CHAR_DATA *ch, int cost)
@@ -717,7 +717,7 @@ void do_cast(CHAR_DATA *ch, char *argument)
 
 	beats = beats * i / 1000;
 
-	ch->casting_recovered = FALSE;
+	ch->casting_recovered = false;
 
 	CAST_STATE(ch, beats);
 }
@@ -884,7 +884,7 @@ void cast_end(CHAR_DATA *ch)
 						if (is_pk(dam_vict)) {
 							act("{RYou are struck by $p's shards!", dam_vict, NULL, NULL, trap, NULL, NULL, NULL, TO_CHAR);
 							act("{R$n is struck by $p's shards!", dam_vict, NULL, NULL, trap, NULL, NULL, NULL, TO_ROOM);
-							damage(dam_vict, dam_vict, dice(60, 8), 0, DAM_PIERCE, FALSE);
+							damage(dam_vict, dam_vict, dice(60, 8), 0, DAM_PIERCE, false);
 						}
 					}
 				}
@@ -892,7 +892,7 @@ void cast_end(CHAR_DATA *ch)
 			}
 
 			deduct_mana(ch,mana);
-			stop_casting(ch, FALSE);
+			stop_casting(ch, false);
 			return;
 		}
 	}
@@ -906,7 +906,7 @@ void cast_end(CHAR_DATA *ch)
 	if(token) {
 		if( ch->cast_successful == MAGICCAST_FAILURE ) {
 			send_to_char("You lost your concentration.\n\r", ch);
-			token_skill_improve(ch,token,FALSE,1);
+			token_skill_improve(ch,token,false,1);
 			deduct_mana(ch,mana / 2);
 			return;
 		}
@@ -914,7 +914,7 @@ void cast_end(CHAR_DATA *ch)
 		if( ch->cast_successful == MAGICCAST_SCRIPT ) {
 			if( !IS_NULLSTR(ch->casting_failure_message) )
 				send_to_char(ch->casting_failure_message, ch);
-			token_skill_improve(ch,token,FALSE,1);
+			token_skill_improve(ch,token,false,1);
 			deduct_mana(ch,mana / 2);
 			return;
 		}
@@ -940,13 +940,13 @@ void cast_end(CHAR_DATA *ch)
 			// If we don't do a skill test before the code is executed,
 			//	then successful casting also does no test
 			if(!IS_SET(token->pIndexData->flags,TOKEN_NOSKILLTEST))
-				token_skill_improve(ch,token,TRUE,1);
+				token_skill_improve(ch,token,true,1);
 		}
 
 	} else {
 		if( ch->cast_successful == MAGICCAST_FAILURE ) {
 			send_to_char("You lost your concentration.\n\r", ch);
-			check_improve(ch,sn,FALSE,1);
+			check_improve(ch,sn,false,1);
 			deduct_mana(ch,mana / 2);
 			return;
 		}
@@ -955,7 +955,7 @@ void cast_end(CHAR_DATA *ch)
 			if( !IS_NULLSTR(ch->casting_failure_message) )
 				send_to_char(ch->casting_failure_message, ch);
 
-			check_improve(ch,sn,FALSE,1);
+			check_improve(ch,sn,false,1);
 			deduct_mana(ch,mana / 2);
 			return;
 		}
@@ -973,7 +973,7 @@ void cast_end(CHAR_DATA *ch)
 			victim->tempstore[0] = sn;	// JUST the script is used by multiple spells or is a wildcard
 			if( p_number_trigger(sn, 0, victim, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_SPELLCAST, NULL) )
 			{
-				stop_casting(ch, FALSE);
+				stop_casting(ch, false);
 				return;
 			}
 		}
@@ -1050,7 +1050,7 @@ void obj_cast_spell(int sn, int level, CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DAT
 		return;
 	    }
 
-	    if (is_safe(ch,victim, TRUE) && ch != victim)
+	    if (is_safe(ch,victim, true) && ch != victim)
 	    {
 	        send_to_char("Something isn't right...\n\r",ch);
 		return;
@@ -1093,7 +1093,7 @@ void obj_cast_spell(int sn, int level, CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DAT
 
 	    if (victim != NULL)
 	    {
-	        if (is_safe_spell(ch,victim,FALSE) && ch != victim)
+	        if (is_safe_spell(ch,victim,false) && ch != victim)
 	        {
 	            send_to_char("Something isn't right...\n\r",ch);
 		    return;
@@ -1170,7 +1170,7 @@ void obj_cast(int sn, int level, OBJ_DATA *obj, ROOM_INDEX_DATA *room, char *arg
     int target = TARGET_NONE;
     char buf[MSL];
 
-    ch = create_mobile(get_mob_index(MOB_VNUM_OBJCASTER), FALSE);
+    ch = create_mobile(get_mob_index(MOB_VNUM_OBJCASTER), false);
     char_to_room(ch, room);
 
     ch->level = obj->level;
@@ -1180,7 +1180,7 @@ void obj_cast(int sn, int level, OBJ_DATA *obj, ROOM_INDEX_DATA *room, char *arg
     ch->short_descr = str_dup(obj->short_descr);
 
     // Make sure they have a reagent for the powerful spells
-    reagent = create_object(get_obj_index(OBJ_VNUM_SHARD), 1, FALSE);
+    reagent = create_object(get_obj_index(OBJ_VNUM_SHARD), 1, false);
     obj_to_char(reagent,ch);
 
     switch (skill_table[sn].target)
@@ -1258,7 +1258,7 @@ void obj_cast(int sn, int level, OBJ_DATA *obj, ROOM_INDEX_DATA *room, char *arg
 	    return;
 
 	if (!check_spell_deflection(ch, victim, sn)) {
-	    extract_char(ch, TRUE);
+	    extract_char(ch, true);
 	    return;
 	}
     }
@@ -1274,7 +1274,7 @@ void obj_cast(int sn, int level, OBJ_DATA *obj, ROOM_INDEX_DATA *room, char *arg
 	log_string(buf);
     }
 
-    extract_char(ch, TRUE);
+    extract_char(ch, true);
 }
 
 ///////////////////////////////////////////////////////////////
@@ -1350,15 +1350,15 @@ bool can_escape(CHAR_DATA *ch)
 		IS_SET(ch->in_room->room_flags, ROOM_NO_RECALL) ||
 		IS_SET(ch->in_room->area->area_flags, AREA_NO_RECALL)) {
 		send_to_char("Outside interference stops your transportation.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if (ch->pulled_cart) {
 		act("You can't take $p with you.", ch, NULL, NULL, ch->pulled_cart, NULL, NULL, NULL, TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
-	return TRUE;
+	return true;
 }
 
 
@@ -1367,11 +1367,11 @@ bool can_gate(CHAR_DATA *ch, CHAR_DATA *victim)
 	char buf[MAX_STRING_LENGTH];
 
 	if (IS_NPC(victim))
-		return FALSE;
+		return false;
 
 	if (victim == ch) {
 		send_to_char("What would be the point?\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if (!victim || !victim->in_room) {
@@ -1380,19 +1380,19 @@ bool can_gate(CHAR_DATA *ch, CHAR_DATA *victim)
 		sprintf(buf, "can_gate: %s tried to gate to %s who had null in_room!",
 			ch->name, (!victim) ? "nobody???" : victim->name);
 		bug(buf, 0);
-		return FALSE;
+		return false;
 	}
 
 	/* take care of the wilderness case */
 	if (IN_WILDERNESS(ch)) {
 		if (ch->in_room->sector_type == SECT_WATER_NOSWIM) {
 			send_to_char("The deep ocean waters cancel out your magic.\n\r", ch);
-			return FALSE;
+			return false;
 		}
 
 		if (get_region(ch->in_room) != get_region(victim->in_room)) {
 			act("$N is too far away.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-			return FALSE;
+			return false;
 		}
 	}
 
@@ -1411,29 +1411,29 @@ bool can_gate(CHAR_DATA *ch, CHAR_DATA *victim)
 		(victim->in_room->area->place_flags == PLACE_OTHER_PLANE) ||
 		IS_SET(victim->in_room->area->area_flags, AREA_NO_RECALL)) {
 		send_to_char("Outside interference stops your transportation.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if (IS_SET(victim->in_room->room_flags, ROOM_NO_RECALL) ||
 		IS_SET(victim->in_room->room_flags, ROOM_NOMAGIC) ||
 		IS_SET(victim->in_room->room_flags, ROOM_CPK)) {
 		send_to_char("That room is protected from gating magic.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
 	if (str_cmp(ch->in_room->area->name, "Wilderness") &&
 		!is_same_place(ch->in_room, victim->in_room)) {
 		send_to_char("Your destination is too far away.\n\r", ch);
-		return FALSE;
+		return false;
 	}
 
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_null)
 {
 	send_to_char("That's not a spell!\n\r", ch);
-	return FALSE;
+	return false;
 }
 
 
@@ -1632,7 +1632,7 @@ void reverie_end(CHAR_DATA *ch, int amount)
     if (ch->fighting != NULL)
 	SET_BIT(ch->has_done, DONE_REVERIE);
 
-    check_improve(ch, gsn_reverie, TRUE, 1);
+    check_improve(ch, gsn_reverie, true, 1);
 }
 
 

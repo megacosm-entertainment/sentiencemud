@@ -29,12 +29,12 @@ SPELL_FUNC(spell_create_food)
 
 	i = number_range(100066, 100076);
 
-	food = create_object(get_obj_index(i), 0, TRUE);
+	food = create_object(get_obj_index(i), 0, true);
 	food->value[0] = level / 2;
 	food->value[1] = level;
 	obj_to_room(food, ch->in_room);
 	act("$p suddenly appears.", ch, NULL, NULL, food, NULL, NULL, NULL, TO_ALL);
-	return TRUE;
+	return true;
 }
 
 
@@ -53,17 +53,17 @@ SPELL_FUNC(spell_enchant_armour)
 
 	if (obj->item_type != ITEM_ARMOUR) {
 		send_to_char("That isn't armour.\n\r",ch);
-		return FALSE;
+		return false;
 	}
 
 	if (obj->wear_loc != -1) {
 		send_to_char("You'd better remove it first.\n\r",ch);
-		return FALSE;
+		return false;
 	}
 
 	if (IS_SET(obj->extra2_flags, ITEM_NO_ENCHANT)) {
 		act("$p is beyond your power to enchant.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	fail = 30;	/* base 30% chance of failure */
@@ -81,7 +81,7 @@ SPELL_FUNC(spell_enchant_armour)
 	if (result < (fail / 4)) {
 		act("$p flares blindingly... and evaporates!",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
 		extract_obj(obj);
-		return TRUE;
+		return true;
 	}
 
 	/* item disenchanted */
@@ -90,13 +90,13 @@ SPELL_FUNC(spell_enchant_armour)
 		act("$p glows brightly, then fades.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
 
 		affect_removeall_obj(obj);
-		return TRUE;
+		return true;
 	}
 
   	/* failed, no bad result */
 	if (result <= fail || obj->num_enchanted > 9) {
 		send_to_char("Nothing seemed to happen.\n\r",ch);
-		return TRUE;
+		return true;
 	}
 
 	act("$p shimmers with a gold aura.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
@@ -144,7 +144,7 @@ SPELL_FUNC(spell_enchant_armour)
 	}
 
 	SET_BIT(obj->extra2_flags, ITEM_ENCHANTED);
-	return TRUE;
+	return true;
 }
 
 SPELL_FUNC(spell_enchant_object)
@@ -157,18 +157,18 @@ SPELL_FUNC(spell_enchant_object)
 /*
 	if (obj->item_type != ITEM_ARMOUR) {
 		send_to_char("That isn't armour.\n\r",ch);
-		return FALSE;
+		return false;
 	}
 */
 
 	if (obj->wear_loc != -1) {
 		send_to_char("You'd better remove it first.\n\r",ch);
-		return FALSE;
+		return false;
 	}
 
 	if (IS_SET(obj->extra2_flags, ITEM_NO_ENCHANT)) {
 		act("$p is beyond your power to enchant.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	fail = 30;	/* base 30% chance of failure */
@@ -179,7 +179,7 @@ SPELL_FUNC(spell_enchant_object)
 
 	obj->num_enchanted += 1;
 	SET_BIT(obj->extra2_flags, ITEM_ENCHANTED);
-	return TRUE;
+	return true;
 }
 
 
@@ -199,17 +199,17 @@ SPELL_FUNC(spell_enchant_weapon)
 
 	if (obj->item_type != ITEM_WEAPON) {
 		send_to_char("That isn't a weapon.\n\r",ch);
-		return FALSE;
+		return false;
 	}
 
 	if (obj->wear_loc != -1) {
 		send_to_char("Remove it first.\n\r",ch);
-		return FALSE;
+		return false;
 	}
 
 	if (IS_SET(obj->extra2_flags, ITEM_NO_ENCHANT)) {
 		act("$p is beyond your power to enchant.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-		return FALSE;
+		return false;
 	}
 
 	for (paf_hit = obj->affected; paf_hit; paf_hit = paf_hit->next) {
@@ -247,7 +247,7 @@ SPELL_FUNC(spell_enchant_weapon)
 	if (result < (fail / 4)) {
 		act("$p shivers violently and explodes!",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
 		extract_obj(obj);
-		return TRUE;
+		return true;
 	}
 
  	/* item disenchanted */
@@ -257,12 +257,12 @@ SPELL_FUNC(spell_enchant_weapon)
 
 		/* remove all affects */
 		affect_removeall_obj(obj);
-		return TRUE;
+		return true;
 	}
 
 	if (result <= fail || obj->num_enchanted > 9) {
 		send_to_char("Nothing seemed to happen.\n\r",ch);
-		return TRUE;
+		return true;
 	}
 
 	act("$p glows blue.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
@@ -311,5 +311,5 @@ SPELL_FUNC(spell_enchant_weapon)
 	}
 
 	SET_BIT(obj->extra2_flags, ITEM_ENCHANTED);
-	return TRUE;
+	return true;
 }

@@ -78,12 +78,12 @@ int unlink();
 int system();
 */
 /*
-#if	!defined(FALSE)
-#define FALSE	 0
+#if	!defined(false)
+#define false	 0
 #endif
 
-#if	!defined(TRUE)
-#define TRUE	 1
+#if	!defined(true)
+#define true	 1
 #endif
 
 
@@ -101,16 +101,16 @@ typedef unsigned char			bool;
 //enum tribool: uint8_t {False = 0, True = 1, Unknown = 2};
 */
 
-#if	!defined(FALSE)
-#define FALSE	 false
+#if	!defined(false)
+#define false	 false
 #endif
 
-#if	!defined(TRUE)
-#define TRUE	 true
+#if	!defined(true)
+#define true	 true
 #endif
 typedef unsigned char sent_bool;
-#define TRISTATE_FALSE 0
-#define TRISTATE_TRUE 1
+#define TRISTATE_false 0
+#define TRISTATE_true 1
 #define TRISTATE_UNDEF 2
 #define TELOPT_COMPRESS 	85
 
@@ -404,7 +404,7 @@ struct special_key_data
 #define MEMTYPE_TOKEN	'T'
 #define MEMTYPE_AREA	'A'
 
-#define IS_MEMTYPE(ptr,typ)		(ptr ? (*((char *)((void *)(ptr))) == (typ)) : FALSE)
+#define IS_MEMTYPE(ptr,typ)		(ptr ? (*((char *)((void *)(ptr))) == (typ)) : false)
 #define SET_MEMTYPE(ptr,typ)	(ptr)->__type = (typ)
 
 #define MAX_TEMPSTORE	4
@@ -2491,7 +2491,7 @@ struct affliction_type {
  */
 #define ITEM_ALL_REMORT	 	(A)
 #define ITEM_LOCKER		(B)
-#define ITEM_TRUESIGHT		(C)
+#define ITEM_trueSIGHT		(C)
 #define ITEM_SCARE		(D)
 #define ITEM_SUSTAIN		(E)
 #define ITEM_ENCHANTED		(F)
@@ -6663,8 +6663,8 @@ extern int16_t grn_unique;
  * Utility macros.
  */
 #define IS_VALID(data)		((data) != NULL && (data)->valid)
-#define VALIDATE(data)		((data)->valid = TRUE)
-#define INVALIDATE(data)	((data)->valid = FALSE)
+#define VALIDATE(data)		((data)->valid = true)
+#define INVALIDATE(data)	((data)->valid = false)
 #define UMIN(a, b)		((a) < (b) ? (a) : (b))
 #define UMAX(a, b)		((a) > (b) ? (a) : (b))
 #define URANGE(a, b, c)		((b) < (a) ? (a) : ((b) > (c) ? (c) : (b)))
@@ -6689,7 +6689,7 @@ extern int16_t grn_unique;
 #define MSG(function)		{ if (!silent) 		\
 				     (function); 	\
 				                	\
-				return FALSE; }
+				return false; }
 /*
  * Character macros.
  */
@@ -6713,14 +6713,14 @@ extern int16_t grn_unique;
 
 #define IS_SOCIAL(ch)	  (IS_SET((ch)->comm, COMM_SOCIAL))
 #define IS_PK(ch)         (((ch)->church != NULL &&     \
-			   (ch)->church->pk == TRUE ) || IS_SET((ch)->act,PLR_PK))
+			   (ch)->church->pk == true ) || IS_SET((ch)->act,PLR_PK))
 #define IS_QUESTING(ch)	        ( ch->quest != NULL )
 #define IS_UNDEAD(ch)		(IS_SET((ch)->act, ACT_UNDEAD) || \
 				 IS_SET((ch)->form, FORM_UNDEAD))
-#define IS_MSP(ch)              (ch->desc ? IS_MSP_DESC( ch->desc ) : FALSE)
+#define IS_MSP(ch)              (ch->desc ? IS_MSP_DESC( ch->desc ) : false)
 #define IS_MSP_DESC(d)          (IS_SET( d->bits, DESCRIPTOR_MSP ))
 #define sqr(a) 			( a * a )
-#define IS_DEAD(ch)		(ch->dead == TRUE)
+#define IS_DEAD(ch)		(ch->dead == true)
 #define IS_NPC(ch)		(IS_SET((ch)->act, ACT_IS_NPC))
 #define IS_BOSS(ch)		(IS_NPC(ch) && ((ch)->pIndexData->boss))
 #define IS_NPC_SHIP(ship)	(ship->npc_ship != NULL)
@@ -6816,7 +6816,7 @@ extern int16_t grn_unique;
 				( ch->pcdata->security >= Area->security  \
 				|| strstr( Area->builders, ch->name )	  \
 				|| strstr( Area->builders, "All" ) ) )
-#define IS_MORPHED(ch)          (ch->morphed == TRUE)
+#define IS_MORPHED(ch)          (ch->morphed == true)
 #define IN_CHURCH(ch)           (ch->church != NULL)
 #define IS_CHURCH_EVIL(ch)      (ch->church != NULL && ch->church->alignment == CHURCH_EVIL)
 #define IS_CHURCH_GOOD(ch)      (ch->church != NULL && ch->church->alignment == CHURCH_GOOD)
@@ -6894,7 +6894,7 @@ extern		OBJ_DATA	*	rgObjNest[MAX_NEST];
 				if ( !str_cmp( word, literal ) )	\
 				{					\
 				    field  = value;			\
-				    fMatch = TRUE;			\
+				    fMatch = true;			\
 				    break;				\
 				}
 
@@ -6910,7 +6910,7 @@ extern		OBJ_DATA	*	rgObjNest[MAX_NEST];
 				{					\
 				    free_string(field);			\
 				    field  = value;			\
-				    fMatch = TRUE;			\
+				    fMatch = true;			\
 				    break;				\
 				}
 

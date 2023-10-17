@@ -575,7 +575,7 @@ DECLARE_OLC_FUN( dpedit_create		);
 #define EDIT_OBJ(ch, obj)	( obj = (OBJ_INDEX_DATA *)ch->desc->pEdit )
 #define EDIT_OPCODE(ch, code)   ( code = (SCRIPT_DATA*)ch->desc->pEdit )
 #define EDIT_QUEST(ch, quest)   ( quest = (QUEST_INDEX_DATA *)ch->desc->pEdit )
-#define EDIT_ROOM(ch, room)		do { room = ch->in_room; if(!room || IS_SET(room->room2_flags,ROOM_VIRTUAL_ROOM) || room->source) return FALSE; } while(0)
+#define EDIT_ROOM(ch, room)		do { room = ch->in_room; if(!room || IS_SET(room->room2_flags,ROOM_VIRTUAL_ROOM) || room->source) return false; } while(0)
 #define EDIT_ROOM_VOID(ch, room)	do { room = ch->in_room; if(!room || IS_SET(room->room2_flags,ROOM_VIRTUAL_ROOM) || room->source) return; } while(0)
 #define EDIT_ROOM_SIMPLE(ch,room)	( room = ch->in_room )
 #define EDIT_RPCODE(ch, code)   ( code = (SCRIPT_DATA*)ch->desc->pEdit )
