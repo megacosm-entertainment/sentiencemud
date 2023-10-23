@@ -63,7 +63,14 @@ SPELL_FUNC(spell_soul_essence)
 			send_to_char(buf,ch);
 			act("{B$n glows briefly.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-			ch->pneuma += i;
+			if (boost_table[BOOST_PNEUMA].boost != 100)
+			{
+	    		send_to_char("{WPNEUMA boost!{x\n\r", ch);
+	   			ch->pneuma += (i * boost_table[BOOST_PNEUMA].boost)/100;
+			}
+			else
+	    		ch->pneuma += i;
+    		
 		} else
 			send_to_char("You absorb soul essence, but it completely dissipates...\n\r", ch);
 	} else

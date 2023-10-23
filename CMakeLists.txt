@@ -9,9 +9,9 @@ project(sent)
 if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     add_compile_options(/W4 /WX /std:c17)
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    add_compile_options(-Wall -std=gnu2x -fcommon -DOLD_RAND -DMALLOC_STDLIB -fstack-protector  -m64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv -fPIC -fabi-version=2 -fno-omit-frame-pointer)
+    add_compile_options(-Wall -std=gnu2x -fcommon -DOLD_RAND -DMALLOC_STDLIB -fstack-protector  -m64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv -fPIC -fno-omit-frame-pointer)
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    add_compile_options(-Wall -std=c2x -fcommon -DOLD_RAND -DMALLOC_STDLIB -fstack-protector  -m64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv -fPIC -fabi-version=2 -fno-omit-frame-pointer)
+    add_compile_options(-Wall -std=c2x -fcommon -DOLD_RAND -DMALLOC_STDLIB -fstack-protector  -m64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv -fPIC -fno-omit-frame-pointer)
 endif()
 
 add_executable(sent act_comm.c act_enter.c act_info.c act_info2.c act_move.c act_obj.c 

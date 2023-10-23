@@ -903,7 +903,7 @@ bool one_hit(CHAR_DATA *ch, CHAR_DATA *victim, int dt, bool secondary)
 
 	// Damage boost for globals
 	// Disabling boost for NPCs, this is player only - Tieryo
-	if (!IS_NPC(ch)){
+	if (!IS_NPC(ch) && IS_NPC(victim)){
 	if (boost_table[BOOST_DAMAGE].boost != 100) dam = (dam * boost_table[BOOST_DAMAGE].boost)/100;
 };
 	// deduct movement
