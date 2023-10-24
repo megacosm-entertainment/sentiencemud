@@ -528,8 +528,12 @@ void do_cast(CHAR_DATA *ch, char *argument)
 	char temp[MSL];
 	int chance;
 	SKILL_ENTRY *spell;
+	char * args;
 
 	argument = one_argument(argument, arg1);
+
+	args = argument;
+
 	argument = one_argument(argument, arg2);
 
 	if (IS_AFFECTED2(ch, AFF2_SILENCE)) {
@@ -701,7 +705,7 @@ void do_cast(CHAR_DATA *ch, char *argument)
 		} else
 			ch->cast_target_name = str_dup(obj->name);
 	} else
-		ch->cast_target_name = str_dup(arg2);
+		ch->cast_target_name = str_dup(args);
 
 	// @@@NIB : 20070126 : Slow magic, 2-3 times as long
 	//	room2:slow_magic adds 0.5-1x
