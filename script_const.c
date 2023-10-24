@@ -172,7 +172,7 @@ ENT_FIELD entity_persist[] = {
 };
 
 ENT_FIELD entity_boolean[] = {
-	{"true",		ENTITY_BOOLEAN_true_false,	ENT_STRING},
+	{"true",		ENTITY_BOOLEAN_TRUE_FALSE,	ENT_STRING},
 	{"yes",			ENTITY_BOOLEAN_YES_NO,		ENT_STRING},
 	{"on",			ENTITY_BOOLEAN_ON_OFF,		ENT_STRING},
 	{NULL,			0,							ENT_UNKNOWN}

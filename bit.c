@@ -458,7 +458,7 @@ char *extra2_bit_name( long extra2_flags )
     buf[0] = '\0';
     if ( extra2_flags & ITEM_ALL_REMORT   	) strcat( buf, " all_remort"      	);
     if ( extra2_flags & ITEM_LOCKER    		) strcat( buf, " locker"          	);
-    if ( extra2_flags & ITEM_trueSIGHT 		) strcat( buf, " truesight"     	);
+    if ( extra2_flags & ITEM_TRUESIGHT 		) strcat( buf, " truesight"     	);
     if ( extra2_flags & ITEM_SCARE     		) strcat( buf, " scare"         	);
     if ( extra2_flags & ITEM_SUSTAIN   		) strcat( buf, " life-sustaining"	);
     if ( extra2_flags & ITEM_ENCHANTED 		) strcat( buf, " enchanted" 		);

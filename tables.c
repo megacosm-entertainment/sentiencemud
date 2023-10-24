@@ -673,6 +673,10 @@ const struct flag_type plr2_flags[] =
     {	"favskills",	PLR_FAVSKILLS,	false	},
     {   "compass",      PLR_COMPASS,    false   },
     {   "autocatalyst", PLR_AUTOCAT,    false   },
+    {   "staff",        PLR_STAFF,          false   },
+    {   "autoafk",      PLR_AUTOAFK,        false   },
+    {   "hide_idle",    PLR_HIDE_IDLE,      false   },
+    {   "show_timestamps",  PLR_SHOW_TIMESTAMPS,    false},
     {	NULL,			0,	0			}
 };
 
@@ -1008,6 +1012,8 @@ const struct flag_type area_flags[] =
     {	"no_fading",	AREA_NO_FADING,		true	},
     {	"blueprint",	AREA_BLUEPRINT,		true	},
     {	"locked",		AREA_LOCKED,		true	},
+    {   "social",       AREA_SOCIAL,        true    },
+    {   "housing",      AREA_HOUSING,       true    },
     {	NULL,			0,			0	}
 };
 
@@ -1212,6 +1218,8 @@ const struct flag_type sector_flags[] =
     {	"underwater",		SECT_UNDERWATER,	true	},
     {	"deep_underwater",	SECT_DEEP_UNDERWATER,	true	},
     {	"jungle",		SECT_JUNGLE,		true	},
+    {   "dirt_road",    SECT_DIRT_ROAD,     true    },
+    {   "paved_road",   SECT_PAVED_ROAD,    true    },
     {	NULL,			0,			0	}
 };
 
@@ -1338,7 +1346,7 @@ const struct flag_type extra2_flags[] =
 {
     {   "all_remort",		ITEM_ALL_REMORT,	true    },
     {   "locker",		ITEM_LOCKER,		true    },
-    {   "true_sight",		ITEM_trueSIGHT,		true	},
+    {   "true_sight",		ITEM_TRUESIGHT,		true	},
     {   "scare",		ITEM_SCARE,		true	},
     {   "sustains",		ITEM_SUSTAIN,		true	},
     {   "enchanted",		ITEM_ENCHANTED,		false   },

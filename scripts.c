@@ -541,7 +541,7 @@ int boolexp_evaluate(SCRIPT_CB *block, BOOLEXP *be, SCRIPT_PARAM *arg)
 	if(!block) return -1;	// Error
 
 	switch(be->type) {
-	case BOOLEXP_true:
+	case BOOLEXP_TRUE:
 		return ifcheck_comparison(&block->info, be->param, be->rest, arg);
 
 	case BOOLEXP_NOT:

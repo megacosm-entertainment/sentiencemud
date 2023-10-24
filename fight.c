@@ -5430,6 +5430,8 @@ void do_dirt(CHAR_DATA *ch, char *argument)
 	case SECT_UNDERWATER:		chance = 0;	break;
 	case SECT_DEEP_UNDERWATER:	chance = 0;	break;
 	case SECT_JUNGLE:				break;
+	case SECT_PAVED_ROAD:		chance -= 10;	break;
+	case SECT_DIRT_ROAD:		chance += 5;	break;
 	}
 
 	if (!chance) {

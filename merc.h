@@ -109,8 +109,8 @@ typedef unsigned char			bool;
 #define true	 true
 #endif
 typedef unsigned char sent_bool;
-#define TRISTATE_false 0
-#define TRISTATE_true 1
+#define TRISTATE_FALSE 0
+#define TRISTATE_TRUE 1
 #define TRISTATE_UNDEF 2
 #define TELOPT_COMPRESS 	85
 
@@ -2491,7 +2491,7 @@ struct affliction_type {
  */
 #define ITEM_ALL_REMORT	 	(A)
 #define ITEM_LOCKER		(B)
-#define ITEM_trueSIGHT		(C)
+#define ITEM_TRUESIGHT		(C)
 #define ITEM_SCARE		(D)
 #define ITEM_SUSTAIN		(E)
 #define ITEM_ENCHANTED		(F)

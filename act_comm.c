@@ -363,11 +363,12 @@ void gecho(char *message)
 /* MOVED: channels.c */
 void do_gossip(CHAR_DATA *ch, char *argument)
 {
-	char buf[MAX_STRING_LENGTH], msg[2*MSL], timebuf[25];
+	char buf[MAX_STRING_LENGTH], msg[2*MSL];//, timebuf[25];
 	DESCRIPTOR_DATA *d;
+	/* Not yet
 	time_t rawtime;
     struct tm *info;
-
+	*/
 
 	if (!argument[0]) {
 		if (IS_SET(ch->comm,COMM_NOGOSSIP))
@@ -412,17 +413,17 @@ void do_gossip(CHAR_DATA *ch, char *argument)
 			send_to_char("Is that all you want to say?\n\r",ch);
 			return;
 		}
-
+/*
    time( &rawtime );
 
    info = localtime( &rawtime );
 
    strftime(timebuf,80,"%x - %I:%M%p", info);
-
+*/
 		if (!IS_NPC(ch) && ch->pcdata->flag && SHOW_CHANNEL_FLAG(ch, FLAG_GOSSIP))
-			sprintf(msg, "{M[%s] You gossip '%s {M%s{M'{x\n\r", timebuf, ch->pcdata->flag, buf);
+			sprintf(msg, "{MYou gossip '%s {M%s{M'{x\n\r", ch->pcdata->flag, buf);
 		else
-			sprintf(msg, "{M[%s] You gossip '%s{M'{x\n\r", timebuf, buf);
+			sprintf(msg, "{MYou gossip '%s{M'{x\n\r", buf);
 		send_to_char(msg, ch);
 
 		for (d = descriptor_list; d; d = d->next) {

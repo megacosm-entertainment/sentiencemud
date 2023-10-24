@@ -3,7 +3,7 @@ PROF    = -Wall -O -g -pg -ggdb -g
 OBJDIR	= obj
 VPATH   = .:obj
 LIBS = -lpthread -lz -lm -lrt -lssl -lcrypto -ldl -lcrypt
-C_FLAGS = $(PROF) -fcommon -DOLD_RAND -DMALLOC_STDLIB -fstack-protector  -m64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv -fPIC -fabi-version=2 -fno-omit-frame-pointer -DVERSION=\"$(GIT_VERSION)\" -DBUILD_DATE=\"$(CUR_BUILD_DATE)\" -DBUILD_NUMBER=\"$(CUR_BUILD_NUMBER)\" -DCOMMIT=\"$(GIT_URL)\"
+C_FLAGS = $(PROF) -fcommon -DMALLOC_STDLIB -fstack-protector  -m64 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv -fPIC -fabi-version=2 -fno-omit-frame-pointer -DVERSION=\"$(GIT_VERSION)\" -DBUILD_DATE=\"$(CUR_BUILD_DATE)\" -DBUILD_NUMBER=\"$(CUR_BUILD_NUMBER)\" -DCOMMIT=\"$(GIT_URL)\"
 L_FLAGS =  $(PROF) $(LIBS)
 EXE	= sent
 BUILD_NUMBER_FILE = build.txt

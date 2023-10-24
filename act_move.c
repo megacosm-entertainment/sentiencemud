@@ -95,6 +95,8 @@ const	int16_t	movement_loss	[SECT_MAX]	=
 	50,		/* SECT_UNDERWATER */
 	50,		/* SECT_DEEP_UNDERWATER */
 	4,		/* SECT_JUNGLE */
+	1,		/* SECT_PAVED_ROAD */
+	1,		/* SECT_DIRT_ROAD */
 };
 
 int get_player_classnth(CHAR_DATA *ch)

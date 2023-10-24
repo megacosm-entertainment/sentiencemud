@@ -4817,7 +4817,7 @@ bool can_see_shift(CHAR_DATA *ch, CHAR_DATA *victim)
 
     for (obj = ch->carrying; obj != NULL; obj = obj->next_content)
     {
-        if(IS_SET(obj->extra2_flags, ITEM_trueSIGHT)
+        if(IS_SET(obj->extra2_flags, ITEM_TRUESIGHT)
 	&& obj->wear_loc != WEAR_NONE
 	&& ch->in_room == victim->in_room)
 	    return true;

@@ -943,7 +943,7 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 					}
 
 					bool_exp_root = bool_exp = new_boolexp();
-					bool_exp->type = neg ? BOOLEXP_NOT : BOOLEXP_true;
+					bool_exp->type = neg ? BOOLEXP_NOT : BOOLEXP_TRUE;
 					bool_exp_cline = cline;
 
 					if(*line == '$') {
@@ -997,7 +997,7 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 					}
 
 					bool_exp_root = bool_exp = new_boolexp();
-					bool_exp->type = neg ? BOOLEXP_NOT : BOOLEXP_true;
+					bool_exp->type = neg ? BOOLEXP_NOT : BOOLEXP_TRUE;
 					bool_exp_cline = cline;
 
 					if(*line == '$') {
@@ -1085,7 +1085,7 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 					}
 
 					bool_exp_root = bool_exp = new_boolexp();
-					bool_exp->type = neg ? BOOLEXP_NOT : BOOLEXP_true;
+					bool_exp->type = neg ? BOOLEXP_NOT : BOOLEXP_TRUE;
 					bool_exp_cline = cline;
 
 					if(*line == '$') {
@@ -1145,7 +1145,7 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 					// Add expression for this line
 					bool_exp = be->right = new_boolexp();
 					bool_exp->parent = be;
-					bool_exp->type = neg ? BOOLEXP_NOT : BOOLEXP_true;
+					bool_exp->type = neg ? BOOLEXP_NOT : BOOLEXP_TRUE;
 
 					code[cline].level = level-1;
 
@@ -1216,7 +1216,7 @@ bool compile_script(BUFFER *err_buf,SCRIPT_DATA *script, char *source, int type)
 
 					bool_exp->parent = be;
 					bool_exp = be->right;
-					bool_exp->type = neg ? BOOLEXP_NOT : BOOLEXP_true;
+					bool_exp->type = neg ? BOOLEXP_NOT : BOOLEXP_TRUE;
 
 
 					if(*line == '$') {

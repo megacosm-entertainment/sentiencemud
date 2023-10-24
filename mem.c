@@ -3522,7 +3522,7 @@ BOOLEXP *new_boolexp()
 		boolexp_free = boolexp_free->left;
 	}
 
-	boolexp->type = BOOLEXP_true;
+	boolexp->type = BOOLEXP_TRUE;
 	boolexp->left = NULL;
 	boolexp->right = NULL;
 	boolexp->parent = NULL;

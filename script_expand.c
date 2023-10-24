@@ -1429,7 +1429,7 @@ char *expand_entity_variable(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 char *expand_entity_boolean(SCRIPT_VARINFO *info, char *str, SCRIPT_PARAM *arg)
 {
 	switch(*str) {
-		case ENTITY_BOOLEAN_true_false:
+		case ENTITY_BOOLEAN_TRUE_FALSE:
 			arg->type = ENT_STRING;
 			arg->d.str = arg->d.boolean ? "true" : "false";
 			break;
