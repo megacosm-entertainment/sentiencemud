@@ -4387,11 +4387,11 @@ void do_sset(CHAR_DATA *ch, char *argument)
 						skill_entry_removeskill(victim,sn, NULL);
 					else
 						skill_entry_removespell(victim,sn, NULL);
-				} else if( skill_entry_findsn( ch->sorted_skills, sn) == NULL) {
+				} else if( skill_entry_findsn( victim->sorted_skills, sn) == NULL) {
 					if( skill_table[sn].spell_fun == spell_null ) {
-						skill_entry_addskill(ch, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
+						skill_entry_addskill(victim, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
 					} else {
-						skill_entry_addspell(ch, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
+						skill_entry_addspell(victim, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
 					}
 				}
 			}
@@ -4404,11 +4404,11 @@ void do_sset(CHAR_DATA *ch, char *argument)
 				skill_entry_removeskill(victim,sn, NULL);
 			else
 				skill_entry_removespell(victim,sn, NULL);
-		} else if( skill_entry_findsn( ch->sorted_skills, sn) == NULL) {
+		} else if( skill_entry_findsn( victim->sorted_skills, sn) == NULL) {
 			if( skill_table[sn].spell_fun == spell_null ) {
-				skill_entry_addskill(ch, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
+				skill_entry_addskill(victim, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
 			} else {
-				skill_entry_addspell(ch, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
+				skill_entry_addspell(victim, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
 			}
 		}
 		victim->pcdata->learned[sn] = value;
@@ -5726,6 +5726,7 @@ void do_force(CHAR_DATA *ch, char *argument)
     char buf[MAX_STRING_LENGTH];
     char arg[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
+	char vict_name[MIL-1];
     CHAR_DATA *victim;
 
     argument = one_argument(argument, arg);
