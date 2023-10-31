@@ -2256,66 +2256,6 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 
 	EDIT_ROOM_SIMPLE(ch, pRoom);
 
-	// Set the exit flags
-	if (!room_is_clone(pRoom) && (value = flag_value(exit_flags, argument)) != NO_FLAG)
-	{
-		ROOM_INDEX_DATA *pToRoom;
-		int16_t rev;
-
-		if (!pRoom->exit[door])
-		{
-			// Environment exits can be created directly
-			if( value == EX_ENVIRONMENT )
-			{
-				pRoom->exit[door] = new_exit();
-				pRoom->exit[door]->from_room = pRoom;
-				pRoom->exit[door]->u1.to_room = NULL;
-				pRoom->exit[door]->orig_door = door;
-				SET_BIT(pRoom->exit[door]->rs_flags,  EX_ENVIRONMENT);
-
-				send_to_char("Environment exit created.\n\r",ch);
-				return true;
-			}
-
-			send_to_char("Exit doesn't exist.\n\r",ch);
-			return false;
-		}
-
-		TOGGLE_BIT(pRoom->exit[door]->rs_flags,  value);
-		// Don't toggle exit_info because it can be changed by players.
-		pRoom->exit[door]->exit_info = pRoom->exit[door]->rs_flags;
-
-		pToRoom = pRoom->exit[door]->u1.to_room;
-		rev = rev_dir[door];
-
-		// Set the exit as environment
-		if( IS_SET(pRoom->exit[door]->exit_info, EX_ENVIRONMENT) && IS_SET(value, EX_ENVIRONMENT) )
-		{
-			// Delete remote exit
-			if( pToRoom != NULL && pRoom->exit[rev] != NULL && pRoom->exit[rev]->u1.to_room == pRoom)
-			{
-				free_exit(pRoom->exit[rev]);
-				pRoom->exit[rev] = NULL;
-			}
-
-			// Remove destination
-			pRoom->exit[door]->u1.to_room = NULL;
-			send_to_char("Exit flag toggled.\n\rEnvironment exit distination unlinked.\n\r", ch);
-		}
-		else
-		{
-			if (pToRoom != NULL && pToRoom->exit[rev] != NULL)
-			{
-				TOGGLE_BIT(pToRoom->exit[rev]->rs_flags,  value);
-				TOGGLE_BIT(pToRoom->exit[rev]->exit_info, value);
-			}
-
-			send_to_char("Exit flag toggled.\n\r", ch);
-		}
-
-		return true;
-	}
-
 	/*
 	* Now parse the arguments.
 	*/
@@ -2375,6 +2315,69 @@ bool change_exit(CHAR_DATA *ch, char *argument, int door)
 
 		send_to_char("Exit unlinked.\n\r", ch);
 		return true;
+	}
+
+	if (!str_cmp(command, "flag"))
+	{
+		// Set the exit flags
+		if (!room_is_clone(pRoom) && (value = flag_value(exit_flags, argument)) != NO_FLAG)
+		{
+			ROOM_INDEX_DATA *pToRoom;
+			int16_t rev;
+
+			if (!pRoom->exit[door])
+			{
+				// Environment exits can be created directly
+				if( value == EX_ENVIRONMENT )
+				{
+					pRoom->exit[door] = new_exit();
+					pRoom->exit[door]->from_room = pRoom;
+					pRoom->exit[door]->u1.to_room = NULL;
+					pRoom->exit[door]->orig_door = door;
+					SET_BIT(pRoom->exit[door]->rs_flags,  EX_ENVIRONMENT);
+
+					send_to_char("Environment exit created.\n\r",ch);
+					return true;
+				}
+
+				send_to_char("Exit doesn't exist.\n\r",ch);
+				return false;
+			}
+
+			TOGGLE_BIT(pRoom->exit[door]->rs_flags,  value);
+			// Don't toggle exit_info because it can be changed by players.
+			pRoom->exit[door]->exit_info = pRoom->exit[door]->rs_flags;
+
+			pToRoom = pRoom->exit[door]->u1.to_room;
+			rev = rev_dir[door];
+
+			// Set the exit as environment
+			if( IS_SET(pRoom->exit[door]->exit_info, EX_ENVIRONMENT) && IS_SET(value, EX_ENVIRONMENT) )
+			{
+				// Delete remote exit
+				if( pToRoom != NULL && pRoom->exit[rev] != NULL && pRoom->exit[rev]->u1.to_room == pRoom)
+				{
+					free_exit(pRoom->exit[rev]);
+					pRoom->exit[rev] = NULL;
+				}
+
+				// Remove destination
+				pRoom->exit[door]->u1.to_room = NULL;
+				send_to_char("Exit flag toggled.\n\rEnvironment exit distination unlinked.\n\r", ch);
+			}
+			else
+			{
+				if (pToRoom != NULL && pToRoom->exit[rev] != NULL)
+				{
+					TOGGLE_BIT(pToRoom->exit[rev]->rs_flags,  value);
+					TOGGLE_BIT(pToRoom->exit[rev]->exit_info, value);
+				}
+
+				send_to_char("Exit flag toggled.\n\r", ch);
+			}
+
+			return true;
+		}
 	}
 
 	if (!str_cmp(command, "link"))

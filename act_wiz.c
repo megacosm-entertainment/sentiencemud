@@ -7502,8 +7502,8 @@ void do_boost(CHAR_DATA *ch, char *argument)
 
 	if (arg3[0] == '\0')
 		percent = 150;
-	else if ((percent = atoi(arg3)) < 1 || percent > 200) {
-		send_to_char("Invalid boost percent.\n\rPercent must be 1-200%.\n\r", ch);
+	else if ((percent = atoi(arg3)) < 100 || percent > 200) {
+		send_to_char("Invalid boost percent.\n\rPercent must be 100-200%.\n\r", ch);
 		return;
 	}
 
