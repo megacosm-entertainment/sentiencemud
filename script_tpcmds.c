@@ -2122,9 +2122,9 @@ SCRIPT_CMD(do_tpalterobj)
 		if(!str_cmp(field,"cond"))				ptr = (int*)&obj->condition;
 		else if(!str_cmp(field,"cost"))			{ ptr = (int*)&obj->cost; min_sec = 5; }
 		else if(!str_cmp(field,"extra"))		{ ptr = (int*)&obj->extra_flags; flags = extra_flags; }
-		else if(!str_cmp(field,"extra2"))		{ ptr = (int*)&obj->extra2_flags; flags = extra2_flags; min_sec = 7; }
-		else if(!str_cmp(field,"extra3"))		{ ptr = (int*)&obj->extra3_flags; flags = extra3_flags; min_sec = 7; }
-		else if(!str_cmp(field,"extra4"))		{ ptr = (int*)&obj->extra4_flags; flags = extra4_flags; min_sec = 7; }
+		else if(!str_cmp(field,"extra2"))		{ ptr = (int*)&obj->extra2_flags; flags = extra2_flags; min_sec = 5; }
+		else if(!str_cmp(field,"extra3"))		{ ptr = (int*)&obj->extra3_flags; flags = extra3_flags; min_sec = 5; }
+		else if(!str_cmp(field,"extra4"))		{ ptr = (int*)&obj->extra4_flags; flags = extra4_flags; min_sec = 5; }
 		else if(!str_cmp(field,"fixes"))		{ ptr = (int*)&obj->times_allowed_fixed; min_sec = 5; }
 		else if(!str_cmp(field,"key"))			{ if( obj->lock ) { ptr = (int*)&obj->lock->key_vnum; } }
 		else if(!str_cmp(field,"level"))		{ ptr = (int*)&obj->level; min_sec = 5; }

@@ -204,6 +204,23 @@ void do_pdelete(CHAR_DATA *ch, char *argument)
     send_to_char("Project deleted.\n\r", ch);
 }
 
+bool has_access_project(CHAR_DATA *ch, PROJECT_DATA *project)
+{
+    if (ch->tot_level == MAX_LEVEL)
+		return true;
+
+    if (!str_cmp(ch->name, project->leader))
+		return true;
+
+	if (find_project_builder(project, ch->name))
+		return true;
+
+    if (!IS_SET(project->project_flags, PROJECT_OPEN))
+		return false;
+
+    return false;
+}
+
 /* Handles inquiries on objects. */
 void do_pinquiry(CHAR_DATA *ch, char *argument)
 {
@@ -237,7 +254,7 @@ void do_pinquiry(CHAR_DATA *ch, char *argument)
 	EXIT_PROJECT_FUNCTION;
     }
 
-    if ((project = find_project(arg)) == NULL /*|| !has_access_project(ch, project)*/)
+    if ((project = find_project(arg)) == NULL || !has_access_project(ch, project))
     {
 	add_buf(buffer, "Project not found.\n\r");
 	EXIT_PROJECT_FUNCTION;
@@ -355,10 +372,10 @@ void do_pinquiry(CHAR_DATA *ch, char *argument)
 
     if (!str_cmp(arg2, "reply"))
     {
-	/* if (!has_access_project(ch, project)) {
+	 if (!has_access_project(ch, project)) {
 	   send_to_char("You must be a builder on that project to reply to inquiries within it.\n\r", ch);
 	   return;
-	   }*/
+	   }
 	if (pinq->closed)
 	{
 	    sprintf(buf, "That inquiry has been closed by %s.\n\r", pinq->closed_by);
@@ -575,7 +592,7 @@ void show_oldest_unread_inquiry(CHAR_DATA *ch)
     PROJECT_INQUIRY_DATA *pinq_oldest_unread = NULL;
 
     for (pinq = project_inquiry_list; pinq != NULL; pinq = pinq->next_global) {
-	if (/*has_access_project(ch, pinq->project)*/true)
+	if (has_access_project(ch, pinq->project))
 	{
 	    reply = get_last_post(pinq);
 	    if (reply->date > ch->pcdata->last_project_inquiry
@@ -610,7 +627,7 @@ int count_project_inquiries(CHAR_DATA *ch)
 
     i = 0;
     for (pinq = project_inquiry_list; pinq != NULL; pinq = pinq->next_global) {
-	if (/*has_access_project(ch, pinq->project)*/ true) {
+	if (has_access_project(ch, pinq->project)) {
 	    reply = get_last_post(pinq);
 	    if (reply->date > ch->pcdata->last_project_inquiry
 	    &&  str_cmp(ch->name, reply->sender))

@@ -8211,7 +8211,7 @@ PROJECT_BUILDER_DATA *find_project_builder(PROJECT_DATA *project, char *argument
 PROJECT_INQUIRY_DATA *find_project_inquiry(PROJECT_DATA *project, char *argument);
 int count_project_inquiries(CHAR_DATA *ch);
 void show_oldest_unread_inquiry(CHAR_DATA *ch);
-bool has_access_project(CHAR_DATA *ch, PROJECT_DATA *project, int access_type);
+bool has_access_project(CHAR_DATA *ch, PROJECT_DATA *project);
 bool can_view_project(CHAR_DATA *ch, PROJECT_DATA *project);
 bool can_edit_project(CHAR_DATA *ch, PROJECT_DATA *project);
 void show_project_inquiry(PROJECT_INQUIRY_DATA *pinq, CHAR_DATA *ch);

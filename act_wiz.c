@@ -3563,6 +3563,7 @@ void do_advance(CHAR_DATA *ch, char *argument)
 	victim->invis_level = level;
 	do_function(victim, &do_holylight, "");
 	do_function(victim, &do_holywarp, "");
+	victim->prompt = str_dup("{W[{R%o{W][{g%O{W] Room: {a%R {W({a%r{W) - {X%h{W>{X%c");
 	sprintf(buf, "\n\rYou have been set to wizinvis level {W%d{x.\n\r", victim->invis_level);
 	send_to_char(buf,victim);
 	}

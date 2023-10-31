@@ -7544,12 +7544,15 @@ OEDIT(oedit_extra2)
     if (argument[0] != '\0')
     {
 	EDIT_OBJ(ch, pObj);
-
+	
+	// We should be adding checks to individual flags.
+	/*
 	if (!has_imp_sig(NULL, pObj) && ch->tot_level < MAX_LEVEL)
 	{
 	    send_to_char("You can't do this without an IMP's permission.\n\r", ch);
 	    return false;
 	}
+	*/
 
 	if ((value = flag_value(extra2_flags, argument)) != NO_FLAG)
 	{
@@ -7577,11 +7580,14 @@ OEDIT(oedit_extra3)
     {
 	EDIT_OBJ(ch, pObj);
 
+	// We should be adding checks to individual flags.
+	/*
 	if (!has_imp_sig(NULL, pObj) && ch->tot_level < MAX_LEVEL)
 	{
 	    send_to_char("You can't do this without an IMP's permission.\n\r", ch);
 	    return false;
 	}
+	*/
 
 	if ((value = flag_value(extra3_flags, argument)) != NO_FLAG)
 	{
@@ -7609,11 +7615,14 @@ OEDIT(oedit_extra4)
     {
 	EDIT_OBJ(ch, pObj);
 
+	// We should be adding checks to individual flags.
+	/*
 	if (!has_imp_sig(NULL, pObj) && ch->tot_level < MAX_LEVEL)
 	{
 	    send_to_char("You can't do this without an IMP's permission.\n\r", ch);
 	    return false;
 	}
+	*/
 
 	if ((value = flag_value(extra4_flags, argument)) != NO_FLAG)
 	{
