@@ -2313,7 +2313,8 @@ void do_vnum(CHAR_DATA *ch, char *argument)
 	send_to_char("Syntax:\n\r",ch);
 	send_to_char("  vnum obj <name>\n\r",ch);
 	send_to_char("  vnum mob <name>\n\r",ch);
-	send_to_char("  vnum skill <skill or spell>\n\r",ch);
+	send_to_char("	vnum token <name>\n\r", ch);
+	//send_to_char("  vnum skill <skill or spell>\n\r",ch);
 	return;
     }
 
@@ -2329,6 +2330,12 @@ void do_vnum(CHAR_DATA *ch, char *argument)
 	return;
     }
 
+	if (!str_cmp(arg, "token") || !str_cmp(arg, "tok"))
+	{
+	do_function(ch, &do_tfind, string);
+	return;
+	}
+
     /*
     if (!str_cmp(arg,"skill") || !str_cmp(arg,"spell"))
     {
@@ -2337,8 +2344,12 @@ void do_vnum(CHAR_DATA *ch, char *argument)
     }
     */
     /* do both */
+	send_to_char("Mobiles:\n\r",ch);
     do_function(ch, &do_mfind, argument);
+	send_to_char("\n\rObjects:\n\r",ch);
     do_function(ch, &do_ofind, argument);
+	send_to_char("\n\rTokens:\n\r", ch);
+	do_function(ch, &do_tfind, argument);
 }
 
 
@@ -2422,6 +2433,50 @@ void do_ofind(CHAR_DATA *ch, char *argument)
 
     if (!found)
 	send_to_char("No objects by that name.\n\r", ch);
+}
+
+void do_tfind(CHAR_DATA *ch, char *argument)
+{
+    /* extern long top_mob_index; */
+    char buf[MAX_STRING_LENGTH];
+    char arg[MAX_INPUT_LENGTH];
+    TOKEN_INDEX_DATA *pTokIndex;
+    /* long vnum; */
+    int nMatch, iHash;
+    bool fAll;
+    bool found;
+
+    one_argument(argument, arg);
+    if (arg[0] == '\0')
+    {
+	send_to_char("Find what?\n\r", ch);
+	return;
+    }
+
+    if (strlen(arg) < 2) {
+	send_to_char("Your search must be at least 2 characters long.\n\r", ch);
+	return;
+    }
+
+    fAll	= false; /* !str_cmp(arg, "all"); */
+    found	= false;
+    nMatch	= 0;
+
+	for (iHash = 0; iHash < MAX_KEY_HASH; iHash++) {
+		for (pTokIndex = token_index_hash[iHash]; pTokIndex != NULL; pTokIndex = pTokIndex->next) {
+			nMatch++;
+			if (fAll || is_name(argument, pTokIndex->name)) {
+				found = true;
+				sprintf(buf, "[%5ld] %s\n\r",
+					pTokIndex->vnum, pTokIndex->name);
+				send_to_char(buf, ch);
+			}
+		}
+	}
+	
+
+    if (!found)
+	send_to_char("No tokens by that name.\n\r", ch);
 }
 
 
