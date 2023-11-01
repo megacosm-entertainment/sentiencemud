@@ -133,7 +133,7 @@ void do_channels(CHAR_DATA *ch, char *argument)
 		send_to_char((IS_SET(ch->comm,COMM_NOWIZ) ? "{DOFF{X\n\r" : "{WON{X\n\r"),ch);
 	}
 
-	if (IS_SET(ch->act, PLR_HELPER) || IS_IMMORTAL(ch)) {
+	if (IS_SET(ch->act[0], PLR_HELPER) || IS_IMMORTAL(ch)) {
 		send_to_char("helper channel ",ch);
 		send_to_char((IS_SET(ch->comm,COMM_NOHELPER) ? "{DOFF{X\n\r" : "{WON{X\n\r"),ch);
 	}
@@ -270,7 +270,7 @@ bool can_speak_channels(CHAR_DATA *ch)
 		return false;
 	}
 
-	if (IS_SET(ch->in_room->room_flags, ROOM_NOCOMM)) {
+	if (IS_SET(ch->in_room->roomflag[0], ROOM_NOCOMM)) {
 		send_to_char("No one can hear you.\n\r", ch);
 		return false;
 	}
@@ -501,7 +501,7 @@ void do_helper(CHAR_DATA *ch, char *argument)
 
 	if (!argument[0]) {
 		if (IS_SET(ch->comm,COMM_NOHELPER)) {
-			if(!IS_SET(ch->act, PLR_HELPER) && !IS_IMMORTAL(ch)) {
+			if(!IS_SET(ch->act[0], PLR_HELPER) && !IS_IMMORTAL(ch)) {
 				send_to_char("Only helpers may toggle this channel on.\n\r", ch);
 				return;
 			}
@@ -534,7 +534,7 @@ void do_helper(CHAR_DATA *ch, char *argument)
 
 			if (d->connected == CON_PLAYING && victim != ch &&
 				!IS_SET(victim->comm,COMM_NOHELPER) &&
-				(IS_SET(victim->act, PLR_HELPER) || IS_IMMORTAL(victim)) &&
+				(IS_SET(victim->act[0], PLR_HELPER) || IS_IMMORTAL(victim)) &&
 				!IS_SET(victim->comm,COMM_QUIET) && !is_ignoring(victim, ch)) {
 				if (!IS_NPC(victim) && !IS_NPC(ch) && ch->pcdata->flag && SHOW_CHANNEL_FLAG(victim, FLAG_HELPER))
 					sprintf(msg, "%s {Y%s", ch->pcdata->flag, buf);
@@ -850,7 +850,7 @@ void do_tell(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (IS_SET(ch->in_room->room_flags, ROOM_NOCOMM))
+	if (IS_SET(ch->in_room->roomflag[0], ROOM_NOCOMM))
 	{
 		send_to_char("You can't seem to gather enough energy to do it.\n\r", ch);
 		return;
@@ -1028,7 +1028,7 @@ void do_yell(CHAR_DATA *ch, char *argument)
 	return;
 	}
 
-	if (IS_SET(ch->in_room->room_flags, ROOM_NOCOMM))
+	if (IS_SET(ch->in_room->roomflag[0], ROOM_NOCOMM))
 	{
 	send_to_char("You can't seem to gather enough energy to do it.\n\r",
 	ch);
@@ -1151,7 +1151,7 @@ void do_quit(CHAR_DATA *ch, char *argument)
 		return;
 		}
 
-		if (IS_SET(ch->in_room->room2_flags, ROOM_NO_QUIT))
+		if (IS_SET(ch->in_room->roomflag[1], ROOM_NO_QUIT))
 		{
 		send_to_char("You can't quit here.\n\r", ch);
 		return;
@@ -1410,7 +1410,7 @@ void do_follow(CHAR_DATA *ch, char *argument)
 	return;
 	}
 
-	if (!IS_NPC(victim) && IS_SET(victim->act,PLR_NOFOLLOW) && !IS_IMMORTAL(ch))
+	if (!IS_NPC(victim) && IS_SET(victim->act[0],PLR_NOFOLLOW) && !IS_IMMORTAL(ch))
 	{
 	act("$N doesn't seem to want any followers.\n\r", ch,victim,NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 	return;
@@ -1425,7 +1425,7 @@ void do_follow(CHAR_DATA *ch, char *argument)
 	}
 	}
 
-	REMOVE_BIT(ch->act,PLR_NOFOLLOW);
+	REMOVE_BIT(ch->act[0],PLR_NOFOLLOW);
 
 	if (ch->master != NULL)
 	stop_follower(ch,true);
@@ -1476,7 +1476,7 @@ void stop_follower(CHAR_DATA *ch, bool show)
 
 	if (IS_AFFECTED(ch, AFF_CHARM))
 	{
-	REMOVE_BIT(ch->affected_by, AFF_CHARM);
+	REMOVE_BIT(ch->affected_by[0], AFF_CHARM);
 	affect_strip(ch, gsn_charm_person);
 	}
 
@@ -1933,15 +1933,15 @@ void do_colour(CHAR_DATA *ch, char *argument)
 
 	if (!*arg)
 	{
-	if(!IS_SET(ch->act, PLR_COLOUR))
+	if(!IS_SET(ch->act[0], PLR_COLOUR))
 	{
-	SET_BIT(ch->act, PLR_COLOUR);
+	SET_BIT(ch->act[0], PLR_COLOUR);
 	send_to_char("{bC{ro{yl{co{gr{x is now {rON!{x\n\r", ch);
 	}
 	else
 	{
 	send_to_char_bw("Colour is now OFF.\n\r", ch);
-	REMOVE_BIT(ch->act, PLR_COLOUR);
+	REMOVE_BIT(ch->act[0], PLR_COLOUR);
 	}
 
 	return;
@@ -2285,16 +2285,16 @@ void area_echo(AREA_DATA *area, char *message)
  Toggle or hide "<empty>" equipment slots.*/
 void do_autoeq(CHAR_DATA *ch, char *argument)
 {
-	if (IS_SET(ch->act, PLR_AUTOEQ))
+	if (IS_SET(ch->act[0], PLR_AUTOEQ))
 	{
 	send_to_char("You will no longer see empty equipment spots.\n\r", ch);
-	REMOVE_BIT(ch->act, PLR_AUTOEQ);
+	REMOVE_BIT(ch->act[0], PLR_AUTOEQ);
 	return;
 	}
 	else
 	{
 	send_to_char("You will now see empty equipment spots.\n\r", ch);
-	SET_BIT(ch->act, PLR_AUTOEQ);
+	SET_BIT(ch->act[0], PLR_AUTOEQ);
 	return;
 	}
 }
@@ -2552,12 +2552,12 @@ void do_toggle(CHAR_DATA *ch, char *argument)
 	if (pc_set_table[i].vector != 0)
 	{
 	vector = pc_set_table[i].vector;
-	field = &ch->act;
+	field = &ch->act[0];
 	}
 	else if (pc_set_table[i].vector2 != 0)
 	{
 	vector = pc_set_table[i].vector2;
-	field = &ch->act2;
+	field = &ch->act[1];
 	}
 	else if (pc_set_table[i].vector_comm != 0)
 	{
@@ -2616,12 +2616,12 @@ void do_toggle(CHAR_DATA *ch, char *argument)
 	if (pc_set_table[i].vector != 0)
 	{
 	vector = pc_set_table[i].vector;
-	field = &ch->act;
+	field = &ch->act[0];
 	}
 	else if (pc_set_table[i].vector2 != 0)
 	{
 	vector = pc_set_table[i].vector2;
-	field = &ch->act2;
+	field = &ch->act[1];
 	}
 	else if (pc_set_table[i].vector_comm != 0)
 	{
@@ -2691,7 +2691,7 @@ void do_quote(CHAR_DATA *ch, char *argument)
 	return;
 	}
 
-	if (IS_SET(ch->in_room->room_flags, ROOM_NOCOMM))
+	if (IS_SET(ch->in_room->roomflag[0], ROOM_NOCOMM))
 	{
 	send_to_char("You can't seem to gather enough energy to do it.\n\r",
 	ch);

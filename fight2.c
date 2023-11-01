@@ -50,17 +50,17 @@ void do_smite(CHAR_DATA *ch, char *argument)
 		}
 	}
 
-	if (IS_GOOD(ch) && !IS_SET(wield->extra_flags, ITEM_BLESS) && !IS_SET(wield->extra_flags, ITEM_HOLY)) {
+	if (IS_GOOD(ch) && !IS_SET(wield->extra[0], ITEM_BLESS) && !IS_SET(wield->extra[0], ITEM_HOLY)) {
 		act("$p is not a holy weapon.", ch, NULL, NULL, wield, NULL, NULL, NULL, TO_CHAR);
 		return;
 	}
 
-	if (IS_EVIL(ch) && !IS_SET(wield->extra_flags, ITEM_EVIL)) {
+	if (IS_EVIL(ch) && !IS_SET(wield->extra[0], ITEM_EVIL)) {
 		act("$p is not a cursed weapon.", ch, NULL, NULL, wield, NULL, NULL, NULL, TO_CHAR);
 		return;
 	}
 
-	if (ch->alignment == 0 && !IS_SET(wield->extra_flags, ITEM_EVIL) && !IS_SET(wield->extra_flags, ITEM_BLESS)) {
+	if (ch->alignment == 0 && !IS_SET(wield->extra[0], ITEM_EVIL) && !IS_SET(wield->extra[0], ITEM_BLESS)) {
 		act("$p is neither a cursed nor a holy weapon.", ch, NULL, NULL, wield, NULL, NULL, NULL, TO_CHAR);
 		return;
 	}
@@ -367,7 +367,7 @@ memset(&af,0,sizeof(af));
         while (ch->affected)
             affect_remove(ch, ch->affected);
 
-        ch->affected_by = race_table[ch->race].aff;
+        ch->affected_by[0]= race_table[ch->race].aff;
 
 	if (!silent) {
 	    act("$n winces in pain as $e constrains the demon inside $m.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
@@ -435,13 +435,13 @@ memset(&af,0,sizeof(af));
 	{
 	    ch->shifted = SHIFTED_SLAYER;
 	    pMob = IS_REMORT(ch) ? get_mob_index(MOB_VNUM_CHANGELING) : get_mob_index(MOB_VNUM_SLAYER);
-	    ch->affected_by |= race_table[pMob->race].aff;
+	    ch->affected_by[0]|= race_table[pMob->race].aff;
 	}
 	else
 	{
             ch->shifted = SHIFTED_WEREWOLF;
 	    pMob = get_mob_index(MOB_VNUM_WEREWOLF);
-	    ch->affected_by |= race_table[pMob->race].aff;
+	    ch->affected_by[0]|= race_table[pMob->race].aff;
 	}
 
 	/* figure out how many classes - 1 to figure out how much stat boost to give. */

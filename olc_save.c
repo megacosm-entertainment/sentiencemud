@@ -665,13 +665,13 @@ void save_room_new(FILE *fp, ROOM_INDEX_DATA *room, int recordtype)
 	if(room->viewwilds) {
 		fprintf(fp,"Wilds %1u %1u %1u %1u\n", (unsigned)room->viewwilds->uid, (unsigned)room->x, (unsigned)room->y, (unsigned)room->z);
 	}
-	else if(IS_SET(room->room2_flags, ROOM_BLUEPRINT))
+	else if(IS_SET(room->roomflag[1], ROOM_BLUEPRINT))
 	{
 		fprintf(fp,"Blueprint %1u %1u %1u\n", (unsigned)room->x, (unsigned)room->y, (unsigned)room->z);
 	}
 
-    fprintf(fp, "Room_flags %ld\n", room->room_flags);
-    fprintf(fp, "Room2_flags %ld\n", room->room2_flags);
+    fprintf(fp, "Room_flags %ld\n", room->roomflag[0]);
+    fprintf(fp, "Room2_flags %ld\n", room->roomflag[1]);
     fprintf(fp, "Sector_type %d\n", room->sector_type);
 
     if (room->heal_rate != 100)
@@ -787,14 +787,14 @@ void save_mobile_new(FILE *fp, MOB_INDEX_DATA *mob)
  	   fprintf(fp, "Persist\n");
     fprintf(fp, "Skeywds %s~\n", mob->skeywds);
     fprintf(fp, "Race %s~\n", race_table[mob->race].name);
-    if (mob->act != 0)
-	fprintf(fp, "Act %ld\n", mob->act | race_table[race].act);
-    if (mob->act2 != 0)
-	fprintf(fp, "Act2 %ld\n", mob->act2 | race_table[race].act2);
-    if (mob->affected_by != 0)
-	fprintf(fp, "Affected_by %ld\n", mob->affected_by | race_table[race].aff);
-    if (mob->affected_by2 != 0)
-	fprintf(fp, "Affected_by2 %ld\n", mob->affected_by2);
+    if (mob->act[0] != 0)
+	fprintf(fp, "Act %ld\n", mob->act[0] | race_table[race].act);
+    if (mob->act[1] != 0)
+	fprintf(fp, "Act2 %ld\n", mob->act[1] | race_table[race].act2);
+    if (mob->affected_by[0] != 0)
+	fprintf(fp, "Affected_by %ld\n", mob->affected_by[0] | race_table[race].aff);
+    if (mob->affected_by[1] != 0)
+	fprintf(fp, "Affected_by2 %ld\n", mob->affected_by[1]);
 
     fprintf(fp, "Level %d Alignment %d\n", mob->level, mob->alignment);
 
@@ -895,10 +895,10 @@ void save_object_new(FILE *fp, OBJ_INDEX_DATA *obj)
 	fprintf(fp, "SKeywds %s~\n", obj->skeywds);
 	fprintf(fp, "TimesAllowedFixed %d Fragility %d Points %d Update %d Timer %d\n", obj->times_allowed_fixed, obj->fragility, obj->points, obj->update, obj->timer);
 	fprintf(fp, "ItemType %s~\n", item_name(obj->item_type));
-	fprintf(fp, "ExtraFlags %ld\n", obj->extra_flags);
-	fprintf(fp, "Extra2Flags %ld\n", obj->extra2_flags);
-	fprintf(fp, "Extra3Flags %ld\n", obj->extra3_flags);
-	fprintf(fp, "Extra4Flags %ld\n", obj->extra4_flags);
+	fprintf(fp, "ExtraFlags %ld\n", obj->extra[0]);
+	fprintf(fp, "Extra2Flags %ld\n", obj->extra[1]);
+	fprintf(fp, "Extra3Flags %ld\n", obj->extra[2]);
+	fprintf(fp, "Extra4Flags %ld\n", obj->extra[3]);
 	fprintf(fp, "WearFlags %ld\n", obj->wear_flags);
 
 	fprintf(fp, "Values");
@@ -2067,7 +2067,7 @@ void create_virtual_room_new(AREA_DATA *area, long vnum, int x, int y,
 
     pRoomIndex->name		= str_dup(pParent->name);
     pRoomIndex->description	= NULL;
-    pRoomIndex->room_flags	= pParent->room_flags;
+    pRoomIndex->roomflag[0]	= pParent->roomflag[0];
     pRoomIndex->sector_type	= pParent->sector_type;
     pRoomIndex->light		= 0;//get_room_index(parent)->light;
     pRoomIndex->x = x;
@@ -2211,8 +2211,8 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 			break;
 
 	    case 'R':
-		KEY("Room_flags", 	room->room_flags, 	fread_number(fp));
-		KEY("Room2_flags", 	room->room2_flags, 	fread_number(fp));
+		KEY("Room_flags", 	room->roomflag[0], 	fread_number(fp));
+		KEY("Room2_flags", 	room->roomflag[1], 	fread_number(fp));
 
 		if (!str_cmp(word, "RoomProg")) {
 		    int tindex;
@@ -2436,10 +2436,10 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 			break;
 
 		case 'A':
-	        KEY("Act",	mob->act,	fread_number(fp));
-	        KEY("Act2",	mob->act2,	fread_number(fp));
-                KEY("Affected_by", mob->affected_by,	fread_number(fp));
-		KEY("Affected_by2",  mob->affected_by2,	fread_number(fp));
+	        KEY("Act",	mob->act[0],	fread_number(fp));
+	        KEY("Act2",	mob->act[1],	fread_number(fp));
+                KEY("Affected_by", mob->affected_by[0],	fread_number(fp));
+		KEY("Affected_by2",  mob->affected_by[1],	fread_number(fp));
 		KEY("Alignment",  mob->alignment,	fread_number(fp));
 		KEY("AttackType", mob->dam_type,	fread_number(fp));
 		KEY("Attacks",	mob->attacks,	fread_number(fp));
@@ -2659,7 +2659,7 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
     }
 
 	// Remove this bit, JIC
-	REMOVE_BIT(mob->act, ACT_ANIMATED);
+	REMOVE_BIT(mob->act[0], ACT_ANIMATED);
 
     /* Syn - make any fixes or changes to the mob here. Mainly for
        updating formats of area files, moving flags around, and such. */
@@ -2747,10 +2747,10 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 		break;
 
 	    case 'E':
-	        KEY("ExtraFlags",	obj->extra_flags,	fread_number(fp));
-	        KEY("Extra2Flags",	obj->extra2_flags,	fread_number(fp));
-	        KEY("Extra3Flags",	obj->extra3_flags,	fread_number(fp));
-	        KEY("Extra4Flags",	obj->extra4_flags,	fread_number(fp));
+			KEY("ExtraFlags",	obj->extra[0],	fread_number(fp));
+			KEY("Extra2Flags",	obj->extra[1],	fread_number(fp));
+			KEY("Extra3Flags",	obj->extra[2],	fread_number(fp));
+			KEY("Extra4Flags",	obj->extra[3],	fread_number(fp));
 
 	    case 'F':
 	        KEY("Fragility", obj->fragility,	fread_number(fp));
@@ -3032,8 +3032,8 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
      * Syn - Fix object indexes here.
      */
 
-    if (IS_SET(obj->extra_flags, ITEM_PERMANENT) && !is_relic(obj)) {
-	REMOVE_BIT(obj->extra_flags, ITEM_PERMANENT);
+    if (IS_SET(obj->extra[0], ITEM_PERMANENT) && !is_relic(obj)) {
+	REMOVE_BIT(obj->extra[0], ITEM_PERMANENT);
 	sprintf(buf, "read_object_new: removed permanent flag for item %s(%ld)",
 	    obj->short_descr, obj->vnum);
 	log_string(buf);
@@ -3043,19 +3043,19 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
     &&  (obj->value[0] == WEAPON_ARROW || obj->value[0] == WEAPON_BOLT))
 	set_weapon_dice(obj);
 /*
-    if (IS_SET(obj->extra_flags, ITEM_ANTI_GOOD)) {
+    if (IS_SET(obj->extra[0], ITEM_ANTI_GOOD)) {
 	sprintf(buf, "read_object_new: anti-good flag on item %s(%ld)",
 	    obj->short_descr, obj->vnum);
 	log_string(buf);
     }
 
-    if (IS_SET(obj->extra_flags, ITEM_ANTI_EVIL)) {
+    if (IS_SET(obj->extra[0], ITEM_ANTI_EVIL)) {
 	sprintf(buf, "read_object_new: anti-evil flag on item %s(%ld)",
 	    obj->short_descr, obj->vnum);
 	log_string(buf);
     }
 
-    if (IS_SET(obj->extra_flags, ITEM_ANTI_NEUTRAL)) {
+    if (IS_SET(obj->extra[0], ITEM_ANTI_NEUTRAL)) {
 	sprintf(buf, "read_object_new: anti-neutral flag on item %s(%ld)",
 	    obj->short_descr, obj->vnum);
 	log_string(buf);

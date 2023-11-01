@@ -181,10 +181,13 @@ extern  const   struct  flag_type       area_flags[];
 extern	const	struct	flag_type	place_flags[];
 extern	const	struct	flag_type	act_flags[];
 extern	const	struct	flag_type	act2_flags[];
+extern	const	struct	flag_type   *act_flagbank[];
 extern	const	struct	flag_type	plr_flags[];
 extern	const	struct	flag_type	plr2_flags[];
+extern	const	struct	flag_type   *plr_flagbank[];
 extern	const	struct	flag_type	affect_flags[];
 extern	const	struct	flag_type	affect2_flags[];
+extern	const	struct	flag_type   *affect_flagbank[];
 extern	const	struct	flag_type	off_flags[];
 extern	const	struct	flag_type	imm_flags[];
 extern	const	struct	flag_type	form_flags[];
@@ -194,6 +197,7 @@ extern	const	struct	flag_type	extra_flags[];
 extern	const	struct	flag_type	extra2_flags[];
 extern	const	struct	flag_type	extra3_flags[];
 extern	const	struct	flag_type	extra4_flags[];
+extern	const	struct	flag_type	*extra_flagbank[];
 extern  const	struct	flag_type	church_flags[];
 extern	const	struct	flag_type	wear_flags[];
 extern	const	struct	flag_type	weapon_flags[];
@@ -201,6 +205,7 @@ extern	const	struct	flag_type	container_flags[];
 extern	const	struct	flag_type	portal_flags[];
 extern	const	struct	flag_type	room_flags[];
 extern	const	struct	flag_type	room2_flags[];
+extern	const	struct	flag_type	*room_flagbank[];
 extern	const	struct	flag_type	exit_flags[];
 extern	const	struct	flag_type	lock_flags[];
 extern	const	struct	flag_type	portal_exit_flags[];
@@ -277,5 +282,8 @@ extern	const struct flag_type transfer_modes[];
 
 extern	const struct flag_type ship_class_types[];
 extern	const struct flag_type ship_flags[];
+
+extern	const	struct	flag_type	stock_types[];
+extern	const	struct	flag_type	prog_entity_flags[];
 
 #endif

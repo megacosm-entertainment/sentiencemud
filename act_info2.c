@@ -33,11 +33,11 @@ void do_showdamage(CHAR_DATA *ch, char *argument)
     }
 #endif
 
-    if (IS_SET(ch->act, PLR_SHOWDAMAGE)) {
-		REMOVE_BIT(ch->act, PLR_SHOWDAMAGE);
+    if (IS_SET(ch->act[0], PLR_SHOWDAMAGE)) {
+		REMOVE_BIT(ch->act[0], PLR_SHOWDAMAGE);
 		send_to_char("You will no longer see the damages of hits.\n\r", ch);
     } else {
-		SET_BIT(ch->act, PLR_SHOWDAMAGE);
+		SET_BIT(ch->act[0], PLR_SHOWDAMAGE);
 		send_to_char("You will now see the damages of hits.\n\r", ch);
     }
 }
@@ -48,14 +48,14 @@ void do_autosurvey(CHAR_DATA *ch, char *argument)
     if (IS_NPC(ch))
 	return;
 
-    if (IS_SET(ch->act2, PLR_AUTOSURVEY))
+    if (IS_SET(ch->act[1], PLR_AUTOSURVEY))
     {
-	REMOVE_BIT(ch->act2, PLR_AUTOSURVEY);
+	REMOVE_BIT(ch->act[1], PLR_AUTOSURVEY);
 	send_to_char("You will no longer automatically survey on ships.\n\r", ch);
     }
     else
     {
-	SET_BIT(ch->act2, PLR_AUTOSURVEY);
+	SET_BIT(ch->act[1], PLR_AUTOSURVEY);
 	send_to_char("You will now automatically survey on ships.\n\r", ch);
     }
 }

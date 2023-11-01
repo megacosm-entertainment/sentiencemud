@@ -203,7 +203,7 @@ SPELL_FUNC(spell_nexus)
 	portal = create_object(get_obj_index(OBJ_VNUM_PORTAL),0, true);
 	portal->timer = 1 + level / 10;
 
-	if( to_room->wilds && IS_SET(to_room->room2_flags, ROOM_VIRTUAL_ROOM) )
+	if( to_room->wilds && IS_SET(to_room->roomflag[1], ROOM_VIRTUAL_ROOM) )
 	{
 		portal->value[3] = 0;
 		portal->value[4] = 0;
@@ -231,7 +231,7 @@ SPELL_FUNC(spell_nexus)
 		portal = create_object(get_obj_index(OBJ_VNUM_PORTAL),0, true);
 		portal->timer = 1 + level/10;
 
-		if( from_room->wilds && IS_SET(from_room->room2_flags, ROOM_VIRTUAL_ROOM) )
+		if( from_room->wilds && IS_SET(from_room->roomflag[1], ROOM_VIRTUAL_ROOM) )
 		{
 			portal->value[3] = 0;
 			portal->value[4] = 0;
@@ -279,8 +279,8 @@ SPELL_FUNC(spell_reflection)
 	sprintf(buf, "A transparent projection of %s is here.", ch->name);
 	char_to_room(reflection, ch->in_room);
 
-	if (IS_SET(ch->act, PLR_COLOUR))
-	SET_BIT(reflection->act, PLR_COLOUR);
+	if (IS_SET(ch->act[0], PLR_COLOUR))
+	SET_BIT(reflection->act[0], PLR_COLOUR);
 
 	ch->desc->character = reflection;
 	ch->desc->original = ch;
@@ -315,7 +315,7 @@ SPELL_FUNC(spell_summon)
 		return false;
 	}
 
-	if (IS_SET(victim->act, PLR_NOSUMMON)) {
+	if (IS_SET(victim->act[0], PLR_NOSUMMON)) {
 		act("$N isn't allowing summons.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		return false;
 	}
@@ -329,15 +329,15 @@ SPELL_FUNC(spell_summon)
 	// Room
 	//
 	//Added area_no_recall check to go with corresponding area flag - Areo 08-10-2006
-	if (IS_SET(victim->in_room->room_flags, ROOM_NO_RECALL) ||
-		IS_SET(victim->in_room->room_flags, ROOM_NOMAGIC) ||
-		IS_SET(victim->in_room->room_flags, ROOM_SAFE) ||
+	if (IS_SET(victim->in_room->roomflag[0], ROOM_NO_RECALL) ||
+		IS_SET(victim->in_room->roomflag[0], ROOM_NOMAGIC) ||
+		IS_SET(victim->in_room->roomflag[0], ROOM_SAFE) ||
 		IS_SET(victim->in_room->area->area_flags, AREA_NO_RECALL)) {
 		send_to_char("Your target is in a magically protected room.\n\r", ch);
 		return false;
 	}
 
-	if (IS_SET(ch->in_room->room_flags, ROOM_PK) || IS_SET(ch->in_room->room_flags, ROOM_CPK) || IS_SET(ch->in_room->room_flags, ROOM_ARENA)) {
+	if (IS_SET(ch->in_room->roomflag[0], ROOM_PK) || IS_SET(ch->in_room->roomflag[0], ROOM_CPK) || IS_SET(ch->in_room->roomflag[0], ROOM_ARENA)) {
 		send_to_char("You can't summon players into this room.\n\r", ch);
 		return false;
 	}

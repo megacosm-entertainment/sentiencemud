@@ -1046,8 +1046,8 @@ void check_quest_rescue_mob(CHAR_DATA *ch, bool show)
 
 				add_follower(mob, ch, show);
 
-				if (IS_NPC(mob) && IS_SET(mob->act, ACT_AGGRESSIVE))
-				    REMOVE_BIT(mob->act, ACT_AGGRESSIVE);
+				if (IS_NPC(mob) && IS_SET(mob->act[0], ACT_AGGRESSIVE))
+				    REMOVE_BIT(mob->act[0], ACT_AGGRESSIVE);
 
 				found = true;
 				break;
@@ -1307,7 +1307,7 @@ CHAR_DATA *get_renewer_here(CHAR_DATA *ch, char *argument)
 	{
 		for (mob = ch->in_room->people; mob != NULL; mob = mob->next_in_room)
 		{
-			if (IS_NPC(mob) && IS_SET(mob->act2, ACT2_RENEWER))
+			if (IS_NPC(mob) && IS_SET(mob->act[1], ACT2_RENEWER))
 			{
 				return mob;
 			}
@@ -1324,7 +1324,7 @@ CHAR_DATA *get_renewer_here(CHAR_DATA *ch, char *argument)
 			return NULL;
 		}
 
-		if (!IS_NPC(mob) || !IS_SET(mob->act2, ACT2_RENEWER))
+		if (!IS_NPC(mob) || !IS_SET(mob->act[1], ACT2_RENEWER))
 		{
 			// Make a tell?
 			act("You cannot do that with $N.", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -1697,7 +1697,7 @@ void do_renew(CHAR_DATA *ch, char *argument)
 			if( stock->duration > 0 )
 			{
 				// This needs
-				if( !IS_SET(ch->pet->act2, ACT2_HIRED) || (ch->pet->hired_to < 1) )
+				if( !IS_SET(ch->pet->act[1], ACT2_HIRED) || (ch->pet->hired_to < 1) )
 				{
 					sprintf(buf, "Sorry %s, but you already own that pet.", pers(ch, mob));
 					do_say(mob, buf);

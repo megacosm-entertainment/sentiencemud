@@ -44,7 +44,7 @@ SPELL_FUNC(spell_animate_dead)
 			return false;
 		}
 
-		if (IS_SET(obj->extra3_flags, ITEM_NO_ANIMATE)) {
+		if (IS_SET(obj->extra[2], ITEM_NO_ANIMATE)) {
 			act("$p seems to be immune to your necromantic magic.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 			return false;
 		}
@@ -140,9 +140,9 @@ SPELL_FUNC(spell_animate_dead)
 		}
 
 		victim->comm = COMM_NOTELL|COMM_NOCHANNELS;
-		SET_BIT(victim->affected_by, AFF_CHARM);
-		SET_BIT(victim->act, ACT_ANIMATED);
-		SET_BIT(victim->act, ACT_UNDEAD);
+		SET_BIT(victim->affected_by[0], AFF_CHARM);
+		SET_BIT(victim->act[0], ACT_ANIMATED);
+		SET_BIT(victim->act[0], ACT_UNDEAD);
 		victim->corpse_vnum = index->zombie;
 		victim->parts = CORPSE_PARTS(obj);
 		char_to_room(victim, ch->in_room);
@@ -150,7 +150,7 @@ SPELL_FUNC(spell_animate_dead)
 		act("$p twitches then thrashes violently before rising to its feet!", victim, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 
 		add_follower(victim, ch, true);
-		REMOVE_BIT(victim->act, ACT_PET);
+		REMOVE_BIT(victim->act[0], ACT_PET);
 		if (!add_grouped(victim, ch, true)) {
 			act("$n falls back to the ground.", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 			char_from_room(victim);
@@ -362,7 +362,7 @@ SPELL_FUNC(spell_raise_dead)
 			return false;
 		}
 
-		if (IS_SET(obj->extra2_flags, ITEM_NO_RESURRECT)) {
+		if (IS_SET(obj->extra[1], ITEM_NO_RESURRECT)) {
 			act("$p seems to be immune to your necromantic magic.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 			return false;
 		}
@@ -393,10 +393,10 @@ SPELL_FUNC(spell_raise_dead)
 			}
 
 			// Only allow resurrection of CPK corpses in CPK rooms
-			if( IS_SET(ch->in_room->room_flags, ROOM_CPK) && !IS_SET(CORPSE_FLAGS(obj), CORPSE_CPKDEATH) )
+			if( IS_SET(ch->in_room->roomflag[0], ROOM_CPK) && !IS_SET(CORPSE_FLAGS(obj), CORPSE_CPKDEATH) )
 			{
 				// Any player, or non-holyaura immortal, attempting to do so will be ZOTTED.
-				if( !IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act2, PLR_HOLYAURA)))
+				if( !IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act[1], PLR_HOLYAURA)))
 				{
 					send_to_char("{YAttempting to raise a non-CPK corpse in a CPK room is {RFORBIDDEN{Y!{x\n\r", ch);
 					ch->hit = 1;

@@ -392,8 +392,8 @@ OBJ_DATA *get_random_obj_area( CHAR_DATA *ch, AREA_DATA *area, ROOM_INDEX_DATA *
 		if ( oIndex != NULL &&
 			IS_SET( oIndex->wear_flags, ITEM_TAKE ) &&
 			!IS_SET( oIndex->wear_flags, ITEM_NO_SAC ) &&
-			!IS_SET( oIndex->extra2_flags, ITEM_NOQUEST ) &&
-			!IS_SET( oIndex->extra_flags, ITEM_MELT_DROP ) &&
+			!IS_SET( oIndex->extra[1], ITEM_NOQUEST ) &&
+			!IS_SET( oIndex->extra[0], ITEM_MELT_DROP ) &&
 			oIndex->item_type != ITEM_MONEY )
 			break;
 	}
@@ -455,25 +455,25 @@ CHAR_DATA *get_random_mob_area( CHAR_DATA *ch, AREA_DATA *area)
 	    continue;
 	else
 	{
-	    if (IS_SET(mIndex->act, ACT_PROTECTED)
-	    || IS_SET(mIndex->act, ACT_MOUNT)
-	    || IS_SET(mIndex->act, ACT_PET)
-	    || IS_SET(mIndex->act, ACT_TRAIN)
-	    || IS_SET(mIndex->act, ACT_PRACTICE)
-	    || IS_SET(mIndex->act, ACT_STAY_AREA)
-	    || IS_SET(mIndex->act, ACT_PROTECTED)
-	    || IS_SET(mIndex->act, ACT_BLACKSMITH)
-	    || IS_SET(mIndex->act, ACT_CREW_SELLER)
-	    || IS_SET(mIndex->act, ACT_IS_RESTRINGER)
-	    || IS_SET(mIndex->act, ACT_IS_HEALER)
-	    || IS_SET(mIndex->act, ACT_IS_CHANGER)
-	    || IS_SET(mIndex->act, ACT_IS_BANKER)
-	    || IS_SET(mIndex->act2, ACT2_NOQUEST)
-	    || IS_SET(mIndex->act2, ACT2_CHURCHMASTER)
-	    || IS_SET(mIndex->act2, ACT2_PLANE_TUNNELER)
-	    || IS_SET(mIndex->act2, ACT2_AIRSHIP_SELLER)
-	    || IS_SET(mIndex->act2, ACT2_WIZI_MOB)
-	    || IS_SET(mIndex->act2, ACT2_LOREMASTER )
+	    if (IS_SET(mIndex->act[0], ACT_PROTECTED)
+	    || IS_SET(mIndex->act[0], ACT_MOUNT)
+	    || IS_SET(mIndex->act[0], ACT_PET)
+	    || IS_SET(mIndex->act[0], ACT_TRAIN)
+	    || IS_SET(mIndex->act[0], ACT_PRACTICE)
+	    || IS_SET(mIndex->act[0], ACT_STAY_AREA)
+	    || IS_SET(mIndex->act[0], ACT_PROTECTED)
+	    || IS_SET(mIndex->act[0], ACT_BLACKSMITH)
+	    || IS_SET(mIndex->act[0], ACT_CREW_SELLER)
+	    || IS_SET(mIndex->act[0], ACT_IS_RESTRINGER)
+	    || IS_SET(mIndex->act[0], ACT_IS_HEALER)
+	    || IS_SET(mIndex->act[0], ACT_IS_CHANGER)
+	    || IS_SET(mIndex->act[0], ACT_IS_BANKER)
+	    || IS_SET(mIndex->act[1], ACT2_NOQUEST)
+	    || IS_SET(mIndex->act[1], ACT2_CHURCHMASTER)
+	    || IS_SET(mIndex->act[1], ACT2_PLANE_TUNNELER)
+	    || IS_SET(mIndex->act[1], ACT2_AIRSHIP_SELLER)
+	    || IS_SET(mIndex->act[1], ACT2_WIZI_MOB)
+	    || IS_SET(mIndex->act[1], ACT2_LOREMASTER )
 	    || mIndex->pShop != NULL
 	    || mIndex->level > ( ch->tot_level + 20))
 		continue;
@@ -485,12 +485,12 @@ CHAR_DATA *get_random_mob_area( CHAR_DATA *ch, AREA_DATA *area)
 
         if ( can_see_room(ch,mob->in_room) &&
         	!room_is_private(mob->in_room, ch) &&
-        	!IS_SET(mob->in_room->room_flags, ROOM_PRIVATE) &&
-        	!IS_SET(mob->in_room->room_flags, ROOM_SOLITARY) &&
-        	!IS_SET(mob->in_room->room_flags, ROOM_DEATH_TRAP) &&
-        	!IS_SET(mob->in_room->room_flags, ROOM_SAFE) &&
-        	!IS_SET(mob->in_room->room_flags, ROOM_CPK) &&
-        	!IS_SET(mob->in_room->room2_flags, ROOM_NO_GET_RANDOM) )
+        	!IS_SET(mob->in_room->roomflag[0], ROOM_PRIVATE) &&
+        	!IS_SET(mob->in_room->roomflag[0], ROOM_SOLITARY) &&
+        	!IS_SET(mob->in_room->roomflag[0], ROOM_DEATH_TRAP) &&
+        	!IS_SET(mob->in_room->roomflag[0], ROOM_SAFE) &&
+        	!IS_SET(mob->in_room->roomflag[0], ROOM_CPK) &&
+        	!IS_SET(mob->in_room->roomflag[1], ROOM_NO_GET_RANDOM) )
 	    break;
     }
 
@@ -518,16 +518,16 @@ bool valid_random_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, int n_room_flags, i
 			!room_is_private(room, ch) &&
 			str_cmp(room->name, "NULL") &&
 			!is_dislinked(room) &&
-			(!n_room_flags || !IS_SET(room->room_flags, n_room_flags)) &&
-			(!n_room2_flags || !IS_SET(room->room2_flags, n_room2_flags)) );
+			(!n_room_flags || !IS_SET(room->roomflag[0], n_room_flags)) &&
+			(!n_room2_flags || !IS_SET(room->roomflag[1], n_room2_flags)) );
 	}
 	else
 	{
 		return ( room != NULL &&
 			str_cmp(room->name, "NULL") &&
 			!is_dislinked(room) &&
-			(!n_room_flags || !IS_SET(room->room_flags, n_room_flags)) &&
-			(!n_room2_flags || !IS_SET(room->room2_flags, n_room2_flags)) );
+			(!n_room_flags || !IS_SET(room->roomflag[0], n_room_flags)) &&
+			(!n_room2_flags || !IS_SET(room->roomflag[1], n_room2_flags)) );
 	}
 }
 
@@ -1143,10 +1143,10 @@ void do_dump( CHAR_DATA *ch, char *argument )
 					fprintf(fp, "N/A	N/A	N/A	N/A ");
 				}
 
-				fprintf( fp, "%s	", extra_bit_name(obj->extra_flags));
-				fprintf( fp, "%s	", extra2_bit_name(obj->extra2_flags));
-				fprintf( fp, "%s	", extra3_bit_name(obj->extra3_flags));
-				fprintf( fp, "%s	", extra4_bit_name(obj->extra4_flags));
+				fprintf( fp, "%s	", extra_bit_name(obj->extra[0]));
+				fprintf( fp, "%s	", extra2_bit_name(obj->extra[1]));
+				fprintf( fp, "%s	", extra3_bit_name(obj->extra[2]));
+				fprintf( fp, "%s	", extra4_bit_name(obj->extra[3]));
 				fprintf( fp, "%s	%d	", obj->update ? "Yes" : "No", obj->timer);
 
 				for ( af = obj->affected; af != NULL; af = af->next ) {
@@ -1404,7 +1404,7 @@ void generate_poa_resets( int level )
 	    reset = new_reset_data();
 	    reset->command = 'M';
 	    reset->arg1    = mob->vnum; // Mob vnum
-	    if ( IS_SET( mob->act2, ACT2_RESET_ONCE )
+	    if ( IS_SET( mob->act[1], ACT2_RESET_ONCE )
             || mob->vnum == area->max_vnum )
 		reset->arg2 = 1;
 	    else

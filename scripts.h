@@ -177,7 +177,7 @@ enum ifcheck_enum {
 		CHK_ISMOBILE,CHK_ISMOONUP,CHK_ISMORPHED,CHK_ISMYSTIC,
 		CHK_ISNEUTRAL,CHK_ISNPC,
 		CHK_ISOBJECT,CHK_ISON,CHK_ISOWNER,
-		CHK_ISPC,CHK_ISPERSIST,CHK_ISPK,CHK_ISPREY,CHK_ISPULLING,CHK_ISPULLINGRELIC,
+		CHK_ISPC,CHK_ISPERSIST,CHK_ISPK,CHK_ISPREY,CHK_ISPROG,CHK_ISPULLING,CHK_ISPULLINGRELIC,
 		CHK_ISQUESTING,
 		CHK_ISREMORT,CHK_ISREPAIRABLE,CHK_ISRESTRUNG,CHK_ISRIDDEN,CHK_ISRIDER,CHK_ISRIDING,CHK_ISROOM,CHK_ISROOMDARK,
 		CHK_ISSAFE,CHK_ISSCRIBING,CHK_ISSHIFTED,CHK_ISSHOOTING,CHK_ISSHOPKEEPER,CHK_ISSPELL,CHK_ISSUBCLASS,CHK_ISSUSTAINED,
@@ -430,6 +430,7 @@ enum entity_type_enum {
 	ENT_GROUP,
 	ENT_DICE,
 	ENT_BITVECTOR,
+	ENT_BITMATRIX,
 
 	ENT_MOBINDEX,
 	ENT_OBJINDEX,
@@ -1400,6 +1401,10 @@ struct script_parameter {
 			long value;
 			const struct flag_type *table;
 		} bv;
+		struct {
+			long *values;
+			const struct flag_type **bank;
+		} bm;
 		DICE_DATA *dice;
 		VARIABLE **variables;
 		LLIST *blist;
@@ -1638,6 +1643,7 @@ DECL_IFC_FUN(ifc_isnpc);
 DECL_IFC_FUN(ifc_ison);
 DECL_IFC_FUN(ifc_ispc);
 DECL_IFC_FUN(ifc_isprey);
+DECL_IFC_FUN(ifc_isprog);
 DECL_IFC_FUN(ifc_ispulling);
 DECL_IFC_FUN(ifc_ispullingrelic);
 DECL_IFC_FUN(ifc_isquesting);
@@ -1949,6 +1955,7 @@ DECL_OPC_FUN(opc_dungeon);
 
 /* General */
 long script_flag_value( const struct flag_type *flag_table, char *argument);
+bool script_bitmatrix_lookup(char *argument, const struct flag_type **bank, long *flags);
 char *ifcheck_get_value(SCRIPT_VARINFO *info,IFCHECK_DATA *ifc,char *text,int *ret,bool *valid);
 int execute_script(long pvnum, SCRIPT_DATA *script,
 	CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token,

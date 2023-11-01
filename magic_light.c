@@ -129,14 +129,14 @@ SPELL_FUNC(spell_continual_light)
 	obj = (OBJ_DATA *) vo;
 
 	//makes sometihng glow
-	if (IS_SET(obj->extra_flags, ITEM_GLOW)) {
+	if (IS_SET(obj->extra[0], ITEM_GLOW)) {
 		act("$p is already glowing.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 		return false;
 	}
 
 	act("$p starts glowing with a bright light.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 	act("$n's $p starts glowing with a bright light.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-	SET_BIT(obj->extra_flags, ITEM_GLOW);
+	SET_BIT(obj->extra[0], ITEM_GLOW);
 	return true;
 /* will re-enable later (AO)
 	light = create_object(get_obj_index(OBJ_VNUM_LIGHT_BALL), 0, true);

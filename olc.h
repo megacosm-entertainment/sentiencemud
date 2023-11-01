@@ -258,7 +258,7 @@ DECLARE_OLC_FUN( redit_northwest	);
 DECLARE_OLC_FUN( redit_oreset		);
 DECLARE_OLC_FUN( redit_owner		);
 DECLARE_OLC_FUN( redit_room		);
-DECLARE_OLC_FUN( redit_room2		);
+//DECLARE_OLC_FUN( redit_room2		);
 DECLARE_OLC_FUN( redit_sector		);
 DECLARE_OLC_FUN( redit_show		);
 DECLARE_OLC_FUN( redit_south		);
@@ -296,9 +296,9 @@ DECLARE_OLC_FUN( oedit_delspell		);
 DECLARE_OLC_FUN( oedit_desc		);
 DECLARE_OLC_FUN( oedit_ed		);
 DECLARE_OLC_FUN( oedit_extra            );
-DECLARE_OLC_FUN( oedit_extra2           );
-DECLARE_OLC_FUN( oedit_extra3           );
-DECLARE_OLC_FUN( oedit_extra4           );
+//DECLARE_OLC_FUN( oedit_extra2           );
+//DECLARE_OLC_FUN( oedit_extra3           );
+//DECLARE_OLC_FUN( oedit_extra4           );
 DECLARE_OLC_FUN( oedit_fragility	);
 DECLARE_OLC_FUN( oedit_level            );
 DECLARE_OLC_FUN( oedit_long		);
@@ -575,8 +575,8 @@ DECLARE_OLC_FUN( dpedit_create		);
 #define EDIT_OBJ(ch, obj)	( obj = (OBJ_INDEX_DATA *)ch->desc->pEdit )
 #define EDIT_OPCODE(ch, code)   ( code = (SCRIPT_DATA*)ch->desc->pEdit )
 #define EDIT_QUEST(ch, quest)   ( quest = (QUEST_INDEX_DATA *)ch->desc->pEdit )
-#define EDIT_ROOM(ch, room)		do { room = ch->in_room; if(!room || IS_SET(room->room2_flags,ROOM_VIRTUAL_ROOM) || room->source) return false; } while(0)
-#define EDIT_ROOM_VOID(ch, room)	do { room = ch->in_room; if(!room || IS_SET(room->room2_flags,ROOM_VIRTUAL_ROOM) || room->source) return; } while(0)
+#define EDIT_ROOM(ch, room)		do { room = ch->in_room; if(!room || IS_SET(room->roomflag[1],ROOM_VIRTUAL_ROOM) || room->source) return false; } while(0)
+#define EDIT_ROOM_VOID(ch, room)	do { room = ch->in_room; if(!room || IS_SET(room->roomflag[1],ROOM_VIRTUAL_ROOM) || room->source) return; } while(0)
 #define EDIT_ROOM_SIMPLE(ch,room)	( room = ch->in_room )
 #define EDIT_RPCODE(ch, code)   ( code = (SCRIPT_DATA*)ch->desc->pEdit )
 #define EDIT_TOKEN(ch, token)	( token = (TOKEN_INDEX_DATA *)ch->desc->pEdit )

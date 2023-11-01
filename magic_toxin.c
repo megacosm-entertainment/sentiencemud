@@ -115,7 +115,7 @@ SPELL_FUNC(spell_plague)
 	AFFECT_DATA af;
 	memset(&af,0,sizeof(af));
 
-	if (saves_spell(level,victim,DAM_DISEASE) || (IS_NPC(victim) && IS_SET(victim->act,ACT_UNDEAD))) {
+	if (saves_spell(level,victim,DAM_DISEASE) || (IS_NPC(victim) && IS_SET(victim->act[0],ACT_UNDEAD))) {
 		if (ch == victim)
 			send_to_char("You feel momentarily ill, but it passes.\n\r",ch);
 		else

@@ -27,7 +27,7 @@ SPELL_FUNC(spell_calm)
 	memset(&af,0,sizeof(af));
 
 	for (vch = ch->in_room->people; vch; vch = vch->next_in_room) {
-		if ((IS_NPC(vch) && (IS_SET(vch->imm_flags,IMM_MAGIC) || IS_SET(vch->act,ACT_UNDEAD))) || IS_IMMORTAL(vch))
+		if ((IS_NPC(vch) && (IS_SET(vch->imm_flags,IMM_MAGIC) || IS_SET(vch->act[0],ACT_UNDEAD))) || IS_IMMORTAL(vch))
 			continue;
 
 		if (!check_spell_deflection(ch, vch, sn))
@@ -86,7 +86,7 @@ SPELL_FUNC(spell_charm_person)
 		saves_spell(level, victim,DAM_CHARM))
 		return false;
 
-	if (!IS_NPC(victim) && !IS_SET(victim->in_room->room_flags, ROOM_CPK)) {
+	if (!IS_NPC(victim) && !IS_SET(victim->in_room->roomflag[0], ROOM_CPK)) {
 		send_to_char("You can only charm players in a Chaotic Player Killing room.\n\r", ch);
 		return false;
 	}
@@ -119,8 +119,8 @@ SPELL_FUNC(spell_charm_person)
 	af.bitvector2 = 0;
 	affect_to_char(victim, &af);
 
-	if (IS_NPC(victim) && IS_SET(victim->act, ACT_AGGRESSIVE))
-		REMOVE_BIT(victim->act, ACT_AGGRESSIVE);
+	if (IS_NPC(victim) && IS_SET(victim->act[0], ACT_AGGRESSIVE))
+		REMOVE_BIT(victim->act[0], ACT_AGGRESSIVE);
 
 	act("Isn't $n just so nice?", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 	if (ch != victim)
@@ -374,7 +374,7 @@ SPELL_FUNC(spell_sleep)
 	AFFECT_DATA af;
 	memset(&af,0,sizeof(af));
 
-	if (IS_AFFECTED(victim, AFF_SLEEP) || (IS_NPC(victim) && IS_SET(victim->act,ACT_UNDEAD)) ||
+	if (IS_AFFECTED(victim, AFF_SLEEP) || (IS_NPC(victim) && IS_SET(victim->act[0],ACT_UNDEAD)) ||
 		(level + 2) < victim->tot_level || saves_spell(level-4, victim,DAM_CHARM))
 		return false;
 
@@ -413,7 +413,7 @@ SPELL_FUNC(spell_third_eye)
 		return false;
 	}
 
-	if (IS_SET(skull->extra2_flags, ITEM_THIRD_EYE)) {
+	if (IS_SET(skull->extra[1], ITEM_THIRD_EYE)) {
 		act("$p has already been enchanted with third eye.", ch, NULL, NULL, skull, NULL, NULL, NULL, TO_CHAR);
 		return false;
 	}

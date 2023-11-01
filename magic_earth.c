@@ -98,9 +98,9 @@ SPELL_FUNC(spell_earth_walk)
 		return false;
 	}
 
-	if (IS_SET(victim->in_room->room_flags, ROOM_NO_RECALL) ||
-		IS_SET(victim->in_room->room_flags, ROOM_NOMAGIC) ||
-		IS_SET(victim->in_room->room_flags, ROOM_CPK)) {
+	if (IS_SET(victim->in_room->roomflag[0], ROOM_NO_RECALL) ||
+		IS_SET(victim->in_room->roomflag[0], ROOM_NOMAGIC) ||
+		IS_SET(victim->in_room->roomflag[0], ROOM_CPK)) {
 		send_to_char("That room is protected from gating magic.\n\r", ch);
 		return false;
 	}
@@ -351,8 +351,8 @@ SPELL_FUNC(spell_stone_spikes)
 			} else {
 				damage(ch, victim, dice(level/4, 8), sn, DAM_PIERCE, true);
 				affect_strip(victim, gsn_sneak);
-				REMOVE_BIT(victim->affected_by, AFF_HIDE);
-				REMOVE_BIT(victim->affected_by, AFF_SNEAK);
+				REMOVE_BIT(victim->affected_by[0], AFF_HIDE);
+				REMOVE_BIT(victim->affected_by[0], AFF_SNEAK);
 			}
 		}
 	}
@@ -375,8 +375,8 @@ SPELL_FUNC(spell_stone_spikes)
 					} else {
 						damage(ch, victim, dice(level/4, 8), sn, DAM_PIERCE, true);
 						affect_strip(victim, gsn_sneak);
-						REMOVE_BIT(victim->affected_by, AFF_HIDE);
-						REMOVE_BIT(victim->affected_by, AFF_SNEAK);
+						REMOVE_BIT(victim->affected_by[0], AFF_HIDE);
+						REMOVE_BIT(victim->affected_by[0], AFF_SNEAK);
 					}
 				}
 			}

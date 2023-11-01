@@ -2038,7 +2038,7 @@ SCRIPT_CMD(do_rpotransfer)
 
 	if (PROG_FLAG(obj,PROG_AT)) return;
 
-	if (IS_SET(obj->extra3_flags, ITEM_NO_TRANSFER) && script_security < MAX_SCRIPT_SECURITY) return;
+	if (IS_SET(obj->extra[2], ITEM_NO_TRANSFER) && script_security < MAX_SCRIPT_SECURITY) return;
 
 	argument = rp_getolocation(info, rest, &dest, &container, &carrier, &wear_loc);
 
@@ -2078,8 +2078,8 @@ SCRIPT_CMD(do_rppeace)
 	for (rch = info->room->people; rch; rch = rch->next_in_room) {
 		if (rch->fighting)
 			stop_fighting(rch, true);
-		if (IS_NPC(rch) && IS_SET(rch->act,ACT_AGGRESSIVE))
-			REMOVE_BIT(rch->act,ACT_AGGRESSIVE);
+		if (IS_NPC(rch) && IS_SET(rch->act[0],ACT_AGGRESSIVE))
+			REMOVE_BIT(rch->act[0],ACT_AGGRESSIVE);
 	}
 }
 
@@ -2122,25 +2122,25 @@ SCRIPT_CMD(do_rppurge)
 	else if(here) {
 		for (victim = here->people; victim; victim = vnext) {
 			vnext = victim->next_in_room;
-			if (IS_NPC(victim) && !IS_SET(victim->act, ACT_NOPURGE))
+			if (IS_NPC(victim) && !IS_SET(victim->act[0], ACT_NOPURGE))
 				extract_char(victim, true);
 		}
 
 		for (obj = here->contents; obj; obj = obj_next) {
 			obj_next = obj->next_content;
-			if (!IS_SET(obj->extra_flags, ITEM_NOPURGE))
+			if (!IS_SET(obj->extra[0], ITEM_NOPURGE))
 				extract_obj(obj);
 		}
 	} else if(mobs) {
 		for (victim = *mobs; victim; victim = vnext) {
 			vnext = victim->next_in_room;
-			if (IS_NPC(victim) && !IS_SET(victim->act, ACT_NOPURGE))
+			if (IS_NPC(victim) && !IS_SET(victim->act[0], ACT_NOPURGE))
 				extract_char(victim, true);
 		}
 	} else if(objs) {
 		for (obj = *objs; obj; obj = obj_next) {
 			obj_next = obj->next_content;
-			if (!IS_SET(obj->extra_flags, ITEM_NOPURGE))
+			if (!IS_SET(obj->extra[0], ITEM_NOPURGE))
 				extract_obj(obj);
 		}
 	} else
@@ -2583,7 +2583,7 @@ SCRIPT_CMD(do_rpsettimer)
 	{
 		if(IS_NPC(victim))
 		{
-			SET_BIT(victim->act2, ACT2_HIRED);
+			SET_BIT(victim->act[1], ACT2_HIRED);
 			victim->hired_to = current_time + amt * 60;
 			// If amt is zero, the expiration will be handled in update.c
 		}
@@ -2912,10 +2912,10 @@ SCRIPT_CMD(do_rpalterobj)
 
 		if(!str_cmp(field,"cond"))				ptr = (int*)&obj->condition;
 		else if(!str_cmp(field,"cost"))			{ ptr = (int*)&obj->cost; min_sec = 5; }
-		else if(!str_cmp(field,"extra"))		{ ptr = (int*)&obj->extra_flags; flags = extra_flags; }
-		else if(!str_cmp(field,"extra2"))		{ ptr = (int*)&obj->extra2_flags; flags = extra2_flags; min_sec = 5; }
-		else if(!str_cmp(field,"extra3"))		{ ptr = (int*)&obj->extra3_flags; flags = extra3_flags; min_sec = 5; }
-		else if(!str_cmp(field,"extra4"))		{ ptr = (int*)&obj->extra4_flags; flags = extra4_flags; min_sec = 5; }
+		else if(!str_cmp(field,"extra"))		{ ptr = (int*)&obj->extra[0]; flags = extra_flags; }
+		else if(!str_cmp(field,"extra2"))		{ ptr = (int*)&obj->extra[1]; flags = extra2_flags; min_sec = 5; }
+		else if(!str_cmp(field,"extra3"))		{ ptr = (int*)&obj->extra[2]; flags = extra3_flags; min_sec = 5; }
+		else if(!str_cmp(field,"extra4"))		{ ptr = (int*)&obj->extra[3]; flags = extra4_flags; min_sec = 5; }
 		else if(!str_cmp(field,"fixes"))		{ ptr = (int*)&obj->times_allowed_fixed; min_sec = 5; }
 		else if(!str_cmp(field,"key"))			{ if( obj->lock ) { ptr = (int*)&obj->lock->key_vnum; } }
 		else if(!str_cmp(field,"level"))		{ ptr = (int*)&obj->level; min_sec = 5; }
@@ -3242,6 +3242,8 @@ SCRIPT_CMD(do_rpaltermob)
 	bool hasmin = false;
 	bool hasmax = false;
 	const struct flag_type *flags = NULL;
+	const struct flag_type **bank = NULL;
+	long temp_flags[4];
 	int dirty_stat = -1;
 
 	if(!info || !info->room) return;
@@ -3296,10 +3298,8 @@ SCRIPT_CMD(do_rpaltermob)
 	else if(!str_cmp(field,"acexotic"))	ptr = (int*)&mob->armour[AC_EXOTIC];
 	else if(!str_cmp(field,"acpierce"))	ptr = (int*)&mob->armour[AC_PIERCE];
 	else if(!str_cmp(field,"acslash"))	ptr = (int*)&mob->armour[AC_SLASH];
-	else if(!str_cmp(field,"act"))		{ ptr = (int*)&mob->act; flags = IS_NPC(mob) ? act_flags : plr_flags; }
-	else if(!str_cmp(field,"act2"))		{ ptr = (int*)&mob->act2; flags = IS_NPC(mob) ? act2_flags : plr2_flags; }
-	else if(!str_cmp(field,"affect"))	{ ptr = (int*)&mob->affected_by; flags = affect_flags; }
-	else if(!str_cmp(field,"affect2"))	{ ptr = (int*)&mob->affected_by2; flags = affect2_flags; }
+	else if(!str_cmp(field,"act"))		{ ptr = (int*)mob->act; bank = IS_NPC(mob) ? act_flagbank : plr_flagbank; }
+	else if(!str_cmp(field,"affect"))	{ ptr = (int*)mob->affected_by; bank = affect_flagbank; }
 	else if(!str_cmp(field,"alignment"))	ptr = (int*)&mob->alignment;
 	else if(!str_cmp(field,"bashed"))	ptr = (int*)&mob->bashed;
 	else if(!str_cmp(field,"bind"))		ptr = (int*)&mob->bind;
@@ -3348,8 +3348,8 @@ SCRIPT_CMD(do_rpaltermob)
 	else if(!str_cmp(field,"paralyzed"))	ptr = (int*)&mob->paralyzed;
 	else if(!str_cmp(field,"paroxysm"))	ptr = (int*)&mob->paroxysm;
 	else if(!str_cmp(field,"parts"))	{ ptr = (int*)&mob->parts; allowarith = false; flags = part_flags; }
-	else if(!str_cmp(field,"permaffects"))	{ ptr = (int*)&mob->affected_by_perm; allowarith = false; flags = affect_flags; }
-	else if(!str_cmp(field,"permaffects2"))	{ ptr = (int*)&mob->affected_by2_perm; allowarith = false; flags = affect2_flags; }
+	else if(!str_cmp(field,"permaffects"))	{ ptr = (int*)&mob->affected_by_perm[0]; allowarith = false; flags = affect_flags; }
+	else if(!str_cmp(field,"permaffects2"))	{ ptr = (int*)&mob->affected_by_perm[1]; allowarith = false; flags = affect2_flags; }
 	else if(!str_cmp(field,"permimm"))	{ ptr = (int*)&mob->imm_flags_perm; allowarith = false; flags = imm_flags; }
 	else if(!str_cmp(field,"permres"))	{ ptr = (int*)&mob->res_flags_perm; allowarith = false; flags = imm_flags; }
 	else if(!str_cmp(field,"permvuln"))	{ ptr = (int*)&mob->vuln_flags_perm; allowarith = false; flags = imm_flags; }
@@ -3397,6 +3397,8 @@ SCRIPT_CMD(do_rpaltermob)
 		return;
 	}
 
+	memset(temp_flags, 0, sizeof(temp_flags));
+
 	if( lookuprace )
 	{
 		if( arg->type != ENT_STRING ) return;
@@ -3405,6 +3407,24 @@ SCRIPT_CMD(do_rpaltermob)
 		allowarith = false;
 		allowbitwise = false;
 		value = race_lookup(arg->d.str);
+	}
+	else if( bank != NULL )
+	{
+		if( arg->type != ENT_STRING ) return;
+
+		allowarith = false;	// This is a bit vector, no arithmetic operators.
+		if (!script_bitmatrix_lookup(arg->d.str, bank, temp_flags))
+			return;
+
+		if (bank == act_flagbank)
+		{
+			REMOVE_BIT(temp_flags[1], ACT2_INSTANCE_MOB);
+
+			if( buf[0] == '=' || buf[0] == '&' )
+			{
+				if( IS_SET(ptr[1], ACT2_INSTANCE_MOB) ) SET_BIT(temp_flags[1], ACT2_INSTANCE_MOB);
+			}
+		}		
 	}
 	else if( flags != NULL )
 	{
@@ -3491,7 +3511,13 @@ SCRIPT_CMD(do_rpaltermob)
 		break;
 
 	case '=':
-		*ptr = value;
+		if (bank != NULL)
+		{
+			for(int i = 0; bank[i]; i++)
+				ptr[i] = temp_flags[i];
+		}
+		else
+			*ptr = value;
 		break;
 
 	case '&':
@@ -3500,7 +3526,13 @@ SCRIPT_CMD(do_rpaltermob)
 			return;
 		}
 
-		*ptr &= value;
+		if (bank != NULL)
+		{
+			for(int i = 0; bank[i]; i++)
+				ptr[i] &= temp_flags[i];
+		}
+		else
+			*ptr &= value;
 		break;
 	case '|':
 		if( !allowbitwise ) {
@@ -3508,7 +3540,13 @@ SCRIPT_CMD(do_rpaltermob)
 			return;
 		}
 
-		*ptr |= value;
+		if (bank != NULL)
+		{
+			for(int i = 0; bank[i]; i++)
+				ptr[i] |= temp_flags[i];
+		}
+		else
+			*ptr |= value;
 		break;
 	case '!':
 		if( !allowbitwise ) {
@@ -3516,7 +3554,13 @@ SCRIPT_CMD(do_rpaltermob)
 			return;
 		}
 
-		*ptr &= ~value;
+		if (bank != NULL)
+		{
+			for(int i = 0; bank[i]; i++)
+				ptr[i] &= ~temp_flags[i];
+		}
+		else
+			*ptr &= ~value;
 		break;
 	case '^':
 		if( !allowbitwise ) {
@@ -3524,7 +3568,13 @@ SCRIPT_CMD(do_rpaltermob)
 			return;
 		}
 
-		*ptr ^= value;
+		if (bank != NULL)
+		{
+			for(int i = 0; bank[i]; i++)
+				ptr[i] ^= temp_flags[i];
+		}
+		else
+			*ptr ^= value;
 		break;
 	default:
 		return;
@@ -4901,7 +4951,7 @@ SCRIPT_CMD(do_rpcloneroom)
 	source = get_room_index(vnum);
 	if(!source) return;
 
-	if( IS_SET(source->room2_flags, ROOM_NOCLONE) )
+	if( IS_SET(source->roomflag[1], ROOM_NOCLONE) )
 		return;
 
 	if(!(argument = expand_argument(info,argument,arg)))
@@ -5082,8 +5132,8 @@ SCRIPT_CMD(do_rpalterroom)
 		return;
 	}
 
-	if(!str_cmp(field,"room"))			{ ptr = (int*)&room->room_flags; flags = room_flags; }
-	else if(!str_cmp(field,"room2"))	{ ptr = (int*)&room->room2_flags; flags = room2_flags; }
+	if(!str_cmp(field,"room"))			{ ptr = (int*)&room->roomflag[0]; flags = room_flags; }
+	else if(!str_cmp(field,"room2"))	{ ptr = (int*)&room->roomflag[0]; flags = room2_flags; }
 	else if(!str_cmp(field,"light"))	ptr = (int*)&room->light;
 	else if(!str_cmp(field,"sector"))	ptr = (int*)&room->sector_type;
 	else if(!str_cmp(field,"heal"))		{ ptr = (int*)&room->heal_rate; min_sec = 9; }
@@ -5904,12 +5954,12 @@ SCRIPT_CMD(do_rppersist)
 	{
 		if( !IS_NPC(mob) ) return;
 
-		if( IS_SET(mob->act2, ACT2_INSTANCE_MOB) ) return;
+		if( IS_SET(mob->act[1], ACT2_INSTANCE_MOB) ) return;
 	}
 
 	if(obj)
 	{
-		if( IS_SET(obj->extra3_flags, ITEM_INSTANCE_OBJ) ) return;
+		if( IS_SET(obj->extra[2], ITEM_INSTANCE_OBJ) ) return;
 	}
 
 	if( room )

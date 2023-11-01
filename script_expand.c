@@ -2030,27 +2030,15 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 
 	case ENTITY_MOB_ACT:
-		arg->type = ENT_BITVECTOR;
-		arg->d.bv.value = self ? self->act : 0;
-		arg->d.bv.table = self ? (IS_NPC(self) ? act_flags : plr_flags) : NULL;
-		break;
-
-	case ENTITY_MOB_ACT2:
-		arg->type = ENT_BITVECTOR;
-		arg->d.bv.value = self ? self->act2 : 0;
-		arg->d.bv.table = self ? (IS_NPC(self) ? act2_flags : plr2_flags) : NULL;
+		arg->type = ENT_BITMATRIX;
+		arg->d.bm.values = self ? self->act : NULL;
+		arg->d.bm.bank = self ? (IS_NPC(self) ? act_flagbank : plr_flagbank) : NULL;
 		break;
 
 	case ENTITY_MOB_AFFECT:
-		arg->type = ENT_BITVECTOR;
-		arg->d.bv.value = self ? self->affected_by : 0;
-		arg->d.bv.table = self ? affect_flags : NULL;
-		break;
-
-	case ENTITY_MOB_AFFECT2:
-		arg->type = ENT_BITVECTOR;
-		arg->d.bv.value = self ? self->affected_by2 : 0;
-		arg->d.bv.table = self ? affect2_flags : NULL;
+		arg->type = ENT_BITMATRIX;
+		arg->d.bm.values = self ? self->affected_by : NULL;
+		arg->d.bm.bank = self ? affect_flagbank : NULL;
 		break;
 
 	case ENTITY_MOB_OFF:
@@ -2337,9 +2325,11 @@ char *expand_entity_mobile_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 
 	case ENTITY_MOB_ACT:
-	case ENTITY_MOB_ACT2:
 	case ENTITY_MOB_AFFECT:
-	case ENTITY_MOB_AFFECT2:
+		arg->type = ENT_BITMATRIX;
+		arg->d.bm.values = NULL;
+		arg->d.bm.bank = NULL;
+		break;
 	case ENTITY_MOB_OFF:
 	case ENTITY_MOB_IMMUNE:
 	case ENTITY_MOB_RESIST:
@@ -2462,32 +2452,14 @@ char *expand_entity_object(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 
 	case ENTITY_OBJ_EXTRA:
-		arg->type = ENT_BITVECTOR;
-		arg->d.bv.value = arg->d.obj ? arg->d.obj->extra_flags : 0;
-		arg->d.bv.table = extra_flags;
-		break;
-
-	case ENTITY_OBJ_EXTRA2:
-		arg->type = ENT_BITVECTOR;
-		arg->d.bv.value = arg->d.obj ? arg->d.obj->extra2_flags : 0;
-		arg->d.bv.table = extra2_flags;
-		break;
-
-	case ENTITY_OBJ_EXTRA3:
-		arg->type = ENT_BITVECTOR;
-		arg->d.bv.value = arg->d.obj ? arg->d.obj->extra3_flags : 0;
-		arg->d.bv.table = extra3_flags;
-		break;
-
-	case ENTITY_OBJ_EXTRA4:
-		arg->type = ENT_BITVECTOR;
-		arg->d.bv.value = arg->d.obj ? arg->d.obj->extra4_flags : 0;
-		arg->d.bv.table = extra4_flags;
+		arg->type = ENT_BITMATRIX;
+		arg->d.bm.values = self ? self->extra : NULL;
+		arg->d.bm.bank = extra_flagbank;
 		break;
 
 	case ENTITY_OBJ_WEAR:
 		arg->type = ENT_BITVECTOR;
-		arg->d.bv.value = arg->d.obj ? arg->d.obj->wear_flags : 0;
+		arg->d.bv.value = self ? self->wear_flags : 0;
 		arg->d.bv.table = wear_flags;
 		break;
 
@@ -2591,9 +2563,10 @@ char *expand_entity_object_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 
 	case ENTITY_OBJ_EXTRA:
-	case ENTITY_OBJ_EXTRA2:
-	case ENTITY_OBJ_EXTRA3:
-	case ENTITY_OBJ_EXTRA4:
+		arg->type = ENT_BITMATRIX;
+		arg->d.bm.values = NULL;
+		arg->d.bm.bank = NULL;
+		break;
 	case ENTITY_OBJ_WEAR:
 		arg->type = ENT_BITVECTOR;
 		arg->d.bv.value = 0;
@@ -5242,6 +5215,36 @@ char *expand_entity_bitvector(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	return str+1;
 }
 
+char *expand_entity_bitmatrix(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
+{
+	switch(*str) {
+	case ESCAPE_VARIABLE:
+		arg->type = ENT_BOOLEAN;
+		if(arg->d.bm.bank && arg->d.bm.values)
+		{
+			BUFFER *buffer = new_buf();
+			str = expand_name(info,(info?*(info->var):NULL),str+1,buffer);
+			if(!str) {
+				free_buf(buffer);
+				arg->d.boolean = false;
+				return NULL;
+			}
+
+			arg->d.boolean = bitmatrix_isset(buf_string(buffer), arg->d.bm.bank, arg->d.bm.values);
+			free_buf(buffer);
+		}
+		else
+		{
+			arg->d.boolean = false;
+		}
+		break;
+	default: return NULL;
+	}
+
+	return str+1;
+}
+
+
 
 char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
@@ -5318,6 +5321,7 @@ char *expand_argument_entity(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		case ENT_SHIP:			next = expand_entity_ship(info,str,arg); break;
 
 		case ENT_BITVECTOR:		next = expand_entity_bitvector(info,str,arg); break;
+		case ENT_BITMATRIX:		next = expand_entity_bitmatrix(info,str,arg); break;
 		case ENT_NULL:
 			next = str+1;
 			arg->type = ENT_NULL;
@@ -5414,6 +5418,14 @@ char *expand_string_entity(SCRIPT_VARINFO *info,char *str, BUFFER *buffer)
 
 	case ENT_SHIP:
 		add_buf(buffer, IS_VALID(arg->d.ship) ? arg->d.ship->ship_name : SOMETHING);
+		break;
+	
+	case ENT_BITVECTOR:
+		add_buf(buffer, flag_string(arg->d.bv.table, arg->d.bv.value));
+		break;
+
+	case ENT_BITMATRIX:
+		add_buf(buffer, bitmatrix_string(arg->d.bm.bank, arg->d.bm.values));
 		break;
 	}
 

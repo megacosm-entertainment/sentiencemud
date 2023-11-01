@@ -337,7 +337,7 @@ OEDIT(oedit_comments)
     send_to_char("Syntax:  comments\n\r", ch);
     return false;
 }
-
+/*
 OEDIT(oedit_update)
 {
     OBJ_INDEX_DATA *pObj;
@@ -363,7 +363,7 @@ OEDIT(oedit_update)
 
     return true;
 }
-
+*/
 OEDIT(oedit_timer)
 {
     OBJ_INDEX_DATA *pObj;

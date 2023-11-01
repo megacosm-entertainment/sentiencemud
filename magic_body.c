@@ -124,7 +124,7 @@ SPELL_FUNC(spell_cure_blindness)
 	if (IS_AFFECTED(victim, AFF_BLIND) && number_percent() < chance) {
 		affect_strip(victim, skill_lookup("blindness"));
 		affect_strip(victim, skill_lookup("fire breath"));
-		REMOVE_BIT(victim->affected_by, AFF_BLIND);
+		REMOVE_BIT(victim->affected_by[0], AFF_BLIND);
 		send_to_char(skill_table[skill_lookup("blindness")].msg_off, victim);
 		send_to_char("\n\r", victim);
 		act("$n is no longer blinded.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
@@ -269,7 +269,7 @@ SPELL_FUNC(spell_cure_toxic)
 		chance = 75;
 
 	if (number_percent() < chance) {
-		if(IS_IMMORTAL(ch) || (!IS_SET(victim->in_room->room2_flags, ROOM_TOXIC_BOG) &&
+		if(IS_IMMORTAL(ch) || (!IS_SET(victim->in_room->roomflag[1], ROOM_TOXIC_BOG) &&
 			(victim->in_room->sector_type != SECT_TOXIC_BOG))) {
 			affect_strip(victim, gsn_toxic_fumes);
 			send_to_char(skill_table[gsn_toxic_fumes].msg_off, victim);

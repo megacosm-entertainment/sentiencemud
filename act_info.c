@@ -341,13 +341,13 @@ char *format_obj_to_char(OBJ_DATA * obj, CHAR_DATA * ch, bool fShort)
 		strcat(buf, "{y(Gold Aura){w ");
     if ((IS_AFFECTED(ch, AFF_DETECT_EVIL) || (!IS_NPC(ch) && IS_REMORT(ch))) && IS_OBJ_STAT(obj, ITEM_EVIL))
 		strcat(buf, "{R(Red Aura){w ");
-    if (IS_SET(obj->extra2_flags, ITEM_KEPT))
+    if (IS_SET(obj->extra[1], ITEM_KEPT))
 		strcat(buf, "{b({BK{b){x ");
-	if (IS_SET(obj->extra3_flags, ITEM_ACTIVATED))
+	if (IS_SET(obj->extra[2], ITEM_ACTIVATED))
 		strcat(buf, "{b({WA{b){x ");
     if (IS_OBJ_STAT(obj, ITEM_PLANTED))
 		strcat(buf, "{R(Planted){w ");
-    if (IS_SET(obj->extra2_flags, ITEM_BURIED))
+    if (IS_SET(obj->extra[1], ITEM_BURIED))
 		strcat(buf, "{y(Buried){w ");
     if (fShort)
     {
@@ -623,7 +623,7 @@ void show_list_to_char(OBJ_DATA *list, CHAR_DATA *ch, bool fShort,
     {
 	/* You dont see hidden objects in a list.
 	   Makes sense since hidden objects can*only* be on the ground. */
-	if (IS_SET(obj->extra_flags, ITEM_HIDDEN))
+	if (IS_SET(obj->extra[0], ITEM_HIDDEN))
 	    continue;
 
 	/* Mist type blocks random objs from view. */
@@ -750,7 +750,7 @@ void show_char_to_char_0(CHAR_DATA * victim, CHAR_DATA * ch)
 		strcat(buf, "{Y[AFK] {G");
     if (victim->invis_level >= LEVEL_HERO)
 		strcat(buf, "{B({WW{Ri{Yz{Gi{B) {G");
-    if (IS_NPC(victim) && IS_SET(victim->act2, ACT2_WIZI_MOB))
+    if (IS_NPC(victim) && IS_SET(victim->act[1], ACT2_WIZI_MOB))
  		strcat(buf, "{B({WW{Ri{Yz{Gi{GMOB{B) {G");
     if (IS_AFFECTED(victim, AFF_CHARM))
 		strcat(buf, "{Y(Charmed) {G");
@@ -1162,11 +1162,11 @@ void show_char_to_char_1(CHAR_DATA * victim, CHAR_DATA * ch, bool examine)
 	show_list_to_char(victim->carrying, ch, true, true);
     }
 
-	if( IS_NPC(ch) || !IS_SET(ch->act2, PLR_NOLORE) || examine )
+	if( IS_NPC(ch) || !IS_SET(ch->act[1], PLR_NOLORE) || examine )
 	{
     if (IS_NPC(victim) && number_percent() < get_skill(ch, gsn_mob_lore))
     {
-        if (IS_SET(victim->act, ACT_NO_LORE) && ch->tot_level <= victim->tot_level)
+        if (IS_SET(victim->act[0], ACT_NO_LORE) && ch->tot_level <= victim->tot_level)
 	    act("\n\r{R$N is too powerful for you to lore.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 	else
 	{
@@ -1177,7 +1177,7 @@ void show_char_to_char_1(CHAR_DATA * victim, CHAR_DATA * ch, bool examine)
 	}
     }
 
-    if (IS_NPC(victim) && (!IS_SET(victim->act, ACT_NO_LORE) || ch->tot_level > victim->tot_level))
+    if (IS_NPC(victim) && (!IS_SET(victim->act[0], ACT_NO_LORE) || ch->tot_level > victim->tot_level))
 	p_percent_trigger(victim, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE_EX, NULL);
 
     return;
@@ -1213,7 +1213,7 @@ void show_char_to_char(CHAR_DATA *list, CHAR_DATA *ch, CHAR_DATA *victim)
 
  	    if (!IS_IMMORTAL(ch)
 	    && IS_NPC(victim)
-	    && IS_SET(victim->act2, ACT2_WIZI_MOB))
+	    && IS_SET(victim->act[1], ACT2_WIZI_MOB))
  	        continue;
 
             if (IS_AFFECTED(rch, AFF_HIDE)
@@ -1274,7 +1274,7 @@ void show_char_to_char(CHAR_DATA *list, CHAR_DATA *ch, CHAR_DATA *victim)
 /* MOVED: senses/vision.c */
 bool check_blind(CHAR_DATA * ch)
 {
-    if (!IS_NPC(ch) && IS_SET(ch->act, PLR_HOLYLIGHT))
+    if (!IS_NPC(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT))
 	return true;
 
     if (IS_AFFECTED(ch, AFF_BLIND))
@@ -1466,7 +1466,7 @@ void do_survey(CHAR_DATA *ch, char *argument)
 		}
 
 		long bonus_view;
-		if( IS_SET(ch->in_room->room_flags, ROOM_VIEWWILDS) )
+		if( IS_SET(ch->in_room->roomflag[0], ROOM_VIEWWILDS) )
 			bonus_view = 8;
 		else
 			bonus_view = 2;
@@ -1786,8 +1786,8 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 
 	linelength = 0;
 
-	if (IS_IMMORTAL(ch) && (IS_NPC(ch) || IS_SET(ch->act, PLR_HOLYLIGHT))) {
-		if (IS_SET(room->room2_flags, ROOM_VIRTUAL_ROOM)) {
+	if (IS_IMMORTAL(ch) && (IS_NPC(ch) || IS_SET(ch->act[0], PLR_HOLYLIGHT))) {
+		if (IS_SET(room->roomflag[1], ROOM_VIRTUAL_ROOM)) {
 			if(room->wilds) {
 				sprintf (buf, "\n\r{C [ Area: %ld '%s', Wilds uid: %ld '%s', Vroom (%ld, %ld) ]{x",
 					room->area->anum, room->area->name,
@@ -1828,30 +1828,30 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 	linelength = strlen(room->name);
 	linelength = 50 - linelength;
 
-	if (IS_SET(room->room_flags, ROOM_SAFE))
+	if (IS_SET(room->roomflag[0], ROOM_SAFE))
 		sprintf(buf, "\n\r {W%s", room->name);
-	else if (IS_SET(room->room_flags, ROOM_UNDERWATER))
+	else if (IS_SET(room->roomflag[0], ROOM_UNDERWATER))
 		sprintf(buf, "\n\r {C%s", room->name);
 	else
 		sprintf(buf, "\n\r {Y%s", room->name);
 
 	send_to_char(buf, ch);
 
-	if (IS_SET(room->room_flags, ROOM_PK) && IS_SET(room->room_flags, ROOM_CPK)) {
+	if (IS_SET(room->roomflag[0], ROOM_PK) && IS_SET(room->roomflag[0], ROOM_CPK)) {
 		sprintf(buf, "  {M[CNPK ROOM]");
 		send_to_char(buf, ch);
 		linelength -= 13;
-	} else if (IS_SET(room->room_flags, ROOM_CPK)) {
+	} else if (IS_SET(room->roomflag[0], ROOM_CPK)) {
 		sprintf(buf, "  {M[CPK ROOM]");
 		send_to_char(buf, ch);
 		linelength -= 12;
-	} else if (IS_SET(room->room_flags, ROOM_PK)) {
+	} else if (IS_SET(room->roomflag[0], ROOM_PK)) {
 		sprintf(buf, "  {R[NPK ROOM]");
 		send_to_char(buf, ch);
 		linelength -= 12;
 	}
 
-	if (IS_SET(room->room2_flags, ROOM_MULTIPLAY)) {
+	if (IS_SET(room->roomflag[1], ROOM_MULTIPLAY)) {
 		sprintf(buf, "  {W[FREE FOR ALL]");
 		send_to_char(buf, ch);
 		linelength -= 16;
@@ -1865,12 +1865,12 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 		}
 	}
 
-	if (IS_SET(room->room_flags, ROOM_HOUSE_UNSOLD)) {
+	if (IS_SET(room->roomflag[0], ROOM_HOUSE_UNSOLD)) {
 		sprintf(buf, "  {R[PRIME REAL ESTATE]");
 		send_to_char(buf, ch);
 		linelength -= 21;
 	}
-	if (IS_SET(ch->act2, PLR_COMPASS))
+	if (IS_SET(ch->act[1], PLR_COMPASS))
 	{
 		for (count = 0; count < linelength; count++)
 		send_to_char(" ", ch);
@@ -1907,7 +1907,7 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 			send_to_char("     {b-{x", ch);
 	}
 	send_to_char("{x\n\r", ch);
-	if(IS_SET(ch->act2, PLR_COMPASS))
+	if(IS_SET(ch->act[1], PLR_COMPASS))
 	{
 		send_to_char ("{B({b-----------------------------------------------{B){b  ", ch);
 	}
@@ -1915,7 +1915,7 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 	{
 		send_to_char("{B({b--------------------------------------------------------------{B)", ch);
 	}
-	if(IS_SET(ch->act2, PLR_COMPASS))
+	if(IS_SET(ch->act[1], PLR_COMPASS))
 	{
 		pexit = room->exit[3];
 		if (pexit != NULL && !IS_SET(pexit->exit_info, EX_WALKTHROUGH) &&
@@ -1958,7 +1958,7 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 			send_to_char("{b-", ch);
 	}
 	send_to_char("{x\n\r", ch);
-	if(IS_SET(ch->act2, PLR_COMPASS))
+	if(IS_SET(ch->act[1], PLR_COMPASS))
 	{
 
 		for (count = 0; count < 51; count++)
@@ -1997,7 +1997,7 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 	send_to_char("{x\n\r", ch);
 
 	if (!automatic || ((!IS_NPC(ch) || IS_SWITCHED(ch)) && !IS_SET(ch->comm, COMM_BRIEF))) {
-		if (IS_WILDERNESS(room) || IS_SET(room->room_flags, ROOM_VIEWWILDS)) {
+		if (IS_WILDERNESS(room) || IS_SET(room->roomflag[0], ROOM_VIEWWILDS)) {
 			send_to_char("\n\r", ch);
 		} else {
 			if (room->chat_room != NULL) {
@@ -2020,8 +2020,8 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 				for (dir = 0; dir < MAX_DIR; dir++) {
 					if (room->exit[dir] != NULL &&
 						(to_room = room->exit[dir]->u1.to_room) != NULL) {
-						if (IS_SET(to_room->room_flags, ROOM_PK) ||
-							IS_SET(to_room->room_flags, ROOM_CPK) ||
+						if (IS_SET(to_room->roomflag[0], ROOM_PK) ||
+							IS_SET(to_room->roomflag[0], ROOM_CPK) ||
 							is_pk_safe_range(to_room, ch->pcdata->danger_range - 1, rev_dir[dir]) > -1) {
 							if (buf[0] == '\0')
 								sprintf(buf, "{RYou sense danger to the: %s", dir_name[dir]);
@@ -2042,7 +2042,7 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 
 #if 1
 			if (!IS_SET(ch->comm, COMM_NOMAP) && /*!ON_SHIP(ch) &&*/
-				!IS_SET(room->room_flags, ROOM_NOMAP) &&
+				!IS_SET(room->roomflag[0], ROOM_NOMAP) &&
 				!IS_SET(room->area->area_flags, AREA_NOMAP))
 				show_map_and_description(ch, room);
 			else {
@@ -2055,17 +2055,17 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 		}
 	}
 
-	if (!remote && (!IS_NPC(ch) || IS_SWITCHED(ch)) && IS_SET(ch->act, PLR_AUTOEXIT)) {
+	if (!remote && (!IS_NPC(ch) || IS_SWITCHED(ch)) && IS_SET(ch->act[0], PLR_AUTOEXIT)) {
 		send_to_char("\n\r", ch);
 		do_exits(ch, "auto");
 	}
 
 	/* VIZZWILDS - Check if char is in a wilderness room, and if so display wilds map */
 	if (room->wilds && ((automatic && ((!IS_NPC(ch) &&
-		IS_SET(room->room2_flags, ROOM_VIRTUAL_ROOM) &&
+		IS_SET(room->roomflag[1], ROOM_VIRTUAL_ROOM) &&
 		!IS_SET(ch->comm, COMM_BRIEF)))) ||
 		(!automatic && !IS_NPC(ch) &&
-		IS_SET(room->room2_flags, ROOM_VIRTUAL_ROOM)))) {
+		IS_SET(room->roomflag[1], ROOM_VIRTUAL_ROOM)))) {
 		int vp_x, vp_y;
 
 		vp_x = get_squares_to_show_x(ch->wildview_bonus_x);
@@ -2073,8 +2073,8 @@ void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, b
 		show_map_to_char_wyx(room->wilds, room->x, room->y, ch, room->x, room->y, vp_x, vp_y, false);
 	}
 
-	if(!IS_NPC(ch) /*&& !IS_SET(room->room2_flags, ROOM_VIRTUAL_ROOM)*/ &&
-		IS_SET(room->room_flags, ROOM_VIEWWILDS) &&
+	if(!IS_NPC(ch) /*&& !IS_SET(room->roomflag[1], ROOM_VIRTUAL_ROOM)*/ &&
+		IS_SET(room->roomflag[0], ROOM_VIEWWILDS) &&
 		(!automatic || !IS_SET(ch->comm, COMM_BRIEF))) {
 		int vp_x, vp_y;
 		int x, y;
@@ -2285,7 +2285,7 @@ void do_look(CHAR_DATA * ch, char *argument)
 
 				send_to_char("{MThe crystal ball sparks and splutters as an image appears.{x\n\r", ch);
 				if ((victim = get_char_world(ch, argument)) == NULL ||
-					(victim->in_room != NULL && IS_SET(victim->in_room->room_flags, ROOM_SAFE)))
+					(victim->in_room != NULL && IS_SET(victim->in_room->roomflag[0], ROOM_SAFE)))
 				{
 					send_to_char("{MThe image blurs and fades into nothing.{x\n\r", ch);
 					return;
@@ -2310,14 +2310,14 @@ void do_look(CHAR_DATA * ch, char *argument)
 		{
 			/* Can person lore object */
 			perform_lore = false;
-			if ((IS_NPC(ch) || !IS_SET(ch->act2, PLR_NOLORE)) &&
+			if ((IS_NPC(ch) || !IS_SET(ch->act[1], PLR_NOLORE)) &&
 				/* get_skill(ch, gsn_lore) > 0 &&
 				number_percent() <= get_skill(ch, skill_lookup("lore")) &&*/
-				((!IS_NPC(ch) && IS_SET(ch->act, PLR_HOLYLIGHT)) ||													// Immortal HOLYLIGHT
-				!IS_SET(obj->extra2_flags, ITEM_NO_LORE) || 														// NO_LORE not set
-				(IS_SET(obj->extra2_flags, ITEM_ALL_REMORT) && IS_REMORT(ch)) ||									// ALL_REMORT and this is a remort
-				(IS_SET(obj->extra2_flags, ITEM_REMORT_ONLY) && IS_REMORT(ch) && ch->tot_level > obj->level) ||		// REMORT_ONLY and this is a remort, check level
-				(!IS_SET(obj->extra2_flags, ITEM_REMORT_ONLY) && ch->tot_level > obj->level)))						// !REMORT_ONLY, check level
+				((!IS_NPC(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT)) ||													// Immortal HOLYLIGHT
+				!IS_SET(obj->extra[1], ITEM_NO_LORE) || 														// NO_LORE not set
+				(IS_SET(obj->extra[1], ITEM_ALL_REMORT) && IS_REMORT(ch)) ||									// ALL_REMORT and this is a remort
+				(IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && IS_REMORT(ch) && ch->tot_level > obj->level) ||		// REMORT_ONLY and this is a remort, check level
+				(!IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && ch->tot_level > obj->level)))						// !REMORT_ONLY, check level
 				perform_lore = true;
 
 			pdesc = get_extra_descr(arg3, obj->extra_descr);
@@ -2409,9 +2409,9 @@ void do_look(CHAR_DATA * ch, char *argument)
 							}
 
 							if (!can_see_room(ch,victim->in_room) ||
-								IS_SET(victim->in_room->room_flags, ROOM_NOVIEW) ||
-								IS_SET(victim->in_room->room_flags, ROOM_PRIVATE) ||
-								IS_SET(victim->in_room->room_flags, ROOM_SOLITARY))
+								IS_SET(victim->in_room->roomflag[0], ROOM_NOVIEW) ||
+								IS_SET(victim->in_room->roomflag[0], ROOM_PRIVATE) ||
+								IS_SET(victim->in_room->roomflag[0], ROOM_SOLITARY))
 							{
 								send_to_char("{DAll you see is darkness.{x\n\r", ch);
 								return;
@@ -2438,14 +2438,14 @@ void do_look(CHAR_DATA * ch, char *argument)
 		{
 			/* Can person lore object */
 			perform_lore = false;
-			if ((IS_NPC(ch) || !IS_SET(ch->act2, PLR_NOLORE)) &&
+			if ((IS_NPC(ch) || !IS_SET(ch->act[1], PLR_NOLORE)) &&
 				/* get_skill(ch, gsn_lore) > 0 &&
 				number_percent() <= get_skill(ch, skill_lookup("lore")) && */
-				((!IS_NPC(ch) && IS_SET(ch->act, PLR_HOLYLIGHT)) ||													// Immortal HOLYLIGHT
-				!IS_SET(obj->extra2_flags, ITEM_NO_LORE) || 														// NO_LORE not set
-				(IS_SET(obj->extra2_flags, ITEM_ALL_REMORT) && IS_REMORT(ch)) ||									// ALL_REMORT and this is a remort
-				(IS_SET(obj->extra2_flags, ITEM_REMORT_ONLY) && IS_REMORT(ch) && ch->tot_level > obj->level) ||		// REMORT_ONLY and this is a remort, check level
-				(!IS_SET(obj->extra2_flags, ITEM_REMORT_ONLY) && ch->tot_level > obj->level)))						// !REMORT_ONLY, check level
+				((!IS_NPC(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT)) ||													// Immortal HOLYLIGHT
+				!IS_SET(obj->extra[1], ITEM_NO_LORE) || 														// NO_LORE not set
+				(IS_SET(obj->extra[1], ITEM_ALL_REMORT) && IS_REMORT(ch)) ||									// ALL_REMORT and this is a remort
+				(IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && IS_REMORT(ch) && ch->tot_level > obj->level) ||		// REMORT_ONLY and this is a remort, check level
+				(!IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && ch->tot_level > obj->level)))						// !REMORT_ONLY, check level
 								perform_lore = true;
 
 			/* Check extra desc first */
@@ -2843,11 +2843,11 @@ void do_examine(CHAR_DATA * ch, char *argument)
 
 					if ( /* get_skill(ch, gsn_lore) > 0 &&
 						number_percent() <= get_skill(ch, gsn_lore) && */
-						((!IS_NPC(ch) && IS_SET(ch->act, PLR_HOLYLIGHT)) ||													// Immortal HOLYLIGHT
-						!IS_SET(obj->extra2_flags, ITEM_NO_LORE) || 														// NO_LORE not set
-						(IS_SET(obj->extra2_flags, ITEM_ALL_REMORT) && IS_REMORT(ch)) ||									// ALL_REMORT and this is a remort
-						(IS_SET(obj->extra2_flags, ITEM_REMORT_ONLY) && IS_REMORT(ch) && ch->tot_level > obj->level) ||		// REMORT_ONLY and this is a remort, check level
-						(!IS_SET(obj->extra2_flags, ITEM_REMORT_ONLY) && ch->tot_level > obj->level)))						// !REMORT_ONLY, check level
+						((!IS_NPC(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT)) ||													// Immortal HOLYLIGHT
+						!IS_SET(obj->extra[1], ITEM_NO_LORE) || 														// NO_LORE not set
+						(IS_SET(obj->extra[1], ITEM_ALL_REMORT) && IS_REMORT(ch)) ||									// ALL_REMORT and this is a remort
+						(IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && IS_REMORT(ch) && ch->tot_level > obj->level) ||		// REMORT_ONLY and this is a remort, check level
+						(!IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && ch->tot_level > obj->level)))						// !REMORT_ONLY, check level
 						perform_lore = true;
 
 					if (ch != victim)
@@ -2902,11 +2902,11 @@ void do_examine(CHAR_DATA * ch, char *argument)
 
 		if (get_skill(ch, gsn_lore) > 0 &&
 			number_percent() <= get_skill(ch, gsn_lore) &&
-			((!IS_NPC(ch) && IS_SET(ch->act, PLR_HOLYLIGHT)) ||													// Immortal HOLYLIGHT
-			!IS_SET(obj->extra2_flags, ITEM_NO_LORE) || 														// NO_LORE not set
-			(IS_SET(obj->extra2_flags, ITEM_ALL_REMORT) && IS_REMORT(ch)) ||									// ALL_REMORT and this is a remort
-			(IS_SET(obj->extra2_flags, ITEM_REMORT_ONLY) && IS_REMORT(ch) && ch->tot_level > obj->level) ||		// REMORT_ONLY and this is a remort, check level
-			(!IS_SET(obj->extra2_flags, ITEM_REMORT_ONLY) && ch->tot_level > obj->level)))						// !REMORT_ONLY, check level
+			((!IS_NPC(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT)) ||													// Immortal HOLYLIGHT
+			!IS_SET(obj->extra[1], ITEM_NO_LORE) || 														// NO_LORE not set
+			(IS_SET(obj->extra[1], ITEM_ALL_REMORT) && IS_REMORT(ch)) ||									// ALL_REMORT and this is a remort
+			(IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && IS_REMORT(ch) && ch->tot_level > obj->level) ||		// REMORT_ONLY and this is a remort, check level
+			(!IS_SET(obj->extra[1], ITEM_REMORT_ONLY) && ch->tot_level > obj->level)))						// !REMORT_ONLY, check level
 			perform_lore = true;
 
 		send_to_char(obj->full_description, ch);
@@ -3038,7 +3038,7 @@ void do_exits(CHAR_DATA * ch, char *argument)
 				} else if (!(to_room = pexit->u1.to_room))
 					continue;
 			} else if (IS_SET(pexit->exit_info, EX_ENVIRONMENT)) {
-				if(!IS_SET(ch->in_room->room2_flags,ROOM_VIRTUAL_ROOM))
+				if(!IS_SET(ch->in_room->roomflag[1],ROOM_VIRTUAL_ROOM))
 					continue;
 
 				found = true;
@@ -3595,7 +3595,7 @@ void do_score(CHAR_DATA * ch, char *argument)
 
     }
 
-    if (IS_SET(ch->act, PLR_HELPER))
+    if (IS_SET(ch->act[0], PLR_HELPER))
 	send_to_char("You are a helper.\n\r", ch);
 
     /*
@@ -3778,17 +3778,17 @@ void do_score(CHAR_DATA * ch, char *argument)
     if (IS_IMMORTAL(ch))
     {
 	send_to_char("Holy: ", ch);
-	if (IS_SET(ch->act, PLR_HOLYLIGHT))
+	if (IS_SET(ch->act[0], PLR_HOLYLIGHT))
 	    send_to_char("{WLIGHT{x", ch);
 	else
 	    send_to_char("{DLIGHT{x", ch);
 
-	if (IS_SET(ch->act2, PLR_HOLYAURA))
+	if (IS_SET(ch->act[1], PLR_HOLYAURA))
 	    send_to_char(" {WAURA{x", ch);
 	else
 	    send_to_char(" {DAURA{x", ch);
 
-	if (IS_SET(ch->act2, PLR_HOLYWARP))
+	if (IS_SET(ch->act[1], PLR_HOLYWARP))
 	    send_to_char(" {WWARP{x", ch);
 	else
 	    send_to_char(" {DWARP{x", ch);
@@ -4584,15 +4584,14 @@ void do_who_new(CHAR_DATA * ch, char *argument)
 
 	/* @SYN070509 Get rid of imm level. */
 	if (IS_IMMORTAL(wch))
-	    sprintf(level, "{W  IMM  {x");
+	    sprintf(level, "{WIMM{x");
 	else
-	    sprintf(level, "%-3d{B:{G%-3d", wch->level, wch->tot_level);
+	    sprintf(level, "{G%-3d", wch->tot_level);
 
 	sprintf(buf,
-        "{B[{G%s{B][{M%s{B][ {Y%-*.*s {R%-*.*s {C%-6s {B] "
+        "{B[{M%s{B][ {Y%-*.*s {R%-*.*s {C%-6s {B] "
 	"%s%s%s%s{G%-12s{x",
 	level,
-		wch->sex == 0 ? "N" : (wch->sex == 1 ? "M" : "F"),
 		racelen,racelen,racestr,
 		classlen,classlen,classstr,
 		area_type,
@@ -4600,7 +4599,7 @@ void do_who_new(CHAR_DATA * ch, char *argument)
 			"{D(Dead) {x" : "",
 		wch->incog_level > LEVEL_HERO ? "{D(Incog) {x" : "",
 		wch->invis_level > LEVEL_HERO ? "{W(Wizi) {x" : "",
-		IS_SET(wch->act, PLR_BOTTER) ? "{G[BOTTER] {x" : "",
+		IS_SET(wch->act[0], PLR_BOTTER) ? "{G[BOTTER] {x" : "",
 		wch->name);
 
 	free_string(area_type);
@@ -4620,7 +4619,7 @@ void do_who_new(CHAR_DATA * ch, char *argument)
 	else
 	    add_buf(output, "");
 
-	if (IS_SET(wch->act,PLR_HELPER))
+	if (IS_SET(wch->act[0],PLR_HELPER))
 	    add_buf(output, " {W[H]{X");
 
 	if (IS_SET(wch->comm, COMM_AFK))
@@ -4629,11 +4628,11 @@ void do_who_new(CHAR_DATA * ch, char *argument)
 	if (IS_SET(wch->comm, COMM_QUIET))
 	    add_buf(output, " {R[Q]{x");
 
-	if (IS_SET(wch->act, PLR_PK)
+	if (IS_SET(wch->act[0], PLR_PK)
 	||  (wch->church != NULL && wch->church->pk == true))
 	    add_buf(output, " {R[PK]{x");
 
-	if (IS_SET(wch->act, PLR_BUILDING))
+	if (IS_SET(wch->act[0], PLR_BUILDING))
 	    add_buf(output, " {r[Building]{x");
 
 	add_buf(output, "\n\r");
@@ -4910,7 +4909,7 @@ void show_equipment(CHAR_DATA *ch, CHAR_DATA *victim)
 				sprintf(buf2, "%s\n\r", format_obj_to_char(eq[iWear], ch, true));
 			else
 				sprintf(buf2, "something.\n\r");
-		} else if (wear_params[iWear][1] && IS_SET(victim->act, PLR_AUTOEQ) && ch == victim)
+		} else if (wear_params[iWear][1] && IS_SET(victim->act[0], PLR_AUTOEQ) && ch == victim)
 			sprintf(buf2, "nothing.\n\r");
 		else
 			continue;
@@ -5211,7 +5210,7 @@ void do_bank(CHAR_DATA * ch, char *argument)
     }
 
     if (!IS_IMMORTAL(ch)
-    && !IS_SET(room->room_flags, ROOM_BANK)
+    && !IS_SET(room->roomflag[0], ROOM_BANK)
     && !item)
     {
 	send_to_char("You can't do that here.\n\r", ch);
@@ -5451,10 +5450,10 @@ void do_botter(CHAR_DATA* ch, char *argument)
 	return;
     }
 
-    if (IS_SET(victim->act, PLR_BOTTER))
-	REMOVE_BIT(victim->act, PLR_BOTTER);
+    if (IS_SET(victim->act[0], PLR_BOTTER))
+	REMOVE_BIT(victim->act[0], PLR_BOTTER);
     else
-	SET_BIT(victim->act, PLR_BOTTER);
+	SET_BIT(victim->act[0], PLR_BOTTER);
 
     send_to_char("Flag toggled.\n\r", ch);
 }
@@ -6152,7 +6151,7 @@ void show_map_to_char(CHAR_DATA *ch, CHAR_DATA *to, int bonus_view_x, int bonus_
 				}
 				else
 					if (can_see_obj(ch, ship->ship) &&
-							((ship->last_room[0] != NULL && ship->last_room[0]->x == x && ship->last_room[0]->y == y) ||
+							((ship->last_roomflag[0] != NULL && ship->last_roomflag[0]->x == x && ship->last_roomflag[0]->y == y) ||
 							 (ship->last_room[1] != NULL && ship->last_room[1]->x == x && ship->last_room[1]->y == y) ||
 							 (ship->last_room[2] != NULL && ship->last_room[2]->x == x && ship->last_room[2]->y == y)))
 
@@ -7252,21 +7251,21 @@ char determine_room_type(ROOM_INDEX_DATA *room)
     if (room == NULL)
 	return '@';
 
-    if (IS_SET(room->room_flags, ROOM_CPK))
+    if (IS_SET(room->roomflag[0], ROOM_CPK))
 	return 'K';
     if (room_is_dark(room))
 	return 'D';
-    if (IS_SET(room->room_flags, ROOM_MOUNT_SHOP))
+    if (IS_SET(room->roomflag[0], ROOM_MOUNT_SHOP))
 	return 'M';
-    if (IS_SET(room->room_flags, ROOM_BANK))
+    if (IS_SET(room->roomflag[0], ROOM_BANK))
 	return 'B';
-    if (IS_SET(room->room_flags, ROOM_PK))
+    if (IS_SET(room->roomflag[0], ROOM_PK))
 	return 'V';
-    if (IS_SET(room->room_flags, ROOM_DEATH_TRAP))
+    if (IS_SET(room->roomflag[0], ROOM_DEATH_TRAP))
 	return 'A';
-    if (IS_SET(room->room_flags, ROOM_LOCKER))
+    if (IS_SET(room->roomflag[0], ROOM_LOCKER))
 	return 'L';
-    if (IS_SET(room->room2_flags, ROOM_POST_OFFICE))
+    if (IS_SET(room->roomflag[1], ROOM_POST_OFFICE))
 	return 'P';
 
     for (ch = room->people; ch != NULL; ch = ch->next_in_room) {
@@ -7280,7 +7279,7 @@ char determine_room_type(ROOM_INDEX_DATA *room)
 	}
     }
 
-    if (IS_SET(room->room_flags, ROOM_SAFE))
+    if (IS_SET(room->roomflag[0], ROOM_SAFE))
 	return 'S';
 
     return 'R';
@@ -7454,7 +7453,7 @@ void do_where(CHAR_DATA * ch, char *argument)
 		&& (victim = d->character) != NULL && !IS_NPC(victim)
 		&& !IS_SWITCHED(ch)
 		&& victim->in_room != NULL
-		&& !IS_SET(victim->in_room->room_flags, ROOM_NOWHERE)
+		&& !IS_SET(victim->in_room->roomflag[0], ROOM_NOWHERE)
 		&& victim->in_room->area == ch->in_room->area
 		&& (!IS_MORPHED(victim) || (IS_MORPHED(victim) && can_see_shift(ch, victim)))
 		&& (!IS_SHIFTED(victim) || (IS_SHIFTED(victim) && can_see_shift(ch, victim)))

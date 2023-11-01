@@ -105,8 +105,8 @@ SPELL_FUNC(spell_momentary_darkness)
 	// Stop fights in the room
 	for (rch = ch->in_room->people; rch; rch = rch->next_in_room) {
 		if (rch->fighting) stop_fighting(rch, true);
-		if (IS_NPC(rch) && IS_SET(rch->act,ACT_AGGRESSIVE))
-			REMOVE_BIT(rch->act,ACT_AGGRESSIVE);
+		if (IS_NPC(rch) && IS_SET(rch->act[0],ACT_AGGRESSIVE))
+			REMOVE_BIT(rch->act[0],ACT_AGGRESSIVE);
 	}
 	return true;
 }

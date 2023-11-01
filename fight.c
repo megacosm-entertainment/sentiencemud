@@ -215,7 +215,7 @@ void check_assist(CHAR_DATA *ch, CHAR_DATA *victim)
 		}
 
 			// Don't include mounts in the fight except for crusader
-		if (IS_NPC(rch) && IS_SET(rch->act, ACT_MOUNT))
+		if (IS_NPC(rch) && IS_SET(rch->act[0], ACT_MOUNT))
 		{
 		if (rch->rider != NULL
 		&&  !IS_NPC(rch->rider)
@@ -1233,7 +1233,7 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, int
 		log_string(buf);
 	}
 
-	if (IS_NPC(victim) && IS_SET(victim->act, ACT_PROTECTED)) {
+	if (IS_NPC(victim) && IS_SET(victim->act[0], ACT_PROTECTED)) {
 		victim->set_death_type = DEATHTYPE_ALIVE;
 		return false;
 	}
@@ -1324,7 +1324,7 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, int
 	if (victim != ch) {
 		// Is victim safe from ch?
 		if (!(!IS_NPC(ch) && IS_IMMORTAL(ch)) &&
-			(is_safe(ch, victim, true) || IS_SET(ch->in_room->room_flags, ROOM_SAFE) || IS_SET(victim->in_room->room_flags, ROOM_SAFE))) {
+			(is_safe(ch, victim, true) || IS_SET(ch->in_room->roomflag[0], ROOM_SAFE) || IS_SET(victim->in_room->roomflag[0], ROOM_SAFE))) {
 			victim->set_death_type = DEATHTYPE_ALIVE;
 			victim->in_damage_function = false;
 			return false;
@@ -1352,7 +1352,7 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, int
 	if (IS_AFFECTED(ch, AFF_INVISIBLE)) {
 		affect_strip(ch, gsn_invis);
 		affect_strip(ch, gsn_mass_invis);
-		REMOVE_BIT(ch->affected_by, AFF_INVISIBLE);
+		REMOVE_BIT(ch->affected_by[0], AFF_INVISIBLE);
 		act("{C$n fades into existence.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 	}
 
@@ -1386,7 +1386,7 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, int
 
 	// Armour and weapons decay with use
 	for (vObj = victim->carrying; vObj; vObj = vObj->next_content)
-		if (vObj->wear_loc != WEAR_NONE && (!IS_SET(vObj->extra_flags, ITEM_BLESS || number_percent() < 33))) {
+		if (vObj->wear_loc != WEAR_NONE && (!IS_SET(vObj->extra[0], ITEM_BLESS || number_percent() < 33))) {
 			switch(vObj->fragility) {
 			case OBJ_FRAGILE_SOLID:  break;
 			case OBJ_FRAGILE_STRONG:
@@ -1627,7 +1627,7 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, int
 		}
 
 		// If invasion mob then check if quest point is earned
-		if (!IS_NPC(ch) && IS_NPC(victim) && IS_SET(victim->act2, ACT2_INVASION_MOB) && number_percent() < 5) {
+		if (!IS_NPC(ch) && IS_NPC(victim) && IS_SET(victim->act[1], ACT2_INVASION_MOB) && number_percent() < 5) {
 			send_to_char("{WYou have been awarded a quest point!{x\n\r", ch);
 			ch->questpoints++;
 		}
@@ -1698,7 +1698,7 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, int
 		if (!IS_NPC(ch) && kill_in_room && (corpse != NULL) &&
 			corpse->item_type == ITEM_CORPSE_NPC && can_see_obj(ch,corpse)) {
 
-			if (IS_SET(ch->act, PLR_AUTOLOOT) && corpse) {
+			if (IS_SET(ch->act[0], PLR_AUTOLOOT) && corpse) {
 
 #if 0
 				OBJ_DATA *item;
@@ -1723,13 +1723,13 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, int
 			}
 
 			// Pick up remaining gold
-			if (IS_SET(ch->act, PLR_AUTOGOLD) && corpse && obj_has_money(ch, corpse))
+			if (IS_SET(ch->act[0], PLR_AUTOGOLD) && corpse && obj_has_money(ch, corpse))
 				get_money_from_obj(ch, corpse);
 
 			// Autosac corpses
-			if (IS_SET(ch->act, PLR_AUTOSAC) && corpse) {
+			if (IS_SET(ch->act[0], PLR_AUTOSAC) && corpse) {
 				 // Don't autosac corpse w/ treasure OR corpses from ranged attacks
-				if ((corpse->contains && !IS_SET(ch->act2, PLR_SACRIFICE_ALL)) || corpse->in_room != ch->in_room) {
+				if ((corpse->contains && !IS_SET(ch->act[1], PLR_SACRIFICE_ALL)) || corpse->in_room != ch->in_room) {
 					victim->in_damage_function = false;
 					return true;
 				} else
@@ -1781,7 +1781,7 @@ bool damage_new(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, int
 
 	// Wimpy - Mobiles
 	if (IS_NPC(victim) && dam > 0 && victim->wait < PULSE_VIOLENCE / 2 &&
-		((IS_SET(victim->act, ACT_WIMPY)  /* && !number_bits(2) */ && victim->hit < victim->max_hit / 3) ||
+		((IS_SET(victim->act[0], ACT_WIMPY)  /* && !number_bits(2) */ && victim->hit < victim->max_hit / 3) ||
 		(IS_AFFECTED(victim, AFF_CHARM) && victim->master && victim->master->in_room != victim->in_room)))
 		do_function(victim, &do_flee, NULL);
 
@@ -1808,7 +1808,7 @@ bool is_safe(CHAR_DATA *ch, CHAR_DATA *victim, bool show)
 
 	// checks for kill stealing here now
 	if (!IS_NPC(ch) && victim->fighting && !is_same_group(ch, victim->fighting)
-	&& victim != ch && !IS_SET(ch->in_room->room2_flags, ROOM_MULTIPLAY)) {
+	&& victim != ch && !IS_SET(ch->in_room->roomflag[1], ROOM_MULTIPLAY)) {
 
 	if (show)
 		send_to_char("Kill stealing is not allowed.\n\r", ch);
@@ -1822,7 +1822,7 @@ bool is_safe(CHAR_DATA *ch, CHAR_DATA *victim, bool show)
 	return true;
 
 	// Immortals can attack anybody, if they have HOLYAURA on
-	if (!IS_NPC(ch) && IS_IMMORTAL(ch) && IS_SET(ch->act2,PLR_HOLYAURA))
+	if (!IS_NPC(ch) && IS_IMMORTAL(ch) && IS_SET(ch->act[1],PLR_HOLYAURA))
 	return false;
 
 	// Can't kill anyone's ridden mount unless you can kill them
@@ -1838,7 +1838,7 @@ bool is_safe(CHAR_DATA *ch, CHAR_DATA *victim, bool show)
 	if (victim->fighting == ch || victim == ch)
 	return false;
 
-	if (IS_SET(victim->in_room->room_flags, ROOM_SAFE))
+	if (IS_SET(victim->in_room->roomflag[0], ROOM_SAFE))
 	{
 	if (show)
 		send_to_char("This room is sanctioned by the gods.\n\r", ch);
@@ -1876,7 +1876,7 @@ bool is_safe(CHAR_DATA *ch, CHAR_DATA *victim, bool show)
 	   protected by the gods now. All mobs such as guildmasters,
 	   churchmasters, healers, bankers, etc, have been set to
 	   protected if they weren't at the time of this change. */
-	if (IS_SET(victim->act, ACT_PROTECTED))
+	if (IS_SET(victim->act[0], ACT_PROTECTED))
 	{
 		if (show)
 		act("$N is protected by the gods.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -1901,7 +1901,7 @@ bool is_safe(CHAR_DATA *ch, CHAR_DATA *victim, bool show)
 	if (!IS_NPC(ch))
 	{
 		// Can't attack pets
-		if (IS_SET(victim->act,ACT_PET))
+		if (IS_SET(victim->act[0],ACT_PET))
 		{
 		if (show)
 			act("But $N looks so cute and cuddly...", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -2005,15 +2005,15 @@ bool is_safe(CHAR_DATA *ch, CHAR_DATA *victim, bool show)
 		}
 
 		// PK rooms. Be sure that BOTH players are in a PK room for ranged attacks!
-		if ((IS_SET(ch->in_room->room_flags, ROOM_PK)
-			 || IS_SET(ch->in_room->room_flags, ROOM_CPK)
-			 || IS_SET(ch->in_room->room_flags, ROOM_ARENA))
-		&&  (IS_SET(victim->in_room->room_flags, ROOM_PK)
-			 || IS_SET(victim->in_room->room_flags, ROOM_CPK)
-			 || IS_SET(victim->in_room->room_flags, ROOM_ARENA)))
+		if ((IS_SET(ch->in_room->roomflag[0], ROOM_PK)
+			 || IS_SET(ch->in_room->roomflag[0], ROOM_CPK)
+			 || IS_SET(ch->in_room->roomflag[0], ROOM_ARENA))
+		&&  (IS_SET(victim->in_room->roomflag[0], ROOM_PK)
+			 || IS_SET(victim->in_room->roomflag[0], ROOM_CPK)
+			 || IS_SET(victim->in_room->roomflag[0], ROOM_ARENA)))
 		return false;
 
-		if (IS_SET(victim->act,PLR_BOTTER))
+		if (IS_SET(victim->act[0],PLR_BOTTER))
 		return false;
 
 		// Is it the reckoning?
@@ -2027,7 +2027,7 @@ bool is_safe(CHAR_DATA *ch, CHAR_DATA *victim, bool show)
 				return true;
 			}
 
-			if (IS_SET(ch->act2, PLR_NORECKONING))
+			if (IS_SET(ch->act[1], PLR_NORECKONING))
 			{
 				if (show)
 					act("$N has opted out of 'The Reckoning'.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -2083,7 +2083,7 @@ bool is_safe_spell(CHAR_DATA *ch, CHAR_DATA *victim, bool area)
 	*/
 
 	/* safe room? */
-	if (IS_SET(victim->in_room->room_flags,ROOM_SAFE))
+	if (IS_SET(victim->in_room->roomflag[0],ROOM_SAFE))
 		return true;
 
 	/* killing mobiles */
@@ -2093,10 +2093,10 @@ bool is_safe_spell(CHAR_DATA *ch, CHAR_DATA *victim, bool area)
 		return true;
 
 	/* no killing healers, trainers, etc */
-	if (IS_SET(victim->act,ACT_TRAIN)
-	||  IS_SET(victim->act,ACT_PRACTICE)
-	||  IS_SET(victim->act,ACT_IS_HEALER)
-	||  IS_SET(victim->act,ACT_IS_CHANGER))
+	if (IS_SET(victim->act[0],ACT_TRAIN)
+	||  IS_SET(victim->act[0],ACT_PRACTICE)
+	||  IS_SET(victim->act[0],ACT_IS_HEALER)
+	||  IS_SET(victim->act[0],ACT_IS_CHANGER))
 		return true;
 
 	if (victim == MOUNTED(ch))
@@ -2105,7 +2105,7 @@ bool is_safe_spell(CHAR_DATA *ch, CHAR_DATA *victim, bool area)
 	if (!IS_NPC(ch))
 	{
 		/* no pets */
-		if (IS_SET(victim->act,ACT_PET))
+		if (IS_SET(victim->act[0],ACT_PET))
 	   	return true;
 
 		/* no charmed creatures unless owner */
@@ -2427,7 +2427,7 @@ bool check_shield_block_projectile(CHAR_DATA *ch, CHAR_DATA *victim, char *attac
 
 	// The shield decays from this
 	shield = get_eq_char(victim, WEAR_SHIELD);
-	if (!IS_SET(shield->extra_flags, ITEM_BLESS) || number_percent() < 66)
+	if (!IS_SET(shield->extra[0], ITEM_BLESS) || number_percent() < 66)
 	switch(shield->fragility)
 	{
 	case OBJ_FRAGILE_SOLID:
@@ -2546,7 +2546,7 @@ bool check_shield_block(CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *wield)
 		return true;
 	}
 
-	if (!IS_SET(shield->extra_flags, ITEM_BLESS) || number_percent() < 66)
+	if (!IS_SET(shield->extra[0], ITEM_BLESS) || number_percent() < 66)
 	switch(shield->fragility) {
 	case OBJ_FRAGILE_SOLID:		break;
 	case OBJ_FRAGILE_STRONG:	if (number_range(0,9999) < 12) shield->condition--; break;
@@ -2781,7 +2781,7 @@ bool can_start_combat(CHAR_DATA *ch)
 	// Fix for do_opcast. Make sure the dummy mob is not attacked.
 	if( IS_NPC(ch) && ch->pIndexData->vnum == MOB_VNUM_OBJCASTER) return false;
 
-	if (IS_NPC(ch) && IS_SET(ch->act, ACT_MOUNT) && MOUNTED(ch))
+	if (IS_NPC(ch) && IS_SET(ch->act[0], ACT_MOUNT) && MOUNTED(ch))
 	{
 		if (IS_NPC(MOUNTED(ch)) || get_profession(MOUNTED(ch), SECOND_SUBCLASS_WARRIOR) != CLASS_WARRIOR_CRUSADER)
 			return false;
@@ -2822,8 +2822,8 @@ void enter_combat(CHAR_DATA *ch, CHAR_DATA *victim, bool silent)
 	/*
 	// have aggro NPCs hunt their attackers
 	if (IS_NPC(ch)
-	&&  IS_SET(ch->act, ACT_AGGRESSIVE)
-	&&  !IS_SET(ch->act, ACT_SENTINEL)
+	&&  IS_SET(ch->act[0], ACT_AGGRESSIVE)
+	&&  !IS_SET(ch->act[0], ACT_SENTINEL)
 	&&  ch->tot_level < 200)
 	hunt_char(ch, victim);
 	*/
@@ -2970,7 +2970,7 @@ void set_corpse_data(OBJ_DATA *corpse, int corpse_type)
 	CORPSE_ANIMATE(corpse) = corpse_info_table[corpse_type].animation_chance;
 
 	if(corpse_info_table[corpse_type].headless) {
-//		SET_BIT(corpse->extra_flags, ITEM_NOSKULL);
+//		SET_BIT(corpse->extra[0], ITEM_NOSKULL);
 		REMOVE_BIT(CORPSE_PARTS(corpse),PART_HEAD);
 		REMOVE_BIT(CORPSE_PARTS(corpse),PART_BRAINS);
 		REMOVE_BIT(CORPSE_PARTS(corpse),PART_EAR);
@@ -3081,10 +3081,10 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messag
 
 		corpse->cost = 0;
 
-		if (IS_SET(ch->act2, ACT2_NO_RESURRECT))
+		if (IS_SET(ch->act[1], ACT2_NO_RESURRECT))
 		{
-			SET_BIT(corpse->extra2_flags, ITEM_NO_RESURRECT);
-			SET_BIT(corpse->extra3_flags, ITEM_NO_ANIMATE);
+			SET_BIT(corpse->extra[1], ITEM_NO_RESURRECT);
+			SET_BIT(corpse->extra[2], ITEM_NO_ANIMATE);
 		}
 	} else { // PCs
 		name		= ch->name;
@@ -3108,16 +3108,16 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messag
 		corpse->owner = str_dup(ch->name);
 
 		corpse->cost = 0;
-		if (IS_SET(ch->act, PLR_NO_RESURRECT))
+		if (IS_SET(ch->act[0], PLR_NO_RESURRECT))
 		{
-			SET_BIT(corpse->extra2_flags, ITEM_NO_RESURRECT);
-			SET_BIT(corpse->extra3_flags, ITEM_NO_ANIMATE);
+			SET_BIT(corpse->extra[1], ITEM_NO_RESURRECT);
+			SET_BIT(corpse->extra[2], ITEM_NO_ANIMATE);
 		}
 
 		if (IS_IMMORTAL(ch))
 			SET_BIT(CORPSE_FLAGS(corpse), CORPSE_IMMORTAL);
 		else {
-			if(IS_SET(ch->in_room->room_flags, ROOM_CPK))
+			if(IS_SET(ch->in_room->roomflag[0], ROOM_CPK))
 				SET_BIT(CORPSE_FLAGS(corpse), CORPSE_CPKDEATH);
 			if(is_room_pk(ch->in_room, true) || is_pk(ch))
 				SET_BIT(CORPSE_FLAGS(corpse), CORPSE_PKDEATH);
@@ -3135,8 +3135,8 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messag
 	}
 
 	// Propagate INSTANCE status from mob to corpse
-	if( IS_SET(ch->act2, ACT2_INSTANCE_MOB) )
-		SET_BIT(corpse->extra3_flags, ITEM_INSTANCE_OBJ);
+	if( IS_SET(ch->act[1], ACT2_INSTANCE_MOB) )
+		SET_BIT(corpse->extra[2], ITEM_INSTANCE_OBJ);
 
 	corpse->owner_name = str_dup(name);
 	corpse->owner_short = str_dup(short_desc);
@@ -3147,7 +3147,7 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messag
 	CORPSE_TYPE(corpse) = corpse_type;
 
 	if(corpse_info_table[corpse_type].headless || !IS_SET(ch->parts,PART_HEAD)) {
-//		SET_BIT(corpse->extra_flags, ITEM_NOSKULL);
+//		SET_BIT(corpse->extra[0], ITEM_NOSKULL);
 		REMOVE_BIT(CORPSE_PARTS(corpse),PART_HEAD);
 		REMOVE_BIT(CORPSE_PARTS(corpse),PART_BRAINS);
 		REMOVE_BIT(CORPSE_PARTS(corpse),PART_EAR);
@@ -3163,44 +3163,44 @@ OBJ_DATA *make_corpse(CHAR_DATA *ch, bool has_head, int corpse_type, bool messag
 
 	for (obj = ch->carrying; obj != NULL; obj = obj_next) {
 		obj_next = obj->next_content;
-		if (IS_SET(obj->extra_flags,ITEM_ROT_DEATH) && !IS_NPC(ch))
+		if (IS_SET(obj->extra[0],ITEM_ROT_DEATH) && !IS_NPC(ch))
 			extract_obj(obj);
 	}
 
 	// 20070521 : NIB : If a PC and a CPK Death, mark the corpse as a CPK death
 	if(!IS_NPC(ch) && !IS_DEAD(ch) && !IS_IMMORTAL(ch))
 	{
- 		if(IS_SET(ch->in_room->room_flags,ROOM_CPK))
+ 		if(IS_SET(ch->in_room->roomflag[0],ROOM_CPK))
 			SET_BIT(CORPSE_FLAGS(corpse),CORPSE_CPKDEATH);
 		if(is_room_pk(ch->in_room,false) || is_pk(ch))
 			SET_BIT(CORPSE_FLAGS(corpse),CORPSE_PKDEATH);
-		if(IS_SET(ch->in_room->room_flags, ROOM_ARENA))
+		if(IS_SET(ch->in_room->roomflag[0], ROOM_ARENA))
 			SET_BIT(CORPSE_FLAGS(corpse),CORPSE_ARENADEATH);
 	}
 
 	// NPC death and CPK death for PCs
 	// Don't leave no_loot items in player corpses, just like no_uncurse -- Areo
 	if (IS_NPC(ch)
-	|| (!IS_NPC(ch) && !IS_DEAD(ch) && IS_SET(ch->in_room->room_flags,ROOM_CPK)))
+	|| (!IS_NPC(ch) && !IS_DEAD(ch) && IS_SET(ch->in_room->roomflag[0],ROOM_CPK)))
 	for (obj = ch->carrying; obj != NULL; obj = obj_next)
 	{
 		obj_next = obj->next_content;
 
-		if( !IS_SET(obj->extra3_flags, ITEM_ALWAYS_LOOT) && !IS_SET(obj->extra3_flags, ITEM_FORCE_LOOT) ) {
-			if ((IS_SET(obj->extra_flags, ITEM_NOUNCURSE) && !IS_NPC(ch)) ||
-				(IS_SET(obj->extra2_flags, ITEM_NO_LOOT) && !IS_NPC(ch)))
+		if( !IS_SET(obj->extra[2], ITEM_ALWAYS_LOOT) && !IS_SET(obj->extra[2], ITEM_FORCE_LOOT) ) {
+			if ((IS_SET(obj->extra[0], ITEM_NOUNCURSE) && !IS_NPC(ch)) ||
+				(IS_SET(obj->extra[1], ITEM_NO_LOOT) && !IS_NPC(ch)))
 				continue;
 		}
 
 		obj_from_char(obj);
 
 		// If dealing with an npc, treat no_loot items just like inventory items.
-		if (/*IS_SET(obj->extra_flags, ITEM_INVENTORY) ||*/
-			(!IS_SET(obj->extra3_flags, ITEM_ALWAYS_LOOT) && !IS_SET(obj->extra3_flags, ITEM_FORCE_LOOT) && IS_SET(obj->extra2_flags, ITEM_NO_LOOT) && IS_NPC(ch)))
+		if (/*IS_SET(obj->extra[0], ITEM_INVENTORY) ||*/
+			(!IS_SET(obj->extra[2], ITEM_ALWAYS_LOOT) && !IS_SET(obj->extra[2], ITEM_FORCE_LOOT) && IS_SET(obj->extra[1], ITEM_NO_LOOT) && IS_NPC(ch)))
 			extract_obj(obj);
 		else
 		{
-			REMOVE_BIT(obj->extra3_flags, ITEM_FORCE_LOOT);
+			REMOVE_BIT(obj->extra[2], ITEM_FORCE_LOOT);
 			obj_to_obj(obj, corpse);
 		}
 	}
@@ -3454,9 +3454,9 @@ int room_pkness(ROOM_INDEX_DATA)
 {
 	int pk = 1;
 
-	if (IS_SET(victim->in_room->room_flags, ROOM_PK) || IS_SET(victim->in_room->room_flags, ROOM_ARENA)) pk += 1;
-	if (IS_SET(victim->in_room->room_flags, ROOM_CPK)) pk += 2;
-	if (IS_SET(victim->in_room->room_flags, ROOM_SAFE)) pk = 0;
+	if (IS_SET(victim->in_room->roomflag[0], ROOM_PK) || IS_SET(victim->in_room->roomflag[0], ROOM_ARENA)) pk += 1;
+	if (IS_SET(victim->in_room->roomflag[0], ROOM_CPK)) pk += 2;
+	if (IS_SET(victim->in_room->roomflag[0], ROOM_SAFE)) pk = 0;
 
 	return pk;
 }
@@ -3518,7 +3518,7 @@ void death_sight_check(CHAR_DATA *ch, CHAR_DATA *victim)
 	void *argv[8];
 	int pk,skill,depth;
 
-	if (IS_SET(victim->in_room->room_flags, ROOM_SAFE)) return;
+	if (IS_SET(victim->in_room->roomflag[0], ROOM_SAFE)) return;
 
 	pk = room_pkness(victim->in_room);
 	skill = get_skill(ch,gsn_deathsight);
@@ -3617,7 +3617,7 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
 		}
 	}
 
-	if (!IS_NPC(victim) && (IS_SET(victim->in_room->room_flags, ROOM_ARENA) || (pre_reckoning == 0 && reckoning_timer > 0)))
+	if (!IS_NPC(victim) && (IS_SET(victim->in_room->roomflag[0], ROOM_ARENA) || (pre_reckoning == 0 && reckoning_timer > 0)))
 		arena = true;
 
 	/* if something catastrophic has happened bail out */
@@ -3671,7 +3671,7 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
 	for (obj = victim->carrying; obj != NULL; obj = obj->next_content) {
 		if (obj->wear_loc != WEAR_NONE &&
 			WEAR_UNEQUIP_DEATH(obj->wear_loc) &&
-			!IS_SET(obj->extra3_flags, ITEM_KEEP_EQUIPPED))
+			!IS_SET(obj->extra[2], ITEM_KEEP_EQUIPPED))
 			unequip_char(victim, obj, true);
 	}
 
@@ -3716,13 +3716,13 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
 
 	death_cry(victim, has_head, messages);
 
-	if ((!IS_NPC(victim) && IS_DEAD(victim)) || (IS_NPC(victim) && IS_SET(victim->act2, ACT2_DROP_EQ)))
+	if ((!IS_NPC(victim) && IS_DEAD(victim)) || (IS_NPC(victim) && IS_SET(victim->act[1], ACT2_DROP_EQ)))
 		corpse_type = RAWKILL_NOCORPSE;
 
 	if (corpse_type > RAWKILL_NOCORPSE)
 		corpse = make_corpse(victim, has_head, corpse_type,messages);
 
-	if (IS_NPC(victim) && (IS_SET(victim->act2, ACT2_DROP_EQ) || (corpse_type == RAWKILL_NOCORPSE))) {
+	if (IS_NPC(victim) && (IS_SET(victim->act[1], ACT2_DROP_EQ) || (corpse_type == RAWKILL_NOCORPSE))) {
 		OBJ_DATA *obj_next;
 
 		for (obj = victim->carrying; obj != NULL; obj = obj_next)
@@ -3740,8 +3740,8 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
 
 	p_percent_trigger(victim, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_STRIPAFFECT, NULL);
 
-	victim->affected_by	= race_table[victim->race].aff;
-	victim->affected_by2 = 0;
+	victim->affected_by[0]	= race_table[victim->race].aff;
+	victim->affected_by[1] = 0;
 
 	victim->paroxysm = 0;
 
@@ -3833,7 +3833,7 @@ OBJ_DATA *raw_kill(CHAR_DATA *victim, bool has_head, bool messages, int corpse_t
 
 
 	for (obj = victim->carrying; obj != NULL; obj = obj->next_content)
-	SET_BIT(obj->extra2_flags, ITEM_UNSEEN);
+	SET_BIT(obj->extra[1], ITEM_UNSEEN);
 	/*
 	If you want people to carry eq when dead, put it here
 	and DON'T FORGET TO TAKE IT OFF THEM WHEN THEY ARE BROUGHT
@@ -3914,7 +3914,7 @@ void group_gain(CHAR_DATA *ch, CHAR_DATA *victim)
 	int skill_reduction;
 
 	// If is an NPC that can't level, verify this mob is grouped with a player in the room.
-	if (IS_NPC(ch) && !IS_SET(ch->act2, ACT2_CANLEVEL))
+	if (IS_NPC(ch) && !IS_SET(ch->act[1], ACT2_CANLEVEL))
 	{
 		CHAR_DATA *pch;
 		for(pch = ch->in_room->people; pch; pch = pch->next_in_room)
@@ -3927,7 +3927,7 @@ void group_gain(CHAR_DATA *ch, CHAR_DATA *victim)
 	}
 
 	// No experience on npc victims if disabled.
-	if( IS_NPC(victim) && IS_SET(victim->act2, ACT2_NO_XP))
+	if( IS_NPC(victim) && IS_SET(victim->act[1], ACT2_NO_XP))
 		return;
 
 	// Check here just to make sure
@@ -3944,7 +3944,7 @@ void group_gain(CHAR_DATA *ch, CHAR_DATA *victim)
 		if (is_same_group(gch, ch))
 		{
 			members++;
-			if (IS_NPC(gch) && IS_SET(gch->act, ACT_MOUNT))
+			if (IS_NPC(gch) && IS_SET(gch->act[0], ACT_MOUNT))
 				continue;
 			else
 				group_levels += gch->tot_level;
@@ -4014,7 +4014,7 @@ void group_gain(CHAR_DATA *ch, CHAR_DATA *victim)
 			//  Players with NORECKONING turned on will not get reckoning boosts
 			if (boost_table[BOOST_EXPERIENCE].boost != 100 || boost_table[BOOST_RECKONING].boost != 100)
 			{
-				if (boost_table[BOOST_RECKONING].boost != 100 && !IS_SET(ch->act2, PLR_NORECKONING))
+				if (boost_table[BOOST_RECKONING].boost != 100 && !IS_SET(ch->act[1], PLR_NORECKONING))
 				{
 					sprintf(buf, "{W%d%% experience!{x\n\r", boost_table[BOOST_RECKONING].boost);
 					send_to_char(buf,gch);
@@ -4097,7 +4097,7 @@ int xp_compute(CHAR_DATA *gch, CHAR_DATA *victim, int total_levels)
 		xp = (int) xp / diff_level;
 
 	// Nothing for killing pets
-	if (IS_SET(victim->act,ACT_PET))
+	if (IS_SET(victim->act[0],ACT_PET))
 	{
 		sprintf(buf, "xp_compute: ch %s, victim %s with ACT_PET", gch->name,
 			IS_NPC(victim) ? victim->short_descr : victim->name);
@@ -4105,7 +4105,7 @@ int xp_compute(CHAR_DATA *gch, CHAR_DATA *victim, int total_levels)
 		xp = 0;
 	}
 
-	if (IS_SET(victim->act, ACT_ANIMATED))
+	if (IS_SET(victim->act[0], ACT_ANIMATED))
 		xp = 0;
 
 
@@ -4276,28 +4276,28 @@ void dam_message(CHAR_DATA *ch, CHAR_DATA *victim, int dam,int dt,bool immune)
 
 	if( dam > 0 ) {
 #ifdef DEBUG_ALLOW_SHOW_DAMAGE
-		if (IS_SET(ch->act, PLR_SHOWDAMAGE)) {
+		if (IS_SET(ch->act[0], PLR_SHOWDAMAGE)) {
 			char dambuf[MSL];
 
 			sprintf(dambuf, " {r({R%d{r){x", dam);
 			strcat(buf2, dambuf);
 		}
 
-		if (IS_SET(victim->act, PLR_SHOWDAMAGE)) {
+		if (IS_SET(victim->act[0], PLR_SHOWDAMAGE)) {
 			char dambuf[MSL];
 
 			sprintf(dambuf, " {r({R%d{r){x", dam);
 			strcat(buf3, dambuf);
 		}
 #else
-		if (IS_SET(ch->act, PLR_SHOWDAMAGE) && (IS_IMMORTAL(ch) || is_test_port)) {
+		if (IS_SET(ch->act[0], PLR_SHOWDAMAGE) && (IS_IMMORTAL(ch) || is_test_port)) {
 			char dambuf[MSL];
 
 			sprintf(dambuf, " {r({R%d{r){x", dam);
 			strcat(buf2, dambuf);
 		}
 
-		if (IS_SET(victim->act, PLR_SHOWDAMAGE) && (IS_IMMORTAL(ch) || is_test_port)) {
+		if (IS_SET(victim->act[0], PLR_SHOWDAMAGE) && (IS_IMMORTAL(ch) || is_test_port)) {
 			char dambuf[MSL];
 
 			sprintf(dambuf, " {r({R%d{r){x", dam);
@@ -5245,7 +5245,7 @@ void do_bite(CHAR_DATA *ch, char *argument)
 				victim->bitten = UMAX(5 * get_skill(ch,gsn_toxins)/ch->tot_level, 30);
 				victim->bitten_level = ch->tot_level;
 
-				if (!IS_SET(victim->affected_by2, AFF2_TOXIN)) {
+				if (!IS_SET(victim->affected_by[1], AFF2_TOXIN)) {
 					af.where = TO_AFFECTS;
 					af.group     = AFFGROUP_BIOLOGICAL;
 					af.type  = gsn_toxins;
@@ -5804,7 +5804,7 @@ void do_burgle(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (!IS_SET(ch->in_room->room_flags, ROOM_BANK)) {
+	if (!IS_SET(ch->in_room->roomflag[0], ROOM_BANK)) {
 		send_to_char("You have to be IN a bank to rob it\n\r", ch);
 		return;
 	}
@@ -6016,7 +6016,7 @@ void do_blackjack(CHAR_DATA *ch, char *argument)
 
 	// Make sure victim doesn't have a super strong helmet
 	helmet = get_eq_char(victim, WEAR_HEAD);
-	if (helmet && IS_SET(helmet->extra2_flags, ITEM_SUPER_STRONG)) {
+	if (helmet && IS_SET(helmet->extra[1], ITEM_SUPER_STRONG)) {
 		act("You hear a loud *DONG* as $n's weapon bounces off $N's helmet!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
 		act("Your weapon bounces off $N's strong helmet!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		act("Your helmet protects you from $n's blackjack!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
@@ -6108,7 +6108,7 @@ void do_blackjack(CHAR_DATA *ch, char *argument)
 			af.bitvector2 = 0;
 			af.slot	= WEAR_NONE;
 
-			REMOVE_BIT(victim->affected_by, AFF_HIDE);
+			REMOVE_BIT(victim->affected_by[0], AFF_HIDE);
 
 			affect_to_char(victim, &af);
 			victim->position = POS_SLEEPING;
@@ -6223,7 +6223,7 @@ int do_flee_full(CHAR_DATA *ch, char *argument, bool conceal, bool pursue)
 					|| (IS_SET(pexit->exit_info, EX_AERIAL) && !flying)
 					|| (IS_NPC(ch) && (IS_SET(pexit->exit_info, EX_VLINK)))
 					|| number_range(0,ch->daze) != 0
-					|| (IS_NPC(ch) && (IS_SET(pexit->u1.to_room->room_flags, ROOM_NO_MOB) || IS_SET(pexit->u1.to_room->room_flags, ROOM_SAFE))))
+					|| (IS_NPC(ch) && (IS_SET(pexit->u1.to_room->roomflag[0], ROOM_NO_MOB) || IS_SET(pexit->u1.to_room->roomflag[0], ROOM_SAFE))))
 					continue;
 			}
 			else
@@ -6250,7 +6250,7 @@ int do_flee_full(CHAR_DATA *ch, char *argument, bool conceal, bool pursue)
 				|| (IS_SET(pexit->exit_info, EX_AERIAL) && !flying)
 				|| (IS_NPC(ch) && (IS_SET(pexit->exit_info, EX_VLINK)))
 				|| number_range(0,ch->daze) != 0
-				|| (IS_NPC(ch) && (IS_SET(pexit->u1.to_room->room_flags, ROOM_NO_MOB) || IS_SET(pexit->u1.to_room->room_flags, ROOM_SAFE)))) {
+				|| (IS_NPC(ch) && (IS_SET(pexit->u1.to_room->roomflag[0], ROOM_NO_MOB) || IS_SET(pexit->u1.to_room->roomflag[0], ROOM_SAFE)))) {
 				door = -1;
 			}
 		}
@@ -6328,7 +6328,7 @@ int do_flee_full(CHAR_DATA *ch, char *argument, bool conceal, bool pursue)
 
 		// Pursuit skill
 		if (ch->pursuit_by != NULL
-		&&  IS_SET(ch->pursuit_by->act, PLR_PURSUIT)
+		&&  IS_SET(ch->pursuit_by->act[0], PLR_PURSUIT)
 		&&  get_curr_stat(ch, STAT_DEX) > 16)
 		{
 		if (number_percent() < get_skill(ch->pursuit_by, gsn_pursuit) - 5)
@@ -6525,7 +6525,7 @@ void do_kick(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (IS_NPC(ch) && !IS_SET(ch->off_flags,OFF_KICK) && !IS_SET(ch->act,ACT_MOUNT))
+	if (IS_NPC(ch) && !IS_SET(ch->off_flags,OFF_KICK) && !IS_SET(ch->act[0],ACT_MOUNT))
 		return;
 
 	if (MOUNTED(ch)) {
@@ -6773,15 +6773,15 @@ void do_challenge(CHAR_DATA *ch, char *argument)
 
 	if (arg[0] == '\0')
 	{
-	if (IS_SET(ch->act, PLR_NO_CHALLENGE))
+	if (IS_SET(ch->act[0], PLR_NO_CHALLENGE))
 	{
-		REMOVE_BIT(ch->act, PLR_NO_CHALLENGE);
+		REMOVE_BIT(ch->act[0], PLR_NO_CHALLENGE);
 		send_to_char("You are now accepting challenges.\n\r", ch);
 		return;
 	}
 	else
 	{
-		SET_BIT(ch->act, PLR_NO_CHALLENGE);
+		SET_BIT(ch->act[0], PLR_NO_CHALLENGE);
 		send_to_char("You are no longer accepting challenges.\n\r", ch);
 		return;
 	}
@@ -6796,7 +6796,7 @@ void do_challenge(CHAR_DATA *ch, char *argument)
 	return;
 	}
 
-	if (IS_SET(ch->act, PLR_NO_CHALLENGE))
+	if (IS_SET(ch->act[0], PLR_NO_CHALLENGE))
 	{
 	send_to_char("You must enable challenges to challenge a player.\n\r", ch);
 	return;
@@ -6854,7 +6854,7 @@ void do_challenge(CHAR_DATA *ch, char *argument)
 	return;
 	}
 
-	if (IS_SET(victim->act, PLR_NO_CHALLENGE))
+	if (IS_SET(victim->act[0], PLR_NO_CHALLENGE))
 	{
 	send_to_char("That person is not accepting challenges.\n\r", ch);
 	return;
@@ -7031,17 +7031,17 @@ void do_resurrect(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (IS_SET(obj->extra2_flags, ITEM_NO_RESURRECT))
+	if (IS_SET(obj->extra[1], ITEM_NO_RESURRECT))
 	{
 		act("$p seems to be immune to your divine energies.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 		return;
 	}
 
 	// Only allow resurrection of CPK corpses in CPK rooms
-	if( IS_SET(ch->in_room->room_flags, ROOM_CPK) && !IS_SET(CORPSE_FLAGS(obj), CORPSE_CPKDEATH) )
+	if( IS_SET(ch->in_room->roomflag[0], ROOM_CPK) && !IS_SET(CORPSE_FLAGS(obj), CORPSE_CPKDEATH) )
 	{
 		// Any player, or non-holyaura immortal, attempting to do so will be ZOTTED.
-		if( !IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act2, PLR_HOLYAURA)))
+		if( !IS_NPC(ch) && (!IS_IMMORTAL(ch) || !IS_SET(ch->act[1], PLR_HOLYAURA)))
 		{
 			send_to_char("{YAttempting to resurrect a non-CPK corpse in a CPK room is {RFORBIDDEN{Y!{x\n\r", ch);
 			ch->hit = 1;
@@ -7568,15 +7568,15 @@ void do_pursuit(CHAR_DATA *ch, char *argument)
 	return;
 	}
 
-	if (IS_SET(ch->act,PLR_PURSUIT))
+	if (IS_SET(ch->act[0],PLR_PURSUIT))
 	{
 		send_to_char("You will no longer pursue characters when they flee.\n\r",ch);
-		REMOVE_BIT(ch->act,PLR_PURSUIT);
+		REMOVE_BIT(ch->act[0],PLR_PURSUIT);
 	}
 	else
 	{
 		send_to_char("You will now pursue characters when they flee.\n\r",ch);
-		SET_BIT(ch->act,PLR_PURSUIT);
+		SET_BIT(ch->act[0],PLR_PURSUIT);
 	}
 }
 
@@ -7747,7 +7747,7 @@ void do_warcry(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (IS_SET(ch->affected_by2, AFF2_SILENCE)) {
+	if (IS_SET(ch->affected_by[1], AFF2_SILENCE)) {
 		send_to_char("You open your mouth wide, but nothing comes out.\n\r", ch);
 		act("$n opens $s mouth wide, but nothing comes out.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 		return;
@@ -7801,7 +7801,7 @@ void player_kill(CHAR_DATA *ch, CHAR_DATA *victim)
 {
 	char buf[MAX_STRING_LENGTH];
 
-	if (!pre_reckoning && reckoning_timer > 0 && !IS_NPC(victim) && !IS_SET(victim->in_room->room_flags, ROOM_ARENA)) {
+	if (!pre_reckoning && reckoning_timer > 0 && !IS_NPC(victim) && !IS_SET(victim->in_room->roomflag[0], ROOM_ARENA)) {
 		sprintf(buf, "{MThe reckoning has claimed %s, who was slain by the mighty %s!{x\n\r", victim->name, ch->name);
 		gecho(buf);
 	}
@@ -7813,7 +7813,7 @@ void player_kill(CHAR_DATA *ch, CHAR_DATA *victim)
 	victim->tot_level + 75 < ch->tot_level &&
 	(ch->in_room->area->place_flags == PLACE_FIRST_CONTINENT ||
 	ch->in_room->area->place_flags == PLACE_SECOND_CONTINENT) &&
-	!IS_SET(victim->in_room->room_flags, ROOM_ARENA)) {
+	!IS_SET(victim->in_room->roomflag[0], ROOM_ARENA)) {
 	int place = 0;
 	sprintf(buf, "Let it be known %s has cowardly slain %s, %s is now known as a pirate!", ch->name, victim->name, ch->name);
 	crier_announce(buf);
@@ -7829,7 +7829,7 @@ void player_kill(CHAR_DATA *ch, CHAR_DATA *victim)
 	*/
 
 	// Arena win. Only announces and tallies in Plith arena to make "arena" flag more versatile.
-	if (IS_SET(ch->in_room->room_flags, ROOM_ARENA) && !str_cmp(victim->in_room->area->name, "Arena") && ch != victim) {
+	if (IS_SET(ch->in_room->roomflag[0], ROOM_ARENA) && !str_cmp(victim->in_room->area->name, "Arena") && ch != victim) {
 		ch->arena_kills++;
 		victim->arena_deaths++;
 
@@ -7854,7 +7854,7 @@ void player_kill(CHAR_DATA *ch, CHAR_DATA *victim)
 		ch->questpoints += quest_points;
 	} else if (ch != victim) { // Regular PK win.
 		// CPK
-		if (IS_SET(ch->in_room->room_flags, ROOM_CPK)) {
+		if (IS_SET(ch->in_room->roomflag[0], ROOM_CPK)) {
 			ch->cpk_kills++;
 			victim->cpk_deaths++;
 			if (IN_CHURCH(ch)) {

@@ -66,6 +66,8 @@ extern bool wiznet_script;
 #define ISARG_INSTANCE(x)	((argv[(x)]->type == ENT_INSTANCE) && argv[(x)]->d.instance)
 #define ISARG_DUNGEON(x)	((argv[(x)]->type == ENT_DUNGEON) && argv[(x)]->d.dungeon)
 #define ISARG_SHIP(x)		((argv[(x)]->type == ENT_SHIP) && argv[(x)]->d.ship)
+#define ISARG_BV(x)			((argv[(x)]->type == ENT_BITVECTOR) && argv[(x)]->d.bv.table)
+#define ISARG_BM(x)			((argv[(x)]->type == ENT_BITMATRIX) && argv[(x)]->d.bv.table)
 
 #define ARG_NUM(x)	ARG_TYPE(x,num)
 #define ARG_STR(x)	ARG_TYPE(x,str)
@@ -92,6 +94,8 @@ extern bool wiznet_script;
 #define ARG_INSTANCE(x) ARG_TYPE(x,instance)
 #define ARG_DUNGEON(x) ARG_TYPE(x,dungeon)
 #define ARG_SHIP(x)	ARG_TYPE(x,ship)
+#define ARG_BV(x) ARG_TYPE(x,bv)
+#define ARG_BM(x) ARG_TYPE(x,bm)
 
 #define SHIFT_MOB()	do { if(ISARG_MOB(0)) { mob = ARG_MOB(0); ++argv; --argc; } } while(0)
 #define SHIFT_OBJ()	do { if(ISARG_OBJ(0)) { obj = ARG_OBJ(0); ++argv; --argc; } } while(0)
@@ -116,8 +120,8 @@ long flag_value_ifcheck(const struct flag_type *flag_table, char *argument)
 DECL_IFC_FUN(ifc_act)
 {
 	*ret = (ISARG_MOB(0) && ISARG_STR(1) &&
-		((IS_NPC(ARG_MOB(0)) && IS_SET(ARG_MOB(0)->act, flag_value_ifcheck(act_flags,ARG_STR(1)))) ||
-		(!IS_NPC(ARG_MOB(0)) && IS_SET(ARG_MOB(0)->act, flag_value_ifcheck(plr_flags,ARG_STR(1))))));
+		((IS_NPC(ARG_MOB(0)) && IS_SET(ARG_MOB(0)->act[0], flag_value_ifcheck(act_flags,ARG_STR(1)))) ||
+		(!IS_NPC(ARG_MOB(0)) && IS_SET(ARG_MOB(0)->act[0], flag_value_ifcheck(plr_flags,ARG_STR(1))))));
 	return true;
 }
 
@@ -125,22 +129,22 @@ DECL_IFC_FUN(ifc_act)
 DECL_IFC_FUN(ifc_act2)
 {
 	*ret = (ISARG_MOB(0) && ISARG_STR(1) &&
-		((IS_NPC(ARG_MOB(0)) && IS_SET(ARG_MOB(0)->act2, flag_value_ifcheck(act2_flags,ARG_STR(1)))) ||
-		(!IS_NPC(ARG_MOB(0)) && IS_SET(ARG_MOB(0)->act2, flag_value_ifcheck(plr2_flags,ARG_STR(1))))));
+		((IS_NPC(ARG_MOB(0)) && IS_SET(ARG_MOB(0)->act[1], flag_value_ifcheck(act2_flags,ARG_STR(1)))) ||
+		(!IS_NPC(ARG_MOB(0)) && IS_SET(ARG_MOB(0)->act[1], flag_value_ifcheck(plr2_flags,ARG_STR(1))))));
 	return true;
 }
 
 // Checks if the "affected_by" field on the mob has the given flags
 DECL_IFC_FUN(ifc_affected)
 {
-	*ret = (ISARG_MOB(0) && ISARG_STR(1) && IS_SET(ARG_MOB(0)->affected_by, flag_value_ifcheck( affect_flags,ARG_STR(1))));
+	*ret = (ISARG_MOB(0) && ISARG_STR(1) && IS_SET(ARG_MOB(0)->affected_by[0], flag_value_ifcheck( affect_flags,ARG_STR(1))));
 	return true;
 }
 
 // Checks if the "affected_by2" field on the mob has the given flags
 DECL_IFC_FUN(ifc_affected2)
 {
-	*ret = (ISARG_MOB(0) && ISARG_STR(1) && IS_SET(ARG_MOB(0)->affected_by2, flag_value_ifcheck( affect2_flags,ARG_STR(1))));
+	*ret = (ISARG_MOB(0) && ISARG_STR(1) && IS_SET(ARG_MOB(0)->affected_by[1], flag_value_ifcheck( affect2_flags,ARG_STR(1))));
 	return true;
 }
 
@@ -787,7 +791,7 @@ DECL_IFC_FUN(ifc_ischurchexcom)
 
 DECL_IFC_FUN(ifc_iscpkproof)
 {
-	*ret = ISARG_OBJ(0) && IS_SET(ARG_OBJ(0)->extra_flags,ITEM_NODROP) && IS_SET(ARG_OBJ(0)->extra_flags,ITEM_NOUNCURSE);
+	*ret = ISARG_OBJ(0) && IS_SET(ARG_OBJ(0)->extra[0],ITEM_NODROP) && IS_SET(ARG_OBJ(0)->extra[0],ITEM_NOUNCURSE);
 	return true;
 }
 
@@ -1389,25 +1393,25 @@ DECL_IFC_FUN(ifc_objexists)
 
 DECL_IFC_FUN(ifc_objextra)
 {
-	*ret = (ISARG_OBJ(0) && ISARG_STR(1) && IS_SET(ARG_OBJ(0)->extra_flags, flag_value_ifcheck(extra_flags,ARG_STR(1))));
+	*ret = (ISARG_OBJ(0) && ISARG_STR(1) && IS_SET(ARG_OBJ(0)->extra[0], flag_value_ifcheck(extra_flags,ARG_STR(1))));
 	return true;
 }
 
 DECL_IFC_FUN(ifc_objextra2)
 {
-	*ret = (ISARG_OBJ(0) && ISARG_STR(1) && IS_SET(ARG_OBJ(0)->extra2_flags, flag_value_ifcheck(extra2_flags,ARG_STR(1))));
+	*ret = (ISARG_OBJ(0) && ISARG_STR(1) && IS_SET(ARG_OBJ(0)->extra[1], flag_value_ifcheck(extra2_flags,ARG_STR(1))));
 	return true;
 }
 
 DECL_IFC_FUN(ifc_objextra3)
 {
-	*ret = (ISARG_OBJ(0) && ISARG_STR(1) && IS_SET(ARG_OBJ(0)->extra3_flags, flag_value_ifcheck(extra3_flags,ARG_STR(1))));
+	*ret = (ISARG_OBJ(0) && ISARG_STR(1) && IS_SET(ARG_OBJ(0)->extra[2], flag_value_ifcheck(extra3_flags,ARG_STR(1))));
 	return true;
 }
 
 DECL_IFC_FUN(ifc_objextra4)
 {
-	*ret = (ISARG_OBJ(0) && ISARG_STR(1) && IS_SET(ARG_OBJ(0)->extra4_flags, flag_value_ifcheck(extra4_flags,ARG_STR(1))));
+	*ret = (ISARG_OBJ(0) && ISARG_STR(1) && IS_SET(ARG_OBJ(0)->extra[3], flag_value_ifcheck(extra4_flags,ARG_STR(1))));
 	return true;
 }
 
@@ -1768,11 +1772,11 @@ DECL_IFC_FUN(ifc_roomflag)
 		if(!(pWilds = get_wilds_from_uid(NULL,ARG_NUM(0))))
 			*ret = false;
 		else if((room = get_wilds_vroom(pWilds, ARG_NUM(1), ARG_NUM(2))))
-			*ret = (IS_SET(room->room_flags, flag_value_ifcheck(room_flags,ARG_STR(3))));
+			*ret = (IS_SET(room->roomflag[0], flag_value_ifcheck(room_flags,ARG_STR(3))));
 		else if(!(pTerrain = get_terrain_by_coors (pWilds, ARG_NUM(1), ARG_NUM(2))))
 			*ret = false;
 		else
-			*ret = (IS_SET(pTerrain->template->room_flags, flag_value_ifcheck(room_flags,ARG_STR(3))));
+			*ret = (IS_SET(pTerrain->template->roomflag[0], flag_value_ifcheck(room_flags,ARG_STR(3))));
 
 	} else {
 		if(!ISARG_STR(1)) return false;
@@ -1781,7 +1785,7 @@ DECL_IFC_FUN(ifc_roomflag)
 		else if(ISARG_ROOM(0)) room = ARG_ROOM(0);
 		else if(ISARG_TOK(0)) room = token_room(ARG_TOK(0));
 		else return false;
-		*ret = (room && IS_SET(room->room_flags, flag_value_ifcheck(room_flags,ARG_STR(1))));
+		*ret = (room && IS_SET(room->roomflag[0], flag_value_ifcheck(room_flags,ARG_STR(1))));
 	}
 
 	return true;
@@ -1799,11 +1803,11 @@ DECL_IFC_FUN(ifc_roomflag2)
 		if(!(pWilds = get_wilds_from_uid(NULL,ARG_NUM(0))))
 			*ret = false;
 		else if((room = get_wilds_vroom(pWilds, ARG_NUM(1), ARG_NUM(2))))
-			*ret = (IS_SET(room->room2_flags, flag_value_ifcheck(room2_flags,ARG_STR(3))));
+			*ret = (IS_SET(room->roomflag[1], flag_value_ifcheck(room2_flags,ARG_STR(3))));
 		else if(!(pTerrain = get_terrain_by_coors (pWilds, ARG_NUM(1), ARG_NUM(2))))
 			*ret = false;
 		else
-			*ret = (IS_SET(pTerrain->template->room2_flags, flag_value_ifcheck(room2_flags,ARG_STR(3))));
+			*ret = (IS_SET(pTerrain->template->roomflag[1], flag_value_ifcheck(room2_flags,ARG_STR(3))));
 
 	} else {
 		if(!ISARG_STR(1)) return false;
@@ -1812,7 +1816,7 @@ DECL_IFC_FUN(ifc_roomflag2)
 		else if(ISARG_ROOM(0)) room = ARG_ROOM(0);
 		else if(ISARG_TOK(0)) room = token_room(ARG_TOK(0));
 		else return false;
-		*ret = (room && IS_SET(room->room2_flags, flag_value_ifcheck(room2_flags,ARG_STR(1))));
+		*ret = (room && IS_SET(room->roomflag[1], flag_value_ifcheck(room2_flags,ARG_STR(1))));
 	}
 
 	return true;
@@ -2400,7 +2404,7 @@ DECL_IFC_FUN(ifc_year)
 	return true;
 }
 
-
+/*
 DECL_IFC_FUN(ifc_bit)
 {
 	*ret = 0;
@@ -2414,6 +2418,7 @@ DECL_IFC_FUN(ifc_bit)
 
 	return true;
 }
+*/
 
 DECL_IFC_FUN(ifc_flag_act)
 {
@@ -3462,7 +3467,7 @@ DECL_IFC_FUN(ifc_testhardmagic)
 	if(!mob || !mob->in_room) return false;
 
 	chance = 0;
-	if (IS_SET(mob->in_room->room2_flags, ROOM_HARD_MAGIC)) chance += 2;
+	if (IS_SET(mob->in_room->roomflag[1], ROOM_HARD_MAGIC)) chance += 2;
 	if (mob->in_room->sector_type == SECT_CURSED_SANCTUM) chance += 2;
 	if(!IS_NPC(mob) && chance > 0 && number_range(1,chance) > 1) {
 		*ret = true;
@@ -3478,7 +3483,7 @@ DECL_IFC_FUN(ifc_testslowmagic)
 
 	if(!mob || !mob->in_room) return false;
 
-	*ret = IS_SET(mob->in_room->room2_flags,ROOM_SLOW_MAGIC) || (mob->in_room->sector_type == SECT_CURSED_SANCTUM);
+	*ret = IS_SET(mob->in_room->roomflag[1],ROOM_SLOW_MAGIC) || (mob->in_room->sector_type == SECT_CURSED_SANCTUM);
 
 	return true;
 }
@@ -3539,7 +3544,7 @@ DECL_IFC_FUN(ifc_hasenvironment)
 
 	if(!room) return false;
 
-	*ret = IS_SET(room->room2_flags,ROOM_VIRTUAL_ROOM) && (room->environ_type != ENVIRON_NONE);
+	*ret = IS_SET(room->roomflag[1],ROOM_VIRTUAL_ROOM) && (room->environ_type != ENVIRON_NONE);
 	return true;
 }
 
@@ -3873,7 +3878,7 @@ DECL_IFC_FUN(ifc_sunlight)
 		else if(token) room = token_room(token);
 	}
 
-	if (room && (room->wilds || (room->sector_type != SECT_INSIDE && room->sector_type != SECT_NETHERWORLD && !IS_SET(room->room_flags, ROOM_INDOORS)))) {
+	if (room && (room->wilds || (room->sector_type != SECT_INSIDE && room->sector_type != SECT_NETHERWORLD && !IS_SET(room->roomflag[0], ROOM_INDOORS)))) {
 		*ret = (int)(-1000 * cos(3.1415926 * time_info.hour / 12));
 		if(*ret < 0) *ret = 0;
 	} else
@@ -4205,7 +4210,7 @@ DECL_IFC_FUN(ifc_candrop)
 
 	o = ARG_OBJ(1);
 
-	*ret = can_drop_obj(ARG_MOB(0), o, silent) && !(keep && IS_SET(o->extra2_flags, ITEM_KEPT));
+	*ret = can_drop_obj(ARG_MOB(0), o, silent) && !(keep && IS_SET(o->extra[1], ITEM_KEPT));
 	return true;
 }
 
@@ -4590,7 +4595,7 @@ DECL_IFC_FUN(ifc_ishired)
 {
 	if( VALID_NPC(0) )
 	{
-		*ret = IS_SET(ARG_MOB(0)->act2, ACT2_HIRED) && true;
+		*ret = IS_SET(ARG_MOB(0)->act[1], ACT2_HIRED) && true;
 		return true;
 	}
 
@@ -4786,4 +4791,74 @@ DECL_IFC_FUN(ifc_shiptype)
 		*ret = ARG_SHIP(0)->ship_type == flag_value_ifcheck(ship_class_types, ARG_STR(1));
 	}
 	return true;
+}
+
+// ISPROG $MOBILE|OBJECT|ROOM $STRING
+//
+// Checks whether the entity has the specified program flags
+DECL_IFC_FUN(ifc_isprog)
+{
+	long flag;
+	*ret = false;
+	if (ISARG_STR(0))
+	{
+		flag = script_flag_value(prog_entity_flags, ARG_STR(0));
+
+		if (flag && flag != NO_FLAG)
+		{
+			if (info->mob) *ret = PROG_FLAG(info->mob, flag) && true;
+			else if (info->obj) *ret = PROG_FLAG(info->obj, flag) && true;
+			else if (info->room) *ret = PROG_FLAG(info->room, flag) && true;
+		}
+	}
+	else if (ISARG_MOB(0))
+	{
+		if (ISARG_STR(1))
+		{
+			flag = script_flag_value(prog_entity_flags, ARG_STR(1));
+
+			*ret = (flag && flag != NO_FLAG) && PROG_FLAG(ARG_MOB(0), flag) && true;
+		}
+	}
+	else if (ISARG_OBJ(0))
+	{
+		if (ISARG_STR(1))
+		{
+			flag = script_flag_value(prog_entity_flags, ARG_STR(1));
+
+			*ret = (flag && flag != NO_FLAG) && PROG_FLAG(ARG_OBJ(0), flag) && true;
+		}
+	}
+	else if (ISARG_ROOM(0))
+	{
+		if (ISARG_STR(1))
+		{
+			flag = script_flag_value(prog_entity_flags, ARG_STR(1));
+
+			*ret = (flag && flag != NO_FLAG) && PROG_FLAG(ARG_ROOM(0), flag) && true;
+		}
+	}
+
+	return true;
+}
+
+// BIT $BITVECTOR $STRING
+// BIT $BITMATRIX $STRING
+DECL_IFC_FUN(ifc_bit)
+{
+	if (ISARG_BV(0) && ISARG_STR(1))
+	{
+		long flag = script_flag_value(ARG_BV(0).table,ARG_STR(1));
+
+		*ret = (flag && flag != NO_FLAG) && IS_SET(ARG_BV(0).value, flag) && true;
+
+		return true;
+	}
+	else if(ISARG_BM(0) && ISARG_STR(1))
+	{
+		*ret = bitmatrix_isset(ARG_STR(1), ARG_BM(0).bank, ARG_BM(0).values);
+
+		return true;
+	}
+	return false;
 }
