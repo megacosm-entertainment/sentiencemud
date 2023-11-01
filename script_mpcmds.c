@@ -129,6 +129,7 @@ const struct script_cmd_type mob_cmd_table[] = {
 	{ "spawndungeon",		scriptcmd_spawndungeon,		true,	true	},
 	{ "specialkey",			scriptcmd_specialkey,		false,	true	},
 	{ "startcombat",		scriptcmd_startcombat,		false,	true	},
+	{ "startreckoning",		scriptcmd_startreckoning,	true,	true	},
 	{ "stopcombat",			scriptcmd_stopcombat,		false,	true	},
 	{ "stringmob",			do_mpstringmob,				true,	true	},
 	{ "stringobj",			do_mpstringobj,				true,	true	},

@@ -2645,6 +2645,7 @@ SCRIPT_CMD(scriptcmd_treasuremap);
 SCRIPT_CMD(scriptcmd_wildernessmap);
 SCRIPT_CMD(scriptcmd_specialkey);
 SCRIPT_CMD(scriptcmd_loadinstanced);
+SCRIPT_CMD(scriptcmd_startreckoning);
 
 #include "tables.h"
 

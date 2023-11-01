@@ -26,6 +26,7 @@ const struct script_cmd_type area_cmd_table[] = {
 	{ "reckoning",			scriptcmd_reckoning,		true,	true	},
 	{ "sendfloor",			scriptcmd_sendfloor,		false,	true	},
 	{ "specialkey",			scriptcmd_specialkey,		false,	true	},
+	{ "startreckoning",		scriptcmd_startreckoning,	true,	true	},
 	{ "treasuremap",		scriptcmd_treasuremap,		false,	true	},
 	{ "unlockarea",			scriptcmd_unlockarea,		true,	true	},
 	{ "unmute",				scriptcmd_unmute,			false,	true	},
@@ -54,6 +55,7 @@ const struct script_cmd_type instance_cmd_table[] = {
 	{ "reckoning",			scriptcmd_reckoning,		true,	true	},
 	{ "sendfloor",			scriptcmd_sendfloor,		false,	true	},
 	{ "specialkey",			scriptcmd_specialkey,		false,	true	},
+	{ "startreckoning",		scriptcmd_startreckoning,	true,	true	},
 	{ "treasuremap",		scriptcmd_treasuremap,		false,	true	},
 	{ "unlockarea",			scriptcmd_unlockarea,		true,	true	},
 	{ "unmute",				scriptcmd_unmute,			false,	true	},
@@ -82,6 +84,7 @@ const struct script_cmd_type dungeon_cmd_table[] = {
 	{ "reckoning",			scriptcmd_reckoning,		true,	true	},
 	{ "sendfloor",			scriptcmd_sendfloor,		false,	true	},
 	{ "specialkey",			scriptcmd_specialkey,		false,	true	},
+	{ "startreckoning",		scriptcmd_startreckoning,	true,	true	},
 	{ "treasuremap",		scriptcmd_treasuremap,		false,	true	},
 	{ "unlockarea",			scriptcmd_unlockarea,		true,	true	},
 	{ "unmute",				scriptcmd_unmute,			false,	true	},
@@ -3814,6 +3817,48 @@ SCRIPT_CMD(scriptcmd_startcombat)
 	// Set them to fighting!
 	if(set_fighting(attacker, victim))
 		info->progs->lastreturn = 1;
+}
+
+// STARTRECKONING[ $DURATION=30[ $SKIP=false]]
+SCRIPT_CMD(scriptcmd_startreckoning)
+{
+	char *rest = argument;
+	int duration = 30;
+	bool skip = false;
+
+	info->progs->lastreturn = 0;
+
+	if (script_security < 9)
+		return;
+
+	if (rest && *rest)
+	{
+		if (!(rest = expand_argument(info, rest, arg)) || arg->type != ENT_NUMBER)
+			return;
+
+		duration = URANGE(15, arg->d.num, 60);
+
+		if (rest && *rest)
+		{
+			if (!(rest = expand_argument(info, rest, arg)) || arg->type != ENT_STRING)
+				return;
+
+			if (!str_prefix(arg->d.str, "true") || !str_prefix(arg->d.str, "yes"))
+				skip = true;
+		}
+	}
+
+	if (reckoning_timer > 0)
+		return;
+
+	reckoning_duration = duration;
+	struct tm *reck_time = (struct tm *) localtime(&current_time);
+	reck_time->tm_min += reckoning_duration;
+	reckoning_timer = (time_t) mktime(reck_time);
+	reckoning_cooldown_timer = 0;
+	pre_reckoning = skip?5:1;
+
+	info->progs->lastreturn = duration;
 }
 
 
