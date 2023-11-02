@@ -622,6 +622,36 @@ bool opc_skip_to_label(SCRIPT_CB *block,int op,int id,bool dir)
 	return false;
 }
 
+bool opc_skip_to_level(SCRIPT_CB *block,int op,int level)
+{
+	int line, last;
+	SCRIPT_CODE *code;
+	char buf[MIL];
+
+	code = block->script->code;
+	last = block->script->lines;
+
+	if(wiznet_script) {
+		sprintf(buf,"Skipping to %s with Level %d.", opcode_names[op], level);
+		wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
+	}
+
+	for(line = block->line; line < last; line++) {
+//		if(wiznet_script) {
+//			(buf,"Checking: Line=%d, Opcode=%d(%s), Level=%d", line+1,code[line].opcode,opcode_names[code[line].opcode],code[line].level);
+//			wiznet(buf,NULL,NULL,WIZ_SCRIPTS,0,0);
+//		}
+		if(code[line].opcode == op && code[line].level == level) {
+			block->line = line+1;
+			DBG2EXITVALUE2(true);
+			return true;
+		}
+	}
+
+	DBG2EXITVALUE2(false);
+	return false;
+}
+
 bool opc_skip_block(SCRIPT_CB *block,int level,bool endblock)
 {
 	int line, last;
@@ -2621,6 +2651,77 @@ DECL_OPC_FUN(opc_exitwhile)
 	return opc_skip_to_label(block,OP_ENDWHILE,block->cur_line->label,true);
 }
 
+DECL_OPC_FUN(opc_switch)
+{
+	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
+		return opc_skip_block(block,block->cur_line->level-1,false);
+
+	SCRIPT_PARAM *arg = new_script_param();
+	if(!expand_argument(&block->info,block->cur_line->rest,arg)) {
+		block->ret_val = PRET_BADSYNTAX;
+		free_script_param(arg);
+		return false;
+	}
+
+	if (arg->type != ENT_NUMBER)
+	{
+		block->ret_val = PRET_BADSYNTAX;
+		free_script_param(arg);
+		return false;
+	}
+
+	long value = arg->d.num;
+	free_script_param(arg);
+
+	if (block->script->switch_table && block->cur_line->param >= 0 && block->cur_line->param < block->script->n_switch_table)
+	{
+		SCRIPT_SWITCH *sw = &block->script->switch_table[block->cur_line->param];
+		SCRIPT_SWITCH_CASE *swc;
+
+		for(swc = sw->cases; swc; swc = swc->next)
+		{
+			if (value >= swc->a && value <= swc->b)
+			{
+				if(swc->line >= 0 && swc->line < block->script->lines) {
+					block->line = swc->line;
+					block->cur_line = &block->script->code[swc->line];
+					script_loop_cleanup(block, block->cur_line->level);
+					if(block->cur_line->level > 0) block->cond[block->cur_line->level-1] = true;
+					return true;
+				}
+				return false;
+			}
+		}
+
+		// While lines start at 0, the default in a switch statement can never point to line 0, as the switch statement itself (this opcode) must come before it
+		if(sw->default_case > 0 && sw->default_case < block->script->lines) {
+			block->line = sw->default_case;
+			block->cur_line = &block->script->code[sw->default_case];
+			script_loop_cleanup(block, block->cur_line->level);
+			if(block->cur_line->level > 0) block->cond[block->cur_line->level-1] = true;
+			return true;
+		}
+
+		// Skip to the end of the switch
+		return opc_skip_block(block,OP_ENDSWITCH,block->cur_line->level);
+	}
+
+	// To get to here means something bad happened
+	block->ret_val = PRET_BADSYNTAX;
+	return false;
+}
+
+DECL_OPC_FUN(opc_endswitch)
+{
+	opc_next_line(block);
+	return true;
+}
+
+DECL_OPC_FUN(opc_exitswitch)
+{
+	// Skip to the end of the switch
+	return opc_skip_block(block,OP_ENDSWITCH,block->cur_line->level);
+}
 
 DECL_OPC_FUN(opc_mob)
 {
@@ -6220,9 +6321,9 @@ void do_ifchecks( CHAR_DATA *ch, char *argument)
 	}
 
 	add_buf(buffer,"{WIf-Checks:{x\n\r");
-	add_buf(buffer,"{D==============================================================={x\n\r");
-	add_buf(buffer,"{WNum  {D| {WName                {D| {W         Types          {D| {WValue {D|{x\n\r");
-	add_buf(buffer,"{D---------------------------------------------------------------{x\n\r");
+	add_buf(buffer,"{D========================================================================={x\n\r");
+	add_buf(buffer,"{WNum  {D| {WName                {D| {W              Types               {D| {WValue {D|{x\n\r");
+	add_buf(buffer,"{D-------------------------------------------------------------------------{x\n\r");
 
 	for(i=0,j=0;ifcheck_table[i].name;i++) if(!*argument || is_name(argument,ifcheck_table[i].name)) {
 		sprintf(buf,"{W%4d{D)  {Y%-20.20s %s %s %s %s %s   %s{x\n\r",++j,
@@ -6232,10 +6333,12 @@ void do_ifchecks( CHAR_DATA *ch, char *argument)
 			((ifcheck_table[i].type & IFC_R) ? "{Groom" : "    "),
 			((ifcheck_table[i].type & IFC_T) ? "{Gtoken" : "     "),
 			((ifcheck_table[i].type & IFC_A) ? "{Garea" : "    "),
+			((ifcheck_table[i].type & IFC_I) ? "{Ginst" : "    "),
+			((ifcheck_table[i].type & IFC_D) ? "{Gdung" : "    "),
 			(ifcheck_table[i].numeric ? "{B NUM " : "{R T/F "));
 		add_buf(buffer,buf);
 	}
-	add_buf(buffer,"{D==============================================================={x\n\r");
+	add_buf(buffer,"{D========================================================================={x\n\r");
 
 //	pbuf = buf_string(buffer);
 //	sprintf(buf,"pbuf = '%.15s{x', %d\n\r", pbuf, strlen(pbuf));

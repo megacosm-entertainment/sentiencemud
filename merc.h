@@ -468,6 +468,19 @@ typedef struct skill_entry_type {
 	TOKEN_DATA *token;	// Skill/Spell Token, NULL if this is a built-in skill
 } SKILL_ENTRY;
 
+typedef struct script_switch_case_data SCRIPT_SWITCH_CASE;
+struct script_switch_case_data {
+    SCRIPT_SWITCH_CASE *next;
+    long a, b;
+    int line;
+};
+
+typedef struct script_switch_table_data SCRIPT_SWITCH;
+struct script_switch_table_data {
+    SCRIPT_SWITCH_CASE *cases;
+    int default_case;
+};
+
 struct script_data {
 	SCRIPT_DATA *next;
 	AREA_DATA *area;
@@ -483,6 +496,8 @@ struct script_data {
 	int security;	/* IMP only control over runtime aspects */
 	int run_security;	// Minimum security needed to RUN this script
     char *comments;
+    int n_switch_table;
+    SCRIPT_SWITCH *switch_table;
 };
 
 struct script_varinfo {
@@ -8242,6 +8257,11 @@ void do_staffsupervisor(CHAR_DATA *ch, char *argument);
 void remove_immortal(IMMORTAL_DATA *immortal);
 void show_immortal(IMMORTAL_DATA *immortal, CHAR_DATA *ch);
 void print_immortal_info(IMMORTAL_DATA *immortal, CHAR_DATA *ch);
+
+SCRIPT_SWITCH_CASE *new_script_switch_case(void);
+void free_script_switch_case(SCRIPT_SWITCH_CASE *data);
+SCRIPT_SWITCH *new_script_switch(int nswitch);
+void free_script_switch(SCRIPT_SWITCH *data, int nswitch);
 
 SCRIPT_DATA *new_script(void);
 void free_script_code(SCRIPT_CODE *code, int lines);

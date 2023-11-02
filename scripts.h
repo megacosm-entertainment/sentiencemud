@@ -387,6 +387,9 @@ enum script_command_enum {
 	OP_WHILE,		/* while .... */
 	OP_ENDWHILE,
 	OP_EXITWHILE,
+	OP_SWITCH,
+	OP_ENDSWITCH,
+	OP_EXITSWITCH,		// Hidden opcode, looks for the ENDSWITCH
 	/* Add new opcodes here... */
 	OP_MOB,			/* A mob command */
 	OP_OBJ,			/* An obj command */
@@ -1146,6 +1149,7 @@ enum entity_ship_enum {
 #define IN_FOR			-3 /* Flag: Executable statements */
 #define IN_LIST			-4 /* Flag: Executable statements */
 #define IN_WHILE		-5 /* Flag: Begin of if-else-endif block */
+#define IN_SWITCH		-6
 #define MAX_CALL_LEVEL		15 /* Maximum nested calls */
 
 struct script_var_type {
@@ -1307,6 +1311,21 @@ struct loop_data {
 	bool valid;
 	char buf[MSL];
 };
+
+struct switch_case_data {
+	struct switch_case_data *next;
+	long a, b;
+	int line;
+};
+
+struct switch_data {
+	struct switch_data *next;
+	int id;
+	struct switch_case_data *case_head;
+	struct switch_case_data *case_tail;	// Most recently added case
+	int default_case;		// Line number of default case
+};
+
 
 /* Running information used in execution */
 struct script_control_block {
@@ -1943,6 +1962,9 @@ DECL_OPC_FUN(opc_exitlist);
 DECL_OPC_FUN(opc_while);
 DECL_OPC_FUN(opc_endwhile);
 DECL_OPC_FUN(opc_exitwhile);
+DECL_OPC_FUN(opc_switch);
+DECL_OPC_FUN(opc_endswitch);
+DECL_OPC_FUN(opc_exitswitch);
 DECL_OPC_FUN(opc_mob);
 DECL_OPC_FUN(opc_obj);
 DECL_OPC_FUN(opc_room);
