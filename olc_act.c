@@ -2394,7 +2394,13 @@ AEDIT(aedit_varset)
  
     EDIT_AREA(ch, pArea);
 
-	return olc_varset(&pArea->index_vars, ch, argument);
+	if (olc_varset(&pArea->index_vars, ch, argument, false))
+	{
+		// Install variable into the "live"
+		olc_varset(&pArea->progs->vars, ch, argument, true);
+		return true;
+	}
+	return false;
 }
 
 AEDIT(aedit_varclear)
@@ -2403,7 +2409,14 @@ AEDIT(aedit_varclear)
 
     EDIT_AREA(ch, pArea);
 
-	return olc_varclear(&pArea->index_vars, ch, argument);
+	if (olc_varclear(&pArea->index_vars, ch, argument, false))
+	{
+		// Clear variable on "live"
+		olc_varclear(&pArea->progs->vars, ch, argument, true);
+		return true;
+	}
+
+	return false;
 }
 
 
@@ -3368,7 +3381,13 @@ REDIT(redit_varset)
 
     EDIT_ROOM(ch, pRoom);
 
-	return olc_varset(&pRoom->index_vars, ch, argument);
+	if(olc_varset(&pRoom->index_vars, ch, argument, false))
+	{
+		// This will *NOT* update cloned rooms...
+		olc_varset(&pRoom->progs->vars, ch, argument, true);
+		return true;
+	}
+	return false;
 }
 
 REDIT(redit_varclear)
@@ -3377,7 +3396,14 @@ REDIT(redit_varclear)
 
     EDIT_ROOM(ch, pRoom);
 
-	return olc_varclear(&pRoom->index_vars, ch, argument);
+	if(olc_varclear(&pRoom->index_vars, ch, argument, false))
+	{
+		// This will *NOT* update cloned rooms...
+		olc_varclear(&pRoom->progs->vars, ch, argument, true);
+		return true;
+	}
+
+	return false;
 }
 
 
@@ -8544,7 +8570,7 @@ OEDIT(oedit_varset)
 
     EDIT_OBJ(ch, pObj);
 
-	return olc_varset(&pObj->index_vars, ch, argument);
+	return olc_varset(&pObj->index_vars, ch, argument, false);
 }
 
 OEDIT(oedit_varclear)
@@ -8553,7 +8579,7 @@ OEDIT(oedit_varclear)
 
     EDIT_OBJ(ch, pObj);
 
-	return olc_varclear(&pObj->index_vars, ch, argument);
+	return olc_varclear(&pObj->index_vars, ch, argument, false);
 }
 
 
@@ -13977,7 +14003,7 @@ MEDIT(medit_varset)
 
     EDIT_MOB(ch, pMob);
 
-	return olc_varset(&pMob->index_vars, ch, argument);
+	return olc_varset(&pMob->index_vars, ch, argument, false);
 }
 
 MEDIT(medit_varclear)
@@ -13986,7 +14012,7 @@ MEDIT(medit_varclear)
 
     EDIT_MOB(ch, pMob);
 
-	return olc_varclear(&pMob->index_vars, ch, argument);
+	return olc_varclear(&pMob->index_vars, ch, argument, false);
 }
 
 MEDIT(medit_corpsetype)

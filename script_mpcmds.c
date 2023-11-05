@@ -2558,9 +2558,9 @@ SCRIPT_CMD(do_mpgtransfer)
 
 	for (vch = victim->in_room->people; vch; vch = next) {
 		next = vch->next_in_room;
-		if (!IS_NPC(vch) && is_same_group(victim,vch)) {
+		if (is_same_group(victim,vch)) {
 			if (!all && vch->position != POS_STANDING) continue;
-			if (!force && room_is_private(dest, info->mob)) break;
+			if (!IS_NPC(vch) && !force && room_is_private(dest, info->mob)) break;
 			do_mob_transfer(vch,dest,quiet,mode);
 		}
 	}
@@ -3523,8 +3523,8 @@ SCRIPT_CMD(do_mptransfer)
 			if (PROG_FLAG(victim,PROG_AT)) continue;
 			if (!IS_NPC(victim)) {
 				if (!force && room_is_private(dest, info->mob)) break;
-				do_mob_transfer(victim,dest,quiet,mode);
 			}
+			do_mob_transfer(victim,dest,quiet,mode);
 		}
 		return;
 	}
@@ -6061,6 +6061,9 @@ SCRIPT_CMD(do_mpvarseton)
 	case ENT_OBJECT: vars = (arg->d.obj && arg->d.obj->progs) ? &arg->d.obj->progs->vars : NULL; break;
 	case ENT_ROOM: vars = (arg->d.room && arg->d.room->progs) ? &arg->d.room->progs->vars : NULL; break;
 	case ENT_TOKEN: vars = (arg->d.token && arg->d.token->progs) ? &arg->d.token->progs->vars : NULL; break;
+	case ENT_AREA: vars = (arg->d.area && arg->d.area->progs) ? &arg->d.area->progs->vars : NULL; break;
+	case ENT_INSTANCE: vars = (arg->d.instance && arg->d.instance->progs) ? &arg->d.instance->progs->vars : NULL; break;
+	case ENT_DUNGEON: vars = (arg->d.dungeon && arg->d.dungeon->progs) ? &arg->d.dungeon->progs->vars : NULL; break;
 	default: vars = NULL; break;
 	}
 
@@ -6083,6 +6086,9 @@ SCRIPT_CMD(do_mpvarclearon)
 	case ENT_OBJECT: vars = (arg->d.obj && arg->d.obj->progs) ? &arg->d.obj->progs->vars : NULL; break;
 	case ENT_ROOM: vars = (arg->d.room && arg->d.room->progs) ? &arg->d.room->progs->vars : NULL; break;
 	case ENT_TOKEN: vars = (arg->d.token && arg->d.token->progs) ? &arg->d.token->progs->vars : NULL; break;
+	case ENT_AREA: vars = (arg->d.area && arg->d.area->progs) ? &arg->d.area->progs->vars : NULL; break;
+	case ENT_INSTANCE: vars = (arg->d.instance && arg->d.instance->progs) ? &arg->d.instance->progs->vars : NULL; break;
+	case ENT_DUNGEON: vars = (arg->d.dungeon && arg->d.dungeon->progs) ? &arg->d.dungeon->progs->vars : NULL; break;
 	default: vars = NULL; break;
 	}
 

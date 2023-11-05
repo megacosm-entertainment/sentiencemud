@@ -2440,7 +2440,7 @@ TEDIT(tedit_varset)
 
     EDIT_TOKEN(ch, token_index);
 
-	return olc_varset(&token_index->index_vars, ch, argument);
+	return olc_varset(&token_index->index_vars, ch, argument, false);
 }
 
 TEDIT(tedit_varclear)
@@ -2449,7 +2449,7 @@ TEDIT(tedit_varclear)
 
     EDIT_TOKEN(ch, token_index);
 
-	return olc_varclear(&token_index->index_vars, ch, argument);
+	return olc_varclear(&token_index->index_vars, ch, argument, false);
 }
 
 char *token_index_getvaluename(TOKEN_INDEX_DATA *token, int v)

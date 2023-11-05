@@ -3714,7 +3714,7 @@ void script_varclearon(SCRIPT_VARINFO *info, VARIABLE **vars, char *argument, SC
 }
 
 
-bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument)
+bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silent)
 {
     char name[MIL];
     char type[MIL];
@@ -3722,7 +3722,7 @@ bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument)
     bool saved;
 
     if (argument[0] == '\0') {
-	send_to_char("Syntax:  varset <name> <number|string|room> <yes|no> <value>\n\r", ch);
+	if (!silent) send_to_char("Syntax:  varset <name> <number|string|room> <yes|no> <value>\n\r", ch);
 	return FALSE;
     }
 
@@ -3731,14 +3731,14 @@ bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, yesno);
 
     if(!variable_validname(name)) {
-	send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
+	if (!silent) send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
 	return FALSE;
     }
 
     saved = !str_cmp(yesno,"yes");
 
     if(!argument[0]) {
-	send_to_char("Set what on the variable?\n\r", ch);
+	if (!silent) send_to_char("Set what on the variable?\n\r", ch);
 	return FALSE;
     }
 
@@ -3746,7 +3746,7 @@ bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument)
 		WNUM wnum;
 
 		if(!parse_widevnum(argument, ch->in_room->area, &wnum)) {
-			send_to_char("Specify a room widevnum.\n\r", ch);
+			if (!silent) send_to_char("Specify a room widevnum.\n\r", ch);
 			return FALSE;
 		}
 
@@ -3790,31 +3790,31 @@ bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument)
 	}
 	else
 	{
-		send_to_char("Invalid type of variable.\n\r", ch);
+		if (!silent) send_to_char("Invalid type of variable.\n\r", ch);
 		return FALSE;
     }
-    send_to_char("Variable set.\n\r", ch);
+    if (!silent) send_to_char("Variable set.\n\r", ch);
     return TRUE;
 }
 
-bool olc_varclear(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument)
+bool olc_varclear(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silent)
 {
     if (argument[0] == '\0') {
-		send_to_char("Syntax:  varclear <name>\n\r", ch);
+		if (!silent) send_to_char("Syntax:  varclear <name>\n\r", ch);
 		return FALSE;
     }
 
     if(!variable_validname(argument)) {
-		send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
+		if (!silent) send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
 		return FALSE;
     }
 
     if(!variable_remove(index_vars,argument)) {
-		send_to_char("No such variable defined.\n\r", ch);
+		if (!silent) send_to_char("No such variable defined.\n\r", ch);
 		return FALSE;
     }
 
-    send_to_char("Variable cleared.\n\r", ch);
+    if (!silent) send_to_char("Variable cleared.\n\r", ch);
     return TRUE;
 }
 

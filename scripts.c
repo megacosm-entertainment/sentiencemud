@@ -6859,7 +6859,12 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 	if(!name[0]) return;
 
 	// Get type
-	argument = one_argument(argument,buf);
+	if(!(argument = expand_argument(info,argument,arg)))
+		return;
+
+	if( arg->type != ENT_STRING ) return;
+
+	strncpy(buf, arg->d.str, MIL-1);
 	if(!buf[0]) return;
 
 	// Appends a fully escaped string to the end of a variable along with an EOL.
@@ -8121,9 +8126,9 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 		if( area )
 			variables_set_area(vars,name,area);
 
-	// MOBLIST add <mobile>
-	// MOBLIST remove <index>
-	// MOBLIST clear
+	// Format: MOBLIST add <mobile>
+	// Format: MOBLIST remove <index>|<mobile>
+	// Format: MOBLIST clear
 	} else if(!str_cmp(buf,"moblist")) {
 
 		if( arg->type != ENT_STRING )
@@ -8138,9 +8143,9 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 			if( arg->type == ENT_MOBILE && IS_VALID(arg->d.mob) )
 				variables_set_list_mob(vars,name,arg->d.mob,TRISTATE);
 
-		// MOBLIST remove <index>
+		// MOBLIST remove <index>|<mobile>
 		} else if( !str_cmp(arg->d.str, "remove") ) {
-			if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER)
+			if(!(rest = expand_argument(info,rest,arg)))
 				return;
 
 			pVARIABLE var = variable_get(*vars, name);
@@ -8148,7 +8153,10 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 			if( !var || var->type != VAR_BLLIST_MOB || !IS_VALID(var->_.list) )
 				return;
 
-			list_remnthlink(var->_.list, arg->d.num);
+			if (arg->type == ENT_NUMBER)
+				list_remnthlink(var->_.list, arg->d.num);
+			else if (arg->type == ENT_MOBILE)
+				list_remlink(var->_.list, arg->d.mob);
 
 		// MOBLIST clear
 		} else if( !str_cmp(arg->d.str, "clear") ) {
@@ -8161,7 +8169,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 		}
 
 	// OBJLIST add <object>
-	// OBJLIST remove <index>
+	// OBJLIST remove <index>|<object>
 	// OBJLIST clear
 	} else if(!str_cmp(buf,"objlist")) {
 		if( arg->type != ENT_STRING )
@@ -8176,9 +8184,9 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 			if( arg->type == ENT_OBJECT && IS_VALID(arg->d.obj) )
 				variables_set_list_obj(vars,name,arg->d.obj,TRISTATE);
 
-		// OBJLIST remove <index>
+		// OBJLIST remove <index>|<mobile>
 		} else if( !str_cmp(arg->d.str, "remove") ) {
-			if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_NUMBER)
+			if(!(rest = expand_argument(info,rest,arg)))
 				return;
 
 			pVARIABLE var = variable_get(*vars, name);
@@ -8186,7 +8194,10 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 			if( !var || var->type != VAR_BLLIST_OBJ || !IS_VALID(var->_.list) )
 				return;
 
-			list_remnthlink(var->_.list, arg->d.num);
+			if (arg->type == ENT_NUMBER)
+				list_remnthlink(var->_.list, arg->d.num);
+			else if (arg->type == ENT_OBJECT)
+				list_remlink(var->_.list, arg->d.obj);
 
 		// OBJLIST clear
 		} else if( !str_cmp(arg->d.str, "clear") ) {
@@ -8225,8 +8236,6 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 			if( vch != NULL )
 				variables_set_mobile(vars,name,vch);
 		}
-
-
 
 	// RANDROOM <player> <continent>
 	} else if(!str_cmp(buf,"randroom")) {

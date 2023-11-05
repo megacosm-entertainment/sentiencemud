@@ -3091,8 +3091,8 @@ SCRIPT_CMD(scriptcmd_stringobjmt);
 SCRIPT_CMD(scriptcmd_multitype);
 SCRIPT_CMD(scriptcmd_reassign);
 
-bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument);
-bool olc_varclear(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument);
+bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silent);
+bool olc_varclear(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silent);
 void olc_show_index_vars(BUFFER *buffer, pVARIABLE index_vars);
 void olc_save_index_vars(FILE *fp, pVARIABLE index_vars, AREA_DATA *pRefArea);
 bool olc_load_index_vars(FILE *fp, char *word, ppVARIABLE index_vars, AREA_DATA *pRefArea);
