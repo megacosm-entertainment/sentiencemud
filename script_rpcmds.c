@@ -1543,8 +1543,8 @@ SCRIPT_CMD(do_rpgecho)
 	{
 		for (d = descriptor_list; d; d = d->next)
 			if (d->connected == CON_PLAYING) {
-				if (IS_IMMORTAL(d->character))
-					send_to_char("Obj echo> ", d->character);
+				if (IS_IMMORTAL(d->character) && IS_SET(d->character->act[0], PLR_HOLYLIGHT))
+					send_to_char("Room echo> ", d->character);
 				send_to_char(buffer->string, d->character);
 				send_to_char("\n\r", d->character);
 			}
@@ -2353,7 +2353,7 @@ SCRIPT_CMD(do_rpzecho)
 			if (d->connected == CON_PLAYING &&
 				d->character->in_room &&
 				d->character->in_room->area == area) {
-				if (IS_IMMORTAL(d->character))
+				if (IS_IMMORTAL(d->character) && IS_SET(d->character->act[0], PLR_HOLYLIGHT))
 					send_to_char("Room echo> ", d->character);
 				send_to_char(buffer->string, d->character);
 				send_to_char("\n\r", d->character);

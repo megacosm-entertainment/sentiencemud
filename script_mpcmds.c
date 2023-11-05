@@ -2420,7 +2420,7 @@ SCRIPT_CMD(do_mpgecho)
 
 	for (d = descriptor_list; d; d = d->next)
 		if (d->connected == CON_PLAYING) {
-			if (IS_IMMORTAL(d->character))
+			if (IS_IMMORTAL(d->character) && IS_SET(d->character->act[0], PLR_HOLYLIGHT))
 				send_to_char("Mob echo> ", d->character);
 			send_to_char(buf_string(buffer), d->character);
 			send_to_char("\n\r", d->character);
@@ -3614,7 +3614,7 @@ SCRIPT_CMD(do_mpzecho)
 		if (d->connected == CON_PLAYING &&
 			d->character->in_room &&
 			d->character->in_room->area == info->mob->in_room->area) {
-			if (IS_IMMORTAL(d->character))
+			if (IS_IMMORTAL(d->character) && IS_SET(d->character->act[0], PLR_HOLYLIGHT))
 				send_to_char("Mob echo> ", d->character);
 			send_to_char(buf_string(buffer), d->character);
 			send_to_char("\n\r", d->character);

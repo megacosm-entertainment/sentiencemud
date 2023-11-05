@@ -871,8 +871,8 @@ void do_echo(CHAR_DATA *ch, char *argument)
     {
 	if (d->connected == CON_PLAYING)
 	{
-	    if (get_trust(d->character) >= get_trust(ch))
-		send_to_char("global> ",d->character);
+	    if (IS_IMMORTAL(d->character) && get_trust(d->character) >= get_trust(ch) && IS_SET(d->character->act[0], PLR_HOLYLIGHT))
+			send_to_char("global> ",d->character);
 	    send_to_char(argument, d->character);
 	    send_to_char("\n\r",   d->character);
 	}
@@ -882,28 +882,26 @@ void do_echo(CHAR_DATA *ch, char *argument)
 
 void do_recho(CHAR_DATA *ch, char *argument)
 {
-    DESCRIPTOR_DATA *d;
+	DESCRIPTOR_DATA *d;
 
-    if (argument[0] == '\0')
-    {
-	send_to_char("Local echo what?\n\r", ch);
+	if (argument[0] == '\0')
+	{
+		send_to_char("Local echo what?\n\r", ch);
+		return;
+	}
+
+	for (d = descriptor_list; d; d = d->next)
+	{
+		if (d->connected == CON_PLAYING && d->character->in_room == ch->in_room)
+		{
+			if (IS_IMMORTAL(d->character) && get_trust(d->character) >= get_trust(ch) && IS_SET(d->character->act[0], PLR_HOLYLIGHT))
+				send_to_char("local> ",d->character);
+			send_to_char(argument, d->character);
+			send_to_char("\n\r",   d->character);
+		}
+	}
 
 	return;
-    }
-
-    for (d = descriptor_list; d; d = d->next)
-    {
-	if (d->connected == CON_PLAYING
-	&&   d->character->in_room == ch->in_room)
-	{
-            if (get_trust(d->character) >= get_trust(ch))
-                send_to_char("local> ",d->character);
-	    send_to_char(argument, d->character);
-	    send_to_char("\n\r",   d->character);
-	}
-    }
-
-    return;
 }
 
 
@@ -913,21 +911,21 @@ void do_zecho(CHAR_DATA *ch, char *argument)
 
     if (argument[0] == '\0')
     {
-	send_to_char("Zone echo what?\n\r",ch);
-	return;
+		send_to_char("Zone echo what?\n\r",ch);
+		return;
     }
 
     for (d = descriptor_list; d; d = d->next)
     {
-	if (d->connected == CON_PLAYING
-	&&  d->character->in_room != NULL && ch->in_room != NULL
-	&&  d->character->in_room->area == ch->in_room->area)
-	{
-	    if (get_trust(d->character) >= get_trust(ch))
-		send_to_char("zone> ",d->character);
-	    send_to_char(argument,d->character);
-	    send_to_char("\n\r",d->character);
-	}
+		if (d->connected == CON_PLAYING && d->character->in_room != NULL &&
+			ch->in_room != NULL &&
+			d->character->in_room->area == ch->in_room->area)
+		{
+		    if (IS_IMMORTAL(d->character) && get_trust(d->character) >= get_trust(ch) && IS_SET(d->character->act[0], PLR_HOLYLIGHT))
+				send_to_char("zone> ",d->character);
+		    send_to_char(argument,d->character);
+		    send_to_char("\n\r",d->character);
+		}
     }
 }
 
@@ -941,22 +939,23 @@ void do_pecho(CHAR_DATA *ch, char *argument)
 
     if (argument[0] == '\0' || arg[0] == '\0')
     {
-	send_to_char("Personal echo what?\n\r", ch);
-	return;
+		send_to_char("Personal echo what?\n\r", ch);
+		return;
     }
 
     if  ((victim = get_char_world(ch, arg)) == NULL)
     {
-	send_to_char("Target not found.\n\r",ch);
-	return;
+		send_to_char("Target not found.\n\r",ch);
+		return;
     }
 
-    if (get_trust(victim) >= get_trust(ch) && get_trust(ch) != MAX_LEVEL)
+	if (IS_IMMORTAL(victim) && get_trust(victim) >= get_trust(ch) && get_trust(ch) != MAX_LEVEL && IS_SET(victim->act[0], PLR_HOLYLIGHT))
         send_to_char("personal> ",victim);
-
     send_to_char(argument,victim);
     send_to_char("\n\r",victim);
-    send_to_char("personal> ",ch);
+
+	if (IS_IMMORTAL(ch) && IS_SET(ch->act[0], PLR_HOLYLIGHT))
+	    send_to_char("personal> ",ch);
     send_to_char(argument,ch);
     send_to_char("\n\r",ch);
 }
