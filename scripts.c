@@ -9343,7 +9343,7 @@ void do_triggers(CHAR_DATA *ch, char *argument)
 
 				if (argument[0] != '\0')
 				{
-					if ((space = flag_lookup(argument, script_spaces)) == NO_FLAG)
+					if ((space = flag_value(script_spaces, argument)) == NO_FLAG)
 					{
 						send_to_char("Invalid script space.\n\r", ch);
 						show_help(ch, "script_spaces");
