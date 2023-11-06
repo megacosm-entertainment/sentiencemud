@@ -1060,6 +1060,8 @@ void check_quest_rescue_mob(CHAR_DATA *ch, bool show)
 
 				if (IS_NPC(mob) && IS_SET(mob->act[0], ACT_AGGRESSIVE))
 				    REMOVE_BIT(mob->act[0], ACT_AGGRESSIVE);
+				
+				// TOOD: Remove AFF2_AGGRESSIVE
 
 				found = TRUE;
 				break;

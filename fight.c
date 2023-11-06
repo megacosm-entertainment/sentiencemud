@@ -4067,6 +4067,10 @@ int xp_compute(CHAR_DATA *gch, CHAR_DATA *victim, int total_levels)
 	if (diff_level > 25 && !str_cmp(gch->in_room->area->name, "Plith"))
 		xp = (int) xp / diff_level;
 
+	victim->tempstore[0] = xp;
+	p_percent_trigger(victim,NULL, NULL, NULL, gch, NULL, NULL, NULL, NULL, TRIG_XPCOMPUTE,NULL,0,0,0,0,0);
+	xp = UMAX(0, victim->tempstore[0]);
+
 	// Nothing for killing pets
 	if (IS_SET(victim->act[0],ACT_PET))
 	{
@@ -4104,17 +4108,17 @@ int xp_compute(CHAR_DATA *gch, CHAR_DATA *victim, int total_levels)
 	}
 
 	gch->tempstore[0] = 0;
-	p_percent_trigger(gch,NULL, NULL, NULL, gch, NULL, NULL, NULL, NULL, TRIG_XPCOMPUTE,NULL,0,0,0,0,0);
+	p_percent_trigger(gch,NULL, NULL, NULL, gch, NULL, NULL, NULL, NULL, TRIG_XPBONUS,NULL,0,0,0,0,0);
 	bonus_xp += gch->tempstore[0];
 	for (obj = gch->carrying; obj != NULL; obj = obj->next_content) {
 		if( obj->wear_loc != WEAR_NONE ) {
 			obj->tempstore[0] = 0;
-			p_percent_trigger(NULL, obj, NULL, NULL, gch, NULL, NULL, NULL, NULL, TRIG_XPCOMPUTE, NULL,0,0,0,0,0);
+			p_percent_trigger(NULL, obj, NULL, NULL, gch, NULL, NULL, NULL, NULL, TRIG_XPBONUS, NULL,0,0,0,0,0);
 			bonus_xp += obj->tempstore[0];
 		}
 	}
 	gch->in_room->tempstore[0] = 0;
-	p_percent_trigger(NULL, NULL, gch->in_room, NULL, gch, NULL, NULL, NULL, NULL, TRIG_XPCOMPUTE, NULL,0,0,0,0,0);
+	p_percent_trigger(NULL, NULL, gch->in_room, NULL, gch, NULL, NULL, NULL, NULL, TRIG_XPBONUS, NULL,0,0,0,0,0);
 	bonus_xp += gch->in_room->tempstore[0];
 
 	if( xp > 0 && bonus_xp > 0 ) {

@@ -2331,8 +2331,8 @@ struct affliction_type {
 #define AFF2_IMMOBILE		(X)
 #define AFF2_PROTECTED		(Y)
 #define AFF2_DARK_SHROUD	(Z)
-/*				(aa)
-				(bb)
+#define AFF2_AGGRESSIVE     (aa)        // Acts like ACT_AGGRESSIVE
+/*				(bb)
 				(cc)
 				(dd)
 				(ee) */
@@ -6489,6 +6489,7 @@ enum trigger_index_enum {
 	TRIG_ACT,
 	TRIG_AFTERDEATH,	/* Fired just after you die */
 	TRIG_AFTERKILL,		/* Called after someome kills a target.  TODO: Damage will become forbidden in this trigger. */
+    TRIG_AGGRESSION,
 	TRIG_ANIMATE,
     TRIG_APPLY_AFFECT,
 	TRIG_ASSIST,
@@ -6511,6 +6512,7 @@ enum trigger_index_enum {
 	TRIG_ATTACK_TRAMPLE,
 	TRIG_ATTACK_TURN,
 	TRIG_BARRIER,
+    TRIG_BLOCK_AGGRESSION,
 	TRIG_BLOW,
     TRIG_BLUEPRINT_SCHEMATIC,
 	TRIG_BOARD,
@@ -6531,9 +6533,11 @@ enum trigger_index_enum {
 	TRIG_BURY,
 	TRIG_BUY,
 	TRIG_CANINTERRUPT,
+    TRIG_CAUSE_AGGRESSION,
 	TRIG_CATALYST,
 	TRIG_CATALYST_FULL,
 	TRIG_CATALYST_SOURCE,
+    TRIG_CHECK_AGGRESSION,
 	TRIG_CHECK_BUYER,		// Called when a stock item is not an object, used to check whether the buyer can GET the item
 	TRIG_CHECK_DAMAGE,
 	TRIG_CLONE_EXTRACT,
@@ -6606,6 +6610,7 @@ enum trigger_index_enum {
     TRIG_POUR,
 	TRIG_PRACTICE,
 	TRIG_PRACTICETOKEN,
+    TRIG_PREAGGRESSIVE,
 	TRIG_PREANIMATE,
 	TRIG_PREASSIST,
 	TRIG_PREBITE,
@@ -6749,6 +6754,7 @@ enum trigger_index_enum {
     TRIG_WEAROFF_AFFECT,
 	TRIG_WHISPER,
 	TRIG_WIMPY,
+    TRIG_XPBONUS,
     TRIG_XPCOMPUTE,
 	TRIG_XPGAIN,
 	TRIG_ZAP,

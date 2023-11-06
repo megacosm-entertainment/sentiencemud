@@ -106,6 +106,7 @@ SPELL_FUNC(spell_momentary_darkness)
 		if (rch->fighting) stop_fighting(rch, TRUE);
 		if (IS_NPC(rch) && IS_SET(rch->act[0],ACT_AGGRESSIVE))
 			REMOVE_BIT(rch->act[0],ACT_AGGRESSIVE);
+		// TODO: Remove AFF2_AGGRESSIVE
 	}
 	return TRUE;
 }

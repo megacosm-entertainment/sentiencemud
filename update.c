@@ -2370,6 +2370,32 @@ void obj_update(void)
 	iterator_stop(&it);
 }
 
+bool check_aggression(CHAR_DATA *ch, CHAR_DATA *vch)
+{
+	bool aggressive = false;
+
+	if (IS_NPC(ch))
+	{
+		if (IS_SET(ch->act[0], ACT_AGGRESSIVE) || ch->boarded_ship != NULL)
+			aggressive = true;
+	}
+
+	if (IS_AFFECTED2(ch, AFF2_AGGRESSIVE))
+		aggressive = true;
+
+	if (p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CAUSE_AGGRESSION, NULL, 0, 0, 0, 0, 0) > 0 ||
+		p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, NULL, NULL, TRIG_CAUSE_AGGRESSION, NULL, 0, 0, 0, 0, 0) > 0)
+		aggressive = true;
+
+	if (p_percent_trigger(ch, NULL, NULL, NULL, ch, vch, NULL, NULL, NULL, TRIG_PREAGGRESSIVE, NULL, 0, 0, 0, 0, 0))
+		aggressive = false;
+	else if (p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, vch, NULL, NULL, NULL, TRIG_PREAGGRESSIVE, NULL, 0, 0, 0, 0, 0))
+		aggressive = false;
+
+// WXYZ	
+	return aggressive;
+}
+
 
 /*
  * Aggress.
@@ -2894,69 +2920,79 @@ void aggr_update(void)
 	{
 	    for (ch = wch->in_room->people; ch != NULL; ch = ch_next)
 	    {
-		int count;
+			int count;
 
-		ch_next	= ch->next_in_room;
+			ch_next	= ch->next_in_room;
 
-		if (!IS_NPC(ch)
-		||  ch->in_room == NULL
-		||  (!IS_SET(ch->act[0], ACT_AGGRESSIVE) && ch->boarded_ship == NULL)
-		||  IS_SET(ch->in_room->room_flags, ROOM_SAFE)
-		||  IS_AFFECTED(ch, AFF_CALM)
-		||  ch->fighting != NULL
-		||  IS_AFFECTED(ch, AFF_CHARM)
-		||  !IS_AWAKE(ch)
-		||  IS_SET(ch->act[0], ACT_WIMPY)
-		||  !can_see(ch, wch)
-		||  number_bits(1) == 0)
-		    continue;
+			// ABCD
+			if (ch->in_room == NULL ||
+				!check_aggression(ch, wch) ||
+				IS_SET(ch->in_room->room_flags, ROOM_SAFE) ||
+				IS_AFFECTED(ch, AFF_CALM) ||
+				ch->fighting != NULL ||
+				IS_AFFECTED(ch, AFF_CHARM) ||
+				!IS_AWAKE(ch) ||
+				IS_SET(ch->act[0], ACT_WIMPY) ||
+				!can_see(ch, wch) ||
+				number_bits(1) == 0)
+			    continue;
 
-		// Evasion lets you get away from aggro mobs.
-		if (check_evasion(wch) == TRUE)
-		{
-		    check_improve(wch, gsn_evasion, TRUE, 8);
-		    continue;
+			// Evasion lets you get away from aggro mobs.
+			if (check_evasion(wch) == TRUE)
+			{
+				check_improve(wch, gsn_evasion, TRUE, 8);
+				continue;
+			}
+			else
+				check_improve(wch, gsn_evasion, FALSE, 8);
+
+			// Make the NPC agressor (ch) attack a RANDOM person in the room.
+			count = 0;
+			victim = NULL;
+			for (vch = wch->in_room->people; vch != NULL; vch = vch_next)
+			{
+				vch_next = vch->next_in_room;
+
+				// If mob is boarding a ship then may attack anyone
+				if (ch->boarded_ship != NULL && 
+					ch->belongs_to_ship != vch->belongs_to_ship &&
+					can_see(ch, vch))
+				{
+					if (number_range(0, count) == 0)
+						victim = vch;
+
+					count++;
+				}
+				else
+				{
+					if (!IS_NPC(vch) && vch->level < LEVEL_IMMORTAL &&
+						ch->level >= vch->level - 5 &&
+						(!IS_SET(ch->act[0], ACT_WIMPY) || !IS_AWAKE(vch)) &&
+						can_see(ch, vch))
+					{
+						if (number_range(0, count) == 0)
+							victim = vch;
+
+						count++;
+					}
+				}
+			}
+
+			if (victim == NULL)
+				continue;
+
+			if (!p_percent_trigger(ch, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_CHECK_AGGRESSION, NULL, 0, 0, 0, 0, 0))
+			{
+				if (!p_percent_trigger(victim, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_BLOCK_AGGRESSION, NULL, 0, 0, 0, 0, 0))
+				{
+					multi_hit(ch, victim, TYPE_UNDEFINED);
+				}
+			}
+
+			// Regardless if the aggressor actually attacked
+			p_percent_trigger(ch, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_AGGRESSION, NULL, 0, 0, 0, 0, 0);
 		}
-		else
-		    check_improve(wch, gsn_evasion, FALSE, 8);
-
-		// Make the NPC agressor (ch) attack a RANDOM person in the room.
-		count = 0;
-		victim = NULL;
-		for (vch = wch->in_room->people; vch != NULL; vch = vch_next)
-		{
-		    vch_next = vch->next_in_room;
-
-		    // If mob is boarding a ship then may attack anyone
-		    if (ch->boarded_ship != NULL
-		    &&   ch->belongs_to_ship != vch->belongs_to_ship
-		    &&   can_see(ch, vch))
-		    {
-			if (number_range(0, count) == 0)
-			    victim = vch;
-
-			count++;
-		    }
-		    else
-		    if (!IS_NPC(vch)
-		    &&  vch->level < LEVEL_IMMORTAL
-		    &&  ch->level >= vch->level - 5
-		    &&  (!IS_SET(ch->act[0], ACT_WIMPY) || !IS_AWAKE(vch))
-		    &&  can_see(ch, vch))
-		    {
-			if (number_range(0, count) == 0)
-			    victim = vch;
-
-			count++;
-		    }
 		}
-
-		if (victim == NULL)
-		    continue;
-
-		multi_hit(ch, victim, TYPE_UNDEFINED);
-	    }
-	}
     }
     iterator_stop(&it);
 }

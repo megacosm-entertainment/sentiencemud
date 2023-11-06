@@ -4587,6 +4587,8 @@ void do_peace(CHAR_DATA *ch, char *argument)
 	    stop_fighting(rch, TRUE);
 	if (IS_NPC(rch) && IS_SET(rch->act[0],ACT_AGGRESSIVE))
 	    REMOVE_BIT(rch->act[0],ACT_AGGRESSIVE);
+
+	// TODO: Strip any affect that causes AFF2_AGGRESSIVE
     }
 
     send_to_char("Done.\n\r", ch);
@@ -5082,11 +5084,11 @@ void do_sset(CHAR_DATA *ch, char *argument)
 						skill_entry_removeskill(victim,sn, NULL);
 					else
 						skill_entry_removespell(victim,sn, NULL);
-				} else if( skill_entry_findsn( ch->sorted_skills, sn) == NULL) {
+				} else if( skill_entry_findsn( victim->sorted_skills, sn) == NULL) {
 					if( skill_table[sn].spell_fun == spell_null ) {
-						skill_entry_addskill(ch, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
+						skill_entry_addskill(victim, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
 					} else {
-						skill_entry_addspell(ch, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
+						skill_entry_addspell(victim, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
 					}
 				}
 			}
@@ -5099,11 +5101,11 @@ void do_sset(CHAR_DATA *ch, char *argument)
 				skill_entry_removeskill(victim,sn, NULL);
 			else
 				skill_entry_removespell(victim,sn, NULL);
-		} else if( skill_entry_findsn( ch->sorted_skills, sn) == NULL) {
+		} else if( skill_entry_findsn( victim->sorted_skills, sn) == NULL) {
 			if( skill_table[sn].spell_fun == spell_null ) {
-				skill_entry_addskill(ch, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
+				skill_entry_addskill(victim, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
 			} else {
-				skill_entry_addspell(ch, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
+				skill_entry_addspell(victim, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
 			}
 		}
 		victim->pcdata->learned[sn] = value;

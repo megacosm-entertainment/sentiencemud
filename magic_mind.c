@@ -122,6 +122,8 @@ SPELL_FUNC(spell_charm_person)
 	if (IS_NPC(victim) && IS_SET(victim->act[0], ACT_AGGRESSIVE))
 		REMOVE_BIT(victim->act[0], ACT_AGGRESSIVE);
 
+	// TODO: Remove AFF2_AGGRESSIVE
+
 	act("Isn't $n just so nice?", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 	if (ch != victim)
 		act("$N looks at you with adoring eyes.",ch,victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
