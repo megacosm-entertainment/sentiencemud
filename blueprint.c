@@ -11179,7 +11179,7 @@ BPEDIT(bpedit_varset)
 
 	EDIT_BLUEPRINT(ch, blueprint);
 
-	return olc_varset(&blueprint->index_vars, ch, argument);
+	return olc_varset(&blueprint->index_vars, ch, argument, false);
 }
 
 BPEDIT(bpedit_varclear)
@@ -11188,7 +11188,7 @@ BPEDIT(bpedit_varclear)
 
 	EDIT_BLUEPRINT(ch, blueprint);
 
-	return olc_varclear(&blueprint->index_vars, ch, argument);
+	return olc_varclear(&blueprint->index_vars, ch, argument, false);
 }
 
 

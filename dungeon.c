@@ -7902,7 +7902,7 @@ DNGEDIT(dngedit_varset)
 
 	EDIT_DUNGEON(ch, dungeon);
 
-	return olc_varset(&dungeon->index_vars, ch, argument);
+	return olc_varset(&dungeon->index_vars, ch, argument, false);
 }
 
 DNGEDIT(dngedit_varclear)
@@ -7911,7 +7911,7 @@ DNGEDIT(dngedit_varclear)
 
 	EDIT_DUNGEON(ch, dungeon);
 
-	return olc_varclear(&dungeon->index_vars, ch, argument);
+	return olc_varclear(&dungeon->index_vars, ch, argument, false);
 }
 
 
