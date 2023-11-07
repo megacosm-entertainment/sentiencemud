@@ -3262,6 +3262,248 @@ void script_varclearon(SCRIPT_VARINFO *info, VARIABLE **vars, char *argument, SC
 	variable_remove(vars,name);
 }
 
+bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument)
+{
+    char name[MIL];
+    char type[MIL];
+    char yesno[MIL];
+    bool saved;
+
+    if (argument[0] == '\0') {
+	send_to_char("Syntax:  varset <name> <number|string|room> <yes|no> <value>\n\r", ch);
+	return false;
+    }
+
+    argument = one_argument(argument, name);
+    argument = one_argument(argument, type);
+    argument = one_argument(argument, yesno);
+
+    if(!variable_validname(name)) {
+	send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
+	return false;
+    }
+
+    saved = !str_cmp(yesno,"yes");
+
+    if(!argument[0]) {
+	send_to_char("Set what on the variable?\n\r", ch);
+	return false;
+    }
+
+    if(!str_cmp(type,"room")) {
+	if(!is_number(argument)) {
+	    send_to_char("Specify a room vnum.\n\r", ch);
+	    return false;
+	}
+
+	variables_setindex_room(index_vars,name,atoi(argument), saved);
+    } else if(!str_cmp(type,"string"))
+		variables_setindex_string(index_vars,name,argument,false,saved);
+    else if(!str_cmp(type,"number"))
+	{
+		if(!is_number(argument)) {
+			send_to_char("Specify an integer.\n\r", ch);
+			return false;
+		}
+
+		variables_setindex_integer(index_vars,name,atoi(argument),saved);
+    }
+//	else if(!str_cmp(type,"skill"))
+//	{
+//		int sn = skill_lookup(argument);
+//		if (sn <= 0)
+//		{
+//			send_to_char("No such skill exists.\n\r", ch);
+//			return false;
+//		}
+//		
+//		variables_setindex_skill(index_vars,name,sn,saved);
+//	}
+//	else if(!str_cmp(type,"song"))
+//	{
+//		int sn = song_lookup(argument);
+//		if (sn <= 0)
+//		{
+//			send_to_char("No such song exists.\n\r", ch);
+//			return false;
+//		}
+//		
+//		variables_setindex_song(index_vars,name,sn,saved);
+//	}
+	else
+	{
+		send_to_char("Invalid type of variable.\n\r", ch);
+		return false;
+    }
+    send_to_char("Variable set.\n\r", ch);
+    return true;
+}
+
+bool olc_varclear(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument)
+{
+    if (argument[0] == '\0') {
+		send_to_char("Syntax:  varclear <name>\n\r", ch);
+		return false;
+    }
+
+    if(!variable_validname(argument)) {
+		send_to_char("Variable names can only have alphabetical characters.\n\r", ch);
+		return false;
+    }
+
+    if(!variable_remove(index_vars,argument)) {
+		send_to_char("No such variable defined.\n\r", ch);
+		return false;
+    }
+
+    send_to_char("Variable cleared.\n\r", ch);
+    return true;
+}
+
+void olc_show_index_vars(BUFFER *buffer, pVARIABLE index_vars)
+{
+	char buf[MSL];
+	if (index_vars)
+	{
+		pVARIABLE var;
+		int cnt;
+
+		for (cnt = 0, var = index_vars; var; var = var->next) ++cnt;
+
+		if (cnt > 0) {
+			sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "Name", "Type", "Saved", "Value");
+			add_buf(buffer, buf);
+
+			sprintf(buf, "{R%-20s %-8s %-5s %-10s\n\r{x", "----", "----", "-----", "-----");
+			add_buf(buffer, buf);
+
+			for (var = index_vars; var; var = var->next) {
+				switch(var->type) {
+				case VAR_INTEGER:
+					sprintf(buf, "{x%-20.20s {GNUMBER     {Y%c   {W%d{x\n\r", var->name,var->save?'Y':'N',var->_.i);
+					break;
+				case VAR_STRING:
+				case VAR_STRING_S:
+					sprintf(buf, "{x%-20.20s {GSTRING     {Y%c   {W%s{x\n\r", var->name,var->save?'Y':'N',var->_.s?var->_.s:"(empty)");
+					break;
+				case VAR_ROOM:
+					if(var->_.r && var->_.r->vnum > 0)
+						sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W%s {R({W%d{R){x\n\r", var->name,var->save?'Y':'N',var->_.r->name,(int)var->_.r->vnum);
+					else
+						sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W-no-where-{x\n\r",var->name,var->save?'Y':'N');
+					break;
+				case VAR_SKILL:
+					if(var->_.sn > 0)
+						sprintf(buf, "{x%-20.20s {GSKILL      {Y%c   {W%s{x\n\r", var->name,var->save?'Y':'N', SKILL_NAME(var->_.sn));
+					else
+						sprintf(buf, "{x%-20.20s {GSKILL      {Y%c   {W-invalid-{x\n\r", var->name,var->save?'Y':'N');
+					break;
+//				case VAR_SONG:
+//					if(var->_.sn >= 0)
+//						sprintf(buf, "{x%-20.20s {GSONG       {Y%c   {W%s{x\n\r", var->name,var->save?'Y':'N', SONG_NAME(var->_.sn));
+//					else
+//						sprintf(buf, "{x%-20.20s {GSONG       {Y%c   {W-invalid-{x\n\r", var->name,var->save?'Y':'N');
+//					break;
+				default:
+					continue;
+				}
+				add_buf(buffer, buf);
+			}
+		}
+	}
+}
+
+void olc_save_index_vars(FILE *fp, pVARIABLE index_vars, AREA_DATA *pRefArea)
+{
+	if(index_vars) {
+		for(pVARIABLE var = index_vars; var; var = var->next) {
+			if(var->type == VAR_INTEGER)
+				fprintf(fp, "VarInt %s~ %d %d\n", var->name, var->save, var->_.i);
+			else if(var->type == VAR_STRING || var->type == VAR_STRING_S)
+				fprintf(fp, "VarStr %s~ %d %s~\n", var->name, var->save, var->_.s ? var->_.s : "");
+			else if(var->type == VAR_ROOM && var->_.r && var->_.r->vnum)
+				fprintf(fp, "VarRoom %s~ %d %d\n", var->name, var->save, (int)var->_.r->vnum);
+			else if(var->type == VAR_SKILL && var->_.sn > 0 )
+				fprintf(fp, "VarSkill %s~ %d '%s'\n", var->name, var->save, SKILL_NAME(var->_.sn));
+//			else if(var->type == VAR_SONG && var->_.sn >= 0 )
+//				fprintf(fp, "VarSong %s~ %d '%s'\n", var->name, var->save, SONG_NAME(var->_.sn));
+		}
+	}
+}
+
+bool olc_load_index_vars(FILE *fp, char *word, ppVARIABLE index_vars, AREA_DATA *pRefArea)
+{
+	if (!str_cmp(word, "VarInt")) {
+		char *name;
+		int value;
+		bool saved;
+
+		name = fread_string(fp);
+		saved = fread_number(fp);
+		value = fread_number(fp);
+
+		variables_setindex_integer (index_vars,name,value,saved);
+		return true;
+	}
+
+	if (!str_cmp(word, "VarStr")) {
+		char *name;
+		char *str;
+		bool saved;
+
+		name = fread_string(fp);
+		saved = fread_number(fp);
+		str = fread_string(fp);
+
+		variables_setindex_string (index_vars,name,str,false,saved);
+		return true;
+	}
+
+	if (!str_cmp(word, "VarRoom")) {
+		char *name;
+		int value;
+		bool saved;
+
+		name = fread_string(fp);
+		saved = fread_number(fp);
+		value = fread_number(fp);
+
+		variables_setindex_room (index_vars,name,value,saved);
+		return true;
+	}
+
+//	if (!str_cmp(word, "VarSkill"))
+//	{
+//		char *name;
+//		int sn;
+//		bool saved;
+//
+//		name = fread_string(fp);
+//		saved = fread_number(fp);
+//		sn = skill_lookup(fread_word(fp));
+//
+//		if (sn > 0)
+//			variables_setindex_skill(index_vars,name,sn,saved);
+//		return true;
+//	}
+
+//	if (!str_cmp(word, "VarSong"))
+//	{
+//		char *name;
+//		int sn;
+//		bool saved;
+//
+//		name = fread_string(fp);
+//		saved = fread_number(fp);
+//		sn = song_lookup(fread_word(fp));
+//
+//		if (sn >= 0)
+//			variables_setindex_song(index_vars,name,sn,saved);
+//		return true;
+//	}
+
+	return false;
+}
 
 
 ////////////////////////////////////////////////

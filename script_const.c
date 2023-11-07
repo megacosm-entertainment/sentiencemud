@@ -26,11 +26,17 @@ char *opcode_names[OP_LASTCODE] = {
 	"WHILE",
 	"ENDWHILE",
 	"EXITWHILE",
+    "SWITCH",
+    "ENDSWITCH",
+    "EXITSWITCH",
 	"MOB <command>",
 	"OBJ <command>",
 	"ROOM <command>",
 	"TOKEN <command>",
 	"TOKEN <command> (other)",
+    "AREA <command>",
+    "INSTANCE <command>",
+    "DUNGEON <command>",
 };
 
 char *ifcheck_param_type_names[IFCP_MAX] = {
@@ -931,7 +937,7 @@ IFCHECK_DATA ifcheck_table[] = {
 	{ "areax",				IFC_ANY,	"",		true,	ifc_areax,				"ifcheck areax" },
 	{ "areay",				IFC_ANY,	"",		true,	ifc_areay,				"ifcheck areay" },
 	{ "bankbalance",		IFC_ANY,	"",		true,	ifc_bankbalance,		"ifcheck bankbalance" },
-	{ "bit",				IFC_ANY,	"",		true,	ifc_bit,				"ifcheck bit" },
+	{ "bit",				IFC_ANY,	"",		false,	ifc_bit,				"ifcheck bit" },
 	{ "boost",				IFC_ANY,	"",		true,	ifc_boost,				"ifcheck boost" },
 	{ "boosttimer",			IFC_ANY,	"",		true,	ifc_boosttimer,			"ifcheck boosttimer" },
 	{ "candrop",			IFC_ANY,	"E",	false,	ifc_candrop,			"ifcheck candrop" },
