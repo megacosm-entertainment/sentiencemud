@@ -2257,6 +2257,47 @@ void obj_update(void)
 						}
 					}
 					affect_remove_obj(obj, paf);
+
+					if (paf->type == skill_lookup("third eye"))
+					{
+		    			if (obj->pIndexData->vnum == OBJ_VNUM_SKULL)
+		    			{
+							if ((rch = obj->carried_by) != NULL)
+			    			act("$p flares and vanishes.", rch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+						else if (obj->in_room != NULL)
+						{
+			    			sprintf(buf, "%s flares and vanishes.", obj->short_descr);
+			    			room_echo(obj->in_room, buf);
+						}
+
+						extract_obj(obj);
+		    			}
+		    			else // Golden skull
+		    			{
+							if (--obj->condition <= 0)
+							{
+			    				if ((rch = obj->carried_by) != NULL)
+									act("$p fumes violently and explodes!", rch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			    				else if (obj->in_room != NULL)
+			    				{
+									sprintf(buf, "%s fumes violently and explodes!", obj->short_descr);
+									room_echo(obj->in_room, buf);
+			    				}
+
+			    				extract_obj(obj);
+							}
+							else
+							{
+			    				if ((rch = obj->carried_by) != NULL)
+									act("The dark enchantment upon $p wears off.", rch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+			    				else if (obj->in_room != NULL)
+			    				{
+									sprintf(buf, "The dark enchantment upon %s wears off.", obj->short_descr);
+									room_echo(obj->in_room, buf);
+			    				}
+							}
+		    			}
+					}
 				}
 			}
 		}
