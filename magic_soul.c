@@ -23,7 +23,7 @@ SPELL_FUNC(spell_soul_essence)
 	OBJ_DATA *obj, *obj_next;
 	char *arg = (char *) vo;
 	int souls, i;
-	int skill, skill2;
+	int rating, rating2;
 	bool found = FALSE, all;
 
 	if(IS_NPC(ch)) return FALSE;
@@ -49,14 +49,16 @@ SPELL_FUNC(spell_soul_essence)
 	}
 
 	if (found) {
-		skill = get_skill(ch,gsn_soul_essence); skill = UMAX(0,skill);
-		skill2 = get_skill(ch,gsn_soul_essence); skill2 = UMAX(0,skill2);
+		rating = get_skill(ch,gsk_soul_essence); rating = UMAX(0,rating);
+		rating2 = get_skill(ch,gsk_soul_essence); rating2 = UMAX(0,rating2);
 
-		i = i * skill * skill2 / 10000;
+		i = i * rating * rating2 / 10000;
 
 		// Give boost for avatars and wraiths
 		if(ch->race == grn_avatar || ch->race == grn_wraith)
 			i = i * ( 240 + ch->tot_level ) / 240;
+
+		// TODO: Account for pneuma boosts
 
 		if(i > 0) {
 			sprintf(buf, "{BYou feel {C%d{B soul%s flowing into you!{x\n\r", i, ((i==1)?"":"s"));

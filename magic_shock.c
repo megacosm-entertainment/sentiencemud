@@ -43,10 +43,10 @@ SPELL_FUNC(spell_call_lightning)
 		vch_next = vch->next_in_room;
 
 		if (!is_safe(ch, vch, FALSE)) {
-			if (!check_spell_deflection(ch, vch, sn)) continue;
+			if (!check_spell_deflection(ch, vch, skill)) continue;
 
 			if (vch != ch && (IS_NPC(ch) ? !IS_NPC(vch) : IS_NPC(vch)))
-				damage(ch, vch, saves_spell(level,vch,DAM_LIGHTNING) ? dam / 2 : dam, sn,DAM_LIGHTNING,TRUE);
+				damage(ch, vch, saves_spell(level,vch,DAM_LIGHTNING) ? dam / 2 : dam, skill, TYPE_UNDEFINED,DAM_LIGHTNING,TRUE);
 		}
 	}
 
@@ -70,7 +70,7 @@ SPELL_FUNC(spell_chain_lightning)
 	if (saves_spell(level,victim,DAM_LIGHTNING))
 		dam /= 3;
 
-	damage(ch,victim,dam,sn,DAM_LIGHTNING,TRUE);
+	damage(ch,victim,dam,skill,TYPE_UNDEFINED,DAM_LIGHTNING,TRUE);
 	shock_effect(victim,ch->tot_level/2,dam,TARGET_CHAR);
 	last_vict = victim;
 	level -= 4;   /* decrement damage */
@@ -81,11 +81,11 @@ SPELL_FUNC(spell_chain_lightning)
 		for (tmp_vict = ch->in_room->people; tmp_vict != NULL; tmp_vict = next_vict) {
 			next_vict = tmp_vict->next_in_room;
 			if (!is_safe(ch,tmp_vict,FALSE) && can_see(ch,tmp_vict) && tmp_vict != last_vict) {
-				if (!check_spell_deflection(ch, tmp_vict, sn))
+				if (!check_spell_deflection(ch, tmp_vict, skill))
 					continue;
 
 				if (check_shield_block_projectile(ch, tmp_vict, "arc of lightning", NULL)) {
-					if (number_percent() < get_skill(tmp_vict, gsn_shield_block)/4) {
+					if (number_percent() < get_skill(tmp_vict, gsk_shield_block)/4) {
 						act("The bolt arcs off $n's shield and fizzles out.", tmp_vict, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 						act("The bolt arcs off your shield and fizzles out.", tmp_vict, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 						level = 0;
@@ -104,7 +104,7 @@ SPELL_FUNC(spell_chain_lightning)
 				if (saves_spell(level,tmp_vict,DAM_LIGHTNING))
 					dam /= 3;
 
-				damage(ch,tmp_vict,dam,sn,DAM_LIGHTNING,TRUE);
+				damage(ch,tmp_vict,dam,skill,TYPE_UNDEFINED,DAM_LIGHTNING,TRUE);
 				shock_effect(victim,ch->tot_level/2,dam,TARGET_CHAR);
 				level -= 10;  /* decrement damage */
 			}
@@ -113,7 +113,7 @@ SPELL_FUNC(spell_chain_lightning)
 		if (!found) {/* no target found, hit the caster */
 			if (!ch) return TRUE;
 
-			if (!check_spell_deflection(ch, ch, sn))
+			if (!check_spell_deflection(ch, ch, skill))
 				return TRUE;
 
 			if (last_vict == ch) {/* no double hits */
@@ -128,7 +128,7 @@ SPELL_FUNC(spell_chain_lightning)
 			dam = dice(level,6);
 			if (saves_spell(level,ch,DAM_LIGHTNING))
 				dam /= 3;
-			damage(ch,ch,dam,sn,DAM_LIGHTNING,TRUE);
+			damage(ch,ch,dam,skill,TYPE_UNDEFINED,DAM_LIGHTNING,TRUE);
 			shock_effect(victim,ch->tot_level/2,dam,TARGET_CHAR);
 			level -= 4;  /* decrement damage */
 			if (!ch) return TRUE;
@@ -150,9 +150,9 @@ SPELL_FUNC(spell_electrical_barrier)
 		perm = TRUE;
 	}
 
-	if (perm && is_affected(victim, sn))
-		affect_strip(victim, sn);
-	else if (is_affected(victim, sn)) {
+	if (perm && is_affected(victim, skill))
+		affect_strip(victim, skill);
+	else if (is_affected(victim, skill)) {
 		if (victim == ch)
 			send_to_char("You are already surrounded by an electrical barrier.\n\r",ch);
 		else
@@ -163,7 +163,7 @@ SPELL_FUNC(spell_electrical_barrier)
 	af.slot	= obj_wear_loc;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration = perm ? -1 : (level / 3);
 	af.location = APPLY_NONE;
@@ -198,10 +198,10 @@ SPELL_FUNC(spell_lightning_breath)
 
 	if (saves_spell(level,victim,DAM_LIGHTNING)) {
 		shock_effect(victim,level/2,dam/8,TARGET_CHAR);
-		damage(ch,victim,dam/2,sn,DAM_LIGHTNING,TRUE);
+		damage(ch,victim,dam/2,skill,TYPE_UNDEFINED,DAM_LIGHTNING,TRUE);
 	} else {
 		shock_effect(victim,level,dam/8,TARGET_CHAR);
-		damage(ch,victim,dam,sn,DAM_LIGHTNING,TRUE);
+		damage(ch,victim,dam,skill,TYPE_UNDEFINED,DAM_LIGHTNING,TRUE);
 	}
 	return TRUE;
 }
@@ -223,7 +223,7 @@ SPELL_FUNC(spell_lightning_bolt)
 
 	dam = UMIN(dam, 2500);
 
-	damage(ch, victim, dam, sn, DAM_LIGHTNING ,TRUE);
+	damage(ch, victim, dam, skill, TYPE_UNDEFINED, DAM_LIGHTNING ,TRUE);
 	shock_effect(victim,ch->tot_level/2,dam,TARGET_CHAR);
 	return TRUE;
 }
@@ -244,6 +244,6 @@ SPELL_FUNC(spell_shocking_grasp)
 
 	dam = UMIN(dam, 2500);
 
-	damage(ch, victim, dam, sn, DAM_LIGHTNING ,TRUE);
+	damage(ch, victim, dam, skill, TYPE_UNDEFINED, DAM_LIGHTNING ,TRUE);
 	return TRUE;
 }

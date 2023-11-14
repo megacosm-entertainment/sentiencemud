@@ -183,7 +183,7 @@ memset(&af,0,sizeof(af));
 	    act("{CA chill sinks deep into your bones.{x",victim,NULL, NULL, NULL, NULL, NULL,NULL,TO_CHAR);
             af.where     = TO_AFFECTS;
             af.group     = AFFGROUP_BIOLOGICAL;
-            af.type      = gsn_chill_touch;
+            af.skill     = gsk_chill_touch;
             af.level     = level;
             af.duration  = 6;
             af.location  = APPLY_STR;
@@ -234,14 +234,11 @@ memset(&af,0,sizeof(af));
 	{
 	    default:
 		return;
-	    case ITEM_POTION:
-		msg = "{C$p freezes and shatters!{x";
-		chance += 25;
-		break;
-	    case ITEM_DRINK_CON:
-		msg = "{C$p freezes and shatters!{x";
-		chance += 5;
-		break;
+	    case ITEM_FLUID_CONTAINER:
+			// TODO: Add "freeze_chance" to liquid definition
+			msg = "{C$p freezes and shatters!{x";
+			chance += 25;
+			break;
 	}
 
 	chance = URANGE(5,chance,95);
@@ -292,7 +289,7 @@ memset(&af,0,sizeof(af));
 		victim, NULL, NULL, NULL, NULL,NULL,NULL,TO_CHAR);
             af.where        = TO_AFFECTS;
             af.group        = AFFGROUP_PHYSICAL;
-            af.type         = gsn_fire_breath;
+            af.skill        = gsk_fire_breath;
             af.level        = level;
             af.duration     = 1;//number_range(0,level/10);
             af.location     = APPLY_HITROLL;
@@ -306,13 +303,13 @@ memset(&af,0,sizeof(af));
 
  	for ( pAf = victim->affected; pAf != NULL; pAf = pAf->next )
 	{
-	    if ( pAf->type == gsn_chill_touch && number_percent() < 25)
+	    if ( pAf->skill == gsk_chill_touch && number_percent() < 25)
 	    {
-		affect_remove( victim, pAf );
-		send_to_char("You stop shivering and your muscles warm up.\n\r", victim );
-		act("$n stops shivering as $s muscles warm up.",
-		    victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
-		break;
+			affect_remove( victim, pAf );
+			send_to_char("You stop shivering and your muscles warm up.\n\r", victim );
+			act("$n stops shivering as $s muscles warm up.",
+				victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
+			break;
 	    }
 	}
 
@@ -352,7 +349,8 @@ memset(&af,0,sizeof(af));
         case ITEM_CONTAINER:
             msg = "{R$p ignites and burns!{x";
             break;
-        case ITEM_POTION:
+        case ITEM_FLUID_CONTAINER:
+			// TODO: Add "boiling_chance" to liquid definition
             chance += 25;
             msg = "{B$p bubbles and boils!{x";
             break;
@@ -380,9 +378,9 @@ memset(&af,0,sizeof(af));
         case ITEM_TATTOO:
             msg = "{Y$p dries and flakes away!{x";
             break;
-	case ITEM_SMOKE_BOMB:
-	    msg = "{Y$p violently explodes with a loud {R*BANG*{x";
-	    break;
+		case ITEM_SMOKE_BOMB:
+		    msg = "{Y$p violently explodes with a loud {R*BANG*{x";
+	    	break;
         }
 
         chance = URANGE(5,chance,95);
@@ -431,7 +429,7 @@ memset(&af,0,sizeof(af));
 
 	    for ( vch = room->people; vch != NULL; vch = vch->next_in_room )
 	    {
-		damage( vch, vch, number_range(20,50), 0, DAM_FIRE, FALSE );
+		damage( vch, vch, number_range(20,50), NULL, 0, DAM_FIRE, FALSE );
 	    }
 	}
 
@@ -472,7 +470,7 @@ memset(&af,0,sizeof(af));
 
             af.where     = TO_AFFECTS;
             af.group     = AFFGROUP_BIOLOGICAL;
-            af.type      = gsn_poison;
+            af.skill     = gsk_poison;
             af.level     = level;
             af.duration  = level / 2;
             af.location  = APPLY_STR;
@@ -516,8 +514,8 @@ memset(&af,0,sizeof(af));
 		return;
 	    case ITEM_FOOD:
 		break;
-	    case ITEM_DRINK_CON:
-		if (obj->value[0] == obj->value[1])
+	    case ITEM_FLUID_CONTAINER:
+		if (FLUID_CON(obj)->amount >= FLUID_CON(obj)->capacity)
 		    return;
 		break;
 	}
@@ -535,7 +533,8 @@ memset(&af,0,sizeof(af));
 	}
 	else
 	{
-		obj->value[3] = poison;
+		if (poison > FLUID_CON(obj)->poison)
+			FLUID_CON(obj)->poison = poison;
 	}
 	return;
     }
@@ -635,7 +634,7 @@ void damage_vampires( CHAR_DATA *ch, int dam )
 	int chance;
 
     dam -= get_age(ch) * 2;
-    chance = get_skill( ch, gsn_temperance );
+    chance = get_skill( ch, gsk_temperance );
     if (chance > 0) {
 	if ( chance < 6 ) dam -= 5;
 	else if ( chance < 30 ) dam -= 20;
@@ -646,7 +645,7 @@ void damage_vampires( CHAR_DATA *ch, int dam )
 	else dam = dam / 2;
     }
 
-    check_improve( ch, gsn_temperance, TRUE, 8 );
+    check_improve( ch, gsk_temperance, TRUE, 8 );
 
     dam = UMAX( dam, 25 );
 
@@ -798,7 +797,7 @@ void toxic_fumes_effect(CHAR_DATA *victim,CHAR_DATA *ch)
 
 	if(af.bitvector) {
 		af.where     = TO_AFFECTS;
-		af.type      = gsn_toxic_fumes;
+		af.skill     = gsk_toxic_fumes;
 		af.level     = level;
 		af.duration  = duration;
 		af.location  = APPLY_STR;
@@ -807,7 +806,7 @@ void toxic_fumes_effect(CHAR_DATA *victim,CHAR_DATA *ch)
 	}
 
 	af.where     = TO_AFFECTS;
-	af.type      = gsn_toxic_fumes;
+	af.skill     = gsk_toxic_fumes;
 	af.level     = level;
 	af.duration  = duration;
 	af.location  = APPLY_MOVE;

@@ -25,6 +25,8 @@ extern GLOBAL_DATA gconfig;
  *   */
 AREA_DATA *get_area_data args ((long anum));
 AREA_DATA *get_area_from_uid args ((long uid));
+void save_liquids();
+void save_skills();
 
 char *editor_name_table[] = {
 	" ",
@@ -49,6 +51,8 @@ char *editor_name_table[] = {
 	"ApEdit",
 	"IpEdit",
 	"DpEdit",
+	"SkEdit",
+	"LiqEdit",
 };
 
 const struct editor_cmd_type editor_table[] =
@@ -71,6 +75,8 @@ const struct editor_cmd_type editor_table[] =
 	{ "apcode",		do_apedit	},
 	{ "ipcode",		do_ipedit	},
 	{ "dpcode",		do_dpedit	},
+	{ "skill",		do_skedit	},
+	{ "liquid",		do_liqedit	},
 	{ NULL,			0,			}
 };
 
@@ -187,6 +193,7 @@ const struct olc_cmd_type oedit_table[] =
 	{ "description",	oedit_desc				},
 	{ "ed",				oedit_ed				},
 	{ "extra",			oedit_extra				},
+	{ "fluidcon",		oedit_type_fluid_container },
 	{ "food",			oedit_type_food			},
 	{ "fragility",		oedit_fragility			},
 	{ "furniture",		oedit_type_furniture	},
@@ -483,6 +490,12 @@ bool run_olc_editor(DESCRIPTOR_DATA *d)
 	case ED_DPCODE:
 		dpedit(d->character, d->incomm);
 		break;
+	case ED_SKEDIT:
+		skedit(d->character, d->incomm);
+		break;
+	case ED_LIQEDIT:
+		liqedit(d->character, d->incomm);
+		break;
 
 	default:
 		return FALSE;
@@ -518,6 +531,8 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 	BLUEPRINT_SECTION *bpsect;
 	BLUEPRINT *blueprint;
 	DUNGEON_INDEX_DATA *dungeon;
+	SKILL_DATA *skill;
+	LIQUID *liquid;
 	static char buf[20];
 	char buf2[MSL];
 
@@ -549,6 +564,20 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 	case ED_DPCODE:
 		prog = (SCRIPT_DATA *)ch->desc->pEdit;
 		sprintf(buf, "%ld#%ld", (prog ? prog->area->uid : 0), (prog ? prog->vnum : 0));
+		break;
+	case ED_SKEDIT:
+		skill = (SKILL_DATA *)ch->desc->pEdit;
+		if (skill)
+			sprintf(buf, "%s:%d", skill->name, skill->uid);
+		else
+			sprintf(buf, "--:--");
+		break;
+	case ED_LIQEDIT:
+		liquid = (LIQUID *)ch->desc->pEdit;
+		if (IS_VALID(liquid))
+			sprintf(buf, "%s:%d", liquid->name, liquid->uid);
+		else
+			sprintf(buf, "--:--");
 		break;
 	case ED_HELP:
 		{
@@ -747,6 +776,14 @@ bool show_commands(CHAR_DATA *ch, char *argument)
 
 	case ED_DPCODE:
 		show_olc_cmds(ch, dpedit_table);
+		break;
+
+	case ED_SKEDIT:
+		show_olc_cmds(ch, skedit_table);
+		break;
+
+	case ED_LIQEDIT:
+		show_olc_cmds(ch, liqedit_table);
 		break;
 	}
 
@@ -2674,7 +2711,8 @@ void do_ocopy(CHAR_DATA *ch, char *argument)
 	new_af->location = af->location;
 	new_af->modifier = af->modifier;
 	new_af->where = af->where;
-	new_af->type  = af->type;
+	new_af->skill  = af->skill;
+	new_af->catalyst_type = af->catalyst_type;
 	new_af->duration = af->duration;
 	new_af->bitvector = af->bitvector;
 	new_af->level	 = af->level;
@@ -2716,11 +2754,14 @@ void do_ocopy(CHAR_DATA *ch, char *argument)
 	}
 	*/
 
+	BOOK(new_obj) = copy_book_data(BOOK(old_obj));
 	CONTAINER(new_obj) = copy_container_data(CONTAINER(old_obj));
+	FLUID_CON(new_obj) = copy_fluid_container_data(FLUID_CON(old_obj));
 	FOOD(new_obj) = copy_food_data(FOOD(old_obj));
 	FURNITURE(new_obj) = copy_furniture_data(FURNITURE(old_obj));
 	LIGHT(new_obj) = copy_light_data(LIGHT(old_obj));
 	MONEY(new_obj) = copy_money_data(MONEY(old_obj));
+	PAGE(new_obj) = copy_book_page(PAGE(old_obj));
 	PORTAL(new_obj) = copy_portal_data(PORTAL(old_obj), TRUE);
 
 	// Only copy impsig if imp (to block cheaters)
@@ -3832,10 +3873,11 @@ void obj_index_reset_multitype(OBJ_INDEX_DATA *pObjIndex)
 	free_book_page(PAGE(pObjIndex));				PAGE(pObjIndex) = NULL;
 	free_book_data(BOOK(pObjIndex));				BOOK(pObjIndex) = NULL;
 	free_container_data(CONTAINER(pObjIndex));		CONTAINER(pObjIndex) = NULL;
+	free_fluid_container_data(FLUID_CON(pObjIndex));FLUID_CON(pObjIndex) = NULL;
 	free_food_data(FOOD(pObjIndex));				FOOD(pObjIndex) = NULL;
 	free_light_data(LIGHT(pObjIndex));				LIGHT(pObjIndex) = NULL;
 	free_money_data(MONEY(pObjIndex));				MONEY(pObjIndex) = NULL;
-	free_portal_data(PORTAL(pObjIndex));				PORTAL(pObjIndex) = NULL;
+	free_portal_data(PORTAL(pObjIndex));			PORTAL(pObjIndex) = NULL;
 }
 
 void obj_index_set_primarytype(OBJ_INDEX_DATA *pObjIndex, int item_type)
@@ -3848,9 +3890,221 @@ void obj_index_set_primarytype(OBJ_INDEX_DATA *pObjIndex, int item_type)
 		case ITEM_PAGE:			PAGE(pObjIndex) = new_book_page(); break;
 		case ITEM_BOOK:			BOOK(pObjIndex) = new_book_data(); break;
 		case ITEM_CONTAINER:	CONTAINER(pObjIndex) = new_container_data(); break;
+		case ITEM_FLUID_CONTAINER:	FLUID_CON(pObjIndex) = new_fluid_container_data(); break;
 		case ITEM_FOOD:			FOOD(pObjIndex) = new_food_data(); break;
 		case ITEM_FURNITURE:	FURNITURE(pObjIndex) = new_furniture_data(); break;
 		case ITEM_LIGHT:		LIGHT(pObjIndex) = new_light_data(); break;
 		case ITEM_MONEY:		MONEY(pObjIndex) = new_money_data(); break;
 	}
+}
+
+
+const struct olc_cmd_type liqedit_table[] =
+{
+	{	"?",			show_help			},
+	{	"color",		liqedit_color		},
+	{	"commands",		show_commands		},
+	{	"create",		liqedit_create		},
+	{	"delete",		liqedit_delete		},
+	{	"flammable",	liqedit_flammable	},
+	{	"fuel",			liqedit_fuel		},
+	{	"full",			liqedit_full		},
+	{	"hunger",		liqedit_hunger		},
+	{	"list",			liqedit_list		},
+	{	"maxmana",		liqedit_maxmana		},
+	{	"name",			liqedit_name		},
+	{	"proof",		liqedit_proof		},
+	{	"show",			liqedit_show		},
+	{	"thirst",		liqedit_thirst		},
+	{	NULL,			0,					}
+};
+
+
+void do_liqedit(CHAR_DATA *ch, char *argument)
+{
+	LIQUID *liquid;
+    char command[MSL];
+
+    argument = one_argument(argument, command);
+
+	if ((liquid = liquid_lookup(command)))
+	{
+		ch->desc->pEdit		= (void *)liquid;
+		ch->desc->editor	= ED_LIQEDIT;
+		return;
+	}
+
+	if (!str_cmp(command, "create"))
+	{
+		liqedit_create(ch, argument);
+		return;
+	}
+
+	send_to_char("Syntax:  liqedit <name>\n\r", ch);
+	send_to_char("         liqedit create <name>\n\r", ch);
+}
+
+void do_liqlist(CHAR_DATA *ch, char *argument)
+{
+	liqedit_list(ch, argument);
+}
+
+void liqedit(CHAR_DATA *ch, char *argument)
+{
+	char command[MIL];
+	char arg[MIL];
+	int  cmd;
+
+	smash_tilde(argument);
+	strcpy(arg, argument);
+	argument = one_argument(argument, command);
+
+	if (get_trust(ch) < MAX_LEVEL)
+	{
+		send_to_char("LiqEdit:  Insufficient security to edit liquids - action logged.\n\r", ch);
+		edit_done(ch);
+		return;
+	}
+
+	if (!str_cmp(command, "done"))
+	{
+		edit_done(ch);
+		return;
+	}
+
+	ch->pcdata->immortal->last_olc_command = current_time;
+
+	if (command[0] == '\0')
+	{
+		liqedit_show(ch, argument);
+		return;
+	}
+
+	for (cmd = 0; liqedit_table[cmd].name != NULL; cmd++)
+	{
+		if (!str_prefix(command, liqedit_table[cmd].name))
+		{
+			if ((*liqedit_table[cmd].olc_fun) (ch, argument))
+			{
+				// Save the liquids
+				save_liquids();
+			}
+			return;
+		}
+	}
+
+	interpret(ch, arg);
+}
+
+const struct olc_cmd_type skedit_table[] =
+{
+	{	"?",			show_help			},
+	{	"beats",		skedit_beats		},
+	{	"brew",			skedit_brewfunc		},
+	{	"commands",		show_commands		},
+	//	"delete",		skedit_delete		},		// TODO: Need to be abke to track usage first
+	{	"difficulty",	skedit_difficulty	},
+	{	"display",		skedit_display		},
+	{	"group",		skedit_group		},
+	{	"gsn",			skedit_gsn			},
+	{	"ink",			skedit_inkfunc		},
+	{	"inks",			skedit_inks			},
+	{	"install",		skedit_install		},		// As opposed to create
+	{	"level",		skedit_level		},
+	{	"list",			skedit_list			},
+	{	"mana",			skedit_mana			},
+	{	"message",		skedit_message		},
+	//{	"name",			skedit_name			},		// Can't change the name
+	{	"position",		skedit_position		},
+	{	"prebrew",		skedit_prebrewfunc	},
+	{	"preink",		skedit_preinkfunc	},
+	{	"prescribe",	skedit_prescribefunc},
+	{	"prespell",		skedit_prespellfunc	},
+	{	"quaff",		skedit_quafffunc	},
+	{	"race",			skedit_race			},
+	{	"recite",		skedit_recitefunc	},
+	{	"scribe",		skedit_scribefunc	},
+	{	"show",			skedit_show			},
+	{	"spell",		skedit_spellfunc	},
+	{	"target",		skedit_target		},
+	{	"touch",		skedit_touchfunc	},
+	{	"value",		skedit_value		},
+	{	"valuename",	skedit_valuename	},
+	{	NULL,			NULL				}
+};
+
+
+void do_skedit(CHAR_DATA *ch, char *argument)
+{
+	SKILL_DATA *skill;
+    char command[MSL];
+
+ 	if ((skill = get_skill_data(argument)))
+	{
+		ch->desc->pEdit		= (void *)skill;
+		ch->desc->editor	= ED_SKEDIT;
+		return;
+	}
+
+   argument = one_argument(argument, command);
+
+	if (!str_cmp(command, "install"))
+	{
+		skedit_install(ch, argument);
+		return;
+	}
+
+	send_to_char("Syntax:  skedit <name>\n\r", ch);
+	send_to_char("         skedit install <name>\n\r", ch);
+}
+
+void do_sklist(CHAR_DATA *ch, char *argument)
+{
+	skedit_list(ch, argument);
+}
+
+void skedit(CHAR_DATA *ch, char *argument)
+{
+	char command[MIL];
+	char arg[MIL];
+	int  cmd;
+
+	smash_tilde(argument);
+	strcpy(arg, argument);
+	argument = one_argument(argument, command);
+
+	if (get_trust(ch) < MAX_LEVEL)
+	{
+		send_to_char("SkEdit:  Insufficient security to edit skills - action logged.\n\r", ch);
+		edit_done(ch);
+		return;
+	}
+
+	if (!str_cmp(command, "done"))
+	{
+		edit_done(ch);
+		return;
+	}
+
+	ch->pcdata->immortal->last_olc_command = current_time;
+
+	if (command[0] == '\0')
+	{
+		skedit_show(ch, argument);
+		return;
+	}
+
+	for (cmd = 0; skedit_table[cmd].name != NULL; cmd++)
+	{
+		if (!str_prefix(command, skedit_table[cmd].name))
+		{
+			if ((*skedit_table[cmd].olc_fun) (ch, argument))
+			{
+				save_skills();
+			}
+			return;
+		}
+	}
+
+	interpret(ch, arg);
 }

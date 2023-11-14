@@ -28,7 +28,7 @@ SPELL_FUNC(spell_acid_blast)
 	dam = dice(level, 6);
 	if (saves_spell(level, victim, DAM_ACID)) dam /= 2;
 
-	damage(ch, victim, dam, sn, DAM_ACID, TRUE);
+	damage(ch, victim, dam, skill, TYPE_UNDEFINED, DAM_ACID, TRUE);
 	return TRUE;
 }
 
@@ -51,7 +51,7 @@ SPELL_FUNC(spell_acid_breath)
 
 	acid_effect(victim,level,dam/13,TARGET_CHAR);
 	victim->set_death_type = DEATHTYPE_BREATH;
-	damage(ch,victim,dam,sn,DAM_ACID,TRUE);
+	damage(ch,victim,dam,skill,TYPE_UNDEFINED,DAM_ACID,TRUE);
 	return TRUE;
 }
 

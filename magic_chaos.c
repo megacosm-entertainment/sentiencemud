@@ -36,7 +36,7 @@ SPELL_FUNC(spell_curse)
 		if (IS_OBJ_STAT(obj,ITEM_BLESS)) {
 			AFFECT_DATA *paf;
 
-			paf = affect_find(obj->affected,gsn_bless);
+			paf = affect_find(obj->affected,gsk_bless);
 			if (!saves_dispel(ch,NULL, paf ? paf->level : obj->level)) {
 				if (paf) affect_remove_obj(obj,paf);
 				act("$p glows with a red aura.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
@@ -50,7 +50,7 @@ SPELL_FUNC(spell_curse)
 
 		af.where = TO_OBJECT;
 		af.group = AFFGROUP_ENCHANT;
-		af.type = sn;
+		af.skill = skill;
 		af.level = level;
 		af.duration = URANGE(1,2 * level, 5);
 		af.location = 0;
@@ -76,7 +76,7 @@ SPELL_FUNC(spell_curse)
 
 		af.where = TO_AFFECTS;
 		af.group = AFFGROUP_DIVINE;
-		af.type = sn;
+		af.skill = skill;
 		af.level = level;
 		af.duration = 2*level;
 		af.location = APPLY_HITROLL;
@@ -109,8 +109,8 @@ SPELL_FUNC(spell_demonfire)
 	if (saves_spell(level, victim,DAM_NEGATIVE))
 		dam /= 2;
 
-	damage(ch, victim, dam, sn, DAM_NEGATIVE ,TRUE);
-	spell_curse(gsn_curse, 3 * level / 4, ch, (void *) victim,TARGET_CHAR, WEAR_NONE);
+	damage(ch, victim, dam, skill, TYPE_UNDEFINED, DAM_NEGATIVE ,TRUE);
+	spell_curse(gsk_curse, 3 * level / 4, ch, (void *) victim,TARGET_CHAR, WEAR_NONE);
 	return TRUE;
 }
 
@@ -153,7 +153,7 @@ SPELL_FUNC(spell_dispel_good)
 		dam = UMAX(victim->hit, dice(level,4));
 	if (saves_spell(level, victim,DAM_NEGATIVE))
 		dam /= 2;
-	damage(ch, victim, dam, sn, DAM_NEGATIVE ,TRUE);
+	damage(ch, victim, dam, skill,TYPE_UNDEFINED, DAM_NEGATIVE ,TRUE);
 	return TRUE;
 }
 
@@ -169,13 +169,13 @@ SPELL_FUNC(spell_slow)
 	if(IS_REMORT(ch)) lvl -= LEVEL_HERO;		// If the caster is remort, it will require LESS catalyst
 	lvl = (lvl > 19) ? (lvl / 10) : 1;
 
-	catalyst = has_catalyst(ch,NULL,CATALYST_BODY,CATALYST_INVENTORY,1,CATALYST_MAXSTRENGTH);
+	catalyst = has_catalyst(ch,NULL,CATALYST_BODY,CATALYST_INVENTORY);
 	if(catalyst >= 0 && catalyst < lvl) {
 		send_to_char("You appear to be missing a required body catalyst.\n\r", ch);
 		return FALSE;
 	}
 
-	use_catalyst(ch,NULL,CATALYST_BODY,CATALYST_INVENTORY,lvl,1,CATALYST_MAXSTRENGTH,TRUE);
+	use_catalyst(ch,NULL,CATALYST_BODY,CATALYST_INVENTORY,lvl,TRUE);
 
 	if (IS_AFFECTED(victim,AFF_SLOW)) {
 		if (victim == ch)
@@ -194,7 +194,7 @@ SPELL_FUNC(spell_slow)
 
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration = (catalyst/lvl)+2;//level/2;
 	af.location = APPLY_DEX;
@@ -214,12 +214,12 @@ SPELL_FUNC(spell_weaken)
 	AFFECT_DATA af;
 	memset(&af,0,sizeof(af));
 
-	if (is_affected(victim, sn) || saves_spell(level, victim,DAM_OTHER))
+	if (is_affected(victim, skill) || saves_spell(level, victim,DAM_OTHER))
 		return FALSE;
 
 	af.where     = TO_AFFECTS;
 	af.group    = AFFGROUP_MAGICAL;
-	af.type      = sn;
+	af.skill     = skill;
 	af.level     = level;
 	af.duration  = URANGE(1, level / 2, 5);
 	af.location  = APPLY_STR;

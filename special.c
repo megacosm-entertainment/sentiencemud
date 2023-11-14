@@ -252,7 +252,7 @@ bool spec_patrolman(CHAR_DATA *ch)
 	if (message != NULL)
 		act(message,ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ALL);
 
-	multi_hit(ch,victim,TYPE_UNDEFINED);
+	multi_hit(ch,victim,NULL,TYPE_UNDEFINED);
 
 	return TRUE;
 }
@@ -303,7 +303,7 @@ bool dragon( CHAR_DATA *ch, char *spell_name )
 {
     CHAR_DATA *victim;
     CHAR_DATA *v_next;
-    int sn;
+    SKILL_DATA *skill;
 
     if ( ch->position != POS_FIGHTING )
 	return FALSE;
@@ -318,9 +318,11 @@ bool dragon( CHAR_DATA *ch, char *spell_name )
     if ( victim == NULL )
 	return FALSE;
 
-    if ( ( sn = skill_lookup( spell_name ) ) < 0 )
-	return FALSE;
-    (*skill_table[sn].spell_fun) ( sn, ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE);
+    skill = get_skill_data(spell_name);
+    if (!IS_VALID(skill) || !is_skill_spell(skill) || skill->token)
+        return false;
+
+    (*skill->spell_fun) ( skill, ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE);
     return TRUE;
 }
 
@@ -374,14 +376,12 @@ bool spec_breath_frost( CHAR_DATA *ch )
 
 bool spec_breath_gas( CHAR_DATA *ch )
 {
-    int sn;
-
     if ( ch->position != POS_FIGHTING )
-	return FALSE;
+    	return FALSE;
 
-    if ( ( sn = gsn_gas_breath ) < 0 )
-	return FALSE;
-    (*skill_table[sn].spell_fun) ( sn, ch->tot_level, ch, NULL,TARGET_CHAR, WEAR_NONE);
+    if ( !IS_VALID(gsk_gas_breath) )
+	    return FALSE;
+    (*gsk_gas_breath->spell_fun) ( gsk_gas_breath, ch->tot_level, ch, NULL,TARGET_CHAR, WEAR_NONE);
     return TRUE;
 }
 
@@ -463,7 +463,6 @@ bool spec_cast_cleric( CHAR_DATA *ch )
     CHAR_DATA *v_next;
     char buf[MAX_STRING_LENGTH];
     char *spell = NULL;
-    int sn;
 
     if ( ch->position != POS_FIGHTING )
 	return FALSE;
@@ -505,8 +504,10 @@ bool spec_cast_cleric( CHAR_DATA *ch )
 
     if ( spell == NULL ) return FALSE;
 
-    if ( ( sn = skill_lookup( spell ) ) < 0 )
-	return FALSE;
+    SKILL_DATA *skill = get_skill_data(spell);
+
+    if ( !IS_VALID(skill) )
+	    return FALSE;
     //mob_cast( ch, sn , ch->tot_level, victim->name);
 
 	sprintf( buf, "'%s' %s", spell, victim->name );
@@ -517,6 +518,7 @@ bool spec_cast_cleric( CHAR_DATA *ch )
 
 bool spec_cast_judge( CHAR_DATA *ch )
 {
+#if 0
     CHAR_DATA *victim;
     CHAR_DATA *v_next;
     char buf[MAX_STRING_LENGTH];
@@ -543,8 +545,10 @@ bool spec_cast_judge( CHAR_DATA *ch )
 
 	sprintf( buf, "'%s' %s", spell, victim->name );
 	do_function( ch, &do_cast, buf );
-
     return TRUE;
+#else
+    return false;
+#endif
 }
 
 
@@ -555,7 +559,6 @@ bool spec_cast_mage( CHAR_DATA *ch )
     CHAR_DATA *v_next;
     char buf[MAX_STRING_LENGTH];
     char *spell;
-    int sn;
 
     if ( ch->position != POS_FIGHTING )
 	return FALSE;
@@ -594,7 +597,8 @@ bool spec_cast_mage( CHAR_DATA *ch )
 	    break;
     }
 
-    if ( ( sn = skill_lookup( spell ) ) < 0 )
+    SKILL_DATA *skill = get_skill_data(spell);
+    if ( !IS_VALID(skill) )
 		return FALSE;
 
 	sprintf( buf, "'%s' %s", spell, victim->name );
@@ -611,7 +615,6 @@ bool spec_cast_undead( CHAR_DATA *ch )
     CHAR_DATA *v_next;
 	char buf[MAX_STRING_LENGTH];
     char *spell;
-    int sn;
 
     if ( ch->position != POS_FIGHTING )
 		return FALSE;
@@ -648,7 +651,8 @@ bool spec_cast_undead( CHAR_DATA *ch )
 	    break;
     }
 
-    if ( ( sn = skill_lookup( spell ) ) < 0 )
+    SKILL_DATA *skill = get_skill_data(spell);
+    if ( !IS_VALID(skill) )
 		return FALSE;
 
 	sprintf( buf, "'%s' %s", spell, victim->name );
@@ -688,7 +692,7 @@ bool spec_executioner( CHAR_DATA *ch )
     sprintf( buf, "%s is a %s!  PROTECT THE INNOCENT!  MORE BLOOOOD!!!",
 	victim->name, crime );
     do_function(ch, &do_yell, buf );
-    multi_hit( ch, victim, TYPE_UNDEFINED );
+    multi_hit( ch, victim, NULL, TYPE_UNDEFINED );
     return TRUE;
 }
 
@@ -728,6 +732,7 @@ bool spec_fido( CHAR_DATA *ch )
 
 bool spec_guard( CHAR_DATA *ch )
 {
+#if 0
     CHAR_DATA *victim;
     CHAR_DATA *v_next;
 
@@ -772,7 +777,7 @@ bool spec_guard( CHAR_DATA *ch )
 	    }
 	}
     }
-
+#endif
     return FALSE;
 }
 
@@ -790,7 +795,7 @@ bool spec_janitor( CHAR_DATA *ch )
 	trash_next = trash->next_content;
 	if ( !IS_SET( trash->wear_flags, ITEM_TAKE ) )
 	    continue;
-	if ( trash->item_type == ITEM_DRINK_CON
+	if ( trash->item_type == ITEM_FLUID_CONTAINER
 	||   trash->item_type == ITEM_TRASH
 	||   trash->cost < 10 )
 	{
@@ -940,7 +945,7 @@ bool spec_poison( CHAR_DATA *ch )
     act( "You bite $N!",  ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR    );
     act( "$n bites $N!",  ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT );
     act( "$n bites you!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT    );
-    spell_poison( gsn_poison, ch->tot_level, ch, victim,TARGET_CHAR, WEAR_NONE);
+    spell_poison( gsk_poison, ch->tot_level, ch, victim,TARGET_CHAR, WEAR_NONE);
     return TRUE;
 }
 

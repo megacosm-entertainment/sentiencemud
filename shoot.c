@@ -250,10 +250,10 @@ void do_shoot( CHAR_DATA *ch, char *argument )
     if(ch->fighting) beats *= 2;
     RANGED_STATE( ch, beats );
 
-    if ( get_skill(ch, gsn_archery) > 0 )
+    if ( get_skill(ch, gsk_archery) > 0 )
     {
-    	ch->ranged -= (ch->ranged * (get_skill(ch, gsn_archery)/3))/100;
-	check_improve(ch, gsn_archery, TRUE, 6);
+    	ch->ranged -= (ch->ranged * (get_skill(ch, gsk_archery)/3))/100;
+	check_improve(ch, gsk_archery, TRUE, 6);
     }
 
     ch->projectile_weapon = bow;
@@ -272,9 +272,10 @@ void ranged_end( CHAR_DATA *ch )
     OBJ_DATA *shield = NULL;
     CHAR_DATA *victim = NULL;
     ROOM_INDEX_DATA *target_room = ch->in_room;
+	SKILL_DATA *sk;
     int direction;
     int skill;
-    int sn, beats;
+    int beats;
     int dam;
     int dt;
 
@@ -321,14 +322,14 @@ void ranged_end( CHAR_DATA *ch )
     // @@@NIB : 20070128 ----------
     switch(bow->value[0]) {
     default:
-    case RANGED_WEAPON_EXOTIC:		sn = gsn_exotic; break;
-    case RANGED_WEAPON_BOW:		sn = gsn_bow; break;
-    case RANGED_WEAPON_CROSSBOW:	sn = gsn_crossbow; break;
-    case RANGED_WEAPON_HARPOON:		sn = gsn_harpooning; break;
-    case RANGED_WEAPON_BLOWGUN:		sn = gsn_blowgun; break;
+    case RANGED_WEAPON_EXOTIC:		sk = gsk_exotic; break;
+    case RANGED_WEAPON_BOW:			sk = gsk_bow; break;
+    case RANGED_WEAPON_CROSSBOW:	sk = gsk_crossbow; break;
+    case RANGED_WEAPON_HARPOON:		sk = gsk_harpooning; break;
+    case RANGED_WEAPON_BLOWGUN:		sk = gsk_blowgun; break;
     }
-    skill = get_skill(ch, sn);
-    beats = skill_table[sn].beats;
+    skill = get_skill(ch, sk);
+    beats = sk->beats;
     // @@@NIB : 20070128 ----------
 
     sprintf( buf, "%s gets %d%% from skill, ", ch->name, skill );
@@ -339,7 +340,7 @@ void ranged_end( CHAR_DATA *ch )
     }
 
     if (!IS_NPC(ch)) {
-	    if ( sn == gsn_blowgun ) {
+	    if ( sk == gsk_blowgun ) {
 	        // @@@NIB : 20070126 : if an assassin/ninja, they get a +5% accuracy
 	        //	with blowguns
 		if ( ch->pcdata->second_sub_class_cleric == CLASS_THIEF_NINJA &&
@@ -353,9 +354,9 @@ void ranged_end( CHAR_DATA *ch )
     skill += get_curr_stat(ch, STAT_DEX) / 8;
 
     // @@@NIB : 20070128
-    if(sn == gsn_bow || sn == gsn_crossbow) {
-	skill += get_skill( ch, gsn_archery) / 5;
-	sprintf(buf2, "+%d%% from archery, total skill is %d%%\n\r", get_skill(ch,gsn_archery)/5, skill); strcat(buf, buf2); //send_to_char(buf,ch);
+    if(sk == gsk_bow || sk == gsk_crossbow) {
+	skill += get_skill( ch, gsk_archery) / 5;
+	sprintf(buf2, "+%d%% from archery, total skill is %d%%\n\r", get_skill(ch, gsk_archery)/5, skill); strcat(buf, buf2); //send_to_char(buf,ch);
     }
 
     if ( number_percent() > skill )
@@ -366,8 +367,8 @@ void ranged_end( CHAR_DATA *ch )
 	act("{B$p falls onto the ground.{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL);
 	obj_from_char( obj );
 	obj_to_room( obj, ch->in_room );
-	check_improve( ch, sn, FALSE, 1 );
-	check_improve( ch, gsn_archery, FALSE, 1 );
+	check_improve( ch, sk, FALSE, 1 );
+	check_improve( ch, gsk_archery, FALSE, 1 );
 	stop_ranged( ch, FALSE );
 	return;
     }
@@ -376,7 +377,7 @@ void ranged_end( CHAR_DATA *ch )
 	+ dice( obj->value[1], obj->value[2] )
 	+ 40*log(GET_DAMROLL( ch ));
 
-    dam += (dam * get_skill(ch, gsn_archery))/175;
+    dam += (dam * get_skill(ch, gsk_archery))/175;
 
     dam = (dam * 3) / 2; // So ranged weapons do more damage than throwing bolts
 
@@ -418,7 +419,7 @@ void ranged_end( CHAR_DATA *ch )
 	act("{YYou fire $p{Y at $N.{x",  ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 
 	// If we killed them make the victim null
-	if ( damage( ch, victim, dam, gsn_archery, dt, TRUE))
+	if ( damage( ch, victim, dam, gsk_archery, TYPE_UNDEFINED, dt, TRUE))
 	    victim = NULL;
 
 	obj_from_char( obj );
@@ -433,9 +434,9 @@ void ranged_end( CHAR_DATA *ch )
 	}
 
 	// @@@NIB : 20070128 --------------
-	check_improve( ch, sn, TRUE, 1 );
-	if(sn == gsn_bow || sn == gsn_crossbow)
-		check_improve( ch, gsn_archery, TRUE, 1 );
+	check_improve( ch, sk, TRUE, 1 );
+	if(sk == gsk_bow || sk == gsk_crossbow)
+		check_improve( ch, gsk_archery, TRUE, 1 );
 	WAIT_STATE(ch,beats);
 	// @@@NIB : 20070128 --------------
 	stop_ranged( ch, FALSE );
@@ -491,9 +492,9 @@ void ranged_end( CHAR_DATA *ch )
 	    }
 
 	    // @@@NIB : 20070128 --------------
-	    check_improve( ch, sn, FALSE, 1 );
-	    if(sn == gsn_bow || sn == gsn_crossbow)
-		check_improve( ch, gsn_archery, FALSE, 1 );
+	    check_improve( ch, sk, FALSE, 1 );
+	    if(sk == gsk_bow || sk == gsk_crossbow)
+		check_improve( ch, gsk_archery, FALSE, 1 );
 	    // @@@NIB : 20070128 --------------
 	    stop_ranged( ch, FALSE );
 	    return;
@@ -516,7 +517,7 @@ void ranged_end( CHAR_DATA *ch )
     if ( number_percent() > URANGE(0, (skill + get_curr_stat(ch, STAT_DEX) / 5), 90) )
     {
 	/* generate miss messages */
-	damage( ch, victim, 0, gsn_archery, dt, TRUE );
+	damage( ch, victim, 0, gsk_archery, TYPE_UNDEFINED, dt, TRUE );
 
 	switch( number_range(0, 3) )
 	{
@@ -551,9 +552,9 @@ void ranged_end( CHAR_DATA *ch )
 	    stop_fighting( victim, FALSE );
 
 	// @@@NIB : 20070128 --------------
-	check_improve( ch, sn, FALSE, 1 );
-	if(sn == gsn_bow || sn == gsn_crossbow)
-		check_improve( ch, gsn_archery, FALSE, 1 );
+	check_improve( ch, sk, FALSE, 1 );
+	if(sk == gsk_bow || sk == gsk_crossbow)
+		check_improve( ch, gsk_archery, FALSE, 1 );
 	WAIT_STATE(ch,beats);
 	// @@@NIB : 20070128 --------------
 	stop_ranged( ch, FALSE );
@@ -564,7 +565,7 @@ void ranged_end( CHAR_DATA *ch )
     if ( ( shield = get_eq_char(ch, WEAR_SHIELD)) == NULL
     || !check_shield_block_projectile( ch, victim, obj->short_descr, obj ) )
     {
-	damage( ch, victim, dam, gsn_archery, dt, TRUE );
+	damage( ch, victim, dam, gsk_archery, TYPE_UNDEFINED, dt, TRUE );
 	WAIT_STATE(ch,beats);
     }
 
@@ -600,9 +601,9 @@ void ranged_end( CHAR_DATA *ch )
 	room_echo( target_room, buf );
     }
 
-    check_improve( ch, sn, TRUE, 1 );
-    if(sn == gsn_bow || sn == gsn_crossbow)
-	check_improve( ch, gsn_archery, TRUE, 1 );
+    check_improve( ch, sk, TRUE, 1 );
+    if(sk == gsk_bow || sk == gsk_crossbow)
+	check_improve( ch, gsk_archery, TRUE, 1 );
     stop_ranged( ch, FALSE );
 }
 
@@ -786,7 +787,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
 	    cloud->level = obj->level;
 	    extract_obj( obj );
 
-	    check_improve( ch, gsn_throw, TRUE, 1 );
+	    check_improve( ch, gsk_throw, TRUE, 1 );
 	}
 	else
 	{
@@ -833,10 +834,10 @@ void do_throw( CHAR_DATA *ch, char *argument )
     if ( is_safe( ch, victim, TRUE ) )
 	return;
 
-    WAIT_STATE( ch, skill_table[gsn_throw].beats );
+    WAIT_STATE( ch, gsk_throw->beats );
 
     /* we have a victim and a dir.  start the missile off. */
-    skill = get_skill(ch, gsn_throw);
+    skill = get_skill(ch, gsk_throw);
     if ( IS_ELF( ch ) )
 	skill += 5;
 
@@ -853,7 +854,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
 
 	obj_from_char( obj );
 	obj_to_room( obj, ch->in_room );
-	check_improve( ch, gsn_throw, FALSE, 1 );
+	check_improve( ch, gsk_throw, FALSE, 1 );
 	return;
     }
 
@@ -866,7 +867,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
 	act("$n throws $s $p at $N!",  ch, victim, NULL, obj, NULL, NULL, NULL, TO_NOTVICT);
 	act("You throw $p at $N!",     ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 
-	if ( damage( ch, victim, dam, gsn_throw, obj->value[3], TRUE ) == FALSE )
+	if ( damage( ch, victim, dam, gsk_throw, TYPE_UNDEFINED, obj->value[3], TRUE ) == FALSE )
 	    victim = NULL;
 
 	obj_from_char( obj );
@@ -941,7 +942,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
 	    /* generate miss messages */
             if (ch->in_room == victim->in_room)
             {
-	        damage( ch, victim, 0, gsn_throw, obj->value[3], TRUE );
+	        damage( ch, victim, 0, gsk_throw, TYPE_UNDEFINED, obj->value[3], TRUE );
             }
 	    else
             {
@@ -970,12 +971,12 @@ void do_throw( CHAR_DATA *ch, char *argument )
 		p_give_trigger( NULL, obj, NULL, ch, obj, TRIG_THROW ,0,0,0,0,0);
 		p_give_trigger( NULL, NULL, in_room, ch, obj, TRIG_THROW ,0,0,0,0,0);
 
-	    check_improve( ch, gsn_throw, FALSE, 1 );
+	    check_improve( ch, gsk_throw, FALSE, 1 );
 	    return;
 	}
 
 	/* do damage and generate messages */
-	if ( damage( ch, victim, dam, gsn_throw , attack_table[obj->value[3]].damage,  TRUE ) == FALSE )
+	if ( damage( ch, victim, dam, gsk_throw, TYPE_UNDEFINED , attack_table[obj->value[3]].damage,  TRUE ) == FALSE )
 	{
 	    victim = NULL;
 	}
@@ -1001,7 +1002,7 @@ void do_throw( CHAR_DATA *ch, char *argument )
         	p_give_trigger( NULL, obj, NULL, victim, obj, TRIG_THROW ,0,0,0,0,0);
 	p_give_trigger( NULL, NULL, in_room, ch, obj, TRIG_THROW ,0,0,0,0,0);
 
-	check_improve( ch, gsn_throw, TRUE, 1 );
+	check_improve( ch, gsk_throw, TRUE, 1 );
     }
 
     return;
@@ -1012,7 +1013,8 @@ void do_throw( CHAR_DATA *ch, char *argument )
 int get_ranged_skill(CHAR_DATA *ch)
 {
     OBJ_DATA *bow;
-    int skill, sn = -1;
+	SKILL_DATA *sk = NULL;
+    int skill;
     char buf[MSL], buf2[MSL];
 
     skill = get_curr_stat(ch, STAT_DEX) / 8;
@@ -1022,13 +1024,13 @@ int get_ranged_skill(CHAR_DATA *ch)
     if ( ( bow = ch->projectile_weapon) ) {
 	switch(bow->value[0]) {
 	default:
-	case RANGED_WEAPON_EXOTIC:	sn = gsn_exotic; break;
-	case RANGED_WEAPON_BOW:		sn = gsn_bow; break;
-	case RANGED_WEAPON_CROSSBOW:	sn = gsn_crossbow; break;
-	case RANGED_WEAPON_HARPOON:	sn = gsn_harpooning; break;
-	case RANGED_WEAPON_BLOWGUN:	sn = gsn_blowgun; break;
+	case RANGED_WEAPON_EXOTIC:		sk = gsk_exotic; break;
+	case RANGED_WEAPON_BOW:			sk = gsk_bow; break;
+	case RANGED_WEAPON_CROSSBOW:	sk = gsk_crossbow; break;
+	case RANGED_WEAPON_HARPOON:		sk = gsk_harpooning; break;
+	case RANGED_WEAPON_BLOWGUN:		sk = gsk_blowgun; break;
 	}
-	skill += get_skill(ch, sn);
+	skill += get_skill(ch, sk);
     }
     // @@@NIB : 20070128 ----------
 
@@ -1039,7 +1041,7 @@ int get_ranged_skill(CHAR_DATA *ch)
     }
 
     if (!IS_NPC(ch)) {
-	    if ( sn == gsn_blowgun ) {
+	    if ( sk == gsk_blowgun ) {
 	        // @@@NIB : 20070128 : if an assassin/ninja, they get a +5% accuracy
 	        //	with blowguns
 		if ( ch->pcdata->second_sub_class_cleric == CLASS_THIEF_NINJA &&
@@ -1050,9 +1052,9 @@ int get_ranged_skill(CHAR_DATA *ch)
     }
 
     // @@@NIB : 20070128
-    if(sn == gsn_bow || sn == gsn_crossbow) {
-	skill += get_skill( ch, gsn_archery) / 5;
-	sprintf(buf2, "+%d%% from archery, total skill is %d%%\n\r", get_skill(ch,gsn_archery)/5, skill); strcat(buf, buf2); //send_to_char(buf,ch);
+    if(sk == gsk_bow || sk == gsk_crossbow) {
+	skill += get_skill( ch, gsk_archery) / 5;
+	sprintf(buf2, "+%d%% from archery, total skill is %d%%\n\r", get_skill(ch, gsk_archery)/5, skill); strcat(buf, buf2); //send_to_char(buf,ch);
     }
 
     return skill;

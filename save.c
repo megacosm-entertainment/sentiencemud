@@ -636,12 +636,12 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 
     for (paf = ch->affected; paf != NULL; paf = paf->next)
     {
-	if (!paf->custom_name && (paf->type < 0 || paf->type>= MAX_SKILL))
+	if (!paf->custom_name && !IS_VALID(paf->skill))
 	    continue;
 
 	fprintf(fp, "%s '%s' '%s' %3d %3d %3d %3d %3d %10ld %10ld %d\n",
 	    (paf->custom_name?"Affcgn":"Affcg"),
-	    (paf->custom_name?paf->custom_name:skill_table[paf->type].name),
+	    (paf->custom_name?paf->custom_name:paf->skill->name),
 	    flag_string(affgroup_mobile_flags,paf->group),
 	    paf->where,
 	    paf->level,
@@ -1024,16 +1024,16 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 	    if (!str_cmp(word, "AffD"))
 	    {
 		AFFECT_DATA *paf;
-		int sn;
 
 		paf = new_affect();
 
-		sn = skill_lookup(fread_word(fp));
-		if (sn < 0)
+		SKILL_DATA *skill = get_skill_data(fread_word(fp));
+		if (!IS_VALID(skill))
 		    log_string("fread_char: unknown skill.");
 		else
-		    paf->type = sn;
+		    paf->skill = skill;
 
+		paf->catalyst_type = -1;
 		paf->level	= fread_number(fp);
 		paf->duration	= fread_number(fp);
 		paf->modifier	= fread_number(fp);
@@ -1048,18 +1048,18 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
             if (!str_cmp(word, "Affc"))
             {
                 AFFECT_DATA *paf;
-                int sn;
 
                 paf = new_affect();
 
-                sn = skill_lookup(fread_word(fp));
-                if (sn < 0)
-                    log_string("fread_char: unknown skill.");
-                else
-                    paf->type = sn;
+				SKILL_DATA *skill = get_skill_data(fread_word(fp));
+				if (!IS_VALID(skill))
+					log_string("fread_char: unknown skill.");
+				else
+					paf->skill = skill;
 
-		paf->custom_name = NULL;
-		paf->group  = AFFGROUP_MAGICAL;
+				paf->catalyst_type = -1;
+				paf->custom_name = NULL;
+				paf->group  = AFFGROUP_MAGICAL;
                 paf->where  = fread_number(fp);
                 paf->level      = fread_number(fp);
                 paf->duration   = fread_number(fp);
@@ -1077,16 +1077,16 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
             if (!str_cmp(word, "Affcg"))
             {
                 AFFECT_DATA *paf;
-                int sn;
 
                 paf = new_affect();
 
-                sn = skill_lookup(fread_word(fp));
-                if (sn < 0)
-                    log_string("fread_char: unknown skill.");
-                else
-					paf->type = sn;
+				SKILL_DATA *skill = get_skill_data(fread_word(fp));
+				if (!IS_VALID(skill))
+					log_string("fread_char: unknown skill.");
+				else
+					paf->skill = skill;
 
+				paf->catalyst_type = -1;
 				paf->custom_name = NULL;
 				paf->group  = flag_value(affgroup_mobile_flags,fread_word(fp));
 				if(paf->group == NO_FLAG) paf->group = AFFGROUP_MAGICAL;
@@ -1096,12 +1096,13 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
                 paf->modifier   = fread_number(fp);
                 paf->location   = fread_number(fp);
                 if(paf->location == APPLY_SKILL) {
-					int sn = skill_lookup(fread_word(fp));
-					if(sn < 0) {
+					SKILL_DATA *sk = get_skill_data(fread_word(fp));
+					if(IS_VALID(sk)) {
+						paf->location += sk->uid;
+					} else {
 						paf->location = APPLY_NONE;
 						paf->modifier = 0;
-					} else
-						paf->location += sn;
+					}
 				}
                 paf->bitvector  = fread_number(fp);
 				if (ch->version >= 9)
@@ -1128,7 +1129,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
                 } else
                     paf->custom_name = name;
 
-				paf->type = -1;
+				paf->catalyst_type = -1;
 				paf->group  = AFFGROUP_MAGICAL;
                 paf->where  = fread_number(fp);
                 paf->level      = fread_number(fp);
@@ -1158,7 +1159,8 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
                 } else
                     paf->custom_name = name;
 
-				paf->type = -1;
+				paf->catalyst_type = -1;
+				paf->skill = NULL;
 				paf->group  = flag_value(affgroup_mobile_flags,fread_word(fp));
 				if(paf->group == NO_FLAG) paf->group = AFFGROUP_MAGICAL;
                 paf->where  = fread_number(fp);
@@ -1167,12 +1169,13 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
                 paf->modifier   = fread_number(fp);
                 paf->location   = fread_number(fp);
                 if(paf->location == APPLY_SKILL) {
-					int sn = skill_lookup(fread_word(fp));
-					if(sn < 0) {
+					SKILL_DATA *sk = get_skill_data(fread_word(fp));
+					if (IS_VALID(sk))
+						paf->location += sk->uid;
+					else {
 						paf->location = APPLY_NONE;
 						paf->modifier = 0;
-					} else
-					paf->location += sn;
+					}
 				}
                 paf->bitvector  = fread_number(fp);
 				if (ch->version >= 9)
@@ -2008,7 +2011,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 
 	    if (!str_cmp(word, "Skill") || !str_cmp(word,"Sk"))
 	    {
-			int sn;
+			SKILL_DATA *skill;
 			int value;
 			char *temp;
 	        int prac;
@@ -2016,10 +2019,10 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 			value = fread_number(fp);
 			temp = fread_word(fp);
 			if (ch->version < VERSION_PLAYER_002 && !str_cmp(temp,"wither"))
-				sn = gsn_withering_cloud;
+				skill = gsk_withering_cloud;
 			else
-				sn = skill_lookup(temp);
-			if (sn <= 0)
+				skill = get_skill_data(temp);
+			if (!IS_VALID(skill))
 			{
 				sprintf(buf, "fread_char: unknown skill %s", temp);
 				log_string(buf);
@@ -2031,11 +2034,13 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 			}
 			else
 			{
-				ch->pcdata->learned[sn] = value;
-				if( skill_table[sn].spell_fun == spell_null)
-					skill_entry_addskill(ch, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
+				SKILL_ENTRY *entry;
+				if( is_skill_spell(skill))
+					entry = skill_entry_addskill(ch, skill, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
 				else
-					skill_entry_addspell(ch, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
+					entry = skill_entry_addspell(ch, skill, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
+
+				entry->rating = value;
 			}
 
 			fMatch = TRUE;
@@ -2044,20 +2049,25 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 
 	    if (!str_cmp(word, "SkillMod") || !str_cmp(word, "SkMod"))
 	    {
-		int sn;
-		int value;
-		char *temp;
+			SKILL_DATA *skill;
+			int value;
+			char *temp;
 
-		value = fread_number(fp);
-		temp = fread_word(fp) ;
-		if (ch->version < VERSION_PLAYER_002 && !str_cmp(temp,"wither"))
-			sn = gsn_withering_cloud;
-		else
-			sn = skill_lookup(temp);
-		if (sn > 0) ch->pcdata->mod_learned[sn] = value;
+			value = fread_number(fp);
+			temp = fread_word(fp) ;
+			if (ch->version < VERSION_PLAYER_002 && !str_cmp(temp,"wither"))
+				skill = gsk_withering_cloud;
+			else
+				skill = get_skill_data(temp);
 
-		fMatch = TRUE;
-		break;
+			if (IS_VALID(skill))
+			{
+				SKILL_ENTRY *entry = skill_entry_findskill(ch->sorted_skills, skill);
+				if (entry) entry->mod_rating = value;
+			}
+
+			fMatch = TRUE;
+			break;
 	    }
 
 
@@ -2385,6 +2395,37 @@ void fwrite_obj_multityping(FILE *fp, OBJ_DATA *obj)
 		fprintf(fp, "#-TYPECONTAINER\n");
 	}
 
+	if (IS_FLUID_CON(obj))
+	{
+		fprintf(fp, "#TYPEFLUIDCONTAINER\n");
+		fprintf(fp, "Name %s~\n", fix_string(FLUID_CON(obj)->name));
+		fprintf(fp, "Short %s~\n", fix_string(FLUID_CON(obj)->short_descr));
+		fprintf(fp, "Flags %s\n", print_flags(FLUID_CON(obj)->flags));
+
+		if (IS_VALID(FLUID_CON(obj)->liquid))
+			fprintf(fp, "Liquid %s~\n", FLUID_CON(obj)->liquid->name);
+		
+		fprintf(fp, "Amount %d\n", FLUID_CON(obj)->amount);
+		fprintf(fp, "Capacity %d\n", FLUID_CON(obj)->capacity);
+		fprintf(fp, "RefillRate %d\n", FLUID_CON(obj)->refill_rate);
+		fprintf(fp, "Poison %d\n", FLUID_CON(obj)->poison);
+		fprintf(fp, "PoisonRate %d\n", FLUID_CON(obj)->poison_rate);
+
+		if (FLUID_CON(obj)->lock)
+			fwrite_lock_state(fp, FLUID_CON(obj)->lock);
+
+		ITERATOR sit;
+		SPELL_DATA *spell;
+		iterator_start(&sit, FLUID_CON(obj)->spells);
+		while((spell = (SPELL_DATA *)iterator_nextdata(&sit)))
+		{
+			fprintf(fp, "Spell %s~ %d\n", spell->skill->name, spell->level);
+		}
+		iterator_stop(&sit);
+
+		fprintf(fp, "#-TYPEFLUIDCONTAINER\n");
+	}
+
 	if (IS_FOOD(obj))
 	{
 		FOOD_BUFF_DATA *buff;
@@ -2659,26 +2700,27 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
     // This is for spells on the objects.
     for (paf = obj->affected; paf != NULL; paf = paf->next)
     {
-        if (paf->type < 0 || paf->type >= MAX_SKILL || paf->custom_name)
+        if (!IS_VALID(paf->skill) || paf->custom_name)
 	    continue;
 
-	if(paf->location >= APPLY_SKILL && paf->location < APPLY_SKILL_MAX) {
-		if(!skill_table[paf->location - APPLY_SKILL].name) continue;
+	if(paf->location >= APPLY_SKILL) {
+		SKILL_DATA *skill = get_skill_data_uid(paf->location - APPLY_SKILL);
+		if(!IS_VALID(skill)) continue;
 		fprintf(fp, "Affcg '%s' %3d %3d %3d %3d %3d %3d '%s' %10ld %10ld\n",
-			skill_table[paf->type].name,
+			paf->skill->name,
 			paf->where,
 			paf->group,
 			paf->level,
 			paf->duration,
 			paf->modifier,
 			APPLY_SKILL,
-			skill_table[paf->location - APPLY_SKILL].name,
+			skill->name,
 			paf->bitvector,
 			paf->bitvector2
 		);
 	} else {
 		fprintf(fp, "Affcg '%s' %3d %3d %3d %3d %3d %3d %10ld %10ld\n",
-			skill_table[paf->type].name,
+			paf->skill->name,
 			paf->where,
 			paf->group,
 			paf->level,
@@ -2696,8 +2738,9 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
     {
         if (!paf->custom_name) continue;
 
-	if(paf->location >= APPLY_SKILL && paf->location < APPLY_SKILL_MAX) {
-		if(!skill_table[paf->location - APPLY_SKILL].name) continue;
+	if(paf->location >= APPLY_SKILL) {
+		SKILL_DATA *skill = get_skill_data_uid(paf->location - APPLY_SKILL);
+		if(!IS_VALID(skill)) continue;
 		fprintf(fp, "Affcgn '%s' %3d %3d %3d %3d %3d %3d '%s' %10ld %10ld\n",
 			paf->custom_name,
 			paf->where,
@@ -2706,7 +2749,7 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
 			paf->duration,
 			paf->modifier,
 			APPLY_SKILL,
-			skill_table[paf->location - APPLY_SKILL].name,
+			skill->name,
 			paf->bitvector,
 			paf->bitvector2
 		);
@@ -2729,12 +2772,13 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
     for (paf = obj->affected; paf != NULL; paf = paf->next)
     {
 	/* filter out "none" and "unknown" affects, as well as custom named affects */
-	if (paf->type != -1 || paf->custom_name != NULL
-        || ((paf->location < APPLY_SKILL || paf->location >= APPLY_SKILL_MAX) && !str_cmp(flag_string(apply_flags, paf->location), "none")))
+	if (!IS_VALID(paf->skill) || paf->custom_name != NULL
+        || ((paf->location < APPLY_SKILL) && !str_cmp(flag_string(apply_flags, paf->location), "none")))
 	    continue;
 
-	if(paf->location >= APPLY_SKILL && paf->location < APPLY_SKILL_MAX) {
-		if(!skill_table[paf->location - APPLY_SKILL].name) continue;
+	if(paf->location >= APPLY_SKILL) {
+		SKILL_DATA *skill = get_skill_data_uid(paf->location - APPLY_SKILL);
+		if(!IS_VALID(skill)) continue;
 		fprintf(fp, "Affrg %3d %3d %3d %3d %3d %3d '%s' %10ld %10ld\n",
 			paf->where,
 			paf->group,
@@ -2742,7 +2786,7 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
 			paf->duration,
 			paf->modifier,
 			APPLY_SKILL,
-			skill_table[paf->location - APPLY_SKILL].name,
+			skill->name,
 			paf->bitvector,
 			paf->bitvector2
 		);
@@ -2767,8 +2811,8 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
 		{
 			fprintf(fp, "%s '%s' %3d %3d %3d\n",
 				((paf->where == TO_CATALYST_ACTIVE) ? "CataA" : "Cata"),
-				flag_string( catalyst_types, paf->type ),
-				paf->level,
+				flag_string( catalyst_types, paf->catalyst_type ),
+				1,
 				paf->modifier,
 				paf->duration);
 		}
@@ -2776,8 +2820,8 @@ void fwrite_obj_new(CHAR_DATA *ch, OBJ_DATA *obj, FILE *fp, int iNest)
 		{
 			fprintf(fp, "%s '%s' %3d %3d %3d %s\n",
 				((paf->where == TO_CATALYST_ACTIVE) ? "CataNA" : "CataN"),
-				flag_string( catalyst_types, paf->type ),
-				paf->level,
+				flag_string( catalyst_types, paf->catalyst_type ),
+				1,
 				paf->modifier,
 				paf->duration,
 				paf->custom_name
@@ -3097,6 +3141,101 @@ CONTAINER_DATA *fread_obj_container_data(FILE *fp)
 
 		if (!fMatch) {
 			sprintf(buf, "fread_obj_container_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
+
+FLUID_CONTAINER_DATA *fread_obj_fluid_container_data(FILE *fp)
+{
+	FLUID_CONTAINER_DATA *data = NULL;
+	char buf[MSL];
+    char *word;
+	bool fMatch;
+
+	data = new_fluid_container_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPEFLUIDCONTAINER"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+			case '#':
+				if (!str_cmp(word, "#LOCK"))
+				{
+					if (data->lock) free_lock_state(data->lock);
+
+					data->lock = fread_lock_state(fp);
+					fMatch = TRUE;
+					break;
+				}
+				break;
+
+			case 'A':
+				KEY("Amount", data->amount, fread_number(fp));
+				break;
+
+			case 'C':
+				KEY("Capacity", data->capacity, fread_number(fp));
+				break;
+
+			case 'F':
+				KEY("Flags", data->flags, fread_flag(fp));
+				break;
+
+			case 'L':
+				if (!str_cmp(word, "Liquid"))
+				{
+					data->liquid = liquid_lookup(fread_string(fp));
+					fMatch = true;
+					break;
+				}
+				break;
+
+			case 'N':
+				KEYS("Name", data->name, fread_string(fp));
+				break;
+
+			case 'P':
+				KEY("Poison", data->poison, fread_number(fp));
+				KEY("PoisonRate", data->poison_rate, fread_number(fp));
+				break;
+
+			case 'R':
+				KEY("RefillRate", data->refill_rate, fread_number(fp));
+				break;
+
+			case 'S':
+				KEYS("Short", data->short_descr, fread_string(fp));
+
+				if (!str_cmp(word, "Spell"))
+				{
+					char *name = fread_string(fp);
+					int level = fread_number(fp);
+
+					SKILL_DATA *skill = get_skill_data(name);
+					if (IS_VALID(skill) && is_skill_spell(skill))
+					{
+						SPELL_DATA *spell = new_spell();
+						spell->skill = skill;
+						spell->level = level;
+						spell->repop = 100;
+						spell->next = NULL;
+
+						list_appendlink(data->spells, spell);
+					}
+
+					fMatch = true;
+					break;
+				}
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "fread_obj_fluid_container_data: no match for word %s", word);
 			bug(buf, 0);
 		}
 	}
@@ -3443,49 +3582,15 @@ PORTAL_DATA *fread_obj_portal_data(FILE *fp)
 
 				if (!str_cmp(word, "SpellNew"))
 				{
-					int sn;
+					SKILL_DATA *skill = get_skill_data(fread_string(fp));
 
 					fMatch = TRUE;
-					if ((sn = skill_lookup(fread_string(fp))) > -1)
+					if (IS_VALID(skill) && is_skill_spell(skill))
 					{
 						SPELL_DATA *spell = new_spell();
-						spell->sn = sn;
-						spell->token = NULL;
+						spell->skill = skill;
 						spell->level = fread_number(fp);
 						spell->repop = fread_number(fp);
-
-						// Syn - clean up bad spells on objs.
-						if (!str_cmp(skill_table[sn].name, "reserved") ||
-							!str_cmp(skill_table[sn].name, "none"))
-						{
-							// Complain
-							free_spell(spell);
-						}
-						else
-						{
-							spell->next = data->spells;
-							data->spells = spell;
-						}
-					}
-					else
-					{
-						// Complain
-					}
-				}
-
-				if (!str_cmp(word, "SpellToken"))
-				{
-					WNUM_LOAD wnum = fread_widevnum(fp, 0);
-
-					fMatch = TRUE;
-					if (wnum.auid > 0 && wnum.vnum > 0)
-					{
-						SPELL_DATA *spell = new_spell();
-						spell->sn = 0;
-						spell->token_load = wnum;
-						spell->level = fread_number(fp);
-						spell->repop = fread_number(fp);
-
 						spell->next = data->spells;
 						data->spells = spell;
 					}
@@ -3522,10 +3627,12 @@ void fread_obj_reset_multityping(OBJ_DATA *obj)
 {
 	free_book_data(BOOK(obj));				BOOK(obj) = NULL;
 	free_container_data(CONTAINER(obj));	CONTAINER(obj) = NULL;
+	free_fluid_container_data(FLUID_CON(obj));	FLUID_CON(obj) = NULL;
 	free_food_data(FOOD(obj));				FOOD(obj) = NULL;
 	free_furniture_data(FURNITURE(obj));	FURNITURE(obj) = NULL;
 	free_light_data(LIGHT(obj));			LIGHT(obj) = NULL;
 	free_money_data(MONEY(obj));			MONEY(obj) = NULL;
+	free_book_page(PAGE(obj));				PAGE(obj) = NULL;
 	free_portal_data(PORTAL(obj));			PORTAL(obj) = NULL;
 }
 
@@ -3731,8 +3838,6 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 	//ROOM_INDEX_DATA *room = NULL;
 	long values[MAX_OBJVALUES];
 
-	memset(values, 0, sizeof(values));
-
 	fVnum = FALSE;
 	obj = NULL;
 	first = TRUE;  /* used to counter fp offset */
@@ -3747,6 +3852,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 		OBJ_INDEX_DATA *index = get_obj_index_auid(w.auid, w.vnum);
 		if ( index != NULL)
 			obj = create_object_noid(index,-1, FALSE, FALSE);
+
 	}
 
 	if (obj == NULL)  /* either not found or old style */
@@ -3756,6 +3862,9 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 		obj->short_descr	= str_dup("");
 		obj->description	= str_dup("");
 	}
+
+	for(int i = 0; i < MAX_OBJVALUES; i++)
+		values[i] = obj->value[i];
 
 	obj->version	= VERSION_OBJECT_000;
 	obj->id[0] = obj->id[1] = 0;
@@ -3805,6 +3914,14 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				if (IS_CONTAINER(obj)) free_container_data(CONTAINER(obj));
 
 				CONTAINER(obj) = fread_obj_container_data(fp);
+				fMatch = TRUE;
+				break;
+			}
+			if (!str_cmp(word, "#TYPEFLUIDCONTAINER"))
+			{
+				if (IS_FLUID_CON(obj)) free_fluid_container_data(FLUID_CON(obj));
+
+				FLUID_CON(obj) = fread_obj_fluid_container_data(fp);
 				fMatch = TRUE;
 				break;
 			}
@@ -3863,16 +3980,16 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 			if (!str_cmp(word,"AffD"))
 			{
 				AFFECT_DATA *paf;
-				int sn;
 
 				paf = new_affect();
 
-				sn = skill_lookup(fread_word(fp));
-				if (sn < 0)
+				SKILL_DATA *skill = get_skill_data(fread_word(fp));
+				if (!IS_VALID(skill))
 					bug("Fread_obj: unknown skill.",0);
 				else
-					paf->type = sn;
+					paf->skill = skill;
 
+				paf->catalyst_type = -1;
 				paf->level	= fread_number(fp);
 				paf->duration	= fread_number(fp);
 				paf->modifier	= fread_number(fp);
@@ -3890,7 +4007,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 
 				paf = new_affect();
 
-				paf->type = -1;
+				paf->skill = NULL;
 
 				paf->where	= fread_number(fp);
 				paf->level      = fread_number(fp);
@@ -3910,7 +4027,7 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 
 				paf = new_affect();
 
-				paf->type = -1;
+				paf->skill = NULL;
 				paf->where	= fread_number(fp);
 				paf->group	= fread_number(fp);
 				paf->level      = fread_number(fp);
@@ -3918,12 +4035,14 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				paf->modifier   = fread_number(fp);
 				paf->location   = fread_number(fp);
 				if(paf->location == APPLY_SKILL) {
-					int sn = skill_lookup(fread_word(fp));
-					if(sn < 0) {
+					SKILL_DATA *sk = get_skill_data(fread_word(fp));
+					if(IS_VALID(sk))
+						paf->location += sk->uid;
+					else
+					{
 						paf->location = APPLY_NONE;
 						paf->modifier = 0;
-					} else
-						paf->location += sn;
+					}
 				}
 				paf->bitvector  = fread_number(fp);
 				if( obj->version >= VERSION_OBJECT_003 )
@@ -3938,15 +4057,14 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 			if (!str_cmp(word,"Affc"))
 			{
 				AFFECT_DATA *paf;
-				int sn;
 
 				paf = new_affect();
 
-				sn = skill_lookup(fread_word(fp));
-				if (sn < 0)
+				SKILL_DATA *skill = get_skill_data(fread_word(fp));
+				if (!IS_VALID(skill))
 					bug("Fread_obj: unknown skill.",0);
 				else
-					paf->type = sn;
+					paf->skill = skill;
 
 				paf->where	= fread_number(fp);
 				paf->group	= AFFGROUP_MAGICAL;
@@ -3964,15 +4082,14 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 			if (!str_cmp(word,"Affcg"))
 			{
 				AFFECT_DATA *paf;
-				int sn;
 
 				paf = new_affect();
 
-				sn = skill_lookup(fread_word(fp));
-				if (sn < 0)
+				SKILL_DATA *skill = get_skill_data(fread_word(fp));
+				if (!IS_VALID(skill))
 					bug("Fread_obj: unknown skill.",0);
 				else
-					paf->type = sn;
+					paf->skill = skill;
 
 				paf->where	= fread_number(fp);
 				paf->group	= fread_number(fp);
@@ -3981,12 +4098,14 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				paf->modifier   = fread_number(fp);
 				paf->location   = fread_number(fp);
 				if(paf->location == APPLY_SKILL) {
-					int sn = skill_lookup(fread_word(fp));
-					if(sn < 0) {
+					SKILL_DATA *sk = get_skill_data(fread_word(fp));
+					if(IS_VALID(sk))
+						paf->location += sk->uid;
+					else
+					{
 						paf->location = APPLY_NONE;
 						paf->modifier = 0;
-					} else
-						paf->location += sn;
+					}
 				}
 				paf->bitvector  = fread_number(fp);
 				if( obj->version >= VERSION_OBJECT_003 )
@@ -4011,7 +4130,6 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				} else {
 					paf->custom_name = name;
 
-					paf->type = -1;
 					paf->where  = fread_number(fp);
 					paf->level      = fread_number(fp);
 					paf->duration   = fread_number(fp);
@@ -4039,7 +4157,6 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				} else {
 					paf->custom_name = name;
 
-					paf->type = -1;
 					paf->where  = fread_number(fp);
 					paf->group	= fread_number(fp);
 					paf->level      = fread_number(fp);
@@ -4047,12 +4164,14 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 					paf->modifier   = fread_number(fp);
 					paf->location   = fread_number(fp);
 					if(paf->location == APPLY_SKILL) {
-						int sn = skill_lookup(fread_word(fp));
-						if(sn < 0) {
+						SKILL_DATA *sk = get_skill_data(fread_word(fp));
+						if(IS_VALID(sk))
+							paf->location += sk->uid;
+						else
+						{
 							paf->location = APPLY_NONE;
 							paf->modifier = 0;
-						} else
-							paf->location += sn;
+						}
 					}
 					paf->bitvector  = fread_number(fp);
 					if( obj->version >= VERSION_OBJECT_003 )
@@ -4072,8 +4191,8 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 
 				paf = new_affect();
 
-				paf->type = flag_value(catalyst_types,fread_word(fp));
-				if(paf->type == NO_FLAG) {
+				paf->catalyst_type = flag_value(catalyst_types,fread_word(fp));
+				if(paf->catalyst_type == NO_FLAG) {
 					log_string("fread_char: invalid catalyst type.");
 					free_affect(paf);
 				} else {
@@ -4095,8 +4214,8 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 
 				paf = new_affect();
 
-				paf->type = flag_value(catalyst_types,fread_word(fp));
-				if(paf->type == NO_FLAG) {
+				paf->catalyst_type = flag_value(catalyst_types,fread_word(fp));
+				if(paf->catalyst_type == NO_FLAG) {
 					log_string("fread_char: invalid catalyst type.");
 					free_affect(paf);
 				} else {
@@ -4118,8 +4237,8 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 
 				paf = new_affect();
 
-				paf->type = flag_value(catalyst_types,fread_word(fp));
-				if(paf->type == NO_FLAG) {
+				paf->catalyst_type = flag_value(catalyst_types,fread_word(fp));
+				if(paf->catalyst_type == NO_FLAG) {
 					log_string("fread_char: invalid catalyst type.");
 					free_affect(paf);
 				} else {
@@ -4141,8 +4260,8 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 
 				paf = new_affect();
 
-				paf->type = flag_value(catalyst_types,fread_word(fp));
-				if(paf->type == NO_FLAG) {
+				paf->catalyst_type = flag_value(catalyst_types,fread_word(fp));
+				if(paf->catalyst_type == NO_FLAG) {
 					log_string("fread_char: invalid catalyst type.");
 					free_affect(paf);
 				} else {
@@ -4258,6 +4377,9 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 
 					obj->times_allowed_fixed = obj->pIndexData->times_allowed_fixed;
 					fix_object(obj);
+
+					for(int i = 0; i < MAX_OBJVALUES; i++)
+						obj->value[i] = values[i];
 
 					if (obj->persist)
 						persist_addobject(obj);
@@ -4443,15 +4565,16 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 
 			if (!str_cmp(word, "SpellNew"))
 			{
-				int sn;
+				SKILL_DATA *skill;
 				SPELL_DATA *spell;
 
 				fMatch = TRUE;
-				if ((sn = skill_lookup(fread_string(fp))) > -1)
+
+				skill = get_skill_data(fread_string(fp));
+				if (IS_VALID(skill))
 				{
 					spell = new_spell();
-					spell->sn = sn;
-					spell->token = NULL;
+					spell->skill = skill;
 					spell->level = fread_number(fp);
 					spell->repop = fread_number(fp);
 
@@ -4462,31 +4585,6 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				{
 					sprintf(buf, "Bad spell name for %s (%ld#%ld).", obj->short_descr, obj->pIndexData->area->uid, obj->pIndexData->vnum);
 					bug(buf,0);
-				}
-			}
-
-			if (!str_cmp(word, "SpellToken"))
-			{
-				WNUM_LOAD wnum = fread_widevnum(fp, 0);
-
-				TOKEN_INDEX_DATA *token = get_token_index_auid(wnum.auid, wnum.vnum);
-
-				fMatch = TRUE;
-				if (token)
-				{
-					SPELL_DATA *spell = new_spell();
-					spell->sn = 0;
-					spell->token = token;
-					spell->level = fread_number(fp);
-					spell->repop = fread_number(fp);
-
-					spell->next = obj->spells;
-					obj->spells = spell;
-				}
-				else
-				{
-					sprintf(buf, "Bad spell token for %s (%ld#%ld).", obj->short_descr, obj->pIndexData->area->uid, obj->pIndexData->vnum);
-					bug(buf, 0);
 				}
 			}
 			break;
@@ -5265,8 +5363,8 @@ bool find_class_skill(CHAR_DATA *ch, int class)
     }
 
     for (i = 0; group_table[gn].spells[i] != NULL; i++) {
-	if (get_skill(ch, skill_lookup(group_table[gn].spells[i])) > 0)
-	    return TRUE;
+		if (get_skill(ch, get_skill_data(group_table[gn].spells[i])) > 0)
+		    return TRUE;
     }
 
     return FALSE;
@@ -5397,11 +5495,11 @@ void fwrite_skill(CHAR_DATA *ch, SKILL_ENTRY *entry, FILE *fp)
 			fwrite_token(entry->token, fp);
 		}
 
-		if( entry->sn > 0 && entry->sn < MAX_SKILL ) {
+		if( entry->skill ) {
 			fprintf(fp, "Sk %d %d %s~\n",
-			    ch->pcdata->learned[entry->sn],
-			    ch->pcdata->mod_learned[entry->sn],
-			    skill_table[entry->sn].name);
+				entry->rating,
+				entry->mod_rating,
+				entry->skill->name);
 		}
 
 		if( entry->song >= 0 && entry->song < MAX_SONGS ) {
@@ -5443,7 +5541,8 @@ void fwrite_skills(CHAR_DATA *ch, FILE *fp)
 void fread_skill(FILE *fp, CHAR_DATA *ch)
 {
     TOKEN_DATA *token = NULL;
-    int sn = -1;
+    SKILL_DATA *skill = NULL;
+	SKILL_ENTRY *entry = NULL;
     int song = -1;
     long flags = SKILL_AUTOMATIC;
     int rating = -1, mod = 0;	// For built-in skills
@@ -5458,19 +5557,22 @@ void fread_skill(FILE *fp, CHAR_DATA *ch)
 		fMatch = FALSE;
 
 		if (!str_cmp(word, "End")) {
+			if(IS_VALID(token))
+				token_to_char(token, ch);
+
 			if( song >= 0 ) {
 				ch->pcdata->songs_learned[song] = TRUE;
 				skill_entry_addsong(ch, song, NULL, source);
-			} else if(sn > 0) {
-				ch->pcdata->learned[sn] = rating;
-				ch->pcdata->mod_learned[sn] = mod;
-				if( skill_table[sn].spell_fun == spell_null)
-					skill_entry_addskill(ch, sn, NULL, source, flags);
+			} else if(IS_VALID(skill)) {
+				if( is_skill_spell(skill) )
+					entry = skill_entry_addspell(ch, skill, token, source, flags);
 				else
-					skill_entry_addspell(ch, sn, NULL, source, flags);
-			} else if(IS_VALID(token))
-				token_to_char_ex(token, ch, source, flags);
+					entry = skill_entry_addskill(ch, skill, token, source, flags);
 
+				entry->rating = rating;
+				entry->mod_rating = mod;
+			}
+			
 		    fMatch = TRUE;
 			return;
 		}
@@ -5492,7 +5594,8 @@ void fread_skill(FILE *fp, CHAR_DATA *ch)
 			if(IS_KEY("Sk")) {
 				rating = fread_number(fp);
 				mod = fread_number(fp);
-				sn = skill_lookup(fread_string(fp));
+				
+				skill = get_skill_data(fread_string(fp));
 				fMatch = TRUE;
 				break;
 			}

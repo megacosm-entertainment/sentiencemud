@@ -64,7 +64,7 @@
 #define TRANSFER_MODE_MOVEMENT	2
 
 
-#define DECL_IFC_FUN(x) bool x (SCRIPT_VARINFO *info, CHAR_DATA *mob,OBJ_DATA *obj,ROOM_INDEX_DATA *room, TOKEN_DATA *token,int *ret,int argc,SCRIPT_PARAM **argv)
+#define DECL_IFC_FUN(x) bool x (SCRIPT_VARINFO *info, CHAR_DATA *mob,OBJ_DATA *obj,ROOM_INDEX_DATA *room, TOKEN_DATA *token,long *ret,int argc,SCRIPT_PARAM **argv)
 #define DECL_OPC_FUN(x) bool x (SCRIPT_CB *block)
 #define SCRIPT_CMD(x)	void x (SCRIPT_VARINFO *info, char *argument, SCRIPT_PARAM *arg)
 
@@ -171,7 +171,7 @@ enum ifcheck_enum {
 		CHK_ISCHARM,CHK_ISCHURCHEXCOM,CHK_ISCHURCHPK,CHK_ISCLONEROOM,CHK_ISCONTAINER,CHK_ISCPKPROOF,CHK_ISCROSSZONE,
 		CHK_ISDEAD,CHK_ISDELAY,CHK_ISDEMON,
 		CHK_ISEVIL,
-		CHK_ISFADING,CHK_ISFIGHTING,CHK_ISFLYING,CHK_ISFOLLOW,CHK_ISFOOD,CHK_ISFURNITURE,
+		CHK_ISFADING,CHK_ISFIGHTING,CHK_ISFLUIDCONTAINER,CHK_ISFLYING,CHK_ISFOLLOW,CHK_ISFOOD,CHK_ISFURNITURE,
 		CHK_ISGOOD,
 		CHK_ISHIRED, CHK_ISHUNTING,
 		CHK_ISIMMORT,
@@ -185,7 +185,7 @@ enum ifcheck_enum {
 		CHK_ISREMORT,CHK_ISREPAIRABLE,CHK_ISRESTRUNG,CHK_ISRIDDEN,CHK_ISRIDER,CHK_ISRIDING,CHK_ISROOM,CHK_ISROOMDARK,
 		CHK_ISSAFE,CHK_ISSCRIBING,CHK_ISSHIFTED,CHK_ISSHOOTING,CHK_ISSHOPKEEPER,CHK_ISSPELL,CHK_ISSUBCLASS,CHK_ISSUSTAINED,
 		CHK_ISTARGET,CHK_ISTREASUREROOM,CHK_ISTOKEN,
-		CHK_ISVISIBLE,CHK_ISVISIBLETO,
+		CHK_ISVALID,CHK_ISVALIDITEM,CHK_ISVISIBLE,CHK_ISVISIBLETO,
 		CHK_ISWNUM,CHK_ISWORN,
 
 	/* L */
@@ -301,6 +301,7 @@ enum variable_enum {
 	VAR_AREA,
 	VAR_SKILL,			/* A skill INDEX that will reference general skill data */
 	VAR_SKILLINFO,		/* Skill reference on a creature { CHAR_DATA *owner, int sn } */
+	VAR_SPELL,
 	VAR_CONNECTION,
 	VAR_AFFECT,			/* References an affect */
 	VAR_WILDS,
@@ -338,6 +339,8 @@ enum variable_enum {
 	VAR_BOOK_PAGE,
 	VAR_FOOD_BUFF,
 	VAR_COMPARTMENT,
+	VAR_LIQUID,
+	VAR_LOCK_STATE,
 
 	VAR_BLLIST_FIRST,
 	////////////////////////
@@ -448,6 +451,7 @@ enum entity_type_enum {
 	ENT_WILDS,
 	ENT_SKILL,
 	ENT_SKILLINFO,
+	ENT_SKILLENTRY,
 	ENT_CONN,
 	ENT_PRIOR,
 	ENT_EXTRADESC,
@@ -459,8 +463,13 @@ enum entity_type_enum {
 	ENT_DICE,
 	ENT_BITVECTOR,
 	ENT_BITMATRIX,
+	ENT_STAT,
 	ENT_WIDEVNUM,
 	ENT_AREA_REGION,
+	ENT_LOCK_STATE,
+	ENT_CATALYST_USAGE,
+	ENT_SKILL_VALUES,
+	ENT_SKILL_VALUENAMES,
 
 	ENT_MOBINDEX,
 	ENT_OBJINDEX,
@@ -521,6 +530,8 @@ enum entity_type_enum {
 	ENT_ILLIST_INSTANCES,
 	ENT_ILLIST_SPECIALROOMS,
 	ENT_ILLIST_SHIPS,
+	ENT_ILLIST_SPELLS,
+	ENT_ILLIST_SPECIALKEYS,
 	ENT_ILLIST_MAX,
 	//////////////////////////////
 
@@ -559,11 +570,14 @@ enum entity_type_enum {
 	ENT_BOOK_PAGE,
 	ENT_FOOD_BUFF,
 	ENT_COMPARTMENT,
-	
+	ENT_LIQUID,
+	ENT_SPELL,
+
 	// Multi-typing
 	ENT_OBJECT_PAGE,
 	ENT_OBJECT_BOOK,
 	ENT_OBJECT_CONTAINER,
+	ENT_OBJECT_FLUID_CONTAINER,
 	ENT_OBJECT_FOOD,
 	ENT_OBJECT_FURNITURE,
 	ENT_OBJECT_LIGHT,
@@ -619,12 +633,15 @@ enum entity_variable_types_enum {
 	ENTITY_VAR_WILDS,
 	ENTITY_VAR_SKILL,
 	ENTITY_VAR_SKILLINFO,
+	ENTITY_VAR_SPELL,
 	ENTITY_VAR_SONG,
 	ENTITY_VAR_CONN,
 	ENTITY_VAR_AFFECT,
 	ENTITY_VAR_BOOK_PAGE,
 	ENTITY_VAR_FOOD_BUFF,
 	ENTITY_VAR_COMPARTMENT,
+	ENTITY_VAR_LIQUID,
+	ENTITY_VAR_LOCK_STATE,
 	ENTITY_VAR_CHURCH,
 	ENTITY_VAR_VARIABLE,
 	ENTITY_VAR_DICE,
@@ -687,6 +704,11 @@ enum entity_prior_enum {
 	ENTITY_PRIOR_REGISTER4,
 	ENTITY_PRIOR_REGISTER5,
 	ENTITY_PRIOR_PRIOR
+};
+
+enum entity_stat_num {
+	ENTITY_STAT_VALUE = ESCAPE_EXTRA,
+	ENTITY_STAT_NAME,
 };
 
 enum entity_boolean_enum {
@@ -828,6 +850,8 @@ enum entity_mobile_enum {
 	ENTITY_MOB_VULN,
 	ENTITY_MOB_TEMPSTRING,
 	ENTITY_MOB_PMOUNT,
+	ENTITY_MOB_HITSKILL,
+	ENTITY_MOB_CATALYST_USAGE,
 };
 
 enum entity_object_enum {
@@ -856,6 +880,7 @@ enum entity_object_enum {
 	ENTITY_OBJ_TYPE_PAGE,
 	ENTITY_OBJ_TYPE_BOOK,
 	ENTITY_OBJ_TYPE_CONTAINER,
+	ENTITY_OBJ_TYPE_FLUID_CONTAINER,
 	ENTITY_OBJ_TYPE_FOOD,
 	ENTITY_OBJ_TYPE_FURNITURE,
 	ENTITY_OBJ_TYPE_LIGHT,
@@ -887,6 +912,21 @@ enum entity_object_container_enum
 	ENTITY_OBJ_CONTAINER_WHITELIST,
 	ENTITY_OBJ_CONTAINER_BLACKLIST,
 	ENTITY_OBJ_CONTAINER_LOCK,
+};
+
+enum entity_object_fluid_container_enum
+{
+	ENTITY_OBJ_FLUID_CONTAINER_NAME = ESCAPE_EXTRA,
+	ENTITY_OBJ_FLUID_CONTAINER_SHORT,
+	ENTITY_OBJ_FLUID_CONTAINER_FLAGS,
+	ENTITY_OBJ_FLUID_CONTAINER_LIQUID,
+	ENTITY_OBJ_FLUID_CONTAINER_CAPACITY,
+	ENTITY_OBJ_FLUID_CONTAINER_AMOUNT,
+	ENTITY_OBJ_FLUID_CONTAINER_REFILL_RATE,
+	ENTITY_OBJ_FLUID_CONTAINER_POISON,
+	ENTITY_OBJ_FLUID_CONTAINER_POISON_RATE,
+	ENTITY_OBJ_FLUID_CONTAINER_LOCK,
+	ENTITY_OBJ_FLUID_CONTAINER_SPELLS,
 };
 
 enum entity_object_food_enum {
@@ -960,6 +1000,7 @@ enum entity_room_enum {
 	ENTITY_ROOM_INSTANCE,
 	ENTITY_ROOM_DUNGEON,
 	ENTITY_ROOM_SHIP,
+	ENTITY_ROOM_SECTOR,
 };
 
 enum entity_exit_enum {
@@ -1001,12 +1042,26 @@ enum entity_token_enum {
 	ENTITY_TOKEN_VAL9,
 	ENTITY_TOKEN_NEXT,
 	ENTITY_TOKEN_VARIABLES,
+	ENTITY_TOKEN_SKILL,
+	ENTITY_TOKEN_AFFECT,
 };
 
 enum entity_area_enum {
 	ENTITY_AREA_NAME = ESCAPE_EXTRA,
+	ENTITY_AREA_CREDITS,
+	ENTITY_AREA_DESCRIPTION,
+	ENTITY_AREA_COMMENTS,
+	ENTITY_AREA_BUILDERS,
+	ENTITY_AREA_UID,
+	ENTITY_AREA_SECURITY,
 	ENTITY_AREA_REGION,		// Default region
 	ENTITY_AREA_REGIONS,	// Additional regions
+	ENTITY_AREA_FLAGS,
+	ENTITY_AREA_WILDS,
+	ENTITY_AREA_NPLAYER,
+	ENTITY_AREA_AGE,
+	ENTITY_AREA_ISEMPTY,
+	ENTITY_AREA_ISOPEN,
 	ENTITY_AREA_ROOMS,
 };
 
@@ -1023,6 +1078,10 @@ enum entity_area_region_enum {
 	ENTITY_AREA_REGION_LAND_X,
 	ENTITY_AREA_REGION_LAND_Y,
 	ENTITY_AREA_REGION_AIRSHIP,
+	ENTITY_AREA_REGION_FLAGS,
+	ENTITY_AREA_REGION_WHO,
+	ENTITY_AREA_REGION_PLACE,
+	ENTITY_AREA_REGION_SAVAGE,
 };
 
 enum entity_wilds_enum {
@@ -1102,8 +1161,10 @@ enum entity_blist_enum {
 
 enum entity_skill_enum {
 	ENTITY_SKILL_GSN = ESCAPE_EXTRA,
+	ENTITY_SKILL_TOKEN,
 	ENTITY_SKILL_SPELL,
 	ENTITY_SKILL_NAME,
+	ENTITY_SKILL_DISPLAY,
 	ENTITY_SKILL_BEATS,
 	ENTITY_SKILL_LEVEL_WARRIOR,
 	ENTITY_SKILL_LEVEL_CLERIC,
@@ -1116,15 +1177,32 @@ enum entity_skill_enum {
 	ENTITY_SKILL_TARGET,
 	ENTITY_SKILL_POSITION,
 	ENTITY_SKILL_WEAROFF,
+	ENTITY_SKILL_OBJECT,
 	ENTITY_SKILL_DISPEL,
 	ENTITY_SKILL_NOUN,
-	ENTITY_SKILL_MANA,
+	ENTITY_SKILL_MANA_CAST,
+	ENTITY_SKILL_MANA_BREW,
+	ENTITY_SKILL_MANA_SCRIBE,
+	ENTITY_SKILL_MANA_IMBUE,
 	ENTITY_SKILL_INK_TYPE1,
 	ENTITY_SKILL_INK_SIZE1,
 	ENTITY_SKILL_INK_TYPE2,
 	ENTITY_SKILL_INK_SIZE2,
 	ENTITY_SKILL_INK_TYPE3,
-	ENTITY_SKILL_INK_SIZE3
+	ENTITY_SKILL_INK_SIZE3,
+	ENTITY_SKILL_VALUES,
+	ENTITY_SKILL_VALUENAMES,
+};
+
+enum entity_skillentry_enum {
+	ENTITY_SKILLENTRY_SKILL = ESCAPE_EXTRA,
+	ENTITY_SKILLENTRY_SOURCE,
+	ENTITY_SKILLENTRY_FLAGS,
+	ENTITY_SKILLENTRY_ISSPELL,
+	ENTITY_SKILLENTRY_SONG,
+	ENTITY_SKILLENTRY_TOKEN,
+	ENTITY_SKILLENTRY_RATING,
+	ENTITY_SKILLENTRY_MOD_RATING,
 };
 
 enum entity_skillinfo_enum {
@@ -1134,17 +1212,34 @@ enum entity_skillinfo_enum {
 	ENTITY_SKILLINFO_RATING
 };
 
+enum entity_spelldata_enum {
+	ENTITY_SPELLDATA_NAME = ESCAPE_EXTRA,
+	ENTITY_SPELLDATA_SKILL,		// Entry in the skill table
+	ENTITY_SPELLDATA_LEVEL,
+	ENTITY_SPELLDATA_CHANCE,	// Chance in getting it
+};
+
+enum entity_lock_state_enum {
+	ENTITY_LOCKSTATE_KEY = ESCAPE_EXTRA,
+	ENTITY_LOCKSTATE_PICK,
+	ENTITY_LOCKSTATE_FLAGS,
+	ENTITY_LOCKSTATE_SPECIALKEYS,
+};
+
 enum entity_affect_enum {
 	ENTITY_AFFECT_NAME = ESCAPE_EXTRA,
 	ENTITY_AFFECT_GROUP,
 	ENTITY_AFFECT_SKILL,
+	ENTITY_AFFECT_CATALYST,
 	ENTITY_AFFECT_WHERE,
 	ENTITY_AFFECT_LOCATION,
 	ENTITY_AFFECT_MOD,
 	ENTITY_AFFECT_BITS,
 	ENTITY_AFFECT_BITS2,
 	ENTITY_AFFECT_TIMER,
-	ENTITY_AFFECT_LEVEL
+	ENTITY_AFFECT_LEVEL,
+	// ENTITY_AFFECT_TOKEN,
+	// ENTITY_AFFECT_SCRIPT,
 };
 
 enum entity_book_page_enum {
@@ -1178,6 +1273,20 @@ enum entity_compartment_enum {
 	ENTITY_COMPARTMENT_MANA,
 	ENTITY_COMPARTMENT_MOVE,
 	ENTITY_COMPARTMENT_LOCK,
+};
+
+enum entity_liquid_enum {
+	ENTITY_LIQUID_NAME = ESCAPE_EXTRA,
+	ENTITY_LIQUID_COLOR,
+	ENTITY_LIQUID_UID,
+	ENTITY_LIQUID_USED,
+	ENTITY_LIQUID_FLAMMABLE,
+	ENTITY_LIQUID_PROOF,
+	ENTITY_LIQUID_FULL,
+	ENTITY_LIQUID_THIRST,
+	ENTITY_LIQUID_HUNGER,
+	ENTITY_LIQUID_FUEL_UNIT,
+	ENTITY_LIQUID_FUEL_DURATION
 };
 
 enum entity_song_enum {
@@ -1444,6 +1553,9 @@ struct script_var_type {
 		BOOK_PAGE *book_page;
 		FOOD_BUFF_DATA *food_buff;
 		FURNITURE_COMPARTMENT *compartment;
+		LIQUID *liquid;
+		SPELL_DATA *spell;
+		LOCK_STATE *lockstate;
 		DESCRIPTOR_DATA *conn;
 		CHURCH_DATA *church;
 		WILDS_DATA *wilds;
@@ -1461,12 +1573,13 @@ struct script_var_type {
 		DUNGEON_INDEX_DATA *dngindex;
 		SHIP_INDEX_DATA *shipindex;
 		bool boolean;
-		int sn;
+		SKILL_DATA *skill;
+		SKILL_ENTRY *entry;
 		int song;
 		struct {
 			CHAR_DATA *owner;
 			TOKEN_DATA *token;
-			int sn;
+			SKILL_DATA *skill;
 		} sk;
 
 		// Only used when on persistant entities
@@ -1491,7 +1604,7 @@ struct script_var_type {
 			unsigned long b;
 		} cr;	// Clone Room
 		struct {
-			int sn;
+			SKILL_DATA *skill;
 			unsigned long mid[2];
 			unsigned long tid[2];
 		} skid;
@@ -1584,6 +1697,7 @@ struct loop_data {
 				void *raw;
 				char *str;
 				EXTRA_DESCR_DATA *ed;
+				SPELL_DATA *spell;
 			} cur, next;
 			struct {
 				LLIST *lp;
@@ -1646,6 +1760,9 @@ struct script_parameter {
 		BOOK_PAGE *book_page;
 		FOOD_BUFF_DATA *food_buff;
 		FURNITURE_COMPARTMENT *compartment;
+		LIQUID *liquid;
+		SPELL_DATA *spell;
+		LOCK_STATE *lockstate;
 		DESCRIPTOR_DATA *conn;
 		WILDS_DATA *wilds;
 		CHURCH_DATA *church;
@@ -1666,7 +1783,8 @@ struct script_parameter {
 		SHIP_DATA *ship;
 		AREA_REGION *aregion;
 
-		int sn;
+		SKILL_DATA *skill;
+		SKILL_ENTRY *entry;
 		int song;
 		struct {
 			union {
@@ -1687,7 +1805,7 @@ struct script_parameter {
 		struct {
 			CHAR_DATA *m;
 			TOKEN_DATA *t;
-			int sn;
+			SKILL_DATA *skill;
 			unsigned long mid[2];
 			unsigned long tid[2];
 		} sk;
@@ -1720,6 +1838,11 @@ struct script_parameter {
 			long *values;
 			const struct flag_type **bank;
 		} bm;
+		struct {
+			long value;
+			const struct flag_type *table;
+			long def_value;
+		} stat;
 		WNUM wnum;
 		DICE_DATA *dice;
 		VARIABLE **variables;
@@ -1733,6 +1856,10 @@ struct script_parameter {
 			long rid;
 		} arid;	// AREA_REGION
 		SCRIPT_VARINFO *info;
+		struct {
+			CHAR_DATA *mob;
+			int catalyst;
+		} catslots;
 	} d;
 	BUFFER *buffer;
 };
@@ -2267,11 +2394,15 @@ DECL_IFC_FUN(ifc_savage);
 DECL_IFC_FUN(ifc_isbook);
 DECL_IFC_FUN(ifc_iscontainer);
 DECL_IFC_FUN(ifc_isfood);
+DECL_IFC_FUN(ifc_isfluidcontainer);
 DECL_IFC_FUN(ifc_isfurniture);
 DECL_IFC_FUN(ifc_islight);
 DECL_IFC_FUN(ifc_ismoney);
+DECL_IFC_FUN(ifc_ispage);
 DECL_IFC_FUN(ifc_isportal);
 
+DECL_IFC_FUN(ifc_isvalid);
+DECL_IFC_FUN(ifc_isvaliditem);
 
 /* Opcode functions */
 DECL_OPC_FUN(opc_end);
@@ -2304,9 +2435,13 @@ DECL_OPC_FUN(opc_dungeon);
 
 /* General */
 void pstat_variable_list(CHAR_DATA *ch, pVARIABLE vars);
-long script_flag_value( const struct flag_type *flag_table, char *argument);
+
+int script_flag_lookup (const char *name, const struct flag_type *flag_table);
+long script_stat_lookup (const char *name, const struct flag_type *flag_table, const long def_value);
 bool script_bitmatrix_lookup(char *argument, const struct flag_type **bank, long *flags);
-char *ifcheck_get_value(SCRIPT_VARINFO *info,IFCHECK_DATA *ifc,char *text,int *ret,bool *valid);
+long script_flag_value( const struct flag_type *flag_table, char *argument);
+
+char *ifcheck_get_value(SCRIPT_VARINFO *info,IFCHECK_DATA *ifc,char *text,long *ret,bool *valid);
 int execute_script(SCRIPT_DATA *script,
 	CHAR_DATA *mob, OBJ_DATA *obj, ROOM_INDEX_DATA *room, TOKEN_DATA *token,
 	AREA_DATA *area, INSTANCE *instance, DUNGEON *dungeon,
@@ -2422,8 +2557,7 @@ bool variables_append_list_exit (ppVARIABLE list, char *name, EXIT_DATA *ex);
 bool variables_append_list_mob (ppVARIABLE list, char *name, CHAR_DATA *mob);
 bool variables_append_list_obj (ppVARIABLE list, char *name, OBJ_DATA *obj);
 bool variables_append_list_room (ppVARIABLE list, char *name, ROOM_INDEX_DATA *room);
-bool variables_append_list_skill_sn (ppVARIABLE list, char *name, CHAR_DATA *ch, int sn);
-bool variables_append_list_skill_token (ppVARIABLE list, char *name, TOKEN_DATA *tok);
+bool variables_append_list_skill_sn (ppVARIABLE list, char *name, CHAR_DATA *ch, SKILL_DATA *skill);
 bool variables_append_list_str (ppVARIABLE list, char *name, char *str);
 bool variables_append_list_token (ppVARIABLE list, char *name, TOKEN_DATA *token);
 bool variables_append_list_wilds (ppVARIABLE list, char *name, WILDS_DATA *wilds);
@@ -2447,8 +2581,11 @@ pVARIABLE variables_set_list (ppVARIABLE list, char *name, int type, bool save);
 bool variables_set_mobile(ppVARIABLE list,char *name,CHAR_DATA *m);
 bool variables_set_object(ppVARIABLE list,char *name,OBJ_DATA *o);
 bool variables_set_room(ppVARIABLE list,char *name,ROOM_INDEX_DATA *r);
-bool variables_set_skill(ppVARIABLE list,char *name,int sn);
-bool variables_set_skillinfo(ppVARIABLE list,char *name,CHAR_DATA *owner,int sn, TOKEN_DATA *token);
+bool variables_set_skill(ppVARIABLE list,char *name,SKILL_DATA *skill);
+bool variables_set_skillinfo(ppVARIABLE list,char *name,CHAR_DATA *owner,SKILL_DATA *skill, TOKEN_DATA *token);
+bool variables_set_spell(ppVARIABLE list,char *name,SPELL_DATA *spell);
+bool variables_set_liquid(ppVARIABLE list,char *name,LIQUID *liquid);
+bool variables_set_lockstate(ppVARIABLE list,char *name,LOCK_STATE *lockstate);
 bool variables_set_song(ppVARIABLE list,char *name,int sn);
 bool variables_set_string(ppVARIABLE list,char *name,char *str,bool shared);
 bool variables_set_token(ppVARIABLE list,char *name,TOKEN_DATA *t);
@@ -2471,11 +2608,11 @@ bool variables_set_clone_room (ppVARIABLE list,char *name, ROOM_INDEX_DATA *sour
 bool variables_set_wilds_room (ppVARIABLE list,char *name, unsigned long w, int x, int y, bool save);
 bool variables_set_clone_door (ppVARIABLE list,char *name, ROOM_INDEX_DATA *source,unsigned long a, unsigned long b, int door, bool save);
 bool variables_set_wilds_door (ppVARIABLE list,char *name, unsigned long w, int x, int y, int door, bool save);
-bool variables_set_skillinfo_id (ppVARIABLE list,char *name, unsigned long ma, unsigned long mb, unsigned long ta, unsigned long tb, int sn, bool save);
+bool variables_set_skillinfo_id (ppVARIABLE list,char *name, unsigned long ma, unsigned long mb, unsigned long ta, unsigned long tb, SKILL_DATA *skill, bool save);
 bool variables_setindex_integer(ppVARIABLE list,char *name,int num, bool saved);
 bool variables_setindex_room(ppVARIABLE list,char *name,WNUM_LOAD wnum_load, bool saved);
 bool variables_setindex_string(ppVARIABLE list,char *name,char *str,bool shared, bool saved);
-bool variables_setindex_skill(ppVARIABLE list,char *name,int sn, bool saved);
+bool variables_setindex_skill(ppVARIABLE list,char *name,SKILL_DATA *skill, bool saved);
 bool variables_setindex_song(ppVARIABLE list,char *name,int sn, bool saved);
 bool variables_setsave_book_page (ppVARIABLE list,char *name,BOOK_PAGE *book_page, bool save);
 bool variables_setsave_food_buff (ppVARIABLE list,char *name,FOOD_BUFF_DATA* food_buff, bool save);
@@ -2489,8 +2626,11 @@ bool variables_setsave_integer(ppVARIABLE list,char *name,int num, bool save);
 bool variables_setsave_mobile(ppVARIABLE list,char *name,CHAR_DATA *m, bool save);
 bool variables_setsave_object(ppVARIABLE list,char *name,OBJ_DATA *o, bool save);
 bool variables_setsave_room(ppVARIABLE list,char *name,ROOM_INDEX_DATA *r, bool save);
-bool variables_setsave_skill(ppVARIABLE list,char *name,int sn, bool save);
-bool variables_setsave_skillinfo(ppVARIABLE list,char *name,CHAR_DATA *owner,int sn, TOKEN_DATA *token, bool save);
+bool variables_setsave_skill(ppVARIABLE list,char *name, SKILL_DATA *skill, bool save);
+bool variables_setsave_skillinfo(ppVARIABLE list,char *name,CHAR_DATA *owner,SKILL_DATA *skill, TOKEN_DATA *token, bool save);
+bool variables_setsave_spell(ppVARIABLE list,char *name,SPELL_DATA *spell, bool save);
+bool variables_setsave_liquid(ppVARIABLE list,char *name,LIQUID *liquid, bool save);
+bool variables_setsave_lockstate(ppVARIABLE list,char *name,LOCK_STATE *lockstate, bool save);
 bool variables_setsave_song(ppVARIABLE list,char *name,int sn, bool save);
 bool variables_setsave_string(ppVARIABLE list,char *name,char *str,bool shared, bool save);
 bool variables_setsave_token(ppVARIABLE list,char *name,TOKEN_DATA *t, bool save);
@@ -3082,6 +3222,7 @@ SCRIPT_CMD(scriptcmd_alterobj);
 SCRIPT_CMD(scriptcmd_addtype);
 SCRIPT_CMD(scriptcmd_remtype);
 SCRIPT_CMD(scriptcmd_startreckoning);
+SCRIPT_CMD(scriptcmd_stopreckoning);
 SCRIPT_CMD(scriptcmd_setposition);
 
 SCRIPT_CMD(scriptcmd_setrace);
@@ -3103,6 +3244,7 @@ void trigger_type_add_use(struct trigger_type *tt);
 void trigger_type_delete_use(struct trigger_type *tt);
 
 void scriptcmd_bug(SCRIPT_VARINFO *info, char *message);
+PROG_LIST *find_trigger_data(LLIST **progs, int trigger_type, int count);
 
 #include "tables.h"
 

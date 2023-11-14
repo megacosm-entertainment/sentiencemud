@@ -39,7 +39,7 @@ bool visit_func_flash (ROOM_INDEX_DATA *room, void *argv[], int argc, int depth,
 	af.slot	= WEAR_NONE;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
-	af.type = gsn_blindness;
+	af.skill = gsk_blindness;
 	af.level = level;
 	af.location = APPLY_HITROLL;
 	af.modifier = -4;
@@ -107,7 +107,7 @@ SPELL_FUNC(spell_improved_invisibility)
 	af.slot = obj_wear_loc;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration = (perm) ? -1 : (level/4 + 3);
 	af.location = APPLY_NONE;
@@ -166,15 +166,15 @@ SPELL_FUNC(spell_starflare)
 
 		if (victim != ch) {
 			if (!is_safe(victim, ch, FALSE) && !is_same_group(victim, ch)) {
-				if (!check_spell_deflection(ch, victim, sn))
+				if (!check_spell_deflection(ch, victim, skill))
 					continue;
 
 				dam = dice(level, 9);
 				if (saves_spell(level, victim, DAM_LIGHT))
 					dam /= 3;
 
-				damage(ch, victim, dam, sn, 0, TRUE);
-				spell_blindness(gsn_blindness, level, ch, (void *) victim, TARGET_CHAR, WEAR_NONE);
+				damage(ch, victim, dam, skill, TYPE_UNDEFINED, DAM_LIGHT, TRUE);
+				spell_blindness(gsk_blindness, level, ch, (void *) victim, TARGET_CHAR, WEAR_NONE);
 
 				level -= 4;
 			}

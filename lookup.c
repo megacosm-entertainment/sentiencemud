@@ -122,7 +122,7 @@ int sex_lookup (const char *name)
    {
 	if (LOWER(name[0]) == LOWER(sex_table[sex].name[0])
 	&&  !str_prefix(name,sex_table[sex].name))
-	    return sex;
+	    return sex_table[sex].bit;
    }
 
    return -1;
@@ -245,3 +245,50 @@ int toxin_lookup (const char *name)
 
 	return -1;
 }
+
+LIQUID *liquid_lookup(char *name)
+{
+    ITERATOR it;
+    LIQUID *liq;
+    iterator_start(&it, liquid_list);
+    while((liq = (LIQUID *)iterator_nextdata(&it)))
+    {
+        if (!str_prefix(name, liq->name))
+            break;
+    }
+    iterator_stop(&it);
+    return liq;
+}
+
+LIQUID *liquid_lookup_uid(sh_int uid)
+{
+    ITERATOR it;
+    LIQUID *liq;
+    iterator_start(&it, liquid_list);
+    while((liq = (LIQUID *)iterator_nextdata(&it)))
+    {
+        if (liq->uid == uid)
+            break;
+    }
+    iterator_stop(&it);
+    return liq;
+}
+
+sh_int *liquid_gln_lookup(char *name)
+{
+    for(int i = 0; gln_table[i].name; i++)
+        if(!str_prefix(name, gln_table[i].name))
+            return gln_table[i].gln;
+    
+    return NULL;
+}
+
+char *liquid_gln_name(sh_int *gln)
+{
+    for(int i = 0; gln_table[i].name; i++)
+        if(gln_table[i].gln == gln)
+            return gln_table[i].name;
+    
+    return NULL;
+}
+

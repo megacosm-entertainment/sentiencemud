@@ -28,9 +28,9 @@ SPELL_FUNC(spell_cosmic_blast)
 	}
 
 	dam = dice(level,8);
-	damage(ch,victim,dam,sn,DAM_ENERGY,TRUE);
+	damage(ch,victim,dam,skill,TYPE_UNDEFINED,DAM_ENERGY,TRUE);
 
-	spell_blindness(gsn_blindness, 3 * level / 4, ch, (void *) victim,TARGET_CHAR, WEAR_NONE);
+	spell_blindness(gsk_blindness, 3 * level / 4, ch, (void *) victim,TARGET_CHAR, WEAR_NONE);
 	return TRUE;
 }
 
@@ -43,7 +43,7 @@ SPELL_FUNC(spell_energy_drain)
 	int maxh, maxm;
 
 	if (victim == ch) {
-		damage(ch, ch, ch->max_hit/2, sn, DAM_NEGATIVE, TRUE);
+		damage(ch, ch, ch->max_hit/2, skill, TYPE_UNDEFINED, DAM_NEGATIVE, TRUE);
 		return TRUE;
 	}
 
@@ -58,7 +58,7 @@ SPELL_FUNC(spell_energy_drain)
 		return TRUE;
 	}
 
-	sk = get_skill(ch,sn);
+	sk = get_skill(ch,skill);
 	sk = sk * sk / 100;	// 75 -> 56.25
 	maxh = (150+sk) * ch->max_hit / 200;
 	maxm = (150+sk) * ch->max_move / 200;	// Ranging from 75% to 125%
@@ -76,7 +76,7 @@ SPELL_FUNC(spell_energy_drain)
 	act("$N keels over in pain as $n strips $S life force.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
 	act("You keel over in pain as $n strips your life force.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 
-	damage(ch, victim, dam, sn, DAM_NEGATIVE ,TRUE);
+	damage(ch, victim, dam, skill, TYPE_UNDEFINED, DAM_NEGATIVE ,TRUE);
 	return TRUE;
 }
 
@@ -92,8 +92,8 @@ SPELL_FUNC(spell_energy_field)
 		perm = TRUE;
 	}
 
-	if (perm && is_affected(victim, sn)) {
-		affect_strip(victim, sn);
+	if (perm && is_affected(victim, skill)) {
+		affect_strip(victim, skill);
 	} else if (IS_AFFECTED2(victim, AFF2_ENERGY_FIELD)) {
 		if (victim == ch)
 			send_to_char("You are already protected by an energy field.\n\r",ch);
@@ -105,7 +105,7 @@ SPELL_FUNC(spell_energy_field)
 	af.slot = obj_wear_loc;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration = perm ? -1 : (level / 6 + 4);
 	af.location = APPLY_NONE;
@@ -132,9 +132,9 @@ SPELL_FUNC(spell_shield)
 		perm = TRUE;
 	}
 
-	if (perm && is_affected(victim, sn)) {
-		affect_strip(victim, sn);
-	} else if (is_affected(victim, sn)) {
+	if (perm && is_affected(victim, skill)) {
+		affect_strip(victim, skill);
+	} else if (is_affected(victim, skill)) {
 		if (victim == ch)
 			send_to_char("You are already shielded from harm.\n\r",ch);
 		else
@@ -145,7 +145,7 @@ SPELL_FUNC(spell_shield)
 	af.slot = obj_wear_loc;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration = perm ? -1 : (8 + level);
 	af.location = APPLY_AC;

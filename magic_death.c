@@ -55,9 +55,9 @@ SPELL_FUNC(spell_animate_dead)
 			return FALSE;
 		}
 
-		catalyst = has_catalyst(ch,NULL,CATALYST_DEATH,CATALYST_CARRY|CATALYST_ROOM,1,CATALYST_MAXSTRENGTH);
+		catalyst = has_catalyst(ch,NULL,CATALYST_DEATH,CATALYST_CARRY|CATALYST_ROOM);
 		if(catalyst < 0 || catalyst > 4) catalyst = 4;
-		if(catalyst) use_catalyst(ch,NULL,CATALYST_DEATH,CATALYST_CARRY|CATALYST_ROOM,catalyst,1,CATALYST_MAXSTRENGTH,TRUE);
+		if(catalyst) use_catalyst(ch,NULL,CATALYST_DEATH,CATALYST_CARRY|CATALYST_ROOM,catalyst,TRUE);
 
 		chance = obj->condition * CORPSE_ANIMATE(obj);
 		lvl = ch->tot_level / 2;
@@ -203,8 +203,8 @@ SPELL_FUNC(spell_death_grip)
 		perm = TRUE;
 	}
 
-	if (perm && is_affected(victim, sn)) {
-		affect_strip(victim, sn);
+	if (perm && is_affected(victim, skill)) {
+		affect_strip(victim, skill);
 	} else if (IS_AFFECTED(victim, AFF_DEATH_GRIP))	{
 		if (victim == ch)
 			send_to_char("Your grip won't get any tighter.\n\r",ch);
@@ -215,7 +215,7 @@ SPELL_FUNC(spell_death_grip)
 
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration = perm ? -1 : (level / 6 + 5);
 	af.location = APPLY_NONE;
@@ -245,9 +245,9 @@ SPELL_FUNC(spell_deathsight)
 		perm = TRUE;
 	}
 
-	if (perm && is_affected(victim, sn))
-		affect_strip(victim, sn);
-	else if (is_affected(victim,sn) || IS_AFFECTED2(ch, AFF2_DEATHSIGHT)) {
+	if (perm && is_affected(victim, skill))
+		affect_strip(victim, skill);
+	else if (is_affected(victim,skill) || IS_AFFECTED2(ch, AFF2_DEATHSIGHT)) {
 		if(victim == ch)
 			send_to_char("You already sense the world of the dead.\n\r",ch);
 		else
@@ -257,7 +257,7 @@ SPELL_FUNC(spell_deathsight)
 
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
+	af.skill = skill;
 	af.location = APPLY_NONE;
 	af.modifier = 0;
 	af.level = level;
@@ -327,8 +327,8 @@ SPELL_FUNC(spell_kill)
 	victim->death_type = DEATHTYPE_KILLSPELL;
 
 	if (ch != victim) {
-		int skill = get_skill(ch, gsn_kill);
-		group_gain(ch, victim, 25 + (skill / 2));
+		int rating = get_skill(ch, gsk_kill);
+		group_gain(ch, victim, 25 + (rating / 2));
 		if( ch->fighting == victim )
 			stop_fighting(ch, FALSE);
 	}

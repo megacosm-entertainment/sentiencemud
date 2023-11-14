@@ -186,8 +186,9 @@ bool ship_seek_point(SHIP_DATA *ship)
 			}
 			else if( IS_VALID(ship->owner) && !IS_NPC(ship->owner) )
 			{
-				check_improve(ship->owner, gsn_navigation, TRUE, 10);
-				skill = get_skill(ship->owner, gsn_navigation);
+				skill = get_skill(ship->owner, gsk_navigation);
+				if (skill > 0)
+					check_improve(ship->owner, gsk_navigation, TRUE, 10);
 			}
 
 			WAYPOINT_DATA *wp = (WAYPOINT_DATA *)iterator_nextdata(&ship->route_it);
@@ -3601,7 +3602,7 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 				}
 				else
 				{
-					skill = get_skill(ch, gsn_navigation);
+					skill = get_skill(ch, gsk_navigation);
 
 					if( skill < 1)
 					{
@@ -3688,7 +3689,7 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 		}
 		else
 		{
-			skill = get_skill(ch, gsn_navigation);
+			skill = get_skill(ch, gsk_navigation);
 
 			if( skill < 1)
 			{
@@ -3767,7 +3768,7 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 		}
 		else
 		{
-			skill = get_skill(ch, gsn_navigation);
+			skill = get_skill(ch, gsk_navigation);
 
 			if( skill < 1)
 			{
@@ -3846,7 +3847,7 @@ void do_ship_navigate(CHAR_DATA *ch, char *argument)
 		}
 		else
 		{
-			skill = get_skill(ch, gsn_navigation);
+			skill = get_skill(ch, gsk_navigation);
 
 			if( skill < 1)
 			{
@@ -4908,7 +4909,7 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 		}
 		else
 		{
-			int skill = get_skill(ch, gsn_navigation);
+			int skill = get_skill(ch, gsk_navigation);
 
 			if( skill < 1)
 			{
@@ -5078,7 +5079,7 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 		}
 		else
 		{
-			int skill = get_skill(ch, gsn_navigation);
+			int skill = get_skill(ch, gsk_navigation);
 
 			if( skill < 1)
 			{
@@ -5136,7 +5137,7 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 		}
 		else
 		{
-			int skill = get_skill(ch, gsn_navigation);
+			int skill = get_skill(ch, gsk_navigation);
 
 			if( skill < 1)
 			{
@@ -5184,7 +5185,7 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 		}
 		else
 		{
-			int skill = get_skill(ch, gsn_navigation);
+			int skill = get_skill(ch, gsk_navigation);
 
 			if( skill < 1)
 			{
@@ -5291,7 +5292,7 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 		}
 		else
 		{
-			int skill = get_skill(ch, gsn_navigation);
+			int skill = get_skill(ch, gsk_navigation);
 
 			if( skill < 1)
 			{
@@ -5412,7 +5413,7 @@ void do_ship_waypoints(CHAR_DATA *ch, char *argument)
 		}
 		else
 		{
-			int skill = get_skill(ch, gsn_navigation);
+			int skill = get_skill(ch, gsk_navigation);
 
 			if( skill < 1)
 			{
@@ -5648,7 +5649,7 @@ void do_ship_routes(CHAR_DATA *ch, char *argument)
 			ship->navigator->crew->navigation < 1 ||
 			ship->navigator->in_room != ch->in_room)
 		{
-			int skill = get_skill(ch, gsn_navigation);
+			int skill = get_skill(ch, gsk_navigation);
 
 			if( skill < 1)
 			{
@@ -5701,7 +5702,7 @@ void do_ship_routes(CHAR_DATA *ch, char *argument)
 			ship->navigator->crew->navigation < 1 ||
 			ship->navigator->in_room != ch->in_room)
 		{
-			int skill = get_skill(ch, gsn_navigation);
+			int skill = get_skill(ch, gsk_navigation);
 
 			if( skill < 1)
 			{
@@ -5736,7 +5737,7 @@ void do_ship_routes(CHAR_DATA *ch, char *argument)
 			ship->navigator->crew->navigation < 1 ||
 			ship->navigator->in_room != ch->in_room)
 		{
-			int skill = get_skill(ch, gsn_navigation);
+			int skill = get_skill(ch, gsk_navigation);
 
 			if( skill < 1)
 			{
@@ -5780,7 +5781,7 @@ void do_ship_routes(CHAR_DATA *ch, char *argument)
 			ship->navigator->crew->navigation < 1 ||
 			ship->navigator->in_room != ch->in_room)
 		{
-			int skill = get_skill(ch, gsn_navigation);
+			int skill = get_skill(ch, gsk_navigation);
 
 			if( skill < 1)
 			{
@@ -5833,7 +5834,7 @@ void do_ship_routes(CHAR_DATA *ch, char *argument)
 			ship->navigator->crew->navigation < 1 ||
 			ship->navigator->in_room != ch->in_room)
 		{
-			int skill = get_skill(ch, gsn_navigation);
+			int skill = get_skill(ch, gsk_navigation);
 
 			if( skill < 1)
 			{
@@ -5898,7 +5899,7 @@ void do_ship_routes(CHAR_DATA *ch, char *argument)
 			ship->navigator->crew->navigation < 1 ||
 			ship->navigator->in_room != ch->in_room)
 		{
-			int skill = get_skill(ch, gsn_navigation);
+			int skill = get_skill(ch, gsk_navigation);
 
 			if( skill < 1)
 			{
@@ -5946,7 +5947,7 @@ void do_ship_routes(CHAR_DATA *ch, char *argument)
 			ship->navigator->crew->navigation < 1 ||
 			ship->navigator->in_room != ch->in_room)
 		{
-			int skill = get_skill(ch, gsn_navigation);
+			int skill = get_skill(ch, gsk_navigation);
 
 			if( skill < 1)
 			{

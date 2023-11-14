@@ -26,11 +26,17 @@ char *opcode_names[OP_LASTCODE] = {
 	"WHILE",
 	"ENDWHILE",
 	"EXITWHILE",
+	"SWITCH",
+	"ENDSWITCH",
+	"EXITSWITCH",
 	"MOB <command>",
 	"OBJ <command>",
 	"ROOM <command>",
 	"TOKEN <command>",
 	"TOKEN <command> (other)",
+	"AREA <command>",
+	"INSTANCE <command>",
+	"DUNGEON <command>",
 };
 
 char *ifcheck_param_type_names[IFCP_MAX] = {
@@ -125,6 +131,9 @@ ENT_FIELD entity_types[] = {
 	{"bpsection",		ENTITY_VAR_BLUEPRINT_SECTION,	ENT_BLUEPRINT_SECTION},
 	{"dngindex",		ENTITY_VAR_DUNGEONINDEX,	ENT_DUNGEONINDEX},
 	{"shipindex",		ENTITY_VAR_SHIPINDEX,		ENT_SHIPINDEX},
+	{"lockstate",		ENTITY_VAR_LOCK_STATE,		ENT_LOCK_STATE},
+	{"spell",			ENTITY_VAR_SPELL,			ENT_SPELL},
+	{"liquid",			ENTITY_VAR_LIQUID,			ENT_LIQUID},
 	{NULL,				0,						ENT_UNKNOWN	}
 };
 
@@ -290,13 +299,14 @@ ENT_FIELD entity_mobile[] = {
 	{"eq_wrist1",				ENTITY_MOB_EQ_WRIST1,		ENT_OBJECT	},
 	{"eq_wrist2",				ENTITY_MOB_EQ_WRIST2,		ENT_OBJECT	},
 	{"fulldesc",				ENTITY_MOB_FULLDESC,		ENT_STRING	},
-	{"gender",					ENTITY_MOB_SEX,				ENT_STRING	},
+	{"gender",					ENTITY_MOB_SEX,				ENT_STAT	},
 	{"group",					ENTITY_MOB_GROUP,			ENT_GROUP },
 	{"he",						ENTITY_MOB_HE,				ENT_STRING	},
 	{"him",						ENTITY_MOB_HIM,				ENT_STRING	},
 	{"himself",					ENTITY_MOB_HIMSELF,			ENT_STRING	},
 	{"his",						ENTITY_MOB_HIS,				ENT_STRING	},
 	{"hisobj",					ENTITY_MOB_HIS_O,			ENT_STRING	},
+//	{"hitskill",				ENTITY_MOB_HITSKILL,		ENT_SKILL	},
 	{"home",					ENTITY_MOB_HOUSE,			ENT_ROOM	},
 	{"house",					ENTITY_MOB_HOUSE,			ENT_ROOM	},
 	{"hunting",					ENTITY_MOB_HUNTING,			ENT_MOBILE	},
@@ -316,7 +326,7 @@ ENT_FIELD entity_mobile[] = {
 	{"recall",					ENTITY_MOB_RECALL,			ENT_ROOM	},
 	{"rider",					ENTITY_MOB_RIDER,			ENT_MOBILE	},
 	{"room",					ENTITY_MOB_ROOM,			ENT_ROOM	},
-	{"sex",						ENTITY_MOB_SEX,				ENT_STRING	},
+	{"sex",						ENTITY_MOB_SEX,				ENT_STAT	},
 	{"short",					ENTITY_MOB_SHORT,			ENT_STRING	},
 	{"song",					ENTITY_MOB_SONG,			ENT_SONG	},
 	{"songtarget",				ENTITY_MOB_SONGTARGET,		ENT_STRING	},
@@ -334,45 +344,48 @@ ENT_FIELD entity_mobile[] = {
 	{"vuln",					ENTITY_MOB_VULN,			ENT_BITVECTOR },
 	{"tempstring",				ENTITY_MOB_TEMPSTRING,		ENT_STRING },
 	{"pmount",					ENTITY_MOB_PMOUNT,			ENT_WIDEVNUM },
+	{"catalystusage",			ENTITY_MOB_CATALYST_USAGE,	ENT_CATALYST_USAGE },
 	{NULL,				0,							ENT_UNKNOWN	}
 };
 
 ENT_FIELD entity_object[] = {
-	{"affects",		ENTITY_OBJ_AFFECTS,	ENT_OLLIST_AFF	},
-	{"area",		ENTITY_OBJ_AREA,	ENT_AREA	},
-	{"carrier",		ENTITY_OBJ_CARRIER,	ENT_MOBILE	},
-	{"clonerooms",	ENTITY_OBJ_CLONEROOMS,	ENT_BLLIST_ROOM	},
-	{"container",	ENTITY_OBJ_CONTAINER,	ENT_OBJECT	},
-	{"contents",	ENTITY_OBJ_CONTENTS,	ENT_OLLIST_OBJ	},
-	{"ed",			ENTITY_OBJ_EXTRADESC,	ENT_EXTRADESC	},
-	{"fulldesc",	ENTITY_OBJ_FULLDESC,	ENT_STRING	},
-	{"in",			ENTITY_OBJ_CONTAINER,	ENT_OBJECT	},
-	{"inv",			ENTITY_OBJ_CONTENTS,	ENT_OLLIST_OBJ	},
-	{"items",		ENTITY_OBJ_CONTENTS,	ENT_OLLIST_OBJ	},
-	{"long",		ENTITY_OBJ_LONG,	ENT_STRING	},
-	{"name",		ENTITY_OBJ_NAME,	ENT_STRING	},
-	{"next",		ENTITY_OBJ_NEXT,	ENT_OBJECT	},
-	{"on",			ENTITY_OBJ_FURNITURE,	ENT_OBJECT	},
-	{"owner",		ENTITY_OBJ_OWNER,	ENT_STRING	},
-	{"room",		ENTITY_OBJ_ROOM,	ENT_ROOM	},
-	{"short",		ENTITY_OBJ_SHORT,	ENT_STRING	},
-	{"target",		ENTITY_OBJ_TARGET,	ENT_MOBILE	},
-	{"tokens",		ENTITY_OBJ_TOKENS,	ENT_OLLIST_TOK	},
-	{"user",		ENTITY_OBJ_CARRIER,	ENT_MOBILE	},
-	{"wearer",		ENTITY_OBJ_CARRIER,	ENT_MOBILE	},
+	{"affects",		ENTITY_OBJ_AFFECTS,			ENT_OLLIST_AFF	},
+	{"area",		ENTITY_OBJ_AREA,			ENT_AREA	},
+	{"carrier",		ENTITY_OBJ_CARRIER,			ENT_MOBILE	},
+	{"clonerooms",	ENTITY_OBJ_CLONEROOMS,		ENT_BLLIST_ROOM	},
+	{"container",	ENTITY_OBJ_CONTAINER,		ENT_OBJECT	},
+	{"contents",	ENTITY_OBJ_CONTENTS,		ENT_OLLIST_OBJ	},
+	{"ed",			ENTITY_OBJ_EXTRADESC,		ENT_EXTRADESC	},
+	{"fulldesc",	ENTITY_OBJ_FULLDESC,		ENT_STRING	},
+	{"in",			ENTITY_OBJ_CONTAINER,		ENT_OBJECT	},
+	{"inv",			ENTITY_OBJ_CONTENTS,		ENT_OLLIST_OBJ	},
+	{"items",		ENTITY_OBJ_CONTENTS,		ENT_OLLIST_OBJ	},
+	{"long",		ENTITY_OBJ_LONG,			ENT_STRING	},
+	{"name",		ENTITY_OBJ_NAME,			ENT_STRING	},
+	{"next",		ENTITY_OBJ_NEXT,			ENT_OBJECT	},
+	{"on",			ENTITY_OBJ_FURNITURE,		ENT_OBJECT	},
+	{"owner",		ENTITY_OBJ_OWNER,			ENT_STRING	},
+	{"room",		ENTITY_OBJ_ROOM,			ENT_ROOM	},
+	{"short",		ENTITY_OBJ_SHORT,			ENT_STRING	},
+	{"target",		ENTITY_OBJ_TARGET,			ENT_MOBILE	},
+	{"tokens",		ENTITY_OBJ_TOKENS,			ENT_OLLIST_TOK	},
+	//{"type",		ENTITY_OBJ_TYPE,			ENT_STAT	},
+	{"user",		ENTITY_OBJ_CARRIER,			ENT_MOBILE	},
+	{"wearer",		ENTITY_OBJ_CARRIER,			ENT_MOBILE	},
 	{"vars",		ENTITY_OBJ_VARIABLES,		ENT_ILLIST_VARIABLE	},
 	{"index",		ENTITY_OBJ_INDEX,			ENT_OBJINDEX },
 	{"extra",		ENTITY_OBJ_EXTRA,			ENT_BITMATRIX },
 	{"wear",		ENTITY_OBJ_WEAR,			ENT_BITVECTOR },
 	{"ship",		ENTITY_OBJ_SHIP,			ENT_SHIP		},
-	{"book_page",	ENTITY_OBJ_TYPE_PAGE,		ENT_BOOK_PAGE},			// This is unique in that it is not handled internally like other type
-	{"book_data",	ENTITY_OBJ_TYPE_BOOK,		ENT_OBJECT_BOOK},
-	{"container_data",	ENTITY_OBJ_TYPE_CONTAINER, ENT_OBJECT_CONTAINER},
-	{"food_data",	ENTITY_OBJ_TYPE_FOOD, ENT_OBJECT_FOOD},
-	{"furniture_data",	ENTITY_OBJ_TYPE_FURNITURE, ENT_OBJECT_FURNITURE},
-	{"light_data",	ENTITY_OBJ_TYPE_LIGHT, ENT_OBJECT_LIGHT},
-	{"money_data",	ENTITY_OBJ_TYPE_MONEY, ENT_OBJECT_MONEY},
-	{"portal_data",	ENTITY_OBJ_TYPE_PORTAL, ENT_OBJECT_PORTAL},
+	{"book_page",		ENTITY_OBJ_TYPE_PAGE,		ENT_BOOK_PAGE},			// This is unique in that it is not handled internally like other type
+	{"book_data",		ENTITY_OBJ_TYPE_BOOK,		ENT_OBJECT_BOOK},
+	{"container_data",	ENTITY_OBJ_TYPE_CONTAINER,	ENT_OBJECT_CONTAINER},
+	{"fluid_data",		ENTITY_OBJ_TYPE_FLUID_CONTAINER,	ENT_OBJECT_FLUID_CONTAINER },
+	{"food_data",		ENTITY_OBJ_TYPE_FOOD,		ENT_OBJECT_FOOD},
+	{"furniture_data",	ENTITY_OBJ_TYPE_FURNITURE,	ENT_OBJECT_FURNITURE},
+	{"light_data",		ENTITY_OBJ_TYPE_LIGHT,		ENT_OBJECT_LIGHT},
+	{"money_data",		ENTITY_OBJ_TYPE_MONEY,		ENT_OBJECT_MONEY},
+	{"portal_data",		ENTITY_OBJ_TYPE_PORTAL,		ENT_OBJECT_PORTAL},
 	{NULL,			0,			ENT_UNKNOWN	}
 };
 
@@ -383,8 +396,7 @@ ENT_FIELD entity_object_book[] = {
 	{"current",				ENTITY_OBJ_BOOK_CURRENT,	ENT_BOOK_PAGE },
 	{"opener",				ENTITY_OBJ_BOOK_OPENER,		ENT_BOOK_PAGE },
 	{"pages",				ENTITY_OBJ_BOOK_PAGES,		ENT_PLLIST_BOOK_PAGE },
-	// TODO: LOCK
-	//{"lock",				ENTITY_OBJ_BOOK_LOCK,		ENT_LOCK_STATE },
+	{"lock",				ENTITY_OBJ_BOOK_LOCK,		ENT_LOCK_STATE },
 	{NULL,			0,			ENT_UNKNOWN	}
 };
 
@@ -395,8 +407,22 @@ ENT_FIELD entity_object_container[] = {
 	{"max_weight",			ENTITY_OBJ_CONTAINER_MAX_WEIGHT,	ENT_NUMBER },
 	{"weight_multiplier",	ENTITY_OBJ_CONTAINER_WEIGHT_MULTIPLIER,	ENT_NUMBER },
 	{"max_volume",			ENTITY_OBJ_CONTAINER_MAX_VOLUME,	ENT_NUMBER },
-	// TODO: LOCK
-	//{"lock",				ENTITY_OBJ_CONTAINER_LOCK,		ENT_LOCK_STATE},
+	{"lock",				ENTITY_OBJ_CONTAINER_LOCK,		ENT_LOCK_STATE},
+	{NULL,			0,			ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_object_fluid_container[] = {
+	{"name",				ENTITY_OBJ_FLUID_CONTAINER_NAME, ENT_STRING },
+	{"short",				ENTITY_OBJ_FLUID_CONTAINER_SHORT,	ENT_STRING },
+	{"flags",				ENTITY_OBJ_FLUID_CONTAINER_FLAGS,	ENT_BITVECTOR },
+	{"liquid",				ENTITY_OBJ_FLUID_CONTAINER_LIQUID,	ENT_LIQUID },
+	{"amount",				ENTITY_OBJ_FLUID_CONTAINER_AMOUNT,	ENT_NUMBER },
+	{"capacity",			ENTITY_OBJ_FLUID_CONTAINER_CAPACITY,	ENT_NUMBER },
+	{"refillrate",			ENTITY_OBJ_FLUID_CONTAINER_REFILL_RATE,	ENT_NUMBER },
+	{"poison",				ENTITY_OBJ_FLUID_CONTAINER_POISON,	ENT_NUMBER },
+	{"poisonrate",			ENTITY_OBJ_FLUID_CONTAINER_POISON_RATE,	ENT_NUMBER },
+	{"spells",				ENTITY_OBJ_FLUID_CONTAINER_SPELLS,	ENT_ILLIST_SPELLS },
+	{"lock",				ENTITY_OBJ_FLUID_CONTAINER_LOCK,		ENT_LOCK_STATE},
 	{NULL,			0,			ENT_UNKNOWN	}
 };
 
@@ -440,7 +466,7 @@ ENT_FIELD entity_object_portal[] = {
 	{"param2",		ENTITY_OBJ_PORTAL_PARAM2,		ENT_NUMBER		},
 	{"param3",		ENTITY_OBJ_PORTAL_PARAM3,		ENT_NUMBER		},
 	{"param4",		ENTITY_OBJ_PORTAL_PARAM4,		ENT_NUMBER		},
-	//{"lock",		ENTITY_OBJ_PORTAL_LOCK,			ENT_LOCK_STATE },
+	{"lock",		ENTITY_OBJ_PORTAL_LOCK,			ENT_LOCK_STATE },
 	{NULL,			0,								ENT_UNKNOWN	}
 };
 
@@ -459,6 +485,7 @@ ENT_FIELD entity_room[] = {
 	{"environ",		ENTITY_ROOM_ENVIRON,		ENT_ROOM	},
 	{"environment",	ENTITY_ROOM_ENVIRON,		ENT_ROOM	},
 	{"extern",		ENTITY_ROOM_ENVIRON,		ENT_ROOM	},
+	//{"flags",		ENTITY_ROOM_FLAGS,			ENT_BITMATRIX },		// TODO: Add flag bank
 	{"mobiles",		ENTITY_ROOM_MOBILES,		ENT_OLLIST_MOB	},
 	{"name",		ENTITY_ROOM_NAME,			ENT_STRING	},
 	{"north",		ENTITY_ROOM_NORTH,			ENT_EXIT	},
@@ -467,6 +494,7 @@ ENT_FIELD entity_room[] = {
 	{"objects",		ENTITY_ROOM_OBJECTS,		ENT_OLLIST_OBJ	},
 	{"outside",		ENTITY_ROOM_ENVIRON,		ENT_ROOM	},
 	{"region",		ENTITY_ROOM_REGION,			ENT_AREA_REGION	},
+	{"sector",		ENTITY_ROOM_SECTOR,			ENT_STAT	},
 	{"south",		ENTITY_ROOM_SOUTH,			ENT_EXIT	},
 	{"southeast",	ENTITY_ROOM_SOUTHEAST,		ENT_EXIT	},
 	{"southwest",	ENTITY_ROOM_SOUTHWEST,		ENT_EXIT	},
@@ -527,13 +555,29 @@ ENT_FIELD entity_token[] = {
 	{"val9",	ENTITY_TOKEN_VAL9,	ENT_NUMBER	},
 	{"next",	ENTITY_TOKEN_NEXT,	ENT_TOKEN	},
 	{"vars",	ENTITY_TOKEN_VARIABLES,		ENT_ILLIST_VARIABLE	},
+	{"skill",	ENTITY_TOKEN_SKILL,	ENT_SKILLENTRY },
+	//{"affect",	ENTITY_TOKEN_AFFECT,	ENT_AFFECT },
 	{NULL,		0,			ENT_UNKNOWN	}
 };
 
 ENT_FIELD entity_area[] = {
-	{"name",		ENTITY_AREA_NAME,	ENT_STRING	},
-	{"rooms",		ENTITY_AREA_ROOMS,	ENT_PLLIST_ROOM	},
-	{NULL,		0,			ENT_UNKNOWN	}
+	{"name",		ENTITY_AREA_NAME,			ENT_STRING	},
+	{"credits",		ENTITY_AREA_CREDITS,		ENT_STRING	},
+	{"description",	ENTITY_AREA_DESCRIPTION,	ENT_STRING	},
+	{"comments",	ENTITY_AREA_COMMENTS,		ENT_STRING	},
+	{"builders",	ENTITY_AREA_BUILDERS,		ENT_STRING	},
+	{"uid",			ENTITY_AREA_UID,			ENT_NUMBER	},
+	{"security",	ENTITY_AREA_SECURITY,		ENT_NUMBER	},
+	{"region",		ENTITY_AREA_REGION,			ENT_AREA_REGION	},
+	{"regions",		ENTITY_AREA_REGIONS,		ENT_BLLIST_AREA_REGION	},
+	{"flags",		ENTITY_AREA_FLAGS,			ENT_BITVECTOR	},
+	{"wilds",		ENTITY_AREA_WILDS,			ENT_WILDS	},
+	{"nplayer",		ENTITY_AREA_NPLAYER,		ENT_NUMBER	},
+	{"age",			ENTITY_AREA_AGE,			ENT_NUMBER	},
+	{"isempty",		ENTITY_AREA_ISEMPTY,		ENT_BOOLEAN	},
+	{"isopen",		ENTITY_AREA_ISOPEN,			ENT_BOOLEAN	},
+	{"rooms",		ENTITY_AREA_ROOMS,			ENT_PLLIST_ROOM	},
+	{NULL,			0,							ENT_UNKNOWN	}
 };
 
 ENT_FIELD entity_area_regions[] =
@@ -549,6 +593,11 @@ ENT_FIELD entity_area_regions[] =
 	{"landx",		ENTITY_AREA_REGION_LAND_X,		ENT_NUMBER },
 	{"landy",		ENTITY_AREA_REGION_LAND_Y,		ENT_NUMBER },
 	{"airship",		ENTITY_AREA_REGION_AIRSHIP,	ENT_ROOM },
+	{"flags",		ENTITY_AREA_REGION_FLAGS,	ENT_BITVECTOR },
+	{"who",			ENTITY_AREA_REGION_WHO,		ENT_STAT },
+	{"place",		ENTITY_AREA_REGION_PLACE,	ENT_BITVECTOR },
+	{"savage",		ENTITY_AREA_REGION_SAVAGE,	ENT_NUMBER },
+	{NULL,		0,			ENT_UNKNOWN }
 };
 
 ENT_FIELD entity_wilds[] = {
@@ -597,8 +646,10 @@ ENT_FIELD entity_list[] = {
 
 ENT_FIELD entity_skill[] = {
 	{"gsn",		ENTITY_SKILL_GSN,		ENT_NUMBER	},
-	{"spell",	ENTITY_SKILL_SPELL,		ENT_NUMBER	},
+	{"token",	ENTITY_SKILL_TOKEN,		ENT_TOKENINDEX },
+	{"spell",	ENTITY_SKILL_SPELL,		ENT_BOOLEAN	},
 	{"name",	ENTITY_SKILL_NAME,		ENT_STRING	},
+	{"display",	ENTITY_SKILL_DISPLAY,	ENT_STRING	},
 	{"beats",	ENTITY_SKILL_BEATS,		ENT_NUMBER	},
 	{"timer",	ENTITY_SKILL_BEATS,		ENT_NUMBER	},
 	{"levelwarrior",	ENTITY_SKILL_LEVEL_WARRIOR,	ENT_NUMBER	},
@@ -612,15 +663,33 @@ ENT_FIELD entity_skill[] = {
 	{"target",	ENTITY_SKILL_TARGET,		ENT_NUMBER	},
 	{"position",	ENTITY_SKILL_POSITION,		ENT_NUMBER	},
 	{"wearoff",	ENTITY_SKILL_WEAROFF,		ENT_STRING	},
+	{"object",	ENTITY_SKILL_OBJECT,		ENT_STRING	},
 	{"dispel",	ENTITY_SKILL_DISPEL,		ENT_STRING	},
 	{"noun",	ENTITY_SKILL_NOUN,		ENT_STRING	},
-	{"mana",	ENTITY_SKILL_MANA,		ENT_NUMBER	},
+	{"mana",	ENTITY_SKILL_MANA_CAST,		ENT_NUMBER	},
+	{"brew_mana",	ENTITY_SKILL_MANA_BREW,		ENT_NUMBER	},
+	{"scribe_mana",	ENTITY_SKILL_MANA_SCRIBE,		ENT_NUMBER	},
+	{"imbue_mana",	ENTITY_SKILL_MANA_IMBUE,		ENT_NUMBER	},
 	{"inktype1",	ENTITY_SKILL_INK_TYPE1,		ENT_NUMBER	},
 	{"inksize1",	ENTITY_SKILL_INK_SIZE1,		ENT_NUMBER	},
 	{"inktype2",	ENTITY_SKILL_INK_TYPE2,		ENT_NUMBER	},
 	{"inksize2",	ENTITY_SKILL_INK_SIZE2,		ENT_NUMBER	},
 	{"inktype3",	ENTITY_SKILL_INK_TYPE3,		ENT_NUMBER	},
 	{"inksize3",	ENTITY_SKILL_INK_SIZE3,		ENT_NUMBER	},
+	{"values",		ENTITY_SKILL_VALUES,		ENT_SKILL_VALUES },
+	{"valuenames",	ENTITY_SKILL_VALUENAMES,	ENT_SKILL_VALUENAMES },
+	{NULL,		0,			ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_skillentry[] = {
+	{ "flags",	ENTITY_SKILLENTRY_FLAGS,		ENT_BITVECTOR },
+	{ "isspell",ENTITY_SKILLENTRY_ISSPELL,		ENT_BOOLEAN },
+	{ "mod",	ENTITY_SKILLENTRY_MOD_RATING,	ENT_NUMBER },
+	{ "rating",	ENTITY_SKILLENTRY_RATING,		ENT_NUMBER },
+	{ "skill",	ENTITY_SKILLENTRY_SKILL,		ENT_SKILL },
+	{ "song",	ENTITY_SKILLENTRY_SONG,			ENT_NUMBER },
+	{ "source",	ENTITY_SKILLENTRY_SOURCE,		ENT_NUMBER },
+	{ "token",	ENTITY_SKILLENTRY_TOKEN,		ENT_TOKEN },
 	{NULL,		0,			ENT_UNKNOWN	}
 };
 
@@ -632,10 +701,19 @@ ENT_FIELD entity_skill_info[] = {
 	{NULL,		0,			ENT_UNKNOWN	}
 };
 
+ENT_FIELD entity_lock_state[] = {
+	{"key",		ENTITY_LOCKSTATE_KEY,		ENT_OBJINDEX},
+	{"pick",	ENTITY_LOCKSTATE_PICK,		ENT_NUMBER},
+	{"flags",	ENTITY_LOCKSTATE_FLAGS,		ENT_BITVECTOR},
+	{"specialkeys", ENTITY_LOCKSTATE_SPECIALKEYS,	ENT_ILLIST_SPECIALKEYS},
+	{NULL,		0,			ENT_UNKNOWN	}
+};
+
 ENT_FIELD entity_affect[] = {
 	{"name",		ENTITY_AFFECT_NAME,		ENT_STRING	},
 	{"group",		ENTITY_AFFECT_GROUP,	ENT_NUMBER	},
-	{"skill",		ENTITY_AFFECT_SKILL,	ENT_NUMBER	},
+	{"skill",		ENTITY_AFFECT_SKILL,	ENT_SKILL	},
+	{"catalyst",	ENTITY_AFFECT_CATALYST,	ENT_STAT	},
 	{"where",		ENTITY_AFFECT_WHERE,	ENT_NUMBER	},
 	{"location",	ENTITY_AFFECT_LOCATION,	ENT_NUMBER	},
 	{"mod",			ENTITY_AFFECT_MOD,		ENT_NUMBER	},
@@ -680,9 +758,23 @@ ENT_FIELD entity_compartment[] = {
 	{"health",		ENTITY_COMPARTMENT_HEALTH,		ENT_NUMBER},
 	{"mana",		ENTITY_COMPARTMENT_MANA,		ENT_NUMBER},
 	{"move",		ENTITY_COMPARTMENT_MOVE,		ENT_NUMBER},
-	// TODO: LOCK
-	//{"lock",		ENTITY_COMPARTMENT_LOCK,		ENT_LOCK_STATE},
+	{"lock",		ENTITY_COMPARTMENT_LOCK,		ENT_LOCK_STATE},
 	{NULL,			0,			ENT_UNKNOWN },
+};
+
+ENT_FIELD entity_liquid[] = {
+	{"name",	ENTITY_LIQUID_NAME,	ENT_STRING },
+	{"color",	ENTITY_LIQUID_COLOR, ENT_STRING },
+	{"uid",		ENTITY_LIQUID_UID, ENT_NUMBER },
+	{"used",	ENTITY_LIQUID_USED, ENT_NUMBER },
+	{"flammable", ENTITY_LIQUID_FLAMMABLE, ENT_BOOLEAN },
+	{"proof",	ENTITY_LIQUID_PROOF, ENT_NUMBER },
+	{"full",	ENTITY_LIQUID_FULL, ENT_NUMBER },
+	{"thirst",	ENTITY_LIQUID_THIRST, ENT_NUMBER },
+	{"hunger",	ENTITY_LIQUID_HUNGER, ENT_NUMBER },
+	{"fuelunit", ENTITY_LIQUID_FUEL_UNIT, ENT_NUMBER },
+	{"fuelduration", ENTITY_LIQUID_FUEL_DURATION, ENT_NUMBER },
+	{NULL,		0,					ENT_UNKNOWN }
 };
 
 ENT_FIELD entity_song[] = {
@@ -696,6 +788,14 @@ ENT_FIELD entity_song[] = {
 	{"mana",	ENTITY_SONG_MANA,	ENT_NUMBER	},
 	{"level",	ENTITY_SONG_LEVEL,	ENT_NUMBER	},
 	{NULL,		0,			ENT_UNKNOWN	}
+};
+
+ENT_FIELD entity_spelldata[] = {
+	{"name",	ENTITY_SPELLDATA_NAME, ENT_STRING },
+	{"skill",	ENTITY_SPELLDATA_SKILL,	ENT_SKILL },
+	{"level",	ENTITY_SPELLDATA_LEVEL, ENT_NUMBER },
+	{"chance",	ENTITY_SPELLDATA_CHANCE, ENT_NUMBER },
+	{NULL,		0,			ENT_UNKNOWN }
 };
 
 ENT_FIELD entity_variable[] = {
@@ -843,13 +943,16 @@ struct _entity_type_info entity_type_info[] = {
 	{ ENT_TOKEN,		ENT_TOKEN,			entity_token,				TRUE,	FALSE },
 	{ ENT_AREA,			ENT_AREA,			entity_area,				TRUE,	FALSE },
 	{ ENT_SKILL,		ENT_SKILL,			entity_skill,				FALSE,	FALSE },
+	{ ENT_SKILLENTRY,	ENT_SKILLENTRY,		entity_skillentry,			FALSE,	FALSE },
 	{ ENT_SKILLINFO,	ENT_SKILLINFO,		entity_skill_info,			FALSE,	FALSE },
+	{ ENT_SPELL,		ENT_SPELL,			entity_spelldata,			FALSE,	FALSE },
 	{ ENT_SONG,			ENT_SONG,			entity_song,				FALSE,	FALSE },
 	{ ENT_CONN,			ENT_CONN,			entity_conn,				FALSE,	FALSE },
 	{ ENT_AFFECT,		ENT_AFFECT,			entity_affect,				FALSE,	FALSE },
 	{ ENT_BOOK_PAGE,	ENT_BOOK_PAGE,		entity_book_page,			FALSE,	FALSE },
 	{ ENT_FOOD_BUFF,	ENT_FOOD_BUFF,		entity_food_buff,			FALSE,	FALSE },
 	{ ENT_COMPARTMENT,	ENT_COMPARTMENT,	entity_compartment,			FALSE,	FALSE },
+	{ ENT_LIQUID,		ENT_LIQUID,			entity_liquid,				FALSE,	FALSE },
 	{ ENT_EXTRADESC,	ENT_EXTRADESC,		NULL,						FALSE,	FALSE },
 	{ ENT_HELP,			ENT_HELP,			NULL,						FALSE,	FALSE },
 	{ ENT_PRIOR,		ENT_PRIOR,			entity_prior,				FALSE,	FALSE },
@@ -885,11 +988,14 @@ struct _entity_type_info entity_type_info[] = {
 	{ ENT_OBJECT_PAGE, ENT_OBJECT_PAGE, entity_book_page, FALSE,	FALSE },
 	{ ENT_OBJECT_BOOK, ENT_OBJECT_BOOK, entity_object_book, FALSE,	FALSE },
 	{ ENT_OBJECT_CONTAINER, ENT_OBJECT_CONTAINER, entity_object_container, FALSE,	FALSE },
+	{ ENT_OBJECT_FLUID_CONTAINER, ENT_OBJECT_FLUID_CONTAINER, entity_object_fluid_container, FALSE, FALSE },
 	{ ENT_OBJECT_FOOD, ENT_OBJECT_FOOD, entity_object_food, FALSE,	FALSE },
 	{ ENT_OBJECT_FURNITURE, ENT_OBJECT_FURNITURE, entity_object_furniture, FALSE,	FALSE },
 	{ ENT_OBJECT_LIGHT, ENT_OBJECT_LIGHT, entity_object_light, FALSE,	FALSE },
 	{ ENT_OBJECT_MONEY, ENT_OBJECT_MONEY, entity_object_money, FALSE,	FALSE },
 	{ ENT_OBJECT_PORTAL, ENT_OBJECT_PORTAL, entity_object_portal, FALSE,	FALSE },
+	{ ENT_SKILL_VALUES, ENT_SKILL_VALUES, NULL, FALSE, TRUE },
+	{ ENT_SKILL_VALUENAMES, ENT_SKILL_VALUENAMES, NULL, FALSE, TRUE },
 	{ ENT_UNKNOWN,		ENT_UNKNOWN,		NULL,						FALSE,	FALSE },
 };
 
@@ -1132,7 +1238,8 @@ struct trigger_type trigger_table	[] = {
 {	"wear",					NULL,		TRIG_WEAR,				TRIGSLOT_GENERAL,		(PRG_MPROG|PRG_OPROG|PRG_RPROG|PRG_TPROG)	},
 {	"whisper",				NULL,		TRIG_WHISPER,			TRIGSLOT_SPEECH,		(PRG_MPROG|PRG_TPROG)	},
 {	"wimpy",				NULL,		TRIG_WIMPY,				TRIGSLOT_FIGHT,			(PRG_MPROG|PRG_OPROG|PRG_RPROG|PRG_TPROG)	},
-{	"xpcompute",			NULL,		TRIG_XPCOMPUTE,			TRIGSLOT_GENERAL,		(PRG_MPROG|PRG_OPROG|PRG_RPROG|PRG_TPROG)	},
+{	"xpbonus",				NULL,		TRIG_XPBONUS,			TRIGSLOT_GENERAL,		(PRG_MPROG|PRG_OPROG|PRG_RPROG|PRG_TPROG)	},
+{	"xpcompute",			NULL,		TRIG_XPCOMPUTE,			TRIGSLOT_GENERAL,		(PRG_MPROG|PRG_TPROG)	},
 {	"xpgain",				NULL,		TRIG_XPGAIN,			TRIGSLOT_GENERAL,		(PRG_MPROG|PRG_OPROG|PRG_RPROG|PRG_TPROG)	},
 {	"zap",					NULL,		TRIG_ZAP,				TRIGSLOT_GENERAL,		(PRG_OPROG|PRG_TPROG)	},
 {	NULL,					NULL,		0,						TRIGSLOT_GENERAL,		0	}
@@ -1315,6 +1422,7 @@ IFCHECK_DATA ifcheck_table[] = {
 	{ "isexitvisible",		IFC_ANY,	"EES",	FALSE,	ifc_isexitvisible,		"ifcheck isexitvisible" },
 	{ "isfading",			IFC_ANY,	"Es",	FALSE,	ifc_isfading,			"ifcheck isfading" },
 	{ "isfighting",			IFC_ANY,	"Ee",	FALSE,	ifc_isfighting,			"ifcheck isfighting" },
+	{ "isfluidcontainer",	IFC_ANY,	"E",	FALSE,	ifc_isfluidcontainer,	"ifcheck isfluidcontainer" },
 	{ "isflying",			IFC_ANY,	"E",	FALSE,	ifc_isflying,			"ifcheck isflying" },
 	{ "isfollow",			IFC_ANY,	"E",	FALSE,	ifc_isfollow,			"ifcheck isfollow" },
 	{ "isfood",				IFC_ANY,	"E",	FALSE,	ifc_isfood,				"ifcheck isfood" },
@@ -1336,6 +1444,7 @@ IFCHECK_DATA ifcheck_table[] = {
 	{ "isobject",			IFC_ANY,	"E",	FALSE,	ifc_isobject,			"ifcheck isobject" },
 	{ "ison",				IFC_ANY,	"E",	FALSE,	ifc_ison,				"ifcheck ison" },
 	{ "isowner",			IFC_ANY,	"E",	FALSE,	ifc_isowner,			"ifcheck isowner" },
+	{ "ispage",				IFC_ANY,	"E",	FALSE,	ifc_ispage,				"ifcheck ispage" },
 	{ "ispc",				IFC_ANY,	"E",	FALSE,	ifc_ispc,				"ifcheck ispc" },
 	{ "ispersist",			IFC_ANY,	"E",	FALSE,	ifc_ispersist,			"ifcheck ispersist" },
 	{ "ispk",				IFC_ANY,	"E",	FALSE,	ifc_ispk,				"ifcheck ispk" },
@@ -1365,6 +1474,8 @@ IFCHECK_DATA ifcheck_table[] = {
 	{ "istattooing",		IFC_ANY,	"E",	FALSE,	ifc_istattooing,		"ifcheck istattooing" },
 	{ "istoken",			IFC_ANY,	"E",	FALSE,	ifc_istoken,			"ifcheck istoken" },
 	{ "istreasureroom",		IFC_ANY,	"EE",	FALSE,	ifc_istreasureroom,		"ifcheck istreasureroom" },
+	{ "isvalid",			IFC_ANY,	"E",	FALSE,	ifc_isvalid,			"ifcheck isvalid" },
+	{ "isvaliditem",		IFC_ANY,	"E",	FALSE,	ifc_isvaliditem,		"ifcheck isvaliditem" },
 	{ "isvisible",			IFC_ANY,	"E",	FALSE,	ifc_isvisible,			"ifcheck isvisible" },
 	{ "isvisibleto",		IFC_ANY,	"E",	FALSE,	ifc_isvisibleto,		"ifcheck isvisibleto" },
 	{ "iswnum",				IFC_ANY,	"E",	FALSE,	ifc_iswnum,				"ifcheck iswnum" },

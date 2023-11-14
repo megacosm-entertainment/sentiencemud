@@ -32,7 +32,7 @@ SPELL_FUNC(spell_blindness)
 
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.location = APPLY_HITROLL;
 	af.modifier = -4;
@@ -50,21 +50,21 @@ SPELL_FUNC(spell_blindness)
 
 SPELL_FUNC(spell_cause_light)
 {
-	damage(ch, (CHAR_DATA *) vo, dice(1, 8) + level / 3, sn,DAM_HARM,TRUE);
+	damage(ch, (CHAR_DATA *) vo, dice(1, 8) + level / 3, skill,TYPE_UNDEFINED,DAM_HARM,TRUE);
 	return TRUE;
 }
 
 
 SPELL_FUNC(spell_cause_critical)
 {
-	damage(ch, (CHAR_DATA *) vo, dice(3, 8) + level - 6, sn,DAM_HARM,TRUE);
+	damage(ch, (CHAR_DATA *) vo, dice(3, 8) + level - 6, skill,TYPE_UNDEFINED,DAM_HARM,TRUE);
 	return TRUE;
 }
 
 
 SPELL_FUNC(spell_cause_serious)
 {
-	damage(ch, (CHAR_DATA *) vo, dice(2, 8) + level / 2, sn,DAM_HARM,TRUE);
+	damage(ch, (CHAR_DATA *) vo, dice(2, 8) + level / 2, skill,TYPE_UNDEFINED,DAM_HARM,TRUE);
 	return TRUE;
 }
 
@@ -93,9 +93,9 @@ SPELL_FUNC(spell_colour_spray)
 	if (saves_spell(level, victim,DAM_LIGHT))
 		dam /= 2;
 	else
-		spell_blindness(gsn_blindness,level/2,ch,(void *) victim,TARGET_CHAR, WEAR_NONE);
+		spell_blindness(gsk_blindness,level/2,ch,(void *) victim,TARGET_CHAR, WEAR_NONE);
 
-	damage(ch, victim, dam, sn, DAM_LIGHT,TRUE);
+	damage(ch, victim, dam, skill,TYPE_UNDEFINED, DAM_LIGHT,TRUE);
 	return TRUE;
 }
 
@@ -107,7 +107,7 @@ SPELL_FUNC(spell_cure_blindness)
 	CHAR_DATA *victim = (CHAR_DATA *) vo;
 	int chance;
 
-	if (!IS_AFFECTED(victim, AFF_BLIND) && !is_affected(victim, gsn_fire_breath)) {
+	if (!IS_AFFECTED(victim, AFF_BLIND) && !is_affected(victim, gsk_fire_breath)) {
 		if (victim == ch)
 			send_to_char("You aren't blind.\n\r",ch);
 		else
@@ -117,15 +117,15 @@ SPELL_FUNC(spell_cure_blindness)
 	}
 
 	if (get_profession(ch, CLASS_CLERIC) != -1)
-		chance = get_skill(ch, sn);
+		chance = get_skill(ch, skill);
 	else
 		chance = 75;
 
 	if (IS_AFFECTED(victim, AFF_BLIND) && number_percent() < chance) {
-		affect_strip(victim, gsn_blindness);
-		affect_strip(victim, gsn_fire_breath);
+		affect_strip(victim, gsk_blindness);
+		affect_strip(victim, gsk_fire_breath);
 		REMOVE_BIT(victim->affected_by[0], AFF_BLIND);
-		send_to_char(skill_table[gsn_blindness].msg_off, victim);
+		send_to_char(gsk_blindness->msg_off, victim);
 		send_to_char("\n\r", victim);
 		act("$n is no longer blinded.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
 	}
@@ -164,15 +164,15 @@ SPELL_FUNC(spell_cure_disease)
 	}
 
 	if (get_profession(ch, CLASS_CLERIC) != -1)
-		chance = get_skill(ch, sn);
+		chance = get_skill(ch, skill);
 	else
 		chance = 75;
 
 	if (number_percent() < chance) {
-		affect_strip(victim, gsn_plague);
+		affect_strip(victim, gsk_plague);
 		// @@@NIB : 20070127 : added in case the poison is from toxic fumes as well
 		if (!IS_AFFECTED(victim, AFF_PLAGUE)) {
-			send_to_char(skill_table[gsn_plague].msg_off, victim);
+			send_to_char(gsk_plague->msg_off, victim);
 			send_to_char("\n\r", victim);
 			act("$n looks relieved as $s sores vanish.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
 		} else if (victim == ch)
@@ -214,15 +214,15 @@ SPELL_FUNC(spell_cure_poison)
 	}
 
 	if (get_profession(ch, CLASS_CLERIC) != -1)
-		chance = get_skill(ch, sn);
+		chance = get_skill(ch, skill);
 	else
 		chance = 75;
 
 	if (number_percent() < chance) {
-		affect_strip(victim, gsn_poison);
+		affect_strip(victim, gsk_poison);
 		// @@@NIB : 20070127 : added in case the poison is from toxic fumes as well
 		if (!IS_AFFECTED(victim, AFF_POISON)) {
-			send_to_char(skill_table[gsn_poison].msg_off, victim);
+			send_to_char(gsk_poison->msg_off, victim);
 			send_to_char("\n\r", victim);
 			act("$n looks much better.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
 		} else if (victim == ch)
@@ -255,7 +255,7 @@ SPELL_FUNC(spell_cure_toxic)
 	int chance, helped;
 	AFFECT_DATA *paf, *tox, *next;
 
-	if (!(tox = affect_find(victim->affected,gsn_toxic_fumes))) {
+	if (!(tox = affect_find(victim->affected,gsk_toxic_fumes))) {
 		if (victim == ch)
 			send_to_char("You aren't suffering from toxic fumes.\n\r",ch);
 		else
@@ -264,15 +264,15 @@ SPELL_FUNC(spell_cure_toxic)
 	}
 
 	if (get_profession(ch, CLASS_CLERIC) != -1)
-		chance = get_skill(ch, sn);
+		chance = get_skill(ch, skill);
 	else
 		chance = 75;
 
 	if (number_percent() < chance) {
 		if(IS_IMMORTAL(ch) || (!IS_SET(victim->in_room->room2_flags, ROOM_TOXIC_BOG) &&
 			(victim->in_room->sector_type != SECT_TOXIC_BOG))) {
-			affect_strip(victim, gsn_toxic_fumes);
-			send_to_char(skill_table[gsn_toxic_fumes].msg_off, victim);
+			affect_strip(victim, gsk_toxic_fumes);
+			send_to_char(gsk_toxic_fumes->msg_off, victim);
 			send_to_char("\n\r", victim);
 			act("$n looks much better.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
 		} else {
@@ -280,7 +280,7 @@ SPELL_FUNC(spell_cure_toxic)
 			helped = FALSE;
 			for(paf = tox;paf;paf = next) {
 				next = paf->next;
-				if (paf->type == gsn_toxic_fumes) {
+				if (paf->skill == gsk_toxic_fumes) {
 					if(paf->duration > 0)
 						paf->duration = -paf->duration;
 					else if(!paf->duration)
@@ -311,7 +311,7 @@ SPELL_FUNC(spell_harm)
 	if (saves_spell(level, victim,DAM_HARM))
 		dam = UMIN(50, dam / 2);
 	//dam = UMIN(100, dam);
-	damage(ch, victim, dam, sn, DAM_HARM ,TRUE);
+	damage(ch, victim, dam, skill, TYPE_UNDEFINED, DAM_HARM ,TRUE);
 	return TRUE;
 }
 
@@ -327,9 +327,9 @@ SPELL_FUNC(spell_haste)
 		perm = TRUE;
 	}
 
-	if (perm && is_affected(victim, sn)) {
-		affect_strip(victim, sn);
-	} else if (is_affected(victim, sn) || IS_AFFECTED(victim,AFF_HASTE)) {
+	if (perm && is_affected(victim, skill)) {
+		affect_strip(victim, skill);
+	} else if (is_affected(victim, skill) || IS_AFFECTED(victim,AFF_HASTE)) {
 		if (victim == ch)
 			send_to_char("You can't move any faster!\n\r",ch);
 		else
@@ -339,7 +339,7 @@ SPELL_FUNC(spell_haste)
 
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	if (perm) af.duration = -1;
 	else if (victim == ch) af.duration  = level/2;
@@ -400,8 +400,8 @@ SPELL_FUNC(spell_healing_aura)
 		perm = TRUE;
 	}
 
-	if (perm && is_affected(gch, sn)) {
-		affect_strip(gch, sn);
+	if (perm && is_affected(gch, skill)) {
+		affect_strip(gch, skill);
 	} else if (IS_AFFECTED2(gch, AFF2_HEALING_AURA)) {
 		if (gch == ch)
 			send_to_char("You are already surrounded by a healing aura.\n\r",ch);
@@ -412,7 +412,7 @@ SPELL_FUNC(spell_healing_aura)
 
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_DIVINE;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration = perm?-1:6;
 	af.location = 0;
@@ -440,8 +440,8 @@ SPELL_FUNC(spell_infravision)
 		perm = TRUE;
 	}
 
-	if (perm && is_affected(victim, sn)) {
-		affect_strip(victim, sn);
+	if (perm && is_affected(victim, skill)) {
+		affect_strip(victim, skill);
 	} else if (IS_AFFECTED(victim, AFF_INFRARED)) {
 		if (victim == ch)
 			send_to_char("You can already see in the dark.\n\r",ch);
@@ -453,7 +453,7 @@ SPELL_FUNC(spell_infravision)
 
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration = perm ? -1 : (2 * level);
 	af.location = APPLY_NONE;
@@ -485,7 +485,7 @@ SPELL_FUNC(spell_invis)
 
 		af.where = TO_OBJECT;
 		af.group = AFFGROUP_ENCHANT;
-		af.type	= sn;
+		af.skill = skill;
 		af.level = level;
 		af.duration = level + 12;
 		af.location = APPLY_NONE;
@@ -507,8 +507,8 @@ SPELL_FUNC(spell_invis)
 		perm = TRUE;
 	}
 
-	if (perm && is_affected(victim, sn))
-		affect_strip(victim, sn);
+	if (perm && is_affected(victim, skill))
+		affect_strip(victim, skill);
 	else if (IS_AFFECTED(victim, AFF_INVISIBLE) || IS_AFFECTED2(victim, AFF2_IMPROVED_INVIS))
 		return FALSE;
 
@@ -516,7 +516,7 @@ SPELL_FUNC(spell_invis)
 
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration = perm ? -1 : (level + 12);
 	af.location = APPLY_NONE;
@@ -536,8 +536,8 @@ SPELL_FUNC(spell_mass_healing)
 
 	for (gch = ch->in_room->people; gch; gch = gch->next_in_room) {
 		if (((IS_NPC(ch) && IS_NPC(gch)) || (!IS_NPC(ch) && !IS_NPC(gch))) && can_see(ch, gch)) {
-			spell_heal(gsn_heal,level,ch,(void *) gch,TARGET_CHAR, WEAR_NONE);
-			spell_refresh(gsn_refresh,level,ch,(void *) gch,TARGET_CHAR, WEAR_NONE);
+			spell_heal(gsk_heal,level,ch,(void *) gch,TARGET_CHAR, WEAR_NONE);
+			spell_refresh(gsk_refresh,level,ch,(void *) gch,TARGET_CHAR, WEAR_NONE);
 		}
 	}
 	return TRUE;
@@ -559,7 +559,7 @@ SPELL_FUNC(spell_mass_invis)
 
 		af.where = TO_AFFECTS;
 		af.group = AFFGROUP_MAGICAL;
-		af.type = sn;
+		af.skill = skill;
 		af.level = level/2;
 		af.duration = 24;
 		af.location = APPLY_NONE;
@@ -587,9 +587,9 @@ SPELL_FUNC(spell_regeneration)
 		perm = TRUE;
 	}
 
-	if (perm && is_affected(gch, sn))
-		affect_strip(gch, sn);
-	else if (is_affected(gch,sn) || IS_AFFECTED(gch, AFF_REGENERATION) || IS_AFFECTED2(gch, AFF2_HEALING_AURA)) {
+	if (perm && is_affected(gch, skill))
+		affect_strip(gch, skill);
+	else if (is_affected(gch,skill) || IS_AFFECTED(gch, AFF_REGENERATION) || IS_AFFECTED2(gch, AFF2_HEALING_AURA)) {
 		if (gch == ch)
 			send_to_char("You are already affected by regeneration.\n\r",ch);
 		else
@@ -599,7 +599,7 @@ SPELL_FUNC(spell_regeneration)
 
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration = perm ? -1 : 6;
 	af.location  = 0;

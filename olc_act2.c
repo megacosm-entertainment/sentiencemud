@@ -2331,12 +2331,12 @@ TEDIT (tedit_addtprog)
 		}
 		else
 		{
-			int sn = skill_lookup(phrase);
-			if(sn < 0 || skill_table[sn].spell_fun == spell_null) {
+			SKILL_DATA *skill = get_skill_data(phrase);
+			if(!IS_VALID(skill) || !is_skill_spell(skill)) {
 				send_to_char("Invalid spell for trigger.\n\r",ch);
 				return FALSE;
 			}
-			sprintf(phrase,"%d",sn);
+			sprintf(phrase,"%d",skill->uid);
 		}
 	}
 	else if( value == TRIG_EXIT ||

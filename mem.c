@@ -225,10 +225,11 @@ SKILL_ENTRY *new_skill_entry()
 	}
 
 	entry->source = SKILLSRC_NORMAL;
+    entry->flags = SKILL_AUTOMATIC;
 	entry->isspell = FALSE;
 	entry->song = -1;
-	entry->practice = TRUE;
-	entry->improve = TRUE;
+	//entry->practice = TRUE;
+	//entry->improve = TRUE;
 
 	return entry;
 }
@@ -647,7 +648,7 @@ CHAR_DATA *new_char( void )
     ch->cast_target_name 	= NULL;
     ch->casting_failure_message = NULL;
     ch->projectile_victim	= NULL;
-    ch->cast_sn = 0;
+    ch->cast_skill = NULL;
     ch->mail = NULL;
     ch->deaths = 0;
     ch->player_kills = 0;
@@ -3205,6 +3206,24 @@ void free_spell(SPELL_DATA *spell)
     spell_free  = spell;
 }
 
+static void *copy_spell(void *ptr)
+{
+    if (!ptr) return NULL;
+
+    SPELL_DATA *src = (SPELL_DATA *)ptr;
+    SPELL_DATA *data = new_spell();
+
+    data->skill = src->skill;
+    data->level = src->level;
+    data->repop = src->repop;
+
+    return data;
+}
+
+static void delete_spell(void *ptr)
+{
+    free_spell((SPELL_DATA *)ptr);
+}
 
 COMMAND_DATA *new_command()
 {
@@ -5249,6 +5268,109 @@ void free_container_data(CONTAINER_DATA *data)
     container_data_free = data;
 }
 
+// ======[ FLUID CONTAINER ]=======
+
+LIQUID *liquid_free;
+LIQUID *new_liquid()
+{
+    LIQUID *liq;
+    if (liquid_free)
+    {
+        liq = liquid_free;
+        liquid_free = liquid_free->next;
+    }
+    else
+        liq = alloc_mem(sizeof(LIQUID));
+
+    memset(liq, 0, sizeof(*liq));
+
+    liq->name = str_dup("");
+    liq->color = str_dup("");
+
+    VALIDATE(liq);
+    return liq;
+}
+
+void free_liquid(LIQUID *liq)
+{
+    if (!IS_VALID(liq)) return;
+
+    free_string(liq->name);
+    free_string(liq->color);
+
+    INVALIDATE(liq);
+    liq->next = liquid_free;
+    liquid_free = liq;
+}
+
+FLUID_CONTAINER_DATA *fluid_container_free;
+FLUID_CONTAINER_DATA *new_fluid_container_data()
+{
+    FLUID_CONTAINER_DATA *data;
+    if (fluid_container_free)
+    {
+        data = fluid_container_free;
+        fluid_container_free = fluid_container_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(FLUID_CONTAINER_DATA));
+
+    memset(data, 0, sizeof(*data));
+
+    data->name = str_dup("");
+    data->short_descr = str_dup("");
+    data->spells = list_createx(FALSE, copy_spell, delete_spell);
+
+    VALIDATE(data);
+    return data;
+}
+
+FLUID_CONTAINER_DATA *copy_fluid_container_data(FLUID_CONTAINER_DATA *src)
+{
+    if (!IS_VALID(src)) return NULL;
+
+    FLUID_CONTAINER_DATA *data;
+    if (fluid_container_free)
+    {
+        data = fluid_container_free;
+        fluid_container_free = fluid_container_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(FLUID_CONTAINER_DATA));
+
+    data->name = str_dup(src->name);
+    data->short_descr = str_dup(src->short_descr);
+    data->flags = src->flags;
+
+    data->liquid = src->liquid;
+    data->capacity = src->capacity;
+    data->amount = src->amount;
+    data->refill_rate = src->refill_rate;
+    data->poison = src->poison;
+    data->poison_rate = src->poison_rate;
+
+    data->lock = copy_lock_state(src->lock);
+    data->spells = list_copy(src->spells);
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_fluid_container_data(FLUID_CONTAINER_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    free_string(data->name);
+    free_string(data->short_descr);
+
+    free_lock_state(data->lock);
+    list_destroy(data->spells);
+
+    INVALIDATE(data);
+    data->next = fluid_container_free;
+    fluid_container_free = data;
+}
+
 
 // ============[ FOOD ]============
 FOOD_BUFF_DATA *food_buff_data_free;
@@ -5641,8 +5763,7 @@ PORTAL_DATA *copy_portal_data(PORTAL_DATA *src, bool repop)
 	    if (repop || spell->repop == 100 || number_percent() < spell->repop)
 	    {
             spell_new = new_spell();
-            spell_new->sn = spell->sn;
-            spell_new->token = spell->token;
+            spell_new->skill = spell->skill;
             spell_new->level = spell->level;
             spell_new->repop = spell->repop;
 
@@ -5666,4 +5787,65 @@ void free_portal_data(PORTAL_DATA *data)
     INVALIDATE(data);
     data->next = portal_data_free;
     portal_data_free = data;
+}
+
+
+
+SKILL_DATA *skill_data_free;
+SKILL_DATA *new_skill_data()
+{
+    SKILL_DATA *data;
+    if (skill_data_free)
+    {
+        data = skill_data_free;
+        skill_data_free = skill_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(SKILL_DATA));
+
+    memset(data, 0, sizeof(*data));
+
+    data->name = str_dup("");
+    data->display = str_dup("");
+    for(int i = 0; i < MAX_CLASS; i++)
+    {
+        data->skill_level[i] = 41;  // TODO: Replace with constant
+        data->rating[i] = 1;
+    }
+
+    data->target = TAR_IGNORE;
+    data->minimum_position = POS_DEAD;
+    data->race = -1;
+
+    data->noun_damage = str_dup("");
+    data->msg_off = str_dup("");
+    data->msg_obj = str_dup("");
+    data->msg_disp = str_dup("");
+
+    for(int i = 0; i < MAX_SKILL_VALUES; i++)
+        data->valuenames[i] = str_dup("");
+
+    // Rest is NULL/0
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_skill_data(SKILL_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    free_string(data->name);
+    free_string(data->display);
+    free_string(data->noun_damage);
+    free_string(data->msg_disp);
+    free_string(data->msg_obj);
+    free_string(data->msg_off);
+
+    for(int i = 0; i < MAX_SKILL_VALUES; i++)
+        free_string(data->valuenames[i]);
+
+    data->next = skill_data_free;
+    skill_data_free = data;
+    INVALIDATE(data);
 }

@@ -29,8 +29,8 @@ SPELL_FUNC(spell_avatar_shield)
 		perm = TRUE;
 	}
 
-	if (perm && is_affected(victim, sn)) {
-		affect_strip(victim, sn);
+	if (perm && is_affected(victim, skill)) {
+		affect_strip(victim, skill);
 	} else if (IS_AFFECTED2(victim, AFF2_AVATAR_SHIELD)) {
 		if (victim == ch)
 			send_to_char("You are already protected.\n\r",ch);
@@ -42,7 +42,7 @@ SPELL_FUNC(spell_avatar_shield)
 	af.slot = obj_wear_loc;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_DIVINE;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration  = perm ? -1 : 35;
 	af.modifier = 0;
@@ -81,7 +81,7 @@ SPELL_FUNC(spell_bless)
 		if (IS_OBJ_STAT(obj,ITEM_EVIL)) {
 			AFFECT_DATA *paf;
 
-			paf = affect_find(obj->affected,gsn_curse);
+			paf = affect_find(obj->affected,gsk_curse);
 			if (!saves_dispel(ch, NULL, paf ? paf->level : obj->level)) {
 				if (paf) affect_remove_obj(obj,paf);
 				act("$p glows a pale blue.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
@@ -96,7 +96,7 @@ SPELL_FUNC(spell_bless)
 		af.slot = WEAR_NONE;
 		af.where = TO_OBJECT;
 		af.group = AFFGROUP_ENCHANT;
-		af.type	= sn;
+		af.skill = skill;
 		af.level = level;
 		af.duration = 6 + level/4;
 		af.location = APPLY_HITROLL;
@@ -113,9 +113,9 @@ SPELL_FUNC(spell_bless)
 	/* character target */
 	victim = (CHAR_DATA *) vo;
 
-	if (perm && is_affected(victim, sn)) {
-		affect_strip(victim, sn);
-	} else if (victim->position == POS_FIGHTING || is_affected(victim, sn)) {
+	if (perm && is_affected(victim, skill)) {
+		affect_strip(victim, skill);
+	} else if (victim->position == POS_FIGHTING || is_affected(victim, skill)) {
 		if (victim == ch)
 			send_to_char("You are already blessed.\n\r",ch);
 		else
@@ -126,7 +126,7 @@ SPELL_FUNC(spell_bless)
 	af.slot	= obj_wear_loc;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_DIVINE;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration = perm ? -1 : (6+level);
 	af.location = APPLY_HITROLL;
@@ -162,7 +162,7 @@ SPELL_FUNC(spell_dispel_evil)
 		dam = UMAX(victim->hit, dice(level,4));
 	if (saves_spell(level, victim,DAM_HOLY))
 		dam /= 2;
-	damage(ch, victim, dam, sn, DAM_HOLY ,TRUE);
+	damage(ch, victim, dam, skill, TYPE_UNDEFINED, DAM_HOLY ,TRUE);
 	return TRUE;
 }
 
@@ -183,7 +183,7 @@ SPELL_FUNC(spell_exorcism)
 	if(IS_REMORT(ch)) lvl -= LEVEL_HERO;		// If the caster is remort, it will require LESS catalyst
 	lvl = (lvl > 19) ? (lvl / 10) : 1;
 
-	catalyst = use_catalyst(ch,NULL,CATALYST_HOLY,CATALYST_HOLD,600,lvl,CATALYST_MAXSTRENGTH,TRUE);
+	catalyst = use_catalyst(ch,NULL,CATALYST_HOLY,CATALYST_HOLD,600,TRUE);
 
 	if (victim->alignment > -500) {
 		act("$N is unaffected by your exorcism.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -255,7 +255,7 @@ SPELL_FUNC(spell_glorious_bolt)
 
 	dam = 2 * dice(level, 10);
 	dam += dam * (victim->alignment / -1000);
-	damage(ch, victim, dam, sn, DAM_HOLY ,TRUE);
+	damage(ch, victim, dam, skill, TYPE_UNDEFINED, DAM_HOLY ,TRUE);
 	return TRUE;
 }
 
@@ -295,7 +295,7 @@ SPELL_FUNC(spell_holy_shield)
 		af.slot = obj_wear_loc;
 		af.where = TO_OBJECT;
 		af.group = AFFGROUP_ENCHANT;
-		af.type	= sn;
+		af.skill = skill;
 		af.level = level;
 		af.duration = perm ? -1 : (6 + level);
 		af.location = APPLY_AC;
@@ -344,7 +344,7 @@ SPELL_FUNC(spell_holy_sword)
 		af.slot = obj_wear_loc;
 		af.where = TO_OBJECT;
 		af.group = AFFGROUP_ENCHANT;
-		af.type	= sn;
+		af.skill = skill;
 		af.level = level;
 		af.duration = perm ? -1 : (6 + level);
 		af.location = 0;
@@ -376,21 +376,21 @@ SPELL_FUNC(spell_holy_word)
 			(IS_EVIL(ch) && IS_EVIL(vch)) ||
 			(IS_NEUTRAL(ch) && IS_NEUTRAL(vch))) {
 			send_to_char("You feel full of holy power!\n\r",vch);
-			spell_frenzy(gsn_frenzy,level,ch,(void *) vch,TARGET_CHAR, WEAR_NONE);
-			spell_bless(gsn_bless,level,ch,(void *) vch,TARGET_CHAR, WEAR_NONE);
+			spell_frenzy(gsk_frenzy,level,ch,(void *) vch,TARGET_CHAR, WEAR_NONE);
+			spell_bless(gsk_bless,level,ch,(void *) vch,TARGET_CHAR, WEAR_NONE);
 		} else if ((IS_GOOD(ch) && IS_EVIL(vch)) || (IS_EVIL(ch) && IS_GOOD(vch))) {
 			if (!is_safe_spell(ch,vch,TRUE)) {
-				spell_curse(gsn_curse,level,ch,(void *) vch,TARGET_CHAR, WEAR_NONE);
+				spell_curse(gsk_curse,level,ch,(void *) vch,TARGET_CHAR, WEAR_NONE);
 				send_to_char("{YYou are struck down!{x\n\r",vch);
 				dam = dice(level,8);
-				damage(ch,vch,dam,sn,DAM_HOLY,TRUE);
+				damage(ch,vch,dam,skill, TYPE_UNDEFINED, DAM_HOLY,TRUE);
 			}
 		} else if (IS_NEUTRAL(ch)) {
 			if (!is_safe_spell(ch,vch,TRUE)) {
-				spell_curse(gsn_curse,level/2,ch,(void *) vch,TARGET_CHAR, WEAR_NONE);
+				spell_curse(gsk_curse,level/2,ch,(void *) vch,TARGET_CHAR, WEAR_NONE);
 				send_to_char("{YYou are struck down!{x\n\r",vch);
 				dam = dice(level,5);
-				damage(ch,vch,dam,sn,DAM_MAGIC,TRUE);
+				damage(ch,vch,dam,skill, TYPE_UNDEFINED, DAM_MAGIC,TRUE);
 			}
 		}
 	}
@@ -414,8 +414,8 @@ SPELL_FUNC(spell_light_shroud)
 		perm = TRUE;
 	}
 
-	if (perm && is_affected(victim, sn)) {
-		affect_strip(victim, sn);
+	if (perm && is_affected(victim, skill)) {
+		affect_strip(victim, skill);
 	} else if (IS_AFFECTED2(victim, AFF2_LIGHT_SHROUD)) {
 		if (victim == ch)
 			send_to_char("You are already protected in a shroud.\n\r",ch);
@@ -428,7 +428,7 @@ SPELL_FUNC(spell_light_shroud)
 	af.slot = obj_wear_loc;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_DIVINE;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration = perm ? -1 : (3 + level/5);
 	af.location = APPLY_NONE;
@@ -459,7 +459,7 @@ SPELL_FUNC(spell_remove_curse)
 				REMOVE_BIT(obj->extra[0],ITEM_NODROP);
 				REMOVE_BIT(obj->extra[0],ITEM_NOREMOVE);
 
-				paf = affect_find(obj->affected,gsn_curse);
+				paf = affect_find(obj->affected,gsk_curse);
 				if (!saves_dispel(ch, NULL, paf ? paf->level : obj->level)) {
 					if (paf) affect_remove_obj(obj,paf);
 					REMOVE_BIT(obj->extra[0],ITEM_EVIL);
@@ -478,7 +478,7 @@ SPELL_FUNC(spell_remove_curse)
 	/* characters */
 	victim = (CHAR_DATA *) vo;
 
-	if (check_dispel(ch,victim,gsn_curse)) {
+	if (check_dispel(ch,victim,gsk_curse)) {
 		send_to_char("You feel better.\n\r",victim);
 		act("$n looks more relaxed.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
 	}
@@ -511,8 +511,8 @@ SPELL_FUNC(spell_sanctuary)
 		perm = TRUE;
 	}
 
-	if (perm && is_affected(victim, sn)) {
-		affect_strip(victim, sn);
+	if (perm && is_affected(victim, skill)) {
+		affect_strip(victim, skill);
 	} else if (IS_AFFECTED(victim, AFF_SANCTUARY)) {
 		if (victim == ch)
 			send_to_char("You are already in sanctuary.\n\r",ch);
@@ -524,10 +524,10 @@ SPELL_FUNC(spell_sanctuary)
 	af.slot = obj_wear_loc;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_DIVINE;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 
-	sk = get_skill(ch,sn);
+	sk = get_skill(ch,skill);
 	sk = sk * sk / 100;	// 75% -> 56%, 85% -> 72%, 95% -> 90%
 	// This ranges from 0% to 60% of level in a x^2 progression
 	af.duration = perm ? -1 : ((3 * sk * level / 500) + 1);

@@ -2867,9 +2867,6 @@ PFUN( imc_recv_icedestroy )
    imc_save_channels(  );
 }
 
-#if !defined(SEX_HERM)
-#define SEX_HERM 10 // surely no one has this many sexes on thier mud...
-#endif
 int imctodikugender( int gender )
 {
    int sex = 0;
@@ -2881,7 +2878,7 @@ int imctodikugender( int gender )
       sex = SEX_FEMALE;
 
    if( gender == 2 )
-      sex = SEX_HERM;
+      sex = SEX_EITHER;
 
    if( gender > 2 )
       sex = SEX_NEUTRAL;
@@ -2902,7 +2899,7 @@ int dikutoimcgender( int gender )
    if( gender == SEX_FEMALE )
       sex = 1;
 
-   if( gender == SEX_HERM )
+   if( gender == SEX_EITHER )
       sex = 2;
 
    return sex;

@@ -49,7 +49,8 @@
 #include "scripts.h"
 
 // Lookup a skill by name.
-int skill_lookup(const char *name)
+#if 0
+int _skill_lookup(const char *name)
 {
     int sn;
 
@@ -64,10 +65,13 @@ int skill_lookup(const char *name)
 
     return -1;
 }
+#endif
 
+#if 0
 // finds a spell the character can cast if possible
 int find_spell(CHAR_DATA *ch, const char *name)
 {
+	SKILL_DATA *skill;
     int sn, found = -1;
     int this_class;
     int level;
@@ -117,10 +121,10 @@ int find_spell(CHAR_DATA *ch, const char *name)
 
     return found;
 }
-
+#endif
 
 // Utter mystical words for an sn.
-void say_spell(CHAR_DATA *ch, int sn)
+void say_spell(CHAR_DATA *ch, SKILL_DATA *skill)
 {
     char buf  [MAX_STRING_LENGTH];
     char buf2 [2*MAX_STRING_LENGTH];
@@ -171,7 +175,7 @@ void say_spell(CHAR_DATA *ch, int sn)
     };
 
     buf[0]	= '\0';
-    for (pName = skill_table[sn].name; *pName != '\0'; pName += length)
+    for (pName = skill->name; *pName != '\0'; pName += length)
     {
 	for (iSyl = 0; (length = strlen(syl_table[iSyl].old)) != 0; iSyl++)
 	{
@@ -187,7 +191,7 @@ void say_spell(CHAR_DATA *ch, int sn)
     }
 
     sprintf(buf2, "$n utters the words, '%s'.", buf);
-    sprintf(buf,  "$n utters the words, '%s'.", skill_table[sn].name);
+    sprintf(buf,  "$n utters the words, '%s'.", skill->name);
 
     for (rch = ch->in_room->people; rch; rch = rch->next_in_room)
     {
@@ -300,21 +304,23 @@ bool saves_spell(int level, CHAR_DATA *victim, sh_int dam_type)
 
 
 /* co-routine for dispel magic and cancellation */
-bool check_dispel(CHAR_DATA *ch, CHAR_DATA *victim, int sn)
+bool check_dispel(CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill)
 {
 	AFFECT_DATA *af;
 
-	if (is_affected(victim, sn)) {
+	if (!IS_VALID(skill)) return false;
+
+	if (is_affected(victim, skill)) {
 		for (af = victim->affected; af != NULL; af = af->next) {
-			if (af->type == sn) {
+			if (af->skill == skill) {
 				if (!saves_dispel(ch, victim, af->level)) {
-					affect_strip(victim,sn);
-					if (skill_table[sn].msg_off) {
-						send_to_char(skill_table[sn].msg_off, victim);
+					affect_strip(victim,skill);
+					if (skill->msg_off && skill->msg_off[0]) {
+						send_to_char(skill->msg_off, victim);
 						send_to_char("\n\r", victim);
 					}
-					if (skill_table[sn].msg_disp && skill_table[sn].msg_disp[0])
-						act(skill_table[sn].msg_disp,victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+					if (skill->msg_disp && skill->msg_disp[0])
+						act(skill->msg_disp,victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
 
 					return TRUE;
 				} else
@@ -514,6 +520,7 @@ void do_cast(CHAR_DATA *ch, char *argument)
 {
 	char arg1[MAX_INPUT_LENGTH];
 	char arg2[MAX_INPUT_LENGTH];
+	char *args;
 	CHAR_DATA *victim;
 	OBJ_DATA *obj;
 	SCRIPT_DATA *script = NULL;
@@ -529,6 +536,7 @@ void do_cast(CHAR_DATA *ch, char *argument)
 	SKILL_ENTRY *spell;
 
 	argument = one_argument(argument, arg1);
+	args = argument;
 	argument = one_argument(argument, arg2);
 
 	if (IS_AFFECTED2(ch, AFF2_SILENCE)) {
@@ -576,67 +584,60 @@ void do_cast(CHAR_DATA *ch, char *argument)
 		}
 
 		// Check minimum position
-		if (ch->position < spell->token->pIndexData->value[TOKVAL_SPELL_POSITION]) {
+		if (ch->position < spell->skill->minimum_position) {
 			send_to_char("You can't concentrate enough.\n\r", ch);
 			return;
 		}
 
-		mana = spell->token->value[TOKVAL_SPELL_MANA];
+		mana = spell->skill->cast_mana;
 		if ((ch->mana + ch->manastore) < mana) {
 			send_to_char("You don't have enough mana.\n\r", ch);
 			return;
 		}
 
 		// Setup targets.
-		ch->cast_sn = -1;
+		ch->cast_skill = spell->skill;
 		ch->cast_token = spell->token;
 		ch->cast_script = script;
 		ch->cast_mana = mana;
 
-		if(!validate_spell_target(ch,spell->token->pIndexData->value[TOKVAL_SPELL_TARGET],arg2,&target,&victim,&obj)) {
+		if(!validate_spell_target(ch,spell->skill->target,arg2,&target,&victim,&obj)) {
 			return;
 		}
 
-		ch->tempstore[0] = 0;
+		beats = spell->skill->beats;
 
-		// Precheck for the spell token - set the cast beats in here!
-		if(p_percent_trigger(NULL,NULL,NULL,spell->token,ch,NULL,NULL, NULL, NULL, TRIG_PRESPELL, NULL,0,0,0,0,0))
+		if(p_percent_trigger(NULL,NULL,NULL,spell->token,ch,victim,NULL, obj, NULL, TRIG_PRESPELL, NULL,target,0,0,0,0))
 			return;
 
 		ch->cast_successful = MAGICCAST_SUCCESS;
-		if(!IS_SET(ch->cast_token->pIndexData->flags,TOKEN_NOSKILLTEST)) {
-			chance = 0;
-			if (IS_SET(ch->in_room->room2_flags, ROOM_HARD_MAGIC)) chance += 2;
-			if (ch->in_room->sector_type == SECT_CURSED_SANCTUM) chance += 2;
-			if (!IS_NPC(ch) && chance > 0 && number_range(1,chance) > 1) {
-				ch->cast_successful = MAGICCAST_ROOMBLOCK;
-			} else {
-				if (ch->cast_token->pIndexData->value[TOKVAL_SPELL_RATING] > 0) {
-					if (number_range(0,(ch->cast_token->pIndexData->value[TOKVAL_SPELL_RATING] * 100) - 1) > ch->cast_token->value[TOKVAL_SPELL_RATING])
-						ch->cast_successful = MAGICCAST_FAILURE;
-				} else {
-					if (number_percent() > ch->cast_token->value[TOKVAL_SPELL_RATING])
-						ch->cast_successful = MAGICCAST_FAILURE;
-				}
 
-			}
+		chance = 0;
+		if (IS_SET(ch->in_room->room2_flags, ROOM_HARD_MAGIC)) chance += 2;
+		if (ch->in_room->sector_type == SECT_CURSED_SANCTUM) chance += 2;
+
+		// TODO: Add trigger for custom room stuff for harder magic
+		// TODO: Add trigger for custom mob stuff for harder magic
+		if (!IS_NPC(ch) && chance > 0 && number_range(1,chance) > 1) {
+			ch->cast_successful = MAGICCAST_ROOMBLOCK;
+		} else {
+			if (number_percent() > skill_entry_rating(ch, spell))
+					ch->cast_successful = MAGICCAST_FAILURE;
 		}
-
-		beats = ch->tempstore[0];
-	} else if( spell->sn > 0 && skill_table[spell->sn].spell_fun != spell_null ) {
-		int skill = get_skill( ch, spell->sn );
+	} else if( IS_VALID(spell->skill) && spell->skill->spell_fun != spell_null ) {
+		int skill = get_skill( ch, spell->skill );
 
 		if ( skill < 1 ) {
 			send_to_char("You don't recall how to cast that spell.\n\r", ch);
 			return;
 		}
 
-		if (ch->position < skill_table[spell->sn].minimum_position) {
+		if (ch->position < spell->skill->minimum_position) {
 			send_to_char("You can't concentrate enough.\n\r", ch);
 			return;
 		}
 
-		mana = skill_table[spell->sn].min_mana;
+		mana = spell->skill->cast_mana;
 
 		if ((ch->mana + ch->manastore) < mana) {
 			send_to_char("You don't have enough mana.\n\r", ch);
@@ -646,27 +647,85 @@ void do_cast(CHAR_DATA *ch, char *argument)
 		// Setup targets.
 		ch->cast_token = NULL;
 		ch->cast_script = NULL;
-		ch->cast_sn = spell->sn;
+		ch->cast_skill = spell->skill;
 		ch->cast_mana = mana;
 
-		if(!validate_spell_target(ch,skill_table[spell->sn].target,arg2,&target,&victim,&obj))
+		if(!validate_spell_target(ch,spell->skill->target,arg2,&target,&victim,&obj))
 			return;
 
-		if(p_percent_trigger(NULL,NULL,ch->in_room,NULL,ch,NULL,NULL, NULL, NULL, TRIG_PRECAST,"check",0,0,0,0,0))
-			return;
+		if (spell->skill->prespell_fun != NULL)
+		{
+			void *vo;
+			switch (spell->skill->target) {
+			case TAR_IGNORE:
+				vo = (void *) args;
+				break;
 
+			case TAR_CHAR_OFFENSIVE:
+			case TAR_CHAR_DEFENSIVE:
+				vo = (void *) victim;
+				break;
+
+			case TAR_CHAR_SELF:
+				victim = ch;
+				vo = (void *) victim;
+				break;
+
+			case TAR_OBJ_INV:
+				vo = (void *) obj;
+				vo = (void *) obj;
+				break;
+
+			case TAR_OBJ_CHAR_OFF:
+				if (target == TARGET_CHAR)
+					vo = (void *)victim;
+				else if (target == TARGET_OBJ)
+					vo = (void *)obj;
+				else
+				{
+					send_to_char("Can't find your target.\n\r", ch);
+					return;
+				}
+				break;
+
+			case TAR_OBJ_CHAR_DEF:
+				if (target == TARGET_CHAR)
+					vo = (void *)victim;
+				else if (target == TARGET_OBJ)
+					vo = (void *)obj;
+				else
+				{
+					send_to_char("Can't find your target.\n\r", ch);
+					return;
+				}
+				break;
+
+			case TAR_IGNORE_CHAR_DEF:
+				vo = (void *) victim;
+				break;
+			}
+
+			if (!(*spell->skill->prespell_fun) (spell->skill, ch->tot_level, ch, vo, target, WEAR_NONE))
+				return;
+		}
+
+		if(p_percent_trigger(NULL,NULL,ch->in_room,NULL,ch,victim,NULL, obj, NULL, TRIG_PRECAST,"check",0,0,0,0,0))
+			return;
 
 		ch->cast_successful = MAGICCAST_SUCCESS;
 		chance = 0;
 		if (IS_SET(ch->in_room->room2_flags, ROOM_HARD_MAGIC)) chance += 2;
 		if (ch->in_room->sector_type == SECT_CURSED_SANCTUM) chance += 2;
+
+		// TODO: Add trigger for custom room stuff for harder magic
+		// TODO: Add trigger for custom mob stuff for harder magic
 		if (!IS_NPC(ch) && chance > 0 && number_range(1,chance) > 1)
 			ch->cast_successful = MAGICCAST_ROOMBLOCK;
-		else if (number_percent() > get_skill(ch,spell->sn))
+		else if (number_percent() > skill_entry_rating(ch, spell))
 			ch->cast_successful = MAGICCAST_FAILURE;
 
 
-		beats = skill_table[spell->sn].beats;
+		beats = spell->skill->beats;
 	} else {
 		send_to_char("You don't know any spells by that name.\n\r", ch);
 		return;
@@ -690,7 +749,7 @@ void do_cast(CHAR_DATA *ch, char *argument)
 		} else
 			ch->cast_target_name = str_dup(obj->name);
 	} else
-		ch->cast_target_name = str_dup(arg2);
+		ch->cast_target_name = str_dup(args);
 
 	// @@@NIB : 20070126 : Slow magic, 2-3 times as long
 	//	room2:slow_magic adds 0.5-1x
@@ -732,24 +791,22 @@ void cast_end(CHAR_DATA *ch)
 	void *vo;
 	unsigned long id[2];
 	int type;
-	int sn;
+	SKILL_DATA *skill;
 	int target;
 
 	send_to_char("{WYou have completed your casting.{x\n\r", ch);
 	act("{W$n has completed $s casting.{x", ch , NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-	if(ch->cast_token) {
+	skill = ch->cast_skill;
+	ch->cast_skill = NULL;
+	type = skill->target;
+	if(ch->cast_token)
+	{
 		token = ch->cast_token;
 		script = ch->cast_script;
-		ch->cast_token = NULL;
-		ch->cast_script = NULL;
-		type = token->pIndexData->value[TOKVAL_SPELL_TARGET];
-		sn = -1;
-	} else {
-		sn = ch->cast_sn;
-		ch->cast_sn = -1;
-		type = skill_table[sn].target;
 	}
+	ch->cast_token = NULL;
+	ch->cast_script = NULL;
 
 	mana = ch->cast_mana;
 	victim = NULL;
@@ -873,7 +930,7 @@ void cast_end(CHAR_DATA *ch)
 						if (is_pk(dam_vict)) {
 							act("{RYou are struck by $p's shards!", dam_vict, NULL, NULL, trap, NULL, NULL, NULL, TO_CHAR);
 							act("{R$n is struck by $p's shards!", dam_vict, NULL, NULL, trap, NULL, NULL, NULL, TO_ROOM);
-							damage(dam_vict, dam_vict, dice(60, 8), 0, DAM_PIERCE, FALSE);
+							damage(dam_vict, dam_vict, dice(60, 8), gsk_spell_trap, TYPE_UNDEFINED, DAM_PIERCE, FALSE);
 						}
 					}
 				}
@@ -895,7 +952,8 @@ void cast_end(CHAR_DATA *ch)
 	if(token) {
 		if( ch->cast_successful == MAGICCAST_FAILURE ) {
 			send_to_char("You lost your concentration.\n\r", ch);
-			token_skill_improve(ch,token,FALSE,1);
+			//token_skill_improve(ch,token,FALSE,1);
+			check_improve(ch,skill,false,1);
 			deduct_mana(ch,mana / 2);
 			return;
 		}
@@ -903,7 +961,8 @@ void cast_end(CHAR_DATA *ch)
 		if( ch->cast_successful == MAGICCAST_SCRIPT ) {
 			if( !IS_NULLSTR(ch->casting_failure_message) )
 				send_to_char(ch->casting_failure_message, ch);
-			token_skill_improve(ch,token,FALSE,1);
+			//token_skill_improve(ch,token,FALSE,1);
+			check_improve(ch,skill,false,1);
 			deduct_mana(ch,mana / 2);
 			return;
 		}
@@ -929,13 +988,13 @@ void cast_end(CHAR_DATA *ch)
 			// If we don't do a skill test before the code is executed,
 			//	then successful casting also does no test
 			if(!IS_SET(token->pIndexData->flags,TOKEN_NOSKILLTEST))
-				token_skill_improve(ch,token,TRUE,1);
+				check_improve(ch,skill,true,1);
 		}
 
 	} else {
 		if( ch->cast_successful == MAGICCAST_FAILURE ) {
 			send_to_char("You lost your concentration.\n\r", ch);
-			check_improve(ch,sn,FALSE,1);
+			check_improve(ch,skill,FALSE,1);
 			deduct_mana(ch,mana / 2);
 			return;
 		}
@@ -944,7 +1003,7 @@ void cast_end(CHAR_DATA *ch)
 			if( !IS_NULLSTR(ch->casting_failure_message) )
 				send_to_char(ch->casting_failure_message, ch);
 
-			check_improve(ch,sn,FALSE,1);
+			check_improve(ch,skill,FALSE,1);
 			deduct_mana(ch,mana / 2);
 			return;
 		}
@@ -959,8 +1018,8 @@ void cast_end(CHAR_DATA *ch)
 		// If the victim is valid and using a built-in spell, check for spell cast script
 		if( (victim != NULL) )
 		{
-			victim->tempstore[0] = sn;	// JUST the script is used by multiple spells or is a wildcard
-			if(p_number_trigger(sn, 0, victim, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_SPELLCAST, NULL,0,0,0,0,0))
+			victim->tempstore[0] = skill->uid;	// JUST the script is used by multiple spells or is a wildcard
+			if(p_number_trigger(skill->uid, 0, victim, NULL, NULL, NULL, ch, victim, NULL, NULL, NULL, TRIG_SPELLCAST, NULL,0,0,0,0,0))
 			{
 				stop_casting(ch, FALSE);
 				return;
@@ -968,14 +1027,13 @@ void cast_end(CHAR_DATA *ch)
 		}
 
 		if (target == TARGET_CHAR && victim && IS_AFFECTED2(victim, AFF2_SPELL_DEFLECTION)) {
-			if (check_spell_deflection(ch, victim, sn))
-				(*skill_table[sn].spell_fun) (sn, ch->tot_level, ch, vo, target, WEAR_NONE);
+			if (check_spell_deflection(ch, victim, skill))
+				(*skill->spell_fun) (skill, ch->tot_level, ch, vo, target, WEAR_NONE);
 		} else
-			(*skill_table[sn].spell_fun) (sn, ch->tot_level, ch, vo, target, WEAR_NONE);
+			(*skill->spell_fun) (skill, ch->tot_level, ch, vo, target, WEAR_NONE);
 
 
-		check_improve(ch,sn,!ch->casting_recovered,1);
-
+		check_improve(ch,skill,!ch->casting_recovered,1);
 	}
 
 	if ((type == TAR_CHAR_OFFENSIVE || (type == TAR_OBJ_CHAR_OFF && target == TARGET_CHAR)) &&
@@ -986,7 +1044,7 @@ void cast_end(CHAR_DATA *ch)
 		for (vch = ch->in_room->people; vch; vch = vch_next) {
 			vch_next = vch->next_in_room;
 			if (victim == vch && !victim->fighting) {
-				multi_hit(victim, ch, TYPE_UNDEFINED);
+				multi_hit(victim, ch, NULL, TYPE_UNDEFINED);
 				break;
 			}
 		}
@@ -1004,25 +1062,25 @@ void cast_end(CHAR_DATA *ch)
  * Lets a character cast spells at targets using a magical object: scroll, wand, etc.
  * Effect only, no spell delay.
  */
-void obj_cast_spell(int sn, int level, CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *obj)
+void obj_cast_spell(SKILL_DATA *skill, int level, CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *obj)
 {
     void *vo;
     int target = TARGET_NONE;
     int wear_loc = obj ? obj->wear_loc : WEAR_NONE;
 
-    if (sn <= 0)
-	return;
+    if (!IS_VALID(skill))
+		return;
 
-    if (sn >= MAX_SKILL || skill_table[sn].spell_fun == 0)
+	if (!skill->spell_fun || skill->spell_fun == spell_null)
     {
-	bug("Obj_cast_spell: bad sn %d.", sn);
-	return;
+		bug("Obj_cast_spell: bad skill uid = %d.", skill->uid);
+		return;
     }
 
-    switch (skill_table[sn].target)
+    switch (skill->target)
     {
         default:
-	    bug("Obj_cast_spell: bad target for sn %d.", sn);
+	    bug("Obj_cast_spell: bad target for skill uid = %d.", skill->uid);
 	    return;
 
 	case TAR_IGNORE:
@@ -1072,12 +1130,12 @@ void obj_cast_spell(int sn, int level, CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DAT
 	    if (victim == NULL && obj == NULL)
 	    {
 	        if (ch->fighting != NULL)
-	   	    victim = ch->fighting;
+	   	    	victim = ch->fighting;
   	        else
 	        {
-		    send_to_char("You can't do that.\n\r",ch);
-	   	    return;
-		}
+			    send_to_char("You can't do that.\n\r",ch);
+		   	    return;
+			}
 	    }
 
 	    if (victim != NULL)
@@ -1085,11 +1143,11 @@ void obj_cast_spell(int sn, int level, CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DAT
 	        if (is_safe_spell(ch,victim,FALSE) && ch != victim)
 	        {
 	            send_to_char("Something isn't right...\n\r",ch);
-		    return;
-		}
+			    return;
+			}
 
-		vo = (void *) victim;
-		target = TARGET_CHAR;
+			vo = (void *) victim;
+			target = TARGET_CHAR;
 	    }
 	    else
 	    {
@@ -1103,17 +1161,17 @@ void obj_cast_spell(int sn, int level, CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DAT
 	    if (victim == NULL && obj == NULL)
 	    {
 	        vo = (void *) ch;
-		target = TARGET_CHAR;
+			target = TARGET_CHAR;
 	    }
 	    else if (victim != NULL)
 	    {
-		vo = (void *) victim;
-		target = TARGET_CHAR;
+			vo = (void *) victim;
+			target = TARGET_CHAR;
 	    }
 	    else
 	    {
-		vo = (void *) obj;
-		target = TARGET_OBJ;
+			vo = (void *) obj;
+			target = TARGET_OBJ;
 	    }
 
 	    break;
@@ -1121,16 +1179,14 @@ void obj_cast_spell(int sn, int level, CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DAT
 
     if (target == TARGET_CHAR && victim != NULL)
     {
-	if (check_spell_deflection(ch, victim, sn))
-	    (*skill_table[sn].spell_fun) (sn, level, ch, vo, target, wear_loc);
+		if (check_spell_deflection(ch, victim, skill))
+	    	(*(skill->spell_fun)) (skill, level, ch, vo, target, wear_loc);
     }
     else
-        (*skill_table[sn].spell_fun) (sn, level, ch, vo,target, wear_loc);
+        (*(skill->spell_fun)) (skill, level, ch, vo,target, wear_loc);
 
-    if ((skill_table[sn].target == TAR_CHAR_OFFENSIVE
-        || (skill_table[sn].target == TAR_OBJ_CHAR_OFF && target == TARGET_CHAR))
-    &&  victim != ch
-    &&  victim->master != ch)
+    if ((skill->target == TAR_CHAR_OFFENSIVE || (skill->target == TAR_OBJ_CHAR_OFF && target == TARGET_CHAR)) &&
+		victim != ch && victim->master != ch)
     {
 	CHAR_DATA *vch;
 	CHAR_DATA *vch_next;
@@ -1140,14 +1196,14 @@ void obj_cast_spell(int sn, int level, CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DAT
 	    vch_next = vch->next_in_room;
 	    if (victim == vch && victim->fighting == NULL)
 	    {
-		multi_hit(victim, ch, TYPE_UNDEFINED);
+		multi_hit(victim, ch, NULL, TYPE_UNDEFINED);
 		break;
 	    }
 	}
     }
 }
 
-
+#if 0
 // Lets an object cast a spell all by itself.
 void obj_cast(int sn, int level, OBJ_DATA *obj, ROOM_INDEX_DATA *room, char *argument)
 {
@@ -1265,6 +1321,7 @@ void obj_cast(int sn, int level, OBJ_DATA *obj, ROOM_INDEX_DATA *room, char *arg
 
     extract_char(ch, TRUE);
 }
+#endif
 
 ///////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////
@@ -1515,7 +1572,7 @@ void do_reverie(CHAR_DATA *ch, char *argument)
     if (is_dead(ch))
 	return;
 
-    if (get_skill(ch,gsn_reverie) == 0)
+    if (get_skill(ch, gsk_reverie) == 0)
     {
 	send_to_char("You do not have this skill.\n\r",ch);
 	return;
@@ -1586,7 +1643,7 @@ void do_reverie(CHAR_DATA *ch, char *argument)
     }
 
     time = 4;
-    time += (amount/120) * UMIN((100/get_skill(ch,gsn_reverie)),50);
+    time += (amount/120) * UMIN((100/get_skill(ch, gsk_reverie)),50);
     //sprintf(buf, "%d", time); gecho(buf);
     REVERIE_STATE(ch,time);
 }
@@ -1625,7 +1682,15 @@ void reverie_end(CHAR_DATA *ch, int amount)
     if (ch->fighting != NULL)
 	SET_BIT(ch->has_done, DONE_REVERIE);
 
-    check_improve(ch, gsn_reverie, TRUE, 1);
+    check_improve(ch, gsk_reverie, TRUE, 1);
+}
+
+void obj_apply_spell(CHAR_DATA *ch, OBJ_DATA *obj, CHAR_DATA *victim, OBJ_DATA *thing, SPELL_DATA *spell, int trigger)
+{
+	if (spell->skill->token)
+		p_token_index_percent_trigger(spell->skill->token, ch, victim, NULL, obj, thing, trigger, NULL, spell->level, 0, 0, 0, 0,0,0,0,0,0);
+	else if (IS_VALID(spell->skill))
+		obj_cast_spell(spell->skill, spell->level, ch, victim, thing);
 }
 
 void obj_apply_spells(CHAR_DATA *ch, OBJ_DATA *obj, CHAR_DATA *victim, OBJ_DATA *thing, SPELL_DATA *spells, int trigger)
@@ -1634,10 +1699,6 @@ void obj_apply_spells(CHAR_DATA *ch, OBJ_DATA *obj, CHAR_DATA *victim, OBJ_DATA 
 
 	for(spell = spells; spell; spell = spell->next)
 	{
-		if (spell->token)
-			p_token_index_percent_trigger(spell->token, ch, victim, NULL, obj, thing, trigger, NULL, spell->level, 0, 0, 0, 0,0,0,0,0,0);
-		else if (spell->sn > 0)
-			obj_cast_spell(spell->sn, spell->level, ch, victim, thing);
+		obj_apply_spell(ch, obj, victim, thing, spell, trigger);
 	}
 }
-

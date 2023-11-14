@@ -158,7 +158,7 @@ char *compile_expression(char *str,int type, char **store)
 				return NULL;
 			}
 			*p++ = ESCAPE_VARIABLE;
-			while(isalpha(*str)) *p++ = *str++;
+			while(isalpha(*str) || isdigit(*str)) *p++ = *str++;
 			*p++ = ESCAPE_END;
 			++opnds;
 			expect = TRUE;
@@ -393,6 +393,11 @@ int compile_entity_listbasetype(int ent)
 
 	case ENT_ILLIST_VARIABLE:	ent = ENT_VARIABLE; break;
 
+	case ENT_SKILL_VALUES:		ent = ENT_NUMBER; break;
+	case ENT_SKILL_VALUENAMES:	ent = ENT_STRING; break;
+
+	case ENT_CATALYST_USAGE:	ent = ENT_NUMBER; break;
+
 	default:	ent = ENT_UNKNOWN; break;
 	}
 	return ent;
@@ -479,6 +484,48 @@ char *compile_entity(char *str,int type, char **store, int *entity_type)
 			*p++ = ENTITY_VAR_BOOLEAN;
 			next_ent = ENT_BOOLEAN;
 
+		} else if(ent == ENT_STAT) {
+			// $(STAT.#) => numerical value of the stat
+			if (!str_cmp(field, "#"))
+			{
+				*p++ = ENTITY_STAT_VALUE;
+				next_ent = ENT_NUMBER;
+			}
+			// $(STAT.*)
+			else if (!str_cmp(field, "*"))
+			{
+				*p++ = ENTITY_STAT_NAME;
+				next_ent = ENT_STRING;
+			}
+			else
+			{
+				if(suffix[0]) {
+					sprintf(buf,"Line %d: type suffix is only allowed for variable fields.", compile_current_line);
+					compile_error_show(buf);
+					return NULL;
+				}
+				if(!compile_variable(field,&p,type,FALSE,TRUE))
+					return NULL;
+				*p++ = ENTITY_VAR_BOOLEAN;
+				next_ent = ENT_BOOLEAN;
+			}
+
+		} else if(ent == ENT_CATALYST_USAGE) {
+			if(suffix[0]) {
+				sprintf(buf,"Line %d: type suffix is only allowed for variable fields.", compile_current_line);
+				compile_error_show(buf);
+				return NULL;
+			}
+			int catalyst = stat_lookup(field, catalyst_types, CATALYST_MAX);
+			if (catalyst <= CATALYST_NONE || catalyst >= CATALYST_MAX)
+			{
+				sprintf(buf,"Line %d: invalid catalyst value in CATALYST USAGE.", compile_current_line);
+				compile_error_show(buf);
+				return NULL;
+			}
+
+			*p++ = ESCAPE_EXTRA + catalyst - CATALYST_NONE;
+			next_ent = ENT_NUMBER;
 		} else if(ent == ENT_RESERVED_MOBILE) {
 			if(suffix[0]) {
 				sprintf(buf,"Line %d: type suffix is only allowed for variable fields.", compile_current_line);

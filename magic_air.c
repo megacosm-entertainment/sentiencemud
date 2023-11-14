@@ -37,12 +37,12 @@ SPELL_FUNC(spell_faerie_fog)
 			continue;
 
 		// Umm, O.o  Wouldn't this expose something that's hidden?
-		if (!check_spell_deflection(ch, ich, sn))
+		if (!check_spell_deflection(ch, ich, skill))
 			continue;
 
-		affect_strip(ich, gsn_invis);
-		affect_strip(ich, gsn_mass_invis);
-		affect_strip(ich, gsn_sneak);
+		affect_strip(ich, gsk_invis);
+		affect_strip(ich, gsk_mass_invis);
+		affect_strip(ich, gsk_sneak);
 
 		REMOVE_BIT(ich->affected_by[0], AFF_HIDE);
 		REMOVE_BIT(ich->affected_by[0], AFF_INVISIBLE);
@@ -66,8 +66,8 @@ SPELL_FUNC(spell_fly)
 		perm = TRUE;
 	}
 
-	if (perm && is_affected(victim, sn)) {
-		affect_strip(victim, sn);
+	if (perm && is_affected(victim, skill)) {
+		affect_strip(victim, skill);
 	} else if (IS_AFFECTED(victim, AFF_FLYING)) {
 		if (victim == ch)
 			send_to_char("You are already airborne.\n\r",ch);
@@ -78,7 +78,7 @@ SPELL_FUNC(spell_fly)
 
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration = perm ? -1 : (level + 3);
 	af.location = 0;
@@ -110,9 +110,9 @@ SPELL_FUNC(spell_underwater_breathing)
 		perm = TRUE;
 	}
 
-	if (perm && is_affected(victim, sn))
-		affect_strip(victim, sn);
-	else if (is_affected(victim, sn)) {
+	if (perm && is_affected(victim, skill))
+		affect_strip(victim, skill);
+	else if (is_affected(victim, skill)) {
 		if (victim == ch)
 			send_to_char("You can already breath underwater.\n\r",ch);
 		else
@@ -122,7 +122,7 @@ SPELL_FUNC(spell_underwater_breathing)
 
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration = perm ? -1 : 35;
 	af.modifier = 0;
@@ -145,7 +145,7 @@ SPELL_FUNC(spell_wind_of_confusion)
 
 	for (vch = ch->in_room->people; vch; vch = vch->next_in_room) {
 		if (!is_same_group(ch, vch) && ch->fighting && is_same_group(ch->fighting, vch)) {
-			if (!check_spell_deflection(ch, vch, sn))
+			if (!check_spell_deflection(ch, vch, skill))
 				continue;
 
 			if (saves_spell(level, vch, DAM_NONE)) {

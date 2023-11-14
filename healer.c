@@ -44,7 +44,8 @@ void do_heal(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *mob;
     char arg[MAX_INPUT_LENGTH];
-    int cost,sn;
+    int cost;
+    SKILL_DATA *skill = NULL;
     SPELL_FUN *spell;
     char *words;
 
@@ -85,15 +86,15 @@ void do_heal(CHAR_DATA *ch, char *argument)
     if (!str_prefix(arg,"light"))
     {
         spell = spell_cure_light;
-	sn    = gsn_cure_light;
-	words = "judicandus dies";
-	cost  = 10;
+        skill = gsk_cure_light;
+        words = "judicandus dies";
+        cost  = 10;
     }
 
     else if (!str_prefix(arg,"serious"))
     {
 	spell = spell_cure_serious;
-	sn    = gsn_cure_serious;
+	skill = gsk_cure_serious;
 	words = "judicandus gzfuajg";
 	cost  = 15;
     }
@@ -101,7 +102,7 @@ void do_heal(CHAR_DATA *ch, char *argument)
     else if (!str_prefix(arg,"critical"))
     {
 	spell = spell_cure_critical;
-	sn    = gsn_cure_critical;
+	skill = gsk_cure_critical;
 	words = "judicandus qfuhuqar";
 	cost  = 25;
     }
@@ -109,7 +110,7 @@ void do_heal(CHAR_DATA *ch, char *argument)
     else if (!str_prefix(arg,"heal"))
     {
 	spell = spell_heal;
-	sn = gsn_heal;
+	skill = gsk_heal;
 	words = "pzar";
 	cost  = 50;
     }
@@ -117,7 +118,7 @@ void do_heal(CHAR_DATA *ch, char *argument)
     else if (!str_prefix(arg,"blindness"))
     {
 	spell = spell_cure_blindness;
-	sn    = gsn_cure_blindness;
+	skill = gsk_cure_blindness;
       	words = "judicandus noselacri";
         cost  = 20;
     }
@@ -125,7 +126,7 @@ void do_heal(CHAR_DATA *ch, char *argument)
     else if (!str_prefix(arg,"disease"))
     {
 	spell = spell_cure_disease;
-	sn    = gsn_cure_disease;
+	skill = gsk_cure_disease;
 	words = "judicandus eugzagz";
 	cost = 15;
     }
@@ -133,7 +134,7 @@ void do_heal(CHAR_DATA *ch, char *argument)
     else if (!str_prefix(arg,"poison"))
     {
 	spell = spell_cure_poison;
-	sn    = gsn_cure_poison;
+	skill = gsk_cure_poison;
 	words = "judicandus sausabru";
 	cost  = 25;
     }
@@ -141,7 +142,7 @@ void do_heal(CHAR_DATA *ch, char *argument)
     else if (!str_prefix(arg,"toxic"))
     {
 	spell = spell_cure_toxic;
-	sn    = gsn_cure_toxic;
+	skill = gsk_cure_toxic;
 	words = "judicandus sithlus";
 	cost  = 25;
     }
@@ -149,7 +150,7 @@ void do_heal(CHAR_DATA *ch, char *argument)
     else if (!str_prefix(arg,"uncurse") || !str_prefix(arg,"curse"))
     {
 	spell = spell_remove_curse;
-	sn    = gsn_remove_curse;
+	skill = gsk_remove_curse;
 	words = "candussido judifgz";
 	cost  = 50;
     }
@@ -157,7 +158,7 @@ void do_heal(CHAR_DATA *ch, char *argument)
     else if (!str_prefix(arg,"mana") || !str_prefix(arg,"energize"))
     {
         spell = NULL;
-        sn = -1;
+        skill = NULL;
         words = "energizer";
         cost = 10;
     }
@@ -166,7 +167,7 @@ void do_heal(CHAR_DATA *ch, char *argument)
     else if (!str_prefix(arg,"refresh") || !str_prefix(arg,"moves"))
     {
 	spell =  spell_refresh;
-	sn    = gsn_refresh;
+	skill = gsk_refresh;
 	words = "candusima";
 	cost  = 5;
     }
@@ -198,8 +199,6 @@ void do_heal(CHAR_DATA *ch, char *argument)
 	return;
      }
 
-     if (sn == -1)
-	return;
-
-     spell(sn,mob->level,mob,ch,TARGET_CHAR, WEAR_NONE);
+    if (IS_VALID(skill))
+        spell(skill,mob->level,mob,ch,TARGET_CHAR, WEAR_NONE);
 }

@@ -426,7 +426,7 @@ int ifcheck_lookup(char *name, int type)
 	return -1;
 }
 
-char *ifcheck_get_value(SCRIPT_VARINFO *info,IFCHECK_DATA *ifc,char *text,int *ret,bool *valid)
+char *ifcheck_get_value(SCRIPT_VARINFO *info,IFCHECK_DATA *ifc,char *text,long *ret,bool *valid)
 {
 	int i;
 	SCRIPT_PARAM *argv[IFC_MAXPARAMS];
@@ -481,10 +481,12 @@ char *ifcheck_get_value(SCRIPT_VARINFO *info,IFCHECK_DATA *ifc,char *text,int *r
 
 int ifcheck_comparison(SCRIPT_VARINFO *info, short param, char *rest, SCRIPT_PARAM *arg)
 {
-	int lhs, oper, rhs;
+	long lhs, oper, rhs;
 	char *text, *p, buf[MIL], buf2[MSL];
 	bool valid;
 	IFCHECK_DATA *ifc;
+	const struct flag_type *stat_table = NULL;
+	long def_value = NO_FLAG;
 
 	if(!info) return -1;	// Error
 
@@ -498,10 +500,19 @@ int ifcheck_comparison(SCRIPT_VARINFO *info, short param, char *rest, SCRIPT_PAR
 		if( arg->type == ENT_BOOLEAN )
 			return arg->d.boolean ? 1 : 0;
 
-		if( arg->type != ENT_NUMBER )
-			return -1;
+		if (arg->type == ENT_STAT)
+		{
+			lhs = arg->d.stat.value;
+			stat_table = arg->d.stat.table;
+			def_value = arg->d.stat.def_value;
+		}
+		else
+		{
+			if( arg->type != ENT_NUMBER )
+				return -1;
 
-		lhs = arg->d.num;
+			lhs = arg->d.num;
+		}
 
 	} else {
 		ifc = &ifcheck_table[param];
@@ -531,6 +542,11 @@ int ifcheck_comparison(SCRIPT_VARINFO *info, short param, char *rest, SCRIPT_PAR
 	switch(arg->type) {
 	case ENT_NUMBER: rhs = arg->d.num; break;
 	case ENT_STRING:
+		if(stat_table)
+		{
+			rhs = script_stat_lookup(arg->d.str,stat_table,def_value);
+			break;
+		}
 		if(is_number(arg->d.str)) {
 			rhs = atoi(arg->d.str);
 			break;
@@ -1082,6 +1098,7 @@ DECL_OPC_FUN(opc_list)
 	BOOK_PAGE *book_page;
 	FOOD_BUFF_DATA *food_buff;
 	FURNITURE_COMPARTMENT *compartment;
+	SPELL_DATA *spell;
 
 	if(block->cur_line->level > 0 && !block->cond[block->cur_line->level-1])
 		return opc_skip_block(block,block->cur_line->level-1,FALSE);
@@ -1540,10 +1557,10 @@ DECL_OPC_FUN(opc_list)
 				}
 
 				// Set the variable
-				if( IS_VALID(lsk->mob) && (IS_VALID(lsk->tok) || ( lsk->sn > 0 && lsk->sn < MAX_SKILL )) )
-					variables_setsave_skillinfo(block->info.var,block->loops[lp].var_name, lsk->mob, lsk->sn, lsk->tok, FALSE);
+				if( IS_VALID(lsk->mob) && IS_VALID(lsk->skill) )
+					variables_setsave_skillinfo(block->info.var,block->loops[lp].var_name, lsk->mob, lsk->skill, lsk->tok, FALSE);
 
-			} while( !IS_VALID(lsk->mob) || (!IS_VALID(lsk->tok) && ( lsk->sn < 1 || lsk->sn >= MAX_SKILL )) );
+			} while( !IS_VALID(lsk->mob) || !IS_VALID(lsk->skill) );
 
 			/*
 			if(lsk->tok)
@@ -2186,6 +2203,57 @@ DECL_OPC_FUN(opc_list)
 			variables_set_ship(block->info.var,block->loops[lp].var_name,ship);
 			break;
 
+
+		case ENT_ILLIST_SPELLS:
+			if(!IS_VALID(arg->d.blist))
+			{
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			block->loops[lp].d.l.type = ENT_ILLIST_SPELLS;
+			block->loops[lp].d.l.list.lp = arg->d.blist;
+			iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
+			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+			spell = (SPELL_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+			if( !spell ) {
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			// Set the variable
+			variables_set_spell(block->info.var,block->loops[lp].var_name,spell);
+			break;
+
+		case ENT_ILLIST_SPECIALKEYS:
+			if(!IS_VALID(arg->d.blist))
+			{
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			block->loops[lp].d.l.type = ENT_ILLIST_SPECIALKEYS;
+			block->loops[lp].d.l.list.lp = arg->d.blist;
+			iterator_start(&block->loops[lp].d.l.list.it,block->loops[lp].d.l.list.lp);
+			block->loops[lp].d.l.owner = NULL;
+			block->loops[lp].d.l.owner_type = ENT_UNKNOWN;
+
+			obj = (OBJ_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+
+			if( !obj ) {
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				free_script_param(arg);
+				return opc_skip_to_label(block,OP_ENDLIST,block->cur_line->label,TRUE);
+			}
+
+			// Set the variable
+			variables_set_object(block->info.var,block->loops[lp].var_name,obj);
+			break;
+
 		default:
 			//log_stringf("opc_list: list_type INVALID");
 			block->ret_val = PRET_BADSYNTAX;
@@ -2531,7 +2599,7 @@ DECL_OPC_FUN(opc_list)
 		case ENT_BLLIST_SKILL:
 			//log_stringf("opc_list: list type ENT_BLLIST_SKILL");
 			while( (lsk = (LLIST_SKILL_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it)) &&
-				(!IS_VALID(lsk->mob) || (!IS_VALID(lsk->tok) && ( lsk->sn < 1 || lsk->sn >= MAX_SKILL ))) );
+				(!IS_VALID(lsk->mob) || !IS_VALID(lsk->skill)) );
 			/*
 			if(lsk) {
 				if(lsk->tok)
@@ -2543,13 +2611,13 @@ DECL_OPC_FUN(opc_list)
 				*/
 
 			if( !lsk ) {
-				variables_setsave_skillinfo(block->info.var,block->loops[lp].var_name, NULL, 0, NULL, FALSE);
+				variables_setsave_skillinfo(block->info.var,block->loops[lp].var_name, NULL, NULL, NULL, FALSE);
 				iterator_stop(&block->loops[lp].d.l.list.it);
 				skip = TRUE;
 				break;
 			}
 
-			variables_setsave_skillinfo(block->info.var,block->loops[lp].var_name, lsk->mob, lsk->sn, lsk->tok, FALSE);
+			variables_setsave_skillinfo(block->info.var,block->loops[lp].var_name, lsk->mob, lsk->skill, lsk->tok, FALSE);
 			break;
 
 		case ENT_BLLIST_AREA:
@@ -2870,6 +2938,37 @@ DECL_OPC_FUN(opc_list)
 
 			break;
 
+		case ENT_ILLIST_SPELLS:
+			//log_stringf("opc_list: list type ENT_ILLIST_VARIABLE");
+			spell = (SPELL_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+			//log_stringf("opc_list: variable(%s)", variable ? variable->name : "<END>");
+
+			// Set the variable
+			variables_set_spell(block->info.var,block->loops[lp].var_name,spell);
+
+			if( !spell ) {
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				skip = TRUE;
+				break;
+			}
+
+			break;
+
+		case ENT_ILLIST_SPECIALKEYS:
+			//log_stringf("opc_list: list type ENT_ILLIST_VARIABLE");
+			obj = (OBJ_DATA *)iterator_nextdata(&block->loops[lp].d.l.list.it);
+			//log_stringf("opc_list: variable(%s)", variable ? variable->name : "<END>");
+
+			// Set the variable
+			variables_set_object(block->info.var,block->loops[lp].var_name,obj);
+
+			if( !obj ) {
+				iterator_stop(&block->loops[lp].d.l.list.it);
+				skip = TRUE;
+				break;
+			}
+
+			break;
 		}
 
 		if(skip) {
@@ -4187,11 +4286,11 @@ void do_mob_transfer(CHAR_DATA *ch,ROOM_INDEX_DATA *room,bool quiet, int mode)
 		if (!IS_DEAD(ch)) check_room_flames(ch, show);
 		//if (!IS_DEAD(ch)) check_ambush(ch);
 
-		if (MOUNTED(ch) && number_percent() == 1 && get_skill(ch, gsn_riding) > 0)
-			check_improve_show(ch, gsn_riding, TRUE, 8, show);
+		if (MOUNTED(ch) && number_percent() == 1 && get_skill(ch, gsk_riding) > 0)
+			check_improve_show(ch, gsk_riding, TRUE, 8, show);
 
-		if (!MOUNTED(ch) && get_skill(ch, gsn_trackless_step) > 0 && number_percent() == 1)
-			check_improve_show(ch, gsn_trackless_step, TRUE, 8, show);
+		if (!MOUNTED(ch) && get_skill(ch, gsk_trackless_step) > 0 && number_percent() == 1)
+			check_improve_show(ch, gsk_trackless_step, TRUE, 8, show);
 
 		/* Druids regenerate in nature */
 		if (get_profession(ch, SUBCLASS_CLERIC) == CLASS_CLERIC_DRUID && is_in_nature(ch)) {
@@ -4437,8 +4536,9 @@ char *trigger_phrase(int type, char *phrase)
 	int sn;
 	if(type == TRIG_SPELLCAST) {
 		sn = atoi(phrase);
-		if(sn < 0) return "reserved";
-		return skill_table[sn].name;
+		SKILL_DATA *skill = get_skill_data_uid(sn);
+		if(!IS_VALID(skill)) return "??";
+		return skill->name;
 	}
 
 	return phrase;
@@ -4449,8 +4549,9 @@ char *trigger_phrase_olcshow(int type, char *phrase, bool is_rprog, bool is_tpro
 	int sn;
 	if(type == TRIG_SPELLCAST) {
 		sn = atoi(phrase);
-		if(sn < 0) return "reserved";
-		return skill_table[sn].name;
+		SKILL_DATA *skill = get_skill_data_uid(sn);
+		if(!IS_VALID(skill)) return "??";
+		return skill->name;
 	}
 
 	if(	type == TRIG_EXIT ||
@@ -6668,6 +6769,7 @@ char *get_script_prompt_string(CHAR_DATA *ch, char *key)
 }
 
 
+#if 0
 // Returns TRUE if the spell got through.
 // Used for token scripts
 bool script_spell_deflection(CHAR_DATA *ch, CHAR_DATA *victim, TOKEN_DATA *token, SCRIPT_DATA *script, int mana)
@@ -6686,7 +6788,7 @@ bool script_spell_deflection(CHAR_DATA *ch, CHAR_DATA *victim, TOKEN_DATA *token
 
 	// Find spell deflection
 	for (af = victim->affected; af; af = af->next) {
-		if (af->type == gsn_spell_deflection)
+		if (af->skill == gsk_spell_deflection)
 		break;
 	}
 
@@ -6747,8 +6849,9 @@ bool script_spell_deflection(CHAR_DATA *ch, CHAR_DATA *victim, TOKEN_DATA *token
 
 	return FALSE;
 }
+#endif
 
-
+#if 0
 void token_skill_improve( CHAR_DATA *ch, TOKEN_DATA *token, bool success, int multiplier )
 {
 	int chance, per;
@@ -6803,6 +6906,7 @@ void token_skill_improve( CHAR_DATA *ch, TOKEN_DATA *token, bool success, int mu
 		}
 	}
 }
+#endif
 
 SCRIPT_VARINFO *script_get_prior(SCRIPT_VARINFO *info)
 {
@@ -7944,12 +8048,12 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 	} else if(!str_cmp(buf,"skill")) {
 		switch(arg->type) {
 		case ENT_STRING:
-			variables_set_skill(vars,name,skill_lookup(arg->d.str));
+			variables_set_skill(vars,name,get_skill_data(arg->d.str));
 			break;
 		default: return;
 		}
 
-	// Format: SKILLINFO <MOBILE> <NAME or TOKEN>
+	// Format: SKILLINFO <MOBILE> <NAME>
 	} else if(!str_cmp(buf,"skillinfo")) {
 		switch(arg->type) {
 		case ENT_MOBILE:
@@ -7958,9 +8062,15 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 				return;
 
 			if( arg->type == ENT_STRING )
-				variables_set_skillinfo(vars,name,vch,skill_lookup(arg->d.str), NULL);
-			else if( arg->type == ENT_TOKEN )
-				variables_set_skillinfo(vars,name,vch, 0, arg->d.token);
+			{
+				SKILL_DATA *skill = get_skill_data(arg->d.str);
+				if (!IS_VALID(skill)) return;
+
+				SKILL_ENTRY *entry = skill_entry_findskill(vch->sorted_skills, skill);
+				if (!entry) return;
+
+				variables_set_skillinfo(vars,name,vch,skill, entry->token);
+			}
 			break;
 		default: return;
 		}
@@ -8540,6 +8650,20 @@ int script_flag_lookup (const char *name, const struct flag_type *flag_table)
     }
 
     return 0;
+}
+
+long script_stat_lookup (const char *name, const struct flag_type *flag_table, const long def_value)
+{
+    int flag;
+
+    for (flag = 0; flag_table[flag].name != NULL; flag++)
+    {
+	if (LOWER(name[0]) == LOWER(flag_table[flag].name[0]) &&
+		!str_prefix(name,flag_table[flag].name))
+	    return flag_table[flag].bit;
+    }
+
+    return def_value;
 }
 
 bool script_bitmatrix_lookup(char *argument, const struct flag_type **bank, long *flags)
@@ -9658,4 +9782,26 @@ void scriptcmd_bug(SCRIPT_VARINFO *info, char *message)
 		info->block->line,
 		message);
 	bug(buf, 0);
+}
+
+
+PROG_LIST *find_trigger_data(LLIST **progs, int trigger_type, int count)
+{
+	if (!progs) return NULL;
+
+	struct trigger_type *tt = get_trigger_type_bytype(trigger_type);
+
+	if (!tt) return NULL;
+
+	PROG_LIST *pr;
+	ITERATOR it;
+	iterator_start(&it, progs[tt->slot]);
+	while((pr = (PROG_LIST *)iterator_nextdata(&it)))
+	{
+		if (pr->trig_type == trigger_type && --count < 1)
+			break;
+	}
+	iterator_stop(&it);
+
+	return pr;
 }

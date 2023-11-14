@@ -212,3 +212,31 @@ DECLARE_SPELL_FUN(	spell_soul_essence	);
 
 
 
+
+
+// PRESPELL functions
+DECLARE_PRESPELL_FUN ( prespell_silence );
+
+
+
+// Artificing Functions:
+
+// PREBREW
+DECLARE_PREBREW_FUN ( prebrew_silence );
+
+// BREW
+DECLARE_BREW_FUN ( brew_silence );
+
+// QUAFF
+DECLARE_QUAFF_FUN ( quaff_silence );
+
+// PRESCRIBE
+DECLARE_PRESCRIBE_FUN ( prescribe_silence );
+
+// SCRIBE
+DECLARE_SCRIBE_FUN ( scribe_silence );
+
+// RECITE
+DECLARE_RECITE_FUN ( recite_silence );
+DECLARE_RECITE_FUN ( recite_word_of_recall );
+

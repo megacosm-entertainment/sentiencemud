@@ -907,6 +907,37 @@ void save_object_multityping(FILE *fp, OBJ_INDEX_DATA *obj)
 		fprintf(fp, "#-TYPECONTAINER\n");
 	}
 
+	if (IS_FLUID_CON(obj))
+	{
+		fprintf(fp, "#TYPEFLUIDCONTAINER\n");
+		fprintf(fp, "Name %s~\n", fix_string(FLUID_CON(obj)->name));
+		fprintf(fp, "Short %s~\n", fix_string(FLUID_CON(obj)->short_descr));
+		fprintf(fp, "Flags %s\n", print_flags(FLUID_CON(obj)->flags));
+
+		if (IS_VALID(FLUID_CON(obj)->liquid))
+			fprintf(fp, "Liquid %s~\n", FLUID_CON(obj)->liquid->name);
+		
+		fprintf(fp, "Amount %d\n", FLUID_CON(obj)->amount);
+		fprintf(fp, "Capacity %d\n", FLUID_CON(obj)->capacity);
+		fprintf(fp, "RefillRate %d\n", FLUID_CON(obj)->refill_rate);
+		fprintf(fp, "Poison %d\n", FLUID_CON(obj)->poison);
+		fprintf(fp, "PoisonRate %d\n", FLUID_CON(obj)->poison_rate);
+
+		if (FLUID_CON(obj)->lock)
+			save_object_lockstate(fp, FLUID_CON(obj)->lock);
+
+		ITERATOR sit;
+		SPELL_DATA *spell;
+		iterator_start(&sit, FLUID_CON(obj)->spells);
+		while((spell = (SPELL_DATA *)iterator_nextdata(&sit)))
+		{
+			fprintf(fp, "Spell %s~ %d\n", spell->skill->name, spell->level);
+		}
+		iterator_stop(&sit);
+
+		fprintf(fp, "#-TYPEFLUIDCONTAINER\n");
+	}
+
 	if (IS_FOOD(obj))
 	{
 		FOOD_BUFF_DATA *buff;
@@ -1080,7 +1111,9 @@ void save_object_new(FILE *fp, OBJ_INDEX_DATA *obj)
 		fprintf(fp, "Modifier %d\n", af->modifier);
 
 		fprintf(fp, "Level %d\n", af->level);
-		fprintf(fp, "Type %d\n", af->type);
+		fprintf(fp, "Type %d\n", af->catalyst_type);
+		if (IS_VALID(af->skill))
+			fprintf(fp, "Skill %s~\n", af->skill->name);
 		fprintf(fp, "Duration %d\n", af->duration);
 
 		if (af->bitvector != 0)		fprintf(fp, "BitVector %ld\n", af->bitvector);
@@ -1092,7 +1125,7 @@ void save_object_new(FILE *fp, OBJ_INDEX_DATA *obj)
 
 	// Catalysts
 	for (af = obj->catalyst; af != NULL; af = af->next) {
-		fprintf(fp, "#CATALYST %s\n", flag_string(catalyst_types,af->type));
+		fprintf(fp, "#CATALYST %s\n", flag_string(catalyst_types,af->catalyst_type));
 
 		if( af->where == TO_CATALYST_ACTIVE )
 			fprintf(fp, "Active 1\n");
@@ -1101,8 +1134,6 @@ void save_object_new(FILE *fp, OBJ_INDEX_DATA *obj)
 			fprintf(fp, "Name %s\n", af->custom_name);
 
 		fprintf(fp, "Charges %d\n", af->modifier);
-
-		fprintf(fp, "Strength %d\n", af->level);
 
 		fprintf(fp, "Random %d\n", af->random);
 		fprintf(fp, "#-CATALYST\n");
@@ -1259,10 +1290,7 @@ void save_spell(FILE *fp, SPELL_DATA *spell)
     if (spell->next != NULL)
 		save_spell(fp, spell->next);
 
-	if (spell->token)
-		fprintf(fp, "SpellToken %s %d %d\n", widevnum_string(spell->token->area, spell->token->vnum, NULL), spell->level, spell->repop);
-	else if (spell->sn > 0)
-	    fprintf(fp, "SpellNew %s~ %d %d\n", skill_table[spell->sn].name, spell->level, spell->repop);
+    fprintf(fp, "SpellNew %s~ %d %d\n", spell->skill->name, spell->level, spell->repop);
 }
 
 void save_script_new(FILE *fp, AREA_DATA *area,SCRIPT_DATA *scr,char *type)
@@ -1820,10 +1848,10 @@ AREA_DATA *read_area_new(FILE *fp)
 			    apr->trig_phrase = fread_string(fp);
 			    if( tt->type == TRIG_SPELLCAST ) {
 					char buf[MIL];
-					int tsn = skill_lookup(apr->trig_phrase);
+					SKILL_DATA *sk = get_skill_data(apr->trig_phrase);
 
-					if( tsn < 0 ) {
-						sprintf(buf, "read_area_new: invalid spell '%s' for TRIG_SPELLCAST", p);
+					if( !IS_VALID(sk) ) {
+						sprintf(buf, "read_area_new: invalid spell '%s' for TRIG_SPELLCAST", apr->trig_phrase);
 						bug(buf, 0);
 						free_trigger(apr);
 						fMatch = TRUE;
@@ -1831,9 +1859,9 @@ AREA_DATA *read_area_new(FILE *fp)
 					}
 
 					free_string(apr->trig_phrase);
-					sprintf(buf, "%d", tsn);
+					sprintf(buf, "%d", sk->uid);
 					apr->trig_phrase = str_dup(buf);
-					apr->trig_number = tsn;
+					apr->trig_number = sk->uid;
 					apr->numeric = TRUE;
 
 				} else {
@@ -2136,10 +2164,10 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 			    rpr->trig_phrase = fread_string(fp);
 			    if( tt->type == TRIG_SPELLCAST ) {
 					char buf[MIL];
-					int tsn = skill_lookup(rpr->trig_phrase);
-
-					if( tsn < 0 ) {
-						sprintf(buf, "read_room_new: invalid spell '%s' for TRIG_SPELLCAST", p);
+					SKILL_DATA *sk = get_skill_data(rpr->trig_phrase);
+					
+					if( !IS_VALID(sk) ) {
+						sprintf(buf, "read_room_new: invalid spell '%s' for TRIG_SPELLCAST", rpr->trig_phrase);
 						bug(buf, 0);
 						free_trigger(rpr);
 						fMatch = TRUE;
@@ -2147,9 +2175,9 @@ ROOM_INDEX_DATA *read_room_new(FILE *fp, AREA_DATA *area, int recordtype)
 					}
 
 					free_string(rpr->trig_phrase);
-					sprintf(buf, "%d", tsn);
+					sprintf(buf, "%d", sk->uid);
 					rpr->trig_phrase = str_dup(buf);
-					rpr->trig_number = tsn;
+					rpr->trig_number = sk->uid;
 					rpr->numeric = TRUE;
 
 				} else {
@@ -2406,10 +2434,10 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 			    mpr->trig_phrase = fread_string(fp);
 			    if( tt->type == TRIG_SPELLCAST ) {
 					char buf[MIL];
-					int tsn = skill_lookup(mpr->trig_phrase);
+					SKILL_DATA *sk = get_skill_data(mpr->trig_phrase);
 
-					if( tsn < 0 ) {
-						sprintf(buf, "read_mob_new: invalid spell '%s' for TRIG_SPELLCAST", p);
+					if( !IS_VALID(sk) ) {
+						sprintf(buf, "read_mob_new: invalid spell '%s' for TRIG_SPELLCAST", mpr->trig_phrase);
 						bug(buf, 0);
 						free_trigger(mpr);
 						fMatch = TRUE;
@@ -2417,9 +2445,9 @@ MOB_INDEX_DATA *read_mobile_new(FILE *fp, AREA_DATA *area)
 					}
 
 					free_string(mpr->trig_phrase);
-					sprintf(buf, "%d", tsn);
+					sprintf(buf, "%d", sk->uid);
 					mpr->trig_phrase = str_dup(buf);
-					mpr->trig_number = tsn;
+					mpr->trig_number = sk->uid;
 					mpr->numeric = TRUE;
 
 				} else {
@@ -2790,6 +2818,101 @@ CONTAINER_DATA *read_object_container_data(FILE *fp)
 	return data;
 }
 
+FLUID_CONTAINER_DATA *read_object_fluid_container_data(FILE *fp, AREA_DATA *area)
+{
+	FLUID_CONTAINER_DATA *data = NULL;
+	char buf[MSL];
+    char *word;
+
+	data = new_fluid_container_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPEFLUIDCONTAINER"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+			case '#':
+				if (!str_cmp(word, "#LOCK"))
+				{
+					if (data->lock) free_lock_state(data->lock);
+
+					data->lock = read_object_lockstate(fp);
+					fMatch = TRUE;
+					break;
+				}
+				break;
+
+			case 'A':
+				KEY("Amount", data->amount, fread_number(fp));
+				break;
+
+			case 'C':
+				KEY("Capacity", data->capacity, fread_number(fp));
+				break;
+
+			case 'F':
+				KEY("Flags", data->flags, fread_flag(fp));
+				break;
+
+			case 'L':
+				if (!str_cmp(word, "Liquid"))
+				{
+					data->liquid = liquid_lookup(fread_string(fp));
+					fMatch = true;
+					break;
+				}
+				break;
+
+			case 'N':
+				KEYS("Name", data->name, fread_string(fp));
+				break;
+
+			case 'P':
+				KEY("Poison", data->poison, fread_number(fp));
+				KEY("PoisonRate", data->poison_rate, fread_number(fp));
+				break;
+
+			case 'R':
+				KEY("RefillRate", data->refill_rate, fread_number(fp));
+				break;
+
+			case 'S':
+				KEYS("Short", data->short_descr, fread_string(fp));
+
+				if (!str_cmp(word, "Spell"))
+				{
+					char *name = fread_string(fp);
+					int level = fread_number(fp);
+
+					SKILL_DATA *skill = get_skill_data(name);
+					if (is_skill_spell(skill))
+					{
+						SPELL_DATA *spell = new_spell();
+						spell->skill = skill;
+						spell->level = level;
+						spell->repop = 100;
+						spell->next = NULL;
+
+						list_appendlink(data->spells, spell);
+					}
+
+					fMatch = true;
+					break;
+				}
+
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "read_object_fluid_container_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
+
 FOOD_BUFF_DATA *read_food_buff(FILE *fp)
 {
 	FOOD_BUFF_DATA *data = NULL;
@@ -3121,48 +3244,19 @@ PORTAL_DATA *read_object_portal_data(FILE *fp)
 
 				if (!str_cmp(word, "SpellNew"))
 				{
-					int sn;
+					char *name = fread_string(fp);
+					int level = fread_number(fp);
+					int repop = fread_number(fp);
+
+					SKILL_DATA *skill = get_skill_data(name);
 
 					fMatch = TRUE;
-					if ((sn = skill_lookup(fread_string(fp))) > -1)
+					if (is_skill_spell(skill))
 					{
 						SPELL_DATA *spell = new_spell();
-						spell->sn = sn;
-						spell->token = NULL;
-						spell->level = fread_number(fp);
-						spell->repop = fread_number(fp);
-
-						// Syn - clean up bad spells on objs.
-						if (!str_cmp(skill_table[sn].name, "reserved") ||
-							!str_cmp(skill_table[sn].name, "none"))
-						{
-							// Complain
-							free_spell(spell);
-						}
-						else
-						{
-							spell->next = data->spells;
-							data->spells = spell;
-						}
-					}
-					else
-					{
-						// Complain
-					}
-				}
-
-				if (!str_cmp(word, "SpellToken"))
-				{
-					WNUM_LOAD wnum = fread_widevnum(fp, 0);
-
-					fMatch = TRUE;
-					if (wnum.auid > 0 && wnum.vnum > 0)
-					{
-						SPELL_DATA *spell = new_spell();
-						spell->sn = 0;
-						spell->token_load = wnum;
-						spell->level = fread_number(fp);
-						spell->repop = fread_number(fp);
+						spell->skill = skill;
+						spell->level = level;
+						spell->repop = repop;
 
 						spell->next = data->spells;
 						data->spells = spell;
@@ -3172,7 +3266,6 @@ PORTAL_DATA *read_object_portal_data(FILE *fp)
 						// Complain
 					}
 				}
-
 				break;
 
 			case 'T':
@@ -3241,6 +3334,10 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 			} else if (!str_cmp(word, "#TYPECONTAINER")) {
 				if (IS_CONTAINER(obj)) free_container_data(CONTAINER(obj));
 				CONTAINER(obj) = read_object_container_data(fp);
+				fMatch = TRUE;
+			} else if (!str_cmp(word, "#TYPEFLUIDCONTAINER")) {
+				if (IS_FLUID_CON(obj)) free_fluid_container_data(FLUID_CON(obj));
+				FLUID_CON(obj) = read_object_fluid_container_data(fp, area);
 				fMatch = TRUE;
 			} else if (!str_cmp(word, "#TYPEFOOD")) {
 				if (IS_FOOD(obj)) free_food_data(FOOD(obj));
@@ -3373,10 +3470,10 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 					opr->trig_phrase = fread_string(fp);
 					if( tt->type == TRIG_SPELLCAST ) {
 						char buf[MIL];
-						int tsn = skill_lookup(opr->trig_phrase);
+						SKILL_DATA *sk = get_skill_data(opr->trig_phrase);
 
-						if( tsn < 0 ) {
-							sprintf(buf, "read_obj_new: invalid spell '%s' for TRIG_SPELLCAST", p);
+						if( !IS_VALID(sk) ) {
+							sprintf(buf, "read_obj_new: invalid spell '%s' for TRIG_SPELLCAST", opr->trig_phrase);
 							bug(buf, 0);
 							free_trigger(opr);
 							fMatch = TRUE;
@@ -3384,9 +3481,9 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 						}
 
 						free_string(opr->trig_phrase);
-						sprintf(buf, "%d", tsn);
+						sprintf(buf, "%d", sk->uid);
 						opr->trig_phrase = str_dup(buf);
-						opr->trig_number = tsn;
+						opr->trig_number = sk->uid;
 						opr->numeric = TRUE;
 					} else {
 						opr->trig_number = atoi(opr->trig_phrase);
@@ -3422,49 +3519,14 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 
 			if (!str_cmp(word, "SpellNew"))
 			{
-				int sn;
+				SKILL_DATA *skill;
 
 				fMatch = TRUE;
-				if ((sn = skill_lookup(fread_string(fp))) > -1)
+				skill = get_skill_data(fread_string(fp));
+				if (IS_VALID(skill))
 				{
 					spell = new_spell();
-					spell->sn = sn;
-					spell->token = NULL;
-					spell->level = fread_number(fp);
-					spell->repop = fread_number(fp);
-
-					// Syn - clean up bad spells on objs.
-					if (!str_cmp(skill_table[sn].name, "reserved") ||
-						!str_cmp(skill_table[sn].name, "none"))
-					{
-						sprintf(buf, "Obj %s(%ld) had spell none or reserved.",
-						obj->short_descr, obj->vnum);
-						log_string(buf);
-						free_spell(spell);
-					}
-					else
-					{
-						spell->next = obj->spells;
-						obj->spells = spell;
-					}
-				}
-				else
-				{
-					sprintf(buf, "Bad spell name for %s (%ld).", obj->short_descr, obj->vnum);
-					bug(buf,0);
-				}
-			}
-
-			if (!str_cmp(word, "SpellToken"))
-			{
-				WNUM_LOAD wnum = fread_widevnum(fp, 0);
-
-				fMatch = TRUE;
-				if (wnum.auid > 0 && wnum.vnum > 0)
-				{
-					spell = new_spell();
-					spell->sn = 0;
-					spell->token_load = wnum;
+					spell->skill = skill;
 					spell->level = fread_number(fp);
 					spell->repop = fread_number(fp);
 
@@ -3473,45 +3535,11 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 				}
 				else
 				{
-					sprintf(buf, "Bad spell token for %s (%ld#%ld).", obj->short_descr, obj->area->uid, obj->vnum);
-					bug(buf, 0);
+					sprintf(buf, "Bad spell name for %s (%ld).", obj->short_descr, obj->vnum);
+					bug(buf,0);
 				}
 			}
 
-                if (!str_cmp(word, "SpellLevel"))
-		{
-		    fMatch = TRUE;
-		    spell = new_spell();
-		    spell->level = fread_number(fp);
-		    spell->repop = 100;
-		    spell->next = obj->spells;
-		    obj->spells = spell;
-		}
-
-		if (!str_cmp(word, "Spell1"))
-		{
-		    fMatch = TRUE;
-		    obj->spells->sn = skill_lookup(fread_string(fp));
-		}
-
-		if (!str_cmp(word, "Spell2"))
-		{
-		    fMatch = TRUE;
-		    obj->spells->sn = skill_lookup(fread_string(fp));
-		}
-
-		if (!str_cmp(word, "Spell3"))
-		{
-		    fMatch = TRUE;
-		    obj->spells->sn = skill_lookup(fread_string(fp));
-
-		}
-
-		if (!str_cmp(word, "Spell4"))
-		{
-		    fMatch = TRUE;
-		    obj->spells->sn = skill_lookup(fread_string(fp));
-		}
 		break;
 
             case 'T':
@@ -4071,8 +4099,12 @@ AFFECT_DATA *read_obj_affect_new(FILE *fp)
 		KEY("Random",		af->random,	fread_number(fp));
 	        break;
 
+		case 'S':
+			KEY("Skill",	af->skill,	get_skill_data(fread_string(fp)));
+			break;
+
             case 'T':
-	        KEY("Type",		af->type,	fread_number(fp));
+	        KEY("Type",		af->catalyst_type,	fread_number(fp));
 		break;
 	}
 
@@ -4092,7 +4124,7 @@ AFFECT_DATA *read_obj_catalyst_new(FILE *fp)
     char *word;
 
     af = new_affect();
-    af->type = flag_value(catalyst_types,fread_string_eol(fp));
+    af->catalyst_type = flag_value(catalyst_types,fread_string_eol(fp));
     af->where = TO_CATALYST_DORMANT;
 
     while (str_cmp((word = fread_word(fp)), "#-CATALYST")) {
@@ -4117,8 +4149,6 @@ AFFECT_DATA *read_obj_catalyst_new(FILE *fp)
 		KEY("Random",		af->random,	fread_number(fp));
 	        break;
 
-	    case 'S':
-	        KEY("Strength",		af->level,	fread_number(fp));
 		break;
 	}
 
@@ -4482,10 +4512,10 @@ TOKEN_INDEX_DATA *read_token(FILE *fp, AREA_DATA *area)
 			    tpr->trig_phrase = fread_string(fp);
 			    if( tt->type == TRIG_SPELLCAST ) {
 					char buf[MIL];
-					int tsn = skill_lookup(tpr->trig_phrase);
+					SKILL_DATA *sk = get_skill_data(tpr->trig_phrase);
 
-					if( tsn < 0 ) {
-						sprintf(buf, "read_token: invalid spell '%s' for TRIG_SPELLCAST", p);
+					if( !IS_VALID(sk) ) {
+						sprintf(buf, "read_token: invalid spell '%s' for TRIG_SPELLCAST", tpr->trig_phrase);
 						bug(buf, 0);
 						free_trigger(tpr);
 						fMatch = TRUE;
@@ -4493,9 +4523,9 @@ TOKEN_INDEX_DATA *read_token(FILE *fp, AREA_DATA *area)
 					}
 
 					free_string(tpr->trig_phrase);
-					sprintf(buf, "%d", tsn);
+					sprintf(buf, "%d", sk->uid);
 					tpr->trig_phrase = str_dup(buf);
-					tpr->trig_number = tsn;
+					tpr->trig_number = sk->uid;
 					tpr->numeric = TRUE;
 
 				} else {

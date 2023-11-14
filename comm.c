@@ -292,6 +292,12 @@ extern void save_area_list();
 extern void save_area_new(AREA_DATA *area);
 extern void init_string_space();
 
+bool load_liquids();
+void save_liquids();
+
+bool load_skills();
+void save_skills();
+
 /*
  * Global variables.
  */
@@ -683,6 +689,12 @@ int main(int argc, char **argv)
 	if (!init_scripting()) exit(1);
 	log_string("scripting initialized.");
 
+	if (!load_liquids()) exit(1);
+	log_string("liquids loaded.");
+
+	if (!load_skills()) exit(1);
+	log_string("skills loaded.");
+
     /*
      * Run the game.
      */
@@ -728,6 +740,12 @@ int main(int argc, char **argv)
 	for( server = first_server; server; server = server->next )
 	imc_shutdown(FALSE, server);
 	#endif
+
+	save_liquids();
+	list_destroy(liquid_list);
+
+	save_skills();
+	list_destroy(skills_list);
 
 	terminate_scripting();
 
@@ -2088,7 +2106,7 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 	char subclasses[MSL];
 	CHAR_DATA *ch;
 	char *pwdnew;
-	int iClass,race,i,weapon;
+	int iClass,race,i;
 	bool fOld;
 	long playernum;
 	HELP_DATA *help;
@@ -2932,20 +2950,32 @@ void nanny(DESCRIPTOR_DATA *d, char *argument)
 		ch->level     = 0;
 		ch->tot_level = 0;
 
+		SKILL_DATA *weapon_skill = NULL;
+
 		/* Set up weapon skill*/
 		switch (ch->pcdata->class_current)
 		{
-		case CLASS_MAGE:	weapon = gsn_quarterstaff;	break;
-		case CLASS_CLERIC:	weapon = gsn_quarterstaff;	break;
-		case CLASS_THIEF:	weapon = gsn_dagger;		break;
-		case CLASS_WARRIOR:	weapon = gsn_sword;		break;
+		case CLASS_MAGE:	weapon_skill = gsk_quarterstaff;	break;
+		case CLASS_CLERIC:	weapon_skill = gsk_quarterstaff;	break;
+		case CLASS_THIEF:	weapon_skill = gsk_dagger;		break;
+		case CLASS_WARRIOR:	weapon_skill = gsk_sword;		break;
 		default:
 			bug("nanny: bad current class in weapon pick", 0);
-			weapon = gsn_sword;
+			weapon_skill = gsk_sword;
 			break;
 		}
 
-		ch->pcdata->learned[weapon] = 50;
+		SKILL_ENTRY *entry;
+		TOKEN_DATA *token = NULL;
+		if (weapon_skill->token)
+			token = give_token(weapon_skill->token, ch, NULL, NULL);
+
+		if (is_skill_spell(weapon_skill))
+			entry = skill_entry_addskill(ch, weapon_skill, token, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
+		else
+			entry = skill_entry_addspell(ch, weapon_skill, token, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
+
+		entry->rating = 50;
 		d->connected = CON_READ_MOTD;
 		break;
 
@@ -4524,7 +4554,7 @@ void update_pc_timers(CHAR_DATA *ch)
 	--ch->trance;
 	if (number_percent() < 4)
 	{
-	    if (number_percent() > get_skill(ch, gsn_deep_trance) - 10)
+	    if (number_percent() > get_skill(ch, gsk_deep_trance) - 10)
 	    {
 		send_to_char("{YYou lose your meditative focus as something grabs your attention.{x\n\r", ch);
 		act("{Y$n loses $s meditative focus as something grabs $s attention.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
@@ -4588,7 +4618,7 @@ void update_pc_timers(CHAR_DATA *ch)
     /* Update autohunt, move towards target*/
     if (ch != NULL && ch->hunting != NULL)
     {
-	if (number_percent() < (2 + 9 * get_skill(ch, gsn_hunt)/100))
+	if (number_percent() < (2 + 9 * get_skill(ch, gsk_hunt)/100))
 	    update_hunting_pc(ch);
     }
 }

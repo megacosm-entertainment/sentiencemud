@@ -88,12 +88,19 @@ extern	LLIST *loaded_instances;
 extern	LLIST *loaded_dungeons;
 extern	LLIST *loaded_ships;
 LLIST *loaded_special_keys;
+LLIST *liquid_list = NULL;
+sh_int top_liquid_uid = 0;
+
+LLIST *skills_list = NULL;
+sh_int top_skill_uid = 0;
 
 void free_room_index( ROOM_INDEX_DATA *pRoom );
 void load_instances();
 INSTANCE *instance_load(FILE *fp);
 DUNGEON *dungeon_load(FILE *fp);
 void resolve_reserved(RESERVED_WNUM *reserved);
+void resolve_skill_tokens();
+
 
 /* Reading of keys*/
 #if defined(KEY)
@@ -227,8 +234,9 @@ bool			objRepop;
    obj_to_room(). When the object is given to a char or a room, this variable
    is toggled off, and the object will then no longer trigger repop scripts. */
 
-sh_int	gsn__auction_info;
+sh_int	gsn__auction;
 sh_int	gsn__inspect;
+sh_int	gsn__well_fed;
 
 sh_int	gsn_acid_blast;
 sh_int	gsn_acid_breath;
@@ -488,7 +496,6 @@ sh_int	gsn_water_spells;
 sh_int	gsn_weaken;
 sh_int	gsn_weaving;
 sh_int	gsn_web;
-sh_int	gsn_well_fed;
 sh_int	gsn_whip;
 sh_int	gsn_wilderness_spear_style;
 sh_int	gsn_wind_of_confusion;
@@ -503,6 +510,289 @@ sh_int	gsn_flash;
 sh_int	gsn_shriek;
 sh_int	gsn_dark_shroud;
 sh_int	gsn_soul_essence;
+
+
+
+
+SKILL_DATA gsk__auction;
+SKILL_DATA gsk__inspect;
+SKILL_DATA gsk__well_fed;
+
+SKILL_DATA *gsk_acid_blast;
+SKILL_DATA *gsk_acid_breath;
+SKILL_DATA *gsk_acro;
+SKILL_DATA *gsk_afterburn;
+SKILL_DATA *gsk_air_spells;
+SKILL_DATA *gsk_ambush;
+SKILL_DATA *gsk_animate_dead;
+SKILL_DATA *gsk_archery;
+SKILL_DATA *gsk_armour;
+SKILL_DATA *gsk_athletics;
+SKILL_DATA *gsk_avatar_shield;
+SKILL_DATA *gsk_axe;
+SKILL_DATA *gsk_backstab;
+SKILL_DATA *gsk_bar;
+SKILL_DATA *gsk_bash;
+SKILL_DATA *gsk_behead;
+SKILL_DATA *gsk_berserk;
+SKILL_DATA *gsk_bind;
+SKILL_DATA *gsk_bite;
+SKILL_DATA *gsk_blackjack;
+SKILL_DATA *gsk_bless;
+SKILL_DATA *gsk_blindness;
+SKILL_DATA *gsk_blowgun;
+SKILL_DATA *gsk_bomb;
+SKILL_DATA *gsk_bow;
+SKILL_DATA *gsk_breath;
+SKILL_DATA *gsk_brew;
+SKILL_DATA *gsk_burgle;
+SKILL_DATA *gsk_burning_hands;
+SKILL_DATA *gsk_call_familiar;
+SKILL_DATA *gsk_call_lightning;
+SKILL_DATA *gsk_calm;
+SKILL_DATA *gsk_cancellation;
+SKILL_DATA *gsk_catch;
+SKILL_DATA *gsk_cause_critical;
+SKILL_DATA *gsk_cause_light;
+SKILL_DATA *gsk_cause_serious;
+SKILL_DATA *gsk_chain_lightning;
+SKILL_DATA *gsk_channel;
+SKILL_DATA *gsk_charge;
+SKILL_DATA *gsk_charm_person;
+SKILL_DATA *gsk_chill_touch;
+SKILL_DATA *gsk_circle;
+SKILL_DATA *gsk_cloak_of_guile;
+SKILL_DATA *gsk_colour_spray;
+SKILL_DATA *gsk_combine;
+SKILL_DATA *gsk_consume;
+SKILL_DATA *gsk_continual_light;
+SKILL_DATA *gsk_control_weather;
+SKILL_DATA *gsk_cosmic_blast;
+SKILL_DATA *gsk_counterspell;
+SKILL_DATA *gsk_create_food;
+SKILL_DATA *gsk_create_rose;
+SKILL_DATA *gsk_create_spring;
+SKILL_DATA *gsk_create_water;
+SKILL_DATA *gsk_crippling_touch;
+SKILL_DATA *gsk_crossbow;
+SKILL_DATA *gsk_cure_blindness;
+SKILL_DATA *gsk_cure_critical;
+SKILL_DATA *gsk_cure_disease;
+SKILL_DATA *gsk_cure_light;
+SKILL_DATA *gsk_cure_poison;
+SKILL_DATA *gsk_cure_serious;
+SKILL_DATA *gsk_cure_toxic;
+SKILL_DATA *gsk_curse;
+SKILL_DATA *gsk_dagger;
+SKILL_DATA *gsk_death_grip;
+SKILL_DATA *gsk_deathbarbs;
+SKILL_DATA *gsk_deathsight;
+SKILL_DATA *gsk_deception;
+SKILL_DATA *gsk_deep_trance;
+SKILL_DATA *gsk_demonfire;
+SKILL_DATA *gsk_destruction;
+SKILL_DATA *gsk_detect_hidden;
+SKILL_DATA *gsk_detect_invis;
+SKILL_DATA *gsk_detect_magic;
+SKILL_DATA *gsk_detect_traps;
+SKILL_DATA *gsk_dirt;
+SKILL_DATA *gsk_dirt_kicking;
+SKILL_DATA *gsk_disarm;
+SKILL_DATA *gsk_discharge;
+SKILL_DATA *gsk_dispel_evil;
+SKILL_DATA *gsk_dispel_good;
+SKILL_DATA *gsk_dispel_magic;
+SKILL_DATA *gsk_dispel_room;
+SKILL_DATA *gsk_dodge;
+SKILL_DATA *gsk_dual;
+SKILL_DATA *gsk_eagle_eye;
+SKILL_DATA *gsk_earth_spells;
+SKILL_DATA *gsk_earthquake;
+SKILL_DATA *gsk_electrical_barrier;
+SKILL_DATA *gsk_enchant_armour;
+SKILL_DATA *gsk_enchant_weapon;
+SKILL_DATA *gsk_energy_drain;
+SKILL_DATA *gsk_energy_field;
+SKILL_DATA *gsk_enhanced_damage;
+SKILL_DATA *gsk_ensnare;
+SKILL_DATA *gsk_entrap;
+SKILL_DATA *gsk_envenom;
+SKILL_DATA *gsk_evasion;
+SKILL_DATA *gsk_exorcism;
+SKILL_DATA *gsk_exotic;
+SKILL_DATA *gsk_fade;
+SKILL_DATA *gsk_faerie_fire;
+SKILL_DATA *gsk_faerie_fog;
+SKILL_DATA *gsk_fast_healing;
+SKILL_DATA *gsk_fatigue;
+SKILL_DATA *gsk_feign;
+SKILL_DATA *gsk_fire_barrier;
+SKILL_DATA *gsk_fire_breath;
+SKILL_DATA *gsk_fire_cloud;
+SKILL_DATA *gsk_fire_spells;
+SKILL_DATA *gsk_fireball;
+SKILL_DATA *gsk_fireproof;
+SKILL_DATA *gsk_flail;
+SKILL_DATA *gsk_flamestrike;
+SKILL_DATA *gsk_flight;
+SKILL_DATA *gsk_fly;
+SKILL_DATA *gsk_fourth_attack;
+SKILL_DATA *gsk_frenzy;
+SKILL_DATA *gsk_frost_barrier;
+SKILL_DATA *gsk_frost_breath;
+SKILL_DATA *gsk_gas_breath;
+SKILL_DATA *gsk_gate;
+SKILL_DATA *gsk_giant_strength;
+SKILL_DATA *gsk_glorious_bolt;
+SKILL_DATA *gsk_haggle;
+SKILL_DATA *gsk_hand_to_hand;
+SKILL_DATA *gsk_harm;
+SKILL_DATA *gsk_harpooning;
+SKILL_DATA *gsk_haste;
+SKILL_DATA *gsk_heal;
+SKILL_DATA *gsk_healing_aura;
+SKILL_DATA *gsk_healing_hands;
+SKILL_DATA *gsk_hide;
+SKILL_DATA *gsk_holdup;
+SKILL_DATA *gsk_holy_shield;
+SKILL_DATA *gsk_holy_sword;
+SKILL_DATA *gsk_holy_word;
+SKILL_DATA *gsk_holy_wrath;
+SKILL_DATA *gsk_hunt;
+SKILL_DATA *gsk_ice_storm;
+SKILL_DATA *gsk_identify;
+SKILL_DATA *gsk_improved_invisibility;
+SKILL_DATA *gsk_inferno;
+SKILL_DATA *gsk_infravision;
+SKILL_DATA *gsk_infuse;
+SKILL_DATA *gsk_intimidate;
+SKILL_DATA *gsk_invis;
+SKILL_DATA *gsk_judge;
+SKILL_DATA *gsk_kick;
+SKILL_DATA *gsk_kill;
+SKILL_DATA *gsk_leadership;
+SKILL_DATA *gsk_light_shroud;
+SKILL_DATA *gsk_lightning_bolt;
+SKILL_DATA *gsk_lightning_breath;
+SKILL_DATA *gsk_locate_object;
+SKILL_DATA *gsk_lore;
+SKILL_DATA *gsk_mace;
+SKILL_DATA *gsk_magic_missile;
+SKILL_DATA *gsk_martial_arts;
+SKILL_DATA *gsk_mass_healing;
+SKILL_DATA *gsk_mass_invis;
+SKILL_DATA *gsk_master_weather;
+SKILL_DATA *gsk_maze;
+SKILL_DATA *gsk_meditation;
+SKILL_DATA *gsk_mob_lore;
+SKILL_DATA *gsk_momentary_darkness;
+SKILL_DATA *gsk_morphlock;
+SKILL_DATA *gsk_mount_and_weapon_style;
+SKILL_DATA *gsk_music;
+SKILL_DATA *gsk_navigation;
+SKILL_DATA *gsk_neurotoxin;
+SKILL_DATA *gsk_nexus;
+SKILL_DATA *gsk_parry;
+SKILL_DATA *gsk_pass_door;
+SKILL_DATA *gsk_peek;
+SKILL_DATA *gsk_pick_lock;
+SKILL_DATA *gsk_plague;
+SKILL_DATA *gsk_poison;
+SKILL_DATA *gsk_polearm;
+SKILL_DATA *gsk_possess;
+SKILL_DATA *gsk_pursuit;
+SKILL_DATA *gsk_quarterstaff;
+SKILL_DATA *gsk_raise_dead;
+SKILL_DATA *gsk_recall;
+SKILL_DATA *gsk_recharge;
+SKILL_DATA *gsk_refresh;
+SKILL_DATA *gsk_regeneration;
+SKILL_DATA *gsk_remove_curse;
+SKILL_DATA *gsk_rending;
+SKILL_DATA *gsk_repair;
+SKILL_DATA *gsk_rescue;
+SKILL_DATA *gsk_resurrect;
+SKILL_DATA *gsk_reverie;
+SKILL_DATA *gsk_riding;
+SKILL_DATA *gsk_room_shield;
+SKILL_DATA *gsk_sanctuary;
+SKILL_DATA *gsk_scan;
+SKILL_DATA *gsk_scribe;
+SKILL_DATA *gsk_scrolls;
+SKILL_DATA *gsk_scry;
+SKILL_DATA *gsk_second_attack;
+SKILL_DATA *gsk_sense_danger;
+SKILL_DATA *gsk_shape;
+SKILL_DATA *gsk_shield;
+SKILL_DATA *gsk_shield_block;
+SKILL_DATA *gsk_shield_weapon_style;
+SKILL_DATA *gsk_shift;
+SKILL_DATA *gsk_shocking_grasp;
+SKILL_DATA *gsk_silence;
+SKILL_DATA *gsk_single_style;
+SKILL_DATA *gsk_skull;
+SKILL_DATA *gsk_sleep;
+SKILL_DATA *gsk_slit_throat;
+SKILL_DATA *gsk_slow;
+SKILL_DATA *gsk_smite;
+SKILL_DATA *gsk_sneak;
+SKILL_DATA *gsk_spear;
+SKILL_DATA *gsk_spell_deflection;
+SKILL_DATA *gsk_spell_shield;
+SKILL_DATA *gsk_spell_trap;
+SKILL_DATA *gsk_spirit_rack;
+SKILL_DATA *gsk_stake;
+SKILL_DATA *gsk_starflare;
+SKILL_DATA *gsk_staves;
+SKILL_DATA *gsk_steal;
+SKILL_DATA *gsk_stone_skin;
+SKILL_DATA *gsk_stone_spikes;
+SKILL_DATA *gsk_subvert;
+SKILL_DATA *gsk_summon;
+SKILL_DATA *gsk_survey;
+SKILL_DATA *gsk_swerve;
+SKILL_DATA *gsk_sword;
+SKILL_DATA *gsk_sword_and_dagger_style;
+SKILL_DATA *gsk_tail_kick;
+SKILL_DATA *gsk_tattoo;
+SKILL_DATA *gsk_temperance;
+SKILL_DATA *gsk_third_attack;
+SKILL_DATA *gsk_third_eye;
+SKILL_DATA *gsk_throw;
+SKILL_DATA *gsk_titanic_attack;
+SKILL_DATA *gsk_toxic_fumes;
+SKILL_DATA *gsk_toxins;
+SKILL_DATA *gsk_trackless_step;
+SKILL_DATA *gsk_trample;
+SKILL_DATA *gsk_trip;
+SKILL_DATA *gsk_turn_undead;
+SKILL_DATA *gsk_two_handed_style;
+SKILL_DATA *gsk_underwater_breathing;
+SKILL_DATA *gsk_vision;
+SKILL_DATA *gsk_wands;
+SKILL_DATA *gsk_warcry;
+SKILL_DATA *gsk_water_spells;
+SKILL_DATA *gsk_weaken;
+SKILL_DATA *gsk_weaving;
+SKILL_DATA *gsk_web;
+SKILL_DATA *gsk_whip;
+SKILL_DATA *gsk_wilderness_spear_style;
+SKILL_DATA *gsk_wind_of_confusion;
+SKILL_DATA *gsk_withering_cloud;
+SKILL_DATA *gsk_word_of_recall;
+
+SKILL_DATA *gsk_ice_shards;
+SKILL_DATA *gsk_stone_touch;
+SKILL_DATA *gsk_glacial_wave;
+SKILL_DATA *gsk_earth_walk;
+SKILL_DATA *gsk_flash;
+SKILL_DATA *gsk_shriek;
+SKILL_DATA *gsk_dark_shroud;
+SKILL_DATA *gsk_soul_essence;
+
+
+
+
 
 sh_int gprn_human;
 sh_int gprn_elf;
@@ -672,6 +962,14 @@ LLIST *persist_objs;
 LLIST *persist_rooms;
 
 TOKEN_DATA *global_tokens = NULL;
+
+sh_int gln_water;
+sh_int gln_blood;
+sh_int gln_potion;
+
+LIQUID *liquid_water;
+LIQUID *liquid_blood;
+LIQUID *liquid_potion;
 
 /*
  * Memory management.
@@ -1286,16 +1584,6 @@ void boot_db(void)
     {
 	int sn, lev;
 
-	for (sn = 0; sn < MAX_SKILL; sn++)
-	{
-	    if (skill_table[sn].pgsn != NULL)
-		*skill_table[sn].pgsn = sn;
-	}
-
-	// Special internal use only gsns
-	gsn__auction_info = -2;
-	gsn__inspect = -1;
-
 	for (lev = 0; lev != MAX_MOB_SKILL_LEVEL; lev++)
 	    mob_skill_table[lev] = 40 + 19 * log10(lev);
 
@@ -1437,6 +1725,9 @@ void boot_db(void)
 	resolve_reserved_rprogs();
 	resolve_reserved_areas();
 
+	log_string("Resolving skill tokens");
+	resolve_skill_tokens();
+
     log_string("Loading persistance");
     if(!persist_load()) {
 		perror("Persistance");
@@ -1531,51 +1822,61 @@ void boot_db(void)
 }
 
 
-int get_this_class(CHAR_DATA *ch, int sn)
+void resolve_skill_tokens()
+{
+	ITERATOR it;
+	SKILL_DATA *skill;
+
+	iterator_start(&it, skills_list);
+	while((skill = (SKILL_DATA *)iterator_nextdata(&it)))
+	{
+		if (skill->token_load.auid > 0 && skill->token_load.vnum > 0)
+		{
+			skill->token = get_token_index_auid(skill->token_load.auid, skill->token_load.vnum);
+
+			if (!skill->token)
+			{
+				log_stringf("Skill data '%s' is missing token info %ld#%ld.", skill->name, skill->token_load.auid, skill->token_load.vnum);
+			}
+		}
+	}
+	iterator_stop(&it);
+}
+
+
+int get_this_class(CHAR_DATA *ch, SKILL_DATA *skill)
 {
     int this_class;
     int level;
 
-    if (skill_table[sn].name == NULL)
-	return 9999;
+	if (!IS_VALID(skill))
+		return 9999;
 
     this_class = 9999;
 
-    if (ch->pcdata->class_mage != -1
-	    && (level = skill_table[sn].skill_level[ch->pcdata->class_mage]) < 31)
+    if (ch->pcdata->class_mage != -1 && (level = skill->skill_level[ch->pcdata->class_mage]) < 31)
     {
-	this_class = ch->pcdata->class_mage;
+		this_class = ch->pcdata->class_mage;
     }
-    else
-	if (ch->pcdata->class_cleric != -1
-		&& (level = skill_table[sn].skill_level[ch->pcdata->class_cleric]) < 31)
+    else if (ch->pcdata->class_cleric != -1 && (level = skill->skill_level[ch->pcdata->class_cleric]) < 31)
 	{
 	    this_class = ch->pcdata->class_cleric;
 	}
-	else
-	    if (ch->pcdata->class_thief != -1
-		    && (level = skill_table[sn].skill_level[ch->pcdata->class_thief]) < 31)
-	    {
-		this_class = ch->pcdata->class_thief;
-	    }
-	    else
-		if (ch->pcdata->class_warrior != -1
-			&& (level = skill_table[sn].skill_level[ch->pcdata->class_warrior]) < 31)
-		{
-		    this_class = ch->pcdata->class_warrior;
-		}
+	else if (ch->pcdata->class_thief != -1 && (level = skill->skill_level[ch->pcdata->class_thief]) < 31)
+	{
+	this_class = ch->pcdata->class_thief;
+	}
+	else if (ch->pcdata->class_warrior != -1 && (level = skill->skill_level[ch->pcdata->class_warrior]) < 31)
+	{
+		this_class = ch->pcdata->class_warrior;
+	}
 
     if (IS_ANGEL(ch) || IS_MYSTIC(ch) || IS_DEMON(ch)) {
-	if (skill_table[sn].skill_level[0] < 31)
-	    return 0;
-	if (skill_table[sn].skill_level[1] < 31)
-	    return 1;
-	if (skill_table[sn].skill_level[2] < 31)
-	    return 2;
-	if (skill_table[sn].skill_level[3] < 31)
-	    return 3;
+		for(int i = 0; i < MAX_CLASS; i++)
+			if (skill->skill_level[i] < 31)
+				return i;
 
-	return 0;
+		return 0;
     }
 
     return this_class;
@@ -1806,15 +2107,19 @@ void fix_objects(void)
 						PORTAL(obj)->lock->key_wnum.vnum = PORTAL(obj)->lock->key_load.vnum;
 					}
 
+					/* This should be dealt with when the spell data is loaded.
 					for(SPELL_DATA *spell = PORTAL(obj)->spells; spell; spell = spell->next)
 					{
+
 						if (spell->token_load.auid > 0 && spell->token_load.vnum > 0)
 							spell->token = get_token_index_auid(spell->token_load.auid, spell->token_load.vnum);
 						else
 							spell->token = NULL;
 					}
+					*/
 				}
 
+				/* This should be dealt with when the spell data is loaded.
 				if (obj->spells)
 				{
 					for(SPELL_DATA *spell = obj->spells; spell; spell = spell->next)
@@ -1825,6 +2130,7 @@ void fix_objects(void)
 							spell->token = NULL;
 					}
 				}
+				*/
 
 				// Fix objprogs
 				if(obj->progs)
@@ -2933,7 +3239,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 		{
 			af.group		= IS_SET(race->aff,AFF_INVISIBLE)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
-			af.type			= gsn_invis;
+			af.skill		= gsk_invis;
 			af.level		= mob->level;
 			af.duration		= -1;
 			af.location		= 0;
@@ -2948,7 +3254,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 		{
 			af.group		= IS_SET(race->aff,AFF_DETECT_INVIS)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
-			af.type 		= gsn_detect_invis;
+			af.skill		= gsk_detect_invis;
 			af.level		= mob->level;
 			af.duration		= -1;
 			af.location		= 0;
@@ -2962,7 +3268,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 		{
 			af.group		= IS_SET(race->aff,AFF_DETECT_HIDDEN)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
-			af.type			= gsn_detect_hidden;
+			af.skill		= gsk_detect_hidden;
 			af.level		= mob->level;
 			af.duration		= -1;
 			af.location		= 0;
@@ -2976,7 +3282,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 		{
 			af.group		= IS_SET(race->aff,AFF_SANCTUARY)?AFFGROUP_RACIAL:AFFGROUP_DIVINE;
 			af.where		= TO_AFFECTS;
-			af.type			= gsn_sanctuary;
+			af.skill		= gsk_sanctuary;
 			af.level		= mob->level;
 			af.duration		= -1;
 			af.location		= APPLY_NONE;
@@ -2990,7 +3296,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 		{
 			af.group		= IS_SET(race->aff,AFF_INFRARED)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
-			af.type			= gsn_infravision;
+			af.skill		= gsk_infravision;
 			af.level		= mob->level;
 			af.duration		= -1;
 			af.location		= APPLY_NONE;
@@ -3004,7 +3310,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 		{
 			af.group		= IS_SET(race->aff,AFF_DEATH_GRIP)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
-			af.type			= gsn_death_grip;
+			af.skill		= gsk_death_grip;
 			af.level		= mob->level;
 			af.duration		= -1;
 			af.location		= APPLY_NONE;
@@ -3018,7 +3324,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 		{
 			af.group		= IS_SET(race->aff,AFF_FLYING)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
-			af.type			= gsn_fly;
+			af.skill		= gsk_fly;
 			af.level		= mob->level;
 			af.duration		= -1;
 			af.location		= APPLY_NONE;
@@ -3032,7 +3338,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 		{
 			af.group		= IS_SET(race->aff,AFF_PASS_DOOR)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
-			af.type			= gsn_pass_door;
+			af.skill		= gsk_pass_door;
 			af.level		= mob->level;
 			af.duration		= -1;
 			af.location		= APPLY_NONE;
@@ -3046,7 +3352,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 		{
 			af.group		= IS_SET(race->aff,AFF_HASTE)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
-			af.type			= gsn_haste;
+			af.skill		= gsk_haste;
 			af.level		= mob->level;
 			af.duration		= -1;
 			af.location		= APPLY_DEX;
@@ -3061,7 +3367,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 		{
 			af.group		= AFFGROUP_PHYSICAL;
 			af.where		= TO_AFFECTS;
-			af.type			= gsn_warcry;
+			af.skill		= gsk_warcry;
 			af.level		= mob->level;
 			af.duration		= -1;
 			af.location		= 0;
@@ -3075,7 +3381,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 		{
 			af.group		= IS_SET(race->aff2,AFF2_LIGHT_SHROUD)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
-			af.type			= gsn_light_shroud;
+			af.skill		= gsk_light_shroud;
 			af.level		= mob->level;
 			af.duration		= -1;
 			af.location		= 0;
@@ -3089,7 +3395,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 		{
 			af.group		= IS_SET(race->aff2,AFF2_HEALING_AURA)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
-			af.type			= gsn_healing_aura;
+			af.skill		= gsk_healing_aura;
 			af.level		= mob->level;
 			af.duration		= -1;
 			af.location		= 0;
@@ -3103,7 +3409,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 		{
 			af.group		= IS_SET(race->aff2,AFF2_ENERGY_FIELD)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
-			af.type			= gsn_energy_field;
+			af.skill		= gsk_energy_field;
 			af.level		= mob->level;
 			af.duration		= -1;
 			af.location		= 0;
@@ -3117,7 +3423,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 		{
 			af.group		= IS_SET(race->aff2,AFF2_SPELL_SHIELD)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
-			af.type			= gsn_spell_shield;
+			af.skill		= gsk_spell_shield;
 			af.level		= mob->level;
 			af.duration		= -1;
 			af.location		= 0;
@@ -3131,7 +3437,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 		{
 			af.group		= IS_SET(race->aff2,AFF2_SPELL_DEFLECTION)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
-			af.type			= gsn_spell_deflection;
+			af.skill		= gsk_spell_deflection;
 			af.level		= mob->level;
 			af.duration		= -1;
 			af.location		= 0;
@@ -3145,7 +3451,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 		{
 			af.group		= IS_SET(race->aff2,AFF2_AVATAR_SHIELD)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
-			af.type			= gsn_avatar_shield;
+			af.skill		= gsk_avatar_shield;
 			af.level		= mob->level;
 			af.duration		= -1;
 			af.location		= 0;
@@ -3159,7 +3465,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 		{
 			af.group		= IS_SET(race->aff2,AFF2_ELECTRICAL_BARRIER)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
-			af.type			= gsn_electrical_barrier;
+			af.skill		= gsk_electrical_barrier;
 			af.level		= mob->level;
 			af.duration		= -1;
 			af.location		= 0;
@@ -3174,7 +3480,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 		{
 			af.group		= IS_SET(race->aff2,AFF2_FIRE_BARRIER)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
-			af.type			= gsn_fire_barrier;
+			af.skill		= gsk_fire_barrier;
 			af.level		= mob->level;
 			af.duration		= -1;
 			af.location		= 0;
@@ -3188,7 +3494,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 		{
 			af.group		= IS_SET(race->aff2,AFF2_FROST_BARRIER)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
-			af.type			= gsn_frost_barrier;
+			af.skill		= gsk_frost_barrier;
 			af.level		= mob->level;
 			af.duration		= -1;
 			af.location		= 0;
@@ -3202,7 +3508,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 		{
 			af.group		= IS_SET(race->aff2,AFF2_IMPROVED_INVIS)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
-			af.type			= gsn_improved_invisibility;
+			af.skill		= gsk_improved_invisibility;
 			af.level		= mob->level;
 			af.duration		= -1;
 			af.location		= 0;
@@ -3216,7 +3522,7 @@ CHAR_DATA *create_mobile(MOB_INDEX_DATA *pMobIndex, bool persistLoad)
 		{
 			af.group		= IS_SET(race->aff2,AFF2_STONE_SKIN)?AFFGROUP_RACIAL:AFFGROUP_MAGICAL;
 			af.where		= TO_AFFECTS;
-			af.type			= gsn_stone_skin;
+			af.skill		= gsk_stone_skin;
 			af.level		= mob->level;
 			af.duration		= -1;
 			af.location		= 0;
@@ -3418,13 +3724,14 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects,
 	// Item Multi-typing
 	if (multitypes)
 	{
-		PAGE(obj) = copy_book_page(PAGE(pObjIndex));
 		BOOK(obj) = copy_book_data(BOOK(pObjIndex));
 		CONTAINER(obj) = copy_container_data(CONTAINER(pObjIndex));
+		FLUID_CON(obj) = copy_fluid_container_data(FLUID_CON(pObjIndex));
 		FOOD(obj) = copy_food_data(FOOD(pObjIndex));
 		FURNITURE(obj) = copy_furniture_data(FURNITURE(pObjIndex));
 		LIGHT(obj) = copy_light_data(LIGHT(pObjIndex));
 		MONEY(obj) = copy_money_data(MONEY(pObjIndex));
+		PAGE(obj) = copy_book_page(PAGE(pObjIndex));
 		PORTAL(obj) = copy_portal_data(PORTAL(pObjIndex), FALSE);
 	}
 
@@ -3522,8 +3829,7 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects,
 	    if (number_percent() < spell->repop || spell->repop == 100)
 	    {
 		spell_new = new_spell();
-		spell_new->sn = spell->sn;
-		spell_new->token = spell->token;
+		spell_new->skill = spell->skill;
 		spell_new->level = spell->level;
 
 		spell_new->next = obj->spells;
@@ -6501,25 +6807,26 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
 
 	// This is for spells on the objects.
 	for (paf = obj->affected; paf != NULL; paf = paf->next) {
-		if (paf->type < 0 || paf->type >= MAX_SKILL || paf->custom_name)
+		if (!IS_VALID(paf->skill) || paf->custom_name)
 			continue;
 
-		if(paf->location >= APPLY_SKILL && paf->location < APPLY_SKILL_MAX) {
-			if(!skill_table[paf->location - APPLY_SKILL].name) continue;
+		if(paf->location >= APPLY_SKILL) {
+			SKILL_DATA *skill = get_skill_data_uid(paf->location - APPLY_SKILL);
+			if(!IS_VALID(skill)) continue;
 			fprintf(fp, "AffObjSk '%s' %3d %3d %3d %3d %3d %3d '%s' %10ld %10ld\n",
-				skill_table[paf->type].name,
+				skill->name,
 				paf->where,
 				paf->group,
 				paf->level,
 				paf->duration,
 				paf->modifier,
 				APPLY_SKILL,
-				skill_table[paf->location - APPLY_SKILL].name,
+				skill->name,
 				paf->bitvector,
 				paf->bitvector2);	// **
 		} else {
 			fprintf(fp, "AffObjSk '%s' %3d %3d %3d %3d %3d %3d %10ld %10ld\n",
-				skill_table[paf->type].name,
+				paf->skill->name,
 				paf->where,
 				paf->group,
 				paf->level,
@@ -6534,8 +6841,9 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
 	for (paf = obj->affected; paf != NULL; paf = paf->next) {
 		if (!paf->custom_name) continue;
 
-		if(paf->location >= APPLY_SKILL && paf->location < APPLY_SKILL_MAX) {
-			if(!skill_table[paf->location - APPLY_SKILL].name) continue;
+		if(paf->location >= APPLY_SKILL) {
+			SKILL_DATA *skill = get_skill_data_uid(paf->location - APPLY_SKILL);
+			if(!IS_VALID(skill)) continue;
 			fprintf(fp, "AffObjNm '%s' %3d %3d %3d %3d %3d %3d '%s' %10ld %10ld\n",
 				paf->custom_name,
 				paf->where,
@@ -6544,7 +6852,7 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
 				paf->duration,
 				paf->modifier,
 				APPLY_SKILL,
-				skill_table[paf->location - APPLY_SKILL].name,
+				skill->name,
 				paf->bitvector,
 				paf->bitvector2);	// **
 		} else {
@@ -6564,32 +6872,33 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
 	// for random affect eq
 	for (paf = obj->affected; paf != NULL; paf = paf->next) {
 		/* filter out "none" and "unknown" affects, as well as custom named affects */
-		if (paf->type != -1 || paf->custom_name != NULL
-			|| ((paf->location < APPLY_SKILL || paf->location >= APPLY_SKILL_MAX) && !str_cmp(flag_string(apply_flags, paf->location), "none")))
+		if (IS_VALID(paf->skill) || paf->custom_name != NULL
+			|| ((paf->location < APPLY_SKILL) && !str_cmp(flag_string(apply_flags, paf->location), "none")))
 			continue;
 
-		if(paf->location >= APPLY_SKILL && paf->location < APPLY_SKILL_MAX) {
-			if(!skill_table[paf->location - APPLY_SKILL].name) continue;
-				fprintf(fp, "AffMob %3d %3d %3d %3d %3d %3d '%s' %10ld %10ld\n",
-					paf->where,
-					paf->group,
-					paf->level,
-					paf->duration,
-					paf->modifier,
-					APPLY_SKILL,
-					skill_table[paf->location - APPLY_SKILL].name,
-					paf->bitvector,
-					paf->bitvector2);	// **
-			} else {
-				fprintf(fp, "AffMob %3d %3d %3d %3d %3d %3d %10ld %10ld\n",
-					paf->where,
-					paf->group,
-					paf->level,
-					paf->duration,
-					paf->modifier,
-					paf->location,
-					paf->bitvector,
-					paf->bitvector2);	// **
+		if(paf->location >= APPLY_SKILL) {
+			SKILL_DATA *skill = get_skill_data_uid(paf->location - APPLY_SKILL);
+			if(!IS_VALID(skill)) continue;
+			fprintf(fp, "AffMob %3d %3d %3d %3d %3d %3d '%s' %10ld %10ld\n",
+				paf->where,
+				paf->group,
+				paf->level,
+				paf->duration,
+				paf->modifier,
+				APPLY_SKILL,
+				skill->name,
+				paf->bitvector,
+				paf->bitvector2);	// **
+		} else {
+			fprintf(fp, "AffMob %3d %3d %3d %3d %3d %3d %10ld %10ld\n",
+				paf->where,
+				paf->group,
+				paf->level,
+				paf->duration,
+				paf->modifier,
+				paf->location,
+				paf->bitvector,
+				paf->bitvector2);	// **
 		}
 	}
 
@@ -6600,8 +6909,8 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
 		{
 			fprintf(fp, "%s '%s' %3d %3d %3d\n",
 				((paf->where == TO_CATALYST_ACTIVE) ? "CataA" : "Cata"),
-				flag_string( catalyst_types, paf->type ),
-				paf->level,
+				flag_string( catalyst_types, paf->catalyst_type ),
+				1,
 				paf->modifier,
 				paf->duration);
 		}
@@ -6609,8 +6918,8 @@ void persist_save_object(FILE *fp, OBJ_DATA *obj, bool multiple)
 		{
 			fprintf(fp, "%s '%s' %3d %3d %3d %s\n",
 				((paf->where == TO_CATALYST_ACTIVE) ? "CataNA" : "CataN"),
-				flag_string( catalyst_types, paf->type ),
-				paf->level,
+				flag_string( catalyst_types, paf->catalyst_type ),
+				1,
 				paf->modifier,
 				paf->duration,
 				paf->custom_name);
@@ -6774,12 +7083,12 @@ void persist_save_mobile(FILE *fp, CHAR_DATA *ch)
 	fprintf(fp, "LostParts  %s\n", print_flags(ch->lostparts));
 
 	for (paf = ch->affected; paf != NULL; paf = paf->next) {
-		if (!paf->custom_name && (paf->type < 0 || paf->type>= MAX_SKILL))
+		if (!paf->custom_name && !IS_VALID(paf->skill))
 			continue;
 
 		fprintf(fp, "%s '%s' '%s' %3d %3d %3d %3d %3d %10ld %10ld %3d\n",
 			(paf->custom_name?"Affcgn":"Affcg"),
-			(paf->custom_name?paf->custom_name:skill_table[paf->type].name),
+			(paf->custom_name?paf->custom_name:(paf->skill ? paf->skill->name : "none")),
 			flag_string(affgroup_mobile_flags,paf->group),
 			paf->where,
 			paf->level,
@@ -7278,10 +7587,12 @@ TOKEN_DATA *persist_load_token(FILE *fp)
 
 BOOK_DATA *fread_obj_book_data(FILE *fp);
 CONTAINER_DATA *fread_obj_container_data(FILE *fp);
+FLUID_CONTAINER_DATA *fread_obj_fluid_container_data(FILE *fp);
 FOOD_DATA *fread_obj_food_data(FILE *fp);
 FURNITURE_DATA *fread_obj_furniture_data(FILE *fp);
 LIGHT_DATA *fread_obj_light_data(FILE *fp);
 MONEY_DATA *fread_obj_money_data(FILE *fp);
+BOOK_PAGE *fread_book_page(FILE *fp, char *closer);
 PORTAL_DATA *fread_obj_portal_data(FILE *fp);
 
 void fread_obj_check_version(OBJ_DATA *obj, long values[MAX_OBJVALUES]);
@@ -7297,8 +7608,6 @@ OBJ_DATA *persist_load_object(FILE *fp)
 	bool good = TRUE, fMatch;
 	long values[MAX_OBJVALUES];
 
-	memset(values, 0, sizeof(values));
-
 	log_string("persist_load: #OBJECT");
 
 	WNUM_LOAD wnum = fread_widevnum(fp, 0);
@@ -7311,6 +7620,9 @@ OBJ_DATA *persist_load_object(FILE *fp)
 		return NULL;
 	obj->version = VERSION_OBJECT_000;
 	obj->id[0] = obj->id[1] = 0;
+
+	for(int i = 0; i < MAX_OBJVALUES; i++)
+		values[i] = obj->value[i];
 
 	for (;good;) {
 		word = feof(fp) ? "#-OBJECT" : fread_word(fp);
@@ -7356,6 +7668,14 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					fMatch = TRUE;
 					break;
 				}
+				if (!str_cmp(word, "#TYPEFLUIDCONTAINER"))
+				{
+					if (IS_FLUID_CON(obj)) free_fluid_container_data(FLUID_CON(obj));
+
+					FLUID_CON(obj) = fread_obj_fluid_container_data(fp);
+					fMatch = TRUE;
+					break;
+				}
 				if (!str_cmp(word, "#TYPEFOOD"))
 				{
 					if (IS_FOOD(obj)) free_food_data(FOOD(obj));
@@ -7388,6 +7708,14 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					fMatch = TRUE;
 					break;
 				}
+				if (!str_cmp(word, "#TYPEPAGE"))
+				{
+					if (IS_PAGE(obj)) free_book_page(PAGE(obj));
+
+					PAGE(obj) = fread_book_page(fp, "#-TYPEPAGE");
+					fMatch = TRUE;
+					break;
+				}
 				if (!str_cmp(word, "#TYPEPORTAL"))
 				{
 					if (IS_PORTAL(obj)) free_portal_data(PORTAL(obj));
@@ -7417,7 +7745,8 @@ OBJ_DATA *persist_load_object(FILE *fp)
 
 					paf = new_affect();
 
-					paf->type = -1;
+					paf->catalyst_type = -1;
+					paf->skill = NULL;
 
 					paf->where = fread_number(fp);
 					paf->group = fread_number(fp);
@@ -7426,12 +7755,13 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					paf->modifier = fread_number(fp);
 					paf->location = fread_number(fp);
 					if(paf->location == APPLY_SKILL) {
-						int sn = skill_lookup(fread_word(fp));
-						if(sn < 0) {
+						SKILL_DATA *skill = get_skill_data(fread_word(fp));
+						if(IS_VALID(skill))
+							paf->location += skill->uid;
+						else {
 							paf->location = APPLY_NONE;
 							paf->modifier = 0;
-						} else
-							paf->location += sn;
+						}
 					}
 					paf->bitvector = fread_number(fp);
 					if(obj->version >= VERSION_OBJECT_003)
@@ -7444,36 +7774,38 @@ OBJ_DATA *persist_load_object(FILE *fp)
 
 				// Object Affect (Skill Number)
 				if (!str_cmp(word,"AffObjSk")) {
-					AFFECT_DATA *paf;
-					int sn;
+					SKILL_DATA *skill = get_skill_data(fread_word(fp));
 
-					paf = new_affect();
+					if (IS_VALID(skill))
+					{
+						AFFECT_DATA *paf = new_affect();
 
-					sn = skill_lookup(fread_word(fp));
-					if (sn < 0)
-						bug("persist_load_object: unknown skill.",0);
-					else
-						paf->type = sn;
-
-					paf->where = fread_number(fp);
-					paf->group = fread_number(fp);
-					paf->level = fread_number(fp);
-					paf->duration = fread_number(fp);
-					paf->modifier = fread_number(fp);
-					paf->location = fread_number(fp);
-					if(paf->location == APPLY_SKILL) {
-						int sn = skill_lookup(fread_word(fp));
-						if(sn < 0) {
-							paf->location = APPLY_NONE;
-							paf->modifier = 0;
-						} else
-							paf->location += sn;
-					}
-					paf->bitvector = fread_number(fp);
-					if(obj->version >= VERSION_OBJECT_003)
+						paf->skill = skill;
+						paf->where = fread_number(fp);
+						paf->group = fread_number(fp);
+						paf->level = fread_number(fp);
+						paf->duration = fread_number(fp);
+						paf->modifier = fread_number(fp);
+						paf->location = fread_number(fp);
+						if(paf->location == APPLY_SKILL) {
+							SKILL_DATA *sk = get_skill_data(fread_word(fp));
+							if (IS_VALID(sk))
+								paf->location += sk->uid;
+							else
+							{
+								paf->location = APPLY_NONE;
+								paf->modifier = 0;
+							}
+						}
 						paf->bitvector = fread_number(fp);
-					paf->next = obj->affected;
-					obj->affected = paf;
+						if(obj->version >= VERSION_OBJECT_003)
+							paf->bitvector2 = fread_number(fp);
+						paf->next = obj->affected;
+						obj->affected = paf;
+
+					}
+					else
+						bug("persist_load_object: unknown skill.",0);
 					fMatch = TRUE;
 					break;
 				}
@@ -7492,7 +7824,8 @@ OBJ_DATA *persist_load_object(FILE *fp)
 					} else {
 						paf->custom_name = name;
 
-						paf->type = -1;
+						paf->catalyst_type = -1;
+						paf->skill = NULL;
 						paf->where = fread_number(fp);
 						paf->group = fread_number(fp);
 						paf->level = fread_number(fp);
@@ -7500,12 +7833,13 @@ OBJ_DATA *persist_load_object(FILE *fp)
 						paf->modifier = fread_number(fp);
 						paf->location = fread_number(fp);
 						if(paf->location == APPLY_SKILL) {
-							int sn = skill_lookup(fread_word(fp));
-							if(sn < 0) {
+							SKILL_DATA *sk = get_skill_data(fread_word(fp));
+							if (IS_VALID(sk))
+								paf->location += sk->uid;
+							else {
 								paf->location = APPLY_NONE;
 								paf->modifier = 0;
-							} else
-								paf->location += sn;
+							}
 						}
 						paf->bitvector = fread_number(fp);
 						if(obj->version >= VERSION_OBJECT_003)
@@ -7526,19 +7860,21 @@ OBJ_DATA *persist_load_object(FILE *fp)
 
 					paf = new_affect();
 
-					paf->type = flag_value(catalyst_types,fread_word(fp));
-					if(paf->type == NO_FLAG) {
+					paf->catalyst_type = flag_value(catalyst_types,fread_word(fp));
+					paf->where = TO_CATALYST_DORMANT;
+					paf->level = fread_number(fp);
+					paf->modifier = fread_number(fp);
+					paf->duration = fread_number(fp);
+					paf->custom_name = NULL;
+
+					if(paf->catalyst_type == NO_FLAG) {
 						log_string("persist_load_object: invalid catalyst type.");
 						free_affect(paf);
 					} else {
-						paf->where = TO_CATALYST_DORMANT;
-						paf->level = fread_number(fp);
-						paf->modifier = fread_number(fp);
-						paf->duration = fread_number(fp);
-						paf->custom_name = NULL;
 						paf->next = obj->catalyst;
 						obj->catalyst = paf;
 					}
+
 					fMatch = TRUE;
 					break;
 				}
@@ -7547,16 +7883,16 @@ OBJ_DATA *persist_load_object(FILE *fp)
 
 					paf = new_affect();
 
-					paf->type = flag_value(catalyst_types,fread_word(fp));
-					if(paf->type == NO_FLAG) {
+					paf->catalyst_type = flag_value(catalyst_types,fread_word(fp));
+					paf->where = TO_CATALYST_ACTIVE;
+					paf->level = fread_number(fp);
+					paf->modifier = fread_number(fp);
+					paf->duration = fread_number(fp);
+					paf->custom_name = NULL;
+					if(paf->catalyst_type == NO_FLAG) {
 						log_string("persist_load_object: invalid catalyst type.");
 						free_affect(paf);
 					} else {
-						paf->where = TO_CATALYST_ACTIVE;
-						paf->level = fread_number(fp);
-						paf->modifier = fread_number(fp);
-						paf->duration = fread_number(fp);
-						paf->custom_name = NULL;
 						paf->next = obj->catalyst;
 						obj->catalyst = paf;
 					}
@@ -7568,16 +7904,17 @@ OBJ_DATA *persist_load_object(FILE *fp)
 
 					paf = new_affect();
 
-					paf->type = flag_value(catalyst_types,fread_word(fp));
-					if(paf->type == NO_FLAG) {
+					paf->catalyst_type = flag_value(catalyst_types,fread_word(fp));
+					paf->where = TO_CATALYST_DORMANT;
+					paf->level = fread_number(fp);
+					paf->modifier = fread_number(fp);
+					paf->duration = fread_number(fp);
+					paf->custom_name = fread_string_eol(fp);
+
+					if(paf->catalyst_type == NO_FLAG) {
 						log_string("persist_load_object: invalid catalyst type.");
 						free_affect(paf);
 					} else {
-						paf->where = TO_CATALYST_DORMANT;
-						paf->level = fread_number(fp);
-						paf->modifier = fread_number(fp);
-						paf->duration = fread_number(fp);
-						paf->custom_name = fread_string_eol(fp);
 						paf->next = obj->catalyst;
 						obj->catalyst = paf;
 					}
@@ -7589,16 +7926,16 @@ OBJ_DATA *persist_load_object(FILE *fp)
 
 					paf = new_affect();
 
-					paf->type = flag_value(catalyst_types,fread_word(fp));
-					if(paf->type == NO_FLAG) {
+					paf->catalyst_type = flag_value(catalyst_types,fread_word(fp));
+					paf->where = TO_CATALYST_ACTIVE;
+					paf->level = fread_number(fp);
+					paf->modifier = fread_number(fp);
+					paf->duration = fread_number(fp);
+					paf->custom_name = fread_string_eol(fp);
+					if(paf->catalyst_type == NO_FLAG) {
 						log_string("persist_load_object: invalid catalyst type.");
 						free_affect(paf);
 					} else {
-						paf->where = TO_CATALYST_ACTIVE;
-						paf->level = fread_number(fp);
-						paf->modifier = fread_number(fp);
-						paf->duration = fread_number(fp);
-						paf->custom_name = fread_string_eol(fp);
 						paf->next = obj->catalyst;
 						obj->catalyst = paf;
 					}
@@ -7791,13 +8128,15 @@ OBJ_DATA *persist_load_object(FILE *fp)
 			case 'S':
 				KEY("ShortDesc",	obj->short_descr,	fread_string(fp));
 				if (!str_cmp(word, "SpellNew")) {
-					int sn;
+					SKILL_DATA *skill;
 					SPELL_DATA *spell;
 
+					skill = get_skill_data(fread_string(fp));
+
 					fMatch = TRUE;
-					if ( (sn = skill_lookup(fread_string(fp))) > 0 ) {
+					if ( is_skill_spell(skill) ) {
 						spell = new_spell();
-						spell->sn = sn;
+						spell->skill = skill;
 						spell->level = fread_number(fp);
 						spell->repop = fread_number(fp);
 
@@ -7936,7 +8275,7 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 	CHAR_DATA *ch;
 	ROOM_INDEX_DATA *here = NULL, *deep_here = NULL;
 	char *word;
-	int i, sn;
+	int i;
 	int vtype;
 	bool good = TRUE, fMatch;
 
@@ -8036,11 +8375,11 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 					AFFECT_DATA *paf = new_affect();
 
 					if( paf ) {
-						sn = skill_lookup(fread_word(fp));
-						if (sn < 0)
-							log_string("fread_char: unknown skill.");
+						SKILL_DATA *skill = get_skill_data(fread_word(fp));
+						if (IS_VALID(skill))
+		                    paf->skill = skill;
 						else
-		                    paf->type = sn;
+							log_string("fread_char: unknown skill.");
 						paf->custom_name = NULL;
 						paf->group = flag_value(affgroup_mobile_flags, fread_word(fp));
 						if(paf->group == NO_FLAG) paf->group = AFFGROUP_MAGICAL;
@@ -8050,12 +8389,13 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 						paf->modifier   = fread_number(fp);
 						paf->location   = fread_number(fp);
 						if(paf->location == APPLY_SKILL) {
-							int sn = skill_lookup(fread_word(fp));
-							if(sn < 0) {
+							SKILL_DATA *sk = get_skill_data(fread_word(fp));
+							if (IS_VALID(sk))
+								paf->location += sk->uid;
+							else {
 								paf->location = APPLY_NONE;
 								paf->modifier = 0;
-							} else
-								paf->location += sn;
+							}
 						}
 						paf->bitvector = fread_number(fp);
 						paf->bitvector2 = fread_number(fp);
@@ -8073,29 +8413,32 @@ CHAR_DATA *persist_load_mobile(FILE *fp)
 
 					if( paf ) {
 						paf->custom_name = create_affect_cname(fread_word(fp));
+						paf->catalyst_type = -1;
+						paf->skill = NULL;
+						paf->group = flag_value(affgroup_mobile_flags, fread_word(fp));
+						if(paf->group == NO_FLAG) paf->group = AFFGROUP_MAGICAL;
+						paf->where  = fread_number(fp);
+						paf->level      = fread_number(fp);
+						paf->duration   = fread_number(fp);
+						paf->modifier   = fread_number(fp);
+						paf->location   = fread_number(fp);
+						if(paf->location == APPLY_SKILL) {
+							SKILL_DATA *sk = get_skill_data(fread_word(fp));
+							if (IS_VALID(sk))
+								paf->location += sk->uid;
+							else
+							{
+								paf->location = APPLY_NONE;
+								paf->modifier = 0;
+							}
+						}
+						paf->bitvector = fread_number(fp);
+						paf->bitvector2 = fread_number(fp);
+						if( ch->version >= VERSION_MOBILE_001)
+							paf->slot = fread_number(fp);
 						if(!paf->custom_name) {
 							free_affect(paf);
 						} else {
-							paf->type = -1;
-							paf->group = flag_value(affgroup_mobile_flags, fread_word(fp));
-							if(paf->group == NO_FLAG) paf->group = AFFGROUP_MAGICAL;
-							paf->where  = fread_number(fp);
-							paf->level      = fread_number(fp);
-							paf->duration   = fread_number(fp);
-							paf->modifier   = fread_number(fp);
-							paf->location   = fread_number(fp);
-							if(paf->location == APPLY_SKILL) {
-								int sn = skill_lookup(fread_word(fp));
-								if(sn < 0) {
-									paf->location = APPLY_NONE;
-									paf->modifier = 0;
-								} else
-									paf->location += sn;
-							}
-							paf->bitvector = fread_number(fp);
-							paf->bitvector2 = fread_number(fp);
-							if( ch->version >= VERSION_MOBILE_001)
-								paf->slot = fread_number(fp);
 							paf->next = ch->affected;
 							ch->affected = paf;
 						}

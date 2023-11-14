@@ -257,6 +257,7 @@ const	struct	cmd_type	cmd_table	[] =
     { "sacrifice",		do_sacrifice,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
     { "scribe",			do_scribe,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
     { "sell",			do_sell,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
+    { "sip",			do_sip,		POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
     { "skull",			do_skull,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
 //    { "strike",			do_strike,	POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
     { "take",			do_get,		POS_RESTING,	 0,  LOG_NORMAL, 1, FALSE },
@@ -546,6 +547,10 @@ const	struct	cmd_type	cmd_table	[] =
     { "spawntreasuremap", do_spawntreasuremap, POS_DEAD, L5, LOG_NORMAL, 1, TRUE },
 	{ "reserved",	do_reserved, POS_DEAD, ML,		LOG_ALWAYS, 1, TRUE },
 	{ "triggers",	do_triggers, POS_DEAD, L5,		LOG_ALWAYS, 1, TRUE },
+	{ "liqedit",	do_liqedit, POS_DEAD,	ML,		LOG_ALWAYS, 1, TRUE },
+	{ "liqlist",	do_liqlist, POS_DEAD,	L5,		LOG_ALWAYS, 1, TRUE },
+	{ "skedit",		do_skedit, POS_DEAD,	ML,		LOG_ALWAYS, 1, TRUE },
+	{ "sklist",		do_sklist, POS_DEAD,	L5,		LOG_ALWAYS, 1, TRUE },
 
     { "",		0,		POS_DEAD,     0,  LOG_NORMAL, 0, FALSE }
 };
@@ -1450,14 +1455,14 @@ void interpret( CHAR_DATA *ch, char *argument )
     // Check stuff relevant to interpretation.
     if (IS_AFFECTED(ch, AFF_HIDE) && !(allowed || (selected_command != NULL && selected_command->is_ooc)))
     {
-        affect_strip(ch, gsn_hide);
+        affect_strip(ch, gsk_hide);
 		REMOVE_BIT(ch->affected_by[0], AFF_HIDE);
 		act("You step out of the shadows.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR );
 		act("$n steps out of the shadows.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM );
     }
 
 	// TODO: Missing a skill for paralysis
-    if (is_affected(ch, skill_lookup("paralysis")) && !allowed)
+    if (is_affected(ch, get_skill_data("paralysis")) && !allowed)
     {
         send_to_char("You can't move a muscle!\n\r", ch );
         return;
@@ -2131,7 +2136,7 @@ void stop_casting( CHAR_DATA *ch, bool messages )
     free_string( ch->cast_target_name );
     ch->cast_target_name = NULL;
     ch->cast = 0;
-    ch->cast_sn = -1;
+    ch->cast_skill = NULL;
     ch->cast_token = NULL;
     ch->cast_script = NULL;
 

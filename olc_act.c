@@ -61,6 +61,11 @@ struct olc_help_type
 #define STRUCT_ATTACK	5
 #define STRUCT_MATERIAL	6
 #define STRUCT_SKILL	7
+#define STRUCT_SPELLFUNC	8
+#define STRUCT_GSN		9
+#define STRUCT_CLASSES	10
+#define STRUCT_SUBCLASSES 11
+#define STRUCT_REMORT_SUBCLASSES 12
 
 struct trigger_type dummy_triggers[1];
 
@@ -79,6 +84,7 @@ const struct olc_help_type help_table[] =
 	{	"blueprint",			STRUCT_FLAGS,		blueprint_flags,			"Blueprint flags" },
 	{	"book",					STRUCT_FLAGS,		book_flags,					"Book flags."	},
 	{	"catalyst",				STRUCT_FLAGS,		catalyst_types,				"Catalyst types."	},
+	{	"classes",				STRUCT_CLASSES,		NULL,						"Classes" },
 	{ 	"compartment",			STRUCT_FLAGS,		compartment_flags,			"Compartment Flags."},
 	{	"condition",			STRUCT_FLAGS,		room_condition_flags,		"Room Condition types."	},
 	{	"container",			STRUCT_FLAGS,		container_flags,			"Container status."	},
@@ -89,9 +95,11 @@ const struct olc_help_type help_table[] =
 	{	"dungeon",				STRUCT_FLAGS,		dungeon_flags,				"Dungeon Flags"	},
 	{	"exit",					STRUCT_FLAGS,		exit_flags,					"Exit types."	},
 	{	"extra",				STRUCT_FLAGBANK,	extra_flagbank,				"Object attributes."	},
+	{	"fluid_con",			STRUCT_FLAGS,		fluid_con_flags,			"Fluid Container status."	},
 	{   "foodbuffs",			STRUCT_FLAGS,		food_buff_types,			"Food Buff types" },
 	{	"form",					STRUCT_FLAGS,		form_flags,					"Mobile body form."	},
 	{	"furniture",			STRUCT_FLAGS,		furniture_flags,			"Furniture types."	},
+	{	"gsn",					STRUCT_GSN,			NULL,						"GLobal Skill Numbers."},
 	{	"imm",					STRUCT_FLAGS,		imm_flags,					"Mobile immunity."	},
 	{	"immortalflags",		STRUCT_FLAGS,		immortal_flags,				"Immortal duties."	},
 	{	"instance",				STRUCT_FLAGS,		instance_flags,				"Instance Flags"	},
@@ -110,8 +118,10 @@ const struct olc_help_type help_table[] =
 	{	"portal_exit",			STRUCT_FLAGS,		portal_exit_flags,			"Exit (Portal) types."	},
 	{	"portal_type",			STRUCT_FLAGS,		portal_gatetype,			"Portal gate types"},
 	{	"position",				STRUCT_FLAGS,		position_flags,				"Mobile positions."	},
+	{	"prespell_func",		STRUCT_SPELLFUNC,	prespell_func_table,		"Prespell functions"},
 	{	"projectflags",			STRUCT_FLAGS,		project_flags,				"Project flags."	},
 	{	"ranged",				STRUCT_FLAGS,		ranged_weapon_class,		"Ranged	weapon types."	},
+	{	"remort_sublasses",		STRUCT_REMORT_SUBCLASSES,		NULL,			"Remort Subclasses" },
 	{	"res",					STRUCT_FLAGS,		res_flags,					"Mobile resistance."	},
 	{	"room",					STRUCT_FLAGBANK,	room_flagbank,				"Room attributes."	},
 	{	"rprog",				STRUCT_TRIGGERS,	dummy_triggers,				"RoomProgram types."	},
@@ -127,8 +137,10 @@ const struct olc_help_type help_table[] =
 	{	"size",					STRUCT_FLAGS,		size_flags,					"Mobile size."	},
 	{	"song_targets",			STRUCT_FLAGS,		song_target_types,			"Song Target Types."	},
 	{	"spec",					STRUCT_SPEC,		spec_table,					"Available special programs. {D(DEPRECATED){x"	},
+	{	"spell_func",			STRUCT_SPELLFUNC,	spell_func_table,			"Spell functions"},
 	{	"spell_targets",		STRUCT_FLAGS,		spell_target_types,			"Spell Target Types."	},
-	{	"spells",				STRUCT_SKILL,		skill_table,				"Names of current spells."	},
+	{	"spells",				STRUCT_SKILL,		NULL,						"Names of current spells."	},
+	{	"sublasses",			STRUCT_SUBCLASSES,		NULL,					"Subclasses" },
 	{	"tokenflags",			STRUCT_FLAGS,		token_flags,				"Token flags."	},
 	{	"tprog",				STRUCT_TRIGGERS,	dummy_triggers,				"TokenProgram types."	},
 	{	"trigger_slots",		STRUCT_FLAGS,		trigger_slots,				"Trigger slots."},
@@ -226,31 +238,30 @@ void show_skill_cmds(CHAR_DATA *ch, int tar)
 {
     char buf  [ MAX_STRING_LENGTH ];
     char buf1 [ MAX_STRING_LENGTH*2 ];
-    int  sn;
+    SKILL_DATA *skill;
     int  col;
 
     buf1[0] = '\0';
     col = 0;
-    for (sn = 0; sn < MAX_SKILL; sn++)
+
+	ITERATOR it;
+	iterator_start(&it, skills_list);
+    while((skill = (SKILL_DATA *)iterator_nextdata(&it)))
     {
-	if (!skill_table[sn].name)
-	    break;
+		if (!is_skill_spell(skill)) continue;
 
-	if (!str_cmp(skill_table[sn].name, "reserved")
-	  || skill_table[sn].spell_fun == spell_null)
-	    continue;
-
-	if (tar == -1 || skill_table[sn].target == tar)
-	{
-	    sprintf(buf, "%-19.18s", skill_table[sn].name);
-	    strcat(buf1, buf);
-	    if (++col % 4 == 0)
-		strcat(buf1, "\n\r");
-	}
+		if (tar == -1 || skill->target == tar)
+		{
+			sprintf(buf, "{%c%-19.18s{x", (skill->token ? 'W' : 'x'), skill->name);
+			strcat(buf1, buf);
+			if (++col % 4 == 0)
+				strcat(buf1, "\n\r");
+		}
     }
+	iterator_stop(&it);
 
     if (col % 4 != 0)
-	strcat(buf1, "\n\r");
+		strcat(buf1, "\n\r");
 
     send_to_char(buf1, ch);
     return;
@@ -309,6 +320,102 @@ void show_trigger_types(CHAR_DATA *ch, char *header, int prog)
 
 	if (n % 4)
 		send_to_char("\n\r", ch);
+}
+
+void show_spell_funcs(CHAR_DATA *ch, const struct spell_func_type *table)
+{
+    char buf  [ MAX_STRING_LENGTH ];
+    char buf1 [ MAX_STRING_LENGTH ];
+    int  col;
+
+    buf1[0] = '\0';
+    col = 0;
+    send_to_char("Functions available for use:\n\r", ch);
+    for (int i = 0; table[i].name != NULL; i++)
+    {
+		sprintf(buf, "%-19.18s", table[i].name);
+		strcat(buf1, buf);
+		if (++col % 4 == 0)
+	    	strcat(buf1, "\n\r");
+    }
+
+    if (col % 4 != 0)
+	strcat(buf1, "\n\r");
+
+    send_to_char(buf1, ch);
+    return;
+}
+
+void show_gsns(CHAR_DATA *ch)
+{
+    char buf  [ MAX_STRING_LENGTH ];
+    char buf1 [ MAX_STRING_LENGTH ];
+    int  col;
+
+    buf1[0] = '\0';
+    col = 0;
+    send_to_char("Global Skill Numbers available for use:\n\r", ch);
+    for (int i = 0; gsn_table[i].name != NULL; i++)
+    {
+		sprintf(buf, "%-19.18s", gsn_table[i].name);
+		strcat(buf1, buf);
+		if (++col % 4 == 0)
+	    	strcat(buf1, "\n\r");
+    }
+
+    if (col % 4 != 0)
+	strcat(buf1, "\n\r");
+
+    send_to_char(buf1, ch);
+    return;
+}
+
+void show_classes(CHAR_DATA *ch)
+{
+    char buf  [ MAX_STRING_LENGTH ];
+    char buf1 [ MAX_STRING_LENGTH ];
+    int  col;
+
+    buf1[0] = '\0';
+    col = 0;
+    send_to_char("Classes available for use:\n\r", ch);
+    for (int i = 0; i < MAX_CLASS; i++)
+    {
+		sprintf(buf, "%-19.18s", class_table[i].name);
+		strcat(buf1, buf);
+		if (++col % 4 == 0)
+	    	strcat(buf1, "\n\r");
+    }
+
+    if (col % 4 != 0)
+	strcat(buf1, "\n\r");
+
+    send_to_char(buf1, ch);
+    return;
+}
+
+void show_subclasses(CHAR_DATA *ch, bool remort)
+{
+    char buf  [ MAX_STRING_LENGTH ];
+    char buf1 [ MAX_STRING_LENGTH ];
+    int  col;
+
+    buf1[0] = '\0';
+    col = 0;
+    send_to_char("Subclasses available for use:\n\r", ch);
+    for (int i = 0; sub_class_table[i].name; i++) if (sub_class_table[i].remort == remort)
+    {
+		sprintf(buf, "%-19.18s", (char *)sub_class_table[i].name);
+		strcat(buf1, buf);
+		if (++col % 4 == 0)
+	    	strcat(buf1, "\n\r");
+    }
+
+    if (col % 4 != 0)
+	strcat(buf1, "\n\r");
+
+    send_to_char(buf1, ch);
+    return;
 }
 
 // Displays help for many tables used in OLC.
@@ -383,6 +490,26 @@ bool show_help(CHAR_DATA *ch, char *argument)
 					else
 						send_to_char("Syntax:  ? spell [ignore/attack/defend/self/object/all]\n\r", ch);
 
+					break;
+
+				case STRUCT_SPELLFUNC:
+					show_spell_funcs(ch, (const struct spell_func_type *)help_table[cnt].structure);
+					break;
+
+				case STRUCT_GSN:
+					show_gsns(ch);
+					break;
+
+				case STRUCT_CLASSES:
+					show_classes(ch);
+					break;
+
+				case STRUCT_REMORT_SUBCLASSES:
+					show_subclasses(ch, true);
+					break;
+
+				case STRUCT_SUBCLASSES:
+					show_subclasses(ch, false);
 					break;
 
 				case STRUCT_FLAGS:
@@ -4694,6 +4821,107 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 			print_lock_state(CONTAINER(obj)->lock, buffer, "");
 	}
 
+	if (IS_FLUID_CON(obj))
+	{
+		FLUID_CONTAINER_DATA *fluid = FLUID_CON(obj);
+		add_buf(buffer, "\n\r{GFluid Container:{x\n\r");
+
+		sprintf(buf, "{B[{WName             {B]:  {x%s\n\r", fluid->name);
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{WShort Description{B]:  {x%s\n\r", fluid->short_descr);
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{WFlags            {B]:  {x%s\n\r", flag_string(fluid_con_flags, fluid->flags));
+		add_buf(buffer, buf);
+
+		if (IS_VALID(fluid->liquid))
+		{
+			LIQUID *liquid = fluid->liquid;
+			sprintf(buf, "{B[{wLiquid           {B]:  {x%s\n\r", liquid->name);
+			add_buf(buffer, buf);
+
+			// Add liquid stats for convenience
+			sprintf(buf, "   {CColor:     {x%s\n\r", liquid->color);
+			add_buf(buffer, buf);
+			sprintf(buf, "   {CFlammable: %s{x\n\r", liquid->flammable ? "{WYes" : "{DNo");
+			add_buf(buffer, buf);
+			sprintf(buf, "   {CProof:     {x%d\n\r", liquid->proof);
+			add_buf(buffer, buf);
+			sprintf(buf, "   {CFullness:  {x%d\n\r", liquid->full);
+			add_buf(buffer, buf);
+			sprintf(buf, "   {CThirst:    {x%d\n\r", liquid->thirst);
+			add_buf(buffer, buf);
+			sprintf(buf, "   {CHunger:    {x%d\n\r", liquid->hunger);
+			add_buf(buffer, buf);
+			sprintf(buf, "   {CFuel:      {x%d{C unit%s per {x%d{C tick%s\n\r", liquid->fuel_unit, ((liquid->fuel_unit == 1) ? "" : "s"), liquid->fuel_duration, ((liquid->fuel_duration == 1) ? "" : "s"));
+			add_buf(buffer, buf);
+			sprintf(buf, "   {CMax Mana:  {x%d{C\n\r", liquid->max_mana);
+			add_buf(buffer, buf);
+		}
+		else
+			add_buf(buffer, "{B[{WLiquid           {B]:  {xnone\n\r");
+
+		if (fluid->capacity < 0)
+			add_buf(buffer, "{B[{WCapacity         {B]:  {Wunlimited{x\n\r");
+		else
+		{
+			sprintf(buf, "{B[{WCapacity         {B]:  {x%d{B / {x%d\n\r", fluid->amount, fluid->capacity);
+			add_buf(buffer, buf);
+		}
+
+		// Leave this "none" (0) to make this a normal drink container.
+		if (fluid->refill_rate > 0)
+		{
+			sprintf(buf, "{B[{wRefill Rate      {B]:  {x%d{B per tick{x\n\r", fluid->refill_rate);
+			add_buf(buffer, buf);
+		}
+		else
+			add_buf(buffer, "{B[{WRefill Rate      {B]:  {xnone\n\r");
+
+		if (fluid->poison > 0)
+		{
+			sprintf(buf, "{B[{wPoison           {B]:  {x%d{B%% per drink{x\n\r", fluid->poison);
+			add_buf(buffer, buf);
+		}
+		else
+			add_buf(buffer, "{B[{WPoison           {B]:  {xnone\n\r");
+
+		if (fluid->poison_rate > 0)
+		{
+			sprintf(buf,    "{B[{wPoison Rate      {B]:  {x%d{B per tick{x\n\r", fluid->poison_rate);
+			add_buf(buffer, buf);
+		}
+		else
+			add_buf(buffer, "{B[{WPoison Rate      {B]:  {xnone\n\r");
+
+		if( fluid->lock )
+			print_lock_state(fluid->lock, buffer, "");
+
+		if (list_size(fluid->spells) > 0)
+		{
+			int cnt = 0;
+
+			sprintf(buf, "{g%-6s %-20s %-10s %-6s{x\n\r", "Number", "Spell", "Level", "Random");
+			add_buf(buffer, buf);
+
+			sprintf(buf, "{g%-6s %-20s %-10s %-6s{x\n\r", "------", "-----", "-----", "------");
+			add_buf(buffer, buf);
+
+			ITERATOR sit;
+			SPELL_DATA *spell;
+			iterator_start(&sit, fluid->spells);
+			while((spell = (SPELL_DATA *)iterator_nextdata(&sit)))
+			{
+				sprintf(buf, "{B[{W%4d{B]{x %-20s %-10d %d%%\n\r",
+					cnt,
+					spell->skill->name, spell->level, spell->repop);
+				buf[0] = UPPER(buf[0]);
+				add_buf(buffer, buf);
+
+				cnt++;
+			}
+		}
+	}
+
 	if (IS_FOOD(obj))
 	{
 		add_buf(buffer, "\n\r{GFood:{x\n\r");
@@ -4858,23 +5086,11 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 
 	if (IS_PORTAL(obj))
 	{
+		// This morphs due to the portal type
 		print_obj_portal_values(obj, buffer);
 
 		if( PORTAL(obj)->lock )
-		{
-			OBJ_INDEX_DATA *lock_key = get_obj_index(PORTAL(obj)->lock->key_wnum.pArea, PORTAL(obj)->lock->key_wnum.vnum);
-
-			sprintf(buf," {x[{YLock State:{x]\n\r"
-						"   Key:         {B[{x%ld#%ld{B]{x %s\n\r"
-						"   Flags:       {B[{x%s{B]{x\n\r"
-						"   Pick Chance: {B[{x%d%%{B]{x\n\r",
-						PORTAL(obj)->lock->key_wnum.pArea ? PORTAL(obj)->lock->key_wnum.pArea->uid : 0,
-						PORTAL(obj)->lock->key_wnum.vnum,
-						lock_key ? lock_key->short_descr : "none",
-						flag_string(lock_flags, PORTAL(obj)->lock->flags),
-						PORTAL(obj)->lock->pick_chance);
-			add_buf(buffer, buf);
-		}
+			print_lock_state(PORTAL(obj)->lock, buffer, "");
 
 		if (PORTAL(obj)->spells)
 		{
@@ -4888,19 +5104,9 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 
 			for (SPELL_DATA *spell = PORTAL(obj)->spells; spell != NULL; spell = spell->next, cnt++)
 			{
-				char name[MIL];
-				if (spell->token)
-				{
-					sprintf(name, "%s (%ld#%ld)", spell->token->name, spell->token->area->uid, spell->token->vnum);
-				}
-				else
-				{
-					strcpy(name, skill_table[spell->sn].name);
-				}
-
 				sprintf(buf, "{B[{W%4d{B]{x %-20s %-10d %d%%\n\r",
 					cnt,
-					name, spell->level, spell->repop);
+					spell->skill->name, spell->level, spell->repop);
 				buf[0] = UPPER(buf[0]);
 				add_buf(buffer, buf);
 			}
@@ -4946,6 +5152,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		*/
 
 	case ITEM_HERB:
+		/*
 	    sprintf(buf,
 	        "{B[  {Wv0{B]{G Type:{x            [%s]\n\r"
 		"{B[  {Wv1{B]{G Healing:{x         [%ld%%]\n\r"
@@ -4965,6 +5172,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		skill_table[obj->value[7]].name);
 
 	    add_buf(buffer, buf);
+		*/
 	    break;
 
 	case ITEM_BLANK_SCROLL:
@@ -4976,7 +5184,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		break;
 
 	case ITEM_SCROLL:
-	case ITEM_POTION:
+	//case ITEM_POTION:
 	case ITEM_PILL:
 	    break;
 
@@ -5130,7 +5338,6 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
                 obj->value[4]);
 	    add_buf(buffer, buf);
 	    break;
-	*/
 
 	case ITEM_DRINK_CON:
 	    sprintf(buf,
@@ -5161,6 +5368,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 			obj->value[5]);
 	    add_buf(buffer, buf);
 	    break;
+	*/
 
 	case ITEM_MIST:
 	    sprintf(buf, "{B[  {Wv0{B]{G %%HideObjects:{x    [%ld]\n\r", obj->value[0]);
@@ -6151,6 +6359,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 
 	case ITEM_WAND:
 	case ITEM_STAFF:
+		/*
 		switch (value_num)
 		{
 		default:
@@ -6169,14 +6378,15 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			pObj->value[2] = atoi(argument);
 			break;
 		case 3:
-			send_to_char("SPELL TYPE SET.\n\r", ch);
-			pObj->value[3] = skill_lookup(argument);
+			//send_to_char("SPELL TYPE SET.\n\r", ch);
+			//pObj->value[3] = skill_lookup(argument);
 			break;
 		}
+		*/
 		break;
 
 	case ITEM_SCROLL:
-	case ITEM_POTION:
+	//case ITEM_POTION:
 	case ITEM_PILL:
 		break;
 
@@ -6316,6 +6526,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 		break;
 
 	case ITEM_HERB:
+		/*
 		switch (value_num)
 		{
 		default:
@@ -6392,6 +6603,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 
 			break;
 		}
+		*/
 
 		break;
 
@@ -6567,6 +6779,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 		break;
 	*/
 
+	/*
 	case ITEM_DRINK_CON:
 		switch (value_num)
 		{
@@ -6624,6 +6837,7 @@ bool set_obj_values(CHAR_DATA *ch, OBJ_INDEX_DATA *pObj, int value_num, char *ar
 			break;
 		}
 		break;
+		*/
 
 	case ITEM_MIST:
 		switch (value_num)
@@ -7139,7 +7353,7 @@ OEDIT(oedit_show)
 
 			sprintf(buf, "{B[{W%4d{B] {%c%-20s{x %-20d %d%%\n\r",
 				cnt,
-				(paf->location >= APPLY_SKILL && paf->location < APPLY_SKILL_MAX)?'Y':'G',
+				(paf->location >= APPLY_SKILL)?'Y':'G',
 				affect_loc_name(paf->location),
 				paf->modifier,
 				paf->random);
@@ -7194,19 +7408,9 @@ OEDIT(oedit_show)
 
 		for (spell = pObj->spells; spell != NULL; spell = spell->next, cnt++)
 		{
-			char name[MIL];
-			if (spell->token)
-			{
-				sprintf(name, "%s (%ld#%ld)", spell->token->name, spell->token->area->uid, spell->token->vnum);
-			}
-			else
-			{
-				strcpy(name, skill_table[spell->sn].name);
-			}
-
 			sprintf(buf, "{B[{W%4d{B]{x %-20s %-10d %d%%\n\r",
 				cnt,
-				name, spell->level, spell->repop);
+				spell->skill->name, spell->level, spell->repop);
 			buf[0] = UPPER(buf[0]);
 			add_buf(buffer, buf);
 		}
@@ -7217,10 +7421,10 @@ OEDIT(oedit_show)
 		cnt = 0;
 		char line_colour = 'x';
 
-		sprintf(buf, "{m%-6s %-20s %-10s %-6s %-6s %-11s{x\n\r", "Number", "Type", "Strength", "Amount", "Random", "Script Name");
+		sprintf(buf, "{m%-6s %-20s %-6s %-6s %-11s{x\n\r", "Number", "Type", "Amount", "Random", "Script Name");
 		add_buf(buffer, buf);
 
-		sprintf(buf, "{m%-6s %-20s %-10s %-6s %-6s %-11s{x\n\r", "------", "----", "--------", "------", "------", "-----------");
+		sprintf(buf, "{m%-6s %-20s %-6s %-6s %-11s{x\n\r", "------", "----", "------", "------", "-----------");
 		add_buf(buffer, buf);
 
 		for (paf = pObj->catalyst; paf; paf = paf->next, cnt++) {
@@ -7229,11 +7433,11 @@ OEDIT(oedit_show)
 			char *name = (IS_NULLSTR(paf->custom_name)) ? "---" : paf->custom_name;
 
 			if(paf->modifier < 0)
-				sprintf(buf, "{M[{W%4d{M]{%c %-20s %-10d {Wsource{%c %d%% %s{x\n\r", cnt, line_colour,
-					flag_string(catalyst_types,paf->type),paf->level,line_colour,paf->random, name);
+				sprintf(buf, "{M[{W%4d{M]{%c %-20s {Wsource{%c %d%% %s{x\n\r", cnt, line_colour,
+					flag_string(catalyst_types,paf->catalyst_type),line_colour,paf->random, name);
 			else
-				sprintf(buf, "{M[{W%4d{M]{%c %-20s %-10d %-6d %d%% %s{x\n\r", cnt, line_colour,
-					flag_string(catalyst_types,paf->type),paf->level,paf->modifier,paf->random, name);
+				sprintf(buf, "{M[{W%4d{M]{%c %-20s %-6d %d%% %s{x\n\r", cnt, line_colour,
+					flag_string(catalyst_types,paf->catalyst_type),paf->modifier,paf->random, name);
 			buf[0] = UPPER(buf[0]);
 			add_buf(buffer, buf);
 		}
@@ -7431,7 +7635,8 @@ OEDIT(oedit_addaffect)
     pAf->location   =   value;
     pAf->modifier   =   atoi(mod);
     pAf->where	    =   TO_OBJECT;
-    pAf->type       =   -1;
+    pAf->catalyst_type =   -1;
+	pAf->skill		= NULL;
     pAf->duration   =   -1;
     pAf->bitvector  =   0;
     pAf->level      =	pObj->level;
@@ -7554,7 +7759,8 @@ OEDIT(oedit_addimmune)
     pAf->location   =   APPLY_NONE;
     pAf->modifier   =   0;
     pAf->where	    =   where;
-    pAf->type       =   -1;
+    pAf->catalyst_type =   -1;
+	pAf->skill = NULL;
     pAf->duration   =   -1;
     pAf->bitvector  =   value;
     pAf->level      =	pObj->level;
@@ -7577,6 +7783,7 @@ OEDIT(oedit_addimmune)
 
 OEDIT(oedit_addspell)
 {
+#if 0
     OBJ_INDEX_DATA *pObj;
     char buf[MSL];
     char name[MSL];
@@ -7601,7 +7808,7 @@ OEDIT(oedit_addspell)
     	!(pObj->item_type == ITEM_SCROLL ||
     	pObj->item_type == ITEM_WAND ||
     	pObj->item_type == ITEM_STAFF ||
-    	pObj->item_type == ITEM_POTION ||
+    	IS_FLUID_CON(pObj) ||
     	pObj->item_type == ITEM_PILL ||
     	pObj->item_type == ITEM_TATTOO ||
     	pObj->item_type == ITEM_PORTAL))
@@ -7697,6 +7904,10 @@ OEDIT(oedit_addspell)
         get_spell_data_name(spell), spell->level, spell->repop);
     send_to_char(buf, ch);
     return TRUE;
+#else
+	send_to_char("ADDSPELL deprecated.\n\r", ch);
+	return FALSE;
+#endif
 }
 
 OEDIT(oedit_addskill)
@@ -7707,7 +7918,8 @@ OEDIT(oedit_addskill)
     char mod[MSL];
     char random[MSL];
     AFFECT_DATA *pAf, *pAf_tmp;
-    int sn, i;
+	SKILL_DATA *skill;
+    int i;
 
     EDIT_OBJ(ch, pObj);
 
@@ -7727,7 +7939,8 @@ OEDIT(oedit_addskill)
 	return FALSE;
     }
 
-    if ((sn = skill_lookup(name)) == -1)
+	skill = get_skill_data(name);
+    if (!IS_VALID(skill))
     {
 	send_to_char("That's not a skill.\n\r", ch);
 	return FALSE;
@@ -7747,10 +7960,11 @@ OEDIT(oedit_addskill)
 
     pAf             =   new_affect();
     pAf->next	    =   NULL;
-    pAf->location   =   APPLY_SKILL+sn;
+    pAf->location   =   APPLY_SKILL+skill->uid;
     pAf->modifier   =   atoi(mod);
     pAf->where	    =   TO_OBJECT;
-    pAf->type       =   -1;
+    pAf->catalyst_type       =   -1;
+	pAf->skill		= NULL;
     pAf->duration   =   -1;
     pAf->bitvector  =   0;
     pAf->level      =	pObj->level;
@@ -7767,7 +7981,7 @@ OEDIT(oedit_addskill)
     }
 
     sprintf(buf, "Added skill %s, percent mod %d%%, random %d.\n\r",
-        skill_table[sn].name, pAf->modifier, pAf->random);
+        skill->name, pAf->modifier, pAf->random);
     send_to_char(buf, ch);
     return TRUE;
 }
@@ -7776,14 +7990,12 @@ OEDIT(oedit_addskill)
 OEDIT(oedit_addcatalyst)
 {
     OBJ_INDEX_DATA *pObj;
-    char buf[MSL];
     char type[MSL];
-    char strength[MSL];
     char charges[MSL];
     char chance[MIL];
     char where[MIL];
     AFFECT_DATA *cat, *pCat;
-    int t, s, c, n, w;
+    int t, c, n, w;
 
     EDIT_OBJ(ch, pObj);
 
@@ -7794,15 +8006,14 @@ OEDIT(oedit_addcatalyst)
     }
 
     argument = one_argument(argument, type);
-    argument = one_argument(argument, strength);
     argument = one_argument(argument, charges);
     argument = one_argument(argument, chance);
     argument = one_argument(argument, where);
 
-    if (!type[0] || !strength[0] || !charges[0] || !chance[0]
-    ||  !is_number(strength) || (!is_number(charges) && str_prefix(charges,"source")) || !is_number(chance))
+    if (!type[0] || !charges[0] || !chance[0]
+    || (!is_number(charges) && str_prefix(charges,"source")) || !is_number(chance))
     {
-	send_to_char("Syntax: addcatalyst [type] [strength] [charges] [chance] [active] [name]\n\r", ch);
+	send_to_char("Syntax: addcatalyst [type] [charges] [chance] [active] [name]\n\r", ch);
 	return FALSE;
     }
 
@@ -7812,16 +8023,8 @@ OEDIT(oedit_addcatalyst)
 	return FALSE;
     }
 
-    s = atoi(strength);
     c = atoi(chance);
     w = (where[0] && !str_cmp(where, "active")) ? TO_CATALYST_ACTIVE : TO_CATALYST_DORMANT;
-
-    if (s < 1 || s > CATALYST_MAXSTRENGTH)
-    {
-		sprintf(buf, "Valid strengths are from 1 to %d.\n\r", CATALYST_MAXSTRENGTH);
-		send_to_char(buf, ch);
-		return FALSE;
-    }
 
 	if(!str_prefix(charges,"source"))
 		n = -1;
@@ -7833,7 +8036,7 @@ OEDIT(oedit_addcatalyst)
 	c = URANGE(1,c,100);
 
     for(cat = pObj->catalyst; cat; cat = cat->next) {
-	    if(cat->where == w && cat->type == t && cat->level == s && cat->random == c) {
+	    if(cat->where == w && cat->catalyst_type == t && cat->random == c) {
 		    if(cat->modifier < 0 || n < 0)
 			    cat->modifier = -1;
 		    else
@@ -7847,8 +8050,7 @@ OEDIT(oedit_addcatalyst)
 		pCat->next = NULL;
 		pCat->where = w;
 		pCat->modifier = n;
-		pCat->type = t;
-		pCat->level = s;
+		pCat->catalyst_type = t;
 		pCat->random = c;
 
 		if( !IS_NULLSTR(argument) )
@@ -10308,6 +10510,421 @@ OEDIT(oedit_type_container)
 	return FALSE;
 }
 
+OEDIT(oedit_type_fluid_container)
+{
+	OBJ_INDEX_DATA *pObj;
+	EDIT_OBJ(ch, pObj);
+
+	if (argument[0] == '\0')
+	{
+		if (IS_FLUID_CON(pObj))
+		{
+			send_to_char("Syntax:  fluid name <name>\n\r", ch);
+			send_to_char("         fluid short <short description>\n\r", ch);
+			send_to_char("         fluid flags <flags>\n\r", ch);
+			send_to_char("         fluid lock add\n\r", ch);
+			send_to_char("         fluid lock remove\n\r", ch);
+			send_to_char("         fluid lock key <widevnum>\n\r", ch);
+			send_to_char("         fluid lock key clear\n\r", ch);
+			send_to_char("         fluid lock flags [flags]\n\r", ch);
+			send_to_char("         fluid lock pick <chance %>\n\r", ch);
+			send_to_char("         fluid liquid set <liquid>\n\r", ch);
+			send_to_char("         fluid liquid clear\n\r", ch);
+			send_to_char("         fluid capacity <capacity>|unlimited\n\r", ch);
+			send_to_char("         fluid amount <amount>\n\r", ch);
+			send_to_char("         fluid poison <poison %>[ <refill rate per tick>]\n\r", ch);
+			send_to_char("         fluid refill <rate per tick>\n\r", ch);
+			send_to_char("         fluid potion add <spell name|spell token wnum> <level>\n\r", ch);
+			send_to_char("         fluid potion remove <index>\n\r", ch);
+			send_to_char("         fluid potion clear\n\r", ch);
+
+			if (pObj->item_type != ITEM_FLUID_CONTAINER)
+				send_to_char("         fluid remove\n\r", ch);
+		}
+		else
+			send_to_char("Syntax:  fluid add\n\r", ch);
+		return FALSE;
+	}
+
+	char buf[MSL];
+	char arg[MIL];
+
+	argument = one_argument(argument, arg);
+
+	if (IS_FLUID_CON(pObj))
+	{
+		if (!str_prefix(arg, "name"))
+		{
+			if (IS_NULLSTR(argument))
+			{
+				send_to_char("Please specify a name.\n\r", ch);
+				return FALSE;
+			}
+
+			smash_tilde(argument);
+			free_string(FLUID_CON(pObj)->name);
+			FLUID_CON(pObj)->name = str_dup(argument);
+			send_to_char("FLUID CONTAINER Name changed.\n\r", ch);
+			return TRUE;
+		}
+		else if (!str_prefix(arg, "short"))
+		{
+			if (IS_NULLSTR(argument))
+			{
+				send_to_char("Please specify a short description.\n\r", ch);
+				return FALSE;
+			}
+
+			smash_tilde(argument);
+			free_string(FLUID_CON(pObj)->short_descr);
+			FLUID_CON(pObj)->short_descr = str_dup(argument);
+			send_to_char("FLUID CONTAINER Short Description changed.\n\r", ch);
+			return TRUE;
+		}
+		else if (!str_prefix(arg, "flags"))
+		{
+			long value;
+			if ((value = flag_value(fluid_con_flags, argument)) == NO_FLAG)
+			{
+				send_to_char("Invalid fluid container flag.\n\r", ch);
+				send_to_char("Please use one of the following: ({Y? fluid_con{x)\n\r", ch);
+				show_help(ch, "fluid_con");
+				return FALSE;
+			}
+
+			TOGGLE_BIT(FLUID_CON(pObj)->flags, value);
+			send_to_char("FLUID CONTAINER flags toggled.\n\r", ch);
+			return TRUE;
+		}
+		else if (!str_prefix(arg, "lock"))
+		{
+			argument = one_argument(argument, arg);
+
+			if( !str_prefix(arg, "add") )
+			{
+				if( FLUID_CON(pObj)->lock )
+				{
+					send_to_char("FLUID CONTAINER already has a lock state.\n\r", ch);
+					return FALSE;
+				}
+
+				FLUID_CON(pObj)->lock = new_lock_state();
+				send_to_char("Lock State added.\n\r", ch);
+				return TRUE;
+			}
+
+			if( !str_prefix(arg, "remove") )
+			{
+				if( !FLUID_CON(pObj)->lock )
+				{
+					send_to_char("FLUID CONTAINER does not have a lock state.\n\r", ch);
+					return FALSE;
+				}
+
+
+				free_lock_state(FLUID_CON(pObj)->lock);
+				FLUID_CON(pObj)->lock = NULL;
+
+				send_to_char("Lock State removed.\n\r", ch);
+				return TRUE;
+			}
+
+			if( !str_prefix(arg, "key") )
+			{
+				if( !FLUID_CON(pObj)->lock )
+				{
+					send_to_char("FLUID CONTAINER does not have a lock state.\n\r", ch);
+					return FALSE;
+				}
+
+				if( argument[0] == '\0' )
+				{
+					send_to_char("Syntax:  fluid lock key <widevnum>\n\r", ch);
+					send_to_char("         fluid lock key clear\n\r", ch);
+					return FALSE;
+				}
+
+				WNUM wnum;
+				if( parse_widevnum(argument, pObj->area, &wnum) )
+				{
+					OBJ_INDEX_DATA *key = get_obj_index(wnum.pArea, wnum.vnum);
+
+					if( !key )
+					{
+						send_to_char("That object does not exist.\n\r", ch);
+						return FALSE;
+					}
+
+					if( key->item_type != ITEM_KEY )
+					{
+						send_to_char("That object is not a key.\n\r", ch);
+						return FALSE;
+					}
+
+					// TODO: make a list
+					FLUID_CON(pObj)->lock->key_wnum = wnum;
+					send_to_char("Lock State key set.\n\r", ch);
+					return TRUE;
+				}
+				else if( !str_prefix(argument, "clear") )
+				{
+					FLUID_CON(pObj)->lock->key_wnum = wnum_zero;
+					send_to_char("Lock State key removed.\n\r", ch);
+					return TRUE;
+				}
+
+				oedit_type_container(ch, "lock key");
+				return FALSE;
+			}
+
+			if( !str_prefix(arg, "flags") )
+			{
+				if( !FLUID_CON(pObj)->lock )
+				{
+					send_to_char("FLUID CONTAINER does not have a lock state.\n\r", ch);
+					return FALSE;
+				}
+
+				int value = flag_value(lock_flags, argument);
+
+				if( value == NO_FLAG )
+				{
+					send_to_char("Syntax:  fluid lock flags [flags]\n\r", ch);
+					send_to_char("See \"? lock\" for list of flags\n\r\n\r", ch);
+					show_help(ch, "lock");
+					return FALSE;
+				}
+
+				FLUID_CON(pObj)->lock->flags ^= value;
+				send_to_char("Lock State flags changed.\n\r", ch);
+				return TRUE;
+			}
+
+			if( !str_prefix(arg, "pick") )
+			{
+				if( !FLUID_CON(pObj)->lock )
+				{
+					send_to_char("FLUID CONTAINER does not have a lock state.\n\r", ch);
+					return FALSE;
+				}
+
+				if( !is_number(argument) )
+				{
+					send_to_char("That is not a number.\n\r", ch);
+					return FALSE;
+				}
+
+				int value = atoi(argument);
+				if( value < 0 || value > 100 )
+				{
+					send_to_char("Pick chance must be from 0 to 100.\n\r", ch);
+					return FALSE;
+				}
+
+				FLUID_CON(pObj)->lock->pick_chance = value;
+				send_to_char("Lock State pick chance set.\n\r", ch);
+				return TRUE;
+			}
+
+			oedit_type_fluid_container(ch, "");
+			return FALSE;
+		}
+		else if (!str_prefix(arg, "liquid"))
+		{
+			argument = one_argument(argument, arg);
+
+			if (!str_prefix(arg, "set"))
+			{
+				LIQUID *liquid = liquid_lookup(argument);
+				if (!IS_VALID(liquid))
+				{
+					send_to_char("Invalid liquid.\n\r", ch);
+					return FALSE;
+				}
+
+				FLUID_CON(pObj)->liquid = liquid;
+				send_to_char("Liquid set.\n\r", ch);
+				return TRUE;
+			}
+			else if (!str_prefix(arg, "clear"))
+			{
+				FLUID_CON(pObj)->liquid = NULL;
+
+				send_to_char("Liquid cleared.\n\r", ch);
+				return TRUE;
+			}
+
+			oedit_type_fluid_container(ch, "");
+			return FALSE;
+		}
+		else if (!str_prefix(arg, "capacity"))
+		{
+			if (!str_prefix(argument, "unlimited"))
+			{
+				FLUID_CON(pObj)->capacity = -1;
+				FLUID_CON(pObj)->amount = -1;
+			}
+			else
+			{
+				int capacity;
+				if (is_number(argument) && (capacity = atoi(argument)) >= 0)
+				{
+					FLUID_CON(pObj)->capacity = capacity;
+					if (FLUID_CON(pObj)->amount < 0 || FLUID_CON(pObj)->amount > capacity)
+						FLUID_CON(pObj)->amount = capacity;
+				}
+				else
+				{
+					send_to_char("Please specify a non-negative number.\n\r", ch);
+					return FALSE;
+				}
+			}
+
+			send_to_char("Fluid Capacity set.\n\r", ch);
+			return TRUE;
+		}
+		else if (!str_prefix(arg, "amount"))
+		{
+			if (FLUID_CON(pObj)->capacity < 0)
+			{
+				send_to_char("Fluid container has an unlimited capacity.\n\r", ch);
+				return FALSE;
+			}
+
+			int amount;
+			if (is_number(argument) && (amount = atoi(argument)) >= 0)
+			{
+				if (amount > FLUID_CON(pObj)->capacity)
+				{
+					if (FLUID_CON(pObj)->capacity > 0)
+						sprintf(buf, "Please specify a number from 0 to %d.\n\r", FLUID_CON(pObj)->capacity);
+					else
+						sprintf(buf, "Amount may only be 0 currently.\n\r");
+					
+					send_to_char(buf, ch);
+					return FALSE;
+				}
+
+				FLUID_CON(pObj)->amount = amount;
+				send_to_char("Fluid Amount set.\n\r", ch);
+				return TRUE;
+			}
+			else
+			{
+				if (FLUID_CON(pObj)->capacity > 0)
+					sprintf(buf, "Please specify a number from 0 to %d.\n\r", FLUID_CON(pObj)->capacity);
+				else
+					sprintf(buf, "Amount may only be 0 currently.\n\r");
+					
+				send_to_char(buf, ch);
+				return FALSE;
+			}
+		}
+		else if (!str_prefix(arg, "poison"))
+		{
+			int poison;
+
+			argument = one_argument(argument, arg);
+			if (!is_number(arg) || (poison = atoi(arg)) < 0 || poison > 100)
+			{
+				send_to_char("Please specify a number from 0 to 100 for poison chance.\n\r", ch);
+				return FALSE;
+			}
+
+			int refill = 0;
+			if (!IS_NULLSTR(argument))
+			{
+				if (!is_number(argument) || (refill = atoi(argument)) < 0)
+				{
+					send_to_char("Please specify a non-negative number for poison refill rate.\n\r", ch);
+					return FALSE;
+				}
+			}
+
+			FLUID_CON(pObj)->poison = poison;
+			FLUID_CON(pObj)->poison_rate = refill;
+			send_to_char("Fluid Container Poison set.\n\r", ch);
+			return TRUE;
+		}
+		else if (!str_prefix(arg, "refill"))
+		{
+			int refill;
+
+			if (!is_number(argument) || (refill = atoi(argument)) < 0)
+			{
+				send_to_char("Please specify a non-negative number.\n\r", ch);
+				return FALSE;
+			}
+
+			FLUID_CON(pObj)->refill_rate = refill;
+			send_to_char("Fluid Container Refill set.\n\r", ch);
+			return TRUE;
+		}
+		else if (!str_prefix(arg, "potion"))
+		{
+			char name[MIL];
+			SPELL_DATA *spell;
+			int level;
+			SKILL_DATA *skill;
+
+			argument = one_argument(argument, name);
+
+			if (IS_NULLSTR(name))
+			{
+				send_to_char("Please specify a name or token widevnum.\n\r", ch);
+				return false;
+			}
+			else
+			{
+				skill = get_skill_data(name);
+				if (!IS_VALID(skill) || !is_skill_spell(skill))
+				{
+					send_to_char("That's not a spell.\n\r", ch);
+					return false;
+				}
+			}
+
+			if (!is_number(argument) || (level = atoi(argument)) < 1 || level > get_trust(ch))
+			{
+				sprintf(buf, "Level range is 1-%d.\n\r", get_trust(ch));
+				send_to_char(buf, ch);
+				return false;
+			}
+
+			spell			= new_spell();
+			spell->skill	= skill;
+			spell->level	= level;
+			spell->repop	= 100;
+			spell->next		= NULL;
+
+			list_appendlink(FLUID_CON(pObj)->spells, spell);
+
+			sprintf(buf, "Added spell %s, level %d.\n\r",
+				get_spell_data_name(spell), spell->level);
+		    send_to_char(buf, ch);
+		    return true;
+		}
+	}
+	else
+	{
+		if (!str_prefix(arg, "add"))
+		{
+			if (!obj_index_can_add_item_type(pObj, ITEM_FLUID_CONTAINER))
+			{
+				send_to_char("You cannot add this item type to this object.\n\r", ch);
+				return FALSE;
+			}
+
+			FLUID_CON(pObj) = new_fluid_container_data();
+			send_to_char("FLUID_CONTAINER data added to object.\n\r\n\r", ch);
+			return TRUE;
+		}
+	}
+
+	oedit_type_fluid_container(ch, "");
+	return FALSE;
+}
+
 OEDIT(oedit_type_food)
 {
 	OBJ_INDEX_DATA *pObj;
@@ -12523,32 +13140,13 @@ OEDIT(oedit_type_portal)
 			{
 				char arg2[MIL];
 				char arg3[MIL];
-				WNUM wnum;
-				int sn;
-				TOKEN_INDEX_DATA *token;
+				SKILL_DATA *skill;
 
 				argument = one_argument(argument, arg2);
 				argument = one_argument(argument, arg3);
 
-				if (parse_widevnum(arg2, NULL, &wnum))
-				{
-					sn = 0;
-
-					token = get_token_index_wnum(wnum);
-
-					if( !token )
-					{
-						send_to_char("No such token exists.\n\r", ch);
-						return FALSE;
-					}
-
-					if (token->type != TOKEN_SPELL)
-					{
-						send_to_char("That token is not a SPELL token.\n\r", ch);
-						return FALSE;
-					}
-				}
-				else if ((sn = skill_lookup(arg2)) == -1 || (skill_table[sn].spell_fun == spell_null))
+				skill = get_skill_data(arg2);
+				if (!IS_VALID(skill) || !is_skill_spell(skill))
 				{
 					send_to_char("That's not a spell.\n\r", ch);
 					return FALSE;
@@ -12558,7 +13156,7 @@ OEDIT(oedit_type_portal)
 
 				for (spell_tmp = PORTAL(pObj)->spells; spell_tmp != NULL; spell_tmp = spell_tmp->next)
 				{
-					if ((token && spell_tmp->token == token) || (sn > 0 && spell_tmp->sn == sn))
+					if (spell_tmp->skill == skill)
 					{
 						send_to_char("That spell is already on the object.\n\r", ch);
 						return FALSE;
@@ -12587,8 +13185,7 @@ OEDIT(oedit_type_portal)
 				}
 
 				SPELL_DATA *spell = new_spell();
-				spell->sn = sn;
-				spell->token = token;
+				spell->skill = skill;
 				spell->level = level;
 				spell->repop = chance;
 				spell->next = NULL;
@@ -15848,12 +16445,12 @@ MEDIT (medit_addmprog)
 		}
 		else
 		{
-			int sn = skill_lookup(phrase);
-			if(sn < 0 || skill_table[sn].spell_fun == spell_null) {
+			SKILL_DATA *skill = get_skill_data(phrase);
+			if(!IS_VALID(skill) || !is_skill_spell(skill)) {
 				send_to_char("Invalid spell for trigger.\n\r",ch);
 				return FALSE;
 			}
-			sprintf(phrase,"%d",sn);
+			sprintf(phrase,"%d",skill->uid);
 		}
 	}
 	else if( value == TRIG_EXIT || value == TRIG_EXALL )
@@ -16388,12 +16985,12 @@ OEDIT (oedit_addoprog)
 		}
 		else
 		{
-			int sn = skill_lookup(phrase);
-			if(sn < 0 || skill_table[sn].spell_fun == spell_null) {
+			SKILL_DATA *skill = get_skill_data(phrase);
+			if(!IS_VALID(skill) || !is_skill_spell(skill)) {
 				send_to_char("Invalid spell for trigger.\n\r",ch);
 				return FALSE;
 			}
-			sprintf(phrase,"%d",sn);
+			sprintf(phrase,"%d",skill->uid);
 		}
 	}
 	else if( value == TRIG_EXIT || value == TRIG_EXALL )
@@ -16512,12 +17109,12 @@ REDIT (redit_addrprog)
 		}
 		else
 		{
-			int sn = skill_lookup(phrase);
-			if(sn < 0 || skill_table[sn].spell_fun == spell_null) {
+			SKILL_DATA *skill = get_skill_data(phrase);
+			if(!IS_VALID(skill) || !is_skill_spell(skill)) {
 				send_to_char("Invalid spell for trigger.\n\r",ch);
 				return FALSE;
 			}
-			sprintf(phrase,"%d",sn);
+			sprintf(phrase,"%d",skill->uid);
 		}
 	}
 	else if( value == TRIG_EXIT ||
@@ -18048,3 +18645,353 @@ MEDIT( medit_crew )
 	medit_crew(ch, "");
 	return FALSE;
 }
+
+
+LIQEDIT( liqedit_list )
+{
+	char buf[MSL];
+	BUFFER *buffer = new_buf();
+
+	sprintf(buf, "%-4s %-20s %-20s %s %3s %3s %3s %3s %-7s %s\n\r",
+		"#", "Name", "Color", "F", "Prf", "Ful", "Thi", "Hun", "Fuel", "Mana");
+	add_buf(buffer, buf);
+	sprintf(buf, "%-4s %-20s %-20s %s %3s %3s %3s %3s %-7s %s\n\r",
+		"====", "====================", "====================", "=", "===", "===", "===", "===", "=======", "=====");
+	add_buf(buffer, buf);
+
+	int i = 0;
+    ITERATOR it;
+    LIQUID *liq;
+    iterator_start(&it, liquid_list);
+    while((liq = (LIQUID *)iterator_nextdata(&it)))
+    {
+		sprintf(buf, "%-4d %-20s %-20s %s %3d %3d %3d %3d %3d %3d %5d\n\r", ++i,
+			liq->name, liq->color,
+			(liq->flammable ? "{RY{x" : "{rn{x"), liq->proof,
+			liq->full, liq->thirst, liq->hunger,
+			liq->fuel_unit, liq->fuel_duration,
+			liq->max_mana);
+		add_buf(buffer, buf);
+    }
+    iterator_stop(&it);
+
+	sprintf(buf, "%-4s %-20s %-20s %s %3s %3s %3s %3s %-7s %s\n\r",
+		"====", "====================", "====================", "=", "===", "===", "===", "===", "=======", "=====");
+	add_buf(buffer, buf);
+
+	sprintf(buf, "Total: %d\n\r", i);
+	add_buf(buffer, buf);
+
+	if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+	{
+		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+	}
+	else
+	{
+		page_to_char(buffer->string, ch);
+	}
+
+	free_buf(buffer);
+	return false;
+}
+
+LIQEDIT( liqedit_show )
+{
+	char buf[MSL];
+	BUFFER *buffer;
+	LIQUID *liquid;
+
+	EDIT_LIQUID(ch, liquid);
+
+	buffer = new_buf();
+
+	sprintf(buf, "Liquid:    %s (%d)\n\r", liquid->name, liquid->uid);
+	add_buf(buffer, buf);
+
+	sprintf(buf, "Color:     %s\n\r", liquid->color);
+	add_buf(buffer, buf);
+
+	sprintf(buf, "Flammable: %s\n\r", (liquid->flammable ? "{WYES{x" : "{DNO{x"));
+	add_buf(buffer, buf);
+
+	sprintf(buf, "Proof:     %d\n\r", liquid->proof);
+	add_buf(buffer, buf);
+
+	sprintf(buf, "Full:      %d hour%s\n\r", liquid->full, ((liquid->full == 1) ? "" : "s"));
+	add_buf(buffer, buf);
+
+	sprintf(buf, "Thirst:    %d hour%s\n\r", liquid->thirst, ((liquid->thirst == 1) ? "" : "s"));
+	add_buf(buffer, buf);
+
+	sprintf(buf, "Hunger:    %d hour%s\n\r", liquid->hunger, ((liquid->hunger == 1) ? "" : "s"));
+	add_buf(buffer, buf);
+
+	sprintf(buf, "Fuel:      %d unit%s per %d hour%s\n\r",
+		liquid->fuel_unit, ((liquid->fuel_unit == 1) ? "" : "s"),
+		liquid->fuel_duration, ((liquid->fuel_duration == 1) ? "" : "s"));
+	add_buf(buffer, buf);
+
+	sprintf(buf, "Max Mana:  %d\n\r", liquid->max_mana);
+	add_buf(buffer, buf);
+
+	if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+	{
+		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+	}
+	else
+	{
+		page_to_char(buffer->string, ch);
+	}
+
+	free_buf(buffer);
+	return false;
+}
+
+LIQEDIT( liqedit_create )
+{
+	LIQUID *liquid;
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  liqedit create <name>\n\r", ch);
+		send_to_char("Please provide a name.\n\r", ch);
+		return false;
+	}
+
+	if ((liquid = liquid_lookup(argument)))
+	{
+		send_to_char("That name is already in use.\n\r", ch);
+		return false;
+	}
+
+	liquid = new_liquid();
+	smash_tilde(argument);
+	liquid->name = str_dup(argument);
+	liquid->uid = ++top_liquid_uid;
+	liquid->gln = NULL;
+	list_appendlink(liquid_list, liquid);
+
+	ch->desc->pEdit = liquid;
+	ch->desc->editor = ED_LIQEDIT;
+
+	send_to_char("Liquid created.\n\r", ch);
+	return true;
+}
+
+LIQEDIT( liqedit_delete )
+{
+	send_to_char("Not yet implemented.\n\r", ch);
+	return false;
+}
+
+LIQEDIT( liqedit_name )
+{
+	LIQUID *liquid, *other;
+
+	EDIT_LIQUID(ch, liquid);
+	smash_tilde(argument);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  liqedit name <name>\n\r", ch);
+		send_to_char("Please specify a name.\n\r", ch);
+		return false;
+	}
+
+	other = liquid_lookup(argument);
+	if (IS_VALID(other) && liquid != other)
+	{
+		send_to_char("That name is already in use.\n\r", ch);
+		return false;
+	}
+
+	free_string(liquid->name);
+	liquid->name = str_dup(argument);
+	send_to_char("Liquid name set.\n\r", ch);
+	return true;
+}
+
+LIQEDIT( liqedit_color )
+{
+	LIQUID *liquid;
+
+	EDIT_LIQUID(ch, liquid);
+	smash_tilde(argument);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  liqedit color <color>\n\r", ch);
+		send_to_char("Please specify a color.\n\r", ch);
+		return false;
+	}
+
+	free_string(liquid->color);
+	liquid->color = str_dup(argument);	
+
+	send_to_char("Liquid color set.\n\r", ch);
+	return true;
+}
+
+LIQEDIT( liqedit_flammable )
+{
+	LIQUID *liquid;
+
+	EDIT_LIQUID(ch, liquid);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  liqedit flammable <boolean>\n\r", ch);
+		send_to_char("Please specify a boolean value.\n\r", ch);
+		return false;
+	}
+
+	if (!str_prefix(argument, "yes") || !str_prefix(argument, "true") || !str_prefix(argument, "on"))
+		liquid->flammable = true;
+	else if (!str_prefix(argument, "no") || !str_prefix(argument, "false") || !str_prefix(argument, "off"))
+		liquid->flammable = false;
+	{
+		send_to_char("Syntax:  liqedit flammable <boolean>\n\r", ch);
+		send_to_char("Please specify a boolean value.\n\r", ch);
+		return false;
+	}
+
+	send_to_char("Liquid flammablity set.\n\r", ch);
+	return true;
+}
+
+LIQEDIT( liqedit_proof )
+{
+	int value;
+	LIQUID *liquid;
+
+	EDIT_LIQUID(ch, liquid);
+
+	if (!is_number(argument) || (value = atoi(argument)) < 0 || value > 200)
+	{
+		send_to_char("Syntax:  liqedit proof <0-200>\n\r", ch);
+		send_to_char("Please specify a number from 0 to 200.\n\r", ch);
+		return false;
+	}
+
+	liquid->proof = value;
+
+	send_to_char("Liquid proof set.\n\r", ch);
+	return true;
+}
+
+LIQEDIT( liqedit_full )
+{
+	int value;
+	LIQUID *liquid;
+
+	EDIT_LIQUID(ch, liquid);
+
+	if (!is_number(argument) || (value = atoi(argument)) < 0)
+	{
+		send_to_char("Syntax:  liqedit full <hours>\n\r", ch);
+		send_to_char("Please specify a non-negative number.\n\r", ch);
+		return false;
+	}
+
+	liquid->full = value;
+
+	send_to_char("Liquid fullness hours set.\n\r", ch);
+	return true;
+}
+
+LIQEDIT( liqedit_thirst )
+{
+	int value;
+	LIQUID *liquid;
+
+	EDIT_LIQUID(ch, liquid);
+
+	if (!is_number(argument) || (value = atoi(argument)) < 0)
+	{
+		send_to_char("Syntax:  liqedit thirst <hours>\n\r", ch);
+		send_to_char("Please specify a non-negative number.\n\r", ch);
+		return false;
+	}
+
+	liquid->thirst = value;
+
+	send_to_char("Liquid thirst hours set.\n\r", ch);
+	return true;
+}
+
+LIQEDIT( liqedit_hunger )
+{
+	int value;
+	LIQUID *liquid;
+
+	EDIT_LIQUID(ch, liquid);
+
+	if (!is_number(argument) || (value = atoi(argument)) < 0)
+	{
+		send_to_char("Syntax:  liqedit hunger <hours>\n\r", ch);
+		send_to_char("Please specify a non-negative number.\n\r", ch);
+		return false;
+	}
+
+	liquid->hunger = value;
+
+	send_to_char("Liquid hunger hours set.\n\r", ch);
+	return true;
+}
+
+LIQEDIT( liqedit_maxmana )
+{
+	int value;
+	LIQUID *liquid;
+
+	EDIT_LIQUID(ch, liquid);
+
+	if (!is_number(argument) || (value = atoi(argument)) < 0)
+	{
+		send_to_char("Syntax:  liqedit maxmana <number>\n\r", ch);
+		send_to_char("Please specify a non-negative number.\n\r", ch);
+		return false;
+	}
+
+	liquid->max_mana = value;
+
+	send_to_char("Liquid Maximum Mana set.\n\r", ch);
+	return true;
+}
+
+LIQEDIT( liqedit_fuel )
+{
+	char arg[MIL];
+	int unit, duration;
+	LIQUID *liquid;
+
+	EDIT_LIQUID(ch, liquid);
+
+	argument = one_argument(argument, arg);
+
+	if (!is_number(arg) || (unit = atoi(arg)) < 0)
+	{
+		send_to_char("Syntax:  liqedit fuel {R<unit>{x <duration>\n\r", ch);
+		send_to_char("Please specify a non-negative number.\n\r", ch);
+		return false;
+	}
+
+	if (!is_number(argument) || (duration = atoi(argument)) < 0)
+	{
+		send_to_char("Syntax:  liqedit fuel <unit> {R<duration>{x\n\r", ch);
+		send_to_char("Please specify a non-negative number.\n\r", ch);
+		return false;
+	}
+
+	liquid->fuel_unit = unit;
+	liquid->fuel_duration = duration;
+
+	send_to_char("Liquid fuel usage set.\n\r", ch);
+	return true;
+}
+
+LIQEDIT( liqedit_gln )
+{
+	return false;
+}
+

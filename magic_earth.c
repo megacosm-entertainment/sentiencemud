@@ -153,13 +153,13 @@ SPELL_FUNC(spell_earth_walk)
 		// Add distance calculations
 		distance = 1;
 
-		catalyst = has_catalyst(ch,NULL,CATALYST_NATURE,CATALYST_HERE,1,CATALYST_MAXSTRENGTH);
+		catalyst = has_catalyst(ch,NULL,CATALYST_NATURE,CATALYST_HERE);
 		if(catalyst >= 0 && catalyst < distance) {
 			send_to_char("You appear to be missing a required natural catalyst.\n\r", ch);
 			return FALSE;
 		}
 
-		catalyst = use_catalyst(ch,NULL,CATALYST_NATURE,CATALYST_INVENTORY,distance,1,CATALYST_MAXSTRENGTH,TRUE);
+		catalyst = use_catalyst(ch,NULL,CATALYST_NATURE,CATALYST_INVENTORY,distance,TRUE);
 	} else
 		catalyst = 0;
 
@@ -234,9 +234,9 @@ SPELL_FUNC(spell_earthquake)
 		if (vch->in_room == ch->in_room) {
 			if (vch != ch && !is_same_group(ch, vch)) {
 				if (IS_AFFECTED(vch,AFF_FLYING))
-					damage(ch,vch,0,sn,DAM_BASH,TRUE);
+					damage(ch,vch,0,skill,TYPE_UNDEFINED,DAM_BASH,TRUE);
 				else
-					damage(ch,vch,level + dice(2, 8), sn, DAM_BASH,TRUE);
+					damage(ch,vch,level + dice(2, 8), skill,TYPE_UNDEFINED, DAM_BASH,TRUE);
 			}
 
 			continue;
@@ -258,9 +258,9 @@ SPELL_FUNC(spell_giant_strength)
 		perm = TRUE;
 	}
 
-	if (perm && is_affected(victim, sn)) {
-		affect_strip(victim, sn);
-	} else if (is_affected(victim, sn)) {
+	if (perm && is_affected(victim, skill)) {
+		affect_strip(victim, skill);
+	} else if (is_affected(victim, skill)) {
 		if (victim == ch)
 			send_to_char("You are already as strong as you can get!\n\r",ch);
 		else
@@ -270,7 +270,7 @@ SPELL_FUNC(spell_giant_strength)
 
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration = perm ? -1 : level;
 	af.location = APPLY_STR;
@@ -298,9 +298,9 @@ SPELL_FUNC(spell_stone_skin)
 		perm = TRUE;
 	}
 
-	if (perm && is_affected(victim, sn))
-		affect_strip(victim, sn);
-	else if (is_affected(ch, sn)) {
+	if (perm && is_affected(victim, skill))
+		affect_strip(victim, skill);
+	else if (is_affected(ch, skill)) {
 		if (victim == ch)
 			send_to_char("Your skin is already as hard as a rock.\n\r",ch);
 		else
@@ -310,7 +310,7 @@ SPELL_FUNC(spell_stone_skin)
 
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration = perm?-1:level;
 	af.location = APPLY_AC;
@@ -349,8 +349,8 @@ SPELL_FUNC(spell_stone_spikes)
 				send_to_char("You dodge the spikes!\n\r", victim);
 				act("$n dodges the spikes!", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 			} else {
-				damage(ch, victim, dice(level/4, 8), sn, DAM_PIERCE, TRUE);
-				affect_strip(victim, gsn_sneak);
+				damage(ch, victim, dice(level/4, 8), skill, TYPE_UNDEFINED, DAM_PIERCE, TRUE);
+				affect_strip(victim, gsk_sneak);
 				REMOVE_BIT(victim->affected_by[0], AFF_HIDE);
 				REMOVE_BIT(victim->affected_by[0], AFF_SNEAK);
 			}
@@ -373,8 +373,8 @@ SPELL_FUNC(spell_stone_spikes)
 						send_to_char("You dodge the spikes!\n\r", victim);
 						act("$n dodges the spikes!", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 					} else {
-						damage(ch, victim, dice(level/4, 8), sn, DAM_PIERCE, TRUE);
-						affect_strip(victim, gsn_sneak);
+						damage(ch, victim, dice(level/4, 8), skill, TYPE_UNDEFINED, DAM_PIERCE, TRUE);
+						affect_strip(victim, gsk_sneak);
 						REMOVE_BIT(victim->affected_by[0], AFF_HIDE);
 						REMOVE_BIT(victim->affected_by[0], AFF_SNEAK);
 					}
@@ -398,7 +398,7 @@ SPELL_FUNC(spell_stone_touch)
 		// Check for reagent
 	}
 
-	if (is_affected(ch, sn)) {
+	if (is_affected(ch, skill)) {
 		if (victim == ch)
 			send_to_char("You are already a statue.\n\r",ch);
 		else
@@ -409,7 +409,7 @@ SPELL_FUNC(spell_stone_touch)
 	af.slot	= WEAR_NONE;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration = level;
 	af.location = APPLY_AC;

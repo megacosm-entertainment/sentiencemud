@@ -49,6 +49,7 @@
 extern void persist_save(void);
 extern char *token_index_getvaluename(TOKEN_INDEX_DATA *token, int v);
 extern void affect_fix_char(CHAR_DATA *ch);
+extern char *get_affect_name(AFFECT_DATA *paf);
 extern bool newlock;
 extern bool wizlock;
 extern bool is_test_port;
@@ -2383,8 +2384,8 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 
 	if (IS_CONTAINER(obj))
 	{
-		sprintf(buf, "{CContainer[{x%s{C / {x%s{C]: {BMax Weight:{x %d {BWeight Multiplier:{x %d {BMax Volume:{x %d {BTotal Weight:{x %d {BTotal Volume:{x %d\n\r",
-			CONTAINER(obj)->name, CONTAINER(obj)->short_descr,
+		sprintf(buf, "{CContainer[{x%s{C / {x%s{C]: {BFlags: {x%s {BMax Weight:{x %d {BWeight Multiplier:{x %d {BMax Volume:{x %d {BTotal Weight:{x %d {BTotal Volume:{x %d\n\r",
+			CONTAINER(obj)->name, CONTAINER(obj)->short_descr, flag_string(container_flags,CONTAINER(obj)->flags),
 			CONTAINER(obj)->max_weight,
 			CONTAINER(obj)->weight_multiplier,
 			CONTAINER(obj)->max_volume,
@@ -2394,6 +2395,29 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 
 		if (CONTAINER(obj)->lock)
 			ostat_lock_state(CONTAINER(obj)->lock, buffer);
+	}
+
+	if (IS_FLUID_CON(obj))
+	{
+		sprintf(buf, "{CFluid Container[{x%s{C / {x%s{C]: {BFlags: {x%s {BCapacity:{x %d{B / {x%d {B(+%d{B/tick) Liquid:{x %s {BPoison:{x %d {B(+{x%d{B/tick){x\n\r",
+			FLUID_CON(obj)->name, FLUID_CON(obj)->short_descr, flag_string(fluid_con_flags,FLUID_CON(obj)->flags),
+			FLUID_CON(obj)->amount, FLUID_CON(obj)->capacity, FLUID_CON(obj)->refill_rate,
+			IS_VALID(FLUID_CON(obj)->liquid) ? FLUID_CON(obj)->liquid->name : "none",
+			FLUID_CON(obj)->poison, FLUID_CON(obj)->poison_rate);
+		add_buf(buffer, buf);
+
+		if (FLUID_CON(obj)->lock)
+			ostat_lock_state(FLUID_CON(obj)->lock, buffer);
+
+		ITERATOR sit;
+		SPELL_DATA *spell;
+		iterator_start(&sit, FLUID_CON(obj)->spells);
+		while((spell = (SPELL_DATA *)iterator_nextdata(&sit)))
+		{
+			sprintf(buf, "   {CSpell: {x%s {BLevel: {x%d\n\r", spell->skill->name, spell->level);
+			add_buf(buffer, buf);
+		}
+		iterator_stop(&sit);
 	}
 
 	if (IS_FOOD(obj))
@@ -2536,18 +2560,8 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 			SPELL_DATA *spell;
 			for(spell = PORTAL(obj)->spells; spell; spell = spell->next)
 			{
-				char name[MIL];
-				if (spell->token)
-				{
-					sprintf(name, "{x%s {C({x%ld{W#{x%ld{C)", spell->token->name, spell->token->area->uid, spell->token->vnum);
-				}
-				else
-				{
-					sprintf(name, "{x%s", skill_table[spell->sn].name);
-				}
-
 				sprintf(buf, " {CSpell: %s {CLevel: {x%d\n\r",
-					name, spell->level);
+					spell->skill->name, spell->level);
 				add_buf(buffer, buf);
 			}
 		}
@@ -2864,7 +2878,7 @@ void do_mstat(CHAR_DATA *ch, char *argument)
 	{
 		sprintf(buf, "{C* {BLevel {W%3d {Baffect {x%-20.20s{B modifies {x%-12s{B by {x%2d{B for {x%2d{B hours with bits {x%s{B on slot {x%s\n\r",
 					 paf->level,
-					 skill_table[(int) paf->type].name,
+					 get_affect_name(paf),
 					 affect_loc_name(paf->location),
 					 paf->modifier,
 					 paf->duration,
@@ -4576,7 +4590,6 @@ void do_notell(CHAR_DATA *ch, char *argument)
     }
 }
 
-
 void do_peace(CHAR_DATA *ch, char *argument)
 {
     CHAR_DATA *rch;
@@ -5021,7 +5034,7 @@ void do_sset(CHAR_DATA *ch, char *argument)
     char buf[MSL];
     CHAR_DATA *victim;
     int value;
-    int sn;
+    SKILL_DATA *skill;
     bool fAll;
 
     argument = one_argument(argument, arg1);
@@ -5030,32 +5043,32 @@ void do_sset(CHAR_DATA *ch, char *argument)
 
     if (arg1[0] == '\0' || arg2[0] == '\0' || arg3[0] == '\0')
     {
-	send_to_char("Syntax:\n\r",ch);
-	send_to_char("  set skill <name> <spell or skill> <value>\n\r", ch);
-	send_to_char("  set skill <name> all <value>\n\r",ch);
-	send_to_char("   (use the name of the skill, not the number)\n\r",ch);
-	return;
+		send_to_char("Syntax:\n\r",ch);
+		send_to_char("  set skill <name> <spell or skill> <value>\n\r", ch);
+		send_to_char("  set skill <name> all <value>\n\r",ch);
+		send_to_char("   (use the name of the skill, not the number)\n\r",ch);
+		return;
     }
 
     if ((victim = get_char_world(ch, arg1)) == NULL)
     {
-	send_to_char("They aren't here.\n\r", ch);
-	return;
+		send_to_char("They aren't here.\n\r", ch);
+		return;
     }
 
     if (IS_NPC(victim))
     {
-	send_to_char("Not on NPC's.\n\r", ch);
-	return;
+		send_to_char("Not on NPC's.\n\r", ch);
+		return;
     }
 
     fAll = !str_cmp(arg2, "all");
 
-    sn   = 0;
-    if (!fAll && (sn = skill_lookup(arg2)) < 0)
+    skill = NULL;
+    if (!fAll && (skill = get_skill_data(arg2)) == NULL)
     {
-	send_to_char("No such skill or spell.\n\r", ch);
-	return;
+		send_to_char("No such skill or spell.\n\r", ch);
+		return;
     }
 
     /*
@@ -5063,56 +5076,77 @@ void do_sset(CHAR_DATA *ch, char *argument)
      */
     if (!is_number(arg3))
     {
-	send_to_char("Value must be numeric.\n\r", ch);
-	return;
+		send_to_char("Value must be numeric.\n\r", ch);
+		return;
     }
 
     value = atoi(arg3);
     if (value < 0 || value > 100)
     {
-	send_to_char("Value range is 0 to 100.\n\r", ch);
-	return;
+		send_to_char("Value range is 0 to 100.\n\r", ch);
+		return;
     }
 
     if (fAll)
     {
-		for (sn = 0; sn < MAX_SKILL; sn++)
+		ITERATOR it;
+		iterator_start(&it, skills_list);
+		while((skill = (SKILL_DATA *)iterator_nextdata(&it)))
 		{
-			if (skill_table[sn].name != NULL && str_cmp(skill_table[sn].name, "none")) {
-				if( value == 0 ) {
-					if( skill_table[sn].spell_fun == spell_null )
-						skill_entry_removeskill(victim,sn, NULL);
-					else
-						skill_entry_removespell(victim,sn, NULL);
-				} else if( skill_entry_findsn( victim->sorted_skills, sn) == NULL) {
-					if( skill_table[sn].spell_fun == spell_null ) {
-						skill_entry_addskill(victim, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
-					} else {
-						skill_entry_addspell(victim, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
-					}
-				}
+			if (value == 0)
+			{
+				if (is_skill_spell(skill))
+					skill_entry_removespell(victim, skill);
+				else
+					skill_entry_removeskill(victim, skill);
 			}
-			victim->pcdata->learned[sn]	= value;
-		}
-    }
-    else {
-		if( value == 0 ) {
-			if( skill_table[sn].spell_fun == spell_null )
-				skill_entry_removeskill(victim,sn, NULL);
 			else
-				skill_entry_removespell(victim,sn, NULL);
-		} else if( skill_entry_findsn( victim->sorted_skills, sn) == NULL) {
-			if( skill_table[sn].spell_fun == spell_null ) {
-				skill_entry_addskill(victim, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
-			} else {
-				skill_entry_addspell(victim, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
+			{
+				SKILL_ENTRY *entry = skill_entry_findskill(victim->sorted_skills, skill);
+				if (!entry)
+				{
+					TOKEN_DATA *token = NULL;
+					if (skill->token)
+						token = give_token(skill->token, victim, NULL, NULL);
+
+					if (is_skill_spell(skill))
+						entry = skill_entry_addspell(victim, skill, token, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
+					else
+						entry = skill_entry_addskill(victim, skill, token, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
+				}
+
+				entry->rating = value;
 			}
+
 		}
-		victim->pcdata->learned[sn] = value;
+		iterator_stop(&it);
+    }
+    else
+	{
+		if( value == 0 ) {
+			if (is_skill_spell(skill))
+				skill_entry_removespell(victim, skill);
+			else
+				skill_entry_removeskill(victim, skill);
+		} else {
+			SKILL_ENTRY *entry = skill_entry_findskill(victim->sorted_skills, skill);
+			if (!entry)
+			{
+				TOKEN_DATA *token = NULL;
+				if (skill->token)
+					token = give_token(skill->token, victim, NULL, NULL);
+
+				if (is_skill_spell(skill))
+					entry = skill_entry_addspell(victim, skill, token, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
+				else
+					entry = skill_entry_addskill(victim, skill, token, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
+			}
+			entry->rating = value;
+		}
 	}
 
     if (!fAll)
-	sprintf(buf, "Set %s's %s skill to %d%%\n\r", victim->name, skill_table[sn].name, value);
+	sprintf(buf, "Set %s's %s skill to %d%%\n\r", victim->name, skill->name, value);
     else
 	sprintf(buf, "Set all of %s's skills to %d%%\n\r", victim->name, value);
 
@@ -8326,6 +8360,10 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 		send_to_char("         reserved {Rarea{x list\n\r", ch);
 		if (IS_IMPLEMENTOR(ch))
 			send_to_char("         reserved {Rarea{x set <name> <auid>\n\r", ch);
+
+		send_to_char("         reserved {Rliquid{x list\n\r", ch);
+		if (IS_IMPLEMENTOR(ch))
+			send_to_char("         reserved {Rliquid{x set <name> <liquid>\n\r", ch);
 		return;
 	}
 
@@ -8920,7 +8958,107 @@ void do_reserved(CHAR_DATA *ch, char *argument)
 		send_to_char("reserved area {Rlist{x\n\r", ch);
 		send_to_char("reserved area {Rset{x <name> <auid>\n\r", ch);
 		return;
-	}	
+	}
+
+	if (!str_prefix(arg, "liquid"))
+	{
+		if (IS_NULLSTR(argument))
+		{
+			send_to_char("Syntax:  reserved liquid {Rlist{x\n\r", ch);
+			if (IS_IMPLEMENTOR(ch))
+				send_to_char("         reserved liquid {Rset{x <name> <liquid>\n\r", ch);
+			return;
+		}
+
+		argument = one_argument(argument, arg2);
+		if (!str_prefix(arg2, "list"))
+		{
+			BUFFER *buffer = new_buf();
+
+			add_buf(buffer, "Reserved Liquids:\n\r");
+			add_buf(buffer, "[          Name          ] [         Liquid         ]\n\r");
+			add_buf(buffer, "======================================================\n\r");
+
+			int i;
+			for(i = 0; gln_table[i].name; i++)
+			{
+				if (gln_table[i].liq)
+				{
+					LIQUID *liq = *gln_table[i].liq;
+
+					sprintf(buf, " %-24.24s {G%-24.24s{x\n\r",
+						gln_table[i].name,
+						liq->name);
+					add_buf(buffer, buf);
+				}
+			}
+
+			add_buf(buffer, "------------------------------------------------------\n\r");
+
+			if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+			{
+				send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+			}
+			else
+			{
+				page_to_char(buffer->string, ch);
+			}
+
+			free_buf(buffer);
+			return;
+		}
+
+		if (!str_prefix(arg2, "set"))
+		{
+			if (!IS_IMPLEMENTOR(ch))
+			{
+				do_reserved(ch, "liquid");
+				return;
+			}
+
+			char arg3[MIL];
+			if (IS_NULLSTR(argument))
+			{
+				send_to_char("Syntax:  reserved liquid set {R<name>{x <liquid>\n\r", ch);
+				return;
+			}
+
+			argument = one_argument(argument, arg3);
+			int i;
+			for(i = 0; gln_table[i].name; i++)
+			{
+				if (gln_table[i].liq && !str_prefix(arg3, gln_table[i].name))
+					break;
+			}
+
+			if (!gln_table[i].name)
+			{
+				send_to_char("Syntax:  reserved liquid set {R<name>{x <liquid>\n\r", ch);
+				send_to_char("No such reserved liquid.\n\r", ch);
+				return;
+			}
+
+			LIQUID *liquid = liquid_lookup(argument);
+			if (!IS_VALID(liquid))
+			{
+				send_to_char("Syntax:  reserved liquid set <name> {R<liquid>{x\n\r", ch);
+				send_to_char("No such liquid.\n\r", ch);
+				return;
+			}
+
+			if (*gln_table[i].liq) (*gln_table[i].liq)->gln = NULL;
+			(*gln_table[i].liq) = liquid;
+			liquid->gln = gln_table[i].gln;
+			*(liquid->gln) = liquid->uid;
+
+			sprintf(buf, "Reserved liquid {Y%s{x set to {G%s{x.\n\r", gln_table[i].name, liquid->name);
+			send_to_char(buf, ch);
+			return;
+		}
+		
+		send_to_char("reserved liquid {Rlist{x\n\r", ch);
+		send_to_char("reserved liquid {Rset{x <name> <liquid>\n\r", ch);
+	}
 
 	do_reserved(ch, "");
 }
@@ -8939,4 +9077,293 @@ void do_settings(CHAR_DATA *ch, char *argument)
 	send_to_char("NYI\n\r", ch);
 }
 
+static void delete_liquid(void *ptr)
+{
+	free_liquid((LIQUID *)ptr);
+}
 
+void save_liquid(FILE *fp, LIQUID *liq)
+{
+	fprintf(fp, "#LIQUID %d\n", liq->uid);
+	fprintf(fp, "Name %s~\n", fix_string(liq->name));
+	fprintf(fp, "Color %s~\n", fix_string(liq->color));
+	fprintf(fp, "Proof %d\n", liq->proof);
+	fprintf(fp, "Full %d\n", liq->full);
+	fprintf(fp, "Thirst %d\n", liq->thirst);
+	fprintf(fp, "Hunger %d\n", liq->hunger);
+	fprintf(fp, "FuelUnit %d\n", liq->fuel_unit);
+	fprintf(fp, "FuelDuration %d\n", liq->fuel_duration);
+	fprintf(fp, "MaxMana %d\n", liq->max_mana);
+	if (liq->gln)
+		fprintf(fp, "GLN %s~\n", liquid_gln_name(liq->gln));
+	fprintf(fp, "#-LIQUID\n");
+}
+
+void save_liquids()
+{
+	FILE *fp;
+
+	log_string("save_liquids: saving " LIQUIDS_FILE);
+	if ((fp = fopen(LIQUIDS_FILE, "w")) == NULL)
+	{
+		bug("save_liquids: fopen", 0);
+		perror(LIQUIDS_FILE);
+	}
+	else
+	{
+#if 0
+		for (int i = 0; liq_table[i].liq_name; i++)
+		{
+			log_stringf("LIQUID: %s", liq_table[i].liq_name);
+
+			fprintf(fp, "#LIQUID %d\n", i + 1);
+			fprintf(fp, "Name %s~\n", liq_table[i].liq_name);
+			fprintf(fp, "Color %s~\n", liq_table[i].liq_colour);
+			
+			fprintf(fp, "Proof %d\n", liq_table[i].liq_affect[LIQ_AFF_PROOF]);
+			fprintf(fp, "Full %d\n", liq_table[i].liq_affect[LIQ_AFF_FULL]);
+			fprintf(fp, "Thirst %d\n", liq_table[i].liq_affect[LIQ_AFF_THIRST]);
+			fprintf(fp, "Hunger %d\n", liq_table[i].liq_affect[LIQ_AFF_HUNGER]);
+
+			// The rest are zero / false
+			fprintf(fp, "#-LIQUID\n");
+		}
+#else
+		ITERATOR it;
+		LIQUID *liquid;
+		iterator_start(&it, liquid_list);
+		while((liquid = (LIQUID *)iterator_nextdata(&it)))
+		{
+			save_liquid(fp, liquid);
+		}
+		iterator_stop(&it);
+#endif
+
+		fprintf(fp, "End\n");
+		fclose(fp);
+	}
+}
+
+LIQUID *load_liquid(FILE *fp)
+{
+	LIQUID *liq = new_liquid();
+	char buf[MSL];
+	char *word;
+	bool fMatch;
+
+	liq->uid = fread_number(fp);
+
+    while (str_cmp((word = fread_word(fp)), "#-LIQUID"))
+	{
+		switch(word[0])
+		{
+			case 'C':
+				KEYS("Color", liq->color, fread_string(fp));
+				break;
+
+			case 'F':
+				KEY("FuelDuration", liq->fuel_duration, fread_number(fp));
+				KEY("FuelUnit", liq->fuel_unit, fread_number(fp));
+				KEY("Full", liq->full, fread_number(fp));
+				break;
+
+			case 'G':
+				if (!str_cmp(word, "GLN"))
+				{
+					char *name = fread_string(fp);
+
+					liq->gln = liquid_gln_lookup(name);
+
+					fMatch = TRUE;
+					break;
+				}
+				break;
+
+			case 'H':
+				KEY("Hunger", liq->hunger, fread_number(fp));
+				break;
+
+			case 'M':
+				KEY("MaxMana", liq->max_mana, fread_number(fp));
+				break;
+
+			case 'N':
+				KEYS("Name", liq->name, fread_string(fp));
+				break;
+
+			case 'P':
+				KEY("Proof", liq->proof, fread_number(fp));
+				break;
+
+			case 'T':
+				KEY("Thirst", liq->thirst, fread_number(fp));
+				break;
+
+		}
+
+		if (!fMatch)
+		{
+			sprintf(buf, "load_liquid: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+	
+	return liq;
+}
+
+void insert_liquid(LIQUID *liquid)
+{
+	ITERATOR it;
+	LIQUID *liq;
+	iterator_start(&it, liquid_list);
+	while((liq = (LIQUID *)iterator_nextdata(&it)))
+	{
+		// Why is this inaccessible?
+		int cmp = str_cmp(liquid->name, liq->name);
+		if(cmp < 0)
+		{
+			iterator_insert_before(&it, liquid);
+			break;
+		}
+	}
+	iterator_stop(&it);
+
+	if (!liq)
+	{
+		list_appendlink(liquid_list, liquid);
+	}
+}
+
+bool load_liquids()
+{
+	FILE *fp;
+	char buf[MSL];
+	char *word;
+	bool fMatch;
+	top_liquid_uid = 0;
+
+	log_string("load_liquids: creating liquid_list");
+	liquid_list = list_createx(FALSE, NULL, delete_liquid);
+	if (!IS_VALID(liquid_list))
+	{
+		log_string("liquid_list was not created.");
+		return FALSE;
+	}
+
+	log_string("load_liquids: loading " LIQUIDS_FILE);
+	if ((fp = fopen(LIQUIDS_FILE, "r")) == NULL)
+	{
+		log_string("load_liquids: '" LIQUIDS_FILE "' file not found.  Bootstrapping required liquids.");
+		top_liquid_uid = 0;
+
+		// Water
+		liquid_water = new_liquid();
+		liquid_water->name = str_dup("water");
+		liquid_water->uid = ++top_liquid_uid;
+		liquid_water->gln = &gln_water;
+		liquid_water->color = str_dup("clear");
+		liquid_water->full = 1;
+		liquid_water->thirst = 10;
+		list_appendlink(liquid_list, liquid_water);
+		gln_water = liquid_water->uid;
+
+		// Blood
+		liquid_blood = new_liquid();
+		liquid_blood->name = str_dup("blood");
+		liquid_blood->uid = ++top_liquid_uid;
+		liquid_blood->gln = &gln_blood;
+		liquid_blood->color = str_dup("red");
+		liquid_blood->full = 2;
+		list_appendlink(liquid_list, liquid_blood);
+		gln_blood = liquid_blood->uid;
+
+		// Potion
+		liquid_potion = new_liquid();
+		liquid_potion->name = str_dup("potion");
+		liquid_potion->uid = ++top_liquid_uid;
+		liquid_potion->gln = &gln_potion;
+		liquid_potion->color = str_dup("iridescent");
+		list_appendlink(liquid_list, liquid_potion);
+		gln_potion = liquid_potion->uid;
+
+		save_liquids();
+
+		return true;
+	}
+
+	while (str_cmp((word = fread_word(fp)), "End"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+			case '#':
+				if (!str_cmp(word, "#LIQUID"))
+				{
+					LIQUID *liquid = load_liquid(fp);
+					if (liquid)
+					{
+						insert_liquid(liquid);
+
+						if (liquid->uid > top_liquid_uid)
+							top_liquid_uid = liquid->uid;
+					}
+					else
+						log_string("Failed to load a liquid.");
+					fMatch = TRUE;
+					break;
+				}
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "load_liquids: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+	log_string("Liquids loaded.");
+
+	ITERATOR it;
+	LIQUID *liq;
+
+	for(int i = 0; gln_table[i].name; i++)
+	{
+		if (gln_table[i].gln) *gln_table[i].gln = -1;
+		if (gln_table[i].liq) *gln_table[i].liq = NULL;
+	}
+
+	bool save = FALSE;
+	iterator_start(&it, liquid_list);
+	while((liq = (LIQUID *)iterator_nextdata(&it)))
+	{
+		// Give unknown liquid UIDs new uids
+		if (liq->uid < 1)
+		{
+			liq->uid = ++top_liquid_uid;
+			save = TRUE;
+		}
+
+		if (liq->gln)
+		{
+			(*liq->gln) = liq->uid;
+		}
+		//log_stringf("load_liquids: liquid '%s'.", liq->name);
+	}
+	iterator_stop(&it);
+	log_stringf("load_liquids: total liquids = %d", list_size(liquid_list));
+
+	// Assign global pointers
+	for(int i = 0; gln_table[i].name; i++)
+	{
+		if (gln_table[i].gln && *gln_table[i].gln >= 0 && gln_table[i].liq)
+		{
+			*gln_table[i].liq = liquid_lookup_uid(*gln_table[i].gln);
+		}
+	}
+
+	// Resave liquids to save "new" liquid uids.
+	if (save)
+		save_liquids();
+
+	return true;
+}

@@ -189,7 +189,7 @@ SPELL_FUNC(spell_ensnare)
 
 	af.slot	= obj_wear_loc;
 	af.where = TO_AFFECTS;
-	af.type = sn;
+	af.skill = skill;
 	af.location = APPLY_DEX;
 	af.modifier = -3;
 	af.level = level + 1;
@@ -282,7 +282,7 @@ SPELL_FUNC(spell_web)
 	af.slot	= obj_wear_loc;
 	af.where     = TO_AFFECTS;
 	af.group    = AFFGROUP_PHYSICAL;
-	af.type      = sn;
+	af.skill = skill;
 	af.level     = level;
 	af.location  = APPLY_HITROLL;
 	af.modifier  = -4;

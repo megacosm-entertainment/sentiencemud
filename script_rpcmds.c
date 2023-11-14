@@ -141,6 +141,7 @@ const struct script_cmd_type room_cmd_table[] = {
 	{ "startcombat",		scriptcmd_startcombat,	FALSE,	TRUE	},
 	{ "startreckoning",		scriptcmd_startreckoning,	TRUE,	TRUE	},
 	{ "stopcombat",			scriptcmd_stopcombat,	FALSE,	TRUE	},
+	{ "stopreckoning",		scriptcmd_stopreckoning,	TRUE,	TRUE	},
 	{ "stringmob",			do_rpstringmob,			TRUE,	TRUE	},
 	{ "stringobj",			scriptcmd_stringobjmt,			TRUE,	TRUE	},
 	{ "stripaffect",		do_rpstripaffect,		TRUE,	TRUE	},
@@ -934,11 +935,11 @@ SCRIPT_CMD(do_rpdamage)
 		for(victim = info->room->people; victim; victim = victim_next) {
 			victim_next = victim->next_in_room;
 			value = fLevel ? dice(low,high) : number_range(low,high);
-			damage(victim, victim, fKill ? value : UMIN(victim->hit,value), TYPE_UNDEFINED, dc, FALSE);
+			damage(victim, victim, fKill ? value : UMIN(victim->hit,value), NULL, TYPE_UNDEFINED, dc, FALSE);
 		}
 	} else {
 		value = fLevel ? dice(low,high) : number_range(low,high);
-		damage(victim, victim, fKill ? value : UMIN(victim->hit,value), TYPE_UNDEFINED, dc, FALSE);
+		damage(victim, victim, fKill ? value : UMIN(victim->hit,value), NULL, TYPE_UNDEFINED, dc, FALSE);
 	}
 }
 
@@ -1519,7 +1520,7 @@ SCRIPT_CMD(do_rpgdamage)
 		rch_next = rch->next_in_room;
 		if (rch != victim && is_same_group(victim,rch)) {
 			value = fLevel ? dice(low,high) : number_range(low,high);
-			damage(rch, rch, fKill ? value : UMIN(rch->hit,value), TYPE_UNDEFINED, dc, FALSE);
+			damage(rch, rch, fKill ? value : UMIN(rch->hit,value), NULL, TYPE_UNDEFINED, dc, FALSE);
 		}
 	}
 }
@@ -2013,6 +2014,8 @@ SCRIPT_CMD(do_rppeace)
 			stop_fighting(rch, TRUE);
 		if (IS_NPC(rch) && IS_SET(rch->act[0],ACT_AGGRESSIVE))
 			REMOVE_BIT(rch->act[0],ACT_AGGRESSIVE);
+
+		// TOOD: Remove AFF2_AGGRESSIVE
 	}
 }
 
@@ -3160,10 +3163,12 @@ SCRIPT_CMD(do_rpaltermob)
 	bool lookuprace = FALSE;
 	bool hasmin = FALSE;
 	bool hasmax = FALSE;
+	bool check_catalyst = false;
 	const struct flag_type *flags = NULL;
 	const struct flag_type **bank = NULL;
 	long temp_flags[4];
 	int dirty_stat = -1;
+	int catalyst = CATALYST_NONE;
 
 	if(!info || !info->room) return;
 
@@ -3206,13 +3211,6 @@ SCRIPT_CMD(do_rpaltermob)
 
 	if(!field[0]) return;
 
-	argument = one_argument(rest,buf);
-
-	if(!(rest = expand_argument(info,argument,arg))) {
-		bug("RpAlterMob - Error in parsing.",0);
-		return;
-	}
-
 	if(!str_cmp(field,"acbash"))		ptr = (int*)&mob->armour[AC_BASH];
 	else if(!str_cmp(field,"acexotic"))	ptr = (int*)&mob->armour[AC_EXOTIC];
 	else if(!str_cmp(field,"acpierce"))	ptr = (int*)&mob->armour[AC_PIERCE];
@@ -3225,6 +3223,7 @@ SCRIPT_CMD(do_rpaltermob)
 	else if(!str_cmp(field,"bomb"))		ptr = (int*)&mob->bomb;
 	else if(!str_cmp(field,"brew"))		ptr = (int*)&mob->brew;
 	else if(!str_cmp(field,"cast"))		ptr = (int*)&mob->cast;
+	else if(!str_cmp(field,"catalystusage"))	{ check_catalyst = true; }
 	else if(!str_cmp(field,"comm"))		{ ptr = IS_NPC(mob)?NULL:(int*)&mob->comm; allowpc = TRUE; allowarith = FALSE; min_sec = 7; flags = comm_flags; }		// 20140512NIB - Allows for scripted fun with player communications, only bit operators allowed
 	else if(!str_cmp(field,"damroll"))	ptr = (int*)&mob->damroll;
 	else if(!str_cmp(field,"danger"))	{ ptr = IS_NPC(mob)?NULL:(int*)&mob->pcdata->danger_range; allowpc = TRUE; }
@@ -3305,8 +3304,36 @@ SCRIPT_CMD(do_rpaltermob)
 	else if(!str_cmp(field,"wildviewy"))	ptr = (int*)&mob->wildview_bonus_y;
 	else if(!str_cmp(field,"wimpy"))	ptr = (int*)&mob->wimpy;
 
+	// Special handling for catalystusage
+	if (check_catalyst)
+	{
+		// Get the catalyst type
+		if(!(rest = expand_argument(info,rest,arg)) && arg->type != ENT_STRING) {
+			bug("RpAlterMob - Error in parsing.",0);
+			return;
+		}
+
+		catalyst = stat_lookup(arg->d.str, catalyst_types, CATALYST_NONE);
+		if (catalyst == CATALYST_NONE)
+		{
+			bug("RpAlterMob - Invalid catalyst type selected for catalystusage.",0);
+			return;
+		}
+
+		ptr = &mob->catalyst_usage[catalyst];
+		allowpc = true;
+		allowarith = true;
+		allowbitwise = false;
+	}
+
 	if(!ptr) return;
 
+	rest = one_argument(rest,buf);
+
+	if(!(rest = expand_argument(info,rest,arg))) {
+		bug("RpAlterMob - Error in parsing.",0);
+		return;
+	}
 
 	// MINIMUM to alter ANYTHING not allowed on players on a player
 	if(!allowpc && !IS_NPC(mob)) min_sec = 9;
@@ -3601,11 +3628,10 @@ SCRIPT_CMD(do_rpstringmob)
 
 SCRIPT_CMD(do_rpskimprove)
 {
-	char skill[MIL],*rest;
-	int min_diff, diff, sn =-1 ;
+	char name[MIL],*rest;
+	int min_diff, diff;
+	SKILL_DATA *skill = NULL;
 	CHAR_DATA *mob = NULL;
-
-	TOKEN_DATA *token = NULL;
 	bool success = FALSE;
 
 	if(script_security < MIN_SCRIPT_SECURITY) {
@@ -3627,12 +3653,10 @@ SCRIPT_CMD(do_rpskimprove)
 	case ENT_MOBILE:
 		mob = arg->d.mob;
 		break;
-	case ENT_TOKEN:
-		token = arg->d.token;
 	default: break;
 	}
 
-	if(!mob && !token) {
+	if(!mob) {
 		bug("RpSkImprove - NULL target.", 0);
 		return;
 	}
@@ -3649,23 +3673,18 @@ SCRIPT_CMD(do_rpskimprove)
 			return;
 		}
 
-		skill[0] = 0;
+		name[0] = 0;
 
 		switch(arg->type) {
-		case ENT_STRING: strncpy(skill,arg->d.str,MIL-1); break;
+		case ENT_STRING: strncpy(name,arg->d.str,MIL-1); break;
 		default: return;
 		}
 
-		if(!skill[0]) return;
+		if(!name[0]) return;
 
-		sn = skill_lookup(skill);
+		skill = get_skill_data(name);
 
-		if(sn < 1) return;
-	} else {
-		if(token->pIndexData->type != TOKEN_SKILL && token->pIndexData->type != TOKEN_SPELL) {
-			bug("RpSkImprove - Token is not a spell token...", 0);
-			return;
-		}
+		if(!IS_VALID(skill)) return;
 	}
 
 	if(!(rest = expand_argument(info,rest,arg))) {
@@ -3701,10 +3720,7 @@ SCRIPT_CMD(do_rpskimprove)
 	default: success = FALSE;
 	}
 
-	if(token)
-		token_skill_improve(token->player,token,success,diff);
-	else
-		check_improve( mob, sn, success, diff );
+	check_improve( mob, skill, success, diff );
 }
 
 
@@ -3795,7 +3811,7 @@ SCRIPT_CMD(do_rpaddaffect)
 {
 	char *rest;
 	int where, group, level, loc, mod, hours;
-	int skill;
+	SKILL_DATA *skill = NULL;
 	long bv, bv2;
 	CHAR_DATA *mob = NULL;
 	OBJ_DATA *obj = NULL;
@@ -3862,7 +3878,7 @@ SCRIPT_CMD(do_rpaddaffect)
 	}
 
 	switch(arg->type) {
-	case ENT_STRING: skill = skill_lookup(arg->d.str); break;
+	case ENT_STRING: skill = get_skill_data(arg->d.str); break;
 	default: return;
 	}
 
@@ -3949,7 +3965,8 @@ SCRIPT_CMD(do_rpaddaffect)
 
 	af.group = group;
 	af.where = where;
-	af.type = skill;
+	af.catalyst_type = -1;
+	af.skill = skill;
 	af.location = loc;
 	af.modifier = mod;
 	af.level = level;
@@ -4126,7 +4143,8 @@ SCRIPT_CMD(do_rpaddaffectname)
 
 	af.group	= group;
 	af.where     = where;
-	af.type      = -1;
+	af.catalyst_type      = -1;
+	af.skill = NULL;
 	af.location  = loc;
 	af.modifier  = mod;
 	af.level     = level;
@@ -4144,7 +4162,7 @@ SCRIPT_CMD(do_rpaddaffectname)
 SCRIPT_CMD(do_rpstripaffect)
 {
 	char *rest;
-	int skill;
+	SKILL_DATA *skill = NULL;
 	CHAR_DATA *mob = NULL;
 	OBJ_DATA *obj = NULL;
 
@@ -4180,11 +4198,11 @@ SCRIPT_CMD(do_rpstripaffect)
 	}
 
 	switch(arg->type) {
-	case ENT_STRING: skill = skill_lookup(arg->d.str); break;
+	case ENT_STRING: skill = get_skill_data(arg->d.str); break;
 	default: return;
 	}
 
-	if(skill < 0) return;
+	if(!IS_VALID(skill)) return;
 
 	if(mob) affect_strip(mob, skill);
 	else affect_strip_obj(obj,skill);
@@ -4315,7 +4333,7 @@ SCRIPT_CMD(do_rpinput)
 SCRIPT_CMD(do_rpusecatalyst)
 {
 	char *rest;
-	int type, method, amount, min, max, show;
+	int type, method, amount, show;
 	CHAR_DATA *mob = NULL;
 	ROOM_INDEX_DATA *room = NULL;
 
@@ -4384,39 +4402,13 @@ SCRIPT_CMD(do_rpusecatalyst)
 	}
 
 	switch(arg->type) {
-	case ENT_NUMBER: min = arg->d.num; break;
-	case ENT_STRING: min = atoi(arg->d.str); break;
-	default: return;
-	}
-
-	if(min < 1 || min > CATALYST_MAXSTRENGTH) return;
-
-	if(!(rest = expand_argument(info,rest,arg))) {
-		bug("RpUseCatalyst - Error in parsing.",0);
-		return;
-	}
-
-	switch(arg->type) {
-	case ENT_NUMBER: max = arg->d.num; break;
-	case ENT_STRING: max = atoi(arg->d.str); break;
-	default: return;
-	}
-
-	if(max < min || max > CATALYST_MAXSTRENGTH) return;
-
-	if(!(rest = expand_argument(info,rest,arg))) {
-		bug("RpUseCatalyst - Error in parsing.",0);
-		return;
-	}
-
-	switch(arg->type) {
 	case ENT_STRING: show = flag_value(boolean_types,arg->d.str); break;
 	default: return;
 	}
 
 	if(show == NO_FLAG) return;
 
-	info->room->progs->lastreturn = use_catalyst(mob,room,type,method,amount,min,max,(bool)show);
+	info->room->progs->lastreturn = use_catalyst(mob,room,type,method,amount,(bool)show);
 }
 
 SCRIPT_CMD(do_rpalterexit)
@@ -5901,6 +5893,7 @@ SCRIPT_CMD(do_rppersist)
 	return;
 }
 
+#if 0
 // room skill <player> <name> <op> <number>
 // <op> =, +, -
 SCRIPT_CMD(do_rpskill)
@@ -6046,6 +6039,7 @@ SCRIPT_CMD(do_rpskillgroup)
 
 	return;
 }
+#endif
 
 // room condition $PLAYER <condition> <value>
 // Adjusts the specified condition by the given value
@@ -6109,7 +6103,8 @@ SCRIPT_CMD(do_rpcondition)
 // addspell $OBJECT STRING[ NUMBER]
 SCRIPT_CMD(do_rpaddspell)
 {
-
+	// TODO: Fix to require type contexts
+#if 0
 	char *rest;
 	SPELL_DATA *spell, *spell_new;
 	OBJ_DATA *target;
@@ -6213,13 +6208,15 @@ SCRIPT_CMD(do_rpaddspell)
 			}
 		}
 	}
+#endif
 }
 
 
 // remspell $OBJECT STRING[ silent]
 SCRIPT_CMD(do_rpremspell)
 {
-
+	// TODO: Fix to require type contexts
+#if 0
 	char *rest;
 	SPELL_DATA *spell, *spell_prev;
 	OBJ_DATA *target;
@@ -6343,6 +6340,7 @@ SCRIPT_CMD(do_rpremspell)
 
 		}
 	}
+#endif
 }
 
 

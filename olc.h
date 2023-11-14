@@ -56,6 +56,8 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 #define ED_IPCODE	20
 #define ED_DPCODE	21
 
+#define ED_SKEDIT   22      // Skill/spell edit
+#define ED_LIQEDIT  23      // Liquid edit
 
 
 #define AEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
@@ -74,6 +76,8 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 #define BSEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define BPEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define DNGEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
+#define SKEDIT( fun )       bool fun( CHAR_DATA *ch, char *argument )
+#define LIQEDIT( fun )       bool fun( CHAR_DATA *ch, char *argument )
 
 /*
  * Interpreter Prototypes
@@ -103,6 +107,8 @@ void	apedit	( CHAR_DATA *ch, char *argument );
 void	ipedit	( CHAR_DATA *ch, char *argument );
 void	dpedit	( CHAR_DATA *ch, char *argument );
 
+void    skedit  ( CHAR_DATA *ch, char *argument );
+void    liqedit  ( CHAR_DATA *ch, char *argument );
 
 /*
  * OLC Constants
@@ -167,6 +173,8 @@ extern const struct olc_cmd_type	dngedit_table[];
 extern const struct olc_cmd_type        apedit_table[];
 extern const struct olc_cmd_type        ipedit_table[];
 extern const struct olc_cmd_type        dpedit_table[];
+extern const struct olc_cmd_type        skedit_table[];
+extern const struct olc_cmd_type        liqedit_table[];
 
 
 /*
@@ -190,6 +198,8 @@ DECLARE_DO_FUN( do_vledit       );
 DECLARE_DO_FUN( do_bsedit       );
 DECLARE_DO_FUN( do_dngedit       );
 
+DECLARE_DO_FUN( do_skedit );
+DECLARE_DO_FUN( do_liqedit );
 
 /*
  * Area Editor Prototypes
@@ -330,6 +340,7 @@ DECLARE_OLC_FUN( oedit_waypoints	);
 DECLARE_OLC_FUN( oedit_type_page );
 DECLARE_OLC_FUN( oedit_type_book );
 DECLARE_OLC_FUN( oedit_type_container );
+DECLARE_OLC_FUN( oedit_type_fluid_container );
 DECLARE_OLC_FUN( oedit_type_food );
 DECLARE_OLC_FUN( oedit_type_furniture );
 DECLARE_OLC_FUN( oedit_type_light );
@@ -580,6 +591,72 @@ DECLARE_OLC_FUN( ipedit_create		);
 DECLARE_OLC_FUN( dpedit_list		);
 DECLARE_OLC_FUN( dpedit_create		);
 
+
+// Liquid Editor
+DECLARE_OLC_FUN( liqedit_list );
+DECLARE_OLC_FUN( liqedit_show );
+DECLARE_OLC_FUN( liqedit_create );
+DECLARE_OLC_FUN( liqedit_delete );
+DECLARE_OLC_FUN( liqedit_name );
+DECLARE_OLC_FUN( liqedit_color );
+DECLARE_OLC_FUN( liqedit_flammable );
+DECLARE_OLC_FUN( liqedit_proof );
+DECLARE_OLC_FUN( liqedit_full );
+DECLARE_OLC_FUN( liqedit_thirst );
+DECLARE_OLC_FUN( liqedit_hunger );
+DECLARE_OLC_FUN( liqedit_fuel );
+DECLARE_OLC_FUN( liqedit_maxmana );
+DECLARE_OLC_FUN( liqedit_gln );
+
+// Skill/Spell Editor
+// Quick definitions:
+//   built-in: a skill or spell whose actual functionality is coded into the source code itself.
+//   scripted: a skill or spell that is defined on a skill/spell token with scripting
+// There will be no create for skill edit, as all built-in skills will be defined in the list of skills
+// Because too many things will rely on the skill number (sn) and the MAX_SKILL define, that it cannot go beyond that limit, for now.
+// TODO: Make everything utilize the skill UID which will be independent of the skill index in the table.
+// TODO: Integrate scripted abilities directly into the skill table so that players can be granted skill/spell tokens for the respective entry automatically.
+//       Possible way to deal with this is to have these entries have no UID since they will have a token reference, so as to handle the distinction between "built-in" and "scripted"
+// TODO: Integrate scripted abilities directly into skill groups.
+DECLARE_OLC_FUN( skedit_install );  // Used to add new skill entries after the initial creation of the skills.dat file for future built-in skills
+DECLARE_OLC_FUN( skedit_list );
+DECLARE_OLC_FUN( skedit_show );
+DECLARE_OLC_FUN( skedit_name );
+DECLARE_OLC_FUN( skedit_display );  // For things like "improved invis" for "improved invisibility"
+DECLARE_OLC_FUN( skedit_group );
+DECLARE_OLC_FUN( skedit_prespellfunc );
+DECLARE_OLC_FUN( skedit_spellfunc );
+// TODO: Add editor functions for handling the different functions necessary for artificing (brewing, scribing, etc) that are/will be available via tokens so they work for "built-in" spells
+DECLARE_OLC_FUN( skedit_prebrewfunc );
+DECLARE_OLC_FUN( skedit_brewfunc );
+DECLARE_OLC_FUN( skedit_quafffunc );
+
+DECLARE_OLC_FUN( skedit_prescribefunc );
+DECLARE_OLC_FUN( skedit_scribefunc );
+DECLARE_OLC_FUN( skedit_recitefunc );
+
+DECLARE_OLC_FUN( skedit_preinkfunc );
+DECLARE_OLC_FUN( skedit_inkfunc );
+DECLARE_OLC_FUN( skedit_touchfunc );
+
+// TODO: Imbue functionality
+
+DECLARE_OLC_FUN( skedit_gsn );
+DECLARE_OLC_FUN( skedit_level );
+DECLARE_OLC_FUN( skedit_difficulty );
+DECLARE_OLC_FUN( skedit_target );
+DECLARE_OLC_FUN( skedit_position );
+DECLARE_OLC_FUN( skedit_race );
+DECLARE_OLC_FUN( skedit_mana );
+DECLARE_OLC_FUN( skedit_beats );
+DECLARE_OLC_FUN( skedit_message );  // damage, wearoff, objwearoff, dispel
+DECLARE_OLC_FUN( skedit_inks );     // For tattooing and scribing
+DECLARE_OLC_FUN( skedit_value );
+DECLARE_OLC_FUN( skedit_valuename );
+
+
+// TODO: add songedit for being able to add/edit songs
+
 /*
  * Macros
  */
@@ -610,6 +687,9 @@ DECLARE_OLC_FUN( dpedit_create		);
 #define EDIT_DUNGEON(ch, dng)	( dng = (DUNGEON_INDEX_DATA *)ch->desc->pEdit )
 
 #define EDIT_SHIP(ch, ship)     ( ship = (SHIP_INDEX_DATA *)ch->desc->pEdit )
+
+#define EDIT_SKILL(ch, skill)   ( skill = (SKILL_DATA *)ch->desc->pEdit )
+#define EDIT_LIQUID(ch, liq)    ( liq = (LIQUID *)ch->desc->pEdit )
 
 /*
  * Prototypes

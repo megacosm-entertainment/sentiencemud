@@ -362,13 +362,13 @@ void do_gohome(CHAR_DATA *ch, char *argument)
     if ( !can_escape(ch) )
 	return;
 
-    if (is_affected(ch, gsn_silence))
+    if (is_affected(ch, gsk_silence))
     {
 	send_to_char("You can't go home, you've been silenced!\n\r", ch);
 	return;
     }
 
-    if (is_affected(ch, gsn_web))
+    if (is_affected(ch, gsk_web))
     {
 	send_to_char("You can't go home, you've been webbed!\n\r", ch);
 	return;

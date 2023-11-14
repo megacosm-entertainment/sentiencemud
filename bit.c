@@ -51,6 +51,7 @@ const struct flag_stat_type flag_stat_table[] =
 	{	door_resets,				TRUE	},
 	{	room_flags,					FALSE	},
 	{	sector_flags,				TRUE	},
+    {   sex_table,                  TRUE    },
 	{	type_flags,					TRUE	},
 	{	extra_flags,				FALSE	},
 	{	wear_flags,					FALSE	},
@@ -63,6 +64,7 @@ const struct flag_stat_type flag_stat_table[] =
 	{	wear_loc_strings,			TRUE	},
 	{	wear_loc_names,				TRUE	},
 	{	container_flags,			FALSE	},
+	{	fluid_con_flags,			FALSE	},
 
 /* ROM specific flags: */
 
@@ -277,8 +279,13 @@ char *affect_loc_name( int location )
 	case APPLY_SPELL_AFFECT:	return "none";
     case APPLY_XPBOOST:     return "XP %boost";
 	default:
-		if(location >= APPLY_SKILL && location < APPLY_SKILL_MAX && skill_table[location - APPLY_SKILL].name) {
-			sprintf(buf[i], "%s %%rating", skill_table[location - APPLY_SKILL].name);
+        // TODO: Need to fix this
+		if(location >= APPLY_SKILL) {
+            SKILL_DATA *skill = get_skill_data_uid(location - APPLY_SKILL);
+            if (skill)
+    			sprintf(buf[i], "%s %%rating", skill->name);
+            else
+                sprintf(buf[i], "??? %%rating");
 			return buf[i];
 		}
 		break;

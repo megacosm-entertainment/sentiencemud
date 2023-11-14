@@ -91,7 +91,7 @@ SPELL_FUNC(spell_enchant_armour)
 	if (obj->affected) {
 		for (paf = obj->affected; paf; paf = paf->next) {
 			if (paf->location == APPLY_AC) {
-				paf->type = sn;
+				paf->skill = skill;
 				paf->modifier -= number_range(1, 4);
 				paf->level = UMAX(paf->level,level);
 			} else if (number_percent() < 15) {
@@ -118,7 +118,7 @@ SPELL_FUNC(spell_enchant_armour)
 
 		paf->where = TO_OBJECT;
 		paf->group = AFFGROUP_ENCHANT;
-		paf->type = sn;
+		paf->skill = skill;
 		paf->level = level;
 		paf->duration = -1;
 		paf->location = APPLY_AC;
@@ -199,12 +199,12 @@ SPELL_FUNC(spell_enchant_weapon)
 	}
 
 	for (paf_hit = obj->affected; paf_hit; paf_hit = paf_hit->next) {
-		if (paf_hit->location == APPLY_HITROLL && paf_hit->type == sn)
+		if (paf_hit->location == APPLY_HITROLL && paf_hit->skill == skill)
 			break;
 	}
 
 	for (paf_dam = obj->affected; paf_dam; paf_dam = paf_dam->next) {
-		if (paf_dam->location == APPLY_DAMROLL && paf_dam->type == sn)
+		if (paf_dam->location == APPLY_DAMROLL && paf_dam->skill == skill)
 			break;
 	}
 
@@ -264,7 +264,7 @@ SPELL_FUNC(spell_enchant_weapon)
 
 		paf->where = TO_OBJECT;
 		paf->group = AFFGROUP_ENCHANT;
-		paf->type = sn;
+		paf->skill = skill;
 		paf->level = level;
 		paf->duration = -1;
 		paf->location = APPLY_DAMROLL;
@@ -284,7 +284,7 @@ SPELL_FUNC(spell_enchant_weapon)
 		paf = new_affect();
 
 		paf->where = TO_OBJECT;
-		paf->type = sn;
+		paf->skill = skill;
 		paf->group = AFFGROUP_ENCHANT;
 		paf->level = level;
 		paf->duration = -1;

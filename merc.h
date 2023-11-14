@@ -64,11 +64,44 @@
 #define args( list )			list
 #define DECLARE_DO_FUN( fun )		DO_FUN    fun
 #define DECLARE_SPEC_FUN( fun )		SPEC_FUN  fun
+#define DECLARE_PRESPELL_FUN( fun )	SPELL_FUN fun
 #define DECLARE_SPELL_FUN( fun )	SPELL_FUN fun
 #define DECLARE_OBJ_FUN( fun )		OBJ_FUN	  fun
 #define DECLARE_ROOM_FUN( fun )		ROOM_FUN  fun
-#define SPELL_FUNC(s)	bool s (int sn, int level, CHAR_DATA *ch, void *vo, int target, int obj_wear_loc)
+#define PRESPELL_FUNC(s)	bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, void *vo, int target, int obj_wear_loc)
+#define SPELL_FUNC(s)	bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, void *vo, int target, int obj_wear_loc)
 
+// Don't need to track catalysts here because only one spell can be done per brewing, so it only needs to look at one catalyst usage
+#define DECLARE_PREBREW_FUN( fun ) PREBREW_FUN fun
+#define PREBREW_FUNC(s)    bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
+
+#define DECLARE_BREW_FUN( fun ) BREW_FUN fun
+#define BREW_FUNC(s)	bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
+
+#define DECLARE_QUAFF_FUN( fun ) QUAFF_FUN fun
+#define QUAFF_FUNC(s)	bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
+
+#define DECLARE_PRESCRIBE_FUN( fun ) PRESCRIBE_FUN fun
+#define PRESCRIBE_FUNC(s)	bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
+
+#define DECLARE_SCRIBE_FUN( fun ) SCRIBE_FUN fun
+#define SCRIBE_FUNC(s)	bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
+
+#define DECLARE_RECITE_FUN( fun ) RECITE_FUN fun
+#define RECITE_FUNC(s)	bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj, void *vo, int target)
+
+#define DECLARE_PREINK_FUN( fun ) PREINK_FUN fun
+#define PREINK_FUNC(s)	bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
+
+#define DECLARE_INK_FUN( fun ) INK_FUN fun
+#define INK_FUNC(s)	bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
+
+#define DECLARE_TOUCH_FUN( fun ) TOUCH_FUN fun
+#define TOUCH_FUNC(s)	bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
+
+
+#define DECLARE_ARTIFICE_FUN( fun ) ARTIFICE_FUN fun
+#define ARTIFICE_FUNC(s)    bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
 
 
 /* System calls */
@@ -307,6 +340,7 @@ typedef struct	extra_descr_data	EXTRA_DESCR_DATA;
 typedef struct	global_data		GLOBAL_DATA;
 typedef struct	help_category		HELP_CATEGORY;
 typedef struct	help_data		HELP_DATA;
+typedef struct liquid_type LIQUID;
 typedef struct	mob_index_data		MOB_INDEX_DATA;
 typedef struct	note_data		NOTE_DATA;
 typedef struct	npc_ship_data		NPC_SHIP_DATA;
@@ -384,6 +418,7 @@ typedef struct book_page_data BOOK_PAGE;
 typedef struct obj_book_data BOOK_DATA;
 typedef struct container_filter_data CONTAINER_FILTER;
 typedef struct obj_container_data CONTAINER_DATA;
+typedef struct obj_fluid_container_data FLUID_CONTAINER_DATA;
 typedef struct food_buff_data FOOD_BUFF_DATA;
 typedef struct obj_food_data FOOD_DATA;
 typedef struct furniture_compartment_data FURNITURE_COMPARTMENT;
@@ -399,6 +434,7 @@ typedef struct olc_point_usage_data OLC_POINT_USAGE;
 typedef struct olc_point_area_data OLC_POINT_AREA;
 
 typedef struct dice_data DICE_DATA;
+typedef struct skill_data SKILL_DATA;
 
 /* VIZZWILDS */
 typedef struct    wilds_vlink      WILDS_VLINK;
@@ -483,7 +519,18 @@ typedef struct reserved_area_type {
 /* Functions */
 typedef	void DO_FUN	(CHAR_DATA *ch, char *argument);
 typedef bool SPEC_FUN	(CHAR_DATA *ch);
-typedef bool SPELL_FUN	(int sn, int level, CHAR_DATA *ch, void *vo, int target, int obj_wear_loc);
+typedef bool SPELL_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, void *vo, int target, int obj_wear_loc);
+typedef bool PREBREW_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj);
+typedef bool BREW_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj);
+typedef bool QUAFF_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj);
+typedef bool PRESCRIBE_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj);
+typedef bool SCRIBE_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj);
+typedef bool RECITE_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj, void *vo, int target);
+typedef bool PREINK_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj);
+typedef bool INK_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj);
+typedef bool TOUCH_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj);
+// TODO: IMBUE
+typedef bool ARTIFICE_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj);
 typedef void OBJ_FUN	(OBJ_DATA *obj, char *argument);
 typedef void ROOM_FUN	(ROOM_INDEX_DATA *room, char *argument);
 typedef bool CHAR_TEST	(CHAR_DATA *ch, CHAR_DATA *ach, CHAR_DATA *bch);	/* NIB : 20070122 : For act_new( ) */
@@ -498,7 +545,7 @@ typedef struct script_code SCRIPT_CODE;
 typedef struct script_varinfo SCRIPT_VARINFO;
 typedef struct script_control_block SCRIPT_CB;
 typedef struct script_parameter SCRIPT_PARAM;
-typedef bool (*IFC_FUNC)(SCRIPT_VARINFO *info, CHAR_DATA *mob,OBJ_DATA *obj,ROOM_INDEX_DATA *room, TOKEN_DATA *token, int *ret,int argc,SCRIPT_PARAM **argv);
+typedef bool (*IFC_FUNC)(SCRIPT_VARINFO *info, CHAR_DATA *mob,OBJ_DATA *obj,ROOM_INDEX_DATA *room, TOKEN_DATA *token, long *ret,int argc,SCRIPT_PARAM **argv);
 typedef bool (*OPCODE_FUNC)(SCRIPT_CB *block);
 typedef struct entity_field_type ENT_FIELD;
 typedef struct script_var_type VARIABLE, *pVARIABLE, **ppVARIABLE;
@@ -530,12 +577,15 @@ typedef struct skill_entry_type {
 	struct skill_entry_type *next;
 	char source;		// Source of the skill
 	long flags;
-	bool practice;		// Can this be practiced/trained?
-	bool improve;		// Can this improve through use?
+	//bool practice;		// Can this be practiced/trained?
+	//bool improve;		// Can this improve through use?
 	bool isspell;		// Whether this is a spell;
-	sh_int sn;			// Skill Number
+    SKILL_DATA *skill;
+	//sh_int sn;			// Skill Number
 	sh_int song;		// Song Number
-	TOKEN_DATA *token;	// Skill/Spell Token, NULL if this is a built-in skill
+	TOKEN_DATA *token;  // Live token
+    int rating;
+    int mod_rating;
 } SKILL_ENTRY;
 
 typedef struct script_switch_case_data SCRIPT_SWITCH_CASE;
@@ -744,7 +794,7 @@ struct list_link_exit_data {
 
 struct list_link_skill_data {
 	CHAR_DATA *mob;
-	int sn;
+	SKILL_DATA *skill;
 	TOKEN_DATA *tok;
 	unsigned long mid[2];
 	unsigned long tid[2];
@@ -916,7 +966,8 @@ struct olc_point_area_data {
 #define MAX_CHURCH_TREASURE     100
 #define MAX_CHURCHES            13
 #define MAX_CLASS		4
-#define MAX_CLASS_LEVEL		30
+#define MAX_CLASS_LEVEL		40
+#define MIN_CLASS_LEVEL_MULTI   30
 #define MAX_DAMAGE_MESSAGE	70		/* @@@NIB : 20070125 */
 #define MAX_GQ_PER_TYPE		200
 #define MAX_GROUP		30
@@ -1824,8 +1875,9 @@ struct	affect_data
     bool		valid;
     sh_int		group;
     sh_int		where;
-    sh_int		type;
-    TOKEN_INDEX_DATA *token;
+    sh_int      catalyst_type;           // Currently only used by catalysts
+    SKILL_DATA *skill;
+    TOKEN_INDEX_DATA *token;    // NIB: Keeping this since I can see getting an affect from a token *independent* of skills/spells
     sh_int		level;
     sh_int		duration;
     sh_int		location;
@@ -2341,9 +2393,10 @@ struct affliction_type {
 #define AFFFLAG_NOCANCEL		(B)		// Affect cannot be removed by cancellation
 
 /* Sex */
-#define SEX_NEUTRAL		      0
-#define SEX_MALE		      1
-#define SEX_FEMALE		      2
+#define SEX_NEUTRAL         0
+#define SEX_MALE            1
+#define SEX_FEMALE          2
+#define SEX_EITHER          3
 
 /* AC types */
 #define AC_PIERCE			0
@@ -2511,19 +2564,20 @@ struct affliction_type {
 #define ITEM_WEAPON		      5
 #define ITEM_TREASURE		      8
 #define ITEM_ARMOUR		      9
-#define ITEM_POTION		     10
+//#define ITEM_POTION		     10
 #define ITEM_CLOTHING		     11
 #define ITEM_FURNITURE		     12
 #define ITEM_TRASH		     13
 #define ITEM_CONTAINER		     15
-#define ITEM_DRINK_CON		     17
+#define ITEM_FLUID_CONTAINER    16
+//#define ITEM_DRINK_CON		     17
 #define ITEM_KEY		     18
 #define ITEM_FOOD		     19
 #define ITEM_MONEY		     20
 #define ITEM_BOAT		     22
 #define ITEM_CORPSE_NPC		     23
 #define ITEM_CORPSE_PC		     24
-#define ITEM_FOUNTAIN		     25
+//#define ITEM_FOUNTAIN		     25
 #define ITEM_PILL		     26
 #define ITEM_PROTECT		     27
 #define ITEM_MAP		     28
@@ -2894,7 +2948,6 @@ struct affliction_type {
 #define APPLY_SPELL_AFFECT		50
 
 #define APPLY_SKILL			100
-#define APPLY_SKILL_MAX			(APPLY_SKILL + MAX_SKILL)
 
 #define APPLY_MAX		     20
 
@@ -2912,6 +2965,7 @@ struct affliction_type {
 #define CONT_SINGULAR       (I) // Only allows one item place into the container at a time.
 #define CONT_TRANSPARENT    (J) // Can look inside the container when closed.
 #define CONT_NO_DUPLICATES  (K) // Only one copy of an object can be in the container at a time.
+#define CONT_CATALYSTS      (L) // Allows searching for catalysts
 
 // Book flags (A, C, G and H are mimics of the container flags)
 #define BOOK_CLOSEABLE		(A)
@@ -2920,6 +2974,14 @@ struct affliction_type {
 #define BOOK_CLOSELOCK		(H)
 #define BOOK_NO_RIP         (Y) // Cannot rip pages out of the book
 #define BOOK_WRITABLE       (Z) // Players can write in the book
+
+
+
+#define FLUID_CON_CLOSEABLE		(A)
+#define FLUID_CON_CLOSED			(C)
+#define FLUID_CON_PUSHOPEN		(G)
+#define FLUID_CON_CLOSELOCK		(H)
+#define FLUID_CON_DESTROY_ON_CONSUME    (Z)
 
 
 
@@ -3467,7 +3529,6 @@ enum {
 #define DEATHTYPE_STAKE		12
 #define DEATHTYPE_BREATH	13
 
-
 #define CATALYST_ROOM		(A)	/* Searches the room */
 #define CATALYST_CONTAINERS	(B)	/* Searches JUST your containers */
 #define CATALYST_CARRY		(C)	/* Searches JUST your carried items */
@@ -3818,6 +3879,7 @@ struct token_data
 	EXTRA_DESCR_DATA	*ed;
 
 	SKILL_ENTRY *skill;		// Is the token used in a skill entry?
+    AFFECT_DATA *affect;
 
     int			tempstore[MAX_TEMPSTORE];		/* Temporary storage values for script processing */
 };
@@ -4087,7 +4149,9 @@ struct	char_data
     int			ship_depart_time;
 
     SKILL_ENTRY *brew_info;
+    OBJ_DATA *brew_obj;
     SKILL_ENTRY *scribe_info[3];
+    OBJ_DATA *scribe_obj;
     SKILL_ENTRY *ink_info[3];
     int			ink_loc;
     CHAR_DATA		*ink_target;
@@ -4102,7 +4166,7 @@ struct	char_data
     CHAR_DATA		*pursuit_by;
 
     /* Spell casting and targeting */
-    int			cast_sn;
+    SKILL_DATA *cast_skill;
     int 		cast_level;
     char		*cast_target_name;
     SCRIPT_DATA		*cast_script;		/* The scripted spell to be done */
@@ -4111,6 +4175,8 @@ struct	char_data
     int			cast_mana;
     float		cast_mana_value;
     float		cast_mana_scale;
+
+    int         catalyst_usage[CATALYST_MAX];
 
     /* invasion - invasion the leader belongs to */
     INVASION_QUEST *invasion_quest;
@@ -4286,6 +4352,7 @@ struct	char_data
     int			hit_damage;		/* Amount of damage inflicted by the hit */
     int			hit_type;		/* Type of damage given */
     int			hit_class;		/* Class of damage given */
+    SKILL_DATA *hit_skill;      // Skill that caused the damage
     int			skill_chance;		/* Current chance used in a given action */
     int			tempstore[MAX_TEMPSTORE];		/* Temporary storage values for script processing */
     char *		tempstring;
@@ -4433,8 +4500,8 @@ struct	pc_data
     int			last_level;
     int			condition	[5];
     bool		songs_learned[MAX_SONGS];
-    int			learned		[MAX_SKILL];
-    int			mod_learned	[MAX_SKILL];
+//    int			learned		[MAX_SKILL];        // Moved to the SKILL_DATA
+//    int			mod_learned	[MAX_SKILL];
     bool		group_known	[MAX_GROUP];
     long		points;
     bool              	confirm_delete;
@@ -4504,10 +4571,43 @@ struct	pc_data
 #define LIQ_AFF_FULL	1
 #define LIQ_AFF_THIRST	2
 #define LIQ_AFF_HUNGER	3
-#define LIQ_AFF_SSIZE	4
-#define LIQ_AFF_FUEL	5	/* Fuel source quality */
-#define LIQ_AFF_VAPOR	6	/* Vapor tendancy (VAPOR+FUEL+FLAME == FIRE!) */
-#define LIQ_AFF_MAX	7
+#define LIQ_AFF_FUEL	4	/* Fuel source quality */
+#define LIQ_AFF_VAPOR	5	/* Vapor tendancy (VAPOR+FUEL+FLAME == FIRE!) */
+#define LIQ_AFF_MAX	    6
+
+#define LIQ_SERVING     10  // Standard serving size
+
+struct liquid_type
+{
+    LIQUID *next;
+    bool valid;
+
+    sh_int *gln;
+    long used;
+
+    sh_int uid;
+    char *name;
+    char *color;
+    bool flammable;
+
+    sh_int proof;
+    sh_int full;
+    sh_int thirst;
+    sh_int hunger;
+    //sh_int serving;
+    sh_int fuel_unit;
+    sh_int fuel_duration;
+
+    sh_int max_mana;
+
+    // Anything else?
+};
+
+struct gln_type {
+    char *name;
+    sh_int *gln;
+    LIQUID **liq;
+};
 
 struct	liq_type
 {
@@ -4579,6 +4679,7 @@ typedef struct lock_state_data
 #define CONTEXT_CONTAINER       -1
 #define CONTEXT_PORTAL          -2
 #define CONTEXT_BOOK            -3
+#define CONTEXT_FLUID_CON       -4
 
 typedef struct oclu_context_data OCLU_CONTEXT;
 struct oclu_context_data
@@ -4652,6 +4753,35 @@ struct obj_container_data {
 
     LOCK_STATE *lock;
 };
+
+// ======[ FLUID CONTAINER ]=======
+#define FLUID_CON(obj)      ((obj)->_fluid_container)
+#define IS_FLUID_CON(obj)   IS_VALID(FLUID_CON(obj))
+
+// Combines DRINK_CON, FOUNTAIN and POTION into one item type
+struct obj_fluid_container_data
+{
+    FLUID_CONTAINER_DATA *next;
+    bool valid;
+
+    char *name;
+    char *short_descr;
+
+    long flags;             // Container flags
+
+    LIQUID *liquid;
+    sh_int capacity;
+    sh_int amount;
+    sh_int refill_rate;     // "Fountains" are defined as having a positive value on this.
+    
+    sh_int poison;          // Rangees from 0 to 100
+    sh_int poison_rate;
+
+    LOCK_STATE *lock;
+
+    LLIST *spells;          // SPELL_DATA, used for "potions"
+};
+
 
 // ============[ FOOD ]============
 #define FOOD(obj)           ((obj)->_food)
@@ -4864,6 +4994,7 @@ struct	obj_index_data
     BOOK_PAGE *_page;
     BOOK_DATA *_book;
     CONTAINER_DATA *_container;
+    FLUID_CONTAINER_DATA *_fluid_container;
     FOOD_DATA *_food;
     FURNITURE_DATA *_furniture;
     LIGHT_DATA *_light;
@@ -4877,9 +5008,10 @@ struct spell_data
 {
     SPELL_DATA 		*next;
 
-    int 		sn;
-    TOKEN_INDEX_DATA *token;
-    WNUM_LOAD   token_load;
+    SKILL_DATA *skill;
+    //int 		sn;                 // All of this is consolidated into ->skill
+    //TOKEN_INDEX_DATA *token;
+    //WNUM_LOAD   token_load;
     int 		level;
     int			repop;
 };
@@ -4961,6 +5093,7 @@ struct	obj_data
     BOOK_PAGE *_page;
     BOOK_DATA *_book;
     CONTAINER_DATA *_container;
+    FLUID_CONTAINER_DATA *_fluid_container;
     FOOD_DATA *_food;
     FURNITURE_DATA *_furniture;
     LIGHT_DATA *_light;
@@ -6383,7 +6516,7 @@ extern          int			reckoning_cooldown;
  * but may be arbitrary beyond that.
  */
 #define TYPE_UNDEFINED               -1
-#define TYPE_HIT                     1000
+#define TYPE_HIT                     1000000    // This is outside the range of sh_int, so it can never be a skill
 
 /*
  * Target types.
@@ -6417,12 +6550,83 @@ struct church_command_type
 /*
  * Skills include spells as a particular case.
  */
+
+#define MAX_SKILL_VALUES    10
+
+struct skill_data
+{
+    SKILL_DATA *next;
+    bool valid;
+
+    sh_int uid;
+
+    char *	name;                       // Name of skill
+    char *  display;                    // Display name, usually the same as the skill name
+
+    sh_int	skill_level[MAX_CLASS];	/* Level needed by class	*/
+    sh_int	rating[MAX_CLASS];	/* How hard it is to learn	*/
+
+    // Functions only used when the spell is a source ability:
+    // Token abilities will call their respective triggers
+
+    SPELL_FUN * prespell_fun;       // Determine if you can cast the spell, such as whether you have necessary catalysts
+    SPELL_FUN *	spell_fun;          // Called when cast
+    // Add artificing functions for brewing, scribing, tattooing, wands, etc.
+
+    // Brewing: quaff_fun must be defined for the spell to be brewable.
+    PREBREW_FUN * prebrew_fun;      // Called to see if you have the requirements needed to brew this spell.
+    BREW_FUN * brew_fun;            // Called after brewing to process any of the requirements, such as catalysts
+    QUAFF_FUN * quaff_fun;          // Called when a potion is consumed. (Target is assumed to be the one drinking the potion)
+    // TODO: Add support for throwing potions and what they do.
+
+    // Scribing: recite_fun must be defined for the spell to be scribable.
+    PRESCRIBE_FUN * prescribe_fun;  // Called to see if you have the requirements needed to scribe this spell.
+    SCRIBE_FUN * scribe_fun;        // Called after scribing.
+    RECITE_FUN * recite_fun;        // Called when a scroll is recited. (This requires targeting information)
+
+    // Tattooing: touch_fun must be defined for the spell to be inked.
+    PREINK_FUN * preink_fun;
+    INK_FUN * ink_fun;
+    TOUCH_FUN * touch_fun;          // Called when a tattoo is touched.  (Target is assumed to be the wearer of the tattoo)
+
+    // Imbuing:
+
+
+    sh_int	target;			/* Legal targets		*/
+    sh_int	minimum_position;	/* Position for caster / user	*/
+    sh_int *	pgsn;			/* Pointer to associated gsn	*/
+    /* sh_int	slot;		 	Syn- reusing this as a racial skill toggle. */
+    int 	race;			/* If it's a racial skill ONLY, this is the race number. If not, its -1.
+					   This doesn't apply for skills that can be gotten from classes, like archery. */
+
+    sh_int	beats;			/* Waiting time after use	*/
+    char *	noun_damage;		/* Damage message		*/
+    char *	msg_off;		/* Wear off message		*/
+    char *	msg_obj;		/* Wear off message for obects	*/
+    char *	msg_disp;       // Dispelling message
+    int		inks[3][2];     // Elemental ink types needed for tattooing and scribing.
+
+    sh_int	cast_mana;		// Mana required to cast
+    sh_int  brew_mana;      // Amount of mana capacity required in the brewing liquid.
+    sh_int  scribe_mana;    // Amount of mana capacity required in the blank scroll.
+    sh_int  imbue_mana;     // Amount of mana capacity required in the charm/wand core/weapon
+
+    TOKEN_INDEX_DATA *token;
+    WNUM_LOAD token_load;
+
+    int values[MAX_SKILL_VALUES];
+    char *valuenames[MAX_SKILL_VALUES];
+};
+
 struct	skill_type
 {
     char *	name;			/* Name of skill		*/
     sh_int	skill_level[MAX_CLASS];	/* Level needed by class	*/
     sh_int	rating[MAX_CLASS];	/* How hard it is to learn	*/
+    // PRESPELL_FUN *prespell_fun;      // Function used for spells to determine if you can cast the spell now (null == ignore)
     SPELL_FUN *	spell_fun;		/* Spell pointer (for spells)	*/
+    // Add artificing functions for brewing, scribing, tattooing, wands, etc.
+
     sh_int	target;			/* Legal targets		*/
     sh_int	minimum_position;	/* Position for caster / user	*/
     sh_int *	pgsn;			/* Pointer to associated gsn	*/
@@ -6435,8 +6639,9 @@ struct	skill_type
     char *	noun_damage;		/* Damage message		*/
     char *	msg_off;		/* Wear off message		*/
     char *	msg_obj;		/* Wear off message for obects	*/
-    char *	msg_disp;
-    int		inks[3][2];
+    char *	msg_disp;       // Dispelling message
+    int		inks[3][2];     // Elemental ink types needed for tattooing and scribing.
+    LIQUID *liquid;         // Liquid required to brew this (if null, it is any liquid)
 };
 
 struct mob_index_skill_data {
@@ -6573,6 +6778,8 @@ enum trigger_index_enum {
     TRIG_FILL,
     TRIG_FILLED,
 	TRIG_FLEE,
+    TRIG_FLUID_EMPTIED,
+    TRIG_FLUID_FILLED,
 	TRIG_FORCEDISMOUNT,
 	TRIG_GET,
 	TRIG_GIVE,
@@ -7073,8 +7280,10 @@ struct log_entry_data
 /*
  * These are skill_lookup return values for common skills and spells.
  */
+
 extern sh_int   gsn__auction;
 extern sh_int   gsn__inspect;
+extern sh_int   gsn__well_fed;
 
 extern sh_int	gsn_acid_blast;
 extern sh_int	gsn_acid_breath;
@@ -7333,7 +7542,6 @@ extern sh_int	gsn_water_spells;
 extern sh_int	gsn_weaken;
 extern sh_int	gsn_weaving;
 extern sh_int	gsn_web;
-extern sh_int   gsn_well_fed;
 extern sh_int	gsn_whip;
 extern sh_int	gsn_wilderness_spear_style;
 extern sh_int	gsn_wind_of_confusion;
@@ -7349,6 +7557,285 @@ extern sh_int	gsn_shriek;
 extern sh_int	gsn_dark_shroud;
 extern sh_int	gsn_soul_essence;
 
+
+
+
+// These will be static
+extern SKILL_DATA gsk__auction;
+extern SKILL_DATA gsk__inspect;
+extern SKILL_DATA gsk__well_fed;
+
+extern SKILL_DATA *gsk_acid_blast;
+extern SKILL_DATA *gsk_acid_breath;
+extern SKILL_DATA *gsk_acro;
+extern SKILL_DATA *gsk_afterburn;
+extern SKILL_DATA *gsk_air_spells;
+extern SKILL_DATA *gsk_ambush;
+extern SKILL_DATA *gsk_animate_dead;
+extern SKILL_DATA *gsk_archery;
+extern SKILL_DATA *gsk_armour;
+extern SKILL_DATA *gsk_athletics;
+extern SKILL_DATA *gsk_avatar_shield;
+extern SKILL_DATA *gsk_axe;
+extern SKILL_DATA *gsk_backstab;
+extern SKILL_DATA *gsk_bar;
+extern SKILL_DATA *gsk_bash;
+extern SKILL_DATA *gsk_behead;
+extern SKILL_DATA *gsk_berserk;
+extern SKILL_DATA *gsk_bind;
+extern SKILL_DATA *gsk_bite;
+extern SKILL_DATA *gsk_blackjack;
+extern SKILL_DATA *gsk_bless;
+extern SKILL_DATA *gsk_blindness;
+extern SKILL_DATA *gsk_blowgun;
+extern SKILL_DATA *gsk_bomb;
+extern SKILL_DATA *gsk_bow;
+extern SKILL_DATA *gsk_breath;
+extern SKILL_DATA *gsk_brew;
+extern SKILL_DATA *gsk_burgle;
+extern SKILL_DATA *gsk_burning_hands;
+extern SKILL_DATA *gsk_call_familiar;
+extern SKILL_DATA *gsk_call_lightning;
+extern SKILL_DATA *gsk_calm;
+extern SKILL_DATA *gsk_cancellation;
+extern SKILL_DATA *gsk_catch;
+extern SKILL_DATA *gsk_cause_critical;
+extern SKILL_DATA *gsk_cause_light;
+extern SKILL_DATA *gsk_cause_serious;
+extern SKILL_DATA *gsk_chain_lightning;
+extern SKILL_DATA *gsk_channel;
+extern SKILL_DATA *gsk_charge;
+extern SKILL_DATA *gsk_charm_person;
+extern SKILL_DATA *gsk_chill_touch;
+extern SKILL_DATA *gsk_circle;
+extern SKILL_DATA *gsk_cloak_of_guile;
+extern SKILL_DATA *gsk_colour_spray;
+extern SKILL_DATA *gsk_combine;
+extern SKILL_DATA *gsk_consume;
+extern SKILL_DATA *gsk_continual_light;
+extern SKILL_DATA *gsk_control_weather;
+extern SKILL_DATA *gsk_cosmic_blast;
+extern SKILL_DATA *gsk_counterspell;
+extern SKILL_DATA *gsk_create_food;
+extern SKILL_DATA *gsk_create_rose;
+extern SKILL_DATA *gsk_create_spring;
+extern SKILL_DATA *gsk_create_water;
+extern SKILL_DATA *gsk_crippling_touch;
+extern SKILL_DATA *gsk_crossbow;
+extern SKILL_DATA *gsk_cure_blindness;
+extern SKILL_DATA *gsk_cure_critical;
+extern SKILL_DATA *gsk_cure_disease;
+extern SKILL_DATA *gsk_cure_light;
+extern SKILL_DATA *gsk_cure_poison;
+extern SKILL_DATA *gsk_cure_serious;
+extern SKILL_DATA *gsk_cure_toxic;
+extern SKILL_DATA *gsk_curse;
+extern SKILL_DATA *gsk_dagger;
+extern SKILL_DATA *gsk_death_grip;
+extern SKILL_DATA *gsk_deathbarbs;
+extern SKILL_DATA *gsk_deathsight;
+extern SKILL_DATA *gsk_deception;
+extern SKILL_DATA *gsk_deep_trance;
+extern SKILL_DATA *gsk_demonfire;
+extern SKILL_DATA *gsk_destruction;
+extern SKILL_DATA *gsk_detect_hidden;
+extern SKILL_DATA *gsk_detect_invis;
+extern SKILL_DATA *gsk_detect_magic;
+extern SKILL_DATA *gsk_detect_traps;
+extern SKILL_DATA *gsk_dirt;
+extern SKILL_DATA *gsk_dirt_kicking;
+extern SKILL_DATA *gsk_disarm;
+extern SKILL_DATA *gsk_discharge;
+extern SKILL_DATA *gsk_dispel_evil;
+extern SKILL_DATA *gsk_dispel_good;
+extern SKILL_DATA *gsk_dispel_magic;
+extern SKILL_DATA *gsk_dispel_room;
+extern SKILL_DATA *gsk_dodge;
+extern SKILL_DATA *gsk_dual;
+extern SKILL_DATA *gsk_eagle_eye;
+extern SKILL_DATA *gsk_earth_spells;
+extern SKILL_DATA *gsk_earthquake;
+extern SKILL_DATA *gsk_electrical_barrier;
+extern SKILL_DATA *gsk_enchant_armour;
+extern SKILL_DATA *gsk_enchant_weapon;
+extern SKILL_DATA *gsk_energy_drain;
+extern SKILL_DATA *gsk_energy_field;
+extern SKILL_DATA *gsk_enhanced_damage;
+extern SKILL_DATA *gsk_ensnare;
+extern SKILL_DATA *gsk_entrap;
+extern SKILL_DATA *gsk_envenom;
+extern SKILL_DATA *gsk_evasion;
+extern SKILL_DATA *gsk_exorcism;
+extern SKILL_DATA *gsk_exotic;
+extern SKILL_DATA *gsk_fade;
+extern SKILL_DATA *gsk_faerie_fire;
+extern SKILL_DATA *gsk_faerie_fog;
+extern SKILL_DATA *gsk_fast_healing;
+extern SKILL_DATA *gsk_fatigue;
+extern SKILL_DATA *gsk_feign;
+extern SKILL_DATA *gsk_fire_barrier;
+extern SKILL_DATA *gsk_fire_breath;
+extern SKILL_DATA *gsk_fire_cloud;
+extern SKILL_DATA *gsk_fire_spells;
+extern SKILL_DATA *gsk_fireball;
+extern SKILL_DATA *gsk_fireproof;
+extern SKILL_DATA *gsk_flail;
+extern SKILL_DATA *gsk_flamestrike;
+extern SKILL_DATA *gsk_flight;
+extern SKILL_DATA *gsk_fly;
+extern SKILL_DATA *gsk_fourth_attack;
+extern SKILL_DATA *gsk_frenzy;
+extern SKILL_DATA *gsk_frost_barrier;
+extern SKILL_DATA *gsk_frost_breath;
+extern SKILL_DATA *gsk_gas_breath;
+extern SKILL_DATA *gsk_gate;
+extern SKILL_DATA *gsk_giant_strength;
+extern SKILL_DATA *gsk_glorious_bolt;
+extern SKILL_DATA *gsk_haggle;
+extern SKILL_DATA *gsk_hand_to_hand;
+extern SKILL_DATA *gsk_harm;
+extern SKILL_DATA *gsk_harpooning;
+extern SKILL_DATA *gsk_haste;
+extern SKILL_DATA *gsk_heal;
+extern SKILL_DATA *gsk_healing_aura;
+extern SKILL_DATA *gsk_healing_hands;
+extern SKILL_DATA *gsk_hide;
+extern SKILL_DATA *gsk_holdup;
+extern SKILL_DATA *gsk_holy_shield;
+extern SKILL_DATA *gsk_holy_sword;
+extern SKILL_DATA *gsk_holy_word;
+extern SKILL_DATA *gsk_holy_wrath;
+extern SKILL_DATA *gsk_hunt;
+extern SKILL_DATA *gsk_ice_storm;
+extern SKILL_DATA *gsk_identify;
+extern SKILL_DATA *gsk_improved_invisibility;
+extern SKILL_DATA *gsk_inferno;
+extern SKILL_DATA *gsk_infravision;
+extern SKILL_DATA *gsk_infuse;
+extern SKILL_DATA *gsk_intimidate;
+extern SKILL_DATA *gsk_invis;
+extern SKILL_DATA *gsk_judge;
+extern SKILL_DATA *gsk_kick;
+extern SKILL_DATA *gsk_kill;
+extern SKILL_DATA *gsk_leadership;
+extern SKILL_DATA *gsk_light_shroud;
+extern SKILL_DATA *gsk_lightning_bolt;
+extern SKILL_DATA *gsk_lightning_breath;
+extern SKILL_DATA *gsk_locate_object;
+extern SKILL_DATA *gsk_lore;
+extern SKILL_DATA *gsk_mace;
+extern SKILL_DATA *gsk_magic_missile;
+extern SKILL_DATA *gsk_martial_arts;
+extern SKILL_DATA *gsk_mass_healing;
+extern SKILL_DATA *gsk_mass_invis;
+extern SKILL_DATA *gsk_master_weather;
+extern SKILL_DATA *gsk_maze;
+extern SKILL_DATA *gsk_meditation;
+extern SKILL_DATA *gsk_mob_lore;
+extern SKILL_DATA *gsk_momentary_darkness;
+extern SKILL_DATA *gsk_morphlock;
+extern SKILL_DATA *gsk_mount_and_weapon_style;
+extern SKILL_DATA *gsk_music;
+extern SKILL_DATA *gsk_navigation;
+extern SKILL_DATA *gsk_neurotoxin;
+extern SKILL_DATA *gsk_nexus;
+extern SKILL_DATA *gsk_parry;
+extern SKILL_DATA *gsk_pass_door;
+extern SKILL_DATA *gsk_peek;
+extern SKILL_DATA *gsk_pick_lock;
+extern SKILL_DATA *gsk_plague;
+extern SKILL_DATA *gsk_poison;
+extern SKILL_DATA *gsk_polearm;
+extern SKILL_DATA *gsk_possess;
+extern SKILL_DATA *gsk_pursuit;
+extern SKILL_DATA *gsk_quarterstaff;
+extern SKILL_DATA *gsk_raise_dead;
+extern SKILL_DATA *gsk_recall;
+extern SKILL_DATA *gsk_recharge;
+extern SKILL_DATA *gsk_refresh;
+extern SKILL_DATA *gsk_regeneration;
+extern SKILL_DATA *gsk_remove_curse;
+extern SKILL_DATA *gsk_rending;
+extern SKILL_DATA *gsk_repair;
+extern SKILL_DATA *gsk_rescue;
+extern SKILL_DATA *gsk_resurrect;
+extern SKILL_DATA *gsk_reverie;
+extern SKILL_DATA *gsk_riding;
+extern SKILL_DATA *gsk_room_shield;
+extern SKILL_DATA *gsk_sanctuary;
+extern SKILL_DATA *gsk_scan;
+extern SKILL_DATA *gsk_scribe;
+extern SKILL_DATA *gsk_scrolls;
+extern SKILL_DATA *gsk_scry;
+extern SKILL_DATA *gsk_second_attack;
+extern SKILL_DATA *gsk_sense_danger;
+extern SKILL_DATA *gsk_shape;
+extern SKILL_DATA *gsk_shield;
+extern SKILL_DATA *gsk_shield_block;
+extern SKILL_DATA *gsk_shield_weapon_style;
+extern SKILL_DATA *gsk_shift;
+extern SKILL_DATA *gsk_shocking_grasp;
+extern SKILL_DATA *gsk_silence;
+extern SKILL_DATA *gsk_single_style;
+extern SKILL_DATA *gsk_skull;
+extern SKILL_DATA *gsk_sleep;
+extern SKILL_DATA *gsk_slit_throat;
+extern SKILL_DATA *gsk_slow;
+extern SKILL_DATA *gsk_smite;
+extern SKILL_DATA *gsk_sneak;
+extern SKILL_DATA *gsk_spear;
+extern SKILL_DATA *gsk_spell_deflection;
+extern SKILL_DATA *gsk_spell_shield;
+extern SKILL_DATA *gsk_spell_trap;
+extern SKILL_DATA *gsk_spirit_rack;
+extern SKILL_DATA *gsk_stake;
+extern SKILL_DATA *gsk_starflare;
+extern SKILL_DATA *gsk_staves;
+extern SKILL_DATA *gsk_steal;
+extern SKILL_DATA *gsk_stone_skin;
+extern SKILL_DATA *gsk_stone_spikes;
+extern SKILL_DATA *gsk_subvert;
+extern SKILL_DATA *gsk_summon;
+extern SKILL_DATA *gsk_survey;
+extern SKILL_DATA *gsk_swerve;
+extern SKILL_DATA *gsk_sword;
+extern SKILL_DATA *gsk_sword_and_dagger_style;
+extern SKILL_DATA *gsk_tail_kick;
+extern SKILL_DATA *gsk_tattoo;
+extern SKILL_DATA *gsk_temperance;
+extern SKILL_DATA *gsk_third_attack;
+extern SKILL_DATA *gsk_third_eye;
+extern SKILL_DATA *gsk_throw;
+extern SKILL_DATA *gsk_titanic_attack;
+extern SKILL_DATA *gsk_toxic_fumes;
+extern SKILL_DATA *gsk_toxins;
+extern SKILL_DATA *gsk_trackless_step;
+extern SKILL_DATA *gsk_trample;
+extern SKILL_DATA *gsk_trip;
+extern SKILL_DATA *gsk_turn_undead;
+extern SKILL_DATA *gsk_two_handed_style;
+extern SKILL_DATA *gsk_underwater_breathing;
+extern SKILL_DATA *gsk_vision;
+extern SKILL_DATA *gsk_wands;
+extern SKILL_DATA *gsk_warcry;
+extern SKILL_DATA *gsk_water_spells;
+extern SKILL_DATA *gsk_weaken;
+extern SKILL_DATA *gsk_weaving;
+extern SKILL_DATA *gsk_web;
+extern SKILL_DATA *gsk_whip;
+extern SKILL_DATA *gsk_wilderness_spear_style;
+extern SKILL_DATA *gsk_wind_of_confusion;
+extern SKILL_DATA *gsk_withering_cloud;
+extern SKILL_DATA *gsk_word_of_recall;
+
+extern SKILL_DATA *gsk_ice_shards;
+extern SKILL_DATA *gsk_stone_touch;
+extern SKILL_DATA *gsk_glacial_wave;
+extern SKILL_DATA *gsk_earth_walk;
+extern SKILL_DATA *gsk_flash;
+extern SKILL_DATA *gsk_shriek;
+extern SKILL_DATA *gsk_dark_shroud;
+extern SKILL_DATA *gsk_soul_essence;
 
 
 
@@ -7651,7 +8138,7 @@ extern sh_int grn_unique;
 #define act(format,ch,v1,v2,o1,o2,a1,a2,type)\
 	act_new((format),(ch),(v1),(v2),(o1),(o2),(a1),(a2),(type),POS_RESTING,NULL)
 
-#define damage(a,b,c,d,e,f) damage_new(( a ),( b ),NULL,( c ),( d ),( e ),( f ))
+#define damage(a,b,c,d,e,f,g) damage_new(( a ),( b ),NULL,( c ),( d ),( e ),( f ),( g ))
 
 
 /*
@@ -7783,7 +8270,7 @@ extern  const	struct  race_type	race_table	[];
 extern	const	struct	pc_race_type	pc_race_table	[];
 extern  const	struct	spec_type	spec_table	[];
 extern	const	struct	liq_type	liq_table	[];
-extern	const	struct	skill_type	skill_table	[MAX_SKILL];
+//extern	struct	skill_type	skill_table	[MAX_SKILL];
 extern          int                     mob_skill_table [MAX_MOB_SKILL_LEVEL];
 extern  const   struct  church_command_type church_command_table [];
 extern  const   struct  group_type      group_table	[MAX_GROUP];
@@ -7950,6 +8437,8 @@ char *	crypt		args( ( const char *key, const char *salt ) );
 #define MAIL_FILE		SYSTEM_DIR "mail.dat"
 #define CONFIG_FILE		SYSTEM_DIR "gconfig.rc"
 #define TRIGGERS_FILE       SYSTEM_DIR "triggers.dat"
+#define LIQUIDS_FILE        SYSTEM_DIR "liquids.dat"
+#define SKILLS_FILE         SYSTEM_DIR "skills.dat"
 /*Notes of all kinds */
 #define NOTE_FILE       NOTE_DIR "notes.not"		/* For 'notes'*/
 /*#define PENALTY_FILE	NOTE_DIR "penal.not"		Unused */
@@ -8187,7 +8676,7 @@ TOKEN_INDEX_DATA *get_token_index_wnum(WNUM wnum);
 TOKEN_INDEX_DATA *get_token_index_auid(long auid, long vnum);
 TOKEN_INDEX_DATA *get_token_index(AREA_DATA *pArea, long vnum);
 bool is_singular_token(TOKEN_INDEX_DATA *index);
-int     get_this_class args( ( CHAR_DATA *ch, int sn ) );
+int     get_this_class args( ( CHAR_DATA *ch, SKILL_DATA *skill ) );
 void	reset_area      args( ( AREA_DATA * pArea ) );
 void	reset_room	args( ( ROOM_INDEX_DATA *pRoom ) );
 char *	print_flags	args( ( long flag ));
@@ -8315,15 +8804,15 @@ bool check_shield_block( CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *wield );
 bool check_shield_block_projectile( CHAR_DATA *ch, CHAR_DATA *victim, char *attack, OBJ_DATA *projectile );
 bool check_spear_block( CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *wield );
 bool check_speed_swerve( CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *wield );
-bool damage_new( CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, int dt, int class, bool show );
+bool damage_new( CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *weapon, int dam, SKILL_DATA *skill, int dt, int class, bool show );
 bool is_safe( CHAR_DATA *ch, CHAR_DATA *victim, bool show );
 bool is_safe_spell( CHAR_DATA *ch, CHAR_DATA *victim, bool area );
-bool one_hit( CHAR_DATA *ch, CHAR_DATA *victim, int dt, bool secondary );
+bool one_hit( CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill, int dt, bool secondary );
 int xp_compute( CHAR_DATA *gch, CHAR_DATA *victim, int total_levels );
 void bind_end( CHAR_DATA *ch );
 void check_assist( CHAR_DATA *ch, CHAR_DATA *victim );
 void check_killer( CHAR_DATA *ch, CHAR_DATA *victim);
-void dam_message( CHAR_DATA *ch, CHAR_DATA *victim, int dam, int dt, bool immune );
+void dam_message( CHAR_DATA *ch, CHAR_DATA *victim, int dam, SKILL_DATA *skill, int dt, bool immune );
 void death_cry( CHAR_DATA *ch, bool has_head, bool messages );
 void death_mob_echo( CHAR_DATA *victim );
 OBJ_DATA *disarm( CHAR_DATA *ch, CHAR_DATA *victim );
@@ -8331,8 +8820,8 @@ void group_gain( CHAR_DATA *ch, CHAR_DATA *victim, int percent );
 void set_corpse_data(OBJ_DATA *corpse, int corpse_type);
 int blend_corpsetypes (int t1, int t2);
 OBJ_DATA *make_corpse( CHAR_DATA *ch, bool has_head, int corpse_type, bool messages );
-void mob_hit( CHAR_DATA *ch, CHAR_DATA *victim, int dt );
-void multi_hit( CHAR_DATA *ch, CHAR_DATA *victim, int dt );
+void mob_hit( CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill, int dt );
+void multi_hit( CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill, int dt );
 void player_kill( CHAR_DATA *ch, CHAR_DATA *victim );
 int damage_to_corpse(int dam_type);
 OBJ_DATA *raw_kill( CHAR_DATA *victim, bool has_head, bool messages, int corpse_type);
@@ -8528,7 +9017,7 @@ int     get_trade_item args(( char *arg ));
 TRADE_ITEM *find_trade_item args(( AREA_DATA* pArea, char *arg ));
 char    *upper_first ( char *arg );
 CD      *get_cart_pulled( OBJ_DATA *obj );
-AD  	*affect_find args( (AFFECT_DATA *paf, int sn));
+AD  	*affect_find args( (AFFECT_DATA *paf, SKILL_DATA *skill));
 void	affect_check	args( (CHAR_DATA *ch, int where, long vector, long vector2) );
 int	count_users	args( (OBJ_DATA *obj) );
 void 	deduct_cost	args( (CHAR_DATA *ch, int cost) );
@@ -8549,10 +9038,10 @@ int	sub_class_search(const char *);
 bool	is_church	args( (CHAR_DATA *ch) );
 bool	is_same_church	args( (CHAR_DATA *ch, CHAR_DATA *victim));
 bool	is_old_mob	args ( (CHAR_DATA *ch) );
-int	get_skill	args( ( CHAR_DATA *ch, int sn ) );
-int	get_weapon_sn	args( ( CHAR_DATA *ch ) );
-int	get_objweapon_sn	args( (OBJ_DATA *obj) );
-int	get_weapon_skill args(( CHAR_DATA *ch, int sn ) );
+int	get_skill	args( ( CHAR_DATA *ch, SKILL_DATA *sk ) );
+SKILL_DATA *get_weapon_sn	args( ( CHAR_DATA *ch ) );
+SKILL_DATA *get_objweapon_sn	args( (OBJ_DATA *obj) );
+int	get_weapon_skill args(( CHAR_DATA *ch, SKILL_DATA *skill ) );
 int     get_age         args( ( CHAR_DATA *ch ) );
 void	reset_char	args( ( CHAR_DATA *ch )  );
 int	get_trust	args( ( CHAR_DATA *ch ) );
@@ -8576,14 +9065,14 @@ void	affect_to_room	args( ( ROOM_INDEX_DATA *room, AFFECT_DATA *paf ) );
 void	affect_remove	args( ( CHAR_DATA *ch, AFFECT_DATA *paf ) );
 bool	affect_removeall_obj	args( ( OBJ_DATA *obj ) );
 bool	affect_remove_obj args( (OBJ_DATA *obj, AFFECT_DATA *paf ) );
-void	affect_strip	args( ( CHAR_DATA *ch, int sn ) );
+void	affect_strip	args( ( CHAR_DATA *ch, SKILL_DATA *skill ) );
 void    affect_strip_token  args( (CHAR_DATA *ch, TOKEN_INDEX_DATA *token) );
-void	affect_strip_obj	args( ( OBJ_DATA *obj, int sn ) );
+void	affect_strip_obj	args( ( OBJ_DATA *obj, SKILL_DATA *skill ) );
 void	affect_strip_name	args( ( CHAR_DATA *ch, char *name ) );
 void	affect_strip_name_obj	args( ( OBJ_DATA *obj, char *name ) );
 void	affect_stripall_wearloc args( (CHAR_DATA *ch, int wear_loc) );
-bool	is_affected	args( ( CHAR_DATA *ch, int sn ) );
-bool	is_affected_obj	args( ( OBJ_DATA *obj, int sn ) );
+bool	is_affected	args( ( CHAR_DATA *ch, SKILL_DATA *skill ) );
+bool	is_affected_obj	args( ( OBJ_DATA *obj, SKILL_DATA *skill ) );
 bool	is_affected_name	args( ( CHAR_DATA *ch, char *name ) );
 bool	is_affected_name_obj	args( ( OBJ_DATA *obj, char *name ) );
 void	affect_join	args( ( CHAR_DATA *ch, AFFECT_DATA *paf ) );
@@ -8732,10 +9221,10 @@ int get_perm_group_stat(CHAR_DATA *ch, int stat);
 int get_church_online_count(CHAR_DATA *ch);
 int get_room_weight(ROOM_INDEX_DATA *room, bool mobs, bool objs, bool ground);
 bool is_float_user(CHAR_DATA *ch);
-int has_catalyst(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int method,int min_strength, int max_strength);
-int use_catalyst_obj(CHAR_DATA *ch,ROOM_INDEX_DATA *room,OBJ_DATA *obj,int type,int left,int min_strength, int max_strength, bool active, bool show);
-int use_catalyst_here(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int amount,int min_strength, int max_strength, bool active, bool show);
-int use_catalyst(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int method,int amount,int min_strength, int max_strength, bool show);
+int has_catalyst(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int method);
+int use_catalyst_obj(CHAR_DATA *ch,ROOM_INDEX_DATA *room,OBJ_DATA *obj,int type,int left,bool active, bool show);
+int use_catalyst_here(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int amount,bool active, bool show);
+int use_catalyst(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int method,int amount,bool show);
 void move_cart(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool delay);
 void visit_rooms(ROOM_INDEX_DATA *room, VISIT_FUNC *func, int depth, void *argv[], int argc, bool closed);
 
@@ -8776,28 +9265,29 @@ bool is_allowed( char *command );
 bool is_granted_command(CHAR_DATA *ch, char *name);
 
 /* magic.c */
-void	say_spell	args((CHAR_DATA *ch, int sn));
+void	say_spell	args((CHAR_DATA *ch, SKILL_DATA *skill));
 SPELL_FUNC(spell_null);
 void    mob_cast        args( ( CHAR_DATA *ch, int sn, int level, char *argument) );
 void    mob_cast_end    args( ( CHAR_DATA *ch) );
 int	find_spell	args( ( CHAR_DATA *ch, const char *name) );
 int 	mana_cost 	(CHAR_DATA *ch, int min_mana, int level);
-int	skill_lookup	args( ( const char *name ) );
+// Deprecating this to make all the code complain
+//int	skill_lookup	args( ( const char *name ) );
 OD*	get_warp_stone	args( ( CHAR_DATA *ch ) );
 bool	saves_spell	args( ( int level, CHAR_DATA *victim, sh_int dam_type ) );
-void	obj_cast_spell	args( ( int sn, int level, CHAR_DATA *ch,
+void	obj_cast_spell	args( ( SKILL_DATA *skill, int level, CHAR_DATA *ch,
 				    CHAR_DATA *victim, OBJ_DATA *obj ) );
 void obj_cast( int sn, int level, OBJ_DATA *obj, ROOM_INDEX_DATA *room, char *argument);
 bool can_gate( CHAR_DATA *ch, CHAR_DATA *victim );
 void cast_end( CHAR_DATA *ch );
 bool can_escape( CHAR_DATA *ch );
 bool saves_dispel( CHAR_DATA *ch, CHAR_DATA *victim, int spell_level );
-bool check_dispel(CHAR_DATA *ch, CHAR_DATA *victim, int sn);
+bool check_dispel(CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill);
 
 /* magic2.c */
 void reverie_end args( ( CHAR_DATA *ch, int amount ) );
 void trance_end(CHAR_DATA *ch);
-bool check_spell_deflection( CHAR_DATA *ch, CHAR_DATA *victim, int sn);
+bool check_spell_deflection( CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill);
 bool check_spell_deflection_token( CHAR_DATA *ch, CHAR_DATA *victim, TOKEN_DATA *tok, SCRIPT_DATA *script,char *target_name);
 
 /* mail.c */
@@ -8893,19 +9383,19 @@ bool 	parse_gen_groups args( ( CHAR_DATA *ch,char *argument ) );
 void 	list_group_costs args( ( CHAR_DATA *ch ) );
 void    list_group_known args( ( CHAR_DATA *ch ) );
 long 	exp_per_level	args( ( CHAR_DATA *ch, long points ) );
-void 	check_improve	args( ( CHAR_DATA *ch, int sn, bool success, int multiplier ) );
-void check_improve_show( CHAR_DATA *ch, int sn, bool success, int multiplier, bool show );
+void 	check_improve	args( ( CHAR_DATA *ch, SKILL_DATA *skill, bool success, int multiplier ) );
+void check_improve_show( CHAR_DATA *ch, SKILL_DATA *skill, bool success, int multiplier, bool show );
 int 	group_lookup	args( (const char *name) );
 void	gn_add		args( ( CHAR_DATA *ch, int gn) );
 void 	gn_remove	args( ( CHAR_DATA *ch, int gn) );
 void 	group_add	args( ( CHAR_DATA *ch, const char *name, bool deduct) );
 void	group_remove	args( ( CHAR_DATA *ch, const char *name) );
-bool had_skill( CHAR_DATA *ch, int sn );
-bool has_subclass_skill( int subclass, int skill );
-bool can_practice( CHAR_DATA *ch, int sn );
-bool has_class_skill ( int class, int sn );
-bool is_global_skill( int sn );
-bool should_have_skill( CHAR_DATA *ch, int sn );
+bool had_skill( CHAR_DATA *ch, SKILL_DATA *skill );
+bool has_subclass_skill( int subclass, SKILL_DATA *skill );
+bool can_practice( CHAR_DATA *ch, SKILL_DATA *skill );
+bool has_class_skill ( int class, SKILL_DATA *skill );
+bool is_global_skill( SKILL_DATA *skill );
+bool should_have_skill( CHAR_DATA *ch, SKILL_DATA *skill );
 void update_skills( CHAR_DATA *ch );
 void fix_subclasses( CHAR_DATA *);
 bool has_correct_classes( CHAR_DATA *ch );
@@ -9333,18 +9823,20 @@ void strip_newline(char *buf, bool append);
 float diminishing_returns(float val, float scale);
 float diminishing_inverse(float val, float scale);
 
+bool is_skill_spell(SKILL_DATA *skill);
+
 SKILL_ENTRY *skill_entry_findname( SKILL_ENTRY *list, char *str );
 SKILL_ENTRY *skill_entry_findsong( SKILL_ENTRY *list, int song );
-SKILL_ENTRY *skill_entry_findsn( SKILL_ENTRY *list, int sn );
+SKILL_ENTRY *skill_entry_findskill( SKILL_ENTRY *list, SKILL_DATA *skill );
 SKILL_ENTRY *skill_entry_findtoken( SKILL_ENTRY *list, TOKEN_DATA *token );
 SKILL_ENTRY *skill_entry_findtokenindex( SKILL_ENTRY *list, TOKEN_INDEX_DATA *token_index );
-void skill_entry_addskill (CHAR_DATA *ch, int sn, TOKEN_DATA *token, char source, long flags);
-void skill_entry_addspell (CHAR_DATA *ch, int sn, TOKEN_DATA *token, char source, long flags);
-void skill_entry_addsong (CHAR_DATA *ch, int song, TOKEN_DATA *token, char source);
-void skill_entry_remove (SKILL_ENTRY **list, int sn, int song, TOKEN_DATA *token, bool isspell);
+SKILL_ENTRY *skill_entry_addskill (CHAR_DATA *ch, SKILL_DATA *skill, TOKEN_DATA *token, char source, long flags);
+SKILL_ENTRY *skill_entry_addspell (CHAR_DATA *ch, SKILL_DATA *skill, TOKEN_DATA *token, char source, long flags);
+SKILL_ENTRY *skill_entry_addsong (CHAR_DATA *ch, int song, TOKEN_DATA *token, char source);
+void skill_entry_remove (SKILL_ENTRY **list, SKILL_DATA *skill, int song, TOKEN_DATA *token, bool isspell);
 void skill_entry_removeentry (SKILL_ENTRY **list, SKILL_ENTRY *entry);
-void skill_entry_removeskill (CHAR_DATA *ch, int sn, TOKEN_DATA *token);
-void skill_entry_removespell (CHAR_DATA *ch, int sn, TOKEN_DATA *token);
+void skill_entry_removeskill (CHAR_DATA *ch, SKILL_DATA *skill);
+void skill_entry_removespell (CHAR_DATA *ch, SKILL_DATA *skill);
 void skill_entry_removesong (CHAR_DATA *ch, int song, TOKEN_DATA *token);
 int token_skill_rating( TOKEN_DATA *token);
 int token_skill_mana( TOKEN_DATA *token);
@@ -9947,6 +10439,7 @@ AURA_DATA *find_aura_char(CHAR_DATA *ch, char *name);
 void add_aura_to_char(CHAR_DATA *ch, char *name, char *long_descr);
 void remove_aura_from_char(CHAR_DATA *ch, char *name);
 
+void obj_apply_spell(CHAR_DATA *ch, OBJ_DATA *obj, CHAR_DATA *victim, OBJ_DATA *thing, SPELL_DATA *spell, int trigger);
 void obj_apply_spells(CHAR_DATA *ch, OBJ_DATA *obj, CHAR_DATA *victim, OBJ_DATA *thing, SPELL_DATA *spells, int trigger);
 
 bool init_scripting();
@@ -9991,6 +10484,30 @@ int book_max_pages(BOOK_DATA *book);
 bool obj_oclu_ambiguous(OBJ_DATA *obj);
 void obj_oclu_show_parts(CHAR_DATA *ch, OBJ_DATA *obj);
 bool oclu_get_context(OCLU_CONTEXT *context, OBJ_DATA *obj, char *argument);
+
+bool spell_cmp(SPELL_DATA *a, SPELL_DATA *b);
+bool obj_has_same_spells(LLIST *a, LLIST *b);
+
+bool fluid_has_same_fluid(FLUID_CONTAINER_DATA *a, FLUID_CONTAINER_DATA *b);
+void fluid_empty_container(FLUID_CONTAINER_DATA *a);
+
+extern LLIST *liquid_list;
+extern sh_int top_liquid_uid;
+extern sh_int gln_water;
+extern sh_int gln_blood;
+extern sh_int gln_potion;
+LIQUID *liquid_water;
+LIQUID *liquid_blood;
+LIQUID *liquid_potion;
+LIQUID *liquid_lookup(char *name);
+LIQUID *liquid_lookup_uid(sh_int uid);
+sh_int *liquid_gln_lookup(char *name);
+char *liquid_gln_name(sh_int *gln);
+
+extern LLIST *skills_list;
+extern sh_int top_skill_uid;
+SKILL_DATA *get_skill_data(char *name);
+SKILL_DATA *get_skill_data_uid(sh_int uid);
 
 extern LLIST *gc_mobiles;
 extern LLIST *gc_objects;

@@ -35,13 +35,13 @@ SPELL_FUNC(spell_gate)
 	// getdistance... ln(distance)+1
 	distance = 1;
 
-	catalyst = has_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY,1,CATALYST_MAXSTRENGTH);
+	catalyst = has_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY);
 	if(catalyst >= 0 && catalyst < distance) {
 		send_to_char("You appear to be missing a required astral catalyst.\n\r", ch);
 		return TRUE;
 	}
 
-	catalyst = use_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY,distance,1,CATALYST_MAXSTRENGTH,TRUE);
+	catalyst = use_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY,distance,TRUE);
 
 	if (ch->pet && ch->in_room == ch->pet->in_room)
 		gate_pet = TRUE;
@@ -78,7 +78,7 @@ SPELL_FUNC(spell_gate)
 
 SPELL_FUNC(spell_maze)
 {
-	int skill;
+	int rating;
 	CHAR_DATA *victim = NULL;
 	OBJ_DATA *stone;
 	ROOM_INDEX_DATA *room;
@@ -101,10 +101,10 @@ SPELL_FUNC(spell_maze)
 		return FALSE;
 	}
 
-	skill = get_skill(ch, gsn_maze);
-	if (!(area = area_geldoff_maze) || (number_percent() >= skill)) {
+	rating = get_skill(ch, gsk_maze);
+	if (!(area = area_geldoff_maze) || (number_percent() >= rating)) {
 		send_to_char("Your mind seems to have gotten lost in its own maze...\n\r", ch);
-		ch->daze += 10 - number_range(0, skill/10);
+		ch->daze += 10 - number_range(0, rating/10);
 		return FALSE;
 	}
 
@@ -159,13 +159,13 @@ SPELL_FUNC(spell_nexus)
 	// getdistance... ln(distance)+1
 	distance = 1;
 
-	catalyst = has_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY,1,CATALYST_MAXSTRENGTH);
+	catalyst = has_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY);
 	if(catalyst >= 0 && catalyst < distance) {
 		send_to_char("You appear to be missing a required astral catalyst.\n\r", ch);
 		return TRUE;
 	}
 
-	catalyst = use_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY,distance,1,CATALYST_MAXSTRENGTH,TRUE);
+	catalyst = use_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY,distance,TRUE);
 
 	/* portal one */
 	portal = create_object(obj_index_portal,0, TRUE);

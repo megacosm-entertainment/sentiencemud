@@ -21,10 +21,10 @@ char *get_affect_name(AFFECT_DATA *paf);
 
 char *get_spell_data_name(SPELL_DATA *spell)
 {
-	if (spell->token)
-		return spell->token->name;
-	
-	return skill_table[spell->sn].name;
+	if (!IS_NULLSTR(spell->skill->display))
+		return spell->skill->display;
+
+	return spell->skill->name;
 }
 
 SPELL_FUNC(spell_armour)
@@ -40,9 +40,9 @@ SPELL_FUNC(spell_armour)
 		perm = TRUE;
 	}
 
-	if (perm && is_affected(victim, sn)) {
-		affect_strip(victim, sn);
-	} else if (is_affected(victim, sn)) {
+	if (perm && is_affected(victim, skill)) {
+		affect_strip(victim, skill);
+	} else if (is_affected(victim, skill)) {
 		if (victim == ch)
 			send_to_char("You are already armoured.\n\r",ch);
 		else
@@ -53,7 +53,7 @@ SPELL_FUNC(spell_armour)
 	af.slot = obj_wear_loc;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration  = perm ? -1 : 35;
 	af.modifier  = -20;
@@ -80,9 +80,9 @@ SPELL_FUNC(spell_cloak_of_guile)
 		perm = TRUE;
 	}
 
-	if (perm && is_affected(victim, sn)) {
-		affect_strip(victim, sn);
-	} else if (IS_AFFECTED2(victim, AFF2_CLOAK_OF_GUILE) || is_affected(victim, sn)) {
+	if (perm && is_affected(victim, skill)) {
+		affect_strip(victim, skill);
+	} else if (IS_AFFECTED2(victim, AFF2_CLOAK_OF_GUILE) || is_affected(victim, skill)) {
 		if (victim == ch)
 			send_to_char("You are already enshrouded.\n\r",ch);
 		else
@@ -93,7 +93,7 @@ SPELL_FUNC(spell_cloak_of_guile)
 	af.slot = obj_wear_loc;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration  = perm ? -1 : (level/9 + 3);
 	af.location  = APPLY_NONE;
@@ -120,7 +120,7 @@ SPELL_FUNC(spell_entrap)
 	act("$p vibrates for a second, then stops.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 	act("$n's $p vibrates for a second, then stops.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 
-	obj->trap_dam = level + dice(get_skill(ch, sn),3);
+	obj->trap_dam = level + dice(get_skill(ch, skill),3);
 	SET_BIT(obj->extra[1], ITEM_TRAPPED);
 	return TRUE;
 }
@@ -140,7 +140,7 @@ SPELL_FUNC(spell_faerie_fire)
 	af.slot = obj_wear_loc;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration = level;
 	af.location = APPLY_AC;
@@ -194,6 +194,34 @@ void _spell_identify_show_item_data(BUFFER *buffer, CHAR_DATA *ch, OBJ_DATA *obj
 		}
 		iterator_stop(&it);
 	}
+
+	if (IS_FLUID_CON(obj))
+	{
+		FLUID_CONTAINER_DATA *fluid = FLUID_CON(obj);
+		// Get liquid info
+		if (fluid->amount != 0 && IS_VALID(fluid->liquid))
+			sprintf(buf, "{MIt holds %s-colored {x%s{M.{x\n\r",
+				fluid->liquid->color,
+				fluid->liquid->name);
+		else
+			sprintf(buf,"{MIt is empty.{x\n\r");
+		add_buf(buffer,buf);
+		
+
+		// Show spells
+		if (list_size(FLUID_CON(obj)->spells) > 0)
+		{
+			ITERATOR it;
+			SPELL_DATA *spell;
+			iterator_start(&it, FLUID_CON(obj)->spells);
+			while((spell = (SPELL_DATA *)iterator_nextdata(&it)))
+			{
+				sprintf(buf, " {W* {MLevel {W%d {Mspell of {W%s{M.{x\n\r",
+					spell->level, get_spell_data_name(spell));
+				add_buf(buffer, buf);
+			}
+		}
+	}
 }
 
 SPELL_FUNC(spell_identify)
@@ -202,7 +230,7 @@ SPELL_FUNC(spell_identify)
 	BUFFER *buffer;
 	char buf[2*MAX_STRING_LENGTH];
 	char buf2[MAX_STRING_LENGTH];
-	char extra_flags[MSL];
+	//char extra_flags[MSL];
 	AFFECT_DATA *af;
 //	OBJ_DATA *key;
 //	int i = 0;
@@ -215,25 +243,6 @@ SPELL_FUNC(spell_identify)
 
 	buffer = new_buf();
 
-	if (!obj->extra[0] && !obj->extra[1])
-		sprintf(extra_flags, "none");
-	else {
-		// Extra flags
-		if (obj->extra[0])
-			sprintf(extra_flags, "%s", extra_bit_name(obj->extra[0]));
-		else
-			sprintf(extra_flags, "{x");
-
-		// Extra2 flags
-		if (obj->extra[1]) {
-			if (obj->extra[0])
-				strcat(extra_flags, " ");
-
-			strcat(extra_flags, extra2_bit_name(obj->extra[1]));
-		}
-
-		// Extra3 and further will be added here
-	}
 
 	sprintf(buf,
 		"{MObject '{x%s{M' is type {x%s{M, extra flags {x%s{M.\n\r"
@@ -241,7 +250,7 @@ SPELL_FUNC(spell_identify)
 		"{MFragility is {x%s{M, condition is {x%d%%{M. It has been repaired {x%d{M/{x%d {Mtimes.{x\n\r" ,
 		obj->name,
 		item_name(obj->item_type),
-		extra_flags,
+		bitmatrix_string(extra_flagbank, obj->extra),
 		obj->weight,
 		obj->cost,
 		obj->level,
@@ -313,13 +322,15 @@ SPELL_FUNC(spell_identify)
 		break;
 		*/
 
-	case ITEM_POTION:
+	/*
+	case ITEM_FLUID_CONTAINER:
 		if (obj->value[5] > 0) {
 			sprintf(buf, "{MThis potion has {x%d{M remaining charge%s.{x\n\r",
 				obj->value[5], obj->value[5] == 1 ? "" : "s");
 			add_buf(buffer, buf);
 		}
 		break;
+	*/
 
 	case ITEM_TATTOO:
 		if (obj->value[0] > 0) {
@@ -356,6 +367,7 @@ SPELL_FUNC(spell_identify)
 		add_buf(buffer, buf);
 		break;
 
+	/*
 	case ITEM_DRINK_CON:
 		if (obj->value[0] != 0 && obj->value[1] != 0)
 			sprintf(buf,"{MIt holds %s-coloured {x%s{M.\n\r{x",
@@ -365,6 +377,7 @@ SPELL_FUNC(spell_identify)
 			sprintf(buf,"{MIt is empty.{x\n\r");
 		add_buf(buffer,buf);
 		break;
+	*/
 
 	case ITEM_WEAPON_CONTAINER:
 		sprintf(buf,"{MHolds {x%d{M/{x%d {M%ss and {x%d{M/{x%d{M weight\n\r",
@@ -436,7 +449,7 @@ SPELL_FUNC(spell_identify)
 	_spell_identify_show_item_data(buffer, ch, obj);
 
 	for (af = obj->affected; af; af = af->next) {
-		if (af->location != APPLY_NONE && af->modifier && !af->custom_name && !(af->type > 0 && af->type < MAX_SKILL)) {
+		if (af->location != APPLY_NONE && af->modifier && !af->custom_name && !IS_VALID(af->skill)) {
 			sprintf(buf, "{MAffects {x%s {Mby {x%d", affect_loc_name(af->location), af->modifier);
 			add_buf(buffer, buf);
 			if (af->duration > -1)
@@ -489,7 +502,7 @@ SPELL_FUNC(spell_identify)
 	}
 
 	for (af = obj->catalyst; af != NULL; af = af->next) {
-		sprintf(buf, "%satalyst {x%s {Mof strength {x%d {M", ((af->where == TO_CATALYST_ACTIVE) ? "{MC" : "{xDormant{M c" ), flag_string( catalyst_types, af->type ), af->level);
+		sprintf(buf, "%satalyst {x%s {Mof strength {x%d {M", ((af->where == TO_CATALYST_ACTIVE) ? "{MC" : "{xDormant{M c" ), flag_string( catalyst_types, af->catalyst_type ), af->level);
 		add_buf(buffer, buf);
 		if (af->duration > -1)
 			sprintf(buf,"with {x%d%%{M left.\n\r{x",100 * af->duration / (af->level * af->modifier) );
@@ -497,7 +510,7 @@ SPELL_FUNC(spell_identify)
 			sprintf(buf,"with an infinite source.\n\r{x");
 		add_buf(buffer,buf);
 	}
-
+	
 	if (obj->old_name) {
 		sprintf(buf, "{MOriginal name: %s{x\n\r", obj->old_name);
 		add_buf(buffer, buf);
@@ -514,7 +527,7 @@ SPELL_FUNC(spell_identify)
 	// Show spells like bless, etc, which have been casted on obj
 	if (obj->affected) {
 		for (af = obj->affected; af; af = af->next) {
-			if (af->type > 0 && af->type < MAX_SKILL) {
+			if (IS_VALID(af->skill)) {
 				buf2[0] = '\0';
 
 				if (af->location != APPLY_NONE && str_cmp(affect_loc_name(af->location), "(unknown)")) {
@@ -523,7 +536,7 @@ SPELL_FUNC(spell_identify)
 				}
 
 				sprintf(buf, "{MAffected by {x%s{M, level {x%d{M, %sfor {x%d{M hours.{x\n\r",
-					skill_table[af->type].name, af->level,
+					af->skill->name, af->level,
 					buf2[0] == '\0' ? "" : buf2, af->duration);
 				add_buf(buffer, buf);
 			}
@@ -533,9 +546,11 @@ SPELL_FUNC(spell_identify)
 	page_to_char(buf_string(buffer), ch);
 	free_buf(buffer);
 
-	if(sn == gsn_lore)
+	if(skill == &gsk__auction || skill == &gsk__inspect)
+		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_INSPECT, NULL,0,0,0,0,0);
+	else if(skill == gsk_lore)
 		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LORE, NULL,0,0,0,0,0);
-	else if(sn == gsn_identify)
+	else if(skill == gsk_identify)
 		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_IDENTIFY, NULL,0,0,0,0,0);
 
 	return TRUE;
@@ -624,8 +639,8 @@ SPELL_FUNC(spell_pass_door)
 		perm = TRUE;
 	}
 
-	if (perm && is_affected(victim, sn)) {
-		affect_strip(victim, sn);
+	if (perm && is_affected(victim, skill)) {
+		affect_strip(victim, skill);
 	} else if (IS_AFFECTED(victim, AFF_PASS_DOOR)) {
 		if (victim == ch)
 			send_to_char("You are already out of phase.\n\r",ch);
@@ -637,7 +652,7 @@ SPELL_FUNC(spell_pass_door)
 	af.slot = obj_wear_loc;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration = perm ? -1 : number_fuzzy(level / 4);
 	af.location = APPLY_NONE;
@@ -659,7 +674,7 @@ SPELL_FUNC(spell_room_shield)
 	int catalyst;
 	bool outside = FALSE;
 
-	catalyst = has_catalyst(ch,NULL,CATALYST_LAW,CATALYST_INVENTORY|CATALYST_ACTIVE,1,CATALYST_MAXSTRENGTH);
+	catalyst = has_catalyst(ch,NULL,CATALYST_LAW,CATALYST_INVENTORY|CATALYST_ACTIVE);
 
 	if(IS_OUTSIDE(ch) || IS_WILDERNESS(ch->in_room)) {
 		if( catalyst >= 0 ) {
@@ -688,7 +703,7 @@ SPELL_FUNC(spell_room_shield)
 
 		cost = outside ? (catalyst + 10) : catalyst;	// Being outdoors weakens the use of the catalyst, but is part of the cost
 
-		use_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY|CATALYST_ACTIVE,cost,1,CATALYST_MAXSTRENGTH,TRUE);
+		use_catalyst(ch,NULL,CATALYST_ASTRAL,CATALYST_INVENTORY|CATALYST_ACTIVE,cost,TRUE);
 	}
 	else if(catalyst < 0)
 		catalyst = 10;
@@ -752,4 +767,48 @@ SPELL_FUNC(spell_word_of_recall)
 	act("{W$n appears in the room.{x",victim, NULL, NULL, NULL, NULL,NULL,NULL,TO_ROOM);
 	do_function(victim, &do_look, "auto");
 	return TRUE;
+}
+
+RECITE_FUNC( recite_word_of_recall )
+{
+	CHAR_DATA *victim = (CHAR_DATA *) vo;
+	ROOM_INDEX_DATA *location;
+
+	if (IS_NPC(victim))
+		return FALSE;
+
+	if(p_percent_trigger(ch, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECALL, NULL,0,0,0,0,0) ||
+		p_percent_trigger(NULL, NULL, ch->in_room, NULL, NULL, NULL, NULL, NULL, NULL, TRIG_PRERECALL, NULL,0,0,0,0,0))
+		return FALSE;
+
+	location = get_recall_room(ch);
+
+	if (location == NULL) {
+		send_to_char("You are completely lost.\n\r",victim);
+		return FALSE;
+	}
+
+	//Added area_no_recall check to go with corresponding area flag - Areo 08-10-2006
+	if (IS_SET(victim->in_room->room_flags,ROOM_NO_RECALL) || IS_AFFECTED(victim,AFF_CURSE) || IS_SET(victim->in_room->area->area_flags, AREA_NO_RECALL)) {
+		send_to_char("Your attempt to recall has failed.\n\r",victim);
+		return FALSE;
+	}
+
+	if (ch->no_recall > 0) {
+		send_to_char("You can't summon enough energy.\n\r", ch);
+		return FALSE;
+	}
+
+	if (victim->fighting) {
+		send_to_char("The gods look down and grin with interest. Finish the fight!\n\r", victim);
+		return FALSE;
+	}
+
+	victim->move /= 2;
+	act("{W$n disappears.{x",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+	char_from_room(victim);
+	char_to_room(victim,location);
+	act("{W$n appears in the room.{x",victim, NULL, NULL, NULL, NULL,NULL,NULL,TO_ROOM);
+	do_function(victim, &do_look, "auto");
+	return true;
 }

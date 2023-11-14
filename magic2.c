@@ -48,7 +48,7 @@ void do_trance(CHAR_DATA *ch, char *argument)
     int chance;
     char buf[MSL];
 
-    if ((chance = get_skill(ch, gsn_deep_trance)) == 0)
+    if ((chance = get_skill(ch, gsk_deep_trance)) == 0)
     {
 	send_to_char("You do not have this skill.\n\r", ch);
 	return;
@@ -70,7 +70,7 @@ void do_trance(CHAR_DATA *ch, char *argument)
     act("{YYou begin to meditate and fall into a trance.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
     act("{Y$n begins to meditate and fall into a trance.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-    ch->trance = 2 * PULSE_VIOLENCE + (100-get_skill(ch,gsn_deep_trance))/10;
+    ch->trance = 2 * PULSE_VIOLENCE + (100-get_skill(ch, gsk_deep_trance))/10;
 }
 
 
@@ -78,24 +78,24 @@ void trance_end(CHAR_DATA *ch)
 {
     int gain;
     char buf[MSL];
-    int chance = get_skill(ch, gsn_deep_trance);
+    int chance = get_skill(ch, gsk_deep_trance);
     bool worked = TRUE;
 
     send_to_char("{YYou come out of your trance.{x\n\r", ch);
 
     if (number_percent() < chance) {
 	gain = ch->max_mana / 9;
-	gain += get_skill(ch, gsn_deep_trance)/10;
+	gain += get_skill(ch, gsk_deep_trance)/10;
 
 	sprintf(buf, "You regain %d lost mana!", gain);
 	act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
 	ch->mana += gain;
 
-	check_improve(ch, gsn_deep_trance, TRUE, 1);
+	check_improve(ch, gsk_deep_trance, TRUE, 1);
     } else {
 	send_to_char("You fail to gather any lost mana during your deep trance.\n\r", ch);
-	check_improve(ch, gsn_deep_trance, FALSE, 1);
+	check_improve(ch, gsk_deep_trance, FALSE, 1);
 	worked = FALSE;
     }
 
@@ -110,7 +110,7 @@ void trance_end(CHAR_DATA *ch)
 }
 
 // Returns TRUE if the spell got through.
-bool check_spell_deflection(CHAR_DATA *ch, CHAR_DATA *victim, int sn)
+bool check_spell_deflection(CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill)
 {
 	CHAR_DATA *rch = NULL;
 	AFFECT_DATA *af;
@@ -125,7 +125,7 @@ bool check_spell_deflection(CHAR_DATA *ch, CHAR_DATA *victim, int sn)
 
 	// Find spell deflection
 	for (af = victim->affected; af != NULL; af = af->next) {
-		if (af->type == gsn_spell_deflection)
+		if (af->skill == gsk_spell_deflection)
 			break;
 	}
 
@@ -152,13 +152,13 @@ bool check_spell_deflection(CHAR_DATA *ch, CHAR_DATA *victim, int sn)
 	}
 
 	/* it bounces to a random person */
-	if (skill_table[sn].target != TAR_IGNORE)
+	if (skill->target != TAR_IGNORE)
 		for (attempts = 0; attempts < 6; attempts++) {
 			rch = get_random_char(NULL, NULL, victim->in_room, NULL);
 			if ((ch != NULL && rch == ch) ||
 				rch == victim ||
-				((skill_table[sn].target == TAR_CHAR_OFFENSIVE ||
-				skill_table[sn].target == TAR_OBJ_CHAR_OFF) &&
+				((skill->target == TAR_CHAR_OFFENSIVE ||
+				skill->target == TAR_OBJ_CHAR_OFF) &&
 				ch != NULL && is_safe(ch, rch, FALSE))) {
 				rch = NULL;
 				continue;
@@ -181,7 +181,8 @@ bool check_spell_deflection(CHAR_DATA *ch, CHAR_DATA *victim, int sn)
 			act("{Y$n's spell bounces off onto $N!{x", ch,  rch, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
 		}
 
-		(*skill_table[sn].spell_fun)(sn, ch != NULL ? ch->tot_level : af->level, ch != NULL ? ch : rch, rch, TARGET_CHAR, WEAR_NONE);
+		if (skill->spell_fun && skill->spell_fun != spell_null)
+			(*skill->spell_fun)(skill, ch != NULL ? ch->tot_level : af->level, ch != NULL ? ch : rch, rch, TARGET_CHAR, WEAR_NONE);
 	} else {
 		if (ch != NULL) {
 			act("{YYour spell bounces around for a while, then dies out.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -210,7 +211,7 @@ bool check_spell_deflection_token(CHAR_DATA *ch, CHAR_DATA *victim, TOKEN_DATA *
 
 	// Find spell deflection
 	for (af = victim->affected; af != NULL; af = af->next) {
-		if (af->type == gsn_spell_deflection)
+		if (af->skill == gsk_spell_deflection)
 			break;
 	}
 
@@ -237,7 +238,7 @@ bool check_spell_deflection_token(CHAR_DATA *ch, CHAR_DATA *victim, TOKEN_DATA *
 		return TRUE;
 	}
 
-	type = token->pIndexData->value[TOKVAL_SPELL_TARGET];
+	type = token->skill->skill->target;
 	/* it bounces to a random person */
 	if (type != TAR_IGNORE)
 		for (attempts = 0; attempts < 6; attempts++) {

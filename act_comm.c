@@ -1434,7 +1434,7 @@ void stop_follower(CHAR_DATA *ch, bool show)
 	if (IS_AFFECTED(ch, AFF_CHARM))
 	{
 	REMOVE_BIT(ch->affected_by[0], AFF_CHARM);
-	affect_strip(ch, gsn_charm_person);
+	affect_strip(ch, gsk_charm_person);
 	}
 
 	if (can_see(ch->master, ch) && ch->in_room) {
@@ -2434,13 +2434,13 @@ void do_danger(CHAR_DATA *ch, char *argument)
 	int max_range;
 	char buf[MSL];
 
-	if (get_skill(ch, gsn_sense_danger) == 0)
+	if (get_skill(ch, gsk_sense_danger) == 0)
 	{
 	send_to_char("You can't sense danger from players.\n\r", ch);
 	return;
 	}
 
-	max_range = URANGE(1, get_skill(ch, gsn_sense_danger) / 10 - 1, 9);
+	max_range = URANGE(1, get_skill(ch, gsk_sense_danger) / 10 - 1, 9);
 
 	if (!is_number(argument))
 	{

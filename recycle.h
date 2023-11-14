@@ -288,3 +288,15 @@ void free_money_data(MONEY_DATA *data);
 PORTAL_DATA *new_portal_data();
 PORTAL_DATA *copy_portal_data(PORTAL_DATA *src, bool repop);
 void free_portal_data(PORTAL_DATA *data);
+
+// Drink/Fountain
+FLUID_CONTAINER_DATA *new_fluid_container_data();
+FLUID_CONTAINER_DATA *copy_fluid_container_data(FLUID_CONTAINER_DATA *src);
+void free_fluid_container_data(FLUID_CONTAINER_DATA *data);
+
+LIQUID *new_liquid();
+void free_liquid(LIQUID *liq);
+
+
+SKILL_DATA *new_skill_data();
+void free_skill_data(SKILL_DATA *skill);

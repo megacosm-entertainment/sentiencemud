@@ -30,8 +30,8 @@ SPELL_FUNC(spell_dark_shroud)
 		perm = TRUE;
 	}
 
-	if (perm && is_affected(victim, sn))
-		affect_strip(victim, sn);
+	if (perm && is_affected(victim, skill))
+		affect_strip(victim, skill);
 	else if (IS_AFFECTED2(victim, AFF2_DARK_SHROUD)) {
 		if (victim == ch)
 			send_to_char("You are already surrounded by darkness.\n\r",ch);
@@ -41,7 +41,7 @@ SPELL_FUNC(spell_dark_shroud)
 	}
 
 	if(!perm) {
-		if(use_catalyst(ch,NULL,CATALYST_DARKNESS,CATALYST_INVENTORY,1,1,CATALYST_MAXSTRENGTH,TRUE) < 1) {
+		if(use_catalyst(ch,NULL,CATALYST_DARKNESS,CATALYST_INVENTORY,1,TRUE) < 1) {
 			send_to_char("You appear to be missing a darkness catalyst.\n\r",ch);
 			return FALSE;
 		}
@@ -49,7 +49,7 @@ SPELL_FUNC(spell_dark_shroud)
 
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration = perm ? -1 : (3 + level/5);
 	af.location = APPLY_NONE;
@@ -73,12 +73,12 @@ SPELL_FUNC(spell_momentary_darkness)
 	CHAR_DATA *rch;
 	int catalyst;
 
-	catalyst = has_catalyst(ch,NULL,CATALYST_DARKNESS,CATALYST_CARRY,1,CATALYST_MAXSTRENGTH);
+	catalyst = has_catalyst(ch,NULL,CATALYST_DARKNESS,CATALYST_CARRY);
 	if(!catalyst) {
 		send_to_char("You appear to be missing a required darkness catalyst.\n\r", ch);
 		return FALSE;
 	}
-	catalyst = use_catalyst(ch,NULL,CATALYST_DARKNESS,CATALYST_CARRY,5,1,CATALYST_MAXSTRENGTH,TRUE);
+	catalyst = use_catalyst(ch,NULL,CATALYST_DARKNESS,CATALYST_CARRY,5,TRUE);
 
 	for (darkness = ch->in_room->contents; darkness; darkness = darkness->next_content) {
 		if (darkness->item_type == ITEM_ROOM_DARKNESS) {

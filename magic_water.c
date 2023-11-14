@@ -32,21 +32,21 @@ SPELL_FUNC(spell_create_spring)
 SPELL_FUNC(spell_create_water)
 {
 	OBJ_DATA *obj = (OBJ_DATA *) vo;
-	int water;
 
-	if (obj->item_type != ITEM_DRINK_CON) {
+	if (!IS_FLUID_CON(obj)) {
 		send_to_char("It is unable to hold water.\n\r", ch);
 		return FALSE;
 	}
 
-	if (obj->value[2] != LIQ_WATER && obj->value[1]) {
+	if (FLUID_CON(obj)->liquid && FLUID_CON(obj)->liquid != liquid_water && FLUID_CON(obj)->amount) {
 		send_to_char("It contains some other liquid.\n\r", ch);
 		return FALSE;
 	}
 
-	water = obj->value[0] - obj->value[1];
-	obj->value[2] = LIQ_WATER;
-	obj->value[1] += water;
+	FLUID_CON(obj)->liquid = liquid_water;
+	FLUID_CON(obj)->amount = FLUID_CON(obj)->capacity;
+
+	// Add "water" to the object's name
 	if (!is_name("water", obj->name)) {
 		char buf[MAX_STRING_LENGTH];
 
@@ -54,6 +54,8 @@ SPELL_FUNC(spell_create_water)
 		free_string(obj->name);
 		obj->name = str_dup(buf);
 	}
+
 	act("$p is filled.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+	p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_FLUID_FILLED, NULL,CONTEXT_FLUID_CON,0,0,0,0);
 	return TRUE;
 }

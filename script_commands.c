@@ -30,6 +30,7 @@ void add_dungeon_index_weighted_exit_data(LLIST *list, int weight, int level_no,
 int dungeon_commence(DUNGEON *dng);
 int dungeon_completed(DUNGEON *dng);
 int dungeon_failed(DUNGEON *dng);
+void reset_reckoning();
 
 #define PARSE_ARG				(rest = expand_argument(info,rest,arg))
 #define PARSE_ARGTYPE(x)		if (!PARSE_ARG || arg->type != ENT_##x) return
@@ -72,6 +73,7 @@ const struct script_cmd_type area_cmd_table[] = {
 	{ "settitle",			scriptcmd_settitle,			TRUE,	TRUE	},
 	{ "specialkey",			scriptcmd_specialkey,		FALSE,	TRUE	},
 	{ "startreckoning",		scriptcmd_startreckoning,	TRUE,	TRUE	},
+	{ "stopreckoning",		scriptcmd_stopreckoning,	TRUE,	TRUE	},
 	{ "treasuremap",		scriptcmd_treasuremap,		FALSE,	TRUE	},
 	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
 	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
@@ -129,6 +131,7 @@ const struct script_cmd_type instance_cmd_table[] = {
 	{ "specialkey",			scriptcmd_specialkey,		FALSE,	TRUE	},
 	{ "specialrooms",		instancecmd_specialrooms,	FALSE,	TRUE	},
 	{ "startreckoning",		scriptcmd_startreckoning,	TRUE,	TRUE	},
+	{ "stopreckoning",		scriptcmd_stopreckoning,	TRUE,	TRUE	},
 	{ "treasuremap",		scriptcmd_treasuremap,		FALSE,	TRUE	},
 	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
 	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
@@ -185,6 +188,7 @@ const struct script_cmd_type dungeon_cmd_table[] = {
 	{ "specialkey",			scriptcmd_specialkey,		FALSE,	TRUE	},
 	{ "specialrooms",		dungeoncmd_specialrooms,	FALSE,	TRUE	},
 	{ "startreckoning",		scriptcmd_startreckoning,	TRUE,	TRUE	},
+	{ "stopreckoning",		scriptcmd_stopreckoning,	TRUE,	TRUE	},
 	{ "treasuremap",		scriptcmd_treasuremap,		FALSE,	TRUE	},
 	{ "unlockarea",			scriptcmd_unlockarea,		TRUE,	TRUE	},
 	{ "unmute",				scriptcmd_unmute,			FALSE,	TRUE	},
@@ -367,7 +371,8 @@ void do_dpdump(CHAR_DATA *ch, char *argument)
 SCRIPT_CMD(scriptcmd_addaffect)
 {
 	char *rest;
-	int where, group, skill, level, loc, mod, hours;
+	int where, group, level, loc, mod, hours;
+	SKILL_DATA *skill;
 	long bv, bv2;
 	CHAR_DATA *mob = NULL;
 	OBJ_DATA *obj = NULL;
@@ -444,7 +449,7 @@ SCRIPT_CMD(scriptcmd_addaffect)
 	}
 
 	switch(arg->type) {
-	case ENT_STRING: skill = skill_lookup(arg->d.str); break;
+	case ENT_STRING: skill = get_skill_data(arg->d.str); break;
 	default: return;
 	}
 
@@ -479,6 +484,22 @@ SCRIPT_CMD(scriptcmd_addaffect)
 
 	if(loc == NO_FLAG) return;
 
+	// Check optional argument to get the skill
+	if (loc == APPLY_SKILL)
+	{
+		if(!(rest = expand_argument(info,rest,arg))) {
+			bug("AddAffectName - Error in parsing.",0);
+			return;
+		}
+
+		if (arg->type != ENT_STRING) return;
+
+		SKILL_DATA *sk = get_skill_data(arg->d.str);
+		if (IS_VALID(sk))
+			loc += sk->uid;
+		else
+			loc = APPLY_NONE;
+	}
 
 	//
 	// Get MODIFIER
@@ -656,7 +677,8 @@ SCRIPT_CMD(scriptcmd_addaffect)
 
 	af.group	= group;
 	af.where     = where;
-	af.type      = skill;
+	af.skill      = skill;
+	af.catalyst_type = -1;
 	af.location  = loc;
 	af.modifier  = mod;
 	af.level     = level;
@@ -790,6 +812,23 @@ SCRIPT_CMD(scriptcmd_addaffectname)
 	}
 
 	if(loc == NO_FLAG) return;
+
+	// Check optional argument to get the skill
+	if (loc == APPLY_SKILL)
+	{
+		if(!(rest = expand_argument(info,rest,arg))) {
+			bug("AddAffectName - Error in parsing.",0);
+			return;
+		}
+
+		if (arg->type != ENT_STRING) return;
+
+		SKILL_DATA *sk = get_skill_data(arg->d.str);
+		if (IS_VALID(sk))
+			loc += sk->uid;
+		else
+			loc = APPLY_NONE;
+	}
 
 
 	//
@@ -967,7 +1006,8 @@ SCRIPT_CMD(scriptcmd_addaffectname)
 
 	af.group	= group;
 	af.where     = where;
-	af.type      = -1;
+	af.skill = NULL;
+	af.catalyst_type      = -1;
 	af.location  = loc;
 	af.modifier  = mod;
 	af.level     = level;
@@ -1027,7 +1067,8 @@ SCRIPT_CMD(scriptcmd_applytoxin)
 		AFFECT_DATA af;
 		af.where = TO_AFFECTS;
 		af.group     = AFFGROUP_BIOLOGICAL;
-		af.type  = gsn_toxins;
+		af.skill  = gsk_toxins;
+		af.catalyst_type = -1;
 		af.level = victim->bitten_level;
 		af.duration = duration;
 		af.location = APPLY_STR;
@@ -1373,7 +1414,7 @@ SCRIPT_CMD(scriptcmd_award)
 SCRIPT_CMD(scriptcmd_breathe)
 {
 	static char *breath_names[] = { "acid", "fire", "frost", "gas", "lightning", NULL };
-	static sh_int *breath_gsn[] = { &gsn_acid_breath, &gsn_fire_breath, &gsn_frost_breath, &gsn_gas_breath, &gsn_lightning_breath };
+	static SKILL_DATA **breath_gsk[] = { &gsk_acid_breath, &gsk_fire_breath, &gsk_frost_breath, &gsk_gas_breath, &gsk_lightning_breath };
 	static SPELL_FUN *breath_fun[] = { spell_acid_breath, spell_fire_breath, spell_frost_breath, spell_gas_breath, spell_lightning_breath };
 	char *rest;
 	CHAR_DATA *attacker = NULL;
@@ -1417,7 +1458,7 @@ SCRIPT_CMD(scriptcmd_breathe)
 	if(!attacker)
 		return;
 
-	(*breath_fun[i]) (*breath_gsn[i] , attacker->tot_level, attacker, victim, TARGET_CHAR, WEAR_NONE);
+	(*breath_fun[i]) (*breath_gsk[i] , attacker->tot_level, attacker, victim, TARGET_CHAR, WEAR_NONE);
 
 	info->progs->lastreturn = 1;
 }
@@ -1681,12 +1722,12 @@ SCRIPT_CMD(scriptcmd_damage)
 			victim_next = victim->next_in_room;
 			if (victim != info->mob && (!attacker || victim != attacker)) {
 				value = fLevel ? dice(low,high) : number_range(low,high);
-				damage(attacker?attacker:victim, victim, fKill ? value : UMIN(victim->hit,value), TYPE_UNDEFINED, dc, FALSE);
+				damage(attacker?attacker:victim, victim, fKill ? value : UMIN(victim->hit,value), NULL, TYPE_UNDEFINED, dc, FALSE);
 			}
 		}
 	} else {
 		value = fLevel ? dice(low,high) : number_range(low,high);
-		damage(attacker?attacker:victim, victim, fKill ? value : UMIN(victim->hit,value), TYPE_UNDEFINED, dc, FALSE);
+		damage(attacker?attacker:victim, victim, fKill ? value : UMIN(victim->hit,value), NULL, TYPE_UNDEFINED, dc, FALSE);
 	}
 }
 
@@ -2396,9 +2437,8 @@ SCRIPT_CMD(scriptcmd_grantskill)
 
 	CHAR_DATA *mob;
 	TOKEN_DATA *token = NULL;
-	TOKEN_INDEX_DATA *token_index = NULL;
 	int rating = 1;
-	int sn = -1;
+	SKILL_DATA *skill = NULL;
 	long flags = SKILL_AUTOMATIC;
 	char source = SKILLSRC_SCRIPT;
 
@@ -2415,12 +2455,8 @@ SCRIPT_CMD(scriptcmd_grantskill)
 		return;
 
 	if( arg->type == ENT_STRING ) {
-		sn = skill_lookup(arg->d.str);
-		if( sn <= 0 ) return;
-	} else if( arg->type == ENT_WIDEVNUM ) {
-		token_index = get_token_index(arg->d.wnum.pArea, arg->d.wnum.vnum);
-
-		if( !token_index ) return;
+		skill = get_skill_data(arg->d.str);
+		if( !IS_VALID(skill) ) return;
 	}
 	else
 		return;
@@ -2470,7 +2506,7 @@ SCRIPT_CMD(scriptcmd_grantskill)
 		}
 	}
 
-	if( token_index )
+/* 	if( token_index )
 	{
 		if( skill_entry_findtokenindex(mob->sorted_skills, token_index) )
 			return;
@@ -2488,17 +2524,25 @@ SCRIPT_CMD(scriptcmd_grantskill)
 
 		token_to_char_ex(token, mob, source, flags);
 	}
-	else if(sn > 0 && sn < MAX_SKILL )
+ */	
+ 	if( IS_VALID(skill) )
 	{
-		if( skill_entry_findsn(mob->sorted_skills, sn) )
+		SKILL_ENTRY *entry = skill_entry_findskill(mob->sorted_skills, skill);
+
+		if(entry)
 			return;
 
-		mob->pcdata->learned[sn] = rating;
-		if( skill_table[sn].spell_fun == spell_null ) {
-			skill_entry_addskill(mob, sn, NULL, source, flags);
+		if (skill->token)
+			token = give_token(skill->token, mob, NULL, NULL);
+
+		if( is_skill_spell(skill) ) {
+			entry = skill_entry_addskill(mob, skill, token, source, flags);
 		} else {
-			skill_entry_addspell(mob, sn, NULL, source, flags);
+			entry = skill_entry_addspell(mob, skill, token, source, flags);
 		}
+
+		if(entry)
+			entry->rating = rating;
 	}
 	else
 		return;
@@ -4843,10 +4887,8 @@ SCRIPT_CMD(scriptcmd_revokeskill)
 {
 	char *rest;
 	SKILL_ENTRY *entry;
-
 	CHAR_DATA *mob;
-	TOKEN_INDEX_DATA *token_index = NULL;
-	int sn = -1;
+	SKILL_DATA *skill = NULL;
 
 	info->progs->lastreturn = 0;
 
@@ -4861,17 +4903,10 @@ SCRIPT_CMD(scriptcmd_revokeskill)
 		return;
 
 	if( arg->type == ENT_STRING ) {
-		sn = skill_lookup(arg->d.str);
-		if( sn <= 0 ) return;
+		skill = get_skill_data(arg->d.str);
+		if( !IS_VALID(skill) ) return;
 
-		entry = skill_entry_findsn(mob->sorted_skills, sn);
-
-	} else if( arg->type == ENT_WIDEVNUM ) {
-		token_index = get_token_index(arg->d.wnum.pArea, arg->d.wnum.vnum);
-
-		if( !token_index ) return;
-
-		entry = skill_entry_findtokenindex(mob->sorted_skills, token_index);
+		entry = skill_entry_findskill(mob->sorted_skills, skill);
 	}
 	else
 		return;
@@ -6036,6 +6071,60 @@ SCRIPT_CMD(scriptcmd_stopcombat)
 
 	if( mob->fighting == NULL )
 		info->progs->lastreturn = 1;
+}
+
+
+// STOPRECKONING
+// STOPRECKONING $immediate(boolean)
+// STOPRECKONING $duration(number)
+SCRIPT_CMD(scriptcmd_stopreckoning)
+{
+	char *rest = argument;
+	int duration = 5;		// Default, give 5 minutes
+	bool immediate = false;
+
+	info->progs->lastreturn = 0;
+
+	if (script_security < 9)
+		return;
+
+	if (rest && *rest)
+	{
+		if (!(rest = expand_argument(info, rest, arg)))
+			return;
+
+		if (arg->type == ENT_BOOLEAN)
+			immediate = arg->d.boolean;
+		else if (arg->type == ENT_STRING)
+			immediate = !str_prefix(arg->d.str, "yes") || !str_prefix(arg->d.str, "true") || !str_prefix(arg->d.str, "immediate");
+		else if (arg->type == ENT_NUMBER)
+			duration = UMAX(1, arg->d.num);
+	}
+
+	// Only work if the reckoning is active
+	if (reckoning_timer > 0)
+	{
+		if (immediate)
+		{
+			// The global message will be under script control.
+			reset_reckoning();
+			info->progs->lastreturn = -1;
+		}
+		else
+		{
+			struct tm *reck_time = (struct tm *) localtime(&current_time);
+			reck_time->tm_min += duration;
+			time_t timer = (time_t) mktime(reck_time);
+
+			// Check if the *new* timer is sooner than the current time left
+			if (timer < reckoning_timer)
+			{
+				reckoning_duration = duration;
+				reckoning_timer = timer;
+				info->progs->lastreturn = duration;
+			}
+		}
+	}
 }
 
 
@@ -7886,6 +7975,8 @@ SCRIPT_CMD(scriptcmd_settitle)
 // addspell $OBJECT WIDEVNUM[ NUMBER]
 SCRIPT_CMD(scriptcmd_addspell)
 {
+	// TODO: Fix to require type contexts
+#if 0
 	char *rest = argument;
 	SPELL_DATA *spell, *spell_new;
 	OBJ_DATA *target;
@@ -8075,6 +8166,7 @@ SCRIPT_CMD(scriptcmd_addspell)
 	}
 
 	SETRETURN(1);
+#endif
 }
 
 // remspell $OBJECT STRING[ silent]
@@ -8082,7 +8174,8 @@ SCRIPT_CMD(scriptcmd_addspell)
 // remspell $OBJECT WIDEVNUM[ silent]
 SCRIPT_CMD(scriptcmd_remspell)
 {
-
+	// TODO: Fix to require type contexts
+#if 0
 	char *rest = argument;
 	SPELL_DATA *spell, *spell_prev;
 	OBJ_DATA *target;
@@ -8168,7 +8261,6 @@ SCRIPT_CMD(scriptcmd_remspell)
 		if (target->item_type != ITEM_WAND &&
 			target->item_type != ITEM_STAFF &&
 			target->item_type != ITEM_SCROLL &&
-			target->item_type != ITEM_POTION &&
 			target->item_type != ITEM_TATTOO &&
 			target->item_type != ITEM_PILL) {
 
@@ -8232,6 +8324,7 @@ SCRIPT_CMD(scriptcmd_remspell)
 			}
 		}
 	}
+#endif
 }
 
 
@@ -8709,6 +8802,8 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 	bool hasmin = FALSE, hasmax = FALSE;
 	bool allowarith = TRUE;
 	bool allowbitwise = TRUE;
+	bool isliquid = false;
+	LIQUID *liquid = NULL;
 	const struct flag_type *flags = NULL;
 	const struct flag_type **bank = NULL;
 	long temp_flags[4];
@@ -8753,16 +8848,6 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 		else if(!str_cmp(field,"weight"))		{ ptr = (int*)&obj->weight;  allowarith = TRUE; allowbitwise = FALSE;}
 		break;
 
-	case ENT_OBJECT_PAGE:
-		if (!IS_VALID(arg->d.obj) || !IS_PAGE(arg->d.obj)) return;
-		obj = arg->d.obj;
-
-		PARSE_ARGTYPE(STRING);
-		strncpy(field, arg->d.str, MIL-1);
-
-		if (!str_cmp(field, "number"))			{ ptr = (int *)&PAGE(obj)->page_no; min = 1; hasmin = TRUE; }
-		break;
-
 	case ENT_OBJECT_BOOK:
 		if (!IS_VALID(arg->d.obj) || !IS_BOOK(arg->d.obj)) return;
 		obj = arg->d.obj;
@@ -8787,6 +8872,23 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 		else if (!str_cmp(field, "volume"))		{ ptr = (int *)&(CONTAINER(obj)->max_volume); allowarith = TRUE; allowbitwise = FALSE; min = 0; hasmin = TRUE; }
 		else if (!str_cmp(field, "weight"))		{ ptr = (int *)&(CONTAINER(obj)->max_weight); allowarith = TRUE; allowbitwise = FALSE; min = 0; hasmin = TRUE; }
 		else if (!str_cmp(field, "weight%"))	{ ptr = (int *)&(CONTAINER(obj)->weight_multiplier); allowarith = TRUE; allowbitwise = FALSE; min = 0; hasmin = TRUE; max = 100; hasmax = TRUE; }
+		break;
+
+	case ENT_OBJECT_FLUID_CONTAINER:
+		if (!IS_VALID(arg->d.obj) || !IS_FLUID_CON(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (!str_cmp(field, "liquid"))			{ ptr = (int *)(&FLUID_CON(obj)->liquid); isliquid = true; allowarith = false; allowbitwise = false; }
+		else if (!str_cmp(field, "flags"))		{ ptr = (int *)(&FLUID_CON(obj)->liquid); flags = fluid_con_flags; allowarith = false; allowbitwise = true; }
+		else if (!str_cmp(field, "capacity"))	{ ptr = (int *)(&FLUID_CON(obj)->capacity); allowarith = true; allowbitwise = false; hasmin = true; min = -1; }
+		else if (!str_cmp(field, "amount"))		{ ptr = (int *)(&FLUID_CON(obj)->amount); allowarith = true; allowbitwise = false; hasmin = hasmax = true; if (FLUID_CON(obj)->capacity < 0) { min = max = -1; } else { min = 0; max = FLUID_CON(obj)->capacity; } }
+		else if (!str_cmp(field, "refillrate"))	{ ptr = (int *)(&FLUID_CON(obj)->refill_rate); allowarith = true; allowbitwise = false; hasmin = true; min = 0; }
+		else if (!str_cmp(field, "poison"))		{ ptr = (int *)(&FLUID_CON(obj)->poison); allowarith = true; allowbitwise = false; hasmin = hasmax = true; min = 0; max = 100; }
+		else if (!str_cmp(field, "poisonrate"))	{ ptr = (int *)(&FLUID_CON(obj)->poison_rate); allowarith = true; allowbitwise = false; hasmin = true; min = 0; }
+
 		break;
 
 	case ENT_OBJECT_FOOD:
@@ -8856,6 +8958,16 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 
 		break;
 
+	case ENT_OBJECT_PAGE:
+		if (!IS_VALID(arg->d.obj) || !IS_PAGE(arg->d.obj)) return;
+		obj = arg->d.obj;
+
+		PARSE_ARGTYPE(STRING);
+		strncpy(field, arg->d.str, MIL-1);
+
+		if (!str_cmp(field, "number"))			{ ptr = (int *)&PAGE(obj)->page_no; min = 1; hasmin = TRUE; }
+		break;
+
 	case ENT_OBJECT_PORTAL:
 		if (!IS_VALID(arg->d.obj) || !IS_PORTAL(arg->d.obj)) return;
 		obj = arg->d.obj;
@@ -8895,7 +9007,17 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 		return;
 	}
 
-	if( bank != NULL )
+	if (isliquid)
+	{
+		if( arg->type != ENT_STRING ) return;
+
+		liquid = liquid_lookup(arg->d.str);
+		if (!IS_VALID(liquid)) return;
+
+		// Only *ASSIGN*
+		if (buf[0] != '=') return;
+	}
+	else if( bank != NULL )
 	{
 		if( arg->type != ENT_STRING ) return;
 
@@ -9039,7 +9161,11 @@ SCRIPT_CMD(scriptcmd_alterobjmt)
 		break;
 
 	case '=':
-		if (bank != NULL)
+		if (liquid != NULL)
+		{
+			*((LIQUID **)ptr) = liquid;
+		}
+		else if (bank != NULL)
 		{
 			for(int i = 0; bank[i]; i++)
 				ptr[i] = temp_flags[i];

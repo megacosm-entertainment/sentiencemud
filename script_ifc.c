@@ -85,7 +85,7 @@ extern bool wiznet_script;
 #define ARG_TOK(x)	ARG_TYPE(x,token)
 #define ARG_AREA(x)	ARG_TYPE(x,area)
 #define ARG_AREGION(x)	ARG_TYPE(x,aregion)
-#define ARG_SKILL(x)	ARG_TYPE(x,sn)
+#define ARG_SKILL(x)	ARG_TYPE(x,skill)
 #define ARG_SKINFO(x)	ARG_TYPE(x,sk)
 #define ARG_CONN(x)	ARG_TYPE(x,conn)
 #define ARG_WILDS(x)	ARG_TYPE(x,wilds)
@@ -179,7 +179,7 @@ DECL_IFC_FUN(ifc_affectedname)
 // Checks if the mobile is affected by the spell
 DECL_IFC_FUN(ifc_affectedspell)
 {
-	*ret = (ISARG_MOB(0) && ISARG_STR(1) && is_affected(ARG_MOB(0), skill_lookup(ARG_STR(1))));
+	*ret = (ISARG_MOB(0) && ISARG_STR(1) && is_affected(ARG_MOB(0), get_skill_data(ARG_STR(1))));
 	return TRUE;
 }
 
@@ -245,11 +245,11 @@ DECL_IFC_FUN(ifc_canhunt)
 
 DECL_IFC_FUN(ifc_canpractice)
 {
-	int sn;
+	SKILL_DATA *skill;
 
 	*ret = (VALID_PLAYER(0) && ARG_STR(1) &&
-		((sn = skill_lookup(ARG_STR(1))) > 0) &&
-		can_practice(ARG_MOB(0),sn));
+		((skill = get_skill_data(ARG_STR(1))) > 0) &&
+		can_practice(ARG_MOB(0),skill));
 	return TRUE;
 }
 
@@ -790,7 +790,7 @@ DECL_IFC_FUN(ifc_isbrewing)
 
 DECL_IFC_FUN(ifc_iscasting)
 {
-	int sn;
+	SKILL_DATA *skill;
 	TOKEN_INDEX_DATA *pTokenIndex;
 
 	*ret = ISARG_MOB(0) && ARG_MOB(0)->cast > 0 &&
@@ -800,8 +800,8 @@ DECL_IFC_FUN(ifc_iscasting)
 			(ISARG_TOK(1) && ARG_TOK(0)->pIndexData->type == TOKEN_SPELL &&
 				ARG_TOK(1)->player == ARG_MOB(0) && ARG_MOB(0)->cast_token == ARG_TOK(1)) ||
 			!ISARG_STR(1) || !*ARG_STR(1) ||
-			((sn = skill_lookup(ARG_STR(1))) > 0 &&
-				ARG_MOB(0)->cast_sn == sn));
+			((skill = get_skill_data(ARG_STR(1))) && IS_VALID(skill) &&
+				ARG_MOB(0)->cast_skill == skill));
 
 	return TRUE;
 }
@@ -1243,10 +1243,9 @@ DECL_IFC_FUN(ifc_level)
 
 DECL_IFC_FUN(ifc_liquid)
 {
-	*ret = ISARG_OBJ(0) &&
-		(ARG_OBJ(0)->item_type == ITEM_DRINK_CON || ARG_OBJ(0)->item_type == ITEM_FOUNTAIN) &&
-		(ARG_OBJ(0)->value[2] == liq_lookup(ARG_STR(1)));
-	return TRUE;
+	*ret = ISARG_OBJ(0) && IS_FLUID_CON(ARG_OBJ(0)) && IS_VALID(FLUID_CON(ARG_OBJ(0))->liquid) &&
+		(FLUID_CON(ARG_OBJ(0))->liquid == liquid_lookup(ARG_STR(1)));
+	return true;
 }
 
 DECL_IFC_FUN(ifc_manaregen)
@@ -1938,10 +1937,10 @@ DECL_IFC_FUN(ifc_skeyword)
 
 DECL_IFC_FUN(ifc_skill)
 {
-	int sn;
+	SKILL_DATA *skill;
 
-	*ret = (VALID_PLAYER(0) && ISARG_STR(1) && ((sn = skill_lookup(ARG_STR(1))) > 0)) ?
-			get_skill(ARG_MOB(0), sn) : 0;
+	*ret = (VALID_PLAYER(0) && ISARG_STR(1) && ((skill = get_skill_data(ARG_STR(1))) && IS_VALID(skill))) ?
+			get_skill(ARG_MOB(0), skill) : 0;
 	return TRUE;
 }
 
@@ -1977,9 +1976,9 @@ DECL_IFC_FUN(ifc_statwis)
 
 DECL_IFC_FUN(ifc_testskill)
 {
-	int sn;
-	*ret = (VALID_PLAYER(0) && ISARG_STR(1) && ((sn = skill_lookup(ARG_STR(1))) > 0) &&
-			number_percent() < get_skill(ARG_MOB(0), sn));
+	SKILL_DATA *skill;
+	*ret = (VALID_PLAYER(0) && ISARG_STR(1) && ((skill = get_skill_data(ARG_STR(1))) && IS_VALID(skill)) &&
+			number_percent() < get_skill(ARG_MOB(0), skill));
 	return TRUE;
 }
 
@@ -2367,10 +2366,10 @@ DECL_IFC_FUN(ifc_weapontype)
 
 DECL_IFC_FUN(ifc_weaponskill)
 {
-	int sn;
+	SKILL_DATA *skill;
 
-	*ret = (VALID_PLAYER(0) && ISARG_OBJ(1) && ((sn = get_objweapon_sn(ARG_OBJ(1))) > 0)) ?
-			get_skill(ARG_MOB(0), sn) : 0;
+	*ret = (VALID_PLAYER(0) && ISARG_OBJ(1) && ((skill = get_objweapon_sn(ARG_OBJ(1))) && IS_VALID(skill))) ?
+			get_skill(ARG_MOB(0), skill) : 0;
 	return TRUE;
 }
 
@@ -3202,13 +3201,13 @@ DECL_IFC_FUN(ifc_hasvlink)
 }
 
 
-// hascatalyst $mobile string string number
+// hascatalyst $mobile string string
 DECL_IFC_FUN(ifc_hascatalyst)
 {
 	if(ISARG_MOB(0)) { mob = ARG_MOB(0); room = NULL; }
 	else if(ISARG_ROOM(0)) { mob = NULL; room = ARG_ROOM(0); }
 	else return FALSE;
-	*ret = ((mob || room) && ISARG_STR(1) && ISARG_STR(2) && ISARG_NUM(3)) ? has_catalyst(mob,room,flag_value_ifcheck(catalyst_types,ARG_STR(1)),flag_value_ifcheck(catalyst_method_types,ARG_STR(2)),ARG_NUM(3),ISARG_NUM(4)?ARG_NUM(4):CATALYST_MAXSTRENGTH) : 0;
+	*ret = ((mob || room) && ISARG_STR(1) && ISARG_STR(2)) ? has_catalyst(mob,room,flag_value_ifcheck(catalyst_types,ARG_STR(1)),flag_value_ifcheck(catalyst_method_types,ARG_STR(2))) : 0;
 	return TRUE;
 }
 
@@ -3224,9 +3223,11 @@ DECL_IFC_FUN(ifc_hitdamtype)
 	return TRUE;
 }
 
+// TODO: Fix
 DECL_IFC_FUN(ifc_hitskilltype)
 {
-	*ret = ISARG_MOB(0)?(ARG_MOB(0)->hit_type == skill_lookup(ARG_STR(1))):FALSE;
+	//*ret = ISARG_MOB(0)?(ARG_MOB(0)->hit_type == skill_lookup(ARG_STR(1))):FALSE;
+	*ret = false;
 	return TRUE;
 }
 
@@ -3597,18 +3598,18 @@ DECL_IFC_FUN(ifc_isspell)
 	} else if(ISARG_TOK(0)) {
 		*ret = (ARG_TOK(0)->pIndexData->type == TOKEN_SPELL);
 	} else {
-		int sn;
+		SKILL_DATA *skill;
 
 		if(ISARG_STR(0))
-			sn = skill_lookup(ARG_STR(0));
+			skill = get_skill_data(ARG_STR(0));
 		else if(ISARG_SKILL(0))
-			sn = ARG_SKILL(0);
+			skill = ARG_SKILL(0);
 		else if(ISARG_SKINFO(0))
-			sn = ARG_SKINFO(0).m ? ARG_SKINFO(0).sn : -1;
+			skill = ARG_SKINFO(0).m ? ARG_SKINFO(0).skill : NULL;
 		else
 			return FALSE;
 
-		*ret = sn >= 0 && sn < MAX_SKILL && skill_table[sn].spell_fun && skill_table[sn].spell_fun != spell_null;
+		*ret = IS_VALID(skill) && is_skill_spell(skill);
 	}
 
 	return TRUE;
@@ -3821,13 +3822,13 @@ DECL_IFC_FUN(ifc_isaffectcustom)
 
 DECL_IFC_FUN(ifc_affectskill)
 {
-	*ret = ISARG_AFF(0) ? ARG_AFF(0)->type : 0;
+	*ret = ISARG_AFF(0) ? ARG_AFF(0)->skill->uid : 0;
 	return TRUE;
 }
 
 DECL_IFC_FUN(ifc_isaffectskill)
 {
-	*ret = ISARG_AFF(0) && ISARG_STR(1) && (ARG_AFF(0)->custom_name == NULL) && (ARG_AFF(0)->type == skill_lookup(ARG_STR(1)));
+	*ret = ISARG_AFF(0) && ISARG_STR(1) && (ARG_AFF(0)->custom_name == NULL) && (ARG_AFF(0)->skill == get_skill_data(ARG_STR(1)));
 	return TRUE;
 }
 
@@ -3885,9 +3886,11 @@ DECL_IFC_FUN(ifc_isaffectwhere)
 	return TRUE;
 }
 
+// TODO: Deprecate
 DECL_IFC_FUN(ifc_skilllookup)
 {
-	*ret = ISARG_STR(0) ? skill_lookup(ARG_STR(0)) : 0;
+	//*ret = ISARG_STR(0) ? skill_lookup(ARG_STR(0)) : 0;
+	*ret = 0;
 	return TRUE;
 }
 
@@ -5040,6 +5043,7 @@ DECL_IFC_FUN(ifc_isprog)
 	return TRUE;
 }
 
+// All the other flag checkers can be deprecated
 // BIT $BITVECTOR $STRING
 // BIT $BITMATRIX $STRING
 DECL_IFC_FUN(ifc_bit)
@@ -5075,12 +5079,6 @@ DECL_IFC_FUN(ifc_isvaliditem)
 	return FALSE;
 }
 
-DECL_IFC_FUN(ifc_ispage)
-{
-	*ret = ISARG_OBJ(0) && IS_PAGE(ARG_OBJ(0));
-	return TRUE;
-}
-
 DECL_IFC_FUN(ifc_isbook)
 {
 	*ret = ISARG_OBJ(0) && IS_BOOK(ARG_OBJ(0));
@@ -5091,6 +5089,12 @@ DECL_IFC_FUN(ifc_iscontainer)
 {
 	*ret = ISARG_OBJ(0) && IS_CONTAINER(ARG_OBJ(0));
 	return TRUE;
+}
+
+DECL_IFC_FUN(ifc_isfluidcontainer)
+{
+	*ret = ISARG_OBJ(0) && IS_FLUID_CON(ARG_OBJ(0));
+	return true;
 }
 
 DECL_IFC_FUN(ifc_isfood)
@@ -5117,8 +5121,29 @@ DECL_IFC_FUN(ifc_ismoney)
 	return TRUE;
 }
 
+DECL_IFC_FUN(ifc_ispage)
+{
+	*ret = ISARG_OBJ(0) && IS_PAGE(ARG_OBJ(0));
+	return TRUE;
+}
+
 DECL_IFC_FUN(ifc_isportal)
 {
 	*ret = ISARG_OBJ(0) && IS_PORTAL(ARG_OBJ(0));
+	return TRUE;
+}
+
+
+DECL_IFC_FUN(ifc_isvalid)
+{
+	if (ISARG_MOB(0)) *ret = IS_VALID(ARG_MOB(0));
+	else if (ISARG_OBJ(0)) *ret = IS_VALID(ARG_OBJ(0));
+	else if (ISARG_ROOM(0)) *ret = ARG_ROOM(0) != NULL;
+	else if (ISARG_TOK(0)) *ret = IS_VALID(ARG_TOK(0));
+	else if (ISARG_AREA(0)) *ret = ARG_AREA(0) != NULL;
+	else if (ISARG_INSTANCE(0)) *ret = IS_VALID(ARG_INSTANCE(0));
+	else if (ISARG_DUNGEON(0)) *ret = IS_VALID(ARG_DUNGEON(0));
+	else *ret = FALSE;
+
 	return TRUE;
 }

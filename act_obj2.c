@@ -17,6 +17,7 @@
 
 bool __isspell_valid(CHAR_DATA *ch, OBJ_DATA *obj, SKILL_ENTRY *spell, int pretrigger, int trigger, char *token_message);
 void show_flag_cmds(CHAR_DATA *ch, const struct flag_type *flag_table);
+bool has_inks(CHAR_DATA *ch, int *need, bool show);
 
 /* Used not only for depositing of pneuma but for the depositing of GQ items*/
 void do_deposit(CHAR_DATA *ch, char *argument)
@@ -457,8 +458,10 @@ void save_last_wear(CHAR_DATA *ch)
 }
 
 
+// TODO: Rework for general artificing stuff
 void do_combine(CHAR_DATA *ch, char *argument)
 {
+#if 0
     char arg[MSL];
     char arg2[MSL];
     int chance, roll;
@@ -472,7 +475,7 @@ void do_combine(CHAR_DATA *ch, char *argument)
     SPELL_DATA *spell1, *spell2;
 	SPELL_DATA *max_spell1, *max_spell2;
 
-    if ((chance = get_skill(ch, gsn_combine)) < 1)
+    if ((chance = get_skill(ch, gsk_combine)) < 1)
     {
 		send_to_char("Leave that to the alchemists.\n\r", ch);
 		return;
@@ -506,11 +509,11 @@ void do_combine(CHAR_DATA *ch, char *argument)
 	case ITEM_SCROLL:
 	    scrolls = TRUE;
 	    break;
-	case ITEM_POTION:
+	case ITEM_FLUID_CON:
 	    potions = TRUE;
 	    break;
 	default:
-	    act("$p is not a scroll or a potion.", ch, NULL, NULL, obj1, NULL, NULL, NULL, TO_CHAR);
+	    act("$p is not a scroll or a fluid container.", ch, NULL, NULL, obj1, NULL, NULL, NULL, TO_CHAR);
 	    return;
     }
 
@@ -525,7 +528,7 @@ void do_combine(CHAR_DATA *ch, char *argument)
 
     if (potions)
     {
-		if (obj2->item_type != ITEM_POTION)
+		if (obj2->item_type != ITEM_FLUID_CON)
 		{
 			act("$p and $P are not the same type of item.", ch, NULL, NULL, obj1, obj2, NULL, NULL, TO_CHAR);
 			return;
@@ -657,7 +660,7 @@ void do_combine(CHAR_DATA *ch, char *argument)
 			ch, NULL, NULL, obj1, obj2, NULL, NULL, TO_ROOM);
 		extract_obj(obj1);
 		extract_obj(obj2);
-		check_improve(ch, gsn_combine, 1, FALSE);
+		check_improve(ch, gsk_combine, 1, FALSE);
 		return;
     }
 
@@ -675,7 +678,10 @@ void do_combine(CHAR_DATA *ch, char *argument)
     act("$n combines $p and $P.", ch, NULL, NULL, obj1, obj2, NULL, NULL, TO_ROOM);
 
     extract_obj(obj2);
-    check_improve(ch, gsn_combine, 1, TRUE);
+    check_improve(ch, gsk_combine, 1, TRUE);
+#else
+	send_to_char("Combine is being reworked.\n\r", ch);
+#endif
 }
 
 
@@ -737,7 +743,7 @@ void do_consume(CHAR_DATA *ch, char *argument)
     if (is_dead(ch))
 	return;
 
-    if ((chance = get_skill(ch,gsn_consume)) == 0)
+    if ((chance = get_skill(ch, gsk_consume)) == 0)
     {
         send_to_char("How disgusting!\n\r",ch);
         return;
@@ -828,10 +834,10 @@ void do_touch(CHAR_DATA *ch, char *argument)
 
 		for (spell = obj->spells; spell != NULL; spell = spell->next)
 		{
-			if (spell->token)
-				p_token_index_percent_trigger(spell->token, ch, ch, NULL, obj, NULL, TRIG_TOKEN_TOUCH, NULL, spell->level, 0, 0, 0, 0,0,0,0,0,0);
+			if (spell->skill->token)
+				p_token_index_percent_trigger(spell->skill->token, ch, ch, NULL, obj, NULL, TRIG_TOKEN_TOUCH, NULL, spell->level, 0, 0, 0, 0,0,0,0,0,0);
 			else
-				obj_cast_spell(spell->sn, spell->level, ch, ch, NULL);
+				obj_cast_spell(spell->skill, spell->level, ch, ch, NULL);
 		}
 
 		if(obj->value[0] > 0) --obj->value[0];
@@ -907,7 +913,7 @@ void do_ink(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (!(chance = get_skill(ch,gsn_tattoo))) {
+	if (!(chance = get_skill(ch, gsk_tattoo))) {
 		send_to_char("Ink? What's that?\n\r",ch);
 		return;
 	}
@@ -998,9 +1004,9 @@ void do_ink(CHAR_DATA *ch, char *argument)
 		{
 			for(j=0;j<3;j++)
 			{
-				if(skill_table[spells[i]->sn].inks[j][0] > CATALYST_NONE && skill_table[spells[i]->sn].inks[j][1] > 0)
+				if(spells[i]->skill->inks[j][0] > CATALYST_NONE && spells[i]->skill->inks[j][1] > 0)
 				{
-					need[skill_table[spells[i]->sn].inks[j][0]]+= skill_table[spells[i]->sn].inks[j][1];
+					need[spells[i]->skill->inks[j][0]]+= spells[i]->skill->inks[j][1];
 					found = TRUE;
 				}
 			}
@@ -1063,7 +1069,7 @@ void ink_end( CHAR_DATA *ch )
 		return;
 	}
 
-	chance = get_skill(ch, gsn_tattoo);
+	chance = get_skill(ch, gsk_tattoo);
 	if (ch->ink_info[2])
 		chance = 5 * chance / 6;
 	else if (ch->ink_info[1])
@@ -1081,7 +1087,7 @@ void ink_end( CHAR_DATA *ch )
     {
 		act("{Y$n's attempt to ink a tattoo fails miserably.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 		act("{YYou fail to coalesce the ink into a tattoo, dispersing them on the wind.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		check_improve(ch, gsn_tattoo, FALSE, 2);
+		check_improve(ch, gsk_tattoo, FALSE, 2);
 		return;
     }
 
@@ -1098,7 +1104,7 @@ void ink_end( CHAR_DATA *ch )
 		act("$n coalesces the ink into a tattoo of $t onto $s skin.", ch, NULL, NULL, NULL, NULL, tattoo_name, NULL, TO_ROOM);
 	}
 
-    check_improve(ch, gsn_tattoo, TRUE, 2);
+    check_improve(ch, gsk_tattoo, TRUE, 2);
 
     tattoo = create_object(obj_index_empty_tattoo, 1, FALSE);
 
@@ -1139,8 +1145,8 @@ void ink_end( CHAR_DATA *ch )
 		if (ch->ink_info[i])
 		{
 			spell = new_spell();
-			spell->sn = ch->ink_info[i]->sn;
-			spell->token = IS_VALID(ch->ink_info[i]->token) ? ch->ink_info[i]->token->pIndexData : NULL;
+			spell->skill = ch->ink_info[i]->skill;
+			//spell->token = IS_VALID(ch->ink_info[i]->token) ? ch->ink_info[i]->token->pIndexData : NULL;
 			spell->level = level / (i + 1);
 			spell->next = tattoo->spells;
 			tattoo->spells = spell;

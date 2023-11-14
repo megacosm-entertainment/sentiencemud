@@ -35,6 +35,79 @@
 #ifndef __TABLES_H__
 #define __TABLES_H__
 
+struct spell_func_type
+{
+	char *name;
+	SPELL_FUN *func;
+};
+
+struct prebrew_func_type
+{
+	char *name;
+	PREBREW_FUN *func;
+};
+
+struct brew_func_type
+{
+	char *name;
+	BREW_FUN *func;
+};
+
+struct quaff_func_type
+{
+	char *name;
+	QUAFF_FUN *func;
+};
+
+struct prescribe_func_type
+{
+	char *name;
+	PRESCRIBE_FUN *func;
+};
+
+struct scribe_func_type
+{
+	char *name;
+	SCRIBE_FUN *func;
+};
+
+struct recite_func_type
+{
+	char *name;
+	RECITE_FUN *func;
+};
+
+struct preink_func_type
+{
+	char *name;
+	PREINK_FUN *func;
+};
+
+struct ink_func_type
+{
+	char *name;
+	INK_FUN *func;
+};
+
+struct touch_func_type
+{
+	char *name;
+	TOUCH_FUN *func;
+};
+
+struct artifice_func_type
+{
+	char *name;
+	ARTIFICE_FUN *func;
+};
+
+struct gsn_type
+{
+	char *name;
+	sh_int *gsn;
+	SKILL_DATA **gsk;
+};
+
 struct npc_ship_type
 {
 	int npc_ship_type;
@@ -166,7 +239,7 @@ extern	const	struct	church_order_rank_type	church_order_rank_table[];
 extern	const	struct	church_church_rank_type	church_church_rank_table[];
 extern  const   struct  exp_table	exp_per_level_table[];
 extern	const	struct	position_type	position_table[];
-extern	const	struct	sex_type	sex_table[];
+extern	const	struct	flag_type	sex_table[];
 extern	const	struct	size_type	size_table[];
 extern  const   struct  damDiceType     damDiceTypeTable[];
 extern  const   struct  wepHitDice      wepHitDiceTable[];
@@ -252,6 +325,7 @@ extern	const struct flag_type tool_types[];
 extern	const int dam_to_corpse[DAM_MAX][11];
 extern	const struct corpse_blend_type corpse_blending[];
 extern  const struct flag_type catalyst_types[];
+extern	const struct flag_type catalyst_types_colorized[];
 extern  const struct flag_type catalyst_method_types[];
 extern  const struct flag_type boolean_types[];
 extern	const struct flag_type tattoo_loc_flags[];
@@ -297,6 +371,23 @@ extern	const	struct	flag_type	stock_types[];
 extern const struct flag_type prog_entity_flags[];
 
 extern const struct flag_type book_flags[];
+
+extern const struct flag_type fluid_con_flags[];
+
+extern const struct gln_type gln_table[];
+extern const struct gsn_type gsn_table[];
+
+extern const struct spell_func_type prespell_func_table[];
+extern const struct spell_func_type spell_func_table[];
+extern const struct prebrew_func_type prebrew_func_table[];
+extern const struct brew_func_type brew_func_table[];
+extern const struct quaff_func_type quaff_func_table[];
+extern const struct prescribe_func_type prescribe_func_table[];
+extern const struct scribe_func_type scribe_func_table[];
+extern const struct recite_func_type recite_func_table[];
+extern const struct preink_func_type preink_func_table[];
+extern const struct ink_func_type ink_func_table[];
+extern const struct touch_func_type touch_func_table[];
 
 #endif
 

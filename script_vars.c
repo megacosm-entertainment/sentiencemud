@@ -124,7 +124,7 @@ static void *deepcopy_skill(void *src)
 	if( (data = alloc_mem(sizeof(LLIST_SKILL_DATA))) )
 	{
 		data->mob = skill->mob;
-		data->sn = skill->sn;
+		data->skill = skill->skill;
 		data->tok = skill->tok;
 		data->mid[0] = skill->mid[0];
 		data->mid[1] = skill->mid[1];
@@ -446,6 +446,7 @@ varset(affect,AFFECT,AFFECT_DATA*,aff,aff)
 varset(book_page,BOOK_PAGE,BOOK_PAGE*,book_page,book_page)
 varset(food_buff,FOOD_BUFF,FOOD_BUFF_DATA*,food_buff,food_buff)
 varset(compartment,COMPARTMENT,FURNITURE_COMPARTMENT*,compartment,compartment)
+varset(liquid,LIQUID,LIQUID *,liquid,liquid)
 varset(variable,VARIABLE,pVARIABLE,v,variable)
 varset(instance_section,SECTION,INSTANCE_SECTION *,section,section)
 varset(instance,INSTANCE,INSTANCE *,instance,instance)
@@ -465,6 +466,8 @@ varset(blueprint_section_load,BLUEPRINT_SECTION,WNUM_LOAD,bs,wnum_load)
 varset(blueprint_load,BLUEPRINT,WNUM_LOAD,bp,wnum_load)
 varset(dungeonindex_load,DUNGEONINDEX,WNUM_LOAD,dng,wnum_load)
 varset(shipindex_load,SHIPINDEX,WNUM_LOAD,ship,wnum_load)
+varset(spell,SPELL,SPELL_DATA *,spell,spell)
+varset(lockstate,LOCK_STATE,LOCK_STATE *,lockstate,lockstate)
 
 bool variables_set_dice (ppVARIABLE list,char *name,DICE_DATA *d)
 {
@@ -519,12 +522,12 @@ bool variables_setsave_exit (ppVARIABLE list,char *name, EXIT_DATA *ex, bool sav
 }
 
 
-bool variables_set_skill (ppVARIABLE list,char *name,int sn)
+bool variables_set_skill (ppVARIABLE list,char *name,SKILL_DATA *skill)
 {
-	return variables_setsave_skill( list, name, sn, TRISTATE );
+	return variables_setsave_skill( list, name, skill, TRISTATE );
 }
 
-bool variables_setsave_skill (ppVARIABLE list,char *name,int sn, bool save)
+bool variables_setsave_skill (ppVARIABLE list,char *name,SKILL_DATA *skill, bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 
@@ -533,17 +536,17 @@ bool variables_setsave_skill (ppVARIABLE list,char *name,int sn, bool save)
 	var->type = VAR_SKILL;
 	if( save != TRISTATE )
 		var->save = save;
-	var->_.sn =  (sn > 0 && sn < MAX_SKILL) ? sn : 0;
+	var->_.skill =  IS_VALID(skill) ? skill : NULL;
 
 	return TRUE;
 }
 
-bool variables_set_skillinfo (ppVARIABLE list,char *name,CHAR_DATA *owner, int sn, TOKEN_DATA *token)
+bool variables_set_skillinfo (ppVARIABLE list,char *name,CHAR_DATA *owner, SKILL_DATA *skill, TOKEN_DATA *token)
 {
-	return variables_setsave_skillinfo( list, name, owner, sn, token, TRISTATE );
+	return variables_setsave_skillinfo( list, name, owner, skill, token, TRISTATE );
 }
 
-bool variables_setsave_skillinfo (ppVARIABLE list,char *name,CHAR_DATA *owner, int sn, TOKEN_DATA *token, bool save)
+bool variables_setsave_skillinfo (ppVARIABLE list,char *name,CHAR_DATA *owner, SKILL_DATA *skill, TOKEN_DATA *token, bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 
@@ -554,7 +557,7 @@ bool variables_setsave_skillinfo (ppVARIABLE list,char *name,CHAR_DATA *owner, i
 		var->save = save;
 	var->_.sk.owner = owner;
 	var->_.sk.token = token;
-	var->_.sk.sn =  (sn > 0 && sn < MAX_SKILL) ? sn : 0;
+	var->_.sk.skill =  IS_VALID(skill) ? skill : NULL;
 
 	return TRUE;
 }
@@ -573,7 +576,7 @@ bool variables_setsave_song (ppVARIABLE list,char *name,int sn, bool save)
 	var->type = VAR_SONG;
 	if( save != TRISTATE )
 		var->save = save;
-	var->_.sn =  (sn >= 0 && sn < MAX_SONGS) ? sn : -1;
+	var->_.song =  (sn >= 0 && sn < MAX_SONGS) ? sn : -1;
 
 	return TRUE;
 }
@@ -735,7 +738,7 @@ bool variables_set_wilds_door (ppVARIABLE list,char *name, unsigned long w, int 
 	return TRUE;
 }
 
-bool variables_set_skillinfo_id (ppVARIABLE list,char *name, unsigned long ma, unsigned long mb, unsigned long ta, unsigned long tb, int sn, bool save)
+bool variables_set_skillinfo_id (ppVARIABLE list,char *name, unsigned long ma, unsigned long mb, unsigned long ta, unsigned long tb, SKILL_DATA *skill, bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 
@@ -747,7 +750,7 @@ bool variables_set_skillinfo_id (ppVARIABLE list,char *name, unsigned long ma, u
 	var->_.skid.mid[1] = mb;
 	var->_.skid.tid[0] = ta;
 	var->_.skid.tid[1] = tb;
-	var->_.skid.sn = (sn > 0 && sn < MAX_SKILL) ? sn : 0;
+	var->_.skid.skill = IS_VALID(skill) ? skill : NULL;
 
 	return TRUE;
 }
@@ -1356,17 +1359,17 @@ bool variables_append_list_exit (ppVARIABLE list, char *name, EXIT_DATA *ex)
 	return variables_append_list_door(list, name, ex->from_room, ex->orig_door);
 }
 
-bool variables_append_list_skill_sn (ppVARIABLE list, char *name, CHAR_DATA *ch, int sn)
+bool variables_append_list_skill_sn (ppVARIABLE list, char *name, CHAR_DATA *ch, SKILL_DATA *skill)
 {
 	LLIST_SKILL_DATA *data;
 	pVARIABLE var = variable_get(*list, name);
 
-	if( !ch || sn < 1 || sn >= MAX_SKILL || !var || var->type != VAR_BLLIST_SKILL) return FALSE;
+	if( !ch || !IS_VALID(skill) || !var || var->type != VAR_BLLIST_SKILL) return FALSE;
 
 	if( !(data = alloc_mem(sizeof(LLIST_SKILL_DATA))) ) return FALSE;
 
 	data->mob = ch;
-	data->sn = sn;
+	data->skill = skill;
 	data->tok = NULL;
 	data->mid[0] = ch->id[0];
 	data->mid[1] = ch->id[1];
@@ -1379,30 +1382,7 @@ bool variables_append_list_skill_sn (ppVARIABLE list, char *name, CHAR_DATA *ch,
 	return TRUE;
 }
 
-bool variables_append_list_skill_token (ppVARIABLE list, char *name, TOKEN_DATA *tok)
-{
-	LLIST_SKILL_DATA *data;
-	pVARIABLE var = variable_get(*list, name);
-
-	if( !tok || !tok->player || (tok->type != TOKEN_SKILL && tok->type != TOKEN_SPELL) || !var || var->type != VAR_BLLIST_SKILL) return FALSE;
-
-	if( !(data = alloc_mem(sizeof(LLIST_SKILL_DATA))) ) return FALSE;
-
-	data->mob = tok->player;
-	data->sn = 0;
-	data->tok = tok;
-	data->mid[0] = tok->player->id[0];
-	data->mid[1] = tok->player->id[1];
-	data->tid[0] = tok->id[0];
-	data->tid[1] = tok->id[1];
-
-	if( !list_appendlink(var->_.list, data) )
-		free_mem(data,sizeof(LLIST_SKILL_DATA));
-
-	return TRUE;
-}
-
-static bool variables_append_list_skill_id (ppVARIABLE list, char *name, unsigned long ma, unsigned long mb, unsigned long ta, unsigned long tb, int sn)
+static bool variables_append_list_skill_id (ppVARIABLE list, char *name, unsigned long ma, unsigned long mb, unsigned long ta, unsigned long tb, SKILL_DATA *skill)
 {
 	LLIST_SKILL_DATA *data;
 	pVARIABLE var = variable_get(*list, name);
@@ -1412,7 +1392,7 @@ static bool variables_append_list_skill_id (ppVARIABLE list, char *name, unsigne
 	if( !(data = alloc_mem(sizeof(LLIST_SKILL_DATA))) ) return FALSE;
 
 	data->mob = NULL;
-	data->sn = (sn > 0 && sn < MAX_SKILL) ? sn : 0;;
+	data->skill = IS_VALID(skill) ? skill : NULL;
 	data->tok = NULL;
 	data->mid[0] = ma;
 	data->mid[1] = mb;
@@ -1475,14 +1455,14 @@ bool variables_setindex_string(ppVARIABLE list,char *name,char *str,bool shared,
 	return TRUE;
 }
 
-bool variables_setindex_skill (ppVARIABLE list,char *name,int sn, bool saved)
+bool variables_setindex_skill (ppVARIABLE list,char *name,SKILL_DATA *skill, bool saved)
 {
 	pVARIABLE var = variable_create(list,name,TRUE,TRUE);
 
 	if(!var) return FALSE;
 
 	var->type = VAR_SKILL;
-	var->_.sn = sn;
+	var->_.skill = skill;
 	var->save = saved;
 
 	return TRUE;
@@ -1495,7 +1475,7 @@ bool variables_setindex_song (ppVARIABLE list,char *name,int sn, bool saved)
 	if(!var) return FALSE;
 
 	var->type = VAR_SONG;
-	var->_.sn = sn;
+	var->_.song = sn;
 	var->save = saved;
 
 	return TRUE;
@@ -1715,9 +1695,9 @@ bool variable_copy(ppVARIABLE list,char *oldname,char *newname)
 	case VAR_TOKEN:			newv->_.t = oldv->_.t; break;
 	case VAR_AREA:			newv->_.a = oldv->_.a; break;
 	case VAR_AREA_REGION:	newv->_.ar = oldv->_.ar; break;
-	case VAR_SKILL:			newv->_.sn = oldv->_.sn; break;
-	case VAR_SKILLINFO:		newv->_.sk.owner = oldv->_.sk.owner; newv->_.sk.sn = oldv->_.sk.sn; break;
-	case VAR_SONG:			newv->_.sn = oldv->_.sn; break;
+	case VAR_SKILL:			newv->_.skill = oldv->_.skill; break;
+	case VAR_SKILLINFO:		newv->_.sk.owner = oldv->_.sk.owner; newv->_.sk.skill = oldv->_.sk.skill; break;
+	case VAR_SONG:			newv->_.song = oldv->_.song; break;
 	case VAR_AFFECT:		newv->_.aff = oldv->_.aff; break;
 	case VAR_BOOK_PAGE:		newv->_.book_page = oldv->_.book_page; break;
 	case VAR_FOOD_BUFF:		newv->_.food_buff = oldv->_.food_buff; break;
@@ -1785,9 +1765,9 @@ bool variable_copyto(ppVARIABLE from,ppVARIABLE to,char *oldname,char *newname, 
 	case VAR_TOKEN:		newv->_.t = oldv->_.t; break;
 	case VAR_AREA:		newv->_.a = oldv->_.a; break;
 	case VAR_AREA_REGION:	newv->_.ar = oldv->_.ar; break;
-	case VAR_SKILL:		newv->_.sn = oldv->_.sn; break;
-	case VAR_SKILLINFO:	newv->_.sk.owner = oldv->_.sk.owner; newv->_.sk.sn = oldv->_.sk.sn; break;
-	case VAR_SONG:		newv->_.sn = oldv->_.sn; break;
+	case VAR_SKILL:		newv->_.skill = oldv->_.skill; break;
+	case VAR_SKILLINFO:	newv->_.sk.owner = oldv->_.sk.owner; newv->_.sk.skill = oldv->_.sk.skill; break;
+	case VAR_SONG:		newv->_.song = oldv->_.song; break;
 	case VAR_AFFECT:	newv->_.aff = oldv->_.aff; break;
 	case VAR_BOOK_PAGE:		newv->_.book_page = oldv->_.book_page; break;
 	case VAR_FOOD_BUFF:	newv->_.food_buff = oldv->_.food_buff; break;
@@ -1853,9 +1833,9 @@ bool variable_copylist(ppVARIABLE from,ppVARIABLE to,bool index)
 		case VAR_MOBILE:	newv->_.m = oldv->_.m; break;
 		case VAR_OBJECT:	newv->_.o = oldv->_.o; break;
 		case VAR_TOKEN:		newv->_.t = oldv->_.t; break;
-		case VAR_SKILL:		newv->_.sn = oldv->_.sn; break;
-		case VAR_SKILLINFO:	newv->_.sk.owner = oldv->_.sk.owner; newv->_.sk.sn = oldv->_.sk.sn; break;
-		case VAR_SONG:		newv->_.sn = oldv->_.sn; break;
+		case VAR_SKILL:		newv->_.skill = oldv->_.skill; break;
+		case VAR_SKILLINFO:	newv->_.sk.owner = oldv->_.sk.owner; newv->_.sk.skill = oldv->_.sk.skill; break;
+		case VAR_SONG:		newv->_.song = oldv->_.song; break;
 		case VAR_AFFECT:	newv->_.aff = oldv->_.aff; break;
 		case VAR_BOOK_PAGE:		newv->_.book_page = oldv->_.book_page; break;
 		case VAR_FOOD_BUFF:	newv->_.food_buff = oldv->_.food_buff; break;
@@ -1921,9 +1901,9 @@ pVARIABLE variable_copyvar(pVARIABLE oldv)
 	case VAR_TOKEN:			newv->_.t = oldv->_.t; break;
 	case VAR_AREA:			newv->_.a = oldv->_.a; break;
 	case VAR_AREA_REGION:	newv->_.ar = oldv->_.ar; break;
-	case VAR_SKILL:			newv->_.sn = oldv->_.sn; break;
-	case VAR_SKILLINFO:		newv->_.sk.owner = oldv->_.sk.owner; newv->_.sk.sn = oldv->_.sk.sn; break;
-	case VAR_SONG:			newv->_.sn = oldv->_.sn; break;
+	case VAR_SKILL:			newv->_.skill = oldv->_.skill; break;
+	case VAR_SKILLINFO:		newv->_.sk.owner = oldv->_.sk.owner; newv->_.sk.skill = oldv->_.sk.skill; break;
+	case VAR_SONG:			newv->_.song = oldv->_.song; break;
 	case VAR_AFFECT:		newv->_.aff = oldv->_.aff; break;
 	case VAR_BOOK_PAGE:		newv->_.book_page = oldv->_.book_page; break;
 	case VAR_FOOD_BUFF:		newv->_.food_buff = oldv->_.food_buff; break;
@@ -2045,7 +2025,7 @@ void variable_clearfield(int type, void *ptr)
 				CHAR_DATA *owner = cur->_.sk.owner;
 				TOKEN_DATA *token = cur->_.sk.token;
 
-				cur->_.skid.sn = cur->_.sk.sn;
+				cur->_.skid.skill = cur->_.sk.skill;
 				if(owner) {
 					cur->_.skid.mid[0] = owner->id[0];
 					cur->_.skid.mid[1] = owner->id[1];
@@ -2070,7 +2050,7 @@ void variable_clearfield(int type, void *ptr)
 				CHAR_DATA *owner = cur->_.sk.owner;
 				TOKEN_DATA *token = cur->_.sk.token;
 
-				cur->_.skid.sn = cur->_.sk.sn;
+				cur->_.skid.skill = cur->_.sk.skill;
 				if(owner) {
 					cur->_.skid.mid[0] = owner->id[0];
 					cur->_.skid.mid[1] = owner->id[1];
@@ -2471,21 +2451,20 @@ void variable_fix(pVARIABLE var)
 	} else if(var->type == VAR_SKILLINFO_ID && (var->_.skid.mid[0] > 0 || var->_.skid.mid[1] > 0)) {
 		CHAR_DATA *ch = idfind_mobile(var->_.skid.mid[0], var->_.skid.mid[1]);
 		if( ch ) {
+			SKILL_DATA *skill = var->_.skid.skill;
 			if(var->_.skid.tid[0] > 0 || var->_.skid.tid[1] > 0) {
 				TOKEN_DATA *tok = idfind_token_char(ch, var->_.skid.tid[0], var->_.skid.tid[1]);
 
 				if( tok ) {
 					var->_.sk.token = tok;
-					var->_.sk.sn = 0;
+					var->_.sk.skill = skill;
 					var->_.sk.owner = ch;
 					var->type = VAR_SKILLINFO;
 				} else
 					var->_.skid.mid[0] = var->_.skid.mid[1] = 0;
 			} else {
-				int sn = var->_.skid.sn;
-
 				var->_.sk.token = NULL;
-				var->_.sk.sn = sn;
+				var->_.sk.skill = skill;
 				var->_.sk.owner = ch;
 				var->type = VAR_SKILLINFO;
 			}
@@ -2602,11 +2581,10 @@ void variable_fix(pVARIABLE var)
 		iterator_start(&it, var->_.list);
 
 		while( (lskill = (LLIST_SKILL_DATA *)iterator_nextdata(&it)) )
-			if( !lskill->mob && ((lskill->sn > 0 && lskill->sn < MAX_SKILL) || lskill->tid[0] > 0 || lskill->tid[1] > 0) ) {
+			if( !lskill->mob && IS_VALID(lskill->skill) ) {
 				lskill->mob = idfind_mobile(lskill->mid[0],lskill->mid[1]);
 
 				if( lskill->mob && (lskill->tid[0] > 0 || lskill->tid[1] > 0)) {
-					lskill->sn = 0;
 					lskill->tok = idfind_token_char(lskill->mob, lskill->tid[0], lskill->tid[1]);
 
 					// Can't resolve the token on a found mob, remove "skill" from list
@@ -2848,21 +2826,20 @@ void variable_dynamic_fix_mobile (CHAR_DATA *ch)
 
 		case VAR_SKILLINFO_ID:
 			if( ch->id[0] == cur->_.skid.mid[0] && ch->id[1] == cur->_.skid.mid[1] ) {
+				SKILL_DATA *skill = cur->_.skid.skill;
 				if(cur->_.skid.tid[0] > 0 || cur->_.skid.tid[1] > 0) {
 					TOKEN_DATA *tok = idfind_token_char(ch, cur->_.skid.tid[0], cur->_.skid.tid[1]);
 
 					if( tok ) {
 						cur->_.sk.token = tok;
-						cur->_.sk.sn = 0;
+						cur->_.sk.skill = skill;
 						cur->_.sk.owner = ch;
 						cur->type = VAR_SKILLINFO;
 					} else
 						cur->_.skid.mid[0] = cur->_.skid.mid[1] = 0;
 				} else {
-					int sn = cur->_.skid.sn;
-
 					cur->_.sk.token = NULL;
-					cur->_.sk.sn = sn;
+					cur->_.sk.skill = skill;
 					cur->_.sk.owner = ch;
 					cur->type = VAR_SKILLINFO;
 				}
@@ -3053,24 +3030,26 @@ void variable_fwrite(pVARIABLE var, FILE *fp)
 		break;
 
 	case VAR_SKILL:
-		fprintf(fp,"VarSkill %s~ '%s'\n", var->name, SKILL_NAME(var->_.sn));
+		if (IS_VALID(var->_.skill))
+			fprintf(fp,"VarSkill %s~ '%s'\n", var->name, var->_.skill->name);
 		break;
 
 	case VAR_SONG:
-		fprintf(fp,"VarSong %s~ '%s'\n", var->name, SONG_NAME(var->_.sn));
+		fprintf(fp,"VarSong %s~ '%s'\n", var->name, SONG_NAME(var->_.song));
 		break;
 
 	case VAR_SKILLINFO:
-		if(var->_.sk.owner) {
+		if(var->_.sk.owner && IS_VALID(var->_.sk.skill)) {
 			if( IS_VALID(var->_.sk.token) )
-				fprintf(fp,"VarSkInfo %s~ %d %d %d %d ''\n", var->name, (int)var->_.sk.owner->id[0], (int)var->_.sk.owner->id[1], (int)var->_.sk.token->id[0], (int)var->_.sk.token->id[1]);
+				fprintf(fp,"VarSkInfo %s~ %ld %ld %ld %ld '%s'\n", var->name, var->_.sk.owner->id[0], var->_.sk.owner->id[1], var->_.sk.token->id[0], var->_.sk.token->id[1], var->_.sk.skill->name);
 			else
-				fprintf(fp,"VarSkInfo %s~ %d %d 0 0 '%s'\n", var->name, (int)var->_.sk.owner->id[0], (int)var->_.sk.owner->id[1], SKILL_NAME(var->_.sk.sn));
+				fprintf(fp,"VarSkInfo %s~ %ld %ld 0 0 '%s'\n", var->name, var->_.sk.owner->id[0], var->_.sk.owner->id[1], var->_.sk.skill->name);
 		}
 		break;
 
 	case VAR_SKILLINFO_ID:
-		fprintf(fp,"VarSkInfo %s~ %d %d %d %d '%s'\n", var->name, (int)var->_.skid.mid[0], (int)var->_.skid.mid[1], (int)var->_.skid.tid[0], (int)var->_.skid.tid[1], SKILL_NAME(var->_.skid.sn));
+		if (IS_VALID(var->_.skid.skill))
+			fprintf(fp,"VarSkInfo %s~ %ld %ld %ld %ld '%s'\n", var->name, var->_.skid.mid[0], var->_.skid.mid[1], var->_.skid.tid[0], var->_.skid.tid[1], var->_.skid.skill->name);
 		break;
 
 	case VAR_PLLIST_STR:
@@ -3180,9 +3159,9 @@ void variable_fwrite(pVARIABLE var, FILE *fp)
 
 			while((skill = (LLIST_SKILL_DATA*)iterator_nextdata(&it))) if( IS_VALID(skill->mob) ) {
 				if( IS_VALID(skill->tok) )
-					fprintf(fp, "Token %ld %ld %ld %ld\n", skill->mob->id[0], skill->mob->id[1], skill->tok->id[0], skill->tok->id[1]);
+					fprintf(fp, "Token %ld %ld %ld %ld '%s'\n", skill->mob->id[0], skill->mob->id[1], skill->tok->id[0], skill->tok->id[1], skill->skill->name);
 				else
-					fprintf(fp, "Skill %ld %ld '%s'\n", skill->mob->id[0], skill->mob->id[1], SKILL_NAME(skill->sn));
+					fprintf(fp, "Skill %ld %ld '%s'\n", skill->mob->id[0], skill->mob->id[1], skill->skill->name);
 			}
 
 			iterator_stop(&it);
@@ -3411,13 +3390,21 @@ bool variable_fread_skill_list(ppVARIABLE vars, char *name, FILE *fp)
 			return TRUE;
 
 		else if (!str_cmp(word, "Skill")) {
+			unsigned long id0 = fread_number(fp);
+			unsigned long id1 = fread_number(fp);
+			SKILL_DATA *skill = get_skill_data(fread_word(fp));
 
-			if( !variables_append_list_skill_id (vars, name, fread_number(fp), fread_number(fp), 0, 0, skill_lookup(fread_word(fp))) )
+			if( !variables_append_list_skill_id (vars, name, id0, id1, 0, 0, skill) )
 				return FALSE;
 
 		} else if (!str_cmp(word, "Token")) {
+			unsigned long id0 = fread_number(fp);
+			unsigned long id1 = fread_number(fp);
+			unsigned long tid0 = fread_number(fp);
+			unsigned long tid1 = fread_number(fp);
+			SKILL_DATA *skill = get_skill_data(fread_word(fp));
 
-			if( !variables_append_list_skill_id (vars, name, fread_number(fp), fread_number(fp), fread_number(fp), fread_number(fp), 0) )
+			if( !variables_append_list_skill_id (vars, name, id0, id1, tid0, tid1, skill) )
 				return FALSE;
 
 		} else
@@ -3596,7 +3583,7 @@ bool variable_fread(ppVARIABLE vars, int type, FILE *fp)
 		return variables_set_church_id(vars, name, fread_number(fp), TRUE);
 
 	case VAR_SKILL:
-		return variables_setsave_skill(vars, name, skill_lookup(fread_word(fp)), TRUE);
+		return variables_setsave_skill(vars, name, get_skill_data(fread_word(fp)), TRUE);
 
 	case VAR_SKILLINFO_ID:
 		a = fread_number(fp);
@@ -3604,7 +3591,7 @@ bool variable_fread(ppVARIABLE vars, int type, FILE *fp)
 		c = fread_number(fp);
 		d = fread_number(fp);
 
-		return variables_set_skillinfo_id (vars, name, a, b, c, d, skill_lookup(fread_word(fp)) , TRUE);
+		return variables_set_skillinfo_id (vars, name, a, b, c, d, get_skill_data(fread_word(fp)) , TRUE);
 
 	case VAR_SONG:
 		return variables_setsave_song(vars, name, song_lookup(fread_word(fp)), TRUE);
@@ -3768,14 +3755,14 @@ bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silen
     }
 	else if(!str_cmp(type,"skill"))
 	{
-		int sn = skill_lookup(argument);
-		if (sn <= 0)
+		SKILL_DATA *skill = get_skill_data(argument);
+		if (!IS_VALID(skill))
 		{
 			send_to_char("No such skill exists.\n\r", ch);
 			return FALSE;
 		}
 		
-		variables_setindex_skill(index_vars,name,sn,saved);
+		variables_setindex_skill(index_vars,name,skill,saved);
 	}
 	else if(!str_cmp(type,"song"))
 	{
@@ -3851,14 +3838,14 @@ void olc_show_index_vars(BUFFER *buffer, pVARIABLE index_vars)
 						sprintf(buf, "{x%-20.20s {GROOM       {Y%c   {W-no-where-{x\n\r",var->name,var->save?'Y':'N');
 					break;
 				case VAR_SKILL:
-					if(var->_.sn > 0)
-						sprintf(buf, "{x%-20.20s {GSKILL      {Y%c   {W%s{x\n\r", var->name,var->save?'Y':'N', SKILL_NAME(var->_.sn));
+					if(IS_VALID(var->_.skill))
+						sprintf(buf, "{x%-20.20s {GSKILL      {Y%c   {W%s{x\n\r", var->name,var->save?'Y':'N', var->_.skill->name);
 					else
 						sprintf(buf, "{x%-20.20s {GSKILL      {Y%c   {W-invalid-{x\n\r", var->name,var->save?'Y':'N');
 					break;
 				case VAR_SONG:
-					if(var->_.sn >= 0)
-						sprintf(buf, "{x%-20.20s {GSONG       {Y%c   {W%s{x\n\r", var->name,var->save?'Y':'N', SONG_NAME(var->_.sn));
+					if(var->_.song >= 0)
+						sprintf(buf, "{x%-20.20s {GSONG       {Y%c   {W%s{x\n\r", var->name,var->save?'Y':'N', SONG_NAME(var->_.song));
 					else
 						sprintf(buf, "{x%-20.20s {GSONG       {Y%c   {W-invalid-{x\n\r", var->name,var->save?'Y':'N');
 					break;
@@ -3881,10 +3868,10 @@ void olc_save_index_vars(FILE *fp, pVARIABLE index_vars, AREA_DATA *pRefArea)
 				fprintf(fp, "VarStr %s~ %d %s~\n", var->name, var->save, var->_.s ? var->_.s : "");
 			else if(var->type == VAR_ROOM && var->_.r && var->_.r->vnum)
 				fprintf(fp, "VarRoom %s~ %d %s\n", var->name, var->save, widevnum_string(var->_.r->area, var->_.r->vnum, pRefArea));
-			else if(var->type == VAR_SKILL && var->_.sn > 0 )
-				fprintf(fp, "VarSkill %s~ %d '%s'\n", var->name, var->save, SKILL_NAME(var->_.sn));
-			else if(var->type == VAR_SONG && var->_.sn >= 0 )
-				fprintf(fp, "VarSong %s~ %d '%s'\n", var->name, var->save, SONG_NAME(var->_.sn));
+			else if(var->type == VAR_SKILL && IS_VALID(var->_.skill) )
+				fprintf(fp, "VarSkill %s~ %d '%s'\n", var->name, var->save, var->_.skill->name);
+			else if(var->type == VAR_SONG && var->_.song >= 0 )
+				fprintf(fp, "VarSong %s~ %d '%s'\n", var->name, var->save, SONG_NAME(var->_.song));
 		}
 	}
 }
@@ -3933,15 +3920,15 @@ bool olc_load_index_vars(FILE *fp, char *word, ppVARIABLE index_vars, AREA_DATA 
 	if (!str_cmp(word, "VarSkill"))
 	{
 		char *name;
-		int sn;
+		SKILL_DATA *skill;
 		bool saved;
 
 		name = fread_string(fp);
 		saved = fread_number(fp);
-		sn = skill_lookup(fread_word(fp));
+		skill = get_skill_data(fread_word(fp));
 
-		if (sn > 0)
-			variables_setindex_skill(index_vars,name,sn,saved);
+		if (IS_VALID(skill))
+			variables_setindex_skill(index_vars,name,skill,saved);
 		return TRUE;
 	}
 

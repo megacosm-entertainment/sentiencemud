@@ -26,10 +26,10 @@ void afterburn_hitroom(ROOM_INDEX_DATA *room, CHAR_DATA *ch, int dam, int level)
 	for (victim = room->people; victim ; victim = vnext) {
 		vnext = victim->next_in_room;
 		if (!is_safe(ch, victim, FALSE) && victim != ch) {
-			if (!check_spell_deflection(ch, victim, gsn_afterburn))
+			if (!check_spell_deflection(ch, victim, gsk_afterburn))
 				continue;
 
-			damage(ch, victim, dam, gsn_afterburn, DAM_FIRE, TRUE);
+			damage(ch, victim, dam, gsk_afterburn, TYPE_UNDEFINED, DAM_FIRE, TRUE);
 			fire_effect((void *)victim, level, dam, TARGET_CHAR);
 		}
 	}
@@ -100,7 +100,7 @@ SPELL_FUNC(spell_afterburn)
 	max_depth = 5;
 
 	data.level = level;
-	data.decay = 6 - get_skill(ch, sn) / 20;
+	data.decay = 6 - get_skill(ch, skill) / 20;
 
 	if( !afterburn_progress(ch->in_room, ch, 0, -1, &data) )
 		visit_room_direction(ch, ch->in_room, max_depth, door, &data, afterburn_progress, afterburn_end);
@@ -172,7 +172,7 @@ SPELL_FUNC(spell_burning_hands)
 
 	dam = UMIN(dam, 2500);
 
-	damage(ch, victim, dam, sn, DAM_FIRE,TRUE);
+	damage(ch, victim, dam, skill, TYPE_UNDEFINED, DAM_FIRE,TRUE);
 	return TRUE;
 }
 
@@ -188,9 +188,9 @@ SPELL_FUNC(spell_fire_barrier)
 		perm = TRUE;
 	}
 
-	if (perm && is_affected(victim, sn))
-		affect_strip(victim, sn);
-	else if (is_affected(victim, sn)) {
+	if (perm && is_affected(victim, skill))
+		affect_strip(victim, skill);
+	else if (is_affected(victim, skill)) {
 		if (victim == ch)
 			send_to_char("You are already surrounded by a fire barrier.\n\r",ch);
 		else
@@ -201,7 +201,7 @@ SPELL_FUNC(spell_fire_barrier)
 	af.slot = obj_wear_loc;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration = perm ? -1 : (level / 3);
 	af.location = APPLY_NONE;
@@ -247,18 +247,18 @@ SPELL_FUNC(spell_fire_breath)
 		if (vch == victim) {
 			if (saves_spell(level,vch,DAM_FIRE)) {
 				fire_effect(vch,level/2,dam/4,TARGET_CHAR);
-				damage(ch,vch,dam/2,sn,DAM_FIRE,TRUE);
+				damage(ch,vch,dam/2,skill,TYPE_UNDEFINED,DAM_FIRE,TRUE);
 			} else	{
 				fire_effect(vch,level,dam,TARGET_CHAR);
-				damage(ch,vch,dam,sn,DAM_FIRE,TRUE);
+				damage(ch,vch,dam,skill,TYPE_UNDEFINED,DAM_FIRE,TRUE);
 			}
 		} else {
 			if (saves_spell(level - 2,vch,DAM_FIRE)) {
 				fire_effect(vch,level/4,dam/8,TARGET_CHAR);
-				damage(ch,vch,dam/4,sn,DAM_FIRE,TRUE);
+				damage(ch,vch,dam/4,skill,TYPE_UNDEFINED,DAM_FIRE,TRUE);
 			} else {
 				fire_effect(vch,level/2,dam/4,TARGET_CHAR);
-				damage(ch,vch,dam/2,sn,DAM_FIRE,TRUE);
+				damage(ch,vch,dam/2,skill,TYPE_UNDEFINED,DAM_FIRE,TRUE);
 			}
 		}
 	}
@@ -344,7 +344,7 @@ SPELL_FUNC(spell_fireball)
 	/* CAP */
 	dam = UMIN(dam, 2500);
 
-	damage(ch,victim,dam,gsn_fireball, DAM_FIRE, TRUE);
+	damage(ch,victim,dam,skill, TYPE_UNDEFINED, DAM_FIRE, TRUE);
 	// fire_effect(victim, level, dam, target);
 	return TRUE;
 }
@@ -361,7 +361,7 @@ SPELL_FUNC(spell_fireproof)
 		return FALSE;
 	}
 
-	if (obj->item_type == ITEM_SCROLL || obj->item_type == ITEM_POTION) {
+	if (obj->item_type == ITEM_SCROLL || (IS_FLUID_CON(obj) && list_size(FLUID_CON(obj)->spells) > 0)) {
 		act("$p is already invested with enough magic. You can't make it fireproof.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 		return FALSE;
 	}
@@ -369,7 +369,7 @@ SPELL_FUNC(spell_fireproof)
 	af.slot	= WEAR_NONE;
 	af.where = TO_OBJECT;
 	af.group = AFFGROUP_ENCHANT;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration = number_fuzzy(level / 4);
 	af.location = APPLY_NONE;
@@ -398,9 +398,9 @@ SPELL_FUNC(spell_flamestrike)
 
 	dam = dice(level/3 + 2, level/3 - 2);
 
-	dam = (dam * get_skill(ch, sn))/100;
+	dam = (dam * get_skill(ch, skill))/100;
 
-	damage(ch, victim, dam, sn, DAM_FIRE ,TRUE);
+	damage(ch, victim, dam, skill,TYPE_UNDEFINED, DAM_FIRE ,TRUE);
 	return TRUE;
 }
 

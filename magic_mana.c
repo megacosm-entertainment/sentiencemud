@@ -40,7 +40,7 @@ SPELL_FUNC(spell_cancellation)
 	number_affects = 0;
 	for (af = victim->affected; af != NULL; af = af->next)
 		if(af->group == AFFGROUP_MAGICAL && !af->custom_name) {
-			if(check_dispel(ch, victim, af->type)) found = TRUE;
+			if(check_dispel(ch, victim, af->skill)) found = TRUE;
 			number_affects++;
 		}
 
@@ -87,6 +87,7 @@ SPELL_FUNC(spell_channel)
 
 SPELL_FUNC(spell_counter_spell)
 {
+	char buf[MSL];
 	int mana;
 	CHAR_DATA *victim;
 
@@ -95,18 +96,19 @@ SPELL_FUNC(spell_counter_spell)
 	if (victim->cast <= 0)
 		return FALSE;
 
-	sn = victim->cast_sn;
-	if (number_percent() < get_skill(ch, gsn_counterspell) && can_see(ch, victim)) {
+	skill = victim->cast_skill;
+	if (number_percent() < get_skill(ch, gsk_counterspell) && can_see(ch, victim)) {
 		stop_casting(victim, FALSE);
 		act("{YYour magic fizzles and backfires!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		act("{Y$n's magic fizzles and backfires!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-		mana = skill_table[sn].min_mana;
+		mana = skill->cast_mana;
 
 		target = TARGET_NONE;
-		switch (skill_table[sn].target) {
+		switch (skill->target) {
 		default:
-			bug("Do_cast: bad target for sn %d.", sn);
+			sprintf(buf, "spell_counter_spell: bad target for spell '%s'", skill->name);
+			bug(buf, 0);
 			return TRUE;
 
 		case TAR_IGNORE:
@@ -143,7 +145,10 @@ SPELL_FUNC(spell_counter_spell)
 
 		victim->mana -= mana/3;
 		ch->mana -= (mana * 2)/3;
-		(*skill_table[sn].spell_fun)(sn, 3 * ch->tot_level/4, victim, vo, target, WEAR_NONE);
+
+		// TODO: Make it work with tokens
+		if (skill->spell_fun && skill->spell_fun != spell_null)
+			(*skill->spell_fun)(skill, 3 * ch->tot_level/4, victim, vo, target, WEAR_NONE);
 	} else
 		stop_casting(victim, TRUE);
 
@@ -207,7 +212,7 @@ SPELL_FUNC(spell_dispel_magic)
 		af_next = af->next;
 		if((af->group == AFFGROUP_DIVINE || af->group == AFFGROUP_MAGICAL || af->group == AFFGROUP_MENTAL) &&
 			!af->custom_name) {
-			if(check_dispel(ch, victim, af->type)) found = TRUE;
+			if(check_dispel(ch, victim, af->skill)) found = TRUE;
 			number_affects++;
 		}
 	}
@@ -341,13 +346,15 @@ SPELL_FUNC(spell_magic_missile)
 
 	dam = dice(level, level/9);
 
-	damage(ch, victim, dam, sn, DAM_MAGIC ,TRUE);
+	damage(ch, victim, dam, skill, TYPE_UNDEFINED, DAM_MAGIC ,TRUE);
 	return TRUE;
 }
 
 
+// TODO: Rework for artificing changes
 SPELL_FUNC(spell_recharge)
 {
+#if 0
 	OBJ_DATA *obj = (OBJ_DATA *) vo;
 	int charges;
 
@@ -406,6 +413,7 @@ SPELL_FUNC(spell_recharge)
 
 		act("$p hisses with power as you breathe magical energy into it.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 	}
+#endif
 	return TRUE;
 }
 
@@ -436,8 +444,8 @@ SPELL_FUNC(spell_spell_deflection)
 		perm = TRUE;
 	}
 
-	if (perm && is_affected(victim, sn)) {
-		affect_strip(victim, sn);
+	if (perm && is_affected(victim, skill)) {
+		affect_strip(victim, skill);
 	} else if (IS_AFFECTED2(victim, AFF2_SPELL_DEFLECTION)) {
 		if (victim == ch)
 			send_to_char("{MYou are already protected by spell deflection.{x\n\r",ch);
@@ -449,7 +457,7 @@ SPELL_FUNC(spell_spell_deflection)
 	af.slot = obj_wear_loc;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration = perm ? -1 : 4;
 	af.location = APPLY_NONE;
@@ -476,8 +484,8 @@ SPELL_FUNC(spell_spell_shield)
 		perm = TRUE;
 	}
 
-	if (perm && is_affected(victim, sn)) {
-		affect_strip(victim, sn);
+	if (perm && is_affected(victim, skill)) {
+		affect_strip(victim, skill);
 	} else if (IS_AFFECTED2(victim, AFF2_SPELL_SHIELD)) {
 		if (victim == ch)
 			send_to_char("You are already protected by a spell shield.\n\r",ch);
@@ -489,7 +497,7 @@ SPELL_FUNC(spell_spell_shield)
 	af.slot = obj_wear_loc;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration = perm ? -1 : (level / 6);
 	af.location  = 0;

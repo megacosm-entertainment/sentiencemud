@@ -445,7 +445,7 @@ void do_hunt( CHAR_DATA *ch, char *argument )
 
     if (!IS_NPC(ch)
     && str_cmp(race_table[ch->race].name, "sith")
-    && get_skill(ch,gsn_hunt) == 0 )
+    && get_skill(ch, gsk_hunt) == 0 )
     {
 	send_to_char("Huh?\n\r",ch);
 	return;
@@ -522,7 +522,7 @@ void do_hunt( CHAR_DATA *ch, char *argument )
     }
 
     // For trackless step skill
-    if (get_skill( victim, gsn_trackless_step ) > 0
+    if (get_skill( victim, gsk_trackless_step ) > 0
     //&& victim->pcdata->second_sub_class_cleric == CLASS_CLERIC_RANGER
     && ( victim->in_room->sector_type == SECT_FIELD
          || victim->in_room->sector_type == SECT_FOREST
@@ -530,7 +530,7 @@ void do_hunt( CHAR_DATA *ch, char *argument )
          || victim->in_room->sector_type == SECT_MOUNTAIN
          || victim->in_room->sector_type == SECT_TUNDRA ) )
     {
-	if ( number_percent() < get_skill( victim, gsn_trackless_step ) )
+	if ( number_percent() < get_skill( victim, gsk_trackless_step ) )
 	{
 	    act("$N has covered $S tracks too well for you to follow.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 	    return;
@@ -572,17 +572,22 @@ void do_hunt( CHAR_DATA *ch, char *argument )
 	return;
     }
 
-    if (!IS_NPC(ch) && number_percent() > (IS_SITH(ch) ? 100 : ch->pcdata->learned[gsn_hunt]))
+    if (!IS_NPC(ch))
     {
-	send_to_char("You can't find the trail.\n\r", ch);
-	return;
+        int skill = IS_SITH(ch) ? 100 : get_skill(ch, gsk_hunt);
+        if (number_percent() > skill)
+        {
+            send_to_char("You can't find the trail.\n\r", ch);
+            return;
+        }
+
     }
 
     /*
      * Display the results of the search.
      */
     act("$N is $t from here.", ch, victim, NULL, NULL, NULL, dir_name[direction], NULL, TO_CHAR );
-    check_improve(ch,gsn_hunt,TRUE,1);
+    check_improve(ch,gsk_hunt,TRUE,1);
 }
 
 

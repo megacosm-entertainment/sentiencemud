@@ -418,49 +418,42 @@ int check_immune(CHAR_DATA *ch, sh_int dam_type)
 
 
 // Get a character's % at a skill.
-int get_skill(CHAR_DATA *ch, int sn)
+int get_skill(CHAR_DATA *ch, SKILL_DATA *skill)
 {
-    int skill;
+    int rating;
 
-    // Racial skills
+	/*
+    // Racial skills - These can just rely on the skill entry
     if (!IS_NPC(ch))
     {
         int i;
 
         for (i = 0; pc_race_table[ch->race].skills[i] != NULL; i++)
         {
-            if (!str_cmp(skill_table[sn].name,pc_race_table[ch->race].skills[i])) {
-		    skill = ch->pcdata->learned[sn];
-		    if(skill <= 0) return skill;
-		    skill += ch->pcdata->mod_learned[sn];
-		    return URANGE(1,skill,100);
-	    }
-	}
+            if (!str_cmp(skill_table[sn].name,pc_race_table[ch->race].skills[i]))
+			{
+			    skill = ch->pcdata->learned[sn];
+			    if(skill <= 0) return skill;
+			    skill += ch->pcdata->mod_learned[sn];
+		    	return URANGE(1,skill,100);
+	    	}
+		}
     }
+	*/
 
-    if (sn == -1) /* shorthand for level based skills */
-        skill = ch->level * 5 / 2;
-    else if (sn < -1 || sn > MAX_SKILL)
-    {
-	char buf[MAX_STRING_LENGTH];
-	sprintf(buf, "Bad sn %d in get_skill, on char %s.",sn,ch->name);
-	skill = 0;
-    }
+    if (!IS_VALID(skill)) /* shorthand for level based skills */
+        rating = ch->level * 5 / 2;
     else if (!IS_NPC(ch))
     {
-	int this_class;
+		int this_class;
 
-	this_class = get_this_class(ch,sn);
+		this_class = get_this_class(ch,skill);
 
-	if (had_skill(ch,sn) || ch->level >= skill_table[sn].skill_level[this_class])
-	    skill = ch->pcdata->learned[sn];
-	else
-	    skill = 0;
-
-	if(skill > 0) {
-		skill += ch->pcdata->mod_learned[sn];
-		skill = URANGE(1,skill,100);
-	}
+		SKILL_ENTRY *entry = skill_entry_findskill(ch->sorted_skills, skill);
+		if (entry && (had_skill(ch, skill) || ch->level >= skill->skill_level[this_class]))
+	    	rating = skill_entry_rating(ch, entry);
+		else
+		    rating = 0;
     }
     else /* mobiles */
     {
@@ -468,12 +461,27 @@ int get_skill(CHAR_DATA *ch, int sn)
 	 * Changed level calculation to the log functio to scale
 	 * well up to lv500  */
 
-	// Account for racial skills.
-	if (skill_table[sn].race != -1 && ch->race != skill_table[sn].race)
-	    skill = 0;
-	if (ch->tot_level < 10)
-	    skill = 10;
+		// Account for racial skills.
+		if (skill->race > 0 && ch->race != skill->race)
+			rating = 0;
+		else if (ch->tot_level < 10)
+			rating = 10;
 
+		if (is_skill_spell(skill))
+		{
+			if (ch->max_mana > 0)
+				rating = 40+19 * log10(ch->tot_level)/2;
+			else
+				rating = 0;
+		}
+		else
+		{
+			rating = 40+19 * log10(ch->tot_level)/2;
+		}
+
+		// TODO: Add a skills table to NPCs.
+	}
+#if 0
 	/* Handle spells */
 	if (skill_table[sn].spell_fun != spell_null) {
 		if (ch->max_mana > 0)
@@ -548,94 +556,89 @@ int get_skill(CHAR_DATA *ch, int sn)
 	else
 	    skill = 2 * skill / 3;
     }
+#endif
 
     if (!IS_NPC(ch) && ch->pcdata->condition[COND_DRUNK]  > 10)
-	skill = 9 * skill / 10;
+		rating = 9 * rating / 10;
 
-    return URANGE(0,skill,100);
+    return URANGE(0,rating,100);
 }
 
 
 /* for returning weapon information */
-int get_weapon_sn(CHAR_DATA *ch)
+SKILL_DATA *get_weapon_sn(CHAR_DATA *ch)
 {
     OBJ_DATA *wield;
-    int sn;
 
     wield = get_eq_char(ch, WEAR_WIELD);
     if (wield == NULL || wield->item_type != ITEM_WEAPON)
-        sn = gsn_hand_to_hand;
+        return gsk_hand_to_hand;
 
     else switch (wield->value[0])
     {
-        default :                  sn = -1; 	       		break;
-        case(WEAPON_SWORD):        sn = gsn_sword;         	break;
-        case(WEAPON_EXOTIC):       sn = gsn_exotic;         	break;
-        case(WEAPON_DAGGER):       sn = gsn_dagger;        	break;
-        case(WEAPON_SPEAR):        sn = gsn_spear;         	break;
-        case(WEAPON_MACE):         sn = gsn_mace;          	break;
-        case(WEAPON_AXE):          sn = gsn_axe;           	break;
-        case(WEAPON_FLAIL):        sn = gsn_flail;         	break;
-        case(WEAPON_WHIP):         sn = gsn_whip;          	break;
-        case(WEAPON_POLEARM):      sn = gsn_polearm;       	break;
-        case(WEAPON_STAKE):        sn = gsn_stake;       	break;
-	case(WEAPON_QUARTERSTAFF): sn = gsn_quarterstaff; 	break;
+        default :                  return NULL;
+        case(WEAPON_SWORD):        return gsk_sword;
+        case(WEAPON_EXOTIC):       return gsk_exotic;
+        case(WEAPON_DAGGER):       return gsk_dagger;
+        case(WEAPON_SPEAR):        return gsk_spear;
+        case(WEAPON_MACE):         return gsk_mace;
+        case(WEAPON_AXE):          return gsk_axe;
+        case(WEAPON_FLAIL):        return gsk_flail;
+        case(WEAPON_WHIP):         return gsk_whip;
+        case(WEAPON_POLEARM):      return gsk_polearm;
+        case(WEAPON_STAKE):        return gsk_stake;
+		case(WEAPON_QUARTERSTAFF): return gsk_quarterstaff;
    }
-
-   return sn;
 }
 
-int get_objweapon_sn(OBJ_DATA *obj)
+SKILL_DATA *get_objweapon_sn(OBJ_DATA *obj)
 {
-    int sn;
-
     if (!obj || obj->item_type != ITEM_WEAPON)
-        sn = gsn_hand_to_hand;
+        return gsk_hand_to_hand;
 
     else switch (obj->value[0])
     {
-        default :                  sn = -1; 	       		break;
-        case(WEAPON_SWORD):        sn = gsn_sword;         	break;
-        case(WEAPON_EXOTIC):       sn = gsn_exotic;         	break;
-        case(WEAPON_DAGGER):       sn = gsn_dagger;        	break;
-        case(WEAPON_SPEAR):        sn = gsn_spear;         	break;
-        case(WEAPON_MACE):         sn = gsn_mace;          	break;
-        case(WEAPON_AXE):          sn = gsn_axe;           	break;
-        case(WEAPON_FLAIL):        sn = gsn_flail;         	break;
-        case(WEAPON_WHIP):         sn = gsn_whip;          	break;
-        case(WEAPON_POLEARM):      sn = gsn_polearm;       	break;
-        case(WEAPON_STAKE):        sn = gsn_stake;       	break;
-	case(WEAPON_QUARTERSTAFF): sn = gsn_quarterstaff; 	break;
-   }
-
-   return sn;
+        default :                  return NULL;
+        case(WEAPON_SWORD):        return gsk_sword;
+        case(WEAPON_EXOTIC):       return gsk_exotic;
+        case(WEAPON_DAGGER):       return gsk_dagger;
+        case(WEAPON_SPEAR):        return gsk_spear;
+        case(WEAPON_MACE):         return gsk_mace;
+        case(WEAPON_AXE):          return gsk_axe;
+        case(WEAPON_FLAIL):        return gsk_flail;
+        case(WEAPON_WHIP):         return gsk_whip;
+        case(WEAPON_POLEARM):      return gsk_polearm;
+        case(WEAPON_STAKE):        return gsk_stake;
+		case(WEAPON_QUARTERSTAFF): return gsk_quarterstaff;
+	}
 }
 
-
-int get_weapon_skill(CHAR_DATA *ch, int sn)
+// TODO: Review the need for this as it does a lot of what 'get_skill' does
+int get_weapon_skill(CHAR_DATA *ch, SKILL_DATA *skill)
 {
-    int skill;
+    int rating = 0;
 
      /* -1 is default */
     if (IS_NPC(ch))
     {
-	if (sn == -1)
-	    skill = 3 * ch->level;
-	else if (sn == gsn_hand_to_hand)
-	    skill = 40 + 2 * ch->level;
-	else
-	    skill = 40 + 5 * ch->level / 2;
+		if (!IS_VALID(skill))
+			rating = 3 * ch->level;
+		else if (skill == gsk_hand_to_hand)
+			rating = 40 + 2 * ch->level;
+		else
+			rating = 40 + 5 * ch->level / 2;
     }
-
     else
     {
-	if (sn == -1)
-	    skill = ch->level;
-	else
-	    skill = ch->pcdata->learned[sn];
+		if (IS_VALID(skill))
+		{
+			SKILL_ENTRY *entry = skill_entry_findskill(ch->sorted_skills, skill);
+
+			rating = skill_entry_rating(ch, entry);
+		}
     }
 
-    return URANGE(0,skill,100);
+    return URANGE(0,rating,100);
 }
 
 
@@ -692,21 +695,28 @@ void reset_char(CHAR_DATA *ch)
 
     }
 
-	if(!IS_NPC(ch)) memset(ch->pcdata->mod_learned,0,sizeof(ch->pcdata->mod_learned));
+	// Zero out all mod ratings
+	//if(!IS_NPC(ch)) memset(ch->pcdata->mod_learned,0,sizeof(ch->pcdata->mod_learned));
+	if (!IS_NPC(ch))
+	{
+		SKILL_ENTRY *entry;
+		for(entry = ch->sorted_skills; entry; entry = entry->next)
+			entry->mod_rating = 0;
+	}
 
     /* now restore the character to his/her true condition */
     for (stat = 0; stat < MAX_STATS; stat++)
 		set_mod_stat(ch, stat, 0);
 
     if (ch->pcdata->true_sex < 0 || ch->pcdata->true_sex > 2)
-	ch->pcdata->true_sex = 0;
+		ch->pcdata->true_sex = 0;
     ch->sex		= ch->pcdata->true_sex;
     ch->max_hit 	= ch->pcdata->perm_hit;
     ch->max_mana	= ch->pcdata->perm_mana;
     ch->max_move	= ch->pcdata->perm_move;
 
     for (i = 0; i < 4; i++)
-	ch->armour[i]	= 100;
+		ch->armour[i]	= 100;
 
     ch->hitroll		= 0;
     ch->damroll		= 0;
@@ -743,8 +753,18 @@ void reset_char(CHAR_DATA *ch)
 		case APPLY_HITROLL:     ch->hitroll             += mod; break;
 		case APPLY_DAMROLL:     ch->damroll             += mod; break;
 		default:
-			if(!IS_NPC(ch) && af->location >= APPLY_SKILL && af->location < APPLY_SKILL_MAX) {
-				ch->pcdata->mod_learned[af->location - APPLY_SKILL] += mod;
+			if(!IS_NPC(ch) && af->location >= APPLY_SKILL) {
+				SKILL_DATA *skill = get_skill_data_uid(af->location - APPLY_SKILL);
+				
+				if (IS_VALID(skill))
+				{
+					SKILL_ENTRY *entry = skill_entry_findskill(ch->sorted_skills, skill);
+
+					if (entry)
+					{
+						entry->mod_rating += mod;
+					}
+				}
 				break;
 			}
 			break;
@@ -776,8 +796,18 @@ void reset_char(CHAR_DATA *ch)
 	    case APPLY_HITROLL:     ch->hitroll             += mod; break;
 	    case APPLY_DAMROLL:     ch->damroll             += mod; break;
 		default:
-			if(!IS_NPC(ch) && af->location >= APPLY_SKILL && af->location < APPLY_SKILL_MAX) {
-				ch->pcdata->mod_learned[af->location - APPLY_SKILL] += mod;
+			if(!IS_NPC(ch) && af->location >= APPLY_SKILL) {
+				SKILL_DATA *skill = get_skill_data_uid(af->location - APPLY_SKILL);
+				
+				if (IS_VALID(skill))
+				{
+					SKILL_ENTRY *entry = skill_entry_findskill(ch->sorted_skills, skill);
+
+					if (entry)
+					{
+						entry->mod_rating += mod;
+					}
+				}
 				break;
 			}
 			break;
@@ -1146,8 +1176,18 @@ void affect_modify(CHAR_DATA *ch, AFFECT_DATA *paf, bool fAdd)
 	case APPLY_XPBOOST:       ch->xpboost			+= mod; break;
 	case APPLY_SPELL_AFFECT:  					break;
 	default:
-		if(!IS_NPC(ch) && paf->location >= APPLY_SKILL && paf->location < APPLY_SKILL_MAX) {
-			ch->pcdata->mod_learned[paf->location - APPLY_SKILL] += mod;
+		if(!IS_NPC(ch) && paf->location >= APPLY_SKILL) {
+			SKILL_DATA *skill = get_skill_data_uid(paf->location - APPLY_SKILL);
+			
+			if (IS_VALID(skill))
+			{
+				SKILL_ENTRY *entry = skill_entry_findskill(ch->sorted_skills, skill);
+
+				if (entry)
+				{
+					entry->mod_rating += mod;
+				}
+			}
 			break;
 		}
 	    bug("Affect_modify: unknown location %d.", paf->location);
@@ -1178,14 +1218,16 @@ void affect_modify(CHAR_DATA *ch, AFFECT_DATA *paf, bool fAdd)
 
 
 /* find an effect in an affect list */
-AFFECT_DATA *affect_find(AFFECT_DATA *paf, int sn)
+AFFECT_DATA *affect_find(AFFECT_DATA *paf, SKILL_DATA *skill)
 {
     AFFECT_DATA *paf_find;
 
+	if (!IS_VALID(skill)) return NULL;
+
     for (paf_find = paf; paf_find != NULL; paf_find = paf_find->next)
     {
-        if (paf_find->type == sn)
-	return paf_find;
+        if (paf_find->skill == skill)
+			return paf_find;
     }
 
     return NULL;
@@ -1341,7 +1383,7 @@ void catalyst_to_obj(OBJ_DATA *obj, AFFECT_DATA *paf)
     AFFECT_DATA *paf_new, *cat;
 
     for(cat = obj->catalyst; cat; cat = cat->next) {
-	    if(cat->type == paf->type && cat->level == paf->level) {
+	    if(cat->catalyst_type == paf->catalyst_type && cat->level == paf->level) {
 		    if(cat->modifier < 0 || paf->modifier < 0)
 			    cat->duration = cat->modifier = -1;
 		    else
@@ -1519,16 +1561,18 @@ bool affect_remove_obj(OBJ_DATA *obj, AFFECT_DATA *paf)
 /*
  * Strip all affects of a given sn.
  */
-void affect_strip(CHAR_DATA *ch, int sn)
+void affect_strip(CHAR_DATA *ch, SKILL_DATA *skill)
 {
     AFFECT_DATA *paf;
     AFFECT_DATA *paf_next;
 
+	if (!IS_VALID(skill)) return;
+
     for (paf = ch->affected; paf != NULL; paf = paf_next)
     {
-	paf_next = paf->next;
-	if (paf->type == sn)
-	    affect_remove(ch, paf);
+		paf_next = paf->next;
+		if (paf->skill == skill)
+		    affect_remove(ch, paf);
     }
 }
 
@@ -1537,11 +1581,13 @@ void affect_strip_token(CHAR_DATA *ch, TOKEN_INDEX_DATA *token)
     AFFECT_DATA *paf;
     AFFECT_DATA *paf_next;
 
+	if (!token) return;
+
     for (paf = ch->affected; paf != NULL; paf = paf_next)
     {
-	paf_next = paf->next;
-	if (paf->token == token)
-	    affect_remove(ch, paf);
+		paf_next = paf->next;
+		if (paf->token == token)
+			affect_remove(ch, paf);
     }
 }
 
@@ -1553,11 +1599,13 @@ void affect_strip_name(CHAR_DATA *ch, char *name)
     AFFECT_DATA *paf;
     AFFECT_DATA *paf_next;
 
+	if (!name) return;
+
     for (paf = ch->affected; paf != NULL; paf = paf_next)
     {
-	paf_next = paf->next;
-	if (paf->custom_name == name)
-	    affect_remove(ch, paf);
+		paf_next = paf->next;
+		if (paf->custom_name == name)
+	    	affect_remove(ch, paf);
     }
 }
 
@@ -1579,16 +1627,18 @@ void affect_stripall_wearloc(CHAR_DATA *ch, int wear_loc)
 /*
  * Strip all affects of a given sn.
  */
-void affect_strip_obj(OBJ_DATA *obj, int sn)
+void affect_strip_obj(OBJ_DATA *obj, SKILL_DATA *skill)
 {
     AFFECT_DATA *paf;
     AFFECT_DATA *paf_next;
 
+	if (!IS_VALID(skill)) return;
+
     for (paf = obj->affected; paf != NULL; paf = paf_next)
     {
-	paf_next = paf->next;
-	if (paf->type == sn)
-	    affect_remove_obj(obj, paf);
+		paf_next = paf->next;
+		if (paf->skill == skill)
+	    	affect_remove_obj(obj, paf);
     }
 }
 
@@ -1599,6 +1649,8 @@ void affect_strip_name_obj(OBJ_DATA *obj, char *name)
 {
     AFFECT_DATA *paf;
     AFFECT_DATA *paf_next;
+
+	if (!name) return;
 
     for (paf = obj->affected; paf != NULL; paf = paf_next)
     {
@@ -1612,14 +1664,16 @@ void affect_strip_name_obj(OBJ_DATA *obj, char *name)
 /*
  * Return true if a char is affected by a spell.
  */
-bool is_affected(CHAR_DATA *ch, int sn)
+bool is_affected(CHAR_DATA *ch, SKILL_DATA *skill)
 {
     AFFECT_DATA *paf;
 
+	if (!IS_VALID(skill)) return false;
+
     for (paf = ch->affected; paf != NULL; paf = paf->next)
     {
-	if (!paf->custom_name && paf->type == sn)
-	    return TRUE;
+		if (!paf->custom_name && paf->skill == skill)
+		    return TRUE;
     }
 
     return FALSE;
@@ -1632,10 +1686,12 @@ bool is_affected_name(CHAR_DATA *ch, char *name)
 {
     AFFECT_DATA *paf;
 
+	if (!name) return false;
+
     for (paf = ch->affected; paf != NULL; paf = paf->next)
     {
-	if (paf->custom_name && paf->custom_name == name)
-	    return TRUE;
+		if (paf->custom_name && paf->custom_name == name)
+		    return TRUE;
     }
 
     return FALSE;
@@ -1645,14 +1701,16 @@ bool is_affected_name(CHAR_DATA *ch, char *name)
 /*
  * Return true if a char is affected by a spell.
  */
-bool is_affected_obj(OBJ_DATA *obj, int sn)
+bool is_affected_obj(OBJ_DATA *obj, SKILL_DATA *skill)
 {
     AFFECT_DATA *paf;
 
+	if (!IS_VALID(skill)) return false;
+
     for (paf = obj->affected; paf != NULL; paf = paf->next)
     {
-	if (!paf->custom_name && paf->type == sn)
-	    return TRUE;
+		if (!paf->custom_name && paf->skill == skill)
+		    return TRUE;
     }
 
     return FALSE;
@@ -1666,10 +1724,12 @@ bool is_affected_name_obj(OBJ_DATA *obj, char *name)
 {
     AFFECT_DATA *paf;
 
+	if (!name) return false;
+
     for (paf = obj->affected; paf != NULL; paf = paf->next)
     {
-	if (paf->custom_name && paf->custom_name == name)
-	    return TRUE;
+		if (paf->custom_name && paf->custom_name == name)
+		    return TRUE;
     }
 
     return FALSE;
@@ -1695,7 +1755,7 @@ void affect_join(CHAR_DATA *ch, AFFECT_DATA *paf)
 		}
 	} else {
 		for (paf_old = ch->affected; paf_old != NULL; paf_old = paf_old->next) {
-			if (!paf_old->custom_name && paf_old->type == paf->type) {
+			if (!paf_old->custom_name && paf_old->skill == paf->skill) {
 				paf->level = (paf->level + paf_old->level) / 2;
 				paf->duration += paf_old->duration;
 				paf->modifier += paf_old->modifier;
@@ -1732,7 +1792,7 @@ void affect_join_full(CHAR_DATA *ch, AFFECT_DATA *paf)
 		}
 	} else {
 		for (paf_old = ch->affected; paf_old != NULL; paf_old = paf_old->next) {
-			if (!paf_old->custom_name && paf_old->type == paf->type &&
+			if (!paf_old->custom_name && paf_old->skill == paf->skill &&
 				paf_old->location == paf->location &&
 				paf_old->bitvector == paf->bitvector &&
 				paf_old->bitvector2 == paf->bitvector2) {
@@ -1769,7 +1829,7 @@ void affect_join_obj(OBJ_DATA *obj, AFFECT_DATA *paf)
 		}
 	} else {
 		for (paf_old = obj->affected; paf_old != NULL; paf_old = paf_old->next) {
-			if (!paf_old->custom_name && paf_old->type == paf->type) {
+			if (!paf_old->custom_name && paf_old->skill == paf->skill) {
 				paf->level = (paf->level + paf_old->level) / 2;
 				paf->duration += paf_old->duration;
 				paf->modifier += paf_old->modifier;
@@ -1805,7 +1865,7 @@ void affect_join_full_obj(OBJ_DATA *obj, AFFECT_DATA *paf)
 		}
 	} else {
 		for (paf_old = obj->affected; paf_old != NULL; paf_old = paf_old->next) {
-			if (!paf_old->custom_name && paf_old->type == paf->type &&
+			if (!paf_old->custom_name && paf_old->skill == paf->skill &&
 				paf_old->location == paf->location &&
 				paf_old->bitvector == paf->bitvector &&
 				paf_old->bitvector2 == paf->bitvector2) {
@@ -2072,11 +2132,11 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
 
         for (af = ch->affected; af != NULL; af = af->next)
         {
-            if (af->type == gsn_plague)
+            if (af->skill == gsk_plague)
                 break;
 	    // @@@NIB : 20070127 : handle special cases
 	    //	So far, only toxic fumes does 'plague' too
-            if (af->type == gsn_toxic_fumes)
+            if (af->skill == gsk_toxic_fumes)
                 has_plague_af = TRUE;
         }
 
@@ -2091,7 +2151,7 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
 
 		plague.where		= TO_AFFECTS;
 		plague.group		= AFFGROUP_BIOLOGICAL;
-        plague.type 		= gsn_plague;
+        plague.skill 		= gsk_plague;
         plague.level 		= af->level - 1;
         plague.duration 	= number_range(1,2 * plague.level);
         plague.location		= APPLY_STR;
@@ -2104,8 +2164,8 @@ void char_to_room(CHAR_DATA *ch, ROOM_INDEX_DATA *pRoomIndex)
 
         for (vch = ch->in_room->people; vch != NULL; vch = vch->next_in_room)
         {
-            if (!saves_spell(plague.level - 2,vch,DAM_DISEASE)
-	    &&  !IS_IMMORTAL(vch) &&
+            if (!saves_spell(plague.level - 2,vch,DAM_DISEASE) &&
+				!IS_IMMORTAL(vch) &&
             	!IS_AFFECTED(vch,AFF_PLAGUE) && number_bits(6) == 0)
             {
             	send_to_char("You feel hot and feverish.\n\r",vch);
@@ -2443,25 +2503,26 @@ void equip_char(CHAR_DATA *ch, OBJ_DATA *obj, int iWear)
 			++ch->in_room->light;
 		
 		// TODO: Require it be *specific types of items
+		// TODO: Fix so that it takes into account multityping
 	    if (obj->item_type != ITEM_WAND
 	    &&  obj->item_type != ITEM_STAFF
 	    &&  obj->item_type != ITEM_SCROLL
-	    &&  obj->item_type != ITEM_POTION
+	    &&  obj->item_type != ITEM_FLUID_CONTAINER
 	    &&  obj->item_type != ITEM_TATTOO
 	    &&  obj->item_type != ITEM_PILL)
 	    for (spell = obj->spells; spell != NULL; spell = spell->next)
 	    {
 			for (paf = ch->affected; paf != NULL; paf = paf->next)
 			{
-				if (paf->type == spell->sn)
-				break;
+				if (paf->skill == spell->skill)
+					break;
 			}
 
 			if (paf != NULL && paf->level >= spell->level)
 				continue;
 
-			affect_strip(ch, spell->sn);
-			obj_cast_spell(spell->sn, spell->level + MAGIC_WEAR_SPELL, ch, ch, obj);
+			affect_strip(ch, spell->skill);
+			obj_cast_spell(spell->skill, spell->level + MAGIC_WEAR_SPELL, ch, ch, obj);
 	    }
     }
 
@@ -2512,7 +2573,7 @@ int unequip_char(CHAR_DATA *ch, OBJ_DATA *obj, bool show)
 	    if (obj->item_type != ITEM_WAND
 	    &&  obj->item_type != ITEM_STAFF
 	    &&  obj->item_type != ITEM_SCROLL
-	    &&  obj->item_type != ITEM_POTION
+	    &&  obj->item_type != ITEM_FLUID_CONTAINER
 	    &&  obj->item_type != ITEM_TATTOO
 	    &&  obj->item_type != ITEM_PILL)
 	    for (spell = obj->spells; spell != NULL; spell = spell->next)
@@ -2522,7 +2583,7 @@ int unequip_char(CHAR_DATA *ch, OBJ_DATA *obj, bool show)
 			// Find the first affect that matches this spell and is derived from the object
 			for (af = ch->affected; af != NULL; af = af->next)
 			{
-				if (af->type == spell->sn && af->slot == loc)
+				if (af->skill == spell->skill && af->slot == loc)
 					break;
 			}
 
@@ -2543,7 +2604,7 @@ int unequip_char(CHAR_DATA *ch, OBJ_DATA *obj, bool show)
 			{
 				if( obj_tmp->wear_loc != WEAR_NONE && obj != obj_tmp ) {
 					for (spell_tmp = obj_tmp->spells; spell_tmp != NULL; spell_tmp = spell_tmp->next) {
-						if (spell_tmp->sn == spell->sn && spell_tmp->level > level ) {
+						if (spell_tmp->skill == spell->skill && spell_tmp->level > level ) {
 							level = spell_tmp->level;	// Keep the maximum
 							found_loc = obj_tmp->wear_loc;
 							found = TRUE;
@@ -2556,13 +2617,13 @@ int unequip_char(CHAR_DATA *ch, OBJ_DATA *obj, bool show)
 				// No other worn object had this spell available
 
 				if( show ) {
-					if (skill_table[spell->sn].msg_off) {
-						send_to_char(skill_table[spell->sn].msg_off, ch);
+					if (spell->skill->msg_off) {
+						send_to_char(spell->skill->msg_off, ch);
 						send_to_char("\n\r", ch);
 					}
 				}
 
-				affect_strip(ch, spell->sn);
+				affect_strip(ch, spell->skill);
 			} else if( level > spell_level ) {
 				level -= spell_level;		// Get the difference
 
@@ -5264,10 +5325,10 @@ void deduct_move(CHAR_DATA *ch, int amount)
         amount /= 2;
 
     // athletics reduces movement usage
-    if (number_percent() < get_skill(ch, gsn_athletics) / 8)
+    if (number_percent() < get_skill(ch, gsk_athletics) / 8)
     {
 	if (number_percent() == 1)
-	    check_improve(ch, gsn_athletics, TRUE, 8);
+	    check_improve(ch, gsk_athletics, TRUE, 8);
 
 	return;
     }
@@ -6228,8 +6289,6 @@ ROOM_INDEX_DATA *token_room(TOKEN_DATA *token)
 	return NULL;
 }
 
-
-
 void exit_name(ROOM_INDEX_DATA *room, int door, char *kwd)
 {
     EXIT_DATA *ex;
@@ -6980,9 +7039,12 @@ void token_from_char(TOKEN_DATA *token)
 	if(token->player->script_wait_token == token)
 		script_end_failure(token->player, TRUE);
 
+	// Need to find the correct entry
+	/*
 	if(token->type == TOKEN_SKILL) skill_entry_removeskill(token->player, 0, token);
 	else if(token->type == TOKEN_SPELL) skill_entry_removespell(token->player, 0, token);
 	else if(token->type == TOKEN_SONG) skill_entry_removesong(token->player, -1, token);
+	*/
 
 	sprintf(buf, "token_from_char: removed token %s(%ld) from char %s(%ld)",
 		token->name, token->pIndexData->vnum,
@@ -7018,9 +7080,12 @@ void token_to_char_ex(TOKEN_DATA *token, CHAR_DATA *ch, char source, long flags)
 	list_addlink(ch->ltokens, token);
 
 	// Do sorted lists
+	// All abilities are done elsewhere
+	/*
 	if(token->type == TOKEN_SKILL) skill_entry_addskill(token->player, 0, token, source, flags);
 	else if(token->type == TOKEN_SPELL) skill_entry_addspell(token->player, 0, token, source, flags);
 	else if(token->type == TOKEN_SONG) skill_entry_addsong(token->player,-1,token, source);
+	*/
 
 	sprintf(buf, "token_to_char: gave token %s(%ld) to char %s(%ld)",
 		token->name, token->pIndexData->vnum,
@@ -7209,6 +7274,7 @@ TOKEN_DATA *get_token_room(ROOM_INDEX_DATA *room, TOKEN_INDEX_DATA *pTokenIndex,
    into spell data structs on the object. */
 void fix_magic_object_index(OBJ_INDEX_DATA *obj)
 {
+#if 0
     int val;
     SPELL_DATA *spell, *spell_tmp;
     bool already_has_spell;
@@ -7216,7 +7282,7 @@ void fix_magic_object_index(OBJ_INDEX_DATA *obj)
 
     /* scrolls, potions, and pills had level in v0, and spells in v1 onwards */
     if (obj->item_type == ITEM_SCROLL
-    ||  obj->item_type == ITEM_POTION
+    ||  obj->item_type == ITEM_FLUID_CONTAINER
     ||  obj->item_type == ITEM_PILL) {
 	for (val = 1; val < 8; val++) {
 	    if (obj->value[val] > 0) {
@@ -7302,6 +7368,7 @@ void fix_magic_object_index(OBJ_INDEX_DATA *obj)
 	     }
 	 }
     }
+#endif
 }
 
 
@@ -7574,7 +7641,8 @@ bool is_float_user(CHAR_DATA *ch)
 
 
 // 20070521 : NIB : Function to see if CH has the desired catalyst or not
-int has_catalyst(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int method,int min_strength, int max_strength)
+
+int has_catalyst(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int method)
 {
 	int total;
 	OBJ_DATA *obj, *next;
@@ -7600,25 +7668,29 @@ int has_catalyst(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int method,int min
 			if((IS_SET(method,CATALYST_HOLD) && obj->wear_loc == WEAR_HOLD) ||
 				(IS_SET(method,CATALYST_WORN) && obj->wear_loc != WEAR_NONE) ||
 				IS_SET(method,(CATALYST_CARRY))) {
-					for(aff = obj->catalyst; aff; aff = aff->next) if(aff->level >= min_strength && aff->level <= max_strength && aff->type == type) {
+					for(aff = obj->catalyst; aff; aff = aff->next) if(aff->catalyst_type == type) {
 						if( IS_SET(method, CATALYST_ACTIVE) && (aff->where != TO_CATALYST_ACTIVE))
 							continue;
 
-						if(aff->duration < 0) return -1;	// Negative is treated as a "source"
+						if(aff->duration < 0)
+							return -1;	// Negative is treated as a "source"
 
 						total += aff->duration;
-
 					}
 			} else if(obj->contains && IS_SET(method,CATALYST_CONTAINERS)) {	/* look in bags too */
-				for (objNest = obj->contains; objNest; objNest = nextNest) {
-					nextNest = objNest->next_content;
-					for(aff = objNest->catalyst; aff; aff = aff->next) if(aff->level >= min_strength && aff->level <= max_strength && aff->type == type) {
-						if( IS_SET(method, CATALYST_ACTIVE) && (aff->where != TO_CATALYST_ACTIVE))
-							continue;
-						if(aff->duration < 0) return -1;	// Negative is treated as a "source"
+				if(IS_CONTAINER(obj) && IS_SET(CONTAINER(obj)->flags, CONT_CATALYSTS))
+				{
+					for (objNest = obj->contains; objNest; objNest = nextNest) {
+						nextNest = objNest->next_content;
+						for(aff = objNest->catalyst; aff; aff = aff->next) if(aff->catalyst_type == type) {
+							if( IS_SET(method, CATALYST_ACTIVE) && (aff->where != TO_CATALYST_ACTIVE))
+								continue;
 
-						total += aff->duration;
+							if(aff->duration < 0)
+								return -1;	// Negative is treated as a "source"
 
+							total += aff->duration;
+						}
 					}
 				}
 			}
@@ -7626,29 +7698,37 @@ int has_catalyst(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int method,int min
 	}
 
 	if(IS_SET(method,CATALYST_ROOM)) {
-		for(obj = room->contents; obj; obj = obj->next_content) {
-			for(aff = obj->catalyst; aff; aff = aff->next) if(aff->level >= min_strength && aff->level <= max_strength && aff->type == type) {
+		for(obj = room->contents; obj; obj = obj->next_content)
+			if (IS_CONTAINER(obj) && IS_SET(CONTAINER(obj)->flags, CONT_CATALYSTS))
+			{
+				for(aff = obj->catalyst; aff; aff = aff->next) if(aff->catalyst_type == type) {
 					if( IS_SET(method, CATALYST_ACTIVE) && (aff->where != TO_CATALYST_ACTIVE))
 						continue;
-				if(aff->duration < 0) return -1;	// Negative is treated as a "source"
-				total += aff->duration;
-			}
-			for (objNest = obj->contains; objNest; objNest = nextNest) {
-				nextNest = objNest->next_content;
-				for(aff = objNest->catalyst; aff; aff = aff->next) if(aff->level >= min_strength && aff->level <= max_strength && aff->type == type) {
-					if( IS_SET(method, CATALYST_ACTIVE) && (aff->where != TO_CATALYST_ACTIVE))
-						continue;
-					if(aff->duration < 0) return -1;	// Negative is treated as a "source"
+
+					if(aff->duration < 0)
+						return -1;	// Negative is treated as a "source"
+
+					total += aff->duration;
+				}
+				for (objNest = obj->contains; objNest; objNest = nextNest) {
+					nextNest = objNest->next_content;
+					for(aff = objNest->catalyst; aff; aff = aff->next) if(aff->catalyst_type == type) {
+						if( IS_SET(method, CATALYST_ACTIVE) && (aff->where != TO_CATALYST_ACTIVE))
+							continue;
+
+						if(aff->duration < 0)
+							return -1;	// Negative is treated as a "source"
+
 						total += aff->duration;
+					}
 				}
 			}
-		}
 	}
 
 	return total;
 }
 
-int use_catalyst_obj(CHAR_DATA *ch,ROOM_INDEX_DATA *room,OBJ_DATA *obj,int type,int left,int min_strength, int max_strength, bool active, bool show)
+int use_catalyst_obj(CHAR_DATA *ch,ROOM_INDEX_DATA *room,OBJ_DATA *obj,int type,int left,bool active, bool show)
 {
 	bool used;
 	int total = 0;
@@ -7663,7 +7743,7 @@ int use_catalyst_obj(CHAR_DATA *ch,ROOM_INDEX_DATA *room,OBJ_DATA *obj,int type,
 	used = FALSE;
 	for(prev = NULL, aff = obj->catalyst; aff && total < left; aff = next) {
 		next = aff->next;
-		if(aff->level >= min_strength && aff->level <= max_strength && aff->type == type) {
+		if(aff->catalyst_type == type) {
 			if( active && (aff->where != TO_CATALYST_ACTIVE) ) continue;
 
 			if(aff->duration < 0) {
@@ -7700,7 +7780,7 @@ int use_catalyst_obj(CHAR_DATA *ch,ROOM_INDEX_DATA *room,OBJ_DATA *obj,int type,
 	return total;
 }
 
-int use_catalyst_here(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int amount,int min_strength, int max_strength, bool active, bool show)
+int use_catalyst_here(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int amount, bool active, bool show)
 {
 	int total = 0, total2;
 	OBJ_DATA *obj;
@@ -7711,13 +7791,13 @@ int use_catalyst_here(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int amount,in
 	if(!room) room = ch->in_room;
 
 	for(obj = room->contents; obj && total < amount; obj = obj->next_content) {
-		total2 = use_catalyst_obj(ch,room,obj,type,amount - total,min_strength,max_strength,active,show);
+		total2 = use_catalyst_obj(ch,room,obj,type,amount - total,active,show);
 		if(total2 < 0) return -1;
 
 		total += total2;
 		for (objNest = obj->contains; objNest && total < amount; objNest = nextNest) {
 			nextNest = objNest->next_content;
-			total2 = use_catalyst_obj(ch,room,objNest,type,amount - total,min_strength,max_strength,active,show);
+			total2 = use_catalyst_obj(ch,room,objNest,type,amount - total,active,show);
 			if(total2 < 0) return -1;
 
 			total += total2;
@@ -7727,7 +7807,7 @@ int use_catalyst_here(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int amount,in
 	return total;
 }
 
-int use_catalyst(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int method,int amount,int min_strength, int max_strength, bool show)
+int use_catalyst(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int method,int amount,bool show)
 {
 	int total, total2;
 	OBJ_DATA *obj, *next;
@@ -7748,14 +7828,14 @@ int use_catalyst(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int method,int amo
 		if((IS_SET(method,CATALYST_HOLD) && obj->wear_loc == WEAR_HOLD) ||
 			(IS_SET(method,CATALYST_WORN) && obj->wear_loc != WEAR_NONE) ||
 			IS_SET(method,(CATALYST_CARRY))) {
-				total2 = use_catalyst_obj(ch,room,obj,type,amount - total,min_strength,max_strength,active,show);
+				total2 = use_catalyst_obj(ch,room,obj,type,amount - total,active,show);
 				if(total2 < 0) return amount;
 
 				total += total2;
 		} else if(obj->contains && IS_SET(method,CATALYST_CONTAINERS)) {	/* look in bags too */
 			for (objNest = obj->contains; objNest; objNest = nextNest) {
 				nextNest = objNest->next_content;
-				total2 = use_catalyst_obj(ch,room,objNest,type,amount - total,min_strength,max_strength,active,show);
+				total2 = use_catalyst_obj(ch,room,objNest,type,amount - total,active,show);
 				if(total2 < 0) return amount;
 
 				total += total2;
@@ -7764,7 +7844,7 @@ int use_catalyst(CHAR_DATA *ch,ROOM_INDEX_DATA *room,int type,int method,int amo
 	}
 
 	if(IS_SET(method,CATALYST_ROOM) && total < amount) {
-		int htotal = use_catalyst_here(ch,room,type,amount - total,min_strength,max_strength,active,show);
+		int htotal = use_catalyst_here(ch,room,type,amount - total,active,show);
 		if(htotal < 0) return amount;
 		total += htotal;
 	}
@@ -9314,12 +9394,12 @@ bool is_char_busy(CHAR_DATA *ch)
 bool obj_has_spell(OBJ_DATA *obj, char *name)
 {
 	SPELL_DATA *spell;
-	int sn = skill_lookup(name);
+	SKILL_DATA *skill = get_skill_data(name);
 
-	if( !obj || sn <= 0 ) return FALSE;
+	if( !obj || !IS_VALID(skill) ) return FALSE;
 
 	for(spell = obj->spells; spell; spell = spell->next)
-		if( spell->sn == sn )
+		if( spell->skill == skill )
 			return TRUE;
 
 	return FALSE;
@@ -9328,12 +9408,12 @@ bool obj_has_spell(OBJ_DATA *obj, char *name)
 void restore_char(CHAR_DATA *ch, CHAR_DATA *whom, int percent)
 {
 	int restored;
-	affect_strip(ch,gsn_plague);
-	affect_strip(ch,gsn_poison);
-	affect_strip(ch,gsn_blindness);
-	affect_strip(ch,gsn_sleep);
-	affect_strip(ch,gsn_curse);
-	affect_strip(ch,gsn_toxic_fumes);	/* @@@NIB : 20070127*/
+	affect_strip(ch, gsk_plague);
+	affect_strip(ch, gsk_poison);
+	affect_strip(ch, gsk_blindness);
+	affect_strip(ch, gsk_sleep);
+	affect_strip(ch, gsk_curse);
+	affect_strip(ch, gsk_toxic_fumes);	/* @@@NIB : 20070127*/
 	ch->hit 	= ch->max_hit;
 	ch->mana	= ch->max_mana;
 	ch->move	= ch->max_move;

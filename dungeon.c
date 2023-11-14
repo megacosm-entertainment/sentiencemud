@@ -408,10 +408,10 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp, AREA_DATA *area)
 					dpr->trig_phrase = fread_string(fp);
 					if( tt->type == TRIG_SPELLCAST ) {
 						char buf[MIL];
-						int tsn = skill_lookup(dpr->trig_phrase);
+						SKILL_DATA *skill = get_skill_data(dpr->trig_phrase);
 
-						if( tsn < 0 ) {
-							sprintf(buf, "load_dungeon_index: invalid spell '%s' for TRIG_SPELLCAST", p);
+						if( !is_skill_spell(skill) ) {
+							sprintf(buf, "load_dungeon_index: invalid spell '%s' for TRIG_SPELLCAST", dpr->trig_phrase);
 							bug(buf, 0);
 							free_trigger(dpr);
 							fMatch = TRUE;
@@ -419,9 +419,9 @@ DUNGEON_INDEX_DATA *load_dungeon_index(FILE *fp, AREA_DATA *area)
 						}
 
 						free_string(dpr->trig_phrase);
-						sprintf(buf, "%d", tsn);
+						sprintf(buf, "%d", skill->uid);
 						dpr->trig_phrase = str_dup(buf);
-						dpr->trig_number = tsn;
+						dpr->trig_number = skill->uid;
 						dpr->numeric = TRUE;
 
 					} else {

@@ -43,11 +43,1073 @@
 #include "recycle.h"
 #include "tables.h"
 #include "db.h"
+#include "olc.h"
+#include "scripts.h"
 
 #define MAX_SKILL_LEARNABLE	75
 #define MAX_SKILL_TRAINABLE	90
 
 void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool show_spells, bool hide_learned);
+
+SPELL_FUN *prespell_func_lookup(char *name)
+{
+	for (int i = 0; prespell_func_table[i].name != NULL; i++)
+	{
+		if (!str_cmp(name, prespell_func_table[i].name))
+			return prespell_func_table[i].func;
+	}
+
+	return NULL;
+}
+
+char *prespell_func_name(SPELL_FUN *func)
+{
+	for (int i = 0; prespell_func_table[i].name != NULL; i++)
+	{
+		if (prespell_func_table[i].func == func)
+			return prespell_func_table[i].name;
+	}
+
+	return NULL;
+}
+
+char *prespell_func_display(SPELL_FUN *func)
+{
+	if (!func || func == spell_null) return NULL;
+
+	for (int i = 0; prespell_func_table[i].name != NULL; i++)
+	{
+		if (prespell_func_table[i].func == func)
+			return prespell_func_table[i].name;
+	}
+
+	return "(invalid)";
+}
+
+SPELL_FUN *spell_func_lookup(char *name)
+{
+	for (int i = 0; spell_func_table[i].name != NULL; i++)
+	{
+		if (!str_cmp(name, spell_func_table[i].name))
+			return spell_func_table[i].func;
+	}
+
+	return NULL;
+}
+
+char *spell_func_name(SPELL_FUN *func)
+{
+	for (int i = 0; spell_func_table[i].name != NULL; i++)
+	{
+		if (spell_func_table[i].func == func)
+			return spell_func_table[i].name;
+	}
+
+	return NULL;
+}
+
+char *spell_func_display(SPELL_FUN *func)
+{
+	if (!func || func == spell_null) return NULL;
+
+	for (int i = 0; spell_func_table[i].name != NULL; i++)
+	{
+		if (spell_func_table[i].func == func)
+			return spell_func_table[i].name;
+	}
+
+	return "(invalid)";
+}
+
+
+PREBREW_FUN *prebrew_func_lookup(char *name)
+{
+	for (int i = 0; prebrew_func_table[i].name != NULL; i++)
+	{
+		if (!str_cmp(name, prebrew_func_table[i].name))
+			return prebrew_func_table[i].func;
+	}
+
+	return NULL;
+}
+
+char *prebrew_func_name(PREBREW_FUN *func)
+{
+	for (int i = 0; prebrew_func_table[i].name != NULL; i++)
+	{
+		if (prebrew_func_table[i].func == func)
+			return prebrew_func_table[i].name;
+	}
+
+	return NULL;
+}
+
+char *prebrew_func_display(PREBREW_FUN *func)
+{
+	if (!func) return NULL;
+
+	for (int i = 0; prebrew_func_table[i].name != NULL; i++)
+	{
+		if (prebrew_func_table[i].func == func)
+			return prebrew_func_table[i].name;
+	}
+
+	return "(invalid)";
+}
+
+BREW_FUN *brew_func_lookup(char *name)
+{
+	for (int i = 0; brew_func_table[i].name != NULL; i++)
+	{
+		if (!str_cmp(name, brew_func_table[i].name))
+			return brew_func_table[i].func;
+	}
+
+	return NULL;
+}
+
+
+
+char *brew_func_name(BREW_FUN *func)
+{
+	for (int i = 0; brew_func_table[i].name != NULL; i++)
+	{
+		if (brew_func_table[i].func == func)
+			return brew_func_table[i].name;
+	}
+
+	return NULL;
+}
+
+char *brew_func_display(BREW_FUN *func)
+{
+	if (!func) return NULL;
+
+	for (int i = 0; brew_func_table[i].name != NULL; i++)
+	{
+		if (brew_func_table[i].func == func)
+			return brew_func_table[i].name;
+	}
+
+	return "(invalid)";
+}
+
+QUAFF_FUN *quaff_func_lookup(char *name)
+{
+	for (int i = 0; quaff_func_table[i].name != NULL; i++)
+	{
+		if (!str_cmp(name, quaff_func_table[i].name))
+			return quaff_func_table[i].func;
+	}
+
+	return NULL;
+}
+
+char *quaff_func_name(QUAFF_FUN *func)
+{
+	for (int i = 0; quaff_func_table[i].name != NULL; i++)
+	{
+		if (quaff_func_table[i].func == func)
+			return quaff_func_table[i].name;
+	}
+
+	return NULL;
+}
+
+char *quaff_func_display(QUAFF_FUN *func)
+{
+	if (!func) return NULL;
+
+	for (int i = 0; quaff_func_table[i].name != NULL; i++)
+	{
+		if (quaff_func_table[i].func == func)
+			return quaff_func_table[i].name;
+	}
+
+	return "(invalid)";
+}
+
+
+PRESCRIBE_FUN *prescribe_func_lookup(char *name)
+{
+	for (int i = 0; prescribe_func_table[i].name != NULL; i++)
+	{
+		if (!str_cmp(name, prescribe_func_table[i].name))
+			return prescribe_func_table[i].func;
+	}
+
+	return NULL;
+}
+
+char *prescribe_func_name(PRESCRIBE_FUN *func)
+{
+	for (int i = 0; prescribe_func_table[i].name != NULL; i++)
+	{
+		if (prescribe_func_table[i].func == func)
+			return prescribe_func_table[i].name;
+	}
+
+	return NULL;
+}
+
+char *prescribe_func_display(PRESCRIBE_FUN *func)
+{
+	if (!func) return NULL;
+
+	for (int i = 0; prescribe_func_table[i].name != NULL; i++)
+	{
+		if (prescribe_func_table[i].func == func)
+			return prescribe_func_table[i].name;
+	}
+
+	return "(invalid)";
+}
+
+
+SCRIBE_FUN *scribe_func_lookup(char *name)
+{
+	for (int i = 0; scribe_func_table[i].name != NULL; i++)
+	{
+		if (!str_cmp(name, scribe_func_table[i].name))
+			return scribe_func_table[i].func;
+	}
+
+	return NULL;
+}
+
+char *scribe_func_name(SCRIBE_FUN *func)
+{
+	for (int i = 0; scribe_func_table[i].name != NULL; i++)
+	{
+		if (scribe_func_table[i].func == func)
+			return scribe_func_table[i].name;
+	}
+
+	return NULL;
+}
+
+char *scribe_func_display(SCRIBE_FUN *func)
+{
+	if (!func) return NULL;
+
+	for (int i = 0; scribe_func_table[i].name != NULL; i++)
+	{
+		if (scribe_func_table[i].func == func)
+			return scribe_func_table[i].name;
+	}
+
+	return "(invalid)";
+}
+
+
+RECITE_FUN *recite_func_lookup(char *name)
+{
+	for (int i = 0; recite_func_table[i].name != NULL; i++)
+	{
+		if (!str_cmp(name, recite_func_table[i].name))
+			return recite_func_table[i].func;
+	}
+
+	return NULL;
+}
+
+char *recite_func_name(RECITE_FUN *func)
+{
+	for (int i = 0; recite_func_table[i].name != NULL; i++)
+	{
+		if (recite_func_table[i].func == func)
+			return recite_func_table[i].name;
+	}
+
+	return NULL;
+}
+
+char *recite_func_display(RECITE_FUN *func)
+{
+	if (!func) return NULL;
+
+	for (int i = 0; recite_func_table[i].name != NULL; i++)
+	{
+		if (recite_func_table[i].func == func)
+			return recite_func_table[i].name;
+	}
+
+	return "(invalid)";
+}
+
+
+PREINK_FUN *preink_func_lookup(char *name)
+{
+	for (int i = 0; preink_func_table[i].name != NULL; i++)
+	{
+		if (!str_cmp(name, preink_func_table[i].name))
+			return preink_func_table[i].func;
+	}
+
+	return NULL;
+}
+
+char *preink_func_name(PREINK_FUN *func)
+{
+	for (int i = 0; preink_func_table[i].name != NULL; i++)
+	{
+		if (preink_func_table[i].func == func)
+			return preink_func_table[i].name;
+	}
+
+	return NULL;
+}
+
+char *preink_func_display(PREINK_FUN *func)
+{
+	if (!func) return NULL;
+
+	for (int i = 0; preink_func_table[i].name != NULL; i++)
+	{
+		if (preink_func_table[i].func == func)
+			return preink_func_table[i].name;
+	}
+
+	return "(invalid)";
+}
+
+INK_FUN *ink_func_lookup(char *name)
+{
+	for (int i = 0; ink_func_table[i].name != NULL; i++)
+	{
+		if (!str_cmp(name, ink_func_table[i].name))
+			return ink_func_table[i].func;
+	}
+
+	return NULL;
+}
+
+char *ink_func_name(INK_FUN *func)
+{
+	for (int i = 0; ink_func_table[i].name != NULL; i++)
+	{
+		if (ink_func_table[i].func == func)
+			return ink_func_table[i].name;
+	}
+
+	return NULL;
+}
+
+char *ink_func_display(INK_FUN *func)
+{
+	if (!func) return NULL;
+
+	for (int i = 0; ink_func_table[i].name != NULL; i++)
+	{
+		if (ink_func_table[i].func == func)
+			return ink_func_table[i].name;
+	}
+
+	return "(invalid)";
+}
+
+TOUCH_FUN *touch_func_lookup(char *name)
+{
+	for (int i = 0; touch_func_table[i].name != NULL; i++)
+	{
+		if (!str_cmp(name, touch_func_table[i].name))
+			return touch_func_table[i].func;
+	}
+
+	return NULL;
+}
+
+char *touch_func_name(TOUCH_FUN *func)
+{
+	for (int i = 0; touch_func_table[i].name != NULL; i++)
+	{
+		if (touch_func_table[i].func == func)
+			return touch_func_table[i].name;
+	}
+
+	return NULL;
+}
+
+char *touch_func_display(TOUCH_FUN *func)
+{
+	if (!func) return NULL;
+
+	for (int i = 0; touch_func_table[i].name != NULL; i++)
+	{
+		if (touch_func_table[i].func == func)
+			return touch_func_table[i].name;
+	}
+
+	return "(invalid)";
+}
+
+
+sh_int *gsn_from_name(char *name)
+{
+	for(int i = 0; gsn_table[i].name; i++)
+	{
+		if(!str_cmp(gsn_table[i].name, name))
+		{
+			return gsn_table[i].gsn;
+		}
+	}
+
+	return NULL;
+}
+
+SKILL_DATA **gsk_from_name(char *name)
+{
+	for(int i = 0; gsn_table[i].name; i++)
+	{
+		if(!str_cmp(gsn_table[i].name, name))
+		{
+			return gsn_table[i].gsk;
+		}
+	}
+
+	return NULL;
+}
+
+char *gsn_to_name(sh_int *pgsn)
+{
+	for(int i = 0; gsn_table[i].name; i++)
+	{
+		if (gsn_table[i].gsn == pgsn)
+			return gsn_table[i].name;
+	}
+
+	return NULL;
+}
+
+void save_skill(FILE *fp, SKILL_DATA *skill)
+{
+	fprintf(fp, "#SKILL %s~ %d\n", skill->name, skill->uid);
+
+	if (!IS_NULLSTR(skill->display) && str_cmp(skill->name, skill->display))
+		fprintf(fp, "Display %s~\n", skill->display);
+
+	fprintf(fp, "Level");
+	for(int j = 0; j < MAX_CLASS; j++) fprintf(fp, " %d", skill->skill_level[j]);
+	fprintf(fp, "\n");
+
+	fprintf(fp, "Rating");
+	for(int j = 0; j < MAX_CLASS; j++) fprintf(fp, " %d", skill->rating[j]);
+	fprintf(fp, "\n");
+
+	if (skill->token)
+	{
+		// Tokens use triggers instead of the special functions
+		fprintf(fp, "Token %ld#%ld\n", skill->token->area->uid, skill->token->vnum);
+	}
+	else
+	{
+		if(skill->prespell_fun && skill->prespell_fun != spell_null)
+			fprintf(fp, "PreSpellFunc %s~\n", prespell_func_name(skill->prespell_fun));
+
+		if(skill->spell_fun && skill->spell_fun != spell_null)
+			fprintf(fp, "SpellFunc %s~\n", spell_func_name(skill->spell_fun));
+
+		if(skill->prebrew_fun)
+			fprintf(fp, "PreBrewFunc %s~\n", prebrew_func_name(skill->prebrew_fun));
+
+		if(skill->brew_fun)
+			fprintf(fp, "BrewFunc %s~\n", brew_func_name(skill->brew_fun));
+
+		if(skill->quaff_fun)
+			fprintf(fp, "QuaffFunc %s~\n", quaff_func_name(skill->quaff_fun));
+
+		if(skill->prescribe_fun)
+			fprintf(fp, "PrescribeFunc %s~\n", prescribe_func_name(skill->prescribe_fun));
+
+		if(skill->scribe_fun)
+			fprintf(fp, "ScribeFunc %s~\n", scribe_func_name(skill->scribe_fun));
+
+		if(skill->recite_fun)
+			fprintf(fp, "ReciteFunc %s~\n", recite_func_name(skill->recite_fun));
+
+		if(skill->preink_fun)
+			fprintf(fp, "PreinkFunc %s~\n", preink_func_name(skill->preink_fun));
+
+		if(skill->ink_fun)
+			fprintf(fp, "InkFunc %s~\n", ink_func_name(skill->ink_fun));
+
+		if(skill->touch_fun)
+			fprintf(fp, "TouchFunc %s~\n", touch_func_name(skill->touch_fun));
+	}
+
+	for(int i = 0; i < MAX_SKILL_VALUES; i++)
+	{
+		fprintf(fp, "Value %d %d\n", i + 1, skill->values[i]);
+		if (!IS_NULLSTR(skill->valuenames[i]))
+			fprintf(fp, "ValueName %d %s~\n", i + 1, skill->valuenames[i]);
+	}
+
+	fprintf(fp, "Target %s~\n", flag_string(spell_target_types, skill->target));
+	fprintf(fp, "Position %s~\n", flag_string(position_flags, skill->minimum_position));
+
+	if(skill->pgsn)
+		fprintf(fp, "GSN %s~\n", gsn_to_name(skill->pgsn));
+
+	// TODO: After rcedit is added, change accordingly
+	if(skill->race >= 0)
+		fprintf(fp, "Race %s~\n", race_table[skill->race].name);
+
+	fprintf(fp, "Mana %d\n", skill->cast_mana);
+	fprintf(fp, "BrewMana %d\n", skill->brew_mana);
+	fprintf(fp, "ScribeMana %d\n", skill->scribe_mana);
+	fprintf(fp, "ImbueMana %d\n", skill->imbue_mana);
+	fprintf(fp, "Beats %d\n", skill->beats);
+
+	fprintf(fp, "NounDamage %s~\n", skill->noun_damage);
+	fprintf(fp, "MsgOff %s~\n", skill->msg_off);
+	fprintf(fp, "MsgObj %s~\n", skill->msg_obj);
+	fprintf(fp, "MsgDisp %s~\n", skill->msg_disp);
+
+	fprintf(fp, "Inks");
+	for(int j = 0; j < 3; j++)
+	{
+		fprintf(fp, " %s~ %d", flag_string(catalyst_types, skill->inks[j][0]), skill->inks[j][1]);
+	}
+	fprintf(fp, "\n");
+
+
+	// The rest are zero / false
+	fprintf(fp, "#-SKILL\n");
+}
+
+void save_skills(void)
+{
+	FILE *fp;
+
+	log_string("save_skills: saving " SKILLS_FILE);
+	if ((fp = fopen(SKILLS_FILE, "w")) == NULL)
+	{
+		bug("save_skills: fopen", 0);
+		perror(SKILLS_FILE);
+	}
+	else
+	{
+#if 0
+		for (int i = 1; i < MAX_SKILL && skill_table[i].name; i++)
+		{
+			fprintf(fp, "#SKILL %s~ %d\n", skill_table[i].name, i+1);
+			fprintf(fp, "Level");
+			for(int j = 0; j < MAX_CLASS; j++) fprintf(fp, " %d", skill_table[i].skill_level[j]);
+			fprintf(fp, "\n");
+			fprintf(fp, "Rating");
+			for(int j = 0; j < MAX_CLASS; j++) fprintf(fp, " %d", skill_table[i].rating[j]);
+			fprintf(fp, "\n");
+
+			// TODO: Add other artificing hooks
+			if(skill_table[i].spell_fun && skill_table[i].spell_fun != spell_null)
+				fprintf(fp, "SpellFunc %s~\n", spell_func_name(skill_table[i].spell_fun));
+
+			fprintf(fp, "Target %s~\n", flag_string(spell_target_types, skill_table[i].target));
+			fprintf(fp, "Position %s~\n", flag_string(position_flags, skill_table[i].minimum_position));
+
+			if(skill_table[i].pgsn)
+				fprintf(fp, "GSN %s~\n", gsn_to_name(skill_table[i].pgsn));
+
+			// TODO: After rcedit is added, change accordingly
+			if(skill_table[i].race > 0)
+				fprintf(fp, "Race %s~\n", race_table[skill_table[i].race].name);
+
+			fprintf(fp, "Mana %d\n", skill_table[i].min_mana);
+			fprintf(fp, "Beats %d\n", skill_table[i].beats);
+
+			fprintf(fp, "NounDamage %s~\n", skill_table[i].noun_damage);
+			fprintf(fp, "MsgOff %s~\n", skill_table[i].msg_off);
+			fprintf(fp, "MsgObj %s~\n", skill_table[i].msg_obj);
+			fprintf(fp, "MsgDisp %s~\n", skill_table[i].msg_disp);
+
+			fprintf(fp, "Inks");
+			for(int j = 0; j < 3; j++)
+			{
+				fprintf(fp, " %s~ %d", flag_string(catalyst_types, skill_table[i].inks[j][0]), skill_table[i].inks[j][1]);
+			}
+			fprintf(fp, "\n");
+
+			if (IS_VALID(skill_table[i].liquid))
+				fprintf(fp, "Liquid %s~\n", skill_table[i].liquid->name);
+
+			// No Token yet
+
+			// The rest are zero / false
+			fprintf(fp, "#-SKILL\n");
+		}
+#else
+		ITERATOR it;
+		SKILL_DATA *skill;
+		iterator_start(&it, skills_list);
+		while((skill = (SKILL_DATA *)iterator_nextdata(&it)))
+		{
+			save_skill(fp, skill);
+		}
+		iterator_stop(&it);
+#endif
+
+		fprintf(fp, "End\n");
+		fclose(fp);
+	}
+}
+
+SKILL_DATA *load_skill(FILE *fp)
+{
+	SKILL_DATA *skill = new_skill_data();
+
+	char buf[MSL];
+	char *word;
+	bool fMatch;
+
+	skill->name = fread_string(fp);
+	skill->uid = fread_number(fp);
+
+    while (str_cmp((word = fread_word(fp)), "#-SKILL"))
+	{
+		switch(word[0])
+		{
+			case 'B':
+				KEY("Beats", skill->beats, fread_number(fp));
+				if (!str_cmp(word, "BrewFunc"))
+				{
+					char *name = fread_string(fp);
+
+					skill->brew_fun = brew_func_lookup(name);
+					if (!skill->brew_fun)
+					{
+						// Complain
+					}
+					fMatch = true;
+					break;
+				}
+				KEY("BrewMana", skill->brew_mana, fread_number(fp));
+				break;
+
+			case 'D':
+				KEYS("Display", skill->display, fread_string(fp));
+				break;
+
+			case 'G':
+				if (!str_cmp(word, "GSN"))
+				{
+					char *name = fread_string(fp);
+					skill->pgsn = gsn_from_name(name);
+					fMatch = TRUE;
+					break;
+				}
+				break;
+			
+			case 'I':
+				KEY("ImbueMana", skill->imbue_mana, fread_number(fp));
+				if (!str_cmp(word, "InkFunc"))
+				{
+					char *name = fread_string(fp);
+
+					skill->ink_fun = ink_func_lookup(name);
+					if (!skill->ink_fun)
+					{
+						// Complain
+					}
+					fMatch = true;
+					break;
+				}
+				if (!str_cmp(word, "Inks"))
+				{
+					for (int i = 0; i < 3; i++)
+					{
+						skill->inks[i][0] = stat_lookup(fread_string(fp), catalyst_types, CATALYST_NONE);
+						skill->inks[i][1] = fread_number(fp);
+					}
+					fMatch = true;
+					break;
+				}
+				break;
+			
+			case 'L':
+				if (!str_cmp(word, "Level"))
+				{
+					for(int i = 0; i < MAX_CLASS; i++) skill->skill_level[i] = fread_number(fp);
+
+					fMatch = true;
+					break;
+				}
+				break;
+
+			case 'M':
+				KEY("Mana", skill->cast_mana, fread_number(fp));
+				KEYS("MsgDisp", skill->msg_disp, fread_string(fp));
+				KEYS("MsgObj", skill->msg_obj, fread_string(fp));
+				KEYS("MsgOff", skill->msg_off, fread_string(fp));
+				break;
+
+			case 'N':
+				KEYS("NounDamage", skill->noun_damage, fread_string(fp));
+				break;
+
+			case 'P':
+				if (!str_cmp(word, "Position"))
+				{
+					int value = stat_lookup(fread_string(fp), position_flags, POS_DEAD);
+
+					skill->minimum_position = value;
+					fMatch = true;
+					break;
+				}
+				if (!str_cmp(word, "PreBrewFunc"))
+				{
+					char *name = fread_string(fp);
+
+					skill->prebrew_fun = prebrew_func_lookup(name);
+					if (!skill->prebrew_fun)
+					{
+						// Complain
+					}
+					fMatch = true;
+					break;
+				}
+				if (!str_cmp(word, "PreInkFunc"))
+				{
+					char *name = fread_string(fp);
+
+					skill->preink_fun = preink_func_lookup(name);
+					if (!skill->preink_fun)
+					{
+						// Complain
+					}
+					fMatch = true;
+					break;
+				}
+				if (!str_cmp(word, "PreScribeFunc"))
+				{
+					char *name = fread_string(fp);
+
+					skill->prescribe_fun = prescribe_func_lookup(name);
+					if (!skill->prescribe_fun)
+					{
+						// Complain
+					}
+					fMatch = true;
+					break;
+				}
+				if (!str_cmp(word, "PreSpellFunc"))
+				{
+					char *name = fread_string(fp);
+
+					skill->prespell_fun = prespell_func_lookup(name);
+					if (!skill->prespell_fun)
+					{
+						// Complain
+					}
+					fMatch = true;
+					break;
+				}
+				break;
+
+			case 'Q':
+				if (!str_cmp(word, "QuaffFunc"))
+				{
+					char *name = fread_string(fp);
+
+					skill->quaff_fun = quaff_func_lookup(name);
+					if (!skill->quaff_fun)
+					{
+						// Complain
+					}
+					fMatch = true;
+					break;
+				}
+				break;
+
+			case 'R':
+				if (!str_cmp(word, "Race"))
+				{
+					char *name = fread_string(fp);
+					skill->race = race_lookup(name);
+
+					fMatch = true;
+					break;
+				}
+				if (!str_cmp(word, "Rating"))
+				{
+					for(int i = 0; i < MAX_CLASS; i++) skill->rating[i] = fread_number(fp);
+
+					fMatch = true;
+					break;
+				}
+				if (!str_cmp(word, "ReciteFunc"))
+				{
+					char *name = fread_string(fp);
+
+					skill->recite_fun = recite_func_lookup(name);
+					if (!skill->recite_fun)
+					{
+						// Complain
+					}
+					fMatch = true;
+					break;
+				}
+				break;
+
+			case 'S':
+				KEY("ScribeMana", skill->scribe_mana, fread_number(fp));
+				if (!str_cmp(word, "ScribeFunc"))
+				{
+					char *name = fread_string(fp);
+
+					skill->scribe_fun = scribe_func_lookup(name);
+					if (!skill->scribe_fun)
+					{
+						// Complain
+					}
+					fMatch = true;
+					break;
+				}
+				if (!str_cmp(word, "SpellFunc"))
+				{
+					char *name = fread_string(fp);
+
+					skill->spell_fun = spell_func_lookup(name);
+					if (!skill->spell_fun)
+					{
+						// Complain
+					}
+					fMatch = true;
+					break;
+				}
+				break;
+
+			case 'T':
+				if (!str_cmp(word, "Target"))
+				{
+					int value = stat_lookup(fread_string(fp), spell_target_types, TAR_IGNORE);
+
+					skill->target = value;
+					fMatch = true;
+					break;
+				}
+				if (!str_cmp(word, "Token"))
+				{
+					skill->token_load = fread_widevnum(fp, 0);
+					fMatch = TRUE;
+					break;
+				}
+				if (!str_cmp(word, "TouchFunc"))
+				{
+					char *name = fread_string(fp);
+
+					skill->touch_fun = touch_func_lookup(name);
+					if (!skill->touch_fun)
+					{
+						// Complain
+					}
+					fMatch = true;
+					break;
+				}
+				break;
+
+			case 'V':
+				if (!str_cmp(word, "Value"))
+				{
+					int index = fread_number(fp);
+					int value = fread_number(fp);
+
+					if (index >= 1 && index <= MAX_SKILL_VALUES)
+						skill->values[index - 1] = value;
+
+					fMatch = true;
+					break;
+				}
+				if (!str_cmp(word, "ValueName"))
+				{
+					int index = fread_number(fp);
+					char *name = fread_string(fp);
+
+					if (index >= 1 && index <= MAX_SKILL_VALUES)
+						skill->valuenames[index - 1] = name;
+
+					fMatch = true;
+					break;
+				}
+				break;
+		}
+
+		if (!fMatch)
+		{
+			sprintf(buf, "load_skill: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return skill;
+}
+
+void insert_skill(SKILL_DATA *skill)
+{
+	ITERATOR it;
+	SKILL_DATA *sk;
+	iterator_start(&it, skills_list);
+	while((sk = (SKILL_DATA *)iterator_nextdata(&it)))
+	{
+		int cmp = str_cmp(skill->name, sk->name);
+		if(cmp < 0)
+		{
+			iterator_insert_before(&it, skill);
+			break;
+		}
+	}
+	iterator_stop(&it);
+
+	if (!sk)
+	{
+		list_appendlink(skills_list, skill);
+	}
+}
+
+static void delete_skill_data(void *ptr)
+{
+	free_skill_data((SKILL_DATA *)ptr);
+}
+
+
+bool load_skills(void)
+{
+#if 1
+	SKILL_DATA *skill;
+	FILE *fp;
+	char buf[MSL];
+	char *word;
+	bool fMatch;
+	top_skill_uid = 0;
+
+	log_string("load_skills: creating skills_list");
+	skills_list = list_createx(FALSE, NULL, delete_skill_data);
+	if (!IS_VALID(skills_list))
+	{
+		log_string("skills_list was not created.");
+		return false;
+	}
+
+	log_string("load_skills: loading " SKILLS_FILE);
+	if ((fp = fopen(SKILLS_FILE, "r")) == NULL)
+	{
+		bug("Skills file does not exist.", 0);
+		perror(SKILLS_FILE);
+		return false;
+	}
+	
+	while(str_cmp((word = fread_word(fp)), "End"))
+	{
+		fMatch = false;
+
+		switch(word[0])
+		{
+		case '#':
+			if (!str_cmp(word, "#SKILL"))
+			{
+				skill = load_skill(fp);
+				if (skill)
+				{
+					insert_skill(skill);
+
+					if (skill->uid > top_skill_uid)
+						top_skill_uid = skill->uid;
+				}
+				else
+					log_string("Failed to load a skill.");
+
+				fMatch = true;
+			}
+			break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "load_skills: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	// Post processing
+	ITERATOR it;
+	iterator_start(&it, skills_list);
+	while((skill = (SKILL_DATA *)iterator_nextdata(&it)))
+	{
+		if (skill->pgsn)
+			*(skill->pgsn) = skill->uid;
+
+		for(int i = 0; i < MAX_CLASS; i++)
+			if (skill->skill_level[i] > 30)
+				skill->skill_level[i] = MAX_CLASS_LEVEL + 1;
+	}
+	iterator_stop(&it);
+
+	for(int i = 0; gsn_table[i].name; i++)
+	{
+		if (gsn_table[i].gsn)
+			*gsn_table[i].gsk = get_skill_data_uid(*gsn_table[i].gsn);
+		else
+			*gsn_table[i].gsk = NULL;
+	}
+	
+#endif
+
+	// Built-in hardcoded ones.
+	memset(&gsk__auction, 0, sizeof(gsk__auction));
+	gsk__auction.name = str_dup("auction");
+	gsk__auction.display = str_dup("auction info");
+	gsk__auction.uid = gsn__auction = -1;
+	
+	memset(&gsk__inspect, 0, sizeof(gsk__inspect));
+	gsk__inspect.name = str_dup("inspect");
+	gsk__inspect.display = str_dup("inspection");
+	gsk__inspect.uid = gsn__inspect = -2;
+
+	memset(&gsk__well_fed, 0, sizeof(gsk__well_fed));
+	gsk__well_fed.name = str_dup("well fed");
+	gsk__well_fed.display = str_dup("well fed");
+	gsk__well_fed.uid = gsn__well_fed = -3;
+	gsk__well_fed.noun_damage = str_dup("");
+	gsk__well_fed.msg_disp = str_dup("You are no longer well fed.");
+	gsk__well_fed.msg_obj = str_dup("");
+	gsk__well_fed.msg_off = str_dup("You are no longer well fed.");
+
+	return true;
+}
+
+// Free up all of the data from the loading
+void cleanup_skills(void)
+{
+	// Do nothing right now
+}
+
+SKILL_DATA *get_skill_data(char *name)
+{
+	ITERATOR it;
+	SKILL_DATA *skill;
+	iterator_start(&it, skills_list);
+	while((skill = (SKILL_DATA *)iterator_nextdata(&it)))
+	{
+		if (!str_prefix(name, skill->name))
+			break;
+	}
+	iterator_stop(&it);
+
+	return skill;
+}
+
+SKILL_DATA *get_skill_data_uid(sh_int uid)
+{
+	ITERATOR it;
+	SKILL_DATA *skill;
+	iterator_start(&it, skills_list);
+	while((skill = (SKILL_DATA *)iterator_nextdata(&it)))
+	{
+		if (skill->uid == uid)
+			break;
+	}
+	iterator_stop(&it);
+
+	return skill;
+}
 
 void do_multi(CHAR_DATA *ch, char *argument)
 {
@@ -612,6 +1674,7 @@ void do_train(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
+		// TODO: Rework
 		if (ch->tot_level < 2 * MAX_CLASS_LEVEL + 1)
 		{
 			sprintf(buf, "%s, you must be of at least the third class to do this.", pers(ch, mob));
@@ -635,11 +1698,13 @@ void do_train(CHAR_DATA *ch, char *argument)
 				return;
 			}
 
+			/*
 			if( entry->token->value[TOKVAL_SPELL_LEARN] < 1 )
 			{
 				send_to_char("There is nobody here to help you do that.\n\r", ch);
 				return;
 			}
+			*/
 		}
 
 		name = skill_entry_name(entry);
@@ -666,6 +1731,8 @@ void do_train(CHAR_DATA *ch, char *argument)
 			act("You train $t with $N.", ch, mob, NULL, NULL, NULL, name, NULL, TO_CHAR);
 			act("{YYou feel your mastery of $t soaring to new heights!{x", ch, NULL, NULL, NULL, NULL, name, NULL, TO_CHAR);
 
+			entry->rating++;
+			/*
 			if( entry->token ) {
 				if( entry->token->pIndexData->value[TOKVAL_SPELL_RATING] > 0 )
 					entry->token->value[TOKVAL_SPELL_RATING] += entry->token->pIndexData->value[TOKVAL_SPELL_RATING];
@@ -673,6 +1740,7 @@ void do_train(CHAR_DATA *ch, char *argument)
 					entry->token->value[TOKVAL_SPELL_RATING]++;
 			} else
 				ch->pcdata->learned[entry->sn]++;
+			*/
 		}
 		else
 		{
@@ -1172,7 +2240,7 @@ long exp_per_level(CHAR_DATA *ch, long points)
 }
 
 
-void check_improve_show( CHAR_DATA *ch, int sn, bool success, int multiplier, bool show )
+void check_improve_show( CHAR_DATA *ch, SKILL_DATA *skill, bool success, int multiplier, bool show )
 {
     int chance;
     char buf[100];
@@ -1185,26 +2253,26 @@ void check_improve_show( CHAR_DATA *ch, int sn, bool success, int multiplier, bo
     if (IS_SOCIAL(ch))
 		return;
 
-	entry = skill_entry_findsn(ch->sorted_skills, sn);
+	entry = skill_entry_findskill(ch->sorted_skills, skill);
 	if(!entry)
 		return;
 
 	if(!IS_SET(entry->flags, SKILL_IMPROVE))
 		return;
 
-    this_class = get_this_class(ch, sn);
+    this_class = get_this_class(ch, skill);
 
-    if (get_skill(ch, sn) == 0
-    ||  skill_table[sn].rating[this_class] == 0
-    ||  ch->pcdata->learned[sn] == 0
-    ||  ch->pcdata->learned[sn] == 100)
+    if (get_skill(ch, skill) == 0
+    ||  skill->rating[this_class] == 0
+    ||  entry->rating <= 0
+    ||  entry->rating == 100)
 	return;
 
     // check to see if the character has a chance to learn
     chance      = 10 * int_app[get_curr_stat(ch, STAT_INT)].learn;
     multiplier  = UMAX(multiplier,1);
 //    multiplier  = UMIN(multiplier + 3, 8);
-    chance     /= (multiplier * skill_table[sn].rating[this_class] * 4);
+    chance     /= (multiplier * skill->rating[this_class] * 4);
     chance     += ch->level;
 
     if (number_range(1,1000) > chance)
@@ -1213,34 +2281,34 @@ void check_improve_show( CHAR_DATA *ch, int sn, bool success, int multiplier, bo
     // now that the character has a CHANCE to learn, see if they really have
     if (success)
     {
-	chance = URANGE(2, 100 - ch->pcdata->learned[sn], 25);
+	chance = URANGE(2, 100 - entry->rating, 25);
 	if (number_percent() < chance)
 	{
-	    sprintf(buf,"{WYou have become better at %s!{x\n\r", skill_table[sn].name);
+	    sprintf(buf,"{WYou have become better at %s!{x\n\r", skill->name);
 	    send_to_char(buf,ch);
-	    ch->pcdata->learned[sn]++;
-	    gain_exp(ch, 2 * skill_table[sn].rating[this_class]);
+	    entry->rating++;
+	    gain_exp(ch, 2 * skill->rating[this_class]);
 	}
     }
     else
     {
-	chance = URANGE(5, ch->pcdata->learned[sn]/2, 30);
+	chance = URANGE(5, entry->rating/2, 30);
 	if (number_percent() < chance)
 	{
 	    sprintf(buf,
 		"{WYou learn from your mistakes, and your %s skill improves.{x\n\r",
-		skill_table[sn].name);
+		skill->name);
 	    send_to_char(buf, ch);
-	    ch->pcdata->learned[sn] += number_range(1,3);
-	    ch->pcdata->learned[sn] = UMIN(ch->pcdata->learned[sn],100);
-	    gain_exp(ch,2 * skill_table[sn].rating[ch->pcdata->class_current]);
+	    entry->rating += number_range(1,3);
+	    entry->rating = UMIN(entry->rating,100);
+	    gain_exp(ch,2 * skill->rating[ch->pcdata->class_current]);
 	}
     }
 }
 
-void check_improve( CHAR_DATA *ch, int sn, bool success, int multiplier )
+void check_improve( CHAR_DATA *ch, SKILL_DATA *skill, bool success, int multiplier )
 {
-	check_improve_show( ch, sn, success, multiplier, true );
+	check_improve_show( ch, skill, success, multiplier, true );
 }
 
 int group_lookup( const char *name )
@@ -1293,35 +2361,31 @@ void gn_remove( CHAR_DATA *ch, int gn)
 
 void group_add( CHAR_DATA *ch, const char *name, bool deduct)
 {
-    int sn;
+	SKILL_DATA *sk;
     int gn;
 
     if (IS_NPC(ch))
 	return;
 
-    sn = skill_lookup(name);
+    sk = get_skill_data((char *)name);
 
-    if (sn != -1)
+    if (IS_VALID(sk))
     {
-		if (ch->pcdata->learned[sn] <= 0) { /* i.e. not known */
-			ch->pcdata->learned[sn] = 1;
+		SKILL_ENTRY *entry = skill_entry_findskill(ch->sorted_skills, sk);
 
-			//This leads to all skills and spells being marked as skills when newly granted. -RHanson 12/12/16
-/*
-			if( skill_entry_findsn( ch->sorted_skills, sn) == NULL)
-				skill_entry_addskill(ch, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
-*/
+		if (!entry)
+		{
+			TOKEN_DATA *token = NULL;
+			if (sk->token)
+				token = give_token(sk->token, ch, NULL, NULL);
+			
+			if (is_skill_spell(sk))
+				entry = skill_entry_addspell(ch, sk, token, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
+			else
+				entry = skill_entry_addskill(ch, sk, token, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
 
-			if( skill_entry_findsn( ch->sorted_skills, sn) == NULL)
-			{
-				if( skill_table[sn].spell_fun == spell_null ) {
-					skill_entry_addskill(ch, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
-				} else {
-					skill_entry_addspell(ch, sn, NULL, SKILLSRC_NORMAL, SKILL_AUTOMATIC);
-				}
-			}
+			entry->rating = 1;
 		}
-
 
 		return;
     }
@@ -1330,29 +2394,27 @@ void group_add( CHAR_DATA *ch, const char *name, bool deduct)
     gn = group_lookup(name);
     if (gn != -1)
     {
-	if (ch->pcdata->group_known[gn] == FALSE)
-	    ch->pcdata->group_known[gn] = TRUE;
+		if (ch->pcdata->group_known[gn] == FALSE)
+		    ch->pcdata->group_known[gn] = TRUE;
 
-	gn_add(ch,gn); /* make sure all skills in the group are known */
+		gn_add(ch,gn); /* make sure all skills in the group are known */
     }
 }
 
 
 void group_remove(CHAR_DATA *ch, const char *name)
 {
-    int sn;
+    SKILL_DATA *sk;
     int gn;
 
-    sn = skill_lookup(name);
+    sk = get_skill_data((char *)name);
 
-    if (sn != -1)
+    if (IS_VALID(sk))
     {
-	ch->pcdata->learned[sn] = 0;
-	if( skill_table[sn].spell_fun == spell_null )
-		skill_entry_removeskill(ch,sn, NULL);
-	else
-		skill_entry_removespell(ch,sn, NULL);
-	return;
+		SKILL_ENTRY *entry = skill_entry_findskill(ch->sorted_skills, sk);
+		
+		skill_entry_removeentry(&ch->sorted_skills, entry);
+		return;
     }
 
     gn = group_lookup(name);
@@ -1369,7 +2431,7 @@ void do_practice( CHAR_DATA *ch, char *argument )
 {
 	char buf[MAX_STRING_LENGTH];
 	char arg[MSL];
-	int sn;
+	SKILL_DATA *skill;
 	int learn;
 	CHAR_DATA *mob;
 	SKILL_ENTRY *entry;
@@ -1414,6 +2476,7 @@ void do_practice( CHAR_DATA *ch, char *argument )
 		return;
 	}
 
+#if 0
 	if( entry->token )
 	{
 		int amount;
@@ -1465,40 +2528,41 @@ void do_practice( CHAR_DATA *ch, char *argument )
 		}
 	}
 	else
+#endif
 	{
 		// Standard ability
-		sn = entry->sn;
-		if( !can_practice(ch, sn) )
+		skill = entry->skill;
+		if( !can_practice(ch, skill) )
 		{
 			send_to_char("You can't practice that.\n\r", ch);
 			return;
 		}
 
-		if(p_percent_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREPRACTICE, skill_table[sn].name,0,0,0,0,0))
+		if(p_percent_trigger(mob, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREPRACTICE, skill->name,0,0,0,0,0))
 		{
 			send_to_char("You can't practice that.\n\r", ch);
 			return;
 		}
 
-		if (ch->pcdata->learned[sn] >= MAX_SKILL_LEARNABLE) {
-			sprintf(buf, "There is nothing more that you can learn about %s here.\n\r", skill_table[sn].name);
+		if (entry->rating >= MAX_SKILL_LEARNABLE) {
+			sprintf(buf, "There is nothing more that you can learn about %s here.\n\r", entry->skill->name);
 			send_to_char(buf, ch);
 		} else {
 			--ch->practice;
 			ch->tempstore[0] = learn;
-			p_percent_trigger(ch, NULL, NULL, NULL, ch, mob, NULL, NULL, NULL, TRIG_PRACTICE, skill_table[sn].name,0,0,0,0,0);
+			p_percent_trigger(ch, NULL, NULL, NULL, ch, mob, NULL, NULL, NULL, TRIG_PRACTICE, entry->skill->name,0,0,0,0,0);
 			learn = ch->tempstore[0];
 			if( learn < 1 ) learn = 1;	// At this point, it should be a minimum of 1 skill rating
 
-			ch->pcdata->learned[sn] += learn;
+			entry->rating += learn;
 
-			if (ch->pcdata->learned[sn] < MAX_SKILL_LEARNABLE) {
-				act("You practice $T.", ch, NULL, NULL, NULL, NULL, NULL, skill_table[sn].name, TO_CHAR);
-				act("$n practices $T.", ch, NULL, NULL, NULL, NULL, NULL, skill_table[sn].name, TO_ROOM);
+			if (entry->rating < MAX_SKILL_LEARNABLE) {
+				act("You practice $T.", ch, NULL, NULL, NULL, NULL, NULL, entry->skill->name, TO_CHAR);
+				act("$n practices $T.", ch, NULL, NULL, NULL, NULL, NULL, entry->skill->name, TO_ROOM);
 			} else {
-				ch->pcdata->learned[sn] = MAX_SKILL_LEARNABLE;
-				act("{WYou are now learned at $T.{x", ch, NULL, NULL, NULL, NULL, NULL, skill_table[sn].name, TO_CHAR);
-				act("{W$n is now learned at $T.{x", ch, NULL, NULL, NULL, NULL, NULL, skill_table[sn].name, TO_ROOM);
+				entry->rating = MAX_SKILL_LEARNABLE;
+				act("{WYou are now learned at $T.{x", ch, NULL, NULL, NULL, NULL, NULL, entry->skill->name, TO_CHAR);
+				act("{W$n is now learned at $T.{x", ch, NULL, NULL, NULL, NULL, NULL, entry->skill->name, TO_ROOM);
 			}
 		}
 
@@ -1641,13 +2705,15 @@ void do_rehearse( CHAR_DATA *ch, char *argument )
 
 
 // Is sn a racial skill for a given race?
-bool is_racial_skill(int race, int sn)
+bool is_racial_skill(int race, SKILL_DATA *skill)
 {
     int i;
 
+	if (!IS_VALID(skill)) return false;
+
     for (i = 0; pc_race_table[race].skills[i] != NULL; i++)
     {
-	if (!str_cmp(skill_table[sn].name, pc_race_table[race].skills[i]))
+	if (!str_cmp(skill->name, pc_race_table[race].skills[i]))
 	    return TRUE;
     }
 
@@ -1656,195 +2722,248 @@ bool is_racial_skill(int race, int sn)
 
 
 // This monster determines if a person can practice a skill
-bool can_practice( CHAR_DATA *ch, int sn )
+bool can_practice( CHAR_DATA *ch, SKILL_DATA *skill )
 {
     int this_class;
 	SKILL_ENTRY *entry;
 
-    if (sn < 0)
-	{
-        return FALSE;
-	}
+    if (!IS_VALID(skill)) return false;
 
-	entry = skill_entry_findsn(ch->sorted_skills, sn);
+	entry = skill_entry_findskill(ch->sorted_skills, skill);
 	if (!entry) return FALSE;
 
 	if (!IS_SET(entry->flags, SKILL_PRACTICE)) return FALSE;
 
 	if (entry->source != SKILLSRC_NORMAL) return TRUE;
 
-    this_class = get_this_class(ch, sn);
+    this_class = get_this_class(ch, skill);
 
     // Is it a racial skill ?
     if (!IS_NPC(ch))
     {
-	if (is_racial_skill(ch->race, sn)
-	&& (ch->level >= skill_table[sn].skill_level[this_class] || had_skill(ch, sn)))
+		if (is_racial_skill(ch->race, skill) &&
+			(ch->level >= skill->skill_level[this_class] || had_skill(ch, skill)))
 	    return TRUE;
     }
 
     // Does *everyone* get the skill? (such as hand to hand)
-    if (is_global_skill(sn))
-	return TRUE;
+    if (is_global_skill(skill))
+		return TRUE;
 
     // Have they had the skill in a previous subclass or class?
-    if (had_skill(ch,sn))
-	return TRUE;
+    if (had_skill(ch,skill))
+		return TRUE;
 
     // Is the skill in the person's *current* class and the person
     // is of high enough level for it?
-    if (has_class_skill(ch->pcdata->class_current, sn)
-    &&  ch->level >= skill_table[sn].skill_level[this_class])
+    if (has_class_skill(ch->pcdata->class_current, skill) &&
+		ch->level >= skill->skill_level[this_class])
 	return TRUE;
 
     // Ditto for subclass
-    if (has_subclass_skill(ch->pcdata->sub_class_current, sn)
-    &&  ch->level >= skill_table[sn].skill_level[this_class])
+    if (has_subclass_skill(ch->pcdata->sub_class_current, skill) &&
+		ch->level >= skill->skill_level[this_class])
 	return TRUE;
 
     // For old skills which already got practiced
-    if (ch->pcdata->learned[sn] > 2)
-	return TRUE;
+    if (entry->rating > 2)
+		return TRUE;
 
     return FALSE;
 }
 
+bool is_skill_spell(SKILL_DATA *skill)
+{
+	if (!IS_VALID(skill)) return false;
+
+	if (skill->spell_fun && skill->spell_fun != spell_null) return true;
+
+	if (skill->token && skill->token->type == TOKEN_SPELL) return true;
+
+	return false;
+}
+
+char *skill_level_value(SKILL_DATA *skill, int clazz)
+{
+	static char buf[4][MIL];
+	static int i = 0;
+
+	if (++i == 4) i = 0;
+	if (!IS_VALID(skill) || clazz < 0 || clazz >= MAX_CLASS || skill->skill_level[clazz] > MAX_CLASS_LEVEL)
+		strcpy(buf[i], "{D--");
+	else
+		sprintf(buf[i], "{W%d", skill->skill_level[clazz]);
+
+	return buf[i];
+}
+
+
+char *skill_difficulty_value(SKILL_DATA *skill, int clazz)
+{
+#if 0
+	static char *colors[11] = {
+		"{[F555]",		// White
+		"{[F353]",
+		"{[F050]",		// Green
+		"{[F350]",
+		"{[F550]",		// Yellow
+		"{[F540]",
+		"{[F530]",		// Orange
+		"{[F520]",
+		"{[F510]",
+		"{[F500]",		// Red
+		"{[F300]"		// Dark Red - Excessive
+	};
+#else
+	static char *colors[11] = {
+		"`[F505]",		// Magenta
+		"`[F353]",
+		"`[F050]",		// Green
+		"`[F350]",
+		"`[F550]",		// Yellow
+		"`[F540]",
+		"`[F530]",		// Orange
+		"`[F520]",
+		"`[F510]",
+		"`[F500]",		// Red
+		"`[F300]"		// Dark Red - Excessive
+	};
+#endif
+	static char buf[4][MIL];
+	static int i = 0;
+
+	if (++i == 4) i = 0;
+	if (!IS_VALID(skill) || clazz < 0 || clazz >= MAX_CLASS || skill->rating[clazz] <= 0)
+		strcpy(buf[i], "{F[222]--");
+	else if (skill->rating[clazz] < 10)
+		sprintf(buf[i], "%s%d", colors[skill->rating[clazz]], skill->rating[clazz]);
+	else
+		sprintf(buf[i], "%s%d", colors[10], skill->rating[clazz]);
+
+	return buf[i];
+}
 
 // Has a person had a skill in their previous classes/subclasses?
-bool had_skill( CHAR_DATA *ch, int sn )
+bool had_skill( CHAR_DATA *ch, SKILL_DATA *skill )
 {
-    if (sn < 0)
-	return FALSE;
+    if (!IS_VALID(skill)) return false;
 
-    if (IS_IMMORTAL(ch))
-	return TRUE;
+    if (IS_IMMORTAL(ch)) return true;
 
-    if (ch->pcdata->learned[sn] > 1)
-	return TRUE;
+	SKILL_ENTRY *entry = skill_entry_findskill(ch->sorted_skills, skill);
+	// Don't have the skill entry at all
+	if (!entry) return false;
+
+	if (entry->rating > 1) return true;
 
     if (!IS_REMORT(ch))
     {
-	switch (ch->pcdata->class_current)
-	{
-	    case CLASS_MAGE:
-		if (has_subclass_skill( ch->pcdata->sub_class_cleric, sn )
-		||  has_subclass_skill( ch->pcdata->sub_class_thief, sn )
-		||  has_subclass_skill( ch->pcdata->sub_class_warrior, sn )
-		||  has_class_skill( get_profession(ch, CLASS_CLERIC), sn )
-		||  has_class_skill( get_profession(ch, CLASS_THIEF), sn )
-		||  has_class_skill( get_profession(ch, CLASS_WARRIOR), sn ))
-		    return TRUE;
-		break;
+		switch (ch->pcdata->class_current)
+		{
+		case CLASS_MAGE:
+			return (has_subclass_skill( ch->pcdata->sub_class_cleric, skill ) ||
+					has_subclass_skill( ch->pcdata->sub_class_thief, skill ) ||
+					has_subclass_skill( ch->pcdata->sub_class_warrior, skill ) ||
+					has_class_skill( get_profession(ch, CLASS_CLERIC), skill ) ||
+					has_class_skill( get_profession(ch, CLASS_THIEF), skill ) ||
+					has_class_skill( get_profession(ch, CLASS_WARRIOR), skill ));
 
 	    case CLASS_CLERIC:
-		if (has_subclass_skill( ch->pcdata->sub_class_mage, sn )
-		||  has_subclass_skill( ch->pcdata->sub_class_thief, sn )
-		||  has_subclass_skill( ch->pcdata->sub_class_warrior, sn )
-		||  has_class_skill( get_profession(ch, CLASS_MAGE), sn )
-		||  has_class_skill( get_profession(ch, CLASS_THIEF), sn )
-		||  has_class_skill( get_profession(ch, CLASS_WARRIOR), sn ))
-		    return TRUE;
-		break;
+			return (has_subclass_skill( ch->pcdata->sub_class_mage, skill ) ||
+					has_subclass_skill( ch->pcdata->sub_class_thief, skill ) ||
+					has_subclass_skill( ch->pcdata->sub_class_warrior, skill ) ||
+					has_class_skill( get_profession(ch, CLASS_MAGE), skill ) ||
+					has_class_skill( get_profession(ch, CLASS_THIEF), skill ) ||
+					has_class_skill( get_profession(ch, CLASS_WARRIOR), skill ));
 
 	    case CLASS_THIEF:
-		if (has_subclass_skill( ch->pcdata->sub_class_mage, sn )
-		||  has_subclass_skill( ch->pcdata->sub_class_cleric, sn )
-		||  has_subclass_skill( ch->pcdata->sub_class_warrior, sn )
-		||  has_class_skill( get_profession(ch, CLASS_MAGE), sn )
-		||  has_class_skill( get_profession(ch, CLASS_CLERIC), sn )
-		||  has_class_skill( get_profession(ch, CLASS_WARRIOR), sn ))
-		    return TRUE;
-		break;
+			return (has_subclass_skill( ch->pcdata->sub_class_mage, skill ) ||
+					has_subclass_skill( ch->pcdata->sub_class_cleric, skill ) ||
+					has_subclass_skill( ch->pcdata->sub_class_warrior, skill ) ||
+					has_class_skill( get_profession(ch, CLASS_MAGE), skill ) ||
+					has_class_skill( get_profession(ch, CLASS_CLERIC), skill ) ||
+					has_class_skill( get_profession(ch, CLASS_WARRIOR), skill ));
 
 	    case CLASS_WARRIOR:
-		if (has_subclass_skill( ch->pcdata->sub_class_mage, sn )
-		||  has_subclass_skill( ch->pcdata->sub_class_cleric, sn )
-		||  has_subclass_skill( ch->pcdata->sub_class_thief, sn )
-		||  has_class_skill( get_profession(ch, CLASS_MAGE), sn )
-		||  has_class_skill( get_profession(ch, CLASS_CLERIC), sn )
-		||  has_class_skill( get_profession(ch, CLASS_THIEF), sn ))
-		    return TRUE;
-		break;
-	}
+			return (has_subclass_skill( ch->pcdata->sub_class_mage, skill ) ||
+					has_subclass_skill( ch->pcdata->sub_class_cleric, skill ) ||
+					has_subclass_skill( ch->pcdata->sub_class_thief, skill ) ||
+					has_class_skill( get_profession(ch, CLASS_MAGE), skill ) ||
+					has_class_skill( get_profession(ch, CLASS_CLERIC), skill ) ||
+					has_class_skill( get_profession(ch, CLASS_THIEF), skill ));
+		}
     }
     else // for remorts
     {
-	if (has_class_skill( CLASS_MAGE, sn )
-	||  has_class_skill( CLASS_CLERIC, sn )
-	||  has_class_skill( CLASS_THIEF, sn )
-	||  has_class_skill( CLASS_WARRIOR, sn )
-	||  has_subclass_skill( ch->pcdata->sub_class_mage, sn )
-	||  has_subclass_skill( ch->pcdata->sub_class_cleric, sn )
-	||  has_subclass_skill( ch->pcdata->sub_class_thief, sn )
-	||  has_subclass_skill( ch->pcdata->sub_class_warrior, sn ))
-	    return TRUE;
+		if (has_class_skill( CLASS_MAGE, skill ) ||
+			has_class_skill( CLASS_CLERIC, skill ) ||
+			has_class_skill( CLASS_THIEF, skill ) ||
+			has_class_skill( CLASS_WARRIOR, skill ) ||
+			has_subclass_skill( ch->pcdata->sub_class_mage, skill ) ||
+			has_subclass_skill( ch->pcdata->sub_class_cleric, skill ) ||
+			has_subclass_skill( ch->pcdata->sub_class_thief, skill ) ||
+			has_subclass_skill( ch->pcdata->sub_class_warrior, skill ))
+	    	return true;
 
-	switch( ch->pcdata->sub_class_current )
-	{
-	    case CLASS_MAGE_ARCHMAGE:
-	    case CLASS_MAGE_ILLUSIONIST:
-	    case CLASS_MAGE_GEOMANCER:
-		if (has_subclass_skill( ch->pcdata->second_sub_class_cleric, sn )
-		||  has_subclass_skill( ch->pcdata->second_sub_class_thief, sn )
-		||  has_subclass_skill( ch->pcdata->second_sub_class_warrior, sn ))
-		    return TRUE;
-		break;
+		switch( ch->pcdata->sub_class_current )
+		{
+			case CLASS_MAGE_ARCHMAGE:
+			case CLASS_MAGE_ILLUSIONIST:
+			case CLASS_MAGE_GEOMANCER:
+				return (has_subclass_skill( ch->pcdata->second_sub_class_cleric, skill ) ||
+						has_subclass_skill( ch->pcdata->second_sub_class_thief, skill ) ||
+						has_subclass_skill( ch->pcdata->second_sub_class_warrior, skill ));
 
-	    case CLASS_CLERIC_RANGER:
-	    case CLASS_CLERIC_ADEPT:
-	    case CLASS_CLERIC_ALCHEMIST:
-		if (has_subclass_skill( ch->pcdata->second_sub_class_mage, sn )
-		||  has_subclass_skill( ch->pcdata->second_sub_class_thief, sn )
-		||  has_subclass_skill( ch->pcdata->second_sub_class_warrior, sn ))
-		    return TRUE;
-		break;
+			case CLASS_CLERIC_RANGER:
+			case CLASS_CLERIC_ADEPT:
+			case CLASS_CLERIC_ALCHEMIST:
+				return (has_subclass_skill( ch->pcdata->second_sub_class_mage, skill ) ||
+						has_subclass_skill( ch->pcdata->second_sub_class_thief, skill ) ||
+						has_subclass_skill( ch->pcdata->second_sub_class_warrior, skill ));
 
-	    case CLASS_THIEF_HIGHWAYMAN:
-	    case CLASS_THIEF_NINJA:
-	    case CLASS_THIEF_SAGE:
-		if (has_subclass_skill( ch->pcdata->second_sub_class_mage, sn )
-		||  has_subclass_skill( ch->pcdata->second_sub_class_cleric, sn )
-		||  has_subclass_skill( ch->pcdata->second_sub_class_warrior, sn ))
-		    return TRUE;
-		break;
+			case CLASS_THIEF_HIGHWAYMAN:
+			case CLASS_THIEF_NINJA:
+			case CLASS_THIEF_SAGE:
+				return (has_subclass_skill( ch->pcdata->second_sub_class_mage, skill ) ||
+						has_subclass_skill( ch->pcdata->second_sub_class_cleric, skill ) ||
+						has_subclass_skill( ch->pcdata->second_sub_class_warrior, skill ));
 
-	   case CLASS_WARRIOR_WARLORD:
-	   case CLASS_WARRIOR_DESTROYER:
-	   case CLASS_WARRIOR_CRUSADER:
-		if (has_subclass_skill( ch->pcdata->second_sub_class_mage, sn )
-		||  has_subclass_skill( ch->pcdata->second_sub_class_cleric, sn )
-		||  has_subclass_skill( ch->pcdata->second_sub_class_thief, sn ))
-		    return TRUE;
-		break;
-	}
+			case CLASS_WARRIOR_WARLORD:
+			case CLASS_WARRIOR_DESTROYER:
+			case CLASS_WARRIOR_CRUSADER:
+				return (has_subclass_skill( ch->pcdata->second_sub_class_mage, skill ) ||
+						has_subclass_skill( ch->pcdata->second_sub_class_cleric, skill ) ||
+						has_subclass_skill( ch->pcdata->second_sub_class_thief, skill ));
+		}
     }
 
-    return FALSE;
+	return false;
 }
 
 
 // Does *everyone* get the sn?
-bool is_global_skill( int sn )
+bool is_global_skill( SKILL_DATA *skill )
 {
     int i;
 
-    if ( sn < 0 )
-	return FALSE;
+    if ( !IS_VALID(skill) ) return false;
 
     // "global skills" is always 1st in group list
     for (i = 0; group_table[0].spells[i] != NULL; i++)
     {
-	if (!str_cmp(group_table[0].spells[i], skill_table[sn].name))
-	    return TRUE;
+		if (!str_cmp(group_table[0].spells[i], skill->name))
+		    return true;
     }
 
-    return FALSE;
+    return false;
 }
 
 
 // Equalizes skills on a character. Removes ones they arn't supposed to have.
 void update_skills( CHAR_DATA *ch )
 {
+#if 0
+	// TODO: Deprecated for now.
     char buf[MSL];
     int sn;
     int reward = 0;
@@ -1869,83 +2988,78 @@ void update_skills( CHAR_DATA *ch )
     }
 
     ch->questpoints += reward;
+#endif
 }
 
 
 // Return true if the skill belongs to the subclass.
-bool has_subclass_skill( int subclass, int sn )
+bool has_subclass_skill( int subclass, SKILL_DATA *skill )
 {
-    char *skill_name;
     char *group_name;
     int i;
     int n;
 
-    if (sn < 0)
-	return FALSE;
+    if (!IS_VALID(skill)) return false;
 
-    if (subclass < CLASS_WARRIOR_MARAUDER || subclass > CLASS_THIEF_SAGE)
-	return FALSE;
+    if (subclass < CLASS_WARRIOR_MARAUDER || subclass > CLASS_THIEF_SAGE) return false;
 
-    skill_name = skill_table[sn].name;
     group_name = sub_class_table[subclass].default_group;
 
     for (i = 0; group_table[i].name != NULL; i++)
     {
-	if (!str_cmp(group_name, group_table[i].name))
-	    break;
+		if (!str_cmp(group_name, group_table[i].name))
+		    break;
     }
 
     for (n = 0; group_table[i].spells[n] != NULL; n++)
     {
-	if (!str_cmp(skill_name, group_table[i].spells[n]))
-	    return TRUE;
+		if (!str_cmp(skill->name, group_table[i].spells[n]))
+			return true;
     }
 
-    return FALSE;
+    return false;
 }
 
 
 // Returns true if the class has the skill.
-bool has_class_skill( int class, int sn )
+bool has_class_skill( int class, SKILL_DATA *skill )
 {
     char *group_name;
     int i;
     int n;
 
-    if (sn < 0)
-	return FALSE;
+    if (!IS_VALID(skill)) return false;
 
-    if (class < CLASS_MAGE || class > CLASS_WARRIOR)
-	return FALSE;
+    if (class < CLASS_MAGE || class > CLASS_WARRIOR) return false;
 
     switch (class)
     {
-	case CLASS_MAGE: 	group_name = "mage skills"; break;
-	case CLASS_CLERIC: 	group_name = "cleric skills"; break;
-	case CLASS_THIEF: 	group_name = "thief skills"; break;
-	case CLASS_WARRIOR: 	group_name = "warrior skills"; break;
-	default: 		group_name = "global skills"; break;
+		case CLASS_MAGE: 	group_name = "mage skills"; break;
+		case CLASS_CLERIC: 	group_name = "cleric skills"; break;
+		case CLASS_THIEF: 	group_name = "thief skills"; break;
+		case CLASS_WARRIOR: group_name = "warrior skills"; break;
+		default: 			group_name = "global skills"; break;
     }
 
     for (i = 0; group_table[i].name != NULL; i++)
     {
-	if (!str_cmp(group_name, group_table[i].name))
-	    break;
+		if (!str_cmp(group_name, group_table[i].name))
+			break;
     }
 
     for (n = 0; group_table[i].spells[n]; n++)
     {
-	if (!str_cmp( skill_table[sn].name, group_table[i].spells[n]))
-	    return TRUE;
+		if (!str_cmp( skill->name, group_table[i].spells[n]))
+			return true;
     }
 
-    return FALSE;
+    return false;
 }
 
 
 // Should a player have a skill?
 // Used for old players having skills they shouldn't.
-bool should_have_skill( CHAR_DATA *ch, int sn )
+bool should_have_skill( CHAR_DATA *ch, SKILL_DATA *skill )
 {
     if (ch == NULL)
     {
@@ -1953,34 +3067,34 @@ bool should_have_skill( CHAR_DATA *ch, int sn )
 		return FALSE;
     }
 
-    if (sn < 0 || sn > MAX_SKILL)
+    if (!IS_VALID(skill))
     {
     	bug("should_have_skill: bad sn", 0 );
 		return FALSE;
     }
 
-    if (is_racial_skill(ch->race, sn))
+    if (is_racial_skill(ch->race, skill))
     	return TRUE;
 
-    if (is_global_skill(sn))
+    if (is_global_skill(skill))
 		return TRUE;
 
-    if (has_class_skill( get_profession(ch, CLASS_MAGE), sn )
-    ||  has_class_skill( get_profession(ch, CLASS_CLERIC), sn )
-    ||  has_class_skill( get_profession(ch, CLASS_THIEF), sn )
-    ||  has_class_skill( get_profession(ch, CLASS_WARRIOR), sn ))
+    if (has_class_skill( get_profession(ch, CLASS_MAGE), skill )
+    ||  has_class_skill( get_profession(ch, CLASS_CLERIC), skill )
+    ||  has_class_skill( get_profession(ch, CLASS_THIEF), skill )
+    ||  has_class_skill( get_profession(ch, CLASS_WARRIOR), skill ))
 		return TRUE;
 
-    if (has_subclass_skill( ch->pcdata->sub_class_mage, sn )
-    ||  has_subclass_skill( ch->pcdata->sub_class_cleric, sn )
-    ||  has_subclass_skill( ch->pcdata->sub_class_thief, sn )
-    ||  has_subclass_skill( ch->pcdata->sub_class_warrior, sn ))
+    if (has_subclass_skill( ch->pcdata->sub_class_mage, skill )
+    ||  has_subclass_skill( ch->pcdata->sub_class_cleric, skill )
+    ||  has_subclass_skill( ch->pcdata->sub_class_thief, skill )
+    ||  has_subclass_skill( ch->pcdata->sub_class_warrior, skill ))
 		return TRUE;
 
-    if (has_subclass_skill( ch->pcdata->second_sub_class_mage, sn )
-    ||  has_subclass_skill( ch->pcdata->second_sub_class_cleric, sn )
-    ||  has_subclass_skill( ch->pcdata->second_sub_class_thief, sn )
-    ||  has_subclass_skill( ch->pcdata->second_sub_class_warrior, sn ))
+    if (has_subclass_skill( ch->pcdata->second_sub_class_mage, skill )
+    ||  has_subclass_skill( ch->pcdata->second_sub_class_cleric, skill )
+    ||  has_subclass_skill( ch->pcdata->second_sub_class_thief, skill )
+    ||  has_subclass_skill( ch->pcdata->second_sub_class_warrior, skill ))
 		return TRUE;
 
     return FALSE;
@@ -1991,7 +3105,7 @@ char *skill_entry_name (SKILL_ENTRY *entry)
 	if( entry ) {
 		if ( IS_VALID(entry->token) ) return entry->token->name;
 
-		if ( entry->sn > 0 ) return skill_table[entry->sn].name;
+		if ( entry->skill ) return entry->skill->name;
 		if ( entry->song >= 0 ) return music_table[entry->song].name;
 	}
 
@@ -2004,33 +3118,35 @@ int skill_entry_compare (SKILL_ENTRY *a, SKILL_ENTRY *b)
 	char *bn = skill_entry_name(b);
 	int cmp = str_cmp(an, bn);
 
+	/*
 	if( !cmp ) {
+		// TODO: Fix comparison
 		if( (a->sn > 0 || a->song >= 0) && IS_VALID(b->token)) cmp = -1;
 		else if( IS_VALID(a->token) && (b->sn > 0 || b->song >= 0)) cmp = 1;
 	}
+	*/
 
 	//log_stringf("skill_entry_compare: a(%s) %s b(%s)", an, ((cmp < 0) ? "<" : ((cmp > 0) ? ">" : "==")), bn);
 
 	return cmp;
 }
 
-void skill_entry_insert (SKILL_ENTRY **list, int sn, int song, TOKEN_DATA *token, long flags, char source)
+SKILL_ENTRY *skill_entry_insert (SKILL_ENTRY **list, SKILL_DATA *skill, int song, TOKEN_DATA *token, long flags, char source)
 {
 	SKILL_ENTRY *cur, *prev, *entry;
 
 	entry = new_skill_entry();
-	if( !entry ) return;
+	if( !entry ) return NULL;
 
-	entry->sn = sn;
+	entry->skill = skill;
 	entry->token = token;
 	entry->song = song;
 	entry->source = source;
 	entry->flags = flags;
 
 	if (IS_SET(entry->flags, SKILL_SPELL)) {
-	entry->isspell = true;
+		entry->isspell = true;
 	}
-
 
 	// Link the token to the skill
 	if( IS_VALID(token) )
@@ -2052,19 +3168,21 @@ void skill_entry_insert (SKILL_ENTRY **list, int sn, int song, TOKEN_DATA *token
 	else
 		*list = entry;
 	entry->next = cur;
+
+	return entry;
 }
 
-void skill_entry_remove (SKILL_ENTRY **list, int sn, int song, TOKEN_DATA *token, bool isspell)
+void skill_entry_remove (SKILL_ENTRY **list, SKILL_DATA *skill, int song, TOKEN_DATA *token, bool isspell)
 {
 	SKILL_ENTRY *cur, *prev;
 
 	cur = *list;
 	prev = NULL;
 	while(cur) {
-		if ( ((IS_VALID(token) && (cur->token == token)) ||
-			(sn > 0 && (cur->sn == sn)) ||
-			((song >= 0) && (cur->song == song))) &&
-			(!IS_SET(cur->flags, SKILL_SPELL) == !isspell)) {
+		if ((( IS_VALID(token) && (cur->token == token) ) ||
+			 ( IS_VALID(skill) && (cur->skill == skill) ) ||
+			 ( (song >= 0) && (cur->song == song) )) && 
+			(!IS_SET(cur->flags, SKILL_SPELL) == !isspell) ) {
 
 			if(prev)
 				prev->next = cur->next;
@@ -2072,8 +3190,13 @@ void skill_entry_remove (SKILL_ENTRY **list, int sn, int song, TOKEN_DATA *token
 				*list = cur->next;
 
 			// Unlink the token from the skill
-			if( IS_VALID(token) )
-				token->skill = NULL;
+			if( IS_VALID(cur->token) )
+			{
+				cur->token->skill = NULL;
+
+				token_from_char(cur->token);
+				free_token(cur->token);
+			}
 
 			free_skill_entry(cur);
 			return;
@@ -2100,7 +3223,12 @@ void skill_entry_removeentry (SKILL_ENTRY **list, SKILL_ENTRY *entry)
 
 			// Unlink the token from the skill
 			if( IS_VALID(cur->token) )
+			{
 				cur->token->skill = NULL;
+
+				token_from_char(cur->token);
+				free_token(cur->token);
+			}
 
 			free_skill_entry(cur);
 			return;
@@ -2131,11 +3259,11 @@ SKILL_ENTRY *skill_entry_findname( SKILL_ENTRY *list, char *str )
 	return NULL;
 }
 
-SKILL_ENTRY *skill_entry_findsn( SKILL_ENTRY *list, int sn )
+SKILL_ENTRY *skill_entry_findskill( SKILL_ENTRY *list, SKILL_DATA *skill )
 {
-	if( sn < 1 || sn >= MAX_SKILL ) return NULL;
+	if( !IS_VALID(skill) ) return NULL;
 
-	while (list && list->sn != sn)
+	while (list && list->skill != skill)
 		list = list->next;
 
 	return list;
@@ -2169,55 +3297,49 @@ SKILL_ENTRY *skill_entry_findtokenindex( SKILL_ENTRY *list, TOKEN_INDEX_DATA *to
 	return list;
 }
 
-void skill_entry_addskill (CHAR_DATA *ch, int sn, TOKEN_DATA *token, char source, long flags)
+SKILL_ENTRY *skill_entry_addskill (CHAR_DATA *ch, SKILL_DATA *skill, TOKEN_DATA *token, char source, long flags)
 {
-	if( !ch ) return;
+	if( !ch ) return NULL;
 
-/*
-	if(token)
-		log_stringf("skill_entry_addskill: ch(%s) sn(%d) token(%ld, %s, %s)", (ch->name ? ch->name : "(unknown)"), sn, token->pIndexData->vnum, token->name, (token->type == TOKEN_SKILL) ? "SKILL" : "!SKILL");
-	else
-		log_stringf("skill_entry_addskill: ch(%s) sn(%d) token(0)", (ch->name ? ch->name : "(unknown)"), sn);
-*/
-	if( !sn && (!token || token->type != TOKEN_SKILL)) return;
+	if (skill->token && skill->token->type != TOKEN_SKILL) return NULL;
 
-	skill_entry_insert( &ch->sorted_skills, sn, -1, token, (flags & ~SKILL_SPELL), source );
+	return skill_entry_insert( &ch->sorted_skills, skill, -1, token, (flags & ~SKILL_SPELL), source );
 }
 
-void skill_entry_addspell (CHAR_DATA *ch, int sn, TOKEN_DATA *token, char source, long flags)
+SKILL_ENTRY *skill_entry_addspell (CHAR_DATA *ch, SKILL_DATA *skill, TOKEN_DATA *token, char source, long flags)
 {
-	if( !ch ) return;
+	if( !ch ) return NULL;
 
-	if( !sn && (!token || token->type != TOKEN_SPELL)) return;
+	if (skill->token && skill->token->type != TOKEN_SPELL) return NULL;
 
-	skill_entry_insert( &ch->sorted_skills, sn, -1, token, (SKILL_SPELL | (flags & ~SKILL_SPELL)), source );
+	return skill_entry_insert( &ch->sorted_skills, skill, -1, token, (SKILL_SPELL | (flags & ~SKILL_SPELL)), source );
 }
 
-void skill_entry_addsong (CHAR_DATA *ch, int song, TOKEN_DATA *token, char source)
+SKILL_ENTRY *skill_entry_addsong (CHAR_DATA *ch, int song, TOKEN_DATA *token, char source)
 {
-	if( !ch ) return;
+	if( !ch ) return NULL;
 
-	if( song < 0 && (!token || token->type != TOKEN_SONG)) return;
+	if( song < 0 && (!token || token->type != TOKEN_SONG)) return NULL;
 
-	skill_entry_insert( &ch->sorted_songs, 0, song, token, 0, source );
+	return skill_entry_insert( &ch->sorted_songs, 0, song, token, 0, source );
 }
 
-void skill_entry_removeskill (CHAR_DATA *ch, int sn, TOKEN_DATA *token)
+void skill_entry_removeskill (CHAR_DATA *ch, SKILL_DATA *skill)
 {
 	if( !ch ) return;
 
-	if( !sn && (!token || token->type != TOKEN_SKILL)) return;
+	if (skill->token && skill->token->type != TOKEN_SKILL) return;
 
-	skill_entry_remove( &ch->sorted_skills, sn, -1, token, FALSE );
+	skill_entry_remove( &ch->sorted_skills, skill, -1, NULL, FALSE );
 }
 
-void skill_entry_removespell (CHAR_DATA *ch, int sn, TOKEN_DATA *token)
+void skill_entry_removespell (CHAR_DATA *ch, SKILL_DATA *skill)
 {
 	if( !ch ) return;
 
-	if( !sn && (!token || token->type != TOKEN_SPELL)) return;
+	if (skill->token && skill->token->type != TOKEN_SPELL) return;
 
-	skill_entry_remove( &ch->sorted_skills, sn, -1, token, TRUE );
+	skill_entry_remove( &ch->sorted_skills, skill, -1, NULL, TRUE );
 }
 
 void skill_entry_removesong (CHAR_DATA *ch, int song, TOKEN_DATA *token)
@@ -2226,7 +3348,7 @@ void skill_entry_removesong (CHAR_DATA *ch, int song, TOKEN_DATA *token)
 
 	if( song < 0 && (!token || token->type != TOKEN_SONG)) return;
 
-	skill_entry_remove( &ch->sorted_songs, 0, song, token, FALSE );
+	skill_entry_remove( &ch->sorted_songs, NULL, song, token, FALSE );
 }
 
 int token_skill_rating( TOKEN_DATA *token)
@@ -2260,6 +3382,10 @@ int token_skill_mana(TOKEN_DATA *token)
 
 int skill_entry_rating (CHAR_DATA *ch, SKILL_ENTRY *entry)
 {
+
+	return entry->rating;
+
+/*
 	if( IS_VALID(entry->token) ) {
 		return token_skill_rating(entry->token);
 	} else if( entry->sn > 0) {
@@ -2272,10 +3398,14 @@ int skill_entry_rating (CHAR_DATA *ch, SKILL_ENTRY *entry)
 			return ch->pcdata->learned[entry->sn];
 	} else
 		return 0;
+		*/
 }
 
 int skill_entry_mod(CHAR_DATA *ch, SKILL_ENTRY *entry)
 {
+	return entry->mod_rating;
+
+	/*
 	if( IS_VALID(entry->token) ) {
 		return 0;	// No mods for TOKEN entries yet!
 	} else if( entry->sn > 0) {
@@ -2284,6 +3414,7 @@ int skill_entry_mod(CHAR_DATA *ch, SKILL_ENTRY *entry)
 		return ch->pcdata->mod_learned[entry->sn];
 	} else
 		return 0;
+	*/
 }
 
 int skill_entry_level (CHAR_DATA *ch, SKILL_ENTRY *entry)
@@ -2293,22 +3424,15 @@ int skill_entry_level (CHAR_DATA *ch, SKILL_ENTRY *entry)
 	if( IS_IMMORTAL(ch) )
 		return LEVEL_IMMORTAL;
 
-	if( IS_VALID(entry->token) ) {
-		// Make sure the tokens are skill/spell tokens
-		if( (entry->token->type == TOKEN_SKILL || entry->token->type == TOKEN_SPELL || entry->token->type == TOKEN_SONG) &&
-			entry->token->type != entry->token->pIndexData->type)
-			return 0;
-
-		// All token abilities register as level 1 (for now)
-		return 1;
-	} else if( entry->sn > 0) {
-		this_class = get_this_class(ch, entry->sn);
+	if (IS_VALID(entry->skill))
+	{
+		this_class = get_this_class(ch, entry->skill);
 
 		// Not ready yet
-		if( !had_skill( ch, entry->sn ) && (ch->level < skill_table[entry->sn].skill_level[this_class]) )
-			return -skill_table[entry->sn].skill_level[this_class];
+		if( !had_skill( ch, entry->skill ) && (ch->level < entry->skill->skill_level[this_class]) )
+			return -entry->skill->skill_level[this_class];
 
-		return skill_table[entry->sn].skill_level[this_class];
+		return entry->skill->skill_level[this_class];
 	} else if( entry->song >= 0 ) {
 		return music_table[entry->song].level;
 	} else
@@ -2317,10 +3441,8 @@ int skill_entry_level (CHAR_DATA *ch, SKILL_ENTRY *entry)
 
 int skill_entry_mana (CHAR_DATA *ch, SKILL_ENTRY *entry)
 {
-	if( IS_VALID(entry->token) ) {
-		return token_skill_mana(entry->token);
-	} else if( entry->sn >= 0) {
-		return skill_table[entry->sn].min_mana;
+	if( IS_VALID(entry->skill)) {
+		return entry->skill->cast_mana;
 	} else if( entry->song >= 0) {
 		return music_table[entry->song].mana;
 	} else
@@ -2333,13 +3455,9 @@ int skill_entry_learn (CHAR_DATA *ch, SKILL_ENTRY *entry)
 
 	if(!IS_SET(entry->flags, SKILL_PRACTICE)) return 0;
 
-	if( IS_VALID(entry->token) ) {
-		amount = entry->token->value[TOKVAL_SPELL_LEARN];
-	} else if(entry->sn >= 0) {
-		int this_class = get_this_class(ch, entry->sn);
-		amount = (skill_table[entry->sn].rating[this_class] == 0 ?
-			10 :
-			skill_table[entry->sn].rating[this_class]);
+	if( IS_VALID(entry->skill)) {
+		int this_class = get_this_class(ch, entry->skill);
+		amount = (entry->skill->rating[this_class] == 0 ? 10 : entry->skill->rating[this_class]);
 	}
 
 	if(amount > 0)
@@ -2351,10 +3469,8 @@ int skill_entry_learn (CHAR_DATA *ch, SKILL_ENTRY *entry)
 
 int skill_entry_target(CHAR_DATA *ch, SKILL_ENTRY *entry)
 {
-	if (IS_VALID(entry->token))
-		return entry->token->value[TOKVAL_SPELL_TARGET];
-	else if (entry->sn >= 0)
-		return skill_table[entry->sn].target;
+	if (IS_VALID(entry->skill))
+		return entry->skill->target;
 	else if (entry->song >= 0)
 		return music_table[entry->song].target;
 
@@ -2537,4 +3653,1335 @@ void remort_player(CHAR_DATA *ch, int remort_class)
 		obj = obj_next;
     }
 
+}
+
+
+
+// SKILL EDITOR
+
+
+
+
+
+SKEDIT( skedit_install )
+{
+	char buf[MSL];
+	SKILL_DATA *skill;
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  skedit install {Rsource{x <name>\n\r", ch);
+		send_to_char("         skedit install {Rtoken{x <widevnum>\n\r", ch);
+		return false;
+	}
+
+	char arg[MIL];
+	argument = one_argument(argument, arg);
+	if (!str_prefix(arg, "source"))
+	{
+		// Install a SOURCE skill/spell
+		smash_tilde(argument);
+		if (argument[0] == '\0')
+		{
+			send_to_char("Syntax:  skedit install source {R<name>{x\n\r", ch);
+			send_to_char("Please specify a name.\n\r", ch);
+			return false;
+		}
+
+		// Make sure the name doesn't exist already.
+		skill = get_skill_data(argument);
+		if (IS_VALID(skill))
+		{
+			send_to_char("That name is already in use.\n\r", ch);
+			return false;
+		}
+
+		skill = new_skill_data();
+		skill->uid = ++top_skill_uid;
+		skill->name = str_dup(argument);
+		skill->token = NULL;
+		
+		insert_skill(skill);
+
+		sprintf(buf, "Skill {W%s{x installed.\n\r", skill->name);
+		send_to_char(buf, ch);
+
+		ch->desc->pEdit = skill;
+		ch->desc->editor = ED_SKEDIT;
+		return true;
+	}
+
+	if (!str_prefix(arg, "token"))
+	{
+		WNUM wnum;
+
+		if (!parse_widevnum(argument, NULL, &wnum))
+		{
+			send_to_char("Syntax:  skedit install token {R<widevnum>{x\n\r", ch);
+			send_to_char("Please provide a valid widevnum.\n\r", ch);
+			return false;
+		}
+
+		TOKEN_INDEX_DATA *token = get_token_index_wnum(wnum);
+		if (!token)
+		{
+			send_to_char("That token does not exist.\n\r", ch);
+			return false;
+		}
+
+		if (token->type != TOKEN_SKILL && token->type != TOKEN_SPELL)
+		{
+			send_to_char("That token is neither a {Yskill{x nor {Yspell{x token.\n\r", ch);
+			return false;
+		}
+
+		skill = get_skill_data(token->name);
+		if (IS_VALID(skill))
+		{
+			send_to_char("That name is already in use.\n\r", ch);
+			return false;
+		}
+
+		skill = new_skill_data();
+		skill->uid = ++top_skill_uid;
+		skill->name = str_dup(token->name);
+		skill->token = token;
+		
+		insert_skill(skill);
+
+		sprintf(buf, "Skill {W%s{x installed.\n\r", skill->name);
+		send_to_char(buf, ch);
+
+		ch->desc->pEdit = skill;
+		ch->desc->editor = ED_SKEDIT;
+		return true;
+	}
+
+	skedit_install(ch, "");
+	return false;
+}
+
+SKEDIT( skedit_list )
+{
+	BUFFER *buffer = new_buf();
+	char buf[MSL];
+
+	sprintf(buf, "%3s %-20.20s %-20.20s\n\r",
+		"###", "Name", "Display");
+	add_buf(buffer, buf);
+	sprintf(buf, "%3s %-20.20s %-20.20s\n\r",
+		"===", "====================", "====================");
+	add_buf(buffer, buf);
+
+	int i = 0;
+	ITERATOR it;
+	SKILL_DATA *skill;
+	iterator_start(&it, skills_list);
+	while((skill = (SKILL_DATA *)iterator_nextdata(&it)))
+	{
+		sprintf(buf, "%3d {%c%-20.20s{x %-20.20s\n\r", ++i,
+			(skill->token ? 'G' : 'Y'), skill->name, skill->display);
+		add_buf(buffer, buf);
+	}
+	iterator_stop(&it);
+
+	sprintf(buf, "%3s %-20.20s %-20.20s\n\r",
+		"---", "--------------------", "--------------------");
+	add_buf(buffer, buf);
+	sprintf(buf, "Total: %d\n\r", i);
+	add_buf(buffer, buf);
+
+	if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+	{
+		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+	}
+	else
+	{
+		page_to_char(buffer->string, ch);
+	}
+
+	free_buf(buffer);
+	return false;
+}
+
+
+void skedit_show_trigger(BUFFER *buffer, LLIST **progs, int trigger, char *label)
+{
+	char buf[MSL];
+
+	PROG_LIST *pr = find_trigger_data(progs, trigger, 1);
+
+	if (pr)
+		sprintf(buf, "   + %-15s {W%ld{x#{W%ld{x\n\r", label, pr->script->area->uid, pr->script->vnum);
+	else
+		sprintf(buf, "   + %-15s {D(unset){x\n\r", label);
+	add_buf(buffer, buf);
+}
+
+void skedit_show_function(BUFFER *buffer, char *name, char *label)
+{
+	char buf[MSL];
+
+	if (name)
+		sprintf(buf, "   + %-15s {W%s{x\n\r", label, name);
+	else
+		sprintf(buf, "   + %-15s {D(unset){x\n\r", label);
+	add_buf(buffer, buf);
+}
+
+SKEDIT( skedit_show )
+{
+	char buf[MSL];
+	BUFFER *buffer;
+	SKILL_DATA *skill;
+
+	EDIT_SKILL(ch, skill);
+
+	buffer = new_buf();
+
+	if (is_skill_spell(skill))
+		sprintf(buf, "Spell: {W%s {x({W%d{x)\n\r", skill->name, skill->uid);
+	else
+		sprintf(buf, "Skill: {W%s {x({W%d{x)\n\r", skill->name, skill->uid);
+	add_buf(buffer, buf);
+
+	if (IS_NULLSTR(skill->display))
+		sprintf(buf, "Display String:   {D(unset){x\n\r");
+	else
+		sprintf(buf, "Display String:   {W%s{x\n\r", skill->display);
+	add_buf(buffer, buf);
+
+	if (skill->pgsn)
+		sprintf(buf, "GSN:              {W%s{x\n\r", gsn_to_name(skill->pgsn));
+	else
+		sprintf(buf, "GSN:              {D(unset){x\n\r");
+	add_buf(buffer, buf);
+
+
+	if (skill->token)
+	{
+		sprintf(buf, "Token:            {W%s {x({W%ld{x#{W%ld{x)\n\r", skill->token->name, skill->token->area->uid, skill->token->vnum);
+		add_buf(buffer, buf);
+
+		add_buf(buffer, " - Artificing:\n\r");
+		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_BREW, "Brew:");
+		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_IMBUE, "Imbue:");
+		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_INK, "Ink:");
+		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_PREBREW, "Prebrew:");
+		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_PREIMBUE, "Preimbue:");
+		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_PREINK, "Preink:");
+		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_PRESCRIBE, "Prescribe:");
+		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_SCRIBE, "Scribe:");
+
+		add_buf(buffer, " - Actions:\n\r");
+		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_BRANDISH, "Brandish:");
+		skedit_show_trigger(buffer, skill->token->progs, TRIG_PRESPELL, "Prespell:");
+		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_QUAFF, "Quaff:");
+		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_RECITE, "Recite:");
+		skedit_show_trigger(buffer, skill->token->progs, TRIG_SPELL, "Spell:");
+		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_TOUCH, "Touch:");
+		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_ZAP, "Zap:");
+	}
+	else
+	{
+		add_buf(buffer, "Functions:\n\r");
+		add_buf(buffer, " - Artificing:\n\r");
+		skedit_show_function(buffer, brew_func_display(skill->brew_fun), "Brew:");
+		skedit_show_function(buffer, NULL, "Imbue:");
+		skedit_show_function(buffer, ink_func_display(skill->ink_fun), "Ink:");
+		skedit_show_function(buffer, prebrew_func_display(skill->prebrew_fun), "Prebrew:");
+		skedit_show_function(buffer, NULL, "Preimbue:");
+		skedit_show_function(buffer, preink_func_display(skill->preink_fun), "Preink:");
+		skedit_show_function(buffer, prescribe_func_display(skill->prescribe_fun), "Prescribe:");
+		skedit_show_function(buffer, scribe_func_display(skill->scribe_fun), "Scribe:");
+
+		add_buf(buffer, " - Actions:\n\r");
+		skedit_show_function(buffer, NULL, "Brandish:");
+		skedit_show_function(buffer, prespell_func_display(skill->prespell_fun), "Prespell:");
+		skedit_show_function(buffer, quaff_func_display(skill->quaff_fun), "Quaff:");
+		skedit_show_function(buffer, recite_func_display(skill->recite_fun), "Recite:");
+		skedit_show_function(buffer, spell_func_display(skill->spell_fun), "Spell:");
+		skedit_show_function(buffer, touch_func_display(skill->touch_fun), "Touch:");
+		skedit_show_function(buffer, NULL, "Zap:");
+	}
+
+	add_buf(buffer, "\n\rLevels:\n\r");
+	sprintf(buf, " - Cleric:  %-7s{x    - Mage:    %s{x\n\r", skill_level_value(skill,CLASS_CLERIC), skill_level_value(skill,CLASS_MAGE)); add_buf(buffer, buf);
+	sprintf(buf, " - Thief:   %-7s{x    - Warrior: %s{x\n\r", skill_level_value(skill,CLASS_THIEF), skill_level_value(skill,CLASS_WARRIOR)); add_buf(buffer, buf);
+
+	add_buf(buffer, "\n\rDifficulties:\n\r");
+	sprintf(buf, " - Cleric:  %-12s{x    - Mage:    %s{x\n\r", skill_difficulty_value(skill, CLASS_CLERIC), skill_difficulty_value(skill, CLASS_MAGE)); add_buf(buffer, buf);
+	sprintf(buf, " - Thief:   %-12s{x    - Warrior: %s{x\n\r", skill_difficulty_value(skill, CLASS_THIEF), skill_difficulty_value(skill, CLASS_WARRIOR)); add_buf(buffer, buf);
+
+	add_buf(buffer, "\n\rInks:\n\r");
+	for(int i = 0; i < 3; i++)
+	{
+		sprintf(buf, " %d) [%2d] %s\n\r", i + 1, skill->inks[i][1], flag_string(catalyst_types, skill->inks[i][0]));
+		add_buf(buffer, buf);
+	}
+
+	add_buf(buffer, "\n\rValues:\n\r");
+	for(int i = 0; i < MAX_SKILL_VALUES; i++)
+	{
+		char name[MIL];
+		if (IS_NULLSTR(skill->valuenames[i]))
+			sprintf(name, "Value %d:", i+1);
+		else
+			sprintf(name, "%s:", skill->valuenames[i]);
+		sprintf(buf, "%-20s %d\n\r", name, skill->values[i]);
+		add_buf(buffer, buf);
+	}
+
+	sprintf(buf, "\n\rTarget:           %s\n\r", flag_string(spell_target_types, skill->target)); add_buf(buffer, buf);
+	sprintf(buf, "Minimum Position: %s\n\r", flag_string(position_flags, skill->minimum_position)); add_buf(buffer, buf);
+
+	if (skill->race > 0)
+		sprintf(buf, "Racial Skill:     Yes (%s)\n\r", race_table[skill->race].name);
+	else
+		sprintf(buf, "Racial Skill:     No\n\r");
+	add_buf(buffer, buf);
+
+	sprintf(buf, "Casting Mana:     %d\n\r", skill->cast_mana); add_buf(buffer, buf);
+	sprintf(buf, "Brewing Mana:     %d\n\r", skill->brew_mana); add_buf(buffer, buf);
+	sprintf(buf, "Scribing Mana:    %d\n\r", skill->scribe_mana); add_buf(buffer, buf);
+	sprintf(buf, "Imbuing Mana:     %d\n\r", skill->imbue_mana); add_buf(buffer, buf);
+	sprintf(buf, "Beats:            %d\n\r", skill->beats); add_buf(buffer, buf);
+
+	sprintf(buf, "Noun Damage:      %s\n\r", IS_NULLSTR(skill->noun_damage) ? "{D(unset){x" : skill->noun_damage); add_buf(buffer, buf);
+	sprintf(buf, "Wear Off Message: %s\n\r", IS_NULLSTR(skill->msg_off) ? "{D(unset){x" : skill->msg_off); add_buf(buffer, buf);
+	sprintf(buf, "Object Message:   %s\n\r", IS_NULLSTR(skill->msg_obj) ? "{D(unset){x" : skill->msg_obj); add_buf(buffer, buf);
+	sprintf(buf, "Dispel Message:   %s\n\r", IS_NULLSTR(skill->msg_disp) ? "{D(unset){x" : skill->msg_disp); add_buf(buffer, buf);
+
+	if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+	{
+		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+	}
+	else
+	{
+		page_to_char(buffer->string, ch);
+	}
+
+	free_buf(buffer);
+	return false;
+}
+
+SKEDIT( skedit_name )
+{
+	SKILL_DATA *skill;
+
+	EDIT_SKILL(ch, skill);
+
+	smash_tilde(argument);
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  skedit name <name>\n\r", ch);
+		send_to_char("Please specify a name.\n\r", ch);
+		return false;
+	}
+
+	free_string(skill->name);
+	skill->name = str_dup(argument);
+
+	send_to_char("Skill name set.\n\r", ch);
+	return true;
+}
+
+SKEDIT( skedit_display )
+{
+	char arg[MIL];
+	SKILL_DATA *skill;
+
+	EDIT_SKILL(ch, skill);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  skedit display {Rset{x <display string>\n\r", ch);
+		send_to_char("Syntax:  skedit display {Rclear{x\n\r", ch);
+		return false;
+	}
+
+	argument = one_argument(argument, arg);
+	if (!str_prefix(arg, "set"))
+	{
+		smash_tilde(argument);
+		if (argument[0] == '\0')
+		{
+			send_to_char("Syntax:  skedit display set {R<display string>{x\n\r", ch);
+			send_to_char("Please specify a display string.\n\r", ch);
+			return false;
+		}
+
+		free_string(skill->display);
+		skill->display = str_dup(argument);
+
+		send_to_char("Skill display string set.\n\r", ch);
+		return true;
+	}
+
+	if (!str_prefix(arg, "clear"))
+	{
+		free_string(skill->display);
+		skill->display = NULL;
+		send_to_char("Skill display string cleared.\n\r", ch);
+		return true;
+	}
+
+	skedit_display(ch, "");
+	return false;
+}
+
+// TODO: Implement or move into a skgedit
+SKEDIT( skedit_group )
+{
+	/*
+	SKILL_DATA *skill;
+
+	EDIT_SKILL(ch, skill);
+	*/
+	send_to_char("Not implemented yet.\n\r", ch);
+
+	return false;
+}
+
+// Remove all instances of the trigger
+void __token_remove_trigger(TOKEN_INDEX_DATA *token, int type)
+{
+	if (token->progs)
+	{
+		PROG_LIST *trigger;
+		ITERATOR it;
+		struct trigger_type *tt = get_trigger_type_bytype(type);
+
+		iterator_start(&it, token->progs[tt->slot]);
+		while(( trigger = (PROG_LIST *)iterator_nextdata(&it) ))
+		{
+			if (trigger->trig_type == type)
+			{
+				iterator_remcurrent(&it);
+				trigger_type_delete_use(tt);
+				free_trigger(trigger);
+			}
+		}
+		iterator_stop(&it);
+	}
+}
+
+bool __token_add_trigger(TOKEN_INDEX_DATA *token, int type, char *phrase, SCRIPT_DATA *script)
+{
+	// Make sure the token has prog bank
+	if (!token->progs) token->progs = new_prog_bank();
+
+	if (!token->progs) return false;	// Something.. bad.. happened.
+
+	struct trigger_type *tt = get_trigger_type_bytype(type);
+
+	PROG_LIST *trigger = new_trigger();
+	trigger->wnum.pArea = script->area;
+	trigger->wnum.vnum = script->vnum;
+	trigger->trig_type = type;
+	trigger->trig_phrase = str_dup(phrase);
+	trigger->trig_number = atoi(trigger->trig_phrase);
+	trigger->numeric = is_number(trigger->trig_phrase);
+	trigger->script = script;
+
+	list_appendlink(token->progs[tt->slot], trigger);
+	trigger_type_add_use(tt);
+	return true;
+}
+
+#define SKEDIT_FUNC(f, p, t)		\
+SKEDIT( skedit_##f##func )	\
+{ \
+	SKILL_DATA *skill; \
+\
+	EDIT_SKILL(ch, skill); \
+\
+	if (skill->token) \
+	{ \
+		/* TOKEN mode */ \
+		WNUM wnum; \
+\
+		/* Allow wnum shortcutting using the token's area */ \
+		if (!parse_widevnum(argument, skill->token->area, &wnum)) \
+		{ \
+			send_to_char("Syntax:  skedit " #f " {R<widevnum>{x\n\r", ch); \
+			send_to_char("Please specify a widevnum for the token SPELL trigger.\n\r", ch); \
+			return false; \
+		} \
+\
+		/* Get the script */ \
+		SCRIPT_DATA *script = get_script_index(wnum.pArea, wnum.vnum, PRG_TPROG); \
+		if (!script) \
+		{ \
+			send_to_char("No such token script by that widevnum.\n\r", ch); \
+			return false; \
+		} \
+\
+		/* Remove any triggers from token. */ \
+		__token_remove_trigger(skill->token, TRIG_##p); \
+\
+		/* Add trigger to token. */ \
+		if (!__token_add_trigger(skill->token, TRIG_##p, "100", script)) \
+		{ \
+			send_to_char("Something went wrong adding " #p " trigger to token.\n\r", ch); \
+			return false; \
+		} \
+\
+		/* Mark area as changed. */ \
+		SET_BIT(skill->token->area->area_flags, AREA_CHANGED); \
+		send_to_char(#p " trigger added to spell token.\n\r", ch); \
+		return true; \
+	} \
+	else \
+	{ \
+		if (argument[0] == '\0') \
+		{ \
+			send_to_char("Syntax:  skedit " #f " {R<function>{x\n\r", ch); \
+			send_to_char("Invalid " #f " function.  Use '? " #f "_func' for a list of functions.\n\r", ch); \
+			return false; \
+		} \
+\
+		t *func = f##_func_lookup(argument); \
+		if(!func) \
+		{ \
+			send_to_char("Syntax:  skedit " #f " {R<function>{x\n\r", ch); \
+			send_to_char("Invalid " #f " function.  Use '? " #f "_func' for a list of functions.\n\r", ch); \
+			return false; \
+		} \
+\
+		skill->f##_fun = func; \
+		send_to_char("Skill " #f " function set.\n\r", ch); \
+		return true; \
+	} \
+}
+
+SKEDIT_FUNC(prespell,PRESPELL,SPELL_FUN)
+SKEDIT_FUNC(spell,SPELL,SPELL_FUN)
+
+SKEDIT_FUNC(prebrew,TOKEN_PREBREW,PREBREW_FUN)
+SKEDIT_FUNC(brew,TOKEN_BREW,BREW_FUN)
+SKEDIT_FUNC(quaff,TOKEN_QUAFF,QUAFF_FUN)
+
+SKEDIT_FUNC(prescribe,TOKEN_PRESCRIBE,PRESCRIBE_FUN)
+SKEDIT_FUNC(scribe,TOKEN_SCRIBE,SCRIBE_FUN)
+SKEDIT_FUNC(recite,TOKEN_RECITE,RECITE_FUN)
+
+SKEDIT_FUNC(preink,TOKEN_PREINK,PREINK_FUN)
+SKEDIT_FUNC(ink,TOKEN_INK,INK_FUN)
+SKEDIT_FUNC(touch,TOKEN_TOUCH,TOUCH_FUN)
+
+// TODO: IMBUE stuff
+
+#if 0
+// Morph based upon whether this is a source or scripted ability
+SKEDIT( skedit_prespellfunc )
+{
+	SKILL_DATA *skill;
+
+	EDIT_SKILL(ch, skill);
+
+	if (skill->token)
+	{
+		// TOKEN mode
+		WNUM wnum;
+
+		// Allow wnum shortcutting using the token's area
+		if (!parse_widevnum(argument, skill->token->area, &wnum))
+		{
+			send_to_char("Syntax:  skedit prespell {R<widevnum>{x\n\r", ch);
+			send_to_char("Please specify a widevnum for the token SPELL trigger.\n\r", ch);
+			return false;
+		}
+
+		// Get the script
+		SCRIPT_DATA *script = get_script_index(wnum.pArea, wnum.vnum, PRG_TPROG);
+		if (!script)
+		{
+			send_to_char("No such token script by that widevnum.\n\r", ch);
+			return false;
+		}
+
+		// Remove any TRIG_PRESPELL triggers from token.
+		__token_remove_trigger(skill->token, TRIG_PRESPELL);
+
+		// Add trigger to token.
+		if (!__token_add_trigger(skill->token, TRIG_PRESPELL, "100", script))
+		{
+			send_to_char("Something went wrong adding PRESPELL trigger to token.\n\r", ch);
+			return false;
+		}
+
+		// Mark area as changed.
+		SET_BIT(skill->token->area->area_flags, AREA_CHANGED);
+		send_to_char("PRESPELL trigger added to spell token.\n\r", ch);
+		return true;
+	}
+	else
+	{
+		if (argument[0] == '\0')
+		{
+			send_to_char("Syntax:  skedit prespell {R<function>{x\n\r", ch);
+			send_to_char("Invalid prespell function.  Use '? prespell_func' for a list of functions.\n\r", ch);
+			return false;
+		}
+
+		SPELL_FUN *func = prespell_func_lookup(argument);
+		if(!func)
+		{
+			send_to_char("Syntax:  skedit prespell {R<function>{x\n\r", ch);
+			send_to_char("Invalid prespell function.  Use '? prespell_func' for a list of functions.\n\r", ch);
+			return false;
+		}
+
+		skill->prespell_fun = func;
+		send_to_char("Skill prespell function set.\n\r", ch);
+		return true;
+	}
+}
+
+// Morph based upon whether this is a source or scripted ability
+SKEDIT( skedit_spellfunc )
+{
+	SKILL_DATA *skill;
+
+	EDIT_SKILL(ch, skill);
+
+	if (skill->token)
+	{
+		// TOKEN mode
+		WNUM wnum;
+
+		// Allow wnum shortcutting using the token's area
+		if (!parse_widevnum(argument, skill->token->area, &wnum))
+		{
+			send_to_char("Syntax:  skedit spell {R<widevnum>{x\n\r", ch);
+			send_to_char("Please specify a widevnum for the token SPELL trigger.\n\r", ch);
+			return false;
+		}
+
+		// Get the script
+		SCRIPT_DATA *script = get_script_index(wnum.pArea, wnum.vnum, PRG_TPROG);
+		if (!script)
+		{
+			send_to_char("No such token script by that widevnum.\n\r", ch);
+			return false;
+		}
+
+		// Remove any TRIG_SPELL triggers from token.
+		__token_remove_trigger(skill->token, TRIG_SPELL);
+
+		// Add trigger to token.
+		if (!__token_add_trigger(skill->token, TRIG_SPELL, "100", script))
+		{
+			send_to_char("Something went wrong adding SPELL trigger to token.\n\r", ch);
+			return false;
+		}
+
+		// Mark area as changed.
+		SET_BIT(skill->token->area->area_flags, AREA_CHANGED);
+		send_to_char("SPELL trigger added to spell token.\n\r", ch);
+		return true;
+	}
+	else
+	{
+		if (argument[0] == '\0')
+		{
+			send_to_char("Syntax:  skedit spell {R<function>{x\n\r", ch);
+			send_to_char("Please specify a spell function name.  Use '? spell_func' for a list of functions.\n\r", ch);
+			return false;
+		}
+
+		SPELL_FUN *func = spell_func_lookup(argument);
+		if(!func)
+		{
+			send_to_char("Syntax:  skedit spell {R<function>{x\n\r", ch);
+			send_to_char("Invalid spell function.  Use '? spell_func' for a list of functions.\n\r", ch);
+			return false;
+		}
+
+		skill->spell_fun = func;
+		send_to_char("Skill spell function set.\n\r", ch);
+		return true;
+	}
+}
+#endif
+
+
+SKEDIT( skedit_gsn )
+{
+	char buf[MSL];
+	SKILL_DATA *skill;
+
+	EDIT_SKILL(ch, skill);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  skedit gsn {Rset{x <gsn>\n\r", ch);
+		send_to_char("Syntax:  skedit gsn {Rclear{x\n\r", ch);
+		return false;
+	}
+
+	char arg[MIL];
+	argument = one_argument(argument, arg);
+	if (!str_prefix(arg, "set"))
+	{
+		if (argument[0] == '\0')
+		{
+			send_to_char("Syntax:  skedit gsn set {R<gsn>{x\n\r", ch);
+			send_to_char("Please specify a GSN.  Use '? gsn' to see list of available GSNs.\n\r", ch);
+			return false;
+		}
+
+		sh_int *pgsn = gsn_from_name(argument);
+		if (!pgsn)
+		{
+			send_to_char("Syntax:  skedit gsn set {R<gsn>{x\n\r", ch);
+			send_to_char("Invalid GSN.  Use '? gsn' to see list of available GSNs.\n\r", ch);
+			return false;
+		}
+
+		ITERATOR it;
+		SKILL_DATA *sk;
+		iterator_start(&it, skills_list);
+		while((sk = (SKILL_DATA *)iterator_nextdata(&it)))
+		{
+			if (sk->pgsn == pgsn && sk != skill)
+				break;
+		}
+		iterator_stop(&it);
+
+		if (sk)
+		{
+			sprintf(buf, "That GSN is already used by skill {W%s{x.\n\r", sk->name);
+			send_to_char(buf, ch);
+			return false;
+		}
+
+		skill->pgsn = pgsn;
+		send_to_char("Skill GSN set.\n\r", ch);
+		return true;
+	}
+
+	if (!str_prefix(arg, "clear"))
+	{
+		if (!skill->pgsn)
+		{
+			send_to_char("There is no GSN set on this skill.\n\r", ch);
+			return false;
+		}
+
+		skill->pgsn = NULL;
+		send_to_char("Skill GSN clear.\n\r", ch);
+		return true;
+	}
+
+	skedit_gsn(ch, "");
+	return false;
+}
+
+SKEDIT( skedit_level )
+{
+	char buf[MSL];
+	SKILL_DATA *skill;
+
+	EDIT_SKILL(ch, skill);
+
+	if (argument[0] == '\0')
+	{
+		sprintf(buf, "Syntax:  skedit level {R<class>{x 1-%d|none\n\r", MAX_CLASS_LEVEL);
+		send_to_char(buf, ch);
+		send_to_char("Please select a class.  Use '? classes' to get a list of classes.\n\r", ch);
+		return false;
+	}
+
+	char arg[MIL];
+	argument = one_argument(argument, arg);
+	
+	int clazz = class_lookup(arg);
+	if (clazz < 0)
+	{
+		sprintf(buf, "Syntax:  skedit level <class> {R1-%d|none{x\n\r", MAX_CLASS_LEVEL);
+		send_to_char(buf, ch);
+		send_to_char("Invalid class.  Use '? classes' to get a list of classes.\n\r", ch);
+		return false;
+	}
+
+	if (argument[0] == '\0')
+	{
+		sprintf(buf, "Syntax:  skedit level <class> {R1-%d|none{x\n\r", MAX_CLASS_LEVEL);
+		send_to_char(buf, ch);
+		sprintf(buf, "Please specify a number from 1 to %d or {Wnone{x.\n\r", MAX_CLASS_LEVEL);
+		send_to_char(buf, ch);
+		return false;
+	}
+
+	int value;
+	if (is_number(argument))
+	{
+		value = atoi(argument);
+		if (value < 1 || value > MAX_CLASS_LEVEL)
+		{
+			sprintf(buf, "Syntax:  skedit level <class> {R1-%d{x\n\r", MAX_CLASS_LEVEL);
+			send_to_char(buf, ch);
+			sprintf(buf, "Please specify a number from 1 to %d.\n\r", MAX_CLASS_LEVEL);
+			send_to_char(buf, ch);
+			return false;
+		}
+	}
+	else if (!str_prefix(argument, "none"))
+	{
+		value = -1;
+	}
+	else
+	{
+		send_to_char("Syntax:  skedit level <class> {Rnone{x\n\r", ch);
+		sprintf(buf, "Please specify a number from 1 to %d or {Wnone{x.\n\r", MAX_CLASS_LEVEL);
+		send_to_char(buf, ch);
+		return false;
+	}
+
+	skill->skill_level[clazz] = value;
+	sprintf(buf, "Skill level set for {+%s.\n\r", class_table[clazz].name);
+	send_to_char(buf, ch);
+	return true;
+}
+
+SKEDIT( skedit_difficulty )
+{
+	char buf[MSL];
+	SKILL_DATA *skill;
+
+	EDIT_SKILL(ch, skill);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  skedit difficulty {R<class>{x 1+|none\n\r", ch);
+		send_to_char("Please select a class.  Use '? classes' to get a list of classes.\n\r", ch);
+		return false;
+	}
+
+	char arg[MIL];
+	argument = one_argument(argument, arg);
+	
+	int clazz = class_lookup(arg);
+	if (clazz < 0)
+	{
+		send_to_char("Syntax:  skedit difficulty {R<class>{x 1+|none\n\r", ch);
+		send_to_char("Invalid class.  Use '? classes' to get a list of classes.\n\r", ch);
+		return false;
+	}
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  skedit difficulty <class> {R1+|none{x\n\r", ch);
+		send_to_char("Please specify a positive number or {Wnone{x.\n\r", ch);
+		return false;
+	}
+
+	int value;
+	if (is_number(argument))
+	{
+		value = atoi(argument);
+		if (value < 1)
+		{
+			send_to_char("Syntax:  skedit difficulty <class> {R1+{x\n\r", ch);
+			send_to_char("Please specify a positive number.\n\r", ch);
+			return false;
+		}
+	}
+	else if (!str_prefix(argument, "none"))
+	{
+		value = -1;
+	}
+	else
+	{
+		send_to_char("Syntax:  skedit difficulty <class> {Rnone{x\n\r", ch);
+		return false;
+	}
+
+	skill->rating[clazz] = value;
+	sprintf(buf, "Skill difficulty set for {+%s.\n\r", class_table[clazz].name);
+	send_to_char(buf, ch);
+	return true;
+}
+
+SKEDIT( skedit_target )
+{
+	SKILL_DATA *skill;
+
+	EDIT_SKILL(ch, skill);
+
+	int value;
+	if ((value = stat_lookup(argument, spell_target_types, NO_FLAG)) == NO_FLAG)
+	{
+		send_to_char("Syntax:  skedit target {R<target>{x\n\r", ch);
+		send_to_char("Invalid spell target.  Use '? spell_targets' to see list of targets.\n\r", ch);
+		return false;
+	}
+
+	skill->target = value;
+	send_to_char("Skill spell target set.\n\r", ch);
+	return true;
+}
+
+SKEDIT( skedit_position )
+{
+	SKILL_DATA *skill;
+
+	EDIT_SKILL(ch, skill);
+
+	int value;
+	if ((value = stat_lookup(argument, position_flags, NO_FLAG)) == NO_FLAG)
+	{
+		send_to_char("Syntax:  skedit position {R<position>{x\n\r", ch);
+		send_to_char("Invalid position.  Use '? position' to see list of positions.\n\r", ch);
+		return false;
+	}
+
+	skill->minimum_position = value;
+	send_to_char("Skill minimum position set.\n\r", ch);
+	return true;
+}
+
+SKEDIT( skedit_race )
+{
+	char buf[MSL];
+	SKILL_DATA *skill;
+
+	EDIT_SKILL(ch, skill);
+
+	int race;
+	if (argument[0] != '\0' && (race = race_lookup(argument)) >= 0)
+	{
+		send_to_char("Syntax:  skedit race {R<race>{x\n\r", ch);
+		send_to_char("Please specify a race.  Use '? races' for valid races.\n\r", ch);
+		return false;
+	}
+
+    if (argument[0] == '?')
+    {
+		send_to_char("Available races are:", ch);
+
+		for (race = 0; race_table[race].name != NULL; race++)
+		{
+			if ((race % 3) == 0)
+				send_to_char("\n\r", ch);
+			sprintf(buf, " %-15s", race_table[race].name);
+			send_to_char(buf, ch);
+		}
+
+		send_to_char("\n\r", ch);
+		return false;
+    }
+
+	if (race > 0)
+	{
+		skill->race = race;
+		send_to_char("Skill Race set.\n\r", ch);
+	}
+	else
+	{
+		skill->race = -1;
+		send_to_char("Skill Race cleared.\n\r", ch);
+	}
+	return true;
+}
+
+SKEDIT( skedit_mana )
+{
+	char buf[MSL];
+	char arg[MIL];
+	SKILL_DATA *skill;
+	sh_int *mana;
+
+	EDIT_SKILL(ch, skill);
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  skedit mana {Rcast{x <mana>\n\r", ch);
+		send_to_char("Syntax:  skedit mana {Rbrew{x <mana>\n\r", ch);
+		send_to_char("Syntax:  skedit mana {Rscribe{x <mana>\n\r", ch);
+		send_to_char("Syntax:  skedit mana {Rimbue{x <mana>\n\r", ch);
+		return false;
+	}
+
+	argument = one_argument(argument, arg);
+	if (!str_prefix(arg, "cast"))
+	{
+		strcpy(arg, "cast");
+		mana = &skill->cast_mana;
+	}
+	else if (!str_prefix(arg, "brew"))
+	{
+		strcpy(arg, "brew");
+		mana = &skill->brew_mana;
+	}
+	else if (!str_prefix(arg, "scribe"))
+	{
+		strcpy(arg, "scribe");
+		mana = &skill->scribe_mana;
+	}
+	else if (!str_prefix(arg, "imbue"))
+	{
+		strcpy(arg, "imbue");
+		mana = &skill->imbue_mana;
+	}
+	else
+	{
+		send_to_char("Syntax:  skedit mana {Rcast{x <mana>\n\r", ch);
+		send_to_char("Syntax:  skedit mana {Rbrew{x <mana>\n\r", ch);
+		send_to_char("Syntax:  skedit mana {Rscribe{x <mana>\n\r", ch);
+		send_to_char("Syntax:  skedit mana {Rimbue{x <mana>\n\r", ch);
+		return false;
+	}
+
+	int value;
+	if (!is_number(argument) || (value = atoi(argument)) < 0)
+	{
+		sprintf(buf, "Syntax:  skedit mana %s {R<mana>{x\n\r", arg);
+		send_to_char(buf, ch);
+		send_to_char("Please specify a non-negative number.\n\r", ch);
+		return false;
+	}
+
+	*mana = value;
+	sprintf(buf, "Skill {+%s Mana Cost set.\n\r", arg);
+	send_to_char(buf, ch);
+	return true;
+}
+
+SKEDIT( skedit_beats )
+{
+	SKILL_DATA *skill;
+
+	EDIT_SKILL(ch, skill);
+
+	int value;
+	if (!is_number(argument) || (value = atoi(argument)) < 0)
+	{
+		send_to_char("Syntax:  skedit beats {R<beats>{x\n\r", ch);
+		send_to_char("Please specify a non-negative number.\n\r", ch);
+		return false;
+	}
+
+	skill->beats = value;
+	send_to_char("Skill Beats set.\n\r", ch);
+	return true;
+
+	return false;
+}
+
+SKEDIT( skedit_message )
+{
+	char arg[MIL];
+	SKILL_DATA *skill;
+
+	EDIT_SKILL(ch, skill);
+
+	argument = one_argument(argument, arg);
+	if (arg[0] == '\0')
+	{
+		send_to_char("Syntax:  skedit message {Rnoun{x set <message>\n\r", ch);
+		send_to_char("         skedit message {Rnoun{x clear\n\r", ch);
+		send_to_char("         skedit message {Rwearoff{x set <message>\n\r", ch);
+		send_to_char("         skedit message {Rwearoff{x clear\n\r", ch);
+		send_to_char("         skedit message {Robject{x set <message>\n\r", ch);
+		send_to_char("         skedit message {Robject{x clear\n\r", ch);
+		send_to_char("         skedit message {Rdispel{x set <message>\n\r", ch);
+		send_to_char("         skedit message {Rdispel{x clear\n\r", ch);
+		return false;
+	}
+
+	if (!str_prefix(arg, "noun"))
+	{
+		argument = one_argument(argument, arg);
+		if (arg[0] == '\0')
+		{
+			send_to_char("Syntax:  skedit message noun {Rset{x <message>\n\r", ch);
+			send_to_char("         skedit message noun {Rclear{x\n\r", ch);
+			return false;
+		}
+
+		if (!str_prefix(arg, "set"))
+		{
+			smash_tilde(argument);
+			if (argument[0] == '\0')
+			{
+				send_to_char("Syntax:  skedit message noun set {R<message>{x\n\r", ch);
+				send_to_char("Please specify a noun damage string.\n\r", ch);
+				return false;
+			}
+
+			free_string(skill->noun_damage);
+			skill->noun_damage = str_dup(argument);
+			send_to_char("Skill Noun Damage set.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "clear"))
+		{
+			free_string(skill->noun_damage);
+			skill->noun_damage = NULL;
+			send_to_char("Skill Noun Damage cleared.\n\r", ch);
+			return true;
+		}
+
+		skedit_message(ch, "noun");
+		return false;
+	}
+
+	if (!str_prefix(arg, "wearoff"))
+	{
+		argument = one_argument(argument, arg);
+		if (arg[0] == '\0')
+		{
+			send_to_char("Syntax:  skedit message wearoff {Rset{x <message>\n\r", ch);
+			send_to_char("         skedit message wearoff {Rclear{x\n\r", ch);
+			return false;
+		}
+
+		if (!str_prefix(arg, "set"))
+		{
+			smash_tilde(argument);
+			if (argument[0] == '\0')
+			{
+				send_to_char("Syntax:  skedit message wearoff set {R<message>{x\n\r", ch);
+				send_to_char("Please specify a wearoff damage string.\n\r", ch);
+				return false;
+			}
+
+			free_string(skill->msg_off);
+			skill->msg_off = str_dup(argument);
+			send_to_char("Skill Wear Off Message set.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "clear"))
+		{
+			free_string(skill->msg_off);
+			skill->msg_off = NULL;
+			send_to_char("Skill Wear Off Message cleared.\n\r", ch);
+			return true;
+		}
+
+		skedit_message(ch, "wearoff");
+		return false;
+	}
+
+	if (!str_prefix(arg, "object"))
+	{
+		argument = one_argument(argument, arg);
+		if (arg[0] == '\0')
+		{
+			send_to_char("Syntax:  skedit message object {Rset{x <message>\n\r", ch);
+			send_to_char("         skedit message object {Rclear{x\n\r", ch);
+			return false;
+		}
+
+		if (!str_prefix(arg, "set"))
+		{
+			smash_tilde(argument);
+			if (argument[0] == '\0')
+			{
+				send_to_char("Syntax:  skedit message object set {R<message>{x\n\r", ch);
+				send_to_char("Please specify a object damage string.\n\r", ch);
+				return false;
+			}
+
+			free_string(skill->msg_obj);
+			skill->msg_obj = str_dup(argument);
+			send_to_char("Skill Wear Off (Object) Message set.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "clear"))
+		{
+			free_string(skill->msg_obj);
+			skill->msg_obj = NULL;
+			send_to_char("Skill Wear Off (Object) Message cleared.\n\r", ch);
+			return true;
+		}
+
+		skedit_message(ch, "object");
+		return false;
+	}
+
+	if (!str_prefix(arg, "dispel"))
+	{
+		argument = one_argument(argument, arg);
+		if (arg[0] == '\0')
+		{
+			send_to_char("Syntax:  skedit message dispel {Rset{x <message>\n\r", ch);
+			send_to_char("         skedit message dispel {Rclear{x\n\r", ch);
+			return false;
+		}
+
+		if (!str_prefix(arg, "set"))
+		{
+			smash_tilde(argument);
+			if (argument[0] == '\0')
+			{
+				send_to_char("Syntax:  skedit message dispel set {R<message>{x\n\r", ch);
+				send_to_char("Please specify a dispel damage string.\n\r", ch);
+				return false;
+			}
+
+			free_string(skill->msg_disp);
+			skill->msg_disp = str_dup(argument);
+			send_to_char("Skill Dispel Message set.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "clear"))
+		{
+			free_string(skill->msg_disp);
+			skill->msg_disp = NULL;
+			send_to_char("Skill Dispel Message cleared.\n\r", ch);
+			return true;
+		}
+
+		skedit_message(ch, "dispel");
+		return false;
+	}
+
+	skedit_message(ch, "");
+	return false;
+}
+
+SKEDIT( skedit_inks )
+{
+	char buf[MSL];
+	char arg[MIL];
+	SKILL_DATA *skill;
+
+	EDIT_SKILL(ch, skill);
+
+	int index;
+	argument = one_argument(argument, arg);
+	if (!is_number(arg) || (index = atoi(arg)) < 1 || index > 3)
+	{
+		send_to_char("Syntax: skedit inks {R<1-3>{x none\n\r", ch);
+		send_to_char("        skedit inks {R<1-3>{x <catalyst>[ <amount+>]\n\r", ch);
+		send_to_char("Please specify a number from 1 to 3.\n\r", ch);
+		return false;
+	}
+
+	int catalyst;
+	argument = one_argument(argument, arg);
+	if ((catalyst = stat_lookup(arg, catalyst_types, NO_FLAG)) == NO_FLAG)
+	{
+		send_to_char("Syntax: skedit inks {R<1-3>{x none\n\r", ch);
+		send_to_char("        skedit inks <1-3> {R<catalyst>{x[ <amount+>]\n\r", ch);
+		send_to_char("Invalid catalyst type.  Use '? catalyst' for list of catalyst types.\n\r", ch);
+		return false;
+	}
+
+	int amount = 0;
+	if (catalyst != CATALYST_NONE)
+	{
+		if (!is_number(argument) || (amount = atoi(argument)) < 1)
+		{
+			send_to_char("Syntax:  skedit inks <1-3> <catalyst> {R<amount+>{x\n\r", ch);
+			send_to_char("Please specify a positive number.\n\r", ch);
+			return false;
+		}
+	}
+
+	skill->inks[index - 1][0] = catalyst;
+	skill->inks[index - 1][1] = amount;
+	sprintf(buf, "Skill Ink %d set.\n\r", index);
+	send_to_char(buf, ch);
+	return true;
+}
+
+SKEDIT( skedit_value )
+{
+	char arg[MIL];
+	char buf[MSL];
+	SKILL_DATA *skill;
+
+	EDIT_SKILL(ch, skill);
+
+	argument = one_argument(argument, arg);
+	int index;
+	if (!is_number(arg) || (index = atoi(arg)) < 1 || index > MAX_SKILL_VALUES)
+	{
+		sprintf(buf, "Syntax:  skedit value {R1-%d{x <value>\n\r", MAX_SKILL_VALUES);
+		send_to_char(buf, ch);
+		sprintf(buf, "Please select an index from 1 to %d.\n\r", MAX_SKILL_VALUES);
+		send_to_char(buf, ch);
+		return false;
+	}
+
+	if (!is_number(argument))
+	{
+		sprintf(buf, "Syntax:  skedit value 1-%d {R<value>{x\n\r", MAX_SKILL_VALUES);
+		send_to_char(buf, ch);
+		send_to_char("Please provide a number.\n\r", ch);
+		return false;
+	}
+
+	skill->values[index - 1] = atoi(argument);
+	if (IS_NULLSTR(skill->valuenames[index - 1]))
+		sprintf(buf, "Skill Value %d set.\n\r", index);
+	else
+		sprintf(buf, "Skill Value %d (%s) set.\n\r", index, skill->valuenames[index - 1]);
+	send_to_char(buf, ch);
+	return true;
+}
+
+SKEDIT( skedit_valuename )
+{
+	char arg[MIL];
+	char buf[MSL];
+	SKILL_DATA *skill;
+
+	EDIT_SKILL(ch, skill);
+
+	argument = one_argument(argument, arg);
+	int index;
+	if (!is_number(arg) || (index = atoi(arg)) < 1 || index > MAX_SKILL_VALUES)
+	{
+		sprintf(buf, "Syntax:  skedit valuename {R1-%d{x set <name>\n\r", MAX_SKILL_VALUES);
+		send_to_char(buf, ch);
+		sprintf(buf, "         skedit valuename {R1-%d{x clear\n\r", MAX_SKILL_VALUES);
+		send_to_char(buf, ch);
+		sprintf(buf, "Please select an index from 1 to %d.\n\r", MAX_SKILL_VALUES);
+		send_to_char(buf, ch);
+		return false;
+	}
+
+	argument = one_argument(argument, arg);
+	if(!str_prefix(arg, "set"))
+	{
+		smash_tilde(argument);
+		if (argument[0] == '\0')
+		{
+			sprintf(buf, "Syntax:  skedit valuename 1-%d set {R<name>{x\n\r", MAX_SKILL_VALUES);
+			send_to_char(buf, ch);
+			send_to_char("Please provide a name.\n\r", ch);
+			return false;
+		}
+
+		free_string(skill->valuenames[index - 1]);
+		skill->valuenames[index - 1] = str_dup(argument);
+		sprintf(buf, "Skill Value Name %d set.\n\r", index);
+		send_to_char(buf, ch);
+		return true;
+	}
+
+	if (!str_prefix(arg, "clear"))
+	{
+		free_string(skill->valuenames[index - 1]);
+		skill->valuenames[index - 1] = NULL;
+		sprintf(buf, "Skill Value Name %d cleared.\n\r", index);
+		send_to_char(buf, ch);
+		return true;
+	}
+
+	sprintf(buf, "Syntax:  skedit valuename 1-%d {Rset{x <name>\n\r", MAX_SKILL_VALUES);
+	send_to_char(buf, ch);
+	sprintf(buf, "         skedit valuename 1-%d {Rclear{x\n\r", MAX_SKILL_VALUES);
+	send_to_char(buf, ch);
+	return false;
 }

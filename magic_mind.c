@@ -30,7 +30,7 @@ SPELL_FUNC(spell_calm)
 		if ((IS_NPC(vch) && (IS_SET(vch->imm_flags,IMM_MAGIC) || IS_SET(vch->act[0],ACT_UNDEAD))) || IS_IMMORTAL(vch))
 			continue;
 
-		if (!check_spell_deflection(ch, vch, sn))
+		if (!check_spell_deflection(ch, vch, skill))
 			continue;
 
 		if (IS_AFFECTED(vch,AFF_CALM) || IS_AFFECTED(vch,AFF_BERSERK) || IS_AFFECTED(vch,AFF_FRENZY) || (!is_same_group(vch, ch) && !is_same_group(vch, ch->fighting)))
@@ -45,7 +45,7 @@ SPELL_FUNC(spell_calm)
 		af.slot	= WEAR_NONE;
 		af.where = TO_AFFECTS;
 		af.group = AFFGROUP_MENTAL;
-		af.type = sn;
+		af.skill = skill;
 		af.level = level;
 		af.duration = level/4;
 		af.location = APPLY_HITROLL;
@@ -110,7 +110,7 @@ SPELL_FUNC(spell_charm_person)
 	af.slot	= WEAR_NONE;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MENTAL;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration = number_fuzzy(level / 4);
 	af.location = 0;
@@ -143,8 +143,8 @@ SPELL_FUNC(spell_detect_hidden)
 		perm = TRUE;
 	}
 
-	if (perm && is_affected(victim, sn)) {
-		affect_strip(victim, sn);
+	if (perm && is_affected(victim, skill)) {
+		affect_strip(victim, skill);
 	} else if (IS_AFFECTED(victim, AFF_DETECT_HIDDEN)) {
 		if (victim == ch)
 			send_to_char("You are already as alert as you can be. \n\r",ch);
@@ -156,7 +156,7 @@ SPELL_FUNC(spell_detect_hidden)
 	af.slot = obj_wear_loc;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration = perm ? -1 : level;
 	af.location = APPLY_NONE;
@@ -183,8 +183,8 @@ SPELL_FUNC(spell_detect_invis)
 		perm = TRUE;
 	}
 
-	if (perm && is_affected(victim, sn)) {
-		affect_strip(victim, sn);
+	if (perm && is_affected(victim, skill)) {
+		affect_strip(victim, skill);
 	} else if (IS_AFFECTED(victim, AFF_DETECT_INVIS)) {
 		if (victim == ch)
 			send_to_char("You can already see invisible.\n\r",ch);
@@ -196,7 +196,7 @@ SPELL_FUNC(spell_detect_invis)
 	af.slot = obj_wear_loc;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration = perm ? -1 : level;
 	af.modifier = 0;
@@ -223,8 +223,8 @@ SPELL_FUNC(spell_detect_magic)
 		perm = TRUE;
 	}
 
-	if (perm && is_affected(victim, sn))
-		affect_strip(victim, sn);
+	if (perm && is_affected(victim, skill))
+		affect_strip(victim, skill);
 	else if (IS_AFFECTED(victim, AFF_DETECT_MAGIC)) {
 		if (victim == ch)
 			send_to_char("You can already sense magical auras.\n\r",ch);
@@ -236,7 +236,7 @@ SPELL_FUNC(spell_detect_magic)
 	af.slot = obj_wear_loc;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration = perm ? -1 : level;
 	af.modifier = 0;
@@ -262,9 +262,9 @@ SPELL_FUNC(spell_frenzy)
 		perm = TRUE;
 	}
 
-	if (perm && is_affected(victim, sn)) {
-		affect_strip(victim, sn);
-	} else if (is_affected(victim,sn) || IS_AFFECTED(victim,AFF_BERSERK)) {
+	if (perm && is_affected(victim, skill)) {
+		affect_strip(victim, skill);
+	} else if (is_affected(victim,skill) || IS_AFFECTED(victim,AFF_BERSERK)) {
 		if (victim == ch)
 			send_to_char("You are already in a frenzy.\n\r",ch);
 		else
@@ -272,7 +272,7 @@ SPELL_FUNC(spell_frenzy)
 		return FALSE;
 	}
 
-	if (is_affected(victim,gsn_calm)) {
+	if (is_affected(victim, gsk_calm)) {
 		if (victim == ch)
 			send_to_char("Why don't you just relax for a while?\n\r",ch);
 		else
@@ -290,7 +290,7 @@ SPELL_FUNC(spell_frenzy)
 	af.slot = obj_wear_loc;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_DIVINE;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration = perm ? -1 : (level / 3);
 	af.modifier  = level / 6;
@@ -326,9 +326,9 @@ SPELL_FUNC(spell_morphlock)
 		perm = TRUE;
 	}
 
-	if (perm && is_affected(victim, sn)) {
-		affect_strip(victim, sn);
-	} else if (is_affected(victim,sn) || IS_AFFECTED2(victim, AFF2_MORPHLOCK)) {
+	if (perm && is_affected(victim, skill)) {
+		affect_strip(victim, skill);
+	} else if (is_affected(victim,skill) || IS_AFFECTED2(victim, AFF2_MORPHLOCK)) {
 		if (victim == ch)
 			send_to_char("You are already confined to your shape.\n\r",ch);
 		else
@@ -340,13 +340,13 @@ SPELL_FUNC(spell_morphlock)
 		if(IS_REMORT(ch)) lvl -= LEVEL_HERO;		// If the caster is remort, it will require LESS catalyst
 		lvl = (lvl > 19) ? (lvl / 10) : 1;
 
-		catalyst = has_catalyst(ch,NULL,CATALYST_MIND,CATALYST_INVENTORY,1,CATALYST_MAXSTRENGTH);
+		catalyst = has_catalyst(ch,NULL,CATALYST_MIND,CATALYST_INVENTORY);
 		if(catalyst >= 0 && catalyst < lvl) {
 			send_to_char("You appear to be missing a required mental catalyst.\n\r", ch);
 			return FALSE;
 		}
 
-		use_catalyst(ch,NULL,CATALYST_MIND,CATALYST_INVENTORY,lvl,1,CATALYST_MAXSTRENGTH,TRUE);
+		use_catalyst(ch,NULL,CATALYST_MIND,CATALYST_INVENTORY,lvl,TRUE);
 
 		if (saves_spell(level,victim,DAM_MENTAL)) {
 			send_to_char("Nothing happens.\n\r", ch);
@@ -358,7 +358,7 @@ SPELL_FUNC(spell_morphlock)
 	af.slot = obj_wear_loc;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MENTAL;
-	af.type = sn;
+	af.skill = skill;
 	af.location = APPLY_NONE;
 	af.modifier = 0;
 	af.level = level + 1;
@@ -383,7 +383,7 @@ SPELL_FUNC(spell_sleep)
 	af.slot	= obj_wear_loc;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration = 1;
 	af.location = APPLY_NONE;
@@ -427,7 +427,7 @@ SPELL_FUNC(spell_third_eye)
 	}
 
 	for (af_old = skull->affected; af_old; af_old = af_old->next) {
-		if (af_old->type == sn) {
+		if (af_old->skill == skill) {
 			act("The soul of $T is already bound to $p.", ch, NULL, NULL, skull, NULL, NULL, skull->owner, TO_CHAR);
 			return FALSE;
 		}
@@ -440,7 +440,7 @@ SPELL_FUNC(spell_third_eye)
 	af.slot	= WEAR_NONE;
 	af.where = TO_OBJECT;
 	af.group = AFFGROUP_ENCHANT;
-	af.type	= sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration = (level * level / 900);	// 1 to 16
 	af.duration = UMAX(1,af.duration);

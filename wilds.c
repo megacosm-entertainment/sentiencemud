@@ -2967,7 +2967,7 @@ void char_to_vroom (CHAR_DATA *ch, WILDS_DATA *pWilds, int x, int y)
 
         for (af = ch->affected; af != NULL; af = af->next)
         {
-            if (af->type == gsn_plague)
+            if (af->skill == gsk_plague)
                 break;
         }
 
@@ -2984,7 +2984,8 @@ void char_to_vroom (CHAR_DATA *ch, WILDS_DATA *pWilds, int x, int y)
         plague.where = TO_AFFECTS;
 		plague.custom_name = NULL;
         plague.group = af->group;
-        plague.type = gsn_plague;
+        plague.catalyst_type = -1;
+        plague.skill = gsk_plague;
         plague.level = af->level - 1;
         plague.duration = number_range (1, 2 * plague.level);
         plague.location = APPLY_STR;

@@ -151,7 +151,7 @@ bool obj_index_can_add_item_type(OBJ_INDEX_DATA *pObjIndex, int item_type)
 		case ITEM_CONTAINER:
 			if (item_type == ITEM_ARMOUR) return TRUE;
 			if (item_type == ITEM_CART) return TRUE;
-			if (item_type == ITEM_FOUNTAIN) return TRUE;
+			if (item_type == ITEM_FLUID_CONTAINER) return TRUE;
 			if (item_type == ITEM_FURNITURE) return TRUE;
 			if (item_type == ITEM_JEWELRY) return TRUE;
 			if (item_type == ITEM_LIGHT) return TRUE;
@@ -174,7 +174,7 @@ bool obj_index_can_add_item_type(OBJ_INDEX_DATA *pObjIndex, int item_type)
 		case ITEM_FURNITURE:
 			if (item_type == ITEM_CART) return TRUE;
 			if (item_type == ITEM_CONTAINER) return TRUE;
-			if (item_type == ITEM_FOUNTAIN) return TRUE;
+			if (item_type == ITEM_FLUID_CONTAINER) return TRUE;
 			if (item_type == ITEM_LIGHT) return TRUE;
 			if (item_type == ITEM_PORTAL) return TRUE;
 			return FALSE;
@@ -209,7 +209,7 @@ bool obj_index_can_add_item_type(OBJ_INDEX_DATA *pObjIndex, int item_type)
 			if (item_type == ITEM_CONTAINER) return TRUE;
 			return FALSE;
 
-		case ITEM_FOUNTAIN:
+		case ITEM_FLUID_CONTAINER:
 			if (item_type == ITEM_LIGHT) return TRUE;
 			if (item_type == ITEM_CONTAINER) return TRUE;
 			if (item_type == ITEM_FURNITURE) return TRUE;
@@ -219,8 +219,7 @@ bool obj_index_can_add_item_type(OBJ_INDEX_DATA *pObjIndex, int item_type)
 
 		case ITEM_LIGHT:
 			if (item_type == ITEM_CONTAINER) return TRUE;
-			if (item_type == ITEM_DRINK_CON) return TRUE;
-			if (item_type == ITEM_FOUNTAIN) return TRUE;
+			if (item_type == ITEM_FLUID_CONTAINER) return TRUE;
 			if (item_type == ITEM_FURNITURE) return TRUE;
 			if (item_type == ITEM_PORTAL) return TRUE;
 			return FALSE;
@@ -229,7 +228,7 @@ bool obj_index_can_add_item_type(OBJ_INDEX_DATA *pObjIndex, int item_type)
 			if (item_type == ITEM_LIGHT) return TRUE;
 			if (item_type == ITEM_CONTAINER) return TRUE;
 			if (item_type == ITEM_FURNITURE) return TRUE;
-			if (item_type == ITEM_FOUNTAIN) return TRUE;
+			if (item_type == ITEM_FLUID_CONTAINER) return TRUE;
 			if (item_type == ITEM_CART) return TRUE;
 			return FALSE;
 	}
@@ -294,7 +293,9 @@ bool obj_oclu_ambiguous(OBJ_DATA *obj)
 {
 	int types = 0;
 
+	if (IS_BOOK(obj)) types++;
 	if (IS_CONTAINER(obj)) types++;
+	if (IS_FLUID_CON(obj)) types++;
 	if (IS_FURNITURE(obj))
 	{
 		// Can target it without a "context" if this is *only* furniture out of this list
@@ -305,7 +306,6 @@ bool obj_oclu_ambiguous(OBJ_DATA *obj)
 	}
 
 	if (IS_PORTAL(obj)) types++;
-	// if (IS_BOOK(obj)) types++;
 
 	return types > 1;
 }
@@ -314,12 +314,24 @@ void obj_oclu_show_parts(CHAR_DATA *ch, OBJ_DATA *obj)
 {
 	int i = 0;
 
-	// IS_BOOK
+	if (IS_BOOK(obj))
+	{
+		if (i > 0) send_to_char(", ", ch);
+		send_to_char(BOOK(obj)->short_descr, ch);
+		i++;
+	}
 
 	if (IS_CONTAINER(obj))
 	{
 		if (i > 0) send_to_char(", ", ch);
 		send_to_char(CONTAINER(obj)->short_descr, ch);
+		i++;
+	}
+
+	if (IS_FLUID_CON(obj))
+	{
+		if (i > 0) send_to_char(", ", ch);
+		send_to_char(FLUID_CON(obj)->short_descr, ch);
 		i++;
 	}
 
@@ -382,6 +394,19 @@ bool oclu_get_context(OCLU_CONTEXT *context, OBJ_DATA *obj, char *argument)
 				context->flags = &(CONTAINER(obj)->flags);
 				context->label = CONTAINER(obj)->short_descr;
 				context->lock = &(CONTAINER(obj)->lock);
+				return TRUE;
+			}
+		}
+
+		if (IS_FLUID_CON(obj))
+		{
+			if (is_name(arg, FLUID_CON(obj)->name) && (count-- == 1))
+			{
+				context->item_type = ITEM_FLUID_CONTAINER;
+				context->which = CONTEXT_FLUID_CON;
+				context->flags = &(FLUID_CON(obj)->flags);
+				context->label = FLUID_CON(obj)->short_descr;
+				context->lock = &(FLUID_CON(obj)->lock);
 				return TRUE;
 			}
 		}
@@ -449,6 +474,16 @@ bool oclu_get_context(OCLU_CONTEXT *context, OBJ_DATA *obj, char *argument)
 			return TRUE;
 		}
 
+		if (IS_FLUID_CON(obj))
+		{
+			context->item_type = ITEM_FLUID_CONTAINER;
+			context->which = CONTEXT_FLUID_CON;
+			context->flags = &(FLUID_CON(obj)->flags);
+			context->label = FLUID_CON(obj)->short_descr;
+			context->lock = &(FLUID_CON(obj)->lock);
+			return TRUE;
+		}
+
 		if (IS_FURNITURE(obj))
 		{
 			if (FURNITURE(obj)->main_compartment > 0)
@@ -476,6 +511,65 @@ bool oclu_get_context(OCLU_CONTEXT *context, OBJ_DATA *obj, char *argument)
 
 	return FALSE;
 }
+
+bool spell_cmp(SPELL_DATA *a, SPELL_DATA *b)
+{
+	if (a == NULL) return FALSE;
+	
+	if (b == NULL) return FALSE;
+
+	if (a->skill != b->skill) return false;
+
+	if (a->level != b->level) return FALSE;
+
+	if (a->repop != b->repop) return FALSE;
+
+	return TRUE;
+}
+
+bool obj_has_same_spells(LLIST *a, LLIST *b)
+{
+	ITERATOR ia, ib;
+	SPELL_DATA *sa, *sb;
+
+	iterator_start(&ia, a);
+	while((sa = (SPELL_DATA *)iterator_nextdata(&ia)))
+	{
+		iterator_start(&ib, b);
+		while((sb = (SPELL_DATA *)iterator_nextdata(&ib)))
+		{
+			if (spell_cmp(sa, sb))
+				break;
+		}
+		iterator_stop(&ib);
+
+		if (!sb)	// sa was not found in list b
+			break;
+	}
+	iterator_stop(&ia);
+
+	// This spell was not found in the second list
+	if (sa) return FALSE;
+
+	iterator_start(&ib, b);
+	while((sb = (SPELL_DATA *)iterator_nextdata(&ib)))
+	{
+		iterator_start(&ia, a);
+		while((sa = (SPELL_DATA *)iterator_nextdata(&ia)))
+		{
+			if (spell_cmp(sa, sb))
+				break;
+		}
+		iterator_stop(&ia);
+
+		if (!sa)	// sb was not found in list a
+			break;
+	}
+	iterator_stop(&ib);
+
+	return !sb;
+}
+
 
 ////////////////////
 // BOOK
@@ -661,6 +755,33 @@ bool container_check_duplicate(OBJ_DATA *container, OBJ_DATA *obj)
 }
 
 ////////////////////
+// FLUID
+bool fluid_has_same_fluid(FLUID_CONTAINER_DATA *a, FLUID_CONTAINER_DATA *b)
+{
+	// Assume both have liquids?
+	if (a->liquid != b->liquid) return FALSE;
+
+	return obj_has_same_spells(a->spells, b->spells);
+}
+
+void fluid_empty_container(FLUID_CONTAINER_DATA *a)
+{
+	if (!IS_VALID(a)) return;
+
+	if (a->poison > 0 && a->poison < 100)
+	{
+		if (number_percent() >= a->poison)
+			a->poison = 0;
+		else
+			a->poison--;
+	}
+		
+	a->amount = 0;
+	a->liquid = NULL;
+	list_clear(a->spells);
+}
+
+////////////////////
 // FOOD
 
 bool food_has_buffs(OBJ_DATA *obj)
@@ -676,7 +797,7 @@ bool food_apply_buffs(CHAR_DATA *ch, OBJ_DATA *obj, int level, int duration)
 	if (list_size(obj->_food->buffs) > 0)
 	{
 		// Remove the old well fed
-		affect_strip(ch, gsn_well_fed);
+		affect_strip(ch, &gsk__well_fed);
 
 		FOOD_BUFF_DATA *buff;
 		ITERATOR it;
@@ -686,7 +807,7 @@ bool food_apply_buffs(CHAR_DATA *ch, OBJ_DATA *obj, int level, int duration)
 			AFFECT_DATA *aff = new_affect();
 
 			aff->group = WELL_FED_GROUP;
-			aff->type = gsn_well_fed;
+			aff->skill = &gsk__well_fed;
 
 			aff->where = buff->where;
 			aff->level = buff->level > 0 ? buff->level : level;

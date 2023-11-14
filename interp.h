@@ -430,6 +430,7 @@ DECLARE_DO_FUN(	do_shoot	);
 DECLARE_DO_FUN( do_showdamage	);
 DECLARE_DO_FUN(	do_shutdow	);
 DECLARE_DO_FUN(	do_shutdown	);
+DECLARE_DO_FUN( do_sip      );
 DECLARE_DO_FUN( do_sit		);
 DECLARE_DO_FUN( do_skills	);
 DECLARE_DO_FUN( do_skull	);
@@ -595,6 +596,12 @@ DECLARE_DO_FUN( do_collapse	);
 DECLARE_DO_FUN( do_spawntreasuremap );
 DECLARE_DO_FUN( do_reserved );
 DECLARE_DO_FUN( do_triggers );
+
+DECLARE_DO_FUN(	do_liqedit	);
+DECLARE_DO_FUN( do_liqlist	);
+
+DECLARE_DO_FUN( do_skedit );
+DECLARE_DO_FUN( do_sklist );
 
 DECLARE_DO_FUN( do_readycheck );
 DECLARE_DO_FUN( do_ignite );

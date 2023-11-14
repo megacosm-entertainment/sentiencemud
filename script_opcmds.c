@@ -145,6 +145,7 @@ const struct script_cmd_type obj_cmd_table[] = {
 	{ "startcombat",		scriptcmd_startcombat,	FALSE,	TRUE	},
 	{ "startreckoning",		scriptcmd_startreckoning,	TRUE,	TRUE	},
 	{ "stopcombat",			scriptcmd_stopcombat,	FALSE,	TRUE	},
+	{ "stopreckoning",		scriptcmd_stopreckoning,	TRUE,	TRUE	},
 	{ "stringmob",			do_opstringmob,			TRUE,	TRUE	},
 	{ "stringobj",			scriptcmd_stringobjmt,			TRUE,	TRUE	},
 	{ "stripaffect",		do_opstripaffect,		TRUE,	TRUE	},
@@ -850,7 +851,8 @@ SCRIPT_CMD(do_opcast)
 	OBJ_DATA *reagent;
 	ROOM_INDEX_DATA *room;
 	void *to = NULL;
-	int sn, target = TARGET_NONE;
+	int target = TARGET_NONE;
+	SKILL_DATA *skill = NULL;
 
 
 	if(!info || !info->obj || !obj_room(info->obj)) return;
@@ -863,13 +865,13 @@ SCRIPT_CMD(do_opcast)
 	switch(arg->type) {
 	case ENT_STRING:
 		if(arg->d.str[0]) {
-			sn = skill_lookup(arg->d.str);
+			skill = get_skill_data(arg->d.str);
 			break;
 		}
-	default: sn = 0; break;
+	default: skill = NULL; break;
 	}
 
-	if (sn < 1 || skill_table[sn].spell_fun == spell_null || sn > MAX_SKILL) {
+	if (!IS_VALID(skill) || !is_skill_spell(skill)) {
 		bug("OpCast - No such spell from vnum %d.", VNUM(info->obj));
 		return;
 	}
@@ -907,8 +909,8 @@ SCRIPT_CMD(do_opcast)
 	reagent = create_object(obj_index_shard, 1, FALSE);
 	obj_to_char(reagent,proxy);
 
-	switch (skill_table[sn].target) {
-	default: bug("obj_cast: bad target for sn %d.", sn); return;
+	switch (skill->target) {
+	default: bug("obj_cast: bad target for sn %d.", skill->uid); return;
 	case TAR_IGNORE: to = NULL; break;
 	case TAR_CHAR_OFFENSIVE:
 	case TAR_CHAR_DEFENSIVE:
@@ -950,18 +952,20 @@ SCRIPT_CMD(do_opcast)
 	}
 
 	if (target == TARGET_CHAR && vch) {
-		if (is_affected(vch, sn)) return;
+		if (is_affected(vch, skill)) return;
 
-		if (!check_spell_deflection(proxy, vch, sn)) {
+		if (!check_spell_deflection(proxy, vch, skill)) {
 			extract_char(proxy, TRUE);
 			return;
 		}
 	}
 
+	if (skill->token) return;
+
 	if ((target == TARGET_CHAR && !vch) ||
 		(target == TARGET_OBJ  && !obj) ||
 		target == TARGET_ROOM || target == TARGET_NONE)
-		(*skill_table[sn].spell_fun)(sn, info->obj->level, proxy, to, target, WEAR_NONE);
+		(*skill->spell_fun)(skill, info->obj->level, proxy, to, target, WEAR_NONE);
 	else {
 		sprintf(buf, "obj_cast: %s(%ld) couldn't find its target", info->obj->short_descr, info->obj->pIndexData->vnum);
 		log_string(buf);
@@ -1087,11 +1091,11 @@ SCRIPT_CMD(do_opdamage)
 		for(victim = obj_room(info->obj)->people; victim; victim = victim_next) {
 			victim_next = victim->next_in_room;
 			value = fLevel ? dice(low,high) : number_range(low,high);
-			damage(victim, victim, fKill ? value : UMIN(victim->hit,value), TYPE_UNDEFINED, dc, FALSE);
+			damage(victim, victim, fKill ? value : UMIN(victim->hit,value), NULL, TYPE_UNDEFINED, dc, FALSE);
 		}
 	} else {
 		value = fLevel ? dice(low,high) : number_range(low,high);
-		damage(victim, victim, fKill ? value : UMIN(victim->hit,value), TYPE_UNDEFINED, dc, FALSE);
+		damage(victim, victim, fKill ? value : UMIN(victim->hit,value), NULL, TYPE_UNDEFINED, dc, FALSE);
 	}
 }
 
@@ -1672,7 +1676,7 @@ SCRIPT_CMD(do_opgdamage)
 		rch_next = rch->next_in_room;
 		if (rch != victim && is_same_group(victim,rch)) {
 			value = fLevel ? dice(low,high) : number_range(low,high);
-			damage(rch, rch, fKill ? value : UMIN(rch->hit,value), TYPE_UNDEFINED, dc, FALSE);
+			damage(rch, rch, fKill ? value : UMIN(rch->hit,value), NULL, TYPE_UNDEFINED, dc, FALSE);
 		}
 	}
 }
@@ -2257,6 +2261,8 @@ SCRIPT_CMD(do_oppeace)
 			stop_fighting(rch, TRUE);
 		if (IS_NPC(rch) && IS_SET(rch->act[0],ACT_AGGRESSIVE))
 			REMOVE_BIT(rch->act[0],ACT_AGGRESSIVE);
+
+		// TOOD: Remove AFF2_AGGRESSIVE
 	}
 }
 
@@ -3485,10 +3491,12 @@ SCRIPT_CMD(do_opaltermob)
 	bool lookuprace = FALSE;
 	bool hasmin = FALSE;
 	bool hasmax = FALSE;
+	bool check_catalyst = false;
 	const struct flag_type *flags = NULL;
 	const struct flag_type **bank = NULL;
 	long temp_flags[4];
 	int dirty_stat = -1;
+	int catalyst = CATALYST_NONE;
 
 	if(!info || !info->obj) return;
 
@@ -3531,13 +3539,6 @@ SCRIPT_CMD(do_opaltermob)
 
 	if(!field[0]) return;
 
-	argument = one_argument(rest,buf);
-
-	if(!(rest = expand_argument(info,argument,arg))) {
-		bug("OpAlterMob - Error in parsing.",0);
-		return;
-	}
-
 	if(!str_cmp(field,"acbash"))		ptr = (int*)&mob->armour[AC_BASH];
 	else if(!str_cmp(field,"acexotic"))	ptr = (int*)&mob->armour[AC_EXOTIC];
 	else if(!str_cmp(field,"acpierce"))	ptr = (int*)&mob->armour[AC_PIERCE];
@@ -3550,6 +3551,7 @@ SCRIPT_CMD(do_opaltermob)
 	else if(!str_cmp(field,"bomb"))		ptr = (int*)&mob->bomb;
 	else if(!str_cmp(field,"brew"))		ptr = (int*)&mob->brew;
 	else if(!str_cmp(field,"cast"))		ptr = (int*)&mob->cast;
+	else if(!str_cmp(field,"catalystusage"))	{ check_catalyst = true; }
 	else if(!str_cmp(field,"comm"))		{ ptr = IS_NPC(mob)?NULL:(int*)&mob->comm; allowpc = TRUE; allowarith = FALSE; min_sec = 7; flags = comm_flags; }		// 20140512NIB - Allows for scripted fun with player communications, only bit operators allowed
 	else if(!str_cmp(field,"damroll"))	ptr = (int*)&mob->damroll;
 	else if(!str_cmp(field,"danger"))	{ ptr = IS_NPC(mob)?NULL:(int*)&mob->pcdata->danger_range; allowpc = TRUE; }
@@ -3630,8 +3632,36 @@ SCRIPT_CMD(do_opaltermob)
 	else if(!str_cmp(field,"wildviewy"))	ptr = (int*)&mob->wildview_bonus_y;
 	else if(!str_cmp(field,"wimpy"))	ptr = (int*)&mob->wimpy;
 
+	// Special handling for catalystusage
+	if (check_catalyst)
+	{
+		// Get the catalyst type
+		if(!(rest = expand_argument(info,rest,arg)) && arg->type != ENT_STRING) {
+			bug("OpAlterMob - Error in parsing.",0);
+			return;
+		}
+
+		catalyst = stat_lookup(arg->d.str, catalyst_types, CATALYST_NONE);
+		if (catalyst == CATALYST_NONE)
+		{
+			bug("OpAlterMob - Invalid catalyst type selected for catalystusage.",0);
+			return;
+		}
+
+		ptr = &mob->catalyst_usage[catalyst];
+		allowpc = true;
+		allowarith = true;
+		allowbitwise = false;
+	}
+
 	if(!ptr) return;
 
+	rest = one_argument(rest,buf);
+
+	if(!(rest = expand_argument(info,rest,arg))) {
+		bug("OpAlterMob - Error in parsing.",0);
+		return;
+	}
 
 	// MINIMUM to alter ANYTHING not allowed on players on a player
 	if(!allowpc && !IS_NPC(mob)) min_sec = 9;
@@ -3926,11 +3956,10 @@ SCRIPT_CMD(do_opstringmob)
 
 SCRIPT_CMD(do_opskimprove)
 {
-	char skill[MIL],*rest;
-	int min_diff, diff, sn =-1;
+	char name[MIL],*rest;
+	int min_diff, diff;
+	SKILL_DATA *skill = NULL;
 	CHAR_DATA *mob = NULL;
-
-	TOKEN_DATA *token = NULL;
 	bool success = FALSE;
 
 	if(script_security < MIN_SCRIPT_SECURITY) {
@@ -3952,12 +3981,10 @@ SCRIPT_CMD(do_opskimprove)
 	case ENT_MOBILE:
 		mob = arg->d.mob;
 		break;
-	case ENT_TOKEN:
-		token = arg->d.token;
 	default: break;
 	}
 
-	if(!mob && !token) {
+	if(!mob) {
 		bug("OpSkImprove - NULL target.", 0);
 		return;
 	}
@@ -3974,23 +4001,17 @@ SCRIPT_CMD(do_opskimprove)
 			return;
 		}
 
-		skill[0] = 0;
+		name[0] = 0;
 
 		switch(arg->type) {
-		case ENT_STRING: strncpy(skill,arg->d.str,MIL-1); break;
+		case ENT_STRING: strncpy(name,arg->d.str,MIL-1); break;
 		default: return;
 		}
 
-		if(!skill[0]) return;
+		if(!name[0]) return;
 
-		sn = skill_lookup(skill);
-
-		if(sn < 1) return;
-	} else {
-		if(token->pIndexData->type != TOKEN_SKILL && token->pIndexData->type != TOKEN_SPELL) {
-			bug("OpSkImprove - Token is not a spell token...", 0);
-			return;
-		}
+		skill = get_skill_data(name);
+		if(!IS_VALID(skill)) return;
 	}
 
 	if(!(rest = expand_argument(info,rest,arg))) {
@@ -4026,10 +4047,7 @@ SCRIPT_CMD(do_opskimprove)
 	default: success = FALSE;
 	}
 
-	if(token)
-		token_skill_improve(token->player,token,success,diff);
-	else
-		check_improve( mob, sn, success, diff );
+	check_improve( mob, skill, success, diff );
 }
 
 
@@ -4121,7 +4139,7 @@ SCRIPT_CMD(do_opaddaffect)
 {
 	char *rest;
 	int where, group, level, loc, mod, hours;
-	int skill;
+	SKILL_DATA *skill;
 	long bv, bv2;
 	CHAR_DATA *mob = NULL;
 	OBJ_DATA *obj = NULL;
@@ -4188,7 +4206,7 @@ SCRIPT_CMD(do_opaddaffect)
 	}
 
 	switch(arg->type) {
-	case ENT_STRING: skill = skill_lookup(arg->d.str); break;
+	case ENT_STRING: skill = get_skill_data(arg->d.str); break;
 	default: return;
 	}
 
@@ -4275,7 +4293,8 @@ SCRIPT_CMD(do_opaddaffect)
 
 	af.group	= group;
 	af.where     = where;
-	af.type      = skill;
+	af.catalyst_type = -1;
+	af.skill     = skill;
 	af.location  = loc;
 	af.modifier  = mod;
 	af.level     = level;
@@ -4452,7 +4471,8 @@ SCRIPT_CMD(do_opaddaffectname)
 
 	af.group	= group;
 	af.where     = where;
-	af.type      = -1;
+	af.catalyst_type      = -1;
+	af.skill = NULL;
 	af.location  = loc;
 	af.modifier  = mod;
 	af.level     = level;
@@ -4469,7 +4489,7 @@ SCRIPT_CMD(do_opaddaffectname)
 SCRIPT_CMD(do_opstripaffect)
 {
 	char *rest;
-	int skill;
+	SKILL_DATA *skill;
 	CHAR_DATA *mob = NULL;
 	OBJ_DATA *obj = NULL;
 
@@ -4505,11 +4525,11 @@ SCRIPT_CMD(do_opstripaffect)
 	}
 
 	switch(arg->type) {
-	case ENT_STRING: skill = skill_lookup(arg->d.str); break;
+	case ENT_STRING: skill = get_skill_data(arg->d.str); break;
 	default: return;
 	}
 
-	if(skill < 0) return;
+	if(!IS_VALID(skill)) return;
 
 	if(mob) affect_strip(mob, skill);
 	else affect_strip_obj(obj,skill);
@@ -4638,7 +4658,7 @@ SCRIPT_CMD(do_opinput)
 SCRIPT_CMD(do_opusecatalyst)
 {
 	char *rest;
-	int type, method, amount, min, max, show;
+	int type, method, amount, show;
 	CHAR_DATA *mob = NULL;
 	ROOM_INDEX_DATA *room = NULL;
 
@@ -4707,39 +4727,13 @@ SCRIPT_CMD(do_opusecatalyst)
 	}
 
 	switch(arg->type) {
-	case ENT_NUMBER: min = arg->d.num; break;
-	case ENT_STRING: min = atoi(arg->d.str); break;
-	default: return;
-	}
-
-	if(min < 1 || min > CATALYST_MAXSTRENGTH) return;
-
-	if(!(rest = expand_argument(info,rest,arg))) {
-		bug("OpUseCatalyst - Error in parsing.",0);
-		return;
-	}
-
-	switch(arg->type) {
-	case ENT_NUMBER: max = arg->d.num; break;
-	case ENT_STRING: max = atoi(arg->d.str); break;
-	default: return;
-	}
-
-	if(max < min || max > CATALYST_MAXSTRENGTH) return;
-
-	if(!(rest = expand_argument(info,rest,arg))) {
-		bug("OpUseCatalyst - Error in parsing.",0);
-		return;
-	}
-
-	switch(arg->type) {
 	case ENT_STRING: show = flag_value(boolean_types,arg->d.str); break;
 	default: return;
 	}
 
 	if(show == NO_FLAG) return;
 
-	info->obj->progs->lastreturn = use_catalyst(mob,room,type,method,amount,min,max,(bool)show);
+	info->obj->progs->lastreturn = use_catalyst(mob,room,type,method,amount,(bool)show);
 }
 
 SCRIPT_CMD(do_opalterexit)
@@ -6230,152 +6224,6 @@ SCRIPT_CMD(do_oppersist)
 	return;
 }
 
-// obj skill <player> <name> <op> <number>
-// <op> =, +, -
-SCRIPT_CMD(do_opskill)
-{
-	char buf[MIL];
-
-	char *rest;
-	CHAR_DATA *mob = NULL;
-	int sn, value;
-
-	if(!info || !info->obj || IS_NULLSTR(argument)) return;
-
-	if ( script_security < 9 ) return;
-
-	if(!(rest = expand_argument(info,argument,arg))) return;
-
-	if(arg->type != ENT_MOBILE) return;
-
-	mob = arg->d.mob;
-
-	if( !mob || IS_NPC(mob) ) return;	// only players for now
-
-	if( !*rest) return;
-
-	if(!(rest = expand_argument(info,rest,arg))) return;
-
-	if(arg->type != ENT_STRING) return;
-
-	sn = skill_lookup(arg->d.str);
-
-	if( sn < 1 || sn >= MAX_SKILL ) return;
-
-	argument = one_argument(rest,buf);
-
-	if(!(rest = expand_argument(info,argument,arg))) return;
-
-	switch(arg->type) {
-	case ENT_STRING:
-		if( is_number(arg->d.str ))
-			value = atoi(arg->d.str);
-		else
-			return;
-		break;
-	case ENT_NUMBER: value = arg->d.num; break;
-	default: return;
-	}
-
-	switch(buf[0])
-	{
-		case '=':	// Set skill
-			if( value < 0 ) value = 0;
-			else if( value > 100 ) value = 100;
-
-			mob->pcdata->learned[sn] = value;
-			break;
-
-		case '+':
-			// Can only modify the skill, you cannot grant a skill using this.  Use the = operator.
-			if(mob->pcdata->learned[sn] > 0 )
-			{
-				value = mob->pcdata->learned[sn] + value;
-
-				if( value < 1 ) value = 1;
-				else if( value > 100 ) value = 100;
-
-				mob->pcdata->learned[sn] = value;
-			}
-			break;
-
-		case '-':
-			// Can only modify the skill, you cannot remove it using this.  Use the = operator.
-			if(mob->pcdata->learned[sn] > 0 )
-			{
-				value = mob->pcdata->learned[sn] - value;
-
-				if( value < 1 ) value = 1;
-				else if( value > 100 ) value = 100;
-
-				mob->pcdata->learned[sn] = value;
-			}
-			break;
-
-		default:
-			return;
-	}
-
-	return;
-}
-
-
-// obj skillgroup <player> add|remove <group>
-SCRIPT_CMD(do_opskillgroup)
-{
-	char buf[MIL];
-
-	char *rest;
-	CHAR_DATA *mob = NULL;
-	int gn;
-	bool fAdd = FALSE;
-
-	if(!info || !info->obj || IS_NULLSTR(argument)) return;
-
-	if ( script_security < 9 ) return;
-
-	if(!(rest = expand_argument(info,argument,arg)))
-		return;
-
-	if(arg->type != ENT_MOBILE) return;
-
-	mob = arg->d.mob;
-
-	if( !mob || IS_NPC(mob) ) return;	// only players for now
-
-	if( !*rest) return;
-
-	argument = one_argument(rest,buf);
-
-	if( !str_cmp(buf, "add") )
-		fAdd = TRUE;
-	else if(!str_cmp(buf, "remove"))
-		fAdd = FALSE;
-	else
-		return;
-
-	if(!(rest = expand_argument(info,argument,arg))) return;
-
-	if(arg->type != ENT_STRING) return;
-
-	gn = group_lookup(arg->d.str);
-	if( gn != -1)
-	{
-		if( fAdd )
-		{
-			if( !mob->pcdata->group_known[gn] )
-				gn_add(mob,gn);
-		}
-		else
-		{
-			if( mob->pcdata->group_known[gn] )
-				gn_remove(mob,gn);
-		}
-	}
-
-	return;
-}
-
 // obj condition $PLAYER <condition> <value>
 // Adjusts the specified condition by the given value
 SCRIPT_CMD(do_opcondition)
@@ -6440,7 +6288,8 @@ SCRIPT_CMD(do_opcondition)
 // addspell $OBJECT WIDEVNUM[ NUMBER]
 SCRIPT_CMD(do_opaddspell)
 {
-
+	// TODO: Fix to require type contexts
+#if 0
 	char *rest;
 	SPELL_DATA *spell, *spell_new;
 	OBJ_DATA *target;
@@ -6543,13 +6392,15 @@ SCRIPT_CMD(do_opaddspell)
 			}
 		}
 	}
+#endif
 }
 
 
 // remspell $OBJECT STRING[ silent]
 SCRIPT_CMD(do_opremspell)
 {
-
+	// TODO: Fix to require type contexts
+#if 0
 	char *rest;
 	SPELL_DATA *spell, *spell_prev;
 	OBJ_DATA *target;
@@ -6673,6 +6524,7 @@ SCRIPT_CMD(do_opremspell)
 
 		}
 	}
+#endif
 }
 
 

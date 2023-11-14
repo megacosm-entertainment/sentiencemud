@@ -24,13 +24,13 @@ SPELL_FUNC(spell_fatigue)
 	AFFECT_DATA af;
 	memset(&af,0,sizeof(af));
 
-	if (is_affected(victim, sn) || saves_spell(level, victim,DAM_OTHER))
+	if (is_affected(victim, skill) || saves_spell(level, victim,DAM_OTHER))
 		return FALSE;
 
 	af.slot	= obj_wear_loc;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration = URANGE(1, level / 2, 5);
 	af.location = APPLY_MOVE;
@@ -69,10 +69,10 @@ SPELL_FUNC(spell_gas_breath)
 
 		if (saves_spell(level,vch,DAM_POISON)) {
 			poison_effect(vch,level/2,dam/4,TARGET_CHAR);
-			damage(ch,vch,dam/2,sn,DAM_POISON,TRUE);
+			damage(ch,vch,dam/2,skill,TYPE_UNDEFINED,DAM_POISON,TRUE);
 		} else {
 			poison_effect(vch,level,dam,TARGET_CHAR);
-			damage(ch,vch,dam,sn,DAM_POISON,TRUE);
+			damage(ch,vch,dam,skill,TYPE_UNDEFINED,DAM_POISON,TRUE);
 		}
 	}
 	return TRUE;
@@ -97,7 +97,7 @@ SPELL_FUNC(spell_paralysis)
 	af.slot	= obj_wear_loc;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration  = level/4 + 3;
 	af.location  = APPLY_NONE;
@@ -126,7 +126,7 @@ SPELL_FUNC(spell_plague)
 	af.slot	= obj_wear_loc;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level * 3/4;
 	af.duration = URANGE(1,level, 5);
 	af.location = APPLY_STR;
@@ -151,7 +151,7 @@ SPELL_FUNC(spell_poison)
 	if (target == TARGET_OBJ) {
 		obj = (OBJ_DATA *) vo;
 
-		if (IS_FOOD(obj) || obj->item_type == ITEM_DRINK_CON || obj->item_type == ITEM_FOUNTAIN) {
+		if (IS_FOOD(obj) || IS_FLUID_CON(obj)) {
 			if (IS_OBJ_STAT(obj,ITEM_BLESS) || IS_OBJ_STAT(obj,ITEM_BURN_PROOF)) {
 				act("Your spell fails to corrupt $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
 				return FALSE;
@@ -171,13 +171,13 @@ SPELL_FUNC(spell_poison)
 			}
 			else
 			{
-				if (obj->value[3] > poison)
+				if (FLUID_CON(obj)->poison > poison)
 				{
 					act("$p is already sufficiently poisoned.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
 					return FALSE;
 				}
 
-				obj->value[3] = poison;
+				FLUID_CON(obj)->poison = poison;
 			}
 
 			act("$p is infused with poisonous vapors.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
@@ -208,7 +208,7 @@ SPELL_FUNC(spell_poison)
 			af.slot	= WEAR_NONE;
 			af.where = TO_WEAPON;
 			af.group = AFFGROUP_WEAPON;
-			af.type	= sn;
+			af.skill = skill;
 			af.level = level / 2;
 			af.duration = URANGE(1,level/8, 5);
 			af.location = 0;
@@ -242,7 +242,7 @@ SPELL_FUNC(spell_poison)
 	af.slot	= obj_wear_loc;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration = URANGE(1,level,5);
 	af.location = APPLY_STR;
@@ -289,7 +289,7 @@ SPELL_FUNC(spell_toxic_fumes)
 	act("{gYou are enveloped by a toxic cloud.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 	act("{gA toxic cloud forms around $n.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-	if (!affect_find(victim->affected,gsn_toxic_fumes))
+	if (!affect_find(victim->affected,gsk_toxic_fumes))
 		toxic_fumes_effect(victim,ch);
 	return TRUE;
 }
@@ -324,7 +324,7 @@ SPELL_FUNC(spell_toxin_neurotoxin)
 	af.slot	= WEAR_NONE;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_BIOLOGICAL;
-	af.type = gsn_neurotoxin;
+	af.skill = gsk_neurotoxin;
 	af.level = victim->bitten_level;
 	af.duration = number_range(5, 10);
 	af.location = APPLY_INT;
@@ -363,7 +363,7 @@ SPELL_FUNC(spell_toxin_paralysis)
 	af.slot	= WEAR_NONE;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_BIOLOGICAL;
-	af.type = skill_lookup("paralysis");	// TODO: gsn_paralysis
+	af.skill = get_skill_data("paralysis");	// TODO: gsk_paralysis
 	af.level = victim->bitten_level;
 	af.duration = 0;
 	af.location = APPLY_NONE;
@@ -402,11 +402,11 @@ SPELL_FUNC(spell_toxin_weakness)
 		return FALSE;
 	}
 
-	if (!is_affected(victim, gsn_fatigue)) {
+	if (!is_affected(victim, gsk_fatigue)) {
 		af.slot	= WEAR_NONE;
 		af.where = TO_AFFECTS;
 		af.group = AFFGROUP_BIOLOGICAL;
-		af.type = gsn_fatigue;
+		af.skill = gsk_fatigue;
 		af.level = level;
 		af.duration = URANGE(1, level / 2, 5);
 		af.location = APPLY_MOVE;
@@ -418,11 +418,11 @@ SPELL_FUNC(spell_toxin_weakness)
 		act("$n looks extremely fatigued.",victim,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
 	}
 
-	if (!is_affected(victim, gsn_weaken)) {
+	if (!is_affected(victim, gsk_weaken)) {
 		af.slot	= WEAR_NONE;
 		af.where = TO_AFFECTS;
 		af.group = AFFGROUP_BIOLOGICAL;
-		af.type = gsn_weaken;
+		af.skill = gsk_weaken;
 		af.level = level;
 		af.duration = URANGE(1, level / 2, 5);
 		af.location = APPLY_STR;
@@ -470,7 +470,7 @@ SPELL_FUNC(spell_toxin_venom)
 	af.slot	= WEAR_NONE;
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_BIOLOGICAL;
-	af.type = gsn_sleep;
+	af.skill = gsk_sleep;
 	af.level = level;
 	af.duration = number_range(1, 5);
 	af.location = APPLY_NONE;

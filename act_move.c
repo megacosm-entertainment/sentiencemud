@@ -739,11 +739,11 @@ void move_char(CHAR_DATA *ch, int door, bool follow)
 	  if (IS_SET(ch->in_room->room2_flags, ROOM_POST_OFFICE))
 	      check_new_mail(ch);*/
 
-	if (MOUNTED(ch) && number_percent() == 1 && get_skill(ch, gsn_riding) > 0)
-		check_improve(ch, gsn_riding, TRUE, 8);
+	if (MOUNTED(ch) && number_percent() == 1 && get_skill(ch, gsk_riding) > 0)
+		check_improve(ch, gsk_riding, TRUE, 8);
 
-	if (!MOUNTED(ch) && get_skill(ch, gsn_trackless_step) > 0 && number_percent() == 1)
-		check_improve(ch, gsn_trackless_step, TRUE, 8);
+	if (!MOUNTED(ch) && get_skill(ch, gsk_trackless_step) > 0 && number_percent() == 1)
+		check_improve(ch, gsk_trackless_step, TRUE, 8);
 
 	/* Druids regenerate in nature */
 	if (get_profession(ch, SUBCLASS_CLERIC) == CLASS_CLERIC_DRUID && is_in_nature(ch)) {
@@ -788,13 +788,13 @@ void check_ambush(CHAR_DATA *ch)
 	    || ch->tot_level > ambush->max_level)
 		continue;
 
-            if (number_percent() > get_skill(ach, gsn_ambush))
+            if (number_percent() > get_skill(ach, gsk_ambush))
 	    {
 		ach->position = POS_STANDING;
 		act("You jump out of nowhere but $N notices you!", ach, ch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 		act("You notice $n jump out of nowhere!", ach, ch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 		act("$n jumps out of nowhere trying to surprise $N, but fails!", ach, ch, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
-		check_improve(ach, gsn_ambush, 4, FALSE);
+		check_improve(ach, gsk_ambush, 4, FALSE);
 		continue;
 	    }
 
@@ -810,7 +810,7 @@ void check_ambush(CHAR_DATA *ch)
 	    free_ambush(ach->ambush);
 	    ach->ambush = NULL;
 
-	    check_improve(ach, gsn_ambush, 4, TRUE);
+	    check_improve(ach, gsk_ambush, 4, TRUE);
 	}
     }
 }
@@ -845,7 +845,7 @@ bool check_rocks(CHAR_DATA *ch, bool show)
 					act("{R$n is struck by a rock!{x", vch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 				}
 				vch->set_death_type = DEATHTYPE_ROCKS;
-				damage(vch, vch, number_range(vch->tot_level * 4, vch->tot_level * 10), 0, DAM_BASH, FALSE);
+				damage(vch, vch, number_range(vch->tot_level * 4, vch->tot_level * 10), NULL, TYPE_UNDEFINED, DAM_BASH, FALSE);
 			}
 		}
 	}
@@ -877,7 +877,7 @@ bool check_ice(CHAR_DATA *ch, bool show)
 			act("{xYou slip on the icy ground and fall down!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			act("{x$n slips on the icy ground and falls down!", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 		}
-		damage(ch, ch, UMIN(ch->max_hit/2, 50), 0, DAM_BASH, FALSE);
+		damage(ch, ch, UMIN(ch->max_hit/2, 50), NULL, TYPE_UNDEFINED, DAM_BASH, FALSE);
 		ch->position = POS_RESTING;
 		return TRUE;
     }
@@ -908,7 +908,7 @@ bool check_room_flames(CHAR_DATA *ch, bool show)
 					act("{RYou are scorched by flames!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 					act("{R$n is scorched by flames!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 				}
-				damage(ch, ch, number_range(50, 500), TYPE_UNDEFINED, DAM_FIRE, FALSE);
+				damage(ch, ch, number_range(50, 500), NULL, TYPE_UNDEFINED, DAM_FIRE, FALSE);
 
 				if (!IS_DEAD(ch) && number_percent() < 10)
 				{
@@ -922,7 +922,7 @@ bool check_room_flames(CHAR_DATA *ch, bool show)
 					}
 					af.where     = TO_AFFECTS;
 					af.group     = AFFGROUP_PHYSICAL;
-					af.type      = gsn_blindness;
+					af.skill      = gsk_blindness;
 					af.level     = 3; /* obj->level; */
 					af.location  = APPLY_HITROLL;
 					af.modifier  = -4;
@@ -2398,16 +2398,16 @@ void do_pick(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	WAIT_STATE(ch, skill_table[gsn_pick_lock].beats);
+	WAIT_STATE(ch, gsk_pick_lock->beats);
 
 	if (get_profession(ch, SECOND_SUBCLASS_THIEF) != CLASS_THIEF_HIGHWAYMAN)
 	{
-		int skill = get_skill(ch,gsn_pick_lock);
+		int skill = get_skill(ch, gsk_pick_lock);
 
 		if (number_percent() > UMAX(skill, 20))
 		{
 			send_to_char("You failed.\n\r", ch);
-			check_improve(ch,gsn_pick_lock,FALSE,2);
+			check_improve(ch,gsk_pick_lock,FALSE,2);
 			return;
 		}
 	}
@@ -2462,7 +2462,7 @@ void do_pick(CHAR_DATA *ch, char *argument)
 			REMOVE_BIT(obj->lock->flags,LOCK_LOCKED);
 			act("You pick the lock on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
 			act("$n picks the lock on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
-			check_improve(ch,gsn_pick_lock,TRUE,2);
+			check_improve(ch,gsk_pick_lock,TRUE,2);
 			return;
 		}
 
@@ -2516,7 +2516,7 @@ void do_pick(CHAR_DATA *ch, char *argument)
 		REMOVE_BIT(obj->lock->flags,LOCK_LOCKED);
 		act("You pick the lock on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
 		act("$n picks the lock on $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
-		check_improve(ch,gsn_pick_lock,TRUE,2);
+		check_improve(ch,gsk_pick_lock,TRUE,2);
 		return;
 	}
 
@@ -2563,7 +2563,7 @@ void do_pick(CHAR_DATA *ch, char *argument)
 		REMOVE_BIT(pexit->door.lock.flags, LOCK_LOCKED);
 		send_to_char("*Click*\n\r", ch);
 		act("$n picks the $d.", ch, NULL, NULL, NULL, NULL, NULL, pexit->keyword, TO_ROOM);
-		check_improve(ch,gsn_pick_lock,TRUE,2);
+		check_improve(ch,gsk_pick_lock,TRUE,2);
 
 		/* pick the other side */
 		if ((to_room   = pexit->u1.to_room ) != NULL &&
@@ -3786,19 +3786,19 @@ void do_sneak(CHAR_DATA *ch, char *argument)
     }
 
     send_to_char("You attempt to move silently.\n\r", ch);
-    affect_strip(ch, gsn_sneak);
+    affect_strip(ch, gsk_sneak);
 
     if (IS_AFFECTED(ch,AFF_SNEAK))
 	return;
 
 memset(&af,0,sizeof(af));
 
-    if (number_percent() < get_skill(ch,gsn_sneak))
+    if (number_percent() < get_skill(ch, gsk_sneak))
     {
-	check_improve(ch,gsn_sneak,TRUE,3);
+	check_improve(ch,gsk_sneak,TRUE,3);
 	af.where     = TO_AFFECTS;
 	af.group     = AFFGROUP_PHYSICAL;
-	af.type      = gsn_sneak;
+	af.skill     = gsk_sneak;
 	af.level     = ch->level;
 	af.duration  = ch->level;
 	af.location  = APPLY_NONE;
@@ -3811,7 +3811,7 @@ memset(&af,0,sizeof(af));
     }
     else
     {
-	check_improve(ch,gsn_sneak,FALSE,3);
+	check_improve(ch,gsk_sneak,FALSE,3);
         send_to_char("You fail to move silently.\n\r", ch);
     }
 }
@@ -3916,15 +3916,15 @@ void do_hide(CHAR_DATA *ch, char *argument)
 				act("You deftly hide $p on $N.", ch, victim, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 
 				// Do a skill test
-				sneak1 = get_skill(ch, gsn_sneak) * ch->tot_level;
+				sneak1 = get_skill(ch, gsk_sneak) * ch->tot_level;
 				if( IS_REMORT(ch) ) sneak1 = 3 * sneak1 / 2;	// 50% boost
 				if( IS_SAGE(ch) ) sneak1 = 3 * sneak1 / 2;		// 50% boost
-				if( number_percent() < get_skill(ch, gsn_deception) ) sneak1 *= 2;
+				if( number_percent() < get_skill(ch, gsk_deception) ) sneak1 *= 2;
 
-				sneak2 = get_skill(victim, gsn_sneak) * victim->tot_level;
+				sneak2 = get_skill(victim, gsk_sneak) * victim->tot_level;
 				if( IS_REMORT(victim) ) sneak2 = 3 * sneak2 / 2;	// 50% boost
 				if( IS_SAGE(victim) ) sneak2 = 3 * sneak2 / 2;		// 50% boost
-				if( number_percent() < get_skill(victim, gsn_deception) ) sneak2 *= 2;
+				if( number_percent() < get_skill(victim, gsk_deception) ) sneak2 *= 2;
 
 				// Check if victim is awake or if the victim is immortal and hider is not
 				if( IS_AWAKE(victim) || (IS_IMMORTAL(victim) && !IS_IMMORTAL(ch)) )
@@ -4024,12 +4024,12 @@ void do_hide(CHAR_DATA *ch, char *argument)
 				for (others = ch->in_room->people;
 					  others != NULL; others = others->next_in_room)
 				{
-					if (((get_skill(ch, gsn_deception > 0) && number_percent() < get_skill(ch, gsn_deception)) ||
-						( number_percent() < get_skill(ch, gsn_hide))) &&
+					if (((number_percent() < get_skill(ch, gsk_deception)) ||
+						( number_percent() < get_skill(ch, gsk_hide))) &&
 						ch != others &&
 						can_see_obj(others, obj))
 				{
-					act("You notice $N hide $p $t.", others, ch, NULL, obj, NULL, buf2, NULL, TO_CHAR);
+						act("You notice $N hide $p $t.", others, ch, NULL, obj, NULL, buf2, NULL, TO_CHAR);
 				}
 				}
 				obj_from_char(obj);
@@ -4071,7 +4071,7 @@ void do_hide(CHAR_DATA *ch, char *argument)
 
     send_to_char("You attempt to hide.\n\r", ch);
 
-    HIDE_STATE(ch, skill_table[gsn_hide].beats);
+    HIDE_STATE(ch, gsk_hide->beats);
     return;
 }
 
@@ -4080,23 +4080,23 @@ void hide_end(CHAR_DATA *ch)
 {
     CHAR_DATA *rch;
 
-    if (number_percent() < get_skill(ch,gsn_hide))
+    if (number_percent() < get_skill(ch, gsk_hide))
     {
 		SET_BIT(ch->affected_by[0], AFF_HIDE);
         for (rch = ch->in_room->people; rch != NULL; rch = rch->next_in_room)
 		{
-            if (get_skill(rch, gsn_deception) > 0)
+            if (get_skill(rch, gsk_deception) > 0)
 		    {
-		        if (number_percent() < get_skill(rch, gsn_deception))
+		        if (number_percent() < get_skill(rch, gsk_deception))
 				{
 		            act("{D$n hides in the shadows.{x", ch, rch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
-				    check_improve(rch, gsn_deception, TRUE, 1);
+				    check_improve(rch, gsk_deception, TRUE, 1);
 				}
 		    }
 		}
 
 		send_to_char("You successfully hide in the shadows.\n\r{x", ch);
-		check_improve(ch,gsn_hide,TRUE,3);
+		check_improve(ch,gsk_hide,TRUE,3);
 
 		// Allow for other fun stuff to occur when you are fully hidden
 		p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_HIDDEN, NULL,0,0,0,0,0);
@@ -4104,17 +4104,17 @@ void hide_end(CHAR_DATA *ch)
     else
     {
 		send_to_char("You fail to hide in the shadows.\n\r", ch);
-		check_improve(ch,gsn_hide,FALSE,3);
+		check_improve(ch,gsk_hide,FALSE,3);
     }
 }
 
 void do_visible(CHAR_DATA *ch, char *argument)
 {
-    affect_strip (ch, gsn_invis			);
-    affect_strip (ch, gsn_mass_invis			);
-    affect_strip (ch, gsn_sneak			);
-    affect_strip (ch, gsn_improved_invisibility);
-    affect_strip (ch, gsn_cloak_of_guile);
+    affect_strip(ch, gsk_invis			);
+    affect_strip(ch, gsk_mass_invis			);
+    affect_strip(ch, gsk_sneak			);
+    affect_strip(ch, gsk_improved_invisibility);
+    affect_strip(ch, gsk_cloak_of_guile);
     REMOVE_BIT   (ch->affected_by[0], AFF_HIDE		);
     REMOVE_BIT   (ch->affected_by[0], AFF_INVISIBLE	);
     REMOVE_BIT   (ch->affected_by[0], AFF_SNEAK		);
@@ -4214,7 +4214,7 @@ void do_fade(CHAR_DATA *ch, char *argument)
         return;
     }
 
-    if (get_skill(ch, gsn_fade) == 0)
+    if (get_skill(ch, gsk_fade) == 0)
     {
 	send_to_char("Huh?\n\r", ch);
 	return;
@@ -4284,7 +4284,7 @@ void do_fade(CHAR_DATA *ch, char *argument)
 
     act("{W$n fades to a different dimension.{x", ch, NULL, NULL, NULL, NULL, NULL, dir_name[door], TO_ROOM);
     act("{WYou fade to a different dimension.{x", ch, NULL, NULL, NULL, NULL, NULL, dir_name[door], TO_CHAR);
-    check_improve(ch,gsn_fade,TRUE,1);
+    check_improve(ch,gsk_fade,TRUE,1);
 }
 
 
@@ -4301,7 +4301,7 @@ void fade_end(CHAR_DATA *ch)
 	}
 	else
 	{
-		skill = get_skill(ch,gsn_fade);
+		skill = get_skill(ch, gsk_fade);
 
 	}
 	beats = 8 - (skill / 25);
@@ -4404,7 +4404,7 @@ void do_bar(CHAR_DATA *ch, char *argument)
 
 	one_argument(argument, arg);
 
-	if (get_skill(ch, gsn_bar) == 0)
+	if (get_skill(ch, gsk_bar) == 0)
 	{
 		send_to_char("You have no knowledge of this skill.\n\r", ch);
 		return;
@@ -4448,7 +4448,7 @@ void do_bar(CHAR_DATA *ch, char *argument)
 			SET_BIT(obj->value[1],EX_BARRED);
 			act("You bar up the $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
 			act("$n bars up the $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
-			check_improve(ch, gsn_bar, TRUE, 1);
+			check_improve(ch, gsk_bar, TRUE, 1);
 			return;
 		}
 
@@ -4492,7 +4492,7 @@ void do_bar(CHAR_DATA *ch, char *argument)
 		SET_BIT(pexit->exit_info, EX_BARRED);
 		act("You bar up the $T.", ch, NULL, NULL, NULL, NULL, NULL, exit, TO_CHAR);
 		act("$n bars the $T.", ch, NULL, NULL, NULL, NULL, NULL, exit, TO_ROOM);
-		check_improve(ch, gsn_bar, TRUE, 1);
+		check_improve(ch, gsk_bar, TRUE, 1);
 
 		/* bar the other side */
 		if ((to_room   = pexit->u1.to_room) != NULL &&
@@ -4513,7 +4513,7 @@ void do_evasion(CHAR_DATA *ch, char *argument)
 {
     AFFECT_DATA af;
 
-    if (get_skill(ch, gsn_evasion) == 0)
+    if (get_skill(ch, gsk_evasion) == 0)
     {
 	send_to_char("You know nothing of this skill.\n\r", ch);
 	return;
@@ -4532,11 +4532,11 @@ void do_evasion(CHAR_DATA *ch, char *argument)
     }
 
 memset(&af,0,sizeof(af));
-    if (number_percent() < get_skill(ch,gsn_evasion))
+    if (number_percent() < get_skill(ch, gsk_evasion))
     {
 	af.where     = TO_AFFECTS;
 	af.group     = AFFGROUP_PHYSICAL;
-	af.type      = gsn_evasion;
+	af.skill     = gsk_evasion;
 	af.level     = ch->tot_level;
 	af.duration  = ch->tot_level/3;
 	af.location  = APPLY_DEX;
@@ -4546,12 +4546,12 @@ memset(&af,0,sizeof(af));
 		af.slot	= WEAR_NONE;
 	affect_to_char(ch, &af);
         send_to_char("You shroud yourself in your cloak, prepared to be evasive.\n\r", ch);
-	check_improve(ch,gsn_evasion,TRUE,3);
+	check_improve(ch,gsk_evasion,TRUE,3);
     }
     else
     {
         send_to_char("You fail to be any more evasive.\n\r", ch);
-	check_improve(ch,gsn_evasion,FALSE,3);
+	check_improve(ch,gsk_evasion,FALSE,3);
     }
 }
 
@@ -4614,13 +4614,13 @@ void check_traps(CHAR_DATA *ch, bool show)
 			continue;
 
 		if (IS_SET(exit->u1.to_room->room_flags,ROOM_DEATH_TRAP) &&
-			number_percent() < get_skill(ch, gsn_detect_traps))
+			number_percent() < get_skill(ch, gsk_detect_traps))
 		{
 			if( show )
 				act("{RYou sense a strong feeling of danger coming from the $t.{x", ch, NULL, NULL, NULL, NULL, dir_name[i], NULL, TO_CHAR);
 
 			if (number_percent() < 5)
-				check_improve_show(ch, gsn_detect_traps, TRUE, 5, show);
+				check_improve_show(ch, gsk_detect_traps, TRUE, 5, show);
 		}
 	}
 
@@ -4628,13 +4628,13 @@ void check_traps(CHAR_DATA *ch, bool show)
 	{
 		if (!IS_SET(obj->extra[0], ITEM_HIDDEN) &&
 			IS_SET(obj->extra[1], ITEM_TRAPPED) &&
-			number_percent() < get_skill(ch, gsn_detect_traps))
+			number_percent() < get_skill(ch, gsk_detect_traps))
 		{
 			if ( show )
 				act("{RYou sense a strong feeling of danger coming from $p.{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 
 			if (number_percent() < 5)
-				check_improve_show(ch, gsn_detect_traps, TRUE, 5, show);
+				check_improve_show(ch, gsk_detect_traps, TRUE, 5, show);
 		}
 	}
 }
@@ -4649,7 +4649,7 @@ void do_ambush(CHAR_DATA *ch, char *argument)
     int max;
     int type;
 
-    if (get_skill(ch, gsn_ambush) == 0)
+    if (get_skill(ch, gsk_ambush) == 0)
     {
 	send_to_char("You know nothing of this skill.\n\r", ch);
 	return;
@@ -4818,7 +4818,7 @@ void do_takeoff(CHAR_DATA *ch, char *argument)
 	AFFECT_DATA af;
 
 	if(MOUNTED(ch)) {
-		if(IS_AFFECTED(MOUNTED(ch), AFF_FLYING) || is_affected(MOUNTED(ch),gsn_flight)) {
+		if(IS_AFFECTED(MOUNTED(ch), AFF_FLYING) || is_affected(MOUNTED(ch), gsk_flight)) {
 			act("$N is already flying.", ch, MOUNTED(ch), NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 			return;
 		}
@@ -4848,7 +4848,7 @@ void do_takeoff(CHAR_DATA *ch, char *argument)
 		}
 		af.where     = TO_AFFECTS;
 		af.group     = AFFGROUP_PHYSICAL;
-		af.type      = gsn_flight;
+		af.skill      = gsk_flight;
 		af.level     = MOUNTED(ch)->tot_level;
 		af.duration  = -1;
 		af.location  = APPLY_NONE;
@@ -4859,14 +4859,14 @@ void do_takeoff(CHAR_DATA *ch, char *argument)
 		af.slot	= WEAR_NONE;
 		affect_to_char(MOUNTED(ch), &af);
 	} else {
-		if(IS_AFFECTED(ch, AFF_FLYING) || is_affected(ch,gsn_flight)) {
+		if(IS_AFFECTED(ch, AFF_FLYING) || is_affected(ch, gsk_flight)) {
 			send_to_char("You are already flying.\n\r", ch);
 			return;
 		}
 
 		/* Trigger is responsible for messages! */
 		if(!p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_TAKEOFF,NULL,0,0,0,0,0)) {
-			chance = get_skill(ch,gsn_flight);
+			chance = get_skill(ch, gsk_flight);
 
 			if(!chance) {
 				send_to_char("You have no knowledge of physical flight.\n\r",ch);
@@ -4897,7 +4897,7 @@ void do_takeoff(CHAR_DATA *ch, char *argument)
 			if(chance < number_percent()) {
 				send_to_char("You flap your wings in effort to take off but fail to generate lift.\n\r", ch);
 				act("$n flaps $s wings in effort to take off but fails to generate lift.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-				check_improve(ch,gsn_flight,FALSE,3);
+				check_improve(ch,gsk_flight,FALSE,3);
 				return;
 			}
 
@@ -4906,7 +4906,7 @@ void do_takeoff(CHAR_DATA *ch, char *argument)
 		}
 		af.where     = TO_AFFECTS;
 		af.group     = AFFGROUP_PHYSICAL;
-		af.type      = gsn_flight;
+		af.skill      = gsk_flight;
 		af.level     = ch->tot_level;
 		af.duration  = -1;
 		af.location  = APPLY_NONE;
@@ -4916,20 +4916,27 @@ void do_takeoff(CHAR_DATA *ch, char *argument)
 		af.custom_name = NULL;
 		af.slot	= WEAR_NONE;
 		affect_to_char(ch, &af);
-		check_improve(ch,gsn_flight,TRUE,3);
+		check_improve(ch,gsk_flight,TRUE,3);
 	}
 }
 
 void do_land(CHAR_DATA *ch, char *argument)
 {
 	if(MOUNTED(ch)) {
-		if(!IS_AFFECTED(MOUNTED(ch),AFF_FLYING) && !is_affected(MOUNTED(ch),gsn_flight)) {
+		if (!mobile_is_flying(MOUNTED(ch)))
+		{
 			act("$N doesn't seem to be airborne.", ch, MOUNTED(ch),NULL,NULL,NULL,NULL, NULL, TO_CHAR);
 			return;
 		}
 
+		if (!is_affected(MOUNTED(ch), gsk_flight) && !is_affected(MOUNTED(ch), gsk_fly))
+		{
+			act("Something is keeping $N airborne.", ch, MOUNTED(ch),NULL,NULL,NULL,NULL, NULL, TO_CHAR);
+			return;
+		}
+
 		if(!p_percent_trigger(MOUNTED(ch), NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LAND,NULL,0,0,0,0,0)) {
-			if(is_affected(ch,gsn_flight)) {
+			if(is_affected(ch, gsk_flight)) {
 				if(	ch->in_room->sector_type == SECT_WATER_NOSWIM ||
 					ch->in_room->sector_type == SECT_WATER_SWIM ||
 					ch->in_room->sector_type == SECT_UNDERWATER ||
@@ -4954,16 +4961,23 @@ void do_land(CHAR_DATA *ch, char *argument)
 			}
 		}
 
-		affect_strip(MOUNTED(ch),gsn_flight);
-		affect_strip(MOUNTED(ch),gsn_fly);
+		affect_strip(MOUNTED(ch), gsk_flight);
+		affect_strip(MOUNTED(ch), gsk_fly);
 	} else {
-		if(!IS_AFFECTED(ch, AFF_FLYING) && !is_affected(ch,gsn_flight)) {
-			send_to_char("You don't seem to be airborne.\n\r", ch);
+		if (!mobile_is_flying(ch))
+		{
+			send_to_char("You don't appear to be airborne.\n\r", ch);
+			return;
+		}
+
+		if (!is_affected(ch, gsk_flight) && !is_affected(ch, gsk_fly))
+		{
+			send_to_char("Something is keeping you airborne.\n\r", ch);
 			return;
 		}
 
 		if(!p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_LAND,NULL,0,0,0,0,0)) {
-			if(is_affected(ch,gsn_flight)) {
+			if(is_affected(ch, gsk_flight)) {
 				if(	ch->in_room->sector_type == SECT_WATER_NOSWIM ||
 					ch->in_room->sector_type == SECT_WATER_SWIM ||
 					ch->in_room->sector_type == SECT_UNDERWATER ||
@@ -4988,7 +5002,7 @@ void do_land(CHAR_DATA *ch, char *argument)
 			}
 		}
 
-		affect_strip(ch,gsn_flight);
-		affect_strip(ch,gsn_fly);
+		affect_strip(ch, gsk_flight);
+		affect_strip(ch, gsk_fly);
 	}
 }

@@ -348,15 +348,16 @@ void do_auction( CHAR_DATA *ch, char * argument )
 	return;
     }
 
-    if (obj->pIndexData == obj_index_skull || obj->pIndexData == obj_index_gold_skull) {
-	AFFECT_DATA *af;
+    if (obj->pIndexData == obj_index_skull || obj->pIndexData == obj_index_gold_skull)
+	{
+		AFFECT_DATA *af;
 
-	for (af = obj->affected; af != NULL; af = af->next) {
-	    if (af->type == gsn_third_eye) {
-		act("The enchantment on $p prevents it from being auctioned.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-		return;
-	    }
-	}
+		for (af = obj->affected; af != NULL; af = af->next) {
+			if (af->skill == gsk_third_eye) {
+				act("The enchantment on $p prevents it from being auctioned.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+				return;
+			}
+		}
     }
 
     if (IS_SET(obj->extra[1], ITEM_NOAUCTION)) {

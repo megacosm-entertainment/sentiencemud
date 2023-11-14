@@ -660,10 +660,10 @@ BLUEPRINT *load_blueprint(FILE *fp, AREA_DATA *pArea)
 					ipr->trig_phrase = fread_string(fp);
 					if( tt->type == TRIG_SPELLCAST ) {
 						char buf[MIL];
-						int tsn = skill_lookup(ipr->trig_phrase);
+						SKILL_DATA *skill = get_skill_data(ipr->trig_phrase);
 
-						if( tsn < 0 ) {
-							sprintf(buf, "load_blueprint: invalid spell '%s' for TRIG_SPELLCAST", p);
+						if( !IS_VALID(skill) ) {
+							sprintf(buf, "load_blueprint: invalid spell '%s' for TRIG_SPELLCAST", ipr->trig_phrase);
 							bug(buf, 0);
 							free_trigger(ipr);
 							fMatch = TRUE;
@@ -671,10 +671,10 @@ BLUEPRINT *load_blueprint(FILE *fp, AREA_DATA *pArea)
 						}
 
 						free_string(ipr->trig_phrase);
-						sprintf(buf, "%d", tsn);
+						sprintf(buf, "%d", skill->uid);
 						ipr->trig_phrase = str_dup(buf);
-						ipr->trig_number = tsn;
-						ipr->numeric = TRUE;
+						ipr->trig_number = skill->uid;
+						ipr->numeric = true;
 
 					} else {
 						ipr->trig_number = atoi(ipr->trig_phrase);

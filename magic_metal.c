@@ -32,12 +32,12 @@ SPELL_FUNC(spell_deathbarbs)
 	if (check_shield_block_projectile(ch, victim, "deathbarbs", NULL))
 		return FALSE;
 
-	roll = UMAX((level*2-15),5) * (get_skill(ch, sn)/100);
+	roll = UMAX((level*2-15),5) * (get_skill(ch, skill)/100);
 	roll = UMAX(roll, 5);
 
 	while (roll > 0) {
 		dam = dice(roll, 3);
-		damage(ch, victim, dam, sn, DAM_PIERCE, TRUE);
+		damage(ch, victim, dam, skill, TYPE_UNDEFINED, DAM_PIERCE, TRUE);
 		for (temp_char = ch->in_room->people; temp_char; temp_char = next) {
 			next = temp_char->next_in_room;
 			if (temp_char != victim && is_same_group(temp_char, victim) &&
@@ -45,7 +45,7 @@ SPELL_FUNC(spell_deathbarbs)
 				act("{YThe barbs fan out, hitting $N!{x", ch,  temp_char, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 				act("{YThe barbs fan out, hitting you!{x", ch, temp_char, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 				act("{YThe barbs fan out, hitting $N!{x", ch,  temp_char, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
-				damage(ch, temp_char, dam, sn, DAM_PIERCE, TRUE);
+				damage(ch, temp_char, dam, skill, TYPE_UNDEFINED, DAM_PIERCE, TRUE);
 			}
 		}
 

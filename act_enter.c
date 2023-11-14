@@ -666,7 +666,7 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 	/* @@@NIB : 20070127 : strip off if portal is nosneak
 			Right now, it does not mix with "sneak". */
 	if(IS_SET(PORTAL(portal)->flags,GATE_NOSNEAK)) {
-		affect_strip(ch, gsn_sneak);
+		affect_strip(ch, gsk_sneak);
 		REMOVE_BIT(ch->affected_by[0], AFF_SNEAK);
 
 	/* @@@NIB : 20070127 : if portal is sneak, attempt autosneak IF they can do it!
@@ -677,12 +677,12 @@ if (PULLING_CART(ch) && portal->item_type != ITEM_SHIP)
 			anything. */
 	} else if(IS_SET(PORTAL(portal)->flags,GATE_SNEAK)) {
 		if(!MOUNTED(ch) && !ch->fighting && !IS_AFFECTED(ch,AFF_SNEAK) &&
-			(number_percent() < get_skill(ch,gsn_sneak))) {
+			(number_percent() < get_skill(ch,gsk_sneak))) {
 			AFFECT_DATA af;
 			memset(&af,0,sizeof(af));
 			af.where     = TO_AFFECTS;
 			af.group     = AFFGROUP_PHYSICAL;
-			af.type      = gsn_sneak;
+			af.skill     = gsk_sneak;
 			af.level     = ch->level;
 			af.duration  = ch->level;
 			af.location  = APPLY_NONE;

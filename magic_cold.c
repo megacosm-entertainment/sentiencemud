@@ -30,7 +30,7 @@ SPELL_FUNC(spell_chill_touch)
 		act("{C$n turns blue and shivers.{x",victim, NULL, NULL, NULL, NULL,NULL,NULL,TO_ROOM);
 		af.where = TO_AFFECTS;
 		af.group = AFFGROUP_MAGICAL;
-		af.type = sn;
+		af.skill = skill;
 		af.level = level;
 		af.duration = 6;
 		af.location = APPLY_STR;
@@ -42,7 +42,7 @@ SPELL_FUNC(spell_chill_touch)
 	} else
 		dam /= 2;
 
-	damage(ch, victim, dam, sn, DAM_COLD,TRUE);
+	damage(ch, victim, dam, skill,TYPE_UNDEFINED, DAM_COLD,TRUE);
 	return TRUE;
 }
 
@@ -58,9 +58,9 @@ SPELL_FUNC(spell_frost_barrier)
 		perm = TRUE;
 	}
 
-	if (perm && is_affected(victim, sn))
-		affect_strip(victim, sn);
-	else if (is_affected(victim, sn)) {
+	if (perm && is_affected(victim, skill))
+		affect_strip(victim, skill);
+	else if (is_affected(victim, skill)) {
 		if (victim == ch)
 			send_to_char("You are already surrounded by a frost barrier.\n\r",ch);
 		else
@@ -70,7 +70,7 @@ SPELL_FUNC(spell_frost_barrier)
 
 	af.where = TO_AFFECTS;
 	af.group = AFFGROUP_MAGICAL;
-	af.type = sn;
+	af.skill = skill;
 	af.level = level;
 	af.duration = perm ? -1 : (level / 3);
 	af.location = APPLY_NONE;
@@ -118,18 +118,18 @@ SPELL_FUNC(spell_frost_breath)
 		if (vch == victim) {
 			if (saves_spell(level,vch,DAM_COLD)) {
 				cold_effect(vch,level/2,dam/4,TARGET_CHAR);
-				damage(ch,vch,dam/2,sn,DAM_COLD,TRUE);
+				damage(ch,vch,dam/2,skill,TYPE_UNDEFINED,DAM_COLD,TRUE);
 			} else {
 				cold_effect(vch,level,dam,TARGET_CHAR);
-				damage(ch,vch,dam,sn,DAM_COLD,TRUE);
+				damage(ch,vch,dam,skill,TYPE_UNDEFINED,DAM_COLD,TRUE);
 			}
 		} else {
 			if (saves_spell(level - 2,vch,DAM_COLD)) {
 				cold_effect(vch,level/4,dam/8,TARGET_CHAR);
-				damage(ch,vch,dam/4,sn,DAM_COLD,TRUE);
+				damage(ch,vch,dam/4,skill,TYPE_UNDEFINED,DAM_COLD,TRUE);
 			} else {
 				cold_effect(vch,level/2,dam/4,TARGET_CHAR);
-				damage(ch,vch,dam/2,sn,DAM_COLD,TRUE);
+				damage(ch,vch,dam/2,skill,TYPE_UNDEFINED,DAM_COLD,TRUE);
 			}
 		}
 	}
@@ -175,12 +175,12 @@ SPELL_FUNC(spell_ice_shards)
 	/* CAP */
 	dam = UMIN(dam, 2500);
 
-	damage(ch,victim,dam,gsn_ice_shards, DAM_COLD, TRUE);
+	damage(ch,victim,dam,skill,TYPE_UNDEFINED, DAM_COLD, TRUE);
 
 	return TRUE;
 }
 
-void spellassist_room_freeze(ROOM_INDEX_DATA *room, CHAR_DATA *ch, int level, int sides, int sn)
+void spellassist_room_freeze(ROOM_INDEX_DATA *room, CHAR_DATA *ch, int level, int sides, SKILL_DATA *skill)
 {
 	CHAR_DATA *victim;
 	CHAR_DATA *vnext;
@@ -192,7 +192,7 @@ void spellassist_room_freeze(ROOM_INDEX_DATA *room, CHAR_DATA *ch, int level, in
 		if (!is_safe(ch, victim, FALSE) && victim != ch) {
 			dam = dice(level,sides);
 
-			damage(ch, victim, dam, sn, DAM_COLD, TRUE);
+			damage(ch, victim, dam, skill,TYPE_UNDEFINED, DAM_COLD, TRUE);
 			cold_effect((void *)victim, level, dam, TARGET_CHAR);
 		}
 	}
@@ -265,7 +265,7 @@ bool glacialwave_progress(ROOM_INDEX_DATA *room, CHAR_DATA *ch, int depth, int d
 
 	if (gw->do_ice && number_range(0,24) < heat) gw->do_ice = FALSE;	// It takes little to prevent ice storms
 
-	spellassist_room_freeze(room,ch,level,gw->large?8:5,gsn_glacial_wave);
+	spellassist_room_freeze(room,ch,level,gw->large?8:5,gsk_glacial_wave);
 
 	if( door >= 0 && door < MAX_DIR ) {
 		if(gw->large)
@@ -302,7 +302,7 @@ void glacialwave_end(ROOM_INDEX_DATA *room, CHAR_DATA *ch, int depth, int door, 
 		sprintf(buf, "{CA glacial wave explodes in a fury of ice!{x\n\r");
 	room_echo(room, buf);
 
-	if(gw->large) spellassist_room_freeze(room,ch,level,5,gsn_glacial_wave);
+	if(gw->large) spellassist_room_freeze(room,ch,level,5,gsk_glacial_wave);
 
 }
 
@@ -341,7 +341,7 @@ SPELL_FUNC(spell_glacial_wave)
 		do_ice = FALSE;
 		catalyst = 0;
 	} else {
-		catalyst = use_catalyst(ch,NULL,CATALYST_ICE,CATALYST_ROOM|CATALYST_HOLD,10,1,CATALYST_MAXSTRENGTH,TRUE);
+		catalyst = use_catalyst(ch,NULL,CATALYST_ICE,CATALYST_ROOM|CATALYST_HOLD,10,TRUE);
 
 		// If they have an ice catalyst...
 		if(catalyst > 0) {

@@ -77,8 +77,60 @@ bool __isspell_valid(CHAR_DATA *ch, OBJ_DATA *obj, SKILL_ENTRY *spell, int pretr
 			return FALSE;
 		}
 	}
+	// Add prespell functions
 
 	return TRUE;
+}
+
+bool has_inks(CHAR_DATA *ch, int *need, bool show)
+{
+    int have[CATALYST_MAX];
+	OBJ_DATA *obj;
+
+	if (!ch || !need)
+		return false;
+
+	memset(have,0,sizeof(have));
+	for (obj = ch->carrying; obj != NULL; obj = obj->next_content) {
+		if (obj->item_type == ITEM_INK)
+		{
+			if(obj->value[0] > CATALYST_NONE && obj->value[0] < CATALYST_MAX) have[obj->value[0]]++;
+			if(obj->value[1] > CATALYST_NONE && obj->value[1] < CATALYST_MAX) have[obj->value[1]]++;
+			if(obj->value[2] > CATALYST_NONE && obj->value[2] < CATALYST_MAX) have[obj->value[2]]++;
+		}
+	}
+
+	bool ret = true;
+	for(int i = CATALYST_NONE; i < CATALYST_MAX; i++)
+	{
+		if (have[i] < need[i])
+		{
+			if (show)
+			{
+				char buf[MSL];
+				sprintf(buf, "You are missing an ink with %s essence.\n\r", catalyst_descs[i]);
+				send_to_char(buf, ch);
+			}
+			ret = false;
+		}
+	}
+
+	return ret;
+}
+
+void extract_inks(CHAR_DATA *ch, int *need)
+{
+	OBJ_DATA *obj,*next;
+	for (obj = ch->carrying; obj != NULL; obj = next) {
+		next = obj->next_content;
+		bool found = false;
+		if (obj->item_type == ITEM_INK) {
+			if(obj->value[0] > CATALYST_NONE && obj->value[0] < CATALYST_MAX && need[obj->value[0]]) { need[obj->value[0]]--; found = true; }
+			if(obj->value[1] > CATALYST_NONE && obj->value[1] < CATALYST_MAX && need[obj->value[1]]) { need[obj->value[1]]--; found = true; }
+			if(obj->value[2] > CATALYST_NONE && obj->value[2] < CATALYST_MAX && need[obj->value[2]]) { need[obj->value[2]]--; found = true; }
+		}
+		if (found) extract_obj(obj);
+	}
 }
 
 bool obj_has_money(CHAR_DATA *ch, OBJ_DATA *container)
@@ -133,7 +185,7 @@ void get_obj( CHAR_DATA *ch, OBJ_DATA *obj, OBJ_DATA *container )
     {
         act("{RYou pick up $p, but recoil in pain and drop it!{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR );
 	act("{R$n picks up $p, but recoils in pain and drops it!{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM );
-	damage( ch, ch, obj->trap_dam, 0, DAM_ENERGY, FALSE );
+	damage( ch, ch, obj->trap_dam, NULL, TYPE_UNDEFINED, DAM_ENERGY, FALSE );
 	REMOVE_BIT( obj->extra[1], ITEM_TRAPPED );
 	return;
     }
@@ -634,7 +686,7 @@ void do_get(CHAR_DATA *ch, char *argument)
 			if (IS_SET(obj->extra[1], ITEM_TRAPPED)) {
 				act("{RYou pick up $p, but recoil in pain and drop it!{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 				act("{R$n picks up $p, but recoils in pain and drops it!{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-				damage(ch, ch, obj->trap_dam, 0, DAM_ENERGY, FALSE);
+				damage(ch, ch, obj->trap_dam, NULL, TYPE_UNDEFINED, DAM_ENERGY, FALSE);
 				REMOVE_BIT(obj->extra[1], ITEM_TRAPPED);
 				return;
 			}
@@ -798,7 +850,7 @@ void do_get(CHAR_DATA *ch, char *argument)
 
 		if (!container->contains)
 		{
-			p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_EMPTIED, NULL,0,0,0,0,0);
+			p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_EMPTIED, NULL,CONTEXT_CONTAINER,0,0,0,0);
 		}
 
 		// If the container is in the current room
@@ -925,7 +977,7 @@ void do_get(CHAR_DATA *ch, char *argument)
 			if( gotten ) {
 				if (!container->contains)
 				{
-					p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_EMPTIED, NULL,0,0,0,0,0);
+					p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_EMPTIED, NULL,CONTEXT_CONTAINER,0,0,0,0);
 				}
 
 				if (!container->carried_by && !container->in_obj && container->in_room != NULL ) {
@@ -1503,7 +1555,7 @@ void do_put(CHAR_DATA *ch, char *argument)
 
 		if (!container_can_fit_weight(container, NULL) || !container_can_fit_volume(container, NULL))
 		{
-			p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_FILLED, NULL,0,0,0,0,0);
+			p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_FILLED, NULL, CONTEXT_CONTAINER,0,0,0,0);
 		}
     }
     else
@@ -1632,7 +1684,7 @@ void do_put(CHAR_DATA *ch, char *argument)
 
 			if (!container_can_fit_weight(container, NULL) || !container_can_fit_volume(container, NULL))
 			{
-				p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_FILLED, NULL,0,0,0,0,0);
+				p_percent_trigger(NULL, container, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_FILLED, NULL,CONTEXT_CONTAINER,0,0,0,0);
 			}
 	    }
 
@@ -2382,7 +2434,7 @@ void do_repair(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, arg);
 
     /* first check if they can repair it themselves */
-    if ((sk = get_skill(ch, gsn_repair)) > 0)
+    if ((sk = get_skill(ch, gsk_repair)) > 0)
     {
         if (arg[0] == '\0')
 	{
@@ -2732,7 +2784,7 @@ void do_envenom(CHAR_DATA *ch, char *argument)
     AFFECT_DATA af;
     int percent,skill;
 
-    if (get_skill(ch, gsn_envenom) == 0)
+    if (get_skill(ch, gsk_envenom) == 0)
     {
 	send_to_char("What?\n\r", ch);
 	return;
@@ -2752,73 +2804,73 @@ void do_envenom(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if ((skill = get_skill(ch,gsn_envenom)) < 1)
+    if ((skill = get_skill(ch, gsk_envenom)) < 1)
     {
 	send_to_char("Are you crazy? You'd poison yourself!\n\r",ch);
 	return;
     }
 
-    if (IS_FOOD(obj) || obj->item_type == ITEM_DRINK_CON)
+    if (IS_FOOD(obj) || IS_FLUID_CON(obj))
     {
-	if (IS_OBJ_STAT(obj,ITEM_BLESS) || IS_OBJ_STAT(obj,ITEM_BURN_PROOF))
-	{
-	    act("You fail to poison $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-	    return;
-	}
-
-	if (number_percent() < skill)  /* success! */
-	{
-		/* The better you get, the less likely people SEE it
-		  	But, even mastered, there is a slight chance of people seeing */
-	    if(number_range(0,100) > skill)
+		if (IS_OBJ_STAT(obj,ITEM_BLESS) || IS_OBJ_STAT(obj,ITEM_BURN_PROOF))
 		{
-			act("$n treats $p with deadly poison.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
+			act("You fail to poison $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
+			return;
 		}
 
-	    act("You treat $p with deadly poison.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-
-
-		int poison = URANGE(1, skill / 3, 99);		// Never allow this kind of applied poison to be permanent.
-		bool applied = FALSE;
-		if (IS_FOOD(obj))
+		if (number_percent() < skill)  /* success! */
 		{
-			if (FOOD(obj)->poison > poison)
+			/* The better you get, the less likely people SEE it
+				But, even mastered, there is a slight chance of people seeing */
+			if(number_range(0,100) > skill)
 			{
-				act("$p is already sufficiently poisoned.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
-				return;
+				act("$n treats $p with deadly poison.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
 			}
 
-			applied = !FOOD(obj)->poison;
-			FOOD(obj)->poison = poison;
-		}
-		else
-		{
-			if (obj->value[3] > poison)
+			act("You treat $p with deadly poison.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
+
+
+			int poison = URANGE(1, skill / 3, 99);		// Never allow this kind of applied poison to be permanent.
+			bool applied = FALSE;
+			if (IS_FOOD(obj))
 			{
-				act("$p is already sufficiently poisoned.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
-				return;
+				if (FOOD(obj)->poison > poison)
+				{
+					act("$p is already sufficiently poisoned.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
+					return;
+				}
+
+				applied = !FOOD(obj)->poison;
+				FOOD(obj)->poison = poison;
+			}
+			else if (IS_FLUID_CON(obj))
+			{
+				if (FLUID_CON(obj)->poison > poison)
+				{
+					act("$p is already sufficiently poisoned.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
+					return;
+				}
+
+				applied = !FLUID_CON(obj)->poison;
+				FLUID_CON(obj)->poison = poison;
 			}
 
-			applied = !obj->value[3];
-			obj->value[3] = poison;
+			act("$p is infused with poisonous vapors.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
+
+			if (applied)
+				check_improve(ch,gsk_envenom,TRUE,4);
+			WAIT_STATE(ch,gsk_envenom->beats);
+			return;
 		}
 
-		act("$p is infused with poisonous vapors.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ALL);
-
-	    if (applied)
-			check_improve(ch,gsn_envenom,TRUE,4);
-	    WAIT_STATE(ch,skill_table[gsn_envenom].beats);
-	    return;
+		act("You fail to poison $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
+		if (!obj->value[3])
+			check_improve(ch,gsk_envenom,FALSE,4);
+		WAIT_STATE(ch,gsk_envenom->beats);
+		return;
 	}
 
-	act("You fail to poison $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-	if (!obj->value[3])
-	    check_improve(ch,gsn_envenom,FALSE,4);
-	WAIT_STATE(ch,skill_table[gsn_envenom].beats);
-	return;
-     }
-
-memset(&af,0,sizeof(af));
+	memset(&af,0,sizeof(af));
     if (obj->item_type == ITEM_WEAPON)
     {
         if (IS_WEAPON_STAT(obj,WEAPON_FLAMING)
@@ -2856,7 +2908,7 @@ memset(&af,0,sizeof(af));
 
             af.where     = TO_WEAPON;
             af.group     = AFFGROUP_WEAPON;
-            af.type      = gsn_poison;
+            af.skill     = gsk_poison;
             af.level     = ch->tot_level * percent / 100;
             af.duration  = ch->tot_level/2 * percent / 100;
             af.location  = 0;
@@ -2871,15 +2923,15 @@ memset(&af,0,sizeof(af));
 	    if(number_range(0,105) > skill)
 		act("$n coats $p with deadly venom.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
 	    act("You coat $p with venom.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-	    check_improve(ch,gsn_envenom,TRUE,3);
-	    WAIT_STATE(ch,skill_table[gsn_envenom].beats);
+	    check_improve(ch,gsk_envenom,TRUE,3);
+	    WAIT_STATE(ch,gsk_envenom->beats);
             return;
         }
 	else
 	{
 	    act("You fail to envenom $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-	    check_improve(ch,gsn_envenom,FALSE,3);
-	    WAIT_STATE(ch,skill_table[gsn_envenom].beats);
+	    check_improve(ch,gsk_envenom,FALSE,3);
+	    WAIT_STATE(ch,gsk_envenom->beats);
 	    return;
 	}
     }
@@ -2888,140 +2940,150 @@ memset(&af,0,sizeof(af));
 }
 
 
+// fill <fluid_container>[ <fluid_container (in room)>]
 void do_fill(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
 //    char buf[MAX_STRING_LENGTH];
     OBJ_DATA *obj;
     OBJ_DATA *fountain;
-    bool found;
 
-    one_argument(argument, arg);
+    argument = one_argument(argument, arg);
 
     if (arg[0] == '\0')
     {
-	send_to_char("Fill what?\n\r", ch);
-	return;
+		send_to_char("Fill what?\n\r", ch);
+		return;
     }
 
     if ((obj = get_obj_carry(ch, arg, ch)) == NULL)
     {
-	send_to_char("You do not have that item.\n\r", ch);
-	return;
+		send_to_char("You do not have that item.\n\r", ch);
+		return;
     }
 
-    found = FALSE;
-    for (fountain = ch->in_room->contents; fountain != NULL;
-	fountain = fountain->next_content)
+	int number;
+	char argf[MIL];
+
+	number = number_argument(argument, argf);
+
+    for (fountain = ch->in_room->contents; fountain != NULL; fountain = fountain->next_content)
     {
-	if (fountain->item_type == ITEM_FOUNTAIN)
-	{
-	    found = TRUE;
-	    break;
-	}
+		if (IS_FLUID_CON(fountain) && (argf[0] == '\0' || (is_name(argf, fountain->name) && number-- == 1)))
+		{
+		    break;
+		}
     }
 
-    if (!found)
+    if (!fountain || !IS_FLUID_CON(fountain))
     {
-	send_to_char("There is no fountain here!\n\r", ch);
-	return;
+		send_to_char("There is no fluid container here!\n\r", ch);
+		return;
     }
 
-    if (obj->item_type != ITEM_DRINK_CON)
+    if (!IS_FLUID_CON(obj))
     {
-	send_to_char("You can't fill that.\n\r", ch);
-	return;
+		send_to_char("You can't fill that.\n\r", ch);
+		return;
     }
 
-	if ((fountain->value[0] > 0 && fountain->value[1] < 1) || fountain->value[2] < 0)
+	if (!FLUID_CON(fountain)->liquid || (FLUID_CON(fountain)->capacity > 0 && FLUID_CON(obj)->amount < 1))
 	{
 		send_to_char("That fountain is empty.\n\r", ch);
 		return;
 	}
 
-	if (obj->value[0] >= 0 && obj->value[1] < 0)
-		obj->value[1] = 0;	// Fix bad object values
+	// Fix invalid fluid values
+	if (FLUID_CON(obj)->capacity >= 0 && FLUID_CON(obj)->amount < 0)
+		FLUID_CON(obj)->amount = 0;
 
-    if (obj->value[1] != 0 && obj->value[2] != fountain->value[2])
-    {
-	send_to_char("There is already another liquid in it.\n\r", ch);
-	return;
-    }
-
-    if (obj->value[1] >= obj->value[0])
-    {
-	send_to_char("Your container is full.\n\r", ch);
-	return;
-    }
-
-    act("You fill $p with $t from $P.", ch, NULL, NULL, obj,fountain, liq_table[fountain->value[2]].liq_name, NULL, TO_CHAR);
-    act("$n fills $p with $t from $P.", ch, NULL, NULL, obj,fountain, liq_table[fountain->value[2]].liq_name, NULL, TO_ROOM);
-    obj->value[2] = fountain->value[2];	// Copy the liquid type
-	if (fountain->value[3] > 0)
+	if (FLUID_CON(obj)->amount != 0 &&
+		FLUID_CON(obj)->liquid &&
+		!fluid_has_same_fluid(FLUID_CON(obj), FLUID_CON(fountain)))
 	{
-		if (obj->value[3] < 100)
+		send_to_char("There is already another liquid in it.\n\r", ch);
+		return;
+	}
+
+	if (FLUID_CON(obj)->amount >= FLUID_CON(obj)->capacity)
+    {
+	    act("$p is full.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		return;
+    }
+
+    act("You fill $p with $t from $P.", ch, NULL, NULL, obj,fountain, FLUID_CON(fountain)->liquid->name, NULL, TO_CHAR);
+    act("$n fills $p with $t from $P.", ch, NULL, NULL, obj,fountain, FLUID_CON(fountain)->liquid->name, NULL, TO_ROOM);
+	FLUID_CON(obj)->liquid = FLUID_CON(fountain)->liquid;	// Copy the liquid type
+	list_destroy(FLUID_CON(obj)->spells);
+	FLUID_CON(obj)->spells = list_copy(FLUID_CON(fountain)->spells);
+	if (FLUID_CON(fountain)->poison > 0)
+	{
+		if (FLUID_CON(obj)->poison < 100)
 		{
-			obj->value[3] = UMAX(obj->value[3], fountain->value[3]);	// Combine the poison
-			obj->value[3] = UMIN(obj->value[3], 99);
+			FLUID_CON(obj)->poison = UMAX(FLUID_CON(obj)->poison, FLUID_CON(fountain)->poison);	// Combine the poison
+			FLUID_CON(obj)->poison = UMIN(FLUID_CON(obj)->poison, 99);
 		}
 
 		// Weaken the poison
-		if (fountain->value[3] < 100)
-			fountain->value[3]--;
+		if (FLUID_CON(fountain)->poison < 100)
+			FLUID_CON(fountain)->poison--;
 	}
 	// If the drink is empty, has poison, there is a chance it gets "washed" out
-	else if (obj->value[1] < 1 && obj->value[3] > 0 && number_percent() >= obj->value[3])
+	else if (FLUID_CON(obj)->amount < 1 && FLUID_CON(obj)->poison > 0 && number_percent() >= FLUID_CON(obj)->poison)
 	{
-		obj->value[3] = 0;
+		FLUID_CON(obj)->poison = 0;
 	}
 
 	int amount;
-	if (fountain->value[0] > 0)
+	if (FLUID_CON(fountain)->amount > 0)
 	{
-		amount = obj->value[0] - obj->value[1];
-		if (amount >= fountain->value[1])
+		amount = FLUID_CON(obj)->capacity - FLUID_CON(obj)->amount;
+		if (amount >= FLUID_CON(fountain)->amount)
 		{
 			// Container more capacity than the fountain
-			obj->value[1] += fountain->value[1];
-			fountain->value[1] = 0;
+			FLUID_CON(obj)->amount += FLUID_CON(fountain)->amount;
+			FLUID_CON(fountain)->amount = 0;
 		}
 		else
 		{
-			obj->value[1] = obj->value[0];
-			fountain->value[1] -= amount;
+			FLUID_CON(obj)->amount = FLUID_CON(obj)->capacity;
+			FLUID_CON(fountain)->amount -= amount;
 		}
 	}
 	else
 	{
 		// Fountain has infinite capacity
-		amount = obj->value[0] - obj->value[1];
-		obj->value[1] = obj->value[0];	// Filled to the brim.
+		amount = FLUID_CON(obj)->capacity - FLUID_CON(obj)->amount;
+		FLUID_CON(obj)->amount = FLUID_CON(obj)->capacity;	// Filled to the brim.
 	}
 
 	// if $(obj1) is valid, then $(obj) is the container
 	// if $(obj2) is valid, then $(obj) is the fountain
-	// tempstore1 == amount
+	// register1 == amount
 
-	obj->tempstore[0] = amount;
-	p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, fountain, NULL, TRIG_FILL, NULL,0,0,0,0,0);
+	p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, fountain, NULL, TRIG_FILL, NULL,amount,0,0,0,0);
 
-	fountain->tempstore[0] = amount;
-	p_percent_trigger(NULL, fountain, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_FILL, NULL,0,0,0,0,0);
+	p_percent_trigger(NULL, fountain, NULL, NULL, ch, NULL, NULL, NULL, obj, TRIG_FILL, NULL,amount,0,0,0,0);
 
-	ch->in_room->tempstore[0] = amount;
-	p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, fountain, obj, TRIG_FILL, NULL,0,0,0,0,0);
+	p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, fountain, obj, TRIG_FILL, NULL,amount,0,0,0,0);
 
-	if (obj->value[1] == obj->value[0])
+	if (FLUID_CON(obj)->amount >= FLUID_CON(obj)->capacity)
 	{
-		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, fountain, NULL, TRIG_FILLED, NULL,0,0,0,0,0);
+		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, fountain, NULL, TRIG_FLUID_FILLED, NULL,CONTEXT_FLUID_CON,0,0,0,0);
 	}
 
-	if (fountain->value[0] > 0 && fountain->value[1] < 1)
+	if (FLUID_CON(fountain)->capacity > 0 && FLUID_CON(fountain)->amount < 1)
 	{
-		p_percent_trigger(NULL, fountain, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_EMPTIED, NULL,0,0,0,0,0);
+		if (FLUID_CON(fountain)->refill_rate < 1)
+		{
+			// Clear the liquid
+			FLUID_CON(fountain)->liquid = NULL;
+			list_clear(FLUID_CON(fountain)->spells);
+		}
+
+		p_percent_trigger(NULL, fountain, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_FLUID_EMPTIED, NULL,CONTEXT_FLUID_CON,0,0,0,0);
 	}
 }
-
 
 void do_pour(CHAR_DATA *ch, char *argument)
 {
@@ -3034,46 +3096,55 @@ void do_pour(CHAR_DATA *ch, char *argument)
 
     if (arg[0] == '\0' || argument[0] == '\0')
     {
-	send_to_char("Pour what into what?\n\r",ch);
-	return;
+		send_to_char("Pour what into what?\n\r",ch);
+		return;
     }
 
     if ((out = get_obj_carry(ch,arg, ch)) == NULL)
     {
-	send_to_char("You don't have that item.\n\r",ch);
-	return;
+		send_to_char("You don't have that item.\n\r",ch);
+		return;
     }
 
-    if (out->item_type != ITEM_DRINK_CON)
-    {
-	send_to_char("That's not a drink container.\n\r",ch);
-	return;
-    }
+	if (!IS_FLUID_CON(out))
+	{
+		send_to_char("That's not a fluid container.\n\r",ch);
+		return;
+	}
 
     if (!str_cmp(argument,"out"))
     {
-		if (out->value[2] < 0 || out->value[1] == 0)
+		if (!FLUID_CON(out)->liquid || FLUID_CON(out)->amount == 0)
 		{
 			send_to_char("It's already empty.\n\r",ch);
 			return;
 		}
 
-		out->value[1] = 0;
-
-		if (out->value[3] > 0 && out->value[3] < 100)
-		{
-			if (number_percent() >= out->value[3])
-				out->value[3] = 0;
-			else
-				out->value[3]--;
-		}
-		
-
-		sprintf(buf,"You invert $p, spilling %s all over the ground.", liq_table[out->value[2]].liq_name);
+		sprintf(buf,"You invert $p, spilling %s all over the ground.", FLUID_CON(out)->liquid->name);
 		act(buf,ch, NULL, NULL,out, NULL, NULL,NULL,TO_CHAR);
 
-		sprintf(buf,"$n inverts $p, spilling %s all over the ground.", liq_table[out->value[2]].liq_name);
+		sprintf(buf,"$n inverts $p, spilling %s all over the ground.", FLUID_CON(out)->liquid->name);
 		act(buf,ch, NULL, NULL,out, NULL, NULL,NULL,TO_ROOM);
+
+		// No $(obj1) or $(obj2) indicates "pour out"
+		p_percent_trigger(NULL, out, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_POUR, NULL, 0,0,0,0,0);
+		p_percent_trigger(NULL, out, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_FLUID_EMPTIED, NULL,CONTEXT_FLUID_CON,0,0,0,0);
+
+		if (FLUID_CON(out)->poison > 0 && FLUID_CON(out)->poison < 100)
+		{
+			if (number_percent() >= FLUID_CON(out)->poison)
+				FLUID_CON(out)->poison = 0;
+			else
+				FLUID_CON(out)->poison--;
+		}
+		
+		FLUID_CON(out)->amount = 0;
+
+		if (FLUID_CON(out)->refill_rate < 1)
+		{
+			FLUID_CON(out)->liquid = NULL;
+			list_clear(FLUID_CON(out)->spells);
+		}
 		return;
     }
 
@@ -3096,9 +3167,9 @@ void do_pour(CHAR_DATA *ch, char *argument)
 		}
     }
 
-    if (in->item_type != ITEM_DRINK_CON && in->item_type != ITEM_FOUNTAIN)
+    if (!IS_FLUID_CON(in))
     {
-		send_to_char("You can only pour into other drink containers.\n\r",ch);
+		send_to_char("You can only pour into other fluid containers.\n\r",ch);
 		return;
     }
 
@@ -3108,273 +3179,402 @@ void do_pour(CHAR_DATA *ch, char *argument)
 		return;
     }
 
-    if (out->value[2] < 0 || out->value[1] == 0)
+	if (!FLUID_CON(out)->liquid || FLUID_CON(out)->amount == 0)
     {
 		act("There's nothing in $p to pour.",ch, NULL, NULL,out, NULL, NULL,NULL,TO_CHAR);
 		return;
     }
 
-    if (in->value[1] != 0 && in->value[2] != out->value[2])
-    {
+	if (FLUID_CON(in)->amount != 0 &&
+		FLUID_CON(in)->liquid &&
+		!fluid_has_same_fluid(FLUID_CON(in), FLUID_CON(out)))
+	{
 		send_to_char("They don't hold the same liquid.\n\r",ch);
 		return;
     }
 
-    if (in->value[1] >= in->value[0])
+    if (FLUID_CON(in)->amount >= FLUID_CON(in)->capacity)
     {
-	act("$p is already filled to the top.",ch, NULL, NULL,in, NULL, NULL,NULL,TO_CHAR);
-	return;
+		act("$p is already filled to the top.",ch, NULL, NULL,in, NULL, NULL,NULL,TO_CHAR);
+		return;
     }
 
-    amount = UMIN(out->value[1],in->value[0] - in->value[1]);
+    amount = UMIN(FLUID_CON(out)->amount,FLUID_CON(in)->capacity - FLUID_CON(in)->amount);
 
-    in->value[1] += amount;
-    out->value[1] -= amount;
-    in->value[2] = out->value[2];
-	if (out->value[3] > 0)
+	FLUID_CON(in)->amount += amount;
+	FLUID_CON(out)->amount -= amount;
+	FLUID_CON(in)->liquid = FLUID_CON(out)->liquid;
+	list_destroy(FLUID_CON(in)->spells);
+	FLUID_CON(in)->spells = list_copy(FLUID_CON(out)->spells);
+	if (FLUID_CON(out)->poison > 0)
 	{
-		if (in->value[3] < 100)
+		if (FLUID_CON(in)->poison < 100)
 		{
-			in->value[3] = UMAX(in->value[3], out->value[3]);	// Combine the poison
-			in->value[3] = UMIN(in->value[3], 99);				// Cap for applied poisons
+			FLUID_CON(in)->poison = UMAX(FLUID_CON(in)->poison, FLUID_CON(out)->poison);	// Combine the poison
+			FLUID_CON(in)->poison = UMIN(FLUID_CON(in)->poison, 99);				// Cap for applied poisons
 		}
 
 		// Weaken the poison if not permanent
-		if (out->value[3] < 100)
-			out->value[3]--;
+		if (FLUID_CON(out)->poison < 100)
+			FLUID_CON(out)->poison--;
 	}
 	// If the drink is empty, has poison, there is a chance it gets "washed" out
-	else if (in->value[1] < 1 && in->value[3] > 0 && number_percent() >= in->value[3])
+	else if (FLUID_CON(in)->amount < 1 && FLUID_CON(in)->poison > 0 && number_percent() >= FLUID_CON(in)->poison)
 	{
-		in->value[3] = 0;
+		FLUID_CON(in)->poison = 0;
 	}
 
 
     if (vch == NULL)
     {
-    	sprintf(buf,"You pour %s from $p into $P.", liq_table[out->value[2]].liq_name);
+    	sprintf(buf,"You pour %s from $p into $P.", FLUID_CON(out)->liquid->name);
     	act(buf,ch, NULL, NULL,out,in, NULL, NULL,TO_CHAR);
-    	sprintf(buf,"$n pours %s from $p into $P.", liq_table[out->value[2]].liq_name);
+    	sprintf(buf,"$n pours %s from $p into $P.", FLUID_CON(out)->liquid->name);
     	act(buf,ch, NULL, NULL,out,in, NULL, NULL,TO_ROOM);
     }
     else
     {
-		sprintf(buf,"You pour some %s for $N.", liq_table[out->value[2]].liq_name);
+		sprintf(buf,"You pour some %s for $N.", FLUID_CON(out)->liquid->name);
 		act(buf,ch,vch, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-		sprintf(buf,"$n pours you some %s.", liq_table[out->value[2]].liq_name);
+		sprintf(buf,"$n pours you some %s.", FLUID_CON(out)->liquid->name);
 		act(buf,ch,vch, NULL, NULL, NULL, NULL, NULL,TO_VICT);
-		sprintf(buf,"$n pours some %s for $N.", liq_table[out->value[2]].liq_name);
+		sprintf(buf,"$n pours some %s for $N.", FLUID_CON(out)->liquid->name);
 		act(buf,ch,vch, NULL, NULL, NULL, NULL, NULL,TO_NOTVICT);
     }
 
 	// $obj1 vs $obj2 will make the distinction here...
 	// $obj1 is the OUT, $obj2 is the IN
-	out->tempstore[0] = amount;
-	p_percent_trigger(NULL, out, NULL, NULL, ch, vch, NULL, NULL, in, TRIG_POUR, NULL,0,0,0,0,0);
-	in->tempstore[0] = amount;
-	p_percent_trigger(NULL, in, NULL, NULL, ch, vch, NULL, out, NULL, TRIG_POUR, NULL,0,0,0,0,0);
-	ch->in_room->tempstore[0] = amount;
-	p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, vch, NULL, out, in, TRIG_POUR, NULL,0,0,0,0,0);
+	// amount is in register1
+	p_percent_trigger(NULL, out, NULL, NULL, ch, vch, NULL, NULL, in, TRIG_POUR, NULL,amount,0,0,0,0);
+	p_percent_trigger(NULL, in, NULL, NULL, ch, vch, NULL, out, NULL, TRIG_POUR, NULL,amount,0,0,0,0);
+	p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, vch, NULL, out, in, TRIG_POUR, NULL,amount,0,0,0,0);
 	
-	if (out->value[0] > 0 && out->value[1] <= 0)
+	if (FLUID_CON(out)->capacity > 0 && FLUID_CON(out)->amount <= 0)
 	{
-		p_percent_trigger(NULL, out, NULL, NULL, ch, vch, NULL, NULL, in, TRIG_EMPTIED, NULL,0,0,0,0,0);
+		FLUID_CON(out)->amount = 0;
+		if (FLUID_CON(out)->refill_rate < 1)
+		{
+			FLUID_CON(out)->liquid = NULL;
+			list_clear(FLUID_CON(out)->spells);
+		}
+		p_percent_trigger(NULL, out, NULL, NULL, ch, vch, NULL, NULL, in, TRIG_FLUID_EMPTIED, NULL,CONTEXT_FLUID_CON,0,0,0,0);
 	}
 
-	if (in->value[0] > 0 && in->value[1] >= in->value[0])
+	if (FLUID_CON(in)->capacity > 0 && FLUID_CON(in)->amount >= FLUID_CON(in)->capacity)
 	{
-		p_percent_trigger(NULL, in, NULL, NULL, ch, vch, NULL, NULL, out, TRIG_FILLED, NULL,0,0,0,0,0);
+		FLUID_CON(in)->amount = FLUID_CON(in)->capacity;
+		p_percent_trigger(NULL, in, NULL, NULL, ch, vch, NULL, NULL, out, TRIG_FLUID_FILLED, NULL,CONTEXT_FLUID_CON,0,0,0,0);
 	}
 }
 
-
-void do_drink(CHAR_DATA *ch, char *argument)
+void __drink_fluid_con(CHAR_DATA *ch, OBJ_DATA *obj, int max_amount, char *verb)
 {
-    char arg[MAX_INPUT_LENGTH];
-    OBJ_DATA *obj;
-    int amount;
-    int liquid;
-	int ret;
+	char buf[MSL];
 
-    one_argument(argument, arg);
-
-    if (arg[0] == '\0')
-    {
-	for (obj = ch->in_room->contents; obj; obj = obj->next_content)
+	if (!IS_FLUID_CON(obj))
 	{
-	    if (obj->item_type == ITEM_FOUNTAIN)
-		break;
+		sprintf(buf, "You can't %s from that.\n\r", verb);
+		send_to_char(buf, ch);
+		return;
 	}
 
-	if (obj == NULL)
-	{
-	    send_to_char("Drink what?\n\r", ch);
-	    return;
-	}
-    }
-    else
-    {
-	if ((obj = get_obj_here(ch, NULL, arg)) == NULL)
-	{
-	    send_to_char("You can't find it.\n\r", ch);
-	    return;
-	}
-    }
-
+	// Too drunk
     if (!IS_NPC(ch) && ch->pcdata->condition[COND_DRUNK] > 10)
     {
-	send_to_char("You fail to reach your mouth.  *Hic*\n\r", ch);
-	return;
+		send_to_char("You fail to reach your mouth.  *Hic*\n\r", ch);
+		return;
     }
 
-    switch (obj->item_type)
-    {
-	default:
-	    send_to_char("You can't drink from that.\n\r", ch);
-	    return;
+	if (IS_SET(FLUID_CON(obj)->flags, CONT_CLOSED))
+	{
+		send_to_char("It is closed.\n\r", ch);
+		return;
+	}
 
-	case ITEM_FOUNTAIN:
-	    if ((liquid = obj->value[2])  < 0)
-	    {
-			send_to_char("There is nothing to drink.\n\r", ch);
-			return;
-//		bug("Do_drink: bad liquid number %d.", liquid);
-//		liquid = obj->value[2] = 0;
-	    }
-		
-	    if (IS_VAMPIRE(ch))
-	       amount = 20;
-	    else
-	       amount = liq_table[liquid].liq_affect[COND_FULL] * 10;
+	LIQUID *liquid;
+	if (!(liquid = FLUID_CON(obj)->liquid))
+	{
+		sprintf(buf, "There is nothing to %s.\n\r", verb);
+		send_to_char(buf, ch);
+		return;
+	}
 
-		// If the fountain is empty
-	    if (obj->value[0] >= 0 && obj->value[1] < 1)
-	    {
-			send_to_char("It is already empty.\n\r", ch);
-			return;
-	    }
-
-		// Cap the amount available
-		if (obj->value[1] > 0 && amount > obj->value[1])
-		{
-			amount = obj->value[1];
-		}
-
-	    break;
-
-	case ITEM_DRINK_CON:
-	    if ((liquid = obj->value[2])  < 0)
-	    {
-			send_to_char("There is nothing to drink.\n\r", ch);
-			return;
-//		bug("Do_drink: bad liquid number %d.", liquid);
-//		liquid = obj->value[2] = 0;
-	    }
-
-	    if (obj->value[1] <= 0)
-	    {
+	if (FLUID_CON(obj)->capacity >= 0 && FLUID_CON(obj)->amount < 1)
+	{
 		send_to_char("It is already empty.\n\r", ch);
 		return;
-	    }
+	}
 
-	    amount = liq_table[liquid].liq_affect[4];
-	    amount = UMIN(amount, obj->value[1]);
-	    break;
-     }
+	// Spelled fluids (potions) require a level check.
+    if (list_size(FLUID_CON(obj)->spells) > 0 && ch->tot_level < obj->level)
+    {
+		sprintf(buf, "This liquid is too powerful for you to %s.\n\r", verb);
+		send_to_char(buf, ch);
+		return;
+    }
+
+	int amount;
+	if (max_amount < 0)	// Everything, or one serving if infinite
+	{
+		if (FLUID_CON(obj)->capacity < 0)
+			amount = LIQ_SERVING;
+		else
+			amount = FLUID_CON(obj)->capacity;
+	}
+	else if (max_amount == 0)
+	{
+		amount = LIQ_SERVING;	// One serving
+	}
+
+	// Cap the amount available
+	if (FLUID_CON(obj)->amount > 0 && amount > FLUID_CON(obj)->amount)
+	{
+		amount = FLUID_CON(obj)->amount;
+	}
 
 	// See if the character is blocked from drinking
-	if ((ret = p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREDRINK, NULL,0,0,0,0,0)))
+	int ret;
+	if ((ret = p_percent_trigger(ch, NULL, NULL, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREDRINK, NULL,amount,0,0,0,0)))
 	{
 		if (ret == 1)
 		{
-			send_to_char("You cannot drink from that.\n\r", ch);
+			sprintf(buf, "You can't %s from that.\n\r", verb);
+			send_to_char(buf, ch);
 		}
 		return;
 	}
 
 	// See if the object will let the character eat it.
-	if ((ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREDRINK, NULL,0,0,0,0,0)))
+	if ((ret = p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREDRINK, NULL,amount,0,0,0,0)))
 	{
 		if (ret == 1)
 		{
-			send_to_char("You cannot drink from that.\n\r", ch);
+			sprintf(buf, "You can't %s from that.\n\r", verb);
+			send_to_char(buf, ch);
 		}
 		return;
 	}
 	
 	// See if the room lets the character eat.
-	if ((ret = p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREDRINK, NULL,0,0,0,0,0)))
+	if ((ret = p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, obj, NULL, TRIG_PREDRINK, NULL,amount,0,0,0,0)))
 	{
 		if (ret == 1)
 		{
-			send_to_char("You cannot drink from that here.\n\r", ch);
+			sprintf(buf, "You can't %s from that here.\n\r", verb);
+			send_to_char(buf, ch);
 		}
 		return;
 	}
 
 
-    act("$n drinks $T from $p.",ch, NULL, NULL, obj, NULL, NULL, liq_table[liquid].liq_name, TO_ROOM);
-    act("You drink $T from $p.",ch, NULL, NULL, obj, NULL, NULL, liq_table[liquid].liq_name, TO_CHAR);
+    act("$n $t $T from $p.",ch, NULL, NULL, obj, NULL, verb, liquid->name, TO_ROOM);
+    act("You $t $T from $p.",ch, NULL, NULL, obj, NULL, verb, liquid->name, TO_CHAR);
 
-    if (IS_VAMPIRE(ch) && obj->value[2] == 14)
+	// TODO: Take into account savagery
+    if (IS_VAMPIRE(ch) && liquid == liquid_blood)
     {
     	send_to_char("You feel refreshed.\n\r", ch);
-      gain_condition(ch, COND_FULL,
-	amount * 1 / 2);
-      gain_condition(ch, COND_THIRST,
-	amount * 1 / 2);
-      gain_condition(ch, COND_HUNGER,
-	amount * 1 / 2);
+		gain_condition(ch, COND_FULL, amount / 2 + 1);
+		gain_condition(ch, COND_THIRST, amount / 2 + 1);
+		gain_condition(ch, COND_HUNGER, amount / 2 + 1);
     }
     else
     {
-      gain_condition(ch, COND_DRUNK, amount * liq_table[liquid].liq_affect[COND_DRUNK] / 36);
-      gain_condition(ch, COND_FULL, amount * liq_table[liquid].liq_affect[COND_FULL] / 4);
-      gain_condition(ch, COND_THIRST, amount * liq_table[liquid].liq_affect[COND_THIRST] / 2);
-      gain_condition(ch, COND_HUNGER, amount * liq_table[liquid].liq_affect[COND_HUNGER] / 2);
+		gain_condition(ch, COND_DRUNK, amount * liquid->proof / 36);
+		gain_condition(ch, COND_FULL, amount * liquid->full / 4);
+		gain_condition(ch, COND_THIRST, amount * liquid->thirst / 2);
+		gain_condition(ch, COND_HUNGER, amount * liquid->hunger / 2);
     }
 
-    if (!IS_NPC(ch) && ch->pcdata->condition[COND_DRUNK]  > 10)
-	send_to_char("You feel drunk.\n\r", ch);
-    if (!IS_NPC(ch) && ch->pcdata->condition[COND_FULL]   > 40)
-	send_to_char("You are full.\n\r", ch);
-    if (!IS_NPC(ch) && ch->pcdata->condition[COND_THIRST] > 40)
-	send_to_char("Your thirst is quenched.\n\r", ch);
-
-    if (obj->value[3] > 0 && check_immune(ch, DAM_POISON) != IS_IMMUNE)
-    {
-	/* The drink was poisoned ! */
-	AFFECT_DATA af;
-memset(&af,0,sizeof(af));
-	act("$n chokes and gags.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	send_to_char("You choke and gag.\n\r", ch);
-	af.where     = TO_AFFECTS;
-	af.group     = AFFGROUP_BIOLOGICAL;
-	af.type      = gsn_poison;
-	af.level	 = number_fuzzy(amount);
-	af.duration  = 3 * obj->value[3] * amount / 100;
-	af.location  = APPLY_NONE;
-	af.modifier  = 0;
-	af.bitvector = AFF_POISON;
-	af.bitvector2 = 0;
-	af.slot	= WEAR_NONE;
-	affect_join(ch, &af);
-    }
-
-    if (obj->value[0] > 0) {
-        obj->value[1] -= amount;
-	}
-
-	p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_DRINK, NULL,0,0,0,0,0);
-	p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, obj, NULL, TRIG_DRINK, NULL,0,0,0,0,0);
-
-	if (obj->value[0] > 0 && obj->value[1] < 1)
+	if (!IS_NPC(ch))
 	{
-		obj->value[3] = 0;	// Remove the poisoning
-		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_EMPTIED, NULL,0,0,0,0,0);
+		if (ch->pcdata->condition[COND_DRUNK]  > 10)
+			send_to_char("You feel drunk.\n\r", ch);
+
+		// TODO: Take into account savagery
+		if (ch->pcdata->condition[COND_FULL]   > 40)
+			send_to_char("You are full.\n\r", ch);
+		if (ch->pcdata->condition[COND_THIRST] > 40)
+		{
+			if (get_room_savage_level(ch->in_room) > 0)
+				send_to_char("Your thirst is quenched.\n\r", ch);
+		}
 	}
+
+	if (FLUID_CON(obj)->poison > 0 && check_immune(ch, DAM_POISON) != IS_IMMUNE)
+	{
+		AFFECT_DATA af;
+		memset(&af,0,sizeof(af));
+		act("$n chokes and gags.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		send_to_char("You choke and gag.\n\r", ch);
+		af.where = TO_AFFECTS;
+		af.group = AFFGROUP_BIOLOGICAL;
+		af.skill = gsk_poison;
+		af.level = number_fuzzy(amount);
+		af.duration = 3 * FLUID_CON(obj)->poison * amount / 100;
+		af.location = APPLY_NONE;
+		af.modifier = 0;
+		af.bitvector = AFF_POISON;
+		af.bitvector2 = 0;
+		af.slot	= WEAR_NONE;
+		affect_join(ch, &af);
+	}
+
+	bool spells = FALSE;
+	if (list_size(FLUID_CON(obj)->spells) > 0)
+	{
+		ITERATOR it;
+		SPELL_DATA *spell;
+		iterator_start(&it, FLUID_CON(obj)->spells);
+		while((spell = (SPELL_DATA *)iterator_nextdata(&it)))
+		{
+			if (spell->skill->token)
+				p_token_index_percent_trigger(spell->skill->token, ch, NULL, NULL, obj, NULL, TRIG_TOKEN_QUAFF, NULL, 0,0,0,0,0, spell->level,0,0,0,0);
+			else if (spell->skill->quaff_fun)
+				(*spell->skill->quaff_fun)(spell->skill, spell->level, ch, obj);
+		}
+		iterator_stop(&it);
+
+		spells = TRUE;
+	}
+
+	if (FLUID_CON(obj)->capacity > 0)
+	{
+		FLUID_CON(obj)->amount -= amount;
+	}
+
+	// Amount consumed is in $(register1)
+	// Verb is in $(phrase)
+	p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_DRINK, verb, amount,0,0,0,0);
+	p_percent_trigger(NULL, NULL, ch->in_room, NULL, ch, NULL, NULL, obj, NULL, TRIG_DRINK, verb, amount,0,0,0,0);
+
+	if (FLUID_CON(obj)->capacity > 0 && FLUID_CON(obj)->amount < 1)
+	{
+		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_FLUID_EMPTIED, NULL,CONTEXT_FLUID_CON,0,0,0,0);
+
+		if (FLUID_CON(obj)->poison > 0 && FLUID_CON(obj)->poison < 100)
+		{
+			if (number_percent() >= FLUID_CON(obj)->poison)
+				FLUID_CON(obj)->poison = 0;
+			else
+				FLUID_CON(obj)->poison--;
+		}
+		
+		FLUID_CON(obj)->amount = 0;
+		FLUID_CON(obj)->liquid = NULL;
+		list_clear(FLUID_CON(obj)->spells);
+
+		if (IS_SET(FLUID_CON(obj)->flags, FLUID_CON_DESTROY_ON_CONSUME))
+		{
+			extract_obj(obj);
+		}
+	}
+
+	// Those with spells cause a wait state, regardless of amount consumed.
+	if (spells)
+		WAIT_STATE(ch, 8);
 
     return;
+
+}
+
+void do_sip(CHAR_DATA *ch, char *argument)
+{
+    char arg[MAX_INPUT_LENGTH];
+    OBJ_DATA *obj;
+
+    one_argument(argument, arg);
+
+    if (arg[0] == '\0')
+    {
+		for (obj = ch->in_room->contents; obj; obj = obj->next_content)
+		{
+			if (IS_FLUID_CON(obj))
+				break;
+		}
+
+		if (obj == NULL)
+		{
+			send_to_char("Sip what?\n\r", ch);
+			return;
+		}
+    }
+    else
+    {
+		if ((obj = get_obj_here(ch, NULL, arg)) == NULL)
+		{
+			send_to_char("You can't find it.\n\r", ch);
+			return;
+		}
+    }
+
+	__drink_fluid_con(ch, obj, 1, "sip");
+}
+
+void do_drink(CHAR_DATA *ch, char *argument)
+{
+    char arg[MAX_INPUT_LENGTH];
+    OBJ_DATA *obj;
+
+    one_argument(argument, arg);
+
+    if (arg[0] == '\0')
+    {
+		for (obj = ch->in_room->contents; obj; obj = obj->next_content)
+		{
+			if (IS_FLUID_CON(obj))
+				break;
+		}
+
+		if (obj == NULL)
+		{
+			send_to_char("Drink what?\n\r", ch);
+			return;
+		}
+    }
+    else
+    {
+		if ((obj = get_obj_here(ch, NULL, arg)) == NULL)
+		{
+			send_to_char("You can't find it.\n\r", ch);
+			return;
+		}
+    }
+
+	__drink_fluid_con(ch, obj, 0, "drink");
+}
+
+void do_quaff(CHAR_DATA *ch, char *argument)
+{
+    char arg[MAX_INPUT_LENGTH];
+    OBJ_DATA *obj;
+
+    one_argument(argument, arg);
+
+    if (arg[0] == '\0')
+    {
+		for (obj = ch->in_room->contents; obj; obj = obj->next_content)
+		{
+			if (IS_FLUID_CON(obj))
+				break;
+		}
+
+		if (obj == NULL)
+		{
+			send_to_char("Quaff what?\n\r", ch);
+			return;
+		}
+    }
+    else
+    {
+		if ((obj = get_obj_here(ch, NULL, arg)) == NULL)
+		{
+			send_to_char("You can't find it.\n\r", ch);
+			return;
+		}
+    }
+
+	__drink_fluid_con(ch, obj, -1, "quaff");
 }
 
 
@@ -3458,7 +3658,7 @@ void do_eat(CHAR_DATA *ch, char *argument)
 
 			af.where	 = TO_AFFECTS;
 			af.group     = AFFGROUP_BIOLOGICAL;
-			af.type      = gsn_poison;
+			af.skill      = gsk_poison;
 			af.level 	 = number_fuzzy(FOOD(obj)->full);
 			af.duration  = FOOD(obj)->poison * FOOD(obj)->full / 50;	// is really 2 * poison% * hours / 100
 			af.location  = APPLY_NONE;
@@ -3932,7 +4132,7 @@ void wear_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool fReplace)
 
     if (CAN_WEAR(obj, ITEM_WIELD))
     {
-		int sn,skill;
+		int skill;
 
 		if (!remove_obj(ch, WEAR_WIELD, fReplace))
 			return;
@@ -3975,12 +4175,12 @@ void wear_obj(CHAR_DATA *ch, OBJ_DATA *obj, bool fReplace)
 		act("You wield $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 		equip_char(ch, obj, WEAR_WIELD);
 
-        sn = get_weapon_sn(ch);
+		SKILL_DATA *sk = get_weapon_sn(ch);
 
-		if (sn == gsn_hand_to_hand)
+		if (sk == gsk_hand_to_hand)
 		   return;
 
-        skill = get_weapon_skill(ch,sn);
+        skill = get_weapon_skill(ch,sk);
 
         if (skill >= 100)
             act("$p feels like a part of you!",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
@@ -4351,70 +4551,6 @@ void do_sacrifice(CHAR_DATA *ch, char *argument)
 	}
 }
 
-void do_quaff(CHAR_DATA *ch, char *argument)
-{
-    char arg[MAX_INPUT_LENGTH];
-    OBJ_DATA *obj;
-    //SPELL_DATA *spell;
-
-    one_argument(argument, arg);
-
-    if (arg[0] == '\0')
-    {
-	send_to_char("Quaff what?\n\r", ch);
-	return;
-    }
-
-    if ((obj = get_obj_carry(ch, arg, ch)) == NULL)
-    {
-	send_to_char("You do not have that potion.\n\r", ch);
-	return;
-    }
-
-    if (obj->item_type != ITEM_POTION)
-    {
-	send_to_char("You can quaff only potions.\n\r", ch);
-	return;
-    }
-
-    if (ch->tot_level < obj->level)
-    {
-	send_to_char("This liquid is too powerful for you to drink.\n\r",ch);
-	return;
-    }
-
-    if (obj->pIndexData == obj_index_empty_vial)
-    {
-	act("$p has nothing in it you can quaff.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-	return;
-    }
-
-    /* Currently only alchemists can make multi-quaffable potions */
-    if (obj->value[5] > 0)
-    {
-	obj->value[5]--;
-    }
-
-    if (obj->value[5] > 0)
-    {
-	act("$n takes a small swig from $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-	act("You take a small swig from $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-    }
-    else
-    {
-        act("$n quaffs $p.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-        act("You quaff $p.", ch, NULL, NULL, obj, NULL, NULL, NULL ,TO_CHAR);
-    }
-
-    //for (spell = obj->spells; spell != NULL; spell = spell->next)
-	//obj_cast_spell(spell->sn, spell->level, ch, ch, NULL);
-	obj_apply_spells(ch, obj, ch, NULL, obj->spells, TRIG_TOKEN_QUAFF);
-
-    if (obj->value[5] <= 0)
-	extract_obj(obj);
-
-    WAIT_STATE(ch, 8);
-}
 
 
 void do_recite(CHAR_DATA *ch, char *argument)
@@ -4575,10 +4711,10 @@ void recite_end(CHAR_DATA *ch)
 	{
 		act("$p flares brightly then disappears!", ch, NULL, NULL, scroll, NULL, NULL, NULL, TO_ALL);
 
-		if (number_percent() >= 20 + get_skill(ch,gsn_scrolls) * 4/5)
+		if (number_percent() >= 20 + get_skill(ch, gsk_scrolls) * 4/5)
 		{
 			send_to_char("You mispronounce a syllable.\n\r",ch);
-			check_improve(ch,gsn_scrolls,FALSE,2);
+			check_improve(ch,gsk_scrolls,FALSE,2);
 		}
 		else
 		{
@@ -4586,7 +4722,7 @@ void recite_end(CHAR_DATA *ch)
 			obj_apply_spells(ch, scroll, victim, obj, obj->spells, TRIG_TOKEN_RECITE);
 			//for (spell = scroll->spells; spell != NULL; spell = spell->next)
 			//	obj_cast_spell(spell->sn, spell->level, ch, victim, obj);
-			check_improve(ch,gsn_scrolls,TRUE,2);
+			check_improve(ch,gsk_scrolls,TRUE,2);
 		}
 
 		extract_obj(scroll);
@@ -4601,7 +4737,6 @@ void do_brandish(CHAR_DATA *ch, char *argument)
     CHAR_DATA *vch_next;
     OBJ_DATA *staff;
     SPELL_DATA *spell;
-    int sn;
 
     if ((staff = get_eq_char(ch, WEAR_HOLD)) == NULL)
     {
@@ -4632,11 +4767,11 @@ void do_brandish(CHAR_DATA *ch, char *argument)
     {
 		act("$n brandishes $p.", ch, NULL, NULL, staff, NULL, NULL, NULL, TO_ROOM);
 		act("You brandish $p.",  ch, NULL, NULL, staff, NULL, NULL, NULL, TO_CHAR);
-		if (ch->tot_level < staff->level || number_percent() >= (20 + 4 * get_skill(ch,gsn_staves) / 5))
+		if (ch->tot_level < staff->level || number_percent() >= (20 + 4 * get_skill(ch, gsk_staves) / 5))
 		{
 			act ("You fail to invoke $p.",ch, NULL, NULL,staff, NULL, NULL,NULL,TO_CHAR);
 			act ("...and nothing happens.",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
-			check_improve(ch,gsn_staves,FALSE,2);
+			check_improve(ch,gsk_staves,FALSE,2);
 		}
 		else
 		{
@@ -4646,44 +4781,12 @@ void do_brandish(CHAR_DATA *ch, char *argument)
 
                 for (spell = staff->spells; spell != NULL; spell = spell->next)
 				{
-					if (spell->sn > 0)
+					if (spell->skill->token)
 					{
-						sn = spell->sn;
-						switch (skill_table[sn].target)
+						switch(spell->skill->target)
 						{
 							default:
-								bug("Do_brandish: bad target for sn %d.", sn);
-								return;
-
-							case TAR_IGNORE:
-								if (vch != ch)
-									continue;
-								break;
-
-							case TAR_CHAR_OFFENSIVE:
-								if (IS_NPC(ch) == IS_NPC(vch))
-									continue;
-								break;
-
-							case TAR_CHAR_DEFENSIVE:
-								if (IS_NPC(ch) != IS_NPC(vch))
-									continue;
-								break;
-
-							case TAR_CHAR_SELF:
-								if (vch != ch)
-									continue;
-								break;
-						}
-
-						obj_cast_spell(sn, spell->level, ch, vch, NULL);
-					}
-					else if (spell->token)
-					{
-						switch(spell->token->value[TOKVAL_SPELL_TARGET])
-						{
-							default:
-								sprintf(buf, "Bad target for token %s (%s)", spell->token->name, widevnum_string(spell->token->area, spell->token->vnum, NULL));
+								sprintf(buf, "Bad target for spell %s (token).", spell->skill->name);
 								bug(buf, 0);
 								continue;
 
@@ -4708,7 +4811,39 @@ void do_brandish(CHAR_DATA *ch, char *argument)
 								break;
 						}
 
-						p_token_index_percent_trigger(spell->token, ch, vch, NULL, staff, NULL, TRIG_TOKEN_BRANDISH, NULL, spell->level, 0, 0, 0, 0,0,0,0,0,0);
+						p_token_index_percent_trigger(spell->skill->token, ch, vch, NULL, staff, NULL, TRIG_TOKEN_BRANDISH, NULL, spell->level, 0, 0, 0, 0,0,0,0,0,0);
+					}
+					else
+					{
+						switch (spell->skill->target)
+						{
+							default:
+								sprintf(buf, "Bad target for spell %s.", spell->skill->name);
+								bug(buf, 0);
+								return;
+
+							case TAR_IGNORE:
+								if (vch != ch)
+									continue;
+								break;
+
+							case TAR_CHAR_OFFENSIVE:
+								if (IS_NPC(ch) == IS_NPC(vch))
+									continue;
+								break;
+
+							case TAR_CHAR_DEFENSIVE:
+								if (IS_NPC(ch) != IS_NPC(vch))
+									continue;
+								break;
+
+							case TAR_CHAR_SELF:
+								if (vch != ch)
+									continue;
+								break;
+						}
+
+						obj_cast_spell(spell->skill, spell->level, ch, vch, NULL);
 					}
 
 				}
@@ -4716,7 +4851,7 @@ void do_brandish(CHAR_DATA *ch, char *argument)
 				// Let it do something even if there were no spells
 			    p_percent_trigger(NULL, staff, NULL, NULL, ch, vch, NULL, NULL, NULL, TRIG_BRANDISH, argument,0,0,0,0,0);
 
-				check_improve(ch,gsn_staves,TRUE,2);
+				check_improve(ch,gsk_staves,TRUE,2);
 			}
 		}
     }
@@ -4804,7 +4939,7 @@ void do_zap(CHAR_DATA *ch, char *argument)
 		}
 
 		bool success;
-		if (ch->tot_level < wand->level || number_percent() >= (20 + 4 * get_skill(ch,gsn_wands) / 5))
+		if (ch->tot_level < wand->level || number_percent() >= (20 + 4 * get_skill(ch, gsk_wands) / 5))
 		{
 			act("Your efforts with $p produce only smoke and sparks.", ch, NULL, NULL,wand, NULL, NULL,NULL,TO_CHAR);
 			act("$n's efforts with $p produce only smoke and sparks.", ch, NULL, NULL,wand, NULL, NULL,NULL,TO_ROOM);
@@ -4820,7 +4955,7 @@ void do_zap(CHAR_DATA *ch, char *argument)
 
 		wand->tempstore[0] = success;
 		p_percent_trigger(NULL, wand, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_ZAP, arg,0,0,0,0,0);
-		check_improve(ch,gsn_wands,success,2);
+		check_improve(ch,gsk_wands,success,2);
     }
 
     if (--wand->value[2] <= 0)
@@ -4890,7 +5025,7 @@ void do_steal(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    WAIT_STATE(ch, skill_table[gsn_steal].beats);
+    WAIT_STATE(ch, gsk_steal->beats);
     percent  = number_percent();
 
     if (!IS_AWAKE(victim))
@@ -4910,15 +5045,15 @@ void do_steal(CHAR_DATA *ch, char *argument)
 	    percent += 50;
     }
 
-    if (percent > get_skill(ch,gsn_steal)
+    if (percent > get_skill(ch, gsk_steal)
          || (!IS_NPC(victim)
-	     && number_percent() < get_skill(victim, gsn_deception))
+	     && number_percent() < get_skill(victim, gsk_deception))
          || (!IS_NPC(ch)
 	      && !IS_NPC(victim)
 	      && !IS_SET(ch->in_room->room_flags, ROOM_CHAOTIC|ROOM_PK)))	// Require full CPK
     {
 	send_to_char("Oops.\n\r", ch);
-	affect_strip(ch,gsn_sneak);
+	affect_strip(ch, gsk_sneak);
 	REMOVE_BIT(ch->affected_by[0],AFF_SNEAK);
 
 	act("$n tried to steal from you.\n\r", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT   );
@@ -4947,8 +5082,8 @@ void do_steal(CHAR_DATA *ch, char *argument)
 	{
 	    if (IS_NPC(victim))
 	    {
-	        check_improve(ch,gsn_steal,FALSE,2);
-		multi_hit(victim, ch, TYPE_UNDEFINED);
+	        check_improve(ch,gsk_steal,FALSE,2);
+			multi_hit(victim, ch, NULL, TYPE_UNDEFINED);
 	    }
 	}
 
@@ -4983,7 +5118,7 @@ void do_steal(CHAR_DATA *ch, char *argument)
 		    silver,gold);
 
 	send_to_char(buf, ch);
-	check_improve(ch,gsn_steal,TRUE,2);
+	check_improve(ch,gsk_steal,TRUE,2);
 	return;
     }
 
@@ -5033,7 +5168,7 @@ void do_steal(CHAR_DATA *ch, char *argument)
     obj_to_char(obj, ch);
 	REMOVE_BIT(obj->extra[1], ITEM_KEPT);
     act("You pocket $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-    check_improve(ch,gsn_steal,TRUE,2);
+    check_improve(ch,gsk_steal,TRUE,2);
     send_to_char("{WGot it!{x\n\r", ch);
 }
 
@@ -5510,11 +5645,11 @@ void do_buy(CHAR_DATA *ch, char *argument)
 			{
 				/* haggle */
 				roll = number_percent();
-				if (roll < get_skill(ch,gsn_haggle))
+				if (roll < get_skill(ch, gsk_haggle))
 				{
 					cost -= ((cost/2) * roll)/100;
 					haggled = TRUE;
-					check_improve(ch,gsn_haggle,TRUE,4);
+					check_improve(ch,gsk_haggle,TRUE,4);
 				}
 			}
 
@@ -5781,7 +5916,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 				}
 			}
 
-			int chance = get_skill(ch, gsn_haggle);
+			int chance = get_skill(ch, gsk_haggle);
 			long new_value = 0;
 
 			if( IS_NULLSTR(stock->custom_price) )
@@ -5807,7 +5942,7 @@ void do_buy(CHAR_DATA *ch, char *argument)
 				if( haggled )
 				{
 					act("You haggle with $N.",ch,keeper, NULL, NULL, NULL, NULL, NULL,TO_CHAR);
-					check_improve(ch,gsn_haggle,TRUE,4);
+					check_improve(ch,gsk_haggle,TRUE,4);
 				}
 
 				// Deduct price
@@ -6422,7 +6557,7 @@ void do_inspect(CHAR_DATA *ch, char *argument)
 
 		act("You ask $N for some information about $p.", ch, keeper, NULL, request.obj, NULL, NULL, NULL, TO_CHAR);
 		act("$n asks $N for some information about $p.", ch, keeper, NULL, request.obj, NULL, NULL, NULL, TO_ROOM);
-		spell_identify(gsn__inspect, ch->tot_level, ch, request.obj, TARGET_OBJ, WEAR_NONE);
+		spell_identify(&gsk__inspect, ch->tot_level, ch, request.obj, TARGET_OBJ, WEAR_NONE);
 	}
 	else if( request.stock != NULL )
 	{
@@ -6440,7 +6575,7 @@ void do_inspect(CHAR_DATA *ch, char *argument)
 				act("You ask $N for some information about $p.", ch, keeper, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 				act("$n asks $N for some information about $p.", ch, keeper, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 				obj_to_char(obj, ch);
-				spell_identify(gsn__inspect, ch->tot_level, ch, obj, TARGET_OBJ, WEAR_NONE);
+				spell_identify(&gsk__inspect, ch->tot_level, ch, obj, TARGET_OBJ, WEAR_NONE);
 			}
 			extract_obj(obj);
 			return;
@@ -6556,7 +6691,7 @@ void do_sell(CHAR_DATA *ch, char *argument)
 			if( IS_NULLSTR(stock->custom_price) )
 			{
 				bool haggled = FALSE;
-				int chance = get_skill(ch, gsn_haggle);
+				int chance = get_skill(ch, gsk_haggle);
 
 				long silver = adjust_keeper_price(keeper, stock->silver, FALSE);
 				if( silver > 0 )
@@ -6634,7 +6769,7 @@ void do_sell(CHAR_DATA *ch, char *argument)
 
 				if( haggled ) {
 					send_to_char("You haggle with the shopkeeper.\n\r",ch);
-					check_improve(ch,gsn_haggle,TRUE,4);
+					check_improve(ch,gsk_haggle,TRUE,4);
 				}
 
 				sprintf(buf, "You sell $p for%s.", get_shop_purchase_price(silver, qp, dp, pneuma));
@@ -6695,13 +6830,13 @@ void do_sell(CHAR_DATA *ch, char *argument)
 	{
 		/* haggle */
 		roll = number_percent();
-		if (roll < get_skill(ch,gsn_haggle))
+		if (roll < get_skill(ch, gsk_haggle))
 		{
 			send_to_char("You haggle with the shopkeeper.\n\r",ch);
 			cost += obj->cost / 2 * roll / 100;
 			cost = UMIN(cost,95 * get_cost(keeper,obj,TRUE) / 100);
 			cost = UMIN(cost,(keeper->silver + 100 * keeper->gold));
-			check_improve(ch,gsn_haggle,TRUE,4);
+			check_improve(ch,gsk_haggle,TRUE,4);
 		}
 	}
 	sprintf(buf, "You sell $p for%s", get_shop_purchase_price(cost, 0, 0, 0));
@@ -7060,7 +7195,7 @@ void do_pull(CHAR_DATA *ch, char *argument)
 		if(obj->item_type == ITEM_WEAPON && IS_WEAPON_STAT(obj,WEAPON_BARBED)) {
 			act("{R$p{R tears away flesh from $n.{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 			act("{R$p{R tears away some of your flesh.{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-			damage(ch, ch, UMIN(ch->hit,25), 0, 0, TRUE);
+			damage(ch, ch, UMIN(ch->hit,25), NULL, TYPE_UNDEFINED, DAM_PIERCE, TRUE);
 		}
 	}
 	return;
@@ -7087,7 +7222,7 @@ void do_pull(CHAR_DATA *ch, char *argument)
         if (IS_AFFECTED(ch, AFF_SNEAK))
 	{
 	    send_to_char("You stop moving silently.\n\r", ch);
-	    affect_strip(ch, gsn_sneak);
+	    affect_strip(ch, gsk_sneak);
 	}
 
 	if (ch->pulled_cart != NULL)
@@ -7123,7 +7258,7 @@ void do_pull(CHAR_DATA *ch, char *argument)
 	    {
 	        act("{YA huge arc of lightning leaps out from $p striking you!{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 	        act("{YA huge arc of lightning leaps out from $p striking $n!{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-	        damage(ch, ch, 30000, TYPE_UNDEFINED, DAM_NONE, FALSE);
+	        damage(ch, ch, 30000, NULL, TYPE_UNDEFINED, DAM_LIGHTNING, FALSE);
 		return;
 	    }
 	    else
@@ -7157,7 +7292,7 @@ void do_turn(CHAR_DATA *ch, char *argument)
 	}
 
 	/* First look for a character to turn */
-	if ((vch = get_char_room(ch, NULL, arg)) && (skill = get_skill(ch, gsn_turn_undead)) > 0) {
+	if ((vch = get_char_room(ch, NULL, arg)) && (skill = get_skill(ch, gsk_turn_undead)) > 0) {
 		int chance;
 
 		if(p_percent_trigger(vch,NULL, NULL, NULL, ch, vch, NULL, NULL, NULL, TRIG_ATTACK_TURN,"pretest",0,0,0,0,0) ||
@@ -7169,14 +7304,14 @@ void do_turn(CHAR_DATA *ch, char *argument)
 
 		act("{WYou feel a powerful divine presence pass through you!{x",ch, vch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 
-		WAIT_STATE(ch, skill_table[gsn_turn_undead].beats);
+		WAIT_STATE(ch, gsk_turn_undead->beats);
 
 		if (IS_UNDEAD(vch)) {
 			chance = (ch->tot_level - vch->tot_level) + skill / 5;
 			if (number_percent() < chance) {
 				act("{RYou scream with pain as your flesh sizzles and melts!{x", ch, vch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
 				act("{R$n screams with pain as $s flesh sizzles and melts!{x", vch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-				damage(ch, vch, dice(ch->tot_level, 8), TYPE_UNDEFINED, DAM_HOLY, FALSE);
+				damage(ch, vch, dice(ch->tot_level, 8), NULL, TYPE_UNDEFINED, DAM_HOLY, FALSE);
 				do_function(vch, &do_flee, NULL);
 				PANIC_STATE(vch, 12);
 				DAZE_STATE(vch, 12);
@@ -7224,7 +7359,7 @@ void do_skull(CHAR_DATA *ch, char *argument)
 
     argument = one_argument(argument, arg);
 
-    if ((IS_NPC(ch) && ch->alignment >= 0) || (!IS_NPC(ch) && get_skill(ch,gsn_skull) == 0))
+    if ((IS_NPC(ch) && ch->alignment >= 0) || (!IS_NPC(ch) && get_skill(ch, gsk_skull) == 0))
     {
 	send_to_char("Why would you want to do such a thing?\n\r",ch);
 	return;
@@ -7268,7 +7403,7 @@ void do_skull(CHAR_DATA *ch, char *argument)
 	if (IS_NPC(ch))
 	    chance = (ch->tot_level * 3)/4 - obj->level/10;
 	else
-	    chance = get_skill(ch, gsn_skull) - 3;
+	    chance = get_skill(ch, gsk_skull) - 3;
 
 	chance *= corpse_info_table[corpse].skulling_chance;
 
@@ -7276,7 +7411,7 @@ void do_skull(CHAR_DATA *ch, char *argument)
 	{
 	    act(corpse_info_table[corpse].skull_fail, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 	    act(corpse_info_table[corpse].skull_fail_other, ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-	    check_improve(ch, gsn_skull, FALSE, 1);
+	    check_improve(ch, gsk_skull, FALSE, 1);
 //	    SET_BIT(obj->extra[0], ITEM_NOSKULL);
 	    REMOVE_BIT(CORPSE_PARTS(obj),PART_HEAD);
 	    REMOVE_BIT(CORPSE_PARTS(obj),PART_BRAINS);
@@ -7362,13 +7497,59 @@ void do_skull(CHAR_DATA *ch, char *argument)
 	sprintf(buf, corpse_info_table[corpse].skull_success_other, obj->owner);
 	act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 	obj_to_char(skull, ch);
-	check_improve(ch, gsn_skull, TRUE, 1);
+	check_improve(ch, gsk_skull, TRUE, 1);
     }
     else
         act("There's no $t here.", ch, NULL, NULL, NULL, NULL, arg, NULL, TO_CHAR);
 }
 
+bool can_brew_spell(CHAR_DATA *ch, OBJ_DATA *obj, SKILL_ENTRY *spell)
+{
+	if (!spell || !spell->isspell)
+	{
+		send_to_char("You don't know any spells by that name.\n\r", ch);
+		return FALSE;
+	}
 
+	if (IS_VALID(spell->token))
+	{
+		SCRIPT_DATA *script = get_script_token(spell->token, TRIG_TOKEN_QUAFF, TRIGSLOT_SPELL);
+		if(!script) {
+			act_new("You cannot brew $t in $p.", ch,NULL,NULL,obj,NULL,spell->skill->name,NULL,TO_CHAR,POS_DEAD,NULL);
+			return FALSE;
+		}
+
+		int ret = p_percent_trigger(NULL, NULL, NULL, spell->token, ch, NULL, NULL, obj, NULL, TRIG_TOKEN_PREBREW, NULL,0,0,0,0,0);
+		if (ret)
+		{
+			if (ret != PRET_SILENT)
+			{
+				act_new("You cannot brew $t in $p.", ch,NULL,NULL,obj,NULL,spell->skill->name,NULL,TO_CHAR,POS_DEAD,NULL);
+			}
+			return FALSE;
+		}
+	}
+	else
+	{
+		if(!spell->skill->quaff_fun)
+		{
+			act_new("You cannot brew $t in $p.", ch,NULL,NULL,obj,NULL,spell->skill->name,NULL,TO_CHAR,POS_DEAD,NULL);
+			return false;
+		}
+
+		if(spell->skill->prebrew_fun)
+		{
+			// prebrew function is responsible for messages.
+			if (!(*spell->skill->prebrew_fun)(spell->skill, ch->tot_level, ch, obj))
+				return false;
+		}
+	}
+
+	return true;
+}
+
+
+// brew <spell> <container>
 void do_brew(CHAR_DATA *ch, char *argument)
 {
     OBJ_DATA *obj;
@@ -7377,7 +7558,7 @@ void do_brew(CHAR_DATA *ch, char *argument)
     int chance;
     int mana;
     char arg[MAX_STRING_LENGTH];
-	//char buf[MSL];
+	char buf[MSL];
 
     argument = one_argument(argument, arg);
 
@@ -7387,23 +7568,24 @@ void do_brew(CHAR_DATA *ch, char *argument)
 		return;
     }
 
-    if ((chance = get_skill(ch,gsn_brew)) == 0)
+    if ((chance = get_skill(ch, gsk_brew)) == 0)
     {
 		send_to_char("Brew? What's that?\n\r",ch);
 		return;
     }
 
-    obj = NULL;
-    for (obj = ch->carrying; obj != NULL; obj = obj->next_content) {
-		if (obj->item_type == ITEM_EMPTY_VIAL || obj->pIndexData == obj_index_empty_vial)
-	    	break;
-    }
-
-    if (obj == NULL)
-    {
-		send_to_char("You do not have an empty vial to fill.\n\r", ch);
+	// Need a finite fluid container with no spells.
+	if ((obj = get_obj_carry(ch, argument, ch)) == NULL || !IS_FLUID_CON(obj) || FLUID_CON(obj)->capacity <= 0 || list_size(FLUID_CON(obj)->spells) > 0)
+	{
+		send_to_char("You do not have a valid fluid container to brew in.\n\r", ch);
 		return;
-    }
+	}
+
+	if (FLUID_CON(obj)->amount < FLUID_CON(obj)->capacity)
+	{
+		act("Please fill up $p before brewing.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
 
     if (arg[0] == '\0')
     {
@@ -7411,8 +7593,42 @@ void do_brew(CHAR_DATA *ch, char *argument)
 		return;
     }
 
+	LIQUID *liquid = FLUID_CON(obj)->liquid;
+	if (!IS_VALID(liquid))
+	{
+		act("$p requires a liquid medium to brew.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+		return;
+	}
+
+	// Clear out catalyst usages
+	memset(ch->catalyst_usage, 0, sizeof(ch->catalyst_usage));
 	SKILL_ENTRY *spell = skill_entry_findname(ch->sorted_skills, arg);
-	if(!__isspell_valid(ch, obj, spell, TRIG_TOKEN_PREBREW, TRIG_TOKEN_QUAFF, "You cannot brew $t in $p."))
+	if(!can_brew_spell(ch, obj, spell))
+		return;
+
+	if (spell->skill->brew_mana > liquid->max_mana)
+	{
+		act("$t powerful enough to brew $T.", ch, NULL, NULL, obj, NULL, liquid->name, spell->skill->name, TO_CHAR);
+		return;
+	}
+
+	// Check the catalysts
+	bool have_all_catalysts = true;
+	for(int i = 0; i < CATALYST_MAX; i++)
+	{
+		if (ch->catalyst_usage[i] > 0)
+		{
+			int catalyst = has_catalyst(ch,NULL,i,CATALYST_INVENTORY|CATALYST_ROOM);
+			if (catalyst >= 0 && catalyst < ch->catalyst_usage[i])
+			{
+				sprintf(buf,"You appear to be missing a required %s catalyst. (%d/%d)\n\r", catalyst_descs[i],catalyst, ch->catalyst_usage[i]);
+				send_to_char(buf, ch);
+				have_all_catalysts = false;
+			}
+		}
+	}
+
+	if (!have_all_catalysts)
 		return;
 
 	mana = 2 * skill_entry_mana(ch, spell) / 3;
@@ -7426,10 +7642,9 @@ void do_brew(CHAR_DATA *ch, char *argument)
     ch->mana -= mana;
 
     /* Mass healing must not be one of the spells*/
-	if (spell->sn > 0 && spell->sn == gsn_mass_healing)
+	if (spell->skill == gsk_mass_healing)
     {
-		send_to_char("The vial explodes into dust!\n\r", ch);
-		act("$n's empty vial explodes into dust!\n\r", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		send_to_char("You may not brew that potion.\n\r", ch);
 		return;
     }
 
@@ -7444,12 +7659,11 @@ void do_brew(CHAR_DATA *ch, char *argument)
 		return;
     }
 
-    extract_obj(obj);
-
     act("{Y$n begins to brew a potion...{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
     act("{YYou begin to brew a potion...{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
 	ch->brew_info = spell;
+	ch->brew_obj = obj;
 
     BREW_STATE(ch, 12);
 }
@@ -7463,7 +7677,7 @@ void brew_end(CHAR_DATA *ch )
     char potion_name[MAX_STRING_LENGTH];
     SPELL_DATA *spell;
 
-    chance = 2 * get_skill(ch, gsn_brew) /3 +
+    chance = 2 * get_skill(ch, gsk_brew) /3 +
 			(get_curr_stat(ch, STAT_CON) / 4) +
 			skill_entry_rating(ch, ch->brew_info) - 10;
 
@@ -7472,63 +7686,112 @@ void brew_end(CHAR_DATA *ch )
 
     chance = URANGE(1, chance, 98);
 
+	// TODO: Add Inspiration system that guarantees artificing
     if (IS_IMMORTAL(ch))
+	{
 		chance = 100;
+	}
+
+	// Make sure we *still* have all the catalysts,
+	// as they might have been consumed or destroyed by the time the brewing is finished
+	bool have_all_catalysts = true;
+	for(int i = 0; i < CATALYST_MAX; i++)
+	{
+		if (ch->catalyst_usage[i] > 0)
+		{
+			int catalyst = has_catalyst(ch,NULL,i,CATALYST_INVENTORY|CATALYST_ROOM);
+			if (catalyst >= 0 && catalyst < ch->catalyst_usage[i])
+			{
+				sprintf(buf,"You appear to be missing a required %s catalyst. (%d/%d)\n\r", catalyst_descs[i],catalyst, ch->catalyst_usage[i]);
+				send_to_char(buf, ch);
+				have_all_catalysts = false;
+			}
+		}
+	}
+
+	if (!have_all_catalysts)
+		return;
 
     if (number_percent() >= chance)
     {
 		act("{Y$n's attempt to brew a potion fails miserably.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-		act("{YYou fail to contain the magic within the vial, shattering the vial completely.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-		check_improve(ch, gsn_brew, FALSE, 2);
+		act("{YYou fail to contain the magic within $p.{x", ch, NULL, NULL, ch->brew_obj, NULL, NULL, NULL, TO_CHAR);
+		check_improve(ch, gsk_brew, FALSE, 2);
 		return;
     }
 
+	// Use all the catalysts
+	for(int i = 0; i < CATALYST_MAX; i++)
+	{
+		if (ch->catalyst_usage[i] > 0)
+			use_catalyst(ch,NULL,i,CATALYST_INVENTORY|CATALYST_ROOM,ch->catalyst_usage[i],TRUE);
+	}
+
+	// Post processing after successful brewing
+	if (IS_VALID(ch->brew_info->token))
+	{
+		p_percent_trigger(NULL, NULL, NULL, ch->brew_info->token, ch, NULL, NULL, ch->brew_obj, NULL, TRIG_TOKEN_BREW, NULL,0,0,0,0,0);
+	}
+	else if(ch->brew_info->skill->brew_fun)
+	{
+		(*ch->brew_info->skill->brew_fun)(ch->brew_info->skill, ch->tot_level, ch, ch->brew_obj);
+	}
 
     sprintf(potion_name, "%s", skill_entry_name(ch->brew_info));
 
-    sprintf(buf, "You brew a potion of %s.", potion_name);
-    act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-    sprintf(buf, "$n brews a potion of %s.", potion_name);
-    act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+    sprintf(buf, "You brew a potion of %s in $p.", potion_name);
+    act(buf, ch, NULL, NULL, ch->brew_obj, NULL, NULL, NULL, TO_CHAR);
+    sprintf(buf, "$n brews a potion of %s in $p.", potion_name);
+    act(buf, ch, NULL, NULL, ch->brew_obj, NULL, NULL, NULL, TO_ROOM);
 
-    check_improve(ch, gsn_brew, TRUE, 2);
+    check_improve(ch, gsk_brew, TRUE, 2);
 
-    potion = create_object(obj_index_potion, 1, FALSE);
+	potion = ch->brew_obj;
 
-    sprintf(buf, potion->short_descr, potion_name);
+	// Only update the strings on the potion if it's the "empty vial" index
+	if (potion->pIndexData == obj_index_empty_vial && obj_index_potion != NULL)
+	{
+	    sprintf(buf, obj_index_potion->short_descr, potion_name);
 
-    free_string(potion->short_descr);
-    potion->short_descr = str_dup(buf);
+		free_string(potion->short_descr);
+		potion->short_descr = str_dup(buf);
 
-    sprintf(buf, potion->description, potion_name);
+		sprintf(buf, obj_index_potion->description, potion_name);
 
-    free_string(potion->description);
-    potion->description = str_dup(buf);
+		free_string(potion->description);
+		potion->description = str_dup(buf);
 
-    free_string(potion->full_description);
-    potion->full_description = str_dup(buf);
+		free_string(potion->full_description);
+		potion->full_description = str_dup(buf);
+
+		free_string(potion->name);
+		strcat(potion_name, " potion");
+		potion->name = short_to_name(potion_name);
+	}
 
     spell = new_spell();
-    spell->sn = ch->brew_info->sn;
-	spell->token = IS_VALID(ch->brew_info->token) ? ch->brew_info->token->pIndexData : NULL;
+    spell->skill = ch->brew_info->skill;
+	//spell->token = IS_VALID(ch->brew_info->token) ? ch->brew_info->token->pIndexData : NULL;
     spell->level = ch->tot_level;
-    spell->next = potion->spells;
-    potion->spells = spell;
+    //spell->next = potion->spells;
+	list_appendlink(FLUID_CON(potion)->spells, spell);
 
+	LIQUID *liq = liquid_potion ? liquid_potion : liquid_water;
+
+	FLUID_CON(potion)->liquid = liq;
+
+	// TODO: Need to convert this to some kind of trait?
+	int uses = 1;
     if (ch->pcdata->second_sub_class_cleric == CLASS_CLERIC_ALCHEMIST)
     {
-	if (get_skill(ch, gsn_brew) < 75)
-	    potion->value[5] = 1;
-	else if (get_skill(ch, gsn_brew) < 85)
-	    potion->value[5] = 2;
-	else
-	    potion->value[5] = 3;
+		if (get_skill(ch, gsk_brew) < 75)
+			uses = 2;
+		else if (get_skill(ch, gsk_brew) < 85)
+	    	uses = 3;
+		else
+		    uses = 4;
     }
-
-    free_string(potion->name);
-	strcat(potion_name, " potion");
-    potion->name = short_to_name(potion_name);
-    obj_to_char(potion, ch);
+	FLUID_CON(potion)->amount = FLUID_CON(potion)->capacity = LIQ_SERVING * uses;
 }
 
 
@@ -7592,7 +7855,7 @@ void do_hands(CHAR_DATA *ch, char *argument)
 	return;
     }
 
-    if ((chance = get_skill(ch,gsn_healing_hands)) == 0)
+    if ((chance = get_skill(ch, gsk_healing_hands)) == 0)
     {
 	send_to_char("Hands? Keep your hands to yourself.\n\r",ch);
 	return;
@@ -7616,36 +7879,85 @@ void do_hands(CHAR_DATA *ch, char *argument)
 	act("$n places $s hands over $s heart.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
     }
 
-    WAIT_STATE(ch, skill_table[gsn_healing_hands].beats);
+    WAIT_STATE(ch, gsk_healing_hands->beats);
 
-    if (number_percent() > get_skill(ch, gsn_healing_hands))
+    if (number_percent() > get_skill(ch, gsk_healing_hands))
     {
 	act("You see a faint glow of magic, but nothing happens.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 	act("You see a faint glow of magic eminating from $n's hands, but nothing happens.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-	check_improve(ch, gsn_healing_hands, FALSE, 1);
+	check_improve(ch, gsk_healing_hands, FALSE, 1);
 	return;
     }
 
     act("{CYour hands glow a brilliant blue.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
     act("{C$n's hands glow a brilliant blue.{x", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 
-    spell_cure_disease(gsn_cure_disease, ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE);
-    spell_cure_poison(gsn_cure_poison, ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE);
-    spell_cure_blindness(gsn_cure_blindness, ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE);
-    spell_cure_toxic(gsn_cure_toxic, ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE);
+    spell_cure_disease(gsk_cure_disease, ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE);
+    spell_cure_poison(gsk_cure_poison, ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE);
+    spell_cure_blindness(gsk_cure_blindness, ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE);
+    spell_cure_toxic(gsk_cure_toxic, ch->tot_level, ch, victim, TARGET_CHAR, WEAR_NONE);
 
-    check_improve(ch, gsn_healing_hands, TRUE, 1);
+    check_improve(ch, gsk_healing_hands, TRUE, 1);
 }
 
+
+bool can_scribe_spell(CHAR_DATA *ch, OBJ_DATA *obj, SKILL_ENTRY *spell)
+{
+	if (!spell || !spell->isspell)
+	{
+		send_to_char("You don't know any spells by that name.\n\r", ch);
+		return FALSE;
+	}
+
+	if (IS_VALID(spell->token))
+	{
+		SCRIPT_DATA *script = get_script_token(spell->token, TRIG_TOKEN_RECITE, TRIGSLOT_SPELL);
+		if(!script) {
+			act_new("You cannot scribe $t onto $p.", ch,NULL,NULL,obj,NULL,spell->skill->name,NULL,TO_CHAR,POS_DEAD,NULL);
+			return FALSE;
+		}
+
+		int ret = p_percent_trigger(NULL, NULL, NULL, spell->token, ch, NULL, NULL, obj, NULL, TRIG_TOKEN_PRESCRIBE, NULL,0,0,0,0,0);
+		if (ret)
+		{
+			if (ret != PRET_SILENT)
+			{
+				act_new("You cannot scribe $t onto $p.", ch,NULL,NULL,obj,NULL,spell->skill->name,NULL,TO_CHAR,POS_DEAD,NULL);
+			}
+			return FALSE;
+		}
+	}
+	else
+	{
+		if(!spell->skill->recite_fun)
+		{
+			act_new("You cannot scribe $t onto $p.", ch,NULL,NULL,obj,NULL,spell->skill->name,NULL,TO_CHAR,POS_DEAD,NULL);
+			return false;
+		}
+
+		if(spell->skill->prescribe_fun)
+		{
+			// prescribe function is responsible for messages.
+			if (!(*spell->skill->prescribe_fun)(spell->skill, ch->tot_level, ch, obj))
+				return false;
+		}
+	}
+
+	return true;
+}
+
+
+// scribe <scroll> <spell1>[ <spell2>[ <spell3>]]
 void do_scribe(CHAR_DATA *ch, char *argument)
 {
+	int need[CATALYST_MAX];
     OBJ_DATA *obj;
 	SKILL_ENTRY *spells[3];
     int mana;
     int chance;
     //int kill;
     char arg[MIL];
-	//char buf[MSL];
+	char buf[MSL];
 
     if (IS_DEAD(ch))
     {
@@ -7653,17 +7965,18 @@ void do_scribe(CHAR_DATA *ch, char *argument)
 		return;
     }
 
-    if ((chance = get_skill(ch,gsn_scribe)) == 0)
+    if ((chance = get_skill(ch, gsk_scribe)) == 0)
     {
 		send_to_char("Scribe? What's that?\n\r",ch);
 		return;
     }
 
-    obj = NULL;
-    for (obj = ch->carrying; obj != NULL; obj = obj->next_content) {
-		if (obj->item_type == ITEM_BLANK_SCROLL || obj->pIndexData == obj_index_blank_scroll)
-		    break;
-    }
+	argument = one_argument(argument, arg);
+	if ((obj = get_obj_carry(ch, arg, ch)) == NULL || (obj->item_type != ITEM_BLANK_SCROLL && obj->pIndexData != obj_index_blank_scroll))
+	{
+		send_to_char("You do not have a valid scroll to scribe on.\n\r", ch);
+		return;
+	}
 
     if (obj == NULL)
     {
@@ -7683,29 +7996,39 @@ void do_scribe(CHAR_DATA *ch, char *argument)
 
 	argument = one_argument(argument, arg);
 	spells[0] = skill_entry_findname(ch->sorted_skills, arg);
-	if (!__isspell_valid(ch, obj, spells[0], TRIG_TOKEN_PRESCRIBE, TRIG_TOKEN_RECITE, "You cannot scribe $t onto $p."))
+	if (!can_scribe_spell(ch, obj, spells[0]))
 		return;
 
 	if (argument[0] != '\0')
 	{
 		argument = one_argument(argument, arg);
 		spells[1] = skill_entry_findname(ch->sorted_skills, arg);
-		if (!__isspell_valid(ch, obj, spells[1], TRIG_TOKEN_PRESCRIBE, TRIG_TOKEN_RECITE, "You cannot scribe $t onto $p."))
+		if (!can_scribe_spell(ch, obj, spells[1]))
 			return;
 
 		if (argument[0] != '\0')
 		{
 			argument = one_argument(argument, arg);
 			spells[2] = skill_entry_findname(ch->sorted_skills, arg);
-			if (!__isspell_valid(ch, obj, spells[2], TRIG_TOKEN_PRESCRIBE, TRIG_TOKEN_RECITE, "You cannot scribe $t onto $p."))
+			if (!can_scribe_spell(ch, obj, spells[2]))
 				return;
 		}
 	}
 
     mana = 0;
+	memset(need, 0, sizeof(need));
 	for(int i = 0; i < 3; i++)
+	{
 		if (spells[i])
+		{
 			mana += skill_entry_mana(ch, spells[i]);
+			for(int j = 0; j < 3; j++)
+			{
+				if (spells[i]->skill->inks[j][0] > CATALYST_NONE && spells[i]->skill->inks[j][0] < CATALYST_MAX)
+					need[spells[i]->skill->inks[j][0]] += spells[i]->skill->inks[j][1];
+			}
+		}
+	}
 
 	int max_mana = (obj->value[0] > 0) ? obj->value[0] : 200;
     if (mana > max_mana)
@@ -7713,6 +8036,37 @@ void do_scribe(CHAR_DATA *ch, char *argument)
 		send_to_char("The scroll can't hold that much magic.\n\r", ch);
 		return;
     }
+
+	int target = spells[0]->skill->target;
+	if ((spells[1] && spells[1]->skill->target != target) ||
+		(spells[2] && spells[2]->skill->target != target))
+	{
+		send_to_char("All spells must have the same kind of targeting requirements.\n\r", ch);
+
+		// TODO: Report what is wrong?
+		return;
+	}
+
+	bool have_all_catalysts = true;
+	for(int i = 0; i < CATALYST_MAX; i++)
+	{
+		if (ch->catalyst_usage[i] > 0)
+		{
+			int catalyst = has_catalyst(ch,NULL,i,CATALYST_INVENTORY|CATALYST_ROOM);
+			if (catalyst >= 0 && catalyst < ch->catalyst_usage[i])
+			{
+				sprintf(buf,"You appear to be missing a required %s catalyst. (%d/%d)\n\r", catalyst_descs[i],catalyst, ch->catalyst_usage[i]);
+				send_to_char(buf, ch);
+				have_all_catalysts = false;
+			}
+		}
+	}
+
+	if (!have_all_catalysts)
+		return;
+
+	if (!has_inks(ch, need, true))
+		return;
 
 	// Get actual cost
     mana = 2 * mana / 3;
@@ -7724,9 +8078,9 @@ void do_scribe(CHAR_DATA *ch, char *argument)
 
     ch->mana -= mana;
 
-
     act("{Y$n begins to write onto $p...{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
     act("{YYou begin to write onto $p...{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+
 	int beats = 0;
 	for(int i = 0; i < 3; i++)
 	{
@@ -7734,14 +8088,15 @@ void do_scribe(CHAR_DATA *ch, char *argument)
 
 		if(spells[i]) beats += 12;
 	}
+	ch->scribe_obj = obj;
+
+	extract_inks(ch, need);
 
 	// At this point, beats is greater than zero as we are doing at least one spell
 
 	// Give speed increase for those with scribe over 75%
 	if (chance > 75)
 		beats = (125 - chance) * beats / 50;	// 75% = 100% time, 100% = 50% time
-
-    extract_obj(obj);
 
 #if 0
 	// TODO: Revisit
@@ -7784,7 +8139,7 @@ void scribe_end(CHAR_DATA *ch)
     int chance;
     char scroll_name[MAX_STRING_LENGTH];
 
-	chance = get_skill(ch, gsn_scribe);
+	chance = get_skill(ch, gsk_scribe);
 	if (ch->scribe_info[2])
 		chance = 5 * chance / 6;	// 1/2 + 1/3 = 5/6
 	else if (ch->scribe_info[1])
@@ -7795,16 +8150,63 @@ void scribe_end(CHAR_DATA *ch)
 
     chance = URANGE(1, chance, 99);
 
+	// TODO: Add Inspiration system that guarantees artificing
     if (IS_IMMORTAL(ch))
+	{
         chance = 100;
+	}
+
+	// Make sure we *still* have all the catalysts,
+	// as they might have been consumed or destroyed by the time the brewing is finished
+	bool have_all_catalysts = true;
+	for(int i = 0; i < CATALYST_MAX; i++)
+	{
+		if (ch->catalyst_usage[i] > 0)
+		{
+			int catalyst = has_catalyst(ch,NULL,i,CATALYST_INVENTORY|CATALYST_ROOM);
+			if (catalyst >= 0 && catalyst < ch->catalyst_usage[i])
+			{
+				sprintf(buf,"You appear to be missing a required %s catalyst. (%d/%d)\n\r", catalyst_descs[i],catalyst, ch->catalyst_usage[i]);
+				send_to_char(buf, ch);
+				have_all_catalysts = false;
+			}
+		}
+	}
+
+	if (!have_all_catalysts)
+		return;
 
     if (number_percent() >= chance)
     {
         act("{Y$n's scroll explodes into flame.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
         act("{YYour blank scroll explodes into flame as you make a minor mistake.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-        check_improve(ch, gsn_scribe, FALSE, 3);
+        check_improve(ch, gsk_scribe, FALSE, 3);
         return;
     }
+
+	// Use all the catalysts
+	for(int i = 0; i < CATALYST_MAX; i++)
+	{
+		if (ch->catalyst_usage[i] > 0)
+			use_catalyst(ch,NULL,i,CATALYST_INVENTORY|CATALYST_ROOM,ch->catalyst_usage[i],TRUE);
+	}
+
+	// Post processing after successful scribing
+	for(int i = 0; i < 3; i++)
+	{
+		SKILL_ENTRY *entry = ch->scribe_info[i];
+		if (entry)
+		{
+			if (IS_VALID(entry->token))
+			{
+				p_percent_trigger(NULL, NULL, NULL, entry->token, ch, NULL, NULL, ch->scribe_obj, NULL, TRIG_TOKEN_SCRIBE, NULL,0,0,0,0,0);
+			}
+			else if(entry->skill->scribe_fun)
+			{
+				(*entry->skill->scribe_fun)(entry->skill, ch->tot_level, ch, ch->scribe_obj);
+			}
+		}
+	}
 
 	if (ch->scribe_info[2])
 		sprintf(scroll_name, "%s, %s, %s", skill_entry_name(ch->scribe_info[0]), skill_entry_name(ch->scribe_info[1]), skill_entry_name(ch->scribe_info[2]));
@@ -7813,25 +8215,29 @@ void scribe_end(CHAR_DATA *ch)
 	else
 		strcpy(scroll_name, skill_entry_name(ch->scribe_info[0]));
 
-    act("You create a scroll of $t.", ch, NULL, NULL, NULL, NULL, scroll_name, NULL, TO_CHAR);
-    act("$n creates a scroll of $t.", ch, NULL, NULL, NULL, NULL, scroll_name, NULL, TO_ROOM);
+	act("You scribe $t onto $p", ch, NULL, NULL, ch->scribe_obj, NULL, scroll_name, NULL, TO_CHAR);
+	act("$n scribes $t onto $p", ch, NULL, NULL, ch->scribe_obj, NULL, scroll_name, NULL, TO_ROOM);
 
-    check_improve(ch, gsn_scribe, TRUE, 3);
+    check_improve(ch, gsk_scribe, TRUE, 3);
 
-    scroll = create_object(obj_index_scroll, 1, FALSE);
+    scroll = ch->scribe_obj;//create_object(obj_index_scroll, 1, FALSE);
 
-    sprintf(buf, scroll->short_descr, scroll_name);
+	OBJ_INDEX_DATA *template = obj_index_scroll;
+	// TODO: Add a reference to SCROLL objects in multityping for the SCRIBE template
 
-    free_string(scroll->short_descr);
-    scroll->short_descr = str_dup(buf);
+	// Update regardless
+	sprintf(buf, template->short_descr, scroll_name);
 
-    sprintf(buf, scroll->description, scroll_name);
+	free_string(scroll->short_descr);
+	scroll->short_descr = str_dup(buf);
 
-    free_string(scroll->description);
-    scroll->description = str_dup(buf);
+	sprintf(buf, template->description, scroll_name);
 
-    free_string(scroll->full_description);
-    scroll->full_description = str_dup(buf);
+	free_string(scroll->description);
+	scroll->description = str_dup(buf);
+
+	free_string(scroll->full_description);
+	scroll->full_description = str_dup(buf);
 
 	int count = 0;
 	for(int i = 0; i < 3; i++)
@@ -7846,8 +8252,9 @@ void scribe_end(CHAR_DATA *ch)
 		if (ch->scribe_info[i])
 		{
 			spell = new_spell();
-			spell->sn = ch->scribe_info[i]->sn;
-			spell->token = IS_VALID(ch->scribe_info[i]->token) ? ch->scribe_info[i]->token->pIndexData : NULL;
+
+			spell->skill = ch->scribe_info[i]->skill;
+			//spell->token = IS_VALID(ch->scribe_info[i]->token) ? ch->scribe_info[i]->token->pIndexData : NULL;
 			spell->level = ch->tot_level / count;
 			if (count > 1 && alchemist)
 				spell->level += ch->tot_level / (count + 1);
@@ -7859,7 +8266,6 @@ void scribe_end(CHAR_DATA *ch)
     free_string(scroll->name);
     strcat(scroll_name, " scroll");
     scroll->name = short_to_name(scroll_name);
-    obj_to_char(scroll, ch);
 }
 
 bool is_object_in_room(ROOM_INDEX_DATA *room, OBJ_INDEX_DATA *obj_index)
@@ -7903,7 +8309,7 @@ void do_bomb(CHAR_DATA *ch, char *argument)
     if (is_dead(ch))
 	return;
 
-    if (get_skill(ch,gsn_bomb) == 0)
+    if (get_skill(ch, gsk_bomb) == 0)
     {
         send_to_char("You know nothing about explosives.\n\r",ch);
         return;
@@ -7925,7 +8331,7 @@ void do_bomb(CHAR_DATA *ch, char *argument)
 void bomb_end(CHAR_DATA *ch)
 {
     OBJ_DATA *obj;
-    int chance = get_skill(ch, gsn_bomb);
+    int chance = get_skill(ch, gsk_bomb);
 
     if (number_percent() < chance)
     {
@@ -7943,13 +8349,13 @@ void bomb_end(CHAR_DATA *ch)
 	else
 	    obj_to_char(obj, ch);
 
-	check_improve(ch, gsn_bomb, TRUE, 1);
+	check_improve(ch, gsk_bomb, TRUE, 1);
     } else {
 	act("{Y$n's homemade explosives {REXPLODE{Y, causing $m great pain!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 	act("{YYour smoke bomb {REXPLODES{Y as you bumble up the recipe! {ROUCH!!!{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-	damage(ch, ch, (2 * ch->max_hit)/3, gsn_bomb, DAM_ENERGY, FALSE);
+	damage(ch, ch, (2 * ch->max_hit)/3, gsk_bomb, 0, DAM_ENERGY, FALSE);
 
-	check_improve(ch, gsn_bomb, FALSE, 1);
+	check_improve(ch, gsk_bomb, FALSE, 1);
     }
 
     ch->mana -= ch->mana/4;
@@ -7969,7 +8375,7 @@ void do_infuse(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, arg1);
     argument = one_argument(argument, arg2);
 
-    if ((skill = get_skill(ch, gsn_infuse)) == 0)
+    if ((skill = get_skill(ch, gsk_infuse)) == 0)
     {
 	send_to_char("What?\n\r", ch);
 	return;
@@ -8043,7 +8449,7 @@ memset(&af,0,sizeof(af));
 	{
             af.where     = TO_WEAPON;
             af.group     = AFFGROUP_WEAPON;
-            af.type      = gsn_infuse;
+            af.skill     = gsk_infuse;
             af.level     = (ch->tot_level * skill)/ 100;
             af.duration  = ((ch->tot_level/2) * skill)/ 100;
             af.location  = 0;
@@ -8056,15 +8462,15 @@ memset(&af,0,sizeof(af));
 
             act("$n carefully infuses $p with a magical enchantment.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_ROOM);
 	    act("You carefully infuse $p with a magical enchantment.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-	    check_improve(ch,gsn_infuse,TRUE,3);
-	    WAIT_STATE(ch,skill_table[gsn_infuse].beats);
+	    check_improve(ch,gsk_infuse,TRUE,3);
+	    WAIT_STATE(ch,gsk_infuse->beats);
             return;
         }
 	else
 	{
 	    act("You fail to infuse $p.",ch, NULL, NULL,obj, NULL, NULL,NULL,TO_CHAR);
-	    check_improve(ch,gsn_infuse,FALSE,3);
-	    WAIT_STATE(ch,skill_table[gsn_infuse].beats);
+	    check_improve(ch,gsk_infuse,FALSE,3);
+	    WAIT_STATE(ch,gsk_infuse->beats);
 	    return;
 	}
     }

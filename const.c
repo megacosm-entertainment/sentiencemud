@@ -158,19 +158,17 @@ const struct item_type		item_table	[]	=
     {   ITEM_WEAPON,		"weapon"			},
     {   ITEM_TREASURE,		"treasure"			},
     {   ITEM_ARMOUR,		"armour"				},
-    {	ITEM_POTION,		"potion"			},
     {	ITEM_CLOTHING,		"clothing"			},
     {   ITEM_FURNITURE,		"furniture"			},
     {	ITEM_TRASH,		"trash"				},
     {	ITEM_CONTAINER,		"container"			},
-    {	ITEM_DRINK_CON, 	"drink"				},
+    {	ITEM_FLUID_CONTAINER, 	"fluid_container"			},
     {	ITEM_KEY,		"key"				},
     {	ITEM_FOOD,		"food"				},
     {	ITEM_MONEY,		"money"				},
     {	ITEM_BOAT,		"boat"				},
     {	ITEM_CORPSE_NPC,	"npc_corpse"			},
     {	ITEM_CORPSE_PC,		"pc_corpse"			},
-    {   ITEM_FOUNTAIN,		"fountain"			},
     {	ITEM_PILL,		"pill"				},
     {	ITEM_PROTECT,		"protect"			},
     {	ITEM_MAP,		"map"				},
@@ -2488,57 +2486,59 @@ const   struct  music_type 	music_table 	[MAX_SONGS] 	=
 
 const	struct	liq_type	liq_table	[]	=
 {
-/*  name			colour		proof, full, thirst, food, ssize*/
-    { "water",			"clear",	{   0, 1, 10, 0, 16 }	},
-    { "beer",			"amber",	{  12, 1,  8, 1, 12 }	},
-    { "red wine",		"burgundy",	{  30, 1,  8, 1,  5 }	},
-    { "ale",			"brown",	{  15, 1,  8, 1, 12 }	},
-    { "dark ale",		"dark",		{  16, 1,  8, 1, 12 }	},
+/*  name			colour		proof, full, thirst, food */
+    { "water",			"clear",	{   0, 1, 10, 0 }	},
+    { "beer",			"amber",	{  12, 1,  8, 1 }	},
+    { "red wine",		"burgundy",	{  30, 1,  8, 1 }	},
+    { "ale",			"brown",	{  15, 1,  8, 1 }	},
+    { "dark ale",		"dark",		{  16, 1,  8, 1 }	},
 
-    { "whisky",			"golden",	{ 120, 1,  5, 0,  2 }	},
-    { "lemonade",		"pink",		{   0, 1,  9, 2, 12 }	},
-    { "firebreather",		"boiling",	{ 190, 0,  4, 0,  2 }	},
-    { "local specialty",	"clear",	{ 151, 1,  3, 0,  2 }	},
-    { "slime mold juice",	"green",	{   0, 2, -8, 1,  2 }	},
+    { "whisky",			"golden",	{ 120, 1,  5, 0 }	},
+    { "lemonade",		"pink",		{   0, 1,  9, 2 }	},
+    { "firebreather",		"boiling",	{ 190, 0,  4, 0 }	},
+    { "local specialty",	"clear",	{ 151, 1,  3, 0 }	},
+    { "slime mold juice",	"green",	{   0, 2, -8, 1 }	},
 
-    { "stew",			"brown",	{   0, 10, 10, 10, 12}  },
-    { "milk",			"white",	{   0, 2,  9, 3,   12 }	},
-    { "tea",			"tan",		{   0, 1,  8, 0,   6 }	},
-    { "coffee",			"black",	{   0, 1,  8, 0,   6 }	},
-    { "blood",			"red",		{   0, 2, 0, 0,   6 }	},
+    { "stew",			"brown",	{   0, 10, 10, 10}  },
+    { "milk",			"white",	{   0, 2,  9, 3 }	},
+    { "tea",			"tan",		{   0, 1,  8, 0 }	},
+    { "coffee",			"black",	{   0, 1,  8, 0 }	},
+    { "blood",			"red",		{   0, 2, 0, 0 }	},
 
-    { "salt water",		"clear",	{   0, 1, -2, 0,  1 }	},
-    { "coke",			"brown",	{   0, 2,  9, 2, 12 }	},
-    { "root beer",		"brown",	{   0, 2,  9, 2, 12 }   },
-    { "elvish wine",		"green",	{  35, 2,  8, 1,  5 }   },
-    { "white wine",		"golden",	{  28, 1,  8, 1,  5 }   },
+    { "salt water",		"clear",	{   0, 1, -2, 0 }	},
+    { "coke",			"brown",	{   0, 2,  9, 2 }	},
+    { "root beer",		"brown",	{   0, 2,  9, 2 }   },
+    { "elvish wine",		"green",	{  35, 2,  8, 1 }   },
+    { "white wine",		"golden",	{  28, 1,  8, 1 }   },
 
-    { "champagne",		"golden",	{  32, 1,  8, 1,  5 }   },
-    { "mead",			"honey-coloured",{  34, 2,  8, 2, 12 }   },
-    { "rose wine",		"pink",		{  26, 1,  8, 1,  5 }	},
-    { "benedictine wine",	"burgundy",	{  40, 1,  8, 1,  5 }   },
-    { "vodka",			"clear",	{ 130, 1,  5, 0,  2 }   },
+    { "champagne",		"golden",	{  32, 1,  8, 1 }   },
+    { "mead",			"honey-coloured",{  34, 2,  8, 2 }   },
+    { "rose wine",		"pink",		{  26, 1,  8, 1 }	},
+    { "benedictine wine",	"burgundy",	{  40, 1,  8, 1 }   },
+    { "vodka",			"clear",	{ 130, 1,  5, 0 }   },
 
-    { "cranberry juice",	"red",		{   0, 1,  9, 2, 12 }	},
-    { "orange juice",		"orange",	{   0, 2,  9, 3, 12 }   },
-    { "absinthe",		"green",	{ 200, 1,  4, 0,  2 }	},
-    { "brandy",			"golden",	{  80, 1,  5, 0,  4 }	},
-    { "aquavit",		"clear",	{ 140, 1,  5, 0,  2 }	},
+    { "cranberry juice",	"red",		{   0, 1,  9, 2 }	},
+    { "orange juice",		"orange",	{   0, 2,  9, 3 }   },
+    { "absinthe",		"green",	{ 200, 1,  4, 0 }	},
+    { "brandy",			"golden",	{  80, 1,  5, 0 }	},
+    { "aquavit",		"clear",	{ 140, 1,  5, 0 }	},
 
-    { "schnapps",		"clear",	{  90, 1,  5, 0,  2 }   },
-    { "ice wine",		"purple",	{  50, 2,  6, 1,  5 }	},
-    { "amontillado",		"burgundy",	{  35, 2,  8, 1,  5 }	},
-    { "sherry",			"red",		{  38, 2,  7, 1,  5 }   },
-    { "framboise",		"red",		{  50, 1,  7, 1,  5 }   },
+    { "schnapps",		"clear",	{  90, 1,  5, 0 }   },
+    { "ice wine",		"purple",	{  50, 2,  6, 1 }	},
+    { "amontillado",		"burgundy",	{  35, 2,  8, 1 }	},
+    { "sherry",			"red",		{  38, 2,  7, 1 }   },
+    { "framboise",		"red",		{  50, 1,  7, 1 }   },
 
-    { "rum",			"amber",	{ 151, 1,  4, 0,  2 }	},
-    { "cordial",		"clear",	{ 100, 1,  5, 0,  2 }   },
+    { "rum",			"amber",	{ 151, 1,  4, 0 }	},
+    { "cordial",		"clear",	{ 100, 1,  5, 0 }   },
 
-    { "ammonia",		"pale green",	{   0, 1, 0, 0, 10  }	},
-    { "grog",			"dark brown",	{  40, 2, 4, 0, 12  }	},
-    { "snake oil",		"viscous",	{   0, 2, 1, 2, 10  }	},
-    { "vinegar",		"pungent",	{   0, 2, 1, 3, 8   } 	},
-    { "acetone",		"clear",	{   0, 1, 0, 0, 9   }	},
+    { "ammonia",		"pale green",	{   0, 1, 0, 0  }	},
+    { "grog",			"dark brown",	{  40, 2, 4, 0  }	},
+    { "snake oil",		"viscous",	{   0, 2, 1, 2  }	},
+    { "vinegar",		"pungent",	{   0, 2, 1, 3   } 	},
+    { "acetone",		"clear",	{   0, 1, 0, 0   }	},
+
+	{ "potion",			"iridescent", { 0, 0, 0, 0 } },
 
     { NULL,			NULL,		{   0, 0,  0, 0,  0 }	}
 };
@@ -2548,7 +2548,8 @@ const	struct	liq_type	liq_table	[]	=
  * The skill and spell table.
  */
 
-const struct skill_type	skill_table [MAX_SKILL]	=
+#if 0
+struct skill_type	skill_table [MAX_SKILL]	=
 {
     /*
     {
@@ -4444,7 +4445,7 @@ const struct skill_type	skill_table [MAX_SKILL]	=
 	}
 
 };
-
+#endif
 
 
 
