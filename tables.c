@@ -2562,7 +2562,12 @@ const char *catalyst_descs[] = {
 	"natural",
 	"sonic",
 	"toxic",
-	"watery"
+	"watery",
+    "electric",
+    "void",
+    "metallic",
+    "magical",
+    "soul",
 };
 
 const struct flag_type catalyst_method_types[] = {
