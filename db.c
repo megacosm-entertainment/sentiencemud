@@ -93,6 +93,8 @@ sh_int top_liquid_uid = 0;
 
 LLIST *skills_list = NULL;
 sh_int top_skill_uid = 0;
+LLIST *skill_groups_list = NULL;
+SKILL_GROUP *global_skills = NULL;
 
 void free_room_index( ROOM_INDEX_DATA *pRoom );
 void load_instances();
@@ -3733,6 +3735,9 @@ OBJ_DATA *create_object_noid(OBJ_INDEX_DATA *pObjIndex, int level, bool affects,
 		MONEY(obj) = copy_money_data(MONEY(pObjIndex));
 		PAGE(obj) = copy_book_page(PAGE(pObjIndex));
 		PORTAL(obj) = copy_portal_data(PORTAL(pObjIndex), FALSE);
+		SCROLL(obj) = copy_scroll_data(SCROLL(pObjIndex));
+		TATTOO(obj) = copy_tattoo_data(TATTOO(pObjIndex));
+		WAND(obj) = copy_wand_data(WAND(pObjIndex));
 	}
 
 #if 0
@@ -7594,6 +7599,9 @@ LIGHT_DATA *fread_obj_light_data(FILE *fp);
 MONEY_DATA *fread_obj_money_data(FILE *fp);
 BOOK_PAGE *fread_book_page(FILE *fp, char *closer);
 PORTAL_DATA *fread_obj_portal_data(FILE *fp);
+SCROLL_DATA *fread_obj_scroll_data(FILE *fp);
+TATTOO_DATA *fread_obj_tattoo_data(FILE *fp);
+WAND_DATA *fread_obj_wand_data(FILE *fp);
 
 void fread_obj_check_version(OBJ_DATA *obj, long values[MAX_OBJVALUES]);
 

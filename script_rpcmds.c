@@ -5991,7 +5991,6 @@ SCRIPT_CMD(do_rpskillgroup)
 
 	char *rest;
 	CHAR_DATA *mob = NULL;
-	int gn;
 	bool fAdd = FALSE;
 
 	if(!info || !info->room || IS_NULLSTR(argument)) return;
@@ -6022,18 +6021,18 @@ SCRIPT_CMD(do_rpskillgroup)
 
 	if(arg->type != ENT_STRING) return;
 
-	gn = group_lookup(arg->d.str);
-	if( gn != -1)
+	SKILL_GROUP *group = group_lookup(arg->d.str);
+	if( IS_VALID(group) )
 	{
 		if( fAdd )
 		{
-			if( !mob->pcdata->group_known[gn] )
-				gn_add(mob,gn);
+			if (!list_hasdata(mob->pcdata->group_known, group))
+				gn_add(mob,group);
 		}
 		else
 		{
-			if( mob->pcdata->group_known[gn] )
-				gn_remove(mob,gn);
+			if (list_hasdata(mob->pcdata->group_known, group))
+				gn_remove(mob,group);
 		}
 	}
 

@@ -3804,16 +3804,6 @@ SCRIPT_CMD(do_tpaltermob)
 		return;
 	}
 
-	if(!ptr) return;
-
-	argument = one_argument(rest,buf);
-
-	if(!(rest = expand_argument(info,argument,arg))) {
-		bug("TpAlterMob - Error in parsing.",0);
-		return;
-	}
-
-
 	// MINIMUM to alter ANYTHING not allowed on players on a player
 	if(!allowpc && !IS_NPC(mob)) min_sec = 9;
 
@@ -6490,7 +6480,6 @@ SCRIPT_CMD(do_tpskillgroup)
 
 	char *rest;
 	CHAR_DATA *mob = NULL;
-	int gn;
 	bool fAdd = FALSE;
 
 	if(!info || !info->token || IS_NULLSTR(argument)) return;
@@ -6523,18 +6512,19 @@ SCRIPT_CMD(do_tpskillgroup)
 
 	if(arg->type != ENT_STRING) return;
 
-	gn = group_lookup(arg->d.str);
-	if( gn != -1)
+
+	SKILL_GROUP *group = group_lookup(arg->d.str);
+	if( IS_VALID(group) )
 	{
 		if( fAdd )
 		{
-			if( !mob->pcdata->group_known[gn] )
-				gn_add(mob,gn);
+			if (!list_hasdata(mob->pcdata->group_known, group))
+				gn_add(mob,group);
 		}
 		else
 		{
-			if( mob->pcdata->group_known[gn] )
-				gn_remove(mob,gn);
+			if (list_hasdata(mob->pcdata->group_known, group))
+				gn_remove(mob,group);
 		}
 	}
 

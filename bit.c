@@ -108,6 +108,7 @@ const struct flag_stat_type flag_stat_table[] =
     {   script_spaces,              FALSE   },
     {   light_flags,                FALSE   },
     {   stock_types,                TRUE    },
+    {   scroll_flags,               FALSE   },
     {	0,							0		}
 };
 

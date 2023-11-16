@@ -843,6 +843,7 @@ char *olc_getline(char *str, char *buf)
 
 char *numlineas(bool skip_blank_lines, char *string)
 {
+	int acnt = 1;
     int cnt = 1;
     static char buf[MAX_STRING_LENGTH*3];
     char buf2[MAX_STRING_LENGTH*2], tmpb[MAX_STRING_LENGTH];
@@ -854,7 +855,14 @@ char *numlineas(bool skip_blank_lines, char *string)
 		string = olc_getline(string, tmpb);
 		char *skipped = skip_whitespace(tmpb);	// Take into account blank lines
 		if((skipped[0] && str_prefix("**", skipped)) || !skip_blank_lines)	// if the line is not empty or a comment
-			sprintf(buf2, "%3d. %s\n\r", cnt++, tmpb);
+		{
+			if (skip_blank_lines)
+				sprintf(buf2, "%3d:%3d. %s\n\r", acnt++, cnt++, tmpb);
+			else
+				sprintf(buf2, "%3d. %s\n\r", cnt++, tmpb);
+		}
+		else if(skip_blank_lines)
+			sprintf(buf2, "%3d      %s\n\r", acnt++, tmpb);
 		else
 			sprintf(buf2, "     %s\n\r", tmpb);
 		strcat(buf, buf2);

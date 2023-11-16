@@ -746,6 +746,8 @@ int main(int argc, char **argv)
 
 	save_skills();
 	list_destroy(skills_list);
+	list_destroy(skill_groups_list);
+	free_skill_group_data(global_skills);
 
 	terminate_scripting();
 

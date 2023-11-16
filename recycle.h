@@ -258,6 +258,11 @@ CONTAINER_DATA *new_container_data();
 CONTAINER_DATA *copy_container_data(CONTAINER_DATA *src);
 void free_container_data(CONTAINER_DATA *data);
 
+// Fluid Containers
+FLUID_CONTAINER_DATA *new_fluid_container_data();
+FLUID_CONTAINER_DATA *copy_fluid_container_data(FLUID_CONTAINER_DATA *src);
+void free_fluid_container_data(FLUID_CONTAINER_DATA *data);
+
 // Food
 FOOD_BUFF_DATA *new_food_buff_data();
 void free_food_buff_data(FOOD_BUFF_DATA *data);
@@ -289,14 +294,29 @@ PORTAL_DATA *new_portal_data();
 PORTAL_DATA *copy_portal_data(PORTAL_DATA *src, bool repop);
 void free_portal_data(PORTAL_DATA *data);
 
-// Drink/Fountain
-FLUID_CONTAINER_DATA *new_fluid_container_data();
-FLUID_CONTAINER_DATA *copy_fluid_container_data(FLUID_CONTAINER_DATA *src);
-void free_fluid_container_data(FLUID_CONTAINER_DATA *data);
+// Scroll
+SCROLL_DATA *new_scroll_data();
+SCROLL_DATA *copy_scroll_data(SCROLL_DATA *src);
+void free_scroll_data(SCROLL_DATA *data);
+
+// Tattoo
+TATTOO_DATA *new_tattoo_data();
+TATTOO_DATA *copy_tattoo_data(TATTOO_DATA *src);
+void free_tattoo_data(TATTOO_DATA *data);
+
+// Wand
+WAND_DATA *new_wand_data();
+WAND_DATA *copy_wand_data(WAND_DATA *src);
+void free_wand_data(WAND_DATA *data);
+
+
+
 
 LIQUID *new_liquid();
 void free_liquid(LIQUID *liq);
 
-
 SKILL_DATA *new_skill_data();
 void free_skill_data(SKILL_DATA *skill);
+
+SKILL_GROUP *new_skill_group_data();
+void free_skill_group_data(SKILL_GROUP *group);

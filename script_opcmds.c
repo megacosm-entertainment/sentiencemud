@@ -951,10 +951,11 @@ SCRIPT_CMD(do_opcast)
 		break;
 	}
 
+	// TODO: Make work with token spells
 	if (target == TARGET_CHAR && vch) {
 		if (is_affected(vch, skill)) return;
 
-		if (!check_spell_deflection(proxy, vch, skill)) {
+		if (!check_spell_deflection(proxy, vch, skill, NULL)) {
 			extract_char(proxy, TRUE);
 			return;
 		}

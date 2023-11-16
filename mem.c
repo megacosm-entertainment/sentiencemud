@@ -488,7 +488,6 @@ OBJ_DATA *new_obj(void)
     return obj;
 }
 
-
 void free_obj(OBJ_DATA *obj)
 {
     AFFECT_DATA *paf, *paf_next;
@@ -579,10 +578,18 @@ void free_obj(OBJ_DATA *obj)
 		obj->waypoints = NULL;
 	}
 
+    free_book_data(BOOK(obj));
     free_container_data(CONTAINER(obj));
+    free_fluid_container_data(FLUID_CON(obj));
     free_food_data(FOOD(obj));
+    free_furniture_data(FURNITURE(obj));
     free_light_data(LIGHT(obj));
     free_money_data(MONEY(obj));
+    free_book_page(PAGE(obj));
+    free_portal_data(PORTAL(obj));
+    free_scroll_data(SCROLL(obj));
+    free_tattoo_data(TATTOO(obj));
+    free_wand_data(WAND(obj));
 
     INVALIDATE(obj);
 
@@ -917,6 +924,8 @@ PC_DATA *new_pcdata(void)
 
     pcdata->extra_commands = NULL;  // This will only ever be not-null during its execution
 
+    pcdata->group_known = list_create(FALSE);
+
     VALIDATE(pcdata);
     return pcdata;
 }
@@ -972,6 +981,7 @@ void free_pcdata(PC_DATA *pcdata)
 
     list_destroy(pcdata->unlocked_areas);
     list_destroy(pcdata->ships);
+    list_destroy(pcdata->group_known);
 
     INVALIDATE(pcdata);
     pcdata->next = pcdata_free;
@@ -5791,6 +5801,177 @@ void free_portal_data(PORTAL_DATA *data)
 
 
 
+
+
+// Scroll
+SCROLL_DATA *scroll_data_free;
+SCROLL_DATA *new_scroll_data()
+{
+    SCROLL_DATA *data;
+    if (scroll_data_free)
+    {
+        data = scroll_data_free;
+        scroll_data_free = scroll_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(SCROLL_DATA));
+    
+    memset(data, 0, sizeof(*data));
+
+    data->spells = list_createx(FALSE, copy_spell, delete_spell);
+
+    VALIDATE(data);
+    return data;
+}
+
+SCROLL_DATA *copy_scroll_data(SCROLL_DATA *src)
+{
+    if (!IS_VALID(src)) return NULL;
+
+    SCROLL_DATA *data;
+    if (scroll_data_free)
+    {
+        data = scroll_data_free;
+        scroll_data_free = scroll_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(SCROLL_DATA));
+
+    data->max_mana = src->max_mana;
+    data->flags = src->flags;
+
+    data->spells = list_copy(src->spells);
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_scroll_data(SCROLL_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    list_destroy(data->spells);
+
+    INVALIDATE(data);
+    data->next = scroll_data_free;
+    scroll_data_free = data;
+}
+
+// Tattoo
+TATTOO_DATA *tattoo_data_free;
+TATTOO_DATA *new_tattoo_data()
+{
+    TATTOO_DATA *data;
+    if (tattoo_data_free)
+    {
+        data = tattoo_data_free;
+        tattoo_data_free = tattoo_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(TATTOO_DATA));
+    
+    memset(data, 0, sizeof(*data));
+
+    data->spells = list_createx(FALSE, copy_spell, delete_spell);
+
+    VALIDATE(data);
+    return data;
+}
+
+TATTOO_DATA *copy_tattoo_data(TATTOO_DATA *src)
+{
+    if (!IS_VALID(src)) return NULL;
+
+    TATTOO_DATA *data;
+    if (tattoo_data_free)
+    {
+        data = tattoo_data_free;
+        tattoo_data_free = tattoo_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(TATTOO_DATA));
+
+    data->touches = src->touches;
+    data->fading_chance = src->fading_chance;
+    data->fading_rate = src->fading_rate;
+
+    data->spells = list_copy(src->spells);
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_tattoo_data(TATTOO_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    list_destroy(data->spells);
+
+    INVALIDATE(data);
+    data->next = tattoo_data_free;
+    tattoo_data_free = data;
+}
+
+// Wand
+WAND_DATA *wand_data_free;
+WAND_DATA *new_wand_data()
+{
+    WAND_DATA *data;
+    if (wand_data_free)
+    {
+        data = wand_data_free;
+        wand_data_free = wand_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(WAND_DATA));
+    
+    memset(data, 0, sizeof(*data));
+
+    data->spells = list_createx(FALSE, copy_spell, delete_spell);
+
+    VALIDATE(data);
+    return data;
+}
+
+WAND_DATA *copy_wand_data(WAND_DATA *src)
+{
+    if (!IS_VALID(src)) return NULL;
+
+    WAND_DATA *data;
+    if (wand_data_free)
+    {
+        data = wand_data_free;
+        wand_data_free = wand_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(WAND_DATA));
+
+    data->charges = src->charges;
+    data->max_charges = src->max_charges;
+    data->cooldown = src->cooldown;
+    data->recharge_time = src->recharge_time;
+
+    data->spells = list_copy(src->spells);
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_wand_data(WAND_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    list_destroy(data->spells);
+
+    INVALIDATE(data);
+    data->next = wand_data_free;
+    wand_data_free = data;
+}
+
+
+
+
+
 SKILL_DATA *skill_data_free;
 SKILL_DATA *new_skill_data()
 {
@@ -5848,4 +6029,42 @@ void free_skill_data(SKILL_DATA *data)
     data->next = skill_data_free;
     skill_data_free = data;
     INVALIDATE(data);
+}
+
+static void delete_group_content(void *ptr)
+{
+    free_string((char *)ptr);
+}
+
+SKILL_GROUP *skill_group_data_free;
+SKILL_GROUP *new_skill_group_data()
+{
+    SKILL_GROUP *data;
+    if (skill_group_data_free)
+    {
+        data = skill_group_data_free;
+        skill_group_data_free = skill_group_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(SKILL_GROUP));
+    
+    memset(data, 0, sizeof(*data));
+
+    data->name = str_dup("");
+    data->contents = list_createx(FALSE, NULL, delete_group_content);
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_skill_group_data(SKILL_GROUP *group)
+{
+    if (!IS_VALID(group)) return;
+
+    free_string(group->name);
+    list_destroy(group->contents);
+
+    INVALIDATE(group);
+    group->next = skill_group_data_free;
+    skill_group_data_free = group;
 }

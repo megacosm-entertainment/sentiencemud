@@ -483,7 +483,7 @@ char *gsn_to_name(sh_int *pgsn)
 
 void save_skill(FILE *fp, SKILL_DATA *skill)
 {
-	fprintf(fp, "#SKILL %s~ %d\n", skill->name, skill->uid);
+	fprintf(fp, "#%s %s~ %d\n", (skill->isspell?"SPELL":"SKILL"), skill->name, skill->uid);
 
 	if (!IS_NULLSTR(skill->display) && str_cmp(skill->name, skill->display))
 		fprintf(fp, "Display %s~\n", skill->display);
@@ -539,7 +539,8 @@ void save_skill(FILE *fp, SKILL_DATA *skill)
 
 	for(int i = 0; i < MAX_SKILL_VALUES; i++)
 	{
-		fprintf(fp, "Value %d %d\n", i + 1, skill->values[i]);
+		if (skill->values[i] != 0)
+			fprintf(fp, "Value %d %d\n", i + 1, skill->values[i]);
 		if (!IS_NULLSTR(skill->valuenames[i]))
 			fprintf(fp, "ValueName %d %s~\n", i + 1, skill->valuenames[i]);
 	}
@@ -574,7 +575,23 @@ void save_skill(FILE *fp, SKILL_DATA *skill)
 
 
 	// The rest are zero / false
-	fprintf(fp, "#-SKILL\n");
+	fprintf(fp, "#-%s\n", (skill->isspell?"SPELL":"SKILL"));
+}
+
+void save_skill_group(FILE *fp, SKILL_GROUP *group, char *header)
+{
+	fprintf(fp, "#%s %s~\n", header, group->name);
+
+	ITERATOR it;
+	char *item;
+	iterator_start(&it, group->contents);
+	while((item = (char *)iterator_nextdata(&it)))
+	{
+		fprintf(fp, "Item %s~\n", item);
+	}
+	iterator_stop(&it);
+
+	fprintf(fp, "#-GROUP\n");
 }
 
 void save_skills(void)
@@ -648,12 +665,35 @@ void save_skills(void)
 		iterator_stop(&it);
 #endif
 
+#if 0
+		for(int i = 0; group_table[i].name; i++)
+		{
+			fprintf(fp, "#GROUP %s~\n", group_table[i].name);
+
+			for(int j = 0; group_table[i].spells[j]; j++)
+				fprintf(fp, "Item %s~\n", group_table[i].spells[j]);
+
+			fprintf(fp, "#-GROUP\n");
+		}
+#else
+		save_skill_group(fp, global_skills, "GLOBALGROUP");
+
+		SKILL_GROUP *group;
+		ITERATOR git;
+		iterator_start(&git, skill_groups_list);
+		while((group = (SKILL_GROUP *)iterator_nextdata(&git)))
+		{
+			save_skill_group(fp, group, "GROUP");
+		}
+		iterator_stop(&git);
+#endif
+
 		fprintf(fp, "End\n");
 		fclose(fp);
 	}
 }
 
-SKILL_DATA *load_skill(FILE *fp)
+SKILL_DATA *load_skill(FILE *fp, bool isspell)
 {
 	SKILL_DATA *skill = new_skill_data();
 
@@ -663,8 +703,11 @@ SKILL_DATA *load_skill(FILE *fp)
 
 	skill->name = fread_string(fp);
 	skill->uid = fread_number(fp);
+	skill->isspell = isspell;
 
-    while (str_cmp((word = fread_word(fp)), "#-SKILL"))
+	const char *end = isspell ? "#-SPELL" : "#-SKILL";
+
+    while (str_cmp((word = fread_word(fp)), end))
 	{
 		switch(word[0])
 		{
@@ -965,11 +1008,93 @@ void insert_skill(SKILL_DATA *skill)
 	}
 }
 
+void insert_skill_group_item(SKILL_GROUP *group, char *item)
+{
+	ITERATOR it;
+	char *str;
+	iterator_start(&it, group->contents);
+	while((str = (char *)iterator_nextdata(&it)))
+	{
+		int cmp = str_cmp(item, str);
+		if(cmp < 0)
+		{
+			iterator_insert_before(&it, item);
+			break;
+		}
+	}
+	iterator_stop(&it);
+
+	if (!str)
+	{
+		list_appendlink(group->contents, item);
+	}
+}
+
+SKILL_GROUP *load_skill_group(FILE *fp)
+{
+	SKILL_GROUP *group = new_skill_group_data();
+
+	char buf[MSL];
+	char *word;
+	bool fMatch;
+
+	group->name = fread_string(fp);
+
+    while (str_cmp((word = fread_word(fp)), "#-GROUP"))
+	{
+		switch(word[0])
+		{
+			case 'I':
+				if (!str_cmp(word, "Item"))
+				{
+					insert_skill_group_item(group, fread_string(fp));
+					fMatch = true;
+					break;
+				}
+				break;
+		}
+
+		if (!fMatch)
+		{
+			sprintf(buf, "load_skill_group: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return group;
+}
+
+void insert_skill_group(SKILL_GROUP *group)
+{
+	ITERATOR it;
+	SKILL_GROUP *gr;
+	iterator_start(&it, skill_groups_list);
+	while((gr = (SKILL_GROUP *)iterator_nextdata(&it)))
+	{
+		int cmp = str_cmp(group->name, gr->name);
+		if(cmp < 0)
+		{
+			iterator_insert_before(&it, group);
+			break;
+		}
+	}
+	iterator_stop(&it);
+
+	if (!gr)
+	{
+		list_appendlink(skill_groups_list, group);
+	}
+}
+
 static void delete_skill_data(void *ptr)
 {
 	free_skill_data((SKILL_DATA *)ptr);
 }
 
+static void delete_skill_group_data(void *ptr)
+{
+	free_skill_group_data((SKILL_GROUP *)ptr);	
+}
 
 bool load_skills(void)
 {
@@ -989,6 +1114,14 @@ bool load_skills(void)
 		return false;
 	}
 
+	log_string("load_skills: creating skill_groups_list");
+	skill_groups_list = list_createx(FALSE, NULL, delete_skill_group_data);
+	if (!IS_VALID(skill_groups_list))
+	{
+		log_string("skill_groups_list was not created.");
+		return false;
+	}
+
 	log_string("load_skills: loading " SKILLS_FILE);
 	if ((fp = fopen(SKILLS_FILE, "r")) == NULL)
 	{
@@ -1004,9 +1137,29 @@ bool load_skills(void)
 		switch(word[0])
 		{
 		case '#':
+			if (!str_cmp(word, "#GLOBALGROUP"))
+			{
+				global_skills = load_skill_group(fp);
+				if (!IS_VALID(global_skills))
+					log_string("Failed to load global skill group.");
+				fMatch = true;
+				break;
+			}
+			if (!str_cmp(word, "#GROUP"))
+			{
+				SKILL_GROUP *group = load_skill_group(fp);
+				if (group)
+				{
+					insert_skill_group(group);
+				}
+				else
+					log_string("Failed to load a skill group.");
+				fMatch = true;
+				break;
+			}
 			if (!str_cmp(word, "#SKILL"))
 			{
-				skill = load_skill(fp);
+				skill = load_skill(fp, false);
 				if (skill)
 				{
 					insert_skill(skill);
@@ -1018,6 +1171,23 @@ bool load_skills(void)
 					log_string("Failed to load a skill.");
 
 				fMatch = true;
+				break;
+			}
+			if (!str_cmp(word, "#SPELL"))
+			{
+				skill = load_skill(fp, true);
+				if (skill)
+				{
+					insert_skill(skill);
+
+					if (skill->uid > top_skill_uid)
+						top_skill_uid = skill->uid;
+				}
+				else
+					log_string("Failed to load a skill.");
+
+				fMatch = true;
+				break;
 			}
 			break;
 		}
@@ -2311,58 +2481,109 @@ void check_improve( CHAR_DATA *ch, SKILL_DATA *skill, bool success, int multipli
 	check_improve_show( ch, skill, success, multiplier, true );
 }
 
-int group_lookup( const char *name )
+SKILL_GROUP *group_lookup( const char *name )
 {
-    int gn;
+	ITERATOR it;
+	SKILL_GROUP *group;
 
-    for ( gn = 0; gn < MAX_GROUP; gn++ )
-    {
-        if ( group_table[gn].name == NULL )
-            break;
-        if ( LOWER(name[0]) == LOWER(group_table[gn].name[0])
-        &&   !str_prefix( name, group_table[gn].name ) )
-            return gn;
-    }
+	if (global_skills && LOWER(name[0]) == LOWER(global_skills->name[0]))
+	{
+		if (!str_prefix(name, global_skills->name))
+			return global_skills;
+	}
 
-    return -1;
+	iterator_start(&it, skill_groups_list);
+	while((group = (SKILL_GROUP *)iterator_nextdata(&it)))
+	{
+		if (LOWER(name[0]) == LOWER(group->name[0]) &&
+			!str_prefix(name, group->name))
+			break;
+	}
+	iterator_stop(&it);
+
+	return group;
+}
+
+SKILL_GROUP *group_lookup_exact(const char *name)
+{
+	ITERATOR it;
+	SKILL_GROUP *group;
+
+	if (global_skills && LOWER(name[0]) == LOWER(global_skills->name[0]))
+	{
+		if (!str_cmp(name, global_skills->name))
+			return global_skills;
+	}
+
+	iterator_start(&it, skill_groups_list);
+	while((group = (SKILL_GROUP *)iterator_nextdata(&it)))
+	{
+		if (LOWER(name[0]) == LOWER(group->name[0]) &&
+			!str_cmp(name, group->name))
+			break;
+	}
+	iterator_stop(&it);
+
+	return group;
 }
 
 
-void gn_add(CHAR_DATA *ch, int gn)
+bool group_has_item_exact(SKILL_GROUP *group, const char *name)
 {
-    int i;
+	ITERATOR it;
+	char *str;
 
-    ch->pcdata->group_known[gn] = TRUE;
-    for (i = 0; i < MAX_IN_GROUP; i++)
-    {
-        if (group_table[gn].spells[i] == NULL)
-            break;
+	if (!IS_VALID(group)) return false;
 
-        group_add(ch,group_table[gn].spells[i],FALSE);
-    }
+	iterator_start(&it, group->contents);
+	while((str = (char *)iterator_nextdata(&it)))
+	{
+		if (!str_cmp(name, str))
+			break;
+	}
+	iterator_stop(&it);
+
+	return str != NULL;
+}
+
+void gn_add(CHAR_DATA *ch, SKILL_GROUP *group)
+{
+	if (!IS_VALID(group)) return;
+
+	list_appendlink(ch->pcdata->group_known, group);
+
+	ITERATOR sit;
+	char *sk;
+	iterator_start(&sit, group->contents);
+	while((sk = (char *)iterator_nextdata(&sit)))
+	{
+		group_add(ch, sk, false);
+	}
+	iterator_stop(&sit);
 }
 
 
-void gn_remove( CHAR_DATA *ch, int gn)
+void gn_remove( CHAR_DATA *ch, SKILL_GROUP *group)
 {
-    int i;
 
-    ch->pcdata->group_known[gn] = FALSE;
+	if (!IS_VALID(group)) return;
 
-    for ( i = 0; i < MAX_IN_GROUP; i ++)
-    {
-	if (group_table[gn].spells[i] == NULL)
-	    break;
+	list_remlink(ch->pcdata->group_known, group);
 
-	group_remove(ch,group_table[gn].spells[i]);
-    }
+	ITERATOR sit;
+	char *sk;
+	iterator_start(&sit, group->contents);
+	while((sk = (char *)iterator_nextdata(&sit)))
+	{
+		group_remove(ch, sk);
+	}
+	iterator_stop(&sit);
 }
 
 
 void group_add( CHAR_DATA *ch, const char *name, bool deduct)
 {
 	SKILL_DATA *sk;
-    int gn;
 
     if (IS_NPC(ch))
 	return;
@@ -2390,22 +2611,18 @@ void group_add( CHAR_DATA *ch, const char *name, bool deduct)
 		return;
     }
 
-    /* now check groups */
-    gn = group_lookup(name);
-    if (gn != -1)
-    {
-		if (ch->pcdata->group_known[gn] == FALSE)
-		    ch->pcdata->group_known[gn] = TRUE;
-
-		gn_add(ch,gn); /* make sure all skills in the group are known */
-    }
+	SKILL_GROUP *group = group_lookup(name);
+	if (IS_VALID(group))
+	{
+		if (!list_hasdata(ch->pcdata->group_known, group))
+			gn_add(ch, group);
+	}
 }
 
 
 void group_remove(CHAR_DATA *ch, const char *name)
 {
     SKILL_DATA *sk;
-    int gn;
 
     sk = get_skill_data((char *)name);
 
@@ -2417,13 +2634,12 @@ void group_remove(CHAR_DATA *ch, const char *name)
 		return;
     }
 
-    gn = group_lookup(name);
 
-    if (gn != -1 && ch->pcdata->group_known[gn] == TRUE)
-    {
-	ch->pcdata->group_known[gn] = FALSE;
-	gn_remove(ch,gn);  /* be sure to call gn_add on all remaining groups */
-    }
+	SKILL_GROUP *group = group_lookup(name);
+	if (IS_VALID(group) && list_hasdata(ch->pcdata->group_known, group))
+	{
+		gn_remove(ch, group);
+	}
 }
 
 
@@ -2776,11 +2992,7 @@ bool is_skill_spell(SKILL_DATA *skill)
 {
 	if (!IS_VALID(skill)) return false;
 
-	if (skill->spell_fun && skill->spell_fun != spell_null) return true;
-
-	if (skill->token && skill->token->type == TOKEN_SPELL) return true;
-
-	return false;
+	return skill->isspell;
 }
 
 char *skill_level_value(SKILL_DATA *skill, int clazz)
@@ -2944,18 +3156,19 @@ bool had_skill( CHAR_DATA *ch, SKILL_DATA *skill )
 // Does *everyone* get the sn?
 bool is_global_skill( SKILL_DATA *skill )
 {
-    int i;
+    if ( !IS_VALID(skill) || !IS_VALID(global_skills) ) return false;
 
-    if ( !IS_VALID(skill) ) return false;
+	ITERATOR it;
+	char *str;
+	iterator_start(&it, global_skills->contents);
+	while((str = (char *)iterator_nextdata(&it)))
+	{
+		if (!str_cmp(str, skill->name))
+			break;
+	}
+	iterator_stop(&it);
 
-    // "global skills" is always 1st in group list
-    for (i = 0; group_table[0].spells[i] != NULL; i++)
-    {
-		if (!str_cmp(group_table[0].spells[i], skill->name))
-		    return true;
-    }
-
-    return false;
+    return str != NULL;
 }
 
 
@@ -2996,8 +3209,6 @@ void update_skills( CHAR_DATA *ch )
 bool has_subclass_skill( int subclass, SKILL_DATA *skill )
 {
     char *group_name;
-    int i;
-    int n;
 
     if (!IS_VALID(skill)) return false;
 
@@ -3005,17 +3216,21 @@ bool has_subclass_skill( int subclass, SKILL_DATA *skill )
 
     group_name = sub_class_table[subclass].default_group;
 
-    for (i = 0; group_table[i].name != NULL; i++)
-    {
-		if (!str_cmp(group_name, group_table[i].name))
-		    break;
-    }
+	SKILL_GROUP *group = group_lookup(group_name);
+	if (IS_VALID(group))
+	{
+		ITERATOR sit;
+		char *str;
+		iterator_start(&sit, group->contents);
+		while((str = (char *)iterator_nextdata(&sit)))
+		{
+			if (!str_cmp(skill->name, str))
+				break;
+		}
+		iterator_stop(&sit);
 
-    for (n = 0; group_table[i].spells[n] != NULL; n++)
-    {
-		if (!str_cmp(skill->name, group_table[i].spells[n]))
-			return true;
-    }
+		return str != NULL;
+	}
 
     return false;
 }
@@ -3025,8 +3240,6 @@ bool has_subclass_skill( int subclass, SKILL_DATA *skill )
 bool has_class_skill( int class, SKILL_DATA *skill )
 {
     char *group_name;
-    int i;
-    int n;
 
     if (!IS_VALID(skill)) return false;
 
@@ -3041,17 +3254,22 @@ bool has_class_skill( int class, SKILL_DATA *skill )
 		default: 			group_name = "global skills"; break;
     }
 
-    for (i = 0; group_table[i].name != NULL; i++)
-    {
-		if (!str_cmp(group_name, group_table[i].name))
-			break;
-    }
 
-    for (n = 0; group_table[i].spells[n]; n++)
-    {
-		if (!str_cmp( skill->name, group_table[i].spells[n]))
-			return true;
-    }
+	SKILL_GROUP *group = group_lookup(group_name);
+	if (IS_VALID(group))
+	{
+		ITERATOR sit;
+		char *str;
+		iterator_start(&sit, group->contents);
+		while((str = (char *)iterator_nextdata(&sit)))
+		{
+			if (!str_cmp(skill->name, str))
+				break;
+		}
+		iterator_stop(&sit);
+
+		return str != NULL;
+	}
 
     return false;
 }
@@ -3670,7 +3888,7 @@ SKEDIT( skedit_install )
 
 	if (argument[0] == '\0')
 	{
-		send_to_char("Syntax:  skedit install {Rsource{x <name>\n\r", ch);
+		send_to_char("Syntax:  skedit install {Rsource{x skill|spell <name>\n\r", ch);
 		send_to_char("         skedit install {Rtoken{x <widevnum>\n\r", ch);
 		return false;
 	}
@@ -3679,11 +3897,25 @@ SKEDIT( skedit_install )
 	argument = one_argument(argument, arg);
 	if (!str_prefix(arg, "source"))
 	{
+		argument = one_argument(argument, arg);
+		bool isspell;
+
+		if (!str_prefix(arg, "spell"))
+			isspell = true;
+		else if (!str_prefix(arg, "skill"))
+			isspell = false;
+		else
+		{
+			send_to_char("Syntax:  skedit source {Rskill|spell{x <name>\n\r", ch);
+			send_to_char("Please specify whether this is a {Yskill{x or {Gspell{x.\n\r", ch);
+			return false;
+		}
+
 		// Install a SOURCE skill/spell
 		smash_tilde(argument);
 		if (argument[0] == '\0')
 		{
-			send_to_char("Syntax:  skedit install source {R<name>{x\n\r", ch);
+			send_to_char("Syntax:  skedit install source skill|spell {R<name>{x\n\r", ch);
 			send_to_char("Please specify a name.\n\r", ch);
 			return false;
 		}
@@ -3699,6 +3931,7 @@ SKEDIT( skedit_install )
 		skill = new_skill_data();
 		skill->uid = ++top_skill_uid;
 		skill->name = str_dup(argument);
+		skill->isspell = isspell;
 		skill->token = NULL;
 		
 		insert_skill(skill);
@@ -3729,9 +3962,14 @@ SKEDIT( skedit_install )
 			return false;
 		}
 
-		if (token->type != TOKEN_SKILL && token->type != TOKEN_SPELL)
+		bool isspell;
+		if (token->type == TOKEN_SPELL)
+			isspell = true;
+		else if (token->type == TOKEN_SKILL)
+			isspell = false;
+		else
 		{
-			send_to_char("That token is neither a {Yskill{x nor {Yspell{x token.\n\r", ch);
+			send_to_char("That token is neither a {Yskill{x nor {Gspell{x token.\n\r", ch);
 			return false;
 		}
 
@@ -3746,6 +3984,7 @@ SKEDIT( skedit_install )
 		skill->uid = ++top_skill_uid;
 		skill->name = str_dup(token->name);
 		skill->token = token;
+		skill->isspell = isspell;
 		
 		insert_skill(skill);
 
@@ -4984,4 +5223,174 @@ SKEDIT( skedit_valuename )
 	sprintf(buf, "         skedit valuename 1-%d {Rclear{x\n\r", MAX_SKILL_VALUES);
 	send_to_char(buf, ch);
 	return false;
+}
+
+
+SGEDIT( sgedit_show )
+{
+	char buf[MSL];
+	SKILL_GROUP *group;
+
+	EDIT_SKILL_GROUP(ch, group);
+
+	BUFFER *buffer = new_buf();
+
+	sprintf(buf, "{BGroup: {C%s{x\n\r", group->name);
+	add_buf(buffer, buf);
+
+	add_buf(buffer, "{b=================================={x\n\r");
+
+	ITERATOR it;
+	SKILL_DATA *sk;
+	SKILL_GROUP *gr;
+	char *str;
+	int cnt = 0;
+	iterator_start(&it, group->contents);
+	while((str = (char *)iterator_nextdata(&it)))
+	{
+		sk = get_skill_data(str);
+
+		++cnt;
+
+		if (IS_VALID(sk))
+			sprintf(buf, "{C%3d {b- {%c%s{x\n\r", cnt, (sk->isspell?'G':'Y'), sk->name);
+		else
+		{
+			gr = group_lookup(str);
+			if (IS_VALID(gr))
+				sprintf(buf, "{C%3d {b- {W%s{x\n\r", cnt, gr->name);
+			else
+				sprintf(buf, "{C%3d {b- {D%s{x\n\r", cnt, str);
+		}
+
+		add_buf(buffer, buf);
+	}
+	iterator_stop(&it);
+	
+	add_buf(buffer, "{b----------------------------------{x\n\r");
+	sprintf(buf, "{BTotal: {C%d{x\n\r", list_size(group->contents));
+
+
+	if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+	{
+		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+	}
+	else
+	{
+		page_to_char(buffer->string, ch);
+	}
+
+	free_buf(buffer);
+
+	return false;
+}
+
+SGEDIT( sgedit_create )
+{
+	SKILL_GROUP *group;
+
+	smash_tilde(argument);
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  sgedit create {R<name>{x\n\r", ch);
+		send_to_char("Please provide a unique name.\n\r", ch);
+		return false;
+	}
+
+	group = group_lookup_exact(argument);
+	if (IS_VALID(group))
+	{
+		send_to_char("Syntax:  sgedit create {R<name>{x\n\r", ch);
+		send_to_char("Name is already taken.\n\r", ch);
+		return false;
+	}
+
+	group = new_skill_group_data();
+	group->name = str_dup(argument);
+	insert_skill_group(group);
+
+	char buf[MSL];
+	sprintf(buf, "Group {W%s{x added.\n\r", argument);
+	send_to_char(buf, ch);
+	return true;
+}
+
+SGEDIT( sgedit_add )
+{
+	SKILL_GROUP *group;
+
+	EDIT_SKILL_GROUP(ch, group);
+
+	smash_tilde(argument);
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  sgedit add {R<name>{x\n\r", ch);
+		send_to_char("Please provide the name for a skill, spell or group.\n\r", ch);
+		return false;
+	}
+
+	if(group_has_item_exact(group, argument))
+	{
+		send_to_char("That group already contains that item.\n\r", ch);
+		return false;
+	}
+
+	char buf[MSL];
+	SKILL_DATA *sk = get_skill_data(argument);
+	if (!IS_VALID(sk))
+	{
+		SKILL_GROUP *gr = group_lookup(argument);
+
+		if (!IS_VALID(gr))
+		{
+			send_to_char("There is no skill, spell or group by that name.\n\r", ch);
+			return false;
+		}
+
+		if (gr == group)
+		{
+			send_to_char("You cannot add a group to itself.\n\r", ch);
+			return false;
+		}
+
+		// TODO: Check for circular linkages.
+
+		sprintf(buf, "Added group '%s' to group %s.\n\r", gr->name, group->name);
+	}
+	else
+		sprintf(buf, "Added %s '%s' to group %s.\n\r", (sk->isspell ? "spell" : "skill"), sk->name, group->name);
+
+	insert_skill_group_item(group, str_dup(argument));
+
+	send_to_char(buf, ch);
+	return true;
+}
+
+SGEDIT( sgedit_remove )
+{
+	char buf[MSL];
+	SKILL_GROUP *group;
+
+	EDIT_SKILL_GROUP(ch, group);
+
+	if (list_size(group->contents) < 1)
+	{
+		send_to_char("This group is already empty.\n\r", ch);
+		return false;
+	}
+
+	int index;
+	if (!is_number(argument) || (index = atoi(argument)) < 1 || index > list_size(group->contents))
+	{
+		sprintf(buf, "Syntax:  sgedit remove {R<1-%d>{x\n\r", list_size(group->contents));
+		send_to_char(buf, ch);
+		sprintf(buf, "Please provide a number from 1 to %d.\n\r", list_size(group->contents));
+		send_to_char(buf, ch);
+		return false;
+	}
+
+	list_remnthlink(group->contents, index);
+	sprintf(buf, "Removed #%d item from group.\n\r", index);
+	send_to_char(buf, ch);
+	return true;
 }

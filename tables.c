@@ -3344,6 +3344,12 @@ const struct flag_type fluid_con_flags[] =
     { NULL, 0, FALSE }
 };
 
+const struct flag_type scroll_flags[] =
+{
+    { "destroy_on_recite",  SCROLL_DESTROY_ON_RECITE,       TRUE },
+    { NULL, 0, FALSE }
+};
+
 const struct gln_type gln_table[] =
 {
     { "water", &gln_water, &liquid_water },

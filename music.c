@@ -374,7 +374,7 @@ void music_end( CHAR_DATA *ch )
 					{
 						if(skill->target == TAR_CHAR_OFFENSIVE || skill->target == TAR_OBJ_CHAR_DEF)
 							offensive = TRUE;
-						if (check_spell_deflection(ch, mob, skill))
+						if (check_spell_deflection(ch, mob, skill, NULL))
 							(*skill->spell_fun) (skill, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
 					}
 				}
@@ -387,7 +387,7 @@ void music_end( CHAR_DATA *ch )
 					{
 						if(skill->target == TAR_CHAR_OFFENSIVE || skill->target == TAR_OBJ_CHAR_DEF)
 							offensive = TRUE;
-						if (check_spell_deflection(ch, mob, skill))
+						if (check_spell_deflection(ch, mob, skill, NULL))
 							(*skill->spell_fun) (skill, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
 					}
 				}
@@ -400,13 +400,14 @@ void music_end( CHAR_DATA *ch )
 					{
 						if(skill->target == TAR_CHAR_OFFENSIVE || skill->target == TAR_OBJ_CHAR_DEF)
 							offensive = TRUE;
-						if (check_spell_deflection(ch, mob, skill))
+						if (check_spell_deflection(ch, mob, skill, NULL))
 							(*skill->spell_fun) (skill, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
 					}
 				}
 			}
 			else
 			{
+				// TODO: Make work with the correct trigger
 				if (check_spell_deflection_token(ch, mob, token, script, music_target_name)) {
 					if( execute_script(script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, mob, NULL, NULL, NULL,music_target_name,NULL,TRIG_NONE,0,0,0,0,0) > 0)
 						offensive = TRUE;
@@ -488,19 +489,19 @@ void music_end( CHAR_DATA *ch )
 				{
 					if( IS_VALID(sk1) )
 					{
-						if (check_spell_deflection(ch, mob, sk1))
+						if (check_spell_deflection(ch, mob, sk1, NULL))
 							(*sk1->spell_fun) (sk1, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
 					}
 
 					if( IS_VALID(sk2) && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead)) )
 					{
-						if (check_spell_deflection(ch, mob, sk2))
+						if (check_spell_deflection(ch, mob, sk2, NULL))
 							(*sk2->spell_fun) (sk2, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
 					}
 
 					if( IS_VALID(sk3) && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead)) )
 					{
-						if (check_spell_deflection(ch, mob, sk3))
+						if (check_spell_deflection(ch, mob, sk3, NULL))
 							(*sk3->spell_fun) (sk3, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
 					}
 
@@ -572,19 +573,19 @@ void music_end( CHAR_DATA *ch )
 
 					if( IS_VALID(sk1) && !is_same_group(ch, mob))
 					{
-						if (check_spell_deflection(ch, mob, sk1))
+						if (check_spell_deflection(ch, mob, sk1, NULL))
 							(*sk1->spell_fun) (sk1, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
 					}
 
 					if( IS_VALID(sk2) && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead) && !is_same_group(ch, mob)) )
 					{
-						if (check_spell_deflection(ch, mob, sk2))
+						if (check_spell_deflection(ch, mob, sk2, NULL))
 							(*sk2->spell_fun) (sk2, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
 					}
 
 					if( IS_VALID(sk3) && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead) && !is_same_group(ch, mob)) )
 					{
-						if (check_spell_deflection(ch, mob, sk3))
+						if (check_spell_deflection(ch, mob, sk3, NULL))
 							(*sk3->spell_fun) (sk3, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
 					}
 				}

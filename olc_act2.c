@@ -1521,8 +1521,8 @@ TEDIT(tedit_create)
 TEDIT(tedit_show)
 {
     TOKEN_INDEX_DATA *token_index;
-    ITERATOR it;
-    PROG_LIST *trigger;
+
+
     char buf[MSL];
     int i;
 	BUFFER *buffer = new_buf();
@@ -1568,6 +1568,7 @@ TEDIT(tedit_show)
     } */
 
     add_buf(buffer, "{YDefault values:{x\n\r");
+#if 0
 	if (token_index->type == TOKEN_SPELL)
 	{
 		for (i = 0; i < MAX_TOKEN_VALUES; i++)
@@ -1655,33 +1656,18 @@ TEDIT(tedit_show)
 			add_buf(buffer, buf);
 		}
 	}
-    if (token_index->progs) {
-	int cnt, slot;
+#else
+	for (i = 0; i < MAX_TOKEN_VALUES; i++)
+	{
+		sprintf(buf, "Value {Y[{x%d{Y]:{x %-20s {Y[{x%ld{Y]{x\n\r", i,
+			token_index_getvaluename(token_index, i), token_index->value[i]);
 
-	for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++)
-		if(list_size(token_index->progs[slot]) > 0) ++cnt;
-
-	if (cnt > 0) {
-		sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "Number", "TokProg Vnum", "Trigger", "Phrase");
 		add_buf(buffer, buf);
-
-		sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "------", "-------------", "-------", "------");
-		add_buf(buffer, buf);
-
-		for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
-			iterator_start(&it, token_index->progs[slot]);
-			while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-				sprintf(buf, "{C[{W%4d{C]{x %ld#%ld %-10s %-6s\n\r", cnt,
-					trigger->wnum.pArea ? trigger->wnum.pArea->uid : 0,
-					trigger->wnum.vnum,trigger_name(trigger->trig_type),
-					trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, FALSE, TRUE));
-				add_buf(buffer, buf);
-				cnt++;
-			}
-			iterator_stop(&it);
-		}
 	}
-    }
+#endif
+
+    if (token_index->progs)
+		olc_show_progs(buffer, token_index->progs, "TokProg Vnum");
 
 	olc_show_index_vars(buffer, token_index->index_vars);
 

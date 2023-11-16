@@ -58,6 +58,7 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 
 #define ED_SKEDIT   22      // Skill/spell edit
 #define ED_LIQEDIT  23      // Liquid edit
+#define ED_SGEDIT   24
 
 
 #define AEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
@@ -78,6 +79,7 @@ typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 #define DNGEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
 #define SKEDIT( fun )       bool fun( CHAR_DATA *ch, char *argument )
 #define LIQEDIT( fun )       bool fun( CHAR_DATA *ch, char *argument )
+#define SGEDIT( fun )       bool fun( CHAR_DATA *ch, char *argument )
 
 /*
  * Interpreter Prototypes
@@ -108,7 +110,8 @@ void	ipedit	( CHAR_DATA *ch, char *argument );
 void	dpedit	( CHAR_DATA *ch, char *argument );
 
 void    skedit  ( CHAR_DATA *ch, char *argument );
-void    liqedit  ( CHAR_DATA *ch, char *argument );
+void    liqedit ( CHAR_DATA *ch, char *argument );
+void    sgedit  ( CHAR_DATA *ch, char *argument );
 
 /*
  * OLC Constants
@@ -175,6 +178,7 @@ extern const struct olc_cmd_type        ipedit_table[];
 extern const struct olc_cmd_type        dpedit_table[];
 extern const struct olc_cmd_type        skedit_table[];
 extern const struct olc_cmd_type        liqedit_table[];
+extern const struct olc_cmd_type        sgedit_table[];
 
 
 /*
@@ -200,6 +204,7 @@ DECLARE_DO_FUN( do_dngedit       );
 
 DECLARE_DO_FUN( do_skedit );
 DECLARE_DO_FUN( do_liqedit );
+DECLARE_DO_FUN( do_sgedit );
 
 /*
  * Area Editor Prototypes
@@ -337,7 +342,6 @@ DECLARE_OLC_FUN( oedit_persist  );
 DECLARE_OLC_FUN( oedit_lock		);
 DECLARE_OLC_FUN( oedit_waypoints	);
 
-DECLARE_OLC_FUN( oedit_type_page );
 DECLARE_OLC_FUN( oedit_type_book );
 DECLARE_OLC_FUN( oedit_type_container );
 DECLARE_OLC_FUN( oedit_type_fluid_container );
@@ -345,7 +349,11 @@ DECLARE_OLC_FUN( oedit_type_food );
 DECLARE_OLC_FUN( oedit_type_furniture );
 DECLARE_OLC_FUN( oedit_type_light );
 DECLARE_OLC_FUN( oedit_type_money );
+DECLARE_OLC_FUN( oedit_type_page );
 DECLARE_OLC_FUN( oedit_type_portal );
+DECLARE_OLC_FUN( oedit_type_scroll );
+DECLARE_OLC_FUN( oedit_type_tattoo );
+DECLARE_OLC_FUN( oedit_type_wand );
 
 /*
  * Mobile Editor Prototypes
@@ -654,6 +662,10 @@ DECLARE_OLC_FUN( skedit_inks );     // For tattooing and scribing
 DECLARE_OLC_FUN( skedit_value );
 DECLARE_OLC_FUN( skedit_valuename );
 
+DECLARE_OLC_FUN( sgedit_create );
+DECLARE_OLC_FUN( sgedit_show );
+DECLARE_OLC_FUN( sgedit_add );
+DECLARE_OLC_FUN( sgedit_remove );
 
 // TODO: add songedit for being able to add/edit songs
 
@@ -690,6 +702,7 @@ DECLARE_OLC_FUN( skedit_valuename );
 
 #define EDIT_SKILL(ch, skill)   ( skill = (SKILL_DATA *)ch->desc->pEdit )
 #define EDIT_LIQUID(ch, liq)    ( liq = (LIQUID *)ch->desc->pEdit )
+#define EDIT_SKILL_GROUP(ch, group)     ( group = (SKILL_GROUP *)ch->desc->pEdit)
 
 /*
  * Prototypes
@@ -702,4 +715,4 @@ char *token_index_getvaluename args( (TOKEN_INDEX_DATA *token, int v) );
 
 SHOP_STOCK_DATA *get_shop_stock_bypos(SHOP_DATA *shop, int nth);
 bool check_range(long lower, long upper);
-
+void olc_show_progs(BUFFER *buffer, LLIST **progs, const char *title);

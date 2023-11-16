@@ -69,7 +69,7 @@ bool __isspell_valid(CHAR_DATA *ch, OBJ_DATA *obj, SKILL_ENTRY *spell, int pretr
 			return FALSE;
 		}
 
-		SCRIPT_DATA *script = get_script_token(spell->token, trigger, TRIGSLOT_SPELL);
+		SCRIPT_DATA *script = get_script_token(spell->token->pIndexData, trigger, TRIGSLOT_SPELL);
 		if(!script) {
 			act_new(token_message, ch,NULL,NULL,obj,NULL,spell->token->name,NULL,TO_CHAR,POS_DEAD,NULL);
 			//sprintf(buf, token_message, spell->token->name, obj->short_descr);
@@ -2735,11 +2735,6 @@ void do_unrestring(CHAR_DATA *ch, char *argument)
 		return;
     }
 
-    //if (obj->item_type == ITEM_SCROLL || obj->item_type == ITEM_POTION) {
-	//	act("You cannot unrestring $p without destroying it.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-	//	return;
-    //}
-
     act("You hand $p to $N.", ch, mob, NULL, obj, NULL, NULL, NULL, TO_CHAR);
     act("$n hands $p to $N.", ch, mob, NULL, obj, NULL, NULL, NULL, TO_ROOM);
     act("$N tinkers with $p.", ch, mob, NULL, obj, NULL, NULL, NULL, TO_CHAR);
@@ -4570,7 +4565,7 @@ void do_recite(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	if (scroll->item_type != ITEM_SCROLL)
+	if (!IS_SCROLL(scroll))
 	{
 		send_to_char("You can recite only scrolls.\n\r", ch);
 		return;
@@ -4649,6 +4644,185 @@ void do_recite(CHAR_DATA *ch, char *argument)
 }
 
 
+void spell_deflected_recite(CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill, AFFECT_DATA *af)
+{
+	if (skill->token)
+		p_token_index_percent_trigger(skill->token, ch != NULL ? ch : victim, victim, NULL, NULL, NULL, TRIG_TOKEN_RECITE, NULL, 0,0,0,0,0, (ch != NULL ? ch->tot_level : af->level),0,0,0,0);
+	else if (skill->spell_fun && skill->spell_fun != spell_null)
+		(*skill->spell_fun)(skill, ch != NULL ? ch->tot_level : af->level, ch != NULL ? ch : victim, victim, TARGET_CHAR, WEAR_NONE);
+}
+
+void obj_recite_spell(OBJ_DATA *scroll, SKILL_DATA *skill, int level, CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *obj)
+{
+    void *vo;
+    int target = TARGET_NONE;
+
+    if (!IS_VALID(skill))
+	{
+		bug("obj_recite_spell: bad skill data.", 0);
+		return;
+	}
+
+	if (skill->token)
+	{
+		if (!get_script_token(skill->token, TRIG_TOKEN_RECITE, TRIGSLOT_SPELL))
+		{
+			bug("obj_recite_spell: bad skill uid = %d.", skill->uid);
+			return;
+		}
+	}
+	else if (!skill->recite_fun)
+    {
+		bug("obj_recite_spell: bad skill uid = %d.", skill->uid);
+		return;
+    }
+
+    switch (skill->target)
+    {
+        default:
+	    bug("obj_recite_spell: bad target for skill uid = %d.", skill->uid);
+	    return;
+
+	case TAR_IGNORE:
+	    vo = NULL;
+		victim = NULL;
+		obj = NULL;
+	    break;
+
+	case TAR_CHAR_OFFENSIVE:
+	    if (victim == NULL)
+  	        victim = ch->fighting;
+
+	    if (victim == NULL)
+	    {
+	        send_to_char("You can't do that.\n\r", ch);
+			return;
+	    }
+
+	    if (is_safe(ch,victim, TRUE) && ch != victim)
+	    {
+			send_to_char("Something isn't right...\n\r",ch);
+			return;
+	    }
+
+	    vo = (void *) victim;
+	    target = TARGET_CHAR;
+		obj = NULL;
+	    break;
+
+	case TAR_CHAR_DEFENSIVE:
+	case TAR_CHAR_SELF:
+	    if (victim == NULL)
+		    victim = ch;
+
+	    vo = (void *) victim;
+	    target = TARGET_CHAR;
+		obj = NULL;
+	    break;
+
+	case TAR_OBJ_INV:
+	    if (obj == NULL)
+	    {
+	        send_to_char("You can't do that.\n\r", ch);
+		return;
+	    }
+	    vo = (void *) obj;
+	    target = TARGET_OBJ;
+		victim = NULL;
+	    break;
+
+	case TAR_OBJ_CHAR_OFF:
+	    if (victim == NULL && obj == NULL)
+	    {
+	        if (ch->fighting != NULL)
+	   	    	victim = ch->fighting;
+  	        else
+	        {
+			    send_to_char("You can't do that.\n\r",ch);
+		   	    return;
+			}
+	    }
+
+	    if (victim != NULL)
+	    {
+	        if (is_safe_spell(ch,victim,FALSE) && ch != victim)
+	        {
+	            send_to_char("Something isn't right...\n\r",ch);
+			    return;
+			}
+
+			vo = (void *) victim;
+			target = TARGET_CHAR;
+			obj = NULL;
+	    }
+	    else
+	    {
+		    vo = (void *) obj;
+		    target = TARGET_OBJ;
+			victim = NULL;
+	    }
+	    break;
+
+
+	case TAR_OBJ_CHAR_DEF:
+	    if (victim == NULL && obj == NULL)
+	    {
+	        vo = (void *) ch;
+			target = TARGET_CHAR;
+			obj = NULL;
+	    }
+	    else if (victim != NULL)
+	    {
+			vo = (void *) victim;
+			target = TARGET_CHAR;
+			obj = NULL;
+	    }
+	    else
+	    {
+			vo = (void *) obj;
+			target = TARGET_OBJ;
+			obj = NULL;
+	    }
+
+	    break;
+    }
+
+	//char _buf[MSL];
+    if (target != TARGET_CHAR || victim == NULL || check_spell_deflection(ch, victim, skill, spell_deflected_recite))
+    {
+		//sprintf(_buf, "Reciting %s...\n\r", skill->name);
+		//send_to_char(_buf, ch);
+		if (skill->token)
+		{
+			//sprintf(_buf, "%s: victim = %s", skill->name, (victim?victim->name:"(null)"));
+			//send_to_char(_buf, ch);
+			//sprintf(_buf, "%s: obj = %s", skill->name, (obj?obj->short_descr:"(null)"));
+			//send_to_char(_buf, ch);
+			p_token_index_percent_trigger(skill->token, ch, victim, NULL, scroll, obj, TRIG_TOKEN_RECITE, NULL, 0,0,0,0,0, level,0,0,0,0);
+		}
+		else
+    		(*(skill->recite_fun)) (skill, level, ch, scroll, vo, target);
+    }
+
+    if ((skill->target == TAR_CHAR_OFFENSIVE || (skill->target == TAR_OBJ_CHAR_OFF && target == TARGET_CHAR)) &&
+		victim != NULL && victim != ch && victim->master != ch)
+    {
+		CHAR_DATA *vch;
+		CHAR_DATA *vch_next;
+
+		for (vch = ch->in_room->people; vch; vch = vch_next)
+		{
+			vch_next = vch->next_in_room;
+			if (victim == vch && victim->fighting == NULL)
+			{
+				multi_hit(victim, ch, NULL, TYPE_UNDEFINED);
+				break;
+			}
+		}
+    }
+}
+
+
 void recite_end(CHAR_DATA *ch)
 {
 	CHAR_DATA *victim;
@@ -4718,10 +4892,17 @@ void recite_end(CHAR_DATA *ch)
 		}
 		else
 		{
-			
-			obj_apply_spells(ch, scroll, victim, obj, obj->spells, TRIG_TOKEN_RECITE);
-			//for (spell = scroll->spells; spell != NULL; spell = spell->next)
-			//	obj_cast_spell(spell->sn, spell->level, ch, victim, obj);
+			ITERATOR spit;
+			SPELL_DATA *spell;
+			iterator_start(&spit, SCROLL(scroll)->spells);
+			while((spell = (SPELL_DATA *)iterator_nextdata(&spit)))
+			{
+				//send_to_char(spell->skill->name, ch);
+				//send_to_char("\n\r", ch);
+				obj_recite_spell(scroll, spell->skill, spell->level, ch, victim, obj);
+			}
+			iterator_stop(&spit);
+
 			check_improve(ch,gsk_scrolls,TRUE,2);
 		}
 
@@ -7513,7 +7694,7 @@ bool can_brew_spell(CHAR_DATA *ch, OBJ_DATA *obj, SKILL_ENTRY *spell)
 
 	if (IS_VALID(spell->token))
 	{
-		SCRIPT_DATA *script = get_script_token(spell->token, TRIG_TOKEN_QUAFF, TRIGSLOT_SPELL);
+		SCRIPT_DATA *script = get_script_token(spell->token->pIndexData, TRIG_TOKEN_QUAFF, TRIGSLOT_SPELL);
 		if(!script) {
 			act_new("You cannot brew $t in $p.", ch,NULL,NULL,obj,NULL,spell->skill->name,NULL,TO_CHAR,POS_DEAD,NULL);
 			return FALSE;
@@ -7600,6 +7781,7 @@ void do_brew(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
+	// WXYZ
 	// Clear out catalyst usages
 	memset(ch->catalyst_usage, 0, sizeof(ch->catalyst_usage));
 	SKILL_ENTRY *spell = skill_entry_findname(ch->sorted_skills, arg);
@@ -7911,7 +8093,7 @@ bool can_scribe_spell(CHAR_DATA *ch, OBJ_DATA *obj, SKILL_ENTRY *spell)
 
 	if (IS_VALID(spell->token))
 	{
-		SCRIPT_DATA *script = get_script_token(spell->token, TRIG_TOKEN_RECITE, TRIGSLOT_SPELL);
+		SCRIPT_DATA *script = get_script_token(spell->token->pIndexData, TRIG_TOKEN_RECITE, TRIGSLOT_SPELL);
 		if(!script) {
 			act_new("You cannot scribe $t onto $p.", ch,NULL,NULL,obj,NULL,spell->skill->name,NULL,TO_CHAR,POS_DEAD,NULL);
 			return FALSE;
@@ -7946,6 +8128,49 @@ bool can_scribe_spell(CHAR_DATA *ch, OBJ_DATA *obj, SKILL_ENTRY *spell)
 	return true;
 }
 
+bool are_spell_targets_compatible(SKILL_ENTRY *sa, SKILL_ENTRY *sb)
+{
+	if (!sa || !sb) return true;
+
+	int a = sa->skill->target;
+	int b = sb->skill->target;
+
+	switch(a)
+	{
+	case TAR_IGNORE:
+	case TAR_OBJ_GROUND:
+	case TAR_IGNORE_CHAR_DEF:
+		return a == b;	// They *MUST* be the same for this target
+
+
+	case TAR_CHAR_DEFENSIVE:
+	case TAR_CHAR_OFFENSIVE:
+	case TAR_CHAR_SELF:
+	case TAR_CHAR_FORMATION:
+		if (b == TAR_CHAR_OFFENSIVE) return true;
+		if (b == TAR_CHAR_DEFENSIVE) return true;
+		if (b == TAR_CHAR_SELF) return true;
+		if (b == TAR_CHAR_FORMATION) return true;
+		if (b == TAR_OBJ_CHAR_OFF) return true;
+		if (b == TAR_OBJ_CHAR_DEF) return true;
+		break;
+
+	case TAR_OBJ_CHAR_OFF:
+	case TAR_OBJ_CHAR_DEF:
+		if (b == TAR_IGNORE) return false;
+		if (b == TAR_OBJ_GROUND) return false;
+		if (b == TAR_IGNORE_CHAR_DEF) return false;
+		return true;
+
+	case TAR_OBJ_INV:
+		if (b == TAR_OBJ_INV) return true;
+		if (b == TAR_OBJ_CHAR_OFF) return true;
+		if (b == TAR_OBJ_CHAR_DEF) return true;
+		break;
+	}
+
+	return false;
+}
 
 // scribe <scroll> <spell1>[ <spell2>[ <spell3>]]
 void do_scribe(CHAR_DATA *ch, char *argument)
@@ -7972,17 +8197,11 @@ void do_scribe(CHAR_DATA *ch, char *argument)
     }
 
 	argument = one_argument(argument, arg);
-	if ((obj = get_obj_carry(ch, arg, ch)) == NULL || (obj->item_type != ITEM_BLANK_SCROLL && obj->pIndexData != obj_index_blank_scroll))
+	if ((obj = get_obj_carry(ch, arg, ch)) == NULL || !IS_SCROLL(obj) || list_size(SCROLL(obj)->spells) > 0)
 	{
 		send_to_char("You do not have a valid scroll to scribe on.\n\r", ch);
 		return;
 	}
-
-    if (obj == NULL)
-    {
-		send_to_char("You do not have a blank scroll.\n\r", ch);
-		return;
-    }
 
     if (argument[0] == '\0')
     {
@@ -7994,6 +8213,8 @@ void do_scribe(CHAR_DATA *ch, char *argument)
 	spells[1] = NULL;
 	spells[2] = NULL;
 
+	// Clear out catalyst usages
+	memset(ch->catalyst_usage, 0, sizeof(ch->catalyst_usage));
 	argument = one_argument(argument, arg);
 	spells[0] = skill_entry_findname(ch->sorted_skills, arg);
 	if (!can_scribe_spell(ch, obj, spells[0]))
@@ -8037,9 +8258,9 @@ void do_scribe(CHAR_DATA *ch, char *argument)
 		return;
     }
 
-	int target = spells[0]->skill->target;
-	if ((spells[1] && spells[1]->skill->target != target) ||
-		(spells[2] && spells[2]->skill->target != target))
+	if (!are_spell_targets_compatible(spells[0], spells[1]) ||
+		!are_spell_targets_compatible(spells[0], spells[2]) ||
+		!are_spell_targets_compatible(spells[1], spells[2]))
 	{
 		send_to_char("All spells must have the same kind of targeting requirements.\n\r", ch);
 
@@ -8258,8 +8479,7 @@ void scribe_end(CHAR_DATA *ch)
 			spell->level = ch->tot_level / count;
 			if (count > 1 && alchemist)
 				spell->level += ch->tot_level / (count + 1);
-			spell->next = scroll->spells;
-			scroll->spells = spell;
+			list_appendlink(SCROLL(scroll)->spells, spell);
 		}
 	}
 

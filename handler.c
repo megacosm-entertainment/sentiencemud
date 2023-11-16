@@ -8750,26 +8750,31 @@ bool list_insertlink(LLIST *lp, void *data, int to)
 // It will NOT cull the list
 void list_remlink(LLIST *lp, void *data)
 {
-	LLIST_LINK *link;
+	LLIST_LINK *link, *link_next;
 
 	if(lp && data) {
-		for(link = lp->head; link; link = link->next)
+		for(link = lp->head; link; link = link_next)
+		{
+			link_next = link->next;
 			if(link->data == data) {
 				list_remdata(lp, link);
 			}
+		}
 	}
 }
 
 // Clears out the entire list
 void list_clear(LLIST *lp)
 {
-	LLIST_LINK *link;
-	if(lp) {
-		for(link = lp->head; link; link = link->next) {
+	LLIST_LINK *link, *link_next;
+	if(lp && lp->valid) {
+		for(link = lp->head; link; link = link_next) {
+			link_next = link->next;
 			list_remdata(lp, link);
 		}
 
 		lp->size = 0;
+		list_cull(lp);
 	}
 }
 

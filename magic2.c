@@ -109,8 +109,22 @@ void trance_end(CHAR_DATA *ch)
     act(buf, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 }
 
+void spell_deflected_cast(CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill, AFFECT_DATA *af)
+{
+	if (skill->token)
+	{
+		if (IS_VALID(ch->cast_token) && ch->cast_token->pIndexData == skill->token)
+			execute_script(ch->cast_script, NULL, NULL, NULL, ch->cast_token, NULL, NULL, NULL, ch != NULL ? ch : victim, NULL, NULL, victim, NULL,NULL, NULL,ch->cast_target_name,NULL,TRIG_SPELL,(ch != NULL ? ch->tot_level : af->level),0,0,0,0);
+		else
+			p_token_index_percent_trigger(skill->token, ch != NULL ? ch : victim, victim, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, (ch != NULL ? ch->tot_level : af->level),0,0,0,0);
+	}
+	else if (skill->spell_fun && skill->spell_fun != spell_null)
+		(*skill->spell_fun)(skill, ch != NULL ? ch->tot_level : af->level, ch != NULL ? ch : victim, victim, TARGET_CHAR, WEAR_NONE);
+}
+
 // Returns TRUE if the spell got through.
-bool check_spell_deflection(CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill)
+// TODO: make a copy for the various spell functions...
+bool check_spell_deflection(CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill, DEFLECT_FUN *deflect)
 {
 	CHAR_DATA *rch = NULL;
 	AFFECT_DATA *af;
@@ -181,8 +195,10 @@ bool check_spell_deflection(CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill)
 			act("{Y$n's spell bounces off onto $N!{x", ch,  rch, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
 		}
 
-		if (skill->spell_fun && skill->spell_fun != spell_null)
-			(*skill->spell_fun)(skill, ch != NULL ? ch->tot_level : af->level, ch != NULL ? ch : rch, rch, TARGET_CHAR, WEAR_NONE);
+		if (deflect)
+			(*deflect)(ch, victim, skill, af);
+		else
+			spell_deflected_cast(ch, victim, skill, af);
 	} else {
 		if (ch != NULL) {
 			act("{YYour spell bounces around for a while, then dies out.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
@@ -194,6 +210,8 @@ bool check_spell_deflection(CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill)
 }
 
 
+// TODO: Make work with the trigger itself, not the script
+// TODO: Rework
 // Returns TRUE if the spell got through.
 bool check_spell_deflection_token(CHAR_DATA *ch, CHAR_DATA *victim, TOKEN_DATA *token, SCRIPT_DATA *script, char *target_name)
 {

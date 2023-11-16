@@ -550,7 +550,11 @@ const	struct	cmd_type	cmd_table	[] =
 	{ "liqedit",	do_liqedit, POS_DEAD,	ML,		LOG_ALWAYS, 1, TRUE },
 	{ "liqlist",	do_liqlist, POS_DEAD,	L5,		LOG_ALWAYS, 1, TRUE },
 	{ "skedit",		do_skedit, POS_DEAD,	ML,		LOG_ALWAYS, 1, TRUE },
-	{ "sklist",		do_sklist, POS_DEAD,	L5,		LOG_ALWAYS, 1, TRUE },
+	{ "sklist",		do_sklist, POS_DEAD,	L5,		LOG_NORMAL, 1, TRUE },
+	{ "skshow",		do_skshow, POS_DEAD,	L5,		LOG_NORMAL, 1, TRUE },
+	{ "sgedit",		do_sgedit, POS_DEAD,	ML,		LOG_ALWAYS, 1, TRUE },
+	{ "sglist",		do_sglist, POS_DEAD,	ML,		LOG_NORMAL, 1, TRUE },
+	{ "sgshow",		do_sgshow, POS_DEAD,	L5,		LOG_NORMAL, 1, TRUE },
 
     { "",		0,		POS_DEAD,     0,  LOG_NORMAL, 0, FALSE }
 };

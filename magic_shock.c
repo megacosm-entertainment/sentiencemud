@@ -43,7 +43,7 @@ SPELL_FUNC(spell_call_lightning)
 		vch_next = vch->next_in_room;
 
 		if (!is_safe(ch, vch, FALSE)) {
-			if (!check_spell_deflection(ch, vch, skill)) continue;
+			if (!check_spell_deflection(ch, vch, skill, NULL)) continue;
 
 			if (vch != ch && (IS_NPC(ch) ? !IS_NPC(vch) : IS_NPC(vch)))
 				damage(ch, vch, saves_spell(level,vch,DAM_LIGHTNING) ? dam / 2 : dam, skill, TYPE_UNDEFINED,DAM_LIGHTNING,TRUE);
@@ -81,7 +81,7 @@ SPELL_FUNC(spell_chain_lightning)
 		for (tmp_vict = ch->in_room->people; tmp_vict != NULL; tmp_vict = next_vict) {
 			next_vict = tmp_vict->next_in_room;
 			if (!is_safe(ch,tmp_vict,FALSE) && can_see(ch,tmp_vict) && tmp_vict != last_vict) {
-				if (!check_spell_deflection(ch, tmp_vict, skill))
+				if (!check_spell_deflection(ch, tmp_vict, skill, NULL))
 					continue;
 
 				if (check_shield_block_projectile(ch, tmp_vict, "arc of lightning", NULL)) {
@@ -113,7 +113,7 @@ SPELL_FUNC(spell_chain_lightning)
 		if (!found) {/* no target found, hit the caster */
 			if (!ch) return TRUE;
 
-			if (!check_spell_deflection(ch, ch, skill))
+			if (!check_spell_deflection(ch, ch, skill, NULL))
 				return TRUE;
 
 			if (last_vict == ch) {/* no double hits */

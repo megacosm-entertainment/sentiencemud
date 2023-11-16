@@ -30,7 +30,7 @@ SPELL_FUNC(spell_calm)
 		if ((IS_NPC(vch) && (IS_SET(vch->imm_flags,IMM_MAGIC) || IS_SET(vch->act[0],ACT_UNDEAD))) || IS_IMMORTAL(vch))
 			continue;
 
-		if (!check_spell_deflection(ch, vch, skill))
+		if (!check_spell_deflection(ch, vch, skill, NULL))
 			continue;
 
 		if (IS_AFFECTED(vch,AFF_CALM) || IS_AFFECTED(vch,AFF_BERSERK) || IS_AFFECTED(vch,AFF_FRENZY) || (!is_same_group(vch, ch) && !is_same_group(vch, ch->fighting)))

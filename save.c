@@ -244,7 +244,7 @@ void save_char_obj(CHAR_DATA *ch)
 void fwrite_char(CHAR_DATA *ch, FILE *fp)
 {
     AFFECT_DATA *paf;
-    int gn, pos;
+    int pos;
     int i = 0;
     COMMAND_DATA *cmd;
 
@@ -563,46 +563,46 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 	fprintf(fp, "Vnum %ld\n",	ch->pIndexData->vnum	);
     else
     {
-	fprintf(fp, "Pass %s~\n",	ch->pcdata->pwd		);
-	fprintf(fp, "PassVers %d\n", ch->pcdata->pwd_vers);
-	/*if (ch->pcdata->immortal->bamfin[0] != '\0')
-	    fprintf(fp, "Bin  %s~\n",	ch->pcdata->immortal->bamfin);
-	if (ch->pcdata->immortal->bamfout[0] != '\0')
-		fprintf(fp, "Bout %s~\n",	ch->pcdata->immortal->bamfout); */
-	fprintf(fp, "Titl %s~\n",	fix_string(ch->pcdata->title)	);
-	if (ch->church != NULL)
-        	fprintf(fp, "Church %s~\n",	ch->church->name	);
-	fprintf(fp, "TSex %d\n",	ch->pcdata->true_sex	);
-	fprintf(fp, "LLev %d\n",	ch->pcdata->last_level	);
-	fprintf(fp, "HMVP %ld %ld %ld\n", ch->pcdata->perm_hit,
-						   ch->pcdata->perm_mana,
-						   ch->pcdata->perm_move);
-	fprintf(fp, "Cnd  %d %d %d %d\n",
-	    ch->pcdata->condition[0],
-	    ch->pcdata->condition[1],
-	    ch->pcdata->condition[2],
-	    ch->pcdata->condition[3]);
+		fprintf(fp, "Pass %s~\n",	ch->pcdata->pwd		);
+		fprintf(fp, "PassVers %d\n", ch->pcdata->pwd_vers);
+		/*if (ch->pcdata->immortal->bamfin[0] != '\0')
+			fprintf(fp, "Bin  %s~\n",	ch->pcdata->immortal->bamfin);
+		if (ch->pcdata->immortal->bamfout[0] != '\0')
+			fprintf(fp, "Bout %s~\n",	ch->pcdata->immortal->bamfout); */
+		fprintf(fp, "Titl %s~\n",	fix_string(ch->pcdata->title)	);
+		if (ch->church != NULL)
+				fprintf(fp, "Church %s~\n",	ch->church->name	);
+		fprintf(fp, "TSex %d\n",	ch->pcdata->true_sex	);
+		fprintf(fp, "LLev %d\n",	ch->pcdata->last_level	);
+		fprintf(fp, "HMVP %ld %ld %ld\n", ch->pcdata->perm_hit,
+							ch->pcdata->perm_mana,
+							ch->pcdata->perm_move);
+		fprintf(fp, "Cnd  %d %d %d %d\n",
+			ch->pcdata->condition[0],
+			ch->pcdata->condition[1],
+			ch->pcdata->condition[2],
+			ch->pcdata->condition[3]);
 
-	ITERATOR aurait;
-	AURA_DATA *aura;
+		ITERATOR aurait;
+		AURA_DATA *aura;
 
-	iterator_start(&aurait, ch->auras);
-	while((aura = (AURA_DATA *)iterator_nextdata(&aurait)))
-	{
-		fprintf(fp, "Aura %s~ %s~\n", aura->name, aura->long_descr);
-	}
-	iterator_stop(&aurait);
+		iterator_start(&aurait, ch->auras);
+		while((aura = (AURA_DATA *)iterator_nextdata(&aurait)))
+		{
+			fprintf(fp, "Aura %s~ %s~\n", aura->name, aura->long_descr);
+		}
+		iterator_stop(&aurait);
 
 	/* write alias */
         for (pos = 0; pos < MAX_ALIAS; pos++)
-	{
-	    if (ch->pcdata->alias[pos] == NULL
-	    ||  ch->pcdata->alias_sub[pos] == NULL)
-		break;
+		{
+			if (ch->pcdata->alias[pos] == NULL
+			||  ch->pcdata->alias_sub[pos] == NULL)
+			break;
 
-	    fprintf(fp,"Alias %s %s~\n",ch->pcdata->alias[pos],
-		    ch->pcdata->alias_sub[pos]);
-	}
+			fprintf(fp,"Alias %s %s~\n",ch->pcdata->alias[pos],
+				ch->pcdata->alias_sub[pos]);
+		}
 
 	/*
 	// Save song list
@@ -625,14 +625,17 @@ void fwrite_char(CHAR_DATA *ch, FILE *fp)
 	}
 	*/
 
-	for (gn = 0; gn < MAX_GROUP; gn++)
-        {
-            if (group_table[gn].name != NULL && ch->pcdata->group_known[gn])
-            {
-                fprintf(fp, "Gr '%s'\n",group_table[gn].name);
-            }
-        }
-    }
+		// TODO: Getting segfaults here
+		ITERATOR git;
+		SKILL_GROUP *group;
+		iterator_start(&git, ch->pcdata->group_known);
+		while((group = (SKILL_GROUP *)iterator_nextdata(&git)))
+		{
+			if (IS_VALID(group))
+				fprintf(fp, "Gr '%s'\n", group->name);
+		}
+		iterator_stop(&git);
+	}
 
     for (paf = ch->affected; paf != NULL; paf = paf->next)
     {
@@ -1426,18 +1429,19 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 
 	    if (!str_cmp(word, "Group")  || !str_cmp(word,"Gr"))
             {
-                int gn;
                 char *temp;
 
                 temp = fread_word(fp) ;
-                gn = group_lookup(temp);
-                if (gn < 0)
+                SKILL_GROUP *group = group_lookup(temp);
+                if (!IS_VALID(group))
                 {
                     sprintf(buf, "fread_char: unknown group %s.", temp);
-		    log_string(buf);
+				    log_string(buf);
                 }
                 else
-                	ch->pcdata->group_known[gn] = TRUE;
+				{
+					list_appendlink(ch->pcdata->group_known, group);
+				}
 
 				fMatch = TRUE;
 				break;
@@ -2531,6 +2535,66 @@ void fwrite_obj_multityping(FILE *fp, OBJ_DATA *obj)
 
 		fprintf(fp, "#-TYPEPORTAL\n");
 	}
+
+	if (IS_SCROLL(obj))
+	{
+		fprintf(fp, "#TYPESCROLL\n");
+
+		fprintf(fp, "MaxMana %d\n", SCROLL(obj)->max_mana);
+		fprintf(fp, "Flags %s\n", print_flags(SCROLL(obj)->flags));
+
+		ITERATOR sit;
+		SPELL_DATA *spell;
+		iterator_start(&sit, SCROLL(obj)->spells);
+		while((spell = (SPELL_DATA *)iterator_nextdata(&sit)))
+		{
+			fprintf(fp, "Spell %s~ %d\n", spell->skill->name, spell->level);
+		}
+		iterator_stop(&sit);
+
+		fprintf(fp, "#-TYPESCROLL\n");
+	}
+
+	if (IS_TATTOO(obj))
+	{
+		fprintf(fp, "#TYPETATTOO\n");
+
+		fprintf(fp, "Touches %d\n", TATTOO(obj)->touches);
+		fprintf(fp, "FadeChance %d\n", TATTOO(obj)->fading_chance);
+		fprintf(fp, "FadeRate %d\n", TATTOO(obj)->fading_rate);
+
+		ITERATOR sit;
+		SPELL_DATA *spell;
+		iterator_start(&sit, TATTOO(obj)->spells);
+		while((spell = (SPELL_DATA *)iterator_nextdata(&sit)))
+		{
+			fprintf(fp, "Spell %s~ %d\n", spell->skill->name, spell->level);
+		}
+		iterator_stop(&sit);
+
+		fprintf(fp, "#-TYPETATTOO\n");
+	}
+
+	if (IS_WAND(obj))
+	{
+		fprintf(fp, "#TYPEWAND\n");
+
+		fprintf(fp, "Charges %d\n", WAND(obj)->charges);
+		fprintf(fp, "MaxCharges %d\n", WAND(obj)->max_charges);
+		fprintf(fp, "Cooldown %d\n", WAND(obj)->cooldown);
+		fprintf(fp, "RechargeTime %d\n", WAND(obj)->recharge_time);
+
+		ITERATOR sit;
+		SPELL_DATA *spell;
+		iterator_start(&sit, WAND(obj)->spells);
+		while((spell = (SPELL_DATA *)iterator_nextdata(&sit)))
+		{
+			fprintf(fp, "Spell %s~ %d\n", spell->skill->name, spell->level);
+		}
+		iterator_stop(&sit);
+
+		fprintf(fp, "#-TYPEWAND\n");
+	}
 }
 
 
@@ -3622,6 +3686,182 @@ PORTAL_DATA *fread_obj_portal_data(FILE *fp)
 	return data;
 }
 
+SCROLL_DATA *fread_obj_scroll_data(FILE *fp)
+{
+	SCROLL_DATA *data = NULL;
+	char buf[MSL];
+    char *word;
+	bool fMatch;
+
+	data = new_scroll_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPESCROLL"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+			case 'F':
+				KEY("Flags", data->flags, fread_flag(fp));
+				break;
+
+			case 'M':
+				KEY("MaxMana", data->max_mana, fread_number(fp));
+				break;
+
+			case 'S':
+				if (!str_cmp(word, "Spell"))
+				{
+					char *name = fread_string(fp);
+					int level = fread_number(fp);
+
+					SKILL_DATA *skill = get_skill_data(name);
+					if (IS_VALID(skill) && is_skill_spell(skill))
+					{
+						SPELL_DATA *spell = new_spell();
+						spell->skill = skill;
+						spell->level = level;
+						spell->repop = 100;
+						spell->next = NULL;
+
+						list_appendlink(data->spells, spell);
+					}
+
+					fMatch = true;
+					break;
+				}
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "fread_obj_scroll_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
+
+TATTOO_DATA *fread_obj_tattoo_data(FILE *fp)
+{
+	TATTOO_DATA *data = NULL;
+	char buf[MSL];
+    char *word;
+	bool fMatch;
+
+	data = new_tattoo_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPETATTOO"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+			case 'F':
+				KEY("FadeChance", data->fading_chance, fread_number(fp));
+				KEY("FadeRate", data->fading_rate, fread_number(fp));
+				break;
+
+			case 'S':
+				if (!str_cmp(word, "Spell"))
+				{
+					char *name = fread_string(fp);
+					int level = fread_number(fp);
+
+					SKILL_DATA *skill = get_skill_data(name);
+					if (IS_VALID(skill) && is_skill_spell(skill))
+					{
+						SPELL_DATA *spell = new_spell();
+						spell->skill = skill;
+						spell->level = level;
+						spell->repop = 100;
+						spell->next = NULL;
+
+						list_appendlink(data->spells, spell);
+					}
+
+					fMatch = true;
+					break;
+				}
+				break;
+
+			case 'T':
+				KEY("Touches", data->touches, fread_number(fp));
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "fread_obj_tattoo_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
+
+WAND_DATA *fread_obj_wand_data(FILE *fp)
+{
+	WAND_DATA *data = NULL;
+	char buf[MSL];
+    char *word;
+	bool fMatch;
+
+	data = new_wand_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPEWAND"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+			case 'C':
+				KEY("Charges", data->charges, fread_number(fp));
+				KEY("Cooldown", data->cooldown, fread_number(fp));
+				break;
+
+			case 'M':
+				KEY("MaxCharges", data->max_charges, fread_number(fp));
+				break;
+
+			case 'R':
+				KEY("RechargeTime", data->recharge_time, fread_number(fp));
+				break;
+
+			case 'S':
+				if (!str_cmp(word, "Spell"))
+				{
+					char *name = fread_string(fp);
+					int level = fread_number(fp);
+
+					SKILL_DATA *skill = get_skill_data(name);
+					if (IS_VALID(skill) && is_skill_spell(skill))
+					{
+						SPELL_DATA *spell = new_spell();
+						spell->skill = skill;
+						spell->level = level;
+						spell->repop = 100;
+						spell->next = NULL;
+
+						list_appendlink(data->spells, spell);
+					}
+
+					fMatch = true;
+					break;
+				}
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "fread_obj_wand_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
+
+
+
 
 void fread_obj_reset_multityping(OBJ_DATA *obj)
 {
@@ -3634,6 +3874,9 @@ void fread_obj_reset_multityping(OBJ_DATA *obj)
 	free_money_data(MONEY(obj));			MONEY(obj) = NULL;
 	free_book_page(PAGE(obj));				PAGE(obj) = NULL;
 	free_portal_data(PORTAL(obj));			PORTAL(obj) = NULL;
+	free_scroll_data(SCROLL(obj));			SCROLL(obj) = NULL;
+	free_tattoo_data(TATTOO(obj));			TATTOO(obj) = NULL;
+	free_wand_data(WAND(obj));				WAND(obj) = NULL;
 }
 
 void fread_obj_check_version(OBJ_DATA *obj, long values[MAX_OBJVALUES])
@@ -3971,6 +4214,30 @@ OBJ_DATA *fread_obj_new(FILE *fp)
 				if (IS_PORTAL(obj)) free_portal_data(PORTAL(obj));
 
 				PORTAL(obj) = fread_obj_portal_data(fp);
+				fMatch = TRUE;
+				break;
+			}
+			if (!str_cmp(word, "#TYPESCROLL"))
+			{
+				if (IS_SCROLL(obj)) free_scroll_data(SCROLL(obj));
+
+				SCROLL(obj) = fread_obj_scroll_data(fp);
+				fMatch = TRUE;
+				break;
+			}
+			if (!str_cmp(word, "#TYPETATTOO"))
+			{
+				if (IS_TATTOO(obj)) free_tattoo_data(TATTOO(obj));
+
+				TATTOO(obj) = fread_obj_tattoo_data(fp);
+				fMatch = TRUE;
+				break;
+			}
+			if (!str_cmp(word, "#TYPEWAND"))
+			{
+				if (IS_WAND(obj)) free_wand_data(WAND(obj));
+
+				WAND(obj) = fread_obj_wand_data(fp);
 				fMatch = TRUE;
 				break;
 			}
@@ -4893,10 +5160,17 @@ void fix_character(CHAR_DATA *ch)
     ch->size = pc_race_table[ch->race].size;
     ch->dam_type = 17; /*punch */
 
-	// Add groups it should know
-    for(i=0;i < MAX_GROUP; i++)
-    	if( ch->pcdata->group_known[i] )
-    		gn_add(ch, i);
+	LLIST *groups = ch->pcdata->group_known;
+	ch->pcdata->group_known = list_create(FALSE);
+	ITERATOR git;
+	SKILL_GROUP *group;
+	iterator_start(&git, groups);
+	while((group = (SKILL_GROUP *)iterator_nextdata(&git)))
+	{
+		gn_add(ch, group);
+	}
+	iterator_stop(&git);
+	list_destroy(groups);
 
     /* make sure they have any new race skills */
     for (i = 0; pc_race_table[ch->race].skills[i] != NULL; i++)
@@ -5175,12 +5449,13 @@ bool missing_class(CHAR_DATA *ch)
     else return FALSE;
 }
 
-
+// TODO: AUDIT: do we still need this
 /* Check for screwed up subclasses. Ie people who have a mage class
    where their warrior class should be. No clue how it originally happened
    but here is the fix based on skill group.*/
 void descrew_subclasses(CHAR_DATA *ch)
 {
+#if 0
     char buf[MSL];
 
     if (ch == NULL)
@@ -5261,6 +5536,7 @@ void descrew_subclasses(CHAR_DATA *ch)
 //	    sub_class_table[ch->pcdata->sub_class_warrior].name);
 //	send_to_char(buf, ch);
     }
+#endif
 }
 
 
@@ -5348,26 +5624,33 @@ void fix_broken_classes(CHAR_DATA *ch)
 // Find out if a player has a skill, ANY skill, which belongs to a general class.
 bool find_class_skill(CHAR_DATA *ch, int class)
 {
-    int gn;
-    int i;
+    SKILL_GROUP *group;
+
 
     switch (class)
     {
-	case CLASS_MAGE: 	gn = group_lookup("mage skills"); 	break;
-	case CLASS_CLERIC:	gn = group_lookup("cleric skills");	break;
-	case CLASS_THIEF:	gn = group_lookup("thief skills");	break;
-	case CLASS_WARRIOR:	gn = group_lookup("warrior skills");	break;
+	case CLASS_MAGE: 	group = group_lookup("mage skills"); 	break;
+	case CLASS_CLERIC:	group = group_lookup("cleric skills");	break;
+	case CLASS_THIEF:	group = group_lookup("thief skills");	break;
+	case CLASS_WARRIOR:	group = group_lookup("warrior skills");	break;
 	default:
 	    bug("find_class_skill: bad class.", 0);
 	    return FALSE;
     }
 
-    for (i = 0; group_table[gn].spells[i] != NULL; i++) {
-		if (get_skill(ch, get_skill_data(group_table[gn].spells[i])) > 0)
-		    return TRUE;
-    }
+	if(!IS_VALID(group)) return false;
 
-    return FALSE;
+	ITERATOR sit;
+	char *str;
+	iterator_start(&sit, group->contents);
+	while((str = (char *)iterator_nextdata(&sit)))
+	{
+		if (get_skill(ch, get_skill_data(str)) > 0)
+			break;
+	}
+	iterator_stop(&sit);
+
+	return str != NULL;
 }
 
 
@@ -5564,6 +5847,7 @@ void fread_skill(FILE *fp, CHAR_DATA *ch)
 				ch->pcdata->songs_learned[song] = TRUE;
 				skill_entry_addsong(ch, song, NULL, source);
 			} else if(IS_VALID(skill)) {
+				//log_stringf("Adding %s '%s' to %s", (is_skill_spell(skill)?"Spell":"Skill"), skill->name, ch->name);
 				if( is_skill_spell(skill) )
 					entry = skill_entry_addspell(ch, skill, token, source, flags);
 				else

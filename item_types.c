@@ -186,24 +186,6 @@ bool obj_index_can_add_item_type(OBJ_INDEX_DATA *pObjIndex, int item_type)
 			if (item_type == ITEM_LIGHT) return TRUE;
 			return FALSE;
 
-		case ITEM_WEAPON:
-			if (item_type == ITEM_LIGHT) return TRUE;
-			if (item_type == ITEM_STAFF) return TRUE;
-			if (item_type == ITEM_WAND) return TRUE;
-			return FALSE;
-
-		case ITEM_WAND:
-			if (item_type == ITEM_LIGHT) return TRUE;
-			if (item_type == ITEM_STAFF) return TRUE;
-			if (item_type == ITEM_WEAPON) return TRUE;
-			return FALSE;
-
-		case ITEM_STAFF:
-			if (item_type == ITEM_LIGHT) return TRUE;
-			if (item_type == ITEM_WAND) return TRUE;
-			if (item_type == ITEM_WEAPON) return TRUE;
-			return FALSE;
-
 		case ITEM_RANGED_WEAPON:
 			if (item_type == ITEM_ARMOUR) return TRUE;
 			if (item_type == ITEM_CONTAINER) return TRUE;
@@ -230,6 +212,22 @@ bool obj_index_can_add_item_type(OBJ_INDEX_DATA *pObjIndex, int item_type)
 			if (item_type == ITEM_FURNITURE) return TRUE;
 			if (item_type == ITEM_FLUID_CONTAINER) return TRUE;
 			if (item_type == ITEM_CART) return TRUE;
+			return FALSE;
+
+		case ITEM_SCROLL:
+			return FALSE;
+
+		case ITEM_TATTOO:
+			return FALSE;
+
+		case ITEM_WAND:
+			if (item_type == ITEM_LIGHT) return TRUE;
+			if (item_type == ITEM_WEAPON) return TRUE;
+			return FALSE;
+
+		case ITEM_WEAPON:
+			if (item_type == ITEM_LIGHT) return TRUE;
+			if (item_type == ITEM_WAND) return TRUE;
 			return FALSE;
 	}
 

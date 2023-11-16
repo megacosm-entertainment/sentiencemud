@@ -363,6 +363,7 @@ extern	const struct flag_type trigger_slots[];
 extern	const struct flag_type builtin_trigger_types[];
 extern	const struct flag_type script_spaces[];
 extern	const struct flag_type light_flags[];
+extern	const struct flag_type scroll_flags[];
 
 extern	const	struct	flag_type	food_buff_types[];
 extern	const	struct	flag_type	compartment_flags[];

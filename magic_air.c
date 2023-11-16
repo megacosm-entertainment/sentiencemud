@@ -37,7 +37,7 @@ SPELL_FUNC(spell_faerie_fog)
 			continue;
 
 		// Umm, O.o  Wouldn't this expose something that's hidden?
-		if (!check_spell_deflection(ch, ich, skill))
+		if (!check_spell_deflection(ch, ich, skill, NULL))
 			continue;
 
 		affect_strip(ich, gsk_invis);
@@ -145,7 +145,7 @@ SPELL_FUNC(spell_wind_of_confusion)
 
 	for (vch = ch->in_room->people; vch; vch = vch->next_in_room) {
 		if (!is_same_group(ch, vch) && ch->fighting && is_same_group(ch->fighting, vch)) {
-			if (!check_spell_deflection(ch, vch, skill))
+			if (!check_spell_deflection(ch, vch, skill, NULL))
 				continue;
 
 			if (saves_spell(level, vch, DAM_NONE)) {

@@ -575,7 +575,7 @@ void do_cast(CHAR_DATA *ch, char *argument)
 
 	if ( IS_VALID(spell->token) ) {
 		// Check thst the token is a valid token spell
-		script = get_script_token(spell->token, TRIG_SPELL, TRIGSLOT_SPELL);
+		script = get_script_token(spell->token->pIndexData, TRIG_SPELL, TRIGSLOT_SPELL);
 
 		if(!script) {
 			// Give some indication that the spell token is broken
@@ -973,10 +973,13 @@ void cast_end(CHAR_DATA *ch)
 		if (is_pulling_relic(victim) && (type == TAR_CHAR_OFFENSIVE || type == TAR_OBJ_CHAR_OFF))
 			set_pk_timer(ch, victim, PULSE_VIOLENCE * 4);
 
+
 		id[0] = token->id[0];
 		id[1] = token->id[1];
+
 		if (target == TARGET_CHAR && victim && IS_AFFECTED2(victim, AFF2_SPELL_DEFLECTION)) {
-			if (check_spell_deflection_token(ch, victim, token, script,ch->cast_target_name)) {
+			// TODO: Make this work with the correct trigger
+			if (check_spell_deflection_token(ch, victim, token, script, ch->cast_target_name)) {
 				execute_script(script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, victim, NULL, NULL, NULL,ch->cast_target_name,NULL,TRIG_NONE,0,0,0,0,0);
 			}
 		} else {
@@ -987,8 +990,7 @@ void cast_end(CHAR_DATA *ch)
 		if(IS_VALID(token) && id[0] == token->id[0] && id[1] == token->id[1]) {
 			// If we don't do a skill test before the code is executed,
 			//	then successful casting also does no test
-			if(!IS_SET(token->pIndexData->flags,TOKEN_NOSKILLTEST))
-				check_improve(ch,skill,true,1);
+			check_improve(ch,skill,true,1);
 		}
 
 	} else {
@@ -1026,12 +1028,10 @@ void cast_end(CHAR_DATA *ch)
 			}
 		}
 
-		if (target == TARGET_CHAR && victim && IS_AFFECTED2(victim, AFF2_SPELL_DEFLECTION)) {
-			if (check_spell_deflection(ch, victim, skill))
-				(*skill->spell_fun) (skill, ch->tot_level, ch, vo, target, WEAR_NONE);
-		} else
+		if (target != TARGET_CHAR || victim == NULL ||
+			!IS_AFFECTED2(victim, AFF2_SPELL_DEFLECTION) || check_spell_deflection(ch, victim, skill, NULL)) {
 			(*skill->spell_fun) (skill, ch->tot_level, ch, vo, target, WEAR_NONE);
-
+		}
 
 		check_improve(ch,skill,!ch->casting_recovered,1);
 	}
@@ -1179,7 +1179,7 @@ void obj_cast_spell(SKILL_DATA *skill, int level, CHAR_DATA *ch, CHAR_DATA *vict
 
     if (target == TARGET_CHAR && victim != NULL)
     {
-		if (check_spell_deflection(ch, victim, skill))
+		if (check_spell_deflection(ch, victim, skill, NULL))
 	    	(*(skill->spell_fun)) (skill, level, ch, vo, target, wear_loc);
     }
     else
@@ -1302,7 +1302,7 @@ void obj_cast(int sn, int level, OBJ_DATA *obj, ROOM_INDEX_DATA *room, char *arg
 	if (is_affected(victim, sn))
 	    return;
 
-	if (!check_spell_deflection(ch, victim, sn)) {
+	if (!check_spell_deflection(ch, victim, sn, NULL)) {
 	    extract_char(ch, TRUE);
 	    return;
 	}

@@ -1043,6 +1043,66 @@ void save_object_multityping(FILE *fp, OBJ_INDEX_DATA *obj)
 
 		fprintf(fp, "#-TYPEPORTAL\n");
 	}
+
+	if (IS_SCROLL(obj))
+	{
+		fprintf(fp, "#TYPESCROLL\n");
+
+		fprintf(fp, "MaxMana %d\n", SCROLL(obj)->max_mana);
+		fprintf(fp, "Flags %s\n", print_flags(SCROLL(obj)->flags));
+
+		ITERATOR sit;
+		SPELL_DATA *spell;
+		iterator_start(&sit, SCROLL(obj)->spells);
+		while((spell = (SPELL_DATA *)iterator_nextdata(&sit)))
+		{
+			fprintf(fp, "Spell %s~ %d\n", spell->skill->name, spell->level);
+		}
+		iterator_stop(&sit);
+
+		fprintf(fp, "#-TYPESCROLL\n");
+	}
+
+	if (IS_TATTOO(obj))
+	{
+		fprintf(fp, "#TYPETATTOO\n");
+
+		fprintf(fp, "Touches %d\n", TATTOO(obj)->touches);
+		fprintf(fp, "FadeChance %d\n", TATTOO(obj)->fading_chance);
+		fprintf(fp, "FadeRate %d\n", TATTOO(obj)->fading_rate);
+
+		ITERATOR sit;
+		SPELL_DATA *spell;
+		iterator_start(&sit, TATTOO(obj)->spells);
+		while((spell = (SPELL_DATA *)iterator_nextdata(&sit)))
+		{
+			fprintf(fp, "Spell %s~ %d\n", spell->skill->name, spell->level);
+		}
+		iterator_stop(&sit);
+
+		fprintf(fp, "#-TYPETATTOO\n");
+	}
+
+	if (IS_WAND(obj))
+	{
+		fprintf(fp, "#TYPEWAND\n");
+
+		fprintf(fp, "Charges %d\n", WAND(obj)->charges);
+		fprintf(fp, "MaxCharges %d\n", WAND(obj)->max_charges);
+		fprintf(fp, "Cooldown %d\n", WAND(obj)->cooldown);
+		fprintf(fp, "RechargeTime %d\n", WAND(obj)->recharge_time);
+
+		ITERATOR sit;
+		SPELL_DATA *spell;
+		iterator_start(&sit, WAND(obj)->spells);
+		while((spell = (SPELL_DATA *)iterator_nextdata(&sit)))
+		{
+			fprintf(fp, "Spell %s~ %d\n", spell->skill->name, spell->level);
+		}
+		iterator_stop(&sit);
+
+		fprintf(fp, "#-TYPEWAND\n");
+	}
 }
 
 /* save one object */
@@ -1297,7 +1357,7 @@ void save_script_new(FILE *fp, AREA_DATA *area,SCRIPT_DATA *scr,char *type)
 {
 	fprintf(fp, "#%sPROG %ld\n", type, (long int)scr->vnum);
 	fprintf(fp, "Name %s~\n", scr->name ? scr->name : "");
-	fprintf(fp, "Code %s~\n", scr->code ? scr->src : scr->edit_src);
+	fprintf(fp, "Code %s~\n", fix_string(scr->code ? scr->src : scr->edit_src));
 	fprintf(fp, "Flags %s~\n", flag_string(script_flags, scr->flags));
 	fprintf(fp, "Depth %d\n", scr->depth);
 	fprintf(fp, "Security %d\n", scr->security);
@@ -3289,6 +3349,182 @@ PORTAL_DATA *read_object_portal_data(FILE *fp)
 }
 
 
+SCROLL_DATA *read_object_scroll_data(FILE *fp)
+{
+	SCROLL_DATA *data = NULL;
+	char buf[MSL];
+    char *word;
+	bool fMatch;
+
+	data = new_scroll_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPESCROLL"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+			case 'F':
+				KEY("Flags", data->flags, fread_flag(fp));
+				break;
+
+			case 'M':
+				KEY("MaxMana", data->max_mana, fread_number(fp));
+				break;
+
+			case 'S':
+				if (!str_cmp(word, "Spell"))
+				{
+					char *name = fread_string(fp);
+					int level = fread_number(fp);
+
+					SKILL_DATA *skill = get_skill_data(name);
+					if (IS_VALID(skill) && is_skill_spell(skill))
+					{
+						SPELL_DATA *spell = new_spell();
+						spell->skill = skill;
+						spell->level = level;
+						spell->repop = 100;
+						spell->next = NULL;
+
+						list_appendlink(data->spells, spell);
+					}
+
+					fMatch = true;
+					break;
+				}
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "read_object_scroll_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
+
+TATTOO_DATA *read_object_tattoo_data(FILE *fp)
+{
+	TATTOO_DATA *data = NULL;
+	char buf[MSL];
+    char *word;
+	bool fMatch;
+
+	data = new_tattoo_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPETATTOO"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+			case 'F':
+				KEY("FadeChance", data->fading_chance, fread_number(fp));
+				KEY("FadeRate", data->fading_rate, fread_number(fp));
+				break;
+
+			case 'S':
+				if (!str_cmp(word, "Spell"))
+				{
+					char *name = fread_string(fp);
+					int level = fread_number(fp);
+
+					SKILL_DATA *skill = get_skill_data(name);
+					if (IS_VALID(skill) && is_skill_spell(skill))
+					{
+						SPELL_DATA *spell = new_spell();
+						spell->skill = skill;
+						spell->level = level;
+						spell->repop = 100;
+						spell->next = NULL;
+
+						list_appendlink(data->spells, spell);
+					}
+
+					fMatch = true;
+					break;
+				}
+				break;
+
+			case 'T':
+				KEY("Touches", data->touches, fread_number(fp));
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "read_object_tattoo_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
+
+WAND_DATA *read_object_wand_data(FILE *fp)
+{
+	WAND_DATA *data = NULL;
+	char buf[MSL];
+    char *word;
+	bool fMatch;
+
+	data = new_wand_data();
+
+    while (str_cmp((word = fread_word(fp)), "#-TYPEWAND"))
+	{
+		fMatch = FALSE;
+
+		switch(word[0])
+		{
+			case 'C':
+				KEY("Charges", data->charges, fread_number(fp));
+				KEY("Cooldown", data->cooldown, fread_number(fp));
+				break;
+
+			case 'M':
+				KEY("MaxCharges", data->max_charges, fread_number(fp));
+				break;
+
+			case 'R':
+				KEY("RechargeTime", data->recharge_time, fread_number(fp));
+				break;
+
+			case 'S':
+				if (!str_cmp(word, "Spell"))
+				{
+					char *name = fread_string(fp);
+					int level = fread_number(fp);
+
+					SKILL_DATA *skill = get_skill_data(name);
+					if (IS_VALID(skill) && is_skill_spell(skill))
+					{
+						SPELL_DATA *spell = new_spell();
+						spell->skill = skill;
+						spell->level = level;
+						spell->repop = 100;
+						spell->next = NULL;
+
+						list_appendlink(data->spells, spell);
+					}
+
+					fMatch = true;
+					break;
+				}
+				break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "read_object_wand_data: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return data;
+}
+
+
+
 /* read one object into an area */
 OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 {
@@ -3362,6 +3598,18 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 			} else if (!str_cmp(word, "#TYPEPORTAL")) {
 				if (IS_PORTAL(obj)) free_portal_data(PORTAL(obj));
 				PORTAL(obj) = read_object_portal_data(fp);
+				fMatch = TRUE;
+			} else if (!str_cmp(word, "#TYPESCROLL")) {
+				if (IS_SCROLL(obj)) free_scroll_data(SCROLL(obj));
+				SCROLL(obj) = read_object_scroll_data(fp);
+				fMatch = TRUE;
+			} else if (!str_cmp(word, "#TYPETATTOO")) {
+				if (IS_TATTOO(obj)) free_tattoo_data(TATTOO(obj));
+				TATTOO(obj) = read_object_tattoo_data(fp);
+				fMatch = TRUE;
+			} else if (!str_cmp(word, "#TYPEWAND")) {
+				if (IS_WAND(obj)) free_wand_data(WAND(obj));
+				WAND(obj) = read_object_wand_data(fp);
 				fMatch = TRUE;
 			}
 			break;
@@ -3793,6 +4041,76 @@ OBJ_INDEX_DATA *read_object_new(FILE *fp, AREA_DATA *area)
 
 			BOOK(obj)->lock = obj->lock;
 			obj->lock = NULL;
+		}
+	}
+
+	if (area->version_object < VERSION_OBJECT_012)
+	{
+		if (obj->item_type == ITEM_BLANK_SCROLL)
+		{
+			// Convert to ITEM_SCROLL with no spells
+			if(!IS_SCROLL(obj)) SCROLL(obj) = new_scroll_data();
+
+			SCROLL(obj)->max_mana = (values[0] > 0) ? values[0] : 200;
+			obj->item_type = ITEM_SCROLL;
+		}
+		else if (obj->item_type == ITEM_EMPTY_VIAL)
+		{
+			// Convert to ITEM_FLUID_CONTAINER with no spells
+			if(!IS_FLUID_CON(obj)) FLUID_CON(obj) = new_fluid_container_data();
+
+			FLUID_CON(obj)->amount = LIQ_SERVING;
+			FLUID_CON(obj)->capacity = LIQ_SERVING;
+			FLUID_CON(obj)->liquid = liquid_water;
+
+			obj->item_type = ITEM_FLUID_CONTAINER;
+		}
+		else if (obj->item_type == ITEM_SCROLL)
+		{
+			if(!IS_SCROLL(obj)) SCROLL(obj) = new_scroll_data();
+
+			SCROLL(obj)->max_mana = 0;
+
+			SPELL_DATA *spell, *spell_next;
+			for(spell = obj->spells; spell; spell = spell_next)
+			{
+				spell_next = spell->next;
+				spell->next = NULL;
+				list_appendlink(SCROLL(obj)->spells, spell);
+			}
+			obj->spells = NULL;
+		}
+		else if (obj->item_type == ITEM_TATTOO)
+		{
+			if(!IS_TATTOO(obj)) TATTOO(obj) = new_tattoo_data();
+
+			TATTOO(obj)->touches = values[0];
+			TATTOO(obj)->fading_chance = values[1];
+
+			SPELL_DATA *spell, *spell_next;
+			for(spell = obj->spells; spell; spell = spell_next)
+			{
+				spell_next = spell->next;
+				spell->next = NULL;
+				list_appendlink(TATTOO(obj)->spells, spell);
+			}
+			obj->spells = NULL;
+		}
+		else if (obj->item_type == ITEM_WAND)
+		{
+			if(!IS_WAND(obj)) WAND(obj) = new_wand_data();
+
+			WAND(obj)->charges = values[2];
+			WAND(obj)->max_charges = values[1];
+
+			SPELL_DATA *spell, *spell_next;
+			for(spell = obj->spells; spell; spell = spell_next)
+			{
+				spell_next = spell->next;
+				spell->next = NULL;
+				list_appendlink(WAND(obj)->spells, spell);
+			}
+			obj->spells = NULL;
 		}
 	}
 

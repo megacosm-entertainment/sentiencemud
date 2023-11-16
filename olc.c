@@ -53,6 +53,7 @@ char *editor_name_table[] = {
 	"DpEdit",
 	"SkEdit",
 	"LiqEdit",
+	"SgEdit",
 };
 
 const struct editor_cmd_type editor_table[] =
@@ -77,6 +78,7 @@ const struct editor_cmd_type editor_table[] =
 	{ "dpcode",		do_dpedit	},
 	{ "skill",		do_skedit	},
 	{ "liquid",		do_liqedit	},
+	{ "skillgroup",	do_sgedit	},
 	{ NULL,			0,			}
 };
 
@@ -211,9 +213,11 @@ const struct olc_cmd_type oedit_table[] =
 	{ "portal",			oedit_type_portal		},
 	{ "prev",			oedit_prev				},
 	{ "scriptkwd",		oedit_skeywds			},
+	{ "scroll",			oedit_type_scroll		},
 	{ "short",			oedit_short				},
 	{ "show",			oedit_show				},
 	{ "sign",			oedit_sign				},
+	{ "tattoo",			oedit_type_tattoo		},
 	{ "timer",			oedit_timer				},
 	{ "type",			oedit_type				},
 	{ "v0",				oedit_value0			},
@@ -226,6 +230,7 @@ const struct olc_cmd_type oedit_table[] =
 	{ "v7",				oedit_value7			},
 	{ "varclear",		oedit_varclear			},
 	{ "varset",			oedit_varset			},
+	{ "wand",			oedit_type_wand			},
 	{ "waypoints",		oedit_waypoints			},
 	{ "wear",			oedit_wear				},
 	{ "weight",			oedit_weight			},
@@ -496,6 +501,9 @@ bool run_olc_editor(DESCRIPTOR_DATA *d)
 	case ED_LIQEDIT:
 		liqedit(d->character, d->incomm);
 		break;
+	case ED_SGEDIT:
+		sgedit(d->character, d->incomm);
+		break;
 
 	default:
 		return FALSE;
@@ -532,6 +540,7 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 	BLUEPRINT *blueprint;
 	DUNGEON_INDEX_DATA *dungeon;
 	SKILL_DATA *skill;
+	SKILL_GROUP *group;
 	LIQUID *liquid;
 	static char buf[20];
 	char buf2[MSL];
@@ -578,6 +587,13 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 			sprintf(buf, "%s:%d", liquid->name, liquid->uid);
 		else
 			sprintf(buf, "--:--");
+		break;
+	case ED_SGEDIT:
+		group = (SKILL_GROUP *)ch->desc->pEdit;
+		if (group)
+			sprintf(buf, "%s", group->name);
+		else
+			sprintf(buf, "--");
 		break;
 	case ED_HELP:
 		{
@@ -785,6 +801,11 @@ bool show_commands(CHAR_DATA *ch, char *argument)
 	case ED_LIQEDIT:
 		show_olc_cmds(ch, liqedit_table);
 		break;
+
+	case ED_SGEDIT:
+		show_olc_cmds(ch, sgedit_table);
+		break;
+
 	}
 
 	return FALSE;
@@ -3878,6 +3899,9 @@ void obj_index_reset_multitype(OBJ_INDEX_DATA *pObjIndex)
 	free_light_data(LIGHT(pObjIndex));				LIGHT(pObjIndex) = NULL;
 	free_money_data(MONEY(pObjIndex));				MONEY(pObjIndex) = NULL;
 	free_portal_data(PORTAL(pObjIndex));			PORTAL(pObjIndex) = NULL;
+	free_scroll_data(SCROLL(pObjIndex));			SCROLL(pObjIndex) = NULL;
+	free_tattoo_data(TATTOO(pObjIndex));			TATTOO(pObjIndex) = NULL;
+	free_wand_data(WAND(pObjIndex));				WAND(pObjIndex) = NULL;
 }
 
 void obj_index_set_primarytype(OBJ_INDEX_DATA *pObjIndex, int item_type)
@@ -3895,6 +3919,10 @@ void obj_index_set_primarytype(OBJ_INDEX_DATA *pObjIndex, int item_type)
 		case ITEM_FURNITURE:	FURNITURE(pObjIndex) = new_furniture_data(); break;
 		case ITEM_LIGHT:		LIGHT(pObjIndex) = new_light_data(); break;
 		case ITEM_MONEY:		MONEY(pObjIndex) = new_money_data(); break;
+		case ITEM_PORTAL:		PORTAL(pObjIndex) = new_portal_data(); break;
+		case ITEM_SCROLL:		SCROLL(pObjIndex) = new_scroll_data(); break;
+		case ITEM_TATTOO:		TATTOO(pObjIndex) = new_tattoo_data(); break;
+		case ITEM_WAND:			WAND(pObjIndex) = new_wand_data(); break;
 	}
 }
 
@@ -4005,7 +4033,6 @@ const struct olc_cmd_type skedit_table[] =
 	//	"delete",		skedit_delete		},		// TODO: Need to be abke to track usage first
 	{	"difficulty",	skedit_difficulty	},
 	{	"display",		skedit_display		},
-	{	"group",		skedit_group		},
 	{	"gsn",			skedit_gsn			},
 	{	"ink",			skedit_inkfunc		},
 	{	"inks",			skedit_inks			},
@@ -4063,6 +4090,28 @@ void do_sklist(CHAR_DATA *ch, char *argument)
 	skedit_list(ch, argument);
 }
 
+
+void do_skshow(CHAR_DATA *ch, char *argument)
+{
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  skshow <skill name>\n\r", ch);
+		return;
+	}
+
+	SKILL_DATA *skill = get_skill_data(argument);
+	if (!IS_VALID(skill))
+	{
+		send_to_char("There is no skill/spell with that name.\n\r", ch);
+		return;		
+	}
+
+	void *oldEdit = ch->desc->pEdit;
+	ch->desc->pEdit = skill;
+	skedit_show(ch, "");
+	ch->desc->pEdit = oldEdit;
+}
+
 void skedit(CHAR_DATA *ch, char *argument)
 {
 	char command[MIL];
@@ -4107,4 +4156,210 @@ void skedit(CHAR_DATA *ch, char *argument)
 	}
 
 	interpret(ch, arg);
+}
+
+const struct olc_cmd_type sgedit_table[] =
+{
+	{	"?",			show_help			},
+	{	"add",			sgedit_add			},
+	{	"commands",		show_commands		},
+	{	"create",		sgedit_create		},
+	{	"remove",		sgedit_remove		},
+	{	"show",			sgedit_show			},
+	{	NULL,			NULL				}
+};
+
+void do_sgedit(CHAR_DATA *ch, char *argument)
+{
+	SKILL_GROUP *group;
+    char command[MSL];
+
+ 	if ((group = group_lookup(argument)))
+	{
+		ch->desc->pEdit		= (void *)group;
+		ch->desc->editor	= ED_SGEDIT;
+		return;
+	}
+
+   argument = one_argument(argument, command);
+
+	if (!str_cmp(command, "create"))
+	{
+		sgedit_create(ch, argument);
+		return;
+	}
+
+	send_to_char("Syntax:  sgedit <name>\n\r", ch);
+	send_to_char("         sgedit create <name>\n\r", ch);
+}
+
+void show_skill_group(BUFFER *buffer, SKILL_GROUP *group)
+{
+	int j = 0;
+	char buf[MSL];
+	char skills[2 * MIL];
+
+	ITERATOR it;
+	char *str;
+	iterator_start(&it, group->contents);
+	while((str = (char *)iterator_nextdata(&it)))
+	{
+		if (j > 0)
+			j += sprintf(skills + j, ", %s", str);
+		else
+			j += sprintf(skills, "%s", str);
+
+		if (j >= 28)
+		{
+			skills[25] = '.';
+			skills[26] = '.';
+			skills[27] = '.';
+			j = 28;
+			break;
+		}
+	}
+	iterator_stop(&it);
+	skills[j] = '\0';
+
+	sprintf(buf, " {%c%-20.20s   %3d   %s{x\n\r", ((group == global_skills) ? 'Y' : 'x'), group->name, list_size(group->contents), skills);
+	add_buf(buffer, buf);
+}
+
+void do_sglist(CHAR_DATA *ch, char *argument)
+{
+	char buf[MSL];
+	BUFFER *buffer = new_buf();
+
+	ITERATOR it;
+	SKILL_GROUP *group;
+
+	add_buf(buffer, "Skill Groups:\n\r");
+	add_buf(buffer, "[        Name        ] [ # ] [    Skills/Spells/Groups    ]\n\r");
+	add_buf(buffer, "============================================================\n\r");
+
+	show_skill_group(buffer, global_skills);
+
+	iterator_start(&it, skill_groups_list);
+	while((group = (SKILL_GROUP *)iterator_nextdata(&it)))
+	{
+		show_skill_group(buffer, group);
+	}
+	iterator_stop(&it);
+
+	add_buf(buffer, "------------------------------------------------------------\n\r");
+	sprintf(buf, "Total: %d\n\r", list_size(skill_groups_list) + 1);
+	add_buf(buffer, buf);
+
+	if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+	{
+		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+	}
+	else
+	{
+		page_to_char(buffer->string, ch);
+	}
+
+	free_buf(buffer);
+}
+
+
+
+void do_sgshow(CHAR_DATA *ch, char *argument)
+{
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  sgshow <group name>\n\r", ch);
+		return;
+	}
+
+	SKILL_GROUP *group = group_lookup(argument);
+	if (!IS_VALID(group))
+	{
+		send_to_char("There is no group with that name.\n\r", ch);
+		return;
+	}
+
+	void *oldEdit = ch->desc->pEdit;
+	ch->desc->pEdit = group;
+	sgedit_show(ch, "");
+	ch->desc->pEdit = oldEdit;
+}
+
+void sgedit(CHAR_DATA *ch, char *argument)
+{
+	char command[MIL];
+	char arg[MIL];
+	int  cmd;
+
+	smash_tilde(argument);
+	strcpy(arg, argument);
+	argument = one_argument(argument, command);
+
+	if (get_trust(ch) < MAX_LEVEL)
+	{
+		send_to_char("SGEdit:  Insufficient security to edit skill groups - action logged.\n\r", ch);
+		edit_done(ch);
+		return;
+	}
+
+	if (!str_cmp(command, "done"))
+	{
+		edit_done(ch);
+		return;
+	}
+
+	ch->pcdata->immortal->last_olc_command = current_time;
+
+	if (command[0] == '\0')
+	{
+		sgedit_show(ch, argument);
+		return;
+	}
+
+	for (cmd = 0; sgedit_table[cmd].name != NULL; cmd++)
+	{
+		if (!str_prefix(command, sgedit_table[cmd].name))
+		{
+			if ((*sgedit_table[cmd].olc_fun) (ch, argument))
+			{
+				save_skills();
+			}
+			return;
+		}
+	}
+
+	interpret(ch, arg);
+}
+
+void olc_show_progs(BUFFER *buffer, LLIST **progs, const char *title)
+{
+	char buf[MSL];
+	int cnt, slot;
+
+	for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++)
+		if(list_size(progs[slot]) > 0) ++cnt;
+
+	if (cnt > 0) {
+		sprintf(buf, "{R%-6s %-20s %-20s %-10s\n\r{x", "Number", title, "Trigger", "Phrase");
+		add_buf(buffer, buf);
+
+		sprintf(buf, "{R%-6s %-20s %-20s %-10s\n\r{x", "------", "--------------------", "--------------------", "----------");
+		add_buf(buffer, buf);
+
+		for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
+			ITERATOR it;
+			PROG_LIST *trigger;
+			iterator_start(&it, progs[slot]);
+			while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
+				char wnum[MIL];
+				sprintf(wnum, "%ld#%ld", trigger->wnum.pArea ? trigger->wnum.pArea->uid : 0, trigger->wnum.vnum);
+				sprintf(buf, "{C[{W%4d{C]{x %-20s %-20s %s\n\r", cnt,
+					wnum,trigger_name(trigger->trig_type),
+					trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, FALSE, TRUE));
+				add_buf(buffer, buf);
+				cnt++;
+			}
+			iterator_stop(&it);
+		}
+	}
 }

@@ -837,6 +837,7 @@ void fix_short_description( char *short_descr )
 
 void do_dump( CHAR_DATA *ch, char *argument )
 {
+#if 0
     int i;
     int n;
     FILE *fp;
@@ -986,6 +987,9 @@ void do_dump( CHAR_DATA *ch, char *argument )
     }
 
     send_to_char("Syntax: dump <skills/objects/help>\n\r", ch );
+#else
+	send_to_char("Not functional pending rework.\n\r", ch);
+#endif
 }
 
 

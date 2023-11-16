@@ -602,6 +602,11 @@ DECLARE_DO_FUN( do_liqlist	);
 
 DECLARE_DO_FUN( do_skedit );
 DECLARE_DO_FUN( do_sklist );
+DECLARE_DO_FUN( do_skshow );
+
+DECLARE_DO_FUN( do_sgedit );
+DECLARE_DO_FUN( do_sglist );
+DECLARE_DO_FUN( do_sgshow );
 
 DECLARE_DO_FUN( do_readycheck );
 DECLARE_DO_FUN( do_ignite );

@@ -127,6 +127,7 @@ const struct olc_help_type help_table[] =
 	{	"rprog",				STRUCT_TRIGGERS,	dummy_triggers,				"RoomProgram types."	},
 	{	"scriptflags",			STRUCT_FLAGS,		script_flags,				"Script Flags {D({Wrestricted{D){x."	},
 	{   "script_spaces",		STRUCT_FLAGS,		script_spaces,				"Script spaces"	},
+	{	"scroll",				STRUCT_FLAGS,		scroll_flags,				"Scroll flags."	},
 	{	"section_flags",		STRUCT_FLAGS,		blueprint_section_flags,	"Blueprint Section Flags"	},
 	{	"section_type",			STRUCT_FLAGS,		blueprint_section_types,	"Blueprint Section Types"	},
 	{	"sector",				STRUCT_FLAGS,		sector_flags,				"Sector types, terrain."	},
@@ -756,6 +757,9 @@ AEDIT(aedit_show)
 	}
 	iterator_stop(&rit);
 
+	if (pArea->progs->progs)
+		olc_show_progs(buffer, pArea->progs->progs, "AreaProg Vnum");
+
 	olc_show_index_vars(buffer, pArea->index_vars);
 
     // Trade stuff. One trade center per area at most
@@ -1274,12 +1278,6 @@ AEDIT(aedit_regions)
 
 	if (!str_prefix(arg1, "name"))
 	{
-		if (list_size(pArea->regions) < 1)
-		{
-			send_to_char("Area has no regions defined.\n\r", ch);
-			return FALSE;
-		}
-
 		argument = one_argument(argument, arg2);
 
 		if (IS_NULLSTR(argument))
@@ -1295,6 +1293,12 @@ AEDIT(aedit_regions)
 		}
 		else
 		{
+			if (list_size(pArea->regions) < 1)
+			{
+				send_to_char("Area has no regions defined.\n\r", ch);
+				return FALSE;
+			}
+
 			if (!is_number(arg2))
 			{
 				send_to_char("Syntax:  regions name <#|default> <name>\n\r", ch);
@@ -1331,12 +1335,6 @@ AEDIT(aedit_regions)
 
 	if (!str_prefix(arg1, "description"))
 	{
-		if (list_size(pArea->regions) < 1)
-		{
-			send_to_char("Area has no regions defined.\n\r", ch);
-			return FALSE;
-		}
-
 		argument = one_argument(argument, arg2);
 
 		AREA_REGION *region;
@@ -1346,6 +1344,12 @@ AEDIT(aedit_regions)
 		}
 		else
 		{
+			if (list_size(pArea->regions) < 1)
+			{
+				send_to_char("Area has no regions defined.\n\r", ch);
+				return FALSE;
+			}
+
 			if (!is_number(arg2))
 			{
 				send_to_char("Syntax:  regions description <#>\n\r", ch);
@@ -1372,12 +1376,6 @@ AEDIT(aedit_regions)
 
 	if (!str_prefix(arg1, "comments"))
 	{
-		if (list_size(pArea->regions) < 1)
-		{
-			send_to_char("Area has no regions defined.\n\r", ch);
-			return FALSE;
-		}
-
 		argument = one_argument(argument, arg2);
 
 		AREA_REGION *region;
@@ -1387,6 +1385,12 @@ AEDIT(aedit_regions)
 		}
 		else
 		{
+			if (list_size(pArea->regions) < 1)
+			{
+				send_to_char("Area has no regions defined.\n\r", ch);
+				return FALSE;
+			}
+
 			if (!is_number(arg2))
 			{
 				send_to_char("Syntax:  regions comments <#>\n\r", ch);
@@ -1412,12 +1416,6 @@ AEDIT(aedit_regions)
 
 	if (!str_prefix(arg1, "flags"))
 	{
-		if (list_size(pArea->regions) < 1)
-		{
-			send_to_char("Area has no regions defined.\n\r", ch);
-			return FALSE;
-		}
-
 		argument = one_argument(argument, arg2);
 
 		AREA_REGION *region;
@@ -1427,6 +1425,12 @@ AEDIT(aedit_regions)
 		}
 		else
 		{
+			if (list_size(pArea->regions) < 1)
+			{
+				send_to_char("Area has no regions defined.\n\r", ch);
+				return FALSE;
+			}
+
 			if (!is_number(arg2))
 			{
 				send_to_char("Syntax:  regions flags <#> <flags>\n\r", ch);
@@ -2553,8 +2557,8 @@ REDIT(redit_show)
     ROOM_INDEX_DATA *pRoom;
     char buf[MAX_STRING_LENGTH];
     BUFFER *buf1;
-    ITERATOR it;
-    PROG_LIST *trigger;
+
+
     int door;
     CONDITIONAL_DESCR_DATA *cd;
     int i;
@@ -2780,34 +2784,9 @@ REDIT(redit_show)
     if (found == FALSE)
         add_buf(buf1, "    {W(None set){x\n\r");
 
-    if (pRoom->progs->progs) {
-		int cnt, slot;
-
-		for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++)
-			if(list_size(pRoom->progs->progs[slot]) > 0) ++cnt;
-
-		if (cnt > 0) {
-			sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "Number", "RoomProg Vnum", "Trigger", "Phrase");
-			add_buf(buf1, buf);
-
-			sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "------", "-------------", "-------", "------");
-			add_buf(buf1, buf);
-
-			for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
-				iterator_start(&it, pRoom->progs->progs[slot]);
-				while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-					sprintf(buf, "{r[{W%4d{r]{x %ld#%ld %-10s %-10s\n\r", cnt,
-						trigger->wnum.pArea ? trigger->wnum.pArea->uid : 0,
-						trigger->wnum.vnum,
-						trigger_name(trigger->trig_type),
-						trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, TRUE, FALSE));
-					add_buf(buf1, buf);
-					cnt++;
-				}
-				iterator_stop(&it);
-			}
-		}
-    }
+	
+    if (pRoom->progs->progs)
+		olc_show_progs(buf1, pRoom->progs->progs, "RoomProg Vnum");
 
 	olc_show_index_vars(buf1, pRoom->index_vars);
 
@@ -5113,6 +5092,127 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		}
 	}
 
+	if (IS_SCROLL(obj))
+	{
+		SCROLL_DATA *scroll = SCROLL(obj);
+
+		add_buf(buffer, "\n\r{GScroll:{x\n\r");
+
+		sprintf(buf, "{B[{WMaximum Mana {B]:  {x%d\n\r", scroll->max_mana);
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{WFlags        {B]:  {x%s\n\r", flag_string(scroll_flags, scroll->flags));
+		add_buf(buffer, buf);
+
+		if (list_size(scroll->spells) > 0)
+		{
+			int cnt = 0;
+
+			sprintf(buf, "{g%-6s %-20s %-10s %-6s{x\n\r", "Number", "Spell", "Level", "Random");
+			add_buf(buffer, buf);
+
+			sprintf(buf, "{g%-6s %-20s %-10s %-6s{x\n\r", "------", "-----", "-----", "------");
+			add_buf(buffer, buf);
+
+			ITERATOR sit;
+			SPELL_DATA *spell;
+			iterator_start(&sit, scroll->spells);
+			while((spell = (SPELL_DATA *)iterator_nextdata(&sit)))
+			{
+				sprintf(buf, "{B[{W%4d{B]{x %-20s %-10d %d%%\n\r",
+					cnt,
+					spell->skill->name, spell->level, spell->repop);
+				buf[0] = UPPER(buf[0]);
+				add_buf(buffer, buf);
+
+				cnt++;
+			}
+		}
+	}
+
+	if (IS_TATTOO(obj))
+	{
+		TATTOO_DATA *tattoo = TATTOO(obj);
+
+		add_buf(buffer, "\n\r{GTattoo:{x\n\r");
+		if (tattoo->touches < 0)
+			sprintf(buf, "{B[{WTouches      {B]:  {Wunlimited{x\n\r");
+		else
+			sprintf(buf, "{B[{WTouches      {B]:  {x%d\n\r", tattoo->touches);
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{WFading Chance{B]:  {x%d%%\n\r", tattoo->fading_chance);
+		add_buf(buffer, buf);
+		sprintf(buf, "{B[{WFading Rate  {B]:  {x+%d%% per touch\n\r", tattoo->fading_rate);
+		add_buf(buffer, buf);
+
+		if (list_size(tattoo->spells) > 0)
+		{
+			int cnt = 0;
+
+			sprintf(buf, "{g%-6s %-20s %-10s %-6s{x\n\r", "Number", "Spell", "Level", "Random");
+			add_buf(buffer, buf);
+
+			sprintf(buf, "{g%-6s %-20s %-10s %-6s{x\n\r", "------", "-----", "-----", "------");
+			add_buf(buffer, buf);
+
+			ITERATOR sit;
+			SPELL_DATA *spell;
+			iterator_start(&sit, tattoo->spells);
+			while((spell = (SPELL_DATA *)iterator_nextdata(&sit)))
+			{
+				sprintf(buf, "{B[{W%4d{B]{x %-20s %-10d %d%%\n\r",
+					cnt,
+					spell->skill->name, spell->level, spell->repop);
+				buf[0] = UPPER(buf[0]);
+				add_buf(buffer, buf);
+
+				cnt++;
+			}
+		}
+	}
+
+	if (IS_WAND(obj))
+	{
+		WAND_DATA *wand = WAND(obj);
+
+		add_buf(buffer, "\n\r{GWand:{x\n\r");
+		if (wand->max_charges < 0)
+			sprintf(buf, "{B[{WCharges    {B]:  {Wunlimited{x\n\r");
+		else
+			sprintf(buf, "{B[{WCharges    {B]:  {x%d{B / {x%d\n\r", wand->charges, wand->max_charges);
+		add_buf(buffer, buf);
+
+		if (wand->recharge_time > 0)
+			sprintf(buf, "{B[{WRecharging {B]:  1 charge per {x%d{B tick%s{x\n\r", wand->recharge_time, ((wand->recharge_time == 1)?"":"s"));
+		else
+			sprintf(buf, "{B[{WRecharging {B]:  none{x\n\r");
+		add_buf(buffer, buf);
+
+		if (list_size(wand->spells) > 0)
+		{
+			int cnt = 0;
+
+			sprintf(buf, "{g%-6s %-20s %-10s %-6s{x\n\r", "Number", "Spell", "Level", "Random");
+			add_buf(buffer, buf);
+
+			sprintf(buf, "{g%-6s %-20s %-10s %-6s{x\n\r", "------", "-----", "-----", "------");
+			add_buf(buffer, buf);
+
+			ITERATOR sit;
+			SPELL_DATA *spell;
+			iterator_start(&sit, wand->spells);
+			while((spell = (SPELL_DATA *)iterator_nextdata(&sit)))
+			{
+				sprintf(buf, "{B[{W%4d{B]{x %-20s %-10d %d%%\n\r",
+					cnt,
+					spell->skill->name, spell->level, spell->repop);
+				buf[0] = UPPER(buf[0]);
+				add_buf(buffer, buf);
+
+				cnt++;
+			}
+		}
+	}
+
     add_buf(buffer, "\n\r");
 
     switch(obj->item_type)
@@ -5120,6 +5220,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 	default:	// No values
 	    break;
 
+	/*
 	case ITEM_WAND:
 	case ITEM_STAFF:
             sprintf(buf,
@@ -5131,6 +5232,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		obj->value[2]);
 	    add_buf(buffer, buf);
 	    break;
+	*/
 
 	/*
 	case ITEM_FURNITURE:
@@ -5175,6 +5277,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 		*/
 	    break;
 
+	/*
 	case ITEM_BLANK_SCROLL:
 		sprintf(buf,
 				"{B[  {Wv0{B]{G Maximum Mana:{x           [{%c%ld{x]\n\r",
@@ -5182,12 +5285,14 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
 				((obj->value[0] > 0) ? obj->value[0] : 200));
 		add_buf(buffer, buf);
 		break;
+	*/
 
-	case ITEM_SCROLL:
+	//case ITEM_SCROLL:
 	//case ITEM_POTION:
-	case ITEM_PILL:
-	    break;
+	//case ITEM_PILL:
+	//    break;
 
+	/*
 	case ITEM_TATTOO:
             sprintf(buf,
             		"{B[  {Wv0{B]{G Touches:{x                [%ld]\n\r"
@@ -5195,6 +5300,7 @@ void print_obj_values(OBJ_INDEX_DATA *obj, BUFFER *buffer)
             		obj->value[0],obj->value[1]);
 	    add_buf(buffer, buf);
 	    break;
+	*/
 
 	case ITEM_INK:
             sprintf(buf, "{B[  {Wv0{B]{G Type 1:{x                 [%s]\n\r", flag_string(catalyst_types, obj->value[0]));
@@ -7190,8 +7296,8 @@ OEDIT(oedit_show)
     BUFFER *buffer;
     char buf[MAX_STRING_LENGTH];
     AFFECT_DATA *paf;
-    ITERATOR it;
-    PROG_LIST *trigger;
+
+
     SPELL_DATA *spell;
     int cnt;
 
@@ -7477,33 +7583,9 @@ OEDIT(oedit_show)
 	}
 
 
-    if (pObj->progs) {
-	int cnt, slot;
 
-	for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++)
-		if(list_size(pObj->progs[slot]) > 0) ++cnt;
-
-	if (cnt > 0) {
-		sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "Number", "ObjProg Vnum", "Trigger", "Phrase");
-		add_buf(buffer, buf);
-
-		sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "------", "-------------", "-------", "------");
-		add_buf(buffer, buf);
-
-		for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
-			iterator_start(&it, pObj->progs[slot]);
-			while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-				sprintf(buf, "{B[{W%4d{B]{x %ld#%ld %-10s %-6s\n\r", cnt,
-					trigger->wnum.pArea ? trigger->wnum.pArea->uid : 0,
-					trigger->wnum.vnum,trigger_name(trigger->trig_type),
-					trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, FALSE, FALSE));
-				add_buf(buffer, buf);
-				cnt++;
-			}
-			iterator_stop(&it);
-		}
-	}
-    }
+    if (pObj->progs)
+		olc_show_progs(buffer, pObj->progs, "ObjProg Vnum");
 
 	olc_show_index_vars(buffer, pObj->index_vars);
 
@@ -10510,6 +10592,16 @@ OEDIT(oedit_type_container)
 	return FALSE;
 }
 
+bool olc_can_brew_spell(SKILL_DATA *skill)
+{
+	if (!is_skill_spell(skill)) return false;
+
+	if (skill->token)
+		return get_script_token(skill->token, TRIG_TOKEN_QUAFF, TRIGSLOT_SPELL) != NULL;
+	else
+		return skill->quaff_fun != NULL;
+}
+
 OEDIT(oedit_type_fluid_container)
 {
 	OBJ_INDEX_DATA *pObj;
@@ -10534,7 +10626,7 @@ OEDIT(oedit_type_fluid_container)
 			send_to_char("         fluid amount <amount>\n\r", ch);
 			send_to_char("         fluid poison <poison %>[ <refill rate per tick>]\n\r", ch);
 			send_to_char("         fluid refill <rate per tick>\n\r", ch);
-			send_to_char("         fluid potion add <spell name|spell token wnum> <level>\n\r", ch);
+			send_to_char("         fluid potion add <spell name> <level>\n\r", ch);
 			send_to_char("         fluid potion remove <index>\n\r", ch);
 			send_to_char("         fluid potion clear\n\r", ch);
 
@@ -10862,47 +10954,96 @@ OEDIT(oedit_type_fluid_container)
 		}
 		else if (!str_prefix(arg, "potion"))
 		{
-			char name[MIL];
-			SPELL_DATA *spell;
-			int level;
-			SKILL_DATA *skill;
-
-			argument = one_argument(argument, name);
-
-			if (IS_NULLSTR(name))
+			if (argument[0] == '\0')
 			{
-				send_to_char("Please specify a name or token widevnum.\n\r", ch);
+				send_to_char("Syntax:  fluid potion {Radd{x <spell name> <level>\n\r", ch);
+				send_to_char("         fluid potion {Rremove{x <index>\n\r", ch);
+				send_to_char("         fluid potion {Rclear{x\n\r", ch);
 				return false;
 			}
-			else
+
+			argument = one_argument(argument, arg);
+			if (!str_prefix(arg, "add"))
 			{
-				skill = get_skill_data(name);
-				if (!IS_VALID(skill) || !is_skill_spell(skill))
+				char name[MIL];
+				SPELL_DATA *spell;
+				int level;
+				SKILL_DATA *skill;
+
+				argument = one_argument(argument, name);
+
+				if (IS_NULLSTR(name))
 				{
-					send_to_char("That's not a spell.\n\r", ch);
+					send_to_char("Please specify a name.\n\r", ch);
 					return false;
 				}
-			}
+				else
+				{
+					skill = get_skill_data(name);
+					if (!IS_VALID(skill) || !is_skill_spell(skill))
+					{
+						send_to_char("That's not a spell.\n\r", ch);
+						return false;
+					}
 
-			if (!is_number(argument) || (level = atoi(argument)) < 1 || level > get_trust(ch))
-			{
-				sprintf(buf, "Level range is 1-%d.\n\r", get_trust(ch));
+					if (!olc_can_brew_spell(skill))
+					{
+						send_to_char("That spell cannot be brewed.\n\r", ch);
+						return false;
+					}
+				}
+
+				if (!is_number(argument) || (level = atoi(argument)) < 1 || level > get_trust(ch))
+				{
+					sprintf(buf, "Level range is 1-%d.\n\r", get_trust(ch));
+					send_to_char(buf, ch);
+					return false;
+				}
+
+				spell			= new_spell();
+				spell->skill	= skill;
+				spell->level	= level;
+				spell->repop	= 100;
+				spell->next		= NULL;
+
+				list_appendlink(FLUID_CON(pObj)->spells, spell);
+
+				sprintf(buf, "Added spell %s, level %d.\n\r",
+					get_spell_data_name(spell), spell->level);
 				send_to_char(buf, ch);
-				return false;
+				return true;
+			}
+			else if(!str_prefix(arg, "remove"))
+			{
+				int index;
+				if(!is_number(argument) || (index = atoi(argument)) < 1 || index > list_size(FLUID_CON(pObj)->spells))
+				{
+					send_to_char("Syntax:  fluid potion remove {R<index>{x\n\r", ch);
+					sprintf(buf, "Please provide a number from 1 to %d.\n\r", list_size(FLUID_CON(pObj)->spells));
+					send_to_char(buf, ch);
+					return false;
+				}
+
+				list_remnthlink(FLUID_CON(pObj)->spells, index);
+				sprintf(buf, "FLUID Potion Spell #%d removed.\n\r", index);
+				send_to_char(buf, ch);
+				return true;
+			}
+			else if(!str_prefix(arg, "clear"))
+			{
+				if (list_size(FLUID_CON(pObj)->spells) < 1)
+				{
+					send_to_char("Spell list is empty.\n\r", ch);
+					return false;
+				}
+
+				list_clear(FLUID_CON(pObj)->spells);
+				send_to_char("FLUID Potion Spells cleared.\n\r", ch);
+				return true;
 			}
 
-			spell			= new_spell();
-			spell->skill	= skill;
-			spell->level	= level;
-			spell->repop	= 100;
-			spell->next		= NULL;
-
-			list_appendlink(FLUID_CON(pObj)->spells, spell);
-
-			sprintf(buf, "Added spell %s, level %d.\n\r",
-				get_spell_data_name(spell), spell->level);
-		    send_to_char(buf, ch);
-		    return true;
+			oedit_type_fluid_container(ch, "potion");
+			return false;
 		}
 	}
 	else
@@ -12841,7 +12982,7 @@ OEDIT(oedit_type_portal)
 			send_to_char("         portal lock pick [0-100]\n\r", ch);
 
 			send_to_char("         portal spell clear\n\r", ch);
-			send_to_char("         portal spell add <spell name|token widevnum> <spell level> <random>\n\r", ch);
+			send_to_char("         portal spell add <spell name> <spell level> <random>\n\r", ch);
 			send_to_char("         portal spell remove <#>\n\r", ch);
 
 			if (pObj->item_type != ITEM_PORTAL)
@@ -13291,6 +13432,627 @@ OEDIT(oedit_type_portal)
 	return FALSE;
 }
 
+bool olc_can_scribe_spell(SKILL_DATA *skill)
+{
+	if (!is_skill_spell(skill)) return false;
+
+	if (skill->token)
+		return get_script_token(skill->token, TRIG_TOKEN_RECITE, TRIGSLOT_SPELL) != NULL;
+	else
+		return skill->recite_fun != NULL;
+}
+
+
+OEDIT(oedit_type_scroll)
+{
+	OBJ_INDEX_DATA *pObj;
+	EDIT_OBJ(ch, pObj);
+
+	if (argument[0] == '\0')
+	{
+		if (IS_SCROLL(pObj))
+		{
+			send_to_char("Syntax:  scroll maxmana <#mana|unlimited>\n\r", ch);
+			send_to_char("         scroll flags <flags>\n\r", ch);
+			send_to_char("         scroll spell clear\n\r", ch);
+			send_to_char("         scroll spell add <spell name> <spell level> <random>\n\r", ch);
+			send_to_char("         scroll spell remove <#>\n\r", ch);
+
+			if (pObj->item_type != ITEM_SCROLL)
+				send_to_char("         scroll remove\n\r", ch);
+		}
+		else
+		{
+			send_to_char("Syntax:  scroll add\n\r", ch);
+		}
+		return false;
+	}
+
+	char buf[MSL];
+	char arg[MIL];
+
+	argument = one_argument(argument, arg);
+
+	if (IS_SCROLL(pObj))
+	{
+		if (!str_prefix(arg, "maxmana"))
+		{
+			int mana;
+			if (!str_prefix(argument, "unlimited"))
+			{
+				mana = -1;
+			}
+			else if (!is_number(argument) || (mana = atoi(argument)) < 0)
+			{
+				send_to_char("Syntax:  scroll maxmana {R<#mana>{x\n\r", ch);
+				send_to_char("Please provide a non-negative number.\n\r", ch);
+				return false;
+			}
+
+			SCROLL(pObj)->max_mana = mana;
+			send_to_char("SCROLL Max Mana set.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "flags"))
+		{
+			int value;
+			if ((value = flag_value(scroll_flags, argument)) == NO_FLAG)
+			{
+				send_to_char("Syntax:  scroll flags <flags>\n\r", ch);
+				send_to_char("Invalid scroll flags.  Use '? scroll' for list of available flags.\n\r", ch);
+				return false;
+			}
+		}
+
+		if (!str_prefix(arg, "spell"))
+		{
+			if (argument[0] == '\0')
+			{
+				send_to_char("Syntax:  scroll spell {Radd{x <spell name> <level>\n\r", ch);
+				send_to_char("         scroll spell {Rremove{x <index>\n\r", ch);
+				send_to_char("         scroll spell {Rclear{x\n\r", ch);
+				return false;
+			}
+
+			argument = one_argument(argument, arg);
+			if (!str_prefix(arg, "add"))
+			{
+				char name[MIL];
+				SPELL_DATA *spell;
+				int level;
+				SKILL_DATA *skill;
+
+				argument = one_argument(argument, name);
+
+				if (IS_NULLSTR(name))
+				{
+					send_to_char("Please specify a name.\n\r", ch);
+					return false;
+				}
+				else
+				{
+					skill = get_skill_data(name);
+					if (!IS_VALID(skill) || !is_skill_spell(skill))
+					{
+						send_to_char("That's not a spell.\n\r", ch);
+						return false;
+					}
+
+					if (!olc_can_scribe_spell(skill))
+					{
+						send_to_char("That spell cannot be scribed.\n\r", ch);
+						return false;
+					}
+				}
+
+				if (!is_number(argument) || (level = atoi(argument)) < 1 || level > get_trust(ch))
+				{
+					sprintf(buf, "Level range is 1-%d.\n\r", get_trust(ch));
+					send_to_char(buf, ch);
+					return false;
+				}
+
+				spell			= new_spell();
+				spell->skill	= skill;
+				spell->level	= level;
+				spell->repop	= 100;
+				spell->next		= NULL;
+
+				list_appendlink(SCROLL(pObj)->spells, spell);
+
+				sprintf(buf, "Added spell %s, level %d.\n\r",
+					get_spell_data_name(spell), spell->level);
+				send_to_char(buf, ch);
+				return true;
+			}
+			else if(!str_prefix(arg, "remove"))
+			{
+				int index;
+				if(!is_number(argument) || (index = atoi(argument)) < 1 || index > list_size(SCROLL(pObj)->spells))
+				{
+					send_to_char("Syntax:  scroll spell remove {R<index>{x\n\r", ch);
+					sprintf(buf, "Please provide a number from 1 to %d.\n\r", list_size(SCROLL(pObj)->spells));
+					send_to_char(buf, ch);
+					return false;
+				}
+
+				list_remnthlink(SCROLL(pObj)->spells, index);
+				sprintf(buf, "SCROLL Spell #%d removed.\n\r", index);
+				send_to_char(buf, ch);
+				return true;
+			}
+			else if(!str_prefix(arg, "clear"))
+			{
+				if (list_size(SCROLL(pObj)->spells) < 1)
+				{
+					send_to_char("Spell list is empty.\n\r", ch);
+					return false;
+				}
+
+				list_clear(SCROLL(pObj)->spells);
+				send_to_char("SCROLL Spells cleared.\n\r", ch);
+				return true;
+			}
+
+			oedit_type_scroll(ch, "spell");
+			return false;
+		}
+		
+		if (pObj->item_type != ITEM_SCROLL)
+		{
+			if(!str_prefix(arg, "remove"))
+			{
+				free_scroll_data(SCROLL(pObj));
+				SCROLL(pObj) = NULL;
+
+				send_to_char("SCROLL type removed.\n\r\n\r", ch);
+				return true;
+			}
+		}
+	}
+	else if(!str_prefix(arg, "add"))
+	{
+		if (!obj_index_can_add_item_type(pObj, ITEM_SCROLL))
+		{
+			send_to_char("You cannot add this item type to this object.\n\r", ch);
+			return FALSE;
+		}
+		
+		SCROLL(pObj) = new_scroll_data();
+		send_to_char("SCROLL type added.\n\r\n\r", ch);
+		return TRUE;
+	}
+
+	oedit_type_scroll(ch, "");
+	return false;
+}
+
+OEDIT(oedit_type_tattoo)
+{
+	OBJ_INDEX_DATA *pObj;
+	EDIT_OBJ(ch, pObj);
+
+	if (argument[0] == '\0')
+	{
+		if (IS_TATTOO(pObj))
+		{
+			send_to_char("Syntax:  tattoo touches <#touches|unlimited>\n\r", ch);
+			send_to_char("         tattoo fading <%chance>[ <#rate>]\n\r", ch);
+			send_to_char("         tattoo spell clear\n\r", ch);
+			send_to_char("         tattoo spell add <spell name> <spell level> <random>\n\r", ch);
+			send_to_char("         tattoo spell remove <#>\n\r", ch);
+
+			if (pObj->item_type != ITEM_TATTOO)
+				send_to_char("         tattoo remove\n\r", ch);
+		}
+		else
+		{
+			send_to_char("Syntax:  tattoo add\n\r", ch);
+		}
+		return false;
+	}
+
+	char buf[MSL];
+	char arg[MIL];
+
+	argument = one_argument(argument, arg);
+
+	if (IS_TATTOO(pObj))
+	{
+		if (!str_prefix(arg, "touches"))
+		{
+			int touches;
+			if (!str_prefix(argument, "unlimited"))
+			{
+				touches = -1;
+			}
+			else if (!is_number(argument) || (touches = atoi(argument)) < 0)
+			{
+				send_to_char("Syntax:  tattoo touches {R<#touches>{x\n\r", ch);
+				send_to_char("Please provide a non-negative number.\n\r", ch);
+				return false;
+			}
+
+			TATTOO(pObj)->touches = touches;
+			send_to_char("TATTOO Touches set.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "fading"))
+		{
+			argument = one_argument(argument, arg);
+
+			int fading_chance;
+			if (!is_number(arg) || (fading_chance = atoi(arg)) < 0 || fading_chance > 100)
+			{
+				send_to_char("Syntax:  tattoo fading {R<%chance>{x[ <#rate>]\n\r", ch);
+				send_to_char("Please provide a number from 0 to 100.\n\r", ch);
+				return false;
+			}
+
+			int fading_rate = 0;
+			if (argument[0] != '\0')
+			{
+				if (!is_number(argument) || (fading_rate = atoi(argument)) < 0)
+				{
+					send_to_char("Syntax:  tattoo fading <%chance> {R<#rate>{x\n\r", ch);
+					send_to_char("Please provide a non-negative number.\n\r", ch);
+					return false;
+				}
+			}
+
+			TATTOO(pObj)->fading_chance = fading_chance;
+			TATTOO(pObj)->fading_rate = fading_rate;
+			send_to_char("TATTOO Fading set.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "spell"))
+		{
+			if (argument[0] == '\0')
+			{
+				send_to_char("Syntax:  tattoo spell {Radd{x <spell name> <level>\n\r", ch);
+				send_to_char("         tattoo spell {Rremove{x <index>\n\r", ch);
+				send_to_char("         tattoo spell {Rclear{x\n\r", ch);
+				return false;
+			}
+
+			argument = one_argument(argument, arg);
+			if (!str_prefix(arg, "add"))
+			{
+				char name[MIL];
+				SPELL_DATA *spell;
+				int level;
+				SKILL_DATA *skill;
+
+				argument = one_argument(argument, name);
+
+				if (IS_NULLSTR(name))
+				{
+					send_to_char("Please specify a name.\n\r", ch);
+					return false;
+				}
+				else
+				{
+					skill = get_skill_data(name);
+					if (!IS_VALID(skill) || !is_skill_spell(skill))
+					{
+						send_to_char("That's not a spell.\n\r", ch);
+						return false;
+					}
+				}
+
+				if (!is_number(argument) || (level = atoi(argument)) < 1 || level > get_trust(ch))
+				{
+					sprintf(buf, "Level range is 1-%d.\n\r", get_trust(ch));
+					send_to_char(buf, ch);
+					return false;
+				}
+
+				spell			= new_spell();
+				spell->skill	= skill;
+				spell->level	= level;
+				spell->repop	= 100;
+				spell->next		= NULL;
+
+				list_appendlink(TATTOO(pObj)->spells, spell);
+
+				sprintf(buf, "Added spell %s, level %d.\n\r",
+					get_spell_data_name(spell), spell->level);
+				send_to_char(buf, ch);
+				return true;
+			}
+			else if(!str_prefix(arg, "remove"))
+			{
+				int index;
+				if(!is_number(argument) || (index = atoi(argument)) < 1 || index > list_size(TATTOO(pObj)->spells))
+				{
+					send_to_char("Syntax:  tattoo spell remove {R<index>{x\n\r", ch);
+					sprintf(buf, "Please provide a number from 1 to %d.\n\r", list_size(TATTOO(pObj)->spells));
+					send_to_char(buf, ch);
+					return false;
+				}
+
+				list_remnthlink(TATTOO(pObj)->spells, index);
+				sprintf(buf, "TATTOO Spell #%d removed.\n\r", index);
+				send_to_char(buf, ch);
+				return true;
+			}
+			else if(!str_prefix(arg, "clear"))
+			{
+				if (list_size(TATTOO(pObj)->spells) < 1)
+				{
+					send_to_char("Spell list is empty.\n\r", ch);
+					return false;
+				}
+
+				list_clear(TATTOO(pObj)->spells);
+				send_to_char("TATTOO Spells cleared.\n\r", ch);
+				return true;
+			}
+
+			oedit_type_tattoo(ch, "spell");
+			return false;
+		}
+		
+		if (pObj->item_type != ITEM_TATTOO)
+		{
+			if(!str_prefix(arg, "remove"))
+			{
+				free_tattoo_data(TATTOO(pObj));
+				TATTOO(pObj) = NULL;
+
+				send_to_char("TATTOO type removed.\n\r\n\r", ch);
+				return true;
+			}
+		}
+	}
+	else if(!str_prefix(arg, "add"))
+	{
+		if (!obj_index_can_add_item_type(pObj, ITEM_TATTOO))
+		{
+			send_to_char("You cannot add this item type to this object.\n\r", ch);
+			return FALSE;
+		}
+		
+		TATTOO(pObj) = new_tattoo_data();
+		send_to_char("TATTOO type added.\n\r\n\r", ch);
+		return TRUE;
+	}
+
+	oedit_type_tattoo(ch, "");
+	return false;
+}
+
+OEDIT(oedit_type_wand)
+{
+	OBJ_INDEX_DATA *pObj;
+	EDIT_OBJ(ch, pObj);
+
+	if (argument[0] == '\0')
+	{
+		if (IS_WAND(pObj))
+		{
+			send_to_char("Syntax:  wand charges <#charges>\n\r", ch);
+			send_to_char("         wand maxcharges <#charges|unlimited>\n\r", ch);
+			send_to_char("         wand recharge <#rate>\n\r", ch);
+			send_to_char("         wand spell clear\n\r", ch);
+			send_to_char("         wand spell add <spell name> <spell level> <random>\n\r", ch);
+			send_to_char("         wand spell remove <#>\n\r", ch);
+
+			if (pObj->item_type != ITEM_WAND)
+				send_to_char("         wand remove\n\r", ch);
+		}
+		else
+		{
+			send_to_char("Syntax:  wand add\n\r", ch);
+		}
+		return false;
+	}
+
+	char buf[MSL];
+	char arg[MIL];
+
+	argument = one_argument(argument, arg);
+
+	if (IS_WAND(pObj))
+	{
+		if (!str_prefix(arg, "charges"))
+		{
+			if (WAND(pObj)->max_charges < 0)
+			{
+				send_to_char("Wand already has unlimited charges.\n\r", ch);
+				return false;
+			}
+
+			if (WAND(pObj)->max_charges == 0)
+			{
+				send_to_char("Wand has no charges.\n\r", ch);
+				return false;
+			}
+
+			int charges;
+			if (!is_number(argument) || (charges = atoi(argument)) < 0 || charges > WAND(pObj)->max_charges)
+			{
+				send_to_char("Syntax:  wand charges {R<#charges>{x\n\r", ch);
+				sprintf(buf, "Please provide a number from 0 to %d.\n\r", WAND(pObj)->max_charges);
+				send_to_char(buf, ch);
+				return false;
+			}
+
+			WAND(pObj)->charges = charges;
+			send_to_char("WAND Charges set.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "maxcharges"))
+		{
+			int max;
+			if (!str_prefix(argument, "unlimited"))
+			{
+				max = -1;
+			}
+			else if (!is_number(argument) || (max = atoi(argument)) < 0)
+			{
+				send_to_char("Syntax:  wand maxcharges {R<#charges>{x\n\r", ch);
+				send_to_char("Please provide a non-negative number.\n\r", ch);
+				return false;
+			}
+
+			WAND(pObj)->max_charges = max;
+			if (max < 0)
+				WAND(pObj)->charges = -1;
+			else if(WAND(pObj)->charges < 0 || max < WAND(pObj)->charges)
+				WAND(pObj)->charges = max;
+			send_to_char("WAND Max Charges set.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "recharge"))
+		{
+			if (WAND(pObj)->max_charges < 0)
+			{
+				send_to_char("Wand already has unlimited charges.\n\r", ch);
+				return false;
+			}
+
+			if (WAND(pObj)->max_charges == 0)
+			{
+				send_to_char("Wand has no charges.\n\r", ch);
+				return false;
+			}
+
+			int rate;
+			if (!is_number(argument) || (rate = atoi(argument)) < 0)
+			{
+				send_to_char("Syntax:  wand recharge {R<#rate>{x\n\r", ch);
+				send_to_char("Please provide a non-negative number.\n\r", ch);
+				return false;
+			}
+
+			WAND(pObj)->recharge_time = rate;
+			send_to_char("WAND Recharge Rate set.\n\r", ch);
+			return true;
+		}
+
+		if (!str_prefix(arg, "spell"))
+		{
+			if (argument[0] == '\0')
+			{
+				send_to_char("Syntax:  wand spell {Radd{x <spell name> <level>\n\r", ch);
+				send_to_char("         wand spell {Rremove{x <index>\n\r", ch);
+				send_to_char("         wand spell {Rclear{x\n\r", ch);
+				return false;
+			}
+
+			argument = one_argument(argument, arg);
+			if (!str_prefix(arg, "add"))
+			{
+				char name[MIL];
+				SPELL_DATA *spell;
+				int level;
+				SKILL_DATA *skill;
+
+				argument = one_argument(argument, name);
+
+				if (IS_NULLSTR(name))
+				{
+					send_to_char("Please specify a name.\n\r", ch);
+					return false;
+				}
+				else
+				{
+					skill = get_skill_data(name);
+					if (!IS_VALID(skill) || !is_skill_spell(skill))
+					{
+						send_to_char("That's not a spell.\n\r", ch);
+						return false;
+					}
+				}
+
+				if (!is_number(argument) || (level = atoi(argument)) < 1 || level > get_trust(ch))
+				{
+					sprintf(buf, "Level range is 1-%d.\n\r", get_trust(ch));
+					send_to_char(buf, ch);
+					return false;
+				}
+
+				spell			= new_spell();
+				spell->skill	= skill;
+				spell->level	= level;
+				spell->repop	= 100;
+				spell->next		= NULL;
+
+				list_appendlink(WAND(pObj)->spells, spell);
+
+				sprintf(buf, "Added spell %s, level %d.\n\r",
+					get_spell_data_name(spell), spell->level);
+				send_to_char(buf, ch);
+				return true;
+			}
+			else if(!str_prefix(arg, "remove"))
+			{
+				int index;
+				if(!is_number(argument) || (index = atoi(argument)) < 1 || index > list_size(WAND(pObj)->spells))
+				{
+					send_to_char("Syntax:  wand spell remove {R<index>{x\n\r", ch);
+					sprintf(buf, "Please provide a number from 1 to %d.\n\r", list_size(WAND(pObj)->spells));
+					send_to_char(buf, ch);
+					return false;
+				}
+
+				list_remnthlink(WAND(pObj)->spells, index);
+				sprintf(buf, "WAND Spell #%d removed.\n\r", index);
+				send_to_char(buf, ch);
+				return true;
+			}
+			else if(!str_prefix(arg, "clear"))
+			{
+				if (list_size(WAND(pObj)->spells) < 1)
+				{
+					send_to_char("Spell list is empty.\n\r", ch);
+					return false;
+				}
+
+				list_clear(WAND(pObj)->spells);
+				send_to_char("WAND Spells cleared.\n\r", ch);
+				return true;
+			}
+
+			oedit_type_wand(ch, "spell");
+			return false;
+		}
+		
+		if (pObj->item_type != ITEM_WAND)
+		{
+			if(!str_prefix(arg, "remove"))
+			{
+				free_wand_data(WAND(pObj));
+				WAND(pObj) = NULL;
+
+				send_to_char("WAND type removed.\n\r\n\r", ch);
+				return true;
+			}
+		}
+	}
+	else if(!str_prefix(arg, "add"))
+	{
+		if (!obj_index_can_add_item_type(pObj, ITEM_WAND))
+		{
+			send_to_char("You cannot add this item type to this object.\n\r", ch);
+			return FALSE;
+		}
+		
+		WAND(pObj) = new_wand_data();
+		send_to_char("WAND type added.\n\r\n\r", ch);
+		return TRUE;
+	}
+
+	oedit_type_wand(ch, "");
+	return false;
+}
+
 OEDIT(oedit_material)
 {
     OBJ_INDEX_DATA *pObj;
@@ -13502,8 +14264,8 @@ MEDIT(medit_show)
 {
 	MOB_INDEX_DATA *pMob;
 	char buf[MAX_STRING_LENGTH];
-	ITERATOR it;
-	PROG_LIST *trigger;
+
+
 	BUFFER *buffer;
 
 	EDIT_MOB(ch, pMob);
@@ -14051,33 +14813,8 @@ MEDIT(medit_show)
 		add_buf(buffer, "\n\r");
 	}
 
-	if (pMob->progs) {
-		int cnt, slot;
-
-		for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++)
-			if(list_size(pMob->progs[slot]) > 0) ++cnt;
-
-		if (cnt > 0) {
-			sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "Number", "MobProg Vnum", "Trigger", "Phrase");
-			add_buf(buffer, buf);
-
-			sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "------", "-------------", "-------", "------");
-			add_buf(buffer, buf);
-
-			for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
-				iterator_start(&it, pMob->progs[slot]);
-				while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-					sprintf(buf, "{C[{W%4d{C]{x %ld#%ld %-10s %-6s\n\r", cnt,
-						trigger->wnum.pArea ? trigger->wnum.pArea->uid : 0,
-						trigger->wnum.vnum,trigger_name(trigger->trig_type),
-						trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, FALSE, FALSE));
-					add_buf(buffer, buf);
-					cnt++;
-				}
-				iterator_stop(&it);
-			}
-		}
-	}
+    if (pMob->progs)
+		olc_show_progs(buffer, pMob->progs, "MobProg Vnum");
 
 	olc_show_index_vars(buffer, pMob->index_vars);
 

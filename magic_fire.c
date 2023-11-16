@@ -26,7 +26,7 @@ void afterburn_hitroom(ROOM_INDEX_DATA *room, CHAR_DATA *ch, int dam, int level)
 	for (victim = room->people; victim ; victim = vnext) {
 		vnext = victim->next_in_room;
 		if (!is_safe(ch, victim, FALSE) && victim != ch) {
-			if (!check_spell_deflection(ch, victim, gsk_afterburn))
+			if (!check_spell_deflection(ch, victim, gsk_afterburn, NULL))
 				continue;
 
 			damage(ch, victim, dam, gsk_afterburn, TYPE_UNDEFINED, DAM_FIRE, TRUE);

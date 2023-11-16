@@ -297,6 +297,12 @@ struct sound_type {
 //  Change #1: start of adding item multi-typing
 //    BOOK
 
+#define VERSION_OBJECT_012  0x01000011
+//  Change #1: start of adding item multi-typing
+//    SCROLL
+//    TATTOO
+//    WAND
+
 
 #define VERSION_ROOM_001	0x01000001
 //  Change #1: lock states
@@ -435,6 +441,7 @@ typedef struct olc_point_area_data OLC_POINT_AREA;
 
 typedef struct dice_data DICE_DATA;
 typedef struct skill_data SKILL_DATA;
+typedef struct skill_group_data SKILL_GROUP;
 
 /* VIZZWILDS */
 typedef struct    wilds_vlink      WILDS_VLINK;
@@ -4502,7 +4509,7 @@ struct	pc_data
     bool		songs_learned[MAX_SONGS];
 //    int			learned		[MAX_SKILL];        // Moved to the SKILL_DATA
 //    int			mod_learned	[MAX_SKILL];
-    bool		group_known	[MAX_GROUP];
+    LLIST *     group_known;
     long		points;
     bool              	confirm_delete;
     char *		alias[MAX_ALIAS];
@@ -4930,6 +4937,62 @@ struct obj_portal_data {
     SPELL_DATA *spells;
 };
 
+// ==========[ SCROLL ]============
+#define SCROLL(obj)          ((obj)->_scroll)
+#define IS_SCROLL(obj)       IS_VALID(SCROLL(obj))
+
+typedef struct obj_scroll_data SCROLL_DATA;
+
+#define SCROLL_DESTROY_ON_RECITE    (A)     // The scroll will be consumed when recited.
+
+struct obj_scroll_data
+{
+    SCROLL_DATA *next;
+    bool valid;
+
+    int max_mana;           // Maximum amount of mana allowed to be scribed into the scroll
+    long flags;
+
+    LLIST *spells;
+};
+
+// ==========[ TATTOO ]============
+#define TATTOO(obj)             ((obj)->_tattoo)
+#define IS_TATTOO(obj)          IS_VALID(TATTOO(obj))
+
+typedef struct obj_tattoo_data TATTOO_DATA;
+
+struct obj_tattoo_data
+{
+    TATTOO_DATA *next;
+    bool valid;
+
+    int touches;            // Number of times the tattoo can be touched before being used up (forced fading).  Negative is infinite.
+    int fading_chance;      // Chance the tattoo will fade when touched.
+    int fading_rate;        // How much fading chance increases with each touch.
+
+    LLIST *spells;
+};
+
+// ===========[ WAND ]=============
+#define WAND(obj)           ((obj)->_wand)
+#define IS_WAND(obj)        IS_VALID(WAND(obj))
+
+typedef struct obj_wand_data WAND_DATA;
+
+struct obj_wand_data
+{
+    WAND_DATA *next;
+    bool valid;
+
+    int charges;            // Current number of charges available to ZAP with.
+    int max_charges;        // Maximum number of charges the wand can have.
+    int cooldown;           // Current time before next recharge.
+    int recharge_time;      // How many ticks it takes to recharge one charge.  If not positive, it will not recharge.
+
+    LLIST *spells;
+};
+
 
 /*
  * Prototype for an object.
@@ -4991,7 +5054,6 @@ struct	obj_index_data
 
 	LLIST *waypoints;
 
-    BOOK_PAGE *_page;
     BOOK_DATA *_book;
     CONTAINER_DATA *_container;
     FLUID_CONTAINER_DATA *_fluid_container;
@@ -4999,7 +5061,11 @@ struct	obj_index_data
     FURNITURE_DATA *_furniture;
     LIGHT_DATA *_light;
     MONEY_DATA *_money;
+    BOOK_PAGE *_page;
     PORTAL_DATA *_portal;
+    SCROLL_DATA *_scroll;
+    TATTOO_DATA *_tattoo;
+    WAND_DATA *_wand;
 };
 
 
@@ -5090,7 +5156,6 @@ struct	obj_data
 
     LOCK_STATE		*lock;
 
-    BOOK_PAGE *_page;
     BOOK_DATA *_book;
     CONTAINER_DATA *_container;
     FLUID_CONTAINER_DATA *_fluid_container;
@@ -5098,7 +5163,11 @@ struct	obj_data
     FURNITURE_DATA *_furniture;
     LIGHT_DATA *_light;
     MONEY_DATA *_money;
+    BOOK_PAGE *_page;
     PORTAL_DATA *_portal;
+    SCROLL_DATA *_scroll;
+    TATTOO_DATA *_tattoo;
+    WAND_DATA *_wand;
 
     SHIP_DATA		*ship;
     LLIST			*waypoints;
@@ -6559,6 +6628,7 @@ struct skill_data
     bool valid;
 
     sh_int uid;
+    bool isspell;
 
     char *	name;                       // Name of skill
     char *  display;                    // Display name, usually the same as the skill name
@@ -6590,7 +6660,9 @@ struct skill_data
     TOUCH_FUN * touch_fun;          // Called when a tattoo is touched.  (Target is assumed to be the wearer of the tattoo)
 
     // Imbuing:
-
+    // BRANDISH_FUN * brandish_fun;     // Used by brandishing weapons
+    // ZAP_FUN * zap_fun;               // Used by wands
+    // EQUIP_FUN * equip_fun;           // Used by jewelry and adorned armor
 
     sh_int	target;			/* Legal targets		*/
     sh_int	minimum_position;	/* Position for caster / user	*/
@@ -6609,13 +6681,23 @@ struct skill_data
     sh_int	cast_mana;		// Mana required to cast
     sh_int  brew_mana;      // Amount of mana capacity required in the brewing liquid.
     sh_int  scribe_mana;    // Amount of mana capacity required in the blank scroll.
-    sh_int  imbue_mana;     // Amount of mana capacity required in the charm/wand core/weapon
+    sh_int  imbue_mana;     // Amount of mana capacity required in the jewelry/wand core/weapon
 
     TOKEN_INDEX_DATA *token;
     WNUM_LOAD token_load;
 
     int values[MAX_SKILL_VALUES];
     char *valuenames[MAX_SKILL_VALUES];
+};
+
+struct  skill_group_data
+{
+    SKILL_GROUP *next;
+    bool valid;
+
+    char *name;
+
+    LLIST *contents;        // List of strings
 };
 
 struct	skill_type
@@ -6680,7 +6762,7 @@ struct music_type
 struct  group_type
 {
     char *	name;
-    sh_int	rating[MAX_CLASS];
+    sh_int	_rating[MAX_CLASS];
     char *	spells[MAX_IN_GROUP];
 };
 
@@ -8273,7 +8355,7 @@ extern	const	struct	liq_type	liq_table	[];
 //extern	struct	skill_type	skill_table	[MAX_SKILL];
 extern          int                     mob_skill_table [MAX_MOB_SKILL_LEVEL];
 extern  const   struct  church_command_type church_command_table [];
-extern  const   struct  group_type      group_table	[MAX_GROUP];
+//extern  const   struct  group_type      group_table	[MAX_GROUP];
 extern          struct social_type      social_table	[MAX_SOCIALS];
 extern	const	struct	rep_type	rating_table	[];
 extern	const	struct	sound_type	sound_table	[];
@@ -9287,7 +9369,10 @@ bool check_dispel(CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill);
 /* magic2.c */
 void reverie_end args( ( CHAR_DATA *ch, int amount ) );
 void trance_end(CHAR_DATA *ch);
-bool check_spell_deflection( CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill);
+
+typedef void DEFLECT_FUN ( CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill, AFFECT_DATA *af);
+
+bool check_spell_deflection( CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill, DEFLECT_FUN *deflect);
 bool check_spell_deflection_token( CHAR_DATA *ch, CHAR_DATA *victim, TOKEN_DATA *tok, SCRIPT_DATA *script,char *target_name);
 
 /* mail.c */
@@ -9379,15 +9464,12 @@ QUEST_PART_DATA *fread_quest_part(FILE *fp);
 
 
 /* skills.c */
-bool 	parse_gen_groups args( ( CHAR_DATA *ch,char *argument ) );
-void 	list_group_costs args( ( CHAR_DATA *ch ) );
-void    list_group_known args( ( CHAR_DATA *ch ) );
 long 	exp_per_level	args( ( CHAR_DATA *ch, long points ) );
 void 	check_improve	args( ( CHAR_DATA *ch, SKILL_DATA *skill, bool success, int multiplier ) );
 void check_improve_show( CHAR_DATA *ch, SKILL_DATA *skill, bool success, int multiplier, bool show );
-int 	group_lookup	args( (const char *name) );
-void	gn_add		args( ( CHAR_DATA *ch, int gn) );
-void 	gn_remove	args( ( CHAR_DATA *ch, int gn) );
+SKILL_GROUP *group_lookup	args( (const char *name) );
+void	gn_add		args( ( CHAR_DATA *ch, SKILL_GROUP *group) );
+void 	gn_remove	args( ( CHAR_DATA *ch, SKILL_GROUP *group) );
 void 	group_add	args( ( CHAR_DATA *ch, const char *name, bool deduct) );
 void	group_remove	args( ( CHAR_DATA *ch, const char *name) );
 bool had_skill( CHAR_DATA *ch, SKILL_DATA *skill );
@@ -10445,7 +10527,7 @@ void obj_apply_spells(CHAR_DATA *ch, OBJ_DATA *obj, CHAR_DATA *victim, OBJ_DATA 
 bool init_scripting();
 void terminate_scripting();
 
-SCRIPT_DATA *get_script_token(TOKEN_DATA *token, int trigger, int slot);
+SCRIPT_DATA *get_script_token(TOKEN_INDEX_DATA *token, int trigger, int slot);
 
 // Item MUlti-Typing
 int objindex_get_subtype(OBJ_INDEX_DATA *pObjIndex);
@@ -10506,6 +10588,8 @@ char *liquid_gln_name(sh_int *gln);
 
 extern LLIST *skills_list;
 extern sh_int top_skill_uid;
+extern LLIST *skill_groups_list;
+extern SKILL_GROUP *global_skills;
 SKILL_DATA *get_skill_data(char *name);
 SKILL_DATA *get_skill_data_uid(sh_int uid);
 

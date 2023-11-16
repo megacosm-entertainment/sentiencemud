@@ -166,7 +166,7 @@ SPELL_FUNC(spell_starflare)
 
 		if (victim != ch) {
 			if (!is_safe(victim, ch, FALSE) && !is_same_group(victim, ch)) {
-				if (!check_spell_deflection(ch, victim, skill))
+				if (!check_spell_deflection(ch, victim, skill, NULL))
 					continue;
 
 				dam = dice(level, 9);

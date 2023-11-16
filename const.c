@@ -4456,6 +4456,7 @@ struct skill_type	skill_table [MAX_SKILL]	=
 int mob_skill_table[MAX_MOB_SKILL_LEVEL];
 
 
+#if 0
 const struct group_type group_table [MAX_GROUP] =
 {
     /*
@@ -4702,7 +4703,7 @@ const struct group_type group_table [MAX_GROUP] =
 	{ }
     }
 };
-
+#endif
 
 /* MSP sounds (for the future)*/
 const struct sound_type sound_table[] =

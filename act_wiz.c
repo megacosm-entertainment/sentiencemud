@@ -2567,6 +2567,86 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 		}
 	}
 
+	if (IS_SCROLL(obj))
+	{
+		sprintf(buf, "{CScroll: {BFlags: {x%s {BMaximum Mana:{x %d\n\r",
+			flag_string(scroll_flags,SCROLL(obj)->flags),
+			SCROLL(obj)->max_mana);
+		add_buf(buffer, buf);
+
+		ITERATOR sit;
+		SPELL_DATA *spell;
+		iterator_start(&sit, SCROLL(obj)->spells);
+		while((spell = (SPELL_DATA *)iterator_nextdata(&sit)))
+		{
+			sprintf(buf, "   {CSpell: {x%s {BLevel: {x%d\n\r", spell->skill->name, spell->level);
+			add_buf(buffer, buf);
+		}
+		iterator_stop(&sit);
+	}
+
+	if (IS_TATTOO(obj))
+	{
+		char touches[2*MIL];
+
+		if (TATTOO(obj)->touches < 0)
+			strcpy(touches, "unlimited");
+		else
+			sprintf(touches, "%d", TATTOO(obj)->touches);
+
+		sprintf(buf, "{CTattoo: {BTouches: {x%s {BFading Chance: {x%d{B%% per touch. Fading Rate: +{x%d{B%% per touch.{x\n\r",
+			touches,
+			TATTOO(obj)->fading_chance,
+			TATTOO(obj)->fading_rate);
+		add_buf(buffer, buf);
+
+		ITERATOR sit;
+		SPELL_DATA *spell;
+		iterator_start(&sit, TATTOO(obj)->spells);
+		while((spell = (SPELL_DATA *)iterator_nextdata(&sit)))
+		{
+			sprintf(buf, "   {CSpell: {x%s {BLevel: {x%d\n\r", spell->skill->name, spell->level);
+			add_buf(buffer, buf);
+		}
+		iterator_stop(&sit);
+	}
+
+	if (IS_WAND(obj))
+	{
+		char charges[2*MIL];
+		char recharging[2*MIL];
+		char cooldown[2*MIL];
+
+		if (WAND(obj)->max_charges < 0)
+			strcpy(charges, "unlimited");
+		else
+			sprintf(charges, "%d{B / {x%d", WAND(obj)->charges, WAND(obj)->max_charges);
+
+		if (WAND(obj)->recharge_time > 0)
+			sprintf(recharging, "%d{B charge%s per tick.", WAND(obj)->recharge_time, ((WAND(obj)->recharge_time==1)?"":"s"));
+		else
+			strcpy(recharging, "none.");
+
+		if ((WAND(obj)->charges < WAND(obj)->max_charges) && WAND(obj)->recharge_time > 0)
+			sprintf(cooldown, "%d{B tick%s until next charge.", WAND(obj)->cooldown, ((WAND(obj)->cooldown == 1)?"":"s"));
+		else
+			strcpy(cooldown, "off.");
+
+		sprintf(buf, "{CWand: {BCharges: {x%s {BRecharging: {x%s {BCooldown: {x%s{x\n\r",
+			charges, recharging, cooldown);
+		add_buf(buffer, buf);
+
+		ITERATOR sit;
+		SPELL_DATA *spell;
+		iterator_start(&sit, WAND(obj)->spells);
+		while((spell = (SPELL_DATA *)iterator_nextdata(&sit)))
+		{
+			sprintf(buf, "   {CSpell: {x%s {BLevel: {x%d\n\r", spell->skill->name, spell->level);
+			add_buf(buffer, buf);
+		}
+		iterator_stop(&sit);
+	}
+
     if (obj->extra_descr != NULL || obj->pIndexData->extra_descr != NULL)
     {
 		EXTRA_DESCR_DATA *ed;
@@ -2942,6 +3022,13 @@ void do_mstat(CHAR_DATA *ch, char *argument)
 	for (ev = victim->events; ev != NULL; ev = ev->next_event)
 	{
 		sprintf(buf, "{M* {BEvent {x%-53.52s {B[{x%7.3f{B seconds{B]{x\n\r", ev->args, (float) ev->delay/2);
+		send_to_char(buf, ch);
+	}
+
+	send_to_char("Catalyst Usage:\n\r", ch);
+	for(int i = CATALYST_NONE + 1; i < CATALYST_MAX; i++)
+	{
+		sprintf(buf, "%-20s %d\n\r", flag_string(catalyst_types, i), ch->catalyst_usage[i]);
 		send_to_char(buf, ch);
 	}
 }
@@ -3906,7 +3993,8 @@ void do_load(CHAR_DATA *ch, char *argument)
     do_function(ch, &do_load, "");
 }
 
-
+// load mob <widevnum>
+// load mob $RESERVEDNAME
 void do_mload(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -3917,14 +4005,24 @@ void do_mload(CHAR_DATA *ch, char *argument)
 
     one_argument(argument, arg);
 
-    if (arg[0] == '\0' || !parse_widevnum(arg, ch->in_room->area, &wnum))
-    {
+	if (arg[0] == '$')
+	{
+		RESERVED_WNUM *mwnum = search_reserved(reserved_mob_wnums, arg + 1);
+		if (!mwnum || !mwnum->data || !*((MOB_INDEX_DATA **)(mwnum->data)))
+		{
+			send_to_char("Syntax: load mob {R$<reserved name>{x\n\r", ch);
+			send_to_char("Invalid reserved mob name.  Please review {Yreserved mob list{x for list of names.\n\r", ch);
+			return;
+		}
+
+		pMobIndex = *((MOB_INDEX_DATA **)(mwnum->data));
+	}
+	else if (arg[0] == '\0' || !parse_widevnum(arg, ch->in_room->area, &wnum))
+	{
 		send_to_char("Syntax: load mob <widevnum>.\n\r", ch);
 		return;
-    }
-
-
-    if ((pMobIndex = get_mob_index(wnum.pArea, wnum.vnum)) == NULL)
+	}
+	else if ((pMobIndex = get_mob_index(wnum.pArea, wnum.vnum)) == NULL)
     {
 		send_to_char("No mob has that widevnum.\n\r", ch);
 		return;
@@ -3970,9 +4068,27 @@ void do_oload(CHAR_DATA *ch, char *argument)
     argument = one_argument(argument, arg1);
     one_argument(argument, arg2);
 
-    if (arg1[0] == '\0' || !parse_widevnum(arg1, ch->in_room->area, &wnum))
+	if (arg1[0] == '$')
+	{
+		RESERVED_WNUM *mwnum = search_reserved(reserved_obj_wnums, arg1 + 1);
+		if (!mwnum || !mwnum->data || !*((OBJ_INDEX_DATA **)(mwnum->data)))
+		{
+			send_to_char("Syntax: load obj {R$<reserved name>{x\n\r", ch);
+			send_to_char("Invalid reserved obj name.  Please review {Yreserved obj list{x for list of names.\n\r", ch);
+			return;
+		}
+
+		pObjIndex = *((OBJ_INDEX_DATA **)(mwnum->data));
+	}
+	else if (arg1[0] == '\0' || !parse_widevnum(arg1, ch->in_room->area, &wnum))
+	{
+		send_to_char("Syntax: load obj <widevnum>\n\r", ch);
+		send_to_char("        load obj $<reserved name>\n\r", ch);
+		return;
+	}
+	else if ((pObjIndex = get_obj_index(wnum.pArea, wnum.vnum)) == NULL)
     {
-		send_to_char("Syntax: load obj <widevnum> <amt>.\n\r", ch);
+		send_to_char("No object has that widevnum.\n\r", ch);
 		return;
     }
 
@@ -3980,7 +4096,8 @@ void do_oload(CHAR_DATA *ch, char *argument)
     {
 		if (!is_number(arg2))
 		{
-			send_to_char("Syntax: oload <wnum> <amt>.\n\r", ch);
+			send_to_char("Syntax: oload <wnum> <amt>\n\r", ch);
+			send_to_char("        oload $<reserved name> <amt>\n\r", ch);
 			return;
 		}
 
@@ -3990,12 +4107,6 @@ void do_oload(CHAR_DATA *ch, char *argument)
 			send_to_char("Range for amount is 1-50.\n\r",ch);
 			return;
 		}
-    }
-
-    if ((pObjIndex = get_obj_index(wnum.pArea, wnum.vnum)) == NULL)
-    {
-		send_to_char("No object has that widevnum.\n\r", ch);
-		return;
     }
 
     if (!has_access_area(ch, pObjIndex->area))

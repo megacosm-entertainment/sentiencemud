@@ -5611,35 +5611,9 @@ BPEDIT( bpedit_show )
 	}
 	add_buf(buffer, "\n\r");
 
-	if (bp->progs) {
-		int cnt, slot;
-
-		for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++)
-			if(list_size(bp->progs[slot]) > 0) ++cnt;
-
-		if (cnt > 0) {
-			sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "Number", "Prog Vnum", "Trigger", "Phrase");
-			add_buf(buffer, buf);
-
-			sprintf(buf, "{R%-6s %-20s %-10s %-10s\n\r{x", "------", "-------------", "-------", "------");
-			add_buf(buffer, buf);
-
-			ITERATOR it;
-			PROG_LIST *trigger;
-			for (cnt = 0, slot = 0; slot < TRIGSLOT_MAX; slot++) {
-				iterator_start(&it, bp->progs[slot]);
-				while(( trigger = (PROG_LIST *)iterator_nextdata(&it))) {
-					sprintf(buf, "{C[{W%4d{C]{x %ld#%ld %-10s %-6s\n\r", cnt,
-						trigger->wnum.pArea ? trigger->wnum.pArea->uid : 0,
-						trigger->wnum.vnum,trigger_name(trigger->trig_type),
-						trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, FALSE, FALSE));
-					add_buf(buffer, buf);
-					cnt++;
-				}
-				iterator_stop(&it);
-			}
-		}
-	}
+	
+    if (bp->progs)
+		olc_show_progs(buffer, bp->progs, "InstProg Vnum");
 
 	olc_show_index_vars(buffer, bp->index_vars);
 
