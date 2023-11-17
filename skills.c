@@ -496,6 +496,8 @@ void save_skill(FILE *fp, SKILL_DATA *skill)
 	for(int j = 0; j < MAX_CLASS; j++) fprintf(fp, " %d", skill->rating[j]);
 	fprintf(fp, "\n");
 
+	fprintf(fp, "Flags %s\n", print_flags(skill->flags));
+
 	if (skill->token)
 	{
 		// Tokens use triggers instead of the special functions
@@ -704,6 +706,7 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 	skill->name = fread_string(fp);
 	skill->uid = fread_number(fp);
 	skill->isspell = isspell;
+	skill->flags = SKILL_CAN_CAST;	// Default
 
 	const char *end = isspell ? "#-SPELL" : "#-SKILL";
 
@@ -730,6 +733,10 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 
 			case 'D':
 				KEYS("Display", skill->display, fread_string(fp));
+				break;
+
+			case 'F':
+				KEY("Flags", skill->flags, fread_flag(fp));
 				break;
 
 			case 'G':
@@ -4096,6 +4103,9 @@ SKEDIT( skedit_show )
 		sprintf(buf, "GSN:              {D(unset){x\n\r");
 	add_buf(buffer, buf);
 
+	sprintf(buf, "Flags:            {x%s\n\r", flag_string(skill_flags, skill->flags));
+	add_buf(buffer, buf);
+
 
 	if (skill->token)
 	{
@@ -4203,6 +4213,27 @@ SKEDIT( skedit_show )
 	free_buf(buffer);
 	return false;
 }
+
+SKEDIT( skedit_flags )
+{
+	SKILL_DATA *skill;
+
+	EDIT_SKILL(ch, skill);
+
+	int value;
+	if ((value = flag_value(skill_flags, argument)) == NO_FLAG)
+	{
+		send_to_char("Syntax:  skedit flags <flags>\n\r", ch);
+		send_to_char("Invalid skill flags.  Use '? skill' for list of skill flags.\n\r", ch);
+		return false;
+	}
+
+	TOGGLE_BIT(skill->flags, value);
+
+	send_to_char("Skill flags toggled.\n\r", ch);
+	return true;
+}
+
 
 SKEDIT( skedit_name )
 {
@@ -5392,5 +5423,22 @@ SGEDIT( sgedit_remove )
 	list_remnthlink(group->contents, index);
 	sprintf(buf, "Removed #%d item from group.\n\r", index);
 	send_to_char(buf, ch);
+	return true;
+}
+
+SGEDIT( sgedit_clear )
+{
+	SKILL_GROUP *group;
+
+	EDIT_SKILL_GROUP(ch, group);
+
+	if (list_size(group->contents) < 1)
+	{
+		send_to_char("This group is already empty.\n\r", ch);
+		return false;
+	}
+
+	list_clear(group->contents);
+	send_to_char("Group cleared.\n\r", ch);
 	return true;
 }

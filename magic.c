@@ -573,6 +573,12 @@ void do_cast(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
+	if (!IS_SET(spell->skill->flags, SKILL_CAN_CAST))
+	{
+		send_to_char("You have no idea how to cast that spell.\n\r", ch);
+		return;
+	}
+
 	if ( IS_VALID(spell->token) ) {
 		// Check thst the token is a valid token spell
 		script = get_script_token(spell->token->pIndexData, TRIG_SPELL, TRIGSLOT_SPELL);

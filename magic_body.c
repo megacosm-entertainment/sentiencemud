@@ -357,6 +357,35 @@ SPELL_FUNC(spell_haste)
 	return TRUE;
 }
 
+TOUCH_FUNC(touch_haste)
+{
+	if (is_affected(ch, skill) || IS_AFFECTED(ch,AFF_HASTE))
+	{
+		send_to_char("You can't move any faster!\n\r",ch);
+		return FALSE;
+	}
+
+	AFFECT_DATA af;
+	memset(&af,0,sizeof(af));
+
+	af.where = TO_AFFECTS;
+	af.group = AFFGROUP_MAGICAL;
+	af.skill = skill;
+	af.level = level;
+	af.duration  = level/2;
+	af.location  = APPLY_DEX;
+	af.modifier  = 1 + (level >= 18) + (level >= 25) + (level >= 32);
+	af.bitvector = AFF_HASTE;
+	af.bitvector2 = 0;
+	af.slot = obj->wear_loc;
+	affect_to_char(ch, &af);
+
+	send_to_char("You feel yourself moving more quickly.\n\r", ch);
+	act("$n is moving more quickly.",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+
+	return TRUE;
+}
+
 
 SPELL_FUNC(spell_heal)
 {

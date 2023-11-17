@@ -4086,7 +4086,7 @@ char *expand_entity_skillentry(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 	case ENTITY_SKILLENTRY_FLAGS:
 		arg->type = ENT_BITVECTOR;
 		arg->d.bv.value = entry ? entry->flags : 0;
-		arg->d.bv.table = entry ? skill_flags : NULL;
+		arg->d.bv.table = entry ? skill_entry_flags : NULL;
 		break;
 
 	case ENTITY_SKILLENTRY_ISSPELL:

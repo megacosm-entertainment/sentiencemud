@@ -2440,6 +2440,7 @@ TEDIT(tedit_varclear)
 
 char *token_index_getvaluename(TOKEN_INDEX_DATA *token, int v)
 {
+	/*
 	if(token->type == TOKEN_SPELL )
 	{
 		if( v == TOKVAL_SPELL_RATING ) return "Rating";
@@ -2461,7 +2462,7 @@ char *token_index_getvaluename(TOKEN_INDEX_DATA *token, int v)
 		else if( v == TOKVAL_SPELL_MANA ) return "Mana Cost";
 		else if( v == TOKVAL_SPELL_LEARN ) return "Learn Cost";
 	}
-
+	*/
 	return token->value_name[v];
 }
 

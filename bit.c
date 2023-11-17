@@ -109,6 +109,7 @@ const struct flag_stat_type flag_stat_table[] =
     {   light_flags,                FALSE   },
     {   stock_types,                TRUE    },
     {   scroll_flags,               FALSE   },
+    {   tattoo_loc_flags,           TRUE    },
     {	0,							0		}
 };
 

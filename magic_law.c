@@ -66,6 +66,31 @@ SPELL_FUNC(spell_armour)
 	return TRUE;
 }
 
+TOUCH_FUNC(touch_armour)
+{
+	if (is_affected(ch, skill)) {
+		send_to_char("You are already armoured.\n\r",ch);
+		return FALSE;
+	}
+
+	AFFECT_DATA af;
+	memset(&af,0,sizeof(af));
+	af.where = TO_AFFECTS;
+	af.group = AFFGROUP_MAGICAL;
+	af.skill = skill;
+	af.level = level;
+	af.duration  = 35 * obj->condition / 100;
+	af.modifier  = -20;
+	af.location  = APPLY_AC;
+	af.bitvector = 0;
+	af.bitvector2 = 0;
+	af.slot = obj->wear_loc;
+	affect_to_char(ch, &af);
+	
+	send_to_char("You feel someone protecting you.\n\r", ch);
+	return TRUE;
+}
+
 SPELL_FUNC(spell_cloak_of_guile)
 {
 	CHAR_DATA *victim;
@@ -159,6 +184,24 @@ void _spell_identify_show_item_data(BUFFER *buffer, CHAR_DATA *ch, OBJ_DATA *obj
 {
 	char buf[MSL];
 	ITERATOR it;
+	if (IS_CONTAINER(obj))
+	{
+		sprintf(buf,"{MItems: {x%d{M/{x%d{M  Weight: {x%d/%d{M  flags: {x%s{M\n\r",
+			get_number_in_container(obj), CONTAINER(obj)->max_volume,
+			(get_obj_weight_container(obj) * CONTAINER(obj)->weight_multiplier)/100,
+			CONTAINER(obj)->max_weight,
+			flag_string(container_flags,CONTAINER(obj)->flags));
+		add_buf(buffer,buf);
+		if (CONTAINER(obj)->weight_multiplier != 100) {
+			sprintf(buf,"{MWeight multiplier: {x%d{M%%\n\r", CONTAINER(obj)->weight_multiplier);
+			add_buf(buffer,buf);
+		}
+
+		// TODO: Add white/blacklists
+
+		// REMARK: identifying keyrings doesn't need to show the keys.  Can just look at the object itself.
+	}
+
 	if (IS_FOOD(obj))
 	{
 		// Show food buffs
@@ -211,6 +254,7 @@ void _spell_identify_show_item_data(BUFFER *buffer, CHAR_DATA *ch, OBJ_DATA *obj
 		// Show spells
 		if (list_size(FLUID_CON(obj)->spells) > 0)
 		{
+			add_buf(buffer, "{MSpells when {Wsipped{M, {Wdrank{M or {Wquaffed{x:\n\r");
 			ITERATOR it;
 			SPELL_DATA *spell;
 			iterator_start(&it, FLUID_CON(obj)->spells);
@@ -222,11 +266,44 @@ void _spell_identify_show_item_data(BUFFER *buffer, CHAR_DATA *ch, OBJ_DATA *obj
 			}
 		}
 	}
+
+	if (IS_SCROLL(obj))
+	{
+		if (list_size(SCROLL(obj)->spells) > 0)
+		{
+			add_buf(buffer, "{MSpells when {Wrecited{x:\n\r");
+			ITERATOR it;
+			SPELL_DATA *spell;
+			iterator_start(&it, SCROLL(obj)->spells);
+			while((spell = (SPELL_DATA *)iterator_nextdata(&it)))
+			{
+				sprintf(buf, " {W* {MLevel {W%d {Mspell of {W%s{M.{x\n\r",
+					spell->level, get_spell_data_name(spell));
+				add_buf(buffer, buf);
+			}
+		}
+	}
+
+	if (IS_TATTOO(obj))
+	{
+		if (list_size(TATTOO(obj)->spells) > 0)
+		{
+			add_buf(buffer, "{MSpells when {Wtouched{x:\n\r");
+			ITERATOR it;
+			SPELL_DATA *spell;
+			iterator_start(&it, TATTOO(obj)->spells);
+			while((spell = (SPELL_DATA *)iterator_nextdata(&it)))
+			{
+				sprintf(buf, " {W* {MLevel {W%d {Mspell of {W%s{M.{x\n\r",
+					spell->level, get_spell_data_name(spell));
+				add_buf(buffer, buf);
+			}
+		}
+	}
 }
 
-SPELL_FUNC(spell_identify)
+bool __func_identify(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
 {
-	OBJ_DATA *obj = (OBJ_DATA *) vo;
 	BUFFER *buffer;
 	char buf[2*MAX_STRING_LENGTH];
 	char buf2[MAX_STRING_LENGTH];
@@ -234,7 +311,7 @@ SPELL_FUNC(spell_identify)
 	AFFECT_DATA *af;
 //	OBJ_DATA *key;
 //	int i = 0;
-	SPELL_DATA *spell;
+//	SPELL_DATA *spell;
 
 	if (IS_SET(obj->extra[1], ITEM_NO_LORE)) {
 		act("$p is beyond your power to identify.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
@@ -242,7 +319,6 @@ SPELL_FUNC(spell_identify)
 	}
 
 	buffer = new_buf();
-
 
 	sprintf(buf,
 		"{MObject '{x%s{M' is type {x%s{M, extra flags {x%s{M.\n\r"
@@ -360,7 +436,7 @@ SPELL_FUNC(spell_identify)
 		}
 		break;
 
-	case ITEM_WAND:
+	//case ITEM_WAND:
 	case ITEM_STAFF:
 		sprintf(buf, "{MHas {x%d{M/{x%d {Mcharges.{x\n\r",
 			obj->value[2], obj->value[1]);
@@ -379,6 +455,7 @@ SPELL_FUNC(spell_identify)
 		break;
 	*/
 
+	/*
 	case ITEM_WEAPON_CONTAINER:
 		sprintf(buf,"{MHolds {x%d{M/{x%d {M%ss and {x%d{M/{x%d{M weight\n\r",
 			get_number_in_container(obj), obj->value[3],
@@ -391,7 +468,9 @@ SPELL_FUNC(spell_identify)
 			add_buf(buffer,buf);
 		}
 		break;
+	*/
 
+	/*
 	case ITEM_CONTAINER:
 		sprintf(buf,"{MItems: {x%d{M/{x%d{M  Weight: {x%d/%d{M  flags: {x%s{M\n\r",
 			get_number_in_container(obj), obj->value[3],
@@ -403,6 +482,7 @@ SPELL_FUNC(spell_identify)
 			add_buf(buffer,buf);
 		}
 		break;
+	*/
 
 	case ITEM_WEAPON:
 		add_buf(buffer, "{MWeapon type is {x");
@@ -495,11 +575,13 @@ SPELL_FUNC(spell_identify)
 		}
 	}
 
+	/*
 	for (spell = obj->spells; spell; spell = spell->next) {
 		sprintf(buf, "{MLevel {W%d {Mspell of {W%s{M.{x\n\r",
 			spell->level, get_spell_data_name(spell));
 		add_buf(buffer, buf);
 	}
+	*/
 
 	for (af = obj->catalyst; af != NULL; af = af->next) {
 		sprintf(buf, "%satalyst {x%s {Mof strength {x%d {M", ((af->where == TO_CATALYST_ACTIVE) ? "{MC" : "{xDormant{M c" ), flag_string( catalyst_types, af->catalyst_type ), af->level);
@@ -543,9 +625,8 @@ SPELL_FUNC(spell_identify)
 		}
 	}
 
-	page_to_char(buf_string(buffer), ch);
-	free_buf(buffer);
-
+	// TODO: Make it where these triggers can append to this
+	// ch->script_buffer = buffer;
 	if(skill == &gsk__auction || skill == &gsk__inspect)
 		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_INSPECT, NULL,0,0,0,0,0);
 	else if(skill == gsk_lore)
@@ -553,7 +634,19 @@ SPELL_FUNC(spell_identify)
 	else if(skill == gsk_identify)
 		p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_IDENTIFY, NULL,0,0,0,0,0);
 
+	page_to_char(buf_string(buffer), ch);
+	free_buf(buffer);
 	return TRUE;
+}
+
+SPELL_FUNC(spell_identify)
+{
+	return __func_identify(skill, level, ch, (OBJ_DATA *)vo);
+}
+
+RECITE_FUNC(recite_identify)
+{
+	return __func_identify(skill, level, ch, (OBJ_DATA *)vo);
 }
 
 SPELL_FUNC(spell_locate_object)

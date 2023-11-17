@@ -5773,7 +5773,7 @@ void fwrite_skill(CHAR_DATA *ch, SKILL_ENTRY *entry, FILE *fp)
 
 		// Only save if it's
 		if( (entry->flags & ~SKILL_SPELL) != SKILL_AUTOMATIC)
-			fprintf(fp, "Flags %s\n", flag_string( skill_flags, entry->flags));
+			fprintf(fp, "Flags %s\n", flag_string( skill_entry_flags, entry->flags));
 		if( IS_VALID(entry->token) ) {
 			fwrite_token(entry->token, fp);
 		}
@@ -5871,7 +5871,7 @@ void fread_skill(FILE *fp, CHAR_DATA *ch)
 			break;
 
 		case 'F':
-			FVKEY("Flags",	flags, fread_string_eol(fp), skill_flags);
+			FVKEY("Flags",	flags, fread_string_eol(fp), skill_entry_flags);
 			break;
 
 		case 'S':

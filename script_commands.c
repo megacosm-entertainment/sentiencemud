@@ -2498,7 +2498,7 @@ SCRIPT_CMD(scriptcmd_grantskill)
 
 				if (!str_cmp(buf_string(buffer), "none"))
 					flags = 0;
-				else if ((flags = flag_value(skill_flags, buf_string(buffer))) == NO_FLAG)
+				else if ((flags = flag_value(skill_entry_flags, buf_string(buffer))) == NO_FLAG)
 					flags = SKILL_AUTOMATIC;
 
 				free_buf(buffer);

@@ -136,12 +136,15 @@ const struct olc_help_type help_table[] =
 	{	"shipclass",			STRUCT_FLAGS,		ship_class_types,			"Ship class types"	},
 	{	"shop",					STRUCT_FLAGS,		shop_flags,					"Shop flags"	},
 	{	"size",					STRUCT_FLAGS,		size_flags,					"Mobile size."	},
+	{	"skill",				STRUCT_FLAGS,		skill_flags,				"Skill flags."	},
+	{	"skillentry",			STRUCT_FLAGS,		skill_entry_flags,			"Skill entry flags."	},
 	{	"song_targets",			STRUCT_FLAGS,		song_target_types,			"Song Target Types."	},
 	{	"spec",					STRUCT_SPEC,		spec_table,					"Available special programs. {D(DEPRECATED){x"	},
 	{	"spell_func",			STRUCT_SPELLFUNC,	spell_func_table,			"Spell functions"},
 	{	"spell_targets",		STRUCT_FLAGS,		spell_target_types,			"Spell Target Types."	},
 	{	"spells",				STRUCT_SKILL,		NULL,						"Names of current spells."	},
 	{	"sublasses",			STRUCT_SUBCLASSES,		NULL,					"Subclasses" },
+	{	"tattoo_loc",			STRUCT_FLAGS,		tattoo_loc_flags,			"Tattoo Locations."},
 	{	"tokenflags",			STRUCT_FLAGS,		token_flags,				"Token flags."	},
 	{	"tprog",				STRUCT_TRIGGERS,	dummy_triggers,				"TokenProgram types."	},
 	{	"trigger_slots",		STRUCT_FLAGS,		trigger_slots,				"Trigger slots."},
@@ -13442,7 +13445,6 @@ bool olc_can_scribe_spell(SKILL_DATA *skill)
 		return skill->recite_fun != NULL;
 }
 
-
 OEDIT(oedit_type_scroll)
 {
 	OBJ_INDEX_DATA *pObj;
@@ -13628,6 +13630,16 @@ OEDIT(oedit_type_scroll)
 	return false;
 }
 
+bool olc_can_ink_spell(SKILL_DATA *skill)
+{
+	if (!is_skill_spell(skill)) return false;
+
+	if (skill->token)
+		return get_script_token(skill->token, TRIG_TOKEN_TOUCH, TRIGSLOT_SPELL) != NULL;
+	else
+		return skill->touch_fun != NULL;
+}
+
 OEDIT(oedit_type_tattoo)
 {
 	OBJ_INDEX_DATA *pObj;
@@ -13739,6 +13751,12 @@ OEDIT(oedit_type_tattoo)
 					if (!IS_VALID(skill) || !is_skill_spell(skill))
 					{
 						send_to_char("That's not a spell.\n\r", ch);
+						return false;
+					}
+
+					if (!olc_can_ink_spell(skill))
+					{
+						send_to_char("That spell cannot be inked into a tattoo.\n\r", ch);
 						return false;
 					}
 				}

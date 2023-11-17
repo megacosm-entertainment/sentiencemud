@@ -1840,7 +1840,11 @@ void resolve_skill_tokens()
 			{
 				log_stringf("Skill data '%s' is missing token info %ld#%ld.", skill->name, skill->token_load.auid, skill->token_load.vnum);
 			}
+			else if(skill->token->type != TOKEN_SPELL)
+				REMOVE_BIT(skill->flags, SKILL_CAN_CAST);
 		}
+		else if ((!skill->spell_fun || skill->spell_fun == spell_null))
+			REMOVE_BIT(skill->flags, SKILL_CAN_CAST);
 	}
 	iterator_stop(&it);
 }

@@ -13,7 +13,7 @@ obj/act_move.o: act_move.c merc.h protocol.h sha256.h interp.h olc.h wilds.h \
 obj/act_obj.o: act_obj.c merc.h protocol.h sha256.h magic.h interp.h \
  recycle.h scripts.h tables.h
 obj/act_obj2.o: act_obj2.c merc.h protocol.h sha256.h interp.h recycle.h \
- tables.h
+ tables.h scripts.h
 obj/act_wiz.o: act_wiz.c merc.h protocol.h sha256.h olc.h interp.h recycle.h \
  tables.h olc_save.h wilds.h
 obj/alias.o: alias.c merc.h protocol.h sha256.h

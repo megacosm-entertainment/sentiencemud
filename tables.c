@@ -2823,7 +2823,7 @@ const struct flag_type variable_types[] = {
 };
 
 
-const struct flag_type skill_flags[] = {
+const struct flag_type skill_entry_flags[] = {
 	{"practice",		SKILL_PRACTICE,			TRUE},
 	{"improve",			SKILL_IMPROVE,			TRUE},
 	{"favourite",		SKILL_FAVOURITE,			FALSE},	// This is set manually
@@ -3578,6 +3578,7 @@ const struct scribe_func_type scribe_func_table[] =
 
 const struct recite_func_type recite_func_table[] =
 {
+    { "identify",       recite_identify },
     { "word_of_recall", recite_word_of_recall },
     { NULL, NULL }
 };
@@ -3587,12 +3588,17 @@ const struct preink_func_type preink_func_table[] =
     { NULL, NULL }
 };
 
-const struct ink_func_type ink_func_table[] = {
+const struct ink_func_type ink_func_table[] =
+{
     { NULL, NULL }
 };
 
-const struct touch_func_type touch_func_table[] = {
-    { NULL, NULL }
+const struct touch_func_type touch_func_table[] =
+{
+    { "armour",         touch_armour },
+    { "fly",            touch_fly },
+    { "haste",          touch_haste },
+    { NULL,             NULL }
 };
 
 
@@ -3871,5 +3877,13 @@ const struct gsn_type gsn_table[] =
     { NULL, NULL }
 };
 
-
-
+const struct flag_type skill_flags[] =
+{
+    { "can_brew",           SKILL_CAN_BREW,         TRUE  },
+    { "can_cast",           SKILL_CAN_CAST,         TRUE  },
+    { "can_imbue",          SKILL_CAN_IMBUE,        TRUE  },
+    { "can_ink",            SKILL_CAN_INK,          TRUE  },
+    { "can_scribe",         SKILL_CAN_SCRIBE,       TRUE  },
+    { "cross_class",        SKILL_CROSS_CLASS,      FALSE },    // NYI
+    { NULL,                 0,                      FALSE }
+};

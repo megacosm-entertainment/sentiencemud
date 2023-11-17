@@ -91,10 +91,10 @@
 #define RECITE_FUNC(s)	bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj, void *vo, int target)
 
 #define DECLARE_PREINK_FUN( fun ) PREINK_FUN fun
-#define PREINK_FUNC(s)	bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
+#define PREINK_FUNC(s)	bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, CHAR_DATA *victim, int wear_loc)
 
 #define DECLARE_INK_FUN( fun ) INK_FUN fun
-#define INK_FUNC(s)	bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
+#define INK_FUNC(s)	bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, CHAR_DATA *victim, int wear_loc)
 
 #define DECLARE_TOUCH_FUN( fun ) TOUCH_FUN fun
 #define TOUCH_FUNC(s)	bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
@@ -533,8 +533,8 @@ typedef bool QUAFF_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *o
 typedef bool PRESCRIBE_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj);
 typedef bool SCRIBE_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj);
 typedef bool RECITE_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj, void *vo, int target);
-typedef bool PREINK_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj);
-typedef bool INK_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj);
+typedef bool PREINK_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, CHAR_DATA *victim, int wear_loc);
+typedef bool INK_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, CHAR_DATA *victim, int wear_loc);
 typedef bool TOUCH_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj);
 // TODO: IMBUE
 typedef bool ARTIFICE_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj);
@@ -6622,6 +6622,13 @@ struct church_command_type
 
 #define MAX_SKILL_VALUES    10
 
+#define SKILL_CAN_CAST      (A)
+#define SKILL_CAN_BREW      (B)
+#define SKILL_CAN_SCRIBE    (C)
+#define SKILL_CAN_INK       (D)
+#define SKILL_CAN_IMBUE     (E)
+#define SKILL_CROSS_CLASS   (F)     // Whether the skill can be used in classes not registered for the skill (NYI)
+
 struct skill_data
 {
     SKILL_DATA *next;
@@ -6632,6 +6639,8 @@ struct skill_data
 
     char *	name;                       // Name of skill
     char *  display;                    // Display name, usually the same as the skill name
+
+    long flags;
 
     sh_int	skill_level[MAX_CLASS];	/* Level needed by class	*/
     sh_int	rating[MAX_CLASS];	/* How hard it is to learn	*/

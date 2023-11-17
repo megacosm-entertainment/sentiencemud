@@ -4033,6 +4033,7 @@ const struct olc_cmd_type skedit_table[] =
 	//	"delete",		skedit_delete		},		// TODO: Need to be abke to track usage first
 	{	"difficulty",	skedit_difficulty	},
 	{	"display",		skedit_display		},
+	{	"flags",		skedit_flags		},
 	{	"gsn",			skedit_gsn			},
 	{	"ink",			skedit_inkfunc		},
 	{	"inks",			skedit_inks			},
@@ -4162,6 +4163,7 @@ const struct olc_cmd_type sgedit_table[] =
 {
 	{	"?",			show_help			},
 	{	"add",			sgedit_add			},
+	{	"clear",		sgedit_clear		},
 	{	"commands",		show_commands		},
 	{	"create",		sgedit_create		},
 	{	"remove",		sgedit_remove		},

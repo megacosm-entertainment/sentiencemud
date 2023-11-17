@@ -7692,6 +7692,12 @@ bool can_brew_spell(CHAR_DATA *ch, OBJ_DATA *obj, SKILL_ENTRY *spell)
 		return FALSE;
 	}
 
+	if (!IS_SET(spell->skill->flags, SKILL_CAN_BREW))
+	{
+		act_new("You cannot brew $t in $p.", ch,NULL,NULL,obj,NULL,spell->skill->name,NULL,TO_CHAR,POS_DEAD,NULL);
+		return FALSE;
+	}
+
 	if (IS_VALID(spell->token))
 	{
 		SCRIPT_DATA *script = get_script_token(spell->token->pIndexData, TRIG_TOKEN_QUAFF, TRIGSLOT_SPELL);
@@ -8088,6 +8094,12 @@ bool can_scribe_spell(CHAR_DATA *ch, OBJ_DATA *obj, SKILL_ENTRY *spell)
 	if (!spell || !spell->isspell)
 	{
 		send_to_char("You don't know any spells by that name.\n\r", ch);
+		return FALSE;
+	}
+
+	if (!IS_SET(spell->skill->flags, SKILL_CAN_SCRIBE))
+	{
+		act_new("You cannot scribe $t onto $p.", ch,NULL,NULL,obj,NULL,spell->skill->name,NULL,TO_CHAR,POS_DEAD,NULL);
 		return FALSE;
 	}
 

@@ -94,6 +94,32 @@ SPELL_FUNC(spell_fly)
 	return TRUE;
 }
 
+TOUCH_FUNC(touch_fly)
+{
+	if (IS_AFFECTED(ch, AFF_FLYING))
+	{
+		send_to_char("You are already airborne.\n\r",ch);
+		return FALSE;
+	}
+
+	AFFECT_DATA af;
+	memset(&af,0,sizeof(af));
+	af.where = TO_AFFECTS;
+	af.group = AFFGROUP_MAGICAL;
+	af.skill = skill;
+	af.level = level;
+	af.duration = (level + 3);
+	af.location = 0;
+	af.modifier = 0;
+	af.bitvector = AFF_FLYING;
+	af.bitvector2 = 0;
+	af.slot = obj->wear_loc;
+	affect_to_char(ch, &af);
+
+	send_to_char("Your feet rise off the ground.\n\r", ch);
+	act("$n's feet rise off the ground.", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	return TRUE;
+}
 
 SPELL_FUNC(spell_underwater_breathing)
 {

@@ -3025,12 +3025,14 @@ void do_mstat(CHAR_DATA *ch, char *argument)
 		send_to_char(buf, ch);
 	}
 
+	/*
 	send_to_char("Catalyst Usage:\n\r", ch);
 	for(int i = CATALYST_NONE + 1; i < CATALYST_MAX; i++)
 	{
 		sprintf(buf, "%-20s %d\n\r", flag_string(catalyst_types, i), ch->catalyst_usage[i]);
 		send_to_char(buf, ch);
 	}
+	*/
 }
 
 

@@ -237,6 +237,15 @@ DECLARE_PRESCRIBE_FUN ( prescribe_silence );
 DECLARE_SCRIBE_FUN ( scribe_silence );
 
 // RECITE
+DECLARE_RECITE_FUN ( recite_identify );
 DECLARE_RECITE_FUN ( recite_silence );
 DECLARE_RECITE_FUN ( recite_word_of_recall );
 
+// PREINK
+
+// INK
+
+// TOUCH
+DECLARE_TOUCH_FUN ( touch_armour );
+DECLARE_TOUCH_FUN ( touch_fly );
+DECLARE_TOUCH_FUN ( touch_haste );

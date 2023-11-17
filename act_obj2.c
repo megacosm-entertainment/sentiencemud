@@ -14,10 +14,15 @@
 #include "interp.h"
 #include "recycle.h"
 #include "tables.h"
+#include "scripts.h"
 
 bool __isspell_valid(CHAR_DATA *ch, OBJ_DATA *obj, SKILL_ENTRY *spell, int pretrigger, int trigger, char *token_message);
 void show_flag_cmds(CHAR_DATA *ch, const struct flag_type *flag_table);
 bool has_inks(CHAR_DATA *ch, int *need, bool show);
+bool are_spell_targets_compatible(SKILL_ENTRY *sa, SKILL_ENTRY *sb);
+bool has_inks(CHAR_DATA *ch, int *need, bool show);
+void extract_inks(CHAR_DATA *ch, int *need);
+bool show_help(CHAR_DATA *ch, char *argument);
 
 /* Used not only for depositing of pneuma but for the depositing of GQ items*/
 void do_deposit(CHAR_DATA *ch, char *argument)
@@ -794,6 +799,40 @@ void do_consume(CHAR_DATA *ch, char *argument)
 }
 
 
+void obj_touch_spell(OBJ_DATA *tattoo, SKILL_DATA *skill, int level, CHAR_DATA *ch)
+{
+    if (!IS_VALID(skill))
+	{
+		bug("obj_touch_spell: bad skill data.", 0);
+		return;
+	}
+
+	if (skill->token)
+	{
+		if (!get_script_token(skill->token, TRIG_TOKEN_TOUCH, TRIGSLOT_SPELL))
+		{
+			bug("obj_touch_spell: bad skill uid = %d.", skill->uid);
+			return;
+		}
+	}
+	else if (!skill->touch_fun)
+    {
+		bug("obj_touch_spell: bad skill uid = %d.", skill->uid);
+		return;
+    }
+
+	if (skill->token)
+	{
+		//sprintf(_buf, "%s: victim = %s", skill->name, (victim?victim->name:"(null)"));
+		//send_to_char(_buf, ch);
+		//sprintf(_buf, "%s: obj = %s", skill->name, (obj?obj->short_descr:"(null)"));
+		//send_to_char(_buf, ch);
+		p_token_index_percent_trigger(skill->token, ch, NULL, NULL, tattoo, NULL, TRIG_TOKEN_TOUCH, NULL, 0,0,0,0,0, level,0,0,0,0);
+	}
+	else
+		(*(skill->touch_fun)) (skill, level, ch, tattoo);
+}
+
 void do_touch(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
@@ -804,26 +843,27 @@ void do_touch(CHAR_DATA *ch, char *argument)
 
     if (arg[0] == '\0')
     {
-	send_to_char("Touch what?\n\r", ch);
-	return;
+		send_to_char("Touch what?\n\r", ch);
+		return;
     }
 
     if ((obj = get_obj_wear(ch, arg, TRUE)) == NULL)
     {
-	send_to_char("You do not have that tattoo.\n\r", ch);
-	return;
+		send_to_char("You do not have that tattoo.\n\r", ch);
+		return;
     }
 
-    if (obj->item_type != ITEM_TATTOO)
+    if (!IS_TATTOO(obj))
     {
-	send_to_char("You can touch only tattoos.\n\r", ch);
-	return;
+		send_to_char("You can touch only tattoos.\n\r", ch);
+		return;
     }
 
+	// This is for custom tattoo items that are affixed
 	if(p_percent_trigger(NULL, obj, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_TOUCH, argument,0,0,0,0,0))
 		return;
 
-    if (!obj->value[0])
+    if (!TATTOO(obj)->touches)
     {
 		send_to_char("Nothing happens.", ch);
     }
@@ -832,19 +872,31 @@ void do_touch(CHAR_DATA *ch, char *argument)
 		act("$n touches $p briefly.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
 		act("You touch $p briefly.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
 
-		for (spell = obj->spells; spell != NULL; spell = spell->next)
+		ITERATOR spit;
+		iterator_start(&spit, TATTOO(obj)->spells);
+		while((spell = (SPELL_DATA *)iterator_nextdata(&spit)))
 		{
-			if (spell->skill->token)
-				p_token_index_percent_trigger(spell->skill->token, ch, ch, NULL, obj, NULL, TRIG_TOKEN_TOUCH, NULL, spell->level, 0, 0, 0, 0,0,0,0,0,0);
-			else
-				obj_cast_spell(spell->skill, spell->level, ch, ch, NULL);
+			obj_touch_spell(obj, spell->skill, spell->level, ch);
+		}
+		iterator_stop(&spit);
+
+		if(TATTOO(obj)->touches > 0) --TATTOO(obj)->touches;
+
+		if(TATTOO(obj)->fading_rate > 0 && TATTOO(obj)->fading_chance < 100)
+		{
+			TATTOO(obj)->fading_chance += TATTOO(obj)->fading_rate;	// If this goes over 100, so be it, the tattoo will fade
+			if (TATTOO(obj)->fading_chance > 100) TATTOO(obj)->fading_chance = 100;
 		}
 
-		if(obj->value[0] > 0) --obj->value[0];
-
-		if(number_percent() < obj->value[1]) {
-			act("$p fades away as the ink dries.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL);
-			extract_obj(obj);
+		if(number_percent() < TATTOO(obj)->fading_chance)
+		{
+			// TODO: change (5,10) to (TATTOO(obj)->min_degrade, TATTOO(obj)->max_degrade)
+			obj->condition -= number_range(5,10);
+			if (obj->condition <= 0)
+			{
+				act("$p fades away as the ink dries.", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ALL);
+				extract_obj(obj);
+			}
 		}
 		
 		WAIT_STATE(ch, 8);
@@ -894,17 +946,81 @@ void do_ruboff(CHAR_DATA *ch, char *argument)
 	extract_obj(obj);
 }
 
+bool can_ink_spell(CHAR_DATA *ch, SKILL_ENTRY *spell, CHAR_DATA *victim, int wear_loc)
+{
+	if (!spell || !spell->isspell)
+	{
+		send_to_char("You don't know any spells by that name.\n\r", ch);
+		return FALSE;
+	}
+
+	if (!IS_SET(spell->skill->flags, SKILL_CAN_INK))
+	{
+		if (victim != ch)
+			act_new("You cannot ink $t into a tattoo on $N.", ch,victim,NULL,NULL,NULL,spell->skill->name,NULL,TO_CHAR,POS_DEAD,NULL);
+		else
+			act_new("You cannot ink $t into a tattoo.", ch,NULL,NULL,NULL,NULL,spell->skill->name,NULL,TO_CHAR,POS_DEAD,NULL);
+		return FALSE;
+	}
+
+	if (IS_VALID(spell->token))
+	{
+		SCRIPT_DATA *script = get_script_token(spell->token->pIndexData, TRIG_TOKEN_TOUCH, TRIGSLOT_SPELL);
+		if(!script) {
+			if (victim != ch)
+				act_new("You cannot ink $t into a tattoo on $N.", ch,victim,NULL,NULL,NULL,spell->skill->name,NULL,TO_CHAR,POS_DEAD,NULL);
+			else
+				act_new("You cannot ink $t into a tattoo.", ch,NULL,NULL,NULL,NULL,spell->skill->name,NULL,TO_CHAR,POS_DEAD,NULL);
+			return FALSE;
+		}
+
+		int ret = p_percent_trigger(NULL, NULL, NULL, spell->token, ch, NULL, NULL, NULL, NULL, TRIG_TOKEN_PREINK, NULL,wear_loc,0,0,0,0);
+		if (ret)
+		{
+			if (ret != PRET_SILENT)
+			{
+				if (victim != ch)
+					act_new("You cannot ink $t into a tattoo on $N.", ch,victim,NULL,NULL,NULL,spell->skill->name,NULL,TO_CHAR,POS_DEAD,NULL);
+				else
+					act_new("You cannot ink $t into a tattoo.", ch,NULL,NULL,NULL,NULL,spell->skill->name,NULL,TO_CHAR,POS_DEAD,NULL);
+			}
+			return FALSE;
+		}
+	}
+	else
+	{
+		if(!spell->skill->touch_fun)
+		{
+			if (victim != ch)
+				act_new("You cannot ink $t into a tattoo on $N.", ch,victim,NULL,NULL,NULL,spell->skill->name,NULL,TO_CHAR,POS_DEAD,NULL);
+			else
+				act_new("You cannot ink $t into a tattoo.", ch,NULL,NULL,NULL,NULL,spell->skill->name,NULL,TO_CHAR,POS_DEAD,NULL);
+			return false;
+		}
+
+		if(spell->skill->preink_fun)
+		{
+			// prescribe function is responsible for messages.
+			if (!(*spell->skill->preink_fun)(spell->skill, ch->tot_level, ch, victim, wear_loc))
+				return false;
+		}
+	}
+
+	return true;
+}
+
+
 void do_ink(CHAR_DATA *ch, char *argument)
 {
+	char buf[MSL];
     CHAR_DATA *victim;
-    OBJ_DATA *obj, *next;
+    OBJ_DATA *obj;
 	SKILL_ENTRY *spells[3];
     int have[CATALYST_MAX];
     int need[CATALYST_MAX];
     int loc;
-    int i,j,n;
+    int i,n;
     int chance;
-    bool found;
     char arg[MAX_STRING_LENGTH];
 
 	if (IS_DEAD(ch))
@@ -939,13 +1055,15 @@ void do_ink(CHAR_DATA *ch, char *argument)
 
 	if (argument[0] == '\0') {
 		send_to_char("Where did you want to place the tattoo?\n\r", ch);
+		show_flag_cmds(ch, tattoo_loc_flags);
 		return;
 	}
 
 	argument = one_argument(argument, arg);
 
-	if((loc = flag_lookup(arg, tattoo_loc_flags)) == 0) {
+	if((loc = stat_lookup(arg, tattoo_loc_flags, WEAR_NONE)) == WEAR_NONE) {
 		send_to_char("Place the tattoo where?\n\r", ch);
+		show_flag_cmds(ch, tattoo_loc_flags);
 		return;
 	}
 
@@ -962,88 +1080,73 @@ void do_ink(CHAR_DATA *ch, char *argument)
 	}
 
 	memset(spells,0,sizeof(spells));
-	for(i=n=0;i<3;i++,n++) {
+
+	// Clear out catalyst usages
+	memset(ch->catalyst_usage, 0, sizeof(ch->catalyst_usage));
+	for(i = n = 0; i < 3; i++)
+	{
 		argument = one_argument(argument, arg);
 		if(!arg[0]) break;
-
 		spells[i] = skill_entry_findname(ch->sorted_skills, arg);
-
-		if (!__isspell_valid(ch, NULL, spells[i], TRIG_TOKEN_PREINK, TRIG_TOKEN_TOUCH, "You cannot ink $t into a tattoo."))
+		if (!can_ink_spell(ch, spells[i], victim, loc))
 			return;
 
-		int target = skill_entry_target(ch, spells[i]);
-		if (target != TAR_CHAR_DEFENSIVE &&
-			target != TAR_CHAR_SELF &&
-			target != TAR_OBJ_CHAR_DEF &&
-			target != TAR_CHAR_OFFENSIVE &&
-			target != TAR_OBJ_CHAR_OFF) {
-			send_to_char("You may only tattoo spells which you can cast on people.\n\r", ch);
-			return;
-		}
+		n++;
+	}
 
-		found = FALSE;
-		if( IS_VALID(spells[i]->token))
+	memset(need, 0, sizeof(need));
+	for(i = 0; i < 3; i++)
+	{
+		if (spells[i])
 		{
-			for(j = 0; j < 3; j++)
+			for(int j = 0; j < 3; j++)
 			{
-				spells[i]->token->tempstore[0] = j;
-
-				// tempstore1 is the index
-				p_percent_trigger(NULL, NULL, NULL, spells[i]->token, ch, NULL, NULL, NULL, NULL, TRIG_TOKEN_INK_CATALYST, NULL,0,0,0,0,0);
-				// tempstore2 is catalyst type
-				// tempstore3 is catalyst amount
-
-				if (spells[i]->token->tempstore[1] > CATALYST_NONE && spells[i]->token->tempstore[2] > 0)
-				{
-					need[spells[i]->token->tempstore[1]] += spells[i]->token->tempstore[2];
-					found = TRUE;
-				}
+				if (spells[i]->skill->inks[j][0] > CATALYST_NONE && spells[i]->skill->inks[j][0] < CATALYST_MAX)
+					need[spells[i]->skill->inks[j][0]] += spells[i]->skill->inks[j][1];
 			}
 		}
-		else
-		{
-			for(j=0;j<3;j++)
-			{
-				if(spells[i]->skill->inks[j][0] > CATALYST_NONE && spells[i]->skill->inks[j][1] > 0)
-				{
-					need[spells[i]->skill->inks[j][0]]+= spells[i]->skill->inks[j][1];
-					found = TRUE;
-				}
-			}
-		}
+	}
+	if (!are_spell_targets_compatible(spells[0], spells[1]) ||
+		!are_spell_targets_compatible(spells[0], spells[2]) ||
+		!are_spell_targets_compatible(spells[1], spells[2]))
+	{
+		send_to_char("All spells must have the same kind of targeting requirements.\n\r", ch);
 
-		if(!found) {
-			send_to_char("You can't tattoo those spells.\n\r", ch);
-			return;
+		// TODO: Report what is wrong?
+		return;
+	}
+
+	bool have_all_catalysts = true;
+	for(i = 0; i < CATALYST_MAX; i++)
+	{
+		if (ch->catalyst_usage[i] > 0)
+		{
+			int catalyst = has_catalyst(ch,NULL,i,CATALYST_INVENTORY|CATALYST_ROOM);
+			if (catalyst >= 0 && catalyst < ch->catalyst_usage[i])
+			{
+				sprintf(buf,"You appear to be missing a required %s catalyst. (%d/%d)\n\r", catalyst_descs[i],catalyst, ch->catalyst_usage[i]);
+				send_to_char(buf, ch);
+				have_all_catalysts = false;
+			}
 		}
 	}
 
-	for(i=0;i<CATALYST_MAX;i++) {
-		if(need[i] > have[i]) {
-			sprintf(arg,"You need ink with %s essence to tattoo those spells.\n\r", catalyst_descs[i]);
-			send_to_char(arg, ch);
-			return;
-		}
-	}
+	if (!have_all_catalysts)
+		return;
+
+	if (!has_inks(ch, need, true))
+		return;
 
 	act("{Y$n lays out the necessary inks and begins tattooing...{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 	act("{YYou lay out the necessary inks and begin tattooing...{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
 
-	for (obj = ch->carrying; obj != NULL; obj = next) {
-		next = obj->next_content;
-		found = FALSE;
-		if (obj->item_type == ITEM_INK) {
-			if(obj->value[0] > CATALYST_NONE && obj->value[0] < CATALYST_MAX && need[obj->value[0]]) { need[obj->value[0]]--; found = TRUE; }
-			if(obj->value[1] > CATALYST_NONE && obj->value[1] < CATALYST_MAX && need[obj->value[1]]) { need[obj->value[1]]--; found = TRUE; }
-			if(obj->value[2] > CATALYST_NONE && obj->value[2] < CATALYST_MAX && need[obj->value[2]]) { need[obj->value[2]]--; found = TRUE; }
-		}
-		if (found) extract_obj(obj);
-	}
+	extract_inks(ch, need);
 
 	ch->ink_target = victim;
 	ch->ink_loc = loc;
 	for(int i = 0; i < 3; i++)
 		ch->ink_info[i] = spells[i];
+
 
 	int beats = (6 + n*n);
 	if (chance > 75)
@@ -1083,6 +1186,26 @@ void ink_end( CHAR_DATA *ch )
     if (IS_IMMORTAL(ch))
 		chance = 100;
 
+	// Make sure we *still* have all the catalysts,
+	// as they might have been consumed or destroyed by the time the brewing is finished
+	bool have_all_catalysts = true;
+	for(int i = 0; i < CATALYST_MAX; i++)
+	{
+		if (ch->catalyst_usage[i] > 0)
+		{
+			int catalyst = has_catalyst(ch,NULL,i,CATALYST_INVENTORY|CATALYST_ROOM);
+			if (catalyst >= 0 && catalyst < ch->catalyst_usage[i])
+			{
+				sprintf(buf,"You appear to be missing a required %s catalyst. (%d/%d)\n\r", catalyst_descs[i],catalyst, ch->catalyst_usage[i]);
+				send_to_char(buf, ch);
+				have_all_catalysts = false;
+			}
+		}
+	}
+
+	if (!have_all_catalysts)
+		return;
+
     if (number_percent() >= chance)
     {
 		act("{Y$n's attempt to ink a tattoo fails miserably.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
@@ -1090,6 +1213,30 @@ void ink_end( CHAR_DATA *ch )
 		check_improve(ch, gsk_tattoo, FALSE, 2);
 		return;
     }
+
+	// Use all the catalysts
+	for(int i = 0; i < CATALYST_MAX; i++)
+	{
+		if (ch->catalyst_usage[i] > 0)
+			use_catalyst(ch,NULL,i,CATALYST_INVENTORY|CATALYST_ROOM,ch->catalyst_usage[i],TRUE);
+	}
+
+	// Post processing after successful scribing
+	for(int i = 0; i < 3; i++)
+	{
+		SKILL_ENTRY *entry = ch->scribe_info[i];
+		if (entry)
+		{
+			if (IS_VALID(entry->token))
+			{
+				p_percent_trigger(NULL, NULL, NULL, entry->token, ch, ch->ink_target, NULL, NULL, NULL, TRIG_TOKEN_SCRIBE, NULL,ch->ink_loc,0,0,0,0);
+			}
+			else if(entry->skill->ink_fun)
+			{
+				(*entry->skill->ink_fun)(entry->skill, ch->tot_level, ch, ch->ink_target, ch->ink_loc);
+			}
+		}
+	}
 
 	if (ch->ink_info[2]) sprintf(tattoo_name, "%s, %s, %s", skill_entry_name(ch->ink_info[0]), skill_entry_name(ch->ink_info[1]), skill_entry_name(ch->ink_info[2]));
 	else if (ch->ink_info[1]) sprintf(tattoo_name, "%s, %s", skill_entry_name(ch->ink_info[0]), skill_entry_name(ch->ink_info[1]));
@@ -1125,12 +1272,12 @@ void ink_end( CHAR_DATA *ch )
 	strcat(tattoo_name, " tattoo");
     tattoo->name = short_to_name(tattoo_name);
 
-
-	tattoo->value[0] = number_range(1,UMAX(2,(ch->tot_level / 20)));
+	TATTOO(tattoo)->touches = number_range(1,UMAX(2,(ch->tot_level / 20)));
 	if(chance < 50)
-		tattoo->value[1] = 100 - chance * chance / 100;
+		TATTOO(tattoo)->fading_chance = 100 - chance * chance / 100;
 	else
-		tattoo->value[1] = (100 - chance) * (100 - chance) / 100;
+		TATTOO(tattoo)->fading_chance = (100 - chance) * (100 - chance) / 100;
+	TATTOO(tattoo)->fading_rate = (100 - chance) / 20;
 
 	n = 0;
 	for (int i = 0; i < 3 && ch->ink_info[i]; n++, i++);
@@ -1148,8 +1295,8 @@ void ink_end( CHAR_DATA *ch )
 			spell->skill = ch->ink_info[i]->skill;
 			//spell->token = IS_VALID(ch->ink_info[i]->token) ? ch->ink_info[i]->token->pIndexData : NULL;
 			spell->level = level / (i + 1);
-			spell->next = tattoo->spells;
-			tattoo->spells = spell;
+
+			list_appendlink(TATTOO(tattoo)->spells, spell);
 		}
 	}
 
@@ -1190,7 +1337,7 @@ void do_affix(CHAR_DATA *ch, char *argument)
 
 	argument = one_argument(argument, arg);
 
-	if((loc = flag_lookup(arg, tattoo_loc_flags)) == 0) {
+	if((loc = stat_lookup(arg, tattoo_loc_flags, WEAR_NONE)) == WEAR_NONE) {
 		send_to_char("Affix the tattoo where?\n\r", ch);
 		show_flag_cmds(ch, tattoo_loc_flags);
 		return;

@@ -661,11 +661,13 @@ DECLARE_OLC_FUN( skedit_message );  // damage, wearoff, objwearoff, dispel
 DECLARE_OLC_FUN( skedit_inks );     // For tattooing and scribing
 DECLARE_OLC_FUN( skedit_value );
 DECLARE_OLC_FUN( skedit_valuename );
+DECLARE_OLC_FUN( skedit_flags );
 
 DECLARE_OLC_FUN( sgedit_create );
 DECLARE_OLC_FUN( sgedit_show );
 DECLARE_OLC_FUN( sgedit_add );
 DECLARE_OLC_FUN( sgedit_remove );
+DECLARE_OLC_FUN( sgedit_clear );
 
 // TODO: add songedit for being able to add/edit songs
 
