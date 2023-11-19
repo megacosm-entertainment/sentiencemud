@@ -7278,8 +7278,7 @@ void do_shedit(CHAR_DATA *ch, char *argument)
 		}
 
 		ch->pcdata->immortal->last_olc_command = current_time;
-		ch->desc->pEdit = (void *)ship;
-		ch->desc->editor = ED_SHIP;
+		olc_set_editor(ch, ED_SHIP, ship);
 		return;
 	}
 	else if (!str_cmp(arg, "create"))
@@ -7302,7 +7301,6 @@ void do_shedit(CHAR_DATA *ch, char *argument)
 void do_shshow(CHAR_DATA *ch, char *argument)
 {
 	SHIP_INDEX_DATA *ship;
-	void *old_edit;
 	WNUM wnum;
 
 	if (argument[0] == '\0')
@@ -7323,11 +7321,7 @@ void do_shshow(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	old_edit = ch->desc->pEdit;
-	ch->desc->pEdit = (void *) ship;
-
-	shedit_show(ch, argument);
-	ch->desc->pEdit = old_edit;
+	olc_show_item(ch, ship, shedit_show, argument);
 	return;
 }
 
@@ -7492,7 +7486,7 @@ SHEDIT( shedit_create )
 	iHash							= ship->vnum % MAX_KEY_HASH;
 	ship->next						= pArea->ship_index_hash[iHash];
 	pArea->ship_index_hash[iHash]			= ship;
-	ch->desc->pEdit					= (void *)ship;
+	olc_set_editor(ch, ED_SHIP, ship);
 
 	if( ship->vnum > pArea->top_ship_vnum)
 		pArea->top_ship_vnum = ship->vnum;

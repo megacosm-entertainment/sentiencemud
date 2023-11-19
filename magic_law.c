@@ -79,12 +79,12 @@ TOUCH_FUNC(touch_armour)
 	af.group = AFFGROUP_MAGICAL;
 	af.skill = skill;
 	af.level = level;
-	af.duration  = 35 * obj->condition / 100;
+	af.duration  = 35 * tattoo->condition / 100;
 	af.modifier  = -20;
 	af.location  = APPLY_AC;
 	af.bitvector = 0;
 	af.bitvector2 = 0;
-	af.slot = obj->wear_loc;
+	af.slot = tattoo->wear_loc;
 	affect_to_char(ch, &af);
 	
 	send_to_char("You feel someone protecting you.\n\r", ch);

@@ -377,7 +377,7 @@ TOUCH_FUNC(touch_haste)
 	af.modifier  = 1 + (level >= 18) + (level >= 25) + (level >= 32);
 	af.bitvector = AFF_HASTE;
 	af.bitvector2 = 0;
-	af.slot = obj->wear_loc;
+	af.slot = tattoo->wear_loc;
 	affect_to_char(ch, &af);
 
 	send_to_char("You feel yourself moving more quickly.\n\r", ch);

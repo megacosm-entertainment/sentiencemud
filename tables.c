@@ -1837,6 +1837,16 @@ const struct flag_type vuln_flags[] =
     {   NULL,           0,                    	0       }
 };
 
+const struct flag_type spell_position_flags[] =
+{
+    {   "dead",       	POS_DEAD,            	TRUE    },
+    {   "sleeping",     POS_SLEEPING,        	TRUE    },
+    {   "resting",      POS_RESTING,         	TRUE    },
+    {   "sitting",      POS_SITTING,         	TRUE    },
+    {   "standing",     POS_STANDING,        	TRUE    },
+    {   NULL,           0,                    	0       }
+};
+
 
 const struct flag_type position_flags[] =
 {
@@ -3235,6 +3245,7 @@ const struct flag_type builtin_trigger_types[] =
     { "toggle_list",		TRIG_TOGGLE_LIST,	TRUE },
     { "token_brandish",     TRIG_TOKEN_BRANDISH,    TRUE },
 	{ "token_brew",         TRIG_TOKEN_BREW,	TRUE },
+	{ "token_equip",        TRIG_TOKEN_EQUIP,	TRUE },
 	{ "token_given",        TRIG_TOKEN_GIVEN,	TRUE },
     { "token_imbue",		TRIG_TOKEN_IMBUE,	TRUE },
 	{ "token_ink",      	TRIG_TOKEN_INK,	TRUE },
@@ -3601,6 +3612,13 @@ const struct touch_func_type touch_func_table[] =
     { NULL,             NULL }
 };
 
+const struct zap_func_type zap_func_table[] =
+{
+    { "chain_lightning",    zap_chain_lightning },
+    { NULL,                 NULL }
+};
+
+
 
 const struct gsn_type gsn_table[] =
 {
@@ -3884,6 +3902,7 @@ const struct flag_type skill_flags[] =
     { "can_imbue",          SKILL_CAN_IMBUE,        TRUE  },
     { "can_ink",            SKILL_CAN_INK,          TRUE  },
     { "can_scribe",         SKILL_CAN_SCRIBE,       TRUE  },
+    { "can_imbue",          SKILL_CAN_IMBUE,        TRUE  },
     { "cross_class",        SKILL_CROSS_CLASS,      FALSE },    // NYI
     { NULL,                 0,                      FALSE }
 };

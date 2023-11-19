@@ -45,7 +45,9 @@
 #include "tables.h"
 #include "olc_save.h"
 #include "wilds.h"
+#include "protocol.h"
 
+bool	write_to_descriptor	args((DESCRIPTOR_DATA *d, char *txt, int length));
 extern void persist_save(void);
 extern char *token_index_getvaluename(TOKEN_INDEX_DATA *token, int v);
 extern void affect_fix_char(CHAR_DATA *ch);
@@ -9479,4 +9481,12 @@ bool load_liquids()
 		save_liquids();
 
 	return true;
+}
+
+void do_mxptest(CHAR_DATA *ch, char *argument)
+{
+	if (!ch->desc) return;
+	
+	send_to_char((char *)MXPCreateSend(ch->desc, "say Hello", argument), ch);
+	send_to_char("\n\r", ch);
 }

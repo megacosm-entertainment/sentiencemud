@@ -53,12 +53,215 @@ SPELL_FUNC(spell_call_lightning)
 	return TRUE;
 }
 
+// Special spell deflection handler for chain lightning.
+// Instead of doing anything, it will just attempt to select another target who *doesn't* have the same affect.
+// If it ends up being ch, it will check their chain lightning ability to see if they get struck, otherwise it returns null.
+// Returns true if there was any interaction with the spell deflection aura... due to messages being generated.
+bool deflect_chain_lightning(CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill, CHAR_DATA **target)
+{
+	CHAR_DATA *rch = NULL;
+	AFFECT_DATA *af;
+	int attempts;
+	int lev;
+
+	if (!IS_AFFECTED2(victim, AFF2_SPELL_DEFLECTION))
+	{
+		// No interaction
+		*target = victim;
+		return false;
+	}
+
+	// Find spell deflection
+	for (af = victim->affected; af != NULL; af = af->next) {
+		if (af->skill == gsk_spell_deflection)
+			break;
+	}
+
+	if (af == NULL)
+	{
+		// No affect, just the bit, it has *no* power, just a message
+		act("{MLightning strikes and penetrates your crimson aura!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		act("{MLightning strikes and penetrates the crimson aura around $n!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		*target = victim;
+		return true;
+	}
+
+	// Actuall affect, can do some testing...
+	act("{MLightning strikes your crimson aura!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	act("{MLightning strikes crimson aura around $n!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+
+	lev = (af->level * 3)/4;
+	lev = URANGE(15, lev, 90);
+
+	if (number_percent() > lev ||
+		!p_percent_trigger(victim,NULL,NULL,NULL,ch, NULL, NULL,NULL,NULL,TRIG_SPELLREFLECT, NULL,lev,0,0,0,0) )
+	{
+		// The lightning bolt penetrates the aura
+		if (ch != NULL)	{
+			if (ch == victim)
+				send_to_char("The lightning bolt penetrates your protective crimson aura!\n\r", ch);
+			else {
+				act("Your lightning bolt penetrates $N's protective crimson aura!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				act("$n's lightning bolt penetrates your protective crimson aura!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+				act("$n's lightning bolt penetrates $N's protective crimson aura!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
+			}
+		}
+		*target = victim;
+		return true;
+	}
+
+	/* it bounces to a random person */
+	if (skill->target != TAR_IGNORE)
+		for (attempts = 0; attempts < 6; attempts++)
+		{
+			rch = get_random_char(NULL, NULL, victim->in_room, NULL);
+			if ((ch != NULL && rch == ch) ||
+				rch == victim ||
+				IS_AFFECTED2(rch, AFF2_SPELL_DEFLECTION) ||		/* Don't pick someone who has it to prevent bouncing in this mess */
+				((skill->target == TAR_CHAR_OFFENSIVE ||
+				skill->target == TAR_OBJ_CHAR_OFF) &&
+				ch != NULL && is_safe(ch, rch, FALSE)))
+			{
+				rch = NULL;
+				continue;
+			}
+		}
+
+	// Loses potency with time
+	af->level -= 10;
+	if (af->level <= 0) {
+		send_to_char("{MThe crimson aura around you vanishes.{x\n\r", victim);
+		act("{MThe crimson aura around $n vanishes.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		affect_remove(victim, af);
+		*target = victim;
+		return true;
+	}
+
+	if (rch != NULL) {
+		if (ch != NULL) {
+			act("{YYour lightning reflects off onto $N!{x", ch,  rch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("{Y$n's lightning reflects off onto you!{x", ch, rch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+			act("{Y$n's lightning reflects off onto $N!{x", ch,  rch, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
+		}
+	} else {
+		if (ch != NULL) {
+			act("{YYour lightning reflects off, fizzling out.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act("{Y$n's  lightning reflects off, fizzling out.{x",ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		}
+	}
+	*target = rch;
+	return true;
+}
+
+
+bool __chain_lightning(CHAR_DATA *ch, int own_skill, int level, CHAR_DATA *last_vict)
+{
+	CHAR_DATA *tmp_vict,*next_vict;
+	bool found;
+	int dam;
+
+		/* new targets */
+	while (level > 0) {
+		found = FALSE;
+		for (tmp_vict = ch->in_room->people; tmp_vict != NULL; tmp_vict = next_vict) {
+			next_vict = tmp_vict->next_in_room;
+			if (!is_safe(ch,tmp_vict,FALSE) && can_see(ch,tmp_vict) && tmp_vict != last_vict) {
+				if (tmp_vict == ch && own_skill > number_percent())
+					continue;
+				
+				CHAR_DATA *rch = tmp_vict;
+				bool deflection = deflect_chain_lightning(ch, tmp_vict, gsk_chain_lightning, &rch);
+				if (!rch)
+				{
+					// No victim, the spell fizzled out
+					// Return true because messages were done.
+					return true;
+				}
+
+				if (check_shield_block_projectile(ch, rch, "arc of lightning", NULL)) {
+					if (number_percent() < get_skill(rch, gsk_shield_block)/4) {
+						act("The bolt arcs off $n's shield and fizzles out.", rch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+						act("The bolt arcs off your shield and fizzles out.", rch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+						return true;
+					} else
+						continue;
+				}
+
+				found = TRUE;
+				last_vict = rch;
+
+				if (!deflection || rch != tmp_vict)
+				{
+					act("The bolt arcs to $n!",tmp_vict, NULL, NULL, NULL, NULL,NULL,NULL,TO_ROOM);
+					act("The bolt hits you!",tmp_vict, NULL, NULL, NULL, NULL,NULL,NULL,TO_CHAR);
+				}
+				dam = dice(level,6);
+
+				if (saves_spell(level,tmp_vict,DAM_LIGHTNING))
+					dam /= 3;
+
+				damage(ch,tmp_vict,dam,gsk_chain_lightning,TYPE_UNDEFINED,DAM_LIGHTNING,TRUE);
+				shock_effect(tmp_vict,level/2,dam,TARGET_CHAR);
+				level -= 10;  /* decrement damage */
+			}
+		}   /* end target searching loop */
+
+		// No target found, try to hit the originator
+		if (!found)
+		{
+			if (!ch) return true;
+			if (own_skill > number_percent()) return false;
+
+			CHAR_DATA *rch = ch;
+			bool deflection = deflect_chain_lightning(ch, ch, gsk_chain_lightning, &rch);
+			if (!rch)
+			{
+				// No victim, the spell fizzled out
+				// Return true because messages were done.
+				return true;
+			}
+
+			if (check_shield_block_projectile(ch, rch, "arc of lightning", NULL)) {
+				if (number_percent() < get_skill(rch, gsk_shield_block)/4) {
+					act("The bolt arcs off $n's shield and fizzles out.", rch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+					act("The bolt arcs off your shield and fizzles out.", rch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+					return true;
+				}
+			}
+
+			if (last_vict == rch) {/* no double hits */
+				act("The bolt seems to have fizzled out.",rch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+				act("The bolt grounds out through your body.",rch,NULL, NULL, NULL, NULL, NULL,NULL,TO_CHAR);
+				return true;
+			}
+
+			last_vict = rch;
+			if (!deflection || rch == ch)
+			{
+				act("The bolt arcs to $n...whoops!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
+				send_to_char("You are struck by your own lightning!\n\r",ch);
+			}
+			else
+			{
+				act("The bolt arcs to $n!",rch, NULL, NULL, NULL, NULL,NULL,NULL,TO_ROOM);
+				act("The bolt hits you!",rch, NULL, NULL, NULL, NULL,NULL,NULL,TO_CHAR);
+			}
+			dam = dice(level,6);
+			if (saves_spell(level,ch,DAM_LIGHTNING))
+				dam /= 3;
+			damage(ch,rch,dam,gsk_chain_lightning,TYPE_UNDEFINED,DAM_LIGHTNING,TRUE);
+			shock_effect(rch,level/2,dam,TARGET_CHAR);
+			level -= 4;  /* decrement damage */
+		}
+	}
+
+	return true;
+}
 
 SPELL_FUNC(spell_chain_lightning)
 {
 	CHAR_DATA *victim = (CHAR_DATA *) vo;
-	CHAR_DATA *tmp_vict,*last_vict,*next_vict;
-	bool found;
+	CHAR_DATA *last_vict;
 	int dam;
 
 	/* first strike */
@@ -75,64 +278,60 @@ SPELL_FUNC(spell_chain_lightning)
 	last_vict = victim;
 	level -= 4;   /* decrement damage */
 
-	/* new targets */
-	while (level > 0) {
-		found = FALSE;
-		for (tmp_vict = ch->in_room->people; tmp_vict != NULL; tmp_vict = next_vict) {
-			next_vict = tmp_vict->next_in_room;
-			if (!is_safe(ch,tmp_vict,FALSE) && can_see(ch,tmp_vict) && tmp_vict != last_vict) {
-				if (!check_spell_deflection(ch, tmp_vict, skill, NULL))
-					continue;
+	// get ch's chain lightning skill
+	int own_skill = get_skill(ch, gsk_chain_lightning);
 
-				if (check_shield_block_projectile(ch, tmp_vict, "arc of lightning", NULL)) {
-					if (number_percent() < get_skill(tmp_vict, gsk_shield_block)/4) {
-						act("The bolt arcs off $n's shield and fizzles out.", tmp_vict, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-						act("The bolt arcs off your shield and fizzles out.", tmp_vict, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-						level = 0;
-						break;
-					} else
-						continue;
-				}
+	if (!__chain_lightning(ch, own_skill, level, last_vict))
+	{
+		act("The lightning bolt fizzles out.", ch,NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL);
+	}
 
-				found = TRUE;
-				last_vict = tmp_vict;
+	return TRUE;
+}
 
-				act("The bolt arcs to $n!",tmp_vict, NULL, NULL, NULL, NULL,NULL,NULL,TO_ROOM);
-				act("The bolt hits you!",tmp_vict, NULL, NULL, NULL, NULL,NULL,NULL,TO_CHAR);
-				dam = dice(level,6);
+TOUCH_FUNC(touch_chain_lightning)
+{
+	// get ch's chain lightning skill
+	int own_skill = get_skill(ch, gsk_chain_lightning);
 
-				if (saves_spell(level,tmp_vict,DAM_LIGHTNING))
-					dam /= 3;
+	act("A lightning bolt leaps from $n's $p.", ch,NULL, NULL, tattoo, NULL, NULL, NULL, TO_ROOM);
+	act("A lightning bolt leaps from $p.", ch,NULL, NULL, tattoo, NULL, NULL, NULL, TO_CHAR);
 
-				damage(ch,tmp_vict,dam,skill,TYPE_UNDEFINED,DAM_LIGHTNING,TRUE);
-				shock_effect(victim,ch->tot_level/2,dam,TARGET_CHAR);
-				level -= 10;  /* decrement damage */
-			}
-		}   /* end target searching loop */
+	if (!__chain_lightning(ch, own_skill, level, NULL))
+	{
+		act("The lightning bolt fizzles out.", ch,NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL);
+	}
 
-		if (!found) {/* no target found, hit the caster */
-			if (!ch) return TRUE;
+	return TRUE;
+}
 
-			if (!check_spell_deflection(ch, ch, skill, NULL))
-				return TRUE;
 
-			if (last_vict == ch) {/* no double hits */
-				act("The bolt seems to have fizzled out.",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
-				act("The bolt grounds out through your body.", ch,NULL, NULL, NULL, NULL, NULL,NULL,TO_CHAR);
-				return TRUE;
-			}
+ZAP_FUNC(zap_chain_lightning)
+{
+	CHAR_DATA *victim = (CHAR_DATA *) vo;
+	CHAR_DATA *last_vict;
+	int dam;
 
-			last_vict = ch;
-			act("The bolt arcs to $n...whoops!",ch,NULL,NULL, NULL, NULL, NULL, NULL,TO_ROOM);
-			send_to_char("You are struck by your own lightning!\n\r",ch);
-			dam = dice(level,6);
-			if (saves_spell(level,ch,DAM_LIGHTNING))
-				dam /= 3;
-			damage(ch,ch,dam,skill,TYPE_UNDEFINED,DAM_LIGHTNING,TRUE);
-			shock_effect(victim,ch->tot_level/2,dam,TARGET_CHAR);
-			level -= 4;  /* decrement damage */
-			if (!ch) return TRUE;
-		}
+	/* first strike */
+	act("A lightning bolt leaps from $n's $p and arcs to $N.", ch,victim, NULL, obj, NULL, NULL, NULL, TO_NOTVICT);
+	act("A lightning bolt leaps from $p and arcs to $N.", ch,victim, NULL, obj, NULL, NULL, NULL, TO_CHAR);
+	act("A lightning bolt leaps from $n's $p and hits you!", ch,victim, NULL, obj, NULL, NULL, NULL, TO_VICT);
+
+	dam = dice(level,6);
+	if (saves_spell(level,victim,DAM_LIGHTNING))
+		dam /= 3;
+
+	damage(ch,victim,dam,skill,TYPE_UNDEFINED,DAM_LIGHTNING,TRUE);
+	shock_effect(victim,ch->tot_level/2,dam,TARGET_CHAR);
+	last_vict = victim;
+	level -= 4;   /* decrement damage */
+
+	// get ch's chain lightning skill
+	int own_skill = get_skill(ch, gsk_chain_lightning);
+
+	if (!__chain_lightning(ch, own_skill, level, last_vict))
+	{
+		act("The lightning bolt fizzles out.", ch,NULL, NULL, NULL, NULL, NULL, NULL, TO_ALL);
 	}
 
 	return TRUE;

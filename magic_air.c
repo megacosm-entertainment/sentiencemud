@@ -113,7 +113,7 @@ TOUCH_FUNC(touch_fly)
 	af.modifier = 0;
 	af.bitvector = AFF_FLYING;
 	af.bitvector2 = 0;
-	af.slot = obj->wear_loc;
+	af.slot = tattoo->wear_loc;
 	affect_to_char(ch, &af);
 
 	send_to_char("Your feet rise off the ground.\n\r", ch);

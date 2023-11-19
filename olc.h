@@ -19,13 +19,6 @@
  *                                                                         *
  **************************************************************************/
 
-/*
- * New typedefs.
- */
-typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
-
-#define DECLARE_OLC_FUN( fun )	OLC_FUN    fun
-
 
 /*
  * Connected states for editor.
@@ -649,6 +642,12 @@ DECLARE_OLC_FUN( skedit_touchfunc );
 
 // TODO: Imbue functionality
 
+//DECLARE_OLC_FUN( skedit_preimbuefunc );
+//DECLARE_OLC_FUN( skedit_imbuefunc );
+//DECLARE_OLC_FUN( skedit_brandishfunc );
+DECLARE_OLC_FUN( skedit_zapfunc );
+//DECLARE_OLC_FUN( skedit_equipfunc );
+
 DECLARE_OLC_FUN( skedit_gsn );
 DECLARE_OLC_FUN( skedit_level );
 DECLARE_OLC_FUN( skedit_difficulty );
@@ -718,3 +717,17 @@ char *token_index_getvaluename args( (TOKEN_INDEX_DATA *token, int v) );
 SHOP_STOCK_DATA *get_shop_stock_bypos(SHOP_DATA *shop, int nth);
 bool check_range(long lower, long upper);
 void olc_show_progs(BUFFER *buffer, LLIST **progs, const char *title);
+void olc_buffer_show_tabs(CHAR_DATA *ch, BUFFER *buffer, const char **tab_names);
+
+int olc_buffer_show_flags_ex(CHAR_DATA *ch, BUFFER *buffer,
+		const struct flag_type *flag_table, 
+		long value, char *command, char *heading, 
+		int max_width, int first_indent, int indent,
+		const char *colors);
+
+int olc_buffer_show_flags(CHAR_DATA *ch, BUFFER *buffer,
+		const struct flag_type *flag_table, 
+		long value, char *command, char *heading, 
+		const char *colors);
+
+void olc_buffer_show_string(CHAR_DATA *ch, BUFFER *buffer, const char *value, char *command, char *heading, int indent, char *colors);

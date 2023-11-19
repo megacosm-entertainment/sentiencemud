@@ -94,6 +94,31 @@ typedef struct descriptor_data descriptor_t;
 #define UNICODE_FEMALE                 9792
 #define UNICODE_NEUTER                 9791
 
+
+/////////////////////////////////////////////////////////////////
+// MXP Defines
+//
+
+// MXP mode changing system
+#define MXP_OPEN_PREFIX             "\033[0z"
+#define MXP_OPEN_LINE               "\033[0z"
+#define MXP_SECURE_LINE             "\033[1z"
+//#define MXP_SECURE_PREFIX           "\033[1z"
+#define MXP_SECURE_PREFIX           ""
+#define MXP_RESET                   "\033[3z"
+#define MXP_OPEN_MODE               "\033[5z"
+#define MXP_SECURE_MODE             "\033[6z"
+#define MXP_LOCKED_MODE             "\033[7z"
+#define MXP_CLIENT_TO_SERVER_PREFIX "\033[1z"
+
+// MXP defines
+#define MXP_AMPERSAND	'\x11'
+#define MXP_BEGIN_TAG	'\x12'
+#define MXP_END_TAG		'\x13'
+
+/////////////////////////////////////////////////////////////////
+
+
 /******************************************************************************
  Types.
  ******************************************************************************/
@@ -506,6 +531,8 @@ void MSSPSetPlayers( int aPlayers );
  MXP functions.
  ******************************************************************************/
 
+void MXPDefineElements(descriptor_t *apDescriptor);
+
 /* Function: MXPCreateTag
  *
  * Puts the specified tag into a secure line, if MXP is supported.  If the user 
@@ -522,6 +549,28 @@ const char *MXPCreateTag( descriptor_t *apDescriptor, const char *apTag );
  * it directly to the user.  This is mainly useful for the <VERSION> tag.
  */
 void MXPSendTag( descriptor_t *apDescriptor, const char *apTag );
+
+const char *MXPCreateSend(descriptor_t *apDescriptor, const char *command, const char *text);
+
+const char *MXPCreateSend2(descriptor_t *apDescriptor, const char *command);
+
+bool_t isMXP(descriptor_t *apDescriptor);
+
+/*
+void mxp_define_elements_to_char(char_data *ch);
+char *mxp_tagify(const char *mxp_text_with_unencoded_tags);
+
+const char *mxp_create_tag(char_data *ch, const char *tagname, const char *txt);
+const char *mxp_create_tagf(char_data *ch, const char *tagname, const char *fmt, ...) __mftc_printf_2__;
+const char *mxp_create_tag_core(const char *tagname, const char *txt);
+const char *mxp_create_send(char_data *ch, const char *command, const char *text);
+const char *mxp_create_send(char_data *ch, const char *command_and_text);
+const char *mxp_create_send_prompt(char_data *ch, const char *command, const char *text);
+const char *mxp_create_send_prompt(char_data *ch, const char *command_and_text);
+char *mxp_convert_to_mnemonics(const char *text_with_raw_characters);
+char *mxp_tag_for_object(char_data * ch, OBJ_DATA *obj);
+char *mxp_tag_for_mob(char_data * ch, char_data *mob);
+*/
 
 /******************************************************************************
  Sound functions.

@@ -249,3 +249,8 @@ DECLARE_RECITE_FUN ( recite_word_of_recall );
 DECLARE_TOUCH_FUN ( touch_armour );
 DECLARE_TOUCH_FUN ( touch_fly );
 DECLARE_TOUCH_FUN ( touch_haste );
+
+// ZAP
+DECLARE_ZAP_FUN ( zap_chain_lightning );
+
+

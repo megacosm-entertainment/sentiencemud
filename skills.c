@@ -51,398 +51,94 @@
 
 void list_skill_entries(CHAR_DATA *ch, char *argument, bool show_skills, bool show_spells, bool hide_learned);
 
-SPELL_FUN *prespell_func_lookup(char *name)
+struct message_handler_type
 {
-	for (int i = 0; prespell_func_table[i].name != NULL; i++)
-	{
-		if (!str_cmp(name, prespell_func_table[i].name))
-			return prespell_func_table[i].func;
-	}
+	int order;
+	char *verb;
+	char *name;
+	char *name_caps;
+	char *label;
+	char **field;
+};
 
-	return NULL;
-}
-
-char *prespell_func_name(SPELL_FUN *func)
+static SKILL_DATA __static_skill;
+static struct message_handler_type msg_handlers[] =
 {
-	for (int i = 0; prespell_func_table[i].name != NULL; i++)
-	{
-		if (prespell_func_table[i].func == func)
-			return prespell_func_table[i].name;
-	}
-
-	return NULL;
-}
-
-char *prespell_func_display(SPELL_FUN *func)
-{
-	if (!func || func == spell_null) return NULL;
-
-	for (int i = 0; prespell_func_table[i].name != NULL; i++)
-	{
-		if (prespell_func_table[i].func == func)
-			return prespell_func_table[i].name;
-	}
-
-	return "(invalid)";
-}
-
-SPELL_FUN *spell_func_lookup(char *name)
-{
-	for (int i = 0; spell_func_table[i].name != NULL; i++)
-	{
-		if (!str_cmp(name, spell_func_table[i].name))
-			return spell_func_table[i].func;
-	}
-
-	return NULL;
-}
-
-char *spell_func_name(SPELL_FUN *func)
-{
-	for (int i = 0; spell_func_table[i].name != NULL; i++)
-	{
-		if (spell_func_table[i].func == func)
-			return spell_func_table[i].name;
-	}
-
-	return NULL;
-}
-
-char *spell_func_display(SPELL_FUN *func)
-{
-	if (!func || func == spell_null) return NULL;
-
-	for (int i = 0; spell_func_table[i].name != NULL; i++)
-	{
-		if (spell_func_table[i].func == func)
-			return spell_func_table[i].name;
-	}
-
-	return "(invalid)";
-}
-
-
-PREBREW_FUN *prebrew_func_lookup(char *name)
-{
-	for (int i = 0; prebrew_func_table[i].name != NULL; i++)
-	{
-		if (!str_cmp(name, prebrew_func_table[i].name))
-			return prebrew_func_table[i].func;
-	}
-
-	return NULL;
-}
-
-char *prebrew_func_name(PREBREW_FUN *func)
-{
-	for (int i = 0; prebrew_func_table[i].name != NULL; i++)
-	{
-		if (prebrew_func_table[i].func == func)
-			return prebrew_func_table[i].name;
-	}
-
-	return NULL;
-}
-
-char *prebrew_func_display(PREBREW_FUN *func)
-{
-	if (!func) return NULL;
-
-	for (int i = 0; prebrew_func_table[i].name != NULL; i++)
-	{
-		if (prebrew_func_table[i].func == func)
-			return prebrew_func_table[i].name;
-	}
-
-	return "(invalid)";
-}
-
-BREW_FUN *brew_func_lookup(char *name)
-{
-	for (int i = 0; brew_func_table[i].name != NULL; i++)
-	{
-		if (!str_cmp(name, brew_func_table[i].name))
-			return brew_func_table[i].func;
-	}
-
-	return NULL;
-}
-
-
-
-char *brew_func_name(BREW_FUN *func)
-{
-	for (int i = 0; brew_func_table[i].name != NULL; i++)
-	{
-		if (brew_func_table[i].func == func)
-			return brew_func_table[i].name;
-	}
-
-	return NULL;
-}
-
-char *brew_func_display(BREW_FUN *func)
-{
-	if (!func) return NULL;
-
-	for (int i = 0; brew_func_table[i].name != NULL; i++)
-	{
-		if (brew_func_table[i].func == func)
-			return brew_func_table[i].name;
-	}
-
-	return "(invalid)";
-}
-
-QUAFF_FUN *quaff_func_lookup(char *name)
-{
-	for (int i = 0; quaff_func_table[i].name != NULL; i++)
-	{
-		if (!str_cmp(name, quaff_func_table[i].name))
-			return quaff_func_table[i].func;
-	}
-
-	return NULL;
-}
-
-char *quaff_func_name(QUAFF_FUN *func)
-{
-	for (int i = 0; quaff_func_table[i].name != NULL; i++)
-	{
-		if (quaff_func_table[i].func == func)
-			return quaff_func_table[i].name;
-	}
-
-	return NULL;
-}
-
-char *quaff_func_display(QUAFF_FUN *func)
-{
-	if (!func) return NULL;
-
-	for (int i = 0; quaff_func_table[i].name != NULL; i++)
-	{
-		if (quaff_func_table[i].func == func)
-			return quaff_func_table[i].name;
-	}
-
-	return "(invalid)";
-}
-
-
-PRESCRIBE_FUN *prescribe_func_lookup(char *name)
-{
-	for (int i = 0; prescribe_func_table[i].name != NULL; i++)
-	{
-		if (!str_cmp(name, prescribe_func_table[i].name))
-			return prescribe_func_table[i].func;
-	}
-
-	return NULL;
-}
-
-char *prescribe_func_name(PRESCRIBE_FUN *func)
-{
-	for (int i = 0; prescribe_func_table[i].name != NULL; i++)
-	{
-		if (prescribe_func_table[i].func == func)
-			return prescribe_func_table[i].name;
-	}
-
-	return NULL;
-}
-
-char *prescribe_func_display(PRESCRIBE_FUN *func)
-{
-	if (!func) return NULL;
-
-	for (int i = 0; prescribe_func_table[i].name != NULL; i++)
-	{
-		if (prescribe_func_table[i].func == func)
-			return prescribe_func_table[i].name;
-	}
-
-	return "(invalid)";
-}
-
-
-SCRIBE_FUN *scribe_func_lookup(char *name)
-{
-	for (int i = 0; scribe_func_table[i].name != NULL; i++)
-	{
-		if (!str_cmp(name, scribe_func_table[i].name))
-			return scribe_func_table[i].func;
-	}
-
-	return NULL;
-}
-
-char *scribe_func_name(SCRIBE_FUN *func)
-{
-	for (int i = 0; scribe_func_table[i].name != NULL; i++)
-	{
-		if (scribe_func_table[i].func == func)
-			return scribe_func_table[i].name;
-	}
-
-	return NULL;
-}
-
-char *scribe_func_display(SCRIBE_FUN *func)
-{
-	if (!func) return NULL;
-
-	for (int i = 0; scribe_func_table[i].name != NULL; i++)
-	{
-		if (scribe_func_table[i].func == func)
-			return scribe_func_table[i].name;
-	}
-
-	return "(invalid)";
-}
-
-
-RECITE_FUN *recite_func_lookup(char *name)
-{
-	for (int i = 0; recite_func_table[i].name != NULL; i++)
-	{
-		if (!str_cmp(name, recite_func_table[i].name))
-			return recite_func_table[i].func;
-	}
-
-	return NULL;
-}
-
-char *recite_func_name(RECITE_FUN *func)
-{
-	for (int i = 0; recite_func_table[i].name != NULL; i++)
-	{
-		if (recite_func_table[i].func == func)
-			return recite_func_table[i].name;
-	}
-
-	return NULL;
-}
-
-char *recite_func_display(RECITE_FUN *func)
-{
-	if (!func) return NULL;
-
-	for (int i = 0; recite_func_table[i].name != NULL; i++)
-	{
-		if (recite_func_table[i].func == func)
-			return recite_func_table[i].name;
-	}
-
-	return "(invalid)";
-}
-
-
-PREINK_FUN *preink_func_lookup(char *name)
-{
-	for (int i = 0; preink_func_table[i].name != NULL; i++)
-	{
-		if (!str_cmp(name, preink_func_table[i].name))
-			return preink_func_table[i].func;
-	}
-
-	return NULL;
-}
-
-char *preink_func_name(PREINK_FUN *func)
-{
-	for (int i = 0; preink_func_table[i].name != NULL; i++)
-	{
-		if (preink_func_table[i].func == func)
-			return preink_func_table[i].name;
-	}
-
-	return NULL;
-}
-
-char *preink_func_display(PREINK_FUN *func)
-{
-	if (!func) return NULL;
-
-	for (int i = 0; preink_func_table[i].name != NULL; i++)
-	{
-		if (preink_func_table[i].func == func)
-			return preink_func_table[i].name;
-	}
-
-	return "(invalid)";
-}
-
-INK_FUN *ink_func_lookup(char *name)
-{
-	for (int i = 0; ink_func_table[i].name != NULL; i++)
-	{
-		if (!str_cmp(name, ink_func_table[i].name))
-			return ink_func_table[i].func;
-	}
-
-	return NULL;
-}
-
-char *ink_func_name(INK_FUN *func)
-{
-	for (int i = 0; ink_func_table[i].name != NULL; i++)
-	{
-		if (ink_func_table[i].func == func)
-			return ink_func_table[i].name;
-	}
-
-	return NULL;
-}
-
-char *ink_func_display(INK_FUN *func)
-{
-	if (!func) return NULL;
-
-	for (int i = 0; ink_func_table[i].name != NULL; i++)
-	{
-		if (ink_func_table[i].func == func)
-			return ink_func_table[i].name;
-	}
-
-	return "(invalid)";
-}
-
-TOUCH_FUN *touch_func_lookup(char *name)
-{
-	for (int i = 0; touch_func_table[i].name != NULL; i++)
-	{
-		if (!str_cmp(name, touch_func_table[i].name))
-			return touch_func_table[i].func;
-	}
-
-	return NULL;
-}
-
-char *touch_func_name(TOUCH_FUN *func)
-{
-	for (int i = 0; touch_func_table[i].name != NULL; i++)
-	{
-		if (touch_func_table[i].func == func)
-			return touch_func_table[i].name;
-	}
-
-	return NULL;
-}
-
-char *touch_func_display(TOUCH_FUN *func)
-{
-	if (!func) return NULL;
-
-	for (int i = 0; touch_func_table[i].name != NULL; i++)
-	{
-		if (touch_func_table[i].func == func)
-			return touch_func_table[i].name;
-	}
-
-	return "(invalid)";
-}
-
+	{ 14,	"deflaffchar",			"deflection with affect (character) message",	"Deflection With Affect (Character) Message",	"Deflection With Affect (Character)",		&__static_skill.msg_defl_aff_char },
+	{ 16,	"deflaffroom",			"deflection with affect (room) message",		"Deflection With Affect (Room) Message",		"Deflection With Affect (Room)",			&__static_skill.msg_defl_aff_room },
+	{ 15,	"deflnoaffchar",		"deflection no affect (character) message",		"Deflection No Affect (Character) Message",		"Deflection No Affect (Character)",			&__static_skill.msg_defl_noaff_char },
+	{ 13,	"deflnoaffroom",		"deflection no affect (room) message",			"Deflection No Affect (Room) Message",			"Deflection No Affect (Room)",				&__static_skill.msg_defl_noaff_room },
+	{ 2,	"deflpasschar",			"deflection pass (character) message",			"Deflection Pass (Character) Message",			"Deflection Pass (Character)",				&__static_skill.msg_defl_pass_char },
+	{ 3,	"deflpassroom",			"deflection pass (room) message",				"Deflection Pass (Room) Message",				"Deflection Pass (Room)",					&__static_skill.msg_defl_pass_room },
+	{ 0,	"deflpassself",			"deflection pass (self) message",				"Deflection Pass (Self) Message",				"Deflection Pass (Self)",					&__static_skill.msg_defl_pass_self },
+	{ 1,	"deflpassvict",			"deflection pass (victim) message",				"Deflection Pass (Victim) Message",				"Deflection Pass (Victim)",					&__static_skill.msg_defl_pass_vict },
+	{ 6,	"deflreflchar",			"deflection reflect (character) message",		"Deflection Reflect (Character) Message",		"Deflection Reflect (Character)",			&__static_skill.msg_defl_refl_char },
+	{ 4,	"deflreflroom",			"deflection reflect (room) message",			"Deflection Reflect (Room) Message",			"Deflection Reflect (Room)",				&__static_skill.msg_defl_refl_room },
+	{ 7,	"deflreflselfchar",		"deflection reflect (self-character) message",	"Deflection Reflect (Self-Character) Message",	"Deflection Reflect (Self-Character)",		&__static_skill.msg_defl_refl_self_char },
+	{ 5,	"deflreflselfroom",		"deflection reflect (self-room) message",		"Deflection Reflect (Self-Room) Message",		"Deflection Reflect (Self-Room)",			&__static_skill.msg_defl_refl_self_room },
+	{ 10,	"deflreflvict",			"deflection reflect (victim) message",			"Deflection Reflect (Victim) Message",			"Deflection Reflect (Victim)",				&__static_skill.msg_defl_refl_vict },
+	{ 11,	"dispel",				"dispel message",								"Dispel Message",								"Dispel",									&__static_skill.msg_disp },
+	{ 8,	"noun",					"noun damage",									"Noun Damage",									"Noun Damage",								&__static_skill.noun_damage },
+	{ 12,	"object",				"wear off (object) message",					"Wear Off (Object) Message",					"Wear Off (Object)",						&__static_skill.msg_obj },
+	{ 9,	"wearoff",				"wear off message",								"Wear Off Message",								"Wear Off",									&__static_skill.msg_off },
+	{ -1,	NULL, NULL, NULL, NULL, NULL }
+};
+
+
+#define FUNC_LOOKUPS(f,t,n) \
+t * f##_func_lookup(char *name) \
+{ \
+	for (int i = 0; f##_func_table[i].name != NULL; i++) \
+	{ \
+		if (!str_cmp(name, f##_func_table[i].name)) \
+			return f##_func_table[i].func; \
+	} \
+ \
+	return NULL; \
+} \
+ \
+char *f##_func_name(t *func) \
+{ \
+	for (int i = 0; f##_func_table[i].name != NULL; i++) \
+	{ \
+		if (f##_func_table[i].func == func) \
+			return f##_func_table[i].name; \
+	} \
+ \
+	return NULL; \
+} \
+ \
+char *f##_func_display(t *func) \
+{ \
+	if ( n ) return NULL; \
+ \
+	for (int i = 0; f##_func_table[i].name != NULL; i++) \
+	{ \
+		if (f##_func_table[i].func == func) \
+			return f##_func_table[i].name; \
+	} \
+ \
+	return "(invalid)"; \
+} \
+ \
+
+
+FUNC_LOOKUPS(prespell,SPELL_FUN,(!func || func == spell_null))
+FUNC_LOOKUPS(spell,SPELL_FUN,(!func || func == spell_null))
+FUNC_LOOKUPS(prebrew,PREBREW_FUN,!func)
+FUNC_LOOKUPS(brew,BREW_FUN,!func)
+FUNC_LOOKUPS(quaff,QUAFF_FUN,!func)
+FUNC_LOOKUPS(prescribe,PRESCRIBE_FUN,!func)
+FUNC_LOOKUPS(scribe,SCRIBE_FUN,!func)
+FUNC_LOOKUPS(recite,RECITE_FUN,!func)
+FUNC_LOOKUPS(preink,PREINK_FUN,!func)
+FUNC_LOOKUPS(ink,INK_FUN,!func)
+FUNC_LOOKUPS(touch,TOUCH_FUN,!func)
+//FUNC_LOOKUPS(preimbue,PREIMBUE_FUN,!func)
+//FUNC_LOOKUPS(imbue,IMBUE_FUN,!func)
+//FUNC_LOOKUPS(brandish,BRANDISH_FUN,!func)
+FUNC_LOOKUPS(zap,ZAP_FUN,!func)
+//FUNC_LOOKUPS(equip,EQUIP_FUN,!func)
 
 sh_int *gsn_from_name(char *name)
 {
@@ -537,6 +233,21 @@ void save_skill(FILE *fp, SKILL_DATA *skill)
 
 		if(skill->touch_fun)
 			fprintf(fp, "TouchFunc %s~\n", touch_func_name(skill->touch_fun));
+
+//		if(skill->preimbue_fun)
+//			fprintf(fp, "PreImbueFunc %s~\n", preimbue_func_name(skill->preimbue_fun));
+
+//		if(skill->imbue_fun)
+//			fprintf(fp, "ImbueFunc %s~\n", imbue_func_name(skill->imbue_fun));
+
+//		if(skill->brandish_fun)
+//			fprintf(fp, "BrandishFunc %s~\n", brandish_func_name(skill->brandish_fun));
+
+		if(skill->zap_fun)
+			fprintf(fp, "ZapFunc %s~\n", zap_func_name(skill->zap_fun));
+
+//		if(skill->equip_fun)
+//			fprintf(fp, "EquipFunc %s~\n", brandish_func_name(skill->equip_fun));
 	}
 
 	for(int i = 0; i < MAX_SKILL_VALUES; i++)
@@ -548,7 +259,7 @@ void save_skill(FILE *fp, SKILL_DATA *skill)
 	}
 
 	fprintf(fp, "Target %s~\n", flag_string(spell_target_types, skill->target));
-	fprintf(fp, "Position %s~\n", flag_string(position_flags, skill->minimum_position));
+	fprintf(fp, "Position %s~\n", flag_string(spell_position_flags, skill->minimum_position));
 
 	if(skill->pgsn)
 		fprintf(fp, "GSN %s~\n", gsn_to_name(skill->pgsn));
@@ -563,10 +274,23 @@ void save_skill(FILE *fp, SKILL_DATA *skill)
 	fprintf(fp, "ImbueMana %d\n", skill->imbue_mana);
 	fprintf(fp, "Beats %d\n", skill->beats);
 
-	fprintf(fp, "NounDamage %s~\n", skill->noun_damage);
-	fprintf(fp, "MsgOff %s~\n", skill->msg_off);
-	fprintf(fp, "MsgObj %s~\n", skill->msg_obj);
-	fprintf(fp, "MsgDisp %s~\n", skill->msg_disp);
+	fprintf(fp, "NounDamage %s~\n", fix_string(skill->noun_damage));
+	fprintf(fp, "MsgOff %s~\n", fix_string(skill->msg_off));
+	fprintf(fp, "MsgObj %s~\n", fix_string(skill->msg_obj));
+	fprintf(fp, "MsgDisp %s~\n", fix_string(skill->msg_disp));
+	fprintf(fp, "MsgDeflNoAffChar %s~\n", fix_string(skill->msg_defl_noaff_char));
+	fprintf(fp, "MsgDeflNoAffRoom %s~\n", fix_string(skill->msg_defl_noaff_room));
+	fprintf(fp, "MsgDeflAffChar %s~\n", fix_string(skill->msg_defl_aff_char));
+	fprintf(fp, "MsgDeflAffRoom %s~\n", fix_string(skill->msg_defl_aff_room));
+	fprintf(fp, "MsgDeflPassSelf %s~\n", fix_string(skill->msg_defl_pass_self));
+	fprintf(fp, "MsgDeflPassChar %s~\n", fix_string(skill->msg_defl_pass_char));
+	fprintf(fp, "MsgDeflPassVict %s~\n", fix_string(skill->msg_defl_pass_vict));
+	fprintf(fp, "MsgDeflPassRoom %s~\n", fix_string(skill->msg_defl_pass_room));
+	fprintf(fp, "MsgDeflReflSelfChar %s~\n", fix_string(skill->msg_defl_refl_self_char));
+	fprintf(fp, "MsgDeflReflSelfRoom %s~\n", fix_string(skill->msg_defl_refl_self_char));
+	fprintf(fp, "MsgDeflReflChar %s~\n", fix_string(skill->msg_defl_refl_char));
+	fprintf(fp, "MsgDeflReflVict %s~\n", fix_string(skill->msg_defl_refl_vict));
+	fprintf(fp, "MsgDeflReflRoom %s~\n", fix_string(skill->msg_defl_refl_room));
 
 	fprintf(fp, "Inks");
 	for(int j = 0; j < 3; j++)
@@ -716,6 +440,20 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 		{
 			case 'B':
 				KEY("Beats", skill->beats, fread_number(fp));
+#if 0
+				if (!str_cmp(word, "BrandishFunc"))
+				{
+					char *name = fread_string(fp);
+
+					skill->brandish_fun = brandish_func_lookup(name);
+					if (!skill->brandish_fun)
+					{
+						// Complain
+					}
+					fMatch = true;
+					break;
+				}
+#endif
 				if (!str_cmp(word, "BrewFunc"))
 				{
 					char *name = fread_string(fp);
@@ -733,6 +471,23 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 
 			case 'D':
 				KEYS("Display", skill->display, fread_string(fp));
+				break;
+
+			case 'E':
+#if 0
+				if (!str_cmp(word, "EquipFunc"))
+				{
+					char *name = fread_string(fp);
+
+					skill->equip_fun = equip_func_lookup(name);
+					if (!skill->equip_fun)
+					{
+						// Complain
+					}
+					fMatch = true;
+					break;
+				}
+#endif
 				break;
 
 			case 'F':
@@ -790,6 +545,19 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 				KEYS("MsgDisp", skill->msg_disp, fread_string(fp));
 				KEYS("MsgObj", skill->msg_obj, fread_string(fp));
 				KEYS("MsgOff", skill->msg_off, fread_string(fp));
+				KEYS("MsgDeflNoAffChar", skill->msg_defl_noaff_char, fread_string(fp));
+				KEYS("MsgDeflNoAffRoom", skill->msg_defl_noaff_room, fread_string(fp));
+				KEYS("MsgDeflAffChar", skill->msg_defl_aff_char, fread_string(fp));
+				KEYS("MsgDeflAffRoom", skill->msg_defl_aff_room, fread_string(fp));
+				KEYS("MsgDeflPassSelf", skill->msg_defl_pass_self, fread_string(fp));
+				KEYS("MsgDeflPassChar", skill->msg_defl_pass_char, fread_string(fp));
+				KEYS("MsgDeflPassVict", skill->msg_defl_pass_vict, fread_string(fp));
+				KEYS("MsgDeflPassRoom", skill->msg_defl_pass_room, fread_string(fp));
+				KEYS("MsgDeflReflSelfChar", skill->msg_defl_refl_self_char, fread_string(fp));
+				KEYS("MsgDeflReflSelfRoom", skill->msg_defl_refl_self_char, fread_string(fp));
+				KEYS("MsgDeflReflChar", skill->msg_defl_refl_char, fread_string(fp));
+				KEYS("MsgDeflReflVict", skill->msg_defl_refl_vict, fread_string(fp));
+				KEYS("MsgDeflReflRoom", skill->msg_defl_refl_room, fread_string(fp));
 				break;
 
 			case 'N':
@@ -799,7 +567,7 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 			case 'P':
 				if (!str_cmp(word, "Position"))
 				{
-					int value = stat_lookup(fread_string(fp), position_flags, POS_DEAD);
+					int value = stat_lookup(fread_string(fp), spell_position_flags, POS_DEAD);
 
 					skill->minimum_position = value;
 					fMatch = true;
@@ -817,6 +585,20 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 					fMatch = true;
 					break;
 				}
+#if 0
+				if (!str_cmp(word, "PreImbueFunc"))
+				{
+					char *name = fread_string(fp);
+
+					skill->preimbue_fun = preimbue_func_lookup(name);
+					if (!skill->preimbue_fun)
+					{
+						// Complain
+					}
+					fMatch = true;
+					break;
+				}
+#endif
 				if (!str_cmp(word, "PreInkFunc"))
 				{
 					char *name = fread_string(fp);
@@ -3946,8 +3728,7 @@ SKEDIT( skedit_install )
 		sprintf(buf, "Skill {W%s{x installed.\n\r", skill->name);
 		send_to_char(buf, ch);
 
-		ch->desc->pEdit = skill;
-		ch->desc->editor = ED_SKEDIT;
+		olc_set_editor(ch, ED_SKEDIT, skill);
 		return true;
 	}
 
@@ -3998,8 +3779,7 @@ SKEDIT( skedit_install )
 		sprintf(buf, "Skill {W%s{x installed.\n\r", skill->name);
 		send_to_char(buf, ch);
 
-		ch->desc->pEdit = skill;
-		ch->desc->editor = ED_SKEDIT;
+		olc_set_editor(ch, ED_SKEDIT, skill);
 		return true;
 	}
 
@@ -4051,29 +3831,53 @@ SKEDIT( skedit_list )
 }
 
 
-void skedit_show_trigger(BUFFER *buffer, LLIST **progs, int trigger, char *label)
+void skedit_show_trigger(CHAR_DATA *ch, BUFFER *buffer, LLIST **progs, int trigger, char *command, char *label)
 {
 	char buf[MSL];
 
 	PROG_LIST *pr = find_trigger_data(progs, trigger, 1);
 
+	int width = 20 - strlen_no_colours(label);
+	width = UMAX(width, 0);
 	if (pr)
-		sprintf(buf, "   + %-15s {W%ld{x#{W%ld{x\n\r", label, pr->script->area->uid, pr->script->vnum);
+	{
+		if (IS_NULLSTR(pr->script->name))
+			sprintf(buf, formatf("%%s%%%ds%%s\n\r", width),
+				MXPCreateSend(ch->desc, command, label), "",
+				MXPCreateSend(ch->desc, formatf("tpdump %ld#%ld", pr->script->area->uid, pr->script->vnum),
+				formatf("{W%ld{x#{W%ld{x", pr->script->area->uid, pr->script->vnum)));
+		else
+			sprintf(buf, formatf("%%s%%%ds%%s\n\r", width),
+				MXPCreateSend(ch->desc, command, label), "",
+				MXPCreateSend(ch->desc, formatf("tpdump %ld#%ld", pr->script->area->uid, pr->script->vnum),
+				formatf("{W%s {x({W%ld{x#{W%ld{x)", pr->script->name, pr->script->area->uid, pr->script->vnum)));
+	}
 	else
-		sprintf(buf, "   + %-15s {D(unset){x\n\r", label);
+		sprintf(buf, formatf("%%s%%%ds%%s\n\r", width),
+				MXPCreateSend(ch->desc, command, label), "", "{D(unset){x");
 	add_buf(buffer, buf);
 }
 
-void skedit_show_function(BUFFER *buffer, char *name, char *label)
+const char *skedit_tabs_source[] =
 {
-	char buf[MSL];
+	"General",
+	"Functions",
+	"Magic",
+	"Values",
+	"Messages",
+	NULL
+};
 
-	if (name)
-		sprintf(buf, "   + %-15s {W%s{x\n\r", label, name);
-	else
-		sprintf(buf, "   + %-15s {D(unset){x\n\r", label);
-	add_buf(buffer, buf);
-}
+const char *skedit_tabs_token[] =
+{
+	"General",
+	"Triggers",
+	"Magic",
+	"Values",
+	"Messages",
+	NULL
+};
+
 
 SKEDIT( skedit_show )
 {
@@ -4085,11 +3889,148 @@ SKEDIT( skedit_show )
 
 	buffer = new_buf();
 
+	// Show Header
 	if (is_skill_spell(skill))
 		sprintf(buf, "Spell: {W%s {x({W%d{x)\n\r", skill->name, skill->uid);
 	else
 		sprintf(buf, "Skill: {W%s {x({W%d{x)\n\r", skill->name, skill->uid);
 	add_buf(buffer, buf);
+
+	const char **tab_names = skill->token ? skedit_tabs_token : skedit_tabs_source;
+	olc_buffer_show_tabs(ch, buffer, tab_names);
+
+	switch(ch->desc->nEditTab)
+	{
+	case 0:	// General
+		olc_buffer_show_string(ch, buffer, skill->display, "display", "Display String:", 20, "xDW");
+		olc_buffer_show_string(ch, buffer, gsn_to_name(skill->pgsn), "gsn", "GSN:", 20, "xDW");
+
+		olc_buffer_show_flags_ex(ch, buffer, skill_flags, skill->flags, "flags", "Flags:", 77, 20, 5, "xxYyCcD");
+
+		if (skill->token)
+		{
+			sprintf(buf, "Token:              {W%s {x({W%ld{x#{W%ld{x)\n\r",
+				MXPCreateSend(ch->desc, formatf("tshow %ld#%ld", skill->token->area->uid, skill->token->vnum), skill->token->name),
+				skill->token->area->uid, skill->token->vnum);
+			add_buf(buffer, buf);
+		}
+
+		add_buf(buffer, "\n\rLevels:\n\r");
+		sprintf(buf, " - %s %-7s{x    - %s %s{x\n\r",
+			MXPCreateSend(ch->desc, "level cleric", "Cleric: "),
+			skill_level_value(skill, CLASS_CLERIC),
+			MXPCreateSend(ch->desc, "level mage", "Mage:   "),
+			skill_level_value(skill, CLASS_MAGE));
+		add_buf(buffer, buf);
+		sprintf(buf, " - %s %-7s{x    - %s %s{x\n\r",
+			MXPCreateSend(ch->desc, "level thief", "Thief:  "),
+			skill_level_value(skill, CLASS_THIEF),
+			MXPCreateSend(ch->desc, "level warrior", "Warrior:"),
+			skill_level_value(skill, CLASS_WARRIOR));
+		add_buf(buffer, buf);
+
+		add_buf(buffer, "\n\rDifficulties:\n\r");
+		sprintf(buf, " - %s %-12s{x    - %s %s{x\n\r",
+			MXPCreateSend(ch->desc, "difficulty cleric", "Cleric: "),
+			skill_difficulty_value(skill, CLASS_CLERIC),
+			MXPCreateSend(ch->desc, "difficulty mage", "Mage:   "),
+			skill_difficulty_value(skill, CLASS_MAGE));
+		add_buf(buffer, buf);
+		sprintf(buf, " - %s %-12s{x    - %s %s{x\n\r",
+			MXPCreateSend(ch->desc, "difficulty thief", "Thief:  "),
+			skill_difficulty_value(skill, CLASS_THIEF),
+			MXPCreateSend(ch->desc, "difficulty warrior", "Warrior:"),
+			skill_difficulty_value(skill, CLASS_WARRIOR));
+		add_buf(buffer, buf);
+
+		add_buf(buffer, "\n\r");
+
+		olc_buffer_show_flags_ex(ch, buffer, spell_target_types, skill->target, "target", "Target:", 77, 20, 5, "xxYyCcD");
+		olc_buffer_show_flags_ex(ch, buffer, spell_position_flags, skill->minimum_position, "position", "Minimum Position:", 77, 20, 5, "xxYyCcD");
+
+		break;
+	
+	case 1:	// Functions / Triggers
+		if (skill->token)
+		{
+			add_buf(buffer, " {W- {xArtificing:\n\r");
+			skedit_show_trigger(ch, buffer, skill->token->progs, TRIG_TOKEN_BREW,		"brew",			"   {W+ {xBrew:");
+			skedit_show_trigger(ch, buffer, skill->token->progs, TRIG_TOKEN_IMBUE,		"imbue",		"   {W+ {xImbue:");
+			skedit_show_trigger(ch, buffer, skill->token->progs, TRIG_TOKEN_INK,		"ink",			"   {W+ {xInk:");
+			skedit_show_trigger(ch, buffer, skill->token->progs, TRIG_TOKEN_PREBREW,	"prebrew",		"   {W+ {xPrebrew:");
+			skedit_show_trigger(ch, buffer, skill->token->progs, TRIG_TOKEN_PREIMBUE,	"preimbue",		"   {W+ {xPreimbue:");
+			skedit_show_trigger(ch, buffer, skill->token->progs, TRIG_TOKEN_PREINK,		"preink",		"   {W+ {xPreink:");
+			skedit_show_trigger(ch, buffer, skill->token->progs, TRIG_TOKEN_PRESCRIBE,	"prescribe",	"   {W+ {xPrescribe:");
+			skedit_show_trigger(ch, buffer, skill->token->progs, TRIG_TOKEN_SCRIBE,		"scribe",		"   {W+ {xScribe:");
+
+			add_buf(buffer, " {W- {xActions:\n\r");
+			skedit_show_trigger(ch, buffer, skill->token->progs, TRIG_TOKEN_BRANDISH,	"brandish",		"   {W+ {xBrandish:");
+			skedit_show_trigger(ch, buffer, skill->token->progs, TRIG_PRESPELL,			"prespell",		"   {W+ {xPrespell:");
+			skedit_show_trigger(ch, buffer, skill->token->progs, TRIG_TOKEN_QUAFF,		"quaff",		"   {W+ {xQuaff:");
+			skedit_show_trigger(ch, buffer, skill->token->progs, TRIG_TOKEN_RECITE,		"recite",		"   {W+ {xRecite:");
+			skedit_show_trigger(ch, buffer, skill->token->progs, TRIG_SPELL,			"spell",		"   {W+ {xSpell:");
+			skedit_show_trigger(ch, buffer, skill->token->progs, TRIG_TOKEN_TOUCH,		"touch",		"   {W+ {xTouch:");
+			skedit_show_trigger(ch, buffer, skill->token->progs, TRIG_TOKEN_ZAP,		"zap",			"   {W+ {xZap:");
+		}
+		else
+		{
+			add_buf(buffer, " {W- {xArtificing:\n\r");
+			olc_buffer_show_string(ch, buffer, brew_func_display(skill->brew_fun),			"brew",			"   {W+ {xBrew:", 20, "XDW");
+			olc_buffer_show_string(ch, buffer, NULL,										"imbue",		"   {W+ {xImbue:", 20, "XDW");
+			olc_buffer_show_string(ch, buffer, ink_func_display(skill->ink_fun),			"ink",			"   {W+ {xInk:", 20, "XDW");
+			olc_buffer_show_string(ch, buffer, prebrew_func_display(skill->prebrew_fun),	"prebrew",		"   {W+ {xPrebrew:", 20, "XDW");
+			olc_buffer_show_string(ch, buffer, NULL,										"preimbue",		"   {W+ {xPreimbue:", 20, "XDW");
+			olc_buffer_show_string(ch, buffer, preink_func_display(skill->preink_fun),		"preink",		"   {W+ {xPreink:", 20, "XDW");
+			olc_buffer_show_string(ch, buffer, prescribe_func_display(skill->prescribe_fun),"prescribe",	"   {W+ {xPrescribe:", 20, "XDW");
+			olc_buffer_show_string(ch, buffer, scribe_func_display(skill->scribe_fun),		"scribe",		"   {W+ {xScribe:", 20, "XDW");
+
+			add_buf(buffer, "\n\r {w- {xActions:\n\r");
+			olc_buffer_show_string(ch, buffer, NULL,										"brandish",		"   {W+ {xBrandish:", 20, "XDW");
+			olc_buffer_show_string(ch, buffer, prespell_func_display(skill->prespell_fun),	"prespell",		"   {W+ {xPrespell:", 20, "XDW");
+			olc_buffer_show_string(ch, buffer, quaff_func_display(skill->quaff_fun),		"quaff",		"   {W+ {xQuaff:", 20, "XDW");
+			olc_buffer_show_string(ch, buffer, recite_func_display(skill->recite_fun),		"recite",		"   {W+ {xRecite:", 20, "XDW");
+			olc_buffer_show_string(ch, buffer, spell_func_display(skill->spell_fun),		"spell",		"   {W+ {xSpell:", 20, "XDW");
+			olc_buffer_show_string(ch, buffer, touch_func_display(skill->touch_fun),		"touch",		"   {W+ {xTouch:", 20, "XDW");
+			olc_buffer_show_string(ch, buffer, NULL,										"zap",			"   {W+ {xZap:", 20, "XDW");
+		}
+		break;
+	case 2: // Magic
+		add_buf(buffer, "Inks:\n\r");
+		for(int i = 0; i < 3; i++)
+		{
+			sprintf(buf, " %d) [%2d] %s\n\r", i + 1, skill->inks[i][1], flag_string(catalyst_types, skill->inks[i][0]));
+			add_buf(buffer, buf);
+		}
+		break;
+
+	case 3:	// Values
+		add_buf(buffer, "\n\rValues:\n\r");
+		for(int i = 0; i < MAX_SKILL_VALUES; i++)
+		{
+			char name[MIL];
+			if (IS_NULLSTR(skill->valuenames[i]))
+				sprintf(name, "Value %d:", i+1);
+			else
+				sprintf(name, "%s:", skill->valuenames[i]);
+			sprintf(buf, "%-20s%d\n\r", name, skill->values[i]);
+			add_buf(buffer, buf);
+		}
+		break;
+	
+	case 4:	// Messages
+		for(int i = 0; msg_handlers[i].verb; i++)
+		{
+			int j = msg_handlers[i].order;
+			olc_buffer_show_string(ch, buffer, skill->display, formatf("message %s", msg_handlers[j].verb), formatf("%s:", msg_handlers[j].label), 38, "xDW");	
+		}
+		break;
+
+	default:
+		break;
+	}
+
+
+#if 0
 
 	if (IS_NULLSTR(skill->display))
 		sprintf(buf, "Display String:   {D(unset){x\n\r");
@@ -4113,45 +4054,46 @@ SKEDIT( skedit_show )
 		add_buf(buffer, buf);
 
 		add_buf(buffer, " - Artificing:\n\r");
-		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_BREW, "Brew:");
-		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_IMBUE, "Imbue:");
-		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_INK, "Ink:");
-		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_PREBREW, "Prebrew:");
-		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_PREIMBUE, "Preimbue:");
-		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_PREINK, "Preink:");
-		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_PRESCRIBE, "Prescribe:");
-		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_SCRIBE, "Scribe:");
+		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_BREW, "   + Brew:");
+		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_IMBUE, "   + Imbue:");
+		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_INK, "   + Ink:");
+		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_PREBREW, "   + Prebrew:");
+		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_PREIMBUE, "   + Preimbue:");
+		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_PREINK, "   + Preink:");
+		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_PRESCRIBE, "   + Prescribe:");
+		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_SCRIBE, "   + Scribe:");
 
 		add_buf(buffer, " - Actions:\n\r");
-		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_BRANDISH, "Brandish:");
-		skedit_show_trigger(buffer, skill->token->progs, TRIG_PRESPELL, "Prespell:");
-		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_QUAFF, "Quaff:");
-		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_RECITE, "Recite:");
-		skedit_show_trigger(buffer, skill->token->progs, TRIG_SPELL, "Spell:");
-		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_TOUCH, "Touch:");
-		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_ZAP, "Zap:");
+		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_BRANDISH, "   + Brandish:");
+		skedit_show_trigger(buffer, skill->token->progs, TRIG_PRESPELL, "   + Prespell:");
+		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_QUAFF, "   + Quaff:");
+		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_RECITE, "   + Recite:");
+		skedit_show_trigger(buffer, skill->token->progs, TRIG_SPELL, "   + Spell:");
+		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_TOUCH, "   + Touch:");
+		skedit_show_trigger(buffer, skill->token->progs, TRIG_TOKEN_ZAP, "   + Zap:");
+
 	}
 	else
 	{
 		add_buf(buffer, "Functions:\n\r");
 		add_buf(buffer, " - Artificing:\n\r");
-		skedit_show_function(buffer, brew_func_display(skill->brew_fun), "Brew:");
-		skedit_show_function(buffer, NULL, "Imbue:");
-		skedit_show_function(buffer, ink_func_display(skill->ink_fun), "Ink:");
-		skedit_show_function(buffer, prebrew_func_display(skill->prebrew_fun), "Prebrew:");
-		skedit_show_function(buffer, NULL, "Preimbue:");
-		skedit_show_function(buffer, preink_func_display(skill->preink_fun), "Preink:");
-		skedit_show_function(buffer, prescribe_func_display(skill->prescribe_fun), "Prescribe:");
-		skedit_show_function(buffer, scribe_func_display(skill->scribe_fun), "Scribe:");
+		skedit_show_function(buffer, brew_func_display(skill->brew_fun), "   + Brew:");
+		skedit_show_function(buffer, NULL, "   + Imbue:");
+		skedit_show_function(buffer, ink_func_display(skill->ink_fun), "   + Ink:");
+		skedit_show_function(buffer, prebrew_func_display(skill->prebrew_fun), "   + Prebrew:");
+		skedit_show_function(buffer, NULL, "   + Preimbue:");
+		skedit_show_function(buffer, preink_func_display(skill->preink_fun), "   + Preink:");
+		skedit_show_function(buffer, prescribe_func_display(skill->prescribe_fun), "   + Prescribe:");
+		skedit_show_function(buffer, scribe_func_display(skill->scribe_fun), "   + Scribe:");
 
 		add_buf(buffer, " - Actions:\n\r");
 		skedit_show_function(buffer, NULL, "Brandish:");
-		skedit_show_function(buffer, prespell_func_display(skill->prespell_fun), "Prespell:");
-		skedit_show_function(buffer, quaff_func_display(skill->quaff_fun), "Quaff:");
-		skedit_show_function(buffer, recite_func_display(skill->recite_fun), "Recite:");
-		skedit_show_function(buffer, spell_func_display(skill->spell_fun), "Spell:");
-		skedit_show_function(buffer, touch_func_display(skill->touch_fun), "Touch:");
-		skedit_show_function(buffer, NULL, "Zap:");
+		skedit_show_function(buffer, prespell_func_display(skill->prespell_fun), "   + Prespell:");
+		skedit_show_function(buffer, quaff_func_display(skill->quaff_fun), "   + Quaff:");
+		skedit_show_function(buffer, recite_func_display(skill->recite_fun), "   + Recite:");
+		skedit_show_function(buffer, spell_func_display(skill->spell_fun), "   + Spell:");
+		skedit_show_function(buffer, touch_func_display(skill->touch_fun), "   + Touch:");
+		skedit_show_function(buffer, NULL, "   + Zap:");
 	}
 
 	add_buf(buffer, "\n\rLevels:\n\r");
@@ -4200,6 +4142,7 @@ SKEDIT( skedit_show )
 	sprintf(buf, "Wear Off Message: %s\n\r", IS_NULLSTR(skill->msg_off) ? "{D(unset){x" : skill->msg_off); add_buf(buffer, buf);
 	sprintf(buf, "Object Message:   %s\n\r", IS_NULLSTR(skill->msg_obj) ? "{D(unset){x" : skill->msg_obj); add_buf(buffer, buf);
 	sprintf(buf, "Dispel Message:   %s\n\r", IS_NULLSTR(skill->msg_disp) ? "{D(unset){x" : skill->msg_disp); add_buf(buffer, buf);
+#endif
 
 	if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
 	{
@@ -4207,7 +4150,8 @@ SKEDIT( skedit_show )
 	}
 	else
 	{
-		page_to_char(buffer->string, ch);
+		send_to_char(buffer->string, ch);
+		//page_to_char(buffer->string, ch);
 	}
 
 	free_buf(buffer);
@@ -4359,88 +4303,143 @@ bool __token_add_trigger(TOKEN_INDEX_DATA *token, int type, char *phrase, SCRIPT
 	return true;
 }
 
-#define SKEDIT_FUNC(f, p, t)		\
+#define SKEDIT_FUNC(f, p, t, n)		\
 SKEDIT( skedit_##f##func )	\
 { \
+	char arg[MIL]; \
 	SKILL_DATA *skill; \
 \
 	EDIT_SKILL(ch, skill); \
 \
 	if (skill->token) \
 	{ \
-		/* TOKEN mode */ \
-		WNUM wnum; \
-\
-		/* Allow wnum shortcutting using the token's area */ \
-		if (!parse_widevnum(argument, skill->token->area, &wnum)) \
+		if (argument[0] == '\0') \
 		{ \
-			send_to_char("Syntax:  skedit " #f " {R<widevnum>{x\n\r", ch); \
-			send_to_char("Please specify a widevnum for the token SPELL trigger.\n\r", ch); \
+			send_to_char("Syntax:  skedit " #f " {Rset{x <widevnum>\n\r", ch); \
+			send_to_char("         skedit " #f " {Rclear{x\n\r", ch); \
 			return false; \
 		} \
 \
-		/* Get the script */ \
-		SCRIPT_DATA *script = get_script_index(wnum.pArea, wnum.vnum, PRG_TPROG); \
-		if (!script) \
+		argument = one_argument(argument, arg); \
+\
+		if (!str_prefix(arg, "set")) \
 		{ \
-			send_to_char("No such token script by that widevnum.\n\r", ch); \
-			return false; \
+			/* TOKEN mode */ \
+			WNUM wnum; \
+\
+			/* Allow wnum shortcutting using the token's area */ \
+			if (!parse_widevnum(argument, skill->token->area, &wnum)) \
+			{ \
+				send_to_char("Syntax:  skedit " #f " set {R<widevnum>{x\n\r", ch); \
+				send_to_char("Please specify a widevnum for the token " #p " trigger.\n\r", ch); \
+				return false; \
+			} \
+\
+			/* Get the script */ \
+			SCRIPT_DATA *script = get_script_index(wnum.pArea, wnum.vnum, PRG_TPROG); \
+			if (!script) \
+			{ \
+				send_to_char("No such token script by that widevnum.\n\r", ch); \
+				return false; \
+			} \
+\
+			/* Remove any triggers from token. */ \
+			__token_remove_trigger(skill->token, TRIG_##p); \
+\
+			/* Add trigger to token. */ \
+			if (!__token_add_trigger(skill->token, TRIG_##p, "100", script)) \
+			{ \
+				send_to_char("Something went wrong adding " #p " trigger to token.\n\r", ch); \
+				return false; \
+			} \
+\
+			/* Mark area as changed. */ \
+			SET_BIT(skill->token->area->area_flags, AREA_CHANGED); \
+			send_to_char(#p " trigger added to spell token.\n\r", ch); \
+			return true; \
 		} \
 \
-		/* Remove any triggers from token. */ \
-		__token_remove_trigger(skill->token, TRIG_##p); \
-\
-		/* Add trigger to token. */ \
-		if (!__token_add_trigger(skill->token, TRIG_##p, "100", script)) \
+		if (!str_prefix(arg, "clear")) \
 		{ \
-			send_to_char("Something went wrong adding " #p " trigger to token.\n\r", ch); \
-			return false; \
+			/* Remove any triggers from token. */ \
+			__token_remove_trigger(skill->token, TRIG_##p); \
+\
+			/* Mark area as changed. */ \
+			SET_BIT(skill->token->area->area_flags, AREA_CHANGED); \
+			send_to_char(#p " trigger cleared on spell token.\n\r", ch); \
+			return true; \
 		} \
 \
-		/* Mark area as changed. */ \
-		SET_BIT(skill->token->area->area_flags, AREA_CHANGED); \
-		send_to_char(#p " trigger added to spell token.\n\r", ch); \
-		return true; \
+		skedit_##f##func (ch, ""); \
+		return false; \
 	} \
 	else \
 	{ \
 		if (argument[0] == '\0') \
 		{ \
-			send_to_char("Syntax:  skedit " #f " {R<function>{x\n\r", ch); \
-			send_to_char("Invalid " #f " function.  Use '? " #f "_func' for a list of functions.\n\r", ch); \
+			send_to_char("Syntax:  skedit " #f " {Rset{x <function>\n\r", ch); \
+			send_to_char("         skedit " #f " {Rclear{x\n\r", ch); \
 			return false; \
 		} \
 \
-		t *func = f##_func_lookup(argument); \
-		if(!func) \
+		argument = one_argument(argument, arg); \
+\
+		if (!str_prefix(arg, "set")) \
 		{ \
-			send_to_char("Syntax:  skedit " #f " {R<function>{x\n\r", ch); \
-			send_to_char("Invalid " #f " function.  Use '? " #f "_func' for a list of functions.\n\r", ch); \
-			return false; \
+			if (argument[0] == '\0') \
+			{ \
+				send_to_char("Syntax:  skedit " #f " set {R<function>{x\n\r", ch); \
+				send_to_char("Invalid " #f " function.  Use '? " #f "_func' for a list of functions.\n\r", ch); \
+				return false; \
+			} \
+\
+			t *func = f##_func_lookup(argument); \
+			if(!func) \
+			{ \
+				send_to_char("Syntax:  skedit " #f " {R<function>{x\n\r", ch); \
+				send_to_char("Invalid " #f " function.  Use '? " #f "_func' for a list of functions.\n\r", ch); \
+				return false; \
+			} \
+\
+			skill->f##_fun = func; \
+			send_to_char("Skill " #f " function set.\n\r", ch); \
+			return true; \
 		} \
 \
-		skill->f##_fun = func; \
-		send_to_char("Skill " #f " function set.\n\r", ch); \
-		return true; \
+		if (!str_prefix(arg, "clear")) \
+		{ \
+			skill->f##_fun = n; \
+			send_to_char("Skill " #f " function cleared.\n\r", ch); \
+			return true; \
+		} \
+\
+		skedit_##f##func (ch, ""); \
+		return false; \
 	} \
 }
 
-SKEDIT_FUNC(prespell,PRESPELL,SPELL_FUN)
-SKEDIT_FUNC(spell,SPELL,SPELL_FUN)
 
-SKEDIT_FUNC(prebrew,TOKEN_PREBREW,PREBREW_FUN)
-SKEDIT_FUNC(brew,TOKEN_BREW,BREW_FUN)
-SKEDIT_FUNC(quaff,TOKEN_QUAFF,QUAFF_FUN)
+SKEDIT_FUNC(prespell,PRESPELL,SPELL_FUN,NULL)
+SKEDIT_FUNC(spell,SPELL,SPELL_FUN,NULL)
 
-SKEDIT_FUNC(prescribe,TOKEN_PRESCRIBE,PRESCRIBE_FUN)
-SKEDIT_FUNC(scribe,TOKEN_SCRIBE,SCRIBE_FUN)
-SKEDIT_FUNC(recite,TOKEN_RECITE,RECITE_FUN)
+SKEDIT_FUNC(prebrew,TOKEN_PREBREW,PREBREW_FUN,NULL)
+SKEDIT_FUNC(brew,TOKEN_BREW,BREW_FUN,NULL)
+SKEDIT_FUNC(quaff,TOKEN_QUAFF,QUAFF_FUN,NULL)
 
-SKEDIT_FUNC(preink,TOKEN_PREINK,PREINK_FUN)
-SKEDIT_FUNC(ink,TOKEN_INK,INK_FUN)
-SKEDIT_FUNC(touch,TOKEN_TOUCH,TOUCH_FUN)
+SKEDIT_FUNC(prescribe,TOKEN_PRESCRIBE,PRESCRIBE_FUN,NULL)
+SKEDIT_FUNC(scribe,TOKEN_SCRIBE,SCRIBE_FUN,NULL)
+SKEDIT_FUNC(recite,TOKEN_RECITE,RECITE_FUN,NULL)
+
+SKEDIT_FUNC(preink,TOKEN_PREINK,PREINK_FUN,NULL)
+SKEDIT_FUNC(ink,TOKEN_INK,INK_FUN,NULL)
+SKEDIT_FUNC(touch,TOKEN_TOUCH,TOUCH_FUN,NULL)
 
 // TODO: IMBUE stuff
+//SKEDIT_FUNC(preimbue,TOKEN_PREIMBUE,PREIMBUE_FUN,NULL)
+//SKEDIT_FUNC(imbue,TOKEN_IMBUE,IMBUE_FUN,NULL)
+//SKEDIT_FUNC(brandish,TOKEN_BRANDISH,BRANDISH_FUN,NULL)
+SKEDIT_FUNC(zap,TOKEN_ZAP,ZAP_FUN,NULL)
+//SKEDIT_FUNC(equip,TOKEN_EQUIP,EQUIP_FUN,NULL)
 
 #if 0
 // Morph based upon whether this is a source or scripted ability
@@ -4940,10 +4939,10 @@ SKEDIT( skedit_beats )
 
 	return false;
 }
-
 SKEDIT( skedit_message )
 {
 	char arg[MIL];
+	char buf[MSL];
 	SKILL_DATA *skill;
 
 	EDIT_SKILL(ch, skill);
@@ -4951,17 +4950,77 @@ SKEDIT( skedit_message )
 	argument = one_argument(argument, arg);
 	if (arg[0] == '\0')
 	{
-		send_to_char("Syntax:  skedit message {Rnoun{x set <message>\n\r", ch);
-		send_to_char("         skedit message {Rnoun{x clear\n\r", ch);
-		send_to_char("         skedit message {Rwearoff{x set <message>\n\r", ch);
-		send_to_char("         skedit message {Rwearoff{x clear\n\r", ch);
-		send_to_char("         skedit message {Robject{x set <message>\n\r", ch);
-		send_to_char("         skedit message {Robject{x clear\n\r", ch);
-		send_to_char("         skedit message {Rdispel{x set <message>\n\r", ch);
-		send_to_char("         skedit message {Rdispel{x clear\n\r", ch);
+		for(int i = 0; msg_handlers[i].verb; i++)
+		{
+			if (i > 0)
+				sprintf(buf, "         skedit message {R%s{x set <message>\n\r", msg_handlers[i].verb);
+			else
+				sprintf(buf, "Syntax:  skedit message {R%s{x set <message>\n\r", msg_handlers[i].verb);
+			send_to_char(buf, ch);
+			sprintf(buf, "         skedit message {R%s{x clear\n\r", msg_handlers[i].verb);
+			send_to_char(buf, ch);
+		}
 		return false;
 	}
 
+	for(int i = 0; msg_handlers[i].verb; i++)
+	{
+		if (!str_prefix(arg, msg_handlers[i].verb))
+		{
+			argument = one_argument(argument, arg);
+			if (arg[0] == '\0')
+			{
+				sprintf(buf, "Syntax:  skedit message %s {Rset{x <message>\n\r", msg_handlers[i].verb);
+				send_to_char(buf, ch);
+				sprintf(buf, "         skedit message %s {Rclear{x\n\r", msg_handlers[i].verb);
+				send_to_char(buf, ch);
+				return false;
+			}
+
+			if (!str_prefix(arg, "set"))
+			{
+				smash_tilde(argument);
+				if (argument[0] == '\0')
+				{
+					sprintf(buf, "Syntax:  skedit message %s set {R<message>{x\n\r", msg_handlers[i].verb);
+					send_to_char(buf, ch);
+					sprintf(buf, "Please specify a %s string.\n\r", msg_handlers[i].name);
+					send_to_char(buf, ch);
+					return false;
+				}
+
+				// Evil pointer math
+				// msg_handlers[i].field - &__static_skill => gets offset
+				// <offset> + skill => &skill->FIELD
+				char **ptr = (char **)((void *)(msg_handlers[i].field) - (void *)&__static_skill + (void *)skill);
+				free_string(*ptr);
+				*ptr = str_dup(argument);
+
+				sprintf(buf, "Skill %s set.\n\r", msg_handlers[i].name_caps);
+				send_to_char(buf, ch);
+				return true;
+			}
+
+			if (!str_prefix(arg, "clear"))
+			{
+				// Evil pointer math
+				// msg_handlers[i].field - &__static_skill => gets offset
+				// <offset> + skill => &skill->FIELD
+				char **ptr = (char **)((void *)(msg_handlers[i].field) - (void *)&__static_skill + (void *)skill);
+				free_string(*ptr);
+				*ptr = NULL;
+
+				sprintf(buf, "Skill %s cleared.\n\r", msg_handlers[i].name_caps);
+				send_to_char(buf, ch);
+				return true;
+			}
+
+			skedit_message(ch, msg_handlers[i].verb);
+			return false;
+		}
+	}
+
+#if 0
 	if (!str_prefix(arg, "noun"))
 	{
 		argument = one_argument(argument, arg);
@@ -5016,7 +5075,7 @@ SKEDIT( skedit_message )
 			if (argument[0] == '\0')
 			{
 				send_to_char("Syntax:  skedit message wearoff set {R<message>{x\n\r", ch);
-				send_to_char("Please specify a wearoff damage string.\n\r", ch);
+				send_to_char("Please specify a wearoff message string.\n\r", ch);
 				return false;
 			}
 
@@ -5113,6 +5172,7 @@ SKEDIT( skedit_message )
 		skedit_message(ch, "dispel");
 		return false;
 	}
+#endif
 
 	skedit_message(ch, "");
 	return false;

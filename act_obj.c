@@ -4646,10 +4646,13 @@ void do_recite(CHAR_DATA *ch, char *argument)
 
 void spell_deflected_recite(CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill, AFFECT_DATA *af)
 {
+#if 0
+	// Need a deflection function...
 	if (skill->token)
 		p_token_index_percent_trigger(skill->token, ch != NULL ? ch : victim, victim, NULL, NULL, NULL, TRIG_TOKEN_RECITE, NULL, 0,0,0,0,0, (ch != NULL ? ch->tot_level : af->level),0,0,0,0);
-	else if (skill->spell_fun && skill->spell_fun != spell_null)
-		(*skill->spell_fun)(skill, ch != NULL ? ch->tot_level : af->level, ch != NULL ? ch : victim, victim, TARGET_CHAR, WEAR_NONE);
+	else if (skill->recite_fun)
+		(*skill->recite_fun)(skill, ch != NULL ? ch->tot_level : af->level, (ch != NULL ? ch : victim), victim, TARGET_CHAR, WEAR_NONE);
+#endif
 }
 
 void obj_recite_spell(OBJ_DATA *scroll, SKILL_DATA *skill, int level, CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *obj)
@@ -5049,15 +5052,190 @@ void do_brandish(CHAR_DATA *ch, char *argument)
     }
 }
 
+void spell_deflected_zap(CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill, AFFECT_DATA *af)
+{
+	if (skill->token)
+		p_token_index_percent_trigger(skill->token, ch != NULL ? ch : victim, victim, NULL, NULL, NULL, TRIG_TOKEN_ZAP, NULL, 0,0,0,0,0, (ch != NULL ? ch->tot_level : af->level),0,0,0,0);
+	else if (skill->spell_fun && skill->spell_fun != spell_null)
+		(*skill->spell_fun)(skill, ch != NULL ? ch->tot_level : af->level, ch != NULL ? ch : victim, victim, TARGET_CHAR, WEAR_NONE);
+}
 
-/* moVED: object/actions.c */
+void obj_zap_spell(OBJ_DATA *wand, SKILL_DATA *skill, int level, CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *obj)
+{
+    void *vo;
+    int target = TARGET_NONE;
+
+    if (!IS_VALID(skill))
+	{
+		bug("obj_zap_spell: bad skill data.", 0);
+		return;
+	}
+
+	if (skill->token)
+	{
+		if (!get_script_token(skill->token, TRIG_TOKEN_ZAP, TRIGSLOT_SPELL))
+		{
+			bug("obj_zap_spell: bad skill uid = %d.", skill->uid);
+			return;
+		}
+	}
+	else if (!skill->zap_fun)
+    {
+		bug("obj_zap_spell: bad skill uid = %d.", skill->uid);
+		return;
+    }
+
+    switch (skill->target)
+    {
+        default:
+	    bug("obj_zap_spell: bad target for skill uid = %d.", skill->uid);
+	    return;
+
+	case TAR_IGNORE:
+	    vo = NULL;
+		victim = NULL;
+		obj = NULL;
+	    break;
+
+	case TAR_CHAR_OFFENSIVE:
+	    if (victim == NULL)
+  	        victim = ch->fighting;
+
+	    if (victim == NULL)
+	    {
+	        send_to_char("You can't do that.\n\r", ch);
+			return;
+	    }
+
+	    if (is_safe(ch,victim, TRUE) && ch != victim)
+	    {
+			send_to_char("Something isn't right...\n\r",ch);
+			return;
+	    }
+
+	    vo = (void *) victim;
+	    target = TARGET_CHAR;
+		obj = NULL;
+	    break;
+
+	case TAR_CHAR_DEFENSIVE:
+	case TAR_CHAR_SELF:
+	    if (victim == NULL)
+		    victim = ch;
+
+	    vo = (void *) victim;
+	    target = TARGET_CHAR;
+		obj = NULL;
+	    break;
+
+	case TAR_OBJ_INV:
+	    if (obj == NULL)
+	    {
+	        send_to_char("You can't do that.\n\r", ch);
+		return;
+	    }
+	    vo = (void *) obj;
+	    target = TARGET_OBJ;
+		victim = NULL;
+	    break;
+
+	case TAR_OBJ_CHAR_OFF:
+	    if (victim == NULL && obj == NULL)
+	    {
+	        if (ch->fighting != NULL)
+	   	    	victim = ch->fighting;
+  	        else
+	        {
+			    send_to_char("You can't do that.\n\r",ch);
+		   	    return;
+			}
+	    }
+
+	    if (victim != NULL)
+	    {
+	        if (is_safe_spell(ch,victim,FALSE) && ch != victim)
+	        {
+	            send_to_char("Something isn't right...\n\r",ch);
+			    return;
+			}
+
+			vo = (void *) victim;
+			target = TARGET_CHAR;
+			obj = NULL;
+	    }
+	    else
+	    {
+		    vo = (void *) obj;
+		    target = TARGET_OBJ;
+			victim = NULL;
+	    }
+	    break;
+
+
+	case TAR_OBJ_CHAR_DEF:
+	    if (victim == NULL && obj == NULL)
+	    {
+	        vo = (void *) ch;
+			target = TARGET_CHAR;
+			obj = NULL;
+	    }
+	    else if (victim != NULL)
+	    {
+			vo = (void *) victim;
+			target = TARGET_CHAR;
+			obj = NULL;
+	    }
+	    else
+	    {
+			vo = (void *) obj;
+			target = TARGET_OBJ;
+			obj = NULL;
+	    }
+
+	    break;
+    }
+
+	//char _buf[MSL];
+    if (target != TARGET_CHAR || victim == NULL || check_spell_deflection(ch, victim, skill, spell_deflected_zap))
+    {
+		//sprintf(_buf, "Reciting %s...\n\r", skill->name);
+		//send_to_char(_buf, ch);
+		if (skill->token)
+		{
+			//sprintf(_buf, "%s: victim = %s", skill->name, (victim?victim->name:"(null)"));
+			//send_to_char(_buf, ch);
+			//sprintf(_buf, "%s: obj = %s", skill->name, (obj?obj->short_descr:"(null)"));
+			//send_to_char(_buf, ch);
+			p_token_index_percent_trigger(skill->token, ch, victim, NULL, wand, obj, TRIG_TOKEN_ZAP, NULL, 0,0,0,0,0, level,0,0,0,0);
+		}
+		else
+    		(*(skill->zap_fun)) (skill, level, ch, wand, vo, target);
+    }
+
+    if ((skill->target == TAR_CHAR_OFFENSIVE || (skill->target == TAR_OBJ_CHAR_OFF && target == TARGET_CHAR)) &&
+		victim != NULL && victim != ch && victim->master != ch)
+    {
+		CHAR_DATA *vch;
+		CHAR_DATA *vch_next;
+
+		for (vch = ch->in_room->people; vch; vch = vch_next)
+		{
+			vch_next = vch->next_in_room;
+			if (victim == vch && victim->fighting == NULL)
+			{
+				multi_hit(victim, ch, NULL, TYPE_UNDEFINED);
+				break;
+			}
+		}
+    }
+}
+
 void do_zap(CHAR_DATA *ch, char *argument)
 {
     char arg[MAX_INPUT_LENGTH];
     CHAR_DATA *victim;
     OBJ_DATA *wand;
     OBJ_DATA *obj;
-    //SPELL_DATA *spell;
 
     one_argument(argument, arg);
     if (arg[0] == '\0' && ch->fighting == NULL)
@@ -5072,40 +5250,40 @@ void do_zap(CHAR_DATA *ch, char *argument)
 		return;
     }
 
+	if (!IS_WAND(wand))
+	{
+		send_to_char("You cannot zap that.\n\r", ch);
+		return;
+	}
+
 	// TODO: Utilize return code
     if(p_percent_trigger(NULL, wand, NULL, NULL, ch, NULL, NULL, NULL, NULL, TRIG_PREZAP, arg,0,0,0,0,0))
     	return;
 
-    if (wand->item_type != ITEM_WAND)
-    {
-		send_to_char("You can zap only with a wand.\n\r", ch);
-		return;
-    }
-
     obj = NULL;
     if (arg[0] == '\0')
     {
-	if (ch->fighting != NULL)
-	    victim = ch->fighting;
-	else
-	{
-	    send_to_char("Zap whom or what?\n\r", ch);
-	    return;
-	}
+		if (ch->fighting != NULL)
+		    victim = ch->fighting;
+		else
+		{
+			send_to_char("Zap whom or what?\n\r", ch);
+			return;
+		}
     }
     else
     {
-	if ((victim = get_char_room (ch, NULL,arg)) == NULL
-	&&   (obj    = get_obj_here  (ch, NULL,arg)) == NULL)
-	{
-	    send_to_char("You can't find it.\n\r", ch);
-	    return;
-	}
+		if ((victim = get_char_room (ch, NULL,arg)) == NULL &&
+			(obj    = get_obj_here  (ch, NULL,arg)) == NULL)
+		{
+			send_to_char("You can't find it.\n\r", ch);
+			return;
+		}
     }
 
     WAIT_STATE(ch, 2 * PULSE_VIOLENCE);
 
-    if (wand->value[2] > 0)
+    if (WAND(wand)->charges > 0)
     {
 		if (victim != NULL)
 		{
@@ -5128,24 +5306,79 @@ void do_zap(CHAR_DATA *ch, char *argument)
 		}
 		else
 		{
-			obj_apply_spells(ch, wand, victim, obj, obj->spells, TRIG_TOKEN_ZAP);
-			//for (spell = wand->spells; spell != NULL; spell = spell->next)
-			//obj_cast_spell(spell->sn, spell->level, ch, victim, obj);
+			ITERATOR spit;
+			SPELL_DATA *spell;
+			iterator_start(&spit, WAND(wand)->spells);
+			while((spell = (SPELL_DATA *)iterator_nextdata(&spit)))
+			{
+				// If the wand is too damaged, the wand can fail.
+				if (number_range(0, 64) > wand->condition)
+				{
+					act("$n's $p sparks and sputters.", ch, NULL, NULL, wand, NULL, NULL, NULL, TO_ROOM);
+					act("Your $p sparks and sputters.", ch, NULL, NULL, wand, NULL, NULL, NULL, TO_CHAR);
+					break;
+				}
+
+				obj_zap_spell(wand, spell->skill, spell->level, ch, victim, obj);
+			}
+			iterator_stop(&spit);
 			success = TRUE;
 		}
 
-		wand->tempstore[0] = success;
-		p_percent_trigger(NULL, wand, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_ZAP, arg,0,0,0,0,0);
+		p_percent_trigger(NULL, wand, NULL, NULL, ch, victim, NULL, obj, NULL, TRIG_ZAP, arg,success,0,0,0,0);
 		check_improve(ch,gsk_wands,success,2);
     }
 
-    if (--wand->value[2] <= 0)
+	--WAND(wand)->charges;
+    if (WAND(wand)->charges < 1)
     {
-	act("$n's $p explodes into fragments.", ch, NULL, NULL, wand, NULL, NULL, NULL, TO_ROOM);
-	act("Your $p explodes into fragments.", ch, NULL, NULL, wand, NULL, NULL, NULL, TO_CHAR);
-	log_string("exploded into fragments");
-	extract_obj(wand);
+		// If a wand can't recharge, it will explode
+		if (WAND(wand)->recharge_time < 1)
+		{
+			act("$n's $p explodes into fragments.", ch, NULL, NULL, wand, NULL, NULL, NULL, TO_ROOM);
+			act("Your $p explodes into fragments.", ch, NULL, NULL, wand, NULL, NULL, NULL, TO_CHAR);
+			extract_obj(wand);
+			return;
+		}
+
+		// TODO: What should happen if a wand is overused?
+		// Should it damage the wand?
+		// If so, should the condition of the wand affect whether the wand works?
+		// Wand gets damaged from overuse
+		if (wand->fragility != OBJ_FRAGILE_SOLID)
+		{
+			switch (wand->fragility)
+			{
+			case OBJ_FRAGILE_STRONG:
+				if (number_percent() < 25)
+					wand->condition--;
+				break;
+			case OBJ_FRAGILE_NORMAL:
+				if (number_percent() < 50)
+					wand->condition--;
+				break;
+			case OBJ_FRAGILE_WEAK:
+				wand->condition--;
+				break;
+			default:
+				break;
+			}
+
+			if (wand->condition <= 0)
+			{
+				act("$n's $p explodes into fragments.", ch, NULL, NULL, wand, NULL, NULL, NULL, TO_ROOM);
+				act("Your $p explodes into fragments.", ch, NULL, NULL, wand, NULL, NULL, NULL, TO_CHAR);
+				extract_obj(wand);
+				return;
+			}
+		}
     }
+
+	// Start recharging
+	if (WAND(wand)->charges < WAND(wand)->max_charges && WAND(wand)->recharge_time > 0 && WAND(wand)->cooldown < 1)
+	{
+		WAND(wand)->cooldown = WAND(wand)->recharge_time;
+	}
 }
 
 void do_steal(CHAR_DATA *ch, char *argument)

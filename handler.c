@@ -10277,3 +10277,18 @@ void remove_aura_from_char(CHAR_DATA *ch, char *name)
 	}
 	iterator_stop(&it);
 }
+
+char *formatf(const char *fmt, ...)
+{
+	static int i = 0;
+    static char buf[10][MSL*3];
+
+	i = (i + 1) % 10;
+
+	va_list args;
+	va_start(args, fmt);
+	vsnprintf(buf[i], MSL*3, fmt, args);
+	va_end(args);
+
+	return buf[i];
+}

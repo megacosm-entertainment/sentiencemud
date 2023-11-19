@@ -577,8 +577,7 @@ void do_mpedit(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	ch->desc->pEdit		= (void *)pMcode;
-	ch->desc->editor	= ED_MPCODE;
+	olc_set_editor(ch, ED_MPCODE, pMcode);
 
 	return;
     }
@@ -624,8 +623,7 @@ void do_opedit(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	ch->desc->pEdit		= (void *)pOcode;
-	ch->desc->editor	= ED_OPCODE;
+	olc_set_editor(ch, ED_OPCODE, pOcode);
 
 	return;
     }
@@ -672,8 +670,7 @@ void do_rpedit(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	ch->desc->pEdit		= (void *)pRcode;
-	ch->desc->editor	= ED_RPCODE;
+	olc_set_editor(ch, ED_RPCODE, pRcode);
 
 	return;
     }
@@ -719,8 +716,7 @@ void do_tpedit(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	ch->desc->pEdit		= (void *)pTcode;
-	ch->desc->editor	= ED_TPCODE;
+	olc_set_editor(ch, ED_TPCODE, pTcode);
 
 	return;
     }
@@ -764,9 +760,7 @@ void do_apedit(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		ch->desc->pEdit		= (void *)pAcode;
-		ch->desc->editor	= ED_APCODE;
-
+		olc_set_editor(ch, ED_APCODE, pAcode);
 		return;
 	}
 
@@ -803,9 +797,7 @@ void do_ipedit(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		ch->desc->pEdit		= (void *)pIcode;
-		ch->desc->editor	= ED_IPCODE;
-
+		olc_set_editor(ch, ED_IPCODE, pIcode);
 		return;
 	}
 
@@ -841,9 +833,7 @@ void do_dpedit(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		ch->desc->pEdit		= (void *)pDcode;
-		ch->desc->editor	= ED_DPCODE;
-
+		olc_set_editor(ch, ED_DPCODE, pDcode);
 		return;
 	}
 
@@ -905,8 +895,7 @@ MPEDIT (mpedit_create)
     pMcode->type			= PRG_MPROG;
     pMcode->area			= wnum.pArea;
     wnum.pArea->mprog_list	= pMcode;
-    ch->desc->pEdit			= (void *)pMcode;
-    ch->desc->editor		= ED_MPCODE;
+	olc_set_editor(ch, ED_MPCODE, pMcode);
 	wnum.pArea->top_mprog_index = UMAX(wnum.pArea->top_mprog_index, wnum.vnum);
 
     send_to_char("MobProgram Code Created.\n\r",ch);
@@ -960,8 +949,7 @@ OPEDIT (opedit_create)
     pOcode->type			= PRG_OPROG;
     pOcode->area			= wnum.pArea;
     wnum.pArea->oprog_list	= pOcode;
-    ch->desc->pEdit			= (void *)pOcode;
-    ch->desc->editor		= ED_OPCODE;
+	olc_set_editor(ch, ED_OPCODE, pOcode);
 	wnum.pArea->top_oprog_index = UMAX(wnum.pArea->top_oprog_index, wnum.vnum);
 
     send_to_char("ObjProgram Code Created.\n\r",ch);
@@ -1015,8 +1003,7 @@ RPEDIT (rpedit_create)
     pRcode->type			= PRG_RPROG;
     pRcode->area			= wnum.pArea;
     wnum.pArea->rprog_list	= pRcode;
-    ch->desc->pEdit			= (void *)pRcode;
-    ch->desc->editor		= ED_RPCODE;
+	olc_set_editor(ch, ED_RPCODE, pRcode);
 	wnum.pArea->top_rprog_index = UMAX(wnum.pArea->top_rprog_index, wnum.vnum);
 
     send_to_char("RoomProgram Code Created.\n\r",ch);
@@ -1070,8 +1057,7 @@ TPEDIT (tpedit_create)
     pTcode->type			= PRG_TPROG;
     pTcode->area			= wnum.pArea;
     wnum.pArea->tprog_list	= pTcode;
-    ch->desc->pEdit			= (void *)pTcode;
-    ch->desc->editor		= ED_TPCODE;
+	olc_set_editor(ch, ED_TPCODE, pTcode);
 	wnum.pArea->top_tprog_index = UMAX(wnum.pArea->top_tprog_index, wnum.vnum);
 
     send_to_char("TokenProgram Code Created.\n\r",ch);
@@ -1127,8 +1113,7 @@ APEDIT (apedit_create)
     pAcode->type			= PRG_APROG;
     pAcode->area			= wnum.pArea;
     wnum.pArea->aprog_list	= pAcode;
-    ch->desc->pEdit			= (void *)pAcode;
-    ch->desc->editor		= ED_APCODE;
+	olc_set_editor(ch, ED_APCODE, pAcode);
 	wnum.pArea->top_aprog_index = UMAX(wnum.pArea->top_aprog_index, wnum.vnum);
 
     send_to_char("AreaProgram Code Created.\n\r",ch);
@@ -1182,8 +1167,7 @@ IPEDIT (ipedit_create)
     pIcode->type			= PRG_IPROG;
     pIcode->area			= wnum.pArea;
     wnum.pArea->iprog_list	= pIcode;
-    ch->desc->pEdit			= (void *)pIcode;
-    ch->desc->editor		= ED_IPCODE;
+	olc_set_editor(ch, ED_IPCODE, pIcode);
 	wnum.pArea->top_iprog_index = UMAX(wnum.pArea->top_iprog_index, wnum.vnum);
 
     send_to_char("InstanceProgram Code Created.\n\r",ch);
@@ -1237,8 +1221,7 @@ DPEDIT (dpedit_create)
     pDcode->type			= PRG_DPROG;
     pDcode->area			= wnum.pArea;
     wnum.pArea->dprog_list	= pDcode;
-    ch->desc->pEdit			= (void *)pDcode;
-    ch->desc->editor		= ED_DPCODE;
+	olc_set_editor(ch, ED_DPCODE, pDcode);
 	wnum.pArea->top_dprog_index = UMAX(wnum.pArea->top_dprog_index, wnum.vnum);
 
     send_to_char("DungeonProgram Code Created.\n\r",ch);

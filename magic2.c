@@ -111,15 +111,17 @@ void trance_end(CHAR_DATA *ch)
 
 void spell_deflected_cast(CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill, AFFECT_DATA *af)
 {
+#if 0
 	if (skill->token)
 	{
 		if (IS_VALID(ch->cast_token) && ch->cast_token->pIndexData == skill->token)
-			execute_script(ch->cast_script, NULL, NULL, NULL, ch->cast_token, NULL, NULL, NULL, ch != NULL ? ch : victim, NULL, NULL, victim, NULL,NULL, NULL,ch->cast_target_name,NULL,TRIG_SPELL,(ch != NULL ? ch->tot_level : af->level),0,0,0,0);
+			execute_script(ch->cast_script, NULL, NULL, NULL, ch->cast_token, NULL, NULL, NULL, ch != NULL ? ch : victim, NULL, NULL, victim, NULL,NULL, NULL,ch->cast_target_name,NULL,TRIG_TOKEN_DEFLECTION,(ch != NULL ? ch->tot_level : af->level),0,0,0,0);
 		else
-			p_token_index_percent_trigger(skill->token, ch != NULL ? ch : victim, victim, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, (ch != NULL ? ch->tot_level : af->level),0,0,0,0);
+			p_token_index_percent_trigger(skill->token, ch != NULL ? ch : victim, victim, NULL, NULL, NULL, TRIG_TOKEN_DEFLECTION, NULL, 0,0,0,0,0, (ch != NULL ? ch->tot_level : af->level),0,0,0,0);
 	}
-	else if (skill->spell_fun && skill->spell_fun != spell_null)
-		(*skill->spell_fun)(skill, ch != NULL ? ch->tot_level : af->level, ch != NULL ? ch : victim, victim, TARGET_CHAR, WEAR_NONE);
+	else if (skill->deflection_fun)
+		(*skill->deflection_fun)(skill, ch != NULL ? ch->tot_level : af->level, ch != NULL ? ch : victim, victim, TARGET_CHAR, WEAR_NONE);
+#endif
 }
 
 // Returns TRUE if the spell got through.

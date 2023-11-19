@@ -563,7 +563,7 @@ HEDIT(hedit_make)
     }
 
     pHelp = new_help();
-    ch->desc->pEdit = (void *)pHelp;
+	olc_set_editor(ch, ED_HELP, pHelp);
 
     /* All keywords are in caps */
     i = 0;
@@ -637,7 +637,7 @@ HEDIT(hedit_edit)
 	return FALSE;
     }
 
-    ch->desc->pEdit = (HELP_DATA *) help;
+	olc_set_editor(ch, ED_HELP, help);
     return FALSE;
 }
 
@@ -1510,7 +1510,7 @@ TEDIT(tedit_create)
     token_index->next = wnum.pArea->token_index_hash[iHash];
     wnum.pArea->token_index_hash[iHash] = token_index;
 
-    ch->desc->pEdit = (void *)token_index;
+	olc_set_editor(ch, ED_TOKEN, token_index);
 
     send_to_char("Token created.\n\r", ch);
     SET_BIT(token_index->area->area_flags, AREA_CHANGED);

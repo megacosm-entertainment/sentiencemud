@@ -49,6 +49,8 @@
 #define LOG_NEVER	2
 
 
+void do_mxptest(CHAR_DATA *ch, char *argument);
+
 // Log-all switch
 bool				logAll		= FALSE;
 
@@ -556,6 +558,7 @@ const	struct	cmd_type	cmd_table	[] =
 	{ "sglist",		do_sglist, POS_DEAD,	ML,		LOG_NORMAL, 1, TRUE },
 	{ "sgshow",		do_sgshow, POS_DEAD,	L5,		LOG_NORMAL, 1, TRUE },
 
+	{ "mxptest",	do_mxptest, POS_DEAD,	ML,		LOG_ALWAYS, 1, TRUE },
     { "",		0,		POS_DEAD,     0,  LOG_NORMAL, 0, FALSE }
 };
 

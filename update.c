@@ -2266,8 +2266,32 @@ void obj_update(void)
 					}
 
 					// Primary lights that have extinguished are to be destroyed.
-					if (obj->item_type == ITEM_LIGHT && !IS_LIGHT(obj))				
+					if (obj->item_type == ITEM_LIGHT && !IS_LIGHT(obj))
+					{
 						extract_obj(obj);
+						continue;
+					}
+				}
+			}
+
+			if(IS_WAND(obj) && WAND(obj)->charges < WAND(obj)->max_charges && WAND(obj)->recharge_time > 0)
+			{
+				if(WAND(obj)->cooldown > 0 && --WAND(obj)->cooldown <= 0)
+				{
+					WAND(obj)->charges++;
+
+					if (WAND(obj)->charges < WAND(obj)->max_charges)
+					{
+						WAND(obj)->cooldown = WAND(obj)->recharge_time;
+					}
+					else
+					{
+						WAND(obj)->cooldown = 0;
+
+						// Auto repair up to 99% if still at least 50%
+						if(obj->condition < 99 && obj->condition >= number_range(50,98))
+							obj->condition++;
+					}
 				}
 			}
 		}

@@ -645,6 +645,7 @@ ENT_FIELD entity_list[] = {
 };
 
 ENT_FIELD entity_skill[] = {
+	// TODO: Add *all* the deflection messages
 	{"gsn",		ENTITY_SKILL_GSN,		ENT_NUMBER	},
 	{"token",	ENTITY_SKILL_TOKEN,		ENT_TOKENINDEX },
 	{"spell",	ENTITY_SKILL_SPELL,		ENT_BOOLEAN	},
@@ -660,8 +661,8 @@ ENT_FIELD entity_skill[] = {
 	{"diffcleric",	ENTITY_SKILL_DIFFICULTY_CLERIC,	ENT_NUMBER	},
 	{"diffmage",	ENTITY_SKILL_DIFFICULTY_MAGE,	ENT_NUMBER	},
 	{"diffthief",	ENTITY_SKILL_DIFFICULTY_THIEF,	ENT_NUMBER	},
-	{"target",	ENTITY_SKILL_TARGET,		ENT_NUMBER	},
-	{"position",	ENTITY_SKILL_POSITION,		ENT_NUMBER	},
+	{"target",	ENTITY_SKILL_TARGET,		ENT_STAT	},
+	{"position",	ENTITY_SKILL_POSITION,		ENT_STAT	},
 	{"wearoff",	ENTITY_SKILL_WEAROFF,		ENT_STRING	},
 	{"object",	ENTITY_SKILL_OBJECT,		ENT_STRING	},
 	{"dispel",	ENTITY_SKILL_DISPEL,		ENT_STRING	},

@@ -95,6 +95,12 @@ struct touch_func_type
 	TOUCH_FUN *func;
 };
 
+struct zap_func_type
+{
+	char *name;
+	ZAP_FUN *func;
+};
+
 struct artifice_func_type
 {
 	char *name;
@@ -307,6 +313,7 @@ extern	const	struct	flag_type	weapon_type2[];
 extern	const	struct	flag_type	apply_types[];
 extern	const	struct	flag_type	size_flags[];
 extern	const	struct	flag_type	position_flags[];
+extern	const	struct	flag_type	spell_position_flags[];
 extern	const	struct	flag_type	ac_type[];
 extern	const	struct	bit_type	bitvector_type[];
 extern  const   struct  exp_type        experience_type[];
@@ -390,6 +397,7 @@ extern const struct recite_func_type recite_func_table[];
 extern const struct preink_func_type preink_func_table[];
 extern const struct ink_func_type ink_func_table[];
 extern const struct touch_func_type touch_func_table[];
+extern const struct zap_func_type zap_func_table[];
 
 #endif
 

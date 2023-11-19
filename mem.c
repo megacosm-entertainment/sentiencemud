@@ -6002,6 +6002,20 @@ SKILL_DATA *new_skill_data()
     data->msg_off = str_dup("");
     data->msg_obj = str_dup("");
     data->msg_disp = str_dup("");
+    data->msg_defl_noaff_char = str_dup("");
+    data->msg_defl_noaff_room = str_dup("");
+    data->msg_defl_aff_char = str_dup("");
+    data->msg_defl_aff_room = str_dup("");
+    data->msg_defl_pass_self = str_dup("");
+    data->msg_defl_pass_char = str_dup("");
+    data->msg_defl_pass_vict = str_dup("");
+    data->msg_defl_pass_room = str_dup("");
+
+    data->msg_defl_refl_self_char = str_dup("");
+    data->msg_defl_refl_self_room = str_dup("");
+    data->msg_defl_refl_char = str_dup("");
+    data->msg_defl_refl_vict = str_dup("");
+    data->msg_defl_refl_room = str_dup("");
 
     for(int i = 0; i < MAX_SKILL_VALUES; i++)
         data->valuenames[i] = str_dup("");
@@ -6022,6 +6036,20 @@ void free_skill_data(SKILL_DATA *data)
     free_string(data->msg_disp);
     free_string(data->msg_obj);
     free_string(data->msg_off);
+
+    free_string(data->msg_defl_noaff_char);
+    free_string(data->msg_defl_noaff_room);
+    free_string(data->msg_defl_aff_char);
+    free_string(data->msg_defl_aff_room);
+    free_string(data->msg_defl_pass_self);
+    free_string(data->msg_defl_pass_char);
+    free_string(data->msg_defl_pass_vict);
+    free_string(data->msg_defl_pass_room);
+    free_string(data->msg_defl_refl_self_char);
+    free_string(data->msg_defl_refl_self_room);
+    free_string(data->msg_defl_refl_char);
+    free_string(data->msg_defl_refl_vict);
+    free_string(data->msg_defl_refl_room);
 
     for(int i = 0; i < MAX_SKILL_VALUES; i++)
         free_string(data->valuenames[i]);

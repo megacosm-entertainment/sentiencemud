@@ -70,6 +70,7 @@
 #include "tables.h"
 #include "wilds.h"
 #include "sha256.h"
+#include "protocol.h"
 
 /*
  * Malloc debugging stuff.
@@ -3563,6 +3564,7 @@ void stop_idling(CHAR_DATA *ch)
 /*
  * Write to one char.
  */
+
 void send_to_char_bw(const char *txt, CHAR_DATA *ch)
 {
 /*    write_to_buffer(ch->desc, txt, strlen(txt));*/
@@ -3582,6 +3584,7 @@ void send_to_char(const char *txt, CHAR_DATA *ch)
 
     buf[0] = '\0';
     point2 = buf;
+	bool mxp = isMXP(ch->desc);
 
     /*
     if (!IS_NPC(ch) && IS_STONED(ch))
@@ -3667,6 +3670,46 @@ void send_to_char(const char *txt, CHAR_DATA *ch)
 			    	*point2 = UPPER(*point);	// Make uppercase
 			    	capitalize = FALSE;
 				}
+				// Handle MXP filtering
+				else if(mxp)
+				{
+					switch(*point)
+					{
+					case MXP_AMPERSAND:
+						*point2 = '&';
+						break;
+					case MXP_BEGIN_TAG:
+						*point2 = '<';
+						break;
+					case MXP_END_TAG:
+						*point2 = '>';
+						break;
+					/*
+					case '&':
+						*point2++ = '&';
+						*point2++ = 'a';
+						*point2++ = 'm';
+						*point2++ = 'p';
+						*point2 = ';';
+						break;
+					case '<':
+						*point2++ = '&';
+						*point2++ = 'l';
+						*point2++ = 't';
+						*point2 = ';';
+						break;
+					case '>':
+						*point2++ = '&';
+						*point2++ = 'g';
+						*point2++ = 't';
+						*point2 = ';';
+						break;
+					*/
+					default:
+						*point2= *point;
+						break;
+					}
+				}
 				else
 					*point2 = *point;
 			    *++point2 = '\0';
@@ -3690,6 +3733,46 @@ void send_to_char(const char *txt, CHAR_DATA *ch)
 				{
 			    	*point2 = UPPER(*point);	// Make uppercase
 			    	capitalize = FALSE;
+				}
+				// Handle MXP filtering
+				else if(mxp)
+				{
+					switch(*point)
+					{
+					case MXP_AMPERSAND:
+						*point2 = '&';
+						break;
+					case MXP_BEGIN_TAG:
+						*point2 = '<';
+						break;
+					case MXP_END_TAG:
+						*point2 = '>';
+						break;
+					/*
+					case '&':
+						*point2++ = '&';
+						*point2++ = 'a';
+						*point2++ = 'm';
+						*point2++ = 'p';
+						*point2 = ';';
+						break;
+					case '<':
+						*point2++ = '&';
+						*point2++ = 'l';
+						*point2++ = 't';
+						*point2 = ';';
+						break;
+					case '>':
+						*point2++ = '&';
+						*point2++ = 'g';
+						*point2++ = 't';
+						*point2 = ';';
+						break;
+					*/
+					default:
+						*point2= *point;
+						break;
+					}
 				}
 				else
 					*point2 = *point;
@@ -4163,7 +4246,8 @@ int colour(char type, CHAR_DATA *ch, char *string)
 	case 'i': strcpy(code, "\033[5m"); break;
 	case 'v': strcpy(code, "\033[7m"); break;
 	case '{': strcpy(code, "{"); break;
-	case 'e': strcpy(code, "\033"); break;
+	case '_': strcpy(code, "\033[4m"); break;
+	case '!': strcpy(code, "\033[1m"); break;
 	}
 
 	p = code;
@@ -4180,6 +4264,7 @@ void colourconv(char *buffer, const char *txt, CHAR_DATA *ch)
     const char *point;
     int skip = 0;
     bool capitalize = FALSE;
+	bool mxp = isMXP(ch->desc);
 
     if(ch->desc && txt)
     {
@@ -4187,24 +4272,69 @@ void colourconv(char *buffer, const char *txt, CHAR_DATA *ch)
 	{
 	    for(point = txt ; *point ; point++)
 	    {
-		if(*point == '{')
-		{
-		    point++;
-		    if(*point == '+')
-		    	capitalize = TRUE;
-		    else {
-			    skip = colour(*point, ch, buffer);
-		    	while(skip-- > 0)
-				++buffer;
+			// Process color codes
+			if(*point == '{')
+			{
+				point++;
+				if(*point == '+')
+					capitalize = TRUE;
+				else {
+					skip = colour(*point, ch, buffer);
+					while(skip-- > 0)
+					++buffer;
+				}
+				continue;
 			}
-		    continue;
-		}
-		if( capitalize && isalpha(*point) ) {
-			*buffer = UPPER(*point);
-			capitalize = FALSE;
-		} else
-			*buffer = *point;
-		*++buffer = '\0';
+
+			// Not a color code
+			if( capitalize && isalpha(*point) )
+			{
+				*buffer = UPPER(*point);
+				capitalize = FALSE;
+			}
+			// Handle MXP filtering
+			else if(mxp)
+			{
+				switch(*point)
+				{
+				case MXP_AMPERSAND:
+					*buffer = '&';
+					break;
+				case MXP_BEGIN_TAG:
+					*buffer = '<';
+					break;
+				case MXP_END_TAG:
+					*buffer = '>';
+					break;
+				/*
+				case '&':
+					*buffer++ = '&';
+					*buffer++ = 'a';
+					*buffer++ = 'm';
+					*buffer++ = 'p';
+					*buffer = ';';
+					break;
+				case '<':
+					*buffer++ = '&';
+					*buffer++ = 'l';
+					*buffer++ = 't';
+					*buffer = ';';
+					break;
+				case '>':
+					*buffer++ = '&';
+					*buffer++ = 'g';
+					*buffer++ = 't';
+					*buffer = ';';
+					break;
+				*/
+				default:
+					*buffer= *point;
+					break;
+				}
+			} else
+				*buffer = *point;
+			*++buffer = '\0';
+
 	    }
 	    *buffer = '\0';
 	}
@@ -4212,20 +4342,59 @@ void colourconv(char *buffer, const char *txt, CHAR_DATA *ch)
 	{
 	    for(point = txt ; *point ; point++)
 	    {
-		if(*point == '{')
-		{
-		    point++;
-		    if(*point == '+')
-		    	capitalize = TRUE;
+			if(*point == '{')
+			{
+				point++;
+				if(*point == '+')
+					capitalize = TRUE;
 
-		    continue;
-		}
-		if( capitalize && isalpha(*point) ) {
-			*buffer = UPPER(*point);
-			capitalize = FALSE;
-		} else
-			*buffer = *point;
-		*++buffer = '\0';
+				continue;
+			}
+			if( capitalize && isalpha(*point) ) {
+				*buffer = UPPER(*point);
+				capitalize = FALSE;
+			}
+			// Handle MXP filtering
+			else if(mxp)
+			{
+				switch(*point)
+				{
+				case MXP_AMPERSAND:
+					*buffer = '&';
+					break;
+				case MXP_BEGIN_TAG:
+					*buffer = '<';
+					break;
+				case MXP_END_TAG:
+					*buffer = '>';
+					break;
+				/*
+				case '&':
+					*buffer++ = '&';
+					*buffer++ = 'a';
+					*buffer++ = 'm';
+					*buffer++ = 'p';
+					*buffer = ';';
+					break;
+				case '<':
+					*buffer++ = '&';
+					*buffer++ = 'l';
+					*buffer++ = 't';
+					*buffer = ';';
+					break;
+				case '>':
+					*buffer++ = '&';
+					*buffer++ = 'g';
+					*buffer++ = 't';
+					*buffer = ';';
+					break;
+				*/
+				default:
+					*buffer = *point;
+				}
+			} else
+				*buffer = *point;
+			*++buffer = '\0';
 	    }
 	    *buffer = '\0';
 	}

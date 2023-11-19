@@ -203,6 +203,87 @@ static variable_name_t VariableNameTable[eMSDP_MAX+1] =
 static int    s_Players = 0;
 static time_t s_Uptime  = 0;
 
+
+//////////////////////////////////////
+// MXP
+
+// MXP Elements
+#define MXPELEMENT_IMMONLY       (A)
+
+struct mxp_element_type {
+	char *name;
+	int flags;
+	char *attributes;
+	char *variable;
+	char *text;
+};
+
+struct mxp_element_type mxp_elements[]=
+{
+	// name, tableflags,	attribute=, client_variable
+	{ "help",		0,		"",			"",            "<send href=\"help &text;\">" },
+	{ "rname",		0,		"",			"RoomName",    "" },
+	{ "rdesc",		0,		"",			"RoomDesc",    "" },
+	{ "rexits",		0,		"",			"RoomExit",    "" },
+	{ "ex",			0,		"",			"",            "<send>" },
+	{ "buy",       0,    "",			"",            "<send href=\"buy &text;\">" },
+	{ "buy-uid",	0,		"uid=0",    "",            "<send href=\"buy #&uid;\" hint=\"Buy &text;\">" },
+
+	// immortal only entries
+	// character(uid) name
+	{ "ch-uid_name", MXPELEMENT_IMMONLY, "uid=0", "", "<send href=\"at #&uid; look|dlook &text;|score &text;|charinfo &text;\" hint=\"Look in the room where &text; is|description look &text;|score &text;|charinfo &text;\">" },
+	{ "oolcvnum", 0, "", "", "<send href=\"oshow &text;|oedit &text;\"     hint=\"oshow &text;|oedit &text;\">" },
+	{ "molcvnum", 0, "", "", "<send href=\"mshow &text;|medit &text;\"     hint=\"mshow &text;|medit &text;\">" },
+	{ "mbvnum", MXPELEMENT_IMMONLY, "uid=0", "", "<send href=\"at #&uid; look|at #&uid; look #&uid;|goto #&uid;|mshow &text;|medit &text;\"     hint=\"Look in the room of this mob|Look at the mob itself|Goto the room the mob is in|mshow &text;|medit &text;\">" },
+	{ "mprogvnum", 0, "uid=0", "", "<send href=\"mpshow &text;|mpedit &text;\">" },
+	{ "rmvnum", MXPELEMENT_IMMONLY, "uid=0", "", "<send href=\"goto &text;|at &text; look\">" },
+	{ "rmv", 0, "roomvnum=0 tl=\"\"", "", "<send href=\"goto &roomvnum;|at &roomvnum; look\">" },
+	{ "rmvh", 0, "roomvnum=0 tl=\"\"", "", "<send href=\"goto room &roomvnum; - &tl;-|goto &roomvnum;|at &roomvnum; look\">" },
+
+	// basic mob - (basic mob)
+	{ "mb-uid-nm", 0, "uid=0 nm=\"\"", "", "<send href=\"look #&uid;|con #&uid;\"     hint=\"Look at &nm;|Consider &nm;\">" },
+
+   // Objects
+	// object used as equipment
+	{ "objeq", 0, "uid=0 nm=\"\"", "", "<send href=\"remove #&uid;|look #&uid;|examine #&uid;\"     hint=\"Remove &text;|Look at &text;|Examine &text;\">" },
+
+	// basic object
+	{ "ob-uid-nm", 0, "uid=0 nm=\"\"", "", "<send href=\"look #&uid;|examine #&uid;\"     hint=\"Look at &text;|Examine &text;\">" },
+
+	// basic object - getable
+	{ "ob-uid-nm_g", 0, "uid=0 nm=\"\"", "", "<send href=\"get #&uid;|look #&uid;|examine #&uid;\"     hint=\"get &nm;|Look at &nm;|Examine &nm;\">" },
+
+	// food
+	{ "ob-uid-nm_food", 0, "uid=0 nm=\"\"", "", "<send href=\"eat #&uid;|look #&uid;|examine #&uid;\"     hint=\"Eat &nm;|Look at &nm;|Examine &nm;\">" },
+
+	// food
+	{ "ob-uid-nm_food_g", 0, "uid=0 nm=\"\"", "", "<send href=\"get #&uid;|eat #&uid;|look #&uid;|examine #&uid;\"     hint=\"Get &nm;|Eat &nm;|Look at &nm;|Examine &nm;\">" },
+
+	// drink
+	{ "ob-uid-nm_drink", 0, "uid=0 nm=\"\"", "", "<send href=\"drink #&uid;|look #&uid;|examine #&uid;|fill #&uid;\"     hint=\"Drink &nm;|Look at &nm;|Examine &nm;|Fill &nm;\">" },
+
+	// drink
+	{ "ob-uid-nm_drink_g", 0, "uid=0 nm=\"\"", "", "<send href=\"get #&uid;|drink #&uid;|look #&uid;|examine #&uid;|fill #&uid;\"     hint=\"Get &nm;|Drink &nm;|Look at &nm;|Examine &nm;|Fill &nm;\">" },
+
+	// fountain
+	{ "ob-uid-nm_fount", 0, "uid=0 nm=\"\"", "", "<send href=\"drink #&uid;|look #&uid;|examine #&uid;\"     hint=\"Drink from &nm;|Look at &nm;|Examine &nm;\">" },
+
+   //============ TELLS - tl_ prefix
+	// tell reply
+	{ "tl_rp", 0, "", "", "<send href=\"reply \" PROMPT>" },
+
+	// tell(name) name 'reply', 'tell name' 
+	{ "tl-nm_rp_tlnm", 0, "nm", "", "<send href=\"reply |tell &nm; \" PROMPT>" },
+
+	// tell(name) name 'reply', 'tell name'
+	{ "tl-nm_rp_tlnm", 0, "nm", "", "<send href=\"reply |tell &nm; \" PROMPT>" },
+
+	// tell(name) name 'retell', 'tell name'
+	{ "tl-nm_rt_tlnm", 0, "nm", "", "<send href=\"&gt;|tell &nm;\" hint=\"Retell &nm;|tell &nm;\" PROMPT>" },
+
+	{ NULL, 0, NULL, NULL, NULL}	// end of the table
+};
+
 /******************************************************************************
  Local function prototypes.
  ******************************************************************************/
@@ -477,6 +558,9 @@ void ProtocolInput( descriptor_t *apDescriptor, char *apData, int aSize, char *a
             sprintf( MXPBuffer, "MXP version %s detected and enabled.\r\n", 
                pProtocol->pMXPVersion );
             InfoMessage( apDescriptor, MXPBuffer );
+
+            // TODO: Send the MXP <!ELEMENTS>
+            //MXPDefineElements(apDescriptor);
          }
       }
       else /* In-band command */
@@ -834,6 +918,9 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
          {
             case COLOUR_CHAR: /* Two in a row display the actual character */
                pCopyFrom = ColourChar;
+               break;
+            case '_':
+               pCopyFrom = "\033[4m";
                break;
             case 'n':
                pCopyFrom = s_Clean;
@@ -1487,6 +1574,30 @@ void MSSPSetPlayers( int aPlayers )
  MXP global functions.
  ******************************************************************************/
 
+char *MXPEscapeText(char *text)
+{
+	static char result[5][MSL*2];
+	static int i = 0;
+	
+   i = (i + 1) % 5;
+
+	char *r=result[i];
+	for(; !*text; text++){
+		if(*text=='&'){
+			*r++=MXP_AMPERSAND;
+		}else if(*text=='<'){
+			*r++=MXP_BEGIN_TAG;
+		}else if(*text=='>'){
+			*r++=MXP_END_TAG;
+		}else{
+			*r++=*text;
+		}
+	}
+	*r='\0';
+	return result[i];
+}
+
+
 const char *MXPCreateTag( descriptor_t *apDescriptor, const char *apTag )
 {
    protocol_t *pProtocol = apDescriptor ? apDescriptor->pProtocol : NULL;
@@ -1536,6 +1647,123 @@ void MXPSendTag( descriptor_t *apDescriptor, const char *apTag )
       }
    }
 }
+
+void MXPDefineElements(descriptor_t *apDescriptor)
+{
+   Write(apDescriptor, MXP_SECURE_MODE);
+
+	// send mxp elements
+	for(struct mxp_element_type *e=mxp_elements; e->name; e++)
+   {
+		if(IS_SET(e->flags, MXPELEMENT_IMMONLY) && !IS_IMMORTAL(apDescriptor->character))
+      {
+         // Empty element
+         Write(apDescriptor, formatf("<!ELEMENT %s>", e->name));
+   		continue;
+		}
+
+      Write(apDescriptor, MXPEscapeText(formatf("<!ELEMENT %s%s%s %s>", 
+            e->name,
+            IS_NULLSTR(e->attributes)?"": formatf(" ATT='%s'", e->attributes),
+            IS_NULLSTR(e->variable)?"": formatf(" FLAG='%s'", e->variable),
+            IS_NULLSTR(e->text)?"": formatf("'%s'", e->text) )));
+	}
+   Write(apDescriptor, "<version><support>");
+}
+
+const char *MXPBuildTagCore(const char *tagname, const char *txt)
+{
+	static int i = 0;
+	static char result[5][MSL*2];
+
+   i = (i + 1) % 5;
+
+	char *r = result[i];
+	const char *p = txt;
+	const char *t = NULL;
+
+	while(isspace(*p))
+      *r++ = *p++;
+
+	if(!*p)
+   {
+		*r='\0'; // terminate the result first
+		return result[i];
+	}
+
+   *r++ = '\t';
+	*r++= MXP_BEGIN_TAG;
+	t=tagname;
+	while(*t)
+      *r++ = *t++;
+	*r++= MXP_END_TAG;
+
+	for(t = p; *t; t++);
+	t--;
+
+	while(isspace(*t))
+		t--; 
+
+	// copy from p into r until p is a character past t (the last non whitespace character)
+	while(p <= t)
+		*r++ = *p++;
+
+	// put the closing tag on the result
+   *r++ = '\t';
+	*r++ = MXP_BEGIN_TAG;
+	*r++ = '/';
+	t=tagname;
+	while(*t)
+      *r++ = *t++;
+	*r++ = MXP_END_TAG;
+
+	// copy the remaining whitespace from p to r
+	while(*p)
+		*r++ = *p++;
+
+	*r = '\0';
+
+	return result[i];
+}
+
+const char *MXPBuildTag(descriptor_t *apDescriptor, const char *tagname, const char *txt)
+{
+   protocol_t *pProtocol = apDescriptor ? apDescriptor->pProtocol : NULL;
+
+   if ( pProtocol != NULL && pProtocol->pVariables[eMSDP_MXP]->ValueInt )
+   {
+      const char *apTag = MXPBuildTagCore(tagname, txt);
+      if (strlen(apTag) < 1000)
+      {
+         //static char MXPBuffer [1024];
+         //sprintf( MXPBuffer, "\033[1z%s\033[7z", apTag );
+         //return MXPBuffer;
+         return apTag;
+      }
+   }
+
+   /* Leave the tag as-is, don't try to MXPify it */
+   return txt;
+}
+
+
+const char *MXPCreateSend(descriptor_t *apDescriptor, const char *command, const char *text)
+{
+   return MXPBuildTag(apDescriptor, formatf("send href=\"%s\"", command), text);
+}
+
+const char *MXPCreateSend2(descriptor_t *apDescriptor, const char *command)
+{
+   return MXPBuildTag(apDescriptor, formatf("send href=\"%s\"", command), command);
+}
+
+bool_t isMXP(descriptor_t *apDescriptor)
+{
+   protocol_t *pProtocol = apDescriptor ? apDescriptor->pProtocol : NULL;
+
+   return ( pProtocol != NULL && pProtocol->pVariables[eMSDP_MXP]->ValueInt );
+}
+
 
 /******************************************************************************
  Sound global functions.

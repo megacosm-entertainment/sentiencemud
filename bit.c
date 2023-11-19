@@ -73,6 +73,7 @@ const struct flag_stat_type flag_stat_table[] =
     {	ac_type,					TRUE	},
     {	size_flags,					TRUE	},
     {	position_flags,				TRUE	},
+    {	spell_position_flags,		TRUE	},
     {	off_flags,					FALSE	},
     {	imm_flags,					FALSE	},
     {	res_flags,					FALSE	},

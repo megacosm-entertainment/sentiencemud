@@ -97,11 +97,21 @@
 #define INK_FUNC(s)	bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, CHAR_DATA *victim, int wear_loc)
 
 #define DECLARE_TOUCH_FUN( fun ) TOUCH_FUN fun
-#define TOUCH_FUNC(s)	bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
+#define TOUCH_FUNC(s)	bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *tattoo)
 
+#define DECLARE_PREIMBUE_FUN( fun ) PREIMBUE_FUN fun
+#define PREIMBUE_FUNC(s)	bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
+
+#define DECLARE_IMBUE_FUN( fun ) IMBUE_FUN fun
+#define IMBUE_FUNC(s)	bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
+
+#define DECLARE_ZAP_FUN( fun ) ZAP_FUN fun
+#define ZAP_FUNC(s)     bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj, void *vo, int target)
 
 #define DECLARE_ARTIFICE_FUN( fun ) ARTIFICE_FUN fun
 #define ARTIFICE_FUNC(s)    bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj)
+
+#define DECLARE_OLC_FUN( fun )	OLC_FUN    fun
 
 
 /* System calls */
@@ -525,6 +535,7 @@ typedef struct reserved_area_type {
 
 /* Functions */
 typedef	void DO_FUN	(CHAR_DATA *ch, char *argument);
+typedef	bool OLC_FUN		args( ( CHAR_DATA *ch, char *argument ) );
 typedef bool SPEC_FUN	(CHAR_DATA *ch);
 typedef bool SPELL_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, void *vo, int target, int obj_wear_loc);
 typedef bool PREBREW_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj);
@@ -535,8 +546,14 @@ typedef bool SCRIBE_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *
 typedef bool RECITE_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj, void *vo, int target);
 typedef bool PREINK_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, CHAR_DATA *victim, int wear_loc);
 typedef bool INK_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, CHAR_DATA *victim, int wear_loc);
-typedef bool TOUCH_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj);
+typedef bool TOUCH_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *tattoo);
 // TODO: IMBUE
+typedef bool PREIMBUE_FUN   (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj);
+typedef bool IMBUE_FUN      (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj);
+// TODO: BRANDISH_FUN
+typedef bool ZAP_FUN        (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj, void *vo, int target);
+// TODO: EQUIP_FUN
+
 typedef bool ARTIFICE_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj);
 typedef void OBJ_FUN	(OBJ_DATA *obj, char *argument);
 typedef void ROOM_FUN	(ROOM_INDEX_DATA *room, char *argument);
@@ -1455,6 +1472,8 @@ struct	descriptor_data
     unsigned char *     out_compress_buf;
 
     void *              pEdit;		/* OLC */
+    int                 nEditTab;
+    int                 nMaxEditTabs;
     HELP_CATEGORY	*hCat;		/* hedit */
     char **             pString;	/* OLC */
     int			editor;		/* OLC */
@@ -6627,7 +6646,7 @@ struct church_command_type
 #define SKILL_CAN_SCRIBE    (C)
 #define SKILL_CAN_INK       (D)
 #define SKILL_CAN_IMBUE     (E)
-#define SKILL_CROSS_CLASS   (F)     // Whether the skill can be used in classes not registered for the skill (NYI)
+#define SKILL_CROSS_CLASS   (Z)     // Whether the skill can be used in classes not registered for the skill (NYI)
 
 struct skill_data
 {
@@ -6669,8 +6688,10 @@ struct skill_data
     TOUCH_FUN * touch_fun;          // Called when a tattoo is touched.  (Target is assumed to be the wearer of the tattoo)
 
     // Imbuing:
+    PREIMBUE_FUN * preimbue_fun;
+    IMBUE_FUN * imbue_fun;
     // BRANDISH_FUN * brandish_fun;     // Used by brandishing weapons
-    // ZAP_FUN * zap_fun;               // Used by wands
+    ZAP_FUN * zap_fun;               // Used by wands
     // EQUIP_FUN * equip_fun;           // Used by jewelry and adorned armor
 
     sh_int	target;			/* Legal targets		*/
@@ -6685,6 +6706,23 @@ struct skill_data
     char *	msg_off;		/* Wear off message		*/
     char *	msg_obj;		/* Wear off message for obects	*/
     char *	msg_disp;       // Dispelling message
+
+    char *  msg_defl_noaff_char;    // When the target has the affect bit but no AFFECT_DATA *
+    char *  msg_defl_noaff_room;
+    char *  msg_defl_aff_char;      // When the target has the affect bit but has the AFFECT_DATA *
+    char *  msg_defl_aff_room;
+    char *  msg_defl_pass_self;     // When the aura is penetrated and the target is self
+    char *  msg_defl_pass_char;     // When the aura is penetrated on a different target
+    char *  msg_defl_pass_vict;
+    char *  msg_defl_pass_room;
+
+    char *  msg_defl_refl_self_char;    // Spell gets reflected, when target is self
+    char *  msg_defl_refl_self_room;
+    char *  msg_defl_refl_char;         // Spell gets reflected off different target
+    char *  msg_defl_refl_vict;
+    char *  msg_defl_refl_room;
+    
+
     int		inks[3][2];     // Elemental ink types needed for tattooing and scribing.
 
     sh_int	cast_mana;		// Mana required to cast
@@ -7020,6 +7058,7 @@ enum trigger_index_enum {
     TRIG_TOGGLE_LIST,
     TRIG_TOKEN_BRANDISH,
     TRIG_TOKEN_BREW,
+    TRIG_TOKEN_EQUIP,
 	TRIG_TOKEN_GIVEN,
     TRIG_TOKEN_IMBUE,
     TRIG_TOKEN_INK,
@@ -9552,6 +9591,9 @@ NPC_SHIP_DATA *get_npc_ship_data args( ( long vnum ) );
 bool	run_olc_editor	args( ( DESCRIPTOR_DATA *d ) );
 char	*olc_ed_name	args( ( CHAR_DATA *ch ) );
 char	*olc_ed_vnum	args( ( CHAR_DATA *ch ) );
+int olc_ed_tabs(CHAR_DATA *ch);
+void olc_set_editor(CHAR_DATA *ch, int editor, void *data);
+void olc_show_item(CHAR_DATA *ch, void *data, OLC_FUN *show_fun, char *argument);
 int calc_obj_armour args ( (int level, int strength) );
 void set_weapon_dice( OBJ_INDEX_DATA *objIndex );
 void set_weapon_dice_obj( OBJ_DATA *obj );
@@ -9895,6 +9937,7 @@ void obj_set_nest_clones(OBJ_DATA *obj, bool add);
 void obj_update_nest_clones(OBJ_DATA *obj);
 void show_room(CHAR_DATA *ch, ROOM_INDEX_DATA *room, bool remote, bool silent, bool automatic);
 
+char *formatf(const char *fmt, ...);
 void log_stringf(const char *fmt,...);
 bool interrupt_script( CHAR_DATA *ch, bool silent );
 CHAR_DATA *obj_carrier(OBJ_DATA *obj);

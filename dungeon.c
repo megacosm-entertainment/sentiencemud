@@ -2048,8 +2048,7 @@ void do_dngedit(CHAR_DATA *ch, char *argument)
 		}
 
 		ch->pcdata->immortal->last_olc_command = current_time;
-		ch->desc->pEdit = (void *)dng;
-		ch->desc->editor = ED_DUNGEON;
+		olc_set_editor(ch, ED_DUNGEON, dng);
 		return;
 	}
 	else
@@ -2933,7 +2932,6 @@ DNGEDIT( dngedit_show )
 void do_dngshow(CHAR_DATA *ch, char *argument)
 {
 	DUNGEON_INDEX_DATA *dng;
-	void *old_edit;
 	WNUM wnum;
 
 	if (argument[0] == '\0')
@@ -2954,11 +2952,7 @@ void do_dngshow(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	old_edit = ch->desc->pEdit;
-	ch->desc->pEdit = (void *) dng;
-
-	dngedit_show(ch, argument);
-	ch->desc->pEdit = old_edit;
+	olc_show_item(ch, dng, dngedit_show, argument);
 	return;
 }
 
@@ -3005,7 +2999,7 @@ DNGEDIT( dngedit_create )
 	iHash							= dng->vnum % MAX_KEY_HASH;
 	dng->next						= wnum.pArea->dungeon_index_hash[iHash];
 	wnum.pArea->dungeon_index_hash[iHash]	= dng;
-	ch->desc->pEdit					= (void *)dng;
+	olc_set_editor(ch, ED_DUNGEON, dng);
 
 	if( dng->vnum > wnum.pArea->top_dungeon_vnum)
 		wnum.pArea->top_dungeon_vnum = dng->vnum;

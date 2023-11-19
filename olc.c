@@ -19,6 +19,7 @@
 #include "scripts.h"
 #include "wilds.h"
 
+bool is_stat(const struct flag_type *flag_table);
 extern GLOBAL_DATA gconfig;
 /*
  *  * Local functions.
@@ -54,6 +55,34 @@ char *editor_name_table[] = {
 	"SkEdit",
 	"LiqEdit",
 	"SgEdit",
+};
+
+int editor_max_tabs_table[] = {
+	0,		// -----
+	0,		// AEdit
+	0,		// REdit
+	0,		// OEdit
+	0,		// MEdit
+	0,		// MpEdit
+	0,		// OpEdit
+	0,		// RpEdit
+	0,		// ShEdit
+	0,		// HEdit
+	0,		// TpEdit
+	0,		// TEdit
+	0,		// PEdit
+	0,		// RSGEdit
+	0,		// WEdit
+	0,		// VLEdit
+	0,		// BSEdit
+	0,		// BPEdit
+	0,		// DNGEdit
+	0,		// ApEdit
+	0,		// IpEdit
+	0,		// DpEdit
+	5,		// SkEdit
+	0,		// LiqEdit
+	0,		// SgEdit
 };
 
 const struct editor_cmd_type editor_table[] =
@@ -521,6 +550,36 @@ char *olc_ed_name(CHAR_DATA *ch)
 	return editor_name_table[0];
 }
 
+int olc_ed_tabs(CHAR_DATA *ch)
+{
+	if(ch->desc->editor > 0 && ch->desc->editor < elementsof(editor_name_table))
+		return editor_max_tabs_table[ch->desc->editor];
+
+	return 0;
+}
+
+void olc_set_editor(CHAR_DATA *ch, int editor, void *data)
+{
+	ch->desc->pEdit = data;
+	ch->desc->editor = editor;
+	ch->desc->nEditTab = 0;
+	ch->desc->nMaxEditTabs = olc_ed_tabs(ch);
+}
+
+void olc_show_item(CHAR_DATA *ch, void *data, OLC_FUN *show_fun, char *argument)
+{
+	int old_tab = ch->desc->nEditTab;
+	void *old_data = ch->desc->pEdit;
+
+	ch->desc->nEditTab = 0;
+	ch->desc->pEdit = data;
+
+	(*show_fun)(ch, argument);
+
+	ch->desc->nEditTab = old_tab;
+	ch->desc->pEdit = old_data;
+}
+
 
 // Return the edit vnum of character's editor (%O in prompt)
 char *olc_ed_vnum(CHAR_DATA *ch)
@@ -845,6 +904,8 @@ bool edit_done(CHAR_DATA *ch)
 {
 	ch->pcdata->immortal->last_olc_command = current_time;
 	ch->desc->pEdit = NULL;
+	ch->desc->nEditTab = 0;
+	ch->desc->nMaxEditTabs = 0;
 	ch->desc->hCat = NULL;
 	ch->desc->editor = 0;
 	return FALSE;
@@ -1252,8 +1313,7 @@ void do_tedit(CHAR_DATA *ch, char *argument)
 	}
 
 	ch->pcdata->immortal->last_olc_command = current_time;
-	ch->desc->pEdit = (void *)token_index;
-	ch->desc->editor = ED_TOKEN;
+	olc_set_editor(ch, ED_TOKEN, token_index);
 }
 
 
@@ -1307,8 +1367,7 @@ void do_aedit(CHAR_DATA *ch, char *argument)
 	}
 
 	ch->pcdata->immortal->last_olc_command = current_time;
-	ch->desc->pEdit = (void *)pArea;
-	ch->desc->editor = ED_AREA;
+	olc_set_editor(ch, ED_AREA, pArea);
 }
 
 
@@ -1448,8 +1507,7 @@ void do_oedit(CHAR_DATA *ch, char *argument)
 		}
 
 		ch->pcdata->immortal->last_olc_command = current_time;
-		ch->desc->pEdit = (void *)pObj;
-		ch->desc->editor = ED_OBJECT;
+		olc_set_editor(ch, ED_OBJECT, pObj);
 	}
 	else
 	{
@@ -1488,8 +1546,7 @@ void do_medit(CHAR_DATA *ch, char *argument)
 		}
 
 		ch->pcdata->immortal->last_olc_command = current_time;
-		ch->desc->pEdit = (void *)pMob;
-		ch->desc->editor = ED_MOBILE;
+		olc_set_editor(ch, ED_MOBILE, pMob);
 		return;
 	}
 	else
@@ -1574,8 +1631,7 @@ void do_pedit(CHAR_DATA *ch, char *argument)
 	}
 
 	ch->pcdata->immortal->last_olc_command = current_time;
-	ch->desc->pEdit = (void *)project;
-	ch->desc->editor = ED_PROJECT;
+	olc_set_editor(ch, ED_PROJECT, project);
 }
 
 /* VIZZWILDS */
@@ -1698,8 +1754,7 @@ void do_wedit (CHAR_DATA * ch, char *argument)
 			return;
 		}
 
-		ch->desc->pEdit = (void *) pWilds;
-		ch->desc->editor = ED_WILDS;
+		olc_set_editor(ch, ED_WILDS, pWilds);
 	}
 	else
 	{
@@ -1779,8 +1834,7 @@ void do_wedit (CHAR_DATA * ch, char *argument)
 	}
 
 	printf_to_char(ch, "{x[{WWedit{x] Editing Wilds.\n\r");
-	ch->desc->pEdit = (void *) pWilds;
-	ch->desc->editor = ED_WILDS;
+	olc_set_editor(ch, ED_WILDS, pWilds);
 }
 
 
@@ -1895,8 +1949,7 @@ void do_vledit (CHAR_DATA * ch, char *argument)
 	{
 		sprintf(buf, "{x[{Wvledit{x] Editing uid '%ld'\n\r", pVLink->uid);
 		send_to_char(buf, ch);
-		ch->desc->pEdit = (void *) pVLink;
-		ch->desc->editor = ED_VLINK;
+		olc_set_editor(ch, ED_VLINK, pVLink);
 	}
 
 	return;
@@ -2377,8 +2430,7 @@ void hedit(CHAR_DATA *ch, char *argument)
 	if (ch->desc->pEdit == NULL) 	// We aren't editing a helpfile
 		edit_done(ch);
 	else {
-		ch->desc->pEdit = NULL; 	// We're editing a helpfile.
-		ch->desc->editor = ED_HELP;
+		olc_set_editor(ch, ED_HELP, NULL);	// We're editing a helpfile.
 	}
 
 	return;
@@ -2428,8 +2480,7 @@ void do_hedit(CHAR_DATA *ch, char *argument)
 	*/
 
 	ch->pcdata->immortal->last_olc_command = current_time;
-	ch->desc->editor= ED_HELP;
-	ch->desc->pEdit = NULL;
+	olc_set_editor(ch, ED_HELP, NULL);
 	ch->desc->hCat = topHelpCat;
 }
 
@@ -2499,8 +2550,7 @@ void do_rcopy(CHAR_DATA *ch, char *argument)
 	iHash                       = new_w.vnum % MAX_KEY_HASH;
 	new_room->next              = new_w.pArea->room_index_hash[iHash];
 	new_w.pArea->room_index_hash[iHash]      = new_room;
-	ch->desc->pEdit             = (void *)new_room;
-	ch->desc->editor		= ED_ROOM;
+	olc_set_editor(ch, ED_ROOM, new_room);
 
 	// Copy extra descs
 	for (ed = old_room->extra_descr; ed != NULL; ed = ed->next)
@@ -2589,8 +2639,7 @@ void do_mcopy(CHAR_DATA *ch, char *argument)
 	int iHash			= new_w.vnum % MAX_KEY_HASH;
 	new_mob->next		= new_w.pArea->mob_index_hash[iHash];
 	new_w.pArea->mob_index_hash[iHash]	= new_mob;
-	ch->desc->pEdit		= (void *)new_mob;
-	ch->desc->editor		= ED_MOBILE;
+	olc_set_editor(ch, ED_MOBILE, new_mob);
 
 	new_mob->player_name = str_dup(old_mob->player_name);
 	new_mob->short_descr = str_dup(old_mob->short_descr);
@@ -2709,8 +2758,7 @@ void do_ocopy(CHAR_DATA *ch, char *argument)
 	int iHash			= new_w.vnum % MAX_KEY_HASH;
 	new_obj->next		= new_w.pArea->obj_index_hash[iHash];
 	new_w.pArea->obj_index_hash[iHash]	= new_obj;
-	ch->desc->editor		= ED_OBJECT;
-	ch->desc->pEdit		= (void *)new_obj;
+	olc_set_editor(ch, ED_OBJECT, new_obj);
 
 	// Copy extra descs
 	for (ed = old_obj->extra_descr; ed != NULL; ed = ed->next)
@@ -2858,8 +2906,7 @@ void do_rpcopy(CHAR_DATA *ch, char *argument)
 	new_rpc->next = new_w.pArea->rprog_list;
 	new_w.pArea->rprog_list = new_rpc;
 
-	ch->desc->pEdit             = (void *)new_rpc;
-	ch->desc->editor            = ED_RPCODE;
+	olc_set_editor(ch, ED_RPCODE, new_rpc);
 
 	SET_BIT(new_w.pArea->area_flags, AREA_CHANGED);
 	send_to_char("RoomProgram code copied.\n\r",ch);
@@ -2924,8 +2971,7 @@ void do_mpcopy(CHAR_DATA *ch, char *argument)
 	new_mpc->next = new_w.pArea->mprog_list;
 	new_w.pArea->mprog_list = new_mpc;
 
-	ch->desc->pEdit             = (void *)new_mpc;
-	ch->desc->editor            = ED_MPCODE;
+	olc_set_editor(ch, ED_MPCODE, new_mpc);
 
 	SET_BIT(new_w.pArea->area_flags, AREA_CHANGED);
 	send_to_char("MobProgram code copied.\n\r",ch);
@@ -2990,8 +3036,7 @@ void do_opcopy(CHAR_DATA *ch, char *argument)
 	new_opc->next = new_w.pArea->oprog_list;
 	new_w.pArea->oprog_list = new_opc;
 
-	ch->desc->pEdit             = (void *)new_opc;
-	ch->desc->editor            = ED_OPCODE;
+	olc_set_editor(ch, ED_OPCODE, new_opc);
 
 	SET_BIT(new_w.pArea->area_flags, AREA_CHANGED);
 	send_to_char("ObjProgram code copied.\n\r",ch);
@@ -3227,7 +3272,6 @@ void do_olist(CHAR_DATA *ch, char *argument)
 void do_mshow(CHAR_DATA *ch, char *argument)
 {
 	MOB_INDEX_DATA *pMob;
-	void *old_edit;
 	WNUM wnum;
 
 	if (argument[0] == '\0')
@@ -3248,11 +3292,7 @@ void do_mshow(CHAR_DATA *ch, char *argument)
 	   return;
 	}
 
-	old_edit = ch->desc->pEdit;
-	ch->desc->pEdit = (void *) pMob;
-
-	medit_show(ch, argument);
-	ch->desc->pEdit = old_edit;
+	olc_show_item(ch, pMob, medit_show, argument);
 	return;
 }
 
@@ -3260,7 +3300,6 @@ void do_mshow(CHAR_DATA *ch, char *argument)
 void do_oshow(CHAR_DATA *ch, char *argument)
 {
 	OBJ_INDEX_DATA *pObj;
-	void *old_edit;
 	WNUM wnum;
 
 	if (argument[0] == '\0')
@@ -3281,17 +3320,13 @@ void do_oshow(CHAR_DATA *ch, char *argument)
 	return;
 	}
 
-	old_edit = ch->desc->pEdit;
-	ch->desc->pEdit = (void *) pObj;
-	oedit_show(ch, argument);
-	ch->desc->pEdit = old_edit;
+	olc_show_item(ch, pObj, oedit_show, argument);
 }
 
 
 void do_rshow(CHAR_DATA *ch, char *argument)
 {
 	ROOM_INDEX_DATA *pRoom, *oldRoom;
-	void *old_edit;
 	WNUM wnum;
 
 	if (argument[0] == '\0')
@@ -3316,10 +3351,7 @@ void do_rshow(CHAR_DATA *ch, char *argument)
 	char_from_room(ch);
 	char_to_room(ch, pRoom);
 
-	old_edit = ch->desc->pEdit;
-	ch->desc->pEdit = (void *) pRoom;
-	redit_show(ch, argument);
-	ch->desc->pEdit = old_edit;
+	olc_show_item(ch, pRoom, redit_show, argument);
 
 	char_from_room(ch);
 	char_to_room(ch, oldRoom);
@@ -3796,7 +3828,6 @@ void use_imp_sig(MOB_INDEX_DATA *mob, OBJ_INDEX_DATA *obj)
 void do_tshow(CHAR_DATA *ch, char *argument)
 {
 	TOKEN_INDEX_DATA *token_index;
-	void *old_edit;
 	WNUM wnum;
 
 	if (argument[0] == '\0')
@@ -3817,10 +3848,7 @@ void do_tshow(CHAR_DATA *ch, char *argument)
 	return;
 	}
 
-	old_edit = ch->desc->pEdit;
-	ch->desc->pEdit = (void *) token_index;
-	tedit_show(ch, argument);
-	ch->desc->pEdit = old_edit;
+	olc_show_item(ch, token_index, tedit_show, argument);
 }
 
 
@@ -3957,8 +3985,7 @@ void do_liqedit(CHAR_DATA *ch, char *argument)
 
 	if ((liquid = liquid_lookup(command)))
 	{
-		ch->desc->pEdit		= (void *)liquid;
-		ch->desc->editor	= ED_LIQEDIT;
+		olc_set_editor(ch, ED_LIQEDIT, liquid);
 		return;
 	}
 
@@ -4028,11 +4055,13 @@ const struct olc_cmd_type skedit_table[] =
 {
 	{	"?",			show_help			},
 	{	"beats",		skedit_beats		},
+	//{	"brandish",		skedit_brandishfunc },
 	{	"brew",			skedit_brewfunc		},
 	{	"commands",		show_commands		},
 	//	"delete",		skedit_delete		},		// TODO: Need to be abke to track usage first
 	{	"difficulty",	skedit_difficulty	},
 	{	"display",		skedit_display		},
+	//{	"equip",		skedit_equipfunc	},
 	{	"flags",		skedit_flags		},
 	{	"gsn",			skedit_gsn			},
 	{	"ink",			skedit_inkfunc		},
@@ -4058,6 +4087,7 @@ const struct olc_cmd_type skedit_table[] =
 	{	"touch",		skedit_touchfunc	},
 	{	"value",		skedit_value		},
 	{	"valuename",	skedit_valuename	},
+	{	"zap",			skedit_zapfunc	},
 	{	NULL,			NULL				}
 };
 
@@ -4069,8 +4099,7 @@ void do_skedit(CHAR_DATA *ch, char *argument)
 
  	if ((skill = get_skill_data(argument)))
 	{
-		ch->desc->pEdit		= (void *)skill;
-		ch->desc->editor	= ED_SKEDIT;
+		olc_set_editor(ch, ED_SKEDIT, skill);
 		return;
 	}
 
@@ -4107,10 +4136,7 @@ void do_skshow(CHAR_DATA *ch, char *argument)
 		return;		
 	}
 
-	void *oldEdit = ch->desc->pEdit;
-	ch->desc->pEdit = skill;
-	skedit_show(ch, "");
-	ch->desc->pEdit = oldEdit;
+	olc_show_item(ch, skill, skedit_show, "");
 }
 
 void skedit(CHAR_DATA *ch, char *argument)
@@ -4141,6 +4167,21 @@ void skedit(CHAR_DATA *ch, char *argument)
 	if (command[0] == '\0')
 	{
 		skedit_show(ch, argument);
+		return;
+	}
+
+	// Tabbing
+	if (is_number(command))
+	{
+		int tab = atoi(command);
+		if (tab < 1 || tab > ch->desc->nMaxEditTabs)
+		{
+			send_to_char("Huh?\n\r", ch);
+			return;
+		}
+
+		ch->desc->nEditTab = tab - 1;
+		skedit_show(ch, "");
 		return;
 	}
 
@@ -4178,8 +4219,7 @@ void do_sgedit(CHAR_DATA *ch, char *argument)
 
  	if ((group = group_lookup(argument)))
 	{
-		ch->desc->pEdit		= (void *)group;
-		ch->desc->editor	= ED_SGEDIT;
+		olc_set_editor(ch, ED_SGEDIT, group);
 		return;
 	}
 
@@ -4281,10 +4321,7 @@ void do_sgshow(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	void *oldEdit = ch->desc->pEdit;
-	ch->desc->pEdit = group;
-	sgedit_show(ch, "");
-	ch->desc->pEdit = oldEdit;
+	olc_show_item(ch, group, sgedit_show, "");
 }
 
 void sgedit(CHAR_DATA *ch, char *argument)
@@ -4364,4 +4401,177 @@ void olc_show_progs(BUFFER *buffer, LLIST **progs, const char *title)
 			iterator_stop(&it);
 		}
 	}
+}
+
+void olc_buffer_show_tabs(CHAR_DATA *ch, BUFFER *buffer, const char **tab_names)
+{
+	int tab = ch->desc->nEditTab;
+
+	// Show Tabs
+	char tab1[MSL];
+	char tab2[MSL];
+	char buf[MIL];
+	
+	tab1[0] = '\0';
+	tab2[0] = '\0';
+	for(int i = 0; tab_names[i]; i++)
+	{
+		if (i > 0)
+		{
+			strcat(tab1, "   ");
+			strcat(tab2, "__");
+		}
+		else
+			strcat(tab1, " ");
+
+		strcpy(buf, formatf("%d %s", i + 1, tab_names[i]));
+		if (tab == i)
+		{
+			strcat(tab2,"{x/{Y");
+			strcat(tab2,buf);
+		}
+		else
+		{
+			strcat(tab2,"{x{_/");
+			strcat(tab2, (char *)MXPCreateSend(ch->desc, formatf("%d", i+1), formatf("{g%s{x", buf)));
+		}
+		int l=strlen(tab1);
+		int b=strlen(buf);
+		tab1[l+b]=' ';
+		tab1[l+b+1]='\0';
+		memset(&tab1[l], '_', b);
+
+		if (tab == i)
+			strcat(tab2, "{x\\");
+		else
+			strcat(tab2, "{x{_\\{x");
+	}
+	strcat(tab1, "\n\r");
+	strcat(tab2, "_{x\n\r");
+	add_buf(buffer, tab1);
+	add_buf(buffer, tab2);
+	add_buf(buffer, "\n\r");
+}
+
+void olc_buffer_show_string(CHAR_DATA *ch, BUFFER *buffer, const char *value, char *command, char *heading, int indent, char *colors)
+{
+	char buf[MSL];
+	int l=indent-strlen_no_colours(heading);
+	l=UMAX(l,0);
+	sprintf(buf, formatf("{%c%%s%%%ds", colors[0],l), MXPCreateSend(ch->desc,command, heading), "");
+	add_buf(buffer, buf);
+
+	if (IS_NULLSTR(value))
+		sprintf(buf, "{%c(unset){x\n\r", colors[1]);
+	else
+		sprintf(buf, "{%c%s{x\n\r", colors[2], value);
+	add_buf(buffer, buf);
+}
+
+int olc_buffer_show_flags_ex(CHAR_DATA *ch, BUFFER *buffer,
+		const struct flag_type *flag_table, 
+		long value, char *command, char *heading, 
+		int max_width /*77*/,int first_indent /*16*/, int indent /*5*/,
+		const char *colors)
+{
+	int width;
+	int found_count=0;
+	bool type_table=is_stat(flag_table);
+	int lines=0;
+
+	char openbracket='[';
+	char closebracket=']';
+	if(type_table){
+		openbracket='(';
+		closebracket=')';
+	}
+
+	char buf[MSL];
+	int l=first_indent-strlen_no_colours(heading);
+	l=UMAX(l,0);
+	sprintf(buf, formatf("{%c%%s%%%ds{%c%c", colors[0],l,colors[1],openbracket),
+		MXPCreateSend(ch->desc,command, heading), "");
+	width=first_indent;
+
+	char flagbuf[MSL];
+	flagbuf[0] = '\0';
+
+	bool match;
+    for(int flag = 0; !IS_NULLSTR(flag_table[flag].name); flag++)
+    {
+		match=false;
+		if(type_table){
+			if(value==flag_table[flag].bit){
+				match=true;
+			}
+		}else{
+			if(IS_SET(value,flag_table[flag].bit)){
+				match=true;
+			}
+		}
+
+		if(flag_table[flag].settable){
+			if (type_table)
+			{
+				if(match){
+					strcpy(flagbuf,formatf("{%c", colors[2]));
+				}else{
+					strcpy(flagbuf,formatf("{%c", colors[3]));
+				}
+			}
+			else
+			{
+				if(match){
+					strcpy(flagbuf,formatf("{%c", colors[4]));
+				}else{
+					strcpy(flagbuf,formatf("{%c", colors[5]));
+				}
+			}
+		}else{
+			if(match){
+				strcpy(flagbuf,formatf("{%c", colors[6]));
+			}else{
+				// we don't show these flags
+				continue;
+			}
+		}			
+
+		found_count++;
+		width+= strlen(flag_table[flag].name)+1;
+		if(width>max_width){
+			strcat(buf,"\r\n");
+			lines++;
+			strcat(buf,formatf(formatf("%%%ds", indent), ""));
+			width=indent + strlen(flag_table[flag].name) +1;
+		}
+
+		strcat(buf, flagbuf);
+		if(flag_table[flag].settable){
+			strcat(buf, MXPCreateSend(ch->desc,
+							 formatf("%s %s", command, flag_table[flag].name),
+							 	flag_table[flag].name));
+		}else{
+			strcat(buf, flag_table[flag].name);
+		}
+		strcat(buf," ");
+	}
+	if(found_count==0){
+		strcat(buf,"none ");
+	}
+	buf[strlen(buf)-1]='\0';
+	strcat(buf,formatf("{%c%c\n\r", colors[1], closebracket));
+
+
+	add_buf(buffer, buf);
+
+	lines++;
+	return lines;
+}
+
+int olc_buffer_show_flags(CHAR_DATA *ch, BUFFER *buffer,
+		const struct flag_type *flag_table, 
+		long value, char *command, char *heading, 
+		const char *colors)
+{
+	return olc_buffer_show_flags_ex(ch, buffer, flag_table, value, command, heading, 77, 16, 5, colors);
 }

@@ -3926,13 +3926,17 @@ char *expand_entity_skill(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 
 	case ENTITY_SKILL_TARGET:
-		arg->type = ENT_NUMBER;
-		arg->d.num = IS_VALID(skill) ? skill->target : 0;
+		arg->type = ENT_STAT;
+		arg->d.stat.value = IS_VALID(skill) ? skill->target : TAR_IGNORE;
+		arg->d.stat.table = spell_target_types;
+		arg->d.stat.def_value = -1;
 		break;
 
 	case ENTITY_SKILL_POSITION:
-		arg->type = ENT_NUMBER;
-		arg->d.num = IS_VALID(skill) ? skill->minimum_position : POS_DEAD;
+		arg->type = ENT_STAT;
+		arg->d.stat.value = IS_VALID(skill) ? skill->minimum_position : POS_DEAD;
+		arg->d.stat.table = spell_position_flags;
+		arg->d.stat.def_value = -1;
 		break;
 
 	case ENTITY_SKILL_NOUN:

@@ -141,6 +141,7 @@ const struct olc_help_type help_table[] =
 	{	"song_targets",			STRUCT_FLAGS,		song_target_types,			"Song Target Types."	},
 	{	"spec",					STRUCT_SPEC,		spec_table,					"Available special programs. {D(DEPRECATED){x"	},
 	{	"spell_func",			STRUCT_SPELLFUNC,	spell_func_table,			"Spell functions"},
+	{	"spell_positions",		STRUCT_FLAGS,		spell_position_flags,		"Spell minimum positions."	},
 	{	"spell_targets",		STRUCT_FLAGS,		spell_target_types,			"Spell Target Types."	},
 	{	"spells",				STRUCT_SKILL,		NULL,						"Names of current spells."	},
 	{	"sublasses",			STRUCT_SUBCLASSES,		NULL,					"Subclasses" },
@@ -1160,7 +1161,7 @@ AEDIT(aedit_create)
     gconfig_write();
     area_last->next     =   pArea;
     area_last           =   pArea;      /* Thanks, Walker. */
-    ch->desc->pEdit     =   (void *)pArea;
+	olc_set_editor(ch, ED_AREA, pArea);
 
     SET_BIT(pArea->area_flags, AREA_ADDED);
     send_to_char("Area Created.\n\r", ch);
@@ -3855,7 +3856,8 @@ REDIT(redit_create)
     iHash = wnum.vnum % MAX_KEY_HASH;
     pRoom->next = wnum.pArea->room_index_hash[iHash];
     wnum.pArea->room_index_hash[iHash] = pRoom;
-    ch->desc->pEdit = (void *)pRoom;
+
+	olc_set_editor(ch, ED_ROOM, pRoom);
 
     SET_BIT(pRoom->area->area_flags, AREA_CHANGED);
     send_to_char("Room created.\n\r", ch);
@@ -8277,8 +8279,8 @@ OEDIT(oedit_next)
     else
     {
 	edit_done(ch);
-	ch->desc->pEdit = (void *)nextObj;
-	ch->desc->editor = ED_OBJECT;
+
+	olc_set_editor(ch, ED_OBJECT, nextObj);
     }
     return FALSE;
 }
@@ -8666,8 +8668,7 @@ OEDIT(oedit_prev)
     else
     {
 	edit_done(ch);
-	ch->desc->pEdit = (void *)prevObj;
-	ch->desc->editor = ED_OBJECT;
+	olc_set_editor(ch, ED_OBJECT, prevObj);
     }
     return FALSE;
 }
@@ -9110,7 +9111,7 @@ OEDIT(oedit_create)
     iHash                 = wnum.vnum % MAX_KEY_HASH;
     pObj->next		  = wnum.pArea->obj_index_hash[iHash];
     wnum.pArea->obj_index_hash[iHash] = pObj;
-    ch->desc->pEdit	  = (void *)pObj;
+	olc_set_editor(ch, ED_OBJECT, pObj);
 
     SET_BIT(pObj->area->area_flags, AREA_CHANGED);
     send_to_char("Object Created.\n\r", ch);
@@ -14866,8 +14867,7 @@ MEDIT(medit_next)
     else
     {
 	edit_done(ch);
-	ch->desc->pEdit = (void *)nextMob;
-	ch->desc->editor = ED_MOBILE;
+	olc_set_editor(ch, ED_MOBILE, nextMob);
     }
     return FALSE;
 }
@@ -14950,8 +14950,7 @@ MEDIT(medit_prev)
     else
     {
 	edit_done(ch);
-	ch->desc->pEdit = (void *)prevMob;
-	ch->desc->editor = ED_MOBILE;
+	olc_set_editor(ch, ED_MOBILE, prevMob);
     }
     return FALSE;
 }
@@ -15046,7 +15045,7 @@ MEDIT(medit_create)
     iHash			= wnum.vnum % MAX_KEY_HASH;
     pMob->next			= wnum.pArea->mob_index_hash[iHash];
     wnum.pArea->mob_index_hash[iHash]	= pMob;
-    ch->desc->pEdit		= (void *)pMob;
+	olc_set_editor(ch, ED_MOBILE, pMob);
 
 
     // Make sure to set minimum level to 1.
@@ -19526,8 +19525,7 @@ LIQEDIT( liqedit_create )
 	liquid->gln = NULL;
 	list_appendlink(liquid_list, liquid);
 
-	ch->desc->pEdit = liquid;
-	ch->desc->editor = ED_LIQEDIT;
+	olc_set_editor(ch, ED_LIQEDIT, liquid);
 
 	send_to_char("Liquid created.\n\r", ch);
 	return true;

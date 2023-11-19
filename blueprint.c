@@ -3119,8 +3119,7 @@ void do_bsedit(CHAR_DATA *ch, char *argument)
 		}
 
 		ch->pcdata->immortal->last_olc_command = current_time;
-		ch->desc->pEdit = (void *)bs;
-		ch->desc->editor = ED_BPSECT;
+		olc_set_editor(ch, ED_BPSECT, bs);
 		return;
 	}
 	else
@@ -3349,7 +3348,6 @@ BSEDIT( bsedit_show )
 void do_bsshow(CHAR_DATA *ch, char *argument)
 {
 	BLUEPRINT_SECTION *bs;
-	void *old_edit;
 	WNUM wnum;
 
 	if (argument[0] == '\0')
@@ -3370,11 +3368,7 @@ void do_bsshow(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	old_edit = ch->desc->pEdit;
-	ch->desc->pEdit = (void *) bs;
-
-	bsedit_show(ch, argument);
-	ch->desc->pEdit = old_edit;
+	olc_show_item(ch, bs, bsedit_show, argument);
 	return;
 }
 
@@ -3422,7 +3416,7 @@ BSEDIT( bsedit_create )
 	iHash							= bs->vnum % MAX_KEY_HASH;
 	bs->next						= wnum.pArea->blueprint_section_hash[iHash];
 	wnum.pArea->blueprint_section_hash[iHash]	= bs;
-	ch->desc->pEdit					= (void *)bs;
+	olc_set_editor(ch, ED_BPSECT, bs);
 
 	if( bs->vnum > wnum.pArea->top_blueprint_section_vnum)
 		wnum.pArea->top_blueprint_section_vnum = bs->vnum;
@@ -4814,8 +4808,7 @@ void do_bpedit(CHAR_DATA *ch, char *argument)
 		}
 
 		ch->pcdata->immortal->last_olc_command = current_time;
-		ch->desc->pEdit = (void *)bp;
-		ch->desc->editor = ED_BLUEPRINT;
+		olc_set_editor(ch, ED_BLUEPRINT, bp);
 		return;
 	}
 	else
@@ -5633,7 +5626,6 @@ BPEDIT( bpedit_show )
 void do_bpshow(CHAR_DATA *ch, char *argument)
 {
 	BLUEPRINT *bp;
-	void *old_edit;
 	WNUM wnum;
 
 	if (argument[0] == '\0')
@@ -5654,11 +5646,7 @@ void do_bpshow(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	old_edit = ch->desc->pEdit;
-	ch->desc->pEdit = (void *) bp;
-
-	bpedit_show(ch, argument);
-	ch->desc->pEdit = old_edit;
+	olc_show_item(ch, bp, bpedit_show, argument);
 	return;
 }
 
@@ -5706,7 +5694,7 @@ BPEDIT( bpedit_create )
 	iHash							= bp->vnum % MAX_KEY_HASH;
 	bp->next						= wnum.pArea->blueprint_hash[iHash];
 	wnum.pArea->blueprint_hash[iHash]			= bp;
-	ch->desc->pEdit					= (void *)bp;
+	olc_set_editor(ch, ED_BLUEPRINT, bp);
 
 	if( bp->vnum > wnum.pArea->top_blueprint_vnum)
 		wnum.pArea->top_blueprint_vnum = bp->vnum;
