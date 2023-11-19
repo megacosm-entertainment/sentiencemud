@@ -3948,6 +3948,10 @@ SKEDIT( skedit_show )
 		olc_buffer_show_flags_ex(ch, buffer, spell_target_types, skill->target, "target", "Target:", 77, 20, 5, "xxYyCcD");
 		olc_buffer_show_flags_ex(ch, buffer, spell_position_flags, skill->minimum_position, "position", "Minimum Position:", 77, 20, 5, "xxYyCcD");
 
+		add_buf(buffer, "\n\r");
+
+		olc_buffer_show_string(ch, buffer, formatf("%d", skill->beats), "beats", "Beats:", 20, "xDW");
+		olc_buffer_show_string(ch, buffer, (skill->race > 0) ? formatf("%s", MXPCreateSend(ch->desc, formatf("rcshow %s", race_table[skill->race].name), race_table[skill->race].name)) : NULL, "race", "Racial Skill:", 20, "xDW");
 		break;
 	
 	case 1:	// Functions / Triggers
@@ -3998,13 +4002,19 @@ SKEDIT( skedit_show )
 		add_buf(buffer, "Inks:\n\r");
 		for(int i = 0; i < 3; i++)
 		{
-			sprintf(buf, " %d) [%2d] %s\n\r", i + 1, skill->inks[i][1], flag_string(catalyst_types, skill->inks[i][0]));
+			sprintf(buf, " {W%s{x) [{W%2d{x] {Y%s{x\n\r", MXPCreateSend(ch->desc, formatf("inks %d", i + 1), formatf("%d", i + 1)), skill->inks[i][1], flag_string(catalyst_types, skill->inks[i][0]));
 			add_buf(buffer, buf);
 		}
+
+		add_buf(buffer, "\n\r");
+		olc_buffer_show_string(ch, buffer, formatf("%d", skill->cast_mana), "mana cast", "Casting Mana:", 20, "xDW");
+		olc_buffer_show_string(ch, buffer, formatf("%d", skill->cast_mana), "mana brew", "Brewing Mana:", 20, "xDW");
+		olc_buffer_show_string(ch, buffer, formatf("%d", skill->cast_mana), "mana scribe", "Scribing Mana:", 20, "xDW");
+		olc_buffer_show_string(ch, buffer, formatf("%d", skill->cast_mana), "mana imbue", "Imbuing Mana:", 20, "xDW");
 		break;
 
 	case 3:	// Values
-		add_buf(buffer, "\n\rValues:\n\r");
+		add_buf(buffer, "Values:\n\r");
 		for(int i = 0; i < MAX_SKILL_VALUES; i++)
 		{
 			char name[MIL];
@@ -4012,8 +4022,7 @@ SKEDIT( skedit_show )
 				sprintf(name, "Value %d:", i+1);
 			else
 				sprintf(name, "%s:", skill->valuenames[i]);
-			sprintf(buf, "%-20s%d\n\r", name, skill->values[i]);
-			add_buf(buffer, buf);
+			olc_buffer_show_string(ch, buffer, formatf("%d", skill->values[i]), formatf("value %d", i + 1),	name, 20, "XDW");
 		}
 		break;
 	

@@ -79,6 +79,7 @@ const struct olc_help_type help_table[] =
 	{	"apptype",				STRUCT_FLAGS,		apply_types,				"Apply types."	},
 	{	"aprog",				STRUCT_TRIGGERS,	dummy_triggers,				"AreaProgram types."	},
 	{	"area",					STRUCT_FLAGS,		area_flags,					"Area attributes."	},
+	{	"arearegion",			STRUCT_FLAGS,		area_region_flags,			"Area Region attributes."	},
 	{	"areawho",				STRUCT_FLAGS,		area_who_titles,			"Type of area for who."	},
 	{	"armour",				STRUCT_FLAGS,		ac_type,					"Ac for different attacks."	},
 	{	"blueprint",			STRUCT_FLAGS,		blueprint_flags,			"Blueprint flags" },
@@ -1456,7 +1457,7 @@ AEDIT(aedit_regions)
 		}
 
 		long value;
-		if ((value = flag_lookup(argument, area_region_flags)) == NO_FLAG)
+		if ((value = flag_value(area_region_flags, argument)) == NO_FLAG)
 		{
 			send_to_char("Syntax:  regions flags <#> <flags>\n\r", ch);
 			send_to_char("Please type '? area_region_flags' to see a list of values.\n\r", ch);

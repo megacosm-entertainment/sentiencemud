@@ -46,6 +46,7 @@ const struct flag_stat_type flag_stat_table[] =
 /*  {	structure					stat	}, */
 	{	token_flags,				FALSE	},
 	{	area_flags,					FALSE	},
+    {   area_region_flags,          FALSE   },
 	{	sex_flags,					TRUE	},
 	{	exit_flags,					FALSE	},
 	{	door_resets,				TRUE	},
