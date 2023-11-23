@@ -6937,6 +6937,7 @@ enum trigger_index_enum {
 	TRIG_LEVEL,
     TRIG_LOCK,
 	TRIG_LOGIN,
+    TRIG_LOOK_AT,
 	TRIG_LORE,
 	TRIG_LORE_EX,
 	TRIG_MANAGAIN,

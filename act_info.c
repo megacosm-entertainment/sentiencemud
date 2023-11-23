@@ -2665,6 +2665,10 @@ void do_look(CHAR_DATA * ch, char *argument)
 		return;
 	}
 
+	// LOOK_AT check, allows for conditional viewing through an exit.
+	if (p_direction_trigger(ch, ch->in_room, door, PRG_RPROG, TRIG_LOOK_AT,0,0,0,0,0) > 0)
+		return;
+
 	// 'look direction'
 	if ((pexit = ch->in_room->exit[door]) == NULL || pexit->u1.to_room == NULL)
 	{

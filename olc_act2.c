@@ -2328,7 +2328,9 @@ TEDIT (tedit_addtprog)
 	else if( value == TRIG_EXIT ||
 			 value == TRIG_EXALL ||
 			 value == TRIG_KNOCK ||
-			 value == TRIG_KNOCKING)
+			 value == TRIG_KNOCKING ||
+			 value == TRIG_SHOWEXIT ||
+			 value == TRIG_LOOK_AT )
 	{
 		if( !str_cmp(phrase, "*") )
 		{
@@ -2338,7 +2340,7 @@ TEDIT (tedit_addtprog)
 		{
 			int door = parse_door(phrase);
 			if( door < 0 ) {
-				send_to_char("Invalid direction for exit/exall/knock/knocking trigger.\n\r", ch);
+				send_to_char("Invalid direction for exit/exall/knock/knocking/showexit/look_at trigger.\n\r", ch);
 				return FALSE;
 			}
 			sprintf(phrase,"%d",door);
