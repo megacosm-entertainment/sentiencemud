@@ -1995,12 +1995,14 @@ SCRIPT_CMD(do_oplink)
 		break;
 	}
 
-	if(!wnum.pArea || wnum.vnum < 1) {
+	if(!del && (!wnum.pArea || wnum.vnum < 1)) {
 		bug("OPlink - invalid argument in room %d.", room->vnum);
 		return;
 	}
 
-	if(id1 > 0 || id2 > 0)
+	if(del)
+		dest = NULL;
+	else if(id1 > 0 || id2 > 0)
 		dest = get_clone_room(get_room_index(wnum.pArea, wnum.vnum),id1,id2);
 	else if(wnum.pArea && wnum.vnum > 0)
 		dest = get_room_index(wnum.pArea, wnum.vnum);
