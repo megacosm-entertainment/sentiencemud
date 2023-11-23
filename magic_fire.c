@@ -26,11 +26,12 @@ void afterburn_hitroom(ROOM_INDEX_DATA *room, CHAR_DATA *ch, int dam, int level)
 	for (victim = room->people; victim ; victim = vnext) {
 		vnext = victim->next_in_room;
 		if (!is_safe(ch, victim, FALSE) && victim != ch) {
-			if (!check_spell_deflection(ch, victim, gsk_afterburn, NULL))
-				continue;
+			CHAR_DATA *tch;
+			check_spell_deflection_new(ch, victim, gsk_afterburn, false, &tch, NULL);
+			if (!tch) continue;
 
-			damage(ch, victim, dam, gsk_afterburn, TYPE_UNDEFINED, DAM_FIRE, TRUE);
-			fire_effect((void *)victim, level, dam, TARGET_CHAR);
+			damage(ch, tch, dam, gsk_afterburn, TYPE_UNDEFINED, DAM_FIRE, TRUE);
+			fire_effect((void *)tch, level, dam, TARGET_CHAR);
 		}
 	}
 

@@ -2625,7 +2625,7 @@ void do_ostat(CHAR_DATA *ch, char *argument)
 			sprintf(charges, "%d{B / {x%d", WAND(obj)->charges, WAND(obj)->max_charges);
 
 		if (WAND(obj)->recharge_time > 0)
-			sprintf(recharging, "%d{B charge%s per tick.", WAND(obj)->recharge_time, ((WAND(obj)->recharge_time==1)?"":"s"));
+			sprintf(recharging, "{B1 charge per {x%d{B tick%s.", WAND(obj)->recharge_time, ((WAND(obj)->recharge_time==1)?"":"s"));
 		else
 			strcpy(recharging, "none.");
 
@@ -9489,4 +9489,48 @@ void do_mxptest(CHAR_DATA *ch, char *argument)
 	
 	send_to_char((char *)MXPCreateSend(ch->desc, "say Hello", argument), ch);
 	send_to_char("\n\r", ch);
+}
+
+// immstrike <victim> <damage>
+// Does non-lethal damage.
+void do_immstrike(CHAR_DATA *ch, char *argument)
+{
+	CHAR_DATA *victim;
+	char arg[MIL];
+	int amount;
+
+	argument = one_argument(argument, arg);
+
+	if (arg[0] == '\0')
+	{
+		send_to_char("Imm Strike who?\n\r", ch);
+		return;
+	}
+
+	if ((victim = get_char_room(ch, NULL, arg)) == NULL)
+	{
+		send_to_char("They aren't here.", ch);
+		return;
+	}
+
+	if (!IS_NPC(victim) && IS_IMMORTAL(victim))
+	{
+		send_to_char("You can't immstrike that.\n\r", ch);
+		return;
+	}
+
+	argument = one_argument(argument, arg);
+	if (!is_number(arg) || (amount = atoi(arg)) < 1)
+	{
+		send_to_char("Please specify a positive amount.\n\r", ch);
+		return;
+	}
+
+	// Damage type?
+
+	if (amount >= victim->hit)
+		amount = victim->hit - 1;
+
+	damage(ch, victim, amount, NULL, TYPE_UNDEFINED, DAM_BASH, true);
+	send_to_char("Ok.", ch);
 }

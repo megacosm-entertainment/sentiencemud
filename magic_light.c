@@ -166,15 +166,16 @@ SPELL_FUNC(spell_starflare)
 
 		if (victim != ch) {
 			if (!is_safe(victim, ch, FALSE) && !is_same_group(victim, ch)) {
-				if (!check_spell_deflection(ch, victim, skill, NULL))
-					continue;
+				CHAR_DATA *tch;
+				check_spell_deflection_new(ch, victim, skill, false, &tch, NULL);
+				if (!tch) continue;
 
 				dam = dice(level, 9);
-				if (saves_spell(level, victim, DAM_LIGHT))
+				if (saves_spell(level, tch, DAM_LIGHT))
 					dam /= 3;
 
-				damage(ch, victim, dam, skill, TYPE_UNDEFINED, DAM_LIGHT, TRUE);
-				spell_blindness(gsk_blindness, level, ch, (void *) victim, TARGET_CHAR, WEAR_NONE);
+				damage(ch, tch, dam, skill, TYPE_UNDEFINED, DAM_LIGHT, TRUE);
+				spell_blindness(gsk_blindness, level, ch, (void *) tch, TARGET_CHAR, WEAR_NONE);
 
 				level -= 4;
 			}

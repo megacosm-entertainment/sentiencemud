@@ -4589,11 +4589,29 @@ void update_pc_timers(CHAR_DATA *ch)
 
     if (ch != NULL && ch->cast > 0)
     {
-	--ch->cast;
-	if (ch->cast <= 0)
-	    cast_end(ch);
- 	else if(ch->cast_token && IS_SET(ch->cast_token->pIndexData->flags, TOKEN_SPELLBEATS))
- 		p_percent_trigger(NULL, NULL, NULL, ch->cast_token, ch, NULL, NULL, NULL, NULL, TRIG_SPELLBEAT, NULL,0,0,0,0,0);
+		--ch->cast;
+		if (ch->cast <= 0)
+			cast_end(ch);
+		else if (IS_SET(ch->cast_skill->flags, SKILL_SPELL_PULSE))
+		{
+			CHAR_DATA *victim;
+			OBJ_DATA *obj;
+			int target;
+
+			if (validate_spell_target(ch, ch->cast_skill->target, ch->cast_target_name, &target, &victim, &obj))
+			{
+				void *vo = NULL;
+				if (target == TARGET_CHAR)
+					vo = victim;
+				else if(target == TARGET_OBJ)
+					vo = obj;
+
+				if(ch->cast_token)
+					p_percent_trigger(NULL, NULL, NULL, ch->cast_token, ch, victim, NULL, obj, NULL, TRIG_TOKEN_PULSE, NULL,0,0,0,0,0);
+				else if (ch->cast_skill->pulse_fun && ch->cast_skill->pulse_fun != spell_null)
+					(*(ch->cast_skill->pulse_fun))(ch->cast_skill, ch->tot_level, ch, vo, target, WEAR_NONE);
+			}			
+		}
     }
 
     /* Decrease delay on characters binding */

@@ -66,6 +66,8 @@
 #define DECLARE_SPEC_FUN( fun )		SPEC_FUN  fun
 #define DECLARE_PRESPELL_FUN( fun )	SPELL_FUN fun
 #define DECLARE_SPELL_FUN( fun )	SPELL_FUN fun
+#define DECLARE_SPELL_PULSE_FUN( fun )  SPELL_FUN fun
+#define DECLARE_SPELL_INTERRUPT_FUN( fun )  SPELL_FUN fun
 #define DECLARE_OBJ_FUN( fun )		OBJ_FUN	  fun
 #define DECLARE_ROOM_FUN( fun )		ROOM_FUN  fun
 #define PRESPELL_FUNC(s)	bool s (SKILL_DATA *skill, int level, CHAR_DATA *ch, void *vo, int target, int obj_wear_loc)
@@ -2685,7 +2687,7 @@ struct affliction_type {
 #define ITEM_NOLOCATE		(T)
 #define ITEM_MELT_DROP		(U)
 //                          (V)
-//                          (W)
+#define ITEM_SHOCK_PROOF    (W)
 #define ITEM_FREEZE_PROOF	(X)
 #define ITEM_BURN_PROOF		(Y)
 #define ITEM_NOUNCURSE		(Z)
@@ -6646,6 +6648,7 @@ struct church_command_type
 #define SKILL_CAN_SCRIBE    (C)
 #define SKILL_CAN_INK       (D)
 #define SKILL_CAN_IMBUE     (E)
+#define SKILL_SPELL_PULSE   (F)
 #define SKILL_CROSS_CLASS   (Z)     // Whether the skill can be used in classes not registered for the skill (NYI)
 
 struct skill_data
@@ -6669,8 +6672,9 @@ struct skill_data
 
     SPELL_FUN * prespell_fun;       // Determine if you can cast the spell, such as whether you have necessary catalysts
     SPELL_FUN *	spell_fun;          // Called when cast
-    // Add artificing functions for brewing, scribing, tattooing, wands, etc.
-
+    SPELL_FUN * pulse_fun;          // Called while casting for spells that do things during casting
+    SPELL_FUN * interrupt_fun;      // Called when the spell is interrupted
+ 
     // Brewing: quaff_fun must be defined for the spell to be brewable.
     PREBREW_FUN * prebrew_fun;      // Called to see if you have the requirements needed to brew this spell.
     BREW_FUN * brew_fun;            // Called after brewing to process any of the requirements, such as catalysts
@@ -6716,8 +6720,8 @@ struct skill_data
     char *  msg_defl_pass_vict;
     char *  msg_defl_pass_room;
 
-    char *  msg_defl_refl_self_char;    // Spell gets reflected, when target is self
-    char *  msg_defl_refl_self_room;
+    char *  msg_defl_refl_none_char;    // Spell gets reflected, with no target
+    char *  msg_defl_refl_none_room;
     char *  msg_defl_refl_char;         // Spell gets reflected off different target
     char *  msg_defl_refl_vict;
     char *  msg_defl_refl_room;
@@ -7062,11 +7066,12 @@ enum trigger_index_enum {
 	TRIG_TOKEN_GIVEN,
     TRIG_TOKEN_IMBUE,
     TRIG_TOKEN_INK,
-    TRIG_TOKEN_INK_CATALYST,
+    TRIG_TOKEN_INTERRUPT,
     TRIG_TOKEN_PREBREW,
     TRIG_TOKEN_PREIMBUE,
     TRIG_TOKEN_PREINK,
     TRIG_TOKEN_PRESCRIBE,
+    TRIG_TOKEN_PULSE,
     TRIG_TOKEN_QUAFF,
     TRIG_TOKEN_RECITE,
 	TRIG_TOKEN_REMOVED,
@@ -9418,8 +9423,11 @@ bool check_dispel(CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill);
 void reverie_end args( ( CHAR_DATA *ch, int amount ) );
 void trance_end(CHAR_DATA *ch);
 
+bool validate_spell_target(CHAR_DATA *ch,int type,char *arg,int *t,CHAR_DATA **v, OBJ_DATA **o);
 typedef void DEFLECT_FUN ( CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill, AFFECT_DATA *af);
+typedef bool DEFLECT_VALID_CB ( CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *target, SKILL_DATA *skill, AFFECT_DATA *af);
 
+bool check_spell_deflection_new(CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill, bool only_visible, CHAR_DATA **target, DEFLECT_VALID_CB *validate);
 bool check_spell_deflection( CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill, DEFLECT_FUN *deflect);
 bool check_spell_deflection_token( CHAR_DATA *ch, CHAR_DATA *victim, TOKEN_DATA *tok, SCRIPT_DATA *script,char *target_name);
 

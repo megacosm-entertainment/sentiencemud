@@ -1222,6 +1222,16 @@ char *expand_entity_primary(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		arg->d.str = buf_string(arg->buffer);
 		break;
 
+	case ENTITY_TRUE:
+		arg->type = ENT_BOOLEAN;
+		arg->d.boolean = true;
+		break;
+
+	case ENTITY_FALSE:
+		arg->type = ENT_BOOLEAN;
+		arg->d.boolean = false;
+		break;
+
 	case ESCAPE_VARIABLE:
 		str = expand_escape_variable(info,(info?*(info->var):NULL),str+1,arg);
 		if(!str) return NULL;

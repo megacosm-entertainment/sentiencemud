@@ -6011,8 +6011,8 @@ SKILL_DATA *new_skill_data()
     data->msg_defl_pass_vict = str_dup("");
     data->msg_defl_pass_room = str_dup("");
 
-    data->msg_defl_refl_self_char = str_dup("");
-    data->msg_defl_refl_self_room = str_dup("");
+    data->msg_defl_refl_none_char = str_dup("");
+    data->msg_defl_refl_none_room = str_dup("");
     data->msg_defl_refl_char = str_dup("");
     data->msg_defl_refl_vict = str_dup("");
     data->msg_defl_refl_room = str_dup("");
@@ -6045,8 +6045,8 @@ void free_skill_data(SKILL_DATA *data)
     free_string(data->msg_defl_pass_char);
     free_string(data->msg_defl_pass_vict);
     free_string(data->msg_defl_pass_room);
-    free_string(data->msg_defl_refl_self_char);
-    free_string(data->msg_defl_refl_self_room);
+    free_string(data->msg_defl_refl_none_char);
+    free_string(data->msg_defl_refl_none_room);
     free_string(data->msg_defl_refl_char);
     free_string(data->msg_defl_refl_vict);
     free_string(data->msg_defl_refl_room);

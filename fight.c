@@ -4248,10 +4248,8 @@ void dam_message(CHAR_DATA *ch, CHAR_DATA *victim, int dam, SKILL_DATA *skill, i
 			attack = attack_table[dt - TYPE_HIT].noun;
 		else
 		{
-			// TODO: Try to change this to *send* the skill data itself into dam_message
-			SKILL_DATA *dsk = get_skill_data_uid(dt);
-			if (IS_VALID(dsk))
-				attack = dsk->noun_damage;
+			if (IS_VALID(skill))
+				attack = skill->noun_damage;
 		}
 		
 		if (!attack)

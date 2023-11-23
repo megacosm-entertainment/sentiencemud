@@ -43,10 +43,12 @@ SPELL_FUNC(spell_call_lightning)
 		vch_next = vch->next_in_room;
 
 		if (!is_safe(ch, vch, FALSE)) {
-			if (!check_spell_deflection(ch, vch, skill, NULL)) continue;
+			CHAR_DATA *tch;
+			check_spell_deflection_new(ch, vch, skill, false, &tch, NULL);
+			if (!tch) continue;
 
-			if (vch != ch && (IS_NPC(ch) ? !IS_NPC(vch) : IS_NPC(vch)))
-				damage(ch, vch, saves_spell(level,vch,DAM_LIGHTNING) ? dam / 2 : dam, skill, TYPE_UNDEFINED,DAM_LIGHTNING,TRUE);
+			if (tch != ch && (IS_NPC(ch) ? !IS_NPC(tch) : IS_NPC(tch)))
+				damage(ch, tch, saves_spell(level,tch,DAM_LIGHTNING) ? dam / 2 : dam, skill, TYPE_UNDEFINED,DAM_LIGHTNING,TRUE);
 		}
 	}
 

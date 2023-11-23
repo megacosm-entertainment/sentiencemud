@@ -142,12 +142,13 @@ const struct script_cmd_type token_cmd_table[] = {
 	{ "skimprove",			do_tpskimprove,				TRUE,	TRUE	},
 	{ "spawndungeon",		scriptcmd_spawndungeon,		TRUE,	TRUE	},
 	{ "specialkey",			scriptcmd_specialkey,		FALSE,	TRUE	},
+	{ "spelldeflection",	tokencmd_spelldeflection,	FALSE,	TRUE	},
 	{ "startcombat",		scriptcmd_startcombat,		FALSE,	TRUE	},
 	{ "startreckoning",		scriptcmd_startreckoning,	TRUE,	TRUE	},
 	{ "stopcombat",			scriptcmd_stopcombat,		FALSE,	TRUE	},
 	{ "stopreckoning",		scriptcmd_stopreckoning,	TRUE,	TRUE	},
 	{ "stringmob",			do_tpstringmob,				TRUE,	TRUE	},
-	{ "stringobj",			scriptcmd_stringobjmt,				TRUE,	TRUE	},
+	{ "stringobj",			scriptcmd_stringobjmt,		TRUE,	TRUE	},
 	{ "stripaffect",		do_tpstripaffect,			TRUE,	TRUE	},
 	{ "stripaffectname",	do_tpstripaffectname,		TRUE,	TRUE	},
 	{ "transfer",			do_tptransfer,				FALSE,	TRUE	},
@@ -7588,3 +7589,47 @@ SCRIPT_CMD(do_tpungroup)
 	}
 }
 
+
+// TOKEN SPELLDEFLECTION $ENACTOR $VICTIM $VISIBLEONLY $VARIABLENAME
+// The skill passed to the spell deflection function is the skill data linked to the token
+// The token calling this *must* be connected to a skill entry, otherwise it will fail
+// Used by various token spell related triggers to get a new target
+SCRIPT_CMD(tokencmd_spelldeflection)
+{
+	if(!info) return;
+
+	// This return value represents a failure to execute this command to completion
+	info->progs->lastreturn	= PRET_BADSYNTAX;
+	
+	if(!IS_VALID(info->token)) return;
+
+	// Not a token used by a spell entry
+	if(!info->token->skill || !is_skill_spell(info->token->skill->skill)) return;
+
+	char *rest = argument;
+
+	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_MOBILE || !IS_VALID(arg->d.mob))
+		return;
+	CHAR_DATA *ch = arg->d.mob;
+
+	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_MOBILE || !IS_VALID(arg->d.mob))
+		return;
+	CHAR_DATA *victim = arg->d.mob;
+
+	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_BOOLEAN)
+		return;
+	bool only_visible = arg->d.boolean;
+
+	// Variable name
+	if(!(rest = expand_argument(info,rest,arg)) || arg->type != ENT_STRING)
+		return;
+
+	CHAR_DATA *target = NULL;
+	bool deflection = check_spell_deflection_new(ch, victim, info->token->skill->skill, only_visible, &target, NULL);
+
+	script_varclearon(info, info->var, arg->d.str, arg);
+	if (target != NULL)
+		variables_set_mobile(info->var, arg->d.str, target);
+
+	info->progs->lastreturn = deflection ? 1 : 0;
+}

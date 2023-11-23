@@ -30,17 +30,18 @@ SPELL_FUNC(spell_calm)
 		if ((IS_NPC(vch) && (IS_SET(vch->imm_flags,IMM_MAGIC) || IS_SET(vch->act[0],ACT_UNDEAD))) || IS_IMMORTAL(vch))
 			continue;
 
-		if (!check_spell_deflection(ch, vch, skill, NULL))
-			continue;
+		CHAR_DATA *tch;
+		check_spell_deflection_new(ch, vch, skill, false, &tch, NULL);
+		if (!tch) continue;
 
-		if (IS_AFFECTED(vch,AFF_CALM) || IS_AFFECTED(vch,AFF_BERSERK) || IS_AFFECTED(vch,AFF_FRENZY) || (!is_same_group(vch, ch) && !is_same_group(vch, ch->fighting)))
+		if (IS_AFFECTED(tch,AFF_CALM) || IS_AFFECTED(tch,AFF_BERSERK) || IS_AFFECTED(tch,AFF_FRENZY) || (!is_same_group(vch, ch) && !is_same_group(vch, ch->fighting)))
 			continue;
 
 		found = TRUE;
-		send_to_char("A wave of calm passes over you.\n\r",vch);
+		send_to_char("A wave of calm passes over you.\n\r",tch);
 
-		if (vch->fighting || vch->position == POS_FIGHTING)
-			stop_fighting(vch,TRUE);
+		if (tch->fighting || tch->position == POS_FIGHTING)
+			stop_fighting(tch,TRUE);
 
 		af.slot	= WEAR_NONE;
 		af.where = TO_AFFECTS;
@@ -49,13 +50,13 @@ SPELL_FUNC(spell_calm)
 		af.level = level;
 		af.duration = level/4;
 		af.location = APPLY_HITROLL;
-		af.modifier = IS_NPC(vch) ? -2 : -5;
+		af.modifier = IS_NPC(tch) ? -2 : -5;
 		af.bitvector = AFF_CALM;
 		af.bitvector2 = 0;
-		affect_to_char(vch,&af);
+		affect_to_char(tch,&af);
 
 		af.location = APPLY_DAMROLL;
-		affect_to_char(vch,&af);
+		affect_to_char(tch,&af);
 	}
 	return found;
 }

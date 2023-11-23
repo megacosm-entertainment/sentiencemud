@@ -124,6 +124,176 @@ void spell_deflected_cast(CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill, A
 #endif
 }
 
+// TODO: Spell Deflection
+// Instead of doing anything, it will just attempt to select another target who *doesn't* have the same affect.
+// If it ends up being ch, it will check their chain lightning ability to see if they get struck, otherwise it returns null.
+// Returns true if there was any interaction with the spell deflection aura... due to messages being generated.
+// TODO: Need to make this handle the need to deal with a spell whose purpose is to *reveal* targets, but not necessarily reveal someone whose spell deflection prevents the spell from revealing them.
+// One possibility is to not reveal names on those that are hidden
+bool check_spell_deflection_new(CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill, bool only_visible, CHAR_DATA **target, DEFLECT_VALID_CB *validate)
+{
+	CHAR_DATA *rch = NULL;
+	AFFECT_DATA *af;
+	int attempts;
+	int lev;
+
+	if (!IS_AFFECTED2(victim, AFF2_SPELL_DEFLECTION))
+	{
+		// No interaction
+		*target = victim;
+		return false;
+	}
+
+	// Find spell deflection
+	for (af = victim->affected; af != NULL; af = af->next) {
+		if (af->skill == gsk_spell_deflection)
+			break;
+	}
+
+	if (af == NULL)
+	{
+		// visibility is not an issue here
+		// No affect, just the bit, it has *no* power, just a message
+		if (IS_NULLSTR(skill->msg_defl_noaff_char))
+			act("{MThe spell strikes and penetrates your crimson aura!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		else
+			act(skill->msg_defl_noaff_char, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+
+		if (IS_NULLSTR(skill->msg_defl_noaff_room))
+			act("{MThe spell strikes and penetrates the crimson aura around $n!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		else
+			act(skill->msg_defl_noaff_room, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+
+		*target = victim;
+		return true;
+	}
+
+	lev = (af->level * 3)/4;
+	lev = URANGE(15, lev, 90);
+
+	if (number_percent() > lev ||
+		!p_percent_trigger(victim,NULL,NULL,NULL,ch, NULL, NULL,NULL,NULL,TRIG_SPELLREFLECT, NULL,lev,0,0,0,0) )
+	{
+		// Actual affect, can do some testing...
+		if (IS_NULLSTR(skill->msg_defl_aff_char))
+			act("{MThe crimson aura around you pulses!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+		else
+			act(skill->msg_defl_aff_char, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+
+		if (IS_NULLSTR(skill->msg_defl_aff_room))
+			act("{MThe crimson aura around $n pulses!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		else
+			act(skill->msg_defl_aff_room, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+
+		// The spell penetrates the aura
+		if (ch != NULL)	{
+			if (ch == victim)
+			{
+				if (IS_NULLSTR(skill->msg_defl_pass_self))
+					send_to_char("Your spell gets through your protective crimson aura!\n\r", ch);
+				else
+				{
+					send_to_char(skill->msg_defl_pass_self, ch);
+					send_to_char("\n\r", ch);
+				}
+			}
+			else
+			{
+				if (!IS_NULLSTR(skill->msg_defl_pass_char))
+					act("Your spell gets through $N's protective crimson aura!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				else
+					act(skill->msg_defl_pass_char, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				if (!IS_NULLSTR(skill->msg_defl_pass_vict))
+					act("$n's spell gets through your protective crimson aura!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+				else
+					act(skill->msg_defl_pass_vict, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+				if (!IS_NULLSTR(skill->msg_defl_pass_room))
+					act("$n's spell gets through $N's protective crimson aura!", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
+				else
+					act(skill->msg_defl_pass_room, ch, victim, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
+			}
+		}
+		*target = victim;
+		return true;
+	}
+
+	// Actual affect, can do some testing...
+	if (IS_NULLSTR(skill->msg_defl_aff_char))
+		act("{MThe crimson aura around you pulses!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+	else
+		act(skill->msg_defl_aff_char, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+
+	if (!only_visible ||
+		!(IS_SET(victim->affected_by[0], AFF_HIDE) || IS_SET(victim->affected_by[0], AFF_INVISIBLE) || IS_SET(victim->affected_by[0], AFF_SNEAK)))
+	{
+		if (IS_NULLSTR(skill->msg_defl_aff_room))
+			act("{MThe crimson aura around $n pulses!{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		else
+			act(skill->msg_defl_aff_room, victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	}
+
+	/* it bounces to a random person */
+	if (skill->target != TAR_IGNORE)
+		for (attempts = 0; attempts < 6; attempts++)
+		{
+			rch = get_random_char(NULL, NULL, victim->in_room, NULL);
+			if ((ch != NULL && rch == ch) ||
+				rch == victim ||
+				IS_AFFECTED2(rch, AFF2_SPELL_DEFLECTION) ||		/* Don't pick someone who has it to prevent bouncing in this mess */
+				(validate && !((validate)(ch, victim, rch, skill, af))) ||
+				((skill->target == TAR_CHAR_OFFENSIVE ||
+				skill->target == TAR_OBJ_CHAR_OFF) &&
+				ch != NULL && is_safe(ch, rch, FALSE)))
+			{
+				rch = NULL;
+				continue;
+			}
+		}
+
+	// Loses potency with time
+	af->level -= 10;
+	if (af->level <= 0) {
+		// No customization there
+		send_to_char("{MThe crimson aura around you vanishes.{x\n\r", victim);
+		// TODO: Need a way to only show messages in act() to those that can *SEE* all the actors
+		act("{MThe crimson aura around $n vanishes.{x", victim, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		affect_remove(victim, af);
+		*target = victim;
+		return true;
+	}
+
+	if (rch != NULL) {
+		if (ch != NULL) {
+			if (IS_NULLSTR(skill->msg_defl_refl_char))
+				act("{YYour spell bounces off onto $N!{x", ch,  rch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			else
+				act(skill->msg_defl_refl_char, ch,  rch, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			if (IS_NULLSTR(skill->msg_defl_refl_vict))
+				act("{Y$n's spell bounces off onto you!{x", ch, rch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+			else
+				act(skill->msg_defl_refl_vict, ch, rch, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+			if (IS_NULLSTR(skill->msg_defl_refl_room))
+				act("{Y$n's spell bounces off onto $N!{x", ch,  rch, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
+			else
+				act(skill->msg_defl_refl_room, ch,  rch, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
+		}
+	} else {
+		if (ch != NULL) {
+			if (IS_NULLSTR(skill->msg_defl_refl_none_char))
+				act("{YYour spell bounces around for a while, then dies out.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			else
+				act(skill->msg_defl_refl_none_char, ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			if (IS_NULLSTR(skill->msg_defl_refl_none_room))
+				act("{Y$n's spell bounces around for a while, then dies out.{x",ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+			else
+				act(skill->msg_defl_refl_none_room,ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		}
+	}
+	*target = rch;
+	return true;
+}
+
+
 // Returns TRUE if the spell got through.
 // TODO: make a copy for the various spell functions...
 bool check_spell_deflection(CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill, DEFLECT_FUN *deflect)

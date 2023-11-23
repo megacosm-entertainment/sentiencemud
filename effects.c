@@ -583,7 +583,7 @@ void shock_effect(void *vo,int level, int dam, int target)
 	int chance;
 	char *msg;
 
-	if (IS_OBJ_STAT(obj,ITEM_BURN_PROOF)
+	if (IS_OBJ_STAT(obj,ITEM_SHOCK_PROOF)
 	||  IS_OBJ_STAT(obj,ITEM_NOPURGE)
 	||  number_range(0,4) == 0)
 	    return;

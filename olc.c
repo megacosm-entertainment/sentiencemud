@@ -4067,6 +4067,7 @@ const struct olc_cmd_type skedit_table[] =
 	{	"ink",			skedit_inkfunc		},
 	{	"inks",			skedit_inks			},
 	{	"install",		skedit_install		},		// As opposed to create
+	{	"interrupt",	skedit_interruptfunc},
 	{	"level",		skedit_level		},
 	{	"list",			skedit_list			},
 	{	"mana",			skedit_mana			},
@@ -4077,6 +4078,7 @@ const struct olc_cmd_type skedit_table[] =
 	{	"preink",		skedit_preinkfunc	},
 	{	"prescribe",	skedit_prescribefunc},
 	{	"prespell",		skedit_prespellfunc	},
+	{	"pulse",		skedit_pulsefunc	},
 	{	"quaff",		skedit_quafffunc	},
 	{	"race",			skedit_race			},
 	{	"recite",		skedit_recitefunc	},

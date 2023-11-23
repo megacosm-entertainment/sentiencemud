@@ -75,6 +75,8 @@ ENT_FIELD entity_primary[] = {
 	{"register5",	ENTITY_REGISTER5,	ENT_NUMBER	},
 	{"mxp",			ENTITY_MXP,		ENT_STRING		},
 	{"tab",			ENTITY_MXP,		ENT_STRING		},
+	{"true",		ENTITY_TRUE,	ENT_BOOLEAN		},
+	{"false",		ENTITY_FALSE,	ENT_BOOLEAN		},
 	{NULL,		0,			ENT_UNKNOWN	}
 };
 

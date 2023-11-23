@@ -73,14 +73,14 @@ static struct message_handler_type msg_handlers[] =
 	{ 0,	"deflpassself",			"deflection pass (self) message",				"Deflection Pass (Self) Message",				"Deflection Pass (Self)",					&__static_skill.msg_defl_pass_self },
 	{ 1,	"deflpassvict",			"deflection pass (victim) message",				"Deflection Pass (Victim) Message",				"Deflection Pass (Victim)",					&__static_skill.msg_defl_pass_vict },
 	{ 6,	"deflreflchar",			"deflection reflect (character) message",		"Deflection Reflect (Character) Message",		"Deflection Reflect (Character)",			&__static_skill.msg_defl_refl_char },
-	{ 4,	"deflreflroom",			"deflection reflect (room) message",			"Deflection Reflect (Room) Message",			"Deflection Reflect (Room)",				&__static_skill.msg_defl_refl_room },
-	{ 7,	"deflreflselfchar",		"deflection reflect (self-character) message",	"Deflection Reflect (Self-Character) Message",	"Deflection Reflect (Self-Character)",		&__static_skill.msg_defl_refl_self_char },
-	{ 5,	"deflreflselfroom",		"deflection reflect (self-room) message",		"Deflection Reflect (Self-Room) Message",		"Deflection Reflect (Self-Room)",			&__static_skill.msg_defl_refl_self_room },
-	{ 10,	"deflreflvict",			"deflection reflect (victim) message",			"Deflection Reflect (Victim) Message",			"Deflection Reflect (Victim)",				&__static_skill.msg_defl_refl_vict },
-	{ 11,	"dispel",				"dispel message",								"Dispel Message",								"Dispel",									&__static_skill.msg_disp },
+	{ 4,	"deflreflnonechar",		"deflection reflect (none-character) message",	"Deflection Reflect (None-Character) Message",	"Deflection Reflect (None-Character)",		&__static_skill.msg_defl_refl_none_char },
+	{ 7,	"deflreflnoneroom",		"deflection reflect (none-room) message",		"Deflection Reflect (None-Room) Message",		"Deflection Reflect (None-Room)",			&__static_skill.msg_defl_refl_none_room },
+	{ 5,	"deflreflroom",			"deflection reflect (room) message",			"Deflection Reflect (Room) Message",			"Deflection Reflect (Room)",				&__static_skill.msg_defl_refl_room },
+	{ 9,	"deflreflvict",			"deflection reflect (victim) message",			"Deflection Reflect (Victim) Message",			"Deflection Reflect (Victim)",				&__static_skill.msg_defl_refl_vict },
+	{ 10,	"dispel",				"dispel message",								"Dispel Message",								"Dispel",									&__static_skill.msg_disp },
 	{ 8,	"noun",					"noun damage",									"Noun Damage",									"Noun Damage",								&__static_skill.noun_damage },
-	{ 12,	"object",				"wear off (object) message",					"Wear Off (Object) Message",					"Wear Off (Object)",						&__static_skill.msg_obj },
-	{ 9,	"wearoff",				"wear off message",								"Wear Off Message",								"Wear Off",									&__static_skill.msg_off },
+	{ 11,	"object",				"wear off (object) message",					"Wear Off (Object) Message",					"Wear Off (Object)",						&__static_skill.msg_obj },
+	{ 12,	"wearoff",				"wear off message",								"Wear Off Message",								"Wear Off",									&__static_skill.msg_off },
 	{ -1,	NULL, NULL, NULL, NULL, NULL }
 };
 
@@ -125,6 +125,8 @@ char *f##_func_display(t *func) \
 
 FUNC_LOOKUPS(prespell,SPELL_FUN,(!func || func == spell_null))
 FUNC_LOOKUPS(spell,SPELL_FUN,(!func || func == spell_null))
+FUNC_LOOKUPS(pulse,SPELL_FUN,(!func || func == spell_null))
+FUNC_LOOKUPS(interrupt,SPELL_FUN,(!func || func == spell_null))
 FUNC_LOOKUPS(prebrew,PREBREW_FUN,!func)
 FUNC_LOOKUPS(brew,BREW_FUN,!func)
 FUNC_LOOKUPS(quaff,QUAFF_FUN,!func)
@@ -207,6 +209,12 @@ void save_skill(FILE *fp, SKILL_DATA *skill)
 		if(skill->spell_fun && skill->spell_fun != spell_null)
 			fprintf(fp, "SpellFunc %s~\n", spell_func_name(skill->spell_fun));
 
+		if(skill->pulse_fun && skill->pulse_fun != spell_null)
+			fprintf(fp, "PulseFunc %s~\n", pulse_func_name(skill->pulse_fun));
+		
+		if(skill->interrupt_fun && skill->interrupt_fun != spell_null)
+			fprintf(fp, "InterruptFunc %s~\n", interrupt_func_name(skill->interrupt_fun));
+
 		if(skill->prebrew_fun)
 			fprintf(fp, "PreBrewFunc %s~\n", prebrew_func_name(skill->prebrew_fun));
 
@@ -286,8 +294,8 @@ void save_skill(FILE *fp, SKILL_DATA *skill)
 	fprintf(fp, "MsgDeflPassChar %s~\n", fix_string(skill->msg_defl_pass_char));
 	fprintf(fp, "MsgDeflPassVict %s~\n", fix_string(skill->msg_defl_pass_vict));
 	fprintf(fp, "MsgDeflPassRoom %s~\n", fix_string(skill->msg_defl_pass_room));
-	fprintf(fp, "MsgDeflReflSelfChar %s~\n", fix_string(skill->msg_defl_refl_self_char));
-	fprintf(fp, "MsgDeflReflSelfRoom %s~\n", fix_string(skill->msg_defl_refl_self_char));
+	fprintf(fp, "MsgDeflReflNoneChar %s~\n", fix_string(skill->msg_defl_refl_none_char));
+	fprintf(fp, "MsgDeflReflNoneRoom %s~\n", fix_string(skill->msg_defl_refl_none_char));
 	fprintf(fp, "MsgDeflReflChar %s~\n", fix_string(skill->msg_defl_refl_char));
 	fprintf(fp, "MsgDeflReflVict %s~\n", fix_string(skill->msg_defl_refl_vict));
 	fprintf(fp, "MsgDeflReflRoom %s~\n", fix_string(skill->msg_defl_refl_room));
@@ -449,6 +457,7 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 					if (!skill->brandish_fun)
 					{
 						// Complain
+						log_stringf("load_skill: Invalid BrandishFunc '%s' for skill '%s'", name, skill->name);
 					}
 					fMatch = true;
 					break;
@@ -462,6 +471,7 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 					if (!skill->brew_fun)
 					{
 						// Complain
+						log_stringf("load_skill: Invalid BrewFunc '%s' for skill '%s'", name, skill->name);
 					}
 					fMatch = true;
 					break;
@@ -483,6 +493,7 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 					if (!skill->equip_fun)
 					{
 						// Complain
+						log_stringf("load_skill: Invalid EquipFunc '%s' for skill '%s'", name, skill->name);
 					}
 					fMatch = true;
 					break;
@@ -514,6 +525,7 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 					if (!skill->ink_fun)
 					{
 						// Complain
+						log_stringf("load_skill: Invalid InkFunc '%s' for skill '%s'", name, skill->name);
 					}
 					fMatch = true;
 					break;
@@ -524,6 +536,19 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 					{
 						skill->inks[i][0] = stat_lookup(fread_string(fp), catalyst_types, CATALYST_NONE);
 						skill->inks[i][1] = fread_number(fp);
+					}
+					fMatch = true;
+					break;
+				}
+				if (!str_cmp(word, "InterruptFunc"))
+				{
+					char *name = fread_string(fp);
+
+					skill->interrupt_fun = interrupt_func_lookup(name);
+					if (!skill->interrupt_fun)
+					{
+						// Complain
+						log_stringf("load_skill: Invalid InterruptFunc '%s' for skill '%s'", name, skill->name);
 					}
 					fMatch = true;
 					break;
@@ -553,8 +578,8 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 				KEYS("MsgDeflPassChar", skill->msg_defl_pass_char, fread_string(fp));
 				KEYS("MsgDeflPassVict", skill->msg_defl_pass_vict, fread_string(fp));
 				KEYS("MsgDeflPassRoom", skill->msg_defl_pass_room, fread_string(fp));
-				KEYS("MsgDeflReflSelfChar", skill->msg_defl_refl_self_char, fread_string(fp));
-				KEYS("MsgDeflReflSelfRoom", skill->msg_defl_refl_self_char, fread_string(fp));
+				KEYS("MsgDeflReflNoneChar", skill->msg_defl_refl_none_char, fread_string(fp));
+				KEYS("MsgDeflReflNoneRoom", skill->msg_defl_refl_none_char, fread_string(fp));
 				KEYS("MsgDeflReflChar", skill->msg_defl_refl_char, fread_string(fp));
 				KEYS("MsgDeflReflVict", skill->msg_defl_refl_vict, fread_string(fp));
 				KEYS("MsgDeflReflRoom", skill->msg_defl_refl_room, fread_string(fp));
@@ -581,6 +606,7 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 					if (!skill->prebrew_fun)
 					{
 						// Complain
+						log_stringf("load_skill: Invalid PreBrewFunc '%s' for skill '%s'", name, skill->name);
 					}
 					fMatch = true;
 					break;
@@ -594,6 +620,7 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 					if (!skill->preimbue_fun)
 					{
 						// Complain
+						log_stringf("load_skill: Invalid PreImbueFunc '%s' for skill '%s'", name, skill->name);
 					}
 					fMatch = true;
 					break;
@@ -607,6 +634,7 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 					if (!skill->preink_fun)
 					{
 						// Complain
+						log_stringf("load_skill: Invalid PreInkFunc '%s' for skill '%s'", name, skill->name);
 					}
 					fMatch = true;
 					break;
@@ -619,6 +647,7 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 					if (!skill->prescribe_fun)
 					{
 						// Complain
+						log_stringf("load_skill: Invalid PreScribeFunc '%s' for skill '%s'", name, skill->name);
 					}
 					fMatch = true;
 					break;
@@ -631,6 +660,20 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 					if (!skill->prespell_fun)
 					{
 						// Complain
+						log_stringf("load_skill: Invalid PreSpellFunc '%s' for skill '%s'", name, skill->name);
+					}
+					fMatch = true;
+					break;
+				}
+				if (!str_cmp(word, "PulseFunc"))
+				{
+					char *name = fread_string(fp);
+
+					skill->pulse_fun = pulse_func_lookup(name);
+					if (!skill->pulse_fun)
+					{
+						// Complain
+						log_stringf("load_skill: Invalid PulseFunc '%s' for skill '%s'", name, skill->name);
 					}
 					fMatch = true;
 					break;
@@ -646,6 +689,7 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 					if (!skill->quaff_fun)
 					{
 						// Complain
+						log_stringf("load_skill: Invalid QuaffFunc '%s' for skill '%s'", name, skill->name);
 					}
 					fMatch = true;
 					break;
@@ -676,6 +720,7 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 					if (!skill->recite_fun)
 					{
 						// Complain
+						log_stringf("load_skill: Invalid ReciteFunc '%s' for skill '%s'", name, skill->name);
 					}
 					fMatch = true;
 					break;
@@ -692,6 +737,7 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 					if (!skill->scribe_fun)
 					{
 						// Complain
+						log_stringf("load_skill: Invalid ScribeFunc '%s' for skill '%s'", name, skill->name);
 					}
 					fMatch = true;
 					break;
@@ -703,7 +749,7 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 					skill->spell_fun = spell_func_lookup(name);
 					if (!skill->spell_fun)
 					{
-						// Complain
+						log_stringf("load_skill: Invalid SpellFunc '%s' for skill '%s'", name, skill->name);
 					}
 					fMatch = true;
 					break;
@@ -732,7 +778,7 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 					skill->touch_fun = touch_func_lookup(name);
 					if (!skill->touch_fun)
 					{
-						// Complain
+						log_stringf("load_skill: Invalid TouchFunc '%s' for skill '%s'", name, skill->name);
 					}
 					fMatch = true;
 					break;
@@ -759,6 +805,22 @@ SKILL_DATA *load_skill(FILE *fp, bool isspell)
 					if (index >= 1 && index <= MAX_SKILL_VALUES)
 						skill->valuenames[index - 1] = name;
 
+					fMatch = true;
+					break;
+				}
+				break;
+
+			case 'Z':
+				if (!str_cmp(word, "ZapFunc"))
+				{
+					char *name = fread_string(fp);
+
+					skill->zap_fun = zap_func_lookup(name);
+					if (!skill->zap_fun)
+					{
+						// Complain
+						log_stringf("load_skill: Invalid ZapFunc '%s' for skill '%s'", name, skill->name);
+					}
 					fMatch = true;
 					break;
 				}
@@ -3969,7 +4031,10 @@ SKEDIT( skedit_show )
 
 			add_buf(buffer, " {W- {xActions:\n\r");
 			skedit_show_trigger(ch, buffer, skill->token->progs, TRIG_TOKEN_BRANDISH,	"brandish",		"   {W+ {xBrandish:");
+			skedit_show_trigger(ch, buffer, skill->token->progs, TRIG_TOKEN_EQUIP,		"equip",		"   {W+ {xEquip:");
+			skedit_show_trigger(ch, buffer, skill->token->progs, TRIG_TOKEN_INTERRUPT,	"interrupt",	"   {W+ {xInterrupt:");
 			skedit_show_trigger(ch, buffer, skill->token->progs, TRIG_PRESPELL,			"prespell",		"   {W+ {xPrespell:");
+			skedit_show_trigger(ch, buffer, skill->token->progs, TRIG_TOKEN_PULSE,		"pulse",		"   {W+ {xPulse:");
 			skedit_show_trigger(ch, buffer, skill->token->progs, TRIG_TOKEN_QUAFF,		"quaff",		"   {W+ {xQuaff:");
 			skedit_show_trigger(ch, buffer, skill->token->progs, TRIG_TOKEN_RECITE,		"recite",		"   {W+ {xRecite:");
 			skedit_show_trigger(ch, buffer, skill->token->progs, TRIG_SPELL,			"spell",		"   {W+ {xSpell:");
@@ -3990,12 +4055,15 @@ SKEDIT( skedit_show )
 
 			add_buf(buffer, "\n\r {w- {xActions:\n\r");
 			olc_buffer_show_string(ch, buffer, NULL,										"brandish",		"   {W+ {xBrandish:", 20, "XDW");
+			olc_buffer_show_string(ch, buffer, NULL,										"equip",		"   {W+ {xEquip:", 20, "XDW");
+			olc_buffer_show_string(ch, buffer, interrupt_func_display(skill->interrupt_fun),"interrupt",	"   {W+ {xInterrupt:", 20, "XDW");
 			olc_buffer_show_string(ch, buffer, prespell_func_display(skill->prespell_fun),	"prespell",		"   {W+ {xPrespell:", 20, "XDW");
+			olc_buffer_show_string(ch, buffer, pulse_func_display(skill->pulse_fun),		"pulse",		"   {W+ {xPulse:", 20, "XDW");
 			olc_buffer_show_string(ch, buffer, quaff_func_display(skill->quaff_fun),		"quaff",		"   {W+ {xQuaff:", 20, "XDW");
 			olc_buffer_show_string(ch, buffer, recite_func_display(skill->recite_fun),		"recite",		"   {W+ {xRecite:", 20, "XDW");
 			olc_buffer_show_string(ch, buffer, spell_func_display(skill->spell_fun),		"spell",		"   {W+ {xSpell:", 20, "XDW");
 			olc_buffer_show_string(ch, buffer, touch_func_display(skill->touch_fun),		"touch",		"   {W+ {xTouch:", 20, "XDW");
-			olc_buffer_show_string(ch, buffer, NULL,										"zap",			"   {W+ {xZap:", 20, "XDW");
+			olc_buffer_show_string(ch, buffer, zap_func_display(skill->zap_fun),			"zap",			"   {W+ {xZap:", 20, "XDW");
 		}
 		break;
 	case 2: // Magic
@@ -4405,7 +4473,7 @@ SKEDIT( skedit_##f##func )	\
 			t *func = f##_func_lookup(argument); \
 			if(!func) \
 			{ \
-				send_to_char("Syntax:  skedit " #f " {R<function>{x\n\r", ch); \
+				send_to_char("Syntax:  skedit " #f " set {R<function>{x\n\r", ch); \
 				send_to_char("Invalid " #f " function.  Use '? " #f "_func' for a list of functions.\n\r", ch); \
 				return false; \
 			} \
@@ -4430,6 +4498,8 @@ SKEDIT( skedit_##f##func )	\
 
 SKEDIT_FUNC(prespell,PRESPELL,SPELL_FUN,NULL)
 SKEDIT_FUNC(spell,SPELL,SPELL_FUN,NULL)
+SKEDIT_FUNC(pulse,TOKEN_PULSE,SPELL_FUN,NULL)
+SKEDIT_FUNC(interrupt,TOKEN_INTERRUPT,SPELL_FUN,NULL)
 
 SKEDIT_FUNC(prebrew,TOKEN_PREBREW,PREBREW_FUN,NULL)
 SKEDIT_FUNC(brew,TOKEN_BREW,BREW_FUN,NULL)
@@ -5209,7 +5279,7 @@ SKEDIT( skedit_inks )
 	argument = one_argument(argument, arg);
 	if ((catalyst = stat_lookup(arg, catalyst_types, NO_FLAG)) == NO_FLAG)
 	{
-		send_to_char("Syntax: skedit inks {R<1-3>{x none\n\r", ch);
+		send_to_char("Syntax: skedit inks <1-3> {Rnone{x\n\r", ch);
 		send_to_char("        skedit inks <1-3> {R<catalyst>{x[ <amount+>]\n\r", ch);
 		send_to_char("Invalid catalyst type.  Use '? catalyst' for list of catalyst types.\n\r", ch);
 		return false;

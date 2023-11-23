@@ -615,3 +615,5 @@ DECLARE_DO_FUN( do_extinguish );
 //DECLARE_DO_FUN( do_speed	);
 //DECLARE_DO_FUN( do_steer	);
 //DECLARE_DO_FUN( do_navigate );
+
+DECLARE_DO_FUN( do_immstrike );

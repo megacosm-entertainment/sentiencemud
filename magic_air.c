@@ -33,23 +33,27 @@ SPELL_FUNC(spell_faerie_fog)
 		if (ich->invis_level > 0)
 			continue;
 
-		if (ich == ch || saves_spell(level, ich,DAM_OTHER))
+		if (ich == ch || saves_spell(level, ich,DAM_AIR))
 			continue;
 
 		// Umm, O.o  Wouldn't this expose something that's hidden?
-		if (!check_spell_deflection(ch, ich, skill, NULL))
-			continue;
+		CHAR_DATA *tch;
+		check_spell_deflection_new(ch, ich, skill, true, &tch, NULL);
+		if (!tch) continue;
+ 
+		//if (!check_spell_deflection(ch, ich, skill, NULL))
+		//	continue;
 
-		affect_strip(ich, gsk_invis);
-		affect_strip(ich, gsk_mass_invis);
-		affect_strip(ich, gsk_sneak);
+		affect_strip(tch, gsk_invis);
+		affect_strip(tch, gsk_mass_invis);
+		affect_strip(tch, gsk_sneak);
 
-		REMOVE_BIT(ich->affected_by[0], AFF_HIDE);
-		REMOVE_BIT(ich->affected_by[0], AFF_INVISIBLE);
-		REMOVE_BIT(ich->affected_by[0], AFF_SNEAK);
+		REMOVE_BIT(tch->affected_by[0], AFF_HIDE);
+		REMOVE_BIT(tch->affected_by[0], AFF_INVISIBLE);
+		REMOVE_BIT(tch->affected_by[0], AFF_SNEAK);
 
-		act("$n is revealed!", ich, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
-		send_to_char("You are revealed!\n\r", ich);
+		act("$n is revealed!", tch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+		send_to_char("You are revealed!\n\r", tch);
 	}
 	return TRUE;
 }
@@ -162,6 +166,16 @@ SPELL_FUNC(spell_underwater_breathing)
 	return TRUE;
 }
 
+static bool __validate_wind_of_confusion(CHAR_DATA *ch, CHAR_DATA *victim, CHAR_DATA *target, SKILL_DATA *skill, AFFECT_DATA *af)
+{
+	if (is_same_group(ch, target)) return false;
+
+	if (!ch->fighting && !is_same_group(ch->fighting, target))
+		return false;
+
+	return true;
+}
+
 SPELL_FUNC(spell_wind_of_confusion)
 {
 	CHAR_DATA *vch;
@@ -171,17 +185,21 @@ SPELL_FUNC(spell_wind_of_confusion)
 
 	for (vch = ch->in_room->people; vch; vch = vch->next_in_room) {
 		if (!is_same_group(ch, vch) && ch->fighting && is_same_group(ch->fighting, vch)) {
-			if (!check_spell_deflection(ch, vch, skill, NULL))
-				continue;
+			CHAR_DATA *tch;
+			check_spell_deflection_new(ch, vch, skill, false, &tch, __validate_wind_of_confusion);
+			if (!tch) continue;
 
-			if (saves_spell(level, vch, DAM_NONE)) {
-				send_to_char("You are unaffected by the spell.\n\r", vch);
+			//if (!check_spell_deflection(ch, vch, skill, NULL))
+			//	continue;
+
+			if (saves_spell(level, tch, DAM_AIR)) {
+				send_to_char("You are unaffected by the spell.\n\r", tch);
 				continue;
 			}
 
-			if (vch->master) {
-				stop_follower(vch,TRUE);
-				die_follower(vch);
+			if (tch->master) {
+				stop_follower(tch,TRUE);
+				die_follower(tch);
 			}
 		}
 	}

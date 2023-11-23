@@ -4644,17 +4644,6 @@ void do_recite(CHAR_DATA *ch, char *argument)
 }
 
 
-void spell_deflected_recite(CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill, AFFECT_DATA *af)
-{
-#if 0
-	// Need a deflection function...
-	if (skill->token)
-		p_token_index_percent_trigger(skill->token, ch != NULL ? ch : victim, victim, NULL, NULL, NULL, TRIG_TOKEN_RECITE, NULL, 0,0,0,0,0, (ch != NULL ? ch->tot_level : af->level),0,0,0,0);
-	else if (skill->recite_fun)
-		(*skill->recite_fun)(skill, ch != NULL ? ch->tot_level : af->level, (ch != NULL ? ch : victim), victim, TARGET_CHAR, WEAR_NONE);
-#endif
-}
-
 void obj_recite_spell(OBJ_DATA *scroll, SKILL_DATA *skill, int level, CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *obj)
 {
     void *vo;
@@ -4790,22 +4779,23 @@ void obj_recite_spell(OBJ_DATA *scroll, SKILL_DATA *skill, int level, CHAR_DATA 
 	    break;
     }
 
+	// Does the spell need to be checked for deflections to switch victim?
+	if (target == TARGET_CHAR && victim != NULL)
+	{
+		CHAR_DATA *tch;
+		check_spell_deflection_new(ch, victim, skill, false, &tch, NULL);
+		if (!tch)
+			return;
+		
+		victim = tch;
+		vo = (void *) tch;
+	}
+
 	//char _buf[MSL];
-    if (target != TARGET_CHAR || victim == NULL || check_spell_deflection(ch, victim, skill, spell_deflected_recite))
-    {
-		//sprintf(_buf, "Reciting %s...\n\r", skill->name);
-		//send_to_char(_buf, ch);
-		if (skill->token)
-		{
-			//sprintf(_buf, "%s: victim = %s", skill->name, (victim?victim->name:"(null)"));
-			//send_to_char(_buf, ch);
-			//sprintf(_buf, "%s: obj = %s", skill->name, (obj?obj->short_descr:"(null)"));
-			//send_to_char(_buf, ch);
-			p_token_index_percent_trigger(skill->token, ch, victim, NULL, scroll, obj, TRIG_TOKEN_RECITE, NULL, 0,0,0,0,0, level,0,0,0,0);
-		}
-		else
-    		(*(skill->recite_fun)) (skill, level, ch, scroll, vo, target);
-    }
+	if (skill->token)
+		p_token_index_percent_trigger(skill->token, ch, victim, NULL, scroll, obj, TRIG_TOKEN_RECITE, NULL, 0,0,0,0,0, level,0,0,0,0);
+	else
+		(*(skill->recite_fun)) (skill, level, ch, scroll, vo, target);
 
     if ((skill->target == TAR_CHAR_OFFENSIVE || (skill->target == TAR_OBJ_CHAR_OFF && target == TARGET_CHAR)) &&
 		victim != NULL && victim != ch && victim->master != ch)
@@ -5052,14 +5042,6 @@ void do_brandish(CHAR_DATA *ch, char *argument)
     }
 }
 
-void spell_deflected_zap(CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill, AFFECT_DATA *af)
-{
-	if (skill->token)
-		p_token_index_percent_trigger(skill->token, ch != NULL ? ch : victim, victim, NULL, NULL, NULL, TRIG_TOKEN_ZAP, NULL, 0,0,0,0,0, (ch != NULL ? ch->tot_level : af->level),0,0,0,0);
-	else if (skill->spell_fun && skill->spell_fun != spell_null)
-		(*skill->spell_fun)(skill, ch != NULL ? ch->tot_level : af->level, ch != NULL ? ch : victim, victim, TARGET_CHAR, WEAR_NONE);
-}
-
 void obj_zap_spell(OBJ_DATA *wand, SKILL_DATA *skill, int level, CHAR_DATA *ch, CHAR_DATA *victim, OBJ_DATA *obj)
 {
     void *vo;
@@ -5195,22 +5177,22 @@ void obj_zap_spell(OBJ_DATA *wand, SKILL_DATA *skill, int level, CHAR_DATA *ch, 
 	    break;
     }
 
-	//char _buf[MSL];
-    if (target != TARGET_CHAR || victim == NULL || check_spell_deflection(ch, victim, skill, spell_deflected_zap))
-    {
-		//sprintf(_buf, "Reciting %s...\n\r", skill->name);
-		//send_to_char(_buf, ch);
-		if (skill->token)
-		{
-			//sprintf(_buf, "%s: victim = %s", skill->name, (victim?victim->name:"(null)"));
-			//send_to_char(_buf, ch);
-			//sprintf(_buf, "%s: obj = %s", skill->name, (obj?obj->short_descr:"(null)"));
-			//send_to_char(_buf, ch);
-			p_token_index_percent_trigger(skill->token, ch, victim, NULL, wand, obj, TRIG_TOKEN_ZAP, NULL, 0,0,0,0,0, level,0,0,0,0);
-		}
-		else
-    		(*(skill->zap_fun)) (skill, level, ch, wand, vo, target);
-    }
+	// Does the spell need to be checked for deflections to switch victim?
+	if (target == TARGET_CHAR && victim != NULL)
+	{
+		CHAR_DATA *tch;
+		check_spell_deflection_new(ch, victim, skill, false, &tch, NULL);
+		if (!tch)
+			return;
+		
+		victim = tch;
+		vo = (void *) tch;
+	}
+
+	if (skill->token)
+		p_token_index_percent_trigger(skill->token, ch, victim, NULL, wand, obj, TRIG_TOKEN_ZAP, NULL, 0,0,0,0,0, level,0,0,0,0);
+	else
+		(*(skill->zap_fun)) (skill, level, ch, wand, vo, target);
 
     if ((skill->target == TAR_CHAR_OFFENSIVE || (skill->target == TAR_OBJ_CHAR_OFF && target == TARGET_CHAR)) &&
 		victim != NULL && victim != ch && victim->master != ch)

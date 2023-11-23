@@ -955,6 +955,7 @@ SCRIPT_CMD(do_opcast)
 	if (target == TARGET_CHAR && vch) {
 		if (is_affected(vch, skill)) return;
 
+		// TODO: Fix this
 		if (!check_spell_deflection(proxy, vch, skill, NULL)) {
 			extract_char(proxy, TRUE);
 			return;

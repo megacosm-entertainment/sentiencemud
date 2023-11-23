@@ -66,6 +66,22 @@ struct olc_help_type
 #define STRUCT_CLASSES	10
 #define STRUCT_SUBCLASSES 11
 #define STRUCT_REMORT_SUBCLASSES 12
+#define STRUCT_PREBREWFUNC		13
+#define STRUCT_BREWFUNC			14
+#define STRUCT_QUAFFFUNC		15
+#define STRUCT_PRESCRIBEFUNC	16
+#define STRUCT_SCRIBEFUNC		17
+#define STRUCT_RECITEFUNC		18
+#define STRUCT_PREINKFUNC		19
+#define STRUCT_INKFUNC			20
+#define STRUCT_TOUCHFUNC		21
+#define STRUCT_PREIMBUEFUNC		22
+#define STRUCT_IMBUEFUNC		23
+#define STRUCT_BRANDISHFUNC		24
+#define STRUCT_EQUIPFUNC		25
+#define STRUCT_ZAPFUNC			26
+
+#define STRUCT_ARTIFICING		27
 
 struct trigger_type dummy_triggers[1];
 
@@ -84,6 +100,7 @@ const struct olc_help_type help_table[] =
 	{	"armour",				STRUCT_FLAGS,		ac_type,					"Ac for different attacks."	},
 	{	"blueprint",			STRUCT_FLAGS,		blueprint_flags,			"Blueprint flags" },
 	{	"book",					STRUCT_FLAGS,		book_flags,					"Book flags."	},
+	{	"brew_func",			STRUCT_ARTIFICING,	brew_func_table,			"Brew Functions (SkEdit)"},
 	{	"catalyst",				STRUCT_FLAGS,		catalyst_types,				"Catalyst types."	},
 	{	"classes",				STRUCT_CLASSES,		NULL,						"Classes" },
 	{ 	"compartment",			STRUCT_FLAGS,		compartment_flags,			"Compartment Flags."},
@@ -94,6 +111,7 @@ const struct olc_help_type help_table[] =
 	{	"dprog",				STRUCT_TRIGGERS,	dummy_triggers,				"DungeonProgram types."	},
 	{	"death_release",		STRUCT_FLAGS,		death_release_modes,		"Dungeon Death Release mobes."},
 	{	"dungeon",				STRUCT_FLAGS,		dungeon_flags,				"Dungeon Flags"	},
+//	{	"equip_func",			STRUCT_ARTIFICING,	equip_func_table,			"Equip Functions (SkEdit)"},
 	{	"exit",					STRUCT_FLAGS,		exit_flags,					"Exit types."	},
 	{	"extra",				STRUCT_FLAGBANK,	extra_flagbank,				"Object attributes."	},
 	{	"fluid_con",			STRUCT_FLAGS,		fluid_con_flags,			"Fluid Container status."	},
@@ -119,13 +137,20 @@ const struct olc_help_type help_table[] =
 	{	"portal_exit",			STRUCT_FLAGS,		portal_exit_flags,			"Exit (Portal) types."	},
 	{	"portal_type",			STRUCT_FLAGS,		portal_gatetype,			"Portal gate types"},
 	{	"position",				STRUCT_FLAGS,		position_flags,				"Mobile positions."	},
-	{	"prespell_func",		STRUCT_SPELLFUNC,	prespell_func_table,		"Prespell functions"},
+	{	"prebrew_func",			STRUCT_ARTIFICING,	prebrew_func_table,			"PreBrew Functions (SkEdit)"},
+//	{	"preimbue_func",		STRUCT_ARTIFICING,	preimbue_func_table,		"PreImbue Functions (SkEdit)"},
+	{	"preink_func",			STRUCT_ARTIFICING,	preink_func_table,			"PreInk Functions (SkEdit)"},
+	{	"prescribe_func",		STRUCT_ARTIFICING,	prescribe_func_table,		"PreScribe Functions (SkEdit)"},
+	{	"prespell_func",		STRUCT_SPELLFUNC,	prespell_func_table,		"Prespell functions (SkEdit)"},
 	{	"projectflags",			STRUCT_FLAGS,		project_flags,				"Project flags."	},
+	{	"quaff_func",			STRUCT_ARTIFICING,	quaff_func_table,			"Quaff Functions (SkEdit)"},
 	{	"ranged",				STRUCT_FLAGS,		ranged_weapon_class,		"Ranged	weapon types."	},
+	{	"recite_func",			STRUCT_ARTIFICING,	recite_func_table,			"Recite Functions (SkEdit)"},
 	{	"remort_sublasses",		STRUCT_REMORT_SUBCLASSES,		NULL,			"Remort Subclasses" },
 	{	"res",					STRUCT_FLAGS,		res_flags,					"Mobile resistance."	},
 	{	"room",					STRUCT_FLAGBANK,	room_flagbank,				"Room attributes."	},
 	{	"rprog",				STRUCT_TRIGGERS,	dummy_triggers,				"RoomProgram types."	},
+	{	"scribe_func",			STRUCT_ARTIFICING,	scribe_func_table,			"Scribe Functions (SkEdit)"},
 	{	"scriptflags",			STRUCT_FLAGS,		script_flags,				"Script Flags {D({Wrestricted{D){x."	},
 	{   "script_spaces",		STRUCT_FLAGS,		script_spaces,				"Script spaces"	},
 	{	"scroll",				STRUCT_FLAGS,		scroll_flags,				"Scroll flags."	},
@@ -141,13 +166,14 @@ const struct olc_help_type help_table[] =
 	{	"skillentry",			STRUCT_FLAGS,		skill_entry_flags,			"Skill entry flags."	},
 	{	"song_targets",			STRUCT_FLAGS,		song_target_types,			"Song Target Types."	},
 	{	"spec",					STRUCT_SPEC,		spec_table,					"Available special programs. {D(DEPRECATED){x"	},
-	{	"spell_func",			STRUCT_SPELLFUNC,	spell_func_table,			"Spell functions"},
+	{	"spell_func",			STRUCT_SPELLFUNC,	spell_func_table,			"Spell functions (SkEdit)"},
 	{	"spell_positions",		STRUCT_FLAGS,		spell_position_flags,		"Spell minimum positions."	},
 	{	"spell_targets",		STRUCT_FLAGS,		spell_target_types,			"Spell Target Types."	},
 	{	"spells",				STRUCT_SKILL,		NULL,						"Names of current spells."	},
 	{	"sublasses",			STRUCT_SUBCLASSES,		NULL,					"Subclasses" },
 	{	"tattoo_loc",			STRUCT_FLAGS,		tattoo_loc_flags,			"Tattoo Locations."},
 	{	"tokenflags",			STRUCT_FLAGS,		token_flags,				"Token flags."	},
+	{	"touch_func",			STRUCT_ARTIFICING,	touch_func_table,			"Touch Functions (SkEdit)"},
 	{	"tprog",				STRUCT_TRIGGERS,	dummy_triggers,				"TokenProgram types."	},
 	{	"trigger_slots",		STRUCT_FLAGS,		trigger_slots,				"Trigger slots."},
 	{	"trigger_types",		STRUCT_FLAGS,		builtin_trigger_types,		"Built-in trigger types."},
@@ -159,6 +185,7 @@ const struct olc_help_type help_table[] =
 	{	"wear-loc",				STRUCT_FLAGS,		wear_loc_flags,				"Where mobile wears object."	},
 	{	"wilderness_regions",	STRUCT_FLAGS,		wilderness_regions,			"wilderness region names"},
 	{	"wtype",				STRUCT_FLAGS,		weapon_type2,				"Special weapon type."	},
+	{	"zap_func",				STRUCT_ARTIFICING,	zap_func_table,				"Zap Functions (SkEdit)"},
 	{	NULL,					STRUCT_FLAGS,		NULL,						NULL									}
 };
 
@@ -424,6 +451,32 @@ void show_subclasses(CHAR_DATA *ch, bool remort)
     return;
 }
 
+void show_artificing(CHAR_DATA *ch, const void *structure)
+{
+    char buf  [ MAX_STRING_LENGTH ];
+    char buf1 [ MAX_STRING_LENGTH ];
+    int  col;
+	const struct artifice_func_type *table = (const struct artifice_func_type *)structure;
+
+    buf1[0] = '\0';
+    col = 0;
+    send_to_char("Functions available for use:\n\r", ch);
+    for (int i = 0; table[i].name != NULL; i++)
+    {
+		sprintf(buf, "%-19.18s", table[i].name);
+		strcat(buf1, buf);
+		if (++col % 4 == 0)
+	    	strcat(buf1, "\n\r");
+    }
+
+    if (col % 4 != 0)
+	strcat(buf1, "\n\r");
+
+    send_to_char(buf1, ch);
+    return;
+}
+
+
 // Displays help for many tables used in OLC.
 bool show_help(CHAR_DATA *ch, char *argument)
 {
@@ -516,6 +569,10 @@ bool show_help(CHAR_DATA *ch, char *argument)
 
 				case STRUCT_SUBCLASSES:
 					show_subclasses(ch, false);
+					break;
+				
+				case STRUCT_ARTIFICING:
+					show_artificing(ch, help_table[cnt].structure);
 					break;
 
 				case STRUCT_FLAGS:
@@ -10597,7 +10654,7 @@ OEDIT(oedit_type_container)
 	return FALSE;
 }
 
-bool olc_can_brew_spell(SKILL_DATA *skill)
+bool olc_can_quaff_spell(SKILL_DATA *skill)
 {
 	if (!is_skill_spell(skill)) return false;
 
@@ -10991,9 +11048,9 @@ OEDIT(oedit_type_fluid_container)
 						return false;
 					}
 
-					if (!olc_can_brew_spell(skill))
+					if (!olc_can_quaff_spell(skill))
 					{
-						send_to_char("That spell cannot be brewed.\n\r", ch);
+						send_to_char("That spell cannot be quaffed.\n\r", ch);
 						return false;
 					}
 				}
@@ -13437,7 +13494,7 @@ OEDIT(oedit_type_portal)
 	return FALSE;
 }
 
-bool olc_can_scribe_spell(SKILL_DATA *skill)
+bool olc_can_recite_spell(SKILL_DATA *skill)
 {
 	if (!is_skill_spell(skill)) return false;
 
@@ -13543,9 +13600,9 @@ OEDIT(oedit_type_scroll)
 						return false;
 					}
 
-					if (!olc_can_scribe_spell(skill))
+					if (!olc_can_recite_spell(skill))
 					{
-						send_to_char("That spell cannot be scribed.\n\r", ch);
+						send_to_char("That spell cannot be recited from a scroll.\n\r", ch);
 						return false;
 					}
 				}
@@ -13632,7 +13689,7 @@ OEDIT(oedit_type_scroll)
 	return false;
 }
 
-bool olc_can_ink_spell(SKILL_DATA *skill)
+bool olc_can_touch_spell(SKILL_DATA *skill)
 {
 	if (!is_skill_spell(skill)) return false;
 
@@ -13756,9 +13813,9 @@ OEDIT(oedit_type_tattoo)
 						return false;
 					}
 
-					if (!olc_can_ink_spell(skill))
+					if (!olc_can_touch_spell(skill))
 					{
-						send_to_char("That spell cannot be inked into a tattoo.\n\r", ch);
+						send_to_char("That spell cannot be used in a tattoo.\n\r", ch);
 						return false;
 					}
 				}
@@ -13845,6 +13902,17 @@ OEDIT(oedit_type_tattoo)
 	return false;
 }
 
+
+bool olc_can_zap_spell(SKILL_DATA *skill)
+{
+	if (!is_skill_spell(skill)) return false;
+
+	if (skill->token)
+		return get_script_token(skill->token, TRIG_TOKEN_ZAP, TRIGSLOT_SPELL) != NULL;
+	else
+		return skill->zap_fun != NULL;
+}
+
 OEDIT(oedit_type_wand)
 {
 	OBJ_INDEX_DATA *pObj;
@@ -13858,7 +13926,7 @@ OEDIT(oedit_type_wand)
 			send_to_char("         wand maxcharges <#charges|unlimited>\n\r", ch);
 			send_to_char("         wand recharge <#rate>\n\r", ch);
 			send_to_char("         wand spell clear\n\r", ch);
-			send_to_char("         wand spell add <spell name> <spell level> <random>\n\r", ch);
+			send_to_char("         wand spell add <spell name> <spell level>\n\r", ch);
 			send_to_char("         wand spell remove <#>\n\r", ch);
 
 			if (pObj->item_type != ITEM_WAND)
@@ -13987,6 +14055,12 @@ OEDIT(oedit_type_wand)
 					if (!IS_VALID(skill) || !is_skill_spell(skill))
 					{
 						send_to_char("That's not a spell.\n\r", ch);
+						return false;
+					}
+
+					if(!olc_can_zap_spell(skill))
+					{
+						send_to_char("That spell cannot be used in wand.\n\r", ch);
 						return false;
 					}
 				}

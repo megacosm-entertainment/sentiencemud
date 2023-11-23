@@ -104,7 +104,7 @@ struct zap_func_type
 struct artifice_func_type
 {
 	char *name;
-	ARTIFICE_FUN *func;
+	void *func;
 };
 
 struct gsn_type
@@ -388,6 +388,8 @@ extern const struct gsn_type gsn_table[];
 
 extern const struct spell_func_type prespell_func_table[];
 extern const struct spell_func_type spell_func_table[];
+extern const struct spell_func_type pulse_func_table[];
+extern const struct spell_func_type interrupt_func_table[];
 extern const struct prebrew_func_type prebrew_func_table[];
 extern const struct brew_func_type brew_func_table[];
 extern const struct quaff_func_type quaff_func_table[];

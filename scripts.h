@@ -617,6 +617,8 @@ enum entity_primary_enum {
 	ENTITY_REGISTER4,
 	ENTITY_REGISTER5,
 	ENTITY_MXP,
+	ENTITY_TRUE,
+	ENTITY_FALSE,
 };
 
 enum entity_variable_types_enum {
@@ -3231,6 +3233,8 @@ SCRIPT_CMD(scriptcmd_alterobjmt);
 SCRIPT_CMD(scriptcmd_stringobjmt);
 SCRIPT_CMD(scriptcmd_multitype);
 SCRIPT_CMD(scriptcmd_reassign);
+
+SCRIPT_CMD(tokencmd_spelldeflection);
 
 bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silent);
 bool olc_varclear(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silent);

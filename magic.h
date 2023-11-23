@@ -247,6 +247,7 @@ DECLARE_RECITE_FUN ( recite_word_of_recall );
 
 // TOUCH
 DECLARE_TOUCH_FUN ( touch_armour );
+DECLARE_TOUCH_FUN ( touch_chain_lightning );
 DECLARE_TOUCH_FUN ( touch_fly );
 DECLARE_TOUCH_FUN ( touch_haste );
 

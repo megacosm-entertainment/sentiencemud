@@ -627,6 +627,9 @@ DECLARE_OLC_FUN( skedit_display );  // For things like "improved invis" for "imp
 DECLARE_OLC_FUN( skedit_group );
 DECLARE_OLC_FUN( skedit_prespellfunc );
 DECLARE_OLC_FUN( skedit_spellfunc );
+DECLARE_OLC_FUN( skedit_pulsefunc );
+DECLARE_OLC_FUN( skedit_interruptfunc );
+
 // TODO: Add editor functions for handling the different functions necessary for artificing (brewing, scribing, etc) that are/will be available via tokens so they work for "built-in" spells
 DECLARE_OLC_FUN( skedit_prebrewfunc );
 DECLARE_OLC_FUN( skedit_brewfunc );

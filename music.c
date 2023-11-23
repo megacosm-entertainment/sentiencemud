@@ -374,8 +374,26 @@ void music_end( CHAR_DATA *ch )
 					{
 						if(skill->target == TAR_CHAR_OFFENSIVE || skill->target == TAR_OBJ_CHAR_DEF)
 							offensive = TRUE;
-						if (check_spell_deflection(ch, mob, skill, NULL))
-							(*skill->spell_fun) (skill, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
+
+						// Does the spell need to be checked for deflections to switch victim?
+						CHAR_DATA *tch;
+						check_spell_deflection_new(ch, mob, skill, false, &tch, NULL);
+						if (!tch)
+							return;
+
+						// The rest of the song bounces, not just the one spell
+						if (mob != tch)
+						{
+							mob = tch;
+							id[0] = mob->id[0];
+							id[1] = mob->id[1];
+							wasdead = mob->dead;
+						}
+
+					if (skill->token)
+						p_token_index_percent_trigger(skill->token, ch, mob, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0);
+					else
+						(*skill->spell_fun) (skill, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
 					}
 				}
 
@@ -387,7 +405,25 @@ void music_end( CHAR_DATA *ch )
 					{
 						if(skill->target == TAR_CHAR_OFFENSIVE || skill->target == TAR_OBJ_CHAR_DEF)
 							offensive = TRUE;
-						if (check_spell_deflection(ch, mob, skill, NULL))
+
+						// Does the spell need to be checked for deflections to switch victim?
+						CHAR_DATA *tch;
+						check_spell_deflection_new(ch, mob, skill, false, &tch, NULL);
+						if (!tch)
+							return;
+
+						// The rest of the song bounces, not just the one spell
+						if (mob != tch)
+						{
+							mob = tch;
+							id[0] = mob->id[0];
+							id[1] = mob->id[1];
+							wasdead = mob->dead;
+						}
+
+						if (skill->token)
+							p_token_index_percent_trigger(skill->token, ch, mob, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0);
+						else
 							(*skill->spell_fun) (skill, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
 					}
 				}
@@ -400,18 +436,53 @@ void music_end( CHAR_DATA *ch )
 					{
 						if(skill->target == TAR_CHAR_OFFENSIVE || skill->target == TAR_OBJ_CHAR_DEF)
 							offensive = TRUE;
-						if (check_spell_deflection(ch, mob, skill, NULL))
+
+						// Does the spell need to be checked for deflections to switch victim?
+						CHAR_DATA *tch;
+						check_spell_deflection_new(ch, mob, skill, false, &tch, NULL);
+						if (!tch)
+							return;
+
+						// The rest of the song bounces, not just the one spell
+						if (mob != tch)
+						{
+							mob = tch;
+							id[0] = mob->id[0];
+							id[1] = mob->id[1];
+							wasdead = mob->dead;
+						}
+
+						if (skill->token)
+							p_token_index_percent_trigger(skill->token, ch, mob, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0);
+						else
 							(*skill->spell_fun) (skill, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
 					}
 				}
 			}
 			else
 			{
-				// TODO: Make work with the correct trigger
-				if (check_spell_deflection_token(ch, mob, token, script, music_target_name)) {
-					if( execute_script(script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, mob, NULL, NULL, NULL,music_target_name,NULL,TRIG_NONE,0,0,0,0,0) > 0)
-						offensive = TRUE;
+				// TODO: song token spell deflection
+				/*
+				// Does the spell need to be checked for deflections to switch victim?
+				CHAR_DATA *tch;
+				check_spell_deflection_new(ch, mob, skill, false, &tch, NULL);
+				if (!tch)
+					return;
+
+				// The rest of the song bounces, not just the one spell
+				if (mob != tch)
+				{
+					mob = tch;
+					id[0] = mob->id[0];
+					id[1] = mob->id[1];
+					wasdead = mob->dead;
 				}
+				*/
+
+				// TODO: Make work with the correct trigger
+				// TODO: Possibly add a TRIG_TOKEN_SONG trigger?
+				if( execute_script(script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, mob, NULL, NULL, NULL,music_target_name,NULL,TRIG_SPELL,0,0,0,0,0) > 0)
+					offensive = TRUE;
 			}
 
 			free_string(music_target_name);
@@ -489,28 +560,79 @@ void music_end( CHAR_DATA *ch )
 				{
 					if( IS_VALID(sk1) )
 					{
-						if (check_spell_deflection(ch, mob, sk1, NULL))
+						// Does the spell need to be checked for deflections to switch victim?
+						CHAR_DATA *tch;
+						check_spell_deflection_new(ch, mob, sk1, false, &tch, NULL);
+						if (!tch)
+							return;
+
+						// The rest of the song bounces, not just the one spell
+						if (mob != tch)
+						{
+							mob = tch;
+							id[0] = mob->id[0];
+							id[1] = mob->id[1];
+							wasdead = mob->dead;
+						}
+
+						if (sk1->token)
+							p_token_index_percent_trigger(sk1->token, ch, mob, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0);
+						else
 							(*sk1->spell_fun) (sk1, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
 					}
 
 					if( IS_VALID(sk2) && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead)) )
 					{
-						if (check_spell_deflection(ch, mob, sk2, NULL))
+						// Does the spell need to be checked for deflections to switch victim?
+						CHAR_DATA *tch;
+						check_spell_deflection_new(ch, mob, sk2, false, &tch, NULL);
+						if (!tch)
+							return;
+
+						// The rest of the song bounces, not just the one spell
+						if (mob != tch)
+						{
+							mob = tch;
+							id[0] = mob->id[0];
+							id[1] = mob->id[1];
+							wasdead = mob->dead;
+						}
+
+						if (sk2->token)
+							p_token_index_percent_trigger(sk2->token, ch, mob, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0);
+						else
 							(*sk2->spell_fun) (sk2, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
 					}
 
 					if( IS_VALID(sk3) && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead)) )
 					{
-						if (check_spell_deflection(ch, mob, sk3, NULL))
+						// Does the spell need to be checked for deflections to switch victim?
+						CHAR_DATA *tch;
+						check_spell_deflection_new(ch, mob, sk3, false, &tch, NULL);
+						if (!tch)
+							return;
+
+						// The rest of the song bounces, not just the one spell
+						if (mob != tch)
+						{
+							mob = tch;
+							id[0] = mob->id[0];
+							id[1] = mob->id[1];
+							wasdead = mob->dead;
+						}
+
+						if (sk3->token)
+							p_token_index_percent_trigger(sk3->token, ch, mob, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0);
+						else
 							(*sk3->spell_fun) (sk3, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
 					}
 
 				}
 				else
 				{
-					if (check_spell_deflection_token(ch, mob, token, script, NULL))
-						if(execute_script(script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, mob, NULL,NULL, NULL,NULL, NULL,TRIG_NONE,0,0,0,0,0) > 0)
-							offensive = TRUE;
+					// TODO: Spell Deflection for song tokens
+					if(execute_script(script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, mob, NULL,NULL, NULL,NULL, NULL,TRIG_SPELL,0,0,0,0,0) > 0)
+						offensive = TRUE;
 				}
 
 				if (mob != ch && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1])) && (mob->dead == wasdead) && !is_safe(ch, mob, FALSE) && offensive)
@@ -535,16 +657,70 @@ void music_end( CHAR_DATA *ch )
 				{
 					if( IS_VALID(sk1) )
 					{
-						(*sk1->spell_fun) (sk1, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
+						// Does the spell need to be checked for deflections to switch victim?
+						CHAR_DATA *tch;
+						check_spell_deflection_new(ch, mob, sk1, false, &tch, NULL);
+						if (!tch)
+							return;
+
+						// The rest of the song bounces, not just the one spell
+						if (mob != tch)
+						{
+							mob = tch;
+							id[0] = mob->id[0];
+							id[1] = mob->id[1];
+							wasdead = mob->dead;
+						}
+
+						if (sk1->token)
+							p_token_index_percent_trigger(sk1->token, ch, mob, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0);
+						else
+							(*sk1->spell_fun) (sk1, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
 					}
 
 					if( IS_VALID(sk2) && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead)) )
 					{
-						(*sk2->spell_fun) (sk2, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
+						// Does the spell need to be checked for deflections to switch victim?
+						CHAR_DATA *tch;
+						check_spell_deflection_new(ch, mob, sk2, false, &tch, NULL);
+						if (!tch)
+							return;
+
+						// The rest of the song bounces, not just the one spell
+						if (mob != tch)
+						{
+							mob = tch;
+							id[0] = mob->id[0];
+							id[1] = mob->id[1];
+							wasdead = mob->dead;
+						}
+
+						if (sk2->token)
+							p_token_index_percent_trigger(sk2->token, ch, mob, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0);
+						else
+							(*sk2->spell_fun) (sk2, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
 					}
 
 					if( IS_VALID(sk3) && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead)) )
 					{
+						// Does the spell need to be checked for deflections to switch victim?
+						CHAR_DATA *tch;
+						check_spell_deflection_new(ch, mob, sk3, false, &tch, NULL);
+						if (!tch)
+							return;
+
+						// The rest of the song bounces, not just the one spell
+						if (mob != tch)
+						{
+							mob = tch;
+							id[0] = mob->id[0];
+							id[1] = mob->id[1];
+							wasdead = mob->dead;
+						}
+
+						if (sk3->token)
+							p_token_index_percent_trigger(sk3->token, ch, mob, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0);
+						else
 						(*sk3->spell_fun) (sk3, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
 					}
 				}
@@ -573,27 +749,79 @@ void music_end( CHAR_DATA *ch )
 
 					if( IS_VALID(sk1) && !is_same_group(ch, mob))
 					{
-						if (check_spell_deflection(ch, mob, sk1, NULL))
+						// Does the spell need to be checked for deflections to switch victim?
+						CHAR_DATA *tch;
+						check_spell_deflection_new(ch, mob, sk1, false, &tch, NULL);
+						if (!tch)
+							return;
+
+						// The rest of the song bounces, not just the one spell
+						if (mob != tch)
+						{
+							mob = tch;
+							id[0] = mob->id[0];
+							id[1] = mob->id[1];
+							wasdead = mob->dead;
+						}
+
+						if (sk1->token)
+							p_token_index_percent_trigger(sk1->token, ch, mob, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0);
+						else
 							(*sk1->spell_fun) (sk1, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
 					}
 
 					if( IS_VALID(sk2) && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead) && !is_same_group(ch, mob)) )
 					{
-						if (check_spell_deflection(ch, mob, sk2, NULL))
+						// Does the spell need to be checked for deflections to switch victim?
+						CHAR_DATA *tch;
+						check_spell_deflection_new(ch, mob, sk2, false, &tch, NULL);
+						if (!tch)
+							return;
+
+						// The rest of the song bounces, not just the one spell
+						if (mob != tch)
+						{
+							mob = tch;
+							id[0] = mob->id[0];
+							id[1] = mob->id[1];
+							wasdead = mob->dead;
+						}
+
+						if (sk2->token)
+							p_token_index_percent_trigger(sk2->token, ch, mob, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0);
+						else
 							(*sk2->spell_fun) (sk2, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
 					}
 
 					if( IS_VALID(sk3) && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead) && !is_same_group(ch, mob)) )
 					{
-						if (check_spell_deflection(ch, mob, sk3, NULL))
+						// Does the spell need to be checked for deflections to switch victim?
+						CHAR_DATA *tch;
+						check_spell_deflection_new(ch, mob, sk3, false, &tch, NULL);
+						if (!tch)
+							return;
+
+						// The rest of the song bounces, not just the one spell
+						if (mob != tch)
+						{
+							mob = tch;
+							id[0] = mob->id[0];
+							id[1] = mob->id[1];
+							wasdead = mob->dead;
+						}
+
+						if (sk3->token)
+							p_token_index_percent_trigger(sk3->token, ch, mob, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0);
+						else
 							(*sk3->spell_fun) (sk3, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
 					}
 				}
 				else
 				{
-					if (check_spell_deflection_token(ch, mob, token, script, NULL))
-						if(execute_script(script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, mob, NULL,NULL, NULL,NULL, NULL,TRIG_NONE,0,0,0,0,0) > 0)
-							offensive = TRUE;
+					// TODO: Spell deflection for song tokens
+
+					if(execute_script(script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, mob, NULL,NULL, NULL,NULL, NULL,TRIG_SPELL,0,0,0,0,0) > 0)
+						offensive = TRUE;
 				}
 
 				if (mob != ch && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1])) && (mob->dead == wasdead) && !is_safe(ch, mob, FALSE) && offensive)
@@ -611,17 +839,71 @@ void music_end( CHAR_DATA *ch )
 			{
 				if( IS_VALID(sk1) )
 				{
-					(*sk1->spell_fun) (sk1, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
+					// Does the spell need to be checked for deflections to switch victim?
+					CHAR_DATA *tch;
+					check_spell_deflection_new(ch, mob, sk1, false, &tch, NULL);
+					if (!tch)
+						return;
+
+					// The rest of the song bounces, not just the one spell
+					if (mob != tch)
+					{
+						mob = tch;
+						id[0] = mob->id[0];
+						id[1] = mob->id[1];
+						wasdead = mob->dead;
+					}
+
+					if (sk1->token)
+						p_token_index_percent_trigger(sk1->token, ch, mob, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0);
+					else
+						(*sk1->spell_fun) (sk1, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
 				}
 
 				if( IS_VALID(sk2) && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead)) )
 				{
-					(*sk2->spell_fun) (sk2, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
+					// Does the spell need to be checked for deflections to switch victim?
+					CHAR_DATA *tch;
+					check_spell_deflection_new(ch, mob, sk2, false, &tch, NULL);
+					if (!tch)
+						return;
+
+					// The rest of the song bounces, not just the one spell
+					if (mob != tch)
+					{
+						mob = tch;
+						id[0] = mob->id[0];
+						id[1] = mob->id[1];
+						wasdead = mob->dead;
+					}
+
+					if (sk2->token)
+						p_token_index_percent_trigger(sk2->token, ch, mob, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0);
+					else
+						(*sk2->spell_fun) (sk2, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
 				}
 
 				if( IS_VALID(sk3) && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead)) )
 				{
-					(*sk3->spell_fun) (sk3, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
+					// Does the spell need to be checked for deflections to switch victim?
+					CHAR_DATA *tch;
+					check_spell_deflection_new(ch, mob, sk3, false, &tch, NULL);
+					if (!tch)
+						return;
+
+					// The rest of the song bounces, not just the one spell
+					if (mob != tch)
+					{
+						mob = tch;
+						id[0] = mob->id[0];
+						id[1] = mob->id[1];
+						wasdead = mob->dead;
+					}
+
+					if (sk3->token)
+						p_token_index_percent_trigger(sk3->token, ch, mob, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0);
+					else
+						(*sk3->spell_fun) (sk3, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
 				}
 			}
 			else
@@ -639,17 +921,26 @@ void music_end( CHAR_DATA *ch )
 			{
 				if( IS_VALID(sk1) )
 				{
-					(*sk1->spell_fun) (sk1, ch->tot_level, ch, mob, TARGET_NONE, WEAR_NONE);
+					if (sk1->token)
+						p_token_index_percent_trigger(sk1->token, ch, mob, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0);
+					else
+						(*sk1->spell_fun) (sk1, ch->tot_level, ch, mob, TARGET_NONE, WEAR_NONE);
 				}
 
 				if( IS_VALID(sk2) && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead)) )
 				{
-					(*sk2->spell_fun) (sk2, ch->tot_level, ch, mob, TARGET_NONE, WEAR_NONE);
+					if (sk2->token)
+						p_token_index_percent_trigger(sk2->token, ch, mob, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0);
+					else
+						(*sk2->spell_fun) (sk2, ch->tot_level, ch, mob, TARGET_NONE, WEAR_NONE);
 				}
 
 				if( IS_VALID(sk3) && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead)) )
 				{
-					(*sk3->spell_fun) (sk3, ch->tot_level, ch, mob, TARGET_NONE, WEAR_NONE);
+					if (sk3->token)
+						p_token_index_percent_trigger(sk3->token, ch, mob, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0);
+					else
+						(*sk3->spell_fun) (sk3, ch->tot_level, ch, mob, TARGET_NONE, WEAR_NONE);
 				}
 			}
 			else

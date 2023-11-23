@@ -983,14 +983,8 @@ void cast_end(CHAR_DATA *ch)
 		id[0] = token->id[0];
 		id[1] = token->id[1];
 
-		if (target == TARGET_CHAR && victim && IS_AFFECTED2(victim, AFF2_SPELL_DEFLECTION)) {
-			// TODO: Make this work with the correct trigger
-			if (check_spell_deflection_token(ch, victim, token, script, ch->cast_target_name)) {
-				execute_script(script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, victim, NULL, NULL, NULL,ch->cast_target_name,NULL,TRIG_NONE,0,0,0,0,0);
-			}
-		} else {
-			execute_script(script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, (target == TARGET_OBJ)?obj:NULL, NULL, (target == TARGET_CHAR)?victim:NULL, NULL,NULL, NULL,ch->cast_target_name,NULL,TRIG_NONE,0,0,0,0,0);
-		}
+		// Script is responsible for SPELLDEFLECTION
+		execute_script(script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, (target == TARGET_OBJ)?obj:NULL, NULL, (target == TARGET_CHAR)?victim:NULL, NULL,NULL, NULL,ch->cast_target_name,NULL,TRIG_NONE,0,0,0,0,0);
 
 		// Only bother with the token if it is valid and the SAME token as before the casting
 		if(IS_VALID(token) && id[0] == token->id[0] && id[1] == token->id[1]) {
@@ -1034,10 +1028,8 @@ void cast_end(CHAR_DATA *ch)
 			}
 		}
 
-		if (target != TARGET_CHAR || victim == NULL ||
-			!IS_AFFECTED2(victim, AFF2_SPELL_DEFLECTION) || check_spell_deflection(ch, victim, skill, NULL)) {
-			(*skill->spell_fun) (skill, ch->tot_level, ch, vo, target, WEAR_NONE);
-		}
+		// Spell handles spell deflection
+		(*skill->spell_fun) (skill, ch->tot_level, ch, vo, target, WEAR_NONE);
 
 		check_improve(ch,skill,!ch->casting_recovered,1);
 	}
@@ -1183,13 +1175,22 @@ void obj_cast_spell(SKILL_DATA *skill, int level, CHAR_DATA *ch, CHAR_DATA *vict
 	    break;
     }
 
-    if (target == TARGET_CHAR && victim != NULL)
-    {
-		if (check_spell_deflection(ch, victim, skill, NULL))
-	    	(*(skill->spell_fun)) (skill, level, ch, vo, target, wear_loc);
-    }
-    else
-        (*(skill->spell_fun)) (skill, level, ch, vo,target, wear_loc);
+	// Does the spell need to be checked for deflections to switch victim?
+	if (target == TARGET_CHAR && victim != NULL)
+	{
+		CHAR_DATA *tch;
+		check_spell_deflection_new(ch, victim, skill, false, &tch, NULL);
+		if (!tch)
+			return;
+		
+		victim = tch;
+		vo = (void *) tch;
+	}
+
+	if (skill->token)
+		p_token_index_percent_trigger(skill->token, ch, victim, NULL, NULL, obj, TRIG_SPELL, NULL, 0,0,0,0,0, level,0,0,0,0);
+	else if (skill->spell_fun && skill->spell_fun != spell_null)
+		(*(skill->spell_fun)) (skill, level, ch, vo, target, wear_loc);
 
     if ((skill->target == TAR_CHAR_OFFENSIVE || (skill->target == TAR_OBJ_CHAR_OFF && target == TARGET_CHAR)) &&
 		victim != ch && victim->master != ch)

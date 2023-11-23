@@ -1373,6 +1373,7 @@ const struct flag_type extra_flags[] =
 	{	"permanent",	ITEM_PERMANENT,     FALSE   },
 	{	"planted",		ITEM_PLANTED,		FALSE   },
 	{	"rotdeath",		ITEM_ROT_DEATH,		TRUE	},
+	{	"shockproof",	ITEM_SHOCK_PROOF,	TRUE	},
     {	NULL,			0,			0	}
 };
 
@@ -3227,9 +3228,7 @@ const struct flag_type builtin_trigger_types[] =
     { "sleep",		        TRIG_SLEEP,	TRUE },
     { "speech",		        TRIG_SPEECH,	TRUE },
     { "spell",		        TRIG_SPELL,	TRUE },
-    { "spellbeat",		    TRIG_SPELLBEAT,	TRUE },
     { "spellcast",		    TRIG_SPELLCAST,	TRUE },
-    { "spellinter",		    TRIG_SPELLINTER,	TRUE },
     { "spellpenetrate",		TRIG_SPELLPENETRATE,	TRUE },
     { "spellreflect",		TRIG_SPELLREFLECT,	TRUE },
     { "spell_cure",		    TRIG_SPELL_CURE,	TRUE },
@@ -3249,11 +3248,12 @@ const struct flag_type builtin_trigger_types[] =
 	{ "token_given",        TRIG_TOKEN_GIVEN,	TRUE },
     { "token_imbue",		TRIG_TOKEN_IMBUE,	TRUE },
 	{ "token_ink",      	TRIG_TOKEN_INK,	TRUE },
-	{ "token_ink_catalyst",	TRIG_TOKEN_INK_CATALYST,	TRUE },
+    { "token_interrupt",    TRIG_TOKEN_INTERRUPT, TRUE },
 	{ "token_prebrew",  	TRIG_TOKEN_PREBREW,	TRUE },
 	{ "token_preimbue",   	TRIG_TOKEN_PREIMBUE,	TRUE },
 	{ "token_preink",   	TRIG_TOKEN_PREINK,	TRUE },
 	{ "token_prescribe",	TRIG_TOKEN_PRESCRIBE,	TRUE },
+    { "token_pulse",        TRIG_TOKEN_PULSE,   TRUE },
 	{ "token_quaff",    	TRIG_TOKEN_QUAFF,	TRUE },
 	{ "token_recite",   	TRIG_TOKEN_RECITE,	TRUE },
 	{ "token_removed",  	TRIG_TOKEN_REMOVED,	TRUE },
@@ -3555,8 +3555,18 @@ const struct spell_func_type spell_func_table[] =
 	{ "wind_of_confusion",	spell_wind_of_confusion },
 	{ "withering_cloud",	spell_withering_cloud },
 	{ "word_of_recall",	    spell_word_of_recall },
-
     { NULL, NULL }
+};
+
+
+const struct spell_func_type pulse_func_table[] =
+{
+    { NULL,     NULL }
+};
+
+const struct spell_func_type interrupt_func_table[] =
+{
+    { NULL,     NULL }
 };
 
 const struct prebrew_func_type prebrew_func_table[] =
@@ -3606,10 +3616,11 @@ const struct ink_func_type ink_func_table[] =
 
 const struct touch_func_type touch_func_table[] =
 {
-    { "armour",         touch_armour },
-    { "fly",            touch_fly },
-    { "haste",          touch_haste },
-    { NULL,             NULL }
+    { "armour",             touch_armour },
+    { "chain_lightning",    touch_chain_lightning },
+    { "fly",                touch_fly },
+    { "haste",              touch_haste },
+    { NULL,                 NULL }
 };
 
 const struct zap_func_type zap_func_table[] =
@@ -3902,7 +3913,7 @@ const struct flag_type skill_flags[] =
     { "can_imbue",          SKILL_CAN_IMBUE,        TRUE  },
     { "can_ink",            SKILL_CAN_INK,          TRUE  },
     { "can_scribe",         SKILL_CAN_SCRIBE,       TRUE  },
-    { "can_imbue",          SKILL_CAN_IMBUE,        TRUE  },
     { "cross_class",        SKILL_CROSS_CLASS,      FALSE },    // NYI
+    { "spell_pulse",        SKILL_SPELL_PULSE,      TRUE  },
     { NULL,                 0,                      FALSE }
 };

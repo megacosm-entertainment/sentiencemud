@@ -559,6 +559,7 @@ const	struct	cmd_type	cmd_table	[] =
 	{ "sgshow",		do_sgshow, POS_DEAD,	L5,		LOG_NORMAL, 1, TRUE },
 
 	{ "mxptest",	do_mxptest, POS_DEAD,	ML,		LOG_ALWAYS, 1, TRUE },
+	{ "immstrike",	do_immstrike, POS_DEAD,	IM,		LOG_ALWAYS, 1, TRUE },
     { "",		0,		POS_DEAD,     0,  LOG_NORMAL, 0, FALSE }
 };
 
@@ -2110,8 +2111,7 @@ void stop_music( CHAR_DATA *ch, bool messages )
 
 	// Allow for custom messages as well as handling interrupted songs
 	if(ch->song_token) {
-		ch->tempstore[0] = messages?1:0;	// Tell the script whether to show messages or not
-		if(p_percent_trigger(NULL,NULL,NULL,ch->song_token,ch, NULL, NULL,NULL,NULL,TRIG_SPELLINTER, NULL,0,0,0,0,0))
+		if(p_percent_trigger(NULL,NULL,NULL,ch->song_token,ch, NULL, NULL,NULL,NULL,TRIG_TOKEN_INTERRUPT, NULL,(messages?1:0),0,0,0,0))
 			messages = FALSE;
 	}
     free_string( ch->music_target_name );
@@ -2131,12 +2131,30 @@ void stop_music( CHAR_DATA *ch, bool messages )
 // interrupt a chars spell. safe version (no memory leaks)
 void stop_casting( CHAR_DATA *ch, bool messages )
 {
+	CHAR_DATA *victim;
+	OBJ_DATA *obj;
+	int target;
 
-	// Allow for custom messages as well as handling interrupted spells
-	if(ch->cast_token) {
-		ch->tempstore[0] = messages?1:0;	// Tell the script whether to show messages or not
-		if(p_percent_trigger(NULL,NULL,NULL,ch->cast_token,ch, NULL, NULL,NULL,NULL,TRIG_SPELLINTER, NULL,0,0,0,0,0))
-			messages = FALSE;
+	if (validate_spell_target(ch, ch->cast_skill->target, ch->cast_target_name, &target, &victim, &obj))
+	{
+		void *vo = NULL;
+		if (target == TARGET_CHAR)
+			vo = victim;
+		else if (target == TARGET_OBJ)
+			vo = obj;
+
+		// Allow for custom messages as well as handling interrupted spells
+		if(ch->cast_token) {
+			// Return positive to suppress standard messages
+			if(p_percent_trigger(NULL,NULL,NULL,ch->cast_token,ch, victim, NULL, obj, NULL, TRIG_TOKEN_INTERRUPT, NULL,0,0,0,0,0) > 0)
+				messages = FALSE;
+		}
+		else if (ch->cast_skill->interrupt_fun && ch->cast_skill->interrupt_fun != spell_null)
+		{
+			// Return true to supposed standard messages
+			if ((*(ch->cast_skill->interrupt_fun))(ch->cast_skill, ch->tot_level, ch, vo, target, WEAR_NONE))
+				messages = FALSE;
+		}
 	}
 	free_string(ch->casting_failure_message);
 	ch->casting_failure_message = NULL;
