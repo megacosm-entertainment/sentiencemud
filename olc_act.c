@@ -12097,7 +12097,7 @@ OEDIT(oedit_type_furniture)
 						return TRUE;
 					}
 
-					if (!str_prefix(arg3, "Move"))
+					if (!str_prefix(arg3, "move"))
 					{
 						int value;
 						if (!is_number(argument) || (value = atoi(argument)) < 0)
@@ -12106,7 +12106,7 @@ OEDIT(oedit_type_furniture)
 							return FALSE;
 						}
 
-						compartment->health_regen = value;
+						compartment->move_region = value;
 						send_to_char("FURNITURE Compartment Move Regen set.\n\r", ch);
 						return TRUE;
 					}
