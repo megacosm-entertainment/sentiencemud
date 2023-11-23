@@ -737,6 +737,7 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
                pProtocol->bBlockMXP = false;
                break;
             case '<':
+            case MXP_BEGIN_TAG:
                if ( !pProtocol->bBlockMXP && pProtocol->pVariables[eMSDP_MXP]->ValueInt )
                {
                   pCopyFrom = MXPStart;
@@ -908,6 +909,8 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
                Result[i++] = *pCopyFrom++;
          }
       }
+      else if ( apData[j] == MXP_AMPERSAND )
+         Result[i++] = '&';
 #ifdef COLOUR_CHAR
       else if ( bColourOn && apData[j] == COLOUR_CHAR )
       {
@@ -1054,7 +1057,7 @@ const char *ProtocolOutput( descriptor_t *apDescriptor, const char *apData, int 
          }
       }
 #endif /* COLOUR_CHAR */
-      else if ( bUseMXP && apData[j] == '>' )
+      else if ( bUseMXP && (apData[j] == '>' || apData[j] == MXP_END_TAG) )
       {
          const char *pCopyFrom = MXPStop;
          while ( *pCopyFrom != '\0' && i < MAX_OUTPUT_BUFFER)
