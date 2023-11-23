@@ -4366,7 +4366,7 @@ void sgedit(CHAR_DATA *ch, char *argument)
 	interpret(ch, arg);
 }
 
-void olc_show_progs(BUFFER *buffer, LLIST **progs, const char *title)
+void olc_show_progs(BUFFER *buffer, LLIST **progs, int type, const char *title)
 {
 	char buf[MSL];
 	int cnt, slot;
@@ -4390,7 +4390,7 @@ void olc_show_progs(BUFFER *buffer, LLIST **progs, const char *title)
 				sprintf(wnum, "%ld#%ld", trigger->wnum.pArea ? trigger->wnum.pArea->uid : 0, trigger->wnum.vnum);
 				sprintf(buf, "{C[{W%4d{C]{x %-20s %-20s %s\n\r", cnt,
 					wnum,trigger_name(trigger->trig_type),
-					trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, FALSE, TRUE));
+					trigger_phrase_olcshow(trigger->trig_type,trigger->trig_phrase, (type == PRG_RPROG), (type == PRG_TPROG)));
 				add_buf(buffer, buf);
 				cnt++;
 			}

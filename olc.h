@@ -719,7 +719,7 @@ char *token_index_getvaluename args( (TOKEN_INDEX_DATA *token, int v) );
 
 SHOP_STOCK_DATA *get_shop_stock_bypos(SHOP_DATA *shop, int nth);
 bool check_range(long lower, long upper);
-void olc_show_progs(BUFFER *buffer, LLIST **progs, const char *title);
+void olc_show_progs(BUFFER *buffer, LLIST **progs, int type, const char *title);
 void olc_buffer_show_tabs(CHAR_DATA *ch, BUFFER *buffer, const char **tab_names);
 
 int olc_buffer_show_flags_ex(CHAR_DATA *ch, BUFFER *buffer,

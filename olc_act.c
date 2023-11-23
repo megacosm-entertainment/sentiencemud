@@ -820,7 +820,7 @@ AEDIT(aedit_show)
 	iterator_stop(&rit);
 
 	if (pArea->progs->progs)
-		olc_show_progs(buffer, pArea->progs->progs, "AreaProg Vnum");
+		olc_show_progs(buffer, pArea->progs->progs, PRG_APROG, "AreaProg Vnum");
 
 	olc_show_index_vars(buffer, pArea->index_vars);
 
@@ -2848,7 +2848,7 @@ REDIT(redit_show)
 
 	
     if (pRoom->progs->progs)
-		olc_show_progs(buf1, pRoom->progs->progs, "RoomProg Vnum");
+		olc_show_progs(buf1, pRoom->progs->progs, PRG_RPROG, "RoomProg Vnum");
 
 	olc_show_index_vars(buf1, pRoom->index_vars);
 
@@ -7709,7 +7709,7 @@ OEDIT(oedit_show)
 
 
     if (pObj->progs)
-		olc_show_progs(buffer, pObj->progs, "ObjProg Vnum");
+		olc_show_progs(buffer, pObj->progs, PRG_OPROG, "ObjProg Vnum");
 
 	olc_show_index_vars(buffer, pObj->index_vars);
 
@@ -14969,7 +14969,7 @@ MEDIT(medit_show)
 	}
 
     if (pMob->progs)
-		olc_show_progs(buffer, pMob->progs, "MobProg Vnum");
+		olc_show_progs(buffer, pMob->progs, PRG_MPROG, "MobProg Vnum");
 
 	olc_show_index_vars(buffer, pMob->index_vars);
 

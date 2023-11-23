@@ -2912,7 +2912,7 @@ DNGEDIT( dngedit_show )
 
 
     if (dng->progs)
-		olc_show_progs(buffer, dng->progs, "DngProg Vnum");
+		olc_show_progs(buffer, dng->progs, PRG_DPROG, "DngProg Vnum");
 
 	olc_show_index_vars(buffer, dng->index_vars);
 

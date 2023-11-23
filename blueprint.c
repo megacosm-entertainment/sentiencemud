@@ -5606,7 +5606,7 @@ BPEDIT( bpedit_show )
 
 	
     if (bp->progs)
-		olc_show_progs(buffer, bp->progs, "InstProg Vnum");
+		olc_show_progs(buffer, bp->progs, PRG_IPROG, "InstProg Vnum");
 
 	olc_show_index_vars(buffer, bp->index_vars);
 

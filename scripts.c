@@ -4557,7 +4557,9 @@ char *trigger_phrase_olcshow(int type, char *phrase, bool is_rprog, bool is_tpro
 	if(	type == TRIG_EXIT ||
 		type == TRIG_EXALL ||
 		type == TRIG_KNOCK ||
-		type == TRIG_KNOCKING) {
+		type == TRIG_KNOCKING ||
+		type == TRIG_SHOWEXIT ||
+		type == TRIG_LOOK_AT ) {
 		sn = atoi(phrase);
 
 		if( sn < 0 || sn >= MAX_DIR) return "nowhere";

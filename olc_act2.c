@@ -1667,7 +1667,7 @@ TEDIT(tedit_show)
 #endif
 
     if (token_index->progs)
-		olc_show_progs(buffer, token_index->progs, "TokProg Vnum");
+		olc_show_progs(buffer, token_index->progs, PRG_TPROG, "TokProg Vnum");
 
 	olc_show_index_vars(buffer, token_index->index_vars);
 
