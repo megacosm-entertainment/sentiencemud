@@ -2351,6 +2351,10 @@ void variable_index_fix(void)
 	while(cur) {
 		if(cur->type == VAR_ROOM) {
 			if(cur->_.wnum_load.auid > 0 && cur->_.wnum_load.vnum > 0) cur->_.r = get_room_index_auid(cur->_.wnum_load.auid, cur->_.wnum_load.vnum);
+//			log_stringf("variable_index_fix: ROOM variable '%s', WNUM %ld#%ld, Room '%s'",
+//				cur->name,
+//				cur->_.wnum_load.auid, cur->_.wnum_load.vnum,
+//				cur->_.r ? cur->_.r->name : "(invalid)");
 		}
 		cur = cur->global_next;
 	}
@@ -3911,7 +3915,7 @@ bool olc_load_index_vars(FILE *fp, char *word, ppVARIABLE index_vars, AREA_DATA 
 
 		name = fread_string(fp);
 		saved = fread_number(fp);
-		value = fread_widevnum(fp, 0);
+		value = fread_widevnum(fp, pRefArea ? pRefArea->uid : 0);
 
 		variables_setindex_room (index_vars,name,value,saved);
 		return TRUE;
