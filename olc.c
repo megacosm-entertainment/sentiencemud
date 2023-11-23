@@ -3228,33 +3228,27 @@ void do_olist(CHAR_DATA *ch, char *argument)
 
 	for (vnum = 1; vnum <= pArea->top_vnum_obj; vnum++)
 	{
-	if ((pObjIndex = get_obj_index(pArea, vnum)))
-	{
-		if (fAll || is_name(arg, pObjIndex->name)
-		|| flag_value(type_flags, arg) == pObjIndex->item_type)
+		if ((pObjIndex = get_obj_index(pArea, vnum)))
 		{
-		found = TRUE;/*
-		sprintf(buf2, "%s", pObjIndex->short_descr);
-		if ((i = (17 - strlen_no_colours(buf2))) > 0) {
-		   while (i > 0) {
-			   strcat(buf2, " ");
-			   i--;
-		   }
-		}*/
-		max = strlen_colours_limit(pObjIndex->short_descr,16) + 17;
-		sprintf(buf, "{x[%5ld] %-*.*s{x",
-			pObjIndex->vnum, max, max - 1, pObjIndex->short_descr);
-		add_buf(buf1, buf);
-		if (++col % 3 == 0)
-			add_buf(buf1, "\n\r");
+			if (fAll || is_name(arg, pObjIndex->name) ||
+				flag_value(type_flags, arg) == pObjIndex->item_type)
+			{
+				found = TRUE;
+				max = strlen_colours_limit(pObjIndex->short_descr,16) + 17;
+				sprintf(buf, "{x[%s] %s{x",
+					MXPCreateSend(ch->desc, formatf("oedit %ld#%ld", pArea->uid, pObjIndex->vnum), formatf("%5ld", pObjIndex->vnum)),
+					MXPCreateSend(ch->desc, formatf("oshow %ld#%ld", pArea->uid, pObjIndex->vnum), formatf("%-*.*s", max, max - 1, pObjIndex->short_descr)));
+				add_buf(buf1, buf);
+				if (++col % 3 == 0)
+				add_buf(buf1, "\n\r");
+			}
 		}
-	}
 	}
 
 	if (!found)
 	{
-	send_to_char("Object(s) not found in this area.\n\r", ch);
-	return;
+		send_to_char("Object(s) not found in this area.\n\r", ch);
+		return;
 	}
 
 	if (col % 3 != 0)
