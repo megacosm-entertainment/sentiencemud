@@ -279,6 +279,16 @@ FURNITURE_DATA *new_furniture_data();
 FURNITURE_DATA *copy_furniture_data(FURNITURE_DATA *src);
 void free_furniture_data(FURNITURE_DATA *data);
 
+// Ink
+INK_DATA *new_ink_data();
+INK_DATA *copy_ink_data();
+void free_ink_data(INK_DATA *data);
+
+// Instrument
+INSTRUMENT_DATA *new_instrument_data();
+INSTRUMENT_DATA *copy_instrument_data();
+void free_instrument_data(INSTRUMENT_DATA *data);
+
 // Light
 LIGHT_DATA *new_light_data();
 LIGHT_DATA *copy_light_data(LIGHT_DATA *src);

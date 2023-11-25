@@ -445,6 +445,8 @@ typedef struct food_buff_data FOOD_BUFF_DATA;
 typedef struct obj_food_data FOOD_DATA;
 typedef struct furniture_compartment_data FURNITURE_COMPARTMENT;
 typedef struct obj_furniture_data FURNITURE_DATA;
+typedef struct obj_ink_data INK_DATA;
+typedef struct obj_instrument_data INSTRUMENT_DATA;
 typedef struct obj_light_data LIGHT_DATA;
 typedef struct obj_money_data MONEY_DATA;
 typedef struct obj_portal_data PORTAL_DATA;
@@ -2879,23 +2881,6 @@ struct affliction_type {
 #define WEAPON_SUCKLE		(S)	/* @@@NIB : 20070209 */
 
 
-// Instrument class
-#define INSTRUMENT_VOCAL			-2
-#define INSTRUMENT_ANY				-1
-#define INSTRUMENT_NONE				0
-#define INSTRUMENT_WIND_REED		1	// Clarinet, Saxophone, bagpipes
-#define INSTRUMENT_WIND_FLUTE		2	// Flute, Piccolo
-#define INSTRUMENT_WIND_BRASS		3	// Trumpet
-#define INSTRUMENT_DRUM				4	// Drums
-#define INSTRUMENT_PERCUSSION		5	// Symbols, triangles, etc
-#define INSTRUMENT_CHORDED			6	// Pianos, harpsicords
-#define INSTRUMENT_STRING			7	// Violins, harps
-#define INSTRUMENT_MAX				8	// Anything beyond this is considered "custom"
-
-// Instrument flags
-#define INSTRUMENT_ONEHANDED		(A)
-
-
 
 /* gate flags */
 #define GATE_NORMAL_EXIT	(A)
@@ -4913,6 +4898,72 @@ struct obj_furniture_data {
     int main_compartment;
 };
 
+// ============[ INK ]=============
+#define INK(obj)        ((obj)->_ink)
+#define IS_INK(obj)     IS_VALID(INK(obj))
+
+#define MAX_INK_TYPES   3
+
+struct obj_ink_data {
+    INK_DATA *next;
+    bool valid;
+
+    sh_int types[MAX_INK_TYPES];            // Uses catalyst types
+    sh_int amounts[MAX_INK_TYPES];
+};
+
+// =========[ INSTRUMENT ]=========
+#define INSTRUMENT(obj)     ((obj)->_instrument)
+#define IS_INSTRUMENT(obj)  IS_VALID(INSTRUMENT(obj))
+
+// Instrument class
+#define INSTRUMENT_VOCAL			-2
+#define INSTRUMENT_ANY				-1
+#define INSTRUMENT_NONE				0
+#define INSTRUMENT_WIND_REED		1	// Clarinet, Saxophone, bagpipes
+#define INSTRUMENT_WIND_FLUTE		2	// Flute, Piccolo
+#define INSTRUMENT_WIND_BRASS		3	// Trumpet
+#define INSTRUMENT_DRUM				4	// Drums
+#define INSTRUMENT_PERCUSSION		5	// Symbols, triangles, etc
+#define INSTRUMENT_CHORDED			6	// Pianos, harpsicords
+#define INSTRUMENT_STRING			7	// Violins, harps
+#define INSTRUMENT_MAX				8	// Anything beyond this is considered "custom"
+
+#define INSTRUMENT_MAX_CATALYSTS    3
+
+// Instrument flags
+#define INSTRUMENT_ONEHANDED		(A)
+#define INSTRUMENT_TUNED            (ee)    // Instrument has been "tuned" to utilize its catalyst reservoirs
+
+typedef struct instrument_reservoir_data
+{
+    sh_int type;
+    sh_int amount;
+    sh_int capacity;
+} INSTRUMENT_CATALYST;
+
+struct obj_instrument_data {
+    INSTRUMENT_DATA *next;
+    bool valid;
+
+    int type;
+    long flags;
+
+    // Mana modifier (numerator/denominator)
+    int mana_numer;
+    int mana_denom;
+
+    // Beats modifier (numerator/denominator)
+    int beats_numer;
+    int beats_denom;
+
+    // Catalyst reservoirs
+    // - They will recharge with time and exposure to the right elements
+    //   Example: being on the beach or at sea will replenish the water catalyst, if there is any
+    INSTRUMENT_CATALYST reservoirs[INSTRUMENT_MAX_CATALYSTS];
+};
+
+
 // ===========[ LIGHT ]============
 #define LIGHT(obj)      ((obj)->_light)
 #define IS_LIGHT(obj)   IS_VALID(LIGHT(obj))
@@ -5089,6 +5140,8 @@ struct	obj_index_data
     FLUID_CONTAINER_DATA *_fluid_container;
     FOOD_DATA *_food;
     FURNITURE_DATA *_furniture;
+    INK_DATA *_ink;
+    INSTRUMENT_DATA *_instrument;
     LIGHT_DATA *_light;
     MONEY_DATA *_money;
     BOOK_PAGE *_page;
@@ -5191,6 +5244,8 @@ struct	obj_data
     FLUID_CONTAINER_DATA *_fluid_container;
     FOOD_DATA *_food;
     FURNITURE_DATA *_furniture;
+    INK_DATA *_ink;
+    INSTRUMENT_DATA *_instrument;
     LIGHT_DATA *_light;
     MONEY_DATA *_money;
     BOOK_PAGE *_page;
