@@ -14,40 +14,217 @@
 #include "merc.h"
 #include "recycle.h"
 #include "scripts.h"
+#include "tables.h"
+#include "recycle.h"
+#include "music.h"
+#include "olc.h"
+
+#define FUNC_LOOKUPS(f,t,n) \
+t * f##_func_lookup(char *name) \
+{ \
+	for (int i = 0; f##_func_table[i].name != NULL; i++) \
+	{ \
+		if (!str_cmp(name, f##_func_table[i].name)) \
+			return f##_func_table[i].func; \
+	} \
+ \
+	return NULL; \
+} \
+ \
+char *f##_func_name(t *func) \
+{ \
+	for (int i = 0; f##_func_table[i].name != NULL; i++) \
+	{ \
+		if (f##_func_table[i].func == func) \
+			return f##_func_table[i].name; \
+	} \
+ \
+	return NULL; \
+} \
+ \
+char *f##_func_display(t *func) \
+{ \
+	if ( n ) return NULL; \
+ \
+	for (int i = 0; f##_func_table[i].name != NULL; i++) \
+	{ \
+		if (f##_func_table[i].func == func) \
+			return f##_func_table[i].name; \
+	} \
+ \
+	return "(invalid)"; \
+} \
+ \
+
+
+FUNC_LOOKUPS(song,SONG_FUN,!func)
+FUNC_LOOKUPS(presong,SONG_FUN,!func)
+
+void show_flag_cmds(CHAR_DATA *ch, const struct flag_type *flag_table);
+void __token_remove_trigger(TOKEN_INDEX_DATA *token, int type);
+bool __token_add_trigger(TOKEN_INDEX_DATA *token, int type, char *phrase, SCRIPT_DATA *script);
 
 void deduct_mana(CHAR_DATA *ch,int cost);
 
-int song_lookup(const char *name)
+bool validate_song_target(CHAR_DATA *ch,int type,char *arg, int *targ, CHAR_DATA **vict)
 {
-	int sn;
-	for( sn = 0; sn < MAX_SONGS; sn++)
-	{
-		if (music_table[sn].name == NULL)
-			break;
+	CHAR_DATA *victim = NULL;
+	
+	switch(type) {
+	case TAR_CHAR_FORMATION:
+	case TAR_IGNORE:
+		*targ = TARGET_NONE;
+		*vict = NULL;
+		return true;
+
+	case TAR_CHAR_OFFENSIVE:
+		if (!arg[0]) victim = ch->fighting;
+		else victim = get_char_room(ch, NULL, arg);
+
+		if (!victim) {
+			if (!arg[0])
+				send_to_char("PLay it on whom?\n\r", ch);
+			else
+				send_to_char("They aren't here.\n\r", ch);
+			return false;
+		}
+
+		if (is_safe(ch, victim, TRUE) ||
+			(victim->fighting && !is_same_group(ch, victim->fighting) &&
+			ch != victim && !IS_SET(ch->in_room->room2_flags, ROOM_MULTIPLAY))) {
+			send_to_char("Not on that target.\n\r", ch);
+			return false;
+		}
+
+		if (ch->fighting && !is_same_group(victim, ch->fighting) && ch != victim && !IS_NPC(victim)) {
+			act("You must finish your fight before attacking $N.", ch, victim, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			return false;
+		}
+
+		*targ = TARGET_CHAR;
+		*vict = victim;
+		return true;
+
+	case TAR_CHAR_DEFENSIVE:
+		if (arg[0]) {
+			victim = get_char_room(ch, NULL, arg);
+			if (!victim) {
+				send_to_char("They aren't here.\n\r", ch);
+				return false;
+			}
+
+			if (victim != ch && victim->fighting && victim->fighting != ch &&
+				!is_same_group(ch, victim->fighting) && !IS_NPC(victim) &&
+				!IS_NPC(victim->fighting) && !is_pk(ch) && !IS_SET(ch->in_room->room_flags, ROOM_ARENA)) {
+				send_to_char("You can't interfere in a PK battle if you are not PK.\n\r", ch);
+				return false;
+			}
+		} else
+			victim = ch;
+
+		*targ = TARGET_CHAR;
+		*vict = victim;
+		return true;
+
+	case TAR_CHAR_SELF:
+		if (arg[0] && str_cmp(arg, "me") && str_cmp(arg, "self") && str_prefix(arg, ch->name)) {
+			send_to_char("You may not cast this spell on another.\n\r", ch);
+			return false;
+		}
+
+		*vict = ch;
+		*targ = TARGET_CHAR;
+		break;
+
+	case TAR_OBJ_CHAR_OFF:
+		if (!arg[0] && !ch->fighting) {
+			send_to_char("Play it on whom?\n\r", ch);
+			return FALSE;
+		}
+
+		if (ch->fighting && !arg[0])
+			victim = ch->fighting;
+		else
+			victim = get_char_room(ch, NULL, arg);
+
+		if (!victim) {
+			send_to_char("They aren't here.\n\r", ch);
+			return false;
+		}
+
+		if ((is_safe(ch, victim, TRUE) ||
+			(victim->fighting && ch != victim && !is_same_group(ch, victim->fighting) &&
+			!IS_SET(ch->in_room->room2_flags, ROOM_MULTIPLAY)))) {
+			send_to_char("Not on that target.\n\r", ch);
+			return false;
+		}
 		
-		if (!str_prefix(name, music_table[sn].name))
-			return sn;
+		*targ = TARGET_CHAR;
+		*vict = victim;
+		return true;
+
+	case TAR_OBJ_CHAR_DEF:
+		if (!arg[0])
+			victim = ch;
+		else {
+			victim = get_char_room(ch, NULL, arg);
+		}
+
+		if (!victim) {
+			send_to_char("They aren't here.\n\r", ch);
+			return false;
+		}
+
+		if (victim != ch && victim->fighting && victim->fighting != ch &&
+			!is_same_group(ch, victim->fighting) && !IS_NPC(victim) &&
+			!IS_NPC(victim->fighting) && !is_pk(ch) && !IS_SET(ch->in_room->room_flags, ROOM_ARENA)) {
+			send_to_char("You can't interfere in a PK battle if you are not PK.\n\r", ch);
+			return false;
+		}
+
+		*targ = TARGET_CHAR;
+		*vict = victim;
+		return true;
+
+	case TAR_IGNORE_CHAR_DEF:
+		if (!arg[0]) {
+			send_to_char("Play it on whom?\n\r", ch);
+			return false;
+		}
+
+		victim = get_char_world(ch, arg);
+		if (!victim) {
+			send_to_char("They aren't anywhere in Sentience.\n\r", ch);
+			return false;
+		}
+
+		*targ = TARGET_CHAR;
+		*vict = victim;
+		return true;
+
 	}
 
-	return -1;
-}
+	if (!arg[0]) {
+		send_to_char("Play it on whom?\n\r", ch);
+		return FALSE;
+	}
 
+	send_to_char("They aren't anywhere in Sentience.\n\r", ch);
+	return false;
+}
 
 void do_play(CHAR_DATA *ch, char *argument)
 {
 	SKILL_ENTRY *entry;
     OBJ_DATA *instrument;
     CHAR_DATA *mob;
-    OBJ_DATA *obj;
 	SCRIPT_DATA *script = NULL;
 	ITERATOR it;
 	PROG_LIST *prg;
-    char *name;
     char arg[MAX_INPUT_LENGTH];
     char arg2[MAX_INPUT_LENGTH];
     char buf[MAX_INPUT_LENGTH];
     int chance = 0;
-    int level;
     int target;
     int mana;
     int beats;
@@ -78,13 +255,9 @@ void do_play(CHAR_DATA *ch, char *argument)
 			add_buf(buffer, "{YSong Title                            Level         Mana{x\n\r");
 			add_buf(buffer, "{Y---------------------------------------------------------{x\n\r");
 
-			for(entry = ch->sorted_songs; entry; entry = entry->next) {
-				level = skill_entry_level(ch, entry);
-				name = skill_entry_name(entry);
-				if( entry->token )
-					sprintf(buf, "%-30s %10d\n\r", name, level);
-				else
-					sprintf(buf, "%-30s %10d %13d\n\r", name, level, music_table[entry->song].mana);
+			for(entry = ch->sorted_songs; entry; entry = entry->next)
+			{
+				sprintf(buf, "%-30s %10d %13d\n\r", entry->song->name, entry->song->level, entry->song->mana);
 				add_buf(buffer, buf);
 			}
 			page_to_char(buf_string(buffer), ch);
@@ -96,22 +269,6 @@ void do_play(CHAR_DATA *ch, char *argument)
 		return;
 	}
 
-	obj = NULL;
-	for (instrument = ch->carrying; instrument != NULL; instrument = instrument->next_content )
-	{
-		if ( instrument->item_type == ITEM_INSTRUMENT && instrument->wear_loc != WEAR_NONE)
-		{
-			obj = instrument;
-			break;
-		}
-	}
-
-    if (obj == NULL)
-    {
-		send_to_char("You are not using an instrument.\n\r", ch);
-		return;
-    }
-
     entry = skill_entry_findname(ch->sorted_songs, arg);
 
     if (!entry)
@@ -119,7 +276,46 @@ void do_play(CHAR_DATA *ch, char *argument)
 		send_to_char("You don't know that song.\n\r", ch);
 		return;
     }
-    else if( IS_VALID(entry->token) )
+
+	instrument = NULL;
+	if (!IS_SET(entry->song->flags, SONG_VOICE_ONLY))
+	{
+		// Find equipped instrument
+		for (instrument = ch->carrying; instrument != NULL; instrument = instrument->next_content )
+		{
+			if ( instrument->item_type == ITEM_INSTRUMENT && instrument->wear_loc != WEAR_NONE)
+			{
+				break;
+			}
+		}
+
+		if (IS_SET(entry->song->flags, SONG_INSTRUMENT_ONLY) && instrument == NULL)
+		{
+			send_to_char("You are not using an instrument.\n\r", ch);
+			return;
+		}
+	}
+
+	// Not using an instrument so make sure they can actually sing.
+	if (instrument == NULL && IS_AFFECTED2(ch, AFF2_SILENCE))
+	{
+		send_to_char("You are unable to command your voice.\n\r", ch);
+		return;
+	}
+
+	// Check offensive songs for room safety
+	if ((entry->song->target == TAR_CHAR_OFFENSIVE || entry->song->target == TAR_OBJ_CHAR_OFF) &&
+		IS_SET(ch->in_room->room_flags, ROOM_SAFE))
+	{
+		send_to_char("This room is sanctioned by the gods.\n\r", ch);
+		return;
+	}
+
+	// Get the song target
+	if (!validate_song_target(ch, entry->song->target, arg2, &target, &mob))
+		return;
+
+    if( IS_VALID(entry->token) )
     {
 		// Check that the token has the right scripts
 		// Check thst the token is a valid token spell
@@ -127,7 +323,7 @@ void do_play(CHAR_DATA *ch, char *argument)
 		if( entry->token->pIndexData->progs ) {
 			iterator_start(&it, entry->token->pIndexData->progs[TRIGSLOT_SPELL]);
 			while(( prg = (PROG_LIST *)iterator_nextdata(&it))) {
-				if(is_trigger_type(prg->trig_type,TRIG_SPELL)) {
+				if(is_trigger_type(prg->trig_type,TRIG_TOKEN_SONG)) {
 					script = prg->script;
 					break;
 				}
@@ -141,121 +337,102 @@ void do_play(CHAR_DATA *ch, char *argument)
 			return;
 		}
 
-		mana = entry->token->value[TOKVAL_SPELL_MANA];
-		if ((ch->mana + ch->manastore) < mana) {
-			send_to_char("You don't have enough mana.\n\r", ch);
+		// Mob is $(victim) (if valid, target == TARGET_CHAR, otherwise TARGET_IGNORE)
+		// Instrument is $(obj1) (if not valid, voice is used)
+		int ret = p_percent_trigger(NULL,NULL,NULL,entry->token,ch,mob,NULL, instrument, NULL, TRIG_TOKEN_PRESONG, NULL,ch->tot_level,0,0,0,0);
+		if(ret != 0)
+		{
+			if (ret != PRET_SILENT)
+			{
+				send_to_char("You are unable to play that song.\n\r", ch);
+			}
+
 			return;
 		}
-
-		// Setup targets.
-		ch->tempstore[0] = 0;
-
-		// Precheck for the song token - set the music beats in here!
-		if(p_percent_trigger(NULL,NULL,NULL,entry->token,ch,NULL,NULL, obj, NULL, TRIG_PRESPELL, NULL,0,0,0,0,0))
-			return;
-
-		beats = ch->tempstore[0];
-
-		target = entry->token->pIndexData->value[TOKVAL_SPELL_TARGET];
 	}
 	else
 	{
-		mana = music_table[entry->song].mana;
-
-		if ((ch->mana + ch->manastore) < mana) {
-			send_to_char("You don't have enough mana.\n\r", ch);
-			return;
-		}
-
 		script = NULL;
-		target = music_table[entry->song].target;
-		beats = music_table[entry->song].beats;
+		target = entry->song->target;
+		beats = entry->song->beats;
+
+		if (entry->song->presong_fun)
+		{
+			// Messages must be handled by presong
+			if (!(*(entry->song->presong_fun))(entry->song, ch->tot_level, ch, instrument, mob, target))
+				return;
+		}
 	}
 
+	mana = entry->song->mana;
+	beats = entry->song->beats;
 
-    if ( arg2[0] != '\0' )
-    {
-		if ( ( mob = get_char_room(ch, NULL, arg2) ) == NULL )
+	// TODO: Add instrument level modification for mana
+
+	if ((ch->mana + ch->manastore) < mana) {
+		send_to_char("You don't have enough mana.\n\r", ch);
+		return;
+	}
+
+	// Should have the target mob and type
+	if (target == TARGET_CHAR)
+	{
+		if (mob == ch)
 		{
-			send_to_char("They aren't here.\n\r", ch);
-			return;
-		}
-		else if ( mob != NULL)
-		{
-			switch (target) {
-			case TAR_IGNORE:
-				send_to_char("You can't harness the energies of that song onto one target.\n\r", ch );
-				return;
-				break;
-
-			case TAR_CHAR_SELF:
-				if ( mob != ch ) {
-					send_to_char("You can't harness the energies of that song onto anyone except yourself.\n\r", ch );
-					return;
-				}
-				break;
-
-			case TAR_CHAR_OFFENSIVE:
-			case TAR_OBJ_CHAR_OFF:
-				if ( is_safe( ch, mob, TRUE ) )
-					return;
-				break;
-
-			case TAR_CHAR_DEFENSIVE:
-			case TAR_CHAR_FORMATION:
-			case TAR_OBJ_CHAR_DEF:
-				if ( mob != ch
-				&&   mob->fighting != NULL
-				&&   ch->fighting != mob
-				&&   !IS_NPC(mob)
-				&&   !IS_NPC(mob->fighting)
-				&&   !is_pk(ch))
-				{
-				send_to_char("You can't interfere in a PK battle if you are not PK.\n\r", ch );
-				return;
-				}
-				break;
-			}
-
-			if ( mob == ch )
+			if(instrument == NULL)
 			{
-			send_to_char("{YYou begin to play the song softly to yourself...{X\n\r", ch);
-			act( "{Y$n begins to play a song on $p{Y softly to $mself...{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
+				// Vocal
+				send_to_char("{YYou begin to sing the song softly to yourself...{X\n\r", ch);
+				act( "{Y$n begins to sing a song softly to $mself...{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 			}
 			else
 			{
-			act("{YYou begin to play the song, sweetly exerting its influence on $N...{X", ch, mob, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-			act("{Y$n begins to play a song, exerting its influence on $N...{X", ch, mob, NULL, obj, NULL, NULL, NULL, TO_NOTVICT);
-			act("{Y$n begins to play a song, exerting its influence on you...{X", ch, mob, NULL, obj, NULL, NULL, NULL, TO_VICT);
+				// Instrument
+				act( "{YYou begin to play the song on $p{Y softly to yourself...{x", ch, NULL, NULL, instrument, NULL, NULL, NULL, TO_CHAR);
+				act( "{Y$n begins to play a song on $p{Y softly to $mself...{x", ch, NULL, NULL, instrument, NULL, NULL, NULL, TO_ROOM);
 			}
+		}
+		else
+		{
+			if(instrument == NULL)
+			{
+				// Vocal
+				act("{YYou begin to sing the song, sweetly exerting its influence on $N...{X", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+				act("{Y$n begins to sing a song, exerting its influence on $N...{X", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_NOTVICT);
+				act("{Y$n begins to sing a song, exerting its influence on you...{X", ch, mob, NULL, NULL, NULL, NULL, NULL, TO_VICT);
+			}
+			else
+			{
+				// Instrument
+				act("{YYou begin to play the song on $p{Y, sweetly exerting its influence on $N...{X", ch, mob, NULL, instrument, NULL, NULL, NULL, TO_CHAR);
+				act("{Y$n begins to play a song on $p{Y, exerting its influence on $N...{X", ch, mob, NULL, instrument, NULL, NULL, NULL, TO_NOTVICT);
+				act("{Y$n begins to play a song on $p{Y, exerting its influence on you...{X", ch, mob, NULL, instrument, NULL, NULL, NULL, TO_VICT);
+			}
+
 		}
 
 		ch->music_target = str_dup(mob->name);
-    }
-    else
-    {
-		/* Syn- this fix is here to make sure offensive target songs cannot be played in safe rooms. */
-
-		switch (target) {
-			case TAR_CHAR_OFFENSIVE:
-			case TAR_OBJ_CHAR_OFF:
-				if (IS_SET(ch->in_room->room_flags, ROOM_SAFE)) {
-					send_to_char("This room is sanctioned by the gods.\n\r", ch);
-					return;
-				}
-
-			break;
+	}
+	else
+	{
+		if (instrument == NULL)
+		{
+			act( "{YYou begin to sing a song...{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+			act( "{Y$n begins to sing a song...{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
 		}
-		act( "{YYou begin to play a song on $p{Y...{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_CHAR);
-		act( "{Y$n begins to play a song on $p{Y...{x", ch, NULL, NULL, obj, NULL, NULL, NULL, TO_ROOM);
-    }
+		else
+		{
+			act( "{YYou begin to play a song on $p{Y...{x", ch, NULL, NULL, instrument, NULL, NULL, NULL, TO_CHAR);
+			act( "{Y$n begins to play a song on $p{Y...{x", ch, NULL, NULL, instrument, NULL, NULL, NULL, TO_ROOM);
+		}
+	}
 
 	// Setup targets.
-	ch->song_num = entry->song;
+	ch->song = entry->song;
 	ch->song_token = IS_VALID(entry->token) ? entry->token : NULL;
 	ch->song_script = script;
 	ch->song_mana = mana;
-	ch->song_instrument = obj;
+	ch->song_instrument = instrument;
 
 	// Block to deal with reductions
 	{
@@ -269,7 +446,7 @@ void do_play(CHAR_DATA *ch, char *argument)
 			scale2 *= 3;	// Give a 1/3 reduction
 		}
 
-		if( obj != NULL )
+		if( instrument != NULL )
 		{
 
 			/*
@@ -282,14 +459,14 @@ void do_play(CHAR_DATA *ch, char *argument)
 			*/
 
 			// Only do it if both are set
-			if( obj->value[2] > 0 && obj->value[3] > 0)
+			if( instrument->value[2] > 0 && instrument->value[3] > 0)
 			{
 				int scale;
 
-				if( obj->value[2] < obj->value[3] )
-					scale = number_range(obj->value[2], obj->value[3]);
+				if( instrument->value[2] < instrument->value[3] )
+					scale = number_range(instrument->value[2], instrument->value[3]);
 				else
-					scale = number_range(obj->value[3], obj->value[2]);
+					scale = number_range(instrument->value[3], instrument->value[2]);
 
 				if( scale != 100 )
 				{
@@ -310,39 +487,41 @@ void do_play(CHAR_DATA *ch, char *argument)
 
 void music_end( CHAR_DATA *ch )
 {
-    CHAR_DATA *mob, *mob_next;
+    CHAR_DATA *mob;
 	TOKEN_DATA *token = NULL;
-	SCRIPT_DATA *script = NULL;
+	SONG_DATA *song = NULL;
 	int mana;
-	unsigned long id[2];
 	int type;
-	int song_num;
-	SKILL_DATA *skill;
-	const struct music_type* pSong = NULL;
 	bool offensive = FALSE;
-	bool wasdead;
 
-    act( "{YYou finish playing your song.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
-    act( "{Y$n finishes $s song.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	if (ch->song_instrument == NULL)
+	{
+    	act( "{YYou finish singing your song.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_CHAR);
+    	act( "{Y$n finishes $s song.{x", ch, NULL, NULL, NULL, NULL, NULL, NULL, TO_ROOM);
+	}
+	else
+	{
+    	act( "{YYou finish playing your song on $p{Y.{x", ch, NULL, NULL, ch->song_instrument, NULL, NULL, NULL, TO_CHAR);
+    	act( "{Y$n finishes $s song on $p{Y.{x", ch, NULL, NULL, ch->song_instrument, NULL, NULL, NULL, TO_ROOM);
+	}
 
 	if(ch->song_token) {
 		token = ch->song_token;
-		script = ch->song_script;
-		type = token->pIndexData->value[TOKVAL_SPELL_TARGET];
-		pSong = NULL;
-		song_num = -1;
-	} else {
-		song_num = ch->song_num;
-		pSong = &music_table[song_num];
-		type = music_table[song_num].target;
 	}
 
-	mana = ch->song_mana;
+	song = ch->song;
+	type = ch->song->target;
+	mana = ch->song->mana;
+	offensive = (type == TAR_CHAR_OFFENSIVE || type == TAR_OBJ_CHAR_OFF);
+
+	// TODO: Handle instrument modification of mana costs
+
 	deduct_mana(ch, mana);
 
     // We are casting it on just one person only
     if (ch->music_target != NULL)
     {
+		// TARGET_CHAR
 		mob = get_char_room(ch, NULL, ch->music_target);
 		if ( mob == NULL )
 		{
@@ -351,7 +530,7 @@ void music_end( CHAR_DATA *ch )
 			ch->music_target = NULL;
 			ch->song_token = NULL;
 			ch->song_script = NULL;
-			ch->song_num = -1;
+			ch->song = NULL;
 			ch->song_instrument = NULL;
 			return;
 		}
@@ -360,129 +539,15 @@ void music_end( CHAR_DATA *ch )
 			char *music_target_name = ch->music_target;
 			ch->music_target = NULL;
 
-			if( pSong )
+			if (IS_VALID(token))
 			{
-				id[0] = mob->id[0];
-				id[1] = mob->id[1];
-				wasdead = mob->dead;
-
-				if( (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead)) && pSong->spell1 )
-				{
-					skill = get_skill_data(pSong->spell1);
-
-					if( IS_VALID(skill) && skill->spell_fun != spell_null)
-					{
-						if(skill->target == TAR_CHAR_OFFENSIVE || skill->target == TAR_OBJ_CHAR_DEF)
-							offensive = TRUE;
-
-						// Does the spell need to be checked for deflections to switch victim?
-						CHAR_DATA *tch;
-						check_spell_deflection_new(ch, mob, skill, false, &tch, NULL);
-						if (!tch)
-							return;
-
-						// The rest of the song bounces, not just the one spell
-						if (mob != tch)
-						{
-							mob = tch;
-							id[0] = mob->id[0];
-							id[1] = mob->id[1];
-							wasdead = mob->dead;
-						}
-
-					if (skill->token)
-						p_token_index_percent_trigger(skill->token, ch, mob, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0);
-					else
-						(*skill->spell_fun) (skill, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
-					}
-				}
-
-				if( (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead)) && pSong->spell2 )
-				{
-					skill = get_skill_data(pSong->spell2);
-
-					if( IS_VALID(skill) && skill->spell_fun != spell_null)
-					{
-						if(skill->target == TAR_CHAR_OFFENSIVE || skill->target == TAR_OBJ_CHAR_DEF)
-							offensive = TRUE;
-
-						// Does the spell need to be checked for deflections to switch victim?
-						CHAR_DATA *tch;
-						check_spell_deflection_new(ch, mob, skill, false, &tch, NULL);
-						if (!tch)
-							return;
-
-						// The rest of the song bounces, not just the one spell
-						if (mob != tch)
-						{
-							mob = tch;
-							id[0] = mob->id[0];
-							id[1] = mob->id[1];
-							wasdead = mob->dead;
-						}
-
-						if (skill->token)
-							p_token_index_percent_trigger(skill->token, ch, mob, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0);
-						else
-							(*skill->spell_fun) (skill, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
-					}
-				}
-
-				if( (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead)) && pSong->spell3 )
-				{
-					skill = get_skill_data(pSong->spell3);
-
-					if( IS_VALID(skill) && skill->spell_fun != spell_null)
-					{
-						if(skill->target == TAR_CHAR_OFFENSIVE || skill->target == TAR_OBJ_CHAR_DEF)
-							offensive = TRUE;
-
-						// Does the spell need to be checked for deflections to switch victim?
-						CHAR_DATA *tch;
-						check_spell_deflection_new(ch, mob, skill, false, &tch, NULL);
-						if (!tch)
-							return;
-
-						// The rest of the song bounces, not just the one spell
-						if (mob != tch)
-						{
-							mob = tch;
-							id[0] = mob->id[0];
-							id[1] = mob->id[1];
-							wasdead = mob->dead;
-						}
-
-						if (skill->token)
-							p_token_index_percent_trigger(skill->token, ch, mob, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0);
-						else
-							(*skill->spell_fun) (skill, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
-					}
-				}
+				if (p_token_index_percent_trigger(song->token, ch, mob, NULL, NULL, NULL, TRIG_TOKEN_SONG, music_target_name, 0,0,0,0,0, ch->tot_level,0,0,0,0) > 0)
+					offensive = true;
 			}
-			else
+			else if (song->song_fun)
 			{
-				// TODO: song token spell deflection
-				/*
-				// Does the spell need to be checked for deflections to switch victim?
-				CHAR_DATA *tch;
-				check_spell_deflection_new(ch, mob, skill, false, &tch, NULL);
-				if (!tch)
-					return;
-
-				// The rest of the song bounces, not just the one spell
-				if (mob != tch)
-				{
-					mob = tch;
-					id[0] = mob->id[0];
-					id[1] = mob->id[1];
-					wasdead = mob->dead;
-				}
-				*/
-
-				// TODO: Make work with the correct trigger
-				// TODO: Possibly add a TRIG_TOKEN_SONG trigger?
-				if( execute_script(script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, mob, NULL, NULL, NULL,music_target_name,NULL,TRIG_SPELL,0,0,0,0,0) > 0)
-					offensive = TRUE;
+				if((*(song->song_fun))(song, ch->tot_level, ch, ch->song_instrument, mob, TARGET_CHAR))
+					offensive = true;
 			}
 
 			free_string(music_target_name);
@@ -494,653 +559,30 @@ void music_end( CHAR_DATA *ch )
 
 			ch->song_token = NULL;
 			ch->song_script = NULL;
-			ch->song_num = -1;
+			ch->song = NULL;
 			ch->song_instrument = NULL;
 			return;
 		}
     }
     else
     {
-		SKILL_DATA *sk1 = NULL, *sk2 = NULL, *sk3 = NULL;
-
-		if(pSong)
+		// TARGET_IGNORE
+		if (IS_VALID(token))
 		{
-			if( pSong->spell1 )
-			{
-				sk1 = get_skill_data(pSong->spell1);
-
-				if( IS_VALID(sk1) && sk1->spell_fun != spell_null)
-				{
-					if(sk1->target == TAR_CHAR_OFFENSIVE || sk1->target == TAR_OBJ_CHAR_DEF)
-						offensive = TRUE;
-				}
-			}
-
-			if( pSong->spell2 )
-			{
-				sk2 = get_skill_data(pSong->spell2);
-
-				if( IS_VALID(sk2) && sk2->spell_fun != spell_null)
-				{
-					if(sk2->target == TAR_CHAR_OFFENSIVE || sk2->target == TAR_OBJ_CHAR_DEF)
-						offensive = TRUE;
-				}
-			}
-
-			if( pSong->spell3 )
-			{
-				sk3 = get_skill_data(pSong->spell3);
-
-				if( IS_VALID(sk3) && sk3->spell_fun != spell_null)
-				{
-					if(sk3->target == TAR_CHAR_OFFENSIVE || sk3->target == TAR_OBJ_CHAR_DEF)
-						offensive = TRUE;
-				}
-			}
+			if (p_token_index_percent_trigger(song->token, ch, NULL, NULL, NULL, NULL, TRIG_TOKEN_SONG, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0) > 0)
+				offensive = true;
 		}
-
-		switch(type)
+		else if (song->song_fun)
 		{
-		case TAR_CHAR_FORMATION:
-			for(mob = ch->in_room->people; mob != NULL; mob = mob_next)
-			{
-				mob_next = mob->next_in_room;
-
-				if( !is_same_group(mob, ch) )
-					continue;
-
-				if( mob != ch && mob->fighting && !IS_NPC(mob) && !IS_NPC(mob->fighting) && !is_pk(ch))
-					continue;
-
-				id[0] = mob->id[0];
-				id[1] = mob->id[1];
-				wasdead = mob->dead;
-
-				if( pSong )
-				{
-					if( IS_VALID(sk1) )
-					{
-						// Does the spell need to be checked for deflections to switch victim?
-						CHAR_DATA *tch;
-						check_spell_deflection_new(ch, mob, sk1, false, &tch, NULL);
-						if (!tch)
-							return;
-
-						// The rest of the song bounces, not just the one spell
-						if (mob != tch)
-						{
-							mob = tch;
-							id[0] = mob->id[0];
-							id[1] = mob->id[1];
-							wasdead = mob->dead;
-						}
-
-						if (sk1->token)
-							p_token_index_percent_trigger(sk1->token, ch, mob, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0);
-						else
-							(*sk1->spell_fun) (sk1, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
-					}
-
-					if( IS_VALID(sk2) && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead)) )
-					{
-						// Does the spell need to be checked for deflections to switch victim?
-						CHAR_DATA *tch;
-						check_spell_deflection_new(ch, mob, sk2, false, &tch, NULL);
-						if (!tch)
-							return;
-
-						// The rest of the song bounces, not just the one spell
-						if (mob != tch)
-						{
-							mob = tch;
-							id[0] = mob->id[0];
-							id[1] = mob->id[1];
-							wasdead = mob->dead;
-						}
-
-						if (sk2->token)
-							p_token_index_percent_trigger(sk2->token, ch, mob, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0);
-						else
-							(*sk2->spell_fun) (sk2, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
-					}
-
-					if( IS_VALID(sk3) && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead)) )
-					{
-						// Does the spell need to be checked for deflections to switch victim?
-						CHAR_DATA *tch;
-						check_spell_deflection_new(ch, mob, sk3, false, &tch, NULL);
-						if (!tch)
-							return;
-
-						// The rest of the song bounces, not just the one spell
-						if (mob != tch)
-						{
-							mob = tch;
-							id[0] = mob->id[0];
-							id[1] = mob->id[1];
-							wasdead = mob->dead;
-						}
-
-						if (sk3->token)
-							p_token_index_percent_trigger(sk3->token, ch, mob, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0);
-						else
-							(*sk3->spell_fun) (sk3, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
-					}
-
-				}
-				else
-				{
-					// TODO: Spell Deflection for song tokens
-					if(execute_script(script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, mob, NULL,NULL, NULL,NULL, NULL,TRIG_SPELL,0,0,0,0,0) > 0)
-						offensive = TRUE;
-				}
-
-				if (mob != ch && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1])) && (mob->dead == wasdead) && !is_safe(ch, mob, FALSE) && offensive)
-					set_fighting(mob, ch);
-			}
-			break;
-
-		case TAR_CHAR_DEFENSIVE:
-		case TAR_OBJ_CHAR_DEF:
-			for(mob = ch->in_room->people; mob != NULL; mob = mob_next)
-			{
-				mob_next = mob->next_in_room;
-
-				if( mob != ch && mob->fighting && !IS_NPC(mob) && !IS_NPC(mob->fighting) && !is_pk(ch))
-					continue;
-
-				id[0] = mob->id[0];
-				id[1] = mob->id[1];
-				wasdead = mob->dead;
-
-				if( pSong )
-				{
-					if( IS_VALID(sk1) )
-					{
-						// Does the spell need to be checked for deflections to switch victim?
-						CHAR_DATA *tch;
-						check_spell_deflection_new(ch, mob, sk1, false, &tch, NULL);
-						if (!tch)
-							return;
-
-						// The rest of the song bounces, not just the one spell
-						if (mob != tch)
-						{
-							mob = tch;
-							id[0] = mob->id[0];
-							id[1] = mob->id[1];
-							wasdead = mob->dead;
-						}
-
-						if (sk1->token)
-							p_token_index_percent_trigger(sk1->token, ch, mob, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0);
-						else
-							(*sk1->spell_fun) (sk1, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
-					}
-
-					if( IS_VALID(sk2) && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead)) )
-					{
-						// Does the spell need to be checked for deflections to switch victim?
-						CHAR_DATA *tch;
-						check_spell_deflection_new(ch, mob, sk2, false, &tch, NULL);
-						if (!tch)
-							return;
-
-						// The rest of the song bounces, not just the one spell
-						if (mob != tch)
-						{
-							mob = tch;
-							id[0] = mob->id[0];
-							id[1] = mob->id[1];
-							wasdead = mob->dead;
-						}
-
-						if (sk2->token)
-							p_token_index_percent_trigger(sk2->token, ch, mob, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0);
-						else
-							(*sk2->spell_fun) (sk2, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
-					}
-
-					if( IS_VALID(sk3) && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead)) )
-					{
-						// Does the spell need to be checked for deflections to switch victim?
-						CHAR_DATA *tch;
-						check_spell_deflection_new(ch, mob, sk3, false, &tch, NULL);
-						if (!tch)
-							return;
-
-						// The rest of the song bounces, not just the one spell
-						if (mob != tch)
-						{
-							mob = tch;
-							id[0] = mob->id[0];
-							id[1] = mob->id[1];
-							wasdead = mob->dead;
-						}
-
-						if (sk3->token)
-							p_token_index_percent_trigger(sk3->token, ch, mob, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0);
-						else
-						(*sk3->spell_fun) (sk3, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
-					}
-				}
-				else
-				{
-					execute_script(script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, mob, NULL,NULL,NULL,NULL, NULL,TRIG_NONE,0,0,0,0,0);
-				}
-			}
-			break;
-
-		case TAR_CHAR_OFFENSIVE:
-		case TAR_OBJ_CHAR_OFF:
-			for ( mob = ch->in_room->people; mob != NULL; mob = mob_next)
-			{
-				mob_next = mob->next_in_room;
-
-				if ( is_safe( ch, mob, FALSE ) )
-					continue;
-
-				id[0] = mob->id[0];
-				id[1] = mob->id[1];
-				wasdead = mob->dead;
-
-				if( pSong )
-				{
-
-					if( IS_VALID(sk1) && !is_same_group(ch, mob))
-					{
-						// Does the spell need to be checked for deflections to switch victim?
-						CHAR_DATA *tch;
-						check_spell_deflection_new(ch, mob, sk1, false, &tch, NULL);
-						if (!tch)
-							return;
-
-						// The rest of the song bounces, not just the one spell
-						if (mob != tch)
-						{
-							mob = tch;
-							id[0] = mob->id[0];
-							id[1] = mob->id[1];
-							wasdead = mob->dead;
-						}
-
-						if (sk1->token)
-							p_token_index_percent_trigger(sk1->token, ch, mob, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0);
-						else
-							(*sk1->spell_fun) (sk1, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
-					}
-
-					if( IS_VALID(sk2) && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead) && !is_same_group(ch, mob)) )
-					{
-						// Does the spell need to be checked for deflections to switch victim?
-						CHAR_DATA *tch;
-						check_spell_deflection_new(ch, mob, sk2, false, &tch, NULL);
-						if (!tch)
-							return;
-
-						// The rest of the song bounces, not just the one spell
-						if (mob != tch)
-						{
-							mob = tch;
-							id[0] = mob->id[0];
-							id[1] = mob->id[1];
-							wasdead = mob->dead;
-						}
-
-						if (sk2->token)
-							p_token_index_percent_trigger(sk2->token, ch, mob, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0);
-						else
-							(*sk2->spell_fun) (sk2, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
-					}
-
-					if( IS_VALID(sk3) && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead) && !is_same_group(ch, mob)) )
-					{
-						// Does the spell need to be checked for deflections to switch victim?
-						CHAR_DATA *tch;
-						check_spell_deflection_new(ch, mob, sk3, false, &tch, NULL);
-						if (!tch)
-							return;
-
-						// The rest of the song bounces, not just the one spell
-						if (mob != tch)
-						{
-							mob = tch;
-							id[0] = mob->id[0];
-							id[1] = mob->id[1];
-							wasdead = mob->dead;
-						}
-
-						if (sk3->token)
-							p_token_index_percent_trigger(sk3->token, ch, mob, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0);
-						else
-							(*sk3->spell_fun) (sk3, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
-					}
-				}
-				else
-				{
-					// TODO: Spell deflection for song tokens
-
-					if(execute_script(script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, mob, NULL,NULL, NULL,NULL, NULL,TRIG_SPELL,0,0,0,0,0) > 0)
-						offensive = TRUE;
-				}
-
-				if (mob != ch && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1])) && (mob->dead == wasdead) && !is_safe(ch, mob, FALSE) && offensive)
-					set_fighting(mob, ch);
-			}
-			break;
-
-		case TAR_CHAR_SELF:
-			mob = ch;
-			id[0] = mob->id[0];
-			id[1] = mob->id[1];
-			wasdead = mob->dead;
-
-			if( pSong )
-			{
-				if( IS_VALID(sk1) )
-				{
-					// Does the spell need to be checked for deflections to switch victim?
-					CHAR_DATA *tch;
-					check_spell_deflection_new(ch, mob, sk1, false, &tch, NULL);
-					if (!tch)
-						return;
-
-					// The rest of the song bounces, not just the one spell
-					if (mob != tch)
-					{
-						mob = tch;
-						id[0] = mob->id[0];
-						id[1] = mob->id[1];
-						wasdead = mob->dead;
-					}
-
-					if (sk1->token)
-						p_token_index_percent_trigger(sk1->token, ch, mob, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0);
-					else
-						(*sk1->spell_fun) (sk1, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
-				}
-
-				if( IS_VALID(sk2) && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead)) )
-				{
-					// Does the spell need to be checked for deflections to switch victim?
-					CHAR_DATA *tch;
-					check_spell_deflection_new(ch, mob, sk2, false, &tch, NULL);
-					if (!tch)
-						return;
-
-					// The rest of the song bounces, not just the one spell
-					if (mob != tch)
-					{
-						mob = tch;
-						id[0] = mob->id[0];
-						id[1] = mob->id[1];
-						wasdead = mob->dead;
-					}
-
-					if (sk2->token)
-						p_token_index_percent_trigger(sk2->token, ch, mob, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0);
-					else
-						(*sk2->spell_fun) (sk2, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
-				}
-
-				if( IS_VALID(sk3) && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead)) )
-				{
-					// Does the spell need to be checked for deflections to switch victim?
-					CHAR_DATA *tch;
-					check_spell_deflection_new(ch, mob, sk3, false, &tch, NULL);
-					if (!tch)
-						return;
-
-					// The rest of the song bounces, not just the one spell
-					if (mob != tch)
-					{
-						mob = tch;
-						id[0] = mob->id[0];
-						id[1] = mob->id[1];
-						wasdead = mob->dead;
-					}
-
-					if (sk3->token)
-						p_token_index_percent_trigger(sk3->token, ch, mob, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0);
-					else
-						(*sk3->spell_fun) (sk3, ch->tot_level, ch, mob, TARGET_CHAR, WEAR_NONE);
-				}
-			}
-			else
-			{
-				execute_script(script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, mob, NULL,NULL,NULL,NULL, NULL,TRIG_NONE,0,0,0,0,0);
-			}
-			break;
-		case TAR_IGNORE:
-			mob = ch;
-			id[0] = mob->id[0];
-			id[1] = mob->id[1];
-			wasdead = mob->dead;
-
-			if( pSong )
-			{
-				if( IS_VALID(sk1) )
-				{
-					if (sk1->token)
-						p_token_index_percent_trigger(sk1->token, ch, mob, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0);
-					else
-						(*sk1->spell_fun) (sk1, ch->tot_level, ch, mob, TARGET_NONE, WEAR_NONE);
-				}
-
-				if( IS_VALID(sk2) && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead)) )
-				{
-					if (sk2->token)
-						p_token_index_percent_trigger(sk2->token, ch, mob, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0);
-					else
-						(*sk2->spell_fun) (sk2, ch->tot_level, ch, mob, TARGET_NONE, WEAR_NONE);
-				}
-
-				if( IS_VALID(sk3) && (IS_VALID(mob) && (mob->id[0] == id[0] && mob->id[1] == id[1]) && (mob->dead == wasdead)) )
-				{
-					if (sk3->token)
-						p_token_index_percent_trigger(sk3->token, ch, mob, NULL, NULL, NULL, TRIG_SPELL, NULL, 0,0,0,0,0, ch->tot_level,0,0,0,0);
-					else
-						(*sk3->spell_fun) (sk3, ch->tot_level, ch, mob, TARGET_NONE, WEAR_NONE);
-				}
-			}
-			else
-			{
-				execute_script(script, NULL, NULL, NULL, token, NULL, NULL, NULL, ch, NULL, NULL, mob, NULL,NULL,NULL,NULL, NULL,TRIG_NONE,0,0,0,0,0);
-			}
-			break;
-
+			if((*(song->song_fun))(song, ch->tot_level, ch, ch->song_instrument, NULL, TARGET_NONE))
+				offensive = true;
 		}
 
 		ch->song_token = NULL;
 		ch->song_script = NULL;
-		ch->song_num = -1;
+		ch->song = NULL;
 		ch->song_instrument = NULL;
 	}
-
-/*
-    switch( music_table[song_num].target )
-    {
-	case TAR_CHAR_FORMATION:
-	    for ( mob = ch->in_room->people; mob != NULL; mob = mob_next )
-	    {
-	        mob_next = mob->next_in_room;
-
-		if ( !is_same_group(mob, ch))
-		    continue;
-
-		if ( mob != ch
-		&&   mob->fighting != NULL
-		&&   !IS_NPC(mob)
-		&&   !IS_NPC(mob->fighting)
-		&&   !is_pk(ch))
-		    continue;
-
-		if ( music_table[song_num].spell1 != NULL )
-		{
-		    int sn = 0;
-		    for (sn = 0; sn < MAX_SKILL; sn++ )
-			if ( !str_cmp(skill_table[sn].name, music_table[song_num].spell1 ))
-			    (*skill_table[sn].spell_fun) (sn, ch->tot_level, ch, mob, TARGET_CHAR);
-		}
-
-		if ( music_table[song_num].spell2 != NULL )
-		{
-		    int sn = 0;
-		    for (sn = 0; sn < MAX_SKILL; sn++ )
-			if ( !str_cmp(skill_table[sn].name, music_table[song_num].spell2 ))
-			    (*skill_table[sn].spell_fun) (sn, ch->tot_level, ch, mob, TARGET_CHAR);
-		}
-
-		if ( music_table[song_num].spell3 != NULL )
-		{
-		    int sn = 0;
-		    for (sn = 0; sn < MAX_SKILL; sn++ )
-			if ( !str_cmp(skill_table[sn].name, music_table[song_num].spell3 ))
-			    (*skill_table[sn].spell_fun) (sn, ch->tot_level, ch, mob, TARGET_CHAR);
-		}
-
-		if (mob != ch && !is_safe(ch, mob, FALSE)
-		&&  (music_table[song_num].target == TAR_CHAR_OFFENSIVE
-		     || music_table[song_num].target == TAR_OBJ_CHAR_OFF))
-		    set_fighting(mob, ch);
-	    }
-
-	    break;
-
-	case TAR_CHAR_DEFENSIVE:
-	case TAR_OBJ_CHAR_DEF:
-	    for ( mob = ch->in_room->people; mob != NULL; mob = mob_next )
-	    {
-	        mob_next = mob->next_in_room;
-
-		if ( mob != ch
-		&&   mob->fighting != NULL
-		&&   !IS_NPC(mob)
-		&&   !IS_NPC(mob->fighting)
-		&&   !is_pk(ch))
-		    continue;
-
-		if ( music_table[song_num].spell1 != NULL )
-		{
-		  int sn = 0;
-		  for (sn = 0; sn < MAX_SKILL; sn++ )
-		    if ( !str_cmp(skill_table[sn].name, music_table[song_num].spell1 ))
-			(*skill_table[sn].spell_fun) (sn, ch->tot_level, ch, mob, TARGET_CHAR);
-		}
-
-		if ( music_table[song_num].spell2 != NULL )
-		{
-		  int sn = 0;
-		  for (sn = 0; sn < MAX_SKILL; sn++ )
-		    if ( !str_cmp(skill_table[sn].name, music_table[song_num].spell2 ))
-			(*skill_table[sn].spell_fun) (sn, ch->tot_level, ch, mob, TARGET_CHAR);
-		}
-
-		if ( music_table[song_num].spell3 != NULL )
-		{
-		  int sn = 0;
-		  for (sn = 0; sn < MAX_SKILL; sn++ )
-		    if ( !str_cmp(skill_table[sn].name, music_table[song_num].spell3 ))
-			(*skill_table[sn].spell_fun) (sn, ch->tot_level, ch, mob, TARGET_CHAR);
-		}
-	    }
-
-	    break;
-
-	case TAR_CHAR_OFFENSIVE:
-	case TAR_OBJ_CHAR_OFF:
-	    for ( mob = ch->in_room->people; mob != NULL; mob = mob_next)
-	    {
-	        mob_next = mob->next_in_room;
-
-                if ( is_safe( ch, mob, FALSE ) )
-		    continue;
-
-		if ( music_table[song_num].spell1 != NULL
-		&& !is_same_group(ch,mob))
-		{
-		  int sn = 0;
-		  for (sn = 0; sn < MAX_SKILL; sn++ )
-		    if ( !str_cmp(skill_table[sn].name, music_table[song_num].spell1 )
-		    && mob != ch )
-			(*skill_table[sn].spell_fun) (sn, ch->tot_level, ch, mob, TARGET_CHAR);
-		}
-
-		if ( music_table[song_num].spell2 != NULL
-		&& !is_same_group(ch,mob))
-		{
-		  int sn = 0;
-		  for (sn = 0; sn < MAX_SKILL; sn++ )
-		    if ( !str_cmp(skill_table[sn].name, music_table[song_num].spell2 )
-		    && mob != ch )
-			(*skill_table[sn].spell_fun) (sn, ch->tot_level, ch, mob, TARGET_CHAR);
-		}
-
-		if ( music_table[song_num].spell3 != NULL
-		&& !is_same_group(ch,mob))
-		{
-		  int sn = 0;
-		  for (sn = 0; sn < MAX_SKILL; sn++ )
-		    if ( !str_cmp(skill_table[sn].name, music_table[song_num].spell3 )
-		    && mob != ch )
-			(*skill_table[sn].spell_fun) (sn, ch->tot_level, ch, mob, TARGET_CHAR);
-		}
-	    }
-
-	    break;
-
-	case TAR_CHAR_SELF:
-	    if ( music_table[song_num].spell1 != NULL )
-	    {
-	      int sn = 0;
-	      for (sn = 0; sn < MAX_SKILL; sn++ )
-		if ( !str_cmp(skill_table[sn].name, music_table[song_num].spell1 ))
-		    (*skill_table[sn].spell_fun) (sn, ch->tot_level, ch, ch, TARGET_CHAR);
-	    }
-	    if ( music_table[song_num].spell2 != NULL )
-	    {
-	      int sn = 0;
-	      for (sn = 0; sn < MAX_SKILL; sn++ )
-		if ( !str_cmp(skill_table[sn].name, music_table[song_num].spell2 ))
-		    (*skill_table[sn].spell_fun) (sn, ch->tot_level, ch, ch, TARGET_CHAR);
-	    }
-	    if ( music_table[song_num].spell3 != NULL )
-	    {
-	      int sn = 0;
-	      for (sn = 0; sn < MAX_SKILL; sn++ )
-		if ( !str_cmp(skill_table[sn].name, music_table[song_num].spell3 ))
-		    (*skill_table[sn].spell_fun) (sn, ch->tot_level, ch, ch, TARGET_CHAR);
-	    }
-
-	    break;
-
-	case TAR_IGNORE:
-	    if ( music_table[song_num].spell1 != NULL )
-	    {
-	      int sn = 0;
-	      for (sn = 0; sn < MAX_SKILL; sn++ )
-		if ( !str_cmp(skill_table[sn].name, music_table[song_num].spell1 ))
-		    (*skill_table[sn].spell_fun) (sn, ch->tot_level, ch, ch, TARGET_NONE);
-	    }
-
-	    if ( music_table[song_num].spell2 != NULL )
-	    {
-	      int sn = 0;
-	      for (sn = 0; sn < MAX_SKILL; sn++ )
-		if ( !str_cmp(skill_table[sn].name, music_table[song_num].spell2 ))
-		    (*skill_table[sn].spell_fun) (sn, ch->tot_level, ch, ch, TARGET_NONE);
-	    }
-
-	    if ( music_table[song_num].spell3 != NULL )
-	    {
-	      int sn = 0;
-	      for (sn = 0; sn < MAX_SKILL; sn++ )
-		if ( !str_cmp(skill_table[sn].name, music_table[song_num].spell3 ))
-		    (*skill_table[sn].spell_fun) (sn, ch->tot_level, ch, ch, TARGET_NONE);
-	    }
-	    break;
-    }
-    */
 
     check_improve(ch, gsk_music, TRUE, 2);
 }
@@ -1159,13 +601,817 @@ bool was_bard( CHAR_DATA *ch )
     return FALSE;
 }
 
-int music_lookup( char *name)
+SONG_DATA *get_song_data( char *name)
 {
-	int i;
+	ITERATOR it;
+	SONG_DATA *song;
 
-	for(i = 0; (i < MAX_SONGS) && music_table[i].name; i++)
-		if( !str_cmp(music_table[i].name, name) )
-			return i;
+	iterator_start(&it, songs_list);
+	while((song = (SONG_DATA *)iterator_nextdata(&it)))
+	{
+		if (!str_prefix(name, song->name))
+			break;
+	}
+	iterator_stop(&it);
 
-	return -1;
+	return song;
+}
+
+void save_song(FILE *fp, SONG_DATA *song)
+{
+	fprintf(fp, "#SONG %s~ %d\n", song->name, song->uid);
+
+	fprintf(fp, "Level %d\n", song->level);
+	fprintf(fp, "Beats %d\n", song->beats);
+	fprintf(fp, "Mana %d\n", song->mana);
+	fprintf(fp, "Target %s~\n", flag_string(song_target_types, song->target));
+	fprintf(fp, "Flags %s\n", print_flags(song->flags));
+
+	if (song->token)
+	{
+		// Tokens use triggers instead of the special functions
+		fprintf(fp, "Token %ld#%ld\n", song->token->area->uid, song->token->vnum);
+	}
+	else
+	{
+		if(song->presong_fun)
+			fprintf(fp, "PreSongFunc %s~\n", presong_func_name(song->presong_fun));
+
+		if(song->song_fun)
+			fprintf(fp, "SongFunc %s~\n", song_func_name(song->song_fun));
+	}
+
+	fprintf(fp, "#-SONG\n");
+}
+
+void save_songs(void)
+{
+	FILE *fp;
+
+	log_string("save_songs: saving " SONGS_FILE);
+	if ((fp = fopen(SONGS_FILE, "w")) == NULL)
+	{
+		bug("save_songs: fopen", 0);
+		perror(SONGS_FILE);
+	}
+	else
+	{
+		ITERATOR it;
+		SONG_DATA *song;
+		iterator_start(&it, songs_list);
+		while((song = (SONG_DATA *)iterator_nextdata(&it)))
+		{
+			save_song(fp, song);
+		}
+		iterator_stop(&it);
+
+		fprintf(fp, "End\n");
+		fclose(fp);
+	}
+}
+
+SONG_DATA *load_song(FILE *fp)
+{
+	SONG_DATA *song = new_song_data();
+
+	char buf[MSL];
+	char *word;
+	bool fMatch;
+
+	song->name = fread_string(fp);
+	song->uid = fread_number(fp);
+
+    while (str_cmp((word = fread_word(fp)), "#-SONG"))
+	{
+		switch(word[0])
+		{
+			case 'B':
+				KEY("Beats", song->beats, fread_number(fp));
+				break;
+
+			case 'F':
+				KEY("Flags", song->flags, fread_flag(fp));
+				break;
+			
+			case 'L':
+				KEY("Level", song->level, fread_number(fp));
+				break;
+
+			case 'M':
+				KEY("Mana", song->mana, fread_number(fp));
+				break;
+
+			case 'P':
+				if (!str_cmp(word, "PreSongFunc"))
+				{
+					char *name = fread_string(fp);
+
+					song->presong_fun = presong_func_lookup(name);
+					if (!song->presong_fun)
+					{
+						log_stringf("load_song: Invalid PreSongFunc '%s' for song '%s'", name, song->name);
+					}
+					fMatch = true;
+					break;
+				}
+				break;
+
+			case 'S':
+				if (!str_cmp(word, "SongFunc"))
+				{
+					char *name = fread_string(fp);
+
+					song->song_fun = song_func_lookup(name);
+					if (!song->song_fun)
+					{
+						log_stringf("load_song: Invalid SongFunc '%s' for song '%s'", name, song->name);
+					}
+					fMatch = true;
+					break;
+				}
+				break;
+
+			case 'T':
+				if (!str_cmp(word, "Target"))
+				{
+					int value = stat_lookup(fread_string(fp), song_target_types, TAR_IGNORE);
+
+					song->target = value;
+					fMatch = true;
+					break;
+				}
+		}
+
+		if (!fMatch)
+		{
+			sprintf(buf, "load_song: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return song;
+}
+
+void insert_song(SONG_DATA *song)
+{
+	ITERATOR it;
+	SONG_DATA *sg;
+	iterator_start(&it, songs_list);
+	while((sg = (SONG_DATA *)iterator_nextdata(&it)))
+	{
+		int cmp = str_cmp(song->name, sg->name);
+		if(cmp < 0)
+		{
+			iterator_insert_before(&it, song);
+			break;
+		}
+	}
+	iterator_stop(&it);
+
+	if (!sg)
+	{
+		list_appendlink(songs_list, song);
+	}
+}
+
+static void delete_song_data(void *ptr)
+{
+	free_song_data((SONG_DATA *)ptr);
+}
+
+bool load_songs(void)
+{
+	SONG_DATA *song;
+	FILE *fp;
+	char buf[MSL];
+	char *word;
+	bool fMatch;
+	top_song_uid = 0;
+
+	log_string("load_songs: creating songs_list");
+	songs_list = list_createx(FALSE, NULL, delete_song_data);
+	if (!IS_VALID(songs_list))
+	{
+		log_string("songs_list was not created.");
+		return false;
+	}
+
+	log_string("load_songs: loading " SONGS_FILE);
+	if ((fp = fopen(SONGS_FILE, "r")) == NULL)
+	{
+		bug("Songs file does not exist.", 0);
+		perror(SONGS_FILE);
+		return false;
+	}
+	
+	while(str_cmp((word = fread_word(fp)), "End"))
+	{
+		fMatch = false;
+
+		switch(word[0])
+		{
+		case '#':
+			if (!str_cmp(word, "#SONG"))
+			{
+				song = load_song(fp);
+				if (song)
+				{
+					insert_song(song);
+
+					if (song->uid > top_song_uid)
+						top_song_uid = song->uid;
+				}
+				else
+					log_string("Failed to load a song.");
+
+				fMatch = true;
+				break;
+			}
+			break;
+		}
+
+		if (!fMatch) {
+			sprintf(buf, "load_songs: no match for word %s", word);
+			bug(buf, 0);
+		}
+	}
+
+	return true;
+}
+
+SONG_FUNC( song_debugging )
+{
+	// Just spit out the song name to the musician
+	send_to_char(formatf("%s!\n\r", song->name), ch);
+	return true;
+}
+
+SONG_FUNC( song_purple_mist )
+{
+	// Armour
+	// Shield
+	return true;
+}
+
+SONG_FUNC( song_fireworks )
+{
+	// Magic Missile
+	// Lightning Bolt
+	return true;
+}
+
+SONG_FUNC( song_dwarven_tale )
+{
+	// Stone Skin
+	// Infravision
+	return true;
+}
+
+SONG_FUNC( song_fade_to_black )
+{
+	// Improved Invisibility
+	return true;
+}
+
+SONG_FUNC( song_pretty_in_pink )
+{
+	// Faerie Fire
+	return true;
+}
+
+SONG_FUNC( song_aquatic_polka )
+{
+	// Underwater Breathing
+	return true;
+}
+
+SONG_FUNC( song_another_gate )
+{
+	// Dispel Magic
+	return true;
+}
+
+SONG_FUNC( song_awareness_jig )
+{
+	// Detect Invis
+	// Detect Hidden
+	// Detect Magic
+	return true;
+}
+
+SONG_FUNC( song_swamp_song )
+{
+	// Poison
+	// Acid Blast
+	return true;
+}
+
+SONG_FUNC( song_fat_owl_hopping )
+{
+	// Giant Strength
+	// Fly
+	return true;
+}
+
+SONG_FUNC( song_stormy_weather )
+{
+	// Call Lightning
+	// Call Lightning
+	// Call Lightning
+	return true;
+}
+
+SONG_FUNC( song_rigor )
+{
+	// Death Grip
+	// Frenzy
+	return true;
+}
+
+SONG_FUNC( song_firefly_tune )
+{
+	// Heal
+	// Refresh
+	return true;
+}
+
+SONG_FUNC( song_blessed_be )
+{
+	// Cure Poison
+	// Cure Disease
+	// Cure Blindness
+	return true;
+}
+
+SONG_FUNC( song_dark_cloud )
+{
+	// Blindness
+	return true;
+}
+
+SONG_FUNC( song_curse_of_the_abyss )
+{
+	// Fireball
+	// Energy Drain
+	// Demonfire
+	return true;
+}
+
+
+
+///////////////////////
+// SONGEDIT
+
+void songedit_show_trigger(CHAR_DATA *ch, BUFFER *buffer, LLIST **progs, int trigger, char *command, char *label)
+{
+	char buf[MSL];
+
+	PROG_LIST *pr = find_trigger_data(progs, trigger, 1);
+
+	int width = 20 - strlen_no_colours(label);
+	width = UMAX(width, 0);
+	if (pr)
+	{
+		if (IS_NULLSTR(pr->script->name))
+			sprintf(buf, formatf("%%s%%%ds%%s\n\r", width),
+				MXPCreateSend(ch->desc, command, label), "",
+				MXPCreateSend(ch->desc, formatf("tpdump %ld#%ld", pr->script->area->uid, pr->script->vnum),
+				formatf("{W%ld{x#{W%ld{x", pr->script->area->uid, pr->script->vnum)));
+		else
+			sprintf(buf, formatf("%%s%%%ds%%s\n\r", width),
+				MXPCreateSend(ch->desc, command, label), "",
+				MXPCreateSend(ch->desc, formatf("tpdump %ld#%ld", pr->script->area->uid, pr->script->vnum),
+				formatf("{W%s {x({W%ld{x#{W%ld{x)", pr->script->name, pr->script->area->uid, pr->script->vnum)));
+	}
+	else
+		sprintf(buf, formatf("%%s%%%ds%%s\n\r", width),
+				MXPCreateSend(ch->desc, command, label), "", "{D(unset){x");
+	add_buf(buffer, buf);
+}
+
+
+SONGEDIT( songedit_show )
+{
+	char buf[MSL];
+	BUFFER *buffer;
+	SONG_DATA *song;
+
+	EDIT_SONG(ch, song);
+
+	buffer = new_buf();
+
+	sprintf(buf, "Song: {W%s {x({W%d{x)\n\r", song->name, song->uid);
+	add_buf(buffer, buf);
+
+	olc_buffer_show_string(ch, buffer, formatf("%d", song->level), "level", "Level:", 20, "xDW");
+	olc_buffer_show_string(ch, buffer, formatf("%d", song->beats), "beats", "Beats:", 20, "xDW");
+	olc_buffer_show_string(ch, buffer, formatf("%d", song->mana), "mana", "Mana:", 20, "xDW");
+
+	olc_buffer_show_flags_ex(ch, buffer, song_flags, song->flags, "flags", "Flags:", 77, 20, 5, "xxYyCcD");
+	olc_buffer_show_flags_ex(ch, buffer, song_target_types, song->target, "target", "Target:", 77, 20, 5, "xxYyCcD");
+
+	if (song->token)
+	{
+		sprintf(buf, "Token:              {W%s {x({W%ld{x#{W%ld{x)\n\r",
+			MXPCreateSend(ch->desc, formatf("tshow %ld#%ld", song->token->area->uid, song->token->vnum), song->token->name),
+			song->token->area->uid, song->token->vnum);
+		add_buf(buffer, buf);
+
+		songedit_show_trigger(ch, buffer, song->token->progs, TRIG_TOKEN_PRESONG,	"presong",	"  {W+ {xPreSong:");
+		songedit_show_trigger(ch, buffer, song->token->progs, TRIG_TOKEN_SONG,	"song",		"  {W+ {xSong:");
+	}
+	else
+	{
+		olc_buffer_show_string(ch, buffer, presong_func_display(song->presong_fun),	"presong",	"PreSong:", 20, "XDW");
+		olc_buffer_show_string(ch, buffer, song_func_display(song->song_fun),		"song",		"Song:", 20, "XDW");
+	}
+
+	if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+	{
+		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+	}
+	else
+	{
+		send_to_char(buffer->string, ch);
+		//page_to_char(buffer->string, ch);
+	}
+
+	free_buf(buffer);
+	return false;
+}
+
+SONGEDIT( songedit_list )
+{
+	char buf[MSL];
+	BUFFER *buffer = new_buf();
+
+	ITERATOR it;
+	SONG_DATA *song;
+
+	add_buf(buffer, "Songs:\n\r");
+	add_buf(buffer, "[Uid] [        Name        ]\n\r");
+	add_buf(buffer, "=============================\n\r");
+
+	iterator_start(&it, songs_list);
+	while((song = (SONG_DATA *)iterator_nextdata(&it)))
+	{
+		sprintf(buf, " %s   {%c%s{x\n",
+			MXPCreateSend(ch->desc, formatf("songedit %s", song->name), formatf("%3d", song->uid)),
+			(song->token ? 'G' : 'Y'),
+			MXPCreateSend(ch->desc, formatf("songshow %s", song->name), song->name));
+		add_buf(buffer, buf);
+	}
+	iterator_stop(&it);
+
+	add_buf(buffer, "-----------------------------\n\r");
+	sprintf(buf, "Total: %d\n\r", list_size(songs_list));
+	add_buf(buffer, buf);
+
+	if( !ch->lines && strlen(buffer->string) > MAX_STRING_LENGTH )
+	{
+		send_to_char("Too much to display.  Please enable scrolling.\n\r", ch);
+	}
+	else
+	{
+		page_to_char(buffer->string, ch);
+	}
+
+	free_buf(buffer);
+	return false;
+}
+
+
+bool song_exists(const char *name)
+{
+	ITERATOR it;
+	SONG_DATA *song;
+
+	iterator_start(&it, songs_list);
+	while((song = (SONG_DATA *)iterator_nextdata(&it)))
+	{
+		if (!str_cmp(name, song->name))
+			break;
+	}
+	iterator_stop(&it);
+
+	return song != NULL;
+}
+
+
+// songedit install source <name>
+// songedit install token <widevnum>
+SONGEDIT( songedit_install )
+{
+	char arg[MIL];
+	SONG_DATA *song;
+
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  songedit install {Rsource{x <name>\n\r", ch);
+		send_to_char("         songedit install {Rtoken{x <widevnum>\n\r", ch);
+		return false;
+	}
+
+	argument = one_argument(argument, arg);
+	if (!str_prefix(arg, "source"))
+	{
+		smash_tilde(argument);
+		if (argument[0] == '\0')
+		{
+			send_to_char("Syntax:  songedit source {R<name>{x\n\r", ch);
+			send_to_char("Please specify a name.\n\r", ch);
+			return false;
+		}
+
+		if (song_exists(argument))
+		{
+			send_to_char(formatf("The name '{W%s{x' is already in use.\n\r", argument), ch);
+			return false;
+		}
+
+		song = new_song_data();
+		song->uid = ++top_song_uid;
+		song->name = str_dup(argument);
+		song->token = NULL;
+
+		insert_song(song);
+
+		send_to_char(formatf("Song {W%s{x installed.\n\r", song->name), ch);
+
+		olc_set_editor(ch, ED_SONGEDIT, song);
+		return true;
+	}
+
+	if (!str_prefix(arg, "token"))
+	{
+		WNUM wnum;
+
+		if (!parse_widevnum(argument, NULL, &wnum))
+		{
+			send_to_char("Syntax:  songedit install token {R<widevnum>{x\n\r", ch);
+			send_to_char("Please specify a widevnum.\n\r", ch);
+			return false;
+		}
+
+		TOKEN_INDEX_DATA *token = get_token_index(wnum.pArea, wnum.vnum);
+		if (!token)
+		{
+			send_to_char("No such token by that widevnum.\n\r", ch);
+			return false;
+		}
+
+		if (token->type != TOKEN_SONG)
+		{
+			send_to_char("Token must be a SONG token.\n\r", ch);
+			return false;
+		}
+
+		if (song_exists(token->name))
+		{
+			send_to_char(formatf("The name '{W%s{x' is already in use.\n\r", token->name), ch);
+			return false;
+		}
+
+		song = new_song_data();
+		song->uid = ++top_song_uid;
+		song->name = str_dup(token->name);
+		song->token = token;
+
+		insert_song(song);
+
+		send_to_char(formatf("Song {W%s{x installed.\n\r", song->name), ch);
+
+		olc_set_editor(ch, ED_SONGEDIT, song);
+		return true;
+	}
+
+	songedit_install(ch, "");
+	return false;
+}
+
+#define SONGEDIT_FUNC(f, p, t, n)		\
+SONGEDIT( songedit_##f##func )	\
+{ \
+	char arg[MIL]; \
+	SONG_DATA *song; \
+\
+	EDIT_SONG(ch, song); \
+\
+	if (song->token) \
+	{ \
+		if (argument[0] == '\0') \
+		{ \
+			send_to_char("Syntax:  songedit " #f " {Rset{x <widevnum>\n\r", ch); \
+			send_to_char("         songedit " #f " {Rclear{x\n\r", ch); \
+			return false; \
+		} \
+\
+		argument = one_argument(argument, arg); \
+\
+		if (!str_prefix(arg, "set")) \
+		{ \
+			/* TOKEN mode */ \
+			WNUM wnum; \
+\
+			/* Allow wnum shortcutting using the token's area */ \
+			if (!parse_widevnum(argument, song->token->area, &wnum)) \
+			{ \
+				send_to_char("Syntax:  songedit " #f " set {R<widevnum>{x\n\r", ch); \
+				send_to_char("Please specify a widevnum for the token " #p " trigger.\n\r", ch); \
+				return false; \
+			} \
+\
+			/* Get the script */ \
+			SCRIPT_DATA *script = get_script_index(wnum.pArea, wnum.vnum, PRG_TPROG); \
+			if (!script) \
+			{ \
+				send_to_char("No such token script by that widevnum.\n\r", ch); \
+				return false; \
+			} \
+\
+			/* Remove any triggers from token. */ \
+			__token_remove_trigger(song->token, TRIG_##p); \
+\
+			/* Add trigger to token. */ \
+			if (!__token_add_trigger(song->token, TRIG_##p, "100", script)) \
+			{ \
+				send_to_char("Something went wrong adding " #p " trigger to token.\n\r", ch); \
+				return false; \
+			} \
+\
+			/* Mark area as changed. */ \
+			SET_BIT(song->token->area->area_flags, AREA_CHANGED); \
+			send_to_char(#p " trigger added to spell token.\n\r", ch); \
+			return true; \
+		} \
+\
+		if (!str_prefix(arg, "clear")) \
+		{ \
+			/* Remove any triggers from token. */ \
+			__token_remove_trigger(song->token, TRIG_##p); \
+\
+			/* Mark area as changed. */ \
+			SET_BIT(song->token->area->area_flags, AREA_CHANGED); \
+			send_to_char(#p " trigger cleared on spell token.\n\r", ch); \
+			return true; \
+		} \
+\
+		songedit_##f##func (ch, ""); \
+		return false; \
+	} \
+	else \
+	{ \
+		if (argument[0] == '\0') \
+		{ \
+			send_to_char("Syntax:  songedit " #f " {Rset{x <function>\n\r", ch); \
+			send_to_char("         songedit " #f " {Rclear{x\n\r", ch); \
+			return false; \
+		} \
+\
+		argument = one_argument(argument, arg); \
+\
+		if (!str_prefix(arg, "set")) \
+		{ \
+			if (argument[0] == '\0') \
+			{ \
+				send_to_char("Syntax:  songedit " #f " set {R<function>{x\n\r", ch); \
+				send_to_char("Invalid " #f " function.  Use '? " #f "_func' for a list of functions.\n\r", ch); \
+				return false; \
+			} \
+\
+			t *func = f##_func_lookup(argument); \
+			if(!func) \
+			{ \
+				send_to_char("Syntax:  songedit " #f " set {R<function>{x\n\r", ch); \
+				send_to_char("Invalid " #f " function.  Use '? " #f "_func' for a list of functions.\n\r", ch); \
+				return false; \
+			} \
+\
+			song->f##_fun = func; \
+			send_to_char("Song " #f " function set.\n\r", ch); \
+			return true; \
+		} \
+\
+		if (!str_prefix(arg, "clear")) \
+		{ \
+			song->f##_fun = n; \
+			send_to_char("Song " #f " function cleared.\n\r", ch); \
+			return true; \
+		} \
+\
+		songedit_##f##func (ch, ""); \
+		return false; \
+	} \
+}
+
+SONGEDIT_FUNC(presong,TOKEN_PRESONG,SONG_FUN,NULL)
+SONGEDIT_FUNC(song,TOKEN_SONG,SONG_FUN,NULL)
+
+SONGEDIT( songedit_flags )
+{
+	SONG_DATA *song;
+
+	EDIT_SONG(ch, song);
+
+	int value;
+	if ((value = flag_value(song_flags, argument)) == NO_FLAG)
+	{
+		send_to_char("Syntax:  songedit flags {R<flags>{x\n\r", ch);
+		send_to_char("Invalid song flags.  Use '? song' to see list of valid flags.\n\r", ch);
+		show_flag_cmds(ch, song_flags);
+		return false;
+	}
+
+	// Check the new flags for any problems
+	long new_value = song->flags ^ value;
+
+	if (IS_SET(new_value, SONG_INSTRUMENT_ONLY) && IS_SET(new_value, SONG_VOICE_ONLY))
+	{
+		send_to_char("{Winstrument_only{x and {Wvoice_only{x are mutually exclusive.\n\r", ch);
+		return false;
+	}
+
+	song->flags = new_value;
+	send_to_char("Song target set.\n\r", ch);
+	return true;
+}
+
+SONGEDIT( songedit_level )
+{
+	char buf[MSL];
+	SONG_DATA *song;
+
+	EDIT_SONG(ch, song);
+
+	int level;
+	if (!is_number(argument) || (level = atoi(argument)) < 1 || level > MAX_CLASS_LEVEL)
+	{
+		sprintf(buf, "Syntax:  songedit level {R<1-%d>{x\n\r", MAX_CLASS_LEVEL);
+		send_to_char(buf, ch);
+		sprintf(buf, "Please specify a number from 1 to %d.\n\r", MAX_CLASS_LEVEL);
+		send_to_char(buf, ch);
+		return false;
+	}
+
+	song->level = level;
+	send_to_char("Song level set.\n\r", ch);
+	return true;
+}
+
+SONGEDIT( songedit_mana )
+{
+	SONG_DATA *song;
+
+	EDIT_SONG(ch, song);
+
+	int mana;
+	if (!is_number(argument) || (mana = atoi(argument)) < 0)
+	{
+		send_to_char("Syntax:  songedit mana {R<mana>{x\n\r", ch);
+		send_to_char("Please specify a non-negative number.\n\r", ch);
+		return false;
+	}
+
+	song->mana = mana;
+	send_to_char("Song mana set.\n\r", ch);
+	return true;
+}
+
+SONGEDIT( songedit_beats )
+{
+	SONG_DATA *song;
+
+	EDIT_SONG(ch, song);
+
+	int beats;
+	if (!is_number(argument) || (beats = atoi(argument)) < 1)
+	{
+		send_to_char("Syntax:  songedit beats {R<beats>{x\n\r", ch);
+		send_to_char("Please specify a positive number.\n\r", ch);
+		return false;
+	}
+
+	song->beats = beats;
+	send_to_char("Song beats set.\n\r", ch);
+	return true;
+}
+
+SONGEDIT( songedit_target )
+{
+	SONG_DATA *song;
+
+	EDIT_SONG(ch, song);
+
+	int value;
+	if ((value = stat_lookup(argument, song_target_types, NO_FLAG)) == NO_FLAG)
+	{
+		send_to_char("Syntax:  songedit target {R<target>{x\n\r", ch);
+		send_to_char("Invalid song target.  Use '? song_targets' to see list of valid target types.\n\r", ch);
+		show_flag_cmds(ch, song_target_types);
+		return false;
+	}
+
+	song->target = value;
+	send_to_char("Song target set.\n\r", ch);
+	return true;
 }

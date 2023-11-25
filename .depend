@@ -116,7 +116,8 @@ obj/mccp.o: mccp.c merc.h protocol.h sha256.h telnet.h
 obj/mem.o: mem.c merc.h protocol.h sha256.h recycle.h scripts.h tables.h \
  debug.h
 obj/mount.o: mount.c merc.h protocol.h sha256.h interp.h
-obj/music.o: music.c merc.h protocol.h sha256.h recycle.h scripts.h tables.h
+obj/music.o: music.c merc.h protocol.h sha256.h recycle.h scripts.h tables.h \
+ music.h olc.h
 obj/note.o: note.c merc.h protocol.h sha256.h recycle.h tables.h
 obj/olc.o: olc.c merc.h protocol.h sha256.h tables.h interp.h olc.h recycle.h \
  scripts.h wilds.h
@@ -167,7 +168,8 @@ obj/staff.o: staff.c merc.h protocol.h sha256.h tables.h olc.h recycle.h \
 obj/stats.o: stats.c merc.h protocol.h sha256.h db.h recycle.h
 obj/string.o: string.c merc.h protocol.h sha256.h tables.h olc.h scripts.h \
  interp.h
-obj/tables.o: tables.c merc.h protocol.h sha256.h tables.h scripts.h magic.h
+obj/tables.o: tables.c merc.h protocol.h sha256.h tables.h scripts.h magic.h \
+ music.h
 obj/treasuremap.o: treasuremap.c merc.h protocol.h sha256.h interp.h \
  recycle.h tables.h olc.h wilds.h
 obj/update.o: update.c merc.h protocol.h sha256.h interp.h recycle.h \

@@ -2013,6 +2013,7 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 		break;
 	    }
 
+		/*
 	    if (!str_cmp(word, "Skill") || !str_cmp(word,"Sk"))
 	    {
 			SKILL_DATA *skill;
@@ -2077,25 +2078,25 @@ void fread_char(CHAR_DATA *ch, FILE *fp)
 
 	    if (!str_cmp(word, "Song"))
 	    {
-			int song;
+			SONG_DATA *song;
 			char *temp;
 
 			temp = fread_word(fp);
-			song = music_lookup(temp);
-			if (song < 0)
+			song = get_song_data(temp);
+			if (!IS_VALID(song))
 			{
 				sprintf(buf, "fread_char: unknown song %s", temp);
 				log_string(buf);
 			}
 			else
 			{
-				ch->pcdata->songs_learned[song] = TRUE;
 				skill_entry_addsong(ch, song, NULL, SKILLSRC_NORMAL);
 			}
 
 			fMatch = TRUE;
 			break;
 	    }
+		*/
 
 /*
 	    fMatchFound = FALSE;
@@ -5785,8 +5786,8 @@ void fwrite_skill(CHAR_DATA *ch, SKILL_ENTRY *entry, FILE *fp)
 				entry->skill->name);
 		}
 
-		if( entry->song >= 0 && entry->song < MAX_SONGS ) {
-			fprintf(fp, "Song %s~\n", music_table[entry->song].name);
+		if( entry->song ) {
+			fprintf(fp, "Song %s~\n", entry->song->name);
 		}
 /*
 	for (sn = 0; sn < MAX_SONGS && music_table[sn].name; sn++)
@@ -5826,7 +5827,7 @@ void fread_skill(FILE *fp, CHAR_DATA *ch)
     TOKEN_DATA *token = NULL;
     SKILL_DATA *skill = NULL;
 	SKILL_ENTRY *entry = NULL;
-    int song = -1;
+    SONG_DATA *song = NULL;
     long flags = SKILL_AUTOMATIC;
     int rating = -1, mod = 0;	// For built-in skills
     char source = SKILLSRC_NORMAL;
@@ -5843,9 +5844,8 @@ void fread_skill(FILE *fp, CHAR_DATA *ch)
 			if(IS_VALID(token))
 				token_to_char(token, ch);
 
-			if( song >= 0 ) {
-				ch->pcdata->songs_learned[song] = TRUE;
-				skill_entry_addsong(ch, song, NULL, source);
+			if( IS_VALID(song) ) {
+				skill_entry_addsong(ch, song, token, source);
 			} else if(IS_VALID(skill)) {
 				//log_stringf("Adding %s '%s' to %s", (is_skill_spell(skill)?"Spell":"Skill"), skill->name, ch->name);
 				if( is_skill_spell(skill) )
@@ -5885,7 +5885,7 @@ void fread_skill(FILE *fp, CHAR_DATA *ch)
 			}
 
 			if(IS_KEY("Song")) {
-				song = music_lookup(fread_string(fp));
+				song = get_song_data(fread_string(fp));
 				fMatch = TRUE;
 				break;
 			}

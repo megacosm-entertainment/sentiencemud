@@ -52,6 +52,7 @@
 #define ED_SKEDIT   22      // Skill/spell edit
 #define ED_LIQEDIT  23      // Liquid edit
 #define ED_SGEDIT   24
+#define ED_SONGEDIT	25
 
 
 #define AEDIT( fun )		bool fun( CHAR_DATA *ch, char *argument )
@@ -73,6 +74,7 @@
 #define SKEDIT( fun )       bool fun( CHAR_DATA *ch, char *argument )
 #define LIQEDIT( fun )       bool fun( CHAR_DATA *ch, char *argument )
 #define SGEDIT( fun )       bool fun( CHAR_DATA *ch, char *argument )
+#define SONGEDIT( fun )       bool fun( CHAR_DATA *ch, char *argument )
 
 /*
  * Interpreter Prototypes
@@ -105,6 +107,7 @@ void	dpedit	( CHAR_DATA *ch, char *argument );
 void    skedit  ( CHAR_DATA *ch, char *argument );
 void    liqedit ( CHAR_DATA *ch, char *argument );
 void    sgedit  ( CHAR_DATA *ch, char *argument );
+void    songedit  ( CHAR_DATA *ch, char *argument );
 
 /*
  * OLC Constants
@@ -172,7 +175,7 @@ extern const struct olc_cmd_type        dpedit_table[];
 extern const struct olc_cmd_type        skedit_table[];
 extern const struct olc_cmd_type        liqedit_table[];
 extern const struct olc_cmd_type        sgedit_table[];
-
+extern const struct olc_cmd_type		songedit_table[];
 
 /*
  * Editor Commands.
@@ -198,6 +201,7 @@ DECLARE_DO_FUN( do_dngedit       );
 DECLARE_DO_FUN( do_skedit );
 DECLARE_DO_FUN( do_liqedit );
 DECLARE_DO_FUN( do_sgedit );
+DECLARE_DO_FUN( do_songedit );
 
 /*
  * Area Editor Prototypes
@@ -659,7 +663,7 @@ DECLARE_OLC_FUN( skedit_position );
 DECLARE_OLC_FUN( skedit_race );
 DECLARE_OLC_FUN( skedit_mana );
 DECLARE_OLC_FUN( skedit_beats );
-DECLARE_OLC_FUN( skedit_message );  // damage, wearoff, objwearoff, dispel
+DECLARE_OLC_FUN( skedit_message );  // damage, wearoff, objwearoff, dispel, etc
 DECLARE_OLC_FUN( skedit_inks );     // For tattooing and scribing
 DECLARE_OLC_FUN( skedit_value );
 DECLARE_OLC_FUN( skedit_valuename );
@@ -671,7 +675,17 @@ DECLARE_OLC_FUN( sgedit_add );
 DECLARE_OLC_FUN( sgedit_remove );
 DECLARE_OLC_FUN( sgedit_clear );
 
-// TODO: add songedit for being able to add/edit songs
+
+DECLARE_OLC_FUN( songedit_list );
+DECLARE_OLC_FUN( songedit_show );
+DECLARE_OLC_FUN( songedit_install );
+DECLARE_OLC_FUN( songedit_presongfunc );
+DECLARE_OLC_FUN( songedit_songfunc );
+DECLARE_OLC_FUN( songedit_flags );
+DECLARE_OLC_FUN( songedit_level );
+DECLARE_OLC_FUN( songedit_mana );
+DECLARE_OLC_FUN( songedit_beats );
+DECLARE_OLC_FUN( songedit_target );
 
 /*
  * Macros
@@ -707,6 +721,8 @@ DECLARE_OLC_FUN( sgedit_clear );
 #define EDIT_SKILL(ch, skill)   ( skill = (SKILL_DATA *)ch->desc->pEdit )
 #define EDIT_LIQUID(ch, liq)    ( liq = (LIQUID *)ch->desc->pEdit )
 #define EDIT_SKILL_GROUP(ch, group)     ( group = (SKILL_GROUP *)ch->desc->pEdit)
+
+#define EDIT_SONG(ch, song)		( song = (SONG_DATA *)ch->desc->pEdit )
 
 /*
  * Prototypes

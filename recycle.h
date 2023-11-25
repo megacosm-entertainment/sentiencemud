@@ -320,3 +320,6 @@ void free_skill_data(SKILL_DATA *skill);
 
 SKILL_GROUP *new_skill_group_data();
 void free_skill_group_data(SKILL_GROUP *group);
+
+SONG_DATA *new_song_data();
+void free_song_data(SONG_DATA *song);

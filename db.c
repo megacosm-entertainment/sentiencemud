@@ -96,12 +96,16 @@ sh_int top_skill_uid = 0;
 LLIST *skill_groups_list = NULL;
 SKILL_GROUP *global_skills = NULL;
 
+LLIST *songs_list = NULL;
+sh_int top_song_uid = 0;
+
 void free_room_index( ROOM_INDEX_DATA *pRoom );
 void load_instances();
 INSTANCE *instance_load(FILE *fp);
 DUNGEON *dungeon_load(FILE *fp);
 void resolve_reserved(RESERVED_WNUM *reserved);
-void resolve_skill_tokens();
+void resolve_skills();
+void resolve_songs();
 
 
 /* Reading of keys*/
@@ -1727,8 +1731,11 @@ void boot_db(void)
 	resolve_reserved_rprogs();
 	resolve_reserved_areas();
 
-	log_string("Resolving skill tokens");
-	resolve_skill_tokens();
+	log_string("Resolving skills");
+	resolve_skills();
+
+	log_string("Resolving songs");
+	resolve_songs();
 
     log_string("Loading persistance");
     if(!persist_load()) {
@@ -1824,7 +1831,7 @@ void boot_db(void)
 }
 
 
-void resolve_skill_tokens()
+void resolve_skills()
 {
 	ITERATOR it;
 	SKILL_DATA *skill;
@@ -1845,6 +1852,27 @@ void resolve_skill_tokens()
 		}
 		else if ((!skill->spell_fun || skill->spell_fun == spell_null))
 			REMOVE_BIT(skill->flags, SKILL_CAN_CAST);
+	}
+	iterator_stop(&it);
+}
+
+void resolve_songs()
+{
+	ITERATOR it;
+	SONG_DATA *song;
+
+	iterator_start(&it, songs_list);
+	while((song = (SONG_DATA *)iterator_nextdata(&it)))
+	{
+		if (song->token_load.auid > 0 && song->token_load.vnum > 0)
+		{
+			song->token = get_token_index_auid(song->token_load.auid, song->token_load.vnum);
+
+			if (!song->token)
+			{
+				log_stringf("Song data '%s' is missing token info %ld#%ld.", song->name, song->token_load.auid, song->token_load.vnum);
+			}
+		}
 	}
 	iterator_stop(&it);
 }

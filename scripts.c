@@ -8081,7 +8081,7 @@ void script_varseton(SCRIPT_VARINFO *info, ppVARIABLE vars, char *argument, SCRI
 	} else if(!str_cmp(buf,"song")) {
 		switch(arg->type) {
 		case ENT_STRING:
-			variables_set_song(vars,name,song_lookup(arg->d.str));
+			variables_set_song(vars,name,get_song_data(arg->d.str));
 			break;
 		default: return;
 		}

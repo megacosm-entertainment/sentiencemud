@@ -1292,15 +1292,14 @@ enum entity_liquid_enum {
 };
 
 enum entity_song_enum {
-	ENTITY_SONG_NUMBER = ESCAPE_EXTRA,
-	ENTITY_SONG_NAME,
-	ENTITY_SONG_SPELL1,
-	ENTITY_SONG_SPELL2,
-	ENTITY_SONG_SPELL3,
+	ENTITY_SONG_NAME = ESCAPE_EXTRA,
+	ENTITY_SONG_UID,
+	ENTITY_SONG_FLAGS,
+	ENTITY_SONG_TOKEN,
+	ENTITY_SONG_LEVEL,
+	ENTITY_SONG_MANA,
 	ENTITY_SONG_TARGET,
 	ENTITY_SONG_BEATS,
-	ENTITY_SONG_MANA,
-	ENTITY_SONG_LEVEL,
 };
 
 enum entity_variable_enum {
@@ -1577,7 +1576,7 @@ struct script_var_type {
 		bool boolean;
 		SKILL_DATA *skill;
 		SKILL_ENTRY *entry;
-		int song;
+		SONG_DATA *song;
 		struct {
 			CHAR_DATA *owner;
 			TOKEN_DATA *token;
@@ -1787,7 +1786,7 @@ struct script_parameter {
 
 		SKILL_DATA *skill;
 		SKILL_ENTRY *entry;
-		int song;
+		SONG_DATA *song;
 		struct {
 			union {
 				CHAR_DATA **mob;
@@ -2588,7 +2587,7 @@ bool variables_set_skillinfo(ppVARIABLE list,char *name,CHAR_DATA *owner,SKILL_D
 bool variables_set_spell(ppVARIABLE list,char *name,SPELL_DATA *spell);
 bool variables_set_liquid(ppVARIABLE list,char *name,LIQUID *liquid);
 bool variables_set_lockstate(ppVARIABLE list,char *name,LOCK_STATE *lockstate);
-bool variables_set_song(ppVARIABLE list,char *name,int sn);
+bool variables_set_song(ppVARIABLE list,char *name,SONG_DATA *song);
 bool variables_set_string(ppVARIABLE list,char *name,char *str,bool shared);
 bool variables_set_token(ppVARIABLE list,char *name,TOKEN_DATA *t);
 bool variables_set_wilds (ppVARIABLE list,char *name,WILDS_DATA* wilds);
@@ -2615,7 +2614,7 @@ bool variables_setindex_integer(ppVARIABLE list,char *name,int num, bool saved);
 bool variables_setindex_room(ppVARIABLE list,char *name,WNUM_LOAD wnum_load, bool saved);
 bool variables_setindex_string(ppVARIABLE list,char *name,char *str,bool shared, bool saved);
 bool variables_setindex_skill(ppVARIABLE list,char *name,SKILL_DATA *skill, bool saved);
-bool variables_setindex_song(ppVARIABLE list,char *name,int sn, bool saved);
+bool variables_setindex_song(ppVARIABLE list,char *name,SONG_DATA *song, bool saved);
 bool variables_setsave_book_page (ppVARIABLE list,char *name,BOOK_PAGE *book_page, bool save);
 bool variables_setsave_food_buff (ppVARIABLE list,char *name,FOOD_BUFF_DATA* food_buff, bool save);
 bool variables_setsave_compartment (ppVARIABLE list,char *name,FURNITURE_COMPARTMENT* compartment, bool save);
@@ -2633,7 +2632,7 @@ bool variables_setsave_skillinfo(ppVARIABLE list,char *name,CHAR_DATA *owner,SKI
 bool variables_setsave_spell(ppVARIABLE list,char *name,SPELL_DATA *spell, bool save);
 bool variables_setsave_liquid(ppVARIABLE list,char *name,LIQUID *liquid, bool save);
 bool variables_setsave_lockstate(ppVARIABLE list,char *name,LOCK_STATE *lockstate, bool save);
-bool variables_setsave_song(ppVARIABLE list,char *name,int sn, bool save);
+bool variables_setsave_song(ppVARIABLE list,char *name,SONG_DATA *song, bool save);
 bool variables_setsave_string(ppVARIABLE list,char *name,char *str,bool shared, bool save);
 bool variables_setsave_token(ppVARIABLE list,char *name,TOKEN_DATA *t, bool save);
 bool variables_setsave_wilds (ppVARIABLE list, char *name,WILDS_DATA* wilds, bool save);

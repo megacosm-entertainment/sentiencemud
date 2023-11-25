@@ -122,7 +122,8 @@ const struct olc_help_type help_table[] =
 	{	"imm",					STRUCT_FLAGS,		imm_flags,					"Mobile immunity."	},
 	{	"immortalflags",		STRUCT_FLAGS,		immortal_flags,				"Immortal duties."	},
 	{	"instance",				STRUCT_FLAGS,		instance_flags,				"Instance Flags"	},
-	{	"instruments",			STRUCT_FLAGS,		instrument_types,			"Instrument Types"	},
+	{	"instrument_flags",		STRUCT_FLAGS,		instrument_flags,			"Instrument Flags"	},
+	{	"instrument_types",		STRUCT_FLAGS,		instrument_types,			"Instrument Types"	},
 	{	"iprog",				STRUCT_TRIGGERS,	dummy_triggers,				"InstanceProgram types."	},
 	{	"light",				STRUCT_FLAGS,		light_flags,				"Light flags."	},
 	{	"liquid",				STRUCT_LIQUID,		liq_table,					"Liquid types."	},
@@ -141,6 +142,7 @@ const struct olc_help_type help_table[] =
 //	{	"preimbue_func",		STRUCT_ARTIFICING,	preimbue_func_table,		"PreImbue Functions (SkEdit)"},
 	{	"preink_func",			STRUCT_ARTIFICING,	preink_func_table,			"PreInk Functions (SkEdit)"},
 	{	"prescribe_func",		STRUCT_ARTIFICING,	prescribe_func_table,		"PreScribe Functions (SkEdit)"},
+	{	"presong_func",			STRUCT_ARTIFICING,	presong_func_table,			"Presong Functions (SongEdit)"},
 	{	"prespell_func",		STRUCT_SPELLFUNC,	prespell_func_table,		"Prespell functions (SkEdit)"},
 	{	"projectflags",			STRUCT_FLAGS,		project_flags,				"Project flags."	},
 	{	"quaff_func",			STRUCT_ARTIFICING,	quaff_func_table,			"Quaff Functions (SkEdit)"},
@@ -164,6 +166,7 @@ const struct olc_help_type help_table[] =
 	{	"size",					STRUCT_FLAGS,		size_flags,					"Mobile size."	},
 	{	"skill",				STRUCT_FLAGS,		skill_flags,				"Skill flags."	},
 	{	"skillentry",			STRUCT_FLAGS,		skill_entry_flags,			"Skill entry flags."	},
+	{	"song_func",			STRUCT_ARTIFICING,	song_func_table,			"Song Functions (SongEdit)"},
 	{	"song_targets",			STRUCT_FLAGS,		song_target_types,			"Song Target Types."	},
 	{	"spec",					STRUCT_SPEC,		spec_table,					"Available special programs. {D(DEPRECATED){x"	},
 	{	"spell_func",			STRUCT_SPELLFUNC,	spell_func_table,			"Spell functions (SkEdit)"},
@@ -12106,7 +12109,7 @@ OEDIT(oedit_type_furniture)
 							return FALSE;
 						}
 
-						compartment->move_region = value;
+						compartment->move_regen = value;
 						send_to_char("FURNITURE Compartment Move Regen set.\n\r", ch);
 						return TRUE;
 					}

@@ -39,6 +39,7 @@
 #include "tables.h"
 #include "scripts.h"
 #include "magic.h"
+#include "music.h"
 
 const struct hint_type hintsTable[] =
 {
@@ -3916,5 +3917,39 @@ const struct flag_type skill_flags[] =
     { "can_scribe",         SKILL_CAN_SCRIBE,       TRUE  },
     { "cross_class",        SKILL_CROSS_CLASS,      FALSE },    // NYI
     { "spell_pulse",        SKILL_SPELL_PULSE,      TRUE  },
+    { NULL,                 0,                      FALSE }
+};
+
+const struct song_func_type presong_func_table[] =
+{
+    { NULL,                 NULL }
+};
+
+const struct song_func_type song_func_table[] =
+{
+	{ "another_gate",   	song_another_gate },
+	{ "aquatic_polka",  	song_aquatic_polka },
+	{ "awareness_jig",  	song_awareness_jig },
+    { "blessed_be",     	song_blessed_be },
+	{ "curse_of_the_abyss",	song_curse_of_the_abyss },
+	{ "dark_cloud",     	song_dark_cloud },
+    { "debugging",          song_debugging },               // Strictly for getting this all working
+	{ "dwarven_tale",   	song_dwarven_tale },
+	{ "fade_to_black",  	song_fade_to_black },
+	{ "fat_owl_hopping",	song_fat_owl_hopping },
+	{ "firefly_tune",   	song_firefly_tune },
+	{ "fireworks",      	song_fireworks },
+	{ "pretty_in_pink", 	song_pretty_in_pink },
+	{ "purple_mist",    	song_purple_mist },
+	{ "rigor",          	song_rigor },
+	{ "stormy_weather", 	song_stormy_weather },
+	{ "swamp_song",     	song_swamp_song },
+    { NULL,                 NULL }
+};
+
+const struct flag_type song_flags[] =
+{
+    { "instrument_only",    SONG_INSTRUMENT_ONLY,   TRUE  },
+    { "voice_only",         SONG_VOICE_ONLY,        TRUE  },
     { NULL,                 0,                      FALSE }
 };

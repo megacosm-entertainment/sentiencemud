@@ -2228,7 +2228,7 @@ char *expand_entity_mobile(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 	case ENTITY_MOB_SONG:
 		arg->type = ENT_SONG;
-		arg->d.song = self ? self->song_num : -1;
+		arg->d.song = self ? self->song : NULL;
 		break;
 	case ENTITY_MOB_SONGTOKEN:
 		arg->type = ENT_TOKEN;
@@ -2535,7 +2535,7 @@ char *expand_entity_mobile_id(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 	case ENTITY_MOB_SONG:
 		arg->type = ENT_SONG;
-		arg->d.song = -1;
+		arg->d.song = NULL;
 		break;
 	case ENTITY_MOB_SONGTOKEN:
 		arg->type = ENT_TOKEN;
@@ -4109,8 +4109,8 @@ char *expand_entity_skillentry(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 		break;
 
 	case ENTITY_SKILLENTRY_SONG:
-		arg->type = ENT_NUMBER;
-		arg->d.num = entry ? entry->song : -1;
+		arg->type = ENT_SONG;
+		arg->d.song = entry ? entry->song : NULL;
 		break;
 
 	case ENTITY_SKILLENTRY_TOKEN:
@@ -6429,49 +6429,52 @@ char *expand_entity_group(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 
 char *expand_entity_song(SCRIPT_VARINFO *info,char *str,SCRIPT_PARAM *arg)
 {
-	const struct music_type* pSong = NULL;
-
-	if( arg->d.song >= 0 && arg->d.song < MAX_SONGS && music_table[arg->d.song].name != NULL )
-		pSong = &music_table[arg->d.song];
+	SONG_DATA *song = arg->d.song;
 
 	switch(*str) {
-	case ENTITY_SONG_NUMBER:
-		arg->type = ENT_NUMBER;
-		arg->d.num = arg->d.song;	// Redundant!
-		break;
 	case ENTITY_SONG_NAME:
 		arg->type = ENT_STRING;
 		clear_buf(arg->buffer);
-		add_buf(arg->buffer, (pSong ? pSong->name : ""));
+		add_buf(arg->buffer, (song ? song->name : ""));
 		arg->d.str = buf_string(arg->buffer);
 		break;
-	case ENTITY_SONG_SPELL1:
-		arg->type = ENT_SKILL;
-		arg->d.skill = (pSong && pSong->spell1) ? get_skill_data(pSong->spell1) : NULL;
-		break;
-	case ENTITY_SONG_SPELL2:
-		arg->type = ENT_SKILL;
-		arg->d.skill = (pSong && pSong->spell2) ? get_skill_data(pSong->spell2) : NULL;
-		break;
-	case ENTITY_SONG_SPELL3:
-		arg->type = ENT_SKILL;
-		arg->d.skill = (pSong && pSong->spell3) ? get_skill_data(pSong->spell3) : NULL;
-		break;
-	case ENTITY_SONG_TARGET:
+	
+	case ENTITY_SONG_UID:
 		arg->type = ENT_NUMBER;
-		arg->d.num = pSong ? pSong->target : -1;
+		arg->d.num = song ? song->uid : 0;
 		break;
+
+	case ENTITY_SONG_FLAGS:
+		arg->type = ENT_BITVECTOR;
+		arg->d.bv.value = song ? song->flags : 0;
+		arg->d.bv.table = song_flags;
+		break;
+
+	case ENTITY_SONG_TOKEN:
+		arg->type = ENT_TOKENINDEX;
+		arg->d.tokindex = song ? song->token : NULL;
+		break;
+
+	case ENTITY_SONG_TARGET:
+		arg->type = ENT_STAT;
+		arg->d.stat.value = song ? song->target : -1;
+		arg->d.stat.table = song_target_types;
+		arg->d.stat.def_value = -2;
+		break;
+
 	case ENTITY_SONG_BEATS:
 		arg->type = ENT_NUMBER;
-		arg->d.num = pSong ? pSong->beats : -1;
+		arg->d.num = song ? song->beats : -1;
 		break;
+
 	case ENTITY_SONG_MANA:
 		arg->type = ENT_NUMBER;
-		arg->d.num = pSong ? pSong->mana : -1;
+		arg->d.num = song ? song->mana : -1;
 		break;
+
 	case ENTITY_SONG_LEVEL:
 		arg->type = ENT_NUMBER;
-		arg->d.num = pSong ? pSong->level : -1;
+		arg->d.num = song ? song->level : -1;
 		break;
 
 	default: return NULL;

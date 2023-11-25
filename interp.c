@@ -557,6 +557,9 @@ const	struct	cmd_type	cmd_table	[] =
 	{ "sgedit",		do_sgedit, POS_DEAD,	ML,		LOG_ALWAYS, 1, TRUE },
 	{ "sglist",		do_sglist, POS_DEAD,	ML,		LOG_NORMAL, 1, TRUE },
 	{ "sgshow",		do_sgshow, POS_DEAD,	L5,		LOG_NORMAL, 1, TRUE },
+	{ "songedit",	do_songedit, POS_DEAD,	ML,		LOG_ALWAYS, 1, TRUE },
+	{ "songlist",	do_songlist, POS_DEAD,	ML,		LOG_NORMAL, 1, TRUE },
+	{ "songshow",	do_songshow, POS_DEAD,	L5,		LOG_NORMAL, 1, TRUE },
 
 	{ "mxptest",	do_mxptest, POS_DEAD,	ML,		LOG_ALWAYS, 1, TRUE },
 	{ "immstrike",	do_immstrike, POS_DEAD,	IM,		LOG_ALWAYS, 1, TRUE },
@@ -2117,7 +2120,7 @@ void stop_music( CHAR_DATA *ch, bool messages )
     free_string( ch->music_target_name );
     ch->music_target_name = NULL;
     ch->music = 0;
-    ch->song_num = -1;
+    ch->song = NULL;
     ch->song_token = NULL;
     ch->song_script = NULL;
     ch->song_instrument = NULL;

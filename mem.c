@@ -227,7 +227,6 @@ SKILL_ENTRY *new_skill_entry()
 	entry->source = SKILLSRC_NORMAL;
     entry->flags = SKILL_AUTOMATIC;
 	entry->isspell = FALSE;
-	entry->song = -1;
 	//entry->practice = TRUE;
 	//entry->improve = TRUE;
 
@@ -481,6 +480,7 @@ OBJ_DATA *new_obj(void)
 	obj->ltokens = list_create(FALSE);
 	obj->lcontains = list_create(FALSE);
 	obj->lclonerooms = list_create(FALSE);
+    obj->lstache = list_create(FALSE);
 	obj->lock = NULL;
 	obj->waypoints = NULL;
 
@@ -490,6 +490,8 @@ OBJ_DATA *new_obj(void)
 
 void free_obj(OBJ_DATA *obj)
 {
+    ITERATOR it;
+    OBJ_DATA *item;
     AFFECT_DATA *paf, *paf_next;
     EXTRA_DESCR_DATA *ed, *ed_next;
     EVENT_DATA *ev, *ev_next;
@@ -562,6 +564,14 @@ void free_obj(OBJ_DATA *obj)
 	list_destroy(obj->ltokens);
 	list_destroy(obj->lcontains);
 	list_destroy(obj->lclonerooms);
+
+    iterator_start(&it, obj->lstache);
+    while((item = (OBJ_DATA *)iterator_nextdata(&it)))
+    {
+        extract_obj(item);
+    }
+    iterator_stop(&it);
+    list_destroy(obj->lstache);
 
 	if(obj->owner_name != NULL)		free_string(obj->owner_name);
 	if(obj->owner_short != NULL)	free_string(obj->owner_short);
@@ -725,6 +735,7 @@ CHAR_DATA *new_char( void )
     ch->lclonerooms		= list_create(FALSE);
     ch->lgroup			= list_create(FALSE);
     ch->auras           = list_createx(FALSE, NULL, delete_aura_data);
+    ch->lstache         = list_create(FALSE);
 
     ch->deathsight_vision = 0;
     ch->in_damage_function = FALSE;
@@ -739,6 +750,7 @@ CHAR_DATA *new_char( void )
 
 void free_char( CHAR_DATA *ch )
 {
+    ITERATOR it;
     OBJ_DATA *obj;
     OBJ_DATA *obj_next;
     AFFECT_DATA *paf;
@@ -814,13 +826,20 @@ void free_char( CHAR_DATA *ch )
     free_string(ch->projectile_victim);
     free_string(ch->tempstring);
 
-
     list_destroy(ch->llocker);
     list_destroy(ch->lcarrying);
     list_destroy(ch->lworn);
     list_destroy(ch->ltokens);
     list_destroy(ch->lclonerooms);
     list_destroy(ch->lgroup);
+
+    iterator_start(&it, ch->lstache);
+    while((obj = (OBJ_DATA *)iterator_nextdata(&it)))
+    {
+        extract_obj(obj);
+    }
+    iterator_stop(&it);
+    list_destroy(ch->lstache);
 
 	if( !IS_NPC(ch))
 	{
@@ -6095,4 +6114,36 @@ void free_skill_group_data(SKILL_GROUP *group)
     INVALIDATE(group);
     group->next = skill_group_data_free;
     skill_group_data_free = group;
+}
+
+
+SONG_DATA *song_data_free;
+SONG_DATA *new_song_data()
+{
+    SONG_DATA *data;
+    if (song_data_free)
+    {
+        data = song_data_free;
+        song_data_free = song_data_free->next;
+    }
+    else
+        data = alloc_mem(sizeof(SONG_DATA));
+    
+    memset(data, 0, sizeof(*data));
+
+    data->name = str_dup("");
+
+    VALIDATE(data);
+    return data;
+}
+
+void free_song_data(SONG_DATA *data)
+{
+    if (!IS_VALID(data)) return;
+
+    free_string(data->name);
+
+    INVALIDATE(data);
+    data->next = song_data_free;
+    song_data_free = data;
 }

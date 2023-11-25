@@ -455,6 +455,7 @@ DECLARE_DO_FUN( do_spell	);
 DECLARE_DO_FUN( do_spells	);
 DECLARE_DO_FUN(	do_split	);
 DECLARE_DO_FUN(	do_sset		);
+DECLARE_DO_FUN( do_songset  );
 DECLARE_DO_FUN( do_ssupervisor  );
 DECLARE_DO_FUN( do_staff	);
 DECLARE_DO_FUN( do_stake	);
@@ -607,6 +608,10 @@ DECLARE_DO_FUN( do_skshow );
 DECLARE_DO_FUN( do_sgedit );
 DECLARE_DO_FUN( do_sglist );
 DECLARE_DO_FUN( do_sgshow );
+
+DECLARE_DO_FUN( do_songedit );
+DECLARE_DO_FUN( do_songlist );
+DECLARE_DO_FUN( do_songshow );
 
 DECLARE_DO_FUN( do_readycheck );
 DECLARE_DO_FUN( do_ignite );

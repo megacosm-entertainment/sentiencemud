@@ -28,6 +28,7 @@ AREA_DATA *get_area_data args ((long anum));
 AREA_DATA *get_area_from_uid args ((long uid));
 void save_liquids();
 void save_skills();
+void save_songs();
 
 char *editor_name_table[] = {
 	" ",
@@ -55,6 +56,7 @@ char *editor_name_table[] = {
 	"SkEdit",
 	"LiqEdit",
 	"SgEdit",
+	"SongEdit",
 };
 
 int editor_max_tabs_table[] = {
@@ -83,6 +85,7 @@ int editor_max_tabs_table[] = {
 	5,		// SkEdit
 	0,		// LiqEdit
 	0,		// SgEdit
+	0,		// SongEdit
 };
 
 const struct editor_cmd_type editor_table[] =
@@ -108,6 +111,7 @@ const struct editor_cmd_type editor_table[] =
 	{ "skill",		do_skedit	},
 	{ "liquid",		do_liqedit	},
 	{ "skillgroup",	do_sgedit	},
+	{ "song",		do_songedit },
 	{ NULL,			0,			}
 };
 
@@ -533,6 +537,9 @@ bool run_olc_editor(DESCRIPTOR_DATA *d)
 	case ED_SGEDIT:
 		sgedit(d->character, d->incomm);
 		break;
+	case ED_SONGEDIT:
+		songedit(d->character, d->incomm);
+		break;
 
 	default:
 		return FALSE;
@@ -601,6 +608,7 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 	SKILL_DATA *skill;
 	SKILL_GROUP *group;
 	LIQUID *liquid;
+	SONG_DATA *song;
 	static char buf[20];
 	char buf2[MSL];
 
@@ -737,6 +745,14 @@ char *olc_ed_vnum(CHAR_DATA *ch)
 		dungeon = (DUNGEON_INDEX_DATA*)ch->desc->pEdit;
 		sprintf(buf, "%ld#%ld", dungeon ? dungeon->area->uid : 0, dungeon ? dungeon->vnum : 0);
 		break;
+	
+	case ED_SONGEDIT:
+		song = (SONG_DATA *)ch->desc->pEdit;
+		if (song)
+			sprintf(buf, "%s:%d", song->name, song->uid);
+		else
+			strcpy(buf, "--");
+		break;
 
 	default:
 		sprintf(buf, " ");
@@ -865,6 +881,9 @@ bool show_commands(CHAR_DATA *ch, char *argument)
 		show_olc_cmds(ch, sgedit_table);
 		break;
 
+	case ED_SONGEDIT:
+		show_olc_cmds(ch, songedit_table);
+		break;
 	}
 
 	return FALSE;
@@ -4358,6 +4377,117 @@ void sgedit(CHAR_DATA *ch, char *argument)
 			if ((*sgedit_table[cmd].olc_fun) (ch, argument))
 			{
 				save_skills();
+			}
+			return;
+		}
+	}
+
+	interpret(ch, arg);
+}
+
+
+const struct olc_cmd_type songedit_table[] =
+{
+	{	"?",			show_help			},
+	{	"beats",		songedit_beats		},
+	{	"commands",		show_commands		},
+	{	"flags",		songedit_flags		},
+	{	"install",		songedit_install	},
+	{	"level",		songedit_level		},
+	{	"list",			songedit_list		},
+	{	"mana",			songedit_mana		},
+	{	"presong",		songedit_presongfunc},
+	{	"show",			songedit_show		},
+	{	"song",			songedit_songfunc	},
+	{	"target",		songedit_target		},
+	{	NULL,			NULL				}
+};
+
+void do_songedit(CHAR_DATA *ch, char *argument)
+{
+	SONG_DATA *song;
+    char command[MSL];
+
+ 	if ((song = get_song_data(argument)))
+	{
+		olc_set_editor(ch, ED_SONGEDIT, song);
+		return;
+	}
+
+   argument = one_argument(argument, command);
+
+	if (!str_cmp(command, "install"))
+	{
+		songedit_install(ch, argument);
+		return;
+	}
+
+	send_to_char("Syntax:  songedit <name>\n\r", ch);
+	send_to_char("         songedit install <name>\n\r", ch);
+}
+
+
+void do_songlist(CHAR_DATA *ch, char *argument)
+{
+	songedit_list(ch, argument);
+}
+
+void do_songshow(CHAR_DATA *ch, char *argument)
+{
+	if (argument[0] == '\0')
+	{
+		send_to_char("Syntax:  songshow <song name>\n\r", ch);
+		return;
+	}
+
+	SONG_DATA *song = get_song_data(argument);
+	if (!IS_VALID(song))
+	{
+		send_to_char("There is no song with that name.\n\r", ch);
+		return;
+	}
+
+	olc_show_item(ch, song, songedit_show, "");
+}
+
+void songedit(CHAR_DATA *ch, char *argument)
+{
+	char command[MIL];
+	char arg[MIL];
+	int  cmd;
+
+	smash_tilde(argument);
+	strcpy(arg, argument);
+	argument = one_argument(argument, command);
+
+	if (get_trust(ch) < MAX_LEVEL)
+	{
+		send_to_char("SONGEdit:  Insufficient security to edit songs - action logged.\n\r", ch);
+		edit_done(ch);
+		return;
+	}
+
+	if (!str_cmp(command, "done"))
+	{
+		edit_done(ch);
+		return;
+	}
+
+	ch->pcdata->immortal->last_olc_command = current_time;
+
+	if (command[0] == '\0')
+	{
+		songedit_show(ch, argument);
+		return;
+	}
+
+	for (cmd = 0; songedit_table[cmd].name != NULL; cmd++)
+	{
+		if (!str_prefix(command, songedit_table[cmd].name))
+		{
+			if ((*songedit_table[cmd].olc_fun) (ch, argument))
+			{
+				save_songs();
 			}
 			return;
 		}

@@ -4792,7 +4792,8 @@ void do_set(CHAR_DATA *ch, char *argument)
 	send_to_char("  set obj   <name> <field> <value>\n\r",ch);
 	send_to_char("  set room  <room> <field> <value>\n\r",ch);
 	send_to_char("  set church <no.> <field> <value>\n\r",ch);
-        send_to_char("  set skill <name> <spell or skill> <value>\n\r",ch);
+    send_to_char("  set skill <name> <spell or skill> <value>\n\r",ch);
+    send_to_char("  set song <name> <song name> learned|unlearned\n\r",ch);
 	send_to_char("  set sky   <cloudless|cloudy|rainy|stormy>\n\r", ch);
 	send_to_char("  set time  <hour|day|month|year> <#>\n\r", ch);
 	send_to_char("  set token <char name> <token vnum> <v#|timer> <op> <value>\n\r", ch);
@@ -4808,6 +4809,12 @@ void do_set(CHAR_DATA *ch, char *argument)
     if (!str_prefix(arg,"skill") || !str_prefix(arg,"spell"))
     {
 	do_function(ch, &do_sset, argument);
+	return;
+    }
+
+    if (!str_prefix(arg,"song"))
+    {
+	do_function(ch, &do_songset, argument);
 	return;
     }
 
@@ -5268,6 +5275,113 @@ void do_sset(CHAR_DATA *ch, char *argument)
     send_to_char(buf, ch);
 }
 
+
+void do_songset(CHAR_DATA *ch, char *argument)
+{
+    char arg1[MAX_INPUT_LENGTH];
+    char arg2[MAX_INPUT_LENGTH];
+    char arg3[MAX_INPUT_LENGTH];
+    char buf[MSL];
+    CHAR_DATA *victim;
+    bool state;
+    SONG_DATA *song;
+    bool fAll;
+
+    argument = one_argument(argument, arg1);
+    argument = one_argument(argument, arg2);
+    argument = one_argument(argument, arg3);
+
+    if (arg1[0] == '\0' || arg2[0] == '\0' || arg3[0] == '\0')
+    {
+		send_to_char("Syntax:\n\r",ch);
+		send_to_char("  set song <name> <song name> <learned|unlearned>\n\r", ch);
+		send_to_char("  set song <name> all <learned|unlearned>\n\r",ch);
+		return;
+    }
+
+    if ((victim = get_char_world(ch, arg1)) == NULL)
+    {
+		send_to_char("They aren't here.\n\r", ch);
+		return;
+    }
+
+    if (IS_NPC(victim))
+    {
+		send_to_char("Not on NPC's.\n\r", ch);
+		return;
+    }
+
+    fAll = !str_cmp(arg2, "all");
+
+    song = NULL;
+    if (!fAll && (song = get_song_data(arg2)) == NULL)
+    {
+		send_to_char("No such song.\n\r", ch);
+		return;
+    }
+
+	if (!str_prefix(arg3, "learned"))
+		state = true;
+	else if (!str_prefix(arg3, "unlearned"))
+		state = false;
+	else
+	{
+		send_to_char("Please specify either {Wlearned{x or {Dunlearned{x.\n\r", ch);
+		return;
+	}
+
+    if (fAll)
+    {
+		ITERATOR it;
+		iterator_start(&it, songs_list);
+		while((song = (SONG_DATA *)iterator_nextdata(&it)))
+		{
+			SKILL_ENTRY *entry = skill_entry_findsong(victim->sorted_songs, song);
+			if (state)
+			{
+				if (!entry)
+				{
+					TOKEN_DATA *token = NULL;
+					if (song->token)
+						token = give_token(song->token, victim, NULL, NULL);
+
+					skill_entry_addsong(victim, song, token, SKILLSRC_NORMAL);
+				}
+			}
+			else if (entry)
+			{
+				skill_entry_removesong(victim, song, entry->token);
+			}
+		}
+		iterator_stop(&it);
+    }
+    else
+	{
+		SKILL_ENTRY *entry = skill_entry_findsong(victim->sorted_songs, song);
+		if (state)
+		{
+			if (!entry)
+			{
+				TOKEN_DATA *token = NULL;
+				if (song->token)
+					token = give_token(song->token, victim, NULL, NULL);
+
+				skill_entry_addsong(victim, song, token, SKILLSRC_NORMAL);
+			}
+		}
+		else
+		{
+			skill_entry_removesong(victim, song, entry->token);
+		}
+	}
+
+    if (!fAll)
+		sprintf(buf, "Set %s's \"{W%s{x\" song to %s{x\n\r", victim->name, song->name, (state ? "{Wlearned" : "{Dunlearned"));
+    else
+		sprintf(buf, "Set all of %s's songs to %s{x\n\r", victim->name, (state ? "{Wlearned" : "{Dunlearned"));
+
+    send_to_char(buf, ch);
+}
 
 void do_chset(CHAR_DATA *ch, char *argument)
 {

@@ -7039,13 +7039,6 @@ void token_from_char(TOKEN_DATA *token)
 	if(token->player->script_wait_token == token)
 		script_end_failure(token->player, TRUE);
 
-	// Need to find the correct entry
-	/*
-	if(token->type == TOKEN_SKILL) skill_entry_removeskill(token->player, 0, token);
-	else if(token->type == TOKEN_SPELL) skill_entry_removespell(token->player, 0, token);
-	else if(token->type == TOKEN_SONG) skill_entry_removesong(token->player, -1, token);
-	*/
-
 	sprintf(buf, "token_from_char: removed token %s(%ld) from char %s(%ld)",
 		token->name, token->pIndexData->vnum,
 		HANDLE(token->player), IS_NPC(token->player) ? token->player->pIndexData->vnum : 0);
@@ -7078,14 +7071,6 @@ void token_to_char_ex(TOKEN_DATA *token, CHAR_DATA *ch, char source, long flags)
 	ch->tokens = token;
 
 	list_addlink(ch->ltokens, token);
-
-	// Do sorted lists
-	// All abilities are done elsewhere
-	/*
-	if(token->type == TOKEN_SKILL) skill_entry_addskill(token->player, 0, token, source, flags);
-	else if(token->type == TOKEN_SPELL) skill_entry_addspell(token->player, 0, token, source, flags);
-	else if(token->type == TOKEN_SONG) skill_entry_addsong(token->player,-1,token, source);
-	*/
 
 	sprintf(buf, "token_to_char: gave token %s(%ld) to char %s(%ld)",
 		token->name, token->pIndexData->vnum,

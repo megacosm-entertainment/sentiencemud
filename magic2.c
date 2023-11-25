@@ -381,7 +381,6 @@ bool check_spell_deflection(CHAR_DATA *ch, CHAR_DATA *victim, SKILL_DATA *skill,
 	return FALSE;
 }
 
-
 // TODO: Make work with the trigger itself, not the script
 // TODO: Rework
 // Returns TRUE if the spell got through.

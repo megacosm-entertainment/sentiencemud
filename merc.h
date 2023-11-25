@@ -115,6 +115,10 @@
 
 #define DECLARE_OLC_FUN( fun )	OLC_FUN    fun
 
+#define DECLARE_SONG_FUN( fun ) SONG_FUN fun
+#define PRESONG_FUNC(s)    	bool s (SONG_DATA *song, int level, CHAR_DATA *ch, OBJ_DATA *instrument, void *vo, int target)
+#define SONG_FUNC(s)    	bool s (SONG_DATA *song, int level, CHAR_DATA *ch, OBJ_DATA *instrument, void *vo, int target)
+
 
 /* System calls */
 int unlink();
@@ -454,6 +458,7 @@ typedef struct olc_point_area_data OLC_POINT_AREA;
 typedef struct dice_data DICE_DATA;
 typedef struct skill_data SKILL_DATA;
 typedef struct skill_group_data SKILL_GROUP;
+typedef struct song_data SONG_DATA;
 
 /* VIZZWILDS */
 typedef struct    wilds_vlink      WILDS_VLINK;
@@ -555,6 +560,8 @@ typedef bool IMBUE_FUN      (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DA
 // TODO: BRANDISH_FUN
 typedef bool ZAP_FUN        (SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj, void *vo, int target);
 // TODO: EQUIP_FUN
+typedef bool SONG_FUN	(SONG_DATA *song, int level, CHAR_DATA *ch, OBJ_DATA *instrument, void *vo, int target);
+
 
 typedef bool ARTIFICE_FUN	(SKILL_DATA *skill, int level, CHAR_DATA *ch, OBJ_DATA *obj);
 typedef void OBJ_FUN	(OBJ_DATA *obj, char *argument);
@@ -608,7 +615,8 @@ typedef struct skill_entry_type {
 	bool isspell;		// Whether this is a spell;
     SKILL_DATA *skill;
 	//sh_int sn;			// Skill Number
-	sh_int song;		// Song Number
+    SONG_DATA *song;
+	//sh_int song;		// Song Number
 	TOKEN_DATA *token;  // Live token
     int rating;
     int mod_rating;
@@ -968,8 +976,8 @@ struct olc_point_area_data {
 
 
 
-#define SKILL_NAME(sn) (((sn) > 0 && (sn) < MAX_SKILL) ? skill_table[(sn)].name : "")
-#define SONG_NAME(sn) (((sn) >= 0 && (sn) < MAX_SONGS) ? music_table[(sn)].name : "")
+//#define SKILL_NAME(sn) (((sn) > 0 && (sn) < MAX_SKILL) ? skill_table[(sn)].name : "")
+//#define SONG_NAME(sn) (((sn) >= 0 && (sn) < MAX_SONGS) ? music_table[(sn)].name : "")
 /*
  * This is used for fight.c in defences. The game will only look at a max
  * level of MAX_MOB_LEVEL so that players still shield block etc mobs which
@@ -4136,7 +4144,7 @@ struct	char_data
     OBJ_DATA		*recite_scroll;
     OBJ_DATA 		*resurrect_target;
     char			*music_target;
-    int				song_num;
+    SONG_DATA       *song;
     SCRIPT_DATA		*song_script;		/* The scripted spell to be done */
     TOKEN_DATA		*song_token;		/* The token from which the script call is made */
     int				song_mana;
@@ -4403,6 +4411,7 @@ struct	char_data
     LLIST *		lquests;	// Eventually, we will have a quest log of sorts
     LLIST *		lclonerooms;
     LLIST *		laffected;
+    LLIST *     lstache;    // Script item store
 
     LLIST *		lgroup;
 
@@ -4527,7 +4536,7 @@ struct	pc_data
     int			true_sex;
     int			last_level;
     int			condition	[5];
-    bool		songs_learned[MAX_SONGS];
+//    bool		songs_learned[MAX_SONGS];
 //    int			learned		[MAX_SKILL];        // Moved to the SKILL_DATA
 //    int			mod_learned	[MAX_SKILL];
     LLIST *     group_known;
@@ -5210,6 +5219,8 @@ struct	obj_data
 	LLIST *lcontains;
 	LLIST *ltokens;
 	LLIST *lclonerooms;
+    LLIST *lstache;    // Script item store
+
 
 	/* 20140508 NIB - Used by corpses (at first) */
     char *owner_name;	/* Used to indicate the original mob's name for use decaying the corpse. */
@@ -6651,6 +6662,11 @@ struct church_command_type
 #define SKILL_SPELL_PULSE   (F)
 #define SKILL_CROSS_CLASS   (Z)     // Whether the skill can be used in classes not registered for the skill (NYI)
 
+#define SCHOOL_NONE         0
+#define SCHOOL_ARCANE       1
+#define SCHOOL_ELEMENTAL    2
+#define SCHOOL_DIVINE       3
+
 struct skill_data
 {
     SKILL_DATA *next;
@@ -6796,6 +6812,30 @@ struct material_type
     char *name;		/* Name of the material */
     int strength;	/* How strong it is, 1 is weakest, 10 is strongest. */
     int value;      	/* Value rating, 1-lowest, 10-highest(rarest) */
+};
+
+#define SONG_INSTRUMENT_ONLY        (A)     // Can only be played with an instrument (mutually exclusive with voice_only)
+#define SONG_VOICE_ONLY             (B)     // Can only be played without an instrument (mutually exclusive with instrument_only)
+
+struct song_data
+{
+    SONG_DATA *next;
+    bool valid;
+
+    sh_int uid;
+
+    char *name;
+    long flags;
+
+    SONG_FUN *presong_fun;
+    SONG_FUN *song_fun;
+    TOKEN_INDEX_DATA *token;
+    WNUM_LOAD token_load;
+
+    int level;
+    sh_int mana;
+    sh_int target;
+    sh_int beats;
 };
 
 struct music_type
@@ -7072,11 +7112,13 @@ enum trigger_index_enum {
     TRIG_TOKEN_PREIMBUE,
     TRIG_TOKEN_PREINK,
     TRIG_TOKEN_PRESCRIBE,
+    TRIG_TOKEN_PRESONG,
     TRIG_TOKEN_PULSE,
     TRIG_TOKEN_QUAFF,
     TRIG_TOKEN_RECITE,
 	TRIG_TOKEN_REMOVED,
     TRIG_TOKEN_SCRIBE,
+    TRIG_TOKEN_SONG,
     TRIG_TOKEN_TOUCH,
     TRIG_TOKEN_ZAP,
 	TRIG_TOUCH,
@@ -8395,7 +8437,7 @@ extern	const	struct	item_type	boat_table	[];
 extern	const	struct	item_type	npc_boat_table	[];
 extern  const  	struct	item_type	npc_sub_type_boat_table [];
 extern  const struct  item_type ship_state_table  [];
-extern	const	struct	music_type	music_table	[];
+//extern	const	struct	music_type	music_table	[];
 extern  const   struct  material_type 	material_table  [];
 extern  const   struct  item_type	item_table	[];
 extern  const   struct  item_type       token_table     [];
@@ -8575,6 +8617,7 @@ char *	crypt		args( ( const char *key, const char *salt ) );
 #define TRIGGERS_FILE       SYSTEM_DIR "triggers.dat"
 #define LIQUIDS_FILE        SYSTEM_DIR "liquids.dat"
 #define SKILLS_FILE         SYSTEM_DIR "skills.dat"
+#define SONGS_FILE         SYSTEM_DIR "songs.dat"
 /*Notes of all kinds */
 #define NOTE_FILE       NOTE_DIR "notes.not"		/* For 'notes'*/
 /*#define PENALTY_FILE	NOTE_DIR "penal.not"		Unused */
@@ -9442,9 +9485,6 @@ void mail_from_list( MAIL_DATA *mail );
 int count_items_mail(MAIL_DATA *mail);
 int count_weight_mail(MAIL_DATA *mail);
 
-// music.c
-int song_lookup(const char *name);
-
 
 /* scripts.c */
 int	program_flow	args( ( long vnum, char *source, CHAR_DATA *mob,
@@ -9969,18 +10009,18 @@ float diminishing_inverse(float val, float scale);
 bool is_skill_spell(SKILL_DATA *skill);
 
 SKILL_ENTRY *skill_entry_findname( SKILL_ENTRY *list, char *str );
-SKILL_ENTRY *skill_entry_findsong( SKILL_ENTRY *list, int song );
+SKILL_ENTRY *skill_entry_findsong( SKILL_ENTRY *list, SONG_DATA *song );
 SKILL_ENTRY *skill_entry_findskill( SKILL_ENTRY *list, SKILL_DATA *skill );
 SKILL_ENTRY *skill_entry_findtoken( SKILL_ENTRY *list, TOKEN_DATA *token );
 SKILL_ENTRY *skill_entry_findtokenindex( SKILL_ENTRY *list, TOKEN_INDEX_DATA *token_index );
 SKILL_ENTRY *skill_entry_addskill (CHAR_DATA *ch, SKILL_DATA *skill, TOKEN_DATA *token, char source, long flags);
 SKILL_ENTRY *skill_entry_addspell (CHAR_DATA *ch, SKILL_DATA *skill, TOKEN_DATA *token, char source, long flags);
-SKILL_ENTRY *skill_entry_addsong (CHAR_DATA *ch, int song, TOKEN_DATA *token, char source);
-void skill_entry_remove (SKILL_ENTRY **list, SKILL_DATA *skill, int song, TOKEN_DATA *token, bool isspell);
+SKILL_ENTRY *skill_entry_addsong (CHAR_DATA *ch, SONG_DATA *song, TOKEN_DATA *token, char source);
+void skill_entry_remove (SKILL_ENTRY **list, SKILL_DATA *skill, SONG_DATA *song, TOKEN_DATA *token, bool isspell);
 void skill_entry_removeentry (SKILL_ENTRY **list, SKILL_ENTRY *entry);
 void skill_entry_removeskill (CHAR_DATA *ch, SKILL_DATA *skill);
 void skill_entry_removespell (CHAR_DATA *ch, SKILL_DATA *skill);
-void skill_entry_removesong (CHAR_DATA *ch, int song, TOKEN_DATA *token);
+void skill_entry_removesong (CHAR_DATA *ch, SONG_DATA *song, TOKEN_DATA *token);
 int token_skill_rating( TOKEN_DATA *token);
 int token_skill_mana( TOKEN_DATA *token);
 int skill_entry_rating (CHAR_DATA *ch, SKILL_ENTRY *entry);
@@ -10045,7 +10085,7 @@ void get_money_from_obj(CHAR_DATA *ch, OBJ_DATA *container);
 bool obj_has_money(CHAR_DATA *ch, OBJ_DATA *container);
 void loot_corpse(CHAR_DATA *ch, OBJ_DATA *corpse);
 
-int music_lookup( char *name);
+SONG_DATA *music_lookup( char *name);
 bool is_char_busy(CHAR_DATA *ch);
 bool obj_has_spell(OBJ_DATA *obj, char *name);
 void restore_char(CHAR_DATA *ch, CHAR_DATA *whom, int percent);
@@ -10653,6 +10693,11 @@ extern LLIST *skill_groups_list;
 extern SKILL_GROUP *global_skills;
 SKILL_DATA *get_skill_data(char *name);
 SKILL_DATA *get_skill_data_uid(sh_int uid);
+
+extern LLIST *songs_list;
+extern sh_int top_song_uid;
+SONG_DATA *get_song_data(char *name);
+SONG_DATA *get_song_data_uid(sh_int uid);
 
 extern LLIST *gc_mobiles;
 extern LLIST *gc_objects;

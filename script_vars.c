@@ -562,12 +562,12 @@ bool variables_setsave_skillinfo (ppVARIABLE list,char *name,CHAR_DATA *owner, S
 	return TRUE;
 }
 
-bool variables_set_song (ppVARIABLE list,char *name,int sn)
+bool variables_set_song (ppVARIABLE list,char *name,SONG_DATA *song)
 {
-	return variables_setsave_song( list, name, sn, TRISTATE );
+	return variables_setsave_song( list, name, song, TRISTATE );
 }
 
-bool variables_setsave_song (ppVARIABLE list,char *name,int sn, bool save)
+bool variables_setsave_song (ppVARIABLE list,char *name,SONG_DATA *song, bool save)
 {
 	pVARIABLE var = variable_create(list,name,FALSE,TRUE);
 
@@ -576,7 +576,7 @@ bool variables_setsave_song (ppVARIABLE list,char *name,int sn, bool save)
 	var->type = VAR_SONG;
 	if( save != TRISTATE )
 		var->save = save;
-	var->_.song =  (sn >= 0 && sn < MAX_SONGS) ? sn : -1;
+	var->_.song =  song;
 
 	return TRUE;
 }
@@ -1468,14 +1468,14 @@ bool variables_setindex_skill (ppVARIABLE list,char *name,SKILL_DATA *skill, boo
 	return TRUE;
 }
 
-bool variables_setindex_song (ppVARIABLE list,char *name,int sn, bool saved)
+bool variables_setindex_song (ppVARIABLE list,char *name,SONG_DATA *song, bool saved)
 {
 	pVARIABLE var = variable_create(list,name,TRUE,TRUE);
 
 	if(!var) return FALSE;
 
 	var->type = VAR_SONG;
-	var->_.song = sn;
+	var->_.song = song;
 	var->save = saved;
 
 	return TRUE;
@@ -3039,7 +3039,8 @@ void variable_fwrite(pVARIABLE var, FILE *fp)
 		break;
 
 	case VAR_SONG:
-		fprintf(fp,"VarSong %s~ '%s'\n", var->name, SONG_NAME(var->_.song));
+		if (IS_VALID(var->_.song))
+			fprintf(fp,"VarSong %s~ '%s'\n", var->name, var->_.song->name);
 		break;
 
 	case VAR_SKILLINFO:
@@ -3598,7 +3599,7 @@ bool variable_fread(ppVARIABLE vars, int type, FILE *fp)
 		return variables_set_skillinfo_id (vars, name, a, b, c, d, get_skill_data(fread_word(fp)) , TRUE);
 
 	case VAR_SONG:
-		return variables_setsave_song(vars, name, song_lookup(fread_word(fp)), TRUE);
+		return variables_setsave_song(vars, name, get_song_data(fread_word(fp)), TRUE);
 
 	case VAR_PLLIST_STR:
 		if( variables_set_list(vars, name, VAR_PLLIST_STR, TRUE) )
@@ -3770,14 +3771,14 @@ bool olc_varset(ppVARIABLE index_vars, CHAR_DATA *ch, char *argument, bool silen
 	}
 	else if(!str_cmp(type,"song"))
 	{
-		int sn = song_lookup(argument);
-		if (sn <= 0)
+		SONG_DATA *song = get_song_data(argument);
+		if (!IS_VALID(song))
 		{
 			send_to_char("No such song exists.\n\r", ch);
 			return FALSE;
 		}
 		
-		variables_setindex_song(index_vars,name,sn,saved);
+		variables_setindex_song(index_vars,name,song,saved);
 	}
 	else
 	{
@@ -3848,8 +3849,8 @@ void olc_show_index_vars(BUFFER *buffer, pVARIABLE index_vars)
 						sprintf(buf, "{x%-20.20s {GSKILL      {Y%c   {W-invalid-{x\n\r", var->name,var->save?'Y':'N');
 					break;
 				case VAR_SONG:
-					if(var->_.song >= 0)
-						sprintf(buf, "{x%-20.20s {GSONG       {Y%c   {W%s{x\n\r", var->name,var->save?'Y':'N', SONG_NAME(var->_.song));
+					if(IS_VALID(var->_.song))
+						sprintf(buf, "{x%-20.20s {GSONG       {Y%c   {W%s{x\n\r", var->name,var->save?'Y':'N', var->_.song->name);
 					else
 						sprintf(buf, "{x%-20.20s {GSONG       {Y%c   {W-invalid-{x\n\r", var->name,var->save?'Y':'N');
 					break;
@@ -3874,8 +3875,8 @@ void olc_save_index_vars(FILE *fp, pVARIABLE index_vars, AREA_DATA *pRefArea)
 				fprintf(fp, "VarRoom %s~ %d %s\n", var->name, var->save, widevnum_string(var->_.r->area, var->_.r->vnum, pRefArea));
 			else if(var->type == VAR_SKILL && IS_VALID(var->_.skill) )
 				fprintf(fp, "VarSkill %s~ %d '%s'\n", var->name, var->save, var->_.skill->name);
-			else if(var->type == VAR_SONG && var->_.song >= 0 )
-				fprintf(fp, "VarSong %s~ %d '%s'\n", var->name, var->save, SONG_NAME(var->_.song));
+			else if(var->type == VAR_SONG && IS_VALID(var->_.song) )
+				fprintf(fp, "VarSong %s~ %d '%s'\n", var->name, var->save, var->_.song->name);
 		}
 	}
 }
@@ -3939,15 +3940,15 @@ bool olc_load_index_vars(FILE *fp, char *word, ppVARIABLE index_vars, AREA_DATA 
 	if (!str_cmp(word, "VarSong"))
 	{
 		char *name;
-		int sn;
+		SONG_DATA *song;
 		bool saved;
 
 		name = fread_string(fp);
 		saved = fread_number(fp);
-		sn = song_lookup(fread_word(fp));
+		song = get_song_data(fread_word(fp));
 
-		if (sn >= 0)
-			variables_setindex_song(index_vars,name,sn,saved);
+		if (IS_VALID(song))
+			variables_setindex_song(index_vars,name,song,saved);
 		return TRUE;
 	}
 

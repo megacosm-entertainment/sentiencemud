@@ -2447,8 +2447,8 @@ const struct  material_type material_table [] =
 };
 
 
-
-const   struct  music_type 	music_table 	[MAX_SONGS] 	=
+#if 1
+const   struct  music_type 	_music_table 	[MAX_SONGS] 	=
 {
 /*  name,	level gained, spell1,spell2,spell3, play length, mana cost, target*/
     { "Purple Mist", 			1, "armour", "shield", NULL, 12, 75, TAR_CHAR_DEFENSIVE },
@@ -2482,7 +2482,7 @@ const   struct  music_type 	music_table 	[MAX_SONGS] 	=
     { NULL, 					0, NULL, NULL, NULL, 0, 0, TAR_IGNORE },
     { NULL, 					0, NULL, NULL, NULL, 0, 0, TAR_IGNORE }
 };
-
+#endif
 
 const	struct	liq_type	liq_table	[]	=
 {

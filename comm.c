@@ -299,6 +299,9 @@ void save_liquids();
 bool load_skills();
 void save_skills();
 
+bool load_songs();
+void save_songs();
+
 /*
  * Global variables.
  */
@@ -696,6 +699,9 @@ int main(int argc, char **argv)
 	if (!load_skills()) exit(1);
 	log_string("skills loaded.");
 
+	if (!load_songs()) exit(1);
+	log_string("songs loaded.");
+
     /*
      * Run the game.
      */
@@ -749,6 +755,9 @@ int main(int argc, char **argv)
 	list_destroy(skills_list);
 	list_destroy(skill_groups_list);
 	free_skill_group_data(global_skills);
+
+	save_songs();
+	list_destroy(songs_list);
 
 	terminate_scripting();
 
